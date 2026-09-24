@@ -23,13 +23,15 @@ Go 自带构建、测试、格式化和静态检查工具。当前纯 Go 方案�
 
 ## 后续开发命令
 
-当前仓库尚无服务源码或根目录 `go.mod`。创建模块和源码后可使用：
+仓库已有 `go.mod`，最低 Go 1.25。服务仅使用标准库；Windows 本机目前为 Go 1.27.1。开发命令：
 
 ```powershell
 go fmt ./...
 go test ./...
 go vet ./...
-go build ./...
+go build -o bin/stepstash.exe ./cmd/stepstash
 ```
 
-安装环境不会启动缓存服务或修改 hosts。
+Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的 C 工具链，当前本机没有配置。
+
+入口位于 `cmd/stepstash`，协议、缓存和下载管理位于 `internal/cacheproxy`。运行方法见 [MVP 手册](mvp.md)。默认缓存、构建产物及测试覆盖率文件已忽略；测试使用 Go 的独立临时目录，不写入原版缓存或证据目录。安装环境不会启动缓存服务或修改 hosts。

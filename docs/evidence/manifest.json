@@ -4,7 +4,7 @@
     "version": "d309146c",
     "sha256": "a3c7c554e5c2b0b43ec8e9480bea200504c19a8efa897da8f6f6315ccf7ae429"
   },
-  "sourceRoot": "<reference-workspace>/investigation",
+  "sourceRoot": "<investigation-root>",
   "files": [
     {
       "file": "hot-http-results.json",

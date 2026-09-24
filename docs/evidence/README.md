@@ -1,11 +1,14 @@
 # 证据目录
 
-这里保存精简、脱敏后的测试证据，使新仓库不依赖旧对话即可理解已验证的结论。它们不是完整网络抓包，也不是 StepStash 自身的测试结果。
+这里保存精简、脱敏后的测试证据，使新仓库不依赖旧对话即可理解已验证的结论。它们不是完整网络抓包。除明确标注的 MVP 验收文件外，其余为原版调查结果，不能替代 StepStash 自身的测试。
 
 ## 文件索引
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [mvp-acceptance-20260925.json](mvp-acceptance-20260925.json) | StepStash 实网验收：旧库读取、CF/HKG 冷下载、重启、原版回读；不是原版调查阶段数据 |
+| [mvp-stream-acceptance-20260925.json](mvp-stream-acceptance-20260925.json) | 冷缓存流式修复后的同矩阵完整实网回归，含实际二进制哈希和首包时间 |
+| [mvp-live-20260925.json](mvp-live-20260925.json) | VRChat 联合验收：精简播放/同步事件、服务请求、用户反馈、落盘校验与 hosts 恢复哈希 |
 | [hot-http-results.json](hot-http-results.json) | 原版热缓存 HTTP 行为，包括异常 Range |
 | [payload-verification.json](payload-verification.json) | 实际响应内容与本地切片的 SHA256 比对 |
 | [cold-http-results.json](cold-http-results.json) | 网络修复后的自动完整冷缓存结果 |

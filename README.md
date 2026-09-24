@@ -2,7 +2,7 @@
 
 面向 VRChat WannaDance 的本地视频缓存服务项目。
 
-已有可运行的 Go MVP：HTTP 视频缓存、完整性校验、Range/HEAD、同曲并发合并及现有歌曲库直接复用。使用方式和限制见 [MVP 手册](docs/mvp.md)。StepStash 自身尚未完成 VRChat 实机验收。
+已有可运行的 Go MVP：HTTP 视频缓存、冷缓存边下边播、完整性校验、Range/HEAD、同曲并发合并及现有歌曲库直接复用。使用方式见 [MVP 手册](docs/mvp.md)，实网、原版回读及 VRChat 联合测试的结果和边界见[验收记录](docs/acceptance.md)。
 
 截至 2026-09-25，已跑通原版的实机 CF 冷缓存完整下载、落盘及文件校验，并确认 HKG、Auto 可以命中同一份缓存。SHA 使用独立的 HTTPS IP 入口，目前超时，尚不能承诺兼容。
 
@@ -11,6 +11,7 @@
 | 文档 | 内容 |
 | --- | --- |
 | [MVP 使用手册](docs/mvp.md) | 构建、启动、接入、配置、缓存规则与验证边界 |
+| [MVP 验收记录](docs/acceptance.md) | 真实歌曲库、实网下载、原版回读、联合游戏测试和修复结果 |
 | [范围与实现方向](docs/scope.md) | 项目目标、第一版范围、提议中的设计与尚未决定的事项 |
 | [存储格式与现有库兼容](docs/storage-compatibility.md) | 直接复用 wannadance-song，保留现有文件并沿用目录格式 |
 | [已知协议与行为](docs/observed-behavior.md) | 播放链路、HTTP 接口、Range、元数据和原版异常 |

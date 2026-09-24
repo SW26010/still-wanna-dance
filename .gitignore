@@ -17,3 +17,9 @@ hosts.before-test
 processes.json
 Thumbs.db
 .DS_Store
+
+# StepStash runtime/build outputs
+/stepstash-cache/
+/bin/
+/coverage.out
+*.test

@@ -1,0 +1,271 @@
+package cacheproxy
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+)
+
+var videoPath = regexp.MustCompile(`^/files/[0-9]+/([1-9][0-9]*)-([a-zA-Z0-9]+)\.mp4$`)
+
+type video struct {
+	id, checksum, key, path, query, host string
+	size                                 int64
+}
+type flight struct {
+	done         chan struct{}
+	path, source string
+	err          error
+}
+
+type Server struct {
+	cfg       Config
+	client    *http.Client
+	ctx       context.Context
+	cancel    context.CancelFunc
+	mu        sync.Mutex
+	flights   map[string]*flight
+	slots     chan struct{}
+	wg        sync.WaitGroup
+	closed    bool
+	unlock    func() error
+	once      sync.Once
+	libraryMu sync.Mutex
+	sequence  atomic.Uint64
+}
+
+func New(cfg Config) (*Server, error) {
+	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
+	cacheDir, err := filepath.Abs(cfg.CacheDir)
+	if err != nil {
+		return nil, err
+	}
+	songsDir, err := filepath.Abs(cfg.SongsDir)
+	if err != nil {
+		return nil, err
+	}
+	if strings.EqualFold(cacheDir, songsDir) {
+		return nil, errors.New("cache-dir and songs-dir must be separate directories")
+	}
+	cfg.CacheDir, cfg.SongsDir = cacheDir, songsDir
+	if cfg.Logger == nil {
+		cfg.Logger = slog.Default()
+	}
+	origins := make(map[string]string, len(cfg.Origins))
+	for host, addr := range cfg.Origins {
+		origins[host] = addr
+	}
+	cfg.Origins = origins
+	if err := os.MkdirAll(cfg.CacheDir, 0700); err != nil {
+		return nil, err
+	}
+	unlock, err := lockDirectory(filepath.Join(cfg.CacheDir, ".lock"))
+	if err != nil {
+		return nil, fmt.Errorf("lock cache directory (another process may own it): %w", err)
+	}
+	// The OS lock is released after a crash. Only our own partial files are removed.
+	entries, err := os.ReadDir(cfg.CacheDir)
+	if err == nil {
+		for _, entry := range entries {
+			if !strings.HasPrefix(entry.Name(), "download-") || !strings.HasSuffix(entry.Name(), ".part") || entry.IsDir() {
+				continue
+			}
+			if err = os.Remove(filepath.Join(cfg.CacheDir, entry.Name())); err != nil {
+				break
+			}
+		}
+	}
+	if err != nil {
+		unlock()
+		return nil, fmt.Errorf("clean partial downloads: %w", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	return &Server{cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
+		flights: make(map[string]*flight), slots: make(chan struct{}, cfg.MaxDownloads),
+		client: &http.Client{Transport: newTransport(), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
+	}, nil
+}
+
+// Close cancels downloads, waits for temporary-file cleanup, then releases ownership.
+func (s *Server) Close() error {
+	var err error
+	s.once.Do(func() {
+		s.mu.Lock()
+		s.closed = true
+		s.cancel()
+		s.mu.Unlock()
+		s.wg.Wait()
+		s.client.CloseIdleConnections()
+		err = s.unlock()
+	})
+	return err
+}
+
+func (s *Server) parse(r *http.Request) (video, error) {
+	var v video
+	host := strings.ToLower(r.Host)
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	if host != "play.udon.dance" && host != "nya.xin.moe" {
+		return v, errors.New("unsupported host")
+	}
+	m := videoPath.FindStringSubmatch(r.URL.Path)
+	if m == nil || r.URL.RawPath != "" {
+		return v, errors.New("invalid video path")
+	}
+	q, err := urlQuery(r)
+	if err != nil {
+		return v, err
+	}
+	checksum := strings.ToLower(q[0])
+	digest, err := hex.DecodeString(checksum)
+	if err != nil || len(digest) != 16 {
+		return v, errors.New("e must be a 32-character MD5")
+	}
+	size, err := strconv.ParseInt(q[1], 10, 64)
+	if err != nil || size <= 0 || size > s.cfg.MaxFileBytes {
+		return v, errors.New("s exceeds allowed size or is invalid")
+	}
+	key := sha256.Sum256([]byte(m[1] + "/" + m[2] + "/" + checksum + "/" + strconv.FormatInt(size, 10)))
+	return video{id: m[1], checksum: checksum, size: size, key: hex.EncodeToString(key[:]), path: r.URL.Path, query: r.URL.RawQuery, host: host}, nil
+}
+
+func urlQuery(r *http.Request) ([2]string, error) {
+	var values [2]string
+	q, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		return values, errors.New("invalid query")
+	}
+	for i, name := range []string{"e", "s"} {
+		if len(q[name]) != 1 {
+			return values, errors.New("exactly one e and s required")
+		}
+		values[i] = q[name][0]
+	}
+	return values, nil
+}
+
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	id := s.sequence.Add(1)
+	start := time.Now()
+	log := s.cfg.Logger.With("request_id", id, "method", r.Method, "path", r.URL.Path)
+	response := &responseWriter{ResponseWriter: w}
+	w = response
+	defer func() {
+		log.Info("request_finished", "status", response.status, "bytes", response.bytes, "elapsed", time.Since(start))
+	}()
+	w.Header().Set("X-Request-ID", strconv.FormatUint(id, 10))
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		http.Error(w, "method not allowed", 405)
+		return
+	}
+	v, err := s.parse(r)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	// Range only applies to GET. ServeContent also handles HEAD, so strip it here.
+	if r.Method == http.MethodHead {
+		r = r.Clone(r.Context())
+		r.Header.Del("Range")
+		r.Header.Del("If-Range")
+	}
+	// Avoid unbounded multipart response amplification. Single ranges use net/http semantics.
+	if strings.Contains(r.Header.Get("Range"), ",") {
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes */%d", v.size))
+		http.Error(w, "multiple ranges are not supported", 416)
+		return
+	}
+	f, err := s.obtain(r.Context(), v)
+	if err != nil {
+		if r.Context().Err() != nil {
+			log.Info("client_disconnected", "elapsed", time.Since(start))
+			return
+		}
+		log.Error("cache_failed", "error", err, "elapsed", time.Since(start))
+		status := http.StatusBadGateway
+		if errors.Is(err, context.DeadlineExceeded) {
+			status = http.StatusGatewayTimeout
+		}
+		if errors.Is(err, errBusy) || errors.Is(err, context.Canceled) {
+			status = http.StatusServiceUnavailable
+		}
+		http.Error(w, http.StatusText(status), status)
+		return
+	}
+	file, err := os.Open(f.path)
+	if err != nil {
+		log.Error("open_failed", "error", err)
+		http.Error(w, "cache unavailable", 500)
+		return
+	}
+	defer file.Close()
+	// Opened handles pin the version even if another request replaces the library
+	// entry. Validate this handle to close the prepare/open publication race.
+	if err := checkOpenFile(r.Context(), file, v); err != nil {
+		log.Warn("file_changed", "error", err)
+		http.Error(w, "file changed; retry request", http.StatusServiceUnavailable)
+		return
+	}
+	if _, err := file.Seek(0, 0); err != nil {
+		http.Error(w, "cache unavailable", 500)
+		return
+	}
+	info, err := file.Stat()
+	if err != nil {
+		http.Error(w, "cache unavailable", 500)
+		return
+	}
+	w.Header().Set("Content-Type", "video/mp4")
+	w.Header().Set("ETag", `"`+v.checksum+`"`)
+	w.Header().Set("X-StepStash-Cache", f.source)
+	http.ServeContent(w, r, v.path, info.ModTime(), file)
+	if r.Context().Err() != nil {
+		log.Info("client_disconnected", "cache", f.source, "elapsed", time.Since(start))
+		return
+	}
+	log.Info("served", "cache", f.source, "range", r.Header.Get("Range"), "elapsed", time.Since(start))
+}
+
+type responseWriter struct {
+	http.ResponseWriter
+	status int
+	bytes  int64
+}
+
+func (w *responseWriter) WriteHeader(status int) {
+	if w.status != 0 {
+		return
+	}
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *responseWriter) Write(p []byte) (int, error) {
+	if w.status == 0 {
+		w.WriteHeader(http.StatusOK)
+	}
+	n, err := w.ResponseWriter.Write(p)
+	w.bytes += int64(n)
+	return n, err
+}
+
+func (w *responseWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }

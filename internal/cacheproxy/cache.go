@@ -15,11 +15,11 @@ import (
 
 var errBusy = errors.New("download capacity reached")
 
-func (s *Server) obtain(ctx context.Context, v video) (*flight, error) {
+func (s *Server) obtain(ctx context.Context, v video) (*flight, *spoolReader, error) {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		return nil, context.Canceled
+		return nil, nil, context.Canceled
 	}
 	f := s.flights[v.key]
 	if f == nil {
@@ -28,29 +28,48 @@ func (s *Server) obtain(ctx context.Context, v video) (*flight, error) {
 		case s.slots <- struct{}{}:
 		default:
 			s.mu.Unlock()
-			return nil, errBusy
+			return nil, nil, errBusy
 		}
-		f = &flight{done: make(chan struct{})}
+		f = &flight{done: make(chan struct{}), streaming: make(chan struct{})}
 		s.flights[v.key] = f
 		s.wg.Add(1)
 		go func() {
 			defer s.wg.Done()
 			workerCtx, cancel := context.WithTimeout(s.ctx, s.cfg.DownloadTimeout)
 			defer cancel()
-			f.path, f.source, f.err = s.prepare(workerCtx, v)
+			f.path, f.source, f.err = s.prepare(workerCtx, v, f)
+			if f.err != nil {
+				s.cfg.Logger.Error("cache_task_failed", "key", v.key, "host", v.host, "error", f.err)
+			}
+			if f.spool != nil {
+				f.spool.finish(f.err)
+			}
 			s.mu.Lock()
 			delete(s.flights, v.key)
 			<-s.slots
 			close(f.done)
 			s.mu.Unlock()
+			if f.spool != nil {
+				f.spool.release()
+			}
 		}()
 	}
 	s.mu.Unlock()
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, nil, ctx.Err()
 	case <-f.done:
-		return f, f.err
+		return f, nil, f.err
+	case <-f.streaming:
+		if reader := f.spool.reader(ctx, v.size); reader != nil {
+			return f, reader, nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil, nil, ctx.Err()
+		case <-f.done:
+			return f, nil, f.err
+		}
 	}
 }
 
@@ -93,7 +112,7 @@ func checkOpenFile(ctx context.Context, f *os.File, v video) error {
 	return nil
 }
 
-func (s *Server) prepare(ctx context.Context, v video) (string, string, error) {
+func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, string, error) {
 	libraryPath := filepath.Join(s.cfg.SongsDir, v.id, "video.mp4")
 	if err := checkFile(ctx, libraryPath, v); err == nil {
 		s.inspectMetadata(v)
@@ -138,7 +157,7 @@ func (s *Server) prepare(ctx context.Context, v video) (string, string, error) {
 	if resp.ContentLength >= 0 && resp.ContentLength != v.size {
 		return "", "", errors.New("upstream content length mismatch")
 	}
-	if err := s.publish(ctx, resp.Body, path, v); err != nil {
+	if err := s.publish(ctx, resp.Body, path, v, flight); err != nil {
 		return "", "", err
 	}
 	if err := s.publishLibrary(ctx, path, v); err != nil {
@@ -148,15 +167,16 @@ func (s *Server) prepare(ctx context.Context, v video) (string, string, error) {
 	return path, "MISS", nil
 }
 
-func (s *Server) publish(ctx context.Context, src io.Reader, path string, v video) error {
+func (s *Server) publish(ctx context.Context, src io.Reader, path string, v video, flight *flight) error {
 	f, err := os.CreateTemp(s.cfg.CacheDir, "download-*.part")
 	if err != nil {
 		return err
 	}
-	defer os.Remove(f.Name())
-	defer f.Close()
+	sp := &spool{file: f, changed: make(chan struct{}), refs: 1}
+	flight.spool = sp
+	close(flight.streaming)
 	h := md5.New()
-	n, err := io.Copy(io.MultiWriter(f, h), io.LimitReader(contextReader{ctx, src}, v.size+1))
+	n, err := io.Copy(io.MultiWriter(sp, h), io.LimitReader(contextReader{ctx, src}, v.size+1))
 	if err != nil {
 		return fmt.Errorf("download read/write: %w", err)
 	}
@@ -166,11 +186,22 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := f.Sync(); err != nil {
+	// Streaming readers retain the spool handle. Copy verified bytes to a closed
+	// publication file so Windows can rename it without invalidating active reads.
+	final, err := os.CreateTemp(s.cfg.CacheDir, "download-publish-*.part")
+	if err != nil {
 		return err
 	}
-	if err := f.Close(); err != nil {
+	defer os.Remove(final.Name())
+	defer final.Close()
+	if _, err := io.Copy(final, contextReader{ctx, io.NewSectionReader(f, 0, v.size)}); err != nil {
 		return err
 	}
-	return os.Rename(f.Name(), path)
+	if err := final.Sync(); err != nil {
+		return err
+	}
+	if err := final.Close(); err != nil {
+		return err
+	}
+	return os.Rename(final.Name(), path)
 }

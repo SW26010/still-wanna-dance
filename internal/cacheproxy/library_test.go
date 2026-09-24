@@ -133,7 +133,7 @@ func TestActiveReaderNeverSeesMixedVersions(t *testing.T) {
 	}
 	defer f.Close()
 	w := request(s, "GET", videoURL(payload), nil)
-	if runtime.GOOS == "windows" && w.Code == 502 {
+	if runtime.GOOS == "windows" && (w.Code == 502 || w.aborted) {
 		// Windows may block replacement while a reader holds the target open.
 		// The validated download stays in application state for the next retry.
 	} else {
@@ -159,7 +159,7 @@ func TestInvalidMetadataBlocksReplacementWithoutClobbering(t *testing.T) {
 	writeTestFile(t, filepath.Join(dir, "video.mp4"), "old")
 	writeTestFile(t, filepath.Join(dir, "metadata.json"), "broken")
 	w := request(s, "GET", videoURL(payload), nil)
-	if w.Code != 502 {
+	if w.Code != 502 && !w.aborted {
 		t.Fatal(w.Code)
 	}
 	video, _ := os.ReadFile(filepath.Join(dir, "video.mp4"))

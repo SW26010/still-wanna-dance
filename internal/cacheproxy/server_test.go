@@ -50,19 +50,32 @@ func setup(t *testing.T, handler http.HandlerFunc) (*Server, Config) {
 	return s, cfg
 }
 
-func request(s *Server, method, target string, headers map[string]string) *httptest.ResponseRecorder {
+type responseRecorder struct {
+	*httptest.ResponseRecorder
+	aborted bool
+}
+
+func request(s *Server, method, target string, headers map[string]string) (w *responseRecorder) {
+	w = &responseRecorder{ResponseRecorder: httptest.NewRecorder()}
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			if recovered != http.ErrAbortHandler {
+				panic(recovered)
+			}
+			w.aborted = true // Emulate net/http's connection-abort boundary, preserving actual status/body.
+		}
+	}()
 	r := httptest.NewRequest(method, target, nil)
 	for k, v := range headers {
 		r.Header.Set(k, v)
 	}
-	w := httptest.NewRecorder()
 	s.ServeHTTP(w, r)
 	return w
 }
 
-func assertResponse(t *testing.T, w *httptest.ResponseRecorder, status int, body string) {
+func assertResponse(t *testing.T, w *responseRecorder, status int, body string) {
 	t.Helper()
-	if w.Code != status || w.Body.String() != body {
+	if w.aborted || w.Code != status || w.Body.String() != body {
 		t.Fatalf("got %d %q, want %d %q", w.Code, w.Body.String(), status, body)
 	}
 }
@@ -89,7 +102,7 @@ func TestColdHotCrossHostAndHTTP(t *testing.T) {
 	if w.Header().Get("X-StepStash-Cache") != "MISS" {
 		t.Fatal(w.Header())
 	}
-	lastModified := w.Header().Get("Last-Modified")
+	lastModified := request(s, "HEAD", videoURL(payload), nil).Header().Get("Last-Modified")
 	etag := w.Header().Get("ETag")
 	for _, tc := range []struct {
 		name, method, rangeValue string
@@ -198,13 +211,14 @@ func TestBadUpstreamNeverPublishesAndRetries(t *testing.T) {
 				}
 			})
 			w := request(s, "GET", videoURL(payload), nil)
-			if w.Code != 502 {
+			if w.Code != 502 && !(w.aborted && w.Body.Len() < len(payload)) {
 				t.Fatalf("got %d", w.Code)
 			}
 			files, _ := filepath.Glob(filepath.Join(cfg.CacheDir, "*.mp4"))
 			if len(files) != 0 {
 				t.Fatal(files)
 			}
+			s.wg.Wait()
 			assertNoPartial(t, cfg.CacheDir)
 			assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
 			if count.Load() != 2 {
@@ -240,7 +254,7 @@ func TestSharedDownloadSurvivesClientCancellation(t *testing.T) {
 	}
 	const n = 12
 	var wg sync.WaitGroup
-	responses := make(chan *httptest.ResponseRecorder, n)
+	responses := make(chan *responseRecorder, n)
 	for i := 0; i < n; i++ {
 		wg.Add(1)
 		go func() {
@@ -257,6 +271,7 @@ func TestSharedDownloadSurvivesClientCancellation(t *testing.T) {
 	if count.Load() != 1 {
 		t.Fatal(count.Load())
 	}
+	s.wg.Wait()
 	assertNoPartial(t, cfg.CacheDir)
 }
 
@@ -357,7 +372,7 @@ func TestOwnershipCapacityTimeoutAndShutdown(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	done := make(chan *httptest.ResponseRecorder, 1)
+	done := make(chan *responseRecorder, 1)
 	go func() { done <- request(s, "GET", videoURL(payload), nil) }()
 	<-started
 	w := request(s, "GET", videoURL("different"), nil)
@@ -365,9 +380,10 @@ func TestOwnershipCapacityTimeoutAndShutdown(t *testing.T) {
 		t.Fatal(w.Code)
 	}
 	w = <-done
-	if w.Code != 504 {
+	if w.Code != 504 && !w.aborted {
 		t.Fatal(w.Code)
 	}
+	s.wg.Wait()
 	assertNoPartial(t, cfg.CacheDir)
 	go func() { done <- request(s, "GET", videoURL(payload), nil) }()
 	<-started
@@ -375,7 +391,7 @@ func TestOwnershipCapacityTimeoutAndShutdown(t *testing.T) {
 		t.Fatal(err)
 	}
 	w = <-done
-	if w.Code != 503 {
+	if w.Code != 503 && !w.aborted {
 		t.Fatal(w.Code)
 	}
 	assertNoPartial(t, cfg.CacheDir)

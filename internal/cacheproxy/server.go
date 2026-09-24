@@ -28,6 +28,8 @@ type video struct {
 }
 type flight struct {
 	done         chan struct{}
+	streaming    chan struct{}
+	spool        *spool
 	path, source string
 	err          error
 }
@@ -165,7 +167,7 @@ func urlQuery(r *http.Request) ([2]string, error) {
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	id := s.sequence.Add(1)
 	start := time.Now()
-	log := s.cfg.Logger.With("request_id", id, "method", r.Method, "path", r.URL.Path)
+	log := s.cfg.Logger.With("request_id", id, "method", r.Method, "host", r.Host, "path", r.URL.Path, "range", r.Header.Get("Range"), "user_agent", r.UserAgent())
 	response := &responseWriter{ResponseWriter: w}
 	w = response
 	defer func() {
@@ -194,7 +196,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "multiple ranges are not supported", 416)
 		return
 	}
-	f, err := s.obtain(r.Context(), v)
+	f, stream, err := s.obtain(r.Context(), v)
 	if err != nil {
 		if r.Context().Err() != nil {
 			log.Info("client_disconnected", "elapsed", time.Since(start))
@@ -209,6 +211,24 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			status = http.StatusServiceUnavailable
 		}
 		http.Error(w, http.StatusText(status), status)
+		return
+	}
+	if stream != nil {
+		defer stream.Close()
+		w.Header().Set("Content-Type", "video/mp4")
+		w.Header().Set("ETag", `"`+v.checksum+`"`)
+		w.Header().Set("X-StepStash-Cache", "MISS")
+		http.ServeContent(flushingResponseWriter{w}, r, v.path, time.Time{}, stream)
+		if stream.err != nil {
+			if r.Context().Err() != nil {
+				log.Info("client_disconnected", "cache", "MISS")
+			} else {
+				log.Error("stream_failed", "error", stream.err)
+			}
+			// Headers may already be sent. Abort rather than completing a truncated body.
+			panic(http.ErrAbortHandler)
+		}
+		log.Info("served", "cache", "MISS", "elapsed", time.Since(start))
 		return
 	}
 	file, err := os.Open(f.path)
@@ -242,7 +262,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Info("client_disconnected", "cache", f.source, "elapsed", time.Since(start))
 		return
 	}
-	log.Info("served", "cache", f.source, "range", r.Header.Get("Range"), "elapsed", time.Since(start))
+	log.Info("served", "cache", f.source, "elapsed", time.Since(start))
 }
 
 type responseWriter struct {
@@ -269,3 +289,19 @@ func (w *responseWriter) Write(p []byte) (int, error) {
 }
 
 func (w *responseWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+// Flush headers and small prefixes promptly; URL resolvers may read only a few
+// bytes before disconnecting, while the shared background download continues.
+type flushingResponseWriter struct{ http.ResponseWriter }
+
+func (w flushingResponseWriter) WriteHeader(status int) {
+	w.ResponseWriter.WriteHeader(status)
+	http.NewResponseController(w.ResponseWriter).Flush()
+}
+func (w flushingResponseWriter) Write(p []byte) (int, error) {
+	n, err := w.ResponseWriter.Write(p)
+	if err == nil {
+		http.NewResponseController(w.ResponseWriter).Flush()
+	}
+	return n, err
+}

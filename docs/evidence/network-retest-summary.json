@@ -1,0 +1,39 @@
+{
+  "note": "Manual summary of observed tool outputs; not a packet capture.",
+  "before": {
+    "song": 6927,
+    "range": "bytes=20000000-20001023",
+    "paths": [
+      "play.udon.dance",
+      "ud-play.kiva.moe with Host play.udon.dance"
+    ],
+    "status": 206,
+    "bodyBytes": 0,
+    "timeoutSeconds": 12
+  },
+  "after": [
+    {
+      "song": 6927,
+      "host": "play.udon.dance",
+      "status": 206,
+      "bodyBytes": 1024,
+      "seconds": 0.537606
+    },
+    {
+      "song": 6927,
+      "host": "ud-play.kiva.moe",
+      "httpHost": "play.udon.dance",
+      "status": 206,
+      "bodyBytes": 1024,
+      "seconds": 0.75595
+    },
+    {
+      "song": 1344,
+      "host": "ud-nya.kiva.moe",
+      "httpHost": "nya.xin.moe",
+      "status": 206,
+      "bodyBytes": 1024,
+      "seconds": 0.227889
+    }
+  ]
+}

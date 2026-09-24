@@ -1,0 +1,19 @@
+# Local media, original executables, personal logs, and test sessions
+/local/
+/artifacts/
+/test-runs/
+/wannadance-song/
+/wannadance-cache/
+.env
+.env.*
+!.env.example
+*.exe
+*.mp4
+*.mkv
+*.webm
+*.log
+output_log_*.txt
+hosts.before-test
+processes.json
+Thumbs.db
+.DS_Store

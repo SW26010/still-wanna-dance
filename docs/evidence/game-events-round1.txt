@@ -1,0 +1,81 @@
+Selected source: output_log_session-070.txt; original line numbers; Asia/Shanghai
+1024: T+0.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=10414 routed to http://api.udon.dance/Api/Songs/play?node=cf&id=10414
+1025: T+0.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=10414'
+1053: T+3.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=10414' resolved to 'http://play.udon.dance/files/2505/10414-6831d10a5415b.mp4?e=REDACTED&s=REDACTED'
+1069: T+10.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 0.00
+1070: T+10.000s Debug      -  [USharpVideo (WannaDance)] OnVideoStart: Started video: http://api.udon.dance/Api/Songs/play?id=10414, since I'm the owner
+1085: T+172.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 162.10, current time = 159.53, offset = 2.58, threshold = 0.4999999
+1086: T+175.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 165.10, current time = 159.53, offset = 5.58, threshold = 0.4999999
+1087: T+178.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 168.11, current time = 159.53, offset = 8.58, threshold = 0.4999999
+1088: T+181.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 171.11, current time = 159.53, offset = 11.58, threshold = 0.4999999
+1089: T+184.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 174.11, current time = 159.53, offset = 14.58, threshold = 0.4999999
+1090: T+187.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 177.11, current time = 159.53, offset = 17.58, threshold = 0.4999999
+1091: T+190.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 180.11, current time = 159.53, offset = 20.59, threshold = 0.4999999
+1092: T+193.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 183.11, current time = 159.53, offset = 23.59, threshold = 0.4999999
+1093: T+196.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 186.11, current time = 159.53, offset = 26.59, threshold = 0.4999999
+1094: T+199.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 189.12, current time = 159.53, offset = 29.59, threshold = 0.4999999
+1095: T+202.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 192.12, current time = 159.53, offset = 32.59, threshold = 0.4999999
+1096: T+205.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 195.12, current time = 159.53, offset = 35.59, threshold = 0.4999999
+1097: T+208.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 198.13, current time = 159.53, offset = 38.60, threshold = 0.4999999
+1098: T+211.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 201.13, current time = 159.53, offset = 41.60, threshold = 0.4999999
+1099: T+214.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 204.13, current time = 159.53, offset = 44.60, threshold = 0.4999999
+1103: T+217.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 207.13, current time = 159.53, offset = 47.60, threshold = 0.4999999
+1105: T+220.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 210.14, current time = 159.53, offset = 50.61, threshold = 0.4999999
+1106: T+223.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 213.14, current time = 159.53, offset = 53.61, threshold = 0.4999999
+1107: T+226.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 216.14, current time = 159.53, offset = 56.61, threshold = 0.4999999
+1108: T+229.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 219.14, current time = 159.53, offset = 59.61, threshold = 0.4999999
+1109: T+232.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 222.14, current time = 159.53, offset = 62.61, threshold = 0.4999999
+1110: T+235.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 225.14, current time = 159.53, offset = 65.61, threshold = 0.4999999
+1111: T+238.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 228.14, current time = 159.53, offset = 68.61, threshold = 0.4999999
+1112: T+241.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 231.14, current time = 159.53, offset = 71.61, threshold = 0.4999999
+1113: T+244.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 234.15, current time = 159.53, offset = 74.62, threshold = 0.4999999
+1114: T+247.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 237.15, current time = 159.53, offset = 77.62, threshold = 0.4999999
+1118: T+250.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 237.84, current time = 159.53, offset = 78.31, threshold = 0.4999999
+1119: T+253.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 237.84, current time = 159.53, offset = 78.31, threshold = 0.4999999
+1120: T+256.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 237.84, current time = 159.53, offset = 78.31, threshold = 0.4999999
+1121: T+259.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 237.84, current time = 159.53, offset = 78.31, threshold = 0.4999999
+1122: T+262.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 237.84, current time = 159.53, offset = 78.31, threshold = 0.4999999
+1123: T+265.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 237.84, current time = 159.53, offset = 78.31, threshold = 0.4999999
+1124: T+268.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 237.84, current time = 159.53, offset = 78.31, threshold = 0.4999999
+1126: T+271.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 237.84, current time = 159.53, offset = 78.31, threshold = 0.4999999
+1132: T+274.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 237.84, current time = 159.53, offset = 78.31, threshold = 0.4999999
+1135: T+277.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 237.84, current time = 159.53, offset = 78.31, threshold = 0.4999999
+1158: T+280.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 237.84, current time = 159.53, offset = 78.31, threshold = 0.4999999
+1190: T+280.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=1343 routed to http://api.udon.dance/Api/Songs/play?node=cf&id=1343
+1191: T+280.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=1343'
+1227: T+282.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=1343' resolved to 'http://play.udon.dance/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED'
+1244: T+290.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 0.00
+1245: T+290.000s Debug      -  [USharpVideo (WannaDance)] OnVideoStart: Started video: http://api.udon.dance/Api/Songs/play?id=1343, since I'm the owner
+1319: T+385.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=10414 routed to http://api.udon.dance/Api/Songs/play?node=cf&id=10414
+1320: T+385.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=10414'
+1354: T+387.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=10414' resolved to 'http://play.udon.dance/files/2505/10414-6831d10a5415b.mp4?e=REDACTED&s=REDACTED'
+1370: T+395.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 0.00
+1371: T+395.000s Debug      -  [USharpVideo (WannaDance)] OnVideoStart: Started video: http://api.udon.dance/Api/Songs/play?id=10414, since I'm the owner
+1437: T+454.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=6927 routed to http://api.udon.dance/Api/Songs/play?node=cf&id=6927
+1438: T+454.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927'
+1475: T+456.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927' resolved to 'http://play.udon.dance/files/2409/6927-66dd96f4d3a1b.mp4?e=REDACTED&s=REDACTED'
+1485: T+484.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=6927 routed to http://api.udon.dance/Api/Songs/play?node=cf&id=6927
+1486: T+484.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927'
+1489: T+486.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927' resolved to 'http://play.udon.dance/files/2409/6927-66dd96f4d3a1b.mp4?e=REDACTED&s=REDACTED'
+1491: T+514.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=6927 routed to http://api.udon.dance/Api/Songs/play?node=cf&id=6927
+1492: T+514.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927'
+1495: T+516.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927' resolved to 'http://play.udon.dance/files/2409/6927-66dd96f4d3a1b.mp4?e=REDACTED&s=REDACTED'
+1498: T+544.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=6927 routed to http://api.udon.dance/Api/Songs/play?node=cf&id=6927
+1499: T+544.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927'
+1502: T+546.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927' resolved to 'http://play.udon.dance/files/2409/6927-66dd96f4d3a1b.mp4?e=REDACTED&s=REDACTED'
+1506: T+570.000s Error      -  [USharpVideo (WannaDance)] OnVideoError: Video player error when trying to load http://api.udon.dance/Api/Songs/play?id=6927
+1517: T+575.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=6927 routed to http://api.udon.dance/Api/Songs/play?node=cf&id=6927
+1518: T+575.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927'
+1521: T+577.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927' resolved to 'http://play.udon.dance/files/2409/6927-66dd96f4d3a1b.mp4?e=REDACTED&s=REDACTED'
+1522: T+592.000s Error      -  [USharpVideo (WannaDance)] OnVideoError: Video player error when trying to load http://api.udon.dance/Api/Songs/play?id=6927
+1533: T+597.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=6927 routed to http://api.udon.dance/Api/Songs/play?node=cf&id=6927
+1534: T+597.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927'
+1538: T+600.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927' resolved to 'http://play.udon.dance/files/2409/6927-66dd96f4d3a1b.mp4?e=REDACTED&s=REDACTED'
+1589: T+609.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=6927 routed to http://api.udon.dance/Api/Songs/play?node=cf&id=6927
+1590: T+609.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927'
+1626: T+611.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927' resolved to 'http://play.udon.dance/files/2409/6927-66dd96f4d3a1b.mp4?e=REDACTED&s=REDACTED'
+1628: T+627.000s Error      -  [USharpVideo (WannaDance)] OnVideoError: Video player error when trying to load http://api.udon.dance/Api/Songs/play?id=6927
+1639: T+632.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=6927 routed to http://api.udon.dance/Api/Songs/play?node=cf&id=6927
+1640: T+632.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927'
+1643: T+634.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927' resolved to 'http://play.udon.dance/files/2409/6927-66dd96f4d3a1b.mp4?e=REDACTED&s=REDACTED'
+1644: T+650.000s Error      -  [USharpVideo (WannaDance)] OnVideoError: Video player error when trying to load http://api.udon.dance/Api/Songs/play?id=6927

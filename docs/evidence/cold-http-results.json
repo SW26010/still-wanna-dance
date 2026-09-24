@@ -1,0 +1,81 @@
+{
+  "date": "T+0.000s",
+  "mode": "cold",
+  "results": [
+    {
+      "name": "cold-api",
+      "path": "/Api/Songs/play?node=cf&id=1343",
+      "status": 302,
+      "headers": {
+        "location": "https://api.udon.dance/Api/Songs/play?id=1343",
+        "content-length": "45",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 45,
+      "sha256": "40f1a20fbec61f359e14b350458ea319b13e279688dc92ac6177a39fb9dec71c",
+      "elapsedMs": 1
+    },
+    {
+      "name": "cold-media-range",
+      "host": "play.udon.dance",
+      "path": "/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED",
+      "requestHeaders": {
+        "Range": "bytes=0-1023"
+      },
+      "status": 206,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "video/mp4",
+        "content-length": "1024",
+        "connection": "keep-alive",
+        "server": "cloudflare",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "etag": "\"65e08c7a-1f58369\"",
+        "cache-control": "max-age=31536000",
+        "content-range": "bytes 0-1023/32867177"
+      },
+      "bytes": 1024,
+      "sha256": "1b1219368992f9fe7b3ff0d97e328a10940bb323f102c9b790b2c7fb59ed6101",
+      "elapsedMs": 509
+    },
+    {
+      "name": "cold-media-full",
+      "host": "play.udon.dance",
+      "path": "/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED",
+      "status": 200,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "video/mp4",
+        "content-length": "32867177",
+        "connection": "keep-alive",
+        "server": "cloudflare",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "etag": "\"65e08c7a-1f58369\"",
+        "cache-control": "max-age=31536000",
+        "accept-ranges": "bytes"
+      },
+      "bytes": 32867177,
+      "sha256": "6423c1fc1551138246cf91032ee76ad4599798f6c3dcda3095b27507ae8db736",
+      "elapsedMs": 11908
+    },
+    {
+      "name": "after-cold-media-range",
+      "host": "play.udon.dance",
+      "path": "/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED",
+      "requestHeaders": {
+        "Range": "bytes=20000000-20001023"
+      },
+      "status": 206,
+      "headers": {
+        "content-type": "video/mp4",
+        "accept-ranges": "bytes",
+        "content-range": "bytes 20000000-20001023/32867177",
+        "content-length": "1024",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 1024,
+      "sha256": "b7a5cd713429cfd4ce83e04039871c81ac70336b4064bc8c5446a30c9e025e27",
+      "elapsedMs": 5
+    }
+  ]
+}

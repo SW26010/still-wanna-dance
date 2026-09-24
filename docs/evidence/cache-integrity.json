@@ -1,0 +1,30 @@
+[
+  {
+    "song": 1343,
+    "generated": {
+      "bytes": 32867177,
+      "md5": "28711962048bed664c98f27e1d9d5842",
+      "sha256": "6423c1fc1551138246cf91032ee76ad4599798f6c3dcda3095b27507ae8db736"
+    },
+    "reference": {
+      "bytes": 32867177,
+      "md5": "28711962048bed664c98f27e1d9d5842",
+      "sha256": "6423c1fc1551138246cf91032ee76ad4599798f6c3dcda3095b27507ae8db736"
+    },
+    "match": true
+  },
+  {
+    "song": 1344,
+    "generated": {
+      "bytes": 40548476,
+      "md5": "8f26d29704140a431dea0c1374f2eeba",
+      "sha256": "81746ffc867a11851d6e3bb7c34a945fd15af5079daecda5b594de0695d7687f"
+    },
+    "reference": {
+      "bytes": 40548476,
+      "md5": "8f26d29704140a431dea0c1374f2eeba",
+      "sha256": "81746ffc867a11851d6e3bb7c34a945fd15af5079daecda5b594de0695d7687f"
+    },
+    "match": true
+  }
+]

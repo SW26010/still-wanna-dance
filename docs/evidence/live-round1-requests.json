@@ -1,0 +1,272 @@
+[
+  {
+    "id": 1,
+    "time": "T+0.000s",
+    "song": "1343",
+    "userAgent": "curl/8.21.0",
+    "range": "bytes=0-1023",
+    "status": 206,
+    "bytes": 1024,
+    "completed": true,
+    "elapsedMs": 18
+  },
+  {
+    "id": 2,
+    "time": "T+189.137s",
+    "range": "bytes=0-15",
+    "status": 206,
+    "bytes": 16,
+    "completed": true,
+    "elapsedMs": 2
+  },
+  {
+    "id": 3,
+    "time": "T+207.632s",
+    "range": "bytes=0-15",
+    "status": 206,
+    "bytes": 16,
+    "completed": true,
+    "elapsedMs": 2
+  },
+  {
+    "id": 4,
+    "time": "T+215.484s",
+    "song": "1343",
+    "userAgent": "curl/8.21.0",
+    "range": "bytes=0-15",
+    "status": 206,
+    "bytes": 16,
+    "completed": true,
+    "elapsedMs": 2
+  },
+  {
+    "id": 5,
+    "time": "T+241.863s",
+    "song": "1343",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+    "status": 200,
+    "bytes": 65536,
+    "completed": false,
+    "elapsedMs": 3
+  },
+  {
+    "id": 6,
+    "time": "T+241.869s",
+    "song": "1343",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+    "status": 200,
+    "bytes": 393216,
+    "completed": false,
+    "elapsedMs": 8
+  },
+  {
+    "id": 7,
+    "time": "T+242.264s",
+    "song": "1343",
+    "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+    "range": "bytes=0-",
+    "status": 206,
+    "bytes": 32867177,
+    "completed": true,
+    "elapsedMs": 48735
+  },
+  {
+    "id": 8,
+    "time": "T+346.414s",
+    "song": "10414",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+    "status": 200,
+    "bytes": 2078,
+    "completed": false,
+    "elapsedMs": 251
+  },
+  {
+    "id": 9,
+    "time": "T+346.693s",
+    "song": "10414",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+    "status": 200,
+    "bytes": 4973,
+    "completed": false,
+    "elapsedMs": 264
+  },
+  {
+    "id": 10,
+    "time": "T+347.412s",
+    "song": "10414",
+    "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+    "range": "bytes=25403392-36902453",
+    "status": 206,
+    "bytes": 40960,
+    "completed": false,
+    "elapsedMs": 31583
+  },
+  {
+    "id": 11,
+    "time": "T+379.038s",
+    "song": "10414",
+    "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+    "range": "bytes=25436160-36902453",
+    "status": 206,
+    "bytes": 24576,
+    "completed": false,
+    "elapsedMs": 34464
+  },
+  {
+    "id": 12,
+    "time": "T+414.844s",
+    "song": "6927",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    "status": 200,
+    "bytes": 2896,
+    "completed": false,
+    "elapsedMs": 519
+  },
+  {
+    "id": 13,
+    "time": "T+415.376s",
+    "song": "6927",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    "status": 200,
+    "bytes": 49152,
+    "completed": false,
+    "elapsedMs": 209
+  },
+  {
+    "id": 14,
+    "time": "T+415.993s",
+    "song": "6927",
+    "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+    "range": "bytes=0-",
+    "status": 206,
+    "bytes": 245760,
+    "completed": false,
+    "elapsedMs": 71010
+  },
+  {
+    "id": 15,
+    "time": "T+444.924s",
+    "song": "6927",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+    "status": 200,
+    "bytes": 3533,
+    "completed": false,
+    "elapsedMs": 268
+  },
+  {
+    "id": 16,
+    "time": "T+445.205s",
+    "song": "6927",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+    "status": 200,
+    "bytes": 3531,
+    "completed": false,
+    "elapsedMs": 194
+  },
+  {
+    "id": 17,
+    "time": "T+445.789s",
+    "song": "6927",
+    "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+    "range": "bytes=0-",
+    "status": 206,
+    "bytes": 245760,
+    "completed": false,
+    "elapsedMs": 41214
+  },
+  {
+    "id": 18,
+    "time": "T+474.964s",
+    "song": "6927",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+    "status": 200,
+    "bytes": 15557,
+    "completed": false,
+    "elapsedMs": 472
+  },
+  {
+    "id": 19,
+    "time": "T+475.440s",
+    "song": "6927",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+    "status": 200,
+    "bytes": 18010,
+    "completed": false,
+    "elapsedMs": 264
+  },
+  {
+    "id": 20,
+    "time": "T+476.109s",
+    "song": "6927",
+    "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+    "range": "bytes=0-",
+    "status": 206,
+    "bytes": 245760,
+    "completed": false,
+    "elapsedMs": 30889
+  },
+  {
+    "id": 21,
+    "time": "T+487.505s",
+    "song": "6927",
+    "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+    "range": "bytes=237568-69905125",
+    "status": 206,
+    "bytes": 122880,
+    "completed": false,
+    "elapsedMs": 42206
+  },
+  {
+    "id": 22,
+    "time": "T+487.506s",
+    "song": "6927",
+    "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+    "range": "bytes=237568-69905125",
+    "status": 206,
+    "bytes": 122880,
+    "completed": false,
+    "elapsedMs": 42205
+  },
+  {
+    "id": 23,
+    "time": "T+504.962s",
+    "song": "6927",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    "status": 200,
+    "bytes": 2078,
+    "completed": false,
+    "elapsedMs": 229
+  },
+  {
+    "id": 24,
+    "time": "T+505.208s",
+    "song": "6927",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    "status": 200,
+    "bytes": 22801,
+    "completed": false,
+    "elapsedMs": 274
+  },
+  {
+    "id": 25,
+    "time": "T+505.891s",
+    "song": "6927",
+    "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+    "range": "bytes=0-",
+    "status": 206,
+    "bytes": 360448,
+    "completed": false,
+    "elapsedMs": 23819
+  },
+  {
+    "id": 26,
+    "time": "T+507.511s",
+    "song": "6927",
+    "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+    "range": "bytes=237568-69905125",
+    "status": 206,
+    "bytes": 122880,
+    "completed": false,
+    "elapsedMs": 22201
+  }
+]

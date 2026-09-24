@@ -1,0 +1,377 @@
+{
+  "date": "T+0.000s",
+  "mode": "hot",
+  "results": [
+    {
+      "name": "direct-head",
+      "path": "/v/1343",
+      "method": "HEAD",
+      "status": 400,
+      "headers": {
+        "content-type": "text/plain; charset=utf-8",
+        "content-length": "125",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "text": "",
+      "elapsedMs": 0
+    },
+    {
+      "name": "direct-first-range",
+      "path": "/v/1343",
+      "requestHeaders": {
+        "Range": "bytes=0-1023"
+      },
+      "status": 206,
+      "headers": {
+        "content-type": "video/mp4",
+        "accept-ranges": "bytes",
+        "content-range": "bytes 0-1023/32867177",
+        "content-length": "1024",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 1024,
+      "sha256": "1b1219368992f9fe7b3ff0d97e328a10940bb323f102c9b790b2c7fb59ed6101",
+      "elapsedMs": 1
+    },
+    {
+      "name": "direct-middle-range",
+      "path": "/v/1343",
+      "requestHeaders": {
+        "Range": "bytes=20000000-20001023"
+      },
+      "status": 206,
+      "headers": {
+        "content-type": "video/mp4",
+        "accept-ranges": "bytes",
+        "content-range": "bytes 20000000-20001023/32867177",
+        "content-length": "1024",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 1024,
+      "sha256": "b7a5cd713429cfd4ce83e04039871c81ac70336b4064bc8c5446a30c9e025e27",
+      "elapsedMs": 1
+    },
+    {
+      "name": "direct-suffix-range",
+      "path": "/v/1343",
+      "requestHeaders": {
+        "Range": "bytes=-1024"
+      },
+      "status": 206,
+      "headers": {
+        "content-type": "video/mp4",
+        "accept-ranges": "bytes",
+        "content-range": "bytes 1024-32867176/32867177",
+        "content-length": "32866153",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 32866153,
+      "sha256": "8ef61880517e0aa9baf8202855444c49e4e1f72e3bd0f1b70475f38e9c1393ff",
+      "elapsedMs": 105
+    },
+    {
+      "name": "direct-out-of-bounds",
+      "path": "/v/1343",
+      "requestHeaders": {
+        "Range": "bytes=40000000-"
+      },
+      "status": 206,
+      "headers": {
+        "content-type": "video/mp4",
+        "accept-ranges": "bytes",
+        "content-range": "bytes 40000000-32867176/32867177",
+        "content-length": "18446744073702418793",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "error": "aborted",
+      "bytes": 0
+    },
+    {
+      "name": "api-get",
+      "path": "/Api/Songs/play?id=1343",
+      "status": 302,
+      "headers": {
+        "location": "/v/1343.mp4?auth=REDACTED&t=wd",
+        "content-length": "62",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 62,
+      "sha256": "23fae34695e24164cac33b4c8020dea4b68188c749c836bc2363bbb56aae9dbd",
+      "elapsedMs": 3
+    },
+    {
+      "name": "api-node-cf",
+      "path": "/Api/Songs/play?node=cf&id=1343",
+      "status": 302,
+      "headers": {
+        "location": "/v/1343.mp4?auth=REDACTED&t=wd",
+        "content-length": "62",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 62,
+      "sha256": "3b9c5d67369ba05774d08f515be1edb5ba86d411de2070947f03284f7a051017",
+      "elapsedMs": 1
+    },
+    {
+      "name": "api-head",
+      "path": "/Api/Songs/play?id=1343",
+      "method": "HEAD",
+      "status": 302,
+      "headers": {
+        "location": "/v/1343.mp4?auth=REDACTED&t=wd",
+        "content-length": "62",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "elapsedMs": 0
+    },
+    {
+      "name": "media-no-params",
+      "host": "play.udon.dance",
+      "path": "/files/2403/1343-660524b4eb86f.mp4",
+      "requestHeaders": {
+        "Range": "bytes=0-1023"
+      },
+      "status": 400,
+      "headers": {
+        "content-type": "text/plain; charset=utf-8",
+        "content-length": "45",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 45,
+      "sha256": "7012c1338d467f1fd0804f39162c8d18877d220c63e2e56a5fc179ca25e571d4",
+      "text": "Oops! Rejection([MethodNotAllowed, BadToken])",
+      "elapsedMs": 1
+    },
+    {
+      "name": "media-e-s",
+      "host": "play.udon.dance",
+      "path": "/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED",
+      "requestHeaders": {
+        "Range": "bytes=0-1023"
+      },
+      "status": 206,
+      "headers": {
+        "content-type": "video/mp4",
+        "accept-ranges": "bytes",
+        "content-range": "bytes 0-1023/32867177",
+        "content-length": "1024",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 1024,
+      "sha256": "1b1219368992f9fe7b3ff0d97e328a10940bb323f102c9b790b2c7fb59ed6101",
+      "elapsedMs": 1
+    },
+    {
+      "name": "media-head",
+      "method": "HEAD",
+      "host": "play.udon.dance",
+      "path": "/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED",
+      "status": 200,
+      "headers": {
+        "content-type": "video/mp4",
+        "accept-ranges": "bytes",
+        "content-range": "bytes 0-32867176/32867177",
+        "content-length": "32867177",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "elapsedMs": 1
+    },
+    {
+      "name": "direct-full",
+      "path": "/v/1343",
+      "status": 200,
+      "headers": {
+        "content-type": "video/mp4",
+        "accept-ranges": "bytes",
+        "content-range": "bytes 0-32867176/32867177",
+        "content-length": "32867177",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 32867177,
+      "sha256": "6423c1fc1551138246cf91032ee76ad4599798f6c3dcda3095b27507ae8db736",
+      "elapsedMs": 175
+    },
+    {
+      "name": "direct-multiple-ranges",
+      "path": "/v/1343",
+      "requestHeaders": {
+        "Range": "bytes=0-15,32-47"
+      },
+      "status": 400,
+      "headers": {
+        "content-type": "text/plain; charset=utf-8",
+        "content-length": "33",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 33,
+      "sha256": "12766f52fdd2a7653b0e0bc6f6d58348667be848e1aa70f13077d975d822e37c",
+      "text": "Oops! Rejection(MethodNotAllowed)",
+      "elapsedMs": 1
+    },
+    {
+      "name": "direct-malformed-range",
+      "path": "/v/1343",
+      "requestHeaders": {
+        "Range": "bytes=abc"
+      },
+      "status": 400,
+      "headers": {
+        "content-type": "text/plain; charset=utf-8",
+        "content-length": "33",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 33,
+      "sha256": "12766f52fdd2a7653b0e0bc6f6d58348667be848e1aa70f13077d975d822e37c",
+      "text": "Oops! Rejection(MethodNotAllowed)",
+      "elapsedMs": 0
+    },
+    {
+      "name": "media-only-e",
+      "host": "play.udon.dance",
+      "path": "/files/2403/1343-660524b4eb86f.mp4?e=REDACTED",
+      "requestHeaders": {
+        "Range": "bytes=0-1023"
+      },
+      "status": 400,
+      "headers": {
+        "content-type": "text/plain; charset=utf-8",
+        "content-length": "45",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 45,
+      "sha256": "7012c1338d467f1fd0804f39162c8d18877d220c63e2e56a5fc179ca25e571d4",
+      "text": "Oops! Rejection([MethodNotAllowed, BadToken])",
+      "elapsedMs": 0
+    },
+    {
+      "name": "media-only-s",
+      "host": "play.udon.dance",
+      "path": "/files/2403/1343-660524b4eb86f.mp4?s=REDACTED",
+      "requestHeaders": {
+        "Range": "bytes=0-1023"
+      },
+      "status": 400,
+      "headers": {
+        "content-type": "text/plain; charset=utf-8",
+        "content-length": "45",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 45,
+      "sha256": "7012c1338d467f1fd0804f39162c8d18877d220c63e2e56a5fc179ca25e571d4",
+      "text": "Oops! Rejection([MethodNotAllowed, BadToken])",
+      "elapsedMs": 1
+    },
+    {
+      "name": "missing-direct",
+      "path": "/v/6927",
+      "requestHeaders": {
+        "Range": "bytes=0-1023"
+      },
+      "status": 400,
+      "headers": {
+        "content-type": "text/plain; charset=utf-8",
+        "content-length": "57",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 57,
+      "sha256": "72871e15cd5f83db38835c45ce81ebb6f39842835a2f4e6a67fbc4a17b3365f0",
+      "text": "Oops! Rejection([MethodNotAllowed, AreYouTryingToHackMe])",
+      "elapsedMs": 0
+    },
+    {
+      "name": "missing-api",
+      "path": "/Api/Songs/play?node=cf&id=6927",
+      "status": 302,
+      "headers": {
+        "location": "https://api.udon.dance/Api/Songs/play?id=6927",
+        "content-length": "45",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 45,
+      "sha256": "eedc39f4703b53abba691774d6b1493f65809e09aba77b99b5a559786167e22b",
+      "elapsedMs": 0
+    },
+    {
+      "name": "media-api-host",
+      "host": "api.udon.dance",
+      "path": "/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED",
+      "requestHeaders": {
+        "Range": "bytes=0-1023"
+      },
+      "status": 206,
+      "headers": {
+        "content-type": "video/mp4",
+        "accept-ranges": "bytes",
+        "content-range": "bytes 0-1023/32867177",
+        "content-length": "1024",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 1024,
+      "sha256": "1b1219368992f9fe7b3ff0d97e328a10940bb323f102c9b790b2c7fb59ed6101",
+      "elapsedMs": 1
+    },
+    {
+      "name": "api-get-follow",
+      "host": "api.udon.dance",
+      "path": "/v/1343.mp4?auth=REDACTED&t=wd",
+      "requestHeaders": {
+        "Range": "bytes=0-1023"
+      },
+      "status": 206,
+      "headers": {
+        "content-type": "video/mp4",
+        "accept-ranges": "bytes",
+        "content-range": "bytes 0-1023/32867177",
+        "content-length": "1024",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 1024,
+      "sha256": "1b1219368992f9fe7b3ff0d97e328a10940bb323f102c9b790b2c7fb59ed6101",
+      "elapsedMs": 1
+    },
+    {
+      "name": "api-node-cf-follow",
+      "host": "api.udon.dance",
+      "path": "/v/1343.mp4?auth=REDACTED&t=wd",
+      "requestHeaders": {
+        "Range": "bytes=0-1023"
+      },
+      "status": 206,
+      "headers": {
+        "content-type": "video/mp4",
+        "accept-ranges": "bytes",
+        "content-range": "bytes 0-1023/32867177",
+        "content-length": "1024",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 1024,
+      "sha256": "1b1219368992f9fe7b3ff0d97e328a10940bb323f102c9b790b2c7fb59ed6101",
+      "elapsedMs": 0
+    },
+    {
+      "name": "api-head-follow",
+      "host": "api.udon.dance",
+      "path": "/v/1343.mp4?auth=REDACTED&t=wd",
+      "requestHeaders": {
+        "Range": "bytes=0-1023"
+      },
+      "status": 206,
+      "headers": {
+        "content-type": "video/mp4",
+        "accept-ranges": "bytes",
+        "content-range": "bytes 0-1023/32867177",
+        "content-length": "1024",
+        "date": "REDACTED-HTTP-DATE"
+      },
+      "bytes": 1024,
+      "sha256": "1b1219368992f9fe7b3ff0d97e328a10940bb323f102c9b790b2c7fb59ed6101",
+      "elapsedMs": 1
+    }
+  ]
+}

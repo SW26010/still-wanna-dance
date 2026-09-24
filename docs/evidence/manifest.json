@@ -1,0 +1,94 @@
+{
+  "prepared": "2026-09-25",
+  "originalExecutable": {
+    "version": "d309146c",
+    "sha256": "a3c7c554e5c2b0b43ec8e9480bea200504c19a8efa897da8f6f6315ccf7ae429"
+  },
+  "sourceRoot": "<reference-workspace>/investigation",
+  "files": [
+    {
+      "file": "hot-http-results.json",
+      "source": "original-lab/results.json",
+      "transformation": "Selected JSON; auth redacted; response headers allowlisted.",
+      "sha256": "ea83089bd14e7eda60813dbe1b0cc627f35fba61a7bd9d4b8f1d035dc8ace1d3"
+    },
+    {
+      "file": "payload-verification.json",
+      "source": "original-lab/payload-verification.json",
+      "transformation": "Selected JSON; auth redacted; response headers allowlisted.",
+      "sha256": "7ae2a143a27e808f0c30c2c92ce01c0964bca8f5b0d3fa7ee023ebb0625eecc7"
+    },
+    {
+      "file": "cold-http-results.json",
+      "source": "original-cold-0/results.json",
+      "transformation": "Selected JSON; auth redacted; response headers allowlisted.",
+      "sha256": "835cbe63cb8279c115f511a97dc302e129e10716a8843992c0b1a36f9cbd37d7"
+    },
+    {
+      "file": "live-round1-requests.json",
+      "source": "live-original/request-summary.json",
+      "transformation": "Selected JSON; auth redacted; response headers allowlisted.",
+      "sha256": "2be0839cfe15b0a6dec2bf0da01bc1f68c4fe1370c1e68ed6bf19533229bbcfc"
+    },
+    {
+      "file": "live-round2-requests.json",
+      "source": "live-original-2/request-summary.json",
+      "transformation": "Selected JSON; auth redacted; response headers allowlisted.",
+      "sha256": "2c3bc9e6850c9010e894547e5f10fa57606b2d06cbcb23ffafddd0d9d9ab1323"
+    },
+    {
+      "file": "api-node-behavior.json",
+      "source": "live-original-2/api-node-behavior.json",
+      "transformation": "Selected JSON; auth redacted; response headers allowlisted.",
+      "sha256": "821ce3eb0ad211415f071b321f663db03db6b4e7372eb25cbe59df4f8164a039"
+    },
+    {
+      "file": "candidate-cdn-api.json",
+      "source": "cdn-options-41082.json",
+      "transformation": "Selected JSON; auth redacted; response headers allowlisted.",
+      "sha256": "6fdb5d115c0c68da16df5f0d54ccc8717cc60fc957ab011f20eb8c9f4f0de507"
+    },
+    {
+      "file": "sha-endpoint-probe.json",
+      "source": "live-original-2/sha-endpoint-probe.json",
+      "transformation": "Selected JSON; auth redacted; response headers allowlisted.",
+      "sha256": "b642c33f7cc2d94a046153a76c43a28da8537aee849f647cb4e8c7ba635a8835"
+    },
+    {
+      "file": "generated-metadata-1343.json",
+      "source": "original-cold-0/songs/1343/metadata.json",
+      "transformation": "Selected JSON; auth redacted; response headers allowlisted.",
+      "sha256": "eb5fafab1dc1460f8d9d0245938d610d0530bbb3b86ad5678e58a378592f6522"
+    },
+    {
+      "file": "generated-metadata-1344.json",
+      "source": "live-original-2/songs/1344/metadata.json",
+      "transformation": "Selected JSON; auth redacted; response headers allowlisted.",
+      "sha256": "dfe82d8d41623ea551077bf49056aadb5d8459cc5bb6259c1f4f1294700a1fef"
+    },
+    {
+      "file": "game-events-round1.txt",
+      "source": "live-original/vrc-playback-excerpt.txt",
+      "transformation": "Playback/route events only; original line numbers retained; source user path and color tags removed.",
+      "sha256": "ca74eb39bf09f0c0b32c82833dd11d86b2a80f74cdfc6d0e097aca8b65154a0f"
+    },
+    {
+      "file": "game-events-round2.txt",
+      "source": "live-original-2/vrc-playback-excerpt.txt",
+      "transformation": "Playback/route events only; original line numbers retained; source user path and color tags removed.",
+      "sha256": "1283f664280efc8c5f1a12ddfc58f7954fbb45cda1f434da77fa24015d5ad6e7"
+    },
+    {
+      "file": "cache-integrity.json",
+      "source": "Actual generated cache files compared with original song library",
+      "transformation": "Recomputed file size, MD5 and SHA256; no media included.",
+      "sha256": "dd93ffa98436e884a258892e60866355af5df36045d80a3c7826401032fa9345"
+    },
+    {
+      "file": "network-retest-summary.json",
+      "source": "2026-09-24/25 command results; investigation narrative reports",
+      "transformation": "Manually curated command-output summary.",
+      "sha256": "6839443f49eea77b2fd8a933f2430442720afac79e1f08c32a86ebf05765b54a"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+Selected source: output_log_session-070.txt; original line numbers; Asia/Shanghai
+3703: T+0.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=6927 routed to http://api.udon.dance/Api/Songs/play?node=cf&id=6927
+3704: T+0.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927'
+3746: T+3.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6927' resolved to 'http://play.udon.dance/files/2409/6927-66dd96f4d3a1b.mp4?e=REDACTED&s=REDACTED'
+3762: T+10.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 0.00
+3763: T+10.000s Debug      -  [USharpVideo (WannaDance)] OnVideoStart: Started video: http://api.udon.dance/Api/Songs/play?id=6927, since I'm the owner
+3825: T+82.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=1344 routed to http://api.udon.dance/Api/Songs/play?node=cf&id=1344
+3826: T+82.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=1344'
+3861: T+85.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=1344' resolved to 'http://play.udon.dance/files/2403/1344-660524b4ebadb.mp4?e=REDACTED&s=REDACTED'
+3885: T+92.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 0.00
+3886: T+92.000s Debug      -  [USharpVideo (WannaDance)] OnVideoStart: Started video: http://api.udon.dance/Api/Songs/play?id=1344, since I'm the owner
+3927: T+184.000s Debug      -  [UnifiedPersistence] saving: VideoRoute = 2
+3929: T+184.000s Debug      -  [USharpVideo (WannaDance)] _OnVideoUrlRouteChanged, reloading video
+3931: T+184.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=1344 routed to http://api.udon.dance/Api/Songs/play?node=nya&id=1344
+3932: T+184.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=nya&id=1344'
+3944: T+186.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=nya&id=1344' resolved to 'http://nya.xin.moe/files/2403/1344-660524b4ebadb.mp4?e=REDACTED&s=REDACTED'
+3958: T+187.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 94.66
+3959: T+187.000s Debug      -  [USharpVideo (WannaDance)] OnVideoStart: Started video: http://api.udon.dance/Api/Songs/play?id=1344, since I'm the owner
+4005: T+189.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: Cooling down, delay load for 5.6434466 seconds, url = http://api.udon.dance/Api/Songs/play?id=1344
+4046: T+194.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: _DelayedLoadRoutedURL time's up, now loading http://api.udon.dance/Api/Songs/play?id=1344
+4047: T+194.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=1344 routed to http://api.udon.dance/Api/Songs/play?node=nya&id=1344
+4048: T+194.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=nya&id=1344'
+4051: T+196.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=nya&id=1344' resolved to 'http://nya.xin.moe/files/2403/1344-660524b4ebadb.mp4?e=REDACTED&s=REDACTED'
+4072: T+199.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 0.00
+4073: T+199.000s Debug      -  [USharpVideo (WannaDance)] OnVideoStart: Started video: http://api.udon.dance/Api/Songs/play?id=1344, since I'm the owner
+4095: T+208.000s Debug      -  [UnifiedPersistence] saving: VideoRoute = 3
+4097: T+208.000s Debug      -  [USharpVideo (WannaDance)] _OnVideoUrlRouteChanged, reloading video
+4099: T+208.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=1344 routed to https://139.196.46.195:51886/Api/Songs/play?id=1344
+4100: T+208.000s Debug      -  [Video Playback] Attempting to resolve URL 'https://139.196.46.195:51886/Api/Songs/play?id=1344'
+4173: T+218.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=1344 routed to https://139.196.46.195:51886/Api/Songs/play?id=1344
+4174: T+218.000s Debug      -  [Video Playback] Attempting to resolve URL 'https://139.196.46.195:51886/Api/Songs/play?id=1344'
+4223: T+229.000s Warning    -  [Video Playback] ERROR: [generic] play?id=1344: Unable to download webpage: timed out (caused by TransportError('timed out'))
+4224: T+229.000s Debug      -  [Video Playback] URL 'https://139.196.46.195:51886/Api/Songs/play?id=1344' resolved to 'https://139.196.46.195:51886/Api/Songs/play?id=1344'
+4229: T+239.000s Warning    -  [Video Playback] ERROR: [generic] play?id=1344: Unable to download webpage: timed out (caused by TransportError('timed out'))
+4230: T+239.000s Debug      -  [Video Playback] URL 'https://139.196.46.195:51886/Api/Songs/play?id=1344' resolved to 'https://139.196.46.195:51886/Api/Songs/play?id=1344'
+4246: T+248.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=1344 routed to https://139.196.46.195:51886/Api/Songs/play?id=1344
+4247: T+248.000s Debug      -  [Video Playback] Attempting to resolve URL 'https://139.196.46.195:51886/Api/Songs/play?id=1344'
+4259: T+253.000s Debug      -  [UnifiedPersistence] saving: VideoRoute = 0
+4261: T+253.000s Debug      -  [USharpVideo (WannaDance)] _OnVideoUrlRouteChanged, reloading video
+4287: T+260.000s Error      -  [USharpVideo (WannaDance)] OnVideoError: Video player error when trying to load http://api.udon.dance/Api/Songs/play?id=1344
+4328: T+261.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=1344 routed to http://api.udon.dance/Api/Songs/play?id=1344
+4329: T+261.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?id=1344'
+4368: T+263.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?id=1344' resolved to 'http://nya.xin.moe/files/2403/1344-660524b4ebadb.mp4?e=REDACTED&s=REDACTED'
+4375: T+269.000s Warning    -  [Video Playback] ERROR: [generic] play?id=1344: Unable to download webpage: timed out (caused by TransportError('timed out'))
+4376: T+269.000s Debug      -  [Video Playback] URL 'https://139.196.46.195:51886/Api/Songs/play?id=1344' resolved to 'https://139.196.46.195:51886/Api/Songs/play?id=1344'
+4410: T+290.000s Error      -  [USharpVideo (WannaDance)] OnVideoError: Video player error when trying to load http://api.udon.dance/Api/Songs/play?id=1344
+4442: T+295.000s Debug      -  [USharpVideo (WannaDance)] LoadRoutedURL: http://api.udon.dance/Api/Songs/play?id=1344 routed to http://api.udon.dance/Api/Songs/play?id=1344
+4443: T+295.000s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?id=1344'
+4446: T+297.000s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?id=1344' resolved to 'http://nya.xin.moe/files/2403/1344-660524b4ebadb.mp4?e=REDACTED&s=REDACTED'
+4461: T+298.000s Debug      -  [USharpVideo (WannaDance)] Syncing video to 0.00
+4462: T+298.000s Debug      -  [USharpVideo (WannaDance)] OnVideoStart: Started video: http://api.udon.dance/Api/Songs/play?id=1344, since I'm the owner

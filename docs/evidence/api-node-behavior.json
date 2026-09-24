@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1344,
+    "node": "cf",
+    "status": 302,
+    "location": "/v/1344.mp4?auth=REDACTED&t=wd"
+  },
+  {
+    "id": 1344,
+    "node": "hkg",
+    "status": 302,
+    "location": "/v/1344.mp4?auth=REDACTED&t=wd"
+  },
+  {
+    "id": 1344,
+    "node": "sha",
+    "status": 302,
+    "location": "/v/1344.mp4?auth=REDACTED&t=wd"
+  },
+  {
+    "id": 1344,
+    "node": "auto",
+    "status": 302,
+    "location": "/v/1344.mp4?auth=REDACTED&t=wd"
+  },
+  {
+    "id": 6927,
+    "node": "cf",
+    "status": 302,
+    "location": "https://api.udon.dance/Api/Songs/play?id=6927"
+  },
+  {
+    "id": 6927,
+    "node": "hkg",
+    "status": 302,
+    "location": "https://api.udon.dance/Api/Songs/play?id=6927"
+  },
+  {
+    "id": 6927,
+    "node": "sha",
+    "status": 302,
+    "location": "https://api.udon.dance/Api/Songs/play?id=6927"
+  },
+  {
+    "id": 6927,
+    "node": "auto",
+    "status": 302,
+    "location": "https://api.udon.dance/Api/Songs/play?id=6927"
+  }
+]

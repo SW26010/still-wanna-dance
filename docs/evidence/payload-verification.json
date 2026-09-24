@@ -1,0 +1,32 @@
+[
+  {
+    "name": "direct-first-range",
+    "start": 0,
+    "endExclusive": 1024,
+    "matches": true
+  },
+  {
+    "name": "direct-middle-range",
+    "start": 20000000,
+    "endExclusive": 20001024,
+    "matches": true
+  },
+  {
+    "name": "direct-suffix-range",
+    "start": 1024,
+    "endExclusive": 32867177,
+    "matches": true
+  },
+  {
+    "name": "direct-full",
+    "start": 0,
+    "endExclusive": 32867177,
+    "matches": true
+  },
+  {
+    "name": "media-e-s",
+    "start": 0,
+    "endExclusive": 1024,
+    "matches": true
+  }
+]

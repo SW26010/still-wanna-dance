@@ -1,0 +1,86 @@
+{
+  "time": "T+0.000s",
+  "note": "Candidate API query values; UI mappings require game-log confirmation.",
+  "results": [
+    {
+      "node": "(omitted)",
+      "url": "http://api.udon.dance/Api/Songs/play?id=1343",
+      "ms": 812,
+      "status": 302,
+      "location": "http://nya.xin.moe/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED",
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/html; charset=UTF-8",
+        "content-length": "0",
+        "connection": "close",
+        "server": "cloudflare",
+        "cache-control": "no-transform",
+        "location": "http://nya.xin.moe/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED"
+      }
+    },
+    {
+      "node": "auto",
+      "url": "http://api.udon.dance/Api/Songs/play?id=1343&node=auto",
+      "ms": 1454,
+      "status": 302,
+      "location": "http://nya.xin.moe/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED",
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/html; charset=UTF-8",
+        "content-length": "0",
+        "connection": "close",
+        "server": "cloudflare",
+        "cache-control": "no-transform",
+        "location": "http://nya.xin.moe/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED"
+      }
+    },
+    {
+      "node": "cf",
+      "url": "http://api.udon.dance/Api/Songs/play?id=1343&node=cf",
+      "ms": 531,
+      "status": 302,
+      "location": "http://play.udon.dance/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED",
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/html; charset=UTF-8",
+        "content-length": "0",
+        "connection": "close",
+        "server": "cloudflare",
+        "cache-control": "no-transform",
+        "location": "http://play.udon.dance/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED"
+      }
+    },
+    {
+      "node": "hkg",
+      "url": "http://api.udon.dance/Api/Songs/play?id=1343&node=hkg",
+      "ms": 465,
+      "status": 302,
+      "location": "http://nya.xin.moe/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED",
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/html; charset=UTF-8",
+        "content-length": "0",
+        "connection": "close",
+        "server": "cloudflare",
+        "cache-control": "no-transform",
+        "location": "http://nya.xin.moe/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED"
+      }
+    },
+    {
+      "node": "sha",
+      "url": "http://api.udon.dance/Api/Songs/play?id=1343&node=sha",
+      "ms": 555,
+      "status": 302,
+      "location": "http://nya.xin.moe/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED",
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/html; charset=UTF-8",
+        "content-length": "0",
+        "connection": "close",
+        "server": "cloudflare",
+        "cache-control": "no-transform",
+        "location": "http://nya.xin.moe/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED"
+      }
+    }
+  ]
+}

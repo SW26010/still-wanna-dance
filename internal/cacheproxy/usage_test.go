@@ -6,15 +6,80 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
+type pausedUsageWriter struct {
+	*httptest.ResponseRecorder
+	entered, release chan struct{}
+	once             sync.Once
+}
+
+func (w *pausedUsageWriter) Write(p []byte) (int, error) {
+	w.once.Do(func() { close(w.entered) })
+	<-w.release
+	return w.ResponseRecorder.Write(p)
+}
+
+func TestUsageReverseCompletion(t *testing.T) {
+	for _, gap := range []int64{10, 35} {
+		t.Run(time.Duration(gap*time.Second.Nanoseconds()).String(), func(t *testing.T) {
+			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+			if _, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil {
+				t.Fatal(err)
+			}
+			var clock atomic.Int64
+			clock.Store(1700000000)
+			s.usage.now = func() time.Time { return time.Unix(clock.Load(), 0) }
+			w := &pausedUsageWriter{ResponseRecorder: httptest.NewRecorder(), entered: make(chan struct{}), release: make(chan struct{})}
+			var release sync.Once
+			defer release.Do(func() { close(w.release) })
+			done := make(chan struct{})
+			go func() { defer close(done); s.ServeHTTP(w, httptest.NewRequest("GET", videoURL(payload), nil)) }()
+			select {
+			case <-w.entered:
+			case <-time.After(3 * time.Second):
+				t.Fatal("first response did not start")
+			}
+			clock.Add(gap)
+			assertResponse(t, request(s, "GET", videoURL(payload), map[string]string{"Range": "bytes=0-3"}), 206, payload[:4])
+			release.Do(func() { close(w.release) })
+			<-done
+			s.Close()
+			path := filepath.Join(cfg.SongsDir, ".stepstash-usage.sqlite")
+			get, demand, _, _ := usageCounts(t, path, "1344")
+			want := int64(1)
+			if gap >= 30 {
+				want = 2
+			}
+			if get != 2 || demand != want {
+				t.Fatalf("reverse completion: get=%d demand=%d want=%d", get, demand, want)
+			}
+			db, err := sql.Open("sqlite", path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			var firstFinished int64
+			if err := db.QueryRow("SELECT requested_at FROM request_events WHERE source='http' ORDER BY event_id LIMIT 1").Scan(&firstFinished); err != nil {
+				t.Fatal(err)
+			}
+			if firstFinished != time.Unix(clock.Load(), 0).UnixMilli() {
+				t.Fatal("short request must finish first in the detail log")
+			}
+		})
+	}
+}
+
 func recordDemand(u *usageStore, id string, at time.Time) {
+	u.record(usageEvent{id: id, at: at.UnixMilli(), demand: true, summaryOnly: true})
 	u.record(usageEvent{id: id, at: at.UnixMilli(), source: "http", method: "GET", demand: true})
 }
 

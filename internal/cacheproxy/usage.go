@@ -23,6 +23,7 @@ type usageEvent struct {
 	size, bytes, elapsedMS                                 int64
 	status                                                 int
 	demand                                                 bool
+	summaryOnly                                            bool
 }
 
 type usageStore struct {
@@ -32,6 +33,7 @@ type usageStore struct {
 	closed bool
 	events chan usageEvent
 	done   chan struct{}
+	now    func() time.Time
 }
 
 func openUsage(path string, log *slog.Logger) (*usageStore, error) {
@@ -75,9 +77,22 @@ CREATE INDEX IF NOT EXISTS request_events_time ON request_events(requested_at);`
 		db.Close()
 		return nil, err
 	}
-	u := &usageStore{db: db, log: log, events: make(chan usageEvent, 1024), done: make(chan struct{})}
+	u := &usageStore{db: db, log: log, events: make(chan usageEvent, 1024), done: make(chan struct{}), now: time.Now}
 	go u.run()
 	return u, nil
+}
+
+// Timestamp and enqueue under the same lock: response completion cannot reorder
+// demand observations. The database worker remains off the HTTP request path.
+func (u *usageStore) startDemand(id string) int64 {
+	if u == nil {
+		return time.Now().UnixMilli()
+	}
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	at := u.now().UnixMilli()
+	u.enqueueLocked(usageEvent{id: id, at: at, demand: true, summaryOnly: true})
+	return at
 }
 
 func (u *usageStore) record(e usageEvent) {
@@ -86,6 +101,10 @@ func (u *usageStore) record(e usageEvent) {
 	}
 	u.mu.Lock()
 	defer u.mu.Unlock()
+	u.enqueueLocked(e)
+}
+
+func (u *usageStore) enqueueLocked(e usageEvent) {
 	if u.closed {
 		return
 	}
@@ -142,16 +161,16 @@ func (u *usageStore) write(batch []usageEvent) error {
 	}
 	defer tx.Rollback()
 	for _, e := range batch {
-		_, err = tx.ExecContext(ctx, `INSERT INTO request_events
+		if !e.summaryOnly {
+			_, err = tx.ExecContext(ctx, `INSERT INTO request_events
 (song_id, requested_at, version_key, host, source, method, range_header, cache_result, outcome,
  file_bytes, transferred_bytes, elapsed_ms, status, counts_as_demand)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			e.id, e.at, e.key, e.host, e.source, e.method, e.rangeHeader, e.cache, e.outcome,
-			e.size, e.bytes, e.elapsedMS, e.status, e.demand)
-		if err != nil {
-			return err
-		}
-		if !e.demand {
+				e.id, e.at, e.key, e.host, e.source, e.method, e.rangeHeader, e.cache, e.outcome,
+				e.size, e.bytes, e.elapsedMS, e.status, e.demand)
+			if err != nil {
+				return err
+			}
 			continue
 		}
 		_, err = tx.ExecContext(ctx, `INSERT INTO song_usage

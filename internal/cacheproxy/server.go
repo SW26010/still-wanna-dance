@@ -117,7 +117,8 @@ func New(cfg Config) (*Server, error) {
 	}, nil
 }
 
-// Close cancels downloads, waits for temporary-file cleanup, then releases ownership.
+// Close cancels downloads, waits for handlers and cleanup, then flushes usage.
+// The owner must shut down/close its HTTP server first to release blocked writes.
 func (s *Server) Close() error {
 	var err error
 	s.once.Do(func() {
@@ -252,6 +253,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	event.demand = r.Method == http.MethodGet
+	if event.demand {
+		event.at = s.usage.startDemand(v.id)
+	}
 	f, stream, err := s.obtain(r.Context(), v)
 	if err != nil {
 		if r.Context().Err() != nil {

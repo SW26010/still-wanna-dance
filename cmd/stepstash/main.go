@@ -23,7 +23,7 @@ func main() {
 	}
 }
 
-func run() error {
+func run() (resultErr error) {
 	cfg := cacheproxy.DefaultConfig()
 	flag.StringVar(&cfg.StatsPath, "stats-path", "", "SQLite usage statistics path (default: song library/.stepstash-usage.sqlite)")
 	listen := flag.String("listen", "127.0.0.1:18080", "HTTP listen address (use 127.0.0.1:80 for game integration)")
@@ -44,8 +44,8 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	defer service.Close()
 	server := &http.Server{Addr: *listen, Handler: service, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
+	defer func() { resultErr = errors.Join(resultErr, closeVideoServer(server, service, 5*time.Second)) }()
 	listener, err := net.Listen("tcp", *listen)
 	if err != nil {
 		return err
@@ -61,12 +61,22 @@ func run() error {
 			return err
 		}
 	case <-ctx.Done():
-		service.Close()
-		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := server.Shutdown(shutdown); err != nil {
-			return server.Close()
-		}
 	}
 	return nil
+}
+
+// Close network connections before waiting for handlers and flushing statistics.
+// The caller also uses this path when Serve exits unexpectedly.
+func closeVideoServer(server *http.Server, service *cacheproxy.Server, grace time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), grace)
+	defer cancel()
+	err := server.Shutdown(ctx)
+	if err != nil {
+		closeErr := server.Close()
+		if errors.Is(err, context.DeadlineExceeded) {
+			err = nil
+		}
+		err = errors.Join(err, closeErr)
+	}
+	return errors.Join(err, service.Close())
 }

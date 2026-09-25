@@ -2,6 +2,8 @@ package desktop
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"syscall"
@@ -9,6 +11,19 @@ import (
 )
 
 var kernel32 = syscall.NewLazyDLL("kernel32.dll")
+
+func instancePath() (string, error) {
+	var session uint32
+	ok, _, err := kernel32.NewProc("ProcessIdToSessionId").Call(uintptr(os.Getpid()), uintptr(unsafe.Pointer(&session)))
+	if ok == 0 {
+		return "", fmt.Errorf("ProcessIdToSessionId: %w", err)
+	}
+	root, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, "StepStash", fmt.Sprintf("console-session-%d.json", session)), nil
+}
 
 type mutexLease struct {
 	once    sync.Once

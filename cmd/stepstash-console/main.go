@@ -36,7 +36,7 @@ func main() {
 }
 
 func run() (runErr error) {
-	address := flag.String("listen", desktop.Address, "local console address (tray mode uses 127.0.0.1:18081)")
+	address := flag.String("listen", desktop.Address, "local console address (port 0 selects an available port)")
 	defaultConfig := "stepstash-console.json"
 	if runtime.GOOS == "windows" {
 		exe, err := os.Executable()
@@ -66,13 +66,11 @@ func run() (runErr error) {
 	if err != nil || host != "127.0.0.1" {
 		return fmt.Errorf("控制台必须绑定 127.0.0.1")
 	}
-	if !*noTray && *address != desktop.Address {
-		return fmt.Errorf("托盘模式固定使用 %s；自定义端口请使用 -no-tray", desktop.Address)
-	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	var instance *desktop.Instance
 	if !*noTray {
-		lease, err := desktop.AcquireOrActivate(ctx, *address, !*noOpen)
+		lease, err := desktop.AcquireOrActivate(ctx, !*noOpen)
 		if err != nil {
 			return err
 		}
@@ -80,6 +78,7 @@ func run() (runErr error) {
 			return nil
 		}
 		defer lease.Close()
+		instance = lease
 	}
 	p, err := filepath.Abs(*config)
 	if err != nil {
@@ -149,6 +148,11 @@ func run() (runErr error) {
 		})
 	}
 	defer shutdown()
+	if instance != nil {
+		if err := instance.Publish(l.Addr().String()); err != nil {
+			return fmt.Errorf("无法发布控制台地址：%w", err)
+		}
+	}
 	done := make(chan error, 1)
 	go func() { done <- h.Serve(l); stop() }()
 	url := "http://" + l.Addr().String()

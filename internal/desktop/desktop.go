@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const Address = "127.0.0.1:18081"
+const Address = "127.0.0.1:0"
 const MutexName = `Local\StepStash.Desktop.v1`
 
 type Identity struct {
@@ -52,14 +52,36 @@ func elect(ctx context.Context, acquire func() (Lease, error), ready func(contex
 	}
 }
 
-func AcquireOrActivate(ctx context.Context, address string, openBrowser bool) (Lease, error) {
+func AcquireOrActivate(ctx context.Context, openBrowser bool) (*Instance, error) {
+	path, err := instancePath()
+	if err != nil {
+		return nil, err
+	}
+	return acquireOrActivate(ctx, path, func() (Lease, error) { return acquire(MutexName) }, openBrowser, OpenBrowser)
+}
+
+func acquireOrActivate(ctx context.Context, path string, acquireLease func() (Lease, error), openBrowser bool, browser func(string) error) (*Instance, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+	var address string
 	var open func() error
 	if openBrowser {
-		open = func() error { return OpenBrowser("http://" + address) }
+		open = func() error { return browser("http://" + address) }
 	}
-	return elect(ctx, func() (Lease, error) { return acquire(MutexName) }, func(ctx context.Context) bool { return probe(ctx, address) }, open)
+	lease, err := elect(ctx, acquireLease, func(ctx context.Context) bool {
+		address = readInstanceAddress(path)
+		return address != "" && probe(ctx, address)
+	}, open)
+	if err != nil || lease == nil {
+		return nil, err
+	}
+	instance := &Instance{lease: lease, path: path}
+	// Clear crash leftovers before the new owner starts serving.
+	if err := instance.clear(); err != nil {
+		_ = lease.Close()
+		return nil, err
+	}
+	return instance, nil
 }
 
 func probe(ctx context.Context, address string) bool {

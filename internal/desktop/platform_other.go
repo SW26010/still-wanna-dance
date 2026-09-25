@@ -12,6 +12,9 @@ import (
 func acquire(string) (Lease, error) {
 	return nil, fmt.Errorf("桌面托盘仅支持 Windows，请使用 -no-tray")
 }
+func instancePath() (string, error) {
+	return "", fmt.Errorf("桌面托盘仅支持 Windows，请使用 -no-tray")
+}
 func portOwner(string, uint16) *Owner { return nil }
 func OpenBrowser(url string) error    { return exec.Command("xdg-open", url).Run() }
 func ShowError(err error)             { fmt.Fprintln(os.Stderr, err) }

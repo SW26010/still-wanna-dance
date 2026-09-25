@@ -92,7 +92,7 @@ func (c *Console) startQueue() error {
 	if c.queue.Running {
 		return nil
 	}
-	if c.batch.Running {
+	if c.batch.Running && !c.batch.ScanOnly {
 		return errors.New("请先停止全曲库批量任务")
 	}
 	if _, err := os.ReadDir(c.settings.LogDir); err != nil {

@@ -33,7 +33,7 @@ func TestInventoryCountsPublishedFilesOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	v = scanInventory(c.settings)
-	if v.Library != 1 || v.Cache != 0 || v.Error != "" {
+	if v.Library != 1 || v.Cache != 0 || v.Error == "" {
 		t.Fatalf("%+v", v)
 	}
 }

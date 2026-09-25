@@ -14,6 +14,7 @@ import (
 )
 
 var errBusy = errors.New("download capacity reached")
+var errInvalidCache = errors.New("invalid cached video")
 
 func (s *Server) obtain(ctx context.Context, v video) (*flight, *spoolReader, error) {
 	s.mu.Lock()
@@ -102,14 +103,14 @@ func checkOpenFile(ctx context.Context, f *os.File, v video) error {
 		return err
 	}
 	if !info.Mode().IsRegular() || info.Size() != v.size {
-		return errors.New("cached size mismatch")
+		return fmt.Errorf("%w: cached size mismatch", errInvalidCache)
 	}
 	h := md5.New()
 	if _, err := io.Copy(h, contextReader{ctx, f}); err != nil {
 		return err
 	}
 	if hex.EncodeToString(h.Sum(nil)) != v.checksum {
-		return errors.New("cached checksum mismatch")
+		return fmt.Errorf("%w: cached checksum mismatch", errInvalidCache)
 	}
 	return nil
 }

@@ -44,9 +44,6 @@ func scanInventory(s Settings) Inventory {
 		library bool
 	}{{s.SongsDir, true}, {s.CacheDir, false}} {
 		entries, err := os.ReadDir(dir.path)
-		if os.IsNotExist(err) {
-			continue
-		}
 		if err != nil {
 			problems = append(problems, fmt.Sprintf("无法读取 %s：%v", dir.path, err))
 			continue
@@ -65,23 +62,52 @@ func scanInventory(s Settings) Inventory {
 }
 
 func (c *Console) localInventory() Inventory {
-	c.mu.Lock()
-	s := c.settings
-	c.mu.Unlock()
+	c.inventoryMu.Lock()
+	first := c.inventory.Updated.IsZero() && c.inventory.Error == "" && !c.inventory.Scanning
+	c.inventoryMu.Unlock()
+	if first {
+		c.startInventoryScan()
+	}
 	c.inventoryMu.Lock()
 	defer c.inventoryMu.Unlock()
-	if !c.inventory.Scanning && (s != c.inventorySettings || time.Since(c.inventory.Updated) >= 30*time.Second) {
-		if s != c.inventorySettings {
-			c.inventory = Inventory{}
-		}
-		c.inventorySettings = s
-		c.inventory.Scanning = true
-		go func() {
-			result := scanInventory(s)
-			c.inventoryMu.Lock()
-			c.inventory = result
-			c.inventoryMu.Unlock()
-		}()
-	}
 	return c.inventory
+}
+
+func (c *Console) startInventoryScan() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closing {
+		return
+	}
+	s := c.settings
+	c.inventoryMu.Lock()
+	defer c.inventoryMu.Unlock()
+	if c.inventory.Scanning {
+		return
+	}
+	c.inventory.Scanning = true
+	c.inventory.Error = ""
+	c.inventoryGeneration++
+	generation := c.inventoryGeneration
+	done := make(chan struct{})
+	c.inventoryDone = done
+	go func() {
+		defer close(done)
+		result := scanInventory(s)
+		c.inventoryMu.Lock()
+		defer c.inventoryMu.Unlock()
+		if generation != c.inventoryGeneration {
+			return
+		}
+		c.inventory.Scanning = false
+		if result.Error != "" {
+			c.inventory.Error = result.Error
+			return
+		}
+		if err := c.writeSnapshot("inventory", s, result); err != nil {
+			c.inventory.Error = "无法保存扫描结果：" + err.Error()
+			return
+		}
+		c.inventory = result
+	}()
 }

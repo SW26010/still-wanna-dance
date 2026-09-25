@@ -34,29 +34,32 @@ type Settings struct {
 }
 
 type Console struct {
-	taskMu            sync.Mutex
-	inventoryMu       sync.Mutex
-	inventory         Inventory
-	inventorySettings Settings
-	mu                sync.Mutex
-	settings          Settings
-	configPath        string
-	token             string
-	address           string
-	videoAddress      string
-	service           *cacheproxy.Server
-	httpServer        *http.Server
-	lastError         string
-	batch             Batch
-	batchCancel       context.CancelFunc
-	batchDone         chan struct{}
-	queue             QueueStatus
-	queueCancel       context.CancelFunc
-	queueDone         chan struct{}
-	closing           bool
-	client            *http.Client
-	apiBase           string
-	dns               *directDNS
+	taskMu              sync.Mutex
+	inventoryMu         sync.Mutex
+	inventory           Inventory
+	inventorySettings   Settings
+	inventoryGeneration uint64
+	inventoryDone       chan struct{}
+	mu                  sync.Mutex
+	settings            Settings
+	configPath          string
+	token               string
+	address             string
+	videoAddress        string
+	service             *cacheproxy.Server
+	httpServer          *http.Server
+	lastError           string
+	batch               Batch
+	lastBatch           Batch
+	batchCancel         context.CancelFunc
+	batchDone           chan struct{}
+	queue               QueueStatus
+	queueCancel         context.CancelFunc
+	queueDone           chan struct{}
+	closing             bool
+	client              *http.Client
+	apiBase             string
+	dns                 *directDNS
 }
 
 func New(configPath, address string) (*Console, error) {
@@ -80,6 +83,9 @@ func New(configPath, address string) (*Console, error) {
 		return nil, err
 	}
 	c.settings, err = c.resolveSettings(c.settings)
+	if err == nil {
+		c.loadSnapshots()
+	}
 	return c, err
 }
 
@@ -197,7 +203,11 @@ func (c *Console) save(s Settings) error {
 	if err = os.Rename(f.Name(), c.configPath); err != nil {
 		return err
 	}
+	changedLibrary := !sameLibrary(c.settings, s)
 	c.settings = s
+	if changedLibrary {
+		c.loadSnapshots()
+	}
 	slog.Info("settings_saved", "songs_dir", s.SongsDir, "cache_dir", s.CacheDir, "vrchat_log_dir", s.LogDir)
 	if c.service != nil {
 		_ = c.service.Close()
@@ -294,6 +304,12 @@ func (c *Console) Close() error {
 	queueDone := c.queueDone
 	c.mu.Unlock()
 	err := c.stop()
+	c.inventoryMu.Lock()
+	inventoryDone := c.inventoryDone
+	c.inventoryMu.Unlock()
+	if inventoryDone != nil {
+		<-inventoryDone
+	}
 	if done != nil {
 		<-done
 	}
@@ -340,7 +356,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Batch     Batch          `json:"batch"`
 			PortOwner *desktop.Owner `json:"portOwner,omitempty"`
 			Queue     QueueStatus    `json:"queue"`
-		}{running, c.settings, readHostsStatus(), running, c.lastError, c.batch, nil, c.queue}
+			LastBatch Batch          `json:"lastBatch"`
+		}{running, c.settings, readHostsStatus(), running, c.lastError, c.batch, nil, c.queue, c.lastBatch}
 		result.Queue.Songs = append([]vrclog.Song(nil), c.queue.Songs...)
 		result.Queue.Failures = append([]Failure(nil), c.queue.Failures...)
 		result.Batch.Failures = append([]Failure(nil), c.batch.Failures...)
@@ -369,6 +386,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
 	var err error
 	switch r.URL.Path {
+	case "/api/inventory/scan":
+		c.startInventoryScan()
+	case "/api/batch/scan":
+		err = c.startBatchMode(true)
 	case "/api/batch/switch":
 		err = c.switchTask(true)
 	case "/api/queue/switch":

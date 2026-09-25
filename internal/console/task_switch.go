@@ -10,7 +10,7 @@ func (c *Console) switchTask(batch bool) error {
 	if batch && c.queueCancel != nil {
 		c.queueCancel()
 		done = c.queueDone
-	} else if !batch && c.batchCancel != nil {
+	} else if !batch && c.batchCancel != nil && !c.batch.ScanOnly {
 		c.batchCancel()
 		done = c.batchDone
 	}

@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -27,6 +28,10 @@ type Failure struct {
 	Error string `json:"error"`
 }
 type Batch struct {
+	ScanOnly   bool      `json:"scanOnly"`
+	Missing    int       `json:"missing"`
+	Updated    time.Time `json:"updated"`
+	Finished   time.Time `json:"finished"`
 	Running    bool      `json:"running"`
 	Phase      string    `json:"phase"`
 	Total      int       `json:"total"`
@@ -111,7 +116,9 @@ func (c *Console) resolve(ctx context.Context, id int64) (string, error) {
 	return u.String(), nil
 }
 
-func (c *Console) startBatch() error {
+func (c *Console) startBatch() error { return c.startBatchMode(false) }
+
+func (c *Console) startBatchMode(scanOnly bool) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
@@ -120,16 +127,25 @@ func (c *Console) startBatch() error {
 	if c.batch.Running {
 		return errors.New("已有批量任务正在运行")
 	}
-	if c.queue.Running {
+	if c.queue.Running && !scanOnly {
 		return errors.New("请先停止队列预缓存")
 	}
-	if err := c.ensureEngine(); err != nil {
-		return err
+	if scanOnly {
+		for _, dir := range []string{c.settings.SongsDir, c.settings.CacheDir} {
+			if _, err := os.ReadDir(dir); err != nil {
+				return fmt.Errorf("无法扫描目录 %s：%w", dir, err)
+			}
+		}
+	}
+	if !scanOnly {
+		if err := c.ensureEngine(); err != nil {
+			return err
+		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	c.batchCancel = cancel
 	c.batchDone = make(chan struct{})
-	c.batch = Batch{Running: true, Phase: "正在获取最新歌曲列表"}
+	c.batch = Batch{Running: true, ScanOnly: scanOnly, Phase: "正在获取最新歌曲列表"}
 	slog.Info("batch_started")
 	go c.runBatch(ctx, c.service, c.batchDone)
 	return nil
@@ -137,13 +153,29 @@ func (c *Console) startBatch() error {
 
 func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan struct{}) {
 	defer close(done)
+	completed := false
+	c.mu.Lock()
+	scanOnly, settings := c.batch.ScanOnly, c.settings
+	c.mu.Unlock()
 	defer func() {
 		c.mu.Lock()
 		defer c.mu.Unlock()
 		c.batch.Running = false
 		c.batchCancel = nil
+		c.batch.Finished = time.Now()
 		if ctx.Err() != nil {
-			c.batch.Phase = "已停止排队；已开始的共享下载继续完成，退出控制台可全部取消"
+			c.batch.Phase = "任务已停止，上次成功结果保留。已开始的共享下载可能继续完成。"
+		}
+		if completed && ctx.Err() == nil && c.batch.Total > 0 && c.batch.Checked == c.batch.Total && c.batch.Failed == 0 {
+			c.batch.Updated = time.Now()
+			if err := c.writeSnapshot("batch", settings, c.batch); err != nil {
+				c.batch.Phase += "；保存失败，上次成功结果保留：" + err.Error()
+			} else {
+				c.lastBatch = c.batch
+			}
+		}
+		if err := c.writeSnapshot("attempt", settings, c.batch); err != nil {
+			c.batch.Phase += "；无法保存本次进度：" + err.Error()
 		}
 		slog.Info("batch_finished", "cancelled", ctx.Err() != nil, "total", c.batch.Total, "checked", c.batch.Checked, "hits", c.batch.Hits, "downloaded", c.batch.Downloaded, "failed", c.batch.Failed, "phase", c.batch.Phase)
 	}()
@@ -160,7 +192,10 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	c.mu.Lock()
 	c.batch.Total = len(songs)
 	slog.Info("catalog_loaded", "total", len(songs))
-	c.batch.Phase = "正在校验并补齐"
+	c.batch.Phase = "正在下载补齐"
+	if scanOnly {
+		c.batch.Phase = "正在扫描校验（不下载）"
+	}
 	c.mu.Unlock()
 	// One background worker leaves capacity for interactive game playback.
 	for _, song := range songs {
@@ -173,7 +208,17 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		target, err := c.resolve(ctx, song.ID)
 		source := ""
 		if err == nil {
-			source, err = s.Prefetch(ctx, target)
+			if scanOnly {
+				var hit bool
+				hit, err = cacheproxy.CheckLocal(ctx, settings.SongsDir, settings.CacheDir, target)
+				if hit {
+					source = "HIT"
+				} else {
+					source = "MISSING"
+				}
+			} else {
+				source, err = s.Prefetch(ctx, target)
+			}
 		}
 		if ctx.Err() != nil {
 			return
@@ -184,6 +229,8 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 			c.batch.Failed++
 			slog.Warn("batch_song_failed", "song_id", song.ID, "error", err)
 			c.batch.Failures = append(c.batch.Failures, Failure{song.ID, song.Name, err.Error()})
+		} else if source == "MISSING" {
+			c.batch.Missing++
 		} else if source == "HIT" {
 			c.batch.Hits++
 		} else {
@@ -196,10 +243,23 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		case <-time.After(150 * time.Millisecond):
 		}
 	}
+	if scanOnly {
+		for _, dir := range []string{settings.SongsDir, settings.CacheDir} {
+			if _, err := os.ReadDir(dir); err != nil {
+				c.mu.Lock()
+				c.batch.Phase = "扫描目录已不可用，上次结果保留：" + err.Error()
+				c.mu.Unlock()
+				return
+			}
+		}
+	}
+	completed = true
 	c.mu.Lock()
 	c.batch.Current = ""
 	if c.batch.Failed > 0 {
 		c.batch.Phase = "检查完成，部分歌曲失败；再次检查可重试"
+	} else if scanOnly {
+		c.batch.Phase = "扫描完成；缺失或损坏的视频可通过「下载补齐」更新"
 	} else {
 		c.batch.Phase = "所有已知歌曲已校验并缓存"
 	}

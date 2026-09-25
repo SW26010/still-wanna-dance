@@ -27,7 +27,8 @@ func testConsole(t *testing.T) *Console {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.settings = Settings{StorageDir: filepath.Join(root, "data"), LogDir: filepath.Join(root, "logs")}
+	c.settings.StorageDir = filepath.Join(root, "data")
+	c.settings.LogDir = filepath.Join(root, "logs")
 	c.videoAddress = "127.0.0.1:0"
 	t.Cleanup(func() { c.Close() })
 	return c

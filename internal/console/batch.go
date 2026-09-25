@@ -208,6 +208,11 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	}
 	c.mu.Unlock()
 	active := map[int64]string{}
+	var scanner *scanLimiter
+	if scanOnly {
+		scanner = newScanLimiter(settings)
+		defer scanner.ticker.Stop()
+	}
 	refreshCurrent := func() {
 		names := make([]string, 0, len(active))
 		for _, name := range active {
@@ -233,16 +238,16 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		var err error
 		source := ""
 		if scanOnly {
-			target, resolveErr := c.resolve(ctx, song.ID)
-			err = resolveErr
-			if err == nil {
-				var hit bool
-				hit, err = cacheproxy.CheckLocal(ctx, settings.StorageDir, target)
-				if hit {
-					source = "HIT"
-				} else {
-					source = "MISSING"
-				}
+			var hit bool
+			hit, err = scanner.check(ctx, func() (string, error) {
+				return c.resolve(ctx, song.ID)
+			}, func(target string) (bool, error) {
+				return cacheproxy.CheckLocal(ctx, settings.StorageDir, target)
+			})
+			if hit {
+				source = "HIT"
+			} else {
+				source = "MISSING"
 			}
 		} else {
 			err = s.SetSongTitle(ctx, strconv.FormatInt(song.ID, 10), song.Name)
@@ -267,6 +272,9 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 			c.batch.Downloaded++
 		}
 		c.mu.Unlock()
+		if scanOnly {
+			return // Scan request starts are paced globally by scanLimiter.
+		}
 		select {
 		case <-ctx.Done():
 			return
@@ -275,7 +283,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	}
 	workers := 2
 	if scanOnly {
-		workers = 1
+		workers = settings.ScanResolveConcurrency + settings.ScanCheckConcurrency
 	}
 	jobs := make(chan Song)
 	var wg sync.WaitGroup

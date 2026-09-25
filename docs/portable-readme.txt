@@ -2,7 +2,8 @@ StepStash — Windows x64 portable
 
 1. 将 ZIP 完整解压到可写目录（例如 D:\Apps\StepStash），不要直接从压缩包内运行。
 2. 双击 stepstash-console.exe。程序显示托盘图标，并打开本地浏览器控制台。
-   不需要安装 Go、Node.js 或其他运行库。关闭网页后程序仍在托盘运行。
+   无需 CMD / PS1 启动脚本，也不需要安装 Go、Node.js 或其他运行库。
+   关闭网页后程序仍在托盘运行；再次双击 EXE 会打开已有控制台。
 3. 在控制台设置存储目录及 VRChat 日志目录，保存后按需启用功能。
    默认存储目录 stepstash-data 位于程序目录下。
    视频位于 videos，歌曲资料和统计位于 stepstash.sqlite。全曲目下载可能占用大量空间。

@@ -28,10 +28,12 @@ import (
 var page string
 
 type Settings struct {
-	DownloadUpstream string `json:"downloadUpstream"`
-	MaxCacheBytes    int64  `json:"maxCacheBytes"`
-	StorageDir       string `json:"storageDir"`
-	LogDir           string `json:"logDir"`
+	ScanResolveConcurrency int    `json:"scanResolveConcurrency"`
+	ScanCheckConcurrency   int    `json:"scanCheckConcurrency"`
+	DownloadUpstream       string `json:"downloadUpstream"`
+	MaxCacheBytes          int64  `json:"maxCacheBytes"`
+	StorageDir             string `json:"storageDir"`
+	LogDir                 string `json:"logDir"`
 }
 
 type Console struct {
@@ -114,6 +116,18 @@ func (c *Console) storedSettings(s Settings) Settings {
 }
 
 func absoluteSettings(s Settings) (Settings, error) {
+	if s.ScanResolveConcurrency == 0 {
+		s.ScanResolveConcurrency = 4
+	}
+	if s.ScanCheckConcurrency == 0 {
+		s.ScanCheckConcurrency = 1
+	}
+	if s.ScanResolveConcurrency < 1 || s.ScanResolveConcurrency > 16 {
+		return s, errors.New("扫描地址请求并发必须为 1～16")
+	}
+	if s.ScanCheckConcurrency < 1 || s.ScanCheckConcurrency > 4 {
+		return s, errors.New("扫描本地校验并发必须为 1～4")
+	}
 	if s.DownloadUpstream == "" {
 		s.DownloadUpstream = "auto"
 	}

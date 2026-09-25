@@ -27,8 +27,12 @@ try {
     if (!(Test-Path -LiteralPath (Join-Path $folder 'stepstash-console.json.lock'))) { throw 'Config lock missing beside executable.' }
     $page = Invoke-WebRequest $url -UseBasicParsing
     if ($page.Content -notmatch 'StepStash') { throw 'Embedded UI missing.' }
+    $logPath = Join-Path $folder 'logs/stepstash-console.json.log'
+    $records = @(Get-Content -LiteralPath $logPath | ForEach-Object { $_ | ConvertFrom-Json })
+    if ('application_starting' -notin $records.msg -or 'console_ready' -notin $records.msg) { throw 'Startup log records missing.' }
+    if ($records.Count -ne 2) { throw 'Read-only status/UI requests should not generate log records.' }
     if ($process.HasExited) { throw 'Portable process did not remain alive.' }
-    Write-Host 'Portable smoke passed: ZIP extraction, independent launch directory, executable-relative settings, embedded UI.'
+    Write-Host 'Portable smoke passed: ZIP extraction, independent launch directory, executable-relative settings, embedded UI, JSON logs.'
 } finally {
     if ($null -ne $process -and !$process.HasExited) { $process.Kill(); $process.WaitForExit() }
     # Keep the isolated extraction for inspection; never touch an existing installation.

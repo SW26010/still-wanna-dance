@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -189,6 +190,7 @@ func (c *Console) save(s Settings) error {
 		return err
 	}
 	c.settings = s
+	slog.Info("settings_saved", "songs_dir", s.SongsDir, "cache_dir", s.CacheDir, "vrchat_log_dir", s.LogDir)
 	if c.service != nil {
 		_ = c.service.Close()
 		c.service = nil
@@ -207,6 +209,7 @@ func (c *Console) ensureEngine() error {
 		}
 	}
 	cfg := cacheproxy.DefaultConfig()
+	cfg.Logger = slog.Default().With("component", "cache")
 	cfg.SongsDir = c.settings.SongsDir
 	cfg.CacheDir = c.settings.CacheDir
 	cfg.DialContext = c.dns.DialContext
@@ -237,12 +240,14 @@ func (c *Console) start() error {
 		l.Close()
 		return err
 	}
-	h := &http.Server{Handler: c.service, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
+	h := &http.Server{Handler: c.service, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, ErrorLog: slog.NewLogLogger(slog.Default().Handler(), slog.LevelError)}
 	c.httpServer = h
 	c.lastError = ""
+	slog.Info("cdn_started", "address", l.Addr().String())
 	go func() {
 		err := h.Serve(l)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("cdn_failed", "error", err)
 			c.mu.Lock()
 			c.lastError = err.Error()
 			if c.httpServer == h {
@@ -262,6 +267,7 @@ func (c *Console) stop() error {
 	}
 	_ = c.httpServer.Close()
 	c.httpServer = nil
+	slog.Info("cdn_stopped")
 	return nil
 }
 
@@ -383,6 +389,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
+		slog.Error("console_action_failed", "action", r.URL.Path, "error", err)
 		c.mu.Lock()
 		c.lastError = err.Error()
 		c.mu.Unlock()
@@ -391,6 +398,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]string{"error": err.Error()})
 		return
 	}
+	slog.Info("console_action_completed", "action", r.URL.Path)
 	writeJSON(w, map[string]bool{"ok": true})
 }
 

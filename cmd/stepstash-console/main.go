@@ -5,16 +5,19 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"sync"
 	"syscall"
 	"time"
 
+	"stepstash/internal/applog"
 	"stepstash/internal/console"
 	"stepstash/internal/desktop"
 )
@@ -31,7 +34,7 @@ func main() {
 	}
 }
 
-func run() error {
+func run() (runErr error) {
 	address := flag.String("listen", desktop.Address, "local console address (tray mode uses 127.0.0.1:18081)")
 	defaultConfig := "stepstash-console.json"
 	if runtime.GOOS == "windows" {
@@ -86,6 +89,35 @@ func run() error {
 		return err
 	}
 	defer configLease.Close()
+	logPath := filepath.Join(filepath.Dir(p), "logs", filepath.Base(p)+".log")
+	writer, err := applog.Open(logPath, applog.MaxBytes, applog.Backups, func(err error) {
+		message := fmt.Errorf("程序日志写入失败（%s）：%w", logPath, err)
+		fmt.Fprintln(os.Stderr, message)
+		if visibleErrors {
+			go desktop.ShowError(message)
+		}
+	})
+	if err != nil {
+		return fmt.Errorf("无法创建程序日志（%s）：%w", logPath, err)
+	}
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(writer, nil)).With("pid", os.Getpid()))
+	defer func() {
+		if crash := recover(); crash != nil {
+			slog.Error("application_panic", "panic", fmt.Sprint(crash), "stack", string(debug.Stack()))
+			runErr = fmt.Errorf("程序发生异常，详情见 %s：%v", logPath, crash)
+		}
+		if runErr != nil {
+			slog.Error("application_failed", "error", runErr)
+		} else {
+			slog.Info("application_stopped")
+		}
+		slog.SetDefault(previousLogger)
+		if err := writer.Close(); err != nil && runErr == nil {
+			runErr = fmt.Errorf("关闭日志失败：%w", err)
+		}
+	}()
+	slog.Info("application_starting", "config", p, "listen", *address, "tray", !*noTray, "go", runtime.Version())
 	l, err := net.Listen("tcp4", *address)
 	if err != nil {
 		return desktop.PortError(*address, err)
@@ -95,13 +127,22 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	h := &http.Server{Handler: c, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
+	h := &http.Server{Handler: c, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, ErrorLog: slog.NewLogLogger(slog.Default().Handler(), slog.LevelError)}
 	var closeOnce sync.Once
-	shutdown := func() { closeOnce.Do(func() { _ = h.Close(); _ = c.Close() }) }
+	shutdown := func() {
+		closeOnce.Do(func() {
+			slog.Info("application_stopping")
+			_ = h.Close()
+			if err := c.Close(); err != nil {
+				slog.Error("shutdown_failed", "error", err)
+			}
+		})
+	}
 	defer shutdown()
 	done := make(chan error, 1)
 	go func() { done <- h.Serve(l); stop() }()
 	url := "http://" + l.Addr().String()
+	slog.Info("console_ready", "url", url)
 	fmt.Printf("StepStash 控制台：%s\n关闭浏览器不会退出程序。退出不会恢复 hosts。\n", url)
 	if !*noTray {
 		err = desktop.Run(ctx, desktop.Options{URL: url, Open: !*noOpen, State: c.DesktopState, Command: c.DesktopCommand, Shutdown: shutdown})

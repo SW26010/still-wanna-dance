@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -109,6 +110,7 @@ func (c *Console) startQueue() error {
 	c.queueCancel = cancel
 	c.queueDone = make(chan struct{})
 	c.queue = QueueStatus{Running: true, File: logName(tail.Path)}
+	slog.Info("queue_started", "file", logName(tail.Path))
 	go c.runQueue(ctx, tail, c.service, c.queueDone)
 	return nil
 }
@@ -125,12 +127,14 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 		c.queue.Current = 0
 		c.queue.setSongs(nil, true)
 		c.queueCancel = nil
+		slog.Info("queue_stopped", "completed", c.queue.Completed)
 		c.mu.Unlock()
 	}()
 	ticker := time.NewTicker(vrclog.PollInterval)
 	defer ticker.Stop()
 	lastActivity := time.Now()
 	stale := false
+	lastReadError := ""
 	for {
 		select {
 		case <-ctx.Done():
@@ -138,6 +142,21 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 		case now := <-ticker.C:
 			previousPath, previousOffset := tail.Path, tail.Offset
 			events, err := tail.Poll(now)
+			readError := ""
+			if err != nil {
+				readError = err.Error()
+			}
+			if readError != lastReadError {
+				if err != nil {
+					slog.Warn("vrchat_log_read_failed", "error", err)
+				} else {
+					slog.Info("vrchat_log_read_recovered")
+				}
+				lastReadError = readError
+			}
+			if tail.Path != previousPath {
+				slog.Info("vrchat_log_changed", "file", logName(tail.Path))
+			}
 			if tail.Path != previousPath || tail.Offset != previousOffset {
 				lastActivity = now
 				stale = false
@@ -152,9 +171,11 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 			for _, e := range events {
 				c.queue.setSongs(e.Songs, e.Reset)
 				c.queue.Updated = now
+				slog.Info("queue_updated", "song_count", len(e.Songs), "reset", e.Reset)
 			}
 			if now.Sub(lastActivity) >= 5*time.Minute {
 				if !stale {
+					slog.Warn("vrchat_log_stale")
 					c.queue.setSongs(nil, true)
 					stale = true
 				}
@@ -233,9 +254,11 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		if generation == c.queue.Generation {
 			if err != nil {
 				retry[id] = time.Now().Add(time.Minute)
+				slog.Warn("queue_song_failed", "song_id", id, "error", err, "retry_seconds", 60)
 			} else {
 				completed[id] = true
 				c.queue.Completed++
+				slog.Info("queue_song_ready", "song_id", id)
 			}
 			c.queue.songResult(id, err)
 		}

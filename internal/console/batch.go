@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"sort"
@@ -129,6 +130,7 @@ func (c *Console) startBatch() error {
 	c.batchCancel = cancel
 	c.batchDone = make(chan struct{})
 	c.batch = Batch{Running: true, Phase: "正在获取最新歌曲列表"}
+	slog.Info("batch_started")
 	go c.runBatch(ctx, c.service, c.batchDone)
 	return nil
 }
@@ -143,9 +145,13 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		if ctx.Err() != nil {
 			c.batch.Phase = "已停止排队；已开始的共享下载继续完成，退出控制台可全部取消"
 		}
+		slog.Info("batch_finished", "cancelled", ctx.Err() != nil, "total", c.batch.Total, "checked", c.batch.Checked, "hits", c.batch.Hits, "downloaded", c.batch.Downloaded, "failed", c.batch.Failed, "phase", c.batch.Phase)
 	}()
 	songs, err := c.catalog(ctx)
 	if err != nil {
+		if ctx.Err() == nil {
+			slog.Error("catalog_failed", "error", err)
+		}
 		c.mu.Lock()
 		c.batch.Phase = "获取歌曲列表失败：" + err.Error()
 		c.mu.Unlock()
@@ -153,6 +159,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	}
 	c.mu.Lock()
 	c.batch.Total = len(songs)
+	slog.Info("catalog_loaded", "total", len(songs))
 	c.batch.Phase = "正在校验并补齐"
 	c.mu.Unlock()
 	// One background worker leaves capacity for interactive game playback.
@@ -175,6 +182,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		c.batch.Checked++
 		if err != nil {
 			c.batch.Failed++
+			slog.Warn("batch_song_failed", "song_id", song.ID, "error", err)
 			c.batch.Failures = append(c.batch.Failures, Failure{song.ID, song.Name, err.Error()})
 		} else if source == "HIT" {
 			c.batch.Hits++

@@ -35,25 +35,27 @@ type flight struct {
 }
 
 type Server struct {
-	cfg           Config
-	client        *http.Client
-	ctx           context.Context
-	cancel        context.CancelFunc
-	mu            sync.Mutex
-	flights       map[string]*flight
-	slots         chan struct{}
-	wg            sync.WaitGroup
-	closed        bool
-	unlock        func() error
-	once          sync.Once
-	sequence      atomic.Uint64
-	usage         *usageStore
-	retentionMu   sync.Mutex
-	pins          map[string]int
-	currentMu     sync.Mutex
-	currentLocks  map[string]*songConfirmation
-	versionPins   map[string]int
-	cleanupNeeded map[string]bool
+	cfg             Config
+	client          *http.Client
+	ctx             context.Context
+	cancel          context.CancelFunc
+	mu              sync.Mutex
+	flights         map[string]*flight
+	slots           chan struct{}
+	background      int
+	capacityChanged chan struct{}
+	wg              sync.WaitGroup
+	closed          bool
+	unlock          func() error
+	once            sync.Once
+	sequence        atomic.Uint64
+	usage           *usageStore
+	retentionMu     sync.Mutex
+	pins            map[string]int
+	currentMu       sync.Mutex
+	currentLocks    map[string]*songConfirmation
+	versionPins     map[string]int
+	cleanupNeeded   map[string]bool
 }
 
 func New(cfg Config) (*Server, error) {
@@ -117,7 +119,7 @@ func New(cfg Config) (*Server, error) {
 	s := &Server{cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
 		pins: make(map[string]int), versionPins: make(map[string]int), cleanupNeeded: make(map[string]bool),
 		usage:   usage,
-		flights: make(map[string]*flight), slots: make(chan struct{}, cfg.MaxDownloads),
+		flights: make(map[string]*flight), slots: make(chan struct{}, cfg.MaxDownloads), capacityChanged: make(chan struct{}),
 		client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
 	s.cleanSupersededOnStartup()

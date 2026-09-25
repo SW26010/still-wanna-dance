@@ -16,10 +16,40 @@ var errBusy = errors.New("download capacity reached")
 var errInvalidCache = errors.New("invalid cached video")
 
 func (s *Server) obtain(ctx context.Context, v video) (*flight, *spoolReader, error) {
+	return s.obtainMode(ctx, v, false)
+}
+
+func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*flight, *spoolReader, error) {
 	s.mu.Lock()
-	if s.closed {
+	// Background capacity belongs to the actual flight, even if its caller
+	// cancels. Keep one slot for playback when the configured limit permits it.
+	limit := max(1, min(2, s.cfg.MaxDownloads-1))
+	for {
+		if err := ctx.Err(); err != nil {
+			s.mu.Unlock()
+			return nil, nil, err
+		}
+		if s.closed {
+			s.mu.Unlock()
+			return nil, nil, context.Canceled
+		}
+		if s.flights[v.key] != nil || (len(s.slots) < cap(s.slots) && (!background || s.background < limit)) {
+			break
+		}
+		if !background {
+			s.mu.Unlock()
+			return nil, nil, errBusy
+		}
+		changed := s.capacityChanged
 		s.mu.Unlock()
-		return nil, nil, context.Canceled
+		select {
+		case <-ctx.Done():
+			return nil, nil, ctx.Err()
+		case <-s.ctx.Done():
+			return nil, nil, context.Canceled
+		case <-changed:
+		}
+		s.mu.Lock()
 	}
 	f := s.flights[v.key]
 	if f == nil {
@@ -32,6 +62,11 @@ func (s *Server) obtain(ctx context.Context, v video) (*flight, *spoolReader, er
 		}
 		f = &flight{done: make(chan struct{}), streaming: make(chan struct{})}
 		s.flights[v.key] = f
+		if background {
+			s.background++
+		}
+		close(s.capacityChanged)
+		s.capacityChanged = make(chan struct{})
 		s.wg.Add(1)
 		s.pinVideo(v)
 		go func() {
@@ -49,6 +84,11 @@ func (s *Server) obtain(ctx context.Context, v video) (*flight, *spoolReader, er
 			s.mu.Lock()
 			delete(s.flights, v.key)
 			<-s.slots
+			if background {
+				s.background--
+			}
+			close(s.capacityChanged)
+			s.capacityChanged = make(chan struct{})
 			close(f.done)
 			s.mu.Unlock()
 			if f.spool != nil {

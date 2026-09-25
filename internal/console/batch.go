@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"stepstash/internal/cacheproxy"
@@ -89,7 +90,15 @@ func (c *Console) catalog(ctx context.Context) ([]Song, error) {
 }
 
 func (c *Console) resolve(ctx context.Context, id int64) (string, error) {
-	r, err := http.NewRequestWithContext(ctx, "GET", c.apiBase+"/Api/Songs/play?node=nya&id="+strconv.FormatInt(id, 10), nil)
+	return c.resolveNode(ctx, id, "hkg")
+}
+
+func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (string, error) {
+	node, host := "nya", "nya.xin.moe"
+	if upstream == "cf" {
+		node, host = "cf", "play.udon.dance"
+	}
+	r, err := http.NewRequestWithContext(ctx, "GET", c.apiBase+"/Api/Songs/play?node="+node+"&id="+strconv.FormatInt(id, 10), nil)
 	if err != nil {
 		return "", err
 	}
@@ -107,6 +116,9 @@ func (c *Console) resolve(ctx context.Context, id int64) (string, error) {
 	}
 	if u.Scheme != "http" || (u.Host != "play.udon.dance" && u.Host != "nya.xin.moe") || u.User != nil || u.Fragment != "" {
 		return "", errors.New("歌曲返回了未支持的视频地址；当前支持 CF/HKG HTTP")
+	}
+	if u.Host != host {
+		return "", fmt.Errorf("%s 返回了其他上游的视频地址", upstream)
 	}
 	parts := strings.Split(u.Path, "/")
 	file := parts[len(parts)-1]
@@ -195,18 +207,35 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		c.batch.Phase = "正在扫描校验（不下载）"
 	}
 	c.mu.Unlock()
-	// One background worker leaves capacity for interactive game playback.
-	for _, song := range songs {
+	active := map[int64]string{}
+	refreshCurrent := func() {
+		names := make([]string, 0, len(active))
+		for _, name := range active {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		c.batch.Current = strings.Join(names, "；")
+	}
+	process := func(song Song) {
 		if ctx.Err() != nil {
 			return
 		}
 		c.mu.Lock()
-		c.batch.Current = fmt.Sprintf("%d · %s", song.ID, song.Name)
+		active[song.ID] = fmt.Sprintf("%d · %s", song.ID, song.Name)
+		refreshCurrent()
 		c.mu.Unlock()
-		target, err := c.resolve(ctx, song.ID)
+		defer func() {
+			c.mu.Lock()
+			delete(active, song.ID)
+			refreshCurrent()
+			c.mu.Unlock()
+		}()
+		var err error
 		source := ""
-		if err == nil {
-			if scanOnly {
+		if scanOnly {
+			target, resolveErr := c.resolve(ctx, song.ID)
+			err = resolveErr
+			if err == nil {
 				var hit bool
 				hit, err = cacheproxy.CheckLocal(ctx, settings.StorageDir, target)
 				if hit {
@@ -214,11 +243,11 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 				} else {
 					source = "MISSING"
 				}
-			} else {
-				err = s.SetSongTitle(ctx, strconv.FormatInt(song.ID, 10), song.Name)
-				if err == nil {
-					source, err = s.Prefetch(ctx, target)
-				}
+			}
+		} else {
+			err = s.SetSongTitle(ctx, strconv.FormatInt(song.ID, 10), song.Name)
+			if err == nil {
+				source, err = c.prefetchSong(ctx, s, song.ID, nil)
 			}
 		}
 		if ctx.Err() != nil {
@@ -243,6 +272,34 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 			return
 		case <-time.After(150 * time.Millisecond):
 		}
+	}
+	workers := 2
+	if scanOnly {
+		workers = 1
+	}
+	jobs := make(chan Song)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for song := range jobs {
+				process(song)
+			}
+		}()
+	}
+dispatch:
+	for _, song := range songs {
+		select {
+		case <-ctx.Done():
+			break dispatch
+		case jobs <- song:
+		}
+	}
+	close(jobs)
+	wg.Wait()
+	if ctx.Err() != nil {
+		return
 	}
 	if scanOnly {
 		if _, err := os.ReadDir(settings.StorageDir); err != nil {

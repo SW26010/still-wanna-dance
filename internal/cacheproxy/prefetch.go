@@ -40,7 +40,7 @@ func (s *Server) Prefetch(ctx context.Context, target string) (source string, re
 			source: "prefetch", method: "GET", size: v.size, cache: cache,
 			outcome: outcome, elapsedMS: time.Since(start).Milliseconds()})
 	}()
-	f, reader, err := s.obtain(ctx, v)
+	f, reader, err := s.obtainMode(ctx, v, true)
 	if reader != nil {
 		defer reader.Close()
 	}

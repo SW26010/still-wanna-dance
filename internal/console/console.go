@@ -28,9 +28,10 @@ import (
 var page string
 
 type Settings struct {
-	MaxCacheBytes int64  `json:"maxCacheBytes"`
-	StorageDir    string `json:"storageDir"`
-	LogDir        string `json:"logDir"`
+	DownloadUpstream string `json:"downloadUpstream"`
+	MaxCacheBytes    int64  `json:"maxCacheBytes"`
+	StorageDir       string `json:"storageDir"`
+	LogDir           string `json:"logDir"`
 }
 
 type Console struct {
@@ -113,6 +114,12 @@ func (c *Console) storedSettings(s Settings) Settings {
 }
 
 func absoluteSettings(s Settings) (Settings, error) {
+	if s.DownloadUpstream == "" {
+		s.DownloadUpstream = "auto"
+	}
+	if s.DownloadUpstream != "auto" && s.DownloadUpstream != "cf" && s.DownloadUpstream != "hkg" {
+		return s, errors.New("下载上游必须是 auto、cf 或 hkg")
+	}
 	if s.MaxCacheBytes < 0 {
 		return s, errors.New("缓存上限不能为负数")
 	}
@@ -349,6 +356,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			LastBatch Batch          `json:"lastBatch"`
 		}{running, c.settings, readHostsStatus(), running, c.lastError, c.batch, nil, c.queue, c.lastBatch}
 		result.Queue.Songs = append([]vrclog.Song(nil), c.queue.Songs...)
+		result.Queue.Active = append([]int64(nil), c.queue.Active...)
 		result.Queue.Failures = append([]Failure(nil), c.queue.Failures...)
 		result.Batch.Failures = append([]Failure(nil), c.batch.Failures...)
 		c.mu.Unlock()

@@ -7,7 +7,9 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"stepstash/internal/cacheproxy"
@@ -19,12 +21,35 @@ type QueueStatus struct {
 	File       string        `json:"file"`
 	Songs      []vrclog.Song `json:"songs"`
 	Current    int64         `json:"current"`
+	Active     []int64       `json:"active"`
 	Completed  int           `json:"completed"`
 	Error      string        `json:"error"`
 	Failures   []Failure     `json:"failures"`
 	LogError   string        `json:"logError"`
 	Updated    time.Time     `json:"updated"`
 	Generation uint64        `json:"-"`
+	waiters    map[int64]*queueWaiter
+}
+
+type queueWaiter struct {
+	ctx        context.Context
+	cancel     context.CancelFunc
+	generation uint64
+}
+
+func (q *QueueStatus) wants(id int64, generation uint64) bool {
+	if generation != q.Generation {
+		return false
+	}
+	for i, song := range q.Songs {
+		if i >= 3 {
+			break
+		}
+		if song.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 // Call with c.mu held. Reset errors even when the next room has the same IDs.
@@ -33,6 +58,13 @@ func (q *QueueStatus) setSongs(songs []vrclog.Song, reset bool) {
 	if reset {
 		q.Generation++
 		q.Failures = nil
+	}
+	// Cancel the caller synchronously with invalidation, before a newly freed
+	// engine slot can admit an obsolete waiter. Existing flights own their context.
+	for id, waiter := range q.waiters {
+		if !q.wants(id, waiter.generation) {
+			waiter.cancel()
+		}
 	}
 	q.refreshErrors()
 }
@@ -125,6 +157,7 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 		c.mu.Lock()
 		c.queue.Running = false
 		c.queue.Current = 0
+		c.queue.Active = nil
 		c.queue.setSongs(nil, true)
 		c.queueCancel = nil
 		slog.Info("queue_stopped", "completed", c.queue.Completed)
@@ -190,12 +223,32 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 	}
 }
 
-// One worker rechecks the latest snapshot before starting each song. Finishing
-// an already downloading, removed song preserves shared playback downloads.
+// The coordinator owns deduplication and retry state; workers resolve/download
+// at most two songs and recheck the latest queue after resolving the URL.
 func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wake <-chan struct{}) {
+	type result struct {
+		id         int64
+		generation uint64
+		wanted     bool
+		err        error
+	}
+	results := make(chan result, 2)
+	var wg sync.WaitGroup
+	defer func() {
+		c.mu.Lock()
+		for _, waiter := range c.queue.waiters {
+			waiter.cancel()
+		}
+		c.mu.Unlock()
+		wg.Wait()
+		c.mu.Lock()
+		c.queue.waiters = nil
+		c.mu.Unlock()
+	}()
 	var generation uint64
 	completed := map[int64]bool{}
 	retry := map[int64]time.Time{}
+	active := map[int64]bool{}
 	for {
 		if ctx.Err() != nil {
 			return
@@ -206,62 +259,68 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 			completed = map[int64]bool{}
 			retry = map[int64]time.Time{}
 		}
-		var id int64
 		for i, song := range c.queue.Songs {
-			if i >= 3 {
+			if i >= 3 || len(active) >= 2 {
 				break
 			}
-			if song.ID > 0 && !completed[song.ID] && !time.Now().Before(retry[song.ID]) {
-				id = song.ID
-				break
-			}
-		}
-		c.queue.Current = id
-		c.mu.Unlock()
-		if id == 0 {
-			select {
-			case <-ctx.Done():
-				return
-			case <-wake:
+			id := song.ID
+			if id <= 0 || active[id] || completed[id] || time.Now().Before(retry[id]) {
 				continue
 			}
-		}
-		target, err := c.resolve(ctx, id)
-		// Recheck after the potentially slow API request.
-		c.mu.Lock()
-		wanted := false
-		if generation == c.queue.Generation {
-			for i, song := range c.queue.Songs {
-				if i >= 3 {
-					break
-				}
-				if song.ID == id {
-					wanted = true
-				}
+			active[id] = true
+			gen := generation
+			songCtx, cancel := context.WithCancel(ctx)
+			if c.queue.waiters == nil {
+				c.queue.waiters = make(map[int64]*queueWaiter)
 			}
+			c.queue.waiters[id] = &queueWaiter{songCtx, cancel, gen}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				wanted := func() bool {
+					c.mu.Lock()
+					defer c.mu.Unlock()
+					return c.queue.wants(id, gen)
+				}
+				_, err := c.prefetchSong(songCtx, engine, id, wanted)
+				results <- result{id, gen, !errors.Is(err, errSongRemoved), err}
+
+			}()
+		}
+		ids := make([]int64, 0, len(active))
+		for id := range active {
+			ids = append(ids, id)
+		}
+		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+		c.queue.Active = ids
+		c.queue.Current = 0
+		if len(ids) > 0 {
+			c.queue.Current = ids[0]
 		}
 		c.mu.Unlock()
-		if !wanted {
-			continue
-		}
-		if err == nil && ctx.Err() == nil {
-			_, err = engine.Prefetch(ctx, target)
-		}
-		if ctx.Err() != nil {
+		select {
+		case <-ctx.Done():
 			return
-		}
-		c.mu.Lock()
-		if generation == c.queue.Generation {
-			if err != nil {
-				retry[id] = time.Now().Add(time.Minute)
-				slog.Warn("queue_song_failed", "song_id", id, "error", err, "retry_seconds", 60)
-			} else {
-				completed[id] = true
-				c.queue.Completed++
-				slog.Info("queue_song_ready", "song_id", id)
+		case <-wake:
+		case r := <-results:
+			delete(active, r.id)
+			c.mu.Lock()
+			waiter := c.queue.waiters[r.id]
+			valid := waiter.ctx.Err() == nil
+			waiter.cancel()
+			delete(c.queue.waiters, r.id)
+			if valid && r.wanted && c.queue.wants(r.id, r.generation) && ctx.Err() == nil {
+				if r.err != nil {
+					retry[r.id] = time.Now().Add(time.Minute)
+					slog.Warn("queue_song_failed", "song_id", r.id, "error", r.err, "retry_seconds", 60)
+				} else {
+					completed[r.id] = true
+					c.queue.Completed++
+					slog.Info("queue_song_ready", "song_id", r.id)
+				}
+				c.queue.songResult(r.id, r.err)
 			}
-			c.queue.songResult(id, err)
+			c.mu.Unlock()
 		}
-		c.mu.Unlock()
 	}
 }

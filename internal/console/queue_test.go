@@ -62,7 +62,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.service = engine
-	c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 1}, {ID: 2}, {ID: 3}, {ID: 4}}}
+	c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 1}}}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	wake := make(chan struct{}, 1)
@@ -102,7 +102,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if requests["1"] != 1 || requests["4"] != 1 || requests["5"] != 1 || len(requests) != 3 {
+	if requests["1"] != 1 || requests["4"] != 1 || requests["5"] != 2 || len(requests) != 3 {
 		t.Fatal(requests)
 	}
 	if _, err = os.Stat(fixtureVideoPath(c.settings.StorageDir, "1", body)); !os.IsNotExist(err) {

@@ -22,4 +22,5 @@ Thumbs.db
 /stepstash-cache/
 /bin/
 /coverage.out
+/stepstash-console.json
 *.test

@@ -98,9 +98,13 @@ func New(cfg Config) (*Server, error) {
 		return nil, fmt.Errorf("clean partial downloads: %w", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	transport := newTransport()
+	if cfg.DialContext != nil {
+		transport.DialContext = cfg.DialContext
+	}
 	return &Server{cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
 		flights: make(map[string]*flight), slots: make(chan struct{}, cfg.MaxDownloads),
-		client: &http.Client{Transport: newTransport(), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
+		client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}, nil
 }
 

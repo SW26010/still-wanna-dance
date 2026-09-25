@@ -1,6 +1,7 @@
 package cacheproxy
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net"
@@ -20,6 +21,8 @@ type Config struct {
 	MaxFileBytes    int64
 	MaxDownloads    int
 	Logger          *slog.Logger
+	// DialContext optionally supplies independent upstream DNS resolution.
+	DialContext func(context.Context, string, string) (net.Conn, error)
 }
 
 func DefaultConfig() Config {

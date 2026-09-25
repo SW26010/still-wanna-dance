@@ -25,7 +25,7 @@ go build -o bin/stepstash.exe ./cmd/stepstash
 2. 备份 hosts，只将 `play.udon.dance`、`nya.xin.moe` 映射到 `127.0.0.1`。如果之前映射过 `api.udon.dance`，先恢复它的正常解析。
 3. API 保持原始网络路径，选择 CF 或 HKG；Auto 继续由 API 决定视频地址。测试后恢复 hosts 并停止服务。
 
-MVP 仅处理已观测到的 HTTP 视频链路，不监听 443，也不实现 `/Api/`、`/v/` 或 SHA。两个视频域名的其他 HTTPS 用途不会被此服务处理。更详细的原版接入记录见[复现手册](testing-runbook.md)，其中原版命令不能直接当作 StepStash 命令使用。
+本页 `stepstash.exe` 命令行入口仅处理已观测到的 HTTP 视频链路，不监听 443，也不实现 `/Api/`、`/v/` 或 SHA。需要同时兼容网页 HTTPS 播放时，使用 `stepstash-console.exe`：其 CDN 同时启动 HTTP 缓存和 HTTPS 透传，详见[本地控制台](console.md#网页-https-播放)。透传不使用本地缓存。更详细的原版接入记录见[复现手册](testing-runbook.md)，其中原版命令不能直接当作 StepStash 命令使用。
 
 ## 缓存和下载规则
 

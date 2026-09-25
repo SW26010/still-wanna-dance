@@ -49,8 +49,11 @@ type Console struct {
 	token               string
 	address             string
 	videoAddress        string
+	httpsAddress        string
+	https               *httpsRelay
 	service             *cacheproxy.Server
 	httpServer          *http.Server
+	videoListener       net.Listener
 	lastError           string
 	batch               Batch
 	lastBatch           Batch
@@ -75,7 +78,7 @@ func New(configPath, address string) (*Console, error) {
 	if _, err := rand.Read(b); err != nil {
 		return nil, err
 	}
-	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", token: hex.EncodeToString(b), apiBase: "http://api.udon.dance", client: &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{Proxy: nil}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "http://api.udon.dance", client: &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{Proxy: nil}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 	c.settings = Settings{StorageDir: "stepstash-data"}
 	c.dns = &directDNS{}
 	c.client.Transport = &http.Transport{DialContext: c.dns.DialContext, ResponseHeaderTimeout: 20 * time.Second}
@@ -274,39 +277,70 @@ func (c *Console) start() error {
 	if err != nil {
 		return desktop.PortError(c.videoAddress, err)
 	}
+	secure, err := net.Listen("tcp4", c.httpsAddress)
+	if err != nil {
+		l.Close()
+		return fmt.Errorf("网页 HTTPS 转发启动失败：%w", desktop.PortError(c.httpsAddress, err))
+	}
 	if err = c.ensureEngine(); err != nil {
 		l.Close()
+		secure.Close()
 		return err
 	}
 	h := &http.Server{Handler: c.service, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, ErrorLog: slog.NewLogLogger(slog.Default().Handler(), slog.LevelError)}
 	c.httpServer = h
+	c.videoListener = l
+	relay := newHTTPSRelay(secure, c.dns.DialContext)
+	c.https = relay
 	c.lastError = ""
-	slog.Info("cdn_started", "address", l.Addr().String())
+	slog.Info("cdn_started", "address", l.Addr().String(), "https_address", secure.Addr().String())
+	go func() {
+		if err := relay.serve(); err != nil && !errors.Is(err, net.ErrClosed) {
+			c.failCDN(h, err)
+		}
+	}()
 	go func() {
 		err := h.Serve(l)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("cdn_failed", "error", err)
-			c.mu.Lock()
-			c.lastError = err.Error()
-			if c.httpServer == h {
-				c.httpServer = nil
-			}
-			c.mu.Unlock()
+			c.failCDN(h, err)
 		}
 	}()
 	return nil
 }
 
+// Both listeners are one service: never report a healthy half-started CDN.
+func (c *Console) failCDN(h *http.Server, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.httpServer == h {
+		slog.Error("cdn_failed", "error", err)
+		c.lastError = err.Error()
+		c.stopLocked()
+	}
+}
+
 func (c *Console) stop() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.stopLocked()
+	return nil
+}
+
+func (c *Console) stopLocked() {
+	if c.videoListener != nil {
+		c.videoListener.Close()
+		c.videoListener = nil
+	}
+	if c.https != nil {
+		c.https.close()
+		c.https = nil
+	}
 	if c.httpServer == nil {
-		return nil
+		return
 	}
 	_ = c.httpServer.Close()
 	c.httpServer = nil
 	slog.Info("cdn_stopped")
-	return nil
 }
 
 func (c *Console) Close() error {
@@ -366,16 +400,18 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.mu.Lock()
 		running := c.httpServer != nil
 		result := struct {
-			Running   bool           `json:"running"`
-			Settings  Settings       `json:"settings"`
-			Hosts     HostsStatus    `json:"hosts"`
-			PortOK    bool           `json:"portOK"`
-			Error     string         `json:"error"`
-			Batch     Batch          `json:"batch"`
-			PortOwner *desktop.Owner `json:"portOwner,omitempty"`
-			Queue     QueueStatus    `json:"queue"`
-			LastBatch Batch          `json:"lastBatch"`
-		}{running, c.settings, readHostsStatus(), running, c.lastError, c.batch, nil, c.queue, c.lastBatch}
+			Running        bool           `json:"running"`
+			Settings       Settings       `json:"settings"`
+			Hosts          HostsStatus    `json:"hosts"`
+			PortOK         bool           `json:"portOK"`
+			Error          string         `json:"error"`
+			Batch          Batch          `json:"batch"`
+			PortOwner      *desktop.Owner `json:"portOwner,omitempty"`
+			Queue          QueueStatus    `json:"queue"`
+			LastBatch      Batch          `json:"lastBatch"`
+			HTTPSPortOK    bool           `json:"httpsPortOK"`
+			HTTPSPortOwner *desktop.Owner `json:"httpsPortOwner,omitempty"`
+		}{running, c.settings, readHostsStatus(), running, c.lastError, c.batch, nil, c.queue, c.lastBatch, running, nil}
 		result.Queue.Songs = append([]vrclog.Song(nil), c.queue.Songs...)
 		result.Queue.Active = append([]int64(nil), c.queue.Active...)
 		result.Queue.Failures = append([]Failure(nil), c.queue.Failures...)
@@ -385,6 +421,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			result.PortOK = portAvailable(c.videoAddress) == nil
 			if !result.PortOK {
 				result.PortOwner = desktop.PortOwner(c.videoAddress)
+			}
+			result.HTTPSPortOK = portAvailable(c.httpsAddress) == nil
+			if !result.HTTPSPortOK {
+				result.HTTPSPortOwner = desktop.PortOwner(c.httpsAddress)
 			}
 		}
 		writeJSON(w, result)

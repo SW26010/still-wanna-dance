@@ -152,6 +152,9 @@ func (c *Console) startBatchMode(scanOnly bool) error {
 	c.batchCancel = cancel
 	c.batchDone = make(chan struct{})
 	c.batch = Batch{Running: true, ScanOnly: scanOnly, Phase: "正在获取最新歌曲列表"}
+	if !scanOnly && c.scanPlan != nil && c.scanPlan.settings == c.settings {
+		c.batch.Phase = "正在复用扫描结果下载补齐"
+	}
 	slog.Info("batch_started", "scan_only", scanOnly)
 	go c.runBatch(ctx, c.service, c.batchDone)
 	return nil
@@ -163,6 +166,11 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	completed := false
 	c.mu.Lock()
 	scanOnly, settings := c.batch.ScanOnly, c.settings
+	plan := c.scanPlan
+	c.scanPlan = nil
+	if scanOnly || (plan != nil && plan.settings != settings) {
+		plan = nil
+	}
 	c.mu.Unlock()
 	defer func() {
 		c.mu.Lock()
@@ -186,7 +194,13 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		}
 		slog.Info("batch_finished", "scan_only", scanOnly, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", c.batch.Missing, "cancelled", ctx.Err() != nil, "total", c.batch.Total, "checked", c.batch.Checked, "hits", c.batch.Hits, "downloaded", c.batch.Downloaded, "failed", c.batch.Failed, "phase", c.batch.Phase)
 	}()
-	songs, err := c.catalog(ctx)
+	var songs []Song
+	var err error
+	if plan != nil {
+		songs = plan.songs
+	} else {
+		songs, err = c.catalog(ctx)
+	}
 	if err != nil {
 		if ctx.Err() == nil {
 			slog.Error("catalog_failed", "error", err)
@@ -205,6 +219,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	}
 	c.mu.Unlock()
 	active := map[int64]string{}
+	results := make(map[int64]scanResult)
 	var scanner *scanLimiter
 	if scanOnly {
 		scanner = newScanLimiter(settings)
@@ -233,13 +248,18 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 			c.mu.Unlock()
 		}()
 		var err error
+		var reused bool
 		source := ""
+		var result scanResult
 		if scanOnly {
 			var hit bool
 			hit, err = scanner.check(ctx, func() (string, error) {
 				return c.resolve(ctx, song.ID)
 			}, func(target string) (bool, error) {
-				return cacheproxy.CheckLocal(ctx, settings.StorageDir, target)
+				result.target = target
+				var hit bool
+				hit, result.receipt, err = cacheproxy.CheckLocalReceipt(ctx, settings.StorageDir, target)
+				return hit, err
 			})
 			if hit {
 				source = "HIT"
@@ -249,13 +269,32 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		} else {
 			err = s.SetSongTitle(ctx, strconv.FormatInt(song.ID, 10), song.Name)
 			if err == nil {
-				source, err = c.prefetchSong(ctx, s, song.ID, nil)
+				if plan != nil && settings.DownloadUpstream != "cf" {
+					result = plan.results[song.ID]
+				}
+				reused, err = s.ReuseLocalSong(ctx, strconv.FormatInt(song.ID, 10), result.target, result.receipt)
+				switch {
+				case err != nil:
+					// Preserve association errors in the batch failure result.
+				case reused:
+					source = "HIT"
+				case result.target != "":
+					source, err = s.PrefetchSong(ctx, strconv.FormatInt(song.ID, 10), result.target)
+					if err != nil && ctx.Err() == nil {
+						source, err = c.prefetchSong(ctx, s, song.ID, nil)
+					}
+				default:
+					source, err = c.prefetchSong(ctx, s, song.ID, nil)
+				}
 			}
 		}
 		if ctx.Err() != nil {
 			return
 		}
 		c.mu.Lock()
+		if scanOnly && err == nil {
+			results[song.ID] = result
+		}
 		c.batch.Checked++
 		if err != nil {
 			c.batch.Failed++
@@ -273,7 +312,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 				"hits", c.batch.Hits, "missing", c.batch.Missing, "downloaded", c.batch.Downloaded, "failed", c.batch.Failed)
 		}
 		c.mu.Unlock()
-		if scanOnly {
+		if scanOnly || reused {
 			return // Scan request starts are paced globally by scanLimiter.
 		}
 		select {
@@ -320,6 +359,9 @@ dispatch:
 	}
 	completed = true
 	c.mu.Lock()
+	if scanOnly {
+		c.scanPlan = &scanPlan{settings: settings, songs: songs, results: results}
+	}
 	c.batch.Current = ""
 	if c.batch.Failed > 0 {
 		c.batch.Phase = "检查完成，部分歌曲失败；再次检查可重试"

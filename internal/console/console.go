@@ -54,6 +54,7 @@ type Console struct {
 	lastError           string
 	batch               Batch
 	lastBatch           Batch
+	scanPlan            *scanPlan
 	batchCancel         context.CancelFunc
 	batchDone           chan struct{}
 	queue               QueueStatus
@@ -213,6 +214,7 @@ func (c *Console) save(s Settings) error {
 	}
 	changedLibrary := !sameLibrary(c.settings, s)
 	c.settings = s
+	c.scanPlan = nil
 	if changedLibrary {
 		c.loadSnapshots()
 	}

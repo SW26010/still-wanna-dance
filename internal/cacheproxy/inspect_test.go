@@ -2,11 +2,51 @@ package cacheproxy
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+func TestReuseLocalSongRestoresMissingResourceRecord(t *testing.T) {
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("reuse unexpectedly requested upstream")
+		http.Error(w, "unexpected download", http.StatusInternalServerError)
+	})
+	ctx := context.Background()
+	target := videoURL(payload)
+	v, err := s.parse(httptest.NewRequest("GET", target, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Simulate a crash after publishing bytes but before recording the resource.
+	writeTestFile(t, cfg.videoFile(v.key), payload)
+	var count int
+	if err := s.usage.db.QueryRow(`SELECT count(*) FROM video_versions`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("expected unregistered file: count=%d err=%v", count, err)
+	}
+	hit, receipt, err := CheckLocalReceipt(ctx, cfg.StorageDir, target)
+	if err != nil || !hit || receipt == nil {
+		t.Fatalf("scan: hit=%v receipt=%v err=%v", hit, receipt, err)
+	}
+	// Repeated reuse must remain idempotent as well as restore both records.
+	for i := 0; i < 2; i++ {
+		if reused, err := s.ReuseLocalSong(ctx, "1344", target, receipt); err != nil || !reused {
+			t.Fatalf("reuse: reused=%v err=%v", reused, err)
+		}
+		var checksum, sourcePath string
+		var size int64
+		if err := s.usage.db.QueryRow(`SELECT v.checksum, v.file_bytes, v.source_path
+ FROM video_versions v JOIN song_videos s USING(version_key)
+ JOIN current_videos c USING(song_id, version_key) WHERE s.song_id='1344'`).Scan(&checksum, &size, &sourcePath); err != nil {
+			t.Fatal(err)
+		}
+		if checksum != v.checksum || size != v.size || sourcePath != v.path {
+			t.Fatalf("incorrect restored resource: %s %d %s", checksum, size, sourcePath)
+		}
+	}
+}
 
 func TestCheckLocalNeverPublishesOrDeletes(t *testing.T) {
 	root := t.TempDir()

@@ -3,7 +3,22 @@ package console
 import (
 	"context"
 	"time"
+
+	"stepstash/internal/cacheproxy"
 )
+
+// A completed scan can feed the next download in this process. Entries with
+// errors are absent and follow the normal resolve/download path.
+type scanPlan struct {
+	settings Settings
+	songs    []Song
+	results  map[int64]scanResult
+}
+
+type scanResult struct {
+	target  string
+	receipt *cacheproxy.LocalReceipt
+}
 
 // Separate limits let address requests overlap disk reads without multiplying
 // request rate or allowing every network worker to hash a video at once.

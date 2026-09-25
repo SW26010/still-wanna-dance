@@ -20,7 +20,7 @@
 <div id="queuePhase" role="status">尚未开启</div><small id="queueDetail"></small><ol id="queueSongs"></ol><div id="queueError" role="status"></div></section>
 <section class="card wide"><div class="card-head"><div><h2>歌曲扫描与更新</h2><small>先扫描了解缺失情况，再按需下载补齐</small></div></div>
 <div class="actions"><button class="primary" id="batchScan" data-action="batch/scan">仅扫描检查</button><button id="batchStart" data-action="batch/switch">下载补齐</button><button id="batchCancel" data-action="batch/cancel">停止批量任务</button></div>
-<div class="hint">「仅扫描检查」获取最新曲目列表并校验本地视频，不下载、不删除视频，可与队列预缓存同时运行；地址请求和本地校验并发可在设置中调整。「下载补齐」重新检查最新曲目并下载缺失或损坏的视频；队列运行时会先停止预缓存，完成后可手动重新开启。两种下载模式均最多同时下载 2 首，共用后台额度，为游戏播放保留 1 个下载名额。两项操作均无需启动 CDN 或修改 hosts。</div>
+<div class="hint">「仅扫描检查」获取最新曲目列表并校验本地视频，不下载、不删除视频，可与队列预缓存同时运行；地址请求和本地校验并发可在设置中调整。「下载补齐」优先复用最近一次完整扫描的曲目和地址，未变化的已校验文件跳过重复校验；扫描结果仅供下一次补齐使用，重新扫描、保存设置或重启会清除。无可用结果时检查最新曲目，旧地址失败后重新解析，固定 CF 时单独检查 CF。队列运行时会先停止预缓存，完成后可手动重新开启。两种下载模式均最多同时下载 2 首，共用后台额度，为游戏播放保留 1 个下载名额。两项操作均无需启动 CDN 或修改 hosts。</div>
 <div id="snapshotState" class="hint">尚无成功结果</div><div class="stats"><div class="stat"><b id="total">—</b><small>已知歌曲</small></div><div class="stat"><b id="hits">0</b><small>检查命中</small></div><div class="stat"><b id="downloaded">0</b><small>下载补齐</small></div><div class="stat"><b id="missing">—</b><small>缺失或损坏</small></div></div>
 <progress id="progress" value="0" max="1"></progress><div id="phase" role="status">等待开始</div><small id="current"></small>
 <details id="failures" hidden><summary>查看失败记录</summary><table><thead><tr><th>歌曲</th><th>原因</th></tr></thead><tbody id="failureRows"></tbody></table></details>

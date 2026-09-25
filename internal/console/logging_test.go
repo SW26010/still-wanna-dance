@@ -2,7 +2,9 @@ package console
 
 import (
 	"bytes"
+	"context"
 	"log/slog"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -39,5 +41,30 @@ func TestActionLoggingDoesNotLogPollingOrToken(t *testing.T) {
 	}
 	if !strings.Contains(output.String(), "cdn_started") || !strings.Contains(output.String(), "cdn_stopped") {
 		t.Fatal(output.String())
+	}
+}
+
+func TestResolveLogsMalformedLocationIsRedacted(t *testing.T) {
+	var output bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&output, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+	c := testConsole(t)
+	defer c.Close()
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", "http://nya.xin.moe/%zz?token=secret")
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer api.Close()
+	c.apiBase, c.client.Transport = api.URL, http.DefaultTransport
+	// Resolution fails before an engine is needed, including the Auto fallback.
+	if _, err := c.prefetchSong(context.Background(), nil, 1343, nil); err == nil {
+		t.Fatal("expected resolution failure")
+	}
+	if strings.Contains(output.String(), "secret") || strings.Contains(output.String(), "token") {
+		t.Fatalf("Location leaked: %s", output.String())
+	}
+	if !strings.Contains(output.String(), "prefetch_upstream_failed") {
+		t.Fatal("missing resolution failure")
 	}
 }

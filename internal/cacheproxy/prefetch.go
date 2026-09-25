@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"stepstash/internal/applog"
 )
 
 // Prefetch uses exactly the same validation, shared downloads and publication as playback.
@@ -28,14 +30,17 @@ func (s *Server) prefetch(ctx context.Context, id, target string) (source string
 	}
 	defer s.wg.Done()
 	start := time.Now()
+	ctx = applog.WithTrace(ctx)
 	r, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
-		return "", err
+		return "", applog.SafeError(err)
 	}
 	v, err := s.parse(r)
 	if err != nil {
 		return "", err
 	}
+	log := s.cfg.Logger.With("trace_id", applog.TraceID(ctx), "song_id", id, "resource_key", v.key)
+	log.Info("prefetch_started")
 	s.pinVideo(v)
 	defer s.releaseVideo(v)
 	defer func() {
@@ -50,6 +55,7 @@ func (s *Server) prefetch(ctx context.Context, id, target string) (source string
 		if cache == "" {
 			cache = "UNKNOWN"
 		}
+		log.Info("prefetch_finished", "outcome", outcome, "cache", cache, "elapsed_ms", time.Since(start).Milliseconds(), "error", applog.SafeError(resultErr))
 		s.usage.record(usageEvent{id: v.key, at: start.UnixMilli(), key: v.key, host: v.host,
 			source: "prefetch", method: "GET", size: v.size, cache: cache,
 			outcome: outcome, elapsedMS: time.Since(start).Milliseconds()})

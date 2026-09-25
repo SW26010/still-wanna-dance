@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"stepstash/internal/applog"
 	"stepstash/internal/cacheproxy"
 )
 
@@ -80,7 +81,7 @@ func (c *Console) catalog(ctx context.Context) ([]Song, error) {
 	}
 	resp, err := c.client.Do(r)
 	if err != nil {
-		return nil, err
+		return nil, applog.SafeError(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
@@ -100,11 +101,11 @@ func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (s
 	}
 	r, err := http.NewRequestWithContext(ctx, "GET", c.apiBase+"/Api/Songs/play?node="+node+"&id="+strconv.FormatInt(id, 10), nil)
 	if err != nil {
-		return "", err
+		return "", applog.SafeError(err)
 	}
 	resp, err := c.client.Do(r)
 	if err != nil {
-		return "", err
+		return "", applog.SafeError(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 302 && resp.StatusCode != 307 && resp.StatusCode != 301 {
@@ -112,7 +113,7 @@ func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (s
 	}
 	u, err := url.Parse(resp.Header.Get("Location"))
 	if err != nil {
-		return "", err
+		return "", applog.SafeError(err)
 	}
 	if u.Scheme != "http" || (u.Host != "play.udon.dance" && u.Host != "nya.xin.moe") || u.User != nil || u.Fragment != "" {
 		return "", errors.New("歌曲返回了未支持的视频地址；当前支持 CF/HKG HTTP")
@@ -151,13 +152,14 @@ func (c *Console) startBatchMode(scanOnly bool) error {
 	c.batchCancel = cancel
 	c.batchDone = make(chan struct{})
 	c.batch = Batch{Running: true, ScanOnly: scanOnly, Phase: "正在获取最新歌曲列表"}
-	slog.Info("batch_started")
+	slog.Info("batch_started", "scan_only", scanOnly)
 	go c.runBatch(ctx, c.service, c.batchDone)
 	return nil
 }
 
 func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan struct{}) {
 	defer close(done)
+	started := time.Now()
 	completed := false
 	c.mu.Lock()
 	scanOnly, settings := c.batch.ScanOnly, c.settings
@@ -182,7 +184,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		if err := c.writeSnapshot("attempt", settings, c.batch); err != nil {
 			c.batch.Phase += "；无法保存本次进度：" + err.Error()
 		}
-		slog.Info("batch_finished", "cancelled", ctx.Err() != nil, "total", c.batch.Total, "checked", c.batch.Checked, "hits", c.batch.Hits, "downloaded", c.batch.Downloaded, "failed", c.batch.Failed, "phase", c.batch.Phase)
+		slog.Info("batch_finished", "scan_only", scanOnly, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", c.batch.Missing, "cancelled", ctx.Err() != nil, "total", c.batch.Total, "checked", c.batch.Checked, "hits", c.batch.Hits, "downloaded", c.batch.Downloaded, "failed", c.batch.Failed, "phase", c.batch.Phase)
 	}()
 	songs, err := c.catalog(ctx)
 	if err != nil {
@@ -265,6 +267,10 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 			c.batch.Hits++
 		} else {
 			c.batch.Downloaded++
+		}
+		if c.batch.Checked%100 == 0 || c.batch.Checked == c.batch.Total {
+			slog.Info("batch_progress", "scan_only", scanOnly, "total", c.batch.Total, "checked", c.batch.Checked,
+				"hits", c.batch.Hits, "missing", c.batch.Missing, "downloaded", c.batch.Downloaded, "failed", c.batch.Failed)
 		}
 		c.mu.Unlock()
 		if scanOnly {

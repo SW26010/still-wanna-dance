@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"stepstash/internal/applog"
 )
 
 func (c Config) videosDir() string { return filepath.Join(c.StorageDir, "videos") }
@@ -128,7 +130,7 @@ func (s *Server) currentVideo(ctx context.Context, id string) (video, error) {
 		}
 		resp, requestErr := s.client.Do(req)
 		if requestErr != nil {
-			return video{}, requestErr
+			return video{}, applog.SafeError(requestErr)
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != 301 && resp.StatusCode != 302 && resp.StatusCode != 307 {
@@ -137,11 +139,11 @@ func (s *Server) currentVideo(ctx context.Context, id string) (video, error) {
 		target = resp.Header.Get("Location")
 	}
 	if err != nil {
-		return video{}, err
+		return video{}, applog.SafeError(err)
 	}
 	r, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
-		return video{}, err
+		return video{}, applog.SafeError(err)
 	}
 	if r.URL.Scheme != "http" || r.URL.User != nil || r.URL.Fragment != "" {
 		return video{}, errors.New("invalid current video URL")

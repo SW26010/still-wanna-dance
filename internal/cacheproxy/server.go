@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -18,6 +19,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"stepstash/internal/applog"
 )
 
 var videoPath = regexp.MustCompile(`^/files/[0-9]+/([1-9][0-9]*)-([a-zA-Z0-9]+)\.mp4$`)
@@ -27,6 +30,9 @@ type video struct {
 	size                             int64
 }
 type flight struct {
+	id           uint64
+	log          *slog.Logger
+	progress     *downloadProgress
 	done         chan struct{}
 	streaming    chan struct{}
 	spool        *spool
@@ -49,6 +55,7 @@ type Server struct {
 	unlock          func() error
 	once            sync.Once
 	sequence        atomic.Uint64
+	flightSequence  atomic.Uint64
 	usage           *usageStore
 	retentionMu     sync.Mutex
 	currentMu       sync.Mutex
@@ -69,6 +76,7 @@ func New(cfg Config) (*Server, error) {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
+	cfg.Logger = cfg.Logger.With("service_id", rand.Text())
 	origins := make(map[string]string, len(cfg.Origins))
 	for host, addr := range cfg.Origins {
 		origins[host] = addr
@@ -89,6 +97,7 @@ func New(cfg Config) (*Server, error) {
 	}
 	// The OS lock is released after a crash. Only our own partial files are removed.
 	entries, err := os.ReadDir(cfg.tempDir())
+	cleaned := 0
 	if err == nil {
 		for _, entry := range entries {
 			if !strings.HasPrefix(entry.Name(), "download-") || !strings.HasSuffix(entry.Name(), ".part") || entry.IsDir() {
@@ -97,6 +106,7 @@ func New(cfg Config) (*Server, error) {
 			if err = os.Remove(filepath.Join(cfg.tempDir(), entry.Name())); err != nil {
 				break
 			}
+			cleaned++
 		}
 	}
 	if err != nil {
@@ -123,6 +133,8 @@ func New(cfg Config) (*Server, error) {
 	}
 	s.cleanSupersededOnStartup()
 	s.trimCache()
+	cfg.Logger.Info("cache_engine_ready", "removed_partials", cleaned, "max_downloads", cfg.MaxDownloads,
+		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "max_cache_bytes", cfg.MaxCacheBytes)
 	return s, nil
 }
 
@@ -139,6 +151,7 @@ func (s *Server) Close() error {
 		s.usage.close()
 		s.client.CloseIdleConnections()
 		err = s.unlock()
+		s.cfg.Logger.Info("cache_engine_stopped", "error", err)
 	})
 	return err
 }
@@ -207,11 +220,28 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer s.wg.Done()
 	id := s.sequence.Add(1)
 	start := time.Now()
-	log := s.cfg.Logger.With("request_id", id, "method", r.Method, "host", r.Host, "path", r.URL.Path, "range", r.Header.Get("Range"), "user_agent", r.UserAgent())
+	r = r.WithContext(applog.WithTrace(r.Context()))
+	log := s.cfg.Logger.With("trace_id", applog.TraceID(r.Context()), "request_id", id, "method", r.Method, "host", r.Host, "path", r.URL.Path, "range", r.Header.Get("Range"), "user_agent", r.UserAgent())
 	response := &responseWriter{ResponseWriter: w}
 	w = response
 	defer func() {
-		log.Info("request_finished", "status", response.status, "bytes", response.bytes, "elapsed", time.Since(start))
+		crash := recover()
+		outcome := "completed"
+		if response.status >= 400 || response.writeErr != nil {
+			outcome = "failed"
+		}
+		if crash != nil {
+			outcome = "aborted"
+		}
+		if r.Context().Err() != nil {
+			outcome = "canceled"
+		}
+		log.Info("request_finished", "status", response.status, "bytes", response.bytes, "elapsed", time.Since(start), "elapsed_ms", time.Since(start).Milliseconds(),
+			"outcome", outcome, "cache", w.Header().Get("X-StepStash-Cache"), "content_range", w.Header().Get("Content-Range"),
+			"content_length", w.Header().Get("Content-Length"), "write_error", applog.SafeError(response.writeErr))
+		if crash != nil {
+			panic(crash)
+		}
 	}()
 	w.Header().Set("X-Request-ID", strconv.FormatUint(id, 10))
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
@@ -224,6 +254,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 400)
 		return
 	}
+	log = log.With("resource_key", v.key)
+	log.Info("request_started")
 	event := usageEvent{id: v.key, at: start.UnixMilli(), key: v.key, host: v.host,
 		source: "http", method: r.Method, rangeHeader: r.Header.Get("Range"), size: v.size}
 	defer func() {
@@ -235,7 +267,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			event.cache = "UNKNOWN"
 		}
 		event.outcome = "completed"
-		if event.status >= 400 {
+		if event.status >= 400 || response.writeErr != nil {
 			event.outcome = "failed"
 		}
 		if panicked != nil {
@@ -338,8 +370,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type responseWriter struct {
 	http.ResponseWriter
-	status int
-	bytes  int64
+	status   int
+	bytes    int64
+	writeErr error
 }
 
 func (w *responseWriter) WriteHeader(status int) {
@@ -356,6 +389,9 @@ func (w *responseWriter) Write(p []byte) (int, error) {
 	}
 	n, err := w.ResponseWriter.Write(p)
 	w.bytes += int64(n)
+	if err != nil {
+		w.writeErr = err
+	}
 	return n, err
 }
 

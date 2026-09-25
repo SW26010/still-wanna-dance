@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"sync"
 	"time"
+
+	"stepstash/internal/applog"
 )
 
 // Direct UDP DNS and IP-bootstrapped DoH never consult OS hosts.
@@ -85,7 +87,7 @@ func queryDNS(ctx context.Context, provider, ip, path, host string) ([]string, t
 	r.Header.Set("Accept", "application/dns-json")
 	resp, err := client.Do(r)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, applog.SafeError(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {

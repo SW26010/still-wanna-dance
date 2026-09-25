@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"stepstash/internal/applog"
 	"stepstash/internal/cacheproxy"
 	"stepstash/internal/vrclog"
 )
@@ -74,6 +75,9 @@ func (q *QueueStatus) setSongs(songs []vrclog.Song, reset bool) {
 	// engine slot can admit an obsolete waiter. Existing flights own their context.
 	for id, waiter := range q.waiters {
 		if !q.wants(id, waiter.generation) {
+			if waiter.ctx.Err() == nil {
+				slog.Info("queue_song_canceled", "trace_id", applog.TraceID(waiter.ctx), "song_id", id, "generation", waiter.generation, "reason", "queue_changed")
+			}
 			waiter.cancel()
 		}
 	}
@@ -215,7 +219,11 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 			for _, e := range events {
 				c.queue.setSongs(e.Songs, e.Reset)
 				c.queue.Updated = now
-				slog.Info("queue_updated", "song_count", len(e.Songs), "reset", e.Reset)
+				ids := make([]int64, len(e.Songs))
+				for i, song := range e.Songs {
+					ids[i] = song.ID
+				}
+				slog.Info("queue_updated", "song_count", len(e.Songs), "song_ids", ids, "reset", e.Reset, "generation", c.queue.Generation)
 			}
 			if now.Sub(lastActivity) >= 5*time.Minute {
 				if !stale {
@@ -278,7 +286,8 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 			}
 			active[id] = true
 			gen := generation
-			songCtx, cancel := context.WithCancel(ctx)
+			songCtx, cancel := context.WithCancel(applog.WithTrace(ctx))
+			slog.Info("queue_song_started", "trace_id", applog.TraceID(songCtx), "song_id", id, "generation", gen)
 			if c.queue.waiters == nil {
 				c.queue.waiters = make(map[int64]*queueWaiter)
 			}
@@ -321,16 +330,18 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 			if valid && r.wanted && c.queue.wants(r.id, r.generation) && ctx.Err() == nil {
 				if r.err != nil {
 					retry[r.id] = time.Now().Add(time.Minute)
-					slog.Warn("queue_song_failed", "song_id", r.id, "error", r.err, "retry_seconds", 60)
+					slog.Warn("queue_song_failed", "trace_id", applog.TraceID(waiter.ctx), "generation", r.generation, "song_id", r.id, "error", r.err, "retry_seconds", 60)
 				} else {
 					if c.queue.prepared == nil {
 						c.queue.prepared = make(map[int64]bool)
 					}
 					c.queue.prepared[r.id] = true
 					c.queue.Completed++
-					slog.Info("queue_song_ready", "song_id", r.id)
+					slog.Info("queue_song_ready", "trace_id", applog.TraceID(waiter.ctx), "generation", r.generation, "song_id", r.id)
 				}
 				c.queue.songResult(r.id, r.err)
+			} else {
+				slog.Info("queue_song_discarded", "trace_id", applog.TraceID(waiter.ctx), "song_id", r.id, "generation", r.generation, "reason", "canceled_or_obsolete")
 			}
 			c.mu.Unlock()
 		}

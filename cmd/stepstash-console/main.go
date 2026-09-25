@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"flag"
 	"fmt"
@@ -101,7 +102,7 @@ func run() (runErr error) {
 		return fmt.Errorf("无法创建程序日志（%s）：%w", logPath, err)
 	}
 	previousLogger := slog.Default()
-	slog.SetDefault(slog.New(slog.NewJSONHandler(writer, nil)).With("pid", os.Getpid()))
+	slog.SetDefault(slog.New(slog.NewJSONHandler(writer, nil)).With("pid", os.Getpid(), "session_id", rand.Text()))
 	defer func() {
 		if crash := recover(); crash != nil {
 			slog.Error("application_panic", "panic", fmt.Sprint(crash), "stack", string(debug.Stack()))
@@ -118,6 +119,15 @@ func run() (runErr error) {
 		}
 	}()
 	slog.Info("application_starting", "config", p, "listen", *address, "tray", !*noTray, "go", runtime.Version())
+	if build, ok := debug.ReadBuildInfo(); ok {
+		fields := []any{"version", build.Main.Version}
+		for _, setting := range build.Settings {
+			if setting.Key == "vcs.revision" || setting.Key == "vcs.modified" || setting.Key == "vcs.time" {
+				fields = append(fields, setting.Key, setting.Value)
+			}
+		}
+		slog.Info("application_build", fields...)
+	}
 	l, err := net.Listen("tcp4", *address)
 	if err != nil {
 		return desktop.PortError(*address, err)

@@ -10,6 +10,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"time"
+
+	"stepstash/internal/applog"
 )
 
 var errBusy = errors.New("download capacity reached")
@@ -20,6 +23,10 @@ func (s *Server) obtain(ctx context.Context, v video) (*flight, *spoolReader, er
 }
 
 func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*flight, *spoolReader, error) {
+	ctx = applog.WithTrace(ctx)
+	log := s.cfg.Logger.With("trace_id", applog.TraceID(ctx), "resource_key", v.key, "background", background)
+	waitStart := time.Now()
+	waitLogged := false
 	s.mu.Lock()
 	// Background capacity belongs to the actual flight, even if its caller
 	// cancels. Keep one slot for playback when the configured limit permits it.
@@ -38,10 +45,15 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 		}
 		if !background {
 			s.mu.Unlock()
+			log.Warn("cache_capacity_rejected")
 			return nil, nil, errBusy
 		}
 		changed := s.capacityChanged
 		s.mu.Unlock()
+		if !waitLogged {
+			log.Info("cache_capacity_wait")
+			waitLogged = true
+		}
 		select {
 		case <-ctx.Done():
 			return nil, nil, ctx.Err()
@@ -60,7 +72,8 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 			s.mu.Unlock()
 			return nil, nil, errBusy
 		}
-		f = &flight{done: make(chan struct{}), streaming: make(chan struct{})}
+		f = &flight{done: make(chan struct{}), streaming: make(chan struct{}), id: s.flightSequence.Add(1)}
+		f.log = log.With("flight_id", f.id, "host", v.host)
 		s.flights[v.key] = f
 		if background {
 			s.background++
@@ -74,9 +87,11 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 			defer s.releaseVideo(v)
 			workerCtx, cancel := context.WithTimeout(s.ctx, s.cfg.DownloadTimeout)
 			defer cancel()
+			f.progress = startProgress(f.log, v.size, 15*time.Second)
 			f.path, f.source, f.err = s.prepare(workerCtx, v, f)
+			f.progress.finish(f.err)
 			if f.err != nil {
-				s.cfg.Logger.Error("cache_task_failed", "key", v.key, "host", v.host, "error", f.err)
+				f.log.Error("cache_task_failed", "key", v.key, "error", applog.SafeError(f.err))
 			}
 			if f.spool != nil {
 				f.spool.finish(f.err)
@@ -97,6 +112,7 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 		}()
 	}
 	s.mu.Unlock()
+	log.Info("cache_task_attached", "flight_id", f.id, "wait_ms", time.Since(waitStart).Milliseconds())
 	select {
 	case <-ctx.Done():
 		return nil, nil, ctx.Err()
@@ -157,6 +173,7 @@ func checkOpenFile(ctx context.Context, f *os.File, v video) error {
 func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, string, error) {
 	path := s.cfg.videoFile(v.key)
 	if err := checkFile(ctx, path, v); err == nil {
+		flight.progress.setStage("index")
 		if err := s.recordVideo(ctx, v); err != nil {
 			return "", "", err
 		}
@@ -164,12 +181,13 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, 
 	} else if ctx.Err() != nil {
 		return "", "", ctx.Err()
 	} else if !errors.Is(err, os.ErrNotExist) {
-		s.cfg.Logger.Warn("cache_invalid", "key", v.key, "error", err)
+		flight.log.Warn("cache_invalid", "key", v.key, "error", err)
 		if err := os.Remove(path); err != nil {
 			return "", "", err
 		}
 	}
-	s.cfg.Logger.Info("download_started", "key", v.key, "host", v.host, "size", v.size)
+	flight.log.Info("download_started", "key", v.key, "size", v.size)
+	flight.progress.setStage("upstream_headers")
 	// Dial the configured origin while preserving the externally observed Host.
 	u := &url.URL{Scheme: "http", Host: s.cfg.Origins[v.host], Path: v.path, RawQuery: v.query}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
@@ -180,9 +198,10 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, 
 	req.Header.Set("Accept-Encoding", "identity")
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return "", "", err
+		return "", "", applog.SafeError(err)
 	}
 	defer resp.Body.Close()
+	flight.log.Info("upstream_response", "status", resp.StatusCode, "content_length", resp.ContentLength)
 	if resp.StatusCode != 200 {
 		return "", "", fmt.Errorf("upstream status %d", resp.StatusCode)
 	}
@@ -195,10 +214,11 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, 
 	if err := s.publish(ctx, resp.Body, path, v, flight); err != nil {
 		return "", "", err
 	}
+	flight.progress.setStage("index")
 	if err := s.recordVideo(ctx, v); err != nil {
 		return "", "", err
 	}
-	s.cfg.Logger.Info("download_published", "key", v.key, "size", v.size)
+	flight.log.Info("download_published", "key", v.key, "size", v.size)
 	return path, "MISS", nil
 }
 
@@ -211,13 +231,17 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 	flight.spool = sp
 	close(flight.streaming)
 	h := md5.New()
-	n, err := io.Copy(io.MultiWriter(sp, h), io.LimitReader(contextReader{ctx, src}, v.size+1))
+	flight.progress.setStage("download_and_hash")
+	n, err := io.Copy(io.MultiWriter(sp, h), io.LimitReader(contextReader{ctx, progressReader{src, flight.progress}}, v.size+1))
 	if err != nil {
 		return fmt.Errorf("download read/write: %w", err)
 	}
 	if n != v.size || hex.EncodeToString(h.Sum(nil)) != v.checksum {
+		flight.log.Warn("download_integrity_failed", "bytes", n, "expected_bytes", v.size, "size_ok", n == v.size, "checksum_ok", hex.EncodeToString(h.Sum(nil)) == v.checksum)
 		return errors.New("download integrity mismatch")
 	}
+	flight.log.Info("download_verified", "bytes", n, "size_ok", true, "checksum_ok", true)
+	flight.progress.setStage("publish")
 	if err := ctx.Err(); err != nil {
 		return err
 	}

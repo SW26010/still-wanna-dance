@@ -75,6 +75,8 @@ Windows 默认将设置保存在 EXE 所在目录的 `stepstash-console.json`；
 
 ## 程序日志
 
+关联标识、低频进度、结果字段及验收判断方法见[日志排障与验收证据](logging.md)。
+
 控制台取得配置独占锁后，在配置文件旁的 `logs/` 创建程序日志。默认 portable
 路径为 `logs/stepstash-console.json.log`；自定义 `-config other.json` 时使用
 该配置目录下的 `logs/other.json.log`。日志名包含配置文件名，避免独立配置实例

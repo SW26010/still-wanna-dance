@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"time"
 
+	"stepstash/internal/applog"
 	"stepstash/internal/cacheproxy"
 )
 
@@ -15,6 +17,8 @@ var errSongRemoved = errors.New("歌曲已离开待预缓存队列")
 // Auto starts with HKG and retries CF once. Resolve each route independently:
 // never rewrite a returned URL, whose content version may differ by upstream.
 func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, id int64, wanted func() bool) (string, error) {
+	ctx = applog.WithTrace(ctx)
+	log := slog.Default().With("trace_id", applog.TraceID(ctx), "song_id", id)
 	c.mu.Lock()
 	mode := c.settings.DownloadUpstream
 	c.mu.Unlock()
@@ -30,8 +34,10 @@ func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, i
 		if wanted != nil && !wanted() {
 			return "", errSongRemoved
 		}
-		slog.Info("prefetch_upstream", "song_id", id, "upstream", route, "fallback", attempt > 0)
+		log.Info("prefetch_upstream", "upstream", route, "fallback", attempt > 0)
+		started := time.Now()
 		target, err := c.resolveNode(ctx, id, route)
+		log.Info("prefetch_resolved", "upstream", route, "elapsed_ms", time.Since(started).Milliseconds(), "success", err == nil, "error", applog.SafeError(err))
 		if ctx.Err() != nil {
 			return "", ctx.Err()
 		}
@@ -49,7 +55,7 @@ func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, i
 			return "", ctx.Err()
 		}
 		failures = append(failures, fmt.Errorf("%s：%w", route, err))
-		slog.Warn("prefetch_upstream_failed", "song_id", id, "upstream", route, "error", err)
+		log.Warn("prefetch_upstream_failed", "upstream", route, "error", applog.SafeError(err))
 	}
 	return "", errors.Join(failures...)
 }

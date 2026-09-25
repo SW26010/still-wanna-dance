@@ -1,0 +1,900 @@
+{
+  "status": "passed within listed sample scope",
+  "date": "2026-09-25",
+  "timezone": "Asia/Shanghai",
+  "revision": "c69e844",
+  "executableSHA256": "7544F3A2E38D1CDCD00D860940FEDAFE0687AA6B0A26C6AE6EACC69F88911157",
+  "zipSHA256": "c2700a706b7b452c6d3d2e4ca319a7e83d462a124d4a2cde34d0155e171a697c",
+  "environment": "Windows; VRChat WannaDance private instance; isolated songs/cache directories",
+  "validation": {
+    "goTest": "pass (cached)",
+    "goVet": "pass",
+    "portableExtractedSmoke": "pass",
+    "liveIndependentDNS": "pass; 10398 catalog IDs and 16-byte video fragment",
+    "liveTrayLifecycle": "pass; actual tray create and cleanup",
+    "duplicateLaunch": {
+      "exited": true,
+      "exitCode": 0,
+      "remainingInstances": 1
+    }
+  },
+  "userFeedback": {
+    "hkgCold10313": "10313很快加载成功",
+    "cfSwitch10313": "切换cf无异常",
+    "cfCold6786": "6786无异常",
+    "prefetched3992AndAuto": "3992正常播放。切换到auto无异常",
+    "clearQueue": "已清空，未发现异常",
+    "firstTrayExit": "已退出",
+    "restartPlayback": "auto 10313播放正常",
+    "finalExit": "已退出，vrc未察觉异常"
+  },
+  "verifiedVideosBeforeEviction": [
+    {
+      "id": "10313",
+      "bytes": 37889143,
+      "md5": "7c9c823b50ff2fb588b349758ca91ec8",
+      "expectedMD5": "7c9c823b50ff2fb588b349758ca91ec8",
+      "valid": true
+    },
+    {
+      "id": "3227",
+      "bytes": 53040950,
+      "md5": "530f821468f156d107e7a5a3b56cae88",
+      "expectedMD5": "530f821468f156d107e7a5a3b56cae88",
+      "valid": true
+    },
+    {
+      "id": "3992",
+      "bytes": 72278150,
+      "md5": "267078db9d4d17d645d9a2f245c14c53",
+      "expectedMD5": "267078db9d4d17d645d9a2f245c14c53",
+      "valid": true
+    },
+    {
+      "id": "4063",
+      "bytes": 63018588,
+      "md5": "551f649aba5892f1a2f7e6c4e4d0f255",
+      "expectedMD5": "551f649aba5892f1a2f7e6c4e4d0f255",
+      "valid": true
+    },
+    {
+      "id": "6786",
+      "bytes": 34751213,
+      "md5": "8eba2258ba36716a9069b530b83ab6e9",
+      "expectedMD5": "8eba2258ba36716a9069b530b83ab6e9",
+      "valid": true
+    }
+  ],
+  "demandStatsBeforePrefetched3992Playback": [
+    {
+      "song_id": "10313",
+      "get_count": 7,
+      "demand_count": 2,
+      "first_requested_at": 0,
+      "last_requested_at": 104990,
+      "last_demand_at": 103929
+    },
+    {
+      "song_id": "6786",
+      "get_count": 3,
+      "demand_count": 1,
+      "first_requested_at": 138611,
+      "last_requested_at": 139601,
+      "last_demand_at": 138611
+    }
+  ],
+  "demandStatsBeforeRestartAndEviction": [
+    {
+      "song_id": "10313",
+      "get_count": 7,
+      "demand_count": 2,
+      "first_requested_at": 0,
+      "last_requested_at": 104990,
+      "last_demand_at": 103929
+    },
+    {
+      "song_id": "6786",
+      "get_count": 3,
+      "demand_count": 1,
+      "first_requested_at": 138611,
+      "last_requested_at": 139601,
+      "last_demand_at": 138611
+    },
+    {
+      "song_id": "3992",
+      "get_count": 7,
+      "demand_count": 2,
+      "first_requested_at": 369801,
+      "last_requested_at": 406453,
+      "last_demand_at": 405092
+    }
+  ],
+  "finalDemandStats": [
+    {
+      "song_id": "10313",
+      "get_count": 12,
+      "demand_count": 5,
+      "first_requested_at": 0,
+      "last_requested_at": 716001,
+      "last_demand_at": 716001
+    },
+    {
+      "song_id": "6786",
+      "get_count": 3,
+      "demand_count": 1,
+      "first_requested_at": 138611,
+      "last_requested_at": 139601,
+      "last_demand_at": 138611
+    },
+    {
+      "song_id": "3992",
+      "get_count": 7,
+      "demand_count": 2,
+      "first_requested_at": 369801,
+      "last_requested_at": 406453,
+      "last_demand_at": 405092
+    }
+  ],
+  "demandStatsNote": "Final 10313 stats include labeled acceptance Range and hosts probe GETs. Before-play snapshot proves prefetch did not increase demand.",
+  "retention": {
+    "beforeVideoBytes": 521956088,
+    "limitBytes": 246960620,
+    "afterVideoBytes": 220334586,
+    "retainedSongIds": [
+      "10313",
+      "3992"
+    ],
+    "evictedSongIds": [
+      "4063",
+      "3227",
+      "6786"
+    ],
+    "allOriginalMetadataUnchanged": true,
+    "evictedSongUsagePreserved": true
+  },
+  "restartRead": {
+    "status": 206,
+    "cache": "HIT",
+    "bytes": 1024,
+    "contentRange": "bytes 1000000-1001023/37889143",
+    "matchesLocalFile": true
+  },
+  "batchStart": {
+    "running": true,
+    "batch": {
+      "running": true,
+      "phase": "正在校验并补齐",
+      "total": 10398,
+      "checked": 0,
+      "hits": 0,
+      "downloaded": 0,
+      "failed": 0,
+      "current": "1 · CH4NGE",
+      "failures": null
+    },
+    "queue": {
+      "running": false,
+      "file": "",
+      "songs": null,
+      "current": 0,
+      "completed": 0,
+      "error": "",
+      "failures": null,
+      "logError": "",
+      "updated": "0001-01-01T00:00:00Z"
+    }
+  },
+  "batchCanceled": {
+    "running": true,
+    "batch": {
+      "running": false,
+      "phase": "已停止排队；已开始的共享下载继续完成，退出控制台可全部取消",
+      "total": 10398,
+      "checked": 0,
+      "hits": 0,
+      "downloaded": 0,
+      "failed": 0,
+      "current": "1 · CH4NGE",
+      "failures": null
+    }
+  },
+  "hostsEnabled": {
+    "sha256": "5420059804D63FCE1DB0D760B863D0A6B740885121A77149A7754FE6F3B70846",
+    "hosts": {
+      "ready": true,
+      "conflict": false,
+      "message": "两个视频域名均已接入本地。"
+    },
+    "time": "T+778.686s",
+    "domainProbe": {
+      "remoteAddress": "127.0.0.1",
+      "status": 206,
+      "cache": "HIT",
+      "bytes": 16
+    }
+  },
+  "firstTrayExit": {
+    "remainingPartFiles": [],
+    "listeners": []
+  },
+  "finalCleanup": {
+    "checkedAt": "T+948.591s",
+    "listeners": [],
+    "remainingPartFiles": [],
+    "hostsSHA256": "2D6BDFB341BE3A6234B24742377F93AA7C7CFB0D9FD64EFA9282C87852E57085",
+    "userFeedback": "已退出，vrc未察觉异常",
+    "hostsRestored": true,
+    "testProcesses": []
+  },
+  "gameEvents": [
+    "T+60.860s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=nya&id=10313'",
+    "T+62.860s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=nya&id=10313' resolved to 'http://nya.xin.moe/files/2505/10313-681ed34cf3e0f.mp4?e=REDACTED&s=REDACTED'",
+    "T+70.860s Debug      -  [<color=#9C6994>USharpVideo (WannaDance)</color>] Syncing video to 0.00",
+    "T+164.860s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=10313'",
+    "T+166.860s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=10313' resolved to 'http://play.udon.dance/files/2505/10313-681ed34cf3e0f.mp4?e=REDACTED&s=REDACTED'",
+    "T+166.860s Debug      -  [<color=#9C6994>USharpVideo (WannaDance)</color>] Syncing video to 96.56",
+    "T+198.860s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6786'",
+    "T+201.860s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=6786' resolved to 'http://play.udon.dance/files/2409/6786-66dd96ef46e69.mp4?e=REDACTED&s=REDACTED'",
+    "T+208.860s Debug      -  [<color=#9C6994>USharpVideo (WannaDance)</color>] Syncing video to 0.00",
+    "T+429.860s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=3992'",
+    "T+432.860s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?node=cf&id=3992' resolved to 'http://play.udon.dance/files/2403/3992-660524b94775d.mp4?e=REDACTED&s=REDACTED'",
+    "T+440.860s Debug      -  [<color=#9C6994>USharpVideo (WannaDance)</color>] Syncing video to 0.00",
+    "T+465.860s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?id=3992'",
+    "T+467.860s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?id=3992' resolved to 'http://nya.xin.moe/files/2403/3992-660524b94775d.mp4?e=REDACTED&s=REDACTED'",
+    "T+468.860s Debug      -  [<color=#9C6994>USharpVideo (WannaDance)</color>] Syncing video to 28.13",
+    "T+645.860s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?id=10313'",
+    "T+647.860s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?id=10313' resolved to 'http://nya.xin.moe/files/2505/10313-681ed34cf3e0f.mp4?e=REDACTED&s=REDACTED'",
+    "T+655.860s Debug      -  [<color=#9C6994>USharpVideo (WannaDance)</color>] Syncing video to 0.00",
+    "T+819.860s Debug      -  [Video Playback] Attempting to resolve URL 'http://api.udon.dance/Api/Songs/play?id=4924'",
+    "T+821.860s Debug      -  [Video Playback] URL 'http://api.udon.dance/Api/Songs/play?id=4924' resolved to 'http://nya.xin.moe/files/2412/4924-675865f727c1a.mp4?e=REDACTED&s=REDACTED'",
+    "T+829.860s Debug      -  [<color=#9C6994>USharpVideo (WannaDance)</color>] Syncing video to 0.00"
+  ],
+  "appEvents": [
+    {
+      "time": "T+0.000s",
+      "msg": "application_starting",
+      "pid": 10528
+    },
+    {
+      "time": "T+15.239s",
+      "msg": "cdn_started",
+      "pid": 10528,
+      "address": "127.0.0.1:80"
+    },
+    {
+      "time": "T+15.239s",
+      "msg": "console_action_completed",
+      "pid": 10528,
+      "action": "/api/start"
+    },
+    {
+      "time": "T+62.548s",
+      "msg": "download_started",
+      "pid": 10528,
+      "key": "253d8d34d77736d5fb0f247f8b62cc0dff5cc26872ec6b13f53e7f6c64919e91",
+      "host": "nya.xin.moe",
+      "size": 37889143
+    },
+    {
+      "time": "T+110.865s",
+      "msg": "download_published",
+      "pid": 10528,
+      "key": "253d8d34d77736d5fb0f247f8b62cc0dff5cc26872ec6b13f53e7f6c64919e91",
+      "size": 37889143
+    },
+    {
+      "time": "T+201.159s",
+      "msg": "download_started",
+      "pid": 10528,
+      "key": "cabbe820b5de63fb44bad5d5643b3d501057a1fab79c334191f293d26a84693d",
+      "host": "play.udon.dance",
+      "size": 34751213
+    },
+    {
+      "time": "T+204.536s",
+      "msg": "download_published",
+      "pid": 10528,
+      "key": "cabbe820b5de63fb44bad5d5643b3d501057a1fab79c334191f293d26a84693d",
+      "size": 34751213
+    },
+    {
+      "time": "T+246.262s",
+      "msg": "queue_started",
+      "pid": 10528
+    },
+    {
+      "time": "T+246.262s",
+      "msg": "console_action_completed",
+      "pid": 10528,
+      "action": "/api/queue/start"
+    },
+    {
+      "time": "T+267.262s",
+      "msg": "queue_updated",
+      "pid": 10528,
+      "song_count": 2,
+      "reset": false
+    },
+    {
+      "time": "T+267.824s",
+      "msg": "download_started",
+      "pid": 10528,
+      "key": "ddd4d996265f89c6dafea9365a3ccb9800eb367b9fdfe0d91e4d50d3f0c051fc",
+      "host": "nya.xin.moe",
+      "size": 72278150
+    },
+    {
+      "time": "T+273.262s",
+      "msg": "queue_updated",
+      "pid": 10528,
+      "song_count": 3,
+      "reset": false
+    },
+    {
+      "time": "T+359.421s",
+      "msg": "download_published",
+      "pid": 10528,
+      "key": "ddd4d996265f89c6dafea9365a3ccb9800eb367b9fdfe0d91e4d50d3f0c051fc",
+      "size": 72278150
+    },
+    {
+      "time": "T+359.426s",
+      "msg": "queue_song_ready",
+      "pid": 10528,
+      "song_id": 3992
+    },
+    {
+      "time": "T+359.700s",
+      "msg": "download_started",
+      "pid": 10528,
+      "key": "d0125cbf1ccb3dfc9968a2aad8da81e31a6a13c5e6903775e3343cef2038bf07",
+      "host": "nya.xin.moe",
+      "size": 63018588
+    },
+    {
+      "time": "T+432.262s",
+      "msg": "queue_updated",
+      "pid": 10528,
+      "song_count": 2,
+      "reset": false
+    },
+    {
+      "time": "T+440.015s",
+      "msg": "download_published",
+      "pid": 10528,
+      "key": "d0125cbf1ccb3dfc9968a2aad8da81e31a6a13c5e6903775e3343cef2038bf07",
+      "size": 63018588
+    },
+    {
+      "time": "T+440.019s",
+      "msg": "queue_song_ready",
+      "pid": 10528,
+      "song_id": 4063
+    },
+    {
+      "time": "T+440.297s",
+      "msg": "download_started",
+      "pid": 10528,
+      "key": "b0daa40d0ccee38bb5ea9698b5c255adbb383bd35ca0e7c65330a78014608f1d",
+      "host": "nya.xin.moe",
+      "size": 53040950
+    },
+    {
+      "time": "T+507.862s",
+      "msg": "download_published",
+      "pid": 10528,
+      "key": "b0daa40d0ccee38bb5ea9698b5c255adbb383bd35ca0e7c65330a78014608f1d",
+      "size": 53040950
+    },
+    {
+      "time": "T+507.865s",
+      "msg": "queue_song_ready",
+      "pid": 10528,
+      "song_id": 3227
+    },
+    {
+      "time": "T+513.262s",
+      "msg": "queue_updated",
+      "pid": 10528,
+      "song_count": 1,
+      "reset": false
+    },
+    {
+      "time": "T+513.262s",
+      "msg": "queue_updated",
+      "pid": 10528,
+      "song_count": 0,
+      "reset": false
+    },
+    {
+      "time": "T+546.267s",
+      "msg": "queue_updated",
+      "pid": 10528,
+      "song_count": 0,
+      "reset": false
+    },
+    {
+      "time": "T+557.757s",
+      "msg": "application_stopping",
+      "pid": 10528
+    },
+    {
+      "time": "T+557.757s",
+      "msg": "cdn_stopped",
+      "pid": 10528
+    },
+    {
+      "time": "T+557.757s",
+      "msg": "queue_stopped",
+      "pid": 10528,
+      "completed": 3
+    },
+    {
+      "time": "T+557.766s",
+      "msg": "application_stopped",
+      "pid": 10528
+    },
+    {
+      "time": "T+583.895s",
+      "msg": "application_starting",
+      "pid": 20784
+    },
+    {
+      "time": "T+600.599s",
+      "msg": "console_action_completed",
+      "pid": 20784,
+      "action": "/api/settings"
+    },
+    {
+      "time": "T+607.932s",
+      "msg": "cache_evicted",
+      "pid": 20784,
+      "song_id": "4063",
+      "bytes": 63018588,
+      "priority": 0
+    },
+    {
+      "time": "T+607.936s",
+      "msg": "cache_evicted",
+      "pid": 20784,
+      "song_id": "4063",
+      "bytes": 63018588,
+      "priority": 0
+    },
+    {
+      "time": "T+607.939s",
+      "msg": "cache_evicted",
+      "pid": 20784,
+      "song_id": "3227",
+      "bytes": 53040950,
+      "priority": 0
+    },
+    {
+      "time": "T+607.943s",
+      "msg": "cache_evicted",
+      "pid": 20784,
+      "song_id": "3227",
+      "bytes": 53040950,
+      "priority": 0
+    },
+    {
+      "time": "T+607.945s",
+      "msg": "cache_evicted",
+      "pid": 20784,
+      "song_id": "6786",
+      "bytes": 34751213,
+      "priority": 0.6926813065690218
+    },
+    {
+      "time": "T+607.948s",
+      "msg": "cache_evicted",
+      "pid": 20784,
+      "song_id": "6786",
+      "bytes": 34751213,
+      "priority": 0.6926813065690218
+    },
+    {
+      "time": "T+607.948s",
+      "msg": "cdn_started",
+      "pid": 20784,
+      "address": "127.0.0.1:80"
+    },
+    {
+      "time": "T+607.948s",
+      "msg": "console_action_completed",
+      "pid": 20784,
+      "action": "/api/start"
+    },
+    {
+      "time": "T+642.840s",
+      "msg": "batch_started",
+      "pid": 20784
+    },
+    {
+      "time": "T+642.840s",
+      "msg": "console_action_completed",
+      "pid": 20784,
+      "action": "/api/batch/start"
+    },
+    {
+      "time": "T+644.709s",
+      "msg": "catalog_loaded",
+      "pid": 20784,
+      "total": 10398
+    },
+    {
+      "time": "T+644.993s",
+      "msg": "download_started",
+      "pid": 20784,
+      "key": "9c29a694669e2e4f854174c546f2e6e73e8937335682911ee19d02e87f024d8c",
+      "host": "nya.xin.moe",
+      "size": 40795378
+    },
+    {
+      "time": "T+663.993s",
+      "msg": "console_action_completed",
+      "pid": 20784,
+      "action": "/api/batch/cancel"
+    },
+    {
+      "time": "T+663.993s",
+      "msg": "batch_finished",
+      "pid": 20784,
+      "total": 10398,
+      "cancelled": true,
+      "checked": 0,
+      "hits": 0,
+      "downloaded": 0,
+      "failed": 0,
+      "phase": "已停止排队；已开始的共享下载继续完成，退出控制台可全部取消"
+    },
+    {
+      "time": "T+696.365s",
+      "msg": "download_published",
+      "pid": 20784,
+      "key": "9c29a694669e2e4f854174c546f2e6e73e8937335682911ee19d02e87f024d8c",
+      "size": 40795378
+    },
+    {
+      "time": "T+696.371s",
+      "msg": "cache_evicted",
+      "pid": 20784,
+      "song_id": "1",
+      "bytes": 40795378,
+      "priority": 0
+    },
+    {
+      "time": "T+696.373s",
+      "msg": "cache_evicted",
+      "pid": 20784,
+      "song_id": "1",
+      "bytes": 40795378,
+      "priority": 0
+    },
+    {
+      "time": "T+760.552s",
+      "msg": "console_action_completed",
+      "pid": 20784,
+      "action": "/api/hosts/enable"
+    },
+    {
+      "time": "T+794.736s",
+      "msg": "console_action_completed",
+      "pid": 20784,
+      "action": "/api/hosts/disable"
+    },
+    {
+      "time": "T+814.975s",
+      "msg": "application_stopping",
+      "pid": 20784
+    },
+    {
+      "time": "T+814.975s",
+      "msg": "cdn_stopped",
+      "pid": 20784
+    },
+    {
+      "time": "T+814.984s",
+      "msg": "application_stopped",
+      "pid": 20784
+    }
+  ],
+  "requests": [
+    {
+      "time": "T+62.740s",
+      "pid": 10528,
+      "id": 1,
+      "method": "GET",
+      "host": "nya.xin.moe",
+      "path": "/files/2505/10313-681ed34cf3e0f.mp4",
+      "range": "",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "status": 200,
+      "bytes": 14076,
+      "elapsedMS": 191.4978
+    },
+    {
+      "time": "T+62.760s",
+      "pid": 10528,
+      "id": 2,
+      "method": "GET",
+      "host": "nya.xin.moe",
+      "path": "/files/2505/10313-681ed34cf3e0f.mp4",
+      "range": "",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "status": 200,
+      "bytes": 14076,
+      "elapsedMS": 1.1644
+    },
+    {
+      "time": "T+110.868s",
+      "pid": 10528,
+      "id": 3,
+      "method": "GET",
+      "host": "nya.xin.moe",
+      "path": "/files/2505/10313-681ed34cf3e0f.mp4",
+      "range": "bytes=0-",
+      "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+      "status": 206,
+      "bytes": 37889143,
+      "elapsedMS": 47608.0136
+    },
+    {
+      "time": "T+166.553s",
+      "pid": 10528,
+      "id": 4,
+      "method": "GET",
+      "host": "play.udon.dance",
+      "path": "/files/2505/10313-681ed34cf3e0f.mp4",
+      "range": "",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": 200,
+      "bytes": 393216,
+      "elapsedMS": 75.4213
+    },
+    {
+      "time": "T+166.637s",
+      "pid": 10528,
+      "id": 5,
+      "method": "GET",
+      "host": "play.udon.dance",
+      "path": "/files/2505/10313-681ed34cf3e0f.mp4",
+      "range": "",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": 200,
+      "bytes": 393216,
+      "elapsedMS": 81.9824
+    },
+    {
+      "time": "T+167.537s",
+      "pid": 10528,
+      "id": 6,
+      "method": "GET",
+      "host": "play.udon.dance",
+      "path": "/files/2505/10313-681ed34cf3e0f.mp4",
+      "range": "bytes=0-",
+      "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+      "status": 206,
+      "bytes": 4980736,
+      "elapsedMS": 507.9329
+    },
+    {
+      "time": "T+173.428s",
+      "pid": 10528,
+      "id": 7,
+      "method": "GET",
+      "host": "play.udon.dance",
+      "path": "/files/2505/10313-681ed34cf3e0f.mp4",
+      "range": "bytes=28704768-37889142",
+      "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+      "status": 206,
+      "bytes": 9184375,
+      "elapsedMS": 5889.7648
+    },
+    {
+      "time": "T+201.748s",
+      "pid": 10528,
+      "id": 8,
+      "method": "GET",
+      "host": "play.udon.dance",
+      "path": "/files/2409/6786-66dd96ef46e69.mp4",
+      "range": "",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "status": 200,
+      "bytes": 12654,
+      "elapsedMS": 589.0536
+    },
+    {
+      "time": "T+201.752s",
+      "pid": 10528,
+      "id": 9,
+      "method": "GET",
+      "host": "play.udon.dance",
+      "path": "/files/2409/6786-66dd96ef46e69.mp4",
+      "range": "",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "status": 200,
+      "bytes": 15350,
+      "elapsedMS": 1.0269
+    },
+    {
+      "time": "T+251.455s",
+      "pid": 10528,
+      "id": 10,
+      "method": "GET",
+      "host": "play.udon.dance",
+      "path": "/files/2409/6786-66dd96ef46e69.mp4",
+      "range": "bytes=0-",
+      "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+      "status": 206,
+      "bytes": 34751213,
+      "elapsedMS": 49305.7714
+    },
+    {
+      "time": "T+432.497s",
+      "pid": 10528,
+      "id": 11,
+      "method": "GET",
+      "host": "play.udon.dance",
+      "path": "/files/2403/3992-660524b94775d.mp4",
+      "range": "",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+      "status": 200,
+      "bytes": 393216,
+      "elapsedMS": 148.0995
+    },
+    {
+      "time": "T+432.656s",
+      "pid": 10528,
+      "id": 12,
+      "method": "GET",
+      "host": "play.udon.dance",
+      "path": "/files/2403/3992-660524b94775d.mp4",
+      "range": "",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+      "status": 200,
+      "bytes": 393216,
+      "elapsedMS": 155.7503
+    },
+    {
+      "time": "T+467.785s",
+      "pid": 10528,
+      "id": 14,
+      "method": "GET",
+      "host": "nya.xin.moe",
+      "path": "/files/2403/3992-660524b94775d.mp4",
+      "range": "",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "status": 200,
+      "bytes": 393216,
+      "elapsedMS": 144.6304
+    },
+    {
+      "time": "T+467.963s",
+      "pid": 10528,
+      "id": 15,
+      "method": "GET",
+      "host": "nya.xin.moe",
+      "path": "/files/2403/3992-660524b94775d.mp4",
+      "range": "",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "status": 200,
+      "bytes": 393216,
+      "elapsedMS": 154.4733
+    },
+    {
+      "time": "T+468.340s",
+      "pid": 10528,
+      "id": 13,
+      "method": "GET",
+      "host": "play.udon.dance",
+      "path": "/files/2403/3992-660524b94775d.mp4",
+      "range": "bytes=0-",
+      "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+      "status": 206,
+      "bytes": 46104576,
+      "elapsedMS": 35276.1895
+    },
+    {
+      "time": "T+469.000s",
+      "pid": 10528,
+      "id": 16,
+      "method": "GET",
+      "host": "nya.xin.moe",
+      "path": "/files/2403/3992-660524b94775d.mp4",
+      "range": "bytes=0-",
+      "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+      "status": 206,
+      "bytes": 4456448,
+      "elapsedMS": 640.1311
+    },
+    {
+      "time": "T+521.058s",
+      "pid": 10528,
+      "id": 17,
+      "method": "GET",
+      "host": "nya.xin.moe",
+      "path": "/files/2403/3992-660524b94775d.mp4",
+      "range": "bytes=4538368-72278149",
+      "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+      "status": 206,
+      "bytes": 67739782,
+      "elapsedMS": 52056.262
+    },
+    {
+      "time": "T+648.019s",
+      "pid": 20784,
+      "id": 1,
+      "method": "GET",
+      "host": "nya.xin.moe",
+      "path": "/files/2505/10313-681ed34cf3e0f.mp4",
+      "range": "",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "status": 200,
+      "bytes": 393216,
+      "elapsedMS": 79.5484
+    },
+    {
+      "time": "T+648.114s",
+      "pid": 20784,
+      "id": 2,
+      "method": "GET",
+      "host": "nya.xin.moe",
+      "path": "/files/2505/10313-681ed34cf3e0f.mp4",
+      "range": "",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "status": 200,
+      "bytes": 393216,
+      "elapsedMS": 90.8206
+    },
+    {
+      "time": "T+648.604s",
+      "pid": 20784,
+      "id": 3,
+      "method": "GET",
+      "host": "nya.xin.moe",
+      "path": "/files/2505/10313-681ed34cf3e0f.mp4",
+      "range": "",
+      "userAgent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+      "status": 304,
+      "bytes": 0,
+      "elapsedMS": 78.3149
+    },
+    {
+      "time": "T+705.884s",
+      "pid": 20784,
+      "id": 4,
+      "method": "GET",
+      "host": "nya.xin.moe",
+      "path": "/files/2505/10313-681ed34cf3e0f.mp4",
+      "range": "bytes=1000000-1001023",
+      "userAgent": "StepStash-Acceptance-Range-Probe",
+      "status": 206,
+      "bytes": 1024,
+      "elapsedMS": 74.7044
+    },
+    {
+      "time": "T+778.625s",
+      "pid": 20784,
+      "id": 5,
+      "method": "GET",
+      "host": "nya.xin.moe",
+      "path": "/files/2505/10313-681ed34cf3e0f.mp4",
+      "range": "bytes=0-15",
+      "userAgent": "StepStash-Acceptance-Hosts-Probe",
+      "status": 206,
+      "bytes": 16,
+      "elapsedMS": 75.6805
+    }
+  ],
+  "limitations": [
+    "SHA unsupported",
+    "No arbitrary-network smooth-playback guarantee",
+    "No whole-library download or long soak",
+    "Multiplayer join not repeated in this round; earlier MVP evidence exists",
+    "Queue clear occurred after all three prefetches completed",
+    "Final restart player request was 304; separate 206 probe verified server file read",
+    "Windows race not run",
+    "Active-stream eviction protection retains automated coverage; this round covers real startup and background-completion eviction"
+  ]
+}

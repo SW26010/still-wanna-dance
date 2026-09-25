@@ -67,7 +67,7 @@ go build -o bin/stepstash-console-cli.exe ./cmd/stepstash-console
 
 填写路径并保存；已有歌曲库无需导入或迁移。歌曲库与临时缓存目录必须互不包含。运行 CDN、队列预缓存或批量任务时不能修改目录，保存时检查缓存目录可写性。日志目录仅检查读取权限，不创建或修改日志。
 
-Windows 默认将设置保存在 EXE 所在目录的 `stepstash-console.json`；Linux 默认在工作目录。可通过 `-config` 指定其他配置文件（该参数的相对路径基于启动工作目录）。歌曲库、缓存及日志的相对路径基于配置文件所在目录解析。保存时，该目录内的路径转为相对路径，外部路径保留绝对路径，便于整体移动 portable 文件夹。新视频同时占用应用缓存和歌曲库空间，下载时还有临时副本；暂无容量配额和自动清理。
+Windows 默认将设置保存在 EXE 所在目录的 `stepstash-console.json`；Linux 默认在工作目录。可通过 `-config` 指定其他配置文件（该参数的相对路径基于启动工作目录）。歌曲库、缓存及日志的相对路径基于配置文件所在目录解析。保存时，该目录内的路径转为相对路径，外部路径保留绝对路径，便于整体移动 portable 文件夹。新视频同时占用应用缓存和歌曲库空间，下载时还有临时副本；可设置[视频容量上限及自动淘汰](cache-retention.md)，默认不限。
 
 ## 程序日志
 
@@ -115,4 +115,4 @@ go test ./internal/console -run TestLiveIndependentDNS -v -count=1
 Remove-Item Env:STEPSTASH_LIVE_CHECK
 ```
 
-2026-09-25 获取 10,398 个去重 ID；视频域名有本机 hosts 映射时，独立解析的 API 和视频片段请求成功。数量为当时样本。本轮未实际执行 UAC 修改系统 hosts，纯转换逻辑已测试。
+2026-09-25 获取 10,398 个去重 ID；视频域名有本机 hosts 映射时，独立解析的 API 和视频片段请求成功。数量为当时样本。随后对 `c69e844` 完成了真实 UAC 修改/恢复、托盘退出、重启及容量设置的[联合实机验收](release-acceptance-20260925.md)。

@@ -89,6 +89,12 @@
       "source": "2026-09-24/25 command results; investigation narrative reports",
       "transformation": "Manually curated command-output summary.",
       "sha256": "6839443f49eea77b2fd8a933f2430442720afac79e1f08c32a86ebf05765b54a"
+    },
+    {
+      "file": "current-release-live-20260925.json",
+      "source": "test-runs/full-live-c69e844-20260925 and current-version portable application log",
+      "transformation": "Selected live test observations, user feedback, checksums, public video request paths and event timestamps; no full game logs, hosts contents, user paths or player identifiers.",
+      "sha256": "b9f63b9883a9603cd6df4d184f7e2fcc53cea7c179cc509fb2b4fd1616dce99d"
     }
   ]
 }

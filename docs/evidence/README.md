@@ -6,6 +6,7 @@
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [current-release-live-20260925.json](current-release-live-20260925.json) | 当前 `c69e844` portable 联合实机验收：播放、队列、统计、容量淘汰、桌面退出/重启及真实 hosts UAC 操作 |
 | [auto-sha-live-20260925.json](auto-sha-live-20260925.json) | 第二次 StepStash 联合测试（进行中）：10271 Auto 本地命中、SHA 解析超时与独立 TCP 连接失败 |
 | [mvp-acceptance-20260925.json](mvp-acceptance-20260925.json) | StepStash 实网验收：旧库读取、CF/HKG 冷下载、重启、原版回读；不是原版调查阶段数据 |
 | [mvp-stream-acceptance-20260925.json](mvp-stream-acceptance-20260925.json) | 冷缓存流式修复后的同矩阵完整实网回归，含实际二进制哈希和首包时间 |

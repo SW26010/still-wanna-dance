@@ -27,9 +27,10 @@ import (
 var page string
 
 type Settings struct {
-	SongsDir string `json:"songsDir"`
-	CacheDir string `json:"cacheDir"`
-	LogDir   string `json:"logDir"`
+	MaxCacheBytes int64  `json:"maxCacheBytes"`
+	SongsDir      string `json:"songsDir"`
+	CacheDir      string `json:"cacheDir"`
+	LogDir        string `json:"logDir"`
 }
 
 type Console struct {
@@ -102,6 +103,9 @@ func (c *Console) storedSettings(s Settings) Settings {
 }
 
 func absoluteSettings(s Settings) (Settings, error) {
+	if s.MaxCacheBytes < 0 {
+		return s, errors.New("缓存上限不能为负数")
+	}
 	if strings.TrimSpace(s.LogDir) == "" {
 		s.LogDir = defaultLogDir()
 	}
@@ -212,6 +216,7 @@ func (c *Console) ensureEngine() error {
 	cfg.Logger = slog.Default().With("component", "cache")
 	cfg.SongsDir = c.settings.SongsDir
 	cfg.CacheDir = c.settings.CacheDir
+	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
 	cfg.StatsPath = filepath.Join(filepath.Dir(c.configPath), "stepstash-usage.sqlite")
 	cfg.DialContext = c.dns.DialContext
 	s, err := cacheproxy.New(cfg)

@@ -22,6 +22,8 @@ func (s *Server) Prefetch(ctx context.Context, target string) (source string, re
 	if err != nil {
 		return "", err
 	}
+	s.pinVideo(v)
+	defer s.releaseVideo(v)
 	defer func() {
 		outcome := "completed"
 		if resultErr != nil {

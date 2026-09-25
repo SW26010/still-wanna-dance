@@ -35,20 +35,24 @@ type flight struct {
 }
 
 type Server struct {
-	cfg       Config
-	client    *http.Client
-	ctx       context.Context
-	cancel    context.CancelFunc
-	mu        sync.Mutex
-	flights   map[string]*flight
-	slots     chan struct{}
-	wg        sync.WaitGroup
-	closed    bool
-	unlock    func() error
-	once      sync.Once
-	libraryMu sync.Mutex
-	sequence  atomic.Uint64
-	usage     *usageStore
+	cfg            Config
+	client         *http.Client
+	ctx            context.Context
+	cancel         context.CancelFunc
+	mu             sync.Mutex
+	flights        map[string]*flight
+	slots          chan struct{}
+	wg             sync.WaitGroup
+	closed         bool
+	unlock         func() error
+	once           sync.Once
+	libraryMu      sync.Mutex
+	sequence       atomic.Uint64
+	usage          *usageStore
+	retentionMu    sync.Mutex
+	pins           map[string]int
+	versions       map[string]string
+	versionsLoaded bool
 }
 
 func New(cfg Config) (*Server, error) {
@@ -110,11 +114,14 @@ func New(cfg Config) (*Server, error) {
 	if usageErr != nil {
 		cfg.Logger.Error("usage_disabled", "error", usageErr)
 	}
-	return &Server{cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
+	s := &Server{cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
+		pins: make(map[string]int), versions: make(map[string]string),
 		usage:   usage,
 		flights: make(map[string]*flight), slots: make(chan struct{}, cfg.MaxDownloads),
 		client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
-	}, nil
+	}
+	s.trimCache()
+	return s, nil
 }
 
 // Close cancels downloads, waits for handlers and cleanup, then flushes usage.
@@ -253,6 +260,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	event.demand = r.Method == http.MethodGet
+	s.pinVideo(v)
+	defer s.releaseVideo(v)
 	if event.demand {
 		event.at = s.usage.startDemand(v.id)
 	}

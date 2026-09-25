@@ -17,6 +17,7 @@ import (
 const demandWindow = 30 * time.Second
 
 type usageEvent struct {
+	barrier                                                chan struct{}
 	id                                                     string
 	at                                                     int64
 	key, host, source, method, rangeHeader, cache, outcome string
@@ -104,6 +105,22 @@ func (u *usageStore) record(e usageEvent) {
 	u.enqueueLocked(e)
 }
 
+// Drain observations already accepted before ranking eviction candidates.
+func (u *usageStore) flush() {
+	if u == nil {
+		return
+	}
+	u.mu.Lock()
+	if u.closed {
+		u.mu.Unlock()
+		return
+	}
+	done := make(chan struct{})
+	u.events <- usageEvent{barrier: done}
+	u.mu.Unlock()
+	<-done
+}
+
 func (u *usageStore) enqueueLocked(e usageEvent) {
 	if u.closed {
 		return
@@ -149,6 +166,11 @@ func (u *usageStore) run() {
 		if err := u.write(batch); err != nil {
 			u.log.Error("usage_write_failed", "count", len(batch), "error", err)
 		}
+		for _, e := range batch {
+			if e.barrier != nil {
+				close(e.barrier)
+			}
+		}
 	}
 }
 
@@ -161,6 +183,9 @@ func (u *usageStore) write(batch []usageEvent) error {
 	}
 	defer tx.Rollback()
 	for _, e := range batch {
+		if e.barrier != nil {
+			continue
+		}
 		if !e.summaryOnly {
 			_, err = tx.ExecContext(ctx, `INSERT INTO request_events
 (song_id, requested_at, version_key, host, source, method, range_header, cache_result, outcome,

@@ -33,8 +33,10 @@ func (s *Server) obtain(ctx context.Context, v video) (*flight, *spoolReader, er
 		f = &flight{done: make(chan struct{}), streaming: make(chan struct{})}
 		s.flights[v.key] = f
 		s.wg.Add(1)
+		s.pinVideo(v)
 		go func() {
 			defer s.wg.Done()
+			defer s.releaseVideo(v)
 			workerCtx, cancel := context.WithTimeout(s.ctx, s.cfg.DownloadTimeout)
 			defer cancel()
 			f.path, f.source, f.err = s.prepare(workerCtx, v, f)

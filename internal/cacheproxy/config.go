@@ -21,8 +21,10 @@ type Config struct {
 	Origins         map[string]string
 	DownloadTimeout time.Duration
 	MaxFileBytes    int64
-	MaxDownloads    int
-	Logger          *slog.Logger
+	// MaxCacheBytes bounds retained videos across cache and library; zero is unlimited.
+	MaxCacheBytes int64
+	MaxDownloads  int
+	Logger        *slog.Logger
 	// DialContext optionally supplies independent upstream DNS resolution.
 	DialContext func(context.Context, string, string) (net.Conn, error)
 }
@@ -40,6 +42,9 @@ func DefaultConfig() Config {
 }
 
 func (c Config) validate() error {
+	if c.MaxCacheBytes < 0 {
+		return errors.New("cache limit cannot be negative")
+	}
 	if c.CacheDir == "" || c.SongsDir == "" || c.DownloadTimeout <= 0 || c.MaxFileBytes <= 0 || c.MaxFileBytes == int64(^uint64(0)>>1) || c.MaxDownloads < 1 {
 		return errors.New("cache directory, timeout, file limit and download limit must be positive")
 	}

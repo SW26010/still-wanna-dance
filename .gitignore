@@ -25,3 +25,6 @@ Thumbs.db
 /stepstash-console.json
 /stepstash-console.json.lock
 *.test
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

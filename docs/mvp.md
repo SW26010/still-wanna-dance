@@ -1,6 +1,6 @@
 # StepStash MVP
 
-第一版是 Go 标准库实现的本地 HTTP 视频缓存服务。已通过可控上游测试、真实 CF/HKG 下载与原版回读。VRChat 联合验收及发现的问题见[验收记录](acceptance.md)。
+本地 HTTP 视频缓存服务使用 Go 实现，SQLite 请求统计使用纯 Go 驱动，无需安装数据库服务。已通过可控上游测试、真实 CF/HKG 下载与原版回读。VRChat 联合验收及发现的问题见[验收记录](acceptance.md)。
 
 ## 启动
 
@@ -53,6 +53,36 @@ MVP 仅处理已观测到的 HTTP 视频链路，不监听 443，也不实现 `/
 
 ## HTTP 和诊断
 
+### 歌曲请求统计
+
+自动维护 SQLite `song_usage` 汇总表与 `request_events` 请求明细表，为后续缓存保留/丢弃排序积累数据，目前不自动删除歌曲，也不计算优先级。桌面/网页控制台将 `stepstash-usage.sqlite` 放在配置文件旁；命令行默认放在歌曲库根目录的 `.stepstash-usage.sqlite`，可用 `-stats-path` 指定。独立于临时缓存目录，清理临时缓存不丢失统计；移动便携包时一并保留数据库。旧数据库自动新增明细表，已有汇总保留；升级前的逐次历史无法补回。
+
+每首歌一行，按歌曲 ID 跨 CDN 和视频版本汇总：
+
+| 字段 | 含义 |
+| --- | --- |
+| `song_id` | 歌曲 ID（文本） |
+| `get_count` | 进入缓存处理的 GET 请求数，包括下载失败和重试 |
+| `demand_count` | 去重后的需求次数，同曲距离上一次计数达到 30 秒才再次计数 |
+| `first_requested_at` | 首次请求时间 |
+| `last_requested_at` | 最近一次 GET 时间，重复请求也更新 |
+| `last_demand_at` | 最近一次去重计数时间 |
+
+时间统一为 UTC Unix 毫秒。HEAD、预缓存、手动批量下载和提前拒绝的多区间请求只留明细，不增加汇总热度；非法 URL 和不支持的方法不进入歌曲统计。单区间请求在缓存处理后才验证 Range，其错误也可能计入 GET。数据表示本机代理观察到的请求需求，不能作为真实播放次数；30 秒只是简单去重规则，长播放中的后续 Range 仍可能再次计数。去重不删除明细，后续可以重新定义统计窗口。
+
+`request_events` 每次请求一行，包含歌曲 ID、请求开始时间、内容版本键、CDN 主机、来源（`http` / `prefetch`，队列与批量预取均属后者）、方法、原始 Range、缓存结果（`HIT` / `MISS` / `UNKNOWN`）、结果（`completed` / `failed` / `canceled` / `aborted`）、文件大小、响应传输字节数、耗时毫秒、HTTP 状态码和是否参与需求汇总。HTTP 状态可能为 0（尚未发送响应），取消/中断也可能已有 200/206，需结合结果字段判断。预取不是 HTTP 响应，其状态和响应传输字节数为 0；这不是上游实际下载流量，不能直接当作节省下载量。共享下载的预取取消后，后台下载仍可能继续。
+
+明细在请求结束时记录，按开始时间查询，可用于计算近期频率、请求间隔和预取后的实际访问；已建立歌曲/时间及时间索引。不记录用户身份或完整 URL，不自动清理明细。后台队列最多 1024 条，每批最多 128 条将明细和汇总一起以事务落盘，正常关闭等待活动请求结束并排空队列。队列满、数据库打开或写入失败会记录 `usage_dropped`、`usage_disabled` 或 `usage_write_failed`，不阻断播放；异常退出可能丢失进行中或尚未提交的统计。数据库失败不自动覆盖旧文件。
+
+停服后可用 SQLite 工具查询，例如按最近请求查看：
+
+```sql
+SELECT song_id, demand_count, last_requested_at
+FROM song_usage ORDER BY last_requested_at DESC;
+```
+
+### 响应和日志
+
 热缓存以及下载完成后的响应支持完整 200、单段 Range 206、后缀 Range 和条件请求；使用 Go `http.ServeContent`，ETag 为带引号的 MD5。无效或越界 Range 返回 416，多区间请求明确返回 416。HEAD 忽略 Range。完整 200 不添加原版非标准的 Content-Range。
 
 `X-StepStash-Cache` 表示 HIT 或 MISS；共享同一次冷下载的请求都会返回 MISS。`X-Request-ID` 可与 JSON 日志关联。日志记录请求状态、发送字节数、Range、缓存来源、下载键和失败原因，不记录完整查询参数。
@@ -64,6 +94,7 @@ MVP 仅处理已观测到的 HTTP 视频链路，不监听 443，也不实现 `/
 | `-listen` | `127.0.0.1:18080` |
 | `-cache-dir` | `stepstash-cache` |
 | `-songs-dir` | `wannadance-song` |
+| `-stats-path` | 歌曲库下 `.stepstash-usage.sqlite` |
 | `-cf-origin` | `ud-play.kiva.moe:80` |
 | `-hkg-origin` | `ud-nya.kiva.moe:80` |
 | `-download-timeout` | `10m`，包含缓存校验 |

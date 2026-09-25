@@ -14,8 +14,10 @@ import (
 // Config controls the local video service. Origins are dial addresses, not URLs;
 // the original HTTP Host is retained and environment proxies are not used.
 type Config struct {
-	CacheDir        string
-	SongsDir        string
+	CacheDir string
+	SongsDir string
+	// StatsPath defaults to SongsDir/.stepstash-usage.sqlite, outside temporary cache.
+	StatsPath       string
 	Origins         map[string]string
 	DownloadTimeout time.Duration
 	MaxFileBytes    int64

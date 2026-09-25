@@ -25,6 +25,7 @@ func main() {
 
 func run() error {
 	cfg := cacheproxy.DefaultConfig()
+	flag.StringVar(&cfg.StatsPath, "stats-path", "", "SQLite usage statistics path (default: song library/.stepstash-usage.sqlite)")
 	listen := flag.String("listen", "127.0.0.1:18080", "HTTP listen address (use 127.0.0.1:80 for game integration)")
 	flag.StringVar(&cfg.CacheDir, "cache-dir", cfg.CacheDir, "owned cache directory; one process per directory")
 	flag.StringVar(&cfg.SongsDir, "songs-dir", cfg.SongsDir, "song library root containing <id>/video.mp4; existing valid files are read directly")

@@ -48,6 +48,7 @@ type Server struct {
 	once      sync.Once
 	libraryMu sync.Mutex
 	sequence  atomic.Uint64
+	usage     *usageStore
 }
 
 func New(cfg Config) (*Server, error) {
@@ -102,7 +103,15 @@ func New(cfg Config) (*Server, error) {
 	if cfg.DialContext != nil {
 		transport.DialContext = cfg.DialContext
 	}
+	if cfg.StatsPath == "" {
+		cfg.StatsPath = filepath.Join(cfg.SongsDir, ".stepstash-usage.sqlite")
+	}
+	usage, usageErr := openUsage(cfg.StatsPath, cfg.Logger)
+	if usageErr != nil {
+		cfg.Logger.Error("usage_disabled", "error", usageErr)
+	}
 	return &Server{cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
+		usage:   usage,
 		flights: make(map[string]*flight), slots: make(chan struct{}, cfg.MaxDownloads),
 		client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}, nil
@@ -117,6 +126,7 @@ func (s *Server) Close() error {
 		s.cancel()
 		s.mu.Unlock()
 		s.wg.Wait()
+		s.usage.close()
 		s.client.CloseIdleConnections()
 		err = s.unlock()
 	})
@@ -168,7 +178,23 @@ func urlQuery(r *http.Request) ([2]string, error) {
 	return values, nil
 }
 
+// Register before Close starts waiting so completed observations drain to disk.
+func (s *Server) beginRequest() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return false
+	}
+	s.wg.Add(1)
+	return true
+}
+
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if !s.beginRequest() {
+		http.Error(w, "service closed", 503)
+		return
+	}
+	defer s.wg.Done()
 	id := s.sequence.Add(1)
 	start := time.Now()
 	log := s.cfg.Logger.With("request_id", id, "method", r.Method, "host", r.Host, "path", r.URL.Path, "range", r.Header.Get("Range"), "user_agent", r.UserAgent())
@@ -188,6 +214,31 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 400)
 		return
 	}
+	event := usageEvent{id: v.id, at: start.UnixMilli(), key: v.key, host: v.host,
+		source: "http", method: r.Method, rangeHeader: r.Header.Get("Range"), size: v.size}
+	defer func() {
+		panicked := recover()
+		event.status, event.bytes = response.status, response.bytes
+		event.elapsedMS = time.Since(start).Milliseconds()
+		event.cache = w.Header().Get("X-StepStash-Cache")
+		if event.cache == "" {
+			event.cache = "UNKNOWN"
+		}
+		event.outcome = "completed"
+		if event.status >= 400 {
+			event.outcome = "failed"
+		}
+		if panicked != nil {
+			event.outcome = "aborted"
+		}
+		if r.Context().Err() != nil {
+			event.outcome = "canceled"
+		}
+		s.usage.record(event)
+		if panicked != nil {
+			panic(panicked)
+		}
+	}()
 	// Range only applies to GET. ServeContent also handles HEAD, so strip it here.
 	if r.Method == http.MethodHead {
 		r = r.Clone(r.Context())
@@ -200,6 +251,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "multiple ranges are not supported", 416)
 		return
 	}
+	event.demand = r.Method == http.MethodGet
 	f, stream, err := s.obtain(r.Context(), v)
 	if err != nil {
 		if r.Context().Err() != nil {

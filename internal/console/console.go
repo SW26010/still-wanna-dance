@@ -212,6 +212,7 @@ func (c *Console) ensureEngine() error {
 	cfg.Logger = slog.Default().With("component", "cache")
 	cfg.SongsDir = c.settings.SongsDir
 	cfg.CacheDir = c.settings.CacheDir
+	cfg.StatsPath = filepath.Join(filepath.Dir(c.configPath), "stepstash-usage.sqlite")
 	cfg.DialContext = c.dns.DialContext
 	s, err := cacheproxy.New(cfg)
 	if err != nil {

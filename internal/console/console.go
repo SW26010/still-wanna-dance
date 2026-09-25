@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"stepstash/internal/cacheproxy"
+	"stepstash/internal/desktop"
 )
 
 //go:embed index.html
@@ -113,6 +114,9 @@ func writableDir(path string) error {
 func (c *Console) save(s Settings) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.closing {
+		return errors.New("控制台正在退出")
+	}
 	if c.httpServer != nil || c.batch.Running {
 		return errors.New("请先关闭 CDN 和批量任务，再修改目录")
 	}
@@ -188,7 +192,7 @@ func (c *Console) start() error {
 	_ = readHostsStatus()
 	l, err := net.Listen("tcp4", c.videoAddress)
 	if err != nil {
-		return fmt.Errorf("80 端口无法监听，请先关闭原版 CDN 或其他占用程序：%w", err)
+		return desktop.PortError(c.videoAddress, err)
 	}
 	if err = c.ensureEngine(); err != nil {
 		l.Close()
@@ -258,21 +262,29 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, strings.ReplaceAll(page, "__TOKEN__", c.token))
 		return
 	}
+	if r.Method == "GET" && r.URL.Path == "/api/identity" {
+		writeJSON(w, desktop.AppIdentity)
+		return
+	}
 	if r.URL.Path == "/api/status" && r.Method == "GET" {
 		c.mu.Lock()
 		running := c.httpServer != nil
 		result := struct {
-			Running  bool        `json:"running"`
-			Settings Settings    `json:"settings"`
-			Hosts    HostsStatus `json:"hosts"`
-			PortOK   bool        `json:"portOK"`
-			Error    string      `json:"error"`
-			Batch    Batch       `json:"batch"`
-		}{running, c.settings, readHostsStatus(), running, c.lastError, c.batch}
+			Running   bool           `json:"running"`
+			Settings  Settings       `json:"settings"`
+			Hosts     HostsStatus    `json:"hosts"`
+			PortOK    bool           `json:"portOK"`
+			Error     string         `json:"error"`
+			Batch     Batch          `json:"batch"`
+			PortOwner *desktop.Owner `json:"portOwner,omitempty"`
+		}{running, c.settings, readHostsStatus(), running, c.lastError, c.batch, nil}
 		result.Batch.Failures = append([]Failure(nil), c.batch.Failures...)
 		c.mu.Unlock()
 		if !running {
 			result.PortOK = portAvailable(c.videoAddress) == nil
+			if !result.PortOK {
+				result.PortOwner = desktop.PortOwner(c.videoAddress)
+			}
 		}
 		writeJSON(w, result)
 		return

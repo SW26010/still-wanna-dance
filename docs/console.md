@@ -1,13 +1,36 @@
 # 本地控制台
 
-Windows 构建、启动：
+Windows 桌面版构建、启动（托盘驻留，无命令行黑窗）：
 
 ```powershell
-go build -o bin/stepstash-console.exe ./cmd/stepstash-console
+.\scripts\build-desktop.ps1
 .\bin\stepstash-console.exe
 ```
 
-打开 <http://127.0.0.1:18081>。控制台仅绑定本机；端口被占用时可用 `-listen 127.0.0.1:18082`。原有 `stepstash.exe` 命令行入口保持可用。
+首次启动会打开 <http://127.0.0.1:18081>，`-no-open` 可禁止自动打开。关闭网页后仍在托盘运行。原有 `stepstash.exe` 命令行入口保持可用。
+
+## 托盘与实例避让
+
+托盘菜单包含打开控制台、启动 / 关闭 CDN、停止批量任务、退出 StepStash。鼠标或键盘激活图标均可打开控制台；菜单及悬浮提示跟随网页操作更新。Explorer 重建任务栏时重新注册托盘图标。
+
+Windows 桌面入口使用会话级命名互斥锁 `Local\StepStash.Desktop.v1`，固定使用控制端口 18081。重复启动不创建第二个服务或托盘，而是最多等待 5 秒，确认 `/api/identity` 属于 StepStash 后打开已有控制台。若首次启动者在就绪前崩溃，后启动者可重新竞争所有权；进程死亡不会留下永久实例锁。不会仅因为端口有人监听就打开未知服务。
+
+配置文件还通过 `<配置路径>.lock` 在整个进程生命周期独占，防止自定义端口实例同时修改同一份设置。锁文件保留是正常现象；OS 在进程退出或崩溃时释放锁，不要运行时删除。缓存引擎仍沿用原有缓存目录独占锁。
+
+退出从统一清理入口停止 HTTP 接口、取消批量任务和下载、移除托盘图标，最后释放配置锁和实例锁。注销 / 关机回调最多等待 4 秒；如果系统取消注销，程序继续运行。退出不会恢复 hosts。hosts 提权助手在实例检查前单独执行，修改完成即退出，主程序不会因此提权。
+
+80 或控制端口冲突时，Windows 下显示占用进程名和 PID；不结束其他进程，也不自动请求 UAC。旧的无托盘版控制台不会持有新实例锁，需要退出旧版后再启动新版。
+
+自定义控制端口及无托盘运行使用：
+
+```powershell
+go build -o bin/stepstash-console-cli.exe ./cmd/stepstash-console
+.\bin\stepstash-console-cli.exe -no-tray -listen 127.0.0.1:18082 -config .\other-settings.json
+```
+
+该模式不自动打开浏览器，不创建托盘，使用 Ctrl+C 退出。Linux 默认使用无托盘模式。配置独占及现有缓存独占规则仍然生效。
+
+设计参考 [dancing-log desktop_instance.py](https://github.com/SW26010/dancing-log/blob/c3fa28fa3b68879cb43513bc2cb53f1cc03fa1cc/dancing_log/desktop_instance.py)、[tray_app.py](https://github.com/SW26010/dancing-log/blob/c3fa28fa3b68879cb43513bc2cb53f1cc03fa1cc/dancing_log/tray_app.py) 和 [_win_tray.py](https://github.com/SW26010/dancing-log/blob/c3fa28fa3b68879cb43513bc2cb53f1cc03fa1cc/dancing_log/_win_tray.py) 的所有权、身份探测和统一退出机制。StepStash 以 Go / Win32 实现，无新增第三方运行依赖。
 
 ## 服务与下载独立
 
@@ -43,6 +66,16 @@ go build -o bin/stepstash-console.exe ./cmd/stepstash-console
 ## 验证
 
 `go test ./...` 覆盖独立批量下载、缓存复用、失败记录、CDN 开关与批量取消独立、配置保存、端口冲突、hosts 增删及冲突保护、控制接口 Host / Origin / 随机令牌验证、DNS 报文校验。
+
+桌面测试还覆盖同进程 / 跨进程互斥、异常终止后的锁恢复、就绪等待、浏览器打开失败、拒绝未知服务身份、配置锁、端口进程识别、托盘 / 网页共享服务状态，以及取消注销。实际桌面会话可运行托盘生命周期检查：
+
+```powershell
+$env:STEPSTASH_TRAY_CHECK = '1'
+go test ./internal/desktop -run TestLiveTrayLifecycle -v -count=1
+Remove-Item Env:STEPSTASH_TRAY_CHECK
+```
+
+此检查短暂创建并清理真实托盘图标，需要可访问交互式 Windows 桌面；不修改 hosts。
 
 可选实网检查只获取列表、解析歌曲 1343 并请求 16 字节片段，不修改 hosts 或下载全库：
 

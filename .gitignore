@@ -23,4 +23,5 @@ Thumbs.db
 /bin/
 /coverage.out
 /stepstash-console.json
+/stepstash-console.json.lock
 *.test

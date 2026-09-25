@@ -1,0 +1,49 @@
+{
+  "date": "2026-09-25",
+  "timezone": "Asia/Shanghai",
+  "sessionStatus": "in_progress",
+  "network": {
+    "userReported": "本机无代理。透明代理在网关",
+    "gatewayDirectComparison": "administrator findings relayed by user: direct connection confirmed",
+    "administratorFindings": {
+      "route": "Nikki domestic IP set 139.196.0.0/15 bypasses Mihomo",
+      "firewall": "SYN traced as ACCEPT, outgoing through pppoe-wan",
+      "connectionState": "client and gateway SYN_SENT / UNREPLIED",
+      "gatewayProbe": "direct TCP connection timed out after approximately 8 seconds, before TLS",
+      "secondEgressProbe": "T5810S on a different network egress also timed out during TCP connection"
+    },
+    "limitation": "Administrator observations were relayed by the user, not independently captured in this repository. Failure is corroborated across two egresses; the exact remote or transit cause remains unknown."
+  },
+  "auto": {
+    "songId": 10271,
+    "userFeedback": "auto 10271正常",
+    "resolvedHost": "nya.xin.moe",
+    "downloadStarted": "T+0.000s",
+    "downloadPublished": "T+41.000s",
+    "bytes": 31438257,
+    "verifiedMD5": "dd8ee3f379f88e1314f28c9cd13fe349",
+    "explicitAutoSelection": "T+66.000s",
+    "subsequentLocalHit": true,
+    "gameOnVideoStart": "T+85.000s",
+    "limitation": "Initial load used an unparameterized API URL before the explicit Auto selection; cold transfer is verified, but the UI selection at initial load is not established. Explicit Auto reload used local cache."
+  },
+  "sha": {
+    "songId": 10271,
+    "userFeedback": "sha提示播放错误",
+    "selected": "T+154.000s",
+    "entry": "https://139.196.46.195:51886/Api/Songs/play?id=10271",
+    "resolverTimeout": "T+176.000s",
+    "gameVideoError": "T+197.000s",
+    "localVideoRequestsDuringFailure": 0,
+    "independentCurl": {
+      "explicitProxyDisabled": true,
+      "connectTimeoutSeconds": 8,
+      "exitCode": 28,
+      "httpCode": "000",
+      "connectSeconds": 0,
+      "tlsSeconds": 0,
+      "totalSeconds": 8.014017
+    },
+    "conclusion": "Game URL resolution timed out; independent probe did not establish TCP. No final video URL or certificate validation result was obtained. Cause of endpoint unreachability remains undetermined."
+  }
+}

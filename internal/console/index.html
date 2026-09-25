@@ -21,11 +21,13 @@
 <div class="stats"><div class="stat"><b id="total">—</b><small>已知歌曲</small></div><div class="stat"><b id="hits">0</b><small>已有完整缓存</small></div><div class="stat"><b id="downloaded">0</b><small>本次补齐</small></div><div class="stat"><b id="failed">0</b><small>失败</small></div></div>
 <progress id="progress" value="0" max="1"></progress><div id="phase" role="status">等待开始</div><small id="current"></small>
 <details id="failures" hidden><summary>查看失败记录</summary><table><thead><tr><th>歌曲</th><th>原因</th></tr></thead><tbody id="failureRows"></tbody></table></details>
-</section></div><footer>本地控制台仅供本机访问 · CF / HKG HTTP 视频缓存 · Auto 由游戏 API 决定 · SHA 暂不支持</footer>
+</section></div><footer>关闭网页后程序仍继续运行；Windows 托盘菜单可重新打开控制台或退出程序。<br>本地控制台仅供本机访问 · CF / HKG HTTP 视频缓存 · Auto 由游戏 API 决定 · SHA 暂不支持</footer>
 </main><script>
 const token='__TOKEN__';const $=id=>document.getElementById(id);let initialized=false,busy=false,lastState=null;
 function notice(text){$('notice').textContent=text;$('notice').hidden=!text}
-function render(s){lastState=s;$('connection').textContent='● 控制台已连接';$('connection').className='good';$('serviceBadge').textContent=s.running?'● CDN 运行中':'○ CDN 已关闭';$('serviceBadge').className='pill'+(s.running?' good':'');$('portText').textContent=s.running?'StepStash 正在监听':s.portOK?'端口可用，可以启动':'端口不可用，请关闭原版 CDN 或其他占用程序';$('portDot').className='dot'+(s.portOK?' good':'');$('hostsText').textContent=s.hosts.message;$('hostsDot').className='dot'+(s.hosts.ready?' good':'');
+function render(s){lastState=s;$('connection').textContent='● 控制台已连接';$('connection').className='good';$('serviceBadge').textContent=s.running?'● CDN 运行中':'○ CDN 已关闭';$('serviceBadge').className='pill'+(s.running?' good':'');
+$('portText').textContent=s.running?'StepStash 正在监听':s.portOK?'端口可用，可以启动':s.portOwner?'被 '+s.portOwner.name+'（PID '+s.portOwner.pid+'）占用，请先关闭该服务':'端口不可用或被系统保留，请检查其他服务和端口设置';
+$('portDot').className='dot'+(s.portOK?' good':'');$('hostsText').textContent=s.hosts.message;$('hostsDot').className='dot'+(s.hosts.ready?' good':'');
 if(!initialized){$('songsDir').value=s.settings.songsDir;$('cacheDir').value=s.settings.cacheDir;initialized=true}
 for(const id of ['songsDir','cacheDir','save'])$(id).disabled=s.running||s.batch.running||busy;$('start').disabled=s.running||busy;$('stop').disabled=!s.running||busy;$('batchStart').disabled=s.batch.running||busy;$('batchCancel').disabled=!s.batch.running||busy;
 for(const b of document.querySelectorAll('[data-action^="hosts/"]'))b.disabled=busy;

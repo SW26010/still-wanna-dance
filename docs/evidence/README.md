@@ -6,6 +6,7 @@
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [auto-sha-live-20260925.json](auto-sha-live-20260925.json) | 第二次 StepStash 联合测试（进行中）：10271 Auto 本地命中、SHA 解析超时与独立 TCP 连接失败 |
 | [mvp-acceptance-20260925.json](mvp-acceptance-20260925.json) | StepStash 实网验收：旧库读取、CF/HKG 冷下载、重启、原版回读；不是原版调查阶段数据 |
 | [mvp-stream-acceptance-20260925.json](mvp-stream-acceptance-20260925.json) | 冷缓存流式修复后的同矩阵完整实网回归，含实际二进制哈希和首包时间 |
 | [mvp-live-20260925.json](mvp-live-20260925.json) | VRChat 联合验收：精简播放/同步事件、服务请求、用户反馈、落盘校验与 hosts 恢复哈希 |

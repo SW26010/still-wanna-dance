@@ -2,13 +2,27 @@ package cacheproxy
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"strconv"
 	"time"
 )
 
 // Prefetch uses exactly the same validation, shared downloads and publication as playback.
 // Canceling the waiter leaves an already shared download running for other clients.
 func (s *Server) Prefetch(ctx context.Context, target string) (source string, resultErr error) {
+	return s.prefetch(ctx, "", target)
+}
+
+// PrefetchSong associates a validated resource with the explicit catalog song ID.
+func (s *Server) PrefetchSong(ctx context.Context, id, target string) (string, error) {
+	if n, err := strconv.ParseInt(id, 10, 64); err != nil || n <= 0 {
+		return "", errors.New("invalid song ID")
+	}
+	return s.prefetch(ctx, id, target)
+}
+
+func (s *Server) prefetch(ctx context.Context, id, target string) (source string, resultErr error) {
 	if !s.beginRequest() {
 		return "", context.Canceled
 	}
@@ -36,7 +50,7 @@ func (s *Server) Prefetch(ctx context.Context, target string) (source string, re
 		if cache == "" {
 			cache = "UNKNOWN"
 		}
-		s.usage.record(usageEvent{id: v.id, at: start.UnixMilli(), key: v.key, host: v.host,
+		s.usage.record(usageEvent{id: v.key, at: start.UnixMilli(), key: v.key, host: v.host,
 			source: "prefetch", method: "GET", size: v.size, cache: cache,
 			outcome: outcome, elapsedMS: time.Since(start).Milliseconds()})
 	}()
@@ -51,6 +65,14 @@ func (s *Server) Prefetch(ctx context.Context, target string) (source string, re
 	case <-ctx.Done():
 		return "", ctx.Err()
 	case <-f.done:
-		return f.source, f.err
+		if f.err != nil {
+			return f.source, f.err
+		}
+		if id != "" {
+			if err := s.recordSongVideo(ctx, id, v); err != nil {
+				return f.source, err
+			}
+		}
+		return f.source, nil
 	}
 }

@@ -120,11 +120,6 @@ func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (s
 	if u.Host != host {
 		return "", fmt.Errorf("%s 返回了其他上游的视频地址", upstream)
 	}
-	parts := strings.Split(u.Path, "/")
-	file := parts[len(parts)-1]
-	if !strings.HasPrefix(file, strconv.FormatInt(id, 10)+"-") {
-		return "", errors.New("视频地址的歌曲 ID 不匹配")
-	}
 	return u.String(), nil
 }
 

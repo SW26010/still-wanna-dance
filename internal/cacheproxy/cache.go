@@ -155,7 +155,7 @@ func checkOpenFile(ctx context.Context, f *os.File, v video) error {
 }
 
 func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, string, error) {
-	path := s.cfg.videoFile(v.id, v.key)
+	path := s.cfg.videoFile(v.key)
 	if err := checkFile(ctx, path, v); err == nil {
 		if err := s.recordVideo(ctx, v); err != nil {
 			return "", "", err

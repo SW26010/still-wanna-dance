@@ -27,13 +27,13 @@ func testVideoFile(t *testing.T, cfg Config, body string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return cfg.videoFile(v.id, v.key)
+	return cfg.videoFile(v.key)
 }
 
 func retainedPath(t *testing.T, s *Server, cfg Config, id string) string {
 	t.Helper()
 	key := strings.Repeat(id, 64)
-	return cfg.videoFile(id, key)
+	return cfg.videoFile(key)
 }
 
 func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
@@ -44,7 +44,7 @@ func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
 	if _, err := s.usage.db.Exec(`UPDATE songs SET metadata_json='{"volume":0.8,"category":"dance"}' WHERE song_id='1344'`); err != nil {
 		t.Fatal(err)
 	}
-	if source, err := s.Prefetch(context.Background(), videoURL(payload)); source != "MISS" || err != nil {
+	if source, err := s.PrefetchSong(context.Background(), "1344", videoURL(payload)); source != "MISS" || err != nil {
 		t.Fatal(source, err)
 	}
 	files, err := filepath.Glob(filepath.Join(cfg.videosDir(), "*.mp4"))
@@ -64,7 +64,7 @@ func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
 	}
 	var title, metadata, checksum string
 	var size int64
-	if err := s.usage.db.QueryRow(`SELECT s.title, s.metadata_json, v.checksum, v.file_bytes FROM songs s JOIN video_versions v USING(song_id)`).Scan(&title, &metadata, &checksum, &size); err != nil {
+	if err := s.usage.db.QueryRow(`SELECT s.title, s.metadata_json, v.checksum, v.file_bytes FROM songs s JOIN current_videos c USING(song_id) JOIN video_versions v USING(version_key)`).Scan(&title, &metadata, &checksum, &size); err != nil {
 		t.Fatal(err)
 	}
 	if title != "My song" || metadata != `{"volume":0.8,"category":"dance"}` || len(checksum) != 32 || size != int64(len(payload)) {
@@ -76,7 +76,7 @@ func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer restarted.Close()
-	if source, err := restarted.Prefetch(context.Background(), videoURL(payload)); source != "HIT" || err != nil {
+	if source, err := restarted.PrefetchSong(context.Background(), "1344", videoURL(payload)); source != "HIT" || err != nil {
 		t.Fatal(source, err)
 	}
 	restarted.cfg.MaxCacheBytes = 1
@@ -111,13 +111,16 @@ func TestActiveReaderAndFailedDownloadKeepExistingVersion(t *testing.T) {
 			if err := s.recordVideo(context.Background(), oldVideo); err != nil {
 				t.Fatal(err)
 			}
+			if err := s.recordSongVideo(context.Background(), "1344", oldVideo); err != nil {
+				t.Fatal(err)
+			}
 			s.cfg.ResolveCurrent = func(context.Context, string) (string, error) { return videoURL(payload), nil }
 			f, err := os.Open(oldPath)
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer f.Close()
-			_, err = s.Prefetch(context.Background(), videoURL(payload))
+			_, err = s.PrefetchSong(context.Background(), "1344", videoURL(payload))
 			if (err != nil) != fail {
 				t.Fatal(err)
 			}

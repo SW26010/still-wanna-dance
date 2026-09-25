@@ -20,7 +20,7 @@ func TestCheckLocalNeverPublishesOrDeletes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(cache, v.id+"-"+v.key+".mp4")
+	path := filepath.Join(cache, v.key+".mp4")
 	for _, body := range []string{"broken", payload} {
 		if err := os.WriteFile(path, []byte(body), 0600); err != nil {
 			t.Fatal(err)

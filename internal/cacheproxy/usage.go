@@ -13,7 +13,7 @@ import (
 )
 
 // Counts describe observed GET demand, not confirmed playback. Deduplication is
-// per song across hosts/versions, anchored at the previous counted demand.
+// per resource across hosts, anchored at the previous counted demand.
 const demandWindow = 30 * time.Second
 
 type usageEvent struct {
@@ -54,18 +54,23 @@ CREATE TABLE IF NOT EXISTS songs (
 );
 CREATE TABLE IF NOT EXISTS video_versions (
  version_key TEXT PRIMARY KEY,
- song_id TEXT NOT NULL REFERENCES songs(song_id),
  checksum TEXT NOT NULL,
  file_bytes INTEGER NOT NULL,
  source_path TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS video_versions_song ON video_versions(song_id);
+CREATE TABLE IF NOT EXISTS song_videos (
+ song_id TEXT NOT NULL REFERENCES songs(song_id),
+ version_key TEXT NOT NULL REFERENCES video_versions(version_key),
+ PRIMARY KEY(song_id, version_key)
+);
+CREATE INDEX IF NOT EXISTS song_videos_version ON song_videos(version_key);
 CREATE TABLE IF NOT EXISTS current_videos (
  song_id TEXT PRIMARY KEY,
  version_key TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS song_usage (
- song_id TEXT PRIMARY KEY,
+CREATE INDEX IF NOT EXISTS current_videos_version ON current_videos(version_key);
+CREATE TABLE IF NOT EXISTS resource_usage (
+ resource_key TEXT PRIMARY KEY,
  get_count INTEGER NOT NULL,
  demand_count INTEGER NOT NULL,
  first_requested_at INTEGER NOT NULL,
@@ -74,7 +79,7 @@ CREATE TABLE IF NOT EXISTS song_usage (
 );
 CREATE TABLE IF NOT EXISTS request_events (
  event_id INTEGER PRIMARY KEY,
- song_id TEXT NOT NULL,
+ resource_key TEXT NOT NULL,
  requested_at INTEGER NOT NULL,
  version_key TEXT NOT NULL,
  host TEXT NOT NULL,
@@ -89,7 +94,7 @@ CREATE TABLE IF NOT EXISTS request_events (
  status INTEGER NOT NULL,
  counts_as_demand INTEGER NOT NULL
 );
-CREATE INDEX IF NOT EXISTS request_events_song_time ON request_events(song_id, requested_at);
+CREATE INDEX IF NOT EXISTS request_events_resource_time ON request_events(resource_key, requested_at);
 CREATE INDEX IF NOT EXISTS request_events_time ON request_events(requested_at);`)
 	if err != nil {
 		db.Close()
@@ -145,7 +150,7 @@ func (u *usageStore) enqueueLocked(e usageEvent) {
 	select {
 	case u.events <- e:
 	default:
-		u.log.Warn("usage_dropped", "song_id", e.id)
+		u.log.Warn("usage_dropped", "resource_key", e.id)
 	}
 }
 
@@ -205,7 +210,7 @@ func (u *usageStore) write(batch []usageEvent) error {
 		}
 		if !e.summaryOnly {
 			_, err = tx.ExecContext(ctx, `INSERT INTO request_events
-(song_id, requested_at, version_key, host, source, method, range_header, cache_result, outcome,
+(resource_key, requested_at, version_key, host, source, method, range_header, cache_result, outcome,
  file_bytes, transferred_bytes, elapsed_ms, status, counts_as_demand)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				e.id, e.at, e.key, e.host, e.source, e.method, e.rangeHeader, e.cache, e.outcome,
@@ -215,10 +220,10 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			}
 			continue
 		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO song_usage
-(song_id, get_count, demand_count, first_requested_at, last_requested_at, last_demand_at)
+		_, err = tx.ExecContext(ctx, `INSERT INTO resource_usage
+(resource_key, get_count, demand_count, first_requested_at, last_requested_at, last_demand_at)
 VALUES (?, 1, 1, ?, ?, ?)
-ON CONFLICT(song_id) DO UPDATE SET
+ON CONFLICT(resource_key) DO UPDATE SET
  get_count = get_count + 1,
  demand_count = demand_count + CASE WHEN excluded.last_requested_at - last_demand_at >= ? THEN 1 ELSE 0 END,
  first_requested_at = min(first_requested_at, excluded.first_requested_at),

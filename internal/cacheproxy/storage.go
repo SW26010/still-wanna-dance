@@ -13,8 +13,8 @@ import (
 
 func (c Config) videosDir() string { return filepath.Join(c.StorageDir, "videos") }
 func (c Config) tempDir() string   { return filepath.Join(c.StorageDir, "tmp") }
-func (c Config) videoFile(id, key string) string {
-	return filepath.Join(c.videosDir(), id+"-"+key+".mp4")
+func (c Config) videoFile(key string) string {
+	return filepath.Join(c.videosDir(), key+".mp4")
 }
 
 type songConfirmation struct {
@@ -53,26 +53,30 @@ func (s *Server) lockConfirmation(ctx context.Context, id string) (func(), error
 	}
 }
 
-// Records describe versions even after their bytes have been evicted. File
-// presence and integrity are checked separately; no cached-present flag can drift.
+// recordVideo records a resource without inferring a song from its URL.
 func (s *Server) recordVideo(ctx context.Context, v video) error {
-	// Serialize each song's authoritative observations with promotion, so a
-	// slower old response cannot commit after a newer observation for that song.
-	unlock, err := s.lockConfirmation(ctx, v.id)
+	_, err := s.usage.db.ExecContext(ctx, `INSERT INTO video_versions(version_key, checksum, file_bytes, source_path)
+ VALUES (?, ?, ?, ?) ON CONFLICT(version_key) DO NOTHING`, v.key, v.checksum, v.size, v.path)
+	return err
+}
+
+// Each explicit caller records its own mapping after the shared flight completes.
+func (s *Server) recordSongVideo(ctx context.Context, id string, v video) error {
+	unlock, err := s.lockConfirmation(ctx, id)
 	if err != nil {
 		return err
 	}
 	defer unlock()
 	var current string
-	err = s.usage.db.QueryRowContext(ctx, `SELECT version_key FROM current_videos WHERE song_id=?`, v.id).Scan(&current)
+	err = s.usage.db.QueryRowContext(ctx, `SELECT version_key FROM current_videos WHERE song_id=?`, id).Scan(&current)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
 	promote := current == "" || current == v.key
 	if !promote {
-		latest, err := s.currentVideo(ctx, v.id)
+		latest, err := s.currentVideo(ctx, id)
 		if err != nil {
-			s.cfg.Logger.Warn("current_version_unavailable", "song_id", v.id, "error", err)
+			s.cfg.Logger.Warn("current_version_unavailable", "song_id", id, "error", err)
 		} else {
 			promote = latest.key == v.key
 		}
@@ -84,27 +88,27 @@ func (s *Server) recordVideo(ctx context.Context, v video) error {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err = tx.ExecContext(ctx, "INSERT INTO songs(song_id) VALUES (?) ON CONFLICT DO NOTHING", v.id); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO songs(song_id) VALUES (?) ON CONFLICT DO NOTHING", id); err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO video_versions(version_key, song_id, checksum, file_bytes, source_path)
- VALUES (?, ?, ?, ?, ?) ON CONFLICT(version_key) DO NOTHING`, v.key, v.id, v.checksum, v.size, v.path)
-	if err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO song_videos(song_id, version_key) VALUES (?, ?) ON CONFLICT DO NOTHING`, id, v.key); err != nil {
 		return err
 	}
 	if promote {
 		if _, err = tx.ExecContext(ctx, `INSERT INTO current_videos(song_id, version_key) VALUES (?, ?)
- ON CONFLICT(song_id) DO UPDATE SET version_key=excluded.version_key`, v.id, v.key); err != nil {
+ ON CONFLICT(song_id) DO UPDATE SET version_key=excluded.version_key`, id, v.key); err != nil {
 			return err
 		}
 	}
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	if current != v.key {
-		s.cleanupNeeded[v.id] = true
+	if current != "" && current != v.key {
+		s.cleanupNeeded[current] = true
 	}
-	s.cleanSupersededLocked(v.id)
+	s.cleanupNeeded[v.key] = true
+	s.cleanSupersededLocked(current)
+	s.cleanSupersededLocked(v.key)
 	return nil
 }
 
@@ -142,79 +146,61 @@ func (s *Server) currentVideo(ctx context.Context, id string) (video, error) {
 	if r.URL.Scheme != "http" || r.URL.User != nil || r.URL.Fragment != "" {
 		return video{}, errors.New("invalid current video URL")
 	}
-	v, err := s.parse(r)
-	if err == nil && v.id != id {
-		err = errors.New("current video song ID mismatch")
-	}
-	return v, err
+	return s.parse(r)
 }
 
-// Called under retentionMu, shared with pin acquisition and publication.
-func (s *Server) cleanSupersededLocked(id string) {
-	if !s.cleanupNeeded[id] {
+// Called under retentionMu. Raw URLs cannot establish song ownership.
+func (s *Server) cleanSupersededLocked(key string) {
+	if !s.cleanupNeeded[key] {
 		return
 	}
-	var key string
-	if err := s.usage.db.QueryRow(`SELECT version_key FROM current_videos WHERE song_id=?`, id).Scan(&key); err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			s.cfg.Logger.Warn("version_cleanup_failed", "song_id", id, "error", err)
-		}
+	var referenced bool
+	if err := s.usage.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM current_videos WHERE version_key=?)`, key).Scan(&referenced); err != nil {
+		s.cfg.Logger.Warn("version_cleanup_failed", "key", key, "error", err)
 		return
 	}
-	entries, err := filepath.Glob(filepath.Join(s.cfg.videosDir(), id+"-*.mp4"))
-	if err != nil {
+	if referenced {
+		delete(s.cleanupNeeded, key)
 		return
 	}
-	pending := false
-	for _, path := range entries {
-		match := cacheVideoName.FindStringSubmatch(filepath.Base(path))
-		if match == nil || match[1] != id || match[2] == key {
-			continue
-		}
-		if !s.removeSupersededLocked(path, id, match[2]) {
-			pending = true
-		}
-	}
-	if !pending {
-		delete(s.cleanupNeeded, id)
-	}
-}
-
-func (s *Server) removeSupersededLocked(path, id, key string) bool {
 	if s.versionPins[key] > 0 {
-		return false
+		return
 	}
+	path := s.cfg.videoFile(key)
 	info, err := os.Lstat(path)
 	if os.IsNotExist(err) {
-		return true
+		delete(s.cleanupNeeded, key)
+		return
 	}
 	if err == nil && !info.Mode().IsRegular() {
-		return true
+		delete(s.cleanupNeeded, key)
+		return
 	}
 	if err == nil {
 		err = os.Remove(path)
 	}
 	if err != nil {
-		s.cfg.Logger.Warn("version_cleanup_failed", "song_id", id, "error", err)
-		return false
+		s.cfg.Logger.Warn("version_cleanup_failed", "key", key, "error", err)
+		return
 	}
-	s.cfg.Logger.Info("superseded_video_removed", "song_id", id, "path", path)
-	return true
+	delete(s.cleanupNeeded, key)
+	s.cfg.Logger.Info("superseded_video_removed", "key", key, "path", path)
 }
 
 func (s *Server) cleanSupersededOnStartup() {
-	rows, err := s.usage.db.Query(`SELECT song_id, version_key FROM current_videos`)
+	rows, err := s.usage.db.Query(`SELECT DISTINCT version_key FROM song_videos
+ WHERE version_key NOT IN (SELECT version_key FROM current_videos)`)
 	if err != nil {
 		s.cfg.Logger.Warn("version_cleanup_failed", "error", err)
 		return
 	}
-	current := make(map[string]string)
+	var keys []string
 	for rows.Next() {
-		var id, key string
-		if err = rows.Scan(&id, &key); err != nil {
+		var key string
+		if err = rows.Scan(&key); err != nil {
 			break
 		}
-		current[id] = key
+		keys = append(keys, key)
 	}
 	if err == nil {
 		err = rows.Err()
@@ -226,19 +212,9 @@ func (s *Server) cleanSupersededOnStartup() {
 	}
 	s.retentionMu.Lock()
 	defer s.retentionMu.Unlock()
-	entries, err := os.ReadDir(s.cfg.videosDir())
-	if err != nil {
-		s.cfg.Logger.Warn("version_cleanup_failed", "error", err)
-		return
-	}
-	for _, entry := range entries {
-		match := cacheVideoName.FindStringSubmatch(entry.Name())
-		if match == nil || current[match[1]] == "" || current[match[1]] == match[2] {
-			continue
-		}
-		if !s.removeSupersededLocked(filepath.Join(s.cfg.videosDir(), entry.Name()), match[1], match[2]) {
-			s.cleanupNeeded[match[1]] = true
-		}
+	for _, key := range keys {
+		s.cleanupNeeded[key] = true
+		s.cleanSupersededLocked(key)
 	}
 }
 

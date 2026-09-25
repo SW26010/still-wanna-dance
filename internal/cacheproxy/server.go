@@ -23,8 +23,8 @@ import (
 var videoPath = regexp.MustCompile(`^/files/[0-9]+/([1-9][0-9]*)-([a-zA-Z0-9]+)\.mp4$`)
 
 type video struct {
-	id, checksum, key, path, query, host string
-	size                                 int64
+	checksum, key, path, query, host string
+	size                             int64
 }
 type flight struct {
 	done         chan struct{}
@@ -51,7 +51,6 @@ type Server struct {
 	sequence        atomic.Uint64
 	usage           *usageStore
 	retentionMu     sync.Mutex
-	pins            map[string]int
 	currentMu       sync.Mutex
 	currentLocks    map[string]*songConfirmation
 	versionPins     map[string]int
@@ -117,7 +116,7 @@ func New(cfg Config) (*Server, error) {
 		return nil, fmt.Errorf("open storage database: %w", usageErr)
 	}
 	s := &Server{cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
-		pins: make(map[string]int), versionPins: make(map[string]int), cleanupNeeded: make(map[string]bool),
+		versionPins: make(map[string]int), cleanupNeeded: make(map[string]bool),
 		usage:   usage,
 		flights: make(map[string]*flight), slots: make(chan struct{}, cfg.MaxDownloads), capacityChanged: make(chan struct{}),
 		client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
@@ -171,7 +170,7 @@ func (s *Server) parse(r *http.Request) (video, error) {
 		return v, errors.New("s exceeds allowed size or is invalid")
 	}
 	key := sha256.Sum256([]byte(m[1] + "/" + m[2] + "/" + checksum + "/" + strconv.FormatInt(size, 10)))
-	return video{id: m[1], checksum: checksum, size: size, key: hex.EncodeToString(key[:]), path: r.URL.Path, query: r.URL.RawQuery, host: host}, nil
+	return video{checksum: checksum, size: size, key: hex.EncodeToString(key[:]), path: r.URL.Path, query: r.URL.RawQuery, host: host}, nil
 }
 
 func urlQuery(r *http.Request) ([2]string, error) {
@@ -225,7 +224,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 400)
 		return
 	}
-	event := usageEvent{id: v.id, at: start.UnixMilli(), key: v.key, host: v.host,
+	event := usageEvent{id: v.key, at: start.UnixMilli(), key: v.key, host: v.host,
 		source: "http", method: r.Method, rangeHeader: r.Header.Get("Range"), size: v.size}
 	defer func() {
 		panicked := recover()
@@ -266,7 +265,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.pinVideo(v)
 	defer s.releaseVideo(v)
 	if event.demand {
-		event.at = s.usage.startDemand(v.id)
+		event.at = s.usage.startDemand(v.key)
 	}
 	f, stream, err := s.obtain(r.Context(), v)
 	if err != nil {

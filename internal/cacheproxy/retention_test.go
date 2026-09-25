@@ -37,7 +37,7 @@ func TestRetentionScore(t *testing.T) {
 func TestRetentionPriorityAndVersions(t *testing.T) {
 	s, cfg := setup(t, nil)
 	now := time.Now().UnixMilli()
-	for _, e := range []usageEvent{{id: "1", at: now, summaryOnly: true}, {id: "2", at: now - (100 * 24 * time.Hour).Milliseconds(), summaryOnly: true}} {
+	for _, e := range []usageEvent{{id: strings.Repeat("1", 64), at: now, summaryOnly: true}, {id: strings.Repeat("2", 64), at: now - (100 * 24 * time.Hour).Milliseconds(), summaryOnly: true}} {
 		if err := s.usage.write([]usageEvent{e}); err != nil {
 			t.Fatal(err)
 		}
@@ -46,7 +46,8 @@ func TestRetentionPriorityAndVersions(t *testing.T) {
 	cold := retainedPath(t, s, cfg, "2")
 	prefetch := retainedPath(t, s, cfg, "3")
 	metadata := filepath.Join(cfg.StorageDir, "notes.json")
-	copyPath := cfg.videoFile("1", strings.Repeat("0", 64))
+	copyPath := cfg.videoFile(strings.Repeat("0", 64))
+	s.usage.write([]usageEvent{{id: strings.Repeat("0", 64), at: now - 1, summaryOnly: true}})
 	for _, p := range []string{hot, cold, prefetch, copyPath, metadata} {
 		putRetained(t, p, 10)
 	}
@@ -69,7 +70,7 @@ func TestRetentionPinsAndUnlimited(t *testing.T) {
 	s.trimCache()
 	expectRetained(t, p, true)
 	s.cfg.MaxCacheBytes = 1
-	v := video{id: "1", key: strings.Repeat("1", 64)}
+	v := video{key: strings.Repeat("1", 64)}
 	s.pinVideo(v)
 	s.pinVideo(v)
 	s.trimCache()
@@ -83,7 +84,7 @@ func TestRetentionStartupAndUnknownFiles(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.StorageDir = t.TempDir()
 	cfg.MaxCacheBytes = 1
-	p := cfg.videoFile("1", strings.Repeat("a", 64))
+	p := cfg.videoFile(strings.Repeat("a", 64))
 	unknown := filepath.Join(cfg.videosDir(), "personal.mp4")
 	putRetained(t, p, 10)
 	putRetained(t, unknown, 10)
@@ -113,7 +114,7 @@ func TestPrefetchDoesNotDisplacePopularVideo(t *testing.T) {
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(payload)) })
 	p := retainedPath(t, s, cfg, "1")
 	putRetained(t, p, len(payload))
-	s.usage.startDemand("1")
+	s.usage.startDemand(strings.Repeat("1", 64))
 	s.cfg.MaxCacheBytes = int64(len(payload))
 	if _, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil {
 		t.Fatal(err)
@@ -129,9 +130,9 @@ func TestProtectedLowPriorityDoesNotEvictHotVideo(t *testing.T) {
 	low := retainedPath(t, s, cfg, "2")
 	putRetained(t, hot, 10)
 	putRetained(t, low, 10)
-	s.usage.startDemand("1")
+	s.usage.startDemand(strings.Repeat("1", 64))
 	s.cfg.MaxCacheBytes = 10
-	v := video{id: "2", key: strings.Repeat("2", 64)}
+	v := video{key: strings.Repeat("2", 64)}
 	s.pinVideo(v)
 	s.trimCache()
 	expectRetained(t, hot, true)
@@ -179,9 +180,9 @@ func TestReleaseOnlyCleansAfterLastReference(t *testing.T) {
 	cold := retainedPath(t, s, cfg, "2")
 	putRetained(t, hot, 10)
 	putRetained(t, cold, 10)
-	s.usage.startDemand("1")
+	s.usage.startDemand(strings.Repeat("1", 64))
 	s.cfg.MaxCacheBytes = 10
-	v := video{id: "1", key: strings.Repeat("a", 64)}
+	v := video{key: strings.Repeat("a", 64)}
 	s.pinVideo(v)
 	s.pinVideo(v)
 	s.releaseVideo(v)
@@ -212,16 +213,16 @@ func TestRetentionWithinLimitSkipsUsageDatabase(t *testing.T) {
 	expectRetained(t, p, true)
 }
 
-func TestRetentionUsesSongIDFromFilename(t *testing.T) {
+func TestRetentionUsesResourceFingerprint(t *testing.T) {
 	s, cfg := setup(t, nil)
-	key := strings.Repeat("a", 64)
-	hot := cfg.videoFile("1", key)
+	key := strings.Repeat("1", 64)
+	hot := cfg.videoFile(key)
 	cold := retainedPath(t, s, cfg, "2")
 	putRetained(t, hot, 10)
 	putRetained(t, cold, 10)
 	now := time.Now().UnixMilli()
 	if err := s.usage.write([]usageEvent{
-		{id: "1", at: now, summaryOnly: true},
+		{id: strings.Repeat("1", 64), at: now, summaryOnly: true},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +230,7 @@ func TestRetentionUsesSongIDFromFilename(t *testing.T) {
 	s.trimCache()
 	s.cfg.MaxCacheBytes = 10
 	s.trimCache()
-	// No version lookup or request history is needed to identify the song.
+	// The filename identifies the resource without inferring a song.
 	expectRetained(t, hot, true)
 	expectRetained(t, cold, false)
 }

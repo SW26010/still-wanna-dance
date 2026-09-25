@@ -314,7 +314,8 @@ func TestVersionIsolationCorruptionAndRestart(t *testing.T) {
 	assertNoPartial(t, cfg.tempDir())
 	assertResponse(t, request(restarted, "GET", videoURL(payload), nil), 200, payload)
 	assertResponse(t, request(restarted, "GET", videoURL(newPayload), nil), 200, newPayload)
-	if count.Load() != 5 {
+	// Raw URLs do not identify songs, so both resources remain cached.
+	if count.Load() != 3 {
 		t.Fatal(count.Load())
 	}
 }

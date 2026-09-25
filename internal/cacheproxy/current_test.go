@@ -17,8 +17,9 @@ import (
 func TestBlockedConfirmationDoesNotDelayOtherSongHit(t *testing.T) {
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
 	otherURL := strings.Replace(videoURL(payload), "1344-", "99-", 1)
-	for _, target := range []string{videoURL(payload), otherURL} {
-		if _, err := s.Prefetch(context.Background(), target); err != nil {
+	for i, target := range []string{videoURL(payload), otherURL} {
+		id := []string{"1344", "99"}[i]
+		if _, err := s.PrefetchSong(context.Background(), id, target); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -34,7 +35,7 @@ func TestBlockedConfirmationDoesNotDelayOtherSongHit(t *testing.T) {
 	}
 	done := make(chan error, 1)
 	candidate := parsedVideo(t, s, "new version")
-	go func() { done <- s.recordVideo(context.Background(), candidate) }()
+	go func() { done <- s.recordSongVideo(context.Background(), "1344", candidate) }()
 	defer func() {
 		close(release)
 		if err := <-done; err != nil {
@@ -49,7 +50,7 @@ func TestBlockedConfirmationDoesNotDelayOtherSongHit(t *testing.T) {
 	// The same song must remain serialized, and its waiter must be cancellable.
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	if err := s.recordVideo(ctx, candidate); !errors.Is(err, context.DeadlineExceeded) {
+	if err := s.recordSongVideo(ctx, "1344", candidate); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatal("same-song confirmation was not serialized", err)
 	}
 	ctx, cancelHit := context.WithTimeout(context.Background(), time.Second)
@@ -79,7 +80,7 @@ func TestCurrentVersionWaitsForOldResponseAndRejectsLateRollback(t *testing.T) {
 	})
 	cfg.ResolveCurrent = func(context.Context, string) (string, error) { return videoURL(fresh), nil }
 	s.cfg.ResolveCurrent = cfg.ResolveCurrent
-	if _, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil {
+	if _, err := s.PrefetchSong(context.Background(), "1344", videoURL(payload)); err != nil {
 		t.Fatal(err)
 	}
 	oldPath, newPath := testVideoFile(t, cfg, payload), testVideoFile(t, cfg, fresh)
@@ -92,7 +93,7 @@ func TestCurrentVersionWaitsForOldResponseAndRejectsLateRollback(t *testing.T) {
 		close(w.release)
 		t.Fatal("old response did not start")
 	}
-	_, err := s.Prefetch(context.Background(), videoURL(fresh))
+	_, err := s.PrefetchSong(context.Background(), "1344", videoURL(fresh))
 	_, oldErr := os.Stat(oldPath)
 	close(w.release)
 	<-done
@@ -124,7 +125,7 @@ func TestCurrentVersionWaitsForOldResponseAndRejectsLateRollback(t *testing.T) {
 
 func TestFailedOrUnconfirmedReplacementKeepsCurrent(t *testing.T) {
 	const fresh = "new current content"
-	for _, mode := range []string{"download-failed", "api-offline", "wrong-song", "api-other-version"} {
+	for _, mode := range []string{"download-failed", "api-offline", "different-resource", "api-other-version"} {
 		t.Run(mode, func(t *testing.T) {
 			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Query().Get("e") == fmt.Sprintf("%x", md5.Sum([]byte(payload))) {
@@ -141,17 +142,17 @@ func TestFailedOrUnconfirmedReplacementKeepsCurrent(t *testing.T) {
 				switch mode {
 				case "api-offline":
 					return "", errors.New("offline")
-				case "wrong-song":
+				case "different-resource":
 					return strings.Replace(videoURL(fresh), "1344-", "99-", 1), nil
 				case "api-other-version":
 					return videoURL("third version"), nil
 				}
 				return videoURL(fresh), nil
 			}
-			if _, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil {
+			if _, err := s.PrefetchSong(context.Background(), "1344", videoURL(payload)); err != nil {
 				t.Fatal(err)
 			}
-			_, err := s.Prefetch(context.Background(), videoURL(fresh))
+			_, err := s.PrefetchSong(context.Background(), "1344", videoURL(fresh))
 			if (err != nil) != (mode == "download-failed") {
 				t.Fatal(err)
 			}
@@ -184,14 +185,14 @@ func TestOlderDownloadFinishingLastCannotReplaceCurrent(t *testing.T) {
 	})
 	s.cfg.ResolveCurrent = func(context.Context, string) (string, error) { return videoURL(fresh), nil }
 	done := make(chan error, 1)
-	go func() { _, err := s.Prefetch(context.Background(), videoURL(payload)); done <- err }()
+	go func() { _, err := s.PrefetchSong(context.Background(), "1344", videoURL(payload)); done <- err }()
 	select {
 	case <-started:
 	case <-time.After(3 * time.Second):
 		close(release)
 		t.Fatal("old download did not start")
 	}
-	_, err := s.Prefetch(context.Background(), videoURL(fresh))
+	_, err := s.PrefetchSong(context.Background(), "1344", videoURL(fresh))
 	close(release)
 	oldErr := <-done
 	if err != nil || oldErr != nil {

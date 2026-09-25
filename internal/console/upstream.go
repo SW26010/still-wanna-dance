@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 
 	"stepstash/internal/cacheproxy"
 )
@@ -39,7 +40,7 @@ func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, i
 		}
 		if err == nil {
 			var source string
-			source, err = engine.Prefetch(ctx, target)
+			source, err = engine.PrefetchSong(ctx, strconv.FormatInt(id, 10), target)
 			if err == nil {
 				return source, nil
 			}

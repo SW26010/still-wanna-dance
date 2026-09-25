@@ -57,7 +57,7 @@ func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(cfg.StorageDir, "videos"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(cfg.StorageDir, "videos", fmt.Sprintf("1-%x.mp4", sha256.Sum256([]byte(fmt.Sprintf("1/v/%x/%d", md5.Sum([]byte(body)), len(body)))))), []byte(body), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(cfg.StorageDir, "videos", fmt.Sprintf("%x.mp4", sha256.Sum256([]byte(fmt.Sprintf("1/v/%x/%d", md5.Sum([]byte(body)), len(body)))))), []byte(body), 0600); err != nil {
 		t.Fatal(err)
 	}
 	service, err := cacheproxy.New(cfg)
@@ -101,7 +101,7 @@ func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	if err := db.QueryRow("SELECT count(*) FROM request_events WHERE source='http' AND outcome='canceled'").Scan(&events); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.QueryRow("SELECT get_count FROM song_usage WHERE song_id='1'").Scan(&gets); err != nil {
+	if err := db.QueryRow("SELECT get_count FROM resource_usage").Scan(&gets); err != nil {
 		t.Fatal(err)
 	}
 	if events != 1 || gets != 1 {

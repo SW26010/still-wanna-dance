@@ -54,7 +54,7 @@ func TestUsageReverseCompletion(t *testing.T) {
 			<-done
 			s.Close()
 			path := filepath.Join(cfg.StorageDir, "stepstash.sqlite")
-			get, demand, _, _ := usageCounts(t, path, "1344")
+			get, demand, _, _ := usageCounts(t, path, parsedVideo(t, s, payload).key)
 			want := int64(1)
 			if gap >= 30 {
 				want = 2
@@ -90,7 +90,7 @@ func usageCounts(t *testing.T, path, id string) (get, demand, first, last int64)
 		t.Fatal(err)
 	}
 	defer db.Close()
-	err = db.QueryRow(`SELECT get_count, demand_count, first_requested_at, last_requested_at FROM song_usage WHERE song_id=?`, id).Scan(&get, &demand, &first, &last)
+	err = db.QueryRow(`SELECT get_count, demand_count, first_requested_at, last_requested_at FROM resource_usage WHERE resource_key=?`, id).Scan(&get, &demand, &first, &last)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestUsageHTTPAndPrefetch(t *testing.T) {
 	otherHost := strings.Replace(videoURL(payload), "play.udon.dance", "nya.xin.moe", 1)
 	assertResponse(t, request(s, "GET", otherHost, map[string]string{"Range": "bytes=0-3"}), 206, payload[:4])
 	s.Close()
-	get, demand, _, _ := usageCounts(t, filepath.Join(cfg.StorageDir, "stepstash.sqlite"), "1344")
+	get, demand, _, _ := usageCounts(t, filepath.Join(cfg.StorageDir, "stepstash.sqlite"), parsedVideo(t, s, payload).key)
 	if get != 2 || demand != 1 {
 		t.Fatalf("HTTP stats: %d %d", get, demand)
 	}
@@ -185,10 +185,10 @@ func TestUsageUpgradesSummaryOnlyDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = db.Exec(`CREATE TABLE song_usage (song_id TEXT PRIMARY KEY, get_count INTEGER NOT NULL,
+	_, err = db.Exec(`CREATE TABLE resource_usage (resource_key TEXT PRIMARY KEY, get_count INTEGER NOT NULL,
 demand_count INTEGER NOT NULL, first_requested_at INTEGER NOT NULL, last_requested_at INTEGER NOT NULL,
 last_demand_at INTEGER NOT NULL);
-INSERT INTO song_usage VALUES ('1', 5, 3, 1000, 1000, 1000);`)
+INSERT INTO resource_usage VALUES ('1', 5, 3, 1000, 1000, 1000);`)
 	db.Close()
 	if err != nil {
 		t.Fatal(err)
@@ -218,7 +218,7 @@ func TestUsageCountsFailedDemand(t *testing.T) {
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(503) })
 	request(s, "GET", videoURL(payload), nil)
 	s.Close()
-	get, demand, _, _ := usageCounts(t, filepath.Join(cfg.StorageDir, "stepstash.sqlite"), "1344")
+	get, demand, _, _ := usageCounts(t, filepath.Join(cfg.StorageDir, "stepstash.sqlite"), parsedVideo(t, s, payload).key)
 	if get != 1 || demand != 1 {
 		t.Fatalf("failed demand: %d %d", get, demand)
 	}

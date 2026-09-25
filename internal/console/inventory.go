@@ -18,7 +18,7 @@ type Inventory struct {
 	Error    string    `json:"error"`
 }
 
-var cacheName = regexp.MustCompile(`^[1-9][0-9]*-[0-9a-f]{64}\.mp4$`)
+var cacheName = regexp.MustCompile(`^[0-9a-f]{64}\.mp4$`)
 
 func scanInventory(s Settings) Inventory {
 	var result Inventory

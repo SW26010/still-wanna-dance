@@ -38,13 +38,13 @@ func TestSavedEmptyStorageScansWithoutStartingEngine(t *testing.T) {
 func TestInventoryCountsPublishedFilesOnly(t *testing.T) {
 	c := testConsole(t)
 	for path, body := range map[string]string{
-		filepath.Join(c.settings.StorageDir, "videos", "1-"+strings.Repeat("c", 64)+".mp4"): "video",
-		filepath.Join(c.settings.StorageDir, "2", "metadata.json"):                          "{}",
-		filepath.Join(c.settings.StorageDir, "3", "video.mp4"):                              "",
-		filepath.Join(c.settings.StorageDir, "4", "video.mp4.part"):                         "partial",
-		filepath.Join(c.settings.StorageDir, "other", "video.mp4"):                          "ignore",
-		filepath.Join(c.settings.StorageDir, "videos", "2-"+strings.Repeat("a", 64)+".mp4"): "cache",
-		filepath.Join(c.settings.StorageDir, strings.Repeat("b", 64)+".part"):               "partial",
+		filepath.Join(c.settings.StorageDir, "videos", strings.Repeat("c", 64)+".mp4"): "video",
+		filepath.Join(c.settings.StorageDir, "2", "metadata.json"):                     "{}",
+		filepath.Join(c.settings.StorageDir, "3", "video.mp4"):                         "",
+		filepath.Join(c.settings.StorageDir, "4", "video.mp4.part"):                    "partial",
+		filepath.Join(c.settings.StorageDir, "other", "video.mp4"):                     "ignore",
+		filepath.Join(c.settings.StorageDir, "videos", strings.Repeat("a", 64)+".mp4"): "cache",
+		filepath.Join(c.settings.StorageDir, strings.Repeat("b", 64)+".part"):          "partial",
 	} {
 		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 			t.Fatal(err)

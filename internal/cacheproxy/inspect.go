@@ -21,7 +21,7 @@ func CheckLocal(ctx context.Context, storageDir, target string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	err = checkFile(ctx, filepath.Join(storageDir, "videos", v.id+"-"+v.key+".mp4"), v)
+	err = checkFile(ctx, filepath.Join(storageDir, "videos", v.key+".mp4"), v)
 	if ctx.Err() != nil {
 		return false, ctx.Err()
 	}

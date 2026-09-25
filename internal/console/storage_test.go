@@ -9,5 +9,5 @@ import (
 
 func fixtureVideoPath(root, id, body string) string {
 	key := sha256.Sum256([]byte(fmt.Sprintf("%s/abc/%x/%d", id, md5.Sum([]byte(body)), len(body))))
-	return filepath.Join(root, "videos", fmt.Sprintf("%s-%x.mp4", id, key))
+	return filepath.Join(root, "videos", fmt.Sprintf("%x.mp4", key))
 }

@@ -90,7 +90,7 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 				if node == "cf" && tc.failure != "wrong-host" {
 					host = "play.udon.dance"
 				}
-				w.Header().Set("Location", fmt.Sprintf("http://%s/files/2403/1-abc.mp4?e=%x&s=%d", host, md5.Sum([]byte(body)), len(body)))
+				w.Header().Set("Location", fmt.Sprintf("http://%s/files/2403/138-abc.mp4?e=%x&s=%d", host, md5.Sum([]byte(body)), len(body)))
 				w.WriteHeader(302)
 			}))
 			defer api.Close()

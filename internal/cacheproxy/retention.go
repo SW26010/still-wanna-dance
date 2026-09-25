@@ -9,12 +9,12 @@ import (
 	"time"
 )
 
-var cacheVideoName = regexp.MustCompile(`^([1-9][0-9]*)-([0-9a-f]{64})\.mp4$`)
+var cacheVideoName = regexp.MustCompile(`^([0-9a-f]{64})\.mp4$`)
 
 type retainedVideo struct {
-	path, id, key string
-	size, recent  int64
-	score         float64
+	path, key    string
+	size, recent int64
+	score        float64
 }
 
 // Recent repeated demand is valuable; a seven-day aging scale prevents old hits
@@ -29,25 +29,25 @@ func retentionScore(count, last, now int64) float64 {
 
 func (s *Server) pinVideo(v video) {
 	s.retentionMu.Lock()
-	s.pins[v.id]++
 	s.versionPins[v.key]++
 	s.retentionMu.Unlock()
 }
 
 func (s *Server) releaseVideo(v video) {
 	s.retentionMu.Lock()
-	s.pins[v.id]--
 	s.versionPins[v.key]--
-	if s.versionPins[v.key] == 0 {
-		delete(s.versionPins, v.key)
-		s.cleanSupersededLocked(v.id)
-	}
-	lastReference := s.pins[v.id] == 0
+	lastReference := s.versionPins[v.key] == 0
 	if lastReference {
-		delete(s.pins, v.id)
+		delete(s.versionPins, v.key)
+		// Late raw URLs may recreate a previously removed superseded resource.
+		var known bool
+		if err := s.usage.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM song_videos WHERE version_key=?)`, v.key).Scan(&known); err == nil && known {
+			s.cleanupNeeded[v.key] = true
+		}
+		s.cleanSupersededLocked(v.key)
 	}
 	s.retentionMu.Unlock()
-	// Worker and handler references share one cleanup when the song becomes idle.
+	// Worker and handler references share one cleanup when the resource becomes idle.
 	if lastReference {
 		s.trimCache()
 	}
@@ -69,7 +69,7 @@ func (s *Server) trimCache() {
 func (s *Server) trimCacheLocked() error {
 	var videos []retainedVideo
 	var total int64
-	add := func(path, id, key string) error {
+	add := func(path, key string) error {
 		info, err := os.Lstat(path)
 		if os.IsNotExist(err) {
 			return nil
@@ -80,7 +80,7 @@ func (s *Server) trimCacheLocked() error {
 		if !info.Mode().IsRegular() {
 			return nil
 		}
-		item := retainedVideo{path: path, id: id, key: key, size: info.Size(), recent: info.ModTime().UnixMilli()}
+		item := retainedVideo{path: path, key: key, size: info.Size(), recent: info.ModTime().UnixMilli()}
 		videos = append(videos, item)
 		total += item.size
 		return nil
@@ -91,7 +91,7 @@ func (s *Server) trimCacheLocked() error {
 	}
 	for _, entry := range entries {
 		if match := cacheVideoName.FindStringSubmatch(entry.Name()); match != nil {
-			if err := add(filepath.Join(s.cfg.videosDir(), entry.Name()), match[1], match[2]); err != nil {
+			if err := add(filepath.Join(s.cfg.videosDir(), entry.Name()), match[1]); err != nil {
 				return err
 			}
 		}
@@ -104,7 +104,7 @@ func (s *Server) trimCacheLocked() error {
 	now := time.Now().UnixMilli()
 	stats := map[string]retainedVideo{}
 	if s.usage != nil {
-		rows, err := s.usage.db.Query(`SELECT song_id, demand_count, last_demand_at FROM song_usage`)
+		rows, err := s.usage.db.Query(`SELECT resource_key, demand_count, last_demand_at FROM resource_usage`)
 		if err != nil {
 			return err
 		}
@@ -125,7 +125,7 @@ func (s *Server) trimCacheLocked() error {
 	}
 	for i := range videos {
 		item := &videos[i]
-		usage := stats[item.id]
+		usage := stats[item.key]
 		item.score = usage.score
 		if usage.recent != 0 {
 			item.recent = usage.recent
@@ -149,7 +149,7 @@ func (s *Server) trimCacheLocked() error {
 		// A protected low-priority video is a deferred victim, not a reason
 		// to evict a more valuable video while a prefetch is still finishing.
 		planned -= item.size
-		if s.pins[item.id] > 0 {
+		if s.versionPins[item.key] > 0 {
 			continue
 		}
 		if err := os.Remove(item.path); err != nil && !os.IsNotExist(err) {
@@ -157,7 +157,7 @@ func (s *Server) trimCacheLocked() error {
 			continue
 		}
 		total -= item.size
-		s.cfg.Logger.Info("cache_evicted", "song_id", item.id, "path", item.path, "bytes", item.size, "priority", item.score)
+		s.cfg.Logger.Info("cache_evicted", "key", item.key, "path", item.path, "bytes", item.size, "priority", item.score)
 	}
 	if total > s.cfg.MaxCacheBytes {
 		s.cfg.Logger.Info("cache_limit_deferred", "retained_bytes", total, "limit_bytes", s.cfg.MaxCacheBytes)

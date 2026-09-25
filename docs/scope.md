@@ -12,7 +12,7 @@
 
 ## 存储要求
 
-当前采用单一 canonical 存储：视频平铺于 `videos/<歌曲ID>-<版本键>.mp4`，歌曲资料、版本映射与请求统计保存在 `stepstash.sqlite`；不考虑旧格式兼容及数据迁移。详见[统一存储](storage.md)。
+当前采用单一 canonical 存储：视频平铺于 `videos/<资源指纹>.mp4`，歌曲资料、版本映射与请求统计保存在 `stepstash.sqlite`；不考虑旧格式兼容及数据迁移。详见[统一存储](storage.md)。
 
 ## 第一版拟覆盖
 

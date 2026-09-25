@@ -54,6 +54,10 @@ type Console struct {
 }
 
 func New(configPath, address string) (*Console, error) {
+	configPath, err := filepath.Abs(configPath)
+	if err != nil {
+		return nil, err
+	}
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return nil, err
@@ -69,9 +73,31 @@ func New(configPath, address string) (*Console, error) {
 	} else if !os.IsNotExist(err) {
 		return nil, err
 	}
-	var err error
-	c.settings, err = absoluteSettings(c.settings)
+	c.settings, err = c.resolveSettings(c.settings)
 	return c, err
+}
+
+// Relative paths belong to the configuration, independent of the launch directory.
+func (c *Console) resolveSettings(s Settings) (Settings, error) {
+	for _, p := range []*string{&s.SongsDir, &s.CacheDir, &s.LogDir} {
+		if strings.TrimSpace(*p) != "" && !filepath.IsAbs(*p) {
+			*p = filepath.Join(filepath.Dir(c.configPath), *p)
+		}
+	}
+	return absoluteSettings(s)
+}
+
+// Keep directories inside the portable folder movable; external libraries stay absolute.
+func (c *Console) storedSettings(s Settings) Settings {
+	base := filepath.Dir(c.configPath)
+	for _, p := range []*string{&s.SongsDir, &s.CacheDir, &s.LogDir} {
+		if pathContains(base, *p) {
+			if rel, err := filepath.Rel(base, *p); err == nil {
+				*p = rel
+			}
+		}
+	}
+	return s
 }
 
 func absoluteSettings(s Settings) (Settings, error) {
@@ -134,7 +160,7 @@ func (c *Console) save(s Settings) error {
 		return errors.New("请先关闭 CDN、队列预缓存和批量任务，再修改目录")
 	}
 	var err error
-	s, err = absoluteSettings(s)
+	s, err = c.resolveSettings(s)
 	if err != nil {
 		return err
 	}
@@ -146,7 +172,7 @@ func (c *Console) save(s Settings) error {
 	if err = os.MkdirAll(filepath.Dir(c.configPath), 0700); err != nil {
 		return err
 	}
-	b, _ := json.MarshalIndent(s, "", "  ")
+	b, _ := json.MarshalIndent(c.storedSettings(s), "", "  ")
 	f, err := os.CreateTemp(filepath.Dir(c.configPath), ".settings-*")
 	if err != nil {
 		return err

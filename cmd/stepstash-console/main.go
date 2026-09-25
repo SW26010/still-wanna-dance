@@ -33,7 +33,15 @@ func main() {
 
 func run() error {
 	address := flag.String("listen", desktop.Address, "local console address (tray mode uses 127.0.0.1:18081)")
-	config := flag.String("config", "stepstash-console.json", "settings file")
+	defaultConfig := "stepstash-console.json"
+	if runtime.GOOS == "windows" {
+		exe, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		defaultConfig = filepath.Join(filepath.Dir(exe), defaultConfig)
+	}
+	config := flag.String("config", defaultConfig, "settings file (relative directories are based on this file)")
 	action := flag.String("hosts-action", "", "internal elevated helper: enable or disable")
 	noTray := flag.Bool("no-tray", runtime.GOOS != "windows", "run without the Windows tray")
 	noOpen := flag.Bool("no-open", false, "do not open the browser on launch")

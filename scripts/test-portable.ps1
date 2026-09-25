@@ -1,0 +1,36 @@
+param([Parameter(Mandatory = $true)][string]$Zip)
+$ErrorActionPreference = 'Stop'
+$zipPath = (Resolve-Path -LiteralPath $Zip).Path
+$root = Join-Path ([IO.Path]::GetTempPath()) ('StepStash smoke ' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $root | Out-Null
+$process = $null
+try {
+    Expand-Archive -LiteralPath $zipPath -DestinationPath $root
+    $exe = @(Get-ChildItem -LiteralPath $root -Recurse -Filter stepstash-console.exe)
+    if ($exe.Count -ne 1) { throw 'Expected exactly one desktop executable.' }
+    $folder = $exe[0].DirectoryName
+    # Reserve a candidate port, then verify the child stayed alive to avoid accepting another process.
+    $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+    $listener.Start()
+    $port = $listener.LocalEndpoint.Port
+    $listener.Stop()
+    $process = Start-Process -FilePath $exe[0].FullName -ArgumentList @('-no-tray', '-no-open', '-listen', "127.0.0.1:$port") -WorkingDirectory $root -WindowStyle Hidden -PassThru
+    $url = "http://127.0.0.1:$port"
+    $status = $null
+    for ($i = 0; $i -lt 40; $i++) {
+        if ($process.HasExited) { throw "Portable process exited: $($process.ExitCode)" }
+        try { $status = Invoke-RestMethod "$url/api/status" -TimeoutSec 1; break } catch { Start-Sleep -Milliseconds 250 }
+    }
+    if ($null -eq $status) { throw 'Portable startup timed out.' }
+    if ($status.settings.songsDir -ne (Join-Path $folder 'wannadance-song')) { throw 'Songs path is not relative to the executable.' }
+    if ($status.settings.cacheDir -ne (Join-Path $folder 'stepstash-cache')) { throw 'Cache path is not relative to the executable.' }
+    if (!(Test-Path -LiteralPath (Join-Path $folder 'stepstash-console.json.lock'))) { throw 'Config lock missing beside executable.' }
+    $page = Invoke-WebRequest $url -UseBasicParsing
+    if ($page.Content -notmatch 'StepStash') { throw 'Embedded UI missing.' }
+    if ($process.HasExited) { throw 'Portable process did not remain alive.' }
+    Write-Host 'Portable smoke passed: ZIP extraction, independent launch directory, executable-relative settings, embedded UI.'
+} finally {
+    if ($null -ne $process -and !$process.HasExited) { $process.Kill(); $process.WaitForExit() }
+    # Keep the isolated extraction for inspection; never touch an existing installation.
+    Write-Host "Smoke test files: $root"
+}

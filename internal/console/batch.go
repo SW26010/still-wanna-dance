@@ -119,6 +119,9 @@ func (c *Console) startBatch() error {
 	if c.batch.Running {
 		return errors.New("已有批量任务正在运行")
 	}
+	if c.queue.Running {
+		return errors.New("请先停止队列预缓存")
+	}
 	if err := c.ensureEngine(); err != nil {
 		return err
 	}

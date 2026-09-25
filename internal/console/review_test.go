@@ -26,14 +26,14 @@ func TestSettingsDirectoryContainment(t *testing.T) {
 		{"prefix siblings", filepath.Join(root, "songs"), filepath.Join(root, "songs-cache"), true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := absoluteSettings(Settings{tc.songs, tc.cache})
+			_, err := absoluteSettings(Settings{SongsDir: tc.songs, CacheDir: tc.cache})
 			if (err == nil) != tc.valid {
 				t.Fatalf("valid=%v, error=%v", tc.valid, err)
 			}
 		})
 	}
 	if runtime.GOOS == "windows" {
-		if _, err := absoluteSettings(Settings{`D:\songs`, `E:\cache`}); err != nil {
+		if _, err := absoluteSettings(Settings{SongsDir: `D:\songs`, CacheDir: `E:\cache`}); err != nil {
 			t.Fatal(err)
 		}
 	}

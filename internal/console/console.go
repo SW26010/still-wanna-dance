@@ -19,6 +19,7 @@ import (
 
 	"stepstash/internal/cacheproxy"
 	"stepstash/internal/desktop"
+	"stepstash/internal/vrclog"
 )
 
 //go:embed index.html
@@ -27,6 +28,7 @@ var page string
 type Settings struct {
 	SongsDir string `json:"songsDir"`
 	CacheDir string `json:"cacheDir"`
+	LogDir   string `json:"logDir"`
 }
 
 type Console struct {
@@ -42,6 +44,9 @@ type Console struct {
 	batch        Batch
 	batchCancel  context.CancelFunc
 	batchDone    chan struct{}
+	queue        QueueStatus
+	queueCancel  context.CancelFunc
+	queueDone    chan struct{}
 	closing      bool
 	client       *http.Client
 	apiBase      string
@@ -70,6 +75,14 @@ func New(configPath, address string) (*Console, error) {
 }
 
 func absoluteSettings(s Settings) (Settings, error) {
+	if strings.TrimSpace(s.LogDir) == "" {
+		s.LogDir = defaultLogDir()
+	}
+	var logErr error
+	s.LogDir, logErr = filepath.Abs(s.LogDir)
+	if logErr != nil {
+		return s, logErr
+	}
 	if strings.TrimSpace(s.SongsDir) == "" || strings.TrimSpace(s.CacheDir) == "" {
 		return s, errors.New("请填写歌曲库和临时缓存目录")
 	}
@@ -117,8 +130,8 @@ func (c *Console) save(s Settings) error {
 	if c.closing {
 		return errors.New("控制台正在退出")
 	}
-	if c.httpServer != nil || c.batch.Running {
-		return errors.New("请先关闭 CDN 和批量任务，再修改目录")
+	if c.httpServer != nil || c.batch.Running || c.queue.Running {
+		return errors.New("请先关闭 CDN、队列预缓存和批量任务，再修改目录")
 	}
 	var err error
 	s, err = absoluteSettings(s)
@@ -233,10 +246,17 @@ func (c *Console) Close() error {
 		c.batchCancel()
 	}
 	done := c.batchDone
+	if c.queueCancel != nil {
+		c.queueCancel()
+	}
+	queueDone := c.queueDone
 	c.mu.Unlock()
 	err := c.stop()
 	if done != nil {
 		<-done
+	}
+	if queueDone != nil {
+		<-queueDone
 	}
 	c.mu.Lock()
 	if c.service != nil {
@@ -277,7 +297,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Error     string         `json:"error"`
 			Batch     Batch          `json:"batch"`
 			PortOwner *desktop.Owner `json:"portOwner,omitempty"`
-		}{running, c.settings, readHostsStatus(), running, c.lastError, c.batch, nil}
+			Queue     QueueStatus    `json:"queue"`
+		}{running, c.settings, readHostsStatus(), running, c.lastError, c.batch, nil, c.queue}
+		result.Queue.Songs = append([]vrclog.Song(nil), c.queue.Songs...)
+		result.Queue.Failures = append([]Failure(nil), c.queue.Failures...)
 		result.Batch.Failures = append([]Failure(nil), c.batch.Failures...)
 		c.mu.Unlock()
 		if !running {
@@ -315,6 +338,14 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = changeHosts("disable")
 	case "/api/batch/start":
 		err = c.startBatch()
+	case "/api/queue/start":
+		err = c.startQueue()
+	case "/api/queue/stop":
+		c.mu.Lock()
+		if c.queueCancel != nil {
+			c.queueCancel()
+		}
+		c.mu.Unlock()
 	case "/api/batch/cancel":
 		c.mu.Lock()
 		if c.batchCancel != nil {

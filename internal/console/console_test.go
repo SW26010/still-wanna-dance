@@ -27,7 +27,7 @@ func testConsole(t *testing.T) *Console {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.settings = Settings{filepath.Join(root, "songs"), filepath.Join(root, "cache")}
+	c.settings = Settings{SongsDir: filepath.Join(root, "songs"), CacheDir: filepath.Join(root, "cache"), LogDir: filepath.Join(root, "logs")}
 	c.videoAddress = "127.0.0.1:0"
 	t.Cleanup(func() { c.Close() })
 	return c

@@ -28,6 +28,7 @@ import (
 var page string
 
 type Settings struct {
+	AutoStartCDN           bool   `json:"autoStartCDN"`
 	ScanResolveConcurrency int    `json:"scanResolveConcurrency"`
 	ScanCheckConcurrency   int    `json:"scanCheckConcurrency"`
 	DownloadUpstream       string `json:"downloadUpstream"`
@@ -54,7 +55,8 @@ type Console struct {
 	service             *cacheproxy.Server
 	httpServer          *http.Server
 	videoListener       net.Listener
-	lastError           string
+	cdnError            string
+	actionErrors        map[string]string
 	batch               Batch
 	lastBatch           Batch
 	scanPlan            *scanPlan
@@ -262,9 +264,26 @@ func (c *Console) ensureEngine() error {
 	return nil
 }
 
-func (c *Console) start() error {
+// AutoStart triggers the same start operation as the CDN button at process launch.
+func (c *Console) AutoStart() {
+	c.mu.Lock()
+	enabled := c.settings.AutoStartCDN
+	c.mu.Unlock()
+	if !enabled {
+		return
+	}
+	_ = c.start()
+}
+
+func (c *Console) start() (err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	defer func() {
+		if err != nil {
+			c.cdnError = err.Error()
+			slog.Error("cdn_start_failed", "error", err)
+		}
+	}()
 	if c.closing {
 		return errors.New("控制台正在退出")
 	}
@@ -292,7 +311,7 @@ func (c *Console) start() error {
 	c.videoListener = l
 	relay := newHTTPSRelay(secure, c.dns.DialContext)
 	c.https = relay
-	c.lastError = ""
+	c.cdnError = ""
 	slog.Info("cdn_started", "address", l.Addr().String(), "https_address", secure.Addr().String())
 	go func() {
 		if err := relay.serve(); err != nil && !errors.Is(err, net.ErrClosed) {
@@ -314,7 +333,7 @@ func (c *Console) failCDN(h *http.Server, err error) {
 	defer c.mu.Unlock()
 	if c.httpServer == h {
 		slog.Error("cdn_failed", "error", err)
-		c.lastError = err.Error()
+		c.cdnError = err.Error()
 		c.stopLocked()
 	}
 }
@@ -323,6 +342,7 @@ func (c *Console) stop() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.stopLocked()
+	c.cdnError = ""
 	return nil
 }
 
@@ -400,18 +420,23 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.mu.Lock()
 		running := c.httpServer != nil
 		result := struct {
-			Running        bool           `json:"running"`
-			Settings       Settings       `json:"settings"`
-			Hosts          HostsStatus    `json:"hosts"`
-			PortOK         bool           `json:"portOK"`
-			Error          string         `json:"error"`
-			Batch          Batch          `json:"batch"`
-			PortOwner      *desktop.Owner `json:"portOwner,omitempty"`
-			Queue          QueueStatus    `json:"queue"`
-			LastBatch      Batch          `json:"lastBatch"`
-			HTTPSPortOK    bool           `json:"httpsPortOK"`
-			HTTPSPortOwner *desktop.Owner `json:"httpsPortOwner,omitempty"`
-		}{running, c.settings, readHostsStatus(), running, c.lastError, c.batch, nil, c.queue, c.lastBatch, running, nil}
+			Running        bool              `json:"running"`
+			Settings       Settings          `json:"settings"`
+			Hosts          HostsStatus       `json:"hosts"`
+			PortOK         bool              `json:"portOK"`
+			CDNError       string            `json:"cdnError"`
+			ActionErrors   map[string]string `json:"actionErrors"`
+			Batch          Batch             `json:"batch"`
+			PortOwner      *desktop.Owner    `json:"portOwner,omitempty"`
+			Queue          QueueStatus       `json:"queue"`
+			LastBatch      Batch             `json:"lastBatch"`
+			HTTPSPortOK    bool              `json:"httpsPortOK"`
+			HTTPSPortOwner *desktop.Owner    `json:"httpsPortOwner,omitempty"`
+		}{running, c.settings, readHostsStatus(), running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil}
+		result.ActionErrors = make(map[string]string, len(c.actionErrors))
+		for source, message := range c.actionErrors {
+			result.ActionErrors[source] = message
+		}
 		result.Queue.Songs = append([]vrclog.Song(nil), c.queue.Songs...)
 		result.Queue.Active = append([]int64(nil), c.queue.Active...)
 		result.Queue.Failures = append([]Failure(nil), c.queue.Failures...)
@@ -486,11 +511,9 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not found", 404)
 		return
 	}
+	c.recordActionError(r.URL.Path, err)
 	if err != nil {
 		slog.Error("console_action_failed", "action", r.URL.Path, "error", err)
-		c.mu.Lock()
-		c.lastError = err.Error()
-		c.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		writeJSON(w, map[string]string{"error": err.Error()})
@@ -498,6 +521,25 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	slog.Info("console_action_completed", "action", r.URL.Path)
 	writeJSON(w, map[string]bool{"ok": true})
+}
+
+// Each operation group owns its error; unrelated successes must not erase it.
+// CDN errors are owned by start/stop/failCDN, including automatic and tray calls.
+func (c *Console) recordActionError(path string, err error) {
+	source := strings.Split(strings.TrimPrefix(path, "/api/"), "/")[0]
+	if source == "start" || source == "stop" {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err == nil {
+		delete(c.actionErrors, source)
+	} else {
+		if c.actionErrors == nil {
+			c.actionErrors = make(map[string]string)
+		}
+		c.actionErrors[source] = err.Error()
+	}
 }
 
 func writeJSON(w http.ResponseWriter, v any) {

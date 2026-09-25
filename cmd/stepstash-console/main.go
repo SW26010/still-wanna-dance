@@ -154,6 +154,7 @@ func run() (runErr error) {
 		}
 	}
 	done := make(chan error, 1)
+	c.AutoStart()
 	go func() { done <- h.Serve(l); stop() }()
 	url := "http://" + l.Addr().String()
 	slog.Info("console_ready", "url", url)

@@ -34,25 +34,29 @@ type Settings struct {
 }
 
 type Console struct {
-	mu           sync.Mutex
-	settings     Settings
-	configPath   string
-	token        string
-	address      string
-	videoAddress string
-	service      *cacheproxy.Server
-	httpServer   *http.Server
-	lastError    string
-	batch        Batch
-	batchCancel  context.CancelFunc
-	batchDone    chan struct{}
-	queue        QueueStatus
-	queueCancel  context.CancelFunc
-	queueDone    chan struct{}
-	closing      bool
-	client       *http.Client
-	apiBase      string
-	dns          *directDNS
+	taskMu            sync.Mutex
+	inventoryMu       sync.Mutex
+	inventory         Inventory
+	inventorySettings Settings
+	mu                sync.Mutex
+	settings          Settings
+	configPath        string
+	token             string
+	address           string
+	videoAddress      string
+	service           *cacheproxy.Server
+	httpServer        *http.Server
+	lastError         string
+	batch             Batch
+	batchCancel       context.CancelFunc
+	batchDone         chan struct{}
+	queue             QueueStatus
+	queueCancel       context.CancelFunc
+	queueDone         chan struct{}
+	closing           bool
+	client            *http.Client
+	apiBase           string
+	dns               *directDNS
 }
 
 func New(configPath, address string) (*Console, error) {
@@ -350,6 +354,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, result)
 		return
 	}
+	if r.URL.Path == "/api/inventory" && r.Method == "GET" {
+		writeJSON(w, c.localInventory())
+		return
+	}
 	if r.Method != "POST" {
 		http.Error(w, "not found", 404)
 		return
@@ -361,6 +369,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
 	var err error
 	switch r.URL.Path {
+	case "/api/batch/switch":
+		err = c.switchTask(true)
+	case "/api/queue/switch":
+		err = c.switchTask(false)
 	case "/api/start":
 		err = c.start()
 	case "/api/stop":

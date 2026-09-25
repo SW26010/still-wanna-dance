@@ -26,6 +26,7 @@ import (
 var videoPath = regexp.MustCompile(`^/files/[0-9]+/([1-9][0-9]*)-([a-zA-Z0-9]+)\.mp4$`)
 
 type video struct {
+	songID                           string
 	checksum, key, path, query, host string
 	size                             int64
 }
@@ -41,6 +42,11 @@ type flight struct {
 }
 
 type Server struct {
+	routeMu         sync.Mutex
+	routeSongs      map[string]string
+	routeCache      map[string]routeEntry
+	routeHealth     map[string]routeHealth
+	routeProbes     map[string]chan struct{}
 	cfg             Config
 	client          *http.Client
 	ctx             context.Context

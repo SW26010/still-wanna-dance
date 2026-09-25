@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"time"
 
@@ -17,6 +15,7 @@ import (
 
 var errBusy = errors.New("download capacity reached")
 var errInvalidCache = errors.New("invalid cached video")
+var errUpstreamDownload = errors.New("upstream download failed")
 
 func (s *Server) obtain(ctx context.Context, v video) (*flight, *spoolReader, error) {
 	return s.obtainMode(ctx, v, false)
@@ -188,32 +187,20 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, 
 	}
 	flight.log.Info("download_started", "key", v.key, "size", v.size)
 	flight.progress.setStage("upstream_headers")
-	// Dial the configured origin while preserving the externally observed Host.
-	u := &url.URL{Scheme: "http", Host: s.cfg.Origins[v.host], Path: v.path, RawQuery: v.query}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
-	if err != nil {
-		return "", "", err
-	}
-	req.Host = v.host
-	req.Header.Set("Accept-Encoding", "identity")
-	resp, err := s.client.Do(req)
+	resp, selectedHost, err := s.openUpstream(ctx, v)
 	if err != nil {
 		return "", "", applog.SafeError(err)
 	}
 	defer resp.Body.Close()
-	flight.log.Info("upstream_response", "status", resp.StatusCode, "content_length", resp.ContentLength)
-	if resp.StatusCode != 200 {
-		return "", "", fmt.Errorf("upstream status %d", resp.StatusCode)
-	}
-	if resp.Header.Get("Content-Encoding") != "" && resp.Header.Get("Content-Encoding") != "identity" {
-		return "", "", errors.New("unexpected upstream encoding")
-	}
-	if resp.ContentLength >= 0 && resp.ContentLength != v.size {
-		return "", "", errors.New("upstream content length mismatch")
-	}
+	flight.log.Info("upstream_response", "host", selectedHost, "status", resp.StatusCode, "content_length", resp.ContentLength)
+	started := time.Now()
 	if err := s.publish(ctx, resp.Body, path, v, flight); err != nil {
+		if errors.Is(err, errUpstreamDownload) && !errors.Is(err, context.Canceled) {
+			s.noteRoute(selectedHost, time.Since(started), true)
+		}
 		return "", "", err
 	}
+	s.confirmRoute(selectedHost, time.Duration(float64(time.Since(started))*float64(min(v.size, 64<<10))/float64(v.size)))
 	flight.progress.setStage("index")
 	if err := s.recordVideo(ctx, v); err != nil {
 		return "", "", err
@@ -232,13 +219,13 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 	close(flight.streaming)
 	h := md5.New()
 	flight.progress.setStage("download_and_hash")
-	n, err := io.Copy(io.MultiWriter(sp, h), io.LimitReader(contextReader{ctx, progressReader{src, flight.progress}}, v.size+1))
+	n, err := io.Copy(io.MultiWriter(sp, h), io.LimitReader(contextReader{ctx, progressReader{upstreamReader{src}, flight.progress}}, v.size+1))
 	if err != nil {
 		return fmt.Errorf("download read/write: %w", err)
 	}
 	if n != v.size || hex.EncodeToString(h.Sum(nil)) != v.checksum {
 		flight.log.Warn("download_integrity_failed", "bytes", n, "expected_bytes", v.size, "size_ok", n == v.size, "checksum_ok", hex.EncodeToString(h.Sum(nil)) == v.checksum)
-		return errors.New("download integrity mismatch")
+		return fmt.Errorf("%w: download integrity mismatch", errUpstreamDownload)
 	}
 	flight.log.Info("download_verified", "bytes", n, "size_ok", true, "checksum_ok", true)
 	flight.progress.setStage("publish")
@@ -263,4 +250,16 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 		return err
 	}
 	return os.Rename(final.Name(), path)
+}
+
+// Mark errors at the network reader, before io.Copy combines source reads and
+// local writes. Filesystem failures must never affect upstream route health.
+type upstreamReader struct{ io.Reader }
+
+func (r upstreamReader) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	if err != nil && err != io.EOF {
+		err = fmt.Errorf("%w: %w", errUpstreamDownload, err)
+	}
+	return n, err
 }

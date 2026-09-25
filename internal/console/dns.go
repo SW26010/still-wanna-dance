@@ -1,23 +1,26 @@
 package console
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
-	"net/url"
+	"slices"
 	"sync"
 	"time"
 
 	"stepstash/internal/applog"
 )
 
-// Direct UDP DNS and IP-bootstrapped DoH never consult OS hosts.
+// Certificate-verified DoH never consults OS hosts or plaintext DNS.
 type directDNS struct {
-	mu    sync.Mutex
-	cache map[string]dnsEntry
+	mu            sync.Mutex
+	cache         map[string]dnsEntry
+	bootstrapping map[string]chan struct{}
 }
 type dnsEntry struct {
 	ips   []string
@@ -42,49 +45,116 @@ func (d *directDNS) lookup(ctx context.Context, host string) ([]string, error) {
 	if time.Now().Before(entry.until) {
 		return entry.ips, nil
 	}
-	var last error
-	if ips, ttl, err := queryUDP(ctx, "223.5.5.5:53", host); err == nil {
-		d.mu.Lock()
-		if d.cache == nil {
-			d.cache = map[string]dnsEntry{}
-		}
-		d.cache[host] = dnsEntry{ips, time.Now().Add(ttl)}
-		d.mu.Unlock()
-		return ips, nil
+	var queries []dnsQuery
+	for _, provider := range dohProviders {
+		queries = append(queries, func(ctx context.Context) ([]string, time.Duration, error) {
+			return d.queryProvider(ctx, provider, host)
+		})
 	}
-	for _, provider := range []struct{ host, ip, path string }{{"dns.alidns.com", "223.5.5.5", "/resolve"}, {"cloudflare-dns.com", "1.1.1.1", "/dns-query"}, {"dns.google", "8.8.8.8", "/resolve"}} {
-		ips, ttl, err := queryDNS(ctx, provider.host, provider.ip, provider.path, host)
-		if err != nil {
-			last = err
-			if ctx.Err() != nil {
-				break
+	ips, ttl, err := collectDNS(ctx, queries)
+	if err != nil {
+		return nil, fmt.Errorf("独立 DNS 解析 %s 失败（不回退到系统 hosts）：%w", host, err)
+	}
+	d.mu.Lock()
+	if d.cache == nil {
+		d.cache = map[string]dnsEntry{}
+	}
+	d.cache[host] = dnsEntry{ips, time.Now().Add(ttl)}
+	d.mu.Unlock()
+	return ips, nil
+}
+
+type dnsQuery func(context.Context) ([]string, time.Duration, error)
+
+// Collect a small pool, allowing 200ms after the first usable answer for other
+// providers. Unreachable public resolvers cannot delay a working answer by seconds.
+func collectDNS(ctx context.Context, queries []dnsQuery) ([]string, time.Duration, error) {
+	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
+	defer cancel()
+	type result struct {
+		ips []string
+		ttl time.Duration
+		err error
+	}
+	results := make(chan result, len(queries))
+	for _, query := range queries {
+		go func(query dnsQuery) { ips, ttl, err := query(ctx); results <- result{ips, ttl, err} }(query)
+	}
+	var ips []string
+	ttl := 5 * time.Minute
+	seen := map[string]bool{}
+	var failures []error
+	var settle <-chan time.Time
+	var timer *time.Timer
+	defer func() {
+		if timer != nil {
+			timer.Stop()
+		}
+	}()
+	for range queries {
+		select {
+		case <-ctx.Done():
+			if len(ips) > 0 {
+				return ips, ttl, nil
 			}
-			continue
+			return nil, 0, ctx.Err()
+		case <-settle:
+			return ips, ttl, nil
+		case r := <-results:
+			if r.err != nil {
+				failures = append(failures, r.err)
+				continue
+			}
+			if len(r.ips) == 0 {
+				continue
+			}
+			ttl = min(ttl, r.ttl)
+			for _, ip := range r.ips {
+				if !seen[ip] && len(ips) < 6 {
+					seen[ip] = true
+					ips = append(ips, ip)
+				}
+			}
+			if timer == nil {
+				timer = time.NewTimer(200 * time.Millisecond)
+				settle = timer.C
+			}
 		}
-		d.mu.Lock()
-		if d.cache == nil {
-			d.cache = map[string]dnsEntry{}
-		}
-		d.cache[host] = dnsEntry{ips, time.Now().Add(ttl)}
-		d.mu.Unlock()
-		return ips, nil
 	}
-	return nil, fmt.Errorf("独立 DNS 解析 %s 失败（不回退到系统 hosts）：%w", host, last)
+	if len(ips) == 0 {
+		return nil, 0, fmt.Errorf("no usable DNS answers: %w", errors.Join(failures...))
+	}
+	return ips, ttl, nil
 }
 
 func queryDNS(ctx context.Context, provider, ip, path, host string) ([]string, time.Duration, error) {
 	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
-	t := &http.Transport{DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-		return (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, "tcp", net.JoinHostPort(ip, "443"))
-	}}
+	t := newDoHTransport(net.JoinHostPort(ip, "443"))
 	defer t.CloseIdleConnections()
 	client := &http.Client{Transport: t, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	r, err := http.NewRequestWithContext(ctx, "GET", "https://"+provider+path+"?name="+url.QueryEscape(host)+"&type=A", nil)
+	return exchangeDoH(ctx, client, "https://"+provider+path, host)
+}
+
+// Dial only the supplied IP; URL hostname still supplies TLS SNI and certificate
+// verification. No proxy, system DNS, custom trust roots or insecure TLS flags.
+func newDoHTransport(address string) *http.Transport {
+	return &http.Transport{DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, "tcp", address)
+	}}
+}
+
+func exchangeDoH(ctx context.Context, client *http.Client, endpoint, host string) ([]string, time.Duration, error) {
+	packet, err := newDNSQuery(host)
 	if err != nil {
 		return nil, 0, err
 	}
-	r.Header.Set("Accept", "application/dns-json")
+	r, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(packet))
+	if err != nil {
+		return nil, 0, err
+	}
+	r.Header.Set("Accept", "application/dns-message")
+	r.Header.Set("Content-Type", "application/dns-message")
 	resp, err := client.Do(r)
 	if err != nil {
 		return nil, 0, applog.SafeError(err)
@@ -93,11 +163,18 @@ func queryDNS(ctx context.Context, provider, ip, path, host string) ([]string, t
 	if resp.StatusCode != 200 {
 		return nil, 0, fmt.Errorf("DNS HTTP %d", resp.StatusCode)
 	}
-	var answer dnsAnswer
-	if err = json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&answer); err != nil {
+	media, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if err != nil || media != "application/dns-message" {
+		return nil, 0, fmt.Errorf("invalid DoH content type")
+	}
+	reply, err := io.ReadAll(io.LimitReader(resp.Body, 65536))
+	if err != nil {
 		return nil, 0, err
 	}
-	return dnsAddresses(answer)
+	if len(reply) > 65535 {
+		return nil, 0, fmt.Errorf("oversized DoH response")
+	}
+	return parseDNSReply(packet, reply)
 }
 
 func dnsAddresses(answer dnsAnswer) ([]string, time.Duration, error) {
@@ -144,15 +221,60 @@ func (d *directDNS) DialContext(ctx context.Context, network, address string) (n
 	if err != nil {
 		return nil, err
 	}
-	for _, ip := range ips {
-		var conn net.Conn
-		conn, err = (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}).DialContext(ctx, network, net.JoinHostPort(ip, port))
-		if err == nil {
-			return conn, nil
-		}
-		if ctx.Err() != nil {
-			break
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	type result struct {
+		conn net.Conn
+		err  error
+		ip   string
+	}
+	results := make(chan result)
+	for i, ip := range ips {
+		go func(i int, ip string) {
+			timer := time.NewTimer(time.Duration(i) * 200 * time.Millisecond)
+			defer timer.Stop()
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+			}
+			conn, err := (&net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}).DialContext(ctx, network, net.JoinHostPort(ip, port))
+			select {
+			case results <- result{conn, err, ip}:
+			case <-ctx.Done():
+				if conn != nil {
+					conn.Close()
+				}
+			}
+		}(i, ip)
+	}
+	var failures []error
+	for range ips {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case r := <-results:
+			if r.err == nil {
+				d.mu.Lock()
+				entry := d.cache[host]
+				if slices.Contains(entry.ips, r.ip) {
+					ordered := []string{r.ip}
+					for _, ip := range entry.ips {
+						if ip != r.ip {
+							ordered = append(ordered, ip)
+						}
+					}
+					entry.ips = ordered
+					d.cache[host] = entry
+				}
+				d.mu.Unlock()
+				return r.conn, nil
+			}
+			failures = append(failures, r.err)
 		}
 	}
-	return nil, err
+	d.mu.Lock()
+	delete(d.cache, host)
+	d.mu.Unlock()
+	return nil, errors.Join(failures...)
 }

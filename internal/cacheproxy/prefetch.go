@@ -39,6 +39,15 @@ func (s *Server) prefetch(ctx context.Context, id, target string) (source string
 	if err != nil {
 		return "", err
 	}
+	v.songID = id
+	if id != "" {
+		s.routeMu.Lock()
+		if s.routeSongs == nil {
+			s.routeSongs = make(map[string]string)
+		}
+		s.routeSongs[v.key] = id
+		s.routeMu.Unlock()
+	}
 	log := s.cfg.Logger.With("trace_id", applog.TraceID(ctx), "song_id", id, "resource_key", v.key)
 	log.Info("prefetch_started")
 	s.pinVideo(v)

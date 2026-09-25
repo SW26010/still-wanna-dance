@@ -51,10 +51,25 @@ go build -o bin/stepstash-console-cli.exe ./cmd/stepstash-console
 
 ## 独立 DNS
 
-控制台的歌曲列表、播放地址解析、视频回源均使用独立解析：直接向 `223.5.5.5:53` 发送 DNS 请求，失败时依次尝试 AliDNS、Cloudflare、Google 的 HTTPS DNS。DoH 用固定 IP 引导，TLS 仍验证对应域名证书。结果按 A 记录与 CNAME 链的最小 TTL 缓存（最多 300 秒），视频请求保留原始 HTTP Host。HKG 播放接口使用协议记录确认的 `node=nya`。
+控制台的歌曲列表、播放地址解析、视频回源均只使用证书验证通过的 HTTPS DNS（RFC 8484 POST），不查询 ISP 或系统 DNS，不读取系统 hosts，也不会在失败时降级到 UDP、HTTP 或自动接受 fake-IP。TLS 使用系统信任库并校验服务域名，拒绝重定向、错误媒体类型、过大或不匹配的 DNS 报文。
 
-不调用系统 hosts 解析，失败时也不回退到系统解析。直接 DNS 包兼容网络代理的 DNS 劫持 / fake-IP 模式；若网络阻断全部解析通道，会显示错误。当前使用 IPv4。
+内置服务：
 
+| 服务 | HTTPS 入口 | 引导方式 |
+| --- | --- | --- |
+| 阿里公共 DNS | `https://dns.alidns.com/dns-query` | `223.5.5.5`、`223.6.6.6` 两个独立连接入口，仍验证域名证书 |
+| 腾讯 DNSPod | `https://doh.pub/dns-query` | 通过已验证的加密解析获取入口 IP，并按 TTL 缓存 |
+| 360 安全 DNS | `https://doh.360.cn/dns-query` | 同上 |
+| Cloudflare | `https://cloudflare-dns.com/dns-query` | `1.1.1.1` 引导，验证域名证书 |
+| Google | `https://dns.google/dns-query` | `8.8.8.8` 引导，验证域名证书 |
+
+DNSPod 和 360 的入口发现只通过具备固定引导 IP 的 DoH 服务进行，不依赖本地 DNS；同入口并发引导合并，后续读取 TTL 缓存。没有硬编码 DNSPod 已下线的测试 IP。官方依据：[阿里服务资料](https://static-aliyun-doc.oss-cn-hangzhou.aliyuncs.com/download%2Fpdf%2F171662%2FAPI_Reference_intl_en-US.pdf)、[DNSPod 域名接入公告](https://docs.dnspod.cn/notices/mian-fei-ban-dot-dohbu-zai-gong-kai-ipjie-ru-de-gong-gao/)、[DNSPod 旧测试 IP 下线公告](https://docs.dnspod.cn/notices/guan-yu-doh-dotdu-li-ce-shi-ipxia-xian-de-gong-gao/)、[360 官方服务页](https://sdns.360.net/dnsPublic.html)。
+
+有限并发查询这些加密入口，首个有效答复后最多再收集 200ms，合并去重并最多保留 6 个 IPv4 候选；整体最多 6 秒。结果按已收集答复中 A 记录与 CNAME 链的最小 TTL 缓存（最多 300 秒）。连接候选每隔 200ms 错峰启动，单连接最多等待 5 秒；成功地址优先复用，取消其余连接，全部失败时清除缓存。IP 层衡量连接建立速度，视频小段测速在上游线路层进行。视频请求仍保留原始 HTTP Host，HKG 播放接口使用 `node=nya`。
+
+全部加密通道失败时明确报错。这保护的是客户端到解析服务的 DNS 链路，仍信任所选解析服务及系统证书信任库；没有把原本的 HTTP 视频/API 协议改成 HTTPS。此前依赖明文 DNS 劫持产生 fake-IP 的代理路径不再由此模块自动使用。
+
+2026-09-25 本机逐入口真实解析 `api.udon.dance`：阿里双入口、DNSPod、360、Cloudflare、Google 六项均通过 HTTPS 证书验证与 DNS 报文解析。这不代表其他网络始终可达。可选复测：`STEPSTASH_LIVE_DOH=1` 后运行 `go test ./internal/console -run '^TestLiveDoHProviders$' -v -count=1`。
 独立 DNS 应用于控制台的缓存引擎；原有命令行服务的默认网络配置不变。
 
 ## hosts
@@ -123,10 +138,16 @@ Remove-Item Env:STEPSTASH_LIVE_CHECK
 
 2026-09-25 获取 10,398 个去重 ID；视频域名有本机 hosts 映射时，独立解析的 API 和视频片段请求成功。数量为当时样本。随后对 `c69e844` 完成了真实 UAC 修改/恢复、托盘退出、重启及容量设置的[联合实机验收](release-acceptance-20260925.md)。
 
-### 后台下载上游
+### 统一回源选路
 
-在设置中选择 Auto、CF 或 HKG，保存后用于下载补齐和队列预缓存。旧配置未设置该项时默认为 Auto。修改设置前需停止 CDN 和后台任务。
+设置中的「回源线路」用于冷缓存播放、下载补齐和队列预缓存，默认 Auto。保存设置前仍需停止 CDN 和后台任务，下一次创建缓存引擎时生效。仅扫描检查仍使用 HKG 地址。
 
-Auto 先尝试 HKG，地址解析、连接、下载或完整性校验失败后重新获取 CF 地址，最多重试一次；两路均失败时保留两路错误。CF / HKG 为固定线路，失败不切换。取消任务、队列歌曲已移除或切换房间后不再发起回退请求。下载整体超时沿用引擎设置（默认 10 分钟），尚未按速度提前切换。
+Auto 不把游戏的 CF/HKG 选择作为路线优先级。已知歌曲 ID 时，并发请求 `node=nya` 与 `node=cf` 获取真实视频地址，最多等待 3 秒，候选地址缓存 1 分钟。只有校验和与大小一致的地址才可替换；各自路径与参数完整保留，最终下载仍做 MD5/大小校验。API 某路查询失败时仍保留游戏原地址作为 Auto 的候选。
 
-此选项不会改变游戏播放的选源；仅扫描检查仍使用 HKG 地址校验。切换不改写 URL，而是分别请求 node=nya 与 node=cf，使用各自返回的版本信息。日志 prefetch_upstream 记录实际尝试的线路及是否回退。
+冷缓存根据明确登记或库中已有的资源关联找歌曲 ID，不把 URL 中的资源编号当歌曲 ID。陌生资源无法确定歌曲、接口均不可用或两路内容不一致时保留原请求；因此不能保证每次陌生冷请求都能跨上游。固定 CF/HKG 只查询指定线路，无法安全替换冷请求时同样保留原请求。
+
+两个候选存在且近期测速过期时，每路最多读取 64 KiB 的真实 Range 响应，每次探测最多 1.5 秒；同线路并发探测合并。比较收到完整小段的耗时，成功样本有效 2 分钟，失败记录有效 15 秒。后续下载共用结果，持续下载不会无限延长测速有效期。这是有限采样下的优选，不保证始终取得全网最快路线。忽略 Range 的服务不会被完整下载来测速。
+
+连接失败、错误状态或响应头的长度/编码不符时，在开始向游戏输出正文前尝试另一条候选。正文已开始输出后不拼接另一上游的数据；失败交给请求重试，后台任务保留原有整首重试流程。后台任务首先获取一个基准资源地址；Auto 的 HKG 初始地址只确定资源，实际下载仍由统一模块选路。完整下载超时沿用引擎设置（默认 10 分钟），没有实现下载中途按低速阈值换路。
+
+热缓存不触发选路或测速。三种入口继续共用原有资源级下载任务、完整性校验与发布机制。日志 `upstream_selected` 给出请求上游和实际上游，`route_content_mismatch` 记录拒绝替换；后台 `prefetch_upstream` 是基准地址的获取/重试流程，不代表实际传输线路。独立命令行服务的默认网络行为不变。

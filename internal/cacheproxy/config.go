@@ -26,16 +26,23 @@ type Config struct {
 	DialContext func(context.Context, string, string) (net.Conn, error)
 	// ResolveCurrent returns the song API's current video URL. Nil uses the public API.
 	ResolveCurrent func(context.Context, string) (string, error)
+	// ResolveRoutes returns real video URLs for a known song, in policy order.
+	// Every candidate is independently parsed and must match the requested bytes.
+	ResolveRoutes func(context.Context, string) ([]string, error)
+	// KeepRequestedRoute retains the game's original URL as an Auto fallback
+	// when an API route lookup is temporarily unavailable.
+	KeepRequestedRoute bool
 }
 
 func DefaultConfig() Config {
 	return Config{
-		StorageDir:      "stepstash-data",
-		Origins:         map[string]string{"play.udon.dance": "ud-play.kiva.moe:80", "nya.xin.moe": "ud-nya.kiva.moe:80"},
-		DownloadTimeout: 10 * time.Minute,
-		MaxFileBytes:    2 << 30,
-		MaxDownloads:    3,
-		Logger:          slog.New(slog.NewJSONHandler(os.Stderr, nil)),
+		KeepRequestedRoute: true,
+		StorageDir:         "stepstash-data",
+		Origins:            map[string]string{"play.udon.dance": "ud-play.kiva.moe:80", "nya.xin.moe": "ud-nya.kiva.moe:80"},
+		DownloadTimeout:    10 * time.Minute,
+		MaxFileBytes:       2 << 30,
+		MaxDownloads:       3,
+		Logger:             slog.New(slog.NewJSONHandler(os.Stderr, nil)),
 	}
 }
 

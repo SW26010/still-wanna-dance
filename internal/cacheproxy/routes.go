@@ -1,0 +1,253 @@
+package cacheproxy
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"sort"
+	"time"
+
+	"stepstash/internal/applog"
+)
+
+type routeEntry struct {
+	urls  []string
+	until time.Time
+}
+
+type routeHealth struct {
+	latency time.Duration
+	until   time.Time
+	failed  bool
+}
+
+// Unknown resource URLs never establish song ownership. Only explicit song
+// requests or the library's recorded mappings can supply the API song ID.
+func (s *Server) routeCandidates(ctx context.Context, v video) []video {
+	if s.cfg.ResolveRoutes == nil {
+		return []video{v}
+	}
+	id := v.songID
+	s.routeMu.Lock()
+	if id == "" {
+		id = s.routeSongs[v.key]
+	}
+	s.routeMu.Unlock()
+	if id == "" {
+		_ = s.usage.db.QueryRowContext(ctx, `SELECT song_id FROM song_videos WHERE version_key=? ORDER BY song_id LIMIT 1`, v.key).Scan(&id)
+	}
+	if id == "" {
+		_ = s.usage.db.QueryRowContext(ctx, `SELECT song_id FROM song_videos JOIN video_versions USING(version_key)
+		 WHERE checksum=? AND file_bytes=? ORDER BY song_id LIMIT 1`, v.checksum, v.size).Scan(&id)
+	}
+	if id == "" {
+		return []video{v}
+	}
+	s.routeMu.Lock()
+	entry := s.routeCache[id]
+	s.routeMu.Unlock()
+	if !time.Now().Before(entry.until) {
+		resolveCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		urls, err := s.cfg.ResolveRoutes(resolveCtx, id)
+		cancel()
+		if len(urls) == 0 {
+			s.cfg.Logger.Debug("routes_unavailable", "song_id", id, "error", applog.SafeError(err))
+			return []video{v}
+		}
+		entry = routeEntry{urls: urls, until: time.Now().Add(time.Minute)}
+		s.routeMu.Lock()
+		if s.routeCache == nil {
+			s.routeCache = make(map[string]routeEntry)
+		}
+		s.routeCache[id] = entry
+		s.routeMu.Unlock()
+	}
+	var candidates []video
+	seen := make(map[string]bool)
+	for _, target := range entry.urls {
+		r, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+		if err != nil || r.URL.Scheme != "http" || r.URL.User != nil || r.URL.Fragment != "" {
+			continue
+		}
+		candidate, err := s.parse(r)
+		if err != nil {
+			continue
+		}
+		s.routeMu.Lock()
+		if s.routeSongs == nil {
+			s.routeSongs = make(map[string]string)
+		}
+		s.routeSongs[candidate.key] = id
+		s.routeMu.Unlock()
+		if candidate.checksum != v.checksum || candidate.size != v.size {
+			s.cfg.Logger.Warn("route_content_mismatch", "song_id", id, "host", candidate.host)
+			continue
+		}
+		// One real URL per upstream bounds probing and download attempts.
+		if !seen[candidate.host] {
+			seen[candidate.host] = true
+			candidates = append(candidates, candidate)
+		}
+	}
+	if s.cfg.KeepRequestedRoute && !seen[v.host] {
+		candidates = append(candidates, v)
+	}
+	if len(candidates) == 0 {
+		return []video{v}
+	}
+	return candidates
+}
+
+func (s *Server) routeRequest(ctx context.Context, v video) (*http.Request, error) {
+	u := &url.URL{Scheme: "http", Host: s.cfg.Origins[v.host], Path: v.path, RawQuery: v.query}
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err == nil {
+		r.Host = v.host
+		r.Header.Set("Accept-Encoding", "identity")
+	}
+	return r, err
+}
+
+func (s *Server) noteRoute(host string, elapsed time.Duration, failed bool) {
+	ttl := 2 * time.Minute
+	if failed {
+		ttl = 15 * time.Second
+	}
+	s.routeMu.Lock()
+	defer s.routeMu.Unlock()
+	if s.routeHealth == nil {
+		s.routeHealth = make(map[string]routeHealth)
+	}
+	s.routeHealth[host] = routeHealth{latency: elapsed, failed: failed, until: time.Now().Add(ttl)}
+}
+
+// Completed downloads confirm health without extending the probe lifetime.
+// Otherwise a continuously used route would never be compared again.
+func (s *Server) confirmRoute(host string, elapsed time.Duration) {
+	s.routeMu.Lock()
+	defer s.routeMu.Unlock()
+	if s.routeHealth == nil {
+		s.routeHealth = make(map[string]routeHealth)
+	}
+	h := s.routeHealth[host]
+	if h.until.IsZero() || h.failed {
+		s.routeHealth[host] = routeHealth{latency: elapsed, until: time.Now().Add(2 * time.Minute)}
+	}
+}
+
+// Small Range probes measure time to receive bytes, not merely TCP latency.
+// Ignore servers that disregard Range, without reading their whole response.
+func (s *Server) probeRoute(ctx context.Context, v video) {
+	parent := ctx
+	ctx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	r, err := s.routeRequest(ctx, v)
+	if err != nil {
+		return
+	}
+	n := min(v.size, int64(64<<10))
+	r.Header.Set("Range", fmt.Sprintf("bytes=0-%d", n-1))
+	resp, err := s.client.Do(r)
+	if err == nil {
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusPartialContent || resp.Header.Get("Content-Range") != fmt.Sprintf("bytes 0-%d/%d", n-1, v.size) || (resp.Header.Get("Content-Encoding") != "" && resp.Header.Get("Content-Encoding") != "identity") {
+			err = errors.New("invalid probe response")
+		} else {
+			var read int64
+			read, err = io.Copy(io.Discard, io.LimitReader(resp.Body, n+1))
+			if read != n {
+				err = errors.New("incomplete probe")
+			}
+		}
+	}
+	if parent.Err() == nil {
+		s.noteRoute(v.host, time.Since(start), err != nil)
+	}
+}
+
+func (s *Server) rankRoutes(ctx context.Context, candidates []video) {
+	if len(candidates) < 2 {
+		return
+	}
+	var pending []chan struct{}
+	for _, v := range candidates {
+		s.routeMu.Lock()
+		h := s.routeHealth[v.host]
+		if time.Now().Before(h.until) {
+			s.routeMu.Unlock()
+			continue
+		}
+		if s.routeProbes == nil {
+			s.routeProbes = make(map[string]chan struct{})
+		}
+		done, exists := s.routeProbes[v.host]
+		if !exists {
+			done = make(chan struct{})
+			s.routeProbes[v.host] = done
+		}
+		pending = append(pending, done)
+		s.routeMu.Unlock()
+		if !exists {
+			go func(v video, done chan struct{}) {
+				s.probeRoute(ctx, v)
+				s.routeMu.Lock()
+				delete(s.routeProbes, v.host)
+				close(done)
+				s.routeMu.Unlock()
+			}(v, done)
+		}
+	}
+	for _, done := range pending {
+		<-done
+	}
+	s.routeMu.Lock()
+	defer s.routeMu.Unlock()
+	sort.SliceStable(candidates, func(i, j int) bool {
+		a, b := s.routeHealth[candidates[i].host], s.routeHealth[candidates[j].host]
+		if a.failed != b.failed {
+			return !a.failed
+		}
+		return a.latency < b.latency
+	})
+}
+
+// All cache misses enter here, including streaming playback and both background
+// entry points. Retry only before publication starts; never splice two bodies.
+func (s *Server) openUpstream(ctx context.Context, v video) (*http.Response, string, error) {
+	candidates := s.routeCandidates(ctx, v)
+	s.rankRoutes(ctx, candidates)
+	var failures []error
+	for _, candidate := range candidates {
+		if ctx.Err() != nil {
+			return nil, "", ctx.Err()
+		}
+		start := time.Now()
+		r, err := s.routeRequest(ctx, candidate)
+		if err != nil {
+			return nil, "", err
+		}
+		resp, err := s.client.Do(r)
+		if err == nil {
+			switch {
+			case resp.StatusCode != http.StatusOK:
+				err = fmt.Errorf("upstream status %d", resp.StatusCode)
+			case resp.Header.Get("Content-Encoding") != "" && resp.Header.Get("Content-Encoding") != "identity":
+				err = errors.New("unexpected upstream encoding")
+			case resp.ContentLength >= 0 && resp.ContentLength != v.size:
+				err = errors.New("upstream content length mismatch")
+			}
+			if err == nil {
+				s.cfg.Logger.Info("upstream_selected", "requested_host", v.host, "host", candidate.host, "resource_key", v.key)
+				return resp, candidate.host, nil
+			}
+			resp.Body.Close()
+		}
+		s.noteRoute(candidate.host, time.Since(start), true)
+		failures = append(failures, fmt.Errorf("%s: %w", candidate.host, applog.SafeError(err)))
+	}
+	return nil, "", errors.Join(failures...)
+}

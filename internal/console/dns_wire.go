@@ -2,7 +2,6 @@ package console
 
 import (
 	"bytes"
-	"context"
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
@@ -11,43 +10,25 @@ import (
 	"time"
 )
 
-// A direct DNS packet bypasses OS hosts while remaining compatible with a VPN's
-// DNS interception/fake-IP routing. DNS-over-HTTPS remains the fallback.
-func queryUDP(ctx context.Context, server, host string) ([]string, time.Duration, error) {
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
+func newDNSQuery(host string) ([]byte, error) {
 	packet := make([]byte, 12)
 	if _, err := rand.Read(packet[:2]); err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	packet[2] = 1
 	packet[5] = 1
 	for _, label := range strings.Split(strings.TrimSuffix(host, "."), ".") {
 		if len(label) == 0 || len(label) > 63 {
-			return nil, 0, fmt.Errorf("invalid DNS name")
+			return nil, fmt.Errorf("invalid DNS name")
 		}
 		packet = append(packet, byte(len(label)))
 		packet = append(packet, label...)
 	}
 	packet = append(packet, 0, 0, 1, 0, 1)
-	conn, err := (&net.Dialer{}).DialContext(ctx, "udp", server)
-	if err != nil {
-		return nil, 0, err
+	if len(packet) > 271 {
+		return nil, fmt.Errorf("DNS name too long")
 	}
-	defer conn.Close()
-	stop := context.AfterFunc(ctx, func() { conn.Close() })
-	defer stop()
-	deadline, _ := ctx.Deadline()
-	_ = conn.SetDeadline(deadline)
-	if _, err = conn.Write(packet); err != nil {
-		return nil, 0, err
-	}
-	reply := make([]byte, 4096)
-	n, err := conn.Read(reply)
-	if err != nil {
-		return nil, 0, err
-	}
-	return parseDNSReply(packet, reply[:n])
+	return packet, nil
 }
 
 func skipDNSName(b []byte, off int) (int, error) {

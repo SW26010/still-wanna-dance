@@ -239,6 +239,11 @@ func (c *Console) ensureEngine() error {
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
 	cfg.DialContext = c.dns.DialContext
+	mode := c.settings.DownloadUpstream
+	cfg.KeepRequestedRoute = mode == "auto"
+	cfg.ResolveRoutes = func(ctx context.Context, id string) ([]string, error) {
+		return c.resolveRoutes(ctx, id, mode)
+	}
 	cfg.ResolveCurrent = func(ctx context.Context, id string) (string, error) {
 		songID, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {

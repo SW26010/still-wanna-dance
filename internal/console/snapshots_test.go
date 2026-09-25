@@ -32,24 +32,24 @@ func TestInventoryPersistsAndKeepsLastSuccessOnFailure(t *testing.T) {
 	if err := c.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
-	dir := filepath.Join(c.settings.SongsDir, "1")
+	dir := filepath.Join(c.settings.StorageDir, "videos")
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "video.mp4"), []byte("video"), 0600); err != nil {
+	if err := os.WriteFile(fixtureVideoPath(c.settings.StorageDir, "1", "video"), []byte("video"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	c.startInventoryScan()
 	before := waitInventory(t, c)
-	if before.Library != 1 || before.Error != "" {
+	if before.Videos != 1 || before.Error != "" {
 		t.Fatalf("%+v", before)
 	}
-	if err := os.RemoveAll(c.settings.CacheDir); err != nil {
+	if err := os.Rename(dir, dir+"-unavailable"); err != nil {
 		t.Fatal(err)
 	}
 	c.startInventoryScan()
 	after := waitInventory(t, c)
-	if after.Library != 1 || after.Updated != before.Updated || after.Error == "" {
+	if after.Videos != 1 || after.Updated != before.Updated || after.Error == "" {
 		t.Fatalf("overwrote successful inventory: %+v", after)
 	}
 	restarted, err := New(c.configPath, c.address)
@@ -58,22 +58,22 @@ func TestInventoryPersistsAndKeepsLastSuccessOnFailure(t *testing.T) {
 	}
 	defer restarted.Close()
 	saved := restarted.localInventory()
-	if saved.Library != 1 || !saved.Updated.Equal(before.Updated) || saved.Scanning {
+	if saved.Videos != 1 || !saved.Updated.Equal(before.Updated) || saved.Scanning {
 		t.Fatalf("did not restore snapshot: %+v", saved)
 	}
-	if err := os.MkdirAll(c.settings.CacheDir, 0700); err != nil {
+	if err := os.Rename(dir+"-unavailable", dir); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Remove(filepath.Join(dir, "video.mp4")); err != nil {
+	if err := os.Remove(fixtureVideoPath(c.settings.StorageDir, "1", "video")); err != nil {
 		t.Fatal(err)
 	}
 	c.startInventoryScan()
 	after = waitInventory(t, c)
-	if after.Library != 0 || after.Error != "" || !after.Updated.After(before.Updated) {
+	if after.Videos != 0 || after.Error != "" || !after.Updated.After(before.Updated) {
 		t.Fatalf("did not replace successful snapshot: %+v", after)
 	}
 	newSettings := c.settings
-	newSettings.SongsDir += "-different"
+	newSettings.StorageDir += "-different"
 	if err := c.save(newSettings); err != nil {
 		t.Fatal(err)
 	}
@@ -88,10 +88,10 @@ func TestScanOnlyPersistsSuccessAcrossFailureAndCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 	const body = "video"
-	if err := os.MkdirAll(filepath.Join(c.settings.SongsDir, "1"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(c.settings.StorageDir, "videos"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(c.settings.SongsDir, "1", "video.mp4"), []byte(body), 0600); err != nil {
+	if err := os.WriteFile(fixtureVideoPath(c.settings.StorageDir, "1", body), []byte(body), 0600); err != nil {
 		t.Fatal(err)
 	}
 	var mode atomic.Int32

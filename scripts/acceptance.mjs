@@ -1,5 +1,5 @@
 // Opt-in real-network acceptance. All downloads and reports stay under test-runs.
-// node scripts/acceptance.mjs <existing-song-library> <original-executable> [stepstash-executable]
+// node scripts/acceptance.mjs [stepstash-executable]
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
@@ -8,8 +8,7 @@ import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
 
-const [library, original, executable] = process.argv.slice(2);
-if (!library || !original) throw new Error('Supply existing library and original executable paths');
+const [executable] = process.argv.slice(2);
 const root = process.cwd();
 const binary = path.resolve(executable || path.join(root, 'bin', 'stepstash.exe'));
 const lab = path.join(root, 'test-runs', `acceptance-${Date.now()}`);
@@ -78,15 +77,16 @@ async function stop(child) {
   }
   children.delete(child);
 }
-async function stepstash(name, songsDir, stateName = name) {
+async function stepstash(name, storageDir) {
   const port = await freePort();
   const child = await launch(binary, ['-listen', `127.0.0.1:${port}`,
-    '-songs-dir', songsDir, '-cache-dir', path.join(lab, stateName), '-download-timeout', '5m'], name, port);
+    '-storage-dir', storageDir, '-download-timeout', '5m'], name, port);
   return { child, port };
 }
-function snapshot(id) {
-  return Object.fromEntries(fs.readdirSync(path.join(library, id)).filter(name => fs.statSync(path.join(library, id, name)).isFile())
-    .map(name => [name, digest(fs.readFileSync(path.join(library, id, name)))]));
+function videoFile(root, url) {
+ const [, id, version] = url.pathname.match(/\/([1-9][0-9]*)-([a-zA-Z0-9]+)\.mp4$/);
+ const key = digest(id + '/' + version + '/' + url.searchParams.get('e').toLowerCase() + '/' + Number(url.searchParams.get('s')));
+ return path.join(root, 'videos', id + '-' + key + '.mp4');
 }
 
 try {
@@ -100,29 +100,8 @@ try {
     urls[id] = url.toString();
     record(`api-${node}`, { status: res.status, url: urls[id] });
   }
-  const before = { '1343': snapshot('1343'), '1344': snapshot('1344') };
-  let service = await stepstash('existing-library', path.resolve(library));
-  for (const id of ['1343', '1344']) {
-    const content = fs.readFileSync(path.join(library, id, 'video.mp4'));
-    const res = await request(urls[id], { port: service.port });
-    assert.equal(res.status, 200); assert.equal(res.headers['x-stepstash-cache'], 'HIT');
-    assert.equal(res.sha256, digest(content));
-    record(`existing-full-${id}`, evidence(res));
-    for (const [label, range, start, end] of [['middle', 'bytes=20000000-20001023', 20000000, 20001024],
-      ['suffix', 'bytes=-1024', content.length - 1024, content.length]]) {
-      const rangeRes = await request(urls[id], { port: service.port, headers: { Range: range } });
-      assert.equal(rangeRes.status, 206); assert.equal(rangeRes.sha256, digest(content.subarray(start, end)));
-      record(`existing-${label}-${id}`, evidence(rangeRes));
-    }
-    const head = await request(urls[id], { port: service.port, method: 'HEAD' });
-    assert.equal(head.status, 200); assert.equal(head.bytes, 0); assert.equal(Number(head.headers['content-length']), content.length);
-    record(`existing-head-${id}`, evidence(head));
-  }
-  await stop(service.child);
-  assert.deepEqual({ '1343': snapshot('1343'), '1344': snapshot('1344') }, before);
-  record('existing-library-unchanged', { passed: true, hashes: before });
-
-  const songs = path.join(lab, 'downloaded-songs');
+  const songs = path.join(lab, 'storage');
+  let service;
   service = await stepstash('cold', songs);
   for (const id of ['1343', '1344']) {
     const url = new URL(urls[id]);
@@ -130,8 +109,8 @@ try {
     const res = await request(url.toString(), { port: service.port });
     assert.equal(res.status, 200); assert.equal(res.headers['x-stepstash-cache'], 'MISS');
     assert.equal(res.md5, url.searchParams.get('e')); assert.equal(res.bytes, Number(url.searchParams.get('s')));
-    assert.equal(digest(fs.readFileSync(path.join(songs, id, 'video.mp4')), 'md5'), res.md5);
-    assert.equal(JSON.parse(fs.readFileSync(path.join(songs, id, 'metadata.json'))).checksum, res.md5);
+    assert.equal(digest(fs.readFileSync(videoFile(songs, url)), 'md5'), res.md5);
+    assert.equal(fs.existsSync(path.join(songs, id)), false);
     record(`cold-${id}`, evidence(res));
     url.hostname = url.hostname === 'play.udon.dance' ? 'nya.xin.moe' : 'play.udon.dance';
     const hot = await request(url.toString(), { port: service.port, headers: { Range: 'bytes=0-1023' } });
@@ -139,27 +118,16 @@ try {
     record(`cross-host-${id}`, evidence(hot));
   }
   await stop(service.child);
-  service = await stepstash('restart-no-state', songs);
+  service = await stepstash('restart', songs);
   for (const id of ['1343', '1344']) {
     const res = await request(urls[id], { port: service.port, method: 'HEAD' });
     assert.equal(res.status, 200); assert.equal(res.headers['x-stepstash-cache'], 'HIT');
-    record(`restart-no-state-${id}`, evidence(res));
+    record(`restart-${id}`, evidence(res));
   }
   await stop(service.child);
 
-  // Reuse the existing installation's consent marker; never infer acceptance.
-  const originalRoot = path.dirname(path.resolve(original));
-  for (const name of ['LICENSE.txt', 'I_AGREE_TO_THE_LICENSE.txt']) fs.copyFileSync(path.join(originalRoot, name), path.join(lab, name));
-  const port = await freePort(), tlsPort = await freePort();
-  const originalEnv = { ...process.env, VIDEO_PATH_UD: songs, CACHE_PATH_UD: path.join(lab, 'original-state'),
-    LISTEN: `127.0.0.1:${port}`, BUILTIN_SNI_LISTEN: `127.0.0.1:${tlsPort}`, NO_AUTH: 'true', RUST_LOG: 'info' };
-  const old = await launch(path.resolve(original), [], 'original-readback', port, originalEnv);
-  for (const id of ['1343', '1344']) {
-    const res = await request(`http://api.udon.dance/v/${id}`, { port });
-    assert.equal(res.status, 200); assert.equal(res.md5, new URL(urls[id]).searchParams.get('e'));
-    record(`original-readback-${id}`, evidence(res));
-  }
-  await stop(old);
+  assert.equal(fs.readdirSync(path.join(songs, 'videos')).filter(n => n.endsWith('.mp4')).length, 2);
+  assert.equal(fs.existsSync(path.join(songs, 'stepstash.sqlite')), true);
   report.passed = true;
 } catch (error) {
   report.passed = false;

@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -32,8 +33,8 @@ func setup(t *testing.T, handler http.HandlerFunc) (*Server, Config) {
 	upstream := httptest.NewServer(handler)
 	t.Cleanup(upstream.Close)
 	cfg := DefaultConfig()
-	cfg.CacheDir = t.TempDir()
-	cfg.SongsDir = t.TempDir()
+	cfg.StorageDir = t.TempDir()
+	cfg.ResolveCurrent = func(context.Context, string) (string, error) { return "", errors.New("test API unavailable") }
 	cfg.Logger = slog.New(slog.NewTextHandler(testLogWriter{t}, nil))
 	for h := range cfg.Origins {
 		cfg.Origins[h] = strings.TrimPrefix(upstream.URL, "http://")
@@ -214,12 +215,12 @@ func TestBadUpstreamNeverPublishesAndRetries(t *testing.T) {
 			if w.Code != 502 && !(w.aborted && w.Body.Len() < len(payload)) {
 				t.Fatalf("got %d", w.Code)
 			}
-			files, _ := filepath.Glob(filepath.Join(cfg.CacheDir, "*.mp4"))
+			files, _ := filepath.Glob(filepath.Join(cfg.videosDir(), "*.mp4"))
 			if len(files) != 0 {
 				t.Fatal(files)
 			}
 			s.wg.Wait()
-			assertNoPartial(t, cfg.CacheDir)
+			assertNoPartial(t, cfg.tempDir())
 			assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
 			if count.Load() != 2 {
 				t.Fatal(count.Load())
@@ -272,20 +273,26 @@ func TestSharedDownloadSurvivesClientCancellation(t *testing.T) {
 		t.Fatal(count.Load())
 	}
 	s.wg.Wait()
-	assertNoPartial(t, cfg.CacheDir)
+	assertNoPartial(t, cfg.tempDir())
 }
 
 func TestVersionIsolationCorruptionAndRestart(t *testing.T) {
 	var count atomic.Int32
 	var next atomic.Value
 	next.Store(payload)
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { count.Add(1); io.WriteString(w, next.Load().(string)) })
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		count.Add(1)
+		if r.URL.Query().Get("e") == fmt.Sprintf("%x", md5.Sum([]byte(payload))) {
+			io.WriteString(w, payload)
+		} else {
+			io.WriteString(w, next.Load().(string))
+		}
+	})
+	cfg.ResolveCurrent = func(context.Context, string) (string, error) { return videoURL(next.Load().(string)), nil }
+	s.cfg.ResolveCurrent = cfg.ResolveCurrent
 	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
-	files, _ := filepath.Glob(filepath.Join(cfg.CacheDir, "*.mp4"))
+	files, _ := filepath.Glob(filepath.Join(cfg.videosDir(), "*.mp4"))
 	if err := os.WriteFile(files[0], []byte(strings.Repeat("x", len(payload))), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(cfg.SongsDir, "1344", "video.mp4"), []byte(strings.Repeat("x", len(payload))), 0600); err != nil {
 		t.Fatal(err)
 	}
 	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
@@ -296,7 +303,7 @@ func TestVersionIsolationCorruptionAndRestart(t *testing.T) {
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(cfg.CacheDir, "download-crashed.part"), []byte("partial"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(cfg.tempDir(), "download-crashed.part"), []byte("partial"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	restarted, err := New(cfg)
@@ -304,21 +311,21 @@ func TestVersionIsolationCorruptionAndRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer restarted.Close()
-	assertNoPartial(t, cfg.CacheDir)
+	assertNoPartial(t, cfg.tempDir())
 	assertResponse(t, request(restarted, "GET", videoURL(payload), nil), 200, payload)
 	assertResponse(t, request(restarted, "GET", videoURL(newPayload), nil), 200, newPayload)
-	if count.Load() != 3 {
+	if count.Load() != 5 {
 		t.Fatal(count.Load())
 	}
 }
 
-func TestLibraryValidatesAndDoesNotModifyHits(t *testing.T) {
+func TestCanonicalStoreValidatesHits(t *testing.T) {
 	for _, valid := range []bool{true, false} {
 		t.Run(fmt.Sprint(valid), func(t *testing.T) {
 			var count atomic.Int32
 			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { count.Add(1); io.WriteString(w, payload) })
 			s.Close()
-			dir := filepath.Join(cfg.SongsDir, "1344")
+			dir := cfg.videosDir()
 			if err := os.MkdirAll(dir, 0700); err != nil {
 				t.Fatal(err)
 			}
@@ -326,7 +333,7 @@ func TestLibraryValidatesAndDoesNotModifyHits(t *testing.T) {
 			if !valid {
 				body = "corrupt"
 			}
-			path := filepath.Join(dir, "video.mp4")
+			path := testVideoFile(t, cfg, payload)
 			if err := os.WriteFile(path, []byte(body), 0600); err != nil {
 				t.Fatal(err)
 			}
@@ -384,7 +391,7 @@ func TestOwnershipCapacityTimeoutAndShutdown(t *testing.T) {
 		t.Fatal(w.Code)
 	}
 	s.wg.Wait()
-	assertNoPartial(t, cfg.CacheDir)
+	assertNoPartial(t, cfg.tempDir())
 	go func() { done <- request(s, "GET", videoURL(payload), nil) }()
 	<-started
 	if err := s.Close(); err != nil {
@@ -394,7 +401,7 @@ func TestOwnershipCapacityTimeoutAndShutdown(t *testing.T) {
 	if w.Code != 503 && !w.aborted {
 		t.Fatal(w.Code)
 	}
-	assertNoPartial(t, cfg.CacheDir)
+	assertNoPartial(t, cfg.tempDir())
 }
 
 func TestHKGColdAndRealHTTP(t *testing.T) {

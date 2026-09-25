@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 )
 
 var errBusy = errors.New("download capacity reached")
@@ -116,16 +115,9 @@ func checkOpenFile(ctx context.Context, f *os.File, v video) error {
 }
 
 func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, string, error) {
-	libraryPath := filepath.Join(s.cfg.SongsDir, v.id, "video.mp4")
-	if err := checkFile(ctx, libraryPath, v); err == nil {
-		s.inspectMetadata(v)
-		return libraryPath, "HIT", nil
-	} else if !errors.Is(err, os.ErrNotExist) {
-		s.cfg.Logger.Warn("library_mismatch", "song_id", v.id, "error", err)
-	}
-	path := filepath.Join(s.cfg.CacheDir, v.key+".mp4")
+	path := s.cfg.videoFile(v.id, v.key)
 	if err := checkFile(ctx, path, v); err == nil {
-		if err := s.publishLibrary(ctx, path, v); err != nil {
+		if err := s.recordVideo(ctx, v); err != nil {
 			return "", "", err
 		}
 		return path, "HIT", nil
@@ -163,7 +155,7 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, 
 	if err := s.publish(ctx, resp.Body, path, v, flight); err != nil {
 		return "", "", err
 	}
-	if err := s.publishLibrary(ctx, path, v); err != nil {
+	if err := s.recordVideo(ctx, v); err != nil {
 		return "", "", err
 	}
 	s.cfg.Logger.Info("download_published", "key", v.key, "size", v.size)
@@ -171,7 +163,7 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, 
 }
 
 func (s *Server) publish(ctx context.Context, src io.Reader, path string, v video, flight *flight) error {
-	f, err := os.CreateTemp(s.cfg.CacheDir, "download-*.part")
+	f, err := os.CreateTemp(s.cfg.tempDir(), "download-*.part")
 	if err != nil {
 		return err
 	}
@@ -191,7 +183,7 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 	}
 	// Streaming readers retain the spool handle. Copy verified bytes to a closed
 	// publication file so Windows can rename it without invalidating active reads.
-	final, err := os.CreateTemp(s.cfg.CacheDir, "download-publish-*.part")
+	final, err := os.CreateTemp(s.cfg.tempDir(), "download-publish-*.part")
 	if err != nil {
 		return err
 	}

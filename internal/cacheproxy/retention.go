@@ -6,12 +6,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strings"
 	"time"
 )
 
-var cacheVideoName = regexp.MustCompile(`^[0-9a-f]{64}\.mp4$`)
-var songDirectoryName = regexp.MustCompile(`^[1-9][0-9]*$`)
+var cacheVideoName = regexp.MustCompile(`^([1-9][0-9]*)-([0-9a-f]{64})\.mp4$`)
 
 type retainedVideo struct {
 	path, id, key string
@@ -32,13 +30,18 @@ func retentionScore(count, last, now int64) float64 {
 func (s *Server) pinVideo(v video) {
 	s.retentionMu.Lock()
 	s.pins[v.id]++
-	s.versions[v.key] = v.id
+	s.versionPins[v.key]++
 	s.retentionMu.Unlock()
 }
 
 func (s *Server) releaseVideo(v video) {
 	s.retentionMu.Lock()
 	s.pins[v.id]--
+	s.versionPins[v.key]--
+	if s.versionPins[v.key] == 0 {
+		delete(s.versionPins, v.key)
+		s.cleanSupersededLocked(v.id)
+	}
 	lastReference := s.pins[v.id] == 0
 	if lastReference {
 		delete(s.pins, v.id)
@@ -82,25 +85,13 @@ func (s *Server) trimCacheLocked() error {
 		total += item.size
 		return nil
 	}
-	entries, err := os.ReadDir(s.cfg.SongsDir)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	for _, entry := range entries {
-		if entry.IsDir() && entry.Type()&os.ModeSymlink == 0 && songDirectoryName.MatchString(entry.Name()) {
-			if err := add(filepath.Join(s.cfg.SongsDir, entry.Name(), "video.mp4"), entry.Name(), ""); err != nil {
-				return err
-			}
-		}
-	}
-	entries, err = os.ReadDir(s.cfg.CacheDir)
+	entries, err := os.ReadDir(s.cfg.videosDir())
 	if err != nil {
 		return err
 	}
 	for _, entry := range entries {
-		if cacheVideoName.MatchString(entry.Name()) {
-			key := strings.TrimSuffix(entry.Name(), ".mp4")
-			if err := add(filepath.Join(s.cfg.CacheDir, entry.Name()), s.versions[key], key); err != nil {
+		if match := cacheVideoName.FindStringSubmatch(entry.Name()); match != nil {
+			if err := add(filepath.Join(s.cfg.videosDir(), entry.Name()), match[1], match[2]); err != nil {
 				return err
 			}
 		}
@@ -131,33 +122,9 @@ func (s *Server) trimCacheLocked() error {
 		if err != nil {
 			return err
 		}
-		// Load historical mappings once; pinVideo tracks every new version.
-		if !s.versionsLoaded {
-			rows, err = s.usage.db.Query(`SELECT DISTINCT version_key, song_id FROM request_events`)
-			if err != nil {
-				return err
-			}
-			for rows.Next() {
-				var key, id string
-				if err := rows.Scan(&key, &id); err != nil {
-					rows.Close()
-					return err
-				}
-				s.versions[key] = id
-			}
-			err = rows.Err()
-			rows.Close()
-			if err != nil {
-				return err
-			}
-			s.versionsLoaded = true
-		}
 	}
 	for i := range videos {
 		item := &videos[i]
-		if item.key != "" {
-			item.id = s.versions[item.key]
-		}
 		usage := stats[item.id]
 		item.score = usage.score
 		if usage.recent != 0 {
@@ -171,10 +138,6 @@ func (s *Server) trimCacheLocked() error {
 		}
 		if a.recent != b.recent {
 			return a.recent < b.recent
-		}
-		// Prefer dropping the redundant cache copy on ties.
-		if (a.key != "") != (b.key != "") {
-			return a.key != ""
 		}
 		return a.path < b.path
 	})

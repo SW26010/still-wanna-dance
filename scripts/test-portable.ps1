@@ -22,8 +22,7 @@ try {
         try { $status = Invoke-RestMethod "$url/api/status" -TimeoutSec 1; break } catch { Start-Sleep -Milliseconds 250 }
     }
     if ($null -eq $status) { throw 'Portable startup timed out.' }
-    if ($status.settings.songsDir -ne (Join-Path $folder 'wannadance-song')) { throw 'Songs path is not relative to the executable.' }
-    if ($status.settings.cacheDir -ne (Join-Path $folder 'stepstash-cache')) { throw 'Cache path is not relative to the executable.' }
+    if ($status.settings.storageDir -ne (Join-Path $folder 'stepstash-data')) { throw 'Storage path is not relative to the executable.' }
     if (!(Test-Path -LiteralPath (Join-Path $folder 'stepstash-console.json.lock'))) { throw 'Config lock missing beside executable.' }
     $page = Invoke-WebRequest $url -UseBasicParsing
     if ($page.Content -notmatch 'StepStash') { throw 'Embedded UI missing.' }

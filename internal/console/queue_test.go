@@ -55,8 +55,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	c.apiBase = api.URL
 	c.client.Transport = http.DefaultTransport
 	cfg := cacheproxy.DefaultConfig()
-	cfg.SongsDir = c.settings.SongsDir
-	cfg.CacheDir = c.settings.CacheDir
+	cfg.StorageDir = c.settings.StorageDir
 	cfg.Origins["nya.xin.moe"] = strings.TrimPrefix(origin.URL, "http://")
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
@@ -106,10 +105,10 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	if requests["1"] != 1 || requests["4"] != 1 || requests["5"] != 1 || len(requests) != 3 {
 		t.Fatal(requests)
 	}
-	if _, err = os.Stat(c.settings.SongsDir + "/1/video.mp4"); !os.IsNotExist(err) {
+	if _, err = os.Stat(fixtureVideoPath(c.settings.StorageDir, "1", body)); !os.IsNotExist(err) {
 		t.Fatal("removed song downloaded", err)
 	}
-	if _, err = os.Stat(c.settings.SongsDir + "/4/video.mp4"); err != nil {
+	if _, err = os.Stat(fixtureVideoPath(c.settings.StorageDir, "4", body)); err != nil {
 		t.Fatal(err)
 	}
 }

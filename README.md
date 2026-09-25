@@ -2,9 +2,9 @@
 
 面向 VRChat WannaDance 的本地视频缓存服务项目。
 
-已有可运行的 Go MVP：HTTP 视频缓存、冷缓存边下边播、完整性校验、Range/HEAD、同曲并发合并及现有歌曲库直接复用。使用方式见 [MVP 手册](docs/mvp.md)，实网、原版回读及 VRChat 联合测试的结果和边界见[验收记录](docs/acceptance.md)。
+已有可运行的 Go MVP：HTTP 视频缓存、冷缓存边下边播、完整性校验、Range/HEAD、同曲并发合并及统一版本存储。使用方式见 [MVP 手册](docs/mvp.md)，实网、原版回读及 VRChat 联合测试的结果和边界见[验收记录](docs/acceptance.md)。
 
-当前版本 `c69e844` 已完成新增功能的[联合实机验收](docs/release-acceptance-20260925.md)：CF/HKG 冷缓存、Auto、在线队列预缓存、请求统计、容量淘汰、托盘退出/重启及 hosts 提权接入/恢复均通过本轮样本，可用于日常使用；SHA 和上游慢连接仍有明确限制。
+历史版本 `c69e844` 已完成新增功能的[联合实机验收](docs/release-acceptance-20260925.md)：CF/HKG 冷缓存、Auto、在线队列预缓存、请求统计、容量淘汰、托盘退出/重启及 hosts 提权接入/恢复均通过当时样本；当前存储重构以自动化测试为验证依据，尚未重新进行联合实机验收；SHA 和上游慢连接仍有明确限制。
 
 已加入本地 SQLite 歌曲请求统计，保存逐次请求明细及次数/时间汇总，用于按频次和时间衰减计算缓存保留优先级；预缓存不计入热度。可设置视频容量上限，超限自动淘汰低优先级视频，默认不限。详见[缓存优先级与上限](docs/cache-retention.md)。记录口径和存储位置见 [歌曲请求统计](docs/mvp.md#歌曲请求统计)。
 
@@ -19,7 +19,7 @@
 | [MVP 使用手册](docs/mvp.md) | 构建、启动、接入、配置、缓存规则与验证边界 |
 | [MVP 验收记录](docs/acceptance.md) | 真实歌曲库、实网下载、原版回读、联合游戏测试和修复结果 |
 | [范围与实现方向](docs/scope.md) | 项目目标、第一版范围、提议中的设计与尚未决定的事项 |
-| [存储格式与现有库兼容](docs/storage-compatibility.md) | 直接复用 wannadance-song，保留现有文件并沿用目录格式 |
+| [统一存储](docs/storage.md) | 一个根目录、平铺版本视频、SQLite 歌曲与版本信息 |
 | [已知协议与行为](docs/observed-behavior.md) | 播放链路、HTTP 接口、Range、元数据和原版异常 |
 | [CDN 与网络路由](docs/cdn-routing.md) | UI 选项的真实映射、域名/端口、Host/SNI 与分流要求 |
 | [测试结果](docs/test-results.md) | 两轮原版及游戏测试、证据编号和结论边界 |

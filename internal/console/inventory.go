@@ -9,18 +9,16 @@ import (
 	"time"
 )
 
-// Inventory counts files, not verified checksums or unique songs across stores.
+// Inventory counts canonical video files; integrity is checked on use.
 type Inventory struct {
-	Library  int       `json:"library"`
-	Cache    int       `json:"cache"`
+	Videos   int       `json:"videos"`
 	Bytes    int64     `json:"bytes"`
 	Scanning bool      `json:"scanning"`
 	Updated  time.Time `json:"updated"`
 	Error    string    `json:"error"`
 }
 
-var libraryID = regexp.MustCompile(`^[1-9][0-9]*$`)
-var cacheName = regexp.MustCompile(`^[0-9a-f]{64}\.mp4$`)
+var cacheName = regexp.MustCompile(`^[1-9][0-9]*-[0-9a-f]{64}\.mp4$`)
 
 func scanInventory(s Settings) Inventory {
 	var result Inventory
@@ -39,20 +37,22 @@ func scanInventory(s Settings) Inventory {
 			result.Bytes += info.Size()
 		}
 	}
-	for _, dir := range []struct {
-		path    string
-		library bool
-	}{{s.SongsDir, true}, {s.CacheDir, false}} {
-		entries, err := os.ReadDir(dir.path)
-		if err != nil {
-			problems = append(problems, fmt.Sprintf("无法读取 %s：%v", dir.path, err))
-			continue
+	dir := filepath.Join(s.StorageDir, "videos")
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		// Saving a fresh storage root does not start the engine or create videos.
+		// Only an existing, empty root is uninitialized; lost/unreadable stores
+		// and initialized stores missing videos must still preserve prior results.
+		if rootEntries, rootErr := os.ReadDir(s.StorageDir); rootErr == nil && len(rootEntries) == 0 {
+			err = nil
 		}
+	}
+	if err != nil {
+		problems = append(problems, fmt.Sprintf("无法读取 %s：%v", dir, err))
+	} else {
 		for _, entry := range entries {
-			if dir.library && entry.IsDir() && entry.Type()&os.ModeSymlink == 0 && libraryID.MatchString(entry.Name()) {
-				add(filepath.Join(dir.path, entry.Name(), "video.mp4"), &result.Library)
-			} else if !dir.library && cacheName.MatchString(entry.Name()) {
-				add(filepath.Join(dir.path, entry.Name()), &result.Cache)
+			if cacheName.MatchString(entry.Name()) {
+				add(filepath.Join(dir, entry.Name()), &result.Videos)
 			}
 		}
 	}

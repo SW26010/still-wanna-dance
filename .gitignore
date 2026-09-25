@@ -19,6 +19,7 @@ Thumbs.db
 .DS_Store
 
 # StepStash runtime/build outputs
+/stepstash-data/
 /stepstash-cache/
 /bin/
 /coverage.out

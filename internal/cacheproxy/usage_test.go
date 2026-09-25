@@ -53,7 +53,7 @@ func TestUsageReverseCompletion(t *testing.T) {
 			release.Do(func() { close(w.release) })
 			<-done
 			s.Close()
-			path := filepath.Join(cfg.SongsDir, ".stepstash-usage.sqlite")
+			path := filepath.Join(cfg.StorageDir, "stepstash.sqlite")
 			get, demand, _, _ := usageCounts(t, path, "1344")
 			want := int64(1)
 			if gap >= 30 {
@@ -160,11 +160,11 @@ func TestUsageHTTPAndPrefetch(t *testing.T) {
 	otherHost := strings.Replace(videoURL(payload), "play.udon.dance", "nya.xin.moe", 1)
 	assertResponse(t, request(s, "GET", otherHost, map[string]string{"Range": "bytes=0-3"}), 206, payload[:4])
 	s.Close()
-	get, demand, _, _ := usageCounts(t, filepath.Join(cfg.SongsDir, ".stepstash-usage.sqlite"), "1344")
+	get, demand, _, _ := usageCounts(t, filepath.Join(cfg.StorageDir, "stepstash.sqlite"), "1344")
 	if get != 2 || demand != 1 {
 		t.Fatalf("HTTP stats: %d %d", get, demand)
 	}
-	db, err := sql.Open("sqlite", filepath.Join(cfg.SongsDir, ".stepstash-usage.sqlite"))
+	db, err := sql.Open("sqlite", filepath.Join(cfg.StorageDir, "stepstash.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,26 +218,29 @@ func TestUsageCountsFailedDemand(t *testing.T) {
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(503) })
 	request(s, "GET", videoURL(payload), nil)
 	s.Close()
-	get, demand, _, _ := usageCounts(t, filepath.Join(cfg.SongsDir, ".stepstash-usage.sqlite"), "1344")
+	get, demand, _, _ := usageCounts(t, filepath.Join(cfg.StorageDir, "stepstash.sqlite"), "1344")
 	if get != 1 || demand != 1 {
 		t.Fatalf("failed demand: %d %d", get, demand)
 	}
 }
 
-func TestUsageUnavailableDoesNotBlockVideo(t *testing.T) {
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+func TestDatabaseUnavailableBlocksStartup(t *testing.T) {
+	s, cfg := setup(t, nil)
 	s.Close()
-	cfg.StatsPath = filepath.Join(t.TempDir(), "bad.sqlite")
-	if err := os.WriteFile(cfg.StatsPath, []byte("not a database"), 0600); err != nil {
+	dbPath := filepath.Join(cfg.StorageDir, "stepstash.sqlite")
+	if err := os.WriteFile(dbPath, []byte("not a database"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	s, err := New(cfg)
+	if reopened, err := New(cfg); err == nil {
+		reopened.Close()
+		t.Fatal("corrupt canonical database accepted")
+	}
+	if err := os.Remove(dbPath); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := New(cfg)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("failed startup retained ownership", err)
 	}
-	defer s.Close()
-	if s.usage != nil {
-		t.Fatal("corrupt database should disable statistics")
-	}
-	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
+	reopened.Close()
 }

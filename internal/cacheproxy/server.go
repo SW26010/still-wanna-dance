@@ -35,42 +35,36 @@ type flight struct {
 }
 
 type Server struct {
-	cfg            Config
-	client         *http.Client
-	ctx            context.Context
-	cancel         context.CancelFunc
-	mu             sync.Mutex
-	flights        map[string]*flight
-	slots          chan struct{}
-	wg             sync.WaitGroup
-	closed         bool
-	unlock         func() error
-	once           sync.Once
-	libraryMu      sync.Mutex
-	sequence       atomic.Uint64
-	usage          *usageStore
-	retentionMu    sync.Mutex
-	pins           map[string]int
-	versions       map[string]string
-	versionsLoaded bool
+	cfg           Config
+	client        *http.Client
+	ctx           context.Context
+	cancel        context.CancelFunc
+	mu            sync.Mutex
+	flights       map[string]*flight
+	slots         chan struct{}
+	wg            sync.WaitGroup
+	closed        bool
+	unlock        func() error
+	once          sync.Once
+	sequence      atomic.Uint64
+	usage         *usageStore
+	retentionMu   sync.Mutex
+	pins          map[string]int
+	currentMu     sync.Mutex
+	currentLocks  map[string]*songConfirmation
+	versionPins   map[string]int
+	cleanupNeeded map[string]bool
 }
 
 func New(cfg Config) (*Server, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
-	cacheDir, err := filepath.Abs(cfg.CacheDir)
+	root, err := filepath.Abs(cfg.StorageDir)
 	if err != nil {
 		return nil, err
 	}
-	songsDir, err := filepath.Abs(cfg.SongsDir)
-	if err != nil {
-		return nil, err
-	}
-	if strings.EqualFold(cacheDir, songsDir) {
-		return nil, errors.New("cache-dir and songs-dir must be separate directories")
-	}
-	cfg.CacheDir, cfg.SongsDir = cacheDir, songsDir
+	cfg.StorageDir = root
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
@@ -79,21 +73,27 @@ func New(cfg Config) (*Server, error) {
 		origins[host] = addr
 	}
 	cfg.Origins = origins
-	if err := os.MkdirAll(cfg.CacheDir, 0700); err != nil {
+	if err := os.MkdirAll(cfg.StorageDir, 0700); err != nil {
 		return nil, err
 	}
-	unlock, err := lockDirectory(filepath.Join(cfg.CacheDir, ".lock"))
+	unlock, err := lockDirectory(filepath.Join(cfg.StorageDir, ".lock"))
 	if err != nil {
 		return nil, fmt.Errorf("lock cache directory (another process may own it): %w", err)
 	}
+	for _, dir := range []string{cfg.videosDir(), cfg.tempDir()} {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			unlock()
+			return nil, err
+		}
+	}
 	// The OS lock is released after a crash. Only our own partial files are removed.
-	entries, err := os.ReadDir(cfg.CacheDir)
+	entries, err := os.ReadDir(cfg.tempDir())
 	if err == nil {
 		for _, entry := range entries {
 			if !strings.HasPrefix(entry.Name(), "download-") || !strings.HasSuffix(entry.Name(), ".part") || entry.IsDir() {
 				continue
 			}
-			if err = os.Remove(filepath.Join(cfg.CacheDir, entry.Name())); err != nil {
+			if err = os.Remove(filepath.Join(cfg.tempDir(), entry.Name())); err != nil {
 				break
 			}
 		}
@@ -107,19 +107,20 @@ func New(cfg Config) (*Server, error) {
 	if cfg.DialContext != nil {
 		transport.DialContext = cfg.DialContext
 	}
-	if cfg.StatsPath == "" {
-		cfg.StatsPath = filepath.Join(cfg.SongsDir, ".stepstash-usage.sqlite")
-	}
-	usage, usageErr := openUsage(cfg.StatsPath, cfg.Logger)
+
+	usage, usageErr := openUsage(filepath.Join(cfg.StorageDir, "stepstash.sqlite"), cfg.Logger)
 	if usageErr != nil {
-		cfg.Logger.Error("usage_disabled", "error", usageErr)
+		cancel()
+		unlock()
+		return nil, fmt.Errorf("open storage database: %w", usageErr)
 	}
 	s := &Server{cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
-		pins: make(map[string]int), versions: make(map[string]string),
+		pins: make(map[string]int), versionPins: make(map[string]int), cleanupNeeded: make(map[string]bool),
 		usage:   usage,
 		flights: make(map[string]*flight), slots: make(chan struct{}, cfg.MaxDownloads),
 		client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
+	s.cleanSupersededOnStartup()
 	s.trimCache()
 	return s, nil
 }

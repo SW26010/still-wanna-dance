@@ -4,38 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 )
 
-func TestSettingsDirectoryContainment(t *testing.T) {
-	root := string(filepath.Separator)
-	if runtime.GOOS == "windows" {
-		root = `D:\`
+func TestSettingsStorageRoot(t *testing.T) {
+	if _, err := absoluteSettings(Settings{}); err == nil {
+		t.Fatal("empty storage root accepted")
 	}
-	for _, tc := range []struct {
-		name, songs, cache string
-		valid              bool
-	}{
-		{"root parent", root, filepath.Join(root, "stepstash-cache"), false},
-		{"root child", filepath.Join(root, "songs"), root, false},
-		{"equal", filepath.Join(root, "songs"), filepath.Join(root, "songs"), false},
-		{"nested", filepath.Join(root, "songs"), filepath.Join(root, "songs", "cache"), false},
-		{"siblings", filepath.Join(root, "songs"), filepath.Join(root, "cache"), true},
-		{"prefix siblings", filepath.Join(root, "songs"), filepath.Join(root, "songs-cache"), true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := absoluteSettings(Settings{SongsDir: tc.songs, CacheDir: tc.cache})
-			if (err == nil) != tc.valid {
-				t.Fatalf("valid=%v, error=%v", tc.valid, err)
-			}
-		})
-	}
-	if runtime.GOOS == "windows" {
-		if _, err := absoluteSettings(Settings{SongsDir: `D:\songs`, CacheDir: `E:\cache`}); err != nil {
-			t.Fatal(err)
-		}
+	s, err := absoluteSettings(Settings{StorageDir: "data"})
+	if err != nil || !filepath.IsAbs(s.StorageDir) {
+		t.Fatal(s, err)
 	}
 }
 

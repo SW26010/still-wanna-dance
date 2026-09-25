@@ -21,7 +21,7 @@ func TestActionLoggingDoesNotLogPollingOrToken(t *testing.T) {
 	if output.Len() != 0 {
 		t.Fatal("polling logged", output.String())
 	}
-	r := httptest.NewRequest("POST", "http://"+c.address+"/api/settings", strings.NewReader(`{"songsDir":"","cacheDir":""}`))
+	r := httptest.NewRequest("POST", "http://"+c.address+"/api/settings", strings.NewReader(`{"storageDir":""}`))
 	r.Header.Set("X-StepStash-Token", c.token)
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, r)

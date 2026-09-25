@@ -18,10 +18,10 @@ func TestPortableSettingsMove(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.settings.SongsDir != filepath.Join(original, "wannadance-song") {
+	if c.settings.StorageDir != filepath.Join(original, "stepstash-data") {
 		t.Fatal(c.settings)
 	}
-	if err := c.save(Settings{SongsDir: "songs", CacheDir: "cache", LogDir: external}); err != nil {
+	if err := c.save(Settings{StorageDir: "data", LogDir: external}); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(c.configPath)
@@ -32,7 +32,7 @@ func TestPortableSettingsMove(t *testing.T) {
 	if err := json.Unmarshal(b, &saved); err != nil {
 		t.Fatal(err)
 	}
-	if saved.SongsDir != "songs" || saved.CacheDir != "cache" || saved.LogDir != external {
+	if saved.StorageDir != "data" || saved.LogDir != external {
 		t.Fatal(saved)
 	}
 	moved := filepath.Join(root, "moved folder")
@@ -43,7 +43,7 @@ func TestPortableSettingsMove(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reopened.settings.SongsDir != filepath.Join(moved, "songs") || reopened.settings.CacheDir != filepath.Join(moved, "cache") || reopened.settings.LogDir != external {
+	if reopened.settings.StorageDir != filepath.Join(moved, "data") || reopened.settings.LogDir != external {
 		t.Fatal(reopened.settings)
 	}
 }

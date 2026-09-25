@@ -34,7 +34,7 @@ func TestRetentionScore(t *testing.T) {
 		t.Fatal("frequency/aging order")
 	}
 }
-func TestRetentionPriorityAndCopies(t *testing.T) {
+func TestRetentionPriorityAndVersions(t *testing.T) {
 	s, cfg := setup(t, nil)
 	now := time.Now().UnixMilli()
 	for _, e := range []usageEvent{{id: "1", at: now, summaryOnly: true}, {id: "2", at: now - (100 * 24 * time.Hour).Milliseconds(), summaryOnly: true}} {
@@ -42,15 +42,14 @@ func TestRetentionPriorityAndCopies(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	hot := filepath.Join(cfg.SongsDir, "1", "video.mp4")
-	cold := filepath.Join(cfg.SongsDir, "2", "video.mp4")
-	prefetch := filepath.Join(cfg.SongsDir, "3", "video.mp4")
-	metadata := filepath.Join(cfg.SongsDir, "2", "metadata.json")
-	copyPath := filepath.Join(cfg.CacheDir, strings.Repeat("a", 64)+".mp4")
+	hot := retainedPath(t, s, cfg, "1")
+	cold := retainedPath(t, s, cfg, "2")
+	prefetch := retainedPath(t, s, cfg, "3")
+	metadata := filepath.Join(cfg.StorageDir, "notes.json")
+	copyPath := cfg.videoFile("1", strings.Repeat("0", 64))
 	for _, p := range []string{hot, cold, prefetch, copyPath, metadata} {
 		putRetained(t, p, 10)
 	}
-	s.versions[strings.Repeat("a", 64)] = "1"
 	s.cfg.MaxCacheBytes = 20
 	s.trimCache()
 	expectRetained(t, hot, true)
@@ -65,12 +64,12 @@ func TestRetentionPriorityAndCopies(t *testing.T) {
 }
 func TestRetentionPinsAndUnlimited(t *testing.T) {
 	s, cfg := setup(t, nil)
-	p := filepath.Join(cfg.SongsDir, "1", "video.mp4")
+	p := retainedPath(t, s, cfg, "1")
 	putRetained(t, p, 10)
 	s.trimCache()
 	expectRetained(t, p, true)
 	s.cfg.MaxCacheBytes = 1
-	v := video{id: "1", key: strings.Repeat("a", 64)}
+	v := video{id: "1", key: strings.Repeat("1", 64)}
 	s.pinVideo(v)
 	s.pinVideo(v)
 	s.trimCache()
@@ -82,11 +81,10 @@ func TestRetentionPinsAndUnlimited(t *testing.T) {
 }
 func TestRetentionStartupAndUnknownFiles(t *testing.T) {
 	cfg := DefaultConfig()
-	cfg.CacheDir = t.TempDir()
-	cfg.SongsDir = t.TempDir()
+	cfg.StorageDir = t.TempDir()
 	cfg.MaxCacheBytes = 1
-	p := filepath.Join(cfg.SongsDir, "1", "video.mp4")
-	unknown := filepath.Join(cfg.CacheDir, "personal.mp4")
+	p := cfg.videoFile("1", strings.Repeat("a", 64))
+	unknown := filepath.Join(cfg.videosDir(), "personal.mp4")
 	putRetained(t, p, 10)
 	putRetained(t, unknown, 10)
 	s, err := New(cfg)
@@ -105,15 +103,15 @@ func TestOversizedVideoStillServed(t *testing.T) {
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
-	expectRetained(t, filepath.Join(cfg.SongsDir, "1344", "video.mp4"), false)
-	files, err := filepath.Glob(filepath.Join(cfg.CacheDir, "*.mp4"))
+	expectRetained(t, testVideoFile(t, cfg, payload), false)
+	files, err := filepath.Glob(filepath.Join(cfg.videosDir(), "*.mp4"))
 	if err != nil || len(files) != 0 {
 		t.Fatalf("retained %v: %v", files, err)
 	}
 }
 func TestPrefetchDoesNotDisplacePopularVideo(t *testing.T) {
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(payload)) })
-	p := filepath.Join(cfg.SongsDir, "1", "video.mp4")
+	p := retainedPath(t, s, cfg, "1")
 	putRetained(t, p, len(payload))
 	s.usage.startDemand("1")
 	s.cfg.MaxCacheBytes = int64(len(payload))
@@ -122,18 +120,18 @@ func TestPrefetchDoesNotDisplacePopularVideo(t *testing.T) {
 	}
 	s.Close()
 	expectRetained(t, p, true)
-	expectRetained(t, filepath.Join(cfg.SongsDir, "1344", "video.mp4"), false)
+	expectRetained(t, testVideoFile(t, cfg, payload), false)
 }
 
 func TestProtectedLowPriorityDoesNotEvictHotVideo(t *testing.T) {
 	s, cfg := setup(t, nil)
-	hot := filepath.Join(cfg.SongsDir, "1", "video.mp4")
-	low := filepath.Join(cfg.SongsDir, "2", "video.mp4")
+	hot := retainedPath(t, s, cfg, "1")
+	low := retainedPath(t, s, cfg, "2")
 	putRetained(t, hot, 10)
 	putRetained(t, low, 10)
 	s.usage.startDemand("1")
 	s.cfg.MaxCacheBytes = 10
-	v := video{id: "2", key: strings.Repeat("b", 64)}
+	v := video{id: "2", key: strings.Repeat("2", 64)}
 	s.pinVideo(v)
 	s.trimCache()
 	expectRetained(t, hot, true)
@@ -145,7 +143,7 @@ func TestProtectedLowPriorityDoesNotEvictHotVideo(t *testing.T) {
 
 func TestRetentionProtectsActiveHTTPResponse(t *testing.T) {
 	s, cfg := setup(t, nil)
-	p := filepath.Join(cfg.SongsDir, "1344", "video.mp4")
+	p := testVideoFile(t, cfg, payload)
 	if err := os.MkdirAll(filepath.Dir(p), 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -177,8 +175,8 @@ func TestRetentionProtectsActiveHTTPResponse(t *testing.T) {
 
 func TestReleaseOnlyCleansAfterLastReference(t *testing.T) {
 	s, cfg := setup(t, nil)
-	hot := filepath.Join(cfg.SongsDir, "1", "video.mp4")
-	cold := filepath.Join(cfg.SongsDir, "2", "video.mp4")
+	hot := retainedPath(t, s, cfg, "1")
+	cold := retainedPath(t, s, cfg, "2")
 	putRetained(t, hot, 10)
 	putRetained(t, cold, 10)
 	s.usage.startDemand("1")
@@ -196,7 +194,7 @@ func TestReleaseOnlyCleansAfterLastReference(t *testing.T) {
 
 func TestRetentionWithinLimitSkipsUsageDatabase(t *testing.T) {
 	s, cfg := setup(t, nil)
-	p := filepath.Join(cfg.SongsDir, "1", "video.mp4")
+	p := retainedPath(t, s, cfg, "1")
 	putRetained(t, p, 10)
 	// A closed store makes any unnecessary statistics query fail deterministically.
 	s.usage.close()
@@ -214,28 +212,24 @@ func TestRetentionWithinLimitSkipsUsageDatabase(t *testing.T) {
 	expectRetained(t, p, true)
 }
 
-func TestRetentionLoadsHistoricalMappingOnlyWhenOverLimit(t *testing.T) {
+func TestRetentionUsesSongIDFromFilename(t *testing.T) {
 	s, cfg := setup(t, nil)
 	key := strings.Repeat("a", 64)
-	hot := filepath.Join(cfg.CacheDir, key+".mp4")
-	cold := filepath.Join(cfg.SongsDir, "2", "video.mp4")
+	hot := cfg.videoFile("1", key)
+	cold := retainedPath(t, s, cfg, "2")
 	putRetained(t, hot, 10)
 	putRetained(t, cold, 10)
 	now := time.Now().UnixMilli()
 	if err := s.usage.write([]usageEvent{
 		{id: "1", at: now, summaryOnly: true},
-		{id: "1", at: now, key: key},
 	}); err != nil {
 		t.Fatal(err)
 	}
 	s.cfg.MaxCacheBytes = 20
 	s.trimCache()
-	if s.versionsLoaded {
-		t.Fatal("within-limit scan loaded historical mappings")
-	}
 	s.cfg.MaxCacheBytes = 10
 	s.trimCache()
-	// The post-scan mapping must still assign the cached copy its song's heat.
+	// No version lookup or request history is needed to identify the song.
 	expectRetained(t, hot, true)
 	expectRetained(t, cold, false)
 }

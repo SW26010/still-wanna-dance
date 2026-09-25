@@ -12,7 +12,7 @@ type savedSnapshot[T any] struct {
 }
 
 func sameLibrary(a, b Settings) bool {
-	return a.SongsDir == b.SongsDir && a.CacheDir == b.CacheDir
+	return a.StorageDir == b.StorageDir
 }
 
 // Replace atomically, so interruption or a failed write leaves the last good file.

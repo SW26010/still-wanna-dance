@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,8 +29,7 @@ var page string
 
 type Settings struct {
 	MaxCacheBytes int64  `json:"maxCacheBytes"`
-	SongsDir      string `json:"songsDir"`
-	CacheDir      string `json:"cacheDir"`
+	StorageDir    string `json:"storageDir"`
 	LogDir        string `json:"logDir"`
 }
 
@@ -72,7 +72,7 @@ func New(configPath, address string) (*Console, error) {
 		return nil, err
 	}
 	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", token: hex.EncodeToString(b), apiBase: "http://api.udon.dance", client: &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{Proxy: nil}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
-	c.settings = Settings{SongsDir: "wannadance-song", CacheDir: "stepstash-cache"}
+	c.settings = Settings{StorageDir: "stepstash-data"}
 	c.dns = &directDNS{}
 	c.client.Transport = &http.Transport{DialContext: c.dns.DialContext, ResponseHeaderTimeout: 20 * time.Second}
 	if b, err := os.ReadFile(configPath); err == nil {
@@ -91,7 +91,7 @@ func New(configPath, address string) (*Console, error) {
 
 // Relative paths belong to the configuration, independent of the launch directory.
 func (c *Console) resolveSettings(s Settings) (Settings, error) {
-	for _, p := range []*string{&s.SongsDir, &s.CacheDir, &s.LogDir} {
+	for _, p := range []*string{&s.StorageDir, &s.LogDir} {
 		if strings.TrimSpace(*p) != "" && !filepath.IsAbs(*p) {
 			*p = filepath.Join(filepath.Dir(c.configPath), *p)
 		}
@@ -99,10 +99,10 @@ func (c *Console) resolveSettings(s Settings) (Settings, error) {
 	return absoluteSettings(s)
 }
 
-// Keep directories inside the portable folder movable; external libraries stay absolute.
+// Keep directories inside the portable folder movable; external stores stay absolute.
 func (c *Console) storedSettings(s Settings) Settings {
 	base := filepath.Dir(c.configPath)
-	for _, p := range []*string{&s.SongsDir, &s.CacheDir, &s.LogDir} {
+	for _, p := range []*string{&s.StorageDir, &s.LogDir} {
 		if pathContains(base, *p) {
 			if rel, err := filepath.Rel(base, *p); err == nil {
 				*p = rel
@@ -124,23 +124,12 @@ func absoluteSettings(s Settings) (Settings, error) {
 	if logErr != nil {
 		return s, logErr
 	}
-	if strings.TrimSpace(s.SongsDir) == "" || strings.TrimSpace(s.CacheDir) == "" {
-		return s, errors.New("请填写歌曲库和临时缓存目录")
+	if strings.TrimSpace(s.StorageDir) == "" {
+		return s, errors.New("请填写存储目录")
 	}
 	var err error
-	s.SongsDir, err = filepath.Abs(s.SongsDir)
-	if err != nil {
-		return s, err
-	}
-	s.CacheDir, err = filepath.Abs(s.CacheDir)
-	if err != nil {
-		return s, err
-	}
-	a, b := strings.ToLower(s.SongsDir), strings.ToLower(s.CacheDir)
-	if pathContains(a, b) || pathContains(b, a) {
-		return s, errors.New("歌曲库和临时缓存必须是互不包含的独立目录")
-	}
-	return s, nil
+	s.StorageDir, err = filepath.Abs(s.StorageDir)
+	return s, err
 }
 
 func pathContains(parent, child string) bool {
@@ -179,10 +168,8 @@ func (c *Console) save(s Settings) error {
 	if err != nil {
 		return err
 	}
-	for _, p := range []string{s.SongsDir, s.CacheDir} {
-		if err = writableDir(p); err != nil {
-			return fmt.Errorf("目录不可写：%w", err)
-		}
+	if err = writableDir(s.StorageDir); err != nil {
+		return fmt.Errorf("目录不可写：%w", err)
 	}
 	if err = os.MkdirAll(filepath.Dir(c.configPath), 0700); err != nil {
 		return err
@@ -208,7 +195,7 @@ func (c *Console) save(s Settings) error {
 	if changedLibrary {
 		c.loadSnapshots()
 	}
-	slog.Info("settings_saved", "songs_dir", s.SongsDir, "cache_dir", s.CacheDir, "vrchat_log_dir", s.LogDir)
+	slog.Info("settings_saved", "storage_dir", s.StorageDir, "vrchat_log_dir", s.LogDir)
 	if c.service != nil {
 		_ = c.service.Close()
 		c.service = nil
@@ -221,18 +208,21 @@ func (c *Console) ensureEngine() error {
 	if c.service != nil {
 		return nil
 	}
-	for _, p := range []string{c.settings.SongsDir, c.settings.CacheDir} {
-		if err := writableDir(p); err != nil {
-			return fmt.Errorf("缓存目录不可写：%w", err)
-		}
+	if err := writableDir(c.settings.StorageDir); err != nil {
+		return fmt.Errorf("存储目录不可写：%w", err)
 	}
 	cfg := cacheproxy.DefaultConfig()
 	cfg.Logger = slog.Default().With("component", "cache")
-	cfg.SongsDir = c.settings.SongsDir
-	cfg.CacheDir = c.settings.CacheDir
+	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
-	cfg.StatsPath = filepath.Join(filepath.Dir(c.configPath), "stepstash-usage.sqlite")
 	cfg.DialContext = c.dns.DialContext
+	cfg.ResolveCurrent = func(ctx context.Context, id string) (string, error) {
+		songID, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			return "", err
+		}
+		return c.resolve(ctx, songID)
+	}
 	s, err := cacheproxy.New(cfg)
 	if err != nil {
 		return err

@@ -131,10 +131,8 @@ func (c *Console) startBatchMode(scanOnly bool) error {
 		return errors.New("请先停止队列预缓存")
 	}
 	if scanOnly {
-		for _, dir := range []string{c.settings.SongsDir, c.settings.CacheDir} {
-			if _, err := os.ReadDir(dir); err != nil {
-				return fmt.Errorf("无法扫描目录 %s：%w", dir, err)
-			}
+		if _, err := os.ReadDir(c.settings.StorageDir); err != nil {
+			return fmt.Errorf("无法扫描目录 %s：%w", c.settings.StorageDir, err)
 		}
 	}
 	if !scanOnly {
@@ -210,14 +208,17 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		if err == nil {
 			if scanOnly {
 				var hit bool
-				hit, err = cacheproxy.CheckLocal(ctx, settings.SongsDir, settings.CacheDir, target)
+				hit, err = cacheproxy.CheckLocal(ctx, settings.StorageDir, target)
 				if hit {
 					source = "HIT"
 				} else {
 					source = "MISSING"
 				}
 			} else {
-				source, err = s.Prefetch(ctx, target)
+				err = s.SetSongTitle(ctx, strconv.FormatInt(song.ID, 10), song.Name)
+				if err == nil {
+					source, err = s.Prefetch(ctx, target)
+				}
 			}
 		}
 		if ctx.Err() != nil {
@@ -244,13 +245,11 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		}
 	}
 	if scanOnly {
-		for _, dir := range []string{settings.SongsDir, settings.CacheDir} {
-			if _, err := os.ReadDir(dir); err != nil {
-				c.mu.Lock()
-				c.batch.Phase = "扫描目录已不可用，上次结果保留：" + err.Error()
-				c.mu.Unlock()
-				return
-			}
+		if _, err := os.ReadDir(settings.StorageDir); err != nil {
+			c.mu.Lock()
+			c.batch.Phase = "扫描目录已不可用，上次结果保留：" + err.Error()
+			c.mu.Unlock()
+			return
 		}
 	}
 	completed = true

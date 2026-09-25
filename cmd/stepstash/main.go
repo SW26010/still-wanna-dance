@@ -25,16 +25,14 @@ func main() {
 
 func run() (resultErr error) {
 	cfg := cacheproxy.DefaultConfig()
-	flag.StringVar(&cfg.StatsPath, "stats-path", "", "SQLite usage statistics path (default: song library/.stepstash-usage.sqlite)")
 	listen := flag.String("listen", "127.0.0.1:18080", "HTTP listen address (use 127.0.0.1:80 for game integration)")
-	flag.StringVar(&cfg.CacheDir, "cache-dir", cfg.CacheDir, "owned cache directory; one process per directory")
-	flag.StringVar(&cfg.SongsDir, "songs-dir", cfg.SongsDir, "song library root containing <id>/video.mp4; existing valid files are read directly")
+	flag.StringVar(&cfg.StorageDir, "storage-dir", cfg.StorageDir, "canonical storage root (videos, tmp and stepstash.sqlite); one process per root")
 	cf := flag.String("cf-origin", cfg.Origins["play.udon.dance"], "CF origin host:port, retaining Host play.udon.dance")
 	nya := flag.String("hkg-origin", cfg.Origins["nya.xin.moe"], "HKG origin host:port, retaining Host nya.xin.moe")
 	flag.DurationVar(&cfg.DownloadTimeout, "download-timeout", cfg.DownloadTimeout, "total per-file validation/download deadline")
 	flag.Int64Var(&cfg.MaxFileBytes, "max-file-bytes", cfg.MaxFileBytes, "maximum accepted s parameter")
 	flag.IntVar(&cfg.MaxDownloads, "max-downloads", cfg.MaxDownloads, "maximum concurrent distinct files")
-	flag.Int64Var(&cfg.MaxCacheBytes, "max-cache-bytes", cfg.MaxCacheBytes, "retained video limit across cache and library in bytes; 0 is unlimited")
+	flag.Int64Var(&cfg.MaxCacheBytes, "max-cache-bytes", cfg.MaxCacheBytes, "retained video limit in canonical storage in bytes; 0 is unlimited")
 	flag.Parse()
 	if flag.NArg() != 0 {
 		return fmt.Errorf("unexpected positional arguments")
@@ -55,7 +53,7 @@ func run() (resultErr error) {
 	defer stop()
 	done := make(chan error, 1)
 	go func() { done <- server.Serve(listener) }()
-	cfg.Logger.Info("listening", "address", listener.Addr().String(), "cache_dir", cfg.CacheDir)
+	cfg.Logger.Info("listening", "address", listener.Addr().String(), "storage_dir", cfg.StorageDir)
 	select {
 	case err := <-done:
 		if !errors.Is(err, http.ErrServerClosed) {

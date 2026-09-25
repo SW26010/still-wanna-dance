@@ -14,25 +14,23 @@ import (
 // Config controls the local video service. Origins are dial addresses, not URLs;
 // the original HTTP Host is retained and environment proxies are not used.
 type Config struct {
-	CacheDir string
-	SongsDir string
-	// StatsPath defaults to SongsDir/.stepstash-usage.sqlite, outside temporary cache.
-	StatsPath       string
+	StorageDir      string
 	Origins         map[string]string
 	DownloadTimeout time.Duration
 	MaxFileBytes    int64
-	// MaxCacheBytes bounds retained videos across cache and library; zero is unlimited.
+	// MaxCacheBytes bounds retained videos in the canonical video store; zero is unlimited.
 	MaxCacheBytes int64
 	MaxDownloads  int
 	Logger        *slog.Logger
 	// DialContext optionally supplies independent upstream DNS resolution.
 	DialContext func(context.Context, string, string) (net.Conn, error)
+	// ResolveCurrent returns the song API's current video URL. Nil uses the public API.
+	ResolveCurrent func(context.Context, string) (string, error)
 }
 
 func DefaultConfig() Config {
 	return Config{
-		CacheDir:        "stepstash-cache",
-		SongsDir:        "wannadance-song",
+		StorageDir:      "stepstash-data",
 		Origins:         map[string]string{"play.udon.dance": "ud-play.kiva.moe:80", "nya.xin.moe": "ud-nya.kiva.moe:80"},
 		DownloadTimeout: 10 * time.Minute,
 		MaxFileBytes:    2 << 30,
@@ -45,8 +43,8 @@ func (c Config) validate() error {
 	if c.MaxCacheBytes < 0 {
 		return errors.New("cache limit cannot be negative")
 	}
-	if c.CacheDir == "" || c.SongsDir == "" || c.DownloadTimeout <= 0 || c.MaxFileBytes <= 0 || c.MaxFileBytes == int64(^uint64(0)>>1) || c.MaxDownloads < 1 {
-		return errors.New("cache directory, timeout, file limit and download limit must be positive")
+	if c.StorageDir == "" || c.DownloadTimeout <= 0 || c.MaxFileBytes <= 0 || c.MaxFileBytes == int64(^uint64(0)>>1) || c.MaxDownloads < 1 {
+		return errors.New("storage directory is required; timeout, file limit and download limit must be positive")
 	}
 	for _, host := range []string{"play.udon.dance", "nya.xin.moe"} {
 		addr, port, err := net.SplitHostPort(c.Origins[host])

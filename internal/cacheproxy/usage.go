@@ -47,6 +47,23 @@ func openUsage(path string, log *slog.Logger) (*usageStore, error) {
 	}
 	db.SetMaxOpenConns(1)
 	_, err = db.Exec(`PRAGMA busy_timeout=1000;
+CREATE TABLE IF NOT EXISTS songs (
+ song_id TEXT PRIMARY KEY,
+ title TEXT NOT NULL DEFAULT '',
+ metadata_json TEXT NOT NULL DEFAULT '{}'
+);
+CREATE TABLE IF NOT EXISTS video_versions (
+ version_key TEXT PRIMARY KEY,
+ song_id TEXT NOT NULL REFERENCES songs(song_id),
+ checksum TEXT NOT NULL,
+ file_bytes INTEGER NOT NULL,
+ source_path TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS video_versions_song ON video_versions(song_id);
+CREATE TABLE IF NOT EXISTS current_videos (
+ song_id TEXT PRIMARY KEY,
+ version_key TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS song_usage (
  song_id TEXT PRIMARY KEY,
  get_count INTEGER NOT NULL,

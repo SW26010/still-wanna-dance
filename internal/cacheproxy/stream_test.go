@@ -69,7 +69,7 @@ func TestColdStreamStartsBeforeCompletionAndSharesSeekingReaders(t *testing.T) {
 	if err != nil || rangeResp.StatusCode != 206 || string(rangeBody) != body[1024:1536] {
 		t.Fatal("independent range reader failed", err)
 	}
-	if _, err := os.Stat(filepath.Join(cfg.SongsDir, "1344", "video.mp4")); !os.IsNotExist(err) {
+	if _, err := os.Stat(testVideoFile(t, cfg, payload)); !os.IsNotExist(err) {
 		t.Fatal("partial video published")
 	}
 	// A resolver dropping its connection must not cancel the shared download.
@@ -86,7 +86,7 @@ func TestColdStreamStartsBeforeCompletionAndSharesSeekingReaders(t *testing.T) {
 	if count.Load() != 1 {
 		t.Fatal("duplicate downloads", count.Load())
 	}
-	assertNoPartial(t, cfg.CacheDir)
+	assertNoPartial(t, cfg.tempDir())
 	assertResponse(t, request(s, "GET", videoURL(body), nil), 200, body)
 }
 
@@ -126,13 +126,13 @@ func TestCorruptStreamAbortsNetworkAndNeverPublishes(t *testing.T) {
 		t.Fatal("corrupt stream completed without transport error", len(rest), err)
 	}
 	s.wg.Wait()
-	for _, dir := range []string{cfg.CacheDir, filepath.Join(cfg.SongsDir, "1344")} {
+	for _, dir := range []string{cfg.videosDir(), cfg.tempDir()} {
 		files, _ := filepath.Glob(filepath.Join(dir, "*.mp4"))
 		if len(files) != 0 {
 			t.Fatal("corrupt cache published", files)
 		}
 	}
-	assertNoPartial(t, cfg.CacheDir)
+	assertNoPartial(t, cfg.tempDir())
 	if !bytes.Equal(first, []byte(body[:1024])) {
 		t.Fatal("unexpected prefix")
 	}

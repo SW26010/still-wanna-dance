@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/md5"
+	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"io"
@@ -50,13 +51,13 @@ func (w *observedWriter) Write(b []byte) (int, error) {
 
 func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	cfg := cacheproxy.DefaultConfig()
-	cfg.CacheDir, cfg.SongsDir = t.TempDir(), t.TempDir()
+	cfg.StorageDir = t.TempDir()
 	cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	body := strings.Repeat("x", 128*1024)
-	if err := os.MkdirAll(filepath.Join(cfg.SongsDir, "1"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(cfg.StorageDir, "videos"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(cfg.SongsDir, "1", "video.mp4"), []byte(body), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(cfg.StorageDir, "videos", fmt.Sprintf("1-%x.mp4", sha256.Sum256([]byte(fmt.Sprintf("1/v/%x/%d", md5.Sum([]byte(body)), len(body)))))), []byte(body), 0600); err != nil {
 		t.Fatal(err)
 	}
 	service, err := cacheproxy.New(cfg)
@@ -91,7 +92,7 @@ func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("shutdown stuck on paused reader")
 	}
-	db, err := sql.Open("sqlite", filepath.Join(cfg.SongsDir, ".stepstash-usage.sqlite"))
+	db, err := sql.Open("sqlite", filepath.Join(cfg.StorageDir, "stepstash.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}

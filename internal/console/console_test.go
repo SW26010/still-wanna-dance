@@ -27,7 +27,7 @@ func testConsole(t *testing.T) *Console {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.settings = Settings{SongsDir: filepath.Join(root, "songs"), CacheDir: filepath.Join(root, "cache"), LogDir: filepath.Join(root, "logs")}
+	c.settings = Settings{StorageDir: filepath.Join(root, "data"), LogDir: filepath.Join(root, "logs")}
 	c.videoAddress = "127.0.0.1:0"
 	t.Cleanup(func() { c.Close() })
 	return c
@@ -143,8 +143,7 @@ func TestBatchWorksWithoutCDNAndReusesCache(t *testing.T) {
 	}))
 	defer origin.Close()
 	cfg := cacheproxy.DefaultConfig()
-	cfg.SongsDir = c.settings.SongsDir
-	cfg.CacheDir = c.settings.CacheDir
+	cfg.StorageDir = c.settings.StorageDir
 	cfg.Origins["nya.xin.moe"] = strings.TrimPrefix(origin.URL, "http://")
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
@@ -200,7 +199,7 @@ func TestBatchWorksWithoutCDNAndReusesCache(t *testing.T) {
 	if downloads.Load() != 1 {
 		t.Fatalf("downloaded %d times", downloads.Load())
 	}
-	b, err := os.ReadFile(filepath.Join(c.settings.SongsDir, "1", "video.mp4"))
+	b, err := os.ReadFile(fixtureVideoPath(c.settings.StorageDir, "1", body))
 	if err != nil || string(b) != body {
 		t.Fatal("cache not published", err)
 	}

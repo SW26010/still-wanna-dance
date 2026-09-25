@@ -34,6 +34,8 @@ go build -o bin/stepstash.exe ./cmd/stepstash
 
 Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的 C 工具链，当前本机没有配置。
 
+临时 Go 探测源码即使放在 Git 忽略的 `artifacts/` 中，仍会被 `go test ./...` 和 `go vet ./...` 发现。独立探测文件应在首行添加 `//go:build ignore` 并空一行；需要执行时用 `go run` 明确列出入口及其辅助源文件，避免多个 `main` 混入同一个包。也可放入独立的工具模块。
+
 入口位于 `cmd/stepstash`，协议、缓存和下载管理位于 `internal/cacheproxy`。运行方法见 [MVP 手册](mvp.md)。默认缓存、构建产物及测试覆盖率文件已忽略；测试使用 Go 的独立临时目录，不写入原版缓存或证据目录。安装环境不会启动缓存服务或修改 hosts。
 
 可选实网验收脚本 `scripts/acceptance.mjs` 使用 Node.js 标准库，不增加 Go 服务依赖；它需要明确指定旧库和原版程序，下载样本并保存到已忽略的 `test-runs`。游戏 hosts 辅助脚本仅用于人工联合验收，详见[验收记录](acceptance.md)。

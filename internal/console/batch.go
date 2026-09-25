@@ -317,7 +317,7 @@ dispatch:
 	} else if scanOnly {
 		c.batch.Phase = "扫描完成；缺失或损坏的视频可通过「下载补齐」更新"
 	} else {
-		c.batch.Phase = "所有已知歌曲已校验并缓存"
+		c.batch.Phase = "所有已知歌曲已处理完成；计数为本次检查和下载结果，视频可能因容量限制被淘汰，当前保留情况请扫描本地文件"
 	}
 	c.mu.Unlock()
 }

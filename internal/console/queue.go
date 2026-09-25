@@ -29,6 +29,7 @@ type QueueStatus struct {
 	Updated    time.Time     `json:"updated"`
 	Generation uint64        `json:"-"`
 	waiters    map[int64]*queueWaiter
+	prepared   map[int64]bool
 }
 
 type queueWaiter struct {
@@ -58,6 +59,16 @@ func (q *QueueStatus) setSongs(songs []vrclog.Song, reset bool) {
 	if reset {
 		q.Generation++
 		q.Failures = nil
+		q.prepared = nil
+	}
+	// Remember success only while a song stays in the prefetch window. Do
+	// this on every snapshot, including snapshots coalesced before a wake.
+	// Reentry checks the cache again; unchanged queues never churn when the
+	// capacity policy immediately evicts a successfully downloaded video.
+	for id := range q.prepared {
+		if !q.wants(id, q.Generation) {
+			delete(q.prepared, id)
+		}
 	}
 	// Cancel the caller synchronously with invalidation, before a newly freed
 	// engine slot can admit an obsolete waiter. Existing flights own their context.
@@ -246,7 +257,6 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		c.mu.Unlock()
 	}()
 	var generation uint64
-	completed := map[int64]bool{}
 	retry := map[int64]time.Time{}
 	active := map[int64]bool{}
 	for {
@@ -256,7 +266,6 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		c.mu.Lock()
 		if c.queue.Generation != generation {
 			generation = c.queue.Generation
-			completed = map[int64]bool{}
 			retry = map[int64]time.Time{}
 		}
 		for i, song := range c.queue.Songs {
@@ -264,7 +273,7 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 				break
 			}
 			id := song.ID
-			if id <= 0 || active[id] || completed[id] || time.Now().Before(retry[id]) {
+			if id <= 0 || active[id] || c.queue.prepared[id] || time.Now().Before(retry[id]) {
 				continue
 			}
 			active[id] = true
@@ -314,7 +323,10 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 					retry[r.id] = time.Now().Add(time.Minute)
 					slog.Warn("queue_song_failed", "song_id", r.id, "error", r.err, "retry_seconds", 60)
 				} else {
-					completed[r.id] = true
+					if c.queue.prepared == nil {
+						c.queue.prepared = make(map[int64]bool)
+					}
+					c.queue.prepared[r.id] = true
 					c.queue.Completed++
 					slog.Info("queue_song_ready", "song_id", r.id)
 				}

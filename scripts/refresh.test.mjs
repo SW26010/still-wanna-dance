@@ -24,11 +24,22 @@ function page(hidden = false) {
   };
   const context = vm.createContext({
     document,
-    fetch(url) {
-      return new Promise((resolve, reject) => requests.push({
-        url, reject,
-        finish(data = {}) { resolve({ ok: true, json: async () => data }); },
-      }));
+    AbortController,
+    fetch(url, { signal } = {}) {
+      return new Promise((resolve, reject) => {
+        let rejectBody;
+        signal?.addEventListener('abort', () => {
+          reject(signal.reason);
+          rejectBody?.(signal.reason);
+        }, { once: true });
+        requests.push({
+          url, signal, reject,
+          finish(data = {}) { resolve({ ok: true, json: async () => data }); },
+          headersOnly() {
+            resolve({ ok: true, json: () => new Promise((_, reject) => { rejectBody = reject; }) });
+          },
+        });
+      });
     },
     setTimeout(callback, delay) {
       timers.set(++nextTimer, { callback, delay });
@@ -37,8 +48,17 @@ function page(hidden = false) {
     clearTimeout: id => timers.delete(id),
   });
   vm.runInContext(script, context);
+  function fireTimer(delay) {
+    const matches = [...timers].filter(([, timer]) => timer.delay === delay);
+    assert.equal(matches.length, 1);
+    const [id, timer] = matches[0];
+    timers.delete(id);
+    timer.callback();
+  }
   return {
-    requests, timers, context,
+    requests, context,
+    get timers() { return new Map([...timers].filter(([, timer]) => timer.delay === 5000)); },
+    get deadlines() { return new Map([...timers].filter(([, timer]) => timer.delay === 10000)); },
     visibility(hidden) {
       document.hidden = hidden;
       listeners.get('visibilitychange')();
@@ -47,12 +67,8 @@ function page(hidden = false) {
       requests[start].finish({ settings: {}, hosts: {}, batch: {}, queue: {} });
       requests[start + 1].finish({ bytes: 0 });
     },
-    fireTimer() {
-      assert.equal(timers.size, 1);
-      const [id, timer] = [...timers][0];
-      timers.delete(id);
-      timer.callback();
-    },
+    fireTimer: () => fireTimer(5000),
+    expireRead: () => fireTimer(10000),
   };
 }
 
@@ -150,3 +166,58 @@ test('failed reads leave polling able to recover', async () => {
   assert.equal(p.timers.size, 1);
   assert.equal(vm.runInContext("$('connection').textContent", p.context), '● 控制台已连接');
 });
+
+for (const stalled of [0, 1]) {
+  for (const bodyStalls of [false, true]) {
+    test(`${stalled === 0 ? 'status' : 'inventory'} timeout cancels a stalled ${bodyStalls ? 'body' : 'fetch'} and polling recovers`, async () => {
+      const p = page();
+      assert.equal(p.deadlines.size, 2);
+      if (bodyStalls) p.requests[stalled].headersOnly();
+      p.requests[1 - stalled].finish({ settings: {}, hosts: {}, batch: {}, queue: {}, bytes: 0 });
+      await flush();
+      assert.equal(p.deadlines.size, 1);
+      assert.equal(p.timers.size, 0);
+      p.expireRead();
+      await flush();
+      assert.equal(p.requests[stalled].signal.aborted, true);
+      assert.equal(p.deadlines.size, 0);
+      assert.equal(p.timers.size, 1);
+      assert.match(vm.runInContext(stalled === 0 ? "$('connection').textContent" : "$('inventoryState').textContent", p.context), /中断|暂不可用/);
+      p.fireTimer();
+      p.finishBatch(2);
+      await flush();
+      assert.equal(p.deadlines.size, 0);
+      assert.equal(p.timers.size, 1);
+      assert.equal(vm.runInContext("$('connection').textContent", p.context), '● 控制台已连接');
+      assert.match(vm.runInContext("$('inventoryState').textContent", p.context), /请点击/);
+    });
+  }
+
+  for (const trigger of ['visibility', 'action']) {
+    test(`${trigger} refresh resumes after read ${stalled} times out`, async () => {
+      const p = page();
+      p.requests[1 - stalled].finish({ settings: {}, hosts: {}, batch: {}, queue: {}, bytes: 0 });
+      let action;
+      if (trigger === 'action') {
+        action = vm.runInContext("action('start')", p.context);
+        assert.equal(p.requests[2].signal, undefined);
+        p.requests[2].finish();
+      } else {
+        p.visibility(true);
+        p.visibility(false);
+      }
+      await flush();
+      const next = p.requests.length;
+      p.expireRead();
+      await flush();
+      assert.equal(p.requests[stalled].signal.aborted, true);
+      assert.equal(p.requests.length, next + 2);
+      assert.equal(p.timers.size, 0);
+      p.finishBatch(next);
+      await action;
+      await flush();
+      assert.equal(p.deadlines.size, 0);
+      assert.equal(p.timers.size, 1);
+    });
+  }
+}

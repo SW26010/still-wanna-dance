@@ -180,4 +180,6 @@ Auto 不把游戏的 CF/HKG 选择作为路线优先级。已知歌曲 ID 时，
 
 游戏入口必须仍使用 HTTP，并且播放器需接受 API 地址直接返回视频；这一版的实际游戏兼容性需要实机确认。切换 HTTPS 不改变资源指纹，无需重新迁移缓存。下载和测速最多跟随五次视频重定向，仅接受受支持视频域名且 MD5/大小一致的地址；HTTP Location 会升级为 HTTPS 后再访问。其他重定向明确拒绝。
 
+HTTP 播放 API 仅在上游查询失败、超时或返回不合法的视频地址时尝试已确认且校验通过的本地缓存。API 返回合法地址后的下载失败不会自动改播旧缓存：响应尚未发出时返回错误，边下边播的响应已经开始后则中断响应。HTTPS 透传不适用；完整条件见[本地降级边界](mvp.md#本地降级边界)。
+
 可选实网验收：设置 `STEPSTASH_LIVE_UPSTREAM=1`，运行 `go test ./internal/console -run '^TestLiveHTTPSUpstreams$' -v -count=1`。仅解析播放 API 并读取每路 1 KiB 视频 Range，不修改 hosts。

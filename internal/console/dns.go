@@ -20,7 +20,14 @@ import (
 type directDNS struct {
 	mu            sync.Mutex
 	cache         map[string]dnsEntry
+	lookups       map[string]*dnsLookup
 	bootstrapping map[string]chan struct{}
+}
+
+type dnsLookup struct {
+	done chan struct{}
+	ips  []string
+	err  error
 }
 
 // NewUpstreamDialer shares the desktop's certificate-verified DoH implementation
@@ -47,12 +54,56 @@ func (d *directDNS) lookup(ctx context.Context, host string) ([]string, error) {
 	if ip := net.ParseIP(host); ip != nil {
 		return []string{ip.String()}, nil
 	}
+	return d.lookupShared(ctx, host, func(ctx context.Context) ([]string, time.Duration, error) {
+		return d.resolve(ctx, host)
+	})
+}
+
+// Cache checks and in-flight registration are atomic. Each caller can stop
+// waiting independently; the shared query retains its own six-second limit.
+func (d *directDNS) lookupShared(ctx context.Context, host string, query dnsQuery) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	d.mu.Lock()
-	entry := d.cache[host]
-	d.mu.Unlock()
-	if time.Now().Before(entry.until) {
+	if entry := d.cache[host]; time.Now().Before(entry.until) {
+		d.mu.Unlock()
 		return entry.ips, nil
 	}
+	call := d.lookups[host]
+	if call == nil {
+		call = &dnsLookup{done: make(chan struct{})}
+		if d.lookups == nil {
+			d.lookups = make(map[string]*dnsLookup)
+		}
+		d.lookups[host] = call
+		go func() {
+			shared, cancel := context.WithTimeout(context.WithoutCancel(ctx), 6*time.Second)
+			defer cancel()
+			ips, ttl, err := query(shared)
+			d.mu.Lock()
+			defer d.mu.Unlock()
+			if err == nil {
+				if d.cache == nil {
+					d.cache = make(map[string]dnsEntry)
+				}
+				d.cache[host] = dnsEntry{ips, time.Now().Add(ttl)}
+			}
+			call.ips, call.err = ips, err
+			delete(d.lookups, host)
+			close(call.done)
+		}()
+	}
+	d.mu.Unlock()
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-call.done:
+		return call.ips, call.err
+	}
+}
+
+func (d *directDNS) resolve(ctx context.Context, host string) ([]string, time.Duration, error) {
 	var queries []dnsQuery
 	for _, provider := range dohProviders {
 		queries = append(queries, func(ctx context.Context) ([]string, time.Duration, error) {
@@ -61,15 +112,9 @@ func (d *directDNS) lookup(ctx context.Context, host string) ([]string, error) {
 	}
 	ips, ttl, err := collectDNS(ctx, queries)
 	if err != nil {
-		return nil, fmt.Errorf("独立 DNS 解析 %s 失败（不回退到系统 hosts）：%w", host, err)
+		return nil, 0, fmt.Errorf("独立 DNS 解析 %s 失败（不回退到系统 hosts）：%w", host, err)
 	}
-	d.mu.Lock()
-	if d.cache == nil {
-		d.cache = map[string]dnsEntry{}
-	}
-	d.cache[host] = dnsEntry{ips, time.Now().Add(ttl)}
-	d.mu.Unlock()
-	return ips, nil
+	return ips, ttl, nil
 }
 
 type dnsQuery func(context.Context) ([]string, time.Duration, error)

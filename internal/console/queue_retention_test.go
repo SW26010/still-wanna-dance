@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -17,12 +18,17 @@ import (
 	"stepstash/internal/vrclog"
 )
 
-func queueRetentionFixture(t *testing.T, limit int64) (*Console, *cacheproxy.Server, string, *atomic.Int32) {
+func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) (*Console, *cacheproxy.Server, string, *atomic.Int32) {
 	t.Helper()
 	c := testConsole(t)
 	body := "audit video content"
 	calls := &atomic.Int32{}
-	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, body) }))
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for _, before := range beforeDownload {
+			before()
+		}
+		io.WriteString(w, body)
+	}))
 	t.Cleanup(origin.Close)
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/Api/Songs/list" {
@@ -47,6 +53,72 @@ func queueRetentionFixture(t *testing.T, limit int64) (*Console, *cacheproxy.Ser
 	}
 	c.service = engine
 	return c, engine, body, calls
+}
+
+func TestQueueMoveOutsidePrefetchWindowDuringDownload(t *testing.T) {
+	started, finish := make(chan struct{}), make(chan struct{})
+	var downloads atomic.Int32
+	c, engine, body, _ := queueRetentionFixture(t, 1, func() {
+		if downloads.Add(1) == 1 {
+			close(started)
+			<-finish
+		}
+	})
+	var release sync.Once
+	defer release.Do(func() { close(finish) })
+	c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 1}}}
+	ctx, cancel := context.WithCancel(context.Background())
+	done, wake := make(chan struct{}), make(chan struct{}, 1)
+	go func() { defer close(done); c.queueWorker(ctx, engine, wake) }()
+	defer func() { cancel(); <-done }()
+	wait := func(condition func() bool) {
+		t.Helper()
+		deadline := time.Now().Add(3 * time.Second)
+		for !condition() {
+			if time.Now().After(deadline) {
+				t.Fatal("queue transition timed out")
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+	select {
+	case <-started:
+	case <-time.After(3 * time.Second):
+		t.Fatal("download did not start")
+	}
+	c.mu.Lock()
+	c.queue.setSongs([]vrclog.Song{{ID: -1}, {ID: -1}, {ID: -1}, {ID: 1}}, false)
+	c.mu.Unlock()
+	wake <- struct{}{}
+	wait(func() bool {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		return len(c.queue.waiters) == 0
+	})
+	release.Do(func() { close(finish) })
+	path := fixtureVideoPath(c.settings.StorageDir, "1", body)
+	wait(func() bool { _, err := os.Stat(path); return err == nil })
+	// Let the asynchronous retention worker handle publication and release.
+	time.Sleep(100 * time.Millisecond)
+	if _, err := os.Stat(path); err != nil {
+		t.Fatal("queued download was evicted", err)
+	}
+	c.mu.Lock()
+	c.queue.setSongs([]vrclog.Song{{ID: 1}}, false)
+	c.mu.Unlock()
+	wake <- struct{}{}
+	wait(func() bool {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		return c.queue.Completed == 1
+	})
+	if downloads.Load() != 1 {
+		t.Fatal("reentry redownloaded queued cache")
+	}
+	c.mu.Lock()
+	c.queue.setSongs(nil, false)
+	c.mu.Unlock()
+	wait(func() bool { _, err := os.Stat(path); return os.IsNotExist(err) })
 }
 
 func TestQueueReentryAfterEviction(t *testing.T) {
@@ -119,8 +191,8 @@ func TestBatchReportsCompletionWithEviction(t *testing.T) {
 	}
 }
 
-func TestQueueImmediateEvictionDoesNotRedownloadUnchangedQueue(t *testing.T) {
-	c, engine, _, calls := queueRetentionFixture(t, 1)
+func TestQueueProtectsOversizedCacheOutsidePrefetchWindow(t *testing.T) {
+	c, engine, body, calls := queueRetentionFixture(t, 1)
 	c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 1}}}
 	ctx, cancel := context.WithCancel(context.Background())
 	done, wake := make(chan struct{}), make(chan struct{})
@@ -150,8 +222,28 @@ func TestQueueImmediateEvictionDoesNotRedownloadUnchangedQueue(t *testing.T) {
 		}
 	}
 	if calls.Load() != 1 {
-		t.Fatal("unchanged queue redownloaded evicted video", calls.Load())
+		t.Fatal("unchanged queue redownloaded video", calls.Load())
 	}
+	c.mu.Lock()
+	c.queue.setSongs([]vrclog.Song{{ID: -1}, {ID: -1}, {ID: -1}, {ID: 1}}, false)
+	c.mu.Unlock()
+	wake <- struct{}{}
+	path := fixtureVideoPath(c.settings.StorageDir, "1", body)
+	time.Sleep(100 * time.Millisecond)
+	if _, err := os.Stat(path); err != nil {
+		t.Fatal("queued cache outside prefetch window was evicted", err)
+	}
+	c.mu.Lock()
+	c.queue.setSongs(nil, false)
+	c.mu.Unlock()
+	deadline = time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("removed song remained protected")
 }
 
 func TestQueueCoalescedDepartureInvalidatesPreparedSong(t *testing.T) {

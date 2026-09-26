@@ -109,6 +109,7 @@ func (s *Server) recordSongVideo(ctx context.Context, id string, v video) error 
 	}
 	s.retentionMu.Lock()
 	defer s.retentionMu.Unlock()
+	s.rememberSongResourceLocked(id, v.key)
 	s.mappingRevision++
 	if current != "" && current != v.key {
 		s.cleanupNeeded[current] = true
@@ -173,7 +174,7 @@ func (s *Server) cleanSuperseded() {
 func (s *Server) cleanSupersededVideo(key string) bool {
 	s.retentionMu.Lock()
 	revision := s.mappingRevision
-	pinned := s.versionPins[key] > 0
+	pinned := s.versionPins[key] > 0 || s.queueProtected[key]
 	s.retentionMu.Unlock()
 	if pinned {
 		return false // The last release wakes the worker again.
@@ -189,7 +190,7 @@ func (s *Server) cleanSupersededVideo(key string) bool {
 	s.retentionMu.Lock()
 	// A mapping commit invalidates the query. recordSongVideo pins its
 	// candidate until it has advanced this revision, closing the commit gap.
-	if revision != s.mappingRevision {
+	if revision != s.mappingRevision || s.queueProtected[key] {
 		s.retentionMu.Unlock()
 		return false
 	}

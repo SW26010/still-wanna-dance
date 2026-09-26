@@ -15,6 +15,7 @@ type retainedVideo struct {
 	path, key    string
 	size, recent int64
 	modified     int64
+	songID       int64
 	score        float64
 }
 
@@ -250,10 +251,32 @@ func (s *Server) trimCachePass(reconcile bool) error {
 			return err
 		}
 	}
+	songIDs := map[string]int64{}
+	if s.usage != nil {
+		rows, err := s.usage.db.Query(`SELECT version_key, MAX(CAST(song_id AS INTEGER)) FROM song_videos GROUP BY version_key`)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var key string
+			var id int64
+			if err := rows.Scan(&key, &id); err != nil {
+				rows.Close()
+				return err
+			}
+			songIDs[key] = id
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return err
+		}
+	}
 	for i := range videos {
 		item := &videos[i]
 		usage := stats[item.key]
 		item.score = usage.score
+		item.songID = songIDs[item.key]
 		if usage.recent != 0 {
 			item.recent = usage.recent
 		}
@@ -262,6 +285,9 @@ func (s *Server) trimCachePass(reconcile bool) error {
 		a, b := videos[i], videos[j]
 		if a.score != b.score {
 			return a.score < b.score
+		}
+		if a.songID != b.songID {
+			return a.songID < b.songID
 		}
 		if a.recent != b.recent {
 			return a.recent < b.recent
@@ -273,10 +299,16 @@ func (s *Server) trimCachePass(reconcile bool) error {
 		if planned <= limit {
 			break
 		}
+		s.retentionMu.Lock()
+		// Queue reservations outrank historical scores and do not count as
+		// planned reclamation. Ordinary in-flight pins still defer eviction.
+		if s.queueProtected[item.key] {
+			s.retentionMu.Unlock()
+			continue
+		}
 		// A protected low-priority video is a deferred victim, not a reason
 		// to evict a more valuable video while a prefetch is still finishing.
 		planned -= item.size
-		s.retentionMu.Lock()
 		// Superseded-version cleanup may have already freed enough space
 		// while this pass was reading statistics or ranking its snapshot.
 		if s.retainedBytes <= limit {

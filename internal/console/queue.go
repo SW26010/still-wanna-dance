@@ -31,6 +31,7 @@ type QueueStatus struct {
 	Generation uint64        `json:"-"`
 	waiters    map[int64]*queueWaiter
 	prepared   map[int64]bool
+	protect    func([]int64)
 }
 
 type queueWaiter struct {
@@ -57,6 +58,15 @@ func (q *QueueStatus) wants(id int64, generation uint64) bool {
 // Call with c.mu held. Reset errors even when the next room has the same IDs.
 func (q *QueueStatus) setSongs(songs []vrclog.Song, reset bool) {
 	q.Songs = songs
+	if q.protect != nil {
+		ids := make([]int64, 0, len(songs))
+		for _, song := range songs {
+			if song.ID > 0 {
+				ids = append(ids, song.ID)
+			}
+		}
+		q.protect(ids)
+	}
 	if reset {
 		q.Generation++
 		q.Failures = nil
@@ -64,8 +74,8 @@ func (q *QueueStatus) setSongs(songs []vrclog.Song, reset bool) {
 	}
 	// Remember success only while a song stays in the prefetch window. Do
 	// this on every snapshot, including snapshots coalesced before a wake.
-	// Reentry checks the cache again; unchanged queues never churn when the
-	// capacity policy immediately evicts a successfully downloaded video.
+	// Reentry checks the current version again; cached songs remain protected
+	// throughout the full queue, including outside the prefetch window.
 	for id := range q.prepared {
 		if !q.wants(id, q.Generation) {
 			delete(q.prepared, id)
@@ -253,6 +263,16 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 // The coordinator owns deduplication and retry state; workers resolve/download
 // at most two songs and recheck the latest queue after resolving the URL.
 func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wake <-chan struct{}) {
+	c.mu.Lock()
+	c.queue.protect = engine.SetQueueSongs
+	ids := make([]int64, 0, len(c.queue.Songs))
+	for _, song := range c.queue.Songs {
+		if song.ID > 0 {
+			ids = append(ids, song.ID)
+		}
+	}
+	engine.SetQueueSongs(ids)
+	c.mu.Unlock()
 	type result struct {
 		id         int64
 		generation uint64
@@ -270,6 +290,8 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		wg.Wait()
 		c.mu.Lock()
 		c.queue.waiters = nil
+		c.queue.protect = nil
+		engine.SetQueueSongs(nil)
 		c.mu.Unlock()
 	}()
 	var generation uint64

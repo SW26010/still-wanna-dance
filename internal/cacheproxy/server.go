@@ -79,6 +79,9 @@ type Server struct {
 	currentMu        sync.Mutex
 	currentLocks     map[string]*songConfirmation
 	versionPins      map[string]int
+	songResources    map[string]map[string]bool
+	queueSongs       map[string]bool
+	queueProtected   map[string]bool
 	cleanupNeeded    map[string]bool
 	deletingVideos   map[string]chan struct{}
 	mappingRevision  uint64 // protected by retentionMu; invalidates cleanup queries
@@ -171,6 +174,12 @@ func New(cfg Config) (*Server, error) {
 		flights: make(map[string]*flight), slots: make(chan struct{}, cfg.MaxDownloads), localChecks: make(chan struct{}, cfg.MaxDownloads), capacityChanged: make(chan struct{}),
 		client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
+	if err := s.loadSongResources(); err != nil {
+		cancel()
+		usage.close()
+		unlock()
+		return nil, fmt.Errorf("load song resources: %w", err)
+	}
 	s.cleanSupersededOnStartup()
 	s.trimCache()
 	s.retentionWake = make(chan struct{}, 1)
@@ -193,6 +202,7 @@ func (s *Server) Close() error {
 		s.wg.Wait()
 		<-s.retentionDone
 		// All references are now released; finish any deferred eviction before closing usage.
+		s.SetQueueSongs(nil)
 		s.runRetention(false)
 		s.verifyMu.Lock()
 		clear(s.verificationRecords)

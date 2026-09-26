@@ -49,6 +49,15 @@ func (s *Server) prefetch(ctx context.Context, id, target string) (source string
 	log.Info("prefetch_started")
 	s.pinVideo(v)
 	defer s.releaseVideo(v)
+	if id != "" {
+		// Queue ownership must outlive this cancellable waiter. Register it
+		// while pinned, before a shared flight can finish and release its pin.
+		// This is only a memory reservation; validation/current-version
+		// confirmation still belongs to recordSongVideo after completion.
+		s.retentionMu.Lock()
+		s.rememberSongResourceLocked(id, v.key)
+		s.retentionMu.Unlock()
+	}
 	defer func() {
 		outcome := "completed"
 		if resultErr != nil {

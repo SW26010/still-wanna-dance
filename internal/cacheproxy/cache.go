@@ -42,13 +42,17 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 		if s.flights[v.key] != nil || (len(s.slots) < cap(s.slots) && (!background || s.background < limit)) {
 			break
 		}
+		changed := s.capacityChanged
+		s.mu.Unlock()
+		// A busy download engine must still serve verified local files. Keep
+		// this disk work bounded independently of the network worker slots.
+		if f, err := s.localHit(ctx, v); f != nil || err != nil {
+			return f, nil, err
+		}
 		if !background {
-			s.mu.Unlock()
 			log.Warn("cache_capacity_rejected")
 			return nil, nil, errBusy
 		}
-		changed := s.capacityChanged
-		s.mu.Unlock()
 		if !waitLogged {
 			log.Info("cache_capacity_wait")
 			waitLogged = true
@@ -128,6 +132,37 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 			return f, nil, f.err
 		}
 	}
+}
+
+// Callers pin the version and register their lifetime before obtaining it.
+// Invalid or missing files still need the normal, capacity-limited worker.
+func (s *Server) localHit(ctx context.Context, v video) (*flight, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	stop := context.AfterFunc(s.ctx, cancel)
+	defer stop()
+	defer cancel()
+	if s.ctx.Err() != nil {
+		return nil, context.Canceled
+	}
+	path := s.cfg.videoFile(v.key)
+	if _, err := os.Stat(path); err != nil {
+		return nil, ctx.Err()
+	}
+	select {
+	case s.localChecks <- struct{}{}:
+		defer func() { <-s.localChecks }()
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	if err := checkFile(ctx, path, v); err != nil {
+		return nil, ctx.Err()
+	}
+	if err := s.recordVideo(ctx, v); err != nil {
+		return nil, err
+	}
+	f := &flight{path: path, source: "HIT", done: make(chan struct{})}
+	close(f.done)
+	return f, nil
 }
 
 type contextReader struct {

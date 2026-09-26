@@ -55,6 +55,7 @@ type Server struct {
 	mu              sync.Mutex
 	flights         map[string]*flight
 	slots           chan struct{}
+	localChecks     chan struct{}
 	background      int
 	capacityChanged chan struct{}
 	wg              sync.WaitGroup
@@ -135,7 +136,7 @@ func New(cfg Config) (*Server, error) {
 	s := &Server{cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
 		versionPins: make(map[string]int), cleanupNeeded: make(map[string]bool),
 		usage:   usage,
-		flights: make(map[string]*flight), slots: make(chan struct{}, cfg.MaxDownloads), capacityChanged: make(chan struct{}),
+		flights: make(map[string]*flight), slots: make(chan struct{}, cfg.MaxDownloads), localChecks: make(chan struct{}, cfg.MaxDownloads), capacityChanged: make(chan struct{}),
 		client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
 	s.cleanSupersededOnStartup()

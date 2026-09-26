@@ -12,7 +12,7 @@ import (
 )
 
 // Config controls the local video service. Origins are dial addresses, not URLs;
-// defaults use the public video hosts, resolved through the independent dialer.
+// defaults use the public video hosts, connected through the selected dialer.
 // Overrides retain the original HTTP Host and TLS identity; environment proxies
 // are not used.
 type Config struct {
@@ -29,7 +29,7 @@ type Config struct {
 	RequestRetentionDays int
 	MaxDownloads         int
 	Logger               *slog.Logger
-	// DialContext optionally supplies independent upstream DNS resolution.
+	// DialContext supplies upstream connections (independent DNS or SOCKS5).
 	DialContext func(context.Context, string, string) (net.Conn, error)
 	// ResolveCurrent returns the song API's current video URL. Nil uses the public API.
 	ResolveCurrent func(context.Context, string) (string, error)

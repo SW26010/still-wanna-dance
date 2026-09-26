@@ -32,7 +32,7 @@ func (c *Console) fetchCatalogChecksums(ctx context.Context) (map[int64]string, 
 	if err != nil {
 		return nil, "", err
 	}
-	resp, err := c.client.Do(req)
+	resp, err := c.upstreamClient().Do(req)
 	if err != nil {
 		return nil, "", err
 	}

@@ -93,6 +93,11 @@ function renderSettings(s) {
     $('storageDir').value = s.settings.storageDir;
     $('logDir').value = s.settings.logDir;
     $('downloadUpstream').value = s.settings.downloadUpstream || 'auto';
+    $('upstreamMode').value = s.settings.upstreamMode || 'direct';
+    $('socks5Address').value = s.settings.socks5Address || '';
+    $('socks5Username').value = s.settings.socks5Username || '';
+    $('socks5Password').value = '';
+    $('socks5Password').placeholder = s.socks5PasswordSet ? '已保存，留空保持不变' : '需要认证时填写';
     $('maxCacheGiB').value = (s.settings.maxCacheBytes || 0) / 1073741824;
   }
 }
@@ -108,12 +113,20 @@ function renderControls() {
     'maxCacheGiB',
     'requestRetentionDays',
     'downloadUpstream',
+    'upstreamMode',
+    'socks5Address',
+    'socks5Username',
+    'socks5Password',
     'scanResolveConcurrency',
     'scanCheckConcurrency',
     'queuePrefetchCount',
     'save',
   ])
     $(id).disabled = unavailable || !!(s.running || s.batch.running || s.queue.running);
+  $('socks5Address').disabled ||= $('upstreamMode').value !== 'socks5';
+  $('socks5Username').disabled ||= $('upstreamMode').value !== 'socks5';
+  $('socks5Password').disabled ||= $('upstreamMode').value !== 'socks5';
+  $('socks5Address').required = $('upstreamMode').value === 'socks5';
   $('inventoryScan').disabled = unavailable || !lastInventory || !!lastInventory.scanning;
   if (!s) return;
   $('start').disabled = unavailable || !!s.running;
@@ -339,7 +352,7 @@ async function action(path, body) {
 for (const b of document.querySelectorAll('[data-action]'))
   b.addEventListener('click', () => action(b.dataset.action));
 for (const event of ['input', 'change'])
-  $('settings').addEventListener(event, () => { settingsDirty = true; });
+  $('settings').addEventListener(event, () => { settingsDirty = true; renderControls(); });
 $('settings').addEventListener('submit', (e) => {
   e.preventDefault();
   action('settings', {
@@ -349,6 +362,11 @@ $('settings').addEventListener('submit', (e) => {
     scanCheckConcurrency: Number($('scanCheckConcurrency').value),
     queuePrefetchCount: Number($('queuePrefetchCount').value),
     downloadUpstream: $('downloadUpstream').value,
+    upstreamMode: $('upstreamMode').value,
+    socks5Address: $('socks5Address').value,
+    socks5Username: $('socks5Username').value,
+    ...($('socks5Password').value || !$('socks5Username').value
+      ? { socks5Password: $('socks5Password').value } : {}),
     storageDir: $('storageDir').value,
     logDir: $('logDir').value,
     maxCacheBytes: Math.round(Number($('maxCacheGiB').value) * 1073741824),

@@ -7,6 +7,53 @@ const html = readFileSync(new URL('../internal/console/index.html', import.meta.
 const script = readFileSync(new URL('../internal/console/assets/console.js', import.meta.url), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+for (const removeAuth of [false, true]) {
+  test(`saved SOCKS5 password is hidden and ${removeAuth ? 'explicitly cleared with username' : 'omitted when unchanged'}`, async () => {
+    const p = page();
+    p.finishBatch(0, { upstreamMode: 'socks5', socks5Address: '127.0.0.1:1080', socks5Username: 'test-user' }, { socks5PasswordSet: true });
+    await flush();
+    const get = id => p.document.getElementById(id);
+    assert.equal(get('socks5Password').value, '');
+    assert.match(get('socks5Password').placeholder, /已保存/);
+    if (removeAuth) get('socks5Username').value = '';
+    get('settings').dispatchEvent({ type: 'change' });
+    get('settings').dispatchEvent({ type: 'submit' });
+    const body = JSON.parse(p.requests[2].body);
+    assert.equal(Object.hasOwn(body, 'socks5Password'), removeAuth);
+    if (removeAuth) assert.equal(body.socks5Password, '');
+    p.requests[2].finish({ ok: true });
+    await flush();
+    p.finishBatch(3);
+    await flush();
+    assert.equal(get('socks5Password').value, '');
+  });
+}
+
+test('SOCKS5 settings toggle, preserve the endpoint, and lock while running', async () => {
+  const p = page();
+  p.finishBatch();
+  await flush();
+  const get = id => p.document.getElementById(id);
+  assert.equal(get('upstreamMode').value, 'direct');
+  assert.equal(get('socks5Address').disabled, true);
+  get('upstreamMode').value = 'socks5';
+  get('settings').dispatchEvent({ type: 'change' });
+  assert.equal(get('socks5Address').disabled, false);
+  assert.equal(get('socks5Address').required, true);
+  get('socks5Address').value = '127.0.0.1:7891';
+  get('upstreamMode').value = 'direct';
+  get('settings').dispatchEvent({ type: 'change' });
+  assert.equal(get('socks5Address').disabled, true);
+  assert.equal(get('socks5Address').value, '127.0.0.1:7891');
+  get('upstreamMode').value = 'socks5';
+  get('settings').dispatchEvent({ type: 'change' });
+  p.fireTimer();
+  p.finishBatch(2, {}, { running: true });
+  await flush();
+  assert.equal(get('upstreamMode').disabled, true);
+  assert.equal(get('socks5Address').disabled, true);
+});
+
 for (const inventoryFirst of [false, true]) {
   test(`disconnect keeps every button disabled when inventory returns ${inventoryFirst ? 'first' : 'last'}`, async () => {
     const p = page();
@@ -397,6 +444,8 @@ test('settings submit prevents navigation and serializes the edited controls', a
   const values = {
     queuePrefetchCount: '7',
     storageDir: 'D:/draft', logDir: 'D:/logs', downloadUpstream: 'hkg',
+    upstreamMode: 'socks5', socks5Address: '127.0.0.1:7891',
+    socks5Username: 'test-user', socks5Password: 'test-secret',
     requestRetentionDays: '0', scanResolveConcurrency: '8', scanCheckConcurrency: '2', maxCacheGiB: '1.25',
   };
   for (const [id, value] of Object.entries(values)) get(id).value = value;
@@ -410,6 +459,8 @@ test('settings submit prevents navigation and serializes the edited controls', a
   assert.deepEqual(JSON.parse(p.requests[2].body), {
     queuePrefetchCount: 7,
     autoStartCDN: true, storageDir: 'D:/draft', logDir: 'D:/logs', downloadUpstream: 'hkg',
+    upstreamMode: 'socks5', socks5Address: '127.0.0.1:7891',
+    socks5Username: 'test-user', socks5Password: 'test-secret',
     requestRetentionDays: 0, scanResolveConcurrency: 8, scanCheckConcurrency: 2, maxCacheBytes: 1342177280,
   });
   assert.equal(get('save').disabled, true);

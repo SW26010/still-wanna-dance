@@ -15,7 +15,7 @@ import (
 
 // Only the hosts managed by StepStash are forwarded. Keep the original SNI
 // and encrypted bytes intact: certificates, HTTP and video remain end-to-end.
-// The independent DNS dialer resolves public hosts without consulting hosts.
+// The selected upstream dialer handles DNS and connections.
 func httpsOrigin(name string) string {
 	name = strings.ToLower(strings.TrimSuffix(name, "."))
 	switch name {
@@ -188,9 +188,10 @@ func (c idleConn) Write(b []byte) (int, error) {
 
 func relayCopy(dst, src net.Conn) {
 	_, err := io.Copy(idleConn{dst, src}, idleConn{src, dst})
-	if tcp, ok := dst.(*net.TCPConn); ok && err == nil {
-		tcp.CloseWrite()
-	} else {
-		dst.Close()
+	if writer, ok := dst.(interface{ CloseWrite() error }); ok && err == nil {
+		if writer.CloseWrite() == nil {
+			return
+		}
 	}
+	dst.Close()
 }

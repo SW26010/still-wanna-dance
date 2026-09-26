@@ -17,6 +17,9 @@ func sameLibrary(a, b Settings) bool {
 
 // Replace atomically, so interruption or a failed write leaves the last good file.
 func (c *Console) writeSnapshot(kind string, settings Settings, result any) error {
+	// Snapshots identify a library, not its upstream account. Never duplicate
+	// credentials outside the main configuration file.
+	settings.SOCKS5Username, settings.SOCKS5Password = "", ""
 	data, err := json.MarshalIndent(savedSnapshot[any]{c.storedSettings(settings), result}, "", "  ")
 	if err != nil {
 		return err

@@ -199,6 +199,20 @@
               用于冷缓存播放、下载补齐和队列预缓存。Auto 主动下载优先 CF，失败后回退 HKG；冷缓存播放按 CF / HKG 测速优选，可覆盖游戏选择。同次传输仅在校验和与大小一致时切换。无法确认歌曲或内容不一致时保留原请求线路。固定模式仅查询指定线路；保存后下次启动
               CDN 或下载任务时生效。
             </div>
+            <label for="upstreamMode">上游连接</label>
+            <select id="upstreamMode" name="upstreamMode">
+              <option value="direct">直连（内置 DNS）</option>
+              <option value="socks5">SOCKS5 代理</option>
+            </select>
+            <label for="socks5Address">SOCKS5 地址</label>
+            <input id="socks5Address" name="socks5Address" type="text" placeholder="127.0.0.1:7891" autocomplete="off" spellcheck="false" />
+            <label for="socks5Username">SOCKS5 用户名（可选）</label>
+            <input id="socks5Username" name="socks5Username" type="text" autocomplete="off" spellcheck="false" />
+            <label for="socks5Password">SOCKS5 密码</label>
+            <input id="socks5Password" name="socks5Password" type="password" autocomplete="new-password" />
+            <div class="hint">
+              填写代理软件的主机:端口，无需 socks5:// 前缀。代理模式用于 API 查询、视频下载、测速和 HTTPS 透传，域名解析交给代理；连接失败不会回退直连。无需认证时用户名和密码留空；已有密码留空则保留，清空用户名及密码可移除认证。密码保存在本机配置文件中，不会回显。停止 CDN、队列预缓存和批量任务后可保存切换。
+            </div>
             <label for="scanResolveConcurrency">扫描地址请求并发</label
             ><input
               id="scanResolveConcurrency"

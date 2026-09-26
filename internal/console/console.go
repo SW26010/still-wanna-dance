@@ -37,6 +37,10 @@ type Settings struct {
 	ScanCheckConcurrency   int    `json:"scanCheckConcurrency"`
 	QueuePrefetchCount     int    `json:"queuePrefetchCount"`
 	DownloadUpstream       string `json:"downloadUpstream"`
+	UpstreamMode           string `json:"upstreamMode"`
+	SOCKS5Address          string `json:"socks5Address"`
+	SOCKS5Username         string `json:"socks5Username"`
+	SOCKS5Password         string `json:"socks5Password,omitempty"`
 	MaxCacheBytes          int64  `json:"maxCacheBytes"`
 	StorageDir             string `json:"storageDir"`
 	LogDir                 string `json:"logDir"`
@@ -78,6 +82,7 @@ type Console struct {
 	checksumURL         string
 	apiBase             string
 	dns                 *directDNS
+	upstreamDial        upstreamDialFunc
 }
 
 func New(configPath, address string) (*Console, error) {
@@ -89,10 +94,9 @@ func New(configPath, address string) (*Console, error) {
 	if _, err := rand.Read(b); err != nil {
 		return nil, err
 	}
-	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: "https://x.kiva.moe/api/v2/wanna/songs", client: &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{Proxy: nil}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: "https://x.kiva.moe/api/v2/wanna/songs"}
 	c.settings = Settings{StorageDir: "stepstash-data", RequestRetentionDays: 30}
 	c.dns = &directDNS{}
-	c.client.Transport = &http.Transport{DialContext: c.dns.DialContext, ResponseHeaderTimeout: 20 * time.Second}
 	if b, err := os.ReadFile(configPath); err == nil {
 		if err = json.Unmarshal(b, &c.settings); err != nil {
 			return nil, fmt.Errorf("读取控制台配置：%w", err)
@@ -101,6 +105,9 @@ func New(configPath, address string) (*Console, error) {
 		return nil, err
 	}
 	c.settings, err = c.resolveSettings(c.settings)
+	if err == nil {
+		c.upstreamDial, c.client, err = c.networkFor(c.settings)
+	}
 	if err == nil {
 		c.loadSnapshots()
 	}
@@ -131,6 +138,21 @@ func (c *Console) storedSettings(s Settings) Settings {
 }
 
 func absoluteSettings(s Settings) (Settings, error) {
+	if s.UpstreamMode == "" {
+		s.UpstreamMode = "direct"
+	}
+	if s.UpstreamMode != "direct" && s.UpstreamMode != "socks5" {
+		return s, errors.New("上游连接必须是 direct 或 socks5")
+	}
+	s.SOCKS5Address = strings.TrimSpace(s.SOCKS5Address)
+	if s.UpstreamMode == "socks5" {
+		if err := validateSOCKS5Address(s.SOCKS5Address); err != nil {
+			return s, err
+		}
+		if err := validateSOCKS5Credentials(s.SOCKS5Username, s.SOCKS5Password); err != nil {
+			return s, err
+		}
+	}
 	if s.QueuePrefetchCount == 0 {
 		s.QueuePrefetchCount = 3
 	}
@@ -200,6 +222,12 @@ func writableDir(path string) error {
 }
 
 func (c *Console) save(s Settings) error {
+	return c.saveSettings(s, false)
+}
+
+// An omitted password in the settings API preserves the stored secret. Merge
+// under the lifecycle lock so concurrent saves cannot restore stale secrets.
+func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
@@ -213,10 +241,22 @@ func (c *Console) save(s Settings) error {
 	}
 	oldSettings, service := c.settings, c.service
 	c.mu.Unlock()
+	if preservePassword {
+		s.SOCKS5Password = oldSettings.SOCKS5Password
+	}
 	var err error
 	s, err = c.resolveSettings(s)
 	if err != nil {
 		return err
+	}
+	networkChanged := oldSettings.UpstreamMode != s.UpstreamMode || oldSettings.SOCKS5Address != s.SOCKS5Address || oldSettings.SOCKS5Username != s.SOCKS5Username || oldSettings.SOCKS5Password != s.SOCKS5Password
+	var dial upstreamDialFunc
+	var client *http.Client
+	if networkChanged {
+		dial, client, err = c.networkFor(s)
+		if err != nil {
+			return err
+		}
 	}
 	if err = writableDir(s.StorageDir); err != nil {
 		return fmt.Errorf("目录不可写：%w", err)
@@ -256,6 +296,10 @@ func (c *Console) save(s Settings) error {
 	c.inventoryMu.Lock()
 	c.mu.Lock()
 	c.settings = s
+	oldClient := c.client
+	if networkChanged {
+		c.upstreamDial, c.client = dial, client
+	}
 	c.scanPlan = nil
 	if changedLibrary {
 		c.lastBatch, c.batch = snapshots.lastBatch, snapshots.batch
@@ -265,6 +309,9 @@ func (c *Console) save(s Settings) error {
 	}
 	c.mu.Unlock()
 	c.inventoryMu.Unlock()
+	if networkChanged {
+		oldClient.CloseIdleConnections()
+	}
 	return nil
 }
 
@@ -283,7 +330,7 @@ func (c *Console) ensureEngine() error {
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
 	cfg.RequestRetentionDays = c.settings.RequestRetentionDays
-	cfg.DialContext = c.dns.DialContext
+	cfg.DialContext = c.upstreamDial
 	mode := c.settings.DownloadUpstream
 	cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
 		return c.resolvePlayback(ctx, id, node, mode)
@@ -370,7 +417,7 @@ func (c *Console) start() (err error) {
 	c.mu.Lock()
 	c.httpServer = h
 	c.videoListener = l
-	relay := newHTTPSRelay(secure, c.dns.DialContext)
+	relay := newHTTPSRelay(secure, c.upstreamDial)
 	c.https = relay
 	c.cdnError = ""
 	c.mu.Unlock()
@@ -506,20 +553,22 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.mu.Lock()
 		running := c.httpServer != nil
 		result := struct {
-			Running        bool                    `json:"running"`
-			Settings       Settings                `json:"settings"`
-			Hosts          HostsStatus             `json:"hosts"`
-			PortOK         bool                    `json:"portOK"`
-			CDNError       string                  `json:"cdnError"`
-			ActionErrors   map[string]string       `json:"actionErrors"`
-			Batch          Batch                   `json:"batch"`
-			PortOwner      *desktop.Owner          `json:"portOwner,omitempty"`
-			Queue          QueueStatus             `json:"queue"`
-			LastBatch      Batch                   `json:"lastBatch"`
-			HTTPSPortOK    bool                    `json:"httpsPortOK"`
-			HTTPSPortOwner *desktop.Owner          `json:"httpsPortOwner,omitempty"`
-			Traffic        cacheproxy.TrafficStats `json:"traffic"`
-		}{running, c.settings, HostsStatus{}, running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}}
+			Running           bool                    `json:"running"`
+			Settings          Settings                `json:"settings"`
+			Hosts             HostsStatus             `json:"hosts"`
+			PortOK            bool                    `json:"portOK"`
+			CDNError          string                  `json:"cdnError"`
+			ActionErrors      map[string]string       `json:"actionErrors"`
+			Batch             Batch                   `json:"batch"`
+			PortOwner         *desktop.Owner          `json:"portOwner,omitempty"`
+			Queue             QueueStatus             `json:"queue"`
+			LastBatch         Batch                   `json:"lastBatch"`
+			HTTPSPortOK       bool                    `json:"httpsPortOK"`
+			HTTPSPortOwner    *desktop.Owner          `json:"httpsPortOwner,omitempty"`
+			Traffic           cacheproxy.TrafficStats `json:"traffic"`
+			SOCKS5PasswordSet bool                    `json:"socks5PasswordSet"`
+		}{running, c.settings, HostsStatus{}, running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}, c.settings.SOCKS5Password != ""}
+		result.Settings.SOCKS5Password = ""
 		service := c.service
 		result.ActionErrors = make(map[string]string, len(c.actionErrors))
 		for source, message := range c.actionErrors {
@@ -579,9 +628,15 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/api/stop":
 		err = c.stop()
 	case "/api/settings":
-		var s Settings
-		if err = json.NewDecoder(r.Body).Decode(&s); err == nil {
-			err = c.save(s)
+		var input struct {
+			Settings
+			Password *string `json:"socks5Password"`
+		}
+		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+			if input.Password != nil {
+				input.Settings.SOCKS5Password = *input.Password
+			}
+			err = c.saveSettings(input.Settings, input.Password == nil)
 		}
 	case "/api/hosts/enable":
 		err = changeHosts("enable")

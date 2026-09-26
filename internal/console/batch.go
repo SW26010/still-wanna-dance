@@ -96,7 +96,7 @@ func (c *Console) catalogForScan(ctx context.Context, scan bool) ([]Song, error)
 	}
 	// The full catalog is much larger than a playback redirect. Give its body
 	// its own budget without changing the shared client's per-song timeout.
-	client := *c.client
+	client := *c.upstreamClient()
 	client.Timeout = 2 * time.Minute
 	resp, err := client.Do(r)
 	if err != nil {
@@ -141,7 +141,7 @@ func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (s
 	if err != nil {
 		return "", applog.SafeError(err)
 	}
-	resp, err := c.client.Do(r)
+	resp, err := c.upstreamClient().Do(r)
 	if err != nil {
 		return "", applog.SafeError(err)
 	}

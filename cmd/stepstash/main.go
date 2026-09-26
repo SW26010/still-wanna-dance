@@ -27,6 +27,8 @@ func main() {
 func run() (resultErr error) {
 	cfg := cacheproxy.DefaultConfig()
 	cfg.DialContext = console.NewUpstreamDialer()
+	socks5Address := flag.String("socks5-proxy", "", "SOCKS5 proxy host:port; delegates destination DNS to proxy; empty uses built-in DoH directly")
+	socks5Username := flag.String("socks5-username", "", "SOCKS5 username; set password via STEPSTASH_SOCKS5_PASSWORD environment variable")
 	listen := flag.String("listen", "127.0.0.1:18080", "HTTP listen address (use 127.0.0.1:80 for game integration)")
 	flag.StringVar(&cfg.StorageDir, "storage-dir", cfg.StorageDir, "storage root (videos, tmp and stepstash.sqlite); one process per root")
 	cf := flag.String("cf-origin", cfg.Origins["play.udon.dance"], "CF HTTPS origin host:port; retains Host and TLS SNI play.udon.dance")
@@ -39,6 +41,16 @@ func run() (resultErr error) {
 	flag.Parse()
 	if flag.NArg() != 0 {
 		return fmt.Errorf("unexpected positional arguments")
+	}
+	if *socks5Username != "" && *socks5Address == "" {
+		return fmt.Errorf("-socks5-username requires -socks5-proxy")
+	}
+	if *socks5Address != "" {
+		var err error
+		cfg.DialContext, err = console.NewAuthenticatedSOCKS5Dialer(*socks5Address, *socks5Username, os.Getenv("STEPSTASH_SOCKS5_PASSWORD"))
+		if err != nil {
+			return err
+		}
 	}
 	cfg.Origins["play.udon.dance"] = *cf
 	cfg.Origins["nya.xin.moe"] = *nya

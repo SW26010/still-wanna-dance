@@ -4,7 +4,7 @@
 
 使用 Go 实现，提供 Windows 托盘和本地网页控制台，支持 HTTP 视频缓存、冷缓存边下边播、完整性校验、Range/HEAD、同资源并发合并及统一版本存储。桌面版使用方式见[本地控制台](docs/console.md)，独立服务见[命令行服务手册](docs/service.md)，实网、原版回读及 VRChat 联合测试的结果和边界见[验收记录](docs/acceptance.md)。
 
-桌面控制台的本地缓存服务（界面称「CDN」）同时提供 HTTP 播放 API／视频缓存与 HTTPS 透传，兼容 hosts 接入后的网页播放。HTTPS 保留原站证书与原线路，复用独立 DNS 和多 IP 建连，不解密或使用本地缓存。StepStash 自身的 API 查询、下载和测速统一通过内置 DoH 建立 HTTPS 连接，验证原域名证书且不静默降级。详见[网页 HTTPS 播放](docs/console.md#网页-https-播放)。
+桌面控制台的本地缓存服务（界面称「CDN」）同时提供 HTTP 播放 API／视频缓存与 HTTPS 透传，兼容 hosts 接入后的网页播放。HTTPS 保留原站证书与原线路，不解密或使用本地缓存。API 查询、下载、测速和 HTTPS 透传共用上游连接设置：默认内置 DoH 直连，也可指定 SOCKS5 代理并将目标域名解析交给代理；代理失败不回退直连。详见[上游连接](docs/console.md#上游连接)及[网页 HTTPS 播放](docs/console.md#网页-https-播放)。
 
 HTTP 播放 API 在上游查询失败、超时或返回不合法的视频地址时，可降级返回该歌曲上次确认的本地视频：必须已有歌曲与版本的关联，且文件通过长度和 MD5 校验。支持 Range/HEAD，响应附带 `X-StepStash-Fallback: upstream-unavailable`；缺失或损坏的缓存仍返回失败。降级不会更新歌曲版本，也不能保证是上游最新视频；上游查询仍有最长 30 秒的等待时间。此机制仅覆盖播放地址解析阶段，不覆盖 HTTPS 透传。API 返回合法地址后，后续下载失败不会自动改播旧缓存：响应尚未发出时返回错误，边下边播的响应已经开始后则中断响应。详见[本地降级边界](docs/service.md#本地降级边界)。
 

@@ -39,6 +39,7 @@ func (s *Server) releaseVideo(v video) {
 	lastReference := s.versionPins[v.key] == 0
 	if lastReference {
 		delete(s.versionPins, v.key)
+		s.releaseVerified(v.key)
 		// Late raw URLs may recreate a previously removed superseded resource.
 		var known bool
 		if err := s.usage.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM song_videos WHERE version_key=?)`, v.key).Scan(&known); err == nil && known {

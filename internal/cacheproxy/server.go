@@ -57,6 +57,8 @@ type Server struct {
 	flights         map[string]*flight
 	slots           chan struct{}
 	localChecks     chan struct{}
+	verifyMu        sync.Mutex
+	verified        map[string]*verifiedFile
 	background      int
 	capacityChanged chan struct{}
 	wg              sync.WaitGroup
@@ -384,33 +386,20 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Info("served", "cache", "MISS", "elapsed", time.Since(start))
 		return
 	}
-	file, err := os.Open(f.path)
+	file, err := s.verifiedFile(r.Context(), v)
 	if err != nil {
 		log.Error("open_failed", "error", err)
-		http.Error(w, "cache unavailable", 500)
-		return
-	}
-	defer file.Close()
-	// Opened handles pin the version even if another request replaces the library
-	// entry. Validate this handle to close the prepare/open publication race.
-	if err := checkOpenFile(r.Context(), file, v); err != nil {
-		log.Warn("file_changed", "error", err)
-		http.Error(w, "file changed; retry request", http.StatusServiceUnavailable)
-		return
-	}
-	if _, err := file.Seek(0, 0); err != nil {
-		http.Error(w, "cache unavailable", 500)
-		return
-	}
-	info, err := file.Stat()
-	if err != nil {
+		if errors.Is(err, errInvalidCache) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "file changed or validation interrupted; retry request", http.StatusServiceUnavailable)
+			return
+		}
 		http.Error(w, "cache unavailable", 500)
 		return
 	}
 	w.Header().Set("Content-Type", "video/mp4")
 	w.Header().Set("ETag", `"`+v.checksum+`"`)
 	w.Header().Set("X-StepStash-Cache", f.source)
-	http.ServeContent(w, r, v.path, info.ModTime(), file)
+	http.ServeContent(w, r, v.path, file.info.ModTime(), file.reader())
 	if r.Context().Err() != nil {
 		log.Info("client_disconnected", "cache", f.source, "elapsed", time.Since(start))
 		return

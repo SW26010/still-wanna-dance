@@ -160,13 +160,7 @@ func (s *Server) localHit(ctx context.Context, v video) (*flight, error) {
 	if _, err := os.Stat(path); err != nil {
 		return nil, ctx.Err()
 	}
-	select {
-	case s.localChecks <- struct{}{}:
-		defer func() { <-s.localChecks }()
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-	if err := checkFile(ctx, path, v); err != nil {
+	if _, err := s.verifiedFile(ctx, v); err != nil {
 		return nil, ctx.Err()
 	}
 	if err := s.recordVideo(ctx, v); err != nil {
@@ -218,7 +212,7 @@ func checkOpenFile(ctx context.Context, f *os.File, v video) error {
 
 func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, string, error) {
 	path := s.cfg.videoFile(v.key)
-	if err := checkFile(ctx, path, v); err == nil {
+	if _, err := s.verifiedFile(ctx, v); err == nil {
 		flight.progress.setStage("index")
 		if err := s.recordVideo(ctx, v); err != nil {
 			return "", "", err

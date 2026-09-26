@@ -104,6 +104,10 @@ CREATE INDEX IF NOT EXISTS request_events_time ON request_events(requested_at);`
 		return nil, err
 	}
 	u := &usageStore{retention: time.Duration(retentionDays) * 24 * time.Hour, db: db, log: log, events: make(chan usageEvent, 1024), done: make(chan struct{}), now: time.Now}
+	if err := initializeTraffic(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	go u.run()
 	return u, nil
 }

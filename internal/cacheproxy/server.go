@@ -176,6 +176,12 @@ func New(cfg Config) (*Server, error) {
 		flights: make(map[string]*flight), slots: make(chan struct{}, cfg.MaxDownloads), localChecks: make(chan struct{}, cfg.MaxDownloads), capacityChanged: make(chan struct{}),
 		client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
+	if err := s.loadTraffic(usage.db); err != nil {
+		cancel()
+		usage.close()
+		unlock()
+		return nil, fmt.Errorf("load traffic statistics: %w", err)
+	}
 	if err := s.loadSongResources(); err != nil {
 		cancel()
 		usage.close()

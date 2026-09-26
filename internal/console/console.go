@@ -524,6 +524,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		result.Hosts = readHostsStatus()
 		if service != nil {
 			result.Traffic = service.TrafficStats()
+		} else {
+			result.Traffic = cacheproxy.ReadTrafficStats(result.Settings.StorageDir)
 		}
 		if !running {
 			result.PortOK = portAvailable(c.videoAddress) == nil

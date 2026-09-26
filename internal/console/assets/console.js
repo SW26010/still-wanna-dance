@@ -47,7 +47,7 @@ function renderTraffic(t) {
     ms(t.localMS) +
     '（' +
     (t.localSamples || 0) +
-    ' 个样本）';
+    ' 个样本）' + (t.error ? ' · ' + t.error : '');
 }
 
 function renderService(s) {

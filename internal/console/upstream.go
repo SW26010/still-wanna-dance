@@ -14,6 +14,43 @@ import (
 
 var errSongRemoved = errors.New("歌曲已离开待预缓存队列")
 
+// Resolve the preferred route first and return immediately on success. Auto
+// bounds each attempt so a stalled API still leaves time for the other route.
+func (c *Console) resolvePlayback(ctx context.Context, id, node, mode string) (string, error) {
+	songID, err := strconv.ParseInt(id, 10, 64)
+	if err != nil || songID <= 0 {
+		return "", fmt.Errorf("invalid song ID: %s", id)
+	}
+	routes := []string{"hkg", "cf"}
+	if node == "cf" {
+		routes = []string{"cf", "hkg"}
+	}
+	if mode == "cf" || mode == "hkg" {
+		routes = []string{mode}
+	}
+	var failures []error
+	for _, route := range routes {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+		attemptCtx := ctx
+		cancel := func() {}
+		if len(routes) > 1 {
+			attemptCtx, cancel = context.WithTimeout(ctx, 3*time.Second)
+		}
+		target, err := c.resolveNode(attemptCtx, songID, route)
+		cancel()
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
+		if err == nil {
+			return target, nil
+		}
+		failures = append(failures, fmt.Errorf("%s: %w", route, err))
+	}
+	return "", errors.Join(failures...)
+}
+
 // Resolve both routes independently; their paths and query strings may differ.
 // The cache engine compares content metadata before selecting a replacement.
 func (c *Console) resolveRoutes(ctx context.Context, id, mode string) ([]string, error) {

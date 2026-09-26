@@ -244,18 +244,10 @@ func (c *Console) ensureEngine() error {
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
 	cfg.DialContext = c.dns.DialContext
-	cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
-		songID, err := strconv.ParseInt(id, 10, 64)
-		if err != nil {
-			return "", err
-		}
-		route := "hkg"
-		if node == "cf" {
-			route = "cf"
-		}
-		return c.resolveNode(ctx, songID, route)
-	}
 	mode := c.settings.DownloadUpstream
+	cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
+		return c.resolvePlayback(ctx, id, node, mode)
+	}
 	cfg.KeepRequestedRoute = mode == "auto"
 	cfg.ResolveRoutes = func(ctx context.Context, id string) ([]string, error) {
 		return c.resolveRoutes(ctx, id, mode)

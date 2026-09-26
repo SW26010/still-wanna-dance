@@ -26,6 +26,7 @@ import (
 var videoPath = regexp.MustCompile(`^/files/[0-9]+/([1-9][0-9]*)-([a-zA-Z0-9]+)\.mp4$`)
 
 type video struct {
+	localOnly                        bool
 	songID                           string
 	checksum, key, path, query, host string
 	size                             int64
@@ -356,7 +357,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if event.demand {
 		event.at = s.usage.startDemand(v.key)
 	}
-	f, stream, err := s.obtain(r.Context(), v)
+	var f *flight
+	var stream *spoolReader
+	if v.localOnly {
+		// Do not enter obtain: it can download or update the current song mapping.
+		_, err = s.verifiedFile(r.Context(), v)
+		f = &flight{source: "HIT"}
+		if err == nil {
+			w.Header().Set("X-StepStash-Fallback", "upstream-unavailable")
+			log.Warn("playback_local_fallback", "song_id", v.songID)
+		}
+	} else {
+		f, stream, err = s.obtain(r.Context(), v)
+	}
 	if err != nil {
 		if r.Context().Err() != nil {
 			log.Info("client_disconnected", "elapsed", time.Since(start))

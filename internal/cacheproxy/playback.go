@@ -112,19 +112,45 @@ func (s *Server) requestVideo(r *http.Request) (video, error) {
 		}
 	}
 	if err != nil {
-		return video{}, fmt.Errorf("%w: %v", errPlaybackUpstream, err)
+		return s.localPlaybackVideo(r.Context(), strconv.FormatInt(n, 10))
 	}
 	resolved, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
-		return video{}, errPlaybackUpstream
+		return s.localPlaybackVideo(r.Context(), strconv.FormatInt(n, 10))
 	}
 	if (resolved.URL.Scheme != "http" && resolved.URL.Scheme != "https") || resolved.URL.User != nil || resolved.URL.Fragment != "" {
-		return video{}, errPlaybackUpstream
+		return s.localPlaybackVideo(r.Context(), strconv.FormatInt(n, 10))
 	}
 	v, err := s.parse(resolved)
 	if err != nil {
-		return video{}, errPlaybackUpstream
+		return s.localPlaybackVideo(r.Context(), strconv.FormatInt(n, 10))
 	}
 	v.songID = strconv.FormatInt(n, 10)
+	return v, nil
+}
+
+// Only a previously confirmed song association may supply an offline version.
+// Re-parse stored metadata to apply the same limits as online playback. The
+// handler pins and verifies the file, and must never download or promote it.
+func (s *Server) localPlaybackVideo(ctx context.Context, id string) (video, error) {
+	var key, checksum, path string
+	var size int64
+	err := s.usage.db.QueryRowContext(ctx, `SELECT v.version_key, v.checksum, v.file_bytes, v.source_path
+ FROM current_videos c JOIN video_versions v ON v.version_key=c.version_key
+ WHERE c.song_id=?`, id).Scan(&key, &checksum, &size, &path)
+	if err != nil {
+		return video{}, errPlaybackUpstream
+	}
+	u := &url.URL{Scheme: "http", Host: "play.udon.dance", Path: path,
+		RawQuery: url.Values{"e": {checksum}, "s": {strconv.FormatInt(size, 10)}}.Encode()}
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return video{}, errPlaybackUpstream
+	}
+	v, err := s.parse(r)
+	if err != nil || v.key != key {
+		return video{}, errPlaybackUpstream
+	}
+	v.songID, v.localOnly = id, true
 	return v, nil
 }

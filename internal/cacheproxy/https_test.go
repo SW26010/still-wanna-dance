@@ -145,8 +145,12 @@ func TestPlaybackAPIStreamsAndReusesVideoCache(t *testing.T) {
 		}
 	}
 	s.cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return "https://evil.invalid/video", nil }
-	if w := request(s, "GET", target, nil); w.Code != 502 {
-		t.Fatal(w.Code)
+	assertResponse(t, request(s, "GET", target, nil), 200, payload)
+	if w := request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=43", nil); w.Code != 502 {
+		t.Fatal("unknown song accepted invalid redirect", w.Code)
+	}
+	if downloads.Load() != 1 {
+		t.Fatal("invalid redirect triggered download", downloads.Load())
 	}
 	w := request(s, "GET", "http://api.udon.dance/Api/Songs/list", nil)
 	if w.Code != 307 || w.Header().Get("Location") != "https://api.udon.dance/Api/Songs/list" {

@@ -27,6 +27,8 @@ try {
     New-Item -ItemType Directory -Path $folder -Force | Out-Null
     & "$PSScriptRoot/build-desktop.ps1" -Output (Join-Path $folder 'stepstash-console.exe')
     Copy-Item -LiteralPath 'docs/portable-readme.txt' -Destination (Join-Path $folder 'README.txt')
+    Copy-Item -LiteralPath 'LICENSE' -Destination (Join-Path $folder 'LICENSE')
+    & "$PSScriptRoot/package-notices.ps1" -Executable (Join-Path $folder 'stepstash-console.exe') -Output (Join-Path $folder 'THIRD-PARTY-NOTICES.txt')
     $goVersion = & go version
     $metadata = [ordered]@{
         version = $Version

@@ -22,6 +22,8 @@
 StepStash-0.1.0-windows-amd64-portable/
   stepstash-console.exe
   README.txt
+  LICENSE
+  THIRD-PARTY-NOTICES.txt
   build-info.json
 ```
 
@@ -29,12 +31,18 @@ StepStash-0.1.0-windows-amd64-portable/
 提交 SHA、是否存在未提交修改、UTC 构建时间、Go 版本和目标平台。
 版本标签不等于 Git tag；本地未提交代码允许打包，并明确标记 dirty。
 
+`LICENSE` 为项目的 MIT 许可证。`THIRD-PARTY-NOTICES.txt` 包含直接及间接
+依赖的版权和许可全文，包括 libc 内嵌组件声明；打包时追加实际 Go 工具链的
+运行库和内置依赖许可。脚本根据 EXE 的模块版本检查声明覆盖情况，遇到未登记
+版本或 replacement 模块时停止。升级依赖后须核对模块和内嵌组件许可，更新
+仓库根目录的同名声明文件；不能只修改版本号。单独分发 EXE 时也应附上这两份文件。
+
 用户直接双击 `stepstash-console.exe`：程序显示托盘并打开网页控制台，重复启动
 会打开已有实例。交付包不需要 CMD / PS1 启动脚本；CDN、hosts 接入及队列预缓存
 在控制台中按需启用。仓库的 PowerShell 脚本仅用于开发构建和验收。
 
 启动验证在临时目录解压 ZIP，从不同工作目录启动该 EXE 的无托盘模式，
-检查内嵌网页、配置锁、默认数据路径和启动 JSON 日志，再停止该测试进程。
+检查许可证文件和依赖声明覆盖情况、内嵌网页、配置锁、默认数据路径和启动 JSON 日志，再停止该测试进程。
 不会启动 CDN、下载歌曲或修改 hosts；解压目录保留以便检查。
 此验证不替代真实桌面的托盘和 UAC 验收。
 目录保存和整体移动后的配置解析由 Go 回归测试覆盖。

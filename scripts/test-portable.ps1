@@ -9,6 +9,23 @@ try {
     $exe = @(Get-ChildItem -LiteralPath $root -Recurse -Filter stepstash-console.exe)
     if ($exe.Count -ne 1) { throw 'Expected exactly one desktop executable.' }
     $folder = $exe[0].DirectoryName
+    foreach ($name in @('LICENSE', 'THIRD-PARTY-NOTICES.txt')) {
+        $file = Join-Path $folder $name
+        if (!(Test-Path -LiteralPath $file -PathType Leaf) -or (Get-Item -LiteralPath $file).Length -eq 0) {
+            throw "Missing or empty license file: $name"
+        }
+    }
+    $notices = Get-Content -LiteralPath (Join-Path $folder 'THIRD-PARTY-NOTICES.txt') -Raw
+    $info = @(& go version -m $exe[0].FullName)
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect packaged dependencies.' }
+    foreach ($line in $info) {
+        if ($line -match '^\s+dep\s+(\S+)\s+(\S+)') {
+            if (($notices -split '\r?\n') -cnotcontains "Module: $($Matches[1]) $($Matches[2])") {
+                throw "Packaged dependency notice missing: $line"
+            }
+        }
+    }
+    if ($notices -notmatch 'Go runtime and standard library: go\d') { throw 'Go runtime notice missing.' }
     # Reserve a candidate port, then verify the child stayed alive to avoid accepting another process.
     $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
     $listener.Start()

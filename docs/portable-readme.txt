@@ -30,6 +30,11 @@ stepstash-console.json.lock 是配置锁文件，退出后保留是正常现象�
 build-info.json 记录版本、源码提交、工作区是否有未提交修改和编译器版本。
 ZIP 旁的 .sha256 文件用于校验下载是否完整。
 
+许可
+StepStash 采用 MIT 许可证，全文见 LICENSE。
+第三方依赖、内嵌组件和 Go 运行库的版权及许可全文见 THIRD-PARTY-NOTICES.txt。
+重新分发或升级程序时，请同时保留和更新这两份许可文件。
+
 程序自身日志
 程序日志在 logs\stepstash-console.json.log，与读取 VRChat 日志的设置无关。
 日志记录启动退出、功能操作、下载与校验异常及任务汇总；每行是 JSON 文本。

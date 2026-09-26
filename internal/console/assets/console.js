@@ -1,5 +1,6 @@
 const token = document.querySelector('meta[name="stepstash-token"]').content;
 const $ = (id) => document.getElementById(id);
+let recentLimit = 50, recentStorage = '', recentSnapshot = '', recentRows = [];
 let settingsDirty = false,
   settingsRevision = 0,
   busy = false,
@@ -232,7 +233,7 @@ async function readState(url) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, { signal: controller.signal, headers: { 'X-StepStash-Token': token } });
     if (!response.ok) throw Error('控制台连接失败');
     return await response.json();
   } finally {
@@ -329,6 +330,7 @@ async function action(path, body) {
     if (path === 'settings') {
       settingsDirty = false;
       settingsRevision++;
+      resetRecent();
     }
     notice(
       path === 'start'
@@ -401,9 +403,9 @@ function requestRefresh() {
     try {
       do {
         refreshPending = false;
-        // Finish both reads before starting another batch. A trigger during
+        // Finish all reads before starting another batch. A trigger during
         // this batch requests one fresh batch, so action results are not lost.
-        await Promise.allSettled([refresh(), refreshInventory()]);
+        await Promise.allSettled([refresh(), refreshInventory(), refreshRecent()]);
       } while (refreshPending && !document.hidden);
     } finally {
       refreshTask = null;
@@ -416,6 +418,156 @@ function requestRefresh() {
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) requestRefresh();
   else clearTimeout(refreshTimer);
+});
+function resetRecent() {
+  recentLimit = 50;
+  recentStorage = '';
+  recentSnapshot = '';
+  recentRows = [];
+  $('recentList').replaceChildren();
+  $('recentMore').hidden = true;
+  setText('recentState', '正在读取当前存储目录…');
+}
+
+// Process newest first. A non-Range request breaks only its own resource's chain.
+function groupRequests(requests) {
+  const groups = [], latest = new Map();
+  for (const r of requests) {
+    const range = r.method === 'GET' && !!r.range;
+    let group = latest.get(r.resource);
+    if (!range || !group || !group.range || group.first - r.at > 30000) {
+      group = { range, first: r.at, last: r.at, end: r.at, bytes: 0, requests: [] };
+      groups.push(group);
+    }
+    group.first = r.at;
+    // GET timestamps can be reset after URL resolution, while elapsedMS
+    // includes resolution. This inferred end is only a span estimate.
+    group.end = Math.max(group.end, r.at + r.elapsedMS);
+    group.bytes += r.bytes;
+    group.requests.push(r);
+    latest.set(r.resource, group);
+  }
+  return groups;
+}
+function requestOutcome(r) {
+  if (r.outcome === 'canceled') return '客户端取消 / 请求中断';
+  if (r.outcome === 'aborted') return '传输中止（原因未确定）';
+  if (r.outcome === 'incomplete') return '传输不完整';
+  if (r.outcome === 'failed') return r.status >= 400 ? '请求失败' : '写入失败 / 连接中断';
+  if (r.outcome === 'completed') return r.status === 200 || r.status === 206
+    ? (r.method === 'HEAD' ? '响应头处理完成' : '请求处理完成') : 'HTTP 响应结束';
+  return '结果未知';
+}
+function requestCache(r) {
+  return ({ HIT: '缓存命中', MISS: '回源', WAIT: '等待共享下载', UNKNOWN: '缓存状态未知' })[r.cache] || '缓存状态未知';
+}
+function requestTitle(r) {
+  const songs = r.songs || [];
+  if (!songs.length) return '未知歌名 · 资源 ' + r.resource;
+  return (songs.length > 1 || r.moreSongs ? '关联曲目（播放歌曲未确定）：' : '关联曲目：') +
+    songs.map(s => (s.title || '未知歌名') + '（ID ' + s.id + '）').join(' / ') + (r.moreSongs ? ' / …更多关联曲目' : '');
+}
+function recentElement(tag, className, text) {
+  const element = document.createElement(tag);
+  element.className = className;
+  if (text != null) element.textContent = text;
+  return element;
+}
+function recentMetric(label, value) {
+  const cell = recentElement('span', 'recent-metric');
+  cell.append(recentElement('small', 'recent-label', label), recentElement('span', 'recent-value', value));
+  return cell;
+}
+function recentBadges(requests, label, className) {
+  const counts = new Map();
+  for (const r of requests) counts.set(label(r), (counts.get(label(r)) || 0) + 1);
+  return [...counts].map(([name, n]) => recentElement('span', 'recent-badge ' + className, name + ' ×' + n));
+}
+function recentSummary(g) {
+  const summary = recentElement('summary', 'recent-summary');
+  const first = g.requests[0], songs = first.songs || [];
+  const song = recentElement('span', 'recent-song');
+  const title = songs.length ? songs.slice(0, 2).map(s => s.title || '未知歌名（ID ' + s.id + '）').join(' / ') : '未知歌名';
+  song.append(recentElement('strong', 'recent-song-title', title));
+  if (songs.length > 2 || first.moreSongs)
+    song.append(recentElement('small', 'recent-label', '等 ' + (first.moreSongs ? '至少 ' : '') + songs.length + ' 首关联曲目 · 全部候选见明细'));
+  song.append(recentElement('small', 'recent-label', songs.length > 1 || first.moreSongs
+    ? '共享资源 · 实际播放歌曲未确定' : songs.length ? '资源关联曲目' : '资源标识见展开明细'));
+  const meta = recentElement('span', 'recent-meta');
+  meta.append(recentElement('span', '', new Date(g.last).toLocaleString()),
+    recentElement('span', 'recent-badge', '请求 ×' + g.requests.length), recentElement('span', 'recent-expand', '明细'));
+  song.append(meta);
+  const status = recentElement('span', 'recent-status');
+  status.append(recentElement('small', 'recent-label', '缓存 / 结果'),
+    ...recentBadges(g.requests, requestCache, 'recent-cache'), ...recentBadges(g.requests, requestOutcome, 'recent-outcome'));
+  const ms = g.end - g.first, grouped = g.requests.length > 1;
+  summary.append(song, status,
+    recentMetric('实际传输', (g.bytes / 1e6).toFixed(3) + ' MB'),
+    recentMetric(grouped ? '估算跨度' : '耗时', (ms / 1000).toFixed(3) + ' 秒'),
+    recentMetric(grouped ? '估算平均速度' : '平均速度', ms > 0 ? (g.bytes / ms / 1000).toFixed(3) + ' MB/s' : '—'));
+  return summary;
+}
+function transferText(bytes, ms) {
+  return (bytes / 1e6).toFixed(3) + ' MB · ' + (ms / 1000).toFixed(3) + ' 秒 · ' +
+    (ms > 0 ? (bytes / ms / 1000).toFixed(3) + ' MB/s' : '速度 —');
+}
+function renderRecent(v) {
+  if (recentStorage && recentStorage !== v.storageID) resetRecent();
+  recentStorage = v.storageID;
+  const signature = JSON.stringify(v.requests);
+  if (signature !== recentSnapshot) {
+    const opened = new Set(recentRows.filter(row => row.node.open).flatMap(row => row.ids));
+    const focused = recentRows.find(row => row.summary === document.activeElement);
+    recentRows = groupRequests(v.requests).map(g => {
+      const node = document.createElement('details');
+      const summary = recentSummary(g);
+      const first = g.requests[0];
+      node.append(summary);
+      const detail = recentElement('div', 'recent-detail');
+      detail.append(recentElement('p', 'recent-associations', requestTitle(first)),
+        recentElement('p', 'recent-resource', '资源标识：' + first.resource));
+      const list = document.createElement('ul');
+      for (const r of g.requests) {
+        const item = document.createElement('li');
+        item.textContent = new Date(r.at).toLocaleString() + ' · ' + r.method + ' ' + (r.range || '完整请求') +
+          ' · HTTP ' + (r.status || '未返回') + ' · ' + requestCache(r) + ' · ' + requestOutcome(r) +
+          ' · ' + transferText(r.bytes, r.elapsedMS) + ' · 资源 ' + r.resource;
+        list.append(item);
+      }
+      detail.append(list);
+      node.append(detail);
+      const ids = g.requests.map(r => r.resource + ':' + r.at + ':' + r.id);
+      node.open = ids.some(id => opened.has(id));
+      return { node, summary, ids };
+    });
+    $('recentList').replaceChildren(...recentRows.map(row => row.node));
+    if (focused) recentRows.find(row => row.ids.some(id => focused.ids.includes(id)))?.summary.focus({ preventScroll: true });
+    recentSnapshot = signature;
+  }
+  $('recentMore').hidden = !v.hasMore || recentLimit >= 500;
+  setText('recentState', (v.requests.length ? '已显示 ' + v.requests.length + ' 条 HTTP 请求' : '当前窗口暂无 HTTP 请求记录') +
+    ' · 最近 ' + recentLimit + ' 条 HTTP 请求窗口' + (v.hasMore ? ' · 窗口外还有 HTTP 请求，分组可能不完整' : '') +
+    (recentLimit >= 500 && v.hasMore ? '（已达 500 条上限）' : ''));
+}
+async function refreshRecent() {
+  const revision = settingsRevision;
+  try {
+    const v = await readState('/api/requests?limit=' + recentLimit);
+    if (revision !== settingsRevision) return;
+    renderRecent(v);
+  } catch {
+    if (revision !== settingsRevision) return;
+    // Do not present stale data from an unknown storage directory as current.
+    recentSnapshot = '';
+    recentRows = [];
+    $('recentList').replaceChildren();
+    $('recentMore').hidden = true;
+    setText('recentState', '最近请求读取失败，将自动重试。');
+  }
+}
+$('recentMore').addEventListener('click', () => {
+  recentLimit = Math.min(500, recentLimit + 50);
+  requestRefresh();
 });
 renderControls();
 requestRefresh();

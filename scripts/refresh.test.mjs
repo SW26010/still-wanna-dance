@@ -195,13 +195,15 @@ function page(hidden = false) {
   // rendering and user interactions can be asserted without calling action().
   function element(tagName = 'div') {
     const handlers = new Map();
+    let ownText = '';
     return {
       tagName: tagName.toUpperCase(),
       dataset: {},
       children: [],
       disabled: false,
       hidden: false,
-      textContent: '',
+      get textContent() { return ownText + this.children.map(child => child.textContent).join(''); },
+      set textContent(value) { ownText = String(value); this.children = []; },
       addEventListener(event, callback) {
         if (!handlers.has(event)) handlers.set(event, []);
         handlers.get(event).push(callback);
@@ -217,6 +219,7 @@ function page(hidden = false) {
       },
       append(...nodes) { this.children.push(...nodes); },
       replaceChildren(...nodes) { this.children = [...nodes]; },
+      focus() { document.activeElement = this; },
     };
   }
   const document = {
@@ -248,6 +251,7 @@ function page(hidden = false) {
     document,
     AbortController,
     fetch(url, options = {}) {
+      if (url.startsWith('/api/requests?')) return Promise.resolve({ ok: true, json: async () => ({ storageID: 'test', requests: [], hasMore: false }) });
       const { signal } = options;
       return new Promise((resolve, reject) => {
         let rejectBody;
@@ -587,7 +591,7 @@ for (const stalled of [0, 1]) {
   for (const bodyStalls of [false, true]) {
     test(`${stalled === 0 ? 'status' : 'inventory'} timeout cancels a stalled ${bodyStalls ? 'body' : 'fetch'} and polling recovers`, async () => {
       const p = page();
-      assert.equal(p.deadlines.size, 2);
+      assert.equal(p.deadlines.size, 3);
       if (bodyStalls) p.requests[stalled].headersOnly();
       p.requests[1 - stalled].finish({ settings: {}, hosts: {}, batch: {}, queue: {}, bytes: 0 });
       await flush();
@@ -778,3 +782,127 @@ for (const moved of [false, true]) {
     assert.equal(focused, moved ? 0 : 1);
   });
 }
+
+const recentEvent = (id, at, extra = {}) => ({ id, at, resource: 'shared', method: 'GET', range: 'bytes=0-9', cache: 'HIT', outcome: 'completed', bytes: 10, elapsedMS: 1000, status: 206, songs: [], ...extra });
+
+test('recent groups respect resource, 30-second boundary, HEAD and full-request boundaries', () => {
+  const p = page(true);
+  p.context.samples = [recentEvent(7, 100000), recentEvent(6, 90000, { resource: 'other' }), recentEvent(5, 70000), recentEvent(4, 39999), recentEvent(3, 39000, { method: 'HEAD' }), recentEvent(2, 38000, { range: '' }), recentEvent(1, 37000)];
+  const groups = vm.runInContext('groupRequests(samples)', p.context);
+  assert.deepEqual(Array.from(groups, g => Array.from(g.requests, r => r.id)), [[7, 5], [6], [4], [3], [2], [1]]);
+});
+
+test('recent groups retain mixed results and estimate span without summing parallel durations', () => {
+  const p = page(true);
+  p.context.samples = [recentEvent(2, 2000, { bytes: 5, outcome: 'canceled', cache: 'MISS', elapsedMS: 4000 }), recentEvent(1, 1000, { elapsedMS: 4000 })];
+  const group = vm.runInContext('groupRequests(samples)[0]', p.context);
+  assert.equal(group.end - group.first, 5000);
+  assert.equal(group.bytes, 15);
+  assert.match(vm.runInContext('recentSummary(groupRequests(samples)[0]).textContent', p.context), /中断 ×1.*完成 ×1/);
+  assert.match(vm.runInContext('recentSummary(groupRequests(samples)[0]).textContent', p.context), /回源 ×1.*命中 ×1/);
+  for (const [outcome, status, pattern] of [['failed', 200, /连接中断/], ['failed', 502, /请求失败/], ['aborted', 200, /中止/], ['incomplete', 200, /不完整/]]) {
+    p.context.sample = recentEvent(1, 0, { outcome, status });
+    assert.match(vm.runInContext('requestOutcome(sample)', p.context), pattern);
+  }
+});
+
+test('recent rendering preserves expanded groups and focus across updates, safely labels all song candidates', () => {
+  const p = page(true);
+  p.context.snapshot = { storageID: 'one', hasMore: true, requests: [recentEvent(1, 1000)] };
+  vm.runInContext('renderRecent(snapshot)', p.context);
+  const list = p.document.getElementById('recentList');
+  const original = list.children[0];
+  original.open = true;
+  p.document.activeElement = original.children[0];
+  assert.match(original.children[0].textContent, /未知歌名/);
+  assert.doesNotMatch(original.children[0].textContent, /shared|bytes=/);
+  assert.match(original.children[1].textContent, /资源标识：shared/);
+  assert.doesNotMatch(original.children[0].textContent, /估算/);
+  vm.runInContext('renderRecent(snapshot)', p.context);
+  assert.equal(list.children[0], original);
+  p.context.snapshot.requests.unshift(recentEvent(2, 2000, { songs: [{ id: '1', title: '<script>bad</script>' }, { id: '2', title: '' }] }));
+  vm.runInContext('renderRecent(snapshot)', p.context);
+  assert.equal(list.children[0].open, true);
+  assert.match(list.children[0].children[0].textContent, /估算跨度2\.000 秒估算平均速度/);
+  assert.doesNotMatch(list.children[0].children[1].textContent, /估算/);
+  assert.equal(p.document.activeElement, list.children[0].children[0]);
+  assert.match(list.children[0].children[0].textContent, /<script>bad<\/script>.*未知歌名.*播放歌曲未确定/);
+  assert.equal(list.children[0].children[0].children[0].children[0].children.length, 0);
+  assert.equal(list.children[0].children[0].children.length, 5);
+  p.context.snapshot.storageID = 'two';
+  vm.runInContext('renderRecent(snapshot)', p.context);
+  assert.equal(list.children[0].open, false);
+});
+
+test('recent refresh authenticates, rejects pre-save responses, clears failures and recovers', async () => {
+  const p = page(true);
+  let finish, observed;
+  p.context.fetch = (url, options) => { observed = { url, options }; return new Promise(resolve => { finish = value => resolve({ ok: true, json: async () => value }); }); };
+  const pending = vm.runInContext('refreshRecent()', p.context);
+  assert.equal(observed.options.headers['X-StepStash-Token'], 'test-token');
+  assert.equal(observed.url, '/api/requests?limit=50');
+  vm.runInContext('settingsRevision++; resetRecent()', p.context);
+  finish({ storageID: 'old', requests: [recentEvent(1, 0)] });
+  await pending;
+  assert.equal(p.document.getElementById('recentList').children.length, 0);
+  p.context.fetch = async () => { throw Error('unreadable'); };
+  await vm.runInContext('refreshRecent()', p.context);
+  assert.match(p.document.getElementById('recentState').textContent, /读取失败/);
+  p.context.fetch = async () => ({ ok: true, json: async () => ({ storageID: 'new', requests: [], hasMore: false }) });
+  await vm.runInContext('refreshRecent()', p.context);
+  assert.match(p.document.getElementById('recentState').textContent, /暂无/);
+});
+
+test('recent load-more uses bounded expanding window and shared nonoverlapping poll scheduler', async () => {
+  const p = page();
+  p.finishBatch();
+  await flush();
+  const originalFetch = p.context.fetch;
+  const recent = [];
+  let finish;
+  p.context.fetch = (url, options) => url.startsWith('/api/requests?') ? new Promise(resolve => {
+    recent.push(url);
+    finish = () => resolve({ ok: true, json: async () => ({ storageID: 'test', requests: [], hasMore: true }) });
+  }) : originalFetch(url, options);
+  p.document.getElementById('recentMore').click();
+  assert.deepEqual(recent, ['/api/requests?limit=100']);
+  p.finishBatch(2);
+  await flush();
+  assert.equal(p.timers.size, 0);
+  p.visibility(true);
+  p.visibility(false);
+  assert.equal(recent.length, 1);
+  finish();
+  await flush();
+  assert.equal(recent.length, 2);
+  p.finishBatch(4);
+  finish();
+  await flush();
+  assert.equal(p.timers.size, 1);
+  vm.runInContext('recentLimit = 500', p.context);
+  p.document.getElementById('recentMore').click();
+  assert.equal(recent.at(-1), '/api/requests?limit=500');
+  p.finishBatch(6);
+  finish();
+  await flush();
+  assert.equal(p.document.getElementById('recentMore').hidden, true);
+});
+
+test('recent summary keeps names, badges and numbers in separate cells; fingerprints and all candidates stay in details', () => {
+  const p = page(true);
+  p.context.snapshot = { storageID: 'test', hasMore: false, requests: [recentEvent(1, 1000, {
+    resource: 'private-resource-fingerprint', songs: [
+      { id: '1', title: '第一首' }, { id: '2', title: '第二首' }, { id: '3', title: '第三首' },
+    ],
+  })] };
+  vm.runInContext('renderRecent(snapshot)', p.context);
+  const [summary, detail] = p.document.getElementById('recentList').children[0].children;
+  assert.equal(summary.children.length, 5);
+  assert.match(summary.children[0].textContent, /第一首.*第二首.*等 3 首/);
+  assert.doesNotMatch(summary.textContent, /第三首|private-resource-fingerprint|bytes=/);
+  assert.match(summary.children[1].textContent, /缓存命中 ×1.*请求处理完成 ×1/);
+  assert.equal(summary.children[2].textContent, '实际传输0.000 MB');
+  assert.equal(summary.children[3].textContent, '耗时1.000 秒');
+  assert.equal(summary.children[4].textContent, '平均速度0.000 MB/s');
+  assert.match(detail.textContent, /第三首.*private-resource-fingerprint.*bytes=0-9/);
+});

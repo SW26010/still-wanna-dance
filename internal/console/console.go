@@ -602,6 +602,34 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, c.localInventory())
 		return
 	}
+	if r.URL.Path == "/api/requests" && r.Method == "GET" {
+		if r.Header.Get("X-StepStash-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
+			http.Error(w, "invalid origin or token", http.StatusForbidden)
+			return
+		}
+		limit := 50
+		if value := r.URL.Query().Get("limit"); value != "" {
+			var err error
+			limit, err = strconv.Atoi(value)
+			if err != nil || limit < 1 || limit > cacheproxy.MaxRecentRequests {
+				http.Error(w, "invalid limit", http.StatusBadRequest)
+				return
+			}
+		}
+		// Serialize with storage switches, without starting a cache engine.
+		c.lifecycleMu.Lock()
+		c.mu.Lock()
+		root := c.settings.StorageDir
+		c.mu.Unlock()
+		result, err := cacheproxy.ReadRecentRequests(r.Context(), root, limit)
+		c.lifecycleMu.Unlock()
+		if err != nil {
+			http.Error(w, "最近请求读取失败，请稍后重试", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, result)
+		return
+	}
 	if r.Method != "POST" {
 		http.Error(w, "not found", 404)
 		return

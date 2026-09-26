@@ -428,6 +428,53 @@ p, small, .hint, .stat, td, th, [role='status'], #queueDetail, #current {
     padding: .75rem;
   }
 }
+.recent-list details {
+  border-top: 1px solid var(--line);
+  padding: .65rem 0;
+  overflow-wrap: anywhere;
+}
+.recent-list .recent-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.8fr) repeat(2, minmax(0, .8fr)) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+  width: 100%;
+  padding: .7rem .5rem;
+  color: var(--text);
+  font-weight: 400;
+  line-height: 1.5;
+  border-radius: .5rem;
+}
+.recent-summary::-webkit-details-marker { display: none; }
+.recent-list .recent-summary:hover { text-decoration: none; background: var(--subtle); }
+.recent-song, .recent-metric { display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
+.recent-song-title { font-size: 1rem; font-weight: 600; }
+.recent-label { color: var(--muted); font-size: .75rem; }
+.recent-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; color: var(--muted); font-size: .75rem; }
+.recent-expand { color: var(--brand); white-space: nowrap; }
+.recent-expand::before { content: '▸ '; }
+details[open] > .recent-summary .recent-expand::before { content: '▾ '; }
+.recent-status { display: flex; flex-wrap: wrap; gap: .4rem; align-content: start; }
+.recent-status > .recent-label { flex-basis: 100%; }
+.recent-badge { display: inline-block; border: 1px solid var(--line); border-radius: .35rem; padding: .15rem .4rem; font-size: .75rem; line-height: 1.4; }
+.recent-cache { color: var(--brand); }
+.recent-metric { text-align: right; }
+.recent-value { font-variant-numeric: tabular-nums; font-size: .95rem; }
+.recent-detail { padding: .5rem 1rem; background: var(--subtle); border-radius: .5rem; font-size: .875rem; }
+.recent-resource { font-family: ui-monospace, monospace; }
+.recent-list li { margin-block: .6rem; line-height: 1.6; }
+#recent { margin-bottom: 1.5rem; }
+@media (max-width: 900px) {
+  .recent-list .recent-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .recent-song, .recent-status { grid-column: 1 / -1; }
+  .recent-metric { text-align: left; }
+}
+@media (max-width: 380px) {
+  .recent-list .recent-summary { gap: .75rem .35rem; }
+  .recent-value { font-size: .8rem; }
+  .recent-detail { padding-inline: .5rem; }
+  .recent-detail ul { padding-left: 1.2rem; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation: none !important;

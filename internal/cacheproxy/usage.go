@@ -99,6 +99,9 @@ CREATE TABLE IF NOT EXISTS request_events (
 );
 CREATE INDEX IF NOT EXISTS request_events_resource_time ON request_events(resource_key, requested_at);
 CREATE INDEX IF NOT EXISTS request_events_time ON request_events(requested_at);`)
+	if err == nil {
+		_, err = db.Exec(recentHTTPIndexSQL)
+	}
 	if err != nil {
 		db.Close()
 		return nil, err

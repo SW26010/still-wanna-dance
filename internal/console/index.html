@@ -18,7 +18,7 @@
         <div id="connection" role="status">正在连接…</div>
       </header>
       <nav aria-label="控制台区域">
-        <a href="#overview">概览</a><a href="#service">本地 CDN</a><a href="#queue">队列预缓存</a><a href="#batch">扫描与更新</a><a href="#preferences">设置</a>
+        <a href="#overview">概览</a><a href="#recent">最近请求</a><a href="#service">本地 CDN</a><a href="#queue">队列预缓存</a><a href="#batch">扫描与更新</a><a href="#preferences">设置</a>
       </nav>
       <main id="main" tabindex="-1">
       <div class="eyebrow">本地缓存控制台</div>
@@ -89,6 +89,21 @@
           <div id="inventoryActionError" role="status"></div>
           <div id="inventoryError" role="status"></div>
         </section>
+      </section>
+      <section class="card" id="recent" aria-labelledby="recentTitle" tabindex="-1">
+        <div class="card-head"><h2 id="recentTitle">最近请求监控</h2><small>每 5 秒刷新 · 请求次数不是播放次数</small></div>
+        <p id="recentState" role="status">正在读取最近请求…</p>
+        <details class="help"><summary>请求分组与传输口径</summary><div class="hint">
+          仅显示已结束并写入数据库的 HTTP 视频请求，不是实时下载任务。歌名为资源关联曲目，不能据此确定实际播放歌曲。
+          同资源相邻 GET Range 请求记录时间相隔不超过 30 秒时合并；完整请求、HEAD 分开显示。分组仅覆盖已加载窗口，边界可能截断。
+          时间为请求记录时间，GET 在播放地址解析后记录；传输量为向客户端实际写入的字节（MB = 1,000,000 字节），不是视频大小或回源下载量。
+          单次耗时包含地址解析、等待和校验。多请求组跨度按最早记录时间至最晚「记录时间 + 单次耗时」估算，包含间隔、不叠加并行耗时；组平均速度为组字节数除以估算跨度。
+          GET 记录时间与耗时起点不同，因此组跨度及平均速度均为估算值，不代表精确起止时间。
+          完成表示服务器处理结束，不证明客户端播放完成；200 / 206 本身不证明传输完整。旧记录中的写入失败可能是客户端提前断开。
+          每次最多查看最近 500 条 HTTP 请求，预缓存不占用窗口，受明细保留天数限制。
+        </div></details>
+        <div id="recentList" class="recent-list"></div>
+        <div class="actions"><button id="recentMore" type="button" hidden>加载更早记录（增加 50 条）</button></div>
       </section>
       <div class="grid">
         <section class="card" id="service" aria-labelledby="serviceTitle" tabindex="-1">

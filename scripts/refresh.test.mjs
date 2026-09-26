@@ -7,6 +7,70 @@ const html = readFileSync(new URL('../internal/console/index.html', import.meta.
 const script = readFileSync(new URL('../internal/console/assets/console.js', import.meta.url), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+test('untouched settings follow server changes on polling and return to a visible page', async () => {
+  const p = page();
+  p.finishBatch(0, { storageDir: 'D:/old' });
+  await flush();
+  assert.equal(vm.runInContext("$('storageDir').value", p.context), 'D:/old');
+  p.fireTimer();
+  p.finishBatch(2, { storageDir: 'D:/new', autoStartCDN: true, requestRetentionDays: 0,
+    scanResolveConcurrency: 8, scanCheckConcurrency: 2, logDir: 'D:/logs',
+    downloadUpstream: 'direct', maxCacheBytes: 2147483648 });
+  await flush();
+  assert.deepEqual(JSON.parse(vm.runInContext(`JSON.stringify([
+    $('storageDir').value, $('autoStartCDN').checked, $('requestRetentionDays').value,
+    $('scanResolveConcurrency').value, $('scanCheckConcurrency').value,
+    $('logDir').value, $('downloadUpstream').value, $('maxCacheGiB').value
+  ])`, p.context)), ['D:/new', true, 0, 8, 2, 'D:/logs', 'direct', 2]);
+  p.visibility(true);
+  p.visibility(false);
+  p.finishBatch(4, { storageDir: 'D:/latest' });
+  await flush();
+  assert.equal(vm.runInContext("$('storageDir').value", p.context), 'D:/latest');
+});
+
+for (const event of ['input', 'change']) {
+  test(`${event} preserves edited settings through polling and unrelated actions`, async () => {
+    const p = page();
+    p.finishBatch(0, { storageDir: 'D:/old' });
+    await flush();
+    vm.runInContext(`$('storageDir').value = 'D:/draft'; $('settings').dispatchEvent({ type: '${event}' })`, p.context);
+    p.fireTimer();
+    p.finishBatch(2, { storageDir: 'D:/new' });
+    await flush();
+    const action = vm.runInContext("action('inventory/scan')", p.context);
+    p.requests[4].finish();
+    await flush();
+    p.finishBatch(5, { storageDir: 'D:/new' });
+    await action;
+    assert.equal(vm.runInContext("$('storageDir').value", p.context), 'D:/draft');
+  });
+}
+
+for (const outcome of ['success', 'failure', 'lost response']) {
+  test(`settings save ${outcome} ${outcome === 'success' ? 'fills effective values and resumes syncing' : 'preserves the draft'}`, async () => {
+    const p = page();
+    p.finishBatch(0, { storageDir: 'D:/old' });
+    await flush();
+    vm.runInContext("$('storageDir').value = 'relative'; $('settings').dispatchEvent({ type: 'input' })", p.context);
+    p.fireTimer(); // A pre-save read remains in flight when saving completes.
+    const action = vm.runInContext("action('settings', { storageDir: 'relative' })", p.context);
+    if (outcome === 'lost response') p.requests[4].reject(new Error('offline'));
+    else p.requests[4].finish(outcome === 'success' ? { ok: true } : { error: 'invalid' }, outcome === 'success');
+    await flush();
+    p.finishBatch(2, { storageDir: 'D:/old' });
+    await flush();
+    assert.equal(vm.runInContext("$('storageDir').value", p.context), 'relative');
+    p.finishBatch(5, { storageDir: 'D:/effective/relative' });
+    await action;
+    assert.equal(vm.runInContext("$('storageDir').value", p.context), outcome === 'success' ? 'D:/effective/relative' : 'relative');
+    p.fireTimer();
+    p.finishBatch(7, { storageDir: 'D:/latest' });
+    await flush();
+    assert.equal(vm.runInContext("$('storageDir').value", p.context), outcome === 'success' ? 'D:/latest' : 'relative');
+  });
+}
+
 function page(hidden = false) {
   const requests = [];
   const timers = new Map();
@@ -17,7 +81,14 @@ function page(hidden = false) {
     hidden,
     querySelector: () => ({ content: 'test-token' }),
     getElementById(id) {
-      if (!elements.has(id)) elements.set(id, { addEventListener() {}, replaceChildren() {} });
+      if (!elements.has(id)) {
+        const handlers = new Map();
+        elements.set(id, {
+          addEventListener: (event, callback) => handlers.set(event, callback),
+          dispatchEvent: event => handlers.get(event.type)?.(event),
+          replaceChildren() {},
+        });
+      }
       return elements.get(id);
     },
     querySelectorAll: selector => selector === 'button'
@@ -66,8 +137,8 @@ function page(hidden = false) {
       document.hidden = hidden;
       listeners.get('visibilitychange')();
     },
-    finishBatch(start = 0) {
-      requests[start].finish({ settings: {}, hosts: {}, batch: {}, queue: {} });
+    finishBatch(start = 0, settings = {}) {
+      requests[start].finish({ settings, hosts: {}, batch: {}, queue: {} });
       requests[start + 1].finish({ bytes: 0 });
     },
     fireTimer: () => fireTimer(5000),

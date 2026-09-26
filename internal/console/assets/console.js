@@ -1,6 +1,7 @@
 const token = document.querySelector('meta[name="stepstash-token"]').content;
 const $ = (id) => document.getElementById(id);
-let initialized = false,
+let settingsDirty = false,
+  settingsRevision = 0,
   busy = false,
   lastState = null,
   uncertainAction = '';
@@ -81,7 +82,7 @@ function renderService(s) {
 }
 
 function renderSettings(s) {
-  if (!initialized) {
+  if (!settingsDirty) {
     $('autoStartCDN').checked = !!s.settings.autoStartCDN;
     $('requestRetentionDays').value = s.settings.requestRetentionDays ?? 30;
     $('scanResolveConcurrency').value = s.settings.scanResolveConcurrency || 4;
@@ -90,7 +91,6 @@ function renderSettings(s) {
     $('logDir').value = s.settings.logDir;
     $('downloadUpstream').value = s.settings.downloadUpstream || 'auto';
     $('maxCacheGiB').value = (s.settings.maxCacheBytes || 0) / 1073741824;
-    initialized = true;
   }
 }
 
@@ -232,8 +232,12 @@ async function refreshInventory() {
   }
 }
 async function refresh() {
+  const revision = settingsRevision;
   try {
-    render(await readState('/api/status'));
+    const state = await readState('/api/status');
+    // A read started before a successful save may still contain old settings.
+    if (revision !== settingsRevision) return;
+    render(state);
     if (uncertainAction)
       notice(
         uncertainAction +
@@ -284,6 +288,10 @@ async function action(path, body) {
       notice(data.error || '操作失败');
       return;
     }
+    if (path === 'settings') {
+      settingsDirty = false;
+      settingsRevision++;
+    }
     notice(
       path === 'start'
         ? 'CDN 已启动。若游戏尚未接入，请点击「修改 hosts」。'
@@ -308,6 +316,8 @@ async function action(path, body) {
 }
 for (const b of document.querySelectorAll('[data-action]'))
   b.addEventListener('click', () => action(b.dataset.action));
+for (const event of ['input', 'change'])
+  $('settings').addEventListener(event, () => { settingsDirty = true; });
 $('settings').addEventListener('submit', (e) => {
   e.preventDefault();
   action('settings', {

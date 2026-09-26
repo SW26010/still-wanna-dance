@@ -7,7 +7,7 @@ input[type="checkbox"]{width:auto;accent-color:var(--green);margin-right:8px}</s
 <div class="eyebrow">LOCAL CDN / 本地缓存</div><section class="hero"><div><h1>让下一支舞，提前就绪。</h1><p class="muted">管理本地服务，提前准备歌曲，补齐你的缓存。</p></div><div class="pill" id="serviceBadge">正在检查状态</div></section>
 <div id="notice" class="notice" role="status" hidden></div>
 <section class="card" style="margin-bottom:18px"><div class="card-head"><h2>播放请求统计</h2><small>当前缓存引擎会话</small></div><div class="stats"><div class="stat"><b id="trafficHits">0</b><small>已命中次数</small></div><div class="stat"><b id="trafficRate">—</b><small>请求命中率</small></div><div class="stat"><b id="trafficSaved">0 GB</b><small>缓存命中节省流量</small></div><div class="stat"><b id="trafficReduction">—</b><small>响应延迟降幅（估算）</small></div></div><div id="trafficDetail" class="muted"></div><div class="hint">仅统计成功完成的 GET 视频请求（200 / 206），每次 Range 请求单独计数；HEAD、失败、中断、预下载不计入命中率。节省流量按命中实际返回字节累计（1 GB = 10 亿字节），表示缓存替代的上游流量，非扣除预下载后的净节省。延迟指响应头耗时：上游为实际视频回源请求（含预下载，不含选路探测），本地包含缓存校验。降幅 = 1 − 本地平均延迟 / 上游平均延迟；两组样本未按视频配对，负值表示本地更慢，不代表完整视频加载或起播速度。无样本时显示 —；缓存引擎重建或程序重启后归零。</div></section>
-<div class="grid"><section class="card wide"><div class="card-head"><h2>本地缓存概览</h2><small id="inventoryState">正在统计…</small></div><div class="stats"><div class="stat"><b id="videoCount">—</b><small>已缓存视频版本</small></div><div class="stat"><b id="cacheBytes">—</b><small>视频总占用</small></div></div><div class="hint">扫描本地已有视频，无需开启下载任务。结果保存到磁盘，直到下次扫描成功才替换。更新期间可能短暂保留正在播放的旧版本；不包含下载中的文件。此处仅统计文件，完整性在播放或批量检查时校验。</div><div class="actions"><button id="inventoryScan" data-action="inventory/scan">扫描本地文件</button></div><div id="inventoryActionError" role="status"></div><div id="inventoryError" role="status"></div></section><section class="card"><div class="card-head"><h2>本地 CDN</h2><small>127.0.0.1 : 80</small></div>
+<div class="grid"><section class="card wide"><div class="card-head"><h2>本地缓存概览</h2><small id="inventoryState">正在读取统计…</small></div><div class="stats"><div class="stat"><b id="videoCount">—</b><small>已缓存视频版本</small></div><div class="stat"><b id="cacheBytes">—</b><small>视频总占用</small></div></div><div class="hint">扫描本地已有视频，无需开启下载任务。结果保存到磁盘，直到下次扫描成功才替换。更新期间可能短暂保留正在播放的旧版本；不包含下载中的文件。此处仅统计文件，完整性在播放或批量检查时校验。</div><div class="actions"><button id="inventoryScan" data-action="inventory/scan">扫描本地文件</button></div><div id="inventoryActionError" role="status"></div><div id="inventoryError" role="status"></div></section><section class="card"><div class="card-head"><h2>本地 CDN</h2><small>127.0.0.1 : 80</small></div>
 <div class="actions"><button class="primary" id="start" data-action="start">启动 CDN</button><button id="stop" data-action="stop">关闭 CDN</button></div>
 <div id="serviceError" role="status"></div><div class="check"><span class="dot" id="portDot">●</span><div class="grow"><strong>视频端口 · 80</strong><small id="portText">检查中</small></div></div>
 <div class="check"><span class="dot" id="httpsDot">●</span><div class="grow"><strong>网页播放 · 443</strong><small id="httpsText">检查中</small></div></div>
@@ -42,24 +42,24 @@ for(const b of document.querySelectorAll('[data-action^="hosts/"]'))b.disabled=b
 const q=s.queue;$('queueStart').disabled=q.running||busy;$('queueStart').textContent=q.running?'队列预缓存已开启':s.batch.running&&!s.batch.scanOnly?'停止下载补齐并开启预缓存':'开启队列预缓存';$('queueStop').disabled=!q.running||busy;$('queuePhase').textContent=q.running?(q.current?'正在准备歌曲 '+(q.active||[q.current]).join('、'):(q.songs||[]).length?'等待队列变化或重试':'等待新的队列同步'):'预缓存已停止';$('queueDetail').textContent=(q.file||'尚未发现日志')+' · 已准备 '+q.completed+' 首';$('queueError').textContent=q.logError||q.error||'';$('queueSongs').replaceChildren(...(q.songs||[]).slice(0,3).map(s=>{const li=document.createElement('li');li.textContent=s.title||String(s.songId);return li}));
 const b=s.batch;const saved=s.lastBatch;const hasSaved=saved&&saved.updated&&!saved.updated.startsWith('0001');for(const id of ['total','hits','downloaded','missing'])$(id).textContent=hasSaved?saved[id]||0:'—';$('snapshotState').textContent=hasSaved?'上次成功'+(saved.scanOnly?'扫描':'更新')+' · '+new Date(saved.updated).toLocaleString()+' · 已保存，直到下次任务成功才替换':'尚无成功结果；运行扫描或更新后保存。';$('progress').max=b.total||1;$('progress').value=b.checked||0;$('phase').textContent=b.phase||'等待开始';$('current').textContent=(b.current||'')+(b.total?' · 当前任务 '+b.checked+' / '+b.total+' · 命中 '+b.hits+' · 缺失 '+(b.missing||0)+' · 补齐 '+b.downloaded+' · 失败 '+b.failed:'');$('failures').hidden=!b.failed;
 $('failureRows').replaceChildren(...(b.failures||[]).map(f=>{const row=document.createElement('tr');for(const text of [f.id+' · '+f.name,f.error]){const td=document.createElement('td');td.textContent=text;row.append(td)}return row}));}
-async function refreshInventory(){try{const r=await fetch('/api/inventory');if(!r.ok)throw Error();const v=await r.json();const ready=v.updated&&!v.updated.startsWith('0001');for(const [id,value] of [['videoCount',v.videos],['cacheBytes',(v.bytes/1073741824).toFixed(2)+' GiB']])$(id).textContent=ready?value:'—';$('inventoryScan').disabled=v.scanning||busy;$('inventoryState').textContent=v.scanning?'正在扫描，保留上次结果':ready?'上次成功扫描 '+new Date(v.updated).toLocaleString():'尚无成功扫描';$('inventoryError').textContent=v.error?'本次扫描失败，上次结果保留：'+v.error:''}catch(e){$('inventoryState').textContent='统计暂不可用'}}
+async function refreshInventory(){try{const r=await fetch('/api/inventory');if(!r.ok)throw Error();const v=await r.json();const ready=v.updated&&!v.updated.startsWith('0001');for(const [id,value] of [['videoCount',v.videos],['cacheBytes',(v.bytes/1073741824).toFixed(2)+' GiB']])$(id).textContent=ready?value:'—';$('inventoryScan').disabled=v.scanning||busy;$('inventoryState').textContent=v.scanning?'正在扫描，保留上次结果':ready?'上次成功扫描 '+new Date(v.updated).toLocaleString():'尚无成功扫描，请点击「扫描本地文件」';$('inventoryError').textContent=v.error?'本次扫描失败，上次结果保留：'+v.error:''}catch(e){$('inventoryState').textContent='统计暂不可用'}}
 async function refresh(){try{const r=await fetch('/api/status');if(!r.ok)throw Error('控制台连接失败');render(await r.json())}catch(e){$('connection').textContent='控制台连接中断';$('connection').className='';for(const b of document.querySelectorAll('button'))b.disabled=true;notice('无法连接控制台，请检查程序是否仍在运行。')}}
 async function action(path,body){if(busy)return;busy=true;if(lastState)render(lastState);notice(path.startsWith('hosts/')?'正在检查 hosts；需要修改时请在系统提示中允许管理员权限…':'正在处理…');try{const r=await fetch('/api/'+path,{method:'POST',headers:{'X-StepStash-Token':token,'Content-Type':'application/json'},body:JSON.stringify(body||{})});const data=await r.json();if(!r.ok)throw Error(data.error||'操作失败');notice(path==='start'?'CDN 已启动。若游戏尚未接入，请点击「修改 hosts」。':path==='settings'?'缓存设置已保存。':path==='hosts/disable'?'已移除 StepStash 添加的 hosts 映射。其他已有映射保持不变。':'操作已完成。')}catch(e){notice(e.message)}finally{busy=false;await requestRefresh()}}
 for(const b of document.querySelectorAll('[data-action]'))b.addEventListener('click',()=>action(b.dataset.action));$('settings').addEventListener('submit',e=>{e.preventDefault();action('settings',{autoStartCDN:$('autoStartCDN').checked,scanResolveConcurrency:Number($('scanResolveConcurrency').value),scanCheckConcurrency:Number($('scanCheckConcurrency').value),downloadUpstream:$('downloadUpstream').value,storageDir:$('storageDir').value,logDir:$('logDir').value,maxCacheBytes:Math.round(Number($('maxCacheGiB').value)*1073741824)})});
 // All refresh triggers share one running batch and one scheduled timer.
-const refreshIntervals = {visible: 5000, hidden: 15000};
+const refreshInterval = 5000;
 let refreshTimer = null;
 let refreshTask = null;
 let refreshPending = false;
 
 function scheduleRefresh() {
   clearTimeout(refreshTimer);
-  refreshTimer = setTimeout(requestRefresh,
-    document.hidden ? refreshIntervals.hidden : refreshIntervals.visible);
+  if (!document.hidden) refreshTimer = setTimeout(requestRefresh, refreshInterval);
 }
 
 function requestRefresh() {
   clearTimeout(refreshTimer);
+  if (document.hidden) return;
   refreshPending = true;
   if (refreshTask) return refreshTask;
   refreshTask = (async () => {
@@ -69,7 +69,7 @@ function requestRefresh() {
         // Finish both reads before starting another batch. A trigger during
         // this batch requests one fresh batch, so action results are not lost.
         await Promise.allSettled([refresh(), refreshInventory()]);
-      } while (refreshPending);
+      } while (refreshPending && !document.hidden);
     } finally {
       refreshTask = null;
       scheduleRefresh();
@@ -80,7 +80,7 @@ function requestRefresh() {
 
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) requestRefresh();
-  else if (!refreshTask) scheduleRefresh();
+  else clearTimeout(refreshTimer);
 });
 requestRefresh();
 </script></body></html>

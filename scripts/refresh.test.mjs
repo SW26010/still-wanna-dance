@@ -7,14 +7,14 @@ const html = readFileSync(new URL('../internal/console/index.html', import.meta.
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
-function page() {
+function page(hidden = false) {
   const requests = [];
   const timers = new Map();
   const elements = new Map();
   const listeners = new Map();
   let nextTimer = 0;
   const document = {
-    hidden: false,
+    hidden,
     getElementById(id) {
       if (!elements.has(id)) elements.set(id, { addEventListener() {}, replaceChildren() {} });
       return elements.get(id);
@@ -93,13 +93,12 @@ test('action completion during a slow refresh queues a fresh batch and merges tr
   assert.equal(p.timers.size, 1);
 });
 
-test('visibility changes reschedule idle polling and refresh immediately on return', async () => {
+test('hidden pages pause polling and refresh immediately on return', async () => {
   const p = page();
   p.finishBatch();
   await flush();
   p.visibility(true);
-  assert.equal(p.timers.size, 1);
-  assert.equal([...p.timers.values()][0].delay, 15000);
+  assert.equal(p.timers.size, 0);
   assert.equal(p.requests.length, 2);
   p.visibility(false);
   assert.equal(p.requests.length, 4);
@@ -107,8 +106,38 @@ test('visibility changes reschedule idle polling and refresh immediately on retu
   p.visibility(true);
   p.finishBatch(2);
   await flush();
+  assert.equal(p.timers.size, 0);
+  assert.equal(p.requests.length, 4);
+});
+
+test('a page opened in the background waits until visible', async () => {
+  const p = page(true);
+  assert.equal(p.requests.length, 0);
+  assert.equal(p.timers.size, 0);
+  p.visibility(false);
+  assert.equal(p.requests.length, 2);
+  p.finishBatch();
+  await flush();
   assert.equal(p.timers.size, 1);
-  assert.equal([...p.timers.values()][0].delay, 15000);
+  assert.match(vm.runInContext("$('inventoryState').textContent", p.context), /请点击「扫描本地文件」/);
+});
+
+test('hiding drops queued refreshes and defers action refresh until visible', async () => {
+  const p = page();
+  p.visibility(false); // Queue a second batch behind the initial reads.
+  const action = vm.runInContext("action('inventory/scan')", p.context);
+  p.visibility(true);
+  p.requests[2].finish();
+  await action;
+  p.finishBatch();
+  await flush();
+  assert.equal(p.requests.length, 3);
+  assert.equal(p.timers.size, 0);
+  p.visibility(false);
+  assert.equal(p.requests.length, 5);
+  p.finishBatch(3);
+  await flush();
+  assert.equal(p.timers.size, 1);
 });
 
 test('failed reads leave polling able to recover', async () => {

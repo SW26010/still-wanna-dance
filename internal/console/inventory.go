@@ -63,12 +63,6 @@ func scanInventory(s Settings) Inventory {
 
 func (c *Console) localInventory() Inventory {
 	c.inventoryMu.Lock()
-	first := c.inventory.Updated.IsZero() && c.inventory.Error == "" && !c.inventory.Scanning
-	c.inventoryMu.Unlock()
-	if first {
-		c.startInventoryScan()
-	}
-	c.inventoryMu.Lock()
 	defer c.inventoryMu.Unlock()
 	return c.inventory
 }

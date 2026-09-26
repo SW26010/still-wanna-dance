@@ -1,11 +1,59 @@
 package console
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestInventoryReadsWaitForExplicitScan(t *testing.T) {
+	c := testConsole(t)
+	if err := c.save(c.settings); err != nil {
+		t.Fatal(err)
+	}
+	read := func() Inventory {
+		t.Helper()
+		w := httptest.NewRecorder()
+		c.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://"+c.address+"/api/inventory", nil))
+		var v Inventory
+		if w.Code != http.StatusOK {
+			t.Fatalf("inventory status: %d", w.Code)
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &v); err != nil {
+			t.Fatal(err)
+		}
+		return v
+	}
+	for i := 0; i < 2; i++ {
+		if v := read(); v != (Inventory{}) {
+			t.Fatalf("read triggered inventory work: %+v", v)
+		}
+	}
+	c.inventoryMu.Lock()
+	started := c.inventoryDone != nil
+	c.inventoryMu.Unlock()
+	if started {
+		t.Fatal("read started a scan")
+	}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "http://"+c.address+"/api/inventory/scan", nil)
+	r.Header.Set("X-StepStash-Token", c.token)
+	c.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("scan status: %d: %s", w.Code, w.Body.String())
+	}
+	v := waitInventory(t, c)
+	if v.Updated.IsZero() || v.Error != "" || v.Scanning {
+		t.Fatalf("explicit scan failed: %+v", v)
+	}
+	if got := read(); !got.Updated.Equal(v.Updated) || got.Scanning {
+		t.Fatalf("read did not retain completed snapshot: %+v", got)
+	}
+}
 
 func TestSavedEmptyStorageScansWithoutStartingEngine(t *testing.T) {
 	c := testConsole(t)

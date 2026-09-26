@@ -222,7 +222,13 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, 
 		return "", "", ctx.Err()
 	} else if !errors.Is(err, os.ErrNotExist) {
 		flight.log.Warn("cache_invalid", "key", v.key, "error", err)
-		if err := os.Remove(path); err != nil {
+		s.retentionMu.Lock()
+		err := os.Remove(path)
+		if err == nil || os.IsNotExist(err) {
+			s.retainVideoLocked(v.key, nil)
+		}
+		s.retentionMu.Unlock()
+		if err != nil {
 			return "", "", err
 		}
 	}
@@ -290,7 +296,21 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 	if err := final.Close(); err != nil {
 		return err
 	}
-	return os.Rename(final.Name(), path)
+	info, err := os.Stat(final.Name())
+	if err != nil {
+		return err
+	}
+	s.retentionMu.Lock()
+	defer s.retentionMu.Unlock()
+	if err := os.Rename(final.Name(), path); err != nil {
+		return err
+	}
+	item := retainedVideo{path: path, key: v.key, size: info.Size(), recent: info.ModTime().UnixMilli(), modified: info.ModTime().UnixNano()}
+	s.retainVideoLocked(v.key, &item)
+	if s.cfg.MaxCacheBytes > 0 && s.retainedBytes > s.cfg.MaxCacheBytes {
+		s.requestRetentionLocked()
+	}
+	return nil
 }
 
 // Mark errors at the network reader, before io.Copy combines source reads and

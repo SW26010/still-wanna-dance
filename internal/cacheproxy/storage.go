@@ -171,10 +171,12 @@ func (s *Server) cleanSupersededLocked(key string) {
 	path := s.cfg.videoFile(key)
 	info, err := os.Lstat(path)
 	if os.IsNotExist(err) {
+		s.retainVideoLocked(key, nil)
 		delete(s.cleanupNeeded, key)
 		return
 	}
 	if err == nil && !info.Mode().IsRegular() {
+		s.retainVideoLocked(key, nil)
 		delete(s.cleanupNeeded, key)
 		return
 	}
@@ -186,6 +188,7 @@ func (s *Server) cleanSupersededLocked(key string) {
 		return
 	}
 	delete(s.cleanupNeeded, key)
+	s.retainVideoLocked(key, nil)
 	s.cfg.Logger.Info("superseded_video_removed", "key", key, "path", path)
 }
 

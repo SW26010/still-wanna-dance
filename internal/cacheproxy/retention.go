@@ -14,6 +14,7 @@ var cacheVideoName = regexp.MustCompile(`^([0-9a-f]{64})\.mp4$`)
 type retainedVideo struct {
 	path, key    string
 	size, recent int64
+	modified     int64
 	score        float64
 }
 
@@ -47,29 +48,76 @@ func (s *Server) releaseVideo(v video) {
 		}
 		s.cleanSupersededLocked(v.key)
 	}
-	s.retentionMu.Unlock()
-	// Worker and handler references share one cleanup when the resource becomes idle.
-	if lastReference {
-		s.trimCache()
+	if lastReference && s.cfg.MaxCacheBytes > 0 && s.retainedBytes > s.cfg.MaxCacheBytes {
+		s.requestRetentionLocked()
 	}
+	s.retentionMu.Unlock()
 }
 
-// Pins span both background workers and response lifetimes. Serializing scans
-// with pin acquisition closes the validation/open/delete race on Windows too.
+// Explicit reconciliation is used at startup and by the periodic worker.
+// Directory I/O and ranking never hold the lock needed to pin a video.
 func (s *Server) trimCache() {
-	if s.cfg.MaxCacheBytes == 0 {
-		return
-	}
-	s.retentionMu.Lock()
-	defer s.retentionMu.Unlock()
-	if err := s.trimCacheLocked(); err != nil {
+	s.runRetention(true)
+}
+
+func (s *Server) runRetention(reconcile bool) {
+	s.retentionRunMu.Lock()
+	defer s.retentionRunMu.Unlock()
+	if err := s.trimCachePass(reconcile); err != nil {
 		s.cfg.Logger.Warn("cache_eviction_failed", "error", err)
 	}
 }
 
-func (s *Server) trimCacheLocked() error {
-	var videos []retainedVideo
-	var total int64
+func (s *Server) requestRetentionLocked() {
+	select {
+	case s.retentionWake <- struct{}{}:
+	default:
+	}
+}
+
+func (s *Server) retentionLoop() {
+	defer close(s.retentionDone)
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-s.retentionWake:
+			s.runRetention(false)
+		case <-ticker.C:
+			s.runRetention(true)
+		}
+	}
+}
+
+// Called under retentionMu for every successful publication/removal, including
+// superseded and invalid files. Changes made during a scan override its results.
+func (s *Server) retainVideoLocked(key string, item *retainedVideo) {
+	if s.retained == nil {
+		s.retained = make(map[string]retainedVideo)
+	}
+	s.retainedBytes -= s.retained[key].size
+	delete(s.retained, key)
+	if item != nil {
+		s.retained[key] = *item
+		s.retainedBytes += item.size
+	}
+	if s.retentionChanges != nil {
+		s.retentionChanges[key] = true
+	}
+}
+
+func (s *Server) reconcileRetention() error {
+	s.retentionMu.Lock()
+	s.retentionChanges = make(map[string]bool)
+	s.retentionMu.Unlock()
+	defer func() {
+		s.retentionMu.Lock()
+		s.retentionChanges = nil
+		s.retentionMu.Unlock()
+	}()
+	found := make(map[string]retainedVideo)
 	add := func(path, key string) error {
 		info, err := os.Lstat(path)
 		if os.IsNotExist(err) {
@@ -81,9 +129,8 @@ func (s *Server) trimCacheLocked() error {
 		if !info.Mode().IsRegular() {
 			return nil
 		}
-		item := retainedVideo{path: path, key: key, size: info.Size(), recent: info.ModTime().UnixMilli()}
-		videos = append(videos, item)
-		total += item.size
+		item := retainedVideo{path: path, key: key, size: info.Size(), recent: info.ModTime().UnixMilli(), modified: info.ModTime().UnixNano()}
+		found[key] = item
 		return nil
 	}
 	entries, err := os.ReadDir(s.cfg.videosDir())
@@ -97,7 +144,44 @@ func (s *Server) trimCacheLocked() error {
 			}
 		}
 	}
-	if total <= s.cfg.MaxCacheBytes {
+	s.retentionMu.Lock()
+	defer s.retentionMu.Unlock()
+	for key := range s.retentionChanges {
+		delete(found, key)
+		if item, ok := s.retained[key]; ok {
+			found[key] = item
+		}
+	}
+	s.retained = found
+	s.retainedBytes = 0
+	for _, item := range found {
+		s.retainedBytes += item.size
+	}
+	return nil
+}
+
+func (s *Server) trimCachePass(reconcile bool) error {
+	s.retentionMu.Lock()
+	limit := s.cfg.MaxCacheBytes
+	s.retentionMu.Unlock()
+	if limit == 0 {
+		return nil
+	}
+	if reconcile {
+		if err := s.reconcileRetention(); err != nil {
+			return err
+		}
+	}
+	s.retentionMu.Lock()
+	total := s.retainedBytes
+	var videos []retainedVideo
+	if total > limit {
+		for _, item := range s.retained {
+			videos = append(videos, item)
+		}
+	}
+	s.retentionMu.Unlock()
+	if total <= limit {
 		return nil
 	}
 	// Only over-limit caches need usage synchronization, database reads and ranking.
@@ -144,24 +228,55 @@ func (s *Server) trimCacheLocked() error {
 	})
 	planned := total
 	for _, item := range videos {
-		if planned <= s.cfg.MaxCacheBytes {
+		if planned <= limit {
 			break
 		}
 		// A protected low-priority video is a deferred victim, not a reason
 		// to evict a more valuable video while a prefetch is still finishing.
 		planned -= item.size
-		if s.versionPins[item.key] > 0 {
+		s.retentionMu.Lock()
+		// Superseded-version cleanup may have already freed enough space
+		// while this pass was reading statistics or ranking its snapshot.
+		if s.retainedBytes <= limit {
+			s.retentionMu.Unlock()
+			break
+		}
+		current, exists := s.retained[item.key]
+		if !exists || current.size != item.size || current.modified != item.modified || s.versionPins[item.key] > 0 {
+			s.retentionMu.Unlock()
 			continue
 		}
-		if err := os.Remove(item.path); err != nil && !os.IsNotExist(err) {
+		// External changes are reconciled periodically; never remove a symlink,
+		// directory or a replacement using a stale inventory entry.
+		info, err := os.Lstat(item.path)
+		if os.IsNotExist(err) || err == nil && !info.Mode().IsRegular() {
+			s.retainVideoLocked(item.key, nil)
+			s.retentionMu.Unlock()
+			continue
+		}
+		if err != nil {
+			s.retentionMu.Unlock()
 			s.cfg.Logger.Warn("cache_eviction_failed", "path", item.path, "error", err)
 			continue
 		}
-		total -= item.size
+		if info.Size() != item.size || info.ModTime().UnixNano() != item.modified {
+			s.retentionMu.Unlock()
+			continue
+		}
+		if err := os.Remove(item.path); err != nil && !os.IsNotExist(err) {
+			s.retentionMu.Unlock()
+			s.cfg.Logger.Warn("cache_eviction_failed", "path", item.path, "error", err)
+			continue
+		}
+		s.retainVideoLocked(item.key, nil)
+		s.retentionMu.Unlock()
 		s.cfg.Logger.Info("cache_evicted", "key", item.key, "path", item.path, "bytes", item.size, "priority", item.score)
 	}
-	if total > s.cfg.MaxCacheBytes {
-		s.cfg.Logger.Info("cache_limit_deferred", "retained_bytes", total, "limit_bytes", s.cfg.MaxCacheBytes)
+	s.retentionMu.Lock()
+	total = s.retainedBytes
+	s.retentionMu.Unlock()
+	if total > limit {
+		s.cfg.Logger.Info("cache_limit_deferred", "retained_bytes", total, "limit_bytes", limit)
 	}
 	return nil
 }

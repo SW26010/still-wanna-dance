@@ -43,36 +43,42 @@ type flight struct {
 }
 
 type Server struct {
-	stats           trafficStats
-	routeMu         sync.Mutex
-	routeSongs      map[string]string
-	routeCache      map[string]routeEntry
-	routeHealth     map[string]routeHealth
-	routeProbes     map[string]chan struct{}
-	cfg             Config
-	client          *http.Client
-	ctx             context.Context
-	cancel          context.CancelFunc
-	mu              sync.Mutex
-	flights         map[string]*flight
-	slots           chan struct{}
-	localChecks     chan struct{}
-	verifyMu        sync.Mutex
-	verified        map[string]*verifiedFile
-	background      int
-	capacityChanged chan struct{}
-	wg              sync.WaitGroup
-	closed          bool
-	unlock          func() error
-	once            sync.Once
-	sequence        atomic.Uint64
-	flightSequence  atomic.Uint64
-	usage           *usageStore
-	retentionMu     sync.Mutex
-	currentMu       sync.Mutex
-	currentLocks    map[string]*songConfirmation
-	versionPins     map[string]int
-	cleanupNeeded   map[string]bool
+	stats            trafficStats
+	routeMu          sync.Mutex
+	routeSongs       map[string]string
+	routeCache       map[string]routeEntry
+	routeHealth      map[string]routeHealth
+	routeProbes      map[string]chan struct{}
+	cfg              Config
+	client           *http.Client
+	ctx              context.Context
+	cancel           context.CancelFunc
+	mu               sync.Mutex
+	flights          map[string]*flight
+	slots            chan struct{}
+	localChecks      chan struct{}
+	verifyMu         sync.Mutex
+	verified         map[string]*verifiedFile
+	background       int
+	capacityChanged  chan struct{}
+	wg               sync.WaitGroup
+	closed           bool
+	unlock           func() error
+	once             sync.Once
+	sequence         atomic.Uint64
+	flightSequence   atomic.Uint64
+	usage            *usageStore
+	retentionMu      sync.Mutex
+	retentionRunMu   sync.Mutex
+	retentionWake    chan struct{}
+	retentionDone    chan struct{}
+	retained         map[string]retainedVideo
+	retainedBytes    int64
+	retentionChanges map[string]bool
+	currentMu        sync.Mutex
+	currentLocks     map[string]*songConfirmation
+	versionPins      map[string]int
+	cleanupNeeded    map[string]bool
 }
 
 func New(cfg Config) (*Server, error) {
@@ -162,6 +168,9 @@ func New(cfg Config) (*Server, error) {
 	}
 	s.cleanSupersededOnStartup()
 	s.trimCache()
+	s.retentionWake = make(chan struct{}, 1)
+	s.retentionDone = make(chan struct{})
+	go s.retentionLoop()
 	cfg.Logger.Info("cache_engine_ready", "removed_partials", cleaned, "max_downloads", cfg.MaxDownloads,
 		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "max_cache_bytes", cfg.MaxCacheBytes)
 	return s, nil
@@ -177,6 +186,9 @@ func (s *Server) Close() error {
 		s.cancel()
 		s.mu.Unlock()
 		s.wg.Wait()
+		<-s.retentionDone
+		// All references are now released; finish any deferred eviction before closing usage.
+		s.runRetention(false)
 		s.usage.close()
 		s.client.CloseIdleConnections()
 		err = s.unlock()

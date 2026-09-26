@@ -79,7 +79,7 @@ func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
 	if source, err := restarted.PrefetchSong(context.Background(), "1344", videoURL(payload)); source != "HIT" || err != nil {
 		t.Fatal(source, err)
 	}
-	restarted.cfg.MaxCacheBytes = 1
+	setRetentionLimit(t, restarted, 1)
 	restarted.trimCache()
 	if _, err := os.Stat(files[0]); !os.IsNotExist(err) {
 		t.Fatal("video not evicted", err)

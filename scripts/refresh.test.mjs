@@ -19,7 +19,9 @@ function page(hidden = false) {
       if (!elements.has(id)) elements.set(id, { addEventListener() {}, replaceChildren() {} });
       return elements.get(id);
     },
-    querySelectorAll: () => [],
+    querySelectorAll: selector => selector === 'button'
+      ? [...html.matchAll(/<button\b[^>]*\bid="([^"]+)"/g)].map(match => document.getElementById(match[1]))
+      : [],
     addEventListener: (event, callback) => listeners.set(event, callback),
   };
   const context = vm.createContext({
@@ -34,7 +36,7 @@ function page(hidden = false) {
         }, { once: true });
         requests.push({
           url, signal, reject,
-          finish(data = {}) { resolve({ ok: true, json: async () => data }); },
+          finish(data = {}, ok = true) { resolve({ ok, json: async () => data }); },
           headersOnly() {
             resolve({ ok: true, json: () => new Promise((_, reject) => { rejectBody = reject; }) });
           },
@@ -69,6 +71,8 @@ function page(hidden = false) {
     },
     fireTimer: () => fireTimer(5000),
     expireRead: () => fireTimer(10000),
+    expireAction: hosts => fireTimer(hosts ? 120000 : 30000),
+    get actionDeadlines() { return [...timers.values()].filter(t => [30000, 120000].includes(t.delay)); },
   };
 }
 
@@ -200,7 +204,7 @@ for (const stalled of [0, 1]) {
       let action;
       if (trigger === 'action') {
         action = vm.runInContext("action('start')", p.context);
-        assert.equal(p.requests[2].signal, undefined);
+        assert.equal(p.requests[2].signal.aborted, false);
         p.requests[2].finish();
       } else {
         p.visibility(true);
@@ -221,3 +225,84 @@ for (const stalled of [0, 1]) {
     });
   }
 }
+
+for (const path of ['start', 'hosts/enable']) {
+  for (const bodyStalls of [false, true]) {
+    test(`${path} timeout covers stalled ${bodyStalls ? 'body' : 'fetch'}, unlocks controls and checks state without retrying`, async () => {
+      const p = page();
+      p.finishBatch();
+      await flush();
+      const action = vm.runInContext(`action('${path}')`, p.context);
+      assert.equal(vm.runInContext("$('start').disabled && $('inventoryScan').disabled", p.context), true);
+      assert.equal(p.actionDeadlines[0].delay, path.startsWith('hosts/') ? 120000 : 30000);
+      await vm.runInContext(`action('${path}')`, p.context);
+      assert.equal(p.requests.length, 3);
+      if (bodyStalls) p.requests[2].headersOnly();
+      await flush();
+      p.expireAction(path.startsWith('hosts/'));
+      await flush();
+      assert.equal(p.requests[2].signal.aborted, true);
+      assert.equal(vm.runInContext('busy', p.context), false);
+      assert.equal(p.actionDeadlines.length, 0);
+      assert.deepEqual(p.requests.slice(3).map(r => r.url), ['/api/status', '/api/inventory']);
+      p.finishBatch(3);
+      await action;
+      assert.equal(vm.runInContext("$('start').disabled || $('inventoryScan').disabled", p.context), false);
+      assert.match(vm.runInContext("$('notice').textContent", p.context), /结果尚未确认.*请勿重复提交/s);
+      assert.match(vm.runInContext("$('notice').textContent", p.context), /已刷新当前状态/);
+      assert.equal(p.requests.filter(r => r.url === '/api/' + path).length, 1);
+    });
+  }
+}
+
+test('lost action response keeps the uncertainty warning through failed state checks and recovery', async () => {
+  const p = page();
+  p.finishBatch();
+  await flush();
+  const action = vm.runInContext("action('batch/scan')", p.context);
+  p.requests[2].reject(new Error('network lost'));
+  await flush();
+  p.requests[3].reject(new Error('offline'));
+  p.requests[4].finish({ bytes: 0 });
+  await action;
+  assert.equal(p.actionDeadlines.length, 0);
+  assert.match(vm.runInContext("$('notice').textContent", p.context), /结果尚未确认.*无法连接/s);
+  assert.equal(vm.runInContext("$('start').disabled", p.context), true);
+  p.fireTimer();
+  p.finishBatch(5);
+  await flush();
+  assert.equal(vm.runInContext("$('start').disabled", p.context), false);
+  assert.match(vm.runInContext("$('notice').textContent", p.context), /结果尚未确认.*已刷新当前状态/s);
+});
+
+for (const ok of [true, false]) {
+  test(`complete ${ok ? 'successful' : 'failed'} action clears its deadline and retains its result`, async () => {
+    const p = page();
+    p.finishBatch();
+    await flush();
+    const action = vm.runInContext("action('start')", p.context);
+    p.requests[2].finish(ok ? { ok: true } : { error: '端口已占用' }, ok);
+    await flush();
+    assert.equal(p.actionDeadlines.length, 0);
+    p.finishBatch(3);
+    await action;
+    assert.equal(vm.runInContext('uncertainAction', p.context), '');
+    assert.match(vm.runInContext("$('notice').textContent", p.context), ok ? /CDN 已启动/ : /端口已占用/);
+  });
+}
+
+test('action timeout while hidden releases busy and checks state on return', async () => {
+  const p = page();
+  p.finishBatch();
+  await flush();
+  const action = vm.runInContext("action('hosts/disable')", p.context);
+  p.visibility(true);
+  p.expireAction(true);
+  await action;
+  assert.equal(vm.runInContext('busy', p.context), false);
+  assert.equal(p.requests.length, 3);
+  p.visibility(false);
+  p.finishBatch(3);
+  await flush();
+  assert.match(vm.runInContext("$('notice').textContent", p.context), /结果尚未确认.*hosts 状态.*已刷新当前状态/s);
+});

@@ -29,7 +29,7 @@ input[type="checkbox"]{width:auto;accent-color:var(--green);margin-right:8px}</s
 <details id="failures" hidden><summary>查看失败记录</summary><table><thead><tr><th>歌曲</th><th>原因</th></tr></thead><tbody id="failureRows"></tbody></table></details>
 </section></div><footer>关闭网页后程序仍继续运行；Windows 托盘菜单可重新打开控制台或退出程序。<br>本地控制台仅供本机访问 · CF / HKG HTTP 视频缓存 · 回源 Auto 自动测速优选线路 · SHA 暂不支持</footer>
 </main><script>
-const token='__TOKEN__';const $=id=>document.getElementById(id);let initialized=false,busy=false,lastState=null;
+const token='__TOKEN__';const $=id=>document.getElementById(id);let initialized=false,busy=false,lastState=null,uncertainAction='';
 function notice(text){$('notice').textContent=text;$('notice').hidden=!text}
 function render(s){lastState=s;$('connection').textContent='● 控制台已连接';$('connection').className='good';$('serviceBadge').textContent=s.running?'● CDN 运行中':'○ CDN 已关闭';$('serviceBadge').className='pill'+(s.running?' good':'');
 const t=s.traffic||{};const ms=v=>v==null?'—':v.toFixed(1)+' ms';$('trafficHits').textContent=t.hits||0;$('trafficRate').textContent=t.hitRate==null?'—':t.hitRate.toFixed(1)+'%';$('trafficSaved').textContent=((t.savedBytes||0)/1e9).toFixed(3)+' GB';$('trafficReduction').textContent=t.reductionPercent==null?'—':t.reductionPercent.toFixed(1)+'%';$('trafficDetail').textContent='成功请求 '+(t.requests||0)+' 次 · 未命中 '+(t.misses||0)+' 次 · 上游平均响应 '+ms(t.upstreamMS)+'（'+(t.upstreamSamples||0)+' 个样本）· 本地命中平均响应 '+ms(t.localMS)+'（'+(t.localSamples||0)+' 个样本）';
@@ -55,8 +55,35 @@ async function readState(url) {
   }
 }
 async function refreshInventory(){try{const v=await readState('/api/inventory');const ready=v.updated&&!v.updated.startsWith('0001');for(const [id,value] of [['videoCount',v.videos],['cacheBytes',(v.bytes/1073741824).toFixed(2)+' GiB']])$(id).textContent=ready?value:'—';$('inventoryScan').disabled=v.scanning||busy;$('inventoryState').textContent=v.scanning?'正在扫描，保留上次结果':ready?'上次成功扫描 '+new Date(v.updated).toLocaleString():'尚无成功扫描，请点击「扫描本地文件」';$('inventoryError').textContent=v.error?'本次扫描失败，上次结果保留：'+v.error:''}catch(e){$('inventoryState').textContent='统计暂不可用'}}
-async function refresh(){try{render(await readState('/api/status'))}catch(e){$('connection').textContent='控制台连接中断';$('connection').className='';for(const b of document.querySelectorAll('button'))b.disabled=true;notice('无法连接控制台，请检查程序是否仍在运行。')}}
-async function action(path,body){if(busy)return;busy=true;if(lastState)render(lastState);notice(path.startsWith('hosts/')?'正在检查 hosts；需要修改时请在系统提示中允许管理员权限…':'正在处理…');try{const r=await fetch('/api/'+path,{method:'POST',headers:{'X-StepStash-Token':token,'Content-Type':'application/json'},body:JSON.stringify(body||{})});const data=await r.json();if(!r.ok)throw Error(data.error||'操作失败');notice(path==='start'?'CDN 已启动。若游戏尚未接入，请点击「修改 hosts」。':path==='settings'?'缓存设置已保存。':path==='hosts/disable'?'已移除 StepStash 添加的 hosts 映射。其他已有映射保持不变。':'操作已完成。')}catch(e){notice(e.message)}finally{busy=false;await requestRefresh()}}
+async function refresh(){try{render(await readState('/api/status'));if(uncertainAction)notice(uncertainAction+'\n已刷新当前状态，请核对对应区域；状态快照不能确认原请求是否已经结束。')}catch(e){$('connection').textContent='控制台连接中断';$('connection').className='';for(const b of document.querySelectorAll('button'))b.disabled=true;notice((uncertainAction?uncertainAction+'\n':'')+'无法连接控制台，请检查程序是否仍在运行。')}}
+const actionTimeout = 30000;
+const hostsActionTimeout = 120000;
+async function action(path,body) {
+  if(busy)return;
+  busy=true;
+  uncertainAction='';
+  if(lastState)render(lastState);
+  for(const b of document.querySelectorAll('button'))b.disabled=true;
+  const hosts=path.startsWith('hosts/');
+  notice(hosts?'正在检查 hosts；需要修改时请在系统提示中允许管理员权限（最多等待 120 秒）…':'正在处理…');
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),hosts?hostsActionTimeout:actionTimeout);
+  try {
+    const r=await fetch('/api/'+path,{method:'POST',headers:{'X-StepStash-Token':token,'Content-Type':'application/json'},body:JSON.stringify(body||{}),signal:controller.signal});
+    // The deadline also covers a response body that never finishes.
+    const data=await r.json();
+    if(!r.ok){notice(data.error||'操作失败');return}
+    notice(path==='start'?'CDN 已启动。若游戏尚未接入，请点击「修改 hosts」。':path==='settings'?'缓存设置已保存。':path==='hosts/disable'?'已移除 StepStash 添加的 hosts 映射。其他已有映射保持不变。':'操作已完成。');
+  } catch(e) {
+    // Losing the response does not cancel or prove failure of a server action.
+    uncertainAction=(controller.signal.aborted?'操作等待超时':'操作响应未能完整读取')+'，结果尚未确认。后台可能仍在执行或已完成，请勿重复提交。'+(hosts?'请先检查管理员权限提示和 hosts 状态。':'');
+    notice(uncertainAction+'\n正在核对当前状态…');
+  } finally {
+    clearTimeout(timeout);
+    busy=false;
+    await requestRefresh();
+  }
+}
 for(const b of document.querySelectorAll('[data-action]'))b.addEventListener('click',()=>action(b.dataset.action));$('settings').addEventListener('submit',e=>{e.preventDefault();action('settings',{autoStartCDN:$('autoStartCDN').checked,requestRetentionDays:Number($('requestRetentionDays').value),scanResolveConcurrency:Number($('scanResolveConcurrency').value),scanCheckConcurrency:Number($('scanCheckConcurrency').value),downloadUpstream:$('downloadUpstream').value,storageDir:$('storageDir').value,logDir:$('logDir').value,maxCacheBytes:Math.round(Number($('maxCacheGiB').value)*1073741824)})});
 // All refresh triggers share one running batch and one scheduled timer.
 const refreshInterval = 5000;

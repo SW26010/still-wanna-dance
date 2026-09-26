@@ -146,6 +146,8 @@ func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (s
 func (c *Console) startBatch() error { return c.startBatchMode(false) }
 
 func (c *Console) startBatchMode(scanOnly bool) error {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
@@ -158,7 +160,10 @@ func (c *Console) startBatchMode(scanOnly bool) error {
 		return errors.New("请先停止队列预缓存")
 	}
 	if scanOnly {
-		if _, err := os.ReadDir(c.settings.StorageDir); err != nil {
+		c.mu.Unlock()
+		_, err := os.ReadDir(c.settings.StorageDir)
+		c.mu.Lock()
+		if err != nil {
 			return fmt.Errorf("无法扫描目录 %s：%w", c.settings.StorageDir, err)
 		}
 	}
@@ -192,26 +197,35 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	}
 	c.mu.Unlock()
 	defer func() {
+		c.lifecycleMu.Lock()
+		defer c.lifecycleMu.Unlock()
 		c.mu.Lock()
-		defer c.mu.Unlock()
-		c.batch.Running = false
-		c.batchCancel = nil
-		c.batch.Finished = time.Now()
+		result := c.batch
+		result.Failures = append([]Failure(nil), c.batch.Failures...)
+		c.mu.Unlock()
+		result.Running = false
+		result.Finished = time.Now()
 		if ctx.Err() != nil {
-			c.batch.Phase = "任务已停止，上次成功结果保留。已开始的共享下载可能继续完成。"
+			result.Phase = "任务已停止，上次成功结果保留。已开始的共享下载可能继续完成。"
 		}
-		if completed && ctx.Err() == nil && c.batch.Total > 0 && c.batch.Checked == c.batch.Total && c.batch.Failed == 0 {
-			c.batch.Updated = time.Now()
-			if err := c.writeSnapshot("batch", settings, c.batch); err != nil {
-				c.batch.Phase += "；保存失败，上次成功结果保留：" + err.Error()
+		if completed && ctx.Err() == nil && result.Total > 0 && result.Checked == result.Total && result.Failed == 0 {
+			result.Updated = time.Now()
+			if err := c.writeSnapshot("batch", settings, result); err != nil {
+				result.Phase += "；保存失败，上次成功结果保留：" + err.Error()
 			} else {
-				c.lastBatch = c.batch
+				c.mu.Lock()
+				c.lastBatch = result
+				c.mu.Unlock()
 			}
 		}
-		if err := c.writeSnapshot("attempt", settings, c.batch); err != nil {
-			c.batch.Phase += "；无法保存本次进度：" + err.Error()
+		if err := c.writeSnapshot("attempt", settings, result); err != nil {
+			result.Phase += "；无法保存本次进度：" + err.Error()
 		}
-		slog.Info("batch_finished", "scan_only", scanOnly, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", c.batch.Missing, "cancelled", ctx.Err() != nil, "total", c.batch.Total, "checked", c.batch.Checked, "hits", c.batch.Hits, "downloaded", c.batch.Downloaded, "failed", c.batch.Failed, "phase", c.batch.Phase)
+		c.mu.Lock()
+		c.batch = result
+		c.batchCancel = nil
+		c.mu.Unlock()
+		slog.Info("batch_finished", "scan_only", scanOnly, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", result.Missing, "cancelled", ctx.Err() != nil, "total", result.Total, "checked", result.Checked, "hits", result.Hits, "downloaded", result.Downloaded, "failed", result.Failed, "phase", result.Phase)
 	}()
 	var songs []Song
 	var err error

@@ -24,6 +24,10 @@ func TestCacheLimitSettingsPersist(t *testing.T) {
 	if c.settings.MaxCacheBytes != 5<<30 {
 		t.Fatal("invalid setting changed saved limit")
 	}
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if err := c.ensureEngine(); err != nil {
 		t.Fatal(err)
 	}

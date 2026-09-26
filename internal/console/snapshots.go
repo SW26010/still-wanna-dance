@@ -59,7 +59,7 @@ func readSnapshot[T any](c *Console, kind string) (T, error) {
 	return saved.Result, nil
 }
 
-// Called before publication by New, or while c.mu is held after changing roots.
+// Load into an unpublished Console. Callers publish the resulting snapshots under state locks.
 func (c *Console) loadSnapshots() {
 	c.lastBatch = Batch{}
 	if saved, err := readSnapshot[Batch](c, "batch"); err == nil {

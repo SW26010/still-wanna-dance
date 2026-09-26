@@ -38,6 +38,8 @@ type Settings struct {
 }
 
 type Console struct {
+	// Acquire lifecycleMu before mu; state readers never wait on lifecycleMu.
+	lifecycleMu         sync.Mutex
 	taskMu              sync.Mutex
 	inventoryMu         sync.Mutex
 	inventory           Inventory
@@ -182,14 +184,19 @@ func writableDir(path string) error {
 }
 
 func (c *Console) save(s Settings) error {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if c.closing {
+		c.mu.Unlock()
 		return errors.New("控制台正在退出")
 	}
 	if c.httpServer != nil || c.batch.Running || c.queue.Running {
+		c.mu.Unlock()
 		return errors.New("请先关闭 CDN、队列预缓存和批量任务，再修改目录")
 	}
+	oldSettings, service := c.settings, c.service
+	c.mu.Unlock()
 	var err error
 	s, err = c.resolveSettings(s)
 	if err != nil {
@@ -217,25 +224,41 @@ func (c *Console) save(s Settings) error {
 	if err = os.Rename(f.Name(), c.configPath); err != nil {
 		return err
 	}
-	changedLibrary := !sameLibrary(c.settings, s)
+	changedLibrary := !sameLibrary(oldSettings, s)
+	var snapshots *Console
+	if changedLibrary {
+		snapshots = &Console{configPath: c.configPath, settings: s}
+		snapshots.loadSnapshots()
+	}
+	slog.Info("settings_saved", "storage_dir", s.StorageDir, "vrchat_log_dir", s.LogDir)
+	if service != nil {
+		_ = service.Close()
+		c.mu.Lock()
+		c.service = nil
+		c.mu.Unlock()
+	}
+	c.inventoryMu.Lock()
+	c.mu.Lock()
 	c.settings = s
 	c.scanPlan = nil
 	if changedLibrary {
-		c.loadSnapshots()
+		c.lastBatch, c.batch = snapshots.lastBatch, snapshots.batch
+		c.inventorySettings = s
+		c.inventoryGeneration++
+		c.inventory = snapshots.inventory
 	}
-	slog.Info("settings_saved", "storage_dir", s.StorageDir, "vrchat_log_dir", s.LogDir)
-	if c.service != nil {
-		_ = c.service.Close()
-		c.service = nil
-	}
+	c.mu.Unlock()
+	c.inventoryMu.Unlock()
 	return nil
 }
 
-// Call with c.mu held. Playback and independent downloads share the cache engine.
+// Call with lifecycleMu and mu held. Release mu while initializing the shared engine.
 func (c *Console) ensureEngine() error {
 	if c.service != nil {
 		return nil
 	}
+	c.mu.Unlock()
+	defer c.mu.Lock()
 	if err := writableDir(c.settings.StorageDir); err != nil {
 		return fmt.Errorf("存储目录不可写：%w", err)
 	}
@@ -263,7 +286,9 @@ func (c *Console) ensureEngine() error {
 	if err != nil {
 		return err
 	}
+	c.mu.Lock()
 	c.service = s
+	c.mu.Unlock()
 	return nil
 }
 
@@ -279,18 +304,23 @@ func (c *Console) AutoStart() {
 }
 
 func (c *Console) start() (err error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
 	defer func() {
 		if err != nil {
+			c.mu.Lock()
 			c.cdnError = err.Error()
+			c.mu.Unlock()
 			slog.Error("cdn_start_failed", "error", err)
 		}
 	}()
-	if c.closing {
+	c.mu.Lock()
+	closing, running := c.closing, c.httpServer != nil
+	c.mu.Unlock()
+	if closing {
 		return errors.New("控制台正在退出")
 	}
-	if c.httpServer != nil {
+	if running {
 		return nil
 	}
 	// Hosts do not affect binding: a running CDN can be connected using the separate hosts action.
@@ -304,17 +334,22 @@ func (c *Console) start() (err error) {
 		l.Close()
 		return fmt.Errorf("网页 HTTPS 转发启动失败：%w", desktop.PortError(c.httpsAddress, err))
 	}
-	if err = c.ensureEngine(); err != nil {
+	c.mu.Lock()
+	err = c.ensureEngine()
+	c.mu.Unlock()
+	if err != nil {
 		l.Close()
 		secure.Close()
 		return err
 	}
 	h := &http.Server{Handler: c.service, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, ErrorLog: slog.NewLogLogger(slog.Default().Handler(), slog.LevelError)}
+	c.mu.Lock()
 	c.httpServer = h
 	c.videoListener = l
 	relay := newHTTPSRelay(secure, c.dns.DialContext)
 	c.https = relay
 	c.cdnError = ""
+	c.mu.Unlock()
 	slog.Info("cdn_started", "address", l.Addr().String(), "https_address", secure.Addr().String())
 	go func() {
 		if err := relay.serve(); err != nil && !errors.Is(err, net.ErrClosed) {
@@ -332,6 +367,8 @@ func (c *Console) start() (err error) {
 
 // Both listeners are one service: never report a healthy half-started CDN.
 func (c *Console) failCDN(h *http.Server, err error) {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.httpServer == h {
@@ -342,6 +379,8 @@ func (c *Console) failCDN(h *http.Server, err error) {
 }
 
 func (c *Console) stop() error {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.stopLocked()
@@ -350,23 +389,25 @@ func (c *Console) stop() error {
 }
 
 func (c *Console) stopLocked() {
-	if c.videoListener != nil {
-		c.videoListener.Close()
-		c.videoListener = nil
+	listener, relay, server := c.videoListener, c.https, c.httpServer
+	c.videoListener, c.https, c.httpServer = nil, nil, nil
+	c.mu.Unlock()
+	defer c.mu.Lock()
+	if listener != nil {
+		listener.Close()
 	}
-	if c.https != nil {
-		c.https.close()
-		c.https = nil
+	if relay != nil {
+		relay.close()
 	}
-	if c.httpServer == nil {
+	if server == nil {
 		return
 	}
-	_ = c.httpServer.Close()
-	c.httpServer = nil
+	_ = server.Close()
 	slog.Info("cdn_stopped")
 }
 
 func (c *Console) Close() error {
+	c.lifecycleMu.Lock()
 	c.mu.Lock()
 	c.closing = true
 	if c.batchCancel != nil {
@@ -378,6 +419,7 @@ func (c *Console) Close() error {
 	}
 	queueDone := c.queueDone
 	c.mu.Unlock()
+	c.lifecycleMu.Unlock()
 	err := c.stop()
 	c.inventoryMu.Lock()
 	inventoryDone := c.inventoryDone
@@ -391,12 +433,15 @@ func (c *Console) Close() error {
 	if queueDone != nil {
 		<-queueDone
 	}
+	c.lifecycleMu.Lock()
 	c.mu.Lock()
-	if c.service != nil {
-		err = c.service.Close()
-		c.service = nil
-	}
+	service := c.service
+	c.service = nil
 	c.mu.Unlock()
+	if service != nil {
+		err = service.Close()
+	}
+	c.lifecycleMu.Unlock()
 	c.client.CloseIdleConnections()
 	return err
 }
@@ -436,10 +481,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			HTTPSPortOK    bool                    `json:"httpsPortOK"`
 			HTTPSPortOwner *desktop.Owner          `json:"httpsPortOwner,omitempty"`
 			Traffic        cacheproxy.TrafficStats `json:"traffic"`
-		}{running, c.settings, readHostsStatus(), running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}}
-		if c.service != nil {
-			result.Traffic = c.service.TrafficStats()
-		}
+		}{running, c.settings, HostsStatus{}, running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}}
+		service := c.service
 		result.ActionErrors = make(map[string]string, len(c.actionErrors))
 		for source, message := range c.actionErrors {
 			result.ActionErrors[source] = message
@@ -449,6 +492,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		result.Queue.Failures = append([]Failure(nil), c.queue.Failures...)
 		result.Batch.Failures = append([]Failure(nil), c.batch.Failures...)
 		c.mu.Unlock()
+		result.Hosts = readHostsStatus()
+		if service != nil {
+			result.Traffic = service.TrafficStats()
+		}
 		if !running {
 			result.PortOK = portAvailable(c.videoAddress) == nil
 			if !result.PortOK {

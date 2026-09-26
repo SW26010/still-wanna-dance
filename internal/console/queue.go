@@ -131,6 +131,8 @@ func logName(path string) string {
 }
 
 func (c *Console) startQueue() error {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
@@ -142,7 +144,10 @@ func (c *Console) startQueue() error {
 	if c.batch.Running && !c.batch.ScanOnly {
 		return errors.New("请先停止全曲库批量任务")
 	}
-	if _, err := os.ReadDir(c.settings.LogDir); err != nil {
+	c.mu.Unlock()
+	_, err := os.ReadDir(c.settings.LogDir)
+	c.mu.Lock()
+	if err != nil {
 		return fmt.Errorf("无法读取 VRChat 日志目录：%w", err)
 	}
 	if err := c.ensureEngine(); err != nil {
@@ -150,7 +155,10 @@ func (c *Console) startQueue() error {
 	}
 	// Establish EOF synchronously so events arriving after start are not missed.
 	tail := &vrclog.Tail{Dir: c.settings.LogDir}
-	if _, err := tail.Poll(time.Now()); err != nil {
+	c.mu.Unlock()
+	_, err = tail.Poll(time.Now())
+	c.mu.Lock()
+	if err != nil {
 		return err
 	}
 	ctx, cancel := context.WithCancel(context.Background())

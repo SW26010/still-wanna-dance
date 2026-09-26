@@ -68,12 +68,15 @@ func (c *Console) localInventory() Inventory {
 }
 
 func (c *Console) startInventoryScan() {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if c.closing {
+		c.mu.Unlock()
 		return
 	}
 	s := c.settings
+	c.mu.Unlock()
 	c.inventoryMu.Lock()
 	defer c.inventoryMu.Unlock()
 	if c.inventory.Scanning {

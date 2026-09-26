@@ -31,7 +31,7 @@ function renderTraffic(t) {
   $('trafficRate').textContent =
     t.hitRate == null ? '—' : t.hitRate.toFixed(1) + '%';
   $('trafficSaved').textContent =
-    ((t.savedBytes || 0) / 1e9).toFixed(3) + ' GB';
+    ((t.savedBytes || 0) / 1073741824).toFixed(3) + ' GiB';
   $('trafficReduction').textContent =
     t.reductionPercent == null ? '—' : t.reductionPercent.toFixed(1) + '%';
   $('trafficDetail').textContent =

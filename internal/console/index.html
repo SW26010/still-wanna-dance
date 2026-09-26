@@ -24,40 +24,41 @@
         <div class="pill" id="serviceBadge">正在检查状态</div>
       </section>
       <div id="notice" class="notice" role="status" hidden></div>
-      <section class="card traffic-card">
-        <div class="card-head">
-          <h2>播放请求统计</h2>
-          <small>当前缓存引擎会话</small>
-        </div>
-        <div class="stats">
-          <div class="stat">
-            <b id="trafficHits">0</b><small>已命中次数</small>
-          </div>
-          <div class="stat">
-            <b id="trafficRate">—</b><small>请求命中率</small>
-          </div>
-          <div class="stat">
-            <b id="trafficSaved">0 GB</b><small>缓存命中节省流量</small>
-          </div>
-          <div class="stat">
-            <b id="trafficReduction">—</b><small>响应延迟降幅（估算）</small>
-          </div>
-        </div>
-        <div id="trafficDetail" class="muted"></div>
-        <div class="hint">
-          仅统计成功完成的 GET 视频请求（200 / 206），每次 Range
-          请求单独计数；HEAD、失败、中断、预下载不计入命中率。节省流量按命中实际返回字节累计（1
-          GB = 10
-          亿字节），表示缓存替代的上游流量，非扣除预下载后的净节省。延迟指响应头耗时：上游为实际视频回源请求（含预下载，不含选路探测），本地包含缓存校验。降幅
-          = 1 − 本地平均延迟 /
-          上游平均延迟；两组样本未按视频配对，负值表示本地更慢，不代表完整视频加载或起播速度。无样本时显示
-          —；缓存引擎重建或程序重启后归零。
-        </div>
-      </section>
-      <div class="grid">
-        <section class="card wide">
+      <section class="card overview-card">
+        <h2>缓存与播放概览</h2>
+        <section class="overview-section">
           <div class="card-head">
-            <h2>本地缓存概览</h2>
+            <h3>播放统计</h3>
+            <small>当前缓存引擎会话</small>
+          </div>
+          <div class="stats">
+            <div class="stat">
+              <b id="trafficHits">0</b><small>已命中次数</small>
+            </div>
+            <div class="stat">
+              <b id="trafficRate">—</b><small>请求命中率</small>
+            </div>
+            <div class="stat">
+              <b id="trafficSaved">0.000 GiB</b><small>缓存命中节省流量</small>
+            </div>
+            <div class="stat">
+              <b id="trafficReduction">—</b><small>响应延迟降幅（估算）</small>
+            </div>
+          </div>
+          <div id="trafficDetail" class="muted"></div>
+          <div class="hint">
+            仅统计成功完成的 GET 视频请求（200 / 206），每次 Range
+            请求单独计数；HEAD、失败、中断、预下载不计入命中率。节省流量按命中实际返回字节累计（1
+            GiB = 1,073,741,824
+            字节），表示缓存替代的上游流量，非扣除预下载后的净节省。延迟指响应头耗时：上游为实际视频回源请求（含预下载，不含选路探测），本地包含缓存校验。降幅
+            = 1 − 本地平均延迟 /
+            上游平均延迟；两组样本未按视频配对，负值表示本地更慢，不代表完整视频加载或起播速度。无样本时显示
+            —；缓存引擎重建或程序重启后归零。
+          </div>
+        </section>
+        <section class="overview-section">
+          <div class="card-head">
+            <h3>本地缓存</h3>
             <small id="inventoryState">正在读取统计…</small>
           </div>
           <div class="stats">
@@ -79,6 +80,8 @@
           <div id="inventoryActionError" role="status"></div>
           <div id="inventoryError" role="status"></div>
         </section>
+      </section>
+      <div class="grid">
         <section class="card">
           <div class="card-head">
             <h2>本地 CDN</h2>

@@ -278,8 +278,23 @@ input[type='checkbox'] {
   accent-color: var(--green);
   margin-right: 8px;
 }
-.traffic-card {
+.overview-card {
   margin-bottom: 18px;
+}
+.overview-section {
+  margin-top: 20px;
+}
+.overview-section + .overview-section {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+.overview-section h3 {
+  font-size: 15px;
+  margin: 0;
+}
+.overview-section .card-head {
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .hosts-actions {
   margin-top: 16px;

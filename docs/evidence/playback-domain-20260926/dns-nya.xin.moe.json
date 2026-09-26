@@ -1,0 +1,29 @@
+{
+  "url": "https://dns.google/resolve?name=nya.xin.moe&type=A",
+  "startedAt": "T+0.000s",
+  "requestHeaders": {},
+  "status": 200,
+  "headers": {
+    "x-content-type-options": "nosniff",
+    "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+    "access-control-allow-origin": "*",
+    "date": "REDACTED-HTTP-DATE",
+    "expires": "REDACTED-HTTP-DATE",
+    "cache-control": "private, max-age=300",
+    "content-type": "application/json; charset=UTF-8",
+    "server": "HTTP server (unknown)",
+    "x-xss-protection": "0",
+    "x-frame-options": "SAMEORIGIN",
+    "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "accept-ranges": "none",
+    "vary": "Accept-Encoding",
+    "transfer-encoding": "chunked"
+  },
+  "remoteAddress": "198.18.3.68",
+  "tlsAuthorized": true,
+  "elapsedMS": 231,
+  "bytes": 248,
+  "sha256": "7af4e9fb87263bfbd56d7a66e53a6c21ca5f9305a82fc2293e91231fd5053bda",
+  "complete": true,
+  "answer": "{\"Status\":0,\"TC\":false,\"RD\":true,\"RA\":true,\"AD\":false,\"CD\":false,\"Question\":[{\"name\":\"nya.xin.moe.\",\"type\":1}],\"Answer\":[{\"name\":\"nya.xin.moe.\",\"type\":1,\"TTL\":300,\"data\":\"38.147.189.128\"}],\"Comment\":\"Response from kerns2.gslb.net.(185.136.99.79).\"}"
+}

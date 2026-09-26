@@ -1,0 +1,445 @@
+{
+  "createdAt": "T+4.482s",
+  "note": "Direct first-hop GET, no redirects followed, existing system network path; no origin substitutions; valid TLS required. Results apply to these exact sample paths.",
+  "records": [
+    {
+      "url": "http://wanna.kiva.moe/",
+      "startedAt": "T+0.000s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0",
+        "Range": "bytes=0-1023"
+      },
+      "status": 301,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/html; charset=UTF-8",
+        "transfer-encoding": "chunked",
+        "connection": "keep-alive",
+        "server-timing": "cfEdge;dur=32,cfOrigin;dur=0",
+        "location": "https://wanna.kiva.moe/",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "server": "cloudflare",
+        "cf-ray": "a413522cbaf849dd-HKG",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.9.58",
+      "tlsAuthorized": null,
+      "elapsedMS": 258,
+      "bytes": 534,
+      "sha256": "342da1c473333ca037635bc7f5e81d2af5bb0fb4a7e2656e360414ceab9be023",
+      "complete": true
+    },
+    {
+      "url": "https://wanna.kiva.moe/",
+      "startedAt": "T+0.010s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0",
+        "Range": "bytes=0-1023"
+      },
+      "status": 200,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/html; charset=utf-8",
+        "transfer-encoding": "chunked",
+        "connection": "keep-alive",
+        "x-next-cache-tags": "_N_T_/layout,_N_T_/page,_N_T_/",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "access-control-allow-origin": "*",
+        "x-matched-path": "/",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-content-type-options": "nosniff",
+        "server-timing": "cfCacheStatus;desc=\"DYNAMIC\", cfEdge;dur=12,cfOrigin;dur=77",
+        "server": "cloudflare",
+        "cf-cache-status": "DYNAMIC",
+        "cf-ray": "a413522d2e4bbc74-HKG",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.9.58",
+      "tlsAuthorized": true,
+      "certificate": {
+        "subject": {
+          "CN": "wanna.kiva.moe"
+        },
+        "issuer": {
+          "C": "US",
+          "O": "Google Trust Services",
+          "CN": "WE1"
+        },
+        "subjectaltname": "DNS:wanna.kiva.moe",
+        "valid_to": "Dec  4 T+35088.000s 2026 GMT"
+      },
+      "elapsedMS": 576,
+      "bytes": 60940,
+      "sha256": "684fea5346301dfe4a739097ba079eb5f76e647172fc3a4a5eb3fc9021b82c77",
+      "complete": true
+    },
+    {
+      "url": "http://api.udon.dance/Api/Songs/play?node=cf&id=1",
+      "startedAt": "T+0.587s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0",
+        "Range": "bytes=0-1023"
+      },
+      "status": 302,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/html; charset=UTF-8",
+        "content-length": "0",
+        "connection": "keep-alive",
+        "server": "cloudflare",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "cache-control": "no-transform",
+        "expires": "Thu, 19 Nov 1981 T+23999.000s GMT",
+        "pragma": "no-cache",
+        "cache-debug": "MISS",
+        "location": "http://play.udon.dance/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+        "cf-cache-status": "DYNAMIC",
+        "server-timing": "cfCacheStatus;desc=\"DYNAMIC\", cfEdge;dur=24,cfOrigin;dur=57",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "cf-ray": "a41352316f5e3090-SEA",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.7.129",
+      "tlsAuthorized": null,
+      "elapsedMS": 556,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "complete": true
+    },
+    {
+      "url": "https://api.udon.dance/Api/Songs/play?node=cf&id=1",
+      "startedAt": "T+0.587s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0",
+        "Range": "bytes=0-1023"
+      },
+      "status": 302,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/html; charset=UTF-8",
+        "content-length": "0",
+        "connection": "keep-alive",
+        "server": "cloudflare",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "cache-control": "no-transform",
+        "expires": "Thu, 19 Nov 1981 T+23999.000s GMT",
+        "pragma": "no-cache",
+        "cache-debug": "HIT",
+        "location": "http://play.udon.dance/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+        "cf-cache-status": "DYNAMIC",
+        "server-timing": "cfCacheStatus;desc=\"DYNAMIC\", cfEdge;dur=5,cfOrigin;dur=28",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "cf-ray": "a4135232a8effd8a-SEA",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.7.129",
+      "tlsAuthorized": true,
+      "certificate": {
+        "subject": {
+          "CN": "udon.dance"
+        },
+        "issuer": {
+          "C": "US",
+          "O": "Google Trust Services",
+          "CN": "WE1"
+        },
+        "subjectaltname": "DNS:udon.dance, DNS:*.udon.dance",
+        "valid_to": "Nov 13 T+0.000s 2026 GMT"
+      },
+      "elapsedMS": 706,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "complete": true
+    },
+    {
+      "url": "http://play.udon.dance/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+      "startedAt": "T+1.293s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0",
+        "Range": "bytes=0-1023"
+      },
+      "status": 206,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "video/mp4",
+        "content-length": "1024",
+        "connection": "keep-alive",
+        "server": "cloudflare",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "etag": "\"67a5b116-26e7cf2\"",
+        "expires": "REDACTED-HTTP-DATE",
+        "cache-control": "max-age=31536000",
+        "age": "21267",
+        "content-range": "bytes 0-1023/40795378",
+        "cf-cache-status": "HIT",
+        "server-timing": "cfCacheStatus;desc=\"HIT\", cfEdge;dur=16,cfOrigin;dur=0",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "cf-ray": "a41352360f48ec4c-SEA",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.8.25",
+      "tlsAuthorized": null,
+      "elapsedMS": 517,
+      "bytes": 1024,
+      "sha256": "95a2b0b08140cd907d28ab18bf5f5f8f88fb63af2f83bafcb95f10d75fe188bf",
+      "complete": true
+    },
+    {
+      "url": "https://play.udon.dance/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+      "startedAt": "T+1.293s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0",
+        "Range": "bytes=0-1023"
+      },
+      "status": 206,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "video/mp4",
+        "content-length": "1024",
+        "connection": "keep-alive",
+        "server": "cloudflare",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "etag": "\"67a5b116-26e7cf2\"",
+        "expires": "REDACTED-HTTP-DATE",
+        "cache-control": "max-age=31536000",
+        "age": "21267",
+        "content-range": "bytes 0-1023/40795378",
+        "cf-cache-status": "HIT",
+        "server-timing": "cfCacheStatus;desc=\"HIT\", cfEdge;dur=16,cfOrigin;dur=0",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "cf-ray": "a413523759c56a65-SEA",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.8.25",
+      "tlsAuthorized": true,
+      "certificate": {
+        "subject": {
+          "CN": "udon.dance"
+        },
+        "issuer": {
+          "C": "US",
+          "O": "Google Trust Services",
+          "CN": "WE1"
+        },
+        "subjectaltname": "DNS:udon.dance, DNS:*.udon.dance",
+        "valid_to": "Nov 13 T+0.000s 2026 GMT"
+      },
+      "elapsedMS": 729,
+      "bytes": 1024,
+      "sha256": "95a2b0b08140cd907d28ab18bf5f5f8f88fb63af2f83bafcb95f10d75fe188bf",
+      "complete": true
+    },
+    {
+      "url": "http://nya.xin.moe/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+      "startedAt": "T+2.022s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0",
+        "Range": "bytes=0-1023"
+      },
+      "status": 206,
+      "headers": {
+        "server": "openresty/1.31.1.1",
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "video/mp4",
+        "content-length": "1024",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "connection": "keep-alive",
+        "etag": "\"67a5b119-26e7cf2\"",
+        "expires": "REDACTED-HTTP-DATE",
+        "cache-control": "max-age=432000",
+        "content-range": "bytes 0-1023/40795378"
+      },
+      "remoteAddress": "198.18.26.102",
+      "tlsAuthorized": null,
+      "elapsedMS": 351,
+      "bytes": 1024,
+      "sha256": "95a2b0b08140cd907d28ab18bf5f5f8f88fb63af2f83bafcb95f10d75fe188bf",
+      "complete": true
+    },
+    {
+      "url": "https://nya.xin.moe/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+      "startedAt": "T+2.022s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0",
+        "Range": "bytes=0-1023"
+      },
+      "status": 206,
+      "headers": {
+        "server": "openresty/1.31.1.1",
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "video/mp4",
+        "content-length": "1024",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "connection": "keep-alive",
+        "etag": "\"67a5b119-26e7cf2\"",
+        "expires": "REDACTED-HTTP-DATE",
+        "cache-control": "max-age=432000",
+        "content-range": "bytes 0-1023/40795378"
+      },
+      "remoteAddress": "198.18.26.102",
+      "tlsAuthorized": true,
+      "certificate": {
+        "subject": {
+          "CN": "xin.moe"
+        },
+        "issuer": {
+          "C": "AT",
+          "O": "ZeroSSL GmbH",
+          "CN": "ZeroSSL ECC DV SSL CA 2"
+        },
+        "subjectaltname": "DNS:xin.moe, DNS:*.xin.moe",
+        "valid_to": "Dec  2 T+78478.000s 2026 GMT"
+      },
+      "elapsedMS": 811,
+      "bytes": 1024,
+      "sha256": "95a2b0b08140cd907d28ab18bf5f5f8f88fb63af2f83bafcb95f10d75fe188bf",
+      "complete": true
+    },
+    {
+      "url": "http://aya.kiva.moe/images/small1.jpg",
+      "startedAt": "T+2.833s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0",
+        "Range": "bytes=0-1023"
+      },
+      "status": 301,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/html; charset=UTF-8",
+        "transfer-encoding": "chunked",
+        "connection": "keep-alive",
+        "server-timing": "cfEdge;dur=16,cfOrigin;dur=0",
+        "location": "https://aya.kiva.moe/images/small1.jpg",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "server": "cloudflare",
+        "cf-ray": "a413523fad17c39c-SEA",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.7.128",
+      "tlsAuthorized": null,
+      "elapsedMS": 518,
+      "bytes": 534,
+      "sha256": "342da1c473333ca037635bc7f5e81d2af5bb0fb4a7e2656e360414ceab9be023",
+      "complete": true
+    },
+    {
+      "url": "https://aya.kiva.moe/images/small1.jpg",
+      "startedAt": "T+2.833s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0",
+        "Range": "bytes=0-1023"
+      },
+      "status": 206,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "image/jpeg",
+        "content-length": "1024",
+        "connection": "keep-alive",
+        "content-range": "bytes 0-1023/34982",
+        "cf-ray": "a4135240fa2033d4-SEA",
+        "cf-cache-status": "MISS",
+        "access-control-allow-origin": "*",
+        "cache-control": "public,max-age=172800,stale-while-revalidate=7200",
+        "etag": "\"cf7MQclcLmkvPve0tzagyP1zBCOljhquN69HmiV_ALDQ\"",
+        "server": "cloudflare",
+        "vary": "accept",
+        "cf-images": "internal=ok/- q=0 n=447+0 c=6+25 v=2026.9.11 l=34982 f=false c2=0",
+        "content-security-policy": "default-src 'none'; navigate-to 'none'; form-action 'none'; img-src data:; style-src 'unsafe-inline';",
+        "priority": "u=1;i=?0,cf-chb=(262;u=3;i=?0 3723;u=5;i=?0 14609;u=6;i=?0)",
+        "x-content-type-options": "nosniff",
+        "server-timing": "cfCacheStatus;desc=\"MISS\", cfEdge;dur=579,cfOrigin;dur=0",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.7.128",
+      "tlsAuthorized": true,
+      "certificate": {
+        "subject": {
+          "CN": "aya.kiva.moe"
+        },
+        "issuer": {
+          "C": "US",
+          "O": "Google Trust Services",
+          "CN": "WE1"
+        },
+        "subjectaltname": "DNS:aya.kiva.moe",
+        "valid_to": "Nov  6 T+73593.000s 2026 GMT"
+      },
+      "elapsedMS": 1288,
+      "bytes": 1024,
+      "sha256": "b4945979a23dd58a1035ae330b3ed82f87571deb4665f8022b3213423b92418b",
+      "complete": true
+    },
+    {
+      "url": "http://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495",
+      "startedAt": "T+4.122s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0",
+        "Range": "bytes=0-1023"
+      },
+      "status": 301,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/html; charset=UTF-8",
+        "content-length": "167",
+        "connection": "keep-alive",
+        "location": "https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495",
+        "server": "cloudflare",
+        "cf-ray": "a4135246ef4d87d5-SIN"
+      },
+      "remoteAddress": "198.18.7.169",
+      "tlsAuthorized": null,
+      "elapsedMS": 319,
+      "bytes": 167,
+      "sha256": "446a6087825fa73eadb045e5a2e9e2adf7df241b571228187728191d961dda1f",
+      "complete": true
+    },
+    {
+      "url": "https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495",
+      "startedAt": "T+4.122s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0",
+        "Range": "bytes=0-1023"
+      },
+      "status": 200,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/javascript;charset=UTF-8",
+        "content-length": "30294",
+        "connection": "keep-alive",
+        "access-control-allow-origin": "*",
+        "cache-control": "public, max-age=86400",
+        "etag": "W/\"2026.9.1\"",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "cross-origin-resource-policy": "cross-origin",
+        "server": "cloudflare",
+        "cf-ray": "a4135246ab9efd10-SIN"
+      },
+      "remoteAddress": "198.18.7.169",
+      "tlsAuthorized": true,
+      "certificate": {
+        "subject": {
+          "CN": "cloudflareinsights.com"
+        },
+        "issuer": {
+          "C": "US",
+          "O": "Google Trust Services",
+          "CN": "WE1"
+        },
+        "subjectaltname": "DNS:cloudflareinsights.com, DNS:*.cloudflareinsights.com",
+        "valid_to": "Nov 12 T+24616.000s 2026 GMT"
+      },
+      "elapsedMS": 360,
+      "bytes": 30294,
+      "sha256": "08c4fd72f9d96a7aa554510dff2c293973b1b092dff1b9b282bce9111b50ef41",
+      "complete": true
+    }
+  ]
+}

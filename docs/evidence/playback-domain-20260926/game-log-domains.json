@@ -1,0 +1,2228 @@
+{
+  "createdAt": "T+0.000s",
+  "root": "<log-collector-directory>/logs/source-vrc-logs",
+  "files": [
+    {
+      "file": "output_log_session-001.txt",
+      "bytes": 60699,
+      "sha256": "34ef9e8b7685dab4d40f7e73b0edafb3ca307680b614dfc27852a2492e0f91d3"
+    },
+    {
+      "file": "output_log_session-002.txt",
+      "bytes": 2307395,
+      "sha256": "482d8fa64f9e46451e7f5f4045d2f620a5d00a0b7ae86e299c40970f51178f9e"
+    },
+    {
+      "file": "output_log_session-003.txt",
+      "bytes": 3132037,
+      "sha256": "a67a02f591f95a4fa036ffc308a9df42decc6eb7982b6dff88f789fde968442e"
+    },
+    {
+      "file": "output_log_session-004.txt",
+      "bytes": 2659427,
+      "sha256": "4728f647407c1c54fbd96ab0406fbbf0b3aab67bc6dca0d74a4ab1f31b036c4d"
+    },
+    {
+      "file": "output_log_session-005.txt",
+      "bytes": 3003915,
+      "sha256": "2769c49f42863dc18969bebe6ee6c53804f692e13329bae5eb40ad54ed0c79a1"
+    },
+    {
+      "file": "output_log_session-006.txt",
+      "bytes": 2885636,
+      "sha256": "b9618b56920b688a2b6f44f1a347f23a5bfd88fe0926f337e1ab570275ee118c"
+    },
+    {
+      "file": "output_log_session-007.txt",
+      "bytes": 2846372,
+      "sha256": "d2e9082c873a568a5b4b52f96fdb8a4477918c2915026276c3ed4d838198c18a"
+    },
+    {
+      "file": "output_log_session-008.txt",
+      "bytes": 2813997,
+      "sha256": "bf8e7da1353bb5c6f5ba46e116bdf4f27861322c1c545a430e37ca519f6ed6ac"
+    },
+    {
+      "file": "output_log_session-009.txt",
+      "bytes": 2891895,
+      "sha256": "0994f05a3bf67bda9287b608c55b382b4a56335b4bcc5a27e6955381736f11e9"
+    },
+    {
+      "file": "output_log_session-010.txt",
+      "bytes": 3604359,
+      "sha256": "5d64de92fa485ddf8f1a5eb35f32193ef2590b5983d336d92312fe5facb0768d"
+    },
+    {
+      "file": "output_log_session-011.txt",
+      "bytes": 3608846,
+      "sha256": "ad31ba42fedb9b3752e4babac51ef204626af51b84568bddb4d603d659b1ffc5"
+    },
+    {
+      "file": "output_log_session-012.txt",
+      "bytes": 1601454,
+      "sha256": "d11ef4b578681631fc211b21107165993e0cb511f5346ac7cc26a587c9279eae"
+    },
+    {
+      "file": "output_log_session-013.txt",
+      "bytes": 1998349,
+      "sha256": "cfaa3870b1bb7b21da776e0310d62551d4193f2046f7af9e50878ad2dc99f604"
+    },
+    {
+      "file": "output_log_session-014.txt",
+      "bytes": 2461560,
+      "sha256": "ab8f1a2694e550ae3173ec1eccec91eb4a6a76d1c3f67ee86871c6da5a51c432"
+    },
+    {
+      "file": "output_log_session-015.txt",
+      "bytes": 1652830,
+      "sha256": "5aa1d33f5777fdb1ec2dd0e3047be2ff4c82daddeb1754db3556ffa0ae0e9b7c"
+    },
+    {
+      "file": "output_log_session-016.txt",
+      "bytes": 545526,
+      "sha256": "5c7c415feaf6f5d477281180eb2ca21d207e8792c3f54dfad5428530fb031b8a"
+    },
+    {
+      "file": "output_log_session-017.txt",
+      "bytes": 2182913,
+      "sha256": "2ac44c63752e5ca1c96506fb54f5dfdb258e7afc8555779540f9ff6d39bdd3e2"
+    },
+    {
+      "file": "output_log_session-018.txt",
+      "bytes": 2705635,
+      "sha256": "aadead357bcb7279f4fae9a9a09385d7b2acb0ef4f0d5002e519e61ed85f271d"
+    },
+    {
+      "file": "output_log_session-019.txt",
+      "bytes": 2286614,
+      "sha256": "36f91ce526b7715234a5a5c76542f20e34959946005f60d0c4c526bda7472f2c"
+    },
+    {
+      "file": "output_log_session-020.txt",
+      "bytes": 2387156,
+      "sha256": "a68cf475ce2ee387aa77a805bf32866f7e89b848487d396f549f914d62ef36a7"
+    },
+    {
+      "file": "output_log_session-021.txt",
+      "bytes": 2401095,
+      "sha256": "192eac45ac927806890045ec425493f31d7ca757d73c86d7014deea0d3f898b6"
+    },
+    {
+      "file": "output_log_session-022.txt",
+      "bytes": 1938461,
+      "sha256": "3bd6524ca70ff0da4e55ba100717409d28522f09f804f821caa95b9191ca201f"
+    },
+    {
+      "file": "output_log_session-023.txt",
+      "bytes": 4323671,
+      "sha256": "d9e94eb1f4cd1d43792e4aa430ef3304cfeee240dd16043fe1c86d0411344d72"
+    },
+    {
+      "file": "output_log_session-024.txt",
+      "bytes": 952258,
+      "sha256": "4c78e380101a6cc69d64fa2ff129572a8afe43b52fd4e42ca8c249fa8d77305e"
+    },
+    {
+      "file": "output_log_session-025.txt",
+      "bytes": 2646522,
+      "sha256": "639d6325a2869b7192ba66ba64ee24524dfb7e62d5ee2a21b2054bcc2bfa7701"
+    },
+    {
+      "file": "output_log_session-026.txt",
+      "bytes": 2716331,
+      "sha256": "920d7239e64ec7d44d82909069ecc33fb540ab20371b2cbb2c9c9f00ef876f7b"
+    },
+    {
+      "file": "output_log_session-027.txt",
+      "bytes": 3545784,
+      "sha256": "902990ecd0d3f2b454abb690bbe442bb1173990db386538826517d26d752c23e"
+    },
+    {
+      "file": "output_log_session-028.txt",
+      "bytes": 329078,
+      "sha256": "10840408d354ca3697e57cc93304ad96e304ea581ed4fcf07690e570b045fb19"
+    },
+    {
+      "file": "output_log_session-029.txt",
+      "bytes": 2897843,
+      "sha256": "cb441229ef39b0ac9096738e8494716547f534552c17e4ef3178059dda9a8b82"
+    },
+    {
+      "file": "output_log_session-030.txt",
+      "bytes": 3392092,
+      "sha256": "c881fd3108185e818a642c19bf992321e11f4a58ef19642072d18b29b8da57ca"
+    },
+    {
+      "file": "output_log_session-031.txt",
+      "bytes": 2254990,
+      "sha256": "3efa7b411621991e470fb78b21de62e4c37556f9a3c3904ac14141c17d120d38"
+    },
+    {
+      "file": "output_log_session-032.txt",
+      "bytes": 998124,
+      "sha256": "b91f6561705a3b638dda68b944e3cd290339513fb57b0490393ab98f38ec2acf"
+    },
+    {
+      "file": "output_log_session-033.txt",
+      "bytes": 1312126,
+      "sha256": "5a776f5aba55e761366d7b48f7304f3ba5475af76e6be47ae7989ef0da44ce4f"
+    },
+    {
+      "file": "output_log_session-034.txt",
+      "bytes": 2601285,
+      "sha256": "efa47afc0384338deb349ab477790205cd6feb1a96865b95fed8706b2ec43ed6"
+    },
+    {
+      "file": "output_log_session-035.txt",
+      "bytes": 1921538,
+      "sha256": "d4093b76152e7abea1219decfe6aafa5d24208de7a735ec161a183ed9e73558d"
+    },
+    {
+      "file": "output_log_session-036.txt",
+      "bytes": 3134724,
+      "sha256": "5c1490e2c0f98cbcc421e038ef78b960af0d02743a7e2b4fde536acc03c6ff67"
+    },
+    {
+      "file": "output_log_session-037.txt",
+      "bytes": 3122433,
+      "sha256": "53e0e3a016794fe33f730faf1ecca3f3838b722286bbf6a4a6dfbc8b81cfefc8"
+    },
+    {
+      "file": "output_log_session-038.txt",
+      "bytes": 2576597,
+      "sha256": "37805de65ed9299ac4143778fd4a2a03abcf42ab1b260421bac8770da2c269a6"
+    },
+    {
+      "file": "output_log_session-039.txt",
+      "bytes": 2530532,
+      "sha256": "3d14e381863fe55e1502b308459eb98f69ab8ecf1f6b16164c34541d4d699e1e"
+    },
+    {
+      "file": "output_log_session-040.txt",
+      "bytes": 2054518,
+      "sha256": "83a81560b42508521414f47cefe8e384424d6681ff2165c18d01b140463ce86c"
+    },
+    {
+      "file": "output_log_session-041.txt",
+      "bytes": 2863067,
+      "sha256": "934321f69647609219be2ca9b69353c3c13bbe3c948d77b17cfb5a19328e7ec5"
+    },
+    {
+      "file": "output_log_session-042.txt",
+      "bytes": 1383510,
+      "sha256": "b7a1e9bae0781cf61535d45c8413c12b6625ec69eead4702b48cde5ca206c7fa"
+    },
+    {
+      "file": "output_log_session-043.txt",
+      "bytes": 27597,
+      "sha256": "e7a2a63e3e7c6e918db937e940c5e52dd454790f27d08893695f86b6597cae67"
+    },
+    {
+      "file": "output_log_session-044.txt",
+      "bytes": 23355,
+      "sha256": "d5252e93d62e8cad3b0cacbf40b79afa72568eb1b3f16694d1caf85644fa2f77"
+    },
+    {
+      "file": "output_log_session-045.txt",
+      "bytes": 21980,
+      "sha256": "b00a4d90bc54a1c48bb8bc0b57471d9cbc82ec443891c324b432705b866c92dd"
+    },
+    {
+      "file": "output_log_session-046.txt",
+      "bytes": 48396,
+      "sha256": "1c8a012331b7f4adfdd814de52124645888ac2c016248673f8e224b54cc35bb3"
+    },
+    {
+      "file": "output_log_session-047.txt",
+      "bytes": 1741530,
+      "sha256": "13e75665bf78f14125c87001133d2c00cf5fa82d6bde23c753810720d17f91bc"
+    },
+    {
+      "file": "output_log_session-048.txt",
+      "bytes": 2073836,
+      "sha256": "1c9af4a8f3ea0f742ed2cf54aba22f1f778494c3143b155b5583a9b2e84ebd72"
+    },
+    {
+      "file": "output_log_session-049.txt",
+      "bytes": 2390954,
+      "sha256": "5daa70eaa433840a6733c46d7cdc333ab1e5b9d4d1b0c768240f59fe953a3a28"
+    },
+    {
+      "file": "output_log_session-050.txt",
+      "bytes": 2241500,
+      "sha256": "6f7f864688015e0abd260f3a8c9e1f5ad75e1df6ca4337d57ece5d52a49e1dc0"
+    },
+    {
+      "file": "output_log_session-051.txt",
+      "bytes": 2452416,
+      "sha256": "a223d1570fca8610329004760f252ad41f9cdaebd398f8925687c3912b4de42f"
+    },
+    {
+      "file": "output_log_session-052.txt",
+      "bytes": 1486232,
+      "sha256": "740edc263ee558698a7dcc3570cf80bfb923fcbf74ad94df134301434a7372cc"
+    },
+    {
+      "file": "output_log_session-053.txt",
+      "bytes": 2415544,
+      "sha256": "29b097d961e6730e49f1f2c4060c1aea8d723937e8fd2498b020cd41d5e4c77d"
+    },
+    {
+      "file": "output_log_session-054.txt",
+      "bytes": 2308158,
+      "sha256": "37a1041c4c1ec14963825109e58badbe6036b484377ba173feae4bf1ea920ad7"
+    },
+    {
+      "file": "output_log_session-055.txt",
+      "bytes": 1491458,
+      "sha256": "3244b6673f467e73e576240169cd6b0ffff2e2e4a0587b290a122d82affb189a"
+    },
+    {
+      "file": "output_log_session-056.txt",
+      "bytes": 100217,
+      "sha256": "8a5c368ecb410c3d7d315b6b291d950349c08c2d67be9f480ccf89a6665c4495"
+    },
+    {
+      "file": "output_log_session-057.txt",
+      "bytes": 44710,
+      "sha256": "650dc39fc963ac16e1ea7551192a80a7583796bc0fd3412165a4d7767e1511d9"
+    },
+    {
+      "file": "output_log_session-058.txt",
+      "bytes": 1156351,
+      "sha256": "239b9bc0a28038fec09f19f1bf63a4969e6eb9a73180fd0fd2891be7b859974b"
+    },
+    {
+      "file": "output_log_session-059.txt",
+      "bytes": 2148332,
+      "sha256": "1519e9e0abb463dc7184a10b6c3e7bd80ce5a4d5e41632b014e726a1f821cbde"
+    },
+    {
+      "file": "output_log_session-060.txt",
+      "bytes": 2563240,
+      "sha256": "97ee701b2092330c190628bf8497d795185bec2396947c1ccd817f00bce4a6c7"
+    },
+    {
+      "file": "output_log_session-061.txt",
+      "bytes": 2545711,
+      "sha256": "675f97f036b5465acf2528bea3d888602d97a19827d4de2fffc04f373553c7ed"
+    },
+    {
+      "file": "output_log_session-062.txt",
+      "bytes": 2328829,
+      "sha256": "b345d2d653dc397059de7eb170c3912fd9f4d4f60b8fb58260536bf63e60a598"
+    },
+    {
+      "file": "output_log_session-063.txt",
+      "bytes": 696964,
+      "sha256": "7c95fb77074689c45912b6bf26f5189d6e1706213082306fb094ceac2e9815f1"
+    },
+    {
+      "file": "output_log_session-064.txt",
+      "bytes": 934728,
+      "sha256": "51505430e01827ee1f79a14cf5a3c3078c2cfea223735696433924eb41319b39"
+    },
+    {
+      "file": "output_log_session-065.txt",
+      "bytes": 2540483,
+      "sha256": "63165b757864376e7ded6f41267ae8edee4d933e2cb0f8447960c07cbcdcda73"
+    },
+    {
+      "file": "output_log_session-067.txt",
+      "bytes": 55378,
+      "sha256": "942abc2a8ea90c802a34b538327ec31b4cf2a75fbd95365ba3dc1e6f65496a71"
+    },
+    {
+      "file": "output_log_session-068.txt",
+      "bytes": 1311351,
+      "sha256": "7112ca4485f10370242f32eb84a17a5e532628ac7d6da68c1f51c27a5c68405f"
+    },
+    {
+      "file": "output_log_session-069.txt",
+      "bytes": 487981,
+      "sha256": "13a91e12879c575fd35862bee8ac0ec54828bedeecf61c12c6f024945d1db20d"
+    },
+    {
+      "file": "output_log_session-072.txt",
+      "bytes": 2256273,
+      "sha256": "813804248636ff69d453b0596fa2aec2181e097aa6476f84e90b96bf1cc919ea"
+    },
+    {
+      "file": "output_log_session-073.txt",
+      "bytes": 2555393,
+      "sha256": "dc0609e5a0c481b918e6fd5db23608f23de01fd6078e1e6fe5910aaf4bcb7f82"
+    }
+  ],
+  "collectionContext": "User states most logs were collected while <reference-workspace>/wanna-cdn.exe was running. These are client-visible URLs potentially influenced by local CDN caching/redirects; not clean origin traces. No per-session CDN state is established.",
+  "scope": "Domain URL mentions in LoadRoutedURL / Video Playback lines, plus named dance hosts elsewhere. Examples retain only URLs and line numbers, not player names or full logs. Query parameters are removed from other sites. Counts are mentions, not requests or successful plays.",
+  "playbackLines": 6857,
+  "udPlayMentions": 0,
+  "udNyaMentions": 0,
+  "domains": {
+    "api.udon.dance": {
+      "allRelevantURLMentions": 63344,
+      "playbackURLMentions": 8520,
+      "files": [
+        "output_log_session-002.txt",
+        "output_log_session-003.txt",
+        "output_log_session-004.txt",
+        "output_log_session-005.txt",
+        "output_log_session-006.txt",
+        "output_log_session-007.txt",
+        "output_log_session-008.txt",
+        "output_log_session-009.txt",
+        "output_log_session-010.txt",
+        "output_log_session-011.txt",
+        "output_log_session-012.txt",
+        "output_log_session-013.txt",
+        "output_log_session-014.txt",
+        "output_log_session-015.txt",
+        "output_log_session-016.txt",
+        "output_log_session-017.txt",
+        "output_log_session-018.txt",
+        "output_log_session-019.txt",
+        "output_log_session-020.txt",
+        "output_log_session-021.txt",
+        "output_log_session-022.txt",
+        "output_log_session-023.txt",
+        "output_log_session-024.txt",
+        "output_log_session-025.txt",
+        "output_log_session-026.txt",
+        "output_log_session-027.txt",
+        "output_log_session-028.txt",
+        "output_log_session-029.txt",
+        "output_log_session-030.txt",
+        "output_log_session-031.txt",
+        "output_log_session-032.txt",
+        "output_log_session-033.txt",
+        "output_log_session-034.txt",
+        "output_log_session-035.txt",
+        "output_log_session-036.txt",
+        "output_log_session-037.txt",
+        "output_log_session-038.txt",
+        "output_log_session-039.txt",
+        "output_log_session-040.txt",
+        "output_log_session-041.txt",
+        "output_log_session-042.txt",
+        "output_log_session-047.txt",
+        "output_log_session-048.txt",
+        "output_log_session-049.txt",
+        "output_log_session-050.txt",
+        "output_log_session-051.txt",
+        "output_log_session-052.txt",
+        "output_log_session-053.txt",
+        "output_log_session-054.txt",
+        "output_log_session-055.txt",
+        "output_log_session-058.txt",
+        "output_log_session-059.txt",
+        "output_log_session-060.txt",
+        "output_log_session-061.txt",
+        "output_log_session-062.txt",
+        "output_log_session-063.txt",
+        "output_log_session-064.txt",
+        "output_log_session-065.txt",
+        "output_log_session-068.txt",
+        "output_log_session-069.txt",
+        "output_log_session-072.txt",
+        "output_log_session-073.txt"
+      ],
+      "first": {
+        "file": "output_log_session-002.txt",
+        "line": 957
+      },
+      "last": {
+        "file": "output_log_session-073.txt",
+        "line": 13963
+      },
+      "examples": [
+        {
+          "file": "output_log_session-002.txt",
+          "line": 1094,
+          "event": "LoadRoutedURL",
+          "url": "http://api.udon.dance/Api/Songs/play?id=1236"
+        },
+        {
+          "file": "output_log_session-002.txt",
+          "line": 1094,
+          "event": "LoadRoutedURL",
+          "url": "http://api.udon.dance/Api/Songs/play?node=cf&id=1236"
+        },
+        {
+          "file": "output_log_session-002.txt",
+          "line": 1095,
+          "event": "Video Playback",
+          "url": "http://api.udon.dance/Api/Songs/play?node=cf&id=1236"
+        }
+      ]
+    },
+    "aya.kiva.moe": {
+      "allRelevantURLMentions": 17209,
+      "playbackURLMentions": 0,
+      "files": [
+        "output_log_session-002.txt",
+        "output_log_session-003.txt",
+        "output_log_session-004.txt",
+        "output_log_session-005.txt",
+        "output_log_session-006.txt",
+        "output_log_session-007.txt",
+        "output_log_session-008.txt",
+        "output_log_session-009.txt",
+        "output_log_session-010.txt",
+        "output_log_session-011.txt",
+        "output_log_session-012.txt",
+        "output_log_session-013.txt",
+        "output_log_session-014.txt",
+        "output_log_session-015.txt",
+        "output_log_session-016.txt",
+        "output_log_session-017.txt",
+        "output_log_session-018.txt",
+        "output_log_session-019.txt",
+        "output_log_session-020.txt",
+        "output_log_session-021.txt",
+        "output_log_session-022.txt",
+        "output_log_session-023.txt",
+        "output_log_session-024.txt",
+        "output_log_session-025.txt",
+        "output_log_session-026.txt",
+        "output_log_session-027.txt",
+        "output_log_session-028.txt",
+        "output_log_session-029.txt",
+        "output_log_session-030.txt",
+        "output_log_session-031.txt",
+        "output_log_session-032.txt",
+        "output_log_session-033.txt",
+        "output_log_session-034.txt",
+        "output_log_session-035.txt",
+        "output_log_session-036.txt",
+        "output_log_session-037.txt",
+        "output_log_session-038.txt",
+        "output_log_session-039.txt",
+        "output_log_session-040.txt",
+        "output_log_session-041.txt",
+        "output_log_session-042.txt",
+        "output_log_session-047.txt",
+        "output_log_session-048.txt",
+        "output_log_session-049.txt",
+        "output_log_session-050.txt",
+        "output_log_session-051.txt",
+        "output_log_session-052.txt",
+        "output_log_session-053.txt",
+        "output_log_session-055.txt",
+        "output_log_session-058.txt",
+        "output_log_session-059.txt",
+        "output_log_session-060.txt",
+        "output_log_session-061.txt",
+        "output_log_session-062.txt",
+        "output_log_session-063.txt",
+        "output_log_session-064.txt",
+        "output_log_session-065.txt",
+        "output_log_session-068.txt",
+        "output_log_session-069.txt",
+        "output_log_session-072.txt",
+        "output_log_session-073.txt"
+      ],
+      "first": {
+        "file": "output_log_session-002.txt",
+        "line": 997
+      },
+      "last": {
+        "file": "output_log_session-073.txt",
+        "line": 13828
+      },
+      "examples": []
+    },
+    "play.udon.dance": {
+      "allRelevantURLMentions": 2033,
+      "playbackURLMentions": 2028,
+      "files": [
+        "output_log_session-002.txt",
+        "output_log_session-003.txt",
+        "output_log_session-004.txt",
+        "output_log_session-005.txt",
+        "output_log_session-006.txt",
+        "output_log_session-007.txt",
+        "output_log_session-008.txt",
+        "output_log_session-009.txt",
+        "output_log_session-010.txt",
+        "output_log_session-011.txt",
+        "output_log_session-012.txt",
+        "output_log_session-013.txt",
+        "output_log_session-014.txt",
+        "output_log_session-015.txt",
+        "output_log_session-016.txt",
+        "output_log_session-017.txt",
+        "output_log_session-018.txt",
+        "output_log_session-019.txt",
+        "output_log_session-020.txt",
+        "output_log_session-021.txt",
+        "output_log_session-022.txt",
+        "output_log_session-023.txt",
+        "output_log_session-024.txt",
+        "output_log_session-025.txt",
+        "output_log_session-026.txt",
+        "output_log_session-027.txt",
+        "output_log_session-028.txt",
+        "output_log_session-029.txt",
+        "output_log_session-030.txt",
+        "output_log_session-031.txt",
+        "output_log_session-032.txt",
+        "output_log_session-033.txt",
+        "output_log_session-034.txt",
+        "output_log_session-035.txt",
+        "output_log_session-036.txt",
+        "output_log_session-037.txt",
+        "output_log_session-038.txt",
+        "output_log_session-039.txt",
+        "output_log_session-040.txt",
+        "output_log_session-041.txt",
+        "output_log_session-042.txt",
+        "output_log_session-047.txt",
+        "output_log_session-048.txt",
+        "output_log_session-049.txt",
+        "output_log_session-050.txt",
+        "output_log_session-051.txt",
+        "output_log_session-052.txt",
+        "output_log_session-053.txt",
+        "output_log_session-055.txt",
+        "output_log_session-058.txt",
+        "output_log_session-059.txt",
+        "output_log_session-060.txt",
+        "output_log_session-061.txt",
+        "output_log_session-062.txt",
+        "output_log_session-063.txt",
+        "output_log_session-064.txt",
+        "output_log_session-065.txt",
+        "output_log_session-068.txt",
+        "output_log_session-069.txt",
+        "output_log_session-072.txt"
+      ],
+      "first": {
+        "file": "output_log_session-002.txt",
+        "line": 1128
+      },
+      "last": {
+        "file": "output_log_session-072.txt",
+        "line": 13068
+      },
+      "examples": [
+        {
+          "file": "output_log_session-002.txt",
+          "line": 1128,
+          "event": "Video Playback",
+          "url": "http://play.udon.dance/files/2403/1236-660524b4d90c6.mp4?e=REDACTED&s=REDACTED"
+        },
+        {
+          "file": "output_log_session-002.txt",
+          "line": 1297,
+          "event": "Video Playback",
+          "url": "http://play.udon.dance/files/2403/1172-660524b4c9cf5.mp4?e=REDACTED&s=REDACTED"
+        },
+        {
+          "file": "output_log_session-002.txt",
+          "line": 1544,
+          "event": "Video Playback",
+          "url": "http://play.udon.dance/files/2403/1282-660524b4e075e.mp4?e=REDACTED&s=REDACTED"
+        }
+      ]
+    },
+    "api.dudufit.dance": {
+      "allRelevantURLMentions": 264,
+      "playbackURLMentions": 264,
+      "files": [
+        "output_log_session-003.txt",
+        "output_log_session-008.txt",
+        "output_log_session-014.txt",
+        "output_log_session-022.txt",
+        "output_log_session-030.txt",
+        "output_log_session-038.txt",
+        "output_log_session-054.txt"
+      ],
+      "first": {
+        "file": "output_log_session-003.txt",
+        "line": 9061
+      },
+      "last": {
+        "file": "output_log_session-054.txt",
+        "line": 23589
+      },
+      "examples": [
+        {
+          "file": "output_log_session-003.txt",
+          "line": 9061,
+          "event": "Video Playback",
+          "url": "https://api.dudufit.dance/api/v1/videos/1321"
+        },
+        {
+          "file": "output_log_session-003.txt",
+          "line": 9311,
+          "event": "Video Playback",
+          "url": "https://api.dudufit.dance/api/v1/videos/1321"
+        },
+        {
+          "file": "output_log_session-003.txt",
+          "line": 9311,
+          "event": "Video Playback",
+          "url": "https://api.dudufit.dance/api/v1/videos/1321"
+        }
+      ]
+    },
+    "api-ddfd.imkiva.com": {
+      "allRelevantURLMentions": 127,
+      "playbackURLMentions": 127,
+      "files": [
+        "output_log_session-003.txt",
+        "output_log_session-008.txt",
+        "output_log_session-014.txt",
+        "output_log_session-022.txt",
+        "output_log_session-030.txt",
+        "output_log_session-038.txt",
+        "output_log_session-054.txt"
+      ],
+      "first": {
+        "file": "output_log_session-003.txt",
+        "line": 10633
+      },
+      "last": {
+        "file": "output_log_session-054.txt",
+        "line": 23589
+      },
+      "examples": [
+        {
+          "file": "output_log_session-003.txt",
+          "line": 10633,
+          "event": "Video Playback",
+          "url": "https://api-ddfd.imkiva.com/videos/1321-5551da46c91bb35d069be8064cb8fa036f008a3490e06ebff1f659e90b6e6a8c.mp4"
+        },
+        {
+          "file": "output_log_session-003.txt",
+          "line": 10872,
+          "event": "Video Playback",
+          "url": "https://api-ddfd.imkiva.com/videos/782-c572b3ca9c5c8b3fa55858c4756c1bd70b26e90331c4c083fce4353a5f7dbeeb.mp4"
+        },
+        {
+          "file": "output_log_session-003.txt",
+          "line": 11557,
+          "event": "Video Playback",
+          "url": "https://api-ddfd.imkiva.com/videos/1225-189a473713ad3c953653b802309d8fe30db5d43a36efae4412be28be92f2a2e2.mp4"
+        }
+      ]
+    },
+    "global-cdn.dudufit.dance": {
+      "allRelevantURLMentions": 2,
+      "playbackURLMentions": 2,
+      "files": [
+        "output_log_session-003.txt",
+        "output_log_session-054.txt"
+      ],
+      "first": {
+        "file": "output_log_session-003.txt",
+        "line": 18001
+      },
+      "last": {
+        "file": "output_log_session-054.txt",
+        "line": 1818
+      },
+      "examples": [
+        {
+          "file": "output_log_session-003.txt",
+          "line": 18001,
+          "event": "Video Playback",
+          "url": "https://global-cdn.dudufit.dance/videos/2259-e03d239afab3ad751f2bb81c6eae97e77b784f9bd79e28d4cbf06bf7566381ff.mp4"
+        },
+        {
+          "file": "output_log_session-054.txt",
+          "line": 1818,
+          "event": "Video Playback",
+          "url": "https://global-cdn.dudufit.dance/videos/1321-5551da46c91bb35d069be8064cb8fa036f008a3490e06ebff1f659e90b6e6a8c.mp4"
+        }
+      ]
+    },
+    "api.xin.moe": {
+      "allRelevantURLMentions": 22,
+      "playbackURLMentions": 22,
+      "files": [
+        "output_log_session-005.txt"
+      ],
+      "first": {
+        "file": "output_log_session-005.txt",
+        "line": 15187
+      },
+      "last": {
+        "file": "output_log_session-005.txt",
+        "line": 18355
+      },
+      "examples": [
+        {
+          "file": "output_log_session-005.txt",
+          "line": 15187,
+          "event": "Video Playback",
+          "url": "https://api.xin.moe/ov/BV1Sd4y147Qk"
+        },
+        {
+          "file": "output_log_session-005.txt",
+          "line": 15190,
+          "event": "Video Playback",
+          "url": "https://api.xin.moe/ov/BV1Sd4y147Qk"
+        },
+        {
+          "file": "output_log_session-005.txt",
+          "line": 15190,
+          "event": "Video Playback",
+          "url": "https://api.xin.moe/ov/BV1Sd4y147Qk"
+        }
+      ]
+    },
+    "upos-sz-mirrorali.bilivideo.com": {
+      "allRelevantURLMentions": 3,
+      "playbackURLMentions": 3,
+      "files": [
+        "output_log_session-005.txt",
+        "output_log_session-011.txt"
+      ],
+      "first": {
+        "file": "output_log_session-005.txt",
+        "line": 16778
+      },
+      "last": {
+        "file": "output_log_session-011.txt",
+        "line": 19486
+      },
+      "examples": [
+        {
+          "file": "output_log_session-005.txt",
+          "line": 16778,
+          "event": "Video Playback",
+          "url": "https://upos-sz-mirrorali.bilivideo.com/upgcxcode/74/49/904624974/904624974-1-208.mp4"
+        },
+        {
+          "file": "output_log_session-005.txt",
+          "line": 18355,
+          "event": "Video Playback",
+          "url": "https://upos-sz-mirrorali.bilivideo.com/upgcxcode/45/24/12162445/12162445-1-208.mp4"
+        },
+        {
+          "file": "output_log_session-011.txt",
+          "line": 19486,
+          "event": "Video Playback",
+          "url": "https://upos-sz-mirrorali.bilivideo.com/upgcxcode/77/75/1545147577/1545147577-1-192.mp4"
+        }
+      ]
+    },
+    "bv.rwit.net": {
+      "allRelevantURLMentions": 3,
+      "playbackURLMentions": 3,
+      "files": [
+        "output_log_session-006.txt",
+        "output_log_session-050.txt"
+      ],
+      "first": {
+        "file": "output_log_session-006.txt",
+        "line": 10986
+      },
+      "last": {
+        "file": "output_log_session-050.txt",
+        "line": 6847
+      },
+      "examples": [
+        {
+          "file": "output_log_session-006.txt",
+          "line": 10986,
+          "event": "Video Playback",
+          "url": "https://bv.rwit.net/BV19oVc6FEBB"
+        },
+        {
+          "file": "output_log_session-006.txt",
+          "line": 11034,
+          "event": "Video Playback",
+          "url": "https://bv.rwit.net/BV19oVc6FEBB"
+        },
+        {
+          "file": "output_log_session-050.txt",
+          "line": 6847,
+          "event": "Video Playback",
+          "url": "https://bv.rwit.net/BV19oVc6FEBB"
+        }
+      ]
+    },
+    "upos-sz-mirror08c.bilivideo.com": {
+      "allRelevantURLMentions": 4,
+      "playbackURLMentions": 4,
+      "files": [
+        "output_log_session-006.txt",
+        "output_log_session-029.txt",
+        "output_log_session-049.txt"
+      ],
+      "first": {
+        "file": "output_log_session-006.txt",
+        "line": 11034
+      },
+      "last": {
+        "file": "output_log_session-049.txt",
+        "line": 11338
+      },
+      "examples": [
+        {
+          "file": "output_log_session-006.txt",
+          "line": 11034,
+          "event": "Video Playback",
+          "url": "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/74/20/38619252074/38619252074-1-192.mp4"
+        },
+        {
+          "file": "output_log_session-029.txt",
+          "line": 12146,
+          "event": "Video Playback",
+          "url": "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/85/57/35913665785/35913665785-1-192.mp4"
+        },
+        {
+          "file": "output_log_session-029.txt",
+          "line": 13340,
+          "event": "Video Playback",
+          "url": "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/85/57/35913665785/35913665785-1-192.mp4"
+        }
+      ]
+    },
+    "biliplayer.91vrchat.com": {
+      "allRelevantURLMentions": 20,
+      "playbackURLMentions": 20,
+      "files": [
+        "output_log_session-011.txt",
+        "output_log_session-029.txt"
+      ],
+      "first": {
+        "file": "output_log_session-011.txt",
+        "line": 15255
+      },
+      "last": {
+        "file": "output_log_session-029.txt",
+        "line": 13340
+      },
+      "examples": [
+        {
+          "file": "output_log_session-011.txt",
+          "line": 15255,
+          "event": "LoadRoutedURL",
+          "url": "https://biliplayer.91vrchat.com/player/"
+        },
+        {
+          "file": "output_log_session-011.txt",
+          "line": 15255,
+          "event": "LoadRoutedURL",
+          "url": "https://biliplayer.91vrchat.com/player/"
+        },
+        {
+          "file": "output_log_session-011.txt",
+          "line": 15256,
+          "event": "Video Playback",
+          "url": "https://biliplayer.91vrchat.com/player/"
+        }
+      ]
+    },
+    "upos-sz-estghw.bilivideo.com": {
+      "allRelevantURLMentions": 1,
+      "playbackURLMentions": 1,
+      "files": [
+        "output_log_session-011.txt"
+      ],
+      "first": {
+        "file": "output_log_session-011.txt",
+        "line": 15294
+      },
+      "last": {
+        "file": "output_log_session-011.txt",
+        "line": 15294
+      },
+      "examples": [
+        {
+          "file": "output_log_session-011.txt",
+          "line": 15294,
+          "event": "Video Playback",
+          "url": "https://upos-sz-estghw.bilivideo.com/upgcxcode/01/94/37808179401/37808179401-1-192.mp4"
+        }
+      ]
+    },
+    "upos-sz-estgcos.bilivideo.com": {
+      "allRelevantURLMentions": 2,
+      "playbackURLMentions": 2,
+      "files": [
+        "output_log_session-011.txt"
+      ],
+      "first": {
+        "file": "output_log_session-011.txt",
+        "line": 15763
+      },
+      "last": {
+        "file": "output_log_session-011.txt",
+        "line": 16265
+      },
+      "examples": [
+        {
+          "file": "output_log_session-011.txt",
+          "line": 15763,
+          "event": "Video Playback",
+          "url": "https://upos-sz-estgcos.bilivideo.com/upgcxcode/17/98/37810669817/37810669817-1-192.mp4"
+        },
+        {
+          "file": "output_log_session-011.txt",
+          "line": 16265,
+          "event": "Video Playback",
+          "url": "https://upos-sz-estgcos.bilivideo.com/upgcxcode/54/92/37809029254/37809029254-1-192.mp4"
+        }
+      ]
+    },
+    "ckapi.sevenbrothers.cn": {
+      "allRelevantURLMentions": 8,
+      "playbackURLMentions": 8,
+      "files": [
+        "output_log_session-011.txt",
+        "output_log_session-049.txt"
+      ],
+      "first": {
+        "file": "output_log_session-011.txt",
+        "line": 19452
+      },
+      "last": {
+        "file": "output_log_session-049.txt",
+        "line": 11338
+      },
+      "examples": [
+        {
+          "file": "output_log_session-011.txt",
+          "line": 19452,
+          "event": "LoadRoutedURL",
+          "url": "http://ckapi.sevenbrothers.cn/bili/api"
+        },
+        {
+          "file": "output_log_session-011.txt",
+          "line": 19452,
+          "event": "LoadRoutedURL",
+          "url": "http://ckapi.sevenbrothers.cn/bili/api"
+        },
+        {
+          "file": "output_log_session-011.txt",
+          "line": 19453,
+          "event": "Video Playback",
+          "url": "http://ckapi.sevenbrothers.cn/bili/api"
+        }
+      ]
+    },
+    "www.twitch.tv": {
+      "allRelevantURLMentions": 6,
+      "playbackURLMentions": 6,
+      "files": [
+        "output_log_session-017.txt"
+      ],
+      "first": {
+        "file": "output_log_session-017.txt",
+        "line": 12042
+      },
+      "last": {
+        "file": "output_log_session-017.txt",
+        "line": 12069
+      },
+      "examples": [
+        {
+          "file": "output_log_session-017.txt",
+          "line": 12042,
+          "event": "Video Playback",
+          "url": "https://www.twitch.tv/vrdancing"
+        },
+        {
+          "file": "output_log_session-017.txt",
+          "line": 12048,
+          "event": "Video Playback",
+          "url": "https://www.twitch.tv/vrdancing"
+        },
+        {
+          "file": "output_log_session-017.txt",
+          "line": 12048,
+          "event": "Video Playback",
+          "url": "https://www.twitch.tv/vrdancing"
+        }
+      ]
+    },
+    "api.pypy.dance": {
+      "allRelevantURLMentions": 38,
+      "playbackURLMentions": 38,
+      "files": [
+        "output_log_session-022.txt"
+      ],
+      "first": {
+        "file": "output_log_session-022.txt",
+        "line": 4058
+      },
+      "last": {
+        "file": "output_log_session-022.txt",
+        "line": 6795
+      },
+      "examples": [
+        {
+          "file": "output_log_session-022.txt",
+          "line": 4058,
+          "event": "Video Playback",
+          "url": "http://api.pypy.dance/video"
+        },
+        {
+          "file": "output_log_session-022.txt",
+          "line": 4151,
+          "event": "Video Playback",
+          "url": "http://api.pypy.dance/video"
+        },
+        {
+          "file": "output_log_session-022.txt",
+          "line": 4352,
+          "event": "Video Playback",
+          "url": "http://api.pypy.dance/video"
+        }
+      ]
+    },
+    "cdn.pypy.dance": {
+      "allRelevantURLMentions": 14,
+      "playbackURLMentions": 14,
+      "files": [
+        "output_log_session-022.txt"
+      ],
+      "first": {
+        "file": "output_log_session-022.txt",
+        "line": 4151
+      },
+      "last": {
+        "file": "output_log_session-022.txt",
+        "line": 6795
+      },
+      "examples": [
+        {
+          "file": "output_log_session-022.txt",
+          "line": 4151,
+          "event": "Video Playback",
+          "url": "http://cdn.pypy.dance/HYZlcrvRHpI.mp4"
+        },
+        {
+          "file": "output_log_session-022.txt",
+          "line": 4367,
+          "event": "Video Playback",
+          "url": "http://cdn.pypy.dance/4DcGBE-F9hk.mp4"
+        },
+        {
+          "file": "output_log_session-022.txt",
+          "line": 4623,
+          "event": "Video Playback",
+          "url": "http://cdn.pypy.dance/WBgGOecKY58.mp4"
+        }
+      ]
+    },
+    "rr2---sn-n4v7snll.googlevideo.com": {
+      "allRelevantURLMentions": 2,
+      "playbackURLMentions": 2,
+      "files": [
+        "output_log_session-022.txt"
+      ],
+      "first": {
+        "file": "output_log_session-022.txt",
+        "line": 5876
+      },
+      "last": {
+        "file": "output_log_session-022.txt",
+        "line": 6055
+      },
+      "examples": [
+        {
+          "file": "output_log_session-022.txt",
+          "line": 5876,
+          "event": "Video Playback",
+          "url": "https://rr2---sn-n4v7snll.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-022.txt",
+          "line": 6055,
+          "event": "Video Playback",
+          "url": "https://rr2---sn-n4v7snll.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "rr2---sn-o097znzr.googlevideo.com": {
+      "allRelevantURLMentions": 3,
+      "playbackURLMentions": 3,
+      "files": [
+        "output_log_session-022.txt"
+      ],
+      "first": {
+        "file": "output_log_session-022.txt",
+        "line": 5902
+      },
+      "last": {
+        "file": "output_log_session-022.txt",
+        "line": 5962
+      },
+      "examples": [
+        {
+          "file": "output_log_session-022.txt",
+          "line": 5902,
+          "event": "Video Playback",
+          "url": "https://rr2---sn-o097znzr.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-022.txt",
+          "line": 5928,
+          "event": "Video Playback",
+          "url": "https://rr2---sn-o097znzr.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-022.txt",
+          "line": 5962,
+          "event": "Video Playback",
+          "url": "https://rr2---sn-o097znzr.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "www.youtube.com": {
+      "allRelevantURLMentions": 70,
+      "playbackURLMentions": 70,
+      "files": [
+        "output_log_session-023.txt"
+      ],
+      "first": {
+        "file": "output_log_session-023.txt",
+        "line": 21408
+      },
+      "last": {
+        "file": "output_log_session-023.txt",
+        "line": 25380
+      },
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21408,
+          "event": "Video Playback",
+          "url": "https://www.youtube.com/watch"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21498,
+          "event": "Video Playback",
+          "url": "https://www.youtube.com/watch"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21505,
+          "event": "Video Playback",
+          "url": "https://www.youtube.com/watch"
+        }
+      ]
+    },
+    "rr2---sn-oji3bc-5n.googlevideo.com": {
+      "allRelevantURLMentions": 2,
+      "playbackURLMentions": 2,
+      "files": [
+        "output_log_session-023.txt"
+      ],
+      "first": {
+        "file": "output_log_session-023.txt",
+        "line": 21498
+      },
+      "last": {
+        "file": "output_log_session-023.txt",
+        "line": 21544
+      },
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21498,
+          "event": "Video Playback",
+          "url": "https://rr2---sn-oji3bc-5n.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21544,
+          "event": "Video Playback",
+          "url": "https://rr2---sn-oji3bc-5n.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "rr2---sn-i3b7knld.googlevideo.com": {
+      "allRelevantURLMentions": 4,
+      "playbackURLMentions": 4,
+      "files": [
+        "output_log_session-023.txt"
+      ],
+      "first": {
+        "file": "output_log_session-023.txt",
+        "line": 21508
+      },
+      "last": {
+        "file": "output_log_session-023.txt",
+        "line": 21534
+      },
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21508,
+          "event": "Video Playback",
+          "url": "https://rr2---sn-i3b7knld.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21517,
+          "event": "Video Playback",
+          "url": "https://rr2---sn-i3b7knld.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21527,
+          "event": "Video Playback",
+          "url": "https://rr2---sn-i3b7knld.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "rr3---sn-i3b7kns6.googlevideo.com": {
+      "allRelevantURLMentions": 8,
+      "playbackURLMentions": 8,
+      "files": [
+        "output_log_session-023.txt"
+      ],
+      "first": {
+        "file": "output_log_session-023.txt",
+        "line": 21886
+      },
+      "last": {
+        "file": "output_log_session-023.txt",
+        "line": 25380
+      },
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21886,
+          "event": "Video Playback",
+          "url": "https://rr3---sn-i3b7kns6.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21904,
+          "event": "Video Playback",
+          "url": "https://rr3---sn-i3b7kns6.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21952,
+          "event": "Video Playback",
+          "url": "https://rr3---sn-i3b7kns6.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "rr5---sn-oji3bc-5j.googlevideo.com": {
+      "allRelevantURLMentions": 10,
+      "playbackURLMentions": 10,
+      "files": [
+        "output_log_session-023.txt"
+      ],
+      "first": {
+        "file": "output_log_session-023.txt",
+        "line": 21940
+      },
+      "last": {
+        "file": "output_log_session-023.txt",
+        "line": 25357
+      },
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21940,
+          "event": "Video Playback",
+          "url": "https://rr5---sn-oji3bc-5j.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21964,
+          "event": "Video Playback",
+          "url": "https://rr5---sn-oji3bc-5j.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21975,
+          "event": "Video Playback",
+          "url": "https://rr5---sn-oji3bc-5j.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "rr4---sn-oji3b5-5n.googlevideo.com": {
+      "allRelevantURLMentions": 4,
+      "playbackURLMentions": 4,
+      "files": [
+        "output_log_session-023.txt"
+      ],
+      "first": {
+        "file": "output_log_session-023.txt",
+        "line": 22621
+      },
+      "last": {
+        "file": "output_log_session-023.txt",
+        "line": 22661
+      },
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22621,
+          "event": "Video Playback",
+          "url": "https://rr4---sn-oji3b5-5n.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22631,
+          "event": "Video Playback",
+          "url": "https://rr4---sn-oji3b5-5n.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22651,
+          "event": "Video Playback",
+          "url": "https://rr4---sn-oji3b5-5n.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "rr1---sn-i3belnls.googlevideo.com": {
+      "allRelevantURLMentions": 1,
+      "playbackURLMentions": 1,
+      "files": [
+        "output_log_session-023.txt"
+      ],
+      "first": {
+        "file": "output_log_session-023.txt",
+        "line": 22641
+      },
+      "last": {
+        "file": "output_log_session-023.txt",
+        "line": 22641
+      },
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22641,
+          "event": "Video Playback",
+          "url": "https://rr1---sn-i3belnls.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "rr2---sn-i3belney.googlevideo.com": {
+      "allRelevantURLMentions": 3,
+      "playbackURLMentions": 3,
+      "files": [
+        "output_log_session-023.txt"
+      ],
+      "first": {
+        "file": "output_log_session-023.txt",
+        "line": 22672
+      },
+      "last": {
+        "file": "output_log_session-023.txt",
+        "line": 22698
+      },
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22672,
+          "event": "Video Playback",
+          "url": "https://rr2---sn-i3belney.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22690,
+          "event": "Video Playback",
+          "url": "https://rr2---sn-i3belney.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22698,
+          "event": "Video Playback",
+          "url": "https://rr2---sn-i3belney.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "rr5---sn-oji3b5-58.googlevideo.com": {
+      "allRelevantURLMentions": 2,
+      "playbackURLMentions": 2,
+      "files": [
+        "output_log_session-023.txt"
+      ],
+      "first": {
+        "file": "output_log_session-023.txt",
+        "line": 22717
+      },
+      "last": {
+        "file": "output_log_session-023.txt",
+        "line": 22739
+      },
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22717,
+          "event": "Video Playback",
+          "url": "https://rr5---sn-oji3b5-58.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22739,
+          "event": "Video Playback",
+          "url": "https://rr5---sn-oji3b5-58.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "rr2---sn-i3belnsy.googlevideo.com": {
+      "allRelevantURLMentions": 1,
+      "playbackURLMentions": 1,
+      "files": [
+        "output_log_session-023.txt"
+      ],
+      "first": {
+        "file": "output_log_session-023.txt",
+        "line": 22754
+      },
+      "last": {
+        "file": "output_log_session-023.txt",
+        "line": 22754
+      },
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22754,
+          "event": "Video Playback",
+          "url": "https://rr2---sn-i3belnsy.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "youtu.be": {
+      "allRelevantURLMentions": 18,
+      "playbackURLMentions": 18,
+      "files": [
+        "output_log_session-023.txt"
+      ],
+      "first": {
+        "file": "output_log_session-023.txt",
+        "line": 24740
+      },
+      "last": {
+        "file": "output_log_session-023.txt",
+        "line": 24891
+      },
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 24740,
+          "event": "Video Playback",
+          "url": "https://youtu.be/eczV_lwF8TQ"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 24835,
+          "event": "Video Playback",
+          "url": "https://youtu.be/eczV_lwF8TQ"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 24835,
+          "event": "Video Playback",
+          "url": "https://youtu.be/eczV_lwF8TQ"
+        }
+      ]
+    },
+    "github.com": {
+      "allRelevantURLMentions": 12,
+      "playbackURLMentions": 12,
+      "files": [
+        "output_log_session-023.txt"
+      ],
+      "first": {
+        "file": "output_log_session-023.txt",
+        "line": 24834
+      },
+      "last": {
+        "file": "output_log_session-023.txt",
+        "line": 24890
+      },
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 24834,
+          "event": "Video Playback",
+          "url": "https://github.com/yt-dlp/yt-dlp/wiki/FAQ"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 24834,
+          "event": "Video Playback",
+          "url": "https://github.com/yt-dlp/yt-dlp/wiki/Extractors"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 24847,
+          "event": "Video Playback",
+          "url": "https://github.com/yt-dlp/yt-dlp/wiki/FAQ"
+        }
+      ]
+    },
+    "cn-gddg-ct-01-12.bilivideo.com": {
+      "allRelevantURLMentions": 5,
+      "playbackURLMentions": 5,
+      "files": [
+        "output_log_session-036.txt"
+      ],
+      "first": {
+        "file": "output_log_session-036.txt",
+        "line": 17293
+      },
+      "last": {
+        "file": "output_log_session-036.txt",
+        "line": 17312
+      },
+      "examples": [
+        {
+          "file": "output_log_session-036.txt",
+          "line": 17293,
+          "event": "LoadRoutedURL",
+          "url": "https://cn-gddg-ct-01-12.bilivideo.com/upgcxcode/36/76/1359757636/1359757636-1-192.mp4"
+        },
+        {
+          "file": "output_log_session-036.txt",
+          "line": 17293,
+          "event": "LoadRoutedURL",
+          "url": "https://cn-gddg-ct-01-12.bilivideo.com/upgcxcode/36/76/1359757636/1359757636-1-192.mp4"
+        },
+        {
+          "file": "output_log_session-036.txt",
+          "line": 17294,
+          "event": "Video Playback",
+          "url": "https://cn-gddg-ct-01-12.bilivideo.com/upgcxcode/36/76/1359757636/1359757636-1-192.mp4"
+        }
+      ]
+    },
+    "api.xini.moe": {
+      "allRelevantURLMentions": 30,
+      "playbackURLMentions": 30,
+      "files": [
+        "output_log_session-049.txt"
+      ],
+      "first": {
+        "file": "output_log_session-049.txt",
+        "line": 12059
+      },
+      "last": {
+        "file": "output_log_session-049.txt",
+        "line": 12204
+      },
+      "examples": [
+        {
+          "file": "output_log_session-049.txt",
+          "line": 12059,
+          "event": "LoadRoutedURL",
+          "url": "http://api.xini.moe/BV1gttN6qEJY"
+        },
+        {
+          "file": "output_log_session-049.txt",
+          "line": 12059,
+          "event": "LoadRoutedURL",
+          "url": "http://api.xini.moe/BV1gttN6qEJY"
+        },
+        {
+          "file": "output_log_session-049.txt",
+          "line": 12060,
+          "event": "Video Playback",
+          "url": "http://api.xini.moe/BV1gttN6qEJY"
+        }
+      ]
+    },
+    "api.acg.ac": {
+      "allRelevantURLMentions": 6,
+      "playbackURLMentions": 6,
+      "files": [
+        "output_log_session-049.txt"
+      ],
+      "first": {
+        "file": "output_log_session-049.txt",
+        "line": 12228
+      },
+      "last": {
+        "file": "output_log_session-049.txt",
+        "line": 12262
+      },
+      "examples": [
+        {
+          "file": "output_log_session-049.txt",
+          "line": 12228,
+          "event": "LoadRoutedURL",
+          "url": "http://api.acg.ac/BV17UtG6KEA3"
+        },
+        {
+          "file": "output_log_session-049.txt",
+          "line": 12254,
+          "event": "LoadRoutedURL",
+          "url": "http://api.acg.ac/BV17UtG6KEA3"
+        },
+        {
+          "file": "output_log_session-049.txt",
+          "line": 12255,
+          "event": "LoadRoutedURL",
+          "url": "http://api.acg.ac/BV17UtG6KEA3"
+        }
+      ]
+    },
+    "upos-sz-mirroralib.bilivideo.com": {
+      "allRelevantURLMentions": 1,
+      "playbackURLMentions": 1,
+      "files": [
+        "output_log_session-049.txt"
+      ],
+      "first": {
+        "file": "output_log_session-049.txt",
+        "line": 12262
+      },
+      "last": {
+        "file": "output_log_session-049.txt",
+        "line": 12262
+      },
+      "examples": [
+        {
+          "file": "output_log_session-049.txt",
+          "line": 12262,
+          "event": "Video Playback",
+          "url": "https://upos-sz-mirroralib.bilivideo.com/upgcxcode/08/76/41499167608/41499167608-1-192.mp4"
+        }
+      ]
+    },
+    "upos-sz-mirroraliov.bilivideo.com": {
+      "allRelevantURLMentions": 1,
+      "playbackURLMentions": 1,
+      "files": [
+        "output_log_session-050.txt"
+      ],
+      "first": {
+        "file": "output_log_session-050.txt",
+        "line": 6896
+      },
+      "last": {
+        "file": "output_log_session-050.txt",
+        "line": 6896
+      },
+      "examples": [
+        {
+          "file": "output_log_session-050.txt",
+          "line": 6896,
+          "event": "Video Playback",
+          "url": "https://upos-sz-mirroraliov.bilivideo.com/upgcxcode/74/20/38619252074/38619252074-1-192.mp4"
+        }
+      ]
+    }
+  },
+  "transitions": {
+    "api.udon.dance -> api.udon.dance": {
+      "count": 2175,
+      "examples": [
+        {
+          "file": "output_log_session-002.txt",
+          "line": 1094,
+          "from": "http://api.udon.dance/Api/Songs/play?id=1236",
+          "to": "http://api.udon.dance/Api/Songs/play?node=cf&id=1236"
+        },
+        {
+          "file": "output_log_session-002.txt",
+          "line": 1262,
+          "from": "http://api.udon.dance/Api/Songs/play?id=1172",
+          "to": "http://api.udon.dance/Api/Songs/play?node=cf&id=1172"
+        }
+      ]
+    },
+    "api.udon.dance -> play.udon.dance": {
+      "count": 2028,
+      "examples": [
+        {
+          "file": "output_log_session-002.txt",
+          "line": 1128,
+          "from": "http://api.udon.dance/Api/Songs/play?node=cf&id=1236",
+          "to": "http://play.udon.dance/files/2403/1236-660524b4d90c6.mp4?e=REDACTED&s=REDACTED"
+        },
+        {
+          "file": "output_log_session-002.txt",
+          "line": 1297,
+          "from": "http://api.udon.dance/Api/Songs/play?node=cf&id=1172",
+          "to": "http://play.udon.dance/files/2403/1172-660524b4c9cf5.mp4?e=REDACTED&s=REDACTED"
+        }
+      ]
+    },
+    "api.dudufit.dance -> api.dudufit.dance": {
+      "count": 2,
+      "examples": [
+        {
+          "file": "output_log_session-003.txt",
+          "line": 9311,
+          "from": "https://api.dudufit.dance/api/v1/videos/1321",
+          "to": "https://api.dudufit.dance/api/v1/videos/1321"
+        },
+        {
+          "file": "output_log_session-003.txt",
+          "line": 9926,
+          "from": "https://api.dudufit.dance/api/v1/videos/1321",
+          "to": "https://api.dudufit.dance/api/v1/videos/1321"
+        }
+      ]
+    },
+    "api.dudufit.dance -> api-ddfd.imkiva.com": {
+      "count": 127,
+      "examples": [
+        {
+          "file": "output_log_session-003.txt",
+          "line": 10633,
+          "from": "https://api.dudufit.dance/api/v1/videos/1321",
+          "to": "https://api-ddfd.imkiva.com/videos/1321-5551da46c91bb35d069be8064cb8fa036f008a3490e06ebff1f659e90b6e6a8c.mp4"
+        },
+        {
+          "file": "output_log_session-003.txt",
+          "line": 10872,
+          "from": "https://api.dudufit.dance/api/v1/videos/782",
+          "to": "https://api-ddfd.imkiva.com/videos/782-c572b3ca9c5c8b3fa55858c4756c1bd70b26e90331c4c083fce4353a5f7dbeeb.mp4"
+        }
+      ]
+    },
+    "api.dudufit.dance -> global-cdn.dudufit.dance": {
+      "count": 2,
+      "examples": [
+        {
+          "file": "output_log_session-003.txt",
+          "line": 18001,
+          "from": "https://api.dudufit.dance/api/v1/videos/2259",
+          "to": "https://global-cdn.dudufit.dance/videos/2259-e03d239afab3ad751f2bb81c6eae97e77b784f9bd79e28d4cbf06bf7566381ff.mp4"
+        },
+        {
+          "file": "output_log_session-054.txt",
+          "line": 1818,
+          "from": "https://api.dudufit.dance/api/v1/videos/1321",
+          "to": "https://global-cdn.dudufit.dance/videos/1321-5551da46c91bb35d069be8064cb8fa036f008a3490e06ebff1f659e90b6e6a8c.mp4"
+        }
+      ]
+    },
+    "api.xin.moe -> api.xin.moe": {
+      "count": 6,
+      "examples": [
+        {
+          "file": "output_log_session-005.txt",
+          "line": 15190,
+          "from": "https://api.xin.moe/ov/BV1Sd4y147Qk",
+          "to": "https://api.xin.moe/ov/BV1Sd4y147Qk"
+        },
+        {
+          "file": "output_log_session-005.txt",
+          "line": 15212,
+          "from": "https://api.xin.moe/ov/BV1Sd4y147Qk",
+          "to": "https://api.xin.moe/ov/BV1Sd4y147Qk"
+        }
+      ]
+    },
+    "api.xin.moe -> upos-sz-mirrorali.bilivideo.com": {
+      "count": 2,
+      "examples": [
+        {
+          "file": "output_log_session-005.txt",
+          "line": 16778,
+          "from": "https://api.xin.moe/ov/BV1Mv4y1d78s",
+          "to": "https://upos-sz-mirrorali.bilivideo.com/upgcxcode/74/49/904624974/904624974-1-208.mp4"
+        },
+        {
+          "file": "output_log_session-005.txt",
+          "line": 18355,
+          "from": "https://api.xin.moe/ov/BV1Xs411Y7Ps",
+          "to": "https://upos-sz-mirrorali.bilivideo.com/upgcxcode/45/24/12162445/12162445-1-208.mp4"
+        }
+      ]
+    },
+    "bv.rwit.net -> upos-sz-mirror08c.bilivideo.com": {
+      "count": 1,
+      "examples": [
+        {
+          "file": "output_log_session-006.txt",
+          "line": 11034,
+          "from": "https://bv.rwit.net/BV19oVc6FEBB",
+          "to": "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/74/20/38619252074/38619252074-1-192.mp4"
+        }
+      ]
+    },
+    "biliplayer.91vrchat.com -> biliplayer.91vrchat.com": {
+      "count": 5,
+      "examples": [
+        {
+          "file": "output_log_session-011.txt",
+          "line": 15255,
+          "from": "https://biliplayer.91vrchat.com/player/",
+          "to": "https://biliplayer.91vrchat.com/player/"
+        },
+        {
+          "file": "output_log_session-011.txt",
+          "line": 15730,
+          "from": "https://biliplayer.91vrchat.com/player/",
+          "to": "https://biliplayer.91vrchat.com/player/"
+        }
+      ]
+    },
+    "biliplayer.91vrchat.com -> upos-sz-estghw.bilivideo.com": {
+      "count": 1,
+      "examples": [
+        {
+          "file": "output_log_session-011.txt",
+          "line": 15294,
+          "from": "https://biliplayer.91vrchat.com/player/",
+          "to": "https://upos-sz-estghw.bilivideo.com/upgcxcode/01/94/37808179401/37808179401-1-192.mp4"
+        }
+      ]
+    },
+    "biliplayer.91vrchat.com -> upos-sz-estgcos.bilivideo.com": {
+      "count": 2,
+      "examples": [
+        {
+          "file": "output_log_session-011.txt",
+          "line": 15763,
+          "from": "https://biliplayer.91vrchat.com/player/",
+          "to": "https://upos-sz-estgcos.bilivideo.com/upgcxcode/17/98/37810669817/37810669817-1-192.mp4"
+        },
+        {
+          "file": "output_log_session-011.txt",
+          "line": 16265,
+          "from": "https://biliplayer.91vrchat.com/player/",
+          "to": "https://upos-sz-estgcos.bilivideo.com/upgcxcode/54/92/37809029254/37809029254-1-192.mp4"
+        }
+      ]
+    },
+    "ckapi.sevenbrothers.cn -> ckapi.sevenbrothers.cn": {
+      "count": 2,
+      "examples": [
+        {
+          "file": "output_log_session-011.txt",
+          "line": 19452,
+          "from": "http://ckapi.sevenbrothers.cn/bili/api",
+          "to": "http://ckapi.sevenbrothers.cn/bili/api"
+        },
+        {
+          "file": "output_log_session-049.txt",
+          "line": 11311,
+          "from": "http://ckapi.sevenbrothers.cn/bili/api",
+          "to": "http://ckapi.sevenbrothers.cn/bili/api"
+        }
+      ]
+    },
+    "ckapi.sevenbrothers.cn -> upos-sz-mirrorali.bilivideo.com": {
+      "count": 1,
+      "examples": [
+        {
+          "file": "output_log_session-011.txt",
+          "line": 19486,
+          "from": "http://ckapi.sevenbrothers.cn/bili/api",
+          "to": "https://upos-sz-mirrorali.bilivideo.com/upgcxcode/77/75/1545147577/1545147577-1-192.mp4"
+        }
+      ]
+    },
+    "www.twitch.tv -> www.twitch.tv": {
+      "count": 2,
+      "examples": [
+        {
+          "file": "output_log_session-017.txt",
+          "line": 12048,
+          "from": "https://www.twitch.tv/vrdancing",
+          "to": "https://www.twitch.tv/vrdancing"
+        },
+        {
+          "file": "output_log_session-017.txt",
+          "line": 12069,
+          "from": "https://www.twitch.tv/vrdancing",
+          "to": "https://www.twitch.tv/vrdancing"
+        }
+      ]
+    },
+    "api.pypy.dance -> cdn.pypy.dance": {
+      "count": 14,
+      "examples": [
+        {
+          "file": "output_log_session-022.txt",
+          "line": 4151,
+          "from": "http://api.pypy.dance/video",
+          "to": "http://cdn.pypy.dance/HYZlcrvRHpI.mp4"
+        },
+        {
+          "file": "output_log_session-022.txt",
+          "line": 4367,
+          "from": "http://api.pypy.dance/video",
+          "to": "http://cdn.pypy.dance/4DcGBE-F9hk.mp4"
+        }
+      ]
+    },
+    "api.pypy.dance -> rr2---sn-n4v7snll.googlevideo.com": {
+      "count": 2,
+      "examples": [
+        {
+          "file": "output_log_session-022.txt",
+          "line": 5876,
+          "from": "http://api.pypy.dance/video",
+          "to": "https://rr2---sn-n4v7snll.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-022.txt",
+          "line": 6055,
+          "from": "http://api.pypy.dance/video",
+          "to": "https://rr2---sn-n4v7snll.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "api.pypy.dance -> rr2---sn-o097znzr.googlevideo.com": {
+      "count": 3,
+      "examples": [
+        {
+          "file": "output_log_session-022.txt",
+          "line": 5902,
+          "from": "http://api.pypy.dance/video",
+          "to": "https://rr2---sn-o097znzr.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-022.txt",
+          "line": 5928,
+          "from": "http://api.pypy.dance/video",
+          "to": "https://rr2---sn-o097znzr.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "www.youtube.com -> rr2---sn-oji3bc-5n.googlevideo.com": {
+      "count": 2,
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21498,
+          "from": "https://www.youtube.com/watch",
+          "to": "https://rr2---sn-oji3bc-5n.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21544,
+          "from": "https://www.youtube.com/watch",
+          "to": "https://rr2---sn-oji3bc-5n.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "www.youtube.com -> rr2---sn-i3b7knld.googlevideo.com": {
+      "count": 4,
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21508,
+          "from": "https://www.youtube.com/watch",
+          "to": "https://rr2---sn-i3b7knld.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21517,
+          "from": "https://www.youtube.com/watch",
+          "to": "https://rr2---sn-i3b7knld.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "www.youtube.com -> rr3---sn-i3b7kns6.googlevideo.com": {
+      "count": 8,
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21886,
+          "from": "https://www.youtube.com/watch",
+          "to": "https://rr3---sn-i3b7kns6.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21904,
+          "from": "https://www.youtube.com/watch",
+          "to": "https://rr3---sn-i3b7kns6.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "www.youtube.com -> rr5---sn-oji3bc-5j.googlevideo.com": {
+      "count": 10,
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21940,
+          "from": "https://www.youtube.com/watch",
+          "to": "https://rr5---sn-oji3bc-5j.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 21964,
+          "from": "https://www.youtube.com/watch",
+          "to": "https://rr5---sn-oji3bc-5j.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "www.youtube.com -> rr4---sn-oji3b5-5n.googlevideo.com": {
+      "count": 4,
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22621,
+          "from": "https://www.youtube.com/watch",
+          "to": "https://rr4---sn-oji3b5-5n.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22631,
+          "from": "https://www.youtube.com/watch",
+          "to": "https://rr4---sn-oji3b5-5n.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "www.youtube.com -> rr1---sn-i3belnls.googlevideo.com": {
+      "count": 1,
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22641,
+          "from": "https://www.youtube.com/watch",
+          "to": "https://rr1---sn-i3belnls.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "www.youtube.com -> rr2---sn-i3belney.googlevideo.com": {
+      "count": 3,
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22672,
+          "from": "https://www.youtube.com/watch",
+          "to": "https://rr2---sn-i3belney.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22690,
+          "from": "https://www.youtube.com/watch",
+          "to": "https://rr2---sn-i3belney.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "www.youtube.com -> rr5---sn-oji3b5-58.googlevideo.com": {
+      "count": 2,
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22717,
+          "from": "https://www.youtube.com/watch",
+          "to": "https://rr5---sn-oji3b5-58.googlevideo.com/videoplayback"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22739,
+          "from": "https://www.youtube.com/watch",
+          "to": "https://rr5---sn-oji3b5-58.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "www.youtube.com -> rr2---sn-i3belnsy.googlevideo.com": {
+      "count": 1,
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 22754,
+          "from": "https://www.youtube.com/watch",
+          "to": "https://rr2---sn-i3belnsy.googlevideo.com/videoplayback"
+        }
+      ]
+    },
+    "youtu.be -> youtu.be": {
+      "count": 6,
+      "examples": [
+        {
+          "file": "output_log_session-023.txt",
+          "line": 24835,
+          "from": "https://youtu.be/eczV_lwF8TQ",
+          "to": "https://youtu.be/eczV_lwF8TQ"
+        },
+        {
+          "file": "output_log_session-023.txt",
+          "line": 24848,
+          "from": "https://youtu.be/eczV_lwF8TQ",
+          "to": "https://youtu.be/eczV_lwF8TQ"
+        }
+      ]
+    },
+    "biliplayer.91vrchat.com -> upos-sz-mirror08c.bilivideo.com": {
+      "count": 2,
+      "examples": [
+        {
+          "file": "output_log_session-029.txt",
+          "line": 12146,
+          "from": "https://biliplayer.91vrchat.com/player/",
+          "to": "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/85/57/35913665785/35913665785-1-192.mp4"
+        },
+        {
+          "file": "output_log_session-029.txt",
+          "line": 13340,
+          "from": "https://biliplayer.91vrchat.com/player/",
+          "to": "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/85/57/35913665785/35913665785-1-192.mp4"
+        }
+      ]
+    },
+    "cn-gddg-ct-01-12.bilivideo.com -> cn-gddg-ct-01-12.bilivideo.com": {
+      "count": 2,
+      "examples": [
+        {
+          "file": "output_log_session-036.txt",
+          "line": 17293,
+          "from": "https://cn-gddg-ct-01-12.bilivideo.com/upgcxcode/36/76/1359757636/1359757636-1-192.mp4",
+          "to": "https://cn-gddg-ct-01-12.bilivideo.com/upgcxcode/36/76/1359757636/1359757636-1-192.mp4"
+        },
+        {
+          "file": "output_log_session-036.txt",
+          "line": 17312,
+          "from": "https://cn-gddg-ct-01-12.bilivideo.com/upgcxcode/36/76/1359757636/1359757636-1-192.mp4",
+          "to": "https://cn-gddg-ct-01-12.bilivideo.com/upgcxcode/36/76/1359757636/1359757636-1-192.mp4"
+        }
+      ]
+    },
+    "ckapi.sevenbrothers.cn -> upos-sz-mirror08c.bilivideo.com": {
+      "count": 1,
+      "examples": [
+        {
+          "file": "output_log_session-049.txt",
+          "line": 11338,
+          "from": "http://ckapi.sevenbrothers.cn/bili/api",
+          "to": "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/90/24/73422490/73422490-1-192.mp4"
+        }
+      ]
+    },
+    "api.xini.moe -> api.xini.moe": {
+      "count": 12,
+      "examples": [
+        {
+          "file": "output_log_session-049.txt",
+          "line": 12059,
+          "from": "http://api.xini.moe/BV1gttN6qEJY",
+          "to": "http://api.xini.moe/BV1gttN6qEJY"
+        },
+        {
+          "file": "output_log_session-049.txt",
+          "line": 12081,
+          "from": "http://api.xini.moe/BV1gttN6qEJY",
+          "to": "http://api.xini.moe/BV1gttN6qEJY"
+        }
+      ]
+    },
+    "api.acg.ac -> api.acg.ac": {
+      "count": 1,
+      "examples": [
+        {
+          "file": "output_log_session-049.txt",
+          "line": 12255,
+          "from": "http://api.acg.ac/BV17UtG6KEA3",
+          "to": "http://api.acg.ac/BV17UtG6KEA3"
+        }
+      ]
+    },
+    "api.acg.ac -> upos-sz-mirroralib.bilivideo.com": {
+      "count": 1,
+      "examples": [
+        {
+          "file": "output_log_session-049.txt",
+          "line": 12262,
+          "from": "http://api.acg.ac/BV17UtG6KEA3",
+          "to": "https://upos-sz-mirroralib.bilivideo.com/upgcxcode/08/76/41499167608/41499167608-1-192.mp4"
+        }
+      ]
+    }
+  }
+}

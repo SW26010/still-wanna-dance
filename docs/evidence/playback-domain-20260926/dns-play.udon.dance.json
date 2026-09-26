@@ -1,0 +1,29 @@
+{
+  "url": "https://dns.google/resolve?name=play.udon.dance&type=A",
+  "startedAt": "T+0.000s",
+  "requestHeaders": {},
+  "status": 200,
+  "headers": {
+    "x-content-type-options": "nosniff",
+    "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+    "access-control-allow-origin": "*",
+    "date": "REDACTED-HTTP-DATE",
+    "expires": "REDACTED-HTTP-DATE",
+    "cache-control": "private, max-age=300",
+    "content-type": "application/json; charset=UTF-8",
+    "server": "HTTP server (unknown)",
+    "x-xss-protection": "0",
+    "x-frame-options": "SAMEORIGIN",
+    "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "accept-ranges": "none",
+    "vary": "Accept-Encoding",
+    "transfer-encoding": "chunked"
+  },
+  "remoteAddress": "198.18.3.68",
+  "tlsAuthorized": true,
+  "elapsedMS": 228,
+  "bytes": 374,
+  "sha256": "ee5f1307672b55a5f3f6acb5557f3b3767c3e080fc79ffd7a2f6601390d7197e",
+  "complete": true,
+  "answer": "{\"Status\":0,\"TC\":false,\"RD\":true,\"RA\":true,\"AD\":false,\"CD\":false,\"Question\":[{\"name\":\"play.udon.dance.\",\"type\":1}],\"Answer\":[{\"name\":\"play.udon.dance.\",\"type\":1,\"TTL\":300,\"data\":\"172.67.69.58\"},{\"name\":\"play.udon.dance.\",\"type\":1,\"TTL\":300,\"data\":\"104.26.4.28\"},{\"name\":\"play.udon.dance.\",\"type\":1,\"TTL\":300,\"data\":\"104.26.5.28\"}],\"Comment\":\"Response from 108.162.192.107.\"}"
+}

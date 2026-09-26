@@ -1,0 +1,29 @@
+{
+  "url": "https://dns.google/resolve?name=wanna.kiva.moe&type=A",
+  "startedAt": "T+0.000s",
+  "requestHeaders": {},
+  "status": 200,
+  "headers": {
+    "x-content-type-options": "nosniff",
+    "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+    "access-control-allow-origin": "*",
+    "date": "REDACTED-HTTP-DATE",
+    "expires": "REDACTED-HTTP-DATE",
+    "cache-control": "private, max-age=300",
+    "content-type": "application/json; charset=UTF-8",
+    "server": "HTTP server (unknown)",
+    "x-xss-protection": "0",
+    "x-frame-options": "SAMEORIGIN",
+    "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "accept-ranges": "none",
+    "vary": "Accept-Encoding",
+    "transfer-encoding": "chunked"
+  },
+  "remoteAddress": "198.18.3.68",
+  "tlsAuthorized": true,
+  "elapsedMS": 560,
+  "bytes": 372,
+  "sha256": "44901ee8cff096bc51d7055b4db313a9b506fea6c7f85f388dce227c9b93ae06",
+  "complete": true,
+  "answer": "{\"Status\":0,\"TC\":false,\"RD\":true,\"RA\":true,\"AD\":false,\"CD\":false,\"Question\":[{\"name\":\"wanna.kiva.moe.\",\"type\":1}],\"Answer\":[{\"name\":\"wanna.kiva.moe.\",\"type\":1,\"TTL\":300,\"data\":\"104.26.14.167\"},{\"name\":\"wanna.kiva.moe.\",\"type\":1,\"TTL\":300,\"data\":\"104.26.15.167\"},{\"name\":\"wanna.kiva.moe.\",\"type\":1,\"TTL\":300,\"data\":\"172.67.75.64\"}],\"Comment\":\"Response from 172.64.32.127.\"}"
+}

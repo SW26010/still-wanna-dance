@@ -1,0 +1,67 @@
+{
+  "label": "http-nya-1343",
+  "hops": [
+    {
+      "url": "http://api.udon.dance/Api/Songs/play?node=nya&id=1343",
+      "startedAt": "T+0.000s",
+      "requestHeaders": {
+        "User-Agent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+        "Range": "bytes=0-1023",
+        "Accept-Encoding": "identity"
+      },
+      "status": 302,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/html; charset=UTF-8",
+        "content-length": "0",
+        "connection": "keep-alive",
+        "server": "cloudflare",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "cache-control": "no-transform",
+        "expires": "Thu, 19 Nov 1981 T+0.000s GMT",
+        "pragma": "no-cache",
+        "cache-debug": "HIT",
+        "location": "http://nya.xin.moe/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED",
+        "cf-cache-status": "DYNAMIC",
+        "server-timing": "cfCacheStatus;desc=\"DYNAMIC\", cfEdge;dur=2,cfOrigin;dur=28",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "cf-ray": "a4133b8bf8239360-SEA",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.7.129",
+      "tlsAuthorized": null,
+      "elapsedMS": 237,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "complete": true
+    },
+    {
+      "url": "http://nya.xin.moe/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED",
+      "startedAt": "T+0.237s",
+      "requestHeaders": {
+        "User-Agent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+        "Range": "bytes=0-1023",
+        "Accept-Encoding": "identity"
+      },
+      "status": 206,
+      "headers": {
+        "server": "openresty/1.31.1.1",
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "video/mp4",
+        "content-length": "1024",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "connection": "keep-alive",
+        "etag": "\"6614cfbb-1f58369\"",
+        "expires": "REDACTED-HTTP-DATE",
+        "cache-control": "max-age=432000",
+        "content-range": "bytes 0-1023/32867177"
+      },
+      "remoteAddress": "198.18.26.102",
+      "tlsAuthorized": null,
+      "elapsedMS": 222,
+      "bytes": 1024,
+      "sha256": "1b1219368992f9fe7b3ff0d97e328a10940bb323f102c9b790b2c7fb59ed6101",
+      "complete": true
+    }
+  ]
+}

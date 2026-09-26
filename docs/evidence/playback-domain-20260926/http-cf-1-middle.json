@@ -1,0 +1,74 @@
+{
+  "label": "http-cf-1-middle",
+  "hops": [
+    {
+      "url": "http://api.udon.dance/Api/Songs/play?node=cf&id=1",
+      "startedAt": "T+0.000s",
+      "requestHeaders": {
+        "User-Agent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+        "Range": "bytes=20000000-20001023",
+        "Accept-Encoding": "identity"
+      },
+      "status": 302,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/html; charset=UTF-8",
+        "content-length": "0",
+        "connection": "keep-alive",
+        "server": "cloudflare",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "cache-control": "no-transform",
+        "expires": "Thu, 19 Nov 1981 T+0.000s GMT",
+        "pragma": "no-cache",
+        "cache-debug": "HIT",
+        "location": "http://play.udon.dance/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+        "cf-cache-status": "DYNAMIC",
+        "server-timing": "cfCacheStatus;desc=\"DYNAMIC\", cfEdge;dur=3,cfOrigin;dur=28",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "cf-ray": "a4133b9bdd969360-SEA",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.7.129",
+      "tlsAuthorized": null,
+      "elapsedMS": 239,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "complete": true
+    },
+    {
+      "url": "http://play.udon.dance/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+      "startedAt": "T+0.239s",
+      "requestHeaders": {
+        "User-Agent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+        "Range": "bytes=20000000-20001023",
+        "Accept-Encoding": "identity"
+      },
+      "status": 206,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "video/mp4",
+        "content-length": "1024",
+        "connection": "keep-alive",
+        "server": "cloudflare",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "etag": "\"67a5b116-26e7cf2\"",
+        "expires": "REDACTED-HTTP-DATE",
+        "cache-control": "max-age=31536000",
+        "age": "20342",
+        "content-range": "bytes 20000000-20001023/40795378",
+        "cf-cache-status": "HIT",
+        "server-timing": "cfCacheStatus;desc=\"HIT\", cfEdge;dur=29,cfOrigin;dur=0",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "cf-ray": "a4133b9d5846df10-SEA",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.8.25",
+      "tlsAuthorized": null,
+      "elapsedMS": 235,
+      "bytes": 1024,
+      "sha256": "76dc11be088adf67e0e44a690887a81659830d22e7541d9de3db395513cb8aa4",
+      "complete": true
+    }
+  ]
+}

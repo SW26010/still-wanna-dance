@@ -1,0 +1,231 @@
+{
+  "createdAt": "T+1.329s",
+  "note": "Explicit HTTPS counterpart of observed API video URL, connecting to Google DoH A answer; original Host/SNI and TLS validation retained. Does not prove absence of transparent network interception.",
+  "records": [
+    {
+      "label": "public-doh-https-cf",
+      "hops": [
+        {
+          "url": "https://play.udon.dance/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+          "startedAt": "T+0.000s",
+          "requestHeaders": {
+            "User-Agent": "Mozilla/5.0",
+            "Range": "bytes=0-1023",
+            "Accept-Encoding": "identity"
+          },
+          "status": 206,
+          "headers": {
+            "date": "REDACTED-HTTP-DATE",
+            "content-type": "video/mp4",
+            "content-length": "1024",
+            "connection": "keep-alive",
+            "server": "cloudflare",
+            "last-modified": "REDACTED-HTTP-DATE",
+            "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+            "etag": "\"67a5b116-26e7cf2\"",
+            "expires": "REDACTED-HTTP-DATE",
+            "cache-control": "max-age=31536000",
+            "age": "380758",
+            "content-range": "bytes 0-1023/40795378",
+            "cf-cache-status": "HIT",
+            "server-timing": "cfCacheStatus;desc=\"HIT\", cfEdge;dur=12,cfOrigin;dur=0",
+            "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+            "cf-ray": "a4133cda294cdd9c-HKG",
+            "alt-svc": "h3=\":443\"; ma=86400"
+          },
+          "remoteAddress": "172.67.69.58",
+          "tlsAuthorized": true,
+          "certificate": {
+            "subject": {
+              "CN": "udon.dance"
+            },
+            "issuer": {
+              "C": "US",
+              "O": "Google Trust Services",
+              "CN": "WE1"
+            },
+            "subjectaltname": "DNS:udon.dance, DNS:*.udon.dance",
+            "valid_to": "Nov 13 T+0.000s 2026 GMT"
+          },
+          "elapsedMS": 471,
+          "bytes": 1024,
+          "sha256": "95a2b0b08140cd907d28ab18bf5f5f8f88fb63af2f83bafcb95f10d75fe188bf",
+          "complete": true,
+          "chosenPublicIP": "172.67.69.58",
+          "dnsAnswer": {
+            "Status": 0,
+            "TC": false,
+            "RD": true,
+            "RA": true,
+            "AD": false,
+            "CD": false,
+            "Question": [
+              {
+                "name": "play.udon.dance.",
+                "type": 1
+              }
+            ],
+            "Answer": [
+              {
+                "name": "play.udon.dance.",
+                "type": 1,
+                "TTL": 252,
+                "data": "172.67.69.58"
+              },
+              {
+                "name": "play.udon.dance.",
+                "type": 1,
+                "TTL": 252,
+                "data": "104.26.4.28"
+              },
+              {
+                "name": "play.udon.dance.",
+                "type": 1,
+                "TTL": 252,
+                "data": "104.26.5.28"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label": "public-doh-https-nya",
+      "hops": [
+        {
+          "url": "https://nya.xin.moe/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+          "startedAt": "T+0.703s",
+          "requestHeaders": {
+            "User-Agent": "Mozilla/5.0",
+            "Range": "bytes=0-1023",
+            "Accept-Encoding": "identity"
+          },
+          "status": 302,
+          "headers": {
+            "server": "openresty/1.31.1.1",
+            "date": "REDACTED-HTTP-DATE",
+            "content-type": "text/html",
+            "content-length": "151",
+            "connection": "keep-alive",
+            "location": "http://play.udon.dance/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+            "expires": "REDACTED-HTTP-DATE",
+            "cache-control": "max-age=432000"
+          },
+          "remoteAddress": "38.147.189.128",
+          "tlsAuthorized": true,
+          "certificate": {
+            "subject": {
+              "CN": "xin.moe"
+            },
+            "issuer": {
+              "C": "AT",
+              "O": "ZeroSSL GmbH",
+              "CN": "ZeroSSL ECC DV SSL CA 2"
+            },
+            "subjectaltname": "DNS:xin.moe, DNS:*.xin.moe",
+            "valid_to": "Dec  2 T+78478.000s 2026 GMT"
+          },
+          "elapsedMS": 215,
+          "bytes": 151,
+          "sha256": "30acbd4810875c30aa739d237be760bad2564e8dfb1a91dab96729e1a30b378a",
+          "complete": true,
+          "chosenPublicIP": "38.147.189.128",
+          "dnsAnswer": {
+            "Status": 0,
+            "TC": false,
+            "RD": true,
+            "RA": true,
+            "AD": false,
+            "CD": false,
+            "Question": [
+              {
+                "name": "nya.xin.moe.",
+                "type": 1
+              }
+            ],
+            "Answer": [
+              {
+                "name": "nya.xin.moe.",
+                "type": 1,
+                "TTL": 300,
+                "data": "38.147.189.128"
+              }
+            ],
+            "Comment": "Response from kerns4.gslb.net.(185.136.96.79)."
+          }
+        },
+        {
+          "url": "http://play.udon.dance/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+          "startedAt": "T+1.144s",
+          "requestHeaders": {
+            "User-Agent": "Mozilla/5.0",
+            "Range": "bytes=0-1023",
+            "Accept-Encoding": "identity"
+          },
+          "status": 206,
+          "headers": {
+            "date": "REDACTED-HTTP-DATE",
+            "content-type": "video/mp4",
+            "content-length": "1024",
+            "connection": "keep-alive",
+            "server": "cloudflare",
+            "last-modified": "REDACTED-HTTP-DATE",
+            "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+            "etag": "\"67a5b116-26e7cf2\"",
+            "expires": "REDACTED-HTTP-DATE",
+            "cache-control": "max-age=31536000",
+            "age": "380759",
+            "content-range": "bytes 0-1023/40795378",
+            "cf-cache-status": "HIT",
+            "server-timing": "cfCacheStatus;desc=\"HIT\", cfEdge;dur=20,cfOrigin;dur=0",
+            "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+            "cf-ray": "a4133cdfdc882907-HKG",
+            "alt-svc": "h3=\":443\"; ma=86400"
+          },
+          "remoteAddress": "104.26.4.28",
+          "tlsAuthorized": null,
+          "elapsedMS": 185,
+          "bytes": 1024,
+          "sha256": "95a2b0b08140cd907d28ab18bf5f5f8f88fb63af2f83bafcb95f10d75fe188bf",
+          "complete": true,
+          "chosenPublicIP": "104.26.4.28",
+          "dnsAnswer": {
+            "Status": 0,
+            "TC": false,
+            "RD": true,
+            "RA": true,
+            "AD": false,
+            "CD": false,
+            "Question": [
+              {
+                "name": "play.udon.dance.",
+                "type": 1
+              }
+            ],
+            "Answer": [
+              {
+                "name": "play.udon.dance.",
+                "type": 1,
+                "TTL": 300,
+                "data": "104.26.4.28"
+              },
+              {
+                "name": "play.udon.dance.",
+                "type": 1,
+                "TTL": 300,
+                "data": "104.26.5.28"
+              },
+              {
+                "name": "play.udon.dance.",
+                "type": 1,
+                "TTL": 300,
+                "data": "172.67.69.58"
+              }
+            ],
+            "Comment": "Response from 172.64.33.117."
+          }
+        }
+      ]
+    }
+  ]
+}

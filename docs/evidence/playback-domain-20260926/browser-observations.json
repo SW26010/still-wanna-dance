@@ -1,0 +1,45 @@
+{
+  "date": "2026-09-26",
+  "timezone": "Asia/Shanghai",
+  "method": "Manual transcription of browser tool outputs: actual link clicks, read-only video element state, pageAssets inventory. Not a HAR or complete packet capture.",
+  "entry": "https://wanna.kiva.moe/",
+  "loadedResourceExamples": [
+    {"url": "https://wanna.kiva.moe/api/wannaInfo", "source": "pageAssets resource/fetch"},
+    {"url": "https://wanna.kiva.moe/_next/static/chunks/app/page-0abd11f8a6ee987c.js", "source": "pageAssets resource/script"},
+    {"url": "https://wanna.kiva.moe/_next/static/media/3703c28dcda155b1-s.p.woff2", "source": "pageAssets resource/link"},
+    {"url": "https://aya.kiva.moe/images/small1.jpg", "source": "pageAssets resource/img"},
+    {"url": "https://aya.kiva.moe/images/small1343.jpg", "source": "image element", "complete": true, "naturalWidth": 480},
+    {"url": "https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495", "source": "pageAssets resource/script"},
+    {"url": "https://wanna.kiva.moe/cdn-cgi/rum?", "source": "pageAssets resource/xmlhttprequest and beacon"}
+  ],
+  "playback": [
+    {
+      "songID": 1,
+      "clickedLinkText": "CH4NGE - Giga | Song^_^",
+      "href": "https://api.udon.dance/Api/Songs/play?id=1",
+      "currentSrc": "https://nya.xin.moe/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+      "duration": 140.283333,
+      "observedCurrentTimes": [19.593279, 40.682888],
+      "readyState": 4,
+      "paused": false,
+      "error": null
+    },
+    {
+      "songID": 1343,
+      "clickedLinkText": "Modern Loneliness - Lauv | Marshall",
+      "href": "https://api.udon.dance/Api/Songs/play?id=1343",
+      "currentSrc": "https://nya.xin.moe/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED",
+      "duration": 250.148571,
+      "observedCurrentTimes": [10.99967, 83.03158],
+      "readyState": 4,
+      "paused": false,
+      "error": null
+    }
+  ],
+  "otherObservations": [
+    "The GitHub link is an outbound source-code link, not evidence that playback needs GitHub.",
+    "Visiting /dance without selecting/queuing a song showed an empty video with currentSrc empty and readyState 0; it did not provide a third playback success.",
+    "Browser upgrades/redirect intermediates were not captured; only clicked href and final URL/currentSrc are claimed.",
+    "Both test video tabs were closed after observations to stop playback."
+  ]
+}

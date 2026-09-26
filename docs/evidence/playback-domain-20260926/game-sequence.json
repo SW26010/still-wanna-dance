@@ -1,0 +1,396 @@
+{
+  "createdAt": "T+19.300s",
+  "note": "Resolver-style GET without Range, followed by open-ended player Range with cache-control headers from historical logs. Media transfers deliberately canceled after >=64 KiB, so capped=true is expected and not complete playback. Metadata bodies not retained.",
+  "records": [
+    {
+      "phase": "resolver-api",
+      "node": "auto",
+      "url": "http://api.udon.dance/Api/Songs/play?id=1",
+      "startedAt": "T+0.000s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0"
+      },
+      "status": 302,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/html; charset=UTF-8",
+        "content-length": "0",
+        "connection": "keep-alive",
+        "server": "cloudflare",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "cache-control": "no-transform",
+        "expires": "Thu, 19 Nov 1981 T+23999.000s GMT",
+        "pragma": "no-cache",
+        "cache-debug": "HIT",
+        "location": "http://nya.xin.moe/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+        "cf-cache-status": "DYNAMIC",
+        "server-timing": "cfCacheStatus;desc=\"DYNAMIC\", cfEdge;dur=28,cfOrigin;dur=46",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "cf-ray": "a4133ff659e7682f-SEA",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.7.129",
+      "tlsAuthorized": null,
+      "elapsedMS": 592,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "complete": true
+    },
+    {
+      "phase": "resolver-prefix",
+      "node": "auto",
+      "url": "http://nya.xin.moe/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+      "startedAt": "T+0.592s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0"
+      },
+      "status": 200,
+      "headers": {
+        "server": "openresty/1.31.1.1",
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "video/mp4",
+        "content-length": "40795378",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "connection": "keep-alive",
+        "etag": "\"67a5b119-26e7cf2\"",
+        "expires": "REDACTED-HTTP-DATE",
+        "cache-control": "max-age=432000",
+        "accept-ranges": "bytes"
+      },
+      "remoteAddress": "198.18.26.102",
+      "tlsAuthorized": null,
+      "elapsedMS": 1454,
+      "bytes": 67496,
+      "sha256": "cd1c8571b5066cf2a08f6a9026be1a161036f184b5ff746972a4999573ad7d8e",
+      "capped": true
+    },
+    {
+      "phase": "player-open-range",
+      "node": "auto",
+      "url": "http://nya.xin.moe/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+      "startedAt": "T+2.047s",
+      "requestHeaders": {
+        "User-Agent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+        "Range": "bytes=0-",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
+      },
+      "status": 206,
+      "headers": {
+        "server": "openresty/1.31.1.1",
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "video/mp4",
+        "content-length": "40795378",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "connection": "keep-alive",
+        "etag": "\"67a5b119-26e7cf2\"",
+        "expires": "REDACTED-HTTP-DATE",
+        "cache-control": "max-age=432000",
+        "content-range": "bytes 0-40795377/40795378"
+      },
+      "remoteAddress": "198.18.26.102",
+      "tlsAuthorized": null,
+      "elapsedMS": 963,
+      "bytes": 67323,
+      "sha256": "9cacfdd7e0c74cb10e388d20ee5a9dc0abffe7ad3db94c50ca888f84b1163a20",
+      "capped": true
+    },
+    {
+      "phase": "resolver-api",
+      "node": "cf",
+      "url": "http://api.udon.dance/Api/Songs/play?node=cf&id=1",
+      "startedAt": "T+3.010s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0"
+      },
+      "status": 302,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/html; charset=UTF-8",
+        "content-length": "0",
+        "connection": "keep-alive",
+        "server": "cloudflare",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "cache-control": "no-transform",
+        "expires": "Thu, 19 Nov 1981 T+23999.000s GMT",
+        "pragma": "no-cache",
+        "cache-debug": "HIT",
+        "location": "http://play.udon.dance/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+        "cf-cache-status": "DYNAMIC",
+        "server-timing": "cfCacheStatus;desc=\"DYNAMIC\", cfEdge;dur=14,cfOrigin;dur=46",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "cf-ray": "a41340073819682f-SEA",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.7.129",
+      "tlsAuthorized": null,
+      "elapsedMS": 269,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "complete": true
+    },
+    {
+      "phase": "resolver-prefix",
+      "node": "cf",
+      "url": "http://play.udon.dance/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+      "startedAt": "T+3.279s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0"
+      },
+      "status": 200,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "video/mp4",
+        "content-length": "40795378",
+        "connection": "keep-alive",
+        "server": "cloudflare",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "etag": "\"67a5b116-26e7cf2\"",
+        "expires": "REDACTED-HTTP-DATE",
+        "cache-control": "max-age=31536000",
+        "accept-ranges": "bytes",
+        "age": "20523",
+        "cf-cache-status": "HIT",
+        "server-timing": "cfCacheStatus;desc=\"HIT\", cfEdge;dur=23,cfOrigin;dur=0",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "cf-ray": "a413400abfb2eca0-SEA",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.8.25",
+      "tlsAuthorized": null,
+      "elapsedMS": 920,
+      "bytes": 67717,
+      "sha256": "b36372b1c4d6f684d89ed2f30f2b1b98f9672b59ab856f75541cb865cec944fd",
+      "capped": true
+    },
+    {
+      "phase": "player-open-range",
+      "node": "cf",
+      "url": "http://play.udon.dance/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+      "startedAt": "T+4.200s",
+      "requestHeaders": {
+        "User-Agent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+        "Range": "bytes=0-",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
+      },
+      "status": 206,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "video/mp4",
+        "content-length": "40795378",
+        "connection": "keep-alive",
+        "server": "cloudflare",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "etag": "\"67a5b116-26e7cf2\"",
+        "expires": "REDACTED-HTTP-DATE",
+        "cache-control": "max-age=31536000",
+        "age": "20524",
+        "content-range": "bytes 0-40795377/40795378",
+        "cf-cache-status": "HIT",
+        "server-timing": "cfCacheStatus;desc=\"HIT\", cfEdge;dur=19,cfOrigin;dur=0",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "cf-ray": "a41340101c90c078-SEA",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.8.25",
+      "tlsAuthorized": null,
+      "elapsedMS": 884,
+      "bytes": 67908,
+      "sha256": "36a00cc1fdf1ce94810aa1dbe07fc1ad30bcbdf5e53970bff40e432b7c4868d5",
+      "capped": true
+    },
+    {
+      "phase": "resolver-api",
+      "node": "nya",
+      "url": "http://api.udon.dance/Api/Songs/play?node=nya&id=1",
+      "startedAt": "T+5.084s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0"
+      },
+      "status": 302,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "text/html; charset=UTF-8",
+        "content-length": "0",
+        "connection": "keep-alive",
+        "server": "cloudflare",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "cache-control": "no-transform",
+        "expires": "Thu, 19 Nov 1981 T+23999.000s GMT",
+        "pragma": "no-cache",
+        "cache-debug": "HIT",
+        "location": "http://nya.xin.moe/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+        "cf-cache-status": "DYNAMIC",
+        "server-timing": "cfCacheStatus;desc=\"DYNAMIC\", cfEdge;dur=14,cfOrigin;dur=47",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "cf-ray": "a41340142d14682f-SEA",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.7.129",
+      "tlsAuthorized": null,
+      "elapsedMS": 268,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "complete": true
+    },
+    {
+      "phase": "resolver-prefix",
+      "node": "nya",
+      "url": "http://nya.xin.moe/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+      "startedAt": "T+5.353s",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0"
+      },
+      "status": 200,
+      "headers": {
+        "server": "openresty/1.31.1.1",
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "video/mp4",
+        "content-length": "40795378",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "connection": "keep-alive",
+        "etag": "\"67a5b119-26e7cf2\"",
+        "expires": "REDACTED-HTTP-DATE",
+        "cache-control": "max-age=432000",
+        "accept-ranges": "bytes"
+      },
+      "remoteAddress": "198.18.26.102",
+      "tlsAuthorized": null,
+      "elapsedMS": 960,
+      "bytes": 65916,
+      "sha256": "387b52ece9a27d2ab5313653f6515ca754cf242e9290806e9bb4897872b74bd4",
+      "capped": true
+    },
+    {
+      "phase": "player-open-range",
+      "node": "nya",
+      "url": "http://nya.xin.moe/files/2502/1-67a5b0d356cce.mp4?e=REDACTED&s=REDACTED",
+      "startedAt": "T+6.313s",
+      "requestHeaders": {
+        "User-Agent": "NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457",
+        "Range": "bytes=0-",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
+      },
+      "status": 206,
+      "headers": {
+        "server": "openresty/1.31.1.1",
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "video/mp4",
+        "content-length": "40795378",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "connection": "keep-alive",
+        "etag": "\"67a5b119-26e7cf2\"",
+        "expires": "REDACTED-HTTP-DATE",
+        "cache-control": "max-age=432000",
+        "content-range": "bytes 0-40795377/40795378"
+      },
+      "remoteAddress": "198.18.26.102",
+      "tlsAuthorized": null,
+      "elapsedMS": 2274,
+      "bytes": 65883,
+      "sha256": "c39f04575a46833fc7e752935f09eaa92a111f022aee22f3f097486b3f7dadcc",
+      "capped": true
+    },
+    {
+      "phase": "metadata",
+      "url": "https://api.udon.dance/Api/Songs/list",
+      "startedAt": "T+8.587s",
+      "requestHeaders": {},
+      "status": 200,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "application/json; charset=utf-8",
+        "transfer-encoding": "chunked",
+        "connection": "keep-alive",
+        "server": "cloudflare",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "cache-control": "no-store, no-cache, must-revalidate",
+        "expires": "Thu, 19 Nov 1981 T+23999.000s GMT",
+        "pragma": "no-cache",
+        "cache-debug": "HIT",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "cf-cache-status": "DYNAMIC",
+        "vary": "accept-encoding",
+        "server-timing": "cfCacheStatus;desc=\"DYNAMIC\", cfEdge;dur=11,cfOrigin;dur=71",
+        "cf-ray": "a413402cfc53b9e8-SEA",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.7.129",
+      "tlsAuthorized": true,
+      "certificate": {
+        "subject": {
+          "CN": "udon.dance"
+        },
+        "issuer": {
+          "C": "US",
+          "O": "Google Trust Services",
+          "CN": "WE1"
+        },
+        "subjectaltname": "DNS:udon.dance, DNS:*.udon.dance",
+        "valid_to": "Nov 13 T+0.000s 2026 GMT"
+      },
+      "elapsedMS": 8974,
+      "bytes": 2866503,
+      "sha256": "4483a738a14f31abe284ab902035fa553ef75ea7064a17d1e4d439a6d8057796",
+      "complete": true,
+      "bodyURLDomainCounts": {}
+    },
+    {
+      "phase": "metadata",
+      "url": "https://wanna.kiva.moe/api/wannaInfo",
+      "startedAt": "T+17.564s",
+      "requestHeaders": {},
+      "status": 200,
+      "headers": {
+        "date": "REDACTED-HTTP-DATE",
+        "content-type": "application/json",
+        "content-length": "5768543",
+        "connection": "keep-alive",
+        "x-next-cache-tags": "_N_T_/layout,_N_T_/api/layout,_N_T_/api/wannaInfo/layout,_N_T_/api/wannaInfo/route,_N_T_/api/wannaInfo",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=REDACTED\"}]}",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "access-control-allow-origin": "*",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "etag": "\"e5fd04da7988bb53fa0116dfbbab2a3e\"",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-content-type-options": "nosniff",
+        "x-matched-path": "/api/wannaInfo",
+        "server-timing": "cfCacheStatus;desc=\"DYNAMIC\", cfEdge;dur=30,cfOrigin;dur=217",
+        "server": "cloudflare",
+        "cf-cache-status": "DYNAMIC",
+        "cf-ray": "a4134063ec148488-HKG",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "remoteAddress": "198.18.9.58",
+      "tlsAuthorized": true,
+      "certificate": {
+        "subject": {
+          "CN": "wanna.kiva.moe"
+        },
+        "issuer": {
+          "C": "US",
+          "O": "Google Trust Services",
+          "CN": "WE1"
+        },
+        "subjectaltname": "DNS:wanna.kiva.moe",
+        "valid_to": "Dec  4 T+35088.000s 2026 GMT"
+      },
+      "elapsedMS": 1725,
+      "bytes": 5768543,
+      "sha256": "373642dc3353bfe7f699feab068ccba2332f220e2df506b5e2fb7ffb5e911e0b",
+      "complete": true,
+      "bodyURLDomainCounts": {
+        "www.bilibili.com": 1656,
+        "song.xin.moe": 67,
+        "www.youtube.com": 7484,
+        "youtu.be": 135,
+        "youtube.com": 1
+      }
+    }
+  ]
+}

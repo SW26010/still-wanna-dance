@@ -1,0 +1,25 @@
+{
+  "note": "URLs embedded in API data, not evidence of requests to these URLs",
+  "examples": {
+    "www.bilibili.com": {
+      "jsonPath": "root.data.groups.0.entries.0.originalUrl.0",
+      "url": "https://www.bilibili.com/video/BV1Ds4y1Z7jp/?p=1"
+    },
+    "song.xin.moe": {
+      "jsonPath": "root.data.groups.0.entries.2.originalUrl.0",
+      "url": "http://song.xin.moe/files/TalkThatTalk-Twice.mp4"
+    },
+    "www.youtube.com": {
+      "jsonPath": "root.data.groups.0.entries.6.originalUrl.0",
+      "url": "https://www.youtube.com/watch?v=TkiQnOs5RDY"
+    },
+    "youtu.be": {
+      "jsonPath": "root.data.groups.0.entries.7.originalUrl.0",
+      "url": "https://youtu.be/LC_pzyD-Zxk"
+    },
+    "youtube.com": {
+      "jsonPath": "root.data.groups.19.entries.50.originalUrl.0",
+      "url": "https://youtube.com/watch?v=9gmudaxwKys"
+    }
+  }
+}

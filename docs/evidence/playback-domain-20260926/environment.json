@@ -1,0 +1,9 @@
+{
+  "checkedAt": "T+0.000s",
+  "relevantHostsLines": [],
+  "readmeSource": "<reference-workspace>/README.md",
+  "readmeSHA256": "127196BE7CF5BE9B0FEADB2B8AD90985FC65E26E90581165C91BE4ACA3F52041",
+  "readmeEvidenceLine": 62,
+  "readmeExcerpt": "re-caching via ud-play.kiva.moe (Host: play.udon.dance)",
+  "networkBoundary": "Ordinary request remoteAddress showed 198.18.* fake IP. Public DoH counterpart preserves original Host/SNI. Transparent network routing not audited."
+}

@@ -159,7 +159,7 @@ func New(cfg Config) (*Server, error) {
 		return dial(ctx, network, address)
 	}
 
-	usage, usageErr := openUsage(filepath.Join(cfg.StorageDir, "stepstash.sqlite"), cfg.Logger)
+	usage, usageErr := openUsage(filepath.Join(cfg.StorageDir, "stepstash.sqlite"), cfg.Logger, cfg.RequestRetentionDays)
 	if usageErr != nil {
 		cancel()
 		unlock()

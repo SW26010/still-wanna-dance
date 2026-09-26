@@ -23,8 +23,10 @@ type Config struct {
 	MaxFileBytes    int64
 	// MaxCacheBytes bounds retained videos in the canonical video store; zero is unlimited.
 	MaxCacheBytes int64
-	MaxDownloads  int
-	Logger        *slog.Logger
+	// RequestRetentionDays bounds request details; zero keeps them indefinitely.
+	RequestRetentionDays int
+	MaxDownloads         int
+	Logger               *slog.Logger
 	// DialContext optionally supplies independent upstream DNS resolution.
 	DialContext func(context.Context, string, string) (net.Conn, error)
 	// ResolveCurrent returns the song API's current video URL. Nil uses the public API.
@@ -39,20 +41,24 @@ type Config struct {
 
 func DefaultConfig() Config {
 	return Config{
-		KeepRequestedRoute: true,
-		OriginScheme:       "https",
-		StorageDir:         "stepstash-data",
-		Origins:            map[string]string{"play.udon.dance": "ud-play.kiva.moe:443", "nya.xin.moe": "ud-nya.kiva.moe:443"},
-		DownloadTimeout:    10 * time.Minute,
-		MaxFileBytes:       2 << 30,
-		MaxDownloads:       3,
-		Logger:             slog.New(slog.NewJSONHandler(os.Stderr, nil)),
+		KeepRequestedRoute:   true,
+		RequestRetentionDays: 30,
+		OriginScheme:         "https",
+		StorageDir:           "stepstash-data",
+		Origins:              map[string]string{"play.udon.dance": "ud-play.kiva.moe:443", "nya.xin.moe": "ud-nya.kiva.moe:443"},
+		DownloadTimeout:      10 * time.Minute,
+		MaxFileBytes:         2 << 30,
+		MaxDownloads:         3,
+		Logger:               slog.New(slog.NewJSONHandler(os.Stderr, nil)),
 	}
 }
 
 func (c Config) validate() error {
 	if c.OriginScheme != "https" && c.OriginScheme != "http" {
 		return errors.New("invalid origin scheme")
+	}
+	if c.RequestRetentionDays < 0 || c.RequestRetentionDays > 36500 {
+		return errors.New("request retention must be between 0 and 36500 days")
 	}
 	if c.MaxCacheBytes < 0 {
 		return errors.New("cache limit cannot be negative")

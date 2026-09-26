@@ -16,6 +16,8 @@ import (
 // per resource across hosts, anchored at the previous counted demand.
 const demandWindow = 30 * time.Second
 
+const requestCleanupBatch = 500
+
 type usageEvent struct {
 	barrier                                                chan struct{}
 	id                                                     string
@@ -28,16 +30,17 @@ type usageEvent struct {
 }
 
 type usageStore struct {
-	db     *sql.DB
-	log    *slog.Logger
-	mu     sync.Mutex
-	closed bool
-	events chan usageEvent
-	done   chan struct{}
-	now    func() time.Time
+	retention time.Duration
+	db        *sql.DB
+	log       *slog.Logger
+	mu        sync.Mutex
+	closed    bool
+	events    chan usageEvent
+	done      chan struct{}
+	now       func() time.Time
 }
 
-func openUsage(path string, log *slog.Logger) (*usageStore, error) {
+func openUsage(path string, log *slog.Logger, retentionDays int) (*usageStore, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return nil, err
 	}
@@ -100,7 +103,7 @@ CREATE INDEX IF NOT EXISTS request_events_time ON request_events(requested_at);`
 		db.Close()
 		return nil, err
 	}
-	u := &usageStore{db: db, log: log, events: make(chan usageEvent, 1024), done: make(chan struct{}), now: time.Now}
+	u := &usageStore{retention: time.Duration(retentionDays) * 24 * time.Hour, db: db, log: log, events: make(chan usageEvent, 1024), done: make(chan struct{}), now: time.Now}
 	go u.run()
 	return u, nil
 }
@@ -170,7 +173,28 @@ func (u *usageStore) close() {
 func (u *usageStore) run() {
 	defer close(u.done)
 	defer u.db.Close()
-	for event := range u.events {
+	// Run even without requests; catch up old databases gradually.
+	timer := time.NewTimer(0)
+	defer timer.Stop()
+	for {
+		var event usageEvent
+		select {
+		case <-timer.C:
+			deleted, err := u.prune(time.Now())
+			delay := time.Minute
+			if err != nil {
+				u.log.Warn("usage_cleanup_failed", "error", err)
+			} else if deleted == requestCleanupBatch {
+				delay = time.Second
+			}
+			timer.Reset(delay)
+			continue
+		case e, ok := <-u.events:
+			if !ok {
+				return
+			}
+			event = e
+		}
 		batch := []usageEvent{event}
 		// Drain an immediately available batch without delaying the request path.
 		for len(batch) < 128 {
@@ -235,4 +259,21 @@ ON CONFLICT(resource_key) DO UPDATE SET
 		}
 	}
 	return tx.Commit()
+}
+
+// Delete only details in a bounded transaction using the time index.
+// SQLite reuses freed pages; avoid a blocking full VACUUM during service use.
+func (u *usageStore) prune(now time.Time) (int64, error) {
+	if u.retention == 0 {
+		return 0, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	result, err := u.db.ExecContext(ctx, `DELETE FROM request_events WHERE event_id IN (
+ SELECT event_id FROM request_events WHERE requested_at < ? ORDER BY requested_at LIMIT ?
+)`, now.Add(-u.retention).UnixMilli(), requestCleanupBatch)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

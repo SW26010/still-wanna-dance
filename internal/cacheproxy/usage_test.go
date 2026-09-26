@@ -36,7 +36,7 @@ func TestUsageReverseCompletion(t *testing.T) {
 				t.Fatal(err)
 			}
 			var clock atomic.Int64
-			clock.Store(1700000000)
+			clock.Store(time.Now().Unix())
 			s.usage.now = func() time.Time { return time.Unix(clock.Load(), 0) }
 			w := &pausedUsageWriter{ResponseRecorder: httptest.NewRecorder(), entered: make(chan struct{}), release: make(chan struct{})}
 			var release sync.Once
@@ -101,7 +101,7 @@ func TestUsagePersistsAndDeduplicates(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "usage.sqlite")
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	base := time.Unix(1700000000, 0)
-	u, err := openUsage(path, log)
+	u, err := openUsage(path, log, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func TestUsagePersistsAndDeduplicates(t *testing.T) {
 	recordDemand(u, "1", base.Add(29*time.Second))
 	recordDemand(u, "1", base.Add(30*time.Second))
 	u.close()
-	u, err = openUsage(path, log)
+	u, err = openUsage(path, log, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestUsagePersistsAndDeduplicates(t *testing.T) {
 
 func TestUsageConcurrentAndClose(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "usage.sqlite")
-	u, err := openUsage(path, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	u, err := openUsage(path, slog.New(slog.NewTextHandler(io.Discard, nil)), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ INSERT INTO resource_usage VALUES ('1', 5, 3, 1000, 1000, 1000);`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	u, err := openUsage(path, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	u, err := openUsage(path, slog.New(slog.NewTextHandler(io.Discard, nil)), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,4 +243,89 @@ func TestDatabaseUnavailableBlocksStartup(t *testing.T) {
 		t.Fatal("failed startup retained ownership", err)
 	}
 	reopened.Close()
+}
+
+func TestRequestRetentionBatchesAndBoundary(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "usage.sqlite")
+	u, err := openUsage(path, slog.New(slog.NewTextHandler(io.Discard, nil)), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer u.close()
+	now := time.Now()
+	cutoff := now.Add(-30 * 24 * time.Hour)
+	events := make([]usageEvent, requestCleanupBatch+3)
+	for i := range events {
+		events[i] = usageEvent{id: "old", at: cutoff.Add(-time.Millisecond).UnixMilli()}
+	}
+	events = append(events, usageEvent{id: "boundary", at: cutoff.UnixMilli()},
+		usageEvent{id: "recent", at: now.UnixMilli()},
+		usageEvent{id: "old", at: cutoff.Add(-time.Hour).UnixMilli(), summaryOnly: true})
+	if err := u.write(events); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := u.prune(now); err != nil || n != 0 {
+		t.Fatalf("unlimited: %d %v", n, err)
+	}
+	cleaner := &usageStore{db: u.db, retention: 30 * 24 * time.Hour}
+	for _, want := range []int64{requestCleanupBatch, 3, 0} {
+		if n, err := cleaner.prune(now); err != nil || n != want {
+			t.Fatalf("deleted=%d want=%d: %v", n, want, err)
+		}
+	}
+	var count int
+	if err := u.db.QueryRow("SELECT count(*) FROM request_events").Scan(&count); err != nil || count != 2 {
+		t.Fatalf("boundary/recent: %d %v", count, err)
+	}
+	get, demand, _, _ := usageCounts(t, path, "old")
+	if get != 1 || demand != 1 {
+		t.Fatalf("summary changed: %d %d", get, demand)
+	}
+}
+
+func TestRequestRetentionCleansIdleRestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "usage.sqlite")
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	u, err := openUsage(path, log, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	events := make([]usageEvent, requestCleanupBatch+1)
+	for i := range events {
+		events[i] = usageEvent{id: "old", at: time.Now().Add(-31 * 24 * time.Hour).UnixMilli()}
+	}
+	if err := u.write(events); err != nil {
+		t.Fatal(err)
+	}
+	u.close()
+	u, err = openUsage(path, log, 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer u.close()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var count int
+		if err := u.db.QueryRow("SELECT count(*) FROM request_events").Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("idle startup did not drain backlog: %d", count)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestRequestRetentionConfig(t *testing.T) {
+	for _, days := range []int{-1, 36501, 0, 30, 36500} {
+		cfg := DefaultConfig()
+		cfg.RequestRetentionDays = days
+		err := cfg.validate()
+		if (err != nil) != (days < 0 || days > 36500) {
+			t.Fatalf("days=%d: %v", days, err)
+		}
+	}
 }

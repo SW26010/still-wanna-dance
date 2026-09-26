@@ -28,6 +28,7 @@ import (
 var page string
 
 type Settings struct {
+	RequestRetentionDays   int    `json:"requestRetentionDays"`
 	AutoStartCDN           bool   `json:"autoStartCDN"`
 	ScanResolveConcurrency int    `json:"scanResolveConcurrency"`
 	ScanCheckConcurrency   int    `json:"scanCheckConcurrency"`
@@ -83,7 +84,7 @@ func New(configPath, address string) (*Console, error) {
 		return nil, err
 	}
 	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", client: &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{Proxy: nil}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
-	c.settings = Settings{StorageDir: "stepstash-data"}
+	c.settings = Settings{StorageDir: "stepstash-data", RequestRetentionDays: 30}
 	c.dns = &directDNS{}
 	c.client.Transport = &http.Transport{DialContext: c.dns.DialContext, ResponseHeaderTimeout: 20 * time.Second}
 	if b, err := os.ReadFile(configPath); err == nil {
@@ -141,6 +142,9 @@ func absoluteSettings(s Settings) (Settings, error) {
 	}
 	if s.DownloadUpstream != "auto" && s.DownloadUpstream != "cf" && s.DownloadUpstream != "hkg" {
 		return s, errors.New("下载上游必须是 auto、cf 或 hkg")
+	}
+	if s.RequestRetentionDays < 0 || s.RequestRetentionDays > 36500 {
+		return s, errors.New("请求明细保留天数必须为 0～36500")
 	}
 	if s.MaxCacheBytes < 0 {
 		return s, errors.New("缓存上限不能为负数")
@@ -266,6 +270,7 @@ func (c *Console) ensureEngine() error {
 	cfg.Logger = slog.Default().With("component", "cache")
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
+	cfg.RequestRetentionDays = c.settings.RequestRetentionDays
 	cfg.DialContext = c.dns.DialContext
 	mode := c.settings.DownloadUpstream
 	cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {

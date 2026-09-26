@@ -557,6 +557,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/api/inventory/scan":
 		c.startInventoryScan()
+	case "/api/batch/verify":
+		err = c.startBatchCheck(true, true)
 	case "/api/batch/scan":
 		err = c.startBatchMode(true)
 	case "/api/batch/switch":

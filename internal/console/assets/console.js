@@ -123,6 +123,7 @@ function renderControls() {
       : s.queue.running
         ? '停止预缓存并下载补齐'
         : '下载补齐';
+  $('batchVerify').disabled = unavailable || !!s.batch.running;
   $('batchScan').disabled = unavailable || !!s.batch.running;
   $('batchScan').textContent =
     s.batch.running && s.batch.scanOnly ? '正在扫描…' : '仅扫描检查';
@@ -184,6 +185,11 @@ function renderBatch(s) {
         b.hits +
         ' · 扫描缺失或损坏 ' +
         (b.missing || 0) +
+        (b.scanOnly
+          ? ' · 属性复用 ' + (b.reused || 0) +
+            ' · 完整校验通过 ' + (b.verified || 0) +
+            ' · 损坏 ' + (b.corrupt || 0)
+          : '') +
         ' · 下载完成 ' +
         b.downloaded +
         ' · 失败 ' +

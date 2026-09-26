@@ -45,6 +45,7 @@ type flight struct {
 }
 
 type Server struct {
+	verifications    *verificationStore
 	stats            trafficStats
 	routeMu          sync.Mutex
 	routeSongs       routeLRU[string]
@@ -89,7 +90,6 @@ type Server struct {
 	deletingVideos   map[string]chan struct{}
 	mappingRevision  uint64 // protected by retentionMu; invalidates cleanup queries
 
-	verificationRecords map[string]verificationRecord
 }
 
 func New(cfg Config) (*Server, error) {
@@ -189,6 +189,13 @@ func New(cfg Config) (*Server, error) {
 		unlock()
 		return nil, fmt.Errorf("load song resources: %w", err)
 	}
+	s.verifications, err = openVerificationStore(cfg.StorageDir)
+	if err != nil {
+		cancel()
+		usage.close()
+		unlock()
+		return nil, fmt.Errorf("open verification database: %w", err)
+	}
 	s.cleanSupersededOnStartup()
 	s.trimCache()
 	s.retentionWake = make(chan struct{}, 1)
@@ -213,9 +220,7 @@ func (s *Server) Close() error {
 		// All references are now released; finish any deferred eviction before closing usage.
 		s.ResetQueueSongs(nil)
 		s.runRetention(false)
-		s.verifyMu.Lock()
-		clear(s.verificationRecords)
-		s.verifyMu.Unlock()
+		s.verifications.db.Close()
 		s.usage.close()
 		s.client.CloseIdleConnections()
 		err = s.unlock()

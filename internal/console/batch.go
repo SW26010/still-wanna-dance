@@ -31,6 +31,10 @@ type Failure struct {
 	Error string `json:"error"`
 }
 type Batch struct {
+	FullVerify bool      `json:"fullVerify"`
+	Reused     int       `json:"reused"`
+	Verified   int       `json:"verified"`
+	Corrupt    int       `json:"corrupt"`
 	ScanOnly   bool      `json:"scanOnly"`
 	Missing    int       `json:"missing"`
 	Updated    time.Time `json:"updated"`
@@ -149,6 +153,10 @@ func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (s
 func (c *Console) startBatch() error { return c.startBatchMode(false) }
 
 func (c *Console) startBatchMode(scanOnly bool) error {
+	return c.startBatchCheck(scanOnly, false)
+}
+
+func (c *Console) startBatchCheck(scanOnly, fullVerify bool) error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
@@ -178,7 +186,7 @@ func (c *Console) startBatchMode(scanOnly bool) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	c.batchCancel = cancel
 	c.batchDone = make(chan struct{})
-	c.batch = Batch{Running: true, ScanOnly: scanOnly, Phase: "正在获取最新歌曲列表"}
+	c.batch = Batch{Running: true, ScanOnly: scanOnly, FullVerify: fullVerify, Phase: "正在获取最新歌曲列表"}
 	if !scanOnly && c.scanPlan != nil && c.scanPlan.settings == c.settings {
 		c.batch.Phase = "正在复用扫描结果下载补齐"
 	}
@@ -193,6 +201,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	completed := false
 	c.mu.Lock()
 	scanOnly, settings := c.batch.ScanOnly, c.settings
+	fullVerify := c.batch.FullVerify
 	plan := c.scanPlan
 	c.scanPlan = nil
 	if scanOnly || (plan != nil && plan.settings != settings) {
@@ -228,8 +237,20 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		c.batch = result
 		c.batchCancel = nil
 		c.mu.Unlock()
-		slog.Info("batch_finished", "scan_only", scanOnly, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", result.Missing, "cancelled", ctx.Err() != nil, "total", result.Total, "checked", result.Checked, "hits", result.Hits, "downloaded", result.Downloaded, "failed", result.Failed, "phase", result.Phase)
+		slog.Info("batch_finished", "scan_only", scanOnly, "full_verify", fullVerify, "reused", result.Reused, "verified", result.Verified, "corrupt", result.Corrupt, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", result.Missing, "cancelled", ctx.Err() != nil, "total", result.Total, "checked", result.Checked, "hits", result.Hits, "downloaded", result.Downloaded, "failed", result.Failed, "phase", result.Phase)
 	}()
+	var checker *cacheproxy.LocalChecker
+	if scanOnly {
+		var err error
+		checker, err = cacheproxy.NewLocalChecker(settings.StorageDir, fullVerify)
+		if err != nil {
+			c.mu.Lock()
+			c.batch.Phase = "无法打开校验记录：" + err.Error()
+			c.mu.Unlock()
+			return
+		}
+		defer checker.Close()
+	}
 	var songs []Song
 	var err error
 	if plan != nil {
@@ -251,7 +272,10 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	slog.Info("catalog_loaded", "total", len(songs))
 	c.batch.Phase = "正在下载补齐"
 	if scanOnly {
-		c.batch.Phase = "正在扫描校验（不下载）"
+		c.batch.Phase = "正在增量扫描（不下载）"
+		if fullVerify {
+			c.batch.Phase = "正在完整校验（读取全部视频，不下载）"
+		}
 	}
 	c.mu.Unlock()
 	active := map[int64]string{}
@@ -287,6 +311,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		var reused bool
 		source := ""
 		var result scanResult
+		var localResult cacheproxy.LocalCheckResult
 		if scanOnly {
 			var hit bool
 			hit, err = scanner.check(ctx, func() (string, error) {
@@ -294,7 +319,8 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 			}, func(target string) (bool, error) {
 				result.target = target
 				var hit bool
-				hit, result.receipt, err = cacheproxy.CheckLocalReceipt(ctx, settings.StorageDir, target)
+				localResult, err = checker.Check(ctx, target)
+				hit, result.receipt = localResult.Hit, localResult.Receipt
 				return hit, err
 			})
 			if hit {
@@ -332,6 +358,14 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		c.mu.Lock()
 		if scanOnly && err == nil {
 			results[song.ID] = result
+			if localResult.Reused {
+				c.batch.Reused++
+			} else if localResult.Hit {
+				c.batch.Verified++
+			}
+			if localResult.Corrupt {
+				c.batch.Corrupt++
+			}
 		}
 		c.batch.Checked++
 		if err != nil {

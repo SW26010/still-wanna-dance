@@ -74,7 +74,7 @@ func TestCheckLocalNeverPublishesOrDeletes(t *testing.T) {
 			t.Fatal("scan modified cache", err)
 		}
 		entries, err := os.ReadDir(root)
-		if err != nil || len(entries) != 1 {
+		if err != nil || len(entries) != 2 {
 			t.Fatal("scan created unexpected state", err)
 		}
 	}

@@ -1,6 +1,7 @@
 package cacheproxy
 
 import (
+	"context"
 	"math"
 	"os"
 	"path/filepath"
@@ -83,6 +84,13 @@ func (s *Server) beginVideoRemovalLocked(key string) bool {
 }
 
 func (s *Server) finishVideoRemoval(key string, removed bool) {
+	if removed {
+		// Keep the deletion reservation while invalidating trust; no global
+		// retention lock is held during database I/O.
+		if err := s.verifications.forget(context.Background(), key); err != nil {
+			s.cfg.Logger.Warn("verification_forget_failed", "key", key, "error", err)
+		}
+	}
 	s.retentionMu.Lock()
 	if removed {
 		s.retainVideoLocked(key, nil)
@@ -146,10 +154,6 @@ func (s *Server) retentionLoop() {
 // Called under retentionMu for every successful publication/removal, including
 // superseded and invalid files. Changes made during a scan override its results.
 func (s *Server) retainVideoLocked(key string, item *retainedVideo) {
-	// Publication and removal both invalidate idle verification metadata.
-	s.verifyMu.Lock()
-	delete(s.verificationRecords, key)
-	s.verifyMu.Unlock()
 	if s.retained == nil {
 		s.retained = make(map[string]retainedVideo)
 	}

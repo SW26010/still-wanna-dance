@@ -183,15 +183,6 @@ func (r contextReader) Read(p []byte) (int, error) {
 	return r.r.Read(p)
 }
 
-func checkFile(ctx context.Context, path string, v video) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return checkOpenFile(ctx, f, v)
-}
-
 func checkOpenFile(ctx context.Context, f *os.File, v video) error {
 	info, err := f.Stat()
 	if err != nil {
@@ -221,6 +212,9 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, 
 	} else if ctx.Err() != nil {
 		return "", "", ctx.Err()
 	} else if !errors.Is(err, os.ErrNotExist) {
+		if !errors.Is(err, errInvalidCache) {
+			return "", "", err
+		}
 		flight.log.Warn("cache_invalid", "key", v.key, "error", err)
 		// The worker pin excludes retention deletion during filesystem I/O.
 		err := os.Remove(path)
@@ -288,10 +282,17 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 	}
 	defer os.Remove(final.Name())
 	defer final.Close()
-	if _, err := io.Copy(final, contextReader{ctx, io.NewSectionReader(f, 0, v.size)}); err != nil {
+	copyHash := md5.New()
+	if n, err := io.Copy(io.MultiWriter(final, copyHash), contextReader{ctx, io.NewSectionReader(f, 0, v.size)}); err != nil {
 		return err
+	} else if n != v.size || hex.EncodeToString(copyHash.Sum(nil)) != v.checksum {
+		return fmt.Errorf("%w: publication copy mismatch", errInvalidCache)
 	}
 	if err := final.Sync(); err != nil {
+		return err
+	}
+	identity, err := fileIdentity(final)
+	if err != nil {
 		return err
 	}
 	if err := final.Close(); err != nil {
@@ -307,11 +308,16 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 		return err
 	}
 	s.retentionMu.Lock()
-	defer s.retentionMu.Unlock()
 	item := retainedVideo{path: path, key: v.key, size: info.Size(), recent: info.ModTime().UnixMilli(), modified: info.ModTime().UnixNano()}
 	s.retainVideoLocked(v.key, &item)
 	if s.cfg.MaxCacheBytes > 0 && s.retainedBytes > s.cfg.MaxCacheBytes {
 		s.requestRetentionLocked()
+	}
+	s.retentionMu.Unlock()
+	// Publication has already checked these bytes. Bind trust to the final
+	// file identity so the first playback does not read the whole video again.
+	if err := s.verifications.remember(ctx, v, identity, info, time.Now()); err != nil {
+		return err
 	}
 	return nil
 }

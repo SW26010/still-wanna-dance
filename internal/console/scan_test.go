@@ -36,19 +36,29 @@ func TestScanSharedResourceCountsBothSongs(t *testing.T) {
 	defer api.Close()
 	defer c.Close()
 	c.apiBase, c.client.Transport = api.URL, http.DefaultTransport
-	if err := c.startBatchMode(true); err != nil {
-		t.Fatal(err)
-	}
-	c.mu.Lock()
-	done := c.batchDone
-	c.mu.Unlock()
-	select {
-	case <-done:
-	case <-time.After(3 * time.Second):
-		t.Fatal("scan stalled")
-	}
-	if c.batch.Hits != 2 || c.batch.Checked != 2 || c.batch.Failed != 0 || c.batch.Missing != 0 || c.service != nil {
-		t.Fatalf("shared scan: %+v", c.batch)
+	for _, mode := range []struct {
+		name             string
+		full             bool
+		verified, reused int
+	}{
+		{"first scan", false, 1, 1},
+		{"incremental scan", false, 0, 2},
+		{"full scan", true, 1, 1},
+	} {
+		if err := c.startBatchCheck(true, mode.full); err != nil {
+			t.Fatal(err)
+		}
+		c.mu.Lock()
+		done := c.batchDone
+		c.mu.Unlock()
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			t.Fatal("scan stalled")
+		}
+		if c.batch.Hits != 2 || c.batch.Checked != 2 || c.batch.Failed != 0 || c.batch.Missing != 0 || c.service != nil || c.batch.Verified != mode.verified || c.batch.Reused != mode.reused || c.batch.FullVerify != mode.full {
+			t.Fatalf("%s: %+v", mode.name, c.batch)
+		}
 	}
 	inventory := scanInventory(c.settings)
 	if inventory.Error != "" || inventory.Videos != 1 || inventory.Bytes != int64(len(body)) {

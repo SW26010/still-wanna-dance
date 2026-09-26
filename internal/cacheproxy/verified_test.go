@@ -3,7 +3,6 @@ package cacheproxy
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -101,11 +100,9 @@ func TestVerifiedHandleReleasedAndNextUseRechecks(t *testing.T) {
 func TestVerifiedSequentialRequestsReuseHash(t *testing.T) {
 	s, v := seedVerifiedTest(t)
 	assertResponse(t, request(s, "HEAD", videoURL(payload), nil), 200, "")
-	s.verifyMu.Lock()
-	first := s.verificationRecords[v.key]
-	s.verifyMu.Unlock()
-	if first.info == nil {
-		t.Fatal("HEAD did not retain verification metadata")
+	var checked int64
+	if err := s.verifications.db.QueryRow("SELECT checked_ns FROM verified_files").Scan(&checked); err != nil {
+		t.Fatal(err)
 	}
 	for range 3 {
 		assertResponse(t, request(s, "GET", videoURL(payload), map[string]string{"Range": "bytes=10-13"}), 206, "abcd")
@@ -117,8 +114,8 @@ func TestVerifiedSequentialRequestsReuseHash(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !f.checkedAt.Equal(first.checkedAt) {
-		t.Fatal("sequential requests rehashed or extended the TTL")
+	if f.checkedAt.UnixNano() != checked {
+		t.Fatal("sequential requests rehashed unchanged bytes")
 	}
 	if offset, err := f.file.Seek(0, io.SeekCurrent); err != nil || offset != 0 {
 		t.Fatalf("reopened file was hashed: offset %d, error %v", offset, err)
@@ -126,7 +123,7 @@ func TestVerifiedSequentialRequestsReuseHash(t *testing.T) {
 }
 
 func TestVerifiedIdleInvalidation(t *testing.T) {
-	for _, change := range []string{"expiry", "expired corruption", "mtime", "size", "replacement", "missing"} {
+	for _, change := range []string{"mtime", "size", "replacement", "missing"} {
 		t.Run(change, func(t *testing.T) {
 			s, v := seedVerifiedTest(t)
 			s.pinVideo(v)
@@ -137,18 +134,6 @@ func TestVerifiedIdleInvalidation(t *testing.T) {
 			s.releaseVideo(v)
 			path := s.cfg.videoFile(v.key)
 			switch change {
-			case "expiry", "expired corruption":
-				s.verifyMu.Lock()
-				record := s.verificationRecords[v.key]
-				record.checkedAt = time.Now().Add(-verifiedRecordTTL)
-				s.verificationRecords[v.key] = record
-				s.verifyMu.Unlock()
-				if change == "expired corruption" {
-					err = os.WriteFile(path, []byte(strings.Repeat("x", len(payload))), 0600)
-					if err == nil {
-						err = os.Chtimes(path, f.info.ModTime(), f.info.ModTime())
-					}
-				}
 			case "mtime":
 				changed := f.info.ModTime().Add(time.Second)
 				err = os.Chtimes(path, changed, changed)
@@ -176,7 +161,7 @@ func TestVerifiedIdleInvalidation(t *testing.T) {
 			defer s.releaseVideo(v)
 			next, err := s.verifiedFile(context.Background(), v)
 			switch change {
-			case "expiry", "mtime":
+			case "mtime":
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -193,59 +178,6 @@ func TestVerifiedIdleInvalidation(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestVerifiedRecordInvalidatedByPublicationOrRemoval(t *testing.T) {
-	for _, removed := range []bool{false, true} {
-		t.Run(fmt.Sprint(removed), func(t *testing.T) {
-			s, v := seedVerifiedTest(t)
-			s.pinVideo(v)
-			if _, err := s.verifiedFile(context.Background(), v); err != nil {
-				t.Fatal(err)
-			}
-			s.releaseVideo(v)
-			var item *retainedVideo
-			if !removed {
-				item = &retainedVideo{key: v.key, path: s.cfg.videoFile(v.key), size: v.size}
-			}
-			s.retentionMu.Lock()
-			s.retainVideoLocked(v.key, item)
-			s.retentionMu.Unlock()
-			s.verifyMu.Lock()
-			_, exists := s.verificationRecords[v.key]
-			s.verifyMu.Unlock()
-			if exists {
-				t.Fatal("publication/removal retained stale verification")
-			}
-		})
-	}
-}
-
-func TestVerifiedIdleRecordsBounded(t *testing.T) {
-	s, v := seedVerifiedTest(t)
-	s.pinVideo(v)
-	f, err := s.verifiedFile(context.Background(), v)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.releaseVideo(v)
-	s.verifyMu.Lock()
-	defer s.verifyMu.Unlock()
-	now := time.Now()
-	for i := range verifiedRecordLimit + 1 {
-		s.rememberVerification(fmt.Sprint(i), f, now.Add(time.Duration(i)*time.Millisecond))
-	}
-	if len(s.verificationRecords) != verifiedRecordLimit || s.verificationRecords["0"].info != nil {
-		t.Fatal("idle records exceeded limit or did not evict oldest")
-	}
-	// Pruning idle metadata must leave the active handle usable.
-	s.rememberVerification("expired", f, now.Add(verifiedRecordTTL))
-	if len(s.verificationRecords) != 0 {
-		t.Fatal("expired records retained")
-	}
-	if _, err := f.file.Stat(); err != nil {
-		t.Fatalf("metadata eviction closed active handle: %v", err)
 	}
 }
 

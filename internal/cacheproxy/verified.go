@@ -77,13 +77,13 @@ func (f *verifiedFile) reader() *io.SectionReader {
 	return io.NewSectionReader(f.file, 0, f.info.Size())
 }
 
-// Called while holding retentionMu after the last pin is released, before any
-// eviction attempts (Windows does not allow deleting a file still open here).
-func (s *Server) releaseVerified(key string) {
+// Detach under retentionMu after the last pin; close the handle outside it.
+func (s *Server) detachVerified(key string) *os.File {
 	s.verifyMu.Lock()
 	defer s.verifyMu.Unlock()
 	if entry := s.verified[key]; entry != nil {
-		entry.file.Close()
 		delete(s.verified, key)
+		return entry.file
 	}
+	return nil
 }

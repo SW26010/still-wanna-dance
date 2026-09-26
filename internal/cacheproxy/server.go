@@ -80,6 +80,8 @@ type Server struct {
 	currentLocks     map[string]*songConfirmation
 	versionPins      map[string]int
 	cleanupNeeded    map[string]bool
+	deletingVideos   map[string]chan struct{}
+	mappingRevision  uint64 // protected by retentionMu; invalidates cleanup queries
 }
 
 func New(cfg Config) (*Server, error) {

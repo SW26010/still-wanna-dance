@@ -64,6 +64,10 @@ func (s *Server) recordVideo(ctx context.Context, v video) error {
 
 // Each explicit caller records its own mapping after the shared flight completes.
 func (s *Server) recordSongVideo(ctx context.Context, id string, v video) error {
+	// Protect the resource through commit and cleanup-query invalidation,
+	// including callers that do not already own a request/worker pin.
+	s.pinVideo(v)
+	defer s.releaseVideo(v)
 	unlock, err := s.lockConfirmation(ctx, id)
 	if err != nil {
 		return err
@@ -83,8 +87,6 @@ func (s *Server) recordSongVideo(ctx context.Context, id string, v video) error 
 			promote = latest.key == v.key
 		}
 	}
-	s.retentionMu.Lock()
-	defer s.retentionMu.Unlock()
 	tx, err := s.usage.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -105,12 +107,14 @@ func (s *Server) recordSongVideo(ctx context.Context, id string, v video) error 
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+	s.retentionMu.Lock()
+	defer s.retentionMu.Unlock()
+	s.mappingRevision++
 	if current != "" && current != v.key {
 		s.cleanupNeeded[current] = true
 	}
 	s.cleanupNeeded[v.key] = true
-	s.cleanSupersededLocked(current)
-	s.cleanSupersededLocked(v.key)
+	s.requestRetentionLocked()
 	return nil
 }
 
@@ -151,45 +155,71 @@ func (s *Server) currentVideo(ctx context.Context, id string) (video, error) {
 	return s.parse(r)
 }
 
-// Called under retentionMu. Raw URLs cannot establish song ownership.
-func (s *Server) cleanSupersededLocked(key string) {
-	if !s.cleanupNeeded[key] {
-		return
+// Called by the serialized retention worker, including when the cache is unlimited.
+func (s *Server) cleanSuperseded() {
+	s.retentionMu.Lock()
+	pending := s.cleanupNeeded
+	s.cleanupNeeded = make(map[string]bool)
+	s.retentionMu.Unlock()
+	for key := range pending {
+		if !s.cleanSupersededVideo(key) {
+			s.retentionMu.Lock()
+			s.cleanupNeeded[key] = true
+			s.retentionMu.Unlock()
+		}
 	}
-	var referenced bool
-	if err := s.usage.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM current_videos WHERE version_key=?)`, key).Scan(&referenced); err != nil {
+}
+
+func (s *Server) cleanSupersededVideo(key string) bool {
+	s.retentionMu.Lock()
+	revision := s.mappingRevision
+	pinned := s.versionPins[key] > 0
+	s.retentionMu.Unlock()
+	if pinned {
+		return false // The last release wakes the worker again.
+	}
+	var obsolete bool
+	err := s.usage.db.QueryRow(`SELECT
+ EXISTS(SELECT 1 FROM song_videos WHERE version_key=?) AND
+ NOT EXISTS(SELECT 1 FROM current_videos WHERE version_key=?)`, key, key).Scan(&obsolete)
+	if err != nil {
 		s.cfg.Logger.Warn("version_cleanup_failed", "key", key, "error", err)
-		return
+		return false
 	}
-	if referenced {
-		delete(s.cleanupNeeded, key)
-		return
+	s.retentionMu.Lock()
+	// A mapping commit invalidates the query. recordSongVideo pins its
+	// candidate until it has advanced this revision, closing the commit gap.
+	if revision != s.mappingRevision {
+		s.retentionMu.Unlock()
+		return false
 	}
-	if s.versionPins[key] > 0 {
-		return
+	if !obsolete {
+		s.retentionMu.Unlock()
+		return true
 	}
+	reserved := s.beginVideoRemovalLocked(key)
+	s.retentionMu.Unlock()
+	if !reserved {
+		return false
+	}
+	removed := false
+	defer func() { s.finishVideoRemoval(key, removed) }()
 	path := s.cfg.videoFile(key)
 	info, err := os.Lstat(path)
-	if os.IsNotExist(err) {
-		s.retainVideoLocked(key, nil)
-		delete(s.cleanupNeeded, key)
-		return
-	}
-	if err == nil && !info.Mode().IsRegular() {
-		s.retainVideoLocked(key, nil)
-		delete(s.cleanupNeeded, key)
-		return
+	if os.IsNotExist(err) || err == nil && !info.Mode().IsRegular() {
+		removed = true
+		return true
 	}
 	if err == nil {
 		err = os.Remove(path)
 	}
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		s.cfg.Logger.Warn("version_cleanup_failed", "key", key, "error", err)
-		return
+		return false
 	}
-	delete(s.cleanupNeeded, key)
-	s.retainVideoLocked(key, nil)
+	removed = true
 	s.cfg.Logger.Info("superseded_video_removed", "key", key, "path", path)
+	return true
 }
 
 func (s *Server) cleanSupersededOnStartup() {
@@ -219,7 +249,6 @@ func (s *Server) cleanSupersededOnStartup() {
 	defer s.retentionMu.Unlock()
 	for _, key := range keys {
 		s.cleanupNeeded[key] = true
-		s.cleanSupersededLocked(key)
 	}
 }
 

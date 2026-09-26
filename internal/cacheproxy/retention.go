@@ -30,27 +30,64 @@ func retentionScore(count, last, now int64) float64 {
 
 func (s *Server) pinVideo(v video) {
 	s.retentionMu.Lock()
+	for s.deletingVideos[v.key] != nil {
+		done := s.deletingVideos[v.key]
+		s.retentionMu.Unlock()
+		<-done
+		s.retentionMu.Lock()
+	}
 	s.versionPins[v.key]++
 	s.retentionMu.Unlock()
 }
 
 func (s *Server) releaseVideo(v video) {
+	var file *os.File
 	s.retentionMu.Lock()
 	s.versionPins[v.key]--
 	lastReference := s.versionPins[v.key] == 0
 	if lastReference {
 		delete(s.versionPins, v.key)
-		s.releaseVerified(v.key)
-		// Late raw URLs may recreate a previously removed superseded resource.
-		var known bool
-		if err := s.usage.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM song_videos WHERE version_key=?)`, v.key).Scan(&known); err == nil && known {
-			s.cleanupNeeded[v.key] = true
+		file = s.detachVerified(v.key)
+		if file != nil {
+			// Keep cleanup and new pins away until Windows releases the handle.
+			s.beginVideoRemovalLocked(v.key)
 		}
-		s.cleanSupersededLocked(v.key)
 	}
-	if lastReference && s.cfg.MaxCacheBytes > 0 && s.retainedBytes > s.cfg.MaxCacheBytes {
+	s.retentionMu.Unlock()
+	if file != nil {
+		file.Close()
+		s.finishVideoRemoval(v.key, false)
+	}
+	if lastReference {
+		s.retentionMu.Lock()
+		// Raw URLs may recreate a superseded resource. The worker checks
+		// song ownership as well as current references before deleting it.
+		s.cleanupNeeded[v.key] = true
 		s.requestRetentionLocked()
+		s.retentionMu.Unlock()
 	}
+}
+
+// Reserve deletion while holding retentionMu, then perform disk I/O unlocked.
+// New pins wait only for this key; existing pins prevent the reservation.
+func (s *Server) beginVideoRemovalLocked(key string) bool {
+	if s.versionPins[key] > 0 || s.deletingVideos[key] != nil {
+		return false
+	}
+	if s.deletingVideos == nil {
+		s.deletingVideos = make(map[string]chan struct{})
+	}
+	s.deletingVideos[key] = make(chan struct{})
+	return true
+}
+
+func (s *Server) finishVideoRemoval(key string, removed bool) {
+	s.retentionMu.Lock()
+	if removed {
+		s.retainVideoLocked(key, nil)
+	}
+	close(s.deletingVideos[key])
+	delete(s.deletingVideos, key)
 	s.retentionMu.Unlock()
 }
 
@@ -63,6 +100,7 @@ func (s *Server) trimCache() {
 func (s *Server) runRetention(reconcile bool) {
 	s.retentionRunMu.Lock()
 	defer s.retentionRunMu.Unlock()
+	s.cleanSuperseded()
 	if err := s.trimCachePass(reconcile); err != nil {
 		s.cfg.Logger.Warn("cache_eviction_failed", "error", err)
 	}
@@ -246,31 +284,12 @@ func (s *Server) trimCachePass(reconcile bool) error {
 			s.retentionMu.Unlock()
 			continue
 		}
-		// External changes are reconciled periodically; never remove a symlink,
-		// directory or a replacement using a stale inventory entry.
-		info, err := os.Lstat(item.path)
-		if os.IsNotExist(err) || err == nil && !info.Mode().IsRegular() {
-			s.retainVideoLocked(item.key, nil)
-			s.retentionMu.Unlock()
-			continue
-		}
-		if err != nil {
-			s.retentionMu.Unlock()
-			s.cfg.Logger.Warn("cache_eviction_failed", "path", item.path, "error", err)
-			continue
-		}
-		if info.Size() != item.size || info.ModTime().UnixNano() != item.modified {
-			s.retentionMu.Unlock()
-			continue
-		}
-		if err := os.Remove(item.path); err != nil && !os.IsNotExist(err) {
-			s.retentionMu.Unlock()
-			s.cfg.Logger.Warn("cache_eviction_failed", "path", item.path, "error", err)
-			continue
-		}
-		s.retainVideoLocked(item.key, nil)
+		reserved := s.beginVideoRemovalLocked(item.key)
 		s.retentionMu.Unlock()
-		s.cfg.Logger.Info("cache_evicted", "key", item.key, "path", item.path, "bytes", item.size, "priority", item.score)
+		if !reserved {
+			continue
+		}
+		s.evictRetainedVideo(item)
 	}
 	s.retentionMu.Lock()
 	total = s.retainedBytes
@@ -279,4 +298,29 @@ func (s *Server) trimCachePass(reconcile bool) error {
 		s.cfg.Logger.Info("cache_limit_deferred", "retained_bytes", total, "limit_bytes", limit)
 	}
 	return nil
+}
+
+// The deletion reservation excludes new pins/publications for this key while
+// filesystem calls run without the global retention lock.
+func (s *Server) evictRetainedVideo(item retainedVideo) {
+	removed := false
+	defer func() { s.finishVideoRemoval(item.key, removed) }()
+	info, err := os.Lstat(item.path)
+	if os.IsNotExist(err) || err == nil && !info.Mode().IsRegular() {
+		removed = true
+		return
+	}
+	if err != nil {
+		s.cfg.Logger.Warn("cache_eviction_failed", "path", item.path, "error", err)
+		return
+	}
+	if info.Size() != item.size || info.ModTime().UnixNano() != item.modified {
+		return
+	}
+	if err := os.Remove(item.path); err != nil && !os.IsNotExist(err) {
+		s.cfg.Logger.Warn("cache_eviction_failed", "path", item.path, "error", err)
+		return
+	}
+	removed = true
+	s.cfg.Logger.Info("cache_evicted", "key", item.key, "path", item.path, "bytes", item.size, "priority", item.score)
 }

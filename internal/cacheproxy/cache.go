@@ -222,8 +222,9 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, 
 		return "", "", ctx.Err()
 	} else if !errors.Is(err, os.ErrNotExist) {
 		flight.log.Warn("cache_invalid", "key", v.key, "error", err)
-		s.retentionMu.Lock()
+		// The worker pin excludes retention deletion during filesystem I/O.
 		err := os.Remove(path)
+		s.retentionMu.Lock()
 		if err == nil || os.IsNotExist(err) {
 			s.retainVideoLocked(v.key, nil)
 		}
@@ -300,11 +301,13 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 	if err != nil {
 		return err
 	}
-	s.retentionMu.Lock()
-	defer s.retentionMu.Unlock()
+	// The worker owns a pin, so retention cannot reserve this resource while
+	// the atomic publication runs. Only inventory bookkeeping needs the lock.
 	if err := os.Rename(final.Name(), path); err != nil {
 		return err
 	}
+	s.retentionMu.Lock()
+	defer s.retentionMu.Unlock()
 	item := retainedVideo{path: path, key: v.key, size: info.Size(), recent: info.ModTime().UnixMilli(), modified: info.ModTime().UnixNano()}
 	s.retainVideoLocked(v.key, &item)
 	if s.cfg.MaxCacheBytes > 0 && s.retainedBytes > s.cfg.MaxCacheBytes {

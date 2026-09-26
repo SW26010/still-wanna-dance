@@ -127,7 +127,7 @@ func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (s
 		return "", applog.SafeError(err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 302 && resp.StatusCode != 307 && resp.StatusCode != 301 {
+	if !cacheproxy.IsSongRedirect(resp.StatusCode) {
 		return "", fmt.Errorf("歌曲地址接口返回 %d", resp.StatusCode)
 	}
 	u, err := url.Parse(resp.Header.Get("Location"))

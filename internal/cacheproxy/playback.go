@@ -105,7 +105,7 @@ func (s *Server) requestVideo(r *http.Request) (video, error) {
 		resp, err = s.client.Do(req)
 		if err == nil {
 			resp.Body.Close()
-			if resp.StatusCode != 301 && resp.StatusCode != 302 && resp.StatusCode != 307 && resp.StatusCode != 308 {
+			if !IsSongRedirect(resp.StatusCode) {
 				err = fmt.Errorf("API status %d", resp.StatusCode)
 			}
 			target = resp.Header.Get("Location")

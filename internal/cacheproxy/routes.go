@@ -121,7 +121,7 @@ func (s *Server) videoResponse(r *http.Request, original video) (*http.Response,
 		if err != nil {
 			return nil, err
 		}
-		if resp.StatusCode != 301 && resp.StatusCode != 302 && resp.StatusCode != 303 && resp.StatusCode != 307 && resp.StatusCode != 308 {
+		if !IsSongRedirect(resp.StatusCode) && resp.StatusCode != http.StatusSeeOther {
 			return resp, nil
 		}
 		resp.Body.Close()

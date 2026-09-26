@@ -137,7 +137,7 @@ func (s *Server) currentVideo(ctx context.Context, id string) (video, error) {
 			return video{}, applog.SafeError(requestErr)
 		}
 		defer resp.Body.Close()
-		if resp.StatusCode != 301 && resp.StatusCode != 302 && resp.StatusCode != 307 {
+		if !IsSongRedirect(resp.StatusCode) {
 			return video{}, fmt.Errorf("song API status %d", resp.StatusCode)
 		}
 		target = resp.Header.Get("Location")

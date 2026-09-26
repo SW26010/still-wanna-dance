@@ -42,10 +42,7 @@ func (s *Server) prefetch(ctx context.Context, id, target string) (source string
 	v.songID = id
 	if id != "" {
 		s.routeMu.Lock()
-		if s.routeSongs == nil {
-			s.routeSongs = make(map[string]string)
-		}
-		s.routeSongs[v.key] = id
+		s.routeSongs.put(v.key, id, time.Time{}, routeSongsLimit)
 		s.routeMu.Unlock()
 	}
 	log := s.cfg.Logger.With("trace_id", applog.TraceID(ctx), "song_id", id, "resource_key", v.key)

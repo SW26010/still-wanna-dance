@@ -12,6 +12,28 @@ import (
 	"time"
 )
 
+func TestRouteCachesStayBounded(t *testing.T) {
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {})
+	target := videoURL(payload)
+	r, _ := http.NewRequest(http.MethodGet, target, nil)
+	v, err := s.parse(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.cfg.ResolveRoutes = func(_ context.Context, id string) ([]string, error) {
+		return []string{strings.Replace(target, "1344-660524b4ebadb", id+"-mirror", 1)}, nil
+	}
+	for i := 1; i <= routeSongsLimit+10; i++ {
+		v.songID = fmt.Sprint(i)
+		s.routeCandidates(context.Background(), v)
+	}
+	s.routeMu.Lock()
+	defer s.routeMu.Unlock()
+	if len(s.routeCache.items) != routeCacheLimit || len(s.routeSongs.items) != routeSongsLimit {
+		t.Fatalf("cache sizes: routes=%d songs=%d", len(s.routeCache.items), len(s.routeSongs.items))
+	}
+}
+
 func TestUnifiedRoutesOverridePlaybackAndPrefetch(t *testing.T) {
 	for _, background := range []bool{false, true} {
 		t.Run(fmt.Sprint("background=", background), func(t *testing.T) {

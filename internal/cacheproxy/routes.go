@@ -13,11 +13,6 @@ import (
 	"stepstash/internal/applog"
 )
 
-type routeEntry struct {
-	urls  []string
-	until time.Time
-}
-
 type routeHealth struct {
 	latency time.Duration
 	until   time.Time
@@ -33,7 +28,7 @@ func (s *Server) routeCandidates(ctx context.Context, v video) []video {
 	id := v.songID
 	s.routeMu.Lock()
 	if id == "" {
-		id = s.routeSongs[v.key]
+		id, _ = s.routeSongs.get(v.key, time.Now())
 	}
 	s.routeMu.Unlock()
 	if id == "" {
@@ -47,27 +42,24 @@ func (s *Server) routeCandidates(ctx context.Context, v video) []video {
 		return []video{v}
 	}
 	s.routeMu.Lock()
-	entry := s.routeCache[id]
+	urls, cached := s.routeCache.get(id, time.Now())
 	s.routeMu.Unlock()
-	if !time.Now().Before(entry.until) {
+	if !cached {
 		resolveCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-		urls, err := s.cfg.ResolveRoutes(resolveCtx, id)
+		var err error
+		urls, err = s.cfg.ResolveRoutes(resolveCtx, id)
 		cancel()
 		if len(urls) == 0 {
 			s.cfg.Logger.Debug("routes_unavailable", "song_id", id, "error", applog.SafeError(err))
 			return []video{v}
 		}
-		entry = routeEntry{urls: urls, until: time.Now().Add(time.Minute)}
 		s.routeMu.Lock()
-		if s.routeCache == nil {
-			s.routeCache = make(map[string]routeEntry)
-		}
-		s.routeCache[id] = entry
+		s.routeCache.put(id, urls, time.Now().Add(time.Minute), routeCacheLimit)
 		s.routeMu.Unlock()
 	}
 	var candidates []video
 	seen := make(map[string]bool)
-	for _, target := range entry.urls {
+	for _, target := range urls {
 		r, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 		if err != nil || (r.URL.Scheme != "http" && r.URL.Scheme != "https") || r.URL.User != nil || r.URL.Fragment != "" {
 			continue
@@ -77,10 +69,7 @@ func (s *Server) routeCandidates(ctx context.Context, v video) []video {
 			continue
 		}
 		s.routeMu.Lock()
-		if s.routeSongs == nil {
-			s.routeSongs = make(map[string]string)
-		}
-		s.routeSongs[candidate.key] = id
+		s.routeSongs.put(candidate.key, id, time.Time{}, routeSongsLimit)
 		s.routeMu.Unlock()
 		if candidate.checksum != v.checksum || candidate.size != v.size {
 			s.cfg.Logger.Warn("route_content_mismatch", "song_id", id, "host", candidate.host)

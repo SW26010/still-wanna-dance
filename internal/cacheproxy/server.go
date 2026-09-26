@@ -46,8 +46,8 @@ type flight struct {
 type Server struct {
 	stats            trafficStats
 	routeMu          sync.Mutex
-	routeSongs       map[string]string
-	routeCache       map[string]routeEntry
+	routeSongs       routeLRU[string]
+	routeCache       routeLRU[[]string]
 	routeHealth      map[string]routeHealth
 	routeProbes      map[string]chan struct{}
 	cfg              Config

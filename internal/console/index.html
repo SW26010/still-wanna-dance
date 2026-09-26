@@ -8,6 +8,7 @@
     <meta name="stepstash-token" content="__TOKEN__" />
     <link rel="stylesheet" href="/assets/console.css" />
     <script src="/assets/console.js" defer></script>
+    <script src="/assets/cache.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main">跳到主要内容</a>
@@ -18,7 +19,7 @@
         <div id="connection" role="status">正在连接…</div>
       </header>
       <nav aria-label="控制台区域">
-        <a href="#overview">概览</a><a href="#downloads">活动下载</a><a href="#recent">最近请求</a><a href="#service">本地 CDN</a><a href="#queue">队列预缓存</a><a href="#batch">扫描与更新</a><a href="#preferences">设置</a><a href="/about">关于</a>
+        <a href="#overview">概览</a><a href="#cache">缓存明细</a><a href="#downloads">活动下载</a><a href="#recent">最近请求</a><a href="#service">本地 CDN</a><a href="#queue">队列预缓存</a><a href="#batch">扫描与更新</a><a href="#preferences">设置</a><a href="/about">关于</a>
       </nav>
       <main id="main" tabindex="-1">
       <div class="eyebrow">本地缓存控制台</div>
@@ -89,6 +90,26 @@
           <div id="inventoryActionError" role="status"></div>
           <div id="inventoryError" role="status"></div>
         </section>
+      </section>
+      <section class="card" id="cache" aria-labelledby="cacheTitle" tabindex="-1">
+        <div class="card-head"><h2 id="cacheTitle">缓存明细</h2><small>按文件管理 · 每页 50 项</small></div>
+        <p class="hint">仅查看本地文件和资料，不联网、不读取视频正文。文件存在不代表完整性已校验；当前引用仅代表本地已知映射，不保证是线上最新版本。最近请求不代表确认播放。</p>
+        <form id="cacheSearchForm" class="actions">
+          <label for="cacheSearch">歌名 / 歌曲 ID / 资源指纹<input id="cacheSearch" type="search" maxlength="300" /></label>
+          <label for="cacheSort">排序<select id="cacheSort"><option value="recent">最近请求优先</option><option value="size">占用从大到小</option><option value="title">歌名顺序</option></select></label>
+          <button type="submit" id="cacheSearchButton">查找</button><button type="button" id="cacheRefresh">刷新明细</button><button type="button" id="cacheOpen">打开缓存目录</button>
+        </form>
+        <p id="cacheState" role="status">点击刷新明细查看缓存。</p>
+        <div class="actions"><button type="button" id="cacheSelect">选择本页可删除项</button><button type="button" id="cacheDelete">删除选中缓存</button><span id="cacheSelected" role="status"></span></div>
+        <div id="cacheConfirm" class="notice" hidden aria-labelledby="cacheConfirmTitle" tabindex="-1">
+          <h3 id="cacheConfirmTitle">确认删除选中的缓存文件？</h3>
+          <p>共享文件删除后，所有关联歌曲都需要重新下载。歌曲资料、版本关联和历史统计会保留。正在使用、下载、校验或待播的资源会跳过；状态变化的条目需刷新后重新选择。删除无法撤销。</p>
+          <ul id="cacheConfirmList"></ul>
+          <div class="actions"><button type="button" id="cacheConfirmDelete">确认删除</button><button type="button" id="cacheCancel">取消</button></div>
+        </div>
+        <p id="cacheResult" role="status"></p>
+        <ul id="cacheList" class="cache-list" aria-label="缓存文件"></ul>
+        <div class="actions"><button type="button" id="cachePrev">上一页</button><button type="button" id="cacheNext">下一页</button></div>
       </section>
       <section class="card" id="downloads" aria-labelledby="downloadsTitle" tabindex="-1">
         <div class="card-head"><h2 id="downloadsTitle">实时下载监控</h2><small>每 5 秒刷新 · 共享任务只计一次</small></div>

@@ -5,6 +5,7 @@ import vm from 'node:vm';
 
 const html = readFileSync(new URL('../internal/console/index.html', import.meta.url), 'utf8');
 const script = readFileSync(new URL('../internal/console/assets/console.js', import.meta.url), 'utf8');
+const cacheScript = readFileSync(new URL('../internal/console/assets/cache.js', import.meta.url), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
 test('active downloads render safe candidates, unknown values, bounded progress and offline state', () => {
@@ -300,6 +301,7 @@ function page(hidden = false) {
       append(...nodes) { this.children.push(...nodes); },
       setAttribute(name, value) { this[name] = value; },
       replaceChildren(...nodes) { this.children = [...nodes]; },
+      contains(node) { return this === node || this.children.some(child => child.contains(node)); },
       focus() { document.activeElement = this; },
     };
   }
@@ -331,6 +333,7 @@ function page(hidden = false) {
   const context = vm.createContext({
     document,
     AbortController,
+    URLSearchParams,
     fetch(url, options = {}) {
       if (url === '/api/downloads') return Promise.resolve({ ok: true, json: async () => ({ running: false, tasks: [], bytesPerSecond: 0 }) });
       if (url.startsWith('/api/requests?')) return Promise.resolve({ ok: true, json: async () => ({ storageID: 'test', requests: [], hasMore: false }) });
@@ -987,4 +990,105 @@ test('recent summary keeps names, badges and numbers in separate cells; fingerpr
   assert.equal(summary.children[3].textContent, '耗时1.000 秒');
   assert.equal(summary.children[4].textContent, '平均速度0.000 MB/s');
   assert.match(detail.textContent, /第三首.*private-resource-fingerprint.*bytes=0-9/);
+});
+
+function cacheHarness() {
+  const p = page(true);
+  vm.runInContext(cacheScript, p.context);
+  vm.runInContext('connected = true', p.context);
+  p.context.cacheFixture = { storageID: 'store', total: 2, entries: [
+    { key: 'a', stamp: 'one', known: true, protected: false, bytes: 1073741824, lastRequest: 1000, state: '文件存在 · 完整性未检查', songCount: 2, songs: [{ id: '1', title: '<b>舞曲</b>', current: true }, { id: '2', title: '共享歌曲', current: false }] },
+    { key: 'b', stamp: 'two', known: true, protected: true, bytes: 200, lastRequest: 0, state: '文件存在 · 完整性未检查', songCount: 0, songs: [] },
+  ] };
+  vm.runInContext('renderCache(cacheFixture)', p.context);
+  return p;
+}
+
+test('cache management shows honest state and sharing; protected files remain disabled across polling', () => {
+  const p = cacheHarness(), get = id => p.document.getElementById(id);
+  assert.match(get('cacheList').textContent, /<b>舞曲<\/b>.*完整性未检查.*共享文件.*历史关联/s);
+  assert.equal(vm.runInContext('cacheRows[1].check.disabled', p.context), true);
+  get('cacheSelect').click();
+  assert.equal(vm.runInContext('cacheChosen().length', p.context), 1);
+  vm.runInContext('renderControls()', p.context);
+  assert.equal(vm.runInContext('cacheRows[1].check.disabled', p.context), true);
+  get('cacheDelete').click();
+  assert.equal(get('cacheConfirm').hidden, false);
+  assert.match(get('cacheConfirmList').textContent, /影响 2 首/);
+  assert.equal(p.document.activeElement, get('cacheCancel'));
+  get('cacheCancel').click();
+  assert.equal(get('cacheConfirm').hidden, true);
+  assert.equal(p.document.activeElement, get('cacheDelete'));
+});
+
+test('cache deletion sends only confirmed identities, reports protected outcomes, and refreshes', async () => {
+  const p = cacheHarness(), calls = [], get = id => p.document.getElementById(id);
+  p.context.fetch = async (url, options) => {
+    calls.push({ url, options });
+    if (options.method === 'POST') return { ok: true, json: async () => [{ key: 'a', result: 'protected' }] };
+    return { ok: true, json: async () => p.context.cacheFixture };
+  };
+  get('cacheSelect').click(); get('cacheDelete').click();
+  assert.equal(calls.length, 0);
+  get('cacheConfirmDelete').click();
+  await flush(); await flush();
+  assert.equal(calls[0].url, '/api/cache/delete');
+  assert.equal(calls[0].options.headers['X-StepStash-Token'], 'test-token');
+  assert.deepEqual(JSON.parse(calls[0].options.body), { storageID: 'store', entries: [{ key: 'a', stamp: 'one' }] });
+  assert.match(get('cacheResult').textContent, /受保护，已跳过/);
+  assert.equal(calls.length, 2);
+  assert.equal(get('cacheConfirm').hidden, true);
+  assert.equal(vm.runInContext('cacheChosen().length', p.context), 0);
+});
+
+test('cache refresh rejects stale storage responses and clears selection on errors', async () => {
+  const p = cacheHarness();
+  let finish;
+  p.context.fetch = () => new Promise(resolve => { finish = data => resolve({ ok: true, json: async () => data }); });
+  const pending = vm.runInContext('refreshCache()', p.context);
+  vm.runInContext('settingsRevision++; resetCache()', p.context);
+  finish(p.context.cacheFixture); await pending;
+  assert.equal(p.document.getElementById('cacheList').children.length, 0);
+  p.context.fetch = async () => { throw Error('failed'); };
+  await vm.runInContext('refreshCache()', p.context);
+  assert.match(p.document.getElementById('cacheState').textContent, /读取失败/);
+  assert.equal(p.document.getElementById('cacheDelete').disabled, true);
+});
+
+test('deleting the last cache page returns to the last valid page with the same filters', async () => {
+  const p = cacheHarness(), offsets = [], get = id => p.document.getElementById(id);
+  get('cacheSearch').value = '舞曲'; get('cacheSort').value = 'size';
+  vm.runInContext('cacheOffset = 50', p.context);
+  p.context.fetch = async (url, options) => {
+    if (options.method === 'POST') return { ok: true, json: async () => [{ key: 'a', result: 'deleted' }] };
+    const query = new URL(url, 'http://localhost').searchParams;
+    assert.equal(query.get('q'), '舞曲'); assert.equal(query.get('sort'), 'size');
+    offsets.push(query.get('offset'));
+    return { ok: true, json: async () => ({ storageID: 'store', total: 50, entries: query.get('offset') === '50' ? [] : [p.context.cacheFixture.entries[0]] }) };
+  };
+  await vm.runInContext("cacheAction('delete', [cacheFixture.entries[0]])", p.context);
+  assert.deepEqual(offsets, ['50', '0']);
+  assert.match(get('cacheState').textContent, /第 1 页.*显示 1 项/);
+  assert.match(get('cacheResult').textContent, /已删除/);
+  assert.equal(get('cachePrev').disabled, true);
+  assert.equal(vm.runInContext('cacheChosen().length', p.context), 0);
+});
+
+test('cache pagination handles an emptied store and bounds retries during concurrent shrink', async () => {
+  const p = cacheHarness(), offsets = [];
+  vm.runInContext('cacheOffset = 150', p.context);
+  p.context.fetch = async url => {
+    const offset = new URL(url, 'http://localhost').searchParams.get('offset'); offsets.push(offset);
+    return { ok: true, json: async () => ({ storageID: 'store', total: offsets.length === 1 ? 120 : offsets.length === 2 ? 60 : 0, entries: [] }) };
+  };
+  await vm.runInContext('refreshCache()', p.context);
+  assert.deepEqual(offsets, ['150', '100', '0']);
+  assert.equal(vm.runInContext('cacheOffset', p.context), 0);
+  assert.match(p.document.getElementById('cacheState').textContent, /没有匹配/);
+  offsets.length = 0;
+  vm.runInContext('cacheOffset = 50', p.context);
+  p.context.fetch = async url => { offsets.push(url); return { ok: true, json: async () => ({ storageID: 'store', total: 0, entries: [] }) }; };
+  await vm.runInContext('refreshCache()', p.context);
+  assert.equal(offsets.length, 1);
+  assert.equal(vm.runInContext('cacheOffset', p.context), 0);
 });

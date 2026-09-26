@@ -77,7 +77,7 @@ func TestQueueInvalidationCancelsCapacityWaitButPreservesFlights(t *testing.T) {
 			take(resolved)
 			take(resolved)
 			c.mu.Lock()
-			c.queue.setSongs([]vrclog.Song{{ID: 3}}, false)
+			c.setQueueSongsLocked([]vrclog.Song{{ID: 3}}, false)
 			c.mu.Unlock()
 			wake <- struct{}{}
 			if id := take(resolved); id != "3" {
@@ -91,7 +91,7 @@ func TestQueueInvalidationCancelsCapacityWaitButPreservesFlights(t *testing.T) {
 			if change == "outside top three" {
 				songs = []vrclog.Song{{ID: 4}, {ID: -1}, {ID: -1}, {ID: 3}}
 			}
-			c.queue.setSongs(songs, change == "room")
+			c.setQueueSongsLocked(songs, change == "room")
 			c.mu.Unlock()
 			if old == nil || old.ctx.Err() != context.Canceled {
 				t.Fatal("obsolete waiter was not canceled with queue update")

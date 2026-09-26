@@ -78,7 +78,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	// entry. Only song 4 should be cached; song 5 fails once then backs off.
 	c.mu.Lock()
 	// The failure precedes success: song 4 must not hide song 5's retry error.
-	c.queue.setSongs([]vrclog.Song{{ID: -1}, {ID: 5}, {ID: 4}, {ID: 2}}, false)
+	c.setQueueSongsLocked([]vrclog.Song{{ID: -1}, {ID: 5}, {ID: 4}, {ID: 2}}, false)
 	c.mu.Unlock()
 	once.Do(func() { close(release) })
 	deadline := time.Now().Add(3 * time.Second)

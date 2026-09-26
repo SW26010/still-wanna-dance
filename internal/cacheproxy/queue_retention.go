@@ -1,29 +1,63 @@
 package cacheproxy
 
 import (
+	"context"
 	"strconv"
 	"time"
 )
 
 const queueHandoffGrace = 30 * time.Second
 
-// SetQueueSongs replaces the full pending queue. It only changes in-memory
-// reservations, so queue updates never wait on database or filesystem I/O.
+// SetQueueSongs replaces the full pending queue using in-memory reservations.
+// It waits outside retentionMu only when a requested resource is already being
+// removed; unrelated database/filesystem work does not block queue updates.
 // Departures (including an empty snapshot) keep a bounded handoff reservation
 // across playback probes and range requests. Active HTTP pins are independent.
 func (s *Server) SetQueueSongs(ids []int64) {
-	s.setQueueSongs(ids, false)
+	_ = s.UpdateQueueSongs(context.Background(), ids, false)
 }
 
 // ResetQueueSongs discards reservations from the previous listener/room,
 // including handoffs. Active HTTP references remain independent.
 func (s *Server) ResetQueueSongs(ids []int64) {
-	s.setQueueSongs(ids, true)
+	_ = s.UpdateQueueSongs(context.Background(), ids, true)
 }
 
-func (s *Server) setQueueSongs(ids []int64, reset bool) {
+// UpdateQueueSongs lets the owning queue coordinator cancel deletion waits.
+// The owner serializes updates; no partial queue change is applied on cancellation.
+func (s *Server) UpdateQueueSongs(ctx context.Context, ids []int64, reset bool) error {
 	s.retentionMu.Lock()
 	defer s.retentionMu.Unlock()
+	// A deletion already reserved precedes this queue update. Wait outside
+	// the lock so publication and file removal can finish before reserving.
+	for {
+		var done chan struct{}
+		for _, id := range ids {
+			for key := range s.songResources[strconv.FormatInt(id, 10)] {
+				if pending := s.deletingVideos[key]; pending != nil {
+					done = pending
+					break
+				}
+			}
+			if done != nil {
+				break
+			}
+		}
+		if done == nil {
+			break
+		}
+		s.retentionMu.Unlock()
+		select {
+		case <-done:
+		case <-ctx.Done():
+			s.retentionMu.Lock()
+			return ctx.Err()
+		}
+		s.retentionMu.Lock()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	previous := s.queueSongs
 	s.queueSongs = make(map[string]bool, len(ids))
 	s.queueProtected = make(map[string]bool)
@@ -55,6 +89,7 @@ func (s *Server) setQueueSongs(ids []int64, reset bool) {
 	}
 	s.refreshHandoffsLocked(time.Now())
 	s.requestRetentionLocked()
+	return nil
 }
 
 // Rebuild resource deadlines from song ownership, preserving shared resources.

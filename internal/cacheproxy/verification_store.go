@@ -32,13 +32,17 @@ func newCheckLocks() checkLocks {
 }
 
 func (locks *checkLocks) acquire(ctx context.Context, key string) (func(), error) {
-	slot := locks[crc32.ChecksumIEEE([]byte(key))%uint32(len(locks))]
+	slot := locks.slot(key)
 	select {
 	case slot <- struct{}{}:
 		return func() { <-slot }, nil
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+func (locks *checkLocks) slot(key string) chan struct{} {
+	return locks[crc32.ChecksumIEEE([]byte(key))%uint32(len(locks))]
 }
 
 var verificationLocks = newCheckLocks()

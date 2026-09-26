@@ -130,6 +130,7 @@ function renderControls() {
   $('socks5Password').disabled ||= $('upstreamMode').value !== 'socks5';
   $('socks5Address').required = $('upstreamMode').value === 'socks5';
   $('inventoryScan').disabled = unavailable || !lastInventory || !!lastInventory.scanning;
+  if (typeof updateCacheControls === 'function') updateCacheControls();
   setText('settingsAvailability', !connected ? '连接控制台后可修改设置。' : busy
     ? '正在处理操作，请稍候。'
     : s && (s.running || s.batch.running || s.queue.running)
@@ -229,9 +230,9 @@ function renderBatch(s) {
   );
 }
 // Keep the deadline active through JSON decoding, not just response headers.
-async function readState(url) {
+async function readState(url, timeoutMS = 10000) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMS);
   try {
     const response = await fetch(url, { signal: controller.signal, headers: { 'X-StepStash-Token': token } });
     if (!response.ok) throw Error('控制台连接失败');
@@ -331,6 +332,7 @@ async function action(path, body) {
       settingsDirty = false;
       settingsRevision++;
       resetRecent();
+      if (typeof resetCache === 'function') resetCache();
     }
     notice(
       path === 'start'

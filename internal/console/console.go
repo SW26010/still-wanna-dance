@@ -30,7 +30,7 @@ var page string
 //go:embed about.html
 var aboutPage string
 
-//go:embed assets/console.css assets/console.js
+//go:embed assets/console.css assets/console.js assets/cache.js
 var assets embed.FS
 
 type Settings struct {
@@ -52,6 +52,8 @@ type Settings struct {
 type Console struct {
 	// Acquire lifecycleMu before mu; state readers never wait on lifecycleMu.
 	lifecycleMu         sync.Mutex
+	queueUpdateMu       sync.Mutex // acquire before mu; serializes engine queue protection
+	settingsRevision    uint64     // protected by mu; invalidates reads across saves (including ABA)
 	taskMu              sync.Mutex
 	inventoryMu         sync.Mutex
 	inventory           Inventory
@@ -299,6 +301,7 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 	c.inventoryMu.Lock()
 	c.mu.Lock()
 	c.settings = s
+	c.settingsRevision++
 	oldClient := c.client
 	if networkChanged {
 		c.upstreamDial, c.client = dial, client
@@ -539,7 +542,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, aboutPage)
 		return
 	}
-	if r.Method == "GET" && (r.URL.Path == "/assets/console.css" || r.URL.Path == "/assets/console.js") {
+	if r.Method == "GET" && (r.URL.Path == "/assets/console.css" || r.URL.Path == "/assets/console.js" || r.URL.Path == "/assets/cache.js") {
 		content, err := assets.ReadFile(strings.TrimPrefix(r.URL.Path, "/"))
 		if err != nil {
 			http.Error(w, "asset unavailable", http.StatusInternalServerError)
@@ -608,6 +611,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.URL.Path == "/api/inventory" && r.Method == "GET" {
 		writeJSON(w, c.localInventory())
+		return
+	}
+	if r.URL.Path == "/api/cache" || strings.HasPrefix(r.URL.Path, "/api/cache/") {
+		c.cacheAPI(w, r)
 		return
 	}
 	if r.URL.Path == "/api/downloads" && r.Method == "GET" {

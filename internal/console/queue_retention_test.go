@@ -92,7 +92,7 @@ func TestQueueMoveOutsidePrefetchWindowDuringDownload(t *testing.T) {
 		t.Fatal("download did not start")
 	}
 	c.mu.Lock()
-	c.queue.setSongs([]vrclog.Song{{ID: -1}, {ID: -1}, {ID: -1}, {ID: 1}}, false)
+	c.setQueueSongsLocked([]vrclog.Song{{ID: -1}, {ID: -1}, {ID: -1}, {ID: 1}}, false)
 	c.mu.Unlock()
 	wake <- struct{}{}
 	wait(func() bool {
@@ -109,7 +109,7 @@ func TestQueueMoveOutsidePrefetchWindowDuringDownload(t *testing.T) {
 		t.Fatal("queued download was evicted", err)
 	}
 	c.mu.Lock()
-	c.queue.setSongs([]vrclog.Song{{ID: 1}}, false)
+	c.setQueueSongsLocked([]vrclog.Song{{ID: 1}}, false)
 	c.mu.Unlock()
 	wake <- struct{}{}
 	wait(func() bool {
@@ -121,7 +121,7 @@ func TestQueueMoveOutsidePrefetchWindowDuringDownload(t *testing.T) {
 		t.Fatal("reentry redownloaded queued cache")
 	}
 	c.mu.Lock()
-	c.queue.setSongs(nil, true)
+	c.setQueueSongsLocked(nil, true)
 	c.mu.Unlock()
 	wait(func() bool { _, err := os.Stat(path); return os.IsNotExist(err) })
 }
@@ -151,7 +151,7 @@ func TestQueueReentryAfterEviction(t *testing.T) {
 	wait(1)
 	c.mu.Lock()
 	// A room reset releases the old cache immediately, allowing eviction.
-	c.queue.setSongs([]vrclog.Song{{ID: 2}}, true)
+	c.setQueueSongsLocked([]vrclog.Song{{ID: 2}}, true)
 	c.mu.Unlock()
 	wake <- struct{}{}
 	wait(2)
@@ -168,7 +168,7 @@ func TestQueueReentryAfterEviction(t *testing.T) {
 	}
 	before := calls.Load()
 	c.mu.Lock()
-	c.queue.setSongs([]vrclog.Song{{ID: 1}}, false)
+	c.setQueueSongsLocked([]vrclog.Song{{ID: 1}}, false)
 	c.mu.Unlock()
 	wake <- struct{}{}
 	wait(3)
@@ -219,7 +219,7 @@ func TestQueueProtectsOversizedCacheOutsidePrefetchWindow(t *testing.T) {
 	}
 	for i := 0; i < 5; i++ {
 		c.mu.Lock()
-		c.queue.setSongs([]vrclog.Song{{ID: 1}}, false)
+		c.setQueueSongsLocked([]vrclog.Song{{ID: 1}}, false)
 		c.mu.Unlock()
 		select {
 		case wake <- struct{}{}:
@@ -231,7 +231,7 @@ func TestQueueProtectsOversizedCacheOutsidePrefetchWindow(t *testing.T) {
 		t.Fatal("unchanged queue redownloaded video", calls.Load())
 	}
 	c.mu.Lock()
-	c.queue.setSongs([]vrclog.Song{{ID: -1}, {ID: -1}, {ID: -1}, {ID: 1}}, false)
+	c.setQueueSongsLocked([]vrclog.Song{{ID: -1}, {ID: -1}, {ID: -1}, {ID: 1}}, false)
 	c.mu.Unlock()
 	wake <- struct{}{}
 	path := fixtureVideoPath(c.settings.StorageDir, "1", body)
@@ -240,14 +240,14 @@ func TestQueueProtectsOversizedCacheOutsidePrefetchWindow(t *testing.T) {
 		t.Fatal("queued cache outside prefetch window was evicted", err)
 	}
 	c.mu.Lock()
-	c.queue.setSongs(nil, false)
+	c.setQueueSongsLocked(nil, false)
 	c.mu.Unlock()
 	time.Sleep(100 * time.Millisecond)
 	if _, err := os.Stat(path); err != nil {
 		t.Fatal("ordinary empty queue lost handoff", err)
 	}
 	c.mu.Lock()
-	c.queue.setSongs(nil, true)
+	c.setQueueSongsLocked(nil, true)
 	c.mu.Unlock()
 	deadline = time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {

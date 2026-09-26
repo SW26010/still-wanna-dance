@@ -541,3 +541,14 @@ details[open] > .recent-summary .recent-expand::before { content: '▾ '; }
     accent-color: Highlight;
   }
 }
+
+.cache-list { list-style: none; padding: 0; }
+.cache-row { border-top: 1px solid var(--line); padding: 1rem 0; overflow-wrap: anywhere; }
+.cache-choice { display: flex; align-items: center; gap: .75rem; min-height: 40px; }
+.cache-choice input { flex: 0 0 auto; width: 1.25rem; height: 1.25rem; }
+#cacheSearchForm label { display: grid; gap: .4rem; max-width: 100%; }
+#cacheSearchForm { align-items: end; }
+#cacheSearchForm input, #cacheSearchForm select { max-width: 100%; min-width: 0; }
+#cacheConfirmList { max-height: 18rem; overflow: auto; overflow-wrap: anywhere; }
+#cacheConfirm { white-space: normal; }
+#cacheResult { overflow-wrap: anywhere; }

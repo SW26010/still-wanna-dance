@@ -66,15 +66,6 @@ func (q *QueueStatus) wants(id int64, generation uint64) bool {
 // Call with c.mu held. Reset errors even when the next room has the same IDs.
 func (q *QueueStatus) setSongs(songs []vrclog.Song, reset bool) {
 	q.Songs = songs
-	if q.protect != nil {
-		ids := make([]int64, 0, len(songs))
-		for _, song := range songs {
-			if song.ID > 0 {
-				ids = append(ids, song.ID)
-			}
-		}
-		q.protect(ids, reset)
-	}
 	if reset {
 		q.Generation++
 		q.Failures = nil
@@ -100,6 +91,34 @@ func (q *QueueStatus) setSongs(songs []vrclog.Song, reset bool) {
 		}
 	}
 	q.refreshErrors()
+}
+
+func queueSongIDs(songs []vrclog.Song) []int64 {
+	ids := make([]int64, 0, len(songs))
+	for _, song := range songs {
+		if song.ID > 0 {
+			ids = append(ids, song.ID)
+		}
+	}
+	return ids
+}
+
+// The caller holds mu on entry and return. Engine protection may wait on a
+// deletion, so release mu before acquiring the independent update lock. This
+// lock serializes state snapshots, protection, initialization and teardown;
+// a later reset cannot overtake an earlier update and then be overwritten.
+func (c *Console) setQueueSongsLocked(songs []vrclog.Song, reset bool) {
+	c.mu.Unlock()
+	c.queueUpdateMu.Lock()
+	c.mu.Lock()
+	c.queue.setSongs(songs, reset)
+	protect := c.queue.protect
+	c.mu.Unlock()
+	if protect != nil {
+		protect(queueSongIDs(songs), reset)
+	}
+	c.queueUpdateMu.Unlock()
+	c.mu.Lock()
 }
 
 func (q *QueueStatus) songResult(id int64, err error) {
@@ -201,10 +220,12 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 	defer func() {
 		<-workerDone
 		c.mu.Lock()
+		// Clear the old queue before advertising it as stopped. The helper
+		// releases mu, so a restart must not replace queue/queueCancel yet.
+		c.setQueueSongsLocked(nil, true)
 		c.queue.Running = false
 		c.queue.Current = 0
 		c.queue.Active = nil
-		c.queue.setSongs(nil, true)
 		c.queueCancel = nil
 		slog.Info("queue_stopped", "completed", c.queue.Completed)
 		c.mu.Unlock()
@@ -245,10 +266,10 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 			c.queue.LogError = ""
 			if err != nil {
 				c.queue.LogError = "日志读取失败：" + err.Error()
-				c.queue.setSongs(nil, true)
+				c.setQueueSongsLocked(nil, true)
 			}
 			for _, e := range events {
-				c.queue.setSongs(e.Songs, e.Reset)
+				c.setQueueSongsLocked(e.Songs, e.Reset)
 				c.queue.Updated = now
 				ids := make([]int64, len(e.Songs))
 				for i, song := range e.Songs {
@@ -259,7 +280,7 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 			if now.Sub(lastActivity) >= 5*time.Minute {
 				if !stale {
 					slog.Warn("vrchat_log_stale")
-					c.queue.setSongs(nil, true)
+					c.setQueueSongsLocked(nil, true)
 					stale = true
 				}
 				c.queue.LogError = "日志 5 分钟未更新，已清空待处理队列，等待新的同步"
@@ -276,23 +297,16 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 // The coordinator owns deduplication and retry state; workers resolve/download
 // at most two songs and recheck the latest queue after resolving the URL.
 func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wake <-chan struct{}) {
+	c.queueUpdateMu.Lock()
 	c.mu.Lock()
 	c.queue.prefetchCount = c.settings.QueuePrefetchCount
 	c.queue.protect = func(ids []int64, reset bool) {
-		if reset {
-			engine.ResetQueueSongs(ids)
-		} else {
-			engine.SetQueueSongs(ids)
-		}
+		_ = engine.UpdateQueueSongs(ctx, ids, reset)
 	}
-	ids := make([]int64, 0, len(c.queue.Songs))
-	for _, song := range c.queue.Songs {
-		if song.ID > 0 {
-			ids = append(ids, song.ID)
-		}
-	}
-	engine.SetQueueSongs(ids)
+	ids := queueSongIDs(c.queue.Songs)
 	c.mu.Unlock()
+	_ = engine.UpdateQueueSongs(ctx, ids, false)
+	c.queueUpdateMu.Unlock()
 	type result struct {
 		id         int64
 		generation uint64
@@ -308,11 +322,13 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		}
 		c.mu.Unlock()
 		wg.Wait()
+		c.queueUpdateMu.Lock()
 		c.mu.Lock()
 		c.queue.waiters = nil
 		c.queue.protect = nil
-		engine.ResetQueueSongs(nil)
 		c.mu.Unlock()
+		engine.ResetQueueSongs(nil)
+		c.queueUpdateMu.Unlock()
 	}()
 	var generation uint64
 	retry := map[int64]time.Time{}

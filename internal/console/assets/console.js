@@ -186,7 +186,7 @@ function renderBatch(s) {
         ' · 扫描缺失或损坏 ' +
         (b.missing || 0) +
         (b.scanOnly
-          ? ' · 属性复用 ' + (b.reused || 0) +
+          ? ' · 清单匹配免查询 ' + (b.catalogHits || 0) + ' · 属性复用 ' + (b.reused || 0) +
             ' · 完整校验通过 ' + (b.verified || 0) +
             ' · 损坏 ' + (b.corrupt || 0)
           : '') +

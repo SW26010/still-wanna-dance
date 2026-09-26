@@ -22,8 +22,9 @@ import (
 )
 
 type Song struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	Checksum string `json:"-"`
 }
 type Failure struct {
 	ID    int64  `json:"id"`
@@ -31,23 +32,24 @@ type Failure struct {
 	Error string `json:"error"`
 }
 type Batch struct {
-	FullVerify bool      `json:"fullVerify"`
-	Reused     int       `json:"reused"`
-	Verified   int       `json:"verified"`
-	Corrupt    int       `json:"corrupt"`
-	ScanOnly   bool      `json:"scanOnly"`
-	Missing    int       `json:"missing"`
-	Updated    time.Time `json:"updated"`
-	Finished   time.Time `json:"finished"`
-	Running    bool      `json:"running"`
-	Phase      string    `json:"phase"`
-	Total      int       `json:"total"`
-	Checked    int       `json:"checked"`
-	Hits       int       `json:"hits"`
-	Downloaded int       `json:"downloaded"`
-	Failed     int       `json:"failed"`
-	Current    string    `json:"current"`
-	Failures   []Failure `json:"failures"`
+	CatalogHits int       `json:"catalogHits"`
+	FullVerify  bool      `json:"fullVerify"`
+	Reused      int       `json:"reused"`
+	Verified    int       `json:"verified"`
+	Corrupt     int       `json:"corrupt"`
+	ScanOnly    bool      `json:"scanOnly"`
+	Missing     int       `json:"missing"`
+	Updated     time.Time `json:"updated"`
+	Finished    time.Time `json:"finished"`
+	Running     bool      `json:"running"`
+	Phase       string    `json:"phase"`
+	Total       int       `json:"total"`
+	Checked     int       `json:"checked"`
+	Hits        int       `json:"hits"`
+	Downloaded  int       `json:"downloaded"`
+	Failed      int       `json:"failed"`
+	Current     string    `json:"current"`
+	Failures    []Failure `json:"failures"`
 }
 
 func parseCatalog(r io.Reader) ([]Song, error) {
@@ -80,6 +82,10 @@ func parseCatalog(r io.Reader) ([]Song, error) {
 }
 
 func (c *Console) catalog(ctx context.Context) ([]Song, error) {
+	return c.catalogForScan(ctx, false)
+}
+
+func (c *Console) catalogForScan(ctx context.Context, scan bool) ([]Song, error) {
 	base := c.apiBase
 	if base == "http://api.udon.dance" {
 		base = "https://api.udon.dance"
@@ -110,7 +116,16 @@ func (c *Console) catalog(ctx context.Context) ([]Song, error) {
 	if len(body) > 16<<20 {
 		return nil, errors.New("歌曲列表超过 16 MiB 大小限制")
 	}
-	return parseCatalog(bytes.NewReader(body))
+	songs, err := parseCatalog(bytes.NewReader(body))
+	if err == nil && scan && c.checksumURL != "" {
+		var stamp struct {
+			Time string `json:"time"`
+		}
+		if json.Unmarshal(body, &stamp) == nil && stamp.Time != "" {
+			c.addCatalogChecksums(ctx, songs, stamp.Time)
+		}
+	}
+	return songs, err
 }
 
 func (c *Console) resolve(ctx context.Context, id int64) (string, error) {
@@ -271,7 +286,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	if plan != nil {
 		songs = plan.songs
 	} else {
-		songs, err = c.catalog(ctx)
+		songs, err = c.catalogForScan(ctx, scanOnly)
 	}
 	if err != nil {
 		if ctx.Err() == nil {
@@ -281,6 +296,13 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		c.batch.Phase = "获取歌曲列表失败：" + err.Error()
 		c.mu.Unlock()
 		return
+	}
+	var localTargets map[string]cacheproxy.ScanTarget
+	if scanOnly {
+		localTargets, err = cacheproxy.LoadScanTargets(ctx, settings.StorageDir)
+		if err != nil {
+			slog.Warn("scan_local_index_unavailable", "error", err)
+		}
 	}
 	c.mu.Lock()
 	c.batch.Total = len(songs)
@@ -329,15 +351,28 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		var localResult cacheproxy.LocalCheckResult
 		if scanOnly {
 			var hit bool
-			hit, err = scanner.check(ctx, func() (string, error) {
-				return c.resolve(ctx, song.ID)
-			}, func(target string) (bool, error) {
-				result.target = target
-				var hit bool
-				localResult, err = checker.Check(ctx, target)
-				hit, result.receipt = localResult.Hit, localResult.Receipt
-				return hit, err
-			})
+			if known, ok := localTargets[strconv.FormatInt(song.ID, 10)]; ok && song.Checksum != "" && known.Checksum == song.Checksum {
+				err = scanAcquire(ctx, scanner.local)
+				if err == nil {
+					localResult, err = checker.Check(ctx, known.Target)
+					<-scanner.local
+					if localResult.Hit {
+						hit, result.target, result.receipt = true, known.Target, localResult.Receipt
+						result.localOnly = true
+					}
+				}
+			}
+			if !hit && err == nil {
+				hit, err = scanner.check(ctx, func() (string, error) {
+					return c.resolve(ctx, song.ID)
+				}, func(target string) (bool, error) {
+					result.target = target
+					var hit bool
+					localResult, err = checker.Check(ctx, target)
+					hit, result.receipt = localResult.Hit, localResult.Receipt
+					return hit, err
+				})
+			}
 			if hit {
 				source = "HIT"
 			} else {
@@ -355,7 +390,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 					// Preserve association errors in the batch failure result.
 				case reused:
 					source = "HIT"
-				case result.target != "" && settings.DownloadUpstream == "hkg":
+				case !result.localOnly && result.target != "" && settings.DownloadUpstream == "hkg":
 					source, err = s.PrefetchSong(ctx, strconv.FormatInt(song.ID, 10), result.target)
 					if err != nil && ctx.Err() == nil {
 						source, err = c.prefetchSong(ctx, s, song.ID, nil)
@@ -372,6 +407,9 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		}
 		c.mu.Lock()
 		if scanOnly && err == nil {
+			if result.localOnly {
+				c.batch.CatalogHits++
+			}
 			results[song.ID] = result
 			if localResult.Reused {
 				c.batch.Reused++

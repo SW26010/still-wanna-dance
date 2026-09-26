@@ -27,6 +27,7 @@ func testConsole(t *testing.T) *Console {
 	if err != nil {
 		t.Fatal(err)
 	}
+	c.checksumURL = ""
 	c.settings.StorageDir = filepath.Join(root, "data")
 	c.settings.LogDir = filepath.Join(root, "logs")
 	c.videoAddress = "127.0.0.1:0"

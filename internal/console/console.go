@@ -74,6 +74,7 @@ type Console struct {
 	queueDone           chan struct{}
 	closing             bool
 	client              *http.Client
+	checksumURL         string
 	apiBase             string
 	dns                 *directDNS
 }
@@ -87,7 +88,7 @@ func New(configPath, address string) (*Console, error) {
 	if _, err := rand.Read(b); err != nil {
 		return nil, err
 	}
-	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", client: &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{Proxy: nil}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: "https://x.kiva.moe/api/v2/wanna/songs", client: &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{Proxy: nil}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 	c.settings = Settings{StorageDir: "stepstash-data", RequestRetentionDays: 30}
 	c.dns = &directDNS{}
 	c.client.Transport = &http.Transport{DialContext: c.dns.DialContext, ResponseHeaderTimeout: 20 * time.Second}

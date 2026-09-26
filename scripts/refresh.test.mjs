@@ -307,7 +307,7 @@ test('batch failures render rows as text and disappear after a successful refres
   assert.equal(get('progress').max, 4);
   assert.equal(get('progress').value, 3);
   assert.equal(get('phase').textContent, '扫描中');
-  assert.equal(get('current').textContent, '另一首 · 当前任务 3 / 4 · 命中 1 · 扫描缺失或损坏 2 · 属性复用 0 · 完整校验通过 0 · 损坏 0 · 下载完成 0 · 失败 2');
+  assert.equal(get('current').textContent, '另一首 · 当前任务 3 / 4 · 命中 1 · 扫描缺失或损坏 2 · 清单匹配免查询 0 · 属性复用 0 · 完整校验通过 0 · 损坏 0 · 下载完成 0 · 失败 2');
   assert.equal(get('batchScan').disabled, true);
   assert.equal(get('batchVerify').disabled, true);
   assert.equal(get('batchScan').textContent, '正在扫描…');

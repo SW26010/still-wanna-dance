@@ -16,8 +16,9 @@ type scanPlan struct {
 }
 
 type scanResult struct {
-	target  string
-	receipt *cacheproxy.LocalReceipt
+	localOnly bool
+	target    string
+	receipt   *cacheproxy.LocalReceipt
 }
 
 // Separate limits let address requests overlap disk reads without multiplying

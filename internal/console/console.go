@@ -288,7 +288,14 @@ func (c *Console) ensureEngine() error {
 		if err != nil {
 			return "", err
 		}
-		return c.resolve(ctx, songID)
+		// Auto uses HKG as the version authority, matching prefetch's first
+		// route. A CF response cannot order conflicting versions or safely
+		// replace that authority when HKG is unavailable.
+		currentRoute := mode
+		if currentRoute == "auto" {
+			currentRoute = "hkg"
+		}
+		return c.resolveNode(ctx, songID, currentRoute)
 	}
 	s, err := cacheproxy.New(cfg)
 	if err != nil {

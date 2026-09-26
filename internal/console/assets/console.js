@@ -3,7 +3,9 @@ const $ = (id) => document.getElementById(id);
 let settingsDirty = false,
   settingsRevision = 0,
   busy = false,
+  connected = false,
   lastState = null,
+  lastInventory = null,
   uncertainAction = '';
 function notice(text) {
   $('notice').textContent = text;
@@ -18,7 +20,7 @@ function render(s) {
   renderTraffic(s.traffic || {});
   renderService(s);
   renderSettings(s);
-  renderControls(s);
+  renderControls();
   renderQueue(s);
   renderBatch(s);
 }
@@ -94,7 +96,10 @@ function renderSettings(s) {
   }
 }
 
-function renderControls(s) {
+function renderControls() {
+  const s = lastState;
+  const unavailable = !connected || busy || !s;
+  for (const b of document.querySelectorAll('button')) b.disabled = unavailable;
   for (const id of [
     'autoStartCDN',
     'storageDir',
@@ -106,33 +111,33 @@ function renderControls(s) {
     'scanCheckConcurrency',
     'save',
   ])
-    $(id).disabled = s.running || s.batch.running || s.queue.running || busy;
-  $('start').disabled = s.running || busy;
-  $('stop').disabled = !s.running || busy;
-  $('batchStart').disabled = s.batch.running || busy;
+    $(id).disabled = unavailable || !!(s.running || s.batch.running || s.queue.running);
+  $('inventoryScan').disabled = unavailable || !lastInventory || !!lastInventory.scanning;
+  if (!s) return;
+  $('start').disabled = unavailable || !!s.running;
+  $('stop').disabled = unavailable || !s.running;
+  $('batchStart').disabled = unavailable || !!s.batch.running;
   $('batchStart').textContent =
     s.batch.running && !s.batch.scanOnly
       ? '正在下载补齐…'
       : s.queue.running
         ? '停止预缓存并下载补齐'
         : '下载补齐';
-  $('batchScan').disabled = s.batch.running || busy;
+  $('batchScan').disabled = unavailable || !!s.batch.running;
   $('batchScan').textContent =
     s.batch.running && s.batch.scanOnly ? '正在扫描…' : '仅扫描检查';
-  $('batchCancel').disabled = !s.batch.running || busy;
-  for (const b of document.querySelectorAll('[data-action^="hosts/"]'))
-    b.disabled = busy;
+  $('batchCancel').disabled = unavailable || !s.batch.running;
+  $('queueStart').disabled = unavailable || !!s.queue.running;
+  $('queueStop').disabled = unavailable || !s.queue.running;
 }
 
 function renderQueue(s) {
   const q = s.queue;
-  $('queueStart').disabled = q.running || busy;
   $('queueStart').textContent = q.running
     ? '队列预缓存已开启'
     : s.batch.running && !s.batch.scanOnly
       ? '停止下载补齐并开启预缓存'
       : '开启队列预缓存';
-  $('queueStop').disabled = !q.running || busy;
   $('queuePhase').textContent = q.running
     ? q.current
       ? '正在准备歌曲 ' + (q.active || [q.current]).join('、')
@@ -218,7 +223,7 @@ async function refreshInventory() {
       ['cacheBytes', (v.bytes / 1073741824).toFixed(2) + ' GiB'],
     ])
       $(id).textContent = ready ? value : '—';
-    $('inventoryScan').disabled = v.scanning || busy;
+    lastInventory = v;
     $('inventoryState').textContent = v.scanning
       ? '正在扫描，保留上次结果'
       : ready
@@ -228,7 +233,10 @@ async function refreshInventory() {
       ? '本次扫描失败，上次结果保留：' + v.error
       : '';
   } catch (e) {
+    lastInventory = null;
     $('inventoryState').textContent = '统计暂不可用';
+  } finally {
+    renderControls();
   }
 }
 async function refresh() {
@@ -237,6 +245,7 @@ async function refresh() {
     const state = await readState('/api/status');
     // A read started before a successful save may still contain old settings.
     if (revision !== settingsRevision) return;
+    connected = true;
     render(state);
     if (uncertainAction)
       notice(
@@ -244,9 +253,10 @@ async function refresh() {
           '\n已刷新当前状态，请核对对应区域；状态快照不能确认原请求是否已经结束。',
       );
   } catch (e) {
+    connected = false;
     $('connection').textContent = '控制台连接中断';
     $('connection').className = '';
-    for (const b of document.querySelectorAll('button')) b.disabled = true;
+    renderControls();
     notice(
       (uncertainAction ? uncertainAction + '\n' : '') +
         '无法连接控制台，请检查程序是否仍在运行。',
@@ -259,8 +269,7 @@ async function action(path, body) {
   if (busy) return;
   busy = true;
   uncertainAction = '';
-  if (lastState) render(lastState);
-  for (const b of document.querySelectorAll('button')) b.disabled = true;
+  renderControls();
   const hosts = path.startsWith('hosts/');
   notice(
     hosts
@@ -368,4 +377,5 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) requestRefresh();
   else clearTimeout(refreshTimer);
 });
+renderControls();
 requestRefresh();

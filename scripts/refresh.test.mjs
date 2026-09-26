@@ -7,6 +7,73 @@ const html = readFileSync(new URL('../internal/console/index.html', import.meta.
 const script = readFileSync(new URL('../internal/console/assets/console.js', import.meta.url), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+for (const inventoryFirst of [false, true]) {
+  test(`disconnect keeps every button disabled when inventory returns ${inventoryFirst ? 'first' : 'last'}`, async () => {
+    const p = page();
+    p.finishBatch();
+    await flush();
+    p.fireTimer();
+    const inventory = () => p.requests[3].finish({ bytes: 0, scanning: false });
+    const disconnect = () => p.requests[2].reject(new Error('offline'));
+    (inventoryFirst ? inventory : disconnect)();
+    await flush();
+    (inventoryFirst ? disconnect : inventory)();
+    await flush();
+    assert.equal(vm.runInContext("$('connection').textContent", p.context), '控制台连接中断');
+    assert.equal(vm.runInContext(`document.querySelectorAll('[data-action^="hosts/"]').length`, p.context), 2);
+    assert.equal(vm.runInContext("[...document.querySelectorAll('button')].every(b => b.disabled)", p.context), true);
+    assert.equal(vm.runInContext("$('storageDir').disabled", p.context), true);
+    p.fireTimer();
+    p.finishBatch(4);
+    await flush();
+    assert.equal(vm.runInContext("$('inventoryScan').disabled", p.context), false);
+    assert.equal(vm.runInContext("$('start').disabled", p.context), false);
+    assert.equal(vm.runInContext("$('stop').disabled", p.context), true);
+    assert.equal(vm.runInContext(`[...document.querySelectorAll('[data-action^="hosts/"]')].every(b => !b.disabled)`, p.context), true);
+  });
+}
+
+test('inventory scan waits for connection and inventory, and respects scanning and busy state', async () => {
+  const p = page();
+  assert.equal(vm.runInContext("$('inventoryScan').disabled", p.context), true);
+  p.requests[1].finish({ bytes: 0, scanning: false });
+  await flush();
+  assert.equal(vm.runInContext("$('inventoryScan').disabled", p.context), true);
+  p.requests[0].finish({ settings: {}, hosts: {}, batch: {}, queue: {} });
+  await flush();
+  assert.equal(vm.runInContext("$('inventoryScan').disabled", p.context), false);
+  p.fireTimer();
+  p.requests[3].finish({ bytes: 0, scanning: true });
+  await flush();
+  p.requests[2].finish({ settings: {}, hosts: {}, batch: {}, queue: {} });
+  await flush();
+  assert.equal(vm.runInContext("$('inventoryScan').disabled", p.context), true);
+  const action = vm.runInContext("action('start')", p.context);
+  p.fireTimer();
+  p.finishBatch(5);
+  await flush();
+  assert.equal(vm.runInContext("[...document.querySelectorAll('button')].every(b => b.disabled)", p.context), true);
+  p.requests[4].finish();
+  await flush();
+  p.finishBatch(7);
+  await action;
+  assert.equal(vm.runInContext("$('inventoryScan').disabled", p.context), false);
+});
+
+test('unavailable inventory disables scanning until a successful inventory read', async () => {
+  const p = page();
+  p.requests[0].finish({ settings: {}, hosts: {}, batch: {}, queue: {} });
+  await flush();
+  assert.equal(vm.runInContext("$('inventoryScan').disabled", p.context), true);
+  p.requests[1].reject(new Error('offline'));
+  await flush();
+  assert.equal(vm.runInContext("$('inventoryScan').disabled", p.context), true);
+  p.fireTimer();
+  p.finishBatch(2);
+  await flush();
+  assert.equal(vm.runInContext("$('inventoryScan').disabled", p.context), false);
+});
+
 test('untouched settings follow server changes on polling and return to a visible page', async () => {
   const p = page();
   p.finishBatch(0, { storageDir: 'D:/old' });
@@ -77,25 +144,38 @@ function page(hidden = false) {
   const elements = new Map();
   const listeners = new Map();
   let nextTimer = 0;
+  function element() {
+    const handlers = new Map();
+    return {
+      dataset: {},
+      addEventListener: (event, callback) => handlers.set(event, callback),
+      dispatchEvent: event => handlers.get(event.type)?.(event),
+      replaceChildren() {},
+    };
+  }
   const document = {
     hidden,
     querySelector: () => ({ content: 'test-token' }),
     getElementById(id) {
-      if (!elements.has(id)) {
-        const handlers = new Map();
-        elements.set(id, {
-          addEventListener: (event, callback) => handlers.set(event, callback),
-          dispatchEvent: event => handlers.get(event.type)?.(event),
-          replaceChildren() {},
-        });
-      }
+      if (!elements.has(id)) elements.set(id, element());
       return elements.get(id);
     },
-    querySelectorAll: selector => selector === 'button'
-      ? [...html.matchAll(/<button\b[^>]*\bid="([^"]+)"/g)].map(match => document.getElementById(match[1]))
-      : [],
+    querySelectorAll(selector) {
+      if (selector === 'button') return buttons;
+      if (selector === '[data-action]') return buttons.filter(b => b.dataset.action);
+      if (selector === '[data-action^="hosts/"]')
+        return buttons.filter(b => b.dataset.action?.startsWith('hosts/'));
+      return [];
+    },
     addEventListener: (event, callback) => listeners.set(event, callback),
   };
+  const buttons = [...html.matchAll(/<button\b[^>]*>/g)].map(([tag]) => {
+    const id = tag.match(/\bid="([^"]+)"/)?.[1];
+    const button = id ? document.getElementById(id) : element();
+    const action = tag.match(/\bdata-action="([^"]+)"/)?.[1];
+    if (action) button.dataset.action = action;
+    return button;
+  });
   const context = vm.createContext({
     document,
     AbortController,

@@ -174,7 +174,7 @@ func (s *Server) cleanSuperseded() {
 func (s *Server) cleanSupersededVideo(key string) bool {
 	s.retentionMu.Lock()
 	revision := s.mappingRevision
-	pinned := s.versionPins[key] > 0 || s.queueProtected[key]
+	pinned := s.versionPins[key] > 0 || s.queueReservedLocked(key)
 	s.retentionMu.Unlock()
 	if pinned {
 		return false // The last release wakes the worker again.
@@ -190,7 +190,7 @@ func (s *Server) cleanSupersededVideo(key string) bool {
 	s.retentionMu.Lock()
 	// A mapping commit invalidates the query. recordSongVideo pins its
 	// candidate until it has advanced this revision, closing the commit gap.
-	if revision != s.mappingRevision || s.queueProtected[key] {
+	if revision != s.mappingRevision || s.queueReservedLocked(key) {
 		s.retentionMu.Unlock()
 		return false
 	}

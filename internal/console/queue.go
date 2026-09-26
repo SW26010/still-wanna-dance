@@ -31,7 +31,7 @@ type QueueStatus struct {
 	Generation uint64        `json:"-"`
 	waiters    map[int64]*queueWaiter
 	prepared   map[int64]bool
-	protect    func([]int64)
+	protect    func([]int64, bool)
 }
 
 type queueWaiter struct {
@@ -65,7 +65,7 @@ func (q *QueueStatus) setSongs(songs []vrclog.Song, reset bool) {
 				ids = append(ids, song.ID)
 			}
 		}
-		q.protect(ids)
+		q.protect(ids, reset)
 	}
 	if reset {
 		q.Generation++
@@ -264,7 +264,13 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 // at most two songs and recheck the latest queue after resolving the URL.
 func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wake <-chan struct{}) {
 	c.mu.Lock()
-	c.queue.protect = engine.SetQueueSongs
+	c.queue.protect = func(ids []int64, reset bool) {
+		if reset {
+			engine.ResetQueueSongs(ids)
+		} else {
+			engine.SetQueueSongs(ids)
+		}
+	}
 	ids := make([]int64, 0, len(c.queue.Songs))
 	for _, song := range c.queue.Songs {
 		if song.ID > 0 {
@@ -291,7 +297,7 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		c.mu.Lock()
 		c.queue.waiters = nil
 		c.queue.protect = nil
-		engine.SetQueueSongs(nil)
+		engine.ResetQueueSongs(nil)
 		c.mu.Unlock()
 	}()
 	var generation uint64

@@ -118,11 +118,24 @@ func (s *Server) retentionLoop() {
 	defer close(s.retentionDone)
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
+	handoffTimer := time.NewTimer(time.Hour)
+	defer handoffTimer.Stop()
 	for {
+		s.retentionMu.Lock()
+		next := s.refreshHandoffsLocked(time.Now())
+		s.retentionMu.Unlock()
+		handoffTimer.Stop()
+		var handoffExpired <-chan time.Time
+		if !next.IsZero() {
+			handoffTimer.Reset(time.Until(next))
+			handoffExpired = handoffTimer.C
+		}
 		select {
 		case <-s.ctx.Done():
 			return
 		case <-s.retentionWake:
+			s.runRetention(false)
+		case <-handoffExpired:
 			s.runRetention(false)
 		case <-ticker.C:
 			s.runRetention(true)
@@ -302,7 +315,7 @@ func (s *Server) trimCachePass(reconcile bool) error {
 		s.retentionMu.Lock()
 		// Queue reservations outrank historical scores and do not count as
 		// planned reclamation. Ordinary in-flight pins still defer eviction.
-		if s.queueProtected[item.key] {
+		if s.queueReservedLocked(item.key) {
 			s.retentionMu.Unlock()
 			continue
 		}

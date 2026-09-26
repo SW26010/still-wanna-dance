@@ -116,7 +116,7 @@ func TestQueueMoveOutsidePrefetchWindowDuringDownload(t *testing.T) {
 		t.Fatal("reentry redownloaded queued cache")
 	}
 	c.mu.Lock()
-	c.queue.setSongs(nil, false)
+	c.queue.setSongs(nil, true)
 	c.mu.Unlock()
 	wait(func() bool { _, err := os.Stat(path); return os.IsNotExist(err) })
 }
@@ -145,7 +145,8 @@ func TestQueueReentryAfterEviction(t *testing.T) {
 	}
 	wait(1)
 	c.mu.Lock()
-	c.queue.setSongs([]vrclog.Song{{ID: 2}}, false)
+	// A room reset releases the old cache immediately, allowing eviction.
+	c.queue.setSongs([]vrclog.Song{{ID: 2}}, true)
 	c.mu.Unlock()
 	wake <- struct{}{}
 	wait(2)
@@ -235,6 +236,13 @@ func TestQueueProtectsOversizedCacheOutsidePrefetchWindow(t *testing.T) {
 	}
 	c.mu.Lock()
 	c.queue.setSongs(nil, false)
+	c.mu.Unlock()
+	time.Sleep(100 * time.Millisecond)
+	if _, err := os.Stat(path); err != nil {
+		t.Fatal("ordinary empty queue lost handoff", err)
+	}
+	c.mu.Lock()
+	c.queue.setSongs(nil, true)
 	c.mu.Unlock()
 	deadline = time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {

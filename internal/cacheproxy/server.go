@@ -82,6 +82,8 @@ type Server struct {
 	songResources    map[string]map[string]bool
 	queueSongs       map[string]bool
 	queueProtected   map[string]bool
+	queueHandoffs    map[string]time.Time
+	handoffProtected map[string]time.Time
 	cleanupNeeded    map[string]bool
 	deletingVideos   map[string]chan struct{}
 	mappingRevision  uint64 // protected by retentionMu; invalidates cleanup queries
@@ -202,7 +204,7 @@ func (s *Server) Close() error {
 		s.wg.Wait()
 		<-s.retentionDone
 		// All references are now released; finish any deferred eviction before closing usage.
-		s.SetQueueSongs(nil)
+		s.ResetQueueSongs(nil)
 		s.runRetention(false)
 		s.verifyMu.Lock()
 		clear(s.verificationRecords)

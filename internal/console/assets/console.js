@@ -405,7 +405,7 @@ function requestRefresh() {
         refreshPending = false;
         // Finish all reads before starting another batch. A trigger during
         // this batch requests one fresh batch, so action results are not lost.
-        await Promise.allSettled([refresh(), refreshInventory(), refreshRecent()]);
+        await Promise.allSettled([refresh(), refreshInventory(), refreshRecent(), refreshDownloads()]);
       } while (refreshPending && !document.hidden);
     } finally {
       refreshTask = null;
@@ -419,6 +419,66 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) requestRefresh();
   else clearTimeout(refreshTimer);
 });
+let downloadRows = [];
+function renderDownloads(v) {
+  setText('downloadSpeed', (v.bytesPerSecond / 1e6).toFixed(3) + ' MB/s');
+  setText('downloadState', (v.running ? 'CDN 已开启' : 'CDN 已关闭') + ' · ' +
+    (v.tasks.length ? v.tasks.length + ' 个活动任务' : '暂无活动下载任务'));
+  const opened = new Set(downloadRows.filter(r => r.details.open).map(r => r.key));
+  const focused = downloadRows.find(r => r.summary === document.activeElement)?.key;
+  downloadRows = v.tasks.map(task => {
+    const key = task.resource + ':' + task.id;
+    const item = recentElement('li', 'download-task');
+    const main = recentElement('div', 'download-main');
+    const songs = task.songs || [], shared = songs.length > 1 || task.moreSongs;
+    const title = songs[0]?.title || '未知歌名';
+    const song = recentElement('div', 'download-song');
+    song.append(recentElement('strong', '', title), recentElement('small', 'recent-label',
+      shared ? '等 ' + (task.moreSongs ? '至少 ' : '') + songs.length + ' 首关联曲目 · 播放歌曲未确定' : '资源关联曲目'));
+    const stage = ({ cache_check: '检查缓存', upstream_headers: '等待上游',
+      download_and_hash: '下载中', publish: '校验并发布', index: '更新索引' })[task.stage] || '阶段未知';
+    const route = ({ 'play.udon.dance': 'CF', 'nya.xin.moe': 'HKG' })[task.host] || (task.host ? '未知线路' : '线路待定');
+    song.append(recentElement('small', 'recent-label', stage + ' · ' + route));
+    const known = task.size > 0;
+    const percent = known ? Math.min(100, 100 * task.bytes / task.size) : null;
+    main.append(song, recentMetric('进度', known ? percent.toFixed(1) + '%' : '进度未知'),
+      recentMetric('上游速度', (task.bytesPerSecond / 1e6).toFixed(3) + ' MB/s'));
+    item.append(main);
+    if (known) {
+      const progress = document.createElement('progress');
+      progress.max = task.size;
+      progress.value = Math.min(task.bytes, task.size);
+      progress.setAttribute('aria-label', title + ' 已读取字节进度');
+      item.append(progress);
+    }
+    item.append(recentElement('small', 'recent-label', (task.bytes / 1e6).toFixed(3) + ' / ' +
+      (known ? (task.size / 1e6).toFixed(3) : '未知') + ' MB'));
+    const details = recentElement('details', 'download-detail');
+    const summary = recentElement('summary', '', '下载详情');
+    details.append(summary, recentElement('p', '', requestTitle(task)),
+      recentElement('p', '', '实际上游域名：' + (task.host || '尚未确定')),
+      recentElement('p', '', '距上次读取 ' + (task.idleMS / 1000).toFixed(0) + ' 秒'),
+      recentElement('p', 'recent-resource', '资源：' + task.resource));
+    details.open = opened.has(key);
+    item.append(details);
+    return { key, item, details, summary };
+  });
+  $('downloadList').replaceChildren(...downloadRows.map(r => r.item));
+  if (focused) downloadRows.find(r => r.key === focused)?.summary.focus({ preventScroll: true });
+}
+async function refreshDownloads() {
+  const revision = settingsRevision;
+  try {
+    const v = await readState('/api/downloads');
+    if (revision === settingsRevision) renderDownloads(v);
+  } catch {
+    if (revision !== settingsRevision) return;
+    downloadRows = [];
+    $('downloadList').replaceChildren();
+    setText('downloadSpeed', '—');
+    setText('downloadState', '活动下载读取失败，将自动重试。');
+  }
+}
 function resetRecent() {
   recentLimit = 50;
   recentStorage = '';

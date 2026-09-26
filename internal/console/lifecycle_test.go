@@ -29,7 +29,7 @@ func (g *lifecycleLogGate) Handle(_ context.Context, r slog.Record) error {
 }
 
 func TestLifecycleIOLeavesStateResponsive(t *testing.T) {
-	for _, operation := range []string{"start", "save", "close"} {
+	for _, operation := range []string{"start", "stop", "save", "close"} {
 		t.Run(operation, func(t *testing.T) {
 			c := testConsole(t)
 			message := "cache_engine_ready"
@@ -45,12 +45,20 @@ func TestLifecycleIOLeavesStateResponsive(t *testing.T) {
 			if operation == "close" {
 				message = "cache_engine_stopped"
 			}
+			if operation == "stop" {
+				message = "cdn_stopped"
+			}
 			gate := &lifecycleLogGate{message: message, entered: make(chan struct{}), release: make(chan struct{})}
 			oldLogger := slog.Default()
 			slog.SetDefault(slog.New(gate))
 			defer slog.SetDefault(oldLogger)
 			var release sync.Once
 			defer release.Do(func() { close(gate.release) })
+			if operation == "stop" {
+				if err := c.start(); err != nil {
+					t.Fatal(err)
+				}
+			}
 			// Close uses the logger captured when the engine was created.
 			if operation == "close" {
 				if err := c.save(c.settings); err != nil {
@@ -68,6 +76,8 @@ func TestLifecycleIOLeavesStateResponsive(t *testing.T) {
 					done <- c.start()
 				case "save":
 					done <- c.save(settings)
+				case "stop":
+					done <- c.stop()
 				case "close":
 					done <- c.Close()
 				}
@@ -82,6 +92,13 @@ func TestLifecycleIOLeavesStateResponsive(t *testing.T) {
 				c.DesktopState()
 				w := httptest.NewRecorder()
 				c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/api/status", nil))
+				downloads := httptest.NewRecorder()
+				r := httptest.NewRequest("GET", "http://"+c.address+"/api/downloads", nil)
+				r.Header.Set("X-StepStash-Token", c.token)
+				c.ServeHTTP(downloads, r)
+				if downloads.Code != 200 {
+					t.Errorf("downloads during %s: %d %s", operation, downloads.Code, downloads.Body.String())
+				}
 				close(read)
 			}()
 			select {

@@ -463,7 +463,19 @@ details[open] > .recent-summary .recent-expand::before { content: '▾ '; }
 .recent-detail { padding: .5rem 1rem; background: var(--subtle); border-radius: .5rem; font-size: .875rem; }
 .recent-resource { font-family: ui-monospace, monospace; }
 .recent-list li { margin-block: .6rem; line-height: 1.6; }
-#recent { margin-bottom: 1.5rem; }
+#recent, #downloads { margin-bottom: 1.5rem; }
+.download-list { list-style: none; padding: 0; display: grid; gap: 1rem; }
+.download-task { border: 1px solid var(--line); border-radius: .75rem; padding: 1rem; overflow-wrap: anywhere; min-width: 0; }
+.download-task progress { display: block; width: 100%; margin-block: .75rem; }
+.download-main { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 1.5rem; align-items: center; }
+.download-song { display: grid; gap: .35rem; min-width: 0; }
+.download-detail { margin-top: .75rem; }
+.download-detail summary { cursor: pointer; color: var(--muted); }
+@media (max-width: 600px) {
+  .download-main { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+  .download-song { grid-column: 1 / -1; }
+  .download-main .recent-metric { text-align: left; }
+}
 @media (max-width: 900px) {
   .recent-list .recent-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .recent-song, .recent-status { grid-column: 1 / -1; }

@@ -18,8 +18,37 @@ type downloadProgress struct {
 	log                      *slog.Logger
 	start, changed, lastByte time.Time
 	stage                    string
+	host                     string
+	samples                  [5]progressSample
 	bytes, size              int64
 	stop, done               chan struct{}
+}
+
+type progressSample struct{ second, bytes int64 }
+
+// Five bounded buckets cover the current second and the preceding four seconds.
+// Snapshot reads never reset counters, so multiple observers see the same rate.
+func (p *downloadProgress) rate(now time.Time) float64 {
+	if p.stage != "download_and_hash" {
+		return 0
+	}
+	var bytes int64
+	for _, sample := range p.samples {
+		if sample.second > now.Unix()-5 && sample.second <= now.Unix() {
+			bytes += sample.bytes
+		}
+	}
+	seconds := min(5.0, now.Sub(p.changed).Seconds())
+	if seconds <= 0 {
+		return 0
+	}
+	return float64(bytes) / seconds
+}
+
+func (p *downloadProgress) setHost(host string) {
+	p.mu.Lock()
+	p.host = host
+	p.mu.Unlock()
 }
 
 func startProgress(log *slog.Logger, size int64, interval time.Duration) *downloadProgress {
@@ -88,6 +117,12 @@ func (r progressReader) Read(b []byte) (int, error) {
 		first := p.bytes == 0
 		p.bytes += int64(n)
 		p.lastByte = time.Now()
+		second := p.lastByte.Unix()
+		sample := &p.samples[second%int64(len(p.samples))]
+		if sample.second != second {
+			*sample = progressSample{second: second}
+		}
+		sample.bytes += int64(n)
 		p.mu.Unlock()
 		if first {
 			p.log.Info("download_first_byte", "elapsed_ms", time.Since(p.start).Milliseconds())

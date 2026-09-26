@@ -80,6 +80,8 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 		}
 		f = &flight{done: make(chan struct{}), streaming: make(chan struct{}), id: s.flightSequence.Add(1)}
 		f.log = log.With("flight_id", f.id, "host", v.host)
+		f.progress = startProgress(f.log, v.size, 15*time.Second)
+		f.monitorSongs = make(map[string]bool)
 		s.flights[v.key] = f
 		if background {
 			s.background++
@@ -93,7 +95,6 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 			defer s.releaseVideo(v)
 			workerCtx, cancel := context.WithTimeout(s.ctx, s.cfg.DownloadTimeout)
 			defer cancel()
-			f.progress = startProgress(f.log, v.size, 15*time.Second)
 			f.path, f.source, f.err = s.prepare(workerCtx, v, f)
 			f.progress.finish(f.err)
 			if f.err != nil {
@@ -116,6 +117,9 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 				f.spool.release()
 			}
 		}()
+	}
+	if v.songID != "" {
+		f.monitorSongs[v.songID] = true
 	}
 	if !background && v.songID != "" {
 		s.attachPlaybackSongLocked(f, v)
@@ -234,6 +238,10 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, 
 		return "", "", applog.SafeError(err)
 	}
 	defer resp.Body.Close()
+	// The response request is the final validated URL, including redirects.
+	if resp.Request != nil && resp.Request.URL != nil {
+		flight.progress.setHost(resp.Request.URL.Hostname())
+	}
 	flight.log.Info("upstream_response", "host", selectedHost, "status", resp.StatusCode, "content_length", resp.ContentLength)
 	started := time.Now()
 	if err := s.publish(ctx, resp.Body, path, v, flight); err != nil {

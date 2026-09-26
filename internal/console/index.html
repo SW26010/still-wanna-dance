@@ -18,7 +18,7 @@
         <div id="connection" role="status">正在连接…</div>
       </header>
       <nav aria-label="控制台区域">
-        <a href="#overview">概览</a><a href="#recent">最近请求</a><a href="#service">本地 CDN</a><a href="#queue">队列预缓存</a><a href="#batch">扫描与更新</a><a href="#preferences">设置</a>
+        <a href="#overview">概览</a><a href="#downloads">活动下载</a><a href="#recent">最近请求</a><a href="#service">本地 CDN</a><a href="#queue">队列预缓存</a><a href="#batch">扫描与更新</a><a href="#preferences">设置</a>
       </nav>
       <main id="main" tabindex="-1">
       <div class="eyebrow">本地缓存控制台</div>
@@ -89,6 +89,13 @@
           <div id="inventoryActionError" role="status"></div>
           <div id="inventoryError" role="status"></div>
         </section>
+      </section>
+      <section class="card" id="downloads" aria-labelledby="downloadsTitle" tabindex="-1">
+        <div class="card-head"><h2 id="downloadsTitle">实时下载监控</h2><small>每 5 秒刷新 · 共享任务只计一次</small></div>
+        <p>上游总下载速度 <strong id="downloadSpeed">—</strong></p>
+        <p id="downloadState" role="status">正在读取活动下载…</p>
+        <details class="help"><summary>下载统计说明</summary><p class="hint">近 5 秒采样估算，仅统计资源正文读取，不含线路探测，也不是向客户端传输的速度。100% 后仍需校验和发布；关联曲目不代表实际播放歌曲。活动任务包含预缓存与本地检查，等待上游阶段包含解析、选线与等待响应头；下载时同步计算校验。</p></details>
+        <ul id="downloadList" class="download-list" aria-label="活动下载任务"></ul>
       </section>
       <section class="card" id="recent" aria-labelledby="recentTitle" tabindex="-1">
         <div class="card-head"><h2 id="recentTitle">最近请求监控</h2><small>每 5 秒刷新 · 请求次数不是播放次数</small></div>

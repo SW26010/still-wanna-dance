@@ -602,6 +602,38 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, c.localInventory())
 		return
 	}
+	if r.URL.Path == "/api/downloads" && r.Method == "GET" {
+		if r.Header.Get("X-StepStash-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
+			http.Error(w, "invalid origin or token", http.StatusForbidden)
+			return
+		}
+		// A Go reference keeps the engine object alive, not its database. The
+		// snapshot reader handles concurrent Close without joining lifecycle I/O.
+		c.mu.Lock()
+		service, running := c.service, c.httpServer != nil
+		c.mu.Unlock()
+		result := struct {
+			cacheproxy.ActiveDownloads
+			Running bool `json:"running"`
+		}{cacheproxy.ActiveDownloads{Tasks: []cacheproxy.ActiveDownload{}}, running}
+		if service != nil {
+			var err error
+			result.ActiveDownloads, err = service.ActiveDownloads(r.Context())
+			c.mu.Lock()
+			if c.service != service {
+				result.ActiveDownloads = cacheproxy.ActiveDownloads{Tasks: []cacheproxy.ActiveDownload{}}
+				err = nil // Never publish tasks from a replaced storage engine.
+			}
+			result.Running = c.httpServer != nil
+			c.mu.Unlock()
+			if err != nil {
+				http.Error(w, "活动下载读取失败，请稍后重试", http.StatusInternalServerError)
+				return
+			}
+		}
+		writeJSON(w, result)
+		return
+	}
 	if r.URL.Path == "/api/requests" && r.Method == "GET" {
 		if r.Header.Get("X-StepStash-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
 			http.Error(w, "invalid origin or token", http.StatusForbidden)

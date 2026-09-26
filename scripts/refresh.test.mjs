@@ -7,6 +7,86 @@ const html = readFileSync(new URL('../internal/console/index.html', import.meta.
 const script = readFileSync(new URL('../internal/console/assets/console.js', import.meta.url), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+test('active downloads render safe candidates, unknown values, bounded progress and offline state', () => {
+  const p = page(true);
+  p.context.snapshot = { running: false, bytesPerSecond: 1000000, tasks: [{ id: 1, resource: 'shared', stage: 'publish', host: 'play.udon.dance', bytes: 110, size: 100, bytesPerSecond: 0, idleMS: 2000,
+    songs: [{ id: '1', title: '<script>text</script>' }, { id: '2', title: '' }] }] };
+  vm.runInContext('renderDownloads(snapshot)', p.context);
+  const get = id => p.document.getElementById(id);
+  assert.equal(get('downloadSpeed').textContent, '1.000 MB/s');
+  assert.match(get('downloadState').textContent, /CDN 已关闭.*1 个活动任务/);
+  assert.match(get('downloadList').textContent, /播放歌曲未确定.*<script>text<\/script>/);
+  const main = get('downloadList').children[0].children[0];
+  assert.match(main.textContent, /校验并发布.*CF.*100.0%/);
+  assert.doesNotMatch(main.textContent, /shared|play.udon.dance|ID 2/);
+  let details = get('downloadList').children[0].children.at(-1);
+  assert.equal(details.open, false);
+  assert.match(details.textContent, /ID 2.*play.udon.dance.*shared/);
+  details.open = true;
+  details.children[0].focus();
+  vm.runInContext('renderDownloads(snapshot)', p.context);
+  details = get('downloadList').children[0].children.at(-1);
+  assert.equal(details.open, true);
+  assert.equal(p.document.activeElement, details.children[0]);
+  const progress = get('downloadList').children[0].children.find(e => e.tagName === 'PROGRESS');
+  assert.equal(progress.value, 100);
+  assert.match(progress['aria-label'], /已读取字节进度/);
+  p.context.snapshot.tasks[0].host = 'nya.xin.moe';
+  vm.runInContext('renderDownloads(snapshot)', p.context);
+  assert.match(get('downloadList').children[0].children[0].textContent, /HKG/);
+  Object.assign(p.context.snapshot.tasks[0], { songs: [], size: 0, host: '', stage: 'upstream_headers' });
+  vm.runInContext('renderDownloads(snapshot)', p.context);
+  assert.match(get('downloadList').textContent, /未知歌名.*等待上游.*线路待定.*进度未知/);
+  p.context.snapshot.tasks = []; p.context.snapshot.bytesPerSecond = 0;
+  vm.runInContext('renderDownloads(snapshot)', p.context);
+  assert.equal(get('downloadList').children.length, 0);
+  assert.match(get('downloadState').textContent, /暂无活动下载任务/);
+});
+
+test('active refresh authenticates, clears stale data on failure, ignores pre-save results and recovers', async () => {
+  const p = page(true);
+  let finish;
+  p.context.fetch = (url, options) => {
+    assert.equal(url, '/api/downloads');
+    assert.equal(options.headers['X-StepStash-Token'], 'test-token');
+    return new Promise(resolve => { finish = data => resolve({ ok: true, json: async () => data }); });
+  };
+  const pending = vm.runInContext('refreshDownloads()', p.context);
+  vm.runInContext('settingsRevision++', p.context);
+  finish({ running: true, tasks: [], bytesPerSecond: 999 });
+  await pending;
+  assert.notEqual(p.document.getElementById('downloadState').textContent, 'CDN 已开启 · 暂无活动下载任务');
+  p.context.fetch = async () => { throw Error('offline'); };
+  await vm.runInContext('refreshDownloads()', p.context);
+  assert.equal(p.document.getElementById('downloadSpeed').textContent, '—');
+  assert.match(p.document.getElementById('downloadState').textContent, /读取失败/);
+  p.context.fetch = async () => ({ ok: true, json: async () => ({ running: true, tasks: [], bytesPerSecond: 0 }) });
+  await vm.runInContext('refreshDownloads()', p.context);
+  assert.match(p.document.getElementById('downloadState').textContent, /暂无活动下载任务/);
+});
+
+test('active reads share scheduler, block overlap, and pause while hidden', async () => {
+  const p = page(true), original = p.context.fetch;
+  let calls = 0, finish;
+  p.context.fetch = (url, options) => url === '/api/downloads' ? new Promise(resolve => {
+    calls++;
+    finish = () => resolve({ ok: true, json: async () => ({ running: false, tasks: [], bytesPerSecond: 0 }) });
+  }) : original(url, options);
+  p.visibility(false);
+  p.finishBatch();
+  await flush();
+  assert.equal(calls, 1);
+  assert.equal(p.timers.size, 0);
+  p.visibility(true); p.visibility(false);
+  assert.equal(calls, 1);
+  finish(); await flush();
+  assert.equal(calls, 2);
+  p.finishBatch(2); p.visibility(true);
+  finish(); await flush();
+  assert.equal(p.timers.size, 0);
+  assert.equal(calls, 2);
+});
+
 for (const removeAuth of [false, true]) {
   test(`saved SOCKS5 password is hidden and ${removeAuth ? 'explicitly cleared with username' : 'omitted when unchanged'}`, async () => {
     const p = page();
@@ -218,6 +298,7 @@ function page(hidden = false) {
         if (!this.disabled) this.dispatchEvent({ type: 'click' });
       },
       append(...nodes) { this.children.push(...nodes); },
+      setAttribute(name, value) { this[name] = value; },
       replaceChildren(...nodes) { this.children = [...nodes]; },
       focus() { document.activeElement = this; },
     };
@@ -251,6 +332,7 @@ function page(hidden = false) {
     document,
     AbortController,
     fetch(url, options = {}) {
+      if (url === '/api/downloads') return Promise.resolve({ ok: true, json: async () => ({ running: false, tasks: [], bytesPerSecond: 0 }) });
       if (url.startsWith('/api/requests?')) return Promise.resolve({ ok: true, json: async () => ({ storageID: 'test', requests: [], hasMore: false }) });
       const { signal } = options;
       return new Promise((resolve, reject) => {
@@ -591,7 +673,7 @@ for (const stalled of [0, 1]) {
   for (const bodyStalls of [false, true]) {
     test(`${stalled === 0 ? 'status' : 'inventory'} timeout cancels a stalled ${bodyStalls ? 'body' : 'fetch'} and polling recovers`, async () => {
       const p = page();
-      assert.equal(p.deadlines.size, 3);
+      assert.equal(p.deadlines.size, 4);
       if (bodyStalls) p.requests[stalled].headersOnly();
       p.requests[1 - stalled].finish({ settings: {}, hosts: {}, batch: {}, queue: {}, bytes: 0 });
       await flush();

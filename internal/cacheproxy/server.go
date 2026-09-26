@@ -33,6 +33,7 @@ type video struct {
 	size                             int64
 }
 type flight struct {
+	monitorSongs  map[string]bool // protected by Server.mu; includes background callers
 	playbackSongs map[string]*playbackSong
 	id            uint64
 	log           *slog.Logger

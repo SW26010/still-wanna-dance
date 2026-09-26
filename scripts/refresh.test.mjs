@@ -264,7 +264,7 @@ test('nonempty queue renders three songs in order, falls back to IDs, and replac
   assert.deepEqual(get('queueSongs').children.map(node => [node.tagName, node.textContent, node.children.length]),
     [['LI', title, 0], ['LI', '12', 0], ['LI', '第三首', 0]]);
   assert.equal(get('queuePhase').textContent, '正在准备歌曲 11、12');
-  assert.equal(get('queueDetail').textContent, 'output_log.txt · 已准备 2 首');
+  assert.equal(get('queueDetail').textContent, 'output_log.txt · 本次开启后累计准备成功 2 次');
   assert.equal(get('queueError').textContent, '日志不可读');
   assert.equal(get('queueStart').disabled, true);
   assert.equal(get('queueStop').disabled, false);
@@ -307,7 +307,7 @@ test('batch failures render rows as text and disappear after a successful refres
   assert.equal(get('progress').max, 4);
   assert.equal(get('progress').value, 3);
   assert.equal(get('phase').textContent, '扫描中');
-  assert.equal(get('current').textContent, '另一首 · 当前任务 3 / 4 · 命中 1 · 缺失 2 · 补齐 0 · 失败 2');
+  assert.equal(get('current').textContent, '另一首 · 当前任务 3 / 4 · 命中 1 · 扫描缺失或损坏 2 · 下载完成 0 · 失败 2');
   assert.equal(get('batchScan').disabled, true);
   assert.equal(get('batchScan').textContent, '正在扫描…');
   assert.equal(get('batchCancel').disabled, false);
@@ -416,7 +416,7 @@ test('settings submit prevents navigation and serializes the edited controls', a
   await flush();
   assert.equal(get('storageDir').value, 'D:/effective');
   assert.equal(get('save').disabled, false);
-  assert.equal(get('notice').textContent, '缓存设置已保存。');
+  assert.equal(get('notice').textContent, '设置已保存，将用于下一次启动的服务或任务。');
 });
 
 test('periodic refresh waits for both reads and keeps exactly one timer', async () => {

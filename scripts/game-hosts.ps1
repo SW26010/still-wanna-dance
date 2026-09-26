@@ -19,6 +19,7 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 }
 try {
     $hostsPath = Join-Path $env:SystemRoot 'System32/drivers/etc/hosts'
+    # Keep the historical marker so existing acceptance sessions can still be removed.
     $marker = '# StepStash-MVP-acceptance'
     $domains = @('play.udon.dance', 'nya.xin.moe')
     $encoding = [Text.Encoding]::GetEncoding(28591)

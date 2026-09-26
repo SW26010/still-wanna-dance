@@ -69,7 +69,7 @@ func parseCatalog(r io.Reader) ([]Song, error) {
 		}
 	}
 	if len(songs) == 0 {
-		return nil, errors.New("歌曲列表为空或格式不受支持；未开始下载")
+		return nil, errors.New("歌曲列表为空或格式不受支持；未开始处理曲目")
 	}
 	sort.Slice(songs, func(i, j int) bool { return songs[i].ID < songs[j].ID })
 	return songs, nil

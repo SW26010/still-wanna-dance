@@ -146,7 +146,7 @@ function renderQueue(s) {
         : '等待新的队列同步'
     : '预缓存已停止';
   $('queueDetail').textContent =
-    (q.file || '尚未发现日志') + ' · 已准备 ' + q.completed + ' 首';
+    (q.file || '尚未发现日志') + ' · 本次开启后累计准备成功 ' + q.completed + ' 次';
   $('queueError').textContent = q.logError || q.error || '';
   $('queueSongs').replaceChildren(
     ...(q.songs || []).slice(0, 3).map((s) => {
@@ -165,11 +165,11 @@ function renderBatch(s) {
     $(id).textContent = hasSaved ? saved[id] || 0 : '—';
   $('snapshotState').textContent = hasSaved
     ? '上次成功' +
-      (saved.scanOnly ? '扫描' : '更新') +
+      (saved.scanOnly ? '扫描' : '下载补齐') +
       ' · ' +
       new Date(saved.updated).toLocaleString() +
       ' · 已保存，直到下次任务成功才替换'
-    : '尚无成功结果；运行扫描或更新后保存。';
+    : '尚无成功任务结果；扫描或下载补齐成功后保存统计。';
   $('progress').max = b.total || 1;
   $('progress').value = b.checked || 0;
   $('phase').textContent = b.phase || '等待开始';
@@ -182,9 +182,9 @@ function renderBatch(s) {
         b.total +
         ' · 命中 ' +
         b.hits +
-        ' · 缺失 ' +
+        ' · 扫描缺失或损坏 ' +
         (b.missing || 0) +
-        ' · 补齐 ' +
+        ' · 下载完成 ' +
         b.downloaded +
         ' · 失败 ' +
         b.failed
@@ -305,7 +305,7 @@ async function action(path, body) {
       path === 'start'
         ? 'CDN 已启动。若游戏尚未接入，请点击「修改 hosts」。'
         : path === 'settings'
-          ? '缓存设置已保存。'
+          ? '设置已保存，将用于下一次启动的服务或任务。'
           : path === 'hosts/disable'
             ? '已移除 StepStash 添加的 hosts 映射。其他已有映射保持不变。'
             : '操作已完成。',

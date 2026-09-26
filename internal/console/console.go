@@ -144,7 +144,7 @@ func absoluteSettings(s Settings) (Settings, error) {
 		s.DownloadUpstream = "auto"
 	}
 	if s.DownloadUpstream != "auto" && s.DownloadUpstream != "cf" && s.DownloadUpstream != "hkg" {
-		return s, errors.New("下载上游必须是 auto、cf 或 hkg")
+		return s, errors.New("回源线路必须是 auto、cf 或 hkg")
 	}
 	if s.RequestRetentionDays < 0 || s.RequestRetentionDays > 36500 {
 		return s, errors.New("请求明细保留天数必须为 0～36500")
@@ -200,7 +200,7 @@ func (c *Console) save(s Settings) error {
 	}
 	if c.httpServer != nil || c.batch.Running || c.queue.Running {
 		c.mu.Unlock()
-		return errors.New("请先关闭 CDN、队列预缓存和批量任务，再修改目录")
+		return errors.New("请先关闭 CDN、队列预缓存和批量任务，再保存设置")
 	}
 	oldSettings, service := c.settings, c.service
 	c.mu.Unlock()

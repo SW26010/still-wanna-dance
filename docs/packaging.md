@@ -40,9 +40,9 @@ StepStash-0.1.0-windows-amd64-portable/
 目录保存和整体移动后的配置解析由 Go 回归测试覆盖。
 
 Windows CI 同样生成并验证 ZIP，通过后上传 ZIP 和校验文件为 workflow artifact。
-当前尚无 GitHub 远程仓库，推送后才能实际运行 CI。
+当前检出未配置 Git 远程；实际 CI 是否通过须查看目标仓库的 workflow 运行记录。
 
 仅编译 EXE 可用 `./scripts/build-desktop.ps1`，默认输出 `bin/stepstash-console.exe`。
-Windows 默认配置位置由旧版的工作目录改为 EXE 旁；旧用户可将配置移到 EXE
+Windows 默认配置位置为 EXE 旁；使用工作目录配置的旧版本用户可将配置移到 EXE
 旁，或用 `-config` 明确指定旧文件。旧配置中的绝对路径继续有效，重新保存时
-包内路径转换为相对路径。升级和 hosts 恢复操作见交付包的 README.txt。
+包内路径转换为相对路径。配置路径可继续使用不代表存储格式兼容。当前统一存储不支持旧版歌曲库或数据库迁移；存储要求见[统一存储](storage.md)。升级和 hosts 恢复操作见交付包的 README.txt。

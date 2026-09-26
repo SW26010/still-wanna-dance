@@ -82,7 +82,7 @@
         <section class="card">
           <div class="card-head">
             <h2>本地 CDN</h2>
-            <small>127.0.0.1 : 80</small>
+            <small>127.0.0.1 · 80 / 443</small>
           </div>
           <div class="actions">
             <button class="primary" id="start" data-action="start">
@@ -93,13 +93,13 @@
           <div class="check">
             <span class="dot" id="portDot">●</span>
             <div class="grow">
-              <strong>视频端口 · 80</strong><small id="portText">检查中</small>
+              <strong>HTTP 缓存 · 80</strong><small id="portText">检查中</small>
             </div>
           </div>
           <div class="check">
             <span class="dot" id="httpsDot">●</span>
             <div class="grow">
-              <strong>网页播放 · 443</strong
+              <strong>HTTPS 转发 · 443</strong
               ><small id="httpsText">检查中</small>
             </div>
           </div>
@@ -121,13 +121,13 @@
           </div>
           <div class="hint">
             仅在实际修改时请求管理员权限。映射长期保留，关闭 CDN
-            或退出控制台不会恢复。CDN 关闭期间，可用「恢复 hosts」恢复直连。
+            或退出控制台不会恢复。「恢复 hosts」仅移除 StepStash 添加的映射；如有其他映射，仍需根据接入状态检查。
           </div>
         </section>
         <section class="card">
           <div class="card-head">
-            <h2>缓存位置</h2>
-            <small>停止 CDN 和下载任务后可修改</small>
+            <h2>缓存与任务设置</h2>
+            <small>停止 CDN、队列预缓存和批量任务后可修改</small>
           </div>
           <div id="settingsActionError" role="status"></div>
           <form id="settings">
@@ -206,7 +206,7 @@
               value="4"
             />
             <div class="hint">
-              默认 4，可设 1～16。仅扫描检查使用，请求统一按 150ms 节拍启动。
+              默认 4，可设 1～16。仅扫描检查使用，请求统一按 150ms 节拍启动。保存后下次扫描生效。
             </div>
             <label for="scanCheckConcurrency">扫描本地校验并发</label
             ><input
@@ -225,15 +225,15 @@
             <label for="logDir">VRChat 日志目录</label
             ><input id="logDir" name="logDir" spellcheck="false" />
             <div class="hint">
-              只读取新增日志。默认使用本机 VRChat 日志目录。
+              开启时从现有日志末尾读取，之后跟踪新增内容。默认使用本机 VRChat 日志目录。
             </div>
-            <button type="submit" id="save">保存缓存设置</button>
+            <button type="submit" id="save">保存设置</button>
           </form>
         </section>
         <section class="card wide">
           <div class="card-head">
             <h2>房间队列预缓存</h2>
-            <small>提前准备接下来的 3 首</small>
+            <small>准备队列前 3 个位置中的有效曲目</small>
           </div>
           <div class="actions">
             <button class="primary" id="queueStart" data-action="queue/switch">
@@ -244,7 +244,7 @@
             每 3 秒读取新增日志，每 15
             秒检查新日志文件。开启后等待下一次队列同步，不回放旧队列。最多同时下载
             2
-            首；可用下方按钮直接切换到全曲库任务。停止后已开始的共享下载仍会完成。
+            首；可用下方按钮直接切换到全曲库任务。停止后已开始的共享下载继续执行，直到完成、失败或程序退出。准备成功次数累计计算，不代表当前保留的视频数量。
           </div>
           <div id="queueActionError" role="status"></div>
           <div id="queuePhase" role="status">尚未开启</div>
@@ -268,22 +268,22 @@
             </button>
           </div>
           <div class="hint">
-            「仅扫描检查」获取最新曲目列表并校验本地视频，不下载、不删除视频，可与队列预缓存同时运行；地址请求和本地校验并发可在设置中调整。「下载补齐」优先复用最近一次完整扫描的曲目和地址，未变化的已校验文件跳过重复校验；扫描结果仅供下一次补齐使用，重新扫描、保存设置或重启会清除。无可用结果时检查最新曲目，旧地址失败后重新解析，固定
+            「仅扫描检查」获取最新曲目列表并校验本地视频，不下载、不删除视频，可与队列预缓存同时运行；地址请求和本地校验并发可在设置中调整。「下载补齐」优先复用最近一次完整扫描的曲目和地址，未变化的已校验文件跳过重复校验；扫描结果仅供下一次补齐使用，重新扫描、保存设置或重启会清除用于补齐的逐首结果，同一存储目录的上次成功统计仍会保留。无可用结果时检查最新曲目，旧地址失败后重新解析，固定
             CF 时单独检查
             CF。队列运行时会先停止预缓存，完成后可手动重新开启。两种下载模式均最多同时下载
-            2 首，共用后台额度，为游戏播放保留 1 个下载名额。两项操作均无需启动
+            2 首，共用后台额度，为游戏播放保留 1 个下载名额。统计卡片显示上次成功任务的结果，当前进度在下方显示；已处理的视频可能因容量限制被淘汰。两项操作均无需启动
             CDN 或修改 hosts。
           </div>
           <div id="batchActionError" role="status"></div>
-          <div id="snapshotState" class="hint">尚无成功结果</div>
+          <div id="snapshotState" class="hint">尚无成功任务结果</div>
           <div class="stats">
-            <div class="stat"><b id="total">—</b><small>已知歌曲</small></div>
-            <div class="stat"><b id="hits">0</b><small>检查命中</small></div>
+            <div class="stat"><b id="total">—</b><small>任务曲目总数</small></div>
+            <div class="stat"><b id="hits">0</b><small>检查时已缓存</small></div>
             <div class="stat">
-              <b id="downloaded">0</b><small>下载补齐</small>
+              <b id="downloaded">0</b><small>该次任务下载完成</small>
             </div>
             <div class="stat">
-              <b id="missing">—</b><small>缺失或损坏</small>
+              <b id="missing">—</b><small>扫描发现缺失或损坏</small>
             </div>
           </div>
           <progress id="progress" value="0" max="1"></progress>
@@ -306,7 +306,7 @@
       <footer>
         关闭网页后程序仍继续运行；Windows
         托盘菜单可重新打开控制台或退出程序。<br />本地控制台仅供本机访问 · CF /
-        HKG HTTP 视频缓存 · 回源 Auto 自动测速优选线路 · SHA 暂不支持
+        HKG HTTP 视频缓存 · 回源 Auto 自动测速优选线路 · SHA 不支持
       </footer>
     </main>
   </body>

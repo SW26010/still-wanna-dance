@@ -1,13 +1,13 @@
 # 证据目录
 
-这里保存精简、脱敏后的测试证据，使新仓库不依赖旧对话即可理解已验证的结论。它们不是完整网络抓包。除明确标注的 MVP 验收文件外，其余为原版调查结果，不能替代 StepStash 自身的测试。
+这里保存精简、脱敏后的测试证据，使新仓库不依赖旧对话即可理解已验证的结论。它们不是完整网络抓包。索引中标明 StepStash 的文件属于历史构建验收，其余为原版调查结果。两者均不能替代当前 StepStash 构建的测试；证据文件名和内容保留采集时的名称与记录。
 
 ## 文件索引
 
 | 文件 | 来源与用途 |
 | --- | --- |
-| [current-release-live-20260925.json](current-release-live-20260925.json) | 当前 `c69e844` portable 联合实机验收：播放、队列、统计、容量淘汰、桌面退出/重启及真实 hosts UAC 操作 |
-| [auto-sha-live-20260925.json](auto-sha-live-20260925.json) | 第二次 StepStash 联合测试（进行中）：10271 Auto 本地命中、SHA 解析超时与独立 TCP 连接失败 |
+| [current-release-live-20260925.json](current-release-live-20260925.json) | 历史构建 `c69e844` portable 联合实机验收：播放、队列、统计、容量淘汰、桌面退出/重启及真实 hosts UAC 操作 |
+| [auto-sha-live-20260925.json](auto-sha-live-20260925.json) | 第二次 StepStash 联合测试的阶段性记录：10271 Auto 本地命中、SHA 解析超时与独立 TCP 连接失败 |
 | [mvp-acceptance-20260925.json](mvp-acceptance-20260925.json) | StepStash 实网验收：旧库读取、CF/HKG 冷下载、重启、原版回读；不是原版调查阶段数据 |
 | [mvp-stream-acceptance-20260925.json](mvp-stream-acceptance-20260925.json) | 冷缓存流式修复后的同矩阵完整实网回归，含实际二进制哈希和首包时间 |
 | [mvp-live-20260925.json](mvp-live-20260925.json) | VRChat 联合验收：精简播放/同步事件、服务请求、用户反馈、落盘校验与 hosts 恢复哈希 |

@@ -8,7 +8,7 @@
 - `service_id`：一个缓存引擎实例，重新创建会变。`request_id` 和 `flight_id` 都只在这个实例内有效。
 - `trace_id`：一次播放请求或歌曲预缓存操作。队列启动、上游解析、Auto 回退、预缓存及结束事件使用同一个值；共享下载继续使用最初创建它的操作标识。
 - `resource_key`：视频内容版本的指纹。用 `cache_task_attached` 将每个操作连接到 `(service_id, flight_id)`，再查看这一共享任务的下载日志。同一版本重试会产生新的 flight。
-- `song_id`：目录中的歌曲 ID。多个歌曲可能共用资源，不能把它与资源指纹混为一谈。历史淘汰事件的 `key` 与 `resource_key` 是同一指纹。
+- `song_id`：曲库列表中的歌曲 ID。多个歌曲可能共用资源，不能把它与资源指纹混为一谈。历史淘汰事件的 `key` 与 `resource_key` 是同一指纹。
 
 例如两个播放请求共享一个下载时，会看到两个不同 `trace_id` 的 `cache_task_attached` 指向同一 flight；下载和发布只记录一次。客户端中断、移出队列不一定中止共享下载，必须分别检查请求结果和 flight 结果。
 

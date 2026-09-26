@@ -188,7 +188,7 @@ func (t *tray) tooltip() string {
 		text = "StepStash · CDN 运行中"
 	}
 	if s.Batch {
-		text += " · 批量下载中"
+		text += " · 批量任务运行中"
 	}
 	return text
 }

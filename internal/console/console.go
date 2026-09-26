@@ -27,6 +27,9 @@ import (
 //go:embed index.html
 var page string
 
+//go:embed about.html
+var aboutPage string
+
 //go:embed assets/console.css assets/console.js
 var assets embed.FS
 
@@ -529,6 +532,11 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" && r.URL.Path == "/" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		io.WriteString(w, strings.ReplaceAll(page, "__TOKEN__", c.token))
+		return
+	}
+	if r.Method == "GET" && r.URL.Path == "/about" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		io.WriteString(w, aboutPage)
 		return
 	}
 	if r.Method == "GET" && (r.URL.Path == "/assets/console.css" || r.URL.Path == "/assets/console.js") {

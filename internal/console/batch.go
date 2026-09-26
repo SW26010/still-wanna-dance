@@ -1,6 +1,7 @@
 package console
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -75,11 +76,19 @@ func parseCatalog(r io.Reader) ([]Song, error) {
 }
 
 func (c *Console) catalog(ctx context.Context) ([]Song, error) {
-	r, err := http.NewRequestWithContext(ctx, "GET", c.apiBase+"/Api/Songs/list", nil)
+	base := c.apiBase
+	if base == "http://api.udon.dance" {
+		base = "https://api.udon.dance"
+	}
+	r, err := http.NewRequestWithContext(ctx, "GET", base+"/Api/Songs/list", nil)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.client.Do(r)
+	// The full catalog is much larger than a playback redirect. Give its body
+	// its own budget without changing the shared client's per-song timeout.
+	client := *c.client
+	client.Timeout = 2 * time.Minute
+	resp, err := client.Do(r)
 	if err != nil {
 		return nil, applog.SafeError(err)
 	}
@@ -87,7 +96,17 @@ func (c *Console) catalog(ctx context.Context) ([]Song, error) {
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("歌曲列表接口返回 %d", resp.StatusCode)
 	}
-	return parseCatalog(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, (16<<20)+1))
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, fmt.Errorf("歌曲列表读取失败（网络中断或超时），请重试：%w", applog.SafeError(err))
+	}
+	if len(body) > 16<<20 {
+		return nil, errors.New("歌曲列表超过 16 MiB 大小限制")
+	}
+	return parseCatalog(bytes.NewReader(body))
 }
 
 func (c *Console) resolve(ctx context.Context, id int64) (string, error) {

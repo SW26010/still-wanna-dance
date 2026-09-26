@@ -1,7 +1,7 @@
 # Windows portable 打包
 
-构建环境需要 Go 1.25 或更新版本、Git 和 PowerShell；用户只需要 Windows x64。
-网页内嵌在 EXE 内，无需 Node.js、Go 或外部运行库。
+构建环境需要 Go 1.25 或更新版本、Node.js（CI 使用 22）、Git 和 PowerShell；用户只需要 Windows x64。
+网页内嵌在 EXE 内，运行交付包无需 Node.js、Go 或外部运行库。
 
 在仓库目录运行：
 
@@ -10,7 +10,7 @@
 ./scripts/test-portable.ps1 -Zip artifacts/StepStash-0.1.0-windows-amd64-portable.zip
 ```
 
-打包先运行 `go test ./...` 和 `go vet ./...`，失败即停止。随后以
+打包先运行 `node --test scripts/refresh.test.mjs`、`go test ./...` 和 `go vet ./...`，失败即停止。随后以
 `GOOS=windows GOARCH=amd64 CGO_ENABLED=0` 构建无命令行窗口的托盘程序，
 输出文件夹、ZIP 和 ZIP 的 SHA-256 校验文件。编译后恢复原来的环境变量。
 不指定版本时使用 `dev-日期-时间`；`-OutputDir` 可指定输出目录，默认 `artifacts`。

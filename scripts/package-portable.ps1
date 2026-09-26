@@ -11,6 +11,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read Git revision.' }
     $changes = & git status --porcelain
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read Git status.' }
+    node --test scripts/refresh.test.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Frontend tests failed.' }
     go test ./...
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
     go vet ./...

@@ -140,6 +140,9 @@ func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (s
 	if u.Host != host {
 		return "", fmt.Errorf("%s 返回了其他上游的视频地址", upstream)
 	}
+	if err := cacheproxy.ValidateVideoURL(u.String(), cacheproxy.DefaultConfig().MaxFileBytes); err != nil {
+		return "", fmt.Errorf("歌曲返回了无效的视频地址：%w", err)
+	}
 	return u.String(), nil
 }
 

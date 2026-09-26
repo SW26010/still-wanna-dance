@@ -199,6 +199,23 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) parse(r *http.Request) (video, error) {
+	return parseVideo(r, s.cfg.MaxFileBytes)
+}
+
+// ValidateVideoURL applies the cache parser's rules before a resolver accepts a route.
+func ValidateVideoURL(target string, maxFileBytes int64) error {
+	r, err := http.NewRequest(http.MethodGet, target, nil)
+	if err != nil {
+		return errors.New("invalid video URL")
+	}
+	if (r.URL.Scheme != "http" && r.URL.Scheme != "https") || r.URL.User != nil || r.URL.Fragment != "" {
+		return errors.New("unsupported video URL")
+	}
+	_, err = parseVideo(r, maxFileBytes)
+	return err
+}
+
+func parseVideo(r *http.Request, maxFileBytes int64) (video, error) {
 	var v video
 	host := strings.ToLower(r.Host)
 	if h, _, err := net.SplitHostPort(host); err == nil {
@@ -221,7 +238,7 @@ func (s *Server) parse(r *http.Request) (video, error) {
 		return v, errors.New("e must be a 32-character MD5")
 	}
 	size, err := strconv.ParseInt(q[1], 10, 64)
-	if err != nil || size <= 0 || size > s.cfg.MaxFileBytes {
+	if err != nil || size <= 0 || size > maxFileBytes {
 		return v, errors.New("s exceeds allowed size or is invalid")
 	}
 	key := sha256.Sum256([]byte(m[1] + "/" + m[2] + "/" + checksum + "/" + strconv.FormatInt(size, 10)))

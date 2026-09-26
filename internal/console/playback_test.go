@@ -9,7 +9,84 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"stepstash/internal/cacheproxy"
 )
+
+func TestPlaybackResolutionInvalidVideoFallback(t *testing.T) {
+	const valid = "/files/1/2-video.mp4?e=00000000000000000000000000000000&s=1"
+	for _, invalid := range []string{
+		"/video.mp4?e=00000000000000000000000000000000&s=1",
+		"/files/1/%32-video.mp4?e=00000000000000000000000000000000&s=1",
+		"/files/1/2-video.mp4?e=invalid&s=1",
+		"/files/1/2-video.mp4?s=1",
+		valid + "&e=00000000000000000000000000000000",
+		strings.Replace(valid, "s=1", "s=invalid", 1),
+		strings.Replace(valid, "s=1", "s=0", 1),
+		strings.Replace(valid, "s=1", "s=-1", 1),
+		strings.Replace(valid, "s=1", "s=2147483649", 1),
+		valid + "&s=1",
+		valid + "&token=%zz",
+	} {
+		for _, preferred := range []string{"nya", "cf"} {
+			for _, mode := range []string{"auto", "fixed", "both invalid"} {
+				t.Run(preferred+"/"+mode+"/"+invalid, func(t *testing.T) {
+					c := testConsole(t)
+					var mu sync.Mutex
+					var nodes []string
+					api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						node := r.URL.Query().Get("node")
+						mu.Lock()
+						nodes = append(nodes, node)
+						mu.Unlock()
+						host := "nya.xin.moe"
+						if node == "cf" {
+							host = "play.udon.dance"
+						}
+						path := valid
+						if node == preferred || mode == "both invalid" {
+							path = invalid
+						}
+						w.Header().Set("Location", "https://"+host+path)
+						w.WriteHeader(http.StatusFound)
+					}))
+					defer api.Close()
+					c.apiBase = api.URL
+					c.client.Transport = http.DefaultTransport
+					policy := "auto"
+					alternate, host := "cf", "play.udon.dance"
+					if preferred == "cf" {
+						alternate, host = "nya", "nya.xin.moe"
+					}
+					wantNodes := preferred + "," + alternate
+					if mode == "fixed" {
+						policy = "hkg"
+						if preferred == "cf" {
+							policy = "cf"
+						}
+						wantNodes = preferred
+					}
+					target, err := c.resolvePlayback(context.Background(), "42", preferred, policy)
+					if mode == "auto" {
+						if err != nil || target != "https://"+host+valid {
+							t.Fatalf("target=%q err=%v; want valid alternate", target, err)
+						}
+						if err := cacheproxy.ValidateVideoURL(target, cacheproxy.DefaultConfig().MaxFileBytes); err != nil {
+							t.Fatalf("cache rejected alternate: %v", err)
+						}
+					} else if err == nil || target != "" {
+						t.Fatalf("target=%q err=%v; want resolution failure", target, err)
+					}
+					mu.Lock()
+					defer mu.Unlock()
+					if got := strings.Join(nodes, ","); got != wantNodes {
+						t.Fatalf("queried nodes=%s; want %s", got, wantNodes)
+					}
+				})
+			}
+		}
+	}
+}
 
 func TestPlaybackResolutionPolicyAndFallback(t *testing.T) {
 	for _, tc := range []struct {
@@ -91,7 +168,7 @@ func TestPlaybackResolutionDoesNotWaitForUnusedRoute(t *testing.T) {
 					<-r.Context().Done()
 					return
 				}
-				w.Header().Set("Location", "https://"+host+"/video.mp4")
+				w.Header().Set("Location", "https://"+host+"/files/1/2-video.mp4?e=00000000000000000000000000000000&s=1")
 				w.WriteHeader(http.StatusFound)
 			}))
 			defer api.Close()
@@ -100,7 +177,7 @@ func TestPlaybackResolutionDoesNotWaitForUnusedRoute(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
 			target, err := c.resolvePlayback(ctx, "42", node, "auto")
-			if err != nil || target != "https://"+host+"/video.mp4" || ctx.Err() != nil {
+			if err != nil || target != "https://"+host+"/files/1/2-video.mp4?e=00000000000000000000000000000000&s=1" || ctx.Err() != nil {
 				t.Fatalf("preferred route waited for stalled alternative: target=%q err=%v context=%v", target, err, ctx.Err())
 			}
 		})
@@ -127,7 +204,7 @@ func TestPlaybackResolutionStalledPreferredRoute(t *testing.T) {
 					<-r.Context().Done()
 					return
 				}
-				w.Header().Set("Location", "https://play.udon.dance/video.mp4")
+				w.Header().Set("Location", "https://play.udon.dance/files/1/2-video.mp4?e=00000000000000000000000000000000&s=1")
 				w.WriteHeader(http.StatusFound)
 			}))
 			defer api.Close()
@@ -140,7 +217,7 @@ func TestPlaybackResolutionStalledPreferredRoute(t *testing.T) {
 				if !errors.Is(err, context.Canceled) || target != "" {
 					t.Fatalf("target=%q err=%v; want cancellation", target, err)
 				}
-			} else if err != nil || target != "https://play.udon.dance/video.mp4" {
+			} else if err != nil || target != "https://play.udon.dance/files/1/2-video.mp4?e=00000000000000000000000000000000&s=1" {
 				t.Fatalf("target=%q err=%v; want timeout fallback", target, err)
 			}
 			mu.Lock()

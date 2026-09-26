@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"stepstash/internal/cacheproxy"
+	"stepstash/internal/console"
 )
 
 func main() {
@@ -25,6 +26,7 @@ func main() {
 
 func run() (resultErr error) {
 	cfg := cacheproxy.DefaultConfig()
+	cfg.DialContext = console.NewUpstreamDialer()
 	listen := flag.String("listen", "127.0.0.1:18080", "HTTP listen address (use 127.0.0.1:80 for game integration)")
 	flag.StringVar(&cfg.StorageDir, "storage-dir", cfg.StorageDir, "canonical storage root (videos, tmp and stepstash.sqlite); one process per root")
 	cf := flag.String("cf-origin", cfg.Origins["play.udon.dance"], "CF origin host:port, retaining Host play.udon.dance")

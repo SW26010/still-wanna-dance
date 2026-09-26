@@ -124,7 +124,7 @@ func (s *Server) currentVideo(ctx context.Context, id string) (video, error) {
 	if s.cfg.ResolveCurrent != nil {
 		target, err = s.cfg.ResolveCurrent(ctx, id)
 	} else {
-		req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.udon.dance/Api/Songs/play?node=nya&id="+id, nil)
+		req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.udon.dance/Api/Songs/play?node=nya&id="+id, nil)
 		if reqErr != nil {
 			return video{}, reqErr
 		}
@@ -145,7 +145,7 @@ func (s *Server) currentVideo(ctx context.Context, id string) (video, error) {
 	if err != nil {
 		return video{}, applog.SafeError(err)
 	}
-	if r.URL.Scheme != "http" || r.URL.User != nil || r.URL.Fragment != "" {
+	if (r.URL.Scheme != "http" && r.URL.Scheme != "https") || r.URL.User != nil || r.URL.Fragment != "" {
 		return video{}, errors.New("invalid current video URL")
 	}
 	return s.parse(r)

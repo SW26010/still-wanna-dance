@@ -47,6 +47,9 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 		// A busy download engine must still serve verified local files. Keep
 		// this disk work bounded independently of the network worker slots.
 		if f, err := s.localHit(ctx, v); f != nil || err != nil {
+			if err == nil && !background && v.songID != "" {
+				err = s.recordSongVideo(ctx, v.songID, v)
+			}
 			return f, nil, err
 		}
 		if !background {
@@ -114,13 +117,19 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 			}
 		}()
 	}
+	if !background && v.songID != "" {
+		s.attachPlaybackSongLocked(f, v)
+	}
 	s.mu.Unlock()
 	log.Info("cache_task_attached", "flight_id", f.id, "wait_ms", time.Since(waitStart).Milliseconds())
 	select {
 	case <-ctx.Done():
 		return nil, nil, ctx.Err()
 	case <-f.done:
-		return f, nil, f.err
+		if f.err != nil {
+			return f, nil, f.err
+		}
+		return f, nil, s.waitPlaybackSong(ctx, f, v.songID)
 	case <-f.streaming:
 		if reader := f.spool.reader(ctx, v.size); reader != nil {
 			return f, reader, nil
@@ -129,7 +138,10 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 		case <-ctx.Done():
 			return nil, nil, ctx.Err()
 		case <-f.done:
-			return f, nil, f.err
+			if f.err != nil {
+				return f, nil, f.err
+			}
+			return f, nil, s.waitPlaybackSong(ctx, f, v.songID)
 		}
 	}
 }

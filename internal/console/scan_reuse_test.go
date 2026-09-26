@@ -108,6 +108,7 @@ func TestDownloadReusesScan(t *testing.T) {
 			}))
 			defer origin.Close()
 			cfg := cacheproxy.DefaultConfig()
+			cfg.OriginScheme = "http"
 			cfg.StorageDir = c.settings.StorageDir
 			for host := range cfg.Origins {
 				cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")

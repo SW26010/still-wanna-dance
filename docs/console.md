@@ -54,7 +54,7 @@ go build -o bin/stepstash-console-cli.exe ./cmd/stepstash-console
 
 ### 网页 HTTPS 播放
 
-hosts 同时影响 HTTP 和 HTTPS。控制台启动 CDN 时提供 TLS SNI 透传，防止网页的视频 HTTPS 请求被映射到本机后遭到连接拒绝。仅接受两个托管视频域名：`nya.xin.moe → ud-nya.kiva.moe:443`、`play.udon.dance → ud-play.kiva.moe:443`。API 域名不被 hosts 接管，也不开放通用代理。
+hosts 同时影响 HTTP 和 HTTPS。控制台启动 CDN 时提供 TLS SNI 透传，防止网页的视频 HTTPS 请求被映射到本机后遭到连接拒绝。仅接受三个托管域名：`nya.xin.moe → ud-nya.kiva.moe:443`、`play.udon.dance → ud-play.kiva.moe:443`。`api.udon.dance → api.udon.dance:443`。所有连接使用内置 DoH，不开放通用代理。
 
 转发复用下面的独立加密 DNS、TTL 缓存、多 IP 错峰建连与成功地址优先机制。固定保留域名的原上游，不套用 HTTP 的 CF/HKG 歌曲选路设置，不跨线路替换路径或签名。TLS 握手及后续密文字节原样传递，浏览器直接验证原站证书；不安装证书、不解密、不改网页、不降级为 HTTP。网页 HTTPS 播放仍消耗上游流量，不命中或填充本地视频缓存，也不计入缓存热度。
 
@@ -82,17 +82,17 @@ DNSPod 和 360 的入口发现只通过具备固定引导 IP 的 DoH 服务进�
 
 有限并发查询这些加密入口，首个有效答复后最多再收集 200ms，合并去重并最多保留 6 个 IPv4 候选；整体最多 6 秒。结果按已收集答复中 A 记录与 CNAME 链的最小 TTL 缓存（最多 300 秒）。连接候选每隔 200ms 错峰启动，单连接最多等待 5 秒；成功地址优先复用，取消其余连接，全部失败时清除缓存。IP 层衡量连接建立速度，视频小段测速在上游线路层进行。视频请求仍保留原始 HTTP Host，HKG 播放接口使用 `node=nya`。
 
-全部加密通道失败时明确报错。这保护的是客户端到解析服务的 DNS 链路，仍信任所选解析服务及系统证书信任库；DNS 模块本身不改变视频或 API 请求的 HTTP/HTTPS 协议。歌曲列表接口现单独使用 `https://api.udon.dance/Api/Songs/list`，完整响应使用独立的两分钟超时，网络读取失败与 JSON 格式错误分别报告；播放地址 API 及 HTTP 视频请求仍沿用原协议。此前依赖明文 DNS 劫持产生 fake-IP 的代理路径不再由此模块自动使用。
+全部加密通道失败时明确报错。这保护的是客户端到解析服务的 DNS 链路，仍信任所选解析服务及系统证书信任库；DNS 模块本身不改变视频或 API 请求的 HTTP/HTTPS 协议。歌曲列表接口现单独使用 `https://api.udon.dance/Api/Songs/list`，完整响应使用独立的两分钟超时，网络读取失败与 JSON 格式错误分别报告；播放地址 API、版本确认、视频下载、测速和 Range 回源统一使用 HTTPS，保留原始 Host、TLS SNI 和证书域名校验；连接或证书失败不降级至 HTTP，也不回退系统 DNS/hosts。此前依赖明文 DNS 劫持产生 fake-IP 的代理路径不再由此模块自动使用。
 
 2026-09-25 本机逐入口真实解析 `api.udon.dance`：阿里双入口、DNSPod、360、Cloudflare、Google 六项均通过 HTTPS 证书验证与 DNS 报文解析。这不代表其他网络始终可达。可选复测：`STEPSTASH_LIVE_DOH=1` 后运行 `go test ./internal/console -run '^TestLiveDoHProviders$' -v -count=1`。
-独立 DNS 应用于控制台的缓存引擎；原有命令行服务的默认网络配置不变。
+控制台与独立命令行服务共用内置 DoH 建连逻辑。两者的上游 API 查询和视频回源均使用 HTTPS，默认视频回源端口为 443；DNS、连接或证书验证失败不回退系统 DNS/hosts 或明文 HTTP。视频重定向仅在目标域名受支持且 MD5/大小一致时跟随，最多五次，HTTP Location 升级为 HTTPS 后访问。
 
 ## hosts
 
 修改和恢复是独立操作。只有实际需要修改时才通过 Windows UAC 启动短命提权助手；正常启动控制台、CDN 和下载不请求 UAC。
 
-- 添加两个视频域名到 `127.0.0.1`，使用 `# StepStash managed` 标记。
-- 已有正确映射直接复用；已有冲突映射或 API 域名映射时拒绝覆盖并提示检查。
+- 添加播放 API 域名和两个视频域名到 `127.0.0.1`，使用 `# StepStash managed` 标记。
+- 已有正确映射直接复用；已有冲突映射时拒绝覆盖并提示检查。
 - 首次修改前保存 hosts 同目录的 `hosts.stepstash-backup`。恢复只移除本程序的精确标记条目，保留其他配置，不整文件回滚；条目被其他工具改写时提示人工检查。
 - 退出或关闭 CDN 不恢复 hosts。CDN 停止后如需直连上游，应点击恢复；其他工具原有映射需由对应工具恢复。
 - 操作后刷新 DNS 缓存。UAC 取消或修改失败时页面报错。
@@ -165,7 +165,7 @@ Auto 不把游戏的 CF/HKG 选择作为路线优先级。已知歌曲 ID 时，
 
 连接失败、错误状态或响应头的长度/编码不符时，在开始向游戏输出正文前尝试另一条候选。正文已开始输出后不拼接另一上游的数据；失败交给请求重试，后台任务保留原有整首重试流程。后台任务首先获取一个基准资源地址；Auto 的 HKG 初始地址只确定资源，实际下载仍由统一模块选路。完整下载超时沿用引擎设置（默认 10 分钟），没有实现下载中途按低速阈值换路。
 
-热缓存不触发选路或测速。三种入口继续共用原有资源级下载任务、完整性校验与发布机制。日志 `upstream_selected` 给出请求上游和实际上游，`route_content_mismatch` 记录拒绝替换；后台 `prefetch_upstream` 是基准地址的获取/重试流程，不代表实际传输线路。独立命令行服务的默认网络行为不变。
+热缓存不触发选路或测速。三种入口继续共用原有资源级下载任务、完整性校验与发布机制。日志 `upstream_selected` 给出请求上游和实际上游，`route_content_mismatch` 记录拒绝替换；后台 `prefetch_upstream` 是基准地址的获取/重试流程，不代表实际传输线路。独立命令行服务同样使用 HTTPS／内置 DoH 和受限视频重定向，但未配置控制台的双线路解析及测速选路回调；其 HTTP 播放 API 支持与接入限制见 [MVP 手册](mvp.md#游戏接入)。
 # 播放请求统计
 
 控制台通过 `/api/status` 的 `traffic` 字段每 5 秒更新当前缓存引擎会话的命中次数、命中率、缓存命中节省流量和平均响应延迟。引擎重建或程序重启后归零，不是历史累计。
@@ -173,3 +173,11 @@ Auto 不把游戏的 CF/HKG 选择作为路线优先级。已知歌曲 ID 时，
 命中率分母为成功完成的 GET 视频请求（200 / 206），Range 按请求计数；HEAD、失败、中断和预下载不计入。节省流量是成功命中实际返回的正文大小，按十进制 GB 展示，不是扣除预下载后的净流量收益。
 
 上游延迟为成功取得视频响应头的实际回源请求耗时（含预下载，不含选路探测）；本地延迟为命中请求从接收到发出响应头的耗时，包含缓存校验。两组均展示样本数量。估算降幅为 `100 × (1 − 本地均值 / 上游均值)`，允许负值；缺少样本或上游均值为零时不显示降幅。样本未按相同视频配对，不表示完整下载或播放器起播速度。
+
+## HTTP 播放 API 接管与 HTTPS 回源
+
+更新后重新点击「修改 hosts」，补上 `api.udon.dance` 的本地映射。游戏以 HTTP 请求 `/Api/Songs/play?id=…` 时，StepStash 使用 HTTPS 解析上游地址，校验资源指纹，然后直接以 HTTP 返回视频；命中复用缓存，未命中边下边播，支持 HEAD 和单段 Range。支持默认线路以及 `node=cf`、`node=nya`，其他线路明确拒绝。非播放 API 的 GET/HEAD 重定向至原站 HTTPS；原有 HTTPS 请求通过 443 透传，不读取或填充缓存。
+
+游戏入口必须仍使用 HTTP，并且播放器需接受 API 地址直接返回视频；这一版的实际游戏兼容性需要实机确认。切换 HTTPS 不改变资源指纹，无需重新迁移缓存。下载和测速最多跟随五次视频重定向，仅接受受支持视频域名且 MD5/大小一致的地址；HTTP Location 会升级为 HTTPS 后再访问。其他重定向明确拒绝。
+
+可选实网验收：设置 `STEPSTASH_LIVE_UPSTREAM=1`，运行 `go test ./internal/console -run '^TestLiveHTTPSUpstreams$' -v -count=1`。仅解析播放 API 并读取每路 1 KiB 视频 Range，不修改 hosts。

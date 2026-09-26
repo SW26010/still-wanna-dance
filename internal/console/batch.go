@@ -134,8 +134,8 @@ func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (s
 	if err != nil {
 		return "", applog.SafeError(err)
 	}
-	if u.Scheme != "http" || (u.Host != "play.udon.dance" && u.Host != "nya.xin.moe") || u.User != nil || u.Fragment != "" {
-		return "", errors.New("歌曲返回了未支持的视频地址；当前支持 CF/HKG HTTP")
+	if (u.Scheme != "http" && u.Scheme != "https") || (u.Host != "play.udon.dance" && u.Host != "nya.xin.moe") || u.User != nil || u.Fragment != "" {
+		return "", errors.New("歌曲返回了未支持的视频地址；当前支持 CF/HKG HTTP 和 HTTPS")
 	}
 	if u.Host != host {
 		return "", fmt.Errorf("%s 返回了其他上游的视频地址", upstream)

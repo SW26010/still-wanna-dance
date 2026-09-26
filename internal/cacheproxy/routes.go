@@ -69,7 +69,7 @@ func (s *Server) routeCandidates(ctx context.Context, v video) []video {
 	seen := make(map[string]bool)
 	for _, target := range entry.urls {
 		r, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
-		if err != nil || r.URL.Scheme != "http" || r.URL.User != nil || r.URL.Fragment != "" {
+		if err != nil || (r.URL.Scheme != "http" && r.URL.Scheme != "https") || r.URL.User != nil || r.URL.Fragment != "" {
 			continue
 		}
 		candidate, err := s.parse(r)
@@ -102,13 +102,49 @@ func (s *Server) routeCandidates(ctx context.Context, v video) []video {
 }
 
 func (s *Server) routeRequest(ctx context.Context, v video) (*http.Request, error) {
-	u := &url.URL{Scheme: "http", Host: s.cfg.Origins[v.host], Path: v.path, RawQuery: v.query}
+	u := &url.URL{Scheme: s.cfg.OriginScheme, Host: v.host, Path: v.path, RawQuery: v.query}
 	r, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err == nil {
 		r.Host = v.host
 		r.Header.Set("Accept-Encoding", "identity")
 	}
 	return r, err
+}
+
+// Follow only validated video redirects. Rebuild every request through the
+// origin transport, upgrading HTTP Locations without ever sending plaintext.
+// API requests retain the client's no-redirect policy so their Location can be
+// parsed separately.
+func (s *Server) videoResponse(r *http.Request, original video) (*http.Response, error) {
+	for redirects := 0; redirects <= 5; redirects++ {
+		resp, err := s.client.Do(r)
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode != 301 && resp.StatusCode != 302 && resp.StatusCode != 303 && resp.StatusCode != 307 && resp.StatusCode != 308 {
+			return resp, nil
+		}
+		resp.Body.Close()
+		u, err := resp.Location()
+		if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.User != nil || u.Fragment != "" {
+			return nil, errors.New("invalid video redirect")
+		}
+		next, err := http.NewRequestWithContext(r.Context(), http.MethodGet, u.String(), nil)
+		if err != nil {
+			return nil, err
+		}
+		v, err := s.parse(next)
+		if err != nil || v.checksum != original.checksum || v.size != original.size {
+			return nil, errors.New("video redirect changed resource or host")
+		}
+		next, err = s.routeRequest(r.Context(), v)
+		if err != nil {
+			return nil, err
+		}
+		next.Header = r.Header.Clone()
+		r = next
+	}
+	return nil, errors.New("too many video redirects")
 }
 
 func (s *Server) noteRoute(host string, elapsed time.Duration, failed bool) {
@@ -151,7 +187,7 @@ func (s *Server) probeRoute(ctx context.Context, v video) {
 	}
 	n := min(v.size, int64(64<<10))
 	r.Header.Set("Range", fmt.Sprintf("bytes=0-%d", n-1))
-	resp, err := s.client.Do(r)
+	resp, err := s.videoResponse(r, v)
 	if err == nil {
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusPartialContent || resp.Header.Get("Content-Range") != fmt.Sprintf("bytes 0-%d/%d", n-1, v.size) || (resp.Header.Get("Content-Encoding") != "" && resp.Header.Get("Content-Encoding") != "identity") {
@@ -230,7 +266,7 @@ func (s *Server) openUpstream(ctx context.Context, v video) (*http.Response, str
 		if err != nil {
 			return nil, "", err
 		}
-		resp, err := s.client.Do(r)
+		resp, err := s.videoResponse(r, v)
 		if err == nil {
 			switch {
 			case resp.StatusCode != http.StatusOK:

@@ -97,6 +97,7 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 			c.apiBase = api.URL
 			c.client.Transport = http.DefaultTransport
 			cfg := cacheproxy.DefaultConfig()
+			cfg.OriginScheme = "http"
 			cfg.StorageDir = c.settings.StorageDir
 			if tc.failure == "timeout" {
 				cfg.DownloadTimeout = 150 * time.Millisecond

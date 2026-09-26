@@ -4,7 +4,7 @@
 
 已有可运行的 Go MVP：HTTP 视频缓存、冷缓存边下边播、完整性校验、Range/HEAD、同曲并发合并及统一版本存储。使用方式见 [MVP 手册](docs/mvp.md)，实网、原版回读及 VRChat 联合测试的结果和边界见[验收记录](docs/acceptance.md)。
 
-桌面控制台的 CDN 同时提供 HTTP 缓存与 HTTPS 透传，兼容 hosts 接入后的网页播放。HTTPS 保留原站证书与原线路，复用独立 DNS 和多 IP 建连，不解密或使用本地缓存。详见[网页 HTTPS 播放](docs/console.md#网页-https-播放)。
+桌面控制台的 CDN 同时提供 HTTP 播放 API／视频缓存与 HTTPS 透传，兼容 hosts 接入后的网页播放。HTTPS 保留原站证书与原线路，复用独立 DNS 和多 IP 建连，不解密或使用本地缓存。StepStash 自身的 API 查询、下载和测速统一通过内置 DoH 建立 HTTPS 连接，验证原域名证书且不静默降级。详见[网页 HTTPS 播放](docs/console.md#网页-https-播放)。
 
 历史版本 `c69e844` 已完成新增功能的[联合实机验收](docs/release-acceptance-20260925.md)：CF/HKG 冷缓存、Auto、在线队列预缓存、请求统计、容量淘汰、托盘退出/重启及 hosts 提权接入/恢复均通过当时样本；当前存储重构以自动化测试为验证依据，尚未重新进行联合实机验收；SHA 和上游慢连接仍有明确限制。
 

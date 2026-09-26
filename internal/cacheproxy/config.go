@@ -14,8 +14,11 @@ import (
 // Config controls the local video service. Origins are dial addresses, not URLs;
 // the original HTTP Host is retained and environment proxies are not used.
 type Config struct {
-	StorageDir      string
-	Origins         map[string]string
+	StorageDir string
+	Origins    map[string]string
+	// OriginScheme defaults to HTTPS. HTTP is restricted to loopback test origins.
+	OriginScheme    string
+	ResolvePlayback func(context.Context, string, string) (string, error)
 	DownloadTimeout time.Duration
 	MaxFileBytes    int64
 	// MaxCacheBytes bounds retained videos in the canonical video store; zero is unlimited.
@@ -37,8 +40,9 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		KeepRequestedRoute: true,
+		OriginScheme:       "https",
 		StorageDir:         "stepstash-data",
-		Origins:            map[string]string{"play.udon.dance": "ud-play.kiva.moe:80", "nya.xin.moe": "ud-nya.kiva.moe:80"},
+		Origins:            map[string]string{"play.udon.dance": "ud-play.kiva.moe:443", "nya.xin.moe": "ud-nya.kiva.moe:443"},
 		DownloadTimeout:    10 * time.Minute,
 		MaxFileBytes:       2 << 30,
 		MaxDownloads:       3,
@@ -47,6 +51,9 @@ func DefaultConfig() Config {
 }
 
 func (c Config) validate() error {
+	if c.OriginScheme != "https" && c.OriginScheme != "http" {
+		return errors.New("invalid origin scheme")
+	}
 	if c.MaxCacheBytes < 0 {
 		return errors.New("cache limit cannot be negative")
 	}
@@ -66,7 +73,14 @@ func (c Config) validate() error {
 func newTransport() *http.Transport {
 	dialer := &net.Dialer{Timeout: 15 * time.Second, KeepAlive: 30 * time.Second}
 	return &http.Transport{
-		DialContext:           dialer.DialContext,
+		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+			host, _, err := net.SplitHostPort(address)
+			if err != nil || net.ParseIP(host) == nil {
+				return nil, errors.New("upstream requires built-in DNS dialer")
+			}
+			return dialer.DialContext(ctx, network, address)
+		},
+		TLSHandshakeTimeout:   10 * time.Second,
 		MaxIdleConns:          8,
 		IdleConnTimeout:       90 * time.Second,
 		ResponseHeaderTimeout: 30 * time.Second,

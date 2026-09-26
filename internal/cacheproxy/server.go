@@ -31,14 +31,15 @@ type video struct {
 	size                             int64
 }
 type flight struct {
-	id           uint64
-	log          *slog.Logger
-	progress     *downloadProgress
-	done         chan struct{}
-	streaming    chan struct{}
-	spool        *spool
-	path, source string
-	err          error
+	playbackSongs map[string]*playbackSong
+	id            uint64
+	log           *slog.Logger
+	progress      *downloadProgress
+	done          chan struct{}
+	streaming     chan struct{}
+	spool         *spool
+	path, source  string
+	err           error
 }
 
 type Server struct {
@@ -123,8 +124,26 @@ func New(cfg Config) (*Server, error) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	transport := newTransport()
+	dial := transport.DialContext
 	if cfg.DialContext != nil {
-		transport.DialContext = cfg.DialContext
+		dial = cfg.DialContext
+	}
+	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		host, _, err := net.SplitHostPort(address)
+		if err != nil {
+			return nil, err
+		}
+		if origin, ok := cfg.Origins[host]; ok {
+			address = origin
+			if cfg.OriginScheme == "http" {
+				ipHost, _, _ := net.SplitHostPort(origin)
+				ip := net.ParseIP(ipHost)
+				if ip == nil || !ip.IsLoopback() {
+					return nil, errors.New("HTTP origins must be loopback")
+				}
+			}
+		}
+		return dial(ctx, network, address)
 	}
 
 	usage, usageErr := openUsage(filepath.Join(cfg.StorageDir, "stepstash.sqlite"), cfg.Logger)
@@ -257,8 +276,23 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", 405)
 		return
 	}
-	v, err := s.parse(r)
+	// Non-playback API endpoints retain their upstream behavior through the
+	// encrypted relay; only the playback endpoint returns local video bytes.
+	apiHost := strings.ToLower(r.Host)
+	if h, _, err := net.SplitHostPort(apiHost); err == nil {
+		apiHost = h
+	}
+	if apiHost == "api.udon.dance" && r.URL.Path != "/Api/Songs/play" {
+		u := &url.URL{Scheme: "https", Host: "api.udon.dance", Path: r.URL.Path, RawQuery: r.URL.RawQuery}
+		http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
+		return
+	}
+	v, err := s.requestVideo(r)
 	if err != nil {
+		if errors.Is(err, errPlaybackUpstream) {
+			http.Error(w, "playback resolution failed", http.StatusBadGateway)
+			return
+		}
 		http.Error(w, err.Error(), 400)
 		return
 	}
@@ -339,6 +373,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			// Headers may already be sent. Abort rather than completing a truncated body.
 			panic(http.ErrAbortHandler)
+		}
+		// A complete GET has finished validation/publication. Drain its song
+		// record too; short Range/HEAD responses leave this to the worker.
+		if r.Method == http.MethodGet && response.status == http.StatusOK {
+			if err := s.waitPlaybackSong(r.Context(), f, v.songID); err != nil {
+				log.Error("playback_song_failed", "error", applog.SafeError(err))
+			}
 		}
 		log.Info("served", "cache", "MISS", "elapsed", time.Since(start))
 		return

@@ -93,6 +93,7 @@ func TestConsolePrefetchUsesUnifiedRouteSelection(t *testing.T) {
 	c.apiBase = api.URL
 	c.client.Transport = http.DefaultTransport
 	cfg := cacheproxy.DefaultConfig()
+	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()
 	cfg.ResolveRoutes = func(ctx context.Context, id string) ([]string, error) { return c.resolveRoutes(ctx, id, "auto") }
 	for host := range cfg.Origins {

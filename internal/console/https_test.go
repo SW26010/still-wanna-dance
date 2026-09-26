@@ -50,7 +50,7 @@ func relayCertificate(t *testing.T) (tls.Certificate, *x509.CertPool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	template := &x509.Certificate{SerialNumber: big.NewInt(1), DNSNames: []string{"nya.xin.moe", "play.udon.dance"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
+	template := &x509.Certificate{SerialNumber: big.NewInt(1), DNSNames: []string{"nya.xin.moe", "play.udon.dance", "api.udon.dance"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
 	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	if err != nil {
 		t.Fatal(err)
@@ -66,7 +66,7 @@ func relayCertificate(t *testing.T) (tls.Certificate, *x509.CertPool) {
 
 func TestHTTPSRelayPreservesTLSAndRange(t *testing.T) {
 	cert, roots := relayCertificate(t)
-	for _, host := range []string{"nya.xin.moe", "play.udon.dance"} {
+	for _, host := range []string{"nya.xin.moe", "play.udon.dance", "api.udon.dance"} {
 		for _, version := range []uint16{tls.VersionTLS12, tls.VersionTLS13} {
 			t.Run(host+"/"+tls.VersionName(version), func(t *testing.T) {
 				backend := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -117,7 +117,7 @@ func TestHTTPSRelayRejectsUnmanagedAndMalformedClients(t *testing.T) {
 		calls.Add(1)
 		return nil, errors.New("must not dial")
 	})
-	for _, name := range []string{"example.com", "api.udon.dance", "127.0.0.1", "nya.xin.moe.evil.test"} {
+	for _, name := range []string{"example.com", "127.0.0.1", "nya.xin.moe.evil.test"} {
 		client, err := net.Dial("tcp4", p.listener.Addr().String())
 		if err != nil {
 			t.Fatal(err)

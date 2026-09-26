@@ -80,7 +80,7 @@ func New(configPath, address string) (*Console, error) {
 	if _, err := rand.Read(b); err != nil {
 		return nil, err
 	}
-	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "http://api.udon.dance", client: &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{Proxy: nil}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", client: &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{Proxy: nil}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 	c.settings = Settings{StorageDir: "stepstash-data"}
 	c.dns = &directDNS{}
 	c.client.Transport = &http.Transport{DialContext: c.dns.DialContext, ResponseHeaderTimeout: 20 * time.Second}
@@ -244,6 +244,17 @@ func (c *Console) ensureEngine() error {
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
 	cfg.DialContext = c.dns.DialContext
+	cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
+		songID, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			return "", err
+		}
+		route := "hkg"
+		if node == "cf" {
+			route = "cf"
+		}
+		return c.resolveNode(ctx, songID, route)
+	}
 	mode := c.settings.DownloadUpstream
 	cfg.KeepRequestedRoute = mode == "auto"
 	cfg.ResolveRoutes = func(ctx context.Context, id string) ([]string, error) {

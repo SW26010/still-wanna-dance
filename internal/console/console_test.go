@@ -56,7 +56,7 @@ func TestHostsRoundTripAndConflicts(t *testing.T) {
 	if err != nil || restored != original {
 		t.Fatal("restore not idempotent")
 	}
-	for _, data := range []string{"1.2.3.4 play.udon.dance", "::1 nya.xin.moe", "127.0.0.1 api.udon.dance"} {
+	for _, data := range []string{"1.2.3.4 play.udon.dance", "::1 nya.xin.moe", "1.2.3.4 api.udon.dance"} {
 		if _, err := transformHosts(data, "enable"); err == nil {
 			t.Fatal("accepted conflict", data)
 		}
@@ -145,6 +145,7 @@ func TestBatchWorksWithoutCDNAndReusesCache(t *testing.T) {
 	}))
 	defer origin.Close()
 	cfg := cacheproxy.DefaultConfig()
+	cfg.OriginScheme = "http"
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.Origins["nya.xin.moe"] = strings.TrimPrefix(origin.URL, "http://")
 	engine, err := cacheproxy.New(cfg)

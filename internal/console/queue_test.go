@@ -55,6 +55,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	c.apiBase = api.URL
 	c.client.Transport = http.DefaultTransport
 	cfg := cacheproxy.DefaultConfig()
+	cfg.OriginScheme = "http"
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.Origins["nya.xin.moe"] = strings.TrimPrefix(origin.URL, "http://")
 	engine, err := cacheproxy.New(cfg)

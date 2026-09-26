@@ -50,6 +50,7 @@ func loggingServer(t *testing.T, handler http.HandlerFunc) (*Server, *logCapture
 	t.Cleanup(upstream.Close)
 	logs := new(logCapture)
 	cfg := DefaultConfig()
+	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()
 	cfg.Logger = slog.New(slog.NewJSONHandler(logs, nil))
 	cfg.ResolveCurrent = func(context.Context, string) (string, error) { return "", errors.New("offline") }

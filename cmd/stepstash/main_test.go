@@ -51,6 +51,7 @@ func (w *observedWriter) Write(b []byte) (int, error) {
 
 func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	cfg := cacheproxy.DefaultConfig()
+	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()
 	cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	body := strings.Repeat("x", 128*1024)

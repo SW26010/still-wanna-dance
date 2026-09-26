@@ -22,17 +22,20 @@ go build -o bin/stepstash.exe ./cmd/stepstash
 ## 游戏接入
 
 1. 先停止占用本机 80 端口的原版服务，再以 `-listen 127.0.0.1:80` 启动 StepStash；需要时在有相应权限的终端运行。
-2. 备份 hosts，只将 `play.udon.dance`、`nya.xin.moe` 映射到 `127.0.0.1`。如果之前映射过 `api.udon.dance`，先恢复它的正常解析。
-3. API 保持原始网络路径，选择 CF 或 HKG；Auto 继续由 API 决定视频地址。测试后恢复 hosts 并停止服务。
+2. 备份 hosts，将 `play.udon.dance`、`nya.xin.moe` 映射到 `127.0.0.1`，接管 HTTP 视频请求。若还需接管 HTTP 播放 API，可额外映射 `api.udon.dance`。
+3. 选择 CF 或 HKG。CLI 将播放 API 的查询参数传给 HTTPS 上游；未指定 node 时由上游决定视频地址。测试后恢复 hosts 并停止服务。
 
-本页 `stepstash.exe` 命令行入口仅处理已观测到的 HTTP 视频链路，不监听 443，也不实现 `/Api/`、`/v/` 或 SHA。需要同时兼容网页 HTTPS 播放时，使用 `stepstash-console.exe`：其 CDN 同时启动 HTTP 缓存和 HTTPS 透传，详见[本地控制台](console.md#网页-https-播放)。透传不使用本地缓存。更详细的原版接入记录见[复现手册](testing-runbook.md)，其中原版命令不能直接当作 StepStash 命令使用。
+本页 `stepstash.exe` 命令行入口支持 HTTP 视频请求及 `api.udon.dance/Api/Songs/play?id=…` 的 GET/HEAD，接受省略 node、`node=cf` 或 `node=nya`。它通过 HTTPS 获取上游视频地址，按资源指纹命中缓存或边下边播，直接以 HTTP 返回视频，支持单段 Range。游戏入口须使用 HTTP，播放器须接受 API 地址直接返回视频；游戏内兼容性仍待实测。其他 API 路径的 GET/HEAD 返回 307，指向原站 HTTPS。
+
+CLI 不监听 443，也不支持 `/v/` 或 SHA。hosts 同时影响 HTTP/HTTPS，因此映射后的域名若被客户端通过 HTTPS 访问（包括上述 307），CLI 单独运行无法承接该连接。需要同时兼容网页 HTTPS 播放时，使用 `stepstash-console.exe`：其 CDN 同时启动 HTTP 缓存和 HTTPS 透传，详见[本地控制台](console.md#网页-https-播放)。透传不使用本地缓存。更详细的原版接入记录见[复现手册](testing-runbook.md)，其中原版命令不能直接当作 StepStash 命令使用。
 
 ## 缓存和下载规则
 
 - 接收两个视频 Host（允许附带端口）的 GET/HEAD；路径限定为 `/files/<数字目录>/<正整数ID>-<字母数字版本>.mp4`。e 必须为 MD5，s 为正数且不超过上限。重复 e/s、错误转义、其他 Host 和路径返回 400，其他方法返回 405。
 - 按 URL 资源编号、文件名版本、MD5、长度的 SHA256 定位 `videos/<资源指纹>.mp4`；域名和目录不参与键。同一版本可跨 CF/HKG 复用。每个版本只有一份正式视频，不同版本相互独立。多首曲目可以引用同一资源；显式曲目预取更新引用须经歌曲 API 确认，旧资源仍被其他曲目引用或正在使用时保留。纯视频 URL 不推断曲目关系。
 - 每次读取校验完整大小和 MD5，响应前再次验证打开的句柄，避免并发替换导致返回错误版本。这会增加磁盘读取成本；可选的容量上限与优先级淘汰见[缓存保留策略](cache-retention.md)。歌曲和版本信息存数据库，读取不依赖每首歌的 JSON 文件。
-- 未命中时共享一次整文件回源；各客户端独立读取逐渐增长的下载文件，按其 Range 返回已到达的区间，尚未到达的区间等待上游。保持原视频 Host，连接独立回源地址，不使用系统代理环境变量，不跟随上游跳转。默认 CF 为 `ud-play.kiva.moe:80`，HKG 为 `ud-nya.kiva.moe:80`。
+- 未命中时共享一次整文件回源；各客户端独立读取逐渐增长的下载文件，按其 Range 返回已到达的区间，尚未到达的区间等待上游。保持原视频 Host，连接独立回源地址，通过内置 DoH 解析并建立 HTTPS 连接，保留原域名的 TLS SNI 和证书校验，不使用系统代理环境变量，不回退系统 DNS/hosts 或明文 HTTP。默认 CF 为 `ud-play.kiva.moe:443`，HKG 为 `ud-nya.kiva.moe:443`。
+- 视频回源最多跟随五次重定向，仅接受受支持视频域名、合法视频路径且 MD5/大小与原资源一致的目标。HTTP Location 升级为 HTTPS 后访问，每次连接继续使用内置 DoH；不接受任意域名跳转。播放 API 的重定向作为视频地址解析，再进入同一缓存链路。
 - 下载到 `tmp/download-*.part`，严格检查长度、MD5，再复制到发布临时文件，同步关闭后重命名到 `videos`。下载句柄保留至最后一个读取者结束，适应 Windows 文件占用限制；随后临时文件删除。上游错误、截断、超长、非预期压缩和校验失败不发布正式视频。MD5 仅用于协议完整性检查。
 - 同键并发共享后台任务，回源节点取首次请求；尚在下载时切 CDN 仍复用这一任务，不会自动换源。客户端取消后任务继续，受全局超时和下载数量限制；不同歌曲超过容量返回 503，可稍后重试。
 - 整个存储根目录由操作系统文件锁独占。正常退出或进程死亡释放锁，重启清理 `tmp/download-*.part`。`.lock` 文件保留正常，不应在运行时删除。
@@ -49,7 +52,7 @@ go build -o bin/stepstash.exe ./cmd/stepstash
 
 自动维护 SQLite `resource_usage` 汇总表与 `request_events` 请求明细表，用于计算缓存保留优先级；设置有限容量上限后自动淘汰低优先级视频，默认不限。详见[缓存保留策略](cache-retention.md)。控制台与命令行都使用存储根目录中的 `stepstash.sqlite`，同一数据库同时保存 `songs` 和 `video_versions`。清理 `tmp` 或淘汰视频不会删除资料和统计。
 
-每个资源一行，按资源指纹跨 CDN 汇总；视频请求无法判断实际曲目：
+每个资源一行，按资源指纹跨 CDN 汇总；纯视频 URL 无法判断实际曲目，播放 API 则提供显式歌曲 ID：
 
 | 字段 | 含义 |
 | --- | --- |
@@ -87,13 +90,14 @@ FROM resource_usage ORDER BY last_requested_at DESC;
 | --- | --- |
 | `-listen` | `127.0.0.1:18080` |
 | `-storage-dir` | `stepstash-data` |
-| `-cf-origin` | `ud-play.kiva.moe:80` |
-| `-hkg-origin` | `ud-nya.kiva.moe:80` |
+| `-cf-origin` | `ud-play.kiva.moe:443` |
+| `-hkg-origin` | `ud-nya.kiva.moe:443` |
 | `-download-timeout` | `10m`，限制共享工作任务（含其中的缓存校验、下载和发布）；不限制额度用尽时的独立本地校验路径 |
 | `-max-file-bytes` | `2147483648`（2 GiB） |
+| `-max-cache-bytes` | `0`，缓存容量不限；单位为字节 |
 | `-max-downloads` | `3`，限制共享工作任务（包括正在校验的不同文件）；独立本地校验池另有同样大小的额度 |
 
-回源参数是 TCP `host:port`，不是 URL。不要将回源地址配置到本服务，也不要在 hosts 中把回源域名映射回本机。默认仅用于本机；无鉴权，不建议监听公网地址。配置受信任，外部请求不能任意指定回源目标。
+回源参数是 HTTPS 服务的 TCP `host:port`，不是 URL；修改端口不会切换成 HTTP。自定义地址仍通过内置 DoH 解析，并验证对应视频原域名的证书，不受系统 hosts 影响。不要将回源地址配置到本服务。默认仅用于本机；无鉴权，不建议监听公网地址。配置受信任，外部请求不能任意指定回源目标。
 
 ## 验证范围
 

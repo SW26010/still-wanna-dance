@@ -22,6 +22,14 @@ type directDNS struct {
 	cache         map[string]dnsEntry
 	bootstrapping map[string]chan struct{}
 }
+
+// NewUpstreamDialer shares the desktop's certificate-verified DoH implementation
+// with the command-line service. It never falls back to the system resolver.
+func NewUpstreamDialer() func(context.Context, string, string) (net.Conn, error) {
+	d := &directDNS{}
+	return d.DialContext
+}
+
 type dnsEntry struct {
 	ips   []string
 	until time.Time

@@ -82,6 +82,7 @@ func TestRetentionPinsAndUnlimited(t *testing.T) {
 }
 func TestRetentionStartupAndUnknownFiles(t *testing.T) {
 	cfg := DefaultConfig()
+	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()
 	cfg.MaxCacheBytes = 1
 	p := cfg.videoFile(strings.Repeat("a", 64))

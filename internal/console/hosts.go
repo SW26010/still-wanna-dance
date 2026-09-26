@@ -11,7 +11,7 @@ import (
 
 const marker = "# StepStash managed"
 
-var domains = []string{"play.udon.dance", "nya.xin.moe"}
+var domains = []string{"play.udon.dance", "nya.xin.moe", "api.udon.dance"}
 
 func hostsPath() string {
 	if runtime.GOOS == "windows" {
@@ -36,9 +36,6 @@ func inspectHosts(data string) HostsStatus {
 		}
 		for _, host := range fields[1:] {
 			host = strings.ToLower(strings.TrimSuffix(host, "."))
-			if host == "api.udon.dance" {
-				conflict = true
-			}
 			for _, d := range domains {
 				if host == d {
 					if fields[0] == "127.0.0.1" {
@@ -51,10 +48,10 @@ func inspectHosts(data string) HostsStatus {
 		}
 	}
 	if conflict {
-		return HostsStatus{Conflict: true, Message: "发现已有冲突映射（包括 API 域名），请先检查 hosts；不会覆盖其他程序的配置。"}
+		return HostsStatus{Conflict: true, Message: "发现已有冲突映射，请先检查 hosts；不会覆盖其他程序的配置。"}
 	}
-	if len(found) == 2 {
-		return HostsStatus{Ready: true, Message: "两个视频域名均已接入本地。"}
+	if len(found) == len(domains) {
+		return HostsStatus{Ready: true, Message: "播放 API 和两个视频域名均已接入本地。"}
 	}
 	return HostsStatus{Message: "尚未接入游戏，请点击「修改 hosts」。"}
 }

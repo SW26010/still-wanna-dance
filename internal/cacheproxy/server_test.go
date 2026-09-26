@@ -33,6 +33,7 @@ func setup(t *testing.T, handler http.HandlerFunc) (*Server, Config) {
 	upstream := httptest.NewServer(handler)
 	t.Cleanup(upstream.Close)
 	cfg := DefaultConfig()
+	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()
 	cfg.ResolveCurrent = func(context.Context, string) (string, error) { return "", errors.New("test API unavailable") }
 	cfg.Logger = slog.New(slog.NewTextHandler(testLogWriter{t}, nil))

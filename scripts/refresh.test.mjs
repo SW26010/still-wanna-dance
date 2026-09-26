@@ -144,42 +144,64 @@ function page(hidden = false) {
   const elements = new Map();
   const listeners = new Map();
   let nextTimer = 0;
-  function element() {
+  // Only model the DOM APIs used by the console; retain nodes and listeners so
+  // rendering and user interactions can be asserted without calling action().
+  function element(tagName = 'div') {
     const handlers = new Map();
     return {
+      tagName: tagName.toUpperCase(),
       dataset: {},
-      addEventListener: (event, callback) => handlers.set(event, callback),
-      dispatchEvent: event => handlers.get(event.type)?.(event),
-      replaceChildren() {},
+      children: [],
+      disabled: false,
+      hidden: false,
+      textContent: '',
+      addEventListener(event, callback) {
+        if (!handlers.has(event)) handlers.set(event, []);
+        handlers.get(event).push(callback);
+      },
+      dispatchEvent(event) {
+        event.target ??= this;
+        event.preventDefault ??= () => { event.defaultPrevented = true; };
+        for (const callback of handlers.get(event.type) || []) callback(event);
+        return !event.defaultPrevented;
+      },
+      click() {
+        if (!this.disabled) this.dispatchEvent({ type: 'click' });
+      },
+      append(...nodes) { this.children.push(...nodes); },
+      replaceChildren(...nodes) { this.children = [...nodes]; },
     };
   }
   const document = {
     hidden,
     querySelector: () => ({ content: 'test-token' }),
     getElementById(id) {
-      if (!elements.has(id)) elements.set(id, element());
-      return elements.get(id);
+      return elements.get(id) || null;
     },
+    createElement: tagName => element(tagName),
     querySelectorAll(selector) {
       if (selector === 'button') return buttons;
       if (selector === '[data-action]') return buttons.filter(b => b.dataset.action);
       if (selector === '[data-action^="hosts/"]')
         return buttons.filter(b => b.dataset.action?.startsWith('hosts/'));
-      return [];
+      throw new Error(`Unsupported selector: ${selector}`);
     },
     addEventListener: (event, callback) => listeners.set(event, callback),
   };
-  const buttons = [...html.matchAll(/<button\b[^>]*>/g)].map(([tag]) => {
+  const buttons = [];
+  for (const [tag, tagName] of html.matchAll(/<([a-z][a-z0-9]*)\b[^>]*>/g)) {
+    const node = element(tagName);
     const id = tag.match(/\bid="([^"]+)"/)?.[1];
-    const button = id ? document.getElementById(id) : element();
+    if (id) elements.set(id, node);
     const action = tag.match(/\bdata-action="([^"]+)"/)?.[1];
-    if (action) button.dataset.action = action;
-    return button;
-  });
+    if (action) node.dataset.action = action;
+    if (tagName === 'button') buttons.push(node);
+  }
   const context = vm.createContext({
     document,
     AbortController,
-    fetch(url, { signal } = {}) {
+    fetch(url, options = {}) {
+      const { signal } = options;
       return new Promise((resolve, reject) => {
         let rejectBody;
         signal?.addEventListener('abort', () => {
@@ -187,7 +209,7 @@ function page(hidden = false) {
           rejectBody?.(signal.reason);
         }, { once: true });
         requests.push({
-          url, signal, reject,
+          url, ...options, reject,
           finish(data = {}, ok = true) { resolve({ ok, json: async () => data }); },
           headersOnly() {
             resolve({ ok: true, json: () => new Promise((_, reject) => { rejectBody = reject; }) });
@@ -210,15 +232,15 @@ function page(hidden = false) {
     timer.callback();
   }
   return {
-    requests, context,
+    requests, context, document,
     get timers() { return new Map([...timers].filter(([, timer]) => timer.delay === 5000)); },
     get deadlines() { return new Map([...timers].filter(([, timer]) => timer.delay === 10000)); },
     visibility(hidden) {
       document.hidden = hidden;
       listeners.get('visibilitychange')();
     },
-    finishBatch(start = 0, settings = {}) {
-      requests[start].finish({ settings, hosts: {}, batch: {}, queue: {} });
+    finishBatch(start = 0, settings = {}, state = {}) {
+      requests[start].finish({ settings, hosts: {}, batch: {}, queue: {}, ...state });
       requests[start + 1].finish({ bytes: 0 });
     },
     fireTimer: () => fireTimer(5000),
@@ -227,6 +249,175 @@ function page(hidden = false) {
     get actionDeadlines() { return [...timers.values()].filter(t => [30000, 120000].includes(t.delay)); },
   };
 }
+
+test('nonempty queue renders three songs in order, falls back to IDs, and replaces stale nodes', async () => {
+  const p = page();
+  const get = id => p.document.getElementById(id);
+  const title = '<img src=x onerror=alert(1)>';
+  p.finishBatch(0, {}, { queue: {
+    running: true, current: '11', active: ['11', '12'], completed: 2,
+    file: 'output_log.txt', logError: '日志不可读', error: '下载失败',
+    songs: [{ songId: 11, title }, { songId: 12 }, { songId: 13, title: '第三首' }, { songId: 14, title: '第四首' }],
+  } });
+  await flush();
+  assert.equal(get('connection').textContent, '● 控制台已连接');
+  assert.deepEqual(get('queueSongs').children.map(node => [node.tagName, node.textContent, node.children.length]),
+    [['LI', title, 0], ['LI', '12', 0], ['LI', '第三首', 0]]);
+  assert.equal(get('queuePhase').textContent, '正在准备歌曲 11、12');
+  assert.equal(get('queueDetail').textContent, 'output_log.txt · 已准备 2 首');
+  assert.equal(get('queueError').textContent, '日志不可读');
+  assert.equal(get('queueStart').disabled, true);
+  assert.equal(get('queueStop').disabled, false);
+  assert.equal(get('batchStart').textContent, '停止预缓存并下载补齐');
+
+  p.fireTimer();
+  p.finishBatch(2, {}, { queue: { running: true, songs: [{ songId: 15 }], error: '下载失败' } });
+  await flush();
+  assert.deepEqual(get('queueSongs').children.map(node => node.textContent), ['15']);
+  assert.equal(get('queuePhase').textContent, '等待队列变化或重试');
+  assert.equal(get('queueError').textContent, '下载失败');
+
+  p.fireTimer();
+  p.finishBatch(4);
+  await flush();
+  assert.deepEqual(get('queueSongs').children, []);
+  assert.equal(get('queueError').textContent, '');
+  assert.equal(get('queuePhase').textContent, '预缓存已停止');
+});
+
+test('batch failures render rows as text and disappear after a successful refresh', async () => {
+  const p = page();
+  const get = id => p.document.getElementById(id);
+  const failures = [
+    { id: 11, name: '<b>歌曲</b>', error: '<script>alert(1)</script>' },
+    { id: 12, name: '另一首', error: '校验失败' },
+  ];
+  p.finishBatch(0, {}, { batch: {
+    running: true, scanOnly: true, total: 4, checked: 3, hits: 1,
+    missing: 2, downloaded: 0, failed: 2, failures, phase: '扫描中', current: '另一首',
+  } });
+  await flush();
+  assert.equal(get('connection').textContent, '● 控制台已连接');
+  assert.equal(get('failures').hidden, false);
+  assert.deepEqual(get('failureRows').children.map(row => [row.tagName,
+    row.children.map(cell => [cell.tagName, cell.textContent, cell.children.length])]), [
+    ['TR', [['TD', '11 · <b>歌曲</b>', 0], ['TD', '<script>alert(1)</script>', 0]]],
+    ['TR', [['TD', '12 · 另一首', 0], ['TD', '校验失败', 0]]],
+  ]);
+  assert.equal(get('progress').max, 4);
+  assert.equal(get('progress').value, 3);
+  assert.equal(get('phase').textContent, '扫描中');
+  assert.equal(get('current').textContent, '另一首 · 当前任务 3 / 4 · 命中 1 · 缺失 2 · 补齐 0 · 失败 2');
+  assert.equal(get('batchScan').disabled, true);
+  assert.equal(get('batchScan').textContent, '正在扫描…');
+  assert.equal(get('batchCancel').disabled, false);
+
+  p.fireTimer();
+  p.finishBatch(2, {}, { batch: { failed: 1, failures: failures.slice(1) } });
+  await flush();
+  assert.equal(get('failureRows').children.length, 1);
+  assert.equal(get('failureRows').children[0].children[0].textContent, '12 · 另一首');
+  p.fireTimer();
+  p.finishBatch(4);
+  await flush();
+  assert.equal(get('failures').hidden, true);
+  assert.deepEqual(get('failureRows').children, []);
+  assert.equal(get('batchScan').disabled, false);
+  assert.equal(get('batchCancel').disabled, true);
+});
+
+for (const [path, state] of [
+  ['start', {}], ['stop', { running: true }],
+  ['hosts/enable', {}], ['hosts/disable', {}], ['inventory/scan', {}],
+  ['queue/switch', {}], ['queue/stop', { queue: { running: true } }],
+  ['batch/scan', {}], ['batch/switch', {}], ['batch/cancel', { batch: { running: true } }],
+]) {
+  test(`clicking the ${path} button posts once and refreshes before unlocking controls`, async () => {
+    const p = page();
+    const button = p.document.querySelectorAll('[data-action]').find(b => b.dataset.action === path);
+    assert.ok(button, `Missing button for ${path}`);
+    button.click(); // Disabled while the initial state is unknown.
+    assert.equal(p.requests.length, 2);
+    p.finishBatch(0, {}, state);
+    await flush();
+    assert.equal(button.disabled, false);
+    button.click();
+    assert.equal(p.requests.length, 3);
+    const request = p.requests[2];
+    assert.equal(request.url, '/api/' + path);
+    assert.equal(request.method, 'POST');
+    assert.equal(request.headers['X-StepStash-Token'], 'test-token');
+    assert.equal(request.headers['Content-Type'], 'application/json');
+    assert.deepEqual(JSON.parse(request.body), {});
+    assert.equal(p.document.querySelectorAll('button').every(b => b.disabled), true);
+    button.click();
+    assert.equal(p.requests.length, 3);
+    request.finish({ ok: true });
+    await flush();
+    assert.deepEqual(p.requests.slice(3).map(r => r.url), ['/api/status', '/api/inventory']);
+    p.finishBatch(3, {}, state);
+    await flush();
+    assert.equal(button.disabled, false);
+    assert.equal(p.document.getElementById('notice').hidden, false);
+    assert.match(p.document.getElementById('notice').textContent, /已启动|已完成|已移除/);
+    assert.equal(p.timers.size, 1);
+  });
+}
+
+for (const lostResponse of [false, true]) {
+  test(`button click recovers after ${lostResponse ? 'a lost response' : 'a rejected action'} without resubmitting`, async () => {
+    const p = page();
+    const get = id => p.document.getElementById(id);
+    p.finishBatch();
+    await flush();
+    get('start').click();
+    assert.equal(p.requests[2].url, '/api/start');
+    if (lostResponse) p.requests[2].reject(new Error('offline'));
+    else p.requests[2].finish({ error: '端口已占用' }, false);
+    await flush();
+    assert.deepEqual(p.requests.slice(3).map(r => r.url), ['/api/status', '/api/inventory']);
+    assert.equal(get('start').disabled, true);
+    p.finishBatch(3);
+    await flush();
+    assert.equal(get('start').disabled, false);
+    assert.equal(get('notice').hidden, false);
+    assert.match(get('notice').textContent, lostResponse ? /结果尚未确认.*已刷新当前状态/s : /端口已占用/);
+    assert.equal(p.requests.filter(r => r.method === 'POST').length, 1);
+    assert.equal(p.actionDeadlines.length, 0);
+    assert.equal(p.timers.size, 1);
+  });
+}
+
+test('settings submit prevents navigation and serializes the edited controls', async () => {
+  const p = page();
+  p.finishBatch();
+  await flush();
+  const get = id => p.document.getElementById(id);
+  const values = {
+    storageDir: 'D:/draft', logDir: 'D:/logs', downloadUpstream: 'hkg',
+    requestRetentionDays: '0', scanResolveConcurrency: '8', scanCheckConcurrency: '2', maxCacheGiB: '1.25',
+  };
+  for (const [id, value] of Object.entries(values)) get(id).value = value;
+  get('autoStartCDN').checked = true;
+  get('settings').dispatchEvent({ type: 'input' });
+  const event = { type: 'submit' };
+  assert.equal(get('settings').dispatchEvent(event), false);
+  assert.equal(event.defaultPrevented, true);
+  assert.equal(p.requests[2].url, '/api/settings');
+  assert.equal(p.requests[2].method, 'POST');
+  assert.deepEqual(JSON.parse(p.requests[2].body), {
+    autoStartCDN: true, storageDir: 'D:/draft', logDir: 'D:/logs', downloadUpstream: 'hkg',
+    requestRetentionDays: 0, scanResolveConcurrency: 8, scanCheckConcurrency: 2, maxCacheBytes: 1342177280,
+  });
+  assert.equal(get('save').disabled, true);
+  p.requests[2].finish({ ok: true });
+  await flush();
+  p.finishBatch(3, { storageDir: 'D:/effective' });
+  await flush();
+  assert.equal(get('storageDir').value, 'D:/effective');
+  assert.equal(get('save').disabled, false);
+  assert.equal(get('notice').textContent, '缓存设置已保存。');
+});
 
 test('periodic refresh waits for both reads and keeps exactly one timer', async () => {
   const p = page();

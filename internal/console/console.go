@@ -420,19 +420,23 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.mu.Lock()
 		running := c.httpServer != nil
 		result := struct {
-			Running        bool              `json:"running"`
-			Settings       Settings          `json:"settings"`
-			Hosts          HostsStatus       `json:"hosts"`
-			PortOK         bool              `json:"portOK"`
-			CDNError       string            `json:"cdnError"`
-			ActionErrors   map[string]string `json:"actionErrors"`
-			Batch          Batch             `json:"batch"`
-			PortOwner      *desktop.Owner    `json:"portOwner,omitempty"`
-			Queue          QueueStatus       `json:"queue"`
-			LastBatch      Batch             `json:"lastBatch"`
-			HTTPSPortOK    bool              `json:"httpsPortOK"`
-			HTTPSPortOwner *desktop.Owner    `json:"httpsPortOwner,omitempty"`
-		}{running, c.settings, readHostsStatus(), running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil}
+			Running        bool                    `json:"running"`
+			Settings       Settings                `json:"settings"`
+			Hosts          HostsStatus             `json:"hosts"`
+			PortOK         bool                    `json:"portOK"`
+			CDNError       string                  `json:"cdnError"`
+			ActionErrors   map[string]string       `json:"actionErrors"`
+			Batch          Batch                   `json:"batch"`
+			PortOwner      *desktop.Owner          `json:"portOwner,omitempty"`
+			Queue          QueueStatus             `json:"queue"`
+			LastBatch      Batch                   `json:"lastBatch"`
+			HTTPSPortOK    bool                    `json:"httpsPortOK"`
+			HTTPSPortOwner *desktop.Owner          `json:"httpsPortOwner,omitempty"`
+			Traffic        cacheproxy.TrafficStats `json:"traffic"`
+		}{running, c.settings, readHostsStatus(), running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}}
+		if c.service != nil {
+			result.Traffic = c.service.TrafficStats()
+		}
 		result.ActionErrors = make(map[string]string, len(c.actionErrors))
 		for source, message := range c.actionErrors {
 			result.ActionErrors[source] = message

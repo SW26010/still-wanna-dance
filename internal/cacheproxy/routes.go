@@ -241,6 +241,7 @@ func (s *Server) openUpstream(ctx context.Context, v video) (*http.Response, str
 				err = errors.New("upstream content length mismatch")
 			}
 			if err == nil {
+				s.recordUpstream(time.Since(start))
 				s.cfg.Logger.Info("upstream_selected", "requested_host", v.host, "host", candidate.host, "resource_key", v.key)
 				return resp, candidate.host, nil
 			}

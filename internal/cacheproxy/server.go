@@ -42,6 +42,7 @@ type flight struct {
 }
 
 type Server struct {
+	stats           trafficStats
 	routeMu         sync.Mutex
 	routeSongs      map[string]string
 	routeCache      map[string]routeEntry
@@ -228,7 +229,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	r = r.WithContext(applog.WithTrace(r.Context()))
 	log := s.cfg.Logger.With("trace_id", applog.TraceID(r.Context()), "request_id", id, "method", r.Method, "host", r.Host, "path", r.URL.Path, "range", r.Header.Get("Range"), "user_agent", r.UserAgent())
-	response := &responseWriter{ResponseWriter: w}
+	response := &responseWriter{ResponseWriter: w, started: start}
 	w = response
 	defer func() {
 		crash := recover()
@@ -283,6 +284,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			event.outcome = "canceled"
 		}
 		s.usage.record(event)
+		s.recordTraffic(r.Method, event.cache, event.outcome, event.status, response.headerLatency, response.bytes)
 		if panicked != nil {
 			panic(panicked)
 		}
@@ -376,9 +378,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type responseWriter struct {
 	http.ResponseWriter
-	status   int
-	bytes    int64
-	writeErr error
+	started       time.Time
+	headerLatency time.Duration
+	status        int
+	bytes         int64
+	writeErr      error
 }
 
 func (w *responseWriter) WriteHeader(status int) {
@@ -386,6 +390,7 @@ func (w *responseWriter) WriteHeader(status int) {
 		return
 	}
 	w.status = status
+	w.headerLatency = time.Since(w.started)
 	w.ResponseWriter.WriteHeader(status)
 }
 

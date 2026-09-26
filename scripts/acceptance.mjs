@@ -86,7 +86,7 @@ async function stepstash(name, storageDir) {
 function videoFile(root, url) {
  const [, id, version] = url.pathname.match(/\/([1-9][0-9]*)-([a-zA-Z0-9]+)\.mp4$/);
  const key = digest(id + '/' + version + '/' + url.searchParams.get('e').toLowerCase() + '/' + Number(url.searchParams.get('s')));
- return path.join(root, 'videos', id + '-' + key + '.mp4');
+ return path.join(root, 'videos', key + '.mp4');
 }
 
 try {

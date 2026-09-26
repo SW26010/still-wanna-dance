@@ -15,14 +15,12 @@ import (
 
 // Only the hosts managed by StepStash are forwarded. Keep the original SNI
 // and encrypted bytes intact: certificates, HTTP and video remain end-to-end.
+// The independent DNS dialer resolves public hosts without consulting hosts.
 func httpsOrigin(name string) string {
-	switch strings.ToLower(strings.TrimSuffix(name, ".")) {
-	case "api.udon.dance":
-		return "api.udon.dance:443"
-	case "nya.xin.moe":
-		return "ud-nya.kiva.moe:443"
-	case "play.udon.dance":
-		return "ud-play.kiva.moe:443"
+	name = strings.ToLower(strings.TrimSuffix(name, "."))
+	switch name {
+	case "api.udon.dance", "nya.xin.moe", "play.udon.dance":
+		return net.JoinHostPort(name, "443")
 	default:
 		return ""
 	}

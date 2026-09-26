@@ -106,4 +106,16 @@ re-caching via ud-play.kiva.moe (Host: play.udon.dance)
 
 因此 `ud-play.kiva.moe` 有原版随包说明中的历史依据。该行说明的是缓存工具回源，不是游戏播放链接；也没有承诺这个域名长期稳定。本 README 未出现 `ud-nya.kiva.moe`。对随包文件内容的确认不等于独立验证它的发布者身份。
 
-本次证据支持后续将默认回源改成“公开域名 + 独立 DNS + 原域名 TLS 校验”，按经过验证的实际重定向继续访问。无需以 `ud-play.kiva.moe` / `ud-nya.kiva.moe` 作为必需的中转名。实施该变更仍需同步处理 HTTPS 透传、配置校验和回归测试；本次仅完成观察与证据整理，业务行为未修改。
+调查结论支持将默认回源改成“公开域名 + 独立 DNS + 原域名 TLS 校验”，按经过验证的实际重定向继续访问。无需以 `ud-play.kiva.moe` / `ud-nya.kiva.moe` 作为必需的中转名。上述调查阶段未修改业务行为；随后按用户要求完成了以下实现与验证。
+
+## 调查后的实现与验证
+
+默认视频连接目标改为 `play.udon.dance:443` 和 `nya.xin.moe:443`；TLS 透传按三个托管域名自身连接 443。两者继续使用独立 DoH，不读取本机 hosts，不以历史 `ud-*` 地址作为兜底。CLI 显式自定义连接地址的能力保留，原域名 Host、SNI 与证书验证仍然生效。已有重定向白名单、资源校验及下载时 HTTP Location 升级为 HTTPS 的逻辑继续使用。
+
+2026-09-26 23:43（北京时间）验证：
+
+- `go test ./...`、`go vet ./...` 通过。针对性测试覆盖默认公开地址、显式覆盖地址保持 TLS 身份、无效配置、不可信证书、连接失败不回退、合法跨域跳转及非法跳转拒绝；TLS 透传测试同时检查真实传入 dialer 的目标为公开域名。
+- `STEPSTASH_LIVE_UPSTREAM=1 go test ./internal/console -run '^TestLiveHTTPSUpstreams$' -v -count=1`：CF/HKG 均通过临时本地 TLS 透传获取 1,024 字节视频片段并完成原站证书校验。测试定向连接本地端口来模拟 hosts 接入，没有修改 hosts，也未安装证书。这是协议级验证，不声称本轮重新启动了游戏或浏览器。
+- 新构建 CLI 使用默认配置进行隔离冷缓存验收：1343（CF 入口）完整收到 32,867,177 字节，MD5 `28711962048bed664c98f27e1d9d5842`；1344（HKG 入口）完整收到 40,548,476 字节，MD5 `8f26d29704140a431dea0c1374f2eeba`。实际大小和落盘 MD5 都与 API 返回值一致，跨 Host Range 命中和重启 HEAD 命中均通过。入口选择不等于最终视频服务器，允许上游有效跳转。
+
+完整下载原始报告见 [public-origin-acceptance-20260926.json](evidence/public-origin-acceptance-20260926.json)。使用 `node scripts/acceptance.mjs bin/stepstash-public-origin.exe` 运行，测试媒体和进程日志留在忽略目录 `test-runs/acceptance-0`；测试进程已由脚本关闭，原版歌曲库和常用缓存未改动。实网结果仅覆盖当时网络和这些样本，不承诺长期可用性。

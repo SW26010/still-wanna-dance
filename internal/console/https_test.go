@@ -80,7 +80,7 @@ func TestHTTPSRelayPreservesTLSAndRange(t *testing.T) {
 				backend.StartTLS()
 				defer backend.Close()
 				p := runTestRelay(t, func(ctx context.Context, network, address string) (net.Conn, error) {
-					if address != httpsOrigin(host) || network != "tcp4" {
+					if address != net.JoinHostPort(host, "443") || network != "tcp4" {
 						t.Errorf("wrong upstream: %s %s", network, address)
 					}
 					return (&net.Dialer{}).DialContext(ctx, network, backend.Listener.Addr().String())

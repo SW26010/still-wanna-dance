@@ -18,6 +18,7 @@ func TestLiveHTTPSUpstreams(t *testing.T) {
 		t.Skip("opt-in live HTTPS probe")
 	}
 	c := testConsole(t)
+	relay := runTestRelay(t, c.dns.DialContext)
 	for _, route := range []string{"cf", "hkg"} {
 		t.Run(route, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
@@ -31,12 +32,10 @@ func TestLiveHTTPSUpstreams(t *testing.T) {
 				t.Fatal(err)
 			}
 			u.Scheme = "https"
-			transport := &http.Transport{DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-				host, _, err := net.SplitHostPort(address)
-				if err != nil {
-					return nil, err
-				}
-				return c.dns.DialContext(ctx, network, httpsOrigin(host))
+			// Emulate hosts pointing the browser at our relay, without changing
+			// the machine's hosts file. The relay resolves the public name itself.
+			transport := &http.Transport{DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+				return (&net.Dialer{}).DialContext(ctx, network, relay.listener.Addr().String())
 			}, TLSHandshakeTimeout: 10 * time.Second}
 			defer transport.CloseIdleConnections()
 			client := &http.Client{Transport: transport, CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -67,7 +66,7 @@ func TestLiveHTTPSUpstreams(t *testing.T) {
 			if err != nil || len(body) != 1024 {
 				t.Fatalf("bytes=%d error=%v", len(body), err)
 			}
-			t.Logf("%s HTTPS API + certificate-verified video Range passed via built-in DNS", route)
+			t.Logf("%s HTTPS API + certificate-verified video Range passed via local TLS relay and public-host DNS", route)
 		})
 	}
 }

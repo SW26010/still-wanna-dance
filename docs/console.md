@@ -57,7 +57,7 @@ go build -o bin/stepstash-console-cli.exe ./cmd/stepstash-console
 
 ### 网页 HTTPS 播放
 
-hosts 同时影响 HTTP 和 HTTPS。控制台启动 CDN 时提供 TLS SNI 透传，防止网页的视频 HTTPS 请求被映射到本机后遭到连接拒绝。仅接受三个托管域名：`nya.xin.moe → ud-nya.kiva.moe:443`、`play.udon.dance → ud-play.kiva.moe:443`、`api.udon.dance → api.udon.dance:443`。所有连接使用内置 DoH，不开放通用代理。
+hosts 同时影响 HTTP 和 HTTPS。控制台启动 CDN 时提供 TLS SNI 透传，防止网页的视频 HTTPS 请求被映射到本机后遭到连接拒绝。仅接受三个托管域名：`nya.xin.moe`、`play.udon.dance`、`api.udon.dance`，均通过内置 DoH 解析该公开域名并连接其 443 端口。独立 DNS 不读取系统 hosts，因此不会因本机接管而回连自己；不使用额外的 `ud-*` 回源别名，不开放通用代理。网页、封面和统计域名不纳入接管。
 
 转发复用下面的独立加密 DNS、TTL 缓存、多 IP 错峰建连与成功地址优先机制。固定保留域名的原上游，不套用 HTTP 的 CF/HKG 歌曲选路设置，不跨线路替换路径或签名。TLS 握手及后续密文字节原样传递，浏览器直接验证原站证书；不安装证书、不解密、不改网页、不降级为 HTTP。网页 HTTPS 播放仍消耗上游流量，不命中或填充本地视频缓存，也不计入缓存热度。
 
@@ -65,7 +65,9 @@ hosts 同时影响 HTTP 和 HTTPS。控制台启动 CDN 时提供 TLS SNI 透传
 
 回归覆盖 TLS 1.2 / 1.3、原站证书验证、HTTP/2、Range/HEAD、分片 ClientHello 原样转发、未托管域名拒绝、建连和活动连接取消，以及端口冲突/目录失败的回滚与重启。需要浏览器实网复验时，先释放本机 443，保留两个视频域名的 hosts 接入，在 PowerShell 中运行 `$env:STEPSTASH_HTTPS_LIVE='1'; go test ./internal/console -run '^TestHTTPSLiveBrowser$' -v -count=1`。此显式验收辅助服务仅监听 443，两分钟后自动退出，不改 hosts 或缓存；普通测试和 CI 默认跳过。它仅为手工验收提供连接窗口，测试通过本身不代表视频播放成功，须另行检查浏览器。
 
-2026-09-26 Chrome 实测：通过上述辅助服务从原站点击歌曲 6228，播放器 `readyState=4`、`error=null`，播放时间推进到 13 秒；重新打开原 HKG 地址后最终落在 CF 视频域名，继续播放至 37 秒。服务记录了 `ud-nya.kiva.moe:443` 和 `ud-play.kiva.moe:443` 的成功连接。没有改写网页、视频 URL、系统证书或 hosts；这是该歌曲当时的连通与播放验证，不代表全曲库或持续吞吐测试。
+历史 Chrome 实测（2026-09-26，切换公开域名前）：通过上述辅助服务从原站点击歌曲 6228，播放器 `readyState=4`、`error=null`，播放时间推进到 13 秒；重新打开原 HKG 地址后最终落在 CF 视频域名，继续播放至 37 秒。当时服务连接的是 `ud-nya.kiva.moe:443` 和 `ud-play.kiva.moe:443`，不代表当前默认目标。没有改写网页、视频 URL、系统证书或 hosts；这是该歌曲当时的连通与播放验证，不代表全曲库或持续吞吐测试。
+
+当前公开域名回源的实网验收见[调查后的实现与验证](playback-domain-observation-20260926.md#调查后的实现与验证)。`STEPSTASH_LIVE_UPSTREAM=1` 启用的 `TestLiveHTTPSUpstreams` 会让测试客户端连接临时本地 TLS 透传端口，模拟 hosts 接管，再通过生产 DoH 连接公开域名；验证 CF/HKG 视频片段及原站证书，不修改系统 hosts。
 
 ### 解析与连接
 

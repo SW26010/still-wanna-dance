@@ -12,7 +12,9 @@ import (
 )
 
 // Config controls the local video service. Origins are dial addresses, not URLs;
-// the original HTTP Host is retained and environment proxies are not used.
+// defaults use the public video hosts, resolved through the independent dialer.
+// Overrides retain the original HTTP Host and TLS identity; environment proxies
+// are not used.
 type Config struct {
 	StorageDir string
 	Origins    map[string]string
@@ -45,7 +47,7 @@ func DefaultConfig() Config {
 		RequestRetentionDays: 30,
 		OriginScheme:         "https",
 		StorageDir:           "stepstash-data",
-		Origins:              map[string]string{"play.udon.dance": "ud-play.kiva.moe:443", "nya.xin.moe": "ud-nya.kiva.moe:443"},
+		Origins:              map[string]string{"play.udon.dance": "play.udon.dance:443", "nya.xin.moe": "nya.xin.moe:443"},
 		DownloadTimeout:      10 * time.Minute,
 		MaxFileBytes:         2 << 30,
 		MaxDownloads:         3,
@@ -69,8 +71,8 @@ func (c Config) validate() error {
 	for _, host := range []string{"play.udon.dance", "nya.xin.moe"} {
 		addr, port, err := net.SplitHostPort(c.Origins[host])
 		p, perr := strconv.Atoi(port)
-		if err != nil || addr == "" || perr != nil || p < 1 || p > 65535 || addr == host {
-			return errors.New("each video host needs a separate upstream host:port")
+		if err != nil || addr == "" || perr != nil || p < 1 || p > 65535 {
+			return errors.New("each video host needs a valid upstream host:port")
 		}
 	}
 	return nil

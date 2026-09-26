@@ -57,14 +57,29 @@ func TestHTTPSOriginUsesIndependentDialAndVerifiedPublicName(t *testing.T) {
 	backend.TLS = &tls.Config{Certificates: []tls.Certificate{cert}}
 	backend.StartTLS()
 	defer backend.Close()
-	for _, trusted := range []bool{true, false} {
-		t.Run(map[bool]string{true: "trusted", false: "untrusted"}[trusted], func(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		trusted  bool
+		override string
+	}{
+		{name: "public", trusted: true},
+		{name: "explicit override", trusted: true, override: "origin.example:8443"},
+		{name: "untrusted"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			cfg := DefaultConfig()
 			cfg.StorageDir = t.TempDir()
+			if tc.override != "" {
+				for host := range cfg.Origins {
+					cfg.Origins[host] = tc.override
+				}
+			}
 			var dials atomic.Int32
 			cfg.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
 				dials.Add(1)
-				if address != "ud-play.kiva.moe:443" && address != "ud-nya.kiva.moe:443" {
+				if tc.override != "" && address != tc.override {
+					t.Errorf("override not used: %s", address)
+				} else if tc.override == "" && address != "play.udon.dance:443" && address != "nya.xin.moe:443" {
 					t.Errorf("unexpected origin %s", address)
 				}
 				return (&net.Dialer{}).DialContext(ctx, network, backend.Listener.Addr().String())
@@ -75,19 +90,19 @@ func TestHTTPSOriginUsesIndependentDialAndVerifiedPublicName(t *testing.T) {
 			}
 			defer s.Close()
 			pool := x509.NewCertPool()
-			if trusted {
+			if tc.trusted {
 				pool = roots
 			}
 			s.client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{RootCAs: pool}
 			before := requests.Load()
 			target := videoURL(payload)
 			expectedDials := int32(1)
-			if trusted {
+			if tc.trusted {
 				target = strings.Replace(target, "play.udon.dance", "nya.xin.moe", 1)
 				expectedDials = 2
 			}
 			w := request(s, "GET", target, nil)
-			if trusted {
+			if tc.trusted {
 				assertResponse(t, w, 200, payload)
 			} else if w.Code != 502 || requests.Load() != before {
 				t.Fatalf("untrusted TLS accepted: %d", w.Code)

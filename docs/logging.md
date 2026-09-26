@@ -26,7 +26,7 @@
 | `download_published` | 完整校验、正式文件发布和数据库登记均已成功；不能保证该资源随后不会因容量策略被淘汰 |
 | `cache_task_finished` | 共享任务最终阶段、耗时和 `completed` / `failed` / `canceled` / `timeout` 结果；成功命中也会出现，不能将它单独当作新下载成功 |
 | `prefetch_resolved` / `prefetch_finished` | 解析线路与耗时、资源关联，以及预缓存结果；`success=false` 的解析事件仍可能随后通过 Auto 回退成功 |
-| `queue_updated` | 有序 `song_ids`（保留 -1 占位）、房间重置代数；只取前 3 个位置预缓存，不记录歌名、玩家或房间原文 |
+| `queue_updated` | 有序 `song_ids`（保留 -1 占位）、房间重置代数；只取前 N 个位置（默认 3）预缓存，不记录歌名、玩家或房间原文 |
 | `queue_song_canceled` / `queue_song_discarded` | 队列变化取消等待或旧结果被丢弃；不是下载失败 |
 | `batch_progress` / `batch_finished` | 每处理 100 首及最后一首的汇总；结束区分仅扫描、缺失数量、取消和是否处理完列表。扫描完成仍可能存在缺失文件 |
 

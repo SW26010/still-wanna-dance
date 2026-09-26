@@ -395,6 +395,7 @@ test('settings submit prevents navigation and serializes the edited controls', a
   await flush();
   const get = id => p.document.getElementById(id);
   const values = {
+    queuePrefetchCount: '7',
     storageDir: 'D:/draft', logDir: 'D:/logs', downloadUpstream: 'hkg',
     requestRetentionDays: '0', scanResolveConcurrency: '8', scanCheckConcurrency: '2', maxCacheGiB: '1.25',
   };
@@ -407,6 +408,7 @@ test('settings submit prevents navigation and serializes the edited controls', a
   assert.equal(p.requests[2].url, '/api/settings');
   assert.equal(p.requests[2].method, 'POST');
   assert.deepEqual(JSON.parse(p.requests[2].body), {
+    queuePrefetchCount: 7,
     autoStartCDN: true, storageDir: 'D:/draft', logDir: 'D:/logs', downloadUpstream: 'hkg',
     requestRetentionDays: 0, scanResolveConcurrency: 8, scanCheckConcurrency: 2, maxCacheBytes: 1342177280,
   });
@@ -419,6 +421,21 @@ test('settings submit prevents navigation and serializes the edited controls', a
   assert.equal(get('save').disabled, false);
   assert.equal(get('notice').textContent, '设置已保存，将用于下一次启动的服务或任务。');
 });
+
+for (const count of [1, 5]) {
+  test(`queue displays the configured ${count} positions and locks settings while running`, async () => {
+    const p = page();
+    p.finishBatch(0, { queuePrefetchCount: count }, { queue: {
+      running: true, songs: Array.from({ length: 6 }, (_, i) => ({ songId: i + 1 })),
+    } });
+    await flush();
+    const get = id => p.document.getElementById(id);
+    assert.equal(get('queuePrefetchCount').value, count);
+    assert.equal(get('queuePrefetchCount').disabled, true);
+    assert.equal(get('queueSongs').children.length, count);
+    assert.equal(get('queueWindow').textContent, `准备队列前 ${count} 个位置中的有效曲目`);
+  });
+}
 
 test('periodic refresh waits for both reads and keeps exactly one timer', async () => {
   const p = page();

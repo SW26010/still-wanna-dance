@@ -35,6 +35,7 @@ type Settings struct {
 	AutoStartCDN           bool   `json:"autoStartCDN"`
 	ScanResolveConcurrency int    `json:"scanResolveConcurrency"`
 	ScanCheckConcurrency   int    `json:"scanCheckConcurrency"`
+	QueuePrefetchCount     int    `json:"queuePrefetchCount"`
 	DownloadUpstream       string `json:"downloadUpstream"`
 	MaxCacheBytes          int64  `json:"maxCacheBytes"`
 	StorageDir             string `json:"storageDir"`
@@ -130,6 +131,12 @@ func (c *Console) storedSettings(s Settings) Settings {
 }
 
 func absoluteSettings(s Settings) (Settings, error) {
+	if s.QueuePrefetchCount == 0 {
+		s.QueuePrefetchCount = 3
+	}
+	if s.QueuePrefetchCount < 1 || s.QueuePrefetchCount > 100 {
+		return s, errors.New("队列预缓存数量必须为 1～100")
+	}
 	if s.ScanResolveConcurrency == 0 {
 		s.ScanResolveConcurrency = 4
 	}

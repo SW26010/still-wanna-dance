@@ -18,20 +18,28 @@ import (
 )
 
 type QueueStatus struct {
-	Running    bool          `json:"running"`
-	File       string        `json:"file"`
-	Songs      []vrclog.Song `json:"songs"`
-	Current    int64         `json:"current"`
-	Active     []int64       `json:"active"`
-	Completed  int           `json:"completed"`
-	Error      string        `json:"error"`
-	Failures   []Failure     `json:"failures"`
-	LogError   string        `json:"logError"`
-	Updated    time.Time     `json:"updated"`
-	Generation uint64        `json:"-"`
-	waiters    map[int64]*queueWaiter
-	prepared   map[int64]bool
-	protect    func([]int64, bool)
+	Running       bool          `json:"running"`
+	File          string        `json:"file"`
+	Songs         []vrclog.Song `json:"songs"`
+	Current       int64         `json:"current"`
+	Active        []int64       `json:"active"`
+	Completed     int           `json:"completed"`
+	Error         string        `json:"error"`
+	Failures      []Failure     `json:"failures"`
+	LogError      string        `json:"logError"`
+	Updated       time.Time     `json:"updated"`
+	Generation    uint64        `json:"-"`
+	waiters       map[int64]*queueWaiter
+	prepared      map[int64]bool
+	protect       func([]int64, bool)
+	prefetchCount int
+}
+
+func (q *QueueStatus) windowSize() int {
+	if q.prefetchCount == 0 {
+		return 3
+	}
+	return q.prefetchCount
 }
 
 type queueWaiter struct {
@@ -45,7 +53,7 @@ func (q *QueueStatus) wants(id int64, generation uint64) bool {
 		return false
 	}
 	for i, song := range q.Songs {
-		if i >= 3 {
+		if i >= q.windowSize() {
 			break
 		}
 		if song.ID == id {
@@ -269,6 +277,7 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 // at most two songs and recheck the latest queue after resolving the URL.
 func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wake <-chan struct{}) {
 	c.mu.Lock()
+	c.queue.prefetchCount = c.settings.QueuePrefetchCount
 	c.queue.protect = func(ids []int64, reset bool) {
 		if reset {
 			engine.ResetQueueSongs(ids)
@@ -318,7 +327,7 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 			retry = map[int64]time.Time{}
 		}
 		for i, song := range c.queue.Songs {
-			if i >= 3 || len(active) >= 2 {
+			if i >= c.queue.windowSize() || len(active) >= 2 {
 				break
 			}
 			id := song.ID

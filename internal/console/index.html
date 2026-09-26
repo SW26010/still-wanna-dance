@@ -226,6 +226,11 @@
               默认 1，可设 1～4。机械硬盘或同时播放时建议保持 1；SSD 可尝试
               2。保存后下次扫描生效。
             </div>
+            <label for="queuePrefetchCount">队列预缓存数量</label>
+            <input id="queuePrefetchCount" type="number" min="1" max="100" step="1" required value="3" />
+            <div class="hint">
+              默认 3，可设 1～100。准备队列前 N 个位置中的有效曲目，非曲库条目也占位置；最多同时下载 2 首。保存后下次开启预缓存生效。
+            </div>
             <label for="logDir">VRChat 日志目录</label
             ><input id="logDir" name="logDir" spellcheck="false" />
             <div class="hint">
@@ -237,7 +242,7 @@
         <section class="card wide">
           <div class="card-head">
             <h2>房间队列预缓存</h2>
-            <small>准备队列前 3 个位置中的有效曲目</small>
+            <small id="queueWindow">准备队列前 3 个位置中的有效曲目</small>
           </div>
           <div class="actions">
             <button class="primary" id="queueStart" data-action="queue/switch">

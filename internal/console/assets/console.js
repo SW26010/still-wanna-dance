@@ -89,6 +89,7 @@ function renderSettings(s) {
     $('requestRetentionDays').value = s.settings.requestRetentionDays ?? 30;
     $('scanResolveConcurrency').value = s.settings.scanResolveConcurrency || 4;
     $('scanCheckConcurrency').value = s.settings.scanCheckConcurrency || 1;
+    $('queuePrefetchCount').value = s.settings.queuePrefetchCount || 3;
     $('storageDir').value = s.settings.storageDir;
     $('logDir').value = s.settings.logDir;
     $('downloadUpstream').value = s.settings.downloadUpstream || 'auto';
@@ -109,6 +110,7 @@ function renderControls() {
     'downloadUpstream',
     'scanResolveConcurrency',
     'scanCheckConcurrency',
+    'queuePrefetchCount',
     'save',
   ])
     $(id).disabled = unavailable || !!(s.running || s.batch.running || s.queue.running);
@@ -134,6 +136,8 @@ function renderControls() {
 
 function renderQueue(s) {
   const q = s.queue;
+  const count = s.settings.queuePrefetchCount || 3;
+  $('queueWindow').textContent = '准备队列前 ' + count + ' 个位置中的有效曲目';
   $('queueStart').textContent = q.running
     ? '队列预缓存已开启'
     : s.batch.running && !s.batch.scanOnly
@@ -150,7 +154,7 @@ function renderQueue(s) {
     (q.file || '尚未发现日志') + ' · 本次开启后累计准备成功 ' + q.completed + ' 次';
   $('queueError').textContent = q.logError || q.error || '';
   $('queueSongs').replaceChildren(
-    ...(q.songs || []).slice(0, 3).map((s) => {
+    ...(q.songs || []).slice(0, count).map((s) => {
       const li = document.createElement('li');
       li.textContent = s.title || String(s.songId);
       return li;
@@ -343,6 +347,7 @@ $('settings').addEventListener('submit', (e) => {
     requestRetentionDays: Number($('requestRetentionDays').value),
     scanResolveConcurrency: Number($('scanResolveConcurrency').value),
     scanCheckConcurrency: Number($('scanCheckConcurrency').value),
+    queuePrefetchCount: Number($('queuePrefetchCount').value),
     downloadUpstream: $('downloadUpstream').value,
     storageDir: $('storageDir').value,
     logDir: $('logDir').value,

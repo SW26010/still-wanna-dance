@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -86,10 +87,165 @@ func TestVerifiedHandleReleasedAndNextUseRechecks(t *testing.T) {
 	if err := os.WriteFile(s.cfg.videoFile(v.key), []byte(strings.Repeat("x", len(payload))), 0600); err != nil {
 		t.Fatal(err)
 	}
+	changed := f.info.ModTime().Add(time.Second)
+	if err := os.Chtimes(s.cfg.videoFile(v.key), changed, changed); err != nil {
+		t.Fatal(err)
+	}
 	s.pinVideo(v)
 	defer s.releaseVideo(v)
 	if _, err := s.verifiedFile(context.Background(), v); !errors.Is(err, errInvalidCache) {
 		t.Fatalf("subsequent use trusted stale validation: %v", err)
+	}
+}
+
+func TestVerifiedSequentialRequestsReuseHash(t *testing.T) {
+	s, v := seedVerifiedTest(t)
+	assertResponse(t, request(s, "HEAD", videoURL(payload), nil), 200, "")
+	s.verifyMu.Lock()
+	first := s.verificationRecords[v.key]
+	s.verifyMu.Unlock()
+	if first.info == nil {
+		t.Fatal("HEAD did not retain verification metadata")
+	}
+	for range 3 {
+		assertResponse(t, request(s, "GET", videoURL(payload), map[string]string{"Range": "bytes=10-13"}), 206, "abcd")
+		assertResponse(t, request(s, "HEAD", videoURL(payload), nil), 200, "")
+	}
+	s.pinVideo(v)
+	defer s.releaseVideo(v)
+	f, err := s.verifiedFile(context.Background(), v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !f.checkedAt.Equal(first.checkedAt) {
+		t.Fatal("sequential requests rehashed or extended the TTL")
+	}
+	if offset, err := f.file.Seek(0, io.SeekCurrent); err != nil || offset != 0 {
+		t.Fatalf("reopened file was hashed: offset %d, error %v", offset, err)
+	}
+}
+
+func TestVerifiedIdleInvalidation(t *testing.T) {
+	for _, change := range []string{"expiry", "expired corruption", "mtime", "size", "replacement", "missing"} {
+		t.Run(change, func(t *testing.T) {
+			s, v := seedVerifiedTest(t)
+			s.pinVideo(v)
+			f, err := s.verifiedFile(context.Background(), v)
+			if err != nil {
+				t.Fatal(err)
+			}
+			s.releaseVideo(v)
+			path := s.cfg.videoFile(v.key)
+			switch change {
+			case "expiry", "expired corruption":
+				s.verifyMu.Lock()
+				record := s.verificationRecords[v.key]
+				record.checkedAt = time.Now().Add(-verifiedRecordTTL)
+				s.verificationRecords[v.key] = record
+				s.verifyMu.Unlock()
+				if change == "expired corruption" {
+					err = os.WriteFile(path, []byte(strings.Repeat("x", len(payload))), 0600)
+					if err == nil {
+						err = os.Chtimes(path, f.info.ModTime(), f.info.ModTime())
+					}
+				}
+			case "mtime":
+				changed := f.info.ModTime().Add(time.Second)
+				err = os.Chtimes(path, changed, changed)
+			case "size":
+				err = os.Truncate(path, 1)
+			case "replacement":
+				// Same size and mtime must not hide a different file identity.
+				err = os.WriteFile(path+".new", []byte(strings.Repeat("x", len(payload))), 0600)
+				if err == nil {
+					err = os.Chtimes(path+".new", f.info.ModTime(), f.info.ModTime())
+				}
+				if err == nil {
+					err = os.Remove(path)
+				}
+				if err == nil {
+					err = os.Rename(path+".new", path)
+				}
+			case "missing":
+				err = os.Remove(path)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			s.pinVideo(v)
+			defer s.releaseVideo(v)
+			next, err := s.verifiedFile(context.Background(), v)
+			switch change {
+			case "expiry", "mtime":
+				if err != nil {
+					t.Fatal(err)
+				}
+				if offset, err := next.file.Seek(0, io.SeekCurrent); err != nil || offset != v.size {
+					t.Fatalf("changed/expired file was not rehashed: %d, %v", offset, err)
+				}
+			case "missing":
+				if !errors.Is(err, os.ErrNotExist) {
+					t.Fatalf("missing file reused: %v", err)
+				}
+			default:
+				if !errors.Is(err, errInvalidCache) {
+					t.Fatalf("changed file reused: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestVerifiedRecordInvalidatedByPublicationOrRemoval(t *testing.T) {
+	for _, removed := range []bool{false, true} {
+		t.Run(fmt.Sprint(removed), func(t *testing.T) {
+			s, v := seedVerifiedTest(t)
+			s.pinVideo(v)
+			if _, err := s.verifiedFile(context.Background(), v); err != nil {
+				t.Fatal(err)
+			}
+			s.releaseVideo(v)
+			var item *retainedVideo
+			if !removed {
+				item = &retainedVideo{key: v.key, path: s.cfg.videoFile(v.key), size: v.size}
+			}
+			s.retentionMu.Lock()
+			s.retainVideoLocked(v.key, item)
+			s.retentionMu.Unlock()
+			s.verifyMu.Lock()
+			_, exists := s.verificationRecords[v.key]
+			s.verifyMu.Unlock()
+			if exists {
+				t.Fatal("publication/removal retained stale verification")
+			}
+		})
+	}
+}
+
+func TestVerifiedIdleRecordsBounded(t *testing.T) {
+	s, v := seedVerifiedTest(t)
+	s.pinVideo(v)
+	f, err := s.verifiedFile(context.Background(), v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.releaseVideo(v)
+	s.verifyMu.Lock()
+	defer s.verifyMu.Unlock()
+	now := time.Now()
+	for i := range verifiedRecordLimit + 1 {
+		s.rememberVerification(fmt.Sprint(i), f, now.Add(time.Duration(i)*time.Millisecond))
+	}
+	if len(s.verificationRecords) != verifiedRecordLimit || s.verificationRecords["0"].info != nil {
+		t.Fatal("idle records exceeded limit or did not evict oldest")
+	}
+	// Pruning idle metadata must leave the active handle usable.
+	s.rememberVerification("expired", f, now.Add(verifiedRecordTTL))
+	if len(s.verificationRecords) != 0 {
+		t.Fatal("expired records retained")
+	}
+	if _, err := f.file.Stat(); err != nil {
+		t.Fatalf("metadata eviction closed active handle: %v", err)
 	}
 }
 

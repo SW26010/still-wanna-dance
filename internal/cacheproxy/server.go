@@ -82,6 +82,8 @@ type Server struct {
 	cleanupNeeded    map[string]bool
 	deletingVideos   map[string]chan struct{}
 	mappingRevision  uint64 // protected by retentionMu; invalidates cleanup queries
+
+	verificationRecords map[string]verificationRecord
 }
 
 func New(cfg Config) (*Server, error) {
@@ -192,6 +194,9 @@ func (s *Server) Close() error {
 		<-s.retentionDone
 		// All references are now released; finish any deferred eviction before closing usage.
 		s.runRetention(false)
+		s.verifyMu.Lock()
+		clear(s.verificationRecords)
+		s.verifyMu.Unlock()
 		s.usage.close()
 		s.client.CloseIdleConnections()
 		err = s.unlock()

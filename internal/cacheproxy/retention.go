@@ -132,6 +132,10 @@ func (s *Server) retentionLoop() {
 // Called under retentionMu for every successful publication/removal, including
 // superseded and invalid files. Changes made during a scan override its results.
 func (s *Server) retainVideoLocked(key string, item *retainedVideo) {
+	// Publication and removal both invalidate idle verification metadata.
+	s.verifyMu.Lock()
+	delete(s.verificationRecords, key)
+	s.verifyMu.Unlock()
 	if s.retained == nil {
 		s.retained = make(map[string]retainedVideo)
 	}

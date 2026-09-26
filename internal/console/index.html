@@ -188,14 +188,12 @@
             </div>
             <label for="downloadUpstream">回源线路</label
             ><select id="downloadUpstream" name="downloadUpstream">
-              <option value="auto">Auto（CF / HKG 自动优选）</option>
+              <option value="auto">Auto（主动下载 CF 优先）</option>
               <option value="cf">CF（固定）</option>
               <option value="hkg">HKG（固定）</option>
             </select>
             <div class="hint">
-              用于冷缓存播放、下载补齐和队列预缓存。Auto 优先使用实测更快的 CF /
-              HKG
-              线路，可覆盖游戏选择；仅在校验和与大小一致时切换。无法确认歌曲或内容不一致时保留原请求线路。固定模式仅查询指定线路；保存后下次启动
+              用于冷缓存播放、下载补齐和队列预缓存。Auto 主动下载优先 CF，失败后回退 HKG；冷缓存播放按 CF / HKG 测速优选，可覆盖游戏选择。同次传输仅在校验和与大小一致时切换。无法确认歌曲或内容不一致时保留原请求线路。固定模式仅查询指定线路；保存后下次启动
               CDN 或下载任务时生效。
             </div>
             <label for="scanResolveConcurrency">扫描地址请求并发</label

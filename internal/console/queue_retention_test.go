@@ -36,7 +36,11 @@ func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) 
 			return
 		}
 		calls.Add(1)
-		w.Header().Set("Location", fmt.Sprintf("http://nya.xin.moe/files/2403/%s-abc.mp4?e=%x&s=%d", r.URL.Query().Get("id"), md5.Sum([]byte(body)), len(body)))
+		host := "nya.xin.moe"
+		if r.URL.Query().Get("node") == "cf" {
+			host = "play.udon.dance"
+		}
+		w.Header().Set("Location", fmt.Sprintf("http://%s/files/2403/%s-abc.mp4?e=%x&s=%d", host, r.URL.Query().Get("id"), md5.Sum([]byte(body)), len(body)))
 		w.WriteHeader(302)
 	}))
 	t.Cleanup(api.Close)
@@ -47,6 +51,7 @@ func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) 
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = limit
 	cfg.Origins["nya.xin.moe"] = strings.TrimPrefix(origin.URL, "http://")
+	cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)

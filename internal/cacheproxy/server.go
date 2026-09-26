@@ -27,6 +27,7 @@ var videoPath = regexp.MustCompile(`^/files/[0-9]+/([1-9][0-9]*)-([a-zA-Z0-9]+)\
 
 type video struct {
 	localOnly                        bool
+	preferRequestedRoute             bool
 	songID                           string
 	checksum, key, path, query, host string
 	size                             int64

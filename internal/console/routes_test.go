@@ -64,13 +64,13 @@ func TestResolveRoutesQueriesBothNodesConcurrently(t *testing.T) {
 	}
 }
 
-func TestConsolePrefetchUsesUnifiedRouteSelection(t *testing.T) {
+func TestConsolePrefetchPrefersCFEvenWhenHKGIsFaster(t *testing.T) {
 	c := testConsole(t)
 	const body = "shared route fixture"
 	var selected atomic.Value
 	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Range") != "" {
-			if r.Host == "nya.xin.moe" {
+			if r.Host == "play.udon.dance" {
 				time.Sleep(60 * time.Millisecond)
 			}
 			w.Header().Set("Content-Range", fmt.Sprintf("bytes 0-%d/%d", len(body)-1, len(body)))
@@ -108,6 +108,6 @@ func TestConsolePrefetchUsesUnifiedRouteSelection(t *testing.T) {
 		t.Fatal(err)
 	}
 	if selected.Load() != "play.udon.dance" {
-		t.Fatalf("slower initial HKG route was used: %v", selected.Load())
+		t.Fatalf("CF preference was overridden: %v", selected.Load())
 	}
 }

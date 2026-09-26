@@ -244,7 +244,15 @@ func (s *Server) rankRoutes(ctx context.Context, candidates []video) {
 // entry points. Retry only before publication starts; never splice two bodies.
 func (s *Server) openUpstream(ctx context.Context, v video) (*http.Response, string, error) {
 	candidates := s.routeCandidates(ctx, v)
-	s.rankRoutes(ctx, candidates)
+	if v.preferRequestedRoute {
+		// Keep independently resolved, content-matched alternatives for failures,
+		// but do not let playback latency samples override background policy.
+		sort.SliceStable(candidates, func(i, j int) bool {
+			return candidates[i].host == v.host && candidates[j].host != v.host
+		})
+	} else {
+		s.rankRoutes(ctx, candidates)
+	}
 	var failures []error
 	for _, candidate := range candidates {
 		if ctx.Err() != nil {

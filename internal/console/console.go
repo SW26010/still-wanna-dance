@@ -288,8 +288,8 @@ func (c *Console) ensureEngine() error {
 		if err != nil {
 			return "", err
 		}
-		// Auto uses HKG as the version authority, matching prefetch's first
-		// route. A CF response cannot order conflicting versions or safely
+		// Auto retains HKG as the version authority, matching read-only scans.
+		// A CF response cannot order conflicting versions or safely
 		// replace that authority when HKG is unavailable.
 		currentRoute := mode
 		if currentRoute == "auto" {

@@ -21,18 +21,18 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 		name, mode, failure, nodes string
 		wantErr                    bool
 	}{
-		{"auto success", "auto", "", "nya", false},
-		{"auto status fallback", "auto", "status", "nya,cf", false},
-		{"auto checksum fallback", "auto", "checksum", "nya,cf", false},
-		{"auto timeout fallback", "auto", "timeout", "nya,cf", false},
-		{"auto API fallback", "auto", "api", "nya,cf", false},
-		{"both fail", "auto", "both", "nya,cf", true},
+		{"auto success", "auto", "", "cf", false},
+		{"auto status fallback", "auto", "status", "cf,nya", false},
+		{"auto checksum fallback", "auto", "checksum", "cf,nya", false},
+		{"auto timeout fallback", "auto", "timeout", "cf,nya", false},
+		{"auto API fallback", "auto", "api", "cf,nya", false},
+		{"both fail", "auto", "both", "cf,nya", true},
 		{"fixed HKG failure", "hkg", "status", "nya", true},
 		{"fixed CF success", "cf", "", "cf", false},
 		{"fixed CF failure", "cf", "both", "cf", true},
 		{"wrong route", "cf", "wrong-host", "cf", true},
-		{"cancel stops fallback", "auto", "cancel", "nya", true},
-		{"removed stops fallback", "auto", "removed", "nya", true},
+		{"cancel stops fallback", "auto", "cancel", "cf", true},
+		{"removed stops fallback", "auto", "removed", "cf", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := testConsole(t)
@@ -51,7 +51,7 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 					http.Error(w, "failed", 503)
 					return
 				}
-				if r.Host == "nya.xin.moe" {
+				if r.Host == "play.udon.dance" || tc.mode == "hkg" {
 					switch tc.failure {
 					case "status":
 						http.Error(w, "failed", 503)
@@ -82,7 +82,7 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 				mu.Lock()
 				nodes = append(nodes, node)
 				mu.Unlock()
-				if tc.failure == "api" && node == "nya" {
+				if tc.failure == "api" && node == "cf" {
 					http.Error(w, "failed", 503)
 					return
 				}

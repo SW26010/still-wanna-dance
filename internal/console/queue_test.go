@@ -48,7 +48,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 			http.Error(w, "unavailable", 503)
 			return
 		}
-		w.Header().Set("Location", fmt.Sprintf("http://nya.xin.moe/files/2403/%s-abc.mp4?e=%s&s=%d", id, digest, len(body)))
+		w.Header().Set("Location", fmt.Sprintf("http://play.udon.dance/files/2403/%s-abc.mp4?e=%s&s=%d", id, digest, len(body)))
 		w.WriteHeader(302)
 	}))
 	defer api.Close()
@@ -57,7 +57,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	cfg := cacheproxy.DefaultConfig()
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = c.settings.StorageDir
-	cfg.Origins["nya.xin.moe"] = strings.TrimPrefix(origin.URL, "http://")
+	cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)

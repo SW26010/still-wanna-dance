@@ -138,7 +138,7 @@ func TestBatchWorksWithoutCDNAndReusesCache(t *testing.T) {
 	var downloads atomic.Int32
 	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		downloads.Add(1)
-		if r.Host != "nya.xin.moe" {
+		if r.Host != "play.udon.dance" {
 			t.Error("upstream Host not preserved")
 		}
 		io.WriteString(w, body)
@@ -147,7 +147,7 @@ func TestBatchWorksWithoutCDNAndReusesCache(t *testing.T) {
 	cfg := cacheproxy.DefaultConfig()
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = c.settings.StorageDir
-	cfg.Origins["nya.xin.moe"] = strings.TrimPrefix(origin.URL, "http://")
+	cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -162,12 +162,12 @@ func TestBatchWorksWithoutCDNAndReusesCache(t *testing.T) {
 			http.Error(w, "unavailable", 404)
 			return
 		}
-		if r.URL.Query().Get("node") != "nya" {
-			t.Error("HKG must use the observed node=nya protocol parameter")
+		if r.URL.Query().Get("node") != "cf" {
+			t.Error("Auto must prefer node=cf")
 			http.Error(w, "unsupported node", 400)
 			return
 		}
-		w.Header().Set("Location", fmt.Sprintf("http://nya.xin.moe/files/2403/1-abc.mp4?e=%s&s=%d", digest, len(body)))
+		w.Header().Set("Location", fmt.Sprintf("http://play.udon.dance/files/2403/1-abc.mp4?e=%s&s=%d", digest, len(body)))
 		w.WriteHeader(302)
 	}))
 	defer api.Close()

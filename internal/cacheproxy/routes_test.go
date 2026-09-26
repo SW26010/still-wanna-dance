@@ -87,8 +87,15 @@ func TestUnifiedRoutesOverridePlaybackAndPrefetch(t *testing.T) {
 			mu.Lock()
 			got := strings.Join(downloaded, ",")
 			mu.Unlock()
-			if got != "nya.xin.moe/files/2403/9999-mirror.mp4" {
-				t.Fatalf("did not override game route: %s", got)
+			want := "nya.xin.moe/files/2403/9999-mirror.mp4"
+			if background {
+				want = "play.udon.dance/files/2403/1344-660524b4ebadb.mp4"
+				if probes.Load() != 0 {
+					t.Fatal("background preference triggered latency probes")
+				}
+			}
+			if got != want {
+				t.Fatalf("download route=%s want=%s", got, want)
 			}
 			// A differently named request for the same bytes reuses route knowledge,
 			// including the independently resolved mirror path and health samples.
@@ -97,7 +104,11 @@ func TestUnifiedRoutesOverridePlaybackAndPrefetch(t *testing.T) {
 			v.songID = "42"
 			candidates := s.routeCandidates(context.Background(), v)
 			s.rankRoutes(context.Background(), candidates)
-			if resolves.Load() != 1 || probes.Load() != 2 {
+			wantProbes := int32(2)
+			if background {
+				wantProbes = 1 // The completed CF download already confirmed its health.
+			}
+			if resolves.Load() != 1 || probes.Load() != wantProbes {
 				t.Fatalf("unnecessary re-probe: resolves=%d probes=%d", resolves.Load(), probes.Load())
 			}
 		})
@@ -142,7 +153,7 @@ func TestSelectedRouteHeaderFailureFallsBack(t *testing.T) {
 		mu.Lock()
 		hosts = append(hosts, r.Host)
 		mu.Unlock()
-		if r.Host == "nya.xin.moe" {
+		if r.Host == "play.udon.dance" {
 			w.WriteHeader(503)
 			return
 		}
@@ -159,11 +170,11 @@ func TestSelectedRouteHeaderFailureFallsBack(t *testing.T) {
 	mu.Lock()
 	got := strings.Join(hosts, ",")
 	mu.Unlock()
-	if got != "nya.xin.moe,play.udon.dance" {
+	if got != "play.udon.dance,nya.xin.moe" {
 		t.Fatal(got)
 	}
 	s.routeMu.Lock()
-	failed := s.routeHealth["nya.xin.moe"].failed
+	failed := s.routeHealth["play.udon.dance"].failed
 	s.routeMu.Unlock()
 	if !failed {
 		t.Fatal("failed route was not cooled down")

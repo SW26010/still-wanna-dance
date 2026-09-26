@@ -314,12 +314,14 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 					// Preserve association errors in the batch failure result.
 				case reused:
 					source = "HIT"
-				case result.target != "":
+				case result.target != "" && settings.DownloadUpstream == "hkg":
 					source, err = s.PrefetchSong(ctx, strconv.FormatInt(song.ID, 10), result.target)
 					if err != nil && ctx.Err() == nil {
 						source, err = c.prefetchSong(ctx, s, song.ID, nil)
 					}
 				default:
+					// Scan URLs use HKG. Reuse verified local hits above, but
+					// resolve CF first for Auto downloads of missing files.
 					source, err = c.prefetchSong(ctx, s, song.ID, nil)
 				}
 			}

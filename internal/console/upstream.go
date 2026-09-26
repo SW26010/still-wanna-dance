@@ -93,7 +93,7 @@ func (c *Console) resolveRoutes(ctx context.Context, id, mode string) ([]string,
 	return urls, errors.Join(failures...)
 }
 
-// Auto starts with HKG and retries CF once. Resolve each route independently:
+// Auto starts with CF and retries HKG once. Resolve each route independently:
 // never rewrite a returned URL, whose content version may differ by upstream.
 func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, id int64, wanted func() bool) (string, error) {
 	ctx = applog.WithTrace(ctx)
@@ -101,7 +101,7 @@ func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, i
 	c.mu.Lock()
 	mode := c.settings.DownloadUpstream
 	c.mu.Unlock()
-	routes := []string{"hkg", "cf"}
+	routes := []string{"cf", "hkg"}
 	if mode == "hkg" || mode == "cf" {
 		routes = []string{mode}
 	}

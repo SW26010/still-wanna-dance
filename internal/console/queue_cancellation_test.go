@@ -40,7 +40,7 @@ func TestQueueInvalidationCancelsCapacityWaitButPreservesFlights(t *testing.T) {
 			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				id := r.URL.Query().Get("id")
 				resolved <- id
-				w.Header().Set("Location", fmt.Sprintf("http://nya.xin.moe/files/2403/%s-abc.mp4?e=%x&s=%d", id, md5.Sum([]byte(body)), len(body)))
+				w.Header().Set("Location", fmt.Sprintf("http://play.udon.dance/files/2403/%s-abc.mp4?e=%x&s=%d", id, md5.Sum([]byte(body)), len(body)))
 				w.WriteHeader(302)
 			}))
 			defer api.Close()
@@ -49,7 +49,7 @@ func TestQueueInvalidationCancelsCapacityWaitButPreservesFlights(t *testing.T) {
 			cfg := cacheproxy.DefaultConfig()
 			cfg.OriginScheme = "http"
 			cfg.StorageDir = c.settings.StorageDir
-			cfg.Origins["nya.xin.moe"] = strings.TrimPrefix(origin.URL, "http://")
+			cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
 			engine, err := cacheproxy.New(cfg)
 			if err != nil {
 				t.Fatal(err)

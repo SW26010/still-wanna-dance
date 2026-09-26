@@ -100,6 +100,9 @@ func TestDownloadReusesScan(t *testing.T) {
 			}
 			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				downloads.Add(1)
+				if r.Host != "play.udon.dance" {
+					t.Errorf("scan result bypassed CF preference: %s", r.Host)
+				}
 				if r.URL.Query().Get("old") == "1" {
 					http.Error(w, "expired", 403)
 					return
@@ -123,7 +126,7 @@ func TestDownloadReusesScan(t *testing.T) {
 				t.Fatalf("batch: %+v", c.batch)
 			}
 			wantLists, wantResolves := int32(1), int32(1)
-			if mode == "cf" || mode == "stale" || mode == "failed" || mode == "settings" {
+			if mode != "hit" {
 				wantResolves = 2
 			}
 			if mode == "settings" {

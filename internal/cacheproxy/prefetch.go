@@ -40,6 +40,9 @@ func (s *Server) prefetch(ctx context.Context, id, target string) (source string
 		return "", err
 	}
 	v.songID = id
+	// Background callers choose their preferred route and own full-file retries.
+	// Preserve that choice even when playback has measured a faster mirror.
+	v.preferRequestedRoute = true
 	if id != "" {
 		s.routeMu.Lock()
 		s.routeSongs.put(v.key, id, time.Time{}, routeSongsLimit)

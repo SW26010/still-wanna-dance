@@ -3,7 +3,7 @@ package console
 import (
 	"context"
 	"crypto/rand"
-	_ "embed"
+	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -26,6 +26,9 @@ import (
 
 //go:embed index.html
 var page string
+
+//go:embed assets/console.css assets/console.js
+var assets embed.FS
 
 type Settings struct {
 	RequestRetentionDays   int    `json:"requestRetentionDays"`
@@ -463,6 +466,20 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" && r.URL.Path == "/" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		io.WriteString(w, strings.ReplaceAll(page, "__TOKEN__", c.token))
+		return
+	}
+	if r.Method == "GET" && (r.URL.Path == "/assets/console.css" || r.URL.Path == "/assets/console.js") {
+		content, err := assets.ReadFile(strings.TrimPrefix(r.URL.Path, "/"))
+		if err != nil {
+			http.Error(w, "asset unavailable", http.StatusInternalServerError)
+			return
+		}
+		contentType := "text/css; charset=utf-8"
+		if strings.HasSuffix(r.URL.Path, ".js") {
+			contentType = "text/javascript; charset=utf-8"
+		}
+		w.Header().Set("Content-Type", contentType)
+		w.Write(content)
 		return
 	}
 	if r.Method == "GET" && r.URL.Path == "/api/identity" {

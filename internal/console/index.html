@@ -1,125 +1,313 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>StepStash · 本地控制台</title>
-<style>
-:root{color-scheme:dark;--bg:#101416;--card:#1a2023;--line:#303a3e;--text:#eef4f1;--muted:#a4b1ad;--green:#b0ed98;--warn:#f8cd89}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.65 "Segoe UI","Microsoft YaHei",sans-serif}main{max-width:1120px;margin:auto;padding:38px 30px 70px}header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:24px}.brand{font-size:23px;font-weight:750;letter-spacing:-.8px}.brand span{display:inline-grid;place-items:center;width:35px;height:35px;background:var(--green);color:#142014;border-radius:11px;margin-right:10px}.muted,small{color:var(--muted)}.eyebrow{font-size:12px;letter-spacing:2px;color:var(--green);margin-top:38px}h1{font-size:36px;letter-spacing:-1px;line-height:1.3;margin:10px 0}h2{font-size:18px;margin:0}p{margin:8px 0 20px}.hero{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-bottom:28px}.pill{border:1px solid var(--line);padding:6px 12px;border-radius:30px;white-space:nowrap}.grid{display:grid;grid-template-columns:1.05fr 1fr;gap:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:17px;padding:24px}.wide{grid-column:1/-1}.card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.actions{display:flex;gap:10px;flex-wrap:wrap}button{background:#293337;color:var(--text);border:1px solid #46534e;border-radius:9px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}button.primary{background:var(--green);color:#142014;border-color:var(--green)}button:hover{filter:brightness(1.13)}button:disabled{opacity:.42;cursor:default}button:focus-visible,input:focus-visible{outline:2px solid var(--green);outline-offset:3px}.check{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}.check:last-of-type{border:0}.dot{color:var(--warn);font-size:20px}.good{color:var(--green)}.check strong{display:block}.check small{display:block}.check .grow{flex:1}label{display:block;font-size:13px;color:var(--muted);margin:15px 0 6px}input,select{width:100%;background:#101718;border:1px solid #43514c;border-radius:8px;color:var(--text);padding:11px;font:14px "Consolas","Microsoft YaHei",monospace}.hint{font-size:12px;color:var(--muted);margin:10px 0 17px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.stat{background:#12191b;border-radius:10px;padding:15px}.stat b{display:block;font-size:26px;font-weight:650}.stat small{font-size:12px}progress{width:100%;height:8px;accent-color:var(--green);display:block;margin:16px 0}.notice{background:#29271d;border:1px solid #6a5b38;color:#ffe0a7;padding:14px 18px;border-radius:11px;margin:20px 0;white-space:pre-wrap}.notice[hidden]{display:none}table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:10px;text-align:left;border-bottom:1px solid var(--line);word-break:break-word}details{margin-top:18px}summary{cursor:pointer;color:var(--warn)}footer{margin-top:25px;font-size:12px;color:var(--muted)}#connection{font-size:12px} @media(max-width:720px){main{padding:22px 16px}.grid{grid-template-columns:1fr}.hero{align-items:flex-start;flex-direction:column}h1{font-size:29px}.stats{grid-template-columns:repeat(2,1fr)}.card{padding:18px}header .muted{display:none}}
-input[type="checkbox"]{width:auto;accent-color:var(--green);margin-right:8px}</style></head><body><main>
-<header><div class="brand"><span>↘</span>StepStash</div><div class="muted">WannaDance 本地控制台</div><div id="connection">正在连接…</div></header>
-<div class="eyebrow">LOCAL CDN / 本地缓存</div><section class="hero"><div><h1>让下一支舞，提前就绪。</h1><p class="muted">管理本地服务，提前准备歌曲，补齐你的缓存。</p></div><div class="pill" id="serviceBadge">正在检查状态</div></section>
-<div id="notice" class="notice" role="status" hidden></div>
-<section class="card" style="margin-bottom:18px"><div class="card-head"><h2>播放请求统计</h2><small>当前缓存引擎会话</small></div><div class="stats"><div class="stat"><b id="trafficHits">0</b><small>已命中次数</small></div><div class="stat"><b id="trafficRate">—</b><small>请求命中率</small></div><div class="stat"><b id="trafficSaved">0 GB</b><small>缓存命中节省流量</small></div><div class="stat"><b id="trafficReduction">—</b><small>响应延迟降幅（估算）</small></div></div><div id="trafficDetail" class="muted"></div><div class="hint">仅统计成功完成的 GET 视频请求（200 / 206），每次 Range 请求单独计数；HEAD、失败、中断、预下载不计入命中率。节省流量按命中实际返回字节累计（1 GB = 10 亿字节），表示缓存替代的上游流量，非扣除预下载后的净节省。延迟指响应头耗时：上游为实际视频回源请求（含预下载，不含选路探测），本地包含缓存校验。降幅 = 1 − 本地平均延迟 / 上游平均延迟；两组样本未按视频配对，负值表示本地更慢，不代表完整视频加载或起播速度。无样本时显示 —；缓存引擎重建或程序重启后归零。</div></section>
-<div class="grid"><section class="card wide"><div class="card-head"><h2>本地缓存概览</h2><small id="inventoryState">正在读取统计…</small></div><div class="stats"><div class="stat"><b id="videoCount">—</b><small>已缓存视频版本</small></div><div class="stat"><b id="cacheBytes">—</b><small>视频总占用</small></div></div><div class="hint">扫描本地已有视频，无需开启下载任务。结果保存到磁盘，直到下次扫描成功才替换。更新期间可能短暂保留正在播放的旧版本；不包含下载中的文件。此处仅统计文件，完整性在播放或批量检查时校验。</div><div class="actions"><button id="inventoryScan" data-action="inventory/scan">扫描本地文件</button></div><div id="inventoryActionError" role="status"></div><div id="inventoryError" role="status"></div></section><section class="card"><div class="card-head"><h2>本地 CDN</h2><small>127.0.0.1 : 80</small></div>
-<div class="actions"><button class="primary" id="start" data-action="start">启动 CDN</button><button id="stop" data-action="stop">关闭 CDN</button></div>
-<div id="serviceError" role="status"></div><div class="check"><span class="dot" id="portDot">●</span><div class="grow"><strong>视频端口 · 80</strong><small id="portText">检查中</small></div></div>
-<div class="check"><span class="dot" id="httpsDot">●</span><div class="grow"><strong>网页播放 · 443</strong><small id="httpsText">检查中</small></div></div>
-<div class="hint">游戏 HTTP 播放使用本地缓存；网页 HTTPS 播放保持加密并转发到原线路，不使用本地缓存。</div>
-<div class="check"><span class="dot" id="hostsDot">●</span><div class="grow"><strong>游戏接入 · hosts</strong><small id="hostsText">检查中</small></div></div>
-<div id="hostsActionError" role="status"></div><div class="actions" style="margin-top:16px"><button data-action="hosts/enable">修改 hosts</button><button data-action="hosts/disable">恢复 hosts</button></div>
-<div class="hint">仅在实际修改时请求管理员权限。映射长期保留，关闭 CDN 或退出控制台不会恢复。CDN 关闭期间，可用「恢复 hosts」恢复直连。</div>
-</section><section class="card"><div class="card-head"><h2>缓存位置</h2><small>停止 CDN 和下载任务后可修改</small></div>
-<div id="settingsActionError" role="status"></div><form id="settings"><label for="autoStartCDN"><input id="autoStartCDN" name="autoStartCDN" type="checkbox">启动控制台时自动启用 CDN</label><div class="hint">默认关闭。保存后下次启动程序时生效；重新打开网页不会触发。不自动修改 hosts。</div><label for="storageDir">存储文件夹</label><input id="storageDir" name="storageDir" required spellcheck="false" placeholder="D:\stepstash-data"><div class="hint">统一保存视频、歌曲资料和统计记录。下载中的文件也保存在此目录。</div><label for="maxCacheGiB">视频缓存上限（GiB）</label><input id="maxCacheGiB" type="number" min="0" max="8388607" step="0.01" required value="0"><div class="hint">0 表示不限。超限时删除低优先级视频，保留歌曲资料和历史统计。播放和下载期间可暂时超限，临时文件另需空间。保存后下次启动 CDN 或下载任务时生效。</div><label for="requestRetentionDays">请求明细保留天数</label><input id="requestRetentionDays" type="number" min="0" max="36500" step="1" required value="30"><div class="hint">默认 30 天，0 表示永久保留。过期明细后台分批删除，热度汇总长期保留。数据库不计入视频上限，删除后的空间供后续写入复用，文件不会立即缩小。保存后下次启动 CDN 或下载任务时生效。</div><label for="downloadUpstream">回源线路</label><select id="downloadUpstream" name="downloadUpstream"><option value="auto">Auto（CF / HKG 自动优选）</option><option value="cf">CF（固定）</option><option value="hkg">HKG（固定）</option></select><div class="hint">用于冷缓存播放、下载补齐和队列预缓存。Auto 优先使用实测更快的 CF / HKG 线路，可覆盖游戏选择；仅在校验和与大小一致时切换。无法确认歌曲或内容不一致时保留原请求线路。固定模式仅查询指定线路；保存后下次启动 CDN 或下载任务时生效。</div><label for="scanResolveConcurrency">扫描地址请求并发</label><input id="scanResolveConcurrency" type="number" min="1" max="16" step="1" required value="4"><div class="hint">默认 4，可设 1～16。仅扫描检查使用，请求统一按 150ms 节拍启动。</div><label for="scanCheckConcurrency">扫描本地校验并发</label><input id="scanCheckConcurrency" type="number" min="1" max="4" step="1" required value="1"><div class="hint">默认 1，可设 1～4。机械硬盘或同时播放时建议保持 1；SSD 可尝试 2。保存后下次扫描生效。</div><label for="logDir">VRChat 日志目录</label><input id="logDir" name="logDir" spellcheck="false"><div class="hint">只读取新增日志。默认使用本机 VRChat 日志目录。</div><button type="submit" id="save">保存缓存设置</button></form></section>
-<section class="card wide"><div class="card-head"><h2>房间队列预缓存</h2><small>提前准备接下来的 3 首</small></div>
-<div class="actions"><button class="primary" id="queueStart" data-action="queue/switch">开启队列预缓存</button><button id="queueStop" data-action="queue/stop">停止预缓存</button></div>
-<div class="hint">每 3 秒读取新增日志，每 15 秒检查新日志文件。开启后等待下一次队列同步，不回放旧队列。最多同时下载 2 首；可用下方按钮直接切换到全曲库任务。停止后已开始的共享下载仍会完成。</div>
-<div id="queueActionError" role="status"></div><div id="queuePhase" role="status">尚未开启</div><small id="queueDetail"></small><ol id="queueSongs"></ol><div id="queueError" role="status"></div></section>
-<section class="card wide"><div class="card-head"><div><h2>歌曲扫描与更新</h2><small>先扫描了解缺失情况，再按需下载补齐</small></div></div>
-<div class="actions"><button class="primary" id="batchScan" data-action="batch/scan">仅扫描检查</button><button id="batchStart" data-action="batch/switch">下载补齐</button><button id="batchCancel" data-action="batch/cancel">停止批量任务</button></div>
-<div class="hint">「仅扫描检查」获取最新曲目列表并校验本地视频，不下载、不删除视频，可与队列预缓存同时运行；地址请求和本地校验并发可在设置中调整。「下载补齐」优先复用最近一次完整扫描的曲目和地址，未变化的已校验文件跳过重复校验；扫描结果仅供下一次补齐使用，重新扫描、保存设置或重启会清除。无可用结果时检查最新曲目，旧地址失败后重新解析，固定 CF 时单独检查 CF。队列运行时会先停止预缓存，完成后可手动重新开启。两种下载模式均最多同时下载 2 首，共用后台额度，为游戏播放保留 1 个下载名额。两项操作均无需启动 CDN 或修改 hosts。</div>
-<div id="batchActionError" role="status"></div><div id="snapshotState" class="hint">尚无成功结果</div><div class="stats"><div class="stat"><b id="total">—</b><small>已知歌曲</small></div><div class="stat"><b id="hits">0</b><small>检查命中</small></div><div class="stat"><b id="downloaded">0</b><small>下载补齐</small></div><div class="stat"><b id="missing">—</b><small>缺失或损坏</small></div></div>
-<progress id="progress" value="0" max="1"></progress><div id="phase" role="status">等待开始</div><small id="current"></small>
-<details id="failures" hidden><summary>查看失败记录</summary><table><thead><tr><th>歌曲</th><th>原因</th></tr></thead><tbody id="failureRows"></tbody></table></details>
-</section></div><footer>关闭网页后程序仍继续运行；Windows 托盘菜单可重新打开控制台或退出程序。<br>本地控制台仅供本机访问 · CF / HKG HTTP 视频缓存 · 回源 Auto 自动测速优选线路 · SHA 暂不支持</footer>
-</main><script>
-const token='__TOKEN__';const $=id=>document.getElementById(id);let initialized=false,busy=false,lastState=null,uncertainAction='';
-function notice(text){$('notice').textContent=text;$('notice').hidden=!text}
-function render(s){lastState=s;$('connection').textContent='● 控制台已连接';$('connection').className='good';$('serviceBadge').textContent=s.running?'● CDN 运行中':'○ CDN 已关闭';$('serviceBadge').className='pill'+(s.running?' good':'');
-const t=s.traffic||{};const ms=v=>v==null?'—':v.toFixed(1)+' ms';$('trafficHits').textContent=t.hits||0;$('trafficRate').textContent=t.hitRate==null?'—':t.hitRate.toFixed(1)+'%';$('trafficSaved').textContent=((t.savedBytes||0)/1e9).toFixed(3)+' GB';$('trafficReduction').textContent=t.reductionPercent==null?'—':t.reductionPercent.toFixed(1)+'%';$('trafficDetail').textContent='成功请求 '+(t.requests||0)+' 次 · 未命中 '+(t.misses||0)+' 次 · 上游平均响应 '+ms(t.upstreamMS)+'（'+(t.upstreamSamples||0)+' 个样本）· 本地命中平均响应 '+ms(t.localMS)+'（'+(t.localSamples||0)+' 个样本）';
-$('portText').textContent=s.running?'StepStash 正在监听':s.portOK?'端口可用，可以启动':s.portOwner?'被 '+s.portOwner.name+'（PID '+s.portOwner.pid+'）占用，请先关闭该服务':'端口不可用或被系统保留，请检查其他服务和端口设置';
-$('httpsText').textContent=s.running?'HTTPS 转发已就绪':s.httpsPortOK?'端口可用，随 CDN 启动':s.httpsPortOwner?'被 '+s.httpsPortOwner.name+'（PID '+s.httpsPortOwner.pid+'）占用，请先关闭该服务':'端口不可用或被系统保留，请检查其他服务和端口设置';$('httpsDot').className='dot'+(s.httpsPortOK?' good':'');
-$('portDot').className='dot'+(s.portOK?' good':'');$('hostsText').textContent=s.hosts.message;$('hostsDot').className='dot'+(s.hosts.ready?' good':'');
-$('serviceError').textContent=s.cdnError||'';for(const source of ['settings','hosts','queue','batch','inventory'])$(source+'ActionError').textContent=(s.actionErrors||{})[source]||'';if(!initialized){$('autoStartCDN').checked=!!s.settings.autoStartCDN;$('requestRetentionDays').value=s.settings.requestRetentionDays??30;$('scanResolveConcurrency').value=s.settings.scanResolveConcurrency||4;$('scanCheckConcurrency').value=s.settings.scanCheckConcurrency||1;$('storageDir').value=s.settings.storageDir;$('logDir').value=s.settings.logDir;$('downloadUpstream').value=s.settings.downloadUpstream||'auto';$('maxCacheGiB').value=(s.settings.maxCacheBytes||0)/1073741824;initialized=true}
-for(const id of ['autoStartCDN','storageDir','logDir','maxCacheGiB','requestRetentionDays','downloadUpstream','scanResolveConcurrency','scanCheckConcurrency','save'])$(id).disabled=s.running||s.batch.running||s.queue.running||busy;$('start').disabled=s.running||busy;$('stop').disabled=!s.running||busy;$('batchStart').disabled=s.batch.running||busy;$('batchStart').textContent=s.batch.running&&!s.batch.scanOnly?'正在下载补齐…':s.queue.running?'停止预缓存并下载补齐':'下载补齐';$('batchScan').disabled=s.batch.running||busy;$('batchScan').textContent=s.batch.running&&s.batch.scanOnly?'正在扫描…':'仅扫描检查';$('batchCancel').disabled=!s.batch.running||busy;
-for(const b of document.querySelectorAll('[data-action^="hosts/"]'))b.disabled=busy;
-const q=s.queue;$('queueStart').disabled=q.running||busy;$('queueStart').textContent=q.running?'队列预缓存已开启':s.batch.running&&!s.batch.scanOnly?'停止下载补齐并开启预缓存':'开启队列预缓存';$('queueStop').disabled=!q.running||busy;$('queuePhase').textContent=q.running?(q.current?'正在准备歌曲 '+(q.active||[q.current]).join('、'):(q.songs||[]).length?'等待队列变化或重试':'等待新的队列同步'):'预缓存已停止';$('queueDetail').textContent=(q.file||'尚未发现日志')+' · 已准备 '+q.completed+' 首';$('queueError').textContent=q.logError||q.error||'';$('queueSongs').replaceChildren(...(q.songs||[]).slice(0,3).map(s=>{const li=document.createElement('li');li.textContent=s.title||String(s.songId);return li}));
-const b=s.batch;const saved=s.lastBatch;const hasSaved=saved&&saved.updated&&!saved.updated.startsWith('0001');for(const id of ['total','hits','downloaded','missing'])$(id).textContent=hasSaved?saved[id]||0:'—';$('snapshotState').textContent=hasSaved?'上次成功'+(saved.scanOnly?'扫描':'更新')+' · '+new Date(saved.updated).toLocaleString()+' · 已保存，直到下次任务成功才替换':'尚无成功结果；运行扫描或更新后保存。';$('progress').max=b.total||1;$('progress').value=b.checked||0;$('phase').textContent=b.phase||'等待开始';$('current').textContent=(b.current||'')+(b.total?' · 当前任务 '+b.checked+' / '+b.total+' · 命中 '+b.hits+' · 缺失 '+(b.missing||0)+' · 补齐 '+b.downloaded+' · 失败 '+b.failed:'');$('failures').hidden=!b.failed;
-$('failureRows').replaceChildren(...(b.failures||[]).map(f=>{const row=document.createElement('tr');for(const text of [f.id+' · '+f.name,f.error]){const td=document.createElement('td');td.textContent=text;row.append(td)}return row}));}
-// Keep the deadline active through JSON decoding, not just response headers.
-async function readState(url) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-  try {
-    const response = await fetch(url, {signal: controller.signal});
-    if (!response.ok) throw Error('控制台连接失败');
-    return await response.json();
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-async function refreshInventory(){try{const v=await readState('/api/inventory');const ready=v.updated&&!v.updated.startsWith('0001');for(const [id,value] of [['videoCount',v.videos],['cacheBytes',(v.bytes/1073741824).toFixed(2)+' GiB']])$(id).textContent=ready?value:'—';$('inventoryScan').disabled=v.scanning||busy;$('inventoryState').textContent=v.scanning?'正在扫描，保留上次结果':ready?'上次成功扫描 '+new Date(v.updated).toLocaleString():'尚无成功扫描，请点击「扫描本地文件」';$('inventoryError').textContent=v.error?'本次扫描失败，上次结果保留：'+v.error:''}catch(e){$('inventoryState').textContent='统计暂不可用'}}
-async function refresh(){try{render(await readState('/api/status'));if(uncertainAction)notice(uncertainAction+'\n已刷新当前状态，请核对对应区域；状态快照不能确认原请求是否已经结束。')}catch(e){$('connection').textContent='控制台连接中断';$('connection').className='';for(const b of document.querySelectorAll('button'))b.disabled=true;notice((uncertainAction?uncertainAction+'\n':'')+'无法连接控制台，请检查程序是否仍在运行。')}}
-const actionTimeout = 30000;
-const hostsActionTimeout = 120000;
-async function action(path,body) {
-  if(busy)return;
-  busy=true;
-  uncertainAction='';
-  if(lastState)render(lastState);
-  for(const b of document.querySelectorAll('button'))b.disabled=true;
-  const hosts=path.startsWith('hosts/');
-  notice(hosts?'正在检查 hosts；需要修改时请在系统提示中允许管理员权限（最多等待 120 秒）…':'正在处理…');
-  const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),hosts?hostsActionTimeout:actionTimeout);
-  try {
-    const r=await fetch('/api/'+path,{method:'POST',headers:{'X-StepStash-Token':token,'Content-Type':'application/json'},body:JSON.stringify(body||{}),signal:controller.signal});
-    // The deadline also covers a response body that never finishes.
-    const data=await r.json();
-    if(!r.ok){notice(data.error||'操作失败');return}
-    notice(path==='start'?'CDN 已启动。若游戏尚未接入，请点击「修改 hosts」。':path==='settings'?'缓存设置已保存。':path==='hosts/disable'?'已移除 StepStash 添加的 hosts 映射。其他已有映射保持不变。':'操作已完成。');
-  } catch(e) {
-    // Losing the response does not cancel or prove failure of a server action.
-    uncertainAction=(controller.signal.aborted?'操作等待超时':'操作响应未能完整读取')+'，结果尚未确认。后台可能仍在执行或已完成，请勿重复提交。'+(hosts?'请先检查管理员权限提示和 hosts 状态。':'');
-    notice(uncertainAction+'\n正在核对当前状态…');
-  } finally {
-    clearTimeout(timeout);
-    busy=false;
-    await requestRefresh();
-  }
-}
-for(const b of document.querySelectorAll('[data-action]'))b.addEventListener('click',()=>action(b.dataset.action));$('settings').addEventListener('submit',e=>{e.preventDefault();action('settings',{autoStartCDN:$('autoStartCDN').checked,requestRetentionDays:Number($('requestRetentionDays').value),scanResolveConcurrency:Number($('scanResolveConcurrency').value),scanCheckConcurrency:Number($('scanCheckConcurrency').value),downloadUpstream:$('downloadUpstream').value,storageDir:$('storageDir').value,logDir:$('logDir').value,maxCacheBytes:Math.round(Number($('maxCacheGiB').value)*1073741824)})});
-// All refresh triggers share one running batch and one scheduled timer.
-const refreshInterval = 5000;
-let refreshTimer = null;
-let refreshTask = null;
-let refreshPending = false;
-
-function scheduleRefresh() {
-  clearTimeout(refreshTimer);
-  if (!document.hidden) refreshTimer = setTimeout(requestRefresh, refreshInterval);
-}
-
-function requestRefresh() {
-  clearTimeout(refreshTimer);
-  if (document.hidden) return;
-  refreshPending = true;
-  if (refreshTask) return refreshTask;
-  refreshTask = (async () => {
-    try {
-      do {
-        refreshPending = false;
-        // Finish both reads before starting another batch. A trigger during
-        // this batch requests one fresh batch, so action results are not lost.
-        await Promise.allSettled([refresh(), refreshInventory()]);
-      } while (refreshPending && !document.hidden);
-    } finally {
-      refreshTask = null;
-      scheduleRefresh();
-    }
-  })();
-  return refreshTask;
-}
-
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) requestRefresh();
-  else clearTimeout(refreshTimer);
-});
-requestRefresh();
-</script></body></html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>StepStash · 本地控制台</title>
+    <meta name="stepstash-token" content="__TOKEN__" />
+    <link rel="stylesheet" href="/assets/console.css" />
+    <script src="/assets/console.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="brand"><span>↘</span>StepStash</div>
+        <div class="muted">WannaDance 本地控制台</div>
+        <div id="connection">正在连接…</div>
+      </header>
+      <div class="eyebrow">LOCAL CDN / 本地缓存</div>
+      <section class="hero">
+        <div>
+          <h1>让下一支舞，提前就绪。</h1>
+          <p class="muted">管理本地服务，提前准备歌曲，补齐你的缓存。</p>
+        </div>
+        <div class="pill" id="serviceBadge">正在检查状态</div>
+      </section>
+      <div id="notice" class="notice" role="status" hidden></div>
+      <section class="card traffic-card">
+        <div class="card-head">
+          <h2>播放请求统计</h2>
+          <small>当前缓存引擎会话</small>
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <b id="trafficHits">0</b><small>已命中次数</small>
+          </div>
+          <div class="stat">
+            <b id="trafficRate">—</b><small>请求命中率</small>
+          </div>
+          <div class="stat">
+            <b id="trafficSaved">0 GB</b><small>缓存命中节省流量</small>
+          </div>
+          <div class="stat">
+            <b id="trafficReduction">—</b><small>响应延迟降幅（估算）</small>
+          </div>
+        </div>
+        <div id="trafficDetail" class="muted"></div>
+        <div class="hint">
+          仅统计成功完成的 GET 视频请求（200 / 206），每次 Range
+          请求单独计数；HEAD、失败、中断、预下载不计入命中率。节省流量按命中实际返回字节累计（1
+          GB = 10
+          亿字节），表示缓存替代的上游流量，非扣除预下载后的净节省。延迟指响应头耗时：上游为实际视频回源请求（含预下载，不含选路探测），本地包含缓存校验。降幅
+          = 1 − 本地平均延迟 /
+          上游平均延迟；两组样本未按视频配对，负值表示本地更慢，不代表完整视频加载或起播速度。无样本时显示
+          —；缓存引擎重建或程序重启后归零。
+        </div>
+      </section>
+      <div class="grid">
+        <section class="card wide">
+          <div class="card-head">
+            <h2>本地缓存概览</h2>
+            <small id="inventoryState">正在读取统计…</small>
+          </div>
+          <div class="stats">
+            <div class="stat">
+              <b id="videoCount">—</b><small>已缓存视频版本</small>
+            </div>
+            <div class="stat">
+              <b id="cacheBytes">—</b><small>视频总占用</small>
+            </div>
+          </div>
+          <div class="hint">
+            扫描本地已有视频，无需开启下载任务。结果保存到磁盘，直到下次扫描成功才替换。更新期间可能短暂保留正在播放的旧版本；不包含下载中的文件。此处仅统计文件，完整性在播放或批量检查时校验。
+          </div>
+          <div class="actions">
+            <button id="inventoryScan" data-action="inventory/scan">
+              扫描本地文件
+            </button>
+          </div>
+          <div id="inventoryActionError" role="status"></div>
+          <div id="inventoryError" role="status"></div>
+        </section>
+        <section class="card">
+          <div class="card-head">
+            <h2>本地 CDN</h2>
+            <small>127.0.0.1 : 80</small>
+          </div>
+          <div class="actions">
+            <button class="primary" id="start" data-action="start">
+              启动 CDN</button
+            ><button id="stop" data-action="stop">关闭 CDN</button>
+          </div>
+          <div id="serviceError" role="status"></div>
+          <div class="check">
+            <span class="dot" id="portDot">●</span>
+            <div class="grow">
+              <strong>视频端口 · 80</strong><small id="portText">检查中</small>
+            </div>
+          </div>
+          <div class="check">
+            <span class="dot" id="httpsDot">●</span>
+            <div class="grow">
+              <strong>网页播放 · 443</strong
+              ><small id="httpsText">检查中</small>
+            </div>
+          </div>
+          <div class="hint">
+            游戏 HTTP 播放使用本地缓存；网页 HTTPS
+            播放保持加密并转发到原线路，不使用本地缓存。
+          </div>
+          <div class="check">
+            <span class="dot" id="hostsDot">●</span>
+            <div class="grow">
+              <strong>游戏接入 · hosts</strong
+              ><small id="hostsText">检查中</small>
+            </div>
+          </div>
+          <div id="hostsActionError" role="status"></div>
+          <div class="actions hosts-actions">
+            <button data-action="hosts/enable">修改 hosts</button
+            ><button data-action="hosts/disable">恢复 hosts</button>
+          </div>
+          <div class="hint">
+            仅在实际修改时请求管理员权限。映射长期保留，关闭 CDN
+            或退出控制台不会恢复。CDN 关闭期间，可用「恢复 hosts」恢复直连。
+          </div>
+        </section>
+        <section class="card">
+          <div class="card-head">
+            <h2>缓存位置</h2>
+            <small>停止 CDN 和下载任务后可修改</small>
+          </div>
+          <div id="settingsActionError" role="status"></div>
+          <form id="settings">
+            <label for="autoStartCDN"
+              ><input
+                id="autoStartCDN"
+                name="autoStartCDN"
+                type="checkbox"
+              />启动控制台时自动启用 CDN</label
+            >
+            <div class="hint">
+              默认关闭。保存后下次启动程序时生效；重新打开网页不会触发。不自动修改
+              hosts。
+            </div>
+            <label for="storageDir">存储文件夹</label
+            ><input
+              id="storageDir"
+              name="storageDir"
+              required
+              spellcheck="false"
+              placeholder="D:\stepstash-data"
+            />
+            <div class="hint">
+              统一保存视频、歌曲资料和统计记录。下载中的文件也保存在此目录。
+            </div>
+            <label for="maxCacheGiB">视频缓存上限（GiB）</label
+            ><input
+              id="maxCacheGiB"
+              type="number"
+              min="0"
+              max="8388607"
+              step="0.01"
+              required
+              value="0"
+            />
+            <div class="hint">
+              0
+              表示不限。超限时删除低优先级视频，保留歌曲资料和历史统计。播放和下载期间可暂时超限，临时文件另需空间。保存后下次启动
+              CDN 或下载任务时生效。
+            </div>
+            <label for="requestRetentionDays">请求明细保留天数</label
+            ><input
+              id="requestRetentionDays"
+              type="number"
+              min="0"
+              max="36500"
+              step="1"
+              required
+              value="30"
+            />
+            <div class="hint">
+              默认 30 天，0
+              表示永久保留。过期明细后台分批删除，热度汇总长期保留。数据库不计入视频上限，删除后的空间供后续写入复用，文件不会立即缩小。保存后下次启动
+              CDN 或下载任务时生效。
+            </div>
+            <label for="downloadUpstream">回源线路</label
+            ><select id="downloadUpstream" name="downloadUpstream">
+              <option value="auto">Auto（CF / HKG 自动优选）</option>
+              <option value="cf">CF（固定）</option>
+              <option value="hkg">HKG（固定）</option>
+            </select>
+            <div class="hint">
+              用于冷缓存播放、下载补齐和队列预缓存。Auto 优先使用实测更快的 CF /
+              HKG
+              线路，可覆盖游戏选择；仅在校验和与大小一致时切换。无法确认歌曲或内容不一致时保留原请求线路。固定模式仅查询指定线路；保存后下次启动
+              CDN 或下载任务时生效。
+            </div>
+            <label for="scanResolveConcurrency">扫描地址请求并发</label
+            ><input
+              id="scanResolveConcurrency"
+              type="number"
+              min="1"
+              max="16"
+              step="1"
+              required
+              value="4"
+            />
+            <div class="hint">
+              默认 4，可设 1～16。仅扫描检查使用，请求统一按 150ms 节拍启动。
+            </div>
+            <label for="scanCheckConcurrency">扫描本地校验并发</label
+            ><input
+              id="scanCheckConcurrency"
+              type="number"
+              min="1"
+              max="4"
+              step="1"
+              required
+              value="1"
+            />
+            <div class="hint">
+              默认 1，可设 1～4。机械硬盘或同时播放时建议保持 1；SSD 可尝试
+              2。保存后下次扫描生效。
+            </div>
+            <label for="logDir">VRChat 日志目录</label
+            ><input id="logDir" name="logDir" spellcheck="false" />
+            <div class="hint">
+              只读取新增日志。默认使用本机 VRChat 日志目录。
+            </div>
+            <button type="submit" id="save">保存缓存设置</button>
+          </form>
+        </section>
+        <section class="card wide">
+          <div class="card-head">
+            <h2>房间队列预缓存</h2>
+            <small>提前准备接下来的 3 首</small>
+          </div>
+          <div class="actions">
+            <button class="primary" id="queueStart" data-action="queue/switch">
+              开启队列预缓存</button
+            ><button id="queueStop" data-action="queue/stop">停止预缓存</button>
+          </div>
+          <div class="hint">
+            每 3 秒读取新增日志，每 15
+            秒检查新日志文件。开启后等待下一次队列同步，不回放旧队列。最多同时下载
+            2
+            首；可用下方按钮直接切换到全曲库任务。停止后已开始的共享下载仍会完成。
+          </div>
+          <div id="queueActionError" role="status"></div>
+          <div id="queuePhase" role="status">尚未开启</div>
+          <small id="queueDetail"></small>
+          <ol id="queueSongs"></ol>
+          <div id="queueError" role="status"></div>
+        </section>
+        <section class="card wide">
+          <div class="card-head">
+            <div>
+              <h2>歌曲扫描与更新</h2>
+              <small>先扫描了解缺失情况，再按需下载补齐</small>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="primary" id="batchScan" data-action="batch/scan">
+              仅扫描检查</button
+            ><button id="batchStart" data-action="batch/switch">下载补齐</button
+            ><button id="batchCancel" data-action="batch/cancel">
+              停止批量任务
+            </button>
+          </div>
+          <div class="hint">
+            「仅扫描检查」获取最新曲目列表并校验本地视频，不下载、不删除视频，可与队列预缓存同时运行；地址请求和本地校验并发可在设置中调整。「下载补齐」优先复用最近一次完整扫描的曲目和地址，未变化的已校验文件跳过重复校验；扫描结果仅供下一次补齐使用，重新扫描、保存设置或重启会清除。无可用结果时检查最新曲目，旧地址失败后重新解析，固定
+            CF 时单独检查
+            CF。队列运行时会先停止预缓存，完成后可手动重新开启。两种下载模式均最多同时下载
+            2 首，共用后台额度，为游戏播放保留 1 个下载名额。两项操作均无需启动
+            CDN 或修改 hosts。
+          </div>
+          <div id="batchActionError" role="status"></div>
+          <div id="snapshotState" class="hint">尚无成功结果</div>
+          <div class="stats">
+            <div class="stat"><b id="total">—</b><small>已知歌曲</small></div>
+            <div class="stat"><b id="hits">0</b><small>检查命中</small></div>
+            <div class="stat">
+              <b id="downloaded">0</b><small>下载补齐</small>
+            </div>
+            <div class="stat">
+              <b id="missing">—</b><small>缺失或损坏</small>
+            </div>
+          </div>
+          <progress id="progress" value="0" max="1"></progress>
+          <div id="phase" role="status">等待开始</div>
+          <small id="current"></small>
+          <details id="failures" hidden>
+            <summary>查看失败记录</summary>
+            <table>
+              <thead>
+                <tr>
+                  <th>歌曲</th>
+                  <th>原因</th>
+                </tr>
+              </thead>
+              <tbody id="failureRows"></tbody>
+            </table>
+          </details>
+        </section>
+      </div>
+      <footer>
+        关闭网页后程序仍继续运行；Windows
+        托盘菜单可重新打开控制台或退出程序。<br />本地控制台仅供本机访问 · CF /
+        HKG HTTP 视频缓存 · 回源 Auto 自动测速优选线路 · SHA 暂不支持
+      </footer>
+    </main>
+  </body>
+</html>

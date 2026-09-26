@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 
 const html = readFileSync(new URL('../internal/console/index.html', import.meta.url), 'utf8');
-const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+const script = readFileSync(new URL('../internal/console/assets/console.js', import.meta.url), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
 function page(hidden = false) {
@@ -15,6 +15,7 @@ function page(hidden = false) {
   let nextTimer = 0;
   const document = {
     hidden,
+    querySelector: () => ({ content: 'test-token' }),
     getElementById(id) {
       if (!elements.has(id)) elements.set(id, { addEventListener() {}, replaceChildren() {} });
       return elements.get(id);

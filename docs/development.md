@@ -1,6 +1,10 @@
 # 开发环境
 
-StepStash 使用 Go，后续管理 UI 计划采用本地 HTML/CSS/JavaScript 页面。
+StepStash 使用 Go，管理 UI 采用本地 HTML/CSS/JavaScript 页面。
+
+控制台页面结构位于 `internal/console/index.html`，样式和脚本分别位于 `internal/console/assets/console.css`、`internal/console/assets/console.js`。三者通过 `go:embed` 编译进可执行文件，无需前端构建步骤或额外分发资源文件；修改后需重新编译。脚本按区域拆分渲染函数，操作请求与刷新调度集中在后半部分。页面注入当前会话 token，静态脚本从页面的 meta 标签读取。
+
+前端刷新和操作超时回归测试使用 Node.js 标准库，运行 `node --test scripts/refresh.test.mjs`。
 
 ## Windows 环境
 

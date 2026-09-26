@@ -733,3 +733,48 @@ test('coverage displays song ratio and does not interpret legacy inventory as ze
   assert.equal(vm.runInContext("$('coverageRate').textContent", p.context), '40.0%');
   assert.equal(vm.runInContext("$('coverageCount').textContent", p.context), '2 / 5 首曲目已覆盖');
 });
+
+test('identical polling snapshots do not rewrite live status text', async () => {
+  const p = page();
+  p.finishBatch();
+  await flush();
+  const ids = ['connection', 'phase', 'queuePhase', 'settingsAvailability', 'serviceError', 'settingsActionError', 'hostsActionError', 'queueActionError', 'batchActionError', 'inventoryActionError'];
+  let writes = 0;
+  for (const id of ids) {
+    const node = p.document.getElementById(id);
+    let value = node.textContent;
+    Object.defineProperty(node, 'textContent', {
+      get: () => value,
+      set: next => { value = next; writes++; },
+    });
+  }
+  p.fireTimer();
+  p.finishBatch(2);
+  await flush();
+  assert.equal(writes, 0);
+  p.fireTimer();
+  p.finishBatch(4, {}, { running: true });
+  await flush();
+  assert.match(p.document.getElementById('settingsAvailability').textContent, /设置已锁定/);
+  assert.equal(writes, 1);
+});
+
+for (const moved of [false, true]) {
+  test(`action completion ${moved ? 'respects a focus move' : 'restores focus lost when disabling its button'}`, async () => {
+    const p = page();
+    p.finishBatch();
+    await flush();
+    const origin = p.document.getElementById('save');
+    let focused = 0;
+    origin.focus = () => focused++;
+    p.document.body = {};
+    p.document.activeElement = origin;
+    const action = vm.runInContext("action('settings', {})", p.context);
+    p.document.activeElement = moved ? p.document.getElementById('storageDir') : p.document.body;
+    p.requests[2].finish({ ok: true });
+    await flush();
+    p.finishBatch(3);
+    await action;
+    assert.equal(focused, moved ? 0 : 1);
+  });
+}

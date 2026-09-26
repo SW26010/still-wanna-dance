@@ -43,3 +43,5 @@ Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的
 入口位于 `cmd/stepstash`，协议、缓存和下载管理位于 `internal/cacheproxy`。运行方法见 [命令行服务手册](service.md)。默认缓存、构建产物及测试覆盖率文件已忽略；测试使用 Go 的独立临时目录，不写入原版缓存或证据目录。安装环境不会启动缓存服务或修改 hosts。
 
 可选实网验收脚本 `scripts/acceptance.mjs` 使用 Node.js 标准库，不增加 Go 服务依赖；它接收 StepStash 可执行文件路径（默认 `bin/stepstash.exe`），在隔离的统一存储中下载 1343/1344 样本，检查跨 Host 命中与重启复用，并将报告保存到已忽略的 `test-runs`。不读取原版旧库，也不运行原版程序。脚本当前要求 API 返回 HTTP 302 和 HTTP 视频地址；上游协议变化可能使它失败，不能据此直接判定缓存服务故障。游戏 hosts 辅助脚本保留早期双视频域名接入及固定样本检查，仅用于对应的人工联合验收，不覆盖当前播放 API 接入，详见[验收记录](acceptance.md)。
+
+Web UI 的设计约定、浏览器验收与平台验证边界见 [可访问性验收](webui-accessibility.md)。

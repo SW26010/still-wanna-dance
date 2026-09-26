@@ -2,6 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>StepStash · 本地控制台</title>
     <meta name="stepstash-token" content="__TOKEN__" />
@@ -9,23 +10,28 @@
     <script src="/assets/console.js" defer></script>
   </head>
   <body>
-    <main>
+    <a class="skip-link" href="#main">跳到主要内容</a>
+    <div class="shell">
       <header>
-        <div class="brand"><span>↘</span>StepStash</div>
+        <div class="brand"><span aria-hidden="true">↘</span>StepStash</div>
         <div class="muted">WannaDance 本地控制台</div>
-        <div id="connection">正在连接…</div>
+        <div id="connection" role="status">正在连接…</div>
       </header>
-      <div class="eyebrow">LOCAL CDN / 本地缓存</div>
+      <nav aria-label="控制台区域">
+        <a href="#overview">概览</a><a href="#service">本地 CDN</a><a href="#queue">队列预缓存</a><a href="#batch">扫描与更新</a><a href="#preferences">设置</a>
+      </nav>
+      <main id="main" tabindex="-1">
+      <div class="eyebrow">本地缓存控制台</div>
       <section class="hero">
         <div>
-          <h1>让下一支舞，提前就绪。</h1>
+          <h1>让下一支舞，提前就绪</h1>
           <p class="muted">管理本地服务，提前准备歌曲，补齐你的缓存。</p>
         </div>
         <div class="pill" id="serviceBadge">正在检查状态</div>
       </section>
       <div id="notice" class="notice" role="status" hidden></div>
-      <section class="card overview-card">
-        <h2>缓存与播放概览</h2>
+      <section class="card overview-card" id="overview" aria-labelledby="overviewTitle" tabindex="-1">
+        <h2 id="overviewTitle">缓存与播放概览</h2>
         <section class="overview-section">
           <div class="card-head">
             <h3>播放统计</h3>
@@ -46,7 +52,7 @@
             </div>
           </div>
           <div id="trafficDetail" class="muted"></div>
-          <div class="hint">
+          <details class="help"><summary>统计口径与计算方式</summary><div class="hint">
             仅统计成功完成的 GET 视频请求（200 / 206），每次 Range
             请求单独计数；HEAD、失败、中断、预下载不计入命中率。节省流量按命中实际返回字节累计（1
             GiB = 1,073,741,824
@@ -54,7 +60,7 @@
             = 1 − 本地平均延迟 /
             上游平均延迟；两组样本未按视频配对，负值表示本地更慢，不代表完整视频加载或起播速度。无样本时显示
             —；统计保存到本地数据库，重启后保留。升级时从仍保留的请求明细补入次数和流量，历史响应头耗时无记录，不补算延迟样本。
-          </div>
+          </div></details>
         </section>
         <section class="overview-section">
           <div class="card-head">
@@ -72,9 +78,9 @@
               <b id="cacheBytes">—</b><small>视频总占用</small>
             </div>
           </div>
-          <div class="hint">
+          <details class="help"><summary>覆盖率说明</summary><div class="hint">
             覆盖率 = 已缓存清单当前版本的曲目数 ÷ 清单全部曲目数（含隐藏曲目）。共用视频的曲目分别计数，旧版本不计入覆盖。刷新时一次获取清单并检查本地文件存在及大小，不逐首请求、不读取视频正文；完整性由播放或完整校验检查。显示上次成功刷新结果，下载或淘汰后可手动刷新。
-          </div>
+          </div></details>
           <div class="actions">
             <button id="inventoryScan" data-action="inventory/scan">
               刷新覆盖率
@@ -85,9 +91,9 @@
         </section>
       </section>
       <div class="grid">
-        <section class="card">
+        <section class="card" id="service" aria-labelledby="serviceTitle" tabindex="-1">
           <div class="card-head">
-            <h2>本地 CDN</h2>
+            <h2 id="serviceTitle">本地 CDN</h2>
             <small>127.0.0.1 · 80 / 443</small>
           </div>
           <div class="actions">
@@ -97,13 +103,13 @@
           </div>
           <div id="serviceError" role="status"></div>
           <div class="check">
-            <span class="dot" id="portDot">●</span>
+            <span aria-hidden="true" class="dot" id="portDot">●</span>
             <div class="grow">
               <strong>HTTP 缓存 · 80</strong><small id="portText">检查中</small>
             </div>
           </div>
           <div class="check">
-            <span class="dot" id="httpsDot">●</span>
+            <span aria-hidden="true" class="dot" id="httpsDot">●</span>
             <div class="grow">
               <strong>HTTPS 转发 · 443</strong
               ><small id="httpsText">检查中</small>
@@ -114,7 +120,7 @@
             播放保持加密并转发到原线路，不使用本地缓存。
           </div>
           <div class="check">
-            <span class="dot" id="hostsDot">●</span>
+            <span aria-hidden="true" class="dot" id="hostsDot">●</span>
             <div class="grow">
               <strong>游戏接入 · hosts</strong
               ><small id="hostsText">检查中</small>
@@ -130,132 +136,10 @@
             或退出控制台不会恢复。「恢复 hosts」仅移除 StepStash 添加的映射；如有其他映射，仍需根据接入状态检查。
           </div>
         </section>
-        <section class="card">
+
+        <section class="card wide" id="queue" aria-labelledby="queueTitle" tabindex="-1">
           <div class="card-head">
-            <h2>缓存与任务设置</h2>
-            <small>停止 CDN、队列预缓存和批量任务后可修改</small>
-          </div>
-          <div id="settingsActionError" role="status"></div>
-          <form id="settings">
-            <label for="autoStartCDN"
-              ><input
-                id="autoStartCDN"
-                name="autoStartCDN"
-                type="checkbox"
-              />启动控制台时自动启用 CDN</label
-            >
-            <div class="hint">
-              默认关闭。保存后下次启动程序时生效；重新打开网页不会触发。不自动修改
-              hosts。
-            </div>
-            <label for="storageDir">存储文件夹</label
-            ><input
-              id="storageDir"
-              name="storageDir"
-              required
-              spellcheck="false"
-              placeholder="D:\stepstash-data"
-            />
-            <div class="hint">
-              统一保存视频、歌曲资料和统计记录。下载中的文件也保存在此目录。
-            </div>
-            <label for="maxCacheGiB">视频缓存上限（GiB）</label
-            ><input
-              id="maxCacheGiB"
-              type="number"
-              min="0"
-              max="8388607"
-              step="0.01"
-              required
-              value="0"
-            />
-            <div class="hint">
-              0
-              表示不限。超限时删除低优先级视频，保留歌曲资料和历史统计。播放和下载期间可暂时超限，临时文件另需空间。保存后下次启动
-              CDN 或下载任务时生效。
-            </div>
-            <label for="requestRetentionDays">请求明细保留天数</label
-            ><input
-              id="requestRetentionDays"
-              type="number"
-              min="0"
-              max="36500"
-              step="1"
-              required
-              value="30"
-            />
-            <div class="hint">
-              默认 30 天，0
-              表示永久保留。过期明细后台分批删除，热度汇总长期保留。数据库不计入视频上限，删除后的空间供后续写入复用，文件不会立即缩小。保存后下次启动
-              CDN 或下载任务时生效。
-            </div>
-            <label for="downloadUpstream">回源线路</label
-            ><select id="downloadUpstream" name="downloadUpstream">
-              <option value="auto">Auto（主动下载 CF 优先）</option>
-              <option value="cf">CF（固定）</option>
-              <option value="hkg">HKG（固定）</option>
-            </select>
-            <div class="hint">
-              用于冷缓存播放、下载补齐和队列预缓存。Auto 主动下载优先 CF，失败后回退 HKG；冷缓存播放按 CF / HKG 测速优选，可覆盖游戏选择。同次传输仅在校验和与大小一致时切换。无法确认歌曲或内容不一致时保留原请求线路。固定模式仅查询指定线路；保存后下次启动
-              CDN 或下载任务时生效。
-            </div>
-            <label for="upstreamMode">上游连接</label>
-            <select id="upstreamMode" name="upstreamMode">
-              <option value="direct">直连（内置 DNS）</option>
-              <option value="socks5">SOCKS5 代理</option>
-            </select>
-            <label for="socks5Address">SOCKS5 地址</label>
-            <input id="socks5Address" name="socks5Address" type="text" placeholder="127.0.0.1:7891" autocomplete="off" spellcheck="false" />
-            <label for="socks5Username">SOCKS5 用户名（可选）</label>
-            <input id="socks5Username" name="socks5Username" type="text" autocomplete="off" spellcheck="false" />
-            <label for="socks5Password">SOCKS5 密码</label>
-            <input id="socks5Password" name="socks5Password" type="password" autocomplete="new-password" />
-            <div class="hint">
-              填写代理软件的主机:端口，无需 socks5:// 前缀。代理模式用于 API 查询、视频下载、测速和 HTTPS 透传，域名解析交给代理；连接失败不会回退直连。无需认证时用户名和密码留空；已有密码留空则保留，清空用户名及密码可移除认证。密码保存在本机配置文件中，不会回显。停止 CDN、队列预缓存和批量任务后可保存切换。
-            </div>
-            <label for="scanResolveConcurrency">扫描地址请求并发</label
-            ><input
-              id="scanResolveConcurrency"
-              type="number"
-              min="1"
-              max="16"
-              step="1"
-              required
-              value="4"
-            />
-            <div class="hint">
-              默认 4，可设 1～16。仅扫描检查使用，仅需逐首查询的请求按 150ms 节拍启动；清单匹配命中不受此限制。保存后下次扫描生效。
-            </div>
-            <label for="scanCheckConcurrency">扫描本地校验并发</label
-            ><input
-              id="scanCheckConcurrency"
-              type="number"
-              min="1"
-              max="4"
-              step="1"
-              required
-              value="1"
-            />
-            <div class="hint">
-              默认 1，可设 1～4。机械硬盘或同时播放时建议保持 1；SSD 可尝试
-              2。保存后下次扫描生效。
-            </div>
-            <label for="queuePrefetchCount">队列预缓存数量</label>
-            <input id="queuePrefetchCount" type="number" min="1" max="100" step="1" required value="3" />
-            <div class="hint">
-              默认 3，可设 1～100。准备队列前 N 个位置中的有效曲目，非曲库条目也占位置；最多同时下载 2 首。保存后下次开启预缓存生效。
-            </div>
-            <label for="logDir">VRChat 日志目录</label
-            ><input id="logDir" name="logDir" spellcheck="false" />
-            <div class="hint">
-              开启时从现有日志末尾读取，之后跟踪新增内容。默认使用本机 VRChat 日志目录。
-            </div>
-            <button type="submit" id="save">保存设置</button>
-          </form>
-        </section>
-        <section class="card wide">
-          <div class="card-head">
-            <h2>房间队列预缓存</h2>
+            <h2 id="queueTitle">房间队列预缓存</h2>
             <small id="queueWindow">准备队列前 3 个位置中的有效曲目</small>
           </div>
           <div class="actions">
@@ -263,22 +147,22 @@
               开启队列预缓存</button
             ><button id="queueStop" data-action="queue/stop">停止预缓存</button>
           </div>
-          <div class="hint">
+          <details class="help"><summary>队列预缓存说明</summary><div class="hint">
             每 3 秒读取新增日志，每 15
             秒检查新日志文件。开启后等待下一次队列同步，不回放旧队列。最多同时下载
             2
             首；可用下方按钮直接切换到全曲库任务。停止后已开始的共享下载继续执行，直到完成、失败或程序退出。准备成功次数累计计算，不代表当前保留的视频数量。
-          </div>
+          </div></details>
           <div id="queueActionError" role="status"></div>
           <div id="queuePhase" role="status">尚未开启</div>
           <small id="queueDetail"></small>
           <ol id="queueSongs"></ol>
           <div id="queueError" role="status"></div>
         </section>
-        <section class="card wide">
+        <section class="card wide" id="batch" aria-labelledby="batchTitle" tabindex="-1">
           <div class="card-head">
             <div>
-              <h2>歌曲扫描与更新</h2>
+              <h2 id="batchTitle">歌曲扫描与更新</h2>
               <small>先扫描了解缺失情况，再按需下载补齐</small>
             </div>
           </div>
@@ -291,13 +175,13 @@
               停止批量任务
             </button>
           </div>
-          <div class="hint">
+          <details class="help"><summary>扫描、校验与下载说明</summary><div class="hint">
             「仅扫描检查」获取最新曲目列表与同版本校验和清单，匹配本地已知版本后跳过逐首地址查询，并复用未变化文件的校验记录；记录在重启后仍有效。「完整校验」重新读取视频检查完整性，共用视频只读取一次。两者不下载、不删除视频，可与队列预缓存同时运行；地址请求和本地校验并发可在设置中调整。「下载补齐」优先复用最近一次完整扫描的曲目和地址，未变化的已校验文件跳过重复校验；扫描结果仅供下一次补齐使用，重新扫描、保存设置或重启会清除用于补齐的逐首结果，同一存储目录的上次成功统计仍会保留。无可用结果时检查最新曲目，旧地址失败后重新解析，固定
             CF 时单独检查
             CF。队列运行时会先临时停止预缓存，下载补齐停止、完成或失败后自动恢复；原本未开启时保持关闭。两种下载模式均最多同时下载
             2 首，共用后台额度，为游戏播放保留 1 个下载名额。统计卡片显示上次成功任务的结果，当前进度在下方显示；已处理的视频可能因容量限制被淘汰。两项操作均无需启动
             CDN 或修改 hosts。
-          </div>
+          </div></details>
           <div id="batchActionError" role="status"></div>
           <div id="snapshotState" class="hint">尚无成功任务结果</div>
           <div class="stats">
@@ -310,28 +194,157 @@
               <b id="missing">—</b><small>扫描发现缺失或损坏</small>
             </div>
           </div>
-          <progress id="progress" value="0" max="1"></progress>
+          <progress aria-label="批量任务进度" aria-describedby="current" id="progress" value="0" max="1"></progress>
           <div id="phase" role="status">等待开始</div>
           <small id="current"></small>
           <details id="failures" hidden>
             <summary>查看失败记录</summary>
             <table>
+              <caption class="visually-hidden">批量任务失败记录</caption>
               <thead>
                 <tr>
-                  <th>歌曲</th>
-                  <th>原因</th>
+                  <th scope="col">歌曲</th>
+                  <th scope="col">原因</th>
                 </tr>
               </thead>
               <tbody id="failureRows"></tbody>
             </table>
           </details>
         </section>
+        <section class="card wide" id="preferences" aria-labelledby="preferencesTitle" tabindex="-1">
+          <div class="card-head">
+            <h2 id="preferencesTitle">缓存与任务设置</h2>
+            <small id="settingsAvailability" role="status">停止 CDN、队列预缓存和批量任务后可修改</small>
+          </div>
+          <div id="settingsActionError" role="status"></div>
+          <form id="settings" aria-describedby="settingsAvailability">
+            <fieldset><legend>启动与存储</legend>
+            <label for="autoStartCDN"
+              ><input
+                id="autoStartCDN"
+                name="autoStartCDN" aria-describedby="autoStartHint"
+                type="checkbox"
+              />启动控制台时自动启用 CDN</label
+            >
+            <div class="hint" id="autoStartHint">
+              默认关闭。保存后下次启动程序时生效；重新打开网页不会触发。不自动修改
+              hosts。
+            </div>
+            <label for="storageDir">存储文件夹</label
+            ><input
+              id="storageDir" aria-describedby="storageDirHint"
+              name="storageDir"
+              required
+              spellcheck="false"
+              placeholder="D:\stepstash-data"
+            />
+            <div class="hint" id="storageDirHint">
+              统一保存视频、歌曲资料和统计记录。下载中的文件也保存在此目录。
+            </div>
+            <label for="maxCacheGiB">视频缓存上限（GiB）</label
+            ><input
+              id="maxCacheGiB" aria-describedby="maxCacheGiBHint"
+              type="number"
+              min="0"
+              max="8388607"
+              step="0.01"
+              required
+              value="0"
+            />
+            <div class="hint" id="maxCacheGiBHint">
+              0
+              表示不限。超限时删除低优先级视频，保留歌曲资料和历史统计。播放和下载期间可暂时超限，临时文件另需空间。保存后下次启动
+              CDN 或下载任务时生效。
+            </div>
+            <label for="requestRetentionDays">请求明细保留天数</label
+            ><input
+              id="requestRetentionDays" aria-describedby="requestRetentionDaysHint"
+              type="number"
+              min="0"
+              max="36500"
+              step="1"
+              required
+              value="30"
+            />
+            <div class="hint" id="requestRetentionDaysHint">
+              默认 30 天，0
+              表示永久保留。过期明细后台分批删除，热度汇总长期保留。数据库不计入视频上限，删除后的空间供后续写入复用，文件不会立即缩小。保存后下次启动
+              CDN 或下载任务时生效。
+            </div>
+            </fieldset><fieldset><legend>网络连接</legend>
+            <label for="downloadUpstream">回源线路</label
+            ><select id="downloadUpstream" aria-describedby="downloadUpstreamHint" name="downloadUpstream">
+              <option value="auto">Auto（主动下载 CF 优先）</option>
+              <option value="cf">CF（固定）</option>
+              <option value="hkg">HKG（固定）</option>
+            </select>
+            <div class="hint" id="downloadUpstreamHint">
+              用于冷缓存播放、下载补齐和队列预缓存。Auto 主动下载优先 CF，失败后回退 HKG；冷缓存播放按 CF / HKG 测速优选，可覆盖游戏选择。同次传输仅在校验和与大小一致时切换。无法确认歌曲或内容不一致时保留原请求线路。固定模式仅查询指定线路；保存后下次启动
+              CDN 或下载任务时生效。
+            </div>
+            <label for="upstreamMode">上游连接</label>
+            <select id="upstreamMode" aria-describedby="socks5PasswordHint" name="upstreamMode">
+              <option value="direct">直连（内置 DNS）</option>
+              <option value="socks5">SOCKS5 代理</option>
+            </select>
+            <label for="socks5Address">SOCKS5 地址</label>
+            <input id="socks5Address" aria-describedby="socks5PasswordHint" name="socks5Address" type="text" placeholder="127.0.0.1:7891" autocomplete="off" spellcheck="false" />
+            <label for="socks5Username">SOCKS5 用户名（可选）</label>
+            <input id="socks5Username" aria-describedby="socks5PasswordHint" name="socks5Username" type="text" autocomplete="off" spellcheck="false" />
+            <label for="socks5Password">SOCKS5 密码</label>
+            <input id="socks5Password" aria-describedby="socks5PasswordHint" name="socks5Password" type="password" autocomplete="new-password" />
+            <div class="hint" id="socks5PasswordHint">
+              填写代理软件的主机:端口，无需 socks5:// 前缀。代理模式用于 API 查询、视频下载、测速和 HTTPS 透传，域名解析交给代理；连接失败不会回退直连。无需认证时用户名和密码留空；已有密码留空则保留，清空用户名及密码可移除认证。密码保存在本机配置文件中，不会回显。停止 CDN、队列预缓存和批量任务后可保存切换。
+            </div>
+            </fieldset><fieldset><legend>扫描与队列</legend>
+            <label for="scanResolveConcurrency">扫描地址请求并发</label
+            ><input
+              id="scanResolveConcurrency" aria-describedby="scanResolveConcurrencyHint"
+              type="number"
+              min="1"
+              max="16"
+              step="1"
+              required
+              value="4"
+            />
+            <div class="hint" id="scanResolveConcurrencyHint">
+              默认 4，可设 1～16。仅扫描检查使用，仅需逐首查询的请求按 150ms 节拍启动；清单匹配命中不受此限制。保存后下次扫描生效。
+            </div>
+            <label for="scanCheckConcurrency">扫描本地校验并发</label
+            ><input
+              id="scanCheckConcurrency" aria-describedby="scanCheckConcurrencyHint"
+              type="number"
+              min="1"
+              max="4"
+              step="1"
+              required
+              value="1"
+            />
+            <div class="hint" id="scanCheckConcurrencyHint">
+              默认 1，可设 1～4。机械硬盘或同时播放时建议保持 1；SSD 可尝试
+              2。保存后下次扫描生效。
+            </div>
+            <label for="queuePrefetchCount">队列预缓存数量</label>
+            <input id="queuePrefetchCount" aria-describedby="queuePrefetchCountHint" type="number" min="1" max="100" step="1" required value="3" />
+            <div class="hint" id="queuePrefetchCountHint">
+              默认 3，可设 1～100。准备队列前 N 个位置中的有效曲目，非曲库条目也占位置；最多同时下载 2 首。保存后下次开启预缓存生效。
+            </div>
+            <label for="logDir">VRChat 日志目录</label
+            ><input id="logDir" aria-describedby="logDirHint" name="logDir" spellcheck="false" />
+            <div class="hint" id="logDirHint">
+              开启时从现有日志末尾读取，之后跟踪新增内容。默认使用本机 VRChat 日志目录。
+            </div>
+            </fieldset>
+            <button class="primary" type="submit" id="save">保存设置</button>
+          </form>
+        </section>
       </div>
+      </main>
       <footer>
         关闭网页后程序仍继续运行；Windows
         托盘菜单可重新打开控制台或退出程序。<br />本地控制台仅供本机访问 · CF /
         HKG HTTP 视频缓存 · 回源 Auto 自动测速优选线路 · SHA 不支持
       </footer>
-    </main>
+    </div>
   </body>
 </html>

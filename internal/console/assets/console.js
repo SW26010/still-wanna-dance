@@ -7,15 +7,21 @@ let settingsDirty = false,
   lastState = null,
   lastInventory = null,
   uncertainAction = '';
+// Avoid replacing live-region text on identical polling snapshots.
+function setText(id, value) {
+  const node = $(id);
+  const text = String(value ?? '');
+  if (node.textContent !== text) node.textContent = text;
+}
 function notice(text) {
-  $('notice').textContent = text;
+  setText('notice', text);
   $('notice').hidden = !text;
 }
 function render(s) {
   lastState = s;
-  $('connection').textContent = '● 控制台已连接';
+  setText('connection', '● 控制台已连接');
   $('connection').className = 'good';
-  $('serviceBadge').textContent = s.running ? '● CDN 运行中' : '○ CDN 已关闭';
+  setText('serviceBadge', s.running ? '● CDN 运行中' : '○ CDN 已关闭');
   $('serviceBadge').className = 'pill' + (s.running ? ' good' : '');
   renderTraffic(s.traffic || {});
   renderService(s);
@@ -27,15 +33,11 @@ function render(s) {
 
 function renderTraffic(t) {
   const ms = (v) => (v == null ? '—' : v.toFixed(1) + ' ms');
-  $('trafficHits').textContent = t.hits || 0;
-  $('trafficRate').textContent =
-    t.hitRate == null ? '—' : t.hitRate.toFixed(1) + '%';
-  $('trafficSaved').textContent =
-    ((t.savedBytes || 0) / 1073741824).toFixed(3) + ' GiB';
-  $('trafficReduction').textContent =
-    t.reductionPercent == null ? '—' : t.reductionPercent.toFixed(1) + '%';
-  $('trafficDetail').textContent =
-    '成功请求 ' +
+  setText('trafficHits', t.hits || 0);
+  setText('trafficRate', t.hitRate == null ? '—' : t.hitRate.toFixed(1) + '%');
+  setText('trafficSaved', ((t.savedBytes || 0) / 1073741824).toFixed(3) + ' GiB');
+  setText('trafficReduction', t.reductionPercent == null ? '—' : t.reductionPercent.toFixed(1) + '%');
+  setText('trafficDetail', '成功请求 ' +
     (t.requests || 0) +
     ' 次 · 未命中 ' +
     (t.misses || 0) +
@@ -47,11 +49,11 @@ function renderTraffic(t) {
     ms(t.localMS) +
     '（' +
     (t.localSamples || 0) +
-    ' 个样本）' + (t.error ? ' · ' + t.error : '');
+    ' 个样本）' + (t.error ? ' · ' + t.error : ''));
 }
 
 function renderService(s) {
-  $('portText').textContent = s.running
+  setText('portText', s.running
     ? 'StepStash 正在监听'
     : s.portOK
       ? '端口可用，可以启动'
@@ -61,8 +63,8 @@ function renderService(s) {
           '（PID ' +
           s.portOwner.pid +
           '）占用，请先关闭该服务'
-        : '端口不可用或被系统保留，请检查其他服务和端口设置';
-  $('httpsText').textContent = s.running
+        : '端口不可用或被系统保留，请检查其他服务和端口设置');
+  setText('httpsText', s.running
     ? 'HTTPS 转发已就绪'
     : s.httpsPortOK
       ? '端口可用，随 CDN 启动'
@@ -72,15 +74,14 @@ function renderService(s) {
           '（PID ' +
           s.httpsPortOwner.pid +
           '）占用，请先关闭该服务'
-        : '端口不可用或被系统保留，请检查其他服务和端口设置';
+        : '端口不可用或被系统保留，请检查其他服务和端口设置');
   $('httpsDot').className = 'dot' + (s.httpsPortOK ? ' good' : '');
   $('portDot').className = 'dot' + (s.portOK ? ' good' : '');
-  $('hostsText').textContent = s.hosts.message;
+  setText('hostsText', s.hosts.message);
   $('hostsDot').className = 'dot' + (s.hosts.ready ? ' good' : '');
-  $('serviceError').textContent = s.cdnError || '';
+  setText('serviceError', s.cdnError || '');
   for (const source of ['settings', 'hosts', 'queue', 'batch', 'inventory'])
-    $(source + 'ActionError').textContent =
-      (s.actionErrors || {})[source] || '';
+    setText(source + 'ActionError', (s.actionErrors || {})[source] || '');
 }
 
 function renderSettings(s) {
@@ -128,20 +129,23 @@ function renderControls() {
   $('socks5Password').disabled ||= $('upstreamMode').value !== 'socks5';
   $('socks5Address').required = $('upstreamMode').value === 'socks5';
   $('inventoryScan').disabled = unavailable || !lastInventory || !!lastInventory.scanning;
+  setText('settingsAvailability', !connected ? '连接控制台后可修改设置。' : busy
+    ? '正在处理操作，请稍候。'
+    : s && (s.running || s.batch.running || s.queue.running)
+      ? '设置已锁定：请先停止 CDN、队列预缓存和批量任务。'
+      : settingsDirty ? '有未保存的更改。保存后用于下一次启动的服务或任务。' : '可以修改设置。保存后用于下一次启动的服务或任务。');
   if (!s) return;
   $('start').disabled = unavailable || !!s.running;
   $('stop').disabled = unavailable || !s.running;
   $('batchStart').disabled = unavailable || !!s.batch.running;
-  $('batchStart').textContent =
-    s.batch.running && !s.batch.scanOnly
+  setText('batchStart', s.batch.running && !s.batch.scanOnly
       ? '正在下载补齐…'
       : s.queue.running
         ? '停止预缓存并下载补齐'
-        : '下载补齐';
+        : '下载补齐');
   $('batchVerify').disabled = unavailable || !!s.batch.running;
   $('batchScan').disabled = unavailable || !!s.batch.running;
-  $('batchScan').textContent =
-    s.batch.running && s.batch.scanOnly ? '正在扫描…' : '仅扫描检查';
+  setText('batchScan', s.batch.running && s.batch.scanOnly ? '正在扫描…' : '仅扫描检查');
   $('batchCancel').disabled = unavailable || !s.batch.running;
   $('queueStart').disabled = unavailable || !!s.queue.running;
   $('queueStop').disabled = unavailable || !s.queue.running;
@@ -150,22 +154,21 @@ function renderControls() {
 function renderQueue(s) {
   const q = s.queue;
   const count = s.settings.queuePrefetchCount || 3;
-  $('queueWindow').textContent = '准备队列前 ' + count + ' 个位置中的有效曲目';
-  $('queueStart').textContent = q.running
+  setText('queueWindow', '准备队列前 ' + count + ' 个位置中的有效曲目');
+  setText('queueStart', q.running
     ? '队列预缓存已开启'
     : s.batch.running && !s.batch.scanOnly
       ? '停止下载补齐并开启预缓存'
-      : '开启队列预缓存';
-  $('queuePhase').textContent = q.running
+      : '开启队列预缓存');
+  setText('queuePhase', q.running
     ? q.current
       ? '正在准备歌曲 ' + (q.active || [q.current]).join('、')
       : (q.songs || []).length
         ? '等待队列变化或重试'
         : '等待新的队列同步'
-    : '预缓存已停止';
-  $('queueDetail').textContent =
-    (q.file || '尚未发现日志') + ' · 本次开启后累计准备成功 ' + q.completed + ' 次';
-  $('queueError').textContent = q.logError || q.error || '';
+    : '预缓存已停止');
+  setText('queueDetail', (q.file || '尚未发现日志') + ' · 本次开启后累计准备成功 ' + q.completed + ' 次');
+  setText('queueError', q.logError || q.error || '');
   $('queueSongs').replaceChildren(
     ...(q.songs || []).slice(0, count).map((s) => {
       const li = document.createElement('li');
@@ -180,19 +183,18 @@ function renderBatch(s) {
   const saved = s.lastBatch;
   const hasSaved = saved && saved.updated && !saved.updated.startsWith('0001');
   for (const id of ['total', 'hits', 'downloaded', 'missing'])
-    $(id).textContent = hasSaved ? saved[id] || 0 : '—';
-  $('snapshotState').textContent = hasSaved
+    setText(id, hasSaved ? saved[id] || 0 : '—');
+  setText('snapshotState', hasSaved
     ? '上次成功' +
       (saved.scanOnly ? '扫描' : '下载补齐') +
       ' · ' +
       new Date(saved.updated).toLocaleString() +
       ' · 已保存，直到下次任务成功才替换'
-    : '尚无成功任务结果；扫描或下载补齐成功后保存统计。';
+    : '尚无成功任务结果；扫描或下载补齐成功后保存统计。');
   $('progress').max = b.total || 1;
   $('progress').value = b.checked || 0;
-  $('phase').textContent = b.phase || '等待开始';
-  $('current').textContent =
-    (b.current || '') +
+  setText('phase', b.phase || '等待开始');
+  setText('current', (b.current || '') +
     (b.total
       ? ' · 当前任务 ' +
         b.checked +
@@ -211,7 +213,7 @@ function renderBatch(s) {
         b.downloaded +
         ' · 失败 ' +
         b.failed
-      : '');
+      : ''));
   $('failures').hidden = !b.failed;
   $('failureRows').replaceChildren(
     ...(b.failures || []).map((f) => {
@@ -245,22 +247,22 @@ async function refreshInventory() {
       ['videoCount', v.videos],
       ['cacheBytes', (v.bytes / 1073741824).toFixed(2) + ' GiB'],
     ])
-      $(id).textContent = ready ? value : '—';
+      setText(id, ready ? value : '—');
     const covered = ready && v.coverageKnown && v.totalSongs > 0;
-    $('coverageRate').textContent = covered ? (100 * v.coveredSongs / v.totalSongs).toFixed(1) + '%' : '—';
-    $('coverageCount').textContent = covered ? v.coveredSongs + ' / ' + v.totalSongs + ' 首曲目已覆盖' : '尚未统计曲目覆盖';
+    setText('coverageRate', covered ? (100 * v.coveredSongs / v.totalSongs).toFixed(1) + '%' : '—');
+    setText('coverageCount', covered ? v.coveredSongs + ' / ' + v.totalSongs + ' 首曲目已覆盖' : '尚未统计曲目覆盖');
     lastInventory = v;
-    $('inventoryState').textContent = v.scanning
+    setText('inventoryState', v.scanning
       ? '正在扫描，保留上次结果'
       : ready
         ? (v.coverageKnown ? '上次成功刷新 ' : '覆盖率待刷新 · 文件统计 ') + new Date(v.updated).toLocaleString()
-        : '尚无成功扫描，请点击「刷新覆盖率」';
-    $('inventoryError').textContent = v.error
+        : '尚无成功扫描，请点击「刷新覆盖率」');
+    setText('inventoryError', v.error
       ? '本次扫描失败，上次结果保留：' + v.error
-      : '';
+      : '');
   } catch (e) {
     lastInventory = null;
-    $('inventoryState').textContent = '统计暂不可用';
+    setText('inventoryState', '统计暂不可用');
   } finally {
     renderControls();
   }
@@ -280,7 +282,7 @@ async function refresh() {
       );
   } catch (e) {
     connected = false;
-    $('connection').textContent = '控制台连接中断';
+    setText('connection', '控制台连接中断');
     $('connection').className = '';
     renderControls();
     notice(
@@ -293,6 +295,7 @@ const actionTimeout = 30000;
 const hostsActionTimeout = 120000;
 async function action(path, body) {
   if (busy) return;
+  const origin = document.activeElement;
   busy = true;
   uncertainAction = '';
   renderControls();
@@ -347,6 +350,11 @@ async function action(path, body) {
     clearTimeout(timeout);
     busy = false;
     await requestRefresh();
+    // Disabling a native button can drop focus. Do not steal it if the user moved.
+    if (origin && document.activeElement === document.body) {
+      const target = origin.disabled ? origin.closest('section[tabindex]') : origin;
+      target?.focus({ preventScroll: true });
+    }
   }
 }
 for (const b of document.querySelectorAll('[data-action]'))

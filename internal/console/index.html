@@ -58,23 +58,26 @@
         </section>
         <section class="overview-section">
           <div class="card-head">
-            <h3>本地缓存</h3>
+            <h3>已缓存视频版本覆盖率（所有曲目）</h3>
             <small id="inventoryState">正在读取统计…</small>
           </div>
           <div class="stats">
             <div class="stat">
-              <b id="videoCount">—</b><small>已缓存视频版本</small>
+              <b id="coverageRate">—</b><small id="coverageCount">尚未统计曲目覆盖</small>
+            </div>
+            <div class="stat">
+              <b id="videoCount">—</b><small>本地视频版本</small>
             </div>
             <div class="stat">
               <b id="cacheBytes">—</b><small>视频总占用</small>
             </div>
           </div>
           <div class="hint">
-            扫描本地已有视频，无需开启下载任务。结果保存到磁盘，直到下次扫描成功才替换。更新期间可能短暂保留正在播放的旧版本；不包含下载中的文件。此处仅统计文件，完整性在播放或批量检查时校验。
+            覆盖率 = 已缓存清单当前版本的曲目数 ÷ 清单全部曲目数（含隐藏曲目）。共用视频的曲目分别计数，旧版本不计入覆盖。刷新时一次获取清单并检查本地文件存在及大小，不逐首请求、不读取视频正文；完整性由播放或完整校验检查。显示上次成功刷新结果，下载或淘汰后可手动刷新。
           </div>
           <div class="actions">
             <button id="inventoryScan" data-action="inventory/scan">
-              扫描本地文件
+              刷新覆盖率
             </button>
           </div>
           <div id="inventoryActionError" role="status"></div>

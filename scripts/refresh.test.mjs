@@ -483,7 +483,7 @@ test('a page opened in the background waits until visible', async () => {
   p.finishBatch();
   await flush();
   assert.equal(p.timers.size, 1);
-  assert.match(vm.runInContext("$('inventoryState').textContent", p.context), /请点击「扫描本地文件」/);
+  assert.match(vm.runInContext("$('inventoryState').textContent", p.context), /请点击「刷新覆盖率」/);
 });
 
 test('hiding drops queued refreshes and defers action refresh until visible', async () => {
@@ -649,4 +649,19 @@ test('action timeout while hidden releases busy and checks state on return', asy
   p.finishBatch(3);
   await flush();
   assert.match(vm.runInContext("$('notice').textContent", p.context), /结果尚未确认.*hosts 状态.*已刷新当前状态/s);
+});
+
+
+test('coverage displays song ratio and does not interpret legacy inventory as zero', async () => {
+  const p = page();
+  p.requests[0].finish({ settings: {}, hosts: {}, batch: {}, queue: {} });
+  p.requests[1].finish({ updated: '2026-09-26T12:00:00Z', bytes: 10, videos: 3 });
+  await flush();
+  assert.equal(vm.runInContext("$('coverageRate').textContent", p.context), '—');
+  p.fireTimer();
+  p.requests[2].finish({ settings: {}, hosts: {}, batch: {}, queue: {} });
+  p.requests[3].finish({ updated: '2026-09-26T12:00:00Z', bytes: 10, videos: 3, coverageKnown: true, coveredSongs: 2, totalSongs: 5 });
+  await flush();
+  assert.equal(vm.runInContext("$('coverageRate').textContent", p.context), '40.0%');
+  assert.equal(vm.runInContext("$('coverageCount').textContent", p.context), '2 / 5 首曲目已覆盖');
 });

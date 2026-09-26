@@ -1,21 +1,28 @@
 package console
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+
+	"stepstash/internal/cacheproxy"
 )
 
 // Inventory counts canonical video files; integrity is checked on use.
 type Inventory struct {
-	Videos   int       `json:"videos"`
-	Bytes    int64     `json:"bytes"`
-	Scanning bool      `json:"scanning"`
-	Updated  time.Time `json:"updated"`
-	Error    string    `json:"error"`
+	CoverageKnown   bool      `json:"coverageKnown"`
+	CoveredSongs    int       `json:"coveredSongs"`
+	TotalSongs      int       `json:"totalSongs"`
+	CatalogRevision string    `json:"catalogRevision"`
+	Videos          int       `json:"videos"`
+	Bytes           int64     `json:"bytes"`
+	Scanning        bool      `json:"scanning"`
+	Updated         time.Time `json:"updated"`
+	Error           string    `json:"error"`
 }
 
 var cacheName = regexp.MustCompile(`^[0-9a-f]{64}\.mp4$`)
@@ -91,6 +98,9 @@ func (c *Console) startInventoryScan() {
 	go func() {
 		defer close(done)
 		result := scanInventory(s)
+		if result.Error == "" && c.checksumURL != "" {
+			c.addInventoryCoverage(s, &result)
+		}
 		c.inventoryMu.Lock()
 		defer c.inventoryMu.Unlock()
 		if generation != c.inventoryGeneration {
@@ -107,4 +117,32 @@ func (c *Console) startInventoryScan() {
 		}
 		c.inventory = result
 	}()
+}
+
+func (c *Console) addInventoryCoverage(s Settings, result *Inventory) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	checksums, revision, err := c.fetchCatalogChecksums(ctx)
+	if err != nil {
+		result.Error = "无法获取曲目覆盖率：" + err.Error()
+		return
+	}
+	cached, err := cacheproxy.CachedChecksums(ctx, s.StorageDir)
+	if err != nil {
+		result.Error = "无法读取本地版本：" + err.Error()
+		return
+	}
+	for _, checksum := range checksums {
+		if checksum == "" {
+			result.Error = "清单包含无效校验和或同 ID 校验和冲突，覆盖率未更新"
+			return
+		}
+		if cached[checksum] {
+			result.CoveredSongs++
+		}
+	}
+	result.TotalSongs = len(checksums)
+	result.CoverageKnown = true
+	result.CatalogRevision = revision
+	result.Updated = time.Now()
 }

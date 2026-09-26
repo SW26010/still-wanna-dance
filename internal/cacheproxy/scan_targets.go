@@ -17,6 +17,15 @@ type ScanTarget struct{ Checksum, Target string }
 // updating versions or creating a missing database. URLs are for local checks;
 // a later download must resolve a fresh address if its local receipt is lost.
 func LoadScanTargets(ctx context.Context, root string) (map[string]ScanTarget, error) {
+	db, err := openScanDatabase(root)
+	if err != nil || db == nil {
+		return nil, err
+	}
+	defer db.Close()
+	return loadScanTargets(ctx, db)
+}
+
+func openScanDatabase(root string) (*sql.DB, error) {
 	path, err := filepath.Abs(filepath.Join(root, "stepstash.sqlite"))
 	if err != nil {
 		return nil, err
@@ -35,7 +44,10 @@ func LoadScanTargets(ctx context.Context, root string) (map[string]ScanTarget, e
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
+	return db, nil
+}
+
+func loadScanTargets(ctx context.Context, db *sql.DB) (map[string]ScanTarget, error) {
 	rows, err := db.QueryContext(ctx, `SELECT c.song_id, v.version_key, v.checksum, v.file_bytes, v.source_path FROM current_videos c JOIN video_versions v USING(version_key)`)
 	if err != nil {
 		return nil, err

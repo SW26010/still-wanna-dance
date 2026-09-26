@@ -15,7 +15,7 @@ import (
 )
 
 func TestChecksumScanFastPathAndFallback(t *testing.T) {
-	for _, mode := range []string{"reuse", "full", "revision", "changed", "invalid", "duplicate", "unavailable", "unmapped", "missing", "corrupt"} {
+	for _, mode := range []string{"reuse", "full", "revision", "changed", "invalid", "duplicate", "conflict", "unavailable", "unmapped", "missing", "corrupt"} {
 		t.Run(mode, func(t *testing.T) {
 			c := testConsole(t)
 			if err := c.save(c.settings); err != nil {
@@ -78,6 +78,9 @@ func TestChecksumScanFastPathAndFallback(t *testing.T) {
 					if mode == "duplicate" {
 						entry += "," + entry
 					}
+					if mode == "conflict" {
+						entry += fmt.Sprintf(`,{"id":138,"checksum":%q},%s`, strings.Repeat("a", 32), entry)
+					}
 					fmt.Fprintf(w, `{"code":200,"data":{"time":%q,"groups":[{"entries":[%s]}]}}`, stamp, entry)
 				default:
 					resolves.Add(1)
@@ -104,7 +107,7 @@ func TestChecksumScanFastPathAndFallback(t *testing.T) {
 				}
 			}
 			want := int32(2)
-			if mode == "reuse" || mode == "full" {
+			if mode == "reuse" || mode == "full" || mode == "duplicate" {
 				want = 0
 			}
 			if want == 0 && (c.batch.CatalogHits != 1 || !c.scanPlan.results[138].localOnly) {

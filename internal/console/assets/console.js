@@ -229,12 +229,15 @@ async function refreshInventory() {
       ['cacheBytes', (v.bytes / 1073741824).toFixed(2) + ' GiB'],
     ])
       $(id).textContent = ready ? value : '—';
+    const covered = ready && v.coverageKnown && v.totalSongs > 0;
+    $('coverageRate').textContent = covered ? (100 * v.coveredSongs / v.totalSongs).toFixed(1) + '%' : '—';
+    $('coverageCount').textContent = covered ? v.coveredSongs + ' / ' + v.totalSongs + ' 首曲目已覆盖' : '尚未统计曲目覆盖';
     lastInventory = v;
     $('inventoryState').textContent = v.scanning
       ? '正在扫描，保留上次结果'
       : ready
-        ? '上次成功扫描 ' + new Date(v.updated).toLocaleString()
-        : '尚无成功扫描，请点击「扫描本地文件」';
+        ? (v.coverageKnown ? '上次成功刷新 ' : '覆盖率待刷新 · 文件统计 ') + new Date(v.updated).toLocaleString()
+        : '尚无成功扫描，请点击「刷新覆盖率」';
     $('inventoryError').textContent = v.error
       ? '本次扫描失败，上次结果保留：' + v.error
       : '';

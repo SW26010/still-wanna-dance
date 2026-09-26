@@ -44,6 +44,43 @@ const b=s.batch;const saved=s.lastBatch;const hasSaved=saved&&saved.updated&&!sa
 $('failureRows').replaceChildren(...(b.failures||[]).map(f=>{const row=document.createElement('tr');for(const text of [f.id+' · '+f.name,f.error]){const td=document.createElement('td');td.textContent=text;row.append(td)}return row}));}
 async function refreshInventory(){try{const r=await fetch('/api/inventory');if(!r.ok)throw Error();const v=await r.json();const ready=v.updated&&!v.updated.startsWith('0001');for(const [id,value] of [['videoCount',v.videos],['cacheBytes',(v.bytes/1073741824).toFixed(2)+' GiB']])$(id).textContent=ready?value:'—';$('inventoryScan').disabled=v.scanning||busy;$('inventoryState').textContent=v.scanning?'正在扫描，保留上次结果':ready?'上次成功扫描 '+new Date(v.updated).toLocaleString():'尚无成功扫描';$('inventoryError').textContent=v.error?'本次扫描失败，上次结果保留：'+v.error:''}catch(e){$('inventoryState').textContent='统计暂不可用'}}
 async function refresh(){try{const r=await fetch('/api/status');if(!r.ok)throw Error('控制台连接失败');render(await r.json())}catch(e){$('connection').textContent='控制台连接中断';$('connection').className='';for(const b of document.querySelectorAll('button'))b.disabled=true;notice('无法连接控制台，请检查程序是否仍在运行。')}}
-async function action(path,body){if(busy)return;busy=true;if(lastState)render(lastState);notice(path.startsWith('hosts/')?'正在检查 hosts；需要修改时请在系统提示中允许管理员权限…':'正在处理…');try{const r=await fetch('/api/'+path,{method:'POST',headers:{'X-StepStash-Token':token,'Content-Type':'application/json'},body:JSON.stringify(body||{})});const data=await r.json();if(!r.ok)throw Error(data.error||'操作失败');notice(path==='start'?'CDN 已启动。若游戏尚未接入，请点击「修改 hosts」。':path==='settings'?'缓存设置已保存。':path==='hosts/disable'?'已移除 StepStash 添加的 hosts 映射。其他已有映射保持不变。':'操作已完成。')}catch(e){notice(e.message)}finally{busy=false;await Promise.all([refresh(),refreshInventory()])}}
-for(const b of document.querySelectorAll('[data-action]'))b.addEventListener('click',()=>action(b.dataset.action));$('settings').addEventListener('submit',e=>{e.preventDefault();action('settings',{autoStartCDN:$('autoStartCDN').checked,scanResolveConcurrency:Number($('scanResolveConcurrency').value),scanCheckConcurrency:Number($('scanCheckConcurrency').value),downloadUpstream:$('downloadUpstream').value,storageDir:$('storageDir').value,logDir:$('logDir').value,maxCacheBytes:Math.round(Number($('maxCacheGiB').value)*1073741824)})});async function poll(){await Promise.all([refresh(),refreshInventory()]);setTimeout(poll,document.hidden?15000:5000)}poll();
+async function action(path,body){if(busy)return;busy=true;if(lastState)render(lastState);notice(path.startsWith('hosts/')?'正在检查 hosts；需要修改时请在系统提示中允许管理员权限…':'正在处理…');try{const r=await fetch('/api/'+path,{method:'POST',headers:{'X-StepStash-Token':token,'Content-Type':'application/json'},body:JSON.stringify(body||{})});const data=await r.json();if(!r.ok)throw Error(data.error||'操作失败');notice(path==='start'?'CDN 已启动。若游戏尚未接入，请点击「修改 hosts」。':path==='settings'?'缓存设置已保存。':path==='hosts/disable'?'已移除 StepStash 添加的 hosts 映射。其他已有映射保持不变。':'操作已完成。')}catch(e){notice(e.message)}finally{busy=false;await requestRefresh()}}
+for(const b of document.querySelectorAll('[data-action]'))b.addEventListener('click',()=>action(b.dataset.action));$('settings').addEventListener('submit',e=>{e.preventDefault();action('settings',{autoStartCDN:$('autoStartCDN').checked,scanResolveConcurrency:Number($('scanResolveConcurrency').value),scanCheckConcurrency:Number($('scanCheckConcurrency').value),downloadUpstream:$('downloadUpstream').value,storageDir:$('storageDir').value,logDir:$('logDir').value,maxCacheBytes:Math.round(Number($('maxCacheGiB').value)*1073741824)})});
+// All refresh triggers share one running batch and one scheduled timer.
+const refreshIntervals = {visible: 5000, hidden: 15000};
+let refreshTimer = null;
+let refreshTask = null;
+let refreshPending = false;
+
+function scheduleRefresh() {
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(requestRefresh,
+    document.hidden ? refreshIntervals.hidden : refreshIntervals.visible);
+}
+
+function requestRefresh() {
+  clearTimeout(refreshTimer);
+  refreshPending = true;
+  if (refreshTask) return refreshTask;
+  refreshTask = (async () => {
+    try {
+      do {
+        refreshPending = false;
+        // Finish both reads before starting another batch. A trigger during
+        // this batch requests one fresh batch, so action results are not lost.
+        await Promise.allSettled([refresh(), refreshInventory()]);
+      } while (refreshPending);
+    } finally {
+      refreshTask = null;
+      scheduleRefresh();
+    }
+  })();
+  return refreshTask;
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) requestRefresh();
+  else if (!refreshTask) scheduleRefresh();
+});
+requestRefresh();
 </script></body></html>

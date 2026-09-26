@@ -143,6 +143,11 @@ func logName(path string) string {
 func (c *Console) startQueue() error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
+	return c.startQueueLocked()
+}
+
+// The caller holds lifecycleMu, including when resuming after a batch.
+func (c *Console) startQueueLocked() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {

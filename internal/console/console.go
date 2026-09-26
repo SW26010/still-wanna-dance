@@ -68,6 +68,7 @@ type Console struct {
 	scanPlan            *scanPlan
 	batchCancel         context.CancelFunc
 	batchDone           chan struct{}
+	batchResumeQueue    bool
 	queue               QueueStatus
 	queueCancel         context.CancelFunc
 	queueDone           chan struct{}
@@ -583,11 +584,16 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/api/queue/start":
 		err = c.startQueue()
 	case "/api/queue/stop":
+		c.taskMu.Lock()
+		c.lifecycleMu.Lock()
 		c.mu.Lock()
+		c.batchResumeQueue = false
 		if c.queueCancel != nil {
 			c.queueCancel()
 		}
 		c.mu.Unlock()
+		c.lifecycleMu.Unlock()
+		c.taskMu.Unlock()
 	case "/api/batch/cancel":
 		c.mu.Lock()
 		if c.batchCancel != nil {

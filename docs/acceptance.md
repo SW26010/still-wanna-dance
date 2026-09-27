@@ -49,7 +49,7 @@
 
 ## 复现工具
 
-先构建 `bin/stepstash.exe`，在仓库根目录运行（需要 Node.js）：
+以下为历史脚本调用方式，当前脚本已替换为统一存储、播放 API、控制台 Auto 和本地降级验收，构建与运行命令见[开发说明](development.md)。历史调用为：
 
 ```powershell
 node scripts/acceptance.mjs '<已有歌曲库>' '<原版目录>/wanna-cdn.exe'

@@ -25,6 +25,10 @@ func (s *Server) PrefetchSong(ctx context.Context, id, target string) (string, e
 }
 
 func (s *Server) prefetch(ctx context.Context, id, target string) (source string, resultErr error) {
+	return s.prefetchWithConfirmationBudget(ctx, id, target, 5*time.Second)
+}
+
+func (s *Server) prefetchWithConfirmationBudget(ctx context.Context, id, target string, confirmationBudget time.Duration) (source string, resultErr error) {
 	if !s.beginRequest() {
 		return "", context.Canceled
 	}
@@ -93,7 +97,7 @@ func (s *Server) prefetch(ctx context.Context, id, target string) (source string
 			return f.source, f.err
 		}
 		if id != "" {
-			if err := s.recordSongVideo(ctx, id, v); err != nil {
+			if err := s.recordSongVideoWithBudget(ctx, id, v, confirmationBudget); err != nil {
 				return f.source, err
 			}
 		}

@@ -14,6 +14,15 @@ import (
 
 var errPlaybackUpstream = errors.New("playback upstream failed")
 
+const playbackWaitBudget = 5 * time.Second
+const playbackResolveBudget = 30 * time.Second
+
+type playbackCheck struct {
+	done chan struct{}
+	v    video
+	err  error
+}
+
 type playbackSong struct {
 	done chan struct{}
 	err  error
@@ -103,8 +112,96 @@ func (s *Server) requestVideo(r *http.Request, observed func()) (video, error) {
 	if observed != nil {
 		observed()
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	// Only verified local bytes allow the foreground wait to end early.
+	if local, localErr := s.localPlaybackVideo(r.Context(), strconv.FormatInt(n, 10)); localErr == nil {
+		s.pinVideo(local)
+		defer s.releaseVideo(local)
+		if _, localErr = s.verifiedFile(r.Context(), local); localErr == nil {
+			check := s.startPlaybackCheck(q, local)
+			timer := time.NewTimer(playbackWaitBudget)
+			defer timer.Stop()
+			select {
+			case <-check.done:
+				if check.err == nil {
+					return check.v, nil
+				}
+				return local, nil
+			case <-timer.C:
+				return local, nil
+			case <-r.Context().Done():
+				return video{}, r.Context().Err()
+			}
+		}
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), playbackResolveBudget)
 	defer cancel()
+	v, err := s.resolvePlaybackVideo(ctx, q)
+	if err != nil {
+		return s.localPlaybackVideo(r.Context(), strconv.FormatInt(n, 10))
+	}
+	return v, nil
+}
+
+// Share in-flight checks across probes and range requests. Their lifetime is
+// owned by the server, so serving cached bytes or disconnecting cannot cancel
+// the update check. Slow successful checks refresh via the background pipeline.
+func (s *Server) startPlaybackCheck(q url.Values, local video) *playbackCheck {
+	key := q.Encode()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if check := s.playbackChecks[key]; check != nil {
+		return check
+	}
+	check := &playbackCheck{done: make(chan struct{})}
+	if s.closed {
+		check.err = context.Canceled
+		close(check.done)
+		return check
+	}
+	if s.playbackChecks == nil {
+		s.playbackChecks = make(map[string]*playbackCheck)
+	}
+	s.playbackChecks[key] = check
+	s.pinVideo(local)
+	s.wg.Add(1)
+	started := time.Now()
+	go func() {
+		defer s.wg.Done()
+		defer s.releaseVideo(local)
+		defer func() {
+			s.mu.Lock()
+			if s.playbackChecks[key] == check {
+				delete(s.playbackChecks, key)
+			}
+			s.mu.Unlock()
+		}()
+		ctx, cancel := context.WithTimeout(s.ctx, playbackResolveBudget)
+		check.v, check.err = s.resolvePlaybackVideo(ctx, q)
+		cancel()
+		refresh := check.err == nil && check.v.key != local.key && time.Since(started) >= playbackWaitBudget
+		if !refresh {
+			s.mu.Lock()
+			delete(s.playbackChecks, key)
+			s.mu.Unlock()
+		}
+		close(check.done)
+		if refresh {
+			ctx, cancel := context.WithTimeout(s.ctx, s.cfg.DownloadTimeout)
+			defer cancel()
+			target := "https://" + check.v.host + check.v.path + "?" + check.v.query
+			// Re-confirm after download to prevent a late result rolling back a
+			// newer version. This background confirmation may also be slow.
+			if _, err := s.prefetchWithConfirmationBudget(ctx, local.songID, target, playbackResolveBudget); err != nil {
+				s.cfg.Logger.Warn("playback_refresh_failed", "song_id", local.songID, "error", err)
+			}
+		}
+	}()
+	return check
+}
+
+func (s *Server) resolvePlaybackVideo(ctx context.Context, q url.Values) (video, error) {
+	id, node := q.Get("id"), q.Get("node")
+	var err error
 	var target string
 	if s.cfg.ResolvePlayback != nil {
 		target, err = s.cfg.ResolvePlayback(ctx, id, node)
@@ -121,19 +218,20 @@ func (s *Server) requestVideo(r *http.Request, observed func()) (video, error) {
 		}
 	}
 	if err != nil {
-		return s.localPlaybackVideo(r.Context(), strconv.FormatInt(n, 10))
+		return video{}, err
 	}
 	resolved, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
-		return s.localPlaybackVideo(r.Context(), strconv.FormatInt(n, 10))
+		return video{}, err
 	}
 	if (resolved.URL.Scheme != "http" && resolved.URL.Scheme != "https") || resolved.URL.User != nil || resolved.URL.Fragment != "" {
-		return s.localPlaybackVideo(r.Context(), strconv.FormatInt(n, 10))
+		return video{}, errPlaybackUpstream
 	}
 	v, err := s.parse(resolved)
 	if err != nil {
-		return s.localPlaybackVideo(r.Context(), strconv.FormatInt(n, 10))
+		return video{}, err
 	}
+	n, _ := strconv.ParseInt(id, 10, 64)
 	v.songID = strconv.FormatInt(n, 10)
 	return v, nil
 }

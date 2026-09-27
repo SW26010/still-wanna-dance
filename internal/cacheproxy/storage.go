@@ -64,6 +64,10 @@ func (s *Server) recordVideo(ctx context.Context, v video) error {
 
 // Each explicit caller records its own mapping after the shared flight completes.
 func (s *Server) recordSongVideo(ctx context.Context, id string, v video) error {
+	return s.recordSongVideoWithBudget(ctx, id, v, 5*time.Second)
+}
+
+func (s *Server) recordSongVideoWithBudget(ctx context.Context, id string, v video, confirmationBudget time.Duration) error {
 	// Protect the resource through commit and cleanup-query invalidation,
 	// including callers that do not already own a request/worker pin.
 	s.pinVideo(v)
@@ -80,7 +84,7 @@ func (s *Server) recordSongVideo(ctx context.Context, id string, v video) error 
 	}
 	promote := current == "" || current == v.key
 	if !promote {
-		latest, err := s.currentVideo(ctx, id)
+		latest, err := s.currentVideoWithBudget(ctx, id, confirmationBudget)
 		if err != nil {
 			s.cfg.Logger.Warn("current_version_unavailable", "song_id", id, "error", err)
 		} else {
@@ -122,7 +126,11 @@ func (s *Server) recordSongVideo(ctx context.Context, id string, v video) error 
 // Only the song API establishes which conflicting version is current. A normal
 // playback URL, download completion time, and a hash provide no ordering.
 func (s *Server) currentVideo(ctx context.Context, id string) (video, error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	return s.currentVideoWithBudget(ctx, id, 5*time.Second)
+}
+
+func (s *Server) currentVideoWithBudget(ctx context.Context, id string, budget time.Duration) (video, error) {
+	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 	var target string
 	var err error

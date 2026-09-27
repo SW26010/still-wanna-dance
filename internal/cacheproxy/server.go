@@ -59,6 +59,7 @@ type Server struct {
 	cancel           context.CancelFunc
 	mu               sync.Mutex
 	flights          map[string]*flight
+	playbackChecks   map[string]*playbackCheck // protected by mu
 	slots            chan struct{}
 	localChecks      chan struct{}
 	verifyMu         sync.Mutex

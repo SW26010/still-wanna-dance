@@ -109,6 +109,43 @@ nav a[aria-current="page"] {
   background: var(--card);
   box-shadow: inset 0 -2px var(--brand);
 }
+/* One content page at a time, with persistent navigation on wide screens. */
+.console-shell {
+  display: grid;
+  grid-template-columns: 10rem minmax(0, 1fr);
+  column-gap: 2rem;
+}
+.console-shell > header, .console-shell > footer {
+  grid-column: 1 / -1;
+}
+.console-shell > nav {
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+  flex-direction: column;
+  margin-top: 1.25rem;
+}
+.console-shell > main { min-width: 0; }
+[data-page] {
+  display: grid;
+  gap: 1rem;
+}
+[data-page] > .overview-card { margin-bottom: 0; }
+.console-shell nav a[aria-current="page"] {
+  box-shadow: inset 3px 0 var(--brand);
+}
+@media (max-width: 800px) {
+  .console-shell { display: block; }
+  .console-shell > nav {
+    position: static;
+    flex-direction: row;
+    margin-top: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .console-shell nav a[aria-current="page"] {
+    box-shadow: inset 0 -2px var(--brand);
+  }
+}
 .thanks-list {
   display: flex;
   flex-wrap: wrap;

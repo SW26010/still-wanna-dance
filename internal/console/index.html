@@ -7,31 +7,39 @@
     <title>StepStash · 本地控制台</title>
     <meta name="stepstash-token" content="__TOKEN__" />
     <link rel="stylesheet" href="/assets/console.css" />
+    <script src="/assets/navigation.js" defer></script>
     <script src="/assets/console.js" defer></script>
     <script src="/assets/cache.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main">跳到主要内容</a>
-    <div class="shell">
+    <div class="shell console-shell">
       <header>
         <div class="brand"><span aria-hidden="true">↘</span>StepStash</div>
         <div class="muted">WannaDance 本地控制台</div>
         <div id="connection" role="status">正在连接…</div>
       </header>
-      <nav aria-label="控制台区域">
-        <a href="#activation">游戏加速</a><a href="#overview">概览</a><a href="#cache">缓存明细</a><a href="#downloads">活动下载</a><a href="#recent">最近请求</a><a href="#service">本地 CDN</a><a href="#queue">队列预缓存</a><a href="#batch">扫描与更新</a><a href="#preferences">设置</a><a href="/about">关于</a>
+      <nav aria-label="控制台页面">
+        <a href="#/home" data-page-link="home" aria-current="page">首页</a>
+        <a href="#/monitor" data-page-link="monitor">监控</a>
+        <a href="#/cache" data-page-link="cache">缓存</a>
+        <a href="#/library" data-page-link="library">曲库与下载</a>
+        <a href="#/settings" data-page-link="settings">设置</a>
+        <a href="/about">关于</a>
       </nav>
       <main id="main" tabindex="-1">
-      <div class="eyebrow">本地缓存控制台</div>
+      <div class="eyebrow" id="pageLabel">首页</div>
       <section class="hero">
         <div>
-          <h1>让下一支舞，提前就绪</h1>
-          <p class="muted">管理本地服务，提前准备歌曲，补齐你的缓存。</p>
+          <h1 id="pageTitle">让下一支舞，提前就绪</h1>
+          <p class="muted" id="pageDescription">启用游戏加速，查看接入状态，准备房间里的下一首歌。</p>
         </div>
         <div class="pill" id="serviceBadge">正在检查状态</div>
       </section>
+      <noscript><p class="notice">控制台需要启用 JavaScript 才能切换页面和管理服务。</p></noscript>
       <div id="notice" class="notice" role="status" hidden></div>
-      <section class="card" id="activation" aria-labelledby="activationTitle" tabindex="-1">
+      <div id="page-home" data-page="home">
+        <section class="card" id="activation" aria-labelledby="activationTitle" tabindex="-1">
         <div class="card-head"><h2 id="activationTitle">启用游戏加速</h2><a href="#service">单项管理</a></div>
         <p>检查接入 → 启动 HTTP 缓存与 HTTPS 转发 → 接入 hosts → 等待视频请求。</p>
         <div class="actions"><button class="primary" id="enableAcceleration" data-action="activation/enable">启用游戏加速</button></div>
@@ -45,7 +53,56 @@
         <p id="activationTime" class="muted"></p>
         <details class="help"><summary>接入与检测说明</summary><p class="hint">仅需要修改 hosts 时请求管理员权限，不覆盖冲突映射。HTTP 视频使用缓存，HTTPS 保持加密透传，不使用缓存，也不计入这里的检测。收到视频请求不代表已确认游戏客户端、起播或播放成功。检测仅记录向导接入完成后通过本地校验的 HTTP GET / HEAD 视频或播放 API 请求（不要求上游解析成功）；不计历史请求、预缓存或控制台轮询。重新检测/重试会清空本次记录，关闭 CDN 或恢复 hosts 会结束检测；刷新页面保留，退出程序清空。hosts 映射在退出后仍保留，可在单项管理中恢复。</p></details>
       </section>
-      <section class="card overview-card" id="overview" aria-labelledby="overviewTitle" tabindex="-1">
+        <section class="card wide" id="queue" aria-labelledby="queueTitle" tabindex="-1">
+          <div class="card-head">
+            <h2 id="queueTitle">房间队列预缓存</h2>
+            <small id="queueWindow">准备队列前 3 个位置中的有效曲目</small>
+          </div>
+          <div class="actions">
+            <button class="primary" id="queueStart" data-action="queue/switch">
+              开启队列预缓存</button
+            ><button id="queueStop" data-action="queue/stop">停止预缓存</button>
+          </div>
+          <details class="help"><summary>队列预缓存说明</summary><div class="hint">
+            每 3 秒读取新增日志，每 15
+            秒检查新日志文件。开启后等待下一次队列同步，不回放旧队列。最多同时下载
+            2
+            首；可在「曲库与下载」页面切换到全曲库任务。停止后已开始的共享下载继续执行，直到完成、失败或程序退出。准备成功次数累计计算，不代表当前保留的视频数量。
+          </div></details>
+          <div id="queueActionError" role="status"></div>
+          <div id="queuePhase" role="status">尚未开启</div>
+          <small id="queueDetail"></small>
+          <ol id="queueSongs"></ol>
+          <div id="queueError" role="status"></div>
+        </section>
+        <p class="hint">需要准备全曲库？前往 <a href="#/library">曲库与下载</a>。查看传输速度与请求记录，请前往 <a href="#/monitor">监控</a>。</p>
+      </div>
+      <div id="page-monitor" data-page="monitor" hidden>
+        <section class="card" id="downloads" aria-labelledby="downloadsTitle" tabindex="-1">
+        <div class="card-head"><h2 id="downloadsTitle">实时下载监控</h2><small>每 5 秒刷新 · 共享任务只计一次</small></div>
+        <p>上游总下载速度 <strong id="downloadSpeed">—</strong></p>
+        <p id="downloadState" role="status">正在读取活动下载…</p>
+        <details class="help"><summary>下载统计说明</summary><p class="hint">近 5 秒采样估算，仅统计资源正文读取，不含线路探测，也不是向客户端传输的速度。100% 后仍需校验和发布；关联曲目不代表实际播放歌曲。活动任务包含预缓存与本地检查，等待上游阶段包含解析、选线与等待响应头；下载时同步计算校验。</p></details>
+        <ul id="downloadList" class="download-list" aria-label="活动下载任务"></ul>
+      </section>
+        <section class="card" id="recent" aria-labelledby="recentTitle" tabindex="-1">
+        <div class="card-head"><h2 id="recentTitle">最近请求监控</h2><small>每 5 秒刷新 · 请求次数不是播放次数</small></div>
+        <p id="recentState" role="status">正在读取最近请求…</p>
+        <details class="help"><summary>请求分组与传输口径</summary><div class="hint">
+          仅显示已结束并写入数据库的 HTTP 视频请求，不是实时下载任务。歌名为资源关联曲目，不能据此确定实际播放歌曲。
+          同资源相邻 GET Range 请求记录时间相隔不超过 30 秒时合并；完整请求、HEAD 分开显示。分组仅覆盖已加载窗口，边界可能截断。
+          时间为请求记录时间，GET 在播放地址解析后记录；传输量为向客户端实际写入的字节（MB = 1,000,000 字节），不是视频大小或回源下载量。
+          单次耗时包含地址解析、等待和校验。多请求组跨度按最早记录时间至最晚「记录时间 + 单次耗时」估算，包含间隔、不叠加并行耗时；组平均速度为组字节数除以估算跨度。
+          GET 记录时间与耗时起点不同，因此组跨度及平均速度均为估算值，不代表精确起止时间。
+          完成表示服务器处理结束，不证明客户端播放完成；200 / 206 本身不证明传输完整。旧记录中的写入失败可能是客户端提前断开。
+          每次最多查看最近 500 条 HTTP 请求，预缓存不占用窗口，受明细保留天数限制。
+        </div></details>
+        <div id="recentList" class="recent-list"></div>
+        <div class="actions"><button id="recentMore" type="button" hidden>加载更早记录（增加 50 条）</button></div>
+      </section>
+      </div>
+      <div id="page-cache" data-page="cache" hidden>
+        <section class="card overview-card" id="overview" aria-labelledby="overviewTitle" tabindex="-1">
         <h2 id="overviewTitle">缓存与播放概览</h2>
         <section class="overview-section">
           <div class="card-head">
@@ -105,7 +162,7 @@
           <div id="inventoryError" role="status"></div>
         </section>
       </section>
-      <section class="card" id="cache" aria-labelledby="cacheTitle" tabindex="-1">
+        <section class="card" id="cache" aria-labelledby="cacheTitle" tabindex="-1">
         <div class="card-head"><h2 id="cacheTitle">缓存明细</h2><small>按文件管理 · 每页 50 项</small></div>
         <p class="hint">仅查看本地文件和资料，不联网、不读取视频正文。文件存在不代表完整性已校验；当前引用仅代表本地已知映射，不保证是线上最新版本。最近请求不代表确认播放。</p>
         <form id="cacheSearchForm" class="actions">
@@ -125,97 +182,8 @@
         <ul id="cacheList" class="cache-list" aria-label="缓存文件"></ul>
         <div class="actions"><button type="button" id="cachePrev">上一页</button><button type="button" id="cacheNext">下一页</button></div>
       </section>
-      <section class="card" id="downloads" aria-labelledby="downloadsTitle" tabindex="-1">
-        <div class="card-head"><h2 id="downloadsTitle">实时下载监控</h2><small>每 5 秒刷新 · 共享任务只计一次</small></div>
-        <p>上游总下载速度 <strong id="downloadSpeed">—</strong></p>
-        <p id="downloadState" role="status">正在读取活动下载…</p>
-        <details class="help"><summary>下载统计说明</summary><p class="hint">近 5 秒采样估算，仅统计资源正文读取，不含线路探测，也不是向客户端传输的速度。100% 后仍需校验和发布；关联曲目不代表实际播放歌曲。活动任务包含预缓存与本地检查，等待上游阶段包含解析、选线与等待响应头；下载时同步计算校验。</p></details>
-        <ul id="downloadList" class="download-list" aria-label="活动下载任务"></ul>
-      </section>
-      <section class="card" id="recent" aria-labelledby="recentTitle" tabindex="-1">
-        <div class="card-head"><h2 id="recentTitle">最近请求监控</h2><small>每 5 秒刷新 · 请求次数不是播放次数</small></div>
-        <p id="recentState" role="status">正在读取最近请求…</p>
-        <details class="help"><summary>请求分组与传输口径</summary><div class="hint">
-          仅显示已结束并写入数据库的 HTTP 视频请求，不是实时下载任务。歌名为资源关联曲目，不能据此确定实际播放歌曲。
-          同资源相邻 GET Range 请求记录时间相隔不超过 30 秒时合并；完整请求、HEAD 分开显示。分组仅覆盖已加载窗口，边界可能截断。
-          时间为请求记录时间，GET 在播放地址解析后记录；传输量为向客户端实际写入的字节（MB = 1,000,000 字节），不是视频大小或回源下载量。
-          单次耗时包含地址解析、等待和校验。多请求组跨度按最早记录时间至最晚「记录时间 + 单次耗时」估算，包含间隔、不叠加并行耗时；组平均速度为组字节数除以估算跨度。
-          GET 记录时间与耗时起点不同，因此组跨度及平均速度均为估算值，不代表精确起止时间。
-          完成表示服务器处理结束，不证明客户端播放完成；200 / 206 本身不证明传输完整。旧记录中的写入失败可能是客户端提前断开。
-          每次最多查看最近 500 条 HTTP 请求，预缓存不占用窗口，受明细保留天数限制。
-        </div></details>
-        <div id="recentList" class="recent-list"></div>
-        <div class="actions"><button id="recentMore" type="button" hidden>加载更早记录（增加 50 条）</button></div>
-      </section>
-      <div class="grid">
-        <section class="card" id="service" aria-labelledby="serviceTitle" tabindex="-1">
-          <div class="card-head">
-            <h2 id="serviceTitle">本地 CDN</h2>
-            <small>127.0.0.1 · 80 / 443</small>
-          </div>
-          <div class="actions">
-            <button class="primary" id="start" data-action="start">
-              启动 CDN</button
-            ><button id="stop" data-action="stop">关闭 CDN</button>
-          </div>
-          <div id="serviceError" role="status"></div>
-          <div class="check">
-            <span aria-hidden="true" class="dot" id="portDot">●</span>
-            <div class="grow">
-              <strong>HTTP 缓存 · 80</strong><small id="portText">检查中</small>
-            </div>
-          </div>
-          <div class="check">
-            <span aria-hidden="true" class="dot" id="httpsDot">●</span>
-            <div class="grow">
-              <strong>HTTPS 转发 · 443</strong
-              ><small id="httpsText">检查中</small>
-            </div>
-          </div>
-          <div class="hint">
-            游戏 HTTP 播放使用本地缓存；网页 HTTPS
-            播放保持加密并转发到原线路，不使用本地缓存。
-          </div>
-          <div class="check">
-            <span aria-hidden="true" class="dot" id="hostsDot">●</span>
-            <div class="grow">
-              <strong>游戏接入 · hosts</strong
-              ><small id="hostsText">检查中</small>
-            </div>
-          </div>
-          <div id="hostsActionError" role="status"></div>
-          <div class="actions hosts-actions">
-            <button data-action="hosts/enable">修改 hosts</button
-            ><button data-action="hosts/disable">恢复 hosts</button>
-          </div>
-          <div class="hint">
-            仅在实际修改时请求管理员权限。映射长期保留，关闭 CDN
-            或退出控制台不会恢复。「恢复 hosts」仅移除 StepStash 添加的映射；如有其他映射，仍需根据接入状态检查。
-          </div>
-        </section>
-
-        <section class="card wide" id="queue" aria-labelledby="queueTitle" tabindex="-1">
-          <div class="card-head">
-            <h2 id="queueTitle">房间队列预缓存</h2>
-            <small id="queueWindow">准备队列前 3 个位置中的有效曲目</small>
-          </div>
-          <div class="actions">
-            <button class="primary" id="queueStart" data-action="queue/switch">
-              开启队列预缓存</button
-            ><button id="queueStop" data-action="queue/stop">停止预缓存</button>
-          </div>
-          <details class="help"><summary>队列预缓存说明</summary><div class="hint">
-            每 3 秒读取新增日志，每 15
-            秒检查新日志文件。开启后等待下一次队列同步，不回放旧队列。最多同时下载
-            2
-            首；可用下方按钮直接切换到全曲库任务。停止后已开始的共享下载继续执行，直到完成、失败或程序退出。准备成功次数累计计算，不代表当前保留的视频数量。
-          </div></details>
-          <div id="queueActionError" role="status"></div>
-          <div id="queuePhase" role="status">尚未开启</div>
-          <small id="queueDetail"></small>
-          <ol id="queueSongs"></ol>
-          <div id="queueError" role="status"></div>
-        </section>
+      </div>
+      <div id="page-library" data-page="library" hidden>
         <section class="card wide" id="batch" aria-labelledby="batchTitle" tabindex="-1">
           <div class="card-head">
             <div>
@@ -268,6 +236,8 @@
             </table>
           </details>
         </section>
+      </div>
+      <div id="page-settings" data-page="settings" hidden>
         <section class="card wide" id="preferences" aria-labelledby="preferencesTitle" tabindex="-1">
           <div class="card-head">
             <h2 id="preferencesTitle">缓存与任务设置</h2>
@@ -394,6 +364,51 @@
             </fieldset>
             <button class="primary" type="submit" id="save">保存设置</button>
           </form>
+        </section>
+        <section class="card" id="service" aria-labelledby="serviceTitle" tabindex="-1">
+          <div class="card-head">
+            <h2 id="serviceTitle">本地 CDN</h2>
+            <small>127.0.0.1 · 80 / 443</small>
+          </div>
+          <div class="actions">
+            <button class="primary" id="start" data-action="start">
+              启动 CDN</button
+            ><button id="stop" data-action="stop">关闭 CDN</button>
+          </div>
+          <div id="serviceError" role="status"></div>
+          <div class="check">
+            <span aria-hidden="true" class="dot" id="portDot">●</span>
+            <div class="grow">
+              <strong>HTTP 缓存 · 80</strong><small id="portText">检查中</small>
+            </div>
+          </div>
+          <div class="check">
+            <span aria-hidden="true" class="dot" id="httpsDot">●</span>
+            <div class="grow">
+              <strong>HTTPS 转发 · 443</strong
+              ><small id="httpsText">检查中</small>
+            </div>
+          </div>
+          <div class="hint">
+            游戏 HTTP 播放使用本地缓存；网页 HTTPS
+            播放保持加密并转发到原线路，不使用本地缓存。
+          </div>
+          <div class="check">
+            <span aria-hidden="true" class="dot" id="hostsDot">●</span>
+            <div class="grow">
+              <strong>游戏接入 · hosts</strong
+              ><small id="hostsText">检查中</small>
+            </div>
+          </div>
+          <div id="hostsActionError" role="status"></div>
+          <div class="actions hosts-actions">
+            <button data-action="hosts/enable">修改 hosts</button
+            ><button data-action="hosts/disable">恢复 hosts</button>
+          </div>
+          <div class="hint">
+            仅在实际修改时请求管理员权限。映射长期保留，关闭 CDN
+            或退出控制台不会恢复。「恢复 hosts」仅移除 StepStash 添加的映射；如有其他映射，仍需根据接入状态检查。
+          </div>
         </section>
       </div>
       </main>

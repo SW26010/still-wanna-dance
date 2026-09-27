@@ -25,8 +25,8 @@ func TestPageLoadsEmbeddedAssets(t *testing.T) {
 		t.Fatal("page did not inject the action token")
 	}
 	refs := regexp.MustCompile(`(?:href|src)="(/assets/[^"]+)"`).FindAllStringSubmatch(html, -1)
-	if len(refs) != 3 {
-		t.Fatalf("expected stylesheet and two scripts, got %v", refs)
+	if len(refs) != 4 {
+		t.Fatalf("expected stylesheet and three scripts, got %v", refs)
 	}
 	for _, ref := range refs {
 		path := ref[1]

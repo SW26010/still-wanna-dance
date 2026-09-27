@@ -30,7 +30,7 @@ var page string
 //go:embed about.html
 var aboutPage string
 
-//go:embed assets/console.css assets/console.js assets/cache.js
+//go:embed assets/console.css assets/console.js assets/cache.js assets/navigation.js
 var assets embed.FS
 
 type Settings struct {
@@ -554,7 +554,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, aboutPage)
 		return
 	}
-	if r.Method == "GET" && (r.URL.Path == "/assets/console.css" || r.URL.Path == "/assets/console.js" || r.URL.Path == "/assets/cache.js") {
+	if r.Method == "GET" && (r.URL.Path == "/assets/console.css" || r.URL.Path == "/assets/console.js" || r.URL.Path == "/assets/cache.js" || r.URL.Path == "/assets/navigation.js") {
 		content, err := assets.ReadFile(strings.TrimPrefix(r.URL.Path, "/"))
 		if err != nil {
 			http.Error(w, "asset unavailable", http.StatusInternalServerError)

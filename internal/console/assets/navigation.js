@@ -7,7 +7,7 @@
     library: ['曲库与下载', '按需准备你的曲库', '扫描缺失、完整校验，再下载补齐；切换页面不会停止任务。'],
     settings: ['设置', '配置存储、网络与服务', '调整缓存与任务设置，单独管理本地 CDN 和 hosts 接入。'],
   };
-  const legacy = { activation: 'home', queue: 'home', overview: 'cache', cache: 'cache',
+  const legacy = { activation: 'home', queue: 'settings', overview: 'cache', cache: 'cache',
     downloads: 'monitor', recent: 'monitor', batch: 'library', preferences: 'settings', service: 'settings' };
   const panels = document.querySelectorAll('[data-page]');
   const links = document.querySelectorAll('[data-page-link]');

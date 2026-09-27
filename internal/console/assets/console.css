@@ -589,3 +589,5 @@ details[open] > .recent-summary .recent-expand::before { content: '▾ '; }
 #cacheConfirmList { max-height: 18rem; overflow: auto; overflow-wrap: anywhere; }
 #cacheConfirm { white-space: normal; }
 #cacheResult { overflow-wrap: anywhere; }
+
+.check-subsection { border-block: 1px solid var(--line); margin-block: 1rem; padding-block: 1rem; }

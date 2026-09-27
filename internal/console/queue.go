@@ -180,6 +180,9 @@ func (c *Console) startQueueLocked() error {
 	if c.closing {
 		return errors.New("控制台正在退出")
 	}
+	if c.httpServer == nil || !c.settings.QueuePrefetchEnabled {
+		return errors.New("队列预缓存随本地 CDN 启动")
+	}
 	if c.queue.Running {
 		return nil
 	}
@@ -410,6 +413,20 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 				slog.Info("queue_song_discarded", "trace_id", applog.TraceID(waiter.ctx), "song_id", r.id, "generation", r.generation, "reason", "canceled_or_obsolete")
 			}
 			c.mu.Unlock()
+		}
+	}
+}
+
+// The caller holds lifecycleMu. Queue failures must not stop playback services.
+func (c *Console) resumeQueueLocked() {
+	c.mu.Lock()
+	enabled := c.settings.QueuePrefetchEnabled && c.httpServer != nil && !c.closing && !(c.batch.Running && !c.batch.ScanOnly)
+	c.mu.Unlock()
+	if enabled {
+		err := c.startQueueLocked()
+		c.recordActionError("/api/queue/start", err)
+		if err != nil {
+			slog.Error("queue_start_failed", "error", err)
 		}
 	}
 }

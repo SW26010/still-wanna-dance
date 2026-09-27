@@ -183,13 +183,10 @@ func TestScanCanRunAlongsideQueue(t *testing.T) {
 	defer c.Close()
 	c.apiBase = api.URL
 	c.client.Transport = http.DefaultTransport
-	if err := c.startQueue(); err != nil {
+	if err := c.start(); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.startBatchMode(true); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.switchTask(false); err != nil {
 		t.Fatal(err)
 	}
 	c.mu.Lock()

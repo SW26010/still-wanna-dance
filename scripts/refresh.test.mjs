@@ -504,9 +504,7 @@ test('nonempty queue renders three songs in order, falls back to IDs, and replac
   assert.equal(get('queuePhase').textContent, '正在准备歌曲 11、12');
   assert.equal(get('queueDetail').textContent, 'output_log.txt · 本次开启后累计准备成功 2 次');
   assert.equal(get('queueError').textContent, '日志不可读');
-  assert.equal(get('queueStart').disabled, true);
-  assert.equal(get('queueStop').disabled, false);
-  assert.equal(get('batchStart').textContent, '停止预缓存并下载补齐');
+  assert.equal(get('batchStart').textContent, '暂停预缓存并下载补齐');
 
   p.fireTimer();
   p.finishBatch(2, {}, { queue: { running: true, songs: [{ songId: 15 }], error: '下载失败' } });
@@ -520,7 +518,7 @@ test('nonempty queue renders three songs in order, falls back to IDs, and replac
   await flush();
   assert.deepEqual(get('queueSongs').children, []);
   assert.equal(get('queueError').textContent, '');
-  assert.equal(get('queuePhase').textContent, '预缓存已停止');
+  assert.equal(get('queuePhase').textContent, '随本地 CDN 启动');
 });
 
 test('batch failures render rows as text and disappear after a successful refresh', async () => {
@@ -569,7 +567,6 @@ for (const [path, state] of [
   ['activation/enable', {}],
   ['start', {}], ['stop', { running: true }],
   ['hosts/enable', {}], ['hosts/disable', {}], ['inventory/scan', {}],
-  ['queue/switch', {}], ['queue/stop', { queue: { running: true } }],
   ['batch/scan', {}], ['batch/verify', {}], ['batch/switch', {}], ['batch/cancel', { batch: { running: true } }],
 ]) {
   test(`clicking the ${path} button posts once and refreshes before unlocking controls`, async () => {
@@ -649,7 +646,7 @@ test('settings submit prevents navigation and serializes the edited controls', a
   assert.equal(p.requests[2].url, '/api/settings');
   assert.equal(p.requests[2].method, 'POST');
   assert.deepEqual(JSON.parse(p.requests[2].body), {
-    queuePrefetchCount: 7,
+    queuePrefetchCount: 7, queuePrefetchEnabled: true,
     autoStartCDN: true, storageDir: 'D:/draft', logDir: 'D:/logs', downloadUpstream: 'hkg',
     upstreamMode: 'socks5', socks5Address: '127.0.0.1:7891',
     socks5Username: 'test-user', socks5Password: 'test-secret',
@@ -668,7 +665,7 @@ test('settings submit prevents navigation and serializes the edited controls', a
 for (const count of [1, 5]) {
   test(`queue displays the configured ${count} positions and locks settings while running`, async () => {
     const p = page();
-    p.finishBatch(0, { queuePrefetchCount: count }, { queue: {
+    p.finishBatch(0, { queuePrefetchCount: count }, { running: true, queue: {
       running: true, songs: Array.from({ length: 6 }, (_, i) => ({ songId: i + 1 })),
     } });
     await flush();
@@ -948,7 +945,7 @@ test('identical polling snapshots do not rewrite live status text', async () => 
   p.finishBatch(4, {}, { running: true });
   await flush();
   assert.match(p.document.getElementById('settingsAvailability').textContent, /设置已锁定/);
-  assert.equal(writes, 1);
+  assert.equal(writes, 2);
 });
 
 for (const moved of [false, true]) {
@@ -1219,4 +1216,28 @@ test('cache pagination handles an emptied store and bounds retries during concur
   await vm.runInContext('refreshCache()', p.context);
   assert.equal(offsets.length, 1);
   assert.equal(vm.runInContext('cacheOffset', p.context), 0);
+});
+
+for (const enabled of [false, true]) {
+ test('queue preference renders and saves ' + enabled, async () => {
+  const p = page();
+  p.finishBatch(0, { queuePrefetchEnabled: enabled });
+  await flush();
+  const get = id => p.document.getElementById(id);
+  assert.equal(get('queuePrefetchEnabled').checked, enabled);
+  assert.equal(get('queuePrefetchEnabled').disabled, false);
+  assert.equal(get('queuePhase').textContent, enabled ? '随本地 CDN 启动' : '已在设置中关闭随 CDN 启用');
+  get('queuePrefetchEnabled').checked = !enabled;
+  get('settings').dispatchEvent({ type: 'input' });
+  get('settings').dispatchEvent({ type: 'submit' });
+  assert.equal(JSON.parse(p.requests[2].body).queuePrefetchEnabled, !enabled);
+ });
+}
+
+test('queue cannot independently lock settings when CDN is stopped', async () => {
+ const p = page();
+ p.finishBatch(0, {}, { running: false, queue: { running: true } });
+ await flush();
+ assert.equal(p.document.getElementById('save').disabled, false);
+ assert.equal(p.document.getElementById('queuePrefetchEnabled').disabled, false);
 });

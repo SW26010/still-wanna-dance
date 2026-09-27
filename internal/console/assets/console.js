@@ -117,6 +117,7 @@ function renderService(s) {
 
 function renderSettings(s) {
   if (!settingsDirty) {
+    $('queuePrefetchEnabled').checked = s.settings.queuePrefetchEnabled !== false;
     $('autoStartCDN').checked = !!s.settings.autoStartCDN;
     $('requestRetentionDays').value = s.settings.requestRetentionDays ?? 30;
     $('scanResolveConcurrency').value = s.settings.scanResolveConcurrency || 4;
@@ -140,6 +141,7 @@ function renderControls() {
   for (const b of document.querySelectorAll('button')) b.disabled = unavailable;
   for (const id of [
     'autoStartCDN',
+    'queuePrefetchEnabled',
     'storageDir',
     'logDir',
     'maxCacheGiB',
@@ -154,7 +156,7 @@ function renderControls() {
     'queuePrefetchCount',
     'save',
   ])
-    $(id).disabled = unavailable || !!(s.running || s.batch.running || s.queue.running);
+    $(id).disabled = unavailable || !!(s.running || s.batch.running);
   $('socks5Address').disabled ||= $('upstreamMode').value !== 'socks5';
   $('socks5Username').disabled ||= $('upstreamMode').value !== 'socks5';
   $('socks5Password').disabled ||= $('upstreamMode').value !== 'socks5';
@@ -163,8 +165,8 @@ function renderControls() {
   if (typeof updateCacheControls === 'function') updateCacheControls();
   setText('settingsAvailability', !connected ? '连接控制台后可修改设置。' : busy
     ? '正在处理操作，请稍候。'
-    : s && (s.running || s.batch.running || s.queue.running)
-      ? '设置已锁定：请先停止 CDN、队列预缓存和批量任务。'
+    : s && (s.running || s.batch.running)
+      ? '设置已锁定：请先停止 CDN 和批量任务。'
       : settingsDirty ? '有未保存的更改。保存后用于下一次启动的服务或任务。' : '可以修改设置。保存后用于下一次启动的服务或任务。');
   if (!s) return;
   $('start').disabled = unavailable || !!s.running;
@@ -173,32 +175,28 @@ function renderControls() {
   setText('batchStart', s.batch.running && !s.batch.scanOnly
       ? '正在下载补齐…'
       : s.queue.running
-        ? '停止预缓存并下载补齐'
+        ? '暂停预缓存并下载补齐'
         : '下载补齐');
   $('batchVerify').disabled = unavailable || !!s.batch.running;
   $('batchScan').disabled = unavailable || !!s.batch.running;
   setText('batchScan', s.batch.running && s.batch.scanOnly ? '正在扫描…' : '仅扫描检查');
   $('batchCancel').disabled = unavailable || !s.batch.running;
-  $('queueStart').disabled = unavailable || !!s.queue.running;
-  $('queueStop').disabled = unavailable || !s.queue.running;
 }
 
 function renderQueue(s) {
   const q = s.queue;
   const count = s.settings.queuePrefetchCount || 3;
   setText('queueWindow', '准备队列前 ' + count + ' 个位置中的有效曲目');
-  setText('queueStart', q.running
-    ? '队列预缓存已开启'
-    : s.batch.running && !s.batch.scanOnly
-      ? '停止下载补齐并开启预缓存'
-      : '开启队列预缓存');
   setText('queuePhase', q.running
     ? q.current
       ? '正在准备歌曲 ' + (q.active || [q.current]).join('、')
       : (q.songs || []).length
         ? '等待队列变化或重试'
         : '等待新的队列同步'
-    : '预缓存已停止');
+    : s.settings.queuePrefetchEnabled === false ? '已在设置中关闭随 CDN 启用'
+      : !s.running ? '随本地 CDN 启动'
+      : s.batch.running && !s.batch.scanOnly ? '下载补齐期间暂停，结束后自动恢复'
+      : '预缓存未就绪，请检查日志目录');
   setText('queueDetail', (q.file || '尚未发现日志') + ' · 本次开启后累计准备成功 ' + q.completed + ' 次');
   setText('queueError', q.logError || q.error || '');
   $('queueSongs').replaceChildren(
@@ -400,6 +398,7 @@ $('settings').addEventListener('submit', (e) => {
   e.preventDefault();
   action('settings', {
     autoStartCDN: $('autoStartCDN').checked,
+    queuePrefetchEnabled: $('queuePrefetchEnabled').checked,
     requestRetentionDays: Number($('requestRetentionDays').value),
     scanResolveConcurrency: Number($('scanResolveConcurrency').value),
     scanCheckConcurrency: Number($('scanCheckConcurrency').value),

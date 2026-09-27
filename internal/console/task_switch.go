@@ -1,37 +1,25 @@
 package console
 
-import "errors"
-
-// Switching is explicit in the button label. Wait for the previous worker to
-// exit before starting its replacement; shared playback downloads stay alive.
-func (c *Console) switchTask(batch bool) error {
+// Pause queue prefetch while downloading the library. Lifecycle serialization
+// prevents CDN start/stop or settings saves from interleaving with the switch.
+func (c *Console) switchTask() error {
 	c.taskMu.Lock()
 	defer c.taskMu.Unlock()
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
 	var done chan struct{}
-	resumeQueue := false
-	if batch && c.queueCancel != nil {
-		resumeQueue = true
+	if c.queueCancel != nil {
 		c.queueCancel()
 		done = c.queueDone
-	} else if !batch && c.batchCancel != nil && !c.batch.ScanOnly {
-		c.batchCancel()
-		done = c.batchDone
 	}
 	c.mu.Unlock()
 	if done != nil {
 		<-done
 	}
-	if batch {
-		if err := c.startBatchCheckResume(false, false, resumeQueue); err != nil {
-			if resumeQueue {
-				resumeErr := c.startQueue()
-				c.recordActionError("/api/queue/start", resumeErr)
-				return errors.Join(err, resumeErr)
-			}
-			return err
-		}
-		return nil
+	err := c.startBatchCheckLocked(false, false)
+	if err != nil {
+		c.resumeQueueLocked()
 	}
-	return c.startQueue()
+	return err
 }

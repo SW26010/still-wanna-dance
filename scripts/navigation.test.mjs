@@ -78,7 +78,7 @@ test('direct load and reload retain route; malformed hashes safely return home',
 
 test('legacy deep links reveal their page and focus the requested section', () => {
   const p = page();
-  for (const [section, key] of Object.entries({ activation: 'home', queue: 'home', downloads: 'monitor',
+  for (const [section, key] of Object.entries({ activation: 'home', queue: 'settings', downloads: 'monitor',
     recent: 'monitor', overview: 'cache', cache: 'cache', batch: 'library', preferences: 'settings', service: 'settings' })) {
     p.go('#' + section);
     assert.equal(p.panels.find(n => !n.hidden).dataset.page, key);
@@ -103,8 +103,8 @@ test('navigation keeps drafts, selection, confirmation and expanded details moun
 });
 
 test('markup groups every existing section once with only home initially visible', () => {
-  const groups = { home: ['activation', 'queue'], monitor: ['downloads', 'recent'],
-    cache: ['overview', 'cache'], library: ['batch'], settings: ['preferences', 'service'] };
+  const groups = { home: ['activation'], monitor: ['downloads', 'recent'],
+    cache: ['overview', 'cache'], library: ['batch'], settings: ['preferences', 'service', 'queue'] };
   const positions = keys.map(key => html.indexOf(`id="page-${key}"`));
   for (const [i, key] of keys.entries()) {
     assert.ok(positions[i] > 0);

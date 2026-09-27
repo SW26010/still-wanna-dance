@@ -22,10 +22,10 @@ func TestSwitchStopsOldTaskBeforeStartingNewTask(t *testing.T) {
 	defer c.Close()
 	c.apiBase = api.URL
 	c.client.Transport = http.DefaultTransport
-	if err := c.startQueue(); err != nil {
+	if err := c.start(); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.switchTask(true); err != nil {
+	if err := c.switchTask(); err != nil {
 		t.Fatal(err)
 	}
 	<-requested
@@ -35,9 +35,11 @@ func TestSwitchStopsOldTaskBeforeStartingNewTask(t *testing.T) {
 	if !batch || queue {
 		t.Fatal("did not switch to batch")
 	}
-	if err := c.switchTask(false); err != nil {
-		t.Fatal(err)
-	}
+	c.mu.Lock()
+	done := c.batchDone
+	c.mu.Unlock()
+	postTaskAction(t, c, "batch/cancel")
+	<-done
 	c.mu.Lock()
 	batch, queue = c.batch.Running, c.queue.Running
 	c.mu.Unlock()
@@ -48,7 +50,7 @@ func TestSwitchStopsOldTaskBeforeStartingNewTask(t *testing.T) {
 
 func TestBatchRestoresOnlyTemporarilyStoppedQueue(t *testing.T) {
 	for _, enabled := range []bool{false, true} {
-		for _, outcome := range []string{"cancel", "complete", "failure", "queue-stop", "close", "resume-failure"} {
+		for _, outcome := range []string{"cancel", "complete", "failure", "cdn-stop", "close", "resume-failure"} {
 			name := outcome + "/queue-off"
 			if enabled {
 				name = outcome + "/queue-on"
@@ -72,7 +74,7 @@ func TestBatchRestoresOnlyTemporarilyStoppedQueue(t *testing.T) {
 				c.apiBase = api.URL
 				c.client.Transport = http.DefaultTransport
 				if enabled {
-					if err := c.startQueue(); err != nil {
+					if err := c.start(); err != nil {
 						t.Fatal(err)
 					}
 				}
@@ -80,7 +82,7 @@ func TestBatchRestoresOnlyTemporarilyStoppedQueue(t *testing.T) {
 				if outcome == "complete" {
 					c.scanPlan = &scanPlan{settings: c.settings}
 				}
-				if err := c.switchTask(true); err != nil {
+				if err := c.switchTask(); err != nil {
 					t.Fatal(err)
 				}
 				c.mu.Lock()
@@ -100,8 +102,8 @@ func TestBatchRestoresOnlyTemporarilyStoppedQueue(t *testing.T) {
 							t.Fatal(err)
 						}
 					default:
-						if outcome == "queue-stop" {
-							postTaskAction(t, c, "queue/stop")
+						if outcome == "cdn-stop" {
+							postTaskAction(t, c, "stop")
 						}
 						if outcome == "resume-failure" {
 							if err := os.Remove(c.settings.LogDir); err != nil {
@@ -118,9 +120,9 @@ func TestBatchRestoresOnlyTemporarilyStoppedQueue(t *testing.T) {
 				}
 				c.mu.Lock()
 				defer c.mu.Unlock()
-				wantRunning := enabled && outcome != "queue-stop" && outcome != "close" && outcome != "resume-failure"
-				if c.queue.Running != wantRunning || c.batch.Running || c.batchResumeQueue {
-					t.Fatalf("queue running=%v, want %v; batch running=%v, resume pending=%v", c.queue.Running, wantRunning, c.batch.Running, c.batchResumeQueue)
+				wantRunning := enabled && outcome != "cdn-stop" && outcome != "close" && outcome != "resume-failure"
+				if c.queue.Running != wantRunning || c.batch.Running {
+					t.Fatalf("queue running=%v, want %v; batch running=%v", c.queue.Running, wantRunning, c.batch.Running)
 				}
 				if enabled && outcome == "resume-failure" && c.actionErrors["queue"] == "" {
 					t.Fatal("queue resume failure was not exposed to the user")

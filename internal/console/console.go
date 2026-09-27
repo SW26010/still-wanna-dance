@@ -34,6 +34,7 @@ var aboutPage string
 var assets embed.FS
 
 type Settings struct {
+	QueuePrefetchEnabled   bool   `json:"queuePrefetchEnabled"`
 	RequestRetentionDays   int    `json:"requestRetentionDays"`
 	AutoStartCDN           bool   `json:"autoStartCDN"`
 	ScanResolveConcurrency int    `json:"scanResolveConcurrency"`
@@ -81,7 +82,6 @@ type Console struct {
 	scanPlan            *scanPlan
 	batchCancel         context.CancelFunc
 	batchDone           chan struct{}
-	batchResumeQueue    bool
 	queue               QueueStatus
 	queueCancel         context.CancelFunc
 	queueDone           chan struct{}
@@ -103,7 +103,7 @@ func New(configPath, address string) (*Console, error) {
 		return nil, err
 	}
 	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: "https://x.kiva.moe/api/v2/wanna/songs"}
-	c.settings = Settings{StorageDir: "stepstash-data", RequestRetentionDays: 30}
+	c.settings = Settings{StorageDir: "stepstash-data", RequestRetentionDays: 30, QueuePrefetchEnabled: true}
 	c.dns = &directDNS{}
 	if b, err := os.ReadFile(configPath); err == nil {
 		if err = json.Unmarshal(b, &c.settings); err != nil {
@@ -243,9 +243,9 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 		c.mu.Unlock()
 		return errors.New("控制台正在退出")
 	}
-	if c.httpServer != nil || c.batch.Running || c.queue.Running {
+	if c.httpServer != nil || c.batch.Running {
 		c.mu.Unlock()
-		return errors.New("请先关闭 CDN、队列预缓存和批量任务，再保存设置")
+		return errors.New("请先关闭 CDN 和批量任务，再保存设置")
 	}
 	oldSettings, service := c.settings, c.service
 	c.mu.Unlock()
@@ -304,6 +304,9 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 	c.inventoryMu.Lock()
 	c.mu.Lock()
 	c.settings = s
+	if !s.QueuePrefetchEnabled {
+		delete(c.actionErrors, "queue")
+	}
 	c.settingsRevision++
 	oldClient := c.client
 	if networkChanged {
@@ -435,6 +438,7 @@ func (c *Console) startLocked() (err error) {
 	c.https = relay
 	c.cdnError = ""
 	c.mu.Unlock()
+	c.resumeQueueLocked()
 	slog.Info("cdn_started", "address", l.Addr().String(), "https_address", secure.Addr().String())
 	go func() {
 		if err := relay.serve(); err != nil && !errors.Is(err, net.ErrClosed) {
@@ -478,10 +482,17 @@ func (c *Console) stopLocked() {
 	if !c.activation.Started.IsZero() {
 		c.activation.Phase = "stopped"
 	}
+	queueDone := c.queueDone
+	if c.queueCancel != nil {
+		c.queueCancel()
+	}
 	listener, relay, server := c.videoListener, c.https, c.httpServer
 	c.videoListener, c.https, c.httpServer = nil, nil, nil
 	c.mu.Unlock()
 	defer c.mu.Lock()
+	if queueDone != nil {
+		<-queueDone
+	}
 	if listener != nil {
 		listener.Close()
 	}
@@ -708,9 +719,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/api/batch/scan":
 		err = c.startBatchMode(true)
 	case "/api/batch/switch":
-		err = c.switchTask(true)
-	case "/api/queue/switch":
-		err = c.switchTask(false)
+		err = c.switchTask()
 	case "/api/start":
 		err = c.start()
 	case "/api/activation/enable":
@@ -734,19 +743,6 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = c.changeHosts("disable")
 	case "/api/batch/start":
 		err = c.startBatch()
-	case "/api/queue/start":
-		err = c.startQueue()
-	case "/api/queue/stop":
-		c.taskMu.Lock()
-		c.lifecycleMu.Lock()
-		c.mu.Lock()
-		c.batchResumeQueue = false
-		if c.queueCancel != nil {
-			c.queueCancel()
-		}
-		c.mu.Unlock()
-		c.lifecycleMu.Unlock()
-		c.taskMu.Unlock()
 	case "/api/batch/cancel":
 		c.mu.Lock()
 		if c.batchCancel != nil {

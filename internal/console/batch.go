@@ -172,12 +172,12 @@ func (c *Console) startBatchMode(scanOnly bool) error {
 }
 
 func (c *Console) startBatchCheck(scanOnly, fullVerify bool) error {
-	return c.startBatchCheckResume(scanOnly, fullVerify, false)
-}
-
-func (c *Console) startBatchCheckResume(scanOnly, fullVerify, resumeQueue bool) error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
+	return c.startBatchCheckLocked(scanOnly, fullVerify)
+}
+
+func (c *Console) startBatchCheckLocked(scanOnly, fullVerify bool) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
@@ -205,7 +205,6 @@ func (c *Console) startBatchCheckResume(scanOnly, fullVerify, resumeQueue bool) 
 	ctx, cancel := context.WithCancel(context.Background())
 	c.batchCancel = cancel
 	c.batchDone = make(chan struct{})
-	c.batchResumeQueue = resumeQueue
 	c.batch = Batch{Running: true, ScanOnly: scanOnly, FullVerify: fullVerify, Phase: "正在获取最新歌曲列表"}
 	if !scanOnly && c.scanPlan != nil && c.scanPlan.settings == c.settings {
 		c.batch.Phase = "正在复用扫描结果下载补齐"
@@ -256,17 +255,8 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		c.mu.Lock()
 		c.batch = result
 		c.batchCancel = nil
-		resumeQueue := c.batchResumeQueue && !c.closing
-		c.batchResumeQueue = false
 		c.mu.Unlock()
-		if resumeQueue {
-			if err := c.startQueueLocked(); err != nil {
-				c.recordActionError("/api/queue/start", err)
-				slog.Error("queue_resume_failed", "error", err)
-			} else {
-				c.recordActionError("/api/queue/start", nil)
-			}
-		}
+		c.resumeQueueLocked()
 		slog.Info("batch_finished", "scan_only", scanOnly, "full_verify", fullVerify, "reused", result.Reused, "verified", result.Verified, "corrupt", result.Corrupt, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", result.Missing, "cancelled", ctx.Err() != nil, "total", result.Total, "checked", result.Checked, "hits", result.Hits, "downloaded", result.Downloaded, "failed", result.Failed, "phase", result.Phase)
 	}()
 	var checker *cacheproxy.LocalChecker

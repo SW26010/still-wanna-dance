@@ -53,28 +53,6 @@
         <p id="activationTime" class="muted"></p>
         <details class="help"><summary>接入与检测说明</summary><p class="hint">仅需要修改 hosts 时请求管理员权限，不覆盖冲突映射。HTTP 视频使用缓存，HTTPS 保持加密透传，不使用缓存，也不计入这里的检测。收到视频请求不代表已确认游戏客户端、起播或播放成功。检测仅记录向导接入完成后通过本地校验的 HTTP GET / HEAD 视频或播放 API 请求（不要求上游解析成功）；不计历史请求、预缓存或控制台轮询。重新检测/重试会清空本次记录，关闭 CDN 或恢复 hosts 会结束检测；刷新页面保留，退出程序清空。hosts 映射在退出后仍保留，可在单项管理中恢复。</p></details>
       </section>
-        <section class="card wide" id="queue" aria-labelledby="queueTitle" tabindex="-1">
-          <div class="card-head">
-            <h2 id="queueTitle">房间队列预缓存</h2>
-            <small id="queueWindow">准备队列前 3 个位置中的有效曲目</small>
-          </div>
-          <div class="actions">
-            <button class="primary" id="queueStart" data-action="queue/switch">
-              开启队列预缓存</button
-            ><button id="queueStop" data-action="queue/stop">停止预缓存</button>
-          </div>
-          <details class="help"><summary>队列预缓存说明</summary><div class="hint">
-            每 3 秒读取新增日志，每 15
-            秒检查新日志文件。开启后等待下一次队列同步，不回放旧队列。最多同时下载
-            2
-            首；可在「曲库与下载」页面切换到全曲库任务。停止后已开始的共享下载继续执行，直到完成、失败或程序退出。准备成功次数累计计算，不代表当前保留的视频数量。
-          </div></details>
-          <div id="queueActionError" role="status"></div>
-          <div id="queuePhase" role="status">尚未开启</div>
-          <small id="queueDetail"></small>
-          <ol id="queueSongs"></ol>
-          <div id="queueError" role="status"></div>
-        </section>
         <p class="hint">需要准备全曲库？前往 <a href="#/library">曲库与下载</a>。查看传输速度与请求记录，请前往 <a href="#/monitor">监控</a>。</p>
       </div>
       <div id="page-monitor" data-page="monitor" hidden>
@@ -203,7 +181,7 @@
           <details class="help"><summary>扫描、校验与下载说明</summary><div class="hint">
             「仅扫描检查」获取最新曲目列表与同版本校验和清单，匹配本地已知版本后跳过逐首地址查询，并复用未变化文件的校验记录；记录在重启后仍有效。「完整校验」重新读取视频检查完整性，共用视频只读取一次。两者不下载、不删除视频，可与队列预缓存同时运行；地址请求和本地校验并发可在设置中调整。「下载补齐」优先复用最近一次完整扫描的曲目和地址，未变化的已校验文件跳过重复校验；扫描结果仅供下一次补齐使用，重新扫描、保存设置或重启会清除用于补齐的逐首结果，同一存储目录的上次成功统计仍会保留。无可用结果时检查最新曲目，旧地址失败后重新解析，固定
             CF 时单独检查
-            CF。队列运行时会先临时停止预缓存，下载补齐停止、完成或失败后自动恢复；原本未开启时保持关闭。两种下载模式均最多同时下载
+            CF。队列运行时会先临时停止预缓存，下载补齐停止、完成或失败后自动恢复；CDN 已关闭时保持停止。两种下载模式均最多同时下载
             2 首，共用后台额度，为游戏播放保留 1 个下载名额。统计卡片显示上次成功任务的结果，当前进度在下方显示；已处理的视频可能因容量限制被淘汰。两项操作均无需启动
             CDN 或修改 hosts。
           </div></details>
@@ -241,7 +219,7 @@
         <section class="card wide" id="preferences" aria-labelledby="preferencesTitle" tabindex="-1">
           <div class="card-head">
             <h2 id="preferencesTitle">缓存与任务设置</h2>
-            <small id="settingsAvailability" role="status">停止 CDN、队列预缓存和批量任务后可修改</small>
+            <small id="settingsAvailability" role="status">停止 CDN 和批量任务后可修改</small>
           </div>
           <div id="settingsActionError" role="status"></div>
           <form id="settings" aria-describedby="settingsAvailability">
@@ -321,7 +299,7 @@
             <label for="socks5Password">SOCKS5 密码</label>
             <input id="socks5Password" aria-describedby="socks5PasswordHint" name="socks5Password" type="password" autocomplete="new-password" />
             <div class="hint" id="socks5PasswordHint">
-              填写代理软件的主机:端口，无需 socks5:// 前缀。代理模式用于 API 查询、视频下载、测速和 HTTPS 透传，域名解析交给代理；连接失败不会回退直连。无需认证时用户名和密码留空；已有密码留空则保留，清空用户名及密码可移除认证。密码保存在本机配置文件中，不会回显。停止 CDN、队列预缓存和批量任务后可保存切换。
+              填写代理软件的主机:端口，无需 socks5:// 前缀。代理模式用于 API 查询、视频下载、测速和 HTTPS 透传，域名解析交给代理；连接失败不会回退直连。无需认证时用户名和密码留空；已有密码留空则保留，清空用户名及密码可移除认证。密码保存在本机配置文件中，不会回显。停止 CDN 和批量任务后可保存切换。
             </div>
             </fieldset><fieldset><legend>扫描与队列</legend>
             <label for="scanResolveConcurrency">扫描地址请求并发</label
@@ -351,10 +329,12 @@
               默认 1，可设 1～4。机械硬盘或同时播放时建议保持 1；SSD 可尝试
               2。保存后下次扫描生效。
             </div>
+            <label for="queuePrefetchEnabled"><input id="queuePrefetchEnabled" name="queuePrefetchEnabled" type="checkbox" checked /> 随 CDN 启用房间队列预缓存</label>
+            <p class="hint">默认开启。随本地 CDN 启停，下载补齐期间临时暂停。</p>
             <label for="queuePrefetchCount">队列预缓存数量</label>
             <input id="queuePrefetchCount" aria-describedby="queuePrefetchCountHint" type="number" min="1" max="100" step="1" required value="3" />
             <div class="hint" id="queuePrefetchCountHint">
-              默认 3，可设 1～100。准备队列前 N 个位置中的有效曲目，非曲库条目也占位置；最多同时下载 2 首。保存后下次开启预缓存生效。
+              默认 3，可设 1～100。准备队列前 N 个位置中的有效曲目，非曲库条目也占位置；最多同时下载 2 首。保存后下次启动 CDN 生效。
             </div>
             <label for="logDir">VRChat 日志目录</label
             ><input id="logDir" aria-describedby="logDirHint" name="logDir" spellcheck="false" />
@@ -393,6 +373,24 @@
             游戏 HTTP 播放使用本地缓存；网页 HTTPS
             播放保持加密并转发到原线路，不使用本地缓存。
           </div>
+        <section class="check-subsection" id="queue" aria-labelledby="queueTitle" tabindex="-1">
+          <div class="card-head">
+            <h3 id="queueTitle">房间队列预缓存</h3>
+            <small id="queueWindow">准备队列前 3 个位置中的有效曲目</small>
+          </div>
+          <p class="hint">随本地 CDN 自动启停；下载补齐期间暂停，结束后自动恢复。</p>
+          <details class="help"><summary>队列预缓存说明</summary><div class="hint">
+            每 3 秒读取新增日志，每 15
+            秒检查新日志文件。开启后等待下一次队列同步，不回放旧队列。最多同时下载
+            2
+            首；可在「曲库与下载」页面切换到全曲库任务。停止后已开始的共享下载继续执行，直到完成、失败或程序退出。准备成功次数累计计算，不代表当前保留的视频数量。
+          </div></details>
+          <div id="queueActionError" role="status"></div>
+          <div id="queuePhase" role="status">随本地 CDN 启动</div>
+          <small id="queueDetail"></small>
+          <ol id="queueSongs"></ol>
+          <div id="queueError" role="status"></div>
+        </section>
           <div class="check">
             <span aria-hidden="true" class="dot" id="hostsDot">●</span>
             <div class="grow">

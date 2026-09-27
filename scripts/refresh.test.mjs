@@ -8,6 +8,49 @@ const script = readFileSync(new URL('../internal/console/assets/console.js', imp
 const cacheScript = readFileSync(new URL('../internal/console/assets/cache.js', import.meta.url), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+test('activation separates current service, hosts and session evidence, with progress and retry', () => {
+  const p = page(true), get = id => p.document.getElementById(id);
+  p.context.snapshot = { running: true, hosts: { ready: false, message: '未接入' }, settings: {}, batch: {}, queue: {},
+    traffic: { requests: 999 }, activation: { phase: 'hosts', started: '2026-09-27T01:00:00Z' } };
+  vm.runInContext('connected = true; render(snapshot)', p.context);
+  assert.equal(get('enableAcceleration').disabled, true);
+  assert.match(get('activationProgress').textContent, /UAC/);
+  assert.doesNotMatch(get('activationRequest').textContent, /已收到/);
+  p.context.snapshot.activation = { phase: 'failed', error: 'UAC canceled' };
+  vm.runInContext('render(snapshot)', p.context);
+  assert.equal(get('enableAcceleration').disabled, false);
+  assert.match(get('enableAcceleration').textContent, /重试/);
+  assert.match(get('activationNext').textContent, /服务已运行，接入尚未完成/);
+  assert.match(get('activationProgress').textContent, /UAC canceled/);
+  p.context.snapshot.hosts.ready = true;
+  p.context.snapshot.activation = { phase: 'waiting', firstRequest: '2026-09-27T01:01:00Z' };
+  vm.runInContext('render(snapshot)', p.context);
+  assert.match(get('activationRequest').textContent, /已收到视频请求（不代表播放成功）/);
+  assert.match(get('enableAcceleration').textContent, /重新检测/);
+  p.context.snapshot.activation = { phase: 'waiting' };
+  vm.runInContext('render(snapshot)', p.context);
+  assert.doesNotMatch(get('activationRequest').textContent, /已收到/);
+  assert.match(get('activationNext').textContent, /游戏中请求/);
+});
+
+test('activation timeout retains backend pending lock until a completed snapshot', async () => {
+  const p = page();
+  p.finishBatch(); await flush();
+  const button = p.document.getElementById('enableAcceleration');
+  button.click();
+  assert.equal(p.actionDeadlines[0].delay, 120000);
+  p.expireAction(true); await flush();
+  p.finishBatch(3, {}, { running: true, activation: { phase: 'hosts' } });
+  await flush();
+  assert.equal(button.disabled, true);
+  button.click();
+  assert.equal(p.requests.filter(r => r.method === 'POST').length, 1);
+  p.fireTimer();
+  p.finishBatch(5, {}, { running: true, hosts: { ready: true }, activation: { phase: 'waiting' } });
+  await flush();
+  assert.equal(button.disabled, false);
+});
+
 test('active downloads render safe candidates, unknown values, bounded progress and offline state', () => {
   const p = page(true);
   p.context.snapshot = { running: false, bytesPerSecond: 1000000, tasks: [{ id: 1, resource: 'shared', stage: 'publish', host: 'play.udon.dance', bytes: 110, size: 100, bytesPerSecond: 0, idleMS: 2000,
@@ -464,6 +507,7 @@ test('batch failures render rows as text and disappear after a successful refres
 });
 
 for (const [path, state] of [
+  ['activation/enable', {}],
   ['start', {}], ['stop', { running: true }],
   ['hosts/enable', {}], ['hosts/disable', {}], ['inventory/scan', {}],
   ['queue/switch', {}], ['queue/stop', { queue: { running: true } }],
@@ -1019,6 +1063,31 @@ test('cache management shows honest state and sharing; protected files remain di
   get('cacheCancel').click();
   assert.equal(get('cacheConfirm').hidden, true);
   assert.equal(p.document.activeElement, get('cacheDelete'));
+});
+
+test('cache controls and action entry points stay locked during remote or timed-out activation', async () => {
+  const p = cacheHarness(), get = id => p.document.getElementById(id), calls = [];
+  p.context.fetch = async url => { calls.push(url); return { ok: true, json: async () => p.context.cacheFixture }; };
+  get('cacheSelect').click(); get('cacheDelete').click();
+  for (const phase of ['checking', 'starting', 'hosts']) {
+    p.context.phase = phase;
+    vm.runInContext('busy = false; lastState = { activation: { phase }, settings: {}, batch: {}, queue: {} }; renderControls(); updateCacheControls()', p.context);
+    for (const id of ['cacheRefresh', 'cacheSearchButton', 'cacheOpen', 'cacheSelect', 'cacheDelete', 'cachePrev', 'cacheNext', 'cacheConfirmDelete', 'cacheCancel']) {
+      assert.equal(get(id).disabled, true, `${phase}: ${id}`);
+      get(id).click();
+    }
+    assert.equal(vm.runInContext('cacheRows.every(r => r.check.disabled && r.locate.disabled)', p.context), true);
+    get('cacheSearchForm').dispatchEvent({ type: 'submit' });
+    await vm.runInContext("cacheAction('open', []); cacheAction('delete', cachePending); refreshCache()", p.context);
+    assert.equal(calls.length, 0);
+  }
+  vm.runInContext("lastState.activation.phase = 'waiting'; renderControls()", p.context);
+  assert.equal(get('cacheRefresh').disabled, false);
+  assert.equal(get('cacheConfirmDelete').disabled, false);
+  assert.equal(vm.runInContext('cacheRows[0].locate.disabled', p.context), false);
+  assert.equal(vm.runInContext('cacheRows[1].check.disabled', p.context), true);
+  await vm.runInContext('refreshCache()', p.context);
+  assert.equal(calls.length, 1);
 });
 
 test('cache deletion sends only confirmed identities, reports protected outcomes, and refreshes', async () => {

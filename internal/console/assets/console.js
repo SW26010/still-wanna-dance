@@ -26,10 +26,40 @@ function render(s) {
   $('serviceBadge').className = 'pill' + (s.running ? ' good' : '');
   renderTraffic(s.traffic || {});
   renderService(s);
+  renderActivation(s);
   renderSettings(s);
   renderControls();
   renderQueue(s);
   renderBatch(s);
+}
+
+function activationPending(s) {
+  return ['checking', 'starting', 'hosts'].includes(s?.activation?.phase);
+}
+function renderActivation(s) {
+  const a = s.activation || {}, active = activationPending(s);
+  const dated = v => v && !v.startsWith('0001');
+  const received = dated(a.firstRequest);
+  setText('activationService', s.running ? '服务：HTTP 缓存与 HTTPS 转发运行中' : '服务：未运行');
+  setText('activationHosts', s.hosts.ready ? 'hosts：接入完成' : 'hosts：' + s.hosts.message);
+  setText('activationRequest', received
+    ? '视频请求：本次已收到视频请求（不代表播放成功）'
+    : '视频请求：' + (a.phase === 'waiting' ? '等待本次视频请求' : '尚未开始或已结束检测'));
+  const progress = { checking: '正在检查接入配置…', starting: '正在启动服务并检查端口…',
+    hosts: '服务已运行，正在检查 / 修改 hosts；如出现 UAC 提示，请允许管理员权限…',
+    failed: '启用未完成：' + a.error, stopped: s.cdnError ? '服务已停止：' + s.cdnError : '本次检测已结束。' };
+  setText('activationProgress', progress[a.phase] || (a.phase === 'waiting' ? '启用步骤已完成，请核对下方实时状态。' : '启用向导会复用已有服务和 hosts 配置。'));
+  setText('activationNext', active ? '请等待当前操作完成，勿重复提交。' : !s.running
+    ? '下一步：启用游戏加速；端口冲突时请在单项管理查看占用信息，关闭冲突程序后重试。'
+    : !s.hosts.ready ? '下一步：检查 hosts 冲突或管理员权限后重试。服务已运行，接入尚未完成。'
+    : a.phase !== 'waiting' ? '下一步：点击重新检测，建立新的请求观察窗口。'
+    : received ? '这里只确认收到请求，无法确认游戏播放。若无法播放，请检查上游连接及日志；已解析的视频传输可在最近请求中查看。'
+    : '下一步：在游戏中请求一首歌曲。如一直没有请求，请重新进入世界或重启游戏以刷新 DNS，并确认使用 HTTP 播放地址。');
+  setText('activationTime', dated(a.started) ? '本次向导开始：' + new Date(a.started).toLocaleString() +
+    (dated(a.readyAt) ? ' · 检测起点：' + new Date(a.readyAt).toLocaleString() : '') +
+    (received ? ' · 首个请求到达：' + new Date(a.firstRequest).toLocaleString() : '') : '尚无本次检测；历史统计不用于判断接入。');
+  setText('enableAcceleration', active ? '正在启用…' : a.phase === 'failed' ? '重试启用游戏加速'
+    : s.running && s.hosts.ready ? '重新检测视频请求' : '启用游戏加速');
 }
 
 function renderTraffic(t) {
@@ -106,7 +136,7 @@ function renderSettings(s) {
 
 function renderControls() {
   const s = lastState;
-  const unavailable = !connected || busy || !s;
+  const unavailable = !connected || busy || !s || activationPending(s);
   for (const b of document.querySelectorAll('button')) b.disabled = unavailable;
   for (const id of [
     'autoStartCDN',
@@ -285,6 +315,7 @@ async function refresh() {
   } catch (e) {
     connected = false;
     setText('connection', '控制台连接中断');
+    setText('activationProgress', '控制台连接中断，接入状态尚未确认；下方为最后一次状态。');
     $('connection').className = '';
     renderControls();
     notice(
@@ -301,7 +332,7 @@ async function action(path, body) {
   busy = true;
   uncertainAction = '';
   renderControls();
-  const hosts = path.startsWith('hosts/');
+  const hosts = path.startsWith('hosts/') || path === 'activation/enable';
   notice(
     hosts
       ? '正在检查 hosts；需要修改时请在系统提示中允许管理员权限（最多等待 120 秒）…'

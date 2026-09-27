@@ -50,6 +50,9 @@ type Settings struct {
 }
 
 type Console struct {
+	activationMu         sync.Mutex // rejects duplicate wizard submissions, including across tabs
+	activation           Activation // protected by mu; never persisted
+	activationGeneration uint64     // protected by mu; distinguishes same-clock-tick retries
 	// Acquire lifecycleMu before mu; state readers never wait on lifecycleMu.
 	lifecycleMu         sync.Mutex
 	queueUpdateMu       sync.Mutex // acquire before mu; serializes engine queue protection
@@ -332,6 +335,7 @@ func (c *Console) ensureEngine() error {
 		return fmt.Errorf("存储目录不可写：%w", err)
 	}
 	cfg := cacheproxy.DefaultConfig()
+	cfg.BeginVideoRequest = c.beginVideoRequest
 	cfg.Logger = slog.Default().With("component", "cache")
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
@@ -383,6 +387,10 @@ func (c *Console) AutoStart() {
 func (c *Console) start() (err error) {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
+	return c.startLocked()
+}
+
+func (c *Console) startLocked() (err error) {
 	defer func() {
 		if err != nil {
 			c.mu.Lock()
@@ -466,6 +474,10 @@ func (c *Console) stop() error {
 }
 
 func (c *Console) stopLocked() {
+	c.activation.FirstRequest = time.Time{}
+	if !c.activation.Started.IsZero() {
+		c.activation.Phase = "stopped"
+	}
 	listener, relay, server := c.videoListener, c.https, c.httpServer
 	c.videoListener, c.https, c.httpServer = nil, nil, nil
 	c.mu.Unlock()
@@ -578,7 +590,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			HTTPSPortOwner    *desktop.Owner          `json:"httpsPortOwner,omitempty"`
 			Traffic           cacheproxy.TrafficStats `json:"traffic"`
 			SOCKS5PasswordSet bool                    `json:"socks5PasswordSet"`
-		}{running, c.settings, HostsStatus{}, running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}, c.settings.SOCKS5Password != ""}
+			Activation        Activation              `json:"activation"`
+		}{running, c.settings, HostsStatus{}, running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}, c.settings.SOCKS5Password != "", c.activation}
 		result.Settings.SOCKS5Password = ""
 		service := c.service
 		result.ActionErrors = make(map[string]string, len(c.actionErrors))
@@ -700,6 +713,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = c.switchTask(false)
 	case "/api/start":
 		err = c.start()
+	case "/api/activation/enable":
+		err = c.enableAcceleration(readHostsStatus, changeHosts)
 	case "/api/stop":
 		err = c.stop()
 	case "/api/settings":
@@ -714,9 +729,9 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			err = c.saveSettings(input.Settings, input.Password == nil)
 		}
 	case "/api/hosts/enable":
-		err = changeHosts("enable")
+		err = c.changeHosts("enable")
 	case "/api/hosts/disable":
-		err = changeHosts("disable")
+		err = c.changeHosts("disable")
 	case "/api/batch/start":
 		err = c.startBatch()
 	case "/api/queue/start":

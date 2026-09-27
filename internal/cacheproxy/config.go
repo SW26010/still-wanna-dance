@@ -16,8 +16,13 @@ import (
 // Overrides retain the original HTTP Host and TLS identity; environment proxies
 // are not used.
 type Config struct {
-	StorageDir string
-	Origins    map[string]string
+	// BeginVideoRequest captures an observation window at HTTP arrival. The
+	// returned callback runs only after validating a GET/HEAD video or playback
+	// API request, before upstream resolution; it does not imply success.
+	// Prefetch and HTTPS relay never call it.
+	BeginVideoRequest func(time.Time) func()
+	StorageDir        string
+	Origins           map[string]string
 	// OriginScheme defaults to HTTPS. HTTP is restricted to loopback test origins.
 	OriginScheme    string
 	ResolvePlayback func(context.Context, string, string) (string, error)

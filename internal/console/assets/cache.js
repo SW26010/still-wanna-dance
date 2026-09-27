@@ -4,8 +4,11 @@ function cacheLabel(e) {
 }
 function cacheSize(bytes) { return (bytes / 1073741824).toFixed(3) + ' GiB'; }
 function cacheChosen() { return cacheRows.filter(r => r.check.checked).map(r => r.entry); }
+function cacheUnavailable() {
+  return cacheLoading || busy || !connected || activationPending(lastState);
+}
 function updateCacheControls() {
-  const unavailable = cacheLoading || busy || !connected;
+  const unavailable = cacheUnavailable();
   for (const id of ['cacheRefresh', 'cacheSearchButton', 'cacheOpen', 'cacheSelect', 'cacheDelete', 'cachePrev', 'cacheNext', 'cacheConfirmDelete', 'cacheCancel']) $(id).disabled = unavailable;
   $('cacheOpen').disabled ||= !cachePage;
   $('cacheSelect').disabled ||= !cacheRows.some(r => r.entry.known && !r.entry.protected);
@@ -61,7 +64,7 @@ function renderCache(page) {
   updateCacheControls();
 }
 async function refreshCache(reset = false) {
-  if (cacheLoading || busy) return;
+  if (cacheUnavailable()) return;
   if (reset) cacheOffset = 0;
   const revision = settingsRevision, focus = document.activeElement;
   cacheLoading = true; cancelCacheConfirmation(); updateCacheControls();
@@ -91,7 +94,7 @@ async function refreshCache(reset = false) {
 }
 const cacheResultNames = { deleted: '已删除', protected: '受保护，已跳过', missing: '文件已不存在', unknown: '未知文件，未删除', changed: '文件或歌曲关联已变化，请刷新后重选', unsafe: '目录不安全，未删除', failed: '操作失败，未删除' };
 async function cacheAction(action, entries) {
-  if (busy || cacheLoading || !cachePage) return;
+  if (cacheUnavailable() || !cachePage) return;
   const storageID = cachePage.storageID, focus = document.activeElement;
   busy = true; renderControls();
   const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 35000);
@@ -120,8 +123,8 @@ async function cacheAction(action, entries) {
 $('cacheSearchForm').addEventListener('submit', event => { event.preventDefault(); refreshCache(true); });
 $('cacheRefresh').addEventListener('click', () => refreshCache());
 $('cacheOpen').addEventListener('click', () => cacheAction('open', []));
-$('cachePrev').addEventListener('click', () => { if (!cacheLoading && !busy) { cacheOffset = Math.max(0, cacheOffset - 50); refreshCache(); } });
-$('cacheNext').addEventListener('click', () => { if (!cacheLoading && !busy) { cacheOffset += 50; refreshCache(); } });
+$('cachePrev').addEventListener('click', () => { if (!cacheUnavailable()) { cacheOffset = Math.max(0, cacheOffset - 50); refreshCache(); } });
+$('cacheNext').addEventListener('click', () => { if (!cacheUnavailable()) { cacheOffset += 50; refreshCache(); } });
 $('cacheSelect').addEventListener('click', () => {
   const rows = cacheRows.filter(r => !r.check.disabled), all = rows.every(r => r.check.checked);
   for (const r of rows) r.check.checked = !all;

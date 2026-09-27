@@ -311,6 +311,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer s.wg.Done()
 	id := s.sequence.Add(1)
 	start := time.Now()
+	var observed func()
+	if s.cfg.BeginVideoRequest != nil {
+		observed = s.cfg.BeginVideoRequest(start)
+	}
 	r = r.WithContext(applog.WithTrace(r.Context()))
 	log := s.cfg.Logger.With("trace_id", applog.TraceID(r.Context()), "request_id", id, "method", r.Method, "host", r.Host, "path", r.URL.Path, "range", r.Header.Get("Range"), "user_agent", r.UserAgent())
 	response := &responseWriter{ResponseWriter: w, started: start}
@@ -351,7 +355,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 		return
 	}
-	v, err := s.requestVideo(r)
+	v, err := s.requestVideo(r, observed)
 	if err != nil {
 		if errors.Is(err, errPlaybackUpstream) {
 			http.Error(w, "playback resolution failed", http.StatusBadGateway)

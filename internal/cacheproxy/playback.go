@@ -68,13 +68,17 @@ func (s *Server) waitPlaybackSong(ctx context.Context, f *flight, id string) err
 }
 
 // The API song ID is authoritative; the resource ID in a video path is not.
-func (s *Server) requestVideo(r *http.Request) (video, error) {
+func (s *Server) requestVideo(r *http.Request, observed func()) (video, error) {
 	host := strings.ToLower(r.Host)
 	if h, _, err := net.SplitHostPort(host); err == nil {
 		host = h
 	}
 	if host != "api.udon.dance" {
-		return s.parse(r)
+		v, err := s.parse(r)
+		if err == nil && observed != nil {
+			observed()
+		}
+		return v, err
 	}
 	if r.URL.Path != "/Api/Songs/play" || r.URL.RawPath != "" {
 		return video{}, errors.New("unsupported API path")
@@ -93,6 +97,11 @@ func (s *Server) requestVideo(r *http.Request) (video, error) {
 	}
 	if node != "" && node != "cf" && node != "nya" {
 		return video{}, errors.New("unsupported playback node")
+	}
+	// A valid playback request has reached us even if resolution stalls or
+	// fails. Observe it before contacting upstream or looking for old cache.
+	if observed != nil {
+		observed()
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()

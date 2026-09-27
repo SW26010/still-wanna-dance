@@ -19,7 +19,7 @@
         <div id="connection" role="status">正在连接…</div>
       </header>
       <nav aria-label="控制台区域">
-        <a href="#overview">概览</a><a href="#cache">缓存明细</a><a href="#downloads">活动下载</a><a href="#recent">最近请求</a><a href="#service">本地 CDN</a><a href="#queue">队列预缓存</a><a href="#batch">扫描与更新</a><a href="#preferences">设置</a><a href="/about">关于</a>
+        <a href="#activation">游戏加速</a><a href="#overview">概览</a><a href="#cache">缓存明细</a><a href="#downloads">活动下载</a><a href="#recent">最近请求</a><a href="#service">本地 CDN</a><a href="#queue">队列预缓存</a><a href="#batch">扫描与更新</a><a href="#preferences">设置</a><a href="/about">关于</a>
       </nav>
       <main id="main" tabindex="-1">
       <div class="eyebrow">本地缓存控制台</div>
@@ -31,6 +31,20 @@
         <div class="pill" id="serviceBadge">正在检查状态</div>
       </section>
       <div id="notice" class="notice" role="status" hidden></div>
+      <section class="card" id="activation" aria-labelledby="activationTitle" tabindex="-1">
+        <div class="card-head"><h2 id="activationTitle">启用游戏加速</h2><a href="#service">单项管理</a></div>
+        <p>检查接入 → 启动 HTTP 缓存与 HTTPS 转发 → 接入 hosts → 等待视频请求。</p>
+        <div class="actions"><button class="primary" id="enableAcceleration" data-action="activation/enable">启用游戏加速</button></div>
+        <div id="activationProgress" role="status">正在检查状态…</div>
+        <ol aria-label="游戏加速接入状态">
+          <li id="activationService">服务：待检查</li>
+          <li id="activationHosts">hosts：待检查</li>
+          <li id="activationRequest">视频请求：尚未开始本次检测</li>
+        </ol>
+        <p id="activationNext" class="hint"></p>
+        <p id="activationTime" class="muted"></p>
+        <details class="help"><summary>接入与检测说明</summary><p class="hint">仅需要修改 hosts 时请求管理员权限，不覆盖冲突映射。HTTP 视频使用缓存，HTTPS 保持加密透传，不使用缓存，也不计入这里的检测。收到视频请求不代表已确认游戏客户端、起播或播放成功。检测仅记录向导接入完成后通过本地校验的 HTTP GET / HEAD 视频或播放 API 请求（不要求上游解析成功）；不计历史请求、预缓存或控制台轮询。重新检测/重试会清空本次记录，关闭 CDN 或恢复 hosts 会结束检测；刷新页面保留，退出程序清空。hosts 映射在退出后仍保留，可在单项管理中恢复。</p></details>
+      </section>
       <section class="card overview-card" id="overview" aria-labelledby="overviewTitle" tabindex="-1">
         <h2 id="overviewTitle">缓存与播放概览</h2>
         <section class="overview-section">

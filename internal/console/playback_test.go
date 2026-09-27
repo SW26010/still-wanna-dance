@@ -2,16 +2,157 @@ package console
 
 import (
 	"context"
+	"crypto/md5"
+	"database/sql"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"stepstash/internal/cacheproxy"
 )
+
+// Exercise the real HTTP resolver through the cache server, rather than a
+// ResolvePlayback stub that would hide per-route cancellation.
+func TestPlaybackSlowAutoIntegration(t *testing.T) {
+	for _, tc := range []struct {
+		name                     string
+		cached, stalledPreferred bool
+		delay                    time.Duration
+	}{
+		{"cold both slow", false, false, 3500 * time.Millisecond},
+		{"cold alternate slow", false, true, 3500 * time.Millisecond},
+		{"cached background refresh", true, false, 6500 * time.Millisecond},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			c := testConsole(t)
+			const old, fresh = "old cached video", "new slow upstream video"
+			target := func(host, body string) string {
+				return fmt.Sprintf("http://%s/files/2403/42-abc.mp4?e=%x&s=%d", host, md5.Sum([]byte(body)), len(body))
+			}
+			var offline atomic.Bool
+			var nodes sync.Map
+			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if offline.Load() {
+					http.Error(w, "offline", http.StatusServiceUnavailable)
+					return
+				}
+				node := r.URL.Query().Get("node")
+				nodes.Store(node, true)
+				if tc.stalledPreferred && node == "nya" {
+					<-r.Context().Done()
+					return
+				}
+				timer := time.NewTimer(tc.delay)
+				defer timer.Stop()
+				select {
+				case <-r.Context().Done():
+					return
+				case <-timer.C:
+				}
+				host := "nya.xin.moe"
+				if node == "cf" {
+					host = "play.udon.dance"
+				}
+				w.Header().Set("Location", target(host, fresh))
+				w.WriteHeader(http.StatusFound)
+			}))
+			defer api.Close()
+			c.apiBase, c.client.Transport = api.URL, http.DefaultTransport
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body := fresh
+				if r.URL.Query().Get("e") == fmt.Sprintf("%x", md5.Sum([]byte(old))) {
+					body = old
+				}
+				io.WriteString(w, body)
+			}))
+			defer origin.Close()
+			cfg := cacheproxy.DefaultConfig()
+			cfg.StorageDir, cfg.OriginScheme = c.settings.StorageDir, "http"
+			for host := range cfg.Origins {
+				cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
+			}
+			cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
+				return c.resolvePlayback(ctx, id, node, "auto")
+			}
+			cfg.ResolveCurrent = func(ctx context.Context, _ string) (string, error) {
+				return c.resolveNode(ctx, 42, "hkg")
+			}
+			engine, err := cacheproxy.New(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer engine.Close()
+			if tc.cached {
+				if _, err := engine.PrefetchSong(context.Background(), "42", target("nya.xin.moe", old)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			request := func() *httptest.ResponseRecorder {
+				ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+				defer cancel()
+				w := httptest.NewRecorder()
+				engine.ServeHTTP(w, httptest.NewRequest("GET", "http://api.udon.dance/Api/Songs/play?id=42", nil).WithContext(ctx))
+				return w
+			}
+			started := time.Now()
+			w := request()
+			want := fresh
+			if tc.cached {
+				want = old
+			}
+			if w.Code != http.StatusOK || w.Body.String() != want {
+				t.Fatalf("playback: %d %q; want %q", w.Code, w.Body.String(), want)
+			}
+			if tc.cached {
+				if elapsed := time.Since(started); elapsed < 5*time.Second || elapsed >= tc.delay {
+					t.Fatalf("cached foreground wait took %v", elapsed)
+				}
+				// Wait for the replacement to become current, including a second
+				// slow production API request to confirm the background update.
+				deadline := time.Now().Add(20 * time.Second)
+				db, err := sql.Open("sqlite", filepath.Join(cfg.StorageDir, "stepstash.sqlite")+"?_pragma=busy_timeout(5000)")
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer db.Close()
+				for {
+					var checksum string
+					err := db.QueryRow(`SELECT v.checksum FROM current_videos c
+						JOIN video_versions v ON v.version_key=c.version_key WHERE c.song_id='42'`).Scan(&checksum)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if checksum == fmt.Sprintf("%x", md5.Sum([]byte(fresh))) {
+						break
+					}
+					if time.Now().After(deadline) {
+						t.Fatal("slow background resolution did not update cached song")
+					}
+					time.Sleep(25 * time.Millisecond)
+				}
+				offline.Store(true)
+				w = request()
+				if w.Code != http.StatusOK || w.Body.String() != fresh {
+					t.Fatalf("updated offline playback: %d %q", w.Code, w.Body.String())
+				}
+			}
+			for _, node := range []string{"nya", "cf"} {
+				if _, ok := nodes.Load(node); !ok {
+					t.Errorf("route %s was not queried", node)
+				}
+			}
+		})
+	}
+}
 
 func TestPlaybackResolutionInvalidVideoFallback(t *testing.T) {
 	const valid = "/files/1/2-video.mp4?e=00000000000000000000000000000000&s=1"
@@ -226,5 +367,52 @@ func TestPlaybackResolutionStalledPreferredRoute(t *testing.T) {
 				t.Fatalf("queried nodes=%s; want %s", got, wantNodes)
 			}
 		})
+	}
+}
+
+func TestPlaybackResolutionCancelsBothPendingRoutes(t *testing.T) {
+	c := testConsole(t)
+	started, stopped := make(chan struct{}, 2), make(chan struct{}, 2)
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		started <- struct{}{}
+		<-r.Context().Done()
+		stopped <- struct{}{}
+	}))
+	defer api.Close()
+	c.apiBase, c.client.Transport = api.URL, http.DefaultTransport
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, err := c.resolvePlayback(ctx, "42", "nya", "auto")
+		done <- err
+	}()
+	for range 2 {
+		select {
+		case <-started:
+		case <-ctx.Done():
+			t.Fatal("alternate route did not start")
+		}
+	}
+	select {
+	case <-stopped:
+		t.Fatal("starting alternate canceled the preferred route")
+	default:
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("want cancellation, got %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("resolution ignored cancellation")
+	}
+	for range 2 {
+		select {
+		case <-stopped:
+		case <-time.After(time.Second):
+			t.Fatal("route request survived caller cancellation")
+		}
 	}
 }

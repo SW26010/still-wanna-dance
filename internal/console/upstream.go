@@ -14,8 +14,9 @@ import (
 
 var errSongRemoved = errors.New("歌曲已离开待预缓存队列")
 
-// Resolve the preferred route first and return immediately on success. Auto
-// bounds each attempt so a stalled API still leaves time for the other route.
+// Resolve the preferred route first. Auto starts the alternate after a short
+// wait without canceling the preferred request: both share the caller's full
+// resolution deadline, and the first successful result cancels the other.
 func (c *Console) resolvePlayback(ctx context.Context, id, node, mode string) (string, error) {
 	songID, err := strconv.ParseInt(id, 10, 64)
 	if err != nil || songID <= 0 {
@@ -28,25 +29,54 @@ func (c *Console) resolvePlayback(ctx context.Context, id, node, mode string) (s
 	if mode == "cf" || mode == "hkg" {
 		routes = []string{mode}
 	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	type result struct {
+		target string
+		err    error
+	}
+	results := make(chan result, len(routes))
+	start := func(route string) {
+		go func() {
+			target, err := c.resolveNode(ctx, songID, route)
+			if err != nil {
+				err = fmt.Errorf("%s: %w", route, err)
+			}
+			results <- result{target, err}
+		}()
+	}
+	start(routes[0])
+	started, completed := 1, 0
+	timer := time.NewTimer(3 * time.Second)
+	defer timer.Stop()
 	var failures []error
-	for _, route := range routes {
-		if err := ctx.Err(); err != nil {
-			return "", err
-		}
-		attemptCtx := ctx
-		cancel := func() {}
-		if len(routes) > 1 {
-			attemptCtx, cancel = context.WithTimeout(ctx, 3*time.Second)
-		}
-		target, err := c.resolveNode(attemptCtx, songID, route)
-		cancel()
-		if ctx.Err() != nil {
+	for completed < len(routes) {
+		select {
+		case <-ctx.Done():
 			return "", ctx.Err()
+		case <-timer.C:
+			if started < len(routes) && ctx.Err() == nil {
+				start(routes[started])
+				started++
+			}
+		case r := <-results:
+			if err := ctx.Err(); err != nil {
+				return "", err
+			}
+			completed++
+			if r.err == nil {
+				return r.target, nil
+			}
+			failures = append(failures, r.err)
+			if started < len(routes) {
+				timer.Stop()
+				start(routes[started])
+				started++
+			}
 		}
-		if err == nil {
-			return target, nil
-		}
-		failures = append(failures, fmt.Errorf("%s: %w", route, err))
 	}
 	return "", errors.Join(failures...)
 }

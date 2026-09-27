@@ -2,12 +2,11 @@
 // node scripts/acceptance.mjs [stepstash-executable] [console-executable]
 import fs from 'node:fs';
 import path from 'node:path';
-import http from 'node:http';
-import https from 'node:https';
 import net from 'node:net';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
+import { request } from './acceptance-request.mjs';
 import { AcceptanceBlocked, videoRedirect } from './acceptance-protocol.mjs';
 
 const [executable, consoleExecutable] = process.argv.slice(2);
@@ -31,35 +30,7 @@ const freePort = () => new Promise((resolve, reject) => {
   server.once('error', reject);
   server.listen(0, '127.0.0.1', () => { const port = server.address().port; server.close(() => resolve(port)); });
 });
-function request(target, { port, method = 'GET', headers = {}, timeout = 360000, capture = false } = {}) {
-  return new Promise((resolve, reject) => {
-    const url = new URL(target);
-    const started = Date.now();
-    let firstByteMs;
-    // A port override explicitly models the game's local HTTP interception.
-    // Direct upstream probes use the URL's transport and normal TLS validation.
-    const transport = !port && url.protocol === 'https:' ? https : http;
-    const chunks = [];
-    const req = transport.request({ hostname: port ? '127.0.0.1' : url.hostname, port: port || url.port || (transport === https ? 443 : 80),
-      path: url.pathname + url.search, method, headers: { Host: url.host, ...headers }, agent: false }, res => {
-      firstByteMs = Date.now() - started;
-      const sha = crypto.createHash('sha256'), md5 = crypto.createHash('md5');
-      let bytes = 0;
-      res.on('data', b => {
-        bytes += b.length; sha.update(b); md5.update(b);
-        if (capture && bytes <= 1024 * 1024) chunks.push(b);
-        if (capture && bytes > 1024 * 1024) req.destroy(new Error('captured response exceeds 1 MiB'));
-      });
-      res.on('error', error => { clearTimeout(deadline); reject(error); });
-      res.on('end', () => { clearTimeout(deadline); resolve({ status: res.statusCode, headers: res.headers,
-        ...(capture ? { body: Buffer.concat(chunks).toString('utf8') } : {}),
-        bytes, sha256: sha.digest('hex'), md5: md5.digest('hex'), firstByteMs, elapsedMs: Date.now() - started }); });
-    });
-    const deadline = setTimeout(() => req.destroy(new Error('request deadline exceeded')), timeout);
-    req.on('error', e => { clearTimeout(deadline); reject(e); });
-    req.end();
-  });
-}
+
 function evidence(result) {
   const headers = Object.fromEntries(Object.entries(result.headers).filter(([k]) =>
     ['location', 'content-length', 'content-range', 'content-type', 'etag', 'last-modified', 'x-stepstash-cache', 'x-stepstash-fallback'].includes(k)));
@@ -183,8 +154,12 @@ async function consolePorts() {
 }
 
 function requireBinary(name, file) {
-  if (!fs.existsSync(file)) throw new AcceptanceBlocked('environment', `Missing ${name} binary: ${file}`);
-  record('binary', { component: name, path: file, sha256: digest(fs.readFileSync(file)) });
+  const relative = path.relative(root, file);
+  // External binaries retain only their filename; never publish machine paths.
+  const reportPath = (path.isAbsolute(relative) || relative === '..' || relative.startsWith(`..${path.sep}`)
+    ? path.basename(file) : relative).split(path.sep).join('/');
+  if (!fs.existsSync(file)) throw new AcceptanceBlocked('environment', `Missing ${name} binary: ${reportPath}`);
+  record('binary', { component: name, path: reportPath, sha256: digest(fs.readFileSync(file)) });
 }
 
 try {

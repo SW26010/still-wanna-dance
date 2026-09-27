@@ -1,0 +1,369 @@
+{
+  "started": "T+0.000s",
+  "checks": [
+    {
+      "name": "binary",
+      "component": "service",
+      "path": "test-runs/acceptance-build/stepstash.exe",
+      "sha256": "f71dcc672e6f5ef2cec529792d68103b44978ee9beda2a050d7c76553be147cc"
+    },
+    {
+      "name": "upstream-1343-cf-0",
+      "url": "http://api.udon.dance/Api/Songs/play?id=1343&node=cf",
+      "status": 302,
+      "headers": {
+        "content-type": "text/html; charset=UTF-8",
+        "content-length": "0",
+        "location": "http://play.udon.dance/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED"
+      },
+      "remoteAddress": "198.18.7.129",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "firstByteMs": 592,
+      "elapsedMs": 593
+    },
+    {
+      "name": "api-cf",
+      "outcome": "passed"
+    },
+    {
+      "name": "upstream-1344-nya-0",
+      "url": "http://api.udon.dance/Api/Songs/play?id=1344&node=nya",
+      "status": 302,
+      "headers": {
+        "content-type": "text/html; charset=UTF-8",
+        "content-length": "0",
+        "location": "http://nya.xin.moe/files/2403/1344-660524b4ebadb.mp4?e=REDACTED&s=REDACTED"
+      },
+      "remoteAddress": "198.18.7.129",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "firstByteMs": 583,
+      "elapsedMs": 583
+    },
+    {
+      "name": "api-nya",
+      "outcome": "passed"
+    },
+    {
+      "name": "cold-1343-started",
+      "host": "play.udon.dance"
+    },
+    {
+      "name": "cold-1343",
+      "status": 200,
+      "headers": {
+        "content-length": "32867177",
+        "content-type": "video/mp4",
+        "etag": "\"28711962048bed664c98f27e1d9d5842\"",
+        "x-stepstash-cache": "MISS"
+      },
+      "remoteAddress": "127.0.0.1",
+      "bytes": 32867177,
+      "sha256": "6423c1fc1551138246cf91032ee76ad4599798f6c3dcda3095b27507ae8db736",
+      "md5": "28711962048bed664c98f27e1d9d5842",
+      "firstByteMs": 476,
+      "elapsedMs": 4433
+    },
+    {
+      "name": "cross-host-1343",
+      "status": 206,
+      "headers": {
+        "content-length": "1024",
+        "content-range": "bytes 0-1023/32867177",
+        "content-type": "video/mp4",
+        "etag": "\"28711962048bed664c98f27e1d9d5842\"",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "x-stepstash-cache": "HIT"
+      },
+      "remoteAddress": "127.0.0.1",
+      "bytes": 1024,
+      "sha256": "1b1219368992f9fe7b3ff0d97e328a10940bb323f102c9b790b2c7fb59ed6101",
+      "md5": "db00e92a105a49fd357d5a15fec1f2b9",
+      "firstByteMs": 6,
+      "elapsedMs": 7
+    },
+    {
+      "name": "video-chain-1343",
+      "outcome": "passed"
+    },
+    {
+      "name": "playback-api-1343-response",
+      "status": 200,
+      "headers": {
+        "content-length": "32867177",
+        "content-type": "video/mp4",
+        "etag": "\"28711962048bed664c98f27e1d9d5842\"",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "x-stepstash-cache": "HIT"
+      },
+      "remoteAddress": "127.0.0.1",
+      "bytes": 32867177,
+      "sha256": "6423c1fc1551138246cf91032ee76ad4599798f6c3dcda3095b27507ae8db736",
+      "md5": "28711962048bed664c98f27e1d9d5842",
+      "firstByteMs": 794,
+      "elapsedMs": 868
+    },
+    {
+      "name": "playback-api-1343",
+      "outcome": "passed"
+    },
+    {
+      "name": "cold-1344-started",
+      "host": "nya.xin.moe"
+    },
+    {
+      "name": "cold-1344",
+      "status": 200,
+      "headers": {
+        "content-length": "40548476",
+        "content-type": "video/mp4",
+        "etag": "\"8f26d29704140a431dea0c1374f2eeba\"",
+        "x-stepstash-cache": "MISS"
+      },
+      "remoteAddress": "127.0.0.1",
+      "bytes": 40548476,
+      "sha256": "81746ffc867a11851d6e3bb7c34a945fd15af5079daecda5b594de0695d7687f",
+      "md5": "8f26d29704140a431dea0c1374f2eeba",
+      "firstByteMs": 530,
+      "elapsedMs": 4167
+    },
+    {
+      "name": "cross-host-1344",
+      "status": 206,
+      "headers": {
+        "content-length": "1024",
+        "content-range": "bytes 0-1023/40548476",
+        "content-type": "video/mp4",
+        "etag": "\"8f26d29704140a431dea0c1374f2eeba\"",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "x-stepstash-cache": "HIT"
+      },
+      "remoteAddress": "127.0.0.1",
+      "bytes": 1024,
+      "sha256": "6dd13f02afee5d3319387243e2e249d180d71a5daffcb2c76fb4fb3f4d82daf3",
+      "md5": "e636f153e8d641540e190611646c67ef",
+      "firstByteMs": 6,
+      "elapsedMs": 6
+    },
+    {
+      "name": "video-chain-1344",
+      "outcome": "passed"
+    },
+    {
+      "name": "playback-api-1344-response",
+      "status": 200,
+      "headers": {
+        "content-length": "40548476",
+        "content-type": "video/mp4",
+        "etag": "\"8f26d29704140a431dea0c1374f2eeba\"",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "x-stepstash-cache": "HIT"
+      },
+      "remoteAddress": "127.0.0.1",
+      "bytes": 40548476,
+      "sha256": "81746ffc867a11851d6e3bb7c34a945fd15af5079daecda5b594de0695d7687f",
+      "md5": "8f26d29704140a431dea0c1374f2eeba",
+      "firstByteMs": 244,
+      "elapsedMs": 331
+    },
+    {
+      "name": "playback-api-1344",
+      "outcome": "passed"
+    },
+    {
+      "name": "restart-1343-response",
+      "status": 200,
+      "headers": {
+        "content-length": "32867177",
+        "content-type": "video/mp4",
+        "etag": "\"28711962048bed664c98f27e1d9d5842\"",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "x-stepstash-cache": "HIT"
+      },
+      "remoteAddress": "127.0.0.1",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "firstByteMs": 1,
+      "elapsedMs": 1
+    },
+    {
+      "name": "restart-1343",
+      "outcome": "passed"
+    },
+    {
+      "name": "restart-1344-response",
+      "status": 200,
+      "headers": {
+        "content-length": "40548476",
+        "content-type": "video/mp4",
+        "etag": "\"8f26d29704140a431dea0c1374f2eeba\"",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "x-stepstash-cache": "HIT"
+      },
+      "remoteAddress": "127.0.0.1",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "firstByteMs": 2,
+      "elapsedMs": 2
+    },
+    {
+      "name": "restart-1344",
+      "outcome": "passed"
+    },
+    {
+      "name": "service",
+      "outcome": "passed"
+    },
+    {
+      "name": "binary",
+      "component": "console",
+      "path": "test-runs/acceptance-build/stepstash-console.exe",
+      "sha256": "0158fbac04cf0c0909caba6d7514483828d3eb5689e50a8982645644baf005c2"
+    },
+    {
+      "name": "console-auto-settings",
+      "downloadUpstream": "auto",
+      "running": true
+    },
+    {
+      "name": "upstream-1343-nya-0",
+      "url": "http://api.udon.dance/Api/Songs/play?id=1343&node=nya",
+      "status": 302,
+      "headers": {
+        "content-type": "text/html; charset=UTF-8",
+        "content-length": "0",
+        "location": "http://nya.xin.moe/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED"
+      },
+      "remoteAddress": "198.18.7.129",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "firstByteMs": 581,
+      "elapsedMs": 581
+    },
+    {
+      "name": "console-auto-cold",
+      "status": 200,
+      "headers": {
+        "content-length": "32867177",
+        "content-type": "video/mp4",
+        "etag": "\"28711962048bed664c98f27e1d9d5842\"",
+        "x-stepstash-cache": "MISS"
+      },
+      "remoteAddress": "127.0.0.1",
+      "bytes": 32867177,
+      "sha256": "6423c1fc1551138246cf91032ee76ad4599798f6c3dcda3095b27507ae8db736",
+      "md5": "28711962048bed664c98f27e1d9d5842",
+      "firstByteMs": 2059,
+      "elapsedMs": 5628
+    },
+    {
+      "name": "console-auto-hot",
+      "status": 206,
+      "headers": {
+        "content-length": "1024",
+        "content-range": "bytes 0-1023/32867177",
+        "content-type": "video/mp4",
+        "etag": "\"28711962048bed664c98f27e1d9d5842\"",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "x-stepstash-cache": "HIT"
+      },
+      "remoteAddress": "127.0.0.1",
+      "bytes": 1024,
+      "sha256": "1b1219368992f9fe7b3ff0d97e328a10940bb323f102c9b790b2c7fb59ed6101",
+      "md5": "db00e92a105a49fd357d5a15fec1f2b9",
+      "firstByteMs": 251,
+      "elapsedMs": 252
+    },
+    {
+      "name": "console-offline-settings",
+      "downloadUpstream": "auto",
+      "running": true
+    },
+    {
+      "name": "local-fallback-GET",
+      "status": 200,
+      "headers": {
+        "content-length": "32867177",
+        "content-type": "video/mp4",
+        "etag": "\"28711962048bed664c98f27e1d9d5842\"",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "x-stepstash-cache": "HIT",
+        "x-stepstash-fallback": "upstream-unavailable"
+      },
+      "remoteAddress": "127.0.0.1",
+      "bytes": 32867177,
+      "sha256": "6423c1fc1551138246cf91032ee76ad4599798f6c3dcda3095b27507ae8db736",
+      "md5": "28711962048bed664c98f27e1d9d5842",
+      "firstByteMs": 3,
+      "elapsedMs": 68
+    },
+    {
+      "name": "local-fallback-HEAD",
+      "status": 200,
+      "headers": {
+        "content-length": "32867177",
+        "content-type": "video/mp4",
+        "etag": "\"28711962048bed664c98f27e1d9d5842\"",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "x-stepstash-cache": "HIT",
+        "x-stepstash-fallback": "upstream-unavailable"
+      },
+      "remoteAddress": "127.0.0.1",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "firstByteMs": 2,
+      "elapsedMs": 2
+    },
+    {
+      "name": "local-fallback-range",
+      "status": 206,
+      "headers": {
+        "content-length": "1024",
+        "content-range": "bytes 0-1023/32867177",
+        "content-type": "video/mp4",
+        "etag": "\"28711962048bed664c98f27e1d9d5842\"",
+        "last-modified": "REDACTED-HTTP-DATE",
+        "x-stepstash-cache": "HIT",
+        "x-stepstash-fallback": "upstream-unavailable"
+      },
+      "remoteAddress": "127.0.0.1",
+      "bytes": 1024,
+      "sha256": "1b1219368992f9fe7b3ff0d97e328a10940bb323f102c9b790b2c7fb59ed6101",
+      "md5": "db00e92a105a49fd357d5a15fec1f2b9",
+      "firstByteMs": 5,
+      "elapsedMs": 5
+    },
+    {
+      "name": "local-fallback-missing",
+      "status": 502,
+      "headers": {
+        "content-type": "text/plain; charset=utf-8",
+        "content-length": "27"
+      },
+      "remoteAddress": "127.0.0.1",
+      "bytes": 27,
+      "sha256": "d81abc5707b259d66333d79fc0ae6ce0964412c3deda9b0e965823b830145ac3",
+      "md5": "38124babea544b25ead7a808e7a97e7e",
+      "firstByteMs": 2,
+      "elapsedMs": 2
+    },
+    {
+      "name": "offline-injection",
+      "rejectedConnections": 8
+    },
+    {
+      "name": "console-auto-and-local-fallback",
+      "outcome": "passed"
+    }
+  ],
+  "outcome": "passed",
+  "passed": true,
+  "finished": "T+18.247s"
+}

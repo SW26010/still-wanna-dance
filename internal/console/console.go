@@ -65,6 +65,7 @@ type Console struct {
 	inventorySettings   Settings
 	inventoryGeneration uint64
 	inventoryDone       chan struct{}
+	inventoryCancel     context.CancelFunc // protected by inventoryMu
 	mu                  sync.Mutex
 	settings            Settings
 	configPath          string
@@ -319,14 +320,23 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 		c.upstreamDial, c.client = dial, client
 	}
 	c.scanPlan = nil
+	var inventoryDone chan struct{}
 	if changedLibrary {
 		c.lastBatch, c.batch = snapshots.lastBatch, snapshots.batch
+		if c.inventoryCancel != nil {
+			c.inventoryCancel()
+			c.inventoryCancel = nil
+		}
+		inventoryDone = c.inventoryDone
 		c.inventorySettings = s
 		c.inventoryGeneration++
 		c.inventory = snapshots.inventory
 	}
 	c.mu.Unlock()
 	c.inventoryMu.Unlock()
+	if inventoryDone != nil {
+		<-inventoryDone
+	}
 	if networkChanged {
 		oldClient.CloseIdleConnections()
 	}
@@ -525,11 +535,14 @@ func (c *Console) Close() error {
 	}
 	queueDone := c.queueDone
 	c.mu.Unlock()
-	c.lifecycleMu.Unlock()
-	err := c.stop()
 	c.inventoryMu.Lock()
+	if c.inventoryCancel != nil {
+		c.inventoryCancel()
+	}
 	inventoryDone := c.inventoryDone
 	c.inventoryMu.Unlock()
+	c.lifecycleMu.Unlock()
+	err := c.stop()
 	if inventoryDone != nil {
 		<-inventoryDone
 	}

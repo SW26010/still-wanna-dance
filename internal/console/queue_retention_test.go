@@ -187,7 +187,7 @@ func TestBatchReportsCompletionWithEviction(t *testing.T) {
 	done := c.batchDone
 	c.mu.Unlock()
 	<-done
-	inventory := scanInventory(c.settings)
+	inventory := scanInventory(context.Background(), c.settings)
 	t.Logf("phase=%s downloaded=%d actualVideos=%d", c.batch.Phase, c.batch.Downloaded, inventory.Videos)
 	if inventory.Error != "" || inventory.Videos != 0 || c.lastBatch.Downloaded != 1 || c.lastBatch.Updated.IsZero() {
 		t.Fatalf("unexpected inventory or snapshot: %+v %+v", inventory, c.lastBatch)

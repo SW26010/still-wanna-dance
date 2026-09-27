@@ -27,8 +27,12 @@ type Inventory struct {
 
 var cacheName = regexp.MustCompile(`^[0-9a-f]{64}\.mp4$`)
 
-func scanInventory(s Settings) Inventory {
+func scanInventory(ctx context.Context, s Settings) Inventory {
 	var result Inventory
+	if err := ctx.Err(); err != nil {
+		result.Error = err.Error()
+		return result
+	}
 	var problems []string
 	add := func(path string, count *int) {
 		info, err := os.Lstat(path)
@@ -58,6 +62,10 @@ func scanInventory(s Settings) Inventory {
 		problems = append(problems, fmt.Sprintf("无法读取 %s：%v", dir, err))
 	} else {
 		for _, entry := range entries {
+			if err := ctx.Err(); err != nil {
+				problems = append(problems, err.Error())
+				break
+			}
 			if cacheName.MatchString(entry.Name()) {
 				add(filepath.Join(dir, entry.Name()), &result.Videos)
 			}
@@ -95,11 +103,14 @@ func (c *Console) startInventoryScan() {
 	generation := c.inventoryGeneration
 	done := make(chan struct{})
 	c.inventoryDone = done
+	ctx, cancel := context.WithCancel(context.Background())
+	c.inventoryCancel = cancel
 	go func() {
 		defer close(done)
-		result := scanInventory(s)
+		defer cancel()
+		result := scanInventory(ctx, s)
 		if result.Error == "" && c.checksumURL != "" {
-			c.addInventoryCoverage(s, &result)
+			c.addInventoryCoverage(ctx, s, &result)
 		}
 		c.inventoryMu.Lock()
 		defer c.inventoryMu.Unlock()
@@ -107,6 +118,10 @@ func (c *Console) startInventoryScan() {
 			return
 		}
 		c.inventory.Scanning = false
+		c.inventoryCancel = nil
+		if ctx.Err() != nil {
+			return // Lifecycle cancellation preserves the last successful snapshot.
+		}
 		if result.Error != "" {
 			c.inventory.Error = result.Error
 			return
@@ -119,8 +134,8 @@ func (c *Console) startInventoryScan() {
 	}()
 }
 
-func (c *Console) addInventoryCoverage(s Settings, result *Inventory) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+func (c *Console) addInventoryCoverage(ctx context.Context, s Settings, result *Inventory) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	checksums, revision, err := c.fetchCatalogChecksums(ctx)
 	if err != nil {

@@ -1,6 +1,7 @@
 package console
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestInventoryReadsWaitForExplicitScan(t *testing.T) {
@@ -101,15 +103,103 @@ func TestInventoryCountsPublishedFilesOnly(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	v := scanInventory(c.settings)
+	v := scanInventory(context.Background(), c.settings)
 	if v.Videos != 2 || v.Bytes != 10 || v.Error != "" {
 		t.Fatalf("%+v", v)
 	}
 	if err := os.RemoveAll(c.settings.StorageDir); err != nil {
 		t.Fatal(err)
 	}
-	v = scanInventory(c.settings)
+	v = scanInventory(context.Background(), c.settings)
 	if v.Videos != 0 || v.Error == "" {
 		t.Fatalf("%+v", v)
+	}
+}
+
+func TestInventoryLifecycleCancelsCoverage(t *testing.T) {
+	for _, action := range []string{"close", "change storage"} {
+		t.Run(action, func(t *testing.T) {
+			c := testConsole(t)
+			if err := c.save(c.settings); err != nil {
+				t.Fatal(err)
+			}
+			c.startInventoryScan()
+			previous := waitInventory(t, c)
+			before, err := os.ReadFile(c.configPath + ".inventory.json")
+			if err != nil {
+				t.Fatal(err)
+			}
+			started, canceled, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				close(started)
+				select {
+				case <-r.Context().Done():
+					close(canceled)
+				case <-release:
+				}
+			}))
+			defer server.Close()
+			defer close(release)
+			c.checksumURL = server.URL
+			c.startInventoryScan()
+			select {
+			case <-started:
+			case <-time.After(3 * time.Second):
+				t.Fatal("coverage request did not start")
+			}
+			c.inventoryMu.Lock()
+			scanDone := c.inventoryDone
+			c.inventoryMu.Unlock()
+			settings := c.settings
+			settings.StorageDir = t.TempDir()
+			finished := make(chan error, 1)
+			go func() {
+				if action == "close" {
+					finished <- c.Close()
+				} else {
+					finished <- c.save(settings)
+				}
+			}()
+			select {
+			case err := <-finished:
+				if err != nil {
+					t.Fatal(err)
+				}
+			case <-time.After(3 * time.Second):
+				t.Fatal("lifecycle action waited for coverage timeout")
+			}
+			select {
+			case <-canceled:
+			case <-time.After(3 * time.Second):
+				t.Fatal("coverage request was not canceled")
+			}
+			select {
+			case <-scanDone:
+			default:
+				t.Fatal("lifecycle action left scan running")
+			}
+			after, err := os.ReadFile(c.configPath + ".inventory.json")
+			if err != nil || string(after) != string(before) {
+				t.Fatalf("cancellation changed persisted snapshot: %v", err)
+			}
+			if action == "close" {
+				if got := c.localInventory(); got != previous {
+					t.Fatalf("cancellation changed inventory: %+v", got)
+				}
+				c.startInventoryScan()
+				if c.localInventory().Scanning {
+					t.Fatal("scan started after close")
+				}
+			} else {
+				if got := c.localInventory(); got != (Inventory{}) {
+					t.Fatalf("old scan changed new library inventory: %+v", got)
+				}
+				c.checksumURL = ""
+				c.startInventoryScan()
+				if got := waitInventory(t, c); got.Error != "" || got.Updated.IsZero() {
+					t.Fatalf("new library scan failed: %+v", got)
+				}
+			}
+		})
 	}
 }

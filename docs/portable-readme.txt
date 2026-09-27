@@ -4,7 +4,7 @@ StepStash — Windows x64 portable
 2. 双击 stepstash-console.exe。程序显示托盘图标，并打开本地浏览器控制台。
    无需 CMD / PS1 启动脚本，也不需要安装 Go、Node.js 或其他运行库。
    关闭网页后程序仍在托盘运行；再次双击 EXE 会打开已有控制台。
-3. 在控制台设置存储目录及 VRChat 日志目录，保存后按需启用功能。
+3. 在控制台设置存储目录；VRChat 日志目录默认随当前用户自动读取，仅自定义路径时勾选「手动指定」。保存后按需启用功能。
    默认存储目录 stepstash-data 位于程序目录下。
    视频位于 videos，歌曲资料和统计位于 stepstash.sqlite。全曲目下载可能占用大量空间。
 4. 正常启动无需管理员权限。修改 hosts 时才会弹出 Windows 授权提示。

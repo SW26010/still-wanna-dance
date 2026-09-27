@@ -638,6 +638,7 @@ test('settings submit prevents navigation and serializes the edited controls', a
     requestRetentionDays: '0', scanResolveConcurrency: '8', scanCheckConcurrency: '2', maxCacheGiB: '1.25',
   };
   for (const [id, value] of Object.entries(values)) get(id).value = value;
+  get('manualLogDir').checked = true;
   get('autoStartCDN').checked = true;
   get('settings').dispatchEvent({ type: 'input' });
   const event = { type: 'submit' };
@@ -647,7 +648,7 @@ test('settings submit prevents navigation and serializes the edited controls', a
   assert.equal(p.requests[2].method, 'POST');
   assert.deepEqual(JSON.parse(p.requests[2].body), {
     queuePrefetchCount: 7, queuePrefetchEnabled: true,
-    autoStartCDN: true, storageDir: 'D:/draft', logDir: 'D:/logs', downloadUpstream: 'hkg',
+    autoStartCDN: true, storageDir: 'D:/draft', manualLogDir: true, logDir: 'D:/logs', downloadUpstream: 'hkg',
     upstreamMode: 'socks5', socks5Address: '127.0.0.1:7891',
     socks5Username: 'test-user', socks5Password: 'test-secret',
     requestRetentionDays: 0, scanResolveConcurrency: 8, scanCheckConcurrency: 2, maxCacheBytes: 1342177280,
@@ -1240,4 +1241,41 @@ test('queue cannot independently lock settings when CDN is stopped', async () =>
  await flush();
  assert.equal(p.document.getElementById('save').disabled, false);
  assert.equal(p.document.getElementById('queuePrefetchEnabled').disabled, false);
+});
+
+test('log directory requires explicit manual selection and resets to automatic', async () => {
+ const p = page();
+ p.finishBatch(0, { logDir: 'current-user/logs', manualLogDir: false }, { defaultLogDir: 'current-user/logs' });
+ await flush();
+ const get = id => p.document.getElementById(id);
+ assert.equal(get('manualLogDir').checked, false);
+ assert.equal(get('logDir').disabled, true);
+ assert.equal(get('logDir').value, 'current-user/logs');
+ get('manualLogDir').checked = true;
+ get('settings').dispatchEvent({ type: 'change' });
+ assert.equal(get('logDir').disabled, false);
+ assert.equal(get('logDir').required, true);
+ get('logDir').value = 'custom/logs';
+ get('manualLogDir').checked = false;
+ get('settings').dispatchEvent({ type: 'change' });
+ assert.equal(get('logDir').disabled, true);
+ assert.equal(get('logDir').value, 'current-user/logs');
+ get('settings').dispatchEvent({ type: 'submit' });
+ const body = JSON.parse(p.requests[2].body);
+ assert.equal(body.manualLogDir, false);
+ assert.equal(body.logDir, '');
+});
+
+test('manual log directory loads and submits the explicit path', async () => {
+ const p = page();
+ p.finishBatch(0, { logDir: 'custom/logs', manualLogDir: true }, { defaultLogDir: 'current-user/logs' });
+ await flush();
+ const get = id => p.document.getElementById(id);
+ assert.equal(get('manualLogDir').checked, true);
+ assert.equal(get('logDir').disabled, false);
+ assert.equal(get('logDir').value, 'custom/logs');
+ get('settings').dispatchEvent({ type: 'submit' });
+ const body = JSON.parse(p.requests[2].body);
+ assert.equal(body.manualLogDir, true);
+ assert.equal(body.logDir, 'custom/logs');
 });

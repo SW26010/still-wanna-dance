@@ -125,6 +125,7 @@ function renderSettings(s) {
     $('queuePrefetchCount').value = s.settings.queuePrefetchCount || 3;
     $('storageDir').value = s.settings.storageDir;
     $('logDir').value = s.settings.logDir;
+    $('manualLogDir').checked = !!s.settings.manualLogDir;
     $('downloadUpstream').value = s.settings.downloadUpstream || 'auto';
     $('upstreamMode').value = s.settings.upstreamMode || 'direct';
     $('socks5Address').value = s.settings.socks5Address || '';
@@ -144,6 +145,7 @@ function renderControls() {
     'queuePrefetchEnabled',
     'storageDir',
     'logDir',
+    'manualLogDir',
     'maxCacheGiB',
     'requestRetentionDays',
     'downloadUpstream',
@@ -157,6 +159,9 @@ function renderControls() {
     'save',
   ])
     $(id).disabled = unavailable || !!(s.running || s.batch.running);
+  $('logDir').disabled ||= !$('manualLogDir').checked;
+  $('logDir').required = $('manualLogDir').checked;
+  if (!$('manualLogDir').checked && s) $('logDir').value = s.defaultLogDir || s.settings.logDir;
   $('socks5Address').disabled ||= $('upstreamMode').value !== 'socks5';
   $('socks5Username').disabled ||= $('upstreamMode').value !== 'socks5';
   $('socks5Password').disabled ||= $('upstreamMode').value !== 'socks5';
@@ -410,7 +415,8 @@ $('settings').addEventListener('submit', (e) => {
     ...($('socks5Password').value || !$('socks5Username').value
       ? { socks5Password: $('socks5Password').value } : {}),
     storageDir: $('storageDir').value,
-    logDir: $('logDir').value,
+    manualLogDir: $('manualLogDir').checked,
+    logDir: $('manualLogDir').checked ? $('logDir').value : '',
     maxCacheBytes: Math.round(Number($('maxCacheGiB').value) * 1073741824),
   });
 });

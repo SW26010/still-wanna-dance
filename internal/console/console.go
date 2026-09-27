@@ -48,6 +48,7 @@ type Settings struct {
 	MaxCacheBytes          int64  `json:"maxCacheBytes"`
 	StorageDir             string `json:"storageDir"`
 	LogDir                 string `json:"logDir"`
+	ManualLogDir           bool   `json:"manualLogDir"`
 }
 
 type Console struct {
@@ -134,6 +135,9 @@ func (c *Console) resolveSettings(s Settings) (Settings, error) {
 
 // Keep directories inside the portable folder movable; external stores stay absolute.
 func (c *Console) storedSettings(s Settings) Settings {
+	if !s.ManualLogDir {
+		s.LogDir = ""
+	}
 	base := filepath.Dir(c.configPath)
 	for _, p := range []*string{&s.StorageDir, &s.LogDir} {
 		if pathContains(base, *p) {
@@ -191,8 +195,10 @@ func absoluteSettings(s Settings) (Settings, error) {
 	if s.MaxCacheBytes < 0 {
 		return s, errors.New("缓存上限不能为负数")
 	}
-	if strings.TrimSpace(s.LogDir) == "" {
+	if !s.ManualLogDir {
 		s.LogDir = defaultLogDir()
+	} else if strings.TrimSpace(s.LogDir) == "" {
+		return s, errors.New("请填写手动指定的 VRChat 日志目录")
 	}
 	var logErr error
 	s.LogDir, logErr = filepath.Abs(s.LogDir)
@@ -602,7 +608,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Traffic           cacheproxy.TrafficStats `json:"traffic"`
 			SOCKS5PasswordSet bool                    `json:"socks5PasswordSet"`
 			Activation        Activation              `json:"activation"`
-		}{running, c.settings, HostsStatus{}, running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}, c.settings.SOCKS5Password != "", c.activation}
+			DefaultLogDir     string                  `json:"defaultLogDir"`
+		}{running, c.settings, HostsStatus{}, running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}, c.settings.SOCKS5Password != "", c.activation, defaultLogDir()}
 		result.Settings.SOCKS5Password = ""
 		service := c.service
 		result.ActionErrors = make(map[string]string, len(c.actionErrors))

@@ -30,6 +30,7 @@ func testConsole(t *testing.T) *Console {
 	c.checksumURL = ""
 	c.settings.StorageDir = filepath.Join(root, "data")
 	c.settings.LogDir = filepath.Join(root, "logs")
+	c.settings.ManualLogDir = true
 	c.videoAddress = "127.0.0.1:0"
 	c.httpsAddress = "127.0.0.1:0"
 	t.Cleanup(func() { c.Close() })

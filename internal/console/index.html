@@ -336,10 +336,11 @@
             <div class="hint" id="queuePrefetchCountHint">
               默认 3，可设 1～100。准备队列前 N 个位置中的有效曲目，非曲库条目也占位置；最多同时下载 2 首。保存后下次启动 CDN 生效。
             </div>
+            <label for="manualLogDir"><input id="manualLogDir" name="manualLogDir" type="checkbox" /> 手动指定 VRChat 日志目录</label>
             <label for="logDir">VRChat 日志目录</label
-            ><input id="logDir" aria-describedby="logDirHint" name="logDir" spellcheck="false" />
+            ><input id="logDir" aria-describedby="logDirHint" name="logDir" spellcheck="false" disabled />
             <div class="hint" id="logDirHint">
-              开启时从现有日志末尾读取，之后跟踪新增内容。默认使用本机 VRChat 日志目录。
+              默认每次启动按当前用户自动读取，灰色路径无需填写。勾选后可手动指定；取消勾选并保存即恢复自动。预缓存从现有日志末尾跟踪新增内容。
             </div>
             </fieldset>
             <button class="primary" type="submit" id="save">保存设置</button>

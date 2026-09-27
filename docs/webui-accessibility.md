@@ -37,3 +37,20 @@
 浏览器控制接口未提供操作系统媒体环境模拟。本次未实际切换 Windows 强制颜色、减少动态效果、系统 DPI，也未运行 Narrator/NVDA；不能将 CSS 分支实现和 DOM 检查视为这些实测已通过。
 
 人工复核时检查 Windows 浅/深主题及高对比度主题、125%/150%/200% 显示缩放、浏览器 200%/400% 缩放，以及 Narrator/NVDA 对字段说明、错误、进度和操作结果的朗读。键盘完成导航、展开、选择、编辑及保存，并确认焦点始终可见且顺序符合阅读顺序。
+
+## 2026-09-27 补充修复与验收
+
+- 强制颜色分支为当前导航项增加 Highlight 实体边框与下划线，不依赖 box-shadow。
+- 监控页新增原生「暂停监控自动刷新」复选框。暂停冻结下载和最近请求显示，后台任务与服务状态轮询继续；恢复立即刷新。暂停前发出的请求即使稍后成功或失败，也不能覆盖冻结内容；快速暂停/恢复同样丢弃旧响应。
+- 下载任务或请求记录从列表消失、读取失败清空列表时，焦点回退至相应监控区域；加载更多按钮隐藏时也回退。原项目仍在时保留展开状态和焦点，不抢走列表外焦点。
+
+本次实际操作 Codex 内置浏览器，真实 Go 控制台使用本地隔离预览；下载/请求消失场景使用仅预览服务器提供的 JSON 样例，没有启动 CDN、执行真实下载或修改 hosts。
+
+- Space 勾选暂停；将服务端样例从一条改为空并跨过刷新周期，页面仍保留原下载速度和两份列表。再次 Space 恢复，立即显示最新速度和空列表。
+- 键盘展开下载详情，再移除任务：焦点回到 downloads，浏览器计算焦点框为 2px solid；请求详情展开后清空记录，焦点回到 recent。
+- 320 × 800 CSS px 视口：暂停控件可用，documentElement.scrollWidth = 305、innerWidth = 320，无横向溢出；验收后已恢复视口。
+- 仅测试服务器激活 forced-colors 样式分支并移除所有阴影，浏览器确认选中导航有 3px solid 边框和 underline、box-shadow 为 none。这是样式分支验证，不等同 Windows 强制颜色实测。
+- 浏览器脚本警告/错误日志为空。截图：本地忽略目录 test-runs/fluent-ui/a11y-monitor-paused.png。
+- node --test scripts/navigation.test.mjs scripts/refresh.test.mjs：90 项通过；go test ./internal/console：通过；git diff --check：通过。
+
+Windows 高对比度主题、系统 DPI、Narrator/NVDA 的待验收项仍然保留；本次不宣称完整 WCAG 2.2 AA 符合性。

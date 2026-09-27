@@ -1279,3 +1279,81 @@ test('manual log directory loads and submits the explicit path', async () => {
  assert.equal(body.manualLogDir, true);
  assert.equal(body.logDir, 'custom/logs');
 });
+
+test('paused monitor rejects in-flight results and errors, and resumes fresh reads', async () => {
+  for (const fail of [false, true]) {
+    const p = page(true), get = id => p.document.getElementById(id);
+    let finish;
+    p.context.fetch = () => new Promise((resolve, reject) => { finish = () => fail ? reject(Error('offline')) : resolve({ ok: true, json: async () => ({ tasks: [], bytesPerSecond: 9000000 }) }); });
+    get('downloadSpeed').textContent = 'frozen';
+    const pending = vm.runInContext('refreshDownloads()', p.context);
+    get('pauseMonitor').checked = true;
+    get('pauseMonitor').dispatchEvent({ type: 'change' });
+    finish(); await pending;
+    assert.equal(get('downloadSpeed').textContent, 'frozen');
+    vm.runInContext('renderControls()', p.context);
+    assert.equal(get('recentMore').disabled, true);
+    assert.match(get('monitorRefreshState').textContent, /已暂停/);
+    get('pauseMonitor').checked = false;
+    get('pauseMonitor').dispatchEvent({ type: 'change' });
+    p.context.fetch = async () => ({ ok: true, json: async () => ({ tasks: [], bytesPerSecond: 2000000 }) });
+    await vm.runInContext('refreshDownloads()', p.context);
+    assert.equal(get('downloadSpeed').textContent, '2.000 MB/s');
+  }
+});
+
+test('monitor list removal and failures retain keyboard focus in their section', async () => {
+  for (const kind of ['download', 'recent']) {
+    for (const failure of [false, true]) {
+      const p = page(true), get = id => p.document.getElementById(id);
+      p.context.snapshot = kind === 'download'
+        ? { tasks: [{ id: 1, resource: 'fixture', songs: [], size: 0, bytes: 0, bytesPerSecond: 0, idleMS: 0 }], bytesPerSecond: 0 }
+        : { storageID: 'test', requests: [recentEvent(1, 1000)], hasMore: false };
+      vm.runInContext(kind === 'download' ? 'renderDownloads(snapshot)' : 'renderRecent(snapshot)', p.context);
+      const list = get(kind === 'download' ? 'downloadList' : 'recentList');
+      const summary = kind === 'download' ? list.children[0].children.at(-1).children[0] : list.children[0].children[0];
+      summary.focus();
+      if (failure) {
+        p.context.fetch = async () => { throw Error('offline'); };
+        await vm.runInContext(kind === 'download' ? 'refreshDownloads()' : 'refreshRecent()', p.context);
+      } else {
+        p.context.snapshot.tasks = []; p.context.snapshot.requests = [];
+        vm.runInContext(kind === 'download' ? 'renderDownloads(snapshot)' : 'renderRecent(snapshot)', p.context);
+      }
+      assert.equal(p.document.activeElement, get(kind === 'download' ? 'downloads' : 'recent'));
+    }
+  }
+});
+
+test('paused monitor skips both monitor endpoints while service status keeps polling', async () => {
+  const p = page(true), urls = [];
+  p.context.fetch = async url => {
+    urls.push(url);
+    return { ok: true, json: async () => url === '/api/status' ? { settings: {}, hosts: {}, batch: {}, queue: {} }
+      : url === '/api/downloads' ? { tasks: [], bytesPerSecond: 0 }
+      : { storageID: 'test', requests: [], hasMore: false } };
+  };
+  selectPage(p, 'monitor');
+  const pause = p.document.getElementById('pauseMonitor');
+  pause.checked = true; pause.dispatchEvent({ type: 'change' });
+  p.visibility(false); await flush();
+  assert.deepEqual(urls, ['/api/status']);
+  p.fireTimer(); await flush();
+  assert.deepEqual(urls, ['/api/status', '/api/status']);
+  pause.checked = false; pause.dispatchEvent({ type: 'change' }); await flush();
+  assert.deepEqual(urls.slice(2).sort(), ['/api/status', '/api/downloads', '/api/requests?limit=50'].sort());
+});
+
+test('pause discards stale recent responses even after a quick resume', async () => {
+  for (const fail of [false, true]) {
+    const p = page(true), get = id => p.document.getElementById(id);
+    let finish;
+    p.context.fetch = () => new Promise((resolve, reject) => { finish = () => fail ? reject(Error('offline')) : resolve({ ok: true, json: async () => ({ storageID: 'test', requests: [], hasMore: false }) }); });
+    get('recentState').textContent = 'frozen';
+    const pending = vm.runInContext('refreshRecent()', p.context);
+    get('pauseMonitor').checked = true; get('pauseMonitor').dispatchEvent({ type: 'change' });
+    get('pauseMonitor').checked = false; get('pauseMonitor').dispatchEvent({ type: 'change' });
+    finish(); await pending;
+    assert.equal(get('recentState').textContent, 'frozen');
+  }
+});

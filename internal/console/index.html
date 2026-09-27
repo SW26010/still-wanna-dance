@@ -56,6 +56,10 @@
         <p class="hint">需要准备全曲库？前往 <a href="#/library">曲库与下载</a>。查看传输速度与请求记录，请前往 <a href="#/monitor">监控</a>。</p>
       </div>
       <div id="page-monitor" data-page="monitor" hidden>
+        <div>
+          <label><input id="pauseMonitor" type="checkbox" aria-describedby="monitorRefreshState" /> 暂停监控自动刷新</label>
+          <p id="monitorRefreshState" class="hint" role="status">每 5 秒刷新；暂停仅冻结监控显示，后台任务继续运行。</p>
+        </div>
         <section class="card" id="downloads" aria-labelledby="downloadsTitle" tabindex="-1">
         <div class="card-head"><h2 id="downloadsTitle">实时下载监控</h2><small>每 5 秒刷新 · 共享任务只计一次</small></div>
         <p>上游总下载速度 <strong id="downloadSpeed">—</strong></p>

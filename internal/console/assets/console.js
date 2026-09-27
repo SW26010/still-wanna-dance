@@ -1,6 +1,7 @@
 const token = document.querySelector('meta[name="stepstash-token"]').content;
 const $ = (id) => document.getElementById(id);
 let recentLimit = 50, recentStorage = '', recentSnapshot = '', recentRows = [];
+let monitorRevision = 0;
 let settingsDirty = false,
   settingsRevision = 0,
   busy = false,
@@ -140,6 +141,7 @@ function renderControls() {
   const s = lastState;
   const unavailable = !connected || busy || !s || activationPending(s);
   for (const b of document.querySelectorAll('button')) b.disabled = unavailable;
+  $('recentMore').disabled ||= $('pauseMonitor').checked;
   for (const id of [
     'autoStartCDN',
     'queuePrefetchEnabled',
@@ -445,7 +447,7 @@ function requestRefresh() {
         // this batch requests one fresh batch, so action results are not lost.
         const reads = [refresh()];
         if (!$('page-cache').hidden) reads.push(refreshInventory());
-        if (!$('page-monitor').hidden) reads.push(refreshRecent(), refreshDownloads());
+        if (!$('page-monitor').hidden && !$('pauseMonitor').checked) reads.push(refreshRecent(), refreshDownloads());
         await Promise.allSettled(reads);
       } while (refreshPending && !document.hidden);
     } finally {
@@ -457,6 +459,14 @@ function requestRefresh() {
 }
 
 document.addEventListener('pagechange', requestRefresh);
+$('pauseMonitor').addEventListener('change', () => {
+  monitorRevision++;
+  setText('monitorRefreshState', $('pauseMonitor').checked
+    ? '监控显示已暂停，数据停留在上次刷新；后台任务继续运行。'
+    : '每 5 秒刷新；暂停仅冻结监控显示，后台任务继续运行。');
+  renderControls();
+  if (!$('pauseMonitor').checked) requestRefresh();
+});
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) requestRefresh();
   else clearTimeout(refreshTimer);
@@ -506,15 +516,17 @@ function renderDownloads(v) {
     return { key, item, details, summary };
   });
   $('downloadList').replaceChildren(...downloadRows.map(r => r.item));
-  if (focused) downloadRows.find(r => r.key === focused)?.summary.focus({ preventScroll: true });
+  if (focused) (downloadRows.find(r => r.key === focused)?.summary || $('downloads')).focus({ preventScroll: true });
 }
 async function refreshDownloads() {
   const revision = settingsRevision;
+  const displayRevision = monitorRevision;
   try {
     const v = await readState('/api/downloads');
-    if (revision === settingsRevision) renderDownloads(v);
+    if (revision === settingsRevision && displayRevision === monitorRevision && !$('pauseMonitor').checked) renderDownloads(v);
   } catch {
-    if (revision !== settingsRevision) return;
+    if (revision !== settingsRevision || displayRevision !== monitorRevision || $('pauseMonitor').checked) return;
+    if ($('downloadList').contains(document.activeElement)) $('downloads').focus({ preventScroll: true });
     downloadRows = [];
     $('downloadList').replaceChildren();
     setText('downloadSpeed', '—');
@@ -643,23 +655,26 @@ function renderRecent(v) {
       return { node, summary, ids };
     });
     $('recentList').replaceChildren(...recentRows.map(row => row.node));
-    if (focused) recentRows.find(row => row.ids.some(id => focused.ids.includes(id)))?.summary.focus({ preventScroll: true });
+    if (focused) (recentRows.find(row => row.ids.some(id => focused.ids.includes(id)))?.summary || $('recent')).focus({ preventScroll: true });
     recentSnapshot = signature;
   }
   $('recentMore').hidden = !v.hasMore || recentLimit >= 500;
+  if ($('recentMore').hidden && document.activeElement === $('recentMore')) $('recent').focus({ preventScroll: true });
   setText('recentState', (v.requests.length ? '已显示 ' + v.requests.length + ' 条 HTTP 请求' : '当前窗口暂无 HTTP 请求记录') +
     ' · 最近 ' + recentLimit + ' 条 HTTP 请求窗口' + (v.hasMore ? ' · 窗口外还有 HTTP 请求，分组可能不完整' : '') +
     (recentLimit >= 500 && v.hasMore ? '（已达 500 条上限）' : ''));
 }
 async function refreshRecent() {
   const revision = settingsRevision;
+  const displayRevision = monitorRevision;
   try {
     const v = await readState('/api/requests?limit=' + recentLimit);
-    if (revision !== settingsRevision) return;
+    if (revision !== settingsRevision || displayRevision !== monitorRevision || $('pauseMonitor').checked) return;
     renderRecent(v);
   } catch {
-    if (revision !== settingsRevision) return;
+    if (revision !== settingsRevision || displayRevision !== monitorRevision || $('pauseMonitor').checked) return;
     // Do not present stale data from an unknown storage directory as current.
+    if ($('recentList').contains(document.activeElement) || document.activeElement === $('recentMore')) $('recent').focus({ preventScroll: true });
     recentSnapshot = '';
     recentRows = [];
     $('recentList').replaceChildren();
@@ -668,6 +683,7 @@ async function refreshRecent() {
   }
 }
 $('recentMore').addEventListener('click', () => {
+  if ($('pauseMonitor').checked) return;
   recentLimit = Math.min(500, recentLimit + 50);
   requestRefresh();
 });

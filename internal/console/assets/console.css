@@ -579,6 +579,10 @@ details[open] > .recent-summary .recent-expand::before { content: '▾ '; }
   }
 }
 @media (forced-colors: active) {
+  nav a[aria-current="page"] {
+    border-inline-start: 3px solid Highlight;
+    text-decoration: underline;
+  }
   :root {
     --bg: Canvas;
     --card: Canvas;

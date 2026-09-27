@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 )
 
@@ -185,6 +184,9 @@ func ReadCachePage(ctx context.Context, root, query, order string, offset int) (
 	if err != nil {
 		return result, err
 	}
+	if offset < 0 {
+		return result, errors.New("无效分页")
+	}
 	dir, err := CacheDirectory(root)
 	if errors.Is(err, os.ErrNotExist) {
 		if _, dbErr := os.Lstat(filepath.Join(root, "stepstash.sqlite")); errors.Is(dbErr, os.ErrNotExist) {
@@ -206,8 +208,8 @@ func ReadCachePage(ctx context.Context, root, query, order string, offset int) (
 	if err != nil {
 		return result, err
 	}
-	var entries []CacheEntry
 	query = strings.ToLower(strings.TrimSpace(query))
+	var candidates []cacheListCandidate
 	for _, f := range files {
 		if err := ctx.Err(); err != nil {
 			return result, err
@@ -215,59 +217,41 @@ func ReadCachePage(ctx context.Context, root, query, order string, offset int) (
 		if !cacheVideoName.MatchString(f.Name()) || f.Type()&os.ModeSymlink != 0 || f.IsDir() {
 			continue
 		}
-		e, err := readCacheEntry(ctx, root, strings.TrimSuffix(f.Name(), ".mp4"), db)
+		info, err := f.Info()
 		if os.IsNotExist(err) {
 			continue
 		}
 		if err != nil {
 			return result, err
 		}
-		match := query == "" || strings.Contains(e.Key, query)
-		for _, s := range e.Songs {
-			match = match || strings.Contains(strings.ToLower(s.Title), query) || strings.Contains(s.ID, query)
+		if !info.Mode().IsRegular() {
+			return result, errors.New("不是普通缓存文件")
 		}
-		// Search every association, including those outside the display cap.
-		if !match && db != nil {
-			err = db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM song_videos sv JOIN songs s ON s.song_id=sv.song_id WHERE sv.version_key=? AND (instr(lower(s.title),?)>0 OR instr(s.song_id,?)>0))`, e.Key, query, query).Scan(&match)
-			if err != nil {
-				return result, err
-			}
-		}
-		if match {
-			entries = append(entries, e)
-		}
+		key := strings.TrimSuffix(f.Name(), ".mp4")
+		candidates = append(candidates, cacheListCandidate{
+			key: key, bytes: info.Size(), match: query == "" || strings.Contains(key, query),
+		})
 	}
-	sort.Slice(entries, func(i, j int) bool {
-		a, b := entries[i], entries[j]
-		if order == "size" && a.Bytes != b.Bytes {
-			return a.Bytes > b.Bytes
-		}
-		if order == "recent" && a.LastRequest != b.LastRequest {
-			return a.LastRequest > b.LastRequest
-		}
-		if order == "title" {
-			title := func(e CacheEntry) string {
-				if len(e.Songs) > 0 {
-					return e.Songs[0].Title
-				}
-				return ""
-			}
-			if title(a) != title(b) {
-				return title(a) < title(b)
-			}
-		}
-		return a.Key < b.Key
-	})
-	result.Total = len(entries)
-	if offset < 0 {
-		return result, errors.New("无效分页")
+	if err := loadCacheListMetadata(ctx, db, candidates, query, order); err != nil {
+		return result, err
 	}
-	if offset < len(entries) {
-		end := offset + 50
-		if end > len(entries) {
-			end = len(entries)
+	candidates = sortCacheList(candidates, order)
+	result.Total = len(candidates)
+	// Full song details and identity stamps are needed only for the visible page.
+	// Re-read each selected file; directory metadata may have changed meanwhile.
+	for i := offset; i < len(candidates) && len(result.Entries) < 50; i++ {
+		if err := ctx.Err(); err != nil {
+			return result, err
 		}
-		result.Entries = entries[offset:end]
+		e, err := readCacheEntry(ctx, root, candidates[i].key, db)
+		if os.IsNotExist(err) {
+			result.Total--
+			continue
+		}
+		if err != nil {
+			return result, err
+		}
+		result.Entries = append(result.Entries, e)
 	}
 	return result, nil
 }

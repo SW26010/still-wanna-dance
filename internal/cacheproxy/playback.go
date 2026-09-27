@@ -18,9 +18,10 @@ const playbackWaitBudget = 5 * time.Second
 const playbackResolveBudget = 30 * time.Second
 
 type playbackCheck struct {
-	done chan struct{}
-	v    video
-	err  error
+	done     chan struct{}
+	accepted chan bool
+	v        video
+	err      error
 }
 
 type playbackSong struct {
@@ -77,7 +78,9 @@ func (s *Server) waitPlaybackSong(ctx context.Context, f *flight, id string) err
 }
 
 // The API song ID is authoritative; the resource ID in a video path is not.
-func (s *Server) requestVideo(r *http.Request, observed func()) (video, error) {
+// A non-nil release transfers the verified local pin to the caller, which must
+// hold it until the response finishes, including early returns.
+func (s *Server) requestVideo(r *http.Request, observed func()) (video, func(), error) {
 	host := strings.ToLower(r.Host)
 	if h, _, err := net.SplitHostPort(host); err == nil {
 		host = h
@@ -87,25 +90,25 @@ func (s *Server) requestVideo(r *http.Request, observed func()) (video, error) {
 		if err == nil && observed != nil {
 			observed()
 		}
-		return v, err
+		return v, nil, err
 	}
 	if r.URL.Path != "/Api/Songs/play" || r.URL.RawPath != "" {
-		return video{}, errors.New("unsupported API path")
+		return video{}, nil, errors.New("unsupported API path")
 	}
 	q, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
-		return video{}, errors.New("invalid playback query")
+		return video{}, nil, errors.New("invalid playback query")
 	}
 	if len(q["id"]) != 1 || len(q["node"]) > 1 {
-		return video{}, errors.New("invalid playback query")
+		return video{}, nil, errors.New("invalid playback query")
 	}
 	id, node := q.Get("id"), q.Get("node")
 	n, err := strconv.ParseInt(id, 10, 64)
 	if err != nil || n <= 0 {
-		return video{}, errors.New("invalid song ID")
+		return video{}, nil, errors.New("invalid song ID")
 	}
 	if node != "" && node != "cf" && node != "nya" {
-		return video{}, errors.New("unsupported playback node")
+		return video{}, nil, errors.New("unsupported playback node")
 	}
 	// A valid playback request has reached us even if resolution stalls or
 	// fails. Observe it before contacting upstream or looking for old cache.
@@ -115,21 +118,44 @@ func (s *Server) requestVideo(r *http.Request, observed func()) (video, error) {
 	// Only verified local bytes allow the foreground wait to end early.
 	if local, localErr := s.localPlaybackVideo(r.Context(), strconv.FormatInt(n, 10)); localErr == nil {
 		s.pinVideo(local)
-		defer s.releaseVideo(local)
+		handoff := false
+		release := func() { s.releaseVideo(local) }
+		defer func() {
+			if !handoff {
+				release()
+			}
+		}()
 		if _, localErr = s.verifiedFile(r.Context(), local); localErr == nil {
 			check := s.startPlaybackCheck(q, local)
+			accepted := false
+			defer func() {
+				select {
+				case check.accepted <- accepted:
+				default:
+				}
+			}()
 			timer := time.NewTimer(playbackWaitBudget)
 			defer timer.Stop()
 			select {
 			case <-check.done:
-				if check.err == nil {
-					return check.v, nil
+				if err := r.Context().Err(); err != nil {
+					return video{}, nil, err
 				}
-				return local, nil
+				if check.err == nil {
+					accepted = true
+					if check.v.key == local.key {
+						handoff = true
+						return check.v, release, nil
+					}
+					return check.v, nil, nil
+				}
+				handoff = true
+				return local, release, nil
 			case <-timer.C:
-				return local, nil
+				handoff = true
+				return local, release, nil
 			case <-r.Context().Done():
-				return video{}, r.Context().Err()
+				return video{}, nil, r.Context().Err()
 			}
 		}
 	}
@@ -137,14 +163,16 @@ func (s *Server) requestVideo(r *http.Request, observed func()) (video, error) {
 	defer cancel()
 	v, err := s.resolvePlaybackVideo(ctx, q)
 	if err != nil {
-		return s.localPlaybackVideo(r.Context(), strconv.FormatInt(n, 10))
+		v, err := s.localPlaybackVideo(r.Context(), strconv.FormatInt(n, 10))
+		return v, nil, err
 	}
-	return v, nil
+	return v, nil, nil
 }
 
 // Share in-flight checks across probes and range requests. Their lifetime is
 // owned by the server, so serving cached bytes or disconnecting cannot cancel
-// the update check. Slow successful checks refresh via the background pipeline.
+// the update check. A changed version is refreshed if a foreground waiter
+// returns without accepting it, regardless of how quickly resolution finishes.
 func (s *Server) startPlaybackCheck(q url.Values, local video) *playbackCheck {
 	key := q.Encode()
 	s.mu.Lock()
@@ -152,7 +180,7 @@ func (s *Server) startPlaybackCheck(q url.Values, local video) *playbackCheck {
 	if check := s.playbackChecks[key]; check != nil {
 		return check
 	}
-	check := &playbackCheck{done: make(chan struct{})}
+	check := &playbackCheck{done: make(chan struct{}), accepted: make(chan bool, 1)}
 	if s.closed {
 		check.err = context.Canceled
 		close(check.done)
@@ -164,10 +192,8 @@ func (s *Server) startPlaybackCheck(q url.Values, local video) *playbackCheck {
 	s.playbackChecks[key] = check
 	s.pinVideo(local)
 	s.wg.Add(1)
-	started := time.Now()
 	go func() {
 		defer s.wg.Done()
-		defer s.releaseVideo(local)
 		defer func() {
 			s.mu.Lock()
 			if s.playbackChecks[key] == check {
@@ -175,17 +201,23 @@ func (s *Server) startPlaybackCheck(q url.Values, local video) *playbackCheck {
 			}
 			s.mu.Unlock()
 		}()
+		defer s.releaseVideo(local)
 		ctx, cancel := context.WithTimeout(s.ctx, playbackResolveBudget)
 		check.v, check.err = s.resolvePlaybackVideo(ctx, q)
 		cancel()
-		refresh := check.err == nil && check.v.key != local.key && time.Since(started) >= playbackWaitBudget
-		if !refresh {
-			s.mu.Lock()
-			delete(s.playbackChecks, key)
-			s.mu.Unlock()
-		}
+		refresh := check.err == nil && check.v.key != local.key
 		close(check.done)
 		if refresh {
+			// Wait for an actual foreground decision rather than guessing from
+			// elapsed time. Canceled and timed-out callers also report here.
+			select {
+			case accepted := <-check.accepted:
+				if accepted {
+					return
+				}
+			case <-s.ctx.Done():
+				return
+			}
 			ctx, cancel := context.WithTimeout(s.ctx, s.cfg.DownloadTimeout)
 			defer cancel()
 			target := "https://" + check.v.host + check.v.path + "?" + check.v.query

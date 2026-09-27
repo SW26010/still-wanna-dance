@@ -356,7 +356,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 		return
 	}
-	v, err := s.requestVideo(r, observed)
+	v, release, err := s.requestVideo(r, observed)
+	if release != nil {
+		defer release()
+	}
 	if err != nil {
 		if errors.Is(err, errPlaybackUpstream) {
 			http.Error(w, "playback resolution failed", http.StatusBadGateway)

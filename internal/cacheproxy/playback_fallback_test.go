@@ -31,7 +31,13 @@ func TestPlaybackCheckSurvivesClientCancellationAndStopsOnClose(t *testing.T) {
 	defer cancel()
 	r := httptest.NewRequest("GET", "http://api.udon.dance/Api/Songs/play?id=42", nil).WithContext(ctx)
 	done := make(chan error, 1)
-	go func() { _, err := s.requestVideo(r, nil); done <- err }()
+	go func() {
+		_, release, err := s.requestVideo(r, nil)
+		if release != nil {
+			release()
+		}
+		done <- err
+	}()
 	var checkCtx context.Context
 	select {
 	case checkCtx = <-entered:

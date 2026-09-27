@@ -7,7 +7,7 @@ const html = readFileSync(new URL('../internal/console/index.html', import.meta.
 const script = readFileSync(new URL('../internal/console/assets/navigation.js', import.meta.url), 'utf8');
 const keys = ['home', 'monitor', 'cache', 'library', 'settings'];
 function page(hash = '') {
-  let focused, scrolls = 0;
+  let focused, scrolls = 0, pageChanges = 0, expectedPage;
   const events = {}, skipEvents = {};
   const nodes = new Map([...html.matchAll(/\bid="([^"]+)"/g)].map(([, id]) => [id, {
     id, textContent: '', hidden: false, value: '',
@@ -19,12 +19,19 @@ function page(hash = '') {
   const window = { location: { hash }, history: { replaceState(_, __, next) { window.location.hash = next; } },
     addEventListener(name, callback) { events[name] = callback; }, scrollTo() { scrolls++; } };
   const document = { getElementById: id => nodes.get(id),
+    dispatchEvent(event) {
+      assert.equal(event.type, 'pagechange');
+      if (expectedPage !== undefined)
+        assert.deepEqual(panels.filter(n => !n.hidden).map(n => n.dataset.page), [expectedPage]);
+      pageChanges++;
+    },
     querySelectorAll: selector => selector === '[data-page]' ? panels : links,
     querySelector: () => ({ addEventListener(name, callback) { skipEvents[name] = callback; } }) };
-  vm.runInNewContext(script, { window, document });
+  vm.runInNewContext(script, { window, document, Event });
   return { nodes, panels, links, document, window,
     get focused() { return focused; }, get scrolls() { return scrolls; },
-    go(next) { window.location.hash = next; events.hashchange(); },
+    get pageChanges() { return pageChanges; },
+    go(next, expected) { expectedPage = expected; window.location.hash = next; events.hashchange(); },
     skip() { let prevented = false; skipEvents.click({ preventDefault() { prevented = true; } }); return prevented; } };
 }
 
@@ -39,6 +46,20 @@ test('all routes show exactly one page with matching navigation and title', () =
     assert.equal(p.document.title, p.nodes.get('pageLabel').textContent + ' · StepStash');
   }
   assert.equal(p.focused.id, 'main');
+});
+
+test('only a changed page requests fresh data, after panel visibility updates', () => {
+  const p = page('#/settings');
+  assert.equal(p.pageChanges, 0);
+  p.go('#/monitor', 'monitor');
+  assert.equal(p.pageChanges, 1);
+  p.go('#recent');
+  p.skip();
+  assert.equal(p.pageChanges, 1);
+  p.go('#overview', 'cache');
+  assert.equal(p.pageChanges, 2);
+  p.go('#/missing', 'home');
+  assert.equal(p.pageChanges, 3);
 });
 
 test('direct load and reload retain route; malformed hashes safely return home', () => {

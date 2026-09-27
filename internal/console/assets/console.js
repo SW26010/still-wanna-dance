@@ -438,7 +438,10 @@ function requestRefresh() {
         refreshPending = false;
         // Finish all reads before starting another batch. A trigger during
         // this batch requests one fresh batch, so action results are not lost.
-        await Promise.allSettled([refresh(), refreshInventory(), refreshRecent(), refreshDownloads()]);
+        const reads = [refresh()];
+        if (!$('page-cache').hidden) reads.push(refreshInventory());
+        if (!$('page-monitor').hidden) reads.push(refreshRecent(), refreshDownloads());
+        await Promise.allSettled(reads);
       } while (refreshPending && !document.hidden);
     } finally {
       refreshTask = null;
@@ -448,6 +451,7 @@ function requestRefresh() {
   return refreshTask;
 }
 
+document.addEventListener('pagechange', requestRefresh);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) requestRefresh();
   else clearTimeout(refreshTimer);

@@ -35,6 +35,7 @@
     if (!initial && (changed || target)) (target || document.getElementById('main')).focus();
     if (target) target.scrollIntoView();
     else if (!initial && changed) window.scrollTo(0, 0);
+    if (!initial && changed) document.dispatchEvent(new Event('pagechange'));
   }
   window.addEventListener('hashchange', () => navigate());
   // Preserve the current route when the skip link is used, including on reload.

@@ -8,6 +8,64 @@ const script = readFileSync(new URL('../internal/console/assets/console.js', imp
 const cacheScript = readFileSync(new URL('../internal/console/assets/cache.js', import.meta.url), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+function selectPage(p, key) {
+  for (const name of ['home', 'monitor', 'cache', 'library', 'settings'])
+    p.document.getElementById('page-' + name).hidden = name !== key;
+  p.document.dispatchEvent({ type: 'pagechange' });
+}
+
+test('initial, periodic and navigation refreshes read only the visible page plus global status', async () => {
+  for (const key of ['home', 'settings', 'library', 'cache', 'monitor']) {
+    const p = page(true), calls = [];
+    p.context.fetch = async url => {
+      calls.push(url);
+      return { ok: true, json: async () => url === '/api/status'
+        ? { settings: {}, hosts: {}, batch: {}, queue: {} }
+        : url === '/api/inventory' ? { bytes: 0 }
+        : url === '/api/downloads' ? { tasks: [], bytesPerSecond: 0 }
+        : { storageID: 'test', requests: [], hasMore: false } };
+    };
+    selectPage(p, key);
+    assert.deepEqual(calls, []);
+    const expected = ['/api/status', ...(key === 'cache' ? ['/api/inventory']
+      : key === 'monitor' ? ['/api/requests?limit=50', '/api/downloads'] : [])];
+    p.visibility(false);
+    await flush();
+    assert.deepEqual(calls.splice(0), expected);
+    p.fireTimer();
+    await flush();
+    assert.deepEqual(calls.splice(0), expected);
+    selectPage(p, key === 'settings' ? 'home' : 'settings');
+    await flush();
+    assert.deepEqual(calls, ['/api/status']);
+    assert.equal(p.timers.size, 1);
+  }
+});
+
+test('page switches during an active batch coalesce and load the latest page without overlap', async () => {
+  const p = page(true), calls = [];
+  let finish;
+  p.context.fetch = url => {
+    calls.push(url);
+    return new Promise(resolve => { finish = () => resolve({ ok: true,
+      json: async () => ({ settings: {}, hosts: {}, batch: {}, queue: {} }) }); });
+  };
+  selectPage(p, 'settings');
+  p.visibility(false);
+  selectPage(p, 'monitor');
+  selectPage(p, 'cache');
+  selectPage(p, 'home');
+  assert.deepEqual(calls, ['/api/status']);
+  finish(); await flush();
+  assert.deepEqual(calls, ['/api/status', '/api/status']);
+  finish(); await flush();
+  assert.equal(p.timers.size, 1);
+  p.visibility(true);
+  selectPage(p, 'monitor');
+  assert.equal(calls.length, 2);
+  assert.equal(p.timers.size, 0);
+});
+
 test('activation separates current service, hosts and session evidence, with progress and retry', () => {
   const p = page(true), get = id => p.document.getElementById(id);
   p.context.snapshot = { running: true, hosts: { ready: false, message: '未接入' }, settings: {}, batch: {}, queue: {},
@@ -363,6 +421,7 @@ function page(hidden = false) {
       throw new Error(`Unsupported selector: ${selector}`);
     },
     addEventListener: (event, callback) => listeners.set(event, callback),
+    dispatchEvent: event => listeners.get(event.type)?.(event),
   };
   const buttons = [];
   for (const [tag, tagName] of html.matchAll(/<([a-z][a-z0-9]*)\b[^>]*>/g)) {

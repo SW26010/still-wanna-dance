@@ -81,6 +81,9 @@ func (c *Console) beginVideoRequest(arrived time.Time) func() {
 }
 
 func (c *Console) changeHosts(action string) error {
+	if action == "enable" && !c.termsAccepted() {
+		return errors.New("请先阅读并同意使用条款")
+	}
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	err := changeHosts(action)

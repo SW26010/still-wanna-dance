@@ -2,6 +2,8 @@
 
 面向 VRChat WannaDance 的本地视频缓存服务项目。
 
+**软件开源许可不代表视频、音乐等第三方内容授权。** 内容可访问、可下载或已缓存，不当然意味着允许复制、传播或商业使用。请阅读[使用条款与内容权利声明](internal/legal/TERMS.txt)，仅在具有必要授权或其他合法依据时使用相关内容。MIT 软件许可保持不变。桌面版首次使用及条款更新后须明确同意；独立命令行服务须先阅读 `-show-terms`，同意后传入对应版本的 `-accept-terms`。
+
 使用 Go 实现，提供 Windows 托盘和本地网页控制台，支持 HTTP 视频缓存、冷缓存边下边播、完整性校验、Range/HEAD、同资源并发合并及统一版本存储。桌面版使用方式见[本地控制台](docs/console.md)，独立服务见[命令行服务手册](docs/service.md)，实网、原版回读及 VRChat 联合测试的结果和边界见[验收记录](docs/acceptance.md)。
 
 桌面控制台的本地缓存服务（界面称「CDN」）同时提供 HTTP 播放 API／视频缓存与 HTTPS 透传，兼容 hosts 接入后的网页播放。HTTPS 保留原站证书与原线路，不解密或使用本地缓存。API 查询、下载、测速和 HTTPS 透传共用上游连接设置：默认内置 DoH 直连，也可指定 SOCKS5 代理并将目标域名解析交给代理；代理失败不回退直连。详见[上游连接](docs/console.md#上游连接)及[网页 HTTPS 播放](docs/console.md#网页-https-播放)。

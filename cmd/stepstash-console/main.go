@@ -21,6 +21,7 @@ import (
 	"stepstash/internal/applog"
 	"stepstash/internal/console"
 	"stepstash/internal/desktop"
+	"stepstash/internal/legal"
 )
 
 var visibleErrors = runtime.GOOS == "windows"
@@ -49,10 +50,21 @@ func run() (runErr error) {
 	action := flag.String("hosts-action", "", "internal elevated helper: enable or disable")
 	noTray := flag.Bool("no-tray", runtime.GOOS != "windows", "run without the Windows tray")
 	noOpen := flag.Bool("no-open", false, "do not open the browser on launch")
+	showTerms := flag.Bool("show-terms", false, "print usage terms and exit")
+	acceptTerms := flag.String("accept-terms", "", "terms version for the internal hosts helper")
 	flag.Parse()
+	if *showTerms {
+		fmt.Print(legal.Text)
+		return nil
+	}
 	visibleErrors = runtime.GOOS == "windows" && !*noTray && *action == ""
 	// The short-lived elevated helper bypasses desktop election.
 	if *action != "" {
+		if *action == "enable" {
+			if err := legal.CheckAcceptance(*acceptTerms); err != nil {
+				return err
+			}
+		}
 		if err := console.ApplyHosts(*action); err != nil {
 			return err
 		}

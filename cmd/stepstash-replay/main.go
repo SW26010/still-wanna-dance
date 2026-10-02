@@ -10,12 +10,23 @@ import (
 	"path/filepath"
 	"reflect"
 
+	"stepstash/internal/legal"
 	"stepstash/internal/vrclog"
 )
 
 func main() {
+	showTerms := flag.Bool("show-terms", false, "print usage terms and exit")
+	acceptTerms := flag.String("accept-terms", "", "explicitly accept the terms version shown by -show-terms")
 	dir := flag.String("logs", "", "directory containing output_log_*.txt (read only)")
 	flag.Parse()
+	if *showTerms {
+		fmt.Print(legal.Text)
+		return
+	}
+	if err := legal.CheckAcceptance(*acceptTerms); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
 	if *dir == "" {
 		fmt.Fprintln(os.Stderr, "-logs is required")
 		os.Exit(2)

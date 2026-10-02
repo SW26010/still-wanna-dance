@@ -15,6 +15,7 @@ import (
 
 	"stepstash/internal/cacheproxy"
 	"stepstash/internal/console"
+	"stepstash/internal/legal"
 )
 
 func main() {
@@ -25,6 +26,8 @@ func main() {
 }
 
 func run() (resultErr error) {
+	showTerms := flag.Bool("show-terms", false, "print usage terms and exit")
+	acceptTerms := flag.String("accept-terms", "", "explicitly accept the terms version shown by -show-terms")
 	cfg := cacheproxy.DefaultConfig()
 	cfg.DialContext = console.NewUpstreamDialer()
 	socks5Address := flag.String("socks5-proxy", "", "SOCKS5 proxy host:port; delegates destination DNS to proxy; empty uses built-in DoH directly")
@@ -39,6 +42,13 @@ func run() (resultErr error) {
 	flag.Int64Var(&cfg.MaxCacheBytes, "max-cache-bytes", cfg.MaxCacheBytes, "retained video limit in bytes; 0 is unlimited; excludes temporary files and database")
 	flag.IntVar(&cfg.RequestRetentionDays, "request-retention-days", cfg.RequestRetentionDays, "request detail retention in days; 0 is unlimited (summaries are always retained)")
 	flag.Parse()
+	if *showTerms {
+		fmt.Print(legal.Text)
+		return nil
+	}
+	if err := legal.CheckAcceptance(*acceptTerms); err != nil {
+		return err
+	}
 	if flag.NArg() != 0 {
 		return fmt.Errorf("unexpected positional arguments")
 	}

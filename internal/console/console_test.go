@@ -28,6 +28,9 @@ func testConsole(t *testing.T) *Console {
 		t.Fatal(err)
 	}
 	c.checksumURL = ""
+	if err := c.acceptTerms(); err != nil {
+		t.Fatal(err)
+	}
 	c.settings.StorageDir = filepath.Join(root, "data")
 	c.settings.LogDir = filepath.Join(root, "logs")
 	c.settings.ManualLogDir = true

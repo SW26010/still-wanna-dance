@@ -25,6 +25,7 @@ Thumbs.db
 /coverage.out
 /stepstash-console.json
 /stepstash-console.json.lock
+*.terms.json
 *.test
 *.sqlite
 *.sqlite-wal

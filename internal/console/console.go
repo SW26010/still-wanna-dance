@@ -52,9 +52,10 @@ type Settings struct {
 }
 
 type Console struct {
-	activationMu         sync.Mutex // rejects duplicate wizard submissions, including across tabs
-	activation           Activation // protected by mu; never persisted
-	activationGeneration uint64     // protected by mu; distinguishes same-clock-tick retries
+	terms                termsReceipt // protected by mu; separate from editable settings
+	activationMu         sync.Mutex   // rejects duplicate wizard submissions, including across tabs
+	activation           Activation   // protected by mu; never persisted
+	activationGeneration uint64       // protected by mu; distinguishes same-clock-tick retries
 	// Acquire lifecycleMu before mu; state readers never wait on lifecycleMu.
 	lifecycleMu         sync.Mutex
 	queueUpdateMu       sync.Mutex // acquire before mu; serializes engine queue protection
@@ -115,6 +116,9 @@ func New(configPath, address string) (*Console, error) {
 		return nil, err
 	}
 	c.settings, err = c.resolveSettings(c.settings)
+	if err == nil {
+		err = c.loadTerms()
+	}
 	if err == nil {
 		c.upstreamDial, c.client, err = c.networkFor(c.settings)
 	}
@@ -394,6 +398,9 @@ func (c *Console) ensureEngine() error {
 
 // AutoStart triggers the same start operation as the CDN button at process launch.
 func (c *Console) AutoStart() {
+	if !c.termsAccepted() {
+		return
+	}
 	c.mu.Lock()
 	enabled := c.settings.AutoStartCDN
 	c.mu.Unlock()
@@ -410,6 +417,9 @@ func (c *Console) start() (err error) {
 }
 
 func (c *Console) startLocked() (err error) {
+	if !c.termsAccepted() {
+		return errors.New("请先打开控制台阅读并同意使用条款")
+	}
 	defer func() {
 		if err != nil {
 			c.mu.Lock()
@@ -572,6 +582,9 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Reject DNS rebinding and cross-origin writes; no external page can obtain the token.
 	if r.Host != c.address {
 		http.Error(w, "invalid host", 403)
+		return
+	}
+	if c.serveTerms(w, r) {
 		return
 	}
 	if r.Method == "GET" && r.URL.Path == "/" {

@@ -9,7 +9,7 @@ try {
     $exe = @(Get-ChildItem -LiteralPath $root -Recurse -Filter stepstash-console.exe)
     if ($exe.Count -ne 1) { throw 'Expected exactly one desktop executable.' }
     $folder = $exe[0].DirectoryName
-    foreach ($name in @('LICENSE', 'THIRD-PARTY-NOTICES.txt')) {
+    foreach ($name in @('LICENSE', 'THIRD-PARTY-NOTICES.txt', 'TERMS.txt')) {
         $file = Join-Path $folder $name
         if (!(Test-Path -LiteralPath $file -PathType Leaf) -or (Get-Item -LiteralPath $file).Length -eq 0) {
             throw "Missing or empty license file: $name"
@@ -36,10 +36,14 @@ try {
     $status = $null
     for ($i = 0; $i -lt 40; $i++) {
         if ($process.HasExited) { throw "Portable process exited: $($process.ExitCode)" }
-        try { $status = Invoke-RestMethod "$url/api/status" -TimeoutSec 1; break } catch { Start-Sleep -Milliseconds 250 }
+        try { $status = Invoke-WebRequest "$url/" -UseBasicParsing -TimeoutSec 1; break } catch { Start-Sleep -Milliseconds 250 }
     }
     if ($null -eq $status) { throw 'Portable startup timed out.' }
-    if ($status.settings.storageDir -ne (Join-Path $folder 'stepstash-data')) { throw 'Storage path is not relative to the executable.' }
+    if ($status.Content -notmatch 'id="consent"') { throw 'Fresh install did not require consent.' }
+    $gate = Invoke-WebRequest "$url/api/status" -SkipHttpErrorCheck
+    if ([int]$gate.StatusCode -ne 428) { throw 'API was accessible before consent.' }
+    $servedTerms = Invoke-WebRequest "$url/terms.txt" -UseBasicParsing
+    if ($servedTerms.Content -cne [IO.File]::ReadAllText((Join-Path $folder 'TERMS.txt'))) { throw 'Packaged and embedded terms differ.' }
     if (!(Test-Path -LiteralPath (Join-Path $folder 'stepstash-console.json.lock'))) { throw 'Config lock missing beside executable.' }
     $page = Invoke-WebRequest $url -UseBasicParsing
     if ($page.Content -notmatch 'StepStash') { throw 'Embedded UI missing.' }
@@ -51,7 +55,7 @@ try {
     }
     if ($records.Count -ne $startupEvents.Count) { throw 'Read-only status/UI requests should not generate log records.' }
     if ($process.HasExited) { throw 'Portable process did not remain alive.' }
-    Write-Host 'Portable smoke passed: ZIP extraction, independent launch directory, executable-relative settings, embedded UI, JSON logs.'
+    Write-Host 'Portable smoke passed: ZIP extraction, independent launch directory, config lock, consent gate, matching terms, embedded UI, JSON logs.'
 } finally {
     if ($null -ne $process -and !$process.HasExited) { $process.Kill(); $process.WaitForExit() }
     # Keep the isolated extraction for inspection; never touch an existing installation.

@@ -1,5 +1,10 @@
 StepStash — Windows x64 portable
 
+首次使用请阅读随包 TERMS.txt，在控制台主动确认内容权利声明并同意完整条款。
+MIT 仅授权软件，不授予视频、音乐等第三方内容的下载、传播或商业使用权。
+未同意或条款更新后未重新确认时，不会自动启动缓存或下载；仍可恢复 hosts。
+本机确认记录保存在 stepstash-console.json.terms.json，不证明用户身份或内容授权。
+
 1. 将 ZIP 完整解压到可写目录（例如 D:\Apps\StepStash），不要直接从压缩包内运行。
 2. 双击 stepstash-console.exe。程序显示托盘图标，并打开本地浏览器控制台。
    无需 CMD / PS1 启动脚本，也不需要安装 Go、Node.js 或其他运行库。

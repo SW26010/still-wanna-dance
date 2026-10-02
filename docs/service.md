@@ -10,7 +10,9 @@
 go test ./internal/... ./cmd/...
 go vet ./internal/... ./cmd/...
 go build -o bin/stepstash.exe ./cmd/stepstash
-.\bin\stepstash.exe -listen 127.0.0.1:18080 -storage-dir .\stepstash-data
+.\bin\stepstash.exe -show-terms
+# 阅读全文并同意后再执行；软件许可不授予第三方视频内容权利。
+.\bin\stepstash.exe -accept-terms=2026-10-02.1 -listen 127.0.0.1:18080 -storage-dir .\stepstash-data
 ```
 
 默认监听 `127.0.0.1:18080`，默认目录相对于启动时的工作目录。Ctrl+C 取消后台下载，清理临时文件并关闭服务。启动不修改 hosts、不改代理，会清理已被取代的旧版本。所有日志为 stderr 上的 JSON。

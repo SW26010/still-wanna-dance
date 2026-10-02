@@ -11,7 +11,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read Git revision.' }
     $changes = & git status --porcelain
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read Git status.' }
-    node --test scripts/refresh.test.mjs
+    node --test scripts/refresh.test.mjs scripts/navigation.test.mjs scripts/terms.test.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Frontend tests failed.' }
     go test ./...
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
@@ -28,6 +28,7 @@ try {
     & "$PSScriptRoot/build-desktop.ps1" -Output (Join-Path $folder 'stepstash-console.exe')
     Copy-Item -LiteralPath 'docs/portable-readme.txt' -Destination (Join-Path $folder 'README.txt')
     Copy-Item -LiteralPath 'LICENSE' -Destination (Join-Path $folder 'LICENSE')
+    Copy-Item -LiteralPath 'internal/legal/TERMS.txt' -Destination (Join-Path $folder 'TERMS.txt')
     & "$PSScriptRoot/package-notices.ps1" -Executable (Join-Path $folder 'stepstash-console.exe') -Output (Join-Path $folder 'THIRD-PARTY-NOTICES.txt')
     $goVersion = & go version
     $metadata = [ordered]@{

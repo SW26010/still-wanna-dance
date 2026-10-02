@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"stepstash/internal/legal"
 	"strings"
 	"syscall"
 )
@@ -27,7 +28,7 @@ func changeHosts(action string) error {
 	if err != nil {
 		return err
 	}
-	script := "$p = Start-Process -FilePath '" + strings.ReplaceAll(exe, "'", "''") + "' -ArgumentList '-hosts-action', '" + action + "' -Verb RunAs -WindowStyle Hidden -Wait -PassThru; exit $p.ExitCode"
+	script := "$p = Start-Process -FilePath '" + strings.ReplaceAll(exe, "'", "''") + "' -ArgumentList '-hosts-action', '" + action + "', '-accept-terms', '" + legal.Version + "' -Verb RunAs -WindowStyle Hidden -Wait -PassThru; exit $p.ExitCode"
 	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	if out, err := cmd.CombinedOutput(); err != nil {

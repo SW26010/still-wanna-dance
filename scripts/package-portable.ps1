@@ -13,23 +13,23 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read Git status.' }
     node --test scripts/refresh.test.mjs scripts/navigation.test.mjs scripts/terms.test.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Frontend tests failed.' }
-    go test ./...
+    go test ./cmd/... ./internal/...
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
-    go vet ./...
+    go vet ./cmd/... ./internal/...
     if ($LASTEXITCODE -ne 0) { throw 'Go vet failed.' }
     $destination = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDir)
-    $name = "StepStash-$Version-windows-amd64-portable"
+    $name = "still-wanna-dance-$Version-windows-amd64-portable"
     $folder = Join-Path $destination $name
     $zip = "$folder.zip"
     foreach ($path in @($folder, $zip, "$zip.sha256")) {
         if (Test-Path -LiteralPath $path) { throw "Output already exists: $path. Choose another version or output directory." }
     }
     New-Item -ItemType Directory -Path $folder -Force | Out-Null
-    & "$PSScriptRoot/build-desktop.ps1" -Output (Join-Path $folder 'stepstash-console.exe')
+    & "$PSScriptRoot/build-desktop.ps1" -Output (Join-Path $folder 'still-wanna-dance-console.exe')
     Copy-Item -LiteralPath 'docs/portable-readme.txt' -Destination (Join-Path $folder 'README.txt')
     Copy-Item -LiteralPath 'LICENSE' -Destination (Join-Path $folder 'LICENSE')
     Copy-Item -LiteralPath 'internal/legal/TERMS.txt' -Destination (Join-Path $folder 'TERMS.txt')
-    & "$PSScriptRoot/package-notices.ps1" -Executable (Join-Path $folder 'stepstash-console.exe') -Output (Join-Path $folder 'THIRD-PARTY-NOTICES.txt')
+    & "$PSScriptRoot/package-notices.ps1" -Executable (Join-Path $folder 'still-wanna-dance-console.exe') -Output (Join-Path $folder 'THIRD-PARTY-NOTICES.txt')
     $goVersion = & go version
     $metadata = [ordered]@{
         version = $Version

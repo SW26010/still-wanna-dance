@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"stepstash/internal/cacheproxy"
+	"still-wanna-dance/internal/cacheproxy"
 )
 
 func TestCurrentVersionFollowsConfiguredAuthority(t *testing.T) {

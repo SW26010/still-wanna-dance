@@ -86,7 +86,7 @@ function renderTraffic(t) {
 
 function renderService(s) {
   setText('portText', s.running
-    ? 'StepStash 正在监听'
+    ? 'Still Wanna Dance 正在监听'
     : s.portOK
       ? '端口可用，可以启动'
       : s.portOwner
@@ -376,7 +376,7 @@ async function action(path, body) {
         : path === 'settings'
           ? '设置已保存，将用于下一次启动的服务或任务。'
           : path === 'hosts/disable'
-            ? '已移除 StepStash 添加的 hosts 映射。其他已有映射保持不变。'
+            ? '已移除 Still Wanna Dance 添加的 hosts 映射。其他已有映射保持不变。'
             : '操作已完成。',
     );
   } catch (e) {

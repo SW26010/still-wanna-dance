@@ -9,27 +9,27 @@
 ```powershell
 go test ./internal/... ./cmd/...
 go vet ./internal/... ./cmd/...
-go build -o bin/stepstash.exe ./cmd/stepstash
-.\bin\stepstash.exe -show-terms
+go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
+.\bin\still-wanna-dance.exe -show-terms
 # 阅读全文并同意后再执行；软件许可不授予第三方视频内容权利。
-.\bin\stepstash.exe -accept-terms=2026-10-02.1 -listen 127.0.0.1:18080 -storage-dir .\stepstash-data
+.\bin\still-wanna-dance.exe -accept-terms=2026-10-03.1 -listen 127.0.0.1:18080 -storage-dir .\still-wanna-dance-data
 ```
 
 默认监听 `127.0.0.1:18080`，默认目录相对于启动时的工作目录。Ctrl+C 取消后台下载，清理临时文件并关闭服务。启动不修改 hosts、不改代理，会清理已被取代的旧版本。所有日志为 stderr 上的 JSON。
 
-验证 HTTP 请求时须使用视频 Host 和有效的完整 URL，例如保留 API 返回的真实路径、e、s，通过 curl 的 `--resolve play.udon.dance:18080:127.0.0.1` 访问 `http://play.udon.dance:18080/files/...`。直接访问 localhost 首页会得到 400，此命令行入口不提供网页界面；网页和托盘入口为 `stepstash-console.exe`。
+验证 HTTP 请求时须使用视频 Host 和有效的完整 URL，例如保留 API 返回的真实路径、e、s，通过 curl 的 `--resolve play.udon.dance:18080:127.0.0.1` 访问 `http://play.udon.dance:18080/files/...`。直接访问 localhost 首页会得到 400，此命令行入口不提供网页界面；网页和托盘入口为 `still-wanna-dance-console.exe`。
 
 统一存储位于 `-storage-dir` 指定的根目录：`videos/<资源指纹>.mp4` 是唯一正式视频，`tmp` 保存下载临时文件，`stepstash.sqlite` 保存歌曲、版本和请求统计。不读取旧格式，不提供迁移。详见[统一存储](storage.md)。
 
 ## 游戏接入
 
-1. 先停止占用本机 80 端口的原版服务，再以 `-listen 127.0.0.1:80` 启动 StepStash；需要时在有相应权限的终端运行。
+1. 先停止占用本机 80 端口的原版服务，再以 `-listen 127.0.0.1:80` 启动 Still Wanna Dance；需要时在有相应权限的终端运行。
 2. 备份 hosts，将 `play.udon.dance`、`nya.xin.moe` 映射到 `127.0.0.1`，接管 HTTP 视频请求。若还需接管 HTTP 播放 API，可额外映射 `api.udon.dance`。
 3. 选择 CF 或 HKG。CLI 将播放 API 的查询参数传给 HTTPS 上游；未指定 node 时由上游决定视频地址。测试后恢复 hosts 并停止服务。
 
-本页 `stepstash.exe` 命令行入口支持 HTTP 视频请求及 `api.udon.dance/Api/Songs/play?id=…` 的 GET/HEAD，接受省略 node、`node=cf` 或 `node=nya`。它通过 HTTPS 获取上游视频地址，按资源指纹命中缓存或边下边播，直接以 HTTP 返回视频，支持单段 Range。游戏入口须使用 HTTP，播放器须接受 API 地址直接返回视频；游戏内兼容性仍待实测。其他 API 路径的 GET/HEAD 返回 307，指向原站 HTTPS。
+本页 `still-wanna-dance.exe` 命令行入口支持 HTTP 视频请求及 `api.udon.dance/Api/Songs/play?id=…` 的 GET/HEAD，接受省略 node、`node=cf` 或 `node=nya`。它通过 HTTPS 获取上游视频地址，按资源指纹命中缓存或边下边播，直接以 HTTP 返回视频，支持单段 Range。游戏入口须使用 HTTP，播放器须接受 API 地址直接返回视频；游戏内兼容性仍待实测。其他 API 路径的 GET/HEAD 返回 307，指向原站 HTTPS。
 
-CLI 不监听 443，也不支持 `/v/` 或 SHA。hosts 同时影响 HTTP/HTTPS，因此映射后的域名若被客户端通过 HTTPS 访问（包括上述 307），CLI 单独运行无法承接该连接。需要同时兼容网页 HTTPS 播放时，使用 `stepstash-console.exe`：其 CDN 同时启动 HTTP 缓存和 HTTPS 透传，详见[本地控制台](console.md#网页-https-播放)。透传不使用本地缓存。更详细的原版接入记录见[复现手册](testing-runbook.md)，其中原版命令不能直接当作 StepStash 命令使用。
+CLI 不监听 443，也不支持 `/v/` 或 SHA。hosts 同时影响 HTTP/HTTPS，因此映射后的域名若被客户端通过 HTTPS 访问（包括上述 307），CLI 单独运行无法承接该连接。需要同时兼容网页 HTTPS 播放时，使用 `still-wanna-dance-console.exe`：其 CDN 同时启动 HTTP 缓存和 HTTPS 透传，详见[本地控制台](console.md#网页-https-播放)。透传不使用本地缓存。更详细的原版接入记录见[复现手册](testing-runbook.md)，其中原版命令不能直接当作 Still Wanna Dance 命令使用。
 
 ## 缓存和下载规则
 
@@ -103,8 +103,8 @@ FROM resource_usage ORDER BY last_requested_at DESC;
 | --- | --- |
 | `-listen` | `127.0.0.1:18080` |
 | `-socks5-proxy` | 空，使用内置 DoH 直连；填写 `127.0.0.1:7891` 等 `host:port` 后，上游连接及目标 DNS 交给 SOCKS5，不回退直连 |
-| `-socks5-username` | 空，无认证；填写用户名时须设置密码环境变量 `STEPSTASH_SOCKS5_PASSWORD`，两者各限 1～255 字节 |
-| `-storage-dir` | `stepstash-data` |
+| `-socks5-username` | 空，无认证；填写用户名时须设置密码环境变量 `STILL_WANNA_DANCE_SOCKS5_PASSWORD`，两者各限 1～255 字节 |
+| `-storage-dir` | `still-wanna-dance-data` |
 | `-cf-origin` | `play.udon.dance:443` |
 | `-hkg-origin` | `nya.xin.moe:443` |
 | `-download-timeout` | `10m`，限制共享工作任务（含其中的缓存校验、下载和发布）；不限制额度用尽时的独立本地校验路径 |
@@ -115,9 +115,9 @@ FROM resource_usage ORDER BY last_requested_at DESC;
 
 回源参数是 HTTPS 服务的 TCP `host:port`，不是 URL；修改端口不会切换成 HTTP。自定义地址在直连模式下通过内置 DoH 解析，在代理模式下交给 SOCKS5；两者均验证对应视频原域名的证书。不要将回源地址配置到本服务。默认仅用于本机；无鉴权，不建议监听公网地址。配置受信任，外部请求不能任意指定回源目标。
 
-代理启动示例：`stepstash.exe -socks5-proxy 127.0.0.1:7891`。播放 API 查询、元数据检查、测速与视频下载均使用此出口；目标域名直接交给代理，StepStash 不负责代理端 DNS 的实现。该参数不修改系统代理，也不改变播放器到本地服务的连接。
+代理启动示例：`still-wanna-dance.exe -socks5-proxy 127.0.0.1:7891`。播放 API 查询、元数据检查、测速与视频下载均使用此出口；目标域名直接交给代理，Still Wanna Dance 不负责代理端 DNS 的实现。该参数不修改系统代理，也不改变播放器到本地服务的连接。
 
-需要认证时，向进程提供 `STEPSTASH_SOCKS5_PASSWORD` 环境变量，并添加 `-socks5-username your-user`。密码不作为命令行参数，也不会由命令行服务保存到配置文件。认证失败返回错误，不回退直连。
+需要认证时，向进程提供 `STILL_WANNA_DANCE_SOCKS5_PASSWORD` 环境变量，并添加 `-socks5-username your-user`。密码不作为命令行参数，也不会由命令行服务保存到配置文件。认证失败返回错误，不回退直连。
 
 ## 验证范围
 

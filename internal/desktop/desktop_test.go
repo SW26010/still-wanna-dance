@@ -48,7 +48,7 @@ func TestElectionWaitsForOwnerAndRecovers(t *testing.T) {
 }
 
 func TestProbeOnlyActivatesOurIdentity(t *testing.T) {
-	for _, body := range []string{`{"app":"stepstash-console","protocol":1}`, `{"app":"other","protocol":1}`, `<title>StepStash</title>`, `{"app":"stepstash-console","protocol":2}`} {
+	for _, body := range []string{`{"app":"stepstash-console","protocol":1}`, `{"app":"other","protocol":1}`, `<title>Still Wanna Dance</title>`, `{"app":"stepstash-console","protocol":2}`} {
 		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/api/identity" {
 				t.Error(r.URL.Path)

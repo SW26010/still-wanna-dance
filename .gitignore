@@ -18,15 +18,20 @@ processes.json
 Thumbs.db
 .DS_Store
 
-# StepStash runtime/build outputs
-/stepstash-data/
+# Still Wanna Dance runtime/build outputs
+/still-wanna-dance-data/
 /stepstash-cache/
 /bin/
 /coverage.out
-/stepstash-console.json
-/stepstash-console.json.lock
+/still-wanna-dance-console.json
+/still-wanna-dance-console.json.lock
 *.terms.json
 *.test
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+
+# Legacy installations remain supported
+/stepstash-data/
+/stepstash-console.json
+/stepstash-console.json.lock

@@ -10,7 +10,7 @@ import (
 	"sort"
 	"time"
 
-	"stepstash/internal/applog"
+	"still-wanna-dance/internal/applog"
 )
 
 type routeHealth struct {

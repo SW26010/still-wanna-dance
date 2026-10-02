@@ -30,7 +30,7 @@
     document.getElementById('pageLabel').textContent = label;
     document.getElementById('pageTitle').textContent = title;
     document.getElementById('pageDescription').textContent = description;
-    document.title = label + ' · StepStash';
+    document.title = label + ' · Still Wanna Dance';
     if (!target && hash !== '/' + page) window.history.replaceState(null, '', '#/' + page);
     if (!initial && (changed || target)) (target || document.getElementById('main')).focus();
     if (target) target.scrollIntoView();

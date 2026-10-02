@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"stepstash/internal/applog"
+	"still-wanna-dance/internal/applog"
 )
 
 // Certificate-verified DoH never consults OS hosts or plaintext DNS.

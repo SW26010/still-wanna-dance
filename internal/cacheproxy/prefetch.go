@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"stepstash/internal/applog"
+	"still-wanna-dance/internal/applog"
 )
 
 // Prefetch uses exactly the same validation, shared downloads and publication as playback.

@@ -20,7 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"stepstash/internal/applog"
+	"still-wanna-dance/internal/applog"
 )
 
 var videoPath = regexp.MustCompile(`^/files/[0-9]+/([1-9][0-9]*)-([a-zA-Z0-9]+)\.mp4$`)

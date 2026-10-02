@@ -1,6 +1,6 @@
-StepStash third-party notices
+Still Wanna Dance third-party notices
 
-StepStash is licensed under the MIT License in LICENSE. Third-party components
+Still Wanna Dance is licensed under the MIT License in LICENSE. Third-party components
 retain their own copyright and license terms, reproduced below.
 This source inventory covers all modules in go.mod, including indirect modules;
 some modules or subcomponents may not be linked on every target. Release packages

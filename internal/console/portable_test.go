@@ -18,7 +18,7 @@ func TestPortableSettingsMove(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.settings.StorageDir != filepath.Join(original, "stepstash-data") {
+	if c.settings.StorageDir != filepath.Join(original, "still-wanna-dance-data") {
 		t.Fatal(c.settings)
 	}
 	if err := c.save(Settings{StorageDir: "data", LogDir: external, ManualLogDir: true}); err != nil {

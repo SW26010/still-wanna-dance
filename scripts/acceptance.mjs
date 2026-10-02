@@ -1,5 +1,5 @@
 // Opt-in real-network acceptance. All downloads and reports stay under test-runs.
-// node scripts/acceptance.mjs [stepstash-executable] [console-executable]
+// node scripts/acceptance.mjs [service-executable] [console-executable]
 import fs from 'node:fs';
 import path from 'node:path';
 import net from 'node:net';
@@ -11,8 +11,8 @@ import { AcceptanceBlocked, videoRedirect } from './acceptance-protocol.mjs';
 
 const [executable, consoleExecutable] = process.argv.slice(2);
 const root = process.cwd();
-const binary = path.resolve(executable || path.join(root, 'bin', 'stepstash.exe'));
-const consoleBinary = path.resolve(consoleExecutable || path.join(root, 'bin', 'stepstash-console.exe'));
+const binary = path.resolve(executable || path.join(root, 'bin', 'still-wanna-dance.exe'));
+const consoleBinary = path.resolve(consoleExecutable || path.join(root, 'bin', 'still-wanna-dance-console.exe'));
 const lab = path.join(root, 'test-runs', `acceptance-${Date.now()}`);
 fs.mkdirSync(lab, { recursive: true });
 const report = { started: new Date().toISOString(), checks: [] };
@@ -61,7 +61,7 @@ async function stop(child) {
   }
   children.delete(child);
 }
-async function stepstash(name, storageDir) {
+async function startService(name, storageDir) {
   const port = await freePort();
   const child = await launch(binary, ['-listen', `127.0.0.1:${port}`,
     '-storage-dir', storageDir, '-download-timeout', '5m'], name, port);
@@ -172,7 +172,7 @@ try {
     const songs = path.join(lab, 'storage');
     let service;
     const cached = [];
-    service = await stepstash('cold', songs);
+    service = await startService('cold', songs);
     for (const id of ['1343', '1344']) {
       if (!urls[id]) {
         record(`video-chain-${id}`, { outcome: 'blocked', category: 'dependency', reason: 'No supported upstream video URL' });
@@ -201,7 +201,7 @@ try {
       });
     }
     await stop(service.child);
-    service = await stepstash('restart', songs);
+    service = await startService('restart', songs);
     for (const id of cached) await check(`restart-${id}`, async () => {
       const res = await request(urls[id].toString(), { port: service.port, method: 'HEAD' });
       record(`restart-${id}-response`, evidence(res));

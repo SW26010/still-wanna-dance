@@ -7,8 +7,8 @@ $source = Join-Path (Split-Path -Parent $PSScriptRoot) 'THIRD-PARTY-NOTICES.txt'
 $notices = [IO.File]::ReadAllText($source)
 $info = @(& go version -m $Executable)
 if ($LASTEXITCODE -ne 0) { throw 'Cannot read executable dependency metadata.' }
-if (@($info | Where-Object { $_ -match '^\s+path\s+stepstash/cmd/stepstash-console$' }).Count -ne 1) {
-    throw 'Expected a StepStash desktop executable.'
+if (@($info | Where-Object { $_ -match '^\s+path\s+still-wanna-dance/cmd/still-wanna-dance-console$' }).Count -ne 1) {
+    throw 'Expected a Still Wanna Dance desktop executable.'
 }
 foreach ($line in $info) {
     if ($line -match '^\s+=>') { throw 'Replacement modules require a license review before packaging.' }

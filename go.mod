@@ -1,4 +1,4 @@
-module stepstash
+module still-wanna-dance
 
 go 1.25.0
 

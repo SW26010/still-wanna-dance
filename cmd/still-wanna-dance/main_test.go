@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"stepstash/internal/cacheproxy"
+	"still-wanna-dance/internal/cacheproxy"
 )
 
 // net.Pipe has no socket buffering: a peer that does not read reliably blocks
@@ -107,5 +107,23 @@ func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	}
 	if events != 1 || gets != 1 {
 		t.Fatalf("statistics not flushed: events=%d gets=%d", events, gets)
+	}
+}
+
+func TestSOCKS5PasswordAlias(t *testing.T) {
+	t.Setenv("STEPSTASH_SOCKS5_PASSWORD", "legacy")
+	t.Setenv("STILL_WANNA_DANCE_SOCKS5_PASSWORD", "current")
+	if got := socks5Password(); got != "current" {
+		t.Fatal("new variable must win")
+	}
+	t.Setenv("STILL_WANNA_DANCE_SOCKS5_PASSWORD", "")
+	if got := socks5Password(); got != "" {
+		t.Fatal("explicit empty must not fall back")
+	}
+	if err := os.Unsetenv("STILL_WANNA_DANCE_SOCKS5_PASSWORD"); err != nil {
+		t.Fatal(err)
+	}
+	if got := socks5Password(); got != "legacy" {
+		t.Fatal("legacy fallback missing")
 	}
 }

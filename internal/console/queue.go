@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"stepstash/internal/applog"
-	"stepstash/internal/cacheproxy"
-	"stepstash/internal/vrclog"
+	"still-wanna-dance/internal/applog"
+	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/vrclog"
 )
 
 type QueueStatus struct {

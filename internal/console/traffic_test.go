@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"stepstash/internal/cacheproxy"
+	"still-wanna-dance/internal/cacheproxy"
 )
 
 func TestTrafficWithoutRunningCDN(t *testing.T) {

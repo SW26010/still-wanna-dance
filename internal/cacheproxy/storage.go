@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"stepstash/internal/applog"
+	"still-wanna-dance/internal/applog"
 )
 
 func (c Config) videosDir() string { return filepath.Join(c.StorageDir, "videos") }

@@ -50,16 +50,16 @@ Windows 桌面版构建、启动（托盘驻留，无命令行黑窗）：
 
 ```powershell
 .\scripts\build-desktop.ps1
-.\bin\stepstash-console.exe
+.\bin\still-wanna-dance-console.exe
 ```
 
-首次启动由系统分配空闲的本地控制端口（监听 `127.0.0.1:0`），并自动打开实际地址，`-no-open` 可禁止自动打开。关闭网页后仍在托盘运行。原有 `stepstash.exe` 命令行入口保持可用。
+首次启动由系统分配空闲的本地控制端口（监听 `127.0.0.1:0`），并自动打开实际地址，`-no-open` 可禁止自动打开。关闭网页后仍在托盘运行。原有 `still-wanna-dance.exe` 命令行入口保持可用。
 
 ## 托盘与实例避让
 
-托盘菜单包含打开控制台、启动 / 关闭 CDN、停止批量任务、退出 StepStash。鼠标或键盘激活图标均可打开控制台；菜单及悬浮提示跟随网页操作更新。Explorer 重建任务栏时重新注册托盘图标。
+托盘菜单包含打开控制台、启动 / 关闭 CDN、停止批量任务、退出 Still Wanna Dance。鼠标或键盘激活图标均可打开控制台；菜单及悬浮提示跟随网页操作更新。Explorer 重建任务栏时重新注册托盘图标。
 
-Windows 桌面入口使用会话级命名互斥锁 `Local\StepStash.Desktop.v1`，控制端口由系统自动分配。主实例在 `%LOCALAPPDATA%\StepStash\console-session-<会话 ID>.json` 记录实际地址和 PID；重复启动读取该会话记录并核对端口所属进程。重复启动不创建第二个服务或托盘，而是最多等待 5 秒，确认 `/api/identity` 属于 StepStash 后打开已有控制台。若首次启动者在就绪前崩溃，后启动者可重新竞争所有权；进程死亡不会留下永久实例锁。正常退出先删除地址记录再释放实例锁，新主实例启动时清除崩溃遗留记录。不会仅因为端口有人监听就打开未知服务。
+Windows 桌面入口使用会话级命名互斥锁 `Local\StepStash.Desktop.v1`，控制端口由系统自动分配。主实例在 `%LOCALAPPDATA%\StepStash\console-session-<会话 ID>.json` 记录实际地址和 PID；重复启动读取该会话记录并核对端口所属进程。重复启动不创建第二个服务或托盘，而是最多等待 5 秒，确认 `/api/identity` 匹配保留的 `stepstash-console` 协议身份 后打开已有控制台。若首次启动者在就绪前崩溃，后启动者可重新竞争所有权；进程死亡不会留下永久实例锁。正常退出先删除地址记录再释放实例锁，新主实例启动时清除崩溃遗留记录。不会仅因为端口有人监听就打开未知服务。
 
 配置文件还通过 `<配置路径>.lock` 在整个进程生命周期独占，防止自定义端口实例同时修改同一份设置。锁文件保留是正常现象；OS 在进程退出或崩溃时释放锁，不要运行时删除。缓存引擎对整个存储根目录加独占锁。
 
@@ -70,13 +70,13 @@ Windows 桌面入口使用会话级命名互斥锁 `Local\StepStash.Desktop.v1`�
 默认自动选择端口；也可用 `-listen 127.0.0.1:18082` 手动指定（托盘模式同样支持）。自定义控制端口及无托盘运行示例：
 
 ```powershell
-go build -o bin/stepstash-console-cli.exe ./cmd/stepstash-console
-.\bin\stepstash-console-cli.exe -no-tray -listen 127.0.0.1:18082 -config .\other-settings.json
+go build -o bin/still-wanna-dance-console-cli.exe ./cmd/still-wanna-dance-console
+.\bin\still-wanna-dance-console-cli.exe -no-tray -listen 127.0.0.1:18082 -config .\other-settings.json
 ```
 
 该模式不自动打开浏览器，不创建托盘，使用 Ctrl+C 退出。Linux 默认使用无托盘模式。配置独占及现有缓存独占规则仍然生效。
 
-设计参考 [dancing-log desktop_instance.py](https://github.com/SW26010/dancing-log/blob/c3fa28fa3b68879cb43513bc2cb53f1cc03fa1cc/dancing_log/desktop_instance.py)、[tray_app.py](https://github.com/SW26010/dancing-log/blob/c3fa28fa3b68879cb43513bc2cb53f1cc03fa1cc/dancing_log/tray_app.py) 和 [_win_tray.py](https://github.com/SW26010/dancing-log/blob/c3fa28fa3b68879cb43513bc2cb53f1cc03fa1cc/dancing_log/_win_tray.py) 的所有权、身份探测和统一退出机制。StepStash 以 Go / Win32 实现，无新增第三方运行依赖。
+设计参考 [dancing-log desktop_instance.py](https://github.com/SW26010/dancing-log/blob/c3fa28fa3b68879cb43513bc2cb53f1cc03fa1cc/dancing_log/desktop_instance.py)、[tray_app.py](https://github.com/SW26010/dancing-log/blob/c3fa28fa3b68879cb43513bc2cb53f1cc03fa1cc/dancing_log/tray_app.py) 和 [_win_tray.py](https://github.com/SW26010/dancing-log/blob/c3fa28fa3b68879cb43513bc2cb53f1cc03fa1cc/dancing_log/_win_tray.py) 的所有权、身份探测和统一退出机制。Still Wanna Dance 以 Go / Win32 实现，无新增第三方运行依赖。
 
 ## 服务与下载独立
 
@@ -117,7 +117,7 @@ go build -o bin/stepstash-console-cli.exe ./cmd/stepstash-console
 
 密码保存到本机配置文件（明文），不通过状态接口回传，不写入任务快照。页面只提示是否已保存；密码框留空保留已有密码，填写新值则替换；清空用户名和密码后保存可移除认证。切换回直连会保留认证配置，便于再次启用。设置 API 省略 `socks5Password` 时保留原值，显式发送空字符串则清除；用户名与密码须配对。变更凭据会重建网络客户端。
 
-API 查询、校验和清单、冷缓存播放、队列预缓存、下载补齐、选路测速和 HTTPS 透传均使用所选出口。代理模式把目标域名和端口直接交给 SOCKS5，不在 StepStash 中解析目标域名，不使用内置 DoH 或多 IP 直连，不检查代理端如何实现 DNS；代理不可用或拒绝连接时返回错误，不自动回退直连。原域名 Host、TLS SNI 和证书校验保持不变。代理服务器地址本身若填写域名，由本机网络解析；本地代理推荐填写 `127.0.0.1`。
+API 查询、校验和清单、冷缓存播放、队列预缓存、下载补齐、选路测速和 HTTPS 透传均使用所选出口。代理模式把目标域名和端口直接交给 SOCKS5，不在 Still Wanna Dance 中解析目标域名，不使用内置 DoH 或多 IP 直连，不检查代理端如何实现 DNS；代理不可用或拒绝连接时返回错误，不自动回退直连。原域名 Host、TLS SNI 和证书校验保持不变。代理服务器地址本身若填写域名，由本机网络解析；本地代理推荐填写 `127.0.0.1`。
 
 停止 CDN 和批量任务后保存即可切换，无需重启控制台。保存会重建上游客户端及缓存引擎，清除旧连接和选路测速状态；已开始的库存覆盖率查询允许使用原客户端完成，之后的新请求使用新设置。旧配置默认直连，切回直连会保留代理地址方便再次启用。CF/HKG/Auto 仍决定视频源站，测速经过当前所选出口；完整缓存的本地读取不经过代理。
 
@@ -166,7 +166,7 @@ DNSPod 和 360 的入口发现只通过具备固定引导 IP 的 DoH 服务进�
 
 修改和恢复是独立操作。只有实际需要修改时才通过 Windows UAC 启动短命提权助手；正常启动控制台、CDN 和下载不请求 UAC。
 
-- 添加播放 API 域名和两个视频域名到 `127.0.0.1`，使用 `# StepStash managed` 标记。
+- 添加播放 API 域名和两个视频域名到 `127.0.0.1`，使用 `# Still Wanna Dance managed` 标记，恢复时也识别旧 `# StepStash managed` 标记。
 - 已有正确映射直接复用；已有冲突映射时拒绝覆盖并提示检查。
 - 首次修改前保存 hosts 同目录的 `hosts.stepstash-backup`。恢复只移除本程序的精确标记条目，保留其他配置，不整文件回滚；条目被其他工具改写时提示人工检查。
 - 退出或关闭 CDN 不恢复 hosts。CDN 停止后如需直连上游，应点击恢复；其他工具原有映射需由对应工具恢复。
@@ -176,14 +176,14 @@ DNSPod 和 360 的入口发现只通过具备固定引导 IP 的 DoH 服务进�
 
 填写一个存储根目录并保存；不读取旧歌曲库或提供迁移。运行 CDN 或批量任务时不能修改目录，保存时检查存储目录可写性。尚未启动引擎的新建空目录可直接扫描，显示零视频、零占用；已初始化目录丢失视频目录或无法读取时仍报错并保留上次结果。VRChat 日志目录不创建或修改。
 
-Windows 默认将设置保存在 EXE 所在目录的 `stepstash-console.json`；Linux 默认在工作目录。可通过 `-config` 指定其他配置文件（该参数的相对路径基于启动工作目录）。存储及日志的相对路径基于配置文件所在目录解析。保存时，该目录内的路径转为相对路径，外部路径保留绝对路径，便于整体移动 portable 文件夹。默认存储根目录为 `stepstash-data`：正式视频仅存于 `videos/<资源指纹>.mp4`，临时文件位于 `tmp`，歌曲资料与统计位于 `stepstash.sqlite`。每首歌引用一个当前资源，多首歌可共用同一文件；仍被其他曲目引用或正在使用的旧资源继续保留；下载及发布临时副本另需空间。可设置[视频容量上限及自动淘汰](cache-retention.md)，默认容量不限，但仍清理被取代的旧版本。详见[统一存储](storage.md)。
+Windows 默认将设置保存在 EXE 所在目录的 `still-wanna-dance-console.json`；Linux 默认在工作目录。可通过 `-config` 指定其他配置文件（该参数的相对路径基于启动工作目录）。存储及日志的相对路径基于配置文件所在目录解析。保存时，该目录内的路径转为相对路径，外部路径保留绝对路径，便于整体移动 portable 文件夹。默认存储根目录为 `still-wanna-dance-data`：正式视频仅存于 `videos/<资源指纹>.mp4`，临时文件位于 `tmp`，歌曲资料与统计位于 `stepstash.sqlite`。每首歌引用一个当前资源，多首歌可共用同一文件；仍被其他曲目引用或正在使用的旧资源继续保留；下载及发布临时副本另需空间。可设置[视频容量上限及自动淘汰](cache-retention.md)，默认容量不限，但仍清理被取代的旧版本。详见[统一存储](storage.md)。
 
 ## 程序日志
 
 关联标识、低频进度、结果字段及验收判断方法见[日志排障与验收证据](logging.md)。
 
 控制台取得配置独占锁后，在配置文件旁的 `logs/` 创建程序日志。默认 portable
-路径为 `logs/stepstash-console.json.log`；自定义 `-config other.json` 时使用
+路径为 `logs/still-wanna-dance-console.json.log`；自定义 `-config other.json` 时使用
 该配置目录下的 `logs/other.json.log`。日志名包含配置文件名，避免独立配置实例
 共用日志。这里与设置中读取 VRChat 日志的目录无关。
 
@@ -251,7 +251,7 @@ Auto 主动下载（下载补齐、队列预缓存）优先 CF，失败后回退
 
 ## HTTP 播放 API 接管与 HTTPS 回源
 
-点击「修改 hosts」接入三个域名；已有仅视频域名映射的用户需要再次点击，补上 `api.udon.dance` 的本地映射。游戏以 HTTP 请求 `/Api/Songs/play?id=…` 时，StepStash 使用 HTTPS 解析上游地址，校验资源指纹，然后直接以 HTTP 返回视频；命中复用缓存，未命中边下边播，支持 HEAD 和单段 Range。支持默认线路以及 `node=cf`、`node=nya`，其他线路明确拒绝。非播放 API 的 GET/HEAD 重定向至原站 HTTPS；原有 HTTPS 请求通过 443 透传，不读取或填充缓存。
+点击「修改 hosts」接入三个域名；已有仅视频域名映射的用户需要再次点击，补上 `api.udon.dance` 的本地映射。游戏以 HTTP 请求 `/Api/Songs/play?id=…` 时，Still Wanna Dance 使用 HTTPS 解析上游地址，校验资源指纹，然后直接以 HTTP 返回视频；命中复用缓存，未命中边下边播，支持 HEAD 和单段 Range。支持默认线路以及 `node=cf`、`node=nya`，其他线路明确拒绝。非播放 API 的 GET/HEAD 重定向至原站 HTTPS；原有 HTTPS 请求通过 443 透传，不读取或填充缓存。
 
 游戏入口必须仍使用 HTTP，并且播放器需接受 API 地址直接返回视频；当前 HTTP 播放 API 接管的实际游戏兼容性需要实机确认。服务端改用 HTTPS 回源不改变当前统一存储的资源指纹；此说明不表示兼容旧存储格式。下载和测速最多跟随五次视频重定向，仅接受受支持视频域名且 MD5/大小一致的地址；HTTP Location 会升级为 HTTPS 后再访问。其他重定向明确拒绝。
 

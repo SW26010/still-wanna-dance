@@ -39,7 +39,7 @@ func TestAutomaticLogDirectoryFollowsEnvironment(t *testing.T) {
 		if err := json.Unmarshal(data, &saved); err != nil {
 			t.Fatal(err)
 		}
-		if saved.LogDir != "" || saved.ManualLogDir || saved.StorageDir != "stepstash-data" {
+		if saved.LogDir != "" || saved.ManualLogDir || saved.StorageDir != "still-wanna-dance-data" {
 			t.Fatalf("persisted environment-dependent defaults: %+v", saved)
 		}
 		if err := c.writeSnapshot("test", c.settings, true); err != nil {

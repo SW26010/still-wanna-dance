@@ -3,7 +3,7 @@ package console
 import (
 	"fmt"
 	"log/slog"
-	"stepstash/internal/desktop"
+	"still-wanna-dance/internal/desktop"
 )
 
 // DesktopState and DesktopCommand share exactly the web console's engine.

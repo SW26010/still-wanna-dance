@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"stepstash/internal/legal"
+	"still-wanna-dance/internal/legal"
 	"strings"
 	"testing"
 )

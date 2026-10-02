@@ -43,7 +43,7 @@ test('all routes show exactly one page with matching navigation and title', () =
     p.go('#/' + key);
     assert.deepEqual(p.panels.filter(n => !n.hidden).map(n => n.dataset.page), [key]);
     assert.deepEqual(p.links.filter(n => n['aria-current'] === 'page').map(n => n.dataset.pageLink), [key]);
-    assert.equal(p.document.title, p.nodes.get('pageLabel').textContent + ' · StepStash');
+    assert.equal(p.document.title, p.nodes.get('pageLabel').textContent + ' · Still Wanna Dance');
   }
   assert.equal(p.focused.id, 'main');
 });

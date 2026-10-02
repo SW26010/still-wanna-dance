@@ -17,8 +17,8 @@ import (
 	"sync"
 	"time"
 
-	"stepstash/internal/applog"
-	"stepstash/internal/cacheproxy"
+	"still-wanna-dance/internal/applog"
+	"still-wanna-dance/internal/cacheproxy"
 )
 
 type Song struct {

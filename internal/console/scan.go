@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"stepstash/internal/cacheproxy"
+	"still-wanna-dance/internal/cacheproxy"
 )
 
 // A completed scan can feed the next download in this process. Entries with

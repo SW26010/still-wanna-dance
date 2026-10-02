@@ -10,8 +10,8 @@ import (
 	"unicode/utf16"
 	"unicode/utf8"
 
-	"stepstash/internal/cacheproxy"
-	"stepstash/internal/desktop"
+	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/desktop"
 )
 
 func (c *Console) cacheAPI(w http.ResponseWriter, r *http.Request) {

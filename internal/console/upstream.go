@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"stepstash/internal/applog"
-	"stepstash/internal/cacheproxy"
+	"still-wanna-dance/internal/applog"
+	"still-wanna-dance/internal/cacheproxy"
 )
 
 var errSongRemoved = errors.New("歌曲已离开待预缓存队列")

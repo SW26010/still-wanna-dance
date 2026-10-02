@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"stepstash/internal/legal"
-	"stepstash/internal/vrclog"
+	"still-wanna-dance/internal/legal"
+	"still-wanna-dance/internal/vrclog"
 )
 
 func main() {

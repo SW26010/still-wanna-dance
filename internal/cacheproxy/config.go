@@ -51,7 +51,7 @@ func DefaultConfig() Config {
 		KeepRequestedRoute:   true,
 		RequestRetentionDays: 30,
 		OriginScheme:         "https",
-		StorageDir:           "stepstash-data",
+		StorageDir:           "still-wanna-dance-data",
 		Origins:              map[string]string{"play.udon.dance": "play.udon.dance:443", "nya.xin.moe": "nya.xin.moe:443"},
 		DownloadTimeout:      10 * time.Minute,
 		MaxFileBytes:         2 << 30,

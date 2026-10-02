@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"stepstash/internal/cacheproxy"
-	"stepstash/internal/vrclog"
+	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/vrclog"
 )
 
 func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) (*Console, *cacheproxy.Server, string, *atomic.Int32) {

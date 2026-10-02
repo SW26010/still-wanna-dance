@@ -7,10 +7,10 @@
 
 ```powershell
 ./scripts/package-portable.ps1 -Version 0.1.0
-./scripts/test-portable.ps1 -Zip artifacts/StepStash-0.1.0-windows-amd64-portable.zip
+./scripts/test-portable.ps1 -Zip artifacts/still-wanna-dance-0.1.0-windows-amd64-portable.zip
 ```
 
-打包先运行 `node --test scripts/refresh.test.mjs`、`go test ./...` 和 `go vet ./...`，失败即停止。随后以
+打包先运行 `node --test scripts/refresh.test.mjs`、`go test ./cmd/... ./internal/...` 和 `go vet ./cmd/... ./internal/...`，失败即停止。随后以
 `GOOS=windows GOARCH=amd64 CGO_ENABLED=0` 构建无命令行窗口的托盘程序，
 输出文件夹、ZIP 和 ZIP 的 SHA-256 校验文件。编译后恢复原来的环境变量。
 不指定版本时使用 `dev-日期-时间`；`-OutputDir` 可指定输出目录，默认 `artifacts`。
@@ -19,9 +19,10 @@
 交付文件夹只包含：
 
 ```text
-StepStash-0.1.0-windows-amd64-portable/
-  stepstash-console.exe
+still-wanna-dance-0.1.0-windows-amd64-portable/
+  still-wanna-dance-console.exe
   README.txt
+  TERMS.txt
   LICENSE
   THIRD-PARTY-NOTICES.txt
   build-info.json
@@ -37,7 +38,7 @@ StepStash-0.1.0-windows-amd64-portable/
 版本或 replacement 模块时停止。升级依赖后须核对模块和内嵌组件许可，更新
 仓库根目录的同名声明文件；不能只修改版本号。单独分发 EXE 时也应附上这两份文件。
 
-用户直接双击 `stepstash-console.exe`：程序显示托盘并打开网页控制台，重复启动
+用户直接双击 `still-wanna-dance-console.exe`：程序显示托盘并打开网页控制台，重复启动
 会打开已有实例。交付包不需要 CMD / PS1 启动脚本；CDN、hosts 接入及队列预缓存
 在控制台中按需启用。仓库的 PowerShell 脚本仅用于开发构建和验收。
 
@@ -50,7 +51,7 @@ StepStash-0.1.0-windows-amd64-portable/
 Windows CI 同样生成并验证 ZIP，通过后上传 ZIP 和校验文件为 workflow artifact。
 当前检出未配置 Git 远程；实际 CI 是否通过须查看目标仓库的 workflow 运行记录。
 
-仅编译 EXE 可用 `./scripts/build-desktop.ps1`，默认输出 `bin/stepstash-console.exe`。
+仅编译 EXE 可用 `./scripts/build-desktop.ps1`，默认输出 `bin/still-wanna-dance-console.exe`。
 Windows 默认配置位置为 EXE 旁；使用工作目录配置的旧版本用户可将配置移到 EXE
 旁，或用 `-config` 明确指定旧文件。旧配置中的绝对路径继续有效，重新保存时
 包内路径转换为相对路径。配置路径可继续使用不代表存储格式兼容。当前统一存储不支持旧版歌曲库或数据库迁移；存储要求见[统一存储](storage.md)。升级和 hosts 恢复操作见交付包的 README.txt。

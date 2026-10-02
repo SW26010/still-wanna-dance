@@ -19,9 +19,9 @@ import (
 	"sync"
 	"time"
 
-	"stepstash/internal/cacheproxy"
-	"stepstash/internal/desktop"
-	"stepstash/internal/vrclog"
+	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/desktop"
+	"still-wanna-dance/internal/vrclog"
 )
 
 //go:embed index.html
@@ -106,9 +106,14 @@ func New(configPath, address string) (*Console, error) {
 		return nil, err
 	}
 	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: "https://x.kiva.moe/api/v2/wanna/songs"}
-	c.settings = Settings{StorageDir: "stepstash-data", RequestRetentionDays: 30, QueuePrefetchEnabled: true}
+	c.settings = Settings{StorageDir: "still-wanna-dance-data", RequestRetentionDays: 30, QueuePrefetchEnabled: true}
 	c.dns = &directDNS{}
 	if b, err := os.ReadFile(configPath); err == nil {
+		// Old settings without storageDir used this default. Do not silently
+		// switch an existing installation to an empty store after rebranding.
+		if filepath.Base(configPath) == "stepstash-console.json" {
+			c.settings.StorageDir = "stepstash-data"
+		}
 		if err = json.Unmarshal(b, &c.settings); err != nil {
 			return nil, fmt.Errorf("读取控制台配置：%w", err)
 		}

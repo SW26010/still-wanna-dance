@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"stepstash/internal/cacheproxy"
+	"still-wanna-dance/internal/cacheproxy"
 )
 
 // Inventory counts canonical video files; integrity is checked on use.

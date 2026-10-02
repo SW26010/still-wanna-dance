@@ -30,11 +30,11 @@ jobs:
         run: ./scripts/package-portable.ps1 -Version ci-${{ github.run_number }}
       - if: runner.os == 'Windows'
         shell: pwsh
-        run: ./scripts/test-portable.ps1 -Zip artifacts/StepStash-ci-${{ github.run_number }}-windows-amd64-portable.zip
+        run: ./scripts/test-portable.ps1 -Zip artifacts/still-wanna-dance-ci-${{ github.run_number }}-windows-amd64-portable.zip
       - if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: StepStash-windows-amd64-portable
+          name: still-wanna-dance-windows-amd64-portable
           path: |
             artifacts/*.zip
             artifacts/*.sha256

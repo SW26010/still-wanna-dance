@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"stepstash/internal/applog"
+	"still-wanna-dance/internal/applog"
 )
 
 var errBusy = errors.New("download capacity reached")

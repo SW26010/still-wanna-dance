@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"stepstash/internal/applog"
+	"still-wanna-dance/internal/applog"
 )
 
 // One low-frequency observer per active flight also reports blocked reads.

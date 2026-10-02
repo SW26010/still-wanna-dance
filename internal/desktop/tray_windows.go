@@ -25,7 +25,7 @@ func OpenBrowser(url string) error {
 }
 
 func ShowError(err error) {
-	user32.NewProc("MessageBoxW").Call(0, uintptr(unsafe.Pointer(wide(err.Error()))), uintptr(unsafe.Pointer(wide("StepStash"))), 0x10)
+	user32.NewProc("MessageBoxW").Call(0, uintptr(unsafe.Pointer(wide(err.Error()))), uintptr(unsafe.Pointer(wide("Still Wanna Dance"))), 0x10)
 }
 
 type point struct{ X, Y int32 }
@@ -105,7 +105,7 @@ func Run(ctx context.Context, o Options) error {
 		return fmt.Errorf("注册托盘窗口：%w", err)
 	}
 	defer user32.NewProc("UnregisterClassW").Call(uintptr(unsafe.Pointer(className)), instance)
-	hwnd, _, err := user32.NewProc("CreateWindowExW").Call(0, uintptr(unsafe.Pointer(className)), uintptr(unsafe.Pointer(wide("StepStash"))), 0, 0, 0, 0, 0, 0, 0, instance, 0)
+	hwnd, _, err := user32.NewProc("CreateWindowExW").Call(0, uintptr(unsafe.Pointer(className)), uintptr(unsafe.Pointer(wide("Still Wanna Dance"))), 0, 0, 0, 0, 0, 0, 0, instance, 0)
 	if hwnd == 0 {
 		return fmt.Errorf("创建托盘窗口：%w", err)
 	}
@@ -180,12 +180,12 @@ func (t *tray) removeIcon() {
 }
 func (t *tray) tooltip() string {
 	if t.closing {
-		return "StepStash · 正在退出"
+		return "Still Wanna Dance · 正在退出"
 	}
 	s := t.options.State()
-	text := "StepStash · CDN 已关闭"
+	text := "Still Wanna Dance · CDN 已关闭"
 	if s.CDN {
-		text = "StepStash · CDN 运行中"
+		text = "Still Wanna Dance · CDN 运行中"
 	}
 	if s.Batch {
 		text += " · 批量任务运行中"

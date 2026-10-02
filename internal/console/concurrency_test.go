@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"stepstash/internal/cacheproxy"
-	"stepstash/internal/vrclog"
+	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/vrclog"
 )
 
 func TestBackgroundModesDownloadTwoSongsConcurrently(t *testing.T) {

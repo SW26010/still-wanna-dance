@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"stepstash/internal/vrclog"
+	"still-wanna-dance/internal/vrclog"
 )
 
 func TestQueueProtectionWaitReleasesStateLockAndPreservesResetOrder(t *testing.T) {

@@ -8,7 +8,7 @@
 
 参考 dancing-log 本地检出 `c3fa28fa3b68879cb43513bc2cb53f1cc03fa1cc` 的 [vrc_log_watcher.py](https://github.com/SW26010/dancing-log/blob/c3fa28fa3b68879cb43513bc2cb53f1cc03fa1cc/dancing_log/vrc_log_watcher.py) 与 [vrc_log_parser.py](https://github.com/SW26010/dancing-log/blob/c3fa28fa3b68879cb43513bc2cb53f1cc03fa1cc/dancing_log/vrc_log_parser.py)。调查时 GitHub 返回 404，实际参考源码来自本机已有仓库。独立用 Go 标准库实现，没有引入 Python 运行依赖。
 
-- dancing-log 默认轮询 0.25 秒。StepStash 每 **3 秒**检查当前日志并从字节偏移读取增量，每 **15 秒**扫描新日志文件；没有新增内容时不解析、不请求歌曲 API。
+- dancing-log 默认轮询 0.25 秒。Still Wanna Dance 每 **3 秒**检查当前日志并从字节偏移读取增量，每 **15 秒**扫描新日志文件；没有新增内容时不解析、不请求歌曲 API。
 - 初次启动从现有最新文件末尾开始，等待新的队列同步。不会重放旧会话；在点歌前开启最稳妥。新会话文件从头读取，按 VRChat 文件名中的会话时间选取，旧文件 mtime 改变不会倒退。
 - 保留尚未写完的行，完整换行后再解码，支持 UTF-8 跨次写入。单次最多读取 4 MiB，单行最多 1 MiB。截断、替换、读取失败、异常队列行会清空待处理队列。
 - 处理 `OnPreSerialization: queue info serialized:` 和 `OnDeserialization: syncedQueuedInfoJson =` 两类 JSON 数组。忽略当前视频 userData 和预览事件；不读取玩家姓名到业务状态，不持久化完整日志。
@@ -30,9 +30,9 @@
 独立命令只读日志并输出统计，没有缓存或网络调用：
 
 ```powershell
-go run ./cmd/stepstash-replay -show-terms
+go run ./cmd/still-wanna-dance-replay -show-terms
 # 阅读并同意后运行；此工具只读本地日志，不访问内容服务。
-go run ./cmd/stepstash-replay -accept-terms=2026-10-02.1 -logs '<log-collector-directory>\logs\source-vrc-logs'
+go run ./cmd/still-wanna-dance-replay -accept-terms=2026-10-03.1 -logs '<log-collector-directory>\logs\source-vrc-logs'
 ```
 
 2026-09-25 回放结果：68 份文件、805,405 行；5,843 次队列快照，其中 376 次为空，1,893 次与上一个队列 ID 序列相同；最大队列 20 项，覆盖 1,043 个有效歌曲 ID；出现 223 个非曲库条目（按快照累计），解析失败 0。原始日志未复制进仓库。

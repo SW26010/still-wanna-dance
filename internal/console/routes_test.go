@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"stepstash/internal/cacheproxy"
+	"still-wanna-dance/internal/cacheproxy"
 )
 
 func TestResolveRoutesQueriesBothNodesConcurrently(t *testing.T) {

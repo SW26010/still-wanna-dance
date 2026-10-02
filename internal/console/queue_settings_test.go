@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"stepstash/internal/cacheproxy"
-	"stepstash/internal/vrclog"
+	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/vrclog"
 )
 
 func TestQueuePrefetchSettings(t *testing.T) {

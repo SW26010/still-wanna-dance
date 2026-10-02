@@ -14,6 +14,9 @@ import (
 )
 
 const Address = "127.0.0.1:0"
+
+// Keep the legacy election namespace and identity so old and new binaries
+// activate the same owner instead of starting competing services.
 const MutexName = `Local\StepStash.Desktop.v1`
 
 type Identity struct {
@@ -46,7 +49,7 @@ func elect(ctx context.Context, acquire func() (Lease, error), ready func(contex
 		}
 		select {
 		case <-ctx.Done():
-			return nil, errors.New("已有 StepStash 正在启动或退出，暂时无法打开；请稍后重试")
+			return nil, errors.New("已有 Still Wanna Dance 正在启动或退出，暂时无法打开；请稍后重试")
 		case <-time.After(100 * time.Millisecond):
 		}
 	}
@@ -149,7 +152,7 @@ func Menu(s State, busy bool) []Item {
 	if s.CDN {
 		label = "关闭本地 CDN"
 	}
-	return []Item{{OpenConsole, "打开控制台", false}, {0, "", false}, {ToggleCDN, label, busy}, {CancelBatch, "停止批量任务", busy || !s.Batch}, {0, "", false}, {Exit, "退出 StepStash", false}}
+	return []Item{{OpenConsole, "打开控制台", false}, {0, "", false}, {ToggleCDN, label, busy}, {CancelBatch, "停止批量任务", busy || !s.Batch}, {0, "", false}, {Exit, "退出 Still Wanna Dance", false}}
 }
 
 type Options struct {

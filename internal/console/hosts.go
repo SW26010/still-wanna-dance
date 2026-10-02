@@ -9,7 +9,8 @@ import (
 	"strings"
 )
 
-const marker = "# StepStash managed"
+const marker = "# Still Wanna Dance managed"
+const legacyMarker = "# StepStash managed"
 
 var domains = []string{"play.udon.dance", "nya.xin.moe", "api.udon.dance"}
 
@@ -96,11 +97,13 @@ func transformHosts(data, action string) (string, error) {
 	if action != "disable" {
 		return "", fmt.Errorf("unknown hosts action")
 	}
-	for _, d := range domains {
-		data = strings.ReplaceAll(data, "\r\n127.0.0.1 "+d+" "+marker+"\r\n", "")
-	}
-	if strings.Contains(data, marker) {
-		return "", fmt.Errorf("StepStash 的标记条目已被修改，请手动检查 hosts")
+	for _, ownedMarker := range []string{marker, legacyMarker} {
+		for _, d := range domains {
+			data = strings.ReplaceAll(data, "\r\n127.0.0.1 "+d+" "+ownedMarker+"\r\n", "")
+		}
+		if strings.Contains(data, ownedMarker) {
+			return "", fmt.Errorf("Still Wanna Dance 的标记条目已被修改，请手动检查 hosts")
+		}
 	}
 	return data, nil
 }

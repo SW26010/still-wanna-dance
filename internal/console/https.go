@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// Only the hosts managed by StepStash are forwarded. Keep the original SNI
+// Only the hosts managed by Still Wanna Dance are forwarded. Keep the original SNI
 // and encrypted bytes intact: certificates, HTTP and video remain end-to-end.
 // The selected upstream dialer handles DNS and connections.
 func httpsOrigin(name string) string {

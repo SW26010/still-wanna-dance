@@ -18,10 +18,10 @@ import (
 	"syscall"
 	"time"
 
-	"stepstash/internal/applog"
-	"stepstash/internal/console"
-	"stepstash/internal/desktop"
-	"stepstash/internal/legal"
+	"still-wanna-dance/internal/applog"
+	"still-wanna-dance/internal/console"
+	"still-wanna-dance/internal/desktop"
+	"still-wanna-dance/internal/legal"
 )
 
 var visibleErrors = runtime.GOOS == "windows"
@@ -38,7 +38,7 @@ func main() {
 
 func run() (runErr error) {
 	address := flag.String("listen", desktop.Address, "local console address (port 0 selects an available port)")
-	defaultConfig := "stepstash-console.json"
+	defaultConfig := "still-wanna-dance-console.json"
 	if runtime.GOOS == "windows" {
 		exe, err := os.Executable()
 		if err != nil {
@@ -73,6 +73,19 @@ func run() (runErr error) {
 	}
 	if flag.NArg() != 0 {
 		return fmt.Errorf("不支持的位置参数")
+	}
+	explicitConfig := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "config" {
+			explicitConfig = true
+		}
+	})
+	if !explicitConfig {
+		path, err := compatibleConfigPath(defaultConfig)
+		if err != nil {
+			return err
+		}
+		*config = path
 	}
 	host, _, err := net.SplitHostPort(*address)
 	if err != nil || host != "127.0.0.1" {
@@ -170,7 +183,7 @@ func run() (runErr error) {
 	go func() { done <- h.Serve(l); stop() }()
 	url := "http://" + l.Addr().String()
 	slog.Info("console_ready", "url", url)
-	fmt.Printf("StepStash 控制台：%s\n关闭浏览器不会退出程序。退出不会恢复 hosts。\n", url)
+	fmt.Printf("Still Wanna Dance 控制台：%s\n关闭浏览器不会退出程序。退出不会恢复 hosts。\n", url)
 	if !*noTray {
 		err = desktop.Run(ctx, desktop.Options{URL: url, Open: !*noOpen, State: c.DesktopState, Command: c.DesktopCommand, Shutdown: shutdown})
 	} else {
@@ -182,4 +195,21 @@ func run() (runErr error) {
 		return serverErr
 	}
 	return err
+}
+
+// Reuse the legacy path in place so its lock, terms receipt and relative paths
+// stay together. Explicit -config always overrides this default.
+func compatibleConfigPath(path string) (string, error) {
+	if _, err := os.Lstat(path); err == nil {
+		return path, nil
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	legacy := filepath.Join(filepath.Dir(path), "stepstash-console.json")
+	if _, err := os.Lstat(legacy); err == nil {
+		return legacy, nil
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	return path, nil
 }

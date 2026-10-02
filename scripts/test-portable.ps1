@@ -1,12 +1,12 @@
 param([Parameter(Mandatory = $true)][string]$Zip)
 $ErrorActionPreference = 'Stop'
 $zipPath = (Resolve-Path -LiteralPath $Zip).Path
-$root = Join-Path ([IO.Path]::GetTempPath()) ('StepStash smoke ' + [guid]::NewGuid().ToString('N'))
+$root = Join-Path ([IO.Path]::GetTempPath()) ('Still Wanna Dance smoke ' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $root | Out-Null
 $process = $null
 try {
     Expand-Archive -LiteralPath $zipPath -DestinationPath $root
-    $exe = @(Get-ChildItem -LiteralPath $root -Recurse -Filter stepstash-console.exe)
+    $exe = @(Get-ChildItem -LiteralPath $root -Recurse -Filter still-wanna-dance-console.exe)
     if ($exe.Count -ne 1) { throw 'Expected exactly one desktop executable.' }
     $folder = $exe[0].DirectoryName
     foreach ($name in @('LICENSE', 'THIRD-PARTY-NOTICES.txt', 'TERMS.txt')) {
@@ -44,10 +44,10 @@ try {
     if ([int]$gate.StatusCode -ne 428) { throw 'API was accessible before consent.' }
     $servedTerms = Invoke-WebRequest "$url/terms.txt" -UseBasicParsing
     if ($servedTerms.Content -cne [IO.File]::ReadAllText((Join-Path $folder 'TERMS.txt'))) { throw 'Packaged and embedded terms differ.' }
-    if (!(Test-Path -LiteralPath (Join-Path $folder 'stepstash-console.json.lock'))) { throw 'Config lock missing beside executable.' }
+    if (!(Test-Path -LiteralPath (Join-Path $folder 'still-wanna-dance-console.json.lock'))) { throw 'Config lock missing beside executable.' }
     $page = Invoke-WebRequest $url -UseBasicParsing
-    if ($page.Content -notmatch 'StepStash') { throw 'Embedded UI missing.' }
-    $logPath = Join-Path $folder 'logs/stepstash-console.json.log'
+    if ($page.Content -notmatch 'Still Wanna Dance') { throw 'Embedded UI missing.' }
+    $logPath = Join-Path $folder 'logs/still-wanna-dance-console.json.log'
     $records = @(Get-Content -LiteralPath $logPath | ForEach-Object { $_ | ConvertFrom-Json })
     $startupEvents = @('application_starting', 'application_build', 'console_ready')
     foreach ($event in $startupEvents) {

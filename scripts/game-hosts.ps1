@@ -36,7 +36,7 @@ try {
         $request.AddRange(0,15)
         $response = $request.GetResponse()
         try {
-            if ([int]$response.StatusCode -ne 206 -or $response.Headers['X-StepStash-Cache'] -ne 'HIT') { throw 'StepStash warm-cache readiness check failed.' }
+            if ([int]$response.StatusCode -ne 206 -or $response.Headers['X-StepStash-Cache'] -ne 'HIT') { throw 'Still Wanna Dance warm-cache readiness check failed.' }
         } finally { $response.Dispose() }
         if (Test-Path -LiteralPath $backup) { throw 'Backup already exists; use a new session directory.' }
         [IO.File]::WriteAllBytes($backup, $bytes)

@@ -13,9 +13,9 @@ import (
 	"syscall"
 	"time"
 
-	"stepstash/internal/cacheproxy"
-	"stepstash/internal/console"
-	"stepstash/internal/legal"
+	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/console"
+	"still-wanna-dance/internal/legal"
 )
 
 func main() {
@@ -31,7 +31,7 @@ func run() (resultErr error) {
 	cfg := cacheproxy.DefaultConfig()
 	cfg.DialContext = console.NewUpstreamDialer()
 	socks5Address := flag.String("socks5-proxy", "", "SOCKS5 proxy host:port; delegates destination DNS to proxy; empty uses built-in DoH directly")
-	socks5Username := flag.String("socks5-username", "", "SOCKS5 username; set password via STEPSTASH_SOCKS5_PASSWORD environment variable")
+	socks5Username := flag.String("socks5-username", "", "SOCKS5 username; set password via STILL_WANNA_DANCE_SOCKS5_PASSWORD (legacy STEPSTASH_SOCKS5_PASSWORD supported)")
 	listen := flag.String("listen", "127.0.0.1:18080", "HTTP listen address (use 127.0.0.1:80 for game integration)")
 	flag.StringVar(&cfg.StorageDir, "storage-dir", cfg.StorageDir, "storage root (videos, tmp and stepstash.sqlite); one process per root")
 	cf := flag.String("cf-origin", cfg.Origins["play.udon.dance"], "CF HTTPS origin host:port; retains Host and TLS SNI play.udon.dance")
@@ -57,7 +57,7 @@ func run() (resultErr error) {
 	}
 	if *socks5Address != "" {
 		var err error
-		cfg.DialContext, err = console.NewAuthenticatedSOCKS5Dialer(*socks5Address, *socks5Username, os.Getenv("STEPSTASH_SOCKS5_PASSWORD"))
+		cfg.DialContext, err = console.NewAuthenticatedSOCKS5Dialer(*socks5Address, *socks5Username, socks5Password())
 		if err != nil {
 			return err
 		}
@@ -87,6 +87,13 @@ func run() (resultErr error) {
 	case <-ctx.Done():
 	}
 	return nil
+}
+
+func socks5Password() string {
+	if value, ok := os.LookupEnv("STILL_WANNA_DANCE_SOCKS5_PASSWORD"); ok {
+		return value
+	}
+	return os.Getenv("STEPSTASH_SOCKS5_PASSWORD")
 }
 
 // Close network connections before waiting for handlers and flushing statistics.

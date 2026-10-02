@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"stepstash/internal/desktop"
+	"still-wanna-dance/internal/desktop"
 )
 
 func TestDesktopSharesWebRuntime(t *testing.T) {

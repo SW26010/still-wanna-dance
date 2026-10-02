@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"stepstash/internal/cacheproxy"
+	"still-wanna-dance/internal/cacheproxy"
 )
 
 // Exercise the real HTTP resolver through the cache server, rather than a

@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"stepstash/internal/cacheproxy"
+	"still-wanna-dance/internal/cacheproxy"
 )
 
 func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {

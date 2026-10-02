@@ -121,7 +121,7 @@ func TestMutexProcess(t *testing.T) {
 }
 
 func TestWindowsMutexOwnershipAndCrashRecovery(t *testing.T) {
-	name := fmt.Sprintf(`Local\StepStash.Test.%d.%d`, os.Getpid(), time.Now().UnixNano())
+	name := fmt.Sprintf(`Local\Still Wanna Dance.Test.%d.%d`, os.Getpid(), time.Now().UnixNano())
 	first, err := acquire(name)
 	if err != nil || first == nil {
 		t.Fatal(err)

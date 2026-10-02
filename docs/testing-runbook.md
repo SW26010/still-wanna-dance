@@ -1,6 +1,6 @@
 # 复现操作手册
 
-本仓库已有可启动的 StepStash 服务，见 [命令行服务手册](service.md)。下面描述原版黑盒测试环境与验收方法；原版程序、视频及测试工具需在本地另行准备。
+本仓库已有可启动的 Still Wanna Dance 服务，见 [命令行服务手册](service.md)。下面描述原版黑盒测试环境与验收方法；原版程序、视频及测试工具需在本地另行准备。
 
 现有本机调查工具保留在 `<调查工作目录>\investigation`，未迁入本仓库。它们含与该电脑绑定的路径和原版依赖，不应被当成通用的项目启动命令。
 
@@ -26,7 +26,7 @@ BUILTIN_SNI_PROXY=api.udon.dance=ud-orig.kiva.moe:443,play.udon.dance=ud-play.ki
 RUST_LOG=info,wanna_cdn::http=debug,wanna_cdn::cdn=debug,wanna_cdn::cdn::proxy=info
 ```
 
-此模板属于原版测试配置，不是 StepStash 已定义的配置接口。
+此模板属于原版测试配置，不是 Still Wanna Dance 已定义的配置接口。
 
 ## 网络预检
 

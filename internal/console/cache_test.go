@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"stepstash/internal/cacheproxy"
+	"still-wanna-dance/internal/cacheproxy"
 )
 
 func TestCacheSearchLengthMatchesHTMLMaxlength(t *testing.T) {

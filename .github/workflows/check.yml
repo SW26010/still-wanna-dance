@@ -1,5 +1,9 @@
 name: check
-on: [push, pull_request]
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v[0-9]*'
 permissions:
   contents: read
 jobs:

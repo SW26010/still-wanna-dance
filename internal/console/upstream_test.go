@@ -100,7 +100,9 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 			cfg.OriginScheme = "http"
 			cfg.StorageDir = c.settings.StorageDir
 			if tc.failure == "timeout" {
-				cfg.DownloadTimeout = 150 * time.Millisecond
+				// The budget covers SQLite and file publication as well as HTTP.
+				// Leave room for a healthy fallback on slower Windows CI disks.
+				cfg.DownloadTimeout = 3 * time.Second
 			}
 			for host := range cfg.Origins {
 				cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")

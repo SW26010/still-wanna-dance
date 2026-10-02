@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
@@ -58,23 +57,22 @@ func CacheDirectory(root string) (string, error) {
 		return "", err
 	}
 	dir := filepath.Join(root, "videos")
-	real, err := filepath.EvalSymlinks(dir)
-	if err != nil {
-		return "", fmt.Errorf("resolve cache directory: %w", err)
-	}
-	matched := filepath.Clean(real) == dir
-	if runtime.GOOS == "windows" {
-		matched = strings.EqualFold(filepath.Clean(real), dir)
-	}
-	if !matched {
-		return "", errors.New("缓存目录包含符号链接或目录重定向")
-	}
-	info, err := os.Lstat(dir)
-	if err != nil {
-		return "", err
-	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return "", errors.New("不是普通缓存目录")
+	// Inspect every component without following links. Comparing EvalSymlinks
+	// strings also rejects ordinary Windows 8.3 aliases (such as RUNNER~1).
+	for path := dir; ; path = filepath.Dir(path) {
+		info, err := os.Lstat(path)
+		if err != nil {
+			return "", fmt.Errorf("inspect cache directory: %w", err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return "", errors.New("缓存目录包含符号链接或目录重定向")
+		}
+		if !info.IsDir() {
+			return "", errors.New("不是普通缓存目录")
+		}
+		if filepath.Dir(path) == path {
+			break
+		}
 	}
 	return dir, nil
 }

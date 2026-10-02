@@ -49,7 +49,10 @@ still-wanna-dance-0.1.0-windows-amd64-portable/
 目录保存和整体移动后的配置解析由 Go 回归测试覆盖。
 
 Windows CI 同样生成并验证 ZIP，通过后上传 ZIP 和校验文件为 workflow artifact。
-当前检出未配置 Git 远程；实际 CI 是否通过须查看目标仓库的 workflow 运行记录。
+工作流仅在 Actions 页面手动选择 `check` → `Run workflow`，或推送版本 tag
+（匹配 `v[0-9]*`，例如 `v0.1.0`、`v0.2.0-rc.1`）时运行。
+普通分支 push 和 PR 更新不自动运行。生成的包保存在 workflow artifacts，
+不会自动发布 GitHub Release；实际检查结果见对应的 Actions 运行记录。
 
 仅编译 EXE 可用 `./scripts/build-desktop.ps1`，默认输出 `bin/still-wanna-dance-console.exe`。
 Windows 默认配置位置为 EXE 旁；使用工作目录配置的旧版本用户可将配置移到 EXE

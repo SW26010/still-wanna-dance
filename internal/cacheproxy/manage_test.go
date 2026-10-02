@@ -11,6 +11,34 @@ import (
 	"time"
 )
 
+func TestCacheDirectoryRejectsSymlinkComponents(t *testing.T) {
+	for _, component := range []string{"videos", "root", "ancestor"} {
+		t.Run(component, func(t *testing.T) {
+			base := t.TempDir()
+			target := filepath.Join(base, "target")
+			for _, path := range []string{filepath.Join(target, "videos"), filepath.Join(target, "cache", "videos")} {
+				if err := os.MkdirAll(path, 0700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			link := filepath.Join(base, "link")
+			root := link
+			switch component {
+			case "videos":
+				root, link = base, filepath.Join(base, "videos")
+			case "ancestor":
+				root = filepath.Join(link, "cache")
+			}
+			if err := os.Symlink(target, link); err != nil {
+				t.Skip("symlink privilege unavailable:", err)
+			}
+			if _, err := CacheDirectory(root); err == nil {
+				t.Fatal("accepted symlink in cache path")
+			}
+		})
+	}
+}
+
 func managementFixture(t *testing.T, n int) (string, []CacheEntry) {
 	t.Helper()
 	root := t.TempDir()

@@ -31,7 +31,7 @@ The desktop app targets Windows x64. Choose a writable folder for the app and al
 
 Enable the service before requesting songs to give prefetching time to prepare. First-time downloads still depend on the upstream server and your network. “Request received” (收到请求) means a request reached the local service; check playback in the game itself. If no requests arrive after setup, try rejoining the world or restarting the game to refresh DNS.
 
-Closing the web page leaves the app running in the system tray. Use the tray menu to reopen the console or quit.
+Closing the web page leaves the app running in the system tray. Use the tray menu to reopen the console. Quit from Home or the tray menu to stop all services and background tasks; hosts mappings remain in place.
 
 **Before disabling or uninstalling the app, click Restore hosts (恢复 hosts) in the console.** Stopping the service or quitting does not automatically restore hosts entries, and leaving them in place may affect direct playback afterward.
 

@@ -52,6 +52,8 @@ type Settings struct {
 }
 
 type Console struct {
+	exitRequested        chan struct{}
+	exitOnce             sync.Once
 	terms                termsReceipt // protected by mu; separate from editable settings
 	activationMu         sync.Mutex   // rejects duplicate wizard submissions, including across tabs
 	activation           Activation   // protected by mu; never persisted
@@ -107,6 +109,7 @@ func New(configPath, address string) (*Console, error) {
 	}
 	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: "https://x.kiva.moe/api/v2/wanna/songs"}
 	c.settings = Settings{StorageDir: "still-wanna-dance-data", RequestRetentionDays: 30, QueuePrefetchEnabled: true}
+	c.exitRequested = make(chan struct{})
 	c.dns = &directDNS{}
 	if b, err := os.ReadFile(configPath); err == nil {
 		// Old settings without storageDir used this default. Do not silently
@@ -537,6 +540,9 @@ func (c *Console) stopLocked() {
 	slog.Info("cdn_stopped")
 }
 
+// ExitRequested lets the application owner run the same cleanup as tray exit.
+func (c *Console) ExitRequested() <-chan struct{} { return c.exitRequested }
+
 func (c *Console) Close() error {
 	c.lifecycleMu.Lock()
 	c.mu.Lock()
@@ -750,6 +756,15 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
 	var err error
 	switch r.URL.Path {
+	case "/api/exit":
+		// Deliver the acknowledgement before the owner closes the HTTP listener.
+		writeJSON(w, map[string]bool{"ok": true})
+		_ = http.NewResponseController(w).Flush()
+		c.exitOnce.Do(func() {
+			slog.Info("console_action_completed", "action", r.URL.Path)
+			close(c.exitRequested)
+		})
+		return
 	case "/api/inventory/scan":
 		c.startInventoryScan()
 	case "/api/batch/verify":

@@ -4,6 +4,7 @@ let recentLimit = 50, recentStorage = '', recentSnapshot = '', recentRows = [];
 let monitorRevision = 0;
 let settingsDirty = false,
   settingsRevision = 0,
+  exiting = false,
   busy = false,
   connected = false,
   lastState = null,
@@ -139,7 +140,7 @@ function renderSettings(s) {
 
 function renderControls() {
   const s = lastState;
-  const unavailable = !connected || busy || !s || activationPending(s);
+  const unavailable = exiting || !connected || busy || !s || activationPending(s);
   for (const b of document.querySelectorAll('button')) b.disabled = unavailable;
   $('recentMore').disabled ||= $('pauseMonitor').checked;
   for (const id of [
@@ -309,7 +310,7 @@ async function refresh() {
   try {
     const state = await readState('/api/status');
     // A read started before a successful save may still contain old settings.
-    if (revision !== settingsRevision) return;
+    if (exiting || revision !== settingsRevision) return;
     connected = true;
     render(state);
     if (uncertainAction)
@@ -318,6 +319,7 @@ async function refresh() {
           '\n已刷新当前状态，请核对对应区域；状态快照不能确认原请求是否已经结束。',
       );
   } catch (e) {
+    if (exiting) return;
     connected = false;
     setText('connection', '控制台连接中断');
     setText('activationProgress', '控制台连接中断，接入状态尚未确认；下方为最后一次状态。');
@@ -332,7 +334,8 @@ async function refresh() {
 const actionTimeout = 30000;
 const hostsActionTimeout = 120000;
 async function action(path, body) {
-  if (busy) return;
+  if (busy || exiting) return;
+  if (path === 'exit' && !window.confirm('确定退出整个应用？所有服务和后台任务将停止，hosts 映射会保留。需要恢复 hosts 时，请取消并先恢复。')) return;
   const origin = document.activeElement;
   busy = true;
   uncertainAction = '';
@@ -364,6 +367,18 @@ async function action(path, body) {
       notice(data.error || '操作失败');
       return;
     }
+    if (path === 'exit') {
+      exiting = true;
+      clearTimeout(refreshTimer);
+      refreshPending = false;
+      setText('connection', '退出请求已接受');
+      $('connection').className = '';
+      setText('serviceBadge', '正在退出应用');
+      $('serviceBadge').className = 'pill';
+      notice('正在停止所有服务和后台任务，可以关闭此页面。hosts 映射仍保留；再次使用请重新启动应用。');
+      renderControls();
+      return;
+    }
     if (path === 'settings') {
       settingsDirty = false;
       settingsRevision++;
@@ -389,7 +404,7 @@ async function action(path, body) {
   } finally {
     clearTimeout(timeout);
     busy = false;
-    await requestRefresh();
+    if (!exiting) await requestRefresh();
     // Disabling a native button can drop focus. Do not steal it if the user moved.
     if (origin && document.activeElement === document.body) {
       const target = origin.disabled ? origin.closest('section[tabindex]') : origin;
@@ -430,13 +445,13 @@ let refreshPending = false;
 
 function scheduleRefresh() {
   clearTimeout(refreshTimer);
-  if (!document.hidden)
+  if (!exiting && !document.hidden)
     refreshTimer = setTimeout(requestRefresh, refreshInterval);
 }
 
 function requestRefresh() {
   clearTimeout(refreshTimer);
-  if (document.hidden) return;
+  if (exiting || document.hidden) return;
   refreshPending = true;
   if (refreshTask) return refreshTask;
   refreshTask = (async () => {
@@ -449,7 +464,7 @@ function requestRefresh() {
         if (!$('page-cache').hidden) reads.push(refreshInventory());
         if (!$('page-monitor').hidden && !$('pauseMonitor').checked) reads.push(refreshRecent(), refreshDownloads());
         await Promise.allSettled(reads);
-      } while (refreshPending && !document.hidden);
+      } while (!exiting && refreshPending && !document.hidden);
     } finally {
       refreshTask = null;
       scheduleRefresh();

@@ -166,13 +166,25 @@ func run() (runErr error) {
 	shutdown := func() {
 		closeOnce.Do(func() {
 			slog.Info("application_stopping")
-			_ = h.Close()
+			// Let the exit acknowledgement finish before closing connections.
+			grace, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			if err := h.Shutdown(grace); err != nil {
+				_ = h.Close()
+			}
 			if err := c.Close(); err != nil {
 				slog.Error("shutdown_failed", "error", err)
 			}
 		})
 	}
 	defer shutdown()
+	go func() {
+		select {
+		case <-c.ExitRequested():
+			stop()
+		case <-ctx.Done():
+		}
+	}()
 	if instance != nil {
 		if err := instance.Publish(l.Addr().String()); err != nil {
 			return fmt.Errorf("无法发布控制台地址：%w", err)

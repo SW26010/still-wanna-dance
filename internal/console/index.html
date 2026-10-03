@@ -39,6 +39,11 @@
       <noscript><p class="notice">控制台需要启用 JavaScript 才能切换页面和管理服务。</p></noscript>
       <div id="notice" class="notice" role="status" hidden></div>
       <div id="page-home" data-page="home">
+        <section class="card" aria-labelledby="applicationTitle" tabindex="-1">
+          <div class="card-head"><h2 id="applicationTitle">应用控制</h2></div>
+          <p class="hint">退出会停止所有服务和后台任务。hosts 映射会保留，需要时请先在单项管理中恢复 hosts。</p>
+          <div class="actions"><button id="exit" data-action="exit">退出整个应用</button></div>
+        </section>
         <section class="card" id="activation" aria-labelledby="activationTitle" tabindex="-1">
         <div class="card-head"><h2 id="activationTitle">启用游戏加速</h2><a href="#service">单项管理</a></div>
         <p>检查接入 → 启动 HTTP 缓存与 HTTPS 转发 → 接入 hosts → 等待视频请求。</p>
@@ -418,7 +423,7 @@
       <footer>
         <a href="/terms">使用条款与内容权利声明</a><br />
         关闭网页后程序仍继续运行；Windows
-        托盘菜单可重新打开控制台或退出程序。<br />本地控制台仅供本机访问 · CF /
+        首页或托盘菜单可退出程序，托盘菜单可重新打开控制台。<br />本地控制台仅供本机访问 · CF /
         HKG HTTP 视频缓存 · 回源 Auto 自动测速优选线路 · SHA 不支持
       </footer>
     </div>

@@ -8,6 +8,60 @@ const script = readFileSync(new URL('../internal/console/assets/console.js', imp
 const cacheScript = readFileSync(new URL('../internal/console/assets/cache.js', import.meta.url), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+test('exit confirms, submits once, and stops polling after acknowledgement', async () => {
+  const p = page();
+  p.finishBatch(); await flush();
+  const get = id => p.document.getElementById(id);
+  p.context.window = { confirm: () => false };
+  const before = p.requests.length;
+  await vm.runInContext("action('exit')", p.context);
+  assert.equal(p.requests.length, before);
+  p.context.window.confirm = () => true;
+  const pending = vm.runInContext("action('exit')", p.context);
+  assert.equal(p.requests.at(-1).url, '/api/exit');
+  await vm.runInContext("action('exit')", p.context);
+  assert.equal(p.requests.length, before + 1);
+  p.requests.at(-1).finish({ ok: true });
+  await pending;
+  assert.equal(get('exit').disabled, true);
+  assert.equal(get('start').disabled, true);
+  assert.match(get('notice').textContent, /hosts 映射仍保留/);
+  assert.equal(p.timers.size, 0);
+  p.visibility(true); p.visibility(false);
+  selectPage(p, 'monitor');
+  await flush();
+  assert.equal(p.requests.length, before + 1);
+});
+
+test('rejected exit keeps the console usable and polling', async () => {
+  const p = page();
+  p.finishBatch(); await flush();
+  p.context.window = { confirm: () => true };
+  const pending = vm.runInContext("action('exit')", p.context);
+  p.requests.at(-1).finish({ error: '退出请求被拒绝' }, false);
+  await flush();
+  p.finishBatch(3);
+  await pending;
+  assert.match(p.document.getElementById('notice').textContent, /退出请求被拒绝/);
+  assert.equal(p.document.getElementById('exit').disabled, false);
+  assert.equal(p.timers.size, 1);
+});
+
+test('status arriving after exit cannot overwrite acknowledgement or restart polling', async () => {
+  const p = page();
+  p.finishBatch(); await flush();
+  p.fireTimer();
+  p.context.window = { confirm: () => true };
+  const pending = vm.runInContext("action('exit')", p.context);
+  p.requests.at(-1).finish({ ok: true });
+  await pending;
+  p.finishBatch(2);
+  await flush();
+  assert.equal(p.document.getElementById('connection').textContent, '退出请求已接受');
+  assert.equal(p.document.getElementById('exit').disabled, true);
+  assert.equal(p.timers.size, 0);
+});
+
 function selectPage(p, key) {
   for (const name of ['home', 'monitor', 'cache', 'library', 'settings'])
     p.document.getElementById('page-' + name).hidden = name !== key;

@@ -5,7 +5,7 @@ function cacheLabel(e) {
 function cacheSize(bytes) { return (bytes / 1073741824).toFixed(3) + ' GiB'; }
 function cacheChosen() { return cacheRows.filter(r => r.check.checked).map(r => r.entry); }
 function cacheUnavailable() {
-  return cacheLoading || busy || !connected || activationPending(lastState);
+  return exiting || cacheLoading || busy || !connected || activationPending(lastState);
 }
 function updateCacheControls() {
   const unavailable = cacheUnavailable();

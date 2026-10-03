@@ -294,6 +294,26 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		return
 	}
 	var localTargets map[string]cacheproxy.ScanTarget
+	if !scanOnly {
+		ids := make([]int64, len(songs))
+		for i, song := range songs {
+			ids[i] = song.ID
+		}
+		priorities, err := s.EffectiveSongPriorities(ctx, ids)
+		if err != nil {
+			c.mu.Lock()
+			c.batch.Phase = "读取下载优先级失败：" + err.Error()
+			c.mu.Unlock()
+			return
+		}
+		songs = append([]Song(nil), songs...)
+		sort.Slice(songs, func(i, j int) bool {
+			if priorities[songs[i].ID] != priorities[songs[j].ID] {
+				return priorities[songs[i].ID] > priorities[songs[j].ID]
+			}
+			return songs[i].ID > songs[j].ID
+		})
+	}
 	if scanOnly {
 		localTargets, err = cacheproxy.LoadScanTargets(ctx, settings.StorageDir)
 		if err != nil {

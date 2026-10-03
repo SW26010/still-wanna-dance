@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"sort"
 	"time"
+
+	initialpriority "still-wanna-dance/data/initial-priority"
 )
 
 var cacheVideoName = regexp.MustCompile(`^([0-9a-f]{64})\.mp4$`)
@@ -269,8 +271,13 @@ func (s *Server) trimCachePass(reconcile bool) error {
 		}
 	}
 	songIDs := map[string]int64{}
+	resourceScores := map[string]float64{}
 	if s.usage != nil {
-		rows, err := s.usage.db.Query(`SELECT version_key, MAX(CAST(song_id AS INTEGER)) FROM song_videos GROUP BY version_key`)
+		priorities, err := s.songPriorities(context.Background(), nil, now)
+		if err != nil {
+			return err
+		}
+		rows, err := s.usage.db.Query(`SELECT version_key, CAST(song_id AS INTEGER) FROM song_videos`)
 		if err != nil {
 			return err
 		}
@@ -281,7 +288,16 @@ func (s *Server) trimCachePass(reconcile bool) error {
 				rows.Close()
 				return err
 			}
-			songIDs[key] = id
+			if id > songIDs[key] {
+				songIDs[key] = id
+			}
+			score, exists := priorities[id]
+			if !exists {
+				score = initialpriority.Score(id)
+			}
+			if previous, exists := resourceScores[key]; !exists || score > previous {
+				resourceScores[key] = score
+			}
 		}
 		err = rows.Err()
 		rows.Close()
@@ -293,6 +309,9 @@ func (s *Server) trimCachePass(reconcile bool) error {
 		item := &videos[i]
 		usage := stats[item.key]
 		item.score = usage.score
+		if score, exists := resourceScores[item.key]; exists {
+			item.score = score
+		}
 		item.songID = songIDs[item.key]
 		if usage.recent != 0 {
 			item.recent = usage.recent

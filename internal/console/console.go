@@ -96,6 +96,12 @@ type Console struct {
 	apiBase             string
 	dns                 *directDNS
 	upstreamDial        upstreamDialFunc
+	health              UpstreamHealth
+	healthGeneration    uint64
+	healthCancel        context.CancelFunc
+	healthRunCancel     context.CancelFunc
+	healthDone          chan struct{}
+	healthWake          chan struct{}
 }
 
 func New(configPath, address string) (*Console, error) {
@@ -330,6 +336,7 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 	oldClient := c.client
 	if networkChanged {
 		c.upstreamDial, c.client = dial, client
+		c.resetHealthLocked()
 	}
 	c.scanPlan = nil
 	var inventoryDone chan struct{}
@@ -547,6 +554,10 @@ func (c *Console) Close() error {
 	c.lifecycleMu.Lock()
 	c.mu.Lock()
 	c.closing = true
+	if c.healthCancel != nil {
+		c.healthCancel()
+	}
+	healthDone := c.healthDone
 	if c.batchCancel != nil {
 		c.batchCancel()
 	}
@@ -564,6 +575,9 @@ func (c *Console) Close() error {
 	c.inventoryMu.Unlock()
 	c.lifecycleMu.Unlock()
 	err := c.stop()
+	if healthDone != nil {
+		<-healthDone
+	}
 	if inventoryDone != nil {
 		<-inventoryDone
 	}
@@ -646,7 +660,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			SOCKS5PasswordSet bool                    `json:"socks5PasswordSet"`
 			Activation        Activation              `json:"activation"`
 			DefaultLogDir     string                  `json:"defaultLogDir"`
-		}{running, c.settings, HostsStatus{}, running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}, c.settings.SOCKS5Password != "", c.activation, defaultLogDir()}
+			UpstreamHealth    UpstreamHealth          `json:"upstreamHealth"`
+		}{running, c.settings, HostsStatus{}, running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}, c.settings.SOCKS5Password != "", c.activation, defaultLogDir(), c.healthSnapshotLocked()}
 		result.Settings.SOCKS5Password = ""
 		service := c.service
 		result.ActionErrors = make(map[string]string, len(c.actionErrors))
@@ -756,6 +771,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
 	var err error
 	switch r.URL.Path {
+	case "/api/health/check":
+		err = c.requestHealthCheck()
 	case "/api/exit":
 		// Deliver the acknowledgement before the owner closes the HTTP listener.
 		writeJSON(w, map[string]bool{"ok": true})

@@ -38,6 +38,16 @@
       </section>
       <noscript><p class="notice">控制台需要启用 JavaScript 才能切换页面和管理服务。</p></noscript>
       <div id="notice" class="notice" role="status" hidden></div>
+      <section class="card" aria-labelledby="upstreamHealthTitle">
+        <div class="card-head"><h2 id="upstreamHealthTitle">上游可达性</h2><button id="healthCheck" data-action="health/check">立即检测</button></div>
+        <p id="healthSummary" role="status">等待首次检测…</p>
+        <p id="healthRoute" class="hint"></p>
+        <details><summary>查看各接口检测结果</summary>
+          <ul id="healthChecks" class="health-checks"></ul>
+          <p class="hint">每 5 分钟自动检测，关闭页面后继续运行。检测使用已保存的网络设置，切换直连或 SOCKS5 后重新检测。歌曲列表会读取并校验正文；视频入口仅检查连接，不下载视频，也不保证播放成功。超时本身无法确定故障归属。</p>
+        </details>
+        <p id="healthTime" class="muted"></p>
+      </section>
       <div id="page-home" data-page="home">
         <section class="card" aria-labelledby="applicationTitle" tabindex="-1">
           <div class="card-head"><h2 id="applicationTitle">应用控制</h2></div>

@@ -30,9 +30,38 @@ function render(s) {
   renderService(s);
   renderActivation(s);
   renderSettings(s);
+  renderHealth(s.upstreamHealth || {});
   renderControls();
   renderQueue(s);
   renderBatch(s);
+}
+
+function renderHealth(h) {
+  const checks = h.checks || [];
+  const ok = c => ['healthy', 'reachable'].includes(c.state);
+  const failures = checks.filter(c => c.state !== 'checking' && !ok(c));
+  setText('healthSummary', h.running ? '正在检测上游…' : !checks.length ? '等待首次检测…'
+    : failures.length ? '检测异常：' + failures.map(c => c.name + ' · ' + c.message).join('；')
+      : '歌曲列表可用，各入口连接正常（不代表视频播放成功）');
+  setText('healthRoute', h.mode === 'socks5' ? '当前检测路径：SOCKS5 · ' + h.proxy : '当前检测路径：直连');
+  const dated = v => v && !v.startsWith('0001');
+  setText('healthTime', h.running && dated(h.started) ? '本轮开始：' + new Date(h.started).toLocaleString()
+    : dated(h.finished) ? '最近完成：' + new Date(h.finished).toLocaleString() +
+      (dated(h.nextCheck) ? ' · 下次检测：' + new Date(h.nextCheck).toLocaleTimeString() : '') : '每 5 分钟自动检测');
+  const stages = { connect: '连接（DNS / 代理 / TCP）', tls: 'TLS 握手', headers: '等待响应头', body: '读取并校验正文' };
+  $('healthChecks').replaceChildren(...checks.map(c => {
+    const row = document.createElement('li');
+    const title = document.createElement('strong');
+    title.textContent = c.name + ' · ' + (c.state === 'checking' ? '检测中…' : c.message);
+    title.className = ok(c) ? 'good' : '';
+    const detail = document.createElement('div');
+    detail.className = 'hint';
+    detail.textContent = c.url + (c.state === 'checking' ? '' : ' · ' + c.elapsedMS + ' ms' +
+      (c.http ? ' · HTTP ' + c.http : '') + (c.stage ? ' · ' + (stages[c.stage] || c.stage) : ''));
+    row.append(title, detail);
+    return row;
+  }));
+  setText('healthCheck', h.running ? '检测中…' : '立即检测');
 }
 
 function activationPending(s) {
@@ -143,6 +172,7 @@ function renderControls() {
   const unavailable = exiting || !connected || busy || !s || activationPending(s);
   for (const b of document.querySelectorAll('button')) b.disabled = unavailable;
   $('recentMore').disabled ||= $('pauseMonitor').checked;
+  $('healthCheck').disabled ||= !!s?.upstreamHealth?.running;
   for (const id of [
     'autoStartCDN',
     'queuePrefetchEnabled',

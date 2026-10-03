@@ -8,6 +8,27 @@ const script = readFileSync(new URL('../internal/console/assets/console.js', imp
 const cacheScript = readFileSync(new URL('../internal/console/assets/cache.js', import.meta.url), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+test('upstream health distinguishes origin errors, disables duplicate checks, and clears old route results', async () => {
+  const p = page();
+  p.finishBatch(0, {}, { upstreamHealth: {
+    mode: 'socks5', proxy: '127.0.0.1:7891', running: false,
+    checks: [{ name: '歌曲列表', state: 'upstream_error', message: '源站响应超时（Cloudflare 524）',
+      url: 'https://api.udon.dance/Api/Songs/list', http: 524, elapsedMS: 125000, stage: 'headers' }],
+  } });
+  await flush();
+  const get = id => p.document.getElementById(id);
+  assert.match(get('healthSummary').textContent, /源站响应超时/);
+  assert.match(get('healthRoute').textContent, /SOCKS5.*7891/);
+  assert.equal(get('healthCheck').disabled, false);
+  p.fireTimer();
+  p.finishBatch(2, {}, { upstreamHealth: { mode: 'direct', running: true, checks: [] } });
+  await flush();
+  assert.match(get('healthSummary').textContent, /正在检测/);
+  assert.match(get('healthRoute').textContent, /直连/);
+  assert.equal(get('healthChecks').children.length, 0);
+  assert.equal(get('healthCheck').disabled, true);
+});
+
 test('budget stop shows a settings link and clears for the next task', async () => {
   const p = page();
   p.finishBatch(0, {}, { batch: { budgetReached: true, phase: '容量预算不足' } });

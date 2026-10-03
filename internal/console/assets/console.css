@@ -629,3 +629,5 @@ details[open] > .recent-summary .recent-expand::before { content: '▾ '; }
 #cacheResult { overflow-wrap: anywhere; }
 
 .check-subsection { border-block: 1px solid var(--line); margin-block: 1rem; padding-block: 1rem; }
+.health-checks { list-style: none; padding: 0; }
+.health-checks li { border-top: 1px solid var(--line); padding-block: .75rem; overflow-wrap: anywhere; }

@@ -26,7 +26,7 @@ func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 	}
 	for _, i := range []int{1, 256, 257, 270} {
 		key := fmt.Sprintf("%064x", i)
-		if _, err := u.db.Exec(`INSERT INTO resource_usage VALUES (?,1,1,1,100,100)`, key); err != nil {
+		if _, err := u.db.Exec(`INSERT INTO resource_usage VALUES (?,1,1,1,100,100,1)`, key); err != nil {
 			t.Fatal(err)
 		}
 	}

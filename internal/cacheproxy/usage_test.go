@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -116,6 +117,16 @@ func TestUsagePersistsAndDeduplicates(t *testing.T) {
 	recordDemand(u, "1", base.Add(31*time.Second))
 	recordDemand(u, "1", base.Add(60*time.Second))
 	recordDemand(u, "2", base)
+	u.flush()
+	var score float64
+	if err := u.db.QueryRow(`SELECT demand_score FROM resource_usage WHERE resource_key='1'`).Scan(&score); err != nil {
+		t.Fatal(err)
+	}
+	// Count requests at 0, 30 and 60 seconds, including the exact window boundary.
+	wantScore := math.Exp2(-60.0/(60*86400)) + math.Exp2(-30.0/(60*86400)) + 1
+	if math.Abs(score-wantScore) > 1e-12 {
+		t.Fatalf("deduplicated score=%g want=%g", score, wantScore)
+	}
 	u.close()
 	get, demand, first, last := usageCounts(t, path, "1")
 	if get != 5 || demand != 3 || first != base.UnixMilli() || last != base.Add(time.Minute).UnixMilli() {
@@ -179,7 +190,7 @@ FROM request_events`).Scan(&total, &heads, &prefetches, &ranged)
 	}
 }
 
-func TestUsageUpgradesSummaryOnlyDatabase(t *testing.T) {
+func TestUsageRejectsLegacyScoreSchema(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "usage.sqlite")
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
@@ -194,23 +205,9 @@ INSERT INTO resource_usage VALUES ('1', 5, 3, 1000, 1000, 1000);`)
 		t.Fatal(err)
 	}
 	u, err := openUsage(path, slog.New(slog.NewTextHandler(io.Discard, nil)), 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	recordDemand(u, "1", time.UnixMilli(32000))
-	u.close()
-	get, demand, first, last := usageCounts(t, path, "1")
-	if get != 6 || demand != 4 || first != 1000 || last != 32000 {
-		t.Fatalf("migrated stats: %d %d %d %d", get, demand, first, last)
-	}
-	db, err = sql.Open("sqlite", path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	var count int
-	if err := db.QueryRow("SELECT count(*) FROM request_events").Scan(&count); err != nil || count != 1 {
-		t.Fatalf("must not invent historical events: %d %v", count, err)
+	if err == nil {
+		u.close()
+		t.Fatal("legacy score schema accepted")
 	}
 }
 

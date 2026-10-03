@@ -118,7 +118,7 @@ func TestCacheDeletionSharedMetadataAndStaleConfirmation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = u.db.Exec(`INSERT INTO songs(song_id,title) VALUES ('2','共享歌'); INSERT INTO song_videos VALUES ('2',?); INSERT INTO current_videos VALUES ('2',?); INSERT INTO resource_usage VALUES (?,3,2,100,200,200)`, e.Key, e.Key, e.Key)
+	_, err = u.db.Exec(`INSERT INTO songs(song_id,title) VALUES ('2','共享歌'); INSERT INTO song_videos VALUES ('2',?); INSERT INTO current_videos VALUES ('2',?); INSERT INTO resource_usage VALUES (?,3,2,100,200,200,2)`, e.Key, e.Key, e.Key)
 	if err != nil {
 		t.Fatal(err)
 	}

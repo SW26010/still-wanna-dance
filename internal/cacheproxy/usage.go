@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -78,7 +79,8 @@ CREATE TABLE IF NOT EXISTS resource_usage (
  demand_count INTEGER NOT NULL,
  first_requested_at INTEGER NOT NULL,
  last_requested_at INTEGER NOT NULL,
- last_demand_at INTEGER NOT NULL
+ last_demand_at INTEGER NOT NULL,
+ demand_score REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS request_events (
  event_id INTEGER PRIMARY KEY,
@@ -101,6 +103,16 @@ CREATE INDEX IF NOT EXISTS request_events_resource_time ON request_events(resour
 CREATE INDEX IF NOT EXISTS request_events_time ON request_events(requested_at);`)
 	if err == nil {
 		_, err = db.Exec(recentHTTPIndexSQL)
+	}
+	// This schema requires a fresh store; there is no legacy score migration.
+	if err == nil {
+		var rows *sql.Rows
+		rows, err = db.Query(`SELECT demand_score FROM resource_usage LIMIT 0`)
+		if err == nil {
+			rows.Close()
+		} else {
+			err = fmt.Errorf("storage requires the exponential demand schema; use a new storage directory: %w", err)
+		}
 	}
 	if err != nil {
 		db.Close()
@@ -251,16 +263,28 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			}
 			continue
 		}
+		var score float64
+		var last int64
+		err = tx.QueryRowContext(ctx, `SELECT demand_score, last_demand_at FROM resource_usage WHERE resource_key = ?`, e.id).Scan(&score, &last)
+		if err != nil && err != sql.ErrNoRows {
+			return err
+		}
+		if err == sql.ErrNoRows {
+			score = 1
+		} else if e.at-last >= demandWindow.Milliseconds() {
+			score = retentionScore(score, last, e.at) + 1
+		}
 		_, err = tx.ExecContext(ctx, `INSERT INTO resource_usage
-(resource_key, get_count, demand_count, first_requested_at, last_requested_at, last_demand_at)
-VALUES (?, 1, 1, ?, ?, ?)
+(resource_key, get_count, demand_count, first_requested_at, last_requested_at, last_demand_at, demand_score)
+VALUES (?, 1, 1, ?, ?, ?, ?)
 ON CONFLICT(resource_key) DO UPDATE SET
  get_count = get_count + 1,
+ demand_score = excluded.demand_score,
  demand_count = demand_count + CASE WHEN excluded.last_requested_at - last_demand_at >= ? THEN 1 ELSE 0 END,
  first_requested_at = min(first_requested_at, excluded.first_requested_at),
  last_requested_at = max(last_requested_at, excluded.last_requested_at),
  last_demand_at = CASE WHEN excluded.last_requested_at - last_demand_at >= ? THEN excluded.last_requested_at ELSE last_demand_at END`,
-			e.id, e.at, e.at, e.at, demandWindow.Milliseconds(), demandWindow.Milliseconds())
+			e.id, e.at, e.at, e.at, score, demandWindow.Milliseconds(), demandWindow.Milliseconds())
 		if err != nil {
 			return err
 		}

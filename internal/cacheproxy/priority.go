@@ -19,19 +19,26 @@ func (s *Server) songPriorities(ctx context.Context, ids []int64, now int64) (ma
 	for _, id := range ids {
 		result[id] = initialpriority.Score(id)
 	}
-	rows, err := s.usage.db.QueryContext(ctx, `SELECT CAST(sv.song_id AS INTEGER), SUM(u.demand_count), MAX(u.last_demand_at)
+	rows, err := s.usage.db.QueryContext(ctx, `SELECT CAST(sv.song_id AS INTEGER), u.demand_score, u.last_demand_at
 		FROM song_videos sv JOIN resource_usage u ON u.resource_key = sv.version_key
-		WHERE u.demand_count > 0 GROUP BY sv.song_id`)
+		WHERE u.demand_count > 0 ORDER BY sv.song_id, sv.version_key`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+	seen := make(map[int64]bool)
 	for rows.Next() {
-		var id, count, last int64
-		if err := rows.Scan(&id, &count, &last); err != nil {
+		var id, last int64
+		var score float64
+		if err := rows.Scan(&id, &score, &last); err != nil {
 			return nil, err
 		}
-		result[id] = retentionScore(count, last, now)
+		if !seen[id] {
+			result[id] = 0
+			seen[id] = true
+		}
+		// Versions must be decayed to a common instant before adding them.
+		result[id] += retentionScore(score, last, now)
 	}
 	return result, rows.Err()
 }

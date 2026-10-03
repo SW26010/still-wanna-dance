@@ -22,14 +22,16 @@ type retainedVideo struct {
 	score        float64
 }
 
-// Recent repeated demand is valuable; a seven-day aging scale prevents old hits
-// from dominating forever. HEAD and prefetch never contribute demand_count.
-func retentionScore(count, last, now int64) float64 {
-	if count <= 0 {
+// demandHalfLife applies independently to every counted request.
+const demandHalfLife = 60 * 24 * time.Hour
+
+// retentionScore evaluates an accumulator stored at last, without mutating it.
+func retentionScore(score float64, last, now int64) float64 {
+	if score <= 0 {
 		return 0
 	}
-	age := math.Max(0, float64(now-last)/float64((7*24*time.Hour).Milliseconds()))
-	return math.Log1p(float64(count)) / (1 + age)
+	age := math.Max(0, float64(now-last)/float64(demandHalfLife.Milliseconds()))
+	return score * math.Exp2(-age)
 }
 
 func (s *Server) pinVideo(v video) {
@@ -251,18 +253,19 @@ func (s *Server) trimCachePass(reconcile bool) error {
 	now := time.Now().UnixMilli()
 	stats := map[string]retainedVideo{}
 	if s.usage != nil {
-		rows, err := s.usage.db.Query(`SELECT resource_key, demand_count, last_demand_at FROM resource_usage`)
+		rows, err := s.usage.db.Query(`SELECT resource_key, demand_score, last_demand_at FROM resource_usage`)
 		if err != nil {
 			return err
 		}
 		for rows.Next() {
 			var id string
-			var count, last int64
-			if err := rows.Scan(&id, &count, &last); err != nil {
+			var last int64
+			var score float64
+			if err := rows.Scan(&id, &score, &last); err != nil {
 				rows.Close()
 				return err
 			}
-			stats[id] = retainedVideo{score: retentionScore(count, last, now), recent: last}
+			stats[id] = retainedVideo{score: retentionScore(score, last, now), recent: last}
 		}
 		err = rows.Err()
 		rows.Close()

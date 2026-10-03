@@ -1,5 +1,7 @@
 {
   "schemaVersion": 1,
+  "status": "historical",
+  "scope": "Historical evaluation of the retired equal-requester prior. These metrics do not evaluate the current 60-day exponential song-priority.json; the original model and results are preserved unchanged.",
   "method": "equalRequester",
   "selectionMetric": "User-specified equal-requester rule, not tuned to holdout; event hit rates remain unweighted.",
   "requesterAdjustment": {

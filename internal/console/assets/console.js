@@ -195,6 +195,8 @@ function renderControls() {
   $('logDir').disabled ||= !$('manualLogDir').checked;
   $('logDir').required = $('manualLogDir').checked;
   if (!$('manualLogDir').checked && s) $('logDir').value = s.defaultLogDir || s.settings.logDir;
+  $('directConnectionHint').hidden = $('upstreamMode').value !== 'direct';
+  $('upstreamMode').setAttribute('aria-describedby', $('upstreamMode').value === 'direct' ? 'directConnectionHint' : 'socks5PasswordHint');
   $('socks5Address').disabled ||= $('upstreamMode').value !== 'socks5';
   $('socks5Username').disabled ||= $('upstreamMode').value !== 'socks5';
   $('socks5Password').disabled ||= $('upstreamMode').value !== 'socks5';

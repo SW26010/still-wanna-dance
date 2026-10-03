@@ -44,6 +44,11 @@ func (s *Server) prefetchWithConfirmationBudget(ctx context.Context, id, target 
 		return "", err
 	}
 	v.songID = id
+	finishBudget, err := s.reserveBatchVideo(ctx, v)
+	if err != nil {
+		return "", err
+	}
+	defer func() { finishBudget(resultErr == nil || ctx.Err() != nil) }()
 	// Background callers choose their preferred route and own full-file retries.
 	// Preserve that choice even when playback has measured a faster mirror.
 	v.preferRequestedRoute = true

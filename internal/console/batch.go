@@ -32,24 +32,25 @@ type Failure struct {
 	Error string `json:"error"`
 }
 type Batch struct {
-	CatalogHits int       `json:"catalogHits"`
-	FullVerify  bool      `json:"fullVerify"`
-	Reused      int       `json:"reused"`
-	Verified    int       `json:"verified"`
-	Corrupt     int       `json:"corrupt"`
-	ScanOnly    bool      `json:"scanOnly"`
-	Missing     int       `json:"missing"`
-	Updated     time.Time `json:"updated"`
-	Finished    time.Time `json:"finished"`
-	Running     bool      `json:"running"`
-	Phase       string    `json:"phase"`
-	Total       int       `json:"total"`
-	Checked     int       `json:"checked"`
-	Hits        int       `json:"hits"`
-	Downloaded  int       `json:"downloaded"`
-	Failed      int       `json:"failed"`
-	Current     string    `json:"current"`
-	Failures    []Failure `json:"failures"`
+	BudgetReached bool      `json:"budgetReached"`
+	CatalogHits   int       `json:"catalogHits"`
+	FullVerify    bool      `json:"fullVerify"`
+	Reused        int       `json:"reused"`
+	Verified      int       `json:"verified"`
+	Corrupt       int       `json:"corrupt"`
+	ScanOnly      bool      `json:"scanOnly"`
+	Missing       int       `json:"missing"`
+	Updated       time.Time `json:"updated"`
+	Finished      time.Time `json:"finished"`
+	Running       bool      `json:"running"`
+	Phase         string    `json:"phase"`
+	Total         int       `json:"total"`
+	Checked       int       `json:"checked"`
+	Hits          int       `json:"hits"`
+	Downloaded    int       `json:"downloaded"`
+	Failed        int       `json:"failed"`
+	Current       string    `json:"current"`
+	Failures      []Failure `json:"failures"`
 }
 
 func parseCatalog(r io.Reader) ([]Song, error) {
@@ -227,6 +228,11 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		plan = nil
 	}
 	c.mu.Unlock()
+	if !scanOnly {
+		ctx = s.WithBatchBudget(ctx)
+	}
+	budgetStop := make(chan struct{})
+	var stopBudget sync.Once
 	defer func() {
 		c.lifecycleMu.Lock()
 		defer c.lifecycleMu.Unlock()
@@ -321,9 +327,16 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		c.batch.Current = strings.Join(names, "；")
 	}
 	process := func(song Song) {
+		select {
+		case <-budgetStop:
+			return
+		default:
+		}
 		if ctx.Err() != nil {
 			return
 		}
+		ctx, releaseBudget := cacheproxy.WithBatchSongBudget(ctx)
+		defer releaseBudget()
 		c.mu.Lock()
 		active[song.ID] = fmt.Sprintf("%d · %s", song.ID, song.Name)
 		refreshCurrent()
@@ -382,14 +395,23 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 					source = "HIT"
 				case !result.localOnly && result.target != "" && settings.DownloadUpstream == "hkg":
 					source, err = s.PrefetchSong(ctx, strconv.FormatInt(song.ID, 10), result.target)
-					if err != nil && ctx.Err() == nil {
+					if err != nil && ctx.Err() == nil && !errors.Is(err, cacheproxy.ErrBatchBudget) {
+						previous := err
 						source, err = c.prefetchSong(ctx, s, song.ID, nil)
+						err = preserveBudgetFailure(previous, err)
 					}
 				default:
 					// Scan URLs use HKG. Reuse verified local hits above, but
 					// resolve CF first for Auto downloads of missing files.
 					source, err = c.prefetchSong(ctx, s, song.ID, nil)
 				}
+			}
+		}
+		if errors.Is(err, cacheproxy.ErrBatchBudget) {
+			stopBudget.Do(func() { close(budgetStop) })
+			var failed *batchFallbackBudgetError
+			if !errors.As(err, &failed) {
+				return
 			}
 		}
 		if ctx.Err() != nil {
@@ -454,6 +476,8 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 dispatch:
 	for _, song := range songs {
 		select {
+		case <-budgetStop:
+			break dispatch
 		case <-ctx.Done():
 			break dispatch
 		case jobs <- song:
@@ -461,6 +485,15 @@ dispatch:
 	}
 	close(jobs)
 	wg.Wait()
+	select {
+	case <-budgetStop:
+		c.mu.Lock()
+		c.batch.BudgetReached = true
+		c.batch.Phase = "容量预算不足，下载补齐已自动停止。请前往「设置」调大「视频缓存上限（GiB）」后再次下载补齐；修改前请先停止 CDN 和队列预缓存。"
+		c.mu.Unlock()
+		return
+	default:
+	}
 	if ctx.Err() != nil {
 		return
 	}

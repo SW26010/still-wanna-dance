@@ -178,8 +178,10 @@ func TestQueueReentryAfterEviction(t *testing.T) {
 	}
 }
 
-func TestBatchReportsCompletionWithEviction(t *testing.T) {
-	c, _, _, _ := queueRetentionFixture(t, 1)
+func TestBatchReportsBudgetStopWithoutDownloading(t *testing.T) {
+	var downloads atomic.Int32
+	c, _, _, calls := queueRetentionFixture(t, 1, func() { downloads.Add(1) })
+	defer c.Close()
 	if err := c.startBatch(); err != nil {
 		t.Fatal(err)
 	}
@@ -189,11 +191,11 @@ func TestBatchReportsCompletionWithEviction(t *testing.T) {
 	<-done
 	inventory := scanInventory(context.Background(), c.settings)
 	t.Logf("phase=%s downloaded=%d actualVideos=%d", c.batch.Phase, c.batch.Downloaded, inventory.Videos)
-	if inventory.Error != "" || inventory.Videos != 0 || c.lastBatch.Downloaded != 1 || c.lastBatch.Updated.IsZero() {
+	if inventory.Error != "" || inventory.Videos != 0 || downloads.Load() != 0 || calls.Load() != 1 || !c.lastBatch.Updated.IsZero() || !c.batch.BudgetReached || c.batch.Failed != 0 {
 		t.Fatalf("unexpected inventory or snapshot: %+v %+v", inventory, c.lastBatch)
 	}
-	if !strings.Contains(c.lastBatch.Phase, "淘汰") {
-		t.Fatal("completion must explain that downloaded files may not be retained")
+	if !strings.Contains(c.batch.Phase, "设置") {
+		t.Fatal("budget stop must direct users to settings")
 	}
 }
 

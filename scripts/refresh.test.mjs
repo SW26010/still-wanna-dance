@@ -8,6 +8,18 @@ const script = readFileSync(new URL('../internal/console/assets/console.js', imp
 const cacheScript = readFileSync(new URL('../internal/console/assets/cache.js', import.meta.url), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+test('budget stop shows a settings link and clears for the next task', async () => {
+  const p = page();
+  p.finishBatch(0, {}, { batch: { budgetReached: true, phase: '容量预算不足' } });
+  await flush();
+  assert.equal(p.document.getElementById('batchBudgetHint').hidden, false);
+  assert.match(html, /id="batchBudgetHint"[^>]*>[\s\S]*?href="#\/settings"/);
+  p.fireTimer();
+  p.finishBatch(2, {}, { batch: { running: true, budgetReached: false } });
+  await flush();
+  assert.equal(p.document.getElementById('batchBudgetHint').hidden, true);
+});
+
 test('exit confirms, submits once, and stops polling after acknowledgement', async () => {
   const p = page();
   p.finishBatch(); await flush();

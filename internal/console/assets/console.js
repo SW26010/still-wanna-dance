@@ -232,6 +232,7 @@ function renderBatch(s) {
   $('progress').max = b.total || 1;
   $('progress').value = b.checked || 0;
   setText('phase', b.phase || '等待开始');
+  $('batchBudgetHint').hidden = !b.budgetReached;
   setText('current', (b.current || '') +
     (b.total
       ? ' · 当前任务 ' +

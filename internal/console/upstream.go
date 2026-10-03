@@ -14,6 +14,26 @@ import (
 
 var errSongRemoved = errors.New("歌曲已离开待预缓存队列")
 
+type batchFallbackBudgetError struct{ cause error }
+
+func (e *batchFallbackBudgetError) Error() string {
+	return e.cause.Error() + "；回退受容量预算限制"
+}
+func (e *batchFallbackBudgetError) Unwrap() []error {
+	return []error{e.cause, cacheproxy.ErrBatchBudget}
+}
+
+func preserveBudgetFailure(previous, err error) error {
+	if previous != nil && errors.Is(err, cacheproxy.ErrBatchBudget) {
+		var fallback *batchFallbackBudgetError
+		if errors.As(err, &fallback) {
+			previous = errors.Join(previous, fallback.cause)
+		}
+		return &batchFallbackBudgetError{cause: previous}
+	}
+	return err
+}
+
 // Resolve the preferred route first. Auto starts the alternate after a short
 // wait without canceling the preferred request: both share the caller's full
 // resolution deadline, and the first successful result cancels the other.
@@ -156,6 +176,9 @@ func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, i
 		if err == nil {
 			var source string
 			source, err = engine.PrefetchSong(ctx, strconv.FormatInt(id, 10), target)
+			if errors.Is(err, cacheproxy.ErrBatchBudget) {
+				return "", preserveBudgetFailure(errors.Join(failures...), err)
+			}
 			if err == nil {
 				return source, nil
 			}

@@ -35,7 +35,6 @@ type Monitor struct {
 	finished      time.Time
 	nextCheck     time.Time
 	history       map[string][]observation
-	preferred     map[Operation]string
 	songID        int64
 	songAt        time.Time
 	active        chan struct{}
@@ -59,7 +58,7 @@ func newMonitor(o Options, channel *upstreamrequest.Channel) (*Monitor, error) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	snapshot := channel.Snapshot()
-	return &Monitor{ctx: ctx, cancel: cancel, channel: channel, revision: snapshot.Revision, policy: p, history: make(map[string][]observation), preferred: make(map[Operation]string), wake: make(chan struct{}, 1)}, nil
+	return &Monitor{ctx: ctx, cancel: cancel, channel: channel, revision: snapshot.Revision, policy: p, history: make(map[string][]observation), wake: make(chan struct{}, 1)}, nil
 }
 
 func requestClient(t http.RoundTripper) *http.Client {
@@ -72,7 +71,6 @@ func (m *Monitor) refreshChannelLocked() upstreamrequest.Snapshot {
 	if s.Revision != m.revision {
 		m.revision = s.Revision
 		m.history = make(map[string][]observation)
-		m.preferred = make(map[Operation]string)
 		m.songID = 0
 		m.songAt = time.Time{}
 		m.finished = time.Time{}
@@ -110,12 +108,14 @@ func (m *Monitor) SetPolicy(p Policy) error {
 	return nil
 }
 
-// Best and Snapshot only read in-memory observations; they never start checks.
-func (m *Monitor) Best(op Operation) Result {
+// Results returns every known route for the operation in definition order,
+// including unknown, failed, stale, and closed results. Unsupported operations
+// return an empty slice. Results and Snapshot never start checks or rank routes.
+func (m *Monitor) Results(op Operation) []Result {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.refreshChannelLocked()
-	return m.bestLocked(op, time.Now())
+	return m.resultsLocked(op, time.Now())
 }
 func (m *Monitor) Snapshot() Status {
 	m.mu.Lock()
@@ -133,7 +133,7 @@ func (m *Monitor) Snapshot() Status {
 	}
 	now := time.Now()
 	for _, op := range operations {
-		s.Results = append(s.Results, m.bestLocked(op, now))
+		s.Results = append(s.Results, m.resultsLocked(op, now)...)
 	}
 	return s
 }
@@ -263,7 +263,6 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 		m.active = nil
 		if !m.closed && m.refreshChannelLocked().Revision == source.Revision {
 			m.finished = time.Now()
-			m.commitPreferencesLocked(m.finished)
 			if m.scheduler != nil {
 				m.nextCheck = m.finished.Add(m.policy.Interval)
 			}

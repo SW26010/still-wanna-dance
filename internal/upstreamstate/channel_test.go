@@ -37,21 +37,21 @@ func TestChannelAvailabilityAndAutomaticRefresh(t *testing.T) {
 	}
 	ch.Publish(transportFunc(fixture))
 	awaitCondition(t, func() bool { return !m.Snapshot().Finished.IsZero() })
-	if m.Best(Resource).State != "available" {
+	if resultFor(t, m, Resource, "cf").State != "available" {
 		t.Fatal(m.Snapshot())
 	}
 	ch.Publish(transportFunc(func(*http.Request) (*http.Response, error) { return response(524, ""), nil }))
-	// A reader must never observe a recommendation from the previous channel.
-	if r := m.Best(Resource); r.Entry != "" || r.EstimatedSpeedBPS != nil {
+	// A reader must never observe a observation from the previous channel.
+	if r := resultFor(t, m, Resource, "cf"); r.State != "unknown" || r.EstimatedSpeedBPS != nil {
 		t.Fatal(r)
 	}
-	awaitCondition(t, func() bool { return m.Best(Catalog).Reason == "origin_timeout" })
-	if m.Best(PlaybackURL).State != "unknown" {
+	awaitCondition(t, func() bool { return resultFor(t, m, Catalog, "api").Reason == "origin_timeout" })
+	if resultFor(t, m, PlaybackURL, "cf").State != "unknown" {
 		t.Fatal("retained old song seed")
 	}
 	snapshot := ch.Snapshot()
 	ch.Release(snapshot.Revision)
-	if m.Best(Catalog).State != "unknown" {
+	if resultFor(t, m, Catalog, "api").State != "unknown" {
 		t.Fatal("retained released channel results")
 	}
 }
@@ -78,13 +78,13 @@ func TestChannelChangeCancelsAndDiscardsLateResults(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("old request not canceled")
 	}
-	if r := m.Best(Catalog); r.State != "unknown" || r.Entry != "" {
+	if r := resultFor(t, m, Catalog, "api"); r.State != "unknown" || r.Entry == "" {
 		t.Fatal(r)
 	}
 	// Let a misbehaving old transport finish successfully after cancellation.
 	release <- struct{}{}
-	awaitCondition(t, func() bool { return m.Best(Catalog).HTTP == 503 })
-	if m.Best(Resource).State != "unknown" {
+	awaitCondition(t, func() bool { return resultFor(t, m, Catalog, "api").HTTP == 503 })
+	if resultFor(t, m, Resource, "cf").State != "unknown" {
 		t.Fatal("late results published")
 	}
 }

@@ -1,5 +1,5 @@
-// Package upstreamstate checks fixed upstream services and exposes the best
-// observed entry for each operation. Requests follow the application's channel.
+// Package upstreamstate checks fixed upstream services and exposes independent
+// observations for every operation and route. Requests follow the application's channel.
 package upstreamstate
 
 import "time"
@@ -58,16 +58,17 @@ func normalized(p Policy) Policy {
 	return p
 }
 
-// Nil estimates mean unavailable/not applicable, not zero. Entry is a service
-// entry, never a resource URL that can be substituted for an arbitrary video.
+// Nil estimates mean unavailable/not applicable, not zero. Route and Entry
+// identify the checked service in every state; they are not recommendations.
+// A resource Entry is never a playable URL for an arbitrary video.
 type Result struct {
 	Operation          Operation `json:"operation"`
 	State              string    `json:"state"` // available, unavailable, unknown, stale, closed
 	Reason             string    `json:"reason,omitempty"`
 	Stage              string    `json:"stage,omitempty"`
 	HTTP               int       `json:"http,omitempty"`
-	Entry              string    `json:"entry,omitempty"`
-	Route              string    `json:"route,omitempty"`
+	Entry              string    `json:"entry"`
+	Route              string    `json:"route"`
 	EstimatedLatencyMS *float64  `json:"estimatedLatencyMS"`
 	EstimatedSpeedBPS  *float64  `json:"estimatedSpeedBPS"`
 	ProbeDurationMS    *float64  `json:"probeDurationMS"`
@@ -75,8 +76,7 @@ type Result struct {
 	ValidUntil         time.Time `json:"validUntil"`
 	Samples            int       `json:"samples"`
 	// SampleSongID is the requested API song, not the resource ID in its URL.
-	SampleSongID int64  `json:"sampleSongID,omitempty"`
-	Basis        string `json:"basis,omitempty"`
+	SampleSongID int64 `json:"sampleSongID,omitempty"`
 }
 type observation struct {
 	op                  Operation
@@ -102,7 +102,7 @@ func allowedVideoHost(host string) bool {
 	return false
 }
 
-func candidates(op Operation) []string {
+func routeIDs(op Operation) []string {
 	if op == Catalog {
 		return []string{"api"}
 	}
@@ -161,8 +161,12 @@ func (m *Monitor) record(o observation) {
 	}
 	m.history[key] = h
 }
-func (m *Monitor) candidate(op Operation, id string, now time.Time) Result {
-	r := Result{Operation: op, State: "unknown", Reason: "no_sample"}
+func (m *Monitor) resultLocked(op Operation, id string, now time.Time) Result {
+	r := Result{Operation: op, Route: id, Entry: entry(op, id), State: "unknown", Reason: "no_sample"}
+	if m.closed {
+		r.State, r.Reason = "closed", ""
+		return r
+	}
 	h := m.history[string(op)+"/"+id]
 	if len(h) == 0 {
 		return r
@@ -185,8 +189,6 @@ func (m *Monitor) candidate(op Operation, id string, now time.Time) Result {
 	}
 	r.State = "available"
 	r.Reason = ""
-	r.Entry = entry(op, id)
-	r.Route = id
 	var latency, duration, speed float64
 	var speedSamples int
 	for _, o := range h {
@@ -208,88 +210,15 @@ func (m *Monitor) candidate(op Operation, id string, now time.Time) Result {
 		speed /= float64(speedSamples)
 		r.EstimatedSpeedBPS = &speed
 	}
-	r.Basis = "completion_latency"
-	if op == Resource && r.EstimatedSpeedBPS != nil {
-		r.Basis = "bounded_transfer"
-	}
 	return r
 }
 
-// commitPreferencesLocked publishes hysteresis anchors once per completed batch.
-// Partial observations remain readable without giving the first finisher priority.
-func (m *Monitor) commitPreferencesLocked(now time.Time) {
-	for _, op := range operations {
-		r := m.bestLocked(op, now)
-		if r.State == "available" {
-			m.preferred[op] = r.Route
-		} else {
-			delete(m.preferred, op)
-		}
-	}
-}
-
-// bestLocked computes a result without changing the committed preference.
-func (m *Monitor) bestLocked(op Operation, now time.Time) Result {
-	result := Result{Operation: op, State: "unknown", Reason: "no_sample"}
-	if m.closed {
-		result.State = "closed"
-		result.Reason = ""
-		return result
-	}
-	ids := candidates(op)
-	if len(ids) == 0 {
-		result.Reason = "unsupported_operation"
-		return result
-	}
-	var available, failures, stale []Result
+// resultsLocked preserves route definition order, regardless of measurements.
+func (m *Monitor) resultsLocked(op Operation, now time.Time) []Result {
+	ids := routeIDs(op)
+	results := make([]Result, 0, len(ids))
 	for _, id := range ids {
-		r := m.candidate(op, id, now)
-		switch r.State {
-		case "available":
-			available = append(available, r)
-		case "unavailable":
-			failures = append(failures, r)
-		case "stale":
-			stale = append(stale, r)
-		}
+		results = append(results, m.resultLocked(op, id, now))
 	}
-	if len(available) == 0 {
-		if len(failures) == len(ids) {
-			result = failures[0]
-			if len(ids) > 1 {
-				result.Reason = "all_entries_failed"
-				result.HTTP = 0
-				result.Stage = ""
-			}
-		}
-		if len(stale) > 0 && len(stale)+len(failures) == len(ids) {
-			result = stale[0]
-		}
-		return result
-	}
-	best := available[0]
-	better := func(a, b Result) bool {
-		if op == Resource && a.EstimatedSpeedBPS != nil && b.EstimatedSpeedBPS != nil {
-			return *a.EstimatedSpeedBPS > *b.EstimatedSpeedBPS
-		}
-		return *a.ProbeDurationMS < *b.ProbeDurationMS
-	}
-	for _, r := range available[1:] {
-		if better(r, best) {
-			best = r
-		}
-	}
-	for _, old := range available {
-		if old.Route == m.preferred[op] && old.Basis == best.Basis {
-			// Hysteresis applies only to comparable, fresh, successful samples.
-			if op == Resource && old.EstimatedSpeedBPS != nil && best.EstimatedSpeedBPS != nil {
-				if *best.EstimatedSpeedBPS < *old.EstimatedSpeedBPS*1.2 {
-					best = old
-				}
-			} else if *best.ProbeDurationMS > *old.ProbeDurationMS*.8 {
-				best = old
-			}
-		}
-	}
-	return best
+	return results
 }

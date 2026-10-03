@@ -59,65 +59,84 @@ func fixture(r *http.Request) (*http.Response, error) {
 	resp.Header.Set("Content-Range", "bytes 0-65535/131072")
 	return resp, nil
 }
-func TestOperationSpecificBestAndReadOnlySnapshot(t *testing.T) {
+func resultFor(t *testing.T, m *Monitor, op Operation, route string) Result {
+	t.Helper()
+	for _, r := range m.Results(op) {
+		if r.Route == route {
+			return r
+		}
+	}
+	t.Fatalf("missing result for %s/%s", op, route)
+	return Result{}
+}
+
+func TestAllRoutesAndReadOnlySnapshot(t *testing.T) {
 	var calls atomic.Int32
 	m := testMonitor(t, func(r *http.Request) (*http.Response, error) {
 		calls.Add(1)
-		if r.URL.Path == "/Api/Songs/play" && r.URL.Query().Get("node") == "nya" {
-			time.Sleep(30 * time.Millisecond)
+		if r.Header.Get("Range") != "" && (r.Header.Get("Range") != "bytes=0-65535" || r.URL.Scheme != "https") {
+			t.Error(r)
 		}
 		if r.Header.Get("Range") != "" {
-			if r.URL.Host == "play.udon.dance" {
-				time.Sleep(35 * time.Millisecond)
-			} else {
-				time.Sleep(2 * time.Millisecond)
-			}
-			if r.Header.Get("Range") != "bytes=0-65535" || r.URL.Scheme != "https" {
-				t.Error(r)
-			}
+			time.Sleep(time.Millisecond)
 		}
 		return fixture(r)
 	})
-	if r := m.Best(Resource); r.State != "unknown" || r.Entry != "" {
-		t.Fatal(r)
+	initial := m.Snapshot()
+	if len(initial.Results) != 5 {
+		t.Fatal(initial)
+	}
+	for _, r := range initial.Results {
+		if r.State != "unknown" || r.Route == "" || r.Entry == "" || r.EstimatedLatencyMS != nil {
+			t.Fatal(r)
+		}
 	}
 	if err := m.Check(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	cat, resolve, resource := m.Best(Catalog), m.Best(PlaybackURL), m.Best(Resource)
-	if cat.State != "available" || cat.Entry != apiBase+"/Api/Songs/list" {
-		t.Fatal(cat)
+	snapshot := m.Snapshot()
+	if len(snapshot.Results) != 5 {
+		t.Fatal(snapshot)
 	}
-	if resolve.Route != "cf" || resolve.EstimatedSpeedBPS != nil || resolve.SampleSongID != 42 {
-		t.Fatal(resolve)
+	for _, r := range snapshot.Results {
+		if r.State != "available" || r.EstimatedLatencyMS == nil {
+			t.Fatal(r)
+		}
+		if r.Operation == PlaybackURL && (r.EstimatedSpeedBPS != nil || r.SampleSongID != 42) {
+			t.Fatal(r)
+		}
+		if r.Operation == Resource && (r.EstimatedSpeedBPS == nil || r.SampleSongID != 42) {
+			t.Fatal(r)
+		}
 	}
-	if resource.Route != "hkg" || resource.EstimatedSpeedBPS == nil || resource.EstimatedLatencyMS == nil {
-		t.Fatal(resource)
+	if resultFor(t, m, Catalog, "api").Entry != apiBase+"/Api/Songs/list" {
+		t.Fatal(snapshot)
 	}
-	m.mu.Lock()
-	committed := m.preferred[PlaybackURL] == "cf" && m.preferred[Resource] == "hkg"
-	m.mu.Unlock()
-	if !committed {
-		t.Fatal("completed check did not commit operation preferences")
-	}
-	if calls.Load() != 5 {
-		t.Fatal(calls.Load())
+	for _, op := range []Operation{PlaybackURL, Resource} {
+		results := m.Results(op)
+		if len(results) != 2 || results[0].Route != "cf" || results[1].Route != "hkg" {
+			t.Fatal(results)
+		}
 	}
 	for range 50 {
 		m.Snapshot()
-		m.Best(Resource)
+		m.Results(Resource)
 	}
 	if calls.Load() != 5 {
-		t.Fatal("read triggered I/O")
+		t.Fatal("read triggered I/O", calls.Load())
 	}
-	s := m.Snapshot()
-	s.Results[0].Entry = "changed"
-	*resource.EstimatedSpeedBPS = -1
-	if m.Best(Catalog).Entry == "changed" || *m.Best(Resource).EstimatedSpeedBPS < 0 {
+	snapshot.Results[0].Entry = "changed"
+	*snapshot.Results[3].EstimatedSpeedBPS = -1
+	resources := m.Results(Resource)
+	resources[0].Route = "changed"
+	*resources[1].EstimatedLatencyMS = -1
+	if resultFor(t, m, Catalog, "api").Entry == "changed" || *resultFor(t, m, Resource, "cf").EstimatedSpeedBPS < 0 || *resultFor(t, m, Resource, "hkg").EstimatedLatencyMS < 0 {
 		t.Fatal("snapshot aliases state")
 	}
+	if len(m.Results(Operation("invalid"))) != 0 {
+		t.Fatal("invented an unsupported operation")
+	}
 }
-
 func TestCatalogFailureAndSampleReuse(t *testing.T) {
 	var failed atomic.Bool
 	var plays atomic.Int32
@@ -132,17 +151,17 @@ func TestCatalogFailureAndSampleReuse(t *testing.T) {
 	})
 	failed.Store(true)
 	m.Check(context.Background())
-	if got := m.Best(Catalog); got.State != "unavailable" || got.Reason != "origin_timeout" || got.Entry != "" {
+	if got := resultFor(t, m, Catalog, "api"); got.State != "unavailable" || got.Reason != "origin_timeout" || got.Entry == "" {
 		t.Fatal(got)
 	}
-	if m.Best(PlaybackURL).State != "unknown" || plays.Load() != 0 {
+	if resultFor(t, m, PlaybackURL, "cf").State != "unknown" || plays.Load() != 0 {
 		t.Fatal("guessed sample")
 	}
 	failed.Store(false)
 	m.Check(context.Background())
 	failed.Store(true)
 	m.Check(context.Background())
-	if m.Best(Catalog).State != "unavailable" || m.Best(PlaybackURL).State != "available" || plays.Load() != 4 {
+	if resultFor(t, m, Catalog, "api").State != "unavailable" || resultFor(t, m, PlaybackURL, "cf").State != "available" || plays.Load() != 4 {
 		t.Fatal("catalog failure poisoned other operations")
 	}
 	p := DefaultPolicy()
@@ -151,8 +170,53 @@ func TestCatalogFailureAndSampleReuse(t *testing.T) {
 	m.SetPolicy(p)
 	time.Sleep(time.Millisecond)
 	m.Check(context.Background())
-	if plays.Load() != 4 || m.Best(Resource).State != "stale" {
+	if plays.Load() != 4 || resultFor(t, m, Resource, "cf").State != "stale" {
 		t.Fatal("used expired sample")
+	}
+}
+
+func TestPartialCheckKeepsBothRoutesAndTheirFailures(t *testing.T) {
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	defer unblock()
+	m := testMonitor(t, func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path == "/Api/Songs/play" && r.URL.Query().Get("node") == "nya" {
+			select {
+			case <-release:
+				return response(524, ""), nil
+			case <-r.Context().Done():
+				return nil, r.Context().Err()
+			}
+		}
+		return fixture(r)
+	})
+	done := make(chan error, 1)
+	go func() { done <- m.Check(context.Background()) }()
+	awaitCondition(t, func() bool { return resultFor(t, m, Resource, "cf").State == "available" })
+	for _, op := range []Operation{PlaybackURL, Resource} {
+		results := m.Results(op)
+		if len(results) != 2 || results[0].Route != "cf" || results[0].State != "available" || results[1].Route != "hkg" || results[1].State != "unknown" {
+			t.Fatal("partial check hid an unfinished route", results)
+		}
+	}
+	unblock()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("check did not finish")
+	}
+	for _, op := range []Operation{PlaybackURL, Resource} {
+		results := m.Results(op)
+		if results[0].State != "available" || results[1].State != "unavailable" || results[1].HTTP != 524 || results[1].Stage != "headers" {
+			t.Fatal("lost per-route diagnostics", results)
+		}
+	}
+	if resultFor(t, m, PlaybackURL, "hkg").Reason != "origin_timeout" || resultFor(t, m, Resource, "hkg").Reason != "resolution_unavailable" {
+		t.Fatal("lost operation-specific failure reason", m.Snapshot())
 	}
 }
 
@@ -171,9 +235,10 @@ func TestInvalidPlaybackDoesNotProbeResource(t *testing.T) {
 	})
 	m.Check(context.Background())
 	for _, op := range []Operation{PlaybackURL, Resource} {
-		r := m.Best(op)
-		if r.State != "unavailable" || r.Entry != "" {
-			t.Fatal(r)
+		for _, r := range m.Results(op) {
+			if r.State != "unavailable" || r.Entry == "" {
+				t.Fatal(r)
+			}
 		}
 	}
 	if resourceCalls.Load() != 0 {
@@ -210,7 +275,7 @@ func TestSharedCheckCancellationAndClose(t *testing.T) {
 		t.Fatal("canceled shared work")
 	}
 	m.Close()
-	if s := m.Snapshot(); s.Checking || !s.Closed || m.Best(Catalog).State != "closed" {
+	if s := m.Snapshot(); s.Checking || !s.Closed || resultFor(t, m, Catalog, "api").State != "closed" {
 		t.Fatal("not joined")
 	}
 	if m.Check(context.Background()) == nil || m.Start() == nil || m.SetPolicy(DefaultPolicy()) == nil {
@@ -253,7 +318,7 @@ func TestRuntimeScheduleAndRequestTimeout(t *testing.T) {
 	n := testMonitor(t, func(r *http.Request) (*http.Response, error) { <-r.Context().Done(); return nil, r.Context().Err() })
 	n.SetPolicy(p)
 	n.Check(context.Background())
-	if r := n.Best(Catalog); r.State != "unavailable" || r.Reason != "timeout" {
+	if r := resultFor(t, n, Catalog, "api"); r.State != "unavailable" || r.Reason != "timeout" {
 		t.Fatal(r)
 	}
 }

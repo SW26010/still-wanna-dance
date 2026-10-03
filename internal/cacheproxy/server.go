@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,9 +20,8 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/applog"
+	"still-wanna-dance/internal/videometa"
 )
-
-var videoPath = regexp.MustCompile(`^/files/[0-9]+/([1-9][0-9]*)-([a-zA-Z0-9]+)\.mp4$`)
 
 type video struct {
 	localOnly                        bool
@@ -257,40 +255,12 @@ func parseVideo(r *http.Request, maxFileBytes int64) (video, error) {
 	if host != "play.udon.dance" && host != "nya.xin.moe" {
 		return v, errors.New("unsupported host")
 	}
-	m := videoPath.FindStringSubmatch(r.URL.Path)
-	if m == nil || r.URL.RawPath != "" {
-		return v, errors.New("invalid video path")
-	}
-	q, err := urlQuery(r)
+	meta, err := videometa.Parse(r.URL, maxFileBytes)
 	if err != nil {
 		return v, err
 	}
-	checksum := strings.ToLower(q[0])
-	digest, err := hex.DecodeString(checksum)
-	if err != nil || len(digest) != 16 {
-		return v, errors.New("e must be a 32-character MD5")
-	}
-	size, err := strconv.ParseInt(q[1], 10, 64)
-	if err != nil || size <= 0 || size > maxFileBytes {
-		return v, errors.New("s exceeds allowed size or is invalid")
-	}
-	key := sha256.Sum256([]byte(m[1] + "/" + m[2] + "/" + checksum + "/" + strconv.FormatInt(size, 10)))
-	return video{checksum: checksum, size: size, key: hex.EncodeToString(key[:]), path: r.URL.Path, query: r.URL.RawQuery, host: host}, nil
-}
-
-func urlQuery(r *http.Request) ([2]string, error) {
-	var values [2]string
-	q, err := url.ParseQuery(r.URL.RawQuery)
-	if err != nil {
-		return values, errors.New("invalid query")
-	}
-	for i, name := range []string{"e", "s"} {
-		if len(q[name]) != 1 {
-			return values, errors.New("exactly one e and s required")
-		}
-		values[i] = q[name][0]
-	}
-	return values, nil
+	key := sha256.Sum256([]byte(meta.ResourceID + "/" + meta.Version + "/" + meta.Checksum + "/" + strconv.FormatInt(meta.Size, 10)))
+	return video{checksum: meta.Checksum, size: meta.Size, key: hex.EncodeToString(key[:]), path: r.URL.Path, query: r.URL.RawQuery, host: host}, nil
 }
 
 // Register before Close starts waiting so completed observations drain to disk.

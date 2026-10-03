@@ -21,6 +21,7 @@ import (
 
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/desktop"
+	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/vrclog"
 )
 
@@ -96,6 +97,7 @@ type Console struct {
 	apiBase             string
 	dns                 *directDNS
 	upstreamDial        upstreamDialFunc
+	requestRevision     uint64
 	health              UpstreamHealth
 	healthGeneration    uint64
 	healthCancel        context.CancelFunc
@@ -138,6 +140,7 @@ func New(configPath, address string) (*Console, error) {
 	}
 	if err == nil {
 		c.loadSnapshots()
+		c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport)
 	}
 	return c, err
 }
@@ -336,6 +339,7 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 	oldClient := c.client
 	if networkChanged {
 		c.upstreamDial, c.client = dial, client
+		c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport)
 		c.resetHealthLocked()
 	}
 	c.scanPlan = nil
@@ -554,6 +558,7 @@ func (c *Console) Close() error {
 	c.lifecycleMu.Lock()
 	c.mu.Lock()
 	c.closing = true
+	upstreamrequest.Default.Release(c.requestRevision)
 	if c.healthCancel != nil {
 		c.healthCancel()
 	}

@@ -36,19 +36,20 @@ var aboutPage string
 var assets embed.FS
 
 type Settings struct {
-	QueuePrefetchEnabled bool   `json:"queuePrefetchEnabled"`
-	RequestRetentionDays int    `json:"requestRetentionDays"`
-	AutoStartCDN         bool   `json:"autoStartCDN"`
-	QueuePrefetchCount   int    `json:"queuePrefetchCount"`
-	DownloadUpstream     string `json:"downloadUpstream"`
-	UpstreamMode         string `json:"upstreamMode"`
-	SOCKS5Address        string `json:"socks5Address"`
-	SOCKS5Username       string `json:"socks5Username"`
-	SOCKS5Password       string `json:"socks5Password,omitempty"`
-	MaxCacheBytes        int64  `json:"maxCacheBytes"`
-	StorageDir           string `json:"storageDir"`
-	LogDir               string `json:"logDir"`
-	ManualLogDir         bool   `json:"manualLogDir"`
+	ThroughputIntervalMinutes int    `json:"throughputIntervalMinutes"`
+	QueuePrefetchEnabled      bool   `json:"queuePrefetchEnabled"`
+	RequestRetentionDays      int    `json:"requestRetentionDays"`
+	AutoStartCDN              bool   `json:"autoStartCDN"`
+	QueuePrefetchCount        int    `json:"queuePrefetchCount"`
+	DownloadUpstream          string `json:"downloadUpstream"`
+	UpstreamMode              string `json:"upstreamMode"`
+	SOCKS5Address             string `json:"socks5Address"`
+	SOCKS5Username            string `json:"socks5Username"`
+	SOCKS5Password            string `json:"socks5Password,omitempty"`
+	MaxCacheBytes             int64  `json:"maxCacheBytes"`
+	StorageDir                string `json:"storageDir"`
+	LogDir                    string `json:"logDir"`
+	ManualLogDir              bool   `json:"manualLogDir"`
 }
 
 type Console struct {
@@ -169,6 +170,12 @@ func (c *Console) storedSettings(s Settings) Settings {
 }
 
 func absoluteSettings(s Settings) (Settings, error) {
+	if s.ThroughputIntervalMinutes == 0 {
+		s.ThroughputIntervalMinutes = 20
+	}
+	if s.ThroughputIntervalMinutes < 1 || s.ThroughputIntervalMinutes > 1440 {
+		return s, errors.New("自动吞吐检测间隔必须为 1～1440 分钟")
+	}
 	if s.UpstreamMode == "" {
 		s.UpstreamMode = "direct"
 	}
@@ -317,6 +324,11 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 	c.inventoryMu.Lock()
 	c.mu.Lock()
 	c.settings = s
+	if c.monitor != nil {
+		policy := c.monitor.Snapshot().Policy
+		policy.ThroughputInterval = time.Duration(s.ThroughputIntervalMinutes) * time.Minute
+		_ = c.monitor.SetPolicy(policy)
+	}
 	if !s.QueuePrefetchEnabled {
 		delete(c.actionErrors, "queue")
 	}

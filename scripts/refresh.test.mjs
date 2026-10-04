@@ -102,7 +102,7 @@ test('throughput history and automatic waiting reason remain visible independent
     { operation: 'playback_url', route: 'hkg', state: 'unavailable', reason: 'invalid' },
   ] } });
   await flush();
-  assert.match(get('healthThroughputSchedule').textContent, /下次自动吞吐测速：.*2030.*等待 15 分钟间隔到期/);
+  assert.match(get('healthThroughputSchedule').textContent, /下次自动吞吐测速：.*2030.*等待 20 分钟间隔到期/);
   const cf = get('healthResourceCf').children[0];
   assert.match(cf.children[2].textContent, /暂无有效数据/);
   assert.match(cf.children[3].textContent, /8192.0 KiB\/s.*歌曲 #42.*下载 2.00 s \/ 16.00 MiB.*历史样本（已过期）/);
@@ -358,6 +358,18 @@ test('active reads share scheduler, block overlap, and pause while hidden', asyn
   finish(); await flush();
   assert.equal(p.timers.size, 0);
   assert.equal(calls, 2);
+});
+
+test('throughput interval settings render and submit custom minutes', async () => {
+  const p = page(), get = id => p.document.getElementById(id);
+  p.finishBatch(0, { throughputIntervalMinutes: 35 }, { upstreamMonitor: { policy: { throughputInterval: 35 * 60 * 1e9 }, throughputStatus: 'cooldown', results: [] } });
+  await flush();
+  assert.equal(get('throughputIntervalMinutes').value, 35);
+  assert.match(get('healthThroughputSchedule').textContent, /等待 35 分钟间隔到期/);
+  get('throughputIntervalMinutes').value = '45';
+  get('settings').dispatchEvent({ type: 'change' });
+  get('settings').dispatchEvent({ type: 'submit' });
+  assert.equal(JSON.parse(p.requests[2].body).throughputIntervalMinutes, 45);
 });
 
 for (const removeAuth of [false, true]) {
@@ -824,7 +836,7 @@ test('settings submit prevents navigation and serializes the edited controls', a
     autoStartCDN: true, storageDir: 'D:/draft', manualLogDir: true, logDir: 'D:/logs', downloadUpstream: 'hkg',
     upstreamMode: 'socks5', socks5Address: '127.0.0.1:7891',
     socks5Username: 'test-user', socks5Password: 'test-secret',
-    requestRetentionDays: 0, maxCacheBytes: 1342177280,
+    requestRetentionDays: 0, maxCacheBytes: 1342177280, throughputIntervalMinutes: 20,
   });
   assert.equal(get('save').disabled, true);
   p.requests[2].finish({ ok: true });

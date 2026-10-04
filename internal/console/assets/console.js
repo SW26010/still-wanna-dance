@@ -47,7 +47,8 @@ function renderHealth(h, settings) {
   const dated = v => v && !v.startsWith('0001');
   const date = v => dated(v) ? new Date(v).toLocaleString() : '—';
   setText('healthTime', '最近完成：' + date(h.finished) + ' · 下次检测：' + date(h.nextCheck));
-  const throughputStates = { closed: '监测已关闭', business_busy: '业务正在加载视频，自动测速已暂停', running: '正在依次测量资源通道', preparing: '正在获取歌曲及资源地址', other_manual_check: '等待当前手动检测结束', not_scheduled: '自动调度尚未启动', cooldown: '等待 15 分钟间隔到期', due: '已到期，等待调度', waiting_sample: '等待有效歌曲及资源地址', persistence_error: '保存测速记录失败，自动测速已延期' };
+  const throughputMinutes = (h.policy?.throughputInterval || 20 * 60 * 1e9) / (60 * 1e9);
+  const throughputStates = { closed: '监测已关闭', business_busy: '业务正在加载视频，自动测速已暂停', running: '正在依次测量资源通道', preparing: '正在获取歌曲及资源地址', other_manual_check: '等待当前手动检测结束', not_scheduled: '自动调度尚未启动', cooldown: '等待 ' + throughputMinutes + ' 分钟间隔到期', due: '已到期，等待调度', waiting_sample: '等待有效歌曲及资源地址', persistence_error: '保存测速记录失败，自动测速已延期' };
   const throughputWait = throughputStates[h.throughputStatus] || '等待调度信息';
   setText('healthThroughputSchedule', '下次自动吞吐测速：' + (dated(h.nextThroughput) ? date(h.nextThroughput) : '首次具备样本时') +
     ' · ' + throughputWait + (h.throughputSaveFailed ? ' · 测速记录保存失败，重启可能无法恢复' : ''));
@@ -91,7 +92,7 @@ function renderHealth(h, settings) {
         (song ? ' · 歌曲 #' + song : '') +
         ' · 测速时间 ' + date(at) +
         (durationMS != null ? ' · 下载 ' + (durationMS / 1000).toFixed(2) + ' s / ' + (bytes / 1048576).toFixed(2) + ' MiB' : '') +
-        (saved && Date.now() >= new Date(at).getTime() + 15 * 60 * 1000 ? ' · 历史样本（已过期）' : '') : noData);
+        (saved && Date.now() >= new Date(at).getTime() + throughputMinutes * 60 * 1000 ? ' · 历史样本（已过期）' : '') : noData);
       row.append(title, detail, latency, throughput);
       return row;
     }
@@ -210,6 +211,7 @@ function renderSettings(s) {
   if (!settingsDirty) {
     $('queuePrefetchEnabled').checked = s.settings.queuePrefetchEnabled !== false;
     $('autoStartCDN').checked = !!s.settings.autoStartCDN;
+    $('throughputIntervalMinutes').value = s.settings.throughputIntervalMinutes ?? 20;
     $('requestRetentionDays').value = s.settings.requestRetentionDays ?? 30;
     $('queuePrefetchCount').value = s.settings.queuePrefetchCount || 3;
     $('storageDir').value = s.settings.storageDir;
@@ -242,6 +244,7 @@ function renderControls() {
     'manualLogDir',
     'maxCacheGiB',
     'requestRetentionDays',
+    'throughputIntervalMinutes',
     'downloadUpstream',
     'upstreamMode',
     'socks5Address',
@@ -510,6 +513,7 @@ $('settings').addEventListener('submit', (e) => {
   action('settings', {
     autoStartCDN: $('autoStartCDN').checked,
     queuePrefetchEnabled: $('queuePrefetchEnabled').checked,
+    throughputIntervalMinutes: Number($('throughputIntervalMinutes').value),
     requestRetentionDays: Number($('requestRetentionDays').value),
     queuePrefetchCount: Number($('queuePrefetchCount').value),
     downloadUpstream: $('downloadUpstream').value,

@@ -36,34 +36,35 @@ type Status struct {
 // Monitor is independent of consumers and network configuration. Nothing starts
 // automatically; the owner explicitly starts and closes the monitor.
 type Monitor struct {
-	throughputSaveFailed bool
-	batchKind            CheckKind
-	batchCtx             context.Context
-	batchCancel          context.CancelFunc
-	manualDone           chan struct{}
-	throughputStatePath  string
-	lastThroughput       time.Time
-	batchThroughput      *bool
-	throughput           map[string]observation
-	batchManual          bool
-	mu                   sync.Mutex
-	ctx                  context.Context
-	cancel               context.CancelFunc
-	policy               Policy
-	started              time.Time
-	finished             time.Time
-	nextCheck            time.Time
-	history              map[string][]observation
-	songID               int64
-	songAt               time.Time
-	active               chan struct{}
-	scheduler            chan struct{}
-	closed               bool
-	wake                 chan struct{}
-	channel              *upstreamrequest.Channel
-	revision             uint64
-	batchRevision        uint64
-	preferences          map[Operation]*preference
+	throughputPolicyPending bool
+	throughputSaveFailed    bool
+	batchKind               CheckKind
+	batchCtx                context.Context
+	batchCancel             context.CancelFunc
+	manualDone              chan struct{}
+	throughputStatePath     string
+	lastThroughput          time.Time
+	batchThroughput         *bool
+	throughput              map[string]observation
+	batchManual             bool
+	mu                      sync.Mutex
+	ctx                     context.Context
+	cancel                  context.CancelFunc
+	policy                  Policy
+	started                 time.Time
+	finished                time.Time
+	nextCheck               time.Time
+	history                 map[string][]observation
+	songID                  int64
+	songAt                  time.Time
+	active                  chan struct{}
+	scheduler               chan struct{}
+	closed                  bool
+	wake                    chan struct{}
+	channel                 *upstreamrequest.Channel
+	revision                uint64
+	batchRevision           uint64
+	preferences             map[Operation]*preference
 }
 
 func NewMonitor(o Options) (*Monitor, error) {
@@ -124,6 +125,9 @@ func (m *Monitor) refreshChannelLocked() upstreamrequest.Snapshot {
 	return s
 }
 func validatePolicy(p Policy) error {
+	if p.ThroughputInterval <= 0 {
+		return errors.New("throughput interval must be positive")
+	}
 	if p.ResourceMaxBytes <= 0 || p.ResourceMaxBytes > 16<<20 || p.ResourceTimeout > 3*time.Second {
 		return errors.New("resource measurement requires bytes <= 16 MiB and timeout <= 3 seconds")
 	}
@@ -148,12 +152,19 @@ func (m *Monitor) SetPolicy(p Policy) error {
 	if m.closed {
 		return errors.New("monitor closed")
 	}
+	intervalChanged := m.policy.ThroughputInterval != p.ThroughputInterval
 	m.policy = p
+	if intervalChanged && m.active != nil {
+		m.throughputPolicyPending = true
+	}
 	if m.scheduler != nil && !m.finished.IsZero() {
 		m.nextCheck = m.finished.Add(p.Interval)
 		m.scheduleThroughputLocked()
 		if source := m.refreshChannelLocked(); source.Candidates != nil {
 			m.scheduleCandidatesLocked(source.Candidates)
+		}
+		if intervalChanged && !time.Now().Before(m.lastThroughput.Add(p.ThroughputInterval)) {
+			m.nextCheck = time.Now()
 		}
 	}
 	select {
@@ -195,7 +206,7 @@ func (m *Monitor) Snapshot() Status {
 	}
 	s.LastThroughputAttempt = m.lastThroughput
 	if !m.lastThroughput.IsZero() {
-		s.NextThroughput = m.lastThroughput.Add(throughputInterval)
+		s.NextThroughput = m.lastThroughput.Add(m.policy.ThroughputInterval)
 	}
 	s.ThroughputSaveFailed = m.throughputSaveFailed
 	s.ThroughputStatus = m.throughputStatus(s, now)
@@ -391,7 +402,14 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 				if source.Candidates != nil {
 					m.scheduleCandidatesLocked(source.Candidates)
 				}
+				// A running light batch may have cached a no-throughput decision.
+				// Re-evaluate policy changes after it completes, against the latest
+				// interval and attempt time, then consume the request once.
+				if m.throughputPolicyPending && !m.finished.Before(m.lastThroughput.Add(m.policy.ThroughputInterval)) {
+					m.nextCheck = m.finished
+				}
 			}
+			m.throughputPolicyPending = false
 		}
 		close(done)
 	}()

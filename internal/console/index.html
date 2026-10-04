@@ -44,7 +44,7 @@
         <p id="healthSummary" role="status">等待首次检测…</p>
         <p id="healthRoute" class="hint"></p>
         <details class="help"><summary>检测说明</summary>
-          <p class="hint">默认每轮完成后 5 分钟检测，候选变化或观测即将到期时提前检测，关闭页面后继续运行。每轮从有效歌曲列表随机选歌，解析真实资源。常规资源检测仅读取一个字节以测量延迟；吞吐检测每 15 分钟一轮，启动时读取最近尝试时间，未到期则等待。测速对每个候选通道持续读取，正文下载满 3 秒、达到 16 MiB、整首下载完毕，任一条件满足即结束；同一线路共用资源样本，各视频通道依次测速，避免争抢本地带宽。列表失败时可短暂复用有效歌曲样本，没有合法样本的通道显示待测。吞吐按实际正文下载字节与时间计算，连接及握手时间不计入。样本吞吐不代表持续带宽，也不保证全部歌曲可播放。</p>
+          <p class="hint">默认每轮完成后 5 分钟检测，候选变化或观测即将到期时提前检测，关闭页面后继续运行。每轮从有效歌曲列表随机选歌，解析真实资源。常规资源检测仅读取一个字节以测量延迟；吞吐检测默认每 20 分钟一轮，可在设置中调整，启动时读取最近尝试时间，未到期则等待。测速对每个候选通道持续读取，正文下载满 3 秒、达到 16 MiB、整首下载完毕，任一条件满足即结束；同一线路共用资源样本，各视频通道依次测速，避免争抢本地带宽。列表失败时可短暂复用有效歌曲样本，没有合法样本的通道显示待测。吞吐按实际正文下载字节与时间计算，连接及握手时间不计入。样本吞吐不代表持续带宽，也不保证全部歌曲可播放。</p>
         </details>
         <p id="healthTime" class="muted"></p>
         <section class="card" aria-labelledby="healthCatalogTitle">
@@ -68,7 +68,7 @@
           <h2 id="healthResourceTitle">视频资源加载</h2>
           <p id="healthThroughputSchedule" class="hint" role="status">等待吞吐检测调度信息…</p>
           <div class="actions"><button id="healthCheckLatency" data-action="upstream/check/latency">检测响应延迟</button><button id="healthCheckThroughput" data-action="upstream/check/throughput">检测吞吐速度</button></div>
-          <p class="hint">手动吞吐检测依次测量所有视频资源通道，不受 15 分钟间隔及业务下载暂停规则限制。</p>
+          <p class="hint">手动吞吐检测依次测量所有视频资源通道，不受自动检测间隔及业务下载暂停规则限制。</p>
           <div class="health-routes">
             <section aria-labelledby="healthResourceHkgTitle"><h3 id="healthResourceHkgTitle">HKG</h3><ul id="healthResourceHkg" class="health-checks" aria-label="HKG 视频资源加载检测结果"></ul></section>
             <section aria-labelledby="healthResourceCfTitle"><h3 id="healthResourceCfTitle">CF</h3><ul id="healthResourceCf" class="health-checks" aria-label="CF 视频资源加载检测结果"></ul></section>
@@ -303,6 +303,9 @@
               表示不限。下载补齐会在容量预算不足时自动停止。播放和队列预缓存仍按需下载，超限时删除低优先级视频，保留歌曲资料和历史统计；受保护的视频可暂时超限，临时文件另需空间。保存后下次启动
               CDN 或下载任务时生效。
             </div>
+            <label for="throughputIntervalMinutes">自动吞吐检测间隔（分钟）</label>
+            <input id="throughputIntervalMinutes" type="number" min="1" max="1440" step="1" required value="20" aria-describedby="throughputIntervalHint" />
+            <div class="hint" id="throughputIntervalHint">默认 20 分钟。保存后按上次测速时间重新计算下次时间，不重置计时。首字节检测频率不变。</div>
             <label for="requestRetentionDays">请求明细保留天数</label
             ><input
               id="requestRetentionDays" aria-describedby="requestRetentionDaysHint"

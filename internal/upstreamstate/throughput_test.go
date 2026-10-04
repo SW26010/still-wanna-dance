@@ -65,7 +65,7 @@ func TestAutomaticThroughputCooldownSurvivesRestart(t *testing.T) {
 		}
 	}
 	restarted.Close()
-	b, _ := json.Marshal(time.Now().Add(-16 * time.Minute))
+	b, _ := json.Marshal(time.Now().Add(-21 * time.Minute))
 	if err := os.WriteFile(path, b, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +173,7 @@ func TestHistoricalThroughputSurvivesRestartWithoutRevivingHealth(t *testing.T) 
 		t.Fatal(r)
 	}
 	s := restored.Snapshot()
-	if !s.NextThroughput.Equal(at.Add(15 * time.Minute)) {
+	if !s.NextThroughput.Equal(at.Add(20 * time.Minute)) {
 		t.Fatal(s.NextThroughput)
 	}
 }
@@ -196,6 +196,95 @@ func TestThroughputWaitingReasons(t *testing.T) {
 		if got := m.throughputStatus(tc.status, now); got != tc.want {
 			t.Fatal(got, tc.want)
 		}
+	}
+}
+
+func TestIntervalChangeDuringLightBatchIsReevaluatedOnCompletion(t *testing.T) {
+	for _, lengthenAgain := range []bool{false, true} {
+		t.Run(map[bool]string{false: "shortened", true: "lengthened again"}[lengthenAgain], func(t *testing.T) {
+			entered, release, full := make(chan struct{}), make(chan struct{}), make(chan struct{}, 8)
+			var lights atomic.Int32
+			m := testMonitor(t, func(r *http.Request) (*http.Response, error) {
+				rg := r.Header.Get("Range")
+				if rg == "bytes=0-0" && lights.Add(1) == 1 {
+					close(entered)
+					select {
+					case <-release:
+					case <-r.Context().Done():
+						return nil, r.Context().Err()
+					}
+				} else if rg != "" && rg != "bytes=0-0" {
+					full <- struct{}{}
+				}
+				return fixture(r)
+			})
+			m.lastThroughput = time.Now().Add(-10 * time.Minute)
+			if err := m.Start(); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case <-entered:
+			case <-time.After(time.Second):
+				t.Fatal("light batch did not start")
+			}
+			p := m.Snapshot().Policy
+			p.ThroughputInterval = 5 * time.Minute
+			if err := m.SetPolicy(p); err != nil {
+				t.Fatal(err)
+			}
+			if lengthenAgain {
+				p.ThroughputInterval = 30 * time.Minute
+				if err := m.SetPolicy(p); err != nil {
+					t.Fatal(err)
+				}
+			}
+			close(release)
+			if !lengthenAgain {
+				select {
+				case <-full:
+				case <-time.After(time.Second):
+					t.Fatal("policy wakeup lost at batch completion")
+				}
+			} else {
+				awaitCondition(t, func() bool { return !m.Snapshot().Finished.IsZero() })
+				select {
+				case <-full:
+					t.Fatal("obsolete shorter interval still triggered throughput")
+				default:
+				}
+				if !m.Snapshot().NextCheck.After(time.Now()) {
+					t.Fatal("pending request not consumed")
+				}
+			}
+		})
+	}
+}
+
+func TestConfigurableThroughputInterval(t *testing.T) {
+	m := testMonitor(t, fixture)
+	if m.Snapshot().Policy.ThroughputInterval != 20*time.Minute {
+		t.Fatal("wrong default")
+	}
+	at := time.Now().Add(-10 * time.Minute)
+	m.lastThroughput = at
+	if m.claimThroughput(false) {
+		t.Fatal("default interval ignored")
+	}
+	p := m.Snapshot().Policy
+	p.ThroughputInterval = 5 * time.Minute
+	if err := m.SetPolicy(p); err != nil {
+		t.Fatal(err)
+	}
+	if !m.Snapshot().NextThroughput.Equal(at.Add(5*time.Minute)) || !m.lastThroughput.Equal(at) {
+		t.Fatal("policy change reset attempt time")
+	}
+	m.batchThroughput = nil
+	if !m.claimThroughput(false) {
+		t.Fatal("shorter interval did not become due")
+	}
+	p.ThroughputInterval = -time.Minute
+	if m.SetPolicy(p) == nil {
+		t.Fatal("negative interval accepted")
 	}
 }
 

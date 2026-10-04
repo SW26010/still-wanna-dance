@@ -13,8 +13,6 @@ import (
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
-const throughputInterval = 15 * time.Minute
-
 // Only sample metadata is persisted: no playable URLs or proxy credentials.
 type ThroughputSample struct {
 	ObservedAt time.Time     `json:"observedAt"`
@@ -29,7 +27,7 @@ type throughputState struct {
 }
 
 func (m *Monitor) scheduleThroughputLocked() {
-	due := m.lastThroughput.Add(throughputInterval)
+	due := m.lastThroughput.Add(m.policy.ThroughputInterval)
 	if !m.lastThroughput.IsZero() && time.Now().Before(due) && due.Before(m.nextCheck) {
 		m.nextCheck = due
 	}
@@ -75,7 +73,7 @@ func (m *Monitor) claimThroughput(manual bool) bool {
 	if m.batchThroughput != nil {
 		return *m.batchThroughput
 	}
-	due := manual || time.Since(m.lastThroughput) >= throughputInterval
+	due := manual || time.Since(m.lastThroughput) >= m.policy.ThroughputInterval
 	m.batchThroughput = &due
 	if !due {
 		return false

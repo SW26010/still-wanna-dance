@@ -217,6 +217,40 @@ func TestSelectedMonitorEndpointsRequireTokenAndDispatch(t *testing.T) {
 	}
 }
 
+func TestThroughputIntervalSettingsPersistAndApply(t *testing.T) {
+	c := testConsole(t)
+	if c.settings.ThroughputIntervalMinutes != 20 {
+		t.Fatal("wrong settings default")
+	}
+	var err error
+	c.monitor, err = upstreamstate.NewMonitor(upstreamstate.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := c.settings
+	s.ThroughputIntervalMinutes = 35
+	if err = c.save(s); err != nil {
+		t.Fatal(err)
+	}
+	if c.monitor.Snapshot().Policy.ThroughputInterval != 35*time.Minute {
+		t.Fatal("running monitor not updated")
+	}
+	restored, err := New(c.configPath, "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restored.Close()
+	if restored.settings.ThroughputIntervalMinutes != 35 {
+		t.Fatal("interval not persisted")
+	}
+	for _, invalid := range []int{-1, 1441} {
+		s.ThroughputIntervalMinutes = invalid
+		if c.save(s) == nil {
+			t.Fatal("invalid interval accepted", invalid)
+		}
+	}
+}
+
 func TestManualMonitorCheckCanceledOnClose(t *testing.T) {
 	c := testConsole(t)
 	entered := make(chan struct{}, 1)

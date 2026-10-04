@@ -17,32 +17,37 @@ var operations = [...]Operation{Catalog, PlaybackURL, Resource}
 // Zero durations use defaults; negative durations are invalid. SetPolicy
 // replaces the whole policy, including timeouts for subsequent checks.
 type Policy struct {
-	Interval          time.Duration `json:"interval"`
-	Lifetime          time.Duration `json:"lifetime"`
-	FailureLifetime   time.Duration `json:"failureLifetime"`
-	SampleLifetime    time.Duration `json:"sampleLifetime"`
-	RequestTimeout    time.Duration `json:"requestTimeout"`
-	ResourceMaxBytes  int64         `json:"resourceMaxBytes"`
-	ResourceTimeout   time.Duration `json:"resourceTimeout"`
-	SwitchImprovement float64       `json:"switchImprovement"`
-	SwitchSamples     int           `json:"switchSamples"`
+	ThroughputInterval time.Duration `json:"throughputInterval"`
+	Interval           time.Duration `json:"interval"`
+	Lifetime           time.Duration `json:"lifetime"`
+	FailureLifetime    time.Duration `json:"failureLifetime"`
+	SampleLifetime     time.Duration `json:"sampleLifetime"`
+	RequestTimeout     time.Duration `json:"requestTimeout"`
+	ResourceMaxBytes   int64         `json:"resourceMaxBytes"`
+	ResourceTimeout    time.Duration `json:"resourceTimeout"`
+	SwitchImprovement  float64       `json:"switchImprovement"`
+	SwitchSamples      int           `json:"switchSamples"`
 }
 
 func DefaultPolicy() Policy {
 	return Policy{
-		Interval:          5 * time.Minute,
-		Lifetime:          6 * time.Minute,
-		FailureLifetime:   30 * time.Second,
-		SampleLifetime:    10 * time.Minute,
-		RequestTimeout:    30 * time.Second,
-		ResourceMaxBytes:  16 << 20,
-		ResourceTimeout:   3 * time.Second,
-		SwitchImprovement: 0.15,
-		SwitchSamples:     2,
+		ThroughputInterval: 20 * time.Minute,
+		Interval:           5 * time.Minute,
+		Lifetime:           6 * time.Minute,
+		FailureLifetime:    30 * time.Second,
+		SampleLifetime:     10 * time.Minute,
+		RequestTimeout:     30 * time.Second,
+		ResourceMaxBytes:   16 << 20,
+		ResourceTimeout:    3 * time.Second,
+		SwitchImprovement:  0.15,
+		SwitchSamples:      2,
 	}
 }
 func normalized(p Policy) Policy {
 	d := DefaultPolicy()
+	if p.ThroughputInterval == 0 {
+		p.ThroughputInterval = d.ThroughputInterval
+	}
 	if p.SwitchImprovement == 0 {
 		p.SwitchImprovement = d.SwitchImprovement
 	}
@@ -224,7 +229,7 @@ func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (
 			return
 		}
 		r.EstimatedSpeedBPS, r.TransferDurationMS, r.TransferredBytes = nil, nil, 0
-		if o, ok := m.throughput[key]; ok && now.Before(o.at.Add(throughputInterval)) {
+		if o, ok := m.throughput[key]; ok && now.Before(o.at.Add(m.policy.ThroughputInterval)) {
 			speed, ms := float64(o.bytes)/o.transferDuration.Seconds(), float64(o.transferDuration)/float64(time.Millisecond)
 			r.EstimatedSpeedBPS, r.TransferDurationMS, r.TransferredBytes = &speed, &ms, o.bytes
 			r.ThroughputObservedAt = o.at

@@ -25,7 +25,7 @@ func (c *Console) startMonitorLocked() error {
 		return nil
 	}
 	if c.monitor == nil {
-		m, err := upstreamstate.NewMonitor(upstreamstate.Options{ThroughputStatePath: c.configPath + ".throughput.json"})
+		m, err := upstreamstate.NewMonitor(upstreamstate.Options{ThroughputStatePath: c.configPath + ".throughput.json", Policy: upstreamstate.Policy{ThroughputInterval: time.Duration(c.settings.ThroughputIntervalMinutes) * time.Minute}})
 		if err != nil {
 			return err
 		}
@@ -35,7 +35,11 @@ func (c *Console) startMonitorLocked() error {
 }
 func (c *Console) monitorSnapshotLocked() upstreamstate.Status {
 	if c.monitor == nil {
-		return upstreamstate.Status{Policy: upstreamstate.DefaultPolicy(), Results: []upstreamstate.Result{}}
+		policy := upstreamstate.DefaultPolicy()
+		if c.settings.ThroughputIntervalMinutes > 0 {
+			policy.ThroughputInterval = time.Duration(c.settings.ThroughputIntervalMinutes) * time.Minute
+		}
+		return upstreamstate.Status{Policy: policy, Results: []upstreamstate.Result{}}
 	}
 	s := c.monitor.Snapshot()
 	s.Checking = s.Checking || c.monitorManual

@@ -97,3 +97,5 @@ Interval 是候选检查的最大常规间隔；新 DNS 候选事件提前唤醒
 `go test ./internal/upstreamrequest ./internal/upstreamstate ./internal/console`；`go vet` 同上。测试覆盖候选固定 IP、Host/SNI、SOCKS5 远端 DNS、三模式、TTL 交接、配置退休、无 I/O 读取、逐候选失败隔离、推荐迟滞、动态候选唤醒、旧配置迟到结果丢弃，以及既有正文与重定向边界。
 
 CheckSelected(ctx, kind) 支持 catalog、playback、latency、throughput 四类手动检查，取消自动轮次并优先执行，自动调度等待手动轮次结束。依赖请求仅用于取得合法样本，不替换无关操作的观测。资源检查仍串行，手动吞吐绕过冷却和业务暂停，手动延迟只读取一个字节。
+
+手动吞吐检测（含全量手动检测中的吞吐阶段）在首个资源通道开始测速前，重置并持久化自动吞吐的 15 分钟计时；同轮后续通道不重复重置。手动视频列表、播放地址解析、响应延迟检测不改变该计时，尚未取得合法资源而未开始测速也不重置。

@@ -74,6 +74,76 @@ func TestAutomaticThroughputCooldownSurvivesRestart(t *testing.T) {
 	}
 }
 
+func TestManualThroughputResetsPersistedCooldown(t *testing.T) {
+	for _, kind := range []CheckKind{CheckCatalog, CheckPlayback, CheckLatency, CheckThroughput, ""} {
+		t.Run(string(kind), func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "throughput.json")
+			old := time.Now().Add(-14 * time.Minute)
+			b, _ := json.Marshal(old)
+			if err := os.WriteFile(path, b, 0600); err != nil {
+				t.Fatal(err)
+			}
+			ch := upstreamrequest.NewChannel()
+			var firstTransfer time.Time
+			var full atomic.Int32
+			ch.Publish(transportFunc(func(r *http.Request) (*http.Response, error) {
+				if rg := r.Header.Get("Range"); rg != "" && rg != "bytes=0-0" {
+					full.Add(1)
+					data, err := os.ReadFile(path)
+					if err != nil {
+						t.Error(err)
+					}
+					var saved time.Time
+					if err := json.Unmarshal(data, &saved); err != nil {
+						t.Error(err)
+					}
+					if !saved.After(old) {
+						t.Error("timer not persisted before transfer")
+					}
+					if firstTransfer.IsZero() {
+						firstTransfer = saved
+					} else if !firstTransfer.Equal(saved) {
+						t.Error("timer reset for each channel")
+					}
+				}
+				return fixture(r)
+			}))
+			m, err := newMonitor(Options{ThroughputStatePath: path}, ch)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer m.Close()
+			if kind == "" {
+				err = m.Check(context.Background())
+			} else {
+				err = m.CheckSelected(context.Background(), kind)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			m.Close()
+			restarted, err := newMonitor(Options{ThroughputStatePath: path}, ch)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer restarted.Close()
+			if kind == CheckThroughput || kind == "" {
+				if full.Load() != 2 || !restarted.lastThroughput.Equal(firstTransfer) {
+					t.Fatal("manual cooldown not retained")
+				}
+				if err := restarted.checkRequest(context.Background(), false); err != nil {
+					t.Fatal(err)
+				}
+				if full.Load() != 2 {
+					t.Fatal("automatic throughput ran during cooldown")
+				}
+			} else if !restarted.lastThroughput.Equal(old) {
+				t.Fatal("non-throughput check changed timer")
+			}
+		})
+	}
+}
+
 func TestLatencyDoesNotReplaceThroughput(t *testing.T) {
 	m := testMonitor(t, fixture)
 	now := time.Now()

@@ -11,6 +11,9 @@ func (m *Monitor) probeResourceWhenIdle(ctx context.Context, client *http.Client
 	kind := m.batchKind
 	m.mu.Unlock()
 	if manual {
+		if kind != CheckLatency && ctx.Err() == nil {
+			m.claimThroughput(true)
+		}
 		return probeResourceMode(ctx, client, p, id, r, sample, kind != CheckLatency)
 	}
 	var throughput bool
@@ -21,7 +24,7 @@ func (m *Monitor) probeResourceWhenIdle(ctx context.Context, client *http.Client
 			return observation{op: Resource, route: r.id, state: "canceled"}
 		}
 		if firstAttempt {
-			throughput = m.claimThroughput()
+			throughput = m.claimThroughput(false)
 			firstAttempt = false
 		}
 		o := probeResourceMode(probeCtx, client, p, id, r, sample, throughput)

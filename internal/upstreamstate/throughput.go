@@ -34,13 +34,13 @@ func (m *Monitor) loadThroughputTime() error {
 	return json.Unmarshal(b, &m.lastThroughput)
 }
 
-func (m *Monitor) claimThroughput() bool {
+func (m *Monitor) claimThroughput(manual bool) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.batchThroughput != nil {
 		return *m.batchThroughput
 	}
-	due := time.Since(m.lastThroughput) >= throughputInterval
+	due := manual || time.Since(m.lastThroughput) >= throughputInterval
 	m.batchThroughput = &due
 	if !due {
 		return false
@@ -49,7 +49,9 @@ func (m *Monitor) claimThroughput() bool {
 	if m.throughputStatePath != "" {
 		if err := m.saveThroughputTime(); err != nil {
 			slog.Error("monitor_throughput_state_save_failed", "error", err)
-			due = false
+			// An explicit check still runs if persistence is unavailable;
+			// the in-memory cooldown has already been reset.
+			due = manual
 		}
 	}
 	return due

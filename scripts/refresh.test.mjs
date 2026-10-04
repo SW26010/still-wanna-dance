@@ -12,7 +12,7 @@ test('canonical monitor renders every channel, throughput, unknown and stale sta
   const p = page();
   p.finishBatch(0, {}, { settings: { upstreamMode: 'auto' }, upstreamMonitor: {
     checking: false, results: [
-      { operation: 'resource', route: 'cf', mode: 'direct', ip: '1.2.3.4', channelID: 'direct/cf/1.2.3.4', state: 'available', entry: 'https://play.udon.dance', estimatedSpeedBPS: 2048, sampleSongID: 42 },
+      { operation: 'resource', route: 'cf', mode: 'direct', ip: '1.2.3.4', channelID: 'direct/cf/1.2.3.4', state: 'available', entry: 'https://play.udon.dance', estimatedSpeedBPS: 2048, transferDurationMS: 2000, transferredBytes: 16777216, sampleSongID: 42 },
       { operation: 'resource', route: 'cf', mode: 'socks5', state: 'unavailable', reason: 'origin_timeout', http: 524 },
       { operation: 'resource', route: 'hkg', mode: 'direct', ip: '2.3.4.5', state: 'unknown', reason: 'no_sample' },
       { operation: 'catalog', route: 'api', mode: 'direct', state: 'stale', reason: 'expired' },
@@ -23,6 +23,7 @@ test('canonical monitor renders every channel, throughput, unknown and stale sta
   const rows = get('healthChecks').children;
   assert.equal(rows.length, 4);
   assert.match(rows[0].children[1].textContent, /2.0 KiB\/s.*歌曲 #42/);
+  assert.match(rows[0].children[1].textContent, /下载 2.00 s \/ 16.00 MiB/);
   assert.match(rows[1].children[0].textContent, /源站响应超时/);
   assert.match(rows[2].children[0].textContent, /待测/);
   assert.match(rows[3].children[0].textContent, /已过期/);

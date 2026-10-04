@@ -55,8 +55,8 @@ func fixture(r *http.Request) (*http.Response, error) {
 		resp.Header.Set("Location", u)
 		return resp, nil
 	}
-	resp := response(206, strings.Repeat("x", int(MaxProbeBytes)))
-	resp.Header.Set("Content-Range", "bytes 0-65535/131072")
+	resp := response(206, strings.Repeat("x", 131072))
+	resp.Header.Set("Content-Range", "bytes 0-131071/131072")
 	return resp, nil
 }
 func resultFor(t *testing.T, m *Monitor, op Operation, route string) Result {
@@ -74,7 +74,7 @@ func TestAllRoutesAndReadOnlySnapshot(t *testing.T) {
 	var calls atomic.Int32
 	m := testMonitor(t, func(r *http.Request) (*http.Response, error) {
 		calls.Add(1)
-		if r.Header.Get("Range") != "" && (r.Header.Get("Range") != "bytes=0-65535" || r.URL.Scheme != "https") {
+		if r.Header.Get("Range") != "" && (r.Header.Get("Range") != "bytes=0-131071" || r.URL.Scheme != "https") {
 			t.Error(r)
 		}
 		if r.Header.Get("Range") != "" {

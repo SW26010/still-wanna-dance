@@ -19,7 +19,6 @@ import (
 	"still-wanna-dance/internal/videometa"
 )
 
-const MaxProbeBytes int64 = 64 << 10
 const MaxCatalogBytes int64 = 16 << 20
 
 type videoSample struct {
@@ -217,7 +216,7 @@ func probePlayback(parent context.Context, client *http.Client, p Policy, id int
 
 func probeResource(parent context.Context, client *http.Client, p Policy, id int64, r route, s videoSample) (o observation) {
 	o = observation{op: Resource, route: r.id, songID: id}
-	ctx, cancel := context.WithTimeout(parent, p.ResourceTimeout)
+	ctx, cancel := context.WithTimeout(parent, p.RequestTimeout+p.ResourceTimeout)
 	defer cancel()
 	started := time.Now()
 	var last *timing
@@ -231,7 +230,7 @@ func probeResource(parent context.Context, client *http.Client, p Policy, id int
 		}
 		o.finishTiming(started, snapshot)
 	}()
-	n := min(MaxProbeBytes, s.size)
+	n := s.size
 	u := s.url
 	for redirects := 0; redirects <= 3; redirects++ {
 		resp, t, err := doProbeRequest(ctx, client, u, fmt.Sprintf("bytes=0-%d", n-1))
@@ -270,16 +269,11 @@ func probeResource(parent context.Context, client *http.Client, p Policy, id int
 			return
 		}
 		t.set("body")
-		read, err := io.Copy(io.Discard, io.LimitReader(resp.Body, n+1))
-		resp.Body.Close()
-		if err == nil && read != n {
-			err = io.ErrUnexpectedEOF
-		}
+		o.bytes, o.transferDuration, err = readResourceSample(ctx, resp.Body, n, p.ResourceMinBytes, p.ResourceMinDuration, p.ResourceTimeout)
 		if err != nil {
 			o.state = errorState(err)
 			return
 		}
-		o.bytes = read
 		o.state = "available"
 		return
 	}

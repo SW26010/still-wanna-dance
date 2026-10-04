@@ -46,7 +46,7 @@ func TestResourceRejectsIgnoredRangeAndOversize(t *testing.T) {
 	for _, status := range []int{200, 206} {
 		body := &countingBody{}
 		client := requestClient(transportFunc(func(*http.Request) (*http.Response, error) {
-			return &http.Response{StatusCode: status, Header: http.Header{"Content-Range": []string{"bytes 0-65535/131072"}}, Body: body}, nil
+			return &http.Response{StatusCode: status, Header: http.Header{"Content-Range": []string{"bytes 0-131071/131072"}}, Body: body}, nil
 		}))
 		s, _ := parseSample(videoFixture)
 		o := probeResource(context.Background(), client, DefaultPolicy(), 42, videoRoutes[0], s)
@@ -55,7 +55,7 @@ func TestResourceRejectsIgnoredRangeAndOversize(t *testing.T) {
 		}
 		want := int64(0)
 		if status == 206 {
-			want = MaxProbeBytes + 1
+			want = s.size + 1
 		}
 		if body.read.Load() != want {
 			t.Fatal("unbounded read", body.read.Load(), want)

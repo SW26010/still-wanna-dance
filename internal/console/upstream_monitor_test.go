@@ -69,12 +69,12 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 			response.StatusCode = 302
 			response.Header.Set("Location", "https://"+host+"/files/123/42-abc.mp4?e=0123456789abcdef0123456789abcdef&s=131072")
 		default:
-			if r.Header.Get("Range") != "bytes=0-65535" {
+			if r.Header.Get("Range") != "bytes=0-131071" {
 				t.Error("unbounded resource request")
 			}
 			response.StatusCode = 206
-			response.Header.Set("Content-Range", "bytes 0-65535/131072")
-			response.Body = io.NopCloser(strings.NewReader(strings.Repeat("x", 65536)))
+			response.Header.Set("Content-Range", "bytes 0-131071/131072")
+			response.Body = io.NopCloser(strings.NewReader(strings.Repeat("x", 131072)))
 		}
 		return response, nil
 	})

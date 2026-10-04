@@ -57,6 +57,7 @@ function renderHealth(h, settings) {
     detail.textContent = r.entry + (r.channelID ? ' · 通道 ' + r.channelID : '') +
       (r.estimatedLatencyMS != null ? ' · 首字节 ' + r.estimatedLatencyMS.toFixed(1) + ' ms' : '') +
       (r.estimatedSpeedBPS != null ? ' · 样本吞吐 ' + (r.estimatedSpeedBPS / 1024).toFixed(1) + ' KiB/s' : '') +
+      (r.transferDurationMS != null ? ' · 下载 ' + (r.transferDurationMS / 1000).toFixed(2) + ' s / ' + (r.transferredBytes / 1048576).toFixed(2) + ' MiB' : '') +
       (r.sampleSongID ? ' · 歌曲 #' + r.sampleSongID : '') +
       (r.http ? ' · HTTP ' + r.http : '') +
       ' · 观测 ' + date(r.observedAt) + ' · 有效至 ' + date(r.validUntil);

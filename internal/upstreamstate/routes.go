@@ -17,26 +17,30 @@ var operations = [...]Operation{Catalog, PlaybackURL, Resource}
 // Zero durations use defaults; negative durations are invalid. SetPolicy
 // replaces the whole policy, including timeouts for subsequent checks.
 type Policy struct {
-	Interval          time.Duration `json:"interval"`
-	Lifetime          time.Duration `json:"lifetime"`
-	FailureLifetime   time.Duration `json:"failureLifetime"`
-	SampleLifetime    time.Duration `json:"sampleLifetime"`
-	RequestTimeout    time.Duration `json:"requestTimeout"`
-	ResourceTimeout   time.Duration `json:"resourceTimeout"`
-	SwitchImprovement float64       `json:"switchImprovement"`
-	SwitchSamples     int           `json:"switchSamples"`
+	Interval            time.Duration `json:"interval"`
+	Lifetime            time.Duration `json:"lifetime"`
+	FailureLifetime     time.Duration `json:"failureLifetime"`
+	SampleLifetime      time.Duration `json:"sampleLifetime"`
+	RequestTimeout      time.Duration `json:"requestTimeout"`
+	ResourceMinBytes    int64         `json:"resourceMinBytes"`
+	ResourceMinDuration time.Duration `json:"resourceMinDuration"`
+	ResourceTimeout     time.Duration `json:"resourceTimeout"`
+	SwitchImprovement   float64       `json:"switchImprovement"`
+	SwitchSamples       int           `json:"switchSamples"`
 }
 
 func DefaultPolicy() Policy {
 	return Policy{
-		Interval:          5 * time.Minute,
-		Lifetime:          6 * time.Minute,
-		FailureLifetime:   30 * time.Second,
-		SampleLifetime:    10 * time.Minute,
-		RequestTimeout:    30 * time.Second,
-		ResourceTimeout:   4 * time.Second,
-		SwitchImprovement: 0.15,
-		SwitchSamples:     2,
+		Interval:            5 * time.Minute,
+		Lifetime:            6 * time.Minute,
+		FailureLifetime:     30 * time.Second,
+		SampleLifetime:      10 * time.Minute,
+		RequestTimeout:      30 * time.Second,
+		ResourceMinBytes:    16 << 20,
+		ResourceMinDuration: 2 * time.Second,
+		ResourceTimeout:     5 * time.Second,
+		SwitchImprovement:   0.15,
+		SwitchSamples:       2,
 	}
 }
 func normalized(p Policy) Policy {
@@ -62,6 +66,12 @@ func normalized(p Policy) Policy {
 	if p.RequestTimeout == 0 {
 		p.RequestTimeout = d.RequestTimeout
 	}
+	if p.ResourceMinBytes == 0 {
+		p.ResourceMinBytes = d.ResourceMinBytes
+	}
+	if p.ResourceMinDuration == 0 {
+		p.ResourceMinDuration = d.ResourceMinDuration
+	}
 	if p.ResourceTimeout == 0 {
 		p.ResourceTimeout = d.ResourceTimeout
 	}
@@ -84,6 +94,8 @@ type Result struct {
 	Route              string    `json:"route"`
 	EstimatedLatencyMS *float64  `json:"estimatedLatencyMS"`
 	EstimatedSpeedBPS  *float64  `json:"estimatedSpeedBPS"`
+	TransferDurationMS *float64  `json:"transferDurationMS"`
+	TransferredBytes   int64     `json:"transferredBytes"`
 	ProbeDurationMS    *float64  `json:"probeDurationMS"`
 	ObservedAt         time.Time `json:"observedAt"`
 	ValidUntil         time.Time `json:"validUntil"`
@@ -98,6 +110,7 @@ type observation struct {
 	http                int
 	at                  time.Time
 	latency, duration   time.Duration
+	transferDuration    time.Duration
 	bytes               int64
 	songID              int64
 }
@@ -197,6 +210,11 @@ func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) R
 	r.SampleSongID = last.songID
 	r.HTTP = last.http
 	r.Stage = last.stage
+	r.TransferredBytes = last.bytes
+	if last.transferDuration > 0 {
+		ms := float64(last.transferDuration) / float64(time.Millisecond)
+		r.TransferDurationMS = &ms
+	}
 	if !now.Before(r.ValidUntil) {
 		r.State = "stale"
 		r.Reason = "expired"
@@ -216,8 +234,12 @@ func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) R
 			r.Samples++
 			latency += float64(o.latency) / float64(time.Millisecond)
 			duration += float64(o.duration) / float64(time.Millisecond)
-			if o.bytes > 0 && o.duration > 0 {
-				speed += float64(o.bytes) / o.duration.Seconds()
+			measuredDuration := o.duration
+			if o.op == Resource && o.transferDuration > 0 {
+				measuredDuration = o.transferDuration
+			}
+			if o.bytes > 0 && measuredDuration > 0 {
+				speed += float64(o.bytes) / measuredDuration.Seconds()
 				speedSamples++
 			}
 		}

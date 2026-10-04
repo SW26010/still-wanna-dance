@@ -16,7 +16,7 @@
 | --- | --- | --- |
 | Catalog | api.udon.dance/Api/Songs/list | 完整 JSON、有效歌曲 ID |
 | PlaybackURL | 同一 API 的 node=cf / node=nya | 重定向、目标主机和资源元数据 |
-| Resource | play.udon.dance / nya.xin.moe | 实际解析出的资源 URL，最多 64 KiB Range 读取 |
+| Resource | play.udon.dance / nya.xin.moe | 实际解析出的资源 URL，连续 Range 下载，满 2 秒且 16 MiB；上限 5 秒或整首 |
 
 线路标识为 api、cf、hkg；hkg 对应 node=nya。Entry 标识服务，资源 Entry 不是任意歌曲的播放 URL。每轮从有效列表的去重正数歌曲 ID 中均匀随机采样；列表失败可在 SampleLifetime 内复用旧 ID，首次没有样本时不猜测视频地址。同一路线的所有资源候选共用本轮解析出的一个合法样本，不把不同 IP 返回的不同视频混作吞吐比较。
 
@@ -54,8 +54,8 @@ if ok {
 结果包含 Operation、Route、Entry、ChannelID、Mode、IP、State、Reason、Stage、HTTP、ObservedAt、ValidUntil、Samples、SampleSongID。无有效估计时数值为 nil，不是零耗时。
 
 - EstimatedLatencyMS：从请求开始到最终有效响应的首字节，包含连接、握手；资源包含此前重定向的耗时。
-- EstimatedSpeedBPS：有效字节数 / 完整探测耗时，是短样本有效速率，不是持续满速带宽。PlaybackURL 不提供吞吐估计。
-- ProbeDurationMS：代表性探测平均完成耗时，不是完整视频下载时间。
+- EstimatedSpeedBPS：资源为有效字节数 / 正文下载耗时（排除建连、握手和响应头）；列表仍为有效字节数 / 完整探测耗时。不是持续满速带宽。PlaybackURL 不提供吞吐估计。
+- ProbeDurationMS：代表性探测平均完成耗时。TransferDurationMS 与 TransferredBytes 是最近一次正文下载的实际时长及字节数。
 
 每个操作/入口/通道保留最多 8 个同歌曲的连续成功样本。失败或样本变化重置该窗口，移除的候选历史会回收。一项完成立即发布，不等待整轮；失败只影响该项。
 
@@ -70,7 +70,9 @@ Catalog 和 PlaybackURL 优先低首字节耗时，Resource 优先高有效吞�
 | FailureLifetime | 30 秒 |
 | SampleLifetime | 10 分钟 |
 | RequestTimeout | 30 秒 |
-| ResourceTimeout | 4 秒 |
+| ResourceMinDuration | 2 秒 |
+| ResourceMinBytes | 16 MiB |
+| ResourceTimeout | 5 秒（正文下载上限） |
 | SwitchImprovement | 0.15 |
 | SwitchSamples | 2 |
 
@@ -80,7 +82,7 @@ Interval 是候选检查的最大常规间隔；新 DNS 候选事件提前唤醒
 
 ## 探测边界
 
-歌曲列表及播放地址最多 4 个并行候选探测；视频资源吞吐跨线路、跨候选串行执行，每次仅一个资源传输，避免争抢本地带宽。列表最多 16 MiB；资源最多 64 KiB（额外读取 1 字节检测越界），必须是正确的 206、Content-Range 和未压缩正文。资源重定向最多三次，必须保持主机、大小及校验标识。播放 URL 不自动跟随重定向。视频元数据统一用 internal/videometa 校验，HTTP 视频 URL 升级为 HTTPS。
+歌曲列表及播放地址最多 4 个并行候选探测；视频资源吞吐跨线路、跨候选串行执行，每次仅一个资源传输，避免争抢本地带宽。列表最多 16 MiB；资源连续读取，至少 2 秒且 16 MiB 后收尾，5 秒或整首资源结束则优先停止（最多额外读取 1 字节检测越界）；5 秒内有有效正文就保留实测吞吐，没有正文记超时，必须是正确的 206、Content-Range 和未压缩正文。资源重定向最多三次，必须保持主机、大小及校验标识。播放 URL 不自动跟随重定向。视频元数据统一用 internal/videometa 校验，HTTP 视频 URL 升级为 HTTPS。
 
 超时记录 timeout；仅明确收到 524 才记录 origin_timeout。不把取消当作通道失败，不泄露底层可能带认证信息的错误。
 

@@ -100,6 +100,9 @@ func (m *Monitor) refreshChannelLocked() upstreamrequest.Snapshot {
 	return s
 }
 func validatePolicy(p Policy) error {
+	if p.ResourceMinBytes <= 0 || p.ResourceMinDuration <= 0 || p.ResourceMinDuration > p.ResourceTimeout || p.ResourceTimeout > 5*time.Second {
+		return errors.New("resource measurement requires 0 < minimum <= timeout <= 5 seconds")
+	}
 	if math.IsNaN(p.SwitchImprovement) || p.SwitchImprovement <= 0 || p.SwitchImprovement >= 1 || p.SwitchSamples < 1 {
 		return errors.New("invalid switching policy")
 	}

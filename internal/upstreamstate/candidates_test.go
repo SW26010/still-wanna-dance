@@ -137,7 +137,7 @@ func TestRecommendationHysteresisAndImmediateFailureFallback(t *testing.T) {
 		}{{"a", "available", 1000}, {"b", bstate, 3000}} {
 			m.record(observation{op: Resource, route: "cf", channel: v.id + "/play.udon.dance", state: v.state, at: sampleAt, latency: time.Millisecond, duration: time.Second, bytes: v.bytes})
 		}
-		m.updatePreferencesLocked(f, start)
+		m.updatePreferencesLocked(f, start, "")
 	}
 	feed("network_error")
 	first, ok := m.Recommended(Resource)
@@ -177,7 +177,7 @@ func TestResourceRecommendationCountsOnlyNewThroughput(t *testing.T) {
 		}{{"a", a}, {"b", b}} {
 			m.record(observation{op: Resource, route: "cf", channel: v.id + "/play.udon.dance", state: "available", at: at, latency: time.Millisecond, duration: time.Second, transferDuration: time.Second, bytes: v.bytes})
 		}
-		m.updatePreferencesLocked(f, at)
+		m.updatePreferencesLocked(f, at, "")
 	}
 	feed(base, 3000, 1000)                  // A is initially preferred.
 	feed(base.Add(time.Second), 1000, 3000) // B earns one throughput win.
@@ -189,7 +189,7 @@ func TestResourceRecommendationCountsOnlyNewThroughput(t *testing.T) {
 	}
 	// Even a repeated update with the original batch boundary cannot reuse it.
 	m.mu.Lock()
-	m.updatePreferencesLocked(f, base)
+	m.updatePreferencesLocked(f, base, "")
 	m.mu.Unlock()
 	if m.preferences[Resource].wins != 1 {
 		t.Fatal("same throughput counted twice")

@@ -8,9 +8,10 @@ import (
 func (m *Monitor) probeResourceWhenIdle(ctx context.Context, client *http.Client, p Policy, id int64, r route, sample videoSample) observation {
 	m.mu.Lock()
 	manual := m.batchManual
+	kind := m.batchKind
 	m.mu.Unlock()
 	if manual {
-		return probeResource(ctx, client, p, id, r, sample)
+		return probeResourceMode(ctx, client, p, id, r, sample, kind != CheckLatency)
 	}
 	var throughput bool
 	firstAttempt := true

@@ -41,7 +41,8 @@ function renderHealth(h, settings) {
   const states = { available: '可用', unavailable: '不可用', unknown: '待测', stale: '已过期', closed: '已关闭' };
   const reasons = { no_channel: '没有有效候选', no_sample: '等待有效歌曲及资源样本', expired: '观测已过期', timeout: '请求超时', origin_timeout: '源站响应超时（Cloudflare 524）', network_error: '网络请求失败', resolution_unavailable: '无可用资源地址', invalid: '响应校验失败', restricted: '访问受限', upstream_error: '上游错误', http_error: 'HTTP 响应异常' };
   const available = results.filter(r => r.state === 'available').length;
-  setText('healthSummary', h.closed ? '上游监测已关闭' : h.resourcesPaused ? '业务正在加载视频，自动资源测速已暂停' : h.checking ? '正在检测所有候选通道…' : !results.length ? '等待首次检测…' : '可用 ' + available + ' / ' + results.length + ' 项（按操作、线路、通道分别测量）');
+  const checkNames = { catalog: '视频列表', playback: '播放地址解析', latency: '视频资源响应延迟', throughput: '视频资源吞吐速度' };
+  setText('healthSummary', h.closed ? '上游监测已关闭' : h.manual && h.checking ? '手动检测中：' + (checkNames[h.checkKind] || '全部项目') : h.resourcesPaused ? '业务正在加载视频，自动资源测速已暂停' : h.checking ? '正在检测所有候选通道…' : !results.length ? '等待首次检测…' : '可用 ' + available + ' / ' + results.length + ' 项（按操作、线路、通道分别测量）');
   setText('healthRoute', '当前检测范围：' + ({ direct: '全部直连 IP', socks5: 'SOCKS5', auto: '全部直连 IP 与 SOCKS5' }[settings.upstreamMode] || '等待网络配置'));
   const dated = v => v && !v.startsWith('0001');
   const date = v => dated(v) ? new Date(v).toLocaleString() : '—';
@@ -216,6 +217,9 @@ function renderControls() {
   for (const b of document.querySelectorAll('button')) b.disabled = unavailable;
   $('recentMore').disabled ||= $('pauseMonitor').checked;
   $('healthCheck').disabled ||= !!s?.upstreamMonitor?.checking;
+  for (const id of ['healthCheckCatalog', 'healthCheckPlayback', 'healthCheckLatency', 'healthCheckThroughput']) {
+    $(id).disabled ||= !!s?.upstreamMonitor?.manual;
+  }
   for (const id of [
     'autoStartCDN',
     'queuePrefetchEnabled',

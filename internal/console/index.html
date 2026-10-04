@@ -49,6 +49,7 @@
         <p id="healthTime" class="muted"></p>
         <section class="card" aria-labelledby="healthCatalogTitle">
           <h2 id="healthCatalogTitle">视频列表</h2>
+          <div class="actions"><button id="healthCheckCatalog" data-action="upstream/check/catalog">检测视频列表</button></div>
           <div class="health-routes">
             <section aria-labelledby="healthCatalogUdonTitle"><h3 id="healthCatalogUdonTitle">Udon 歌曲列表</h3><p id="healthCatalogTime" class="hint">响应 time：未获取</p><ul id="healthCatalog" class="health-checks" aria-label="Udon 歌曲列表检测结果"></ul></section>
             <section aria-labelledby="healthCatalogKivaTitle"><h3 id="healthCatalogKivaTitle">Kiva 歌曲与 MD5 清单</h3><p id="healthCatalogKivaTime" class="hint">响应 time：未获取</p><ul id="healthCatalogKiva" class="health-checks" aria-label="Kiva 歌曲清单检测结果"></ul></section>
@@ -57,6 +58,7 @@
         </section>
         <section class="card" aria-labelledby="healthPlaybackTitle">
           <h2 id="healthPlaybackTitle">播放地址解析</h2>
+          <div class="actions"><button id="healthCheckPlayback" data-action="upstream/check/playback">检测播放地址解析</button></div>
           <div class="health-routes">
             <section aria-labelledby="healthPlaybackHkgTitle"><h3 id="healthPlaybackHkgTitle">HKG</h3><ul id="healthPlaybackHkg" class="health-checks" aria-label="HKG 播放地址解析检测结果"></ul></section>
             <section aria-labelledby="healthPlaybackCfTitle"><h3 id="healthPlaybackCfTitle">CF</h3><ul id="healthPlaybackCf" class="health-checks" aria-label="CF 播放地址解析检测结果"></ul></section>
@@ -64,6 +66,8 @@
         </section>
         <section class="card" aria-labelledby="healthResourceTitle">
           <h2 id="healthResourceTitle">视频资源加载</h2>
+          <div class="actions"><button id="healthCheckLatency" data-action="upstream/check/latency">检测响应延迟</button><button id="healthCheckThroughput" data-action="upstream/check/throughput">检测吞吐速度</button></div>
+          <p class="hint">手动吞吐检测依次测量所有视频资源通道，不受 15 分钟间隔及业务下载暂停规则限制。</p>
           <div class="health-routes">
             <section aria-labelledby="healthResourceHkgTitle"><h3 id="healthResourceHkgTitle">HKG</h3><ul id="healthResourceHkg" class="health-checks" aria-label="HKG 视频资源加载检测结果"></ul></section>
             <section aria-labelledby="healthResourceCfTitle"><h3 id="healthResourceCfTitle">CF</h3><ul id="healthResourceCf" class="health-checks" aria-label="CF 视频资源加载检测结果"></ul></section>

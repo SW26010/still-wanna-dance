@@ -104,11 +104,14 @@ func (m *Monitor) Recommended(op Operation) (Selection, bool) {
 }
 
 // Only completed checks count toward hysteresis; UI polling cannot cause switches.
-func (m *Monitor) updatePreferencesLocked(provider upstreamrequest.Candidates, since time.Time) {
+func (m *Monitor) updatePreferencesLocked(provider upstreamrequest.Candidates, since time.Time, kind CheckKind) {
 	if m.preferences == nil {
 		m.preferences = make(map[Operation]*preference)
 	}
 	for _, op := range operations {
+		if !kind.includes(op) {
+			continue
+		}
 		var available []Result
 		for _, r := range m.candidateResultsLocked(op, provider, time.Now()) {
 			if r.State == "available" {
@@ -179,6 +182,7 @@ func (m *Monitor) scheduleCandidatesLocked(provider upstreamrequest.Candidates) 
 }
 
 func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstreamrequest.Snapshot, record func(observation)) {
+	kind := m.batchKind
 	started := time.Now()
 	provider := source.Candidates
 	publish := func(o observation, c upstreamrequest.Candidate) {
@@ -215,11 +219,29 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 	// Populate resource hosts even without a playable sample, so snapshots
 	// enumerate all their channels as unmeasured.
 	for _, r := range videoRoutes {
-		prepare(entry(Resource, r.id))
+		if kind.includes(Resource) {
+			prepare(entry(Resource, r.id))
+		}
 	}
 
 	var ids []int64
+	reusedSong := false
+	if kind != "" && kind != CheckCatalog {
+		if id := m.cachedSong(p); id > 0 {
+			ids = append(ids, id)
+			reusedSong = true
+		}
+	}
 	for _, route := range routeIDs(Catalog) {
+		if kind != "" && kind != CheckCatalog {
+			found := false
+			for _, id := range ids {
+				found = found || id > 0
+			}
+			if found {
+				break
+			}
+		}
 		if ctx.Err() != nil {
 			break
 		}
@@ -239,6 +261,9 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 		return
 	}
 	for _, id := range ids {
+		if reusedSong {
+			break
+		}
 		if id > 0 {
 			m.songID, m.songAt = id, time.Now()
 			break
@@ -249,7 +274,7 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 	}
 	id := m.songID
 	m.mu.Unlock()
-	if id > 0 {
+	if id > 0 && kind != CheckCatalog {
 		for _, r := range videoRoutes {
 			cs := prepare(entry(PlaybackURL, r.id))
 			samples := make([]*videoSample, len(cs))
@@ -258,6 +283,9 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 				samples[i] = s
 				publish(o, c)
 			})
+			if kind == CheckPlayback {
+				continue
+			}
 			var sample *videoSample
 			for _, s := range samples {
 				if s != nil {
@@ -282,7 +310,7 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.refreshChannelLocked().Revision == source.Revision {
-		m.updatePreferencesLocked(provider, started)
+		m.updatePreferencesLocked(provider, started, kind)
 		valid := make(map[string]bool)
 		for _, op := range operations {
 			for _, route := range routeIDs(op) {

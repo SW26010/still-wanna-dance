@@ -16,6 +16,8 @@ type Options struct {
 	ThroughputStatePath string
 }
 type Status struct {
+	Manual          bool      `json:"manual"`
+	CheckKind       CheckKind `json:"checkKind,omitempty"`
 	ResourcesPaused bool      `json:"resourcesPaused"`
 	Checking        bool      `json:"checking"`
 	Scheduled       bool      `json:"scheduled"`
@@ -30,6 +32,10 @@ type Status struct {
 // Monitor is independent of consumers and network configuration. Nothing starts
 // automatically; the owner explicitly starts and closes the monitor.
 type Monitor struct {
+	batchKind           CheckKind
+	batchCtx            context.Context
+	batchCancel         context.CancelFunc
+	manualDone          chan struct{}
 	throughputStatePath string
 	lastThroughput      time.Time
 	batchThroughput     *bool
@@ -167,6 +173,8 @@ func (m *Monitor) Snapshot() Status {
 	defer m.mu.Unlock()
 	m.refreshChannelLocked()
 	s := Status{
+		Manual:          m.manualDone != nil || (m.active != nil && m.batchManual),
+		CheckKind:       m.batchKind,
 		ResourcesPaused: m.channel.ResourceBusy() && (m.active == nil || !m.batchManual),
 		Checking:        m.active != nil,
 		Scheduled:       m.scheduler != nil && !m.closed,
@@ -265,7 +273,11 @@ func (m *Monitor) Check(ctx context.Context) error {
 
 // Only automatically started batches yield bandwidth to business traffic.
 // Existing single-flight behavior remains unchanged for explicit Check calls.
-func (m *Monitor) checkRequest(ctx context.Context, manual bool) error {
+func (m *Monitor) checkRequest(ctx context.Context, manual bool, selected ...CheckKind) error {
+	var kind CheckKind
+	if len(selected) > 0 {
+		kind = selected[0]
+	}
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -275,6 +287,19 @@ func (m *Monitor) checkRequest(ctx context.Context, manual bool) error {
 			m.mu.Unlock()
 			return errors.New("monitor closed")
 		}
+		if !manual && m.manualDone != nil {
+			done := m.manualDone
+			m.mu.Unlock()
+			select {
+			case <-done:
+				continue
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-m.ctx.Done():
+				return m.ctx.Err()
+			}
+		}
+		joined := m.active != nil
 		if m.active == nil {
 			source := m.refreshChannelLocked()
 			if source.Transport == nil {
@@ -283,6 +308,8 @@ func (m *Monitor) checkRequest(ctx context.Context, manual bool) error {
 			}
 			m.batchRevision = source.Revision
 			m.batchManual = manual
+			m.batchKind = kind
+			m.batchCtx, m.batchCancel = context.WithCancel(m.ctx)
 			m.batchThroughput = nil
 			m.active = make(chan struct{})
 			m.started = time.Now()
@@ -297,6 +324,9 @@ func (m *Monitor) checkRequest(ctx context.Context, manual bool) error {
 		case <-m.ctx.Done():
 			return m.ctx.Err()
 		case <-done:
+			if joined && kind != "" {
+				continue
+			}
 			if m.channel.Snapshot().Revision != revision {
 				continue
 			}
@@ -322,7 +352,8 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 	// Check has verified the channel. This client belongs only to this batch;
 	// channel changes cancel the batch instead of replacing its dependencies.
 	client := requestClient(source.Transport)
-	ctx, cancel := context.WithCancel(m.ctx)
+	ctx, cancel := m.batchCtx, m.batchCancel
+	kind := m.batchKind
 	defer cancel()
 	watchDone := make(chan struct{})
 	defer close(watchDone)
@@ -334,7 +365,7 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 		}
 	}()
 	record := func(o observation) {
-		if m.refreshChannelLocked().Revision == source.Revision {
+		if m.refreshChannelLocked().Revision == source.Revision && kind.includes(o.op) {
 			m.record(o)
 		}
 	}
@@ -363,7 +394,13 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 	}
 	var id int64
 	var sampleAt time.Time
+	if kind != "" && kind != CheckCatalog {
+		id = m.cachedSong(p)
+	}
 	for _, route := range routeIDs(Catalog) {
+		if kind != "" && kind != CheckCatalog && id > 0 {
+			break
+		}
 		if ctx.Err() != nil {
 			break
 		}
@@ -376,7 +413,7 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 		}
 	}
 	m.mu.Lock()
-	if id > 0 && !m.closed && m.revision == source.Revision {
+	if id > 0 && !sampleAt.IsZero() && !m.closed && m.revision == source.Revision {
 		m.songID = id
 		m.songAt = sampleAt
 	}
@@ -385,7 +422,7 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 	}
 	id = m.songID
 	m.mu.Unlock()
-	if id == 0 || ctx.Err() != nil {
+	if kind == CheckCatalog || id == 0 || ctx.Err() != nil {
 		return
 	}
 	var wg sync.WaitGroup
@@ -399,6 +436,9 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 			m.mu.Lock()
 			record(resolved)
 			m.mu.Unlock()
+			if kind == CheckPlayback {
+				return
+			}
 			if sample == nil {
 				if resolved.state != "canceled" {
 					o := resolved

@@ -75,6 +75,25 @@ test('automatic resource probes display business pause and resume', async () => 
   assert.doesNotMatch(get('healthSummary').textContent, /已暂停/);
 });
 
+test('scoped manual buttons work while automatic resource checks are paused', async () => {
+  for (const [id, kind] of [['healthCheckCatalog', 'catalog'], ['healthCheckPlayback', 'playback'], ['healthCheckLatency', 'latency'], ['healthCheckThroughput', 'throughput']]) {
+    const p = page(), get = id => p.document.getElementById(id);
+    p.finishBatch(0, {}, { upstreamMonitor: { checking: true, resourcesPaused: true, manual: false, results: [] } });
+    await flush();
+    assert.equal(get(id).disabled, false);
+    get(id).click();
+    await flush();
+    assert.equal(p.requests[2].url, '/api/upstream/check/' + kind);
+    assert.equal(p.requests[2].method, 'POST');
+    assert.equal(p.requests[2].headers['X-StepStash-Token'], 'test-token');
+  }
+  const p = page(), get = id => p.document.getElementById(id);
+  p.finishBatch(0, {}, { upstreamMonitor: { checking: true, manual: true, checkKind: 'throughput', results: [] } });
+  await flush();
+  for (const id of ['healthCheckCatalog', 'healthCheckPlayback', 'healthCheckLatency', 'healthCheckThroughput']) assert.equal(get(id).disabled, true);
+  assert.match(get('healthSummary').textContent, /手动检测中：视频资源吞吐速度/);
+});
+
 test('budget stop shows a settings link and clears for the next task', async () => {
   const p = page();
   p.finishBatch(0, {}, { batch: { budgetReached: true, phase: '容量预算不足' } });

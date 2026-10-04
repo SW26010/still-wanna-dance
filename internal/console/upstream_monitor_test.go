@@ -181,6 +181,42 @@ func TestMonitorConfigChangeCancelsAndRestarts(t *testing.T) {
 	}
 }
 
+func TestSelectedMonitorEndpointsRequireTokenAndDispatch(t *testing.T) {
+	for _, kind := range []upstreamstate.CheckKind{upstreamstate.CheckCatalog, upstreamstate.CheckPlayback, upstreamstate.CheckLatency, upstreamstate.CheckThroughput} {
+		t.Run(string(kind), func(t *testing.T) {
+			c := testConsole(t)
+			var calls atomic.Int32
+			c.requestRevision = upstreamrequest.Default.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
+				calls.Add(1)
+				return &http.Response{StatusCode: 503, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(""))}, nil
+			}))
+			var err error
+			c.monitor, err = upstreamstate.NewMonitor(upstreamstate.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			path := "http://" + c.address + "/api/upstream/check/" + string(kind)
+			r := httptest.NewRequest("POST", path, nil)
+			w := httptest.NewRecorder()
+			c.ServeHTTP(w, r)
+			if w.Code != 403 || calls.Load() != 0 {
+				t.Fatal("unauthenticated check", w.Code)
+			}
+			r = httptest.NewRequest("POST", path, nil)
+			r.Header.Set("X-StepStash-Token", c.token)
+			w = httptest.NewRecorder()
+			c.ServeHTTP(w, r)
+			if w.Code != 200 {
+				t.Fatal(w.Code, w.Body.String())
+			}
+			s := waitMonitor(t, c)
+			if s.CheckKind != kind || calls.Load() == 0 {
+				t.Fatal("wrong selected check", s.CheckKind, calls.Load())
+			}
+		})
+	}
+}
+
 func TestManualMonitorCheckCanceledOnClose(t *testing.T) {
 	c := testConsole(t)
 	entered := make(chan struct{}, 1)

@@ -760,6 +760,14 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/api/upstream/check":
 		err = c.requestMonitorCheck()
+	case "/api/upstream/check/catalog":
+		err = c.requestMonitorCheck(upstreamstate.CheckCatalog)
+	case "/api/upstream/check/playback":
+		err = c.requestMonitorCheck(upstreamstate.CheckPlayback)
+	case "/api/upstream/check/latency":
+		err = c.requestMonitorCheck(upstreamstate.CheckLatency)
+	case "/api/upstream/check/throughput":
+		err = c.requestMonitorCheck(upstreamstate.CheckThroughput)
 	case "/api/exit":
 		// Deliver the acknowledgement before the owner closes the HTTP listener.
 		writeJSON(w, map[string]bool{"ok": true})

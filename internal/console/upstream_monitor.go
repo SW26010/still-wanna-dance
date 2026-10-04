@@ -39,9 +39,17 @@ func (c *Console) monitorSnapshotLocked() upstreamstate.Status {
 	}
 	s := c.monitor.Snapshot()
 	s.Checking = s.Checking || c.monitorManual
+	s.Manual = s.Manual || c.monitorManual
 	return s
 }
-func (c *Console) requestMonitorCheck() error {
+func (c *Console) requestMonitorCheck(selected ...upstreamstate.CheckKind) error {
+	var kind upstreamstate.CheckKind
+	if len(selected) > 0 {
+		kind = selected[0]
+	}
+	if kind != "" && !upstreamstate.ValidCheckKind(kind) {
+		return errors.New("未知的检测类型")
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
@@ -51,10 +59,10 @@ func (c *Console) requestMonitorCheck() error {
 		return errors.New("上游监测尚未启动")
 	}
 	s := c.monitor.Snapshot()
-	if s.Checking || c.monitorManual {
+	if c.monitorManual || s.Manual || (kind == "" && s.Checking) {
 		return nil
 	}
-	if time.Since(s.Started) < 10*time.Second || time.Since(c.monitorManualAt) < 10*time.Second {
+	if kind == "" && (time.Since(s.Started) < 10*time.Second || time.Since(c.monitorManualAt) < 10*time.Second) {
 		return errors.New("两轮检测开始至少间隔 10 秒")
 	}
 	c.monitorManual, c.monitorManualAt = true, time.Now()
@@ -63,7 +71,11 @@ func (c *Console) requestMonitorCheck() error {
 	m := c.monitor
 	go func() {
 		defer close(done)
-		_ = m.Check(context.Background())
+		if kind == "" {
+			_ = m.Check(context.Background())
+		} else {
+			_ = m.CheckSelected(context.Background(), kind)
+		}
 		c.mu.Lock()
 		c.monitorManual = false
 		c.mu.Unlock()

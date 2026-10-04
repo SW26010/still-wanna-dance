@@ -1,6 +1,6 @@
 # Canonical 上游检查服务
 
-本包测量固定上游服务，并按操作维护状态与推荐。职责和刷新交接见 [上游通道设计](../../docs/upstream-channels.md)。Monitor 不依赖 console、DNS 或 SOCKS5 实现；它从应用的 upstreamrequest.Channel 获取可执行候选。当前业务播放、下载及 WebUI 健康检查仍独立运行。
+本包测量固定上游服务，并按操作维护状态与推荐。职责和刷新交接见 [上游通道设计](../../docs/upstream-channels.md)。Monitor 不依赖 console、DNS 或 SOCKS5 实现；它从应用的 upstreamrequest.Channel 获取可执行候选。Console 在条款同意后启动 Monitor，退出时关闭；WebUI 通过 upstreamMonitor 快照展示全部候选的观测，旧健康检查已移除。业务播放和下载仍独立运行。
 
 ## 通道与网络模式
 
@@ -18,7 +18,7 @@
 | PlaybackURL | 同一 API 的 node=cf / node=nya | 重定向、目标主机和资源元数据 |
 | Resource | play.udon.dance / nya.xin.moe | 实际解析出的资源 URL，最多 64 KiB Range 读取 |
 
-线路标识为 api、cf、hkg；hkg 对应 node=nya。Entry 标识服务，资源 Entry 不是任意歌曲的播放 URL。每轮从有效列表选取歌曲 ID；列表失败可在 SampleLifetime 内复用旧 ID，首次没有样本时不猜测视频地址。同一路线的所有资源候选共用本轮解析出的一个合法样本，不把不同 IP 返回的不同视频混作吞吐比较。
+线路标识为 api、cf、hkg；hkg 对应 node=nya。Entry 标识服务，资源 Entry 不是任意歌曲的播放 URL。每轮从有效列表的去重正数歌曲 ID 中均匀随机采样；列表失败可在 SampleLifetime 内复用旧 ID，首次没有样本时不猜测视频地址。同一路线的所有资源候选共用本轮解析出的一个合法样本，不把不同 IP 返回的不同视频混作吞吐比较。
 
 歌曲样本不保证全部歌曲或完整下载可用。业务仍须校验实际资源版本、响应及完整内容。
 
@@ -47,7 +47,7 @@ if ok {
 }
 ```
 
-已有业务 raw dial 不含操作上下文，仍保留连接容错；auto 的普通拨号采用直连失败后代理回退，**不表示已采用 Monitor 推荐**。Monitor 没有自动替换现有业务请求或启动旧健康检查；由业务明确使用推荐的 Transport，才能使用被测通道。
+已有业务 raw dial 不含操作上下文，仍保留连接容错；auto 的普通拨号采用直连失败后代理回退，**不表示已采用 Monitor 推荐**。Monitor 没有自动替换现有业务请求；由业务明确使用推荐的 Transport，才能使用被测通道。
 
 ## 结果与推荐
 
@@ -80,7 +80,7 @@ Interval 是候选检查的最大常规间隔；新 DNS 候选事件提前唤醒
 
 ## 探测边界
 
-最多 4 个并行候选探测。列表最多 16 MiB；资源最多 64 KiB（额外读取 1 字节检测越界），必须是正确的 206、Content-Range 和未压缩正文。资源重定向最多三次，必须保持主机、大小及校验标识。播放 URL 不自动跟随重定向。视频元数据统一用 internal/videometa 校验，HTTP 视频 URL 升级为 HTTPS。
+歌曲列表及播放地址最多 4 个并行候选探测；视频资源吞吐跨线路、跨候选串行执行，每次仅一个资源传输，避免争抢本地带宽。列表最多 16 MiB；资源最多 64 KiB（额外读取 1 字节检测越界），必须是正确的 206、Content-Range 和未压缩正文。资源重定向最多三次，必须保持主机、大小及校验标识。播放 URL 不自动跟随重定向。视频元数据统一用 internal/videometa 校验，HTTP 视频 URL 升级为 HTTPS。
 
 超时记录 timeout；仅明确收到 524 才记录 origin_timeout。不把取消当作通道失败，不泄露底层可能带认证信息的错误。
 

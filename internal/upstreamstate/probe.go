@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/http/httptrace"
@@ -162,10 +163,15 @@ func probeCatalog(parent context.Context, client *http.Client, p Policy) (o obse
 		o.state = "invalid"
 		return
 	}
+	seen := make(map[int64]bool)
 	for _, g := range v.Groups.Contents {
 		for _, s := range g.SongInfos {
-			if s.ID > 0 && (id == 0 || s.ID < id) {
-				id = s.ID
+			if s.ID > 0 && !seen[s.ID] {
+				seen[s.ID] = true
+				// Reservoir sampling is uniform over distinct valid song IDs.
+				if rand.IntN(len(seen)) == 0 {
+					id = s.ID
+				}
 			}
 		}
 	}

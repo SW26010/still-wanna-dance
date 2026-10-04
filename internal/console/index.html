@@ -38,13 +38,13 @@
       </section>
       <noscript><p class="notice">控制台需要启用 JavaScript 才能切换页面和管理服务。</p></noscript>
       <div id="notice" class="notice" role="status" hidden></div>
-      <section class="card" aria-labelledby="upstreamHealthTitle">
-        <div class="card-head"><h2 id="upstreamHealthTitle">上游可达性</h2><button id="healthCheck" data-action="health/check">立即检测</button></div>
+      <section class="card" aria-labelledby="upstreamMonitorTitle">
+        <div class="card-head"><h2 id="upstreamMonitorTitle">上游通道监测</h2><button id="healthCheck" data-action="upstream/check">立即检测</button></div>
         <p id="healthSummary" role="status">等待首次检测…</p>
         <p id="healthRoute" class="hint"></p>
-        <details><summary>查看各接口检测结果</summary>
+        <details open><summary>查看全部通道检测结果</summary>
           <ul id="healthChecks" class="health-checks"></ul>
-          <p class="hint">每 5 分钟自动检测，关闭页面后继续运行。检测使用已保存的网络设置，切换直连或 SOCKS5 后重新检测。歌曲列表会读取并校验正文；视频入口仅检查连接，不下载视频，也不保证播放成功。超时本身无法确定故障归属。</p>
+          <p class="hint">默认每轮完成后 5 分钟检测，候选变化或观测即将到期时提前检测，关闭页面后继续运行。每轮从有效歌曲列表随机选歌，解析真实资源，对每个候选通道最多读取 64 KiB 测量样本吞吐；同一线路共用资源样本，各视频通道依次测速，避免争抢本地带宽。列表失败时可短暂复用有效歌曲样本，没有合法样本的通道显示待测。样本吞吐不代表持续带宽，也不保证全部歌曲可播放。</p>
         </details>
         <p id="healthTime" class="muted"></p>
       </section>

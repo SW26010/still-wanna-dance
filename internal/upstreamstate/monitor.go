@@ -26,7 +26,7 @@ type Status struct {
 }
 
 // Monitor is independent of consumers and network configuration. Nothing starts
-// automatically; no existing application path is wired to this implementation.
+// automatically; the owner explicitly starts and closes the monitor.
 type Monitor struct {
 	mu            sync.Mutex
 	ctx           context.Context
@@ -349,6 +349,8 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 		return
 	}
 	var wg sync.WaitGroup
+	// Ordinary transports use the same single-transfer rule as candidates.
+	resourceSlot := make(chan struct{}, 1)
 	for _, r := range videoRoutes {
 		wg.Add(1)
 		go func(r route) {
@@ -368,7 +370,13 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 				}
 				return
 			}
+			select {
+			case resourceSlot <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
 			resource := probeResource(ctx, client, p, id, r, *sample)
+			<-resourceSlot
 			m.mu.Lock()
 			record(resource)
 			m.mu.Unlock()

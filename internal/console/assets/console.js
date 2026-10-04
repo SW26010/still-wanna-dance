@@ -30,38 +30,40 @@ function render(s) {
   renderService(s);
   renderActivation(s);
   renderSettings(s);
-  renderHealth(s.upstreamHealth || {});
+  renderHealth(s.upstreamMonitor || {}, s.settings || {});
   renderControls();
   renderQueue(s);
   renderBatch(s);
 }
 
-function renderHealth(h) {
-  const checks = h.checks || [];
-  const ok = c => ['healthy', 'reachable'].includes(c.state);
-  const failures = checks.filter(c => c.state !== 'checking' && !ok(c));
-  setText('healthSummary', h.running ? '正在检测上游…' : !checks.length ? '等待首次检测…'
-    : failures.length ? '检测异常：' + failures.map(c => c.name + ' · ' + c.message).join('；')
-      : '歌曲列表可用，各入口连接正常（不代表视频播放成功）');
-  setText('healthRoute', h.mode === 'socks5' ? '当前检测路径：SOCKS5 · ' + h.proxy : h.mode === 'auto' ? '当前检测路径：直连，失败后 SOCKS5 回退' : '当前检测路径：直连');
+function renderHealth(h, settings) {
+  const results = h.results || [];
+  const states = { available: '可用', unavailable: '不可用', unknown: '待测', stale: '已过期', closed: '已关闭' };
+  const reasons = { no_channel: '没有有效候选', no_sample: '等待有效歌曲及资源样本', expired: '观测已过期', timeout: '请求超时', origin_timeout: '源站响应超时（Cloudflare 524）', network_error: '网络请求失败', resolution_unavailable: '无可用资源地址', invalid: '响应校验失败', restricted: '访问受限', upstream_error: '上游错误', http_error: 'HTTP 响应异常' };
+  const operations = { catalog: '歌曲列表', playback_url: '播放地址', resource: '资源吞吐' };
+  const available = results.filter(r => r.state === 'available').length;
+  setText('healthSummary', h.closed ? '上游监测已关闭' : h.checking ? '正在检测所有候选通道…' : !results.length ? '等待首次检测…' : '可用 ' + available + ' / ' + results.length + ' 项（按操作、线路、通道分别测量）');
+  setText('healthRoute', '当前检测范围：' + ({ direct: '全部直连 IP', socks5: 'SOCKS5', auto: '全部直连 IP 与 SOCKS5' }[settings.upstreamMode] || '等待网络配置'));
   const dated = v => v && !v.startsWith('0001');
-  setText('healthTime', h.running && dated(h.started) ? '本轮开始：' + new Date(h.started).toLocaleString()
-    : dated(h.finished) ? '最近完成：' + new Date(h.finished).toLocaleString() +
-      (dated(h.nextCheck) ? ' · 下次检测：' + new Date(h.nextCheck).toLocaleTimeString() : '') : '每 5 分钟自动检测');
-  const stages = { connect: '连接（DNS / 代理 / TCP）', tls: 'TLS 握手', headers: '等待响应头', body: '读取并校验正文' };
-  $('healthChecks').replaceChildren(...checks.map(c => {
+  const date = v => dated(v) ? new Date(v).toLocaleString() : '—';
+  setText('healthTime', '最近完成：' + date(h.finished) + ' · 下次检测：' + date(h.nextCheck));
+  $('healthChecks').replaceChildren(...results.map(r => {
     const row = document.createElement('li');
     const title = document.createElement('strong');
-    title.textContent = c.name + ' · ' + (c.state === 'checking' ? '检测中…' : c.message);
-    title.className = ok(c) ? 'good' : '';
+    title.textContent = (operations[r.operation] || r.operation) + ' · ' + r.route + ' · ' + (r.mode === 'direct' ? '直连 ' + r.ip : r.mode === 'socks5' ? 'SOCKS5' : '无候选') + ' · ' + (states[r.state] || r.state) + (r.reason ? ' · ' + (reasons[r.reason] || r.reason) : '');
+    title.className = r.state === 'available' ? 'good' : '';
     const detail = document.createElement('div');
     detail.className = 'hint';
-    detail.textContent = c.url + (c.state === 'checking' ? '' : ' · ' + c.elapsedMS + ' ms' +
-      (c.http ? ' · HTTP ' + c.http : '') + (c.stage ? ' · ' + (stages[c.stage] || c.stage) : ''));
+    detail.textContent = r.entry + (r.channelID ? ' · 通道 ' + r.channelID : '') +
+      (r.estimatedLatencyMS != null ? ' · 首字节 ' + r.estimatedLatencyMS.toFixed(1) + ' ms' : '') +
+      (r.estimatedSpeedBPS != null ? ' · 样本吞吐 ' + (r.estimatedSpeedBPS / 1024).toFixed(1) + ' KiB/s' : '') +
+      (r.sampleSongID ? ' · 歌曲 #' + r.sampleSongID : '') +
+      (r.http ? ' · HTTP ' + r.http : '') +
+      ' · 观测 ' + date(r.observedAt) + ' · 有效至 ' + date(r.validUntil);
     row.append(title, detail);
     return row;
   }));
-  setText('healthCheck', h.running ? '检测中…' : '立即检测');
+  setText('healthCheck', h.checking ? '检测中…' : '立即检测');
 }
 
 function activationPending(s) {
@@ -170,7 +172,7 @@ function renderControls() {
   const unavailable = exiting || !connected || busy || !s || activationPending(s);
   for (const b of document.querySelectorAll('button')) b.disabled = unavailable;
   $('recentMore').disabled ||= $('pauseMonitor').checked;
-  $('healthCheck').disabled ||= !!s?.upstreamHealth?.running;
+  $('healthCheck').disabled ||= !!s?.upstreamMonitor?.checking;
   for (const id of [
     'autoStartCDN',
     'queuePrefetchEnabled',

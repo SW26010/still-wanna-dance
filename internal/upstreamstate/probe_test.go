@@ -13,6 +13,18 @@ import (
 
 type countingBody struct{ read atomic.Int64 }
 
+func TestCatalogSamplesOnlyValidSongs(t *testing.T) {
+	client := requestClient(transportFunc(func(*http.Request) (*http.Response, error) {
+		return response(200, `{"groups":{"contents":[{"songInfos":[{"id":-1},{"id":0},{"id":42},{"id":42}]},{"songInfos":[{"id":73},{"id":99}]}]}}`), nil
+	}))
+	for range 64 {
+		o, id := probeCatalog(context.Background(), client, DefaultPolicy())
+		if o.state != "available" || (id != 42 && id != 73 && id != 99) {
+			t.Fatalf("invalid song sample: %d, %+v", id, o)
+		}
+	}
+}
+
 func TestSampleSongMayResolveToDifferentResourceID(t *testing.T) {
 	client := requestClient(transportFunc(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Query().Get("id") != "42" {

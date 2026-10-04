@@ -74,7 +74,7 @@ func (c *Console) acceptTerms() error {
 		return err
 	}
 	c.terms = receipt
-	return nil
+	return c.startMonitorLocked()
 }
 
 // The gate precedes all application routes, including read APIs that can start work.

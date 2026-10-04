@@ -22,6 +22,7 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/desktop"
 	"still-wanna-dance/internal/upstreamrequest"
+	"still-wanna-dance/internal/upstreamstate"
 	"still-wanna-dance/internal/vrclog"
 )
 
@@ -95,12 +96,11 @@ type Console struct {
 	dns                 *directDNS
 	upstreamDial        upstreamDialFunc
 	requestRevision     uint64
-	health              UpstreamHealth
-	healthGeneration    uint64
-	healthCancel        context.CancelFunc
-	healthRunCancel     context.CancelFunc
-	healthDone          chan struct{}
-	healthWake          chan struct{}
+	monitor             *upstreamstate.Monitor
+	monitorRequested    bool
+	monitorManual       bool
+	monitorManualAt     time.Time
+	monitorManualDone   chan struct{}
 }
 
 func New(configPath, address string) (*Console, error) {
@@ -329,7 +329,6 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 		c.upstreamDial, c.client = dial, client
 		c.dns.setBackgroundEnabled(s.UpstreamMode != "socks5")
 		c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport)
-		c.resetHealthLocked()
 	}
 	var inventoryDone chan struct{}
 	if changedLibrary {
@@ -533,10 +532,8 @@ func (c *Console) Close() error {
 	c.mu.Lock()
 	c.closing = true
 	upstreamrequest.Default.Release(c.requestRevision)
-	if c.healthCancel != nil {
-		c.healthCancel()
-	}
-	healthDone := c.healthDone
+	monitor := c.monitor
+	monitorManualDone := c.monitorManualDone
 	if c.batchCancel != nil {
 		c.batchCancel()
 	}
@@ -554,8 +551,11 @@ func (c *Console) Close() error {
 	c.inventoryMu.Unlock()
 	c.lifecycleMu.Unlock()
 	err := c.stop()
-	if healthDone != nil {
-		<-healthDone
+	if monitor != nil {
+		monitor.Close()
+	}
+	if monitorManualDone != nil {
+		<-monitorManualDone
 	}
 	if inventoryDone != nil {
 		<-inventoryDone
@@ -645,8 +645,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			SOCKS5PasswordSet bool                    `json:"socks5PasswordSet"`
 			Activation        Activation              `json:"activation"`
 			DefaultLogDir     string                  `json:"defaultLogDir"`
-			UpstreamHealth    UpstreamHealth          `json:"upstreamHealth"`
-		}{running, c.settings, HostsStatus{}, running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}, c.settings.SOCKS5Password != "", c.activation, defaultLogDir(), c.healthSnapshotLocked()}
+			UpstreamMonitor   upstreamstate.Status    `json:"upstreamMonitor"`
+		}{running, c.settings, HostsStatus{}, running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}, c.settings.SOCKS5Password != "", c.activation, defaultLogDir(), c.monitorSnapshotLocked()}
 		result.Settings.SOCKS5Password = ""
 		service := c.service
 		result.ActionErrors = make(map[string]string, len(c.actionErrors))
@@ -756,8 +756,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
 	var err error
 	switch r.URL.Path {
-	case "/api/health/check":
-		err = c.requestHealthCheck()
+	case "/api/upstream/check":
+		err = c.requestMonitorCheck()
 	case "/api/exit":
 		// Deliver the acknowledgement before the owner closes the HTTP listener.
 		writeJSON(w, map[string]bool{"ok": true})

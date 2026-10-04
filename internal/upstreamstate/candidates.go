@@ -203,6 +203,11 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 		cs, _ := provider.Candidates(qctx, target)
 		return cs
 	}
+	// Populate resource hosts even without a playable sample, so snapshots
+	// enumerate all their channels as unmeasured.
+	for _, r := range videoRoutes {
+		prepare(entry(Resource, r.id))
+	}
 	cs := prepare(entry(Catalog, "api"))
 	ids := make([]int64, len(cs))
 	parallel(cs, func(i int, c upstreamrequest.Candidate) {
@@ -246,9 +251,14 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 				continue
 			}
 			resources := prepare(sample.url)
-			parallel(resources, func(_ int, c upstreamrequest.Candidate) {
+			// Throughput probes must not compete for the local connection.
+			// Routes and their candidates share this serial resource phase.
+			for _, c := range resources {
+				if ctx.Err() != nil {
+					break
+				}
 				publish(probeResource(ctx, requestClient(c.Transport), p, id, r, *sample), c)
-			})
+			}
 		}
 	}
 	m.mu.Lock()

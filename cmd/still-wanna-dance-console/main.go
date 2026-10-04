@@ -191,7 +191,9 @@ func run() (runErr error) {
 		}
 	}
 	done := make(chan error, 1)
-	c.StartUpstreamMonitor()
+	if err := c.StartUpstreamMonitor(); err != nil {
+		return err
+	}
 	c.AutoStart()
 	go func() { done <- h.Serve(l); stop() }()
 	url := "http://" + l.Addr().String()

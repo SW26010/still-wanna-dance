@@ -16,6 +16,9 @@ import (
 // Overrides retain the original HTTP Host and TLS identity; environment proxies
 // are not used.
 type Config struct {
+	// BeginResourceLoad marks real upstream video work, including prefetch.
+	// Release is called after the response closes; local hits never call it.
+	BeginResourceLoad func() func()
 	// BeginVideoRequest captures an observation window at HTTP arrival. The
 	// returned callback runs only after validating a GET/HEAD video or playback
 	// API request, before upstream resolution; it does not imply success.

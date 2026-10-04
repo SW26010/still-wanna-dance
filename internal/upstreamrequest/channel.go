@@ -19,6 +19,7 @@ type Snapshot struct {
 }
 
 type Channel struct {
+	resources resourceActivity
 	mu        sync.Mutex
 	transport http.RoundTripper
 	revision  uint64

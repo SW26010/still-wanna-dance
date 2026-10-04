@@ -90,6 +90,8 @@ Interval 是候选检查的最大常规间隔；新 DNS 候选事件提前唤醒
 
 超时记录 timeout；仅明确收到 524 才记录 origin_timeout。不把取消当作通道失败，不泄露底层可能带认证信息的错误。
 
+自动调度的资源探测让出业务下载带宽：共享 Channel 的 BeginResourceLoad 在业务开始时取消正在进行的自动资源采样，并阻止后续采样，所有业务加载结束后重测被打断的候选。被打断的样本丢弃，不更新通道失败状态。显式 Check 新建的检测批次保持原有行为；并发请求仍合并现有批次。Status.ResourcesPaused 供界面展示自动资源测速暂停状态。
+
 ## 验证
 
 `go test ./internal/upstreamrequest ./internal/upstreamstate ./internal/console`；`go vet` 同上。测试覆盖候选固定 IP、Host/SNI、SOCKS5 远端 DNS、三模式、TTL 交接、配置退休、无 I/O 读取、逐候选失败隔离、推荐迟滞、动态候选唤醒、旧配置迟到结果丢弃，以及既有正文与重定向边界。

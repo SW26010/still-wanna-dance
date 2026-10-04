@@ -365,6 +365,7 @@ func (c *Console) ensureEngine() error {
 	}
 	cfg := cacheproxy.DefaultConfig()
 	cfg.BeginVideoRequest = c.beginVideoRequest
+	cfg.BeginResourceLoad = upstreamrequest.Default.BeginResourceLoad
 	cfg.Logger = slog.Default().With("component", "cache")
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
@@ -453,6 +454,7 @@ func (c *Console) startLocked() (err error) {
 	c.httpServer = h
 	c.videoListener = l
 	relay := newHTTPSRelay(secure, c.upstreamDial)
+	relay.beginResourceLoad = upstreamrequest.Default.BeginResourceLoad
 	c.https = relay
 	c.cdnError = ""
 	c.mu.Unlock()

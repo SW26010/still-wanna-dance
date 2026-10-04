@@ -266,7 +266,7 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 				if ctx.Err() != nil {
 					break
 				}
-				publish(probeResource(ctx, requestClient(c.Transport), p, id, r, *sample), c)
+				publish(m.probeResourceWhenIdle(ctx, requestClient(c.Transport), p, id, r, *sample), c)
 			}
 		}
 	}

@@ -231,6 +231,10 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, 
 			return "", "", err
 		}
 	}
+	if s.cfg.BeginResourceLoad != nil {
+		release := s.cfg.BeginResourceLoad()
+		defer release()
+	}
 	flight.log.Info("download_started", "key", v.key, "size", v.size)
 	flight.progress.setStage("upstream_headers")
 	resp, selectedHost, err := s.openUpstream(ctx, v)

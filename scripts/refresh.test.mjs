@@ -57,6 +57,19 @@ test('canonical monitor renders every channel, throughput, unknown and stale sta
   for (const id of ['healthCatalogTime', 'healthCatalogKivaTime', 'healthCatalogWannaTime']) assert.equal(get(id).textContent, '响应 time：未获取');
 });
 
+test('automatic resource probes display business pause and resume', async () => {
+  const p = page(), get = id => p.document.getElementById(id);
+  p.finishBatch(0, {}, { upstreamMonitor: { checking: true, resourcesPaused: true, results: [] } });
+  await flush();
+  assert.match(get('healthSummary').textContent, /业务正在加载视频，自动资源测速已暂停/);
+  assert.equal(get('healthCheck').disabled, true);
+  p.fireTimer();
+  p.finishBatch(2, {}, { upstreamMonitor: { checking: true, resourcesPaused: false, results: [] } });
+  await flush();
+  assert.match(get('healthSummary').textContent, /正在检测/);
+  assert.doesNotMatch(get('healthSummary').textContent, /已暂停/);
+});
+
 test('budget stop shows a settings link and clears for the next task', async () => {
   const p = page();
   p.finishBatch(0, {}, { batch: { budgetReached: true, phase: '容量预算不足' } });

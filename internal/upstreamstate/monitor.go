@@ -15,19 +15,21 @@ type Options struct {
 	Policy Policy
 }
 type Status struct {
-	Checking  bool      `json:"checking"`
-	Scheduled bool      `json:"scheduled"`
-	Closed    bool      `json:"closed"`
-	Started   time.Time `json:"started"`
-	Finished  time.Time `json:"finished"`
-	NextCheck time.Time `json:"nextCheck"`
-	Results   []Result  `json:"results"`
-	Policy    Policy    `json:"policy"`
+	ResourcesPaused bool      `json:"resourcesPaused"`
+	Checking        bool      `json:"checking"`
+	Scheduled       bool      `json:"scheduled"`
+	Closed          bool      `json:"closed"`
+	Started         time.Time `json:"started"`
+	Finished        time.Time `json:"finished"`
+	NextCheck       time.Time `json:"nextCheck"`
+	Results         []Result  `json:"results"`
+	Policy          Policy    `json:"policy"`
 }
 
 // Monitor is independent of consumers and network configuration. Nothing starts
 // automatically; the owner explicitly starts and closes the monitor.
 type Monitor struct {
+	batchManual   bool
 	mu            sync.Mutex
 	ctx           context.Context
 	cancel        context.CancelFunc
@@ -152,14 +154,15 @@ func (m *Monitor) Snapshot() Status {
 	defer m.mu.Unlock()
 	m.refreshChannelLocked()
 	s := Status{
-		Checking:  m.active != nil,
-		Scheduled: m.scheduler != nil && !m.closed,
-		Closed:    m.closed,
-		Started:   m.started,
-		Finished:  m.finished,
-		NextCheck: m.nextCheck,
-		Policy:    m.policy,
-		Results:   make([]Result, 0, len(operations)),
+		ResourcesPaused: m.channel.ResourceBusy() && (m.active == nil || !m.batchManual),
+		Checking:        m.active != nil,
+		Scheduled:       m.scheduler != nil && !m.closed,
+		Closed:          m.closed,
+		Started:         m.started,
+		Finished:        m.finished,
+		NextCheck:       m.nextCheck,
+		Policy:          m.policy,
+		Results:         make([]Result, 0, len(operations)),
 	}
 	now := time.Now()
 	for _, op := range operations {
@@ -204,7 +207,7 @@ func (m *Monitor) Start() error {
 				}
 			}
 			if delay <= 0 {
-				if err := m.Check(m.ctx); err != nil && !errors.Is(err, upstreamrequest.ErrUnavailable) {
+				if err := m.checkRequest(m.ctx, false); err != nil && !errors.Is(err, upstreamrequest.ErrUnavailable) {
 					return
 				}
 				select {
@@ -244,6 +247,12 @@ func (m *Monitor) Start() error {
 // Concurrent callers share a check. Caller cancellation stops only that wait;
 // Close cancels shared work. Every request has a policy-controlled deadline.
 func (m *Monitor) Check(ctx context.Context) error {
+	return m.checkRequest(ctx, true)
+}
+
+// Only automatically started batches yield bandwidth to business traffic.
+// Existing single-flight behavior remains unchanged for explicit Check calls.
+func (m *Monitor) checkRequest(ctx context.Context, manual bool) error {
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -260,6 +269,7 @@ func (m *Monitor) Check(ctx context.Context) error {
 				return upstreamrequest.ErrUnavailable
 			}
 			m.batchRevision = source.Revision
+			m.batchManual = manual
 			m.active = make(chan struct{})
 			m.started = time.Now()
 			go m.check(m.active, source)
@@ -390,7 +400,7 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 			case <-ctx.Done():
 				return
 			}
-			resource := probeResource(ctx, client, p, id, r, *sample)
+			resource := m.probeResourceWhenIdle(ctx, client, p, id, r, *sample)
 			<-resourceSlot
 			m.mu.Lock()
 			record(resource)

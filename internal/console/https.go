@@ -27,14 +27,15 @@ func httpsOrigin(name string) string {
 }
 
 type httpsRelay struct {
-	listener net.Listener
-	dial     func(context.Context, string, string) (net.Conn, error)
-	ctx      context.Context
-	cancel   context.CancelFunc
-	mu       sync.Mutex
-	closed   bool
-	clients  map[net.Conn]struct{}
-	wg       sync.WaitGroup
+	beginResourceLoad func() func()
+	listener          net.Listener
+	dial              func(context.Context, string, string) (net.Conn, error)
+	ctx               context.Context
+	cancel            context.CancelFunc
+	mu                sync.Mutex
+	closed            bool
+	clients           map[net.Conn]struct{}
+	wg                sync.WaitGroup
 }
 
 func newHTTPSRelay(l net.Listener, dial func(context.Context, string, string) (net.Conn, error)) *httpsRelay {
@@ -126,6 +127,10 @@ func (p *httpsRelay) forward(client net.Conn) error {
 	origin := httpsOrigin(name)
 	if origin == "" {
 		return errors.New("HTTPS SNI is not a managed video domain")
+	}
+	if origin != "api.udon.dance:443" && p.beginResourceLoad != nil {
+		release := p.beginResourceLoad()
+		defer release()
 	}
 	ctx, cancel := context.WithTimeout(p.ctx, 15*time.Second)
 	upstream, err := p.dial(ctx, "tcp4", origin)

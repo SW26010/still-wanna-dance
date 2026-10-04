@@ -631,3 +631,8 @@ details[open] > .recent-summary .recent-expand::before { content: '▾ '; }
 .check-subsection { border-block: 1px solid var(--line); margin-block: 1rem; padding-block: 1rem; }
 .health-checks { list-style: none; padding: 0; }
 .health-checks li { border-top: 1px solid var(--line); padding-block: .75rem; overflow-wrap: anywhere; }
+.health-routes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
+.health-routes > section { min-width: 0; }
+@media (max-width: 900px) {
+  .health-routes { grid-template-columns: minmax(0, 1fr); }
+}

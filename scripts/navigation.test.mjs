@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 const html = readFileSync(new URL('../internal/console/index.html', import.meta.url), 'utf8');
 const script = readFileSync(new URL('../internal/console/assets/navigation.js', import.meta.url), 'utf8');
-const keys = ['home', 'monitor', 'cache', 'library', 'settings'];
+const keys = ['home', 'monitor', 'upstream', 'cache', 'library', 'settings'];
 function page(hash = '') {
   let focused, scrolls = 0, pageChanges = 0, expectedPage;
   const events = {}, skipEvents = {};
@@ -104,9 +104,11 @@ test('navigation keeps drafts, selection, confirmation and expanded details moun
 
 test('markup groups every existing section once with only home initially visible', () => {
   const groups = { home: ['activation'], monitor: ['downloads', 'recent'],
+    upstream: ['healthCheck', 'healthCatalog', 'healthPlaybackHkg', 'healthPlaybackCf', 'healthResourceHkg', 'healthResourceCf'],
     cache: ['overview', 'cache'], library: ['batch'], settings: ['preferences', 'service', 'queue'] };
-  const positions = keys.map(key => html.indexOf(`id="page-${key}"`));
-  for (const [i, key] of keys.entries()) {
+  const markupKeys = [...keys].sort((a, b) => html.indexOf(`id="page-${a}"`) - html.indexOf(`id="page-${b}"`));
+  const positions = markupKeys.map(key => html.indexOf(`id="page-${key}"`));
+  for (const [i, key] of markupKeys.entries()) {
     assert.ok(positions[i] > 0);
     const content = html.slice(positions[i], positions[i + 1] ?? html.indexOf('</main>'));
     for (const section of groups[key]) assert.ok(content.includes(`id="${section}"`), section);

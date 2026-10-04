@@ -22,6 +22,7 @@
       <nav aria-label="控制台页面">
         <a href="#/home" data-page-link="home" aria-current="page">首页</a>
         <a href="#/monitor" data-page-link="monitor">监控</a>
+        <a href="#/upstream" data-page-link="upstream">上游状态</a>
         <a href="#/cache" data-page-link="cache">缓存</a>
         <a href="#/library" data-page-link="library">曲库与下载</a>
         <a href="#/settings" data-page-link="settings">设置</a>
@@ -38,16 +39,33 @@
       </section>
       <noscript><p class="notice">控制台需要启用 JavaScript 才能切换页面和管理服务。</p></noscript>
       <div id="notice" class="notice" role="status" hidden></div>
-      <section class="card" aria-labelledby="upstreamMonitorTitle">
-        <div class="card-head"><h2 id="upstreamMonitorTitle">上游通道监测</h2><button id="healthCheck" data-action="upstream/check">立即检测</button></div>
+      <div id="page-upstream" data-page="upstream" hidden>
+        <div class="actions"><button id="healthCheck" data-action="upstream/check">立即检测</button></div>
         <p id="healthSummary" role="status">等待首次检测…</p>
         <p id="healthRoute" class="hint"></p>
-        <details open><summary>查看全部通道检测结果</summary>
-          <ul id="healthChecks" class="health-checks"></ul>
+        <details class="help"><summary>检测说明</summary>
           <p class="hint">默认每轮完成后 5 分钟检测，候选变化或观测即将到期时提前检测，关闭页面后继续运行。每轮从有效歌曲列表随机选歌，解析真实资源，对每个候选通道持续读取，满 2 秒且达到 16 MiB 后结束，最迟 5 秒或整首下载完毕时结束；同一线路共用资源样本，各视频通道依次测速，避免争抢本地带宽。列表失败时可短暂复用有效歌曲样本，没有合法样本的通道显示待测。吞吐按实际正文下载字节与时间计算，连接及握手时间不计入。样本吞吐不代表持续带宽，也不保证全部歌曲可播放。</p>
         </details>
         <p id="healthTime" class="muted"></p>
-      </section>
+        <section class="card" aria-labelledby="healthCatalogTitle">
+          <h2 id="healthCatalogTitle">视频列表</h2>
+          <ul id="healthCatalog" class="health-checks" aria-label="视频列表检测结果"></ul>
+        </section>
+        <section class="card" aria-labelledby="healthPlaybackTitle">
+          <h2 id="healthPlaybackTitle">播放地址解析</h2>
+          <div class="health-routes">
+            <section aria-labelledby="healthPlaybackHkgTitle"><h3 id="healthPlaybackHkgTitle">HKG</h3><ul id="healthPlaybackHkg" class="health-checks" aria-label="HKG 播放地址解析检测结果"></ul></section>
+            <section aria-labelledby="healthPlaybackCfTitle"><h3 id="healthPlaybackCfTitle">CF</h3><ul id="healthPlaybackCf" class="health-checks" aria-label="CF 播放地址解析检测结果"></ul></section>
+          </div>
+        </section>
+        <section class="card" aria-labelledby="healthResourceTitle">
+          <h2 id="healthResourceTitle">视频资源加载</h2>
+          <div class="health-routes">
+            <section aria-labelledby="healthResourceHkgTitle"><h3 id="healthResourceHkgTitle">HKG</h3><ul id="healthResourceHkg" class="health-checks" aria-label="HKG 视频资源加载检测结果"></ul></section>
+            <section aria-labelledby="healthResourceCfTitle"><h3 id="healthResourceCfTitle">CF</h3><ul id="healthResourceCf" class="health-checks" aria-label="CF 视频资源加载检测结果"></ul></section>
+          </div>
+        </section>
+      </div>
       <div id="page-home" data-page="home">
         <section class="card" aria-labelledby="applicationTitle" tabindex="-1">
           <div class="card-head"><h2 id="applicationTitle">应用控制</h2></div>

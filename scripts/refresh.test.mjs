@@ -16,24 +16,33 @@ test('canonical monitor renders every channel, throughput, unknown and stale sta
       { operation: 'resource', route: 'cf', mode: 'socks5', state: 'unavailable', reason: 'origin_timeout', http: 524 },
       { operation: 'resource', route: 'hkg', mode: 'direct', ip: '2.3.4.5', state: 'unknown', reason: 'no_sample' },
       { operation: 'catalog', route: 'api', mode: 'direct', state: 'stale', reason: 'expired' },
+      { operation: 'playback_url', route: 'hkg', mode: 'direct', state: 'available', estimatedLatencyMS: 12 },
+      { operation: 'playback_url', route: 'cf', mode: 'socks5', state: 'unavailable', reason: 'timeout' },
     ],
   } });
   await flush();
   const get = id => p.document.getElementById(id);
-  const rows = get('healthChecks').children;
+  const rows = [...get('healthResourceCf').children, ...get('healthResourceHkg').children, ...get('healthCatalog').children];
   assert.equal(rows.length, 4);
   assert.match(rows[0].children[1].textContent, /2.0 KiB\/s.*歌曲 #42/);
   assert.match(rows[0].children[1].textContent, /下载 2.00 s \/ 16.00 MiB/);
   assert.match(rows[1].children[0].textContent, /源站响应超时/);
   assert.match(rows[2].children[0].textContent, /待测/);
   assert.match(rows[3].children[0].textContent, /已过期/);
+  assert.equal(get('healthPlaybackHkg').children.length, 1);
+  assert.match(get('healthPlaybackHkg').children[0].children[1].textContent, /首字节 12.0 ms/);
+  assert.equal(get('healthPlaybackCf').children.length, 1);
+  assert.match(get('healthPlaybackCf').children[0].children[0].textContent, /SOCKS5.*请求超时/);
   assert.match(get('healthRoute').textContent, /全部直连 IP 与 SOCKS5/);
   assert.equal(get('healthCheck').disabled, false);
   p.fireTimer();
   p.finishBatch(2, {}, { settings: { upstreamMode: 'direct' }, upstreamMonitor: { checking: true, results: [] } });
   await flush();
   assert.match(get('healthSummary').textContent, /正在检测/);
-  assert.equal(get('healthChecks').children.length, 0);
+  for (const id of ['healthCatalog', 'healthPlaybackHkg', 'healthPlaybackCf', 'healthResourceHkg', 'healthResourceCf']) {
+    assert.equal(get(id).children.length, 1);
+    assert.match(get(id).children[0].textContent, /正在检测/);
+  }
   assert.equal(get('healthCheck').disabled, true);
 });
 

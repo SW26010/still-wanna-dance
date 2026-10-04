@@ -40,17 +40,23 @@ function renderHealth(h, settings) {
   const results = h.results || [];
   const states = { available: '可用', unavailable: '不可用', unknown: '待测', stale: '已过期', closed: '已关闭' };
   const reasons = { no_channel: '没有有效候选', no_sample: '等待有效歌曲及资源样本', expired: '观测已过期', timeout: '请求超时', origin_timeout: '源站响应超时（Cloudflare 524）', network_error: '网络请求失败', resolution_unavailable: '无可用资源地址', invalid: '响应校验失败', restricted: '访问受限', upstream_error: '上游错误', http_error: 'HTTP 响应异常' };
-  const operations = { catalog: '歌曲列表', playback_url: '播放地址', resource: '资源吞吐' };
   const available = results.filter(r => r.state === 'available').length;
   setText('healthSummary', h.closed ? '上游监测已关闭' : h.checking ? '正在检测所有候选通道…' : !results.length ? '等待首次检测…' : '可用 ' + available + ' / ' + results.length + ' 项（按操作、线路、通道分别测量）');
   setText('healthRoute', '当前检测范围：' + ({ direct: '全部直连 IP', socks5: 'SOCKS5', auto: '全部直连 IP 与 SOCKS5' }[settings.upstreamMode] || '等待网络配置'));
   const dated = v => v && !v.startsWith('0001');
   const date = v => dated(v) ? new Date(v).toLocaleString() : '—';
   setText('healthTime', '最近完成：' + date(h.finished) + ' · 下次检测：' + date(h.nextCheck));
-  $('healthChecks').replaceChildren(...results.map(r => {
+  const groups = [
+    ['healthCatalog', 'catalog'],
+    ['healthPlaybackHkg', 'playback_url', 'hkg'],
+    ['healthPlaybackCf', 'playback_url', 'cf'],
+    ['healthResourceHkg', 'resource', 'hkg'],
+    ['healthResourceCf', 'resource', 'cf'],
+  ];
+  const renderResult = r => {
     const row = document.createElement('li');
     const title = document.createElement('strong');
-    title.textContent = (operations[r.operation] || r.operation) + ' · ' + r.route + ' · ' + (r.mode === 'direct' ? '直连 ' + r.ip : r.mode === 'socks5' ? 'SOCKS5' : '无候选') + ' · ' + (states[r.state] || r.state) + (r.reason ? ' · ' + (reasons[r.reason] || r.reason) : '');
+    title.textContent = (r.mode === 'direct' ? '直连 ' + r.ip : r.mode === 'socks5' ? 'SOCKS5' : '无候选') + ' · ' + (states[r.state] || r.state) + (r.reason ? ' · ' + (reasons[r.reason] || r.reason) : '');
     title.className = r.state === 'available' ? 'good' : '';
     const detail = document.createElement('div');
     detail.className = 'hint';
@@ -63,7 +69,17 @@ function renderHealth(h, settings) {
       ' · 观测 ' + date(r.observedAt) + ' · 有效至 ' + date(r.validUntil);
     row.append(title, detail);
     return row;
-  }));
+  };
+  for (const [id, operation, route] of groups) {
+    const rows = results.filter(r => r.operation === operation && (!route || r.route === route)).map(renderResult);
+    if (!rows.length) {
+      const empty = document.createElement('li');
+      empty.className = 'muted';
+      empty.textContent = h.closed ? '上游监测已关闭' : h.checking ? '正在检测…' : '暂无检测结果';
+      rows.push(empty);
+    }
+    $(id).replaceChildren(...rows);
+  }
   setText('healthCheck', h.checking ? '检测中…' : '立即检测');
 }
 

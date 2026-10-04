@@ -26,6 +26,7 @@ func TestDNSLookupSharesResults(t *testing.T) {
 				d := &directDNS{cache: map[string]dnsEntry{
 					"example.com": {[]string{"203.0.113.1"}, time.Now().Add(-time.Second)},
 				}}
+				defer d.close()
 				var calls atomic.Int32
 				want := []string{"203.0.113.9"}
 				if tc.err != nil {
@@ -68,6 +69,7 @@ func TestDNSLookupSharesResults(t *testing.T) {
 func TestDNSLookupCancellationIsIndependent(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		d := &directDNS{}
+		defer d.close()
 		release := make(chan struct{})
 		var calls atomic.Int32
 		query := func(ctx context.Context) ([]string, time.Duration, error) {
@@ -118,6 +120,7 @@ func TestDNSLookupCancellationIsIndependent(t *testing.T) {
 func TestDNSLookupSharedQueryHasDeadline(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		d := &directDNS{}
+		defer d.close()
 		start := time.Now()
 		_, err := d.lookupShared(context.Background(), "example.com", func(ctx context.Context) ([]string, time.Duration, error) {
 			<-ctx.Done()

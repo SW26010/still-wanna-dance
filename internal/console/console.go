@@ -324,6 +324,7 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 	oldClient := c.client
 	if networkChanged {
 		c.upstreamDial, c.client = dial, client
+		c.dns.setBackgroundEnabled(s.UpstreamMode != "socks5")
 		c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport)
 		c.resetHealthLocked()
 	}
@@ -572,6 +573,9 @@ func (c *Console) Close() error {
 	}
 	c.lifecycleMu.Unlock()
 	c.client.CloseIdleConnections()
+	if c.dns != nil {
+		c.dns.close()
+	}
 	return err
 }
 

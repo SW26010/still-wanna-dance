@@ -22,6 +22,13 @@ type directDNS struct {
 	cache         map[string]dnsEntry
 	lookups       map[string]*dnsLookup
 	bootstrapping map[string]chan struct{}
+	states        map[string]*dnsState
+	policy        DNSPolicy
+	ctx           context.Context
+	cancel        context.CancelFunc
+	wg            sync.WaitGroup
+	closed        bool
+	paused        bool
 }
 
 type dnsLookup struct {
@@ -60,46 +67,36 @@ func (d *directDNS) lookup(ctx context.Context, host string) ([]string, error) {
 }
 
 // Cache checks and in-flight registration are atomic. Each caller can stop
-// waiting independently; the shared query retains its own six-second limit.
+// waiting independently; the shared query retains its own configured timeout.
 func (d *directDNS) lookupShared(ctx context.Context, host string, query dnsQuery) ([]string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	d.mu.Lock()
-	if entry := d.cache[host]; time.Now().Before(entry.until) {
+	if d.closed {
 		d.mu.Unlock()
-		return entry.ips, nil
+		return nil, errors.New("DNS resolver closed")
 	}
-	call := d.lookups[host]
-	if call == nil {
-		call = &dnsLookup{done: make(chan struct{})}
-		if d.lookups == nil {
-			d.lookups = make(map[string]*dnsLookup)
-		}
-		d.lookups[host] = call
-		go func() {
-			shared, cancel := context.WithTimeout(context.WithoutCancel(ctx), 6*time.Second)
-			defer cancel()
-			ips, ttl, err := query(shared)
-			d.mu.Lock()
-			defer d.mu.Unlock()
-			if err == nil {
-				if d.cache == nil {
-					d.cache = make(map[string]dnsEntry)
-				}
-				d.cache[host] = dnsEntry{ips, time.Now().Add(ttl)}
-			}
-			call.ips, call.err = ips, err
-			delete(d.lookups, host)
-			close(call.done)
-		}()
+	d.initLocked()
+	s := d.states[host]
+	if s == nil {
+		s = &dnsState{query: query, attempted: time.Now()}
+		d.states[host] = s
 	}
+	s.query = query
+	s.lastUsed = time.Now()
+	if entry := d.cache[host]; time.Now().Before(entry.until) {
+		d.scheduleLocked(host, s)
+		d.mu.Unlock()
+		return slices.Clone(entry.ips), nil
+	}
+	call := d.queryLocked(ctx, host, s)
 	d.mu.Unlock()
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-call.done:
-		return call.ips, call.err
+		return slices.Clone(call.ips), call.err
 	}
 }
 

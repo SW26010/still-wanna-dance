@@ -12,12 +12,18 @@ func (m *Monitor) probeResourceWhenIdle(ctx context.Context, client *http.Client
 	if manual {
 		return probeResource(ctx, client, p, id, r, sample)
 	}
+	var throughput bool
+	firstAttempt := true
 	for {
 		probeCtx, finish, err := m.channel.ResourceProbe(ctx)
 		if err != nil {
 			return observation{op: Resource, route: r.id, state: "canceled"}
 		}
-		o := probeResource(probeCtx, client, p, id, r, sample)
+		if firstAttempt {
+			throughput = m.claimThroughput()
+			firstAttempt = false
+		}
+		o := probeResourceMode(probeCtx, client, p, id, r, sample, throughput)
 		interrupted := finish()
 
 		if ctx.Err() != nil {
@@ -27,6 +33,7 @@ func (m *Monitor) probeResourceWhenIdle(ctx context.Context, client *http.Client
 		if !interrupted {
 			return o
 		}
+		throughput = false
 		// Discard measurements interrupted by business traffic, then retry
 		// this channel when all business loads have released their slots.
 	}

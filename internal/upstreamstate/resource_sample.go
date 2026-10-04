@@ -2,15 +2,14 @@ package upstreamstate
 
 import (
 	"context"
-	"errors"
 	"io"
 	"sync"
 	"time"
 )
 
 // The clock covers continuous body reading, excluding DNS, TLS and headers.
-// Full resources may finish before minimum; a stalled read is cut off at maximum.
-func readResourceSample(ctx context.Context, body io.ReadCloser, size, minimumBytes int64, minimum, maximum time.Duration) (bytes int64, duration time.Duration, err error) {
+// Stop at the first of the time limit, byte limit, or complete resource.
+func readResourceSample(ctx context.Context, body io.ReadCloser, size, maximumBytes int64, maximum time.Duration) (bytes int64, duration time.Duration, err error) {
 	started := time.Now()
 	var once sync.Once
 	closeBody := func() { once.Do(func() { _ = body.Close() }) }
@@ -23,16 +22,14 @@ func readResourceSample(ctx context.Context, body io.ReadCloser, size, minimumBy
 		stopCancel()
 		closeBody()
 	}()
-	reader := io.LimitReader(body, size+1)
+	limit := min(size, maximumBytes)
+	reader := io.LimitReader(body, limit)
 	buf := make([]byte, 64<<10)
 	for {
 		n, readErr := reader.Read(buf)
 		bytes += int64(n)
 		if ctx.Err() != nil {
 			return bytes, 0, ctx.Err()
-		}
-		if bytes > size {
-			return bytes, 0, errors.New("resource exceeds declared size")
 		}
 		select {
 		case <-expired:
@@ -51,7 +48,7 @@ func readResourceSample(ctx context.Context, body io.ReadCloser, size, minimumBy
 			}
 			return bytes, 0, readErr
 		}
-		if bytes >= minimumBytes && bytes < size && time.Since(started) >= minimum {
+		if bytes >= limit {
 			return bytes, 0, nil
 		}
 	}

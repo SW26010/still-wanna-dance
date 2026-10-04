@@ -44,6 +44,11 @@ func testMonitor(t *testing.T, f transportFunc) *Monitor {
 	return m
 }
 func fixture(r *http.Request) (*http.Response, error) {
+	if r.Header.Get("Range") == "bytes=0-0" {
+		resp := response(206, "x")
+		resp.Header.Set("Content-Range", "bytes 0-0/131072")
+		return resp, nil
+	}
 	if r.URL.Host == "x.kiva.moe" || r.URL.Host == "wanna.kiva.moe" {
 		return response(200, kivaFixture), nil
 	}

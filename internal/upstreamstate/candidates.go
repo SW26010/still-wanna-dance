@@ -16,6 +16,7 @@ type Selection struct {
 type preference struct {
 	current, challenger string
 	wins                int
+	throughputVote      time.Time
 }
 
 func resultID(r Result) string { return r.Route + "/" + r.ChannelID }
@@ -134,6 +135,14 @@ func (m *Monitor) updatePreferencesLocked(provider upstreamrequest.Candidates, s
 		if current == nil {
 			pref.current, pref.challenger, pref.wins = resultID(best), "", 0
 			continue
+		}
+		if op == Resource {
+			// Lightweight checks refresh availability, not throughput evidence.
+			// Preserve pending wins between actual throughput measurements.
+			if best.ThroughputObservedAt.IsZero() || best.ThroughputObservedAt.Before(since) || !best.ThroughputObservedAt.After(pref.throughputVote) {
+				continue
+			}
+			pref.throughputVote = best.ThroughputObservedAt
 		}
 		if resultID(best) == pref.current || best.ObservedAt.Before(since) || !improves(best, *current, m.policy.SwitchImprovement) {
 			pref.challenger, pref.wins = "", 0
@@ -285,6 +294,7 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 		for key := range m.history {
 			if !valid[key] {
 				delete(m.history, key)
+				delete(m.throughput, key)
 			}
 		}
 	}

@@ -12,7 +12,8 @@ import (
 )
 
 type Options struct {
-	Policy Policy
+	Policy              Policy
+	ThroughputStatePath string
 }
 type Status struct {
 	ResourcesPaused bool      `json:"resourcesPaused"`
@@ -29,25 +30,29 @@ type Status struct {
 // Monitor is independent of consumers and network configuration. Nothing starts
 // automatically; the owner explicitly starts and closes the monitor.
 type Monitor struct {
-	batchManual   bool
-	mu            sync.Mutex
-	ctx           context.Context
-	cancel        context.CancelFunc
-	policy        Policy
-	started       time.Time
-	finished      time.Time
-	nextCheck     time.Time
-	history       map[string][]observation
-	songID        int64
-	songAt        time.Time
-	active        chan struct{}
-	scheduler     chan struct{}
-	closed        bool
-	wake          chan struct{}
-	channel       *upstreamrequest.Channel
-	revision      uint64
-	batchRevision uint64
-	preferences   map[Operation]*preference
+	throughputStatePath string
+	lastThroughput      time.Time
+	batchThroughput     *bool
+	throughput          map[string]observation
+	batchManual         bool
+	mu                  sync.Mutex
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	policy              Policy
+	started             time.Time
+	finished            time.Time
+	nextCheck           time.Time
+	history             map[string][]observation
+	songID              int64
+	songAt              time.Time
+	active              chan struct{}
+	scheduler           chan struct{}
+	closed              bool
+	wake                chan struct{}
+	channel             *upstreamrequest.Channel
+	revision            uint64
+	batchRevision       uint64
+	preferences         map[Operation]*preference
 }
 
 func NewMonitor(o Options) (*Monitor, error) {
@@ -62,7 +67,12 @@ func newMonitor(o Options, channel *upstreamrequest.Channel) (*Monitor, error) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	snapshot := channel.Snapshot()
-	return &Monitor{ctx: ctx, cancel: cancel, channel: channel, revision: snapshot.Revision, policy: p, history: make(map[string][]observation), wake: make(chan struct{}, 1)}, nil
+	m := &Monitor{ctx: ctx, cancel: cancel, channel: channel, revision: snapshot.Revision, policy: p, history: make(map[string][]observation), wake: make(chan struct{}, 1), throughputStatePath: o.ThroughputStatePath, throughput: make(map[string]observation)}
+	if err := m.loadThroughputTime(); err != nil {
+		cancel()
+		return nil, err
+	}
+	return m, nil
 }
 
 func requestClient(t http.RoundTripper) *http.Client {
@@ -88,10 +98,12 @@ func (m *Monitor) refreshChannelLocked() upstreamrequest.Snapshot {
 			for key := range m.history {
 				if !valid[key] {
 					delete(m.history, key)
+					delete(m.throughput, key)
 				}
 			}
 		} else {
 			m.history = make(map[string][]observation)
+			m.throughput = make(map[string]observation)
 			m.preferences = nil
 			m.songID = 0
 			m.songAt = time.Time{}
@@ -102,8 +114,8 @@ func (m *Monitor) refreshChannelLocked() upstreamrequest.Snapshot {
 	return s
 }
 func validatePolicy(p Policy) error {
-	if p.ResourceMinBytes <= 0 || p.ResourceMinDuration <= 0 || p.ResourceMinDuration > p.ResourceTimeout || p.ResourceTimeout > 5*time.Second {
-		return errors.New("resource measurement requires 0 < minimum <= timeout <= 5 seconds")
+	if p.ResourceMaxBytes <= 0 || p.ResourceMaxBytes > 16<<20 || p.ResourceTimeout > 3*time.Second {
+		return errors.New("resource measurement requires bytes <= 16 MiB and timeout <= 3 seconds")
 	}
 	if math.IsNaN(p.SwitchImprovement) || p.SwitchImprovement <= 0 || p.SwitchImprovement >= 1 || p.SwitchSamples < 1 {
 		return errors.New("invalid switching policy")
@@ -129,6 +141,7 @@ func (m *Monitor) SetPolicy(p Policy) error {
 	m.policy = p
 	if m.scheduler != nil && !m.finished.IsZero() {
 		m.nextCheck = m.finished.Add(p.Interval)
+		m.scheduleThroughputLocked()
 		if source := m.refreshChannelLocked(); source.Candidates != nil {
 			m.scheduleCandidatesLocked(source.Candidates)
 		}
@@ -270,6 +283,7 @@ func (m *Monitor) checkRequest(ctx context.Context, manual bool) error {
 			}
 			m.batchRevision = source.Revision
 			m.batchManual = manual
+			m.batchThroughput = nil
 			m.active = make(chan struct{})
 			m.started = time.Now()
 			go m.check(m.active, source)
@@ -332,6 +346,7 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 			m.finished = time.Now()
 			if m.scheduler != nil {
 				m.nextCheck = m.finished.Add(m.policy.Interval)
+				m.scheduleThroughputLocked()
 				if source.Candidates != nil {
 					m.scheduleCandidatesLocked(source.Candidates)
 				}

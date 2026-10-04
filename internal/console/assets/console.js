@@ -62,9 +62,28 @@ function renderHealth(h, settings) {
     title.className = r.state === 'available' ? 'good' : '';
     const detail = document.createElement('div');
     detail.className = 'hint';
+    if (r.operation === 'resource') {
+      detail.textContent = r.entry + (r.channelID ? ' · 通道 ' + r.channelID : '');
+      const latency = document.createElement('div');
+      latency.className = 'hint';
+      latency.textContent = '响应延迟：' + (r.estimatedLatencyMS != null ? '首字节 ' + r.estimatedLatencyMS.toFixed(1) + ' ms' : '暂无有效数据') +
+        (r.sampleSongID ? ' · 歌曲 #' + r.sampleSongID : '') +
+        (r.http ? ' · HTTP ' + r.http : '') +
+        ' · 观测 ' + date(r.observedAt) + ' · 有效至 ' + date(r.validUntil);
+      const throughput = document.createElement('div');
+      throughput.className = 'hint';
+      throughput.textContent = '吞吐样本：' + (r.estimatedSpeedBPS != null ?
+        (r.estimatedSpeedBPS / 1024).toFixed(1) + ' KiB/s' +
+        (r.throughputSongID ? ' · 歌曲 #' + r.throughputSongID : '') +
+        ' · 测速时间 ' + date(r.throughputObservedAt) +
+        (r.transferDurationMS != null ? ' · 下载 ' + (r.transferDurationMS / 1000).toFixed(2) + ' s / ' + (r.transferredBytes / 1048576).toFixed(2) + ' MiB' : '') : '暂无有效数据');
+      row.append(title, detail, latency, throughput);
+      return row;
+    }
     detail.textContent = r.entry + (r.operation === 'catalog' ? ' · 响应 time：' + (r.catalogTime || '未获取') : '') + (r.channelID ? ' · 通道 ' + r.channelID : '') +
       (r.estimatedLatencyMS != null ? ' · 首字节 ' + r.estimatedLatencyMS.toFixed(1) + ' ms' : '') +
       (r.estimatedSpeedBPS != null ? ' · 样本吞吐 ' + (r.estimatedSpeedBPS / 1024).toFixed(1) + ' KiB/s' : '') +
+      (r.throughputObservedAt && !r.throughputObservedAt.startsWith('0001-') ? ' · 测速时间 ' + date(r.throughputObservedAt) : '') +
       (r.transferDurationMS != null ? ' · 下载 ' + (r.transferDurationMS / 1000).toFixed(2) + ' s / ' + (r.transferredBytes / 1048576).toFixed(2) + ' MiB' : '') +
       (r.sampleSongID ? ' · 歌曲 #' + r.sampleSongID : '') +
       (r.http ? ' · HTTP ' + r.http : '') +

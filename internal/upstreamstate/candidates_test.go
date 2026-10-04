@@ -125,15 +125,17 @@ func TestCandidateChecksAreIsolatedAndExecutable(t *testing.T) {
 
 func TestRecommendationHysteresisAndImmediateFailureFallback(t *testing.T) {
 	m, f := candidateMonitor(t)
+	sampleAt := time.Now().Add(-time.Minute)
 	feed := func(bstate string) {
 		m.mu.Lock()
 		defer m.mu.Unlock()
-		start := time.Now()
+		sampleAt = sampleAt.Add(time.Second)
+		start := sampleAt
 		for _, v := range []struct {
 			id, state string
 			bytes     int64
 		}{{"a", "available", 1000}, {"b", bstate, 3000}} {
-			m.record(observation{op: Resource, route: "cf", channel: v.id + "/play.udon.dance", state: v.state, at: time.Now(), latency: time.Millisecond, duration: time.Second, bytes: v.bytes})
+			m.record(observation{op: Resource, route: "cf", channel: v.id + "/play.udon.dance", state: v.state, at: sampleAt, latency: time.Millisecond, duration: time.Second, bytes: v.bytes})
 		}
 		m.updatePreferencesLocked(f, start)
 	}
@@ -160,6 +162,41 @@ func TestRecommendationHysteresisAndImmediateFailureFallback(t *testing.T) {
 	r, ok = m.Recommended(Resource)
 	if !ok || r.Result.ChannelID != first.Result.ChannelID {
 		t.Fatal("removed winner did not fall back", r)
+	}
+}
+
+func TestResourceRecommendationCountsOnlyNewThroughput(t *testing.T) {
+	m, f := candidateMonitor(t)
+	base := time.Now().Add(-time.Minute)
+	feed := func(at time.Time, a, b int64) {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		for _, v := range []struct {
+			id    string
+			bytes int64
+		}{{"a", a}, {"b", b}} {
+			m.record(observation{op: Resource, route: "cf", channel: v.id + "/play.udon.dance", state: "available", at: at, latency: time.Millisecond, duration: time.Second, transferDuration: time.Second, bytes: v.bytes})
+		}
+		m.updatePreferencesLocked(f, at)
+	}
+	feed(base, 3000, 1000)                  // A is initially preferred.
+	feed(base.Add(time.Second), 1000, 3000) // B earns one throughput win.
+	for i := 2; i < 10; i++ {
+		feed(base.Add(time.Duration(i)*time.Second), 0, 0)
+		if p := m.preferences[Resource]; p.wins != 1 || !strings.HasSuffix(p.current, "a/play.udon.dance") {
+			t.Fatalf("lightweight check changed votes: %+v", p)
+		}
+	}
+	// Even a repeated update with the original batch boundary cannot reuse it.
+	m.mu.Lock()
+	m.updatePreferencesLocked(f, base)
+	m.mu.Unlock()
+	if m.preferences[Resource].wins != 1 {
+		t.Fatal("same throughput counted twice")
+	}
+	feed(base.Add(10*time.Second), 1000, 3000)
+	if p := m.preferences[Resource]; !strings.HasSuffix(p.current, "b/play.udon.dance") {
+		t.Fatalf("second throughput sample did not switch: %+v", p)
 	}
 }
 

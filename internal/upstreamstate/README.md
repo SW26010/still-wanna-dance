@@ -18,7 +18,7 @@
 | Catalog / kiva | x.kiva.moe/api/v2/wanna/songs | 业务状态码、清单版本、正数歌曲 ID、合法且无冲突的 MD5 |
 | Catalog / wanna | wanna.kiva.moe/api/wannaInfo | 同上，独立清单入口 |
 | PlaybackURL | 同一 API 的 node=cf / node=nya | 重定向、目标主机和资源元数据 |
-| Resource | play.udon.dance / nya.xin.moe | 实际解析出的资源 URL，连续 Range 下载，满 2 秒且 16 MiB；上限 5 秒或整首 |
+| Resource | play.udon.dance / nya.xin.moe | 实际解析出的资源 URL，连续 Range 下载，3 秒、16 MiB 或整首结束，先到即停 |
 
 线路标识为 api、kiva、wanna、cf、hkg；hkg 对应 node=nya。Entry 标识服务，资源 Entry 不是任意歌曲的播放 URL。三个清单入口每轮独立检测各自全部候选，按各自响应格式校验，失败不影响其他入口。每轮从有效列表的去重正数歌曲 ID 中均匀随机采样；优先用本轮 Udon 样本，无有效样本时依次用 Kiva、WannaInfo；三个列表均失败可在 SampleLifetime 内复用旧 ID，首次没有样本时不猜测视频地址。同一路线的所有资源候选共用本轮解析出的一个合法样本，不把不同 IP 返回的不同视频混作吞吐比较。
 
@@ -59,6 +59,7 @@ CatalogTime 保留上游响应原始 time 字符串（Udon 顶层 time，其余�
 
 - EstimatedLatencyMS：从请求开始到最终有效响应的首字节，包含连接、握手；资源包含此前重定向的耗时。
 - EstimatedSpeedBPS：资源为有效字节数 / 正文下载耗时（排除建连、握手和响应头）；列表仍为有效字节数 / 完整探测耗时。不是持续满速带宽。PlaybackURL 不提供吞吐估计。
+- ThroughputObservedAt：独立的吞吐采样时间。轻量首字节检测不更新吞吐值与此时间；同通道的吞吐值最多保留 15 分钟，重启不恢复吞吐值。
 - ProbeDurationMS：代表性探测平均完成耗时。TransferDurationMS 与 TransferredBytes 是最近一次正文下载的实际时长及字节数。
 
 每个操作/入口/通道保留最多 8 个同歌曲的连续成功样本。失败或样本变化重置该窗口，移除的候选历史会回收。一项完成立即发布，不等待整轮；失败只影响该项。
@@ -74,9 +75,8 @@ Catalog 和 PlaybackURL 优先低首字节耗时，Resource 优先高有效吞�
 | FailureLifetime | 30 秒 |
 | SampleLifetime | 10 分钟 |
 | RequestTimeout | 30 秒 |
-| ResourceMinDuration | 2 秒 |
-| ResourceMinBytes | 16 MiB |
-| ResourceTimeout | 5 秒（正文下载上限） |
+| ResourceMaxBytes | 16 MiB |
+| ResourceTimeout | 3 秒（正文下载硬上限） |
 | SwitchImprovement | 0.15 |
 | SwitchSamples | 2 |
 
@@ -86,11 +86,11 @@ Interval 是候选检查的最大常规间隔；新 DNS 候选事件提前唤醒
 
 ## 探测边界
 
-歌曲列表及播放地址最多 4 个并行候选探测；视频资源吞吐跨线路、跨候选串行执行，每次仅一个资源传输，避免争抢本地带宽。列表最多 16 MiB；资源连续读取，至少 2 秒且 16 MiB 后收尾，5 秒或整首资源结束则优先停止（最多额外读取 1 字节检测越界）；5 秒内有有效正文就保留实测吞吐，没有正文记超时，必须是正确的 206、Content-Range 和未压缩正文。资源重定向最多三次，必须保持主机、大小及校验标识。播放 URL 不自动跟随重定向。视频元数据统一用 internal/videometa 校验，HTTP 视频 URL 升级为 HTTPS。
+歌曲列表及播放地址最多 4 个并行候选探测；自动资源检查按原调度频率请求 Range bytes=0-0，读到一个正文 byte 即关闭，只记录延迟和可用性。吞吐检查另有固定 15 分钟冷却，按首次资源尝试开始计时；Options.ThroughputStatePath 可将时间持久化，重启读取后按剩余时间等待，没有历史或已到期则启动首轮测速。DNS 变化及短 TTL 不绕过冷却。视频资源吞吐跨线路、跨候选串行执行，每次仅一个资源传输，避免争抢本地带宽。列表最多 16 MiB；资源连续读取，满 3 秒、16 MiB 或整首资源结束，任一条件满足即停止（Range 限定最多 16 MiB，不额外读取）；3 秒内有有效正文就保留实测吞吐，没有正文记超时，必须是正确的 206、Content-Range 和未压缩正文。资源重定向最多三次，必须保持主机、大小及校验标识。播放 URL 不自动跟随重定向。视频元数据统一用 internal/videometa 校验，HTTP 视频 URL 升级为 HTTPS。
 
 超时记录 timeout；仅明确收到 524 才记录 origin_timeout。不把取消当作通道失败，不泄露底层可能带认证信息的错误。
 
-自动调度的资源探测让出业务下载带宽：共享 Channel 的 BeginResourceLoad 在业务开始时取消正在进行的自动资源采样，并阻止后续采样，所有业务加载结束后重测被打断的候选。被打断的样本丢弃，不更新通道失败状态。显式 Check 新建的检测批次保持原有行为；并发请求仍合并现有批次。Status.ResourcesPaused 供界面展示自动资源测速暂停状态。
+自动调度的资源探测让出业务下载带宽：共享 Channel 的 BeginResourceLoad 在业务开始时取消正在进行的自动资源采样，并阻止后续采样，所有业务加载结束后对被打断的候选做轻量首字节检查，完整测速等待下个 15 分钟周期。被打断的样本丢弃，不更新通道失败状态。显式 Check 新建的检测批次保持原有行为；并发请求仍合并现有批次。Status.ResourcesPaused 供界面展示自动资源测速暂停状态。
 
 ## 验证
 

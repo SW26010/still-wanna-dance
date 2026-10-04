@@ -17,30 +17,28 @@ var operations = [...]Operation{Catalog, PlaybackURL, Resource}
 // Zero durations use defaults; negative durations are invalid. SetPolicy
 // replaces the whole policy, including timeouts for subsequent checks.
 type Policy struct {
-	Interval            time.Duration `json:"interval"`
-	Lifetime            time.Duration `json:"lifetime"`
-	FailureLifetime     time.Duration `json:"failureLifetime"`
-	SampleLifetime      time.Duration `json:"sampleLifetime"`
-	RequestTimeout      time.Duration `json:"requestTimeout"`
-	ResourceMinBytes    int64         `json:"resourceMinBytes"`
-	ResourceMinDuration time.Duration `json:"resourceMinDuration"`
-	ResourceTimeout     time.Duration `json:"resourceTimeout"`
-	SwitchImprovement   float64       `json:"switchImprovement"`
-	SwitchSamples       int           `json:"switchSamples"`
+	Interval          time.Duration `json:"interval"`
+	Lifetime          time.Duration `json:"lifetime"`
+	FailureLifetime   time.Duration `json:"failureLifetime"`
+	SampleLifetime    time.Duration `json:"sampleLifetime"`
+	RequestTimeout    time.Duration `json:"requestTimeout"`
+	ResourceMaxBytes  int64         `json:"resourceMaxBytes"`
+	ResourceTimeout   time.Duration `json:"resourceTimeout"`
+	SwitchImprovement float64       `json:"switchImprovement"`
+	SwitchSamples     int           `json:"switchSamples"`
 }
 
 func DefaultPolicy() Policy {
 	return Policy{
-		Interval:            5 * time.Minute,
-		Lifetime:            6 * time.Minute,
-		FailureLifetime:     30 * time.Second,
-		SampleLifetime:      10 * time.Minute,
-		RequestTimeout:      30 * time.Second,
-		ResourceMinBytes:    16 << 20,
-		ResourceMinDuration: 2 * time.Second,
-		ResourceTimeout:     5 * time.Second,
-		SwitchImprovement:   0.15,
-		SwitchSamples:       2,
+		Interval:          5 * time.Minute,
+		Lifetime:          6 * time.Minute,
+		FailureLifetime:   30 * time.Second,
+		SampleLifetime:    10 * time.Minute,
+		RequestTimeout:    30 * time.Second,
+		ResourceMaxBytes:  16 << 20,
+		ResourceTimeout:   3 * time.Second,
+		SwitchImprovement: 0.15,
+		SwitchSamples:     2,
 	}
 }
 func normalized(p Policy) Policy {
@@ -66,11 +64,8 @@ func normalized(p Policy) Policy {
 	if p.RequestTimeout == 0 {
 		p.RequestTimeout = d.RequestTimeout
 	}
-	if p.ResourceMinBytes == 0 {
-		p.ResourceMinBytes = d.ResourceMinBytes
-	}
-	if p.ResourceMinDuration == 0 {
-		p.ResourceMinDuration = d.ResourceMinDuration
+	if p.ResourceMaxBytes == 0 {
+		p.ResourceMaxBytes = d.ResourceMaxBytes
 	}
 	if p.ResourceTimeout == 0 {
 		p.ResourceTimeout = d.ResourceTimeout
@@ -82,6 +77,8 @@ func normalized(p Policy) Policy {
 // identify the checked service in every state; they are not recommendations.
 // A resource Entry is never a playable URL for an arbitrary video.
 type Result struct {
+	ThroughputSongID     int64     `json:"throughputSongID,omitempty"`
+	ThroughputObservedAt time.Time `json:"throughputObservedAt"`
 	// CatalogTime preserves the upstream response time verbatim, not the probe time.
 	CatalogTime        string    `json:"catalogTime,omitempty"`
 	ChannelID          string    `json:"channelID,omitempty"`
@@ -199,12 +196,33 @@ func (m *Monitor) record(o observation) {
 		h = h[len(h)-8:]
 	}
 	m.history[key] = h
+	if o.op == Resource && o.state == "available" && o.bytes > 0 {
+		if o.transferDuration <= 0 {
+			o.transferDuration = o.duration
+		}
+		if o.transferDuration <= 0 {
+			return
+		}
+		m.throughput[key] = o
+	}
 }
 func (m *Monitor) resultLocked(op Operation, id string, now time.Time) Result {
 	return m.resultKeyLocked(op, id, string(op)+"/"+id, now)
 }
-func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) Result {
-	r := Result{Operation: op, Route: id, Entry: entry(op, id), State: "unknown", Reason: "no_sample"}
+func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (r Result) {
+	r = Result{Operation: op, Route: id, Entry: entry(op, id), State: "unknown", Reason: "no_sample"}
+	defer func() {
+		if op != Resource || r.State != "available" {
+			return
+		}
+		r.EstimatedSpeedBPS, r.TransferDurationMS, r.TransferredBytes = nil, nil, 0
+		if o, ok := m.throughput[key]; ok && now.Before(o.at.Add(throughputInterval)) {
+			speed, ms := float64(o.bytes)/o.transferDuration.Seconds(), float64(o.transferDuration)/float64(time.Millisecond)
+			r.EstimatedSpeedBPS, r.TransferDurationMS, r.TransferredBytes = &speed, &ms, o.bytes
+			r.ThroughputObservedAt = o.at
+			r.ThroughputSongID = o.songID
+		}
+	}()
 	if m.closed {
 		r.State, r.Reason = "closed", ""
 		return r

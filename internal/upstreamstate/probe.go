@@ -273,6 +273,10 @@ func probePlayback(parent context.Context, client *http.Client, p Policy, id int
 }
 
 func probeResource(parent context.Context, client *http.Client, p Policy, id int64, r route, s videoSample) (o observation) {
+	return probeResourceMode(parent, client, p, id, r, s, true)
+}
+
+func probeResourceMode(parent context.Context, client *http.Client, p Policy, id int64, r route, s videoSample, throughput bool) (o observation) {
 	o = observation{op: Resource, route: r.id, songID: id}
 	ctx, cancel := context.WithTimeout(parent, p.RequestTimeout+p.ResourceTimeout)
 	defer cancel()
@@ -288,7 +292,10 @@ func probeResource(parent context.Context, client *http.Client, p Policy, id int
 		}
 		o.finishTiming(started, snapshot)
 	}()
-	n := s.size
+	n := min(s.size, p.ResourceMaxBytes)
+	if !throughput {
+		n = 1
+	}
 	u := s.url
 	for redirects := 0; redirects <= 3; redirects++ {
 		resp, t, err := doProbeRequest(ctx, client, u, fmt.Sprintf("bytes=0-%d", n-1))
@@ -321,13 +328,24 @@ func probeResource(parent context.Context, client *http.Client, p Policy, id int
 			o.state = httpState(resp.StatusCode)
 			return
 		}
-		if resp.Header.Get("Content-Range") != fmt.Sprintf("bytes 0-%d/%d", n-1, s.size) || (resp.Header.Get("Content-Encoding") != "" && resp.Header.Get("Content-Encoding") != "identity") {
+		if resp.Header.Get("Content-Range") != fmt.Sprintf("bytes 0-%d/%d", n-1, s.size) || (resp.ContentLength > 0 && resp.ContentLength != n) || (resp.Header.Get("Content-Encoding") != "" && resp.Header.Get("Content-Encoding") != "identity") {
 			resp.Body.Close()
 			o.state = "invalid"
 			return
 		}
 		t.set("body")
-		o.bytes, o.transferDuration, err = readResourceSample(ctx, resp.Body, n, p.ResourceMinBytes, p.ResourceMinDuration, p.ResourceTimeout)
+		if !throughput {
+			var first [1]byte
+			_, err = io.ReadFull(resp.Body, first[:])
+			resp.Body.Close()
+			if err != nil {
+				o.state = errorState(err)
+				return
+			}
+			o.state = "available"
+			return
+		}
+		o.bytes, o.transferDuration, err = readResourceSample(ctx, resp.Body, n, p.ResourceMaxBytes, p.ResourceTimeout)
 		if err != nil {
 			o.state = errorState(err)
 			return

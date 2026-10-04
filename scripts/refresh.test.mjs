@@ -12,7 +12,7 @@ test('canonical monitor renders every channel, throughput, unknown and stale sta
   const p = page();
   p.finishBatch(0, {}, { settings: { upstreamMode: 'auto' }, upstreamMonitor: {
     checking: false, results: [
-      { operation: 'resource', route: 'cf', mode: 'direct', ip: '1.2.3.4', channelID: 'direct/cf/1.2.3.4', state: 'available', entry: 'https://play.udon.dance', estimatedSpeedBPS: 2048, transferDurationMS: 2000, transferredBytes: 16777216, sampleSongID: 42 },
+      { operation: 'resource', route: 'cf', mode: 'direct', ip: '1.2.3.4', channelID: 'direct/cf/1.2.3.4', state: 'available', entry: 'https://play.udon.dance', estimatedSpeedBPS: 2048, transferDurationMS: 2000, transferredBytes: 16777216, sampleSongID: 73, throughputSongID: 42, throughputObservedAt: "2026-10-05T00:00:00Z", estimatedLatencyMS: 12 },
       { operation: 'resource', route: 'cf', mode: 'socks5', state: 'unavailable', reason: 'origin_timeout', http: 524 },
       { operation: 'resource', route: 'hkg', mode: 'direct', ip: '2.3.4.5', state: 'unknown', reason: 'no_sample' },
       { operation: 'catalog', route: 'api', mode: 'direct', state: 'stale', reason: 'expired', catalogTime: '20261004235822' },
@@ -27,8 +27,13 @@ test('canonical monitor renders every channel, throughput, unknown and stale sta
   const get = id => p.document.getElementById(id);
   const rows = [...get('healthResourceCf').children, ...get('healthResourceHkg').children, ...get('healthCatalog').children];
   assert.equal(rows.length, 4);
-  assert.match(rows[0].children[1].textContent, /2.0 KiB\/s.*歌曲 #42/);
-  assert.match(rows[0].children[1].textContent, /下载 2.00 s \/ 16.00 MiB/);
+  assert.match(rows[0].children[3].textContent, /2.0 KiB\/s.*歌曲 #42/);
+  assert.match(rows[0].children[3].textContent, /下载 2.00 s \/ 16.00 MiB/);
+  assert.match(rows[0].children[2].textContent, /响应延迟：首字节 12.0 ms.*歌曲 #73/);
+  assert.doesNotMatch(rows[0].children[2].textContent, /歌曲 #42|KiB/);
+  assert.doesNotMatch(rows[0].children[3].textContent, /歌曲 #73/);
+  assert.match(rows[0].children[3].textContent, /测速时间/);
+  assert.equal(rows[1].children[3].textContent, '吞吐样本：暂无有效数据');
   assert.match(rows[1].children[0].textContent, /源站响应超时/);
   assert.match(rows[2].children[0].textContent, /待测/);
   assert.match(rows[3].children[0].textContent, /已过期/);

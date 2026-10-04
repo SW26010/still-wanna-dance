@@ -51,13 +51,13 @@ func TestResourceMeasurementWindow(t *testing.T) {
 		wantBytes int64
 		wantErr   error
 	}{
-		{"two seconds and sixteen MiB", 100 << 20, time.Second / 128, 0, false, 2 * time.Second, 16 << 20, nil},
-		{"fast connection still reads two seconds", 200 << 20, time.Millisecond, 0, false, 2 * time.Second, 2000 * 65536, nil},
-		{"wait for sixteen MiB after two seconds", 100 << 20, 10 * time.Millisecond, 0, false, 2560 * time.Millisecond, 16 << 20, nil},
-		{"slow connection capped at five seconds", 100 << 20, 300 * time.Millisecond, 0, false, 5 * time.Second, 16 * 65536, nil},
-		{"no data is timeout", 100 << 20, time.Second, -1, false, 5 * time.Second, 0, context.DeadlineExceeded},
-		{"whole song before minimum", 3 * 65536, 250 * time.Millisecond, 0, false, 750 * time.Millisecond, 3 * 65536, nil},
-		{"stalled transfer capped at five seconds", 100 << 20, 250 * time.Millisecond, 1, false, 5 * time.Second, 65536, nil},
+		{"sixteen MiB before time limit", 100 << 20, time.Second / 128, 0, false, 2 * time.Second, 16 << 20, nil},
+		{"fast connection stops at sixteen MiB", 200 << 20, time.Millisecond, 0, false, 256 * time.Millisecond, 16 << 20, nil},
+		{"sixteen MiB near time limit", 100 << 20, 10 * time.Millisecond, 0, false, 2560 * time.Millisecond, 16 << 20, nil},
+		{"slow connection capped at three seconds", 100 << 20, 350 * time.Millisecond, 0, false, 3 * time.Second, 8 * 65536, nil},
+		{"no data is timeout", 100 << 20, time.Second, -1, false, 3 * time.Second, 0, context.DeadlineExceeded},
+		{"whole song before byte and time limits", 3 * 65536, 250 * time.Millisecond, 0, false, 750 * time.Millisecond, 3 * 65536, nil},
+		{"stalled transfer capped at three seconds", 100 << 20, 250 * time.Millisecond, 1, false, 3 * time.Second, 65536, nil},
 		{"owner cancellation", 100 << 20, 250 * time.Millisecond, 1, true, time.Second, 65536, context.Canceled},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -69,7 +69,7 @@ func TestResourceMeasurementWindow(t *testing.T) {
 					time.AfterFunc(time.Second, cancel)
 				}
 				p := DefaultPolicy()
-				n, d, err := readResourceSample(ctx, body, tc.size, p.ResourceMinBytes, p.ResourceMinDuration, p.ResourceTimeout)
+				n, d, err := readResourceSample(ctx, body, tc.size, p.ResourceMaxBytes, p.ResourceTimeout)
 				if n != tc.wantBytes || d != tc.wantTime || !errors.Is(err, tc.wantErr) {
 					t.Fatalf("bytes=%d duration=%v err=%v", n, d, err)
 				}
@@ -87,10 +87,10 @@ func TestResourceThroughputExcludesConnectionTime(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		client := requestClient(transportFunc(func(r *http.Request) (*http.Response, error) {
 			time.Sleep(3 * time.Second)
-			if r.Header.Get("Range") != "bytes=0-104857599" {
+			if r.Header.Get("Range") != "bytes=0-16777215" {
 				t.Fatal(r.Header)
 			}
-			return &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": []string{"bytes 0-104857599/104857600"}}, Body: &pacedResource{remaining: 100 << 20, step: time.Second / 128, closed: make(chan struct{})}}, nil
+			return &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": []string{"bytes 0-16777215/104857600"}}, Body: &pacedResource{remaining: 100 << 20, step: time.Second / 128, closed: make(chan struct{})}}, nil
 		}))
 		s := videoSample{url: videoFixture, host: "play.udon.dance", size: 100 << 20}
 		o := probeResource(context.Background(), client, DefaultPolicy(), 42, videoRoutes[0], s)

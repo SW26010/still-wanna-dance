@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -25,10 +26,6 @@ func (s *Server) PrefetchSong(ctx context.Context, id, target string) (string, e
 }
 
 func (s *Server) prefetch(ctx context.Context, id, target string) (source string, resultErr error) {
-	return s.prefetchWithConfirmationBudget(ctx, id, target, 5*time.Second)
-}
-
-func (s *Server) prefetchWithConfirmationBudget(ctx context.Context, id, target string, confirmationBudget time.Duration) (source string, resultErr error) {
 	if !s.beginRequest() {
 		return "", context.Canceled
 	}
@@ -44,6 +41,10 @@ func (s *Server) prefetchWithConfirmationBudget(ctx context.Context, id, target 
 		return "", err
 	}
 	v.songID = id
+	if expected, _ := ctx.Value(expectedMD5Key{}).(string); expected != "" && expected != v.key {
+		s.cfg.Logger.Warn("song_md5_mismatch", "song_id", id, "mapped_md5", expected, "url_md5", v.key)
+		return "", fmt.Errorf("上游 MD5 与清单不一致：期望 %s，收到 %s", expected, v.key)
+	}
 	finishBudget, err := s.reserveBatchVideo(ctx, v)
 	if err != nil {
 		return "", err
@@ -65,7 +66,7 @@ func (s *Server) prefetchWithConfirmationBudget(ctx context.Context, id, target 
 		// Queue ownership must outlive this cancellable waiter. Register it
 		// while pinned, before a shared flight can finish and release its pin.
 		// This is only a memory reservation; validation/current-version
-		// confirmation still belongs to recordSongVideo after completion.
+		// association still belongs to recordSongVideo after completion.
 		s.retentionMu.Lock()
 		s.rememberSongResourceLocked(id, v.key)
 		s.retentionMu.Unlock()
@@ -102,7 +103,7 @@ func (s *Server) prefetchWithConfirmationBudget(ctx context.Context, id, target 
 			return f.source, f.err
 		}
 		if id != "" {
-			if err := s.recordSongVideoWithBudget(ctx, id, v, confirmationBudget); err != nil {
+			if err := s.recordSongVideo(ctx, id, v); err != nil {
 				return f.source, err
 			}
 		}

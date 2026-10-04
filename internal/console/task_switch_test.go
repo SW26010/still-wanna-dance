@@ -1,9 +1,11 @@
 package console
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -62,6 +64,10 @@ func TestBatchRestoresOnlyTemporarilyStoppedQueue(t *testing.T) {
 				}
 				requested, release := make(chan struct{}), make(chan struct{})
 				api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if outcome == "complete" {
+						fmt.Fprint(w, `{"code":200,"data":{"time":"r","groups":[{"entries":[{"id":1,"checksum":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]}]}}`)
+						return
+					}
 					close(requested)
 					select {
 					case <-r.Context().Done():
@@ -80,7 +86,9 @@ func TestBatchRestoresOnlyTemporarilyStoppedQueue(t *testing.T) {
 				}
 				// An empty reusable plan finishes successfully without network work.
 				if outcome == "complete" {
-					c.scanPlan = &scanPlan{settings: c.settings}
+					c.checksumURL = api.URL
+					os.MkdirAll(filepath.Join(c.settings.StorageDir, "videos"), 0700)
+					os.WriteFile(filepath.Join(c.settings.StorageDir, "videos", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.mp4"), []byte("trusted"), 0600)
 				}
 				if err := c.switchTask(); err != nil {
 					t.Fatal(err)

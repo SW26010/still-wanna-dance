@@ -5,12 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	_ "modernc.org/sqlite"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
-
-	_ "modernc.org/sqlite"
 )
 
 // Counts describe observed GET demand, not confirmed playback. Deduplication is
@@ -50,7 +49,20 @@ func openUsage(path string, log *slog.Logger, retentionDays int) (*usageStore, e
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
-	_, err = db.Exec(`PRAGMA busy_timeout=1000;
+	var format, existing int
+	if err := db.QueryRow("PRAGMA user_version").Scan(&format); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='video_versions'").Scan(&existing); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if (existing > 0 && format != 2) || (format != 0 && format != 2) {
+		db.Close()
+		return nil, fmt.Errorf("旧存储格式不兼容 MD5 资源管理，请选择新的存储目录；旧数据未修改")
+	}
+	_, err = db.Exec(`PRAGMA busy_timeout=1000; PRAGMA user_version=2;
 CREATE TABLE IF NOT EXISTS songs (
  song_id TEXT PRIMARY KEY,
  title TEXT NOT NULL DEFAULT '',

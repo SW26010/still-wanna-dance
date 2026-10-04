@@ -1,7 +1,6 @@
 package console
 
 import (
-	"database/sql"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -20,20 +19,9 @@ func TestCoverageCountsSongsAndPreservesSnapshotOnFailure(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(c.settings.StorageDir, "videos"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	db, err := sql.Open("sqlite", filepath.Join(c.settings.StorageDir, "stepstash.sqlite"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	if _, err := db.Exec(`CREATE TABLE video_versions(version_key TEXT, checksum TEXT, file_bytes INTEGER)`); err != nil {
-		t.Fatal(err)
-	}
 	// a is shared by two songs, b is an old version, c is missing, d truncated.
 	for _, ch := range []string{"a", "b", "c", "d"} {
-		key, checksum := strings.Repeat(ch, 64), strings.Repeat(ch, 32)
-		if _, err := db.Exec(`INSERT INTO video_versions VALUES (?, ?, 4)`, key, checksum); err != nil {
-			t.Fatal(err)
-		}
+		key := strings.Repeat(ch, 32)
 		if ch != "c" {
 			body := "test"
 			if ch == "d" {
@@ -58,7 +46,7 @@ func TestCoverageCountsSongsAndPreservesSnapshotOnFailure(t *testing.T) {
 	c.checksumURL, c.client.Transport = api.URL, http.DefaultTransport
 	c.startInventoryScan()
 	v := waitInventory(t, c)
-	if v.Error != "" || !v.CoverageKnown || v.TotalSongs != 5 || v.CoveredSongs != 2 || calls.Load() != 1 {
+	if v.Error != "" || !v.CoverageKnown || v.TotalSongs != 5 || v.CoveredSongs != 3 || calls.Load() != 1 {
 		t.Fatalf("%+v calls=%d", v, calls.Load())
 	}
 	// A restart must retain the coverage, and a failed refresh must not turn it into zero.
@@ -67,13 +55,13 @@ func TestCoverageCountsSongsAndPreservesSnapshotOnFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reopened.Close()
-	if got := reopened.localInventory(); got.CoveredSongs != 2 || !got.CoverageKnown {
+	if got := reopened.localInventory(); got.CoveredSongs != 3 || !got.CoverageKnown {
 		t.Fatalf("lost snapshot: %+v", got)
 	}
 	fail.Store(true)
 	c.startInventoryScan()
 	after := waitInventory(t, c)
-	if after.Error == "" || after.CoveredSongs != 2 || !after.Updated.Equal(v.Updated) {
+	if after.Error == "" || after.CoveredSongs != 3 || !after.Updated.Equal(v.Updated) {
 		t.Fatalf("lost previous coverage: %+v", after)
 	}
 }

@@ -32,7 +32,7 @@ func testVideoFile(t *testing.T, cfg Config, body string) string {
 
 func retainedPath(t *testing.T, s *Server, cfg Config, id string) string {
 	t.Helper()
-	key := strings.Repeat(id, 64)
+	key := strings.Repeat(id, 32)
 	return cfg.videoFile(key)
 }
 
@@ -114,7 +114,6 @@ func TestActiveReaderAndFailedDownloadKeepExistingVersion(t *testing.T) {
 			if err := s.recordSongVideo(context.Background(), "1344", oldVideo); err != nil {
 				t.Fatal(err)
 			}
-			s.cfg.ResolveCurrent = func(context.Context, string) (string, error) { return videoURL(payload), nil }
 			f, err := os.Open(oldPath)
 			if err != nil {
 				t.Fatal(err)

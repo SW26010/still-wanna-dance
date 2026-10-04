@@ -22,14 +22,16 @@ import (
 func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	c := testConsole(t)
 	body := "queue video fixture"
-	digest := fmt.Sprintf("%x", md5.Sum([]byte(body)))
+
 	first := make(chan struct{})
 	release := make(chan struct{})
 	var once sync.Once
 	defer once.Do(func() { close(release) })
 	var mu sync.Mutex
 	requests := map[string]int{}
-	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, body) }))
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, body+strings.Split(strings.TrimPrefix(r.URL.Path, "/files/2403/"), "-")[0])
+	}))
 	defer origin.Close()
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("id")
@@ -48,7 +50,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 			http.Error(w, "unavailable", 503)
 			return
 		}
-		w.Header().Set("Location", fmt.Sprintf("http://play.udon.dance/files/2403/%s-abc.mp4?e=%s&s=%d", id, digest, len(body)))
+		w.Header().Set("Location", fmt.Sprintf("http://play.udon.dance/files/2403/%s-abc.mp4?e=%s&s=%d", id, fmt.Sprintf("%x", md5.Sum([]byte(body+id))), len(body+id)))
 		w.WriteHeader(302)
 	}))
 	defer api.Close()
@@ -106,10 +108,10 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	if requests["1"] != 1 || requests["4"] != 1 || requests["5"] != 2 || len(requests) != 3 {
 		t.Fatal(requests)
 	}
-	if _, err = os.Stat(fixtureVideoPath(c.settings.StorageDir, "1", body)); !os.IsNotExist(err) {
+	if _, err = os.Stat(fixtureVideoPath(c.settings.StorageDir, "1", body+"1")); !os.IsNotExist(err) {
 		t.Fatal("removed song downloaded", err)
 	}
-	if _, err = os.Stat(fixtureVideoPath(c.settings.StorageDir, "4", body)); err != nil {
+	if _, err = os.Stat(fixtureVideoPath(c.settings.StorageDir, "4", body+"4")); err != nil {
 		t.Fatal(err)
 	}
 }

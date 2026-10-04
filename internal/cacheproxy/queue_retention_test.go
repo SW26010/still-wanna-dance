@@ -80,11 +80,81 @@ func TestQueueReservationSurvivesCanceledDownloadWaiter(t *testing.T) {
 	expectRetained(t, testVideoFile(t, cfg, payload), false)
 }
 
+func TestCatalogSyncPreservesActiveQueueReservations(t *testing.T) {
+	for _, state := range []string{"queued", "handoff", "expired", "inactive"} {
+		t.Run(state, func(t *testing.T) {
+			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(payload)) })
+			ctx := context.Background()
+			old := parsedVideo(t, s, payload).key
+			current := strings.Repeat("b", 32)
+			// A prefetched URL may differ from the authoritative catalog.
+			if err := s.SyncCatalog(ctx, map[string]string{"42": current}); err != nil {
+				t.Fatal(err)
+			}
+			if state != "inactive" {
+				s.SetQueueSongs([]int64{42})
+			}
+			if _, err := s.PrefetchSong(ctx, "42", videoURL(payload)); err != nil {
+				t.Fatal(err)
+			}
+			var deadline time.Time
+			if state == "handoff" || state == "expired" {
+				s.SetQueueSongs(nil)
+				s.retentionMu.Lock()
+				if state == "expired" {
+					s.queueHandoffs["42"] = time.Now().Add(-time.Second)
+				}
+				deadline = s.queueHandoffs["42"]
+				s.retentionMu.Unlock()
+			}
+			for range 2 {
+				if err := s.SyncCatalog(ctx, map[string]string{"42": current}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			assertSongResource(t, s, "42", current)
+			protected := state == "queued" || state == "handoff"
+			s.retentionMu.Lock()
+			reserved := s.queueReservedLocked(old)
+			remembered := s.songResources["42"][old]
+			after := s.queueHandoffs["42"]
+			s.retentionMu.Unlock()
+			if reserved != protected || remembered != protected {
+				t.Fatalf("state=%s reserved=%v remembered=%v", state, reserved, remembered)
+			}
+			if state == "handoff" && !after.Equal(deadline) {
+				t.Fatal("catalog sync changed handoff deadline")
+			}
+			setRetentionLimit(t, s, 1)
+			s.trimCache()
+			path := testVideoFile(t, cfg, payload)
+			expectRetained(t, path, protected)
+			if state == "handoff" {
+				s.retentionMu.Lock()
+				s.queueHandoffs["42"] = time.Now().Add(-time.Second)
+				s.refreshHandoffsLocked(time.Now())
+				s.retentionMu.Unlock()
+			} else {
+				s.ResetQueueSongs(nil)
+			}
+			s.trimCache()
+			expectRetained(t, path, false)
+		})
+	}
+}
+
 func TestQueueReservationOutranksHotCacheAndHandsOffToPlayback(t *testing.T) {
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(payload)) })
 	hot := retainedPath(t, s, cfg, "1")
 	putRetained(t, hot, len(payload))
-	s.usage.startDemand(strings.Repeat("1", 64))
+	if err := s.SyncCatalog(context.Background(), map[string]string{"1": strings.Repeat("1", 32)}); err != nil {
+		t.Fatal(err)
+	}
+	s.usage.startDemand("song:1")
+	priorities, err := s.EffectiveSongPriorities(context.Background(), []int64{1, 42})
+	if err != nil || priorities[1] <= priorities[42] {
+		t.Fatalf("hot song must outrank queued song: priorities=%v err=%v", priorities, err)
+	}
 	setRetentionLimit(t, s, int64(len(payload)))
 	s.SetQueueSongs([]int64{42})
 	if _, err := s.PrefetchSong(context.Background(), "42", videoURL(payload)); err != nil {
@@ -116,8 +186,8 @@ func TestRetentionEqualWeightUsesNumericSongIDBeforeRecency(t *testing.T) {
 	high := retainedPath(t, s, cfg, "2")
 	putRetained(t, low, 10)
 	putRetained(t, high, 10)
-	for key, id := range map[string]string{strings.Repeat("1", 64): "9", strings.Repeat("2", 64): "100"} {
-		if _, err := s.usage.db.Exec(`INSERT INTO song_videos(song_id,version_key) VALUES (?,?)`, id, key); err != nil {
+	for key, id := range map[string]string{strings.Repeat("1", 32): "9", strings.Repeat("2", 32): "100"} {
+		if _, err := s.usage.db.Exec(`INSERT INTO current_videos(song_id,version_key) VALUES (?,?)`, id, key); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -264,35 +334,4 @@ func TestQueueHandoffOwnershipAndDeadlines(t *testing.T) {
 	if s.queueReservedLocked("late") || !s.queueReservedLocked("shared") || len(s.queueHandoffs) != 0 {
 		t.Fatal("reset retained old room or lost new queue")
 	}
-}
-
-func TestQueueHandoffDefersSupersededCleanup(t *testing.T) {
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(payload)) })
-	s.SetQueueSongs([]int64{42})
-	if _, err := s.PrefetchSong(context.Background(), "42", videoURL(payload)); err != nil {
-		t.Fatal(err)
-	}
-	s.SetQueueSongs(nil)
-	r, _ := http.NewRequest("GET", videoURL(payload), nil)
-	v, err := s.parse(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Remove current ownership to exercise old-version cleanup independently of
-	// the capacity limit (which is unlimited in this fixture).
-	if _, err := s.usage.db.Exec("DELETE FROM current_videos WHERE song_id='42'"); err != nil {
-		t.Fatal(err)
-	}
-	s.retentionMu.Lock()
-	s.mappingRevision++
-	s.cleanupNeeded[v.key] = true
-	s.retentionMu.Unlock()
-	s.runRetention(false)
-	expectRetained(t, testVideoFile(t, cfg, payload), true)
-	s.retentionMu.Lock()
-	s.queueHandoffs["42"] = time.Now().Add(-time.Second)
-	s.refreshHandoffsLocked(time.Now())
-	s.retentionMu.Unlock()
-	s.runRetention(false)
-	expectRetained(t, testVideoFile(t, cfg, payload), false)
 }

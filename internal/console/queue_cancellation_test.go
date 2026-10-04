@@ -31,7 +31,7 @@ func TestQueueInvalidationCancelsCapacityWaitButPreservesFlights(t *testing.T) {
 				started <- r.URL.Path
 				select {
 				case <-release:
-					io.WriteString(w, body)
+					io.WriteString(w, body+strings.Split(strings.TrimPrefix(r.URL.Path, "/files/2403/"), "-")[0])
 				case <-r.Context().Done():
 				}
 			}))
@@ -40,7 +40,7 @@ func TestQueueInvalidationCancelsCapacityWaitButPreservesFlights(t *testing.T) {
 			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				id := r.URL.Query().Get("id")
 				resolved <- id
-				w.Header().Set("Location", fmt.Sprintf("http://play.udon.dance/files/2403/%s-abc.mp4?e=%x&s=%d", id, md5.Sum([]byte(body)), len(body)))
+				w.Header().Set("Location", fmt.Sprintf("http://play.udon.dance/files/2403/%s-abc.mp4?e=%x&s=%d", id, md5.Sum([]byte(body+r.URL.Query().Get("id"))), len(body+r.URL.Query().Get("id"))))
 				w.WriteHeader(302)
 			}))
 			defer api.Close()
@@ -127,11 +127,11 @@ func TestQueueInvalidationCancelsCapacityWaitButPreservesFlights(t *testing.T) {
 			// These old songs had already started: canceling their waiters must
 			// preserve the shared flights and their verified published files.
 			for _, id := range []string{"1", "2", "4"} {
-				if _, err := os.Stat(fixtureVideoPath(cfg.StorageDir, id, body)); err != nil {
+				if _, err := os.Stat(fixtureVideoPath(cfg.StorageDir, id, body+id)); err != nil {
 					t.Fatal(id, err)
 				}
 			}
-			if _, err := os.Stat(fixtureVideoPath(cfg.StorageDir, "3", body)); !os.IsNotExist(err) {
+			if _, err := os.Stat(fixtureVideoPath(cfg.StorageDir, "3", body+"3")); !os.IsNotExist(err) {
 				t.Fatal("obsolete cache published", err)
 			}
 		})

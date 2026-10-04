@@ -3,7 +3,6 @@ package cacheproxy
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"hash/crc32"
 	"os"
@@ -12,8 +11,8 @@ import (
 )
 
 // Verification data is separate from catalog/usage data so a scanner need not
-// start the cache engine or mutate song associations. Missing records are safe:
-// the next use hashes the file again. All fingerprints describe opened files.
+// start the cache engine or mutate song associations. Ordinary use trusts
+// published MD5 files; explicit checks refresh fingerprints of opened files.
 type verificationStore struct {
 	db   *sql.DB
 	root string
@@ -83,25 +82,22 @@ func (s *verificationStore) validate(ctx context.Context, f *verifiedFile, v vid
 	if err != nil {
 		return false, err
 	}
+	// Published MD5 files are immutable by contract. Ordinary use never hashes
+	// them again, including after restart or a metadata change.
+	if !force {
+		if !before.Mode().IsRegular() {
+			return false, errInvalidCache
+		}
+		f.info, f.checkedAt = before, time.Now()
+		return true, nil
+	}
 	identity, err := fileIdentity(f.file)
 	if err != nil {
 		return false, err
 	}
 	path := filepath.Join(s.root, "videos", v.key+".mp4")
-	var key, savedID string
-	var size, modified, mode, checked int64
-	err = s.db.QueryRowContext(ctx, `SELECT version_key, identity, file_bytes, modified_ns, mode, checked_ns FROM verified_files WHERE path=?`, path).Scan(&key, &savedID, &size, &modified, &mode, &checked)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return false, err
-	}
-	if !force && err == nil && identity != "" && key == v.key && savedID == identity &&
-		before.Mode().IsRegular() && before.Size() == v.size && size == before.Size() &&
-		modified == before.ModTime().UnixNano() && mode == int64(before.Mode()) {
-		f.info, f.checkedAt = before, time.Unix(0, checked)
-		return true, ctx.Err()
-	}
-	// Invalidate before reading: failed/canceled checks must never leave a
-	// previously trusted fingerprint available for a later fast path.
+	// Invalidate before reading so failed/canceled explicit checks cannot
+	// leave a stale successful verification record.
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM verified_files WHERE path=?`, path); err != nil {
 		return false, err
 	}

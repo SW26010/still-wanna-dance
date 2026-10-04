@@ -63,8 +63,8 @@ func TestExponentialPriorityCombinesDifferentVersionAges(t *testing.T) {
 	seedPrioritySong(t, s, "1981", "new")
 	now := time.Now().UnixMilli()
 	if err := s.usage.write([]usageEvent{
-		{id: "old", at: now - (120 * 24 * time.Hour).Milliseconds(), summaryOnly: true},
-		{id: "new", at: now, summaryOnly: true},
+		{id: "song:1981", at: now - (120 * 24 * time.Hour).Milliseconds(), summaryOnly: true},
+		{id: "song:1981", at: now, summaryOnly: true},
 	}); err != nil {
 		t.Fatal(err)
 	}

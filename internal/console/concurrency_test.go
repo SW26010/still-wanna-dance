@@ -29,7 +29,7 @@ func TestBackgroundModesDownloadTwoSongsConcurrently(t *testing.T) {
 				started <- r.URL.Path
 				select {
 				case <-release:
-					io.WriteString(w, body)
+					io.WriteString(w, body+strings.Split(strings.TrimPrefix(r.URL.Path, "/files/2403/"), "-")[0])
 				case <-r.Context().Done():
 				}
 			}))
@@ -40,7 +40,7 @@ func TestBackgroundModesDownloadTwoSongsConcurrently(t *testing.T) {
 					io.WriteString(w, `{"groups":{"contents":[{"songInfos":[{"id":1},{"id":2},{"id":3}]}]}}`)
 					return
 				}
-				w.Header().Set("Location", fmt.Sprintf("http://nya.xin.moe/files/2403/%s-abc.mp4?e=%x&s=%d", r.URL.Query().Get("id"), md5.Sum([]byte(body)), len(body)))
+				w.Header().Set("Location", fmt.Sprintf("http://nya.xin.moe/files/2403/%s-abc.mp4?e=%x&s=%d", r.URL.Query().Get("id"), md5.Sum([]byte(body+r.URL.Query().Get("id"))), len(body+r.URL.Query().Get("id"))))
 				w.WriteHeader(302)
 			}))
 			defer api.Close()

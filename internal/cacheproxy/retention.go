@@ -12,7 +12,7 @@ import (
 	initialpriority "still-wanna-dance/data/initial-priority"
 )
 
-var cacheVideoName = regexp.MustCompile(`^([0-9a-f]{64})\.mp4$`)
+var cacheVideoName = regexp.MustCompile(`^([0-9a-f]{32})\.mp4$`)
 
 type retainedVideo struct {
 	path, key    string
@@ -66,9 +66,6 @@ func (s *Server) releaseVideo(v video) {
 	}
 	if lastReference {
 		s.retentionMu.Lock()
-		// Raw URLs may recreate a superseded resource. The worker checks
-		// song ownership as well as current references before deleting it.
-		s.cleanupNeeded[v.key] = true
 		s.requestRetentionLocked()
 		s.retentionMu.Unlock()
 	}
@@ -113,7 +110,6 @@ func (s *Server) trimCache() {
 func (s *Server) runRetention(reconcile bool) {
 	s.retentionRunMu.Lock()
 	defer s.retentionRunMu.Unlock()
-	s.cleanSuperseded()
 	if err := s.trimCachePass(reconcile); err != nil {
 		s.cfg.Logger.Warn("cache_eviction_failed", "error", err)
 	}
@@ -280,7 +276,7 @@ func (s *Server) trimCachePass(reconcile bool) error {
 		if err != nil {
 			return err
 		}
-		rows, err := s.usage.db.Query(`SELECT version_key, CAST(song_id AS INTEGER) FROM song_videos`)
+		rows, err := s.usage.db.Query(`SELECT version_key, CAST(song_id AS INTEGER) FROM current_videos`)
 		if err != nil {
 			return err
 		}
@@ -298,9 +294,7 @@ func (s *Server) trimCachePass(reconcile bool) error {
 			if !exists {
 				score = initialpriority.Score(id)
 			}
-			if previous, exists := resourceScores[key]; !exists || score > previous {
-				resourceScores[key] = score
-			}
+			resourceScores[key] += score
 		}
 		err = rows.Err()
 		rows.Close()
@@ -311,7 +305,7 @@ func (s *Server) trimCachePass(reconcile bool) error {
 	for i := range videos {
 		item := &videos[i]
 		usage := stats[item.key]
-		item.score = usage.score
+		item.score = 0 // Unreferenced content has no song score.
 		if score, exists := resourceScores[item.key]; exists {
 			item.score = score
 		}

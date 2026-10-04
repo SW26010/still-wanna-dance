@@ -53,13 +53,6 @@ func TestSharedResourceMappingsSurviveUpdatesAndRestart(t *testing.T) {
 	if songs != 2 || versions != 1 {
 		t.Fatal("resource URL fabricated a song or duplicated resources", songs, versions)
 	}
-	cfg.ResolveCurrent = func(_ context.Context, id string) (string, error) {
-		if id != "138" && id != "140" {
-			t.Errorf("resolved resource number as song: %s", id)
-		}
-		return updated, nil
-	}
-	s.cfg.ResolveCurrent = cfg.ResolveCurrent
 	if _, err := s.PrefetchSong(ctx, "140", updated); err != nil {
 		t.Fatal(err)
 	}
@@ -80,11 +73,11 @@ func TestSharedResourceMappingsSurviveUpdatesAndRestart(t *testing.T) {
 	}
 	expectRetained(t, files[0], true)
 	restarted.releaseVideo(old)
-	expectRetained(t, files[0], false)
+	expectRetained(t, files[0], true)
 	// Raw playback must neither invent a song nor roll back an explicit mapping.
 	assertResponse(t, request(restarted, "GET", shared, nil), 200, payload)
 	restarted.wg.Wait()
-	expectRetained(t, files[0], false)
+	expectRetained(t, files[0], true)
 	var key string
 	if err := restarted.usage.db.QueryRow(`SELECT version_key FROM current_videos WHERE song_id='140'`).Scan(&key); err != nil {
 		t.Fatal(err)

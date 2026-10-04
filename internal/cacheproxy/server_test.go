@@ -3,13 +3,11 @@ package cacheproxy
 import (
 	"context"
 	"crypto/md5"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -35,7 +33,6 @@ func setup(t *testing.T, handler http.HandlerFunc) (*Server, Config) {
 	cfg := DefaultConfig()
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()
-	cfg.ResolveCurrent = func(context.Context, string) (string, error) { return "", errors.New("test API unavailable") }
 	cfg.Logger = slog.New(slog.NewTextHandler(testLogWriter{t}, nil))
 	for h := range cfg.Origins {
 		cfg.Origins[h] = strings.TrimPrefix(upstream.URL, "http://")
@@ -275,89 +272,6 @@ func TestSharedDownloadSurvivesClientCancellation(t *testing.T) {
 	}
 	s.wg.Wait()
 	assertNoPartial(t, cfg.tempDir())
-}
-
-func TestVersionIsolationCorruptionAndRestart(t *testing.T) {
-	var count atomic.Int32
-	var next atomic.Value
-	next.Store(payload)
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
-		count.Add(1)
-		if r.URL.Query().Get("e") == fmt.Sprintf("%x", md5.Sum([]byte(payload))) {
-			io.WriteString(w, payload)
-		} else {
-			io.WriteString(w, next.Load().(string))
-		}
-	})
-	cfg.ResolveCurrent = func(context.Context, string) (string, error) { return videoURL(next.Load().(string)), nil }
-	s.cfg.ResolveCurrent = cfg.ResolveCurrent
-	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
-	files, _ := filepath.Glob(filepath.Join(cfg.videosDir(), "*.mp4"))
-	if err := os.WriteFile(files[0], []byte(strings.Repeat("x", len(payload))), 0600); err != nil {
-		t.Fatal(err)
-	}
-	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
-	newPayload := "a new version"
-	next.Store(newPayload)
-	assertResponse(t, request(s, "GET", videoURL(newPayload), nil), 200, newPayload)
-	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
-	if err := s.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(cfg.tempDir(), "download-crashed.part"), []byte("partial"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	restarted, err := New(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer restarted.Close()
-	assertNoPartial(t, cfg.tempDir())
-	assertResponse(t, request(restarted, "GET", videoURL(payload), nil), 200, payload)
-	assertResponse(t, request(restarted, "GET", videoURL(newPayload), nil), 200, newPayload)
-	// Raw URLs do not identify songs, so both resources remain cached.
-	if count.Load() != 3 {
-		t.Fatal(count.Load())
-	}
-}
-
-func TestCanonicalStoreValidatesHits(t *testing.T) {
-	for _, valid := range []bool{true, false} {
-		t.Run(fmt.Sprint(valid), func(t *testing.T) {
-			var count atomic.Int32
-			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { count.Add(1); io.WriteString(w, payload) })
-			s.Close()
-			dir := cfg.videosDir()
-			if err := os.MkdirAll(dir, 0700); err != nil {
-				t.Fatal(err)
-			}
-			body := payload
-			if !valid {
-				body = "corrupt"
-			}
-			path := testVideoFile(t, cfg, payload)
-			if err := os.WriteFile(path, []byte(body), 0600); err != nil {
-				t.Fatal(err)
-			}
-			s, err := New(cfg)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer s.Close()
-			w := request(s, "GET", videoURL(payload), nil)
-			assertResponse(t, w, 200, payload)
-			if valid && (w.Header().Get("X-StepStash-Cache") != "HIT" || count.Load() != 0) {
-				t.Fatal(w.Header(), count.Load())
-			}
-			if !valid && count.Load() != 1 {
-				t.Fatal(count.Load())
-			}
-			got, err := os.ReadFile(path)
-			if err != nil || string(got) != payload {
-				t.Fatal("source changed", err)
-			}
-		})
-	}
 }
 
 func TestOwnershipCapacityTimeoutAndShutdown(t *testing.T) {

@@ -30,10 +30,9 @@ func TestLocalHitsWhileAllDownloadSlotsAreOccupied(t *testing.T) {
 		}
 	}
 	seed(videoURL(payload), payload)
-	corrupt := strings.Replace(videoURL(payload), "1344-", "9999-", 1)
-	seed(corrupt, strings.Repeat("x", len(payload)))
+	corrupt := videoURL("also missing")
 	for i := 0; i < cfg.MaxDownloads; i++ {
-		target := strings.Replace(videoURL(payload), "1344-", fmt.Sprint(i+1)+"-", 1)
+		target := strings.Replace(videoURL(fmt.Sprint(i)), "1344-", fmt.Sprint(i+1)+"-", 1)
 		go request(s, "GET", target, nil)
 		select {
 		case <-started:
@@ -86,7 +85,7 @@ func TestBackgroundCapacitySurvivesCancellationAndLeavesPlaybackSlot(t *testing.
 		}
 	})
 	defer close(release)
-	target := func(id string) string { return strings.Replace(videoURL(payload), "1344-", id+"-", 1) }
+	target := func(id string) string { return strings.Replace(videoURL(id), "1344-", id+"-", 1) }
 	waitStart := func() string {
 		t.Helper()
 		select {

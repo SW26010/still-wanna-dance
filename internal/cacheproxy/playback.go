@@ -7,21 +7,22 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"still-wanna-dance/internal/applog"
 )
 
 var errPlaybackUpstream = errors.New("playback upstream failed")
 
-const playbackWaitBudget = 5 * time.Second
 const playbackResolveBudget = 30 * time.Second
 
 type playbackCheck struct {
-	done     chan struct{}
-	accepted chan bool
-	v        video
-	err      error
+	done chan struct{}
+	v    video
+	err  error
 }
 
 type playbackSong struct {
@@ -115,49 +116,14 @@ func (s *Server) requestVideo(r *http.Request, observed func()) (video, func(), 
 	if observed != nil {
 		observed()
 	}
-	// Only verified local bytes allow the foreground wait to end early.
+	// Local content is returned immediately. The upstream check is diagnostic only.
 	if local, localErr := s.localPlaybackVideo(r.Context(), strconv.FormatInt(n, 10)); localErr == nil {
 		s.pinVideo(local)
-		handoff := false
-		release := func() { s.releaseVideo(local) }
-		defer func() {
-			if !handoff {
-				release()
-			}
-		}()
 		if _, localErr = s.verifiedFile(r.Context(), local); localErr == nil {
-			check := s.startPlaybackCheck(q, local)
-			accepted := false
-			defer func() {
-				select {
-				case check.accepted <- accepted:
-				default:
-				}
-			}()
-			timer := time.NewTimer(playbackWaitBudget)
-			defer timer.Stop()
-			select {
-			case <-check.done:
-				if err := r.Context().Err(); err != nil {
-					return video{}, nil, err
-				}
-				if check.err == nil {
-					accepted = true
-					if check.v.key == local.key {
-						handoff = true
-						return check.v, release, nil
-					}
-					return check.v, nil, nil
-				}
-				handoff = true
-				return local, release, nil
-			case <-timer.C:
-				handoff = true
-				return local, release, nil
-			case <-r.Context().Done():
-				return video{}, nil, r.Context().Err()
-			}
+			s.startPlaybackCheck(q, local)
+			return local, func() { s.releaseVideo(local) }, nil
 		}
+		s.releaseVideo(local)
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), playbackResolveBudget)
 	defer cancel()
@@ -171,8 +137,7 @@ func (s *Server) requestVideo(r *http.Request, observed func()) (video, func(), 
 
 // Share in-flight checks across probes and range requests. Their lifetime is
 // owned by the server, so serving cached bytes or disconnecting cannot cancel
-// the update check. A changed version is refreshed if a foreground waiter
-// returns without accepting it, regardless of how quickly resolution finishes.
+// diagnostic check. Differences are logged without changing content or mappings.
 func (s *Server) startPlaybackCheck(q url.Values, local video) *playbackCheck {
 	key := q.Encode()
 	s.mu.Lock()
@@ -180,7 +145,7 @@ func (s *Server) startPlaybackCheck(q url.Values, local video) *playbackCheck {
 	if check := s.playbackChecks[key]; check != nil {
 		return check
 	}
-	check := &playbackCheck{done: make(chan struct{}), accepted: make(chan bool, 1)}
+	check := &playbackCheck{done: make(chan struct{})}
 	if s.closed {
 		check.err = context.Canceled
 		close(check.done)
@@ -203,35 +168,33 @@ func (s *Server) startPlaybackCheck(q url.Values, local video) *playbackCheck {
 		}()
 		defer s.releaseVideo(local)
 		ctx, cancel := context.WithTimeout(s.ctx, playbackResolveBudget)
-		check.v, check.err = s.resolvePlaybackVideo(ctx, q)
+		check.v, check.err = s.resolvePlaybackVideoReadOnly(ctx, q)
 		cancel()
-		refresh := check.err == nil && check.v.key != local.key
-		close(check.done)
-		if refresh {
-			// Wait for an actual foreground decision rather than guessing from
-			// elapsed time. Canceled and timed-out callers also report here.
-			select {
-			case accepted := <-check.accepted:
-				if accepted {
-					return
-				}
-			case <-s.ctx.Done():
-				return
-			}
-			ctx, cancel := context.WithTimeout(s.ctx, s.cfg.DownloadTimeout)
-			defer cancel()
-			target := "https://" + check.v.host + check.v.path + "?" + check.v.query
-			// Re-confirm after download to prevent a late result rolling back a
-			// newer version. This background confirmation may also be slow.
-			if _, err := s.prefetchWithConfirmationBudget(ctx, local.songID, target, playbackResolveBudget); err != nil {
-				s.cfg.Logger.Warn("playback_refresh_failed", "song_id", local.songID, "error", err)
-			}
+		if check.err != nil {
+			s.cfg.Logger.Warn("playback_check_failed", "song_id", local.songID, "error", applog.SafeError(check.err))
+		} else if check.v.key != local.key {
+			s.cfg.Logger.Warn("song_md5_mismatch", "song_id", local.songID, "mapped_md5", local.key, "url_md5", check.v.key)
 		}
+		close(check.done)
 	}()
 	return check
 }
 
 func (s *Server) resolvePlaybackVideo(ctx context.Context, q url.Values) (video, error) {
+	v, err := s.resolvePlaybackVideoReadOnly(ctx, q)
+	if err != nil {
+		return v, err
+	}
+	if err := s.recordVideo(ctx, v); err != nil {
+		return video{}, err
+	}
+	if err := s.recordSongVideo(ctx, v.songID, v); err != nil {
+		return video{}, err
+	}
+	return v, nil
+}
+
+func (s *Server) resolvePlaybackVideoReadOnly(ctx context.Context, q url.Values) (video, error) {
 	id, node := q.Get("id"), q.Get("node")
 	var err error
 	var target string
@@ -272,24 +235,13 @@ func (s *Server) resolvePlaybackVideo(ctx context.Context, q url.Values) (video,
 // Re-parse stored metadata to apply the same limits as online playback. The
 // handler pins and verifies the file, and must never download or promote it.
 func (s *Server) localPlaybackVideo(ctx context.Context, id string) (video, error) {
-	var key, checksum, path string
-	var size int64
-	err := s.usage.db.QueryRowContext(ctx, `SELECT v.version_key, v.checksum, v.file_bytes, v.source_path
- FROM current_videos c JOIN video_versions v ON v.version_key=c.version_key
- WHERE c.song_id=?`, id).Scan(&key, &checksum, &size, &path)
-	if err != nil {
+	var key string
+	if err := s.usage.db.QueryRowContext(ctx, "SELECT version_key FROM current_videos WHERE song_id=?", id).Scan(&key); err != nil || !validMD5(key) {
 		return video{}, errPlaybackUpstream
 	}
-	u := &url.URL{Scheme: "http", Host: "play.udon.dance", Path: path,
-		RawQuery: url.Values{"e": {checksum}, "s": {strconv.FormatInt(size, 10)}}.Encode()}
-	r, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
-	if err != nil {
+	info, err := os.Stat(s.cfg.videoFile(key))
+	if err != nil || !info.Mode().IsRegular() {
 		return video{}, errPlaybackUpstream
 	}
-	v, err := s.parse(r)
-	if err != nil || v.key != key {
-		return video{}, errPlaybackUpstream
-	}
-	v.songID, v.localOnly = id, true
-	return v, nil
+	return video{key: key, checksum: key, size: info.Size(), songID: id, localOnly: true, host: "play.udon.dance"}, nil
 }

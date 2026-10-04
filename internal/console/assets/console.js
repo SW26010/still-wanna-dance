@@ -151,8 +151,6 @@ function renderSettings(s) {
     $('queuePrefetchEnabled').checked = s.settings.queuePrefetchEnabled !== false;
     $('autoStartCDN').checked = !!s.settings.autoStartCDN;
     $('requestRetentionDays').value = s.settings.requestRetentionDays ?? 30;
-    $('scanResolveConcurrency').value = s.settings.scanResolveConcurrency || 4;
-    $('scanCheckConcurrency').value = s.settings.scanCheckConcurrency || 1;
     $('queuePrefetchCount').value = s.settings.queuePrefetchCount || 3;
     $('storageDir').value = s.settings.storageDir;
     $('logDir').value = s.settings.logDir;
@@ -186,8 +184,6 @@ function renderControls() {
     'socks5Address',
     'socks5Username',
     'socks5Password',
-    'scanResolveConcurrency',
-    'scanCheckConcurrency',
     'queuePrefetchCount',
     'save',
   ])
@@ -217,7 +213,6 @@ function renderControls() {
       : s.queue.running
         ? '暂停预缓存并下载补齐'
         : '下载补齐');
-  $('batchVerify').disabled = unavailable || !!s.batch.running;
   $('batchScan').disabled = unavailable || !!s.batch.running;
   setText('batchScan', s.batch.running && s.batch.scanOnly ? '正在扫描…' : '仅扫描检查');
   $('batchCancel').disabled = unavailable || !s.batch.running;
@@ -273,12 +268,10 @@ function renderBatch(s) {
         b.total +
         ' · 命中 ' +
         b.hits +
-        ' · 扫描缺失或损坏 ' +
+        ' · 缺失 ' +
         (b.missing || 0) +
         (b.scanOnly
-          ? ' · 清单匹配免查询 ' + (b.catalogHits || 0) + ' · 属性复用 ' + (b.reused || 0) +
-            ' · 完整校验通过 ' + (b.verified || 0) +
-            ' · 损坏 ' + (b.corrupt || 0)
+          ? ' · 本地文件命中 ' + (b.reused || 0)
           : '') +
         ' · 下载完成 ' +
         b.downloaded +
@@ -455,8 +448,6 @@ $('settings').addEventListener('submit', (e) => {
     autoStartCDN: $('autoStartCDN').checked,
     queuePrefetchEnabled: $('queuePrefetchEnabled').checked,
     requestRetentionDays: Number($('requestRetentionDays').value),
-    scanResolveConcurrency: Number($('scanResolveConcurrency').value),
-    scanCheckConcurrency: Number($('scanCheckConcurrency').value),
     queuePrefetchCount: Number($('queuePrefetchCount').value),
     downloadUpstream: $('downloadUpstream').value,
     upstreamMode: $('upstreamMode').value,

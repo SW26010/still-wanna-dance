@@ -29,7 +29,7 @@ func TestRouteCachesStayBounded(t *testing.T) {
 	}
 	s.routeMu.Lock()
 	defer s.routeMu.Unlock()
-	if len(s.routeCache.items) != routeCacheLimit || len(s.routeSongs.items) != routeSongsLimit {
+	if len(s.routeCache.items) != routeCacheLimit || len(s.routeSongs.items) != 1 {
 		t.Fatalf("cache sizes: routes=%d songs=%d", len(s.routeCache.items), len(s.routeSongs.items))
 	}
 }

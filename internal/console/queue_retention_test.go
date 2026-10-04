@@ -27,7 +27,11 @@ func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) 
 		for _, before := range beforeDownload {
 			before()
 		}
-		io.WriteString(w, body)
+		data := body
+		if !strings.Contains(r.URL.Path, "/1-") {
+			data = "other video content"
+		}
+		io.WriteString(w, data)
 	}))
 	t.Cleanup(origin.Close)
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +44,11 @@ func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) 
 		if r.URL.Query().Get("node") == "cf" {
 			host = "play.udon.dance"
 		}
-		w.Header().Set("Location", fmt.Sprintf("http://%s/files/2403/%s-abc.mp4?e=%x&s=%d", host, r.URL.Query().Get("id"), md5.Sum([]byte(body)), len(body)))
+		data := body
+		if r.URL.Query().Get("id") != "1" {
+			data = "other video content"
+		}
+		w.Header().Set("Location", fmt.Sprintf("http://%s/files/2403/%s-abc.mp4?e=%x&s=%d", host, r.URL.Query().Get("id"), md5.Sum([]byte(data)), len(data)))
 		w.WriteHeader(302)
 	}))
 	t.Cleanup(api.Close)

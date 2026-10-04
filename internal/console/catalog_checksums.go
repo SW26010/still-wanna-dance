@@ -6,26 +6,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 )
 
-// Only combine snapshots from the same published catalog revision. Missing or
-// ambiguous checksums fall back to the authoritative per-song playback API.
-func (c *Console) addCatalogChecksums(ctx context.Context, songs []Song, stamp string) {
-	checksums, revision, err := c.fetchCatalogChecksums(ctx)
-	if err != nil || revision != stamp {
-		slog.Warn("scan_checksums_unavailable_or_stale")
-		return
+// fetchCatalogChecksums supplies the inventory's checksum-only view.
+func (c *Console) fetchCatalogChecksums(ctx context.Context) (map[int64]string, string, error) {
+	songs, revision, err := c.fetchCatalogSnapshot(ctx)
+	checksums := map[int64]string{}
+	for id, song := range songs {
+		checksums[id] = song.Checksum
 	}
-	for i := range songs {
-		songs[i].Checksum = checksums[songs[i].ID]
-	}
+	return checksums, revision, err
 }
 
-func (c *Console) fetchCatalogChecksums(ctx context.Context) (map[int64]string, string, error) {
+func (c *Console) fetchCatalogSnapshot(ctx context.Context) (map[int64]Song, string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, "GET", c.checksumURL, nil)
@@ -54,6 +50,7 @@ func (c *Console) fetchCatalogChecksums(ctx context.Context) (map[int64]string, 
 			Groups []struct {
 				Entries []struct {
 					ID       int64  `json:"id"`
+					Name     string `json:"name"`
 					Checksum string `json:"checksum"`
 				} `json:"entries"`
 			} `json:"groups"`
@@ -63,12 +60,14 @@ func (c *Console) fetchCatalogChecksums(ctx context.Context) (map[int64]string, 
 		return nil, "", fmt.Errorf("清单格式无效")
 	}
 	checksums := map[int64]string{}
+	names := map[int64]string{}
 	seen := map[int64]bool{}
 	for _, group := range catalog.Data.Groups {
 		for _, entry := range group.Entries {
 			if entry.ID <= 0 {
 				return nil, "", fmt.Errorf("清单曲目 ID 无效")
 			}
+			names[entry.ID] = entry.Name
 			checksum := ""
 			digest, err := hex.DecodeString(entry.Checksum)
 			if err == nil && len(digest) == 16 {
@@ -88,5 +87,9 @@ func (c *Console) fetchCatalogChecksums(ctx context.Context) (map[int64]string, 
 	if len(checksums) == 0 {
 		return nil, "", fmt.Errorf("清单为空")
 	}
-	return checksums, catalog.Data.Time, nil
+	songs := map[int64]Song{}
+	for id, checksum := range checksums {
+		songs[id] = Song{ID: id, Name: names[id], Checksum: checksum}
+	}
+	return songs, catalog.Data.Time, nil
 }

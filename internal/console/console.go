@@ -35,21 +35,19 @@ var aboutPage string
 var assets embed.FS
 
 type Settings struct {
-	QueuePrefetchEnabled   bool   `json:"queuePrefetchEnabled"`
-	RequestRetentionDays   int    `json:"requestRetentionDays"`
-	AutoStartCDN           bool   `json:"autoStartCDN"`
-	ScanResolveConcurrency int    `json:"scanResolveConcurrency"`
-	ScanCheckConcurrency   int    `json:"scanCheckConcurrency"`
-	QueuePrefetchCount     int    `json:"queuePrefetchCount"`
-	DownloadUpstream       string `json:"downloadUpstream"`
-	UpstreamMode           string `json:"upstreamMode"`
-	SOCKS5Address          string `json:"socks5Address"`
-	SOCKS5Username         string `json:"socks5Username"`
-	SOCKS5Password         string `json:"socks5Password,omitempty"`
-	MaxCacheBytes          int64  `json:"maxCacheBytes"`
-	StorageDir             string `json:"storageDir"`
-	LogDir                 string `json:"logDir"`
-	ManualLogDir           bool   `json:"manualLogDir"`
+	QueuePrefetchEnabled bool   `json:"queuePrefetchEnabled"`
+	RequestRetentionDays int    `json:"requestRetentionDays"`
+	AutoStartCDN         bool   `json:"autoStartCDN"`
+	QueuePrefetchCount   int    `json:"queuePrefetchCount"`
+	DownloadUpstream     string `json:"downloadUpstream"`
+	UpstreamMode         string `json:"upstreamMode"`
+	SOCKS5Address        string `json:"socks5Address"`
+	SOCKS5Username       string `json:"socks5Username"`
+	SOCKS5Password       string `json:"socks5Password,omitempty"`
+	MaxCacheBytes        int64  `json:"maxCacheBytes"`
+	StorageDir           string `json:"storageDir"`
+	LogDir               string `json:"logDir"`
+	ManualLogDir         bool   `json:"manualLogDir"`
 }
 
 type Console struct {
@@ -85,7 +83,6 @@ type Console struct {
 	actionErrors        map[string]string
 	batch               Batch
 	lastBatch           Batch
-	scanPlan            *scanPlan
 	batchCancel         context.CancelFunc
 	batchDone           chan struct{}
 	queue               QueueStatus
@@ -192,18 +189,6 @@ func absoluteSettings(s Settings) (Settings, error) {
 	}
 	if s.QueuePrefetchCount < 1 || s.QueuePrefetchCount > 100 {
 		return s, errors.New("队列预缓存数量必须为 1～100")
-	}
-	if s.ScanResolveConcurrency == 0 {
-		s.ScanResolveConcurrency = 4
-	}
-	if s.ScanCheckConcurrency == 0 {
-		s.ScanCheckConcurrency = 1
-	}
-	if s.ScanResolveConcurrency < 1 || s.ScanResolveConcurrency > 16 {
-		return s, errors.New("扫描地址请求并发必须为 1～16")
-	}
-	if s.ScanCheckConcurrency < 1 || s.ScanCheckConcurrency > 4 {
-		return s, errors.New("扫描本地校验并发必须为 1～4")
 	}
 	if s.DownloadUpstream == "" {
 		s.DownloadUpstream = "auto"
@@ -342,7 +327,6 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 		c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport)
 		c.resetHealthLocked()
 	}
-	c.scanPlan = nil
 	var inventoryDone chan struct{}
 	if changedLibrary {
 		c.lastBatch, c.batch = snapshots.lastBatch, snapshots.batch
@@ -390,20 +374,6 @@ func (c *Console) ensureEngine() error {
 	cfg.KeepRequestedRoute = mode == "auto"
 	cfg.ResolveRoutes = func(ctx context.Context, id string) ([]string, error) {
 		return c.resolveRoutes(ctx, id, mode)
-	}
-	cfg.ResolveCurrent = func(ctx context.Context, id string) (string, error) {
-		songID, err := strconv.ParseInt(id, 10, 64)
-		if err != nil {
-			return "", err
-		}
-		// Auto retains HKG as the version authority, matching read-only scans.
-		// A CF response cannot order conflicting versions or safely
-		// replace that authority when HKG is unavailable.
-		currentRoute := mode
-		if currentRoute == "auto" {
-			currentRoute = "hkg"
-		}
-		return c.resolveNode(ctx, songID, currentRoute)
 	}
 	s, err := cacheproxy.New(cfg)
 	if err != nil {
@@ -789,8 +759,6 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	case "/api/inventory/scan":
 		c.startInventoryScan()
-	case "/api/batch/verify":
-		err = c.startBatchCheck(true, true)
 	case "/api/batch/scan":
 		err = c.startBatchMode(true)
 	case "/api/batch/switch":

@@ -13,7 +13,6 @@ import (
 	"os"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -34,10 +33,7 @@ type Failure struct {
 type Batch struct {
 	BudgetReached bool      `json:"budgetReached"`
 	CatalogHits   int       `json:"catalogHits"`
-	FullVerify    bool      `json:"fullVerify"`
 	Reused        int       `json:"reused"`
-	Verified      int       `json:"verified"`
-	Corrupt       int       `json:"corrupt"`
 	ScanOnly      bool      `json:"scanOnly"`
 	Missing       int       `json:"missing"`
 	Updated       time.Time `json:"updated"`
@@ -83,10 +79,25 @@ func parseCatalog(r io.Reader) ([]Song, error) {
 }
 
 func (c *Console) catalog(ctx context.Context) ([]Song, error) {
-	return c.catalogForScan(ctx, false)
-}
+	if c.checksumURL != "" {
+		snapshot, _, err := c.fetchCatalogSnapshot(ctx)
+		if err == nil {
+			songs := make([]Song, 0, len(snapshot))
+			for _, song := range snapshot {
+				if song.Checksum == "" {
+					return nil, errors.New("清单包含无效或冲突的 MD5，未更新映射")
+				}
+				songs = append(songs, song)
+			}
+			sort.Slice(songs, func(i, j int) bool { return songs[i].ID < songs[j].ID })
+			return songs, nil
+		}
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		slog.Warn("catalog_md5_unavailable", "error", err)
+	}
 
-func (c *Console) catalogForScan(ctx context.Context, scan bool) ([]Song, error) {
 	base := c.apiBase
 	if base == "http://api.udon.dance" {
 		base = "https://api.udon.dance"
@@ -117,16 +128,7 @@ func (c *Console) catalogForScan(ctx context.Context, scan bool) ([]Song, error)
 	if len(body) > 16<<20 {
 		return nil, errors.New("歌曲列表超过 16 MiB 大小限制")
 	}
-	songs, err := parseCatalog(bytes.NewReader(body))
-	if err == nil && scan && c.checksumURL != "" {
-		var stamp struct {
-			Time string `json:"time"`
-		}
-		if json.Unmarshal(body, &stamp) == nil && stamp.Time != "" {
-			c.addCatalogChecksums(ctx, songs, stamp.Time)
-		}
-	}
-	return songs, err
+	return parseCatalog(bytes.NewReader(body))
 }
 
 func (c *Console) resolve(ctx context.Context, id int64) (string, error) {
@@ -169,16 +171,12 @@ func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (s
 func (c *Console) startBatch() error { return c.startBatchMode(false) }
 
 func (c *Console) startBatchMode(scanOnly bool) error {
-	return c.startBatchCheck(scanOnly, false)
-}
-
-func (c *Console) startBatchCheck(scanOnly, fullVerify bool) error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
-	return c.startBatchCheckLocked(scanOnly, fullVerify)
+	return c.startBatchModeLocked(scanOnly)
 }
 
-func (c *Console) startBatchCheckLocked(scanOnly, fullVerify bool) error {
+func (c *Console) startBatchModeLocked(scanOnly bool) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
@@ -198,18 +196,13 @@ func (c *Console) startBatchCheckLocked(scanOnly, fullVerify bool) error {
 			return fmt.Errorf("无法扫描目录 %s：%w", c.settings.StorageDir, err)
 		}
 	}
-	if !scanOnly {
-		if err := c.ensureEngine(); err != nil {
-			return err
-		}
+	if err := c.ensureEngine(); err != nil {
+		return err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	c.batchCancel = cancel
 	c.batchDone = make(chan struct{})
-	c.batch = Batch{Running: true, ScanOnly: scanOnly, FullVerify: fullVerify, Phase: "正在获取最新歌曲列表"}
-	if !scanOnly && c.scanPlan != nil && c.scanPlan.settings == c.settings {
-		c.batch.Phase = "正在复用扫描结果下载补齐"
-	}
+	c.batch = Batch{Running: true, ScanOnly: scanOnly, Phase: "正在获取最新歌曲列表"}
 	slog.Info("batch_started", "scan_only", scanOnly)
 	go c.runBatch(ctx, c.service, c.batchDone)
 	return nil
@@ -221,12 +214,6 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	completed := false
 	c.mu.Lock()
 	scanOnly, settings := c.batch.ScanOnly, c.settings
-	fullVerify := c.batch.FullVerify
-	plan := c.scanPlan
-	c.scanPlan = nil
-	if scanOnly || (plan != nil && plan.settings != settings) {
-		plan = nil
-	}
 	c.mu.Unlock()
 	if !scanOnly {
 		ctx = s.WithBatchBudget(ctx)
@@ -263,253 +250,242 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		c.batchCancel = nil
 		c.mu.Unlock()
 		c.resumeQueueLocked()
-		slog.Info("batch_finished", "scan_only", scanOnly, "full_verify", fullVerify, "reused", result.Reused, "verified", result.Verified, "corrupt", result.Corrupt, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", result.Missing, "cancelled", ctx.Err() != nil, "total", result.Total, "checked", result.Checked, "hits", result.Hits, "downloaded", result.Downloaded, "failed", result.Failed, "phase", result.Phase)
+		slog.Info("batch_finished", "scan_only", scanOnly, "reused", result.Reused, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", result.Missing, "cancelled", ctx.Err() != nil, "total", result.Total, "checked", result.Checked, "hits", result.Hits, "downloaded", result.Downloaded, "failed", result.Failed, "phase", result.Phase)
 	}()
-	var checker *cacheproxy.LocalChecker
-	if scanOnly {
-		var err error
-		checker, err = cacheproxy.NewLocalChecker(settings.StorageDir, fullVerify)
-		if err != nil {
-			c.mu.Lock()
-			c.batch.Phase = "无法打开校验记录：" + err.Error()
-			c.mu.Unlock()
-			return
-		}
-		defer checker.Close()
-	}
-	var songs []Song
-	var err error
-	if plan != nil {
-		songs = plan.songs
-	} else {
-		songs, err = c.catalogForScan(ctx, scanOnly)
-	}
+
+	songs, err := c.catalog(ctx)
+	fail := func(message string) { c.mu.Lock(); c.batch.Phase = message; c.mu.Unlock() }
 	if err != nil {
-		if ctx.Err() == nil {
-			slog.Error("catalog_failed", "error", err)
-		}
-		c.mu.Lock()
-		c.batch.Phase = "获取歌曲列表失败：" + err.Error()
-		c.mu.Unlock()
+		fail("获取歌曲列表失败：" + err.Error())
 		return
 	}
-	var localTargets map[string]cacheproxy.ScanTarget
-	if !scanOnly {
-		ids := make([]int64, len(songs))
-		for i, song := range songs {
-			ids[i] = song.ID
+	mappings := map[string]string{}
+	titles := map[string]string{}
+	targets := map[string]string{}
+	for _, song := range songs {
+		id := strconv.FormatInt(song.ID, 10)
+		titles[id] = song.Name
+		if song.Checksum != "" {
+			mappings[id] = song.Checksum
 		}
-		priorities, err := s.EffectiveSongPriorities(ctx, ids)
-		if err != nil {
-			c.mu.Lock()
-			c.batch.Phase = "读取下载优先级失败：" + err.Error()
-			c.mu.Unlock()
+		if song.Checksum == "" {
+			if err := s.SetSongTitle(ctx, id, song.Name); err != nil {
+				fail(err.Error())
+				return
+			}
+		}
+	}
+	if err := s.SyncCatalogWithTitles(ctx, mappings, titles); err != nil {
+		fail("更新歌曲映射失败：" + err.Error())
+		return
+	}
+	// Only the fallback ID-only catalog needs per-song resolution before presence checks.
+	var unresolved []Failure
+	unresolvedIDs := make(map[string]bool)
+	for _, song := range songs {
+		if song.Checksum != "" {
+			continue
+		}
+		if ctx.Err() != nil {
 			return
 		}
-		songs = append([]Song(nil), songs...)
-		sort.Slice(songs, func(i, j int) bool {
-			if priorities[songs[i].ID] != priorities[songs[j].ID] {
-				return priorities[songs[i].ID] > priorities[songs[j].ID]
-			}
-			return songs[i].ID > songs[j].ID
-		})
-	}
-	if scanOnly {
-		localTargets, err = cacheproxy.LoadScanTargets(ctx, settings.StorageDir)
+		route := settings.DownloadUpstream
+		if route == "auto" || route == "" {
+			route = "cf"
+		}
+		if scanOnly {
+			route = "hkg"
+		}
+		target, err := c.resolveNode(ctx, song.ID, route)
+		if err != nil && settings.DownloadUpstream == "auto" && !scanOnly {
+			target, err = c.resolveNode(ctx, song.ID, "hkg")
+		}
+		if err == nil {
+			_, err = s.RememberSongURL(ctx, strconv.FormatInt(song.ID, 10), target)
+		}
 		if err != nil {
-			slog.Warn("scan_local_index_unavailable", "error", err)
+			id := strconv.FormatInt(song.ID, 10)
+			if !unresolvedIDs[id] {
+				unresolved = append(unresolved, Failure{ID: song.ID, Name: song.Name, Error: err.Error()})
+				unresolvedIDs[id] = true
+			}
+			continue
+		}
+		targets[strconv.FormatInt(song.ID, 10)] = target
+	}
+	check, release, err := s.CheckReferences(ctx)
+	if err != nil {
+		fail("检查本地资源失败：" + err.Error())
+		return
+	}
+	defer release()
+	type resourceJob struct {
+		md5   string
+		ids   []string
+		score float64
+	}
+	grouped := map[string]*resourceJob{}
+	ids := make([]int64, 0, len(check.References))
+	total := len(unresolved)
+	for id, key := range check.References {
+		n, _ := strconv.ParseInt(id, 10, 64)
+		ids = append(ids, n)
+		// A persisted mapping survives resolution failure, but that song must
+		// have only one outcome in this batch: failure, not also hit/missing.
+		if unresolvedIDs[id] {
+			continue
+		}
+		total++
+		if grouped[key] == nil {
+			grouped[key] = &resourceJob{md5: key}
+		}
+		grouped[key].ids = append(grouped[key].ids, id)
+	}
+	priorities, err := s.EffectiveSongPriorities(ctx, ids)
+	if err != nil {
+		fail(err.Error())
+		return
+	}
+	// Retained mappings still contribute to shared-resource priority, even
+	// when resolution failed for that ID in this batch.
+	for id, key := range check.References {
+		if job := grouped[key]; job != nil {
+			n, _ := strconv.ParseInt(id, 10, 64)
+			job.score += priorities[n]
 		}
 	}
-	c.mu.Lock()
-	c.batch.Total = len(songs)
-	slog.Info("catalog_loaded", "total", len(songs))
-	c.batch.Phase = "正在下载补齐"
-	if scanOnly {
-		c.batch.Phase = "正在增量扫描（不下载）"
-		if fullVerify {
-			c.batch.Phase = "正在完整校验（读取全部视频，不下载）"
+	jobs := make([]*resourceJob, 0, len(grouped))
+	for _, job := range grouped {
+		sort.Slice(job.ids, func(i, j int) bool {
+			a, _ := strconv.ParseInt(job.ids[i], 10, 64)
+			b, _ := strconv.ParseInt(job.ids[j], 10, 64)
+			return a > b
+		})
+		jobs = append(jobs, job)
+	}
+	sort.Slice(jobs, func(i, j int) bool {
+		if jobs[i].score != jobs[j].score {
+			return jobs[i].score > jobs[j].score
 		}
+		a, _ := strconv.ParseInt(jobs[i].ids[0], 10, 64)
+		b, _ := strconv.ParseInt(jobs[j].ids[0], 10, 64)
+		return a > b
+	})
+	c.mu.Lock()
+	c.batch.Total = total
+	c.batch.Checked = len(unresolved)
+	c.batch.Failed = len(unresolved)
+	c.batch.Failures = unresolved
+	if scanOnly {
+		c.batch.Phase = "正在检查 MD5 文件是否齐备"
+	} else {
+		c.batch.Phase = "正在按缺失 MD5 下载补齐"
 	}
 	c.mu.Unlock()
-	active := map[int64]string{}
-	results := make(map[int64]scanResult)
-	var scanner *scanLimiter
-	if scanOnly {
-		scanner = newScanLimiter(settings)
-		defer scanner.ticker.Stop()
-	}
-	refreshCurrent := func() {
-		names := make([]string, 0, len(active))
-		for _, name := range active {
-			names = append(names, name)
+	process := func(job *resourceJob) {
+		if ctx.Err() != nil {
+			return
 		}
-		sort.Strings(names)
-		c.batch.Current = strings.Join(names, "；")
-	}
-	process := func(song Song) {
 		select {
 		case <-budgetStop:
 			return
 		default:
 		}
-		if ctx.Err() != nil {
-			return
-		}
-		ctx, releaseBudget := cacheproxy.WithBatchSongBudget(ctx)
-		defer releaseBudget()
-		c.mu.Lock()
-		active[song.ID] = fmt.Sprintf("%d · %s", song.ID, song.Name)
-		refreshCurrent()
-		c.mu.Unlock()
-		defer func() {
-			c.mu.Lock()
-			delete(active, song.ID)
-			refreshCurrent()
-			c.mu.Unlock()
-		}()
+		hit := check.Present[job.md5]
 		var err error
-		var reused bool
-		source := ""
-		var result scanResult
-		var localResult cacheproxy.LocalCheckResult
-		if scanOnly {
-			var hit bool
-			if known, ok := localTargets[strconv.FormatInt(song.ID, 10)]; ok && song.Checksum != "" && known.Checksum == song.Checksum {
-				err = scanAcquire(ctx, scanner.local)
-				if err == nil {
-					localResult, err = checker.Check(ctx, known.Target)
-					<-scanner.local
-					if localResult.Hit {
-						hit, result.target, result.receipt = true, known.Target, localResult.Receipt
-						result.localOnly = true
-					}
-				}
-			}
-			if !hit && err == nil {
-				hit, err = scanner.check(ctx, func() (string, error) {
-					return c.resolve(ctx, song.ID)
-				}, func(target string) (bool, error) {
-					result.target = target
-					var hit bool
-					localResult, err = checker.Check(ctx, target)
-					hit, result.receipt = localResult.Hit, localResult.Receipt
-					return hit, err
-				})
-			}
-			if hit {
-				source = "HIT"
-			} else {
-				source = "MISSING"
-			}
-		} else {
-			err = s.SetSongTitle(ctx, strconv.FormatInt(song.ID, 10), song.Name)
-			if err == nil {
-				if plan != nil && settings.DownloadUpstream != "cf" {
-					result = plan.results[song.ID]
-				}
-				reused, err = s.ReuseLocalSong(ctx, strconv.FormatInt(song.ID, 10), result.target, result.receipt)
-				switch {
-				case err != nil:
-					// Preserve association errors in the batch failure result.
-				case reused:
-					source = "HIT"
-				case !result.localOnly && result.target != "" && settings.DownloadUpstream == "hkg":
-					source, err = s.PrefetchSong(ctx, strconv.FormatInt(song.ID, 10), result.target)
-					if err != nil && ctx.Err() == nil && !errors.Is(err, cacheproxy.ErrBatchBudget) {
+		source := "HIT"
+		if !hit && !scanOnly {
+			songCtx, finish := cacheproxy.WithBatchSongBudget(ctx)
+			defer finish()
+			songCtx = cacheproxy.WithExpectedMD5(songCtx, job.md5)
+			// Keep resource scheduling independent of which ID resolves it.
+			// Prefer IDs still in the catalog, then try retained associations.
+			candidates := append([]string(nil), job.ids...)
+			sort.SliceStable(candidates, func(i, j int) bool {
+				_, currentI := titles[candidates[i]]
+				_, currentJ := titles[candidates[j]]
+				return currentI && !currentJ
+			})
+			for _, id := range candidates {
+				n, _ := strconv.ParseInt(id, 10, 64)
+				c.mu.Lock()
+				c.batch.Current = id + " · " + titles[id]
+				c.mu.Unlock()
+				if target := targets[id]; target != "" {
+					source, err = s.PrefetchSong(songCtx, id, target)
+					if err != nil && songCtx.Err() == nil && !errors.Is(err, cacheproxy.ErrBatchBudget) {
 						previous := err
-						source, err = c.prefetchSong(ctx, s, song.ID, nil)
+						source, err = c.prefetchSong(songCtx, s, n, nil)
 						err = preserveBudgetFailure(previous, err)
 					}
-				default:
-					// Scan URLs use HKG. Reuse verified local hits above, but
-					// resolve CF first for Auto downloads of missing files.
-					source, err = c.prefetchSong(ctx, s, song.ID, nil)
+				} else {
+					source, err = c.prefetchSong(songCtx, s, n, nil)
+				}
+				if err == nil || songCtx.Err() != nil || errors.Is(err, cacheproxy.ErrBatchBudget) {
+					break
 				}
 			}
-		}
-		if errors.Is(err, cacheproxy.ErrBatchBudget) {
-			stopBudget.Do(func() { close(budgetStop) })
-			var failed *batchFallbackBudgetError
-			if !errors.As(err, &failed) {
-				return
+			if errors.Is(err, cacheproxy.ErrBatchBudget) {
+				stopBudget.Do(func() { close(budgetStop) })
+				var failed *batchFallbackBudgetError
+				if !errors.As(err, &failed) {
+					return
+				}
 			}
 		}
 		if ctx.Err() != nil {
 			return
 		}
 		c.mu.Lock()
-		if scanOnly && err == nil {
-			if result.localOnly {
-				c.batch.CatalogHits++
+		defer c.mu.Unlock()
+		c.batch.Checked += len(job.ids)
+		switch {
+		case err != nil:
+			c.batch.Failed += len(job.ids)
+			for _, id := range job.ids {
+				n, _ := strconv.ParseInt(id, 10, 64)
+				c.batch.Failures = append(c.batch.Failures, Failure{ID: n, Name: titles[id], Error: err.Error()})
 			}
-			results[song.ID] = result
-			if localResult.Reused {
-				c.batch.Reused++
-			} else if localResult.Hit {
-				c.batch.Verified++
-			}
-			if localResult.Corrupt {
-				c.batch.Corrupt++
-			}
-		}
-		c.batch.Checked++
-		if err != nil {
-			c.batch.Failed++
-			slog.Warn("batch_song_failed", "song_id", song.ID, "error", err)
-			c.batch.Failures = append(c.batch.Failures, Failure{song.ID, song.Name, err.Error()})
-		} else if source == "MISSING" {
-			c.batch.Missing++
-		} else if source == "HIT" {
-			c.batch.Hits++
-		} else {
-			c.batch.Downloaded++
-		}
-		if c.batch.Checked%100 == 0 || c.batch.Checked == c.batch.Total {
-			slog.Info("batch_progress", "scan_only", scanOnly, "total", c.batch.Total, "checked", c.batch.Checked,
-				"hits", c.batch.Hits, "missing", c.batch.Missing, "downloaded", c.batch.Downloaded, "failed", c.batch.Failed)
-		}
-		c.mu.Unlock()
-		if scanOnly || reused {
-			return // Scan request starts are paced globally by scanLimiter.
-		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(150 * time.Millisecond):
+		case hit:
+			c.batch.Hits += len(job.ids)
+			c.batch.Reused += len(job.ids)
+			c.batch.CatalogHits += len(job.ids)
+		case scanOnly:
+			c.batch.Missing += len(job.ids)
+		case source == "HIT":
+			c.batch.Hits += len(job.ids)
+		default:
+			c.batch.Downloaded += len(job.ids)
 		}
 	}
-	workers := 2
-	if scanOnly {
-		workers = settings.ScanResolveConcurrency + settings.ScanCheckConcurrency
-	}
-	jobs := make(chan Song)
+	work := make(chan *resourceJob)
 	var wg sync.WaitGroup
-	for i := 0; i < workers; i++ {
+	for i := 0; i < 2; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for song := range jobs {
-				process(song)
+			for job := range work {
+				process(job)
 			}
 		}()
 	}
 dispatch:
-	for _, song := range songs {
+	for _, job := range jobs {
 		select {
-		case <-budgetStop:
-			break dispatch
 		case <-ctx.Done():
 			break dispatch
-		case jobs <- song:
+		case <-budgetStop:
+			break dispatch
+		case work <- job:
 		}
 	}
-	close(jobs)
+	close(work)
 	wg.Wait()
 	select {
 	case <-budgetStop:
 		c.mu.Lock()
 		c.batch.BudgetReached = true
-		c.batch.Phase = "容量预算不足，下载补齐已自动停止。请前往「设置」调大「视频缓存上限（GiB）」后再次下载补齐；修改前请先停止 CDN 和队列预缓存。"
+		c.batch.Phase = "容量预算不足，下载补齐已自动停止。请前往「设置」调大「视频缓存上限（GiB）」后再次下载补齐。"
 		c.mu.Unlock()
 		return
 	default:
@@ -517,26 +493,15 @@ dispatch:
 	if ctx.Err() != nil {
 		return
 	}
-	if scanOnly {
-		if _, err := os.ReadDir(settings.StorageDir); err != nil {
-			c.mu.Lock()
-			c.batch.Phase = "扫描目录已不可用，上次结果保留：" + err.Error()
-			c.mu.Unlock()
-			return
-		}
-	}
 	completed = true
 	c.mu.Lock()
-	if scanOnly {
-		c.scanPlan = &scanPlan{settings: settings, songs: songs, results: results}
-	}
+	defer c.mu.Unlock()
 	c.batch.Current = ""
 	if c.batch.Failed > 0 {
 		c.batch.Phase = "检查完成，部分歌曲失败；再次检查可重试"
 	} else if scanOnly {
-		c.batch.Phase = "扫描完成；缺失或损坏的视频可通过「下载补齐」更新"
+		c.batch.Phase = "MD5 文件检查完成；可通过下载补齐获取缺失资源"
 	} else {
-		c.batch.Phase = "所有已知歌曲已处理完成；计数为本次检查和下载结果，视频可能因容量限制被淘汰，当前保留情况请扫描本地文件"
+		c.batch.Phase = "所有已知歌曲已处理完成；同 MD5 共用一份视频"
 	}
-	c.mu.Unlock()
 }

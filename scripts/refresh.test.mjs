@@ -397,14 +397,13 @@ test('untouched settings follow server changes on polling and return to a visibl
   assert.equal(vm.runInContext("$('storageDir').value", p.context), 'D:/old');
   p.fireTimer();
   p.finishBatch(2, { storageDir: 'D:/new', autoStartCDN: true, requestRetentionDays: 0,
-    scanResolveConcurrency: 8, scanCheckConcurrency: 2, logDir: 'D:/logs',
+    logDir: 'D:/logs',
     downloadUpstream: 'direct', maxCacheBytes: 2147483648 });
   await flush();
   assert.deepEqual(JSON.parse(vm.runInContext(`JSON.stringify([
     $('storageDir').value, $('autoStartCDN').checked, $('requestRetentionDays').value,
-    $('scanResolveConcurrency').value, $('scanCheckConcurrency').value,
     $('logDir').value, $('downloadUpstream').value, $('maxCacheGiB').value
-  ])`, p.context)), ['D:/new', true, 0, 8, 2, 'D:/logs', 'direct', 2]);
+  ])`, p.context)), ['D:/new', true, 0, 'D:/logs', 'direct', 2]);
   p.visibility(true);
   p.visibility(false);
   p.finishBatch(4, { storageDir: 'D:/latest' });
@@ -630,9 +629,8 @@ test('batch failures render rows as text and disappear after a successful refres
   assert.equal(get('progress').max, 4);
   assert.equal(get('progress').value, 3);
   assert.equal(get('phase').textContent, '扫描中');
-  assert.equal(get('current').textContent, '另一首 · 当前任务 3 / 4 · 命中 1 · 扫描缺失或损坏 2 · 清单匹配免查询 0 · 属性复用 0 · 完整校验通过 0 · 损坏 0 · 下载完成 0 · 失败 2');
+  assert.equal(get('current').textContent, '另一首 · 当前任务 3 / 4 · 命中 1 · 缺失 2 · 本地文件命中 0 · 下载完成 0 · 失败 2');
   assert.equal(get('batchScan').disabled, true);
-  assert.equal(get('batchVerify').disabled, true);
   assert.equal(get('batchScan').textContent, '正在扫描…');
   assert.equal(get('batchCancel').disabled, false);
 
@@ -654,7 +652,7 @@ for (const [path, state] of [
   ['activation/enable', {}],
   ['start', {}], ['stop', { running: true }],
   ['hosts/enable', {}], ['hosts/disable', {}], ['inventory/scan', {}],
-  ['batch/scan', {}], ['batch/verify', {}], ['batch/switch', {}], ['batch/cancel', { batch: { running: true } }],
+  ['batch/scan', {}], ['batch/switch', {}], ['batch/cancel', { batch: { running: true } }],
 ]) {
   test(`clicking the ${path} button posts once and refreshes before unlocking controls`, async () => {
     const p = page();
@@ -722,7 +720,7 @@ test('settings submit prevents navigation and serializes the edited controls', a
     storageDir: 'D:/draft', logDir: 'D:/logs', downloadUpstream: 'hkg',
     upstreamMode: 'socks5', socks5Address: '127.0.0.1:7891',
     socks5Username: 'test-user', socks5Password: 'test-secret',
-    requestRetentionDays: '0', scanResolveConcurrency: '8', scanCheckConcurrency: '2', maxCacheGiB: '1.25',
+    requestRetentionDays: '0', maxCacheGiB: '1.25',
   };
   for (const [id, value] of Object.entries(values)) get(id).value = value;
   get('manualLogDir').checked = true;
@@ -738,7 +736,7 @@ test('settings submit prevents navigation and serializes the edited controls', a
     autoStartCDN: true, storageDir: 'D:/draft', manualLogDir: true, logDir: 'D:/logs', downloadUpstream: 'hkg',
     upstreamMode: 'socks5', socks5Address: '127.0.0.1:7891',
     socks5Username: 'test-user', socks5Password: 'test-secret',
-    requestRetentionDays: 0, scanResolveConcurrency: 8, scanCheckConcurrency: 2, maxCacheBytes: 1342177280,
+    requestRetentionDays: 0, maxCacheBytes: 1342177280,
   });
   assert.equal(get('save').disabled, true);
   p.requests[2].finish({ ok: true });

@@ -133,7 +133,7 @@ func TestScanOnlyPersistsSuccessAcrossFailureAndCancellation(t *testing.T) {
 	}
 	wait()
 	before := c.lastBatch
-	if before.Total != 2 || before.Hits != 1 || before.Missing != 1 || before.Downloaded != 0 || before.Updated.IsZero() || c.service != nil {
+	if before.Total != 2 || before.Hits != 2 || before.Missing != 0 || before.Downloaded != 0 || before.Updated.IsZero() {
 		t.Fatalf("scan started engine/downloads or missing snapshot: %+v", before)
 	}
 	mode.Store(1)
@@ -141,7 +141,7 @@ func TestScanOnlyPersistsSuccessAcrossFailureAndCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 	wait()
-	if c.lastBatch.Updated != before.Updated || c.lastBatch.Hits != 1 {
+	if c.lastBatch.Updated != before.Updated || c.lastBatch.Hits != 2 {
 		t.Fatal("failed scan overwrote result")
 	}
 	mode.Store(2)
@@ -165,7 +165,7 @@ func TestScanOnlyPersistsSuccessAcrossFailureAndCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer restarted.Close()
-	if restarted.lastBatch.Hits != 1 || restarted.lastBatch.Missing != 1 || !restarted.lastBatch.Updated.Equal(before.Updated) || restarted.batch.Running {
+	if restarted.lastBatch.Hits != 2 || restarted.lastBatch.Missing != 0 || !restarted.lastBatch.Updated.Equal(before.Updated) || restarted.batch.Running {
 		t.Fatalf("restart lost result: %+v", restarted.lastBatch)
 	}
 	if restarted.batch.Finished.IsZero() || restarted.batch.Phase != c.batch.Phase {

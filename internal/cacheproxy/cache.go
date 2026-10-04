@@ -290,10 +290,9 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 	}
 	defer os.Remove(final.Name())
 	defer final.Close()
-	copyHash := md5.New()
-	if n, err := io.Copy(io.MultiWriter(final, copyHash), contextReader{ctx, io.NewSectionReader(f, 0, v.size)}); err != nil {
+	if n, err := io.Copy(final, contextReader{ctx, io.NewSectionReader(f, 0, v.size)}); err != nil {
 		return err
-	} else if n != v.size || hex.EncodeToString(copyHash.Sum(nil)) != v.checksum {
+	} else if n != v.size {
 		return fmt.Errorf("%w: publication copy mismatch", errInvalidCache)
 	}
 	if err := final.Sync(); err != nil {

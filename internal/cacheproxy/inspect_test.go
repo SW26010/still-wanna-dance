@@ -66,7 +66,7 @@ func TestCheckLocalNeverPublishesOrDeletes(t *testing.T) {
 			t.Fatal(err)
 		}
 		hit, err := CheckLocal(context.Background(), root, target)
-		if err != nil || hit != (body == payload) {
+		if err != nil || !hit {
 			t.Fatal(hit, err)
 		}
 		data, err := os.ReadFile(path)

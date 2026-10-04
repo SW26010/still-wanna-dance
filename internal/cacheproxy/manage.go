@@ -143,9 +143,9 @@ func readCacheEntry(ctx context.Context, root, key string, db *sql.DB) (CacheEnt
 			for _, s := range raw {
 				e.Songs = append(e.Songs, CacheSong{s.ID, s.Title, s.Current != 0})
 			}
-			e.State = "文件存在 · 完整性未检查"
-			if e.Bytes != expected {
-				e.State = "大小不符 · 需要重新校验"
+			e.State = "文件存在 · 按 MD5 复用"
+			if expected > 0 && e.Bytes != expected {
+				e.State = "大小与记录不同 · 本地文件按不可变内容使用"
 			}
 		}
 	}

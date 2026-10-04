@@ -133,7 +133,7 @@
         </section>
         <section class="overview-section">
           <div class="card-head">
-            <h3>已缓存视频版本覆盖率（所有曲目）</h3>
+            <h3>已缓存视频资源覆盖率（所有曲目）</h3>
             <small id="inventoryState">正在读取统计…</small>
           </div>
           <div class="stats">
@@ -141,14 +141,14 @@
               <b id="coverageRate">—</b><small id="coverageCount">尚未统计曲目覆盖</small>
             </div>
             <div class="stat">
-              <b id="videoCount">—</b><small>本地视频版本</small>
+              <b id="videoCount">—</b><small>本地视频资源</small>
             </div>
             <div class="stat">
               <b id="cacheBytes">—</b><small>视频总占用</small>
             </div>
           </div>
           <details class="help"><summary>覆盖率说明</summary><div class="hint">
-            覆盖率 = 已缓存清单当前版本的曲目数 ÷ 清单全部曲目数（含隐藏曲目）。共用视频的曲目分别计数，旧版本不计入覆盖。刷新时一次获取清单并检查本地文件存在及大小，不逐首请求、不读取视频正文；完整性由播放或完整校验检查。显示上次成功刷新结果，下载或淘汰后可手动刷新。
+            覆盖率 = 清单所引用 MD5 的本地文件已存在的曲目数 ÷ 清单全部曲目数（含隐藏曲目）。共用视频的曲目分别计数，未被清单引用的资源不计入覆盖。刷新时一次获取清单，仅检查文件是否存在，不检查大小或读取视频正文，也不逐首解析地址。视频完整下载后校验大小和 MD5，之后假设文件不再变化，播放不重复校验。显示上次成功刷新结果，下载或淘汰后可手动刷新。
           </div></details>
           <div class="actions">
             <button id="inventoryScan" data-action="inventory/scan">
@@ -171,7 +171,7 @@
         <div class="actions"><button type="button" id="cacheSelect">选择本页可删除项</button><button type="button" id="cacheDelete">删除选中缓存</button><span id="cacheSelected" role="status"></span></div>
         <div id="cacheConfirm" class="notice" hidden aria-labelledby="cacheConfirmTitle" tabindex="-1">
           <h3 id="cacheConfirmTitle">确认删除选中的缓存文件？</h3>
-          <p>共享文件删除后，所有关联歌曲都需要重新下载。歌曲资料、版本关联和历史统计会保留。正在使用、下载、校验或待播的资源会跳过；状态变化的条目需刷新后重新选择。删除无法撤销。</p>
+          <p>共享文件删除后，所有关联歌曲都需要重新下载。歌曲资料、MD5 关联和历史统计会保留。正在使用、下载、校验或待播的资源会跳过；状态变化的条目需刷新后重新选择。删除无法撤销。</p>
           <ul id="cacheConfirmList"></ul>
           <div class="actions"><button type="button" id="cacheConfirmDelete">确认删除</button><button type="button" id="cacheCancel">取消</button></div>
         </div>
@@ -189,7 +189,6 @@
             </div>
           </div>
           <div class="actions">
-            <button id="batchVerify" data-action="batch/verify">完整校验</button>
             <button class="primary" id="batchScan" data-action="batch/scan">
               仅扫描检查</button
             ><button id="batchStart" data-action="batch/switch">下载补齐</button
@@ -197,12 +196,8 @@
               停止批量任务
             </button>
           </div>
-          <details class="help"><summary>扫描、校验与下载说明</summary><div class="hint">
-            「仅扫描检查」获取最新曲目列表与同版本校验和清单，匹配本地已知版本后跳过逐首地址查询，并复用未变化文件的校验记录；记录在重启后仍有效。「完整校验」重新读取视频检查完整性，共用视频只读取一次。两者不下载、不删除视频，可与队列预缓存同时运行；地址请求和本地校验并发可在设置中调整。「下载补齐」优先复用最近一次完整扫描的曲目和地址，未变化的已校验文件跳过重复校验；扫描结果仅供下一次补齐使用，重新扫描、保存设置或重启会清除用于补齐的逐首结果，同一存储目录的上次成功统计仍会保留。无可用结果时检查最新曲目，旧地址失败后重新解析，固定
-            CF 时单独检查
-            CF。队列运行时会先临时停止预缓存，下载补齐停止、完成或失败后自动恢复；CDN 已关闭时保持停止。两种下载模式均最多同时下载
-            2 首，共用后台额度，为游戏播放保留 1 个下载名额。下载补齐优先准备高热度歌曲：有本地真实需求时使用本地热度，否则使用内置初始优先级；同分时大 ID 优先。统计卡片显示上次成功任务的结果，当前进度在下方显示；下载补齐在剩余预算不足以容纳下一首完整视频时自动停止，可前往设置调大预算后继续。两项操作均无需启动
-            CDN 或修改 hosts。
+          <details class="help"><summary>扫描与下载说明</summary><div class="hint">
+            「仅扫描检查」更新歌曲与 MD5 的关联，一次枚举本地文件检查缺失，不读取视频内容。清单中新歌会加入，消失的旧 ID 保留。「下载补齐」每次重新获取清单并检查缺失，仅为缺失的 MD5 解析地址和下载；多首歌曲共用同一视频时只下载一份。下载完成校验 MD5 后保存，之后信任本地文件，不重复校验。队列预缓存会在补齐期间暂停，结束后按原状态恢复。最多同时下载 2 个资源，为游戏播放保留一个下载名额。共用视频的优先级为关联歌曲分数之和，容量不足时停止补齐，可前往设置调整预算。两项操作均无需启动 CDN 或修改 hosts。
           </div></details>
           <div id="batchActionError" role="status"></div>
           <div id="snapshotState" class="hint">尚无成功任务结果</div>
@@ -325,33 +320,6 @@
               填写代理软件的主机:端口，无需 socks5:// 前缀。代理模式用于 API 查询、视频下载、测速和 HTTPS 透传，域名解析交给代理；连接失败不会回退直连。无需认证时用户名和密码留空；已有密码留空则保留，清空用户名及密码可移除认证。密码保存在本机配置文件中，不会回显。停止 CDN 和批量任务后可保存切换。
             </div>
             </fieldset><fieldset><legend>扫描与队列</legend>
-            <label for="scanResolveConcurrency">扫描地址请求并发</label
-            ><input
-              id="scanResolveConcurrency" aria-describedby="scanResolveConcurrencyHint"
-              type="number"
-              min="1"
-              max="16"
-              step="1"
-              required
-              value="4"
-            />
-            <div class="hint" id="scanResolveConcurrencyHint">
-              默认 4，可设 1～16。仅扫描检查使用，仅需逐首查询的请求按 150ms 节拍启动；清单匹配命中不受此限制。保存后下次扫描生效。
-            </div>
-            <label for="scanCheckConcurrency">扫描本地校验并发</label
-            ><input
-              id="scanCheckConcurrency" aria-describedby="scanCheckConcurrencyHint"
-              type="number"
-              min="1"
-              max="4"
-              step="1"
-              required
-              value="1"
-            />
-            <div class="hint" id="scanCheckConcurrencyHint">
-              默认 1，可设 1～4。机械硬盘或同时播放时建议保持 1；SSD 可尝试
-              2。保存后下次扫描生效。
-            </div>
             <label for="queuePrefetchEnabled"><input id="queuePrefetchEnabled" name="queuePrefetchEnabled" type="checkbox" checked /> 随 CDN 启用房间队列预缓存</label>
             <p class="hint">默认开启。随本地 CDN 启停，下载补齐期间临时暂停。</p>
             <label for="queuePrefetchCount">队列预缓存数量</label>

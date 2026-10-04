@@ -3,13 +3,11 @@ package console
 import (
 	"context"
 	"crypto/md5"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -83,9 +81,6 @@ func TestPlaybackSlowAutoIntegration(t *testing.T) {
 			cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
 				return c.resolvePlayback(ctx, id, node, "auto")
 			}
-			cfg.ResolveCurrent = func(ctx context.Context, _ string) (string, error) {
-				return c.resolveNode(ctx, 42, "hkg")
-			}
 			engine, err := cacheproxy.New(cfg)
 			if err != nil {
 				t.Fatal(err)
@@ -113,36 +108,14 @@ func TestPlaybackSlowAutoIntegration(t *testing.T) {
 				t.Fatalf("playback: %d %q; want %q", w.Code, w.Body.String(), want)
 			}
 			if tc.cached {
-				if elapsed := time.Since(started); elapsed < 5*time.Second || elapsed >= tc.delay {
-					t.Fatalf("cached foreground wait took %v", elapsed)
+				if elapsed := time.Since(started); elapsed > time.Second {
+					t.Fatalf("local hit waited %v", elapsed)
 				}
-				// Wait for the replacement to become current, including a second
-				// slow production API request to confirm the background update.
-				deadline := time.Now().Add(20 * time.Second)
-				db, err := sql.Open("sqlite", filepath.Join(cfg.StorageDir, "stepstash.sqlite")+"?_pragma=busy_timeout(5000)")
-				if err != nil {
-					t.Fatal(err)
-				}
-				defer db.Close()
-				for {
-					var checksum string
-					err := db.QueryRow(`SELECT v.checksum FROM current_videos c
-						JOIN video_versions v ON v.version_key=c.version_key WHERE c.song_id='42'`).Scan(&checksum)
-					if err != nil {
-						t.Fatal(err)
-					}
-					if checksum == fmt.Sprintf("%x", md5.Sum([]byte(fresh))) {
-						break
-					}
-					if time.Now().After(deadline) {
-						t.Fatal("slow background resolution did not update cached song")
-					}
-					time.Sleep(25 * time.Millisecond)
-				}
+				time.Sleep(tc.delay + 100*time.Millisecond)
 				offline.Store(true)
 				w = request()
-				if w.Code != http.StatusOK || w.Body.String() != fresh {
-					t.Fatalf("updated offline playback: %d %q", w.Code, w.Body.String())
+				if w.Code != 200 || w.Body.String() != old {
+					t.Fatalf("local content replaced: %d %q", w.Code, w.Body.String())
 				}
 			}
 			for _, node := range []string{"nya", "cf"} {

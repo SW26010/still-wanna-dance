@@ -3,16 +3,18 @@ package console
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
 )
 
-// Inventory counts canonical video files; integrity is checked on use.
+// Inventory counts immutable MD5 files without hashing video contents.
 type Inventory struct {
 	CoverageKnown   bool      `json:"coverageKnown"`
 	CoveredSongs    int       `json:"coveredSongs"`
@@ -25,7 +27,7 @@ type Inventory struct {
 	Error           string    `json:"error"`
 }
 
-var cacheName = regexp.MustCompile(`^[0-9a-f]{64}\.mp4$`)
+var cacheName = regexp.MustCompile(`^[0-9a-f]{32}\.mp4$`)
 
 func scanInventory(ctx context.Context, s Settings) Inventory {
 	var result Inventory
@@ -43,7 +45,7 @@ func scanInventory(ctx context.Context, s Settings) Inventory {
 			problems = append(problems, err.Error())
 			return
 		}
-		if info.Mode().IsRegular() && info.Size() > 0 {
+		if info.Mode().IsRegular() {
 			*count++
 			result.Bytes += info.Size()
 		}
@@ -82,6 +84,29 @@ func (c *Console) localInventory() Inventory {
 	return c.inventory
 }
 
+// Check before engine startup can create videos. Read at most one entry here;
+// the actual inventory scan remains responsible for enumerating the files.
+func checkInventoryDirectory(root string) error {
+	dir := filepath.Join(root, "videos")
+	f, err := os.Open(dir)
+	if os.IsNotExist(err) {
+		if entries, rootErr := os.ReadDir(root); rootErr == nil && len(entries) == 0 {
+			return nil // A saved but never initialized empty store is valid.
+		}
+	}
+	if err == nil {
+		defer f.Close()
+		_, err = f.ReadDir(1)
+		if err == io.EOF {
+			err = nil
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("无法读取 %s：%w", dir, err)
+	}
+	return nil
+}
+
 func (c *Console) startInventoryScan() {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
@@ -91,6 +116,19 @@ func (c *Console) startInventoryScan() {
 		return
 	}
 	s := c.settings
+	if c.checksumURL != "" {
+		err := checkInventoryDirectory(s.StorageDir)
+		if err == nil {
+			err = c.ensureEngine()
+		}
+		if err != nil {
+			c.mu.Unlock()
+			c.inventoryMu.Lock()
+			c.inventory.Error = err.Error()
+			c.inventoryMu.Unlock()
+			return
+		}
+	}
 	c.mu.Unlock()
 	c.inventoryMu.Lock()
 	defer c.inventoryMu.Unlock()
@@ -142,17 +180,35 @@ func (c *Console) addInventoryCoverage(ctx context.Context, s Settings, result *
 		result.Error = "无法获取曲目覆盖率：" + err.Error()
 		return
 	}
-	cached, err := cacheproxy.CachedChecksums(ctx, s.StorageDir)
+	refs := map[string]string{}
+	for id, checksum := range checksums {
+		if checksum == "" {
+			result.Error = "曲目清单含无效或冲突校验和，覆盖率未更新"
+			return
+		}
+		refs[strconv.FormatInt(id, 10)] = checksum
+	}
+	c.mu.Lock()
+	engine := c.service
+	c.mu.Unlock()
+	var check cacheproxy.ReferenceCheck
+	if engine != nil {
+		if err = engine.SyncCatalog(ctx, refs); err != nil {
+			result.Error = err.Error()
+			return
+		}
+		var release func()
+		check, release, err = engine.CheckReferences(ctx)
+		defer release()
+	} else {
+		check, err = cacheproxy.CheckReferencedFiles(ctx, s.StorageDir, refs)
+	}
 	if err != nil {
-		result.Error = "无法读取本地版本：" + err.Error()
+		result.Error = "无法读取本地资源：" + err.Error()
 		return
 	}
 	for _, checksum := range checksums {
-		if checksum == "" {
-			result.Error = "清单包含无效校验和或同 ID 校验和冲突，覆盖率未更新"
-			return
-		}
-		if cached[checksum] {
+		if check.Present[checksum] {
 			result.CoveredSongs++
 		}
 	}

@@ -19,6 +19,7 @@ func seedPrioritySong(t *testing.T, s *Server, id, key string) {
 		{`INSERT OR IGNORE INTO songs(song_id) VALUES (?)`, []any{id}},
 		{`INSERT OR IGNORE INTO video_versions(version_key,checksum,file_bytes,source_path) VALUES (?,'checksum',10,'/fixture')`, []any{key}},
 		{`INSERT INTO song_videos(song_id,version_key) VALUES (?,?)`, []any{id, key}},
+		{`INSERT INTO current_videos(song_id,version_key) VALUES (?,?) ON CONFLICT(song_id) DO UPDATE SET version_key=excluded.version_key`, []any{id, key}},
 	} {
 		if _, err := s.usage.db.Exec(q.sql, q.args...); err != nil {
 			t.Fatal(err)
@@ -28,7 +29,7 @@ func seedPrioritySong(t *testing.T, s *Server, id, key string) {
 
 func TestEffectivePriorityReplacesPriorAcrossVersions(t *testing.T) {
 	s, _ := setup(t, nil)
-	first, second := strings.Repeat("a", 64), strings.Repeat("b", 64)
+	first, second := strings.Repeat("a", 32), strings.Repeat("b", 32)
 	seedPrioritySong(t, s, "1981", first)
 	seedPrioritySong(t, s, "1981", second)
 	now := time.Now().UnixMilli()
@@ -37,11 +38,11 @@ func TestEffectivePriorityReplacesPriorAcrossVersions(t *testing.T) {
 		t.Fatalf("%v %v", scores, err)
 	}
 	old := now - (700 * 24 * time.Hour).Milliseconds()
-	if err := s.usage.write([]usageEvent{{id: first, at: old, summaryOnly: true}, {id: second, at: old, summaryOnly: true}}); err != nil {
+	if err := s.usage.write([]usageEvent{{id: "song:1981", at: old, summaryOnly: true}}); err != nil {
 		t.Fatal(err)
 	}
 	scores, err = s.songPriorities(context.Background(), []int64{1981}, now)
-	want := retentionScore(2, old, now)
+	want := retentionScore(1, old, now)
 	if err != nil || math.Abs(scores[1981]-want) > 1e-10 || scores[1981] >= initialpriority.Score(1981) {
 		t.Fatalf("prior not replaced: %v %v", scores, err)
 	}
@@ -51,7 +52,7 @@ func TestRetentionUsesEffectiveSongPriority(t *testing.T) {
 	for _, mode := range []string{"initial", "old-demand", "fresh-demand", "shared"} {
 		t.Run(mode, func(t *testing.T) {
 			s, cfg := setup(t, nil)
-			a, b := strings.Repeat("a", 64), strings.Repeat("b", 64)
+			a, b := strings.Repeat("a", 32), strings.Repeat("b", 32)
 			seedPrioritySong(t, s, "1981", a)
 			seedPrioritySong(t, s, "5404", b)
 			if mode == "shared" {
@@ -62,7 +63,7 @@ func TestRetentionUsesEffectiveSongPriority(t *testing.T) {
 				if mode == "old-demand" {
 					at -= (700 * 24 * time.Hour).Milliseconds()
 				}
-				if err := s.usage.write([]usageEvent{{id: a, at: at, summaryOnly: true}}); err != nil {
+				if err := s.usage.write([]usageEvent{{id: "song:1981", at: at, summaryOnly: true}}); err != nil {
 					t.Fatal(err)
 				}
 			}

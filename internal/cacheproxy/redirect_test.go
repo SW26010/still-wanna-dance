@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 )
 
@@ -18,7 +19,7 @@ func TestCurrentVideoRedirectStatuses(t *testing.T) {
 			s := &Server{cfg: DefaultConfig(), client: &http.Client{
 				CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 				Transport: redirectTransport(func(r *http.Request) (*http.Response, error) {
-					if r.URL.String() != "https://api.udon.dance/Api/Songs/play?node=nya&id=1344" {
+					if r.URL.String() != "https://api.udon.dance/Api/Songs/play?id=1344&node=nya" {
 						t.Fatalf("unexpected request: %s", r.URL)
 					}
 					w := httptest.NewRecorder()
@@ -27,7 +28,7 @@ func TestCurrentVideoRedirectStatuses(t *testing.T) {
 					return w.Result(), nil
 				}),
 			}}
-			got, err := s.currentVideo(context.Background(), "1344")
+			got, err := s.resolvePlaybackVideoReadOnly(context.Background(), url.Values{"id": {"1344"}, "node": {"nya"}})
 			accepted := status == 301 || status == 302 || status == 307 || status == 308
 			if accepted {
 				want, parseErr := s.parse(httptest.NewRequest(http.MethodGet, videoURL(payload), nil))

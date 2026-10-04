@@ -50,7 +50,7 @@ func managementFixture(t *testing.T, n int) (string, []CacheEntry) {
 		t.Fatal(err)
 	}
 	for i := 0; i < n; i++ {
-		key := fmt.Sprintf("%064x", i+1)
+		key := fmt.Sprintf("%032x", i+1)
 		if err := os.WriteFile(filepath.Join(root, "videos", key+".mp4"), []byte(strings.Repeat("x", i+1)), 0600); err != nil {
 			t.Fatal(err)
 		}
@@ -83,7 +83,7 @@ func TestCachePageMetadataAndPagination(t *testing.T) {
 	if err != nil || len(page.Entries) != 50 || page.Total != 53 || page.Entries[0].Bytes != 53 {
 		t.Fatalf("%+v %v", page, err)
 	}
-	if !page.Entries[0].Songs[0].Current || !strings.Contains(page.Entries[0].State, "未检查") {
+	if !page.Entries[0].Songs[0].Current || !strings.Contains(page.Entries[0].State, "MD5") {
 		t.Fatal(page.Entries[0])
 	}
 	page, err = ReadCachePage(ctx, root, "", "size", 50)
@@ -225,7 +225,7 @@ func TestCacheManagementRejectsUnknownChangedAndPaths(t *testing.T) {
 	root, entries := managementFixture(t, 1)
 	e := entries[0]
 	ctx := context.Background()
-	unknown := strings.Repeat("f", 64)
+	unknown := strings.Repeat("f", 32)
 	if err := os.WriteFile(filepath.Join(root, "videos", unknown+".mp4"), []byte("unknown"), 0600); err != nil {
 		t.Fatal(err)
 	}

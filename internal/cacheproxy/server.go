@@ -3,8 +3,6 @@ package cacheproxy
 import (
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -44,6 +42,7 @@ type flight struct {
 }
 
 type Server struct {
+	mappingMu        sync.Mutex
 	verifications    *verificationStore
 	stats            trafficStats
 	routeMu          sync.Mutex
@@ -78,18 +77,13 @@ type Server struct {
 	retained         map[string]retainedVideo
 	retainedBytes    int64
 	retentionChanges map[string]bool
-	currentMu        sync.Mutex
-	currentLocks     map[string]*songConfirmation
 	versionPins      map[string]int
 	songResources    map[string]map[string]bool
 	queueSongs       map[string]bool
 	queueProtected   map[string]bool
 	queueHandoffs    map[string]time.Time
 	handoffProtected map[string]time.Time
-	cleanupNeeded    map[string]bool
 	deletingVideos   map[string]chan struct{}
-	mappingRevision  uint64 // protected by retentionMu; invalidates cleanup queries
-
 }
 
 func New(cfg Config) (*Server, error) {
@@ -101,6 +95,9 @@ func New(cfg Config) (*Server, error) {
 		return nil, err
 	}
 	cfg.StorageDir = root
+	if err := checkStorageFormat(root); err != nil {
+		return nil, err
+	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
@@ -172,9 +169,9 @@ func New(cfg Config) (*Server, error) {
 		return nil, fmt.Errorf("open storage database: %w", usageErr)
 	}
 	s := &Server{cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
-		versionPins: make(map[string]int), cleanupNeeded: make(map[string]bool),
-		usage:   usage,
-		flights: make(map[string]*flight), slots: make(chan struct{}, cfg.MaxDownloads), localChecks: make(chan struct{}, cfg.MaxDownloads), capacityChanged: make(chan struct{}),
+		versionPins: make(map[string]int),
+		usage:       usage,
+		flights:     make(map[string]*flight), slots: make(chan struct{}, cfg.MaxDownloads), localChecks: make(chan struct{}, cfg.MaxDownloads), capacityChanged: make(chan struct{}),
 		client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
 	if err := s.loadTraffic(usage.db); err != nil {
@@ -196,7 +193,6 @@ func New(cfg Config) (*Server, error) {
 		unlock()
 		return nil, fmt.Errorf("open verification database: %w", err)
 	}
-	s.cleanSupersededOnStartup()
 	s.trimCache()
 	s.retentionWake = make(chan struct{}, 1)
 	s.retentionDone = make(chan struct{})
@@ -259,8 +255,7 @@ func parseVideo(r *http.Request, maxFileBytes int64) (video, error) {
 	if err != nil {
 		return v, err
 	}
-	key := sha256.Sum256([]byte(meta.ResourceID + "/" + meta.Version + "/" + meta.Checksum + "/" + strconv.FormatInt(meta.Size, 10)))
-	return video{checksum: meta.Checksum, size: meta.Size, key: hex.EncodeToString(key[:]), path: r.URL.Path, query: r.URL.RawQuery, host: host}, nil
+	return video{checksum: meta.Checksum, size: meta.Size, key: meta.Checksum, path: r.URL.Path, query: r.URL.RawQuery, host: host}, nil
 }
 
 // Register before Close starts waiting so completed observations drain to disk.
@@ -383,6 +378,24 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer s.releaseVideo(v)
 	if event.demand {
 		event.at = s.usage.startDemand(v.key)
+		if v.songID != "" {
+			s.usage.startDemand("song:" + v.songID)
+		} else {
+			rows, err := s.usage.db.QueryContext(r.Context(), "SELECT song_id FROM current_videos WHERE version_key=?", v.key)
+			if err == nil {
+				var ids []string
+				for rows.Next() {
+					var id string
+					if rows.Scan(&id) == nil {
+						ids = append(ids, id)
+					}
+				}
+				rows.Close()
+				for _, id := range ids {
+					s.usage.startDemand("song:" + id)
+				}
+			}
+		}
 	}
 	var f *flight
 	var stream *spoolReader
@@ -391,8 +404,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, err = s.verifiedFile(r.Context(), v)
 		f = &flight{source: "HIT"}
 		if err == nil {
-			w.Header().Set("X-StepStash-Fallback", "upstream-unavailable")
-			log.Warn("playback_local_fallback", "song_id", v.songID)
+			log.Info("playback_local_hit", "song_id", v.songID)
 		}
 	} else {
 		f, stream, err = s.obtain(r.Context(), v)

@@ -139,7 +139,7 @@ func (s *Server) rememberSongResourceLocked(id, key string) {
 // prefetch, memory-only associations are also registered while pinned, before
 // starting or joining a flight, so cancellation cannot drop queue protection.
 func (s *Server) loadSongResources() error {
-	rows, err := s.usage.db.Query(`SELECT song_id, version_key FROM song_videos`)
+	rows, err := s.usage.db.Query(`SELECT song_id, version_key FROM current_videos`)
 	if err != nil {
 		return err
 	}

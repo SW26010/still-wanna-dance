@@ -17,7 +17,7 @@ func (c *Console) switchTask() error {
 	if done != nil {
 		<-done
 	}
-	err := c.startBatchCheckLocked(false, false)
+	err := c.startBatchModeLocked(false)
 	if err != nil {
 		c.resumeQueueLocked()
 	}

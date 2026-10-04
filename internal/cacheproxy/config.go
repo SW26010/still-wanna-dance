@@ -36,8 +36,6 @@ type Config struct {
 	Logger               *slog.Logger
 	// DialContext supplies upstream connections (independent DNS or SOCKS5).
 	DialContext func(context.Context, string, string) (net.Conn, error)
-	// ResolveCurrent returns the song API's current video URL. Nil uses the public API.
-	ResolveCurrent func(context.Context, string) (string, error)
 	// ResolveRoutes returns real video URLs for a known song, in policy order.
 	// Every candidate is independently parsed and must match the requested bytes.
 	ResolveRoutes func(context.Context, string) ([]string, error)

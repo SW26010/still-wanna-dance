@@ -25,7 +25,7 @@ func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, i := range []int{1, 256, 257, 270} {
-		key := fmt.Sprintf("%064x", i)
+		key := fmt.Sprintf("%032x", i)
 		if _, err := u.db.Exec(`INSERT INTO resource_usage VALUES (?,1,1,1,100,100,1)`, key); err != nil {
 			t.Fatal(err)
 		}
@@ -37,7 +37,7 @@ func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 		source string
 		at     int
 	}{{257, "http", 200}, {258, "prefetch", 999}, {259, "http", 300}} {
-		key := fmt.Sprintf("%064x", event.i)
+		key := fmt.Sprintf("%032x", event.i)
 		if _, err := u.db.Exec(`INSERT INTO request_events
  (resource_key,requested_at,version_key,host,source,method,range_header,cache_result,outcome,
  file_bytes,transferred_bytes,elapsed_ms,status,counts_as_demand)
@@ -46,15 +46,15 @@ func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 		}
 	}
 	// A catalog row without a file must not be listed; an unknown file must be.
-	if err := os.Remove(filepath.Join(root, "videos", fmt.Sprintf("%064x.mp4", 2))); err != nil {
+	if err := os.Remove(filepath.Join(root, "videos", fmt.Sprintf("%032x.mp4", 2))); err != nil {
 		t.Fatal(err)
 	}
-	unknown := strings.Repeat("f", 64)
+	unknown := strings.Repeat("f", 32)
 	if err := os.WriteFile(filepath.Join(root, "videos", unknown+".mp4"), []byte("x"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	// Include a size mismatch and a size tie.
-	if err := os.WriteFile(filepath.Join(root, "videos", fmt.Sprintf("%064x.mp4", 270)), []byte("x"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "videos", fmt.Sprintf("%032x.mp4", 270)), []byte("x"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	ctx := context.Background()
@@ -68,7 +68,7 @@ func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 		if i == 2 {
 			continue
 		}
-		e, err := readCacheEntry(ctx, root, fmt.Sprintf("%064x", i), db)
+		e, err := readCacheEntry(ctx, root, fmt.Sprintf("%032x", i), db)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -133,7 +133,7 @@ func TestCachePageWithoutDatabase(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(root, "videos"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	key := strings.Repeat("a", 64)
+	key := strings.Repeat("a", 32)
 	if err := os.WriteFile(filepath.Join(root, "videos", key+".mp4"), []byte("unknown"), 0600); err != nil {
 		t.Fatal(err)
 	}

@@ -10,7 +10,70 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/cacheproxy"
 )
+
+func TestInventoryCoverageDoesNotRecreateMissingVideoDirectory(t *testing.T) {
+	c := testConsole(t)
+	defer c.Close()
+	if err := c.save(c.settings); err != nil {
+		t.Fatal(err)
+	}
+	cfg := cacheproxy.DefaultConfig()
+	cfg.StorageDir = c.settings.StorageDir
+	engine, err := cacheproxy.New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := engine.Close(); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(cfg.StorageDir, "videos", strings.Repeat("a", 32)+".mp4")
+	if err := os.WriteFile(path, []byte("video"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	c.startInventoryScan()
+	before := waitInventory(t, c)
+	if before.Error != "" || before.Videos != 1 {
+		t.Fatalf("%+v", before)
+	}
+	snapshot, err := os.ReadFile(c.configPath + ".inventory.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Dir(path)); err != nil {
+		t.Fatal(err)
+	}
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("invalid store must fail before fetching coverage")
+		http.Error(w, "unexpected", http.StatusInternalServerError)
+	}))
+	defer api.Close()
+	c.checksumURL, c.client.Transport = api.URL, http.DefaultTransport
+	c.startInventoryScan()
+	after := c.localInventory()
+	if after.Error == "" || after.Scanning {
+		t.Fatalf("%+v", after)
+	}
+	after.Error = ""
+	if after != before {
+		t.Fatalf("previous inventory lost: before=%+v after=%+v", before, after)
+	}
+	if c.service != nil {
+		t.Fatal("invalid store started engine")
+	}
+	if _, err := os.Stat(filepath.Dir(path)); !os.IsNotExist(err) {
+		t.Fatalf("videos recreated: %v", err)
+	}
+	stored, err := os.ReadFile(c.configPath + ".inventory.json")
+	if err != nil || string(stored) != string(snapshot) {
+		t.Fatalf("saved snapshot changed: %v", err)
+	}
+}
 
 func TestInventoryReadsWaitForExplicitScan(t *testing.T) {
 	c := testConsole(t)
@@ -88,13 +151,13 @@ func TestSavedEmptyStorageScansWithoutStartingEngine(t *testing.T) {
 func TestInventoryCountsPublishedFilesOnly(t *testing.T) {
 	c := testConsole(t)
 	for path, body := range map[string]string{
-		filepath.Join(c.settings.StorageDir, "videos", strings.Repeat("c", 64)+".mp4"): "video",
+		filepath.Join(c.settings.StorageDir, "videos", strings.Repeat("c", 32)+".mp4"): "video",
 		filepath.Join(c.settings.StorageDir, "2", "metadata.json"):                     "{}",
 		filepath.Join(c.settings.StorageDir, "3", "video.mp4"):                         "",
 		filepath.Join(c.settings.StorageDir, "4", "video.mp4.part"):                    "partial",
 		filepath.Join(c.settings.StorageDir, "other", "video.mp4"):                     "ignore",
-		filepath.Join(c.settings.StorageDir, "videos", strings.Repeat("a", 64)+".mp4"): "cache",
-		filepath.Join(c.settings.StorageDir, strings.Repeat("b", 64)+".part"):          "partial",
+		filepath.Join(c.settings.StorageDir, "videos", strings.Repeat("a", 32)+".mp4"): "cache",
+		filepath.Join(c.settings.StorageDir, strings.Repeat("b", 32)+".part"):          "partial",
 	} {
 		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 			t.Fatal(err)

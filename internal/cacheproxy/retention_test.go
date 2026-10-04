@@ -45,7 +45,10 @@ func TestRetentionScore(t *testing.T) {
 func TestRetentionPriorityAndVersions(t *testing.T) {
 	s, cfg := setup(t, nil)
 	now := time.Now().UnixMilli()
-	for _, e := range []usageEvent{{id: strings.Repeat("1", 64), at: now, summaryOnly: true}, {id: strings.Repeat("2", 64), at: now - (100 * 24 * time.Hour).Milliseconds(), summaryOnly: true}} {
+	for _, id := range []string{"0", "1", "2"} {
+		seedPrioritySong(t, s, id, strings.Repeat(id, 32))
+	}
+	for _, e := range []usageEvent{{id: "song:1", at: now, summaryOnly: true}, {id: "song:2", at: now - (100 * 24 * time.Hour).Milliseconds(), summaryOnly: true}} {
 		if err := s.usage.write([]usageEvent{e}); err != nil {
 			t.Fatal(err)
 		}
@@ -54,8 +57,8 @@ func TestRetentionPriorityAndVersions(t *testing.T) {
 	cold := retainedPath(t, s, cfg, "2")
 	prefetch := retainedPath(t, s, cfg, "3")
 	metadata := filepath.Join(cfg.StorageDir, "notes.json")
-	copyPath := cfg.videoFile(strings.Repeat("0", 64))
-	s.usage.write([]usageEvent{{id: strings.Repeat("0", 64), at: now - 1, summaryOnly: true}})
+	copyPath := cfg.videoFile(strings.Repeat("0", 32))
+	s.usage.write([]usageEvent{{id: "song:0", at: now - 1, summaryOnly: true}})
 	for _, p := range []string{hot, cold, prefetch, copyPath, metadata} {
 		putRetained(t, p, 10)
 	}
@@ -78,7 +81,7 @@ func TestRetentionPinsAndUnlimited(t *testing.T) {
 	s.trimCache()
 	expectRetained(t, p, true)
 	setRetentionLimit(t, s, 1)
-	v := video{key: strings.Repeat("1", 64)}
+	v := video{key: strings.Repeat("1", 32)}
 	s.pinVideo(v)
 	s.pinVideo(v)
 	s.trimCache()
@@ -93,7 +96,7 @@ func TestRetentionStartupAndUnknownFiles(t *testing.T) {
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()
 	cfg.MaxCacheBytes = 1
-	p := cfg.videoFile(strings.Repeat("a", 64))
+	p := cfg.videoFile(strings.Repeat("a", 32))
 	unknown := filepath.Join(cfg.videosDir(), "personal.mp4")
 	putRetained(t, p, 10)
 	putRetained(t, unknown, 10)
@@ -123,7 +126,8 @@ func TestPrefetchDoesNotDisplacePopularVideo(t *testing.T) {
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(payload)) })
 	p := retainedPath(t, s, cfg, "1")
 	putRetained(t, p, len(payload))
-	s.usage.startDemand(strings.Repeat("1", 64))
+	seedPrioritySong(t, s, "1", strings.Repeat("1", 32))
+	s.usage.startDemand("song:1")
 	setRetentionLimit(t, s, int64(len(payload)))
 	if _, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil {
 		t.Fatal(err)
@@ -139,9 +143,10 @@ func TestProtectedLowPriorityDoesNotEvictHotVideo(t *testing.T) {
 	low := retainedPath(t, s, cfg, "2")
 	putRetained(t, hot, 10)
 	putRetained(t, low, 10)
-	s.usage.startDemand(strings.Repeat("1", 64))
+	seedPrioritySong(t, s, "1", strings.Repeat("1", 32))
+	s.usage.startDemand("song:1")
 	setRetentionLimit(t, s, 10)
-	v := video{key: strings.Repeat("2", 64)}
+	v := video{key: strings.Repeat("2", 32)}
 	s.pinVideo(v)
 	s.trimCache()
 	expectRetained(t, hot, true)
@@ -189,9 +194,10 @@ func TestReleaseOnlyCleansAfterLastReference(t *testing.T) {
 	cold := retainedPath(t, s, cfg, "2")
 	putRetained(t, hot, 10)
 	putRetained(t, cold, 10)
-	s.usage.startDemand(strings.Repeat("1", 64))
+	seedPrioritySong(t, s, "1", strings.Repeat("1", 32))
+	s.usage.startDemand("song:1")
 	setRetentionLimit(t, s, 10)
-	v := video{key: strings.Repeat("a", 64)}
+	v := video{key: strings.Repeat("a", 32)}
 	s.pinVideo(v)
 	s.pinVideo(v)
 	s.releaseVideo(v)
@@ -224,14 +230,15 @@ func TestRetentionWithinLimitSkipsUsageDatabase(t *testing.T) {
 
 func TestRetentionUsesResourceFingerprint(t *testing.T) {
 	s, cfg := setup(t, nil)
-	key := strings.Repeat("1", 64)
+	key := strings.Repeat("1", 32)
+	seedPrioritySong(t, s, "1", key)
 	hot := cfg.videoFile(key)
 	cold := retainedPath(t, s, cfg, "2")
 	putRetained(t, hot, 10)
 	putRetained(t, cold, 10)
 	now := time.Now().UnixMilli()
 	if err := s.usage.write([]usageEvent{
-		{id: strings.Repeat("1", 64), at: now, summaryOnly: true},
+		{id: strings.Repeat("1", 32), at: now, summaryOnly: true},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -269,7 +276,7 @@ func TestRetentionHitDoesNotRescanDirectory(t *testing.T) {
 	path := testVideoFile(t, cfg, payload)
 	writeTestFile(t, path, payload)
 	setRetentionLimit(t, s, 1<<20)
-	external := cfg.videoFile(strings.Repeat("a", 64))
+	external := cfg.videoFile(strings.Repeat("a", 32))
 	putRetained(t, external, 10)
 	for i := 0; i < 3; i++ {
 		assertResponse(t, request(s, "HEAD", videoURL(payload), nil), 200, "")
@@ -305,8 +312,8 @@ func TestRetentionReleaseDoesNotWaitForWorker(t *testing.T) {
 func TestRetentionReconciliationCorrectsExternalChanges(t *testing.T) {
 	s, cfg := setup(t, nil)
 	setRetentionLimit(t, s, 100)
-	one := cfg.videoFile(strings.Repeat("1", 64))
-	two := cfg.videoFile(strings.Repeat("2", 64))
+	one := cfg.videoFile(strings.Repeat("1", 32))
+	two := cfg.videoFile(strings.Repeat("2", 32))
 	putRetained(t, one, 10)
 	putRetained(t, two, 20)
 	s.runRetention(true) // The same pass used by the periodic timer.
@@ -375,7 +382,7 @@ func TestRetentionReconciliationDuringPublication(t *testing.T) {
 		s.retentionRunMu.Lock()
 		got := retainedBytes(s)
 		s.retentionRunMu.Unlock()
-		if want := int64(i * len(payload)); got != want {
+		if want := int64(len(payload)); got != want {
 			t.Fatalf("concurrent publication accounting: %d, want %d", got, want)
 		}
 	}

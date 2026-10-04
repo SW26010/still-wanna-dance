@@ -193,7 +193,7 @@ func TestCacheAPIScanAndStaleStorageProtection(t *testing.T) {
 		c.ServeHTTP(w, r)
 		return w
 	}
-	b, _ := json.Marshal(map[string]any{"storageID": cacheproxy.CacheStorageID(c.settings.StorageDir), "entries": []cacheproxy.CacheSelection{{Key: strings.Repeat("a", 64), Stamp: "old"}}})
+	b, _ := json.Marshal(map[string]any{"storageID": cacheproxy.CacheStorageID(c.settings.StorageDir), "entries": []cacheproxy.CacheSelection{{Key: strings.Repeat("a", 32), Stamp: "old"}}})
 	c.batch = Batch{Running: true, ScanOnly: true}
 	w := post("/api/cache/delete", string(b))
 	if w.Code != 400 || !strings.Contains(w.Body.String(), "扫描校验") {

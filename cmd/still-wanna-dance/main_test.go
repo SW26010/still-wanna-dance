@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/md5"
-	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"io"
@@ -58,7 +57,7 @@ func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(cfg.StorageDir, "videos"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(cfg.StorageDir, "videos", fmt.Sprintf("%x.mp4", sha256.Sum256([]byte(fmt.Sprintf("1/v/%x/%d", md5.Sum([]byte(body)), len(body)))))), []byte(body), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(cfg.StorageDir, "videos", fmt.Sprintf("%x.mp4", md5.Sum([]byte(body)))), []byte(body), 0600); err != nil {
 		t.Fatal(err)
 	}
 	service, err := cacheproxy.New(cfg)

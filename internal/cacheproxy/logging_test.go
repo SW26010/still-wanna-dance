@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -53,7 +52,6 @@ func loggingServer(t *testing.T, handler http.HandlerFunc) (*Server, *logCapture
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()
 	cfg.Logger = slog.New(slog.NewJSONHandler(logs, nil))
-	cfg.ResolveCurrent = func(context.Context, string) (string, error) { return "", errors.New("offline") }
 	for host := range cfg.Origins {
 		cfg.Origins[host] = strings.TrimPrefix(upstream.URL, "http://")
 	}

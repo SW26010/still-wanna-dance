@@ -17,26 +17,36 @@ var operations = [...]Operation{Catalog, PlaybackURL, Resource}
 // Zero durations use defaults; negative durations are invalid. SetPolicy
 // replaces the whole policy, including timeouts for subsequent checks.
 type Policy struct {
-	Interval        time.Duration `json:"interval"`
-	Lifetime        time.Duration `json:"lifetime"`
-	FailureLifetime time.Duration `json:"failureLifetime"`
-	SampleLifetime  time.Duration `json:"sampleLifetime"`
-	RequestTimeout  time.Duration `json:"requestTimeout"`
-	ResourceTimeout time.Duration `json:"resourceTimeout"`
+	Interval          time.Duration `json:"interval"`
+	Lifetime          time.Duration `json:"lifetime"`
+	FailureLifetime   time.Duration `json:"failureLifetime"`
+	SampleLifetime    time.Duration `json:"sampleLifetime"`
+	RequestTimeout    time.Duration `json:"requestTimeout"`
+	ResourceTimeout   time.Duration `json:"resourceTimeout"`
+	SwitchImprovement float64       `json:"switchImprovement"`
+	SwitchSamples     int           `json:"switchSamples"`
 }
 
 func DefaultPolicy() Policy {
 	return Policy{
-		Interval:        5 * time.Minute,
-		Lifetime:        6 * time.Minute,
-		FailureLifetime: 30 * time.Second,
-		SampleLifetime:  10 * time.Minute,
-		RequestTimeout:  30 * time.Second,
-		ResourceTimeout: 4 * time.Second,
+		Interval:          5 * time.Minute,
+		Lifetime:          6 * time.Minute,
+		FailureLifetime:   30 * time.Second,
+		SampleLifetime:    10 * time.Minute,
+		RequestTimeout:    30 * time.Second,
+		ResourceTimeout:   4 * time.Second,
+		SwitchImprovement: 0.15,
+		SwitchSamples:     2,
 	}
 }
 func normalized(p Policy) Policy {
 	d := DefaultPolicy()
+	if p.SwitchImprovement == 0 {
+		p.SwitchImprovement = d.SwitchImprovement
+	}
+	if p.SwitchSamples == 0 {
+		p.SwitchSamples = d.SwitchSamples
+	}
 	if p.Interval == 0 {
 		p.Interval = d.Interval
 	}
@@ -62,6 +72,9 @@ func normalized(p Policy) Policy {
 // identify the checked service in every state; they are not recommendations.
 // A resource Entry is never a playable URL for an arbitrary video.
 type Result struct {
+	ChannelID          string    `json:"channelID,omitempty"`
+	Mode               string    `json:"mode,omitempty"`
+	IP                 string    `json:"ip,omitempty"`
 	Operation          Operation `json:"operation"`
 	State              string    `json:"state"` // available, unavailable, unknown, stale, closed
 	Reason             string    `json:"reason,omitempty"`
@@ -79,6 +92,7 @@ type Result struct {
 	SampleSongID int64 `json:"sampleSongID,omitempty"`
 }
 type observation struct {
+	channel             string
 	op                  Operation
 	route, state, stage string
 	http                int
@@ -145,6 +159,9 @@ func (m *Monitor) record(o observation) {
 		return
 	}
 	key := string(o.op) + "/" + o.route
+	if o.channel != "" {
+		key += "/" + o.channel
+	}
 	h := m.history[key]
 	if len(h) > 0 {
 		last := h[len(h)-1]
@@ -162,12 +179,15 @@ func (m *Monitor) record(o observation) {
 	m.history[key] = h
 }
 func (m *Monitor) resultLocked(op Operation, id string, now time.Time) Result {
+	return m.resultKeyLocked(op, id, string(op)+"/"+id, now)
+}
+func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) Result {
 	r := Result{Operation: op, Route: id, Entry: entry(op, id), State: "unknown", Reason: "no_sample"}
 	if m.closed {
 		r.State, r.Reason = "closed", ""
 		return r
 	}
-	h := m.history[string(op)+"/"+id]
+	h := m.history[key]
 	if len(h) == 0 {
 		return r
 	}
@@ -215,6 +235,9 @@ func (m *Monitor) resultLocked(op Operation, id string, now time.Time) Result {
 
 // resultsLocked preserves route definition order, regardless of measurements.
 func (m *Monitor) resultsLocked(op Operation, now time.Time) []Result {
+	if source := m.channel.Snapshot(); source.Candidates != nil {
+		return m.candidateResultsLocked(op, source.Candidates, now)
+	}
 	ids := routeIDs(op)
 	results := make([]Result, 0, len(ids))
 	for _, id := range ids {

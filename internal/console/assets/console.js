@@ -43,7 +43,7 @@ function renderHealth(h) {
   setText('healthSummary', h.running ? '正在检测上游…' : !checks.length ? '等待首次检测…'
     : failures.length ? '检测异常：' + failures.map(c => c.name + ' · ' + c.message).join('；')
       : '歌曲列表可用，各入口连接正常（不代表视频播放成功）');
-  setText('healthRoute', h.mode === 'socks5' ? '当前检测路径：SOCKS5 · ' + h.proxy : '当前检测路径：直连');
+  setText('healthRoute', h.mode === 'socks5' ? '当前检测路径：SOCKS5 · ' + h.proxy : h.mode === 'auto' ? '当前检测路径：直连，失败后 SOCKS5 回退' : '当前检测路径：直连');
   const dated = v => v && !v.startsWith('0001');
   setText('healthTime', h.running && dated(h.started) ? '本轮开始：' + new Date(h.started).toLocaleString()
     : dated(h.finished) ? '最近完成：' + new Date(h.finished).toLocaleString() +
@@ -193,10 +193,10 @@ function renderControls() {
   if (!$('manualLogDir').checked && s) $('logDir').value = s.defaultLogDir || s.settings.logDir;
   $('directConnectionHint').hidden = $('upstreamMode').value !== 'direct';
   $('upstreamMode').setAttribute('aria-describedby', $('upstreamMode').value === 'direct' ? 'directConnectionHint' : 'socks5PasswordHint');
-  $('socks5Address').disabled ||= $('upstreamMode').value !== 'socks5';
-  $('socks5Username').disabled ||= $('upstreamMode').value !== 'socks5';
-  $('socks5Password').disabled ||= $('upstreamMode').value !== 'socks5';
-  $('socks5Address').required = $('upstreamMode').value === 'socks5';
+  $('socks5Address').disabled ||= $('upstreamMode').value === 'direct';
+  $('socks5Username').disabled ||= $('upstreamMode').value === 'direct';
+  $('socks5Password').disabled ||= $('upstreamMode').value === 'direct';
+  $('socks5Address').required = $('upstreamMode').value !== 'direct';
   $('inventoryScan').disabled = unavailable || !lastInventory || !!lastInventory.scanning;
   if (typeof updateCacheControls === 'function') updateCacheControls();
   setText('settingsAvailability', !connected ? '连接控制台后可修改设置。' : busy

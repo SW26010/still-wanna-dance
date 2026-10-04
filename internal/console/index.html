@@ -305,7 +305,8 @@
             <label for="upstreamMode">上游连接</label>
             <select id="upstreamMode" aria-describedby="directConnectionHint" name="upstreamMode">
               <option value="direct">直连（内置 DNS）</option>
-              <option value="socks5">SOCKS5 代理</option>
+              <option value="socks5">SOCKS5 代理（强制使用）</option>
+              <option value="auto">直连与 SOCKS5（平等参与检测）</option>
             </select>
             <div class="hint" id="directConnectionHint">
               直连模式使用内置加密 DNS 解析域名，并连接目标 IP，可能影响透明代理的域名分流，使实际连接路径与预期不一致。如需由代理处理域名解析和连接，请选择「SOCKS5 代理」并配置代理地址。

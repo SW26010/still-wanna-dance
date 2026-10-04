@@ -29,6 +29,8 @@ type directDNS struct {
 	wg            sync.WaitGroup
 	closed        bool
 	paused        bool
+	changed       chan struct{}
+	leases        map[string]map[string]time.Time
 }
 
 type dnsLookup struct {
@@ -305,26 +307,10 @@ func (d *directDNS) DialContext(ctx context.Context, network, address string) (n
 			return nil, ctx.Err()
 		case r := <-results:
 			if r.err == nil {
-				d.mu.Lock()
-				entry := d.cache[host]
-				if slices.Contains(entry.ips, r.ip) {
-					ordered := []string{r.ip}
-					for _, ip := range entry.ips {
-						if ip != r.ip {
-							ordered = append(ordered, ip)
-						}
-					}
-					entry.ips = ordered
-					d.cache[host] = entry
-				}
-				d.mu.Unlock()
 				return r.conn, nil
 			}
 			failures = append(failures, r.err)
 		}
 	}
-	d.mu.Lock()
-	delete(d.cache, host)
-	d.mu.Unlock()
 	return nil, errors.Join(failures...)
 }

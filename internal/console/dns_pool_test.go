@@ -59,7 +59,7 @@ func TestDNSPoolAllEncryptedFailuresReject(t *testing.T) {
 		t.Fatal("failed encrypted resolution produced usable addresses", ips, err)
 	}
 }
-func TestDNSDialRacesCandidatesAndRemembersWinner(t *testing.T) {
+func TestDNSDialRacesCandidatesWithoutRankingDNS(t *testing.T) {
 	l, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -77,7 +77,7 @@ func TestDNSDialRacesCandidatesAndRemembersWinner(t *testing.T) {
 	d.mu.Lock()
 	first := d.cache["race.invalid"].ips[0]
 	d.mu.Unlock()
-	if first != "127.0.0.1" {
+	if first != "127.0.0.2" {
 		t.Fatal(first)
 	}
 }

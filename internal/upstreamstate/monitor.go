@@ -3,6 +3,7 @@ package upstreamstate
 import (
 	"context"
 	"errors"
+	"math"
 	"net/http"
 	"sync"
 	"time"
@@ -44,6 +45,7 @@ type Monitor struct {
 	channel       *upstreamrequest.Channel
 	revision      uint64
 	batchRevision uint64
+	preferences   map[Operation]*preference
 }
 
 func NewMonitor(o Options) (*Monitor, error) {
@@ -65,20 +67,42 @@ func requestClient(t http.RoundTripper) *http.Client {
 	return &http.Client{Transport: t, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 }
 
-// mu is held. Changes invalidate all results before any reader can reuse them.
+// mu is held. Changes discard affected paths before any reader can reuse them.
 func (m *Monitor) refreshChannelLocked() upstreamrequest.Snapshot {
 	s := m.channel.Snapshot()
 	if s.Revision != m.revision {
 		m.revision = s.Revision
-		m.history = make(map[string][]observation)
-		m.songID = 0
-		m.songAt = time.Time{}
+		if s.Candidates != nil {
+			// Retain unchanged direct paths. Proxy configurations have distinct
+			// opaque identities, so replaced credentials cannot inherit samples.
+			valid := make(map[string]bool)
+			for _, op := range operations {
+				for _, route := range routeIDs(op) {
+					for _, c := range s.Candidates.Current(entry(op, route)) {
+						valid[string(op)+"/"+route+"/"+c.ID] = true
+					}
+				}
+			}
+			for key := range m.history {
+				if !valid[key] {
+					delete(m.history, key)
+				}
+			}
+		} else {
+			m.history = make(map[string][]observation)
+			m.preferences = nil
+			m.songID = 0
+			m.songAt = time.Time{}
+		}
 		m.finished = time.Time{}
 		m.nextCheck = time.Time{}
 	}
 	return s
 }
 func validatePolicy(p Policy) error {
+	if math.IsNaN(p.SwitchImprovement) || p.SwitchImprovement <= 0 || p.SwitchImprovement >= 1 || p.SwitchSamples < 1 {
+		return errors.New("invalid switching policy")
+	}
 	if p.Interval <= 0 || p.Lifetime <= 0 || p.FailureLifetime <= 0 || p.SampleLifetime <= 0 || p.RequestTimeout <= 0 || p.ResourceTimeout <= 0 {
 		return errors.New("policy durations must be positive")
 	}
@@ -100,6 +124,9 @@ func (m *Monitor) SetPolicy(p Policy) error {
 	m.policy = p
 	if m.scheduler != nil && !m.finished.IsZero() {
 		m.nextCheck = m.finished.Add(p.Interval)
+		if source := m.refreshChannelLocked(); source.Candidates != nil {
+			m.scheduleCandidatesLocked(source.Candidates)
+		}
 	}
 	select {
 	case m.wake <- struct{}{}:
@@ -149,11 +176,22 @@ func (m *Monitor) Start() error {
 	m.scheduler = make(chan struct{})
 	go func() {
 		defer close(m.scheduler)
+		var candidatesChanged <-chan struct{}
+		var subscribedRevision uint64
 		for {
 			m.mu.Lock()
 			source := m.refreshChannelLocked()
 			delay := time.Until(m.nextCheck)
 			m.mu.Unlock()
+			// Retain the subscription until consumed, including across Check and
+			// timer/policy wakeups. Re-reading Changed earlier can lose an event.
+			if subscribedRevision != source.Revision {
+				candidatesChanged = nil
+				if source.Candidates != nil {
+					candidatesChanged = source.Candidates.Changed()
+				}
+				subscribedRevision = source.Revision
+			}
 			if source.Transport == nil {
 				select {
 				case <-m.ctx.Done():
@@ -166,6 +204,16 @@ func (m *Monitor) Start() error {
 				if err := m.Check(m.ctx); err != nil && !errors.Is(err, upstreamrequest.ErrUnavailable) {
 					return
 				}
+				select {
+				case <-candidatesChanged:
+					candidatesChanged = source.Candidates.Changed()
+					m.mu.Lock()
+					if !m.closed {
+						m.nextCheck = time.Time{}
+					}
+					m.mu.Unlock()
+				default:
+				}
 				continue
 			}
 			timer := time.NewTimer(delay)
@@ -177,6 +225,12 @@ func (m *Monitor) Start() error {
 				timer.Stop()
 			case <-source.Changed:
 				timer.Stop()
+			case <-candidatesChanged:
+				timer.Stop()
+				candidatesChanged = source.Candidates.Changed()
+				m.mu.Lock()
+				m.nextCheck = time.Time{}
+				m.mu.Unlock()
 			case <-timer.C:
 			}
 		}
@@ -265,6 +319,9 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 			m.finished = time.Now()
 			if m.scheduler != nil {
 				m.nextCheck = m.finished.Add(m.policy.Interval)
+				if source.Candidates != nil {
+					m.scheduleCandidatesLocked(source.Candidates)
+				}
 			}
 		}
 		close(done)
@@ -272,6 +329,10 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 	m.mu.Lock()
 	p := m.policy
 	m.mu.Unlock()
+	if source.Candidates != nil {
+		m.checkCandidates(ctx, p, source, record)
+		return
+	}
 	catalog, id := probeCatalog(ctx, client, p)
 	m.mu.Lock()
 	record(catalog)

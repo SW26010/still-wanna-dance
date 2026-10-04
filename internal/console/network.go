@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"still-wanna-dance/internal/upstreamrequest"
+
 	"golang.org/x/net/proxy"
 )
 
@@ -107,19 +109,37 @@ func NewAuthenticatedSOCKS5Dialer(address, username, password string) (func(cont
 
 func (c *Console) networkFor(s Settings) (upstreamDialFunc, *http.Client, error) {
 	dial := upstreamDialFunc(c.dns.DialContext)
-	if s.UpstreamMode == "socks5" {
+	var proxyDial upstreamrequest.DialFunc
+	if s.UpstreamMode == "socks5" || s.UpstreamMode == "auto" {
 		var err error
-		dial, err = NewAuthenticatedSOCKS5Dialer(s.SOCKS5Address, s.SOCKS5Username, s.SOCKS5Password)
+		proxyDial, err = NewAuthenticatedSOCKS5Dialer(s.SOCKS5Address, s.SOCKS5Username, s.SOCKS5Password)
 		if err != nil {
 			return nil, nil, err
 		}
+		if s.UpstreamMode == "socks5" {
+			dial = upstreamDialFunc(proxyDial)
+		} else {
+			// Legacy raw dial callers have no operation/measurement context.
+			// Preserve direct-first fallback; explicit candidates are ranked by Monitor.
+			dial = func(ctx context.Context, network, address string) (net.Conn, error) {
+				conn, err := c.dns.DialContext(ctx, network, address)
+				if err == nil || ctx.Err() != nil {
+					return conn, err
+				}
+				return proxyDial(ctx, network, address)
+			}
+		}
+	}
+	pool, err := upstreamrequest.NewPool(s.UpstreamMode, c.dns, proxyDial)
+	if err != nil {
+		return nil, nil, err
 	}
 	client := &http.Client{
 		Timeout: 30 * time.Second,
-		Transport: &http.Transport{
+		Transport: &upstreamrequest.Transport{Pool: pool, RoundTripper: &http.Transport{
 			DialContext: dial, ResponseHeaderTimeout: 20 * time.Second,
 			TLSHandshakeTimeout: 10 * time.Second, IdleConnTimeout: 90 * time.Second,
-		},
+		}},
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	return dial, client, nil

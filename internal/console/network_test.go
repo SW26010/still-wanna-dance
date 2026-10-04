@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"still-wanna-dance/internal/upstreamrequest"
 	"strconv"
 	"strings"
 	"sync"
@@ -379,7 +380,7 @@ func TestConsoleSOCKS5APIAndHTTPSRelay(t *testing.T) {
 	if err := c.save(s); err != nil {
 		t.Fatal(err)
 	}
-	c.client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{RootCAs: roots}
+	c.client.Transport.(*upstreamrequest.Transport).RoundTripper.(*http.Transport).TLSClientConfig = &tls.Config{RootCAs: roots}
 	check := func(client *http.Client, target string) {
 		t.Helper()
 		resp, err := client.Get(target)

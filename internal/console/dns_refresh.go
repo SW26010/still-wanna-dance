@@ -101,15 +101,30 @@ func (d *directDNS) queryLocked(parent context.Context, host string, s *dnsState
 		s.latency, s.err = time.Since(s.attempted), err
 		if err == nil {
 			ips = slices.Clone(ips)
-			// Keep a proven address first only while it remains in the new answer.
-			if old := d.cache[host].ips; len(old) > 0 {
-				if i := slices.Index(ips, old[0]); i > 0 {
-					copy(ips[1:i+1], ips[:i])
-					ips[0] = old[0]
-				}
-			}
+			old := slices.Clone(d.cache[host].ips)
+			fresh := slices.Clone(ips)
+			slices.Sort(old)
+			slices.Sort(fresh)
+			changed := !slices.Equal(old, fresh) || !time.Now().Before(d.cache[host].until)
 			s.observed = time.Now()
 			d.cache[host] = dnsEntry{ips, s.observed.Add(max(ttl, 0))}
+			if d.leases == nil {
+				d.leases = make(map[string]map[string]time.Time)
+			}
+			if d.leases[host] == nil {
+				d.leases[host] = make(map[string]time.Time)
+			}
+			for ip, until := range d.leases[host] {
+				if !s.observed.Before(until) {
+					delete(d.leases[host], ip)
+				}
+			}
+			for _, ip := range ips {
+				d.leases[host][ip] = d.cache[host].until
+			}
+			if changed {
+				d.changedLocked()
+			}
 			call.ips = slices.Clone(ips)
 		}
 		call.err = err
@@ -155,6 +170,8 @@ func (d *directDNS) scheduleLocked(host string, s *dnsState) {
 		if time.Since(s.lastUsed) >= d.policy.IdleTimeout {
 			delete(d.states, host)
 			delete(d.cache, host)
+			delete(d.leases, host)
+			d.changedLocked()
 			return
 		}
 		d.queryLocked(d.ctx, host, s)

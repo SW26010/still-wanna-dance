@@ -314,6 +314,10 @@ test('SOCKS5 settings toggle, preserve the endpoint, and lock while running', as
   get('settings').dispatchEvent({ type: 'change' });
   assert.equal(get('socks5Address').disabled, true);
   assert.equal(get('socks5Address').value, '127.0.0.1:7891');
+  get('upstreamMode').value = 'auto';
+  get('settings').dispatchEvent({ type: 'change' });
+  assert.equal(get('socks5Address').disabled, false);
+  assert.equal(get('socks5Address').required, true);
   get('upstreamMode').value = 'socks5';
   get('settings').dispatchEvent({ type: 'change' });
   p.fireTimer();

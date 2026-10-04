@@ -12,9 +12,10 @@ var ErrUnavailable = errors.New("upstream request channel is not ready")
 var Default = NewChannel()
 
 type Snapshot struct {
-	Transport http.RoundTripper
-	Revision  uint64
-	Changed   <-chan struct{}
+	Transport  http.RoundTripper
+	Revision   uint64
+	Changed    <-chan struct{}
+	Candidates Candidates
 }
 
 type Channel struct {
@@ -28,7 +29,8 @@ func NewChannel() *Channel { return &Channel{changed: make(chan struct{})} }
 func (c *Channel) Snapshot() Snapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return Snapshot{c.transport, c.revision, c.changed}
+	p, _ := c.transport.(Candidates)
+	return Snapshot{Transport: c.transport, Revision: c.revision, Changed: c.changed, Candidates: p}
 }
 
 // Publish never owns or closes the transport. Revision is a release token so

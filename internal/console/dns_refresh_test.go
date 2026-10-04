@@ -53,7 +53,7 @@ func TestDNSRefreshIsAutomaticAndKeepsValidAnswers(t *testing.T) {
 	})
 }
 
-func TestDNSRefreshSharesForegroundAndPreservesWinner(t *testing.T) {
+func TestDNSRefreshSharesForegroundAndUsesAnswerOrder(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		d := &directDNS{}
 		defer d.close()
@@ -80,7 +80,7 @@ func TestDNSRefreshSharesForegroundAndPreservesWinner(t *testing.T) {
 		for range 10 {
 			go func() {
 				ips, err := d.lookupShared(context.Background(), "example.com", query)
-				if err != nil || !slices.Equal(ips, []string{"203.0.113.2", "203.0.113.1"}) {
+				if err != nil || !slices.Equal(ips, []string{"203.0.113.1", "203.0.113.2"}) {
 					t.Errorf("shared refresh: %v %v", ips, err)
 				}
 			}()

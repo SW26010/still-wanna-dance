@@ -172,11 +172,11 @@ func absoluteSettings(s Settings) (Settings, error) {
 	if s.UpstreamMode == "" {
 		s.UpstreamMode = "direct"
 	}
-	if s.UpstreamMode != "direct" && s.UpstreamMode != "socks5" {
-		return s, errors.New("上游连接必须是 direct 或 socks5")
+	if s.UpstreamMode != "direct" && s.UpstreamMode != "socks5" && s.UpstreamMode != "auto" {
+		return s, errors.New("上游连接必须是 direct、socks5 或 auto")
 	}
 	s.SOCKS5Address = strings.TrimSpace(s.SOCKS5Address)
-	if s.UpstreamMode == "socks5" {
+	if s.UpstreamMode == "socks5" || s.UpstreamMode == "auto" {
 		if err := validateSOCKS5Address(s.SOCKS5Address); err != nil {
 			return s, err
 		}
@@ -323,6 +323,9 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 	c.settingsRevision++
 	oldClient := c.client
 	if networkChanged {
+		if tr, ok := oldClient.Transport.(interface{ Retire() }); ok {
+			tr.Retire()
+		}
 		c.upstreamDial, c.client = dial, client
 		c.dns.setBackgroundEnabled(s.UpstreamMode != "socks5")
 		c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport)
@@ -573,6 +576,9 @@ func (c *Console) Close() error {
 	}
 	c.lifecycleMu.Unlock()
 	c.client.CloseIdleConnections()
+	if tr, ok := c.client.Transport.(interface{ Retire() }); ok {
+		tr.Retire()
+	}
 	if c.dns != nil {
 		c.dns.close()
 	}

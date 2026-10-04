@@ -26,6 +26,7 @@ func TestAutomaticThroughputCooldownSurvivesRestart(t *testing.T) {
 			light.Add(1)
 		default:
 			full.Add(1)
+			time.Sleep(time.Millisecond)
 		}
 		return fixture(r)
 	}))
@@ -59,8 +60,8 @@ func TestAutomaticThroughputCooldownSurvivesRestart(t *testing.T) {
 		t.Fatal("restart bypassed cooldown")
 	}
 	for _, r := range restarted.Results(Resource) {
-		if r.State != "available" || r.EstimatedLatencyMS == nil || r.EstimatedSpeedBPS != nil || r.TransferDurationMS != nil {
-			t.Fatalf("light probe invented speed: %+v", r)
+		if r.State != "available" || r.EstimatedLatencyMS == nil || r.EstimatedSpeedBPS == nil || r.LastThroughput == nil || r.LastThroughput.SongID != 42 {
+			t.Fatalf("persisted throughput not restored: %+v", r)
 		}
 	}
 	restarted.Close()
@@ -93,10 +94,11 @@ func TestManualThroughputResetsPersistedCooldown(t *testing.T) {
 					if err != nil {
 						t.Error(err)
 					}
-					var saved time.Time
-					if err := json.Unmarshal(data, &saved); err != nil {
+					var state throughputState
+					if err := json.Unmarshal(data, &state); err != nil {
 						t.Error(err)
 					}
+					saved := state.LastAttempt
 					if !saved.After(old) {
 						t.Error("timer not persisted before transfer")
 					}
@@ -141,6 +143,59 @@ func TestManualThroughputResetsPersistedCooldown(t *testing.T) {
 				t.Fatal("non-throughput check changed timer")
 			}
 		})
+	}
+}
+
+func TestHistoricalThroughputSurvivesRestartWithoutRevivingHealth(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "throughput.json")
+	ch := upstreamrequest.NewChannel()
+	ch.Publish(transportFunc(fixture))
+	m, err := newMonitor(Options{ThroughputStatePath: path}, ch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := time.Now().Add(-time.Hour)
+	m.lastThroughput = at
+	m.record(observation{op: Resource, route: "cf", state: "available", at: at, songID: 42, bytes: 16 << 20, transferDuration: 2 * time.Second})
+	m.Close()
+	restored, err := newMonitor(Options{ThroughputStatePath: path}, ch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restored.Close()
+	r := restored.Results(Resource)[0]
+	if r.State != "unknown" || r.EstimatedSpeedBPS != nil || r.LastThroughput == nil || r.LastThroughput.SongID != 42 || !r.LastThroughput.ObservedAt.Equal(at) || r.LastThroughput.Bytes != 16<<20 || r.LastThroughput.Duration != 2*time.Second {
+		t.Fatalf("history not restored independently of health: %+v", r)
+	}
+	// Fresh failures and light checks must not replace historical ownership.
+	restored.record(observation{op: Resource, route: "cf", state: "network_error", at: time.Now(), songID: 73})
+	if r = restored.Results(Resource)[0]; r.State != "unavailable" || r.LastThroughput.SongID != 42 {
+		t.Fatal(r)
+	}
+	s := restored.Snapshot()
+	if !s.NextThroughput.Equal(at.Add(15 * time.Minute)) {
+		t.Fatal(s.NextThroughput)
+	}
+}
+
+func TestThroughputWaitingReasons(t *testing.T) {
+	m := testMonitor(t, fixture)
+	now := time.Now()
+	for _, tc := range []struct {
+		status Status
+		want   string
+	}{
+		{Status{Closed: true}, "closed"},
+		{Status{ResourcesPaused: true}, "business_busy"},
+		{Status{}, "not_scheduled"},
+		{Status{Scheduled: true, NextThroughput: now.Add(time.Minute)}, "cooldown"},
+		{Status{Scheduled: true, Checking: true}, "preparing"},
+		{Status{Scheduled: true}, "waiting_sample"},
+		{Status{Scheduled: true, Results: []Result{{Operation: PlaybackURL, State: "available"}}}, "due"},
+	} {
+		if got := m.throughputStatus(tc.status, now); got != tc.want {
+			t.Fatal(got, tc.want)
+		}
 	}
 }
 

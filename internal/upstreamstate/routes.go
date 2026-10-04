@@ -77,8 +77,9 @@ func normalized(p Policy) Policy {
 // identify the checked service in every state; they are not recommendations.
 // A resource Entry is never a playable URL for an arbitrary video.
 type Result struct {
-	ThroughputSongID     int64     `json:"throughputSongID,omitempty"`
-	ThroughputObservedAt time.Time `json:"throughputObservedAt"`
+	LastThroughput       *ThroughputSample `json:"lastThroughput,omitempty"`
+	ThroughputSongID     int64             `json:"throughputSongID,omitempty"`
+	ThroughputObservedAt time.Time         `json:"throughputObservedAt"`
 	// CatalogTime preserves the upstream response time verbatim, not the probe time.
 	CatalogTime        string    `json:"catalogTime,omitempty"`
 	ChannelID          string    `json:"channelID,omitempty"`
@@ -204,6 +205,7 @@ func (m *Monitor) record(o observation) {
 			return
 		}
 		m.throughput[key] = o
+		m.persistThroughputResult()
 	}
 }
 func (m *Monitor) resultLocked(op Operation, id string, now time.Time) Result {
@@ -212,7 +214,13 @@ func (m *Monitor) resultLocked(op Operation, id string, now time.Time) Result {
 func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (r Result) {
 	r = Result{Operation: op, Route: id, Entry: entry(op, id), State: "unknown", Reason: "no_sample"}
 	defer func() {
-		if op != Resource || r.State != "available" {
+		if op != Resource {
+			return
+		}
+		if o, ok := m.throughput[key]; ok {
+			r.LastThroughput = &ThroughputSample{ObservedAt: o.at, SongID: o.songID, Bytes: o.bytes, Duration: o.transferDuration}
+		}
+		if r.State != "available" {
 			return
 		}
 		r.EstimatedSpeedBPS, r.TransferDurationMS, r.TransferredBytes = nil, nil, 0

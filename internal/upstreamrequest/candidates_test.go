@@ -130,4 +130,13 @@ func TestAutoKeepsProxyWhenDNSFails(t *testing.T) {
 	if err != nil || len(cs) != 1 || cs[0].Mode != "socks5" || strings.Contains(cs[0].ID, "@") {
 		t.Fatal(cs, err)
 	}
+	cs, ready, err := p.CandidatesWithReadiness(context.Background(), "https://example.com")
+	if err != nil || len(cs) != 1 || ready.Direct || !ready.Proxy {
+		t.Fatal("proxy fallback must not confirm DNS membership", ready, err)
+	}
+	d.err = nil
+	_, ready, err = p.CandidatesWithReadiness(context.Background(), "https://example.com")
+	if err != nil || !ready.Direct || !ready.Proxy {
+		t.Fatal("successful DNS not ready", ready, err)
+	}
 }

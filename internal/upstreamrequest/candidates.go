@@ -2,6 +2,7 @@ package upstreamrequest
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"net"
 	"net/http"
@@ -35,6 +36,13 @@ type Candidates interface {
 	Current(string) []Candidate
 	Changed() <-chan struct{}
 }
+
+// Readiness describes authoritative membership, not mere path availability.
+// A disabled mode is ready too: its candidate set is deliberately empty.
+type CandidateReadiness struct{ Direct, Proxy bool }
+type CandidateDiscovery interface {
+	CandidatesWithReadiness(context.Context, string) ([]Candidate, CandidateReadiness, error)
+}
 type DialFunc func(context.Context, string, string) (net.Conn, error)
 
 // Pool owns pinned transports, not DNS. A new Pool represents a network config.
@@ -50,14 +58,31 @@ type Pool struct {
 
 var poolSequence atomic.Uint64
 
-func NewPool(mode string, dns DNSPool, proxy DialFunc) (*Pool, error) {
+func NewPool(mode string, dns DNSPool, proxy DialFunc, persistentProxyID ...string) (*Pool, error) {
 	if mode != "direct" && mode != "socks5" && mode != "auto" {
 		return nil, errors.New("invalid channel mode")
 	}
 	if mode != "socks5" && dns == nil || mode != "direct" && proxy == nil {
 		return nil, errors.New("missing channel dependency")
 	}
-	return &Pool{mode: mode, dns: dns, proxy: proxy, transports: make(map[string]*http.Transport), proxyID: strconv.FormatUint(poolSequence.Add(1), 10)}, nil
+	id := strconv.FormatUint(poolSequence.Add(1), 10)
+	if len(persistentProxyID) > 0 && persistentProxyID[0] != "" {
+		if !PersistentProxyID(persistentProxyID[0]) {
+			return nil, errors.New("invalid persistent proxy identity")
+		}
+		id = persistentProxyID[0]
+	}
+	return &Pool{mode: mode, dns: dns, proxy: proxy, transports: make(map[string]*http.Transport), proxyID: id}, nil
+}
+
+// PersistentProxyID identifies a versioned, keyed configuration fingerprint.
+// Numeric pool sequence identities are never safe to restore across processes.
+func PersistentProxyID(id string) bool {
+	if !strings.HasPrefix(id, "stable-v1-") {
+		return false
+	}
+	b, err := hex.DecodeString(strings.TrimPrefix(id, "stable-v1-"))
+	return err == nil && len(b) == 32
 }
 func targetHost(target string) string {
 	u, err := url.Parse(target)
@@ -67,19 +92,26 @@ func targetHost(target string) string {
 	return strings.ToLower(u.Hostname())
 }
 func (p *Pool) Candidates(ctx context.Context, target string) ([]Candidate, error) {
+	cs, _, err := p.CandidatesWithReadiness(ctx, target)
+	return cs, err
+}
+
+func (p *Pool) CandidatesWithReadiness(ctx context.Context, target string) ([]Candidate, CandidateReadiness, error) {
 	host := targetHost(target)
 	if host == "" {
-		return nil, errors.New("invalid channel target")
+		return nil, CandidateReadiness{}, errors.New("invalid channel target")
 	}
+	ready := CandidateReadiness{Direct: p.mode == "socks5", Proxy: true}
 	var err error
 	if p.mode != "socks5" {
 		_, err = p.dns.Addresses(ctx, host)
+		ready.Direct = err == nil && ctx.Err() == nil
 	}
 	cs := p.Current(target)
 	if len(cs) > 0 {
-		return cs, nil
+		return cs, ready, nil
 	}
-	return nil, err
+	return nil, ready, err
 }
 func (p *Pool) Changed() <-chan struct{} {
 	if p.mode == "socks5" {

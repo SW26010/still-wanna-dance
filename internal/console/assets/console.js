@@ -47,6 +47,10 @@ function renderHealth(h, settings) {
   const dated = v => v && !v.startsWith('0001');
   const date = v => dated(v) ? new Date(v).toLocaleString() : '—';
   setText('healthTime', '最近完成：' + date(h.finished) + ' · 下次检测：' + date(h.nextCheck));
+  const throughputStates = { closed: '监测已关闭', business_busy: '业务正在加载视频，自动测速已暂停', running: '正在依次测量资源通道', preparing: '正在获取歌曲及资源地址', other_manual_check: '等待当前手动检测结束', not_scheduled: '自动调度尚未启动', cooldown: '等待 15 分钟间隔到期', due: '已到期，等待调度', waiting_sample: '等待有效歌曲及资源地址', persistence_error: '保存测速记录失败，自动测速已延期' };
+  const throughputWait = throughputStates[h.throughputStatus] || '等待调度信息';
+  setText('healthThroughputSchedule', '下次自动吞吐测速：' + (dated(h.nextThroughput) ? date(h.nextThroughput) : '首次具备样本时') +
+    ' · ' + throughputWait + (h.throughputSaveFailed ? ' · 测速记录保存失败，重启可能无法恢复' : ''));
   const groups = [
     ['healthCatalog', 'catalog', 'api'],
     ['healthCatalogKiva', 'catalog', 'kiva'],
@@ -73,11 +77,21 @@ function renderHealth(h, settings) {
         ' · 观测 ' + date(r.observedAt) + ' · 有效至 ' + date(r.validUntil);
       const throughput = document.createElement('div');
       throughput.className = 'hint';
-      throughput.textContent = '吞吐样本：' + (r.estimatedSpeedBPS != null ?
-        (r.estimatedSpeedBPS / 1024).toFixed(1) + ' KiB/s' +
-        (r.throughputSongID ? ' · 歌曲 #' + r.throughputSongID : '') +
-        ' · 测速时间 ' + date(r.throughputObservedAt) +
-        (r.transferDurationMS != null ? ' · 下载 ' + (r.transferDurationMS / 1000).toFixed(2) + ' s / ' + (r.transferredBytes / 1048576).toFixed(2) + ' MiB' : '') : '暂无有效数据');
+      const saved = r.lastThroughput;
+      const speed = saved ? saved.bytes / (saved.duration / 1e9) : r.estimatedSpeedBPS;
+      const song = saved ? saved.songID : r.throughputSongID;
+      const at = saved ? saved.observedAt : r.throughputObservedAt;
+      const durationMS = saved ? saved.duration / 1e6 : r.transferDurationMS;
+      const bytes = saved ? saved.bytes : r.transferredBytes;
+      const playback = results.filter(x => x.operation === 'playback_url' && x.route === r.route);
+      const missingSample = playback.length && playback.every(x => x.state !== 'available');
+      const noData = r.state === 'unavailable' ? '尚无成功样本 · 当前资源检查失败：' + (reasons[r.reason] || r.reason || '未知原因') : missingSample ? '尚无成功样本 · 未取得有效播放地址' : '尚无成功样本 · ' + throughputWait;
+      throughput.textContent = '吞吐样本：' + (speed != null ?
+        (speed / 1024).toFixed(1) + ' KiB/s' +
+        (song ? ' · 歌曲 #' + song : '') +
+        ' · 测速时间 ' + date(at) +
+        (durationMS != null ? ' · 下载 ' + (durationMS / 1000).toFixed(2) + ' s / ' + (bytes / 1048576).toFixed(2) + ' MiB' : '') +
+        (saved && Date.now() >= new Date(at).getTime() + 15 * 60 * 1000 ? ' · 历史样本（已过期）' : '') : noData);
       row.append(title, detail, latency, throughput);
       return row;
     }

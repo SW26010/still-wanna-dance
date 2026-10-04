@@ -16,49 +16,54 @@ type Options struct {
 	ThroughputStatePath string
 }
 type Status struct {
-	Manual          bool      `json:"manual"`
-	CheckKind       CheckKind `json:"checkKind,omitempty"`
-	ResourcesPaused bool      `json:"resourcesPaused"`
-	Checking        bool      `json:"checking"`
-	Scheduled       bool      `json:"scheduled"`
-	Closed          bool      `json:"closed"`
-	Started         time.Time `json:"started"`
-	Finished        time.Time `json:"finished"`
-	NextCheck       time.Time `json:"nextCheck"`
-	Results         []Result  `json:"results"`
-	Policy          Policy    `json:"policy"`
+	LastThroughputAttempt time.Time `json:"lastThroughputAttempt"`
+	NextThroughput        time.Time `json:"nextThroughput"`
+	ThroughputStatus      string    `json:"throughputStatus"`
+	ThroughputSaveFailed  bool      `json:"throughputSaveFailed"`
+	Manual                bool      `json:"manual"`
+	CheckKind             CheckKind `json:"checkKind,omitempty"`
+	ResourcesPaused       bool      `json:"resourcesPaused"`
+	Checking              bool      `json:"checking"`
+	Scheduled             bool      `json:"scheduled"`
+	Closed                bool      `json:"closed"`
+	Started               time.Time `json:"started"`
+	Finished              time.Time `json:"finished"`
+	NextCheck             time.Time `json:"nextCheck"`
+	Results               []Result  `json:"results"`
+	Policy                Policy    `json:"policy"`
 }
 
 // Monitor is independent of consumers and network configuration. Nothing starts
 // automatically; the owner explicitly starts and closes the monitor.
 type Monitor struct {
-	batchKind           CheckKind
-	batchCtx            context.Context
-	batchCancel         context.CancelFunc
-	manualDone          chan struct{}
-	throughputStatePath string
-	lastThroughput      time.Time
-	batchThroughput     *bool
-	throughput          map[string]observation
-	batchManual         bool
-	mu                  sync.Mutex
-	ctx                 context.Context
-	cancel              context.CancelFunc
-	policy              Policy
-	started             time.Time
-	finished            time.Time
-	nextCheck           time.Time
-	history             map[string][]observation
-	songID              int64
-	songAt              time.Time
-	active              chan struct{}
-	scheduler           chan struct{}
-	closed              bool
-	wake                chan struct{}
-	channel             *upstreamrequest.Channel
-	revision            uint64
-	batchRevision       uint64
-	preferences         map[Operation]*preference
+	throughputSaveFailed bool
+	batchKind            CheckKind
+	batchCtx             context.Context
+	batchCancel          context.CancelFunc
+	manualDone           chan struct{}
+	throughputStatePath  string
+	lastThroughput       time.Time
+	batchThroughput      *bool
+	throughput           map[string]observation
+	batchManual          bool
+	mu                   sync.Mutex
+	ctx                  context.Context
+	cancel               context.CancelFunc
+	policy               Policy
+	started              time.Time
+	finished             time.Time
+	nextCheck            time.Time
+	history              map[string][]observation
+	songID               int64
+	songAt               time.Time
+	active               chan struct{}
+	scheduler            chan struct{}
+	closed               bool
+	wake                 chan struct{}
+	channel              *upstreamrequest.Channel
+	revision             uint64
+	batchRevision        uint64
+	preferences          map[Operation]*preference
 }
 
 func NewMonitor(o Options) (*Monitor, error) {
@@ -104,7 +109,6 @@ func (m *Monitor) refreshChannelLocked() upstreamrequest.Snapshot {
 			for key := range m.history {
 				if !valid[key] {
 					delete(m.history, key)
-					delete(m.throughput, key)
 				}
 			}
 		} else {
@@ -189,6 +193,12 @@ func (m *Monitor) Snapshot() Status {
 	for _, op := range operations {
 		s.Results = append(s.Results, m.resultsLocked(op, now)...)
 	}
+	s.LastThroughputAttempt = m.lastThroughput
+	if !m.lastThroughput.IsZero() {
+		s.NextThroughput = m.lastThroughput.Add(throughputInterval)
+	}
+	s.ThroughputSaveFailed = m.throughputSaveFailed
+	s.ThroughputStatus = m.throughputStatus(s, now)
 	return s
 }
 func (m *Monitor) Start() error {

@@ -33,7 +33,7 @@ test('canonical monitor renders every channel, throughput, unknown and stale sta
   assert.doesNotMatch(rows[0].children[2].textContent, /歌曲 #42|KiB/);
   assert.doesNotMatch(rows[0].children[3].textContent, /歌曲 #73/);
   assert.match(rows[0].children[3].textContent, /测速时间/);
-  assert.equal(rows[1].children[3].textContent, '吞吐样本：暂无有效数据');
+  assert.match(rows[1].children[3].textContent, /尚无成功样本.*当前资源检查失败：源站响应超时/);
   assert.match(rows[1].children[0].textContent, /源站响应超时/);
   assert.match(rows[2].children[0].textContent, /待测/);
   assert.match(rows[3].children[0].textContent, /已过期/);
@@ -92,6 +92,25 @@ test('scoped manual buttons work while automatic resource checks are paused', as
   await flush();
   for (const id of ['healthCheckCatalog', 'healthCheckPlayback', 'healthCheckLatency', 'healthCheckThroughput']) assert.equal(get(id).disabled, true);
   assert.match(get('healthSummary').textContent, /手动检测中：视频资源吞吐速度/);
+});
+
+test('throughput history and automatic waiting reason remain visible independently', async () => {
+  const p = page(), get = id => p.document.getElementById(id);
+  p.finishBatch(0, {}, { upstreamMonitor: { throughputStatus: 'cooldown', nextThroughput: '2030-01-01T00:15:00Z', results: [
+    { operation: 'resource', route: 'cf', state: 'unknown', entry: 'https://play.udon.dance', lastThroughput: { observedAt: '2020-01-01T00:00:00Z', songID: 42, bytes: 16777216, duration: 2000000000 } },
+    { operation: 'resource', route: 'hkg', state: 'unknown', entry: 'https://nya.xin.moe' },
+    { operation: 'playback_url', route: 'hkg', state: 'unavailable', reason: 'invalid' },
+  ] } });
+  await flush();
+  assert.match(get('healthThroughputSchedule').textContent, /下次自动吞吐测速：.*2030.*等待 15 分钟间隔到期/);
+  const cf = get('healthResourceCf').children[0];
+  assert.match(cf.children[2].textContent, /暂无有效数据/);
+  assert.match(cf.children[3].textContent, /8192.0 KiB\/s.*歌曲 #42.*下载 2.00 s \/ 16.00 MiB.*历史样本（已过期）/);
+  assert.match(get('healthResourceHkg').children[0].children[3].textContent, /未取得有效播放地址/);
+  p.fireTimer();
+  p.finishBatch(2, {}, { upstreamMonitor: { throughputStatus: 'business_busy', results: [] } });
+  await flush();
+  assert.match(get('healthThroughputSchedule').textContent, /业务正在加载视频，自动测速已暂停/);
 });
 
 test('budget stop shows a settings link and clears for the next task', async () => {

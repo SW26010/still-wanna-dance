@@ -110,9 +110,14 @@ func NewAuthenticatedSOCKS5Dialer(address, username, password string) (func(cont
 func (c *Console) networkFor(s Settings) (upstreamDialFunc, *http.Client, error) {
 	dial := upstreamDialFunc(c.dns.DialContext)
 	var proxyDial upstreamrequest.DialFunc
+	var proxyID string
 	if s.UpstreamMode == "socks5" || s.UpstreamMode == "auto" {
 		var err error
 		proxyDial, err = NewAuthenticatedSOCKS5Dialer(s.SOCKS5Address, s.SOCKS5Username, s.SOCKS5Password)
+		if err != nil {
+			return nil, nil, err
+		}
+		proxyID, err = c.proxyIdentity(s)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -130,7 +135,7 @@ func (c *Console) networkFor(s Settings) (upstreamDialFunc, *http.Client, error)
 			}
 		}
 	}
-	pool, err := upstreamrequest.NewPool(s.UpstreamMode, c.dns, proxyDial)
+	pool, err := upstreamrequest.NewPool(s.UpstreamMode, c.dns, proxyDial, proxyID)
 	if err != nil {
 		return nil, nil, err
 	}

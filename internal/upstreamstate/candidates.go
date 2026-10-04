@@ -210,10 +210,18 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 		}
 		wg.Wait()
 	}
+	prepared := make(map[string]upstreamrequest.CandidateReadiness)
 	prepare := func(target string) []upstreamrequest.Candidate {
 		qctx, cancel := context.WithTimeout(ctx, p.RequestTimeout)
 		defer cancel()
-		cs, _ := provider.Candidates(qctx, target)
+		if discovery, ok := provider.(upstreamrequest.CandidateDiscovery); ok {
+			cs, ready, _ := discovery.CandidatesWithReadiness(qctx, target)
+			prepared[target] = ready
+			return cs
+		}
+		cs, err := provider.Candidates(qctx, target)
+		ready := err == nil && qctx.Err() == nil
+		prepared[target] = upstreamrequest.CandidateReadiness{Direct: ready, Proxy: ready}
 		return cs
 	}
 	// Populate resource hosts even without a playable sample, so snapshots
@@ -322,8 +330,13 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 		for key := range m.history {
 			if !valid[key] {
 				delete(m.history, key)
-				delete(m.throughput, key)
 			}
+		}
+		// Restored samples need not have any entry in history. Only prune
+		// authoritative mode-specific sets: DNS failure preserves direct
+		// history even when proxy fallback succeeds. Unqueried routes wait.
+		if ctx.Err() == nil {
+			m.pruneThroughputLocked(valid, prepared)
 		}
 	}
 }

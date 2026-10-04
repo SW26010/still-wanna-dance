@@ -15,7 +15,10 @@ test('canonical monitor renders every channel, throughput, unknown and stale sta
       { operation: 'resource', route: 'cf', mode: 'direct', ip: '1.2.3.4', channelID: 'direct/cf/1.2.3.4', state: 'available', entry: 'https://play.udon.dance', estimatedSpeedBPS: 2048, transferDurationMS: 2000, transferredBytes: 16777216, sampleSongID: 42 },
       { operation: 'resource', route: 'cf', mode: 'socks5', state: 'unavailable', reason: 'origin_timeout', http: 524 },
       { operation: 'resource', route: 'hkg', mode: 'direct', ip: '2.3.4.5', state: 'unknown', reason: 'no_sample' },
-      { operation: 'catalog', route: 'api', mode: 'direct', state: 'stale', reason: 'expired' },
+      { operation: 'catalog', route: 'api', mode: 'direct', state: 'stale', reason: 'expired', catalogTime: '20261004235822' },
+      { operation: 'catalog', route: 'kiva', mode: 'socks5', state: 'available', catalogTime: '20261005010000', entry: 'https://x.kiva.moe/api/v2/wanna/songs', estimatedLatencyMS: 24 },
+      { operation: 'catalog', route: 'wanna', mode: 'direct', state: 'available', catalogTime: '20260215004959', entry: 'https://wanna.kiva.moe/api/wannaInfo' },
+      { operation: 'catalog', route: 'wanna', mode: 'socks5', state: 'available', catalogTime: '20260215005000', entry: 'https://wanna.kiva.moe/api/wannaInfo' },
       { operation: 'playback_url', route: 'hkg', mode: 'direct', state: 'available', estimatedLatencyMS: 12 },
       { operation: 'playback_url', route: 'cf', mode: 'socks5', state: 'unavailable', reason: 'timeout' },
     ],
@@ -29,6 +32,13 @@ test('canonical monitor renders every channel, throughput, unknown and stale sta
   assert.match(rows[1].children[0].textContent, /源站响应超时/);
   assert.match(rows[2].children[0].textContent, /待测/);
   assert.match(rows[3].children[0].textContent, /已过期/);
+  assert.equal(get('healthCatalogTime').textContent, '响应 time：20261004235822');
+  assert.equal(get('healthCatalogKivaTime').textContent, '响应 time：20261005010000');
+  assert.equal(get('healthCatalogWannaTime').textContent, '响应 time：20260215004959 / 20260215005000');
+  assert.equal(get('healthCatalogWanna').children.length, 2);
+  assert.match(get('healthCatalogWanna').children[0].children[1].textContent, /响应 time：20260215004959/);
+  assert.equal(get('healthCatalogKiva').children.length, 1);
+  assert.match(get('healthCatalogKiva').children[0].children[1].textContent, /x\.kiva\.moe.*首字节 24.0 ms/);
   assert.equal(get('healthPlaybackHkg').children.length, 1);
   assert.match(get('healthPlaybackHkg').children[0].children[1].textContent, /首字节 12.0 ms/);
   assert.equal(get('healthPlaybackCf').children.length, 1);
@@ -39,11 +49,12 @@ test('canonical monitor renders every channel, throughput, unknown and stale sta
   p.finishBatch(2, {}, { settings: { upstreamMode: 'direct' }, upstreamMonitor: { checking: true, results: [] } });
   await flush();
   assert.match(get('healthSummary').textContent, /正在检测/);
-  for (const id of ['healthCatalog', 'healthPlaybackHkg', 'healthPlaybackCf', 'healthResourceHkg', 'healthResourceCf']) {
+  for (const id of ['healthCatalog', 'healthCatalogKiva', 'healthCatalogWanna', 'healthPlaybackHkg', 'healthPlaybackCf', 'healthResourceHkg', 'healthResourceCf']) {
     assert.equal(get(id).children.length, 1);
     assert.match(get(id).children[0].textContent, /正在检测/);
   }
   assert.equal(get('healthCheck').disabled, true);
+  for (const id of ['healthCatalogTime', 'healthCatalogKivaTime', 'healthCatalogWannaTime']) assert.equal(get(id).textContent, '响应 time：未获取');
 });
 
 test('budget stop shows a settings link and clears for the next task', async () => {

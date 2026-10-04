@@ -56,6 +56,8 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 		time.Sleep(time.Millisecond)
 		response := &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(""))}
 		switch r.URL.Path {
+		case "/api/v2/wanna/songs", "/api/wannaInfo":
+			response.Body = io.NopCloser(strings.NewReader(`{"code":200,"data":{"time":"2026-10-05","groups":[{"entries":[{"id":42,"checksum":"0123456789abcdef0123456789abcdef"}]}]}}`))
 		case "/Api/Songs/list":
 			response.Body = io.NopCloser(strings.NewReader(`{"groups":{"contents":[{"songInfos":[{"id":42}]}]}}`))
 		case "/Api/Songs/play":
@@ -100,7 +102,7 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 		t.Fatal("not idempotent", err)
 	}
 	s := waitMonitor(t, c)
-	if !s.Scheduled || len(s.Results) != 10 || calls.Load() != 10 {
+	if !s.Scheduled || len(s.Results) != 14 || calls.Load() != 14 {
 		t.Fatalf("bad snapshot: %+v, calls %d", s, calls.Load())
 	}
 	for _, result := range s.Results {
@@ -121,7 +123,7 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil {
 		t.Fatal(err)
 	}
-	if len(status.Monitor.Results) != 10 || calls.Load() != before || strings.Contains(w.Body.String(), "upstreamHealth") {
+	if len(status.Monitor.Results) != 14 || calls.Load() != before || strings.Contains(w.Body.String(), "upstreamHealth") {
 		t.Fatal("status not a pure canonical snapshot", w.Body.String())
 	}
 	if err := c.requestMonitorCheck(); err == nil {

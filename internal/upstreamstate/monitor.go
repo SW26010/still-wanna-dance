@@ -336,12 +336,24 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 		m.checkCandidates(ctx, p, source, record)
 		return
 	}
-	catalog, id := probeCatalog(ctx, client, p)
+	var id int64
+	var sampleAt time.Time
+	for _, route := range routeIDs(Catalog) {
+		if ctx.Err() != nil {
+			break
+		}
+		catalog, candidateID := probeCatalogRoute(ctx, client, p, route)
+		m.mu.Lock()
+		record(catalog)
+		m.mu.Unlock()
+		if id == 0 && candidateID > 0 {
+			id, sampleAt = candidateID, catalog.at
+		}
+	}
 	m.mu.Lock()
-	record(catalog)
 	if id > 0 && !m.closed && m.revision == source.Revision {
 		m.songID = id
-		m.songAt = catalog.at
+		m.songAt = sampleAt
 	}
 	if !time.Now().Before(m.songAt.Add(m.policy.SampleLifetime)) {
 		m.songID = 0

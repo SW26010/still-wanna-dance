@@ -47,7 +47,9 @@ function renderHealth(h, settings) {
   const date = v => dated(v) ? new Date(v).toLocaleString() : '—';
   setText('healthTime', '最近完成：' + date(h.finished) + ' · 下次检测：' + date(h.nextCheck));
   const groups = [
-    ['healthCatalog', 'catalog'],
+    ['healthCatalog', 'catalog', 'api'],
+    ['healthCatalogKiva', 'catalog', 'kiva'],
+    ['healthCatalogWanna', 'catalog', 'wanna'],
     ['healthPlaybackHkg', 'playback_url', 'hkg'],
     ['healthPlaybackCf', 'playback_url', 'cf'],
     ['healthResourceHkg', 'resource', 'hkg'],
@@ -60,7 +62,7 @@ function renderHealth(h, settings) {
     title.className = r.state === 'available' ? 'good' : '';
     const detail = document.createElement('div');
     detail.className = 'hint';
-    detail.textContent = r.entry + (r.channelID ? ' · 通道 ' + r.channelID : '') +
+    detail.textContent = r.entry + (r.operation === 'catalog' ? ' · 响应 time：' + (r.catalogTime || '未获取') : '') + (r.channelID ? ' · 通道 ' + r.channelID : '') +
       (r.estimatedLatencyMS != null ? ' · 首字节 ' + r.estimatedLatencyMS.toFixed(1) + ' ms' : '') +
       (r.estimatedSpeedBPS != null ? ' · 样本吞吐 ' + (r.estimatedSpeedBPS / 1024).toFixed(1) + ' KiB/s' : '') +
       (r.transferDurationMS != null ? ' · 下载 ' + (r.transferDurationMS / 1000).toFixed(2) + ' s / ' + (r.transferredBytes / 1048576).toFixed(2) + ' MiB' : '') +
@@ -71,7 +73,12 @@ function renderHealth(h, settings) {
     return row;
   };
   for (const [id, operation, route] of groups) {
-    const rows = results.filter(r => r.operation === operation && (!route || r.route === route)).map(renderResult);
+    const matching = results.filter(r => r.operation === operation && (!route || r.route === route));
+    if (operation === 'catalog') {
+      const times = [...new Set(matching.map(r => r.catalogTime).filter(Boolean))];
+      setText(id + 'Time', '响应 time：' + (times.length ? times.join(' / ') : '未获取'));
+    }
+    const rows = matching.map(renderResult);
     if (!rows.length) {
       const empty = document.createElement('li');
       empty.className = 'muted';

@@ -25,7 +25,8 @@ func (f transportFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 	return resp, err
 }
 
-const catalogFixture = `{"groups":{"contents":[{"songInfos":[{"id":42}]}]}}`
+const catalogFixture = `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":42}]}]}}`
+const kivaFixture = `{"code":200,"data":{"time":"2026-10-05","groups":[{"entries":[{"id":42,"checksum":"0123456789abcdef0123456789abcdef"}]}]}}`
 const videoFixture = "https://play.udon.dance/files/123/42-abc.mp4?e=0123456789abcdef0123456789abcdef&s=131072"
 
 func response(status int, body string) *http.Response {
@@ -43,6 +44,9 @@ func testMonitor(t *testing.T, f transportFunc) *Monitor {
 	return m
 }
 func fixture(r *http.Request) (*http.Response, error) {
+	if r.URL.Host == "x.kiva.moe" || r.URL.Host == "wanna.kiva.moe" {
+		return response(200, kivaFixture), nil
+	}
 	if r.URL.Path == "/Api/Songs/list" {
 		return response(200, catalogFixture), nil
 	}
@@ -83,7 +87,7 @@ func TestAllRoutesAndReadOnlySnapshot(t *testing.T) {
 		return fixture(r)
 	})
 	initial := m.Snapshot()
-	if len(initial.Results) != 5 {
+	if len(initial.Results) != 7 {
 		t.Fatal(initial)
 	}
 	for _, r := range initial.Results {
@@ -95,7 +99,7 @@ func TestAllRoutesAndReadOnlySnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	snapshot := m.Snapshot()
-	if len(snapshot.Results) != 5 {
+	if len(snapshot.Results) != 7 {
 		t.Fatal(snapshot)
 	}
 	for _, r := range snapshot.Results {
@@ -122,11 +126,11 @@ func TestAllRoutesAndReadOnlySnapshot(t *testing.T) {
 		m.Snapshot()
 		m.Results(Resource)
 	}
-	if calls.Load() != 5 {
+	if calls.Load() != 7 {
 		t.Fatal("read triggered I/O", calls.Load())
 	}
 	snapshot.Results[0].Entry = "changed"
-	*snapshot.Results[3].EstimatedSpeedBPS = -1
+	*snapshot.Results[5].EstimatedSpeedBPS = -1
 	resources := m.Results(Resource)
 	resources[0].Route = "changed"
 	*resources[1].EstimatedLatencyMS = -1
@@ -141,7 +145,7 @@ func TestCatalogFailureAndSampleReuse(t *testing.T) {
 	var failed atomic.Bool
 	var plays atomic.Int32
 	m := testMonitor(t, func(r *http.Request) (*http.Response, error) {
-		if failed.Load() && r.URL.Path == "/Api/Songs/list" {
+		if failed.Load() && (r.URL.Path == "/Api/Songs/list" || r.URL.Host == "x.kiva.moe" || r.URL.Host == "wanna.kiva.moe") {
 			return response(524, ""), nil
 		}
 		if r.URL.Path == "/Api/Songs/play" {

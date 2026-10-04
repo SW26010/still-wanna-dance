@@ -78,7 +78,7 @@ func TestCandidateChecksAreIsolatedAndExecutable(t *testing.T) {
 		t.Fatal(err)
 	}
 	rs := m.Results(Catalog)
-	if len(rs) != 2 || rs[0].State != "available" || rs[1].State != "unavailable" {
+	if len(rs) != 6 || rs[0].State != "available" || rs[1].State != "unavailable" {
 		t.Fatal(rs)
 	}
 	selection, ok := m.Recommended(Resource)
@@ -171,7 +171,7 @@ func TestNewCandidateWakesMonitorWithoutClearingOldSample(t *testing.T) {
 	}
 	awaitCondition(t, func() bool {
 		r := m.Results(Catalog)
-		return len(r) == 1 && r[0].State == "available" && !m.Snapshot().Checking
+		return len(r) == 3 && r[0].State == "available" && !m.Snapshot().Checking
 	})
 	first := m.Results(Catalog)[0].ObservedAt
 	f.mu.Lock()
@@ -183,7 +183,7 @@ func TestNewCandidateWakesMonitorWithoutClearingOldSample(t *testing.T) {
 	if r[0].ObservedAt.Before(first) {
 		t.Fatal("old sample discarded")
 	}
-	awaitCondition(t, func() bool { r := m.Results(Catalog); return len(r) == 2 && r[1].State == "available" })
+	awaitCondition(t, func() bool { r := m.Results(Catalog); return len(r) == 6 && r[1].State == "available" })
 }
 
 func TestCandidateConfigChangeKeepsUnaffectedDirectObservations(t *testing.T) {
@@ -195,7 +195,7 @@ func TestCandidateConfigChangeKeepsUnaffectedDirectObservations(t *testing.T) {
 	replacement := &candidateFixture{expires: time.Now().Add(time.Hour), changed: make(chan struct{})}
 	m.channel.Publish(replacement)
 	after := m.Results(Catalog)
-	if len(after) != 1 || after[0].State != "available" || !after[0].ObservedAt.Equal(before[0].ObservedAt) {
+	if len(after) != 3 || after[0].State != "available" || !after[0].ObservedAt.Equal(before[0].ObservedAt) {
 		t.Fatal("unchanged direct path lost history", before, after)
 	}
 }
@@ -262,12 +262,12 @@ func TestCandidateChangeDuringCheckTriggersImmediateFollowup(t *testing.T) {
 		f.changed = make(chan struct{})
 	}
 	f.mu.Unlock()
-	if r := m.Results(Catalog); len(r) != 2 || r[1].State != "unknown" {
+	if r := m.Results(Catalog); len(r) != 6 || r[1].State != "unknown" {
 		t.Fatal(r)
 	}
 	release()
 	awaitCondition(t, func() bool {
 		r := m.Results(Catalog)
-		return len(r) == 2 && r[1].State == "available" && !m.Snapshot().Checking
+		return len(r) == 6 && r[1].State == "available" && !m.Snapshot().Checking
 	})
 }

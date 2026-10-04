@@ -104,7 +104,7 @@ test('navigation keeps drafts, selection, confirmation and expanded details moun
 
 test('markup groups every existing section once with only home initially visible', () => {
   const groups = { home: ['activation'], monitor: ['downloads', 'recent'],
-    upstream: ['healthCheck', 'healthCatalog', 'healthPlaybackHkg', 'healthPlaybackCf', 'healthResourceHkg', 'healthResourceCf'],
+    upstream: ['healthCheck', 'healthCatalog', 'healthCatalogKiva', 'healthCatalogWanna', 'healthPlaybackHkg', 'healthPlaybackCf', 'healthResourceHkg', 'healthResourceCf'],
     cache: ['overview', 'cache'], library: ['batch'], settings: ['preferences', 'service', 'queue'] };
   const markupKeys = [...keys].sort((a, b) => html.indexOf(`id="page-${a}"`) - html.indexOf(`id="page-${b}"`));
   const positions = markupKeys.map(key => html.indexOf(`id="page-${key}"`));

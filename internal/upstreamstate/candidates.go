@@ -208,13 +208,22 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 	for _, r := range videoRoutes {
 		prepare(entry(Resource, r.id))
 	}
-	cs := prepare(entry(Catalog, "api"))
-	ids := make([]int64, len(cs))
-	parallel(cs, func(i int, c upstreamrequest.Candidate) {
-		o, id := probeCatalog(ctx, requestClient(c.Transport), p)
-		ids[i] = id
-		publish(o, c)
-	})
+
+	var ids []int64
+	for _, route := range routeIDs(Catalog) {
+		if ctx.Err() != nil {
+			break
+		}
+		cs := prepare(entry(Catalog, route))
+		samples := make([]int64, len(cs))
+		parallel(cs, func(i int, c upstreamrequest.Candidate) {
+			o, id := probeCatalogRoute(ctx, requestClient(c.Transport), p, route)
+			samples[i] = id
+			publish(o, c)
+		})
+		ids = append(ids, samples...)
+	}
+
 	m.mu.Lock()
 	if m.refreshChannelLocked().Revision != source.Revision {
 		m.mu.Unlock()
@@ -233,7 +242,7 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 	m.mu.Unlock()
 	if id > 0 {
 		for _, r := range videoRoutes {
-			cs = prepare(entry(PlaybackURL, r.id))
+			cs := prepare(entry(PlaybackURL, r.id))
 			samples := make([]*videoSample, len(cs))
 			parallel(cs, func(i int, c upstreamrequest.Candidate) {
 				o, s := probePlayback(ctx, requestClient(c.Transport), p, id, r)

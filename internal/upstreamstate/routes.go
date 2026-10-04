@@ -82,6 +82,8 @@ func normalized(p Policy) Policy {
 // identify the checked service in every state; they are not recommendations.
 // A resource Entry is never a playable URL for an arbitrary video.
 type Result struct {
+	// CatalogTime preserves the upstream response time verbatim, not the probe time.
+	CatalogTime        string    `json:"catalogTime,omitempty"`
 	ChannelID          string    `json:"channelID,omitempty"`
 	Mode               string    `json:"mode,omitempty"`
 	IP                 string    `json:"ip,omitempty"`
@@ -104,6 +106,7 @@ type Result struct {
 	SampleSongID int64 `json:"sampleSongID,omitempty"`
 }
 type observation struct {
+	catalogTime         string
 	channel             string
 	op                  Operation
 	route, state, stage string
@@ -131,7 +134,7 @@ func allowedVideoHost(host string) bool {
 
 func routeIDs(op Operation) []string {
 	if op == Catalog {
-		return []string{"api"}
+		return []string{"api", "kiva", "wanna"}
 	}
 	if op == PlaybackURL || op == Resource {
 		ids := make([]string, len(videoRoutes))
@@ -144,6 +147,12 @@ func routeIDs(op Operation) []string {
 }
 func entry(op Operation, id string) string {
 	if op == Catalog {
+		if id == "wanna" {
+			return "https://wanna.kiva.moe/api/wannaInfo"
+		}
+		if id == "kiva" {
+			return "https://x.kiva.moe/api/v2/wanna/songs"
+		}
 		return apiBase + "/Api/Songs/list"
 	}
 	for _, r := range videoRoutes {
@@ -205,6 +214,7 @@ func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) R
 		return r
 	}
 	last := h[len(h)-1]
+	r.CatalogTime = last.catalogTime
 	r.ObservedAt = last.at
 	r.ValidUntil = validUntil(last, m.policy)
 	r.SampleSongID = last.songID

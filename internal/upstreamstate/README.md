@@ -8,17 +8,19 @@
 
 推荐携带被测 `Transport`，使用它能够固定到被测路径，同时保留 URL、Host、TLS SNI 与证书校验。目标主机不同会拒绝。凭据不进入候选 ID 或结果；代理配置更换使用新的不透明身份。网络配置变更取消旧检查，旧版本迟到结果丢弃；仍允许且 IP 不变的直连通道保留观测。
 
-不实现 Candidates 的普通 Transport 仍受支持：保留固定五项线路观测，便于已有调用方和隔离测试；此兼容模式不提供候选推荐。
+不实现 Candidates 的普通 Transport 仍受支持：保留固定七项线路观测，便于已有调用方和隔离测试；此兼容模式不提供候选推荐。
 
 ## 检查对象
 
 | 操作 | 入口 | 检查内容 |
 | --- | --- | --- |
-| Catalog | api.udon.dance/Api/Songs/list | 完整 JSON、有效歌曲 ID |
+| Catalog / api | api.udon.dance/Api/Songs/list | 完整 JSON、有效歌曲 ID |
+| Catalog / kiva | x.kiva.moe/api/v2/wanna/songs | 业务状态码、清单版本、正数歌曲 ID、合法且无冲突的 MD5 |
+| Catalog / wanna | wanna.kiva.moe/api/wannaInfo | 同上，独立清单入口 |
 | PlaybackURL | 同一 API 的 node=cf / node=nya | 重定向、目标主机和资源元数据 |
 | Resource | play.udon.dance / nya.xin.moe | 实际解析出的资源 URL，连续 Range 下载，满 2 秒且 16 MiB；上限 5 秒或整首 |
 
-线路标识为 api、cf、hkg；hkg 对应 node=nya。Entry 标识服务，资源 Entry 不是任意歌曲的播放 URL。每轮从有效列表的去重正数歌曲 ID 中均匀随机采样；列表失败可在 SampleLifetime 内复用旧 ID，首次没有样本时不猜测视频地址。同一路线的所有资源候选共用本轮解析出的一个合法样本，不把不同 IP 返回的不同视频混作吞吐比较。
+线路标识为 api、kiva、wanna、cf、hkg；hkg 对应 node=nya。Entry 标识服务，资源 Entry 不是任意歌曲的播放 URL。三个清单入口每轮独立检测各自全部候选，按各自响应格式校验，失败不影响其他入口。每轮从有效列表的去重正数歌曲 ID 中均匀随机采样；优先用本轮 Udon 样本，无有效样本时依次用 Kiva、WannaInfo；三个列表均失败可在 SampleLifetime 内复用旧 ID，首次没有样本时不猜测视频地址。同一路线的所有资源候选共用本轮解析出的一个合法样本，不把不同 IP 返回的不同视频混作吞吐比较。
 
 歌曲样本不保证全部歌曲或完整下载可用。业务仍须校验实际资源版本、响应及完整内容。
 
@@ -50,6 +52,8 @@ if ok {
 已有业务 raw dial 不含操作上下文，仍保留连接容错；auto 的普通拨号采用直连失败后代理回退，**不表示已采用 Monitor 推荐**。Monitor 没有自动替换现有业务请求；由业务明确使用推荐的 Transport，才能使用被测通道。
 
 ## 结果与推荐
+
+CatalogTime 保留上游响应原始 time 字符串（Udon 顶层 time，其余两个入口 data.time），与 ObservedAt 区分；缺失时为空，不伪造时间。WebUI 按清单分别显示，并保留不同候选的时间差异。
 
 结果包含 Operation、Route、Entry、ChannelID、Mode、IP、State、Reason、Stage、HTTP、ObservedAt、ValidUntil、Samples、SampleSongID。无有效估计时数值为 nil，不是零耗时。
 

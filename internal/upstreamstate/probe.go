@@ -3,6 +3,7 @@ package upstreamstate
 import (
 	"context"
 	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -123,11 +124,15 @@ func httpState(code int) string {
 }
 
 func probeCatalog(parent context.Context, client *http.Client, p Policy) (o observation, id int64) {
-	o = observation{op: Catalog, route: "api"}
+	return probeCatalogRoute(parent, client, p, "api")
+}
+
+func probeCatalogRoute(parent context.Context, client *http.Client, p Policy, route string) (o observation, id int64) {
+	o = observation{op: Catalog, route: route}
 	ctx, cancel := context.WithTimeout(parent, p.RequestTimeout)
 	defer cancel()
 	started := time.Now()
-	resp, t, err := doProbeRequest(ctx, client, entry(Catalog, "api"), "")
+	resp, t, err := doProbeRequest(ctx, client, entry(Catalog, route), "")
 	defer func() { o.finishTiming(started, t.snapshot()) }()
 	if err != nil {
 		o.state = errorState(err)
@@ -149,7 +154,17 @@ func probeCatalog(parent context.Context, client *http.Client, p Policy) (o obse
 		o.state = "invalid"
 		return
 	}
+	if route == "kiva" || route == "wanna" {
+		id, o.catalogTime = kivaSongSample(body)
+		if id == 0 {
+			o.state = "invalid"
+			return
+		}
+		o.state, o.bytes = "available", int64(len(body))
+		return
+	}
 	var v struct {
+		Time   string `json:"time"`
 		Groups struct {
 			Contents []struct {
 				SongInfos []struct {
@@ -162,6 +177,7 @@ func probeCatalog(parent context.Context, client *http.Client, p Policy) (o obse
 		o.state = "invalid"
 		return
 	}
+	o.catalogTime = v.Time
 	seen := make(map[int64]bool)
 	for _, g := range v.Groups.Contents {
 		for _, s := range g.SongInfos {
@@ -181,6 +197,48 @@ func probeCatalog(parent context.Context, client *http.Client, p Policy) (o obse
 	o.state = "available"
 	o.bytes = int64(len(body))
 	return
+}
+
+// Kiva supplies a versioned catalog with resource MD5s, unlike Udon's list.
+// Reject invalid or conflicting mappings before using the list as a sample.
+func kivaSongSample(body []byte) (int64, string) {
+	var v struct {
+		Code int `json:"code"`
+		Data struct {
+			Time   string `json:"time"`
+			Groups []struct {
+				Entries []struct {
+					ID       int64  `json:"id"`
+					Checksum string `json:"checksum"`
+				} `json:"entries"`
+			} `json:"groups"`
+		} `json:"data"`
+	}
+	if json.Unmarshal(body, &v) != nil || v.Code != 200 || v.Data.Time == "" {
+		return 0, v.Data.Time
+	}
+	seen := make(map[int64]string)
+	var id int64
+	for _, group := range v.Data.Groups {
+		for _, song := range group.Entries {
+			digest, err := hex.DecodeString(song.Checksum)
+			if song.ID <= 0 || err != nil || len(digest) != 16 {
+				return 0, v.Data.Time
+			}
+			checksum := string(digest)
+			if previous, ok := seen[song.ID]; ok {
+				if previous != checksum {
+					return 0, v.Data.Time
+				}
+				continue
+			}
+			seen[song.ID] = checksum
+			if rand.IntN(len(seen)) == 0 {
+				id = song.ID
+			}
+		}
+	}
+	return id, v.Data.Time
 }
 
 func probePlayback(parent context.Context, client *http.Client, p Policy, id int64, r route) (o observation, sample *videoSample) {

@@ -13,6 +13,8 @@ func TestOperationAndRouteIsolation(t *testing.T) {
 	m.mu.Lock()
 	for _, o := range []observation{
 		{op: Catalog, route: "api", state: "available", at: now, duration: time.Second, bytes: 100},
+		{op: Catalog, route: "kiva", state: "available", at: now, duration: time.Second, bytes: 120},
+		{op: Catalog, route: "wanna", state: "available", at: now, duration: time.Second, bytes: 120},
 		{op: PlaybackURL, route: "cf", state: "available", at: now, duration: 10 * time.Millisecond, songID: 42},
 		{op: PlaybackURL, route: "hkg", state: "timeout", stage: "headers", at: now, songID: 42},
 		{op: Resource, route: "cf", state: "upstream_error", http: 503, stage: "headers", at: now, songID: 42},

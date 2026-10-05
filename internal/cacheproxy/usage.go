@@ -106,6 +106,13 @@ CREATE TABLE IF NOT EXISTS catalog_state (
  catalog_key TEXT PRIMARY KEY, revision TEXT NOT NULL, digest TEXT NOT NULL,
  source TEXT NOT NULL, accepted_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS catalog_checks (
+ catalog_key TEXT PRIMARY KEY, checked_at INTEGER NOT NULL DEFAULT 0,
+ message TEXT NOT NULL DEFAULT '', error TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS catalog_members (
+ song_id INTEGER PRIMARY KEY REFERENCES songs(song_id)
+);
 CREATE TABLE IF NOT EXISTS media_access (
  md5 TEXT PRIMARY KEY NOT NULL,
  last_requested_at INTEGER NOT NULL

@@ -229,45 +229,74 @@ func TestMD5CatalogInvalidChecksumDoesNotChangeMappings(t *testing.T) {
 	}
 }
 
-func TestCatalogNeverFallsBackToUdon(t *testing.T) {
+func TestCatalogFailureUsesOnlyLocalFallback(t *testing.T) {
 	for _, bad := range []string{"http500", "truncated", "mapping", "metadata"} {
 		for _, scan := range []bool{true, false} {
-			t.Run(fmt.Sprintf("%s/scan=%v", bad, scan), func(t *testing.T) {
-				c := testConsole(t)
-				if err := c.save(c.settings); err != nil {
-					t.Fatal(err)
-				}
-				var forbidden atomic.Int32
-				api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					if r.URL.Path != "/catalog" {
-						forbidden.Add(1)
-						writeTestMD5Catalog(w, map[int]string{1: "body"})
-						return
+			for _, cached := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/scan=%v/local=%v", bad, scan, cached), func(t *testing.T) {
+					c := testConsole(t)
+					if err := c.save(c.settings); err != nil {
+						t.Fatal(err)
 					}
-					switch bad {
-					case "http500":
-						http.Error(w, "offline", 500)
-					case "truncated":
-						fmt.Fprint(w, `{"code":200,`)
-					case "mapping":
-						fmt.Fprint(w, `{"code":200,"data":{"time":"20261001000000","groups":[{"entries":[{"id":1,"checksum":"bad"}]}]}}`)
-					case "metadata":
-						fmt.Fprint(w, `{"code":200,"data":{"time":"20261001000000","groups":[{"entries":[{"id":1,"checksum":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","flip":2}]}]}}`)
+					var forbidden atomic.Int32
+					api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						if r.URL.Path != "/catalog" {
+							forbidden.Add(1)
+							http.Error(w, "unexpected request", 500)
+							return
+						}
+						switch bad {
+						case "http500":
+							http.Error(w, "offline", 500)
+						case "truncated":
+							fmt.Fprint(w, `{"code":200,`)
+						case "mapping":
+							fmt.Fprint(w, `{"code":200,"data":{"time":"20261001000000","groups":[{"entries":[{"id":1,"checksum":"bad"}]}]}}`)
+						case "metadata":
+							fmt.Fprint(w, `{"code":200,"data":{"time":"20261001000000","groups":[{"entries":[{"id":1,"checksum":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","flip":2}]}]}}`)
+						}
+					}))
+					defer api.Close()
+					c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
+					if cached {
+						cfg := cacheproxy.DefaultConfig()
+						cfg.StorageDir = c.settings.StorageDir
+						engine, err := cacheproxy.New(cfg)
+						if err != nil {
+							t.Fatal(err)
+						}
+						c.service = engine
+						key := strings.Repeat("a", 32)
+						if err := syncTestCatalog(c, engine, context.Background(), map[string]string{"1": key, "2": key}); err != nil {
+							t.Fatal(err)
+						}
+						if err := os.WriteFile(filepath.Join(cfg.StorageDir, "videos", key+".mp4"), []byte("trusted"), 0600); err != nil {
+							t.Fatal(err)
+						}
 					}
-				}))
-				defer api.Close()
-				c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
-				if err := c.startBatchMode(scan); err != nil {
-					t.Fatal(err)
-				}
-				c.mu.Lock()
-				done := c.batchDone
-				c.mu.Unlock()
-				<-done
-				if c.batch.Total != 0 || !strings.Contains(c.batch.Phase, "获取歌曲列表失败") || forbidden.Load() != 0 {
-					t.Fatal(c.batch, forbidden.Load())
-				}
-			})
+					if err := c.startBatchMode(scan); err != nil {
+						t.Fatal(err)
+					}
+					c.mu.Lock()
+					done := c.batchDone
+					c.mu.Unlock()
+					select {
+					case <-done:
+					case <-time.After(5 * time.Second):
+						t.Fatal("batch stalled")
+					}
+					if forbidden.Load() != 0 {
+						t.Fatal("queried Udon or resolved a cached resource", forbidden.Load())
+					}
+					if cached {
+						if c.batch.Total != 2 || c.batch.Hits != 2 || c.batch.Failed != 0 || c.batch.CatalogWarning == "" {
+							t.Fatal(c.batch)
+						}
+					} else if c.batch.Total != 0 || !strings.Contains(c.batch.Phase, "本地尚无有效 MD5 清单") {
+						t.Fatal(c.batch)
+					}
+				})
+			}
 		}
 	}
 }

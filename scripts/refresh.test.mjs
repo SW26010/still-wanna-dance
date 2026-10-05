@@ -1109,6 +1109,21 @@ test('coverage displays song ratio and does not interpret legacy inventory as ze
   assert.equal(vm.runInContext("$('coverageCount').textContent", p.context), '2 / 5 首曲目已覆盖');
 });
 
+test('catalog check time, local watermark and offline coverage remain distinct', async () => {
+  const p = page();
+  p.requests[0].finish({ settings: {}, hosts: {}, batch: {}, queue: {} });
+  p.requests[1].finish({ updated: '2026-10-06T00:00:00Z', coverageKnown: true, coveredSongs: 2, totalSongs: 5,
+    catalogRevision: '20261001000000', catalog: { checkedAt: '2026-10-05T12:00:00Z', revision: '20261002000000', error: '清单接口返回 500' } });
+  await flush();
+  const get = id => p.document.getElementById(id).textContent;
+  assert.equal(get('coverageRate'), '40.0%');
+  assert.match(get('catalogCheckedAt'), /最后成功检查/);
+  assert.doesNotMatch(get('catalogCheckedAt'), /尚无记录/);
+  assert.match(get('catalogRevision'), /20261002000000.*20261001000000.*请刷新/);
+  assert.match(get('catalogCheckResult'), /500.*使用本地清单/);
+  assert.equal(get('inventoryError'), '');
+});
+
 test('identical polling snapshots do not rewrite live status text', async () => {
   const p = page();
   p.finishBatch();

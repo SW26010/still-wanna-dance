@@ -2,6 +2,7 @@ package console
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,6 +10,24 @@ import (
 
 	"still-wanna-dance/internal/cacheproxy"
 )
+
+// Fetching only feeds synchronization. Business operations read the database
+// after this attempt, including when the remote endpoint is unavailable.
+func (c *Console) refreshLocalCatalog(ctx context.Context, engine *cacheproxy.Server) error {
+	candidate, err := c.fetchCatalogSnapshot(ctx)
+	if err == nil {
+		err = engine.SyncCatalog(ctx, candidate)
+	}
+	if errors.Is(err, cacheproxy.ErrCatalogOlder) {
+		return nil
+	}
+	if err != nil && ctx.Err() == nil {
+		if saveErr := engine.RecordCatalogError(ctx, err); saveErr != nil {
+			return fmt.Errorf("%v；无法保存检查结果：%w", err, saveErr)
+		}
+	}
+	return err
+}
 
 func (c *Console) fetchCatalogSnapshot(ctx context.Context) (cacheproxy.Catalog, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)

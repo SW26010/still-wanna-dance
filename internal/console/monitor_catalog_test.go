@@ -127,3 +127,78 @@ func TestMonitorUdonNeverOpensStorage(t *testing.T) {
 		t.Fatal("Udon created storage", err)
 	}
 }
+
+func TestMonitorCatalogFailureStatus(t *testing.T) {
+	c := testConsole(t)
+	ctx := context.Background()
+	good := monitorFull("kiva", "20261002000000", "good", strings.Repeat("a", 32))
+	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{good})
+	before := c.localInventory().Catalog
+	conflict := monitorFull("wanna", "20261002000000", "conflict", strings.Repeat("b", 32))
+	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{conflict})
+	after := c.localInventory().Catalog
+	if after.Error == "" || after.Revision != before.Revision || !after.CheckedAt.Equal(before.CheckedAt) {
+		t.Fatal(before, after)
+	}
+	old := monitorFull("wanna", "20261001000000", "old", strings.Repeat("a", 32))
+	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{conflict, old})
+	if c.localInventory().Catalog.Error == "" {
+		t.Fatal("old mirror hid conflict")
+	}
+	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{good})
+	if c.localInventory().Catalog.Error != "" {
+		t.Fatal("successful retry did not clear error")
+	}
+	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("kiva", "20261003000000", "bad", "invalid")})
+	if c.localInventory().Catalog.Error == "" {
+		t.Fatal("validation error not recorded")
+	}
+}
+
+func TestInventoryLoadsCatalogStatusWithoutEngine(t *testing.T) {
+	c := testConsole(t)
+	if err := c.save(c.settings); err != nil {
+		t.Fatal(err)
+	}
+	c.syncMonitorCatalogs(context.Background(), []upstreamstate.CatalogResponse{monitorFull("kiva", "20261002000000", "good", strings.Repeat("a", 32))})
+	c.syncMonitorCatalogs(context.Background(), []upstreamstate.CatalogResponse{monitorFull("wanna", "20261002000000", "conflict", strings.Repeat("b", 32))})
+	want := c.localInventory().Catalog
+	if err := c.save(c.settings); err != nil {
+		t.Fatal(err)
+	}
+	if c.service != nil {
+		t.Fatal("save left engine running")
+	}
+	if got := c.localInventory().Catalog; got != want {
+		t.Fatal(got, want)
+	}
+	reopened, err := New(c.configPath, c.address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	if got := reopened.localInventory().Catalog; got != want {
+		t.Fatal(got, want)
+	}
+	if reopened.service != nil {
+		t.Fatal("status read started engine")
+	}
+	next := c.settings
+	next.StorageDir = t.TempDir()
+	if err := c.save(next); err != nil {
+		t.Fatal(err)
+	}
+	c.inventory.Catalog = want // A stale snapshot must never supply current status.
+	if got := c.localInventory().Catalog; got.Revision != "" || got.Error != "" || !got.CheckedAt.IsZero() {
+		t.Fatal(got)
+	}
+	if _, err := os.Stat(filepath.Join(next.StorageDir, "stepstash.sqlite")); !os.IsNotExist(err) {
+		t.Fatal("read created database", err)
+	}
+	if err := os.WriteFile(filepath.Join(next.StorageDir, "stepstash.sqlite"), []byte("invalid database"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if got := c.localInventory().Catalog; got.Revision != "" || !strings.Contains(got.Error, "无法读取本地清单状态") {
+		t.Fatal("database failure reused stale status", got)
+	}
+}

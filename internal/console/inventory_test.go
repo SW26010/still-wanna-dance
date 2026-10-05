@@ -3,6 +3,7 @@ package console
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -264,5 +265,81 @@ func TestInventoryLifecycleCancelsCoverage(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestInventoryReadDoesNotWaitForLifecycle(t *testing.T) {
+	c := testConsole(t)
+	c.lifecycleMu.Lock()
+	done := make(chan Inventory, 1)
+	go func() { done <- c.localInventory() }()
+	select {
+	case got := <-done:
+		c.lifecycleMu.Unlock()
+		if got.Catalog.Error != "" {
+			t.Fatal(got)
+		}
+	case <-time.After(time.Second):
+		c.lifecycleMu.Unlock()
+		<-done
+		t.Fatal("inventory read waited for lifecycle lock")
+	}
+}
+
+func TestInventoryReadDiscardsChangedSettings(t *testing.T) {
+	for _, aba := range []bool{false, true} {
+		t.Run(fmt.Sprint(aba), func(t *testing.T) {
+			c := testConsole(t)
+			original := c.settings
+			entered, release := make(chan struct{}), make(chan struct{})
+			done := make(chan Inventory, 1)
+			calls := 0
+			go func() {
+				done <- c.localInventoryWithLoader(func(ctx context.Context, root string) (cacheproxy.CatalogStatus, error) {
+					calls++
+					if calls == 1 {
+						close(entered)
+						<-release
+						return cacheproxy.CatalogStatus{Revision: "stale", Error: "stale error"}, nil
+					}
+					return cacheproxy.CatalogStatus{Revision: "current"}, nil
+				})
+			}()
+			<-entered
+			next := original
+			next.StorageDir = t.TempDir()
+			if err := c.save(next); err != nil {
+				close(release)
+				<-done
+				t.Fatal(err)
+			}
+			if aba {
+				if err := c.save(original); err != nil {
+					close(release)
+					<-done
+					t.Fatal(err)
+				}
+			}
+			close(release)
+			got := <-done
+			if calls != 2 || got.Catalog.Revision != "current" || got.Catalog.Error != "" {
+				t.Fatal(calls, got)
+			}
+		})
+	}
+}
+
+func TestInventoryReadBoundsSettingsRetries(t *testing.T) {
+	c := testConsole(t)
+	calls := 0
+	got := c.localInventoryWithLoader(func(context.Context, string) (cacheproxy.CatalogStatus, error) {
+		calls++
+		c.mu.Lock()
+		c.settingsRevision++
+		c.mu.Unlock()
+		return cacheproxy.CatalogStatus{Revision: "stale"}, nil
+	})
+	if calls != 2 || got.Catalog.Revision != "" || got.Catalog.Error == "" {
+		t.Fatal(calls, got)
 	}
 }

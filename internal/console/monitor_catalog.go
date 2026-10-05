@@ -3,6 +3,8 @@ package console
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
+	"fmt"
 	"log/slog"
 	"sort"
 	"time"
@@ -19,6 +21,7 @@ func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreams
 		at               time.Time
 	}
 	var candidates []candidate
+	var failures []error
 	seen := make(map[[32]byte]bool)
 	for _, response := range responses {
 		if ctx.Err() != nil {
@@ -45,12 +48,13 @@ func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreams
 		}
 		if err != nil {
 			slog.Warn("monitor_catalog_invalid", "source", response.Source, "error", err)
+			failures = append(failures, fmt.Errorf("%s: %w", response.Source, err))
 			continue
 		}
 		v.source = response.Source
 		candidates = append(candidates, v)
 	}
-	if len(candidates) == 0 || ctx.Err() != nil {
+	if (len(candidates) == 0 && len(failures) == 0) || ctx.Err() != nil {
 		return
 	}
 	// Only MD5 catalogs are business inputs; offer newer versions first.
@@ -76,8 +80,16 @@ func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreams
 			return
 		}
 		err = engine.SyncCatalog(ctx, *v.full)
-		if err != nil {
+		if err != nil && !errors.Is(err, cacheproxy.ErrCatalogOlder) {
 			slog.Warn("monitor_catalog_sync_failed", "source", v.source, "revision", v.revision, "error", err)
+			failures = append(failures, fmt.Errorf("%s: %w", v.source, err))
+		}
+	}
+	// Record after the entire round so a later duplicate or older mirror cannot
+	// hide a conflict from another candidate in this same round.
+	if len(failures) > 0 && ctx.Err() == nil {
+		if err := engine.RecordCatalogError(ctx, errors.Join(failures...)); err != nil {
+			slog.Warn("monitor_catalog_status_failed", "error", err)
 		}
 	}
 }

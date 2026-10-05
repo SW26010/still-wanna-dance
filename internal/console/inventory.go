@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -16,15 +15,16 @@ import (
 
 // Inventory counts immutable MD5 files without hashing video contents.
 type Inventory struct {
-	CoverageKnown   bool      `json:"coverageKnown"`
-	CoveredSongs    int       `json:"coveredSongs"`
-	TotalSongs      int       `json:"totalSongs"`
-	CatalogRevision string    `json:"catalogRevision"`
-	Videos          int       `json:"videos"`
-	Bytes           int64     `json:"bytes"`
-	Scanning        bool      `json:"scanning"`
-	Updated         time.Time `json:"updated"`
-	Error           string    `json:"error"`
+	Catalog         cacheproxy.CatalogStatus `json:"catalog"`
+	CoverageKnown   bool                     `json:"coverageKnown"`
+	CoveredSongs    int                      `json:"coveredSongs"`
+	TotalSongs      int                      `json:"totalSongs"`
+	CatalogRevision string                   `json:"catalogRevision"`
+	Videos          int                      `json:"videos"`
+	Bytes           int64                    `json:"bytes"`
+	Scanning        bool                     `json:"scanning"`
+	Updated         time.Time                `json:"updated"`
+	Error           string                   `json:"error"`
 }
 
 var cacheName = regexp.MustCompile(`^[0-9a-f]{32}\.mp4$`)
@@ -79,9 +79,39 @@ func scanInventory(ctx context.Context, s Settings) Inventory {
 }
 
 func (c *Console) localInventory() Inventory {
+	return c.localInventoryWithLoader(cacheproxy.LoadCatalogStatus)
+}
+
+func (c *Console) localInventoryWithLoader(load func(context.Context, string) (cacheproxy.CatalogStatus, error)) Inventory {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	// Never borrow the engine or hold state/lifecycle locks during database I/O.
+	// Bound retries so repeated settings changes cannot delay status polling.
+	for attempt := 0; attempt < 2; attempt++ {
+		c.mu.Lock()
+		root, revision := c.settings.StorageDir, c.settingsRevision
+		c.mu.Unlock()
+		status, err := load(ctx, root)
+		c.inventoryMu.Lock()
+		c.mu.Lock()
+		changed := root != c.settings.StorageDir || revision != c.settingsRevision
+		v := c.inventory
+		c.mu.Unlock()
+		c.inventoryMu.Unlock()
+		if changed {
+			continue
+		}
+		v.Catalog = status
+		if err != nil {
+			v.Catalog = cacheproxy.CatalogStatus{Error: "无法读取本地清单状态：" + err.Error()}
+		}
+		return v
+	}
 	c.inventoryMu.Lock()
-	defer c.inventoryMu.Unlock()
-	return c.inventory
+	v := c.inventory
+	c.inventoryMu.Unlock()
+	v.Catalog = cacheproxy.CatalogStatus{Error: "设置已变化，请重新读取清单状态"}
+	return v
 }
 
 // Check before engine startup can create videos. Read at most one entry here;
@@ -148,7 +178,7 @@ func (c *Console) startInventoryScan() {
 		defer cancel()
 		result := scanInventory(ctx, s)
 		if result.Error == "" && c.checksumURL != "" {
-			c.addInventoryCoverage(ctx, s, &result)
+			c.addInventoryCoverage(ctx, &result)
 		}
 		c.inventoryMu.Lock()
 		defer c.inventoryMu.Unlock()
@@ -172,46 +202,37 @@ func (c *Console) startInventoryScan() {
 	}()
 }
 
-func (c *Console) addInventoryCoverage(ctx context.Context, s Settings, result *Inventory) {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	catalog, err := c.fetchCatalogSnapshot(ctx)
-	if err != nil {
-		result.Error = "无法获取曲目覆盖率：" + err.Error()
-		return
-	}
-	refs := map[string]string{}
-	for _, song := range catalog.Songs {
-		id, checksum := song.ID, song.MD5
-		refs[strconv.FormatInt(id, 10)] = checksum
-	}
+func (c *Console) addInventoryCoverage(ctx context.Context, result *Inventory) {
 	c.mu.Lock()
 	engine := c.service
 	c.mu.Unlock()
-	var check cacheproxy.ReferenceCheck
-	if engine != nil {
-		if err = engine.SyncCatalog(ctx, catalog); err != nil {
-			result.Error = err.Error()
-			return
-		}
-		var release func()
-		check, release, err = engine.CheckReferences(ctx)
-		defer release()
-	} else {
-		check, err = cacheproxy.CheckReferencedFiles(ctx, s.StorageDir, refs)
+	if engine == nil {
+		result.Error = "本地清单数据库尚未打开"
+		return
 	}
+	refreshErr := c.refreshLocalCatalog(ctx, engine)
+	catalog, release, err := engine.ReadLocalCatalog(ctx)
+	defer release()
+	result.Catalog = catalog.Status
 	if err != nil {
 		result.Error = "无法读取本地资源：" + err.Error()
 		return
 	}
+	if catalog.Status.Revision == "" || len(catalog.Songs) == 0 {
+		result.Error = "本地尚无有效 MD5 清单，无法计算覆盖率"
+		if refreshErr != nil {
+			result.Error += "：" + refreshErr.Error()
+		}
+		return
+	}
 	for _, song := range catalog.Songs {
 		checksum := song.MD5
-		if check.Present[checksum] {
+		if catalog.Files.Present[checksum] {
 			result.CoveredSongs++
 		}
 	}
 	result.TotalSongs = len(catalog.Songs)
 	result.CoverageKnown = true
-	result.CatalogRevision = catalog.Revision
+	result.CatalogRevision = catalog.Status.Revision
 	result.Updated = time.Now()
 }

@@ -23,22 +23,24 @@ type Failure struct {
 	Error string `json:"error"`
 }
 type Batch struct {
-	BudgetReached bool      `json:"budgetReached"`
-	CatalogHits   int       `json:"catalogHits"`
-	Reused        int       `json:"reused"`
-	ScanOnly      bool      `json:"scanOnly"`
-	Missing       int       `json:"missing"`
-	Updated       time.Time `json:"updated"`
-	Finished      time.Time `json:"finished"`
-	Running       bool      `json:"running"`
-	Phase         string    `json:"phase"`
-	Total         int       `json:"total"`
-	Checked       int       `json:"checked"`
-	Hits          int       `json:"hits"`
-	Downloaded    int       `json:"downloaded"`
-	Failed        int       `json:"failed"`
-	Current       string    `json:"current"`
-	Failures      []Failure `json:"failures"`
+	Catalog        cacheproxy.CatalogStatus `json:"catalog"`
+	CatalogWarning string                   `json:"catalogWarning"`
+	BudgetReached  bool                     `json:"budgetReached"`
+	CatalogHits    int                      `json:"catalogHits"`
+	Reused         int                      `json:"reused"`
+	ScanOnly       bool                     `json:"scanOnly"`
+	Missing        int                      `json:"missing"`
+	Updated        time.Time                `json:"updated"`
+	Finished       time.Time                `json:"finished"`
+	Running        bool                     `json:"running"`
+	Phase          string                   `json:"phase"`
+	Total          int                      `json:"total"`
+	Checked        int                      `json:"checked"`
+	Hits           int                      `json:"hits"`
+	Downloaded     int                      `json:"downloaded"`
+	Failed         int                      `json:"failed"`
+	Current        string                   `json:"current"`
+	Failures       []Failure                `json:"failures"`
 }
 
 func (c *Console) resolve(ctx context.Context, id int64) (string, error) {
@@ -112,7 +114,7 @@ func (c *Console) startBatchModeLocked(scanOnly bool) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	c.batchCancel = cancel
 	c.batchDone = make(chan struct{})
-	c.batch = Batch{Running: true, ScanOnly: scanOnly, Phase: "正在获取最新歌曲列表"}
+	c.batch = Batch{Running: true, ScanOnly: scanOnly, Phase: "正在检查远端并更新本地清单"}
 	slog.Info("batch_started", "scan_only", scanOnly)
 	go c.runBatch(ctx, c.service, c.batchDone)
 	return nil
@@ -163,13 +165,30 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		slog.Info("batch_finished", "scan_only", scanOnly, "reused", result.Reused, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", result.Missing, "cancelled", ctx.Err() != nil, "total", result.Total, "checked", result.Checked, "hits", result.Hits, "downloaded", result.Downloaded, "failed", result.Failed, "phase", result.Phase)
 	}()
 
-	catalog, err := c.fetchCatalogSnapshot(ctx)
 	fail := func(message string) { c.mu.Lock(); c.batch.Phase = message; c.mu.Unlock() }
+	refreshErr := c.refreshLocalCatalog(ctx, s)
+	local, release, err := s.ReadLocalCatalog(ctx)
+	defer release()
 	if err != nil {
-		fail("获取歌曲列表失败：" + err.Error())
+		fail("读取本地清单失败：" + err.Error())
 		return
 	}
-	songs := catalog.Songs
+	if local.Status.Revision == "" || len(local.Songs) == 0 {
+		message := "本地尚无有效 MD5 清单，无法开始处理"
+		if refreshErr != nil {
+			message += "：" + refreshErr.Error()
+		}
+		fail(message)
+		return
+	}
+	c.mu.Lock()
+	c.batch.Catalog = local.Status
+	if refreshErr != nil {
+		c.batch.CatalogWarning = "远端检查失败，使用本地清单：" + refreshErr.Error()
+	}
+	c.batch.Phase = "正在检查本地清单与缓存文件"
+	c.mu.Unlock()
+	songs := local.Songs
 	titles := map[string]string{}
 	for _, song := range songs {
 		name := ""
@@ -178,16 +197,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		}
 		titles[strconv.FormatInt(song.ID, 10)] = name
 	}
-	if err := s.SyncCatalog(ctx, catalog); err != nil {
-		fail("更新歌曲映射失败：" + err.Error())
-		return
-	}
-	check, release, err := s.CheckReferences(ctx)
-	if err != nil {
-		fail("检查本地资源失败：" + err.Error())
-		return
-	}
-	defer release()
+	check := local.Files
 	type resourceJob struct {
 		md5   string
 		ids   []string
@@ -256,8 +266,8 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 			// Prefer IDs still in the catalog, then try retained associations.
 			candidates := append([]string(nil), job.ids...)
 			sort.SliceStable(candidates, func(i, j int) bool {
-				_, currentI := titles[candidates[i]]
-				_, currentJ := titles[candidates[j]]
+				currentI := local.Current[candidates[i]]
+				currentJ := local.Current[candidates[j]]
 				return currentI && !currentJ
 			})
 			for _, id := range candidates {

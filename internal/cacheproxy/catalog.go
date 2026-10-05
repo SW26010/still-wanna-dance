@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -38,10 +39,30 @@ func (s *Server) SyncCatalog(ctx context.Context, c Catalog) error {
 	defer tx.Rollback()
 	duplicate, err := checkCatalogState(ctx, tx, "songs", c.Revision, digest)
 	if err != nil {
+		if errors.Is(err, ErrCatalogOlder) {
+			if saveErr := commitCatalogCheck(ctx, tx, "远端版本较旧，保留本地数据"); saveErr != nil {
+				return saveErr
+			}
+		}
 		return err
 	}
 	if duplicate {
-		return nil
+		// Older databases have no membership set until a successful refresh.
+		var populated bool
+		if err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM catalog_members)").Scan(&populated); err != nil {
+			return err
+		}
+		if !populated {
+			for _, song := range c.Songs {
+				if _, err = tx.ExecContext(ctx, "INSERT INTO catalog_members(song_id) VALUES (?)", song.ID); err != nil {
+					return err
+				}
+			}
+		}
+		return commitCatalogCheck(ctx, tx, "清单未变化")
+	}
+	if _, err = tx.ExecContext(ctx, "DELETE FROM catalog_members"); err != nil {
+		return err
 	}
 	columns := strings.Split(songColumns, ",")
 	assignments := make([]string, 0, len(columns)-1)
@@ -60,11 +81,14 @@ func (s *Server) SyncCatalog(ctx context.Context, c Catalog) error {
 		if _, err = tx.ExecContext(ctx, "INSERT INTO song_media(song_id,md5) VALUES (?,?) ON CONFLICT(song_id) DO UPDATE SET md5=excluded.md5", song.ID, song.MD5); err != nil {
 			return err
 		}
+		if _, err = tx.ExecContext(ctx, "INSERT INTO catalog_members(song_id) VALUES (?)", song.ID); err != nil {
+			return err
+		}
 	}
 	if err := writeCatalogState(ctx, tx, "songs", c.Revision, digest, c.Source); err != nil {
 		return err
 	}
-	if err = tx.Commit(); err != nil {
+	if err = commitCatalogCheck(ctx, tx, "已更新本地清单"); err != nil {
 		return err
 	}
 	s.refreshCatalogProtection(c.Songs)
@@ -89,7 +113,7 @@ func checkCatalogState(ctx context.Context, tx *sql.Tx, key, revision, digest st
 		return false, err
 	}
 	if candidateTime.Before(previousTime) {
-		return false, fmt.Errorf("清单时间较旧，未更新")
+		return false, ErrCatalogOlder
 	}
 	if candidateTime.Equal(previousTime) {
 		if digest != previousDigest {
@@ -104,4 +128,15 @@ func writeCatalogState(ctx context.Context, tx *sql.Tx, key, revision, digest, s
 	_, err := tx.ExecContext(ctx, `INSERT INTO catalog_state(catalog_key,revision,digest,source,accepted_at) VALUES (?,?,?,?,?)
  ON CONFLICT(catalog_key) DO UPDATE SET revision=excluded.revision,digest=excluded.digest,source=excluded.source,accepted_at=excluded.accepted_at`, key, revision, digest, source, time.Now().UnixMilli())
 	return err
+}
+
+var ErrCatalogOlder = errors.New("清单时间较旧，未更新")
+
+func commitCatalogCheck(ctx context.Context, tx *sql.Tx, message string) error {
+	_, err := tx.ExecContext(ctx, `INSERT INTO catalog_checks(catalog_key,checked_at,message) VALUES ('songs',?,?)
+ ON CONFLICT(catalog_key) DO UPDATE SET checked_at=excluded.checked_at,message=excluded.message,error=''`, time.Now().UnixMilli(), message)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }

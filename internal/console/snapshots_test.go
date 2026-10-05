@@ -142,9 +142,10 @@ func TestScanOnlyPersistsSuccessAcrossFailureAndCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 	wait()
-	if c.lastBatch.Updated != before.Updated || c.lastBatch.Hits != 2 {
-		t.Fatal("failed scan overwrote result")
+	if !c.lastBatch.Updated.After(before.Updated) || c.lastBatch.Hits != 2 || c.lastBatch.CatalogWarning == "" {
+		t.Fatal("offline scan did not use local database")
 	}
+	before = c.lastBatch
 	mode.Store(2)
 	if err := c.startBatchMode(true); err != nil {
 		t.Fatal(err)

@@ -324,7 +324,7 @@ function renderBatch(s) {
     : '尚无成功任务结果；扫描或下载补齐成功后保存统计。');
   $('progress').max = b.total || 1;
   $('progress').value = b.checked || 0;
-  setText('phase', b.phase || '等待开始');
+  setText('phase', (b.phase || '等待开始') + (b.catalogWarning ? ' · ' + b.catalogWarning : ''));
   $('batchBudgetHint').hidden = !b.budgetReached;
   setText('current', (b.current || '') +
     (b.total
@@ -382,6 +382,14 @@ async function refreshInventory() {
     setText('coverageRate', covered ? (100 * v.coveredSongs / v.totalSongs).toFixed(1) + '%' : '—');
     setText('coverageCount', covered ? v.coveredSongs + ' / ' + v.totalSongs + ' 首曲目已覆盖' : '尚未统计曲目覆盖');
     lastInventory = v;
+    const catalog = v.catalog || {};
+    const checked = catalog.checkedAt && !catalog.checkedAt.startsWith('0001');
+    setText('catalogCheckedAt', '最后成功检查：' + (checked ? new Date(catalog.checkedAt).toLocaleString() : '尚无记录'));
+    setText('catalogRevision', '本地 MD5 清单水位：' + (catalog.revision || '尚无有效清单')
+      + (v.catalogRevision && v.catalogRevision !== catalog.revision ? ' · 当前覆盖率基于：' + v.catalogRevision + '，请刷新' : ''));
+    setText('catalogCheckResult', catalog.error
+      ? '远端检查失败：' + catalog.error + (catalog.revision ? '；使用本地清单' : '；本地尚无有效 MD5 清单')
+      : catalog.message || '');
     setText('inventoryState', v.scanning
       ? '正在扫描，保留上次结果'
       : ready

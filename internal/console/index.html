@@ -174,8 +174,11 @@
               <b id="cacheBytes">—</b><small>视频总占用</small>
             </div>
           </div>
+          <p id="catalogCheckedAt" class="hint">最后成功检查：尚无记录</p>
+          <p id="catalogRevision" class="hint">本地 MD5 清单水位：尚无有效清单</p>
+          <p id="catalogCheckResult" class="hint" role="status"></p>
           <details class="help"><summary>覆盖率说明</summary><div class="hint">
-            覆盖率 = 清单所引用 MD5 的本地文件已存在的曲目数 ÷ 清单全部曲目数（含隐藏曲目）。共用视频的曲目分别计数，未被清单引用的资源不计入覆盖。刷新时一次获取清单，仅检查文件是否存在，不检查大小或读取视频正文，也不逐首解析地址。视频完整下载后校验大小和 MD5，之后假设文件不再变化，播放不重复校验。显示上次成功刷新结果，下载或淘汰后可手动刷新。
+            覆盖率按本地数据库中已有 MD5 映射的曲目计算（含隐藏曲目和保留的旧曲目）。刷新时先检查远端，按版本规则更新本地数据库，再统一读取本地清单检查文件是否存在；远端失败仍使用本地清单。仅有名称、没有 MD5 的曲目不参与统计。最后成功检查时间表示有效响应已完成版本检查，本地水位表示已接受的 MD5 清单版本，两者分别记录。不检查文件大小或读取视频正文，也不逐首解析地址。视频完整下载后校验大小和 MD5，之后假设文件不再变化，播放不重复校验。下载或淘汰后可手动刷新。
           </div></details>
           <div class="actions">
             <button id="inventoryScan" data-action="inventory/scan">

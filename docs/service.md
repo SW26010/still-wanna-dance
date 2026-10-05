@@ -59,20 +59,11 @@ ID 请求有映射且 MD5 文件存在时立即返回本地视频，支持 GET�
 
 ### 资源请求统计
 
-自动维护 SQLite `resource_usage` 汇总表与 `request_events` 请求明细表，用于计算缓存保留优先级；设置有限容量上限后自动淘汰低优先级视频，默认不限。详见[缓存保留策略](cache-retention.md)。控制台与命令行都使用存储根目录中的 `stepstash.sqlite`，同一数据库同时保存 `songs` 和 `video_versions`。清理 `tmp` 或淘汰视频不会删除资料和统计。
+自动维护 SQLite `song_usage` 歌曲需求汇总与 `request_events` 请求明细。统一数据库同时保存 `songs`、`media`、`song_media` 和清单同步水位。清理临时文件、淘汰视频或清理过期明细不会删除歌曲资料、当前映射和歌曲热度。详见[缓存保留策略](cache-retention.md)。
 
-每个资源一行，按资源指纹跨 CDN 汇总；纯视频 URL 无法判断实际曲目，播放 API 则提供显式歌曲 ID：
+只有明确歌曲 ID 的播放 GET 计入汇总。纯视频 URL 不推断歌曲，HEAD、预缓存和批量下载不计热度。每首歌曲保存正整数 `song_id`、累计有效需求 `demand_count`、指数累计值 `demand_score` 和最后有效需求时间 `last_demand_at`（Unix 毫秒）。同一歌曲以最后一次有效需求为锚点按 30 秒去重；重复窗口和时钟回拨不推进计分时间。60 天半衰期、初始分数替代和保护机制保持原规则。
 
-| 字段 | 含义 |
-| --- | --- |
-| `resource_key` | 资源指纹（文本） |
-| `get_count` | 进入缓存处理的 GET 请求数，包括下载失败和重试 |
-| `demand_count` | 去重后的需求次数，同一资源距离上一次计数达到 30 秒才再次计数 |
-| `first_requested_at` | 首次请求时间 |
-| `last_requested_at` | 最近一次 GET 时间，重复请求也更新 |
-| `last_demand_at` | 最近一次去重计数时间 |
-
-时间统一为 UTC Unix 毫秒。HEAD、预缓存、手动批量下载和提前拒绝的多区间请求只留明细，不增加汇总热度；非法 URL 和不支持的方法不进入资源统计。单区间请求在缓存处理后才验证 Range，其错误也可能计入 GET。数据表示本机代理观察到的请求需求，不能作为真实播放次数；30 秒只是简单去重规则，长播放中的后续 Range 仍可能再次计数。去重不删除明细，后续可以重新定义统计窗口。
+这里统计代理观察到的需求，不代表完成播放。独立 `media_access` 只保存每个 MD5 的最后 GET 时间，支持缓存列表最近访问展示；与保留期内 HTTP 明细取较新值，明细过期仍保留最后 GET 时间。它不记录资源热度，不参与歌曲评分。
 
 `request_events` 每次请求一行，包含资源指纹、请求开始时间、内容版本键、CDN 主机、来源（`http` / `prefetch`，队列与批量预取均属后者）、方法、原始 Range、缓存结果（`HIT` / `MISS` / `UNKNOWN`）、结果（`completed` / `failed` / `canceled` / `aborted`）、文件大小、响应传输字节数、耗时毫秒、HTTP 状态码和是否参与需求汇总。HTTP 状态可能为 0（尚未发送响应），取消/中断也可能已有 200/206，需结合结果字段判断。预取不是 HTTP 响应，其状态和响应传输字节数为 0；这不是上游实际下载流量，不能直接当作节省下载量。共享下载的预取取消后，后台下载仍可能继续。
 
@@ -83,8 +74,8 @@ ID 请求有映射且 MD5 文件存在时立即返回本地视频，支持 GET�
 停服后可用 SQLite 工具查询，例如按最近请求查看：
 
 ```sql
-SELECT resource_key, demand_count, last_requested_at
-FROM resource_usage ORDER BY last_requested_at DESC;
+SELECT song_id, demand_count, demand_score, last_demand_at
+FROM song_usage ORDER BY last_demand_at DESC;
 ```
 
 ### 响应和日志

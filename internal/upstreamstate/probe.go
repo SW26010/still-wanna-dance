@@ -207,7 +207,7 @@ func probeCatalogResponse(parent context.Context, client *http.Client, p Policy,
 	}
 	o.state = "available"
 	o.bytes = int64(len(body))
-	result = CatalogResponse{Route: route, Source: entry(Catalog, route), Body: body}
+	// Udon stays monitor-only: do not deliver its body to business consumers.
 	return
 }
 

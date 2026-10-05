@@ -106,8 +106,8 @@ func TestScanOnlyPersistsSuccessAcrossFailureAndCancellation(t *testing.T) {
 			<-r.Context().Done()
 			return
 		}
-		if r.URL.Path == "/Api/Songs/list" {
-			fmt.Fprint(w, `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":1},{"id":2}]}]}}`)
+		if r.URL.Path == "/catalog" {
+			writeTestMD5Catalog(w, map[int]string{1: body, 2: body})
 			return
 		}
 		w.Header().Set("Location", fmt.Sprintf("http://nya.xin.moe/files/2403/%s-abc.mp4?e=%x&s=%d", r.URL.Query().Get("id"), md5.Sum([]byte(body)), len(body)))
@@ -116,6 +116,7 @@ func TestScanOnlyPersistsSuccessAcrossFailureAndCancellation(t *testing.T) {
 	defer api.Close()
 	defer c.Close()
 	c.apiBase = api.URL
+	c.checksumURL = api.URL + "/catalog"
 	c.client.Transport = http.DefaultTransport
 	wait := func() {
 		t.Helper()
@@ -182,6 +183,7 @@ func TestScanCanRunAlongsideQueue(t *testing.T) {
 	defer api.Close()
 	defer c.Close()
 	c.apiBase = api.URL
+	c.checksumURL = api.URL + "/catalog"
 	c.client.Transport = http.DefaultTransport
 	if err := c.start(); err != nil {
 		t.Fatal(err)

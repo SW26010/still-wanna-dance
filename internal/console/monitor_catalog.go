@@ -1,12 +1,10 @@
 package console
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"log/slog"
 	"sort"
-	"strconv"
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
@@ -17,7 +15,6 @@ import (
 func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreamstate.CatalogResponse) {
 	type candidate struct {
 		full             *cacheproxy.Catalog
-		names            map[string]string
 		revision, source string
 		at               time.Time
 	}
@@ -40,14 +37,6 @@ func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreams
 			var full cacheproxy.Catalog
 			full, err = cacheproxy.ParseCatalog(response.Body, response.Source)
 			v.full, v.revision = &full, full.Revision
-		case "api":
-			var names songCatalog
-			names, err = parseCatalog(bytes.NewReader(response.Body))
-			v.revision = names.Revision
-			v.names = make(map[string]string, len(names.Songs))
-			for _, song := range names.Songs {
-				v.names[strconv.FormatInt(song.ID, 10)] = song.Name
-			}
 		default:
 			continue
 		}
@@ -64,12 +53,8 @@ func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreams
 	if len(candidates) == 0 || ctx.Err() != nil {
 		return
 	}
-	// Full metadata first so a newer names-only watermark cannot block this
-	// batch's MD5 data. Within each format, offer newer versions first.
+	// Only MD5 catalogs are business inputs; offer newer versions first.
 	sort.SliceStable(candidates, func(i, j int) bool {
-		if (candidates[i].full != nil) != (candidates[j].full != nil) {
-			return candidates[i].full != nil
-		}
 		return candidates[i].at.After(candidates[j].at)
 	})
 	c.lifecycleMu.Lock()
@@ -90,11 +75,7 @@ func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreams
 		if ctx.Err() != nil {
 			return
 		}
-		if v.full != nil {
-			err = engine.SyncCatalog(ctx, *v.full)
-		} else {
-			err = engine.SyncCatalogNames(ctx, v.revision, v.source, v.names)
-		}
+		err = engine.SyncCatalog(ctx, *v.full)
 		if err != nil {
 			slog.Warn("monitor_catalog_sync_failed", "source", v.source, "revision", v.revision, "error", err)
 		}

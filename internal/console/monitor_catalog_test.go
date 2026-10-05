@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -38,11 +39,11 @@ func TestMonitorCatalogOrderingAndExistingWatermarks(t *testing.T) {
 		if err := db.QueryRow("SELECT name,artist,md5 FROM songs JOIN song_media USING(song_id) WHERE song_id=1").Scan(&name, &artist, &md5); err != nil {
 			t.Fatal(err)
 		}
-		if name != "latest name" || artist != "artist" || md5 != b {
+		if name != "full" || artist != "artist" || md5 != b {
 			t.Fatalf("%q %q %q", name, artist, md5)
 		}
 		var count int
-		if err := db.QueryRow("SELECT count(*) FROM songs").Scan(&count); err != nil || count != 2 {
+		if err := db.QueryRow("SELECT count(*) FROM songs").Scan(&count); err != nil || count != 1 {
 			t.Fatalf("songs=%d, err=%v", count, err)
 		}
 		var revision string
@@ -51,7 +52,7 @@ func TestMonitorCatalogOrderingAndExistingWatermarks(t *testing.T) {
 		}
 	}
 	assert()
-	// Old or conflicting candidates cannot overwrite accepted data or delete ID 2.
+	// Udon cannot add ID 2 or overwrite MD5 metadata, regardless of its time.
 	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{old, monitorNames("20261003000000", "conflict"), monitorFull("wanna", "20261002000000", "full", a)})
 	assert()
 	// Fully invalid newer data must not advance any watermark.
@@ -64,7 +65,7 @@ const newerRevision = "20261002000000"
 func TestMonitorCatalogUsesCurrentStorageAfterSwitch(t *testing.T) {
 	c := testConsole(t)
 	ctx := context.Background()
-	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorNames("20261001000000", "original")})
+	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("kiva", "20261001000000", "original", strings.Repeat("a", 32))})
 	oldRoot := c.settings.StorageDir
 	// Hold the same locks as settings changes while replacing the engine.
 	c.lifecycleMu.Lock()
@@ -80,7 +81,7 @@ func TestMonitorCatalogUsesCurrentStorageAfterSwitch(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorNames("20261002000000", "replacement")})
+		c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("wanna", "20261002000000", "replacement", strings.Repeat("b", 32))})
 	}()
 	c.lifecycleMu.Unlock()
 	<-done
@@ -107,11 +108,22 @@ func TestMonitorCatalogCanceledOrClosingDoesNotOpenStorage(t *testing.T) {
 		} else {
 			cancel()
 		}
-		c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorNames("20261003000000", "name")})
+		c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("kiva", "20261003000000", "name", strings.Repeat("a", 32))})
 		cancel()
 		if c.service != nil {
 			t.Fatal("opened storage for canceled/closing update")
 		}
 		c.closing = false
+	}
+}
+
+func TestMonitorUdonNeverOpensStorage(t *testing.T) {
+	c := testConsole(t)
+	c.syncMonitorCatalogs(context.Background(), []upstreamstate.CatalogResponse{monitorNames("20990101000000", "ignored")})
+	if c.service != nil {
+		t.Fatal("Udon opened database")
+	}
+	if _, err := os.Stat(c.settings.StorageDir); !os.IsNotExist(err) {
+		t.Fatal("Udon created storage", err)
 	}
 }

@@ -23,6 +23,7 @@ func TestSwitchStopsOldTaskBeforeStartingNewTask(t *testing.T) {
 	defer api.Close()
 	defer c.Close()
 	c.apiBase = api.URL
+	c.checksumURL = api.URL
 	c.client.Transport = http.DefaultTransport
 	if err := c.start(); err != nil {
 		t.Fatal(err)
@@ -78,6 +79,7 @@ func TestBatchRestoresOnlyTemporarilyStoppedQueue(t *testing.T) {
 				defer api.Close()
 				defer c.Close()
 				c.apiBase = api.URL
+				c.checksumURL = api.URL
 				c.client.Transport = http.DefaultTransport
 				if enabled {
 					if err := c.start(); err != nil {

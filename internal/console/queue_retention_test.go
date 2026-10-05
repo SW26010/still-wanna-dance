@@ -35,8 +35,8 @@ func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) 
 	}))
 	t.Cleanup(origin.Close)
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/Api/Songs/list" {
-			io.WriteString(w, `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":1,"name":"one"}]}]}}`)
+		if r.URL.Path == "/catalog" {
+			writeTestMD5Catalog(w, map[int]string{1: body})
 			return
 		}
 		calls.Add(1)
@@ -53,6 +53,7 @@ func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) 
 	}))
 	t.Cleanup(api.Close)
 	c.apiBase = api.URL
+	c.checksumURL = api.URL + "/catalog"
 	c.client.Transport = http.DefaultTransport
 	cfg := cacheproxy.DefaultConfig()
 	cfg.OriginScheme = "http"

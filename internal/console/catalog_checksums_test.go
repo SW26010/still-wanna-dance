@@ -17,78 +17,6 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 )
 
-func TestMD5IDOnlyResolutionFailureCountedOnce(t *testing.T) {
-	for _, scan := range []bool{true, false} {
-		t.Run(fmt.Sprintf("scan=%v", scan), func(t *testing.T) {
-			c := testConsole(t)
-			defer c.Close()
-			c.settings.DownloadUpstream = "hkg"
-			key := fmt.Sprintf("%x", md5.Sum([]byte("cached")))
-			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path == "/Api/Songs/list" {
-					fmt.Fprint(w, `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":1},{"id":2},{"id":3},{"id":1}]}]}}`)
-					return
-				}
-				if r.URL.Query().Get("id") != "2" {
-					http.Error(w, "unavailable", http.StatusServiceUnavailable)
-					return
-				}
-				w.Header().Set("Location", fmt.Sprintf("https://nya.xin.moe/files/123/999-version.mp4?e=%s&s=6", key))
-				w.WriteHeader(http.StatusFound)
-			}))
-			defer api.Close()
-			c.apiBase, c.checksumURL, c.client.Transport = api.URL, "", http.DefaultTransport
-			cfg := cacheproxy.DefaultConfig()
-			cfg.StorageDir = c.settings.StorageDir
-			engine, err := cacheproxy.New(cfg)
-			if err != nil {
-				t.Fatal(err)
-			}
-			c.service = engine
-			// Failed ID 1 shares a file with successful ID 2; omitted ID 4 survives.
-			if err := syncTestCatalog(c, engine, context.Background(), map[string]string{"1": key, "2": key, "4": key}); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(filepath.Join(cfg.StorageDir, "videos", key+".mp4"), []byte("cached"), 0600); err != nil {
-				t.Fatal(err)
-			}
-			if err := c.startBatchMode(scan); err != nil {
-				t.Fatal(err)
-			}
-			c.mu.Lock()
-			done := c.batchDone
-			c.mu.Unlock()
-			select {
-			case <-done:
-			case <-time.After(5 * time.Second):
-				t.Fatal("batch stalled")
-			}
-			b := c.batch
-			if b.Total != 4 || b.Checked != 4 || b.Failed != 2 || b.Hits != 2 || b.Missing != 0 || b.Downloaded != 0 {
-				t.Fatalf("%+v", b)
-			}
-			failed := map[int64]bool{}
-			for _, f := range b.Failures {
-				if failed[f.ID] {
-					t.Fatalf("duplicate failure: %+v", b)
-				}
-				failed[f.ID] = true
-			}
-			if len(failed) != 2 || !failed[1] || !failed[3] {
-				t.Fatalf("failures=%v", failed)
-			}
-			check, release, err := engine.CheckReferences(context.Background())
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer release()
-			if len(check.References) != 3 || check.References["1"] != key || check.References["4"] != key {
-				t.Fatalf("%+v", check)
-			}
-		})
-	}
-}
-
 func waitMD5Batch(t *testing.T, c *Console, scan bool) {
 	t.Helper()
 	if err := c.startBatchMode(scan); err != nil {
@@ -301,47 +229,45 @@ func TestMD5CatalogInvalidChecksumDoesNotChangeMappings(t *testing.T) {
 	}
 }
 
-func TestCatalogFallbackBoundary(t *testing.T) {
-	const checksum = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	for _, tc := range []struct {
-		name, body string
-		fallback   bool
-	}{
-		{"truncated", `{"code":200,`, true},
-		{"metadata", `{"id":1,"checksum":"` + checksum + `","flip":2}`, true},
-		{"invalid ID type", `{"id":"1","checksum":"` + checksum + `"}`, false},
-		{"missing ID", `{"checksum":"` + checksum + `"}`, false},
-		{"invalid checksum type", `{"id":1,"checksum":123}`, false},
-		{"missing checksum", `{"id":1}`, false},
-		{"duplicate ID", `{"id":1,"checksum":"` + checksum + `"},{"id":1,"checksum":"` + checksum + `"}`, false},
-		{"bad metadata before bad mapping", `{"id":1,"checksum":"` + checksum + `","flip":2},{"id":2,"checksum":"bad"}`, false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			c := testConsole(t)
-			defer c.Close()
-			var lists atomic.Int32
-			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path == "/catalog" {
-					if tc.name == "truncated" {
-						fmt.Fprint(w, tc.body)
-					} else {
-						fmt.Fprintf(w, `{"code":200,"data":{"time":"20261001000000","groups":[{"entries":[%s]}]}}`, tc.body)
+func TestCatalogNeverFallsBackToUdon(t *testing.T) {
+	for _, bad := range []string{"http500", "truncated", "mapping", "metadata"} {
+		for _, scan := range []bool{true, false} {
+			t.Run(fmt.Sprintf("%s/scan=%v", bad, scan), func(t *testing.T) {
+				c := testConsole(t)
+				if err := c.save(c.settings); err != nil {
+					t.Fatal(err)
+				}
+				var forbidden atomic.Int32
+				api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/catalog" {
+						forbidden.Add(1)
+						writeTestMD5Catalog(w, map[int]string{1: "body"})
+						return
 					}
-					return
+					switch bad {
+					case "http500":
+						http.Error(w, "offline", 500)
+					case "truncated":
+						fmt.Fprint(w, `{"code":200,`)
+					case "mapping":
+						fmt.Fprint(w, `{"code":200,"data":{"time":"20261001000000","groups":[{"entries":[{"id":1,"checksum":"bad"}]}]}}`)
+					case "metadata":
+						fmt.Fprint(w, `{"code":200,"data":{"time":"20261001000000","groups":[{"entries":[{"id":1,"checksum":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","flip":2}]}]}}`)
+					}
+				}))
+				defer api.Close()
+				c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
+				if err := c.startBatchMode(scan); err != nil {
+					t.Fatal(err)
 				}
-				lists.Add(1)
-				fmt.Fprint(w, `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":1,"name":"fallback"}]}]}}`)
-			}))
-			defer api.Close()
-			c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
-			catalog, err := c.catalog(context.Background())
-			if tc.fallback {
-				if err != nil || catalog.MD5 != nil || len(catalog.Songs) != 1 || lists.Load() != 1 || catalog.Revision != "20261004235822" {
-					t.Fatal(catalog, err, lists.Load())
+				c.mu.Lock()
+				done := c.batchDone
+				c.mu.Unlock()
+				<-done
+				if c.batch.Total != 0 || !strings.Contains(c.batch.Phase, "获取歌曲列表失败") || forbidden.Load() != 0 {
+					t.Fatal(c.batch, forbidden.Load())
 				}
-			} else if err == nil || lists.Load() != 0 {
-				t.Fatal("invalid mapping enabled fallback", err, lists.Load())
-			}
-		})
+			})
+		}
 	}
 }

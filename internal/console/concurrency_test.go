@@ -36,8 +36,8 @@ func TestBackgroundModesDownloadTwoSongsConcurrently(t *testing.T) {
 			defer origin.Close()
 			defer unblock()
 			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path == "/Api/Songs/list" {
-					io.WriteString(w, `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":1},{"id":2},{"id":3}]}]}}`)
+				if r.URL.Path == "/catalog" {
+					writeTestMD5Catalog(w, map[int]string{1: body + "1", 2: body + "2", 3: body + "3"})
 					return
 				}
 				w.Header().Set("Location", fmt.Sprintf("http://nya.xin.moe/files/2403/%s-abc.mp4?e=%x&s=%d", r.URL.Query().Get("id"), md5.Sum([]byte(body+r.URL.Query().Get("id"))), len(body+r.URL.Query().Get("id"))))
@@ -45,6 +45,7 @@ func TestBackgroundModesDownloadTwoSongsConcurrently(t *testing.T) {
 			}))
 			defer api.Close()
 			c.apiBase = api.URL
+			c.checksumURL = api.URL + "/catalog"
 			c.client.Transport = http.DefaultTransport
 			cfg := cacheproxy.DefaultConfig()
 			cfg.OriginScheme = "http"

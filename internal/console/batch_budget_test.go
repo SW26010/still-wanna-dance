@@ -25,8 +25,8 @@ func TestBatchStopsAtBudget(t *testing.T) {
 			}))
 			defer origin.Close()
 			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path == "/Api/Songs/list" {
-					fmt.Fprint(w, `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":1},{"id":2},{"id":3},{"id":4}]}]}}`)
+				if r.URL.Path == "/catalog" {
+					writeTestMD5Catalog(w, map[int]string{1: strings.Repeat("x", 10), 2: strings.Repeat("x", 10), 3: strings.Repeat("x", 10), 4: strings.Repeat("x", 10)})
 					return
 				}
 				host := "play.udon.dance"
@@ -37,7 +37,7 @@ func TestBatchStopsAtBudget(t *testing.T) {
 				w.WriteHeader(302)
 			}))
 			defer api.Close()
-			c.apiBase, c.client.Transport = api.URL, http.DefaultTransport
+			c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
 			cfg := cacheproxy.DefaultConfig()
 			cfg.StorageDir, cfg.OriginScheme, cfg.MaxCacheBytes = c.settings.StorageDir, "http", limit
 			for host := range cfg.Origins {

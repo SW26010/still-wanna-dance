@@ -19,45 +19,32 @@ func (f catalogTransport) RoundTrip(r *http.Request) (*http.Response, error) { r
 
 func TestCatalogUsesHTTPSForProductionAPI(t *testing.T) {
 	c := testConsole(t)
+	c.checksumURL = "https://x.kiva.moe/api/v2/wanna/songs"
 	c.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
-		if r.URL.String() != "https://api.udon.dance/Api/Songs/list" {
+		if r.URL.String() != "https://x.kiva.moe/api/v2/wanna/songs" {
 			t.Fatalf("unexpected catalog URL: %s", r.URL)
 		}
-		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":1}]}]}}`))}, nil
+		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(testMD5CatalogBody("20261004235822", map[int]string{1: "body"})))}, nil
 	})
-	if _, err := c.catalog(context.Background()); err != nil {
+	if _, err := c.fetchCatalogSnapshot(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestUdonCatalogPreservesAndValidatesTopLevelTime(t *testing.T) {
-	for _, value := range []string{"20261004235822", "", "20260230000000", "now"} {
-		body := fmt.Sprintf(`{"time":%q,"groups":{"contents":[{"songInfos":[{"id":1,"name":"one"}]}]}}`, value)
-		catalog, err := parseCatalog(strings.NewReader(body))
-		if value == "20261004235822" {
-			if err != nil || catalog.Revision != value || len(catalog.Songs) != 1 {
-				t.Fatal(catalog, err)
-			}
-		} else if err == nil {
-			t.Fatal("invalid Udon time accepted", value)
-		}
-	}
-}
-
-func TestCatalogSlowBodyHasIndependentTimeout(t *testing.T) {
+func TestMD5CatalogBodyRespectsTimeout(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"time":"20261004235822","groups":`)
+		fmt.Fprint(w, `{"code":200,`)
 		w.(http.Flusher).Flush()
 		time.Sleep(60 * time.Millisecond)
-		fmt.Fprint(w, `{"contents":[{"songInfos":[{"id":1,"name":"song"}]}]}}`)
+		fmt.Fprint(w, strings.TrimPrefix(testMD5CatalogBody("20261004235822", map[int]string{1: "body"}), `{"code":200,`))
 	}))
 	defer s.Close()
 	c := testConsole(t)
-	c.apiBase = s.URL
+	c.checksumURL = s.URL
 	c.client = s.Client()
 	c.client.Timeout = 20 * time.Millisecond
-	catalog, err := c.catalog(context.Background())
-	if err != nil || len(catalog.Songs) != 1 {
+	catalog, err := c.fetchCatalogSnapshot(context.Background())
+	if !errors.Is(err, context.DeadlineExceeded) || len(catalog.Songs) != 0 {
 		t.Fatalf("songs=%v error=%v", catalog.Songs, err)
 	}
 	if c.client.Timeout != 20*time.Millisecond {
@@ -69,16 +56,16 @@ func TestCatalogBodyCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"time":"20261004235822","groups":`)
+		fmt.Fprint(w, `{"code":200,`)
 		w.(http.Flusher).Flush()
 		cancel()
 		<-r.Context().Done()
 	}))
 	defer s.Close()
 	c := testConsole(t)
-	c.apiBase = s.URL
+	c.checksumURL = s.URL
 	c.client = s.Client()
-	_, err := c.catalog(ctx)
+	_, err := c.fetchCatalogSnapshot(ctx)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("%v", err)
 	}
@@ -87,14 +74,14 @@ func TestCatalogBodyCancellation(t *testing.T) {
 func TestCatalogTruncatedBodyIsNotFormatError(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Length", "1000")
-		fmt.Fprint(w, `{"time":"20261004235822","groups":`)
+		fmt.Fprint(w, `{"code":200,`)
 	}))
 	defer s.Close()
 	c := testConsole(t)
-	c.apiBase = s.URL
+	c.checksumURL = s.URL
 	c.client = s.Client()
-	_, err := c.catalog(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "读取失败") || strings.Contains(err.Error(), "格式错误") {
+	_, err := c.fetchCatalogSnapshot(context.Background())
+	if err == nil || !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Fatalf("%v", err)
 	}
 }
@@ -104,8 +91,9 @@ func TestLiveCatalogCompleteBody(t *testing.T) {
 		t.Skip("opt-in live catalog request")
 	}
 	c := testConsole(t)
+	c.checksumURL = "https://x.kiva.moe/api/v2/wanna/songs"
 	started := time.Now()
-	catalog, err := c.catalog(context.Background())
+	catalog, err := c.fetchCatalogSnapshot(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

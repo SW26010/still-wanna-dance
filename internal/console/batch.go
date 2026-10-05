@@ -1,12 +1,9 @@
 package console
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -20,11 +17,6 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 )
 
-type Song struct {
-	ID       int64  `json:"id"`
-	Name     string `json:"name"`
-	Checksum string `json:"-"`
-}
 type Failure struct {
 	ID    int64  `json:"id"`
 	Name  string `json:"name"`
@@ -47,104 +39,6 @@ type Batch struct {
 	Failed        int       `json:"failed"`
 	Current       string    `json:"current"`
 	Failures      []Failure `json:"failures"`
-}
-
-type songCatalog struct {
-	Songs            []Song
-	MD5              *cacheproxy.Catalog
-	Revision, Source string
-}
-
-func parseCatalog(r io.Reader) (songCatalog, error) {
-	var catalog struct {
-		Time   string `json:"time"`
-		Groups struct {
-			Contents []struct {
-				SongInfos []Song `json:"songInfos"`
-			} `json:"contents"`
-		} `json:"groups"`
-	}
-	d := json.NewDecoder(io.LimitReader(r, 16<<20))
-	if err := d.Decode(&catalog); err != nil {
-		return songCatalog{}, fmt.Errorf("歌曲列表格式错误：%w", err)
-	}
-	if _, err := cacheproxy.ParseCatalogTime(catalog.Time); err != nil {
-		return songCatalog{}, err
-	}
-	seen := map[int64]bool{}
-	songs := []Song{}
-	for _, g := range catalog.Groups.Contents {
-		for _, s := range g.SongInfos {
-			if s.ID > 0 && !seen[s.ID] {
-				seen[s.ID] = true
-				songs = append(songs, s)
-			}
-		}
-	}
-	if len(songs) == 0 {
-		return songCatalog{}, errors.New("歌曲列表为空或格式不受支持；未开始处理曲目")
-	}
-	sort.Slice(songs, func(i, j int) bool { return songs[i].ID < songs[j].ID })
-	return songCatalog{Songs: songs, Revision: catalog.Time}, nil
-}
-
-func (c *Console) catalog(ctx context.Context) (songCatalog, error) {
-	if c.checksumURL != "" {
-		snapshot, err := c.fetchCatalogSnapshot(ctx)
-		if err == nil {
-			songs := make([]Song, 0, len(snapshot.Songs))
-			for _, song := range snapshot.Songs {
-				name := ""
-				if song.Name != nil {
-					name = *song.Name
-				}
-				songs = append(songs, Song{ID: song.ID, Name: name, Checksum: song.MD5})
-			}
-			sort.Slice(songs, func(i, j int) bool { return songs[i].ID < songs[j].ID })
-			return songCatalog{Songs: songs, MD5: &snapshot, Revision: snapshot.Revision, Source: snapshot.Source}, nil
-		}
-		if errors.Is(err, cacheproxy.ErrInvalidCatalogMapping) {
-			return songCatalog{}, err
-		}
-		if ctx.Err() != nil {
-			return songCatalog{}, ctx.Err()
-		}
-		slog.Warn("catalog_md5_unavailable", "error", err)
-	}
-
-	base := c.apiBase
-	if base == "http://api.udon.dance" {
-		base = "https://api.udon.dance"
-	}
-	r, err := http.NewRequestWithContext(ctx, "GET", base+"/Api/Songs/list", nil)
-	if err != nil {
-		return songCatalog{}, err
-	}
-	// The full catalog is much larger than a playback redirect. Give its body
-	// its own budget without changing the shared client's per-song timeout.
-	client := *c.upstreamClient()
-	client.Timeout = 2 * time.Minute
-	resp, err := client.Do(r)
-	if err != nil {
-		return songCatalog{}, applog.SafeError(err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return songCatalog{}, fmt.Errorf("歌曲列表接口返回 %d", resp.StatusCode)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, (16<<20)+1))
-	if err != nil {
-		if ctx.Err() != nil {
-			return songCatalog{}, ctx.Err()
-		}
-		return songCatalog{}, fmt.Errorf("歌曲列表读取失败（网络中断或超时），请重试：%w", applog.SafeError(err))
-	}
-	if len(body) > 16<<20 {
-		return songCatalog{}, errors.New("歌曲列表超过 16 MiB 大小限制")
-	}
-	catalog, err := parseCatalog(bytes.NewReader(body))
-	catalog.Source = r.URL.String()
-	return catalog, err
 }
 
 func (c *Console) resolve(ctx context.Context, id int64) (string, error) {
@@ -269,62 +163,24 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		slog.Info("batch_finished", "scan_only", scanOnly, "reused", result.Reused, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", result.Missing, "cancelled", ctx.Err() != nil, "total", result.Total, "checked", result.Checked, "hits", result.Hits, "downloaded", result.Downloaded, "failed", result.Failed, "phase", result.Phase)
 	}()
 
-	catalog, err := c.catalog(ctx)
+	catalog, err := c.fetchCatalogSnapshot(ctx)
 	fail := func(message string) { c.mu.Lock(); c.batch.Phase = message; c.mu.Unlock() }
 	if err != nil {
 		fail("获取歌曲列表失败：" + err.Error())
 		return
 	}
 	songs := catalog.Songs
-	targets := map[string]string{}
 	titles := map[string]string{}
 	for _, song := range songs {
-		titles[strconv.FormatInt(song.ID, 10)] = song.Name
+		name := ""
+		if song.Name != nil {
+			name = *song.Name
+		}
+		titles[strconv.FormatInt(song.ID, 10)] = name
 	}
-	if catalog.MD5 != nil {
-		if err := s.SyncCatalog(ctx, *catalog.MD5); err != nil {
-			fail("更新歌曲映射失败：" + err.Error())
-			return
-		}
-	} else {
-		if err := s.SyncCatalogNames(ctx, catalog.Revision, catalog.Source, titles); err != nil {
-			fail(err.Error())
-			return
-		}
-	}
-	// Only the fallback ID-only catalog needs per-song resolution before presence checks.
-	var unresolved []Failure
-	unresolvedIDs := make(map[string]bool)
-	for _, song := range songs {
-		if song.Checksum != "" {
-			continue
-		}
-		if ctx.Err() != nil {
-			return
-		}
-		route := settings.DownloadUpstream
-		if route == "auto" || route == "" {
-			route = "cf"
-		}
-		if scanOnly {
-			route = "hkg"
-		}
-		target, err := c.resolveNode(ctx, song.ID, route)
-		if err != nil && settings.DownloadUpstream == "auto" && !scanOnly {
-			target, err = c.resolveNode(ctx, song.ID, "hkg")
-		}
-		if err == nil {
-			_, err = s.RememberSongURL(ctx, strconv.FormatInt(song.ID, 10), target)
-		}
-		if err != nil {
-			id := strconv.FormatInt(song.ID, 10)
-			if !unresolvedIDs[id] {
-				unresolved = append(unresolved, Failure{ID: song.ID, Name: song.Name, Error: err.Error()})
-				unresolvedIDs[id] = true
-			}
-			continue
-		}
-		targets[strconv.FormatInt(song.ID, 10)] = target
+	if err := s.SyncCatalog(ctx, catalog); err != nil {
+		fail("更新歌曲映射失败：" + err.Error())
+		return
 	}
 	check, release, err := s.CheckReferences(ctx)
 	if err != nil {
@@ -338,13 +194,8 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		score float64
 	}
 	grouped := map[string]*resourceJob{}
-	total := len(unresolved)
+	total := 0
 	for id, key := range check.References {
-		// A persisted mapping survives resolution failure, but that song must
-		// have only one outcome in this batch: failure, not also hit/missing.
-		if unresolvedIDs[id] {
-			continue
-		}
 		total++
 		if grouped[key] == nil {
 			grouped[key] = &resourceJob{md5: key}
@@ -356,8 +207,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		fail(err.Error())
 		return
 	}
-	// Retained mappings still contribute to shared-resource priority, even
-	// when resolution failed for that ID in this batch.
+	// Retained mappings still contribute to shared-resource priority.
 	for key, job := range grouped {
 		job.score = priorities[key].Score
 	}
@@ -380,9 +230,6 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	})
 	c.mu.Lock()
 	c.batch.Total = total
-	c.batch.Checked = len(unresolved)
-	c.batch.Failed = len(unresolved)
-	c.batch.Failures = unresolved
 	if scanOnly {
 		c.batch.Phase = "正在检查 MD5 文件是否齐备"
 	} else {
@@ -418,16 +265,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 				c.mu.Lock()
 				c.batch.Current = id + " · " + titles[id]
 				c.mu.Unlock()
-				if target := targets[id]; target != "" {
-					source, err = s.PrefetchSong(songCtx, id, target)
-					if err != nil && songCtx.Err() == nil && !errors.Is(err, cacheproxy.ErrBatchBudget) {
-						previous := err
-						source, err = c.prefetchSong(songCtx, s, n, nil)
-						err = preserveBudgetFailure(previous, err)
-					}
-				} else {
-					source, err = c.prefetchSong(songCtx, s, n, nil)
-				}
+				source, err = c.prefetchSong(songCtx, s, n, nil)
 				if err == nil || songCtx.Err() != nil || errors.Is(err, cacheproxy.ErrBatchBudget) {
 					break
 				}

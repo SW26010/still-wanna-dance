@@ -159,8 +159,8 @@ func TestBatchWorksWithoutCDNAndReusesCache(t *testing.T) {
 	}
 	c.service = engine
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/Api/Songs/list" {
-			io.WriteString(w, `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":1,"name":"first"},{"id":1,"name":"duplicate"},{"id":2,"name":"unavailable"}]}]}}`)
+		if r.URL.Path == "/catalog" {
+			writeTestMD5Catalog(w, map[int]string{1: body, 2: "unavailable"})
 			return
 		}
 		if r.URL.Query().Get("id") == "2" {
@@ -177,6 +177,7 @@ func TestBatchWorksWithoutCDNAndReusesCache(t *testing.T) {
 	}))
 	defer api.Close()
 	c.apiBase = api.URL
+	c.checksumURL = api.URL + "/catalog"
 	c.client.Transport = http.DefaultTransport
 	for run := 0; run < 2; run++ {
 		if err = c.startBatch(); err != nil {
@@ -219,6 +220,7 @@ func TestCancelBatchAndStopCDNAreIndependent(t *testing.T) {
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { close(started); <-r.Context().Done() }))
 	defer api.Close()
 	c.apiBase = api.URL
+	c.checksumURL = api.URL + "/catalog"
 	c.client.Transport = http.DefaultTransport
 	if err := c.start(); err != nil {
 		t.Fatal(err)
@@ -245,12 +247,7 @@ func TestCancelBatchAndStopCDNAreIndependent(t *testing.T) {
 	}
 }
 
-func TestCatalogAndDNSValidation(t *testing.T) {
-	for _, input := range []string{`{}`, `{"time":"20261004235822","groups":{"contents":[]}}`, `not-json`} {
-		if _, err := parseCatalog(strings.NewReader(input)); err == nil {
-			t.Fatal("accepted invalid catalog")
-		}
-	}
+func TestDNSValidation(t *testing.T) {
 	var answer dnsAnswer
 	if err := json.Unmarshal([]byte(`{"Status":0,"Answer":[{"type":1,"TTL":60,"data":"127.0.0.1"},{"type":1,"TTL":120,"data":"203.0.113.9"}]}`), &answer); err != nil {
 		t.Fatal(err)
@@ -279,9 +276,10 @@ func TestLiveIndependentDNS(t *testing.T) {
 		t.Skip("opt-in network check")
 	}
 	c := testConsole(t)
+	c.checksumURL = "https://x.kiva.moe/api/v2/wanna/songs"
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	catalog, err := c.catalog(ctx)
+	catalog, err := c.fetchCatalogSnapshot(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

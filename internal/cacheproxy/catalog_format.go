@@ -98,8 +98,8 @@ func ParseCatalog(body []byte, source string) (Catalog, error) {
 			entries = append(entries, raw)
 		}
 	}
-	// Validate every identity before optional metadata: a metadata error must
-	// not hide an invalid mapping and enable the ID-only fallback.
+	// Validate every identity before optional metadata so metadata errors cannot
+	// mask invalid or duplicate ID/MD5 mappings in the catalog.
 	for _, raw := range entries {
 		var song CatalogSong
 		if err := json.Unmarshal(raw, &song); err != nil {

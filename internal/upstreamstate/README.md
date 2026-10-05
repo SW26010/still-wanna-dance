@@ -14,7 +14,7 @@
 
 | 操作 | 入口 | 检查内容 |
 | --- | --- | --- |
-| Catalog / api | api.udon.dance/Api/Songs/list | 完整 JSON、有效歌曲 ID |
+| Catalog / api | api.udon.dance/Api/Songs/list | 完整 JSON、有效歌曲 ID；仅 monitor 使用，不写库或参与业务水位 |
 | Catalog / kiva | x.kiva.moe/api/v2/wanna/songs | 业务状态码、清单版本、正数歌曲 ID、合法且无冲突的 MD5 |
 | Catalog / wanna | wanna.kiva.moe/api/wannaInfo | 同上，独立清单入口 |
 | PlaybackURL | 同一 API 的 node=cf / node=nya | 重定向、目标主机和资源元数据 |
@@ -27,7 +27,7 @@
 ## 接口
 
 - NewMonitor(Options)：只构造，不发请求。
-- Options.OnCatalog：在列表探测阶段结束后、Monitor 锁外交付本轮成功响应及来源，复用正文而不增加请求，不将正文放入状态快照。普通通道、多候选及为获取歌曲样本而发起的列表探测均交付；取消或已退休网络配置的批次不交付。Console 完整解析候选，同轮先提交较新的 Kiva/Wanna 完整清单，再提交 Udon 名称清单，复用现有事务与水位规则。存储失败单独记录，不改变探测结果或测速耗时。
+- Options.OnCatalog：仅交付成功的 Kiva／WannaInfo MD5 清单及来源，在 Monitor 锁外复用正文而不增加请求，取消或已退休网络配置的批次不交付。Udon 检测和采样保留在 monitor 内部，其正文不交付业务消费者。Console 完整解析 MD5 候选并按版本从新到旧同步，仅使用 `songs` 水位；存储失败单独记录，不改变探测结果或测速耗时。
 - Start()：幂等启动调度器；何时允许访问上游由对象所有者决定。
 - Check(ctx)：检查并等待。并发调用共享一轮，取消一个等待者不影响其它等待者。
 - Results(Operation)、Snapshot()：纯内存读取独立副本；包含未知、失败、过期和关闭状态。候选数量随有效 IP 池变化，没有候选时保留 unknown/no_channel 项。

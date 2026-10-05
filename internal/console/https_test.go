@@ -69,8 +69,12 @@ func TestHTTPSRelayPreservesTLSAndRange(t *testing.T) {
 	for _, host := range []string{"nya.xin.moe", "play.udon.dance", "api.udon.dance"} {
 		for _, version := range []uint16{tls.VersionTLS12, tls.VersionTLS13} {
 			t.Run(host+"/"+tls.VersionName(version), func(t *testing.T) {
+				path := "/video.mp4"
+				if host == "api.udon.dance" {
+					path = "/Api/Songs/list"
+				}
 				backend := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					if r.TLS.ServerName != host || r.Host != host || r.URL.RawQuery != "signed=unchanged" {
+					if r.TLS.ServerName != host || r.Host != host || r.URL.Path != path || r.URL.RawQuery != "signed=unchanged" {
 						t.Errorf("altered request: host=%s SNI=%s URL=%s", r.Host, r.TLS.ServerName, r.URL)
 					}
 					http.ServeContent(w, r, "video.mp4", time.Time{}, strings.NewReader("0123456789"))
@@ -91,7 +95,7 @@ func TestHTTPSRelayPreservesTLSAndRange(t *testing.T) {
 				defer transport.CloseIdleConnections()
 				client := &http.Client{Transport: transport, Timeout: 5 * time.Second}
 				for _, method := range []string{"GET", "HEAD"} {
-					req, _ := http.NewRequest(method, "https://"+host+"/video.mp4?signed=unchanged", nil)
+					req, _ := http.NewRequest(method, "https://"+host+path+"?signed=unchanged", nil)
 					req.Header.Set("Range", "bytes=3-6")
 					resp, err := client.Do(req)
 					if err != nil {

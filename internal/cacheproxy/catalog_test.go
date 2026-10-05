@@ -220,7 +220,7 @@ func TestCatalogConcurrentOrderingAndPlaybackFill(t *testing.T) {
 	assertSongResource(t, s, "1", b)
 }
 
-func TestCatalogTimesAcrossMD5SourcesAndUdonNames(t *testing.T) {
+func TestCatalogTimesAcrossMD5SourcesIgnoreLegacyUdonWatermark(t *testing.T) {
 	s, _ := setup(t, nil)
 	ctx := context.Background()
 	a, b := strings.Repeat("a", 32), strings.Repeat("b", 32)
@@ -229,61 +229,38 @@ func TestCatalogTimesAcrossMD5SourcesAndUdonNames(t *testing.T) {
 	if err := s.SyncCatalog(ctx, first); err != nil {
 		t.Fatal(err)
 	}
-	const udon = "https://api.udon.dance/Api/Songs/list"
-	const newer = "20261004235822"
-	if err := s.SyncCatalogNames(ctx, "20260101000000", udon, map[string]string{"1": "stale"}); err == nil {
-		t.Fatal("old Udon names overwrote MD5 catalog")
+	var count int
+	if err := s.usage.db.QueryRow("SELECT count(*) FROM catalog_state").Scan(&count); err != nil || count != 1 {
+		t.Fatal(count, err)
 	}
-	if err := s.SyncCatalogNames(ctx, newer, udon, map[string]string{"1": "new"}); err != nil {
+	// Existing obsolete rows must never gate, advance, or be rewritten by MD5 sync.
+	if _, err := s.usage.db.Exec("INSERT INTO catalog_state VALUES ('song_names','20990101000000','legacy','udon',1)"); err != nil {
 		t.Fatal(err)
 	}
-	assertSongResource(t, s, "1", a)
-	if err := s.SyncCatalog(ctx, first); err == nil {
-		t.Fatal("late MD5 response overwrote newer Udon names")
-	}
 	name = "new"
-	next := Catalog{Revision: newer, Source: "https://x.kiva.moe/api/v2/wanna/songs", Songs: []CatalogSong{{ID: 1, MD5: b, Name: &name}}}
+	next := Catalog{Revision: "20261004235822", Source: "https://x.kiva.moe/api/v2/wanna/songs", Songs: []CatalogSong{{ID: 1, MD5: b, Name: &name}}}
 	if err := s.SyncCatalog(ctx, next); err != nil {
-		t.Fatal("Udon watermark blocked matching full metadata at the same time", err)
+		t.Fatal("obsolete Udon watermark blocked update", err)
 	}
 	assertSongResource(t, s, "1", b)
+	if err := s.SyncCatalog(ctx, first); err == nil {
+		t.Fatal("old mirror accepted")
+	}
 	if _, err := s.usage.db.Exec("CREATE TRIGGER forbid_update BEFORE UPDATE ON songs BEGIN SELECT RAISE(ABORT,'duplicate wrote'); END"); err != nil {
 		t.Fatal(err)
 	}
 	next.Source = first.Source
-	next.Revision = newer + ".000"
 	if err := s.SyncCatalog(ctx, next); err != nil {
-		t.Fatal("same-time mirror duplicate wrote", err)
-	}
-	if err := s.SyncCatalogNames(ctx, newer, udon, map[string]string{"1": "new"}); err != nil {
-		t.Fatal("same-time Udon duplicate wrote", err)
-	}
-	if _, err := s.usage.db.Exec("DROP TRIGGER forbid_update"); err != nil {
-		t.Fatal(err)
+		t.Fatal("same-version mirror rewrote data", err)
 	}
 	next.Songs[0].MD5 = a
 	if err := s.SyncCatalog(ctx, next); err == nil {
-		t.Fatal("same-time MD5 conflict accepted")
+		t.Fatal("same-version conflict accepted")
 	}
-	for _, names := range []map[string]string{{"1": "conflict"}, {}} {
-		if err := s.SyncCatalogNames(ctx, newer, udon, names); err == nil {
-			t.Fatal("conflicting or empty Udon catalog accepted")
-		}
-	}
-	if _, err := s.usage.db.Exec("CREATE TRIGGER reject_second BEFORE INSERT ON songs WHEN NEW.song_id=2 BEGIN SELECT RAISE(ABORT,'rollback'); END"); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.SyncCatalogNames(ctx, "20261005000000", udon, map[string]string{"1": "rollback", "2": "second"}); err == nil {
-		t.Fatal("partial Udon catalog committed")
-	}
-	var got, revision string
-	if err := s.usage.db.QueryRow("SELECT name FROM songs WHERE song_id=1").Scan(&got); err != nil || got != "new" {
-		t.Fatal(got, err)
-	}
-	if err := s.usage.db.QueryRow("SELECT revision FROM catalog_state WHERE catalog_key='song_names'").Scan(&revision); err != nil || revision != newer {
+	var revision string
+	if err := s.usage.db.QueryRow("SELECT revision FROM catalog_state WHERE catalog_key='song_names'").Scan(&revision); err != nil || revision != "20990101000000" {
 		t.Fatal(revision, err)
 	}
-	assertSongResource(t, s, "1", b)
 }
 
 func TestOldStoreRejectedWithoutAnyFileChanges(t *testing.T) {

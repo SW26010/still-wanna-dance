@@ -25,8 +25,8 @@ func TestScanSharedResourceCountsBothSongs(t *testing.T) {
 		t.Fatal(err)
 	}
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/Api/Songs/list" {
-			fmt.Fprint(w, `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":138},{"id":140}]}]}}`)
+		if r.URL.Path == "/catalog" {
+			writeTestMD5Catalog(w, map[int]string{138: body, 140: body})
 			return
 		}
 		w.Header().Set("Location", fmt.Sprintf("http://nya.xin.moe/files/2403/138-abc.mp4?e=%x&s=%d", md5.Sum([]byte(body)), len(body)))
@@ -34,7 +34,7 @@ func TestScanSharedResourceCountsBothSongs(t *testing.T) {
 	}))
 	defer api.Close()
 	defer c.Close()
-	c.apiBase, c.client.Transport = api.URL, http.DefaultTransport
+	c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
 	for _, name := range []string{"first scan", "repeat scan"} {
 		if err := c.startBatchMode(true); err != nil {
 			t.Fatal(err)

@@ -2,12 +2,9 @@ package cacheproxy
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -43,18 +40,6 @@ func (s *Server) SyncCatalog(ctx context.Context, c Catalog) error {
 	if err != nil {
 		return err
 	}
-	names := make([]catalogName, 0, len(c.Songs))
-	for _, song := range c.Songs {
-		name := ""
-		if song.Name != nil {
-			name = *song.Name
-		}
-		names = append(names, catalogName{ID: song.ID, Name: name})
-	}
-	nameDigest := catalogNamesDigest(names)
-	if _, err := checkCatalogState(ctx, tx, "song_names", c.Revision, nameDigest); err != nil {
-		return err
-	}
 	if duplicate {
 		return nil
 	}
@@ -79,68 +64,11 @@ func (s *Server) SyncCatalog(ctx context.Context, c Catalog) error {
 	if err := writeCatalogState(ctx, tx, "songs", c.Revision, digest, c.Source); err != nil {
 		return err
 	}
-	if err := writeCatalogState(ctx, tx, "song_names", c.Revision, nameDigest, c.Source); err != nil {
-		return err
-	}
 	if err = tx.Commit(); err != nil {
 		return err
 	}
 	s.refreshCatalogProtection(c.Songs)
 	return nil
-}
-
-type catalogName struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
-}
-
-func catalogNamesDigest(names []catalogName) string {
-	body, _ := json.Marshal(names) // Only int64 and string fields.
-	return fmt.Sprintf("%x", sha256.Sum256(body))
-}
-
-// SyncCatalogNames applies the existing Udon ID/name fallback atomically. Its
-// common-field watermark also prevents it from overwriting a newer MD5 catalog.
-// It neither changes mappings nor advances the full MD5-content watermark.
-func (s *Server) SyncCatalogNames(ctx context.Context, revision, source string, names map[string]string) error {
-	if len(names) == 0 || source == "" {
-		return fmt.Errorf("清单为空或来源无效")
-	}
-	entries := make([]catalogName, 0, len(names))
-	for id, name := range names {
-		n, err := strconv.ParseInt(id, 10, 64)
-		if err != nil || n <= 0 || strconv.FormatInt(n, 10) != id {
-			return fmt.Errorf("%w: %s", ErrInvalidCatalogMapping, id)
-		}
-		entries = append(entries, catalogName{ID: n, Name: name})
-	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].ID < entries[j].ID })
-	digest := catalogNamesDigest(entries)
-	if !s.beginRequest() {
-		return context.Canceled
-	}
-	defer s.wg.Done()
-	s.mappingMu.Lock()
-	defer s.mappingMu.Unlock()
-	tx, err := s.usage.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	duplicate, err := checkCatalogState(ctx, tx, "song_names", revision, digest)
-	if err != nil || duplicate {
-		return err
-	}
-	for _, song := range entries {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO songs(song_id,name) VALUES (?,?)
- ON CONFLICT(song_id) DO UPDATE SET name=excluded.name`, song.ID, song.Name); err != nil {
-			return err
-		}
-	}
-	if err := writeCatalogState(ctx, tx, "song_names", revision, digest, source); err != nil {
-		return err
-	}
-	return tx.Commit()
 }
 
 func checkCatalogState(ctx context.Context, tx *sql.Tx, key, revision, digest string) (bool, error) {

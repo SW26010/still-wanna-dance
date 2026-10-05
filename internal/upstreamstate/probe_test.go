@@ -34,7 +34,7 @@ func TestSampleSongMayResolveToDifferentResourceID(t *testing.T) {
 		resp.Header.Set("Location", strings.Replace(videoFixture, "/42-", "/43-", 1))
 		return resp, nil
 	}))
-	o, sample := probePlayback(context.Background(), client, DefaultPolicy(), 42, videoRoutes[0])
+	o, sample := probePlayback(context.Background(), client, DefaultPolicy(), 42, playbackRoutes[0])
 	if o.state != "available" || o.songID != 42 || sample == nil || !strings.Contains(sample.url, "/43-") {
 		t.Fatal("conflated requested song with resource ID", o, sample)
 	}
@@ -49,7 +49,7 @@ func TestResourceRejectsIgnoredRangeAndOversize(t *testing.T) {
 			return &http.Response{StatusCode: status, ContentLength: 131073, Header: http.Header{"Content-Range": []string{"bytes 0-131071/131072"}}, Body: body}, nil
 		}))
 		s, _ := parseSample(videoFixture)
-		o := probeResource(context.Background(), client, DefaultPolicy(), 42, videoRoutes[0], s)
+		o := probeResource(context.Background(), client, DefaultPolicy(), 42, s)
 		if o.state == "available" {
 			t.Fatal("invalid resource available")
 		}
@@ -78,7 +78,7 @@ func TestSamplesAndRedirectBoundaries(t *testing.T) {
 			return r, nil
 		}))
 		s, _ := parseSample(videoFixture)
-		o := probeResource(context.Background(), client, DefaultPolicy(), 42, videoRoutes[0], s)
+		o := probeResource(context.Background(), client, DefaultPolicy(), 42, s)
 		if o.state != "invalid" || calls.Load() != 1 || o.latency != 0 {
 			t.Fatal("followed unsafe redirect", o, calls.Load())
 		}
@@ -111,7 +111,24 @@ func TestFirstByteLatencySeparateFromBodyAndInvalidCatalog(t *testing.T) {
 	}
 }
 
-func TestWrongPlaybackHostAndNoRedirectFollowing(t *testing.T) {
+func TestHKGPlaybackReturnsActualDomainSample(t *testing.T) {
+	var calls atomic.Int32
+	client := requestClient(transportFunc(func(r *http.Request) (*http.Response, error) {
+		calls.Add(1)
+		if r.URL.Query().Get("node") != "nya" {
+			t.Fatal("wrong playback node", r.URL)
+		}
+		resp := response(http.StatusFound, "")
+		resp.Header.Set("Location", videoFixture)
+		return resp, nil
+	}))
+	o, sample := probePlayback(context.Background(), client, DefaultPolicy(), 42, playbackRoutes[1])
+	if o.state != "available" || o.route != "hkg" || sample == nil || sample.host != "play.udon.dance" || calls.Load() != 1 {
+		t.Fatal(o, sample, calls.Load())
+	}
+}
+
+func TestCFPlaybackAcceptsNyaWithoutFollowingRedirect(t *testing.T) {
 	var calls atomic.Int32
 	client := requestClient(transportFunc(func(*http.Request) (*http.Response, error) {
 		calls.Add(1)
@@ -119,8 +136,8 @@ func TestWrongPlaybackHostAndNoRedirectFollowing(t *testing.T) {
 		r.Header.Set("Location", strings.Replace(videoFixture, "play.udon.dance", "nya.xin.moe", 1))
 		return r, nil
 	}))
-	o, s := probePlayback(context.Background(), client, DefaultPolicy(), 42, videoRoutes[0])
-	if o.state != "invalid" || s != nil || calls.Load() != 1 {
+	o, s := probePlayback(context.Background(), client, DefaultPolicy(), 42, playbackRoutes[0])
+	if o.state != "available" || s == nil || s.host != "nya.xin.moe" || calls.Load() != 1 {
 		t.Fatal(o, s, calls.Load())
 	}
 }
@@ -146,7 +163,7 @@ func TestSmallResourceAndPermittedRedirect(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	o := probeResource(context.Background(), client, DefaultPolicy(), 42, videoRoutes[0], s)
+	o := probeResource(context.Background(), client, DefaultPolicy(), 42, s)
 	if o.state != "available" || o.bytes != 4 || calls.Load() != 2 {
 		t.Fatal(o, calls.Load())
 	}

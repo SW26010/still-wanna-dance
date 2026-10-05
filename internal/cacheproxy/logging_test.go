@@ -48,7 +48,7 @@ func loggingServer(t *testing.T, handler http.HandlerFunc) (*Server, *logCapture
 	upstream := httptest.NewServer(handler)
 	t.Cleanup(upstream.Close)
 	logs := new(logCapture)
-	cfg := DefaultConfig()
+	cfg := fixtureConfig()
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()
 	cfg.Logger = slog.New(slog.NewJSONHandler(logs, nil))

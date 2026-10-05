@@ -58,8 +58,6 @@ function renderHealth(h, settings) {
     ['healthCatalogWanna', 'catalog', 'wanna'],
     ['healthPlaybackHkg', 'playback_url', 'hkg'],
     ['healthPlaybackCf', 'playback_url', 'cf'],
-    ['healthResourceHkg', 'resource', 'hkg'],
-    ['healthResourceCf', 'resource', 'cf'],
   ];
   const renderResult = r => {
     const row = document.createElement('li');
@@ -69,7 +67,8 @@ function renderHealth(h, settings) {
     const detail = document.createElement('div');
     detail.className = 'hint';
     if (r.operation === 'resource') {
-      detail.textContent = r.entry + (r.channelID ? ' · 通道 ' + r.channelID : '');
+      const issuers = [...new Set((r.sources || []).map(s => s.api + ' · node=' + (s.node || '(默认)') + (s.apiChannelID ? ' · API 通道 ' + s.apiChannelID : '')))];
+      detail.textContent = r.entry + (r.channelID ? ' · 通道 ' + r.channelID : '') + (issuers.length ? ' · 地址来源：' + issuers.join('；') : '');
       const latency = document.createElement('div');
       latency.className = 'hint';
       latency.textContent = '响应延迟：' + (r.estimatedLatencyMS != null ? '首字节 ' + r.estimatedLatencyMS.toFixed(1) + ' ms' : '暂无有效数据') +
@@ -84,9 +83,8 @@ function renderHealth(h, settings) {
       const at = saved ? saved.observedAt : r.throughputObservedAt;
       const durationMS = saved ? saved.duration / 1e6 : r.transferDurationMS;
       const bytes = saved ? saved.bytes : r.transferredBytes;
-      const playback = results.filter(x => x.operation === 'playback_url' && x.route === r.route);
-      const missingSample = playback.length && playback.every(x => x.state !== 'available');
-      const noData = r.state === 'unavailable' ? '尚无成功样本 · 当前资源检查失败：' + (reasons[r.reason] || r.reason || '未知原因') : missingSample ? '尚无成功样本 · 未取得有效播放地址' : '尚无成功样本 · ' + throughputWait;
+      const missingSample = r.reason === 'no_sample' || r.reason === 'resolution_unavailable';
+      const noData = r.state === 'unavailable' ? '尚无成功样本 · 当前资源检查失败：' + (reasons[r.reason] || r.reason || '未知原因') : missingSample ? '尚无成功样本 · 未取得该域名的有效资源地址' : '尚无成功样本 · ' + throughputWait;
       throughput.textContent = '吞吐样本：' + (speed != null ?
         (speed / 1024).toFixed(1) + ' KiB/s' +
         (song ? ' · 歌曲 #' + song : '') +
@@ -122,6 +120,26 @@ function renderHealth(h, settings) {
     }
     $(id).replaceChildren(...rows);
   }
+  const resources = results.filter(r => r.operation === 'resource');
+  const domains = [...new Set(resources.map(r => r.route))].sort();
+  const sections = domains.map(domain => {
+    const section = document.createElement('section');
+    const heading = document.createElement('h3');
+    heading.textContent = domain;
+    const list = document.createElement('ul');
+    list.className = 'health-checks';
+    list.setAttribute('aria-label', domain + ' 视频资源加载检测结果');
+    list.append(...resources.filter(r => r.route === domain).map(renderResult));
+    section.append(heading, list);
+    return section;
+  });
+  if (!sections.length) {
+    const empty = document.createElement('p');
+    empty.className = 'muted';
+    empty.textContent = h.closed ? '上游监测已关闭' : '等待 API 返回有效资源域名…';
+    sections.push(empty);
+  }
+  $('healthResources').replaceChildren(...sections);
   setText('healthCheck', h.checking ? '检测中…' : '立即检测');
 }
 
@@ -139,10 +157,12 @@ function renderActivation(s) {
     : '视频请求：' + (a.phase === 'waiting' ? '等待本次视频请求' : '尚未开始或已结束检测'));
   const progress = { checking: '正在检查接入配置…', starting: '正在启动服务并检查端口…',
     hosts: '服务已运行，正在检查 / 修改 hosts；如出现 UAC 提示，请允许管理员权限…',
+    migration_required: s.hosts.needsMigration ? '服务已自动启动，但 hosts 迁移未完成：' + a.error : 'hosts 状态已更新，请重新检测视频请求。',
     failed: '启用未完成：' + a.error, stopped: s.cdnError ? '服务已停止：' + s.cdnError : '本次检测已结束。' };
   setText('activationProgress', progress[a.phase] || (a.phase === 'waiting' ? '启用步骤已完成，请核对下方实时状态。' : '启用向导会复用已有服务和 hosts 配置。'));
   setText('activationNext', active ? '请等待当前操作完成，勿重复提交。' : !s.running
     ? '下一步：启用游戏加速；端口冲突时请在单项管理查看占用信息，关闭冲突程序后重试。'
+    : s.hosts.needsMigration ? '下一步：点击「启用游戏加速」清理本程序旧版 hosts 条目，完成接入迁移。'
     : !s.hosts.ready ? '下一步：检查 hosts 冲突或管理员权限后重试。服务已运行，接入尚未完成。'
     : a.phase !== 'waiting' ? '下一步：点击重新检测，建立新的请求观察窗口。'
     : received ? '这里只确认收到请求，无法确认游戏播放。若无法播放，请检查上游连接及日志；已解析的视频传输可在最近请求中查看。'
@@ -603,7 +623,7 @@ function renderDownloads(v) {
       shared ? '等 ' + (task.moreSongs ? '至少 ' : '') + songs.length + ' 首关联曲目 · 播放歌曲未确定' : '资源关联曲目'));
     const stage = ({ cache_check: '检查缓存', upstream_headers: '等待上游',
       download_and_hash: '下载中', publish: '校验并发布', index: '更新索引' })[task.stage] || '阶段未知';
-    const route = ({ 'play.udon.dance': 'CF', 'nya.xin.moe': 'HKG' })[task.host] || (task.host ? '未知线路' : '线路待定');
+    const route = task.host || '域名待定';
     song.append(recentElement('small', 'recent-label', stage + ' · ' + route));
     const known = task.size > 0;
     const percent = known ? Math.min(100, 100 * task.bytes / task.size) : null;

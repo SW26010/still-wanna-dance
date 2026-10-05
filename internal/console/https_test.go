@@ -32,6 +32,12 @@ func relayListener(t *testing.T) net.Listener {
 
 func runTestRelay(t *testing.T, dial func(context.Context, string, string) (net.Conn, error)) *httpsRelay {
 	t.Helper()
+	observeTestResources(t)
+	return runRelay(t, dial)
+}
+
+func runRelay(t *testing.T, dial func(context.Context, string, string) (net.Conn, error)) *httpsRelay {
+	t.Helper()
 	p := newHTTPSRelay(relayListener(t), dial)
 	done := make(chan error, 1)
 	go func() { done <- p.serve() }()

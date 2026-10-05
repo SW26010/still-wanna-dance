@@ -1,3 +1,11 @@
+import { isIP } from 'node:net';
+
+function validHost(host) {
+  return host.length <= 253 && host.includes('.') && !isIP(host) &&
+    !/\.(localhost|local|internal|invalid)$/.test(host) &&
+    host.split('.').every(label => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label));
+}
+
 // Keep the acceptance contract aligned with cacheproxy's redirect/video parser.
 export class AcceptanceBlocked extends Error {
   constructor(category, message) { super(message); this.category = category; }
@@ -9,7 +17,7 @@ export function videoRedirect(status, location) {
   let url;
   try { url = new URL(location); } catch { changed('Missing or invalid absolute Location'); }
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.hash ||
-      !['play.udon.dance', 'nya.xin.moe'].includes(url.hostname) ||
+      url.port || !validHost(url.hostname) ||
       !/^\/files\/[0-9]+\/[1-9][0-9]*-[a-zA-Z0-9]+\.mp4$/.test(url.pathname)) {
     changed(`Unsupported video Location: ${location}`);
   }

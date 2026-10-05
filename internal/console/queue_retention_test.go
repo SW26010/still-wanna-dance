@@ -55,7 +55,7 @@ func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) 
 	c.apiBase = api.URL
 	c.checksumURL = api.URL + "/catalog"
 	c.client.Transport = http.DefaultTransport
-	cfg := cacheproxy.DefaultConfig()
+	cfg := fixtureCacheConfig()
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = limit

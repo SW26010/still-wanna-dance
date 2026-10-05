@@ -87,7 +87,7 @@ func TestCoverageRecomputesFromDatabaseWhenRemoteFails(t *testing.T) {
 
 func TestCoverageOnlineStillUsesDatabaseSnapshot(t *testing.T) {
 	c := testConsole(t)
-	cfg := cacheproxy.DefaultConfig()
+	cfg := fixtureCacheConfig()
 	cfg.StorageDir = c.settings.StorageDir
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {

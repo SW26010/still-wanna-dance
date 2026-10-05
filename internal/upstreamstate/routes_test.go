@@ -17,10 +17,10 @@ func TestOperationAndRouteIsolation(t *testing.T) {
 		{op: Catalog, route: "wanna", state: "available", at: now, duration: time.Second, bytes: 120},
 		{op: PlaybackURL, route: "cf", state: "available", at: now, duration: 10 * time.Millisecond, songID: 42},
 		{op: PlaybackURL, route: "hkg", state: "timeout", stage: "headers", at: now, songID: 42},
-		{op: Resource, route: "cf", state: "upstream_error", http: 503, stage: "headers", at: now, songID: 42},
-		{op: Resource, route: "hkg", state: "available", at: now, duration: time.Second, bytes: 65536, songID: 42},
+		{op: Resource, route: "play.udon.dance", state: "upstream_error", http: 503, stage: "headers", at: now, songID: 42},
+		{op: Resource, route: "nya.xin.moe", state: "available", at: now, duration: time.Second, bytes: 65536, songID: 42},
 	} {
-		m.record(o)
+		recordFixture(m, o)
 	}
 	m.mu.Unlock()
 	playback, resources := m.Results(PlaybackURL), m.Results(Resource)
@@ -40,7 +40,7 @@ func TestOperationAndRouteIsolation(t *testing.T) {
 	}
 	// When both fail, neither route's reason or HTTP code is hidden by aggregation.
 	m.mu.Lock()
-	m.record(observation{op: Resource, route: "hkg", state: "timeout", stage: "body", at: now.Add(time.Millisecond), songID: 42})
+	recordFixture(m, observation{op: Resource, route: "nya.xin.moe", state: "timeout", stage: "body", at: now.Add(time.Millisecond), songID: 42})
 	m.mu.Unlock()
 	resources = m.Results(Resource)
 	if resources[0].HTTP != 503 || resources[1].Reason != "timeout" || resources[1].Stage != "body" {
@@ -74,7 +74,7 @@ func TestBoundedHistoryAndLateResults(t *testing.T) {
 	now := time.Now()
 	add := func(d time.Duration, at time.Time, id int64) {
 		m.mu.Lock()
-		m.record(observation{op: PlaybackURL, route: "hkg", state: "available", duration: d, latency: d, at: at, songID: id})
+		recordFixture(m, observation{op: PlaybackURL, route: "hkg", state: "available", duration: d, latency: d, at: at, songID: id})
 		m.mu.Unlock()
 	}
 	add(100*time.Millisecond, now, 42)
@@ -86,7 +86,7 @@ func TestBoundedHistoryAndLateResults(t *testing.T) {
 		t.Fatal(before)
 	}
 	m.mu.Lock()
-	m.record(observation{op: PlaybackURL, route: "hkg", state: "timeout", at: now.Add(-time.Second)})
+	recordFixture(m, observation{op: PlaybackURL, route: "hkg", state: "timeout", at: now.Add(-time.Second)})
 	m.mu.Unlock()
 	if !reflect.DeepEqual(before, resultFor(t, m, PlaybackURL, "hkg")) {
 		t.Fatal("accepted old result")
@@ -116,7 +116,7 @@ func TestResultsIndependentOfReadsAndCompletionOrder(t *testing.T) {
 					d = 95 * time.Millisecond
 				}
 				m.mu.Lock()
-				m.record(observation{op: PlaybackURL, route: route, state: "available", duration: d, latency: d, at: now, songID: 42})
+				recordFixture(m, observation{op: PlaybackURL, route: route, state: "available", duration: d, latency: d, at: now, songID: 42})
 				m.mu.Unlock()
 				if i == 0 && read {
 					for range 10 {

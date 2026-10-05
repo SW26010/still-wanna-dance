@@ -54,7 +54,7 @@ func TestCheckLocalNeverPublishesOrDeletes(t *testing.T) {
 		t.Fatal(err)
 	}
 	target := videoURL(payload)
-	parser := &Server{cfg: DefaultConfig()}
+	parser := &Server{cfg: fixtureConfig()}
 	v, err := parser.parse(httptest.NewRequest("GET", target, nil))
 	if err != nil {
 		t.Fatal(err)

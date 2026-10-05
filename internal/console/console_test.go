@@ -61,12 +61,12 @@ func TestHostsRoundTripAndConflicts(t *testing.T) {
 	if err != nil || restored != original {
 		t.Fatal("restore not idempotent")
 	}
-	for _, data := range []string{"1.2.3.4 play.udon.dance", "::1 nya.xin.moe", "1.2.3.4 api.udon.dance"} {
+	for _, data := range []string{"::1 api.udon.dance", "1.2.3.4 api.udon.dance"} {
 		if _, err := transformHosts(data, "enable"); err == nil {
 			t.Fatal("accepted conflict", data)
 		}
 	}
-	changed := strings.Replace(enabled, "127.0.0.1 nya.xin.moe", "1.2.3.4 nya.xin.moe", 1)
+	changed := strings.Replace(enabled, "127.0.0.1 api.udon.dance", "1.2.3.4 api.udon.dance", 1)
 	if _, err := transformHosts(changed, "disable"); err == nil {
 		t.Fatal("silently removed edited mapping")
 	}
@@ -149,7 +149,7 @@ func TestBatchWorksWithoutCDNAndReusesCache(t *testing.T) {
 		io.WriteString(w, body)
 	}))
 	defer origin.Close()
-	cfg := cacheproxy.DefaultConfig()
+	cfg := fixtureCacheConfig()
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
@@ -303,4 +303,17 @@ func TestLiveIndependentDNS(t *testing.T) {
 		t.Fatal(resp.StatusCode, len(b), err)
 	}
 	t.Log("API and video range request succeeded using independent DNS")
+}
+
+func TestEnableHostsRetiresOnlyOwnedLegacyResourceMappings(t *testing.T) {
+	original := "127.0.0.1 nya.xin.moe # another tool\r\n"
+	old := original + "\r\n127.0.0.1 play.udon.dance " + marker + "\r\n" + "\r\n127.0.0.1 nya.xin.moe " + legacyMarker + "\r\n"
+	got, err := transformHosts(old, "enable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := original + "\r\n127.0.0.1 api.udon.dance " + marker + "\r\n"
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
 }

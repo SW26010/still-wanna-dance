@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"still-wanna-dance/internal/upstreamrequest"
 	"testing"
 	"time"
 )
@@ -18,7 +19,7 @@ func TestLiveHTTPSUpstreams(t *testing.T) {
 		t.Skip("opt-in live HTTPS probe")
 	}
 	c := testConsole(t)
-	relay := runTestRelay(t, c.dns.DialContext)
+	relay := runRelay(t, c.dns.DialContext)
 	for _, route := range []string{"cf", "hkg"} {
 		t.Run(route, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
@@ -42,7 +43,7 @@ func TestLiveHTTPSUpstreams(t *testing.T) {
 				if len(via) > 5 {
 					return fmt.Errorf("too many redirects")
 				}
-				if req.URL.Host != "play.udon.dance" && req.URL.Host != "nya.xin.moe" {
+				if !upstreamrequest.Default.IsResourceDomain(req.URL.Host) {
 					return fmt.Errorf("unsupported redirect")
 				}
 				if req.URL.Query().Get("e") != u.Query().Get("e") || req.URL.Query().Get("s") != u.Query().Get("s") {

@@ -37,12 +37,12 @@ func TestChannelAvailabilityAndAutomaticRefresh(t *testing.T) {
 	}
 	ch.Publish(transportFunc(fixture))
 	awaitCondition(t, func() bool { return !m.Snapshot().Finished.IsZero() })
-	if resultFor(t, m, Resource, "cf").State != "available" {
+	if resultFor(t, m, Resource, "play.udon.dance").State != "available" {
 		t.Fatal(m.Snapshot())
 	}
 	ch.Publish(transportFunc(func(*http.Request) (*http.Response, error) { return response(524, ""), nil }))
 	// A reader must never observe a observation from the previous channel.
-	if r := resultFor(t, m, Resource, "cf"); r.State != "unknown" || r.EstimatedSpeedBPS != nil {
+	if r := m.Results(Resource); len(r) != 0 {
 		t.Fatal(r)
 	}
 	awaitCondition(t, func() bool { return resultFor(t, m, Catalog, "api").Reason == "origin_timeout" })
@@ -84,7 +84,7 @@ func TestChannelChangeCancelsAndDiscardsLateResults(t *testing.T) {
 	// Let a misbehaving old transport finish successfully after cancellation.
 	release <- struct{}{}
 	awaitCondition(t, func() bool { return resultFor(t, m, Catalog, "api").HTTP == 503 })
-	if resultFor(t, m, Resource, "cf").State != "unknown" {
+	if len(m.Results(Resource)) != 0 {
 		t.Fatal("late results published")
 	}
 }

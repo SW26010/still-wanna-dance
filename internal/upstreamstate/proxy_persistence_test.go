@@ -20,7 +20,7 @@ func TestProxySampleRestoreRequiresStableMatchingIdentity(t *testing.T) {
 	a := "stable-v1-" + strings.Repeat("a", 64)
 	b := "stable-v1-" + strings.Repeat("b", 64)
 	sample := ThroughputSample{ObservedAt: at, SongID: 42, Bytes: 16 << 20, Duration: 2 * time.Second}
-	key := func(id string) string { return "resource/cf/socks5/play.udon.dance/" + id }
+	key := func(id string) string { return "resource/play.udon.dance/socks5/play.udon.dance/" + id }
 	state := throughputState{LastAttempt: at, Samples: map[string]ThroughputSample{key(a): sample, key("1"): sample, key("2"): sample}}
 	data, _ := json.Marshal(state)
 	if err := os.WriteFile(path, data, 0600); err != nil {
@@ -46,7 +46,7 @@ func TestProxySampleRestoreRequiresStableMatchingIdentity(t *testing.T) {
 			t.Fatal("legacy reconfigured proxy sample restored")
 		}
 		candidate := pool.Current("https://play.udon.dance")[0]
-		m.record(observation{op: Resource, route: "cf", channel: candidate.ID, state: "available", at: time.Now(), latency: time.Millisecond, songID: 73})
+		recordFixture(m, observation{op: Resource, route: "play.udon.dance", channel: candidate.ID, state: "available", at: time.Now(), latency: time.Millisecond, songID: 73})
 		r := m.Results(Resource)[0]
 		if id == a {
 			if r.LastThroughput == nil || r.ThroughputSongID != 42 || r.EstimatedSpeedBPS == nil {

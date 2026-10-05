@@ -60,7 +60,7 @@ func (s *Server) routeCandidates(ctx context.Context, v video) []video {
 		if err != nil || (r.URL.Scheme != "http" && r.URL.Scheme != "https") || r.URL.User != nil || r.URL.Fragment != "" {
 			continue
 		}
-		candidate, err := s.parse(r)
+		candidate, err := s.parseResolved(r)
 		if err != nil {
 			continue
 		}
@@ -119,7 +119,7 @@ func (s *Server) videoResponse(r *http.Request, original video) (*http.Response,
 			return nil, err
 		}
 		v, err := s.parse(next)
-		if err != nil || v.key != original.key || v.size != original.size {
+		if err != nil || !s.resourceHostAllowed(v.host) || v.key != original.key || v.size != original.size {
 			return nil, errors.New("video redirect changed resource or host")
 		}
 		next, err = s.routeRequest(r.Context(), v)

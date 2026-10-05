@@ -2,7 +2,13 @@
 // observations for every operation and route. Requests follow the application's channel.
 package upstreamstate
 
-import "time"
+import (
+	"sort"
+	"time"
+
+	"still-wanna-dance/internal/upstreamrequest"
+	"still-wanna-dance/internal/videometa"
+)
 
 type Operation string
 
@@ -82,9 +88,10 @@ func normalized(p Policy) Policy {
 // identify the checked service in every state; they are not recommendations.
 // A resource Entry is never a playable URL for an arbitrary video.
 type Result struct {
-	LastThroughput       *ThroughputSample `json:"lastThroughput,omitempty"`
-	ThroughputSongID     int64             `json:"throughputSongID,omitempty"`
-	ThroughputObservedAt time.Time         `json:"throughputObservedAt"`
+	Sources              []upstreamrequest.ResourceSource `json:"sources,omitempty"`
+	LastThroughput       *ThroughputSample                `json:"lastThroughput,omitempty"`
+	ThroughputSongID     int64                            `json:"throughputSongID,omitempty"`
+	ThroughputObservedAt time.Time                        `json:"throughputObservedAt"`
 	// CatalogTime preserves the upstream response time verbatim, not the probe time.
 	CatalogTime        string    `json:"catalogTime,omitempty"`
 	ChannelID          string    `json:"channelID,omitempty"`
@@ -109,6 +116,8 @@ type Result struct {
 	SampleSongID int64 `json:"sampleSongID,omitempty"`
 }
 type observation struct {
+	resourceSource      upstreamrequest.ResourceSource
+	resourceHost        string
 	catalogTime         string
 	channel             string
 	op                  Operation
@@ -120,28 +129,42 @@ type observation struct {
 	bytes               int64
 	songID              int64
 }
-type route struct{ id, node, host string }
+type route struct{ id, node string }
 
-var videoRoutes = [...]route{{"cf", "cf", "play.udon.dance"}, {"hkg", "nya", "nya.xin.moe"}}
+var playbackRoutes = [...]route{{"cf", "cf"}, {"hkg", "nya"}}
 
 const apiBase = "https://api.udon.dance"
 
-func allowedVideoHost(host string) bool {
-	for _, r := range videoRoutes {
-		if r.host == host {
-			return true
+func (m *Monitor) resourceIDsLocked() []string {
+	m.pruneResourceSourcesLocked(time.Now())
+	seen := make(map[string]bool)
+	for _, source := range m.resourceSources {
+		if source.resourceHost != "" && time.Now().Before(source.at.Add(m.policy.SampleLifetime)) {
+			seen[source.resourceHost] = true
 		}
 	}
-	return false
+	ids := make([]string, 0, len(seen))
+	for host := range seen {
+		ids = append(ids, host)
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(ids)))
+	return ids
+}
+
+func (m *Monitor) routeIDsLocked(op Operation) []string {
+	if op == Resource {
+		return m.resourceIDsLocked()
+	}
+	return routeIDs(op)
 }
 
 func routeIDs(op Operation) []string {
 	if op == Catalog {
 		return []string{"api", "kiva", "wanna"}
 	}
-	if op == PlaybackURL || op == Resource {
-		ids := make([]string, len(videoRoutes))
-		for i, r := range videoRoutes {
+	if op == PlaybackURL {
+		ids := make([]string, len(playbackRoutes))
+		for i, r := range playbackRoutes {
 			ids[i] = r.id
 		}
 		return ids
@@ -158,13 +181,13 @@ func entry(op Operation, id string) string {
 		}
 		return apiBase + "/Api/Songs/list"
 	}
-	for _, r := range videoRoutes {
+	if op == Resource && videometa.ValidHost(id) {
+		return "https://" + id
+	}
+	for _, r := range playbackRoutes {
 		if r.id == id {
 			if op == PlaybackURL {
 				return apiBase + "/Api/Songs/play?node=" + r.node
-			}
-			if op == Resource {
-				return "https://" + r.host
 			}
 		}
 	}
@@ -179,6 +202,28 @@ func validUntil(o observation, p Policy) time.Time {
 }
 
 // All following helpers are called with m.mu held.
+func (m *Monitor) observePlaybackDomains(o observation) {
+	if o.op != PlaybackURL || o.state == "canceled" || m.closed {
+		return
+	}
+	key := string(o.op) + "/" + o.route
+	if o.channel != "" {
+		key += "/" + o.channel
+	}
+	if m.resourceSources == nil {
+		m.resourceSources = make(map[string]observation)
+	}
+	if previous, ok := m.resourceSources[key]; !ok || !o.at.Before(previous.at) {
+		m.resourceSources[key] = o
+		if o.resourceSource.ResourceURL != "" {
+			source := m.playbackSource(o)
+			m.channel.ObserveResourceSourcesAtRevision(m.revision, "monitor/"+key, []upstreamrequest.ResourceSource{source}, time.Until(source.ValidUntil))
+		} else {
+			m.channel.ObserveResourceDomainsAtRevision(m.revision, "monitor/"+key, []string{o.resourceHost}, time.Until(o.at.Add(m.policy.SampleLifetime)))
+		}
+	}
+}
+
 func (m *Monitor) record(o observation) {
 	if m.closed || o.state == "canceled" {
 		return
@@ -187,6 +232,7 @@ func (m *Monitor) record(o observation) {
 	if o.channel != "" {
 		key += "/" + o.channel
 	}
+	m.observePlaybackDomains(o)
 	h := m.history[key]
 	if len(h) > 0 {
 		last := h[len(h)-1]
@@ -218,6 +264,7 @@ func (m *Monitor) resultLocked(op Operation, id string, now time.Time) Result {
 }
 func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (r Result) {
 	r = Result{Operation: op, Route: id, Entry: entry(op, id), State: "unknown", Reason: "no_sample"}
+	r.Sources = m.sourcesLocked(op, id, now)
 	defer func() {
 		if op != Resource {
 			return
@@ -301,7 +348,7 @@ func (m *Monitor) resultsLocked(op Operation, now time.Time) []Result {
 	if source := m.channel.Snapshot(); source.Candidates != nil {
 		return m.candidateResultsLocked(op, source.Candidates, now)
 	}
-	ids := routeIDs(op)
+	ids := m.routeIDsLocked(op)
 	results := make([]Result, 0, len(ids))
 	for _, id := range ids {
 		results = append(results, m.resultLocked(op, id, now))

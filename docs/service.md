@@ -17,15 +17,15 @@ go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
 
 默认监听 `127.0.0.1:18080`，默认目录相对于启动时的工作目录。Ctrl+C 取消后台下载，清理临时文件并关闭服务。启动不修改 hosts、不改代理，会清理已被取代的旧版本。所有日志为 stderr 上的 JSON。
 
-验证 HTTP 请求时须使用视频 Host 和有效的完整 URL，例如保留 API 返回的真实路径、e、s，通过 curl 的 `--resolve play.udon.dance:18080:127.0.0.1` 访问 `http://play.udon.dance:18080/files/...`。直接访问 localhost 首页会得到 400，此命令行入口不提供网页界面；网页和托盘入口为 `still-wanna-dance-console.exe`。
+验证时先通过本地播放 API 请求：`curl.exe --noproxy "*" --resolve api.udon.dance:18080:127.0.0.1 "http://api.udon.dance:18080/Api/Songs/play?id=1343&node=cf"`。服务根据有效 API 返回值发现资源域名；后续直达资源请求须保留实际域名、路径、e、s。直接访问 localhost 首页返回 400；网页和托盘入口为 `still-wanna-dance-console.exe`。
 
 统一存储位于 `-storage-dir` 指定的根目录：`videos/<资源指纹>.mp4` 是唯一正式视频，`tmp` 保存下载临时文件，`stepstash.sqlite` 保存歌曲、版本和请求统计。不读取旧格式，不提供迁移。详见[统一存储](storage.md)。
 
 ## 游戏接入
 
 1. 先停止占用本机 80 端口的原版服务，再以 `-listen 127.0.0.1:80` 启动 Still Wanna Dance；需要时在有相应权限的终端运行。
-2. 备份 hosts，将 `play.udon.dance`、`nya.xin.moe` 映射到 `127.0.0.1`，接管 HTTP 视频请求。若还需接管 HTTP 播放 API，可额外映射 `api.udon.dance`。
-3. 选择 CF 或 HKG。CLI 将播放 API 的查询参数传给 HTTPS 上游；未指定 node 时由上游决定视频地址。测试后恢复 hosts 并停止服务。
+2. 备份 hosts，将 `api.udon.dance` 映射到 `127.0.0.1`，由本地播放 API 直接返回视频；不预设或写入资源域名。
+3. 选择游戏中的播放接口。CLI 将播放 API 的查询参数传给 HTTPS 上游；未指定 node 时由上游决定视频地址。测试后恢复 hosts 并停止服务。
 
 本页 `still-wanna-dance.exe` 命令行入口支持 HTTP 视频请求及 `api.udon.dance/Api/Songs/play?id=…` 的 GET/HEAD，接受省略 node、`node=cf` 或 `node=nya`。它通过 HTTPS 获取上游视频地址，按资源指纹命中缓存或边下边播，直接以 HTTP 返回视频，支持单段 Range。游戏入口须使用 HTTP，播放器须接受 API 地址直接返回视频；游戏内兼容性仍待实测。其他 API 路径的 GET/HEAD 返回 307，指向原站 HTTPS。
 
@@ -33,12 +33,12 @@ CLI 不监听 443，也不支持 `/v/` 或 SHA。hosts 同时影响 HTTP/HTTPS�
 
 ## 缓存和下载规则
 
-- 接收两个视频 Host（允许附带端口）的 GET/HEAD；路径限定为 `/files/<数字目录>/<正整数ID>-<字母数字版本>.mp4`。e 必须为 MD5，s 为正数且不超过上限。重复 e/s、错误转义、其他 Host 和路径返回 400，其他方法返回 405。
+- 接收有效 API 响应已确认的资源 Host（允许附带端口），或显式配置的域名覆盖项的 GET/HEAD；路径限定为 `/files/<数字目录>/<正整数ID>-<字母数字版本>.mp4`。e 必须为 MD5，s 为正数且不超过上限。重复 e/s、错误转义、其他 Host 和路径返回 400，其他方法返回 405。
 - 本地仅以 MD5 定位 `videos/{md5}.mp4`；同内容跨歌曲、资源版本、目录和线路共用一份文件。歌曲 ID 到 MD5 的关联以批量清单为准，新增和更新但不删除旧 ID。纯视频 URL 不推断曲目关系。
 - 下载完整后校验一次 MD5。之后按不可变文件使用，普通命中和扫描不再读取正文校验；活动响应共享文件句柄和独立读取位置。扫描由独立函数一次枚举目录，仅检查被引用的 MD5 文件是否存在，忽略孤儿。见[存储设计](md5-resource-design.md)。
-- 未命中时共享一次整文件回源；各客户端独立读取逐渐增长的下载文件，按其 Range 返回已到达的区间，尚未到达的区间等待上游。默认直接连接公开视频域名：CF 为 `play.udon.dance:443`，HKG 为 `nya.xin.moe:443`。通过内置 DoH 解析并建立 HTTPS 连接，保留原视频 Host、TLS SNI 和证书校验，不使用系统代理环境变量，不回退系统 DNS/hosts 或明文 HTTP。独立 DNS 绕过本机 hosts 接管，无需额外的回源别名，也不会在失败时静默改用历史 `ud-*` 地址。域名依据见[播放域名实测](playback-domain-observation-20260926.md)。
+- 未命中时共享一次整文件回源；各客户端独立读取逐渐增长的下载文件，按其 Range 返回已到达的区间，尚未到达的区间等待上游。默认连接 API 返回的实际资源域名及 443 端口，不把节点名称或 IP 地理位置当作域名身份，也不预设这两个历史域名继续存在。详见[资源域名规则](resource-domains.md)。通过内置 DoH 解析并建立 HTTPS 连接，保留原视频 Host、TLS SNI 和证书校验，不使用系统代理环境变量，不回退系统 DNS/hosts 或明文 HTTP。独立 DNS 绕过本机 hosts 接管，无需额外的回源别名，也不会在失败时静默改用历史 `ud-*` 地址。域名依据见[播放域名实测](playback-domain-observation-20260926.md)。
 - 使用 `-socks5-proxy` 时，上述内置 DoH 直连改为通过 SOCKS5 建连，目标域名解析交给代理，失败不回退直连；不改变 HTTPS 证书校验或本地缓存逻辑。
-- 视频回源最多跟随五次重定向，仅接受受支持视频域名、合法视频路径且 MD5/大小与原资源一致的目标。HTTP Location 升级为 HTTPS 后访问，每次连接继续使用所选的直连／SOCKS5 出口；不接受任意域名跳转。播放 API 的重定向作为视频地址解析，再进入同一缓存链路。
+- 视频回源最多跟随五次重定向，仅接受当前已确认的视频域名、合法视频路径且 MD5/大小与原资源一致的目标。HTTP Location 升级为 HTTPS 后访问，每次连接继续使用所选的直连／SOCKS5 出口；不接受任意域名跳转。播放 API 的重定向作为视频地址解析，再进入同一缓存链路。
 - 下载到 `tmp/download-*.part`，边下载边严格检查长度、MD5，再复制到发布临时文件；复制过程中核对长度，不再次计算 MD5。同步关闭后重命名到 `videos`，将最终文件属性保存为校验记录。下载句柄保留至最后一个读取者结束，适应 Windows 文件占用限制；随后临时文件删除。上游错误、截断、超长、非预期压缩和校验失败不发布正式视频。MD5 仅用于协议完整性检查。
 - 同键并发共享后台任务，回源节点取首次请求；尚在下载时切 CDN 仍复用这一任务，不会自动换源。客户端取消后任务继续，受全局超时和下载数量限制；不同歌曲超过容量返回 503，可稍后重试。
 - 整个存储根目录由操作系统文件锁独占。正常退出或进程死亡释放锁，重启清理 `tmp/download-*.part`。`.lock` 文件保留正常，不应在运行时删除。
@@ -92,8 +92,7 @@ FROM song_usage ORDER BY last_demand_at DESC;
 | `-socks5-proxy` | 空，使用内置 DoH 直连；填写 `127.0.0.1:7891` 等 `host:port` 后，上游连接及目标 DNS 交给 SOCKS5，不回退直连 |
 | `-socks5-username` | 空，无认证；填写用户名时须设置密码环境变量 `STILL_WANNA_DANCE_SOCKS5_PASSWORD`，两者各限 1～255 字节 |
 | `-storage-dir` | `still-wanna-dance-data` |
-| `-cf-origin` | `play.udon.dance:443` |
-| `-hkg-origin` | `nya.xin.moe:443` |
+| `-origin DOMAIN=HOST:PORT` | 空；可重复指定可信的显式域名回源覆盖 |
 | `-download-timeout` | `10m`，限制共享工作任务（含其中的缓存校验、下载和发布）；不限制额度用尽时的独立本地校验路径 |
 | `-max-file-bytes` | `2147483648`（2 GiB） |
 | `-max-cache-bytes` | `0`，缓存容量不限；单位为字节 |
@@ -108,7 +107,7 @@ FROM song_usage ORDER BY last_demand_at DESC;
 
 ## 验证范围
 
-`go test ./internal/... ./cmd/...` 使用独立临时目录、随机端口和可控上游，覆盖：CF/HKG 冷缓存、跨 Host 命中、Range/HEAD/条件请求、非法输入、错误上游/跳转/截断/超长/校验失败、同资源并发、调用方取消、版本隔离、同长度损坏、单份正式视频、数据库资料保留、下载失败保留旧版本、活动读取期间的版本隔离、缓存独占、容量和超时、关闭及重启清理。
+`go test ./internal/... ./cmd/...` 使用独立临时目录、随机端口和可控上游，覆盖：不同 API 返回域名的冷缓存、跨 Host 命中、Range/HEAD/条件请求、非法输入、错误上游/跳转/截断/超长/校验失败、同资源并发、调用方取消、版本隔离、同长度损坏、单份正式视频、数据库资料保留、下载失败保留旧版本、活动读取期间的版本隔离、缓存独占、容量和超时、关闭及重启清理。
 
 CI 配置 Windows/Linux 的测试、vet、构建，以及 Linux race 检测。本地 Windows 未配置 C 工具链时不能运行 `go test -race`。CI 尚未在远程执行。
 

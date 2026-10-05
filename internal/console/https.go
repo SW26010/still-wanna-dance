@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"still-wanna-dance/internal/upstreamrequest"
 )
 
 // Only the hosts managed by Still Wanna Dance are forwarded. Keep the original SNI
@@ -18,12 +20,10 @@ import (
 // The selected upstream dialer handles DNS and connections.
 func httpsOrigin(name string) string {
 	name = strings.ToLower(strings.TrimSuffix(name, "."))
-	switch name {
-	case "api.udon.dance", "nya.xin.moe", "play.udon.dance":
+	if name == "api.udon.dance" || upstreamrequest.Default.IsResourceDomain(name) {
 		return net.JoinHostPort(name, "443")
-	default:
-		return ""
 	}
+	return ""
 }
 
 type httpsRelay struct {

@@ -9,10 +9,12 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"still-wanna-dance/internal/videometa"
 )
 
 // Config controls the local video service. Origins are dial addresses, not URLs;
-// defaults use the public video hosts, connected through the selected dialer.
+// by default, valid API-returned hosts are connected through the selected dialer.
 // Overrides retain the original HTTP Host and TLS identity; environment proxies
 // are not used.
 type Config struct {
@@ -26,6 +28,8 @@ type Config struct {
 	BeginVideoRequest func(time.Time) func()
 	StorageDir        string
 	Origins           map[string]string
+	// IsResourceHost checks the current API-derived resource domain set.
+	IsResourceHost func(string) bool
 	// OriginScheme defaults to HTTPS. HTTP is restricted to loopback test origins.
 	OriginScheme    string
 	ResolvePlayback func(context.Context, string, string) (string, error)
@@ -53,7 +57,7 @@ func DefaultConfig() Config {
 		RequestRetentionDays: 30,
 		OriginScheme:         "https",
 		StorageDir:           "still-wanna-dance-data",
-		Origins:              map[string]string{"play.udon.dance": "play.udon.dance:443", "nya.xin.moe": "nya.xin.moe:443"},
+		Origins:              make(map[string]string),
 		DownloadTimeout:      10 * time.Minute,
 		MaxFileBytes:         2 << 30,
 		MaxDownloads:         3,
@@ -74,7 +78,10 @@ func (c Config) validate() error {
 	if c.StorageDir == "" || c.DownloadTimeout <= 0 || c.MaxFileBytes <= 0 || c.MaxFileBytes == int64(^uint64(0)>>1) || c.MaxDownloads < 1 {
 		return errors.New("storage directory is required; timeout, file limit and download limit must be positive")
 	}
-	for _, host := range []string{"play.udon.dance", "nya.xin.moe"} {
+	for host := range c.Origins {
+		if !videometa.ValidHost(host) {
+			return errors.New("invalid explicit origin domain")
+		}
 		addr, port, err := net.SplitHostPort(c.Origins[host])
 		p, perr := strconv.Atoi(port)
 		if err != nil || addr == "" || perr != nil || p < 1 || p > 65535 {

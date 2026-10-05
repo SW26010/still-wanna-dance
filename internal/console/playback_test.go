@@ -73,7 +73,7 @@ func TestPlaybackSlowAutoIntegration(t *testing.T) {
 				io.WriteString(w, body)
 			}))
 			defer origin.Close()
-			cfg := cacheproxy.DefaultConfig()
+			cfg := fixtureCacheConfig()
 			cfg.StorageDir, cfg.OriginScheme = c.settings.StorageDir, "http"
 			for host := range cfg.Origins {
 				cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
@@ -185,7 +185,7 @@ func TestPlaybackResolutionInvalidVideoFallback(t *testing.T) {
 						if err != nil || target != "https://"+host+valid {
 							t.Fatalf("target=%q err=%v; want valid alternate", target, err)
 						}
-						if err := cacheproxy.ValidateVideoURL(target, cacheproxy.DefaultConfig().MaxFileBytes); err != nil {
+						if err := cacheproxy.ValidateVideoURL(target, fixtureCacheConfig().MaxFileBytes); err != nil {
 							t.Fatalf("cache rejected alternate: %v", err)
 						}
 					} else if err == nil || target != "" {

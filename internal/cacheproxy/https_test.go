@@ -67,7 +67,7 @@ func TestHTTPSOriginUsesIndependentDialAndVerifiedPublicName(t *testing.T) {
 		{name: "untrusted"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := DefaultConfig()
+			cfg := fixtureConfig()
 			cfg.StorageDir = t.TempDir()
 			if tc.override != "" {
 				for host := range cfg.Origins {
@@ -115,7 +115,7 @@ func TestHTTPSOriginUsesIndependentDialAndVerifiedPublicName(t *testing.T) {
 }
 
 func TestUpstreamDialFailureNeverFallsBack(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := fixtureConfig()
 	cfg.StorageDir = t.TempDir()
 	sentinel := errors.New("built-in DNS unavailable")
 	var calls atomic.Int32

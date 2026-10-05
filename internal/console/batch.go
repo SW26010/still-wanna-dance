@@ -15,6 +15,8 @@ import (
 
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/upstreamrequest"
+	"still-wanna-dance/internal/videometa"
 )
 
 type Failure struct {
@@ -48,9 +50,10 @@ func (c *Console) resolve(ctx context.Context, id int64) (string, error) {
 }
 
 func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (string, error) {
-	node, host := "nya", "nya.xin.moe"
+	revision := upstreamrequest.Default.Snapshot().Revision
+	node := "nya"
 	if upstream == "cf" {
-		node, host = "cf", "play.udon.dance"
+		node = "cf"
 	}
 	r, err := http.NewRequestWithContext(ctx, "GET", c.apiBase+"/Api/Songs/play?node="+node+"&id="+strconv.FormatInt(id, 10), nil)
 	if err != nil {
@@ -68,15 +71,13 @@ func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (s
 	if err != nil {
 		return "", applog.SafeError(err)
 	}
-	if (u.Scheme != "http" && u.Scheme != "https") || (u.Host != "play.udon.dance" && u.Host != "nya.xin.moe") || u.User != nil || u.Fragment != "" {
-		return "", errors.New("歌曲返回了未支持的视频地址；当前支持 CF/HKG HTTP 和 HTTPS")
-	}
-	if u.Host != host {
-		return "", fmt.Errorf("%s 返回了其他上游的视频地址", upstream)
+	if (u.Scheme != "http" && u.Scheme != "https") || !videometa.ValidHost(u.Host) || u.User != nil || u.Fragment != "" {
+		return "", errors.New("歌曲返回了无效的视频域名或协议")
 	}
 	if err := cacheproxy.ValidateVideoURL(u.String(), cacheproxy.DefaultConfig().MaxFileBytes); err != nil {
 		return "", fmt.Errorf("歌曲返回了无效的视频地址：%w", err)
 	}
+	upstreamrequest.Default.ObserveResourceSourcesAtRevision(revision, "playback/"+node+"/"+strconv.FormatInt(id, 10), []upstreamrequest.ResourceSource{{API: r.URL.String(), Node: node, SongID: id, ResourceURL: u.String(), ObservedAt: time.Now()}}, 10*time.Minute)
 	return u.String(), nil
 }
 

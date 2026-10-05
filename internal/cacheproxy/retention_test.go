@@ -92,7 +92,7 @@ func TestRetentionPinsAndUnlimited(t *testing.T) {
 	expectRetained(t, p, false)
 }
 func TestRetentionStartupAndUnknownFiles(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := fixtureConfig()
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()
 	cfg.MaxCacheBytes = 1

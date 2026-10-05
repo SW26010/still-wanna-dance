@@ -93,15 +93,15 @@ func TestResourceThroughputExcludesConnectionTime(t *testing.T) {
 			return &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": []string{"bytes 0-16777215/104857600"}}, Body: &pacedResource{remaining: 100 << 20, step: time.Second / 128, closed: make(chan struct{})}}, nil
 		}))
 		s := videoSample{url: videoFixture, host: "play.udon.dance", size: 100 << 20}
-		o := probeResource(context.Background(), client, DefaultPolicy(), 42, videoRoutes[0], s)
+		o := probeResource(context.Background(), client, DefaultPolicy(), 42, s)
 		if o.state != "available" || o.transferDuration != 2*time.Second || o.duration != 5*time.Second || o.bytes != 16<<20 {
 			t.Fatalf("%+v", o)
 		}
 		m := testMonitor(t, transportFunc(fixture))
 		m.mu.Lock()
-		m.record(o)
+		recordFixture(m, o)
 		m.mu.Unlock()
-		r := resultFor(t, m, Resource, "cf")
+		r := resultFor(t, m, Resource, "play.udon.dance")
 		if r.EstimatedSpeedBPS == nil || *r.EstimatedSpeedBPS != 8<<20 || r.TransferDurationMS == nil || *r.TransferDurationMS != 2000 {
 			t.Fatalf("%+v", r)
 		}

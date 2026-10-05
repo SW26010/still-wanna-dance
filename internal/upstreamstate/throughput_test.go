@@ -16,7 +16,7 @@ import (
 )
 
 func TestThroughputStateLoadFailureDoesNotPreventMonitor(t *testing.T) {
-	for _, data := range []string{"", "{", `"invalid timestamp"`, `{"lastAttempt":"2026-01-01T00:00:00Z","samples":{"resource/cf":{"bytes":"bad"}}}`, "directory"} {
+	for _, data := range []string{"", "{", `"invalid timestamp"`, `{"lastAttempt":"2026-01-01T00:00:00Z","samples":{"resource/play.udon.dance":{"bytes":"bad"}}}`, "directory"} {
 		t.Run(data, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "throughput.json")
 			if data == "directory" {
@@ -193,19 +193,23 @@ func TestHistoricalThroughputSurvivesRestartWithoutRevivingHealth(t *testing.T) 
 	}
 	at := time.Now().Add(-time.Hour)
 	m.lastThroughput = at
-	m.record(observation{op: Resource, route: "cf", state: "available", at: at, songID: 42, bytes: 16 << 20, transferDuration: 2 * time.Second})
+	recordFixture(m, observation{op: Resource, route: "play.udon.dance", state: "available", at: at, songID: 42, bytes: 16 << 20, transferDuration: 2 * time.Second})
 	m.Close()
 	restored, err := newMonitor(Options{ThroughputStatePath: path}, ch)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer restored.Close()
+	if len(restored.Results(Resource)) != 0 {
+		t.Fatal("history established resource membership")
+	}
+	restored.record(observation{op: PlaybackURL, route: "cf", state: "available", resourceHost: "play.udon.dance", at: time.Now()})
 	r := restored.Results(Resource)[0]
 	if r.State != "unknown" || r.EstimatedSpeedBPS != nil || r.LastThroughput == nil || r.LastThroughput.SongID != 42 || !r.LastThroughput.ObservedAt.Equal(at) || r.LastThroughput.Bytes != 16<<20 || r.LastThroughput.Duration != 2*time.Second {
 		t.Fatalf("history not restored independently of health: %+v", r)
 	}
 	// Fresh failures and light checks must not replace historical ownership.
-	restored.record(observation{op: Resource, route: "cf", state: "network_error", at: time.Now(), songID: 73})
+	recordFixture(restored, observation{op: Resource, route: "play.udon.dance", state: "network_error", at: time.Now(), songID: 73})
 	if r = restored.Results(Resource)[0]; r.State != "unavailable" || r.LastThroughput.SongID != 42 {
 		t.Fatal(r)
 	}
@@ -328,9 +332,9 @@ func TestConfigurableThroughputInterval(t *testing.T) {
 func TestLatencyDoesNotReplaceThroughput(t *testing.T) {
 	m := testMonitor(t, fixture)
 	now := time.Now()
-	m.record(observation{op: Resource, route: "cf", state: "available", at: now, songID: 42, bytes: 16 << 20, transferDuration: 2 * time.Second, duration: 3 * time.Second, latency: time.Second})
-	m.record(observation{op: Resource, route: "cf", state: "available", at: now.Add(time.Second), songID: 73, duration: time.Millisecond, latency: time.Millisecond})
-	r := m.resultLocked(Resource, "cf", now.Add(2*time.Second))
+	recordFixture(m, observation{op: Resource, route: "play.udon.dance", state: "available", at: now, songID: 42, bytes: 16 << 20, transferDuration: 2 * time.Second, duration: 3 * time.Second, latency: time.Second})
+	recordFixture(m, observation{op: Resource, route: "play.udon.dance", state: "available", at: now.Add(time.Second), songID: 73, duration: time.Millisecond, latency: time.Millisecond})
+	r := m.resultLocked(Resource, "play.udon.dance", now.Add(2*time.Second))
 	if r.EstimatedSpeedBPS == nil || *r.EstimatedSpeedBPS != 8<<20 || !r.ThroughputObservedAt.Equal(now) || r.ThroughputSongID != 42 || r.SampleSongID != 73 {
 		t.Fatal(r)
 	}
@@ -349,7 +353,7 @@ func TestLatencyProbeReadsOnlyOneByte(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		o := probeResourceMode(context.Background(), client, DefaultPolicy(), 42, videoRoutes[0], sample, false)
+		o := probeResourceMode(context.Background(), client, DefaultPolicy(), 42, sample, false)
 		wantRead := 0
 		if status == 206 {
 			wantRead = 1

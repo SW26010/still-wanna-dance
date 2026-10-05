@@ -21,7 +21,8 @@ try {
     $hostsPath = Join-Path $env:SystemRoot 'System32/drivers/etc/hosts'
     # Keep the historical marker so existing acceptance sessions can still be removed.
     $marker = '# StepStash-MVP-acceptance'
-    $domains = @('play.udon.dance', 'nya.xin.moe')
+    $domains = @('api.udon.dance')
+    $legacyDomains = @('play.udon.dance', 'nya.xin.moe', 'api.udon.dance')
     $encoding = [Text.Encoding]::GetEncoding(28591)
     $bytes = [IO.File]::ReadAllBytes($hostsPath)
     $text = $encoding.GetString($bytes)
@@ -29,8 +30,8 @@ try {
     if ($Mode -eq 'Enable') {
         if ($text.Contains($marker)) { throw 'An acceptance hosts mapping already exists; disable its session first.' }
         if ($text -match '(?m)^[^#\r\n]*\b(play\.udon\.dance|nya\.xin\.moe|api\.udon\.dance)\b') { throw 'Existing WannaDance domain mappings need inspection.' }
-        $request = [Net.HttpWebRequest]::Create('http://127.0.0.1/files/2403/1343-660524b4eb86f.mp4?e=28711962048bed664c98f27e1d9d5842&s=32867177')
-        $request.Host = 'play.udon.dance'
+        $request = [Net.HttpWebRequest]::Create('http://127.0.0.1/Api/Songs/play?id=1343&node=cf')
+        $request.Host = 'api.udon.dance'
         $request.Proxy = $null
         $request.Timeout = 5000
         $request.AddRange(0,15)
@@ -45,7 +46,7 @@ try {
     } else {
         if (-not (Test-Path -LiteralPath $backup)) { throw 'Session backup missing; refusing blind cleanup.' }
         $updated = $text
-        foreach ($domain in $domains) { $updated = $updated.Replace("`r`n127.0.0.1 $domain $marker`r`n", '') }
+        foreach ($domain in $legacyDomains) { $updated = $updated.Replace("`r`n127.0.0.1 $domain $marker`r`n", '') }
         if ($updated.Contains($marker)) { throw 'Marked entries changed; inspect before cleanup.' }
         if ($updated -ne $text) { [IO.File]::WriteAllBytes($hostsPath, $encoding.GetBytes($updated)) }
     }

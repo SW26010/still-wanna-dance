@@ -57,7 +57,7 @@ func TestQueueWorkerConfiguredWindow(t *testing.T) {
 			defer api.Close()
 			c.apiBase = api.URL
 			c.client.Transport = http.DefaultTransport
-			cfg := cacheproxy.DefaultConfig()
+			cfg := fixtureCacheConfig()
 			cfg.StorageDir = c.settings.StorageDir
 			engine, err := cacheproxy.New(cfg)
 			if err != nil {

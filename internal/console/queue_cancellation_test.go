@@ -46,7 +46,7 @@ func TestQueueInvalidationCancelsCapacityWaitButPreservesFlights(t *testing.T) {
 			defer api.Close()
 			c.apiBase = api.URL
 			c.client.Transport = http.DefaultTransport
-			cfg := cacheproxy.DefaultConfig()
+			cfg := fixtureCacheConfig()
 			cfg.OriginScheme = "http"
 			cfg.StorageDir = c.settings.StorageDir
 			cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")

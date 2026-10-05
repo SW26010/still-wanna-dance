@@ -39,6 +39,7 @@ type Status struct {
 // Monitor is independent of consumers and network configuration. Nothing starts
 // automatically; the owner explicitly starts and closes the monitor.
 type Monitor struct {
+	resourceSources         map[string]observation
 	onCatalog               func(context.Context, []CatalogResponse)
 	throughputPolicyPending bool
 	throughputSaveFailed    bool
@@ -103,7 +104,7 @@ func (m *Monitor) refreshChannelLocked() upstreamrequest.Snapshot {
 			// opaque identities, so replaced credentials cannot inherit samples.
 			valid := make(map[string]bool)
 			for _, op := range operations {
-				for _, route := range routeIDs(op) {
+				for _, route := range m.routeIDsLocked(op) {
 					for _, c := range s.Candidates.Current(entry(op, route)) {
 						valid[string(op)+"/"+route+"/"+c.ID] = true
 					}
@@ -114,7 +115,13 @@ func (m *Monitor) refreshChannelLocked() upstreamrequest.Snapshot {
 					delete(m.history, key)
 				}
 			}
+			for key := range m.resourceSources {
+				if !valid[key] {
+					m.removeResourceSourceLocked(key)
+				}
+			}
 		} else {
+			m.resourceSources = nil
 			m.history = make(map[string][]observation)
 			m.throughput = make(map[string]observation)
 			m.preferences = nil
@@ -360,6 +367,9 @@ func (m *Monitor) checkRequest(ctx context.Context, manual bool, selected ...Che
 func (m *Monitor) Close() {
 	m.mu.Lock()
 	m.closed = true
+	for key := range m.resourceSources {
+		m.removeResourceSourceLocked(key)
+	}
 	m.nextCheck = time.Time{}
 	m.cancel()
 	active, scheduler := m.active, m.scheduler
@@ -388,8 +398,12 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 		}
 	}()
 	record := func(o observation) {
-		if m.refreshChannelLocked().Revision == source.Revision && kind.includes(o.op) {
-			m.record(o)
+		if m.refreshChannelLocked().Revision == source.Revision {
+			if kind.includes(o.op) {
+				m.record(o)
+			} else {
+				m.observePlaybackDomains(o)
+			}
 		}
 	}
 	defer func() {
@@ -461,9 +475,9 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 		return
 	}
 	var wg sync.WaitGroup
-	// Ordinary transports use the same single-transfer rule as candidates.
 	resourceSlot := make(chan struct{}, 1)
-	for _, r := range videoRoutes {
+	seen := make(map[string]bool) // protected by resourceSlot
+	for _, r := range playbackRoutes {
 		wg.Add(1)
 		go func(r route) {
 			defer wg.Done()
@@ -471,18 +485,7 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 			m.mu.Lock()
 			record(resolved)
 			m.mu.Unlock()
-			if kind == CheckPlayback {
-				return
-			}
-			if sample == nil {
-				if resolved.state != "canceled" {
-					o := resolved
-					o.op = Resource
-					o.state = "resolution_unavailable"
-					m.mu.Lock()
-					record(o)
-					m.mu.Unlock()
-				}
+			if kind == CheckPlayback || sample == nil {
 				return
 			}
 			select {
@@ -490,8 +493,12 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 			case <-ctx.Done():
 				return
 			}
-			resource := m.probeResourceWhenIdle(ctx, client, p, id, r, *sample)
-			<-resourceSlot
+			defer func() { <-resourceSlot }()
+			if seen[sample.host] {
+				return
+			}
+			seen[sample.host] = true
+			resource := m.probeResourceWhenIdle(ctx, client, p, id, *sample)
 			m.mu.Lock()
 			record(resource)
 			m.mu.Unlock()

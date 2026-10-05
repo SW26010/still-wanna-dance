@@ -12,7 +12,7 @@ import (
 
 func TestTrafficWithoutRunningCDN(t *testing.T) {
 	c := testConsole(t)
-	cfg := cacheproxy.DefaultConfig()
+	cfg := fixtureCacheConfig()
 	cfg.StorageDir = c.settings.StorageDir
 	s, err := cacheproxy.New(cfg)
 	if err != nil {

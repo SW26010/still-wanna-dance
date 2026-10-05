@@ -21,7 +21,7 @@ func TestInventoryCoverageDoesNotRecreateMissingVideoDirectory(t *testing.T) {
 	if err := c.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
-	cfg := cacheproxy.DefaultConfig()
+	cfg := fixtureCacheConfig()
 	cfg.StorageDir = c.settings.StorageDir
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {

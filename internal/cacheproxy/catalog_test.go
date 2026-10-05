@@ -286,7 +286,7 @@ func TestOldStoreRejectedWithoutAnyFileChanges(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	cfg := DefaultConfig()
+	cfg := fixtureConfig()
 	cfg.StorageDir = root
 	if service, err := New(cfg); err == nil {
 		service.Close()

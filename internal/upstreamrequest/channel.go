@@ -19,11 +19,12 @@ type Snapshot struct {
 }
 
 type Channel struct {
-	resources resourceActivity
-	mu        sync.Mutex
-	transport http.RoundTripper
-	revision  uint64
-	changed   chan struct{}
+	resourceDomains map[string]resourceObservation
+	resources       resourceActivity
+	mu              sync.Mutex
+	transport       http.RoundTripper
+	revision        uint64
+	changed         chan struct{}
 }
 
 func NewChannel() *Channel { return &Channel{changed: make(chan struct{})} }
@@ -50,6 +51,7 @@ func (c *Channel) Release(revision uint64) {
 	}
 }
 func (c *Channel) replace(t http.RoundTripper) {
+	c.resourceDomains = nil
 	close(c.changed)
 	c.changed = make(chan struct{})
 	c.revision++

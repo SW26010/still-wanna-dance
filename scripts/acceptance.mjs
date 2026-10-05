@@ -6,7 +6,7 @@ import net from 'node:net';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
-import { request } from './acceptance-request.mjs';
+import { request, waitForResourceRegistration } from './acceptance-request.mjs';
 import { AcceptanceBlocked, videoRedirect } from './acceptance-protocol.mjs';
 
 const [executable, consoleExecutable] = process.argv.slice(2);
@@ -36,7 +36,7 @@ function evidence(result) {
     ['location', 'content-length', 'content-range', 'content-type', 'etag', 'last-modified', 'x-stepstash-cache', 'x-stepstash-fallback'].includes(k)));
   return { ...result, headers };
 }
-async function launch(executable, args, name, port, readyURL = 'http://play.udon.dance/') {
+async function launch(executable, args, name, port, readyURL = 'http://api.udon.dance/') {
   const out = fs.openSync(path.join(lab, `${name}.stdout.log`), 'w');
   const err = fs.openSync(path.join(lab, `${name}.stderr.log`), 'w');
   const child = spawn(executable, args, { windowsHide: true, cwd: lab, env: process.env, stdio: ['ignore', out, err] });
@@ -181,17 +181,23 @@ try {
       await check(`video-chain-${id}`, async () => {
         const url = urls[id];
         record(`cold-${id}-started`, { host: url.hostname });
-        const res = await request(url.toString(), { port: service.port });
+        const res = await request(playbackURL(id, id === '1343' ? 'cf' : 'nya'), { port: service.port });
         record(`cold-${id}`, evidence(res));
         fullVideo(res, url, 'MISS');
         assert.equal(digest(fs.readFileSync(videoFile(songs, url)), 'md5'), res.md5);
         assert.equal(fs.existsSync(path.join(songs, id)), false);
         cached.push(id);
-        const alternate = new URL(url);
-        alternate.hostname = url.hostname === 'play.udon.dance' ? 'nya.xin.moe' : 'play.udon.dance';
-        const hot = await request(alternate.toString(), { port: service.port, headers: { Range: 'bytes=0-1023' } });
-        record(`cross-host-${id}`, evidence(hot));
-        rangeVideo(hot, videoFile(songs, url));
+        const alternateNode = id === '1343' ? 'nya' : 'cf';
+        const alternate = await upstream(id, alternateNode);
+        if (alternate.hostname !== url.hostname && alternate.searchParams.get('e') === url.searchParams.get('e') && alternate.searchParams.get('s') === url.searchParams.get('s')) {
+          await request(playbackURL(id, alternateNode), { port: service.port, method: 'HEAD' });
+          await waitForResourceRegistration(alternate.toString(), { port: service.port });
+          const hot = await request(alternate.toString(), { port: service.port, headers: { Range: 'bytes=0-1023' } });
+          record(`cross-host-${id}`, evidence(hot));
+          rangeVideo(hot, videoFile(songs, url));
+        } else {
+          record(`cross-host-${id}`, { outcome: 'skipped', reason: 'API did not return a distinct domain for the same content' });
+        }
       });
       await check(`playback-api-${id}`, async () => {
         const res = await request(playbackURL(id, id === '1343' ? 'cf' : 'nya'), { port: service.port });
@@ -203,7 +209,7 @@ try {
     await stop(service.child);
     service = await startService('restart', songs);
     for (const id of cached) await check(`restart-${id}`, async () => {
-      const res = await request(urls[id].toString(), { port: service.port, method: 'HEAD' });
+      const res = await request(playbackURL(id, id === '1343' ? 'cf' : 'nya'), { port: service.port, method: 'HEAD' });
       record(`restart-${id}-response`, evidence(res));
       assert.equal(res.status, 200); assert.equal(res.headers['x-stepstash-cache'], 'HIT');
       assert.equal(Number(res.headers['content-length']), Number(urls[id].searchParams.get('s')));

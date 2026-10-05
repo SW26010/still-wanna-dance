@@ -1,5 +1,7 @@
 # 播放域名实测：2026-09-26
 
+> 历史记录说明（2026-10-06）：文中的 CF/HKG 是当时的界面、日志标签或 API 参数称呼。域名、IP 及地理位置只属于当次观测，不构成节点到域名的固定映射，也不保证这些域名持续存在。当前实现以有效 API 返回的域名集合为准，见[资源域名规则](resource-domains.md)。原始证据保持原样。
+
 本次以用户指定的 `https://wanna.kiva.moe/`、实时播放请求、用户提供的游戏日志和随包 README 为依据。没有使用 StepStash 的 Origins 映射，没有修改 hosts 或业务代码。
 
 结论：本次 WannaDance 播放证据支持使用 `api.udon.dance`、`play.udon.dance`、`nya.xin.moe` 这些公开入口。没有观察到客户端需要主动访问 `ud-play.kiva.moe` 或 `ud-nya.kiva.moe`。不过 `ud-play.kiva.moe` 确实出现在原版随包 README 的回源日志示例里，因此“完全没有来源”不准确；它的历史用途与是否应成为本项目默认依赖是两件事。

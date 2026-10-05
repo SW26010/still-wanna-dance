@@ -92,7 +92,7 @@ func TestConsolePrefetchPrefersCFEvenWhenHKGIsFaster(t *testing.T) {
 	defer api.Close()
 	c.apiBase = api.URL
 	c.client.Transport = http.DefaultTransport
-	cfg := cacheproxy.DefaultConfig()
+	cfg := fixtureCacheConfig()
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()
 	cfg.ResolveRoutes = func(ctx context.Context, id string) ([]string, error) { return c.resolveRoutes(ctx, id, "auto") }

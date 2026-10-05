@@ -20,7 +20,7 @@ func TestOriginAddressValidation(t *testing.T) {
 		{"https://play.udon.dance:443", false},
 	} {
 		t.Run(tc.address, func(t *testing.T) {
-			cfg := DefaultConfig()
+			cfg := fixtureConfig()
 			cfg.Origins["play.udon.dance"] = tc.address
 			if err := cfg.validate(); (err == nil) != tc.valid {
 				t.Fatalf("validate(%q) = %v, valid=%v", tc.address, err, tc.valid)

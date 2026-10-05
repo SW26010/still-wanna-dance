@@ -83,7 +83,7 @@ func TestMD5BatchTriesSharedSongIDs(t *testing.T) {
 			}))
 			defer api.Close()
 			c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
-			cfg := cacheproxy.DefaultConfig()
+			cfg := fixtureCacheConfig()
 			cfg.StorageDir, cfg.OriginScheme = c.settings.StorageDir, "http"
 			for host := range cfg.Origins {
 				cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
@@ -166,7 +166,7 @@ func TestMD5CatalogScanAndFillUseSinglePresenceSnapshot(t *testing.T) {
 	}))
 	defer api.Close()
 	c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
-	cfg := cacheproxy.DefaultConfig()
+	cfg := fixtureCacheConfig()
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.OriginScheme = "http"
 	for host := range cfg.Origins {
@@ -259,7 +259,7 @@ func TestCatalogFailureUsesOnlyLocalFallback(t *testing.T) {
 					defer api.Close()
 					c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
 					if cached {
-						cfg := cacheproxy.DefaultConfig()
+						cfg := fixtureCacheConfig()
 						cfg.StorageDir = c.settings.StorageDir
 						engine, err := cacheproxy.New(cfg)
 						if err != nil {

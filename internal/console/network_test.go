@@ -401,6 +401,7 @@ func TestConsoleSOCKS5APIAndHTTPSRelay(t *testing.T) {
 		return (&net.Dialer{}).DialContext(ctx, network, c.https.listener.Addr().String())
 	}}
 	defer transport.CloseIdleConnections()
+	observeTestResources(t)
 	check(&http.Client{Transport: transport, Timeout: 3 * time.Second}, "https://nya.xin.moe/test")
 	if calls.Load() != 2 {
 		t.Fatalf("got %d proxy connections", calls.Load())
@@ -438,6 +439,7 @@ func TestConsoleSOCKS5CacheAndSettingsSwitch(t *testing.T) {
 		t.Fatal("allowed switch while running")
 	}
 	target := fmt.Sprintf("http://play.udon.dance/files/1/2-video.mp4?e=%x&s=4", md5.Sum([]byte("test")))
+	observeTestResources(t)
 	w := httptest.NewRecorder()
 	c.service.ServeHTTP(w, httptest.NewRequest("GET", target, nil))
 	if w.Code < 400 {

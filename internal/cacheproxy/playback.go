@@ -87,6 +87,9 @@ func (s *Server) requestVideo(r *http.Request, observed func()) (video, func(), 
 		host = h
 	}
 	if host != "api.udon.dance" {
+		if !s.resourceHostAllowed(host) {
+			return video{}, nil, errors.New("resource host has not been returned by the API")
+		}
 		v, err := s.parse(r)
 		if err == nil && observed != nil {
 			observed()
@@ -222,7 +225,7 @@ func (s *Server) resolvePlaybackVideoReadOnly(ctx context.Context, q url.Values)
 	if (resolved.URL.Scheme != "http" && resolved.URL.Scheme != "https") || resolved.URL.User != nil || resolved.URL.Fragment != "" {
 		return video{}, errPlaybackUpstream
 	}
-	v, err := s.parse(resolved)
+	v, err := s.parseResolved(resolved)
 	if err != nil {
 		return video{}, err
 	}
@@ -243,5 +246,5 @@ func (s *Server) localPlaybackVideo(ctx context.Context, id string) (video, erro
 	if err != nil || !info.Mode().IsRegular() {
 		return video{}, errPlaybackUpstream
 	}
-	return video{key: key, size: info.Size(), songID: id, localOnly: true, host: "play.udon.dance"}, nil
+	return video{key: key, size: info.Size(), songID: id, localOnly: true}, nil
 }

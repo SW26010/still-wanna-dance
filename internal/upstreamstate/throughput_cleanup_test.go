@@ -34,8 +34,8 @@ func (p fallbackDiscovery) CandidatesWithReadiness(ctx context.Context, target s
 
 func TestProxyFallbackDoesNotPruneRestoredDirectThroughput(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "throughput.json")
-	direct := "resource/cf/direct/play.udon.dance/192.0.2.1"
-	oldProxy := "resource/cf/socks5/play.udon.dance/stable-v1-" + strings.Repeat("a", 64)
+	direct := "resource/play.udon.dance/direct/play.udon.dance/192.0.2.1"
+	oldProxy := "resource/play.udon.dance/socks5/play.udon.dance/stable-v1-" + strings.Repeat("a", 64)
 	at := time.Now().Add(-time.Minute)
 	sample := ThroughputSample{ObservedAt: at, SongID: 42, Bytes: 16 << 20, Duration: 2 * time.Second}
 	data, _ := json.Marshal(throughputState{LastAttempt: at, Samples: map[string]ThroughputSample{direct: sample, oldProxy: sample}})
@@ -123,8 +123,8 @@ func TestRestoredThroughputPrunedOnlyAfterResourceDiscovery(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "throughput.json")
-			keep := "resource/cf/a/play.udon.dance"
-			gone := "resource/cf/b/play.udon.dance"
+			keep := "resource/play.udon.dance/a/play.udon.dance"
+			gone := "resource/play.udon.dance/b/play.udon.dance"
 			at := time.Now().Add(-time.Minute)
 			sample := ThroughputSample{ObservedAt: at, SongID: 42, Bytes: 16 << 20, Duration: 2 * time.Second}
 			data, _ := json.Marshal(throughputState{LastAttempt: at, Samples: map[string]ThroughputSample{keep: sample, gone: sample}})

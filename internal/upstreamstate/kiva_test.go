@@ -94,7 +94,7 @@ func TestCatalogResponseTimeIsIndependentOfObservationTime(t *testing.T) {
 			}
 			m := testMonitor(t, transportFunc(fixture))
 			m.mu.Lock()
-			m.record(o)
+			recordFixture(m, o)
 			m.mu.Unlock()
 			r := resultFor(t, m, Catalog, tc.route)
 			if r.CatalogTime != tc.want || !r.ObservedAt.Equal(o.at) {
@@ -103,7 +103,7 @@ func TestCatalogResponseTimeIsIndependentOfObservationTime(t *testing.T) {
 			// A newer failed response must not inherit an older response's time.
 			o.catalogTime, o.state = "", "network_error"
 			m.mu.Lock()
-			m.record(o)
+			recordFixture(m, o)
 			m.mu.Unlock()
 			if r := resultFor(t, m, Catalog, tc.route); r.CatalogTime != "" {
 				t.Fatal(r)

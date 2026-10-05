@@ -378,6 +378,7 @@ func (c *Console) ensureEngine() error {
 	cfg := cacheproxy.DefaultConfig()
 	cfg.BeginVideoRequest = c.beginVideoRequest
 	cfg.BeginResourceLoad = upstreamrequest.Default.BeginResourceLoad
+	cfg.IsResourceHost = upstreamrequest.Default.IsResourceDomain
 	cfg.Logger = slog.Default().With("component", "cache")
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
@@ -402,7 +403,9 @@ func (c *Console) ensureEngine() error {
 }
 
 // AutoStart triggers the same start operation as the CDN button at process launch.
-func (c *Console) AutoStart() {
+func (c *Console) AutoStart() { c.autoStart(readHostsStatus) }
+
+func (c *Console) autoStart(inspect func() HostsStatus) {
 	if !c.termsAccepted() {
 		return
 	}
@@ -412,7 +415,15 @@ func (c *Console) AutoStart() {
 	if !enabled {
 		return
 	}
-	_ = c.start()
+	if err := c.start(); err != nil {
+		return
+	}
+	if hosts := inspect(); hosts.NeedsMigration {
+		c.mu.Lock()
+		c.activation = Activation{Phase: "migration_required", Error: hosts.Message}
+		c.mu.Unlock()
+		slog.Warn("hosts_migration_required", "message", hosts.Message)
+	}
 }
 
 func (c *Console) start() (err error) {
@@ -443,7 +454,6 @@ func (c *Console) startLocked() (err error) {
 		return nil
 	}
 	// Hosts do not affect binding: a running CDN can be connected using the separate hosts action.
-	_ = readHostsStatus()
 	l, err := net.Listen("tcp4", c.videoAddress)
 	if err != nil {
 		return desktop.PortError(c.videoAddress, err)

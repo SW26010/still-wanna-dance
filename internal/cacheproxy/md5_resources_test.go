@@ -258,7 +258,7 @@ func TestMD5OldStorageRejectedWithoutMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	db.Close()
-	cfg := DefaultConfig()
+	cfg := fixtureConfig()
 	cfg.StorageDir = root
 	if s, err := New(cfg); err == nil {
 		s.Close()

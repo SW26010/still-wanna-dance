@@ -16,7 +16,7 @@ Just extract and run. The app lives in the Windows system tray and requires no G
 - **Prepare upcoming songs**: read the room queue from VRChat logs and prefetch valid songs in the first 3 queue positions by default. Adjust the number to suit your needs.
 - **See what is happening**: check active downloads, upstream speed, recent requests, and queue readiness in the console.
 - **Manage your disk space**: choose a storage folder, find and delete cached videos, and check file integrity. Set a video cache limit to automatically remove lower-priority videos first.
-- **Choose your connection**: use Auto, CF, or HKG upstream selection, with either a direct connection using built-in encrypted DNS or a SOCKS5 proxy.
+- **Choose your connection**: select playback API parameters (Auto, node=cf, or node=nya); resource domains come from valid API responses, with either a direct connection using built-in encrypted DNS or a SOCKS5 proxy.
 - **Prepare more of your library**: scan local files, verify existing videos, or download missing videos ahead of time.
 
 ## Quick start
@@ -52,7 +52,7 @@ For detailed instructions, see the [console guide](docs/console.md) and [portabl
 
 ## Things to know
 
-- **Caching serves the game's HTTP playback path.** Website playback over HTTPS is forwarded with the original encrypted connection intact and does not read from or add to the local video cache. CF and HKG are supported; SHA is not currently supported.
+- **Caching serves the game's HTTP playback path.** Website playback over HTTPS is forwarded with the original encrypted connection intact and does not read from or add to the local video cache. The node=cf and node=nya playback APIs are supported; SHA is not currently supported. Resource domains are discovered from API responses, without a fixed list or node-to-domain mapping.
 - **Cached videos can help with some upstream failures.** If playback URL resolution fails, the app can use the song's last confirmed local video after it passes integrity checks. This is not a full offline mode and does not cover failures during a subsequent download. See [fallback behavior](docs/service.md#本地降级边界).
 - **You control cache capacity.** Video storage is unlimited by default. Downloading the full library can take substantial space, so consider setting a limit first. Files being played or downloaded can temporarily push actual disk usage above that limit.
 - **The project is still evolving.** Automated tests and historical tests with the game are documented. Recent storage and playback API changes still need complete end-to-end validation with VRChat. Feedback from different networks and player environments is welcome. See [supported functionality and limitations](docs/scope.md).

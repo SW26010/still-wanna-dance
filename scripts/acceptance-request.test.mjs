@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import https from 'node:https';
 import { createUpstreamLookup, upstreamLookup } from './acceptance-dns.mjs';
-import { request } from './acceptance-request.mjs';
+import { request, waitForResourceRegistration } from './acceptance-request.mjs';
 
 const lookup = (fn, all = false) => new Promise((resolve, reject) =>
   fn('api.udon.dance', { all }, (error, address, family) => error ? reject(error) : resolve({ address, family })));
@@ -52,4 +52,23 @@ test('explicit local port still reaches owned server with original Host and path
     assert.equal(res.body, 'local video');
     assert.equal(res.remoteAddress, '127.0.0.1');
   } finally { await new Promise(resolve => server.close(resolve)); }
+});
+
+test('cross-host acceptance waits for registration and bounds missing-domain waits', async t => {
+ let calls = 0, status = 400;
+ const server = http.createServer((req, res) => {
+  assert.equal(req.method, 'HEAD');
+  calls++;
+  res.writeHead(calls >= 3 ? status : 400); res.end();
+ });
+ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+ t.after(() => new Promise(resolve => server.close(resolve)));
+ const options = { port: server.address().port, interval: 1, timeout: 2000 };
+ status = 200;
+ assert.equal((await waitForResourceRegistration('http://media.example/files/test', options)).status, 200);
+ assert.equal(calls, 3);
+ status = 503;
+ await assert.rejects(waitForResourceRegistration('http://media.example/files/test', options), /HTTP 503/);
+ status = 400;
+ await assert.rejects(waitForResourceRegistration('http://media.example/files/test', { ...options, timeout: 40 }), /deadline/);
 });

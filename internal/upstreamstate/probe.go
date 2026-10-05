@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/videometa"
 )
 
@@ -29,7 +30,7 @@ type videoSample struct {
 
 func parseSample(target string) (videoSample, error) {
 	u, err := url.Parse(target)
-	if err != nil || u.User != nil || u.Fragment != "" || !allowedVideoHost(u.Host) || (u.Scheme != "https" && u.Scheme != "http") {
+	if err != nil || u.User != nil || u.Fragment != "" || !videometa.ValidHost(u.Host) || (u.Scheme != "https" && u.Scheme != "http") {
 		return videoSample{}, errors.New("unsupported video URL")
 	}
 	meta, err := videometa.Parse(u, 2<<30)
@@ -276,20 +277,22 @@ func probePlayback(parent context.Context, client *http.Client, p Policy, id int
 		return
 	}
 	s, err := parseSample(u.String())
-	if err != nil || s.host != r.host {
+	if err != nil {
 		o.state = "invalid"
 		return
 	}
 	o.state = "available"
+	o.resourceHost = s.host
+	o.resourceSource = upstreamrequest.ResourceSource{API: entry(PlaybackURL, r.id) + "&id=" + strconv.FormatInt(id, 10), Node: r.node, SongID: id, ResourceURL: u.String(), Domain: u.Host, Path: u.Path}
 	return o, &s
 }
 
-func probeResource(parent context.Context, client *http.Client, p Policy, id int64, r route, s videoSample) (o observation) {
-	return probeResourceMode(parent, client, p, id, r, s, true)
+func probeResource(parent context.Context, client *http.Client, p Policy, id int64, s videoSample) (o observation) {
+	return probeResourceMode(parent, client, p, id, s, true)
 }
 
-func probeResourceMode(parent context.Context, client *http.Client, p Policy, id int64, r route, s videoSample, throughput bool) (o observation) {
-	o = observation{op: Resource, route: r.id, songID: id}
+func probeResourceMode(parent context.Context, client *http.Client, p Policy, id int64, s videoSample, throughput bool) (o observation) {
+	o = observation{op: Resource, route: s.host, songID: id}
 	ctx, cancel := context.WithTimeout(parent, p.RequestTimeout+p.ResourceTimeout)
 	defer cancel()
 	started := time.Now()

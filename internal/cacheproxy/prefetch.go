@@ -36,7 +36,7 @@ func (s *Server) prefetch(ctx context.Context, id, target string) (source string
 	if err != nil {
 		return "", applog.SafeError(err)
 	}
-	v, err := s.parse(r)
+	v, err := s.parseResolved(r)
 	if err != nil {
 		return "", err
 	}

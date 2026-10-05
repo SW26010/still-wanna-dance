@@ -283,7 +283,7 @@ func TestRequestRetentionCleansIdleRestart(t *testing.T) {
 
 func TestRequestRetentionConfig(t *testing.T) {
 	for _, days := range []int{-1, 36501, 0, 30, 36500} {
-		cfg := DefaultConfig()
+		cfg := fixtureConfig()
 		cfg.RequestRetentionDays = days
 		err := cfg.validate()
 		if (err != nil) != (days < 0 || days > 36500) {

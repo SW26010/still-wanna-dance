@@ -92,7 +92,7 @@ func TestAllRoutesAndReadOnlySnapshot(t *testing.T) {
 		return fixture(r)
 	})
 	initial := m.Snapshot()
-	if len(initial.Results) != 7 {
+	if len(initial.Results) != 5 {
 		t.Fatal(initial)
 	}
 	for _, r := range initial.Results {
@@ -123,7 +123,7 @@ func TestAllRoutesAndReadOnlySnapshot(t *testing.T) {
 	}
 	for _, op := range []Operation{PlaybackURL, Resource} {
 		results := m.Results(op)
-		if len(results) != 2 || results[0].Route != "cf" || results[1].Route != "hkg" {
+		if len(results) != 2 || results[0].Route != m.routeIDsLocked(op)[0] || results[1].Route != m.routeIDsLocked(op)[1] {
 			t.Fatal(results)
 		}
 	}
@@ -139,7 +139,7 @@ func TestAllRoutesAndReadOnlySnapshot(t *testing.T) {
 	resources := m.Results(Resource)
 	resources[0].Route = "changed"
 	*resources[1].EstimatedLatencyMS = -1
-	if resultFor(t, m, Catalog, "api").Entry == "changed" || *resultFor(t, m, Resource, "cf").EstimatedSpeedBPS < 0 || *resultFor(t, m, Resource, "hkg").EstimatedLatencyMS < 0 {
+	if resultFor(t, m, Catalog, "api").Entry == "changed" || *resultFor(t, m, Resource, "play.udon.dance").EstimatedSpeedBPS < 0 || *resultFor(t, m, Resource, "nya.xin.moe").EstimatedLatencyMS < 0 {
 		t.Fatal("snapshot aliases state")
 	}
 	if len(m.Results(Operation("invalid"))) != 0 {
@@ -179,7 +179,7 @@ func TestCatalogFailureAndSampleReuse(t *testing.T) {
 	m.SetPolicy(p)
 	time.Sleep(time.Millisecond)
 	m.Check(context.Background())
-	if plays.Load() != 4 || resultFor(t, m, Resource, "cf").State != "stale" {
+	if plays.Load() != 4 || len(m.Results(Resource)) != 0 {
 		t.Fatal("used expired sample")
 	}
 }
@@ -202,12 +202,12 @@ func TestPartialCheckKeepsBothRoutesAndTheirFailures(t *testing.T) {
 	})
 	done := make(chan error, 1)
 	go func() { done <- m.Check(context.Background()) }()
-	awaitCondition(t, func() bool { return resultFor(t, m, Resource, "cf").State == "available" })
-	for _, op := range []Operation{PlaybackURL, Resource} {
-		results := m.Results(op)
-		if len(results) != 2 || results[0].Route != "cf" || results[0].State != "available" || results[1].Route != "hkg" || results[1].State != "unknown" {
-			t.Fatal("partial check hid an unfinished route", results)
-		}
+	awaitCondition(t, func() bool { rs := m.Results(Resource); return len(rs) > 0 && rs[0].State == "available" })
+	if rs := m.Results(Resource); len(rs) != 1 || rs[0].Route != "play.udon.dance" || rs[0].State != "available" {
+		t.Fatal(rs)
+	}
+	if resultFor(t, m, PlaybackURL, "hkg").State != "unknown" {
+		t.Fatal("pending API hidden")
 	}
 	unblock()
 	select {
@@ -218,14 +218,11 @@ func TestPartialCheckKeepsBothRoutesAndTheirFailures(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("check did not finish")
 	}
-	for _, op := range []Operation{PlaybackURL, Resource} {
-		results := m.Results(op)
-		if results[0].State != "available" || results[1].State != "unavailable" || results[1].HTTP != 524 || results[1].Stage != "headers" {
-			t.Fatal("lost per-route diagnostics", results)
-		}
+	if rs := m.Results(Resource); len(rs) != 1 || rs[0].State != "available" {
+		t.Fatal(rs)
 	}
-	if resultFor(t, m, PlaybackURL, "hkg").Reason != "origin_timeout" || resultFor(t, m, Resource, "hkg").Reason != "resolution_unavailable" {
-		t.Fatal("lost operation-specific failure reason", m.Snapshot())
+	if resultFor(t, m, PlaybackURL, "hkg").Reason != "origin_timeout" {
+		t.Fatal("lost API failure")
 	}
 }
 
@@ -245,7 +242,7 @@ func TestInvalidPlaybackDoesNotProbeResource(t *testing.T) {
 	m.Check(context.Background())
 	for _, op := range []Operation{PlaybackURL, Resource} {
 		for _, r := range m.Results(op) {
-			if r.State != "unavailable" || r.Entry == "" {
+			if (op == PlaybackURL && r.State != "unavailable") || (op == Resource && r.State != "unknown") || r.Entry == "" {
 				t.Fatal(r)
 			}
 		}

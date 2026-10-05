@@ -7,14 +7,15 @@ const html = readFileSync(new URL('../internal/console/index.html', import.meta.
 const script = readFileSync(new URL('../internal/console/assets/console.js', import.meta.url), 'utf8');
 const cacheScript = readFileSync(new URL('../internal/console/assets/cache.js', import.meta.url), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
+const resourceGroup = (p, domain) => p.document.getElementById('healthResources').children.find(s => s.children[0]?.textContent === domain)?.children[1];
 
 test('canonical monitor renders every channel, throughput, unknown and stale states', async () => {
   const p = page();
   p.finishBatch(0, {}, { settings: { upstreamMode: 'auto' }, upstreamMonitor: {
     checking: false, results: [
-      { operation: 'resource', route: 'cf', mode: 'direct', ip: '1.2.3.4', channelID: 'direct/cf/1.2.3.4', state: 'available', entry: 'https://play.udon.dance', estimatedSpeedBPS: 2048, transferDurationMS: 2000, transferredBytes: 16777216, sampleSongID: 73, throughputSongID: 42, throughputObservedAt: "2026-10-05T00:00:00Z", estimatedLatencyMS: 12 },
-      { operation: 'resource', route: 'cf', mode: 'socks5', state: 'unavailable', reason: 'origin_timeout', http: 524 },
-      { operation: 'resource', route: 'hkg', mode: 'direct', ip: '2.3.4.5', state: 'unknown', reason: 'no_sample' },
+      { operation: 'resource', route: 'play.udon.dance', mode: 'direct', ip: '1.2.3.4', channelID: 'direct/play.udon.dance/1.2.3.4', state: 'available', entry: 'https://play.udon.dance', estimatedSpeedBPS: 2048, transferDurationMS: 2000, transferredBytes: 16777216, sampleSongID: 73, throughputSongID: 42, throughputObservedAt: "2026-10-05T00:00:00Z", estimatedLatencyMS: 12 },
+      { operation: 'resource', route: 'play.udon.dance', mode: 'socks5', state: 'unavailable', reason: 'origin_timeout', http: 524 },
+      { operation: 'resource', route: 'nya.xin.moe', mode: 'direct', ip: '2.3.4.5', state: 'unknown', reason: 'no_sample' },
       { operation: 'catalog', route: 'api', mode: 'direct', state: 'stale', reason: 'expired', catalogTime: '20261004235822' },
       { operation: 'catalog', route: 'kiva', mode: 'socks5', state: 'available', catalogTime: '20261005010000', entry: 'https://x.kiva.moe/api/v2/wanna/songs', estimatedLatencyMS: 24 },
       { operation: 'catalog', route: 'wanna', mode: 'direct', state: 'available', catalogTime: '20260215004959', entry: 'https://wanna.kiva.moe/api/wannaInfo' },
@@ -25,7 +26,7 @@ test('canonical monitor renders every channel, throughput, unknown and stale sta
   } });
   await flush();
   const get = id => p.document.getElementById(id);
-  const rows = [...get('healthResourceCf').children, ...get('healthResourceHkg').children, ...get('healthCatalog').children];
+  const rows = [...resourceGroup(p, 'play.udon.dance').children, ...resourceGroup(p, 'nya.xin.moe').children, ...get('healthCatalog').children];
   assert.equal(rows.length, 4);
   assert.match(rows[0].children[3].textContent, /2.0 KiB\/s.*歌曲 #42/);
   assert.match(rows[0].children[3].textContent, /下载 2.00 s \/ 16.00 MiB/);
@@ -54,7 +55,7 @@ test('canonical monitor renders every channel, throughput, unknown and stale sta
   p.finishBatch(2, {}, { settings: { upstreamMode: 'direct' }, upstreamMonitor: { checking: true, results: [] } });
   await flush();
   assert.match(get('healthSummary').textContent, /正在检测/);
-  for (const id of ['healthCatalog', 'healthCatalogKiva', 'healthCatalogWanna', 'healthPlaybackHkg', 'healthPlaybackCf', 'healthResourceHkg', 'healthResourceCf']) {
+  for (const id of ['healthCatalog', 'healthCatalogKiva', 'healthCatalogWanna', 'healthPlaybackHkg', 'healthPlaybackCf']) {
     assert.equal(get(id).children.length, 1);
     assert.match(get(id).children[0].textContent, /正在检测/);
   }
@@ -97,16 +98,16 @@ test('scoped manual buttons work while automatic resource checks are paused', as
 test('throughput history and automatic waiting reason remain visible independently', async () => {
   const p = page(), get = id => p.document.getElementById(id);
   p.finishBatch(0, {}, { upstreamMonitor: { throughputStatus: 'cooldown', nextThroughput: '2030-01-01T00:15:00Z', results: [
-    { operation: 'resource', route: 'cf', state: 'unknown', entry: 'https://play.udon.dance', lastThroughput: { observedAt: '2020-01-01T00:00:00Z', songID: 42, bytes: 16777216, duration: 2000000000 } },
-    { operation: 'resource', route: 'hkg', state: 'unknown', entry: 'https://nya.xin.moe' },
+    { operation: 'resource', route: 'play.udon.dance', state: 'unknown', entry: 'https://play.udon.dance', lastThroughput: { observedAt: '2020-01-01T00:00:00Z', songID: 42, bytes: 16777216, duration: 2000000000 } },
+    { operation: 'resource', route: 'nya.xin.moe', state: 'unknown', reason: 'no_sample', entry: 'https://nya.xin.moe' },
     { operation: 'playback_url', route: 'hkg', state: 'unavailable', reason: 'invalid' },
   ] } });
   await flush();
   assert.match(get('healthThroughputSchedule').textContent, /下次自动吞吐测速：.*2030.*等待 20 分钟间隔到期/);
-  const cf = get('healthResourceCf').children[0];
+  const cf = resourceGroup(p, 'play.udon.dance').children[0];
   assert.match(cf.children[2].textContent, /暂无有效数据/);
   assert.match(cf.children[3].textContent, /8192.0 KiB\/s.*歌曲 #42.*下载 2.00 s \/ 16.00 MiB.*历史样本（已过期）/);
-  assert.match(get('healthResourceHkg').children[0].children[3].textContent, /未取得有效播放地址/);
+  assert.match(resourceGroup(p, 'nya.xin.moe').children[0].children[3].textContent, /未取得该域名的有效资源地址/);
   p.fireTimer();
   p.finishBatch(2, {}, { upstreamMonitor: { throughputStatus: 'business_busy', results: [] } });
   await flush();
@@ -290,8 +291,8 @@ test('active downloads render safe candidates, unknown values, bounded progress 
   assert.match(get('downloadState').textContent, /CDN 已关闭.*1 个活动任务/);
   assert.match(get('downloadList').textContent, /播放歌曲未确定.*<script>text<\/script>/);
   const main = get('downloadList').children[0].children[0];
-  assert.match(main.textContent, /校验并发布.*CF.*100.0%/);
-  assert.doesNotMatch(main.textContent, /shared|play.udon.dance|ID 2/);
+  assert.match(main.textContent, /校验并发布.*play\.udon\.dance.*100.0%/);
+  assert.doesNotMatch(main.textContent, /shared|ID 2/);
   let details = get('downloadList').children[0].children.at(-1);
   assert.equal(details.open, false);
   assert.match(details.textContent, /ID 2.*play.udon.dance.*shared/);
@@ -306,10 +307,10 @@ test('active downloads render safe candidates, unknown values, bounded progress 
   assert.match(progress['aria-label'], /已读取字节进度/);
   p.context.snapshot.tasks[0].host = 'nya.xin.moe';
   vm.runInContext('renderDownloads(snapshot)', p.context);
-  assert.match(get('downloadList').children[0].children[0].textContent, /HKG/);
+  assert.match(get('downloadList').children[0].children[0].textContent, /nya\.xin\.moe/);
   Object.assign(p.context.snapshot.tasks[0], { songs: [], size: 0, host: '', stage: 'upstream_headers' });
   vm.runInContext('renderDownloads(snapshot)', p.context);
-  assert.match(get('downloadList').textContent, /未知歌名.*等待上游.*线路待定.*进度未知/);
+  assert.match(get('downloadList').textContent, /未知歌名.*等待上游.*域名待定.*进度未知/);
   p.context.snapshot.tasks = []; p.context.snapshot.bytesPerSecond = 0;
   vm.runInContext('renderDownloads(snapshot)', p.context);
   assert.equal(get('downloadList').children.length, 0);
@@ -1556,4 +1557,46 @@ test('pause discards stale recent responses even after a quick resume', async ()
     finish(); await pending;
     assert.equal(get('recentState').textContent, 'frozen');
   }
+});
+
+test('resource groups follow current API domain set without fixed placeholders', async () => {
+  const p = page();
+  p.finishBatch();
+  await flush();
+  assert.equal(resourceGroup(p, 'play.udon.dance'), undefined);
+  assert.equal(resourceGroup(p, 'nya.xin.moe'), undefined);
+  for (const domains of [['media.future.example', 'third.example', 'fourth.example'], ['replacement.example'], []]) {
+    p.context.dynamicDomainResults = domains.map(route => ({ operation: 'resource', route, state: 'available', mode: 'direct' }));
+    vm.runInContext('renderHealth({results: dynamicDomainResults}, {})', p.context);
+    for (const domain of domains) assert.ok(resourceGroup(p, domain));
+    assert.equal(resourceGroup(p, 'play.udon.dance'), undefined);
+    if (!domains.includes('media.future.example')) assert.equal(resourceGroup(p, 'media.future.example'), undefined);
+  }
+});
+
+test('resource detail displays actual issuing nodes independently of its domain', async () => {
+ const p = page();
+ p.finishBatch(0, {}, { settings: {}, upstreamMonitor: { results: [{ operation: 'resource', route: 'nya.xin.moe', entry: 'https://nya.xin.moe', state: 'available', sources: [
+  { api: 'https://api.udon.dance/Api/Songs/play?node=cf&id=42', node: 'cf', apiChannelID: 'direct/api.udon.dance/192.0.2.1' },
+  { api: 'https://api.udon.dance/Api/Songs/play?node=nya&id=42', node: 'nya', apiChannelID: 'socks5/api.udon.dance/proxy' }
+ ] }] } });
+ await flush();
+ const text = resourceGroup(p, 'nya.xin.moe').children[0].children[1].textContent;
+ assert.match(text, /地址来源：.*node=cf.*node=nya/);
+ assert.match(text, /API 通道 direct\/api.udon.dance\/192.0.2.1/);
+ assert.doesNotMatch(text, /HKG/);
+});
+
+test('automatic startup keeps pending hosts migration visible', async () => {
+ const p = page();
+ p.finishBatch(0, {}, { running: true, settings: {}, hosts: { ready: false, needsMigration: true, message: '旧版托管条目待迁移' }, activation: { phase: 'migration_required', error: '旧版托管条目待迁移' } });
+ await flush();
+ const get = id => p.document.getElementById(id).textContent;
+ assert.match(get('activationProgress'), /自动启动.*迁移未完成/);
+ assert.match(get('activationNext'), /启用游戏加速.*迁移/);
+ assert.doesNotMatch(get('activationHosts'), /接入完成/);
+ assert.equal(get('enableAcceleration'), '启用游戏加速');
+ vm.runInContext("renderActivation({running:true,hosts:{ready:true,needsMigration:false},activation:{phase:'migration_required',error:'旧提示'}})", p.context);
+ assert.doesNotMatch(get('activationProgress'), /迁移未完成|旧提示/);
+ assert.equal(get('enableAcceleration'), '重新检测视频请求');
 });

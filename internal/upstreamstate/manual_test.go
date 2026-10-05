@@ -97,10 +97,13 @@ func TestSelectedCheckPreservesUnrelatedPreferences(t *testing.T) {
 			m.preferences = make(map[Operation]*preference)
 			before := make(map[Operation]preference)
 			for _, op := range operations {
-				route := routeIDs(op)[0]
+				route := "play.udon.dance"
+				if op != Resource {
+					route = routeIDs(op)[0]
+				}
 				cs := provider.Current(entry(op, route))
 				for i, c := range cs {
-					m.record(observation{op: op, route: route, channel: c.ID, state: "available", at: at,
+					recordFixture(m, observation{op: op, route: route, channel: c.ID, state: "available", at: at,
 						latency: time.Duration(2-i) * time.Millisecond, duration: time.Second, transferDuration: time.Second, bytes: int64(1000 * (i + 1)), songID: 42})
 				}
 				p := preference{current: route + "/" + cs[0].ID, challenger: route + "/" + cs[1].ID, wins: 1, throughputVote: at}

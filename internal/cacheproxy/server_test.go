@@ -30,7 +30,7 @@ func setup(t *testing.T, handler http.HandlerFunc) (*Server, Config) {
 	t.Helper()
 	upstream := httptest.NewServer(handler)
 	t.Cleanup(upstream.Close)
-	cfg := DefaultConfig()
+	cfg := fixtureConfig()
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()
 	cfg.Logger = slog.New(slog.NewTextHandler(testLogWriter{t}, nil))

@@ -60,8 +60,8 @@
           <h2 id="healthPlaybackTitle">播放地址解析</h2>
           <div class="actions"><button id="healthCheckPlayback" data-action="upstream/check/playback">检测播放地址解析</button></div>
           <div class="health-routes">
-            <section aria-labelledby="healthPlaybackHkgTitle"><h3 id="healthPlaybackHkgTitle">HKG</h3><ul id="healthPlaybackHkg" class="health-checks" aria-label="HKG 播放地址解析检测结果"></ul></section>
-            <section aria-labelledby="healthPlaybackCfTitle"><h3 id="healthPlaybackCfTitle">CF</h3><ul id="healthPlaybackCf" class="health-checks" aria-label="CF 播放地址解析检测结果"></ul></section>
+            <section aria-labelledby="healthPlaybackHkgTitle"><h3 id="healthPlaybackHkgTitle">node=nya</h3><ul id="healthPlaybackHkg" class="health-checks" aria-label="node=nya 播放地址解析检测结果"></ul></section>
+            <section aria-labelledby="healthPlaybackCfTitle"><h3 id="healthPlaybackCfTitle">node=cf</h3><ul id="healthPlaybackCf" class="health-checks" aria-label="node=cf 播放地址解析检测结果"></ul></section>
           </div>
         </section>
         <section class="card" aria-labelledby="healthResourceTitle">
@@ -69,10 +69,7 @@
           <p id="healthThroughputSchedule" class="hint" role="status">等待吞吐检测调度信息…</p>
           <div class="actions"><button id="healthCheckLatency" data-action="upstream/check/latency">检测响应延迟</button><button id="healthCheckThroughput" data-action="upstream/check/throughput">检测吞吐速度</button></div>
           <p class="hint">手动吞吐检测依次测量所有视频资源通道，不受自动检测间隔及业务下载暂停规则限制。</p>
-          <div class="health-routes">
-            <section aria-labelledby="healthResourceHkgTitle"><h3 id="healthResourceHkgTitle">HKG</h3><ul id="healthResourceHkg" class="health-checks" aria-label="HKG 视频资源加载检测结果"></ul></section>
-            <section aria-labelledby="healthResourceCfTitle"><h3 id="healthResourceCfTitle">CF</h3><ul id="healthResourceCf" class="health-checks" aria-label="CF 视频资源加载检测结果"></ul></section>
-          </div>
+          <div id="healthResources" class="health-routes"><p class="muted">等待 API 返回有效资源域名…</p></div>
         </section>
       </div>
       <div id="page-home" data-page="home">
@@ -325,14 +322,14 @@
               CDN 或下载任务时生效。
             </div>
             </fieldset><fieldset><legend>网络连接</legend>
-            <label for="downloadUpstream">回源线路</label
+            <label for="downloadUpstream">播放地址接口选择</label
             ><select id="downloadUpstream" aria-describedby="downloadUpstreamHint" name="downloadUpstream">
-              <option value="auto">Auto（主动下载 CF 优先）</option>
-              <option value="cf">CF（固定）</option>
-              <option value="hkg">HKG（固定）</option>
+              <option value="auto">Auto（主动下载先查询 node=cf）</option>
+              <option value="cf">node=cf（播放地址接口）</option>
+              <option value="hkg">node=nya（播放地址接口）</option>
             </select>
             <div class="hint" id="downloadUpstreamHint">
-              用于冷缓存播放、下载补齐和队列预缓存。Auto 主动下载优先 CF，失败后回退 HKG；冷缓存播放按 CF / HKG 测速优选，可覆盖游戏选择。同次传输仅在校验和与大小一致时切换。无法确认歌曲或内容不一致时保留原请求线路。固定模式仅查询指定线路；保存后下次启动
+              用于冷缓存播放、下载补齐和队列预缓存。Auto 主动下载先查询 node=cf，失败后查询 node=nya；资源下载和测速按返回地址的实际域名区分，同一地址不重复尝试。冷缓存播放在已解析域名中测速优选，仅在校验和与大小一致时切换。无法确认歌曲或内容不一致时保留原地址。固定模式仅查询指定接口，不限制其返回的资源域名；保存后下次启动
               CDN 或下载任务时生效。
             </div>
             <label for="upstreamMode">上游连接</label>
@@ -439,8 +436,8 @@
       <footer>
         <a href="/terms">使用条款与内容权利声明</a><br />
         关闭网页后程序仍继续运行；Windows
-        首页或托盘菜单可退出程序，托盘菜单可重新打开控制台。<br />本地控制台仅供本机访问 · CF /
-        HKG HTTP 视频缓存 · 回源 Auto 自动测速优选线路 · SHA 不支持
+        首页或托盘菜单可退出程序，托盘菜单可重新打开控制台。<br />本地控制台仅供本机访问 · HTTP 视频缓存
+        · 按实际资源域名测速选路 · SHA 不支持
       </footer>
     </div>
   </body>

@@ -60,7 +60,8 @@ func loadScanTargets(ctx context.Context, db *sql.DB) (map[string]ScanTarget, er
 		if err := rows.Scan(&id, &key, &size, &path); err != nil {
 			return nil, err
 		}
-		target := (&url.URL{Scheme: "https", Host: "nya.xin.moe", Path: path, RawQuery: url.Values{"e": {key}, "s": {strconv.FormatInt(size, 10)}}.Encode()}).String()
+		// A local-only metadata carrier, never an upstream candidate.
+		target := (&url.URL{Scheme: "https", Host: "local-cache.example", Path: path, RawQuery: url.Values{"e": {key}, "s": {strconv.FormatInt(size, 10)}}.Encode()}).String()
 		req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
 		if err != nil {
 			continue

@@ -31,12 +31,12 @@ func TestLegacySettingsAfterRename(t *testing.T) {
 
 func TestRestoreHostsAcrossRename(t *testing.T) {
 	original := "127.0.0.1 localhost\r\n# user mapping\r\n127.0.0.1 example.org\r\n"
-	mixed := original + "\r\n127.0.0.1 " + domains[0] + " " + legacyMarker + "\r\n"
+	mixed := original + "\r\n127.0.0.1 " + legacyManagedDomains[0] + " " + legacyMarker + "\r\n"
 	enabled, err := transformHosts(mixed, "enable")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(enabled, legacyMarker) || !strings.Contains(enabled, marker) {
+	if strings.Contains(enabled, legacyMarker) || !strings.Contains(enabled, marker) {
 		t.Fatal(enabled)
 	}
 	restored, err := transformHosts(enabled, "disable")

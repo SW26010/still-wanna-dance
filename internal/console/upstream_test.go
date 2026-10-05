@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/upstreamrequest"
 )
 
 func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
@@ -28,9 +29,11 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 		{"auto API fallback", "auto", "api", "cf,nya", false},
 		{"both fail", "auto", "both", "cf,nya", true},
 		{"fixed HKG failure", "hkg", "status", "nya", true},
+		{"HKG returns CF resource", "hkg", "hkg-cf", "nya", false},
+		{"same URL is not another resource fallback", "auto", "shared-status", "cf,nya", true},
 		{"fixed CF success", "cf", "", "cf", false},
 		{"fixed CF failure", "cf", "both", "cf", true},
-		{"wrong route", "cf", "wrong-host", "cf", true},
+		{"CF returns nya resource", "cf", "wrong-host", "cf", false},
 		{"cancel stops fallback", "auto", "cancel", "cf", true},
 		{"removed stops fallback", "auto", "removed", "cf", true},
 	} {
@@ -53,7 +56,7 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 				}
 				if r.Host == "play.udon.dance" || tc.mode == "hkg" {
 					switch tc.failure {
-					case "status":
+					case "status", "shared-status":
 						http.Error(w, "failed", 503)
 						return
 					case "checksum":
@@ -87,7 +90,7 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 					return
 				}
 				host := "nya.xin.moe"
-				if node == "cf" && tc.failure != "wrong-host" {
+				if (node == "cf" && tc.failure != "wrong-host") || tc.failure == "hkg-cf" || tc.failure == "shared-status" {
 					host = "play.udon.dance"
 				}
 				w.Header().Set("Location", fmt.Sprintf("http://%s/files/2403/138-abc.mp4?e=%x&s=%d", host, md5.Sum([]byte(body)), len(body)))
@@ -96,7 +99,7 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 			defer api.Close()
 			c.apiBase = api.URL
 			c.client.Transport = http.DefaultTransport
-			cfg := cacheproxy.DefaultConfig()
+			cfg := fixtureCacheConfig()
 			cfg.OriginScheme = "http"
 			cfg.StorageDir = c.settings.StorageDir
 			if tc.failure == "timeout" {
@@ -130,6 +133,14 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 			mu.Unlock()
 			if got != tc.nodes {
 				t.Fatalf("nodes=%s want=%s", got, tc.nodes)
+			}
+			if tc.failure == "shared-status" {
+				mu.Lock()
+				count := len(hosts)
+				mu.Unlock()
+				if count != 1 {
+					t.Fatalf("same returned URL downloaded %d times", count)
+				}
 			}
 			if !tc.wantErr {
 				if source != "MISS" {
@@ -176,5 +187,38 @@ func TestDownloadUpstreamSettings(t *testing.T) {
 	s.DownloadUpstream = "invalid"
 	if err := c.save(s); err == nil {
 		t.Fatal("accepted invalid upstream")
+	}
+}
+
+func TestResolveRoutesDeduplicatesURLsWithoutLosingIssuingNodes(t *testing.T) {
+	c := testConsole(t)
+	target := "http://nya.xin.moe/files/1/2-video.mp4?e=28711962048bed664c98f27e1d9d5842&s=4"
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", target)
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer api.Close()
+	c.apiBase = api.URL
+	c.client.Transport = http.DefaultTransport
+	urls, err := c.resolveRoutes(context.Background(), "42", "auto")
+	if err != nil || len(urls) != 1 || urls[0] != target {
+		t.Fatal(urls, err)
+	}
+	var sources []upstreamrequest.ResourceSource
+	for _, s := range upstreamrequest.Default.ResourceSources("nya.xin.moe") {
+		if strings.HasPrefix(s.API, api.URL+"/") {
+			sources = append(sources, s)
+		}
+	}
+	if len(sources) != 2 {
+		t.Fatal("dedup discarded provenance", sources)
+	}
+	for _, s := range sources {
+		if s.ResourceURL != target || s.SongID != 42 || !strings.Contains(s.API, "node="+s.Node) {
+			t.Fatal(s)
+		}
+	}
+	if sources[0].Node != "cf" || sources[1].Node != "nya" {
+		t.Fatal("domain inferred a node", sources)
 	}
 }

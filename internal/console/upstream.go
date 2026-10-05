@@ -135,16 +135,18 @@ func (c *Console) resolveRoutes(ctx context.Context, id, mode string) ([]string,
 		}
 	}
 	var urls []string
+	seen := make(map[string]bool)
 	for _, target := range ordered {
-		if target != "" {
+		if target != "" && !seen[target] {
+			seen[target] = true
 			urls = append(urls, target)
 		}
 	}
 	return urls, errors.Join(failures...)
 }
 
-// Auto starts with CF and retries HKG once. Resolve each route independently:
-// never rewrite a returned URL, whose content version may differ by upstream.
+// Auto queries node=cf first and retries node=nya once. These select API
+// requests, not resource domains. Preserve each returned URL and its version.
 func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, id int64, wanted func() bool) (string, error) {
 	ctx = applog.WithTrace(ctx)
 	log := slog.Default().With("trace_id", applog.TraceID(ctx), "song_id", id)
@@ -156,6 +158,7 @@ func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, i
 		routes = []string{mode}
 	}
 	var failures []error
+	attemptedURLs := make(map[string]bool)
 	for attempt, route := range routes {
 		if err := ctx.Err(); err != nil {
 			return "", err
@@ -174,6 +177,12 @@ func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, i
 			return "", errSongRemoved
 		}
 		if err == nil {
+			// Different playback nodes may return the same resource URL.
+			// It is one resource endpoint, not another download fallback.
+			if attemptedURLs[target] {
+				continue
+			}
+			attemptedURLs[target] = true
 			var source string
 			source, err = engine.PrefetchSong(ctx, strconv.FormatInt(id, 10), target)
 			if errors.Is(err, cacheproxy.ErrBatchBudget) {

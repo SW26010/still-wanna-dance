@@ -13,6 +13,7 @@ import (
 func TestHTTPSVideoActivityExcludesAPITunnel(t *testing.T) {
 	for _, host := range []string{"play.udon.dance", "nya.xin.moe", "api.udon.dance"} {
 		t.Run(host, func(t *testing.T) {
+			observeTestResources(t)
 			var active, begins atomic.Int32
 			p := &httpsRelay{ctx: context.Background(), beginResourceLoad: func() func() {
 				active.Add(1)

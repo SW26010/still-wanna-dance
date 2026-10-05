@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 
 func TestActivationRecordsPlaybackArrivalOnResolutionFailure(t *testing.T) {
 	c := testConsole(t)
-	cfg := cacheproxy.DefaultConfig()
+	cfg := fixtureCacheConfig()
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.BeginVideoRequest = c.beginVideoRequest
 	cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
@@ -153,5 +154,65 @@ func TestActivationEndpointUsesExistingAuthorization(t *testing.T) {
 	c.ServeHTTP(w, httptest.NewRequest("POST", "http://"+c.address+"/api/activation/enable", nil))
 	if w.Code != 403 || !c.activation.Started.IsZero() {
 		t.Fatal("unauthenticated activation", w.Code)
+	}
+}
+
+func TestOwnedLegacyHostsRequireActivationMigration(t *testing.T) {
+	for _, ownedMarker := range []string{marker, legacyMarker} {
+		t.Run(ownedMarker, func(t *testing.T) {
+			c := testConsole(t)
+			original := "127.0.0.1 localhost\r\n"
+			data := original
+			for _, host := range legacyManagedDomains {
+				data += "\r\n127.0.0.1 " + host + " " + ownedMarker + "\r\n"
+			}
+			inspect := func() HostsStatus { return inspectHosts(data) }
+			if status := inspect(); status.Ready || !status.NeedsMigration || status.Conflict {
+				t.Fatal(status)
+			}
+			changes := 0
+			change := func(action string) (err error) { changes++; data, err = transformHosts(data, action); return }
+			if err := c.enableAcceleration(inspect, change); err != nil {
+				t.Fatal(err)
+			}
+			if changes != 1 || !inspect().Ready || inspect().NeedsMigration || c.activation.Phase != "waiting" {
+				t.Fatal(changes, inspect(), c.activation)
+			}
+			for _, host := range legacyManagedDomains {
+				if host != "api.udon.dance" && strings.Contains(data, host) {
+					t.Fatal(data)
+				}
+			}
+			if err := c.enableAcceleration(inspect, change); err != nil || changes != 1 {
+				t.Fatal("migration not idempotent", changes, err)
+			}
+		})
+	}
+}
+
+func TestAutoStartReportsPendingHostsMigration(t *testing.T) {
+	c := testConsole(t)
+	c.settings.AutoStartCDN = true
+	data := "\r\n127.0.0.1 api.udon.dance " + marker + "\r\n\r\n127.0.0.1 nya.xin.moe " + marker + "\r\n"
+	c.autoStart(func() HostsStatus { return inspectHosts(data) })
+	if !c.DesktopState().CDN || c.activation.Phase != "migration_required" || !strings.Contains(c.activation.Error, "迁移") || !c.activation.ReadyAt.IsZero() {
+		t.Fatal(c.activation)
+	}
+}
+
+func TestUnownedLegacyHostsAreNotMigrationTargets(t *testing.T) {
+	data := "127.0.0.1 api.udon.dance\r\n127.0.0.1 nya.xin.moe # another program\r\n"
+	if got := inspectHosts(data); !got.Ready || got.NeedsMigration {
+		t.Fatal(got)
+	}
+	if got, err := transformHosts(data, "enable"); err != nil || got != data {
+		t.Fatal(got, err)
+	}
+	altered := data + "\r\n127.0.0.2 play.udon.dance " + marker + "\r\n"
+	if got := inspectHosts(altered); got.Ready || !got.NeedsMigration {
+		t.Fatal(got)
+	}
+	if _, err := transformHosts(altered, "enable"); err == nil {
+		t.Fatal("edited owned entry silently accepted")
 	}
 }

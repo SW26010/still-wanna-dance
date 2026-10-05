@@ -91,7 +91,7 @@ func TestCandidateChecksAreIsolatedAndExecutable(t *testing.T) {
 		t.Fatal(selection, ok, m.Results(Resource))
 	}
 	r, _ := http.NewRequest("GET", videoFixture, nil)
-	if selection.Result.Route == "hkg" {
+	if selection.Result.Route == "nya.xin.moe" {
 		r.URL.Host = "nya.xin.moe"
 	}
 	resp, err := selection.Channel.Transport.RoundTrip(r)
@@ -140,7 +140,7 @@ func TestRecommendationHysteresisAndImmediateFailureFallback(t *testing.T) {
 			id, state string
 			bytes     int64
 		}{{"a", "available", 1000}, {"b", bstate, 3000}} {
-			m.record(observation{op: Resource, route: "cf", channel: v.id + "/play.udon.dance", state: v.state, at: sampleAt, latency: time.Millisecond, duration: time.Second, bytes: v.bytes})
+			recordFixture(m, observation{op: Resource, route: "play.udon.dance", channel: v.id + "/play.udon.dance", state: v.state, at: sampleAt, latency: time.Millisecond, duration: time.Second, bytes: v.bytes})
 		}
 		m.updatePreferencesLocked(f, start, "")
 	}
@@ -180,7 +180,7 @@ func TestResourceRecommendationCountsOnlyNewThroughput(t *testing.T) {
 			id    string
 			bytes int64
 		}{{"a", a}, {"b", b}} {
-			m.record(observation{op: Resource, route: "cf", channel: v.id + "/play.udon.dance", state: "available", at: at, latency: time.Millisecond, duration: time.Second, transferDuration: time.Second, bytes: v.bytes})
+			recordFixture(m, observation{op: Resource, route: "play.udon.dance", channel: v.id + "/play.udon.dance", state: "available", at: at, latency: time.Millisecond, duration: time.Second, transferDuration: time.Second, bytes: v.bytes})
 		}
 		m.updatePreferencesLocked(f, at, "")
 	}
@@ -211,7 +211,7 @@ func TestResourceRecommendationRequiresFreshThroughput(t *testing.T) {
 			m, f := candidateMonitor(t)
 			at := time.Now().Add(-time.Minute)
 			m.mu.Lock()
-			m.record(observation{op: Resource, route: "cf", channel: "a/play.udon.dance", state: "available", at: at, latency: time.Millisecond, duration: time.Second, transferDuration: time.Second, bytes: 3000})
+			recordFixture(m, observation{op: Resource, route: "play.udon.dance", channel: "a/play.udon.dance", state: "available", at: at, latency: time.Millisecond, duration: time.Second, transferDuration: time.Second, bytes: 3000})
 			m.updatePreferencesLocked(f, at, CheckThroughput)
 			m.mu.Unlock()
 			if s, ok := m.Recommended(Resource); !ok || s.Result.ChannelID != "a/play.udon.dance" {
@@ -219,12 +219,12 @@ func TestResourceRecommendationRequiresFreshThroughput(t *testing.T) {
 			}
 
 			m.mu.Lock()
-			key := string(Resource) + "/cf/a/play.udon.dance"
+			key := string(Resource) + "/play.udon.dance/a/play.udon.dance"
 			old := m.throughput[key]
 			old.at = time.Now().Add(-m.policy.ThroughputInterval - time.Minute)
 			m.throughput[key] = old
 			for _, id := range []string{"a", "b"} {
-				m.record(observation{op: Resource, route: "cf", channel: id + "/play.udon.dance", state: "available", at: at.Add(time.Second), latency: time.Millisecond, duration: time.Millisecond})
+				recordFixture(m, observation{op: Resource, route: "play.udon.dance", channel: id + "/play.udon.dance", state: "available", at: at.Add(time.Second), latency: time.Millisecond, duration: time.Millisecond})
 			}
 			m.mu.Unlock()
 			r := m.Results(Resource)[0]
@@ -244,7 +244,7 @@ func TestResourceRecommendationRequiresFreshThroughput(t *testing.T) {
 			}
 
 			m.mu.Lock()
-			m.record(observation{op: Resource, route: "cf", channel: "b/play.udon.dance", state: "available", at: at.Add(2 * time.Second), latency: time.Millisecond, duration: time.Second, transferDuration: time.Second, bytes: 1000})
+			recordFixture(m, observation{op: Resource, route: "play.udon.dance", channel: "b/play.udon.dance", state: "available", at: at.Add(2 * time.Second), latency: time.Millisecond, duration: time.Second, transferDuration: time.Second, bytes: 1000})
 			m.mu.Unlock()
 			if s, ok := m.Recommended(Resource); !ok || s.Result.ChannelID != "b/play.udon.dance" {
 				t.Fatal("fresh B did not replace expired A on read", s, ok)
@@ -252,7 +252,7 @@ func TestResourceRecommendationRequiresFreshThroughput(t *testing.T) {
 			m.mu.Lock()
 			m.updatePreferencesLocked(f, at, CheckThroughput)
 			m.mu.Unlock()
-			if p := m.preferences[Resource]; p == nil || p.current != "cf/b/play.udon.dance" || p.wins != 0 {
+			if p := m.preferences[Resource]; p == nil || p.current != "play.udon.dance/b/play.udon.dance" || p.wins != 0 {
 				t.Fatalf("expired A required challenger wins: %+v", p)
 			}
 		})

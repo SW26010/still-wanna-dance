@@ -12,7 +12,7 @@ import (
 
 func TestTrafficPersistence(t *testing.T) {
 	root := t.TempDir()
-	cfg := DefaultConfig()
+	cfg := fixtureConfig()
 	cfg.StorageDir = root
 	s, err := New(cfg)
 	if err != nil {
@@ -77,7 +77,7 @@ func TestTrafficMigrationAndRetention(t *testing.T) {
 		}
 	}
 	check(ReadTrafficStats(root))
-	cfg := DefaultConfig()
+	cfg := fixtureConfig()
 	cfg.StorageDir = root
 	cfg.RequestRetentionDays = 0
 	s, err := New(cfg)

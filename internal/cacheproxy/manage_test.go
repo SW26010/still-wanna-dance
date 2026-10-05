@@ -158,7 +158,7 @@ func TestCacheDeletionProtectsPinsQueueChecksAndStore(t *testing.T) {
 	root, entries := managementFixture(t, 1)
 	e := entries[0]
 	ctx := context.Background()
-	cfg := DefaultConfig()
+	cfg := fixtureConfig()
 	cfg.StorageDir = root
 	cfg.MaxCacheBytes = 1000
 	s, err := New(cfg)
@@ -316,7 +316,7 @@ func TestCacheManagementRejectsDirectoryLinks(t *testing.T) {
 
 func TestQueueUpdateCanCancelDeletionWaitWithoutApplyingPartialState(t *testing.T) {
 	root, entries := managementFixture(t, 1)
-	cfg := DefaultConfig()
+	cfg := fixtureConfig()
 	cfg.StorageDir = root
 	s, err := New(cfg)
 	if err != nil {

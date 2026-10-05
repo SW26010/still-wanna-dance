@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/upstreamrequest"
+	"still-wanna-dance/internal/videometa"
 )
 
 // Only sample metadata is persisted: no playable URLs or proxy credentials.
@@ -64,13 +65,18 @@ func (m *Monitor) loadThroughputTime() {
 	}
 	m.lastThroughput = state.LastAttempt
 	for key, sample := range state.Samples {
+		// Legacy node labels are not domain evidence. Only an explicit
+		// domain in the saved channel identity can establish ownership.
+		key = migrateThroughputKey(key)
 		if !restorableThroughputKey(key) {
 			continue
 		}
 		if sample.Bytes <= 0 || sample.Duration <= 0 || sample.ObservedAt.IsZero() {
 			continue
 		}
-		m.throughput[key] = observation{op: Resource, state: "available", at: sample.ObservedAt, songID: sample.SongID, bytes: sample.Bytes, transferDuration: sample.Duration}
+		if existing, ok := m.throughput[key]; !ok || sample.ObservedAt.After(existing.at) {
+			m.throughput[key] = observation{op: Resource, state: "available", at: sample.ObservedAt, songID: sample.SongID, bytes: sample.Bytes, transferDuration: sample.Duration}
+		}
 	}
 }
 
@@ -129,9 +135,22 @@ func (m *Monitor) saveThroughputTime() error {
 	return os.Rename(f.Name(), m.throughputStatePath)
 }
 
+func migrateThroughputKey(key string) string {
+	parts := strings.Split(key, "/")
+	if len(parts) >= 2 && parts[0] == string(Resource) {
+		if parts[1] == "cf" || parts[1] == "hkg" {
+			if len(parts) != 5 || (parts[2] != "direct" && parts[2] != "socks5") || !videometa.ValidHost(parts[3]) {
+				return ""
+			}
+			parts[1] = parts[3]
+		}
+	}
+	return strings.Join(parts, "/")
+}
+
 func restorableThroughputKey(key string) bool {
 	parts := strings.Split(key, "/")
-	if len(parts) < 2 || parts[0] != string(Resource) || (parts[1] != "cf" && parts[1] != "hkg") {
+	if len(parts) < 2 || parts[0] != string(Resource) || !videometa.ValidHost(parts[1]) {
 		return false
 	}
 	if len(parts) > 2 && parts[2] == "socks5" {

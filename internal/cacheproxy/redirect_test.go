@@ -16,7 +16,7 @@ func (f redirectTransport) RoundTrip(r *http.Request) (*http.Response, error) { 
 func TestCurrentVideoRedirectStatuses(t *testing.T) {
 	for _, status := range []int{200, 300, 301, 302, 303, 304, 305, 306, 307, 308, 404, 500} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {
-			s := &Server{cfg: DefaultConfig(), client: &http.Client{
+			s := &Server{cfg: fixtureConfig(), client: &http.Client{
 				CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 				Transport: redirectTransport(func(r *http.Request) (*http.Response, error) {
 					if r.URL.String() != "https://api.udon.dance/Api/Songs/play?id=1344&node=nya" {

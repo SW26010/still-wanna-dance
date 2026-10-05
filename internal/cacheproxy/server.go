@@ -42,6 +42,7 @@ type flight struct {
 }
 
 type Server struct {
+	resourceHosts    sync.Map // validated API/programmatic URLs, host -> expiry
 	mappingMu        sync.Mutex
 	verifications    *verificationStore
 	stats            trafficStats
@@ -159,6 +160,13 @@ func New(cfg Config) (*Server, error) {
 				}
 			}
 		}
+		if cfg.OriginScheme == "http" {
+			ipHost, _, _ := net.SplitHostPort(address)
+			ip := net.ParseIP(ipHost)
+			if ip == nil || !ip.IsLoopback() {
+				return nil, errors.New("HTTP origins must be loopback")
+			}
+		}
 		return dial(ctx, network, address)
 	}
 
@@ -229,13 +237,37 @@ func (s *Server) parse(r *http.Request) (video, error) {
 	return parseVideo(r, s.cfg.MaxFileBytes)
 }
 
+func (s *Server) resourceHostAllowed(host string) bool {
+	if _, explicit := s.cfg.Origins[host]; explicit {
+		return true
+	}
+	if s.cfg.IsResourceHost != nil {
+		return s.cfg.IsResourceHost(host)
+	}
+	until, ok := s.resourceHosts.Load(host)
+	return ok && time.Now().Before(until.(time.Time))
+}
+
+// Resolver results and explicit programmatic prefetch targets establish
+// membership. Untrusted inbound requests never call this method.
+func (s *Server) parseResolved(r *http.Request) (video, error) {
+	if err := ValidateVideoURL(r.URL.String(), s.cfg.MaxFileBytes); err != nil {
+		return video{}, err
+	}
+	v, err := s.parse(r)
+	if err == nil {
+		s.resourceHosts.Store(v.host, time.Now().Add(10*time.Minute))
+	}
+	return v, err
+}
+
 // ValidateVideoURL applies the cache parser's rules before a resolver accepts a route.
 func ValidateVideoURL(target string, maxFileBytes int64) error {
 	r, err := http.NewRequest(http.MethodGet, target, nil)
 	if err != nil {
 		return errors.New("invalid video URL")
 	}
-	if (r.URL.Scheme != "http" && r.URL.Scheme != "https") || r.URL.User != nil || r.URL.Fragment != "" {
+	if (r.URL.Scheme != "http" && r.URL.Scheme != "https") || r.URL.User != nil || r.URL.Fragment != "" || !videometa.ValidHost(r.URL.Host) {
 		return errors.New("unsupported video URL")
 	}
 	_, err = parseVideo(r, maxFileBytes)
@@ -248,7 +280,7 @@ func parseVideo(r *http.Request, maxFileBytes int64) (video, error) {
 	if h, _, err := net.SplitHostPort(host); err == nil {
 		host = h
 	}
-	if host != "play.udon.dance" && host != "nya.xin.moe" {
+	if !videometa.ValidHost(host) {
 		return v, errors.New("unsupported host")
 	}
 	meta, err := videometa.Parse(r.URL, maxFileBytes)

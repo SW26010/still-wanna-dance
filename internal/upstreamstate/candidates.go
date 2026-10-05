@@ -23,10 +23,10 @@ func resultID(r Result) string { return r.Route + "/" + r.ChannelID }
 
 func (m *Monitor) candidateResultsLocked(op Operation, provider upstreamrequest.Candidates, now time.Time) []Result {
 	var out []Result
-	for _, route := range routeIDs(op) {
+	for _, route := range m.routeIDsLocked(op) {
 		cs := provider.Current(entry(op, route))
 		if len(cs) == 0 {
-			r := Result{Operation: op, Route: route, Entry: entry(op, route), State: "unknown", Reason: "no_channel"}
+			r := Result{Operation: op, Route: route, Entry: entry(op, route), State: "unknown", Reason: "no_channel", Sources: m.sourcesLocked(op, route, now)}
 			if m.closed {
 				r.State, r.Reason = "closed", ""
 			}
@@ -234,13 +234,6 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 		prepared[target] = upstreamrequest.CandidateReadiness{Direct: ready, Proxy: ready}
 		return cs
 	}
-	// Populate resource hosts even without a playable sample, so snapshots
-	// enumerate all their channels as unmeasured.
-	for _, r := range videoRoutes {
-		if kind.includes(Resource) {
-			prepare(entry(Resource, r.id))
-		}
-	}
 
 	var ids []int64
 	var catalogs []CatalogResponse
@@ -302,7 +295,10 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 	m.mu.Unlock()
 	m.deliverCatalogs(ctx, source.Revision, catalogs)
 	if id > 0 && kind != CheckCatalog {
-		for _, r := range videoRoutes {
+		// Keep one real sample per returned domain across all API nodes and
+		// channels, then measure each domain's resource channels only once.
+		byHost := make(map[string]videoSample)
+		for _, r := range playbackRoutes {
 			cs := prepare(entry(PlaybackURL, r.id))
 			samples := make([]*videoSample, len(cs))
 			parallel(cs, func(i int, c upstreamrequest.Candidate) {
@@ -313,24 +309,32 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 			if kind == CheckPlayback {
 				continue
 			}
-			var sample *videoSample
 			for _, s := range samples {
 				if s != nil {
-					sample = s
-					break
+					if _, exists := byHost[s.host]; !exists {
+						byHost[s.host] = *s
+					}
 				}
 			}
-			if sample == nil {
+		}
+		resourceHosts := make([]string, 0, len(byHost))
+		for host := range byHost {
+			resourceHosts = append(resourceHosts, host)
+		}
+		sort.Strings(resourceHosts)
+		for _, host := range resourceHosts {
+			sample, ok := byHost[host]
+			if !ok {
 				continue
 			}
-			resources := prepare(sample.url)
+			resources := prepare(entry(Resource, sample.host))
 			// Throughput probes must not compete for the local connection.
 			// Routes and their candidates share this serial resource phase.
 			for _, c := range resources {
 				if ctx.Err() != nil {
 					break
 				}
-				publish(m.probeResourceWhenIdle(ctx, requestClient(c.Transport), p, id, r, *sample), c)
+				publish(m.probeResourceWhenIdle(ctx, requestClient(c.Transport), p, id, sample), c)
 			}
 		}
 	}
@@ -340,7 +344,7 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 		m.updatePreferencesLocked(provider, started, kind)
 		valid := make(map[string]bool)
 		for _, op := range operations {
-			for _, route := range routeIDs(op) {
+			for _, route := range m.routeIDsLocked(op) {
 				for _, c := range provider.Current(entry(op, route)) {
 					valid[string(op)+"/"+route+"/"+c.ID] = true
 				}
@@ -349,6 +353,11 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 		for key := range m.history {
 			if !valid[key] {
 				delete(m.history, key)
+			}
+		}
+		for key := range m.resourceSources {
+			if !valid[key] {
+				m.removeResourceSourceLocked(key)
 			}
 		}
 		// Restored samples need not have any entry in history. Only prune

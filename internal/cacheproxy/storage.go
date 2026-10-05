@@ -60,14 +60,3 @@ func (s *Server) recordSongVideo(ctx context.Context, id string, v video) error 
 	s.requestRetentionLocked()
 	return nil
 }
-
-// SetSongName updates catalog metadata independently of video versions.
-func (s *Server) SetSongName(ctx context.Context, id, title string) error {
-	if !s.beginRequest() {
-		return context.Canceled
-	}
-	defer s.wg.Done()
-	_, err := s.usage.db.ExecContext(ctx, `INSERT INTO songs(song_id, name) VALUES (?, ?)
- ON CONFLICT(song_id) DO UPDATE SET name=excluded.name`, id, title)
-	return err
-}

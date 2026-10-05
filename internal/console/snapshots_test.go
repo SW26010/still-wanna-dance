@@ -107,7 +107,7 @@ func TestScanOnlyPersistsSuccessAcrossFailureAndCancellation(t *testing.T) {
 			return
 		}
 		if r.URL.Path == "/Api/Songs/list" {
-			fmt.Fprint(w, `{"groups":{"contents":[{"songInfos":[{"id":1},{"id":2}]}]}}`)
+			fmt.Fprint(w, `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":1},{"id":2}]}]}}`)
 			return
 		}
 		w.Header().Set("Location", fmt.Sprintf("http://nya.xin.moe/files/2403/%s-abc.mp4?e=%x&s=%d", r.URL.Query().Get("id"), md5.Sum([]byte(body)), len(body)))

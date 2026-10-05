@@ -160,7 +160,7 @@ func TestBatchWorksWithoutCDNAndReusesCache(t *testing.T) {
 	c.service = engine
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/Api/Songs/list" {
-			io.WriteString(w, `{"groups":{"contents":[{"songInfos":[{"id":1,"name":"first"},{"id":1,"name":"duplicate"},{"id":2,"name":"unavailable"}]}]}}`)
+			io.WriteString(w, `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":1,"name":"first"},{"id":1,"name":"duplicate"},{"id":2,"name":"unavailable"}]}]}}`)
 			return
 		}
 		if r.URL.Query().Get("id") == "2" {
@@ -246,7 +246,7 @@ func TestCancelBatchAndStopCDNAreIndependent(t *testing.T) {
 }
 
 func TestCatalogAndDNSValidation(t *testing.T) {
-	for _, input := range []string{`{}`, `{"groups":{"contents":[]}}`, `not-json`} {
+	for _, input := range []string{`{}`, `{"time":"20261004235822","groups":{"contents":[]}}`, `not-json`} {
 		if _, err := parseCatalog(strings.NewReader(input)); err == nil {
 			t.Fatal("accepted invalid catalog")
 		}
@@ -281,11 +281,11 @@ func TestLiveIndependentDNS(t *testing.T) {
 	c := testConsole(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	songs, _, err := c.catalog(ctx)
+	catalog, err := c.catalog(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("catalog: %d unique songs", len(songs))
+	t.Logf("catalog: %d unique songs", len(catalog.Songs))
 	target, err := c.resolve(ctx, 1343)
 	if err != nil {
 		t.Fatal(err)

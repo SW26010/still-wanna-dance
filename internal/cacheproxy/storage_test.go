@@ -38,7 +38,7 @@ func retainedPath(t *testing.T, s *Server, cfg Config, id string) string {
 
 func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
-	if err := s.SetSongName(context.Background(), "1344", "My song"); err != nil {
+	if err := s.SyncCatalogNames(context.Background(), "20000101000000", "test", map[string]string{"1344": "My song"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.usage.db.Exec(`UPDATE songs SET volume=0.8 WHERE song_id='1344'`); err != nil {

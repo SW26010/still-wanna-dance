@@ -26,7 +26,7 @@ func TestBatchStopsAtBudget(t *testing.T) {
 			defer origin.Close()
 			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/Api/Songs/list" {
-					fmt.Fprint(w, `{"groups":{"contents":[{"songInfos":[{"id":1},{"id":2},{"id":3},{"id":4}]}]}}`)
+					fmt.Fprint(w, `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":1},{"id":2},{"id":3},{"id":4}]}]}}`)
 					return
 				}
 				host := "play.udon.dance"

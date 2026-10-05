@@ -49,8 +49,15 @@ type Batch struct {
 	Failures      []Failure `json:"failures"`
 }
 
-func parseCatalog(r io.Reader) ([]Song, error) {
+type songCatalog struct {
+	Songs            []Song
+	MD5              *cacheproxy.Catalog
+	Revision, Source string
+}
+
+func parseCatalog(r io.Reader) (songCatalog, error) {
 	var catalog struct {
+		Time   string `json:"time"`
 		Groups struct {
 			Contents []struct {
 				SongInfos []Song `json:"songInfos"`
@@ -59,7 +66,10 @@ func parseCatalog(r io.Reader) ([]Song, error) {
 	}
 	d := json.NewDecoder(io.LimitReader(r, 16<<20))
 	if err := d.Decode(&catalog); err != nil {
-		return nil, fmt.Errorf("歌曲列表格式错误：%w", err)
+		return songCatalog{}, fmt.Errorf("歌曲列表格式错误：%w", err)
+	}
+	if _, err := cacheproxy.ParseCatalogTime(catalog.Time); err != nil {
+		return songCatalog{}, err
 	}
 	seen := map[int64]bool{}
 	songs := []Song{}
@@ -72,13 +82,13 @@ func parseCatalog(r io.Reader) ([]Song, error) {
 		}
 	}
 	if len(songs) == 0 {
-		return nil, errors.New("歌曲列表为空或格式不受支持；未开始处理曲目")
+		return songCatalog{}, errors.New("歌曲列表为空或格式不受支持；未开始处理曲目")
 	}
 	sort.Slice(songs, func(i, j int) bool { return songs[i].ID < songs[j].ID })
-	return songs, nil
+	return songCatalog{Songs: songs, Revision: catalog.Time}, nil
 }
 
-func (c *Console) catalog(ctx context.Context) ([]Song, *cacheproxy.Catalog, error) {
+func (c *Console) catalog(ctx context.Context) (songCatalog, error) {
 	if c.checksumURL != "" {
 		snapshot, err := c.fetchCatalogSnapshot(ctx)
 		if err == nil {
@@ -91,13 +101,13 @@ func (c *Console) catalog(ctx context.Context) ([]Song, *cacheproxy.Catalog, err
 				songs = append(songs, Song{ID: song.ID, Name: name, Checksum: song.MD5})
 			}
 			sort.Slice(songs, func(i, j int) bool { return songs[i].ID < songs[j].ID })
-			return songs, &snapshot, nil
+			return songCatalog{Songs: songs, MD5: &snapshot, Revision: snapshot.Revision, Source: snapshot.Source}, nil
 		}
 		if errors.Is(err, cacheproxy.ErrInvalidCatalogMapping) {
-			return nil, nil, err
+			return songCatalog{}, err
 		}
 		if ctx.Err() != nil {
-			return nil, nil, ctx.Err()
+			return songCatalog{}, ctx.Err()
 		}
 		slog.Warn("catalog_md5_unavailable", "error", err)
 	}
@@ -108,7 +118,7 @@ func (c *Console) catalog(ctx context.Context) ([]Song, *cacheproxy.Catalog, err
 	}
 	r, err := http.NewRequestWithContext(ctx, "GET", base+"/Api/Songs/list", nil)
 	if err != nil {
-		return nil, nil, err
+		return songCatalog{}, err
 	}
 	// The full catalog is much larger than a playback redirect. Give its body
 	// its own budget without changing the shared client's per-song timeout.
@@ -116,24 +126,25 @@ func (c *Console) catalog(ctx context.Context) ([]Song, *cacheproxy.Catalog, err
 	client.Timeout = 2 * time.Minute
 	resp, err := client.Do(r)
 	if err != nil {
-		return nil, nil, applog.SafeError(err)
+		return songCatalog{}, applog.SafeError(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return nil, nil, fmt.Errorf("歌曲列表接口返回 %d", resp.StatusCode)
+		return songCatalog{}, fmt.Errorf("歌曲列表接口返回 %d", resp.StatusCode)
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, (16<<20)+1))
 	if err != nil {
 		if ctx.Err() != nil {
-			return nil, nil, ctx.Err()
+			return songCatalog{}, ctx.Err()
 		}
-		return nil, nil, fmt.Errorf("歌曲列表读取失败（网络中断或超时），请重试：%w", applog.SafeError(err))
+		return songCatalog{}, fmt.Errorf("歌曲列表读取失败（网络中断或超时），请重试：%w", applog.SafeError(err))
 	}
 	if len(body) > 16<<20 {
-		return nil, nil, errors.New("歌曲列表超过 16 MiB 大小限制")
+		return songCatalog{}, errors.New("歌曲列表超过 16 MiB 大小限制")
 	}
-	songs, err := parseCatalog(bytes.NewReader(body))
-	return songs, nil, err
+	catalog, err := parseCatalog(bytes.NewReader(body))
+	catalog.Source = r.URL.String()
+	return catalog, err
 }
 
 func (c *Console) resolve(ctx context.Context, id int64) (string, error) {
@@ -258,28 +269,27 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		slog.Info("batch_finished", "scan_only", scanOnly, "reused", result.Reused, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", result.Missing, "cancelled", ctx.Err() != nil, "total", result.Total, "checked", result.Checked, "hits", result.Hits, "downloaded", result.Downloaded, "failed", result.Failed, "phase", result.Phase)
 	}()
 
-	songs, catalog, err := c.catalog(ctx)
+	catalog, err := c.catalog(ctx)
 	fail := func(message string) { c.mu.Lock(); c.batch.Phase = message; c.mu.Unlock() }
 	if err != nil {
 		fail("获取歌曲列表失败：" + err.Error())
 		return
 	}
+	songs := catalog.Songs
 	targets := map[string]string{}
 	titles := map[string]string{}
 	for _, song := range songs {
 		titles[strconv.FormatInt(song.ID, 10)] = song.Name
 	}
-	if catalog != nil {
-		if err := s.SyncCatalog(ctx, *catalog); err != nil {
+	if catalog.MD5 != nil {
+		if err := s.SyncCatalog(ctx, *catalog.MD5); err != nil {
 			fail("更新歌曲映射失败：" + err.Error())
 			return
 		}
 	} else {
-		for _, song := range songs {
-			if err := s.SetSongName(ctx, strconv.FormatInt(song.ID, 10), song.Name); err != nil {
-				fail(err.Error())
-				return
-			}
+		if err := s.SyncCatalogNames(ctx, catalog.Revision, catalog.Source, titles); err != nil {
+			fail(err.Error())
+			return
 		}
 	}
 	// Only the fallback ID-only catalog needs per-song resolution before presence checks.

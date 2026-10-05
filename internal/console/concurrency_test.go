@@ -37,7 +37,7 @@ func TestBackgroundModesDownloadTwoSongsConcurrently(t *testing.T) {
 			defer unblock()
 			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/Api/Songs/list" {
-					io.WriteString(w, `{"groups":{"contents":[{"songInfos":[{"id":1},{"id":2},{"id":3}]}]}}`)
+					io.WriteString(w, `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":1},{"id":2},{"id":3}]}]}}`)
 					return
 				}
 				w.Header().Set("Location", fmt.Sprintf("http://nya.xin.moe/files/2403/%s-abc.mp4?e=%x&s=%d", r.URL.Query().Get("id"), md5.Sum([]byte(body+r.URL.Query().Get("id"))), len(body+r.URL.Query().Get("id"))))

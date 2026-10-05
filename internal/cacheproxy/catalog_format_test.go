@@ -44,10 +44,31 @@ func TestCatalogRejectsNonNumericAyaID(t *testing.T) {
 	}
 }
 
-func TestCatalogRejectsUnsortableRevisions(t *testing.T) {
-	for _, revision := range []string{"release-42", "9", "10", "2026100323574x", "202610032357460"} {
+func TestCatalogRejectsInvalidTimes(t *testing.T) {
+	for _, revision := range []string{"release-42", "9", "10", "2026100323574x", "202610032357460", "20260230010101", "20261301000000", "20261004246000"} {
 		if _, err := ParseCatalog([]byte(strings.Replace(catalogSample, "20261003235746", revision, 1)), "test"); err == nil {
 			t.Fatalf("accepted unsupported revision %q", revision)
 		}
+	}
+}
+
+func TestCatalogTimesFromExistingEndpoints(t *testing.T) {
+	for _, tc := range []struct{ value, want string }{
+		{"20261004235822", "2026-10-04 23:58:22"}, // Kiva data.time and Udon time.
+		{"20260215004959", "2026-02-15 00:49:59"}, // WannaInfo data.time.
+		{"20240229235959", "2024-02-29 23:59:59"}, // Calendar validation permits leap day.
+	} {
+		got, err := ParseCatalogTime(tc.value)
+		if err != nil || got.Format("2006-01-02 15:04:05") != tc.want {
+			t.Fatal(tc.value, got, err)
+		}
+	}
+	whole, err := ParseCatalogTime("20261004235822")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fraction, err := ParseCatalogTime("20261004235822.000")
+	if err != nil || !whole.Equal(fraction) {
+		t.Fatal("equivalent time spellings differ", whole, fraction, err)
 	}
 }

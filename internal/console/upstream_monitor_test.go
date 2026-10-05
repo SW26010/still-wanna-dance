@@ -59,7 +59,7 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 		case "/api/v2/wanna/songs", "/api/wannaInfo":
 			response.Body = io.NopCloser(strings.NewReader(`{"code":200,"data":{"time":"2026-10-05","groups":[{"entries":[{"id":42,"checksum":"0123456789abcdef0123456789abcdef"}]}]}}`))
 		case "/Api/Songs/list":
-			response.Body = io.NopCloser(strings.NewReader(`{"groups":{"contents":[{"songInfos":[{"id":42}]}]}}`))
+			response.Body = io.NopCloser(strings.NewReader(`{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":42}]}]}}`))
 		case "/Api/Songs/play":
 			if r.URL.Query().Get("id") != "42" {
 				t.Error("missing sample song")

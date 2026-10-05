@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 )
 
 var ErrInvalidCatalogMapping = errors.New("清单 ID 或 MD5 无效或重复")
@@ -44,6 +45,17 @@ type Catalog struct {
 	Revision string
 	Source   string
 	Songs    []CatalogSong
+}
+
+// ParseCatalogTime reads the civil timestamp supplied by all three catalog
+// endpoints. They publish YYYYMMDDhhmmss without an offset, at second precision.
+// UTC here is a common comparison axis, not a claim about the publisher's zone.
+func ParseCatalogTime(value string) (time.Time, error) {
+	t, err := time.Parse("20060102150405", value)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("清单时间无效: %w", err)
+	}
+	return t, nil
 }
 
 // ParseCatalog accepts the shared MD5 catalog envelope. It rejects the whole
@@ -103,10 +115,8 @@ func normalizeCatalog(c Catalog) (Catalog, string, error) {
 	if c.Source == "" || len(c.Songs) == 0 {
 		return c, "", fmt.Errorf("清单为空或来源无效")
 	}
-	// The fixed authority's observed time format is 14 decimal digits.
-	// Equal-width decimal revisions sort lexically; opaque revisions do not.
-	if len(c.Revision) != 14 || strings.IndexFunc(c.Revision, func(r rune) bool { return r < '0' || r > '9' }) >= 0 {
-		return c, "", fmt.Errorf("清单版本格式不支持：需要 14 位十进制数字")
+	if _, err := ParseCatalogTime(c.Revision); err != nil {
+		return c, "", err
 	}
 	c.Songs = append([]CatalogSong(nil), c.Songs...)
 	sort.Slice(c.Songs, func(i, j int) bool { return c.Songs[i].ID < c.Songs[j].ID })

@@ -26,7 +26,7 @@ func TestMD5IDOnlyResolutionFailureCountedOnce(t *testing.T) {
 			key := fmt.Sprintf("%x", md5.Sum([]byte("cached")))
 			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/Api/Songs/list" {
-					fmt.Fprint(w, `{"groups":{"contents":[{"songInfos":[{"id":1},{"id":2},{"id":3},{"id":1}]}]}}`)
+					fmt.Fprint(w, `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":1},{"id":2},{"id":3},{"id":1}]}]}}`)
 					return
 				}
 				if r.URL.Query().Get("id") != "2" {
@@ -330,14 +330,14 @@ func TestCatalogFallbackBoundary(t *testing.T) {
 					return
 				}
 				lists.Add(1)
-				fmt.Fprint(w, `{"groups":{"contents":[{"songInfos":[{"id":1,"name":"fallback"}]}]}}`)
+				fmt.Fprint(w, `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":1,"name":"fallback"}]}]}}`)
 			}))
 			defer api.Close()
 			c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
-			songs, catalog, err := c.catalog(context.Background())
+			catalog, err := c.catalog(context.Background())
 			if tc.fallback {
-				if err != nil || catalog != nil || len(songs) != 1 || lists.Load() != 1 {
-					t.Fatal(songs, catalog, err, lists.Load())
+				if err != nil || catalog.MD5 != nil || len(catalog.Songs) != 1 || lists.Load() != 1 || catalog.Revision != "20261004235822" {
+					t.Fatal(catalog, err, lists.Load())
 				}
 			} else if err == nil || lists.Load() != 0 {
 				t.Fatal("invalid mapping enabled fallback", err, lists.Load())

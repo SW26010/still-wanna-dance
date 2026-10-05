@@ -36,7 +36,7 @@ func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) 
 	t.Cleanup(origin.Close)
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/Api/Songs/list" {
-			io.WriteString(w, `{"groups":{"contents":[{"songInfos":[{"id":1,"name":"one"}]}]}}`)
+			io.WriteString(w, `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":1,"name":"one"}]}]}}`)
 			return
 		}
 		calls.Add(1)

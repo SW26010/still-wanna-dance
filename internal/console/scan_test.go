@@ -26,7 +26,7 @@ func TestScanSharedResourceCountsBothSongs(t *testing.T) {
 	}
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/Api/Songs/list" {
-			fmt.Fprint(w, `{"groups":{"contents":[{"songInfos":[{"id":138},{"id":140}]}]}}`)
+			fmt.Fprint(w, `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":138},{"id":140}]}]}}`)
 			return
 		}
 		w.Header().Set("Location", fmt.Sprintf("http://nya.xin.moe/files/2403/138-abc.mp4?e=%x&s=%d", md5.Sum([]byte(body)), len(body)))

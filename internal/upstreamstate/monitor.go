@@ -12,6 +12,9 @@ import (
 )
 
 type Options struct {
+	// OnCatalog receives successful responses once per batch, outside monitor locks.
+	// It must respect cancellation; Close waits for it to return.
+	OnCatalog           func(context.Context, []CatalogResponse)
 	Policy              Policy
 	ThroughputStatePath string
 }
@@ -36,6 +39,7 @@ type Status struct {
 // Monitor is independent of consumers and network configuration. Nothing starts
 // automatically; the owner explicitly starts and closes the monitor.
 type Monitor struct {
+	onCatalog               func(context.Context, []CatalogResponse)
 	throughputPolicyPending bool
 	throughputSaveFailed    bool
 	batchKind               CheckKind
@@ -81,6 +85,7 @@ func newMonitor(o Options, channel *upstreamrequest.Channel) (*Monitor, error) {
 	snapshot := channel.Snapshot()
 	m := &Monitor{ctx: ctx, cancel: cancel, channel: channel, revision: snapshot.Revision, policy: p, history: make(map[string][]observation), wake: make(chan struct{}, 1), throughputStatePath: o.ThroughputStatePath, throughput: make(map[string]observation)}
 	m.loadThroughputTime()
+	m.onCatalog = o.OnCatalog
 	return m, nil
 }
 
@@ -419,6 +424,7 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 	}
 	var id int64
 	var sampleAt time.Time
+	var catalogs []CatalogResponse
 	if kind != "" && kind != CheckCatalog {
 		id = m.cachedSong(p)
 	}
@@ -429,7 +435,10 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 		if ctx.Err() != nil {
 			break
 		}
-		catalog, candidateID := probeCatalogRoute(ctx, client, p, route)
+		catalog, candidateID, response := probeCatalogResponse(ctx, client, p, route)
+		if len(response.Body) > 0 {
+			catalogs = append(catalogs, response)
+		}
 		m.mu.Lock()
 		record(catalog)
 		m.mu.Unlock()
@@ -447,6 +456,7 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 	}
 	id = m.songID
 	m.mu.Unlock()
+	m.deliverCatalogs(ctx, source.Revision, catalogs)
 	if kind == CheckCatalog || id == 0 || ctx.Err() != nil {
 		return
 	}

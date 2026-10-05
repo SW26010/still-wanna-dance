@@ -243,6 +243,7 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 	}
 
 	var ids []int64
+	var catalogs []CatalogResponse
 	reusedSong := false
 	if kind != "" && kind != CheckCatalog {
 		if id := m.cachedSong(p); id > 0 {
@@ -265,12 +266,19 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 		}
 		cs := prepare(entry(Catalog, route))
 		samples := make([]int64, len(cs))
+		responses := make([]CatalogResponse, len(cs))
 		parallel(cs, func(i int, c upstreamrequest.Candidate) {
-			o, id := probeCatalogRoute(ctx, requestClient(c.Transport), p, route)
+			o, id, response := probeCatalogResponse(ctx, requestClient(c.Transport), p, route)
+			responses[i] = response
 			samples[i] = id
 			publish(o, c)
 		})
 		ids = append(ids, samples...)
+		for _, response := range responses {
+			if len(response.Body) > 0 {
+				catalogs = append(catalogs, response)
+			}
+		}
 	}
 
 	m.mu.Lock()
@@ -292,6 +300,7 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 	}
 	id := m.songID
 	m.mu.Unlock()
+	m.deliverCatalogs(ctx, source.Revision, catalogs)
 	if id > 0 && kind != CheckCatalog {
 		for _, r := range videoRoutes {
 			cs := prepare(entry(PlaybackURL, r.id))

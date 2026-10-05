@@ -25,7 +25,7 @@ func (c *Console) startMonitorLocked() error {
 		return nil
 	}
 	if c.monitor == nil {
-		m, err := upstreamstate.NewMonitor(upstreamstate.Options{ThroughputStatePath: c.configPath + ".throughput.json", Policy: upstreamstate.Policy{ThroughputInterval: time.Duration(c.settings.ThroughputIntervalMinutes) * time.Minute}})
+		m, err := upstreamstate.NewMonitor(upstreamstate.Options{OnCatalog: c.syncMonitorCatalogs, ThroughputStatePath: c.configPath + ".throughput.json", Policy: upstreamstate.Policy{ThroughputInterval: time.Duration(c.settings.ThroughputIntervalMinutes) * time.Minute}})
 		if err != nil {
 			return err
 		}

@@ -128,6 +128,16 @@ func probeCatalog(parent context.Context, client *http.Client, p Policy) (o obse
 }
 
 func probeCatalogRoute(parent context.Context, client *http.Client, p Policy, route string) (o observation, id int64) {
+	o, id, _ = probeCatalogResponse(parent, client, p, route)
+	return
+}
+
+func probeCatalogResponse(parent context.Context, client *http.Client, p Policy, route string) (o observation, id int64, result CatalogResponse) {
+	defer func() {
+		if o.state != "available" {
+			result = CatalogResponse{}
+		}
+	}()
 	o = observation{op: Catalog, route: route}
 	ctx, cancel := context.WithTimeout(parent, p.RequestTimeout)
 	defer cancel()
@@ -155,6 +165,7 @@ func probeCatalogRoute(parent context.Context, client *http.Client, p Policy, ro
 		return
 	}
 	if route == "kiva" || route == "wanna" {
+		result = CatalogResponse{Route: route, Source: entry(Catalog, route), Body: body}
 		id, o.catalogTime = kivaSongSample(body)
 		if id == 0 {
 			o.state = "invalid"
@@ -196,6 +207,7 @@ func probeCatalogRoute(parent context.Context, client *http.Client, p Policy, ro
 	}
 	o.state = "available"
 	o.bytes = int64(len(body))
+	result = CatalogResponse{Route: route, Source: entry(Catalog, route), Body: body}
 	return
 }
 

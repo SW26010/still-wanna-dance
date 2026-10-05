@@ -2,11 +2,13 @@ package console
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -57,7 +59,7 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 		response := &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(""))}
 		switch r.URL.Path {
 		case "/api/v2/wanna/songs", "/api/wannaInfo":
-			response.Body = io.NopCloser(strings.NewReader(`{"code":200,"data":{"time":"2026-10-05","groups":[{"entries":[{"id":42,"checksum":"0123456789abcdef0123456789abcdef"}]}]}}`))
+			response.Body = io.NopCloser(strings.NewReader(`{"code":200,"data":{"time":"20261004235822","groups":[{"entries":[{"id":42,"checksum":"0123456789abcdef0123456789abcdef"}]}]}}`))
 		case "/Api/Songs/list":
 			response.Body = io.NopCloser(strings.NewReader(`{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":42}]}]}}`))
 		case "/Api/Songs/play":
@@ -102,6 +104,15 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 		t.Fatal("not idempotent", err)
 	}
 	s := waitMonitor(t, c)
+	db, err := sql.Open("sqlite", filepath.Join(c.settings.StorageDir, "stepstash.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var md5 string
+	if err := db.QueryRow("SELECT md5 FROM song_media WHERE song_id=42").Scan(&md5); err != nil || md5 != "0123456789abcdef0123456789abcdef" {
+		t.Fatalf("monitor response not saved: %q, %v", md5, err)
+	}
 	if !s.Scheduled || len(s.Results) != 14 || calls.Load() != 14 {
 		t.Fatalf("bad snapshot: %+v, calls %d", s, calls.Load())
 	}

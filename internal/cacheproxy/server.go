@@ -22,11 +22,11 @@ import (
 )
 
 type video struct {
-	localOnly                        bool
-	preferRequestedRoute             bool
-	songID                           string
-	checksum, key, path, query, host string
-	size                             int64
+	localOnly              bool
+	preferRequestedRoute   bool
+	songID                 string
+	key, path, query, host string
+	size                   int64
 }
 type flight struct {
 	monitorSongs  map[string]bool // protected by Server.mu; includes background callers
@@ -255,7 +255,7 @@ func parseVideo(r *http.Request, maxFileBytes int64) (video, error) {
 	if err != nil {
 		return v, err
 	}
-	return video{checksum: meta.Checksum, size: meta.Size, key: meta.Checksum, path: r.URL.Path, query: r.URL.RawQuery, host: host}, nil
+	return video{size: meta.Size, key: meta.Checksum, path: r.URL.Path, query: r.URL.RawQuery, host: host}, nil
 }
 
 // Register before Close starts waiting so completed observations drain to disk.
@@ -373,29 +373,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "multiple ranges are not supported", 416)
 		return
 	}
-	event.demand = r.Method == http.MethodGet
+	event.demand = r.Method == http.MethodGet && v.songID != ""
 	s.pinVideo(v)
 	defer s.releaseVideo(v)
-	if event.demand {
-		event.at = s.usage.startDemand(v.key)
-		if v.songID != "" {
-			s.usage.startDemand("song:" + v.songID)
-		} else {
-			rows, err := s.usage.db.QueryContext(r.Context(), "SELECT song_id FROM current_videos WHERE version_key=?", v.key)
-			if err == nil {
-				var ids []string
-				for rows.Next() {
-					var id string
-					if rows.Scan(&id) == nil {
-						ids = append(ids, id)
-					}
-				}
-				rows.Close()
-				for _, id := range ids {
-					s.usage.startDemand("song:" + id)
-				}
-			}
-		}
+	if r.Method == http.MethodGet {
+		event.at = s.usage.startGET(v.songID, v.key)
 	}
 	var f *flight
 	var stream *spoolReader
@@ -428,7 +410,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if stream != nil {
 		defer stream.Close()
 		w.Header().Set("Content-Type", "video/mp4")
-		w.Header().Set("ETag", `"`+v.checksum+`"`)
+		w.Header().Set("ETag", `"`+v.key+`"`)
 		w.Header().Set("X-StepStash-Cache", "MISS")
 		http.ServeContent(flushingResponseWriter{w}, r, v.path, time.Time{}, stream)
 		if stream.err != nil {
@@ -461,7 +443,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "video/mp4")
-	w.Header().Set("ETag", `"`+v.checksum+`"`)
+	w.Header().Set("ETag", `"`+v.key+`"`)
 	w.Header().Set("X-StepStash-Cache", f.source)
 	http.ServeContent(w, r, v.path, file.info.ModTime(), file.reader())
 	if r.Context().Err() != nil {

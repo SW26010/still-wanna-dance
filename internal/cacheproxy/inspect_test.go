@@ -23,7 +23,7 @@ func TestReuseLocalSongRestoresMissingResourceRecord(t *testing.T) {
 	// Simulate a crash after publishing bytes but before recording the resource.
 	writeTestFile(t, cfg.videoFile(v.key), payload)
 	var count int
-	if err := s.usage.db.QueryRow(`SELECT count(*) FROM video_versions`).Scan(&count); err != nil || count != 0 {
+	if err := s.usage.db.QueryRow(`SELECT count(*) FROM media`).Scan(&count); err != nil || count != 0 {
 		t.Fatalf("expected unregistered file: count=%d err=%v", count, err)
 	}
 	hit, receipt, err := CheckLocalReceipt(ctx, cfg.StorageDir, target)
@@ -37,12 +37,11 @@ func TestReuseLocalSongRestoresMissingResourceRecord(t *testing.T) {
 		}
 		var checksum, sourcePath string
 		var size int64
-		if err := s.usage.db.QueryRow(`SELECT v.checksum, v.file_bytes, v.source_path
- FROM video_versions v JOIN song_videos s USING(version_key)
- JOIN current_videos c USING(song_id, version_key) WHERE s.song_id='1344'`).Scan(&checksum, &size, &sourcePath); err != nil {
+		if err := s.usage.db.QueryRow(`SELECT v.md5, v.byte_size, v.source_path
+ FROM media v JOIN song_media s USING(md5) WHERE s.song_id='1344'`).Scan(&checksum, &size, &sourcePath); err != nil {
 			t.Fatal(err)
 		}
-		if checksum != v.checksum || size != v.size || sourcePath != v.path {
+		if checksum != v.key || size != v.size || sourcePath != v.path {
 			t.Fatalf("incorrect restored resource: %s %d %s", checksum, size, sourcePath)
 		}
 	}

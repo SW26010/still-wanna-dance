@@ -20,7 +20,7 @@ func TestSharedMetadataPreservesCacheIdentity(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if v.key != expected || v.size != 1024 || v.checksum != "0123456789abcdef0123456789abcdef" {
+		if v.key != expected || v.size != 1024 || v.key != "0123456789abcdef0123456789abcdef" {
 			t.Fatal(v)
 		}
 	}

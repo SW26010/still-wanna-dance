@@ -18,17 +18,17 @@ func TestExponentialDemandSurvivesRestartAndCleanup(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := time.Now().Add(-120 * 24 * time.Hour)
-	recordDemand(u, "song", base)
-	recordDemand(u, "song", base.Add(29*time.Second)) // Same dedup window.
+	recordDemand(u, "1", base)
+	recordDemand(u, "1", base.Add(29*time.Second)) // Same dedup window.
 	u.close()
 	u, err = openUsage(path, log, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer u.close()
-	recordDemand(u, "song", base.Add(60*24*time.Hour))
+	recordDemand(u, "1", base.Add(60*24*time.Hour))
 	// A backward clock must not increase heat or move the accumulator timestamp.
-	recordDemand(u, "song", base.Add(59*24*time.Hour))
+	recordDemand(u, "1", base.Add(59*24*time.Hour))
 	u.flush()
 	cleaner := &usageStore{db: u.db, retention: 30 * 24 * time.Hour}
 	if n, err := cleaner.prune(time.Now()); err != nil || n != 4 {
@@ -36,7 +36,7 @@ func TestExponentialDemandSurvivesRestartAndCleanup(t *testing.T) {
 	}
 	var score float64
 	var last, count int64
-	if err := u.db.QueryRow(`SELECT demand_score,last_demand_at,demand_count FROM resource_usage WHERE resource_key='song'`).Scan(&score, &last, &count); err != nil {
+	if err := u.db.QueryRow(`SELECT demand_score,last_demand_at,demand_count FROM song_usage WHERE song_id=1`).Scan(&score, &last, &count); err != nil {
 		t.Fatal(err)
 	}
 	if score != 1.5 || count != 2 || last != base.Add(60*24*time.Hour).UnixMilli() {
@@ -46,10 +46,10 @@ func TestExponentialDemandSurvivesRestartAndCleanup(t *testing.T) {
 		t.Fatalf("score after two half-lives: %g", got)
 	}
 	// New demand adds one, rather than rejuvenating the cumulative count.
-	if err := u.write([]usageEvent{{id: "song", at: base.Add(120 * 24 * time.Hour).UnixMilli(), summaryOnly: true}}); err != nil {
+	if err := u.write([]usageEvent{{id: "1", at: base.Add(120 * 24 * time.Hour).UnixMilli(), summaryOnly: true}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := u.db.QueryRow(`SELECT demand_score FROM resource_usage WHERE resource_key='song'`).Scan(&score); err != nil {
+	if err := u.db.QueryRow(`SELECT demand_score FROM song_usage WHERE song_id=1`).Scan(&score); err != nil {
 		t.Fatal(err)
 	}
 	if score != 1.75 {
@@ -59,12 +59,12 @@ func TestExponentialDemandSurvivesRestartAndCleanup(t *testing.T) {
 
 func TestExponentialPriorityCombinesDifferentVersionAges(t *testing.T) {
 	s, _ := setup(t, nil)
-	seedPrioritySong(t, s, "1981", "old")
-	seedPrioritySong(t, s, "1981", "new")
+	seedPrioritySong(t, s, "1981", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	seedPrioritySong(t, s, "1981", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
 	now := time.Now().UnixMilli()
 	if err := s.usage.write([]usageEvent{
-		{id: "song:1981", at: now - (120 * 24 * time.Hour).Milliseconds(), summaryOnly: true},
-		{id: "song:1981", at: now, summaryOnly: true},
+		{id: "1981", at: now - (120 * 24 * time.Hour).Milliseconds(), summaryOnly: true},
+		{id: "1981", at: now, summaryOnly: true},
 	}); err != nil {
 		t.Fatal(err)
 	}

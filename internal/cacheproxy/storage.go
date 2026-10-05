@@ -15,8 +15,8 @@ func (c Config) videoFile(key string) string {
 
 // recordVideo records a resource without inferring a song from its URL.
 func (s *Server) recordVideo(ctx context.Context, v video) error {
-	_, err := s.usage.db.ExecContext(ctx, `INSERT INTO video_versions(version_key, checksum, file_bytes, source_path)
- VALUES (?, ?, ?, ?) ON CONFLICT(version_key) DO UPDATE SET file_bytes=CASE WHEN excluded.file_bytes>0 THEN excluded.file_bytes ELSE video_versions.file_bytes END, source_path=CASE WHEN excluded.source_path<>'' THEN excluded.source_path ELSE video_versions.source_path END`, v.key, v.checksum, v.size, v.path)
+	_, err := s.usage.db.ExecContext(ctx, `INSERT INTO media(md5, byte_size, source_path)
+ VALUES (?, NULLIF(?,0), NULLIF(?,'')) ON CONFLICT(md5) DO UPDATE SET byte_size=COALESCE(excluded.byte_size,media.byte_size), source_path=COALESCE(excluded.source_path,media.source_path)`, v.key, v.size, v.path)
 	return err
 }
 
@@ -29,7 +29,7 @@ func (s *Server) recordSongVideo(ctx context.Context, id string, v video) error 
 	s.mappingMu.Lock()
 	defer s.mappingMu.Unlock()
 	var current string
-	err := s.usage.db.QueryRowContext(ctx, `SELECT version_key FROM current_videos WHERE song_id=?`, id).Scan(&current)
+	err := s.usage.db.QueryRowContext(ctx, `SELECT md5 FROM song_media WHERE song_id=?`, id).Scan(&current)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
@@ -45,12 +45,9 @@ func (s *Server) recordSongVideo(ctx context.Context, id string, v video) error 
 	if _, err = tx.ExecContext(ctx, "INSERT INTO songs(song_id) VALUES (?) ON CONFLICT DO NOTHING", id); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO song_videos(song_id, version_key) VALUES (?, ?) ON CONFLICT DO NOTHING`, id, v.key); err != nil {
-		return err
-	}
 	if promote {
-		if _, err = tx.ExecContext(ctx, `INSERT INTO current_videos(song_id, version_key) VALUES (?, ?)
- ON CONFLICT(song_id) DO UPDATE SET version_key=excluded.version_key`, id, v.key); err != nil {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO song_media(song_id, md5) VALUES (?, ?)
+ ON CONFLICT(song_id) DO NOTHING`, id, v.key); err != nil {
 			return err
 		}
 	}
@@ -64,13 +61,13 @@ func (s *Server) recordSongVideo(ctx context.Context, id string, v video) error 
 	return nil
 }
 
-// SetSongTitle updates catalog metadata independently of video versions.
-func (s *Server) SetSongTitle(ctx context.Context, id, title string) error {
+// SetSongName updates catalog metadata independently of video versions.
+func (s *Server) SetSongName(ctx context.Context, id, title string) error {
 	if !s.beginRequest() {
 		return context.Canceled
 	}
 	defer s.wg.Done()
-	_, err := s.usage.db.ExecContext(ctx, `INSERT INTO songs(song_id, title) VALUES (?, ?)
- ON CONFLICT(song_id) DO UPDATE SET title=excluded.title`, id, title)
+	_, err := s.usage.db.ExecContext(ctx, `INSERT INTO songs(song_id, name) VALUES (?, ?)
+ ON CONFLICT(song_id) DO UPDATE SET name=excluded.name`, id, title)
 	return err
 }

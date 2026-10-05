@@ -18,14 +18,14 @@ func TestRecentRequestsWindowAndNames(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer u.close()
-	_, err = u.db.Exec(`INSERT INTO songs(song_id,title) VALUES ('1','共享歌曲'),('2','');
- INSERT INTO song_videos(song_id,version_key) VALUES ('1','shared'),('2','shared');`)
+	_, err = u.db.Exec(`INSERT INTO songs(song_id,name) VALUES ('1','共享歌曲'),('2','');
+ INSERT OR IGNORE INTO media(md5) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'); INSERT INTO song_media(song_id,md5) VALUES ('1','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),('2','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now().UnixMilli()
 	err = u.write([]usageEvent{
-		{id: "shared", key: "shared", at: now, source: "http", method: "GET", outcome: "completed", status: 200, size: 100, bytes: 100},
+		{id: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", key: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", at: now, source: "http", method: "GET", outcome: "completed", status: 200, size: 100, bytes: 100},
 		{id: "unknown", key: "unknown", at: now + 1, source: "http", method: "GET", outcome: "canceled", status: 200, bytes: 3, rangeHeader: "bytes=0-9"},
 		{id: "prefetch", at: now + 2, source: "prefetch"},
 		{id: "short", at: now + 3, source: "http", method: "GET", outcome: "completed", status: 200, size: 100, bytes: 5, rangeHeader: "secret=signed-url"},
@@ -113,15 +113,15 @@ func TestRecentBoundedAssociations(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer u.close()
-	for i := 0; i < 30; i++ {
-		if _, err = u.db.Exec(`INSERT INTO songs(song_id,title) VALUES (?,?);`, i, strings.Repeat("歌", 500)); err != nil {
+	for i := 1; i <= 30; i++ {
+		if _, err = u.db.Exec(`INSERT INTO songs(song_id,name) VALUES (?,?);`, i, strings.Repeat("歌", 500)); err != nil {
 			t.Fatal(err)
 		}
-		if _, err = u.db.Exec(`INSERT INTO song_videos(song_id,version_key) VALUES (?,'shared')`, i); err != nil {
+		if _, err = u.db.Exec(`INSERT OR IGNORE INTO media(md5) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'); INSERT INTO song_media(song_id,md5) VALUES (?,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')`, i); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err = u.write([]usageEvent{{id: "shared", key: "shared", source: "http"}}); err != nil {
+	if err = u.write([]usageEvent{{id: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", key: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", source: "http"}}); err != nil {
 		t.Fatal(err)
 	}
 	r, err := ReadRecentRequests(context.Background(), root, 50)

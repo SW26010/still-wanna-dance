@@ -115,17 +115,17 @@ func readCacheEntry(ctx context.Context, root, key string, db *sql.DB) (CacheEnt
 	var expected int64
 	var songs, associations string
 	if db != nil {
-		err = db.QueryRowContext(ctx, `SELECT file_bytes,
- max(COALESCE((SELECT last_requested_at FROM resource_usage WHERE resource_key=v.version_key),0),
- COALESCE((SELECT max(requested_at) FROM request_events WHERE resource_key=v.version_key AND source='http'),0)),
- (SELECT count(*) FROM song_videos WHERE version_key=v.version_key),
+		err = db.QueryRowContext(ctx, `SELECT COALESCE(byte_size,0),
+ max(COALESCE((SELECT last_requested_at FROM media_access WHERE md5=v.md5),0),
+ COALESCE((SELECT max(requested_at) FROM request_events WHERE resource_key=v.md5 AND source='http'),0)),
+ (SELECT count(*) FROM song_media WHERE md5=v.md5),
  (SELECT json_group_array(json_object('id',song_id,'title',title,'current',is_current)) FROM
-  (SELECT s.song_id,substr(s.title,1,300) title,EXISTS(SELECT 1 FROM current_videos c WHERE c.song_id=s.song_id AND c.version_key=v.version_key) is_current
-   FROM song_videos sv JOIN songs s ON s.song_id=sv.song_id WHERE sv.version_key=v.version_key ORDER BY s.song_id LIMIT 20)),
+  (SELECT CAST(s.song_id AS TEXT) song_id,COALESCE(substr(s.name,1,300),'') title,1 is_current
+   FROM song_media sv JOIN songs s ON s.song_id=sv.song_id WHERE sv.md5=v.md5 ORDER BY s.song_id LIMIT 20)),
  (SELECT COALESCE(group_concat(song_id || ':' || is_current),'') FROM
-  (SELECT sv.song_id,EXISTS(SELECT 1 FROM current_videos c WHERE c.song_id=sv.song_id AND c.version_key=v.version_key) is_current
-   FROM song_videos sv WHERE sv.version_key=v.version_key ORDER BY sv.song_id))
- FROM video_versions v WHERE version_key=?`, key).Scan(&expected, &e.LastRequest, &e.SongCount, &songs, &associations)
+  (SELECT sv.song_id,1 is_current
+   FROM song_media sv WHERE sv.md5=v.md5 ORDER BY sv.song_id))
+ FROM media v WHERE md5=?`, key).Scan(&expected, &e.LastRequest, &e.SongCount, &songs, &associations)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return e, fmt.Errorf("read cache metadata: %w", err)
 		}
@@ -274,6 +274,9 @@ func (s *Server) DeleteCache(ctx context.Context, selected []CacheSelection) ([]
 // Offline maintenance shares the engine removal implementation and exclusive
 // store lock, but starts no service, cleanup worker, network or usage pruning.
 func DeleteCacheOffline(ctx context.Context, root string, selected []CacheSelection) ([]CacheRemoval, error) {
+	if err := checkStorageFormat(root); err != nil {
+		return nil, err
+	}
 	if len(selected) < 1 || len(selected) > 50 {
 		return nil, errors.New("每次请选择 1～50 个缓存")
 	}

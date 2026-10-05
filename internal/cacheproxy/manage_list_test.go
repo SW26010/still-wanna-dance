@@ -19,14 +19,14 @@ func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer u.close()
-	if _, err := u.db.Exec(`UPDATE songs SET title='same';
- UPDATE songs SET title='ÄBC' WHERE song_id='257';
- UPDATE songs SET title='' WHERE song_id='258'`); err != nil {
+	if _, err := u.db.Exec(`UPDATE songs SET name='same';
+ UPDATE songs SET name='ÄBC' WHERE song_id='257';
+ UPDATE songs SET name='' WHERE song_id='258'`); err != nil {
 		t.Fatal(err)
 	}
 	for _, i := range []int{1, 256, 257, 270} {
 		key := fmt.Sprintf("%032x", i)
-		if _, err := u.db.Exec(`INSERT INTO resource_usage VALUES (?,1,1,1,100,100,1)`, key); err != nil {
+		if _, err := u.db.Exec(`INSERT INTO request_events(resource_key,requested_at,version_key,host,source,method,range_header,cache_result,outcome,file_bytes,transferred_bytes,elapsed_ms,status,counts_as_demand) VALUES (?,100,?,'local','http','GET','','HIT','completed',1,1,1,200,0)`, key, key); err != nil {
 			t.Fatal(err)
 		}
 	}

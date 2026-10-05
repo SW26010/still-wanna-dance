@@ -69,7 +69,7 @@ func TestQueueReservationSurvivesCanceledDownloadWaiter(t *testing.T) {
 	}
 	s.trimCache()
 	expectRetained(t, testVideoFile(t, cfg, payload), true)
-	for _, table := range []string{"song_videos", "current_videos"} {
+	for _, table := range []string{"song_media"} {
 		var count int
 		if err := s.usage.db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != 0 {
 			t.Fatalf("%s must not be confirmed by a canceled waiter: count=%d, err=%v", table, count, err)
@@ -88,7 +88,7 @@ func TestCatalogSyncPreservesActiveQueueReservations(t *testing.T) {
 			old := parsedVideo(t, s, payload).key
 			current := strings.Repeat("b", 32)
 			// A prefetched URL may differ from the authoritative catalog.
-			if err := s.SyncCatalog(ctx, map[string]string{"42": current}); err != nil {
+			if err := syncTestCatalog(s, ctx, map[string]string{"42": current}); err != nil {
 				t.Fatal(err)
 			}
 			if state != "inactive" {
@@ -108,7 +108,7 @@ func TestCatalogSyncPreservesActiveQueueReservations(t *testing.T) {
 				s.retentionMu.Unlock()
 			}
 			for range 2 {
-				if err := s.SyncCatalog(ctx, map[string]string{"42": current}); err != nil {
+				if err := syncTestCatalog(s, ctx, map[string]string{"42": current}); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -147,11 +147,12 @@ func TestQueueReservationOutranksHotCacheAndHandsOffToPlayback(t *testing.T) {
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(payload)) })
 	hot := retainedPath(t, s, cfg, "1")
 	putRetained(t, hot, len(payload))
-	if err := s.SyncCatalog(context.Background(), map[string]string{"1": strings.Repeat("1", 32)}); err != nil {
+	if err := syncTestCatalog(s, context.Background(), map[string]string{"1": strings.Repeat("1", 32)}); err != nil {
 		t.Fatal(err)
 	}
-	s.usage.startDemand("song:1")
-	priorities, err := s.EffectiveSongPriorities(context.Background(), []int64{1, 42})
+	s.usage.startGET("1", "")
+	s.usage.flush()
+	priorities, err := s.songPriorities(context.Background(), []int64{1, 42}, time.Now().UnixMilli())
 	if err != nil || priorities[1] <= priorities[42] {
 		t.Fatalf("hot song must outrank queued song: priorities=%v err=%v", priorities, err)
 	}
@@ -187,7 +188,7 @@ func TestRetentionEqualWeightUsesNumericSongIDBeforeRecency(t *testing.T) {
 	putRetained(t, low, 10)
 	putRetained(t, high, 10)
 	for key, id := range map[string]string{strings.Repeat("1", 32): "9", strings.Repeat("2", 32): "100"} {
-		if _, err := s.usage.db.Exec(`INSERT INTO current_videos(song_id,version_key) VALUES (?,?)`, id, key); err != nil {
+		if err := syncTestCatalog(s, context.Background(), map[string]string{id: key}); err != nil {
 			t.Fatal(err)
 		}
 	}

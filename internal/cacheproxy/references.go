@@ -87,54 +87,11 @@ func CheckReferencedFiles(ctx context.Context, root string, references map[strin
 	return r, ctx.Err()
 }
 
-// SyncCatalog adds/updates authoritative mappings without deleting absent IDs.
-// Resource metadata is optional: a catalog mapping can exist before any URL or file.
-func (s *Server) SyncCatalog(ctx context.Context, songs map[string]string) error {
-	return s.SyncCatalogWithTitles(ctx, songs, nil)
-}
-
-// SyncCatalogWithTitles commits a full catalog in one transaction, avoiding a
-// separate durable write per song when refreshing names alongside references.
-func (s *Server) SyncCatalogWithTitles(ctx context.Context, songs, titles map[string]string) error {
-	if !s.beginRequest() {
-		return context.Canceled
-	}
-	defer s.wg.Done()
-	s.mappingMu.Lock()
-	defer s.mappingMu.Unlock()
-	for id, key := range songs {
-		n, err := strconv.ParseInt(id, 10, 64)
-		if err != nil || n <= 0 || !validMD5(key) {
-			return fmt.Errorf("invalid catalog mapping: %s", id)
-		}
-	}
-	tx, err := s.usage.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	for id, key := range songs {
-		title, hasTitle := titles[id]
-		for _, stmt := range []struct {
-			query string
-			args  []any
-		}{
-			{"INSERT INTO songs(song_id,title) VALUES (?,?) ON CONFLICT(song_id) DO UPDATE SET title=CASE WHEN ? THEN excluded.title ELSE songs.title END", []any{id, title, hasTitle}},
-			{"INSERT INTO video_versions(version_key,checksum,file_bytes,source_path) VALUES (?,?,0,'') ON CONFLICT DO NOTHING", []any{key, key}},
-			{"INSERT INTO song_videos(song_id,version_key) VALUES (?,?) ON CONFLICT DO NOTHING", []any{id, key}},
-			{"INSERT INTO current_videos(song_id,version_key) VALUES (?,?) ON CONFLICT(song_id) DO UPDATE SET version_key=excluded.version_key", []any{id, key}},
-		} {
-			if _, err := tx.ExecContext(ctx, stmt.query, stmt.args...); err != nil {
-				return err
-			}
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		return err
-	}
+func (s *Server) refreshCatalogProtection(songs []CatalogSong) {
 	s.retentionMu.Lock()
 	now := time.Now()
-	for id, key := range songs {
+	for _, song := range songs {
+		id, key := strconv.FormatInt(song.ID, 10), song.MD5
 		// Catalog authority changes the persistent mapping, not reservations
 		// for content already prefetched for a pending song or its handoff.
 		if s.queueSongs[id] || now.Before(s.queueHandoffs[id]) {
@@ -155,7 +112,6 @@ func (s *Server) SyncCatalogWithTitles(ctx context.Context, songs, titles map[st
 	s.refreshHandoffsLocked(now)
 	s.requestRetentionLocked()
 	s.retentionMu.Unlock()
-	return nil
 }
 
 // CheckReferences owns the database snapshot and pins its resources until the
@@ -166,7 +122,7 @@ func (s *Server) CheckReferences(ctx context.Context) (ReferenceCheck, func(), e
 		return ReferenceCheck{}, func() {}, context.Canceled
 	}
 	s.mappingMu.Lock()
-	rows, err := s.usage.db.QueryContext(ctx, "SELECT song_id, version_key FROM current_videos")
+	rows, err := s.usage.db.QueryContext(ctx, "SELECT song_id, md5 FROM song_media")
 	refs := map[string]string{}
 	if err == nil {
 		for rows.Next() {

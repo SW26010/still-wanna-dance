@@ -175,17 +175,14 @@ func (c *Console) startInventoryScan() {
 func (c *Console) addInventoryCoverage(ctx context.Context, s Settings, result *Inventory) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	checksums, revision, err := c.fetchCatalogChecksums(ctx)
+	catalog, err := c.fetchCatalogSnapshot(ctx)
 	if err != nil {
 		result.Error = "无法获取曲目覆盖率：" + err.Error()
 		return
 	}
 	refs := map[string]string{}
-	for id, checksum := range checksums {
-		if checksum == "" {
-			result.Error = "曲目清单含无效或冲突校验和，覆盖率未更新"
-			return
-		}
+	for _, song := range catalog.Songs {
+		id, checksum := song.ID, song.MD5
 		refs[strconv.FormatInt(id, 10)] = checksum
 	}
 	c.mu.Lock()
@@ -193,7 +190,7 @@ func (c *Console) addInventoryCoverage(ctx context.Context, s Settings, result *
 	c.mu.Unlock()
 	var check cacheproxy.ReferenceCheck
 	if engine != nil {
-		if err = engine.SyncCatalog(ctx, refs); err != nil {
+		if err = engine.SyncCatalog(ctx, catalog); err != nil {
 			result.Error = err.Error()
 			return
 		}
@@ -207,13 +204,14 @@ func (c *Console) addInventoryCoverage(ctx context.Context, s Settings, result *
 		result.Error = "无法读取本地资源：" + err.Error()
 		return
 	}
-	for _, checksum := range checksums {
+	for _, song := range catalog.Songs {
+		checksum := song.MD5
 		if check.Present[checksum] {
 			result.CoveredSongs++
 		}
 	}
-	result.TotalSongs = len(checksums)
+	result.TotalSongs = len(catalog.Songs)
 	result.CoverageKnown = true
-	result.CatalogRevision = revision
+	result.CatalogRevision = catalog.Revision
 	result.Updated = time.Now()
 }

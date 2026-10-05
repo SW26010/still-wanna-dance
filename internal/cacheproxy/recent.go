@@ -86,6 +86,9 @@ func ReadRecentRequests(ctx context.Context, root string, limit int) (RecentRequ
 		return result, err
 	}
 	defer db.Close()
+	if err = checkStorageFormat(root); err != nil {
+		return result, err
+	}
 	if err = ensureRecentHTTPIndex(ctx, db, u); err != nil {
 		return result, err
 	}
@@ -94,8 +97,8 @@ func ReadRecentRequests(ctx context.Context, root string, limit int) (RecentRequ
 	rows, err := db.QueryContext(ctx, `SELECT event_id, requested_at, resource_key, method, range_header,
  cache_result, outcome, transferred_bytes, elapsed_ms, status, file_bytes,
  (SELECT json_group_array(json_object('id',song_id,'title',title)) FROM
-   (SELECT s.song_id, substr(s.title,1,300) AS title FROM song_videos sv
-    JOIN songs s ON s.song_id=sv.song_id WHERE sv.version_key=e.version_key
+   (SELECT CAST(s.song_id AS TEXT) song_id, COALESCE(substr(s.name,1,300),'') AS title FROM song_media sv
+    JOIN songs s ON s.song_id=sv.song_id WHERE sv.md5=e.version_key
     ORDER BY sv.rowid LIMIT 21))
  FROM (`+recentHTTPWindowSQL+`) e
  ORDER BY requested_at DESC, event_id DESC`, limit+1)

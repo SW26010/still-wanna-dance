@@ -38,10 +38,10 @@ func retainedPath(t *testing.T, s *Server, cfg Config, id string) string {
 
 func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
-	if err := s.SetSongTitle(context.Background(), "1344", "My song"); err != nil {
+	if err := s.SetSongName(context.Background(), "1344", "My song"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec(`UPDATE songs SET metadata_json='{"volume":0.8,"category":"dance"}' WHERE song_id='1344'`); err != nil {
+	if _, err := s.usage.db.Exec(`UPDATE songs SET volume=0.8 WHERE song_id='1344'`); err != nil {
 		t.Fatal(err)
 	}
 	if source, err := s.PrefetchSong(context.Background(), "1344", videoURL(payload)); source != "MISS" || err != nil {
@@ -62,13 +62,14 @@ func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
 			t.Fatal("unexpected duplicate storage", entry.Name())
 		}
 	}
-	var title, metadata, checksum string
+	var title, checksum string
+	var volume float64
 	var size int64
-	if err := s.usage.db.QueryRow(`SELECT s.title, s.metadata_json, v.checksum, v.file_bytes FROM songs s JOIN current_videos c USING(song_id) JOIN video_versions v USING(version_key)`).Scan(&title, &metadata, &checksum, &size); err != nil {
+	if err := s.usage.db.QueryRow(`SELECT s.name, s.volume, v.md5, v.byte_size FROM songs s JOIN song_media c USING(song_id) JOIN media v USING(md5)`).Scan(&title, &volume, &checksum, &size); err != nil {
 		t.Fatal(err)
 	}
-	if title != "My song" || metadata != `{"volume":0.8,"category":"dance"}` || len(checksum) != 32 || size != int64(len(payload)) {
-		t.Fatal(title, metadata, checksum, size)
+	if title != "My song" || volume != 0.8 || len(checksum) != 32 || size != int64(len(payload)) {
+		t.Fatal(title, volume, checksum, size)
 	}
 	s.Close()
 	restarted, err := New(cfg)
@@ -84,11 +85,11 @@ func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
 	if _, err := os.Stat(files[0]); !os.IsNotExist(err) {
 		t.Fatal("video not evicted", err)
 	}
-	if err := restarted.usage.db.QueryRow(`SELECT title FROM songs WHERE song_id='1344'`).Scan(&title); err != nil || title != "My song" {
+	if err := restarted.usage.db.QueryRow(`SELECT name FROM songs WHERE song_id='1344'`).Scan(&title); err != nil || title != "My song" {
 		t.Fatal("eviction lost song", title, err)
 	}
 	var versions int
-	if err := restarted.usage.db.QueryRow(`SELECT count(*) FROM video_versions`).Scan(&versions); err != nil || versions != 1 {
+	if err := restarted.usage.db.QueryRow(`SELECT count(*) FROM media`).Scan(&versions); err != nil || versions != 1 {
 		t.Fatal("eviction lost version metadata", versions, err)
 	}
 }

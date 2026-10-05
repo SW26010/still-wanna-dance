@@ -20,11 +20,11 @@ func checkStorageFormat(root string) error {
 		if err := db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
 			return err
 		}
-		if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='video_versions'").Scan(&tables); err != nil {
+		if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").Scan(&tables); err != nil {
 			return err
 		}
-		if (tables > 0 && version != 2) || (version != 0 && version != 2) {
-			return fmt.Errorf("旧存储格式不兼容 MD5 资源管理，请选择新的存储目录；旧数据未修改")
+		if (tables > 0 && version != 3) || (version != 0 && version != 3) {
+			return fmt.Errorf("旧存储格式不兼容歌曲目录格式，请选择新的存储目录；旧数据未修改")
 		}
 	}
 	entries, err := os.ReadDir(filepath.Join(root, "videos"))

@@ -46,7 +46,7 @@ func TestMD5IDOnlyResolutionFailureCountedOnce(t *testing.T) {
 			}
 			c.service = engine
 			// Failed ID 1 shares a file with successful ID 2; omitted ID 4 survives.
-			if err := engine.SyncCatalog(context.Background(), map[string]string{"1": key, "2": key, "4": key}); err != nil {
+			if err := syncTestCatalog(c, engine, context.Background(), map[string]string{"1": key, "2": key, "4": key}); err != nil {
 				t.Fatal(err)
 			}
 			if err := os.WriteFile(filepath.Join(cfg.StorageDir, "videos", key+".mp4"), []byte("cached"), 0600); err != nil {
@@ -139,7 +139,7 @@ func TestMD5BatchTriesSharedSongIDs(t *testing.T) {
 					for _, id := range tc.current {
 						entries = append(entries, fmt.Sprintf(`{"id":%d,"checksum":%q}`, id, key))
 					}
-					fmt.Fprintf(w, `{"code":200,"data":{"time":"revision","groups":[{"entries":[%s]}]}}`, strings.Join(entries, ","))
+					fmt.Fprintf(w, `{"code":200,"data":{"time":"20261001000000","groups":[{"entries":[%s]}]}}`, strings.Join(entries, ","))
 					return
 				}
 				id := r.URL.Query().Get("id")
@@ -165,7 +165,7 @@ func TestMD5BatchTriesSharedSongIDs(t *testing.T) {
 				t.Fatal(err)
 			}
 			c.service = engine
-			if err := engine.SyncCatalog(context.Background(), map[string]string{"99": key}); err != nil {
+			if err := syncTestCatalog(c, engine, context.Background(), map[string]string{"99": key}); err != nil {
 				t.Fatal(err)
 			}
 			if err := c.startBatchMode(false); err != nil {
@@ -228,7 +228,7 @@ func TestMD5CatalogScanAndFillUseSinglePresenceSnapshot(t *testing.T) {
 			for id, body := range mapping {
 				entries = append(entries, fmt.Sprintf(`{"id":%d,"name":"song","checksum":%q}`, id, digest(body)))
 			}
-			fmt.Fprintf(w, `{"code":200,"data":{"time":"revision","groups":[{"entries":[%s]}]}}`, strings.Join(entries, ","))
+			fmt.Fprintf(w, `{"code":200,"data":{"time":"202610010000%02d","groups":[{"entries":[%s]}]}}`, lists.Load(), strings.Join(entries, ","))
 			return
 		}
 		resolves.Add(1)
@@ -285,7 +285,7 @@ func TestMD5CatalogInvalidChecksumDoesNotChangeMappings(t *testing.T) {
 	}
 	defer c.Close()
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"code":200,"data":{"time":"revision","groups":[{"entries":[{"id":1,"checksum":"bad"}]}]}}`)
+		fmt.Fprint(w, `{"code":200,"data":{"time":"20261001000000","groups":[{"entries":[{"id":1,"checksum":"bad"}]}]}}`)
 	}))
 	defer api.Close()
 	c.checksumURL, c.client.Transport = api.URL, http.DefaultTransport
@@ -298,5 +298,50 @@ func TestMD5CatalogInvalidChecksumDoesNotChangeMappings(t *testing.T) {
 	<-done
 	if !strings.Contains(c.batch.Phase, "无效") || c.batch.Total != 0 {
 		t.Fatal(c.batch)
+	}
+}
+
+func TestCatalogFallbackBoundary(t *testing.T) {
+	const checksum = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	for _, tc := range []struct {
+		name, body string
+		fallback   bool
+	}{
+		{"truncated", `{"code":200,`, true},
+		{"metadata", `{"id":1,"checksum":"` + checksum + `","flip":2}`, true},
+		{"invalid ID type", `{"id":"1","checksum":"` + checksum + `"}`, false},
+		{"missing ID", `{"checksum":"` + checksum + `"}`, false},
+		{"invalid checksum type", `{"id":1,"checksum":123}`, false},
+		{"missing checksum", `{"id":1}`, false},
+		{"duplicate ID", `{"id":1,"checksum":"` + checksum + `"},{"id":1,"checksum":"` + checksum + `"}`, false},
+		{"bad metadata before bad mapping", `{"id":1,"checksum":"` + checksum + `","flip":2},{"id":2,"checksum":"bad"}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := testConsole(t)
+			defer c.Close()
+			var lists atomic.Int32
+			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/catalog" {
+					if tc.name == "truncated" {
+						fmt.Fprint(w, tc.body)
+					} else {
+						fmt.Fprintf(w, `{"code":200,"data":{"time":"20261001000000","groups":[{"entries":[%s]}]}}`, tc.body)
+					}
+					return
+				}
+				lists.Add(1)
+				fmt.Fprint(w, `{"groups":{"contents":[{"songInfos":[{"id":1,"name":"fallback"}]}]}}`)
+			}))
+			defer api.Close()
+			c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
+			songs, catalog, err := c.catalog(context.Background())
+			if tc.fallback {
+				if err != nil || catalog != nil || len(songs) != 1 || lists.Load() != 1 {
+					t.Fatal(songs, catalog, err, lists.Load())
+				}
+			} else if err == nil || lists.Load() != 0 {
+				t.Fatal("invalid mapping enabled fallback", err, lists.Load())
+			}
+		})
 	}
 }

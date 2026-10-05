@@ -32,11 +32,7 @@ func (s *Server) routeCandidates(ctx context.Context, v video) []video {
 	}
 	s.routeMu.Unlock()
 	if id == "" {
-		_ = s.usage.db.QueryRowContext(ctx, `SELECT song_id FROM song_videos WHERE version_key=? ORDER BY song_id LIMIT 1`, v.key).Scan(&id)
-	}
-	if id == "" {
-		_ = s.usage.db.QueryRowContext(ctx, `SELECT song_id FROM song_videos JOIN video_versions USING(version_key)
-		 WHERE checksum=? AND file_bytes=? ORDER BY song_id LIMIT 1`, v.checksum, v.size).Scan(&id)
+		_ = s.usage.db.QueryRowContext(ctx, `SELECT song_id FROM song_media WHERE md5=? ORDER BY song_id LIMIT 1`, v.key).Scan(&id)
 	}
 	if id == "" {
 		return []video{v}
@@ -71,7 +67,7 @@ func (s *Server) routeCandidates(ctx context.Context, v video) []video {
 		s.routeMu.Lock()
 		s.routeSongs.put(candidate.key, id, time.Time{}, routeSongsLimit)
 		s.routeMu.Unlock()
-		if candidate.checksum != v.checksum || candidate.size != v.size {
+		if candidate.key != v.key || candidate.size != v.size {
 			s.cfg.Logger.Warn("route_content_mismatch", "song_id", id, "host", candidate.host)
 			continue
 		}
@@ -123,7 +119,7 @@ func (s *Server) videoResponse(r *http.Request, original video) (*http.Response,
 			return nil, err
 		}
 		v, err := s.parse(next)
-		if err != nil || v.checksum != original.checksum || v.size != original.size {
+		if err != nil || v.key != original.key || v.size != original.size {
 			return nil, errors.New("video redirect changed resource or host")
 		}
 		next, err = s.routeRequest(r.Context(), v)

@@ -47,6 +47,12 @@ func TestActiveSharedLifecycle(t *testing.T) {
 				t.Fatalf("unknown song: %+v %v", unknown, err)
 			}
 			v.songID = "138"
+			if err := s.recordVideo(context.Background(), v); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.recordSongVideo(context.Background(), v.songID, v); err != nil {
+				t.Fatal(err)
+			}
 			_, reader3, err := s.obtain(context.Background(), v)
 			if err != nil {
 				t.Fatal(err)

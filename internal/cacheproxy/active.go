@@ -75,8 +75,8 @@ func (s *Server) ActiveDownloads(ctx context.Context) (result ActiveDownloads, e
 		if len(task.songIDs) > 0 {
 			ids, _ = json.Marshal(task.songIDs)
 		}
-		rows, err := s.usage.db.QueryContext(ctx, `SELECT ids.song_id, COALESCE(substr(s.title,1,300),'') FROM
-		 (SELECT song_id FROM song_videos WHERE version_key=? UNION SELECT value AS song_id FROM json_each(?)) ids
+		rows, err := s.usage.db.QueryContext(ctx, `SELECT ids.song_id, COALESCE(substr(s.name,1,300),'') FROM
+		 (SELECT song_id FROM song_media WHERE md5=? UNION SELECT CAST(value AS INTEGER) AS song_id FROM json_each(?)) ids
 		 LEFT JOIN songs s ON s.song_id=ids.song_id ORDER BY ids.song_id LIMIT 21`, task.Resource, string(ids))
 		if err != nil {
 			return ActiveDownloads{}, err

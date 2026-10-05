@@ -59,7 +59,7 @@ func TestMD5IdentityAcrossDifferentResourceVersions(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	key := parsedVideo(t, s, payload).checksum
+	key := parsedVideo(t, s, payload).key
 	files, err := os.ReadDir(cfg.videosDir())
 	if err != nil || len(files) != 1 || files[0].Name() != key+".mp4" || downloads.Load() != 1 {
 		t.Fatalf("files=%v downloads=%d err=%v", files, downloads.Load(), err)
@@ -73,7 +73,7 @@ func TestMD5ReferenceSnapshotCatalogUpdatesAndMissing(t *testing.T) {
 	s, cfg := setup(t, nil)
 	ctx := context.Background()
 	a, b, orphan := strings.Repeat("a", 32), strings.Repeat("b", 32), strings.Repeat("c", 32)
-	if err := s.SyncCatalog(ctx, map[string]string{"1": a, "2": a, "3": b}); err != nil {
+	if err := syncTestCatalog(s, ctx, map[string]string{"1": a, "2": a, "3": b}); err != nil {
 		t.Fatal(err)
 	}
 	for _, key := range []string{a, orphan} {
@@ -89,7 +89,7 @@ func TestMD5ReferenceSnapshotCatalogUpdatesAndMissing(t *testing.T) {
 		t.Fatalf("%+v", r)
 	}
 	release()
-	if err := s.SyncCatalog(ctx, map[string]string{"2": b, "4": a}); err != nil {
+	if err := syncTestCatalog(s, ctx, map[string]string{"2": b, "4": a}); err != nil {
 		t.Fatal(err)
 	}
 	assertSongResource(t, s, "1", a)
@@ -104,7 +104,7 @@ func TestMD5ReferenceSnapshotCatalogUpdatesAndMissing(t *testing.T) {
 	if len(r.References) != 4 || len(r.Missing[b]) != 2 {
 		t.Fatalf("%+v", r)
 	}
-	if err := s.SyncCatalog(ctx, map[string]string{"5": "invalid"}); err == nil {
+	if err := syncTestCatalog(s, ctx, map[string]string{"5": "invalid"}); err == nil {
 		t.Fatal("invalid mapping accepted")
 	}
 }
@@ -157,7 +157,7 @@ func TestMD5UnknownIDColdLoadRecordsMappingAndCatalogWins(t *testing.T) {
 	key := parsedVideo(t, s, payload).key
 	assertSongResource(t, s, "42", key)
 	current := strings.Repeat("d", 32)
-	if err := s.SyncCatalog(context.Background(), map[string]string{"42": current}); err != nil {
+	if err := syncTestCatalog(s, context.Background(), map[string]string{"42": current}); err != nil {
 		t.Fatal(err)
 	}
 	// A missing authoritative file may cold-load the available URL, but not roll back the catalog.
@@ -201,7 +201,7 @@ func TestMD5RetentionSumsSongsAndOrphansHaveZeroScore(t *testing.T) {
 	s, cfg := setup(t, nil)
 	ctx := context.Background()
 	a, b, c := strings.Repeat("a", 32), strings.Repeat("b", 32), strings.Repeat("c", 32)
-	if err := s.SyncCatalog(ctx, map[string]string{"1": a, "2": a, "3": b}); err != nil {
+	if err := syncTestCatalog(s, ctx, map[string]string{"1": a, "2": a, "3": b}); err != nil {
 		t.Fatal(err)
 	}
 	for _, key := range []string{a, b, c} {
@@ -211,8 +211,8 @@ func TestMD5RetentionSumsSongsAndOrphansHaveZeroScore(t *testing.T) {
 	for _, e := range []struct {
 		id    string
 		score float64
-	}{{"song:1", 2}, {"song:2", 2}, {"song:3", 3}, {c, 1000}} {
-		_, err := s.usage.db.Exec("INSERT INTO resource_usage VALUES (?,1,1,?,?,?,?)", e.id, now, now, now, e.score)
+	}{{"1", 2}, {"2", 2}, {"3", 3}} {
+		_, err := s.usage.db.Exec("INSERT INTO song_usage VALUES (?,1,?,?)", e.id, e.score, now)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -227,7 +227,7 @@ func TestMD5RetentionSumsSongsAndOrphansHaveZeroScore(t *testing.T) {
 func TestMD5ReferenceSnapshotProtectsFilesDuringUse(t *testing.T) {
 	s, cfg := setup(t, nil)
 	key := strings.Repeat("a", 32)
-	if err := s.SyncCatalog(context.Background(), map[string]string{"1": key}); err != nil {
+	if err := syncTestCatalog(s, context.Background(), map[string]string{"1": key}); err != nil {
 		t.Fatal(err)
 	}
 	putRetained(t, cfg.videoFile(key), 10)

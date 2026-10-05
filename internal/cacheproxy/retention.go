@@ -8,8 +8,6 @@ import (
 	"regexp"
 	"sort"
 	"time"
-
-	initialpriority "still-wanna-dance/data/initial-priority"
 )
 
 var cacheVideoName = regexp.MustCompile(`^([0-9a-f]{32})\.mp4$`)
@@ -247,71 +245,35 @@ func (s *Server) trimCachePass(reconcile bool) error {
 	// Only over-limit caches need usage synchronization, database reads and ranking.
 	s.usage.flush()
 	now := time.Now().UnixMilli()
-	stats := map[string]retainedVideo{}
-	if s.usage != nil {
-		rows, err := s.usage.db.Query(`SELECT resource_key, demand_score, last_demand_at FROM resource_usage`)
-		if err != nil {
-			return err
-		}
-		for rows.Next() {
-			var id string
-			var last int64
-			var score float64
-			if err := rows.Scan(&id, &score, &last); err != nil {
-				rows.Close()
-				return err
-			}
-			stats[id] = retainedVideo{score: retentionScore(score, last, now), recent: last}
-		}
-		err = rows.Err()
-		rows.Close()
-		if err != nil {
-			return err
-		}
+	refs := map[string]string{}
+	rows, err := s.usage.db.Query("SELECT song_id,md5 FROM song_media")
+	if err != nil {
+		return err
 	}
-	songIDs := map[string]int64{}
-	resourceScores := map[string]float64{}
-	if s.usage != nil {
-		priorities, err := s.songPriorities(context.Background(), nil, now)
-		if err != nil {
+	for rows.Next() {
+		var id, key string
+		if err := rows.Scan(&id, &key); err != nil {
+			rows.Close()
 			return err
 		}
-		rows, err := s.usage.db.Query(`SELECT version_key, CAST(song_id AS INTEGER) FROM current_videos`)
-		if err != nil {
-			return err
-		}
-		for rows.Next() {
-			var key string
-			var id int64
-			if err := rows.Scan(&key, &id); err != nil {
-				rows.Close()
-				return err
-			}
-			if id > songIDs[key] {
-				songIDs[key] = id
-			}
-			score, exists := priorities[id]
-			if !exists {
-				score = initialpriority.Score(id)
-			}
-			resourceScores[key] += score
-		}
-		err = rows.Err()
-		rows.Close()
-		if err != nil {
-			return err
-		}
+		refs[id] = key
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	priorities, err := s.resourcePriorities(context.Background(), refs, now)
+	if err != nil {
+		return err
 	}
 	for i := range videos {
 		item := &videos[i]
-		usage := stats[item.key]
-		item.score = 0 // Unreferenced content has no song score.
-		if score, exists := resourceScores[item.key]; exists {
-			item.score = score
-		}
-		item.songID = songIDs[item.key]
-		if usage.recent != 0 {
-			item.recent = usage.recent
+		p := priorities[item.key]
+		item.score = p.Score
+		item.songID = p.SongID
+		if p.LastDemand != 0 {
+			item.recent = p.LastDemand
 		}
 	}
 	sort.Slice(videos, func(i, j int) bool {
@@ -324,6 +286,9 @@ func (s *Server) trimCachePass(reconcile bool) error {
 		}
 		if a.recent != b.recent {
 			return a.recent < b.recent
+		}
+		if a.modified != b.modified {
+			return a.modified < b.modified
 		}
 		return a.path < b.path
 	})

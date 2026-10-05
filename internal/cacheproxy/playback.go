@@ -236,12 +236,12 @@ func (s *Server) resolvePlaybackVideoReadOnly(ctx context.Context, q url.Values)
 // handler pins and verifies the file, and must never download or promote it.
 func (s *Server) localPlaybackVideo(ctx context.Context, id string) (video, error) {
 	var key string
-	if err := s.usage.db.QueryRowContext(ctx, "SELECT version_key FROM current_videos WHERE song_id=?", id).Scan(&key); err != nil || !validMD5(key) {
+	if err := s.usage.db.QueryRowContext(ctx, "SELECT md5 FROM song_media WHERE song_id=?", id).Scan(&key); err != nil || !validMD5(key) {
 		return video{}, errPlaybackUpstream
 	}
 	info, err := os.Stat(s.cfg.videoFile(key))
 	if err != nil || !info.Mode().IsRegular() {
 		return video{}, errPlaybackUpstream
 	}
-	return video{key: key, checksum: key, size: info.Size(), songID: id, localOnly: true, host: "play.udon.dance"}, nil
+	return video{key: key, size: info.Size(), songID: id, localOnly: true, host: "play.udon.dance"}, nil
 }

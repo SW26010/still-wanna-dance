@@ -58,10 +58,9 @@ func managementFixture(t *testing.T, n int) (string, []CacheEntry) {
 			query string
 			args  []any
 		}{
-			{`INSERT INTO video_versions VALUES (?, 'checksum', ?, 'private-source')`, []any{key, i + 1}},
-			{`INSERT INTO songs(song_id,title) VALUES (?,?)`, []any{fmt.Sprint(i + 1), fmt.Sprintf("舞曲 %03d", i+1)}},
-			{`INSERT INTO song_videos VALUES (?,?)`, []any{fmt.Sprint(i + 1), key}},
-			{`INSERT INTO current_videos VALUES (?,?)`, []any{fmt.Sprint(i + 1), key}},
+			{`INSERT INTO media VALUES (?, ?, 'private-source')`, []any{key, i + 1}},
+			{`INSERT INTO songs(song_id,name) VALUES (?,?)`, []any{fmt.Sprint(i + 1), fmt.Sprintf("舞曲 %03d", i+1)}},
+			{`INSERT INTO song_media VALUES (?,?)`, []any{fmt.Sprint(i + 1), key}},
 		} {
 			if _, err = u.db.Exec(statement.query, statement.args...); err != nil {
 				t.Fatal(err)
@@ -118,7 +117,7 @@ func TestCacheDeletionSharedMetadataAndStaleConfirmation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = u.db.Exec(`INSERT INTO songs(song_id,title) VALUES ('2','共享歌'); INSERT INTO song_videos VALUES ('2',?); INSERT INTO current_videos VALUES ('2',?); INSERT INTO resource_usage VALUES (?,3,2,100,200,200,2)`, e.Key, e.Key, e.Key)
+	_, err = u.db.Exec(`INSERT INTO songs(song_id,name) VALUES ('2','共享歌'); INSERT INTO song_media VALUES ('2',?); INSERT INTO song_usage VALUES (2,2,2,200)`, e.Key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +127,7 @@ func TestCacheDeletionSharedMetadataAndStaleConfirmation(t *testing.T) {
 		t.Fatal(results, err)
 	}
 	page, err := ReadCachePage(ctx, root, "共享歌", "recent", 0)
-	if err != nil || len(page.Entries) != 1 || page.Entries[0].SongCount != 2 || page.Entries[0].LastRequest != 200 {
+	if err != nil || len(page.Entries) != 1 || page.Entries[0].SongCount != 2 || page.Entries[0].LastRequest != 0 {
 		t.Fatal(page, err)
 	}
 	e = page.Entries[0]
@@ -147,7 +146,7 @@ func TestCacheDeletionSharedMetadataAndStaleConfirmation(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	for table, want := range map[string]int{"songs": 2, "song_videos": 2, "current_videos": 2, "video_versions": 1, "resource_usage": 1} {
+	for table, want := range map[string]int{"songs": 2, "song_media": 2, "media": 1, "song_usage": 1} {
 		var n int
 		if err = db.QueryRow("SELECT count(*) FROM " + table).Scan(&n); err != nil || n != want {
 			t.Fatal(table, n, err)
@@ -281,10 +280,10 @@ func TestCachePageBoundsAssociationsAndSearchesHiddenSongs(t *testing.T) {
 	}
 	for i := 100; i < 125; i++ {
 		id := fmt.Sprint(i)
-		if _, err = u.db.Exec(`INSERT INTO songs(song_id,title) VALUES (?,?)`, id, "hidden-"+id+strings.Repeat("名", 350)); err != nil {
+		if _, err = u.db.Exec(`INSERT INTO songs(song_id,name) VALUES (?,?)`, id, "hidden-"+id+strings.Repeat("名", 350)); err != nil {
 			t.Fatal(err)
 		}
-		if _, err = u.db.Exec(`INSERT INTO song_videos VALUES (?,?)`, id, entries[0].Key); err != nil {
+		if _, err = u.db.Exec(`INSERT INTO song_media VALUES (?,?)`, id, entries[0].Key); err != nil {
 			t.Fatal(err)
 		}
 	}

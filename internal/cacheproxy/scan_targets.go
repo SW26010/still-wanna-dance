@@ -48,26 +48,26 @@ func openScanDatabase(root string) (*sql.DB, error) {
 }
 
 func loadScanTargets(ctx context.Context, db *sql.DB) (map[string]ScanTarget, error) {
-	rows, err := db.QueryContext(ctx, `SELECT c.song_id, v.version_key, v.checksum, v.file_bytes, v.source_path FROM current_videos c JOIN video_versions v USING(version_key)`)
+	rows, err := db.QueryContext(ctx, `SELECT c.song_id, v.md5, COALESCE(v.byte_size,0), COALESCE(v.source_path,'') FROM song_media c JOIN media v USING(md5)`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	result := map[string]ScanTarget{}
 	for rows.Next() {
-		var id, key, checksum, path string
+		var id, key, path string
 		var size int64
-		if err := rows.Scan(&id, &key, &checksum, &size, &path); err != nil {
+		if err := rows.Scan(&id, &key, &size, &path); err != nil {
 			return nil, err
 		}
-		target := (&url.URL{Scheme: "https", Host: "nya.xin.moe", Path: path, RawQuery: url.Values{"e": {checksum}, "s": {strconv.FormatInt(size, 10)}}.Encode()}).String()
+		target := (&url.URL{Scheme: "https", Host: "nya.xin.moe", Path: path, RawQuery: url.Values{"e": {key}, "s": {strconv.FormatInt(size, 10)}}.Encode()}).String()
 		req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
 		if err != nil {
 			continue
 		}
 		v, err := parseVideo(req, DefaultConfig().MaxFileBytes)
 		if err == nil && v.key == key {
-			result[id] = ScanTarget{Checksum: v.checksum, Target: target}
+			result[id] = ScanTarget{Checksum: v.key, Target: target}
 		}
 	}
 	return result, rows.Err()

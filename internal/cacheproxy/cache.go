@@ -199,7 +199,7 @@ func checkOpenFile(ctx context.Context, f *os.File, v video) error {
 	if _, err := io.Copy(h, contextReader{ctx, f}); err != nil {
 		return err
 	}
-	if hex.EncodeToString(h.Sum(nil)) != v.checksum {
+	if hex.EncodeToString(h.Sum(nil)) != v.key {
 		return fmt.Errorf("%w: cached checksum mismatch", errInvalidCache)
 	}
 	return nil
@@ -277,8 +277,8 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 	if err != nil {
 		return fmt.Errorf("download read/write: %w", err)
 	}
-	if n != v.size || hex.EncodeToString(h.Sum(nil)) != v.checksum {
-		flight.log.Warn("download_integrity_failed", "bytes", n, "expected_bytes", v.size, "size_ok", n == v.size, "checksum_ok", hex.EncodeToString(h.Sum(nil)) == v.checksum)
+	if n != v.size || hex.EncodeToString(h.Sum(nil)) != v.key {
+		flight.log.Warn("download_integrity_failed", "bytes", n, "expected_bytes", v.size, "size_ok", n == v.size, "checksum_ok", hex.EncodeToString(h.Sum(nil)) == v.key)
 		return fmt.Errorf("%w: download integrity mismatch", errUpstreamDownload)
 	}
 	flight.log.Info("download_verified", "bytes", n, "size_ok", true, "checksum_ok", true)

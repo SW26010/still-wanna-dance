@@ -53,11 +53,11 @@ func loadCacheListMetadata(ctx context.Context, db *sql.DB, candidates []cacheLi
 }
 
 func loadCacheListRecency(ctx context.Context, db *sql.DB, keys string, batch map[string]*cacheListCandidate) error {
-	rows, err := db.QueryContext(ctx, `SELECT v.version_key,
- max(COALESCE(u.last_requested_at,0),
- COALESCE((SELECT max(requested_at) FROM request_events WHERE resource_key=v.version_key AND source='http'),0))
- FROM video_versions v LEFT JOIN resource_usage u ON u.resource_key=v.version_key
- WHERE v.version_key IN (SELECT value FROM json_each(?))`, keys)
+	rows, err := db.QueryContext(ctx, `SELECT v.md5,
+ max(COALESCE((SELECT last_requested_at FROM media_access WHERE md5=v.md5),0),
+ COALESCE((SELECT max(requested_at) FROM request_events WHERE resource_key=v.md5 AND source='http'),0))
+ FROM media v
+ WHERE v.md5 IN (SELECT value FROM json_each(?))`, keys)
 	if err != nil {
 		return err
 	}
@@ -74,12 +74,12 @@ func loadCacheListRecency(ctx context.Context, db *sql.DB, keys string, batch ma
 }
 
 func loadCacheListSongs(ctx context.Context, db *sql.DB, keys, query string, batch map[string]*cacheListCandidate) error {
-	rows, err := db.QueryContext(ctx, `SELECT sv.version_key, s.song_id, substr(s.title,1,300),
- (?<>'' AND (instr(lower(s.title),?)>0 OR instr(s.song_id,?)>0)), v.version_key IS NOT NULL
- FROM song_videos sv JOIN songs s ON s.song_id=sv.song_id
- LEFT JOIN video_versions v ON v.version_key=sv.version_key
- WHERE sv.version_key IN (SELECT value FROM json_each(?))
- ORDER BY sv.version_key, s.song_id`, query, query, query, keys)
+	rows, err := db.QueryContext(ctx, `SELECT sv.md5, s.song_id, COALESCE(substr(s.name,1,300),''),
+ (?<>'' AND (instr(lower(COALESCE(s.name,'')),?)>0 OR instr(s.song_id,?)>0)), v.md5 IS NOT NULL
+ FROM song_media sv JOIN songs s ON s.song_id=sv.song_id
+ LEFT JOIN media v ON v.md5=sv.md5
+ WHERE sv.md5 IN (SELECT value FROM json_each(?))
+ ORDER BY sv.md5, s.song_id`, query, query, query, keys)
 	if err != nil {
 		return err
 	}

@@ -101,10 +101,10 @@ func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	if err := db.QueryRow("SELECT count(*) FROM request_events WHERE source='http' AND outcome='canceled'").Scan(&events); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.QueryRow("SELECT get_count FROM resource_usage").Scan(&gets); err != nil {
+	if err := db.QueryRow("SELECT count(*) FROM song_usage").Scan(&gets); err != nil {
 		t.Fatal(err)
 	}
-	if events != 1 || gets != 1 {
+	if events != 1 || gets != 0 {
 		t.Fatalf("statistics not flushed: events=%d gets=%d", events, gets)
 	}
 }

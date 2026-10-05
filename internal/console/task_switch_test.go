@@ -65,7 +65,7 @@ func TestBatchRestoresOnlyTemporarilyStoppedQueue(t *testing.T) {
 				requested, release := make(chan struct{}), make(chan struct{})
 				api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					if outcome == "complete" {
-						fmt.Fprint(w, `{"code":200,"data":{"time":"r","groups":[{"entries":[{"id":1,"checksum":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]}]}}`)
+						fmt.Fprint(w, `{"code":200,"data":{"time":"20261001000000","groups":[{"entries":[{"id":1,"checksum":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]}]}}`)
 						return
 					}
 					close(requested)

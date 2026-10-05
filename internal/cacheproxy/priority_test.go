@@ -17,9 +17,8 @@ func seedPrioritySong(t *testing.T, s *Server, id, key string) {
 		args []any
 	}{
 		{`INSERT OR IGNORE INTO songs(song_id) VALUES (?)`, []any{id}},
-		{`INSERT OR IGNORE INTO video_versions(version_key,checksum,file_bytes,source_path) VALUES (?,'checksum',10,'/fixture')`, []any{key}},
-		{`INSERT INTO song_videos(song_id,version_key) VALUES (?,?)`, []any{id, key}},
-		{`INSERT INTO current_videos(song_id,version_key) VALUES (?,?) ON CONFLICT(song_id) DO UPDATE SET version_key=excluded.version_key`, []any{id, key}},
+		{`INSERT OR IGNORE INTO media(md5,byte_size,source_path) VALUES (?,10,'/fixture')`, []any{key}},
+		{`INSERT INTO song_media(song_id,md5) VALUES (?,?) ON CONFLICT(song_id) DO UPDATE SET md5=excluded.md5`, []any{id, key}},
 	} {
 		if _, err := s.usage.db.Exec(q.sql, q.args...); err != nil {
 			t.Fatal(err)
@@ -38,7 +37,7 @@ func TestEffectivePriorityReplacesPriorAcrossVersions(t *testing.T) {
 		t.Fatalf("%v %v", scores, err)
 	}
 	old := now - (700 * 24 * time.Hour).Milliseconds()
-	if err := s.usage.write([]usageEvent{{id: "song:1981", at: old, summaryOnly: true}}); err != nil {
+	if err := s.usage.write([]usageEvent{{id: "1981", at: old, summaryOnly: true}}); err != nil {
 		t.Fatal(err)
 	}
 	scores, err = s.songPriorities(context.Background(), []int64{1981}, now)
@@ -63,7 +62,7 @@ func TestRetentionUsesEffectiveSongPriority(t *testing.T) {
 				if mode == "old-demand" {
 					at -= (700 * 24 * time.Hour).Milliseconds()
 				}
-				if err := s.usage.write([]usageEvent{{id: "song:1981", at: at, summaryOnly: true}}); err != nil {
+				if err := s.usage.write([]usageEvent{{id: "1981", at: at, summaryOnly: true}}); err != nil {
 					t.Fatal(err)
 				}
 			}

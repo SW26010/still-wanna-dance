@@ -40,7 +40,7 @@ func TestCoverageCountsSongsAndPreservesSnapshotOnFailure(t *testing.T) {
 			http.Error(w, "offline", 503)
 			return
 		}
-		fmt.Fprintf(w, `{"code":200,"data":{"time":"revision","groups":[{"entries":[{"id":1,"checksum":%q},{"id":1,"checksum":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"},{"id":2,"checksum":%q,"disablePublic":true},{"id":3,"checksum":%q},{"id":4,"checksum":%q},{"id":5,"checksum":%q}]}]}}`, strings.Repeat("a", 32), strings.Repeat("a", 32), strings.Repeat("e", 32), strings.Repeat("c", 32), strings.Repeat("d", 32))
+		fmt.Fprintf(w, `{"code":200,"data":{"time":"20261001000000","groups":[{"entries":[{"id":1,"checksum":%q},{"id":2,"checksum":%q,"disablePublic":true},{"id":3,"checksum":%q},{"id":4,"checksum":%q},{"id":5,"checksum":%q}]}]}}`, strings.Repeat("a", 32), strings.Repeat("a", 32), strings.Repeat("e", 32), strings.Repeat("c", 32), strings.Repeat("d", 32))
 	}))
 	defer api.Close()
 	c.checksumURL, c.client.Transport = api.URL, http.DefaultTransport

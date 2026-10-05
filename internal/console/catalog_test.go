@@ -25,7 +25,7 @@ func TestCatalogUsesHTTPSForProductionAPI(t *testing.T) {
 		}
 		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"groups":{"contents":[{"songInfos":[{"id":1}]}]}}`))}, nil
 	})
-	if _, err := c.catalog(context.Background()); err != nil {
+	if _, _, err := c.catalog(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -42,7 +42,7 @@ func TestCatalogSlowBodyHasIndependentTimeout(t *testing.T) {
 	c.apiBase = s.URL
 	c.client = s.Client()
 	c.client.Timeout = 20 * time.Millisecond
-	songs, err := c.catalog(context.Background())
+	songs, _, err := c.catalog(context.Background())
 	if err != nil || len(songs) != 1 {
 		t.Fatalf("songs=%v error=%v", songs, err)
 	}
@@ -64,7 +64,7 @@ func TestCatalogBodyCancellation(t *testing.T) {
 	c := testConsole(t)
 	c.apiBase = s.URL
 	c.client = s.Client()
-	_, err := c.catalog(ctx)
+	_, _, err := c.catalog(ctx)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("%v", err)
 	}
@@ -79,7 +79,7 @@ func TestCatalogTruncatedBodyIsNotFormatError(t *testing.T) {
 	c := testConsole(t)
 	c.apiBase = s.URL
 	c.client = s.Client()
-	_, err := c.catalog(context.Background())
+	_, _, err := c.catalog(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "读取失败") || strings.Contains(err.Error(), "格式错误") {
 		t.Fatalf("%v", err)
 	}
@@ -91,7 +91,7 @@ func TestLiveCatalogCompleteBody(t *testing.T) {
 	}
 	c := testConsole(t)
 	started := time.Now()
-	songs, err := c.catalog(context.Background())
+	songs, _, err := c.catalog(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

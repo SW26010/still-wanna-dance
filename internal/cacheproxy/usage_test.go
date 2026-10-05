@@ -10,30 +10,22 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 )
 
-type pausedUsageWriter struct {
-	*httptest.ResponseRecorder
-	entered, release chan struct{}
-	once             sync.Once
+func recordDemand(u *usageStore, id string, at time.Time) {
+	u.record(usageEvent{id: id, at: at.UnixMilli(), summaryOnly: true})
+	u.record(usageEvent{id: id, at: at.UnixMilli(), source: "http", method: "GET", demand: true})
 }
 
-func (w *pausedUsageWriter) Write(p []byte) (int, error) {
-	w.once.Do(func() { close(w.entered) })
-	<-w.release
-	return w.ResponseRecorder.Write(p)
-}
-
-func TestUsageReverseCompletion(t *testing.T) {
+func TestSongDemandReverseCompletion(t *testing.T) {
 	for _, gap := range []int64{10, 35} {
 		t.Run(time.Duration(gap*time.Second.Nanoseconds()).String(), func(t *testing.T) {
-			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
-			if _, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil {
+			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+			if _, err := s.PrefetchSong(context.Background(), "1", videoURL(payload)); err != nil {
 				t.Fatal(err)
 			}
 			var clock atomic.Int64
@@ -43,104 +35,101 @@ func TestUsageReverseCompletion(t *testing.T) {
 			var release sync.Once
 			defer release.Do(func() { close(w.release) })
 			done := make(chan struct{})
-			go func() { defer close(done); s.ServeHTTP(w, httptest.NewRequest("GET", videoURL(payload), nil)) }()
+			const target = "http://api.udon.dance/Api/Songs/play?id=1"
+			go func() { defer close(done); s.ServeHTTP(w, httptest.NewRequest("GET", target, nil)) }()
 			select {
 			case <-w.entered:
 			case <-time.After(3 * time.Second):
 				t.Fatal("first response did not start")
 			}
 			clock.Add(gap)
-			assertResponse(t, request(s, "GET", videoURL(payload), map[string]string{"Range": "bytes=0-3"}), 206, payload[:4])
+			assertResponse(t, request(s, "GET", target, map[string]string{"Range": "bytes=0-3"}), 206, payload[:4])
 			release.Do(func() { close(w.release) })
 			<-done
-			s.Close()
-			path := filepath.Join(cfg.StorageDir, "stepstash.sqlite")
-			get, demand, _, _ := usageCounts(t, path, parsedVideo(t, s, payload).key)
+			s.usage.flush()
+			var count, firstFinished int64
 			want := int64(1)
 			if gap >= 30 {
 				want = 2
 			}
-			if get != 2 || demand != want {
-				t.Fatalf("reverse completion: get=%d demand=%d want=%d", get, demand, want)
+			if err := s.usage.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=1").Scan(&count); err != nil || count != want {
+				t.Fatal(count, want, err)
 			}
-			db, err := sql.Open("sqlite", path)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer db.Close()
-			var firstFinished int64
-			if err := db.QueryRow("SELECT requested_at FROM request_events WHERE source='http' ORDER BY event_id LIMIT 1").Scan(&firstFinished); err != nil {
-				t.Fatal(err)
-			}
-			if firstFinished != time.Unix(clock.Load(), 0).UnixMilli() {
-				t.Fatal("short request must finish first in the detail log")
+			if err := s.usage.db.QueryRow("SELECT requested_at FROM request_events WHERE source='http' ORDER BY event_id LIMIT 1").Scan(&firstFinished); err != nil || firstFinished != time.Unix(clock.Load(), 0).UnixMilli() {
+				t.Fatal("short request must finish first", firstFinished, err)
 			}
 		})
 	}
 }
 
-func recordDemand(u *usageStore, id string, at time.Time) {
-	u.record(usageEvent{id: id, at: at.UnixMilli(), demand: true, summaryOnly: true})
-	u.record(usageEvent{id: id, at: at.UnixMilli(), source: "http", method: "GET", demand: true})
-}
-
-func usageCounts(t *testing.T, path, id string) (get, demand, first, last int64) {
-	t.Helper()
-	db, err := sql.Open("sqlite", path)
+func TestCacheAccessSurvivesRequestCleanupAndRestart(t *testing.T) {
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+	old := time.Now().Add(-31 * 24 * time.Hour)
+	s.usage.now = func() time.Time { return old }
+	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
+	s.usage.flush()
+	cleaner := &usageStore{db: s.usage.db, retention: 30 * 24 * time.Hour}
+	if n, err := cleaner.prune(time.Now()); err != nil || n != 1 {
+		t.Fatal(n, err)
+	}
+	s.Close()
+	page, err := ReadCachePage(context.Background(), cfg.StorageDir, "", "recent", 0)
+	if err != nil || len(page.Entries) != 1 || page.Entries[0].LastRequest != old.UnixMilli() {
+		t.Fatal(page, err)
+	}
+	u, err := openUsage(filepath.Join(cfg.StorageDir, "stepstash.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
-	err = db.QueryRow(`SELECT get_count, demand_count, first_requested_at, last_requested_at FROM resource_usage WHERE resource_key=?`, id).Scan(&get, &demand, &first, &last)
-	if err != nil {
+	defer u.close()
+	var count int
+	if err := u.db.QueryRow("SELECT count(*) FROM song_usage").Scan(&count); err != nil || count != 0 {
+		t.Fatal("direct URL inferred song demand", count, err)
+	}
+	key := page.Entries[0].Key
+	if err := u.write([]usageEvent{{key: key, at: old.Add(-time.Hour).UnixMilli(), summaryOnly: true}}); err != nil {
 		t.Fatal(err)
 	}
-	return
+	var last int64
+	if err := u.db.QueryRow("SELECT last_requested_at FROM media_access WHERE md5=?", key).Scan(&last); err != nil || last != old.UnixMilli() {
+		t.Fatal("clock rollback changed access time", last, err)
+	}
 }
 
-func TestUsagePersistsAndDeduplicates(t *testing.T) {
+func TestSongDemandPersistsDeduplicatesAndHandlesClockRollback(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "usage.sqlite")
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	base := time.Unix(1700000000, 0)
 	u, err := openUsage(path, log, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	recordDemand(u, "1", base)
-	recordDemand(u, "1", base.Add(29*time.Second))
-	recordDemand(u, "1", base.Add(30*time.Second))
+	base := time.Unix(1700000000, 0)
+	for _, gap := range []time.Duration{0, 29 * time.Second, 30 * time.Second} {
+		recordDemand(u, "1", base.Add(gap))
+	}
 	u.close()
 	u, err = openUsage(path, log, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	recordDemand(u, "1", base.Add(31*time.Second))
-	recordDemand(u, "1", base.Add(60*time.Second))
-	recordDemand(u, "2", base)
+	defer u.close()
+	for _, gap := range []time.Duration{-time.Hour, 31 * time.Second, 60 * time.Second} {
+		recordDemand(u, "1", base.Add(gap))
+	}
 	u.flush()
 	var score float64
-	if err := u.db.QueryRow(`SELECT demand_score FROM resource_usage WHERE resource_key='1'`).Scan(&score); err != nil {
+	var count, last int64
+	if err := u.db.QueryRow("SELECT demand_count,demand_score,last_demand_at FROM song_usage WHERE song_id=1").Scan(&count, &score, &last); err != nil {
 		t.Fatal(err)
 	}
-	// Count requests at 0, 30 and 60 seconds, including the exact window boundary.
-	wantScore := math.Exp2(-60.0/(60*86400)) + math.Exp2(-30.0/(60*86400)) + 1
-	if math.Abs(score-wantScore) > 1e-12 {
-		t.Fatalf("deduplicated score=%g want=%g", score, wantScore)
-	}
-	u.close()
-	get, demand, first, last := usageCounts(t, path, "1")
-	if get != 5 || demand != 3 || first != base.UnixMilli() || last != base.Add(time.Minute).UnixMilli() {
-		t.Fatalf("unexpected stats: %d %d %d %d", get, demand, first, last)
-	}
-	get, demand, _, _ = usageCounts(t, path, "2")
-	if get != 1 || demand != 1 {
-		t.Fatalf("other song: %d %d", get, demand)
+	want := math.Exp2(-60.0/(60*86400)) + math.Exp2(-30.0/(60*86400)) + 1
+	if count != 3 || math.Abs(score-want) > 1e-12 || last != base.Add(time.Minute).UnixMilli() {
+		t.Fatalf("count=%d score=%g last=%d", count, score, last)
 	}
 }
 
-func TestUsageConcurrentAndClose(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "usage.sqlite")
-	u, err := openUsage(path, slog.New(slog.NewTextHandler(io.Discard, nil)), 0)
+func TestSongDemandConcurrentAndClose(t *testing.T) {
+	u, err := openUsage(filepath.Join(t.TempDir(), "usage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,43 +139,40 @@ func TestUsageConcurrentAndClose(t *testing.T) {
 		go func() { defer wg.Done(); recordDemand(u, "1", time.Unix(1700000000, 0)) }()
 	}
 	wg.Wait()
-	u.close()
-	u.close()
-	recordDemand(u, "1", time.Now()) // Requests racing shutdown must not panic.
-	get, demand, _, _ := usageCounts(t, path, "1")
-	if get != 100 || demand != 1 {
-		t.Fatalf("concurrent stats: %d %d", get, demand)
+	u.flush()
+	var count int
+	if err := u.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=1").Scan(&count); err != nil || count != 1 {
+		t.Fatal(count, err)
 	}
+	u.close()
+	u.close()
+	recordDemand(u, "1", time.Now())
 }
 
-func TestUsageHTTPAndPrefetch(t *testing.T) {
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
-	if _, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil {
+func TestOnlyExplicitSongGETAddsDemand(t *testing.T) {
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+	if _, err := s.PrefetchSong(context.Background(), "1", videoURL(payload)); err != nil {
 		t.Fatal(err)
 	}
-	request(s, "HEAD", videoURL(payload), nil)
-	request(s, "POST", videoURL(payload), nil)
-	request(s, "GET", "http://play.udon.dance/invalid", nil)
-	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
-	otherHost := strings.Replace(videoURL(payload), "play.udon.dance", "nya.xin.moe", 1)
-	assertResponse(t, request(s, "GET", otherHost, map[string]string{"Range": "bytes=0-3"}), 206, payload[:4])
-	s.Close()
-	get, demand, _, _ := usageCounts(t, filepath.Join(cfg.StorageDir, "stepstash.sqlite"), parsedVideo(t, s, payload).key)
-	if get != 2 || demand != 1 {
-		t.Fatalf("HTTP stats: %d %d", get, demand)
-	}
-	db, err := sql.Open("sqlite", filepath.Join(cfg.StorageDir, "stepstash.sqlite"))
-	if err != nil {
+	if _, err := s.PrefetchSong(context.Background(), "2", videoURL(payload)); err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
-	var total, heads, prefetches, ranged int
-	err = db.QueryRow(`SELECT count(*), sum(method='HEAD'), sum(source='prefetch'),
-sum(range_header='bytes=0-3' AND status=206 AND transferred_bytes=4 AND cache_result='HIT'
- AND outcome='completed' AND version_key<>'' AND file_bytes=36 AND elapsed_ms>=0)
-FROM request_events`).Scan(&total, &heads, &prefetches, &ranged)
-	if err != nil || total != 4 || heads != 1 || prefetches != 1 || ranged != 1 {
-		t.Fatalf("events: %d %d %d %d: %v", total, heads, prefetches, ranged, err)
+	for _, method := range []string{"HEAD", "GET"} {
+		assertResponse(t, request(s, method, videoURL(payload), nil), 200, map[string]string{"GET": payload}[method])
+	}
+	request(s, "HEAD", "http://api.udon.dance/Api/Songs/play?id=1", nil)
+	s.usage.flush()
+	var count int
+	if err := s.usage.db.QueryRow("SELECT count(*) FROM song_usage").Scan(&count); err != nil || count != 0 {
+		t.Fatal(count, err)
+	}
+	assertResponse(t, request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=1", nil), 200, payload)
+	s.usage.flush()
+	if err := s.usage.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=1").Scan(&count); err != nil || count != 1 {
+		t.Fatal(count, err)
+	}
+	if err := s.usage.db.QueryRow("SELECT count(*) FROM song_usage WHERE song_id=2").Scan(&count); err != nil || count != 0 {
+		t.Fatal(count, err)
 	}
 }
 
@@ -196,28 +182,45 @@ func TestUsageRejectsLegacyScoreSchema(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = db.Exec(`CREATE TABLE resource_usage (resource_key TEXT PRIMARY KEY, get_count INTEGER NOT NULL,
-demand_count INTEGER NOT NULL, first_requested_at INTEGER NOT NULL, last_requested_at INTEGER NOT NULL,
-last_demand_at INTEGER NOT NULL);
-INSERT INTO resource_usage VALUES ('1', 5, 3, 1000, 1000, 1000);`)
+	_, err = db.Exec("CREATE TABLE resource_usage(resource_key TEXT PRIMARY KEY)")
 	db.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
-	u, err := openUsage(path, slog.New(slog.NewTextHandler(io.Discard, nil)), 0)
-	if err == nil {
+	if u, err := openUsage(path, slog.Default(), 0); err == nil {
 		u.close()
-		t.Fatal("legacy score schema accepted")
+		t.Fatal("accepted old schema")
 	}
 }
 
-func TestUsageCountsFailedDemand(t *testing.T) {
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(503) })
-	request(s, "GET", videoURL(payload), nil)
-	s.Close()
-	get, demand, _, _ := usageCounts(t, filepath.Join(cfg.StorageDir, "stepstash.sqlite"), parsedVideo(t, s, payload).key)
-	if get != 1 || demand != 1 {
-		t.Fatalf("failed demand: %d %d", get, demand)
+func TestRequestDetailsPruneWithoutLosingSongDemand(t *testing.T) {
+	u, err := openUsage(filepath.Join(t.TempDir(), "usage.sqlite"), slog.Default(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer u.close()
+	now := time.Now()
+	cutoff := now.Add(-30 * 24 * time.Hour)
+	events := make([]usageEvent, requestCleanupBatch+3)
+	for i := range events {
+		events[i] = usageEvent{id: "old", at: cutoff.Add(-time.Millisecond).UnixMilli()}
+	}
+	events = append(events, usageEvent{id: "boundary", at: cutoff.UnixMilli()}, usageEvent{id: "1", at: cutoff.Add(-time.Hour).UnixMilli(), summaryOnly: true})
+	if err := u.write(events); err != nil {
+		t.Fatal(err)
+	}
+	cleaner := &usageStore{db: u.db, retention: 30 * 24 * time.Hour}
+	for _, want := range []int64{requestCleanupBatch, 3, 0} {
+		if n, err := cleaner.prune(now); err != nil || n != want {
+			t.Fatal(n, err)
+		}
+	}
+	var count int
+	if err := u.db.QueryRow("SELECT count(*) FROM request_events").Scan(&count); err != nil || count != 1 {
+		t.Fatal(count, err)
+	}
+	if err := u.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=1").Scan(&count); err != nil || count != 1 {
+		t.Fatal(count, err)
 	}
 }
 
@@ -240,44 +243,6 @@ func TestDatabaseUnavailableBlocksStartup(t *testing.T) {
 		t.Fatal("failed startup retained ownership", err)
 	}
 	reopened.Close()
-}
-
-func TestRequestRetentionBatchesAndBoundary(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "usage.sqlite")
-	u, err := openUsage(path, slog.New(slog.NewTextHandler(io.Discard, nil)), 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer u.close()
-	now := time.Now()
-	cutoff := now.Add(-30 * 24 * time.Hour)
-	events := make([]usageEvent, requestCleanupBatch+3)
-	for i := range events {
-		events[i] = usageEvent{id: "old", at: cutoff.Add(-time.Millisecond).UnixMilli()}
-	}
-	events = append(events, usageEvent{id: "boundary", at: cutoff.UnixMilli()},
-		usageEvent{id: "recent", at: now.UnixMilli()},
-		usageEvent{id: "old", at: cutoff.Add(-time.Hour).UnixMilli(), summaryOnly: true})
-	if err := u.write(events); err != nil {
-		t.Fatal(err)
-	}
-	if n, err := u.prune(now); err != nil || n != 0 {
-		t.Fatalf("unlimited: %d %v", n, err)
-	}
-	cleaner := &usageStore{db: u.db, retention: 30 * 24 * time.Hour}
-	for _, want := range []int64{requestCleanupBatch, 3, 0} {
-		if n, err := cleaner.prune(now); err != nil || n != want {
-			t.Fatalf("deleted=%d want=%d: %v", n, want, err)
-		}
-	}
-	var count int
-	if err := u.db.QueryRow("SELECT count(*) FROM request_events").Scan(&count); err != nil || count != 2 {
-		t.Fatalf("boundary/recent: %d %v", count, err)
-	}
-	get, demand, _, _ := usageCounts(t, path, "old")
-	if get != 1 || demand != 1 {
-		t.Fatalf("summary changed: %d %d", get, demand)
-	}
 }
 
 func TestRequestRetentionCleansIdleRestart(t *testing.T) {
@@ -325,4 +290,16 @@ func TestRequestRetentionConfig(t *testing.T) {
 			t.Fatalf("days=%d: %v", days, err)
 		}
 	}
+}
+
+type pausedUsageWriter struct {
+	*httptest.ResponseRecorder
+	entered, release chan struct{}
+	once             sync.Once
+}
+
+func (w *pausedUsageWriter) Write(p []byte) (int, error) {
+	w.once.Do(func() { close(w.entered) })
+	<-w.release
+	return w.ResponseRecorder.Write(p)
 }

@@ -5,15 +5,19 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	_ "modernc.org/sqlite"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
+
+	_ "modernc.org/sqlite"
 )
 
 // Counts describe observed GET demand, not confirmed playback. Deduplication is
-// per resource across hosts, anchored at the previous counted demand.
+// per song across hosts, anchored at the previous counted demand.
 const demandWindow = 30 * time.Second
 
 const requestCleanupBatch = 500
@@ -44,7 +48,16 @@ func openUsage(path string, log *slog.Logger, retentionDays int) (*usageStore, e
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return nil, err
 	}
-	db, err := sql.Open("sqlite", path)
+	uriPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	uriPath = filepath.ToSlash(uriPath)
+	if !strings.HasPrefix(uriPath, "/") {
+		uriPath = "/" + uriPath
+	}
+	uri := url.URL{Scheme: "file", Path: uriPath, RawQuery: "_pragma=foreign_keys(1)&_pragma=busy_timeout(1000)"}
+	db, err := sql.Open("sqlite", uri.String())
 	if err != nil {
 		return nil, err
 	}
@@ -54,45 +67,48 @@ func openUsage(path string, log *slog.Logger, retentionDays int) (*usageStore, e
 		db.Close()
 		return nil, err
 	}
-	if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='video_versions'").Scan(&existing); err != nil {
+	if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").Scan(&existing); err != nil {
 		db.Close()
 		return nil, err
 	}
-	if (existing > 0 && format != 2) || (format != 0 && format != 2) {
+	if (existing > 0 && format != 3) || (format != 0 && format != 3) {
 		db.Close()
-		return nil, fmt.Errorf("旧存储格式不兼容 MD5 资源管理，请选择新的存储目录；旧数据未修改")
+		return nil, fmt.Errorf("旧存储格式不兼容歌曲目录格式，请选择新的存储目录；旧数据未修改")
 	}
-	_, err = db.Exec(`PRAGMA busy_timeout=1000; PRAGMA user_version=2;
+	_, err = db.Exec(`PRAGMA busy_timeout=1000; PRAGMA foreign_keys=ON; BEGIN; PRAGMA user_version=3;
 CREATE TABLE IF NOT EXISTS songs (
- song_id TEXT PRIMARY KEY,
- title TEXT NOT NULL DEFAULT '',
- metadata_json TEXT NOT NULL DEFAULT '{}'
+ song_id INTEGER PRIMARY KEY CHECK(song_id>0),
+ name TEXT, artist TEXT, dancer TEXT, player_count INTEGER, volume REAL,
+ start REAL, end REAL,
+ flip INTEGER CHECK(flip IN (0,1)), double_width INTEGER CHECK(double_width IN (0,1)),
+ skip_random INTEGER CHECK(skip_random IN (0,1)), disable_public INTEGER CHECK(disable_public IN (0,1)),
+ rpe INTEGER, genre TEXT, group_name TEXT, composed_title TEXT, composed_title_spell TEXT, aya_id TEXT,
+ tags_json TEXT CHECK(json_valid(tags_json) AND json_type(tags_json)='array'),
+ original_urls_json TEXT CHECK(json_valid(original_urls_json) AND json_type(original_urls_json)='array'),
+ shader_motion_json TEXT CHECK(json_valid(shader_motion_json) AND json_type(shader_motion_json)='array')
 );
-CREATE TABLE IF NOT EXISTS video_versions (
- version_key TEXT PRIMARY KEY,
- checksum TEXT NOT NULL,
- file_bytes INTEGER NOT NULL,
- source_path TEXT NOT NULL
+CREATE TABLE IF NOT EXISTS media (
+ md5 TEXT PRIMARY KEY NOT NULL CHECK(length(md5)=32 AND md5 NOT GLOB '*[^0-9a-f]*'),
+ byte_size INTEGER CHECK(byte_size>=0), source_path TEXT
 );
-CREATE TABLE IF NOT EXISTS song_videos (
- song_id TEXT NOT NULL REFERENCES songs(song_id),
- version_key TEXT NOT NULL REFERENCES video_versions(version_key),
- PRIMARY KEY(song_id, version_key)
+CREATE TABLE IF NOT EXISTS song_media (
+ song_id INTEGER PRIMARY KEY REFERENCES songs(song_id),
+ md5 TEXT NOT NULL REFERENCES media(md5)
 );
-CREATE INDEX IF NOT EXISTS song_videos_version ON song_videos(version_key);
-CREATE TABLE IF NOT EXISTS current_videos (
- song_id TEXT PRIMARY KEY,
- version_key TEXT NOT NULL
+CREATE INDEX IF NOT EXISTS song_media_md5 ON song_media(md5);
+CREATE TABLE IF NOT EXISTS song_usage (
+ song_id INTEGER PRIMARY KEY REFERENCES songs(song_id),
+ demand_count INTEGER NOT NULL CHECK(demand_count>=0),
+ demand_score REAL NOT NULL CHECK(demand_score>=0),
+ last_demand_at INTEGER NOT NULL
 );
-CREATE INDEX IF NOT EXISTS current_videos_version ON current_videos(version_key);
-CREATE TABLE IF NOT EXISTS resource_usage (
- resource_key TEXT PRIMARY KEY,
- get_count INTEGER NOT NULL,
- demand_count INTEGER NOT NULL,
- first_requested_at INTEGER NOT NULL,
- last_requested_at INTEGER NOT NULL,
- last_demand_at INTEGER NOT NULL,
- demand_score REAL NOT NULL
+CREATE TABLE IF NOT EXISTS catalog_state (
+ catalog_key TEXT PRIMARY KEY, revision TEXT NOT NULL, digest TEXT NOT NULL,
+ source TEXT NOT NULL, accepted_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS media_access (
+ md5 TEXT PRIMARY KEY NOT NULL,
+ last_requested_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS request_events (
  event_id INTEGER PRIMARY KEY,
@@ -112,19 +128,9 @@ CREATE TABLE IF NOT EXISTS request_events (
  counts_as_demand INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS request_events_resource_time ON request_events(resource_key, requested_at);
-CREATE INDEX IF NOT EXISTS request_events_time ON request_events(requested_at);`)
+CREATE INDEX IF NOT EXISTS request_events_time ON request_events(requested_at); COMMIT;`)
 	if err == nil {
 		_, err = db.Exec(recentHTTPIndexSQL)
-	}
-	// This schema requires a fresh store; there is no legacy score migration.
-	if err == nil {
-		var rows *sql.Rows
-		rows, err = db.Query(`SELECT demand_score FROM resource_usage LIMIT 0`)
-		if err == nil {
-			rows.Close()
-		} else {
-			err = fmt.Errorf("storage requires the exponential demand schema; use a new storage directory: %w", err)
-		}
 	}
 	if err != nil {
 		db.Close()
@@ -141,14 +147,14 @@ CREATE INDEX IF NOT EXISTS request_events_time ON request_events(requested_at);`
 
 // Timestamp and enqueue under the same lock: response completion cannot reorder
 // demand observations. The database worker remains off the HTTP request path.
-func (u *usageStore) startDemand(id string) int64 {
+func (u *usageStore) startGET(id, key string) int64 {
 	if u == nil {
 		return time.Now().UnixMilli()
 	}
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	at := u.now().UnixMilli()
-	u.enqueueLocked(usageEvent{id: id, at: at, demand: true, summaryOnly: true})
+	u.enqueueLocked(usageEvent{id: id, key: key, at: at, summaryOnly: true})
 	return at
 }
 
@@ -275,28 +281,41 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			}
 			continue
 		}
+		// Access history supports the cache list, independently of song scoring
+		// and the retention period for request details.
+		if e.key != "" {
+			if _, err = tx.ExecContext(ctx, `INSERT INTO media_access(md5,last_requested_at) VALUES (?,?)
+ ON CONFLICT(md5) DO UPDATE SET last_requested_at=max(last_requested_at,excluded.last_requested_at)`, e.key, e.at); err != nil {
+				return err
+			}
+		}
+		if e.id == "" {
+			continue
+		}
+		id, parseErr := strconv.ParseInt(e.id, 10, 64)
+		if parseErr != nil || id <= 0 {
+			return fmt.Errorf("invalid demand song ID: %q", e.id)
+		}
+		if _, err = tx.ExecContext(ctx, "INSERT INTO songs(song_id) VALUES (?) ON CONFLICT DO NOTHING", id); err != nil {
+			return err
+		}
 		var score float64
 		var last int64
-		err = tx.QueryRowContext(ctx, `SELECT demand_score, last_demand_at FROM resource_usage WHERE resource_key = ?`, e.id).Scan(&score, &last)
+		err = tx.QueryRowContext(ctx, "SELECT demand_score,last_demand_at FROM song_usage WHERE song_id=?", id).Scan(&score, &last)
 		if err != nil && err != sql.ErrNoRows {
 			return err
 		}
+		if err == nil && e.at-last < demandWindow.Milliseconds() {
+			continue
+		}
 		if err == sql.ErrNoRows {
 			score = 1
-		} else if e.at-last >= demandWindow.Milliseconds() {
+		} else {
 			score = retentionScore(score, last, e.at) + 1
 		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO resource_usage
-(resource_key, get_count, demand_count, first_requested_at, last_requested_at, last_demand_at, demand_score)
-VALUES (?, 1, 1, ?, ?, ?, ?)
-ON CONFLICT(resource_key) DO UPDATE SET
- get_count = get_count + 1,
- demand_score = excluded.demand_score,
- demand_count = demand_count + CASE WHEN excluded.last_requested_at - last_demand_at >= ? THEN 1 ELSE 0 END,
- first_requested_at = min(first_requested_at, excluded.first_requested_at),
- last_requested_at = max(last_requested_at, excluded.last_requested_at),
- last_demand_at = CASE WHEN excluded.last_requested_at - last_demand_at >= ? THEN excluded.last_requested_at ELSE last_demand_at END`,
-			e.id, e.at, e.at, e.at, score, demandWindow.Milliseconds(), demandWindow.Milliseconds())
+		_, err = tx.ExecContext(ctx, `INSERT INTO song_usage(song_id,demand_count,demand_score,last_demand_at)
+          VALUES (?,1,?,?) ON CONFLICT(song_id) DO UPDATE SET demand_count=demand_count+1,
+          demand_score=excluded.demand_score,last_demand_at=excluded.last_demand_at`, id, score, e.at)
 		if err != nil {
 			return err
 		}

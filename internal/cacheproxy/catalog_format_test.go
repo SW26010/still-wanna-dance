@@ -17,7 +17,7 @@ func TestCatalogRejectsInvalidCandidates(t *testing.T) {
 		strings.Replace(catalogSample, `"ayaId":null`, `"ayaId":12`, 1),
 		strings.Replace(catalogSample, `"flip":true`, `"flip":2`, 1),
 		strings.Replace(catalogSample, `"volume":1.0`, `"volume":"1"`, 1),
-		strings.Replace(catalogSample, `"20261003235746"`, `"unknown"`, 1),
+		strings.Replace(catalogSample, `"20261003235746"`, `""`, 1),
 		strings.Replace(catalogSample, `0e49fdc94f704ed9520fa23a45b20f94`, `invalid`, 1),
 	}
 	for _, body := range cases {
@@ -43,5 +43,13 @@ func TestCatalogNullableTextIdentifier(t *testing.T) {
 	}
 	if c.Songs[0].AyaID == nil || *c.Songs[0].AyaID != "external-42" {
 		t.Fatal(c.Songs[0].AyaID)
+	}
+}
+
+func TestCatalogRejectsUnsortableRevisions(t *testing.T) {
+	for _, revision := range []string{"release-42", "9", "10", "2026100323574x", "202610032357460"} {
+		if _, err := ParseCatalog([]byte(strings.Replace(catalogSample, "20261003235746", revision, 1)), "test"); err == nil {
+			t.Fatalf("accepted unsupported revision %q", revision)
+		}
 	}
 }

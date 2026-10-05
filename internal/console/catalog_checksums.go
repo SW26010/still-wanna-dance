@@ -2,94 +2,39 @@ package console
 
 import (
 	"context"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
+
+	"still-wanna-dance/internal/cacheproxy"
 )
 
-// fetchCatalogChecksums supplies the inventory's checksum-only view.
-func (c *Console) fetchCatalogChecksums(ctx context.Context) (map[int64]string, string, error) {
-	songs, revision, err := c.fetchCatalogSnapshot(ctx)
-	checksums := map[int64]string{}
-	for id, song := range songs {
-		checksums[id] = song.Checksum
-	}
-	return checksums, revision, err
-}
-
-func (c *Console) fetchCatalogSnapshot(ctx context.Context) (map[int64]Song, string, error) {
+func (c *Console) fetchCatalogSnapshot(ctx context.Context) (cacheproxy.Catalog, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, "GET", c.checksumURL, nil)
 	if err != nil {
-		return nil, "", err
+		return cacheproxy.Catalog{}, err
 	}
 	resp, err := c.upstreamClient().Do(req)
 	if err != nil {
-		return nil, "", err
+		return cacheproxy.Catalog{}, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, "", fmt.Errorf("清单接口返回 %d", resp.StatusCode)
+		return cacheproxy.Catalog{}, fmt.Errorf("清单接口返回 %d", resp.StatusCode)
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, (16<<20)+1))
 	if err != nil {
-		return nil, "", err
+		return cacheproxy.Catalog{}, err
 	}
 	if len(body) > 16<<20 {
-		return nil, "", fmt.Errorf("清单过大")
+		return cacheproxy.Catalog{}, fmt.Errorf("清单过大")
 	}
-	var catalog struct {
-		Code int `json:"code"`
-		Data struct {
-			Time   string `json:"time"`
-			Groups []struct {
-				Entries []struct {
-					ID       int64  `json:"id"`
-					Name     string `json:"name"`
-					Checksum string `json:"checksum"`
-				} `json:"entries"`
-			} `json:"groups"`
-		} `json:"data"`
+	candidate, err := cacheproxy.ParseCatalog(body, c.checksumURL)
+	if err != nil {
+		return candidate, err
 	}
-	if json.Unmarshal(body, &catalog) != nil || catalog.Code != 200 || catalog.Data.Time == "" {
-		return nil, "", fmt.Errorf("清单格式无效")
-	}
-	checksums := map[int64]string{}
-	names := map[int64]string{}
-	seen := map[int64]bool{}
-	for _, group := range catalog.Data.Groups {
-		for _, entry := range group.Entries {
-			if entry.ID <= 0 {
-				return nil, "", fmt.Errorf("清单曲目 ID 无效")
-			}
-			names[entry.ID] = entry.Name
-			checksum := ""
-			digest, err := hex.DecodeString(entry.Checksum)
-			if err == nil && len(digest) == 16 {
-				checksum = strings.ToLower(entry.Checksum)
-			}
-			if seen[entry.ID] {
-				// Conflicts stay invalid even if a later entry matches an earlier one.
-				if checksums[entry.ID] != checksum {
-					checksums[entry.ID] = ""
-				}
-				continue
-			}
-			seen[entry.ID] = true
-			checksums[entry.ID] = checksum
-		}
-	}
-	if len(checksums) == 0 {
-		return nil, "", fmt.Errorf("清单为空")
-	}
-	songs := map[int64]Song{}
-	for id, checksum := range checksums {
-		songs[id] = Song{ID: id, Name: names[id], Checksum: checksum}
-	}
-	return songs, catalog.Data.Time, nil
+	return candidate, nil
 }

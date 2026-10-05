@@ -45,10 +45,10 @@ func TestRetentionScore(t *testing.T) {
 func TestRetentionPriorityAndVersions(t *testing.T) {
 	s, cfg := setup(t, nil)
 	now := time.Now().UnixMilli()
-	for _, id := range []string{"0", "1", "2"} {
+	for _, id := range []string{"4", "1", "2"} {
 		seedPrioritySong(t, s, id, strings.Repeat(id, 32))
 	}
-	for _, e := range []usageEvent{{id: "song:1", at: now, summaryOnly: true}, {id: "song:2", at: now - (100 * 24 * time.Hour).Milliseconds(), summaryOnly: true}} {
+	for _, e := range []usageEvent{{id: "1", at: now, summaryOnly: true}, {id: "2", at: now - (100 * 24 * time.Hour).Milliseconds(), summaryOnly: true}} {
 		if err := s.usage.write([]usageEvent{e}); err != nil {
 			t.Fatal(err)
 		}
@@ -57,8 +57,8 @@ func TestRetentionPriorityAndVersions(t *testing.T) {
 	cold := retainedPath(t, s, cfg, "2")
 	prefetch := retainedPath(t, s, cfg, "3")
 	metadata := filepath.Join(cfg.StorageDir, "notes.json")
-	copyPath := cfg.videoFile(strings.Repeat("0", 32))
-	s.usage.write([]usageEvent{{id: "song:0", at: now - 1, summaryOnly: true}})
+	copyPath := cfg.videoFile(strings.Repeat("4", 32))
+	s.usage.write([]usageEvent{{id: "4", at: now - 1, summaryOnly: true}})
 	for _, p := range []string{hot, cold, prefetch, copyPath, metadata} {
 		putRetained(t, p, 10)
 	}
@@ -127,7 +127,7 @@ func TestPrefetchDoesNotDisplacePopularVideo(t *testing.T) {
 	p := retainedPath(t, s, cfg, "1")
 	putRetained(t, p, len(payload))
 	seedPrioritySong(t, s, "1", strings.Repeat("1", 32))
-	s.usage.startDemand("song:1")
+	s.usage.startGET("1", "")
 	setRetentionLimit(t, s, int64(len(payload)))
 	if _, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil {
 		t.Fatal(err)
@@ -144,7 +144,7 @@ func TestProtectedLowPriorityDoesNotEvictHotVideo(t *testing.T) {
 	putRetained(t, hot, 10)
 	putRetained(t, low, 10)
 	seedPrioritySong(t, s, "1", strings.Repeat("1", 32))
-	s.usage.startDemand("song:1")
+	s.usage.startGET("1", "")
 	setRetentionLimit(t, s, 10)
 	v := video{key: strings.Repeat("2", 32)}
 	s.pinVideo(v)
@@ -195,7 +195,7 @@ func TestReleaseOnlyCleansAfterLastReference(t *testing.T) {
 	putRetained(t, hot, 10)
 	putRetained(t, cold, 10)
 	seedPrioritySong(t, s, "1", strings.Repeat("1", 32))
-	s.usage.startDemand("song:1")
+	s.usage.startGET("1", "")
 	setRetentionLimit(t, s, 10)
 	v := video{key: strings.Repeat("a", 32)}
 	s.pinVideo(v)
@@ -238,7 +238,7 @@ func TestRetentionUsesResourceFingerprint(t *testing.T) {
 	putRetained(t, cold, 10)
 	now := time.Now().UnixMilli()
 	if err := s.usage.write([]usageEvent{
-		{id: strings.Repeat("1", 32), at: now, summaryOnly: true},
+		{id: "1", at: now, summaryOnly: true},
 	}); err != nil {
 		t.Fatal(err)
 	}

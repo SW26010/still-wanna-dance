@@ -5,11 +5,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 )
+
+var ErrInvalidCatalogMapping = errors.New("清单 ID 或 MD5 无效或重复")
 
 // CatalogSong is the fixed upstream song schema. Pointers preserve unknown
 // values independently from zero, false, and the empty string.
@@ -52,7 +54,7 @@ func ParseCatalog(body []byte, source string) (Catalog, error) {
 		Data struct {
 			Time   string `json:"time"`
 			Groups []struct {
-				Entries []CatalogSong `json:"entries"`
+				Entries []json.RawMessage `json:"entries"`
 			} `json:"groups"`
 		} `json:"data"`
 	}
@@ -63,11 +65,35 @@ func ParseCatalog(body []byte, source string) (Catalog, error) {
 	if envelope.Code != 200 || envelope.Data.Groups == nil {
 		return c, fmt.Errorf("清单格式无效")
 	}
+	var entries []json.RawMessage
+	seen := map[int64]bool{}
 	for _, g := range envelope.Data.Groups {
 		if g.Entries == nil {
 			return c, fmt.Errorf("清单缺少 entries")
 		}
-		c.Songs = append(c.Songs, g.Entries...)
+		for _, raw := range g.Entries {
+			var mapping struct {
+				ID  int64  `json:"id"`
+				MD5 string `json:"checksum"`
+			}
+			if err := json.Unmarshal(raw, &mapping); err != nil {
+				return c, fmt.Errorf("%w: %v", ErrInvalidCatalogMapping, err)
+			}
+			if mapping.ID <= 0 || !validMD5(strings.ToLower(mapping.MD5)) || seen[mapping.ID] {
+				return c, fmt.Errorf("%w: %d", ErrInvalidCatalogMapping, mapping.ID)
+			}
+			seen[mapping.ID] = true
+			entries = append(entries, raw)
+		}
+	}
+	// Validate every identity before optional metadata: a metadata error must
+	// not hide an invalid mapping and enable the ID-only fallback.
+	for _, raw := range entries {
+		var song CatalogSong
+		if err := json.Unmarshal(raw, &song); err != nil {
+			return c, fmt.Errorf("清单资料格式无效: %w", err)
+		}
+		c.Songs = append(c.Songs, song)
 	}
 	c, _, err := normalizeCatalog(c)
 	return c, err
@@ -77,8 +103,10 @@ func normalizeCatalog(c Catalog) (Catalog, string, error) {
 	if c.Source == "" || len(c.Songs) == 0 {
 		return c, "", fmt.Errorf("清单为空或来源无效")
 	}
-	if _, err := time.Parse("20060102150405", c.Revision); err != nil {
-		return c, "", fmt.Errorf("清单版本无效: %w", err)
+	// The fixed authority's observed time format is 14 decimal digits.
+	// Equal-width decimal revisions sort lexically; opaque revisions do not.
+	if len(c.Revision) != 14 || strings.IndexFunc(c.Revision, func(r rune) bool { return r < '0' || r > '9' }) >= 0 {
+		return c, "", fmt.Errorf("清单版本格式不支持：需要 14 位十进制数字")
 	}
 	c.Songs = append([]CatalogSong(nil), c.Songs...)
 	sort.Slice(c.Songs, func(i, j int) bool { return c.Songs[i].ID < c.Songs[j].ID })
@@ -86,7 +114,7 @@ func normalizeCatalog(c Catalog) (Catalog, string, error) {
 		s := &c.Songs[i]
 		s.MD5 = strings.ToLower(s.MD5)
 		if s.ID <= 0 || !validMD5(s.MD5) || (i > 0 && c.Songs[i-1].ID == s.ID) {
-			return c, "", fmt.Errorf("清单 ID 或 MD5 无效或重复: %d", s.ID)
+			return c, "", fmt.Errorf("%w: %d", ErrInvalidCatalogMapping, s.ID)
 		}
 		for _, raw := range []*json.RawMessage{&s.Tags, &s.OriginalURLs, &s.ShaderMotion} {
 			if len(*raw) == 0 || string(bytes.TrimSpace(*raw)) == "null" {

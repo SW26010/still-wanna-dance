@@ -2,11 +2,80 @@ package console
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"still-wanna-dance/internal/upstreamrequest"
 )
+
+func TestProxyIdentityCorruptionDoesNotPreventNetwork(t *testing.T) {
+	for _, mode := range []string{"auto", "socks5"} {
+		for _, data := range []string{"", "short", strings.Repeat("x", 33), "directory", "blocked-parent"} {
+			t.Run(mode+"/"+data, func(t *testing.T) {
+				c := testConsole(t)
+				s := Settings{UpstreamMode: mode, SOCKS5Address: "127.0.0.1:1080"}
+				oldID, err := c.proxyIdentity(s)
+				if err != nil {
+					t.Fatal(err)
+				}
+				path := c.configPath + ".channel-key"
+				if err := os.Remove(path); err != nil {
+					t.Fatal(err)
+				}
+				switch data {
+				case "directory":
+					err = os.Mkdir(path, 0700)
+				case "blocked-parent":
+					err = os.WriteFile(path, []byte("parent"), 0600)
+					c.configPath = filepath.Join(path, "config.json")
+				default:
+					err = os.WriteFile(path, []byte(data), 0600)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, client, err := c.networkFor(s)
+				if err != nil {
+					t.Fatal(err)
+				}
+				pool := client.Transport.(*upstreamrequest.Transport).Pool
+				defer pool.Close()
+				var id string
+				for _, candidate := range pool.Current("https://play.udon.dance") {
+					if candidate.Mode == "socks5" {
+						id = candidate.ID
+					}
+				}
+				if id == "" || strings.HasSuffix(id, oldID) {
+					t.Fatal("proxy missing or retained old identity", id)
+				}
+				if data == "directory" || data == "blocked-parent" {
+					if strings.Contains(id, "stable-v1-") {
+						t.Fatal("unpersisted identity can claim samples", id)
+					}
+					return
+				}
+				key, err := os.ReadFile(path)
+				if err != nil || len(key) != 32 {
+					t.Fatal("key not regenerated", err)
+				}
+				restored, err := (&Console{configPath: c.configPath}).proxyIdentity(s)
+				if err != nil || !strings.HasSuffix(id, restored) || restored == "" {
+					t.Fatal("new identity not stable across restart", err)
+				}
+				backups, err := filepath.Glob(path + ".corrupt-*")
+				if err != nil || len(backups) != 1 {
+					t.Fatalf("missing backup: %v, %v", backups, err)
+				}
+				b, err := os.ReadFile(backups[0])
+				if err != nil || string(b) != data {
+					t.Fatal("backup changed", err)
+				}
+			})
+		}
+	}
+}
 
 func TestProxyIdentityStableAcrossPoolsAndConfigurationSensitive(t *testing.T) {
 	c := testConsole(t)

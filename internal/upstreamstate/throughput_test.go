@@ -15,6 +15,43 @@ import (
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
+func TestThroughputStateLoadFailureDoesNotPreventMonitor(t *testing.T) {
+	for _, data := range []string{"", "{", `"invalid timestamp"`, `{"lastAttempt":"2026-01-01T00:00:00Z","samples":{"resource/cf":{"bytes":"bad"}}}`, "directory"} {
+		t.Run(data, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "throughput.json")
+			if data == "directory" {
+				if err := os.Mkdir(path, 0700); err != nil {
+					t.Fatal(err)
+				}
+			} else if err := os.WriteFile(path, []byte(data), 0600); err != nil {
+				t.Fatal(err)
+			}
+			m, err := newMonitor(Options{ThroughputStatePath: path}, upstreamrequest.NewChannel())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer m.Close()
+			if !m.lastThroughput.IsZero() || len(m.throughput) != 0 {
+				t.Fatal("partially restored invalid state")
+			}
+			if data == "directory" {
+				return
+			}
+			backups, err := filepath.Glob(path + ".corrupt-*")
+			if err != nil || len(backups) != 1 {
+				t.Fatalf("missing corrupt backup: %v, %v", backups, err)
+			}
+			b, err := os.ReadFile(backups[0])
+			if err != nil || string(b) != data {
+				t.Fatal("backup did not preserve invalid state", err)
+			}
+			if !m.claimThroughput(false) {
+				t.Fatal("recovered monitor cannot persist a fresh attempt")
+			}
+		})
+	}
+}
+
 func TestAutomaticThroughputCooldownSurvivesRestart(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "throughput.json")
 	var full, light atomic.Int32

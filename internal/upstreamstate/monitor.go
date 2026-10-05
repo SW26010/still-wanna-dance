@@ -80,10 +80,7 @@ func newMonitor(o Options, channel *upstreamrequest.Channel) (*Monitor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	snapshot := channel.Snapshot()
 	m := &Monitor{ctx: ctx, cancel: cancel, channel: channel, revision: snapshot.Revision, policy: p, history: make(map[string][]observation), wake: make(chan struct{}, 1), throughputStatePath: o.ThroughputStatePath, throughput: make(map[string]observation)}
-	if err := m.loadThroughputTime(); err != nil {
-		cancel()
-		return nil, err
-	}
+	m.loadThroughputTime()
 	return m, nil
 }
 

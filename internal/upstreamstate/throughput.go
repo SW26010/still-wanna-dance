@@ -33,26 +33,34 @@ func (m *Monitor) scheduleThroughputLocked() {
 	}
 }
 
-// Persist the start of an attempt, so failures and interrupted runs cannot
-// cause large transfers on every scheduler wakeup or application restart.
-func (m *Monitor) loadThroughputTime() error {
+// Restore the cooldown and historical samples only after decoding succeeds.
+// Unavailable observation caches must never prevent monitor startup.
+func (m *Monitor) loadThroughputTime() {
 	if m.throughputStatePath == "" {
-		return nil
+		return
 	}
 	b, err := os.ReadFile(m.throughputStatePath)
 	if errors.Is(err, os.ErrNotExist) {
-		return nil
+		return
 	}
 	if err != nil {
-		return err
-	}
-	// Upgrade the old timestamp-only file without resetting its cooldown.
-	if bytes.HasPrefix(bytes.TrimSpace(b), []byte(`"`)) {
-		return json.Unmarshal(b, &m.lastThroughput)
+		slog.Warn("monitor_throughput_state_load_failed", "error", err)
+		return
 	}
 	var state throughputState
-	if err := json.Unmarshal(b, &state); err != nil {
-		return err
+	// Upgrade the old timestamp-only file without resetting its cooldown.
+	if bytes.HasPrefix(bytes.TrimSpace(b), []byte(`"`)) {
+		err = json.Unmarshal(b, &state.LastAttempt)
+	} else {
+		err = json.Unmarshal(b, &state)
+	}
+	if err != nil {
+		slog.Warn("monitor_throughput_state_load_failed", "error", err)
+		backup := m.throughputStatePath + ".corrupt-" + time.Now().UTC().Format("20060102T150405.000000000")
+		if err := os.Rename(m.throughputStatePath, backup); err != nil {
+			slog.Warn("monitor_throughput_state_quarantine_failed", "error", err)
+		}
+		return
 	}
 	m.lastThroughput = state.LastAttempt
 	for key, sample := range state.Samples {
@@ -64,9 +72,10 @@ func (m *Monitor) loadThroughputTime() error {
 		}
 		m.throughput[key] = observation{op: Resource, state: "available", at: sample.ObservedAt, songID: sample.SongID, bytes: sample.Bytes, transferDuration: sample.Duration}
 	}
-	return nil
 }
 
+// Persist the start of an attempt, so failures and interrupted runs cannot
+// cause large transfers on every scheduler wakeup or application restart.
 func (m *Monitor) claimThroughput(manual bool) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()

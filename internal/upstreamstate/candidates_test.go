@@ -53,7 +53,12 @@ func (f *candidateFixture) Current(target string) []upstreamrequest.Candidate {
 			if fail {
 				return response(503, ""), nil
 			}
-			return fixture(r)
+			resp, err := fixture(r)
+			if err == nil && r.Header.Get("Range") != "" && r.Header.Get("Range") != "bytes=0-0" {
+				// Ensure a measurable transfer even on coarse system clocks.
+				resp.Body = slowBody{resp.Body}
+			}
+			return resp, err
 		})})
 	}
 	return result
@@ -83,7 +88,7 @@ func TestCandidateChecksAreIsolatedAndExecutable(t *testing.T) {
 	}
 	selection, ok := m.Recommended(Resource)
 	if !ok || !strings.HasPrefix(selection.Result.ChannelID, "a/") {
-		t.Fatal(selection, ok)
+		t.Fatal(selection, ok, m.Results(Resource))
 	}
 	r, _ := http.NewRequest("GET", videoFixture, nil)
 	if selection.Result.Route == "hkg" {
@@ -197,6 +202,60 @@ func TestResourceRecommendationCountsOnlyNewThroughput(t *testing.T) {
 	feed(base.Add(10*time.Second), 1000, 3000)
 	if p := m.preferences[Resource]; !strings.HasSuffix(p.current, "b/play.udon.dance") {
 		t.Fatalf("second throughput sample did not switch: %+v", p)
+	}
+}
+
+func TestResourceRecommendationRequiresFreshThroughput(t *testing.T) {
+	for _, updateWhileExpired := range []bool{false, true} {
+		t.Run(map[bool]string{false: "retained preference", true: "updated preference"}[updateWhileExpired], func(t *testing.T) {
+			m, f := candidateMonitor(t)
+			at := time.Now().Add(-time.Minute)
+			m.mu.Lock()
+			m.record(observation{op: Resource, route: "cf", channel: "a/play.udon.dance", state: "available", at: at, latency: time.Millisecond, duration: time.Second, transferDuration: time.Second, bytes: 3000})
+			m.updatePreferencesLocked(f, at, CheckThroughput)
+			m.mu.Unlock()
+			if s, ok := m.Recommended(Resource); !ok || s.Result.ChannelID != "a/play.udon.dance" {
+				t.Fatal("A did not become the initial recommendation", s, ok)
+			}
+
+			m.mu.Lock()
+			key := string(Resource) + "/cf/a/play.udon.dance"
+			old := m.throughput[key]
+			old.at = time.Now().Add(-m.policy.ThroughputInterval - time.Minute)
+			m.throughput[key] = old
+			for _, id := range []string{"a", "b"} {
+				m.record(observation{op: Resource, route: "cf", channel: id + "/play.udon.dance", state: "available", at: at.Add(time.Second), latency: time.Millisecond, duration: time.Millisecond})
+			}
+			m.mu.Unlock()
+			r := m.Results(Resource)[0]
+			if r.State != "available" || r.EstimatedLatencyMS == nil || r.EstimatedSpeedBPS != nil || r.LastThroughput == nil {
+				t.Fatalf("expected healthy A with only historical throughput: %+v", r)
+			}
+			if s, ok := m.Recommended(Resource); ok {
+				t.Fatal("expired throughput remained recommendable", s)
+			}
+			if updateWhileExpired {
+				m.mu.Lock()
+				m.updatePreferencesLocked(f, at, CheckLatency)
+				m.mu.Unlock()
+				if m.preferences[Resource] != nil {
+					t.Fatal("preference retained without fresh throughput")
+				}
+			}
+
+			m.mu.Lock()
+			m.record(observation{op: Resource, route: "cf", channel: "b/play.udon.dance", state: "available", at: at.Add(2 * time.Second), latency: time.Millisecond, duration: time.Second, transferDuration: time.Second, bytes: 1000})
+			m.mu.Unlock()
+			if s, ok := m.Recommended(Resource); !ok || s.Result.ChannelID != "b/play.udon.dance" {
+				t.Fatal("fresh B did not replace expired A on read", s, ok)
+			}
+			m.mu.Lock()
+			m.updatePreferencesLocked(f, at, CheckThroughput)
+			m.mu.Unlock()
+			if p := m.preferences[Resource]; p == nil || p.current != "cf/b/play.udon.dance" || p.wins != 0 {
+				t.Fatalf("expired A required challenger wins: %+v", p)
+			}
+		})
 	}
 }
 

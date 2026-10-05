@@ -44,6 +44,16 @@ func (m *Monitor) candidateResultsLocked(op Operation, provider upstreamrequest.
 	}
 	return out
 }
+func recommendable(r Result) bool {
+	if r.State != "available" {
+		return false
+	}
+	if r.Operation == Resource {
+		return r.EstimatedSpeedBPS != nil
+	}
+	return r.EstimatedLatencyMS != nil
+}
+
 func score(r Result) float64 {
 	if r.Operation == Resource {
 		if r.EstimatedSpeedBPS != nil {
@@ -77,7 +87,7 @@ func (m *Monitor) Recommended(op Operation) (Selection, bool) {
 	var best *Result
 	for i := range results {
 		r := &results[i]
-		if r.State != "available" {
+		if !recommendable(*r) {
 			continue
 		}
 		if best == nil || score(*r) > score(*best) {
@@ -86,7 +96,7 @@ func (m *Monitor) Recommended(op Operation) (Selection, bool) {
 	}
 	if pref := m.preferences[op]; pref != nil {
 		for i := range results {
-			if results[i].State == "available" && resultID(results[i]) == pref.current {
+			if recommendable(results[i]) && resultID(results[i]) == pref.current {
 				best = &results[i]
 				break
 			}
@@ -114,7 +124,7 @@ func (m *Monitor) updatePreferencesLocked(provider upstreamrequest.Candidates, s
 		}
 		var available []Result
 		for _, r := range m.candidateResultsLocked(op, provider, time.Now()) {
-			if r.State == "available" {
+			if recommendable(r) {
 				available = append(available, r)
 			}
 		}

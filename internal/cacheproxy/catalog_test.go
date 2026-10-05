@@ -56,6 +56,34 @@ func testCandidate(revision string, songs ...CatalogSong) Catalog {
 	return Catalog{Source: "test", Revision: revision, Songs: songs}
 }
 
+func TestCatalogAyaIDNumberStoredLosslesslyAsNullableText(t *testing.T) {
+	for _, value := range []string{"null", "0", "42", "9007199254740993", "18446744073709551616", "-12", "1.2300", "1e+400"} {
+		t.Run(value, func(t *testing.T) {
+			body := strings.Replace(catalogSample, `"ayaId":null`, `"ayaId":`+value, 1)
+			c, err := ParseCatalog([]byte(body), "test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			s, _ := setup(t, nil)
+			if err := s.SyncCatalog(context.Background(), c); err != nil {
+				t.Fatal(err)
+			}
+			var got sql.NullString
+			var storageType string
+			if err := s.usage.db.QueryRow("SELECT aya_id,typeof(aya_id) FROM songs WHERE song_id=90000").Scan(&got, &storageType); err != nil {
+				t.Fatal(err)
+			}
+			if value == "null" {
+				if got.Valid || storageType != "null" || c.Songs[0].AyaID != nil {
+					t.Fatal(got, storageType, string(c.Songs[0].AyaID))
+				}
+			} else if !got.Valid || got.String != value || storageType != "text" || string(c.Songs[0].AyaID) != value {
+				t.Fatal(got, storageType, string(c.Songs[0].AyaID))
+			}
+		})
+	}
+}
+
 func TestCatalogUpdatesPreserveUsageResourcesAndAbsentSongs(t *testing.T) {
 	s, _ := setup(t, nil)
 	ctx := context.Background()

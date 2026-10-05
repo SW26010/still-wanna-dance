@@ -55,7 +55,7 @@
 | `group_name` | TEXT | 条目的 `group` |
 | `composed_title` | TEXT | `composedTitle` |
 | `composed_title_spell` | TEXT | `composedTitleSpell` |
-| `aya_id` | TEXT | `ayaId`，作为可空外部标识；实现前验证非空值的协议类型 |
+| `aya_id` | TEXT | `ayaId`，上游数值的原始 JSON 数值文本；null 或未知保存为 SQL NULL |
 | `tags_json` | TEXT | `tag`，JSON 数组 |
 | `original_urls_json` | TEXT | `originalUrl`，JSON 数组 |
 | `shader_motion_json` | TEXT | `shaderMotion`，JSON 数组 |
@@ -178,7 +178,7 @@ MD5 同时是资源身份和正式文件名 `videos/{md5}.mp4` 的依据，不�
 
 沿用原 `checksumURL` 固定入口，不增加第二个 MD5 镜像的获取或选新策略。来源字段记录出处。本地样本的 `time` 为 `20261003235746`；当前适配器仅接受这种 14 位十进制版本，等长数字串的字典序与数值顺序一致。不把任意不透明字符串当作可排序版本，不使用本地获取时间替代版本。该格式检查以已观察到的来源为边界，不声称证明了未来协议或跨镜像版本可比性；格式变化时拒绝同步，保留已有水位。
 
-本地 10,398 条样本的 `ayaId` 均为 null，不能据此确认非空上游实例。字段依本文的可空 TEXT 定义接受 null 或字符串，不拒绝全部非空值，不猜测数值到文本的转换。数组按 JSON 数组整体保存；未知字段不持久化。
+本地 10,398 条样本的 `ayaId` 均为 null；上游站点所链接仓库的[固定版本类型定义](https://github.com/ClownpieceStripedAbyss/aya-dance-web/blob/db10092436a49120ca62232e002a998289eb6eb4/types/video.ts#L20)明确声明 `ayaId: number | null`，同文件的获取函数指向当前 MD5 接口。可空 TEXT 是数据库存储表示，不是字符串输入协议：只接受 JSON 数值或 null，字段缺失时也保存为 NULL；数值按原始 JSON 数值文本存储，不经 float64、整数转换或额外范围限制，保留整数精度、小数和指数写法。字符串（包括带引号的数字）、布尔、对象及数组均拒绝。数组资料仍按 JSON 数组整体保存；未知字段不持久化。
 
 保留原 ID 清单回退：MD5 接口获取、结构或资料解析失败时可走旧有 ID 接口；已经识别的非法 ID、MD5 或重复 ID 则直接拒绝，不经回退绕过。候选清单不会部分落库。
 

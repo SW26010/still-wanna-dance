@@ -14,7 +14,7 @@ func TestCatalogRejectsInvalidCandidates(t *testing.T) {
 		strings.Replace(catalogSample, `"entries":[`, `"missing":[`, 1),
 		strings.Replace(catalogSample, `"id":90000`, `"id":0`, 1),
 		strings.Replace(catalogSample, `"tag":[]`, `"tag":{}`, 1),
-		strings.Replace(catalogSample, `"ayaId":null`, `"ayaId":12`, 1),
+		strings.Replace(catalogSample, `"ayaId":null`, `"ayaId":"12"`, 1),
 		strings.Replace(catalogSample, `"flip":true`, `"flip":2`, 1),
 		strings.Replace(catalogSample, `"volume":1.0`, `"volume":"1"`, 1),
 		strings.Replace(catalogSample, `"20261003235746"`, `""`, 1),
@@ -35,14 +35,12 @@ func TestCatalogRejectsInvalidCandidates(t *testing.T) {
 	}
 }
 
-func TestCatalogNullableTextIdentifier(t *testing.T) {
-	body := strings.Replace(catalogSample, `"ayaId":null`, `"ayaId":"external-42"`, 1)
-	c, err := ParseCatalog([]byte(body), "test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if c.Songs[0].AyaID == nil || *c.Songs[0].AyaID != "external-42" {
-		t.Fatal(c.Songs[0].AyaID)
+func TestCatalogRejectsNonNumericAyaID(t *testing.T) {
+	for _, value := range []string{`"external-42"`, `"12"`, `""`, `true`, `[]`, `{}`} {
+		body := strings.Replace(catalogSample, `"ayaId":null`, `"ayaId":`+value, 1)
+		if _, err := ParseCatalog([]byte(body), "test"); err == nil {
+			t.Fatalf("accepted ayaId %s", value)
+		}
 	}
 }
 

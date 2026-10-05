@@ -59,7 +59,7 @@ func (s *Server) SyncCatalog(ctx context.Context, c Catalog) error {
 	}
 	query := "INSERT INTO songs(" + songColumns + ") VALUES (" + strings.TrimSuffix(strings.Repeat("?,", len(columns)), ",") + ") ON CONFLICT(song_id) DO UPDATE SET " + strings.Join(assignments, ",")
 	for _, song := range c.Songs {
-		_, err = tx.ExecContext(ctx, query, song.ID, song.Name, song.Artist, song.Dancer, song.PlayerCount, song.Volume, song.Start, song.End, song.Flip, song.DoubleWidth, song.SkipRandom, song.DisablePublic, song.RPE, song.Genre, song.Group, song.ComposedTitle, song.ComposedTitleSpell, song.AyaID, nullableJSON(song.Tags), nullableJSON(song.OriginalURLs), nullableJSON(song.ShaderMotion))
+		_, err = tx.ExecContext(ctx, query, song.ID, song.Name, song.Artist, song.Dancer, song.PlayerCount, song.Volume, song.Start, song.End, song.Flip, song.DoubleWidth, song.SkipRandom, song.DisablePublic, song.RPE, song.Genre, song.Group, song.ComposedTitle, song.ComposedTitleSpell, nullableJSON(song.AyaID), nullableJSON(song.Tags), nullableJSON(song.OriginalURLs), nullableJSON(song.ShaderMotion))
 		if err != nil {
 			return err
 		}

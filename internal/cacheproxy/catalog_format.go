@@ -34,7 +34,7 @@ type CatalogSong struct {
 	Group              *string         `json:"group"`
 	ComposedTitle      *string         `json:"composedTitle"`
 	ComposedTitleSpell *string         `json:"composedTitleSpell"`
-	AyaID              *string         `json:"ayaId"`
+	AyaID              json.RawMessage `json:"ayaId"` // Nullable number; preserve its exact JSON text.
 	Tags               json.RawMessage `json:"tag"`
 	OriginalURLs       json.RawMessage `json:"originalUrl"`
 	ShaderMotion       json.RawMessage `json:"shaderMotion"`
@@ -115,6 +115,18 @@ func normalizeCatalog(c Catalog) (Catalog, string, error) {
 		s.MD5 = strings.ToLower(s.MD5)
 		if s.ID <= 0 || !validMD5(s.MD5) || (i > 0 && c.Songs[i-1].ID == s.ID) {
 			return c, "", fmt.Errorf("%w: %d", ErrInvalidCatalogMapping, s.ID)
+		}
+		ayaID := bytes.TrimSpace(s.AyaID)
+		if len(ayaID) == 0 || bytes.Equal(ayaID, []byte("null")) {
+			s.AyaID = nil
+		} else {
+			// json.Number validates without floating-point conversion, but also
+			// accepts quoted numbers; the upstream protocol does not.
+			var number json.Number
+			if err := json.Unmarshal(ayaID, &number); err != nil || ayaID[0] == '"' {
+				return c, "", fmt.Errorf("清单 ayaId 必须是数值或 null")
+			}
+			s.AyaID = append(json.RawMessage(nil), ayaID...)
 		}
 		for _, raw := range []*json.RawMessage{&s.Tags, &s.OriginalURLs, &s.ShaderMotion} {
 			if len(*raw) == 0 || string(bytes.TrimSpace(*raw)) == "null" {

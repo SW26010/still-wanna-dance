@@ -179,19 +179,19 @@ function renderTraffic(t) {
   setText('trafficHits', t.hits || 0);
   setText('trafficRate', t.hitRate == null ? '—' : t.hitRate.toFixed(1) + '%');
   setText('trafficSaved', ((t.savedBytes || 0) / 1073741824).toFixed(3) + ' GiB');
-  setText('trafficReduction', t.reductionPercent == null ? '—' : t.reductionPercent.toFixed(1) + '%');
+  setText('trafficReduction', t.playbackTransfers || 0);
   setText('trafficDetail', '成功请求 ' +
     (t.requests || 0) +
     ' 次 · 未命中 ' +
     (t.misses || 0) +
-    ' 次 · 上游平均响应 ' +
-    ms(t.upstreamMS) +
+    ' 次 · 未命中播放首正文 ' +
+    ms(t.coldBodyMS) +
     '（' +
-    (t.upstreamSamples || 0) +
-    ' 个样本）· 本地命中平均响应 ' +
-    ms(t.localMS) +
+    (t.coldBodySamples || 0) +
+    ' 个样本）· 本地命中播放首正文 ' +
+    ms(t.localBodyMS) +
     '（' +
-    (t.localSamples || 0) +
+    (t.localBodySamples || 0) +
     ' 个样本）' + (t.error ? ' · ' + t.error : ''));
 }
 

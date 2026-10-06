@@ -327,6 +327,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			outcome = "canceled"
 		}
 		log.Info("request_finished", "status", response.status, "bytes", response.bytes, "elapsed", time.Since(start), "elapsed_ms", time.Since(start).Milliseconds(),
+			"response_headers_ms", response.headerLatency.Milliseconds(), "first_body_ms", response.firstBodyMS(),
 			"outcome", outcome, "cache", w.Header().Get("X-StepStash-Cache"), "content_range", w.Header().Get("Content-Range"),
 			"content_length", w.Header().Get("Content-Length"), "write_error", applog.SafeError(response.writeErr))
 		if crash != nil {
@@ -365,10 +366,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log = log.With("resource_key", v.key)
 	log.Info("request_started")
 	event := usageEvent{id: v.key, at: start.UnixMilli(), key: v.key, host: v.host,
+		songID: v.songID,
 		source: "http", method: r.Method, rangeHeader: r.Header.Get("Range"), size: v.size}
 	defer func() {
 		panicked := recover()
 		event.status, event.bytes = response.status, response.bytes
+		event.firstBodyNS = response.firstBodyLatency.Nanoseconds()
 		event.elapsedMS = time.Since(start).Milliseconds()
 		event.cache = w.Header().Get("X-StepStash-Cache")
 		if event.cache == "" {
@@ -499,11 +502,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type responseWriter struct {
 	http.ResponseWriter
-	started       time.Time
-	headerLatency time.Duration
-	status        int
-	bytes         int64
-	writeErr      error
+	started          time.Time
+	headerLatency    time.Duration
+	firstBodyLatency time.Duration
+	status           int
+	bytes            int64
+	writeErr         error
 }
 
 func (w *responseWriter) WriteHeader(status int) {
@@ -520,11 +524,21 @@ func (w *responseWriter) Write(p []byte) (int, error) {
 		w.WriteHeader(http.StatusOK)
 	}
 	n, err := w.ResponseWriter.Write(p)
+	if n > 0 && w.bytes == 0 {
+		w.firstBodyLatency = time.Since(w.started)
+	}
 	w.bytes += int64(n)
 	if err != nil {
 		w.writeErr = err
 	}
 	return n, err
+}
+
+func (w *responseWriter) firstBodyMS() any {
+	if w.bytes == 0 {
+		return nil
+	}
+	return float64(w.firstBodyLatency) / float64(time.Millisecond)
 }
 
 func (w *responseWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }

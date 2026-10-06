@@ -23,6 +23,8 @@ const demandWindow = 30 * time.Second
 const requestCleanupBatch = 500
 
 type usageEvent struct {
+	songID                                                 string
+	firstBodyNS                                            int64
 	barrier                                                chan struct{}
 	id                                                     string
 	at                                                     int64
@@ -109,6 +111,13 @@ CREATE TABLE IF NOT EXISTS song_usage (
  demand_count INTEGER NOT NULL CHECK(demand_count>=0),
  demand_score REAL NOT NULL CHECK(demand_score>=0),
  last_demand_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS song_playback (
+ song_id INTEGER PRIMARY KEY REFERENCES songs(song_id),
+ transfer_count INTEGER NOT NULL, last_transfer_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS playback_latency (
+ cache_result TEXT PRIMARY KEY, samples INTEGER NOT NULL, first_body_ns INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS catalog_state (
  catalog_key TEXT PRIMARY KEY, revision TEXT NOT NULL, digest TEXT NOT NULL,
@@ -285,6 +294,9 @@ func (u *usageStore) write(batch []usageEvent) error {
 			continue
 		}
 		if !e.summaryOnly {
+			if err := recordPlaybackTransfer(ctx, tx, e); err != nil {
+				return err
+			}
 			_, err = tx.ExecContext(ctx, `INSERT INTO request_events
 (resource_key, requested_at, version_key, host, source, method, range_header, cache_result, outcome,
  file_bytes, transferred_bytes, elapsed_ms, status, counts_as_demand)

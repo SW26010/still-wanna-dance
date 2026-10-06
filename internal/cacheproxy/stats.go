@@ -13,17 +13,22 @@ import (
 // TrafficStats covers the storage directory's lifetime. Latencies measure response headers,
 // not transfer throughput or the player's time to decoded playback.
 type TrafficStats struct {
-	SavedBytes       int64    `json:"savedBytes"`
-	Requests         uint64   `json:"requests"`
-	Hits             uint64   `json:"hits"`
-	Misses           uint64   `json:"misses"`
-	HitRate          *float64 `json:"hitRate"`
-	UpstreamSamples  uint64   `json:"upstreamSamples"`
-	LocalSamples     uint64   `json:"localSamples"`
-	UpstreamMS       *float64 `json:"upstreamMS"`
-	LocalMS          *float64 `json:"localMS"`
-	ReductionPercent *float64 `json:"reductionPercent"`
-	Error            string   `json:"error,omitempty"`
+	PlaybackTransfers uint64   `json:"playbackTransfers"`
+	LocalBodyMS       *float64 `json:"localBodyMS"`
+	ColdBodyMS        *float64 `json:"coldBodyMS"`
+	LocalBodySamples  uint64   `json:"localBodySamples"`
+	ColdBodySamples   uint64   `json:"coldBodySamples"`
+	SavedBytes        int64    `json:"savedBytes"`
+	Requests          uint64   `json:"requests"`
+	Hits              uint64   `json:"hits"`
+	Misses            uint64   `json:"misses"`
+	HitRate           *float64 `json:"hitRate"`
+	UpstreamSamples   uint64   `json:"upstreamSamples"`
+	LocalSamples      uint64   `json:"localSamples"`
+	UpstreamMS        *float64 `json:"upstreamMS"`
+	LocalMS           *float64 `json:"localMS"`
+	ReductionPercent  *float64 `json:"reductionPercent"`
+	Error             string   `json:"error,omitempty"`
 }
 
 type trafficStats struct {
@@ -80,9 +85,10 @@ func (s *Server) TrafficStats() TrafficStats {
 		ms := float64(s.stats.upstream) / float64(time.Millisecond) / float64(v.UpstreamSamples)
 		v.UpstreamMS = &ms
 	}
-	if v.LocalMS != nil && v.UpstreamMS != nil && *v.UpstreamMS > 0 {
-		reduction := 100 * (1 - *v.LocalMS / *v.UpstreamMS)
-		v.ReductionPercent = &reduction
+	// Historical header samples have different start boundaries. Never turn
+	// their ratio into an apparent playback acceleration percentage.
+	if s.usage != nil {
+		addPlaybackStats(s.usage.db, &v)
 	}
 	return v
 }
@@ -158,6 +164,7 @@ func ReadTrafficStats(root string) TrafficStats {
 		return TrafficStats{Error: err.Error()}
 	}
 	defer db.Close()
+	s.usage = &usageStore{db: db}
 	var exists int
 	err = db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name='traffic_totals'`).Scan(&exists)
 	if err == nil && exists == 0 {

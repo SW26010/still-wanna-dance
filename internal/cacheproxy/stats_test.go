@@ -143,12 +143,12 @@ func TestTrafficStats(t *testing.T) {
 		s.recordTraffic(sample.method, "HIT", sample.outcome, sample.status, time.Second, 1000)
 	}
 	v := s.TrafficStats()
-	if v.Requests != 2 || v.Hits != 1 || v.Misses != 1 || v.SavedBytes != 7 || *v.HitRate != 50 || *v.LocalMS != 50 || *v.UpstreamMS != 200 || *v.ReductionPercent != 75 {
+	if v.Requests != 2 || v.Hits != 1 || v.Misses != 1 || v.SavedBytes != 7 || *v.HitRate != 50 || *v.LocalMS != 50 || *v.UpstreamMS != 200 || v.ReductionPercent != nil {
 		t.Fatalf("unexpected statistics: %+v", v)
 	}
 	s.recordTraffic("GET", "HIT", "completed", 200, time.Second, 100)
-	if *s.TrafficStats().ReductionPercent >= 0 {
-		t.Fatal("slower local response must retain a negative reduction")
+	if s.TrafficStats().ReductionPercent != nil {
+		t.Fatal("incompatible timing boundaries must not produce a reduction")
 	}
 }
 

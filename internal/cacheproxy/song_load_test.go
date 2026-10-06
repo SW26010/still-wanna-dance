@@ -241,6 +241,20 @@ func TestQueueLocalHitDoesNotWaitForAPI(t *testing.T) {
 	}
 }
 
+func TestFailedCachedURLPreservesRefreshFailure(t *testing.T) {
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(403) })
+	at := time.Now().Add(-time.Minute)
+	if err := s.ObserveSongURL(context.Background(), SongURL{SongID: 42, URL: videoURL(payload), API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: at, ObservedAt: at}); err != nil {
+		t.Fatal(err)
+	}
+	refreshFailure := errors.New("API refresh unavailable")
+	s.cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return "", refreshFailure }
+	_, err := s.PrefetchPlayback(context.Background(), 42)
+	if !errors.Is(err, errUpstreamDownload) || !errors.Is(err, refreshFailure) || !strings.Contains(err.Error(), "cached URL refresh") {
+		t.Fatalf("lost failure context: %v", err)
+	}
+}
+
 func TestQueueCancellationDoesNotCancelJoinedRangePlayback(t *testing.T) {
 	body := bytes.Repeat([]byte("q"), int(rangeBlockSize*2))
 	prefix, release := make(chan struct{}), make(chan struct{})

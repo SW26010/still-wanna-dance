@@ -430,6 +430,8 @@ loadVideo:
 				defer s.releaseVideo(v)
 				event.id, event.key, event.host, event.size = v.key, v.key, v.host, v.size
 				f, stream, err = s.obtain(r.Context(), v)
+			} else {
+				err = errors.Join(err, fmt.Errorf("cached URL refresh: %w", fallbackErr))
 			}
 		}
 	}
@@ -472,6 +474,8 @@ loadVideo:
 						defer s.releaseVideo(v)
 						event.id, event.key, event.host, event.size = v.key, v.key, v.host, v.size
 						goto loadVideo
+					} else {
+						stream.err = errors.Join(stream.err, fmt.Errorf("cached URL refresh: %w", fallbackErr))
 					}
 				}
 				if rejectErr := s.RejectSongURL(r.Context(), *v.cached); rejectErr != nil {

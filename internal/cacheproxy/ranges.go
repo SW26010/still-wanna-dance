@@ -166,8 +166,14 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 	readBlock := func(ctx context.Context, block int64, initial *http.Response) error {
 		start, end := block*rangeBlockSize, min((block+1)*rangeBlockSize, v.size)
 		resp := initial
+		attempts := new(resourceAttempts)
+		if resp != nil {
+			if body, ok := resp.Body.(*resourceBody); ok {
+				attempts = body.attempts
+			}
+		}
 		var last error
-		for attempt := 0; attempt < 2; attempt++ {
+		for attempt := 0; attempt < 4; attempt++ {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
@@ -180,7 +186,11 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 				if etag != "" {
 					req.Header.Set("If-Match", etag)
 				}
-				resp, err = s.videoResponse(req, v)
+				candidates := s.candidates(req, attempts)
+				if candidates.next >= max(2, len(candidates.transports)) {
+					break
+				}
+				resp, err = s.videoResponse(req, v, attempts)
 				if err != nil {
 					last = applog.SafeError(err)
 					continue
@@ -188,11 +198,15 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 			}
 			if err := validateRangeResponse(resp, start, end, v.size); err != nil {
 				resp.Body.Close()
-				return fmt.Errorf("%w: %w", errUpstreamDownload, err)
+				resp = nil
+				last = err
+				continue
 			}
 			if etag != "" && resp.Header.Get("ETag") != etag {
 				resp.Body.Close()
-				return fmt.Errorf("%w: upstream entity changed between ranges", errUpstreamDownload)
+				resp = nil
+				last = errors.New("upstream entity changed between ranges")
+				continue
 			}
 			data, err := io.ReadAll(io.LimitReader(contextReader{ctx, progressReader{upstreamReader{resp.Body}, flight.progress}}, end-start+1))
 			resp.Body.Close()

@@ -16,6 +16,9 @@ import (
 
 func TestRangeTailReadableWhilePrefixBlocked(t *testing.T) {
 	body := bytes.Repeat([]byte("01234567"), int(rangeBlockSize*3/8))
+	for i := range body {
+		body[i] = byte((i/131071 + i) % 251)
+	}
 	prefix, release := make(chan struct{}), make(chan struct{})
 	var mu sync.Mutex
 	counts := make(map[int64]int)
@@ -218,5 +221,89 @@ func TestRangeCancellationWakesBlockedReaders(t *testing.T) {
 	case <-f.done:
 	case <-ctx.Done():
 		t.Fatal("range workers survived cancellation")
+	}
+}
+
+func TestRangeReadersSeekBackAndForth(t *testing.T) {
+	body := make([]byte, rangeBlockSize*5+137)
+	for i := range body {
+		body[i] = byte((i/65521 + i) % 251)
+	}
+	var mu sync.Mutex
+	counts := make(map[int64]int)
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	defer unblock()
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		var start, end int64
+		fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
+		mu.Lock()
+		counts[start]++
+		mu.Unlock()
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(body)))
+		w.WriteHeader(206)
+		w.(http.Flusher).Flush()
+		if start == 0 {
+			select {
+			case <-release:
+			case <-r.Context().Done():
+				return
+			}
+		}
+		w.Write(body[start : end+1])
+	})
+	target := fmt.Sprintf("http://play.udon.dance/files/1/42-video.mp4?e=%x&s=%d", md5.Sum(body), len(body))
+	r, _ := http.NewRequest("GET", target, nil)
+	v, _ := s.parseResolved(r)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	f, reader, err := s.obtain(ctx, v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reader != nil {
+		defer reader.Close()
+	}
+	unblock()
+	var wg sync.WaitGroup
+	for range 3 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			r := f.spool.reader(ctx, int64(len(body)))
+			defer r.Close()
+			for _, offset := range []int64{4*rangeBlockSize + 19, rangeBlockSize - 37, 3*rangeBlockSize + 1, 0, 5 * rangeBlockSize, 2*rangeBlockSize - 43, 511} {
+				if _, err := r.Seek(offset, io.SeekStart); err != nil {
+					t.Error(err)
+					return
+				}
+				n := min(int64(113), int64(len(body))-offset)
+				got := make([]byte, n)
+				if _, err := io.ReadFull(r, got); err != nil || !bytes.Equal(got, body[offset:offset+n]) {
+					t.Errorf("offset %d: %v", offset, err)
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	select {
+	case <-f.done:
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	if f.err != nil {
+		t.Fatal(f.err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(counts) != 6 {
+		t.Fatal(counts)
+	}
+	for _, n := range counts {
+		if n != 1 {
+			t.Fatal("duplicate block request", counts)
+		}
 	}
 }

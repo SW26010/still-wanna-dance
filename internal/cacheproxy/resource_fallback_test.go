@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +11,54 @@ import (
 	"testing"
 	"time"
 )
+
+func TestFullResponseFallbackKeepsTaskDeadline(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		candidates int
+		timeout    time.Duration
+		succeeds   bool
+	}{
+		{"single", 1, time.Second, true},
+		{"with-backup", 2, time.Second, true},
+		{"task-deadline", 2, 200 * time.Millisecond, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Length", fmt.Sprint(len(payload)))
+				w.WriteHeader(200)
+				w.(http.Flusher).Flush()
+				select {
+				case <-time.After(700 * time.Millisecond):
+					io.WriteString(w, payload)
+				case <-r.Context().Done():
+				}
+			})
+			s.cfg.DownloadTimeout = tc.timeout
+			var backup atomic.Int32
+			s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+				transports := []http.RoundTripper{s.client.Transport}
+				if tc.candidates > 1 {
+					transports = append(transports, resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+						backup.Add(1)
+						return &http.Response{StatusCode: 200, Header: make(http.Header), ContentLength: int64(len(payload)), Body: io.NopCloser(bytes.NewReader([]byte(payload))), Request: r}, nil
+					}))
+				}
+				return transports
+			}
+			_, err := s.Prefetch(context.Background(), videoURL(payload))
+			if tc.succeeds && err != nil {
+				t.Fatal(err)
+			}
+			if !tc.succeeds && !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("parent deadline lost: %v", err)
+			}
+			if backup.Load() != 0 {
+				t.Fatalf("accepted full response was restarted: %d", backup.Load())
+			}
+		})
+	}
+}
 
 type stalledResourceBody struct{ ctx context.Context }
 

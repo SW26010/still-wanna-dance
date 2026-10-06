@@ -97,14 +97,30 @@ func (s *Server) candidates(r *http.Request, attempts *resourceAttempts) *resour
 type resourceBody struct {
 	io.ReadCloser
 	cancel   context.CancelFunc
+	ctx      context.Context
+	budget   *time.Timer
 	attempts *resourceAttempts
 	once     sync.Once
 	err      error
 }
 
 func (b *resourceBody) Close() error {
-	b.once.Do(func() { b.cancel(); b.err = b.ReadCloser.Close() })
+	b.once.Do(func() { b.useTaskDeadline(); b.cancel(); b.err = b.ReadCloser.Close() })
 	return b.err
+}
+
+func (b *resourceBody) useTaskDeadline() {
+	if b.budget != nil {
+		b.budget.Stop()
+	}
+}
+
+func (b *resourceBody) Read(p []byte) (int, error) {
+	n, err := b.ReadCloser.Read(p)
+	if err != nil && b.ctx.Err() != nil {
+		err = context.Cause(b.ctx)
+	}
+	return n, err
 }
 
 func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (*http.Response, error) {
@@ -126,19 +142,28 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		}
 		client := *s.client
 		client.Transport = transport
-		ctx, cancel := context.WithCancel(r.Context())
+		ctx, cancelCause := context.WithCancelCause(r.Context())
+		cancel := func() { cancelCause(context.Canceled) }
+		var budget *time.Timer
 		if deadline, ok := r.Context().Deadline(); ok && len(transports) > 1 && limit-i > 1 {
-			cancel()
-			ctx, cancel = context.WithTimeout(r.Context(), time.Until(deadline)/time.Duration(limit-i))
+			// Use a removable timer, not an immutable child deadline: a valid
+			// full-body 200 must be able to retain the parent task's deadline.
+			budget = time.AfterFunc(time.Until(deadline)/time.Duration(limit-i), func() { cancelCause(context.DeadlineExceeded) })
 		}
 		resp, err := client.Do(r.Clone(ctx))
 		if err == nil && resp.StatusCode < 500 {
-			resp.Body = &resourceBody{ReadCloser: resp.Body, cancel: cancel, attempts: attempts}
+			resp.Body = &resourceBody{ReadCloser: resp.Body, cancel: cancel, ctx: ctx, budget: budget, attempts: attempts}
 			return resp, nil
 		}
 		if err == nil {
 			err = fmt.Errorf("upstream status %d", resp.StatusCode)
 			resp.Body.Close()
+		}
+		if err != nil && ctx.Err() != nil {
+			err = context.Cause(ctx)
+		}
+		if budget != nil {
+			budget.Stop()
 		}
 		cancel()
 		failures = append(failures, applog.SafeError(err))
@@ -186,6 +211,11 @@ func (s *Server) openUpstream(ctx context.Context, v video) (*http.Response, str
 				continue
 			}
 			return nil, "", err
+		}
+		if resp.StatusCode == http.StatusOK {
+			if body, ok := resp.Body.(*resourceBody); ok {
+				body.useTaskDeadline()
+			}
 		}
 		s.recordUpstream(time.Since(start))
 		return resp, v.host, nil

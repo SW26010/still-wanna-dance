@@ -1,11 +1,22 @@
 package console
 
 import (
+	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"still-wanna-dance/internal/upstreamstate"
 )
+
+// Reserve a share of the caller's remaining deadline for every fallback.
+// A single stalled channel must not consume the whole operation budget.
+func channelAttempt(ctx context.Context, limit time.Duration, remaining int) (context.Context, context.CancelFunc) {
+	if deadline, ok := ctx.Deadline(); ok {
+		limit = min(limit, time.Until(deadline)/time.Duration(remaining))
+	}
+	return context.WithTimeout(ctx, limit)
+}
 
 func (c *Console) operationSelections(op upstreamstate.Operation, q upstreamstate.Constraints) []upstreamstate.Selection {
 	c.mu.Lock()

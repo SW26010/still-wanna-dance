@@ -57,11 +57,11 @@ func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (s
 	}
 	clients := c.operationClients(upstreamstate.PlaybackURL, upstreamstate.Constraints{Route: upstream, Entry: entry})
 	var failures []error
-	for _, client := range clients {
+	for i, client := range clients {
 		if err := ctx.Err(); err != nil {
 			return "", err
 		}
-		attempt, cancel := context.WithTimeout(ctx, 10*time.Second)
+		attempt, cancel := channelAttempt(ctx, 10*time.Second, len(clients)-i)
 		target, err := c.resolveNodeWithClient(attempt, id, upstream, client)
 		cancel()
 		if err == nil {

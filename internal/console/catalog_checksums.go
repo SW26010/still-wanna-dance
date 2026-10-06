@@ -34,11 +34,14 @@ func (c *Console) fetchCatalogSnapshot(ctx context.Context) (cacheproxy.Catalog,
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	var failures []error
-	for _, client := range c.operationClients(upstreamstate.Catalog, upstreamstate.Constraints{Entry: c.checksumURL}) {
+	clients := c.operationClients(upstreamstate.Catalog, upstreamstate.Constraints{Entry: c.checksumURL})
+	for i, client := range clients {
 		if err := ctx.Err(); err != nil {
 			return cacheproxy.Catalog{}, err
 		}
-		catalog, err := c.fetchCatalogWithClient(ctx, client)
+		attempt, stop := channelAttempt(ctx, 30*time.Second, len(clients)-i)
+		catalog, err := c.fetchCatalogWithClient(attempt, client)
+		stop()
 		if err == nil {
 			return catalog, nil
 		}

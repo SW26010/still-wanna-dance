@@ -15,6 +15,8 @@ import (
 
 const rangeBlockSize int64 = 1 << 20
 
+var errRangeAbandoned = errors.New("range has no waiting readers")
+
 func validateRangeResponse(r *http.Response, start, end, size int64) error {
 	if r.StatusCode != http.StatusPartialContent || r.Header.Get("Content-Range") != fmt.Sprintf("bytes %d-%d/%d", start, end-1, size) {
 		return errors.New("upstream returned an invalid or unsupported byte range")
@@ -35,22 +37,39 @@ type rangeWork struct {
 	mu               sync.Mutex
 	claimed, done    map[int64]bool
 	pending          map[int64]bool
+	readers          map[int64]int
+	active           map[int64]context.CancelCauseFunc
 	changed          chan struct{}
 	blocks, complete int64
 }
 
 func (w *rangeWork) signalLocked() { close(w.changed); w.changed = make(chan struct{}) }
-func (w *rangeWork) demand(offset int64) {
+func (w *rangeWork) demand(offset int64) func() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	block := offset / rangeBlockSize
-	if block < 0 || block >= w.blocks || w.done[block] || w.claimed[block] || w.pending[block] {
-		return
+	if block < 0 || block >= w.blocks || w.done[block] {
+		return func() {}
 	}
-	w.pending[block] = true
+	w.readers[block]++
+	if !w.claimed[block] {
+		w.pending[block] = true
+	}
 	w.signalLocked()
+	return func() {
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		w.readers[block]--
+		if w.readers[block] == 0 {
+			delete(w.readers, block)
+			delete(w.pending, block)
+			if cancel := w.active[block]; cancel != nil {
+				cancel(errRangeAbandoned)
+			}
+		}
+	}
 }
-func (w *rangeWork) next(ctx context.Context, background bool) (int64, bool) {
+func (w *rangeWork) next(ctx context.Context, background bool) (int64, context.Context, bool) {
 	for {
 		w.mu.Lock()
 		var block int64 = -1
@@ -70,17 +89,23 @@ func (w *rangeWork) next(ctx context.Context, background bool) (int64, bool) {
 		if block >= 0 {
 			w.claimed[block] = true
 			delete(w.pending, block)
+			blockCtx := ctx
+			if !background {
+				var cancel context.CancelCauseFunc
+				blockCtx, cancel = context.WithCancelCause(ctx)
+				w.active[block] = cancel
+			}
 			w.mu.Unlock()
-			return block, true
+			return block, blockCtx, true
 		}
 		finished, changed := w.complete == w.blocks, w.changed
 		w.mu.Unlock()
 		if finished {
-			return 0, false
+			return 0, ctx, false
 		}
 		select {
 		case <-ctx.Done():
-			return 0, false
+			return 0, ctx, false
 		case <-changed:
 		}
 	}
@@ -90,8 +115,24 @@ func (w *rangeWork) finish(block int64) {
 	w.done[block] = true
 	w.complete++
 	delete(w.claimed, block)
+	if cancel := w.active[block]; cancel != nil {
+		cancel(nil)
+		delete(w.active, block)
+	}
 	w.signalLocked()
 	w.mu.Unlock()
+}
+
+func (w *rangeWork) abandon(block int64) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	delete(w.claimed, block)
+	delete(w.active, block)
+	// A new reader may have arrived while the canceled request unwound.
+	if w.readers[block] > 0 {
+		w.pending[block] = true
+	}
+	w.signalLocked()
 }
 
 func (s *Server) publishRanges(ctx context.Context, first *http.Response, path string, v video, flight *flight) error {
@@ -100,6 +141,8 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 		return err
 	}
 	work := &rangeWork{claimed: map[int64]bool{0: true}, done: make(map[int64]bool), pending: make(map[int64]bool), changed: make(chan struct{}), blocks: (v.size + rangeBlockSize - 1) / rangeBlockSize}
+	work.readers = make(map[int64]int)
+	work.active = make(map[int64]context.CancelCauseFunc)
 	sp := &spool{file: f, changed: make(chan struct{}), refs: 1, demand: work.demand}
 	flight.spool = sp
 	close(flight.streaming)
@@ -120,7 +163,7 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 	if strings.HasPrefix(etag, "W/") {
 		etag = ""
 	}
-	readBlock := func(block int64, initial *http.Response) error {
+	readBlock := func(ctx context.Context, block int64, initial *http.Response) error {
 		start, end := block*rangeBlockSize, min((block+1)*rangeBlockSize, v.size)
 		resp := initial
 		var last error
@@ -173,17 +216,21 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 	worker := func(background bool) {
 		defer func() { results <- struct{}{} }()
 		if background {
-			if err := readBlock(0, first); err != nil {
+			if err := readBlock(ctx, 0, first); err != nil {
 				cancel(err)
 				return
 			}
 		}
 		for {
-			block, ok := work.next(ctx, background)
+			block, blockCtx, ok := work.next(ctx, background)
 			if !ok {
 				return
 			}
-			if err := readBlock(block, nil); err != nil {
+			if err := readBlock(blockCtx, block, nil); err != nil {
+				if errors.Is(context.Cause(blockCtx), errRangeAbandoned) && ctx.Err() == nil {
+					work.abandon(block)
+					continue
+				}
 				cancel(err)
 				return
 			}

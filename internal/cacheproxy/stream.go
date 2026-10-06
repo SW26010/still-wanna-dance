@@ -20,7 +20,7 @@ type spool struct {
 	err       error
 	refs      int
 	intervals []byteInterval
-	demand    func(int64)
+	demand    func(int64) func()
 }
 
 type byteInterval struct{ start, end int64 }
@@ -83,7 +83,8 @@ func (s *spool) reader(ctx context.Context, size int64) *spoolReader {
 		return nil
 	}
 	s.refs++
-	return &spoolReader{spool: s, ctx: ctx, size: size}
+	ctx, cancel := context.WithCancel(ctx)
+	return &spoolReader{spool: s, ctx: ctx, cancel: cancel, size: size}
 }
 
 func (s *spool) release() {
@@ -99,14 +100,25 @@ func (s *spool) release() {
 type spoolReader struct {
 	spool        *spool
 	ctx          context.Context
+	cancel       context.CancelFunc
+	closeOnce    sync.Once
 	size, offset int64
 	err          error
 	verifyFull   bool
 }
 
-func (r *spoolReader) Close() error { r.spool.release(); return nil }
+func (r *spoolReader) Close() error {
+	r.closeOnce.Do(func() { r.cancel(); r.spool.release() })
+	return nil
+}
 
 func (r *spoolReader) Read(p []byte) (int, error) {
+	var release func()
+	defer func() {
+		if release != nil {
+			release()
+		}
+	}()
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -158,8 +170,8 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 			r.err = io.ErrUnexpectedEOF
 			return 0, r.err
 		}
-		if demand != nil {
-			demand(r.offset)
+		if demand != nil && release == nil {
+			release = demand(r.offset)
 		}
 		select {
 		case <-r.ctx.Done():

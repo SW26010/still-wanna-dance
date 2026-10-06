@@ -32,7 +32,7 @@ func TestStreamIfRangeUsesActualResponseForVerification(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			sp := &spool{file: file, changed: make(chan struct{}), refs: 1, demand: func(int64) {}}
+			sp := &spool{file: file, changed: make(chan struct{}), refs: 1, demand: func(int64) func() { return func() {} }}
 			defer sp.release()
 			const body = "complete bytes awaiting verification"
 			if _, err := sp.WriteAt([]byte(body), 0); err != nil {

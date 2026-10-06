@@ -73,6 +73,7 @@ func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (s
 }
 
 func (c *Console) resolveNodeWithClient(ctx context.Context, id int64, upstream string, client *http.Client) (string, error) {
+	started := time.Now()
 	revision := upstreamrequest.Default.Snapshot().Revision
 	node := "nya"
 	if upstream == "cf" {
@@ -101,6 +102,14 @@ func (c *Console) resolveNodeWithClient(ctx context.Context, id int64, upstream 
 		return "", fmt.Errorf("歌曲返回了无效的视频地址：%w", err)
 	}
 	upstreamrequest.Default.ObserveResourceSourcesAtRevision(revision, "playback/"+node+"/"+strconv.FormatInt(id, 10), []upstreamrequest.ResourceSource{{API: r.URL.String(), Node: node, SongID: id, ResourceURL: u.String(), ObservedAt: time.Now()}}, 10*time.Minute)
+	c.mu.Lock()
+	engine := c.service
+	c.mu.Unlock()
+	if engine != nil {
+		if err := engine.ObserveSongURL(ctx, cacheproxy.SongURL{SongID: id, URL: u.String(), API: c.apiBase + "/Api/Songs/play", Node: node, QueryStartedAt: started, ObservedAt: time.Now()}); err != nil {
+			return "", fmt.Errorf("保存歌曲地址：%w", err)
+		}
+	}
 	return u.String(), nil
 }
 

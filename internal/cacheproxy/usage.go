@@ -96,6 +96,14 @@ CREATE TABLE IF NOT EXISTS song_media (
  md5 TEXT NOT NULL REFERENCES media(md5)
 );
 CREATE INDEX IF NOT EXISTS song_media_md5 ON song_media(md5);
+CREATE TABLE IF NOT EXISTS song_urls (
+ song_id INTEGER NOT NULL CHECK(song_id>0),
+ api TEXT NOT NULL, node TEXT NOT NULL, url TEXT NOT NULL,
+ md5 TEXT NOT NULL CHECK(length(md5)=32), byte_size INTEGER NOT NULL CHECK(byte_size>0),
+ query_started_at INTEGER NOT NULL, observed_at INTEGER NOT NULL,
+ failed_at INTEGER NOT NULL DEFAULT 0,
+ PRIMARY KEY(song_id, api, node)
+);
 CREATE TABLE IF NOT EXISTS song_usage (
  song_id INTEGER PRIMARY KEY REFERENCES songs(song_id),
  demand_count INTEGER NOT NULL CHECK(demand_count>=0),

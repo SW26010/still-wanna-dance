@@ -9,12 +9,20 @@ import (
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
 
 func TestBusinessResolutionUsesMeasuredTransport(t *testing.T) {
 	c := testConsole(t)
+	cfg := fixtureCacheConfig()
+	cfg.StorageDir = c.settings.StorageDir
+	engine, err := cacheproxy.New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.service = engine
 	const target = "https://play.udon.dance/files/1/42-video.mp4?e=0123456789abcdef0123456789abcdef&s=12"
 	measured := catalogTransport(func(r *http.Request) (*http.Response, error) {
 		time.Sleep(time.Millisecond)
@@ -44,5 +52,9 @@ func TestBusinessResolutionUsesMeasuredTransport(t *testing.T) {
 	got, err := c.resolvePlayback(context.Background(), "42", "cf", "cf")
 	if err != nil || got != target {
 		t.Fatalf("target=%q err=%v", got, err)
+	}
+	urls, err := engine.SongURLs(context.Background(), 42, "cf")
+	if err != nil || len(urls) != 1 || urls[0].URL != target || urls[0].API != c.apiBase+"/Api/Songs/play" {
+		t.Fatalf("API observation not persisted: %+v %v", urls, err)
 	}
 }

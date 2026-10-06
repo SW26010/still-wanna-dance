@@ -70,6 +70,10 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 		s.mu.Lock()
 	}
 	f := s.flights[v.key]
+	if f != nil && f.size != v.size {
+		s.mu.Unlock()
+		return nil, nil, errors.New("shared resource size mismatch")
+	}
 	if f == nil {
 		// Bound all workers (including validation); callers sharing a key do not consume another slot.
 		select {
@@ -78,7 +82,7 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 			s.mu.Unlock()
 			return nil, nil, errBusy
 		}
-		f = &flight{done: make(chan struct{}), streaming: make(chan struct{}), id: s.flightSequence.Add(1)}
+		f = &flight{size: v.size, done: make(chan struct{}), streaming: make(chan struct{}), id: s.flightSequence.Add(1)}
 		f.log = log.With("flight_id", f.id, "host", v.host)
 		f.progress = startProgress(f.log, v.size, 15*time.Second)
 		f.monitorSongs = make(map[string]bool)
@@ -248,7 +252,14 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, 
 	}
 	flight.log.Info("upstream_response", "host", selectedHost, "status", resp.StatusCode, "content_length", resp.ContentLength)
 	started := time.Now()
-	if err := s.publish(ctx, resp.Body, path, v, flight); err != nil {
+	var publishErr error
+	if resp.StatusCode == 206 {
+		publishErr = s.publishRanges(ctx, resp, path, v, flight)
+	} else {
+		flight.log.Info("range_unavailable", "host", selectedHost, "fallback", "sequential")
+		publishErr = s.publish(ctx, resp.Body, path, v, flight)
+	}
+	if err := publishErr; err != nil {
 		if errors.Is(err, errUpstreamDownload) && !errors.Is(err, context.Canceled) {
 			s.noteRoute(selectedHost, time.Since(started), true)
 		}
@@ -282,6 +293,10 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 		return fmt.Errorf("%w: download integrity mismatch", errUpstreamDownload)
 	}
 	flight.log.Info("download_verified", "bytes", n, "size_ok", true, "checksum_ok", true)
+	return s.publishSpool(ctx, f, path, v, flight)
+}
+
+func (s *Server) publishSpool(ctx context.Context, f *os.File, path string, v video, flight *flight) error {
 	flight.progress.setStage("publish")
 	if err := ctx.Err(); err != nil {
 		return err

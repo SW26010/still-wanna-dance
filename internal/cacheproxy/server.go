@@ -29,6 +29,7 @@ type video struct {
 	size                   int64
 }
 type flight struct {
+	size          int64
 	monitorSongs  map[string]bool // protected by Server.mu; includes background callers
 	playbackSongs map[string]*playbackSong
 	id            uint64
@@ -440,6 +441,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if stream != nil {
+		stream.verifyFull = r.Header.Get("Range") == ""
 		defer stream.Close()
 		w.Header().Set("Content-Type", "video/mp4")
 		w.Header().Set("ETag", `"`+v.key+`"`)

@@ -29,7 +29,7 @@ type progressSample struct{ second, bytes int64 }
 // Five bounded buckets cover the current second and the preceding four seconds.
 // Snapshot reads never reset counters, so multiple observers see the same rate.
 func (p *downloadProgress) rate(now time.Time) float64 {
-	if p.stage != "download_and_hash" {
+	if p.stage != "download_and_hash" && p.stage != "range_download" {
 		return 0
 	}
 	var bytes int64

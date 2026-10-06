@@ -75,9 +75,8 @@ func TestConsolePrefetchPrefersCFEvenWhenHKGIsFaster(t *testing.T) {
 			}
 			w.Header().Set("Content-Range", fmt.Sprintf("bytes 0-%d/%d", len(body)-1, len(body)))
 			w.WriteHeader(206)
-		} else {
-			selected.Store(r.Host)
 		}
+		selected.Store(r.Host)
 		io.WriteString(w, body)
 	}))
 	defer origin.Close()

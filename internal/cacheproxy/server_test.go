@@ -91,7 +91,7 @@ func TestColdHotCrossHostAndHTTP(t *testing.T) {
 	var count atomic.Int32
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
 		count.Add(1)
-		if r.Host != "play.udon.dance" || r.Method != "GET" || r.Header.Get("Range") != "" || r.URL.RawQuery == "" {
+		if r.Host != "play.udon.dance" || r.Method != "GET" || r.Header.Get("Range") != "bytes=0-35" || r.URL.RawQuery == "" {
 			t.Errorf("unexpected origin request: %v", r)
 		}
 		io.WriteString(w, payload)

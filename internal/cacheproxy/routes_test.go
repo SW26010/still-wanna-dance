@@ -48,11 +48,10 @@ func TestUnifiedRoutesOverridePlaybackAndPrefetch(t *testing.T) {
 					}
 					w.Header().Set("Content-Range", fmt.Sprintf("bytes 0-%d/%d", len(payload)-1, len(payload)))
 					w.WriteHeader(206)
-				} else {
-					mu.Lock()
-					downloaded = append(downloaded, r.Host+r.URL.Path)
-					mu.Unlock()
 				}
+				mu.Lock()
+				downloaded = append(downloaded, r.Host+r.URL.Path)
+				mu.Unlock()
 				io.WriteString(w, payload)
 			})
 			cf := videoURL(payload)
@@ -85,12 +84,12 @@ func TestUnifiedRoutesOverridePlaybackAndPrefetch(t *testing.T) {
 				}
 			}
 			mu.Lock()
-			got := strings.Join(downloaded, ",")
+			got := downloaded[len(downloaded)-1]
 			mu.Unlock()
 			want := "nya.xin.moe/files/2403/9999-mirror.mp4"
 			if background {
 				want = "play.udon.dance/files/2403/1344-660524b4ebadb.mp4"
-				if probes.Load() != 0 {
+				if probes.Load() != 1 {
 					t.Fatal("background preference triggered latency probes")
 				}
 			}
@@ -104,9 +103,9 @@ func TestUnifiedRoutesOverridePlaybackAndPrefetch(t *testing.T) {
 			v.songID = "42"
 			candidates := s.routeCandidates(context.Background(), v)
 			s.rankRoutes(context.Background(), candidates)
-			wantProbes := int32(2)
+			wantProbes := int32(3) // Two probes plus one content range.
 			if background {
-				wantProbes = 1 // The completed CF download already confirmed its health.
+				wantProbes = 2 // One content range and one probe of the other host.
 			}
 			if resolves.Load() != 1 || probes.Load() != wantProbes {
 				t.Fatalf("unnecessary re-probe: resolves=%d probes=%d", resolves.Load(), probes.Load())

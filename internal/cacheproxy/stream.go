@@ -9,8 +9,8 @@ import (
 )
 
 // spool is a single download shared by independently seeking HTTP clients.
-// ReadAt does not disturb the download writer's offset. The last byte is held
-// until verification/publication, so an invalid full file never completes cleanly.
+// ReadAt does not disturb the writer's offset. Sequential and full HTTP reads
+// hold the last byte until verification; range readers can access the tail early.
 type spool struct {
 	mu        sync.Mutex
 	file      *os.File
@@ -19,6 +19,44 @@ type spool struct {
 	complete  bool
 	err       error
 	refs      int
+	intervals []byteInterval
+	demand    func(int64)
+}
+
+type byteInterval struct{ start, end int64 }
+
+// WriteAt publishes only bytes whose write has completed, never sparse length.
+func (s *spool) WriteAt(p []byte, offset int64) (int, error) {
+	n, err := s.file.WriteAt(p, offset)
+	if n == 0 {
+		return n, err
+	}
+	s.mu.Lock()
+	merged := byteInterval{offset, offset + int64(n)}
+	var out []byteInterval
+	inserted := false
+	for _, interval := range s.intervals {
+		if interval.end < merged.start {
+			out = append(out, interval)
+		} else if merged.end < interval.start {
+			if !inserted {
+				out = append(out, merged)
+				inserted = true
+			}
+			out = append(out, interval)
+		} else {
+			merged.start = min(merged.start, interval.start)
+			merged.end = max(merged.end, interval.end)
+		}
+	}
+	if !inserted {
+		out = append(out, merged)
+	}
+	s.intervals = out
+	close(s.changed)
+	s.changed = make(chan struct{})
+	s.mu.Unlock()
+	return n, err
 }
 
 func (s *spool) Write(p []byte) (int, error) {
@@ -63,6 +101,7 @@ type spoolReader struct {
 	ctx          context.Context
 	size, offset int64
 	err          error
+	verifyFull   bool
 }
 
 func (r *spoolReader) Close() error { r.spool.release(); return nil }
@@ -82,12 +121,22 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 		s := r.spool
 		s.mu.Lock()
 		available, complete, failure, changed := s.available, s.complete, s.err, s.changed
+		demand := s.demand
+		if demand != nil {
+			available = 0
+			for _, interval := range s.intervals {
+				if interval.start <= r.offset && r.offset < interval.end {
+					available = interval.end
+					break
+				}
+			}
+		}
 		s.mu.Unlock()
 		if failure != nil {
 			r.err = failure
 			return 0, failure
 		}
-		if !complete && available >= r.size {
+		if (demand == nil || r.verifyFull) && !complete && available >= r.size {
 			available = r.size - 1
 		}
 		if available > r.size {
@@ -108,6 +157,9 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 		if complete {
 			r.err = io.ErrUnexpectedEOF
 			return 0, r.err
+		}
+		if demand != nil {
+			demand(r.offset)
 		}
 		select {
 		case <-r.ctx.Done():

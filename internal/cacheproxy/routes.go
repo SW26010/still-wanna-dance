@@ -259,9 +259,12 @@ func (s *Server) openUpstream(ctx context.Context, v video) (*http.Response, str
 		if err != nil {
 			return nil, "", err
 		}
+		r.Header.Set("Range", fmt.Sprintf("bytes=0-%d", min(v.size, rangeBlockSize)-1))
 		resp, err := s.videoResponse(r, v)
 		if err == nil {
 			switch {
+			case resp.StatusCode == http.StatusPartialContent:
+				err = validateRangeResponse(resp, 0, min(v.size, rangeBlockSize), v.size)
 			case resp.StatusCode != http.StatusOK:
 				err = fmt.Errorf("upstream status %d", resp.StatusCode)
 			case resp.Header.Get("Content-Encoding") != "" && resp.Header.Get("Content-Encoding") != "identity":

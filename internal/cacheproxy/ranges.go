@@ -104,8 +104,8 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 	flight.spool = sp
 	close(flight.streaming)
 	flight.progress.setStage("range_download")
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
 	stopFirst := context.AfterFunc(ctx, func() { first.Body.Close() })
 	defer stopFirst()
 	// Pin all subsequent segments to the first response's validated endpoint.
@@ -169,31 +169,33 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 		}
 		return fmt.Errorf("%w: range %d-%d: %w", errUpstreamDownload, start, end-1, last)
 	}
-	results := make(chan error, 2)
+	results := make(chan struct{}, 2)
 	worker := func(background bool) {
+		defer func() { results <- struct{}{} }()
 		if background {
 			if err := readBlock(0, first); err != nil {
-				cancel()
-				results <- err
+				cancel(err)
 				return
 			}
 		}
 		for {
 			block, ok := work.next(ctx, background)
 			if !ok {
-				results <- ctx.Err()
 				return
 			}
 			if err := readBlock(block, nil); err != nil {
-				cancel()
-				results <- err
+				cancel(err)
 				return
 			}
 		}
 	}
 	go worker(true)
 	go worker(false)
-	err = errors.Join(<-results, <-results)
+	<-results
+	<-results
+	// The first failure cancels its peer; that internal cancellation is not
+	// another root cause. Parent shutdown/deadlines retain their own cause.
+	err = context.Cause(ctx)
 	if err != nil {
 		return err
 	}

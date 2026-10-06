@@ -225,7 +225,7 @@ func (s *Server) Close() error {
 		s.usage.close()
 		s.client.CloseIdleConnections()
 		err = s.unlock()
-		s.cfg.Logger.Info("cache_engine_stopped", "error", err)
+		s.cfg.Logger.Info("cache_engine_stopped", "error", applog.SafeError(err))
 	})
 	return err
 }

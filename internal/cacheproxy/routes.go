@@ -44,7 +44,9 @@ func (s *Server) videoResponse(r *http.Request, original video) (*http.Response,
 			return nil, err
 		}
 		v, err := s.parse(next)
-		if err != nil || !s.resourceHostAllowed(v.host) || v.key != original.key || v.size != original.size {
+		// The task's validated URL remains trusted even when the live API
+		// registry has expired. This does not grant inbound host membership.
+		if err != nil || (v.host != original.host && !s.resourceHostAllowed(v.host)) || v.key != original.key || v.size != original.size {
 			return nil, errors.New("video redirect changed resource or host")
 		}
 		next, err = s.routeRequest(r.Context(), v)

@@ -165,6 +165,9 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 	}
 	readBlock := func(ctx context.Context, block int64, initial *http.Response) error {
 		start, end := block*rangeBlockSize, min((block+1)*rangeBlockSize, v.size)
+		// Redirect progress belongs to this block; other workers keep their
+		// own endpoint and candidate cursor.
+		blockVideo := v
 		resp := initial
 		attempts := new(resourceAttempts)
 		if resp != nil {
@@ -178,7 +181,7 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 				return err
 			}
 			if resp == nil {
-				req, err := s.routeRequest(ctx, v)
+				req, err := s.routeRequest(ctx, blockVideo)
 				if err != nil {
 					return applog.SafeError(err)
 				}
@@ -195,6 +198,16 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 					last = applog.SafeError(err)
 					continue
 				}
+			}
+			if resp.Request != nil {
+				// videoResponse has already checked redirect trust. Parsing here
+				// retains metadata without extending global host registration.
+				selected, err := s.parse(resp.Request)
+				if err != nil || selected.key != v.key || selected.size != v.size {
+					resp.Body.Close()
+					return fmt.Errorf("%w: invalid final range endpoint", errUpstreamDownload)
+				}
+				blockVideo.host, blockVideo.path, blockVideo.query = selected.host, selected.path, selected.query
 			}
 			if err := validateRangeResponse(resp, start, end, v.size); err != nil {
 				resp.Body.Close()

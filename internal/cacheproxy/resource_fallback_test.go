@@ -143,3 +143,65 @@ func TestResourceBodyFallbackStopsAtFourChannels(t *testing.T) {
 		t.Fatalf("attempts=%d", calls.Load())
 	}
 }
+
+func TestLaterRangeRedirectRetriesFinalEndpoint(t *testing.T) {
+	for _, failure := range []string{"short", "wrong-range", "changed-etag"} {
+		t.Run(failure, func(t *testing.T) {
+			s, _ := setup(t, nil)
+			body := bytes.Repeat([]byte("z"), int(2*rangeBlockSize+16))
+			original := videoURL(string(body))
+			final := original + "&endpoint=B"
+			var originalFirst, originalBackup, finalFirst, finalBackup atomic.Int32
+			s.cfg.ResourceTransports = func(target string) []http.RoundTripper {
+				var transports []http.RoundTripper
+				for channel := range 2 {
+					transports = append(transports, resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+						var start, end int64
+						fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
+						if target == original {
+							if channel == 1 {
+								originalBackup.Add(1)
+								return nil, errors.New("A backup unavailable")
+							}
+							originalFirst.Add(1)
+							if start > 0 {
+								return &http.Response{StatusCode: 307, Header: http.Header{"Location": {final}}, Body: http.NoBody, Request: r}, nil
+							}
+						} else if target != final {
+							t.Errorf("unexpected target %s", target)
+						}
+						resp := &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": {fmt.Sprintf("bytes %d-%d/%d", start, end, len(body))}, "Etag": {`"stable"`}}, ContentLength: end - start + 1, Body: io.NopCloser(bytes.NewReader(body[start : end+1])), Request: r}
+						if target == final {
+							if r.Header.Get("If-Match") != `"stable"` {
+								t.Error("entity condition lost")
+							}
+							if channel == 0 {
+								finalFirst.Add(1)
+								switch failure {
+								case "short":
+									resp.Body = io.NopCloser(bytes.NewReader(body[start:end]))
+								case "wrong-range":
+									resp.Header.Set("Content-Range", "bytes 0-0/1")
+								case "changed-etag":
+									resp.Header.Set("ETag", `"other"`)
+								}
+							} else {
+								finalBackup.Add(1)
+							}
+						}
+						return resp, nil
+					}))
+				}
+				return transports
+			}
+			if _, err := s.Prefetch(context.Background(), original); err != nil {
+				t.Fatal(err)
+			}
+			// Each later block must start from A independently; only that
+			// block's retry resumes at B.
+			if originalFirst.Load() != 3 || originalBackup.Load() != 0 || finalFirst.Load() != 2 || finalBackup.Load() != 2 {
+				t.Fatalf("A first=%d A backup=%d B first=%d B backup=%d", originalFirst.Load(), originalBackup.Load(), finalFirst.Load(), finalBackup.Load())
+			}
+		})
+	}
+}

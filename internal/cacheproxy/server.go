@@ -438,7 +438,7 @@ loadVideo:
 			log.Info("client_disconnected", "elapsed", time.Since(start))
 			return
 		}
-		log.Error("cache_failed", "error", err, "elapsed", time.Since(start))
+		log.Error("cache_failed", "error", applog.SafeError(err), "elapsed", time.Since(start))
 		status := http.StatusBadGateway
 		if errors.Is(err, context.DeadlineExceeded) {
 			status = http.StatusGatewayTimeout
@@ -475,13 +475,13 @@ loadVideo:
 					}
 				}
 				if rejectErr := s.RejectSongURL(r.Context(), *v.cached); rejectErr != nil {
-					log.Warn("song_url_reject_failed", "error", rejectErr)
+					log.Warn("song_url_reject_failed", "error", applog.SafeError(rejectErr))
 				}
 			}
 			if r.Context().Err() != nil {
 				log.Info("client_disconnected", "cache", "MISS")
 			} else {
-				log.Error("stream_failed", "error", stream.err)
+				log.Error("stream_failed", "error", applog.SafeError(stream.err))
 			}
 			if !pending.committed {
 				status := http.StatusBadGateway
@@ -510,7 +510,7 @@ loadVideo:
 	}
 	file, err := s.verifiedFile(r.Context(), v)
 	if err != nil {
-		log.Error("open_failed", "error", err)
+		log.Error("open_failed", "error", applog.SafeError(err))
 		if errors.Is(err, errInvalidCache) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "file changed or validation interrupted; retry request", http.StatusServiceUnavailable)
 			return

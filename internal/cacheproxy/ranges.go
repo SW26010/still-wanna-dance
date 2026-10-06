@@ -9,6 +9,8 @@ import (
 	"os"
 	"strings"
 	"sync"
+
+	"still-wanna-dance/internal/applog"
 )
 
 const rangeBlockSize int64 = 1 << 20
@@ -129,7 +131,7 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 			if resp == nil {
 				req, err := s.routeRequest(ctx, v)
 				if err != nil {
-					return err
+					return applog.SafeError(err)
 				}
 				req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", start, end-1))
 				if etag != "" {
@@ -137,7 +139,7 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 				}
 				resp, err = s.videoResponse(req, v)
 				if err != nil {
-					last = err
+					last = applog.SafeError(err)
 					continue
 				}
 			}
@@ -153,7 +155,7 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 			resp.Body.Close()
 			resp = nil
 			if err != nil || int64(len(data)) != end-start {
-				last = err
+				last = applog.SafeError(err)
 				if last == nil {
 					last = io.ErrUnexpectedEOF
 				}

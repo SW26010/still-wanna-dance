@@ -103,7 +103,7 @@
         <div class="card-head"><h2 id="downloadsTitle">实时下载监控</h2><small>每 5 秒刷新 · 共享任务只计一次</small></div>
         <p>上游总下载速度 <strong id="downloadSpeed">—</strong></p>
         <p id="downloadState" role="status">正在读取活动下载…</p>
-        <details class="help"><summary>下载统计说明</summary><p class="hint">近 5 秒采样估算，仅统计资源正文读取，不含线路探测，也不是向客户端传输的速度。100% 后仍需校验和发布；关联曲目不代表实际播放歌曲。活动任务包含预缓存与本地检查，等待上游阶段包含解析、选线与等待响应头；下载时同步计算校验。</p></details>
+        <details class="help"><summary>下载统计说明</summary><p class="hint">近 5 秒采样估算，仅统计资源正文读取，不是向客户端传输的速度。100% 后仍需校验和发布；关联曲目不代表实际播放歌曲。活动任务包含预缓存与本地检查，等待上游阶段包含选路与等待响应头；分段下载补齐全部区间后按文件顺序校验。</p></details>
         <ul id="downloadList" class="download-list" aria-label="活动下载任务"></ul>
       </section>
         <section class="card" id="recent" aria-labelledby="recentTitle" tabindex="-1">

@@ -622,7 +622,7 @@ function renderDownloads(v) {
     song.append(recentElement('strong', '', title), recentElement('small', 'recent-label',
       shared ? '等 ' + (task.moreSongs ? '至少 ' : '') + songs.length + ' 首关联曲目 · 播放歌曲未确定' : '资源关联曲目'));
     const stage = ({ cache_check: '检查缓存', upstream_headers: '等待上游',
-      download_and_hash: '下载中', publish: '校验并发布', index: '更新索引' })[task.stage] || '阶段未知';
+      download_and_hash: '下载中', range_download: '分段下载中', hash: '校验完整文件', publish: '发布文件', index: '更新索引' })[task.stage] || '阶段未知';
     const route = task.host || '域名待定';
     song.append(recentElement('small', 'recent-label', stage + ' · ' + route));
     const known = task.size > 0;

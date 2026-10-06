@@ -291,7 +291,7 @@ test('active downloads render safe candidates, unknown values, bounded progress 
   assert.match(get('downloadState').textContent, /CDN 已关闭.*1 个活动任务/);
   assert.match(get('downloadList').textContent, /播放歌曲未确定.*<script>text<\/script>/);
   const main = get('downloadList').children[0].children[0];
-  assert.match(main.textContent, /校验并发布.*play\.udon\.dance.*100.0%/);
+  assert.match(main.textContent, /发布文件.*play\.udon\.dance.*100.0%/);
   assert.doesNotMatch(main.textContent, /shared|ID 2/);
   let details = get('downloadList').children[0].children.at(-1);
   assert.equal(details.open, false);
@@ -308,6 +308,11 @@ test('active downloads render safe candidates, unknown values, bounded progress 
   p.context.snapshot.tasks[0].host = 'nya.xin.moe';
   vm.runInContext('renderDownloads(snapshot)', p.context);
   assert.match(get('downloadList').children[0].children[0].textContent, /nya\.xin\.moe/);
+  for (const [stage, label] of [['range_download', '分段下载中'], ['hash', '校验完整文件']]) {
+    p.context.snapshot.tasks[0].stage = stage;
+    vm.runInContext('renderDownloads(snapshot)', p.context);
+    assert.ok(get('downloadList').textContent.includes(label));
+  }
   Object.assign(p.context.snapshot.tasks[0], { songs: [], size: 0, host: '', stage: 'upstream_headers' });
   vm.runInContext('renderDownloads(snapshot)', p.context);
   assert.match(get('downloadList').textContent, /未知歌名.*等待上游.*域名待定.*进度未知/);

@@ -9,6 +9,7 @@ import (
 
 // A completed positive-byte playback GET is observable server evidence, not a
 // decoded first frame. Keep this separate from demand-based retention scoring.
+// Deduplication uses serialized completion observations, not request starts.
 func recordPlaybackTransfer(ctx context.Context, tx *sql.Tx, e usageEvent) error {
 	if e.source != "http" || e.method != "GET" || e.outcome != "completed" || e.bytes <= 0 || (e.status != 200 && e.status != 206) || e.songID == "" {
 		return nil
@@ -22,7 +23,7 @@ func recordPlaybackTransfer(ctx context.Context, tx *sql.Tx, e usageEvent) error
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO song_playback(song_id,transfer_count,last_transfer_at) VALUES (?,1,?)
  ON CONFLICT(song_id) DO UPDATE SET transfer_count=transfer_count+1,last_transfer_at=excluded.last_transfer_at
- WHERE excluded.last_transfer_at-song_playback.last_transfer_at>=?`, id, e.at, demandWindow.Milliseconds()); err != nil {
+ WHERE excluded.last_transfer_at-song_playback.last_transfer_at>=?`, id, e.completedAt, demandWindow.Milliseconds()); err != nil {
 		return err
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO playback_latency(cache_result,samples,first_body_ns) VALUES (?,1,?)

@@ -25,6 +25,7 @@ const requestCleanupBatch = 500
 type usageEvent struct {
 	songID                                                 string
 	firstBodyNS                                            int64
+	completedAt                                            int64
 	barrier                                                chan struct{}
 	id                                                     string
 	at                                                     int64
@@ -188,6 +189,9 @@ func (u *usageStore) record(e usageEvent) {
 	}
 	u.mu.Lock()
 	defer u.mu.Unlock()
+	// Completion observations and their enqueue order share one boundary.
+	// Request start timestamps remain unchanged for demand/usage history.
+	e.completedAt = u.now().UnixMilli()
 	u.enqueueLocked(e)
 }
 

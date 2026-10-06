@@ -9,6 +9,8 @@ import (
 
 func TestPlaybackTransfersExcludePrefetchFailuresAndDeduplicateRanges(t *testing.T) {
 	s, cfg := setup(t, nil)
+	completed := time.Now()
+	s.usage.now = func() time.Time { return completed }
 	e := usageEvent{songID: "42", source: "http", method: "GET", status: 206, outcome: "completed", bytes: 10, cache: "HIT", firstBodyNS: int64(20 * time.Millisecond), at: time.Now().UnixMilli()}
 	s.usage.record(e)
 	e.at++
@@ -24,6 +26,7 @@ func TestPlaybackTransfersExcludePrefetchFailuresAndDeduplicateRanges(t *testing
 		s.usage.record(bad)
 	}
 	e.at += 30000
+	completed = completed.Add(30 * time.Second)
 	e.cache = "MISS"
 	e.firstBodyNS = int64(100 * time.Millisecond)
 	s.usage.record(e)
@@ -41,6 +44,32 @@ func TestPlaybackTransfersExcludePrefetchFailuresAndDeduplicateRanges(t *testing
 	}
 	if saved := ReadTrafficStats(cfg.StorageDir); saved.PlaybackTransfers != 2 || saved.LocalBodyMS == nil || *saved.LocalBodyMS != 20 {
 		t.Fatal(saved)
+	}
+}
+
+func TestPlaybackTransferWindowUsesCompletionOrder(t *testing.T) {
+	for _, gap := range []time.Duration{19 * time.Second, 30 * time.Second} {
+		t.Run(gap.String(), func(t *testing.T) {
+			s, _ := setup(t, nil)
+			base := time.Now()
+			completed := base.Add(61 * time.Second)
+			s.usage.now = func() time.Time { return completed }
+			// B starts later but finishes first; A's start is sixty seconds older.
+			b := usageEvent{songID: "42", source: "http", method: "GET", status: 200, outcome: "completed", bytes: 10, cache: "HIT", at: base.Add(time.Minute).UnixMilli()}
+			s.usage.record(b)
+			a := b
+			a.at = base.UnixMilli()
+			completed = completed.Add(gap)
+			s.usage.record(a)
+			s.usage.flush()
+			want := uint64(1)
+			if gap >= demandWindow {
+				want = 2
+			}
+			if got := s.TrafficStats().PlaybackTransfers; got != want {
+				t.Fatalf("transfers=%d want=%d", got, want)
+			}
+		})
 	}
 }
 

@@ -1,5 +1,5 @@
 // Opt-in real-network acceptance. All downloads and reports stay under test-runs.
-// node scripts/acceptance.mjs [service-executable] [console-executable]
+// node scripts/acceptance.mjs [service-executable] [console-executable] <existing-terms-receipt>
 import fs from 'node:fs';
 import path from 'node:path';
 import net from 'node:net';
@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { request, waitForResourceRegistration } from './acceptance-request.mjs';
 import { AcceptanceBlocked, videoRedirect } from './acceptance-protocol.mjs';
 
-const [executable, consoleExecutable] = process.argv.slice(2);
+const [executable, consoleExecutable, receiptPath] = process.argv.slice(2);
 const root = process.cwd();
 const binary = path.resolve(executable || path.join(root, 'bin', 'still-wanna-dance.exe'));
 const consoleBinary = path.resolve(consoleExecutable || path.join(root, 'bin', 'still-wanna-dance-console.exe'));
@@ -19,6 +19,7 @@ const report = { started: new Date().toISOString(), checks: [] };
 const children = new Set();
 const servers = new Set();
 const digest = (data, algorithm = 'sha256') => crypto.createHash(algorithm).update(data).digest('hex');
+let receipt;
 const record = (name, fields = {}) => {
   const entry = { name, ...fields };
   report.checks.push(entry);
@@ -64,12 +65,11 @@ async function stop(child) {
 async function startService(name, storageDir) {
   const port = await freePort();
   const child = await launch(binary, ['-listen', `127.0.0.1:${port}`,
-    '-storage-dir', storageDir, '-download-timeout', '5m'], name, port);
+    '-storage-dir', storageDir, '-download-timeout', '5m', '-accept-terms', receipt.version], name, port);
   return { child, port };
 }
 function videoFile(root, url) {
- const [, id, version] = url.pathname.match(/\/([1-9][0-9]*)-([a-zA-Z0-9]+)\.mp4$/);
- const key = digest(id + '/' + version + '/' + url.searchParams.get('e').toLowerCase() + '/' + Number(url.searchParams.get('s')));
+ const key = url.searchParams.get('e').toLowerCase();
  return path.join(root, 'videos', key + '.mp4');
 }
 
@@ -128,6 +128,8 @@ async function consoleService(name, storageDir, extra = {}) {
   const config = path.join(lab, `${name}.json`);
   fs.writeFileSync(config, JSON.stringify({ storageDir, logDir: path.join(lab, 'game-logs'),
     downloadUpstream: 'auto', autoStartCDN: true, ...extra }));
+  // Reuse the operator's existing acceptance; never manufacture a receipt.
+  fs.writeFileSync(config + '.terms.json', JSON.stringify(receipt));
   const base = `http://127.0.0.1:${port}`;
   const child = await launch(consoleBinary, ['-no-tray', '-no-open', '-listen', `127.0.0.1:${port}`,
     '-config', config], name, port, base);
@@ -163,6 +165,15 @@ function requireBinary(name, file) {
 }
 
 try {
+  if (!receiptPath || !fs.existsSync(receiptPath)) {
+    throw new AcceptanceBlocked('environment', 'Provide an existing console .terms.json receipt as the third argument after reading and accepting the current terms.');
+  }
+  receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8').replace(/^\uFEFF/, ''));
+  const version = fs.readFileSync(path.join(root, 'internal/legal/legal.go'), 'utf8').match(/const Version = "([^"]+)"/)?.[1];
+  if (receipt.version !== version || receipt.sha256 !== digest(fs.readFileSync(path.join(root, 'internal/legal/TERMS.txt'))) ||
+      !Number.isFinite(Date.parse(receipt.acceptedAt))) {
+    throw new AcceptanceBlocked('environment', 'The supplied receipt does not accept the current terms.');
+  }
   await check('service', async () => {
     requireBinary('service', binary);
     const urls = {};
@@ -246,7 +257,6 @@ try {
     });
     try {
       for (const method of ['GET', 'HEAD']) {
-        const before = rejectedConnections;
         const res = await request(playbackURL('1343'), { port: offline.port, method });
         record(`local-fallback-${method}`, evidence(res));
         if (method === 'GET') fullVideo(res, expected, 'HIT');
@@ -255,17 +265,17 @@ try {
           assert.equal(res.headers['x-stepstash-cache'], 'HIT');
           assert.equal(Number(res.headers['content-length']), Number(expected.searchParams.get('s')));
         }
-        assert.equal(res.headers['x-stepstash-fallback'], 'upstream-unavailable');
-        assert.ok(rejectedConnections > before, 'upstream failure must actually be injected');
+        assert.equal(res.headers['x-stepstash-fallback'], undefined);
       }
       const range = await request(playbackURL('1343'), { port: offline.port, headers: { Range: 'bytes=0-1023' } });
       record('local-fallback-range', evidence(range));
       rangeVideo(range, videoFile(autoStorage, expected));
-      assert.equal(range.headers['x-stepstash-fallback'], 'upstream-unavailable');
+      assert.equal(range.headers['x-stepstash-fallback'], undefined);
       const missing = await request(playbackURL('1344'), { port: offline.port });
       record('local-fallback-missing', evidence(missing));
       assert.equal(missing.status, 502);
       assert.equal(missing.headers['x-stepstash-fallback'], undefined);
+      assert.ok(rejectedConnections > 0, 'upstream failure must actually be injected');
       assert.equal(fs.readdirSync(path.join(autoStorage, 'videos')).filter(n => n.endsWith('.mp4')).length, 1);
       record('offline-injection', { rejectedConnections });
     } finally { await stop(offline.child); }

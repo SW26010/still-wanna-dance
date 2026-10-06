@@ -8,6 +8,25 @@ import { request, waitForResourceRegistration } from './acceptance-request.mjs';
 const lookup = (fn, all = false) => new Promise((resolve, reject) =>
   fn('api.udon.dance', { all }, (error, address, family) => error ? reject(error) : resolve({ address, family })));
 
+test('acceptance separates response headers from first body and leaves HEAD body timing empty', async t => {
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Length': 4 });
+    res.flushHeaders();
+    if (req.method === 'HEAD') res.end();
+    else setTimeout(() => res.end('body'), 100);
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const options = { port: server.address().port };
+  const body = await request('http://api.udon.dance/video', options);
+  assert.equal(body.bytes, 4);
+  assert.ok(body.firstByteMs >= body.responseHeadersMs + 30, JSON.stringify(body));
+  const head = await request('http://api.udon.dance/video', { ...options, method: 'HEAD' });
+  assert.equal(head.firstByteMs, null);
+  assert.equal(head.bytes, 0);
+  assert.ok(head.responseHeadersMs >= 0);
+});
+
 test('independent DNS filters local answers and supports Node lookup callback modes', async () => {
   const fn = createUpstreamLookup(async host => {
     assert.equal(host, 'api.udon.dance');

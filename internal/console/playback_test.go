@@ -118,7 +118,11 @@ func TestPlaybackSlowAutoIntegration(t *testing.T) {
 					t.Fatalf("local content replaced: %d %q", w.Code, w.Body.String())
 				}
 			}
-			for _, node := range []string{"nya", "cf"} {
+			wantNodes := []string{"nya"}
+			if tc.stalledPreferred {
+				wantNodes = append(wantNodes, "cf")
+			}
+			for _, node := range wantNodes {
 				if _, ok := nodes.Load(node); !ok {
 					t.Errorf("route %s was not queried", node)
 				}
@@ -343,7 +347,7 @@ func TestPlaybackResolutionStalledPreferredRoute(t *testing.T) {
 	}
 }
 
-func TestPlaybackResolutionCancelsBothPendingRoutes(t *testing.T) {
+func TestPlaybackResolutionCancelsSequentialFallback(t *testing.T) {
 	c := testConsole(t)
 	started, stopped := make(chan struct{}, 2), make(chan struct{}, 2)
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -367,10 +371,11 @@ func TestPlaybackResolutionCancelsBothPendingRoutes(t *testing.T) {
 			t.Fatal("alternate route did not start")
 		}
 	}
+	// The timed-out first attempt must be canceled before fallback starts.
 	select {
 	case <-stopped:
-		t.Fatal("starting alternate canceled the preferred route")
-	default:
+	case <-time.After(time.Second):
+		t.Fatal("timed-out route survived fallback")
 	}
 	cancel()
 	select {
@@ -381,7 +386,7 @@ func TestPlaybackResolutionCancelsBothPendingRoutes(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("resolution ignored cancellation")
 	}
-	for range 2 {
+	for range 1 {
 		select {
 		case <-stopped:
 		case <-time.After(time.Second):

@@ -2,6 +2,7 @@ package upstreamstate
 
 import (
 	"context"
+	"net/url"
 	"sort"
 	"sync"
 	"time"
@@ -77,40 +78,72 @@ func improves(best, current Result, threshold float64) bool {
 // Recommended is a pure read. The executable channel is the one that was
 // measured; no DNS lookup or fresh IP selection happens here.
 func (m *Monitor) Recommended(op Operation) (Selection, bool) {
+	selections := m.Selections(op, Constraints{})
+	if len(selections) == 0 {
+		return Selection{}, false
+	}
+	return selections[0], true
+}
+
+// Constraints restrict recommendations before ranking. Entry matches an exact
+// operation endpoint; Target restricts resource channels to its origin host.
+type Constraints struct {
+	Route, Entry, Target, Mode string
+}
+
+func (q Constraints) matches(r Result) bool {
+	if q.Route != "" && q.Route != r.Route || q.Entry != "" && q.Entry != r.Entry || q.Mode != "" && q.Mode != r.Mode {
+		return false
+	}
+	if q.Target != "" {
+		u, err := url.Parse(q.Target)
+		e, entryErr := url.Parse(r.Entry)
+		if err != nil || entryErr != nil || u.Hostname() == "" || u.Hostname() != e.Hostname() {
+			return false
+		}
+	}
+	return true
+}
+
+// Selections is a bounded, I/O-free snapshot of measured executable channels.
+// Preserve the hysteresis winner when it satisfies the caller's constraints.
+func (m *Monitor) Selections(op Operation, q Constraints) []Selection {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	source := m.refreshChannelLocked()
 	if m.closed || source.Candidates == nil {
-		return Selection{}, false
+		return nil
 	}
 	results := m.candidateResultsLocked(op, source.Candidates, time.Now())
-	var best *Result
+	var eligible []Result
 	for i := range results {
 		r := &results[i]
-		if !recommendable(*r) {
+		if !recommendable(*r) || !q.matches(*r) {
 			continue
 		}
-		if best == nil || score(*r) > score(*best) {
-			best = r
-		}
+		eligible = append(eligible, *r)
 	}
+	sort.SliceStable(eligible, func(i, j int) bool { return score(eligible[i]) > score(eligible[j]) })
 	if pref := m.preferences[op]; pref != nil {
-		for i := range results {
-			if recommendable(results[i]) && resultID(results[i]) == pref.current {
-				best = &results[i]
+		for i := range eligible {
+			if resultID(eligible[i]) == pref.current {
+				winner := eligible[i]
+				copy(eligible[1:i+1], eligible[:i])
+				eligible[0] = winner
 				break
 			}
 		}
 	}
-	if best == nil {
-		return Selection{}, false
-	}
-	for _, c := range source.Candidates.Current(best.Entry) {
-		if c.ID == best.ChannelID {
-			return Selection{Result: *best, Channel: c}, true
+	var selections []Selection
+	for _, r := range eligible {
+		for _, c := range source.Candidates.Current(r.Entry) {
+			if c.ID == r.ChannelID && c.Transport != nil {
+				selections = append(selections, Selection{Result: r, Channel: c})
+				break
+			}
 		}
 	}
-	return Selection{}, false
+	return selections
 }
 
 // Only completed checks count toward hysteresis; UI polling cannot cause switches.

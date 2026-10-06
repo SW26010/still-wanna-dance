@@ -34,69 +34,29 @@ func preserveBudgetFailure(previous, err error) error {
 	return err
 }
 
-// Resolve the preferred route first. Auto starts the alternate after a short
-// wait without canceling the preferred request: both share the caller's full
-// resolution deadline, and the first successful result cancels the other.
+// Resolve Auto routes in monitor order, with bounded sequential fallback.
 func (c *Console) resolvePlayback(ctx context.Context, id, node, mode string) (string, error) {
 	songID, err := strconv.ParseInt(id, 10, 64)
 	if err != nil || songID <= 0 {
 		return "", fmt.Errorf("invalid song ID: %s", id)
 	}
-	routes := []string{"hkg", "cf"}
-	if node == "cf" {
-		routes = []string{"cf", "hkg"}
-	}
-	if mode == "cf" || mode == "hkg" {
-		routes = []string{mode}
-	}
-	if err := ctx.Err(); err != nil {
-		return "", err
-	}
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	type result struct {
-		target string
-		err    error
-	}
-	results := make(chan result, len(routes))
-	start := func(route string) {
-		go func() {
-			target, err := c.resolveNode(ctx, songID, route)
-			if err != nil {
-				err = fmt.Errorf("%s: %w", route, err)
-			}
-			results <- result{target, err}
-		}()
-	}
-	start(routes[0])
-	started, completed := 1, 0
-	timer := time.NewTimer(3 * time.Second)
-	defer timer.Stop()
 	var failures []error
-	for completed < len(routes) {
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		case <-timer.C:
-			if started < len(routes) && ctx.Err() == nil {
-				start(routes[started])
-				started++
-			}
-		case r := <-results:
-			if err := ctx.Err(); err != nil {
-				return "", err
-			}
-			completed++
-			if r.err == nil {
-				return r.target, nil
-			}
-			failures = append(failures, r.err)
-			if started < len(routes) {
-				timer.Stop()
-				start(routes[started])
-				started++
-			}
+	routes := c.playbackRoutes(node, mode)
+	for i, route := range routes {
+		if err := ctx.Err(); err != nil {
+			return "", err
 		}
+		budget := 10 * time.Second
+		if deadline, ok := ctx.Deadline(); ok {
+			budget = min(budget, time.Until(deadline)/time.Duration(len(routes)-i))
+		}
+		attempt, cancel := context.WithTimeout(ctx, budget)
+		target, err := c.resolveNode(attempt, songID, route)
+		cancel()
+		if err == nil {
+			return target, nil
+		}
+		failures = append(failures, fmt.Errorf("%s: %w", route, err))
 	}
 	return "", errors.Join(failures...)
 }
@@ -153,10 +113,7 @@ func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, i
 	c.mu.Lock()
 	mode := c.settings.DownloadUpstream
 	c.mu.Unlock()
-	routes := []string{"cf", "hkg"}
-	if mode == "hkg" || mode == "cf" {
-		routes = []string{mode}
-	}
+	routes := c.playbackRoutes("cf", mode)
 	var failures []error
 	attemptedURLs := make(map[string]bool)
 	for attempt, route := range routes {

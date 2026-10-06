@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/upstreamstate"
 )
 
 // Fetching only feeds synchronization. Business operations read the database
@@ -32,11 +33,26 @@ func (c *Console) refreshLocalCatalog(ctx context.Context, engine *cacheproxy.Se
 func (c *Console) fetchCatalogSnapshot(ctx context.Context) (cacheproxy.Catalog, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
+	var failures []error
+	for _, client := range c.operationClients(upstreamstate.Catalog, upstreamstate.Constraints{Entry: c.checksumURL}) {
+		if err := ctx.Err(); err != nil {
+			return cacheproxy.Catalog{}, err
+		}
+		catalog, err := c.fetchCatalogWithClient(ctx, client)
+		if err == nil {
+			return catalog, nil
+		}
+		failures = append(failures, err)
+	}
+	return cacheproxy.Catalog{}, errors.Join(failures...)
+}
+
+func (c *Console) fetchCatalogWithClient(ctx context.Context, client *http.Client) (cacheproxy.Catalog, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", c.checksumURL, nil)
 	if err != nil {
 		return cacheproxy.Catalog{}, err
 	}
-	resp, err := c.upstreamClient().Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return cacheproxy.Catalog{}, err
 	}

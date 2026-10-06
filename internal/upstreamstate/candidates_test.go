@@ -76,6 +76,41 @@ func candidateMonitor(t *testing.T) (*Monitor, *candidateFixture) {
 	return m, f
 }
 
+func TestSelectionsRespectRequestConstraints(t *testing.T) {
+	m, f := candidateMonitor(t)
+	if err := m.Check(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		op   Operation
+		q    Constraints
+		want int
+	}{
+		{Catalog, Constraints{Entry: entry(Catalog, "api")}, 2},
+		{Catalog, Constraints{Entry: "https://api.udon.dance/other"}, 0},
+		{PlaybackURL, Constraints{Route: "cf", Mode: "direct"}, 2},
+		{PlaybackURL, Constraints{Route: "cf", Mode: "socks5"}, 0},
+		{Resource, Constraints{Target: videoFixture}, 2},
+		{Resource, Constraints{Target: "https://unobserved.invalid/file"}, 0},
+	} {
+		ss := m.Selections(tc.op, tc.q)
+		if len(ss) != tc.want {
+			t.Fatalf("%s %+v: got %d want %d", tc.op, tc.q, len(ss), tc.want)
+		}
+		for _, s := range ss {
+			if !tc.q.matches(s.Result) || s.Channel.ID != s.Result.ChannelID || s.Channel.Transport == nil {
+				t.Fatal("ineligible or non-executable selection", s)
+			}
+		}
+	}
+	f.mu.Lock()
+	f.expires = time.Now().Add(-time.Second)
+	f.mu.Unlock()
+	if ss := m.Selections(PlaybackURL, Constraints{Route: "cf"}); len(ss) != 0 {
+		t.Fatal("expired channels selected", ss)
+	}
+}
+
 func TestCandidateChecksAreIsolatedAndExecutable(t *testing.T) {
 	m, f := candidateMonitor(t)
 	f.failed = true

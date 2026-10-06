@@ -16,6 +16,7 @@ import (
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/upstreamrequest"
+	"still-wanna-dance/internal/upstreamstate"
 	"still-wanna-dance/internal/videometa"
 )
 
@@ -50,6 +51,28 @@ func (c *Console) resolve(ctx context.Context, id int64) (string, error) {
 }
 
 func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (string, error) {
+	entry := c.apiBase + "/Api/Songs/play?node=nya"
+	if upstream == "cf" {
+		entry = c.apiBase + "/Api/Songs/play?node=cf"
+	}
+	clients := c.operationClients(upstreamstate.PlaybackURL, upstreamstate.Constraints{Route: upstream, Entry: entry})
+	var failures []error
+	for _, client := range clients {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+		attempt, cancel := context.WithTimeout(ctx, 10*time.Second)
+		target, err := c.resolveNodeWithClient(attempt, id, upstream, client)
+		cancel()
+		if err == nil {
+			return target, nil
+		}
+		failures = append(failures, err)
+	}
+	return "", errors.Join(failures...)
+}
+
+func (c *Console) resolveNodeWithClient(ctx context.Context, id int64, upstream string, client *http.Client) (string, error) {
 	revision := upstreamrequest.Default.Snapshot().Revision
 	node := "nya"
 	if upstream == "cf" {
@@ -59,7 +82,7 @@ func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (s
 	if err != nil {
 		return "", applog.SafeError(err)
 	}
-	resp, err := c.upstreamClient().Do(r)
+	resp, err := client.Do(r)
 	if err != nil {
 		return "", applog.SafeError(err)
 	}

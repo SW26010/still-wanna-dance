@@ -39,6 +39,15 @@ func (s *Server) SyncCatalog(ctx context.Context, c Catalog) error {
 	defer tx.Rollback()
 	duplicate, err := checkCatalogState(ctx, tx, "songs", c.Revision, digest)
 	if err != nil {
+		if errors.Is(err, ErrCatalogConflict) {
+			diagnostic, diagnosticErr := catalogConflictDetails(ctx, tx, c, digest)
+			if diagnosticErr != nil {
+				s.cfg.Logger.Warn("catalog_conflict_diagnostic_failed", "error", diagnosticErr)
+			} else {
+				s.cfg.Logger.Warn("catalog_conflict", "revision", c.Revision, "diagnostic", diagnostic)
+				return fmt.Errorf("%w：%s", err, diagnostic)
+			}
+		}
 		if errors.Is(err, ErrCatalogOlder) {
 			if saveErr := commitCatalogCheck(ctx, tx, "远端版本较旧，保留本地数据"); saveErr != nil {
 				return saveErr
@@ -117,7 +126,7 @@ func checkCatalogState(ctx context.Context, tx *sql.Tx, key, revision, digest st
 	}
 	if candidateTime.Equal(previousTime) {
 		if digest != previousDigest {
-			return false, fmt.Errorf("清单同时间内容冲突，未更新")
+			return false, ErrCatalogConflict
 		}
 		return true, nil
 	}
@@ -131,6 +140,7 @@ func writeCatalogState(ctx context.Context, tx *sql.Tx, key, revision, digest, s
 }
 
 var ErrCatalogOlder = errors.New("清单时间较旧，未更新")
+var ErrCatalogConflict = errors.New("清单同时间内容冲突，未更新")
 
 func commitCatalogCheck(ctx context.Context, tx *sql.Tx, message string) error {
 	_, err := tx.ExecContext(ctx, `INSERT INTO catalog_checks(catalog_key,checked_at,message) VALUES ('songs',?,?)

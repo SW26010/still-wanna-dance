@@ -69,7 +69,9 @@ func TestInventoryPersistsAndKeepsLastSuccessOnFailure(t *testing.T) {
 	}
 	c.startInventoryScan()
 	after = waitInventory(t, c)
-	if after.Videos != 0 || after.Error != "" || !after.Updated.After(before.Updated) {
+	// Windows may report equal timestamps for two scans within one clock tick.
+	// Changed contents prove replacement; time must not move backwards.
+	if after.Videos != 0 || after.Error != "" || after.Updated.Before(before.Updated) {
 		t.Fatalf("did not replace successful snapshot: %+v", after)
 	}
 	newSettings := c.settings

@@ -34,9 +34,13 @@ func TestColdStreamStartsBeforeCompletionAndSharesSeekingReaders(t *testing.T) {
 		}
 	})
 	var handlers sync.WaitGroup
+	tailStarted := make(chan struct{})
 	local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handlers.Add(1)
 		defer handlers.Done()
+		if r.Header.Get("Range") == "bytes=2048-" {
+			close(tailStarted)
+		}
 		s.ServeHTTP(w, r)
 	}))
 	defer local.Close()
@@ -74,9 +78,29 @@ func TestColdStreamStartsBeforeCompletionAndSharesSeekingReaders(t *testing.T) {
 	}
 	// A resolver dropping its connection must not cancel the shared download.
 	resp.Body.Close()
-	remaining := get("bytes=2048-")
-	defer remaining.Body.Close()
+	// Missing bytes now delay the response headers too. Start the request
+	// independently, then release the sequential-only upstream's body.
+	var remaining *http.Response
+	var tailErr error
+	tailDone := make(chan struct{})
+	go func() {
+		defer close(tailDone)
+		r, _ := http.NewRequest("GET", local.URL+strings.TrimPrefix(videoURL(body), "http://play.udon.dance"), nil)
+		r.Host = "play.udon.dance"
+		r.Header.Set("Range", "bytes=2048-")
+		remaining, tailErr = client.Do(r)
+	}()
+	select {
+	case <-tailStarted:
+	case <-time.After(3 * time.Second):
+		t.Fatal("tail request never arrived")
+	}
 	unblock()
+	<-tailDone
+	if tailErr != nil {
+		t.Fatal(tailErr)
+	}
+	defer remaining.Body.Close()
 	tail, err := io.ReadAll(remaining.Body)
 	if err != nil || string(tail) != body[2048:] {
 		t.Fatal("tail failed after resolver disconnect", err)

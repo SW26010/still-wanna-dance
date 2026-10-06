@@ -413,6 +413,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	var f *flight
 	var stream *spoolReader
+loadVideo:
 	if v.localOnly {
 		// Do not enter obtain: it can download or update the current song mapping.
 		_, err = s.verifiedFile(r.Context(), v)
@@ -449,14 +450,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if stream != nil {
-		stream.verifyFull = r.Header.Get("Range") == ""
 		defer stream.Close()
-		w.Header().Set("Content-Type", "video/mp4")
-		w.Header().Set("ETag", `"`+v.key+`"`)
-		w.Header().Set("X-StepStash-Cache", "MISS")
-		http.ServeContent(flushingResponseWriter{w}, r, v.path, time.Time{}, stream)
+		pending := &streamResponseWriter{ResponseWriter: w, header: w.Header().Clone(), stream: stream}
+		pending.Header().Set("Content-Type", "video/mp4")
+		pending.Header().Set("ETag", `"`+v.key+`"`)
+		pending.Header().Set("X-StepStash-Cache", "MISS")
+		http.ServeContent(pending, r, v.path, time.Time{}, stream)
 		if stream.err != nil {
 			if v.cached != nil && errors.Is(stream.err, errUpstreamDownload) && r.Context().Err() == nil {
+				if !pending.committed {
+					// finish wakes readers before the failed flight is removed.
+					// Wait for removal so a same-MD5 retry starts a new flight.
+					select {
+					case <-f.done:
+					case <-r.Context().Done():
+						return
+					}
+					if replacement, fallbackErr := s.retrySongURL(r.Context(), v); fallbackErr == nil {
+						v = replacement
+						s.pinVideo(v)
+						defer s.releaseVideo(v)
+						event.id, event.key, event.host, event.size = v.key, v.key, v.host, v.size
+						goto loadVideo
+					}
+				}
 				if rejectErr := s.RejectSongURL(r.Context(), *v.cached); rejectErr != nil {
 					log.Warn("song_url_reject_failed", "error", rejectErr)
 				}
@@ -466,9 +483,21 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			} else {
 				log.Error("stream_failed", "error", stream.err)
 			}
+			if !pending.committed {
+				status := http.StatusBadGateway
+				if errors.Is(stream.err, context.DeadlineExceeded) {
+					status = http.StatusGatewayTimeout
+				}
+				if errors.Is(stream.err, context.Canceled) {
+					status = http.StatusServiceUnavailable
+				}
+				http.Error(w, http.StatusText(status), status)
+				return
+			}
 			// Headers may already be sent. Abort rather than completing a truncated body.
 			panic(http.ErrAbortHandler)
 		}
+		pending.commit()
 		// A complete GET has finished validation/publication. Drain its song
 		// record too; short Range/HEAD responses leave this to the worker.
 		if r.Method == http.MethodGet && response.status == http.StatusOK {
@@ -543,15 +572,41 @@ func (w *responseWriter) firstBodyMS() any {
 
 func (w *responseWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
-// Flush headers and small prefixes promptly; URL resolvers may read only a few
-// bytes before disconnecting, while the shared background download continues.
-type flushingResponseWriter struct{ http.ResponseWriter }
-
-func (w flushingResponseWriter) WriteHeader(status int) {
-	w.ResponseWriter.WriteHeader(status)
-	http.NewResponseController(w.ResponseWriter).Flush()
+// ServeContent chooses the range and status, but headers stay private until
+// the first readable bytes. This leaves failed pre-body streams recoverable.
+type streamResponseWriter struct {
+	http.ResponseWriter
+	header    http.Header
+	stream    *spoolReader
+	status    int
+	committed bool
 }
-func (w flushingResponseWriter) Write(p []byte) (int, error) {
+
+func (w *streamResponseWriter) Header() http.Header { return w.header }
+func (w *streamResponseWriter) WriteHeader(status int) {
+	if w.status != 0 {
+		return
+	}
+	w.status = status
+	// If-Range can turn a ranged request into a full response. Only the
+	// actual response status determines whether to hold the final byte.
+	w.stream.verifyFull = status == http.StatusOK
+}
+func (w *streamResponseWriter) commit() {
+	if w.committed {
+		return
+	}
+	if w.status == 0 {
+		w.WriteHeader(http.StatusOK)
+	}
+	for key, values := range w.header {
+		w.ResponseWriter.Header()[key] = values
+	}
+	w.ResponseWriter.WriteHeader(w.status)
+	w.committed = true
+}
+func (w *streamResponseWriter) Write(p []byte) (int, error) {
+	w.commit()
 	n, err := w.ResponseWriter.Write(p)
 	if err == nil {
 		http.NewResponseController(w.ResponseWriter).Flush()

@@ -29,8 +29,9 @@
 - 产品目录 Go 测试、`go vet` 通过；105 项前端测试通过。
 - 现有测试覆盖退出确认、取消及共享任务存活、容量预留、队列保护、Windows 路径/junction、存储发布错误、重启与淘汰等自动化路径。没有把这些模拟检查表述为实际磁盘耗尽、断电或长期运行结果。
 - `scripts/package-portable.ps1` 构建成功；`scripts/test-portable.ps1` 在独立目录通过 ZIP 解压、不同工作目录启动、配置锁、首次许可门禁、条款一致性、内嵌界面和 JSON 日志检查。该测试以 `-no-tray -no-open` 启动，仅结束自身创建的进程；没有改动 hosts、启动游戏或发布文件。
-- 最终本地 ZIP：`artifacts/local-validation/still-wanna-dance-local-20261007-cd0f09c-windows-amd64-portable.zip`。
-- ZIP 对应产品源码 `cd0f09c`，不包含下述后续评审修复，不能代表当前源码。SHA256：`6c2b861c72661d2a606499e98b918cbdb65e5599876679b20930e0b54a6a8fdf`。
+- 最新本地 ZIP：`artifacts/local-validation/still-wanna-dance-local-20261007-63bbe98-windows-amd64-portable.zip`。
+- ZIP 对应产品源码 `63bbe98`，构建时工作区干净，包含下述评审修复。SHA256：`301ed8dec279dc35263293c3d9c1d2e34c92ea675122b876cca7c0b537086aa1`。
+- 扩展便携包冒烟验证：第二进程使用另一个端口仍因同一配置锁被拒绝，错误指出被占用配置；原进程继续服务。强制结束测试进程后，从同一目录、同一端口重启成功，许可门禁保留，启动日志新增一次。只操作隔离测试副本。这证明进程锁和控制台启动恢复，不代表中途下载或断电的数据持久性已验收。
 
 ## 评审修复
 

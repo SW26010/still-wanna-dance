@@ -50,14 +50,6 @@ func (s *Server) prefetch(ctx context.Context, id, target string) (source string
 		return "", err
 	}
 	defer func() { finishBudget(resultErr == nil || ctx.Err() != nil) }()
-	// Background callers choose their preferred route and own full-file retries.
-	// Preserve that choice even when playback has measured a faster mirror.
-	v.preferRequestedRoute = true
-	if id != "" {
-		s.routeMu.Lock()
-		s.routeSongs.put(v.key, id, time.Time{}, routeSongsLimit)
-		s.routeMu.Unlock()
-	}
 	log := s.cfg.Logger.With("trace_id", applog.TraceID(ctx), "song_id", id, "resource_key", v.key)
 	log.Info("prefetch_started")
 	s.pinVideo(v)

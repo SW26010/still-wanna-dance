@@ -388,9 +388,15 @@ func (c *Console) ensureEngine() error {
 	cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
 		return c.resolvePlayback(ctx, id, node, mode)
 	}
-	cfg.KeepRequestedRoute = mode == "auto"
-	cfg.ResolveRoutes = func(ctx context.Context, id string) ([]string, error) {
-		return c.resolveRoutes(ctx, id, mode)
+	cfg.ResourceTransports = func(target string) []http.RoundTripper {
+		var transports []http.RoundTripper
+		for _, selection := range c.operationSelections(upstreamstate.Resource, upstreamstate.Constraints{Target: target}) {
+			transports = append(transports, selection.Channel.Transport)
+			if len(transports) == 4 {
+				break
+			}
+		}
+		return transports
 	}
 	s, err := cacheproxy.New(cfg)
 	if err != nil {

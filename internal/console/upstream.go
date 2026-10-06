@@ -61,50 +61,6 @@ func (c *Console) resolvePlayback(ctx context.Context, id, node, mode string) (s
 	return "", errors.Join(failures...)
 }
 
-// Resolve both routes independently; their paths and query strings may differ.
-// The cache engine compares content metadata before selecting a replacement.
-func (c *Console) resolveRoutes(ctx context.Context, id, mode string) ([]string, error) {
-	songID, err := strconv.ParseInt(id, 10, 64)
-	if err != nil || songID <= 0 {
-		return nil, fmt.Errorf("invalid song ID: %s", id)
-	}
-	routes := []string{"hkg", "cf"}
-	if mode == "cf" || mode == "hkg" {
-		routes = []string{mode}
-	}
-	type result struct {
-		index  int
-		target string
-		err    error
-	}
-	results := make(chan result, len(routes))
-	for i, route := range routes {
-		go func(i int, route string) {
-			target, err := c.resolveNode(ctx, songID, route)
-			results <- result{i, target, err}
-		}(i, route)
-	}
-	ordered := make([]string, len(routes))
-	var failures []error
-	for range routes {
-		r := <-results
-		if r.err != nil {
-			failures = append(failures, r.err)
-		} else {
-			ordered[r.index] = r.target
-		}
-	}
-	var urls []string
-	seen := make(map[string]bool)
-	for _, target := range ordered {
-		if target != "" && !seen[target] {
-			seen[target] = true
-			urls = append(urls, target)
-		}
-	}
-	return urls, errors.Join(failures...)
-}
-
 // Auto queries node=cf first and retries node=nya once. These select API
 // requests, not resource domains. Preserve each returned URL and its version.
 func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, id int64, wanted func() bool) (string, error) {

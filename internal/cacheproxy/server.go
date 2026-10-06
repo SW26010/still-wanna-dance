@@ -23,7 +23,6 @@ import (
 
 type video struct {
 	localOnly              bool
-	preferRequestedRoute   bool
 	songID                 string
 	key, path, query, host string
 	size                   int64
@@ -47,11 +46,6 @@ type Server struct {
 	mappingMu        sync.Mutex
 	verifications    *verificationStore
 	stats            trafficStats
-	routeMu          sync.Mutex
-	routeSongs       routeLRU[string]
-	routeCache       routeLRU[[]string]
-	routeHealth      map[string]routeHealth
-	routeProbes      map[string]chan struct{}
 	cfg              Config
 	client           *http.Client
 	ctx              context.Context

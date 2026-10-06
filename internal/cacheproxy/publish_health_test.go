@@ -21,7 +21,7 @@ func (t publishTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(t.body), ContentLength: int64(len(payload)), Request: r}, nil
 }
 
-func TestPublicationErrorsOnlyPenalizeUpstreamFailures(t *testing.T) {
+func TestPublicationDistinguishesLocalAndUpstreamFailures(t *testing.T) {
 	for _, mode := range []string{"create", "write", "rename", "read", "short", "checksum", "canceled"} {
 		t.Run(mode, func(t *testing.T) {
 			s, cfg := setup(t, func(http.ResponseWriter, *http.Request) {})
@@ -80,19 +80,13 @@ func TestPublicationErrorsOnlyPenalizeUpstreamFailures(t *testing.T) {
 				body = publishReaderFunc(func([]byte) (int, error) { return 0, context.Canceled })
 			}
 			s.client.Transport = publishTransport{body}
-			s.noteRoute(v.host, 20*time.Millisecond, false)
-			before := s.routeHealth[v.host]
 			_, _, err = s.prepare(context.Background(), v, f)
 			if err == nil {
 				t.Fatal("expected publication failure")
 			}
 			wantFailure := mode == "read" || mode == "short" || mode == "checksum"
-			after := s.routeHealth[v.host]
-			if after.failed != wantFailure {
-				t.Fatalf("mode=%s route=%+v error=%v", mode, after, err)
-			}
-			if !wantFailure && after != before {
-				t.Fatal("local/canceled operation changed route score")
+			if (errors.Is(err, errUpstreamDownload) && !errors.Is(err, context.Canceled)) != wantFailure {
+				t.Fatalf("mode=%s error=%v", mode, err)
 			}
 			if mode == "read" && !errors.Is(err, readFailure) {
 				t.Fatal("lost underlying reader error", err)

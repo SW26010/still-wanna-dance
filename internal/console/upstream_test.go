@@ -190,7 +190,7 @@ func TestDownloadUpstreamSettings(t *testing.T) {
 	}
 }
 
-func TestResolveRoutesDeduplicatesURLsWithoutLosingIssuingNodes(t *testing.T) {
+func TestResolvingSameURLPreservesIssuingNodes(t *testing.T) {
 	c := testConsole(t)
 	target := "http://nya.xin.moe/files/1/2-video.mp4?e=28711962048bed664c98f27e1d9d5842&s=4"
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -200,9 +200,11 @@ func TestResolveRoutesDeduplicatesURLsWithoutLosingIssuingNodes(t *testing.T) {
 	defer api.Close()
 	c.apiBase = api.URL
 	c.client.Transport = http.DefaultTransport
-	urls, err := c.resolveRoutes(context.Background(), "42", "auto")
-	if err != nil || len(urls) != 1 || urls[0] != target {
-		t.Fatal(urls, err)
+	for _, node := range []string{"cf", "hkg"} {
+		got, err := c.resolveNode(context.Background(), 42, node)
+		if err != nil || got != target {
+			t.Fatal(got, err)
+		}
 	}
 	var sources []upstreamrequest.ResourceSource
 	for _, s := range upstreamrequest.Default.ResourceSources("nya.xin.moe") {

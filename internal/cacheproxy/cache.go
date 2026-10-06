@@ -251,7 +251,6 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, 
 		flight.progress.setHost(resp.Request.URL.Hostname())
 	}
 	flight.log.Info("upstream_response", "host", selectedHost, "status", resp.StatusCode, "content_length", resp.ContentLength)
-	started := time.Now()
 	var publishErr error
 	if resp.StatusCode == 206 {
 		publishErr = s.publishRanges(ctx, resp, path, v, flight)
@@ -260,12 +259,8 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, 
 		publishErr = s.publish(ctx, resp.Body, path, v, flight)
 	}
 	if err := publishErr; err != nil {
-		if errors.Is(err, errUpstreamDownload) && !errors.Is(err, context.Canceled) {
-			s.noteRoute(selectedHost, time.Since(started), true)
-		}
 		return "", "", err
 	}
-	s.confirmRoute(selectedHost, time.Duration(float64(time.Since(started))*float64(min(v.size, 64<<10))/float64(v.size)))
 	flight.progress.setStage("index")
 	if err := s.recordVideo(ctx, v); err != nil {
 		return "", "", err

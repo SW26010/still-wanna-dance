@@ -15,55 +15,6 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 )
 
-func TestResolveRoutesQueriesBothNodesConcurrently(t *testing.T) {
-	c := testConsole(t)
-	started := make(chan string, 2)
-	release := make(chan struct{})
-	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		started <- r.URL.Query().Get("node")
-		select {
-		case <-release:
-		case <-r.Context().Done():
-			return
-		}
-		host := "nya.xin.moe"
-		if r.URL.Query().Get("node") == "cf" {
-			host = "play.udon.dance"
-		}
-		w.Header().Set("Location", "http://"+host+"/files/1/2-video.mp4?e=00000000000000000000000000000000&s=1")
-		w.WriteHeader(302)
-	}))
-	defer api.Close()
-	c.apiBase = api.URL
-	c.client.Transport = http.DefaultTransport
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	done := make(chan error, 1)
-	go func() {
-		urls, err := c.resolveRoutes(ctx, "42", "auto")
-		if err == nil && len(urls) != 2 {
-			err = fmt.Errorf("got %d routes", len(urls))
-		}
-		done <- err
-	}()
-	nodes := map[string]bool{}
-	for range 2 {
-		select {
-		case node := <-started:
-			nodes[node] = true
-		case <-ctx.Done():
-			t.Fatal("route queries were not concurrent")
-		}
-	}
-	close(release)
-	if err := <-done; err != nil {
-		t.Fatal(err)
-	}
-	if !nodes["cf"] || !nodes["nya"] {
-		t.Fatal(nodes)
-	}
-}
-
 func TestConsolePrefetchPrefersCFEvenWhenHKGIsFaster(t *testing.T) {
 	c := testConsole(t)
 	const body = "shared route fixture"
@@ -94,7 +45,6 @@ func TestConsolePrefetchPrefersCFEvenWhenHKGIsFaster(t *testing.T) {
 	cfg := fixtureCacheConfig()
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()
-	cfg.ResolveRoutes = func(ctx context.Context, id string) ([]string, error) { return c.resolveRoutes(ctx, id, "auto") }
 	for host := range cfg.Origins {
 		cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
 	}

@@ -33,6 +33,8 @@ type Config struct {
 	// OriginScheme defaults to HTTPS. HTTP is restricted to loopback test origins.
 	OriginScheme    string
 	ResolvePlayback func(context.Context, string, string) (string, error)
+	// PlaybackNode constrains cached addresses when a node is selected manually.
+	PlaybackNode    string
 	DownloadTimeout time.Duration
 	MaxFileBytes    int64
 	// MaxCacheBytes bounds retained videos in the canonical video store; zero is unlimited.

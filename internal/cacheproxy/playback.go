@@ -119,23 +119,7 @@ func (s *Server) requestVideo(r *http.Request, observed func()) (video, func(), 
 	if observed != nil {
 		observed()
 	}
-	// Local content is returned immediately. The upstream check is diagnostic only.
-	if local, localErr := s.localPlaybackVideo(r.Context(), strconv.FormatInt(n, 10)); localErr == nil {
-		s.pinVideo(local)
-		if _, localErr = s.verifiedFile(r.Context(), local); localErr == nil {
-			s.startPlaybackCheck(q, local)
-			return local, func() { s.releaseVideo(local) }, nil
-		}
-		s.releaseVideo(local)
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), playbackResolveBudget)
-	defer cancel()
-	v, err := s.resolvePlaybackVideo(ctx, q)
-	if err != nil {
-		v, err := s.localPlaybackVideo(r.Context(), strconv.FormatInt(n, 10))
-		return v, nil, err
-	}
-	return v, nil, nil
+	return s.loadSong(r.Context(), q)
 }
 
 // Share in-flight checks across probes and range requests. Their lifetime is
@@ -158,7 +142,9 @@ func (s *Server) startPlaybackCheck(q url.Values, local video) *playbackCheck {
 		s.playbackChecks = make(map[string]*playbackCheck)
 	}
 	s.playbackChecks[key] = check
-	s.pinVideo(local)
+	if local.key != "" {
+		s.pinVideo(local)
+	}
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
@@ -169,13 +155,15 @@ func (s *Server) startPlaybackCheck(q url.Values, local video) *playbackCheck {
 			}
 			s.mu.Unlock()
 		}()
-		defer s.releaseVideo(local)
+		if local.key != "" {
+			defer s.releaseVideo(local)
+		}
 		ctx, cancel := context.WithTimeout(s.ctx, playbackResolveBudget)
 		check.v, check.err = s.resolvePlaybackVideoReadOnly(ctx, q)
 		cancel()
 		if check.err != nil {
 			s.cfg.Logger.Warn("playback_check_failed", "song_id", local.songID, "error", applog.SafeError(check.err))
-		} else if check.v.key != local.key {
+		} else if local.key != "" && check.v.key != local.key {
 			s.cfg.Logger.Warn("song_md5_mismatch", "song_id", local.songID, "mapped_md5", local.key, "url_md5", check.v.key)
 		}
 		close(check.done)
@@ -183,21 +171,8 @@ func (s *Server) startPlaybackCheck(q url.Values, local video) *playbackCheck {
 	return check
 }
 
-func (s *Server) resolvePlaybackVideo(ctx context.Context, q url.Values) (video, error) {
-	v, err := s.resolvePlaybackVideoReadOnly(ctx, q)
-	if err != nil {
-		return v, err
-	}
-	if err := s.recordVideo(ctx, v); err != nil {
-		return video{}, err
-	}
-	if err := s.recordSongVideo(ctx, v.songID, v); err != nil {
-		return video{}, err
-	}
-	return v, nil
-}
-
 func (s *Server) resolvePlaybackVideoReadOnly(ctx context.Context, q url.Values) (video, error) {
+	started := time.Now()
 	id, node := q.Get("id"), q.Get("node")
 	var err error
 	var target string
@@ -231,6 +206,11 @@ func (s *Server) resolvePlaybackVideoReadOnly(ctx context.Context, q url.Values)
 	}
 	n, _ := strconv.ParseInt(id, 10, 64)
 	v.songID = strconv.FormatInt(n, 10)
+	if s.cfg.ResolvePlayback == nil {
+		if err := s.ObserveSongURL(ctx, SongURL{SongID: n, URL: target, API: "https://api.udon.dance/Api/Songs/play", Node: node, QueryStartedAt: started, ObservedAt: time.Now()}); err != nil {
+			return video{}, err
+		}
+	}
 	return v, nil
 }
 

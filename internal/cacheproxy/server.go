@@ -22,6 +22,8 @@ import (
 )
 
 type video struct {
+	cached                 *SongURL
+	refresh                *playbackCheck
 	localOnly              bool
 	songID                 string
 	key, path, query, host string
@@ -417,6 +419,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		f, stream, err = s.obtain(r.Context(), v)
+		if err != nil && v.cached != nil && errors.Is(err, errUpstreamDownload) && r.Context().Err() == nil {
+			if replacement, fallbackErr := s.retrySongURL(r.Context(), v); fallbackErr == nil {
+				v = replacement
+				s.pinVideo(v)
+				defer s.releaseVideo(v)
+				event.id, event.key, event.host, event.size = v.key, v.key, v.host, v.size
+				f, stream, err = s.obtain(r.Context(), v)
+			}
+		}
 	}
 	if err != nil {
 		if r.Context().Err() != nil {
@@ -442,6 +453,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-StepStash-Cache", "MISS")
 		http.ServeContent(flushingResponseWriter{w}, r, v.path, time.Time{}, stream)
 		if stream.err != nil {
+			if v.cached != nil && errors.Is(stream.err, errUpstreamDownload) && r.Context().Err() == nil {
+				if rejectErr := s.RejectSongURL(r.Context(), *v.cached); rejectErr != nil {
+					log.Warn("song_url_reject_failed", "error", rejectErr)
+				}
+			}
 			if r.Context().Err() != nil {
 				log.Info("client_disconnected", "cache", "MISS")
 			} else {

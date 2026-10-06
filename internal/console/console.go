@@ -385,6 +385,11 @@ func (c *Console) ensureEngine() error {
 	cfg.RequestRetentionDays = c.settings.RequestRetentionDays
 	cfg.DialContext = c.upstreamDial
 	mode := c.settings.DownloadUpstream
+	if mode == "cf" {
+		cfg.PlaybackNode = "cf"
+	} else if mode == "hkg" {
+		cfg.PlaybackNode = "nya"
+	}
 	cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
 		return c.resolvePlayback(ctx, id, node, mode)
 	}

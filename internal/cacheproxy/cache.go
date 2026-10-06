@@ -243,7 +243,7 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, 
 	flight.progress.setStage("upstream_headers")
 	resp, selectedHost, err := s.openUpstream(ctx, v)
 	if err != nil {
-		return "", "", applog.SafeError(err)
+		return "", "", fmt.Errorf("%w: %w", errUpstreamDownload, applog.SafeError(err))
 	}
 	defer resp.Body.Close()
 	// The response request is the final validated URL, including redirects.

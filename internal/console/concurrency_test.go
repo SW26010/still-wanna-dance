@@ -48,6 +48,9 @@ func TestBackgroundModesDownloadTwoSongsConcurrently(t *testing.T) {
 			c.checksumURL = api.URL + "/catalog"
 			c.client.Transport = http.DefaultTransport
 			cfg := fixtureCacheConfig()
+			cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
+				return c.resolvePlayback(ctx, id, node, "auto")
+			}
 			cfg.OriginScheme = "http"
 			cfg.StorageDir = c.settings.StorageDir
 			cfg.Origins["nya.xin.moe"] = strings.TrimPrefix(origin.URL, "http://")

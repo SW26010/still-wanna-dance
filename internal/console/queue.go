@@ -369,7 +369,12 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 					defer c.mu.Unlock()
 					return c.queue.wants(id, gen)
 				}
-				_, err := c.prefetchSong(songCtx, engine, id, wanted)
+				var err error
+				if !wanted() {
+					err = errSongRemoved
+				} else {
+					_, err = engine.PrefetchPlayback(songCtx, id)
+				}
 				results <- result{id, gen, !errors.Is(err, errSongRemoved), err}
 
 			}()

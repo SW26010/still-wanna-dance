@@ -47,6 +47,9 @@ func TestQueueInvalidationCancelsCapacityWaitButPreservesFlights(t *testing.T) {
 			c.apiBase = api.URL
 			c.client.Transport = http.DefaultTransport
 			cfg := fixtureCacheConfig()
+			cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
+				return c.resolvePlayback(ctx, id, node, "auto")
+			}
 			cfg.OriginScheme = "http"
 			cfg.StorageDir = c.settings.StorageDir
 			cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")

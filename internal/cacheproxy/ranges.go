@@ -143,11 +143,11 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 			}
 			if err := validateRangeResponse(resp, start, end, v.size); err != nil {
 				resp.Body.Close()
-				return err
+				return fmt.Errorf("%w: %w", errUpstreamDownload, err)
 			}
 			if etag != "" && resp.Header.Get("ETag") != etag {
 				resp.Body.Close()
-				return errors.New("upstream entity changed between ranges")
+				return fmt.Errorf("%w: upstream entity changed between ranges", errUpstreamDownload)
 			}
 			data, err := io.ReadAll(io.LimitReader(contextReader{ctx, progressReader{upstreamReader{resp.Body}, flight.progress}}, end-start+1))
 			resp.Body.Close()

@@ -104,7 +104,7 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 		t.Fatal("not idempotent", err)
 	}
 	s := waitMonitor(t, c)
-	db, err := sql.Open("sqlite", filepath.Join(c.settings.StorageDir, "stepstash.sqlite"))
+	db, err := sql.Open("sqlite", filepath.Join(c.settings.StorageDir, "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -94,9 +94,6 @@ func New(cfg Config) (*Server, error) {
 		return nil, err
 	}
 	cfg.StorageDir = root
-	if err := checkStorageFormat(root); err != nil {
-		return nil, err
-	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
@@ -113,8 +110,18 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("lock cache directory (another process may own it): %w", err)
 	}
+	if err := checkStorageLayout(root); err != nil {
+		unlock()
+		return nil, err
+	}
+	usage, usageErr := openUsage(storagePath(root), cfg.Logger, cfg.RequestRetentionDays)
+	if usageErr != nil {
+		unlock()
+		return nil, fmt.Errorf("open storage database: %w", usageErr)
+	}
 	for _, dir := range []string{cfg.videosDir(), cfg.tempDir()} {
 		if err := os.MkdirAll(dir, 0700); err != nil {
+			usage.close()
 			unlock()
 			return nil, err
 		}
@@ -134,6 +141,7 @@ func New(cfg Config) (*Server, error) {
 		}
 	}
 	if err != nil {
+		usage.close()
 		unlock()
 		return nil, fmt.Errorf("clean partial downloads: %w", err)
 	}
@@ -168,12 +176,6 @@ func New(cfg Config) (*Server, error) {
 		return dial(ctx, network, address)
 	}
 
-	usage, usageErr := openUsage(filepath.Join(cfg.StorageDir, "stepstash.sqlite"), cfg.Logger, cfg.RequestRetentionDays)
-	if usageErr != nil {
-		cancel()
-		unlock()
-		return nil, fmt.Errorf("open storage database: %w", usageErr)
-	}
 	s := &Server{cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
 		versionPins: make(map[string]int),
 		usage:       usage,

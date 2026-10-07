@@ -93,7 +93,7 @@ func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("shutdown stuck on paused reader")
 	}
-	db, err := sql.Open("sqlite", filepath.Join(cfg.StorageDir, "stepstash.sqlite"))
+	db, err := sql.Open("sqlite", filepath.Join(cfg.StorageDir, "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}

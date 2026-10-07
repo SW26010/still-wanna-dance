@@ -62,7 +62,7 @@ func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
 	}
 	for _, entry := range entries {
 		switch entry.Name() {
-		case "videos", "tmp", "stepstash.sqlite", ".lock", "stepstash.sqlite-journal":
+		case "videos", "tmp", "storage.sqlite", ".lock", "storage.sqlite-journal":
 		default:
 			t.Fatal("unexpected duplicate storage", entry.Name())
 		}

@@ -45,7 +45,7 @@ func managementFixture(t *testing.T, n int) (string, []CacheEntry) {
 	if err := os.Mkdir(filepath.Join(root, "videos"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	u, err := openUsage(filepath.Join(root, "stepstash.sqlite"), slog.Default(), 0)
+	u, err := openUsage(filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestCacheDeletionSharedMetadataAndStaleConfirmation(t *testing.T) {
 	ctx := context.Background()
 	root, entries := managementFixture(t, 1)
 	e := entries[0]
-	u, err := openUsage(filepath.Join(root, "stepstash.sqlite"), slog.Default(), 0)
+	u, err := openUsage(filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -280,7 +280,7 @@ func TestCacheManagementRejectsSymlinks(t *testing.T) {
 
 func TestCachePageBoundsAssociationsAndSearchesHiddenSongs(t *testing.T) {
 	root, entries := managementFixture(t, 1)
-	u, err := openUsage(filepath.Join(root, "stepstash.sqlite"), slog.Default(), 0)
+	u, err := openUsage(filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}

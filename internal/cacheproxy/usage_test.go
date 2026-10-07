@@ -77,7 +77,7 @@ func TestCacheAccessSurvivesRequestCleanupAndRestart(t *testing.T) {
 	if err != nil || len(page.Entries) != 1 || page.Entries[0].LastRequest != old.UnixMilli() {
 		t.Fatal(page, err)
 	}
-	u, err := openUsage(filepath.Join(cfg.StorageDir, "stepstash.sqlite"), slog.Default(), 0)
+	u, err := openUsage(filepath.Join(cfg.StorageDir, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +227,7 @@ func TestRequestDetailsPruneWithoutLosingSongDemand(t *testing.T) {
 func TestDatabaseUnavailableBlocksStartup(t *testing.T) {
 	s, cfg := setup(t, nil)
 	s.Close()
-	dbPath := filepath.Join(cfg.StorageDir, "stepstash.sqlite")
+	dbPath := filepath.Join(cfg.StorageDir, "storage.sqlite")
 	if err := os.WriteFile(dbPath, []byte("not a database"), 0600); err != nil {
 		t.Fatal(err)
 	}

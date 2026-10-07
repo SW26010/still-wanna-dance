@@ -139,7 +139,7 @@ func TestSavedEmptyStorageScansWithoutStartingEngine(t *testing.T) {
 		t.Fatal("scan initialized storage", entries, err)
 	}
 	// Initialized storage with a lost videos directory is not an empty new store.
-	if err := os.WriteFile(filepath.Join(c.settings.StorageDir, "stepstash.sqlite"), []byte("marker"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(c.settings.StorageDir, "storage.sqlite"), []byte("marker"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	c.startInventoryScan()

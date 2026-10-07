@@ -28,7 +28,7 @@ func TestMonitorCatalogOrderingAndExistingWatermarks(t *testing.T) {
 	newer := monitorFull("kiva", "20261002000000", "full", b)
 	// Udon arrives first, but must not block this batch's complete metadata.
 	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorNames("20261003000000", "latest name"), old, newer, newer})
-	db, err := sql.Open("sqlite", filepath.Join(c.settings.StorageDir, "stepstash.sqlite"))
+	db, err := sql.Open("sqlite", filepath.Join(c.settings.StorageDir, "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestMonitorCatalogUsesCurrentStorageAfterSwitch(t *testing.T) {
 	c.lifecycleMu.Unlock()
 	<-done
 	for root, want := range map[string]string{oldRoot: "original", c.settings.StorageDir: "replacement"} {
-		db, err := sql.Open("sqlite", filepath.Join(root, "stepstash.sqlite"))
+		db, err := sql.Open("sqlite", filepath.Join(root, "storage.sqlite"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -193,10 +193,10 @@ func TestInventoryLoadsCatalogStatusWithoutEngine(t *testing.T) {
 	if got := c.localInventory().Catalog; got.Revision != "" || got.Error != "" || !got.CheckedAt.IsZero() {
 		t.Fatal(got)
 	}
-	if _, err := os.Stat(filepath.Join(next.StorageDir, "stepstash.sqlite")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(next.StorageDir, "storage.sqlite")); !os.IsNotExist(err) {
 		t.Fatal("read created database", err)
 	}
-	if err := os.WriteFile(filepath.Join(next.StorageDir, "stepstash.sqlite"), []byte("invalid database"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(next.StorageDir, "storage.sqlite"), []byte("invalid database"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if got := c.localInventory().Catalog; got.Revision != "" || !strings.Contains(got.Error, "无法读取本地清单状态") {

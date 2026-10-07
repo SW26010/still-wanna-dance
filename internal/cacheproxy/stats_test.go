@@ -50,26 +50,17 @@ func TestTrafficPersistence(t *testing.T) {
 	}
 }
 
-func TestTrafficMigrationAndRetention(t *testing.T) {
+func TestTrafficPersistenceAndRetention(t *testing.T) {
 	root := t.TempDir()
-	path := filepath.Join(root, "stepstash.sqlite")
+	path := filepath.Join(root, "storage.sqlite")
 	u, err := openUsage(path, slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	u.record(usageEvent{id: "v", method: "GET", cache: "HIT", outcome: "completed", status: 206, bytes: 42})
-	u.record(usageEvent{id: "v", method: "GET", cache: "HIT", outcome: "canceled", status: 206, bytes: 500})
-	u.record(usageEvent{id: "v", method: "GET", cache: "MISS", outcome: "completed", status: 200})
+	if _, err := u.db.Exec(`UPDATE traffic_totals SET hits=1,misses=1,saved_bytes=42 WHERE id=1`); err != nil {
+		t.Fatal(err)
+	}
 	u.close()
-	db, err := sql.Open("sqlite", path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = db.Exec(`DROP TABLE traffic_totals`)
-	db.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
 	check := func(v TrafficStats) {
 		t.Helper()
 		if v.Error != "" || v.Hits != 1 || v.Misses != 1 || v.SavedBytes != 42 {
@@ -110,9 +101,8 @@ func TestExistingTrafficDoesNotReadRequestDetails(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO traffic_totals VALUES (1,42,1,0,0,0,0,0)`); err != nil {
 		t.Fatal(err)
 	}
-	// No request_events table exists: an already migrated store must not even
-	// prepare the historical aggregation query on subsequent initialization.
-	if err := initializeTraffic(db); err != nil {
+	// Initialization preserves totals independently of request detail retention.
+	if err := initializeStorage(db); err != nil {
 		t.Fatal(err)
 	}
 	s := &Server{}

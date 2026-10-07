@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -80,22 +79,9 @@ func CacheDirectory(root string) (string, error) {
 }
 
 func cacheReadDB(root string) (*sql.DB, error) {
-	path := filepath.Join(root, "stepstash.sqlite")
-	info, err := os.Lstat(path)
-	if err != nil {
-		return nil, err
-	}
-	if !info.Mode().IsRegular() {
-		return nil, errors.New("缓存数据库不是普通文件")
-	}
-	path = filepath.ToSlash(path)
-	if len(path) > 1 && path[1] == ':' {
-		path = "/" + path
-	}
-	u := url.URL{Scheme: "file", Path: path, RawQuery: "mode=ro&_pragma=busy_timeout(1000)"}
-	db, err := sql.Open("sqlite", u.String())
-	if err == nil {
-		db.SetMaxOpenConns(1)
+	db, err := readStorageDatabase(root)
+	if err == nil && db == nil {
+		return nil, os.ErrNotExist
 	}
 	return db, err
 }
@@ -189,7 +175,7 @@ func ReadCachePage(ctx context.Context, root, query, order string, offset int) (
 	}
 	dir, err := CacheDirectory(root)
 	if errors.Is(err, os.ErrNotExist) {
-		if _, dbErr := os.Lstat(filepath.Join(root, "stepstash.sqlite")); errors.Is(dbErr, os.ErrNotExist) {
+		if _, dbErr := os.Lstat(storagePath(root)); errors.Is(dbErr, os.ErrNotExist) {
 			return result, nil
 		}
 		return result, err
@@ -279,9 +265,6 @@ func (s *Server) DeleteCache(ctx context.Context, selected []CacheSelection) ([]
 // Offline maintenance shares the engine removal implementation and exclusive
 // store lock, but starts no service, cleanup worker, network or usage pruning.
 func DeleteCacheOffline(ctx context.Context, root string, selected []CacheSelection) ([]CacheRemoval, error) {
-	if err := checkStorageFormat(root); err != nil {
-		return nil, err
-	}
 	if len(selected) < 1 || len(selected) > 50 {
 		return nil, errors.New("每次请选择 1～50 个缓存")
 	}
@@ -306,6 +289,9 @@ func DeleteCacheOffline(ctx context.Context, root string, selected []CacheSelect
 		return nil, errors.New("缓存目录正由其他进程使用")
 	}
 	defer unlock()
+	if err := checkStorageLayout(root); err != nil {
+		return nil, err
+	}
 	s := &Server{cfg: Config{StorageDir: root, Logger: slog.Default()}}
 	return s.deleteCache(ctx, selected)
 }

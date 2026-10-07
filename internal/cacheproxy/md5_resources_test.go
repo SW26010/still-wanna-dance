@@ -249,7 +249,7 @@ func TestMD5ReferenceSnapshotProtectsFilesDuringUse(t *testing.T) {
 
 func TestMD5OldStorageRejectedWithoutMigration(t *testing.T) {
 	root := t.TempDir()
-	path := filepath.Join(root, "stepstash.sqlite")
+	path := filepath.Join(root, "storage.sqlite")
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		t.Fatal(err)

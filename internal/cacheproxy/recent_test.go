@@ -13,7 +13,7 @@ import (
 
 func TestRecentRequestsWindowAndNames(t *testing.T) {
 	root := t.TempDir()
-	u, err := openUsage(filepath.Join(root, "stepstash.sqlite"), slog.New(slog.NewTextHandler(io.Discard, nil)), 0)
+	u, err := openUsage(filepath.Join(root, "storage.sqlite"), slog.New(slog.NewTextHandler(io.Discard, nil)), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestRecentMissingCorruptAndLimits(t *testing.T) {
 	if err != nil || len(a.Requests) != 0 {
 		t.Fatalf("missing: %+v %v", a, err)
 	}
-	if _, err := os.Stat(filepath.Join(root, "stepstash.sqlite")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(root, "storage.sqlite")); !os.IsNotExist(err) {
 		t.Fatal("read created database")
 	}
 	b, _ := ReadRecentRequests(context.Background(), t.TempDir(), 50)
@@ -82,7 +82,7 @@ func TestRecentMissingCorruptAndLimits(t *testing.T) {
 			t.Fatalf("accepted %d", n)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(root, "stepstash.sqlite"), []byte("corrupt"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "storage.sqlite"), []byte("corrupt"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ReadRecentRequests(context.Background(), root, 50); err == nil {
@@ -108,7 +108,7 @@ func TestExpectedRecentBytes(t *testing.T) {
 
 func TestRecentBoundedAssociations(t *testing.T) {
 	root := t.TempDir()
-	u, err := openUsage(filepath.Join(root, "stepstash.sqlite"), slog.Default(), 0)
+	u, err := openUsage(filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,9 +133,9 @@ func TestRecentBoundedAssociations(t *testing.T) {
 	}
 }
 
-func TestRecentHTTPWindowSurvivesPrefetchAndMigratesOffline(t *testing.T) {
+func TestRecentHTTPWindowSurvivesPrefetchOffline(t *testing.T) {
 	root := t.TempDir()
-	u, err := openUsage(filepath.Join(root, "stepstash.sqlite"), slog.Default(), 0)
+	u, err := openUsage(filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,11 +145,6 @@ func TestRecentHTTPWindowSurvivesPrefetchAndMigratesOffline(t *testing.T) {
 		events = append(events, usageEvent{id: "prefetch", source: "prefetch", at: int64(i + 2)})
 	}
 	if err = u.write(events); err != nil {
-		t.Fatal(err)
-	}
-	// Emulate a pre-upgrade database with CDN stopped. The reader itself must
-	// install the index; waiting for engine startup would hide offline history.
-	if _, err = u.db.Exec(`DROP INDEX request_events_http_time`); err != nil {
 		t.Fatal(err)
 	}
 	u.close()
@@ -163,7 +158,7 @@ func TestRecentHTTPWindowSurvivesPrefetchAndMigratesOffline(t *testing.T) {
 		}
 	}
 	// HasMore counts HTTP requests, including deterministic ties, not activity.
-	u, err = openUsage(filepath.Join(root, "stepstash.sqlite"), slog.Default(), 0)
+	u, err = openUsage(filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}

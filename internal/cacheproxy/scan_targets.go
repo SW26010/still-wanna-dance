@@ -5,10 +5,7 @@ import (
 	"database/sql"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strconv"
-	"strings"
 )
 
 type ScanTarget struct{ Checksum, Target string }
@@ -17,34 +14,12 @@ type ScanTarget struct{ Checksum, Target string }
 // updating versions or creating a missing database. URLs are for local checks;
 // a later download must resolve a fresh address if its local receipt is lost.
 func LoadScanTargets(ctx context.Context, root string) (map[string]ScanTarget, error) {
-	db, err := openScanDatabase(root)
+	db, err := readStorageDatabase(root)
 	if err != nil || db == nil {
 		return nil, err
 	}
 	defer db.Close()
 	return loadScanTargets(ctx, db)
-}
-
-func openScanDatabase(root string) (*sql.DB, error) {
-	path, err := filepath.Abs(filepath.Join(root, "stepstash.sqlite"))
-	if err != nil {
-		return nil, err
-	}
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil, nil
-	} else if err != nil {
-		return nil, err
-	}
-	uriPath := filepath.ToSlash(path)
-	if !strings.HasPrefix(uriPath, "/") {
-		uriPath = "/" + uriPath
-	}
-	u := url.URL{Scheme: "file", Path: uriPath, RawQuery: "mode=ro"}
-	db, err := sql.Open("sqlite", u.String())
-	if err != nil {
-		return nil, err
-	}
-	return db, nil
 }
 
 func loadScanTargets(ctx context.Context, db *sql.DB) (map[string]ScanTarget, error) {

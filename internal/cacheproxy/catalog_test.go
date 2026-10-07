@@ -265,7 +265,7 @@ func TestCatalogTimesAcrossMD5SourcesIgnoreLegacyUdonWatermark(t *testing.T) {
 
 func TestOldStoreRejectedWithoutAnyFileChanges(t *testing.T) {
 	root := t.TempDir()
-	dbPath := filepath.Join(root, "stepstash.sqlite")
+	dbPath := filepath.Join(root, "storage.sqlite")
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		t.Fatal(err)

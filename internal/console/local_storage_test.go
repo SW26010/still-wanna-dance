@@ -52,7 +52,7 @@ func TestLocalStorageFailureStopsConsoleFallback(t *testing.T) {
 					t.Fatal(err)
 				}
 			} else {
-				db, err := sql.Open("sqlite", filepath.Join(cfg.StorageDir, "stepstash.sqlite"))
+				db, err := sql.Open("sqlite", filepath.Join(cfg.StorageDir, "storage.sqlite"))
 				if err != nil {
 					t.Fatal(err)
 				}

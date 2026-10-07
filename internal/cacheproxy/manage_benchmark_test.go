@@ -9,7 +9,7 @@ import (
 
 // BenchmarkReadCachePageExisting opts into read-only measurements of a real
 // cache. Point STEPSTASH_BENCH_CACHE_ROOT at the directory containing videos
-// and stepstash.sqlite. It never starts the engine or reads video contents.
+// and storage.sqlite. It never starts the engine or reads video contents.
 func BenchmarkReadCachePageExisting(b *testing.B) {
 	root := os.Getenv("STEPSTASH_BENCH_CACHE_ROOT")
 	if root == "" {

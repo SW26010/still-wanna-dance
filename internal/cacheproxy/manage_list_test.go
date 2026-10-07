@@ -14,7 +14,7 @@ import (
 
 func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 	root, _ := managementFixture(t, 270) // crosses the metadata batch boundary
-	u, err := openUsage(filepath.Join(root, "stepstash.sqlite"), slog.Default(), 0)
+	u, err := openUsage(filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}

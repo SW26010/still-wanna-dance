@@ -2,10 +2,6 @@ package cacheproxy
 
 import (
 	"database/sql"
-	"errors"
-	"net/url"
-	"os"
-	"path/filepath"
 	"sync"
 )
 
@@ -70,24 +66,6 @@ const trafficSchema = `CREATE TABLE IF NOT EXISTS traffic_totals (
  local_ns INTEGER NOT NULL, upstream_samples INTEGER NOT NULL, upstream_ns INTEGER NOT NULL
 );`
 
-func initializeTraffic(db *sql.DB) error {
-	if _, err := db.Exec(trafficSchema); err != nil {
-		return err
-	}
-	var exists bool
-	if err := db.QueryRow(`SELECT EXISTS(SELECT 1 FROM traffic_totals WHERE id=1)`).Scan(&exists); err != nil {
-		return err
-	}
-	if exists {
-		return nil
-	}
-	_, err := db.Exec(`INSERT OR IGNORE INTO traffic_totals
-SELECT 1, COALESCE(SUM(CASE WHEN cache_result='HIT' THEN transferred_bytes ELSE 0 END),0),
- COUNT(CASE WHEN cache_result='HIT' THEN 1 END), COUNT(CASE WHEN cache_result='MISS' THEN 1 END),0,0,0,0
-FROM request_events WHERE method='GET' AND outcome='completed' AND status IN (200,206)`)
-	return err
-}
-
 func (s *Server) loadTraffic(db *sql.DB) error {
 	return db.QueryRow(`SELECT saved_bytes,hits,misses FROM traffic_totals WHERE id=1`).Scan(
 		&s.stats.savedBytes, &s.stats.hits, &s.stats.misses)
@@ -111,38 +89,16 @@ func (s *Server) persistTraffic() {
 // ReadTrafficStats reads without creating a database or starting a cache engine.
 func ReadTrafficStats(root string) TrafficStats {
 	s := &Server{}
-	path, err := filepath.Abs(filepath.Join(root, "stepstash.sqlite"))
-	if err == nil {
-		_, err = os.Stat(path)
+	db, err := readStorageDatabase(root)
+	if err != nil {
+		return TrafficStats{Error: err.Error()}
 	}
-	if errors.Is(err, os.ErrNotExist) {
+	if db == nil {
 		return s.TrafficStats()
-	}
-	if err != nil {
-		return TrafficStats{Error: err.Error()}
-	}
-	uriPath := filepath.ToSlash(path)
-	if len(uriPath) > 1 && uriPath[1] == ':' {
-		uriPath = "/" + uriPath
-	}
-	u := url.URL{Scheme: "file", Path: uriPath}
-	q := u.Query()
-	q.Set("mode", "ro")
-	q.Set("_pragma", "busy_timeout(1000)")
-	u.RawQuery = q.Encode()
-	db, err := sql.Open("sqlite", u.String())
-	if err != nil {
-		return TrafficStats{Error: err.Error()}
 	}
 	defer db.Close()
 	s.usage = &usageStore{db: db}
-	var exists int
-	err = db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name='traffic_totals'`).Scan(&exists)
-	if err == nil && exists == 0 {
-		err = db.QueryRow(`SELECT COALESCE(SUM(CASE WHEN cache_result='HIT' THEN transferred_bytes ELSE 0 END),0), COUNT(CASE WHEN cache_result='HIT' THEN 1 END), COUNT(CASE WHEN cache_result='MISS' THEN 1 END) FROM request_events WHERE method='GET' AND outcome='completed' AND status IN (200,206)`).Scan(&s.stats.savedBytes, &s.stats.hits, &s.stats.misses)
-	} else if err == nil {
-		err = s.loadTraffic(db)
-	}
+	err = s.loadTraffic(db)
 	if err != nil {
 		s.stats.err = "播放统计读取失败：" + err.Error()
 	}

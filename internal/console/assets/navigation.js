@@ -1,7 +1,7 @@
 // Keep each page mounted: navigation must not reset drafts, selections or tasks.
 (() => {
   const pages = {
-    home: ['开始使用', 'WannaDance 本地视频缓存', '为 VRChat WannaDance 复用已下载视频，也可提前准备房间队列。'],
+    home: ['开始使用', 'Load failed? But I still wanna dance!', '为 VRChat WannaDance 复用已下载视频，也可提前准备房间队列。'],
     monitor: ['运行状态', '运行状态', '查看下载进度、最近请求和网络连接。'],
     cache: ['本地缓存', '本地缓存', '查找已下载的视频，清理磁盘空间。'],
     library: ['准备歌曲', '准备歌曲', '按房间队列提前准备，或批量下载缺失视频。'],

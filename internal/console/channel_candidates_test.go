@@ -28,6 +28,10 @@ func TestChannelModesFollowSettingsAndRetireSavedCandidates(t *testing.T) {
 	if err := c.saveSettings(s, false); err != nil {
 		t.Fatal(err)
 	}
+	c = restartTestConsole(t, c)
+	c.dns.mu.Lock()
+	c.dns.cache = map[string]dnsEntry{"api.udon.dance": {[]string{"203.0.113.1"}, time.Now().Add(time.Minute)}}
+	c.dns.mu.Unlock()
 	both := upstreamrequest.Default.Snapshot().Candidates.Current(target)
 	if len(both) != 2 || both[0].Mode != "direct" || both[1].Mode != "socks5" {
 		t.Fatal(both)
@@ -40,6 +44,10 @@ func TestChannelModesFollowSettingsAndRetireSavedCandidates(t *testing.T) {
 	if err := c.saveSettings(s, false); err != nil {
 		t.Fatal(err)
 	}
+	c = restartTestConsole(t, c)
+	c.dns.mu.Lock()
+	c.dns.cache = map[string]dnsEntry{"api.udon.dance": {[]string{"203.0.113.1"}, time.Now().Add(time.Minute)}}
+	c.dns.mu.Unlock()
 	proxy, err := upstreamrequest.Default.Snapshot().Candidates.Candidates(context.Background(), "https://never-resolve.invalid")
 	if err != nil || len(proxy) != 1 || proxy[0].Mode != "socks5" {
 		t.Fatal(proxy, err)

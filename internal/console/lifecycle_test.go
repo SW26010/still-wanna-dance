@@ -61,9 +61,10 @@ func TestLifecycleIOLeavesStateResponsive(t *testing.T) {
 			}
 			// Close uses the logger captured when the engine was created.
 			if operation == "close" {
-				if err := c.save(c.settings); err != nil {
+				if err := c.service.Close(); err != nil {
 					t.Fatal(err)
 				}
+				c.service = nil
 				if err := c.start(); err != nil {
 					t.Fatal(err)
 				}
@@ -108,8 +109,7 @@ func TestLifecycleIOLeavesStateResponsive(t *testing.T) {
 			}
 			var saved chan error
 			if operation == "start" {
-				// A concurrent save must observe the fully published CDN and reject
-				// the change, rather than invalidate an engine still being created.
+				// A concurrent save must leave the newly created engine intact.
 				saved = make(chan error, 1)
 				go func() { saved <- c.save(settings) }()
 			}
@@ -118,8 +118,8 @@ func TestLifecycleIOLeavesStateResponsive(t *testing.T) {
 				t.Fatal(err)
 			}
 			if saved != nil {
-				if err := <-saved; err == nil {
-					t.Fatal("save changed configuration during CDN startup")
+				if err := <-saved; err != nil {
+					t.Fatal(err)
 				}
 			}
 		})

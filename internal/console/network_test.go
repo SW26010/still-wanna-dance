@@ -315,6 +315,7 @@ func TestConsoleNetworkSwitchPreservesInflightRequest(t *testing.T) {
 	if err := c.save(s); err != nil {
 		t.Fatal(err)
 	}
+	c = restartTestConsole(t, c)
 	done := make(chan error, 1)
 	go func() {
 		resp, err := c.upstreamClient().Get("http://unresolvable.invalid/coverage")
@@ -380,6 +381,7 @@ func TestConsoleSOCKS5APIAndHTTPSRelay(t *testing.T) {
 	if err := c.save(s); err != nil {
 		t.Fatal(err)
 	}
+	c = restartTestConsole(t, c)
 	c.client.Transport.(*upstreamrequest.Transport).RoundTripper.(*http.Transport).TLSClientConfig = &tls.Config{RootCAs: roots}
 	check := func(client *http.Client, target string) {
 		t.Helper()
@@ -421,6 +423,7 @@ func TestConsoleSOCKS5CacheAndSettingsSwitch(t *testing.T) {
 	if err := c.save(s); err != nil {
 		t.Fatal(err)
 	}
+	c = restartTestConsole(t, c)
 	loaded, err := New(c.configPath, c.address)
 	if err != nil {
 		t.Fatal(err)
@@ -435,8 +438,8 @@ func TestConsoleSOCKS5CacheAndSettingsSwitch(t *testing.T) {
 	if err := c.start(); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.save(s); err == nil {
-		t.Fatal("allowed switch while running")
+	if err := c.save(s); err != nil {
+		t.Fatal(err)
 	}
 	target := fmt.Sprintf("http://play.udon.dance/files/1/2-video.mp4?e=%x&s=4", md5.Sum([]byte("test")))
 	observeTestResources(t)
@@ -461,6 +464,10 @@ func TestConsoleSOCKS5CacheAndSettingsSwitch(t *testing.T) {
 	if err := c.save(s); err != nil {
 		t.Fatal(err)
 	}
+	if c.service == nil || c.client != proxyClient {
+		t.Fatal("save replaced active engine or client")
+	}
+	c = restartTestConsole(t, c)
 	if c.service != nil || c.client == proxyClient {
 		t.Fatal("network switch retained engine or client")
 	}

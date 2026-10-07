@@ -232,6 +232,19 @@ func TestInventoryLifecycleCancelsCoverage(t *testing.T) {
 			case <-time.After(3 * time.Second):
 				t.Fatal("lifecycle action waited for coverage timeout")
 			}
+			if action != "close" {
+				select {
+				case <-canceled:
+					t.Fatal("save canceled active coverage")
+				default:
+				}
+				if c.settings == settings {
+					t.Fatal("save switched active storage")
+				}
+				if err := c.Close(); err != nil {
+					t.Fatal(err)
+				}
+			}
 			select {
 			case <-canceled:
 			case <-time.After(3 * time.Second):
@@ -255,6 +268,7 @@ func TestInventoryLifecycleCancelsCoverage(t *testing.T) {
 					t.Fatal("scan started after close")
 				}
 			} else {
+				c = restartTestConsole(t, c)
 				if got := c.localInventory(); got != (Inventory{}) {
 					t.Fatalf("old scan changed new library inventory: %+v", got)
 				}
@@ -286,7 +300,7 @@ func TestInventoryReadDoesNotWaitForLifecycle(t *testing.T) {
 	}
 }
 
-func TestInventoryReadDiscardsChangedSettings(t *testing.T) {
+func TestInventoryReadKeepsActiveSettingsAcrossSaves(t *testing.T) {
 	for _, aba := range []bool{false, true} {
 		t.Run(fmt.Sprint(aba), func(t *testing.T) {
 			c := testConsole(t)
@@ -322,7 +336,7 @@ func TestInventoryReadDiscardsChangedSettings(t *testing.T) {
 			}
 			close(release)
 			got := <-done
-			if calls != 2 || got.Catalog.Revision != "current" || got.Catalog.Error != "" {
+			if calls != 1 || got.Catalog.Revision != "stale" || got.Catalog.Error != "stale error" {
 				t.Fatal(calls, got)
 			}
 		})

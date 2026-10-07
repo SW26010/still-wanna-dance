@@ -71,7 +71,8 @@ type Console struct {
 	inventoryDone       chan struct{}
 	inventoryCancel     context.CancelFunc // protected by inventoryMu
 	mu                  sync.Mutex
-	settings            Settings
+	settings            Settings // immutable active configuration for this Console
+	savedSettings       Settings // last successfully persisted configuration
 	configPath          string
 	token               string
 	address             string
@@ -130,6 +131,7 @@ func New(configPath, address string) (*Console, error) {
 		return nil, err
 	}
 	c.settings, err = c.resolveSettings(c.settings)
+	c.savedSettings = c.settings
 	if err == nil {
 		err = c.loadTerms()
 	}
@@ -263,11 +265,7 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 		c.mu.Unlock()
 		return errors.New("控制台正在退出")
 	}
-	if c.httpServer != nil || c.batch.Running {
-		c.mu.Unlock()
-		return errors.New("请先关闭 CDN 和批量任务，再保存设置")
-	}
-	oldSettings, service := c.settings, c.service
+	oldSettings := c.savedSettings
 	c.mu.Unlock()
 	if preservePassword {
 		s.SOCKS5Password = oldSettings.SOCKS5Password
@@ -276,15 +274,6 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 	s, err = c.resolveSettings(s)
 	if err != nil {
 		return err
-	}
-	networkChanged := oldSettings.UpstreamMode != s.UpstreamMode || oldSettings.SOCKS5Address != s.SOCKS5Address || oldSettings.SOCKS5Username != s.SOCKS5Username || oldSettings.SOCKS5Password != s.SOCKS5Password
-	var dial upstreamDialFunc
-	var client *http.Client
-	if networkChanged {
-		dial, client, err = c.networkFor(s)
-		if err != nil {
-			return err
-		}
 	}
 	if err = writableDir(s.StorageDir); err != nil {
 		return fmt.Errorf("目录不可写：%w", err)
@@ -308,60 +297,10 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 	if err = os.Rename(f.Name(), c.configPath); err != nil {
 		return err
 	}
-	changedLibrary := !sameLibrary(oldSettings, s)
-	var snapshots *Console
-	if changedLibrary {
-		snapshots = &Console{configPath: c.configPath, settings: s}
-		snapshots.loadSnapshots()
-	}
-	slog.Info("settings_saved", "storage_dir", s.StorageDir, "vrchat_log_dir", s.LogDir)
-	if service != nil {
-		_ = service.Close()
-		c.mu.Lock()
-		c.service = nil
-		c.mu.Unlock()
-	}
-	c.inventoryMu.Lock()
 	c.mu.Lock()
-	c.settings = s
-	if c.monitor != nil {
-		policy := c.monitor.Snapshot().Policy
-		policy.ThroughputInterval = time.Duration(s.ThroughputIntervalMinutes) * time.Minute
-		_ = c.monitor.SetPolicy(policy)
-	}
-	if !s.QueuePrefetchEnabled {
-		delete(c.actionErrors, "queue")
-	}
-	c.settingsRevision++
-	oldClient := c.client
-	if networkChanged {
-		if tr, ok := oldClient.Transport.(interface{ Retire() }); ok {
-			tr.Retire()
-		}
-		c.upstreamDial, c.client = dial, client
-		c.dns.setBackgroundEnabled(s.UpstreamMode != "socks5")
-		c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport)
-	}
-	var inventoryDone chan struct{}
-	if changedLibrary {
-		c.lastBatch, c.batch = snapshots.lastBatch, snapshots.batch
-		if c.inventoryCancel != nil {
-			c.inventoryCancel()
-			c.inventoryCancel = nil
-		}
-		inventoryDone = c.inventoryDone
-		c.inventorySettings = s
-		c.inventoryGeneration++
-		c.inventory = snapshots.inventory
-	}
+	c.savedSettings = s
 	c.mu.Unlock()
-	c.inventoryMu.Unlock()
-	if inventoryDone != nil {
-		<-inventoryDone
-	}
-	if networkChanged {
-		oldClient.CloseIdleConnections()
-	}
+	slog.Info("settings_saved", "storage_dir", s.StorageDir, "vrchat_log_dir", s.LogDir)
 	return nil
 }
 
@@ -666,6 +605,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		result := struct {
 			Running           bool                    `json:"running"`
 			Settings          Settings                `json:"settings"`
+			ActiveSettings    Settings                `json:"activeSettings"`
+			RestartRequired   bool                    `json:"restartRequired"`
 			Hosts             HostsStatus             `json:"hosts"`
 			PortOK            bool                    `json:"portOK"`
 			CDNError          string                  `json:"cdnError"`
@@ -681,8 +622,9 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Activation        Activation              `json:"activation"`
 			DefaultLogDir     string                  `json:"defaultLogDir"`
 			UpstreamMonitor   upstreamstate.Status    `json:"upstreamMonitor"`
-		}{running, c.settings, HostsStatus{}, running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}, c.settings.SOCKS5Password != "", c.activation, defaultLogDir(), c.monitorSnapshotLocked()}
+		}{running, c.savedSettings, c.settings, c.savedSettings != c.settings, HostsStatus{}, running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}, c.savedSettings.SOCKS5Password != "", c.activation, defaultLogDir(), c.monitorSnapshotLocked()}
 		result.Settings.SOCKS5Password = ""
+		result.ActiveSettings.SOCKS5Password = ""
 		service := c.service
 		result.ActionErrors = make(map[string]string, len(c.actionErrors))
 		for source, message := range c.actionErrors {
@@ -697,7 +639,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if service != nil {
 			result.Traffic = service.TrafficStats()
 		} else {
-			result.Traffic = cacheproxy.ReadTrafficStats(result.Settings.StorageDir)
+			result.Traffic = cacheproxy.ReadTrafficStats(result.ActiveSettings.StorageDir)
 		}
 		if !running {
 			result.PortOK = portAvailable(c.videoAddress) == nil

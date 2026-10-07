@@ -79,6 +79,10 @@ func TestInventoryPersistsAndKeepsLastSuccessOnFailure(t *testing.T) {
 	if err := c.save(newSettings); err != nil {
 		t.Fatal(err)
 	}
+	if c.inventory.Updated.IsZero() {
+		t.Fatal("save discarded active inventory")
+	}
+	c = restartTestConsole(t, c)
 	if !c.inventory.Updated.IsZero() {
 		t.Fatal("reused snapshot for a different library")
 	}

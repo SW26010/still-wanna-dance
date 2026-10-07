@@ -150,8 +150,8 @@ func (c *Console) networkFor(s Settings) (upstreamDialFunc, *http.Client, error)
 	return dial, client, nil
 }
 
-// Inventory coverage may still be reading while settings are saved. Each
-// request keeps an immutable client snapshot; new requests use the new client.
+// The client belongs to this Console's active configuration. Saving settings
+// never replaces it; a new Console loads the next configuration at startup.
 func (c *Console) upstreamClient() *http.Client {
 	c.mu.Lock()
 	defer c.mu.Unlock()

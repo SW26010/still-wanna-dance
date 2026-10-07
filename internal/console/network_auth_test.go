@@ -107,7 +107,7 @@ func TestSOCKS5PasswordSettingsLifecycle(t *testing.T) {
 	}
 	update := func(password *string) {
 		t.Helper()
-		payload := c.settings
+		payload := c.savedSettings
 		payload.SOCKS5Password = ""
 		body, _ := json.Marshal(payload)
 		var fields map[string]any
@@ -123,22 +123,26 @@ func TestSOCKS5PasswordSettingsLifecycle(t *testing.T) {
 	}
 	oldClient := c.client
 	update(nil)
-	if c.settings.SOCKS5Password != s.SOCKS5Password || c.client != oldClient {
+	if c.savedSettings.SOCKS5Password != s.SOCKS5Password || c.client != oldClient {
 		t.Fatal("omitted password was not preserved")
 	}
 	replacement := "replacement-test-secret"
 	update(&replacement)
-	if c.settings.SOCKS5Password != replacement || c.client == oldClient {
-		t.Fatal("credential change did not refresh transport")
+	if c.savedSettings.SOCKS5Password != replacement || c.client != oldClient {
+		t.Fatal("credential save changed active transport or lost password")
 	}
-	c.settings.SOCKS5Username = ""
+	update(nil)
+	if c.savedSettings.SOCKS5Password != replacement {
+		t.Fatal("omitted password restored active credentials")
+	}
+	c.savedSettings.SOCKS5Username = ""
 	empty := ""
 	update(&empty)
 	data, err := os.ReadFile(c.configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.settings.SOCKS5Password != "" || strings.Contains(string(data), replacement) {
+	if c.savedSettings.SOCKS5Password != "" || strings.Contains(string(data), replacement) {
 		t.Fatal("clear did not remove stored secret")
 	}
 }

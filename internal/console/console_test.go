@@ -34,6 +34,7 @@ func testConsole(t *testing.T) *Console {
 	c.settings.StorageDir = filepath.Join(root, "data")
 	c.settings.LogDir = filepath.Join(root, "logs")
 	c.settings.ManualLogDir = true
+	c.savedSettings = c.settings
 	c.videoAddress = "127.0.0.1:0"
 	c.httpsAddress = "127.0.0.1:0"
 	t.Cleanup(func() { c.Close() })
@@ -101,8 +102,8 @@ func TestSettingsPersistAndPortConflict(t *testing.T) {
 	if err = c.start(); err != nil {
 		t.Fatal(err)
 	}
-	if err = c.save(c.settings); err == nil {
-		t.Fatal("changed active settings")
+	if err = c.save(c.settings); err != nil {
+		t.Fatal(err)
 	}
 	if err = c.stop(); err != nil {
 		t.Fatal(err)

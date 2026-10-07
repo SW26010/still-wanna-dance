@@ -82,7 +82,7 @@ func TestManualLogDirectorySwitch(t *testing.T) {
 	if err := c.save(s); err != nil {
 		t.Fatal(err)
 	}
-	if c.settings.LogDir != defaultLogDir() {
+	if c.savedSettings.LogDir != defaultLogDir() {
 		t.Fatal("did not restore automatic directory")
 	}
 }

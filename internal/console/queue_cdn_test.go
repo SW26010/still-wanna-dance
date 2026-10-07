@@ -112,12 +112,13 @@ func TestDisablingQueueClearsPreviousStartError(t *testing.T) {
 	if err := c.save(settings); err != nil {
 		t.Fatal(err)
 	}
-	if c.actionErrors["queue"] != "" {
-		t.Fatal("disabling queue retained the previous start error")
+	if c.actionErrors["queue"] == "" {
+		t.Fatal("save erased active queue error")
 	}
 	if c.actionErrors["batch"] == "" {
 		t.Fatal("disabling queue cleared an unrelated error")
 	}
+	c = restartTestConsole(t, c)
 	if err := c.start(); err != nil {
 		t.Fatal(err)
 	}

@@ -166,8 +166,8 @@ func TestInventoryLoadsCatalogStatusWithoutEngine(t *testing.T) {
 	if err := c.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
-	if c.service != nil {
-		t.Fatal("save left engine running")
+	if c.service == nil {
+		t.Fatal("save closed active engine")
 	}
 	if got := c.localInventory().Catalog; got != want {
 		t.Fatal(got, want)
@@ -188,6 +188,7 @@ func TestInventoryLoadsCatalogStatusWithoutEngine(t *testing.T) {
 	if err := c.save(next); err != nil {
 		t.Fatal(err)
 	}
+	c = restartTestConsole(t, c)
 	c.inventory.Catalog = want // A stale snapshot must never supply current status.
 	if got := c.localInventory().Catalog; got.Revision != "" || got.Error != "" || !got.CheckedAt.IsZero() {
 		t.Fatal(got)

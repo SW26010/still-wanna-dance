@@ -21,7 +21,7 @@ func TestCacheLimitSettingsPersist(t *testing.T) {
 	if err := c.save(settings); err == nil {
 		t.Fatal("negative limit accepted")
 	}
-	if c.settings.MaxCacheBytes != 5<<30 {
+	if c.savedSettings.MaxCacheBytes != 5<<30 {
 		t.Fatal("invalid setting changed saved limit")
 	}
 	c.lifecycleMu.Lock()

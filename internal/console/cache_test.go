@@ -153,7 +153,7 @@ func TestCacheSnapshotSlowReadDoesNotBlockLifecycleAndRejectsStaleResults(t *tes
 			}
 			unblock()
 			result := <-readDone
-			if operation == "stop" {
+			if operation != "close" {
 				if result.err != nil || result.page.StorageID != "old" {
 					t.Fatal(result)
 				}

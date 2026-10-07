@@ -243,8 +243,8 @@ func TestThroughputIntervalSettingsPersistAndApply(t *testing.T) {
 	if err = c.save(s); err != nil {
 		t.Fatal(err)
 	}
-	if c.monitor.Snapshot().Policy.ThroughputInterval != 35*time.Minute {
-		t.Fatal("running monitor not updated")
+	if c.monitor.Snapshot().Policy.ThroughputInterval != 20*time.Minute {
+		t.Fatal("save changed running monitor")
 	}
 	restored, err := New(c.configPath, "127.0.0.1:0")
 	if err != nil {

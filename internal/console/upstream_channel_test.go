@@ -18,13 +18,13 @@ func TestUpstreamChannelFollowsSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	after := upstreamrequest.Default.Snapshot()
-	if after.Transport != c.client.Transport || after.Revision == before.Revision {
-		t.Fatal("channel did not follow SOCKS settings")
+	if after.Transport != c.client.Transport || after.Revision != before.Revision {
+		t.Fatal("save changed active channel")
 	}
 	select {
 	case <-before.Changed:
+		t.Fatal("save announced runtime change")
 	default:
-		t.Fatal("change not announced")
 	}
 	c.Close()
 	if upstreamrequest.Default.Snapshot().Transport != nil {

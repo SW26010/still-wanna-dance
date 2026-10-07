@@ -130,8 +130,8 @@ func TestQueueLifecycleAndBatchExclusion(t *testing.T) {
 	if err := c.startBatch(); err == nil {
 		t.Fatal("allowed competing batch")
 	}
-	if err := c.save(c.settings); err == nil {
-		t.Fatal("changed active directories")
+	if err := c.save(c.settings); err != nil {
+		t.Fatal(err)
 	}
 	if err := c.Close(); err != nil {
 		t.Fatal(err)

@@ -30,7 +30,7 @@ function render(s) {
   renderService(s);
   renderActivation(s);
   renderSettings(s);
-  renderHealth(s.upstreamMonitor || {}, s.settings || {});
+  renderHealth(s.upstreamMonitor || {}, s.activeSettings || {});
   renderControls();
   renderQueue(s);
   renderBatch(s);
@@ -273,7 +273,7 @@ function renderControls() {
     'queuePrefetchCount',
     'save',
   ])
-    $(id).disabled = unavailable || !!(s.running || s.batch.running);
+    $(id).disabled = unavailable;
   $('logDir').disabled ||= !$('manualLogDir').checked;
   $('logDir').required = $('manualLogDir').checked;
   if (!$('manualLogDir').checked && s) $('logDir').value = s.defaultLogDir || s.settings.logDir;
@@ -287,9 +287,9 @@ function renderControls() {
   if (typeof updateCacheControls === 'function') updateCacheControls();
   setText('settingsAvailability', !connected ? '连接控制台后可修改设置。' : busy
     ? '正在处理操作，请稍候。'
-    : s && (s.running || s.batch.running)
-      ? '设置已锁定：请先停止 CDN 和批量任务。'
-      : settingsDirty ? '有未保存的更改。保存后用于下一次启动的服务或任务。' : '可以修改设置。保存后用于下一次启动的服务或任务。');
+    : settingsDirty ? '有未保存的更改。保存并重启应用后生效。'
+      : s && s.restartRequired ? '设置已保存，重启应用后生效。'
+      : '配置与当前运行一致。更改后需保存并重启应用。');
   if (!s) return;
   $('start').disabled = unavailable || !!s.running;
   $('stop').disabled = unavailable || !s.running;
@@ -306,7 +306,7 @@ function renderControls() {
 
 function renderQueue(s) {
   const q = s.queue;
-  const count = s.settings.queuePrefetchCount || 3;
+  const count = s.activeSettings.queuePrefetchCount || 3;
   setText('queueWindow', '准备队列前 ' + count + ' 个位置中的有效曲目');
   setText('queuePhase', q.running
     ? q.current
@@ -314,7 +314,7 @@ function renderQueue(s) {
       : (q.songs || []).length
         ? '等待队列变化或重试'
         : '等待新的队列同步'
-    : s.settings.queuePrefetchEnabled === false ? '已在设置中关闭随 CDN 启用'
+    : s.activeSettings.queuePrefetchEnabled === false ? '已在当前配置中关闭随 CDN 启用'
       : !s.running ? '随本地 CDN 启动'
       : s.batch.running && !s.batch.scanOnly ? '下载补齐期间暂停，结束后自动恢复'
       : '预缓存未就绪，请检查日志目录');
@@ -501,15 +501,12 @@ async function action(path, body) {
     }
     if (path === 'settings') {
       settingsDirty = false;
-      settingsRevision++;
-      resetRecent();
-      if (typeof resetCache === 'function') resetCache();
     }
     notice(
       path === 'start'
         ? 'CDN 已启动。若游戏尚未接入，请点击「修改 hosts」。'
         : path === 'settings'
-          ? '设置已保存，将用于下一次启动的服务或任务。'
+          ? '设置已保存。更改将在重启应用后生效。'
           : path === 'hosts/disable'
             ? '已移除 Still Wanna Dance 添加的 hosts 映射。其他已有映射保持不变。'
             : '操作已完成。',

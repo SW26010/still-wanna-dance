@@ -229,6 +229,9 @@ func (t *tray) dispatch(hwnd uintptr, msg uint32, w, l uintptr) uintptr {
 		return 1 // WM_QUERYENDSESSION: do not shut down if logoff is later canceled.
 	case 0x16: // WM_ENDSESSION: bound the OS callback while normal cleanup runs.
 		if w != 0 {
+			if t.options.EndSession != nil {
+				t.options.EndSession()
+			}
 			t.quit()
 			select {
 			case <-t.shutdownDone:

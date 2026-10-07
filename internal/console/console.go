@@ -493,35 +493,45 @@ func (c *Console) ExitRequested() <-chan struct{} { return c.exitRequested }
 // RestartRequested is handled by the application owner after full cleanup.
 func (c *Console) RestartRequested() <-chan struct{} { return c.restartRequested }
 
-func (c *Console) Close() error {
+// BeginShutdown rejects new work and cancels background tasks without waiting
+// for them. The owner calls it before draining HTTP requests, then calls Close
+// after closing HTTP connections to wait for tasks and flush the cache engine.
+// It is safe to call repeatedly.
+func (c *Console) BeginShutdown() {
 	c.lifecycleMu.Lock()
 	c.mu.Lock()
 	c.closing = true
 	c.cancelTermsExitLocked()
 	c.queueDesired = false
 	upstreamrequest.Default.Release(c.requestRevision)
-	monitor := c.monitor
-	monitorManualDone := c.monitorManualDone
 	if c.batchCancel != nil {
 		c.batchCancel()
 	}
-	done := c.batchDone
 	if c.importCancel != nil {
 		c.importCancel()
 	}
-	importDone := c.importDone
 	if c.queueCancel != nil {
 		c.queueCancel()
 	}
-	queueDone := c.queueDone
 	c.mu.Unlock()
 	c.inventoryMu.Lock()
 	if c.inventoryCancel != nil {
 		c.inventoryCancel()
 	}
-	inventoryDone := c.inventoryDone
 	c.inventoryMu.Unlock()
 	c.lifecycleMu.Unlock()
+}
+
+func (c *Console) Close() error {
+	c.BeginShutdown()
+	c.mu.Lock()
+	monitor := c.monitor
+	monitorManualDone := c.monitorManualDone
+	done, importDone, queueDone := c.batchDone, c.importDone, c.queueDone
+	c.mu.Unlock()
+	c.inventoryMu.Lock()
+	inventoryDone := c.inventoryDone
+	c.inventoryMu.Unlock()
 	err := c.stop()
 	if monitor != nil {
 		monitor.Close()

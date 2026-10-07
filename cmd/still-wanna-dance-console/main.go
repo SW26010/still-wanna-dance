@@ -157,11 +157,15 @@ func run() (runErr error) {
 	h := &http.Server{Handler: c, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, ErrorLog: slog.NewLogLogger(slog.Default().Handler(), slog.LevelError)}
 	var closeOnce sync.Once
 	var shutdownErr error
+	shutdownContext, endSession := context.WithCancel(context.Background())
+	defer endSession()
 	shutdown := func() {
 		closeOnce.Do(func() {
 			slog.Info("application_stopping")
+			c.BeginShutdown()
 			// Let the exit acknowledgement finish before closing connections.
-			grace, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			// Windows session end cancels the grace period, even during an exit.
+			grace, cancel := context.WithTimeout(shutdownContext, 2*time.Second)
 			defer cancel()
 			if err := h.Shutdown(grace); err != nil {
 				_ = h.Close()
@@ -197,7 +201,7 @@ func run() (runErr error) {
 	slog.Info("console_ready", "url", url)
 	fmt.Printf("Still Wanna Dance 控制台：%s\n同意条款后关闭浏览器不会退出程序；未同意时关闭条款页会尝试在 60 秒后退出。退出不会恢复 hosts。\n", url)
 	if !*noTray {
-		err = desktop.Run(ctx, desktop.Options{URL: url, Open: !*noOpen, State: c.DesktopState, Command: c.DesktopCommand, Shutdown: shutdown})
+		err = desktop.Run(ctx, desktop.Options{URL: url, Open: !*noOpen, State: c.DesktopState, Command: c.DesktopCommand, Shutdown: shutdown, EndSession: endSession})
 	} else {
 		<-ctx.Done()
 	}

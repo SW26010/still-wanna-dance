@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -214,12 +215,53 @@ func TestLiveTrayLifecycle(t *testing.T) {
 }
 
 func TestCanceledLogoffKeepsTrayAlive(t *testing.T) {
-	tt := &tray{}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	tt := &tray{options: Options{EndSession: cancel}}
 	if tt.dispatch(0, 0x11, 0, 0) != 1 {
 		t.Fatal("logoff query rejected")
 	}
 	tt.dispatch(0, 0x16, 0, 0)
 	if tt.closing {
 		t.Fatal("canceled logoff stopped the app")
+	}
+	if ctx.Err() != nil {
+		t.Fatal("canceled logoff canceled graceful waiting")
+	}
+}
+
+func TestEndSessionCancelsGracefulWaiting(t *testing.T) {
+	for _, alreadyClosing := range []bool{false, true} {
+		t.Run(fmt.Sprintf("alreadyClosing=%t", alreadyClosing), func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			var closes atomic.Int32
+			done := make(chan struct{})
+			go func() {
+				// WM_ENDSESSION posts WM_QUIT. Retire this OS thread on return
+				// so that its message queue cannot affect another test.
+				runtime.LockOSThread()
+				defer close(done)
+				tt := &tray{shutdownDone: make(chan struct{}), options: Options{
+					EndSession: cancel,
+					Shutdown: func() {
+						<-ctx.Done()
+						closes.Add(1)
+					},
+				}}
+				if alreadyClosing {
+					tt.quit()
+				}
+				tt.dispatch(0, 0x16, 1, 0)
+			}()
+			select {
+			case <-done:
+			case <-time.After(2 * time.Second):
+				t.Fatal("session end did not release graceful waiting promptly")
+			}
+			if closes.Load() != 1 {
+				t.Fatalf("cleanup ran %d times", closes.Load())
+			}
+		})
 	}
 }

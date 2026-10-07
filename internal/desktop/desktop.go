@@ -162,4 +162,7 @@ type Options struct {
 	Command func(int) error
 	// Shutdown must close both the HTTP server and cache engine, and be idempotent.
 	Shutdown func()
+	// EndSession optionally cancels graceful waiting before Shutdown on Windows
+	// session end, including when Shutdown is already running. It must not block.
+	EndSession func()
 }

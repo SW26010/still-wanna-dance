@@ -22,6 +22,7 @@ import (
 )
 
 type video struct {
+	candidates             *songCandidates
 	cached                 *SongURL
 	refresh                *playbackCheck
 	localOnly              bool
@@ -430,7 +431,7 @@ loadVideo:
 				s.pinVideo(v)
 				defer s.releaseVideo(v)
 				event.id, event.key, event.host, event.size = v.key, v.key, v.host, v.size
-				f, stream, err = s.obtain(r.Context(), v)
+				goto loadVideo
 			} else {
 				err = errors.Join(err, fmt.Errorf("cached URL refresh: %w", fallbackErr))
 			}

@@ -311,3 +311,51 @@ func TestQueueCancellationDoesNotCancelJoinedRangePlayback(t *testing.T) {
 		t.Fatal("playback did not share queue flight", requests.Load())
 	}
 }
+
+func TestCachedCandidatesPrecedeBlockedRefresh(t *testing.T) {
+	for _, prefetch := range []bool{false, true} {
+		for _, short := range []bool{false, true} {
+			t.Run(fmt.Sprintf("prefetch=%v/short=%v", prefetch, short), func(t *testing.T) {
+				var good atomic.Int32
+				s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Query().Get("bad") != "" {
+						if short {
+							w.Header().Set("Content-Length", fmt.Sprint(len(payload)))
+							w.WriteHeader(200)
+							w.(http.Flusher).Flush()
+						} else {
+							w.WriteHeader(502)
+						}
+						return
+					}
+					good.Add(1)
+					fmt.Fprint(w, payload)
+				})
+				s.cfg.ResolvePlayback = func(ctx context.Context, _, _ string) (string, error) { <-ctx.Done(); return "", ctx.Err() }
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+				defer cancel()
+				for i, suffix := range []string{"", "&bad=2", "&bad=1"} {
+					at := time.Now().Add(time.Duration(i-10) * time.Minute)
+					err := s.ObserveSongURL(ctx, SongURL{SongID: 42, URL: videoURL(payload) + suffix, API: fmt.Sprintf("https://api.udon.dance/source%d", i), Node: []string{"nya", "cf", "cf"}[i], QueryStartedAt: at, ObservedAt: at})
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+				if prefetch {
+					if _, err := s.PrefetchPlayback(ctx, 42); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					w := httptest.NewRecorder()
+					s.ServeHTTP(w, httptest.NewRequest("GET", "http://api.udon.dance/Api/Songs/play?id=42", nil).WithContext(ctx))
+					if w.Code != 200 || w.Body.String() != payload {
+						t.Fatalf("status=%d body=%q", w.Code, w.Body.String())
+					}
+				}
+				if good.Load() != 1 {
+					t.Fatalf("good downloads=%d", good.Load())
+				}
+			})
+		}
+	}
+}

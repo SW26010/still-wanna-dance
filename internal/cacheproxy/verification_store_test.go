@@ -16,7 +16,6 @@ func TestConcurrentFullScanChecksSharedVideoOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer checker.Close()
 	results := make(chan LocalCheckResult, 8)
 	var wg sync.WaitGroup
 	for range 8 {
@@ -61,7 +60,7 @@ func TestPublishedFileNeedsNoPlaybackHash(t *testing.T) {
 		t.Fatal(err)
 	}
 	if offset, err := f.file.Seek(0, io.SeekCurrent); err != nil || offset != 0 {
-		t.Fatalf("publication did not seed verification: %d, %v", offset, err)
+		t.Fatalf("playback unexpectedly read published bytes: %d, %v", offset, err)
 	}
 }
 
@@ -76,7 +75,6 @@ func TestWaitingForVerificationCanBeCanceled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer checker.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	if _, err := checker.Check(ctx, videoURL(payload)); !errors.Is(err, context.DeadlineExceeded) {

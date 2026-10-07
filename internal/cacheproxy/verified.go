@@ -53,7 +53,7 @@ func (s *Server) verifiedFile(ctx context.Context, v video) (*verifiedFile, erro
 		case s.localChecks <- struct{}{}:
 			entry.file, entry.err = os.Open(s.cfg.videoFile(v.key))
 			if entry.err == nil {
-				_, entry.err = s.verifications.validate(ctx, entry, v, false)
+				_, entry.err = validateLocalFile(ctx, s.cfg.StorageDir, entry, v, false)
 			}
 			<-s.localChecks
 		case <-ctx.Done():

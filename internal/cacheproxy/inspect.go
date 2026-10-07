@@ -10,7 +10,7 @@ import (
 )
 
 // CheckLocal validates existing bytes only. It never starts an engine, downloads,
-// publishes, deletes, or updates usage. It may persist verification metadata.
+// publishes, deletes, or updates usage or verification metadata.
 // A missing/corrupt video is a scan result; an unreadable file is an error and
 // must not replace a successful snapshot.
 func CheckLocal(ctx context.Context, storageDir, target string) (bool, error) {
@@ -64,10 +64,9 @@ func (r *LocalReceipt) Unchanged() bool {
 	return err == nil && os.SameFile(r.info, info) && r.info.Size() == info.Size() && r.info.ModTime().Equal(info.ModTime()) && r.info.Mode() == info.Mode()
 }
 
-// LocalChecker shares durable verification with playback without starting an engine.
-// Close must be called after all checks have finished.
+// LocalChecker coalesces local checks without starting an engine or writing files.
 type LocalChecker struct {
-	store   *verificationStore
+	root    string
 	force   bool
 	mu      sync.Mutex
 	results map[string]*LocalReceipt
@@ -81,14 +80,12 @@ type LocalCheckResult struct {
 }
 
 func NewLocalChecker(storageDir string, force bool) (*LocalChecker, error) {
-	store, err := openVerificationStore(storageDir)
+	root, err := filepath.Abs(storageDir)
 	if err != nil {
 		return nil, err
 	}
-	return &LocalChecker{store: store, force: force, results: make(map[string]*LocalReceipt)}, nil
+	return &LocalChecker{root: root, force: force, results: make(map[string]*LocalReceipt)}, nil
 }
-
-func (c *LocalChecker) Close() error { return c.store.db.Close() }
 
 func (c *LocalChecker) Check(ctx context.Context, target string) (LocalCheckResult, error) {
 	var result LocalCheckResult
@@ -104,7 +101,7 @@ func (c *LocalChecker) Check(ctx context.Context, target string) (LocalCheckResu
 		return result, err
 	}
 	// Forced scans hash shared resources once, checking attributes for each song.
-	unlock, err := localScanLocks.acquire(ctx, c.store.root+v.key)
+	unlock, err := localScanLocks.acquire(ctx, c.root+v.key)
 	if err != nil {
 		return result, err
 	}
@@ -115,7 +112,7 @@ func (c *LocalChecker) Check(ctx context.Context, target string) (LocalCheckResu
 	if prior != nil && prior.Unchanged() {
 		return LocalCheckResult{Hit: true, Reused: true, Receipt: prior}, ctx.Err()
 	}
-	path := filepath.Join(c.store.root, "videos", v.key+".mp4")
+	path := filepath.Join(c.root, "videos", v.key+".mp4")
 	file, err := os.Open(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return result, nil
@@ -125,7 +122,7 @@ func (c *LocalChecker) Check(ctx context.Context, target string) (LocalCheckResu
 	}
 	defer file.Close()
 	checked := &verifiedFile{file: file}
-	result.Reused, err = c.store.validate(ctx, checked, v, c.force)
+	result.Reused, err = validateLocalFile(ctx, c.root, checked, v, c.force)
 	if errors.Is(err, errInvalidCache) {
 		result.Corrupt = true
 		return result, nil
@@ -154,7 +151,6 @@ func CheckLocalReceipt(ctx context.Context, storageDir, target string) (bool, *L
 	if err != nil {
 		return false, nil, err
 	}
-	defer checker.Close()
 	result, err := checker.Check(ctx, target)
 	return result.Hit, result.Receipt, err
 }

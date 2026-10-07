@@ -47,7 +47,6 @@ type flight struct {
 type Server struct {
 	resourceHosts    sync.Map // validated API/programmatic URLs, host -> expiry
 	mappingMu        sync.Mutex
-	verifications    *verificationStore
 	stats            trafficStats
 	cfg              Config
 	client           *http.Client
@@ -193,13 +192,6 @@ func New(cfg Config) (*Server, error) {
 		unlock()
 		return nil, fmt.Errorf("load song resources: %w", err)
 	}
-	s.verifications, err = openVerificationStore(cfg.StorageDir)
-	if err != nil {
-		cancel()
-		usage.close()
-		unlock()
-		return nil, fmt.Errorf("open verification database: %w", err)
-	}
 	s.trimCache()
 	s.retentionWake = make(chan struct{}, 1)
 	s.retentionDone = make(chan struct{})
@@ -223,7 +215,6 @@ func (s *Server) Close() error {
 		// All references are now released; finish any deferred eviction before closing usage.
 		s.ResetQueueSongs(nil)
 		s.runRetention(false)
-		s.verifications.db.Close()
 		s.usage.close()
 		s.client.CloseIdleConnections()
 		err = s.unlock()

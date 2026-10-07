@@ -83,13 +83,6 @@ func (s *Server) beginVideoRemovalLocked(key string) bool {
 }
 
 func (s *Server) finishVideoRemoval(key string, removed bool) {
-	if removed {
-		// Keep the deletion reservation while invalidating trust; no global
-		// retention lock is held during database I/O.
-		if err := s.verifications.forget(context.Background(), key); err != nil {
-			s.cfg.Logger.Warn("verification_forget_failed", "key", key, "error", err)
-		}
-	}
 	s.retentionMu.Lock()
 	if removed {
 		s.retainVideoLocked(key, nil)

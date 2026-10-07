@@ -325,10 +325,6 @@ func (s *Server) publishSpool(ctx context.Context, f *os.File, path string, v vi
 	if err := final.Sync(); err != nil {
 		return err
 	}
-	identity, err := fileIdentity(final)
-	if err != nil {
-		return err
-	}
 	if err := final.Close(); err != nil {
 		return err
 	}
@@ -348,11 +344,6 @@ func (s *Server) publishSpool(ctx context.Context, f *os.File, path string, v vi
 		s.requestRetentionLocked()
 	}
 	s.retentionMu.Unlock()
-	// Publication has already checked these bytes. Bind trust to the final
-	// file identity so the first playback does not read the whole video again.
-	if err := s.verifications.remember(ctx, v, identity, info, time.Now()); err != nil {
-		return err
-	}
 	return nil
 }
 

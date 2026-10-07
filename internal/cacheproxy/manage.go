@@ -292,7 +292,7 @@ func DeleteCacheOffline(ctx context.Context, root string, selected []CacheSelect
 	if _, err = CacheDirectory(root); err != nil {
 		return nil, err
 	}
-	for _, name := range []string{".lock", "verification.sqlite"} {
+	for _, name := range []string{".lock"} {
 		info, err := os.Lstat(filepath.Join(root, name))
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return nil, err
@@ -306,12 +306,7 @@ func DeleteCacheOffline(ctx context.Context, root string, selected []CacheSelect
 		return nil, errors.New("缓存目录正由其他进程使用")
 	}
 	defer unlock()
-	store, err := openVerificationStore(root)
-	if err != nil {
-		return nil, err
-	}
-	defer store.db.Close()
-	s := &Server{cfg: Config{StorageDir: root, Logger: slog.Default()}, verifications: store}
+	s := &Server{cfg: Config{StorageDir: root, Logger: slog.Default()}}
 	return s.deleteCache(ctx, selected)
 }
 
@@ -368,9 +363,6 @@ func (s *Server) removeCacheEntry(ctx context.Context, db *sql.DB, item CacheSel
 		return "changed"
 	}
 	if ctx.Err() != nil {
-		return "failed"
-	}
-	if err = s.verifications.forget(ctx, item.Key); err != nil {
 		return "failed"
 	}
 	if err = os.Remove(s.cfg.videoFile(item.Key)); err != nil {

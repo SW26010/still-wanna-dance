@@ -62,7 +62,7 @@ func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
 	}
 	for _, entry := range entries {
 		switch entry.Name() {
-		case "verification.sqlite", "verification.sqlite-journal", "videos", "tmp", "stepstash.sqlite", ".lock", "stepstash.sqlite-journal":
+		case "videos", "tmp", "stepstash.sqlite", ".lock", "stepstash.sqlite-journal":
 		default:
 			t.Fatal("unexpected duplicate storage", entry.Name())
 		}
@@ -77,6 +77,8 @@ func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
 		t.Fatal(title, volume, checksum, size)
 	}
 	s.Close()
+	// An unrelated obsolete file must not affect engine startup or eviction.
+	writeTestFile(t, filepath.Join(cfg.StorageDir, "verification.sqlite"), "not a database")
 	restarted, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)

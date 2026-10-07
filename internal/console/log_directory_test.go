@@ -42,7 +42,7 @@ func TestAutomaticLogDirectoryFollowsEnvironment(t *testing.T) {
 		if saved.LogDir != "" || saved.ManualLogDir || saved.StorageDir != "still-wanna-dance-data" {
 			t.Fatalf("persisted environment-dependent defaults: %+v", saved)
 		}
-		if err := c.writeSnapshot("test", c.settings, true); err != nil {
+		if err := c.writeSnapshot("test", c.settings.StorageDir, true); err != nil {
 			t.Fatal(err)
 		}
 		data, err = os.ReadFile(config + ".test.json")
@@ -50,7 +50,7 @@ func TestAutomaticLogDirectoryFollowsEnvironment(t *testing.T) {
 			t.Fatal(err)
 		}
 		var snapshot savedSnapshot[bool]
-		if err := json.Unmarshal(data, &snapshot); err != nil || snapshot.Settings.LogDir != "" {
+		if err := json.Unmarshal(data, &snapshot); err != nil || snapshot.StorageDir != "still-wanna-dance-data" {
 			t.Fatalf("snapshot retained automatic path: %s, %v", data, err)
 		}
 		c.Close()

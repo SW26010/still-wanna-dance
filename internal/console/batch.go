@@ -191,7 +191,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		}
 		if completed && ctx.Err() == nil && result.Total > 0 && result.Checked == result.Total && result.Failed == 0 {
 			result.Updated = time.Now()
-			if err := c.writeSnapshot("batch", settings, result); err != nil {
+			if err := c.writeSnapshot("batch", settings.StorageDir, result); err != nil {
 				result.Phase += "；保存失败，上次成功结果保留：" + err.Error()
 			} else {
 				c.mu.Lock()
@@ -199,7 +199,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 				c.mu.Unlock()
 			}
 		}
-		if err := c.writeSnapshot("attempt", settings, result); err != nil {
+		if err := c.writeSnapshot("attempt", settings.StorageDir, result); err != nil {
 			result.Phase += "；无法保存本次进度：" + err.Error()
 		}
 		c.mu.Lock()

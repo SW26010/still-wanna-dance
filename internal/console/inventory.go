@@ -183,7 +183,7 @@ func (c *Console) startInventoryScan() {
 			c.inventory.Error = result.Error
 			return
 		}
-		if err := c.writeSnapshot("inventory", s, result); err != nil {
+		if err := c.writeSnapshot("inventory", s.StorageDir, result); err != nil {
 			c.inventory.Error = "无法保存扫描结果：" + err.Error()
 			return
 		}

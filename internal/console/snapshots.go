@@ -2,13 +2,17 @@ package console
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 )
 
+const snapshotSchemaVersion = 1
+
 type savedSnapshot[T any] struct {
-	Settings Settings `json:"settings"`
-	Result   T        `json:"result"`
+	SchemaVersion int    `json:"schemaVersion"`
+	StorageDir    string `json:"storageDir"`
+	Result        T      `json:"result"`
 }
 
 func sameLibrary(a, b Settings) bool {
@@ -16,11 +20,16 @@ func sameLibrary(a, b Settings) bool {
 }
 
 // Replace atomically, so interruption or a failed write leaves the last good file.
-func (c *Console) writeSnapshot(kind string, settings Settings, result any) error {
-	// Snapshots identify a library, not its upstream account. Never duplicate
-	// credentials outside the main configuration file.
-	settings.SOCKS5Username, settings.SOCKS5Password = "", ""
-	data, err := json.MarshalIndent(savedSnapshot[any]{c.storedSettings(settings), result}, "", "  ")
+func (c *Console) writeSnapshot(kind, storageDir string, result any) error {
+	// Store only the library origin. Network settings and credentials have no
+	// bearing on whether an inventory or task result belongs to this library.
+	base := filepath.Dir(c.configPath)
+	if pathContains(base, storageDir) {
+		if rel, err := filepath.Rel(base, storageDir); err == nil {
+			storageDir = rel
+		}
+	}
+	data, err := json.MarshalIndent(savedSnapshot[any]{snapshotSchemaVersion, storageDir, result}, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -51,11 +60,20 @@ func readSnapshot[T any](c *Console, kind string) (T, error) {
 	if err = json.Unmarshal(data, &saved); err != nil {
 		return saved.Result, err
 	}
-	settings, err := c.resolveSettings(saved.Settings)
-	if err != nil {
-		return saved.Result, err
+	if saved.SchemaVersion != snapshotSchemaVersion || saved.StorageDir == "" {
+		var empty T
+		return empty, fmt.Errorf("不支持的快照格式")
 	}
-	if !sameLibrary(settings, c.settings) {
+	root := saved.StorageDir
+	if !filepath.IsAbs(root) {
+		root = filepath.Join(filepath.Dir(c.configPath), root)
+	}
+	root, err = filepath.Abs(root)
+	if err != nil {
+		var empty T
+		return empty, err
+	}
+	if root != c.settings.StorageDir {
 		var empty T
 		return empty, nil
 	}

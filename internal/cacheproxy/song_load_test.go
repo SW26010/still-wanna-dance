@@ -366,3 +366,30 @@ func TestCachedCandidatesPrecedeBlockedRefresh(t *testing.T) {
 		}
 	}
 }
+
+func TestCachedCandidatesHonorConfiguredNode(t *testing.T) {
+	var forbidden atomic.Int32
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("node") == "nya" {
+			forbidden.Add(1)
+			fmt.Fprint(w, payload)
+			return
+		}
+		w.WriteHeader(502)
+	})
+	s.cfg.PlaybackNode = "cf"
+	refreshErr := errors.New("API unavailable")
+	s.cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return "", refreshErr }
+	for _, node := range []string{"cf", "nya"} {
+		now := time.Now()
+		if err := s.ObserveSongURL(context.Background(), SongURL{SongID: 42, URL: videoURL(payload) + "&node=" + node, API: "https://api.udon.dance/Api/Songs/play", Node: node, QueryStartedAt: now, ObservedAt: now}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.PrefetchPlayback(context.Background(), 42); !errors.Is(err, refreshErr) {
+		t.Fatal(err)
+	}
+	if forbidden.Load() != 0 {
+		t.Fatal("ignored explicit node constraint")
+	}
+}

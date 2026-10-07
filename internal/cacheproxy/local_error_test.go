@@ -58,3 +58,23 @@ func TestObservationStorageFailureIsRetained(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestIndexFailureStopsNewDownloads(t *testing.T) {
+	var calls atomic.Int32
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); w.Write([]byte(payload)) })
+	if _, err := s.usage.db.Exec(`CREATE TRIGGER fail_media BEFORE INSERT ON media BEGIN SELECT RAISE(FAIL, 'index failure'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Prefetch(context.Background(), videoURL(payload)); !errors.Is(err, ErrLocalStorage) {
+		t.Fatal(err)
+	}
+	if _, err := s.Prefetch(context.Background(), videoURL(strings.Repeat("x", len(payload)))); !errors.Is(err, ErrLocalStorage) {
+		t.Fatal(err)
+	}
+	if calls.Load() != 1 {
+		t.Fatal("download repeated after index failure", calls.Load())
+	}
+	if source, err := s.Prefetch(context.Background(), videoURL(payload)); source != "HIT" || err != nil {
+		t.Fatal("published cache unavailable", source, err)
+	}
+}

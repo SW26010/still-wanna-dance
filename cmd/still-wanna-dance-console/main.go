@@ -27,7 +27,12 @@ import (
 var visibleErrors = runtime.GOOS == "windows"
 
 func main() {
-	if err := run(); err != nil {
+	err := run()
+	var restart *restartRequest
+	if errors.As(err, &restart) {
+		err = restartApplication(restart.args)
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		if visibleErrors {
 			desktop.ShowError(err)
@@ -132,13 +137,14 @@ func run() (runErr error) {
 			slog.Error("application_panic", "panic", fmt.Sprint(crash), "stack", string(debug.Stack()))
 			runErr = fmt.Errorf("程序发生异常，详情见 %s：%v", logPath, crash)
 		}
-		if runErr != nil {
+		var restart *restartRequest
+		if runErr != nil && !errors.As(runErr, &restart) {
 			slog.Error("application_failed", "error", runErr)
 		} else {
 			slog.Info("application_stopped")
 		}
 		slog.SetDefault(previousLogger)
-		if err := writer.Close(); err != nil && runErr == nil {
+		if err := writer.Close(); err != nil && (runErr == nil || restart != nil) {
 			runErr = fmt.Errorf("关闭日志失败：%w", err)
 		}
 	}()
@@ -163,6 +169,7 @@ func run() (runErr error) {
 	}
 	h := &http.Server{Handler: c, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, ErrorLog: slog.NewLogLogger(slog.Default().Handler(), slog.LevelError)}
 	var closeOnce sync.Once
+	var shutdownErr error
 	shutdown := func() {
 		closeOnce.Do(func() {
 			slog.Info("application_stopping")
@@ -173,6 +180,7 @@ func run() (runErr error) {
 				_ = h.Close()
 			}
 			if err := c.Close(); err != nil {
+				shutdownErr = err
 				slog.Error("shutdown_failed", "error", err)
 			}
 		})
@@ -181,6 +189,8 @@ func run() (runErr error) {
 	go func() {
 		select {
 		case <-c.ExitRequested():
+			stop()
+		case <-c.RestartRequested():
 			stop()
 		case <-ctx.Done():
 		}
@@ -208,6 +218,18 @@ func run() (runErr error) {
 	serverErr := <-done
 	if !errors.Is(serverErr, http.ErrServerClosed) {
 		return serverErr
+	}
+	if shutdownErr != nil {
+		return shutdownErr
+	}
+	if err == nil {
+		select {
+		case <-c.RestartRequested():
+			// Return through every defer before main launches the replacement.
+			// Pin even an ephemeral listener so the existing browser can reconnect.
+			return &restartRequest{args: []string{"-config", p, "-listen", l.Addr().String(), fmt.Sprintf("-no-tray=%t", *noTray), "-no-open"}}
+		default:
+		}
 	}
 	return err
 }

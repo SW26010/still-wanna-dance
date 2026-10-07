@@ -363,6 +363,8 @@
             </div>
             </fieldset>
             <button class="primary" type="submit" id="save">保存设置</button>
+            <button type="button" id="restart" data-action="restart" hidden>立即重启并应用</button>
+            <p class="hint">重启会停止当前服务和任务，按已保存的自动启动设置重新启动。批量任务需手动重新开始，hosts 映射保留。</p>
           </form>
         </section>
         <section class="card" id="service" aria-labelledby="serviceTitle" tabindex="-1">

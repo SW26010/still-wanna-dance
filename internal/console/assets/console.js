@@ -293,6 +293,8 @@ function renderControls() {
   if (!s) return;
   $('start').disabled = unavailable || !!s.running;
   $('stop').disabled = unavailable || !s.running;
+  $('restart').hidden = !s.restartRequired;
+  $('restart').disabled = unavailable || settingsDirty || !s.restartRequired;
   $('queueStart').disabled = unavailable || s.queue.running || (s.queue.desired && s.batch.running && !s.batch.scanOnly);
   $('queueStop').disabled = unavailable || (!s.queue.desired && !s.queue.running);
   $('batchStart').disabled = unavailable || !!s.batch.running;
@@ -454,6 +456,32 @@ async function refresh() {
 }
 const actionTimeout = 30000;
 const hostsActionTimeout = 120000;
+
+async function reconnectAfterRestart() {
+  exiting = true;
+  clearTimeout(refreshTimer);
+  refreshPending = false;
+  renderControls();
+  setText('connection', '正在重启应用…');
+  notice('正在停止服务并重新启动，页面将自动刷新。');
+  const deadline = Date.now() + 60000;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch('/', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
+      const html = await response.text();
+      const page = new DOMParser().parseFromString(html, 'text/html');
+      const nextToken = page.querySelector('meta[name="stepstash-token"]')?.content;
+      if (response.ok && nextToken && nextToken !== token) {
+        location.reload();
+        return;
+      }
+    } catch (_) { /* The listener is unavailable while the old instance exits. */ }
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  setText('connection', '尚未连接到重启后的应用');
+  notice('重启结果尚未确认。请刷新页面；若仍无法连接，请查看程序日志并手动启动应用。');
+}
+
 async function action(path, body) {
   if (busy || exiting) return;
   if (path === 'exit' && !window.confirm('确定退出整个应用？所有服务和后台任务将停止，hosts 映射会保留。需要恢复 hosts 时，请取消并先恢复。')) return;
@@ -488,6 +516,10 @@ async function action(path, body) {
       notice(data.error || '操作失败');
       return;
     }
+    if (path === 'restart') {
+      await reconnectAfterRestart();
+      return;
+    }
     if (path === 'exit') {
       exiting = true;
       clearTimeout(refreshTimer);
@@ -502,6 +534,7 @@ async function action(path, body) {
     }
     if (path === 'settings') {
       settingsDirty = false;
+      settingsRevision++;
     }
     notice(
       path === 'start'
@@ -513,6 +546,11 @@ async function action(path, body) {
             : '操作已完成。',
     );
   } catch (e) {
+    if (path === 'restart') {
+      // A dropped acknowledgement does not prove the restart was rejected.
+      await reconnectAfterRestart();
+      return;
+    }
     // Losing the response does not cancel or prove failure of a server action.
     uncertainAction =
       (controller.signal.aborted ? '操作等待超时' : '操作响应未能完整读取') +

@@ -192,7 +192,7 @@ test('initial, periodic and navigation refreshes read only the visible page plus
     p.context.fetch = async url => {
       calls.push(url);
       return { ok: true, json: async () => url === '/api/status'
-        ? { settings: {}, hosts: {}, batch: {}, queue: {} }
+        ? { activeSettings: {}, settings: {}, hosts: {}, batch: {}, queue: {} }
         : url === '/api/inventory' ? { bytes: 0 }
         : url === '/api/downloads' ? { tasks: [], bytesPerSecond: 0 }
         : { storageID: 'test', requests: [], hasMore: false } };
@@ -220,7 +220,7 @@ test('page switches during an active batch coalesce and load the latest page wit
   p.context.fetch = url => {
     calls.push(url);
     return new Promise(resolve => { finish = () => resolve({ ok: true,
-      json: async () => ({ settings: {}, hosts: {}, batch: {}, queue: {} }) }); });
+      json: async () => ({ activeSettings: {}, settings: {}, hosts: {}, batch: {}, queue: {} }) }); });
   };
   selectPage(p, 'settings');
   p.visibility(false);
@@ -240,7 +240,7 @@ test('page switches during an active batch coalesce and load the latest page wit
 
 test('activation separates current service, hosts and session evidence, with progress and retry', () => {
   const p = page(true), get = id => p.document.getElementById(id);
-  p.context.snapshot = { running: true, hosts: { ready: false, message: '未接入' }, settings: {}, batch: {}, queue: {},
+  p.context.snapshot = { running: true, hosts: { ready: false, message: '未接入' }, activeSettings: {}, settings: {}, batch: {}, queue: {},
     traffic: { requests: 999 }, activation: { phase: 'hosts', started: '2026-09-27T01:00:00Z' } };
   vm.runInContext('connected = true; render(snapshot)', p.context);
   assert.equal(get('enableAcceleration').disabled, true);
@@ -400,7 +400,7 @@ for (const removeAuth of [false, true]) {
   });
 }
 
-test('SOCKS5 settings toggle, preserve the endpoint, and lock while running', async () => {
+test('SOCKS5 settings toggle, preserve the endpoint, and remain editable while running', async () => {
   const p = page();
   p.finishBatch();
   await flush();
@@ -425,8 +425,8 @@ test('SOCKS5 settings toggle, preserve the endpoint, and lock while running', as
   p.fireTimer();
   p.finishBatch(2, {}, { running: true });
   await flush();
-  assert.equal(get('upstreamMode').disabled, true);
-  assert.equal(get('socks5Address').disabled, true);
+  assert.equal(get('upstreamMode').disabled, false);
+  assert.equal(get('socks5Address').disabled, false);
 });
 
 for (const inventoryFirst of [false, true]) {
@@ -461,13 +461,13 @@ test('inventory scan waits for connection and inventory, and respects scanning a
   p.requests[1].finish({ bytes: 0, scanning: false });
   await flush();
   assert.equal(vm.runInContext("$('inventoryScan').disabled", p.context), true);
-  p.requests[0].finish({ settings: {}, hosts: {}, batch: {}, queue: {} });
+  p.requests[0].finish({ activeSettings: {}, settings: {}, hosts: {}, batch: {}, queue: {} });
   await flush();
   assert.equal(vm.runInContext("$('inventoryScan').disabled", p.context), false);
   p.fireTimer();
   p.requests[3].finish({ bytes: 0, scanning: true });
   await flush();
-  p.requests[2].finish({ settings: {}, hosts: {}, batch: {}, queue: {} });
+  p.requests[2].finish({ activeSettings: {}, settings: {}, hosts: {}, batch: {}, queue: {} });
   await flush();
   assert.equal(vm.runInContext("$('inventoryScan').disabled", p.context), true);
   const action = vm.runInContext("action('start')", p.context);
@@ -484,7 +484,7 @@ test('inventory scan waits for connection and inventory, and respects scanning a
 
 test('unavailable inventory disables scanning until a successful inventory read', async () => {
   const p = page();
-  p.requests[0].finish({ settings: {}, hosts: {}, batch: {}, queue: {} });
+  p.requests[0].finish({ activeSettings: {}, settings: {}, hosts: {}, batch: {}, queue: {} });
   await flush();
   assert.equal(vm.runInContext("$('inventoryScan').disabled", p.context), true);
   p.requests[1].reject(new Error('offline'));
@@ -627,6 +627,7 @@ function page(hidden = false) {
   const context = vm.createContext({
     document,
     AbortController,
+    AbortSignal,
     URLSearchParams,
     fetch(url, options = {}) {
       if (url === '/api/downloads') return Promise.resolve({ ok: true, json: async () => ({ running: false, tasks: [], bytesPerSecond: 0 }) });
@@ -640,7 +641,10 @@ function page(hidden = false) {
         }, { once: true });
         requests.push({
           url, ...options, reject,
-          finish(data = {}, ok = true) { resolve({ ok, json: async () => data }); },
+          finish(data = {}, ok = true) {
+            if (url === "/api/status") data = { activeSettings: data.settings || {}, ...data };
+            resolve({ ok, json: async () => data, text: async () => String(data) });
+          },
           headersOnly() {
             resolve({ ok: true, json: () => new Promise((_, reject) => { rejectBody = reject; }) });
           },
@@ -676,8 +680,71 @@ function page(hidden = false) {
     fireTimer: () => fireTimer(5000),
     expireRead: () => fireTimer(10000),
     expireAction: hosts => fireTimer(hosts ? 120000 : 30000),
+    retryRestart: () => fireTimer(500),
     get actionDeadlines() { return [...timers.values()].filter(t => [30000, 120000].includes(t.delay)); },
   };
+}
+
+test('saved settings and queue intent are separate from active display and runtime', async () => {
+  const p = page(), get = id => p.document.getElementById(id);
+  p.finishBatch(0, { queuePrefetchCount: 9, upstreamMode: 'socks5', autoStartQueue: false }, {
+    restartRequired: true,
+    activeSettings: { queuePrefetchCount: 2, upstreamMode: 'direct' },
+    running: true, batch: { running: true }, queue: { desired: true, running: false },
+  });
+  await flush();
+  assert.equal(get('queuePrefetchCount').value, 9);
+  assert.match(get('queueWindow').textContent, /前 2 个/);
+  assert.match(get('healthRoute').textContent, /直连/);
+  assert.equal(get('save').disabled, false);
+  assert.equal(get('restart').hidden, false);
+  assert.equal(get('restart').disabled, false);
+  assert.equal(get('queueStart').disabled, true);
+  assert.equal(get('queueStop').disabled, false);
+  assert.match(get('queuePhase').textContent, /下载补齐期间暂停/);
+  get('settings').dispatchEvent({ type: 'input' });
+  assert.equal(get('restart').disabled, true);
+  assert.match(get('settingsAvailability').textContent, /未保存/);
+  get('queueStop').click();
+  assert.equal(p.requests.at(-1).url, '/api/queue/stop');
+  p.requests.at(-1).finish({ ok: true });
+  await flush();
+  p.finishBatch(3, {}, { batch: { running: true }, queue: { desired: false, running: false } });
+  await flush();
+  assert.equal(get('queuePhase').textContent, '已关闭');
+  assert.equal(get('queueStart').disabled, false);
+});
+
+for (const lostAcknowledgement of [false, true]) {
+  test(`restart waits for a new session without resubmitting (lost acknowledgement=${lostAcknowledgement})`, async () => {
+    const p = page();
+    p.finishBatch(0, {}, { restartRequired: true });
+    await flush();
+    let reloads = 0;
+    p.context.location = { reload() { reloads++; } };
+    p.context.DOMParser = class { parseFromString(value) { return { querySelector: () => ({ content: value }) }; } };
+    const pending = vm.runInContext("action('restart')", p.context);
+    const request = p.requests.at(-1);
+    assert.equal(request.url, '/api/restart');
+    if (lostAcknowledgement) request.reject(new Error('connection closed'));
+    else request.finish({ ok: true });
+    await flush();
+    assert.equal(p.requests.at(-1).url, '/');
+    p.requests.at(-1).finish('test-token');
+    await flush();
+    assert.equal(reloads, 0);
+    p.retryRestart();
+    await flush();
+    p.requests.at(-1).reject(new Error('listener stopped'));
+    await flush();
+    p.retryRestart();
+    await flush();
+    p.requests.at(-1).finish('new-session-token');
+    await pending;
+    assert.equal(reloads, 1);
+    assert.equal(p.requests.filter(r => r.url === '/api/restart').length, 1);
+    assert.equal(p.timers.size, 0);
+  });
 }
 
 test('nonempty queue renders three songs in order, falls back to IDs, and replaces stale nodes', async () => {
@@ -710,7 +777,7 @@ test('nonempty queue renders three songs in order, falls back to IDs, and replac
   await flush();
   assert.deepEqual(get('queueSongs').children, []);
   assert.equal(get('queueError').textContent, '');
-  assert.equal(get('queuePhase').textContent, '随本地 CDN 启动');
+  assert.equal(get('queuePhase').textContent, '已关闭');
 });
 
 test('batch failures render rows as text and disappear after a successful refresh', async () => {
@@ -838,7 +905,7 @@ test('settings submit prevents navigation and serializes the edited controls', a
   assert.equal(p.requests[2].url, '/api/settings');
   assert.equal(p.requests[2].method, 'POST');
   assert.deepEqual(JSON.parse(p.requests[2].body), {
-    queuePrefetchCount: 7, queuePrefetchEnabled: true,
+    queuePrefetchCount: 7, autoStartQueue: false,
     autoStartCDN: true, storageDir: 'D:/draft', manualLogDir: true, logDir: 'D:/logs', downloadUpstream: 'hkg',
     upstreamMode: 'socks5', socks5Address: '127.0.0.1:7891',
     socks5Username: 'test-user', socks5Password: 'test-secret',
@@ -851,11 +918,11 @@ test('settings submit prevents navigation and serializes the edited controls', a
   await flush();
   assert.equal(get('storageDir').value, 'D:/effective');
   assert.equal(get('save').disabled, false);
-  assert.equal(get('notice').textContent, '设置已保存，将用于下一次启动的服务或任务。');
+  assert.equal(get('notice').textContent, '设置已保存。更改将在重启应用后生效。');
 });
 
 for (const count of [1, 5]) {
-  test(`queue displays the configured ${count} positions and locks settings while running`, async () => {
+  test(`queue displays the configured ${count} positions and allows settings while running`, async () => {
     const p = page();
     p.finishBatch(0, { queuePrefetchCount: count }, { running: true, queue: {
       running: true, songs: Array.from({ length: 6 }, (_, i) => ({ songId: i + 1 })),
@@ -863,7 +930,7 @@ for (const count of [1, 5]) {
     await flush();
     const get = id => p.document.getElementById(id);
     assert.equal(get('queuePrefetchCount').value, count);
-    assert.equal(get('queuePrefetchCount').disabled, true);
+    assert.equal(get('queuePrefetchCount').disabled, false);
     assert.equal(get('queueSongs').children.length, count);
     assert.equal(get('queueWindow').textContent, `准备队列前 ${count} 个位置中的有效曲目`);
   });
@@ -872,7 +939,7 @@ for (const count of [1, 5]) {
 test('periodic refresh waits for both reads and keeps exactly one timer', async () => {
   const p = page();
   assert.deepEqual(p.requests.map(r => r.url), ['/api/status', '/api/inventory']);
-  p.requests[0].finish({ settings: {}, hosts: {}, batch: {}, queue: {} });
+  p.requests[0].finish({ activeSettings: {}, settings: {}, hosts: {}, batch: {}, queue: {} });
   await flush();
   assert.equal(p.timers.size, 0);
   p.requests[1].finish({ bytes: 0 });
@@ -970,7 +1037,7 @@ for (const stalled of [0, 1]) {
       const p = page();
       assert.equal(p.deadlines.size, 4);
       if (bodyStalls) p.requests[stalled].headersOnly();
-      p.requests[1 - stalled].finish({ settings: {}, hosts: {}, batch: {}, queue: {}, bytes: 0 });
+      p.requests[1 - stalled].finish({ activeSettings: {}, settings: {}, hosts: {}, batch: {}, queue: {}, bytes: 0 });
       await flush();
       assert.equal(p.deadlines.size, 1);
       assert.equal(p.timers.size, 0);
@@ -993,7 +1060,7 @@ for (const stalled of [0, 1]) {
   for (const trigger of ['visibility', 'action']) {
     test(`${trigger} refresh resumes after read ${stalled} times out`, async () => {
       const p = page();
-      p.requests[1 - stalled].finish({ settings: {}, hosts: {}, batch: {}, queue: {}, bytes: 0 });
+      p.requests[1 - stalled].finish({ activeSettings: {}, settings: {}, hosts: {}, batch: {}, queue: {}, bytes: 0 });
       let action;
       if (trigger === 'action') {
         action = vm.runInContext("action('start')", p.context);
@@ -1103,12 +1170,12 @@ test('action timeout while hidden releases busy and checks state on return', asy
 
 test('coverage displays song ratio and does not interpret legacy inventory as zero', async () => {
   const p = page();
-  p.requests[0].finish({ settings: {}, hosts: {}, batch: {}, queue: {} });
+  p.requests[0].finish({ activeSettings: {}, settings: {}, hosts: {}, batch: {}, queue: {} });
   p.requests[1].finish({ updated: '2026-09-26T12:00:00Z', bytes: 10, videos: 3 });
   await flush();
   assert.equal(vm.runInContext("$('coverageRate').textContent", p.context), '—');
   p.fireTimer();
-  p.requests[2].finish({ settings: {}, hosts: {}, batch: {}, queue: {} });
+  p.requests[2].finish({ activeSettings: {}, settings: {}, hosts: {}, batch: {}, queue: {} });
   p.requests[3].finish({ updated: '2026-09-26T12:00:00Z', bytes: 10, videos: 3, coverageKnown: true, coveredSongs: 2, totalSongs: 5 });
   await flush();
   assert.equal(vm.runInContext("$('coverageRate').textContent", p.context), '40.0%');
@@ -1117,7 +1184,7 @@ test('coverage displays song ratio and does not interpret legacy inventory as ze
 
 test('catalog check time, local watermark and offline coverage remain distinct', async () => {
   const p = page();
-  p.requests[0].finish({ settings: {}, hosts: {}, batch: {}, queue: {} });
+  p.requests[0].finish({ activeSettings: {}, settings: {}, hosts: {}, batch: {}, queue: {} });
   p.requests[1].finish({ updated: '2026-10-06T00:00:00Z', coverageKnown: true, coveredSongs: 2, totalSongs: 5,
     catalogRevision: '20261001000000', catalog: { checkedAt: '2026-10-05T12:00:00Z', revision: '20261002000000', error: '清单接口返回 500' } });
   await flush();
@@ -1151,8 +1218,8 @@ test('identical polling snapshots do not rewrite live status text', async () => 
   p.fireTimer();
   p.finishBatch(4, {}, { running: true });
   await flush();
-  assert.match(p.document.getElementById('settingsAvailability').textContent, /设置已锁定/);
-  assert.equal(writes, 2);
+  assert.match(p.document.getElementById('settingsAvailability').textContent, /保存并重启应用/);
+  assert.equal(writes, 0);
 });
 
 for (const moved of [false, true]) {
@@ -1428,16 +1495,16 @@ test('cache pagination handles an emptied store and bounds retries during concur
 for (const enabled of [false, true]) {
  test('queue preference renders and saves ' + enabled, async () => {
   const p = page();
-  p.finishBatch(0, { queuePrefetchEnabled: enabled });
+  p.finishBatch(0, { autoStartQueue: enabled });
   await flush();
   const get = id => p.document.getElementById(id);
-  assert.equal(get('queuePrefetchEnabled').checked, enabled);
-  assert.equal(get('queuePrefetchEnabled').disabled, false);
-  assert.equal(get('queuePhase').textContent, enabled ? '随本地 CDN 启动' : '已在设置中关闭随 CDN 启用');
-  get('queuePrefetchEnabled').checked = !enabled;
+  assert.equal(get('autoStartQueue').checked, enabled);
+  assert.equal(get('autoStartQueue').disabled, false);
+  assert.equal(get('queuePhase').textContent, '已关闭');
+  get('autoStartQueue').checked = !enabled;
   get('settings').dispatchEvent({ type: 'input' });
   get('settings').dispatchEvent({ type: 'submit' });
-  assert.equal(JSON.parse(p.requests[2].body).queuePrefetchEnabled, !enabled);
+  assert.equal(JSON.parse(p.requests[2].body).autoStartQueue, !enabled);
  });
 }
 
@@ -1446,7 +1513,7 @@ test('queue cannot independently lock settings when CDN is stopped', async () =>
  p.finishBatch(0, {}, { running: false, queue: { running: true } });
  await flush();
  assert.equal(p.document.getElementById('save').disabled, false);
- assert.equal(p.document.getElementById('queuePrefetchEnabled').disabled, false);
+ assert.equal(p.document.getElementById('autoStartQueue').disabled, false);
 });
 
 test('log directory requires explicit manual selection and resets to automatic', async () => {
@@ -1535,7 +1602,7 @@ test('paused monitor skips both monitor endpoints while service status keeps pol
   const p = page(true), urls = [];
   p.context.fetch = async url => {
     urls.push(url);
-    return { ok: true, json: async () => url === '/api/status' ? { settings: {}, hosts: {}, batch: {}, queue: {} }
+    return { ok: true, json: async () => url === '/api/status' ? { activeSettings: {}, settings: {}, hosts: {}, batch: {}, queue: {} }
       : url === '/api/downloads' ? { tasks: [], bytesPerSecond: 0 }
       : { storageID: 'test', requests: [], hasMore: false } };
   };
@@ -1594,7 +1661,7 @@ test('resource detail displays actual issuing nodes independently of its domain'
 
 test('automatic startup keeps pending hosts migration visible', async () => {
  const p = page();
- p.finishBatch(0, {}, { running: true, settings: {}, hosts: { ready: false, needsMigration: true, message: '旧版托管条目待迁移' }, activation: { phase: 'migration_required', error: '旧版托管条目待迁移' } });
+ p.finishBatch(0, {}, { running: true, activeSettings: {}, settings: {}, hosts: { ready: false, needsMigration: true, message: '旧版托管条目待迁移' }, activation: { phase: 'migration_required', error: '旧版托管条目待迁移' } });
  await flush();
  const get = id => p.document.getElementById(id).textContent;
  assert.match(get('activationProgress'), /自动启动.*迁移未完成/);

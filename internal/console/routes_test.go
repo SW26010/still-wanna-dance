@@ -53,7 +53,7 @@ func TestConsolePrefetchPrefersCFEvenWhenHKGIsFaster(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer engine.Close()
-	if _, err = c.prefetchSong(context.Background(), engine, 42, nil); err != nil {
+	if _, err = c.prefetchSong(context.Background(), engine, 42); err != nil {
 		t.Fatal(err)
 	}
 	if selected.Load() != "play.udon.dance" {

@@ -178,7 +178,6 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 }
 
 func (s *Server) openUpstream(ctx context.Context, v video) (*http.Response, string, error) {
-	start := time.Now()
 	r, err := s.routeRequest(ctx, v)
 	if err != nil {
 		return nil, "", err
@@ -217,7 +216,6 @@ func (s *Server) openUpstream(ctx context.Context, v video) (*http.Response, str
 				body.useTaskDeadline()
 			}
 		}
-		s.recordUpstream(time.Since(start))
 		return resp, v.host, nil
 	}
 }

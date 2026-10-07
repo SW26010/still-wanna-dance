@@ -179,7 +179,7 @@ function renderTraffic(t) {
   setText('trafficHits', t.hits || 0);
   setText('trafficRate', t.hitRate == null ? '—' : t.hitRate.toFixed(1) + '%');
   setText('trafficSaved', ((t.savedBytes || 0) / 1073741824).toFixed(3) + ' GiB');
-  setText('trafficReduction', t.playbackTransfers || 0);
+  setText('playbackTransfers', t.playbackTransfers || 0);
   setText('trafficDetail', '成功请求 ' +
     (t.requests || 0) +
     ' 次 · 未命中 ' +

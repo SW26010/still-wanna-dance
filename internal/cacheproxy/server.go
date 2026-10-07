@@ -251,7 +251,7 @@ func (s *Server) resourceHostAllowed(host string) bool {
 // membership. Untrusted inbound requests never call this method.
 func (s *Server) parseResolved(r *http.Request) (video, error) {
 	v, err := parseVideoURL(r, s.cfg.MaxFileBytes)
-	if err == nil {
+	if err == nil && s.cfg.IsResourceHost == nil {
 		s.resourceHosts.Store(v.host, time.Now().Add(10*time.Minute))
 	}
 	return v, err
@@ -373,7 +373,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		event.outcome = response.outcome(r.Context(), panicked)
 		s.usage.record(event)
-		s.recordTraffic(r.Method, event.cache, event.outcome, event.status, response.headerLatency, response.bytes)
+		s.recordTraffic(r.Method, event.cache, event.outcome, event.status, response.bytes)
 		if panicked != nil {
 			panic(panicked)
 		}

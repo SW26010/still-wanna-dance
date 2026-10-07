@@ -29,7 +29,7 @@ func TestCurrentVideoRedirectStatuses(t *testing.T) {
 					return w.Result(), nil
 				}),
 			}
-			got, err := s.resolvePlaybackVideoReadOnly(context.Background(), url.Values{"id": {"1344"}, "node": {"nya"}})
+			got, err := s.resolvePlaybackVideo(context.Background(), url.Values{"id": {"1344"}, "node": {"nya"}})
 			accepted := status == 301 || status == 302 || status == 307 || status == 308
 			if accepted {
 				want, parseErr := s.parse(httptest.NewRequest(http.MethodGet, videoURL(payload), nil))

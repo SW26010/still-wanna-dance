@@ -35,7 +35,6 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 		{"fixed CF failure", "cf", "both", "cf", true},
 		{"CF returns nya resource", "cf", "wrong-host", "cf", false},
 		{"cancel stops fallback", "auto", "cancel", "cf", true},
-		{"removed stops fallback", "auto", "removed", "cf", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := testConsole(t)
@@ -45,7 +44,6 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 			body := "verified upstream fixture"
 			var mu sync.Mutex
 			var nodes, hosts []string
-			wanted := true
 			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				mu.Lock()
 				hosts = append(hosts, r.Host)
@@ -69,12 +67,7 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 						cancel()
 						<-r.Context().Done()
 						return
-					case "removed":
-						mu.Lock()
-						wanted = false
-						mu.Unlock()
-						http.Error(w, "failed", 503)
-						return
+
 					}
 				}
 				io.WriteString(w, body)
@@ -115,16 +108,14 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer engine.Close()
-			source, err := c.prefetchSong(ctx, engine, 1, func() bool { mu.Lock(); defer mu.Unlock(); return wanted })
+			source, err := c.prefetchSong(ctx, engine, 1)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("source=%s err=%v", source, err)
 			}
 			if tc.failure == "cancel" && !errors.Is(err, context.Canceled) {
 				t.Fatal(err)
 			}
-			if tc.failure == "removed" && !errors.Is(err, errSongRemoved) {
-				t.Fatal(err)
-			}
+
 			if tc.failure == "both" && tc.mode == "auto" && (!strings.Contains(err.Error(), "hkg") || !strings.Contains(err.Error(), "cf")) {
 				t.Fatal(err)
 			}
@@ -150,7 +141,7 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 				mu.Lock()
 				count := len(hosts)
 				mu.Unlock()
-				if source, err = c.prefetchSong(ctx, engine, 1, nil); err != nil || source != "HIT" {
+				if source, err = c.prefetchSong(ctx, engine, 1); err != nil || source != "HIT" {
 					t.Fatalf("%s %v", source, err)
 				}
 				mu.Lock()

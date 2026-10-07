@@ -7,11 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 )
 
-// TrafficStats covers the storage directory's lifetime. Latencies measure response headers,
-// not transfer throughput or the player's time to decoded playback.
+// TrafficStats preserves lifetime traffic totals and playback first-body samples.
 type TrafficStats struct {
 	PlaybackTransfers uint64   `json:"playbackTransfers"`
 	LocalBodyMS       *float64 `json:"localBodyMS"`
@@ -23,24 +21,17 @@ type TrafficStats struct {
 	Hits              uint64   `json:"hits"`
 	Misses            uint64   `json:"misses"`
 	HitRate           *float64 `json:"hitRate"`
-	UpstreamSamples   uint64   `json:"upstreamSamples"`
-	LocalSamples      uint64   `json:"localSamples"`
-	UpstreamMS        *float64 `json:"upstreamMS"`
-	LocalMS           *float64 `json:"localMS"`
-	ReductionPercent  *float64 `json:"reductionPercent"`
 	Error             string   `json:"error,omitempty"`
 }
 
 type trafficStats struct {
-	savedBytes                    int64
-	mu                            sync.Mutex
-	hits, misses, upstreamSamples uint64
-	localSamples                  uint64
-	err                           string
-	local, upstream               time.Duration
+	savedBytes   int64
+	mu           sync.Mutex
+	hits, misses uint64
+	err          string
 }
 
-func (s *Server) recordTraffic(method, cache, outcome string, status int, latency time.Duration, bytes int64) {
+func (s *Server) recordTraffic(method, cache, outcome string, status int, bytes int64) {
 	if method != "GET" || outcome != "completed" || (status != 200 && status != 206) {
 		return
 	}
@@ -50,8 +41,6 @@ func (s *Server) recordTraffic(method, cache, outcome string, status int, latenc
 	case "HIT":
 		s.stats.savedBytes += bytes
 		s.stats.hits++
-		s.stats.localSamples++
-		s.stats.local += latency
 	case "MISS":
 		s.stats.misses++
 	default:
@@ -60,33 +49,15 @@ func (s *Server) recordTraffic(method, cache, outcome string, status int, latenc
 	s.persistTraffic()
 }
 
-func (s *Server) recordUpstream(latency time.Duration) {
-	s.stats.mu.Lock()
-	defer s.stats.mu.Unlock()
-	s.stats.upstreamSamples++
-	s.stats.upstream += latency
-	s.persistTraffic()
-}
-
 func (s *Server) TrafficStats() TrafficStats {
 	s.stats.mu.Lock()
 	defer s.stats.mu.Unlock()
 	v := TrafficStats{SavedBytes: s.stats.savedBytes, Hits: s.stats.hits, Misses: s.stats.misses, Requests: s.stats.hits + s.stats.misses,
-		LocalSamples: s.stats.localSamples, UpstreamSamples: s.stats.upstreamSamples, Error: s.stats.err}
+		Error: s.stats.err}
 	if v.Requests > 0 {
 		rate := 100 * float64(v.Hits) / float64(v.Requests)
 		v.HitRate = &rate
 	}
-	if v.LocalSamples > 0 {
-		ms := float64(s.stats.local) / float64(time.Millisecond) / float64(v.LocalSamples)
-		v.LocalMS = &ms
-	}
-	if v.UpstreamSamples > 0 {
-		ms := float64(s.stats.upstream) / float64(time.Millisecond) / float64(v.UpstreamSamples)
-		v.UpstreamMS = &ms
-	}
-	// Historical header samples have different start boundaries. Never turn
-	// their ratio into an apparent playback acceleration percentage.
 	if s.usage != nil {
 		addPlaybackStats(s.usage.db, &v)
 	}
@@ -118,8 +89,8 @@ FROM request_events WHERE method='GET' AND outcome='completed' AND status IN (20
 }
 
 func (s *Server) loadTraffic(db *sql.DB) error {
-	return db.QueryRow(`SELECT saved_bytes,hits,misses,local_samples,local_ns,upstream_samples,upstream_ns FROM traffic_totals WHERE id=1`).Scan(
-		&s.stats.savedBytes, &s.stats.hits, &s.stats.misses, &s.stats.localSamples, &s.stats.local, &s.stats.upstreamSamples, &s.stats.upstream)
+	return db.QueryRow(`SELECT saved_bytes,hits,misses FROM traffic_totals WHERE id=1`).Scan(
+		&s.stats.savedBytes, &s.stats.hits, &s.stats.misses)
 }
 
 // Called under stats.mu after each observation, so a later snapshot cannot be
@@ -128,8 +99,8 @@ func (s *Server) persistTraffic() {
 	if s.usage == nil {
 		return
 	}
-	_, err := s.usage.db.Exec(`UPDATE traffic_totals SET saved_bytes=?,hits=?,misses=?,local_samples=?,local_ns=?,upstream_samples=?,upstream_ns=? WHERE id=1`,
-		s.stats.savedBytes, s.stats.hits, s.stats.misses, s.stats.localSamples, s.stats.local, s.stats.upstreamSamples, s.stats.upstream)
+	_, err := s.usage.db.Exec(`UPDATE traffic_totals SET saved_bytes=?,hits=?,misses=? WHERE id=1`,
+		s.stats.savedBytes, s.stats.hits, s.stats.misses)
 	s.stats.err = ""
 	if err != nil {
 		s.stats.err = "播放统计保存失败：" + err.Error()

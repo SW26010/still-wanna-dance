@@ -66,7 +66,7 @@ func (c *Console) resolvePlayback(ctx context.Context, id, node, mode string) (s
 
 // Auto queries node=cf first and retries node=nya once. These select API
 // requests, not resource domains. Preserve each returned URL and its version.
-func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, id int64, wanted func() bool) (string, error) {
+func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, id int64) (string, error) {
 	ctx = applog.WithTrace(ctx)
 	log := slog.Default().With("trace_id", applog.TraceID(ctx), "song_id", id)
 	c.mu.Lock()
@@ -79,18 +79,12 @@ func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, i
 		if err := ctx.Err(); err != nil {
 			return "", err
 		}
-		if wanted != nil && !wanted() {
-			return "", errSongRemoved
-		}
 		log.Info("prefetch_upstream", "upstream", route, "fallback", attempt > 0)
 		started := time.Now()
 		target, err := c.resolveNode(ctx, id, route)
 		log.Info("prefetch_resolved", "upstream", route, "elapsed_ms", time.Since(started).Milliseconds(), "success", err == nil, "error", applog.SafeError(err))
 		if ctx.Err() != nil {
 			return "", ctx.Err()
-		}
-		if wanted != nil && !wanted() {
-			return "", errSongRemoved
 		}
 		if err == nil {
 			// Different playback nodes may return the same resource URL.

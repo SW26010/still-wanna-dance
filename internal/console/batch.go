@@ -320,7 +320,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 				c.mu.Lock()
 				c.batch.Current = id + " · " + titles[id]
 				c.mu.Unlock()
-				source, err = c.prefetchSong(songCtx, s, n, nil)
+				source, err = c.prefetchSong(songCtx, s, n)
 				if err == nil || songCtx.Err() != nil || errors.Is(err, cacheproxy.ErrBatchBudget) || errors.Is(err, cacheproxy.ErrLocalStorage) {
 					break
 				}

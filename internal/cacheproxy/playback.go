@@ -159,7 +159,7 @@ func (s *Server) startPlaybackCheck(q url.Values, local video) *playbackCheck {
 			defer s.releaseVideo(local)
 		}
 		ctx, cancel := context.WithTimeout(s.ctx, playbackResolveBudget)
-		check.v, check.err = s.resolvePlaybackVideoReadOnly(ctx, q)
+		check.v, check.err = s.resolvePlaybackVideo(ctx, q)
 		cancel()
 		if check.err != nil {
 			s.cfg.Logger.Warn("playback_check_failed", "song_id", local.songID, "error", applog.SafeError(check.err))
@@ -171,7 +171,7 @@ func (s *Server) startPlaybackCheck(q url.Values, local video) *playbackCheck {
 	return check
 }
 
-func (s *Server) resolvePlaybackVideoReadOnly(ctx context.Context, q url.Values) (video, error) {
+func (s *Server) resolvePlaybackVideo(ctx context.Context, q url.Values) (video, error) {
 	started := time.Now()
 	id, node := q.Get("id"), q.Get("node")
 	var err error

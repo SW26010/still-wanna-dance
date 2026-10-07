@@ -2,12 +2,12 @@ package cacheproxy
 
 import (
 	"database/sql"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"path/filepath"
 	"sync"
 	"testing"
-	"time"
 )
 
 func TestTrafficPersistence(t *testing.T) {
@@ -21,16 +21,16 @@ func TestTrafficPersistence(t *testing.T) {
 	t.Cleanup(func() { s.Close() })
 	var wg sync.WaitGroup
 	for range 20 {
-		wg.Go(func() { s.recordTraffic("GET", "HIT", "completed", 206, 50*time.Millisecond, 7) })
+		wg.Go(func() { s.recordTraffic("GET", "HIT", "completed", 206, 7) })
 	}
 	wg.Wait()
-	s.recordTraffic("GET", "MISS", "completed", 200, time.Second, 999)
-	s.recordTraffic("GET", "HIT", "canceled", 206, time.Second, 999)
-	s.recordUpstream(200 * time.Millisecond)
+	s.recordTraffic("GET", "MISS", "completed", 200, 999)
+	s.recordTraffic("GET", "HIT", "canceled", 206, 999)
+
 	// The durable snapshot is visible before shutdown too.
 	check := func(v TrafficStats) {
 		t.Helper()
-		if v.Error != "" || v.Hits != 20 || v.Misses != 1 || v.SavedBytes != 140 || v.LocalMS == nil || *v.LocalMS != 50 || v.UpstreamMS == nil || *v.UpstreamMS != 200 {
+		if v.Error != "" || v.Hits != 20 || v.Misses != 1 || v.SavedBytes != 140 {
 			t.Fatalf("bad persisted stats: %+v", v)
 		}
 	}
@@ -72,7 +72,7 @@ func TestTrafficMigrationAndRetention(t *testing.T) {
 	}
 	check := func(v TrafficStats) {
 		t.Helper()
-		if v.Error != "" || v.Hits != 1 || v.Misses != 1 || v.SavedBytes != 42 || v.LocalSamples != 0 || v.LocalMS != nil {
+		if v.Error != "" || v.Hits != 1 || v.Misses != 1 || v.SavedBytes != 42 {
 			t.Fatalf("migration: %+v", v)
 		}
 	}
@@ -126,13 +126,12 @@ func TestExistingTrafficDoesNotReadRequestDetails(t *testing.T) {
 
 func TestTrafficStats(t *testing.T) {
 	s := &Server{}
-	if v := s.TrafficStats(); v.HitRate != nil || v.ReductionPercent != nil || v.LocalMS != nil || v.UpstreamMS != nil {
+	if v := s.TrafficStats(); v.HitRate != nil {
 		t.Fatalf("empty statistics: %+v", v)
 	}
-	s.recordUpstream(100 * time.Millisecond)
-	s.recordUpstream(300 * time.Millisecond)
-	s.recordTraffic("GET", "MISS", "completed", 200, time.Second, 100)
-	s.recordTraffic("GET", "HIT", "completed", 206, 50*time.Millisecond, 7)
+
+	s.recordTraffic("GET", "MISS", "completed", 200, 100)
+	s.recordTraffic("GET", "HIT", "completed", 206, 7)
 	for _, sample := range []struct {
 		method, outcome string
 		status          int
@@ -140,15 +139,15 @@ func TestTrafficStats(t *testing.T) {
 		{"HEAD", "completed", 200}, {"GET", "failed", 200}, {"GET", "canceled", 206},
 		{"GET", "aborted", 200}, {"GET", "completed", 304}, {"GET", "completed", 416},
 	} {
-		s.recordTraffic(sample.method, "HIT", sample.outcome, sample.status, time.Second, 1000)
+		s.recordTraffic(sample.method, "HIT", sample.outcome, sample.status, 1000)
 	}
 	v := s.TrafficStats()
-	if v.Requests != 2 || v.Hits != 1 || v.Misses != 1 || v.SavedBytes != 7 || *v.HitRate != 50 || *v.LocalMS != 50 || *v.UpstreamMS != 200 || v.ReductionPercent != nil {
+	if v.Requests != 2 || v.Hits != 1 || v.Misses != 1 || v.SavedBytes != 7 || *v.HitRate != 50 {
 		t.Fatalf("unexpected statistics: %+v", v)
 	}
-	s.recordTraffic("GET", "HIT", "completed", 200, time.Second, 100)
-	if s.TrafficStats().ReductionPercent != nil {
-		t.Fatal("incompatible timing boundaries must not produce a reduction")
+	s.recordTraffic("GET", "HIT", "completed", 200, 100)
+	if s.TrafficStats().SavedBytes != 107 {
+		t.Fatal("lost traffic totals")
 	}
 }
 
@@ -170,7 +169,35 @@ func TestTrafficStatsHTTP(t *testing.T) {
 	request(s, "POST", videoURL(payload), nil)
 	request(s, "GET", videoURL(payload), map[string]string{"Range": "bytes=900-"})
 	v := s.TrafficStats()
-	if v.Hits != 1 || v.Misses != 1 || v.SavedBytes != 4 || v.UpstreamSamples != 1 || v.LocalSamples != 1 || v.LocalMS == nil || v.UpstreamMS == nil {
+	if v.Hits != 1 || v.Misses != 1 || v.SavedBytes != 4 {
 		t.Fatalf("HTTP statistics: %+v", v)
+	}
+}
+
+func TestLegacyLatencyIsPreservedButNotProduced(t *testing.T) {
+	s, _ := setup(t, func(http.ResponseWriter, *http.Request) {})
+	if _, err := s.usage.db.Exec(`UPDATE traffic_totals SET local_samples=3,local_ns=4,upstream_samples=5,upstream_ns=6 WHERE id=1`); err != nil {
+		t.Fatal(err)
+	}
+	s.recordTraffic("GET", "HIT", "completed", 200, 7)
+	var a, b, c, d int
+	if err := s.usage.db.QueryRow(`SELECT local_samples,local_ns,upstream_samples,upstream_ns FROM traffic_totals WHERE id=1`).Scan(&a, &b, &c, &d); err != nil {
+		t.Fatal(err)
+	}
+	if a != 3 || b != 4 || c != 5 || d != 6 {
+		t.Fatal("historical samples overwritten")
+	}
+	raw, err := json.Marshal(s.TrafficStats())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"localSamples", "localMS", "upstreamSamples", "upstreamMS", "reductionPercent"} {
+		if _, ok := fields[key]; ok {
+			t.Fatal("legacy output", key)
+		}
 	}
 }

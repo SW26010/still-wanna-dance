@@ -123,27 +123,14 @@ func New(configPath, address string) (*Console, error) {
 	c.exitRequested = make(chan struct{})
 	c.restartRequested = make(chan struct{})
 	c.dns = &directDNS{}
-	if b, err := os.ReadFile(configPath); err == nil {
-		// Old settings without storageDir used this default. Do not silently
-		// switch an existing installation to an empty store after rebranding.
-		if filepath.Base(configPath) == "stepstash-console.json" {
-			c.settings.StorageDir = "stepstash-data"
-		}
-		if err = json.Unmarshal(b, &c.settings); err != nil {
+	data, _, err := readConfigFile(configPath)
+	if err != nil {
+		return nil, err
+	}
+	if data != nil {
+		if err := json.Unmarshal(data, &c.settings); err != nil {
 			return nil, fmt.Errorf("读取控制台配置：%w", err)
 		}
-		var legacy struct {
-			AutoStartQueue       *bool `json:"autoStartQueue"`
-			QueuePrefetchEnabled *bool `json:"queuePrefetchEnabled"`
-		}
-		if err = json.Unmarshal(b, &legacy); err != nil {
-			return nil, err
-		}
-		if legacy.AutoStartQueue == nil {
-			c.settings.AutoStartQueue = c.settings.AutoStartCDN && (legacy.QueuePrefetchEnabled == nil || *legacy.QueuePrefetchEnabled)
-		}
-	} else if !os.IsNotExist(err) {
-		return nil, err
 	}
 	c.settings, err = c.resolveSettings(c.settings)
 	c.savedSettings = c.settings
@@ -152,6 +139,9 @@ func New(configPath, address string) (*Console, error) {
 	}
 	if err == nil {
 		c.upstreamDial, c.client, err = c.networkFor(c.settings)
+	}
+	if err == nil && data == nil {
+		err = c.writeConfigFile(c.settings)
 	}
 	if err == nil {
 		c.loadSnapshots()
@@ -293,27 +283,7 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 	if err = writableDir(s.StorageDir); err != nil {
 		return fmt.Errorf("目录不可写：%w", err)
 	}
-	if err = os.MkdirAll(filepath.Dir(c.configPath), 0700); err != nil {
-		return err
-	}
-	b, _ := json.MarshalIndent(c.storedSettings(s), "", "  ")
-	f, err := os.CreateTemp(filepath.Dir(c.configPath), ".settings-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(f.Name())
-	if _, err = f.Write(b); err != nil {
-		f.Close()
-		return err
-	}
-	if err = f.Sync(); err != nil {
-		f.Close()
-		return err
-	}
-	if err = f.Close(); err != nil {
-		return err
-	}
-	if err = os.Rename(f.Name(), c.configPath); err != nil {
+	if err = c.writeConfigFile(s); err != nil {
 		return err
 	}
 	c.mu.Lock()

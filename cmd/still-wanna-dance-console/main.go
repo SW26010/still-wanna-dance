@@ -79,19 +79,6 @@ func run() (runErr error) {
 	if flag.NArg() != 0 {
 		return fmt.Errorf("不支持的位置参数")
 	}
-	explicitConfig := false
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == "config" {
-			explicitConfig = true
-		}
-	})
-	if !explicitConfig {
-		path, err := compatibleConfigPath(defaultConfig)
-		if err != nil {
-			return err
-		}
-		*config = path
-	}
 	host, _, err := net.SplitHostPort(*address)
 	if err != nil || host != "127.0.0.1" {
 		return fmt.Errorf("控制台必须绑定 127.0.0.1")
@@ -232,21 +219,4 @@ func run() (runErr error) {
 		}
 	}
 	return err
-}
-
-// Reuse the legacy path in place so its lock, terms receipt and relative paths
-// stay together. Explicit -config always overrides this default.
-func compatibleConfigPath(path string) (string, error) {
-	if _, err := os.Lstat(path); err == nil {
-		return path, nil
-	} else if !os.IsNotExist(err) {
-		return "", err
-	}
-	legacy := filepath.Join(filepath.Dir(path), "stepstash-console.json")
-	if _, err := os.Lstat(legacy); err == nil {
-		return legacy, nil
-	} else if !os.IsNotExist(err) {
-		return "", err
-	}
-	return path, nil
 }

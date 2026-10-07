@@ -49,32 +49,6 @@ func TestQueueAndCDNAreIndependent(t *testing.T) {
 	}
 }
 
-func TestQueueStartupMigration(t *testing.T) {
-	for _, tc := range []struct {
-		config string
-		want   bool
-	}{
-		{`{}`, false},
-		{`{"queuePrefetchEnabled":true}`, false},
-		{`{"autoStartCDN":true}`, true},
-		{`{"autoStartCDN":true,"queuePrefetchEnabled":false}`, false},
-		{`{"autoStartCDN":true,"queuePrefetchEnabled":true}`, true},
-		{`{"autoStartCDN":true,"queuePrefetchEnabled":true,"autoStartQueue":false}`, false},
-		{`{"autoStartCDN":false,"autoStartQueue":true}`, true},
-	} {
-		t.Run(tc.config, func(t *testing.T) {
-			c := testConsole(t)
-			if err := os.WriteFile(c.configPath, []byte(tc.config), 0600); err != nil {
-				t.Fatal(err)
-			}
-			c = restartTestConsole(t, c)
-			if c.settings.AutoStartQueue != tc.want {
-				t.Fatal("incorrect migration", c.settings)
-			}
-		})
-	}
-}
-
 func TestQueueStartDuringBatchRecordsIntent(t *testing.T) {
 	c := testConsole(t)
 	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {

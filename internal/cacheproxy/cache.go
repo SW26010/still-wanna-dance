@@ -117,6 +117,7 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 			}
 			if f.spool != nil {
 				f.spool.finish(f.err)
+				f.spool.release()
 			}
 			s.mu.Lock()
 			delete(s.flights, v.key)
@@ -128,9 +129,6 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 			s.capacityChanged = make(chan struct{})
 			close(f.done)
 			s.mu.Unlock()
-			if f.spool != nil {
-				f.spool.release()
-			}
 		}()
 	}
 	if v.songID != "" {

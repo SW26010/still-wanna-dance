@@ -38,22 +38,24 @@ func (s *Server) recordSongVideo(ctx context.Context, id string, v video) (resul
 	if !promote {
 		s.cfg.Logger.Warn("song_md5_mismatch", "song_id", id, "mapped_md5", current, "url_md5", v.key)
 	}
-	tx, err := s.usage.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if _, err = tx.ExecContext(ctx, "INSERT INTO songs(song_id) VALUES (?) ON CONFLICT DO NOTHING", id); err != nil {
-		return err
-	}
-	if promote {
-		if _, err = tx.ExecContext(ctx, `INSERT INTO song_media(song_id, md5) VALUES (?, ?)
- ON CONFLICT(song_id) DO NOTHING`, id, v.key); err != nil {
+	if current != v.key {
+		tx, err := s.usage.db.BeginTx(ctx, nil)
+		if err != nil {
 			return err
 		}
-	}
-	if err := tx.Commit(); err != nil {
-		return err
+		defer tx.Rollback()
+		if _, err = tx.ExecContext(ctx, "INSERT INTO songs(song_id) VALUES (?) ON CONFLICT DO NOTHING", id); err != nil {
+			return err
+		}
+		if promote {
+			if _, err = tx.ExecContext(ctx, `INSERT INTO song_media(song_id, md5) VALUES (?, ?)
+ ON CONFLICT(song_id) DO NOTHING`, id, v.key); err != nil {
+				return err
+			}
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
 	}
 	s.retentionMu.Lock()
 	defer s.retentionMu.Unlock()

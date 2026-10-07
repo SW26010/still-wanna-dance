@@ -319,16 +319,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w = response
 	defer func() {
 		crash := recover()
-		outcome := "completed"
-		if response.status >= 400 || response.writeErr != nil {
-			outcome = "failed"
-		}
-		if crash != nil {
-			outcome = "aborted"
-		}
-		if r.Context().Err() != nil {
-			outcome = "canceled"
-		}
+		outcome := response.outcome(r.Context(), crash)
 		log.Info("request_finished", "status", response.status, "bytes", response.bytes, "elapsed", time.Since(start), "elapsed_ms", time.Since(start).Milliseconds(),
 			"response_headers_ms", response.headerLatency.Milliseconds(), "first_body_ms", response.firstBodyMS(),
 			"outcome", outcome, "cache", w.Header().Get("X-StepStash-Cache"), "content_range", w.Header().Get("Content-Range"),
@@ -359,8 +350,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		defer release()
 	}
 	if err != nil {
-		if errors.Is(err, errPlaybackUpstream) {
-			http.Error(w, "playback resolution failed", http.StatusBadGateway)
+		if errors.Is(err, errPlaybackUpstream) || errors.Is(err, ErrLocalStorage) {
+			http.Error(w, "playback resolution failed", cacheErrorStatus(err))
 			return
 		}
 		http.Error(w, err.Error(), 400)
@@ -380,16 +371,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if event.cache == "" {
 			event.cache = "UNKNOWN"
 		}
-		event.outcome = "completed"
-		if event.status >= 400 || response.writeErr != nil {
-			event.outcome = "failed"
-		}
-		if panicked != nil {
-			event.outcome = "aborted"
-		}
-		if r.Context().Err() != nil {
-			event.outcome = "canceled"
-		}
+		event.outcome = response.outcome(r.Context(), panicked)
 		s.usage.record(event)
 		s.recordTraffic(r.Method, event.cache, event.outcome, event.status, response.headerLatency, response.bytes)
 		if panicked != nil {
@@ -410,9 +392,21 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	event.demand = r.Method == http.MethodGet && v.songID != ""
 	s.pinVideo(v)
-	defer s.releaseVideo(v)
+	defer func() { s.releaseVideo(v) }()
 	if r.Method == http.MethodGet {
 		event.at = s.usage.startGET(v.songID, v.key)
+	}
+	// Transfer the request pin and event identity together on every pre-body retry.
+	retry := func(cause error) error {
+		replacement, fallbackErr := s.retrySongURL(r.Context(), v)
+		if fallbackErr != nil {
+			return errors.Join(cause, fmt.Errorf("cached URL refresh: %w", fallbackErr))
+		}
+		s.pinVideo(replacement)
+		s.releaseVideo(v)
+		v = replacement
+		event.id, event.key, event.host, event.size = v.key, v.key, v.host, v.size
+		return nil
 	}
 	var f *flight
 	var stream *spoolReader
@@ -427,14 +421,8 @@ loadVideo:
 	} else {
 		f, stream, err = s.obtain(r.Context(), v)
 		if err != nil && v.cached != nil && errors.Is(err, errUpstreamDownload) && r.Context().Err() == nil {
-			if replacement, fallbackErr := s.retrySongURL(r.Context(), v); fallbackErr == nil {
-				v = replacement
-				s.pinVideo(v)
-				defer s.releaseVideo(v)
-				event.id, event.key, event.host, event.size = v.key, v.key, v.host, v.size
+			if err = retry(err); err == nil {
 				goto loadVideo
-			} else {
-				err = errors.Join(err, fmt.Errorf("cached URL refresh: %w", fallbackErr))
 			}
 		}
 	}
@@ -444,23 +432,12 @@ loadVideo:
 			return
 		}
 		log.Error("cache_failed", "error", applog.SafeError(err), "elapsed", time.Since(start))
-		status := http.StatusBadGateway
-		if errors.Is(err, context.DeadlineExceeded) {
-			status = http.StatusGatewayTimeout
-		}
-		if errors.Is(err, errBusy) || errors.Is(err, context.Canceled) {
-			status = http.StatusServiceUnavailable
-		}
+		status := cacheErrorStatus(err)
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
 	if stream != nil {
-		defer stream.Close()
-		pending := &streamResponseWriter{ResponseWriter: w, header: w.Header().Clone(), stream: stream}
-		pending.Header().Set("Content-Type", "video/mp4")
-		pending.Header().Set("ETag", `"`+v.key+`"`)
-		pending.Header().Set("X-StepStash-Cache", "MISS")
-		http.ServeContent(pending, r, v.path, time.Time{}, stream)
+		pending := serveStream(w, r, v, stream)
 		if stream.err != nil {
 			if v.cached != nil && errors.Is(stream.err, errUpstreamDownload) && r.Context().Err() == nil {
 				if !pending.committed {
@@ -471,14 +448,8 @@ loadVideo:
 					case <-r.Context().Done():
 						return
 					}
-					if replacement, fallbackErr := s.retrySongURL(r.Context(), v); fallbackErr == nil {
-						v = replacement
-						s.pinVideo(v)
-						defer s.releaseVideo(v)
-						event.id, event.key, event.host, event.size = v.key, v.key, v.host, v.size
+					if stream.err = retry(stream.err); stream.err == nil {
 						goto loadVideo
-					} else {
-						stream.err = errors.Join(stream.err, fmt.Errorf("cached URL refresh: %w", fallbackErr))
 					}
 				}
 				if rejectErr := s.RejectSongURL(r.Context(), *v.cached); rejectErr != nil {
@@ -491,13 +462,7 @@ loadVideo:
 				log.Error("stream_failed", "error", applog.SafeError(stream.err))
 			}
 			if !pending.committed {
-				status := http.StatusBadGateway
-				if errors.Is(stream.err, context.DeadlineExceeded) {
-					status = http.StatusGatewayTimeout
-				}
-				if errors.Is(stream.err, context.Canceled) {
-					status = http.StatusServiceUnavailable
-				}
+				status := cacheErrorStatus(stream.err)
 				http.Error(w, http.StatusText(status), status)
 				return
 			}
@@ -619,4 +584,36 @@ func (w *streamResponseWriter) Write(p []byte) (int, error) {
 		http.NewResponseController(w.ResponseWriter).Flush()
 	}
 	return n, err
+}
+
+// Closing here releases failed spools before waiting for a replacement URL.
+func serveStream(w http.ResponseWriter, r *http.Request, v video, stream *spoolReader) *streamResponseWriter {
+	defer stream.Close()
+	pending := &streamResponseWriter{ResponseWriter: w, header: w.Header().Clone(), stream: stream}
+	pending.Header().Set("Content-Type", "video/mp4")
+	pending.Header().Set("ETag", `"`+v.key+`"`)
+	pending.Header().Set("X-StepStash-Cache", "MISS")
+	http.ServeContent(pending, r, v.path, time.Time{}, stream)
+	return pending
+}
+func cacheErrorStatus(err error) int {
+	if errors.Is(err, ErrLocalStorage) || errors.Is(err, errBusy) || errors.Is(err, context.Canceled) {
+		return http.StatusServiceUnavailable
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return http.StatusGatewayTimeout
+	}
+	return http.StatusBadGateway
+}
+func (w *responseWriter) outcome(ctx context.Context, crash any) string {
+	if ctx.Err() != nil {
+		return "canceled"
+	}
+	if crash != nil {
+		return "aborted"
+	}
+	if w.status >= 400 || w.writeErr != nil {
+		return "failed"
+	}
+	return "completed"
 }

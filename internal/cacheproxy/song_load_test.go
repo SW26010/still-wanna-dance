@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -317,6 +318,7 @@ func TestCachedCandidatesPrecedeBlockedRefresh(t *testing.T) {
 		for _, short := range []bool{false, true} {
 			t.Run(fmt.Sprintf("prefetch=%v/short=%v", prefetch, short), func(t *testing.T) {
 				var good atomic.Int32
+				var server *Server
 				s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
 					if r.URL.Query().Get("bad") != "" {
 						if short {
@@ -328,9 +330,14 @@ func TestCachedCandidatesPrecedeBlockedRefresh(t *testing.T) {
 						}
 						return
 					}
+					parts, err := filepath.Glob(filepath.Join(server.cfg.tempDir(), "download-*.part"))
+					if err != nil || len(parts) != 0 {
+						t.Errorf("failed spool retained during retry: %v %v", parts, err)
+					}
 					good.Add(1)
 					fmt.Fprint(w, payload)
 				})
+				server = s
 				s.cfg.ResolvePlayback = func(ctx context.Context, _, _ string) (string, error) { <-ctx.Done(); return "", ctx.Err() }
 				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cancel()

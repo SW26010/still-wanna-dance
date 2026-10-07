@@ -51,14 +51,7 @@ func (s *Server) waitSongQuery(ctx context.Context, check *playbackCheck) (video
 	if check.err != nil {
 		return video{}, fmt.Errorf("%w: %w", errPlaybackUpstream, check.err)
 	}
-	v := check.v
-	if err := s.recordVideo(ctx, v); err != nil {
-		return video{}, err
-	}
-	if err := s.recordSongVideo(ctx, v.songID, v); err != nil {
-		return video{}, err
-	}
-	return v, nil
+	return check.v, nil
 }
 
 // Candidates belong to one load, including all pre-body retries.

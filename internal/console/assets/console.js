@@ -295,7 +295,37 @@ function renderService(s) {
     setText(source + 'ActionError', (s.actionErrors || {})[source] || '');
 }
 
+let importJobID = null;
+function renderImport(s) {
+  const v = s.import || {};
+  if (importJobID !== v.id) {
+    importJobID = v.id;
+    $('importDeleteSources').checked = false;
+  }
+  $('importStart').disabled = busy || !!v.running;
+  $('importSource').disabled = !!v.running;
+  $('importProgress').max = v.total || 1;
+  if (v.running && !v.total) $('importProgress').removeAttribute('value');
+  else $('importProgress').value = v.checked || 0;
+  setText('importDestination', '导入到当前生效目录：' + (s.activeSettings || s.settings).storageDir + '（更改保存目录后需重启生效）');
+  setText('importStatus', v.phase ? `${v.phase} · ${v.checked}/${v.total} 个视频 · 已导入 ${v.imported} · 跳过 ${v.skipped} · 失败 ${v.failed} · 已清除 ${v.deleted}` : '尚未开始');
+  setText('importError', v.error || '');
+  setText('importActionError', (s.actionErrors || {}).import || '');
+  $('importCleanup').hidden = !v.cleanupAvailable || !!v.running;
+  $('importCleanupButton').disabled = busy || !!v.running || !$('importDeleteSources').checked;
+}
+$('importStart').addEventListener('click', () => action('import/start', {source: $('importSource').value.trim()}));
+$('importDeleteSources').addEventListener('change', () => {
+  renderControls();
+});
+$('importCleanupButton').addEventListener('click', () => {
+  if (!$('importDeleteSources').checked || !lastState?.import?.cleanupAvailable) return;
+  if (!window.confirm('不可逆操作：将永久删除原位置本次成功导入的源视频，不进入回收站。仅在目标视频仍完整且源文件未改变时删除。确定继续吗？')) return;
+  $('importDeleteSources').checked = false;
+  action('import/cleanup', {id: lastState.import.id, confirmed: true});
+});
 function renderSettings(s) {
+  renderImport(s);
   if (!settingsDirty) {
     $('autoStartQueue').checked = !!s.settings.autoStartQueue;
     $('autoStartCDN').checked = !!s.settings.autoStartCDN;
@@ -320,6 +350,10 @@ function renderControls() {
   const s = lastState;
   const unavailable = exiting || !connected || busy || !s || activationPending(s);
   for (const b of document.querySelectorAll('button')) b.disabled = unavailable;
+  $('importStart').disabled ||= !!s?.import?.running;
+  $('importSource').disabled = unavailable || !!s?.import?.running;
+  $('importDeleteSources').disabled = unavailable || !!s?.import?.running;
+  $('importCleanupButton').disabled ||= !!s?.import?.running || !s?.import?.cleanupAvailable || !$('importDeleteSources').checked;
   $('recentMore').disabled ||= $('pauseMonitor').checked;
   $('healthCheck').disabled ||= !!s?.upstreamMonitor?.checking;
   for (const id of ['healthCheckCatalog', 'healthCheckPlayback', 'healthCheckLatency', 'healthCheckThroughput']) {

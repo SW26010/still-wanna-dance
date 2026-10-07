@@ -288,6 +288,22 @@
         </section>
       </div>
       <div id="page-settings" data-page="settings" hidden>
+        <section class="card" aria-labelledby="importTitle">
+          <h2 id="importTitle">从外部目录导入视频</h2>
+          <p class="hint">先更新歌曲清单，再递归扫描并逐个校验 MD5，仅导入本地缺少的匹配视频。开始扫描后固定文件列表，不追踪改名或移动的文件。同盘使用 NTFS 硬链接，异盘复制；硬链接的两处文件共享内容，请勿修改源视频。</p>
+          <p id="importDestination" class="hint"></p>
+          <label for="importSource">外部目录</label>
+          <input id="importSource" type="text" placeholder="例如 D:\Videos" autocomplete="off">
+          <button id="importStart" type="button">扫描并导入</button>
+          <div id="importActionError" role="status"></div>
+          <progress id="importProgress" max="1" value="0" aria-label="视频文件处理进度" style="width:100%"></progress>
+          <p id="importStatus" role="status">尚未开始</p>
+          <p id="importError" role="status"></p>
+          <div id="importCleanup" hidden>
+            <label><input id="importDeleteSources" type="checkbox">清除原位置本次成功导入的资源（默认保留）</label>
+            <button id="importCleanupButton" type="button" disabled>清除已导入的源文件</button>
+          </div>
+        </section>
         <section class="card wide" id="preferences" aria-labelledby="preferencesTitle" tabindex="-1">
           <div class="card-head">
             <h2 id="preferencesTitle">偏好设置</h2>

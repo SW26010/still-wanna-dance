@@ -89,6 +89,10 @@ type Console struct {
 	actionErrors        map[string]string
 	batch               Batch
 	lastBatch           Batch
+	importStatus        ImportStatus
+	importReceipts      []cacheproxy.ImportedVideo
+	importCancel        context.CancelFunc
+	importDone          chan struct{}
 	batchCancel         context.CancelFunc
 	batchDone           chan struct{}
 	queue               QueueStatus
@@ -502,6 +506,10 @@ func (c *Console) Close() error {
 		c.batchCancel()
 	}
 	done := c.batchDone
+	if c.importCancel != nil {
+		c.importCancel()
+	}
+	importDone := c.importDone
 	if c.queueCancel != nil {
 		c.queueCancel()
 	}
@@ -529,6 +537,9 @@ func (c *Console) Close() error {
 	}
 	if queueDone != nil {
 		<-queueDone
+	}
+	if importDone != nil {
+		<-importDone
 	}
 	c.lifecycleMu.Lock()
 	c.mu.Lock()
@@ -602,6 +613,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			CDNError          string                  `json:"cdnError"`
 			ActionErrors      map[string]string       `json:"actionErrors"`
 			Batch             Batch                   `json:"batch"`
+			Import            ImportStatus            `json:"import"`
 			PortOwner         *desktop.Owner          `json:"portOwner,omitempty"`
 			Queue             QueueStatus             `json:"queue"`
 			LastBatch         Batch                   `json:"lastBatch"`
@@ -616,7 +628,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Running: running, Settings: c.savedSettings, ActiveSettings: c.settings,
 			RestartRequired: c.savedSettings != c.settings,
 			PortOK:          running, HTTPSPortOK: running, CDNError: c.cdnError,
-			Batch: c.batch, Queue: c.queue, LastBatch: c.lastBatch,
+			Import: c.importStatus, Batch: c.batch, Queue: c.queue, LastBatch: c.lastBatch,
 			SOCKS5PasswordSet: c.savedSettings.SOCKS5Password != "",
 			Activation:        c.activation, DefaultLogDir: defaultLogDir(),
 			UpstreamMonitor: c.monitorSnapshotLocked(),
@@ -755,6 +767,21 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		})
 		return
+	case "/api/import/start":
+		var input struct {
+			Source string `json:"source"`
+		}
+		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+			err = c.startImport(input.Source)
+		}
+	case "/api/import/cleanup":
+		var input struct {
+			ID        uint64 `json:"id"`
+			Confirmed bool   `json:"confirmed"`
+		}
+		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+			err = c.cleanupImport(input.ID, input.Confirmed)
+		}
 	case "/api/inventory/scan":
 		c.startInventoryScan()
 	case "/api/batch/scan":

@@ -126,6 +126,7 @@ nav a[aria-current="page"] {
   margin-top: 1.25rem;
 }
 .console-shell > main { min-width: 0; }
+.queue-settings-link { display: inline-block; white-space: nowrap; }
 [data-page] {
   display: grid;
   gap: 1rem;

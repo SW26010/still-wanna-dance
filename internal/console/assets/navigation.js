@@ -1,20 +1,19 @@
 // Keep each page mounted: navigation must not reset drafts, selections or tasks.
 (() => {
   const pages = {
-    home: ['首页', 'Load failed? But I still wanna dance!', '启用游戏加速，查看接入状态，准备房间里的下一首歌。'],
-    monitor: ['监控', '查看正在发生的传输', '活动下载、上游速度与最近 HTTP 请求集中显示。'],
-    upstream: ['上游状态', '上游通道监测', '查看视频列表、播放地址解析与视频资源加载的检测结果。'],
-    cache: ['缓存', '了解并管理本地缓存', '查看播放统计、视频覆盖率，查找和清理缓存文件。'],
-    library: ['曲库与下载', '按需准备你的曲库', '检查缺失视频，再下载补齐；切换页面不会停止任务。'],
-    settings: ['设置', '配置存储、网络与服务', '调整缓存与任务设置，单独管理本地 CDN 和 hosts 接入。'],
+    home: ['开始使用', 'WannaDance 本地视频缓存', '为 VRChat WannaDance 复用已下载视频，也可提前准备房间队列。'],
+    monitor: ['运行状态', '运行状态', '查看下载进度、最近请求和网络连接。'],
+    cache: ['本地缓存', '本地缓存', '查找已下载的视频，清理磁盘空间。'],
+    library: ['准备歌曲', '准备歌曲', '按房间队列提前准备，或批量下载缺失视频。'],
+    settings: ['设置', '设置', '调整存储、网络和启动偏好。'],
   };
-  const legacy = { activation: 'home', queue: 'settings', overview: 'cache', cache: 'cache',
-    downloads: 'monitor', recent: 'monitor', batch: 'library', preferences: 'settings', service: 'settings' };
+  const legacy = { activation: 'home', queue: 'library', overview: 'cache', cache: 'cache',
+    downloads: 'monitor', recent: 'monitor', network: 'monitor', batch: 'library', preferences: 'settings', queuePrefetchCount: 'settings', maxCacheGiB: 'settings', service: 'home' };
   const panels = document.querySelectorAll('[data-page]');
   const links = document.querySelectorAll('[data-page-link]');
   let current = 'home';
   function navigate(initial = false) {
-    const hash = window.location.hash.slice(1);
+    const hash = window.location.hash === '#/upstream' ? 'network' : window.location.hash.slice(1);
     // The skip link moves focus without changing the selected page.
     if (hash === 'main' && !initial) return;
     const page = Object.hasOwn(pages, hash.slice(1)) && hash.startsWith('/')
@@ -34,7 +33,10 @@
     document.title = label + ' · Still Wanna Dance';
     if (!target && hash !== '/' + page) window.history.replaceState(null, '', '#/' + page);
     if (!initial && (changed || target)) (target || document.getElementById('main')).focus();
-    if (target) target.scrollIntoView();
+    if (target) {
+      if (target.tagName === 'DETAILS') target.open = true;
+      target.scrollIntoView();
+    }
     else if (!initial && changed) window.scrollTo(0, 0);
     if (!initial && changed) document.dispatchEvent(new Event('pagechange'));
   }

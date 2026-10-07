@@ -28,21 +28,21 @@ test('canonical monitor renders every channel, throughput, unknown and stale sta
   const get = id => p.document.getElementById(id);
   const rows = [...resourceGroup(p, 'play.udon.dance').children, ...resourceGroup(p, 'nya.xin.moe').children, ...get('healthCatalog').children];
   assert.equal(rows.length, 4);
-  assert.match(rows[0].children[3].textContent, /2.0 KiB\/s.*歌曲 #42/);
-  assert.match(rows[0].children[3].textContent, /下载 2.00 s \/ 16.00 MiB/);
-  assert.match(rows[0].children[2].textContent, /响应延迟：首字节 12.0 ms.*歌曲 #73/);
-  assert.doesNotMatch(rows[0].children[2].textContent, /歌曲 #42|KiB/);
-  assert.doesNotMatch(rows[0].children[3].textContent, /歌曲 #73/);
-  assert.match(rows[0].children[3].textContent, /测速时间/);
-  assert.match(rows[1].children[3].textContent, /尚无成功样本.*当前资源检查失败：源站响应超时/);
+  assert.match(rows[0].children[1].children[3].textContent, /2.0 KiB\/s.*歌曲 #42/);
+  assert.match(rows[0].children[1].children[3].textContent, /下载 2.00 s \/ 16.00 MiB/);
+  assert.match(rows[0].children[1].children[2].textContent, /响应延迟：首字节 12.0 ms.*歌曲 #73/);
+  assert.doesNotMatch(rows[0].children[1].children[2].textContent, /歌曲 #42|KiB/);
+  assert.doesNotMatch(rows[0].children[1].children[3].textContent, /歌曲 #73/);
+  assert.match(rows[0].children[1].children[3].textContent, /测速时间/);
+  assert.match(rows[1].children[1].children[3].textContent, /尚无成功样本.*当前资源检查失败：源站响应超时/);
   assert.match(rows[1].children[0].textContent, /源站响应超时/);
   assert.match(rows[2].children[0].textContent, /待测/);
   assert.match(rows[3].children[0].textContent, /已过期/);
-  assert.equal(get('healthCatalogTime').textContent, '响应 time：20261004235822');
-  assert.equal(get('healthCatalogKivaTime').textContent, '响应 time：20261005010000');
-  assert.equal(get('healthCatalogWannaTime').textContent, '响应 time：20260215004959 / 20260215005000');
+  assert.equal(get('healthCatalogTime').textContent, '清单版本：20261004235822');
+  assert.equal(get('healthCatalogKivaTime').textContent, '清单版本：20261005010000');
+  assert.equal(get('healthCatalogWannaTime').textContent, '清单版本：20260215004959 / 20260215005000');
   assert.equal(get('healthCatalogWanna').children.length, 2);
-  assert.match(get('healthCatalogWanna').children[0].children[1].textContent, /响应 time：20260215004959/);
+  assert.match(get('healthCatalogWanna').children[0].children[1].textContent, /清单版本：20260215004959/);
   assert.equal(get('healthCatalogKiva').children.length, 1);
   assert.match(get('healthCatalogKiva').children[0].children[1].textContent, /x\.kiva\.moe.*首字节 24.0 ms/);
   assert.equal(get('healthPlaybackHkg').children.length, 1);
@@ -60,7 +60,7 @@ test('canonical monitor renders every channel, throughput, unknown and stale sta
     assert.match(get(id).children[0].textContent, /正在检测/);
   }
   assert.equal(get('healthCheck').disabled, true);
-  for (const id of ['healthCatalogTime', 'healthCatalogKivaTime', 'healthCatalogWannaTime']) assert.equal(get(id).textContent, '响应 time：未获取');
+  for (const id of ['healthCatalogTime', 'healthCatalogKivaTime', 'healthCatalogWannaTime']) assert.equal(get(id).textContent, '清单版本：未获取');
 });
 
 test('automatic resource probes display business pause and resume', async () => {
@@ -106,8 +106,8 @@ test('throughput history and automatic waiting reason remain visible independent
   assert.match(get('healthThroughputSchedule').textContent, /下次自动吞吐测速：.*2030.*等待 20 分钟间隔到期/);
   const cf = resourceGroup(p, 'play.udon.dance').children[0];
   assert.match(cf.children[2].textContent, /暂无有效数据/);
-  assert.match(cf.children[3].textContent, /8192.0 KiB\/s.*歌曲 #42.*下载 2.00 s \/ 16.00 MiB.*历史样本（已过期）/);
-  assert.match(resourceGroup(p, 'nya.xin.moe').children[0].children[3].textContent, /未取得该域名的有效资源地址/);
+  assert.match(cf.children[1].children[3].textContent, /8192.0 KiB\/s.*歌曲 #42.*下载 2.00 s \/ 16.00 MiB.*历史样本（已过期）/);
+  assert.match(resourceGroup(p, 'nya.xin.moe').children[0].children[1].children[3].textContent, /未取得该域名的有效资源地址/);
   p.fireTimer();
   p.finishBatch(2, {}, { upstreamMonitor: { throughputStatus: 'business_busy', results: [] } });
   await flush();
@@ -288,7 +288,7 @@ test('active downloads render safe candidates, unknown values, bounded progress 
   vm.runInContext('renderDownloads(snapshot)', p.context);
   const get = id => p.document.getElementById(id);
   assert.equal(get('downloadSpeed').textContent, '1.000 MB/s');
-  assert.match(get('downloadState').textContent, /CDN 已关闭.*1 个活动任务/);
+  assert.match(get('downloadState').textContent, /1 个活动任务/);
   assert.match(get('downloadList').textContent, /播放歌曲未确定.*<script>text<\/script>/);
   const main = get('downloadList').children[0].children[0];
   assert.match(main.textContent, /发布文件.*play\.udon\.dance.*100.0%/);
@@ -535,6 +535,46 @@ for (const event of ['input', 'change']) {
   });
 }
 
+test('restoring original settings clears dirty state and re-enables a pending restart', async () => {
+  const p = page(), get = id => p.document.getElementById(id);
+  p.finishBatch(0, { queuePrefetchCount: 3, upstreamMode: 'direct', manualLogDir: false }, { restartRequired: true, defaultLogDir: 'D:/automatic' });
+  await flush();
+  const edit = () => get('settings').dispatchEvent({ type: 'input' });
+  get('queuePrefetchCount').value = '5'; edit();
+  assert.match(get('settingsAvailability').textContent, /未保存/);
+  assert.equal(get('restart').disabled, true);
+  get('queuePrefetchCount').value = '3.0'; edit();
+  assert.doesNotMatch(get('settingsAvailability').textContent, /未保存/);
+  assert.equal(get('restart').disabled, false);
+  get('upstreamMode').value = 'socks5'; edit();
+  get('upstreamMode').value = 'direct'; edit();
+  assert.equal(get('discardSettings').disabled, true);
+  get('manualLogDir').checked = true; edit();
+  get('logDir').value = 'D:/custom'; edit();
+  get('manualLogDir').checked = false; edit();
+  assert.equal(get('discardSettings').disabled, true);
+  get('queuePrefetchCount').value = ''; edit();
+  assert.match(get('settingsAvailability').textContent, /未保存/);
+});
+
+test('discard restores latest saved settings, clears password draft, and makes no request', async () => {
+  const p = page(), get = id => p.document.getElementById(id);
+  p.finishBatch(0, { storageDir: 'D:/saved', socks5Username: 'user', upstreamMode: 'socks5' }, { socks5PasswordSet: true });
+  await flush();
+  get('socks5Password').value = 'replacement';
+  get('settings').dispatchEvent({ type: 'input' });
+  p.fireTimer();
+  p.finishBatch(2, { storageDir: 'D:/latest', socks5Username: 'user', upstreamMode: 'socks5' }, { socks5PasswordSet: true });
+  await flush();
+  const before = p.requests.length;
+  get('discardSettings').click();
+  assert.equal(p.requests.length, before);
+  assert.equal(get('storageDir').value, 'D:/latest');
+  assert.equal(get('socks5Password').value, '');
+  assert.equal(get('discardSettings').disabled, true);
+  assert.equal(p.document.activeElement, get('save'));
+});
+
 for (const outcome of ['success', 'failure', 'lost response']) {
   test(`settings save ${outcome} ${outcome === 'success' ? 'fills effective values and resumes syncing' : 'preserves the draft'}`, async () => {
     const p = page();
@@ -576,6 +616,7 @@ function page(hidden = false) {
       children: [],
       disabled: false,
       hidden: false,
+      value: '',
       get textContent() { return ownText + this.children.map(child => child.textContent).join(''); },
       set textContent(value) { ownText = String(value); this.children = []; },
       addEventListener(event, callback) {
@@ -592,6 +633,12 @@ function page(hidden = false) {
         if (!this.disabled) this.dispatchEvent({ type: 'click' });
       },
       append(...nodes) { this.children.push(...nodes); },
+      querySelectorAll(selector) {
+        return this.children.flatMap(child => [
+          ...(child.tagName === selector.toUpperCase() ? [child] : []),
+          ...child.querySelectorAll(selector),
+        ]);
+      },
       setAttribute(name, value) { this[name] = value; },
       replaceChildren(...nodes) { this.children = [...nodes]; },
       contains(node) { return this === node || this.children.some(child => child.contains(node)); },
@@ -702,6 +749,7 @@ test('saved settings and queue intent are separate from active display and runti
   assert.equal(get('queueStart').disabled, true);
   assert.equal(get('queueStop').disabled, false);
   assert.match(get('queuePhase').textContent, /下载补齐期间暂停/);
+  get('queuePrefetchCount').value = '10';
   get('settings').dispatchEvent({ type: 'input' });
   assert.equal(get('restart').disabled, true);
   assert.match(get('settingsAvailability').textContent, /未保存/);
@@ -1018,7 +1066,7 @@ test('a page opened in the background waits until visible', async () => {
   p.finishBatch();
   await flush();
   assert.equal(p.timers.size, 1);
-  assert.match(vm.runInContext("$('inventoryState').textContent", p.context), /请点击「刷新覆盖率」/);
+  assert.match(vm.runInContext("$('inventoryState').textContent", p.context), /请点击「更新清单并统计覆盖率」/);
 });
 
 test('hiding drops queued refreshes and defers action refresh until visible', async () => {
@@ -1166,7 +1214,7 @@ for (const ok of [true, false]) {
     p.finishBatch(3);
     await action;
     assert.equal(vm.runInContext('uncertainAction', p.context), '');
-    assert.match(vm.runInContext("$('notice').textContent", p.context), ok ? /CDN 已启动/ : /端口已占用/);
+    assert.match(vm.runInContext("$('notice').textContent", p.context), ok ? /缓存服务已启动/ : /端口已占用/);
   });
 }
 
@@ -1209,7 +1257,7 @@ test('catalog check time, local watermark and offline coverage remain distinct',
   await flush();
   const get = id => p.document.getElementById(id).textContent;
   assert.equal(get('coverageRate'), '40.0%');
-  assert.match(get('catalogCheckedAt'), /最后成功检查/);
+  assert.match(get('catalogCheckedAt'), /歌曲清单检查时间/);
   assert.doesNotMatch(get('catalogCheckedAt'), /尚无记录/);
   assert.match(get('catalogRevision'), /20261002000000.*20261001000000.*请刷新/);
   assert.match(get('catalogCheckResult'), /500.*使用本地清单/);
@@ -1397,6 +1445,95 @@ function cacheHarness() {
   return p;
 }
 
+test('cache loads once on first visible entry and preserves selection during state polling', async () => {
+  const p = cacheHarness(), get = id => p.document.getElementById(id), calls = [];
+  p.context.fetch = async url => { calls.push(url); return { ok: true, json: async () => p.context.cacheFixture }; };
+  p.document.hidden = false;
+  get('page-cache').hidden = true;
+  vm.runInContext('resetCache(); loadCacheOnEntry()', p.context);
+  assert.equal(calls.length, 0);
+  get('page-cache').hidden = false;
+  vm.runInContext('loadCacheOnEntry(); loadCacheOnEntry()', p.context);
+  await flush();
+  assert.equal(calls.length, 1);
+  get('cacheSelect').click();
+  vm.runInContext('loadCacheOnEntry()', p.context);
+  assert.equal(calls.length, 1);
+  assert.equal(vm.runInContext('cacheChosen().length', p.context), 1);
+  vm.runInContext('resetCache(); loadCacheOnEntry()', p.context);
+  await flush();
+  assert.equal(calls.length, 2);
+});
+
+test('cache space uses whole-directory metadata and active limit independently of coverage and search', () => {
+  const p = cacheHarness();
+  p.context.cacheFixture.totalBytes = 2147483648;
+  p.context.cacheFixture.fileCount = 53;
+  vm.runInContext('lastState = { activeSettings: { maxCacheBytes: 10737418240 }, settings: { maxCacheBytes: 21474836480 } }; renderCache(cacheFixture)', p.context);
+  assert.match(p.document.getElementById('cacheSpace').textContent, /53 个视频文件.*2.000 GiB.*10.000 GiB/);
+  p.context.cacheFixture = { totalBytes: 0, fileCount: 0, total: 0, entries: [] };
+  vm.runInContext('renderCache(cacheFixture)', p.context);
+  assert.equal(p.document.getElementById('cacheSelection').hidden, true);
+  assert.equal(p.document.getElementById('cachePagination').hidden, true);
+  assert.equal(p.document.getElementById('cacheEmptyHelp').hidden, false);
+});
+
+test('network summaries expose availability without opening technical results', async () => {
+  const p = page();
+  p.finishBatch(0, {}, { upstreamMonitor: { results: [
+    { operation: 'catalog', route: 'api', state: 'available' },
+    { operation: 'catalog', route: 'kiva', state: 'unavailable' },
+    { operation: 'playback_url', route: 'cf', state: 'unavailable' },
+    { operation: 'resource', route: 'example.test', state: 'stale' },
+  ] } });
+  await flush();
+  const get = id => p.document.getElementById(id).textContent;
+  assert.equal(get('catalogHealthSummary'), '1 / 2 条线路可用');
+  assert.equal(get('playbackHealthSummary'), '暂无可用线路');
+  assert.equal(get('resourceHealthSummary'), '等待有效检测结果');
+});
+
+test('network impact distinguishes partial availability, failures, and unmeasured stages', () => {
+  const p = page(true);
+  p.context.health = { results: [
+    { operation: 'catalog', state: 'available' },
+    { operation: 'catalog', state: 'unavailable' },
+    { operation: 'playback_url', route: 'cf', state: 'unavailable' },
+    { operation: 'playback_url', route: 'hkg', state: 'available' },
+    { operation: 'resource', state: 'stale' },
+  ] };
+  const text = vm.runInContext("healthImpact(health, { downloadUpstream: 'cf' })", p.context);
+  assert.match(text, /歌曲清单：有可访问来源（其余线路异常或待确认）/);
+  assert.match(text, /播放地址查询：获取新播放地址可能失败/);
+  assert.match(text, /视频下载：尚待确认/);
+  assert.match(text, /不保证每首歌曲可播放/);
+  assert.match(vm.runInContext("healthImpact(health, { downloadUpstream: 'auto' })", p.context), /播放地址查询：有可用线路/);
+});
+
+test('network impact never treats expired, missing or closed results as usable', () => {
+  const p = page(true);
+  p.context.health = { results: [{ operation: 'resource', state: 'available', validUntil: '2000-01-01T00:00:00Z' }] };
+  assert.doesNotMatch(vm.runInContext('healthImpact(health, {})', p.context), /有成功样本/);
+  assert.match(vm.runInContext('healthImpact({}, {})', p.context), /歌曲清单：尚待确认/);
+  assert.match(vm.runInContext('healthImpact({ closed: true }, {})', p.context), /无法判断/);
+});
+
+test('network updates retain expanded technical details and keyboard focus', () => {
+  const p = page(true);
+  p.context.health = { results: [{ operation: 'resource', route: 'video.example', mode: 'direct', ip: '1.2.3.4', state: 'available', estimatedLatencyMS: 12 }] };
+  vm.runInContext('renderHealth(health, {})', p.context);
+  const detail = resourceGroup(p, 'video.example').children[0].children[1];
+  assert.equal(detail.tagName, 'DETAILS');
+  detail.open = true;
+  detail.children[0].focus();
+  p.context.health.results[0].estimatedLatencyMS = 20;
+  vm.runInContext('renderHealth(health, {})', p.context);
+  const updated = resourceGroup(p, 'video.example').children[0];
+  assert.equal(updated.children[1].open, true);
+  assert.equal(p.document.activeElement, updated.children[1].children[0]);
+  assert.match(updated.children[2].textContent, /20.0 ms/);
+});
+
 test('cache management shows honest state and sharing; protected files remain disabled across polling', () => {
   const p = cacheHarness(), get = id => p.document.getElementById(id);
   assert.match(get('cacheList').textContent, /<b>舞曲<\/b>.*完整性未检查.*共享文件.*历史关联/s);
@@ -1502,7 +1639,7 @@ test('cache pagination handles an emptied store and bounds retries during concur
   await vm.runInContext('refreshCache()', p.context);
   assert.deepEqual(offsets, ['150', '100', '0']);
   assert.equal(vm.runInContext('cacheOffset', p.context), 0);
-  assert.match(p.document.getElementById('cacheState').textContent, /没有匹配/);
+  assert.match(p.document.getElementById('cacheState').textContent, /暂无缓存/);
   offsets.length = 0;
   vm.runInContext('cacheOffset = 50', p.context);
   p.context.fetch = async url => { offsets.push(url); return { ok: true, json: async () => ({ storageID: 'store', total: 0, entries: [] }) }; };

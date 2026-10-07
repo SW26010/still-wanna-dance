@@ -5,12 +5,12 @@ import vm from 'node:vm';
 
 const html = readFileSync(new URL('../internal/console/index.html', import.meta.url), 'utf8');
 const script = readFileSync(new URL('../internal/console/assets/navigation.js', import.meta.url), 'utf8');
-const keys = ['home', 'monitor', 'upstream', 'cache', 'library', 'settings'];
+const keys = ['home', 'monitor', 'cache', 'library', 'settings'];
 function page(hash = '') {
   let focused, scrolls = 0, pageChanges = 0, expectedPage;
   const events = {}, skipEvents = {};
   const nodes = new Map([...html.matchAll(/\bid="([^"]+)"/g)].map(([, id]) => [id, {
-    id, textContent: '', hidden: false, value: '',
+    id, tagName: id === 'service' ? 'DETAILS' : 'DIV', textContent: '', hidden: false, value: '',
     focus() { focused = this; }, scrollIntoView() { scrolls++; },
   }]));
   const panels = keys.map(key => Object.assign(nodes.get('page-' + key), { dataset: { page: key } }));
@@ -78,12 +78,16 @@ test('direct load and reload retain route; malformed hashes safely return home',
 
 test('legacy deep links reveal their page and focus the requested section', () => {
   const p = page();
-  for (const [section, key] of Object.entries({ activation: 'home', queue: 'settings', downloads: 'monitor',
-    recent: 'monitor', overview: 'cache', cache: 'cache', batch: 'library', preferences: 'settings', service: 'settings' })) {
+  for (const [section, key] of Object.entries({ activation: 'home', queue: 'library', downloads: 'monitor',
+    recent: 'monitor', network: 'monitor', overview: 'cache', cache: 'cache', batch: 'library', preferences: 'settings', queuePrefetchCount: 'settings', maxCacheGiB: 'settings', service: 'home' })) {
     p.go('#' + section);
     assert.equal(p.panels.find(n => !n.hidden).dataset.page, key);
     assert.equal(p.focused.id, section);
   }
+  assert.equal(p.nodes.get('service').open, true);
+  p.go('#/upstream');
+  assert.equal(p.panels.find(n => !n.hidden).dataset.page, 'monitor');
+  assert.equal(p.focused.id, 'network');
 });
 
 test('navigation keeps drafts, selection, confirmation and expanded details mounted; skip preserves route', () => {
@@ -103,9 +107,8 @@ test('navigation keeps drafts, selection, confirmation and expanded details moun
 });
 
 test('markup groups every existing section once with only home initially visible', () => {
-  const groups = { home: ['activation'], monitor: ['downloads', 'recent'],
-    upstream: ['healthCheck', 'healthCatalog', 'healthCatalogKiva', 'healthCatalogWanna', 'healthPlaybackHkg', 'healthPlaybackCf', 'healthResources'],
-    cache: ['overview', 'cache'], library: ['batch'], settings: ['preferences', 'service', 'queue'] };
+  const groups = { home: ['activation', 'service'], monitor: ['downloads', 'recent', 'network', 'healthCheck', 'healthCatalog', 'healthCatalogKiva', 'healthCatalogWanna', 'healthPlaybackHkg', 'healthPlaybackCf', 'healthResources'],
+    cache: ['overview', 'cache'], library: ['queue', 'batch'], settings: ['preferences'] };
   const markupKeys = [...keys].sort((a, b) => html.indexOf(`id="page-${a}"`) - html.indexOf(`id="page-${b}"`));
   const positions = markupKeys.map(key => html.indexOf(`id="page-${key}"`));
   for (const [i, key] of markupKeys.entries()) {

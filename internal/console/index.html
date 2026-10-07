@@ -16,71 +16,31 @@
     <div class="shell console-shell">
       <header>
         <div class="brand"><span aria-hidden="true">↘</span>Still Wanna Dance</div>
-        <div class="muted">WannaDance 本地控制台</div>
         <div id="connection" role="status">正在连接…</div>
       </header>
       <nav aria-label="控制台页面">
-        <a href="#/home" data-page-link="home" aria-current="page">首页</a>
-        <a href="#/monitor" data-page-link="monitor">监控</a>
-        <a href="#/upstream" data-page-link="upstream">上游状态</a>
-        <a href="#/cache" data-page-link="cache">缓存</a>
-        <a href="#/library" data-page-link="library">曲库与下载</a>
+        <a href="#/home" data-page-link="home" aria-current="page">开始使用</a>
+        <a href="#/library" data-page-link="library">准备歌曲</a>
+        <a href="#/cache" data-page-link="cache">本地缓存</a>
+        <a href="#/monitor" data-page-link="monitor">运行状态</a>
         <a href="#/settings" data-page-link="settings">设置</a>
-        <a href="/about">关于</a>
       </nav>
       <main id="main" tabindex="-1">
-      <div class="eyebrow" id="pageLabel">首页</div>
+      <div class="visually-hidden" id="pageLabel">开始使用</div>
       <section class="hero">
         <div>
-          <h1 id="pageTitle">Load failed? But I still wanna dance!</h1>
-          <p class="muted" id="pageDescription">启用游戏加速，查看接入状态，准备房间里的下一首歌。</p>
+          <h1 id="pageTitle">WannaDance 本地视频缓存</h1>
+          <p class="muted" id="pageDescription">复用已下载视频，也可提前准备房间队列。</p>
         </div>
         <div class="pill" id="serviceBadge">正在检查状态</div>
       </section>
       <noscript><p class="notice">控制台需要启用 JavaScript 才能切换页面和管理服务。</p></noscript>
       <div id="notice" class="notice" role="status" hidden></div>
-      <div id="page-upstream" data-page="upstream" hidden>
-        <div class="actions"><button id="healthCheck" data-action="upstream/check">立即检测</button></div>
-        <p id="healthSummary" role="status">等待首次检测…</p>
-        <p id="healthRoute" class="hint"></p>
-        <details class="help"><summary>检测说明</summary>
-          <p class="hint">默认每轮完成后 5 分钟检测，候选变化或观测即将到期时提前检测，关闭页面后继续运行。每轮从有效歌曲列表随机选歌，解析真实资源。常规资源检测仅读取一个字节以测量延迟；吞吐检测默认每 20 分钟一轮，可在设置中调整，启动时读取最近尝试时间，未到期则等待。测速对每个候选通道持续读取，正文下载满 3 秒、达到 16 MiB、整首下载完毕，任一条件满足即结束；同一线路共用资源样本，各视频通道依次测速，避免争抢本地带宽。列表失败时可短暂复用有效歌曲样本，没有合法样本的通道显示待测。吞吐按实际正文下载字节与时间计算，连接及握手时间不计入。样本吞吐不代表持续带宽，也不保证全部歌曲可播放。</p>
-        </details>
-        <p id="healthTime" class="muted"></p>
-        <section class="card" aria-labelledby="healthCatalogTitle">
-          <h2 id="healthCatalogTitle">视频列表</h2>
-          <div class="actions"><button id="healthCheckCatalog" data-action="upstream/check/catalog">检测视频列表</button></div>
-          <div class="health-routes">
-            <section aria-labelledby="healthCatalogUdonTitle"><h3 id="healthCatalogUdonTitle">Udon 歌曲列表</h3><p id="healthCatalogTime" class="hint">响应 time：未获取</p><ul id="healthCatalog" class="health-checks" aria-label="Udon 歌曲列表检测结果"></ul></section>
-            <section aria-labelledby="healthCatalogKivaTitle"><h3 id="healthCatalogKivaTitle">Kiva 歌曲与 MD5 清单</h3><p id="healthCatalogKivaTime" class="hint">响应 time：未获取</p><ul id="healthCatalogKiva" class="health-checks" aria-label="Kiva 歌曲清单检测结果"></ul></section>
-            <section aria-labelledby="healthCatalogWannaTitle"><h3 id="healthCatalogWannaTitle">WannaInfo 歌曲清单</h3><p id="healthCatalogWannaTime" class="hint">响应 time：未获取</p><ul id="healthCatalogWanna" class="health-checks" aria-label="WannaInfo 歌曲清单检测结果"></ul></section>
-          </div>
-        </section>
-        <section class="card" aria-labelledby="healthPlaybackTitle">
-          <h2 id="healthPlaybackTitle">播放地址解析</h2>
-          <div class="actions"><button id="healthCheckPlayback" data-action="upstream/check/playback">检测播放地址解析</button></div>
-          <div class="health-routes">
-            <section aria-labelledby="healthPlaybackHkgTitle"><h3 id="healthPlaybackHkgTitle">node=nya</h3><ul id="healthPlaybackHkg" class="health-checks" aria-label="node=nya 播放地址解析检测结果"></ul></section>
-            <section aria-labelledby="healthPlaybackCfTitle"><h3 id="healthPlaybackCfTitle">node=cf</h3><ul id="healthPlaybackCf" class="health-checks" aria-label="node=cf 播放地址解析检测结果"></ul></section>
-          </div>
-        </section>
-        <section class="card" aria-labelledby="healthResourceTitle">
-          <h2 id="healthResourceTitle">视频资源加载</h2>
-          <p id="healthThroughputSchedule" class="hint" role="status">等待吞吐检测调度信息…</p>
-          <div class="actions"><button id="healthCheckLatency" data-action="upstream/check/latency">检测响应延迟</button><button id="healthCheckThroughput" data-action="upstream/check/throughput">检测吞吐速度</button></div>
-          <p class="hint">手动吞吐检测依次测量所有视频资源通道，不受自动检测间隔及业务下载暂停规则限制。</p>
-          <div id="healthResources" class="health-routes"><p class="muted">等待 API 返回有效资源域名…</p></div>
-        </section>
-      </div>
       <div id="page-home" data-page="home">
-        <section class="card" aria-labelledby="applicationTitle" tabindex="-1">
-          <div class="card-head"><h2 id="applicationTitle">应用控制</h2></div>
-          <p class="hint">退出会停止所有服务和后台任务。hosts 映射会保留，需要时请先在单项管理中恢复 hosts。</p>
-          <div class="actions"><button id="exit" data-action="exit">退出整个应用</button></div>
-        </section>
         <section class="card" id="activation" aria-labelledby="activationTitle" tabindex="-1">
-        <div class="card-head"><h2 id="activationTitle">启用游戏加速</h2><a href="#service">单项管理</a></div>
-        <p>检查接入 → 启动 HTTP 缓存与 HTTPS 转发 → 接入 hosts → 等待视频请求。</p>
+        <div class="card-head"><h2 id="activationTitle">启用游戏加速</h2><a href="#service">高级接入设置</a></div>
+        <p>启用后，在游戏中请求一首歌曲以检查接入。首次接入可能需要管理员权限。</p>
+        <p class="hint">接入会修改本机 hosts，让游戏视频使用本地缓存；网页 HTTPS 视频仅转发。退出应用不会恢复接入，停用前请在下方恢复 hosts。</p>
         <div class="actions"><button class="primary" id="enableAcceleration" data-action="activation/enable">启用游戏加速</button></div>
         <div id="activationProgress" role="status">正在检查状态…</div>
         <ol aria-label="游戏加速接入状态">
@@ -89,45 +49,137 @@
           <li id="activationRequest">视频请求：尚未开始本次检测</li>
         </ol>
         <p id="activationNext" class="hint"></p>
-        <p id="activationTime" class="muted"></p>
-        <details class="help"><summary>接入与检测说明</summary><p class="hint">仅需要修改 hosts 时请求管理员权限，不覆盖冲突映射。HTTP 视频使用缓存，HTTPS 保持加密透传，不使用缓存，也不计入这里的检测。收到视频请求不代表已确认游戏客户端、起播或播放成功。检测仅记录向导接入完成后通过本地校验的 HTTP GET / HEAD 视频或播放 API 请求（不要求上游解析成功）；不计历史请求、预缓存或控制台轮询。重新检测/重试会清空本次记录，关闭 CDN 或恢复 hosts 会结束检测；刷新页面保留，退出程序清空。hosts 映射在退出后仍保留，可在单项管理中恢复。</p></details>
+        <details class="help" id="activationTiming"><summary>检测时间</summary><p id="activationTime" class="muted"></p></details>
+        <details class="help"><summary>接入与检测说明</summary><p class="hint">游戏 HTTP 视频可使用缓存，网页 HTTPS 播放仅转发。收到请求不代表游戏已播放成功。停用或卸载前，请在「高级接入设置」中恢复 hosts；退出应用不会自动恢复。</p></details>
       </section>
-        <p class="hint">需要准备全曲库？前往 <a href="#/library">曲库与下载</a>。查看传输速度与请求记录，请前往 <a href="#/monitor">监控</a>。</p>
+        <details class="card" id="service" aria-labelledby="serviceTitle" tabindex="-1">
+          <summary id="serviceTitle">高级接入设置</summary>
+          <p class="hint">可分别控制本地缓存服务和游戏接入。</p>
+          <div class="actions">
+            <button class="primary" id="start" data-action="start">
+              启动缓存服务</button
+            ><button id="stop" data-action="stop">停止缓存服务</button>
+          </div>
+          <div id="serviceError" role="status"></div>
+          <div class="check">
+            <span aria-hidden="true" class="dot" id="portDot">●</span>
+            <div class="grow">
+              <strong>HTTP 缓存 · 80</strong><small id="portText">检查中</small>
+            </div>
+          </div>
+          <div class="check">
+            <span aria-hidden="true" class="dot" id="httpsDot">●</span>
+            <div class="grow">
+              <strong>HTTPS 转发 · 443</strong
+              ><small id="httpsText">检查中</small>
+            </div>
+          </div>
+          <div class="hint">
+            游戏 HTTP 播放使用本地缓存；网页 HTTPS
+            播放保持加密并转发到原线路，不使用本地缓存。
+          </div>
+          <div class="check">
+            <span aria-hidden="true" class="dot" id="hostsDot">●</span>
+            <div class="grow">
+              <strong>游戏接入 · hosts</strong
+              ><small id="hostsText">检查中</small>
+            </div>
+          </div>
+          <div id="hostsActionError" role="status"></div>
+          <div class="actions hosts-actions">
+            <button data-action="hosts/enable">修改 hosts</button
+            ><button data-action="hosts/disable">恢复 hosts</button>
+          </div>
+          <div class="hint">
+            仅在实际修改时请求管理员权限。映射长期保留，停止缓存服务
+            或退出控制台不会恢复。「恢复 hosts」仅移除 Still Wanna Dance 添加的映射；如有其他映射，仍需根据接入状态检查。
+          </div>
+        </details>
+
       </div>
       <div id="page-monitor" data-page="monitor" hidden>
         <div>
-          <label><input id="pauseMonitor" type="checkbox" aria-describedby="monitorRefreshState" /> 暂停监控自动刷新</label>
-          <p id="monitorRefreshState" class="hint" role="status">每 5 秒刷新；暂停仅冻结监控显示，后台任务继续运行。</p>
+          <label><input id="pauseMonitor" type="checkbox" aria-describedby="monitorRefreshState" /> 暂停下载与请求刷新</label>
+          <p id="monitorRefreshState" class="hint" role="status">每 5 秒刷新；仅暂停下载和最近请求的展示更新，网络检测仍刷新，后台任务继续运行。</p>
         </div>
         <section class="card" id="downloads" aria-labelledby="downloadsTitle" tabindex="-1">
-        <div class="card-head"><h2 id="downloadsTitle">实时下载监控</h2><small>每 5 秒刷新 · 共享任务只计一次</small></div>
-        <p>上游总下载速度 <strong id="downloadSpeed">—</strong></p>
+        <div class="card-head"><h2 id="downloadsTitle">当前下载</h2></div>
+        <p id="downloadSpeedRow">总下载速度 <strong id="downloadSpeed">—</strong></p>
         <p id="downloadState" role="status">正在读取活动下载…</p>
-        <details class="help"><summary>下载统计说明</summary><p class="hint">近 5 秒采样估算，仅统计资源正文读取，不是向客户端传输的速度。100% 后仍需校验和发布；关联曲目不代表实际播放歌曲。活动任务包含预缓存与本地检查，等待上游阶段包含选路与等待响应头；分段下载补齐全部区间后按文件顺序校验。</p></details>
+        <details class="help"><summary>下载统计说明</summary><p class="hint">速度是最近 5 秒从网络下载视频的估算值。下载至 100% 后仍需校验，完成后才可作为缓存使用。</p></details>
         <ul id="downloadList" class="download-list" aria-label="活动下载任务"></ul>
       </section>
         <section class="card" id="recent" aria-labelledby="recentTitle" tabindex="-1">
-        <div class="card-head"><h2 id="recentTitle">最近请求监控</h2><small>每 5 秒刷新 · 请求次数不是播放次数</small></div>
+        <div class="card-head"><h2 id="recentTitle">最近请求</h2><small>请求次数不是播放次数</small></div>
         <p id="recentState" role="status">正在读取最近请求…</p>
-        <details class="help"><summary>请求分组与传输口径</summary><div class="hint">
-          仅显示已结束并写入数据库的 HTTP 视频请求，不是实时下载任务。歌名为资源关联曲目，不能据此确定实际播放歌曲。
-          同资源相邻 GET Range 请求记录时间相隔不超过 30 秒时合并；完整请求、HEAD 分开显示。分组仅覆盖已加载窗口，边界可能截断。
-          时间为请求记录时间，GET 在播放地址解析后记录；传输量为向客户端实际写入的字节（MB = 1,000,000 字节），不是视频大小或回源下载量。
-          单次耗时包含地址解析、等待和校验。多请求组跨度按最早记录时间至最晚「记录时间 + 单次耗时」估算，包含间隔、不叠加并行耗时；组平均速度为组字节数除以估算跨度。
-          GET 记录时间与耗时起点不同，因此组跨度及平均速度均为估算值，不代表精确起止时间。
-          完成表示服务器处理结束，不证明客户端播放完成；200 / 206 本身不证明传输完整。旧记录中的写入失败可能是客户端提前断开。
-          每次最多查看最近 500 条 HTTP 请求，预缓存不占用窗口，受明细保留天数限制。
-        </div></details>
+        <details class="help"><summary>请求分组与传输口径</summary><p class="hint">仅显示已结束的视频请求。请求次数不等于播放次数；同一视频的相邻分段请求会合并展示。传输量是发给客户端的数据量，分组耗时和速度为估算值。</p></details>
         <div id="recentList" class="recent-list"></div>
         <div class="actions"><button id="recentMore" type="button" hidden>加载更早记录（增加 50 条）</button></div>
       </section>
+      <section class="card" id="network" aria-labelledby="networkTitle" tabindex="-1">
+        <h2 id="networkTitle">网络检测</h2>
+        <div class="actions"><button id="healthCheck" data-action="upstream/check">立即检测</button></div>
+        <p id="healthSummary" role="status">等待首次检测…</p>
+        <p id="healthImpact" class="hint"></p>
+        <p id="healthRoute" class="hint"></p>
+        <details class="help"><summary>检测说明</summary><p class="hint">后台自动检测歌曲列表、播放地址和视频下载是否可用。视频加载期间暂停自动测速；手动测速会下载少量视频并占用带宽。样本结果不保证全部歌曲都能播放。</p></details>
+        <p id="healthTime" class="muted"></p>
+        <details class="card network-details" aria-labelledby="healthCatalogTitle">
+          <summary id="healthCatalogTitle">歌曲列表 <span id="catalogHealthSummary" class="hint"></span></summary>
+          <div class="actions"><button id="healthCheckCatalog" data-action="upstream/check/catalog">检测视频列表</button></div>
+          <div class="health-routes">
+            <section aria-labelledby="healthCatalogUdonTitle"><h3 id="healthCatalogUdonTitle">Udon 歌曲列表</h3><p id="healthCatalogTime" class="hint">清单版本：未获取</p><ul id="healthCatalog" class="health-checks" aria-label="Udon 歌曲列表检测结果"></ul></section>
+            <section aria-labelledby="healthCatalogKivaTitle"><h3 id="healthCatalogKivaTitle">Kiva 歌曲与 MD5 清单</h3><p id="healthCatalogKivaTime" class="hint">清单版本：未获取</p><ul id="healthCatalogKiva" class="health-checks" aria-label="Kiva 歌曲清单检测结果"></ul></section>
+            <section aria-labelledby="healthCatalogWannaTitle"><h3 id="healthCatalogWannaTitle">WannaInfo 歌曲清单</h3><p id="healthCatalogWannaTime" class="hint">清单版本：未获取</p><ul id="healthCatalogWanna" class="health-checks" aria-label="WannaInfo 歌曲清单检测结果"></ul></section>
+          </div>
+        </details>
+        <details class="card network-details" aria-labelledby="healthPlaybackTitle">
+          <summary id="healthPlaybackTitle">播放地址解析 <span id="playbackHealthSummary" class="hint"></span></summary>
+          <div class="actions"><button id="healthCheckPlayback" data-action="upstream/check/playback">检测播放地址解析</button></div>
+          <div class="health-routes">
+            <section aria-labelledby="healthPlaybackHkgTitle"><h3 id="healthPlaybackHkgTitle">node=nya</h3><ul id="healthPlaybackHkg" class="health-checks" aria-label="node=nya 播放地址解析检测结果"></ul></section>
+            <section aria-labelledby="healthPlaybackCfTitle"><h3 id="healthPlaybackCfTitle">node=cf</h3><ul id="healthPlaybackCf" class="health-checks" aria-label="node=cf 播放地址解析检测结果"></ul></section>
+          </div>
+        </details>
+        <details class="card network-details" aria-labelledby="healthResourceTitle">
+          <summary id="healthResourceTitle">视频资源加载 <span id="resourceHealthSummary" class="hint"></span></summary>
+          <p id="healthThroughputSchedule" class="hint" role="status">等待吞吐检测调度信息…</p>
+          <div class="actions"><button id="healthCheckLatency" data-action="upstream/check/latency">检测响应延迟</button><button id="healthCheckThroughput" data-action="upstream/check/throughput">测量下载速度</button></div>
+          <p class="hint">手动吞吐检测依次测量所有视频资源通道，不受自动检测间隔及业务下载暂停规则限制。</p>
+          <div id="healthResources" class="health-routes"><p class="muted">等待 API 返回有效资源域名…</p></div>
+        </details>
+      </section>
       </div>
       <div id="page-cache" data-page="cache" hidden>
+        <section class="card" id="cache" aria-labelledby="cacheTitle" tabindex="-1">
+        <div class="card-head"><h2 id="cacheTitle">本地文件</h2><small>按文件管理 · 每页 50 项</small></div>
+        <p id="cacheSpace" role="status">正在读取视频占用…</p>
+        <p class="hint">按歌曲查找并清理本地视频。正在使用或准备播放的文件不可删除。</p>
+        <p class="hint">刷新文件列表只读取本机文件；下方的覆盖率统计会联网更新歌曲清单。</p>
+        <form id="cacheSearchForm" class="actions">
+          <label for="cacheSearch">歌名或歌曲 ID<input id="cacheSearch" type="search" maxlength="300" /></label>
+          <label for="cacheSort">排序<select id="cacheSort"><option value="recent">最近请求优先</option><option value="size">占用从大到小</option><option value="title">歌名顺序</option></select></label>
+          <button type="submit" id="cacheSearchButton">查找</button><button type="button" id="cacheRefresh">刷新文件列表</button><button type="button" id="cacheOpen">打开缓存目录</button>
+        </form>
+        <p id="cacheState" role="status">正在读取本地文件…</p>
+        <p id="cacheEmptyHelp" hidden><a href="#/library">前往准备歌曲</a></p>
+        <div id="cacheSelection" class="actions"><button type="button" id="cacheSelect">选择本页可删除项</button><button type="button" id="cacheDelete">删除选中缓存</button><span id="cacheSelected" role="status"></span></div>
+        <div id="cacheConfirm" class="notice" hidden aria-labelledby="cacheConfirmTitle" tabindex="-1">
+          <h3 id="cacheConfirmTitle">确认删除选中的缓存文件？</h3>
+          <p>删除无法撤销；共用该文件的歌曲需要重新下载。歌曲资料和统计保留，正在使用的文件会跳过。</p>
+          <ul id="cacheConfirmList"></ul>
+          <div class="actions"><button type="button" id="cacheConfirmDelete">确认删除</button><button type="button" id="cacheCancel">取消</button></div>
+        </div>
+        <p id="cacheResult" role="status"></p>
+        <ul id="cacheList" class="cache-list" aria-label="缓存文件"></ul>
+        <div id="cachePagination" class="actions"><button type="button" id="cachePrev">上一页</button><button type="button" id="cacheNext">下一页</button></div>
+      </section>
         <section class="card overview-card" id="overview" aria-labelledby="overviewTitle" tabindex="-1">
-        <h2 id="overviewTitle">缓存与播放概览</h2>
-        <section class="overview-section">
+        <h2 id="overviewTitle">缓存统计</h2>
+        <details class="overview-section">
+          <summary>缓存效果统计</summary>
           <div class="card-head">
-            <h3>播放统计</h3>
+            <h3>请求统计</h3>
             <small>当前存储目录累计</small>
           </div>
           <div class="stats">
@@ -145,97 +197,75 @@
             </div>
           </div>
           <div id="trafficDetail" class="muted"></div>
-          <details class="help"><summary>统计口径与计算方式</summary><div class="hint">
-            仅统计成功完成的 GET 视频请求（200 / 206），每次 Range
-            请求单独计数；HEAD、失败、中断、预下载不计入命中率。节省流量按命中实际返回字节累计（1
-            GiB = 1,073,741,824
-            字节），表示缓存替代的上游流量，非扣除预下载后的净节省。
-            播放传输仅计有明确歌曲 ID、成功完成且返回正文的即时 GET，同曲按成功完成的记录时间以 30 秒去重；预缓存、HEAD、失败及中断不计入。
-            首正文从本机收到播放请求计时，到首次成功向客户端写入正文，包含地址查询、缓存检查及等待数据；不等于客户端收包、完整加载或首帧。
-            命中与未命中样本未逐次配对，不计算加速比例。统计保存到本地数据库，旧响应头样本不混入首正文统计。
-          </div></details>
-        </section>
+          <details class="help"><summary>统计口径与计算方式</summary><p class="hint">仅统计成功返回视频内容的请求，预下载不计入。节省流量是缓存命中返回的数据量，未扣除提前下载的流量。播放传输按同一歌曲 30 秒去重，不代表游戏实际播放次数。</p></details>
+        </details>
         <section class="overview-section">
           <div class="card-head">
-            <h3>已缓存视频资源覆盖率（所有曲目）</h3>
+            <h3>歌曲缓存覆盖率</h3>
             <small id="inventoryState">正在读取统计…</small>
           </div>
           <div class="stats">
             <div class="stat">
-              <b id="coverageRate">—</b><small id="coverageCount">尚未统计曲目覆盖</small>
-            </div>
-            <div class="stat">
-              <b id="videoCount">—</b><small>本地视频资源</small>
-            </div>
-            <div class="stat">
-              <b id="cacheBytes">—</b><small>视频总占用</small>
+              <b id="coverageRate">—</b><small id="coverageCount"></small>
             </div>
           </div>
           <p id="catalogCheckedAt" class="hint">最后成功检查：尚无记录</p>
-          <p id="catalogRevision" class="hint">本地 MD5 清单水位：尚无有效清单</p>
-          <p id="catalogCheckResult" class="hint" role="status"></p>
-          <details class="help"><summary>覆盖率说明</summary><div class="hint">
-            覆盖率按本地数据库中已有 MD5 映射的曲目计算（含隐藏曲目和保留的旧曲目）。刷新时先检查远端，按版本规则更新本地数据库，再统一读取本地清单检查文件是否存在；远端失败仍使用本地清单。仅有名称、没有 MD5 的曲目不参与统计。最后成功检查时间表示有效响应已完成版本检查，本地水位表示已接受的 MD5 清单版本，两者分别记录。不检查文件大小或读取视频正文，也不逐首解析地址。视频完整下载后校验大小和 MD5，之后假设文件不再变化，播放不重复校验。下载或淘汰后可手动刷新。
-          </div></details>
+          <details class="help"><summary>歌曲清单详情</summary><p id="catalogMessage" class="hint"></p><p id="catalogRevision" class="hint">歌曲清单版本：尚无有效清单</p>
+          </details><p id="catalogCheckResult" class="hint" role="status"></p>
+          <details class="help"><summary>覆盖率说明</summary><p class="hint">按本地歌曲清单检查视频文件是否存在，不检查文件内容。刷新时会联网更新清单，失败则使用本地清单。共用一个视频的歌曲分别计入覆盖率。</p></details>
           <div class="actions">
             <button id="inventoryScan" data-action="inventory/scan">
-              刷新覆盖率
+              更新清单并统计覆盖率
             </button>
           </div>
           <div id="inventoryActionError" role="status"></div>
           <div id="inventoryError" role="status"></div>
         </section>
       </section>
-        <section class="card" id="cache" aria-labelledby="cacheTitle" tabindex="-1">
-        <div class="card-head"><h2 id="cacheTitle">缓存明细</h2><small>按文件管理 · 每页 50 项</small></div>
-        <p class="hint">仅查看本地文件和资料，不联网、不读取视频正文。文件存在不代表完整性已校验；当前引用仅代表本地已知映射，不保证是线上最新版本。最近请求不代表确认播放。</p>
-        <form id="cacheSearchForm" class="actions">
-          <label for="cacheSearch">歌名 / 歌曲 ID / 资源指纹<input id="cacheSearch" type="search" maxlength="300" /></label>
-          <label for="cacheSort">排序<select id="cacheSort"><option value="recent">最近请求优先</option><option value="size">占用从大到小</option><option value="title">歌名顺序</option></select></label>
-          <button type="submit" id="cacheSearchButton">查找</button><button type="button" id="cacheRefresh">刷新明细</button><button type="button" id="cacheOpen">打开缓存目录</button>
-        </form>
-        <p id="cacheState" role="status">点击刷新明细查看缓存。</p>
-        <div class="actions"><button type="button" id="cacheSelect">选择本页可删除项</button><button type="button" id="cacheDelete">删除选中缓存</button><span id="cacheSelected" role="status"></span></div>
-        <div id="cacheConfirm" class="notice" hidden aria-labelledby="cacheConfirmTitle" tabindex="-1">
-          <h3 id="cacheConfirmTitle">确认删除选中的缓存文件？</h3>
-          <p>共享文件删除后，所有关联歌曲都需要重新下载。歌曲资料、MD5 关联和历史统计会保留。正在使用、下载、校验或待播的资源会跳过；状态变化的条目需刷新后重新选择。删除无法撤销。</p>
-          <ul id="cacheConfirmList"></ul>
-          <div class="actions"><button type="button" id="cacheConfirmDelete">确认删除</button><button type="button" id="cacheCancel">取消</button></div>
-        </div>
-        <p id="cacheResult" role="status"></p>
-        <ul id="cacheList" class="cache-list" aria-label="缓存文件"></ul>
-        <div class="actions"><button type="button" id="cachePrev">上一页</button><button type="button" id="cacheNext">下一页</button></div>
-      </section>
       </div>
       <div id="page-library" data-page="library" hidden>
+        <section class="card" id="queue" aria-labelledby="queueTitle" tabindex="-1">
+          <div class="card-head">
+            <h2 id="queueTitle">房间队列预缓存</h2>
+            <small id="queueWindow">准备队列前 3 个位置中的有效曲目</small>
+          </div>
+          <p class="hint">日常跳舞建议开启：根据游戏日志，提前下载即将播放的视频。开启后等待房间同步新队列，不会回放旧队列。</p>
+          <a class="queue-settings-link" href="#queuePrefetchCount">调整队列数量</a>
+          <details class="help"><summary>暂停与停止说明</summary><p class="hint">下载补齐期间暂停，结束后恢复原先开启的队列预缓存。关闭后已开始的共享下载可能继续完成。</p></details>
+          <div id="queueActionError" role="status"></div>
+          <div class="actions"><button class="primary" id="queueStart" data-action="queue/start">开启队列预缓存</button><button id="queueStop" data-action="queue/stop">关闭队列预缓存</button></div>
+          <div id="queuePhase" role="status">已关闭</div>
+          <details class="help"><summary>日志与累计记录</summary><small id="queueDetail"></small></details>
+          <ol id="queueSongs"></ol>
+          <div id="queueError" role="status"></div>
+        </section>
+
         <section class="card wide" id="batch" aria-labelledby="batchTitle" tabindex="-1">
           <div class="card-head">
             <div>
-              <h2 id="batchTitle">歌曲扫描与更新</h2>
-              <small>先扫描了解缺失情况，再按需下载补齐</small>
+              <h2 id="batchTitle">全曲库补齐</h2>
+              <small>适合想提前准备整个曲库时使用。补齐可能下载大量视频、占用较多流量和磁盘空间，建议先<a href="#maxCacheGiB">设置缓存上限</a>。</small>
             </div>
           </div>
           <div class="actions">
-            <button class="primary" id="batchScan" data-action="batch/scan">
-              仅扫描检查</button
+            <button id="batchScan" data-action="batch/scan">
+              检查缺失视频</button
             ><button id="batchStart" data-action="batch/switch">下载补齐</button
             ><button id="batchCancel" data-action="batch/cancel">
               停止批量任务
             </button>
           </div>
-          <details class="help"><summary>扫描与下载说明</summary><div class="hint">
-            「仅扫描检查」更新歌曲与 MD5 的关联，一次枚举本地文件检查缺失，不读取视频内容。清单中新歌会加入，消失的旧 ID 保留。「下载补齐」每次重新获取清单并检查缺失，仅为缺失的 MD5 解析地址和下载；多首歌曲共用同一视频时只下载一份。下载完成校验 MD5 后保存，之后信任本地文件，不重复校验。队列预缓存会在补齐期间暂停，结束后仅在仍处于开启状态时恢复。最多同时下载 2 个资源，为游戏播放保留一个下载名额。共用视频的优先级为关联歌曲分数之和，容量不足时停止补齐，可前往设置调整预算。两项操作均无需启动 CDN 或修改 hosts。
-          </div></details>
+          <details class="help"><summary>检查与下载说明</summary><p class="hint">检查缺失视频会更新歌曲清单并检查本地文件，不下载或校验视频内容。补齐期间暂停房间队列预缓存，结束后恢复原先开启的队列预缓存。空间不足时停止；停止任务后，已开始的共享下载可能继续完成。</p></details>
           <div id="batchActionError" role="status"></div>
-          <div id="snapshotState" class="hint">尚无成功任务结果</div>
-          <div class="stats">
+          <div id="snapshotState" class="hint">暂无成功任务记录</div>
+          <div class="stats" id="batchStatistics">
             <div class="stat"><b id="total">—</b><small>任务曲目总数</small></div>
             <div class="stat"><b id="hits">0</b><small>检查时已缓存</small></div>
             <div class="stat">
               <b id="downloaded">0</b><small>该次任务下载完成</small>
             </div>
             <div class="stat">
-              <b id="missing">—</b><small>扫描发现缺失或损坏</small>
+              <b id="missing">—</b><small>缺失视频</small>
             </div>
           </div>
           <progress aria-label="批量任务进度" aria-describedby="current" id="progress" value="0" max="1"></progress>
@@ -260,23 +290,19 @@
       <div id="page-settings" data-page="settings" hidden>
         <section class="card wide" id="preferences" aria-labelledby="preferencesTitle" tabindex="-1">
           <div class="card-head">
-            <h2 id="preferencesTitle">缓存与任务设置</h2>
-            <small id="settingsAvailability" role="status">运行中可保存，重启应用后生效</small>
+            <h2 id="preferencesTitle">偏好设置</h2>
           </div>
           <div id="settingsActionError" role="status"></div>
           <form id="settings" aria-describedby="settingsAvailability">
-            <fieldset><legend>启动与存储</legend>
+            <fieldset><legend>存储与启动</legend>
             <label for="autoStartCDN"
               ><input
                 id="autoStartCDN"
                 name="autoStartCDN" aria-describedby="autoStartHint"
                 type="checkbox"
-              />启动控制台时自动启用 CDN</label
+              />启动应用时开启本地缓存服务</label
             >
-            <div class="hint" id="autoStartHint">
-              默认关闭。保存后下次启动程序时生效；重新打开网页不会触发。不自动修改
-              hosts。
-            </div>
+            <div class="hint" id="autoStartHint">下次启动应用时生效，不自动修改游戏接入（hosts）。</div>
             <label for="storageDir">存储文件夹</label
             ><input
               id="storageDir" aria-describedby="storageDirHint"
@@ -298,13 +324,7 @@
               required
               value="0"
             />
-            <div class="hint" id="maxCacheGiBHint">
-              0
-              表示不限。下载补齐会在容量预算不足时自动停止。播放和队列预缓存仍按需下载，超限时删除低优先级视频，保留歌曲资料和历史统计；受保护的视频可暂时超限，临时文件另需空间。保存并重启应用后生效。
-            </div>
-            <label for="throughputIntervalMinutes">自动吞吐检测间隔（分钟）</label>
-            <input id="throughputIntervalMinutes" type="number" min="1" max="1440" step="1" required value="20" aria-describedby="throughputIntervalHint" />
-            <div class="hint" id="throughputIntervalHint">默认 20 分钟。重启应用后按上次测速时间重新计算下次时间，不重置计时。首字节检测频率不变。</div>
+            <div class="hint" id="maxCacheGiBHint">0 表示不限。超限时清理低优先级视频；使用中的视频和临时文件可能使占用暂时超限。</div>
             <label for="requestRetentionDays">请求明细保留天数</label
             ><input
               id="requestRetentionDays" aria-describedby="requestRetentionDaysHint"
@@ -315,129 +335,58 @@
               required
               value="30"
             />
-            <div class="hint" id="requestRetentionDaysHint">
-              默认 30 天，0
-              表示永久保留。过期明细后台分批删除，热度汇总长期保留。数据库不计入视频上限，删除后的空间供后续写入复用，文件不会立即缩小。保存并重启应用后生效。
-            </div>
+            <div class="hint" id="requestRetentionDaysHint">默认 30 天，0 表示永久保留。只清理请求明细，累计统计保留。</div>
             </fieldset><fieldset><legend>网络连接</legend>
             <label for="downloadUpstream">播放地址接口选择</label
             ><select id="downloadUpstream" aria-describedby="downloadUpstreamHint" name="downloadUpstream">
-              <option value="auto">Auto（主动下载先查询 node=cf）</option>
+              <option value="auto">自动（推荐）</option>
               <option value="cf">node=cf（播放地址接口）</option>
               <option value="hkg">node=nya（播放地址接口）</option>
             </select>
-            <div class="hint" id="downloadUpstreamHint">
-              用于冷缓存播放、下载补齐和队列预缓存。Auto 主动下载先查询 node=cf，失败后查询 node=nya；资源下载和测速按返回地址的实际域名区分，同一地址不重复尝试。冷缓存播放在已解析域名中测速优选，仅在校验和与大小一致时切换。无法确认歌曲或内容不一致时保留原地址。固定模式仅查询指定接口，不限制其返回的资源域名；保存并重启应用后生效。
-            </div>
+            <div class="hint" id="downloadUpstreamHint">默认自动选择。固定线路只使用指定播放地址接口，视频来源由接口决定。</div>
             <label for="upstreamMode">上游连接</label>
             <select id="upstreamMode" aria-describedby="directConnectionHint" name="upstreamMode">
               <option value="direct">直连（内置 DNS）</option>
-              <option value="socks5">SOCKS5 代理（强制使用）</option>
-              <option value="auto">直连与 SOCKS5（平等参与检测）</option>
+              <option value="socks5">SOCKS5 代理</option>
+              <option value="auto">自动选择直连或 SOCKS5</option>
             </select>
-            <div class="hint" id="directConnectionHint">
-              直连模式使用内置加密 DNS 解析域名，并连接目标 IP，可能影响透明代理的域名分流，使实际连接路径与预期不一致。如需由代理处理域名解析和连接，请选择「SOCKS5 代理」并配置代理地址。
-            </div>
+            <div class="hint" id="directConnectionHint">默认直连。如需由代理软件处理连接和域名解析，请选择 SOCKS5。</div>
+            <div id="proxyFields">
             <label for="socks5Address">SOCKS5 地址</label>
             <input id="socks5Address" aria-describedby="socks5PasswordHint" name="socks5Address" type="text" placeholder="127.0.0.1:7891" autocomplete="off" spellcheck="false" />
             <label for="socks5Username">SOCKS5 用户名（可选）</label>
             <input id="socks5Username" aria-describedby="socks5PasswordHint" name="socks5Username" type="text" autocomplete="off" spellcheck="false" />
             <label for="socks5Password">SOCKS5 密码</label>
             <input id="socks5Password" aria-describedby="socks5PasswordHint" name="socks5Password" type="password" autocomplete="new-password" />
-            <div class="hint" id="socks5PasswordHint">
-              填写代理软件的主机:端口，无需 socks5:// 前缀。代理模式用于 API 查询、视频下载、测速和 HTTPS 透传，域名解析交给代理；连接失败不会回退直连。无需认证时用户名和密码留空；已有密码留空则保留，清空用户名及密码可移除认证。密码保存在本机配置文件中，不会回显。保存并重启应用后切换。
+            <div class="hint" id="socks5PasswordHint">填写代理软件的主机:端口。无需认证时留空；已有密码留空则保留，清空用户名和密码可移除认证。密码以明文保存在本机。</div>
             </div>
-            </fieldset><fieldset><legend>扫描与队列</legend>
+            <label for="throughputIntervalMinutes">自动测速间隔（分钟）</label>
+            <input id="throughputIntervalMinutes" type="number" min="1" max="1440" step="1" required value="20" aria-describedby="throughputIntervalHint" />
+            <div class="hint" id="throughputIntervalHint">默认 20 分钟，按上次测速时间安排下一次检测。</div>
+            </fieldset><fieldset><legend>房间队列</legend>
             <label for="autoStartQueue"><input id="autoStartQueue" name="autoStartQueue" type="checkbox" /> 启动应用时开启房间队列预缓存</label>
-            <p class="hint">与 CDN 的自动启动独立。下载补齐期间临时暂停。</p>
+            <p class="hint">与缓存服务的自动启动独立。下载补齐期间临时暂停。</p>
             <label for="queuePrefetchCount">队列预缓存数量</label>
             <input id="queuePrefetchCount" aria-describedby="queuePrefetchCountHint" type="number" min="1" max="100" step="1" required value="3" />
-            <div class="hint" id="queuePrefetchCountHint">
-              默认 3，可设 1～100。准备队列前 N 个位置中的有效曲目，非曲库条目也占位置；最多同时下载 2 首。保存并重启应用后生效。
-            </div>
+            <div class="hint" id="queuePrefetchCountHint">默认 3，范围 1～100。准备队列前 N 个位置中的有效曲目。</div>
             <label for="manualLogDir"><input id="manualLogDir" name="manualLogDir" type="checkbox" /> 手动指定 VRChat 日志目录</label>
             <label for="logDir">VRChat 日志目录</label
             ><input id="logDir" aria-describedby="logDirHint" name="logDir" spellcheck="false" disabled />
-            <div class="hint" id="logDirHint">
-              默认每次启动按当前用户自动读取，灰色路径无需填写。勾选后可手动指定；取消勾选、保存并重启应用后恢复自动。预缓存从现有日志末尾跟踪新增内容。
-            </div>
+            <div class="hint" id="logDirHint">默认自动识别。仅在无法找到游戏日志时手动指定，取消勾选可恢复自动。</div>
             </fieldset>
+            <p id="settingsAvailability" role="status">运行中可保存，重启应用后生效</p>
             <button class="primary" type="submit" id="save">保存设置</button>
+            <button type="button" id="discardSettings" disabled>放弃更改</button>
             <button type="button" id="restart" data-action="restart" hidden>立即重启并应用</button>
             <p class="hint">重启会停止当前服务和任务，按已保存的自动启动设置重新启动。批量任务需手动重新开始，hosts 映射保留。</p>
           </form>
         </section>
-        <section class="card" id="service" aria-labelledby="serviceTitle" tabindex="-1">
-          <div class="card-head">
-            <h2 id="serviceTitle">本地 CDN</h2>
-            <small>127.0.0.1 · 80 / 443</small>
-          </div>
-          <div class="actions">
-            <button class="primary" id="start" data-action="start">
-              启动 CDN</button
-            ><button id="stop" data-action="stop">关闭 CDN</button>
-          </div>
-          <div id="serviceError" role="status"></div>
-          <div class="check">
-            <span aria-hidden="true" class="dot" id="portDot">●</span>
-            <div class="grow">
-              <strong>HTTP 缓存 · 80</strong><small id="portText">检查中</small>
-            </div>
-          </div>
-          <div class="check">
-            <span aria-hidden="true" class="dot" id="httpsDot">●</span>
-            <div class="grow">
-              <strong>HTTPS 转发 · 443</strong
-              ><small id="httpsText">检查中</small>
-            </div>
-          </div>
-          <div class="hint">
-            游戏 HTTP 播放使用本地缓存；网页 HTTPS
-            播放保持加密并转发到原线路，不使用本地缓存。
-          </div>
-        <section class="check-subsection" id="queue" aria-labelledby="queueTitle" tabindex="-1">
-          <div class="card-head">
-            <h3 id="queueTitle">房间队列预缓存</h3>
-            <small id="queueWindow">准备队列前 3 个位置中的有效曲目</small>
-          </div>
-          <p class="hint">独立于 CDN 启停；下载补齐期间暂停，仍处于开启状态时自动恢复。</p>
-          <details class="help"><summary>队列预缓存说明</summary><div class="hint">
-            每 3 秒读取新增日志，每 15
-            秒检查新日志文件。开启后等待下一次队列同步，不回放旧队列。最多同时下载
-            2
-            首；可在「曲库与下载」页面切换到全曲库任务。停止后已开始的共享下载继续执行，直到完成、失败或程序退出。准备成功次数累计计算，不代表当前保留的视频数量。
-          </div></details>
-          <div id="queueActionError" role="status"></div>
-          <div class="actions"><button id="queueStart" data-action="queue/start">开启队列预缓存</button><button id="queueStop" data-action="queue/stop">关闭队列预缓存</button></div>
-          <div id="queuePhase" role="status">已关闭</div>
-          <small id="queueDetail"></small>
-          <ol id="queueSongs"></ol>
-          <div id="queueError" role="status"></div>
-        </section>
-          <div class="check">
-            <span aria-hidden="true" class="dot" id="hostsDot">●</span>
-            <div class="grow">
-              <strong>游戏接入 · hosts</strong
-              ><small id="hostsText">检查中</small>
-            </div>
-          </div>
-          <div id="hostsActionError" role="status"></div>
-          <div class="actions hosts-actions">
-            <button data-action="hosts/enable">修改 hosts</button
-            ><button data-action="hosts/disable">恢复 hosts</button>
-          </div>
-          <div class="hint">
-            仅在实际修改时请求管理员权限。映射长期保留，关闭 CDN
-            或退出控制台不会恢复。「恢复 hosts」仅移除 Still Wanna Dance 添加的映射；如有其他映射，仍需根据接入状态检查。
-          </div>
-        </section>
       </div>
       </main>
       <footer>
-        <a href="/terms">使用条款与内容权利声明</a><br />
-        关闭网页后程序仍继续运行；Windows
-        首页或托盘菜单可退出程序，托盘菜单可重新打开控制台。<br />本地控制台仅供本机访问 · HTTP 视频缓存
-        · 按实际资源域名测速选路 · SHA 不支持
+        <a href="/about">关于</a> · <a href="/terms">使用条款</a>
+        <p>关闭网页后程序仍在运行。退出前如需停用游戏接入，请先<a href="#service">恢复 hosts</a>。</p>
+        <button id="exit" data-action="exit">退出整个应用</button>
       </footer>
     </div>
   </body>

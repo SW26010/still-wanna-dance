@@ -10,6 +10,18 @@ let settingsDirty = false,
   lastState = null,
   lastInventory = null,
   uncertainAction = '';
+let settingsBaseline = null;
+function settingsFingerprint() {
+  const values = ['storageDir', 'downloadUpstream', 'upstreamMode', 'socks5Address', 'socks5Username', 'socks5Password']
+    .map(id => String($(id).value ?? ''));
+  for (const id of ['maxCacheGiB', 'requestRetentionDays', 'throughputIntervalMinutes', 'queuePrefetchCount']) {
+    const value = String($(id).value ?? '');
+    values.push(value === '' ? '' : Number(value));
+  }
+  for (const id of ['autoStartCDN', 'autoStartQueue', 'manualLogDir']) values.push(!!$(id).checked);
+  values.push($('manualLogDir').checked ? String($('logDir').value ?? '') : '');
+  return JSON.stringify(values);
+}
 // Avoid replacing live-region text on identical polling snapshots.
 function setText(id, value) {
   const node = $(id);
@@ -21,6 +33,7 @@ const renderedLists = new WeakMap();
 function renderStableList(id, items, keyOf, create, context = null) {
   const list = $(id), previous = renderedLists.get(list) || new Map();
   const next = new Map(), occurrences = new Map();
+  let restoreFocus = null;
   const nodes = items.map(item => {
     const identity = String(keyOf(item));
     const occurrence = occurrences.get(identity) || 0;
@@ -29,11 +42,20 @@ function renderStableList(id, items, keyOf, create, context = null) {
     const signature = JSON.stringify([item, context]);
     const old = previous.get(key);
     const row = old?.signature === signature ? old : { signature, node: create(item) };
+    if (old && row !== old) {
+      const expanded = old.node.querySelectorAll?.('details') || [];
+      const replacements = row.node.querySelectorAll?.('details') || [];
+      expanded.forEach((detail, i) => { if (replacements[i]) replacements[i].open = detail.open; });
+      const summaries = [...(old.node.querySelectorAll?.('summary') || [])];
+      const focused = summaries.indexOf(document.activeElement);
+      if (focused >= 0) restoreFocus = row.node.querySelectorAll?.('summary')[focused];
+    }
     next.set(key, row);
     return row.node;
   });
   if (list.children.length !== nodes.length || nodes.some((node, i) => list.children[i] !== node))
     list.replaceChildren(...nodes);
+  restoreFocus?.focus({ preventScroll: true });
   renderedLists.set(list, next);
 }
 function notice(text) {
@@ -44,8 +66,8 @@ function render(s) {
   lastState = s;
   setText('connection', '● 控制台已连接');
   $('connection').className = 'good';
-  setText('serviceBadge', s.running ? '● CDN 运行中' : '○ CDN 已关闭');
-  $('serviceBadge').className = 'pill' + (s.running ? ' good' : '');
+  setText('serviceBadge', s.running && s.hosts.ready ? '游戏接入：已完成' : s.running ? '游戏接入：等待配置' : '游戏接入：未启用');
+  $('serviceBadge').className = 'pill' + (s.running && s.hosts.ready ? ' good' : '');
   renderTraffic(s.traffic || {});
   renderService(s);
   renderActivation(s);
@@ -56,13 +78,38 @@ function render(s) {
   renderBatch(s);
 }
 
+function healthImpact(h, settings) {
+  if (h.closed) return '检测已关闭，当前无法判断网络可用性。';
+  const results = h.results || [];
+  const summaries = [
+    ['catalog', '歌曲清单', '有可访问来源', '更新可能失败'],
+    ['playback_url', '播放地址查询', '有可用线路', '获取新播放地址可能失败'],
+    ['resource', '视频下载', '有成功样本', '样本检测失败'],
+  ].map(([operation, label, success, failure]) => {
+    const group = results.filter(r => r.operation === operation &&
+      (operation !== 'playback_url' || !['cf', 'hkg'].includes(settings.downloadUpstream) || r.route === settings.downloadUpstream));
+    const usable = group.filter(r => r.state === 'available' &&
+      (!r.validUntil || r.validUntil.startsWith('0001') || new Date(r.validUntil).getTime() > Date.now()));
+    if (usable.length) return label + '：' + success + (usable.length < group.length ? '（其余线路异常或待确认）' : '');
+    // Unmeasured or expired observations are not evidence of a failure.
+    return label + '：' + (group.length && group.every(r => r.state === 'unavailable') ? failure : '尚待确认');
+  });
+  return summaries.join('；') + '。检测样本不保证每首歌曲可播放。';
+}
+
 function renderHealth(h, settings) {
   const results = h.results || [];
   const states = { available: '可用', unavailable: '不可用', unknown: '待测', stale: '已过期', closed: '已关闭' };
   const reasons = { no_channel: '没有有效候选', no_sample: '等待有效歌曲及资源样本', expired: '观测已过期', timeout: '请求超时', origin_timeout: '源站响应超时（Cloudflare 524）', network_error: '网络请求失败', resolution_unavailable: '无可用资源地址', invalid: '响应校验失败', restricted: '访问受限', upstream_error: '上游错误', http_error: 'HTTP 响应异常' };
   const available = results.filter(r => r.state === 'available').length;
+  setText('healthImpact', healthImpact(h, settings));
+  for (const [id, operation] of [['catalogHealthSummary', 'catalog'], ['playbackHealthSummary', 'playback_url'], ['resourceHealthSummary', 'resource']]) {
+    const group = results.filter(r => r.operation === operation);
+    const count = group.filter(r => r.state === 'available').length;
+    setText(id, h.closed ? '已关闭' : !group.length ? '等待检测' : count ? count + ' / ' + group.length + ' 条线路可用' : group.some(r => r.state === 'unavailable') ? '暂无可用线路' : '等待有效检测结果');
+  }
   const checkNames = { catalog: '视频列表', playback: '播放地址解析', latency: '视频资源响应延迟', throughput: '视频资源吞吐速度' };
-  setText('healthSummary', h.closed ? '上游监测已关闭' : h.manual && h.checking ? '手动检测中：' + (checkNames[h.checkKind] || '全部项目') : h.resourcesPaused ? '业务正在加载视频，自动资源测速已暂停' : h.checking ? '正在检测所有候选通道…' : !results.length ? '等待首次检测…' : '可用 ' + available + ' / ' + results.length + ' 项（按操作、线路、通道分别测量）');
+  setText('healthSummary', h.closed ? '网络检测已关闭' : h.manual && h.checking ? '手动检测中：' + (checkNames[h.checkKind] || '全部项目') : h.resourcesPaused ? '业务正在加载视频，自动资源测速已暂停' : h.checking ? '正在检测…' + (available ? '已有 ' + available + ' 条线路可用。' : '') : !results.length ? '等待首次检测…' : available ? '已有 ' + available + ' 条检测线路可用；各环节结果见下方。' : '尚无可用线路，请展开下方结果查看原因。');
   setText('healthRoute', '当前检测范围：' + ({ direct: '全部直连 IP', socks5: 'SOCKS5', auto: '全部直连 IP 与 SOCKS5' }[settings.upstreamMode] || '等待网络配置'));
   const dated = v => v && !v.startsWith('0001');
   const date = v => dated(v) ? new Date(v).toLocaleString() : '—';
@@ -111,10 +158,15 @@ function renderHealth(h, settings) {
         ' · 测速时间 ' + date(at) +
         (durationMS != null ? ' · 下载 ' + (durationMS / 1000).toFixed(2) + ' s / ' + (bytes / 1048576).toFixed(2) + ' MiB' : '') +
         (saved && Date.now() >= new Date(at).getTime() + throughputMinutes * 60 * 1000 ? ' · 历史样本（已过期）' : '') : noData);
-      row.append(title, detail, latency, throughput);
+      const technical = recentElement('details', 'help');
+      technical.append(recentElement('summary', '', '线路技术详情'), detail, latency, throughput);
+      const quickLatency = recentElement('div', 'hint', '响应延迟：' + (r.estimatedLatencyMS != null ? r.estimatedLatencyMS.toFixed(1) + ' ms' : '暂无有效数据'));
+      const expired = saved && Date.now() >= new Date(at).getTime() + throughputMinutes * 60 * 1000;
+      const quickSpeed = recentElement('div', 'hint', '下载速度：' + (speed != null ? (speed / 1024).toFixed(1) + ' KiB/s' + (expired ? '（历史样本，已过期）' : '') : '尚无成功样本'));
+      row.append(title, technical, quickLatency, quickSpeed);
       return row;
     }
-    detail.textContent = r.entry + (r.operation === 'catalog' ? ' · 响应 time：' + (r.catalogTime || '未获取') : '') + (r.channelID ? ' · 通道 ' + r.channelID : '') +
+    detail.textContent = r.entry + (r.operation === 'catalog' ? ' · 清单版本：' + (r.catalogTime || '未获取') : '') + (r.channelID ? ' · 通道 ' + r.channelID : '') +
       (r.estimatedLatencyMS != null ? ' · 首字节 ' + r.estimatedLatencyMS.toFixed(1) + ' ms' : '') +
       (r.estimatedSpeedBPS != null ? ' · 样本吞吐 ' + (r.estimatedSpeedBPS / 1024).toFixed(1) + ' KiB/s' : '') +
       (r.throughputObservedAt && !r.throughputObservedAt.startsWith('0001-') ? ' · 测速时间 ' + date(r.throughputObservedAt) : '') +
@@ -122,14 +174,16 @@ function renderHealth(h, settings) {
       (r.sampleSongID ? ' · 歌曲 #' + r.sampleSongID : '') +
       (r.http ? ' · HTTP ' + r.http : '') +
       ' · 观测 ' + date(r.observedAt) + ' · 有效至 ' + date(r.validUntil);
-    row.append(title, detail);
+    const technical = recentElement('details', 'help');
+    technical.append(recentElement('summary', '', '线路技术详情'), detail);
+    row.append(title, technical);
     return row;
   };
   for (const [id, operation, route] of groups) {
     const matching = results.filter(r => r.operation === operation && (!route || r.route === route));
     if (operation === 'catalog') {
       const times = [...new Set(matching.map(r => r.catalogTime).filter(Boolean))];
-      setText(id + 'Time', '响应 time：' + (times.length ? times.join(' / ') : '未获取'));
+      setText(id + 'Time', '清单版本：' + (times.length ? times.join(' / ') : '未获取'));
     }
     const emptyText = h.closed ? '上游监测已关闭' : h.checking ? '正在检测…' : '暂无检测结果';
     renderStableList(id, matching.length ? matching : [{ emptyText }],
@@ -163,23 +217,24 @@ function renderActivation(s) {
   const a = s.activation || {}, active = activationPending(s);
   const dated = v => v && !v.startsWith('0001');
   const received = dated(a.firstRequest);
-  setText('activationService', s.running ? '服务：HTTP 缓存与 HTTPS 转发运行中' : '服务：未运行');
-  setText('activationHosts', s.hosts.ready ? 'hosts：接入完成' : 'hosts：' + s.hosts.message);
+  setText('activationService', s.running ? '缓存服务：运行中' : '缓存服务：未运行');
+  setText('activationHosts', s.hosts.ready ? '游戏接入：已完成' : '游戏接入：' + (s.hosts.needsMigration ? s.hosts.message : '尚未完成，请点击「启用游戏加速」'));
   setText('activationRequest', received
     ? '视频请求：本次已收到视频请求（不代表播放成功）'
-    : '视频请求：' + (a.phase === 'waiting' ? '等待本次视频请求' : '尚未开始或已结束检测'));
+    : '视频请求：' + (a.phase === 'waiting' ? '等待本次视频请求' : a.phase === 'stopped' ? '检测已结束' : '尚未检测'));
   const progress = { checking: '正在检查接入配置…', starting: '正在启动服务并检查端口…',
     hosts: '服务已运行，正在检查 / 修改 hosts；如出现 UAC 提示，请允许管理员权限…',
     migration_required: s.hosts.needsMigration ? '服务已自动启动，但 hosts 迁移未完成：' + a.error : 'hosts 状态已更新，请重新检测视频请求。',
     failed: '启用未完成：' + a.error, stopped: s.cdnError ? '服务已停止：' + s.cdnError : '本次检测已结束。' };
-  setText('activationProgress', progress[a.phase] || (a.phase === 'waiting' ? '启用步骤已完成，请核对下方实时状态。' : '启用向导会复用已有服务和 hosts 配置。'));
+  setText('activationProgress', progress[a.phase] || (a.phase === 'waiting' ? '启用步骤已完成，请核对下方实时状态。' : ''));
   setText('activationNext', active ? '请等待当前操作完成，勿重复提交。' : !s.running
-    ? '下一步：启用游戏加速；端口冲突时请在单项管理查看占用信息，关闭冲突程序后重试。'
+    ? s.cdnError ? '请展开高级接入设置查看错误，处理后重试。' : ''
     : s.hosts.needsMigration ? '下一步：点击「启用游戏加速」清理本程序旧版 hosts 条目，完成接入迁移。'
     : !s.hosts.ready ? '下一步：检查 hosts 冲突或管理员权限后重试。服务已运行，接入尚未完成。'
-    : a.phase !== 'waiting' ? '下一步：点击重新检测，建立新的请求观察窗口。'
-    : received ? '这里只确认收到请求，无法确认游戏播放。若无法播放，请检查上游连接及日志；已解析的视频传输可在最近请求中查看。'
-    : '下一步：在游戏中请求一首歌曲。如一直没有请求，请重新进入世界或重启游戏以刷新 DNS，并确认使用 HTTP 播放地址。');
+    : a.phase !== 'waiting' ? '下一步：点击「重新检测视频请求」，然后在游戏中点歌。'
+    : received ? '已收到请求，请在游戏中确认播放。无法播放时，可到「运行状态」查看网络检测。'
+    : '下一步：在游戏中请求一首歌曲。如一直没有请求，请重新进入世界或重启游戏后重试。');
+  $('activationTiming').hidden = !dated(a.started);
   setText('activationTime', dated(a.started) ? '本次向导开始：' + new Date(a.started).toLocaleString() +
     (dated(a.readyAt) ? ' · 检测起点：' + new Date(a.readyAt).toLocaleString() : '') +
     (received ? ' · 首个请求到达：' + new Date(a.firstRequest).toLocaleString() : '') : '尚无本次检测；历史统计不用于判断接入。');
@@ -223,7 +278,7 @@ function renderService(s) {
   setText('httpsText', s.running
     ? 'HTTPS 转发已就绪'
     : s.httpsPortOK
-      ? '端口可用，随 CDN 启动'
+      ? '端口可用，随缓存服务启动'
       : s.httpsPortOwner
         ? '被 ' +
           s.httpsPortOwner.name +
@@ -257,6 +312,7 @@ function renderSettings(s) {
     $('socks5Password').value = '';
     $('socks5Password').placeholder = s.socks5PasswordSet ? '已保存，留空保持不变' : '需要认证时填写';
     $('maxCacheGiB').value = (s.settings.maxCacheBytes || 0) / 1073741824;
+    settingsBaseline = settingsFingerprint();
   }
 }
 
@@ -296,6 +352,7 @@ function renderControls() {
   $('socks5Username').disabled ||= $('upstreamMode').value === 'direct';
   $('socks5Password').disabled ||= $('upstreamMode').value === 'direct';
   $('socks5Address').required = $('upstreamMode').value !== 'direct';
+  $('proxyFields').hidden = $('upstreamMode').value === 'direct';
   $('inventoryScan').disabled = unavailable || !lastInventory || !!lastInventory.scanning;
   if (typeof updateCacheControls === 'function') updateCacheControls();
   setText('settingsAvailability', !connected ? '连接控制台后可修改设置。' : busy
@@ -308,6 +365,7 @@ function renderControls() {
   $('stop').disabled = unavailable || !s.running;
   $('restart').hidden = !s.restartRequired;
   $('restart').disabled = unavailable || settingsDirty || !s.restartRequired;
+  $('discardSettings').disabled = unavailable || !settingsDirty;
   $('queueStart').disabled = unavailable || s.queue.running || (s.queue.desired && s.batch.running && !s.batch.scanOnly);
   $('queueStop').disabled = unavailable || (!s.queue.desired && !s.queue.running);
   $('batchStart').disabled = unavailable || !!s.batch.running;
@@ -317,7 +375,7 @@ function renderControls() {
         ? '暂停预缓存并下载补齐'
         : '下载补齐');
   $('batchScan').disabled = unavailable || !!s.batch.running;
-  setText('batchScan', s.batch.running && s.batch.scanOnly ? '正在扫描…' : '仅扫描检查');
+  setText('batchScan', s.batch.running && s.batch.scanOnly ? '正在扫描…' : '检查缺失视频');
   $('batchCancel').disabled = unavailable || !s.batch.running;
 }
 
@@ -351,8 +409,10 @@ function renderBatch(s) {
       (saved.scanOnly ? '扫描' : '下载补齐') +
       ' · ' +
       new Date(saved.updated).toLocaleString() +
-      ' · 已保存，直到下次任务成功才替换'
-    : '尚无成功任务结果；扫描或下载补齐成功后保存统计。');
+      ''
+    : '暂无成功任务记录');
+  $('batchStatistics').hidden = !hasSaved;
+  $('progress').hidden = !b.running && !b.total;
   $('progress').max = b.total || 1;
   $('progress').value = b.checked || 0;
   setText('phase', (b.phase || '等待开始') + (b.catalogWarning ? ' · ' + b.catalogWarning : ''));
@@ -398,28 +458,24 @@ async function refreshInventory() {
   try {
     const v = await readState('/api/inventory');
     const ready = v.updated && !v.updated.startsWith('0001');
-    for (const [id, value] of [
-      ['videoCount', v.videos],
-      ['cacheBytes', (v.bytes / 1073741824).toFixed(2) + ' GiB'],
-    ])
-      setText(id, ready ? value : '—');
     const covered = ready && v.coverageKnown && v.totalSongs > 0;
     setText('coverageRate', covered ? (100 * v.coveredSongs / v.totalSongs).toFixed(1) + '%' : '—');
-    setText('coverageCount', covered ? v.coveredSongs + ' / ' + v.totalSongs + ' 首曲目已覆盖' : '尚未统计曲目覆盖');
+    setText('coverageCount', covered ? v.coveredSongs + ' / ' + v.totalSongs + ' 首曲目已覆盖' : '');
     lastInventory = v;
     const catalog = v.catalog || {};
     const checked = catalog.checkedAt && !catalog.checkedAt.startsWith('0001');
-    setText('catalogCheckedAt', '最后成功检查：' + (checked ? new Date(catalog.checkedAt).toLocaleString() : '尚无记录'));
-    setText('catalogRevision', '本地 MD5 清单水位：' + (catalog.revision || '尚无有效清单')
+    setText('catalogCheckedAt', '歌曲清单检查时间：' + (checked ? new Date(catalog.checkedAt).toLocaleString() : '尚无记录'));
+    setText('catalogRevision', '歌曲清单版本：' + (catalog.revision || '尚无有效清单')
       + (v.catalogRevision && v.catalogRevision !== catalog.revision ? ' · 当前覆盖率基于：' + v.catalogRevision + '，请刷新' : ''));
     setText('catalogCheckResult', catalog.error
       ? '远端检查失败：' + catalog.error + (catalog.revision ? '；使用本地清单' : '；本地尚无有效 MD5 清单')
-      : catalog.message || '');
+      : '');
+    setText('catalogMessage', catalog.message || '');
     setText('inventoryState', v.scanning
       ? '正在扫描，保留上次结果'
       : ready
         ? (v.coverageKnown ? '上次成功刷新 ' : '覆盖率待刷新 · 文件统计 ') + new Date(v.updated).toLocaleString()
-        : '尚无成功扫描，请点击「刷新覆盖率」');
+        : '本地文件尚未统计，请点击「更新清单并统计覆盖率」');
     setText('inventoryError', v.error
       ? '本次扫描失败，上次结果保留：' + v.error
       : '');
@@ -438,6 +494,7 @@ async function refresh() {
     if (exiting || revision !== settingsRevision) return;
     connected = true;
     render(state);
+    if (typeof loadCacheOnEntry === 'function') loadCacheOnEntry();
     if (uncertainAction)
       notice(
         uncertainAction +
@@ -540,7 +597,7 @@ async function action(path, body) {
     }
     notice(
       path === 'start'
-        ? 'CDN 已启动。若游戏尚未接入，请点击「修改 hosts」。'
+        ? '缓存服务已启动。若游戏尚未接入，请在「开始使用」点击「启用游戏加速」。'
         : path === 'settings'
           ? '设置已保存。更改将在重启应用后生效。'
           : path === 'hosts/disable'
@@ -565,7 +622,7 @@ async function action(path, body) {
     if (!exiting) await requestRefresh();
     // Disabling a native button can drop focus. Do not steal it if the user moved.
     if (origin && document.activeElement === document.body) {
-      const target = origin.disabled ? origin.closest('section[tabindex]') : origin;
+      const target = origin.disabled ? origin.closest('section[tabindex], details[tabindex]') : origin;
       target?.focus({ preventScroll: true });
     }
   }
@@ -573,7 +630,17 @@ async function action(path, body) {
 for (const b of document.querySelectorAll('[data-action]'))
   b.addEventListener('click', () => action(b.dataset.action));
 for (const event of ['input', 'change'])
-  $('settings').addEventListener(event, () => { settingsDirty = true; renderControls(); });
+  $('settings').addEventListener(event, () => {
+    settingsDirty = settingsBaseline !== null && settingsFingerprint() !== settingsBaseline;
+    renderControls();
+  });
+$('discardSettings').addEventListener('click', () => {
+  if (!lastState || $('discardSettings').disabled) return;
+  settingsDirty = false;
+  renderSettings(lastState);
+  renderControls();
+  $('save').focus();
+});
 $('settings').addEventListener('submit', (e) => {
   e.preventDefault();
   action('settings', {
@@ -634,8 +701,8 @@ document.addEventListener('pagechange', requestRefresh);
 $('pauseMonitor').addEventListener('change', () => {
   monitorRevision++;
   setText('monitorRefreshState', $('pauseMonitor').checked
-    ? '监控显示已暂停，数据停留在上次刷新；后台任务继续运行。'
-    : '每 5 秒刷新；暂停仅冻结监控显示，后台任务继续运行。');
+    ? '下载和最近请求的展示更新已暂停；网络检测仍刷新，后台任务继续运行。'
+    : '每 5 秒刷新；仅暂停下载和最近请求的展示更新，网络检测仍刷新，后台任务继续运行。');
   renderControls();
   if (!$('pauseMonitor').checked) requestRefresh();
 });
@@ -645,9 +712,9 @@ document.addEventListener('visibilitychange', () => {
 });
 let downloadRows = [];
 function renderDownloads(v) {
+  $('downloadSpeedRow').hidden = !v.tasks.length;
   setText('downloadSpeed', (v.bytesPerSecond / 1e6).toFixed(3) + ' MB/s');
-  setText('downloadState', (v.running ? 'CDN 已开启' : 'CDN 已关闭') + ' · ' +
-    (v.tasks.length ? v.tasks.length + ' 个活动任务' : '暂无活动下载任务'));
+  setText('downloadState', v.tasks.length ? v.tasks.length + ' 个活动任务' : '暂无活动下载任务');
   const opened = new Set(downloadRows.filter(r => r.details.open).map(r => r.key));
   const focused = downloadRows.find(r => r.summary === document.activeElement)?.key;
   downloadRows = v.tasks.map(task => {
@@ -832,7 +899,7 @@ function renderRecent(v) {
   }
   $('recentMore').hidden = !v.hasMore || recentLimit >= 500;
   if ($('recentMore').hidden && document.activeElement === $('recentMore')) $('recent').focus({ preventScroll: true });
-  setText('recentState', (v.requests.length ? '已显示 ' + v.requests.length + ' 条 HTTP 请求' : '当前窗口暂无 HTTP 请求记录') +
+  setText('recentState', !v.requests.length ? '暂无请求记录' : (v.requests.length ? '已显示 ' + v.requests.length + ' 条 HTTP 请求' : '当前窗口暂无 HTTP 请求记录') +
     ' · 最近 ' + recentLimit + ' 条 HTTP 请求窗口' + (v.hasMore ? ' · 窗口外还有 HTTP 请求，分组可能不完整' : '') +
     (recentLimit >= 500 && v.hasMore ? '（已达 500 条上限）' : ''));
 }

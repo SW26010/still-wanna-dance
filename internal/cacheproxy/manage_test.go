@@ -82,6 +82,9 @@ func TestCachePageMetadataAndPagination(t *testing.T) {
 	if err != nil || len(page.Entries) != 50 || page.Total != 53 || page.Entries[0].Bytes != 53 {
 		t.Fatalf("%+v %v", page, err)
 	}
+	if page.FileCount != 53 || page.TotalBytes != 53*54/2 {
+		t.Fatalf("wrong whole-directory summary: %+v", page)
+	}
 	if !page.Entries[0].Songs[0].Current || !strings.Contains(page.Entries[0].State, "MD5") {
 		t.Fatal(page.Entries[0])
 	}
@@ -92,6 +95,9 @@ func TestCachePageMetadataAndPagination(t *testing.T) {
 	page, err = ReadCachePage(ctx, root, "舞曲 007", "title", 0)
 	if err != nil || len(page.Entries) != 1 || page.Entries[0].Songs[0].ID != "7" {
 		t.Fatalf("%+v %v", page, err)
+	}
+	if page.FileCount != 53 || page.TotalBytes != 53*54/2 {
+		t.Fatalf("search changed space usage: %+v", page)
 	}
 	if _, err = os.Stat(filepath.Join(root, "verification.sqlite")); !os.IsNotExist(err) {
 		t.Fatal("listing created verification store")

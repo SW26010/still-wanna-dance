@@ -192,11 +192,13 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 var termsTemplate = template.Must(template.New("terms").Parse(`<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>使用条款 · Still Wanna Dance</title><link rel="stylesheet" href="/assets/console.css"></head>
 <body><main style="max-width:880px;margin:32px auto;padding:24px"><h1>使用条款与内容权利声明</h1>
+{{if .Accepted}}<p>本机已确认当前条款。<a href="/">返回控制台</a></p>{{end}}
 <p><strong>MIT 仅授权本项目软件，不授予视频、音乐等第三方内容的使用权。能下载、已缓存或个人使用，均不当然等于获得授权。</strong></p>
-<p>请特别阅读第 2、4、5 条。不同意不会启用缓存或下载；仍可恢复 hosts。未同意时，关闭或离开本页约 60 秒后程序将尝试自动退出；重新打开本页可取消。已同意后，关闭网页不会退出程序。</p>
+{{if not .Accepted}}<p>请特别阅读第 2、4、5 条。不同意不会启用缓存或下载；仍可恢复 hosts。</p>
+<p>未同意时，关闭或离开本页约 60 秒后程序将尝试自动退出；重新打开本页可取消。已同意后，关闭网页不会退出程序。</p>{{end}}
 <p>条款版本：{{.Version}} · <a href="/terms.txt" target="_blank" rel="noopener">查看／保存纯文本</a></p>
 <article style="white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8">{{.Text}}</article>
-{{if .Accepted}}<p>本机已确认当前条款。<a href="/">返回控制台</a></p>{{else}}
+{{if not .Accepted}}
 <form id="consent"><p><label><input type="checkbox" id="rights" required> 我理解软件许可不等于第三方内容授权，并将基于必要授权或其他合法依据使用内容。</label></p>
 <p><label><input type="checkbox" id="agree" required> 我已阅读并同意完整条款，包括系统与数据影响以及担保与责任边界。</label></p>
 <button type="submit" id="accept" disabled>同意并进入</button> <button type="button" id="decline">不同意，保持停用</button></form>{{end}}

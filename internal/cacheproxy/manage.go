@@ -32,9 +32,11 @@ type CacheEntry struct {
 	Known       bool        `json:"known"`
 }
 type CachePage struct {
-	StorageID string       `json:"storageID"`
-	Entries   []CacheEntry `json:"entries"`
-	Total     int          `json:"total"`
+	StorageID  string       `json:"storageID"`
+	Entries    []CacheEntry `json:"entries"`
+	Total      int          `json:"total"`
+	FileCount  int          `json:"fileCount"`
+	TotalBytes int64        `json:"totalBytes"`
 }
 type CacheSelection struct {
 	Key   string `json:"key"`
@@ -226,6 +228,9 @@ func ReadCachePage(ctx context.Context, root, query, order string, offset int) (
 			return result, errors.New("不是普通缓存文件")
 		}
 		key := strings.TrimSuffix(f.Name(), ".mp4")
+		// Space usage describes all video files, independent of search/pagination.
+		result.FileCount++
+		result.TotalBytes += info.Size()
 		candidates = append(candidates, cacheListCandidate{
 			key: key, bytes: info.Size(), match: query == "" || strings.Contains(key, query),
 		})

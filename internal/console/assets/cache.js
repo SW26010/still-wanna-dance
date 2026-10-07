@@ -1,4 +1,10 @@
 let cachePage = null, cacheOffset = 0, cacheLoading = false, cacheRows = [], cachePending = [];
+let cacheEntryAttempted = false;
+function loadCacheOnEntry() {
+  if (document.hidden || $('page-cache').hidden || cachePage || cacheEntryAttempted || cacheUnavailable()) return;
+  cacheEntryAttempted = true;
+  refreshCache();
+}
 function cacheLabel(e) {
   return e.songs.length ? e.songs.map(s => (s.title || '未知歌名') + '（ID ' + s.id + '）').join(' / ') : '未知歌名 · 未关联歌曲';
 }
@@ -20,16 +26,21 @@ function updateCacheControls() {
     row.locate.disabled = unavailable || !row.entry.known;
   }
   setText('cacheSelected', '已选择 ' + cacheChosen().length + ' 个文件');
+  const limit = lastState?.activeSettings?.maxCacheBytes || 0;
+  setText('cacheSpace', cachePage && cachePage.totalBytes != null
+    ? cachePage.fileCount + ' 个视频文件 · 占用 ' + cacheSize(cachePage.totalBytes) + ' · 当前上限：' + (limit ? cacheSize(limit) : '不限')
+    : '视频占用待读取');
 }
 function cancelCacheConfirmation() {
   cachePending = [];
   $('cacheConfirm').hidden = true;
 }
 function resetCache() {
+  cacheEntryAttempted = false;
   cachePage = null; cacheRows = []; cacheOffset = 0;
   cancelCacheConfirmation();
   $('cacheList').replaceChildren();
-  setText('cacheState', '点击刷新明细查看当前存储目录。');
+  setText('cacheState', '正在读取当前存储目录…');
   setText('cacheResult', '');
   updateCacheControls();
 }
@@ -60,7 +71,10 @@ function renderCache(page) {
     return { node: row, entry, check, locate };
   });
   $('cacheList').replaceChildren(...cacheRows.map(r => r.node));
-  setText('cacheState', page.total ? '共 ' + page.total + ' 个文件 · 第 ' + (Math.floor(cacheOffset / 50) + 1) + ' 页 · 显示 ' + page.entries.length + ' 项（手动刷新）' : '没有匹配的缓存文件。');
+  setText('cacheState', page.total ? '共 ' + page.total + ' 个文件 · 第 ' + (Math.floor(cacheOffset / 50) + 1) + ' 页 · 显示 ' + page.entries.length + ' 项（手动刷新）' : $('cacheSearch').value.trim() ? '没有匹配的缓存文件。' : '暂无缓存。');
+  $('cacheSelection').hidden = !page.entries.length;
+  $('cachePagination').hidden = page.total <= 50;
+  $('cacheEmptyHelp').hidden = !!page.total || !!$('cacheSearch').value.trim();
   updateCacheControls();
 }
 async function refreshCache(reset = false) {
@@ -110,7 +124,7 @@ async function cacheAction(action, entries) {
       cancelCacheConfirmation();
     } else setText('cacheResult', '已请求系统打开缓存位置。');
   } catch (error) {
-    setText('cacheResult', error.name === 'AbortError' ? '操作响应超时，结果未确认。请刷新明细，勿直接重复删除。' : error.message);
+    setText('cacheResult', error.name === 'AbortError' ? '操作响应超时，结果未确认。请刷新文件列表，勿直接重复删除。' : error.message);
     cancelCacheConfirmation();
   } finally {
     clearTimeout(timer); busy = false; renderControls();

@@ -1691,3 +1691,40 @@ test('automatic startup keeps pending hosts migration visible', async () => {
  assert.doesNotMatch(get('activationProgress'), /迁移未完成|旧提示/);
  assert.equal(get('enableAcceleration'), '重新检测视频请求');
 });
+
+
+test('queue, failures and monitor reuse unchanged nodes across snapshots', () => {
+  const p = page(true), get = id => p.document.getElementById(id);
+  p.context.state = { activeSettings: { queuePrefetchCount: 3 }, queue: { songs: [{ songId: 1, title: 'A' }, { songId: 2, title: 'B' }] }, batch: { failures: [{ id: 1, name: 'A', error: 'failed' }], failed: 1 } };
+  p.context.health = { results: [{ operation: 'catalog', route: 'api', entry: 'catalog', mode: 'direct', ip: '1.2.3.4', state: 'available' }, { operation: 'resource', route: 'video.example', entry: 'video.example', mode: 'direct', state: 'unknown' }] };
+  const render = () => vm.runInContext('renderQueue(state); renderBatch(state); renderHealth(health, {})', p.context);
+  render();
+  const queue = [...get('queueSongs').children], failure = get('failureRows').children[0];
+  const catalog = get('healthCatalog').children[0], resource = get('healthResources').children[0];
+  render();
+  assert.equal(get('queueSongs').children[0], queue[0]);
+  assert.equal(get('failureRows').children[0], failure);
+  assert.equal(get('healthCatalog').children[0], catalog);
+  assert.equal(get('healthResources').children[0], resource);
+  p.context.state.queue.songs.reverse();
+  p.context.state.batch.failures[0].error = 'new failure';
+  render();
+  assert.equal(get('queueSongs').children[0], queue[1]);
+  assert.equal(get('queueSongs').children[1], queue[0]);
+  assert.match(get('failureRows').children[0].children[1].textContent, /new failure/);
+  assert.equal(get('healthCatalog').children[0], catalog);
+  assert.equal(get('healthResources').children[0], resource);
+});
+
+test('cached resource rows refresh when a throughput sample expires', () => {
+  const p = page(true), get = id => p.document.getElementById(id);
+  p.context.now = Date.parse('2026-10-07T00:00:00Z');
+  vm.runInContext('Date.now = () => now', p.context);
+  p.context.health = { policy: { throughputInterval: 60e9 }, results: [{ operation: 'resource', route: 'video.example', entry: 'video.example', state: 'available', lastThroughput: { observedAt: '2026-10-07T00:00:00Z', duration: 1e9, bytes: 100, songID: 42 } }] };
+  vm.runInContext('renderHealth(health, {})', p.context);
+  const original = get('healthResources').children[0];
+  assert.doesNotMatch(original.children[1].children[0].children[3].textContent, /已过期/);
+  p.context.now += 61000;
+  vm.runInContext('renderHealth(health, {})', p.context);
+  assert.match(get('healthResources').children[0].children[1].children[0].children[3].textContent, /已过期/);
+});

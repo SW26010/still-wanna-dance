@@ -16,6 +16,26 @@ function setText(id, value) {
   const text = String(value ?? '');
   if (node.textContent !== text) node.textContent = text;
 }
+// Retain unchanged rows across polling snapshots; cache only the current list.
+const renderedLists = new WeakMap();
+function renderStableList(id, items, keyOf, create, context = null) {
+  const list = $(id), previous = renderedLists.get(list) || new Map();
+  const next = new Map(), occurrences = new Map();
+  const nodes = items.map(item => {
+    const identity = String(keyOf(item));
+    const occurrence = occurrences.get(identity) || 0;
+    occurrences.set(identity, occurrence + 1);
+    const key = JSON.stringify([identity, occurrence]);
+    const signature = JSON.stringify([item, context]);
+    const old = previous.get(key);
+    const row = old?.signature === signature ? old : { signature, node: create(item) };
+    next.set(key, row);
+    return row.node;
+  });
+  if (list.children.length !== nodes.length || nodes.some((node, i) => list.children[i] !== node))
+    list.replaceChildren(...nodes);
+  renderedLists.set(list, next);
+}
 function notice(text) {
   setText('notice', text);
   $('notice').hidden = !text;
@@ -111,35 +131,28 @@ function renderHealth(h, settings) {
       const times = [...new Set(matching.map(r => r.catalogTime).filter(Boolean))];
       setText(id + 'Time', '响应 time：' + (times.length ? times.join(' / ') : '未获取'));
     }
-    const rows = matching.map(renderResult);
-    if (!rows.length) {
-      const empty = document.createElement('li');
-      empty.className = 'muted';
-      empty.textContent = h.closed ? '上游监测已关闭' : h.checking ? '正在检测…' : '暂无检测结果';
-      rows.push(empty);
-    }
-    $(id).replaceChildren(...rows);
+    const emptyText = h.closed ? '上游监测已关闭' : h.checking ? '正在检测…' : '暂无检测结果';
+    renderStableList(id, matching.length ? matching : [{ emptyText }],
+      r => JSON.stringify([r.entry, r.channelID, r.mode, r.ip]),
+      r => r.emptyText ? recentElement('li', 'muted', r.emptyText) : renderResult(r));
   }
   const resources = results.filter(r => r.operation === 'resource');
   const domains = [...new Set(resources.map(r => r.route))].sort();
-  const sections = domains.map(domain => {
-    const section = document.createElement('section');
-    const heading = document.createElement('h3');
-    heading.textContent = domain;
-    const list = document.createElement('ul');
-    list.className = 'health-checks';
-    list.setAttribute('aria-label', domain + ' 视频资源加载检测结果');
-    list.append(...resources.filter(r => r.route === domain).map(renderResult));
-    section.append(heading, list);
-    return section;
-  });
-  if (!sections.length) {
-    const empty = document.createElement('p');
-    empty.className = 'muted';
-    empty.textContent = h.closed ? '上游监测已关闭' : '等待 API 返回有效资源域名…';
-    sections.push(empty);
-  }
-  $('healthResources').replaceChildren(...sections);
+  const sections = domains.map(domain => ({ domain, results: resources.filter(r => r.route === domain) }));
+  // Wall-clock expiry can change the displayed text without a new server snapshot.
+  const expired = resources.map(r => !!r.lastThroughput && Date.now() >= new Date(r.lastThroughput.observedAt).getTime() + throughputMinutes * 60 * 1000);
+  renderStableList('healthResources', sections.length ? sections : [{ emptyText: h.closed ? '上游监测已关闭' : '等待 API 返回有效资源域名…' }],
+    group => group.domain || 'empty', group => {
+      if (group.emptyText) return recentElement('p', 'muted', group.emptyText);
+      const section = document.createElement('section');
+      const heading = recentElement('h3', '', group.domain);
+      const list = document.createElement('ul');
+      list.className = 'health-checks';
+      list.setAttribute('aria-label', group.domain + ' 视频资源加载检测结果');
+      list.append(...group.results.map(renderResult));
+      section.append(heading, list);
+      return section;
+    }, [throughputWait, throughputMinutes, expired]);
   setText('healthCheck', h.checking ? '检测中…' : '立即检测');
 }
 
@@ -323,13 +336,8 @@ function renderQueue(s) {
       : '预缓存未就绪，请检查日志目录');
   setText('queueDetail', (q.file || '尚未发现日志') + ' · 本次开启后累计准备成功 ' + q.completed + ' 次');
   setText('queueError', q.logError || q.error || '');
-  $('queueSongs').replaceChildren(
-    ...(q.songs || []).slice(0, count).map((s) => {
-      const li = document.createElement('li');
-      li.textContent = s.title || String(s.songId);
-      return li;
-    }),
-  );
+  renderStableList('queueSongs', (q.songs || []).slice(0, count).map(song => ({ id: song.songId, text: song.title || String(song.songId) })),
+    song => song.id, song => recentElement('li', '', song.text));
 }
 
 function renderBatch(s) {
@@ -368,17 +376,11 @@ function renderBatch(s) {
         b.failed
       : ''));
   $('failures').hidden = !b.failed;
-  $('failureRows').replaceChildren(
-    ...(b.failures || []).map((f) => {
-      const row = document.createElement('tr');
-      for (const text of [f.id + ' · ' + f.name, f.error]) {
-        const td = document.createElement('td');
-        td.textContent = text;
-        row.append(td);
-      }
-      return row;
-    }),
-  );
+  renderStableList('failureRows', b.failures || [], f => f.id, f => {
+    const row = document.createElement('tr');
+    for (const text of [f.id + ' · ' + f.name, f.error]) row.append(recentElement('td', '', text));
+    return row;
+  });
 }
 // Keep the deadline active through JSON decoding, not just response headers.
 async function readState(url, timeoutMS = 10000) {

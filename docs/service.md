@@ -19,7 +19,7 @@ go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
 
 验证时先通过本地播放 API 请求：`curl.exe --noproxy "*" --resolve api.udon.dance:18080:127.0.0.1 "http://api.udon.dance:18080/Api/Songs/play?id=1343&node=cf"`。服务根据有效 API 返回值发现资源域名；后续直达资源请求须保留实际域名、路径、e、s。直接访问 localhost 首页返回 400；网页和托盘入口为 `still-wanna-dance-console.exe`。
 
-统一存储位于 `-storage-dir` 指定的根目录：`videos/<资源指纹>.mp4` 是唯一正式视频，`tmp` 保存下载临时文件，`stepstash.sqlite` 保存歌曲、版本和请求统计。不读取旧格式，不提供迁移。详见[统一存储](storage.md)。
+统一存储位于 `-storage-dir` 指定的根目录：`videos/<资源指纹>.mp4` 是唯一正式视频，`tmp` 保存下载临时文件，`storage.sqlite` 保存歌曲、版本和请求统计。不读取旧格式，不提供迁移。详见[统一存储](storage.md)。
 
 ## 游戏接入
 

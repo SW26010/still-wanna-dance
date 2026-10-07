@@ -12,20 +12,49 @@ MIT 仅授权软件，不授予视频、音乐等第三方内容的下载、传�
    未同意时关闭条款页会尝试在 60 秒后退出，重新打开可取消。
 3. 在控制台设置存储目录；VRChat 日志目录默认随当前用户自动读取，仅自定义路径时勾选「手动指定」。保存后按需启用功能。
    默认存储目录 still-wanna-dance-data 位于程序目录下。
-   视频位于 videos，歌曲资料和统计位于 stepstash.sqlite。全曲目下载可能占用大量空间。
+   视频位于 videos，歌曲资料和统计位于 storage.sqlite。全曲目下载可能占用大量空间。
 4. 正常启动无需管理员权限。修改 hosts 时才会弹出 Windows 授权提示。
 5. 退出请使用托盘菜单。退出不会恢复 hosts；停用 CDN 后需要直连上游时，
    请先在控制台点击「恢复 hosts」，移除 Still Wanna Dance 添加的映射；其他映射保留。
    删除程序前也请恢复 hosts，并核对接入状态。
 
-配置与移动
-设置保存为程序旁的 still-wanna-dance-console.json。保存设置后，程序目录内的路径
-以相对路径保存，退出程序再整体移动文件夹即可；外部存储和日志目录仍
-使用原来的绝对路径，换电脑或移动外部目录后需重新选择。
-still-wanna-dance-console.json.lock 是配置锁文件，退出后保留是正常现象。
-升级时先退出程序并备份配置和整个存储目录，再替换 EXE 和说明文件。
-当前统一存储不兼容原版歌曲库及旧版 StepStash 存储，也不提供迁移。
-从旧格式升级时请使用新的空存储目录，保留旧数据备份。
+配置、备份与移动
+首次成功打开控制台时，程序即在 EXE 旁保存 still-wanna-dance-console.json，
+无需点过“保存设置”。程序目录内的路径以相对路径保存，外部目录使用绝对路径。
+自定义 -config 时，相对存储路径以该配置文件所在目录为基准。
+
+完整配置组包括主 JSON 及其同名前缀附属文件：
+  still-wanna-dance-console.json
+  still-wanna-dance-console.json.terms.json（条款确认）
+  still-wanna-dance-console.json.channel-key（代理通道身份）
+  still-wanna-dance-console.json.throughput.json（测速状态）
+  still-wanna-dance-console.json.inventory.json（库存结果）
+  still-wanna-dance-console.json.batch.json、.attempt.json（任务摘要）
+自定义配置名称时，附属文件使用该名称；建议整组备份，不要只复制主 JSON。
+配置组可能包含代理密码，请妥善保管；日志按需备份。
+.json.lock 与存储目录 .lock 是运行锁；文件存在不代表程序仍在运行。
+
+备份前从托盘退出程序，再复制完整配置组和整个存储目录；不要在运行中
+只复制 SQLite 主文件。如果存储目录位于程序目录外，也必须单独备份。
+整体移动便携目录应先退出；内部相对路径保持有效，外部路径仍指向原位置。
+修改“存储目录”只是选择另一套存储，不会自动搬运已有视频或统计。
+需要搬迁时，先在设置中填写目标目录并保存，暂不重启，然后从托盘退出。
+将旧存储目录中的全部内容移至目标目录后，再启动程序，避免自动启动功能
+在搬迁完成前使用空目录。不要只搬 videos 而遗漏 storage.sqlite。
+
+升级
+1. 从托盘退出旧程序，按上面的范围完成备份。
+2. 将新版 ZIP 解压到临时位置，将以下六个交付文件一起复制并覆盖到原程序目录：
+   still-wanna-dance-console.exe、README.txt、TERMS.txt、LICENSE、
+   THIRD-PARTY-NOTICES.txt、build-info.json。
+3. 保留原目录中的完整配置组、日志和媒体存储，启动原目录中的 EXE。
+   不要直接从新版本解压目录启动，否则默认路径会指向另一套配置和空存储。
+4. 条款更新时重新确认；若提示配置或存储格式较新，使用更新程序，
+   不要删除文件、修改版本号或换空目录来消除提示。
+
+这是发布前定稿的首版文件格式。不读取、自动发现或迁移无版本的旧配置，
+不转换旧 stepstash.sqlite。旧测试数据请保留备份，使用独立的新配置和存储目录。
+不要通过改文件名或版本号强行复用旧库。
 
 排错
 控制台端口由系统自动分配，启动时自动打开；也可从托盘打开控制台。
@@ -48,11 +77,4 @@ Still Wanna Dance 采用 MIT 许可证，全文见 LICENSE。
 重启会继续追加。反馈问题时可提供当前日志和旧日志；其中可能含本机路径和
 歌曲请求信息，分享前请检查。正常退出有退出记录，强制结束或断电则没有。
 
-重命名升级（StepStash → Still Wanna Dance）
-本次更名不改变当前统一存储格式。退出旧程序后，将新 EXE 放在原程序目录。
-默认先使用 still-wanna-dance-console.json；不存在时，原地使用 stepstash-console.json，
-保留其相对路径、配置锁、日志与条款记录位置。两份配置同时存在时使用新名称，
-也可通过 -config 明确选择。旧配置未写 storageDir 时继续使用 stepstash-data。
-不要为重命名移动或重建数据库；stepstash.sqlite 文件名保持不变。
-条款产品名和版本已更新，升级后需要重新确认；确认前不会自动启动 CDN。
-单实例协议和 hosts 旧标记保持兼容。上文“旧版存储不兼容”仅指更早的存储格式。
+单实例发现与 hosts 备份仍保留 StepStash 协议名称；它们不表示旧文件格式兼容。

@@ -92,11 +92,11 @@ The detailed guides below are currently in Chinese.
 | [Tests and validation](docs/test-results.md) | Test records and results |
 | [Development guide](docs/development.md) | Development setup, code entry points, and test commands |
 
-## Upgrading from StepStash
+## Upgrading and backing up
 
-Still Wanna Dance is the project's new name. If your StepStash installation already uses the current unified storage format, quit the old app, back up your configuration and storage folder, and place the new executable in the original app folder to keep using your settings and cache. You will need to accept the updated terms after upgrading.
+Quit the app, then back up the complete configuration group (the main JSON file and all companion files with that filename prefix) and the entire storage directory, including external storage. Replace all six distribution files together in the original app directory, keep your configuration and media data, and launch the executable there. Launching directly from a new extraction directory selects a separate default configuration.
 
-Migration from earlier storage formats or the original application's song library is not currently supported. Use a new, empty storage folder and keep your old data as a backup. See the [portable upgrade guide](docs/portable-readme.txt) for details.
+This is the first finalized file format before release. Unversioned configurations and earlier databases are not migrated; keep test data backed up and use separate new configuration and storage directories. If the app reports a newer file format, update the app instead of deleting data or editing version numbers. See the [portable upgrade guide](docs/portable-readme.txt) for the complete backup scope and steps.
 
 ## License and content use
 

@@ -2,8 +2,6 @@ package cacheproxy
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -156,10 +154,6 @@ func normalizeCatalog(c Catalog) (Catalog, string, error) {
 			*raw = normalized
 		}
 	}
-	body, err := json.Marshal(c.Songs)
-	if err != nil {
-		return c, "", err
-	}
-	digest := sha256.Sum256(body)
-	return c, hex.EncodeToString(digest[:]), nil
+	digest, err := catalogDigestV1(c.Songs)
+	return c, digest, err
 }

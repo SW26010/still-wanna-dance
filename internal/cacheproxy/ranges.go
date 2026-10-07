@@ -17,6 +17,23 @@ const rangeBlockSize int64 = 1 << 20
 
 var errRangeAbandoned = errors.New("range has no waiting readers")
 
+// readRangeBlock fills a worker-owned buffer, including one extra byte to detect
+// oversized responses. Preserve non-EOF errors even when returned with data.
+func readRangeBlock(r io.Reader, buf []byte) ([]byte, error) {
+	n := 0
+	for n < len(buf) {
+		count, err := r.Read(buf[n:])
+		n += count
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return buf[:n], err
+		}
+	}
+	return buf[:n], nil
+}
+
 func validateRangeResponse(r *http.Response, start, end, size int64) error {
 	if r.StatusCode != http.StatusPartialContent || r.Header.Get("Content-Range") != fmt.Sprintf("bytes %d-%d/%d", start, end-1, size) {
 		return errors.New("upstream returned an invalid or unsupported byte range")
@@ -163,7 +180,7 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 	if strings.HasPrefix(etag, "W/") {
 		etag = ""
 	}
-	readBlock := func(ctx context.Context, block int64, initial *http.Response) error {
+	readBlock := func(ctx context.Context, block int64, initial *http.Response, buffer *[]byte) error {
 		start, end := block*rangeBlockSize, min((block+1)*rangeBlockSize, v.size)
 		// Redirect progress belongs to this block; other workers keep their
 		// own endpoint and candidate cursor.
@@ -221,7 +238,10 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 				last = errors.New("upstream entity changed between ranges")
 				continue
 			}
-			data, err := io.ReadAll(io.LimitReader(contextReader{ctx, progressReader{upstreamReader{resp.Body}, flight.progress}}, end-start+1))
+			if *buffer == nil {
+				*buffer = make([]byte, min(rangeBlockSize, v.size)+1)
+			}
+			data, err := readRangeBlock(contextReader{ctx, progressReader{upstreamReader{resp.Body}, flight.progress}}, (*buffer)[:end-start+1])
 			resp.Body.Close()
 			resp = nil
 			if err != nil || int64(len(data)) != end-start {
@@ -242,8 +262,11 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 	results := make(chan struct{}, 2)
 	worker := func(background bool) {
 		defer func() { results <- struct{}{} }()
+		// Allocate only when this worker reads a valid response, then reuse for
+		// later blocks and retries. WriteAt consumes the bytes before reuse.
+		var buffer []byte
 		if background {
-			if err := readBlock(ctx, 0, first); err != nil {
+			if err := readBlock(ctx, 0, first, &buffer); err != nil {
 				cancel(err)
 				return
 			}
@@ -253,7 +276,7 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 			if !ok {
 				return
 			}
-			if err := readBlock(blockCtx, block, nil); err != nil {
+			if err := readBlock(blockCtx, block, nil, &buffer); err != nil {
 				if errors.Is(context.Cause(blockCtx), errRangeAbandoned) && ctx.Err() == nil {
 					work.abandon(block)
 					continue

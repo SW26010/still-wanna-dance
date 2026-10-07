@@ -208,7 +208,7 @@ func run() (runErr error) {
 	go func() { done <- h.Serve(l); stop() }()
 	url := "http://" + l.Addr().String()
 	slog.Info("console_ready", "url", url)
-	fmt.Printf("Still Wanna Dance 控制台：%s\n关闭浏览器不会退出程序。退出不会恢复 hosts。\n", url)
+	fmt.Printf("Still Wanna Dance 控制台：%s\n同意条款后关闭浏览器不会退出程序；未同意时关闭条款页会尝试在 60 秒后退出。退出不会恢复 hosts。\n", url)
 	if !*noTray {
 		err = desktop.Run(ctx, desktop.Options{URL: url, Open: !*noOpen, State: c.DesktopState, Command: c.DesktopCommand, Shutdown: shutdown})
 	} else {

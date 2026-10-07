@@ -57,9 +57,12 @@ type Console struct {
 	restartRequested     chan struct{}
 	exitOnce             sync.Once
 	terms                termsReceipt // protected by mu; separate from editable settings
-	activationMu         sync.Mutex   // rejects duplicate wizard submissions, including across tabs
-	activation           Activation   // protected by mu; never persisted
-	activationGeneration uint64       // protected by mu; distinguishes same-clock-tick retries
+	termsPageID          string
+	termsExitTimer       *time.Timer
+	termsExitGeneration  uint64     // invalidates callbacks already waiting for mu
+	activationMu         sync.Mutex // rejects duplicate wizard submissions, including across tabs
+	activation           Activation // protected by mu; never persisted
+	activationGeneration uint64     // protected by mu; distinguishes same-clock-tick retries
 	// Acquire lifecycleMu before mu; state readers never wait on lifecycleMu.
 	lifecycleMu         sync.Mutex
 	queueUpdateMu       sync.Mutex // acquire before mu; serializes engine queue protection
@@ -520,6 +523,7 @@ func (c *Console) Close() error {
 	c.lifecycleMu.Lock()
 	c.mu.Lock()
 	c.closing = true
+	c.cancelTermsExitLocked()
 	c.queueDesired = false
 	upstreamrequest.Default.Release(c.requestRevision)
 	monitor := c.monitor

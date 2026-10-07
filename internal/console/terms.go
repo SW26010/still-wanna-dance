@@ -1,9 +1,11 @@
 package console
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -74,7 +76,44 @@ func (c *Console) acceptTerms() error {
 		return err
 	}
 	c.terms = receipt
+	c.cancelTermsExitLocked()
 	return c.startMonitorLocked()
+}
+
+// Called with mu held; Stop alone cannot invalidate a callback waiting for mu.
+func (c *Console) cancelTermsExitLocked() {
+	c.termsExitGeneration++
+	if c.termsExitTimer != nil {
+		c.termsExitTimer.Stop()
+		c.termsExitTimer = nil
+	}
+}
+
+func (c *Console) termsPagePresence(pageID string, leaving bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closing || pageID == "" || pageID != c.termsPageID ||
+		(c.terms.Version == legal.Version && c.terms.Hash == legal.Hash() && !c.terms.AcceptedAt.IsZero()) {
+		return
+	}
+	c.cancelTermsExitLocked()
+	if !leaving {
+		return
+	}
+	generation := c.termsExitGeneration
+	c.termsExitTimer = time.AfterFunc(time.Minute, func() {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		if c.closing || generation != c.termsExitGeneration {
+			return
+		}
+		c.termsExitTimer = nil
+		c.closing = true // serialize timeout with terms acceptance
+		c.exitOnce.Do(func() {
+			slog.Info("terms_page_timeout")
+			close(c.exitRequested)
+		})
+	})
 }
 
 // The gate precedes all application routes, including read APIs that can start work.
@@ -85,11 +124,36 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	if r.Method == "GET" && (r.URL.Path == "/terms" || (r.URL.Path == "/" && !c.termsAccepted())) {
+		c.mu.Lock()
+		c.cancelTermsExitLocked()
+		c.termsPageID = rand.Text()
+		pageID := c.termsPageID
+		c.mu.Unlock()
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_ = termsTemplate.Execute(w, struct {
-			Text, Version, Hash, Token string
-			Accepted                   bool
-		}{legal.Text, legal.Version, legal.Hash(), c.token, c.termsAccepted()})
+			Text, Version, Hash, Token, PageID string
+			Accepted                           bool
+		}{legal.Text, legal.Version, legal.Hash(), c.token, pageID, c.termsAccepted()})
+		return true
+	}
+	if r.URL.Path == "/api/terms/leave" || r.URL.Path == "/api/terms/return" {
+		if r.Method != "POST" {
+			http.Error(w, "method not allowed", 405)
+			return true
+		}
+		if r.Header.Get("X-StepStash-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
+			http.Error(w, "invalid origin or token", 403)
+			return true
+		}
+		var input struct {
+			PageID string `json:"pageID"`
+		}
+		if json.NewDecoder(http.MaxBytesReader(w, r.Body, 2048)).Decode(&input) != nil || input.PageID == "" {
+			http.Error(w, "invalid page", 400)
+			return true
+		}
+		c.termsPagePresence(input.PageID, r.URL.Path == "/api/terms/leave")
+		writeJSON(w, map[string]bool{"ok": true})
 		return true
 	}
 	if r.URL.Path == "/api/terms/accept" {
@@ -129,7 +193,7 @@ var termsTemplate = template.Must(template.New("terms").Parse(`<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>使用条款 · Still Wanna Dance</title><link rel="stylesheet" href="/assets/console.css"></head>
 <body><main style="max-width:880px;margin:32px auto;padding:24px"><h1>使用条款与内容权利声明</h1>
 <p><strong>MIT 仅授权本项目软件，不授予视频、音乐等第三方内容的使用权。能下载、已缓存或个人使用，均不当然等于获得授权。</strong></p>
-<p>请特别阅读第 2、4、5 条。不同意不会启用缓存或下载；仍可恢复 hosts。关闭网页不会退出程序。</p>
+<p>请特别阅读第 2、4、5 条。不同意不会启用缓存或下载；仍可恢复 hosts。未同意时，关闭或离开本页约 60 秒后程序将尝试自动退出；重新打开本页可取消。已同意后，关闭网页不会退出程序。</p>
 <p>条款版本：{{.Version}} · <a href="/terms.txt" target="_blank" rel="noopener">查看／保存纯文本</a></p>
 <article style="white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8">{{.Text}}</article>
 {{if .Accepted}}<p>本机已确认当前条款。<a href="/">返回控制台</a></p>{{else}}
@@ -139,13 +203,16 @@ var termsTemplate = template.Must(template.New("terms").Parse(`<!doctype html>
 <p><button type="button" id="restore">恢复 Still Wanna Dance 管理的 hosts</button> <button type="button" id="stop">停止缓存服务</button></p>
 <p id="result" role="status" aria-live="polite"></p></main>
 <script>
-const token={{.Token}}, version={{.Version}}, sha256={{.Hash}};
+const token={{.Token}}, version={{.Version}}, sha256={{.Hash}}, pageID={{.PageID}};
 const result=document.getElementById('result');
 async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-StepStash-Token':token},body:JSON.stringify(body)});if(!r.ok)throw new Error(await r.text());}
 const form=document.getElementById('consent');
 if(form){const agree=document.getElementById('agree'), rights=document.getElementById('rights'), accept=document.getElementById('accept');let busy=false;
+function presence(action){fetch('/api/terms/'+action,{method:'POST',keepalive:true,headers:{'Content-Type':'application/json','X-StepStash-Token':token},body:JSON.stringify({pageID})}).catch(()=>{});}
+window.addEventListener('pagehide',()=>presence('leave'));
+window.addEventListener('pageshow',e=>{if(e.persisted)presence('return');});
 function update(){accept.disabled=busy||!agree.checked||!rights.checked;}form.addEventListener('change',update);
 form.addEventListener('submit',async e=>{e.preventDefault();if(busy||!agree.checked||!rights.checked)return;busy=true;update();try{await post('/api/terms/accept',{version,sha256,agree:true,contentRights:true});location.replace('/');}catch(e){result.textContent=e.message;busy=false;update();}});
-document.getElementById('decline').onclick=()=>{agree.checked=rights.checked=false;update();result.textContent='未同意，缓存与下载保持停用。可恢复 hosts 后，通过托盘退出程序；无托盘模式请在终端停止进程。';};}
+document.getElementById('decline').onclick=()=>{agree.checked=rights.checked=false;update();result.textContent='未同意，缓存与下载保持停用。可恢复 hosts 后关闭本页，程序将在约 60 秒后尝试自动退出；也可通过托盘退出。';};}
 for(const [id,path] of [['restore','/api/hosts/disable'],['stop','/api/stop']]){document.getElementById(id).onclick=async()=>{try{await post(path,{});result.textContent=id==='restore'?'hosts 恢复操作已完成。':'缓存服务已停止。';}catch(e){result.textContent=e.message;}};}
 </script></body></html>`))

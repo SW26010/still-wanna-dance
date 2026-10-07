@@ -6,19 +6,35 @@ import vm from 'node:vm';
 function setup(fetchImpl = async () => ({ ok: true })) {
   const source = readFileSync(new URL('../internal/console/terms.go', import.meta.url), 'utf8');
   const script = source.match(/<script>([\s\S]*?)<\/script>/)[1]
-    .replace('{{.Token}}', '"test-token"').replace('{{.Version}}', '"test-version"').replace('{{.Hash}}', '"test-hash"');
+    .replace('{{.Token}}', '"test-token"').replace('{{.Version}}', '"test-version"').replace('{{.Hash}}', '"test-hash"').replace('{{.PageID}}', '"test-page"');
   const elements = Object.fromEntries(['consent', 'agree', 'rights', 'accept', 'decline', 'restore', 'stop', 'result'].map(id => [id, {
     checked: false, disabled: id === 'accept', textContent: '', listeners: {},
     addEventListener(name, fn) { this.listeners[name] = fn; },
   }]));
   const calls = [], navigations = [];
+  const listeners = {};
   vm.runInNewContext(script, {
+    window: { addEventListener: (name, fn) => { listeners[name] = fn; } },
     document: { getElementById: id => elements[id] },
     fetch: async (...args) => { calls.push(args); return fetchImpl(...args); },
     location: { replace: path => navigations.push(path) },
   });
-  return { elements, calls, navigations, submit: () => elements.consent.listeners.submit({ preventDefault() {} }), change: () => elements.consent.listeners.change() };
+  return { elements, calls, navigations, listeners, submit: () => elements.consent.listeners.submit({ preventDefault() {} }), change: () => elements.consent.listeners.change() };
 }
+
+test('leaving sends authenticated keepalive; back-forward cache restore cancels exit', () => {
+  const s = setup();
+  assert.equal(s.listeners.visibilitychange, undefined);
+  s.listeners.pageshow({ persisted: false });
+  assert.equal(s.calls.length, 0);
+  s.listeners.pagehide();
+  assert.equal(s.calls[0][0], '/api/terms/leave');
+  assert.equal(s.calls[0][1].keepalive, true);
+  assert.equal(s.calls[0][1].headers['X-StepStash-Token'], 'test-token');
+  assert.deepEqual(JSON.parse(s.calls[0][1].body), { pageID: 'test-page' });
+  s.listeners.pageshow({ persisted: true });
+  assert.equal(s.calls[1][0], '/api/terms/return');
+});
 
 test('consent requires both active choices; decline clears them without submitting', async () => {
   const s = setup();

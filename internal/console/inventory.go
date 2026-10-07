@@ -85,32 +85,21 @@ func (c *Console) localInventory() Inventory {
 func (c *Console) localInventoryWithLoader(load func(context.Context, string) (cacheproxy.CatalogStatus, error)) Inventory {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	// Never borrow the engine or hold state/lifecycle locks during database I/O.
-	// Bound retries so repeated settings changes cannot delay status polling.
-	for attempt := 0; attempt < 2; attempt++ {
-		c.mu.Lock()
-		root, revision := c.settings.StorageDir, c.settingsRevision
-		c.mu.Unlock()
-		status, err := load(ctx, root)
-		c.inventoryMu.Lock()
-		c.mu.Lock()
-		changed := root != c.settings.StorageDir || revision != c.settingsRevision
-		v := c.inventory
-		c.mu.Unlock()
-		c.inventoryMu.Unlock()
-		if changed {
-			continue
-		}
-		v.Catalog = status
-		if err != nil {
-			v.Catalog = cacheproxy.CatalogStatus{Error: "无法读取本地清单状态：" + err.Error()}
-		}
-		return v
-	}
+	// Active storage is immutable. Never borrow the engine or hold state locks
+	// during database I/O; a saved configuration cannot invalidate this read.
+	c.mu.Lock()
+	root := c.settings.StorageDir
+	c.mu.Unlock()
+	status, err := load(ctx, root)
 	c.inventoryMu.Lock()
+	c.mu.Lock()
 	v := c.inventory
+	c.mu.Unlock()
 	c.inventoryMu.Unlock()
-	v.Catalog = cacheproxy.CatalogStatus{Error: "设置已变化，请重新读取清单状态"}
+	v.Catalog = status
+	if err != nil {
+		v.Catalog = cacheproxy.CatalogStatus{Error: "无法读取本地清单状态：" + err.Error()}
+	}
 	return v
 }
 

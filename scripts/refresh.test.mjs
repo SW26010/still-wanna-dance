@@ -747,6 +747,25 @@ for (const lostAcknowledgement of [false, true]) {
   });
 }
 
+test('restart timeout offers manual recovery and does not retry the command', async () => {
+  const p = page();
+  p.finishBatch(0, {}, { restartRequired: true });
+  await flush();
+  let now = 0;
+  p.context.Date = class extends Date { static now() { return now; } };
+  const pending = vm.runInContext("action('restart')", p.context);
+  p.requests.at(-1).finish({ ok: true });
+  await flush();
+  p.requests.at(-1).reject(new Error('offline'));
+  await flush();
+  now = 61000;
+  p.retryRestart();
+  await pending;
+  assert.match(p.document.getElementById('notice').textContent, /结果尚未确认.*手动启动/);
+  assert.equal(p.requests.filter(r => r.url === '/api/restart').length, 1);
+  assert.equal(p.timers.size, 0);
+});
+
 test('nonempty queue renders three songs in order, falls back to IDs, and replaces stale nodes', async () => {
   const p = page();
   const get = id => p.document.getElementById(id);

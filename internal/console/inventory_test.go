@@ -342,18 +342,3 @@ func TestInventoryReadKeepsActiveSettingsAcrossSaves(t *testing.T) {
 		})
 	}
 }
-
-func TestInventoryReadBoundsSettingsRetries(t *testing.T) {
-	c := testConsole(t)
-	calls := 0
-	got := c.localInventoryWithLoader(func(context.Context, string) (cacheproxy.CatalogStatus, error) {
-		calls++
-		c.mu.Lock()
-		c.settingsRevision++
-		c.mu.Unlock()
-		return cacheproxy.CatalogStatus{Revision: "stale"}, nil
-	})
-	if calls != 2 || got.Catalog.Revision != "" || got.Catalog.Error == "" {
-		t.Fatal(calls, got)
-	}
-}

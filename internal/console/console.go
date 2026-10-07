@@ -63,7 +63,6 @@ type Console struct {
 	// Acquire lifecycleMu before mu; state readers never wait on lifecycleMu.
 	lifecycleMu         sync.Mutex
 	queueUpdateMu       sync.Mutex // acquire before mu; serializes engine queue protection
-	settingsRevision    uint64     // protected by mu; invalidates reads across saves (including ABA)
 	taskMu              sync.Mutex
 	inventoryMu         sync.Mutex
 	inventory           Inventory
@@ -301,6 +300,10 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 	}
 	defer os.Remove(f.Name())
 	if _, err = f.Write(b); err != nil {
+		f.Close()
+		return err
+	}
+	if err = f.Sync(); err != nil {
 		f.Close()
 		return err
 	}
@@ -635,7 +638,15 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Activation        Activation              `json:"activation"`
 			DefaultLogDir     string                  `json:"defaultLogDir"`
 			UpstreamMonitor   upstreamstate.Status    `json:"upstreamMonitor"`
-		}{running, c.savedSettings, c.settings, c.savedSettings != c.settings, HostsStatus{}, running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}, c.savedSettings.SOCKS5Password != "", c.activation, defaultLogDir(), c.monitorSnapshotLocked()}
+		}{
+			Running: running, Settings: c.savedSettings, ActiveSettings: c.settings,
+			RestartRequired: c.savedSettings != c.settings,
+			PortOK:          running, HTTPSPortOK: running, CDNError: c.cdnError,
+			Batch: c.batch, Queue: c.queue, LastBatch: c.lastBatch,
+			SOCKS5PasswordSet: c.savedSettings.SOCKS5Password != "",
+			Activation:        c.activation, DefaultLogDir: defaultLogDir(),
+			UpstreamMonitor: c.monitorSnapshotLocked(),
+		}
 		result.Settings.SOCKS5Password = ""
 		result.ActiveSettings.SOCKS5Password = ""
 		result.Queue.Desired = c.queueDesired

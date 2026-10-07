@@ -224,7 +224,7 @@
             </button>
           </div>
           <details class="help"><summary>扫描与下载说明</summary><div class="hint">
-            「仅扫描检查」更新歌曲与 MD5 的关联，一次枚举本地文件检查缺失，不读取视频内容。清单中新歌会加入，消失的旧 ID 保留。「下载补齐」每次重新获取清单并检查缺失，仅为缺失的 MD5 解析地址和下载；多首歌曲共用同一视频时只下载一份。下载完成校验 MD5 后保存，之后信任本地文件，不重复校验。队列预缓存会在补齐期间暂停，结束后按原状态恢复。最多同时下载 2 个资源，为游戏播放保留一个下载名额。共用视频的优先级为关联歌曲分数之和，容量不足时停止补齐，可前往设置调整预算。两项操作均无需启动 CDN 或修改 hosts。
+            「仅扫描检查」更新歌曲与 MD5 的关联，一次枚举本地文件检查缺失，不读取视频内容。清单中新歌会加入，消失的旧 ID 保留。「下载补齐」每次重新获取清单并检查缺失，仅为缺失的 MD5 解析地址和下载；多首歌曲共用同一视频时只下载一份。下载完成校验 MD5 后保存，之后信任本地文件，不重复校验。队列预缓存会在补齐期间暂停，结束后仅在仍处于开启状态时恢复。最多同时下载 2 个资源，为游戏播放保留一个下载名额。共用视频的优先级为关联歌曲分数之和，容量不足时停止补齐，可前往设置调整预算。两项操作均无需启动 CDN 或修改 hosts。
           </div></details>
           <div id="batchActionError" role="status"></div>
           <div id="snapshotState" class="hint">尚无成功任务结果</div>
@@ -261,7 +261,7 @@
         <section class="card wide" id="preferences" aria-labelledby="preferencesTitle" tabindex="-1">
           <div class="card-head">
             <h2 id="preferencesTitle">缓存与任务设置</h2>
-            <small id="settingsAvailability" role="status">停止 CDN 和批量任务后可修改</small>
+            <small id="settingsAvailability" role="status">运行中可保存，重启应用后生效</small>
           </div>
           <div id="settingsActionError" role="status"></div>
           <form id="settings" aria-describedby="settingsAvailability">
@@ -345,7 +345,7 @@
             <label for="socks5Password">SOCKS5 密码</label>
             <input id="socks5Password" aria-describedby="socks5PasswordHint" name="socks5Password" type="password" autocomplete="new-password" />
             <div class="hint" id="socks5PasswordHint">
-              填写代理软件的主机:端口，无需 socks5:// 前缀。代理模式用于 API 查询、视频下载、测速和 HTTPS 透传，域名解析交给代理；连接失败不会回退直连。无需认证时用户名和密码留空；已有密码留空则保留，清空用户名及密码可移除认证。密码保存在本机配置文件中，不会回显。停止 CDN 和批量任务后可保存切换。
+              填写代理软件的主机:端口，无需 socks5:// 前缀。代理模式用于 API 查询、视频下载、测速和 HTTPS 透传，域名解析交给代理；连接失败不会回退直连。无需认证时用户名和密码留空；已有密码留空则保留，清空用户名及密码可移除认证。密码保存在本机配置文件中，不会回显。保存并重启应用后切换。
             </div>
             </fieldset><fieldset><legend>扫描与队列</legend>
             <label for="autoStartQueue"><input id="autoStartQueue" name="autoStartQueue" type="checkbox" /> 启动应用时开启房间队列预缓存</label>

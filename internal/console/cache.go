@@ -115,19 +115,15 @@ func (c *Console) cacheAPI(w http.ResponseWriter, r *http.Request) {
 // never borrows engine lifetime, so Close need not wait for slow filesystem I/O.
 func (c *Console) cacheSnapshot(read func(string) (cacheproxy.CachePage, error)) (cacheproxy.CachePage, error) {
 	c.mu.Lock()
-	root, revision, closing := c.settings.StorageDir, c.settingsRevision, c.closing
+	root, closing := c.settings.StorageDir, c.closing
 	c.mu.Unlock()
 	if closing {
 		return cacheproxy.CachePage{}, errors.New("控制台正在退出")
 	}
 	page, err := read(root)
 	c.mu.Lock()
-	changed := root != c.settings.StorageDir || revision != c.settingsRevision
 	service, scanning, closing := c.service, c.batch.Running && c.batch.ScanOnly, c.closing
 	c.mu.Unlock()
-	if changed {
-		return cacheproxy.CachePage{}, errors.New("存储设置已变化，请刷新缓存明细")
-	}
 	if closing {
 		return cacheproxy.CachePage{}, errors.New("控制台正在退出")
 	}

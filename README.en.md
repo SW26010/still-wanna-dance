@@ -25,11 +25,11 @@ The desktop app targets Windows x64. Choose a writable folder for the app and al
 
 1. Look for a Windows portable ZIP on the [releases page](https://github.com/SW26010/still-wanna-dance/releases). Extract the entire archive, then double-click `still-wanna-dance-console.exe`. If no release package is available yet, you can [build from source](#build-from-source).
 2. The app opens its local web console. On first launch, read and accept the terms of use.
-3. Open Settings (设置) and choose your storage folder. The VRChat log folder is detected automatically by default.
+3. Open Settings (设置) and choose your storage folder, save, then click Restart and apply (立即重启并应用). The VRChat log folder is detected automatically by default.
 4. On Home (首页), click Enable game acceleration (启用游戏加速) and follow the prompts to configure the hosts entries. Windows will ask for permission when the app needs to modify the hosts file.
 5. Enter WannaDance and request a song. Check the connection and request status on Home, then use Monitor (监控) and Cache (缓存) to follow downloads and inspect cached files.
 
-Enable the service before requesting songs to give prefetching time to prepare. First-time downloads still depend on the upstream server and your network. “Request received” (收到请求) means a request reached the local service; check playback in the game itself. If no requests arrive after setup, try rejoining the world or restarting the game to refresh DNS.
+To prepare upcoming songs, enable Room queue prefetch (房间队列预缓存) in Settings before requesting songs. Its start/stop controls are independent of the CDN. First-time downloads still depend on the upstream server and your network. “Request received” (收到请求) means a request reached the local service; check playback in the game itself. If no requests arrive after setup, try rejoining the world or restarting the game to refresh DNS.
 
 Closing the web page leaves the app running in the system tray. Use the tray menu to reopen the console. Quit from Home or the tray menu to stop all services and background tasks; hosts mappings remain in place.
 
@@ -46,7 +46,8 @@ For detailed instructions, see the [console guide](docs/console.md) and [portabl
 | Find cached videos, free space, and view request statistics | Cache (缓存) |
 | Scan the library, verify files, and download missing videos | Library & downloads (曲库与下载) |
 | Change folders, cache limits, upstream selection, or proxy settings | Settings (设置) |
-| Adjust how many queue positions to prefetch | Settings (设置) → Local CDN (本地 CDN) → Room queue prefetch (房间队列预缓存) |
+| Adjust how many queue positions to prefetch | Settings (设置) → Queue prefetch count (队列预缓存数量), then save and restart |
+| Start or stop queue prefetch independently | Settings (设置) → Local CDN (本地 CDN) → Room queue prefetch (房间队列预缓存) |
 
 “Local CDN” in the console refers to the cache service running on your computer. Everyday use is handled through the web console and system tray. A [standalone command-line service](docs/service.md) is also available for custom setups.
 

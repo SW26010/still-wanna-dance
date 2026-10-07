@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestImportCrossVolumeCopy(t *testing.T) {
@@ -26,6 +27,10 @@ func TestImportCrossVolumeCopy(t *testing.T) {
 	if err := os.WriteFile(source, data, 0600); err != nil {
 		t.Fatal(err)
 	}
+	old := time.Unix(1600000000, 0)
+	if err := os.Chtimes(source, old, old); err != nil {
+		t.Fatal(err)
+	}
 	receipt, err := s.ImportVideo(context.Background(), source, map[string]bool{key: true})
 	if err != nil || receipt == nil {
 		t.Fatal(receipt, err)
@@ -35,12 +40,32 @@ func TestImportCrossVolumeCopy(t *testing.T) {
 	if os.SameFile(a, b) {
 		t.Fatal("expected separate cross-volume copy")
 	}
+	if a.ModTime().Equal(b.ModTime()) {
+		t.Fatal("fixture requires different source and destination timestamps")
+	}
+	s.retentionMu.Lock()
+	item, exists := s.retained[key]
+	s.retentionMu.Unlock()
+	if !exists || item.size != b.Size() || item.modified != b.ModTime().UnixNano() || item.recent != b.ModTime().UnixMilli() {
+		t.Fatalf("retention must use destination metadata: %+v, destination: %v", item, b)
+	}
 	if err := s.RemoveImportedSource(context.Background(), *receipt); err != nil {
 		t.Fatal(err)
 	}
 	got, err := os.ReadFile(receipt.Destination)
 	if err != nil || string(got) != string(data) {
 		t.Fatal("copy damaged", err)
+	}
+	// Eviction must work immediately, without a directory reconciliation.
+	s.retentionMu.Lock()
+	reserved := s.beginVideoRemovalLocked(key)
+	s.retentionMu.Unlock()
+	if !reserved {
+		t.Fatal("import left resource pinned")
+	}
+	s.evictRetainedVideo(item)
+	if _, err := os.Stat(receipt.Destination); !os.IsNotExist(err) {
+		t.Fatal("imported copy could not be evicted", err)
 	}
 }
 

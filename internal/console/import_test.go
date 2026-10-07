@@ -2,13 +2,86 @@ package console
 
 import (
 	"context"
+	"crypto/md5"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/cacheproxy"
 )
+
+func TestImportCleanupRetainsOnlyFailedReceiptsForConfirmedRetry(t *testing.T) {
+	c := testConsole(t)
+	defer c.Close()
+	c.mu.Lock()
+	err := c.ensureEngine()
+	c.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	var receipts []cacheproxy.ImportedVideo
+	for _, body := range []string{"first video", "second video"} {
+		key := fmt.Sprintf("%x", md5.Sum([]byte(body)))
+		source := filepath.Join(root, key+".mp4")
+		if err := os.WriteFile(source, []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+		receipt, err := c.service.ImportVideo(context.Background(), source, map[string]bool{key: true})
+		if err != nil || receipt == nil {
+			t.Fatal(receipt, err)
+		}
+		receipts = append(receipts, *receipt)
+	}
+	c.importReceipts = receipts
+	c.importStatus = ImportStatus{ID: 1, Imported: 2, CleanupAvailable: true}
+	// A temporarily unavailable destination must preserve its source and receipt.
+	missing := receipts[1].Destination
+	if err := os.Rename(missing, missing+".held"); err != nil {
+		t.Fatal(err)
+	}
+	waitCleanup := func() {
+		t.Helper()
+		if err := c.cleanupImport(1, true); err != nil {
+			t.Fatal(err)
+		}
+		c.mu.Lock()
+		done := c.importDone
+		c.mu.Unlock()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("cleanup stalled")
+		}
+	}
+	waitCleanup()
+	if len(c.importReceipts) != 1 || c.importReceipts[0].Source != receipts[1].Source || !c.importStatus.CleanupAvailable || c.importStatus.Deleted != 1 || c.importStatus.Failed != 1 {
+		t.Fatalf("failed receipt not retained: %+v, %+v", c.importStatus, c.importReceipts)
+	}
+	if _, err := os.Stat(receipts[0].Source); !os.IsNotExist(err) {
+		t.Fatal("successful source remains", err)
+	}
+	if _, err := os.Stat(receipts[1].Source); err != nil {
+		t.Fatal("failed source lost", err)
+	}
+	if err := c.cleanupImport(1, false); err == nil {
+		t.Fatal("retry bypassed confirmation")
+	}
+	if err := os.Rename(missing+".held", missing); err != nil {
+		t.Fatal(err)
+	}
+	waitCleanup()
+	if len(c.importReceipts) != 0 || c.importStatus.CleanupAvailable || c.importStatus.Deleted != 2 || c.importStatus.Total != 1 || c.importStatus.Checked != 1 || c.importStatus.Failed != 0 {
+		t.Fatalf("retry did not finish: %+v", c.importStatus)
+	}
+	if _, err := os.Stat(receipts[1].Source); !os.IsNotExist(err) {
+		t.Fatal("retried source remains", err)
+	}
+}
 
 func TestImportRefreshAndProgress(t *testing.T) {
 	for _, unavailable := range []bool{false, true} {

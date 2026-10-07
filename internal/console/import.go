@@ -128,8 +128,8 @@ func (c *Console) runImport(ctx context.Context, engine *cacheproxy.Server, sour
 		return
 	}
 	catalog, release, err := engine.ReadLocalCatalog(ctx)
-	defer release()
 	if err != nil {
+		release()
 		fail(err)
 		return
 	}
@@ -139,6 +139,9 @@ func (c *Console) runImport(ctx context.Context, engine *cacheproxy.Server, sour
 			allowed[song.MD5] = true
 		}
 	}
+	// Only the copied MD5 set is needed below. Each individual import owns its
+	// own pin; retaining the catalog pins would block unrelated eviction.
+	release()
 	c.mu.Lock()
 	c.importStatus.Phase = "正在枚举视频文件"
 	c.mu.Unlock()
@@ -201,26 +204,33 @@ func (c *Console) cleanupImport(id uint64, confirmed bool) error {
 	go func() {
 		defer close(done)
 		defer cancel()
-		for _, receipt := range receipts {
+		var remaining []cacheproxy.ImportedVideo
+		for i, receipt := range receipts {
+			if ctx.Err() != nil {
+				remaining = append(remaining, receipts[i:]...)
+				break
+			}
 			err := engine.RemoveImportedSource(ctx, receipt)
 			c.mu.Lock()
 			c.importStatus.Checked++
 			if err == nil {
 				c.importStatus.Deleted++
 			} else {
+				remaining = append(remaining, receipt)
 				c.importStatus.Failed++
 				c.importStatus.Error = receipt.Source + "：" + err.Error()
 			}
 			c.mu.Unlock()
-			if ctx.Err() != nil {
-				break
-			}
 		}
 		c.mu.Lock()
 		c.importStatus.Running = false
 		c.importStatus.Phase = "清理结束"
+		c.importStatus.CleanupAvailable = len(remaining) > 0
+		if c.importStatus.CleanupAvailable {
+			c.importStatus.Phase = "部分源文件未清理，可再次确认后重试"
+		}
 		c.importCancel = nil
-		c.importReceipts = nil
+		c.importReceipts = remaining
 		c.mu.Unlock()
 	}()
 	return nil

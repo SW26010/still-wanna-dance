@@ -126,8 +126,12 @@ func (s *Server) ImportVideo(ctx context.Context, source string, allowed map[str
 		}
 		return nil, err
 	}
+	published, err := os.Lstat(dest)
+	if err != nil {
+		return nil, err
+	}
 	s.retentionMu.Lock()
-	s.retainVideoLocked(key, &retainedVideo{path: dest, key: key, size: info.Size(), recent: info.ModTime().UnixMilli(), modified: info.ModTime().UnixNano()})
+	s.retainVideoLocked(key, &retainedVideo{path: dest, key: key, size: published.Size(), recent: published.ModTime().UnixMilli(), modified: published.ModTime().UnixNano()})
 	s.retentionMu.Unlock()
 	return &ImportedVideo{Source: source, Destination: dest, MD5: key, info: info}, nil
 }

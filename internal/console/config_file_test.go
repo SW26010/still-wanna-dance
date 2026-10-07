@@ -62,7 +62,7 @@ func TestConfigurationRejectsUnsupportedWithoutOverwrite(t *testing.T) {
 
 func TestConfigurationPreservesUnknownFieldsAndClearsPassword(t *testing.T) {
 	c := testConsole(t)
-	data := `{"schemaVersion":1,"futurePreference":{"enabled":true,"large":9007199254740993},"socks5Password":"old-secret"}`
+	data := `{"schemaVersion":1,"futurePreference":{"enabled":true,"large":9007199254740993},"SOCKS5Password":"old-secret","queueprefetchcount":99}`
 	if err := os.WriteFile(c.configPath, []byte(data), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -84,6 +84,17 @@ func TestConfigurationPreservesUnknownFieldsAndClearsPassword(t *testing.T) {
 	}
 	if _, ok := fields["socks5Password"]; ok {
 		t.Fatal("cleared password survived")
+	}
+	if _, ok := fields["SOCKS5Password"]; ok {
+		t.Fatal("case alias retained a cleared password")
+	}
+	reopened, err := New(c.configPath, c.address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	if reopened.settings.SOCKS5Password != "" || reopened.settings.QueuePrefetchCount != s.QueuePrefetchCount {
+		t.Fatal("case alias overrode saved settings", reopened.settings.QueuePrefetchCount)
 	}
 	entries, err := os.ReadDir(filepath.Dir(c.configPath))
 	if err != nil {

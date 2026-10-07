@@ -46,6 +46,13 @@ try {
     $servedTerms = Invoke-WebRequest "$url/terms.txt" -UseBasicParsing
     if ($servedTerms.Content -cne [IO.File]::ReadAllText((Join-Path $folder 'TERMS.txt'))) { throw 'Packaged and embedded terms differ.' }
     if (!(Test-Path -LiteralPath (Join-Path $folder 'still-wanna-dance-console.json.lock'))) { throw 'Config lock missing beside executable.' }
+    $configPath = Join-Path $folder 'still-wanna-dance-console.json'
+    $configBefore = [IO.File]::ReadAllText($configPath)
+    $settings = $configBefore | ConvertFrom-Json
+    if ($settings.schemaVersion -ne 1 -or $settings.storageDir -cne 'still-wanna-dance-data') {
+        throw 'First launch did not persist a versioned, portable default configuration.'
+    }
+    if (Test-Path -LiteralPath (Join-Path $folder 'still-wanna-dance-data')) { throw 'Consent-gated startup created media storage.' }
     $page = Invoke-WebRequest $url -UseBasicParsing
     if ($page.Content -notmatch 'Still Wanna Dance') { throw 'Embedded UI missing.' }
     $logPath = Join-Path $folder 'logs/still-wanna-dance-console.json.log'
@@ -82,11 +89,12 @@ try {
         Start-Sleep -Milliseconds 250
     }
     if (!$restarted) { throw 'Restart did not restore the consent-gated console.' }
+    if ([IO.File]::ReadAllText($configPath) -cne $configBefore) { throw 'Restart rewrote persisted defaults.' }
     $records = @(Get-Content -LiteralPath $logPath | ForEach-Object { $_ | ConvertFrom-Json })
     foreach ($event in $startupEvents) {
         if (@($records | Where-Object { $_.msg -eq $event }).Count -ne 2) { throw "Expected two startup log records after restart: $event" }
     }
-    Write-Host 'Portable smoke passed: ZIP extraction, independent launch directory, config lock, consent gate, matching terms, embedded UI, JSON logs, duplicate rejection, abrupt-stop restart.'
+    Write-Host 'Portable smoke passed: ZIP extraction, independent launch directory, versioned default configuration, config lock, consent gate, matching terms, embedded UI, JSON logs, duplicate rejection, abrupt-stop restart.'
 } finally {
     if ($null -ne $duplicate -and !$duplicate.HasExited) { $duplicate.Kill(); $duplicate.WaitForExit() }
     if ($null -ne $process -and !$process.HasExited) { $process.Kill(); $process.WaitForExit() }

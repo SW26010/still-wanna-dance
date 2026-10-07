@@ -126,7 +126,7 @@ function rangeVideo(res, file) {
 async function consoleService(name, storageDir, extra = {}) {
   const port = await freePort();
   const config = path.join(lab, `${name}.json`);
-  fs.writeFileSync(config, JSON.stringify({ storageDir, logDir: path.join(lab, 'game-logs'),
+  fs.writeFileSync(config, JSON.stringify({ schemaVersion: 1, storageDir, logDir: path.join(lab, 'game-logs'),
     downloadUpstream: 'auto', autoStartCDN: true, ...extra }));
   // Reuse the operator's existing acceptance; never manufacture a receipt.
   fs.writeFileSync(config + '.terms.json', JSON.stringify(receipt));

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const configSchemaVersion = 1
@@ -51,10 +52,27 @@ func (c *Console) writeConfigFile(s Settings) error {
 	if err != nil {
 		return err
 	}
-	// This is the only omitempty setting; clearing it must remove the old value.
-	delete(fields, "socks5Password")
-	if err := json.Unmarshal(data, &fields); err != nil {
+	var settings map[string]json.RawMessage
+	if err := json.Unmarshal(data, &settings); err != nil {
 		return err
+	}
+	// encoding/json accepts case-insensitive struct field names. Remove those
+	// aliases as well, or they could override a canonical value on the next read.
+	// The password is the only omitempty field and may be absent when cleared.
+	for key := range fields {
+		if strings.EqualFold(key, "socks5Password") {
+			delete(fields, key)
+			continue
+		}
+		for name := range settings {
+			if strings.EqualFold(key, name) {
+				delete(fields, key)
+				break
+			}
+		}
+	}
+	for name, value := range settings {
+		fields[name] = value
 	}
 	fields["schemaVersion"], err = json.Marshal(configSchemaVersion)
 	if err != nil {

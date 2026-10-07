@@ -300,12 +300,11 @@
             />
             <div class="hint" id="maxCacheGiBHint">
               0
-              表示不限。下载补齐会在容量预算不足时自动停止。播放和队列预缓存仍按需下载，超限时删除低优先级视频，保留歌曲资料和历史统计；受保护的视频可暂时超限，临时文件另需空间。保存后下次启动
-              CDN 或下载任务时生效。
+              表示不限。下载补齐会在容量预算不足时自动停止。播放和队列预缓存仍按需下载，超限时删除低优先级视频，保留歌曲资料和历史统计；受保护的视频可暂时超限，临时文件另需空间。保存并重启应用后生效。
             </div>
             <label for="throughputIntervalMinutes">自动吞吐检测间隔（分钟）</label>
             <input id="throughputIntervalMinutes" type="number" min="1" max="1440" step="1" required value="20" aria-describedby="throughputIntervalHint" />
-            <div class="hint" id="throughputIntervalHint">默认 20 分钟。保存后按上次测速时间重新计算下次时间，不重置计时。首字节检测频率不变。</div>
+            <div class="hint" id="throughputIntervalHint">默认 20 分钟。重启应用后按上次测速时间重新计算下次时间，不重置计时。首字节检测频率不变。</div>
             <label for="requestRetentionDays">请求明细保留天数</label
             ><input
               id="requestRetentionDays" aria-describedby="requestRetentionDaysHint"
@@ -318,8 +317,7 @@
             />
             <div class="hint" id="requestRetentionDaysHint">
               默认 30 天，0
-              表示永久保留。过期明细后台分批删除，热度汇总长期保留。数据库不计入视频上限，删除后的空间供后续写入复用，文件不会立即缩小。保存后下次启动
-              CDN 或下载任务时生效。
+              表示永久保留。过期明细后台分批删除，热度汇总长期保留。数据库不计入视频上限，删除后的空间供后续写入复用，文件不会立即缩小。保存并重启应用后生效。
             </div>
             </fieldset><fieldset><legend>网络连接</legend>
             <label for="downloadUpstream">播放地址接口选择</label
@@ -329,8 +327,7 @@
               <option value="hkg">node=nya（播放地址接口）</option>
             </select>
             <div class="hint" id="downloadUpstreamHint">
-              用于冷缓存播放、下载补齐和队列预缓存。Auto 主动下载先查询 node=cf，失败后查询 node=nya；资源下载和测速按返回地址的实际域名区分，同一地址不重复尝试。冷缓存播放在已解析域名中测速优选，仅在校验和与大小一致时切换。无法确认歌曲或内容不一致时保留原地址。固定模式仅查询指定接口，不限制其返回的资源域名；保存后下次启动
-              CDN 或下载任务时生效。
+              用于冷缓存播放、下载补齐和队列预缓存。Auto 主动下载先查询 node=cf，失败后查询 node=nya；资源下载和测速按返回地址的实际域名区分，同一地址不重复尝试。冷缓存播放在已解析域名中测速优选，仅在校验和与大小一致时切换。无法确认歌曲或内容不一致时保留原地址。固定模式仅查询指定接口，不限制其返回的资源域名；保存并重启应用后生效。
             </div>
             <label for="upstreamMode">上游连接</label>
             <select id="upstreamMode" aria-describedby="directConnectionHint" name="upstreamMode">
@@ -351,18 +348,18 @@
               填写代理软件的主机:端口，无需 socks5:// 前缀。代理模式用于 API 查询、视频下载、测速和 HTTPS 透传，域名解析交给代理；连接失败不会回退直连。无需认证时用户名和密码留空；已有密码留空则保留，清空用户名及密码可移除认证。密码保存在本机配置文件中，不会回显。停止 CDN 和批量任务后可保存切换。
             </div>
             </fieldset><fieldset><legend>扫描与队列</legend>
-            <label for="queuePrefetchEnabled"><input id="queuePrefetchEnabled" name="queuePrefetchEnabled" type="checkbox" checked /> 随 CDN 启用房间队列预缓存</label>
-            <p class="hint">默认开启。随本地 CDN 启停，下载补齐期间临时暂停。</p>
+            <label for="autoStartQueue"><input id="autoStartQueue" name="autoStartQueue" type="checkbox" /> 启动应用时开启房间队列预缓存</label>
+            <p class="hint">与 CDN 的自动启动独立。下载补齐期间临时暂停。</p>
             <label for="queuePrefetchCount">队列预缓存数量</label>
             <input id="queuePrefetchCount" aria-describedby="queuePrefetchCountHint" type="number" min="1" max="100" step="1" required value="3" />
             <div class="hint" id="queuePrefetchCountHint">
-              默认 3，可设 1～100。准备队列前 N 个位置中的有效曲目，非曲库条目也占位置；最多同时下载 2 首。保存后下次启动 CDN 生效。
+              默认 3，可设 1～100。准备队列前 N 个位置中的有效曲目，非曲库条目也占位置；最多同时下载 2 首。保存并重启应用后生效。
             </div>
             <label for="manualLogDir"><input id="manualLogDir" name="manualLogDir" type="checkbox" /> 手动指定 VRChat 日志目录</label>
             <label for="logDir">VRChat 日志目录</label
             ><input id="logDir" aria-describedby="logDirHint" name="logDir" spellcheck="false" disabled />
             <div class="hint" id="logDirHint">
-              默认每次启动按当前用户自动读取，灰色路径无需填写。勾选后可手动指定；取消勾选并保存即恢复自动。预缓存从现有日志末尾跟踪新增内容。
+              默认每次启动按当前用户自动读取，灰色路径无需填写。勾选后可手动指定；取消勾选、保存并重启应用后恢复自动。预缓存从现有日志末尾跟踪新增内容。
             </div>
             </fieldset>
             <button class="primary" type="submit" id="save">保存设置</button>
@@ -401,7 +398,7 @@
             <h3 id="queueTitle">房间队列预缓存</h3>
             <small id="queueWindow">准备队列前 3 个位置中的有效曲目</small>
           </div>
-          <p class="hint">随本地 CDN 自动启停；下载补齐期间暂停，结束后自动恢复。</p>
+          <p class="hint">独立于 CDN 启停；下载补齐期间暂停，仍处于开启状态时自动恢复。</p>
           <details class="help"><summary>队列预缓存说明</summary><div class="hint">
             每 3 秒读取新增日志，每 15
             秒检查新日志文件。开启后等待下一次队列同步，不回放旧队列。最多同时下载
@@ -409,7 +406,8 @@
             首；可在「曲库与下载」页面切换到全曲库任务。停止后已开始的共享下载继续执行，直到完成、失败或程序退出。准备成功次数累计计算，不代表当前保留的视频数量。
           </div></details>
           <div id="queueActionError" role="status"></div>
-          <div id="queuePhase" role="status">随本地 CDN 启动</div>
+          <div class="actions"><button id="queueStart" data-action="queue/start">开启队列预缓存</button><button id="queueStop" data-action="queue/stop">关闭队列预缓存</button></div>
+          <div id="queuePhase" role="status">已关闭</div>
           <small id="queueDetail"></small>
           <ol id="queueSongs"></ol>
           <div id="queueError" role="status"></div>

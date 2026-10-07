@@ -37,7 +37,7 @@ var assets embed.FS
 
 type Settings struct {
 	ThroughputIntervalMinutes int    `json:"throughputIntervalMinutes"`
-	QueuePrefetchEnabled      bool   `json:"queuePrefetchEnabled"`
+	AutoStartQueue            bool   `json:"autoStartQueue"`
 	RequestRetentionDays      int    `json:"requestRetentionDays"`
 	AutoStartCDN              bool   `json:"autoStartCDN"`
 	QueuePrefetchCount        int    `json:"queuePrefetchCount"`
@@ -89,6 +89,7 @@ type Console struct {
 	batchCancel         context.CancelFunc
 	batchDone           chan struct{}
 	queue               QueueStatus
+	queueDesired        bool // user intent; preserved while batch temporarily pauses queue
 	queueCancel         context.CancelFunc
 	queueDone           chan struct{}
 	closing             bool
@@ -115,7 +116,7 @@ func New(configPath, address string) (*Console, error) {
 		return nil, err
 	}
 	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: "https://x.kiva.moe/api/v2/wanna/songs"}
-	c.settings = Settings{StorageDir: "still-wanna-dance-data", RequestRetentionDays: 30, QueuePrefetchEnabled: true}
+	c.settings = Settings{StorageDir: "still-wanna-dance-data", RequestRetentionDays: 30}
 	c.exitRequested = make(chan struct{})
 	c.dns = &directDNS{}
 	if b, err := os.ReadFile(configPath); err == nil {
@@ -126,6 +127,16 @@ func New(configPath, address string) (*Console, error) {
 		}
 		if err = json.Unmarshal(b, &c.settings); err != nil {
 			return nil, fmt.Errorf("读取控制台配置：%w", err)
+		}
+		var legacy struct {
+			AutoStartQueue       *bool `json:"autoStartQueue"`
+			QueuePrefetchEnabled *bool `json:"queuePrefetchEnabled"`
+		}
+		if err = json.Unmarshal(b, &legacy); err != nil {
+			return nil, err
+		}
+		if legacy.AutoStartQueue == nil {
+			c.settings.AutoStartQueue = c.settings.AutoStartCDN && (legacy.QueuePrefetchEnabled == nil || *legacy.QueuePrefetchEnabled)
 		}
 	} else if !os.IsNotExist(err) {
 		return nil, err
@@ -352,7 +363,7 @@ func (c *Console) ensureEngine() error {
 	return nil
 }
 
-// AutoStart triggers the same start operation as the CDN button at process launch.
+// AutoStart applies independent startup preferences after consent.
 func (c *Console) AutoStart() { c.autoStart(readHostsStatus) }
 
 func (c *Console) autoStart(inspect func() HostsStatus) {
@@ -361,7 +372,11 @@ func (c *Console) autoStart(inspect func() HostsStatus) {
 	}
 	c.mu.Lock()
 	enabled := c.settings.AutoStartCDN
+	queueEnabled := c.settings.AutoStartQueue
 	c.mu.Unlock()
+	if queueEnabled {
+		c.recordActionError("/api/queue/start", c.startQueue())
+	}
 	if !enabled {
 		return
 	}
@@ -430,7 +445,6 @@ func (c *Console) startLocked() (err error) {
 	c.https = relay
 	c.cdnError = ""
 	c.mu.Unlock()
-	c.resumeQueueLocked()
 	slog.Info("cdn_started", "address", l.Addr().String(), "https_address", secure.Addr().String())
 	go func() {
 		if err := relay.serve(); err != nil && !errors.Is(err, net.ErrClosed) {
@@ -474,17 +488,10 @@ func (c *Console) stopLocked() {
 	if !c.activation.Started.IsZero() {
 		c.activation.Phase = "stopped"
 	}
-	queueDone := c.queueDone
-	if c.queueCancel != nil {
-		c.queueCancel()
-	}
 	listener, relay, server := c.videoListener, c.https, c.httpServer
 	c.videoListener, c.https, c.httpServer = nil, nil, nil
 	c.mu.Unlock()
 	defer c.mu.Lock()
-	if queueDone != nil {
-		<-queueDone
-	}
 	if listener != nil {
 		listener.Close()
 	}
@@ -505,6 +512,7 @@ func (c *Console) Close() error {
 	c.lifecycleMu.Lock()
 	c.mu.Lock()
 	c.closing = true
+	c.queueDesired = false
 	upstreamrequest.Default.Release(c.requestRevision)
 	monitor := c.monitor
 	monitorManualDone := c.monitorManualDone
@@ -625,6 +633,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}{running, c.savedSettings, c.settings, c.savedSettings != c.settings, HostsStatus{}, running, c.cdnError, nil, c.batch, nil, c.queue, c.lastBatch, running, nil, cacheproxy.TrafficStats{}, c.savedSettings.SOCKS5Password != "", c.activation, defaultLogDir(), c.monitorSnapshotLocked()}
 		result.Settings.SOCKS5Password = ""
 		result.ActiveSettings.SOCKS5Password = ""
+		result.Queue.Desired = c.queueDesired
 		service := c.service
 		result.ActionErrors = make(map[string]string, len(c.actionErrors))
 		for source, message := range c.actionErrors {
@@ -764,6 +773,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = c.enableAcceleration(readHostsStatus, changeHosts)
 	case "/api/stop":
 		err = c.stop()
+	case "/api/queue/start":
+		err = c.startQueue()
+	case "/api/queue/stop":
+		err = c.stopQueue()
 	case "/api/settings":
 		var input struct {
 			Settings

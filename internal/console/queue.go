@@ -18,6 +18,7 @@ import (
 )
 
 type QueueStatus struct {
+	Desired       bool          `json:"desired"` // populated from Console user intent in status responses
 	Running       bool          `json:"running"`
 	File          string        `json:"file"`
 	Songs         []vrclog.Song `json:"songs"`
@@ -170,7 +171,37 @@ func logName(path string) string {
 func (c *Console) startQueue() error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
+	if !c.termsAccepted() {
+		return errors.New("请先打开控制台阅读并同意使用条款")
+	}
+	c.mu.Lock()
+	if c.closing {
+		c.mu.Unlock()
+		return errors.New("控制台正在退出")
+	}
+	c.queueDesired = true
+	paused := c.batch.Running && !c.batch.ScanOnly
+	c.mu.Unlock()
+	if paused {
+		return nil
+	}
 	return c.startQueueLocked()
+}
+
+func (c *Console) stopQueue() error {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
+	c.mu.Lock()
+	c.queueDesired = false
+	if c.queueCancel != nil {
+		c.queueCancel()
+	}
+	done := c.queueDone
+	c.mu.Unlock()
+	if done != nil {
+		<-done
+	}
+	return nil
 }
 
 // The caller holds lifecycleMu, including when resuming after a batch.
@@ -179,9 +210,6 @@ func (c *Console) startQueueLocked() error {
 	defer c.mu.Unlock()
 	if c.closing {
 		return errors.New("控制台正在退出")
-	}
-	if c.httpServer == nil || !c.settings.QueuePrefetchEnabled {
-		return errors.New("队列预缓存随本地 CDN 启动")
 	}
 	if c.queue.Running {
 		return nil
@@ -425,7 +453,7 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 // The caller holds lifecycleMu. Queue failures must not stop playback services.
 func (c *Console) resumeQueueLocked() {
 	c.mu.Lock()
-	enabled := c.settings.QueuePrefetchEnabled && c.httpServer != nil && !c.closing && !(c.batch.Running && !c.batch.ScanOnly)
+	enabled := c.queueDesired && !c.closing && !(c.batch.Running && !c.batch.ScanOnly)
 	c.mu.Unlock()
 	if enabled {
 		err := c.startQueueLocked()

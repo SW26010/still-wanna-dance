@@ -229,7 +229,7 @@ function renderService(s) {
 
 function renderSettings(s) {
   if (!settingsDirty) {
-    $('queuePrefetchEnabled').checked = s.settings.queuePrefetchEnabled !== false;
+    $('autoStartQueue').checked = !!s.settings.autoStartQueue;
     $('autoStartCDN').checked = !!s.settings.autoStartCDN;
     $('throughputIntervalMinutes').value = s.settings.throughputIntervalMinutes ?? 20;
     $('requestRetentionDays').value = s.settings.requestRetentionDays ?? 30;
@@ -258,7 +258,7 @@ function renderControls() {
   }
   for (const id of [
     'autoStartCDN',
-    'queuePrefetchEnabled',
+    'autoStartQueue',
     'storageDir',
     'logDir',
     'manualLogDir',
@@ -293,6 +293,8 @@ function renderControls() {
   if (!s) return;
   $('start').disabled = unavailable || !!s.running;
   $('stop').disabled = unavailable || !s.running;
+  $('queueStart').disabled = unavailable || s.queue.running || (s.queue.desired && s.batch.running && !s.batch.scanOnly);
+  $('queueStop').disabled = unavailable || (!s.queue.desired && !s.queue.running);
   $('batchStart').disabled = unavailable || !!s.batch.running;
   setText('batchStart', s.batch.running && !s.batch.scanOnly
       ? '正在下载补齐…'
@@ -314,8 +316,7 @@ function renderQueue(s) {
       : (q.songs || []).length
         ? '等待队列变化或重试'
         : '等待新的队列同步'
-    : s.activeSettings.queuePrefetchEnabled === false ? '已在当前配置中关闭随 CDN 启用'
-      : !s.running ? '随本地 CDN 启动'
+    : !q.desired ? '已关闭'
       : s.batch.running && !s.batch.scanOnly ? '下载补齐期间暂停，结束后自动恢复'
       : '预缓存未就绪，请检查日志目录');
   setText('queueDetail', (q.file || '尚未发现日志') + ' · 本次开启后累计准备成功 ' + q.completed + ' 次');
@@ -537,7 +538,7 @@ $('settings').addEventListener('submit', (e) => {
   e.preventDefault();
   action('settings', {
     autoStartCDN: $('autoStartCDN').checked,
-    queuePrefetchEnabled: $('queuePrefetchEnabled').checked,
+    autoStartQueue: $('autoStartQueue').checked,
     throughputIntervalMinutes: Number($('throughputIntervalMinutes').value),
     requestRetentionDays: Number($('requestRetentionDays').value),
     queuePrefetchCount: Number($('queuePrefetchCount').value),

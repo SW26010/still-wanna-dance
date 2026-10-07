@@ -90,7 +90,7 @@ func TestQueueProtectionWaitAllowsStopCancellation(t *testing.T) {
 	<-entered
 	stopped := make(chan int, 1)
 	go func() {
-		r := httptest.NewRequest("POST", "http://"+c.address+"/api/stop", nil)
+		r := httptest.NewRequest("POST", "http://"+c.address+"/api/queue/stop", nil)
 		r.Header.Set("X-StepStash-Token", c.token)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)

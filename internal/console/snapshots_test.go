@@ -192,7 +192,7 @@ func TestScanCanRunAlongsideQueue(t *testing.T) {
 	c.apiBase = api.URL
 	c.checksumURL = api.URL + "/catalog"
 	c.client.Transport = http.DefaultTransport
-	if err := c.start(); err != nil {
+	if err := c.startQueue(); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.startBatchMode(true); err != nil {

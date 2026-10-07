@@ -56,6 +56,9 @@ func (c *Console) resolvePlayback(ctx context.Context, id, node, mode string) (s
 		if err == nil {
 			return target, nil
 		}
+		if errors.Is(err, cacheproxy.ErrLocalStorage) {
+			return "", err
+		}
 		failures = append(failures, fmt.Errorf("%s: %w", route, err))
 	}
 	return "", errors.Join(failures...)
@@ -107,6 +110,9 @@ func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, i
 		}
 		if ctx.Err() != nil {
 			return "", ctx.Err()
+		}
+		if errors.Is(err, cacheproxy.ErrLocalStorage) {
+			return "", err
 		}
 		failures = append(failures, fmt.Errorf("%s：%w", route, err))
 		log.Warn("prefetch_upstream_failed", "upstream", route, "error", applog.SafeError(err))

@@ -88,6 +88,10 @@ func TestPublicationDistinguishesLocalAndUpstreamFailures(t *testing.T) {
 			if (errors.Is(err, errUpstreamDownload) && !errors.Is(err, context.Canceled)) != wantFailure {
 				t.Fatalf("mode=%s error=%v", mode, err)
 			}
+			wantLocal := mode == "create" || mode == "write" || mode == "rename"
+			if errors.Is(err, ErrLocalStorage) != wantLocal {
+				t.Fatalf("local classification mode=%s err=%v", mode, err)
+			}
 			if mode == "read" && !errors.Is(err, readFailure) {
 				t.Fatal("lost underlying reader error", err)
 			}

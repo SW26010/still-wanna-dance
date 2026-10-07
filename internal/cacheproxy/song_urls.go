@@ -47,7 +47,7 @@ func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) error {
  WHERE excluded.query_started_at>song_urls.query_started_at`,
 		o.SongID, o.API, o.Node, o.URL, v.key, v.size, o.QueryStartedAt.UnixNano(), o.ObservedAt.UnixNano())
 	if err != nil {
-		return err
+		return s.storageError(err)
 	}
 	var mapped string
 	if err := s.usage.db.QueryRowContext(ctx, "SELECT md5 FROM song_media WHERE song_id=?", o.SongID).Scan(&mapped); err == nil && mapped != v.key {
@@ -94,5 +94,5 @@ func (s *Server) RejectSongURL(ctx context.Context, o SongURL) error {
 	defer s.wg.Done()
 	_, err := s.usage.db.ExecContext(ctx, `UPDATE song_urls SET failed_at=? WHERE song_id=? AND api=? AND node=? AND url=? AND query_started_at=?`,
 		time.Now().UnixNano(), o.SongID, o.API, o.Node, o.URL, o.QueryStartedAt.UnixNano())
-	return err
+	return s.storageError(err)
 }

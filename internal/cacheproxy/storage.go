@@ -17,11 +17,12 @@ func (c Config) videoFile(key string) string {
 func (s *Server) recordVideo(ctx context.Context, v video) error {
 	_, err := s.usage.db.ExecContext(ctx, `INSERT INTO media(md5, byte_size, source_path)
  VALUES (?, NULLIF(?,0), NULLIF(?,'')) ON CONFLICT(md5) DO UPDATE SET byte_size=COALESCE(excluded.byte_size,media.byte_size), source_path=COALESCE(excluded.source_path,media.source_path)`, v.key, v.size, v.path)
-	return err
+	return s.storageError(err)
 }
 
 // Each explicit caller records its own mapping after the shared flight completes.
-func (s *Server) recordSongVideo(ctx context.Context, id string, v video) error {
+func (s *Server) recordSongVideo(ctx context.Context, id string, v video) (resultErr error) {
+	defer func() { resultErr = s.storageError(resultErr) }()
 	// Protect the resource through commit and cleanup-query invalidation,
 	// including callers that do not already own a request/worker pin.
 	s.pinVideo(v)

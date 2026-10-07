@@ -53,6 +53,7 @@ type Server struct {
 	ctx              context.Context
 	cancel           context.CancelFunc
 	mu               sync.Mutex
+	storageFailure   error // protected by mu; prevents new downloads until restart
 	flights          map[string]*flight
 	playbackChecks   map[string]*playbackCheck // protected by mu
 	slots            chan struct{}

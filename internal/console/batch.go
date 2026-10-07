@@ -51,6 +51,15 @@ func (c *Console) resolve(ctx context.Context, id int64) (string, error) {
 }
 
 func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (string, error) {
+	c.mu.Lock()
+	engine := c.service
+	c.mu.Unlock()
+	if engine != nil {
+		if err := engine.StorageError(); err != nil {
+			return "", err
+		}
+	}
+
 	entry := c.apiBase + "/Api/Songs/play?node=nya"
 	if upstream == "cf" {
 		entry = c.apiBase + "/Api/Songs/play?node=cf"
@@ -66,6 +75,9 @@ func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (s
 		cancel()
 		if err == nil {
 			return target, nil
+		}
+		if errors.Is(err, cacheproxy.ErrLocalStorage) {
+			return "", err
 		}
 		failures = append(failures, err)
 	}
@@ -309,7 +321,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 				c.batch.Current = id + " · " + titles[id]
 				c.mu.Unlock()
 				source, err = c.prefetchSong(songCtx, s, n, nil)
-				if err == nil || songCtx.Err() != nil || errors.Is(err, cacheproxy.ErrBatchBudget) {
+				if err == nil || songCtx.Err() != nil || errors.Is(err, cacheproxy.ErrBatchBudget) || errors.Is(err, cacheproxy.ErrLocalStorage) {
 					break
 				}
 			}

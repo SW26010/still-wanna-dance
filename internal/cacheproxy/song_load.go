@@ -25,6 +25,9 @@ func (s *Server) loadSong(ctx context.Context, q url.Values) (video, func(), err
 		}
 		s.releaseVideo(local)
 	}
+	if err := s.StorageError(); err != nil {
+		return video{}, nil, err
+	}
 	check := s.startPlaybackCheck(q, video{songID: canonical})
 	node := s.cfg.PlaybackNode
 	urls, err := s.SongURLs(ctx, id, node)

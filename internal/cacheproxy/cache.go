@@ -39,6 +39,17 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 			s.mu.Unlock()
 			return nil, nil, context.Canceled
 		}
+		if s.storageFailure != nil {
+			failure := s.storageFailure
+			s.mu.Unlock()
+			// Verified files remain readable even when new storage work is disabled.
+			if _, err := s.verifiedFile(ctx, v); err == nil {
+				f := &flight{path: s.cfg.videoFile(v.key), source: "HIT", done: make(chan struct{})}
+				close(f.done)
+				return f, nil, nil
+			}
+			return nil, nil, failure
+		}
 		if s.flights[v.key] != nil || (len(s.slots) < cap(s.slots) && (!background || s.background < limit)) {
 			break
 		}
@@ -209,7 +220,8 @@ func checkOpenFile(ctx context.Context, f *os.File, v video) error {
 	return nil
 }
 
-func (s *Server) prepare(ctx context.Context, v video, flight *flight) (string, string, error) {
+func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResult, source string, resultErr error) {
+	defer func() { resultErr = s.storageError(resultErr) }()
 	path := s.cfg.videoFile(v.key)
 	if _, err := s.verifiedFile(ctx, v); err == nil {
 		flight.progress.setStage("index")

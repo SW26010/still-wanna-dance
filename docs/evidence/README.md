@@ -6,6 +6,7 @@
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [live-acceptance-20261007.json](live-acceptance-20261007.json) | `8b522c5` 联合实机验收：播放、预缓存途中点播/预览、双连接共享下载、故障与桌面生命周期；相对时间及清理前文件校验，结论见[验收报告](../live-acceptance-20261007.md) |
 | [current-release-live-20260925.json](current-release-live-20260925.json) | 历史构建 `c69e844` portable 联合实机验收：播放、队列、统计、容量淘汰、桌面退出/重启及真实 hosts UAC 操作 |
 | [auto-sha-live-20260925.json](auto-sha-live-20260925.json) | 第二次 StepStash 联合测试的阶段性记录：10271 Auto 本地命中、SHA 解析超时与独立 TCP 连接失败 |
 | [mvp-acceptance-20260925.json](mvp-acceptance-20260925.json) | StepStash 实网验收：旧库读取、CF/HKG 冷下载、重启、原版回读；不是原版调查阶段数据 |

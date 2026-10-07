@@ -150,6 +150,9 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 		}
 		return f, nil, s.waitPlaybackSong(ctx, f, v.songID)
 	case <-f.streaming:
+		if background {
+			return f, nil, nil
+		}
 		if reader := f.spool.reader(ctx, v.size); reader != nil {
 			return f, reader, nil
 		}

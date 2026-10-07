@@ -30,8 +30,6 @@ func (s *Server) prefetch(ctx context.Context, id, target string) (source string
 		return "", context.Canceled
 	}
 	defer s.wg.Done()
-	start := time.Now()
-	ctx = applog.WithTrace(ctx)
 	r, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return "", applog.SafeError(err)
@@ -41,6 +39,14 @@ func (s *Server) prefetch(ctx context.Context, id, target string) (source string
 		return "", err
 	}
 	v.songID = id
+	return s.prefetchVideo(ctx, v)
+}
+
+// prefetchVideo consumes metadata validated by the caller's registered request.
+func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, resultErr error) {
+	start := time.Now()
+	ctx = applog.WithTrace(ctx)
+	id := v.songID
 	if expected, _ := ctx.Value(expectedMD5Key{}).(string); expected != "" && expected != v.key {
 		s.cfg.Logger.Warn("song_md5_mismatch", "song_id", id, "mapped_md5", expected, "url_md5", v.key)
 		return "", fmt.Errorf("上游 MD5 与清单不一致：期望 %s，收到 %s", expected, v.key)
@@ -80,10 +86,7 @@ func (s *Server) prefetch(ctx context.Context, id, target string) (source string
 			source: "prefetch", method: "GET", size: v.size, cache: cache,
 			outcome: outcome, elapsedMS: time.Since(start).Milliseconds()})
 	}()
-	f, reader, err := s.obtainMode(ctx, v, true)
-	if reader != nil {
-		defer reader.Close()
-	}
+	f, _, err := s.obtainMode(ctx, v, true)
 	if err != nil {
 		return "", err
 	}

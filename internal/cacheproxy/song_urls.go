@@ -28,9 +28,6 @@ func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) error {
 	if err != nil || api.Hostname() == "" || api.User != nil || api.Fragment != "" || (api.Scheme != "http" && api.Scheme != "https") || o.SongID <= 0 || o.QueryStartedAt.IsZero() || o.ObservedAt.Before(o.QueryStartedAt) {
 		return errors.New("invalid song URL observation")
 	}
-	if err := ValidateVideoURL(o.URL, s.cfg.MaxFileBytes); err != nil {
-		return err
-	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, o.URL, nil)
 	if err != nil {
 		return err

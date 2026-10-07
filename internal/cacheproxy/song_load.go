@@ -125,12 +125,8 @@ func (s *Server) PrefetchPlayback(ctx context.Context, id int64) (string, error)
 		s.retentionMu.Unlock()
 		return "HIT", nil
 	}
-	prefetch := func(v video) (string, error) {
-		target := (&url.URL{Scheme: s.cfg.OriginScheme, Host: v.host, Path: v.path, RawQuery: v.query}).String()
-		return s.PrefetchSong(ctx, v.songID, target)
-	}
 	for {
-		source, err := prefetch(v)
+		source, err := s.prefetchVideo(ctx, v)
 		if err == nil || v.cached == nil || !errors.Is(err, errUpstreamDownload) || ctx.Err() != nil {
 			return source, err
 		}

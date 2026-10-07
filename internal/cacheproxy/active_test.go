@@ -63,7 +63,9 @@ func TestActiveSharedLifecycle(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer reader2.Close()
+			if reader2 != nil {
+				t.Fatal("background waiter allocated reader")
+			}
 			if first != second {
 				t.Fatal("shared callers created separate flights")
 			}

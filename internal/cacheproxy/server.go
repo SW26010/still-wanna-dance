@@ -250,10 +250,7 @@ func (s *Server) resourceHostAllowed(host string) bool {
 // Resolver results and explicit programmatic prefetch targets establish
 // membership. Untrusted inbound requests never call this method.
 func (s *Server) parseResolved(r *http.Request) (video, error) {
-	if err := ValidateVideoURL(r.URL.String(), s.cfg.MaxFileBytes); err != nil {
-		return video{}, err
-	}
-	v, err := s.parse(r)
+	v, err := parseVideoURL(r, s.cfg.MaxFileBytes)
 	if err == nil {
 		s.resourceHosts.Store(v.host, time.Now().Add(10*time.Minute))
 	}
@@ -266,11 +263,15 @@ func ValidateVideoURL(target string, maxFileBytes int64) error {
 	if err != nil {
 		return errors.New("invalid video URL")
 	}
-	if (r.URL.Scheme != "http" && r.URL.Scheme != "https") || r.URL.User != nil || r.URL.Fragment != "" || !videometa.ValidHost(r.URL.Host) {
-		return errors.New("unsupported video URL")
-	}
-	_, err = parseVideo(r, maxFileBytes)
+	_, err = parseVideoURL(r, maxFileBytes)
 	return err
+}
+
+func parseVideoURL(r *http.Request, maxFileBytes int64) (video, error) {
+	if (r.URL.Scheme != "http" && r.URL.Scheme != "https") || r.URL.User != nil || r.URL.Fragment != "" || !videometa.ValidHost(r.URL.Host) {
+		return video{}, errors.New("unsupported video URL")
+	}
+	return parseVideo(r, maxFileBytes)
 }
 
 func parseVideo(r *http.Request, maxFileBytes int64) (video, error) {

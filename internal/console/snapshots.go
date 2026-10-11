@@ -3,8 +3,11 @@ package console
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
+
+	"still-wanna-dance/internal/workfiles"
 )
 
 const snapshotSchemaVersion = 1
@@ -45,28 +48,15 @@ func (c *Console) writeSnapshot(kind, storageDir string, result any) error {
 		return err
 	}
 	path := c.files().State(kind)
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return err
-	}
-	f, err := os.CreateTemp(filepath.Dir(path), ".snapshot-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-	if _, err = f.Write(data); err != nil {
-		return err
-	}
-	if err = f.Sync(); err != nil {
-		return err
-	}
-	if err = f.Close(); err != nil {
-		return err
-	}
-	return os.Rename(f.Name(), path)
+	return workfiles.Write(path, data)
 }
 
-func readSnapshot[T any](c *Console, kind string) (T, error) {
+func readSnapshot[T any](c *Console, kind string) (result T, resultErr error) {
+	defer func() {
+		if resultErr != nil && !os.IsNotExist(resultErr) {
+			slog.Warn("snapshot_load_failed", "path", c.files().State(kind), "error", resultErr)
+		}
+	}()
 	var saved savedSnapshot[T]
 	data, err := os.ReadFile(c.files().State(kind))
 	if err != nil {

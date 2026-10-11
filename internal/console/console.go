@@ -25,6 +25,7 @@ import (
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 	"still-wanna-dance/internal/vrclog"
+	"still-wanna-dance/internal/workfiles"
 )
 
 //go:embed index.html
@@ -273,17 +274,7 @@ func writableDir(path string) error {
 		}
 		path = parent
 	}
-	f, err := os.CreateTemp(path, ".swd-probe-*")
-	if err != nil {
-		return err
-	}
-	name := f.Name()
-	err = f.Close()
-	removeErr := os.Remove(name)
-	if err != nil {
-		return err
-	}
-	return removeErr
+	return workfiles.Probe(path)
 }
 
 func (c *Console) save(s Settings) error {

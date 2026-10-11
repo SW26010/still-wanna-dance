@@ -3,6 +3,7 @@ package workfiles
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"syscall"
 	"unsafe"
 
@@ -15,13 +16,27 @@ func redirected(info os.FileInfo) bool {
 }
 
 func removeFile(root *os.Root, name string, expected os.FileInfo) error {
-	p, err := windows.UTF16PtrFromString(pathInRoot(root, name))
+	if !filepath.IsLocal(name) {
+		return fmt.Errorf("invalid work filename: %s", name)
+	}
+	dir, err := root.Open(".")
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	p, err := windows.NewNTUnicodeString(name)
 	if err != nil {
 		return err
 	}
 	// No sharing: an open download/import (even through a hard link) prevents
 	// deletion. OPEN_REPARSE_POINT opens the entry, never its link target.
-	h, err := windows.CreateFile(p, windows.DELETE|windows.FILE_READ_ATTRIBUTES, 0, nil, windows.OPEN_EXISTING, windows.FILE_FLAG_OPEN_REPARSE_POINT, 0)
+	// Open relative to the pinned Root handle and reject reparse traversal in
+	// every component, so a replaced parent cannot redirect deletion outside it.
+	oa := windows.OBJECT_ATTRIBUTES{RootDirectory: windows.Handle(dir.Fd()), ObjectName: p, Attributes: windows.OBJ_DONT_REPARSE}
+	oa.Length = uint32(unsafe.Sizeof(oa))
+	var h windows.Handle
+	var status windows.IO_STATUS_BLOCK
+	err = windows.NtCreateFile(&h, windows.DELETE|windows.FILE_READ_ATTRIBUTES, &oa, &status, nil, 0, 0, windows.FILE_OPEN, windows.FILE_NON_DIRECTORY_FILE|windows.FILE_OPEN_REPARSE_POINT, 0, 0)
 	if err != nil {
 		return err
 	}

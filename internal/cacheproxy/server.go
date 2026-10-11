@@ -19,6 +19,7 @@ import (
 
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/videometa"
+	"still-wanna-dance/internal/workfiles"
 )
 
 type video struct {
@@ -104,6 +105,9 @@ func New(cfg Config) (*Server, error) {
 	}
 	cfg.Origins = origins
 	if err := os.MkdirAll(cfg.StorageDir, 0700); err != nil {
+		return nil, err
+	}
+	if err := workfiles.CheckDir(cfg.StorageDir); err != nil {
 		return nil, err
 	}
 	unlock, err := lockDirectory(filepath.Join(cfg.StorageDir, ".lock"))

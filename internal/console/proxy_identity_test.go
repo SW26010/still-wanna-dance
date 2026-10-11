@@ -57,20 +57,16 @@ func TestProxyIdentityCorruptionDoesNotPreventNetwork(t *testing.T) {
 					return
 				}
 				key, err := os.ReadFile(path)
-				if err != nil || len(key) != 32 {
-					t.Fatal("key not regenerated", err)
+				if err != nil || string(key) != data {
+					t.Fatal("corrupt key changed", err)
 				}
 				restored, err := (&Console{configPath: c.configPath}).proxyIdentity(s)
-				if err != nil || !strings.HasSuffix(id, restored) || restored == "" {
-					t.Fatal("new identity not stable across restart", err)
+				if err != nil || restored != "" || strings.Contains(id, "stable-v1-") {
+					t.Fatal("corrupt identity claimed persistent samples", err)
 				}
 				backups, err := filepath.Glob(path + ".corrupt-*")
-				if err != nil || len(backups) != 1 {
-					t.Fatalf("missing backup: %v, %v", backups, err)
-				}
-				b, err := os.ReadFile(backups[0])
-				if err != nil || string(b) != data {
-					t.Fatal("backup changed", err)
+				if err != nil || len(backups) != 0 {
+					t.Fatalf("unexpected backup: %v, %v", backups, err)
 				}
 			})
 		}

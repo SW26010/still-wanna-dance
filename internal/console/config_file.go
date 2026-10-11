@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"still-wanna-dance/internal/apppaths"
+	"still-wanna-dance/internal/workfiles"
 )
 
 const configSchemaVersion = apppaths.ConfigVersion
@@ -101,23 +101,5 @@ func (c *Console) writeConfigFile(s Settings) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(c.configPath), 0700); err != nil {
-		return err
-	}
-	f, err := os.CreateTemp(filepath.Dir(c.configPath), ".settings-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-	if _, err := f.Write(data); err != nil {
-		return err
-	}
-	if err := f.Sync(); err != nil {
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-	return os.Rename(f.Name(), c.configPath)
+	return workfiles.Write(c.configPath, data)
 }

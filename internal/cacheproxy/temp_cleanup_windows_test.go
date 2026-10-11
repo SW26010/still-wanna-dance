@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -28,4 +29,30 @@ func TestTemporaryCleanupRefusesOpenFile(t *testing.T) {
 		t.Fatal("failed startup leaked storage lock", err)
 	}
 	s.Close()
+}
+
+func TestTemporaryCleanupPreservesWindowsJunction(t *testing.T) {
+	cfg := fixtureConfig()
+	cfg.StorageDir = t.TempDir()
+	outside := t.TempDir()
+	target := filepath.Join(outside, "video")
+	writeTestFile(t, target, "external")
+	if err := os.MkdirAll(cfg.tempDir(), 0700); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(cfg.tempDir(), "import-123")
+	if out, err := exec.Command("cmd", "/c", "mklink", "/J", link, outside).CombinedOutput(); err != nil {
+		t.Fatalf("junction: %v: %s", err, out)
+	}
+	s, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	if b, err := os.ReadFile(target); err != nil || string(b) != "external" {
+		t.Fatal("external file changed", err)
+	}
+	if _, err := os.Lstat(link); err != nil {
+		t.Fatal("junction removed", err)
+	}
 }

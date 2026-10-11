@@ -154,6 +154,9 @@ func run() (runErr error) {
 		}
 	}()
 	slog.Info("application_starting", "config", p, "listen", *address, "tray", !*noTray, "go", runtime.Version())
+	if err := configLease.CleanWorkFiles(); err != nil {
+		return err
+	}
 	if build, ok := debug.ReadBuildInfo(); ok {
 		fields := []any{"version", build.Main.Version}
 		for _, setting := range build.Settings {

@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 // Keep the random HMAC key separate from public channel IDs and sample files.
@@ -38,11 +37,7 @@ func loadProxyIdentityKey(path string) ([]byte, error) {
 	key, err := os.ReadFile(path)
 	if err == nil && len(key) != 32 {
 		slog.Warn("proxy_channel_identity_corrupt", "path", path)
-		backup := path + ".corrupt-" + time.Now().UTC().Format("20060102T150405.000000000")
-		if err := os.Rename(path, backup); err != nil {
-			return nil, err
-		}
-		err = os.ErrNotExist
+		return nil, errors.New("通道身份密钥损坏；原文件保留，请从备份恢复；本次仅使用临时通道身份")
 	}
 	if errors.Is(err, os.ErrNotExist) {
 		if err = os.MkdirAll(filepath.Dir(path), 0700); err != nil {
@@ -59,6 +54,9 @@ func loadProxyIdentityKey(path string) ([]byte, error) {
 			return nil, createErr
 		} else {
 			_, err = f.Write(key)
+			if err == nil {
+				err = f.Sync()
+			}
 			closeErr := f.Close()
 			if err == nil {
 				err = closeErr

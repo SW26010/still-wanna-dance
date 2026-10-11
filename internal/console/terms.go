@@ -8,10 +8,10 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"still-wanna-dance/internal/legal"
+	"still-wanna-dance/internal/workfiles"
 )
 
 type termsReceipt struct {
@@ -53,26 +53,7 @@ func (c *Console) acceptTerms() error {
 	if err != nil {
 		return err
 	}
-	if err = os.MkdirAll(filepath.Dir(c.files().Terms), 0700); err != nil {
-		return err
-	}
-	f, err := os.CreateTemp(filepath.Dir(c.files().Terms), ".terms-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(f.Name())
-	if _, err = f.Write(b); err != nil {
-		f.Close()
-		return err
-	}
-	if err = f.Sync(); err != nil {
-		f.Close()
-		return err
-	}
-	if err = f.Close(); err != nil {
-		return err
-	}
-	if err = os.Rename(f.Name(), c.files().Terms); err != nil {
+	if err = workfiles.Write(c.files().Terms, b); err != nil {
 		return err
 	}
 	c.terms = receipt

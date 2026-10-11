@@ -38,10 +38,10 @@ func TestThroughputStateLoadFailureDoesNotPreventMonitor(t *testing.T) {
 				return
 			}
 			backups, err := filepath.Glob(path + ".corrupt-*")
-			if err != nil || len(backups) != 1 {
-				t.Fatalf("missing corrupt backup: %v, %v", backups, err)
+			if err != nil || len(backups) != 0 {
+				t.Fatalf("unexpected corrupt backup: %v, %v", backups, err)
 			}
-			b, err := os.ReadFile(backups[0])
+			b, err := os.ReadFile(path)
 			if err != nil || string(b) != data {
 				t.Fatal("backup did not preserve invalid state", err)
 			}

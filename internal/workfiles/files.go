@@ -12,18 +12,30 @@ import (
 
 // CheckDir rejects redirected work directories, including Windows junctions.
 func CheckDir(path string) error {
-	info, err := os.Lstat(path)
+	path, err := filepath.Abs(path)
 	if err != nil {
 		return err
 	}
-	if !info.IsDir() || redirected(info) {
-		return fmt.Errorf("unsafe work directory: %s", path)
+	for {
+		info, err := os.Lstat(path)
+		if err != nil {
+			return err
+		}
+		if !Directory(info) {
+			return fmt.Errorf("unsafe work directory: %s", path)
+		}
+		parent := filepath.Dir(path)
+		if parent == path {
+			return nil
+		}
+		path = parent
 	}
-	return nil
 }
 
 // Regular deliberately uses Lstat: a link is never a disposable file.
 func Regular(info os.FileInfo) bool { return info.Mode().IsRegular() && !redirected(info) }
+
+func Directory(info os.FileInfo) bool { return info.IsDir() && !redirected(info) }
 
 // RandomName recognizes only the decimal suffix emitted by os.CreateTemp and
 // os.MkdirTemp, rather than treating every file with a familiar prefix as ours.
@@ -55,5 +67,3 @@ func RemoveFile(root *os.Root, name string) error {
 	}
 	return removeFile(root, name, info)
 }
-
-func pathInRoot(root *os.Root, name string) string { return filepath.Join(root.Name(), name) }

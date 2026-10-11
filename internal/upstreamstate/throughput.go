@@ -5,12 +5,12 @@ import (
 	"errors"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/videometa"
+	"still-wanna-dance/internal/workfiles"
 )
 
 // Only sample metadata is persisted: no playable URLs or proxy credentials.
@@ -54,10 +54,8 @@ func (m *Monitor) loadThroughputTime() {
 	err = json.Unmarshal(b, &state)
 	if err != nil {
 		slog.Warn("monitor_throughput_state_load_failed", "error", err)
-		backup := m.throughputStatePath + ".corrupt-" + time.Now().UTC().Format("20060102T150405.000000000")
-		if err := os.Rename(m.throughputStatePath, backup); err != nil {
-			slog.Warn("monitor_throughput_state_quarantine_failed", "error", err)
-		}
+		// These observations are rebuildable. Leave the original until the
+		// next successful atomic save; do not accumulate diagnostic copies.
 		return
 	}
 	if state.SchemaVersion != throughputSchemaVersion {
@@ -121,22 +119,7 @@ func (m *Monitor) saveThroughputTime() error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(m.throughputStatePath), 0700); err != nil {
-		return err
-	}
-	f, err := os.CreateTemp(filepath.Dir(m.throughputStatePath), ".throughput-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(f.Name())
-	if _, err = f.Write(b); err != nil {
-		f.Close()
-		return err
-	}
-	if err = f.Close(); err != nil {
-		return err
-	}
-	return os.Rename(f.Name(), m.throughputStatePath)
+	return workfiles.Write(m.throughputStatePath, b)
 }
 
 func restorableThroughputKey(key string) bool {

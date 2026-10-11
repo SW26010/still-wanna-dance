@@ -42,10 +42,15 @@ func cleanTemporaryFiles(dir string, logger *slog.Logger) (int, error) {
 		}
 		if partial && workfiles.Regular(info) {
 			err = workfiles.RemoveFile(root, name)
-		} else if importDir && info.IsDir() && workfiles.CheckDir(filepath.Join(dir, name)) == nil {
+		} else if importDir && workfiles.Directory(info) {
 			// An import owns exactly one optional regular file called video.
 			// Inspect the entire directory before deleting anything. Never RemoveAll.
-			children, readErr := os.ReadDir(filepath.Join(dir, name))
+			childDir, readErr := root.Open(name)
+			if readErr != nil {
+				return cleaned, readErr
+			}
+			children, readErr := childDir.ReadDir(-1)
+			childDir.Close()
 			if readErr != nil {
 				return cleaned, readErr
 			}

@@ -135,7 +135,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | 可写性探测目录中的 `.swd-probe-*` | Windows 使用内核 delete-on-close 创建临时探测文件，正常关闭或进程终止后删除；不扫描用户外部目录 | 非备份对象 |
 | `R/channel.key` 损坏、`R/state/throughput.json` 损坏 | 密钥损坏时原文件原地保留、告警并使用进程内临时身份；测速状态损坏时跳过载入并在下次成功保存时原子替换，均不再新增 `.corrupt-*` 副本 | 密钥需要恢复原始备份才能恢复历史身份；旧试验版的 `.corrupt-*` 不自动清理 |
 
-库存和任务快照独立使用 `schemaVersion=1`，只保存 `storageDir` 与 `result`。相对库路径以 B 为基准，整体移动后可用；切换库不加载另一库的结果。损坏或不支持的快照跳过，不引入迁移链。设置、密钥和状态属于配置实例，不塞入可外置的媒体 SQLite。未来 #14 节点/订阅持久化及 #15 法律凭据属于 R，须遵守各自格式合同；#16 引导应复用配置与条款状态。
+库存和任务快照独立使用 `schemaVersion=1`，只保存 `storageDir` 与 `result`。相对库路径以 B 为基准，整体移动后可用；切换库不加载另一库的结果。损坏或不支持的快照跳过，不引入迁移链。设置、密钥和状态属于配置实例，不塞入可外置的媒体 SQLite。未来 #14 节点/订阅持久化及现有 #15 条款凭据属于 R，须遵守各自格式合同；#16 引导应复用配置与条款状态。
 
 ### Portable 外部状态
 
@@ -198,7 +198,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | --- | --- |
 | config.json / 自定义配置 | schemaVersion=3；字段见 Settings：目录文本，manualLogDir/autoStartCDN/autoStartQueue 布尔，requestRetentionDays（0=不清明细）、maxCacheBytes（0=不限）、queuePrefetchCount（缺失/0→3，1–100）、throughputIntervalMinutes（缺失/0→20，1–1440）、downloadUpstream（空→auto，auto/cf/hkg，hkg 对应 API nya）、upstreamMode（空→direct，direct/auto/socks5）、代理地址与用户名。缺失采用构造默认（保留期 30 天），显式 null 对标量沿用默认；false/合法 0 保留。未知字段以 RawMessage 保留数值精度；格式缺失/未来/旧版本、明文 socks5Password 均拒绝写入 |
 | config.proxySecret | 缺字段=无保存密码。封套 `{version:1, protection:"dpapi-current-user", ciphertext:"<base64>"}`；与整个配置一起原子替换，无第二份凭据文件/明文快照。未知格式、null、损坏或当前用户解密失败=不可用并保留原值；省略设置 API 密码保留密文，明确输入新密码替换，用户名/密码一起清空移除。状态仅返回可用标志和固定诊断，不返回密文/明文 |
-| terms.json | version 是法律正文版本，sha256 是正文摘要，acceptedAt 是 UTC 同意时刻；缺失/不符不授予同意。当前仍为现有明文法律记录；#15 的防伪 DPAPI 封套未在本次实现，不把代理封套当作法律授权。日后封套版本必须独立于法律版本 |
+| terms.json | 封套 `{format:1, protection:"dpapi-current-user", ciphertext:"<base64>"}`；密文包含 purpose=`swd-terms-receipt-v1`、version（条款版本）、sha256（正文摘要）及 acceptedAt（非零有效时间）。封套版本独立于条款版本。每次启动由当前用户解密，缺失/旧明文/未知格式/损坏/解密失败/条款不符均不授予同意；不自动覆盖失效记录。只有明确勾选提交且保护及原子写成功后更新内存。记录上限 64 KiB；允许系统时钟回拨，不用本地时间证明身份 |
 | channel.key | 无复杂封套，精确 32 个随机字节。HMAC-SHA256 输入为 JSON 数组 `["socks5-channel-v1",address,username,password]`，输出 stable-v1-hex；域分隔符冻结。缺失排他生成；长度错误时原文件保留并告警，使用临时通道身份，不复用持久样本；不可读时同样使用临时通道身份。不是加密密码的密钥 |
 | state/throughput.json | schemaVersion=1、lastAttempt、samples；sample 包含 observedAt、songID、bytes、durationNs。只恢复合法域名通道和稳定代理身份、正字节/时长且非未来样本。无版本/其它版本不解释；坏 JSON 保留至下一次成功的原子保存，不生成隔离副本；历史节点键不迁移，重新采样。它不是网络当前健康真相 |
 | state/inventory.json | schemaVersion=1、storageDir、result；result 为 Inventory：catalog（revision/checkedAt/message/error）、coverageKnown/coveredSongs/totalSongs/catalogRevision/videos/bytes/scanning/updated/error；恢复强制 scanning=false |

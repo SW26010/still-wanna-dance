@@ -52,7 +52,7 @@ HEAD、探测、历史 GET 和热度不保有 P0；不解析视频开始/结束�
 ```powershell
 go run ./cmd/still-wanna-dance-replay -show-terms
 # 阅读并同意后运行；此工具只读本地日志，不访问内容服务。
-go run ./cmd/still-wanna-dance-replay -accept-terms=2026-10-03.1 -logs '<log-collector-directory>\logs\source-vrc-logs'
+go run ./cmd/still-wanna-dance-replay -accept-terms=2026-10-11.1 -logs '<log-collector-directory>\logs\source-vrc-logs'
 ```
 
 2026-09-25 回放结果：68 份文件、805,405 行；5,843 次队列快照，其中 376 次为空，1,893 次与上一个队列 ID 序列相同；最大队列 20 项，覆盖 1,043 个有效歌曲 ID；出现 223 个非曲库条目（按快照累计），解析失败 0。原始日志未复制进仓库。

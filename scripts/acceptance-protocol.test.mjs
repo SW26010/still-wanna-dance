@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AcceptanceBlocked, videoRedirect } from './acceptance-protocol.mjs';
+import { AcceptanceBlocked, videoRedirect, requireAcceptedTerms } from './acceptance-protocol.mjs';
+
+test('consent is verified by the application, with missing consent classified as blocked', () => {
+  assert.doesNotThrow(() => requireAcceptedTerms(200));
+  assert.throws(() => requireAcceptedTerms(428), e => e instanceof AcceptanceBlocked && e.category === 'environment');
+  for (const status of [302, 403, 500]) {
+    assert.throws(() => requireAcceptedTerms(status), e => !(e instanceof AcceptanceBlocked));
+  }
+});
 
 const video = 'http://play.udon.dance/files/2403/1343-version.mp4?e=28711962048bed664c98f27e1d9d5842&s=32867177';
 

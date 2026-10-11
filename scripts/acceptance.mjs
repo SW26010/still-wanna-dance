@@ -7,7 +7,7 @@ import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { request, waitForResourceRegistration } from './acceptance-request.mjs';
-import { AcceptanceBlocked, videoRedirect } from './acceptance-protocol.mjs';
+import { AcceptanceBlocked, videoRedirect, requireAcceptedTerms } from './acceptance-protocol.mjs';
 
 const [executable, consoleExecutable, receiptPath] = process.argv.slice(2);
 const root = process.cwd();
@@ -20,6 +20,7 @@ const children = new Set();
 const servers = new Set();
 const digest = (data, algorithm = 'sha256') => crypto.createHash(algorithm).update(data).digest('hex');
 let receipt;
+let termsVersion;
 const record = (name, fields = {}) => {
   const entry = { name, ...fields };
   report.checks.push(entry);
@@ -65,7 +66,7 @@ async function stop(child) {
 async function startService(name, storageDir) {
   const port = await freePort();
   const child = await launch(binary, ['-listen', `127.0.0.1:${port}`,
-    '-storage-dir', storageDir, '-download-timeout', '5m', '-accept-terms', receipt.version], name, port);
+    '-storage-dir', storageDir, '-download-timeout', '5m', '-accept-terms', termsVersion], name, port);
   return { child, port };
 }
 function videoFile(root, url) {
@@ -130,12 +131,12 @@ async function consoleService(name, storageDir, extra = {}) {
     downloadUpstream: 'auto', autoStartCDN: true, ...extra }));
   // Reuse the operator's existing acceptance; never manufacture a receipt.
   fs.mkdirSync(config + '.d', { recursive: true });
-  fs.writeFileSync(path.join(config + '.d', 'terms.json'), JSON.stringify(receipt));
+  fs.writeFileSync(path.join(config + '.d', 'terms.json'), receipt);
   const base = `http://127.0.0.1:${port}`;
   const child = await launch(consoleBinary, ['-no-tray', '-no-open', '-listen', `127.0.0.1:${port}`,
     '-config', config], name, port, base);
   const res = await request(`${base}/api/status`, { capture: true, timeout: 10000 });
-  assert.equal(res.status, 200);
+  requireAcceptedTerms(res.status);
   const state = JSON.parse(res.body);
   assert.equal(state.running, true, state.cdnError);
   assert.equal(state.settings.downloadUpstream, 'auto');
@@ -169,11 +170,30 @@ try {
   if (!receiptPath || !fs.existsSync(receiptPath)) {
     throw new AcceptanceBlocked('environment', 'Provide an existing console terms.json receipt as the third argument after reading and accepting the current terms.');
   }
-  receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8').replace(/^\uFEFF/, ''));
-  const version = fs.readFileSync(path.join(root, 'internal/legal/legal.go'), 'utf8').match(/const Version = "([^"]+)"/)?.[1];
-  if (receipt.version !== version || receipt.sha256 !== digest(fs.readFileSync(path.join(root, 'internal/legal/TERMS.txt'))) ||
-      !Number.isFinite(Date.parse(receipt.acceptedAt))) {
-    throw new AcceptanceBlocked('environment', 'The supplied receipt does not accept the current terms.');
+  // Only the application may decrypt/validate consent. Copy opaque bytes;
+  // never reconstruct acceptance or submit the consent API from this script.
+  receipt = fs.readFileSync(receiptPath);
+  requireBinary('console', consoleBinary);
+  const consentConfig = path.join(lab, 'consent-check.json');
+  fs.writeFileSync(consentConfig, JSON.stringify({ schemaVersion: 3, autoStartCDN: false, autoStartQueue: false }));
+  fs.mkdirSync(consentConfig + '.d');
+  fs.writeFileSync(path.join(consentConfig + '.d', 'terms.json'), receipt);
+  const consentPort = await freePort();
+  const consentURL = `http://127.0.0.1:${consentPort}`;
+  const consentChild = await launch(consoleBinary, ['-no-tray', '-no-open', '-listen', `127.0.0.1:${consentPort}`,
+    '-config', consentConfig], 'consent-check', consentPort, consentURL);
+  try {
+    const status = await request(`${consentURL}/api/status`, { capture: true, timeout: 10000 });
+    requireAcceptedTerms(status.status);
+    const terms = await request(`${consentURL}/terms.txt`, { capture: true, timeout: 10000 });
+    assert.equal(terms.status, 200);
+    if (digest(terms.body) !== digest(fs.readFileSync(path.join(root, 'internal/legal/TERMS.txt')))) {
+      throw new AcceptanceBlocked('environment', 'Console terms differ from source; rebuild before acceptance.');
+    }
+    termsVersion = fs.readFileSync(path.join(root, 'internal/legal/legal.go'), 'utf8').match(/const Version = "([^"]+)"/)?.[1];
+    assert.ok(termsVersion);
+  } finally {
+    await stop(consentChild);
   }
   await check('service', async () => {
     requireBinary('service', binary);

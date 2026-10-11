@@ -134,11 +134,13 @@ func TestSavedEmptyStorageScansWithoutStartingEngine(t *testing.T) {
 	if c.service != nil {
 		t.Fatal("inventory started engine")
 	}
-	entries, err := os.ReadDir(c.settings.StorageDir)
-	if err != nil || len(entries) != 0 {
-		t.Fatal("scan initialized storage", entries, err)
+	if _, err := os.Stat(c.settings.StorageDir); !os.IsNotExist(err) {
+		t.Fatal("scan initialized storage", err)
 	}
 	// Initialized storage with a lost videos directory is not an empty new store.
+	if err := os.MkdirAll(c.settings.StorageDir, 0700); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(c.settings.StorageDir, "storage.sqlite"), []byte("marker"), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -167,16 +169,44 @@ func TestInventoryCountsPublishedFilesOnly(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	v := scanInventory(context.Background(), c.settings)
+	v := scanInventory(context.Background(), c.settings, false)
 	if v.Videos != 2 || v.Bytes != 10 || v.Error != "" {
 		t.Fatalf("%+v", v)
 	}
 	if err := os.RemoveAll(c.settings.StorageDir); err != nil {
 		t.Fatal(err)
 	}
-	v = scanInventory(context.Background(), c.settings)
+	v = scanInventory(context.Background(), c.settings, false)
 	if v.Videos != 0 || v.Error == "" {
 		t.Fatalf("%+v", v)
+	}
+}
+
+func TestMissingPopulatedRootPreservesInventory(t *testing.T) {
+	c := testConsole(t)
+	defer c.Close()
+	path := filepath.Join(c.settings.StorageDir, "videos", strings.Repeat("a", 32)+".mp4")
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("video"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	c.startInventoryScan()
+	before := waitInventory(t, c)
+	if before.Error != "" || before.Videos != 1 {
+		t.Fatal(before)
+	}
+	if err := os.Rename(c.settings.StorageDir, c.settings.StorageDir+"-unavailable"); err != nil {
+		t.Fatal(err)
+	}
+	c.startInventoryScan()
+	after := waitInventory(t, c)
+	if after.Error == "" || after.Videos != before.Videos || !after.Updated.Equal(before.Updated) {
+		t.Fatal("lost populated root replaced inventory", after)
+	}
+	if _, err := os.Stat(c.settings.StorageDir); !os.IsNotExist(err) {
+		t.Fatal("lost root was recreated", err)
 	}
 }
 

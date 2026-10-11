@@ -149,7 +149,7 @@ func (c *Console) startBatchModeLocked(scanOnly bool) error {
 		c.mu.Unlock()
 		_, err := os.ReadDir(c.settings.StorageDir)
 		c.mu.Lock()
-		if err != nil {
+		if err != nil && (!os.IsNotExist(err) || c.service != nil || c.lastBatch.Total > 0) {
 			return fmt.Errorf("无法扫描目录 %s：%w", c.settings.StorageDir, err)
 		}
 	}

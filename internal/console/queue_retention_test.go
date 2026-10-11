@@ -201,7 +201,7 @@ func TestBatchReportsBudgetStopWithoutDownloading(t *testing.T) {
 	done := c.batchDone
 	c.mu.Unlock()
 	<-done
-	inventory := scanInventory(context.Background(), c.settings)
+	inventory := scanInventory(context.Background(), c.settings, false)
 	t.Logf("phase=%s downloaded=%d actualVideos=%d", c.batch.Phase, c.batch.Downloaded, inventory.Videos)
 	if inventory.Error != "" || inventory.Videos != 0 || downloads.Load() != 0 || calls.Load() != 1 || !c.lastBatch.Updated.IsZero() || !c.batch.BudgetReached || c.batch.Failed != 0 {
 		t.Fatalf("unexpected inventory or snapshot: %+v %+v", inventory, c.lastBatch)

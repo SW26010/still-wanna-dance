@@ -248,8 +248,24 @@ func pathContains(parent, child string) bool {
 }
 
 func writableDir(path string) error {
-	if err := os.MkdirAll(path, 0700); err != nil {
-		return err
+	// Probe the nearest existing ancestor without creating an unused media root.
+	// Actual initialization belongs to the storage engine under its directory lock.
+	for {
+		info, err := os.Stat(path)
+		if err == nil {
+			if !info.IsDir() {
+				return fmt.Errorf("路径不是目录：%s", path)
+			}
+			break
+		}
+		if !os.IsNotExist(err) {
+			return err
+		}
+		parent := filepath.Dir(path)
+		if parent == path {
+			return err
+		}
+		path = parent
 	}
 	f, err := os.CreateTemp(path, ".stepstash-probe-*")
 	if err != nil {

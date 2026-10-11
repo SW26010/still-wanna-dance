@@ -51,7 +51,7 @@ func TestScanSharedResourceCountsBothSongs(t *testing.T) {
 			t.Fatalf("%s: %+v", name, c.batch)
 		}
 	}
-	inventory := scanInventory(context.Background(), c.settings)
+	inventory := scanInventory(context.Background(), c.settings, false)
 	if inventory.Error != "" || inventory.Videos != 1 || inventory.Bytes != int64(len(body)) {
 		t.Fatalf("shared resource counted twice: %+v", inventory)
 	}

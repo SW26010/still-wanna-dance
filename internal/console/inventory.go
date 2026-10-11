@@ -29,7 +29,7 @@ type Inventory struct {
 
 var cacheName = regexp.MustCompile(`^[0-9a-f]{32}\.mp4$`)
 
-func scanInventory(ctx context.Context, s Settings) Inventory {
+func scanInventory(ctx context.Context, s Settings, allowMissingRoot bool) Inventory {
 	var result Inventory
 	if err := ctx.Err(); err != nil {
 		result.Error = err.Error()
@@ -53,10 +53,9 @@ func scanInventory(ctx context.Context, s Settings) Inventory {
 	dir := filepath.Join(s.StorageDir, "videos")
 	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
-		// Saving a fresh storage root does not start the engine or create videos.
-		// Only an existing, empty root is uninitialized; lost/unreadable stores
-		// and initialized stores missing videos must still preserve prior results.
-		if rootEntries, rootErr := os.ReadDir(s.StorageDir); rootErr == nil && len(rootEntries) == 0 {
+		// A never-used root need not exist. An initialized root missing videos,
+		// or a missing root with previously observed media, is still an error.
+		if rootEntries, rootErr := os.ReadDir(s.StorageDir); (rootErr == nil && len(rootEntries) == 0) || (allowMissingRoot && os.IsNotExist(rootErr)) {
 			err = nil
 		}
 	}
@@ -105,12 +104,12 @@ func (c *Console) localInventoryWithLoader(load func(context.Context, string) (c
 
 // Check before engine startup can create videos. Read at most one entry here;
 // the actual inventory scan remains responsible for enumerating the files.
-func checkInventoryDirectory(root string) error {
+func checkInventoryDirectory(root string, allowMissingRoot bool) error {
 	dir := filepath.Join(root, "videos")
 	f, err := os.Open(dir)
 	if os.IsNotExist(err) {
-		if entries, rootErr := os.ReadDir(root); rootErr == nil && len(entries) == 0 {
-			return nil // A saved but never initialized empty store is valid.
+		if entries, rootErr := os.ReadDir(root); (rootErr == nil && len(entries) == 0) || (allowMissingRoot && os.IsNotExist(rootErr)) {
+			return nil
 		}
 	}
 	if err == nil {
@@ -129,6 +128,9 @@ func checkInventoryDirectory(root string) error {
 func (c *Console) startInventoryScan() {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
+	c.inventoryMu.Lock()
+	allowMissingRoot := c.inventory.Videos == 0
+	c.inventoryMu.Unlock()
 	c.mu.Lock()
 	if c.closing {
 		c.mu.Unlock()
@@ -136,7 +138,7 @@ func (c *Console) startInventoryScan() {
 	}
 	s := c.settings
 	if c.checksumURL != "" {
-		err := checkInventoryDirectory(s.StorageDir)
+		err := checkInventoryDirectory(s.StorageDir, allowMissingRoot)
 		if err == nil {
 			err = c.ensureEngine()
 		}
@@ -165,7 +167,7 @@ func (c *Console) startInventoryScan() {
 	go func() {
 		defer close(done)
 		defer cancel()
-		result := scanInventory(ctx, s)
+		result := scanInventory(ctx, s, allowMissingRoot)
 		if result.Error == "" && c.checksumURL != "" {
 			c.addInventoryCoverage(ctx, &result)
 		}

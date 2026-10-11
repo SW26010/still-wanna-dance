@@ -17,6 +17,9 @@ func TestPortableLayoutCreatesOnlyUsedFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
+	if err := c.save(c.settings); err != nil {
+		t.Fatal(err)
+	}
 	entries, err := os.ReadDir(c.files().Root)
 	if err != nil || len(entries) != 1 || entries[0].Name() != "config.json" {
 		t.Fatal("unused feature created files", entries, err)

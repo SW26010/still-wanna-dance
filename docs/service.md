@@ -82,7 +82,7 @@ FROM song_usage ORDER BY last_demand_at DESC;
 
 热缓存以及下载完成后的响应支持完整 200、单段 Range 206、后缀 Range 和条件请求；使用 Go `http.ServeContent`，ETag 为带引号的 MD5。无效或越界 Range 返回 416，多区间请求明确返回 416。HEAD 忽略 Range。完整 200 不添加原版非标准的 Content-Range。
 
-`X-StepStash-Cache` 表示 HIT 或 MISS；共享同一次冷下载的请求都会返回 MISS。`X-Request-ID` 可与 JSON 日志关联。日志记录请求状态、发送字节数、Range、缓存来源、下载键和失败原因，不记录完整查询参数。
+`X-SWD-Cache` 表示 HIT 或 MISS；共享同一次冷下载的请求都会返回 MISS。`X-Request-ID` 可与 JSON 日志关联。日志记录请求状态、发送字节数、Range、缓存来源、下载键和失败原因，不记录完整查询参数。
 
 尚未开始响应时，上游/完整性/发布失败返回 502，后台验证或下载超时返回 504，容量不足/正在关闭/文件变化返回 503，本地响应文件无法打开返回 500。流式响应已经开始后，无法更改状态码，失败会中断连接并记录 `stream_failed`。其他故障见 `cache_failed`、`cache_invalid`、`open_failed`；客户端取消记录 `client_disconnected`。错误响应不会把内部错误详情暴露给播放器。
 
@@ -90,7 +90,7 @@ FROM song_usage ORDER BY last_demand_at DESC;
 | --- | --- |
 | `-listen` | `127.0.0.1:18080` |
 | `-socks5-proxy` | 空，使用内置 DoH 直连；填写 `127.0.0.1:7891` 等 `host:port` 后，上游连接及目标 DNS 交给 SOCKS5，不回退直连 |
-| `-socks5-username` | 空，无认证；填写用户名时须设置密码环境变量 `STILL_WANNA_DANCE_SOCKS5_PASSWORD`，两者各限 1～255 字节 |
+| `-socks5-username` | 空，无认证；填写用户名时须设置密码环境变量 `SWD_SOCKS5_PASSWORD`，两者各限 1～255 字节 |
 | `-storage-dir` | `still-wanna-dance-data` |
 | `-origin DOMAIN=HOST:PORT` | 空；可重复指定可信的显式域名回源覆盖 |
 | `-download-timeout` | `10m`，限制共享工作任务（含其中的缓存校验、下载和发布）；不限制额度用尽时的独立本地校验路径 |
@@ -103,7 +103,7 @@ FROM song_usage ORDER BY last_demand_at DESC;
 
 代理启动示例：`still-wanna-dance.exe -socks5-proxy 127.0.0.1:7891`。播放 API 查询、元数据检查、测速与视频下载均使用此出口；目标域名直接交给代理，Still Wanna Dance 不负责代理端 DNS 的实现。该参数不修改系统代理，也不改变播放器到本地服务的连接。
 
-需要认证时，向进程提供 `STILL_WANNA_DANCE_SOCKS5_PASSWORD` 环境变量，并添加 `-socks5-username your-user`。密码不作为命令行参数，也不会由命令行服务保存到配置文件。认证失败返回错误，不回退直连。
+需要认证时，向进程提供 `SWD_SOCKS5_PASSWORD` 环境变量，并添加 `-socks5-username your-user`。密码不作为命令行参数，也不会由命令行服务保存到配置文件。认证失败返回错误，不回退直连。
 
 ## 验证范围
 

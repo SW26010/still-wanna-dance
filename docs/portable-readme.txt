@@ -72,7 +72,11 @@ licenses/THIRD-PARTY-NOTICES.txt；重新分发或升级时保留并更新许可
 重启继续追加；分享前检查其中的本机路径和歌曲请求信息。
 正常退出有退出记录，强制结束或断电则没有。
 
-Windows 托盘会话在 %LOCALAPPDATA%/StepStash，退出删除本会话，启动取得当前会话所有权后清理其旧记录。
-hosts 及 hosts.stepstash-backup 位于 Windows 系统 hosts 目录，不能随 Portable 删除。
-系统级 StepStash 名称后续另行收敛，不代表支持旧配置或旧媒体格式。
+Windows 普通桌面在同一用户会话只运行一个实例。同一实际 EXE 和配置重复启动才打开已有控制台；
+不同安装或配置会显示冲突及已有程序、配置位置，请先自行退出原实例。
+路径会解析大小写、相对路径及文件别名。-no-tray 开发实例不参与桌面选举，仍受配置、存储和端口独占限制。
+Windows 托盘发现文件在 %LOCALAPPDATA%/SWD/console-session-<会话 ID>.json，记录地址与进程身份。
+退出删除本会话记录，新主实例取得锁后清理本会话遗留记录；旧 StepStash 发现目录不迁移或双写。
+hosts 及新增 hosts.swd-backup 位于 Windows 系统 hosts 目录，不能随 Portable 删除。
+新条目使用 # SWD managed；旧托管条目仍可精确恢复，已有 hosts.stepstash-backup 原样保留。
 完整开发路径与生命周期清单见源码仓库 docs/storage.md。

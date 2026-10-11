@@ -128,7 +128,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | `S/tmp/download-*.part`（包括 download-publish） | 下载、Range、发布临时文件；操作结束清理；合法库启动后仅清理匹配名称的非目录项，不扫描子目录 | 不必单独备份，不承诺断点续传，不能泛化清理陌生文件 |
 | `S/tmp/import-*/video` | 单次导入的硬链接/复制暂存，操作退出清理自己的目录 | 不必备份；崩溃遗留由 #25 处理，导入状态/回执只在进程内 |
 | `B/.settings-*`、`R/.terms-*`、`R/state/.snapshot-*`、`R/state/.throughput-*` | 原子替换暂存；正常完成或失败后移除自己创建的临时文件 | 非备份对象；不新增启动时通用清扫 |
-| 可写性探测目录中的 `.stepstash-probe-*` | 设置验证短暂创建并移除；在最近已有祖先中探测 | 非备份对象；名称统一留给 #24 |
+| 可写性探测目录中的 `.swd-probe-*` | 设置验证短暂创建并移除；在最近已有祖先中探测 | 非备份对象 |
 | `R/channel.key.corrupt-*`、`R/state/throughput.json.corrupt-*` | 原有损坏文件隔离，保留取证，不自动清扫 | 可选保留，不当作可用状态载入 |
 
 库存和任务快照独立使用 `schemaVersion=1`，只保存 `storageDir` 与 `result`。相对库路径以 B 为基准，整体移动后可用；切换库不加载另一库的结果。损坏或不支持的快照跳过，不引入迁移链。设置、密钥和状态属于配置实例，不塞入可外置的媒体 SQLite。未来 #14 节点/订阅持久化及 #15 法律凭据属于 R，须遵守各自格式合同；#16 引导应复用配置与条款状态。
@@ -137,8 +137,8 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 | 外部位置 | 所有权 / 生命周期 | 备份约定 |
 | --- | --- | --- |
-| Windows `%LOCALAPPDATA%/StepStash/console-session-<id>.json` | 托盘单实例发现；正常退出删除本会话、启动取得当前会话所有权后清理其旧记录；无托盘模式不需要，#24 再收敛命名 | 不备份，可重新发现，不是用户配置 |
-| Windows `%SystemRoot%/System32/drivers/etc/hosts` 及 `hosts.stepstash-backup` | 仅用户显式接入修改 hosts；首次备份保留。恢复精确移除托管映射，不覆盖整个 hosts；退出不恢复 | 系统管理员管理，不自动删备份或覆盖其他映射 |
+| Windows `%LOCALAPPDATA%/SWD/console-session-<id>.json` | 托盘单实例发现；正常退出删除本会话、启动取得当前会话所有权后清理其旧记录；无托盘模式不创建 | 不备份，可重新发现，不是用户配置 |
+| Windows `%SystemRoot%/System32/drivers/etc/hosts` 及 `hosts.swd-backup`（已有 `hosts.stepstash-backup` 原样保留） | 仅用户显式接入修改 hosts；首次备份保留。恢复精确移除托管映射，不覆盖整个 hosts；退出不恢复 | 系统管理员管理，不自动删备份或覆盖其他映射 |
 | VRChat 日志目录、用户选取的导入源 | 只读输入，不归 SWD 所有 | SWD 不创建、修改或清理 |
 | 用户选择的外部 S | 仍由媒体目录锁保护，路径留作绝对引用 | 必须另行完整备份；移动 Portable 不自动搬外置库 |
 

@@ -69,9 +69,13 @@ Windows 桌面版构建、启动（托盘驻留，无命令行黑窗）：
 
 托盘菜单包含打开控制台、启动 / 关闭 CDN、停止批量任务、退出 Still Wanna Dance。鼠标或键盘激活图标均可打开控制台；菜单及悬浮提示跟随网页操作更新。Explorer 重建任务栏时重新注册托盘图标。
 
-Windows 桌面入口使用会话级命名互斥锁 `Local\StepStash.Desktop.v1`，控制端口由系统自动分配。主实例在 `%LOCALAPPDATA%\StepStash\console-session-<会话 ID>.json` 记录实际地址和 PID；重复启动读取该会话记录并核对端口所属进程。重复启动不创建第二个服务或托盘，而是最多等待 5 秒，确认 `/api/identity` 匹配保留的 `stepstash-console` 协议身份 后打开已有控制台。若首次启动者在就绪前崩溃，后启动者可重新竞争所有权；进程死亡不会留下永久实例锁。正常退出先删除地址记录再释放实例锁，新主实例启动时清除崩溃遗留记录。不会仅因为端口有人监听就打开未知服务。
+Windows 普通桌面模式在同一用户会话中只允许一个实例，使用会话级互斥锁 `Local\SWD.Desktop.v1`，控制端口由系统自动分配。主实例在当前用户 `%LOCALAPPDATA%\SWD\console-session-<会话 ID>.json` 记录地址、实际 EXE、配置路径、PID 和进程创建时间。重复启动最多等待 5 秒，核对端口所属进程、操作系统报告的 EXE 与创建时间，以及 `/api/identity` 返回的完整 `swd-console`（协议版本 1）身份。
 
-配置文件还通过 `<配置路径>.lock` 在整个进程生命周期独占，防止自定义端口实例同时修改同一份设置。锁文件保留是正常现象；OS 在进程退出或崩溃时释放锁，不要运行时删除。缓存引擎对整个存储根目录加独占锁。
+只有实际 EXE 和配置身份都一致才激活已有控制台，不创建第二个服务、托盘或后台任务；`-no-open` 同样检查身份，但不打开浏览器。不同安装目录或不同配置会报错并显示已有程序、配置和 PID，须自行退出原实例；不会自动切换、停服或终止进程。路径解析支持相对路径、Windows 大小写、短文件名、符号链接和 junction；存在的文件还会比较文件身份以识别硬链接。配置尚未创建时解析已有父目录，不为重复启动创建新数据目录。
+
+首次启动者就绪前崩溃，后启动者可重新取得互斥锁。正常退出先删除本会话记录再释放锁；取得锁的新主实例清除本会话崩溃遗留记录，不扫描或删除其他会话。过期 PID、进程创建时间不符、伪造路径或不匹配的后端身份均不激活。旧 StepStash 实例协议和发现目录不参与选举，不迁移或双写，使用新版前须退出旧测试程序。
+
+显式 `-no-tray` 不参与桌面选举，可配合 `-config`、`-listen` 运行独立开发实例。所有模式仍通过配置数据根的 `config.lock` 在整个进程生命周期独占配置，并受存储根独占锁和端口占用限制。数据根规则见[统一存储](storage.md)。锁文件保留是正常现象；OS 在进程退出或崩溃时释放锁，不要运行时删除。
 
 退出从统一清理入口停止 HTTP 接口、取消批量任务和下载、移除托盘图标，最后释放配置锁和实例锁。注销 / 关机回调最多等待 4 秒；如果系统取消注销，程序继续运行。退出不会恢复 hosts。hosts 提权助手在实例检查前单独执行，修改完成即退出，主程序不会因此提权。
 
@@ -144,11 +148,11 @@ hosts 同时影响 HTTP 和 HTTPS。控制台启动 CDN 时提供 TLS SNI 透传
 
 只绑定本机 IPv4，最多 128 条连接，ClientHello 限制为 64 KiB / 10 秒，建连最多 15 秒，两分钟双向均无进展的连接关闭。关闭 CDN 会取消解析和建连并清理活动连接。此入口不支持无 SNI 或隐藏目标域名的握手，也不提供 QUIC/UDP 443。
 
-回归覆盖 TLS 1.2 / 1.3、原站证书验证、HTTP/2、Range/HEAD、分片 ClientHello 原样转发、未托管域名拒绝、建连和活动连接取消，以及端口冲突/目录失败的回滚与重启。需要浏览器实网复验时，先释放本机 443，使用当次 API 返回的实际资源域名进行本地连接测试，在 PowerShell 中运行 `$env:STEPSTASH_HTTPS_LIVE='1'; go test ./internal/console -run '^TestHTTPSLiveBrowser$' -v -count=1`。此显式验收辅助服务先通过两个播放接口发现歌曲 1343 的资源域名并打印集合，仅监听 443，两分钟后自动退出，不改 hosts 或缓存；普通测试和 CI 默认跳过。它仅为手工验收提供连接窗口，测试通过本身不代表视频播放成功，须另行检查浏览器。
+回归覆盖 TLS 1.2 / 1.3、原站证书验证、HTTP/2、Range/HEAD、分片 ClientHello 原样转发、未托管域名拒绝、建连和活动连接取消，以及端口冲突/目录失败的回滚与重启。需要浏览器实网复验时，先释放本机 443，使用当次 API 返回的实际资源域名进行本地连接测试，在 PowerShell 中运行 `$env:SWD_HTTPS_LIVE='1'; go test ./internal/console -run '^TestHTTPSLiveBrowser$' -v -count=1`。此显式验收辅助服务先通过两个播放接口发现歌曲 1343 的资源域名并打印集合，仅监听 443，两分钟后自动退出，不改 hosts 或缓存；普通测试和 CI 默认跳过。它仅为手工验收提供连接窗口，测试通过本身不代表视频播放成功，须另行检查浏览器。
 
 历史 Chrome 实测（2026-09-26，切换公开域名前）：通过上述辅助服务从原站点击歌曲 6228，播放器 `readyState=4`、`error=null`，播放时间推进到 13 秒；重新打开当时 node=nya 返回的地址后，重定向到 play.udon.dance，继续播放至 37 秒。当时服务连接的是 `ud-nya.kiva.moe:443` 和 `ud-play.kiva.moe:443`，不代表当前默认目标。没有改写网页、视频 URL、系统证书或 hosts；这是该歌曲当时的连通与播放验证，不代表全曲库或持续吞吐测试。
 
-当前公开域名回源的实网验收见[调查后的实现与验证](playback-domain-observation-20260926.md#调查后的实现与验证)。`STEPSTASH_LIVE_UPSTREAM=1` 启用的 `TestLiveHTTPSUpstreams` 会让测试客户端连接临时本地 TLS 透传端口，模拟 hosts 接管，再通过生产 DoH 连接公开域名；验证 API 实际返回地址的视频片段及原站证书，不修改系统 hosts。
+当前公开域名回源的实网验收见[调查后的实现与验证](playback-domain-observation-20260926.md#调查后的实现与验证)。`SWD_LIVE_UPSTREAM=1` 启用的 `TestLiveHTTPSUpstreams` 会让测试客户端连接临时本地 TLS 透传端口，模拟 hosts 接管，再通过生产 DoH 连接公开域名；验证 API 实际返回地址的视频片段及原站证书，不修改系统 hosts。
 
 ### 解析与连接
 
@@ -170,16 +174,16 @@ DNSPod 和 360 的入口发现只通过具备固定引导 IP 的 DoH 服务进�
 
 全部加密通道失败时明确报错。这保护的是客户端到解析服务的 DNS 链路，仍信任所选解析服务及系统证书信任库；DNS 模块本身不改变视频或 API 请求的 HTTP/HTTPS 协议。曲库业务仅使用 Kiva／WannaInfo 的 MD5 清单，Udon `https://api.udon.dance/Api/Songs/list` 只用于 monitor，不参与本地曲库更新或水位计算；游戏请求的 HTTP→HTTPS 跳转与 HTTPS 透传继续保留；播放地址 API、版本确认、视频下载、测速和 Range 回源统一使用 HTTPS，保留原始 Host、TLS SNI 和证书域名校验；连接或证书失败不降级至 HTTP，也不回退系统 DNS/hosts。此前依赖明文 DNS 劫持产生 fake-IP 的代理路径不再由此模块自动使用。
 
-2026-09-25 本机逐入口真实解析 `api.udon.dance`：阿里双入口、DNSPod、360、Cloudflare、Google 六项均通过 HTTPS 证书验证与 DNS 报文解析。这不代表其他网络始终可达。可选复测：`STEPSTASH_LIVE_DOH=1` 后运行 `go test ./internal/console -run '^TestLiveDoHProviders$' -v -count=1`。
+2026-09-25 本机逐入口真实解析 `api.udon.dance`：阿里双入口、DNSPod、360、Cloudflare、Google 六项均通过 HTTPS 证书验证与 DNS 报文解析。这不代表其他网络始终可达。可选复测：`SWD_LIVE_DOH=1` 后运行 `go test ./internal/console -run '^TestLiveDoHProviders$' -v -count=1`。
 控制台与独立命令行服务共用内置 DoH 建连逻辑。两者的上游 API 查询和视频回源均使用 HTTPS，默认视频回源端口为 443；DNS、连接或证书验证失败不回退系统 DNS/hosts 或明文 HTTP。视频重定向仅在目标域名已由有效 API 响应确认且 MD5/大小一致时跟随，最多五次，HTTP Location 升级为 HTTPS 后访问。
 
 ## hosts
 
 修改和恢复是独立操作。只有实际需要修改时才通过 Windows UAC 启动短命提权助手；正常启动控制台、CDN 和下载不请求 UAC。
 
-- 仅添加播放 API 域名 `api.udon.dance` 到 `127.0.0.1`，使用 `# Still Wanna Dance managed` 标记，恢复时也识别旧 `# StepStash managed` 标记。
+- 仅添加播放 API 域名 `api.udon.dance` 到 `127.0.0.1`，新增使用 `# SWD managed` 标记，恢复时精确识别旧 `# Still Wanna Dance managed` 和 `# StepStash managed` 标记。
 - 已有正确映射直接复用；已有冲突映射时拒绝覆盖并提示检查。
-- 首次修改前保存 hosts 同目录的 `hosts.stepstash-backup`。恢复只移除本程序的精确标记条目，保留其他配置，不整文件回滚；条目被其他工具改写时提示人工检查。
+- 首次修改前保存 hosts 同目录的 `hosts.swd-backup`，之后不覆盖。已有 `hosts.stepstash-backup` 原样保留，不重命名、覆盖或删除。恢复只移除本程序的精确标记条目，保留其他配置，不整文件回滚；条目被其他工具改写时提示人工检查。
 - 退出或关闭 CDN 不恢复 hosts。CDN 停止后如需直连上游，应点击恢复；其他工具原有映射需由对应工具恢复。
 - 操作后刷新 DNS 缓存。UAC 取消或修改失败时页面报错。
 
@@ -221,9 +225,9 @@ VRChat 原始日志正文；重复的日志读取错误只在变化时记录，�
 桌面测试还覆盖同进程 / 跨进程互斥、异常终止后的锁恢复、就绪等待、浏览器打开失败、拒绝未知服务身份、配置锁、端口进程识别、托盘 / 网页共享服务状态，以及取消注销。实际桌面会话可运行托盘生命周期检查：
 
 ```powershell
-$env:STEPSTASH_TRAY_CHECK = '1'
+$env:SWD_TRAY_CHECK = '1'
 go test ./internal/desktop -run TestLiveTrayLifecycle -v -count=1
-Remove-Item Env:STEPSTASH_TRAY_CHECK
+Remove-Item Env:SWD_TRAY_CHECK
 ```
 
 此检查短暂创建并清理真实托盘图标，需要可访问交互式 Windows 桌面；不修改 hosts。
@@ -231,9 +235,9 @@ Remove-Item Env:STEPSTASH_TRAY_CHECK
 可选实网检查只获取列表、解析歌曲 1343 并请求 16 字节片段，不修改 hosts 或下载全库：
 
 ```powershell
-$env:STEPSTASH_LIVE_CHECK = '1'
+$env:SWD_LIVE_CHECK = '1'
 go test ./internal/console -run TestLiveIndependentDNS -v -count=1
-Remove-Item Env:STEPSTASH_LIVE_CHECK
+Remove-Item Env:SWD_LIVE_CHECK
 ```
 
 2026-09-25 获取 10,398 个去重 ID；视频域名有本机 hosts 映射时，独立解析的 API 和视频片段请求成功。数量为当时样本。随后对 `c69e844` 完成了真实 UAC 修改/恢复、托盘退出、重启及容量设置的[联合实机验收](release-acceptance-20260925.md)。
@@ -266,7 +270,7 @@ Remove-Item Env:STEPSTASH_LIVE_CHECK
 
 HTTP 播放 API 优先使用受保护且校验通过的本地文件，不等待后台 API。缓存 URL 下载失败时，尚未输出正文可等待本次已有查询再尝试；旧下载与刷新都失败时保留两个阶段的错误。正文输出后仍中止响应，不切换内容。HTTPS 透传不适用；加载边界见[歌曲加载设计](song-loading-design.md)。
 
-可选实网验收：设置 `STEPSTASH_LIVE_UPSTREAM=1`，运行 `go test ./internal/console -run '^TestLiveHTTPSUpstreams$' -v -count=1`。仅解析播放 API 并读取每路 1 KiB 视频 Range，不修改 hosts。
+可选实网验收：设置 `SWD_LIVE_UPSTREAM=1`，运行 `go test ./internal/console -run '^TestLiveHTTPSUpstreams$' -v -count=1`。仅解析播放 API 并读取每路 1 KiB 视频 Range，不修改 hosts。
 
 ## 最近请求监控
 
@@ -274,7 +278,7 @@ HTTP 播放 API 优先使用受保护且校验通过的本地文件，不等待�
 
 同一资源连续的 GET Range 请求，记录时间间隔不超过 30 秒时组成请求组；其他资源的交错请求不影响分组，同资源 HEAD / 完整请求会打断分组。组只覆盖当前窗口，边界可能截断，扩展窗口后重新计算。展开状态和仍存在的展开控件焦点在正常刷新时保留；混合缓存、完成、中断和失败结果分别列出次数。×N 是请求次数，不是播放次数。
 
-歌名来自 `song_media` 与 `songs` 的当前资源关联，不保存或展示历史所属歌曲。共用资源显示多首候选歌名，不推断实际播放曲目；无关联时显示未知歌名，展开后显示完整资源标识。主行以歌名为主，缓存与结果使用独立标签，传输量、耗时和速度各自对齐成列；窄屏改为分行网格。多曲目主行最多显示两个标题并提示共享资源，展开后列出完整候选、Range 和资源指纹。每个资源最多返回 20 首、每个标题最多 300 字符，多余关联明确标注。API 不返回签名 URL、主机、源路径或 metadata JSON，非标准 Range 内容被替换。`GET /api/requests?limit=50` 要求当前会话的 `X-StepStash-Token`、合法 Host 与同源 Origin（如提供）；limit 必须为 1～500。
+歌名来自 `song_media` 与 `songs` 的当前资源关联，不保存或展示历史所属歌曲。共用资源显示多首候选歌名，不推断实际播放曲目；无关联时显示未知歌名，展开后显示完整资源标识。主行以歌名为主，缓存与结果使用独立标签，传输量、耗时和速度各自对齐成列；窄屏改为分行网格。多曲目主行最多显示两个标题并提示共享资源，展开后列出完整候选、Range 和资源指纹。每个资源最多返回 20 首、每个标题最多 300 字符，多余关联明确标注。API 不返回签名 URL、主机、源路径或 metadata JSON，非标准 Range 内容被替换。`GET /api/requests?limit=50` 要求当前会话的 `X-SWD-Token`、合法 Host 与同源 Origin（如提供）；limit 必须为 1～500。
 
 实际传输量是响应向客户端写入的字节数，MB 使用十进制，不是视频大小或后台回源量。单次耗时包含地址解析、等待与校验。GET 的记录时间在播放地址解析后更新，但单次耗时从 HTTP 处理开始计量，两者起点不同。多请求组按最早记录时间至最晚「记录时间 + 单次耗时」计算**估算跨度**，包含请求间隔，不相加并行耗时；**估算平均速度** = 字节和 / 估算跨度。这两个组指标均在界面标为估算，不代表精确起止时间；单条请求的耗时与速度仍使用其原始 elapsedMS，0 毫秒显示「—」。
 

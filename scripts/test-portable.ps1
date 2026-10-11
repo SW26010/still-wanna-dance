@@ -34,6 +34,19 @@ function Data-Hashes($directory) {
     }
     return $result
 }
+
+function Assert-Identity($child, $port, $executable, $config) {
+    $identity = Invoke-RestMethod "http://127.0.0.1:$port/api/identity" -TimeoutSec 2
+    if ($identity.app -cne 'swd-console' -or $identity.protocol -ne 1 -or $identity.pid -ne $child.Id) {
+        throw 'Portable identity did not identify the SWD child process.'
+    }
+    if ($identity.executable -ine $executable -or $identity.config -ine $config) {
+        throw 'Portable identity reported the wrong installation or configuration.'
+    }
+    if ($identity.started -cne $child.StartTime.ToFileTimeUtc().ToString()) {
+        throw 'Portable identity did not match the OS process creation time.'
+    }
+}
 try {
     Expand-Archive -LiteralPath $zipPath -DestinationPath $root
     $exe = @(Get-ChildItem -LiteralPath $root -Recurse -Filter SWD.exe)
@@ -79,6 +92,7 @@ try {
     if ($servedTerms.Content -cne [IO.File]::ReadAllText((Join-Path $folder 'licenses/TERMS.txt'))) { throw 'Packaged and embedded terms differ.' }
     if (!(Test-Path -LiteralPath (Join-Path $folder 'data/config.lock'))) { throw 'Config lock missing under data.' }
     $configPath = Join-Path $folder 'data/config.json'
+    Assert-Identity $process $port $exe[0].FullName $configPath
     $configBefore = [IO.File]::ReadAllText($configPath)
     $settings = $configBefore | ConvertFrom-Json
     if ($settings.schemaVersion -ne 3 -or $settings.storageDir -cne 'storage') {
@@ -124,6 +138,7 @@ try {
         Start-Sleep -Milliseconds 250
     }
     if (!$restarted) { throw 'Restart did not restore the consent-gated console.' }
+    Assert-Identity $process $port $exe[0].FullName $configPath
     if ([IO.File]::ReadAllText($configPath) -cne $configBefore) { throw 'Restart rewrote persisted defaults.' }
     $records = @(Get-Content -LiteralPath $logPath | ForEach-Object { $_ | ConvertFrom-Json })
     foreach ($event in $startupEvents) {
@@ -152,6 +167,7 @@ try {
     $exePath = Join-Path $folder 'SWD.exe'
     $process = Start-Process -FilePath $exePath -ArgumentList @('-no-tray', '-no-open', '-listen', "127.0.0.1:$port") -WorkingDirectory $root -WindowStyle Hidden -PassThru
     Wait-ConsentGate $process $port
+    Assert-Identity $process $port $exePath (Join-Path $folder 'data/config.json')
     if ([IO.File]::ReadAllText((Join-Path $folder 'data/config.json')) -cne $configBefore) { throw 'Move rewrote portable configuration.' }
     if (Test-Path -LiteralPath (Join-Path $root 'data')) { throw 'Working directory received portable data.' }
 
@@ -164,6 +180,7 @@ try {
         $child = Start-Process -FilePath $exePath -ArgumentList @('-no-tray', '-no-open', '-listen', "127.0.0.1:$customPort", '-config', ('"' + $configArgument + '"')) -WorkingDirectory $root -WindowStyle Hidden -PassThru
         $customProcesses += $child
         Wait-ConsentGate $child $customPort
+        Assert-Identity $child $customPort $exePath $config
         $saved = Get-Content -LiteralPath $config -Raw | ConvertFrom-Json
         if ($saved.schemaVersion -ne 3 -or $saved.storageDir -cne (Join-Path "$name.d" 'storage')) { throw 'Custom default storage escaped its instance.' }
         $records = @(Get-Content -LiteralPath (Join-Path "$config.d" 'logs/app.log') | ForEach-Object { $_ | ConvertFrom-Json })

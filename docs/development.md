@@ -55,7 +55,7 @@ node --test scripts/acceptance-protocol.test.mjs scripts/acceptance-request.test
 
 可执行文件按组件检查：缺少服务程序仅阻塞服务链路，控制台 Auto 与本地降级仍继续；缺少控制台程序时，服务链路仍继续。两者均缺失时分别记录环境阻塞，不请求上游。
 
-控制台以 `-no-tray -no-open` 启动，需本机 `127.0.0.1:80/443` 空闲；端口被占用时记录环境阻塞，不关闭已有服务。降级通过仅供本次测试的本地失败 SOCKS5 出口触发，断言 `X-StepStash-Fallback: upstream-unavailable` 与缓存内容一致。脚本不改 hosts、不读取原版旧库、不运行原版程序；所有下载和配置均留在测试目录，结束时关闭本次进程与失败出口。
+控制台以 `-no-tray -no-open` 启动，需本机 `127.0.0.1:80/443` 空闲；端口被占用时记录环境阻塞，不关闭已有服务。降级通过仅供本次测试的本地失败 SOCKS5 出口触发，断言 `X-SWD-Fallback: upstream-unavailable` 与缓存内容一致。脚本不改 hosts、不读取原版旧库、不运行原版程序；所有下载和配置均留在测试目录，结束时关闭本次进程与失败出口。
 
 上游预检使用 Node.js `Resolver.resolve4` 直接向配置的 DNS 服务器查询 IPv4，绕过系统 hosts；解析失败不回退系统解析，并过滤回环、内网及本机网卡地址。此查询仍可能受系统 DNS/代理影响，不等同于服务内置 DoH。HTTP/HTTPS 均保留原 Host 与正常 TLS 域名校验，报告记录实际 `remoteAddress`；显式端口的本地请求仍走回环。
 

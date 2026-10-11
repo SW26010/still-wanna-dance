@@ -148,9 +148,23 @@ func (c *Console) startBatchModeLocked(scanOnly bool) error {
 	if scanOnly {
 		c.mu.Unlock()
 		_, err := os.ReadDir(c.settings.StorageDir)
+		// Inventory snapshots survive restarts independently of successful batches.
+		// Read under its own lock without holding mu (inventory readers take the
+		// locks in the opposite order). An empty, never-initialized scan is not
+		// evidence, but observed files or catalog coverage require an existing root.
+		c.inventoryMu.Lock()
+		inventoryUsed := c.inventory.Videos > 0 || c.inventory.Bytes > 0 || c.inventory.CoverageKnown
+		c.inventoryMu.Unlock()
 		c.mu.Lock()
-		if err != nil && (!os.IsNotExist(err) || c.service != nil || c.lastBatch.Total > 0) {
-			return fmt.Errorf("无法扫描目录 %s：%w", c.settings.StorageDir, err)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return fmt.Errorf("无法扫描目录 %s：%w", c.settings.StorageDir, err)
+			}
+			// Even a failed attempt ran after engine initialization; it is enough
+			// to distinguish a disconnected store from a newly selected path.
+			if inventoryUsed || c.service != nil || c.lastBatch.Total > 0 || !c.batch.Finished.IsZero() {
+				return fmt.Errorf("媒体库目录已失联 %s，请恢复目录或重新选择存储位置；不会自动新建空库：%w", c.settings.StorageDir, err)
+			}
 		}
 	}
 	if err := c.ensureEngine(); err != nil {

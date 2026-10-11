@@ -21,7 +21,7 @@ func TestProxySampleRestoreRequiresStableMatchingIdentity(t *testing.T) {
 	b := "stable-v1-" + strings.Repeat("b", 64)
 	sample := ThroughputSample{ObservedAt: at, SongID: 42, Bytes: 16 << 20, Duration: 2 * time.Second}
 	key := func(id string) string { return "resource/play.udon.dance/socks5/play.udon.dance/" + id }
-	state := throughputState{LastAttempt: at, Samples: map[string]ThroughputSample{key(a): sample, key("1"): sample, key("2"): sample}}
+	state := throughputState{SchemaVersion: throughputSchemaVersion, LastAttempt: at, Samples: map[string]ThroughputSample{key(a): sample, key("1"): sample, key("2"): sample}}
 	data, _ := json.Marshal(state)
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)

@@ -102,7 +102,7 @@ func TestAutomaticThroughputCooldownSurvivesRestart(t *testing.T) {
 		}
 	}
 	restarted.Close()
-	b, _ := json.Marshal(time.Now().Add(-21 * time.Minute))
+	b, _ := json.Marshal(throughputState{SchemaVersion: throughputSchemaVersion, LastAttempt: time.Now().Add(-21 * time.Minute)})
 	if err := os.WriteFile(path, b, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestManualThroughputResetsPersistedCooldown(t *testing.T) {
 		t.Run(string(kind), func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "throughput.json")
 			old := time.Now().Add(-14 * time.Minute)
-			b, _ := json.Marshal(old)
+			b, _ := json.Marshal(throughputState{SchemaVersion: throughputSchemaVersion, LastAttempt: old})
 			if err := os.WriteFile(path, b, 0600); err != nil {
 				t.Fatal(err)
 			}

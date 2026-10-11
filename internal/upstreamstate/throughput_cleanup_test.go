@@ -38,7 +38,7 @@ func TestProxyFallbackDoesNotPruneRestoredDirectThroughput(t *testing.T) {
 	oldProxy := "resource/play.udon.dance/socks5/play.udon.dance/stable-v1-" + strings.Repeat("a", 64)
 	at := time.Now().Add(-time.Minute)
 	sample := ThroughputSample{ObservedAt: at, SongID: 42, Bytes: 16 << 20, Duration: 2 * time.Second}
-	data, _ := json.Marshal(throughputState{LastAttempt: at, Samples: map[string]ThroughputSample{direct: sample, oldProxy: sample}})
+	data, _ := json.Marshal(throughputState{SchemaVersion: throughputSchemaVersion, LastAttempt: at, Samples: map[string]ThroughputSample{direct: sample, oldProxy: sample}})
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestRestoredThroughputPrunedOnlyAfterResourceDiscovery(t *testing.T) {
 			gone := "resource/play.udon.dance/b/play.udon.dance"
 			at := time.Now().Add(-time.Minute)
 			sample := ThroughputSample{ObservedAt: at, SongID: 42, Bytes: 16 << 20, Duration: 2 * time.Second}
-			data, _ := json.Marshal(throughputState{LastAttempt: at, Samples: map[string]ThroughputSample{keep: sample, gone: sample}})
+			data, _ := json.Marshal(throughputState{SchemaVersion: throughputSchemaVersion, LastAttempt: at, Samples: map[string]ThroughputSample{keep: sample, gone: sample}})
 			if err := os.WriteFile(path, data, 0600); err != nil {
 				t.Fatal(err)
 			}

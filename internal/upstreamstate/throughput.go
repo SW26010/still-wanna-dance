@@ -1,7 +1,6 @@
 package upstreamstate
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -19,12 +18,15 @@ type ThroughputSample struct {
 	ObservedAt time.Time     `json:"observedAt"`
 	SongID     int64         `json:"songID"`
 	Bytes      int64         `json:"bytes"`
-	Duration   time.Duration `json:"duration"`
+	Duration   time.Duration `json:"durationNs"`
 }
 
+const throughputSchemaVersion = 1
+
 type throughputState struct {
-	LastAttempt time.Time                   `json:"lastAttempt"`
-	Samples     map[string]ThroughputSample `json:"samples"`
+	SchemaVersion int                         `json:"schemaVersion"`
+	LastAttempt   time.Time                   `json:"lastAttempt"`
+	Samples       map[string]ThroughputSample `json:"samples"`
 }
 
 func (m *Monitor) scheduleThroughputLocked() {
@@ -49,12 +51,7 @@ func (m *Monitor) loadThroughputTime() {
 		return
 	}
 	var state throughputState
-	// Upgrade the old timestamp-only file without resetting its cooldown.
-	if bytes.HasPrefix(bytes.TrimSpace(b), []byte(`"`)) {
-		err = json.Unmarshal(b, &state.LastAttempt)
-	} else {
-		err = json.Unmarshal(b, &state)
-	}
+	err = json.Unmarshal(b, &state)
 	if err != nil {
 		slog.Warn("monitor_throughput_state_load_failed", "error", err)
 		backup := m.throughputStatePath + ".corrupt-" + time.Now().UTC().Format("20060102T150405.000000000")
@@ -63,15 +60,18 @@ func (m *Monitor) loadThroughputTime() {
 		}
 		return
 	}
-	m.lastThroughput = state.LastAttempt
+	if state.SchemaVersion != throughputSchemaVersion {
+		return // Rebuild incompatible observations; never interpret legacy formats.
+	}
+	m.lastThroughput = state.LastAttempt.UTC()
+	if m.lastThroughput.After(time.Now()) {
+		m.lastThroughput = time.Time{}
+	}
 	for key, sample := range state.Samples {
-		// Legacy node labels are not domain evidence. Only an explicit
-		// domain in the saved channel identity can establish ownership.
-		key = migrateThroughputKey(key)
 		if !restorableThroughputKey(key) {
 			continue
 		}
-		if sample.Bytes <= 0 || sample.Duration <= 0 || sample.ObservedAt.IsZero() {
+		if sample.Bytes <= 0 || sample.Duration <= 0 || sample.ObservedAt.IsZero() || sample.ObservedAt.After(time.Now()) {
 			continue
 		}
 		if existing, ok := m.throughput[key]; !ok || sample.ObservedAt.After(existing.at) {
@@ -93,7 +93,7 @@ func (m *Monitor) claimThroughput(manual bool) bool {
 	if !due {
 		return false
 	}
-	m.lastThroughput = time.Now()
+	m.lastThroughput = time.Now().UTC()
 	if m.throughputStatePath != "" {
 		if err := m.saveThroughputTime(); err != nil {
 			slog.Error("monitor_throughput_state_save_failed", "error", err)
@@ -109,12 +109,12 @@ func (m *Monitor) claimThroughput(manual bool) bool {
 }
 
 func (m *Monitor) saveThroughputTime() error {
-	state := throughputState{LastAttempt: m.lastThroughput, Samples: make(map[string]ThroughputSample)}
+	state := throughputState{SchemaVersion: throughputSchemaVersion, LastAttempt: m.lastThroughput.UTC(), Samples: make(map[string]ThroughputSample)}
 	for key, o := range m.throughput {
 		if !restorableThroughputKey(key) {
 			continue
 		}
-		state.Samples[key] = ThroughputSample{ObservedAt: o.at, SongID: o.songID, Bytes: o.bytes, Duration: o.transferDuration}
+		state.Samples[key] = ThroughputSample{ObservedAt: o.at.UTC(), SongID: o.songID, Bytes: o.bytes, Duration: o.transferDuration}
 	}
 	b, err := json.Marshal(state)
 	if err != nil {
@@ -136,19 +136,6 @@ func (m *Monitor) saveThroughputTime() error {
 		return err
 	}
 	return os.Rename(f.Name(), m.throughputStatePath)
-}
-
-func migrateThroughputKey(key string) string {
-	parts := strings.Split(key, "/")
-	if len(parts) >= 2 && parts[0] == string(Resource) {
-		if parts[1] == "cf" || parts[1] == "hkg" {
-			if len(parts) != 5 || (parts[2] != "direct" && parts[2] != "socks5") || !videometa.ValidHost(parts[3]) {
-				return ""
-			}
-			parts[1] = parts[3]
-		}
-	}
-	return strings.Join(parts, "/")
 }
 
 func restorableThroughputKey(key string) bool {

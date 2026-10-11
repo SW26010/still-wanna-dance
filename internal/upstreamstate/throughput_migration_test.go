@@ -10,13 +10,13 @@ import (
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
-func TestThroughputMigratesNodeKeysToDomainKeys(t *testing.T) {
+func TestThroughputRejectsLegacyNodeKeys(t *testing.T) {
 	at := time.Now().Add(-time.Hour)
 	old := ThroughputSample{ObservedAt: at, SongID: 42, Bytes: 100, Duration: time.Second}
 	newer := old
 	newer.ObservedAt = at.Add(time.Minute)
 	newer.SongID = 73
-	state := throughputState{LastAttempt: at, Samples: map[string]ThroughputSample{
+	state := throughputState{SchemaVersion: throughputSchemaVersion, LastAttempt: at, Samples: map[string]ThroughputSample{
 		"resource/cf":              old,
 		"resource/play.udon.dance": newer,
 		"resource/hkg/direct/media.future.example/192.0.2.1": old,
@@ -38,7 +38,7 @@ func TestThroughputMigratesNodeKeysToDomainKeys(t *testing.T) {
 	if len(m.Results(Resource)) != 0 {
 		t.Fatal("persisted history discovered a domain")
 	}
-	if len(m.throughput) != 2 || m.throughput["resource/play.udon.dance"].songID != 73 || m.throughput["resource/media.future.example/direct/media.future.example/192.0.2.1"].songID != 42 || !m.lastThroughput.Equal(at) {
+	if len(m.throughput) != 1 || m.throughput["resource/play.udon.dance"].songID != 73 || !m.lastThroughput.Equal(at) {
 		t.Fatal("lost historical domain ownership or cooldown", m.throughput, m.lastThroughput)
 	}
 	if err := m.saveThroughputTime(); err != nil {
@@ -53,7 +53,7 @@ func TestThroughputMigratesNodeKeysToDomainKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 	for key := range saved.Samples {
-		if !restorableThroughputKey(key) || migrateThroughputKey(key) != key {
+		if !restorableThroughputKey(key) {
 			t.Fatal("persisted legacy node key", key)
 		}
 	}

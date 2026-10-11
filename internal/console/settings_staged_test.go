@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -33,7 +34,9 @@ func TestSavedSettingsDoNotChangeRuntime(t *testing.T) {
 	next := active
 	next.StorageDir = filepath.Join(t.TempDir(), "new-cache")
 	next.SOCKS5Address, next.UpstreamMode = "127.0.0.1:1080", "socks5"
-	next.SOCKS5Username, next.SOCKS5Password = "user", "secret"
+	if runtime.GOOS == "windows" {
+		next.SOCKS5Username, next.SOCKS5Password = "user", "secret"
+	}
 	if err := c.save(next); err != nil {
 		t.Fatal(err)
 	}

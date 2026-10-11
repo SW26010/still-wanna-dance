@@ -36,6 +36,11 @@ func readConfigFile(path string) ([]byte, map[string]json.RawMessage, error) {
 	if version != configSchemaVersion {
 		return nil, nil, fmt.Errorf("不支持配置格式版本 %d；原文件未修改", version)
 	}
+	for key := range fields {
+		if strings.EqualFold(key, "socks5Password") {
+			return nil, nil, fmt.Errorf("配置包含不支持的明文代理密码；请使用新配置，原文件未修改")
+		}
+	}
 	return data, fields, nil
 }
 
@@ -50,7 +55,13 @@ func (c *Console) writeConfigFile(s Settings) error {
 	if fields == nil {
 		fields = make(map[string]json.RawMessage)
 	}
-	data, err := json.Marshal(c.storedSettings(s))
+	secret, err := storedProxySecret(s)
+	if err != nil {
+		return err
+	}
+	stored := c.storedSettings(s)
+	stored.SOCKS5Password = ""
+	data, err := json.Marshal(stored)
 	if err != nil {
 		return err
 	}
@@ -62,7 +73,7 @@ func (c *Console) writeConfigFile(s Settings) error {
 	// aliases as well, or they could override a canonical value on the next read.
 	// The password is the only omitempty field and may be absent when cleared.
 	for key := range fields {
-		if strings.EqualFold(key, "socks5Password") {
+		if strings.EqualFold(key, "socks5Password") || strings.EqualFold(key, "proxySecret") {
 			delete(fields, key)
 			continue
 		}
@@ -75,6 +86,9 @@ func (c *Console) writeConfigFile(s Settings) error {
 	}
 	for name, value := range settings {
 		fields[name] = value
+	}
+	if secret != nil {
+		fields["proxySecret"] = secret
 	}
 	fields["schemaVersion"], err = json.Marshal(configSchemaVersion)
 	if err != nil {

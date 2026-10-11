@@ -340,7 +340,9 @@ function renderSettings(s) {
     $('socks5Address').value = s.settings.socks5Address || '';
     $('socks5Username').value = s.settings.socks5Username || '';
     $('socks5Password').value = '';
-    $('socks5Password').placeholder = s.socks5PasswordSet ? '已保存，留空保持不变' : '需要认证时填写';
+    $('socks5Password').placeholder = s.socks5CredentialError || (s.socks5PasswordSet ? '已保存，留空保持不变' : '需要认证时填写');
+    $('socks5Password').title = s.socks5CredentialError || '';
+    $('socks5CredentialError').textContent = s.socks5CredentialError || '';
     $('maxCacheGiB').value = (s.settings.maxCacheBytes || 0) / 1073741824;
     settingsBaseline = settingsFingerprint();
   }

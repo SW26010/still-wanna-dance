@@ -113,11 +113,19 @@ func (c *Console) networkFor(s Settings) (upstreamDialFunc, *http.Client, error)
 	var proxyID string
 	if s.UpstreamMode == "socks5" || s.UpstreamMode == "auto" {
 		var err error
-		proxyDial, err = NewAuthenticatedSOCKS5Dialer(s.SOCKS5Address, s.SOCKS5Username, s.SOCKS5Password)
+		if s.proxySecretError != "" {
+			proxyDial = func(context.Context, string, string) (net.Conn, error) {
+				return nil, errors.New(unavailableProxySecret)
+			}
+		} else {
+			proxyDial, err = NewAuthenticatedSOCKS5Dialer(s.SOCKS5Address, s.SOCKS5Username, s.SOCKS5Password)
+		}
 		if err != nil {
 			return nil, nil, err
 		}
-		proxyID, err = c.proxyIdentity(s)
+		if s.proxySecretError == "" {
+			proxyID, err = c.proxyIdentity(s)
+		}
 		if err != nil {
 			return nil, nil, err
 		}

@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const ConfigVersion = 2
+const ConfigVersion = 3
 
 type Paths struct {
 	Config, Root, Lock, Terms, ChannelKey, Log, DefaultStorage string

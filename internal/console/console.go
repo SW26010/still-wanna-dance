@@ -37,6 +37,8 @@ var aboutPage string
 var assets embed.FS
 
 type Settings struct {
+	proxySecret               string
+	proxySecretError          string
 	ThroughputIntervalMinutes int    `json:"throughputIntervalMinutes"`
 	AutoStartQueue            bool   `json:"autoStartQueue"`
 	RequestRetentionDays      int    `json:"requestRetentionDays"`
@@ -131,7 +133,7 @@ func New(configPath, address string) (*Console, error) {
 	c.exitRequested = make(chan struct{})
 	c.restartRequested = make(chan struct{})
 	c.dns = &directDNS{}
-	data, _, err := readConfigFile(configPath)
+	data, fields, err := readConfigFile(configPath)
 	if err != nil {
 		return nil, err
 	}
@@ -139,6 +141,7 @@ func New(configPath, address string) (*Console, error) {
 		if err := json.Unmarshal(data, &c.settings); err != nil {
 			return nil, fmt.Errorf("读取控制台配置：%w", err)
 		}
+		loadProxySecret(fields, &c.settings)
 	}
 	c.settings, err = c.resolveSettings(c.settings)
 	c.savedSettings = c.settings
@@ -202,7 +205,7 @@ func absoluteSettings(s Settings) (Settings, error) {
 		if err := validateSOCKS5Address(s.SOCKS5Address); err != nil {
 			return s, err
 		}
-		if err := validateSOCKS5Credentials(s.SOCKS5Username, s.SOCKS5Password); err != nil {
+		if err := validateSOCKS5Credentials(s.SOCKS5Username, s.SOCKS5Password); err != nil && s.proxySecretError == "" {
 			return s, err
 		}
 	}
@@ -298,6 +301,11 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 	c.mu.Unlock()
 	if preservePassword {
 		s.SOCKS5Password = oldSettings.SOCKS5Password
+		s.proxySecret = oldSettings.proxySecret
+		s.proxySecretError = oldSettings.proxySecretError
+	} else {
+		s.proxySecret = ""
+		s.proxySecretError = ""
 	}
 	var err error
 	s, err = c.resolveSettings(s)
@@ -634,33 +642,35 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.mu.Lock()
 		running := c.httpServer != nil
 		result := struct {
-			Running           bool                    `json:"running"`
-			Settings          Settings                `json:"settings"`
-			ActiveSettings    Settings                `json:"activeSettings"`
-			RestartRequired   bool                    `json:"restartRequired"`
-			Hosts             HostsStatus             `json:"hosts"`
-			PortOK            bool                    `json:"portOK"`
-			CDNError          string                  `json:"cdnError"`
-			ActionErrors      map[string]string       `json:"actionErrors"`
-			Batch             Batch                   `json:"batch"`
-			Import            ImportStatus            `json:"import"`
-			PortOwner         *desktop.Owner          `json:"portOwner,omitempty"`
-			Queue             QueueStatus             `json:"queue"`
-			LastBatch         Batch                   `json:"lastBatch"`
-			HTTPSPortOK       bool                    `json:"httpsPortOK"`
-			HTTPSPortOwner    *desktop.Owner          `json:"httpsPortOwner,omitempty"`
-			Traffic           cacheproxy.TrafficStats `json:"traffic"`
-			SOCKS5PasswordSet bool                    `json:"socks5PasswordSet"`
-			Activation        Activation              `json:"activation"`
-			DefaultLogDir     string                  `json:"defaultLogDir"`
-			UpstreamMonitor   upstreamstate.Status    `json:"upstreamMonitor"`
+			Running               bool                    `json:"running"`
+			Settings              Settings                `json:"settings"`
+			ActiveSettings        Settings                `json:"activeSettings"`
+			RestartRequired       bool                    `json:"restartRequired"`
+			Hosts                 HostsStatus             `json:"hosts"`
+			PortOK                bool                    `json:"portOK"`
+			CDNError              string                  `json:"cdnError"`
+			ActionErrors          map[string]string       `json:"actionErrors"`
+			Batch                 Batch                   `json:"batch"`
+			Import                ImportStatus            `json:"import"`
+			PortOwner             *desktop.Owner          `json:"portOwner,omitempty"`
+			Queue                 QueueStatus             `json:"queue"`
+			LastBatch             Batch                   `json:"lastBatch"`
+			HTTPSPortOK           bool                    `json:"httpsPortOK"`
+			HTTPSPortOwner        *desktop.Owner          `json:"httpsPortOwner,omitempty"`
+			Traffic               cacheproxy.TrafficStats `json:"traffic"`
+			SOCKS5PasswordSet     bool                    `json:"socks5PasswordSet"`
+			SOCKS5CredentialError string                  `json:"socks5CredentialError,omitempty"`
+			Activation            Activation              `json:"activation"`
+			DefaultLogDir         string                  `json:"defaultLogDir"`
+			UpstreamMonitor       upstreamstate.Status    `json:"upstreamMonitor"`
 		}{
 			Running: running, Settings: c.savedSettings, ActiveSettings: c.settings,
 			RestartRequired: c.savedSettings != c.settings,
 			PortOK:          running, HTTPSPortOK: running, CDNError: c.cdnError,
 			Import: c.importStatus, Batch: c.batch, Queue: c.queue, LastBatch: c.lastBatch,
-			SOCKS5PasswordSet: c.savedSettings.SOCKS5Password != "",
-			Activation:        c.activation, DefaultLogDir: defaultLogDir(),
+			SOCKS5PasswordSet:     c.savedSettings.SOCKS5Password != "",
+			SOCKS5CredentialError: c.savedSettings.proxySecretError,
+			Activation:            c.activation, DefaultLogDir: defaultLogDir(),
 			UpstreamMonitor: c.monitorSnapshotLocked(),
 		}
 		result.Settings.SOCKS5Password = ""

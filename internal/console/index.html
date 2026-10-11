@@ -374,7 +374,8 @@
             <input id="socks5Username" aria-describedby="socks5PasswordHint" name="socks5Username" type="text" autocomplete="off" spellcheck="false" />
             <label for="socks5Password">SOCKS5 密码</label>
             <input id="socks5Password" aria-describedby="socks5PasswordHint" name="socks5Password" type="password" autocomplete="new-password" />
-            <div class="hint" id="socks5PasswordHint">填写代理软件的主机:端口。无需认证时留空；已有密码留空则保留，清空用户名和密码可移除认证。密码以明文保存在本机。</div>
+            <div class="hint" id="socks5PasswordHint">填写代理软件的主机:端口。无需认证时留空；已有密码留空则保留，清空用户名和密码可移除认证。密码由 Windows 当前用户加密保护，换用户或电脑后可能需要重新输入。</div>
+            <div class="hint" id="socks5CredentialError" role="status"></div>
             </div>
             <label for="throughputIntervalMinutes">自动测速间隔（分钟）</label>
             <input id="throughputIntervalMinutes" type="number" min="1" max="1440" step="1" required value="20" aria-describedby="throughputIntervalHint" />

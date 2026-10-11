@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -63,6 +64,9 @@ func TestSOCKS5Authentication(t *testing.T) {
 }
 
 func TestSOCKS5PasswordSettingsLifecycle(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows CurrentUser credential persistence")
+	}
 	c := testConsole(t)
 	s := c.settings
 	s.UpstreamMode, s.SOCKS5Address = "socks5", "127.0.0.1:1080"

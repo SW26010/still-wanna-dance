@@ -11,7 +11,9 @@ import (
 
 func TestConfigurationReplacementFailurePreservesSavedFile(t *testing.T) {
 	c := testConsole(t)
-	if err := c.save(c.settings); err != nil {
+	initial := c.settings
+	initial.SOCKS5Username, initial.SOCKS5Password = "user", "preserved-secret"
+	if err := c.save(initial); err != nil {
 		t.Fatal(err)
 	}
 	before, err := os.ReadFile(c.configPath)
@@ -35,6 +37,7 @@ func TestConfigurationReplacementFailurePreservesSavedFile(t *testing.T) {
 	}()
 	want := c.savedSettings
 	next := want
+	next.SOCKS5Password = "new-secret"
 	next.QueuePrefetchCount++
 	if err := c.save(next); err == nil {
 		t.Fatal("replaced a locked configuration")

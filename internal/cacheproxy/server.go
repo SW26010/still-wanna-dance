@@ -126,24 +126,11 @@ func New(cfg Config) (*Server, error) {
 			return nil, err
 		}
 	}
-	// The OS lock is released after a crash. Only our own partial files are removed.
-	entries, err := os.ReadDir(cfg.tempDir())
-	cleaned := 0
-	if err == nil {
-		for _, entry := range entries {
-			if !strings.HasPrefix(entry.Name(), "download-") || !strings.HasSuffix(entry.Name(), ".part") || entry.IsDir() {
-				continue
-			}
-			if err = os.Remove(filepath.Join(cfg.tempDir(), entry.Name())); err != nil {
-				break
-			}
-			cleaned++
-		}
-	}
+	cleaned, err := cleanTemporaryFiles(cfg.tempDir(), cfg.Logger)
 	if err != nil {
 		usage.close()
 		unlock()
-		return nil, fmt.Errorf("clean partial downloads: %w", err)
+		return nil, fmt.Errorf("clean temporary media files: %w", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	transport := newTransport()

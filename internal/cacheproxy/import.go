@@ -73,8 +73,16 @@ func (s *Server) ImportVideo(ctx context.Context, source string, allowed map[str
 	if err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(dir)
 	stage := filepath.Join(dir, "video")
+	defer func() {
+		// Do not recursively delete unexpected files introduced into the stage.
+		if err := os.Remove(stage); err != nil && !os.IsNotExist(err) {
+			s.cfg.Logger.Warn("import_stage_cleanup_failed", "path", stage, "error", err)
+		}
+		if err := os.Remove(dir); err != nil {
+			s.cfg.Logger.Warn("import_stage_cleanup_failed", "path", dir, "error", err)
+		}
+	}()
 	if err = os.Link(source, stage); err != nil {
 		if !importCrossDevice(err) {
 			return nil, fmt.Errorf("创建硬链接失败：%w", err)

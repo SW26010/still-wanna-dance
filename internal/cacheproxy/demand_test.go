@@ -26,10 +26,13 @@ func TestDemandRanksAndLifetimes(t *testing.T) {
 	check(downloadRank{level: 2, position: 1})
 	ctx, cancel := context.WithCancel(context.Background())
 	_, releaseGET := s.addDemand(ctx, video{key: "shared"}, true)
+	_, releaseOtherGET := s.addDemand(context.Background(), video{key: "shared"}, true)
 	check(downloadRank{})
 	s.UpdatePrefetchQueue(nil, true)
 	check(downloadRank{})
 	cancel() // Rank ignores canceled requests even before AfterFunc executes.
+	check(downloadRank{})
+	releaseOtherGET()
 	check(noDemand)
 	releaseGET()
 	releaseGET()

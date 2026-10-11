@@ -1,4 +1,4 @@
-param([string]$Output = 'bin/still-wanna-dance-console.exe')
+param([string]$Output = 'bin/SWD.exe')
 $ErrorActionPreference = 'Stop'
 $previous = @{}
 foreach ($key in @('GOOS', 'GOARCH', 'CGO_ENABLED')) {

@@ -5,18 +5,50 @@ $root = Join-Path ([IO.Path]::GetTempPath()) ('Still Wanna Dance smoke ' + [guid
 New-Item -ItemType Directory -Path $root | Out-Null
 $process = $null
 $duplicate = $null
+$customProcesses = @()
+
+function Free-Port {
+    $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+    $listener.Start()
+    $port = $listener.LocalEndpoint.Port
+    $listener.Stop()
+    return $port
+}
+
+function Wait-ConsentGate($child, $port) {
+    for ($i = 0; $i -lt 40; $i++) {
+        if ($child.HasExited) { throw "Console exited: $($child.ExitCode)" }
+        try {
+            $response = Invoke-WebRequest "http://127.0.0.1:$port/api/status" -SkipHttpErrorCheck -TimeoutSec 1
+            if ([int]$response.StatusCode -eq 428) { return }
+        } catch { }
+        Start-Sleep -Milliseconds 250
+    }
+    throw 'Console did not restore its consent gate.'
+}
+
+function Data-Hashes($directory) {
+    $result = @{}
+    foreach ($file in Get-ChildItem -LiteralPath $directory -File -Recurse) {
+        $result[[IO.Path]::GetRelativePath($directory, $file.FullName)] = (Get-FileHash -LiteralPath $file.FullName).Hash
+    }
+    return $result
+}
 try {
     Expand-Archive -LiteralPath $zipPath -DestinationPath $root
-    $exe = @(Get-ChildItem -LiteralPath $root -Recurse -Filter still-wanna-dance-console.exe)
+    $exe = @(Get-ChildItem -LiteralPath $root -Recurse -Filter SWD.exe)
     if ($exe.Count -ne 1) { throw 'Expected exactly one desktop executable.' }
     $folder = $exe[0].DirectoryName
+    if ((Split-Path -Leaf $folder) -cne 'SWD') { throw 'ZIP installation directory must be stable: SWD.' }
+    $shipped = @(Get-ChildItem -LiteralPath $folder | ForEach-Object Name | Sort-Object)
+    if (($shipped -join '|') -cne 'build-info.json|licenses|README.txt|SWD.exe') { throw 'Unexpected delivered files or bundled user data.' }
     foreach ($name in @('LICENSE', 'THIRD-PARTY-NOTICES.txt', 'TERMS.txt')) {
-        $file = Join-Path $folder $name
+        $file = Join-Path (Join-Path $folder 'licenses') $name
         if (!(Test-Path -LiteralPath $file -PathType Leaf) -or (Get-Item -LiteralPath $file).Length -eq 0) {
             throw "Missing or empty license file: $name"
         }
     }
-    $notices = Get-Content -LiteralPath (Join-Path $folder 'THIRD-PARTY-NOTICES.txt') -Raw
+    $notices = Get-Content -LiteralPath (Join-Path $folder 'licenses/THIRD-PARTY-NOTICES.txt') -Raw
     $info = @(& go version -m $exe[0].FullName)
     if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect packaged dependencies.' }
     foreach ($line in $info) {
@@ -44,18 +76,21 @@ try {
     $gate = Invoke-WebRequest "$url/api/status" -SkipHttpErrorCheck
     if ([int]$gate.StatusCode -ne 428) { throw 'API was accessible before consent.' }
     $servedTerms = Invoke-WebRequest "$url/terms.txt" -UseBasicParsing
-    if ($servedTerms.Content -cne [IO.File]::ReadAllText((Join-Path $folder 'TERMS.txt'))) { throw 'Packaged and embedded terms differ.' }
-    if (!(Test-Path -LiteralPath (Join-Path $folder 'still-wanna-dance-console.json.lock'))) { throw 'Config lock missing beside executable.' }
-    $configPath = Join-Path $folder 'still-wanna-dance-console.json'
+    if ($servedTerms.Content -cne [IO.File]::ReadAllText((Join-Path $folder 'licenses/TERMS.txt'))) { throw 'Packaged and embedded terms differ.' }
+    if (!(Test-Path -LiteralPath (Join-Path $folder 'data/config.lock'))) { throw 'Config lock missing under data.' }
+    $configPath = Join-Path $folder 'data/config.json'
     $configBefore = [IO.File]::ReadAllText($configPath)
     $settings = $configBefore | ConvertFrom-Json
-    if ($settings.schemaVersion -ne 1 -or $settings.storageDir -cne 'still-wanna-dance-data') {
+    if ($settings.schemaVersion -ne 2 -or $settings.storageDir -cne 'storage') {
         throw 'First launch did not persist a versioned, portable default configuration.'
     }
-    if (Test-Path -LiteralPath (Join-Path $folder 'still-wanna-dance-data')) { throw 'Consent-gated startup created media storage.' }
+    if (Test-Path -LiteralPath (Join-Path $folder 'data/storage')) { throw 'Consent-gated startup created media storage.' }
+    $generated = @(Get-ChildItem -LiteralPath (Join-Path $folder 'data') | ForEach-Object Name | Sort-Object)
+    if (($generated -join '|') -cne 'config.json|config.lock|logs') { throw 'Unused feature created state or credentials.' }
+    if ((Get-ChildItem -LiteralPath $folder | Measure-Object).Count -ne 5) { throw 'Startup scattered files beside SWD.exe.' }
     $page = Invoke-WebRequest $url -UseBasicParsing
     if ($page.Content -notmatch 'Still Wanna Dance') { throw 'Embedded UI missing.' }
-    $logPath = Join-Path $folder 'logs/still-wanna-dance-console.json.log'
+    $logPath = Join-Path $folder 'data/logs/app.log'
     $records = @(Get-Content -LiteralPath $logPath | ForEach-Object { $_ | ConvertFrom-Json })
     $startupEvents = @('application_starting', 'application_build', 'console_ready')
     foreach ($event in $startupEvents) {
@@ -69,7 +104,7 @@ try {
     if (!$duplicate.WaitForExit(10000)) { throw 'Duplicate process did not reject the occupied config.' }
     if ($duplicate.ExitCode -eq 0) { throw 'Duplicate process unexpectedly succeeded.' }
     $diagnostic = Get-Content -LiteralPath $duplicateError -Raw
-    if ($diagnostic -notmatch '已有实例正在使用配置' -or !$diagnostic.Contains((Join-Path $folder 'still-wanna-dance-console.json'))) {
+    if ($diagnostic -notmatch '已有实例正在使用配置' -or !$diagnostic.Contains((Join-Path $folder 'data/config.json'))) {
         throw 'Duplicate process failed without identifying the occupied config.'
     }
     if ($process.HasExited -or (Invoke-WebRequest "$url/" -UseBasicParsing).StatusCode -ne 200) { throw 'Duplicate launch disrupted the owner.' }
@@ -94,8 +129,63 @@ try {
     foreach ($event in $startupEvents) {
         if (@($records | Where-Object { $_.msg -eq $event }).Count -ne 2) { throw "Expected two startup log records after restart: $event" }
     }
-    Write-Host 'Portable smoke passed: ZIP extraction, independent launch directory, versioned default configuration, config lock, consent gate, matching terms, embedded UI, JSON logs, duplicate rejection, abrupt-stop restart.'
+    # Overlay only delivered paths. Unknown user files and configuration must survive byte-for-byte.
+    $process.Kill()
+    $process.WaitForExit()
+    [IO.File]::WriteAllText((Join-Path $folder 'data/user-note.txt'), 'Keep this user-owned file.')
+    $before = Data-Hashes (Join-Path $folder 'data')
+    Expand-Archive -LiteralPath $zipPath -DestinationPath $root -Force
+    $after = Data-Hashes (Join-Path $folder 'data')
+    if ($before.Count -ne $after.Count) { throw 'Upgrade added or removed user data.' }
+    foreach ($key in $before.Keys) {
+        if ($before[$key] -cne $after[$key]) { throw "Upgrade changed user data: $key" }
+    }
+
+    # Both paths are generated descendants of this smoke directory, never a real installation.
+    $moved = [IO.Path]::GetFullPath((Join-Path $root 'moved SWD'))
+    $boundary = [IO.Path]::GetFullPath($root).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+    foreach ($path in @([IO.Path]::GetFullPath($folder), $moved)) {
+        if (!$path.StartsWith($boundary, [StringComparison]::OrdinalIgnoreCase)) { throw 'Move escaped the smoke directory.' }
+    }
+    Move-Item -LiteralPath $folder -Destination $moved
+    $folder = $moved
+    $exePath = Join-Path $folder 'SWD.exe'
+    $process = Start-Process -FilePath $exePath -ArgumentList @('-no-tray', '-no-open', '-listen', "127.0.0.1:$port") -WorkingDirectory $root -WindowStyle Hidden -PassThru
+    Wait-ConsentGate $process $port
+    if ([IO.File]::ReadAllText((Join-Path $folder 'data/config.json')) -cne $configBefore) { throw 'Move rewrote portable configuration.' }
+    if (Test-Path -LiteralPath (Join-Path $root 'data')) { throw 'Working directory received portable data.' }
+
+    # Concurrent custom instances share a parent, but never locks, logs or defaults.
+    $profiles = Join-Path $root 'profiles'
+    foreach ($name in @('a.json', 'b.json')) {
+        $config = Join-Path $profiles $name
+        $configArgument = if ($name -eq 'a.json') { Join-Path 'profiles' $name } else { $config }
+        $customPort = Free-Port
+        $child = Start-Process -FilePath $exePath -ArgumentList @('-no-tray', '-no-open', '-listen', "127.0.0.1:$customPort", '-config', ('"' + $configArgument + '"')) -WorkingDirectory $root -WindowStyle Hidden -PassThru
+        $customProcesses += $child
+        Wait-ConsentGate $child $customPort
+        $saved = Get-Content -LiteralPath $config -Raw | ConvertFrom-Json
+        if ($saved.schemaVersion -ne 2 -or $saved.storageDir -cne (Join-Path "$name.d" 'storage')) { throw 'Custom default storage escaped its instance.' }
+        $records = @(Get-Content -LiteralPath (Join-Path "$config.d" 'logs/app.log') | ForEach-Object { $_ | ConvertFrom-Json })
+        if (@($records | Where-Object { $_.pid -ne $child.Id }).Count -ne 0) { throw 'Custom instances shared a log.' }
+        if (!(Test-Path -LiteralPath (Join-Path "$config.d" 'config.lock'))) { throw 'Custom lock missing.' }
+        if (Test-Path -LiteralPath (Join-Path "$config.d" 'storage')) { throw 'Custom startup created unused storage.' }
+    }
+    foreach ($child in $customProcesses) { if ($child.HasExited) { throw 'Concurrent configuration was displaced.' } }
+
+    $legacy = Join-Path $root 'legacy'
+    New-Item -ItemType Directory -Path $legacy | Out-Null
+    Copy-Item -LiteralPath $exePath -Destination (Join-Path $legacy 'SWD.exe')
+    $marker = Join-Path $legacy 'still-wanna-dance-console.json'
+    [IO.File]::WriteAllText($marker, 'old test data')
+    $legacyError = Join-Path $root 'legacy.stderr.txt'
+    $duplicate = Start-Process -FilePath (Join-Path $legacy 'SWD.exe') -ArgumentList @('-no-tray', '-no-open', '-listen', '127.0.0.1:0') -WorkingDirectory $root -WindowStyle Hidden -RedirectStandardError $legacyError -PassThru
+    if (!$duplicate.WaitForExit(10000) -or $duplicate.ExitCode -eq 0) { throw 'Old installation was not rejected.' }
+    if ((Get-Content -LiteralPath $legacyError -Raw) -notmatch '旧测试布局') { throw 'Old installation diagnostic missing.' }
+    if ([IO.File]::ReadAllText($marker) -cne 'old test data' -or (Test-Path -LiteralPath (Join-Path $legacy 'data'))) { throw 'Old installation was changed.' }
+    Write-Host 'Portable smoke passed: stable ZIP paths, lazy data layout, independent launch directory, config lock, consent, legal notices, JSON logs, duplicate rejection, restart, overlay upgrade, whole-directory move, concurrent custom configurations and old-layout rejection.'
 } finally {
+    foreach ($child in $customProcesses) { if (!$child.HasExited) { $child.Kill(); $child.WaitForExit() } }
     if ($null -ne $duplicate -and !$duplicate.HasExited) { $duplicate.Kill(); $duplicate.WaitForExit() }
     if ($null -ne $process -and !$process.HasExited) { $process.Kill(); $process.WaitForExit() }
     # Keep the isolated extraction for inspection; never touch an existing installation.

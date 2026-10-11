@@ -19,17 +19,19 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Go vet failed.' }
     $destination = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDir)
     $name = "still-wanna-dance-$Version-windows-amd64-portable"
-    $folder = Join-Path $destination $name
-    $zip = "$folder.zip"
-    foreach ($path in @($folder, $zip, "$zip.sha256")) {
+    $staging = Join-Path $destination $name
+    $folder = Join-Path $staging 'SWD'
+    $zip = Join-Path $destination "$name.zip"
+    foreach ($path in @($staging, $zip, "$zip.sha256")) {
         if (Test-Path -LiteralPath $path) { throw "Output already exists: $path. Choose another version or output directory." }
     }
-    New-Item -ItemType Directory -Path $folder -Force | Out-Null
-    & "$PSScriptRoot/build-desktop.ps1" -Output (Join-Path $folder 'still-wanna-dance-console.exe')
+    $licenses = Join-Path $folder 'licenses'
+    New-Item -ItemType Directory -Path $licenses -Force | Out-Null
+    & "$PSScriptRoot/build-desktop.ps1" -Output (Join-Path $folder 'SWD.exe')
     Copy-Item -LiteralPath 'docs/portable-readme.txt' -Destination (Join-Path $folder 'README.txt')
-    Copy-Item -LiteralPath 'LICENSE' -Destination (Join-Path $folder 'LICENSE')
-    Copy-Item -LiteralPath 'internal/legal/TERMS.txt' -Destination (Join-Path $folder 'TERMS.txt')
-    & "$PSScriptRoot/package-notices.ps1" -Executable (Join-Path $folder 'still-wanna-dance-console.exe') -Output (Join-Path $folder 'THIRD-PARTY-NOTICES.txt')
+    Copy-Item -LiteralPath 'LICENSE' -Destination (Join-Path $licenses 'LICENSE')
+    Copy-Item -LiteralPath 'internal/legal/TERMS.txt' -Destination (Join-Path $licenses 'TERMS.txt')
+    & "$PSScriptRoot/package-notices.ps1" -Executable (Join-Path $folder 'SWD.exe') -Output (Join-Path $licenses 'THIRD-PARTY-NOTICES.txt')
     $goVersion = & go version
     $metadata = [ordered]@{
         version = $Version

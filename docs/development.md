@@ -46,8 +46,8 @@ Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的
 
 ```powershell
 go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
-go build -o bin/still-wanna-dance-console.exe ./cmd/still-wanna-dance-console
-node scripts/acceptance.mjs bin/still-wanna-dance.exe bin/still-wanna-dance-console.exe
+go build -o bin/SWD.exe ./cmd/still-wanna-dance-console
+node scripts/acceptance.mjs bin/still-wanna-dance.exe bin/SWD.exe bin/data/terms.json
 node --test scripts/acceptance-protocol.test.mjs scripts/acceptance-request.test.mjs
 ```
 

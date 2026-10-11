@@ -17,7 +17,7 @@ go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
 
 默认监听 `127.0.0.1:18080`，默认目录相对于启动时的工作目录。Ctrl+C 取消后台下载，清理临时文件并关闭服务。启动不修改 hosts、不改代理，会清理已被取代的旧版本。所有日志为 stderr 上的 JSON。
 
-验证时先通过本地播放 API 请求：`curl.exe --noproxy "*" --resolve api.udon.dance:18080:127.0.0.1 "http://api.udon.dance:18080/Api/Songs/play?id=1343&node=cf"`。服务根据有效 API 返回值发现资源域名；后续直达资源请求须保留实际域名、路径、e、s。直接访问 localhost 首页返回 400；网页和托盘入口为 `still-wanna-dance-console.exe`。
+验证时先通过本地播放 API 请求：`curl.exe --noproxy "*" --resolve api.udon.dance:18080:127.0.0.1 "http://api.udon.dance:18080/Api/Songs/play?id=1343&node=cf"`。服务根据有效 API 返回值发现资源域名；后续直达资源请求须保留实际域名、路径、e、s。直接访问 localhost 首页返回 400；网页和托盘入口为 `SWD.exe`。
 
 统一存储位于 `-storage-dir` 指定的根目录：`videos/<资源指纹>.mp4` 是唯一正式视频，`tmp` 保存下载临时文件，`storage.sqlite` 保存歌曲、版本和请求统计。不读取旧格式，不提供迁移。详见[统一存储](storage.md)。
 
@@ -29,7 +29,7 @@ go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
 
 本页 `still-wanna-dance.exe` 命令行入口支持 HTTP 视频请求及 `api.udon.dance/Api/Songs/play?id=…` 的 GET/HEAD，接受省略 node、`node=cf` 或 `node=nya`。它通过 HTTPS 获取上游视频地址，按资源指纹命中缓存或边下边播，直接以 HTTP 返回视频，支持单段 Range。游戏入口须使用 HTTP，播放器须接受 API 地址直接返回视频；游戏内兼容性仍待实测。其他 API 路径的 GET/HEAD 返回 307，指向原站 HTTPS。
 
-CLI 不监听 443，也不支持 `/v/` 或 SHA。hosts 同时影响 HTTP/HTTPS，因此映射后的域名若被客户端通过 HTTPS 访问（包括上述 307），CLI 单独运行无法承接该连接。需要同时兼容网页 HTTPS 播放时，使用 `still-wanna-dance-console.exe`：其 CDN 同时启动 HTTP 缓存和 HTTPS 透传，详见[本地控制台](console.md#网页-https-播放)。透传不使用本地缓存。更详细的原版接入记录见[复现手册](testing-runbook.md)，其中原版命令不能直接当作 Still Wanna Dance 命令使用。
+CLI 不监听 443，也不支持 `/v/` 或 SHA。hosts 同时影响 HTTP/HTTPS，因此映射后的域名若被客户端通过 HTTPS 访问（包括上述 307），CLI 单独运行无法承接该连接。需要同时兼容网页 HTTPS 播放时，使用 `SWD.exe`：其 CDN 同时启动 HTTP 缓存和 HTTPS 透传，详见[本地控制台](console.md#网页-https-播放)。透传不使用本地缓存。更详细的原版接入记录见[复现手册](testing-runbook.md)，其中原版命令不能直接当作 Still Wanna Dance 命令使用。
 
 ## 缓存和下载规则
 

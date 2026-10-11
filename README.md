@@ -23,7 +23,7 @@ Still Wanna Dance 是为 **Windows 上的 VRChat WannaDance 玩家**打造的开
 
 面向 Windows x64。先准备一个可写的程序目录，以及足够存放视频的磁盘空间。
 
-1. 在[发布页面](https://github.com/SW26010/still-wanna-dance/releases)查找 Windows portable ZIP，完整解压后双击 `still-wanna-dance-console.exe`。如果暂时没有发布包，也可以[从源码构建](#从源码构建)。
+1. 在[发布页面](https://github.com/SW26010/still-wanna-dance/releases)查找 Windows portable ZIP，完整解压后双击 `SWD.exe`。如果暂时没有发布包，也可以[从源码构建](#从源码构建)。
 2. 程序会打开本地网页控制台。首次使用时，阅读并确认使用条款。
 3. 在「设置」中选择存储目录，保存后点击「立即重启并应用」。VRChat 日志目录默认自动识别，通常无需手动填写。
 4. 回到「开始使用」，点击「启用游戏加速」，按提示完成 hosts 接入；修改 hosts 时会出现 Windows 授权提示。
@@ -64,7 +64,7 @@ Windows 桌面版需要 Go 1.25 或更新版本、Git 和 PowerShell。在仓库
 
 ```powershell
 .\scripts\build-desktop.ps1
-.\bin\still-wanna-dance-console.exe
+.\bin\SWD.exe
 ```
 
 网页资源和 SQLite 依赖会编译进程序，无需额外搭建前端或数据库服务。
@@ -93,9 +93,9 @@ Windows 桌面版需要 Go 1.25 或更新版本、Git 和 PowerShell。在仓库
 
 ## 升级与备份
 
-退出程序后，备份完整配置组（主 JSON 及同名前缀附属文件）和整个存储目录；外置存储需单独备份。将新版包的六个交付文件一起覆盖到原程序目录，保留配置和媒体数据，再从原目录启动。不要直接运行新解压目录里的 EXE，以免启用另一套默认配置。
+退出程序后，备份完整 `data/`；自定义配置需备份主 JSON 及其独立数据根，外置媒体需备份整个存储目录。将新版包的 `SWD.exe`、`licenses/`、`README.txt` 和 `build-info.json` 覆盖到原程序目录，保留 data 和外置库，再从原目录启动。不要直接运行新解压目录里的 EXE，以免启用另一套默认配置。
 
-当前为发布前定稿的首版文件格式，不迁移无版本旧配置或旧数据库。旧测试数据应保留备份并使用独立的新配置与存储。若提示文件格式较新，应更新程序，不要删库或修改版本号。详细范围和步骤见[便携版升级说明](docs/portable-readme.txt)。
+当前配置格式为版本 2，不兼容或迁移无版本、版本 1 测试配置及旧数据库。旧测试数据应保留备份并使用独立的新配置与存储。若提示文件格式较新，应更新程序，不要删库或修改版本号。详细范围和步骤见[便携版升级说明](docs/portable-readme.txt)。
 
 ## 缓存空间与覆盖收益
 

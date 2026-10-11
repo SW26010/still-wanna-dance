@@ -12,7 +12,7 @@ import { AcceptanceBlocked, videoRedirect } from './acceptance-protocol.mjs';
 const [executable, consoleExecutable, receiptPath] = process.argv.slice(2);
 const root = process.cwd();
 const binary = path.resolve(executable || path.join(root, 'bin', 'still-wanna-dance.exe'));
-const consoleBinary = path.resolve(consoleExecutable || path.join(root, 'bin', 'still-wanna-dance-console.exe'));
+const consoleBinary = path.resolve(consoleExecutable || path.join(root, 'bin', 'SWD.exe'));
 const lab = path.join(root, 'test-runs', `acceptance-${Date.now()}`);
 fs.mkdirSync(lab, { recursive: true });
 const report = { started: new Date().toISOString(), checks: [] };
@@ -126,10 +126,11 @@ function rangeVideo(res, file) {
 async function consoleService(name, storageDir, extra = {}) {
   const port = await freePort();
   const config = path.join(lab, `${name}.json`);
-  fs.writeFileSync(config, JSON.stringify({ schemaVersion: 1, storageDir, logDir: path.join(lab, 'game-logs'),
+  fs.writeFileSync(config, JSON.stringify({ schemaVersion: 2, storageDir, logDir: path.join(lab, 'game-logs'),
     downloadUpstream: 'auto', autoStartCDN: true, ...extra }));
   // Reuse the operator's existing acceptance; never manufacture a receipt.
-  fs.writeFileSync(config + '.terms.json', JSON.stringify(receipt));
+  fs.mkdirSync(config + '.d', { recursive: true });
+  fs.writeFileSync(path.join(config + '.d', 'terms.json'), JSON.stringify(receipt));
   const base = `http://127.0.0.1:${port}`;
   const child = await launch(consoleBinary, ['-no-tray', '-no-open', '-listen', `127.0.0.1:${port}`,
     '-config', config], name, port, base);
@@ -166,7 +167,7 @@ function requireBinary(name, file) {
 
 try {
   if (!receiptPath || !fs.existsSync(receiptPath)) {
-    throw new AcceptanceBlocked('environment', 'Provide an existing console .terms.json receipt as the third argument after reading and accepting the current terms.');
+    throw new AcceptanceBlocked('environment', 'Provide an existing console terms.json receipt as the third argument after reading and accepting the current terms.');
   }
   receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8').replace(/^\uFEFF/, ''));
   const version = fs.readFileSync(path.join(root, 'internal/legal/legal.go'), 'utf8').match(/const Version = "([^"]+)"/)?.[1];

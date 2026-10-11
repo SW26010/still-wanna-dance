@@ -1,64 +1,43 @@
-# Windows portable 打包
+# Windows Portable 打包
 
-构建环境需要 Go 1.25 或更新版本、Node.js（CI 使用 22）、Git 和 PowerShell；用户只需要 Windows x64。
-网页内嵌在 EXE 内，运行交付包无需 Node.js、Go 或外部运行库。
-
-在仓库目录运行：
+构建需要 Go 1.25 或更新版本、Node.js（CI 使用 22）、Git 和 PowerShell；用户只需要 Windows x64。网页和 SQLite 编译进 EXE，无需外部运行库。
 
 ```powershell
 ./scripts/package-portable.ps1 -Version 0.1.0
 ./scripts/test-portable.ps1 -Zip artifacts/still-wanna-dance-0.1.0-windows-amd64-portable.zip
 ```
 
-打包先运行 `node --test scripts/refresh.test.mjs`、`go test ./cmd/... ./internal/...` 和 `go vet ./cmd/... ./internal/...`，失败即停止。随后以
-`GOOS=windows GOARCH=amd64 CGO_ENABLED=0` 构建无命令行窗口的托盘程序，
-输出文件夹、ZIP 和 ZIP 的 SHA-256 校验文件。编译后恢复原来的环境变量。
-不指定版本时使用 `dev-日期-时间`；`-OutputDir` 可指定输出目录，默认 `artifacts`。
-遇到同名产物会报错，不覆盖现有包。
+打包先运行三个前端测试文件（refresh、navigation、terms）、`go test ./cmd/... ./internal/...`、`go vet ./cmd/... ./internal/...`，失败即停止。随后以 `GOOS=windows GOARCH=amd64 CGO_ENABLED=0` 构建无命令行窗口的托盘程序，并恢复原环境变量。
 
-交付文件夹只包含：
+ZIP 名允许带版本；ZIP 内固定为：
 
 ```text
-still-wanna-dance-0.1.0-windows-amd64-portable/
-  still-wanna-dance-console.exe
+SWD/
+  SWD.exe
   README.txt
-  TERMS.txt
-  LICENSE
-  THIRD-PARTY-NOTICES.txt
   build-info.json
+  licenses/
+    LICENSE
+    TERMS.txt
+    THIRD-PARTY-NOTICES.txt
 ```
 
-不打包本机配置、hosts、歌曲库、日志或缓存。`build-info.json` 记录版本、
-提交 SHA、是否存在未提交修改、UTC 构建时间、Go 版本和目标平台。
-版本标签不等于 Git tag；本地未提交代码允许打包，并明确标记 dirty。
+不交付 data、空媒体目录、本机配置、hosts、日志或缓存。README 暂时保留，按 #23/#26 的分工，等 #16 内置帮助可用后由 #26 取消；构建信息的交付简化也留给 #26。应用数据位置已经固定，完整树、生命周期及备份范围以[统一存储](storage.md)为准。
 
-`LICENSE` 为项目的 MIT 许可证。`THIRD-PARTY-NOTICES.txt` 包含直接及间接
-依赖的版权和许可全文，包括 libc 内嵌组件声明；打包时追加实际 Go 工具链的
-运行库和内置依赖许可。脚本根据 EXE 的模块版本检查声明覆盖情况，遇到未登记
-版本或 replacement 模块时停止。升级依赖后须核对模块和内嵌组件许可，更新
-仓库根目录的同名声明文件；不能只修改版本号。单独分发 EXE 时也应附上这两份文件。
+产物暂存于 `artifacts/still-wanna-dance-<版本>-windows-amd64-portable/SWD/`，ZIP 和 SHA-256 文件位于 artifacts 根。不指定版本时采用 `dev-日期-时间`；`-OutputDir` 可指定输出目录。遇到同名产物报错，不覆盖已有包。
 
-用户直接双击 `still-wanna-dance-console.exe`：程序显示托盘并打开网页控制台，重复启动
-会打开已有实例。交付包不需要 CMD / PS1 启动脚本；CDN、hosts 接入及队列预缓存
-在控制台中按需启用。仓库的 PowerShell 脚本仅用于开发构建和验收。
+`build-info.json` 记录版本、提交 SHA、dirty 状态、UTC 构建时间、Go 版本及目标平台。版本标签不等于 Git tag；允许打包未提交代码，并明确标记 dirty。
 
-启动验证在临时目录解压 ZIP，从不同工作目录启动该 EXE 的无托盘模式，
-检查许可证文件和依赖声明覆盖情况、内嵌网页、配置锁、默认数据路径和启动 JSON 日志，再停止该测试进程。
-不会启动 CDN、下载歌曲或修改 hosts；解压目录保留以便检查。
-此验证不替代真实桌面的托盘和 UAC 验收。
-目录保存和整体移动后的配置解析由 Go 回归测试覆盖。
+`licenses/LICENSE` 为项目 MIT 许可证。`licenses/THIRD-PARTY-NOTICES.txt` 包含直接/间接依赖及内嵌组件许可全文；打包追加实际 Go 工具链声明。脚本从 EXE 模块版本校验声明覆盖，未登记版本或 replacement 会阻止打包。更新依赖需核对实际许可，不能只改声明中的版本号。单独分发 EXE 也应附带必要许可。
 
-Windows CI 同样生成并验证 ZIP，通过后上传 ZIP 和校验文件为 workflow artifact。
-工作流仅在 Actions 页面手动选择 `check` → `Run workflow`，或推送版本 tag
-（匹配 `v[0-9]*`，例如 `v0.1.0`、`v0.2.0-rc.1`）时运行。
-普通分支 push 和 PR 更新不自动运行。生成的包保存在 workflow artifacts，
-不会自动发布 GitHub Release；实际检查结果见对应的 Actions 运行记录。
+用户双击 SWD.exe 显示托盘并打开网页；重复启动打开已有实例。无需 CMD / PS1 启动脚本。仅编译可执行 `./scripts/build-desktop.ps1`，默认输出 `bin/SWD.exe`。
 
-仅编译 EXE 可用 `./scripts/build-desktop.ps1`，默认输出 `bin/still-wanna-dance-console.exe`。
-Windows 默认配置位置为 EXE 旁，首次成功打开控制台就保存带 schemaVersion 的规范化配置。
-使用自定义位置时通过 -config 指定。包内路径保存为相对路径，外部路径保存为绝对路径。
-当前文件格式不迁移无版本旧配置或旧数据库；存储要求见[统一存储](storage.md)。
+默认配置为 EXE 旁的 `data/config.json`，首次成功打开即保存 schemaVersion=2。程序日志为 `data/logs/app.log`，默认媒体为 `data/storage`，未使用时不预建。自定义 `-config`、多实例隔离、相对路径及外置库约定见[统一存储](storage.md)。无版本和版本 1 测试配置及旧库不迁移。
 
-升级时先退出并备份完整配置组及整个存储目录，再将上述六个交付文件一起覆盖到原程序目录。
-ZIP 和顶层目录仍带版本；解压到新目录后直接运行会选择新的默认配置和数据根。
-不要覆盖或删除用户配置组和存储目录。完整范围、外置存储备份和 hosts 恢复见[交付说明](portable-readme.txt)。
+覆盖升级先退出并备份，然后只将 ZIP 的 SWD/ 内交付文件覆盖到原安装目录；不覆盖 data、外置库或未知文件。ZIP 内层路径不随版本变化，不能将新解压的另一目录当作原实例启动。详见[交付说明](portable-readme.txt)。
+
+自动验证解压真实 ZIP，从不同工作目录启动无托盘 EXE，检查固定路径、许可及模块覆盖、未用目录不生成、条款门禁、配置锁、JSON 日志、重复实例拒绝及强制停止后的重启。随后覆盖解压，逐文件比较用户数据哈希；整目录移动后再启动，并验证同父目录的两个自定义配置并发启动且锁/日志/默认媒体隔离。另验证已知旧测试布局在创建 data 前被拒绝。Go 回归补充确认记录、通道密钥、快照的移动、外置绝对路径和旧存储标记保护。
+
+验证不主动接受条款、不启动 CDN、不下载歌曲、不改 hosts，不替代真实 VRChat、托盘及 UAC 联合验收；测试退出只终止自己创建的进程，保留隔离目录供检查。
+
+Windows CI 同样生成并验证 ZIP，再上传 ZIP 和校验文件为 workflow artifact。工作流只在手动选择 `check` → `Run workflow` 或推送 `v[0-9]*` tag 时运行，普通分支 push/PR 不自动运行。脚本不发布 GitHub Release；首次正式发布仍须完成 #23、#24、#25、#26 的适用验收。

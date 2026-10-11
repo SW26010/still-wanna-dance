@@ -23,7 +23,7 @@ Just extract and run. The app lives in the Windows system tray and requires no G
 
 The desktop app targets Windows x64. Choose a writable folder for the app and allow enough disk space for your videos. Chinese interface labels are included below to help you find the controls.
 
-1. Look for a Windows portable ZIP on the [releases page](https://github.com/SW26010/still-wanna-dance/releases). Extract the entire archive, then double-click `still-wanna-dance-console.exe`. If no release package is available yet, you can [build from source](#build-from-source).
+1. Look for a Windows portable ZIP on the [releases page](https://github.com/SW26010/still-wanna-dance/releases). Extract the entire archive, then double-click `SWD.exe`. If no release package is available yet, you can [build from source](#build-from-source).
 2. The app opens its local web console. On first launch, read and accept the terms of use.
 3. Open Settings (设置) and choose your storage folder, save, then click Restart and apply (立即重启并应用). The VRChat log folder is detected automatically by default.
 4. On Get started (开始使用), click Enable game acceleration (启用游戏加速) and follow the prompts to configure the hosts entries. Windows will ask for permission when the app needs to modify the hosts file.
@@ -64,7 +64,7 @@ To build the Windows desktop app, install Go 1.25 or later, Git, and PowerShell.
 
 ```powershell
 .\scripts\build-desktop.ps1
-.\bin\still-wanna-dance-console.exe
+.\bin\SWD.exe
 ```
 
 Web assets and SQLite dependencies are compiled into the executable. There is no separate frontend build or database service to set up.
@@ -94,9 +94,9 @@ The detailed guides below are currently in Chinese.
 
 ## Upgrading and backing up
 
-Quit the app, then back up the complete configuration group (the main JSON file and all companion files with that filename prefix) and the entire storage directory, including external storage. Replace all six distribution files together in the original app directory, keep your configuration and media data, and launch the executable there. Launching directly from a new extraction directory selects a separate default configuration.
+Quit the app and back up the complete `data/` directory. For custom configurations, back up the main JSON and its instance data directory; back up any external media storage in full. Replace `SWD.exe`, `licenses/`, `README.txt` and `build-info.json` in the original app directory, preserve data and external storage, and launch the executable there. Launching from a new extraction directory selects a separate default configuration.
 
-This is the first finalized file format before release. Unversioned configurations and earlier databases are not migrated; keep test data backed up and use separate new configuration and storage directories. If the app reports a newer file format, update the app instead of deleting data or editing version numbers. See the [portable upgrade guide](docs/portable-readme.txt) for the complete backup scope and steps.
+The current configuration format is version 2. Unversioned and version 1 test configurations and earlier databases are not supported or migrated; keep test data backed up and use separate new configuration and storage directories. If the app reports a newer file format, update the app instead of deleting data or editing version numbers. See the [portable upgrade guide](docs/portable-readme.txt) for the complete backup scope and steps.
 
 ## License and content use
 

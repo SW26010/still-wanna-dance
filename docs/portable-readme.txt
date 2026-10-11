@@ -1,83 +1,78 @@
 Still Wanna Dance — Windows x64 portable
 
-首次使用请阅读随包 TERMS.txt，在控制台主动确认内容权利声明并同意完整条款。
+首次使用请阅读 licenses/TERMS.txt，在控制台主动确认内容权利声明并同意完整条款。
 MIT 仅授权软件，不授予视频、音乐等第三方内容的下载、传播或商业使用权。
 未同意或条款更新后未重新确认时，不会自动启动缓存或下载；仍可恢复 hosts。
-本机确认记录保存在 still-wanna-dance-console.json.terms.json，不证明用户身份或内容授权。
+确认记录保存在 data/terms.json，不证明用户身份或内容授权。
 
-1. 将 ZIP 完整解压到可写目录（例如 D:\Apps\Still Wanna Dance），不要直接从压缩包内运行。
-2. 双击 still-wanna-dance-console.exe。程序显示托盘图标，并打开本地浏览器控制台。
-   无需 CMD / PS1 启动脚本，也不需要安装 Go、Node.js 或其他运行库。
-   同意条款后关闭网页，程序仍在托盘运行；再次双击 EXE 会打开已有控制台。
+1. 完整解压 ZIP，将其中的 SWD 文件夹放在可写位置，不要直接从压缩包内运行。
+2. 双击 SWD.exe。程序显示托盘图标，并打开本地浏览器控制台。
+   无需启动脚本，也不需要安装 Go、Node.js 或其他运行库。
+   同意条款后关闭网页，程序仍在托盘运行；再次双击会打开已有控制台。
    未同意时关闭条款页会尝试在 60 秒后退出，重新打开可取消。
-3. 在控制台设置存储目录；VRChat 日志目录默认随当前用户自动读取，仅自定义路径时勾选「手动指定」。保存后按需启用功能。
-   默认存储目录 still-wanna-dance-data 位于程序目录下。
-   视频位于 videos，歌曲资料和统计位于 storage.sqlite。全曲目下载可能占用大量空间。
+3. 在设置中选择存储目录，保存后重启应用以应用设置。
+   默认存储为 data/storage，按需创建；视频在 videos，资料和统计在 storage.sqlite。
+   VRChat 日志默认随当前用户自动读取，仅自定义路径时勾选“手动指定”。
+   全曲目下载可能占用大量空间，请按需设置容量上限。
 4. 正常启动无需管理员权限。修改 hosts 时才会弹出 Windows 授权提示。
-5. 退出请使用托盘菜单。退出不会恢复 hosts；停用 CDN 后需要直连上游时，
-   请先在控制台点击「恢复 hosts」，移除 Still Wanna Dance 添加的映射；其他映射保留。
-   删除程序前也请恢复 hosts，并核对接入状态。
+5. 退出请使用托盘菜单或网页“退出整个应用”。退出不会恢复 hosts；
+   停用或删除程序前，请先在控制台点击“恢复 hosts”，并核对接入状态。
 
 配置、备份与移动
-首次成功打开控制台时，程序即在 EXE 旁保存 still-wanna-dance-console.json，
-无需点过“保存设置”。程序目录内的路径以相对路径保存，外部目录使用绝对路径。
-自定义 -config 时，相对存储路径以该配置文件所在目录为基准。
+首次成功打开控制台即保存 data/config.json（schemaVersion=2），无需先保存设置。
+不论从哪个工作目录启动，默认 data 都位于 SWD.exe 旁。
+条款确认、通道身份密钥、可重建状态和日志分别为：
+  data/terms.json
+  data/channel.key
+  data/state/throughput.json、inventory.json、batch.json、attempt.json
+  data/logs/app.log 及其轮转副本
+以上文件只在相应功能需要时创建。任务摘要不是断点续传记录。
 
-完整配置组包括主 JSON 及其同名前缀附属文件：
-  still-wanna-dance-console.json
-  still-wanna-dance-console.json.terms.json（条款确认）
-  still-wanna-dance-console.json.channel-key（代理通道身份）
-  still-wanna-dance-console.json.throughput.json（测速状态）
-  still-wanna-dance-console.json.inventory.json（库存结果）
-  still-wanna-dance-console.json.batch.json、.attempt.json（任务摘要）
-自定义配置名称时，附属文件使用该名称；建议整组备份，不要只复制主 JSON。
-配置组可能包含代理密码，请妥善保管；日志按需备份。
-.json.lock 与存储目录 .lock 是运行锁；文件存在不代表程序仍在运行。
+自定义 -config 的相对参数基于启动工作目录；文件名为 config.json 时，
+附属文件放在其父目录；其他名称放在“配置完整路径.d”目录。
+例如 -config profiles/a.json 使用 profiles/a.json.d/ 下的锁、条款、状态、日志和默认存储。
+同目录 a.json 与 b.json 互相隔离；不要将另一配置嵌套进已有实例的数据目录。
+相对存储路径以主配置文件所在目录为基准；该目录内的路径相对保存，外部路径保持绝对引用。
+保留文件名 terms.json、channel.key、config.lock、state、logs、storage 不能用作主配置名。
 
-备份前从托盘退出程序，再复制完整配置组和整个存储目录；不要在运行中
-只复制 SQLite 主文件。如果存储目录位于程序目录外，也必须单独备份。
-整体移动便携目录应先退出；内部相对路径保持有效，外部路径仍指向原位置。
-修改“存储目录”只是选择另一套存储，不会自动搬运已有视频或统计。
-需要搬迁时，先在设置中填写目标目录并保存，暂不重启，然后从托盘退出。
-将旧存储目录中的全部内容移至目标目录后，再启动程序，避免自动启动功能
-在搬迁完成前使用空目录。不要只搬 videos 而遗漏 storage.sqlite。
+备份前退出整个应用。默认完整复制 data；自定义配置需复制主配置及其实例数据根。
+配置可能包含代理密码，请妥善保管；密钥丢失会使旧代理样本身份失效。
+库存可重扫，测速可重测；状态和日志可选备份，删除后历史结果不会自动恢复。
+config.lock 与存储 .lock 是运行锁；文件存在不代表程序仍在运行，不要靠删锁解占用。
+媒体备份须复制整个存储目录；不要在运行中只拷 SQLite 主文件或只搬 videos。
+外置存储必须另行备份，移动 Portable 不会改变其绝对引用，也不会自动搬它。
+修改“存储目录”只是选择另一套库，不会搬运视频或统计。
+需要搬迁媒体时，先保存目标路径、暂不重启，退出应用，完整搬迁旧存储后再启动。
 
 升级
-1. 从托盘退出旧程序，按上面的范围完成备份。
-2. 将新版 ZIP 解压到临时位置，将以下六个交付文件一起复制并覆盖到原程序目录：
-   still-wanna-dance-console.exe、README.txt、TERMS.txt、LICENSE、
-   THIRD-PARTY-NOTICES.txt、build-info.json。
-3. 保留原目录中的完整配置组、日志和媒体存储，启动原目录中的 EXE。
-   不要直接从新版本解压目录启动，否则默认路径会指向另一套配置和空存储。
-4. 条款更新时重新确认；若提示配置或存储格式较新，使用更新程序，
-   不要删除文件、修改版本号或换空目录来消除提示。
+1. 退出旧程序并完成上述备份。
+2. 将新版 ZIP 解压到临时位置，把 SWD/ 内的 SWD.exe、licenses/、README.txt、
+   build-info.json 复制覆盖到原安装目录。ZIP 名可带版本，内部交付路径保持稳定。
+3. 不覆盖或删除原 data、外置存储及未知文件；从原安装目录启动 SWD.exe。
+   不要运行新解压的另一份目录，否则它会使用另一套默认配置。
+4. 条款更新后重新确认；遇到不支持或较新的格式按诊断处理，不要修改版本号。
 
-这是发布前定稿的首版文件格式。不读取、自动发现或迁移无版本的旧配置，
-不转换旧 stepstash.sqlite。旧测试数据请保留备份，使用独立的新配置和存储目录。
-若所选目录含 stepstash.sqlite，启动缓存引擎及离线删除会拒绝继续；即使同时
-存在 storage.sqlite 也不会自动选择，不会建库、清理临时下载或淘汰视频。
-这只是已知旧库标记保护，不保证识别所有历史目录；不要通过改名、移除标记
-或修改版本号强行复用旧库。请保留原目录，另选独立新目录。
+旧测试布局不兼容、不迁移。EXE 旁发现 still-wanna-dance-console.json、
+stepstash-console.json、still-wanna-dance-data 或 stepstash-data 会拒绝默认启动，
+并保留原目录。无版本或版本 1 配置不支持；请在独立新目录使用新版。
+存储根含 stepstash.sqlite 或已知旧组合键视频时，引擎及离线删除拒绝继续，
+不建库、清理下载或淘汰视频（可能保留目录锁文件）。不要通过删标记或改名复用旧库。
+这些保护只识别已知布局，不承诺识别所有历史文件。
 
-排错
-控制台端口由系统自动分配，启动时自动打开；也可从托盘打开控制台。
-重复启动会打开已有控制台。CDN 的 80 或 443 端口冲突时请根据提示处理占用程序。
-启动 CDN 会同时开启游戏 HTTP 缓存和网页 HTTPS 转发；两个端口须同时可用。
-网页播放保持原站加密连接并复用独立 DNS 和多 IP 建连，不使用本地缓存。
-如目录不可写，请移动到用户可写目录，避免 Program Files 等受保护目录。
-build-info.json 记录版本、源码提交、工作区是否有未提交修改和编译器版本。
-ZIP 旁的 .sha256 文件用于校验下载是否完整。
+排错与许可
+控制台端口自动分配，可从托盘打开；CDN 同时需要本机 80、443 端口。
+网页 HTTPS 播放保持原站加密连接，不使用本地缓存。
+目录不可写时请选择用户可写位置，避免 Program Files 等受保护目录。
+构建溯源见 build-info.json，下载完整性校验见 ZIP 旁 .sha256 文件。
+项目 MIT 许可见 licenses/LICENSE，第三方及 Go 运行库声明见
+licenses/THIRD-PARTY-NOTICES.txt；重新分发或升级时保留并更新许可文件。
 
-许可
-Still Wanna Dance 采用 MIT 许可证，全文见 LICENSE。
-第三方依赖、内嵌组件和 Go 运行库的版权及许可全文见 THIRD-PARTY-NOTICES.txt。
-重新分发或升级程序时，请同时保留和更新这两份许可文件。
+程序日志位于 data/logs/app.log，与 VRChat 日志读取设置无关。
+每行 JSON；单文件最多 5 MiB，保留 .1、.2、.3 三份旧日志，总计最多约 20 MiB。
+重启继续追加；分享前检查其中的本机路径和歌曲请求信息。
+正常退出有退出记录，强制结束或断电则没有。
 
-程序自身日志
-程序日志在 logs\still-wanna-dance-console.json.log，与读取 VRChat 日志的设置无关。
-日志记录启动退出、功能操作、下载与校验异常及任务汇总；每行是 JSON 文本。
-单文件上限 5 MiB，保留 .1、.2、.3 三份旧日志，总计最多约 20 MiB。
-重启会继续追加。反馈问题时可提供当前日志和旧日志；其中可能含本机路径和
-歌曲请求信息，分享前请检查。正常退出有退出记录，强制结束或断电则没有。
-
-单实例发现与 hosts 备份仍保留 StepStash 协议名称；它们不表示旧文件格式兼容。
+Windows 托盘会话在 %LOCALAPPDATA%/StepStash，退出删除本会话，启动取得当前会话所有权后清理其旧记录。
+hosts 及 hosts.stepstash-backup 位于 Windows 系统 hosts 目录，不能随 Portable 删除。
+系统级 StepStash 名称后续另行收敛，不代表支持旧配置或旧媒体格式。
+完整开发路径与生命周期清单见源码仓库 docs/storage.md。

@@ -31,7 +31,11 @@ Thumbs.db
 *.sqlite-wal
 *.sqlite-shm
 
-# Legacy installations remain supported
+# Known legacy test layouts (rejected, never migrated)
 /stepstash-data/
 /stepstash-console.json
 /stepstash-console.json.lock
+
+# Desktop data beside a repository-root executable; keep tracked seed data
+/data/*
+!/data/initial-priority/

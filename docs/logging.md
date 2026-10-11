@@ -17,6 +17,10 @@
 | 事件 | 用途 |
 | --- | --- |
 | `cache_engine_ready` | 引擎配置摘要、启动清理的残留临时文件数；残留不能直接证明上次为何退出 |
+| `temporary_cleanup_removed` / `temporary_cleanup_skipped` | 回收的暂存路径，或因未知内容、异常类型保留的路径；实际删除失败使引擎启动返回错误 |
+| `config_work_cleanup_removed` / `config_work_cleanup_failed` | 配置锁持有者回收明确的原子写入工作槽；失败阻止 Console 创建 |
+| `snapshot_load_failed` / `monitor_throughput_state_load_failed` | 可重建状态未恢复的原因；不生成连续损坏备份 |
+| `proxy_channel_identity_corrupt` / `proxy_channel_identity_unavailable` | 密钥原文件保留，代理使用临时身份；持久样本关联需恢复原密钥 |
 | `cache_capacity_wait` / `cache_capacity_rejected` | 后台等待额度或播放请求被限额拒绝；附着成功后的 `wait_ms` 是准入耗时 |
 | `request_started` / `request_finished` | 请求方法、Range、版本，以及最终 HTTP 状态、实际写入字节、Content-Range/Length、耗时、结果和写入错误 |
 | `upstream_response` / `download_first_byte` | 上游状态、声明长度；从缓存任务开始到读到第一批正文的毫秒数（包含缓存检查） |

@@ -41,6 +41,9 @@ func (p Paths) State(name string) string { return filepath.Join(p.Root, "state",
 
 // Reserve canonical companions so a second configuration cannot overwrite them.
 func ValidateConfigPath(config string) error {
+	if strings.HasSuffix(strings.ToLower(filepath.Base(config)), ".swd-tmp") {
+		return fmt.Errorf("配置文件名不能使用原子写入保留后缀 .swd-tmp")
+	}
 	for _, name := range []string{"terms.json", "channel.key", "config.lock", "state", "logs", "storage"} {
 		if strings.EqualFold(filepath.Base(config), name) {
 			return fmt.Errorf("配置文件名 %s 为应用数据保留名称，请使用 config.json 或其他独立名称", name)

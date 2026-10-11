@@ -32,7 +32,7 @@ func TestDiscoveryInstallationConflicts(t *testing.T) {
 	if err := owner.Publish(strings.TrimPrefix(s.URL, "http://")); err != nil {
 		t.Fatal(err)
 	}
-	for _, change := range []string{"same", "case", "relative", "hardlink", "config", "executable"} {
+	for _, change := range []string{"same", "case", "relative", "hardlink", "hardlink-directory", "config", "executable"} {
 		t.Run(change, func(t *testing.T) {
 			request := id
 			switch change {
@@ -51,6 +51,11 @@ func TestDiscoveryInstallationConflicts(t *testing.T) {
 				}
 			case "config":
 				request.Config = filepath.Join(root, "other.json")
+			case "hardlink-directory":
+				request.Config = filepath.Join(t.TempDir(), "config.json")
+				if err := os.Link(config, request.Config); err != nil {
+					t.Fatal(err)
+				}
 			case "executable":
 				request.Executable = filepath.Join(root, "other", "SWD.exe")
 			}
@@ -63,7 +68,7 @@ func TestDiscoveryInstallationConflicts(t *testing.T) {
 					}
 					return nil
 				})
-				conflict := change == "config" || change == "executable"
+				conflict := change == "config" || change == "executable" || strings.HasPrefix(change, "hardlink")
 				if lease != nil || (err != nil) != conflict || opens != boolInt(open && !conflict) {
 					t.Fatalf("lease=%v err=%v opens=%d", lease, err, opens)
 				}
@@ -152,6 +157,9 @@ func TestConfigLockThroughWindowsJunction(t *testing.T) {
 		t.Fatalf("junction: %s: %v", output, err)
 	}
 	a, b := filepath.Join(real, "data", "config.json"), filepath.Join(alias, "data", "config.json")
+	if !sameConfigPath(a, b) {
+		t.Fatal("junction configuration identity rejected")
+	}
 	if !samePath(a, b) {
 		ac, ae := CanonicalPath(a)
 		bc, be := CanonicalPath(b)

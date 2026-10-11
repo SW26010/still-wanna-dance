@@ -32,6 +32,9 @@ func TestPathIdentity(t *testing.T) {
 	if !samePath(path, link) {
 		t.Fatal("hard link rejected")
 	}
+	if sameConfigPath(path, link) {
+		t.Fatal("hard-linked config with a distinct data root accepted")
+	}
 	copy := filepath.Join(root, "copy.json")
 	if err := os.WriteFile(copy, []byte("{}"), 0600); err != nil {
 		t.Fatal(err)
@@ -66,6 +69,9 @@ func TestCanonicalPathThroughDirectoryAlias(t *testing.T) {
 	b := filepath.Join(alias, "data", "config.json")
 	if !samePath(a, b) {
 		t.Fatal("uncreated configuration under alias rejected")
+	}
+	if !sameConfigPath(a, b) {
+		t.Fatal("configuration directory alias rejected")
 	}
 	first, err := LockConfig(a)
 	if err != nil {

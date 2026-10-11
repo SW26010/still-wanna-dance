@@ -82,7 +82,30 @@ func (id Identity) valid() bool {
 }
 
 func (id Identity) sameInstallation(other Identity) bool {
-	return samePath(id.Executable, other.Executable) && samePath(id.Config, other.Config)
+	return samePath(id.Executable, other.Executable) && sameConfigPath(id.Config, other.Config)
+}
+
+// The configuration's canonical pathname determines its data root and the
+// base for relative settings. Distinct hard links do not share that identity
+// (and an atomic settings save can separate their contents later).
+func sameConfigPath(a, b string) bool {
+	if a == "" || b == "" {
+		return false
+	}
+	a, err := CanonicalPath(a)
+	if err != nil {
+		return false
+	}
+	b, err = CanonicalPath(b)
+	if err != nil {
+		return false
+	}
+	if a == b {
+		return true
+	}
+	// Preserve Windows case aliases without conflating distinct files in a
+	// case-sensitive directory. samePath also handles not-yet-created configs.
+	return runtime.GOOS == "windows" && strings.EqualFold(a, b) && samePath(a, b)
 }
 
 func (id Identity) conflict() error {

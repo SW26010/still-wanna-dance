@@ -98,7 +98,7 @@ test('scoped manual buttons work while automatic resource checks are paused', as
 test('throughput history and automatic waiting reason remain visible independently', async () => {
   const p = page(), get = id => p.document.getElementById(id);
   p.finishBatch(0, {}, { upstreamMonitor: { throughputStatus: 'cooldown', nextThroughput: '2030-01-01T00:15:00Z', results: [
-    { operation: 'resource', route: 'play.udon.dance', state: 'unknown', entry: 'https://play.udon.dance', lastThroughput: { observedAt: '2020-01-01T00:00:00Z', songID: 42, bytes: 16777216, duration: 2000000000 } },
+    { operation: 'resource', route: 'play.udon.dance', state: 'unknown', entry: 'https://play.udon.dance', lastThroughput: { observedAt: '2020-01-01T00:00:00Z', songID: 42, bytes: 16777216, durationNs: 2000000000 } },
     { operation: 'resource', route: 'nya.xin.moe', state: 'unknown', reason: 'no_sample', entry: 'https://nya.xin.moe' },
     { operation: 'playback_url', route: 'hkg', state: 'unavailable', reason: 'invalid' },
   ] } });
@@ -1857,7 +1857,7 @@ test('cached resource rows refresh when a throughput sample expires', () => {
   const p = page(true), get = id => p.document.getElementById(id);
   p.context.now = Date.parse('2026-10-07T00:00:00Z');
   vm.runInContext('Date.now = () => now', p.context);
-  p.context.health = { policy: { throughputInterval: 60e9 }, results: [{ operation: 'resource', route: 'video.example', entry: 'video.example', state: 'available', lastThroughput: { observedAt: '2026-10-07T00:00:00Z', duration: 1e9, bytes: 100, songID: 42 } }] };
+  p.context.health = { policy: { throughputInterval: 60e9 }, results: [{ operation: 'resource', route: 'video.example', entry: 'video.example', state: 'available', lastThroughput: { observedAt: '2026-10-07T00:00:00Z', durationNs: 1e9, bytes: 100, songID: 42 } }] };
   vm.runInContext('renderHealth(health, {})', p.context);
   const original = get('healthResources').children[0];
   assert.doesNotMatch(original.children[1].children[0].children[3].textContent, /已过期/);

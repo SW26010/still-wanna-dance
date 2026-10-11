@@ -42,11 +42,11 @@ func TestCacheDirectoryRejectsSymlinkComponents(t *testing.T) {
 func managementFixture(t *testing.T, n int) (string, []CacheEntry) {
 	t.Helper()
 	root := t.TempDir()
-	if err := os.Mkdir(filepath.Join(root, "videos"), 0700); err != nil {
-		t.Fatal(err)
-	}
 	u, err := openUsage(filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, "videos"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < n; i++ {

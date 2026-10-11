@@ -39,6 +39,15 @@ func openStorageDatabase(path string, writable bool) (*sql.DB, error) {
 	} else if !writable || !os.IsNotExist(err) {
 		return nil, err
 	} else {
+		// A surviving media directory is evidence of an initialized library.
+		// Losing its database must not silently reset lifetime statistics.
+		if filepath.Base(path) == storageDatabaseName {
+			if _, statErr := os.Lstat(filepath.Join(filepath.Dir(path), "videos")); statErr == nil {
+				return nil, fmt.Errorf("媒体目录仍存在但存储数据库缺失；请恢复完整备份，原目录未修改")
+			} else if !os.IsNotExist(statErr) {
+				return nil, statErr
+			}
+		}
 		fresh = true
 	}
 	if writable {

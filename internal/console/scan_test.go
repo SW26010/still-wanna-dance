@@ -18,6 +18,7 @@ func TestScanSharedResourceCountsBothSongs(t *testing.T) {
 		t.Fatal(err)
 	}
 	const body = "shared video"
+	initializeTestLibrary(t, c)
 	if err := os.MkdirAll(filepath.Join(c.settings.StorageDir, "videos"), 0700); err != nil {
 		t.Fatal(err)
 	}

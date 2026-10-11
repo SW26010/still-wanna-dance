@@ -19,7 +19,7 @@ func initializeStorage(db *sql.DB) error {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err = tx.Exec(storageSchemaSQL + `INSERT INTO traffic_totals VALUES(1,0,0,0,0,0,0,0);`); err != nil {
+	if _, err = tx.Exec(storageSchemaSQL + `INSERT INTO traffic_totals VALUES(1,0,0,0);`); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(fmt.Sprintf("PRAGMA application_id=%d; PRAGMA user_version=%d;", storageApplicationID, storageSchemaVersion)); err != nil {

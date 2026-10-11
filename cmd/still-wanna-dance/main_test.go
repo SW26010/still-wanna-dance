@@ -54,6 +54,11 @@ func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()
 	cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	initial, err := cacheproxy.New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	initial.Close()
 	body := strings.Repeat("x", 128*1024)
 	if err := os.MkdirAll(filepath.Join(cfg.StorageDir, "videos"), 0700); err != nil {
 		t.Fatal(err)

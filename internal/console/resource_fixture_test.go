@@ -7,6 +7,19 @@ import (
 	"time"
 )
 
+func initializeTestLibrary(t *testing.T, c *Console) {
+	t.Helper()
+	cfg := fixtureCacheConfig()
+	cfg.StorageDir = c.settings.StorageDir
+	s, err := cacheproxy.New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func observeTestResources(t *testing.T) {
 	t.Helper()
 	source := "test/" + t.Name()

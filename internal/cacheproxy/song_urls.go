@@ -24,8 +24,10 @@ func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) error {
 		return context.Canceled
 	}
 	defer s.wg.Done()
+	// Persisted ordering uses wall time, not the process-local monotonic clock.
+	o.QueryStartedAt, o.ObservedAt = o.QueryStartedAt.UTC(), o.ObservedAt.UTC()
 	api, err := url.Parse(o.API)
-	if err != nil || api.Hostname() == "" || api.User != nil || api.Fragment != "" || (api.Scheme != "http" && api.Scheme != "https") || o.SongID <= 0 || o.QueryStartedAt.IsZero() || o.ObservedAt.Before(o.QueryStartedAt) {
+	if err != nil || api.Hostname() == "" || api.User != nil || api.Fragment != "" || (api.Scheme != "http" && api.Scheme != "https") || o.SongID <= 0 || o.QueryStartedAt.IsZero() || o.ObservedAt.Before(o.QueryStartedAt) || !nanoTimeRepresentable(o.QueryStartedAt) || !nanoTimeRepresentable(o.ObservedAt) {
 		return errors.New("invalid song URL observation")
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, o.URL, nil)
@@ -61,8 +63,8 @@ func (s *Server) SongURLs(ctx context.Context, id int64, node string) ([]SongURL
 	}
 	defer s.wg.Done()
 	rows, err := s.usage.db.QueryContext(ctx, `SELECT song_id,url,md5,byte_size,api,node,query_started_at,observed_at
- FROM song_urls WHERE song_id=? AND failed_at=0 AND (?='' OR node=?) AND observed_at>=?
- ORDER BY query_started_at DESC`, id, node, node, time.Now().Add(-24*time.Hour).UnixNano())
+ FROM song_urls WHERE song_id=? AND failed_at=0 AND (?='' OR node=?) AND observed_at>=? AND observed_at<=?
+ ORDER BY query_started_at DESC`, id, node, node, time.Now().Add(-24*time.Hour).UnixNano(), time.Now().UnixNano())
 	if err != nil {
 		return nil, err
 	}
@@ -74,12 +76,16 @@ func (s *Server) SongURLs(ctx context.Context, id int64, node string) ([]SongURL
 		if err := rows.Scan(&o.SongID, &o.URL, &o.MD5, &o.Size, &o.API, &o.Node, &started, &observed); err != nil {
 			return nil, err
 		}
-		o.QueryStartedAt, o.ObservedAt = time.Unix(0, started), time.Unix(0, observed)
+		o.QueryStartedAt, o.ObservedAt = time.Unix(0, started).UTC(), time.Unix(0, observed).UTC()
 		if err := ValidateVideoURL(o.URL, s.cfg.MaxFileBytes); err == nil {
 			out = append(out, o)
 		}
 	}
 	return out, rows.Err()
+}
+
+func nanoTimeRepresentable(t time.Time) bool {
+	return time.Unix(0, t.UnixNano()).Equal(t)
 }
 
 // RejectSongURL only invalidates the observation actually attempted. A delayed

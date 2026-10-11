@@ -44,7 +44,7 @@ func readCatalogStatus(ctx context.Context, db *sql.DB) (CatalogStatus, error) {
  COALESCE((SELECT message FROM catalog_checks WHERE catalog_key='songs'),''),
  COALESCE((SELECT error FROM catalog_checks WHERE catalog_key='songs'),'')`).Scan(&v.Revision, &checked, &v.Message, &v.Error)
 	if checked != 0 {
-		v.CheckedAt = time.UnixMilli(checked)
+		v.CheckedAt = time.UnixMilli(checked).UTC()
 	}
 	return v, err
 }

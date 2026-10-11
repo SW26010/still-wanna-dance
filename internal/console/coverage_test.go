@@ -20,6 +20,7 @@ func TestCoverageRecomputesFromDatabaseWhenRemoteFails(t *testing.T) {
 	if err := c.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
+	initializeTestLibrary(t, c)
 	if err := os.MkdirAll(filepath.Join(c.settings.StorageDir, "videos"), 0700); err != nil {
 		t.Fatal(err)
 	}

@@ -96,6 +96,11 @@ func TestRetentionStartupAndUnknownFiles(t *testing.T) {
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()
 	cfg.MaxCacheBytes = 1
+	initial, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	initial.Close()
 	p := cfg.videoFile(strings.Repeat("a", 32))
 	unknown := filepath.Join(cfg.videosDir(), "personal.mp4")
 	putRetained(t, p, 10)

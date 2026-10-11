@@ -63,12 +63,9 @@ func TestCatalogTimesFromExistingEndpoints(t *testing.T) {
 			t.Fatal(tc.value, got, err)
 		}
 	}
-	whole, err := ParseCatalogTime("20261004235822")
-	if err != nil {
-		t.Fatal(err)
-	}
-	fraction, err := ParseCatalogTime("20261004235822.000")
-	if err != nil || !whole.Equal(fraction) {
-		t.Fatal("equivalent time spellings differ", whole, fraction, err)
+	for _, revision := range []string{"20261004235822.000", "20261004235822,123", "20261004235822Z"} {
+		if _, err := ParseCatalogTime(revision); err == nil {
+			t.Fatal("accepted noncanonical civil revision", revision)
+		}
 	}
 }

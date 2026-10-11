@@ -145,10 +145,10 @@ function renderHealth(h, settings) {
       const throughput = document.createElement('div');
       throughput.className = 'hint';
       const saved = r.lastThroughput;
-      const speed = saved ? saved.bytes / (saved.duration / 1e9) : r.estimatedSpeedBPS;
+      const speed = saved ? saved.bytes / (saved.durationNs / 1e9) : r.estimatedSpeedBPS;
       const song = saved ? saved.songID : r.throughputSongID;
       const at = saved ? saved.observedAt : r.throughputObservedAt;
-      const durationMS = saved ? saved.duration / 1e6 : r.transferDurationMS;
+      const durationMS = saved ? saved.durationNs / 1e6 : r.transferDurationMS;
       const bytes = saved ? saved.bytes : r.transferredBytes;
       const missingSample = r.reason === 'no_sample' || r.reason === 'resolution_unavailable';
       const noData = r.state === 'unavailable' ? '尚无成功样本 · 当前资源检查失败：' + (reasons[r.reason] || r.reason || '未知原因') : missingSample ? '尚无成功样本 · 未取得该域名的有效资源地址' : '尚无成功样本 · ' + throughputWait;

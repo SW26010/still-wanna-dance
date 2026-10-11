@@ -49,6 +49,9 @@ type Catalog struct {
 // endpoints. They publish YYYYMMDDhhmmss without an offset, at second precision.
 // UTC here is a common comparison axis, not a claim about the publisher's zone.
 func ParseCatalogTime(value string) (time.Time, error) {
+	if len(value) != 14 {
+		return time.Time{}, fmt.Errorf("清单时间必须为 YYYYMMDDhhmmss")
+	}
 	t, err := time.Parse("20060102150405", value)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("清单时间无效: %w", err)

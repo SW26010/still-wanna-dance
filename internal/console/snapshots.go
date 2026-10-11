@@ -21,6 +21,17 @@ func sameLibrary(a, b Settings) bool {
 
 // Replace atomically, so interruption or a failed write leaves the last good file.
 func (c *Console) writeSnapshot(kind, storageDir string, result any) error {
+	// Persist absolute instants in UTC; never change upstream civil revisions.
+	switch value := result.(type) {
+	case Batch:
+		value.Updated, value.Finished = value.Updated.UTC(), value.Finished.UTC()
+		value.Catalog.CheckedAt = value.Catalog.CheckedAt.UTC()
+		result = value
+	case Inventory:
+		value.Updated = value.Updated.UTC()
+		value.Catalog.CheckedAt = value.Catalog.CheckedAt.UTC()
+		result = value
+	}
 	// Store only the library origin. Network settings and credentials have no
 	// bearing on whether an inventory or task result belongs to this library.
 	base := filepath.Dir(c.configPath)

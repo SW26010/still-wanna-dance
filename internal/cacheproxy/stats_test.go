@@ -98,7 +98,7 @@ func TestExistingTrafficDoesNotReadRequestDetails(t *testing.T) {
 	if _, err := db.Exec(storageSchemaSQL); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`INSERT INTO traffic_totals VALUES (1,42,1,0,0,0,0,0)`); err != nil {
+	if _, err := db.Exec(`INSERT INTO traffic_totals VALUES (1,42,1,0)`); err != nil {
 		t.Fatal(err)
 	}
 	s := &Server{}
@@ -160,19 +160,8 @@ func TestTrafficStatsHTTP(t *testing.T) {
 	}
 }
 
-func TestLegacyLatencyIsPreservedButNotProduced(t *testing.T) {
+func TestTrafficOutputOmitsLegacyLatency(t *testing.T) {
 	s, _ := setup(t, func(http.ResponseWriter, *http.Request) {})
-	if _, err := s.usage.db.Exec(`UPDATE traffic_totals SET local_samples=3,local_ns=4,upstream_samples=5,upstream_ns=6 WHERE id=1`); err != nil {
-		t.Fatal(err)
-	}
-	s.recordTraffic("GET", "HIT", "completed", 200, 7)
-	var a, b, c, d int
-	if err := s.usage.db.QueryRow(`SELECT local_samples,local_ns,upstream_samples,upstream_ns FROM traffic_totals WHERE id=1`).Scan(&a, &b, &c, &d); err != nil {
-		t.Fatal(err)
-	}
-	if a != 3 || b != 4 || c != 5 || d != 6 {
-		t.Fatal("historical samples overwritten")
-	}
 	raw, err := json.Marshal(s.TrafficStats())
 	if err != nil {
 		t.Fatal(err)

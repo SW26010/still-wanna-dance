@@ -76,6 +76,5 @@ CREATE INDEX request_events_time ON request_events(requested_at);CREATE INDEX re
  ON request_events(requested_at DESC, event_id DESC) WHERE source='http';
 CREATE TABLE traffic_totals (
  id INTEGER PRIMARY KEY CHECK(id=1), saved_bytes INTEGER NOT NULL,
- hits INTEGER NOT NULL, misses INTEGER NOT NULL, local_samples INTEGER NOT NULL,
- local_ns INTEGER NOT NULL, upstream_samples INTEGER NOT NULL, upstream_ns INTEGER NOT NULL
+ hits INTEGER NOT NULL, misses INTEGER NOT NULL
 );

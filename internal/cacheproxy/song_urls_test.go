@@ -84,3 +84,39 @@ func TestSongURLConflictPreservesMapping(t *testing.T) {
 		t.Fatal("invalid URL accepted")
 	}
 }
+
+func TestSongURLNanosecondTiesAndClockRollback(t *testing.T) {
+	s, _ := setup(t, nil)
+	ctx := context.Background()
+	at := time.Now().Add(-time.Minute).Truncate(time.Millisecond)
+	o := SongURL{SongID: 42, API: "https://api.udon.dance/Api/Songs/play", Node: "cf", URL: "https://play.udon.dance/files/1/42-video.mp4?e=0123456789abcdef0123456789abcdef&s=12", QueryStartedAt: at, ObservedAt: at.Add(time.Second)}
+	if err := s.ObserveSongURL(ctx, o); err != nil {
+		t.Fatal(err)
+	}
+	newer := o
+	newer.QueryStartedAt = at.Add(time.Nanosecond).In(time.FixedZone("east", 8*3600))
+	newer.URL += "&version=new"
+	if err := s.ObserveSongURL(ctx, newer); err != nil {
+		t.Fatal(err)
+	}
+	o.QueryStartedAt = newer.QueryStartedAt
+	if err := s.ObserveSongURL(ctx, o); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.SongURLs(ctx, 42, "cf")
+	if err != nil || len(got) != 1 || got[0].URL != newer.URL || got[0].QueryStartedAt.Location() != time.UTC {
+		t.Fatal(got, err)
+	}
+	if _, err := s.usage.db.Exec("UPDATE song_urls SET observed_at=?", time.Now().Add(time.Hour).UnixNano()); err != nil {
+		t.Fatal(err)
+	}
+	got, err = s.SongURLs(ctx, 42, "cf")
+	if err != nil || len(got) != 0 {
+		t.Fatal("clock rollback reused future evidence", got, err)
+	}
+	o.QueryStartedAt = time.Date(2500, 1, 1, 0, 0, 0, 0, time.UTC)
+	o.ObservedAt = o.QueryStartedAt.Add(time.Second)
+	if err := s.ObserveSongURL(ctx, o); err == nil {
+		t.Fatal("overflowing nanoseconds accepted")
+	}
+}

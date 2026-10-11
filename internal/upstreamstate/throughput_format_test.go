@@ -56,3 +56,23 @@ func TestThroughputUTCAndDurationContract(t *testing.T) {
 		t.Fatal(state)
 	}
 }
+
+func TestThroughputV1Golden(t *testing.T) {
+	b, err := os.ReadFile("testdata/throughput-v1.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "throughput.json")
+	if err := os.WriteFile(path, b, 0600); err != nil {
+		t.Fatal(err)
+	}
+	m, err := newMonitor(Options{ThroughputStatePath: path}, upstreamrequest.NewChannel())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Close()
+	o, ok := m.throughput["resource/play.udon.dance"]
+	if !ok || o.transferDuration != 123456789 || o.at.UTC().Format(time.RFC3339Nano) != "2026-01-02T03:04:05.123456789Z" {
+		t.Fatal(o)
+	}
+}

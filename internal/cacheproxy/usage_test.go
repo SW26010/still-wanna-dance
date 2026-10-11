@@ -228,6 +228,10 @@ func TestDatabaseUnavailableBlocksStartup(t *testing.T) {
 	s, cfg := setup(t, nil)
 	s.Close()
 	dbPath := filepath.Join(cfg.StorageDir, "storage.sqlite")
+	original, err := os.ReadFile(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(dbPath, []byte("not a database"), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -236,6 +240,16 @@ func TestDatabaseUnavailableBlocksStartup(t *testing.T) {
 		t.Fatal("corrupt canonical database accepted")
 	}
 	if err := os.Remove(dbPath); err != nil {
+		t.Fatal(err)
+	}
+	if reopened, err := New(cfg); err == nil {
+		reopened.Close()
+		t.Fatal("missing database silently recreated")
+	}
+	if _, err := os.Stat(dbPath); !os.IsNotExist(err) {
+		t.Fatal("missing database recreated", err)
+	}
+	if err := os.WriteFile(dbPath, original, 0600); err != nil {
 		t.Fatal(err)
 	}
 	reopened, err := New(cfg)

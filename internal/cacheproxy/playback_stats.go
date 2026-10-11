@@ -32,10 +32,6 @@ func recordPlaybackTransfer(ctx context.Context, tx *sql.Tx, e usageEvent) error
 }
 
 func addPlaybackStats(db *sql.DB, v *TrafficStats) {
-	var exists bool
-	if err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='song_playback')").Scan(&exists); err != nil || !exists {
-		return
-	}
 	if err := db.QueryRow("SELECT COALESCE(SUM(transfer_count),0) FROM song_playback").Scan(&v.PlaybackTransfers); err != nil {
 		v.Error = err.Error()
 		return

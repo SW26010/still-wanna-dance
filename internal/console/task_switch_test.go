@@ -89,6 +89,9 @@ func TestBatchRestoresOnlyTemporarilyStoppedQueue(t *testing.T) {
 				// An empty reusable plan finishes successfully without network work.
 				if outcome == "complete" {
 					c.checksumURL = api.URL
+					if !enabled {
+						initializeTestLibrary(t, c)
+					}
 					os.MkdirAll(filepath.Join(c.settings.StorageDir, "videos"), 0700)
 					os.WriteFile(filepath.Join(c.settings.StorageDir, "videos", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.mp4"), []byte("trusted"), 0600)
 				}

@@ -89,6 +89,7 @@ Windows 桌面版需要 Go 1.25 或更新版本、Git 和 PowerShell。在仓库
 | [统一存储](docs/storage.md) | 视频、歌曲资料与统计的存放方式 |
 | [功能范围](docs/scope.md) | 支持范围、兼容限制与验证依据 |
 | [测试与验收](docs/test-results.md) | 测试记录与结果说明 |
+| [实机验收机制](docs/live-acceptance-process.md) / [待验收台账](docs/live-acceptance-backlog.md) | 新功能集中积攒、逐轮报告与证据交付 |
 | [开发指南](docs/development.md) | 开发环境、代码入口与测试命令 |
 
 ## 升级与备份

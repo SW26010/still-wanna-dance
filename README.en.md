@@ -96,7 +96,7 @@ The detailed guides below are currently in Chinese.
 
 Quit the app and back up the complete `data/` directory. For custom configurations, back up the main JSON and its instance data directory; back up any external media storage in full. Replace `SWD.exe`, `licenses/`, `README.txt` and `build-info.json` in the original app directory, preserve data and external storage, and launch the executable there. Launching from a new extraction directory selects a separate default configuration.
 
-The current configuration format is version 2. Unversioned and version 1 test configurations and earlier databases are not supported or migrated; keep test data backed up and use separate new configuration and storage directories. If the app reports a newer file format, update the app instead of deleting data or editing version numbers. See the [portable upgrade guide](docs/portable-readme.txt) for the complete backup scope and steps.
+The current configuration format is version 3. Unversioned and version 1/2 test configurations and earlier databases are not supported or migrated; keep test data backed up and use separate new configuration and storage directories. If the app reports a newer file format, update the app instead of deleting data or editing version numbers. See the [portable upgrade guide](docs/portable-readme.txt) for the complete backup scope and steps.
 
 ## License and content use
 

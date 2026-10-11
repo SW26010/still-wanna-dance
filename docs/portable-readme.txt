@@ -19,7 +19,7 @@ MIT 仅授权软件，不授予视频、音乐等第三方内容的下载、传�
    停用或删除程序前，请先在控制台点击“恢复 hosts”，并核对接入状态。
 
 配置、备份与移动
-首次成功打开控制台即保存 data/config.json（schemaVersion=2），无需先保存设置。
+首次成功打开控制台即保存 data/config.json（schemaVersion=3），无需先保存设置。
 不论从哪个工作目录启动，默认 data 都位于 SWD.exe 旁。
 条款确认、通道身份密钥、可重建状态和日志分别为：
   data/terms.json
@@ -54,7 +54,7 @@ config.lock 与存储 .lock 是运行锁；文件存在不代表程序仍在运�
 
 旧测试布局不兼容、不迁移。EXE 旁发现 still-wanna-dance-console.json、
 stepstash-console.json、still-wanna-dance-data 或 stepstash-data 会拒绝默认启动，
-并保留原目录。无版本或版本 1 配置不支持；请在独立新目录使用新版。
+并保留原目录。无版本或版本 1、2 配置不支持；请在独立新目录使用新版。
 存储根含 stepstash.sqlite 或已知旧组合键视频时，引擎及离线删除拒绝继续，
 不建库、清理下载或淘汰视频（可能保留目录锁文件）。不要通过删标记或改名复用旧库。
 这些保护只识别已知布局，不承诺识别所有历史文件。

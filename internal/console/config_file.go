@@ -37,6 +37,9 @@ func readConfigFile(path string) ([]byte, map[string]json.RawMessage, error) {
 		return nil, nil, fmt.Errorf("不支持配置格式版本 %d；原文件未修改", version)
 	}
 	for key := range fields {
+		if strings.EqualFold(key, "proxySecret") && key != "proxySecret" {
+			return nil, nil, fmt.Errorf("代理凭据字段必须为 proxySecret；原文件未修改")
+		}
 		if strings.EqualFold(key, "socks5Password") {
 			return nil, nil, fmt.Errorf("配置包含不支持的明文代理密码；请使用新配置，原文件未修改")
 		}

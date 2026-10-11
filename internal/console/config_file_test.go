@@ -39,7 +39,7 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 }
 
 func TestConfigurationRejectsUnsupportedWithoutOverwrite(t *testing.T) {
-	for _, data := range []string{`{"schemaVersion":1}`, `{"schemaVersion":2}`, `{"schemaVersion":3,"SOCKS5Password":"secret"}`, `{}`, `null`, `{"schemaVersion":0}`, `{"schemaVersion":999,"futurePreference":"keep"}`, `{"schemaVersion":"1"}`, `{"schemaVersion":3,`} {
+	for _, data := range []string{`{"schemaVersion":1}`, `{"schemaVersion":2}`, `{"schemaVersion":3,"PROXYSECRET":null}`, `{"schemaVersion":3,"SOCKS5Password":"secret"}`, `{}`, `null`, `{"schemaVersion":0}`, `{"schemaVersion":999,"futurePreference":"keep"}`, `{"schemaVersion":"1"}`, `{"schemaVersion":3,`} {
 		t.Run(data, func(t *testing.T) {
 			c := testConsole(t)
 			if err := os.WriteFile(c.configPath, []byte(data), 0600); err != nil {

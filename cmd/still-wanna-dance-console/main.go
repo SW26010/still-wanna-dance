@@ -121,7 +121,14 @@ func run() (runErr error) {
 		return fmt.Errorf("无法创建程序日志（%s）：%w", logPath, err)
 	}
 	previousLogger := slog.Default()
-	slog.SetDefault(slog.New(slog.NewJSONHandler(writer, nil)).With("pid", os.Getpid(), "session_id", rand.Text()))
+	slog.SetDefault(slog.New(slog.NewJSONHandler(writer, &slog.HandlerOptions{
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
+			if a.Value.Kind() == slog.KindTime {
+				a.Value = slog.TimeValue(a.Value.Time().UTC())
+			}
+			return a
+		},
+	})).With("pid", os.Getpid(), "session_id", rand.Text()))
 	defer func() {
 		if crash := recover(); crash != nil {
 			slog.Error("application_panic", "panic", fmt.Sprint(crash), "stack", string(debug.Stack()))

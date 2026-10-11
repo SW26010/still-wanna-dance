@@ -120,6 +120,9 @@ func (m *Monitor) saveThroughputTime() error {
 	if err != nil {
 		return err
 	}
+	if err := os.MkdirAll(filepath.Dir(m.throughputStatePath), 0700); err != nil {
+		return err
+	}
 	f, err := os.CreateTemp(filepath.Dir(m.throughputStatePath), ".throughput-*")
 	if err != nil {
 		return err

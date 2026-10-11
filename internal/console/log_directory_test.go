@@ -11,7 +11,7 @@ func TestAutomaticLogDirectoryFollowsEnvironment(t *testing.T) {
 	root := t.TempDir()
 	config := filepath.Join(root, "settings.json")
 	// Automatic mode ignores a stored detected path from another environment.
-	if err := os.WriteFile(config, []byte(`{"schemaVersion":1,"logDir":"old-user/logs"}`), 0600); err != nil {
+	if err := os.WriteFile(config, []byte(`{"schemaVersion":2,"logDir":"old-user/logs"}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 	for _, user := range []string{"first-user", "second-user"} {
@@ -39,18 +39,18 @@ func TestAutomaticLogDirectoryFollowsEnvironment(t *testing.T) {
 		if err := json.Unmarshal(data, &saved); err != nil {
 			t.Fatal(err)
 		}
-		if saved.LogDir != "" || saved.ManualLogDir || saved.StorageDir != "still-wanna-dance-data" {
+		if saved.LogDir != "" || saved.ManualLogDir || saved.StorageDir != filepath.Join("settings.json.d", "storage") {
 			t.Fatalf("persisted environment-dependent defaults: %+v", saved)
 		}
 		if err := c.writeSnapshot("test", c.settings.StorageDir, true); err != nil {
 			t.Fatal(err)
 		}
-		data, err = os.ReadFile(config + ".test.json")
+		data, err = os.ReadFile(c.files().State("test"))
 		if err != nil {
 			t.Fatal(err)
 		}
 		var snapshot savedSnapshot[bool]
-		if err := json.Unmarshal(data, &snapshot); err != nil || snapshot.StorageDir != "still-wanna-dance-data" {
+		if err := json.Unmarshal(data, &snapshot); err != nil || snapshot.StorageDir != filepath.Join("settings.json.d", "storage") {
 			t.Fatalf("snapshot retained automatic path: %s, %v", data, err)
 		}
 		c.Close()

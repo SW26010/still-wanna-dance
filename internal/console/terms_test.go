@@ -196,7 +196,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 	}
 	receipt, _ := json.Marshal(c.terms)
 	for _, data := range []string{`broken`, `{"version":"old"}`, strings.Replace(string(receipt), legal.Hash(), "old-hash", 1)} {
-		if err := os.WriteFile(c.configPath+".terms.json", []byte(data), 0600); err != nil {
+		if err := os.WriteFile(c.files().Terms, []byte(data), 0600); err != nil {
 			t.Fatal(err)
 		}
 		stale, err := New(c.configPath, c.address)
@@ -217,7 +217,7 @@ func TestTermsPersistenceFailureDoesNotAccept(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	if err := os.Mkdir(c.configPath+".terms.json", 0700); err != nil {
+	if err := os.Mkdir(c.files().Terms, 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.acceptTerms(); err == nil {

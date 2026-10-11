@@ -17,7 +17,7 @@ import (
 // Changing endpoint or either credential changes the identity; rebuilding a
 // pool or restarting with the same configuration does not.
 func (c *Console) proxyIdentity(s Settings) (string, error) {
-	path := c.configPath + ".channel-key"
+	path := c.files().ChannelKey
 	key, err := loadProxyIdentityKey(path)
 	if err != nil {
 		// An empty identity makes the pool use a process-local ID, which cannot

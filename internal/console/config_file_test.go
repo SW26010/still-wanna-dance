@@ -22,10 +22,10 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(fields["storageDir"]) != `"still-wanna-dance-data"` || string(fields["schemaVersion"]) != "1" {
+	if string(fields["storageDir"]) != `"storage"` || string(fields["schemaVersion"]) != "2" {
 		t.Fatal(fields)
 	}
-	if _, err := os.Stat(filepath.Join(root, "still-wanna-dance-data")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(root, "storage")); !os.IsNotExist(err) {
 		t.Fatal("opening console created media store", err)
 	}
 	c, err = New(path, "127.0.0.1:18081")
@@ -39,7 +39,7 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 }
 
 func TestConfigurationRejectsUnsupportedWithoutOverwrite(t *testing.T) {
-	for _, data := range []string{`{}`, `null`, `{"schemaVersion":0}`, `{"schemaVersion":999,"futurePreference":"keep"}`, `{"schemaVersion":"1"}`, `{"schemaVersion":1,`} {
+	for _, data := range []string{`{"schemaVersion":1}`, `{}`, `null`, `{"schemaVersion":0}`, `{"schemaVersion":999,"futurePreference":"keep"}`, `{"schemaVersion":"1"}`, `{"schemaVersion":2,`} {
 		t.Run(data, func(t *testing.T) {
 			c := testConsole(t)
 			if err := os.WriteFile(c.configPath, []byte(data), 0600); err != nil {
@@ -62,7 +62,7 @@ func TestConfigurationRejectsUnsupportedWithoutOverwrite(t *testing.T) {
 
 func TestConfigurationPreservesUnknownFieldsAndClearsPassword(t *testing.T) {
 	c := testConsole(t)
-	data := `{"schemaVersion":1,"futurePreference":{"enabled":true,"large":9007199254740993},"SOCKS5Password":"old-secret","queueprefetchcount":99}`
+	data := `{"schemaVersion":2,"futurePreference":{"enabled":true,"large":9007199254740993},"SOCKS5Password":"old-secret","queueprefetchcount":99}`
 	if err := os.WriteFile(c.configPath, []byte(data), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -112,8 +112,8 @@ func TestQueueStartupSettingsAreIndependent(t *testing.T) {
 		data string
 		want bool
 	}{
-		{`{"schemaVersion":1,"autoStartCDN":true}`, false},
-		{`{"schemaVersion":1,"autoStartCDN":false,"autoStartQueue":true}`, true},
+		{`{"schemaVersion":2,"autoStartCDN":true}`, false},
+		{`{"schemaVersion":2,"autoStartCDN":false,"autoStartQueue":true}`, true},
 	} {
 		path := filepath.Join(t.TempDir(), "config.json")
 		if err := os.WriteFile(path, []byte(tc.data), 0600); err != nil {

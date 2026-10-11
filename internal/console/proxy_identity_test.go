@@ -19,7 +19,7 @@ func TestProxyIdentityCorruptionDoesNotPreventNetwork(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				path := c.configPath + ".channel-key"
+				path := c.files().ChannelKey
 				if err := os.Remove(path); err != nil {
 					t.Fatal(err)
 				}
@@ -127,7 +127,7 @@ func TestProxyIdentityStableAcrossPoolsAndConfigurationSensitive(t *testing.T) {
 			t.Fatal("channel ID exposed configuration")
 		}
 	}
-	if err := os.Remove(c.configPath + ".channel-key"); err != nil {
+	if err := os.Remove(c.files().ChannelKey); err != nil {
 		t.Fatal(err)
 	}
 	if identity(restarted, base) == first {

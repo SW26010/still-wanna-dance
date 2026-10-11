@@ -148,7 +148,9 @@ func TestScanOnlyPersistsSuccessAcrossFailureAndCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 	wait()
-	if !c.lastBatch.Updated.After(before.Updated) || c.lastBatch.Hits != 2 || c.lastBatch.CatalogWarning == "" {
+	// Windows clock resolution can give both successful scans the same timestamp.
+	// The new warning proves the offline result replaced the previous snapshot.
+	if c.lastBatch.Updated.Before(before.Updated) || c.lastBatch.Hits != 2 || c.lastBatch.CatalogWarning == "" {
 		t.Fatal("offline scan did not use local database")
 	}
 	before = c.lastBatch

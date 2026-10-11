@@ -81,7 +81,7 @@ func TestSOCKS5PasswordSettingsLifecycle(t *testing.T) {
 	if err := c.writeSnapshot("inventory", s.StorageDir, Inventory{}); err != nil {
 		t.Fatal(err)
 	}
-	snapshot, err := os.ReadFile(c.configPath + ".inventory.json")
+	snapshot, err := os.ReadFile(c.files().State("inventory"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/desktop"
 	"still-wanna-dance/internal/upstreamrequest"
@@ -118,12 +119,15 @@ func New(configPath, address string) (*Console, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := apppaths.ValidateConfigPath(configPath); err != nil {
+		return nil, err
+	}
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return nil, err
 	}
 	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: "https://x.kiva.moe/api/v2/wanna/songs"}
-	c.settings = Settings{StorageDir: "still-wanna-dance-data", RequestRetentionDays: 30}
+	c.settings = Settings{StorageDir: apppaths.ForConfig(configPath).DefaultStorage, RequestRetentionDays: 30}
 	c.exitRequested = make(chan struct{})
 	c.restartRequested = make(chan struct{})
 	c.dns = &directDNS{}

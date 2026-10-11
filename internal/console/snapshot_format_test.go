@@ -12,7 +12,7 @@ func TestSnapshotContractIndependentOfSettings(t *testing.T) {
 	if err := c.writeSnapshot("test", c.settings.StorageDir, 42); err != nil {
 		t.Fatal(err)
 	}
-	path := c.configPath + ".test.json"
+	path := c.files().State("test")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)

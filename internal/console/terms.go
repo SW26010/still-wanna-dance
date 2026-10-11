@@ -27,7 +27,7 @@ func (c *Console) termsAccepted() bool {
 }
 
 func (c *Console) loadTerms() error {
-	b, err := os.ReadFile(c.configPath + ".terms.json")
+	b, err := os.ReadFile(c.files().Terms)
 	if os.IsNotExist(err) {
 		return nil
 	}
@@ -53,10 +53,10 @@ func (c *Console) acceptTerms() error {
 	if err != nil {
 		return err
 	}
-	if err = os.MkdirAll(filepath.Dir(c.configPath), 0700); err != nil {
+	if err = os.MkdirAll(filepath.Dir(c.files().Terms), 0700); err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(filepath.Dir(c.configPath), ".terms-*")
+	f, err := os.CreateTemp(filepath.Dir(c.files().Terms), ".terms-*")
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (c *Console) acceptTerms() error {
 	if err = f.Close(); err != nil {
 		return err
 	}
-	if err = os.Rename(f.Name(), c.configPath+".terms.json"); err != nil {
+	if err = os.Rename(f.Name(), c.files().Terms); err != nil {
 		return err
 	}
 	c.terms = receipt

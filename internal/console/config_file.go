@@ -6,9 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"still-wanna-dance/internal/apppaths"
 )
 
-const configSchemaVersion = 1
+const configSchemaVersion = apppaths.ConfigVersion
 
 // The disk document is separate from the editable settings API. The latter
 // cannot set format versions or inject arbitrary fields into the configuration.

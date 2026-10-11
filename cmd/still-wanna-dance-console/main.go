@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/applog"
+	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/console"
 	"still-wanna-dance/internal/desktop"
 	"still-wanna-dance/internal/legal"
@@ -43,14 +44,11 @@ func main() {
 
 func run() (runErr error) {
 	address := flag.String("listen", desktop.Address, "local console address (port 0 selects an available port)")
-	defaultConfig := "still-wanna-dance-console.json"
-	if runtime.GOOS == "windows" {
-		exe, err := os.Executable()
-		if err != nil {
-			return err
-		}
-		defaultConfig = filepath.Join(filepath.Dir(exe), defaultConfig)
+	exe, err := os.Executable()
+	if err != nil {
+		return err
 	}
+	defaultConfig := apppaths.DefaultConfig(exe)
 	config := flag.String("config", defaultConfig, "settings file (relative directories are based on this file)")
 	action := flag.String("hosts-action", "", "internal elevated helper: enable or disable")
 	noTray := flag.Bool("no-tray", runtime.GOOS != "windows", "run without the Windows tray")
@@ -101,12 +99,17 @@ func run() (runErr error) {
 	if err != nil {
 		return err
 	}
+	if p == defaultConfig {
+		if err := apppaths.CheckLegacyInstall(filepath.Dir(exe)); err != nil {
+			return err
+		}
+	}
 	configLease, err := desktop.LockConfig(p)
 	if err != nil {
 		return err
 	}
 	defer configLease.Close()
-	logPath := filepath.Join(filepath.Dir(p), "logs", filepath.Base(p)+".log")
+	logPath := apppaths.ForConfig(p).Log
 	writer, err := applog.Open(logPath, applog.MaxBytes, applog.Backups, func(err error) {
 		message := fmt.Errorf("程序日志写入失败（%s）：%w", logPath, err)
 		fmt.Fprintln(os.Stderr, message)

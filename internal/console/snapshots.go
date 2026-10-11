@@ -33,7 +33,11 @@ func (c *Console) writeSnapshot(kind, storageDir string, result any) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(filepath.Dir(c.configPath), ".snapshot-*")
+	path := c.files().State(kind)
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return err
+	}
+	f, err := os.CreateTemp(filepath.Dir(path), ".snapshot-*")
 	if err != nil {
 		return err
 	}
@@ -48,12 +52,12 @@ func (c *Console) writeSnapshot(kind, storageDir string, result any) error {
 	if err = f.Close(); err != nil {
 		return err
 	}
-	return os.Rename(f.Name(), c.configPath+"."+kind+".json")
+	return os.Rename(f.Name(), path)
 }
 
 func readSnapshot[T any](c *Console, kind string) (T, error) {
 	var saved savedSnapshot[T]
-	data, err := os.ReadFile(c.configPath + "." + kind + ".json")
+	data, err := os.ReadFile(c.files().State(kind))
 	if err != nil {
 		return saved.Result, err
 	}

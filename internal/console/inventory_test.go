@@ -39,7 +39,7 @@ func TestInventoryCoverageDoesNotRecreateMissingVideoDirectory(t *testing.T) {
 	if before.Error != "" || before.Videos != 1 {
 		t.Fatalf("%+v", before)
 	}
-	snapshot, err := os.ReadFile(c.configPath + ".inventory.json")
+	snapshot, err := os.ReadFile(c.files().State("inventory"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestInventoryCoverageDoesNotRecreateMissingVideoDirectory(t *testing.T) {
 	if _, err := os.Stat(filepath.Dir(path)); !os.IsNotExist(err) {
 		t.Fatalf("videos recreated: %v", err)
 	}
-	stored, err := os.ReadFile(c.configPath + ".inventory.json")
+	stored, err := os.ReadFile(c.files().State("inventory"))
 	if err != nil || string(stored) != string(snapshot) {
 		t.Fatalf("saved snapshot changed: %v", err)
 	}
@@ -189,7 +189,7 @@ func TestInventoryLifecycleCancelsCoverage(t *testing.T) {
 			}
 			c.startInventoryScan()
 			previous := waitInventory(t, c)
-			before, err := os.ReadFile(c.configPath + ".inventory.json")
+			before, err := os.ReadFile(c.files().State("inventory"))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -255,7 +255,7 @@ func TestInventoryLifecycleCancelsCoverage(t *testing.T) {
 			default:
 				t.Fatal("lifecycle action left scan running")
 			}
-			after, err := os.ReadFile(c.configPath + ".inventory.json")
+			after, err := os.ReadFile(c.files().State("inventory"))
 			if err != nil || string(after) != string(before) {
 				t.Fatalf("cancellation changed persisted snapshot: %v", err)
 			}

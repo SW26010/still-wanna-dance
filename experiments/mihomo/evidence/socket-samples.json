@@ -1,0 +1,57 @@
+{
+  "ControlledLastLiveSamples": [
+    {
+      "Time": "2026-10-11T08:51:42.602071Z",
+      "TCPListeners": [],
+      "UDPSockets": [],
+      "ProcessAlive": true
+    },
+    {
+      "Time": "2026-10-11T08:51:42.9510044Z",
+      "TCPListeners": [],
+      "UDPSockets": [],
+      "ProcessAlive": true
+    },
+    {
+      "Time": "2026-10-11T08:51:43.3020148Z",
+      "TCPListeners": [],
+      "UDPSockets": [],
+      "ProcessAlive": true
+    }
+  ],
+  "RawLastLiveSamples": [
+    {
+      "Time": "2026-10-11T08:52:13.2355411Z",
+      "TCPListeners": [],
+      "UDPSockets": [
+        {
+          "LocalAddress": "::",
+          "LocalPort": 58422
+        }
+      ],
+      "ProcessAlive": true
+    },
+    {
+      "Time": "2026-10-11T08:52:13.5947477Z",
+      "TCPListeners": [],
+      "UDPSockets": [
+        {
+          "LocalAddress": "::",
+          "LocalPort": 58422
+        }
+      ],
+      "ProcessAlive": true
+    },
+    {
+      "Time": "2026-10-11T08:52:13.9646737Z",
+      "TCPListeners": [],
+      "UDPSockets": [
+        {
+          "LocalAddress": "::",
+          "LocalPort": 58422
+        }
+      ],
+      "ProcessAlive": true
+    }
+  ]
+}

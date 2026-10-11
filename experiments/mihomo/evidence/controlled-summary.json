@@ -1,0 +1,9 @@
+{
+  "Mode": "controlled-lifecycle",
+  "RequiredChecks": 43,
+  "FailedChecks": [],
+  "NoTCPListenersObserved": true,
+  "UDPDrainedBeforeExit": true,
+  "SystemStateUnchanged": true,
+  "Passed": true
+}

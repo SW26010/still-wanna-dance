@@ -1,0 +1,353 @@
+{
+  "arch": "amd64",
+  "checks": [
+    {
+      "name": "ss/guard/http",
+      "passed": true,
+      "milliseconds": 2
+    },
+    {
+      "name": "ss/guard/pre-canceled-dial",
+      "passed": true,
+      "detail": "context canceled",
+      "milliseconds": 0
+    },
+    {
+      "name": "ss/guard/retire-closes-owned-stream",
+      "passed": true,
+      "detail": "read tcp 127.0.0.1:59882-\u003e127.0.0.1:59877: use of closed network connection",
+      "milliseconds": 0
+    },
+    {
+      "name": "ss/guard/retired-refuses-new-dial",
+      "passed": true,
+      "detail": "use of closed network connection",
+      "milliseconds": 0
+    },
+    {
+      "name": "ss/guard/cold-dns-deadline",
+      "passed": true,
+      "detail": "context deadline exceeded",
+      "milliseconds": 100
+    },
+    {
+      "name": "ss/http-and-session-reuse",
+      "passed": true,
+      "detail": "three HTTP connections; server transport count delta=3 expected=3",
+      "milliseconds": 3
+    },
+    {
+      "name": "ss/concurrent-http",
+      "passed": true,
+      "milliseconds": 1
+    },
+    {
+      "name": "ss/http-deadline",
+      "passed": true,
+      "detail": "context deadline exceeded",
+      "milliseconds": 200
+    },
+    {
+      "name": "ss/pre-canceled-dial",
+      "passed": true,
+      "detail": "proxy.invalid:59877 connect error: dns resolve failed: context canceled",
+      "milliseconds": 0
+    },
+    {
+      "name": "ss/close-rejects-new-business",
+      "passed": false,
+      "milliseconds": 1
+    },
+    {
+      "name": "ss/invalid-auth-fails-business",
+      "passed": true,
+      "detail": "read tcp 127.0.0.1:59904-\u003e127.0.0.1:59877: wsarecv: An existing connection was forcibly closed by the remote host.",
+      "milliseconds": 0
+    },
+    {
+      "name": "vless/guard/http",
+      "passed": true,
+      "milliseconds": 1
+    },
+    {
+      "name": "vless/guard/pre-canceled-dial",
+      "passed": true,
+      "detail": "context canceled",
+      "milliseconds": 0
+    },
+    {
+      "name": "vless/guard/retire-closes-owned-stream",
+      "passed": true,
+      "detail": "read tcp 127.0.0.1:59907-\u003e127.0.0.1:59878: use of closed network connection",
+      "milliseconds": 0
+    },
+    {
+      "name": "vless/guard/retired-refuses-new-dial",
+      "passed": true,
+      "detail": "use of closed network connection",
+      "milliseconds": 0
+    },
+    {
+      "name": "vless/guard/cold-dns-deadline",
+      "passed": true,
+      "detail": "context deadline exceeded",
+      "milliseconds": 100
+    },
+    {
+      "name": "vless/http-and-session-reuse",
+      "passed": true,
+      "detail": "three HTTP connections; server transport count delta=3 expected=3",
+      "milliseconds": 5
+    },
+    {
+      "name": "vless/concurrent-http",
+      "passed": true,
+      "milliseconds": 1
+    },
+    {
+      "name": "vless/http-deadline",
+      "passed": true,
+      "detail": "context deadline exceeded",
+      "milliseconds": 200
+    },
+    {
+      "name": "vless/pre-canceled-dial",
+      "passed": false,
+      "detail": "proxy.invalid:59878 connect error: dns resolve failed: context canceled",
+      "milliseconds": 0
+    },
+    {
+      "name": "vless/close-rejects-new-business",
+      "passed": false,
+      "milliseconds": 1
+    },
+    {
+      "name": "vless/invalid-auth-fails-business",
+      "passed": true,
+      "detail": "unexpected EOF",
+      "milliseconds": 1
+    },
+    {
+      "name": "vless/tls-pin-enforced",
+      "passed": true,
+      "detail": "proxy.invalid:59878 connect error: certificate fingerprints do not match",
+      "milliseconds": 0
+    },
+    {
+      "name": "anytls/guard/http",
+      "passed": true,
+      "milliseconds": 1
+    },
+    {
+      "name": "anytls/guard/pre-canceled-dial",
+      "passed": true,
+      "detail": "context canceled",
+      "milliseconds": 0
+    },
+    {
+      "name": "anytls/guard/retire-closes-owned-stream",
+      "passed": true,
+      "detail": "io: read/write on closed pipe",
+      "milliseconds": 0
+    },
+    {
+      "name": "anytls/guard/retired-refuses-new-dial",
+      "passed": true,
+      "detail": "use of closed network connection",
+      "milliseconds": 0
+    },
+    {
+      "name": "anytls/guard/cold-dns-deadline",
+      "passed": true,
+      "detail": "context deadline exceeded",
+      "milliseconds": 101
+    },
+    {
+      "name": "anytls/http-and-session-reuse",
+      "passed": true,
+      "detail": "three HTTP connections; server transport count delta=1 expected=1",
+      "milliseconds": 3
+    },
+    {
+      "name": "anytls/concurrent-http",
+      "passed": true,
+      "milliseconds": 2
+    },
+    {
+      "name": "anytls/http-deadline",
+      "passed": true,
+      "detail": "context deadline exceeded",
+      "milliseconds": 200
+    },
+    {
+      "name": "anytls/pre-canceled-dial",
+      "passed": false,
+      "milliseconds": 0
+    },
+    {
+      "name": "anytls/close-rejects-new-business",
+      "passed": true,
+      "detail": "io: read/write on closed pipe",
+      "milliseconds": 0
+    },
+    {
+      "name": "anytls/invalid-auth-fails-business",
+      "passed": true,
+      "detail": "use of closed network connection",
+      "milliseconds": 1
+    },
+    {
+      "name": "anytls/tls-pin-enforced",
+      "passed": true,
+      "detail": "failed to create session: certificate fingerprints do not match",
+      "milliseconds": 0
+    },
+    {
+      "name": "hysteria2/guard/http",
+      "passed": true,
+      "milliseconds": 3
+    },
+    {
+      "name": "hysteria2/guard/pre-canceled-dial",
+      "passed": true,
+      "detail": "context canceled",
+      "milliseconds": 0
+    },
+    {
+      "name": "hysteria2/guard/retire-closes-owned-stream",
+      "passed": true,
+      "detail": "use of closed network connection",
+      "milliseconds": 0
+    },
+    {
+      "name": "hysteria2/guard/retired-refuses-new-dial",
+      "passed": true,
+      "detail": "use of closed network connection",
+      "milliseconds": 0
+    },
+    {
+      "name": "hysteria2/guard/cold-dns-deadline",
+      "passed": true,
+      "detail": "context deadline exceeded",
+      "milliseconds": 100
+    },
+    {
+      "name": "hysteria2/http-and-session-reuse",
+      "passed": true,
+      "detail": "three HTTP connections; server transport count delta=1 expected=1",
+      "milliseconds": 4
+    },
+    {
+      "name": "hysteria2/concurrent-http",
+      "passed": true,
+      "milliseconds": 1
+    },
+    {
+      "name": "hysteria2/http-deadline",
+      "passed": true,
+      "detail": "context deadline exceeded",
+      "milliseconds": 200
+    },
+    {
+      "name": "hysteria2/pre-canceled-dial",
+      "passed": false,
+      "milliseconds": 0
+    },
+    {
+      "name": "hysteria2/close-rejects-new-business",
+      "passed": false,
+      "milliseconds": 2
+    },
+    {
+      "name": "hysteria2/invalid-auth-fails-business",
+      "passed": true,
+      "detail": "authentication failed, status code: 404",
+      "milliseconds": 1
+    },
+    {
+      "name": "hysteria2/tls-pin-enforced",
+      "passed": true,
+      "detail": "CRYPTO_ERROR 0x12a (local): certificate fingerprints do not match",
+      "milliseconds": 1
+    },
+    {
+      "name": "chain/unbound-name-rejected",
+      "passed": true,
+      "detail": "proxy.invalid:59878 connect error: tunnel is invalid, must be proxydialer.Tunnel, but got: \u003cnil\u003e",
+      "milliseconds": 0
+    },
+    {
+      "name": "chain/fixed-parent-object-http",
+      "passed": true,
+      "milliseconds": 1
+    },
+    {
+      "name": "dns/proxy-host-resolver-used",
+      "passed": true,
+      "detail": "44",
+      "milliseconds": 0
+    },
+    {
+      "name": "dns/no-local-business-or-system-resolution",
+      "passed": true,
+      "detail": "[]",
+      "milliseconds": 0
+    }
+  ],
+  "go": "go1.27.1",
+  "initialGlobals": {
+    "defaultResolver": false,
+    "proxyResolver": false,
+    "systemResolver": true,
+    "useSystemHosts": false
+  },
+  "os": "windows",
+  "pid": 2184,
+  "proxyDNSQueries": [
+    "proxy.invalid",
+    "proxy.invalid",
+    "cancel.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "cancel.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "cancel.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "cancel.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid",
+    "proxy.invalid"
+  ],
+  "unexpectedDNSQueries": null
+}

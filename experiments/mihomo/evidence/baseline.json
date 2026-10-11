@@ -1,0 +1,1 @@
+{"arch":"amd64","consoleLinked":"func(string, string) (*console.Console, error)","defaultResolverInitialized":false,"go":"go1.27.1","os":"windows","parse":true,"proxyResolverInitialized":false,"systemResolverInitialized":true}

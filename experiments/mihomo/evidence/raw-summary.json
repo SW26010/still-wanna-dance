@@ -1,0 +1,9 @@
+{
+  "Mode": "raw-post-close-observation",
+  "RequiredChecks": 43,
+  "FailedChecks": [],
+  "NoTCPListenersObserved": true,
+  "UDPDrainedBeforeExit": false,
+  "SystemStateUnchanged": true,
+  "Passed": true
+}

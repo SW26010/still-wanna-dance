@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"still-wanna-dance/internal/legal"
 	"still-wanna-dance/internal/upstreamstate"
 )
 
@@ -21,7 +20,7 @@ func (c *Console) startMonitorLocked() error {
 	if c.closing {
 		return errors.New("控制台正在退出")
 	}
-	if !c.monitorRequested || c.terms.Version != legal.Version || c.terms.Hash != legal.Hash() || c.terms.AcceptedAt.IsZero() {
+	if !c.monitorRequested || !c.terms.valid() {
 		return nil
 	}
 	if c.monitor == nil {

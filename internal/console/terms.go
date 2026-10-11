@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -20,25 +21,74 @@ type termsReceipt struct {
 	AcceptedAt time.Time `json:"acceptedAt"`
 }
 
+type dataProtection struct {
+	protect, unprotect func([]byte) ([]byte, error)
+}
+
+// Tests on non-Windows hosts replace this before any consoles are constructed.
+// Production never falls back to plaintext or a locally managed key.
+var defaultTermsProtection = dataProtection{protectUserData, unprotectUserData}
+
+type termsEnvelope struct {
+	Format     int    `json:"format"`
+	Protection string `json:"protection"`
+	Ciphertext []byte `json:"ciphertext"`
+}
+
+type protectedTerms struct {
+	Purpose string `json:"purpose"`
+	termsReceipt
+}
+
+const termsPurpose = "swd-terms-receipt-v1"
+const maxTermsBytes = 64 * 1024
+
+func (r termsReceipt) valid() bool {
+	// A local clock is not proof of identity. Reject zero/out-of-range times;
+	// allow later clock corrections without expiring an otherwise valid receipt.
+	return r.Version == legal.Version && r.Hash == legal.Hash() &&
+		!r.AcceptedAt.IsZero() && r.AcceptedAt.Year() >= 1 && r.AcceptedAt.Year() <= 9999
+}
+
 func (c *Console) termsAccepted() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.terms.Version == legal.Version && c.terms.Hash == legal.Hash() && !c.terms.AcceptedAt.IsZero()
+	return c.terms.valid()
 }
 
 func (c *Console) loadTerms() error {
-	b, err := os.ReadFile(c.files().Terms)
+	c.terms = termsReceipt{}
+	c.termsProtection = defaultTermsProtection
+	f, err := os.Open(c.files().Terms)
 	if os.IsNotExist(err) {
 		return nil
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("读取条款确认记录：%w", err)
 	}
-	// Malformed or old receipts never grant acceptance.
-	var receipt termsReceipt
-	if json.Unmarshal(b, &receipt) == nil {
-		c.terms = receipt
+	defer f.Close()
+	b, err := io.ReadAll(io.LimitReader(f, maxTermsBytes+1))
+	if err != nil {
+		return fmt.Errorf("读取条款确认记录：%w", err)
 	}
+	var envelope termsEnvelope
+	if len(b) > maxTermsBytes || json.Unmarshal(b, &envelope) != nil || envelope.Format != 1 ||
+		envelope.Protection != "dpapi-current-user" || len(envelope.Ciphertext) == 0 {
+		slog.Warn("terms_receipt_invalid", "reason", "unsupported or corrupt format")
+		return nil
+	}
+	plain, err := c.termsProtection.unprotect(envelope.Ciphertext)
+	if err != nil {
+		slog.Warn("terms_receipt_invalid", "reason", "current user decryption failed")
+		return nil
+	}
+	defer clear(plain)
+	var receipt protectedTerms
+	if json.Unmarshal(plain, &receipt) != nil || receipt.Purpose != termsPurpose || !receipt.termsReceipt.valid() {
+		slog.Warn("terms_receipt_invalid", "reason", "invalid or outdated terms")
+		return nil
+	}
+	c.terms = receipt.termsReceipt
 	return nil
 }
 
@@ -49,7 +99,16 @@ func (c *Console) acceptTerms() error {
 		return fmt.Errorf("控制台正在退出")
 	}
 	receipt := termsReceipt{legal.Version, legal.Hash(), time.Now().UTC()}
-	b, err := json.MarshalIndent(receipt, "", "  ")
+	plain, err := json.Marshal(protectedTerms{termsPurpose, receipt})
+	if err != nil {
+		return err
+	}
+	defer clear(plain)
+	cipher, err := c.termsProtection.protect(plain)
+	if err != nil {
+		return err
+	}
+	b, err := json.Marshal(termsEnvelope{1, "dpapi-current-user", cipher})
 	if err != nil {
 		return err
 	}
@@ -74,7 +133,7 @@ func (c *Console) termsPagePresence(pageID string, leaving bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing || pageID == "" || pageID != c.termsPageID ||
-		(c.terms.Version == legal.Version && c.terms.Hash == legal.Hash() && !c.terms.AcceptedAt.IsZero()) {
+		c.terms.valid() {
 		return
 	}
 	c.cancelTermsExitLocked()
@@ -157,7 +216,8 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		if err := c.acceptTerms(); err != nil {
-			http.Error(w, "无法保存同意记录，请检查配置目录权限后重试", 500)
+			slog.Error("terms_accept_failed", "error", err)
+			http.Error(w, "无法安全保存同意记录：需要 Windows 当前用户保护及可写的配置目录，请检查运行环境和日志后重试", 500)
 			return true
 		}
 		writeJSON(w, map[string]bool{"ok": true})

@@ -62,6 +62,7 @@ type Console struct {
 	restartRequested     chan struct{}
 	exitOnce             sync.Once
 	terms                termsReceipt // protected by mu; separate from editable settings
+	termsProtection      dataProtection
 	termsPageID          string
 	termsExitTimer       *time.Timer
 	termsExitGeneration  uint64     // invalidates callbacks already waiting for mu

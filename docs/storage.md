@@ -95,7 +95,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
       .lock
 ```
 
-首次打开未确认条款的应用只生成 `config.json`、`config.lock` 和 `logs/app.log`。路径解析和保存设置不预建 `state/` 或 `storage/`；保存目录只在已有祖先目录做临时写入探测。只读页面不建媒体库，显式扫描在需要清单数据库时才初始化引擎。空库存扫描不必创建媒体目录；发现已观察到视频的根目录消失，或现存非空根缺少 videos 时，保留旧库存并报错。交付精简、系统命名和统一垃圾治理分别由 #26、#24、#25 承担。
+首次打开未确认条款的应用只生成 `config.json`、`config.lock` 和 `logs/app.log`。路径解析和保存设置不预建 `state/` 或 `storage/`；保存目录只在已有祖先目录做临时写入探测。只读页面不建媒体库，显式扫描在需要清单数据库时才初始化引擎。空库存扫描不必创建媒体目录；发现已观察到视频的根目录消失，或现存非空根缺少 videos 时，保留旧库存并报错。系统运行身份和安全清理分别按 #24、#25 已收口，交付文件进一步精简仍由 #26 负责。
 
 ### 配置实例与路径解析
 
@@ -107,10 +107,10 @@ SWD/                              # ZIP 内固定目录，不含版本号
 - 自定义 `-config <目录>/config.json` 同样以该目录为 R；其他文件名采用 `R=C.d`。例如 `profiles/a.json` 的条款、状态、日志和默认媒体都放在 `profiles/a.json.d/`，媒体设置为 `a.json.d/storage`。
 - 同目录 `config.json`、`a.json`、`b.json` 的锁、日志、密钥、确认记录和状态独立。不要把另一个配置嵌套在已有实例的数据根内；共享同一实例根就是共享其附属状态。
 - `-config` 参数本身的相对路径基于启动工作目录；配置内相对媒体路径和手动 VRChat 日志路径始终基于 B。保存时位于 B 内的路径转为相对路径，外部路径保留绝对路径。默认 VRChat 日志目录随当前用户环境解析。
-- 主配置不能命名为保留的 `terms.json`、`channel.key`、`config.lock`、`state`、`logs`、`storage`，避免覆盖规范配置的附属文件。
+- 主配置不能命名为保留的 `terms.json`、`channel.key`、`config.lock`、`state`、`logs`、`storage`，也不能使用 `.swd-tmp` 后缀，避免覆盖规范配置和原子写入工作槽。
 - 多个配置主动选择同一个媒体根时，仍受媒体 `.lock` 独占保护；配置隔离不允许同时写同一媒体库。
 
-配置版本独立于软件发行版本。读取拒绝缺失、不支持或未来版本；保存前再次检查磁盘版本，并保留当前版本中的未知字段。设置 API 不能指定磁盘格式版本。配置、条款和任务快照使用同目录临时文件、同步、关闭后替换；写失败不更新已保存设置。吞吐状态同目录临时替换，通道密钥排他创建，保持各自已有恢复语义，不承诺所有文件构成跨文件事务。
+配置版本独立于软件发行版本。读取拒绝缺失、不支持或未来版本；保存前再次检查磁盘版本，并保留当前版本中的未知字段。设置 API 不能指定磁盘格式版本。配置、条款及库存/任务/吞吐快照使用每目标固定的 `.<文件名>.swd-tmp` 工作槽，排他创建、同步并原子替换；持有配置实例锁的启动流程仅清理本实例已知的六个遗留工作槽，失败不覆盖已提交文件。通道密钥仅缺失时排他创建，损坏原文保留并降级为临时通道身份；不承诺所有文件构成跨文件事务。
 
 默认启动前若 EXE 旁存在 `still-wanna-dance-console.json`、`stepstash-console.json`、`still-wanna-dance-data` 或 `stepstash-data`，会在创建 data、日志和配置锁前拒绝并要求独立新目录。自定义旧配置由版本检查拒绝。这里只诊断已知布局，不扫描任意历史文件、不复制或自动迁移；存储根的旧库保护仍遵循上文。
 
@@ -121,7 +121,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | EXE、licenses、README、构建信息 | 由交付包拥有；升级仅覆盖这些路径 | 可从相应构建重新取得，许可随分发保留 |
 | `C` | 主设置；首次成功打开和保存设置时写入 | 必须备份；代理密码为 CurrentUser DPAPI 密文，换用户/机器可能需重配 |
 | `R/terms.json` | 用户主动确认后写入；条款变化要求重新确认 | 随配置备份；缺失则重新确认，不是身份或内容授权证明 |
-| `R/channel.key` | 32 字节通道身份密钥，不是密码加密密钥 | 随配置备份；缺失可重新生成，但旧 SOCKS5 样本身份失效 |
+| `R/channel.key` | 32 字节通道身份密钥；仅缺失时生成，损坏则保留原文件并使用临时身份 | 随配置备份；缺失重建会改变 SOCKS5 稳定身份和旧样本关联 |
 | `R/state/throughput.json` | 测速尝试冷却与历史样本；网络监测需要持久化时更新 | 可重建；丢失旧样本和冷却时间，不包含凭据或播放 URL |
 | `R/state/inventory.json` | 最近成功的库存快照；扫描失败保留上次结果 | 可重新扫描 |
 | `R/state/batch.json`、`attempt.json` | 成功批量任务摘要、最近尝试摘要 | 可重新运行；不是断点续传记录，丢失的历史摘要不可恢复 |
@@ -129,11 +129,11 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | `R/logs/app.log[.1-.3]` | 启动、退出及操作诊断，5 MiB × 最多 4 份，重启追加 | 可选备份，丢失后无法重建历史日志 |
 | `S/storage.sqlite`、SQLite 日志文件、`S/videos/` | 引擎/导入/下载/统计写入；独占根，MD5 去重 | 退出后备份整个 S；统计不能靠视频重建，不在运行中只拷主库 |
 | `S/.lock` | 媒体写入与离线删除的目录锁 | 不必单独备份；保留锁文件不等于仍占用 |
-| `S/tmp/download-*.part`（包括 download-publish） | 下载、Range、发布临时文件；操作结束清理；合法库启动后仅清理匹配名称的非目录项，不扫描子目录 | 不必单独备份，不承诺断点续传，不能泛化清理陌生文件 |
-| `S/tmp/import-*/video` | 单次导入的硬链接/复制暂存，操作退出清理自己的目录 | 不必备份；崩溃遗留由 #25 处理，导入状态/回执只在进程内 |
-| `B/.settings-*`、`R/.terms-*`、`R/state/.snapshot-*`、`R/state/.throughput-*` | 原子替换暂存；正常完成或失败后移除自己创建的临时文件 | 非备份对象；不新增启动时通用清扫 |
-| 可写性探测目录中的 `.swd-probe-*` | 设置验证短暂创建并移除；在最近已有祖先中探测 | 非备份对象 |
-| `R/channel.key.corrupt-*`、`R/state/throughput.json.corrupt-*` | 原有损坏文件隔离，保留取证，不自动清扫 | 可选保留，不当作可用状态载入 |
+| `S/tmp/download-<数字>.part`、`download-publish-<数字>.part` | 下载、Range 与发布暂存；媒体独占锁及数据库格式校验通过后，仅回收符合 Go 临时文件数字名称且为普通文件的已知产物 | 不必单独备份，不承诺断点续传；符号链接、重解析点和未知名称保留，删除失败有明确诊断 |
+| `S/tmp/import-<数字>/video` | 单次导入硬链接或跨卷复制暂存；操作结束只删除自己的 `video` 及空目录，崩溃后仅清理空目录或恰有一个普通 `video` 文件的已知目录，绝不递归删除陌生内容 | 不必备份；合法库启动时按媒体锁及格式校验后清理；源视频和完整缓存不受影响 |
+| `B/.<配置文件名>.swd-tmp`、`R/.terms.json.swd-tmp`、`R/state/.<状态文件名>.swd-tmp` | 主配置、条款与四类状态的固定原子工作槽（各目标至多一个）；配置锁持有者启动时只清理本实例已知工作槽，不全盘扫描 | 非备份对象；未知文件及旧随机命名不泛化删除，工作槽占用/不安全时拒绝清理并保留最后有效数据 |
+| 可写性探测目录中的 `.swd-probe-*` | Windows 使用内核 delete-on-close 创建临时探测文件，正常关闭或进程终止后删除；不扫描用户外部目录 | 非备份对象 |
+| `R/channel.key` 损坏、`R/state/throughput.json` 损坏 | 密钥损坏时原文件原地保留、告警并使用进程内临时身份；测速状态损坏时跳过载入并在下次成功保存时原子替换，均不再新增 `.corrupt-*` 副本 | 密钥需要恢复原始备份才能恢复历史身份；旧试验版的 `.corrupt-*` 不自动清理 |
 
 库存和任务快照独立使用 `schemaVersion=1`，只保存 `storageDir` 与 `result`。相对库路径以 B 为基准，整体移动后可用；切换库不加载另一库的结果。损坏或不支持的快照跳过，不引入迁移链。设置、密钥和状态属于配置实例，不塞入可外置的媒体 SQLite。未来 #14 节点/订阅持久化及 #15 法律凭据属于 R，须遵守各自格式合同；#16 引导应复用配置与条款状态。
 
@@ -141,7 +141,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 | 外部位置 | 所有权 / 生命周期 | 备份约定 |
 | --- | --- | --- |
-| Windows `%LOCALAPPDATA%/SWD/console-session-<id>.json` | 托盘单实例发现；正常退出删除本会话、启动取得当前会话所有权后清理其旧记录；无托盘模式不创建 | 不备份，可重新发现，不是用户配置 |
+| Windows `%LOCALAPPDATA%/SWD/console-session-<id>.json` | 托盘单实例发现；包含回环地址、SWD 协议身份、实际 EXE、配置、PID 和进程创建时间；激活前校验进程/端口归属，退出删除本会话记录，异常退出后由新锁持有者清理；无托盘模式不创建 | 不备份，可重新发现，不是用户配置 |
 | Windows `%SystemRoot%/System32/drivers/etc/hosts` 及 `hosts.swd-backup`（已有 `hosts.stepstash-backup` 原样保留） | 仅用户显式接入修改 hosts；首次备份保留。恢复精确移除托管映射，不覆盖整个 hosts；退出不恢复 | 系统管理员管理，不自动删备份或覆盖其他映射 |
 | VRChat 日志目录、用户选取的导入源 | 只读输入，不归 SWD 所有 | SWD 不创建、修改或清理 |
 | 用户选择的外部 S | 仍由媒体目录锁保护，路径留作绝对引用 | 必须另行完整备份；移动 Portable 不自动搬外置库 |
@@ -203,7 +203,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | state/throughput.json | schemaVersion=1、lastAttempt、samples；sample 包含 observedAt、songID、bytes、durationNs。只恢复合法域名通道和稳定代理身份、正字节/时长且非未来样本。无版本/其它版本不解释；坏 JSON 保留至下一次成功的原子保存，不生成隔离副本；历史节点键不迁移，重新采样。它不是网络当前健康真相 |
 | state/inventory.json | schemaVersion=1、storageDir、result；result 为 Inventory：catalog（revision/checkedAt/message/error）、coverageKnown/coveredSongs/totalSongs/catalogRevision/videos/bytes/scanning/updated/error；恢复强制 scanning=false |
 | state/batch.json、attempt.json | 同一独立快照版本 1 和库归属；result 为 Batch：catalog/catalogWarning/budgetReached/catalogHits/reused/scanOnly/missing/updated/finished/running/phase/total/checked/hits/downloaded/failed/current/failures（id/name/error）。恢复 running=false；attempt 需 finished 非零。不是可恢复执行队列 |
-| Windows 会话发现 JSON | address（仅 loopback 主机端口）、pid；临时发现线索，加载还核实端口所有者。无需用户数据迁移版本，不作为授权依据 |
+| Windows 会话发现 JSON | address（仅 127.0.0.1 回环地址）、Identity（SWD 应用/协议版本、EXE、配置、PID 和进程创建时间）；仅供临时发现，还核实进程、端口和后端身份；无需用户数据迁移版本，不作为授权依据 |
 
 DPAPI CurrentUser 不使用路径作为额外熵，不请求 UAC。同用户覆盖/移动可用；另一用户或普通独立机器可能不可用，但域用户漫游可能保留能力，**不是绝对设备绑定**。非 Windows 无明文替代方案：保存密码明确失败，已有封套显示不可用。强制代理的不可用凭据使代理拨号失败；Auto 保留已明示的直连优先/代理回退策略，不篡改保存的偏好。未来节点令牌、私钥、带认证订阅 URL 必须使用同等保护，不落盘原始导入副本。
 

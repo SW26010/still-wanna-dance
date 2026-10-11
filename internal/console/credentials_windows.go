@@ -9,10 +9,10 @@ import (
 
 // No LOCAL_MACHINE flag and no path entropy: CurrentUser protection survives
 // moving the portable directory. DPAPI manages the user key; no UAC is needed.
-func protectProxySecret(plain []byte) ([]byte, error)    { return proxyCrypt(plain, true) }
-func unprotectProxySecret(cipher []byte) ([]byte, error) { return proxyCrypt(cipher, false) }
+func protectUserData(plain []byte) ([]byte, error)    { return userCrypt(plain, true) }
+func unprotectUserData(cipher []byte) ([]byte, error) { return userCrypt(cipher, false) }
 
-func proxyCrypt(input []byte, protect bool) ([]byte, error) {
+func userCrypt(input []byte, protect bool) ([]byte, error) {
 	if len(input) == 0 {
 		return nil, errors.New("empty credential")
 	}

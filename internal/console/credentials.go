@@ -24,7 +24,7 @@ func loadProxySecret(fields map[string]json.RawMessage, s *Settings) {
 	if json.Unmarshal(raw, &envelope) != nil || envelope.Version != 1 || envelope.Protection != "dpapi-current-user" {
 		return
 	}
-	plain, err := unprotectProxySecret(envelope.Ciphertext)
+	plain, err := unprotectUserData(envelope.Ciphertext)
 	if err != nil {
 		return
 	}
@@ -47,7 +47,7 @@ func storedProxySecret(s Settings) (json.RawMessage, error) {
 	if s.SOCKS5Password == "" {
 		return nil, nil
 	}
-	cipher, err := protectProxySecret([]byte(s.SOCKS5Password))
+	cipher, err := protectUserData([]byte(s.SOCKS5Password))
 	if err != nil {
 		return nil, err
 	}

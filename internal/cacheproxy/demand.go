@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"sync"
 )
@@ -14,6 +15,44 @@ func (a downloadRank) before(b downloadRank) bool {
 }
 
 var noDemand = downloadRank{level: 4}
+
+var errPreempted = errors.Join(context.Canceled, errors.New("download preempted by higher priority demand"))
+
+// With mu held, select only one victim until its worker has really exited.
+// A background-limit wait can only reclaim a background-owned slot.
+func (s *Server) preemptLocked(key string, rank downloadRank, backgroundFull bool) bool {
+	var victim *flight
+	victimRank := rank
+	for resource, f := range s.flights {
+		if f.preempted {
+			return true
+		}
+		if resource == key || f.cancel == nil || backgroundFull && !f.background {
+			continue
+		}
+		r := s.resourceRankLocked(resource)
+		if r.level != 0 && rank.before(r) && (victim == nil || victimRank.before(r) || victimRank == r && f.id < victim.id) {
+			victim, victimRank = f, r
+		}
+	}
+	if victim == nil {
+		return false
+	}
+	victim.preempted = true
+	victim.log.Info("cache_task_preempted", "priority", victimRank.level, "waiting_priority", rank.level,
+		"reason", "higher_priority_demand", "waiting_resource", key)
+	victim.cancel(errPreempted)
+	return true
+}
+
+func (s *Server) earlierWaiterLocked(d *downloadDemand, rank downloadRank) bool {
+	for other := range s.demands {
+		if other != d && other.waiting && other.key != d.key && s.demandRankLocked(other).before(rank) {
+			return true
+		}
+	}
+	return false
+}
 
 type queueDemandKey struct{}
 type downloadDemand struct {

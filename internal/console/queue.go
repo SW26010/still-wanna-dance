@@ -97,9 +97,7 @@ func (q *QueueStatus) setSongs(songs []vrclog.Song, reset bool) {
 func queueSongIDs(songs []vrclog.Song) []int64 {
 	ids := make([]int64, 0, len(songs))
 	for _, song := range songs {
-		if song.ID > 0 {
-			ids = append(ids, song.ID)
-		}
+		ids = append(ids, song.ID)
 	}
 	return ids
 }
@@ -331,11 +329,14 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 	c.queueUpdateMu.Lock()
 	c.mu.Lock()
 	c.queue.prefetchCount = c.settings.QueuePrefetchCount
+	window := c.queue.windowSize()
 	c.queue.protect = func(ids []int64, reset bool) {
+		engine.UpdatePrefetchQueue(ids[:min(len(ids), window)], reset)
 		_ = engine.UpdateQueueSongs(ctx, ids, reset)
 	}
 	ids := queueSongIDs(c.queue.Songs)
 	c.mu.Unlock()
+	engine.UpdatePrefetchQueue(ids[:min(len(ids), window)], false)
 	_ = engine.UpdateQueueSongs(ctx, ids, false)
 	c.queueUpdateMu.Unlock()
 	type result struct {
@@ -358,6 +359,7 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		c.queue.waiters = nil
 		c.queue.protect = nil
 		c.mu.Unlock()
+		engine.UpdatePrefetchQueue(nil, true)
 		engine.ResetQueueSongs(nil)
 		c.queueUpdateMu.Unlock()
 	}()
@@ -372,6 +374,22 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		if c.queue.Generation != generation {
 			generation = c.queue.Generation
 			retry = map[int64]time.Time{}
+		}
+		// Keep two address/download callers, but make room immediately for an
+		// earlier unprepared entry. Resource demand survives this caller swap.
+		selected := make(map[int64]bool)
+		for i, song := range c.queue.Songs {
+			if i >= c.queue.windowSize() || len(selected) == 2 {
+				break
+			}
+			if song.ID > 0 && !c.queue.prepared[song.ID] && !time.Now().Before(retry[song.ID]) {
+				selected[song.ID] = true
+			}
+		}
+		for id, waiter := range c.queue.waiters {
+			if !selected[id] {
+				waiter.cancel()
+			}
 		}
 		for i, song := range c.queue.Songs {
 			if i >= c.queue.windowSize() || len(active) >= 2 {
@@ -401,7 +419,7 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 				if !wanted() {
 					err = errSongRemoved
 				} else {
-					_, err = engine.PrefetchPlayback(songCtx, id)
+					_, err = engine.PrefetchQueuePlayback(songCtx, id)
 				}
 				results <- result{id, gen, !errors.Is(err, errSongRemoved), err}
 

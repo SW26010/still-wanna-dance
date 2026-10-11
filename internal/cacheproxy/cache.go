@@ -22,7 +22,13 @@ func (s *Server) obtain(ctx context.Context, v video) (*flight, *spoolReader, er
 }
 
 func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*flight, *spoolReader, error) {
+	return s.obtainDemand(ctx, v, background, !background)
+}
+
+func (s *Server) obtainDemand(ctx context.Context, v video, background, playback bool) (*flight, *spoolReader, error) {
 	ctx = applog.WithTrace(ctx)
+	demand, releaseDemand := s.addDemand(ctx, v, playback)
+	defer releaseDemand()
 	log := s.cfg.Logger.With("trace_id", applog.TraceID(ctx), "resource_key", v.key, "background", background)
 	waitStart := time.Now()
 	waitLogged := false
@@ -50,7 +56,14 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 			}
 			return nil, nil, failure
 		}
-		if s.flights[v.key] != nil || (len(s.slots) < cap(s.slots) && (!background || s.background < limit)) {
+		f := s.flights[v.key]
+		demand.waiting = f == nil || f.preempted
+		rank := s.resourceRankLocked(v.key)
+		if demand.queue && s.demandRankLocked(demand) == noDemand {
+			s.mu.Unlock()
+			return nil, nil, context.Canceled
+		}
+		if f != nil && !f.preempted || (f == nil && len(s.slots) < cap(s.slots) && (!background || s.background < limit) && !s.earlierWaiterLocked(demand, rank)) {
 			break
 		}
 		changed := s.capacityChanged
@@ -63,7 +76,22 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 			}
 			return f, nil, err
 		}
-		if !background {
+		s.mu.Lock()
+		// Recheck after disk I/O: a GET or queue snapshot may have changed the victim.
+		if changed != s.capacityChanged {
+			continue
+		}
+		rank = s.resourceRankLocked(v.key)
+		preempting := false
+		if ctx.Err() == nil && !s.closed && !s.earlierWaiterLocked(demand, rank) &&
+			(len(s.slots) >= cap(s.slots) || background && s.background >= limit) {
+			preempting = s.preemptLocked(v.key, rank, background && s.background >= limit)
+		}
+		if f := s.flights[v.key]; f != nil && f.preempted {
+			preempting = true
+		}
+		s.mu.Unlock()
+		if !background && !preempting {
 			log.Warn("cache_capacity_rejected")
 			return nil, nil, errBusy
 		}
@@ -80,6 +108,7 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 		}
 		s.mu.Lock()
 	}
+	demand.waiting = false
 	f := s.flights[v.key]
 	if f != nil && f.size != v.size {
 		s.mu.Unlock()
@@ -94,6 +123,8 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 			return nil, nil, errBusy
 		}
 		f = &flight{size: v.size, done: make(chan struct{}), streaming: make(chan struct{}), id: s.flightSequence.Add(1)}
+		workerCtx, cancel := context.WithCancelCause(s.ctx)
+		f.cancel, f.background = cancel, background
 		f.log = log.With("flight_id", f.id, "host", v.host)
 		f.progress = startProgress(f.log, v.size, 15*time.Second)
 		f.monitorSongs = make(map[string]bool)
@@ -108,11 +139,17 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 		go func() {
 			defer s.wg.Done()
 			defer s.releaseVideo(v)
-			workerCtx, cancel := context.WithTimeout(s.ctx, s.cfg.DownloadTimeout)
-			defer cancel()
-			f.path, f.source, f.err = s.prepare(workerCtx, v, f)
+			defer cancel(nil)
+			timedCtx, stop := context.WithTimeout(workerCtx, s.cfg.DownloadTimeout)
+			defer stop()
+			f.path, f.source, f.err = s.prepare(timedCtx, v, f)
+			if errors.Is(context.Cause(workerCtx), errPreempted) && f.err != nil {
+				f.err = errPreempted
+			}
 			f.progress.finish(f.err)
-			if f.err != nil {
+			if errors.Is(f.err, errPreempted) {
+				f.log.Info("cache_task_canceled", "reason", "preempted")
+			} else if f.err != nil {
 				f.log.Error("cache_task_failed", "key", v.key, "error", applog.SafeError(f.err))
 			}
 			if f.spool != nil {

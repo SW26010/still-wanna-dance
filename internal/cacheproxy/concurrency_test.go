@@ -73,7 +73,7 @@ func TestLocalHitsWhileAllDownloadSlotsAreOccupied(t *testing.T) {
 	}
 }
 
-func TestBackgroundCapacitySurvivesCancellationAndLeavesPlaybackSlot(t *testing.T) {
+func TestBackgroundCapacityLeavesPlaybackSlot(t *testing.T) {
 	started := make(chan string, 8)
 	release := make(chan struct{})
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
@@ -104,18 +104,7 @@ func TestBackgroundCapacitySurvivesCancellationAndLeavesPlaybackSlot(t *testing.
 	}
 	waitStart()
 	waitStart()
-	cancel()
-	for i := 0; i < 2; i++ {
-		select {
-		case err := <-finished:
-			if !errors.Is(err, context.Canceled) {
-				t.Fatal(err)
-			}
-		case <-time.After(3 * time.Second):
-			t.Fatal("canceled caller did not return")
-		}
-	}
-	// A newly started task must wait while the canceled callers' flights live.
+	// Equal-priority active background work is not preempted.
 	waitCtx, stopWaiting := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer stopWaiting()
 	if _, err := s.Prefetch(waitCtx, target("3")); !errors.Is(err, context.DeadlineExceeded) {

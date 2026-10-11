@@ -58,6 +58,8 @@ func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, res
 	defer func() { finishBudget(resultErr == nil || ctx.Err() != nil) }()
 	log := s.cfg.Logger.With("trace_id", applog.TraceID(ctx), "song_id", id, "resource_key", v.key)
 	log.Info("prefetch_started")
+	_, releaseDemand := s.addDemand(ctx, v, false)
+	defer releaseDemand()
 	s.pinVideo(v)
 	defer s.releaseVideo(v)
 	if id != "" {
@@ -86,7 +88,11 @@ func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, res
 			source: "prefetch", method: "GET", size: v.size, cache: cache,
 			outcome: outcome, elapsedMS: time.Since(start).Milliseconds()})
 	}()
+retryDownload:
 	f, _, err := s.obtainMode(ctx, v, true)
+	if errors.Is(err, errPreempted) {
+		goto retryDownload
+	}
 	if err != nil {
 		return "", err
 	}
@@ -94,6 +100,9 @@ func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, res
 	case <-ctx.Done():
 		return "", ctx.Err()
 	case <-f.done:
+		if errors.Is(f.err, errPreempted) {
+			goto retryDownload
+		}
 		if f.err != nil {
 			return f.source, f.err
 		}

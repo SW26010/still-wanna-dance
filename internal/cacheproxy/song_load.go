@@ -130,3 +130,8 @@ func (s *Server) PrefetchPlayback(ctx context.Context, id int64) (string, error)
 		v = fresh
 	}
 }
+
+// PrefetchQueuePlayback uses the latest queue snapshot's rank, including reorderings.
+func (s *Server) PrefetchQueuePlayback(ctx context.Context, id int64) (string, error) {
+	return s.PrefetchPlayback(context.WithValue(ctx, queueDemandKey{}, true), id)
+}

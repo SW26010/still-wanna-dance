@@ -383,6 +383,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	event.demand = r.Method == http.MethodGet && v.songID != ""
 	s.pinVideo(v)
 	defer func() { s.releaseVideo(v) }()
+	releaseDemand := func() {}
+	if r.Method == http.MethodGet {
+		_, releaseDemand = s.addDemand(r.Context(), v, true)
+	}
+	defer func() { releaseDemand() }()
 	if r.Method == http.MethodGet {
 		event.at = s.usage.startGET(v.songID, v.key)
 	}
@@ -393,6 +398,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return errors.Join(cause, fmt.Errorf("cached URL refresh: %w", fallbackErr))
 		}
 		s.pinVideo(replacement)
+		releaseDemand()
+		if r.Method == http.MethodGet {
+			_, releaseDemand = s.addDemand(r.Context(), replacement, true)
+		}
 		s.releaseVideo(v)
 		v = replacement
 		event.id, event.key, event.host, event.size = v.key, v.key, v.host, v.size
@@ -409,7 +418,7 @@ loadVideo:
 			log.Info("playback_local_hit", "song_id", v.songID)
 		}
 	} else {
-		f, stream, err = s.obtain(r.Context(), v)
+		f, stream, err = s.obtainDemand(r.Context(), v, false, r.Method == http.MethodGet)
 		if err != nil && v.cached != nil && errors.Is(err, errUpstreamDownload) && r.Context().Err() == nil {
 			if err = retry(err); err == nil {
 				goto loadVideo

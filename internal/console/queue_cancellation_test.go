@@ -17,8 +17,8 @@ import (
 	"still-wanna-dance/internal/vrclog"
 )
 
-func TestQueueInvalidationCancelsCapacityWaitButPreservesFlights(t *testing.T) {
-	for _, change := range []string{"remove", "room", "outside top three"} {
+func TestQueueInvalidationPreemptsObsoleteFlights(t *testing.T) {
+	for _, change := range []string{"remove", "room", "outside top three", "reorder"} {
 		t.Run(change, func(t *testing.T) {
 			c := testConsole(t)
 			body := "queue cancellation video"
@@ -74,20 +74,25 @@ func TestQueueInvalidationCancelsCapacityWaitButPreservesFlights(t *testing.T) {
 					return ""
 				}
 			}
-			// Both engine slots remain occupied even after queue callers cancel.
+			// Fill both background slots before replacing the queue.
 			take(started)
 			take(started)
 			take(resolved)
 			take(resolved)
 			c.mu.Lock()
-			c.setQueueSongsLocked([]vrclog.Song{{ID: 3}}, false)
+			next := []vrclog.Song{{ID: 3}}
+			if change == "reorder" {
+				next = []vrclog.Song{{ID: 3}, {ID: 1}, {ID: 2}}
+			}
+			c.setQueueSongsLocked(next, false)
 			c.mu.Unlock()
 			wake <- struct{}{}
 			if id := take(resolved); id != "3" {
 				t.Fatal(id)
 			}
-			// Give Prefetch time to enter its capacity wait while both origins block.
-			time.Sleep(30 * time.Millisecond)
+			if path := take(started); !strings.Contains(path, "/3-") {
+				t.Fatalf("new head blocked by obsolete flights: %s", path)
+			}
 			c.mu.Lock()
 			old := c.queue.waiters[3]
 			songs := []vrclog.Song{{ID: 4}}
@@ -106,10 +111,10 @@ func TestQueueInvalidationCancelsCapacityWaitButPreservesFlights(t *testing.T) {
 			if id := take(resolved); id != "4" {
 				t.Fatalf("new queue blocked behind obsolete waiter: %s", id)
 			}
-			unblock()
 			if path := take(started); !strings.Contains(path, "/4-") {
-				t.Fatalf("obsolete song downloaded: %s", path)
+				t.Fatalf("replacement head blocked by obsolete flights: %s", path)
 			}
+			unblock()
 			deadline := time.Now().Add(3 * time.Second)
 			for {
 				c.mu.Lock()
@@ -127,15 +132,12 @@ func TestQueueInvalidationCancelsCapacityWaitButPreservesFlights(t *testing.T) {
 				}
 				time.Sleep(5 * time.Millisecond)
 			}
-			// These old songs had already started: canceling their waiters must
-			// preserve the shared flights and their verified published files.
-			for _, id := range []string{"1", "2", "4"} {
+			// Only the newest head must publish. Uncontended old work may finish;
+			// preempted work must not publish a partial file.
+			for _, id := range []string{"4"} {
 				if _, err := os.Stat(fixtureVideoPath(cfg.StorageDir, id, body+id)); err != nil {
 					t.Fatal(id, err)
 				}
-			}
-			if _, err := os.Stat(fixtureVideoPath(cfg.StorageDir, "3", body+"3")); !os.IsNotExist(err) {
-				t.Fatal("obsolete cache published", err)
 			}
 		})
 	}

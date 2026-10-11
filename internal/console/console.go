@@ -56,6 +56,7 @@ type Settings struct {
 }
 
 type Console struct {
+	identity             desktop.Identity
 	exitRequested        chan struct{}
 	restartRequested     chan struct{}
 	exitOnce             sync.Once
@@ -117,10 +118,11 @@ type Console struct {
 }
 
 func New(configPath, address string) (*Console, error) {
-	configPath, err := filepath.Abs(configPath)
+	identity, err := desktop.NewIdentity(configPath)
 	if err != nil {
 		return nil, err
 	}
+	configPath = identity.Config
 	if err := apppaths.ValidateConfigPath(configPath); err != nil {
 		return nil, err
 	}
@@ -129,6 +131,7 @@ func New(configPath, address string) (*Console, error) {
 		return nil, err
 	}
 	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: "https://x.kiva.moe/api/v2/wanna/songs"}
+	c.identity = identity
 	c.settings = Settings{StorageDir: apppaths.ForConfig(configPath).DefaultStorage, RequestRetentionDays: 30}
 	c.exitRequested = make(chan struct{})
 	c.restartRequested = make(chan struct{})
@@ -635,7 +638,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == "GET" && r.URL.Path == "/api/identity" {
-		writeJSON(w, desktop.AppIdentity)
+		writeJSON(w, c.identity)
 		return
 	}
 	if r.URL.Path == "/api/status" && r.Method == "GET" {

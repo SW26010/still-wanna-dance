@@ -42,7 +42,7 @@ func TestConsoleIdentityIsHostProtected(t *testing.T) {
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/api/identity", nil))
 	var id desktop.Identity
-	if err := json.Unmarshal(w.Body.Bytes(), &id); err != nil || id != desktop.AppIdentity {
+	if err := json.Unmarshal(w.Body.Bytes(), &id); err != nil || id != c.identity || id.Config != c.configPath || id.PID == 0 || id.Started == "" {
 		t.Fatal(id, err)
 	}
 	w = httptest.NewRecorder()

@@ -19,6 +19,10 @@ func (l *configLease) Close() error { l.once.Do(func() { l.err = l.release() });
 
 // LockConfig also protects standalone/custom-port consoles from concurrent writes.
 func LockConfig(path string) (Lease, error) {
+	path, err := CanonicalPath(path)
+	if err != nil {
+		return nil, err
+	}
 	if err := apppaths.ValidateConfigPath(path); err != nil {
 		return nil, err
 	}

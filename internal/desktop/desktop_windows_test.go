@@ -3,6 +3,7 @@ package desktop
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -20,12 +21,16 @@ import (
 )
 
 func TestDynamicConsoleDiscovery(t *testing.T) {
+	identity, err := NewIdentity(filepath.Join(t.TempDir(), "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"app":"swd-console","protocol":1}`)
+		json.NewEncoder(w).Encode(identity)
 	}))
 	defer s.Close()
 	path := filepath.Join(t.TempDir(), "session.json")
-	owner := &Instance{lease: fakeLease{}, path: path}
+	owner := &Instance{lease: fakeLease{}, path: path, identity: identity}
 	defer owner.Close()
 	address := strings.TrimPrefix(s.URL, "http://")
 	if err := owner.Publish(address); err != nil {
@@ -33,13 +38,13 @@ func TestDynamicConsoleDiscovery(t *testing.T) {
 	}
 	for _, shouldOpen := range []bool{true, false} {
 		opened := ""
-		lease, err := acquireOrActivate(context.Background(), path, func() (Lease, error) { return nil, nil }, shouldOpen, func(url string) error { opened = url; return nil })
+		lease, err := acquireOrActivate(context.Background(), path, identity, func() (Lease, error) { return nil, nil }, shouldOpen, func(url string) error { opened = url; return nil })
 		if err != nil || lease != nil || (shouldOpen && opened != s.URL) || (!shouldOpen && opened != "") {
 			t.Fatalf("activation: lease=%v error=%v opened=%q", lease, err, opened)
 		}
 	}
 	// A new mutex owner must discard a crash leftover, even if its address is live.
-	replacement, err := acquireOrActivate(context.Background(), path, func() (Lease, error) { return fakeLease{}, nil }, true, func(string) error { t.Fatal("opened stale address"); return nil })
+	replacement, err := acquireOrActivate(context.Background(), path, identity, func() (Lease, error) { return fakeLease{}, nil }, true, func(string) error { t.Fatal("opened stale address"); return nil })
 	if err != nil || replacement == nil {
 		t.Fatal("takeover failed", err)
 	}
@@ -61,6 +66,10 @@ func TestDynamicConsoleDiscovery(t *testing.T) {
 }
 
 func TestDiscoveryRejectsInvalidAndForeignRecords(t *testing.T) {
+	identity, err := NewIdentity(filepath.Join(t.TempDir(), "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, `{"app":"other","protocol":1}`) }))
 	defer s.Close()
 	path := filepath.Join(t.TempDir(), "session.json")
@@ -74,18 +83,18 @@ func TestDiscoveryRejectsInvalidAndForeignRecords(t *testing.T) {
 		if err := os.WriteFile(path, []byte(data), 0600); err != nil {
 			t.Fatal(err)
 		}
-		if got := readInstanceAddress(path); got != "" {
-			t.Fatalf("accepted %s: %s", data, got)
+		if got := readInstanceRecord(path); got != nil {
+			t.Fatalf("accepted %s: %+v", data, got)
 		}
 	}
-	owner := &Instance{lease: fakeLease{}, path: path}
+	owner := &Instance{lease: fakeLease{}, path: path, identity: identity}
 	defer owner.Close()
 	if err := owner.Publish(strings.TrimPrefix(s.URL, "http://")); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	if _, err := acquireOrActivate(ctx, path, func() (Lease, error) { return nil, nil }, true, func(string) error { t.Fatal("opened foreign service"); return nil }); err == nil {
+	if _, err := acquireOrActivate(ctx, path, identity, func() (Lease, error) { return nil, nil }, true, func(string) error { t.Fatal("opened foreign service"); return nil }); err == nil {
 		t.Fatal("foreign service accepted")
 	}
 }

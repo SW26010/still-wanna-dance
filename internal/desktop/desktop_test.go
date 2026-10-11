@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -25,7 +26,7 @@ func TestElectionWaitsForOwnerAndRecovers(t *testing.T) {
 				return fakeLease{}, nil
 			}
 			return nil, nil
-		}, func(context.Context) bool { return !becomesOwner && tries == 2 }, func() error { opens++; return nil })
+		}, func(context.Context) (bool, error) { return !becomesOwner && tries == 2, nil }, func() error { opens++; return nil })
 		cancel()
 		if err != nil {
 			t.Fatal(err)
@@ -39,35 +40,39 @@ func TestElectionWaitsForOwnerAndRecovers(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
-	if _, err := elect(ctx, func() (Lease, error) { return nil, nil }, func(context.Context) bool { return false }, nil); err == nil {
+	if _, err := elect(ctx, func() (Lease, error) { return nil, nil }, func(context.Context) (bool, error) { return false, nil }, nil); err == nil {
 		t.Fatal("unready owner accepted")
 	}
-	if _, err := elect(context.Background(), func() (Lease, error) { return nil, nil }, func(context.Context) bool { return true }, func() error { return errors.New("browser unavailable") }); err == nil {
+	if _, err := elect(context.Background(), func() (Lease, error) { return nil, nil }, func(context.Context) (bool, error) { return true, nil }, func() error { return errors.New("browser unavailable") }); err == nil {
 		t.Fatal("browser failure hidden")
 	}
 }
 
 func TestProbeOnlyActivatesOurIdentity(t *testing.T) {
-	for _, body := range []string{`{"app":"swd-console","protocol":1}`, `{"app":"other","protocol":1}`, `<title>Still Wanna Dance</title>`, `{"app":"swd-console","protocol":2}`} {
+	expected, err := NewIdentity(filepath.Join(t.TempDir(), "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	valid, _ := json.Marshal(expected)
+	for _, body := range []string{string(valid), `{"app":"swd-console","protocol":1}`, `{"app":"other","protocol":1}`, `<title>Still Wanna Dance</title>`} {
 		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/api/identity" {
 				t.Error(r.URL.Path)
 			}
 			w.Write([]byte(body))
 		}))
-		got := probe(context.Background(), strings.TrimPrefix(s.URL, "http://"))
+		got := probe(context.Background(), strings.TrimPrefix(s.URL, "http://"), expected)
 		s.Close()
-		if got != (strings.Contains(body, `"app":"swd-console","protocol":1`)) {
+		if got != (body == string(valid)) {
 			t.Fatal(body, got)
 		}
 	}
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "http://example.invalid/", 302) }))
 	defer s.Close()
-	if probe(context.Background(), strings.TrimPrefix(s.URL, "http://")) {
+	if probe(context.Background(), strings.TrimPrefix(s.URL, "http://"), expected) {
 		t.Fatal("followed identity redirect")
 	}
 }
-
 func TestConfigLifetimeLock(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "settings.json")
 	first, err := LockConfig(p)

@@ -48,7 +48,14 @@ func run() (runErr error) {
 	if err != nil {
 		return err
 	}
-	defaultConfig := apppaths.DefaultConfig(exe)
+	exe, err = desktop.CanonicalPath(exe)
+	if err != nil {
+		return err
+	}
+	defaultConfig, err := desktop.CanonicalPath(apppaths.DefaultConfig(exe))
+	if err != nil {
+		return err
+	}
 	config := flag.String("config", defaultConfig, "settings file (relative directories are based on this file)")
 	action := flag.String("hosts-action", "", "internal elevated helper: enable or disable")
 	noTray := flag.Bool("no-tray", runtime.GOOS != "windows", "run without the Windows tray")
@@ -83,9 +90,14 @@ func run() (runErr error) {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	identity, err := desktop.NewIdentity(*config)
+	if err != nil {
+		return err
+	}
+	p := identity.Config
 	var instance *desktop.Instance
 	if !*noTray {
-		lease, err := desktop.AcquireOrActivate(ctx, !*noOpen)
+		lease, err := desktop.AcquireOrActivate(ctx, identity, !*noOpen)
 		if err != nil {
 			return err
 		}
@@ -94,10 +106,6 @@ func run() (runErr error) {
 		}
 		defer lease.Close()
 		instance = lease
-	}
-	p, err := filepath.Abs(*config)
-	if err != nil {
-		return err
 	}
 	if p == defaultConfig {
 		if err := apppaths.CheckLegacyInstall(filepath.Dir(exe)); err != nil {

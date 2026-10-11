@@ -19,8 +19,12 @@ const Address = "127.0.0.1:0"
 const MutexName = `Local\SWD.Desktop.v1`
 
 type Identity struct {
-	App      string `json:"app"`
-	Protocol int    `json:"protocol"`
+	App        string `json:"app"`
+	Protocol   int    `json:"protocol"`
+	Executable string `json:"executable"`
+	Config     string `json:"config"`
+	PID        uint32 `json:"pid"`
+	Started    string `json:"started"`
 }
 
 var AppIdentity = Identity{App: "swd-console", Protocol: 1}
@@ -29,7 +33,7 @@ type Lease interface{ Close() error }
 
 // elect waits for a starting owner, but can take over if that owner dies before
 // its HTTP server becomes ready. It never treats an arbitrary occupied port as ours.
-func elect(ctx context.Context, acquire func() (Lease, error), ready func(context.Context) bool, open func() error) (Lease, error) {
+func elect(ctx context.Context, acquire func() (Lease, error), ready func(context.Context) (bool, error), open func() error) (Lease, error) {
 	for {
 		lease, err := acquire()
 		if err != nil {
@@ -38,7 +42,11 @@ func elect(ctx context.Context, acquire func() (Lease, error), ready func(contex
 		if lease != nil {
 			return lease, nil
 		}
-		if ready(ctx) {
+		isReady, err := ready(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if isReady {
 			if open != nil {
 				if err = open(); err != nil {
 					return nil, fmt.Errorf("已有控制台运行，但打开浏览器失败：%w", err)
@@ -48,21 +56,24 @@ func elect(ctx context.Context, acquire func() (Lease, error), ready func(contex
 		}
 		select {
 		case <-ctx.Done():
-			return nil, errors.New("已有 Still Wanna Dance 正在启动或退出，暂时无法打开；请稍后重试")
+			return nil, errors.New("已有 Still Wanna Dance 正在启动、退出或实例身份无法验证，暂时无法打开；请稍后重试")
 		case <-time.After(100 * time.Millisecond):
 		}
 	}
 }
 
-func AcquireOrActivate(ctx context.Context, openBrowser bool) (*Instance, error) {
+func AcquireOrActivate(ctx context.Context, identity Identity, openBrowser bool) (*Instance, error) {
 	path, err := instancePath()
 	if err != nil {
 		return nil, err
 	}
-	return acquireOrActivate(ctx, path, func() (Lease, error) { return acquire(MutexName) }, openBrowser, OpenBrowser)
+	return acquireOrActivate(ctx, path, identity, func() (Lease, error) { return acquire(MutexName) }, openBrowser, OpenBrowser)
 }
 
-func acquireOrActivate(ctx context.Context, path string, acquireLease func() (Lease, error), openBrowser bool, browser func(string) error) (*Instance, error) {
+func acquireOrActivate(ctx context.Context, path string, identity Identity, acquireLease func() (Lease, error), openBrowser bool, browser func(string) error) (*Instance, error) {
+	if !identity.valid() {
+		return nil, errors.New("无效的 SWD 实例身份")
+	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	var address string
@@ -70,14 +81,25 @@ func acquireOrActivate(ctx context.Context, path string, acquireLease func() (Le
 	if openBrowser {
 		open = func() error { return browser("http://" + address) }
 	}
-	lease, err := elect(ctx, acquireLease, func(ctx context.Context) bool {
-		address = readInstanceAddress(path)
-		return address != "" && probe(ctx, address)
+	lease, err := elect(ctx, acquireLease, func(ctx context.Context) (bool, error) {
+		record := readInstanceRecord(path)
+		if record == nil || !probe(ctx, record.Address, record.Identity) {
+			return false, nil
+		}
+		// Revalidate process/port ownership after the HTTP round trip.
+		if current := readInstanceRecord(path); current == nil || *current != *record {
+			return false, nil
+		}
+		if !identity.sameInstallation(record.Identity) {
+			return false, record.Identity.conflict()
+		}
+		address = record.Address
+		return true, nil
 	}, open)
 	if err != nil || lease == nil {
 		return nil, err
 	}
-	instance := &Instance{lease: lease, path: path}
+	instance := &Instance{lease: lease, path: path, identity: identity}
 	// Clear crash leftovers before the new owner starts serving.
 	if err := instance.clear(); err != nil {
 		_ = lease.Close()
@@ -86,7 +108,10 @@ func acquireOrActivate(ctx context.Context, path string, acquireLease func() (Le
 	return instance, nil
 }
 
-func probe(ctx context.Context, address string) bool {
+func probe(ctx context.Context, address string, expected Identity) bool {
+	if !expected.valid() || !validAddress(address) {
+		return false
+	}
 	ctx, cancel := context.WithTimeout(ctx, 400*time.Millisecond)
 	defer cancel()
 	r, err := http.NewRequestWithContext(ctx, "GET", "http://"+address+"/api/identity", nil)
@@ -105,7 +130,7 @@ func probe(ctx context.Context, address string) bool {
 		return false
 	}
 	var identity Identity
-	return json.NewDecoder(io.LimitReader(resp.Body, 1024)).Decode(&identity) == nil && identity == AppIdentity
+	return json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&identity) == nil && identity == expected
 }
 
 type Owner struct {

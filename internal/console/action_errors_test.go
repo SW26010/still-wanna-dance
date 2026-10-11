@@ -14,7 +14,7 @@ func TestActionErrorsAreScopedAndClearOnRetry(t *testing.T) {
 	c.recordActionError("/api/hosts/enable", errors.New("hosts failure"))
 	post := func(body string) int {
 		r := httptest.NewRequest("POST", "http://"+c.address+"/api/settings", strings.NewReader(body))
-		r.Header.Set("X-StepStash-Token", c.token)
+		r.Header.Set("X-SWD-Token", c.token)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
 		return w.Code

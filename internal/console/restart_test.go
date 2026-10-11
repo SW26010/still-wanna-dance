@@ -16,7 +16,7 @@ func TestRestartAuthenticationAndFirstShutdownWins(t *testing.T) {
 				{"POST", c.address, c.token, "http://evil.invalid"},
 			} {
 				r := httptest.NewRequest(tc.method, "http://"+tc.host+"/api/restart", nil)
-				r.Header.Set("X-StepStash-Token", tc.token)
+				r.Header.Set("X-SWD-Token", tc.token)
 				r.Header.Set("Origin", tc.origin)
 				w := httptest.NewRecorder()
 				c.ServeHTTP(w, r)
@@ -31,7 +31,7 @@ func TestRestartAuthenticationAndFirstShutdownWins(t *testing.T) {
 			}
 			for _, action := range []string{first, "restart", "exit"} {
 				r := httptest.NewRequest("POST", "http://"+c.address+"/api/"+action, nil)
-				r.Header.Set("X-StepStash-Token", c.token)
+				r.Header.Set("X-SWD-Token", c.token)
 				w := httptest.NewRecorder()
 				c.ServeHTTP(w, r)
 				if w.Code != 200 || !w.Flushed {

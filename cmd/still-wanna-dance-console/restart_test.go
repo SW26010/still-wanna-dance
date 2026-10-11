@@ -76,7 +76,7 @@ func TestApplicationRestartReleasesConfigAndKeepsAddress(t *testing.T) {
 	}
 	post := func(action, session string) (int, error) {
 		r, _ := http.NewRequest("POST", address+"/api/"+action, strings.NewReader(`{}`))
-		r.Header.Set("X-StepStash-Token", session)
+		r.Header.Set("X-SWD-Token", session)
 		response, err := client.Do(r)
 		if err != nil {
 			return 0, err

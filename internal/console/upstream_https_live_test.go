@@ -15,7 +15,7 @@ import (
 
 // Opt-in network acceptance: no hosts changes and no full video downloads.
 func TestLiveHTTPSUpstreams(t *testing.T) {
-	if os.Getenv("STEPSTASH_LIVE_UPSTREAM") != "1" {
+	if os.Getenv("SWD_LIVE_UPSTREAM") != "1" {
 		t.Skip("opt-in live HTTPS probe")
 	}
 	c := testConsole(t)

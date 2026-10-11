@@ -22,7 +22,7 @@ func instancePath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, "StepStash", fmt.Sprintf("console-session-%d.json", session)), nil
+	return filepath.Join(root, "SWD", fmt.Sprintf("console-session-%d.json", session)), nil
 }
 
 type mutexLease struct {

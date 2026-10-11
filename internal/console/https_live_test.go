@@ -12,8 +12,8 @@ import (
 // Opt-in browser acceptance helper; never runs in normal tests or CI. It uses
 // only port 443 and the production DNS/relay, without touching hosts or cache.
 func TestHTTPSLiveBrowser(t *testing.T) {
-	if os.Getenv("STEPSTASH_HTTPS_LIVE") != "1" {
-		t.Skip("set STEPSTASH_HTTPS_LIVE=1 for a two-minute Chrome acceptance session")
+	if os.Getenv("SWD_HTTPS_LIVE") != "1" {
+		t.Skip("set SWD_HTTPS_LIVE=1 for a two-minute Chrome acceptance session")
 	}
 	c := testConsole(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)

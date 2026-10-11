@@ -97,7 +97,7 @@ func TestSOCKS5PasswordSettingsLifecycle(t *testing.T) {
 	}
 	request := func(method, path, body string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, "http://"+c.address+path, strings.NewReader(body))
-		r.Header.Set("X-StepStash-Token", c.token)
+		r.Header.Set("X-SWD-Token", c.token)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
 		return w

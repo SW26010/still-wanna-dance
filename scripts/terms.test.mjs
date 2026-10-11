@@ -30,7 +30,7 @@ test('leaving sends authenticated keepalive; back-forward cache restore cancels 
   s.listeners.pagehide();
   assert.equal(s.calls[0][0], '/api/terms/leave');
   assert.equal(s.calls[0][1].keepalive, true);
-  assert.equal(s.calls[0][1].headers['X-StepStash-Token'], 'test-token');
+  assert.equal(s.calls[0][1].headers['X-SWD-Token'], 'test-token');
   assert.deepEqual(JSON.parse(s.calls[0][1].body), { pageID: 'test-page' });
   s.listeners.pageshow({ persisted: true });
   assert.equal(s.calls[1][0], '/api/terms/return');
@@ -56,7 +56,7 @@ test('only a successful authenticated current-text acceptance navigates into the
   s.elements.rights.checked = s.elements.agree.checked = true; s.change();
   await s.submit();
   assert.equal(s.calls[0][0], '/api/terms/accept');
-  assert.equal(s.calls[0][1].headers['X-StepStash-Token'], 'test-token');
+  assert.equal(s.calls[0][1].headers['X-SWD-Token'], 'test-token');
   assert.deepEqual(JSON.parse(s.calls[0][1].body), { version: 'test-version', sha256: 'test-hash', agree: true, contentRights: true });
   assert.deepEqual(s.navigations, ['/']);
 });

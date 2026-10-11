@@ -1,4 +1,4 @@
-const token = document.querySelector('meta[name="stepstash-token"]').content;
+const token = document.querySelector('meta[name="swd-token"]').content;
 const $ = (id) => document.getElementById(id);
 let recentLimit = 50, recentStorage = '', recentSnapshot = '', recentRows = [];
 let monitorRevision = 0;
@@ -483,7 +483,7 @@ async function readState(url, timeoutMS = 10000) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMS);
   try {
-    const response = await fetch(url, { signal: controller.signal, headers: { 'X-StepStash-Token': token } });
+    const response = await fetch(url, { signal: controller.signal, headers: { 'X-SWD-Token': token } });
     if (!response.ok) throw Error('控制台连接失败');
     return await response.json();
   } finally {
@@ -565,7 +565,7 @@ async function reconnectAfterRestart() {
       const response = await fetch('/', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
       const html = await response.text();
       const page = new DOMParser().parseFromString(html, 'text/html');
-      const nextToken = page.querySelector('meta[name="stepstash-token"]')?.content;
+      const nextToken = page.querySelector('meta[name="swd-token"]')?.content;
       if (response.ok && nextToken && nextToken !== token) {
         location.reload();
         return;
@@ -599,7 +599,7 @@ async function action(path, body) {
     const r = await fetch('/api/' + path, {
       method: 'POST',
       headers: {
-        'X-StepStash-Token': token,
+        'X-SWD-Token': token,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body || {}),

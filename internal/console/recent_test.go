@@ -23,7 +23,7 @@ func TestRecentAPIAuthLimitsAndOffline(t *testing.T) {
 		{c.address, c.token, "", "", 200},
 	} {
 		r := httptest.NewRequest("GET", "http://"+tc.host+"/api/requests"+tc.query, nil)
-		r.Header.Set("X-StepStash-Token", tc.token)
+		r.Header.Set("X-SWD-Token", tc.token)
 		r.Header.Set("Origin", tc.origin)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
@@ -41,7 +41,7 @@ func TestRecentAPIAuthLimitsAndOffline(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := httptest.NewRequest("GET", "http://"+c.address+"/api/requests", nil)
-	r.Header.Set("X-StepStash-Token", c.token)
+	r.Header.Set("X-SWD-Token", c.token)
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, r)
 	if w.Code != 500 || strings.Contains(w.Body.String(), c.settings.StorageDir) {

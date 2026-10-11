@@ -86,7 +86,7 @@ test('scoped manual buttons work while automatic resource checks are paused', as
     await flush();
     assert.equal(p.requests[2].url, '/api/upstream/check/' + kind);
     assert.equal(p.requests[2].method, 'POST');
-    assert.equal(p.requests[2].headers['X-StepStash-Token'], 'test-token');
+    assert.equal(p.requests[2].headers['X-SWD-Token'], 'test-token');
   }
   const p = page(), get = id => p.document.getElementById(id);
   p.finishBatch(0, {}, { upstreamMonitor: { checking: true, manual: true, checkKind: 'throughput', results: [] } });
@@ -327,7 +327,7 @@ test('active refresh authenticates, clears stale data on failure, ignores pre-sa
   let finish;
   p.context.fetch = (url, options) => {
     assert.equal(url, '/api/downloads');
-    assert.equal(options.headers['X-StepStash-Token'], 'test-token');
+    assert.equal(options.headers['X-SWD-Token'], 'test-token');
     return new Promise(resolve => { finish = data => resolve({ ok: true, json: async () => data }); });
   };
   const pending = vm.runInContext('refreshDownloads()', p.context);
@@ -908,7 +908,7 @@ for (const [path, state] of [
     const request = p.requests[2];
     assert.equal(request.url, '/api/' + path);
     assert.equal(request.method, 'POST');
-    assert.equal(request.headers['X-StepStash-Token'], 'test-token');
+    assert.equal(request.headers['X-SWD-Token'], 'test-token');
     assert.equal(request.headers['Content-Type'], 'application/json');
     assert.deepEqual(JSON.parse(request.body), {});
     assert.equal(p.document.querySelectorAll('button').every(b => b.disabled), true);
@@ -1365,7 +1365,7 @@ test('recent refresh authenticates, rejects pre-save responses, clears failures 
   let finish, observed;
   p.context.fetch = (url, options) => { observed = { url, options }; return new Promise(resolve => { finish = value => resolve({ ok: true, json: async () => value }); }); };
   const pending = vm.runInContext('refreshRecent()', p.context);
-  assert.equal(observed.options.headers['X-StepStash-Token'], 'test-token');
+  assert.equal(observed.options.headers['X-SWD-Token'], 'test-token');
   assert.equal(observed.url, '/api/requests?limit=50');
   vm.runInContext('settingsRevision++; resetRecent()', p.context);
   finish({ storageID: 'old', requests: [recentEvent(1, 0)] });
@@ -1588,7 +1588,7 @@ test('cache deletion sends only confirmed identities, reports protected outcomes
   get('cacheConfirmDelete').click();
   await flush(); await flush();
   assert.equal(calls[0].url, '/api/cache/delete');
-  assert.equal(calls[0].options.headers['X-StepStash-Token'], 'test-token');
+  assert.equal(calls[0].options.headers['X-SWD-Token'], 'test-token');
   assert.deepEqual(JSON.parse(calls[0].options.body), { storageID: 'store', entries: [{ key: 'a', stamp: 'one' }] });
   assert.match(get('cacheResult').textContent, /受保护，已跳过/);
   assert.equal(calls.length, 2);

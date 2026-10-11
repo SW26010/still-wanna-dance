@@ -9,8 +9,19 @@ import (
 	"strings"
 )
 
-const marker = "# Still Wanna Dance managed"
+const marker = "# SWD managed"
 const legacyMarker = "# StepStash managed"
+
+var managedMarkers = []string{marker, "# Still Wanna Dance managed", legacyMarker}
+
+func managedComment(comment string) bool {
+	for _, m := range managedMarkers {
+		if "# "+strings.TrimSpace(comment) == m {
+			return true
+		}
+	}
+	return false
+}
 
 // Playback is served at the API entry, so no resource domains need to be
 // presumed or mapped before the API returns them.
@@ -40,7 +51,7 @@ func inspectHosts(data string) HostsStatus {
 	for _, line := range strings.Split(data, "\n") {
 		body, comment, _ := strings.Cut(line, "#")
 		fields := strings.Fields(body)
-		owned := "# "+strings.TrimSpace(comment) == marker || "# "+strings.TrimSpace(comment) == legacyMarker
+		owned := managedComment(comment)
 		if len(fields) < 2 {
 			continue
 		}
@@ -87,7 +98,7 @@ func readHostsStatus() HostsStatus {
 func transformHosts(data, action string) (string, error) {
 	if action == "enable" {
 		// Remove only exact historical resource entries owned by this program.
-		for _, ownedMarker := range []string{marker, legacyMarker} {
+		for _, ownedMarker := range managedMarkers {
 			for _, d := range legacyManagedDomains {
 				if d != "api.udon.dance" {
 					data = strings.ReplaceAll(data, "\r\n127.0.0.1 "+d+" "+ownedMarker+"\r\n", "")
@@ -127,7 +138,7 @@ func transformHosts(data, action string) (string, error) {
 	if action != "disable" {
 		return "", fmt.Errorf("unknown hosts action")
 	}
-	for _, ownedMarker := range []string{marker, legacyMarker} {
+	for _, ownedMarker := range managedMarkers {
 		for _, d := range legacyManagedDomains {
 			data = strings.ReplaceAll(data, "\r\n127.0.0.1 "+d+" "+ownedMarker+"\r\n", "")
 		}
@@ -140,7 +151,10 @@ func transformHosts(data, action string) (string, error) {
 
 // ApplyHosts is called only by the explicitly elevated helper invocation.
 func ApplyHosts(action string) error {
-	p := hostsPath()
+	return applyHosts(hostsPath(), action)
+}
+
+func applyHosts(p, action string) error {
 	b, err := os.ReadFile(p)
 	if err != nil {
 		return err
@@ -153,7 +167,7 @@ func ApplyHosts(action string) error {
 		return nil
 	}
 	// Keep the first pre-change snapshot; restore removes only our exact entries.
-	backup, err := os.OpenFile(p+".stepstash-backup", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	backup, err := os.OpenFile(p+".swd-backup", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err == nil {
 		_, err = backup.Write(b)
 		closeErr := backup.Close()

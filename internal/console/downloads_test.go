@@ -16,7 +16,7 @@ func TestDownloadsAuthAndOffline(t *testing.T) {
 		{c.address, c.token, "http://evil.example", 403}, {c.address, c.token, "", 200},
 	} {
 		r := httptest.NewRequest("GET", "http://"+tc.host+"/api/downloads", nil)
-		r.Header.Set("X-StepStash-Token", tc.token)
+		r.Header.Set("X-SWD-Token", tc.token)
 		r.Header.Set("Origin", tc.origin)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)

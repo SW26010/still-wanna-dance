@@ -270,7 +270,7 @@ func writableDir(path string) error {
 		}
 		path = parent
 	}
-	f, err := os.CreateTemp(path, ".stepstash-probe-*")
+	f, err := os.CreateTemp(path, ".swd-probe-*")
 	if err != nil {
 		return err
 	}
@@ -714,7 +714,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Path == "/api/downloads" && r.Method == "GET" {
-		if r.Header.Get("X-StepStash-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
+		if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
 			http.Error(w, "invalid origin or token", http.StatusForbidden)
 			return
 		}
@@ -746,7 +746,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Path == "/api/requests" && r.Method == "GET" {
-		if r.Header.Get("X-StepStash-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
+		if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
 			http.Error(w, "invalid origin or token", http.StatusForbidden)
 			return
 		}
@@ -777,7 +777,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not found", 404)
 		return
 	}
-	if r.Header.Get("X-StepStash-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
+	if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
 		http.Error(w, "invalid origin or token", 403)
 		return
 	}

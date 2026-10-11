@@ -21,7 +21,7 @@ import (
 
 func TestDynamicConsoleDiscovery(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"app":"stepstash-console","protocol":1}`)
+		fmt.Fprint(w, `{"app":"swd-console","protocol":1}`)
 	}))
 	defer s.Close()
 	path := filepath.Join(t.TempDir(), "session.json")
@@ -107,7 +107,7 @@ func TestSystemAssignedConsolePort(t *testing.T) {
 }
 
 func TestMutexProcess(t *testing.T) {
-	name := os.Getenv("STEPSTASH_MUTEX_TEST_CHILD")
+	name := os.Getenv("SWD_MUTEX_TEST_CHILD")
 	if name == "" {
 		return
 	}
@@ -139,7 +139,7 @@ func TestWindowsMutexOwnershipAndCrashRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	cmd := exec.Command(os.Args[0], "-test.run=^TestMutexProcess$")
-	cmd.Env = append(os.Environ(), "STEPSTASH_MUTEX_TEST_CHILD="+name)
+	cmd.Env = append(os.Environ(), "SWD_MUTEX_TEST_CHILD="+name)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -199,7 +199,7 @@ func TestPortOwnerIdentifiesCurrentProcess(t *testing.T) {
 }
 
 func TestLiveTrayLifecycle(t *testing.T) {
-	if os.Getenv("STEPSTASH_TRAY_CHECK") != "1" {
+	if os.Getenv("SWD_TRAY_CHECK") != "1" {
 		t.Skip("opt-in interactive Windows shell test")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)

@@ -8,12 +8,12 @@ import (
 )
 
 // BenchmarkReadCachePageExisting opts into read-only measurements of a real
-// cache. Point STEPSTASH_BENCH_CACHE_ROOT at the directory containing videos
+// cache. Point SWD_BENCH_CACHE_ROOT at the directory containing videos
 // and storage.sqlite. It never starts the engine or reads video contents.
 func BenchmarkReadCachePageExisting(b *testing.B) {
-	root := os.Getenv("STEPSTASH_BENCH_CACHE_ROOT")
+	root := os.Getenv("SWD_BENCH_CACHE_ROOT")
 	if root == "" {
-		b.Skip("set STEPSTASH_BENCH_CACHE_ROOT to benchmark an existing cache")
+		b.Skip("set SWD_BENCH_CACHE_ROOT to benchmark an existing cache")
 	}
 	for _, tc := range []struct {
 		name, query, order string
@@ -24,7 +24,7 @@ func BenchmarkReadCachePageExisting(b *testing.B) {
 		{"size_deep", "", "size", 9950},
 		{"recent_first", "", "recent", 0},
 		{"title_first", "", "title", 0},
-		{"search_missing", "stepstash-benchmark-no-match-7c91", "title", 0},
+		{"search_missing", "swd-benchmark-no-match-7c91", "title", 0},
 	} {
 		b.Run(tc.name, func(b *testing.B) {
 			b.ReportAllocs()

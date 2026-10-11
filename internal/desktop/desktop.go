@@ -15,16 +15,15 @@ import (
 
 const Address = "127.0.0.1:0"
 
-// Keep the legacy election namespace and identity so old and new binaries
-// activate the same owner instead of starting competing services.
-const MutexName = `Local\StepStash.Desktop.v1`
+// One ordinary desktop owner per Windows session, across all configurations.
+const MutexName = `Local\SWD.Desktop.v1`
 
 type Identity struct {
 	App      string `json:"app"`
 	Protocol int    `json:"protocol"`
 }
 
-var AppIdentity = Identity{App: "stepstash-console", Protocol: 1}
+var AppIdentity = Identity{App: "swd-console", Protocol: 1}
 
 type Lease interface{ Close() error }
 

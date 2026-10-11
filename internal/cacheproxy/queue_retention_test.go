@@ -255,7 +255,7 @@ func TestQueueDepartureBeforePlayback(t *testing.T) {
 	s.trimCache()
 	playback := request(s, "GET", videoURL(payload), map[string]string{"Range": "bytes=0-"})
 	assertResponse(t, playback, 206, payload)
-	if probe.Header().Get("X-StepStash-Cache") != "HIT" || playback.Header().Get("X-StepStash-Cache") != "HIT" || downloads.Load() != 1 {
+	if probe.Header().Get("X-SWD-Cache") != "HIT" || playback.Header().Get("X-SWD-Cache") != "HIT" || downloads.Load() != 1 {
 		t.Fatalf("handoff redownloaded: probe=%v playback=%v downloads=%d", probe.Header(), playback.Header(), downloads.Load())
 	}
 	// Shorten only the test deadline. No explicit trim after expiry: the worker

@@ -98,7 +98,7 @@ func TestColdHotCrossHostAndHTTP(t *testing.T) {
 	})
 	w := request(s, "GET", videoURL(payload), nil)
 	assertResponse(t, w, 200, payload)
-	if w.Header().Get("X-StepStash-Cache") != "MISS" {
+	if w.Header().Get("X-SWD-Cache") != "MISS" {
 		t.Fatal(w.Header())
 	}
 	lastModified := request(s, "HEAD", videoURL(payload), nil).Header().Get("Last-Modified")
@@ -121,7 +121,7 @@ func TestColdHotCrossHostAndHTTP(t *testing.T) {
 			u := strings.Replace(videoURL(payload), "play.udon.dance", "nya.xin.moe", 1)
 			w := request(s, tc.method, u, map[string]string{"Range": tc.rangeValue, "Cache-Control": "no-cache"})
 			assertResponse(t, w, tc.status, tc.body)
-			if w.Header().Get("Content-Range") != tc.cr || w.Header().Get("Accept-Ranges") != "bytes" || w.Header().Get("Content-Type") != "video/mp4" || w.Header().Get("X-StepStash-Cache") != "HIT" {
+			if w.Header().Get("Content-Range") != tc.cr || w.Header().Get("Accept-Ranges") != "bytes" || w.Header().Get("Content-Type") != "video/mp4" || w.Header().Get("X-SWD-Cache") != "HIT" {
 				t.Fatal(w.Header())
 			}
 			if tc.method == "HEAD" && w.Header().Get("Content-Length") != "36" {

@@ -315,7 +315,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		outcome := response.outcome(r.Context(), crash)
 		log.Info("request_finished", "status", response.status, "bytes", response.bytes, "elapsed", time.Since(start), "elapsed_ms", time.Since(start).Milliseconds(),
 			"response_headers_ms", response.headerLatency.Milliseconds(), "first_body_ms", response.firstBodyMS(),
-			"outcome", outcome, "cache", w.Header().Get("X-StepStash-Cache"), "content_range", w.Header().Get("Content-Range"),
+			"outcome", outcome, "cache", w.Header().Get("X-SWD-Cache"), "content_range", w.Header().Get("Content-Range"),
 			"content_length", w.Header().Get("Content-Length"), "write_error", applog.SafeError(response.writeErr))
 		if crash != nil {
 			panic(crash)
@@ -360,7 +360,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		event.status, event.bytes = response.status, response.bytes
 		event.firstBodyNS = response.firstBodyLatency.Nanoseconds()
 		event.elapsedMS = time.Since(start).Milliseconds()
-		event.cache = w.Header().Get("X-StepStash-Cache")
+		event.cache = w.Header().Get("X-SWD-Cache")
 		if event.cache == "" {
 			event.cache = "UNKNOWN"
 		}
@@ -485,7 +485,7 @@ loadVideo:
 	}
 	w.Header().Set("Content-Type", "video/mp4")
 	w.Header().Set("ETag", `"`+v.key+`"`)
-	w.Header().Set("X-StepStash-Cache", f.source)
+	w.Header().Set("X-SWD-Cache", f.source)
 	http.ServeContent(w, r, v.path, file.info.ModTime(), file.reader())
 	if r.Context().Err() != nil {
 		log.Info("client_disconnected", "cache", f.source, "elapsed", time.Since(start))
@@ -585,7 +585,7 @@ func serveStream(w http.ResponseWriter, r *http.Request, v video, stream *spoolR
 	pending := &streamResponseWriter{ResponseWriter: w, header: w.Header().Clone(), stream: stream}
 	pending.Header().Set("Content-Type", "video/mp4")
 	pending.Header().Set("ETag", `"`+v.key+`"`)
-	pending.Header().Set("X-StepStash-Cache", "MISS")
+	pending.Header().Set("X-SWD-Cache", "MISS")
 	http.ServeContent(pending, r, v.path, time.Time{}, stream)
 	return pending
 }

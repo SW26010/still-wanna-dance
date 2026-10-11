@@ -32,7 +32,7 @@ func run() (resultErr error) {
 	cfg := cacheproxy.DefaultConfig()
 	cfg.DialContext = console.NewUpstreamDialer()
 	socks5Address := flag.String("socks5-proxy", "", "SOCKS5 proxy host:port; delegates destination DNS to proxy; empty uses built-in DoH directly")
-	socks5Username := flag.String("socks5-username", "", "SOCKS5 username; set password via STILL_WANNA_DANCE_SOCKS5_PASSWORD (legacy STEPSTASH_SOCKS5_PASSWORD supported)")
+	socks5Username := flag.String("socks5-username", "", "SOCKS5 username; set password via SWD_SOCKS5_PASSWORD")
 	listen := flag.String("listen", "127.0.0.1:18080", "HTTP listen address (use 127.0.0.1:80 for game integration)")
 	flag.StringVar(&cfg.StorageDir, "storage-dir", cfg.StorageDir, "storage root (videos, tmp and storage.sqlite); one process per root")
 	flag.Func("origin", "explicit DOMAIN=HOST:PORT dial override (repeatable); retains DOMAIN as HTTP Host and TLS SNI", func(value string) error {
@@ -95,10 +95,7 @@ func run() (resultErr error) {
 }
 
 func socks5Password() string {
-	if value, ok := os.LookupEnv("STILL_WANNA_DANCE_SOCKS5_PASSWORD"); ok {
-		return value
-	}
-	return os.Getenv("STEPSTASH_SOCKS5_PASSWORD")
+	return os.Getenv("SWD_SOCKS5_PASSWORD")
 }
 
 // Close network connections before waiting for handlers and flushing statistics.

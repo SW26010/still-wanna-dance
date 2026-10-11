@@ -34,7 +34,7 @@ func TestCacheSearchLengthMatchesHTMLMaxlength(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := httptest.NewRequest("GET", "http://"+c.address+"/api/cache?q="+url.QueryEscape(tc.query), nil)
-			r.Header.Set("X-StepStash-Token", c.token)
+			r.Header.Set("X-SWD-Token", c.token)
 			w := httptest.NewRecorder()
 			c.ServeHTTP(w, r)
 			if w.Code != tc.status {
@@ -53,7 +53,7 @@ func TestCacheAPIAuthAndOfflineRead(t *testing.T) {
 		}
 		for _, tc := range []struct{ host, token, origin string }{{c.address, "", ""}, {"evil.example", c.token, ""}, {c.address, c.token, "http://evil.example"}} {
 			r := httptest.NewRequest(method, "http://"+tc.host+path, strings.NewReader(`{}`))
-			r.Header.Set("X-StepStash-Token", tc.token)
+			r.Header.Set("X-SWD-Token", tc.token)
 			r.Header.Set("Origin", tc.origin)
 			w := httptest.NewRecorder()
 			c.ServeHTTP(w, r)
@@ -67,7 +67,7 @@ func TestCacheAPIAuthAndOfflineRead(t *testing.T) {
 		code int
 	}{{"/api/cache", 200}, {"/api/cache?offset=-1", 400}, {"/api/cache?sort=invalid", 400}} {
 		r := httptest.NewRequest("GET", "http://"+c.address+tc.path, nil)
-		r.Header.Set("X-StepStash-Token", c.token)
+		r.Header.Set("X-SWD-Token", c.token)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
 		if w.Code != tc.code {
@@ -86,7 +86,7 @@ func TestCacheGETDoesNotAcquireLifecycleLock(t *testing.T) {
 	done := make(chan *httptest.ResponseRecorder, 1)
 	go func() {
 		r := httptest.NewRequest("GET", "http://"+c.address+"/api/cache", nil)
-		r.Header.Set("X-StepStash-Token", c.token)
+		r.Header.Set("X-SWD-Token", c.token)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
 		done <- w
@@ -188,7 +188,7 @@ func TestCacheAPIScanAndStaleStorageProtection(t *testing.T) {
 	c := testConsole(t)
 	post := func(path, body string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest("POST", "http://"+c.address+path, strings.NewReader(body))
-		r.Header.Set("X-StepStash-Token", c.token)
+		r.Header.Set("X-SWD-Token", c.token)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
 		return w

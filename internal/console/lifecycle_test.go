@@ -95,7 +95,7 @@ func TestLifecycleIOLeavesStateResponsive(t *testing.T) {
 				c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/api/status", nil))
 				downloads := httptest.NewRecorder()
 				r := httptest.NewRequest("GET", "http://"+c.address+"/api/downloads", nil)
-				r.Header.Set("X-StepStash-Token", c.token)
+				r.Header.Set("X-SWD-Token", c.token)
 				c.ServeHTTP(downloads, r)
 				if downloads.Code != 200 {
 					t.Errorf("downloads during %s: %d %s", operation, downloads.Code, downloads.Body.String())

@@ -90,7 +90,7 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 		t.Fatal("probed before consent")
 	}
 	r := httptest.NewRequest("POST", "http://"+c.address+"/api/upstream/check", nil)
-	r.Header.Set("X-StepStash-Token", c.token)
+	r.Header.Set("X-SWD-Token", c.token)
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, r)
 	if w.Code != 428 {
@@ -214,7 +214,7 @@ func TestSelectedMonitorEndpointsRequireTokenAndDispatch(t *testing.T) {
 				t.Fatal("unauthenticated check", w.Code)
 			}
 			r = httptest.NewRequest("POST", path, nil)
-			r.Header.Set("X-StepStash-Token", c.token)
+			r.Header.Set("X-SWD-Token", c.token)
 			w = httptest.NewRecorder()
 			c.ServeHTTP(w, r)
 			if w.Code != 200 {
@@ -276,7 +276,7 @@ func TestManualMonitorCheckCanceledOnClose(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := httptest.NewRequest("POST", "http://"+c.address+"/api/upstream/check", nil)
-	r.Header.Set("X-StepStash-Token", c.token)
+	r.Header.Set("X-SWD-Token", c.token)
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, r)
 	if w.Code != 200 {

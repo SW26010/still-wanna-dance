@@ -141,7 +141,7 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 			http.Error(w, "method not allowed", 405)
 			return true
 		}
-		if r.Header.Get("X-StepStash-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
+		if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
 			http.Error(w, "invalid origin or token", 403)
 			return true
 		}
@@ -161,7 +161,7 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 			http.Error(w, "method not allowed", 405)
 			return true
 		}
-		if r.Header.Get("X-StepStash-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
+		if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
 			http.Error(w, "invalid origin or token", 403)
 			return true
 		}
@@ -207,10 +207,10 @@ var termsTemplate = template.Must(template.New("terms").Parse(`<!doctype html>
 <script>
 const token={{.Token}}, version={{.Version}}, sha256={{.Hash}}, pageID={{.PageID}};
 const result=document.getElementById('result');
-async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-StepStash-Token':token},body:JSON.stringify(body)});if(!r.ok)throw new Error(await r.text());}
+async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-SWD-Token':token},body:JSON.stringify(body)});if(!r.ok)throw new Error(await r.text());}
 const form=document.getElementById('consent');
 if(form){const agree=document.getElementById('agree'), rights=document.getElementById('rights'), accept=document.getElementById('accept');let busy=false;
-function presence(action){fetch('/api/terms/'+action,{method:'POST',keepalive:true,headers:{'Content-Type':'application/json','X-StepStash-Token':token},body:JSON.stringify({pageID})}).catch(()=>{});}
+function presence(action){fetch('/api/terms/'+action,{method:'POST',keepalive:true,headers:{'Content-Type':'application/json','X-SWD-Token':token},body:JSON.stringify({pageID})}).catch(()=>{});}
 window.addEventListener('pagehide',()=>presence('leave'));
 window.addEventListener('pageshow',e=>{if(e.persisted)presence('return');});
 function update(){accept.disabled=busy||!agree.checked||!rights.checked;}form.addEventListener('change',update);

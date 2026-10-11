@@ -66,7 +66,7 @@ func TestExitAuthenticationAndAcknowledgement(t *testing.T) {
 		{"POST", c.address, c.token, "https://evil.invalid"},
 	} {
 		r := httptest.NewRequest(tc.method, "http://"+tc.host+"/api/exit", nil)
-		r.Header.Set("X-StepStash-Token", tc.token)
+		r.Header.Set("X-SWD-Token", tc.token)
 		r.Header.Set("Origin", tc.origin)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
@@ -82,7 +82,7 @@ func TestExitAuthenticationAndAcknowledgement(t *testing.T) {
 	// Cleanup remains available without terms acceptance and is idempotent.
 	for range 2 {
 		r := httptest.NewRequest("POST", "http://"+c.address+"/api/exit", nil)
-		r.Header.Set("X-StepStash-Token", c.token)
+		r.Header.Set("X-SWD-Token", c.token)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
 		if w.Code != 200 || !w.Flushed || w.Body.String() != "{\"ok\":true}\n" {

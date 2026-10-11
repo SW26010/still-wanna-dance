@@ -107,7 +107,7 @@ func TestInventoryReadsWaitForExplicitScan(t *testing.T) {
 	}
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "http://"+c.address+"/api/inventory/scan", nil)
-	r.Header.Set("X-StepStash-Token", c.token)
+	r.Header.Set("X-SWD-Token", c.token)
 	c.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("scan status: %d: %s", w.Code, w.Body.String())

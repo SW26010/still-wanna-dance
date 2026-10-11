@@ -19,8 +19,8 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 }
 try {
     $hostsPath = Join-Path $env:SystemRoot 'System32/drivers/etc/hosts'
-    # Keep the historical marker so existing acceptance sessions can still be removed.
-    $marker = '# StepStash-MVP-acceptance'
+    $marker = '# SWD acceptance'
+    $managedMarkers = @($marker, '# StepStash-MVP-acceptance')
     $domains = @('api.udon.dance')
     $legacyDomains = @('play.udon.dance', 'nya.xin.moe', 'api.udon.dance')
     $encoding = [Text.Encoding]::GetEncoding(28591)
@@ -28,7 +28,9 @@ try {
     $text = $encoding.GetString($bytes)
     $backup = Join-Path $labPath 'hosts.before-test'
     if ($Mode -eq 'Enable') {
-        if ($text.Contains($marker)) { throw 'An acceptance hosts mapping already exists; disable its session first.' }
+        foreach ($ownedMarker in $managedMarkers) {
+            if ($text.Contains($ownedMarker)) { throw 'An acceptance hosts mapping already exists; disable its session first.' }
+        }
         if ($text -match '(?m)^[^#\r\n]*\b(play\.udon\.dance|nya\.xin\.moe|api\.udon\.dance)\b') { throw 'Existing WannaDance domain mappings need inspection.' }
         $request = [Net.HttpWebRequest]::Create('http://127.0.0.1/Api/Songs/play?id=1343&node=cf')
         $request.Host = 'api.udon.dance'
@@ -37,7 +39,7 @@ try {
         $request.AddRange(0,15)
         $response = $request.GetResponse()
         try {
-            if ([int]$response.StatusCode -ne 206 -or $response.Headers['X-StepStash-Cache'] -ne 'HIT') { throw 'Still Wanna Dance warm-cache readiness check failed.' }
+            if ([int]$response.StatusCode -ne 206 -or $response.Headers['X-SWD-Cache'] -ne 'HIT') { throw 'Still Wanna Dance warm-cache readiness check failed.' }
         } finally { $response.Dispose() }
         if (Test-Path -LiteralPath $backup) { throw 'Backup already exists; use a new session directory.' }
         [IO.File]::WriteAllBytes($backup, $bytes)
@@ -46,8 +48,10 @@ try {
     } else {
         if (-not (Test-Path -LiteralPath $backup)) { throw 'Session backup missing; refusing blind cleanup.' }
         $updated = $text
-        foreach ($domain in $legacyDomains) { $updated = $updated.Replace("`r`n127.0.0.1 $domain $marker`r`n", '') }
-        if ($updated.Contains($marker)) { throw 'Marked entries changed; inspect before cleanup.' }
+        foreach ($ownedMarker in $managedMarkers) {
+            foreach ($domain in $legacyDomains) { $updated = $updated.Replace("`r`n127.0.0.1 $domain $ownedMarker`r`n", '') }
+            if ($updated.Contains($ownedMarker)) { throw 'Marked entries changed; inspect before cleanup.' }
+        }
         if ($updated -ne $text) { [IO.File]::WriteAllBytes($hostsPath, $encoding.GetBytes($updated)) }
     }
     & ipconfig.exe /flushdns | Out-Null

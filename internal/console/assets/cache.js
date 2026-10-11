@@ -114,7 +114,7 @@ async function cacheAction(action, entries) {
   const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 35000);
   try {
     const response = await fetch('/api/cache/' + action, {
-      method: 'POST', headers: { 'X-StepStash-Token': token, 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'X-SWD-Token': token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ storageID, entries: entries.map(e => ({ key: e.key, stamp: e.stamp })) }), signal: controller.signal,
     });
     const data = await response.json();

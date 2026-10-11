@@ -88,7 +88,7 @@ func TestTermsPresenceAuthentication(t *testing.T) {
 			{"POST", c.address, c.token, "", `{"pageID":"page"}`, 200},
 		} {
 			r := httptest.NewRequest(tc.method, "http://"+tc.host+path, strings.NewReader(tc.body))
-			r.Header.Set("X-StepStash-Token", tc.token)
+			r.Header.Set("X-SWD-Token", tc.token)
 			r.Header.Set("Origin", tc.origin)
 			w := httptest.NewRecorder()
 			c.ServeHTTP(w, r)
@@ -134,7 +134,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 	defer c.Close()
 	request := func(method, path, body, token, origin string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, "http://"+c.address+path, strings.NewReader(body))
-		r.Header.Set("X-StepStash-Token", token)
+		r.Header.Set("X-SWD-Token", token)
 		r.Header.Set("Origin", origin)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)

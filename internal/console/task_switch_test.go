@@ -151,7 +151,7 @@ func TestBatchRestoresOnlyTemporarilyStoppedQueue(t *testing.T) {
 func postTaskAction(t *testing.T, c *Console, action string) {
 	t.Helper()
 	r := httptest.NewRequest(http.MethodPost, "http://"+c.address+"/api/"+action, nil)
-	r.Header.Set("X-StepStash-Token", c.token)
+	r.Header.Set("X-SWD-Token", c.token)
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {

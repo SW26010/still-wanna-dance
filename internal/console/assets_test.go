@@ -21,7 +21,7 @@ func TestPageLoadsEmbeddedAssets(t *testing.T) {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	html := w.Body.String()
-	if !strings.Contains(html, `name="stepstash-token" content="`+c.token+`"`) || strings.Contains(html, "__TOKEN__") {
+	if !strings.Contains(html, `name="swd-token" content="`+c.token+`"`) || strings.Contains(html, "__TOKEN__") {
 		t.Fatal("page did not inject the action token")
 	}
 	refs := regexp.MustCompile(`(?:href|src)="(/assets/[^"]+)"`).FindAllStringSubmatch(html, -1)

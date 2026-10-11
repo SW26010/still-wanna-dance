@@ -120,7 +120,7 @@ func TestBrowserWriteProtection(t *testing.T) {
 	c := testConsole(t)
 	for _, tc := range []struct{ host, token, origin string }{{"evil.example", c.token, ""}, {c.address, "", ""}, {c.address, c.token, "https://evil.example"}} {
 		r := httptest.NewRequest("POST", "http://"+tc.host+"/api/start", nil)
-		r.Header.Set("X-StepStash-Token", tc.token)
+		r.Header.Set("X-SWD-Token", tc.token)
 		r.Header.Set("Origin", tc.origin)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
@@ -273,7 +273,7 @@ func TestDNSValidation(t *testing.T) {
 }
 
 func TestLiveIndependentDNS(t *testing.T) {
-	if os.Getenv("STEPSTASH_LIVE_CHECK") != "1" {
+	if os.Getenv("SWD_LIVE_CHECK") != "1" {
 		t.Skip("opt-in network check")
 	}
 	c := testConsole(t)

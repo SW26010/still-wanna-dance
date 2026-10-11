@@ -50,7 +50,7 @@ func TestAutoStartFailureKeepsConsoleAvailable(t *testing.T) {
 		t.Fatal("startup failure was not recorded")
 	}
 	manual := httptest.NewRequest("POST", "http://"+c.address+"/api/start", nil)
-	manual.Header.Set("X-StepStash-Token", c.token)
+	manual.Header.Set("X-SWD-Token", c.token)
 	response := httptest.NewRecorder()
 	c.ServeHTTP(response, manual)
 	var result map[string]string

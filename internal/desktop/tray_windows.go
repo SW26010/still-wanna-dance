@@ -91,7 +91,7 @@ func Run(ctx context.Context, o Options) error {
 	t := &tray{options: o, finished: make(chan struct{}), shutdownDone: make(chan struct{})}
 	defer close(t.finished)
 	instance, _, _ := kernel32.NewProc("GetModuleHandleW").Call(0)
-	className := wide(fmt.Sprintf("StepStash.Tray.%d", os.Getpid()))
+	className := wide(fmt.Sprintf("SWD.Tray.%d", os.Getpid()))
 	callback := syscall.NewCallback(func(hwnd uintptr, msg uint32, w, l uintptr) (result uintptr) {
 		defer func() {
 			if problem := recover(); problem != nil {

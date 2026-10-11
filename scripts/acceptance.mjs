@@ -34,7 +34,7 @@ const freePort = () => new Promise((resolve, reject) => {
 
 function evidence(result) {
   const headers = Object.fromEntries(Object.entries(result.headers).filter(([k]) =>
-    ['location', 'content-length', 'content-range', 'content-type', 'etag', 'last-modified', 'x-stepstash-cache', 'x-stepstash-fallback'].includes(k)));
+    ['location', 'content-length', 'content-range', 'content-type', 'etag', 'last-modified', 'x-swd-cache', 'x-swd-fallback'].includes(k)));
   return { ...result, headers };
 }
 async function launch(executable, args, name, port, readyURL = 'http://api.udon.dance/') {
@@ -110,7 +110,7 @@ async function upstream(id, node) {
 }
 function fullVideo(res, url, cache) {
   assert.equal(res.status, 200);
-  assert.equal(res.headers['x-stepstash-cache'], cache);
+  assert.equal(res.headers['x-swd-cache'], cache);
   assert.equal(res.headers.location, undefined, 'local playback must return video, not redirect');
   assert.equal(res.md5, url.searchParams.get('e').toLowerCase());
   assert.equal(res.bytes, Number(url.searchParams.get('s')));
@@ -118,7 +118,7 @@ function fullVideo(res, url, cache) {
 function rangeVideo(res, file) {
   const data = fs.readFileSync(file);
   assert.equal(res.status, 206);
-  assert.equal(res.headers['x-stepstash-cache'], 'HIT');
+  assert.equal(res.headers['x-swd-cache'], 'HIT');
   assert.equal(res.headers['content-range'], `bytes 0-1023/${data.length}`);
   assert.equal(res.bytes, 1024);
   assert.equal(res.sha256, digest(data.subarray(0, 1024)));
@@ -215,7 +215,7 @@ try {
         const res = await request(playbackURL(id, id === '1343' ? 'cf' : 'nya'), { port: service.port });
         record(`playback-api-${id}-response`, evidence(res));
         fullVideo(res, urls[id], cached.includes(id) ? 'HIT' : 'MISS');
-        assert.equal(res.headers['x-stepstash-fallback'], undefined);
+        assert.equal(res.headers['x-swd-fallback'], undefined);
       });
     }
     await stop(service.child);
@@ -223,7 +223,7 @@ try {
     for (const id of cached) await check(`restart-${id}`, async () => {
       const res = await request(playbackURL(id, id === '1343' ? 'cf' : 'nya'), { port: service.port, method: 'HEAD' });
       record(`restart-${id}-response`, evidence(res));
-      assert.equal(res.status, 200); assert.equal(res.headers['x-stepstash-cache'], 'HIT');
+      assert.equal(res.status, 200); assert.equal(res.headers['x-swd-cache'], 'HIT');
       assert.equal(Number(res.headers['content-length']), Number(urls[id].searchParams.get('s')));
     });
     await stop(service.child);
@@ -240,7 +240,7 @@ try {
       const res = await request(playbackURL('1343'), { port: auto.port });
       record('console-auto-cold', evidence(res));
       fullVideo(res, expected, 'MISS');
-      assert.equal(res.headers['x-stepstash-fallback'], undefined);
+      assert.equal(res.headers['x-swd-fallback'], undefined);
       const hot = await request(playbackURL('1343'), { port: auto.port, headers: { Range: 'bytes=0-1023' } });
       record('console-auto-hot', evidence(hot));
       rangeVideo(hot, videoFile(autoStorage, expected));
@@ -263,19 +263,19 @@ try {
         if (method === 'GET') fullVideo(res, expected, 'HIT');
         else {
           assert.equal(res.status, 200); assert.equal(res.bytes, 0);
-          assert.equal(res.headers['x-stepstash-cache'], 'HIT');
+          assert.equal(res.headers['x-swd-cache'], 'HIT');
           assert.equal(Number(res.headers['content-length']), Number(expected.searchParams.get('s')));
         }
-        assert.equal(res.headers['x-stepstash-fallback'], undefined);
+        assert.equal(res.headers['x-swd-fallback'], undefined);
       }
       const range = await request(playbackURL('1343'), { port: offline.port, headers: { Range: 'bytes=0-1023' } });
       record('local-fallback-range', evidence(range));
       rangeVideo(range, videoFile(autoStorage, expected));
-      assert.equal(range.headers['x-stepstash-fallback'], undefined);
+      assert.equal(range.headers['x-swd-fallback'], undefined);
       const missing = await request(playbackURL('1344'), { port: offline.port });
       record('local-fallback-missing', evidence(missing));
       assert.equal(missing.status, 502);
-      assert.equal(missing.headers['x-stepstash-fallback'], undefined);
+      assert.equal(missing.headers['x-swd-fallback'], undefined);
       assert.ok(rejectedConnections > 0, 'upstream failure must actually be injected');
       assert.equal(fs.readdirSync(path.join(autoStorage, 'videos')).filter(n => n.endsWith('.mp4')).length, 1);
       record('offline-injection', { rejectedConnections });

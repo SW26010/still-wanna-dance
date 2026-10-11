@@ -87,7 +87,7 @@ func TestCatalogTruncatedBodyIsNotFormatError(t *testing.T) {
 }
 
 func TestLiveCatalogCompleteBody(t *testing.T) {
-	if os.Getenv("STEPSTASH_LIVE_CATALOG") != "1" {
+	if os.Getenv("SWD_LIVE_CATALOG") != "1" {
 		t.Skip("opt-in live catalog request")
 	}
 	c := testConsole(t)

@@ -15,7 +15,7 @@ import (
 )
 
 func (c *Console) cacheAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("X-StepStash-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
+	if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
 		http.Error(w, "invalid origin or token", http.StatusForbidden)
 		return
 	}

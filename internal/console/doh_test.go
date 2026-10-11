@@ -68,7 +68,7 @@ func TestDoHValidatesTLSAndWireResponse(t *testing.T) {
 }
 
 func TestLiveDoHProviders(t *testing.T) {
-	if os.Getenv("STEPSTASH_LIVE_DOH") != "1" {
+	if os.Getenv("SWD_LIVE_DOH") != "1" {
 		t.Skip("opt-in encrypted DNS connectivity check")
 	}
 	d := &directDNS{}

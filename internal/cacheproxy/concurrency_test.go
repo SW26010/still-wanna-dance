@@ -52,7 +52,7 @@ func TestLocalHitsWhileAllDownloadSlotsAreOccupied(t *testing.T) {
 	} {
 		w := request(s, tc.method, videoURL(payload), tc.headers)
 		assertResponse(t, w, tc.status, tc.body)
-		if w.Header().Get("X-StepStash-Cache") != "HIT" {
+		if w.Header().Get("X-SWD-Cache") != "HIT" {
 			t.Fatal("local response was not a hit", w.Header())
 		}
 	}

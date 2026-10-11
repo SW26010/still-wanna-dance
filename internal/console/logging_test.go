@@ -24,7 +24,7 @@ func TestActionLoggingDoesNotLogPollingOrToken(t *testing.T) {
 		t.Fatal("polling logged", output.String())
 	}
 	r := httptest.NewRequest("POST", "http://"+c.address+"/api/settings", strings.NewReader(`{"storageDir":""}`))
-	r.Header.Set("X-StepStash-Token", c.token)
+	r.Header.Set("X-SWD-Token", c.token)
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, r)
 	if w.Code != 400 || !strings.Contains(output.String(), "console_action_failed") {

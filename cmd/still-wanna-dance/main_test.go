@@ -115,20 +115,21 @@ func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	}
 }
 
-func TestSOCKS5PasswordAlias(t *testing.T) {
+func TestSOCKS5PasswordEnvironment(t *testing.T) {
 	t.Setenv("STEPSTASH_SOCKS5_PASSWORD", "legacy")
-	t.Setenv("STILL_WANNA_DANCE_SOCKS5_PASSWORD", "current")
+	t.Setenv("STILL_WANNA_DANCE_SOCKS5_PASSWORD", "obsolete")
+	t.Setenv("SWD_SOCKS5_PASSWORD", "current")
 	if got := socks5Password(); got != "current" {
 		t.Fatal("new variable must win")
 	}
-	t.Setenv("STILL_WANNA_DANCE_SOCKS5_PASSWORD", "")
+	t.Setenv("SWD_SOCKS5_PASSWORD", "")
 	if got := socks5Password(); got != "" {
 		t.Fatal("explicit empty must not fall back")
 	}
-	if err := os.Unsetenv("STILL_WANNA_DANCE_SOCKS5_PASSWORD"); err != nil {
+	if err := os.Unsetenv("SWD_SOCKS5_PASSWORD"); err != nil {
 		t.Fatal(err)
 	}
-	if got := socks5Password(); got != "legacy" {
-		t.Fatal("legacy fallback missing")
+	if got := socks5Password(); got != "" {
+		t.Fatal("obsolete variable accepted")
 	}
 }

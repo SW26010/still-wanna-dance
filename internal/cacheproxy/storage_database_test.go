@@ -11,7 +11,7 @@ import (
 )
 
 func TestStorageContractRejectsIncompatibleFilesEverywhere(t *testing.T) {
-	for _, mutation := range []string{"PRAGMA user_version=999", "PRAGMA application_id=123", "PRAGMA user_version=0"} {
+	for _, mutation := range []string{"PRAGMA user_version=999", "PRAGMA application_id=123", "PRAGMA user_version=0", "PRAGMA user_version=1", "DROP TABLE catalog_checks", "DROP INDEX request_events_http_time", "ALTER TABLE songs ADD COLUMN surprise TEXT"} {
 		t.Run(mutation, func(t *testing.T) {
 			cfg := fixtureConfig()
 			cfg.StorageDir = t.TempDir()
@@ -92,20 +92,15 @@ func TestRecentReaderNeverRepairsSchema(t *testing.T) {
 		t.Fatal("read changed schema", count, err)
 	}
 	s, err = New(cfg)
-	if err != nil {
-		t.Fatal(err)
+	if s != nil {
+		s.Close()
 	}
-	s.Close()
-	if _, err := ReadRecentRequests(context.Background(), cfg.StorageDir, 50); err != nil {
-		t.Fatal(err)
+	if err == nil {
+		t.Fatal("writer silently repaired schema")
 	}
 }
-
-func TestStorageInitializationIdentityAndEmptyRecovery(t *testing.T) {
+func TestStorageInitializationIdentity(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(storagePath(root), nil, 0600); err != nil {
-		t.Fatal(err)
-	}
 	cfg := fixtureConfig()
 	cfg.StorageDir = root
 	s, err := New(cfg)
@@ -122,5 +117,49 @@ func TestStorageInitializationIdentityAndEmptyRecovery(t *testing.T) {
 	}
 	if identity != storageApplicationID || version != storageSchemaVersion {
 		t.Fatal(identity, version)
+	}
+}
+
+func TestStorageRejectsExistingEmptyFile(t *testing.T) {
+	path := storagePath(t.TempDir())
+	if err := os.WriteFile(path, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, writable := range []bool{false, true} {
+		db, err := openStorageDatabase(path, writable)
+		if db != nil {
+			db.Close()
+		}
+		if err == nil {
+			t.Fatal("accepted empty existing database")
+		}
+		b, err := os.ReadFile(path)
+		if err != nil || len(b) != 0 {
+			t.Fatal("modified empty file", err)
+		}
+	}
+}
+
+func TestStorageInitializationRollsBack(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	// A conflicting final table fails after the earlier DDL has executed.
+	if _, err := db.Exec("CREATE TABLE traffic_totals (sentinel TEXT)"); err != nil {
+		t.Fatal(err)
+	}
+	if err := initializeStorage(db); err == nil {
+		t.Fatal("expected initialization failure")
+	}
+	var objects, version, identity int
+	if err := db.QueryRow("SELECT count(*) FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%'").Scan(&objects); err != nil {
+		t.Fatal(err)
+	}
+	db.QueryRow("PRAGMA user_version").Scan(&version)
+	db.QueryRow("PRAGMA application_id").Scan(&identity)
+	if objects != 1 || version != 0 || identity != 0 {
+		t.Fatal(objects, version, identity)
 	}
 }

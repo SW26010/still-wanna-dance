@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-const storageSchemaVersion = 1
+const storageSchemaVersion = 2
 const storageApplicationID = 0x53574443 // SWDC
 const storageDatabaseName = "storage.sqlite"
 
@@ -31,12 +31,15 @@ func openStorageDatabase(path string, writable bool) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	fresh := false
 	if info, err := os.Lstat(path); err == nil {
 		if !info.Mode().IsRegular() {
 			return nil, fmt.Errorf("存储数据库不是普通文件")
 		}
 	} else if !writable || !os.IsNotExist(err) {
 		return nil, err
+	} else {
+		fresh = true
 	}
 	if writable {
 		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
@@ -58,8 +61,10 @@ func openStorageDatabase(path string, writable bool) (*sql.DB, error) {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
-	if err = validateStorageDatabase(db, writable); err == nil && writable {
+	if fresh {
 		err = initializeStorage(db)
+	} else {
+		err = validateStorageDatabase(db)
 	}
 	if err != nil {
 		db.Close()
@@ -68,19 +73,13 @@ func openStorageDatabase(path string, writable bool) (*sql.DB, error) {
 	return db, nil
 }
 
-func validateStorageDatabase(db *sql.DB, allowEmpty bool) error {
-	var identity, version, objects int
+func validateStorageDatabase(db *sql.DB) error {
+	var identity, version int
 	if err := db.QueryRow("PRAGMA application_id").Scan(&identity); err != nil {
 		return err
 	}
 	if err := db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
 		return err
-	}
-	if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").Scan(&objects); err != nil {
-		return err
-	}
-	if allowEmpty && identity == 0 && version == 0 && objects == 0 {
-		return nil
 	}
 	if identity != storageApplicationID {
 		return fmt.Errorf("无法识别存储数据库；原文件未修改")
@@ -91,5 +90,5 @@ func validateStorageDatabase(db *sql.DB, allowEmpty bool) error {
 	if version != storageSchemaVersion {
 		return fmt.Errorf("不支持存储格式版本 %d；原文件未修改", version)
 	}
-	return nil
+	return validateStorageSchema(db)
 }

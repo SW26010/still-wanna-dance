@@ -95,14 +95,10 @@ func TestExistingTrafficDoesNotReadRequestDetails(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if _, err := db.Exec(trafficSchema); err != nil {
+	if _, err := db.Exec(storageSchemaSQL); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec(`INSERT INTO traffic_totals VALUES (1,42,1,0,0,0,0,0)`); err != nil {
-		t.Fatal(err)
-	}
-	// Initialization preserves totals independently of request detail retention.
-	if err := initializeStorage(db); err != nil {
 		t.Fatal(err)
 	}
 	s := &Server{}

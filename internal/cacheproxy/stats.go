@@ -60,12 +60,6 @@ func (s *Server) TrafficStats() TrafficStats {
 	return v
 }
 
-const trafficSchema = `CREATE TABLE IF NOT EXISTS traffic_totals (
- id INTEGER PRIMARY KEY CHECK(id=1), saved_bytes INTEGER NOT NULL,
- hits INTEGER NOT NULL, misses INTEGER NOT NULL, local_samples INTEGER NOT NULL,
- local_ns INTEGER NOT NULL, upstream_samples INTEGER NOT NULL, upstream_ns INTEGER NOT NULL
-);`
-
 func (s *Server) loadTraffic(db *sql.DB) error {
 	return db.QueryRow(`SELECT saved_bytes,hits,misses FROM traffic_totals WHERE id=1`).Scan(
 		&s.stats.savedBytes, &s.stats.hits, &s.stats.misses)

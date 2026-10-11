@@ -15,9 +15,6 @@ import (
 
 const MaxRecentRequests = 500
 
-const recentHTTPIndexSQL = `CREATE INDEX IF NOT EXISTS request_events_http_time
- ON request_events(requested_at DESC, event_id DESC) WHERE source='http'`
-
 const recentHTTPWindowSQL = `SELECT * FROM request_events INDEXED BY request_events_http_time
  WHERE source='http' ORDER BY requested_at DESC, event_id DESC LIMIT ?`
 

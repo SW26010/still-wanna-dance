@@ -9,7 +9,7 @@ import (
 )
 
 // CatalogStatus describes the shared Kiva/WannaInfo MD5 catalog. A zero check time
-// means this database predates check tracking or has never passed validation.
+// means this database has never passed validation.
 type CatalogStatus struct {
 	Revision  string    `json:"revision"`
 	CheckedAt time.Time `json:"checkedAt"`
@@ -22,7 +22,7 @@ func (s *Server) catalogStatus(ctx context.Context) (CatalogStatus, error) {
 }
 
 // LoadCatalogStatus reads persisted status without starting an engine or creating
-// a database. Databases predating check tracking retain an unknown check time.
+// a database. Existing databases must match the frozen schema.
 func LoadCatalogStatus(ctx context.Context, root string) (CatalogStatus, error) {
 	db, err := cacheReadDB(root)
 	if os.IsNotExist(err) {
@@ -32,15 +32,6 @@ func LoadCatalogStatus(ctx context.Context, root string) (CatalogStatus, error) 
 		return CatalogStatus{}, err
 	}
 	defer db.Close()
-	var hasChecks bool
-	if err := db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='catalog_checks')").Scan(&hasChecks); err != nil {
-		return CatalogStatus{}, err
-	}
-	if !hasChecks {
-		var status CatalogStatus
-		err := db.QueryRowContext(ctx, "SELECT COALESCE((SELECT revision FROM catalog_state WHERE catalog_key='songs'),'')").Scan(&status.Revision)
-		return status, err
-	}
 	return readCatalogStatus(ctx, db)
 }
 

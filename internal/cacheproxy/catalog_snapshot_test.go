@@ -136,7 +136,7 @@ func TestCatalogCheckMigrationAndRollback(t *testing.T) {
 	}
 }
 
-func TestLoadCatalogStatusBeforeTrackingSchema(t *testing.T) {
+func TestLoadCatalogStatusRejectsMissingTrackingSchema(t *testing.T) {
 	s, cfg := setup(t, nil)
 	ctx := context.Background()
 	c := testCandidate("20261001000000", CatalogSong{ID: 1, MD5: strings.Repeat("a", 32)})
@@ -150,7 +150,7 @@ func TestLoadCatalogStatusBeforeTrackingSchema(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := LoadCatalogStatus(ctx, cfg.StorageDir)
-	if err != nil || got.Revision != c.Revision || !got.CheckedAt.IsZero() || got.Error != "" {
+	if err == nil {
 		t.Fatal(got, err)
 	}
 }

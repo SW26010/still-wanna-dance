@@ -23,6 +23,29 @@ function Read-SystemState {
         Routes = @(Get-NetRoute | Sort-Object InterfaceIndex,DestinationPrefix,NextHop | Select-Object InterfaceIndex,DestinationPrefix,NextHop,RouteMetric)
     }
 }
+function Read-ClientSockets([int]$OwnerProcessId) {
+    $sample = [ordered]@{
+        Time = [DateTime]::UtcNow.ToString('o')
+        TCPListeners = $null
+        UDPSockets = $null
+        QueryErrors = @()
+        QuerySucceeded = $false
+    }
+    try {
+        # Enumerate first: a provider-side filter with no matches can itself
+        # produce ObjectNotFound rather than a successful empty result.
+        $sample.TCPListeners = @(Get-NetTCPConnection -ErrorAction Stop | Where-Object { $_.State -eq 'Listen' -and $_.OwningProcess -eq $OwnerProcessId } | Select-Object LocalAddress,LocalPort)
+    } catch {
+        $sample.QueryErrors += [ordered]@{ Query = 'TCP'; ErrorId = $_.FullyQualifiedErrorId; Message = $_.Exception.Message }
+    }
+    try {
+        $sample.UDPSockets = @(Get-NetUDPEndpoint -ErrorAction Stop | Where-Object OwningProcess -eq $OwnerProcessId | Select-Object LocalAddress,LocalPort)
+    } catch {
+        $sample.QueryErrors += [ordered]@{ Query = 'UDP'; ErrorId = $_.FullyQualifiedErrorId; Message = $_.Exception.Message }
+    }
+    $sample.QuerySucceeded = $sample.QueryErrors.Count -eq 0
+    return $sample
+}
 $before = Read-SystemState
 $before | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $runDir 'system-before.json')
 $manifest = Join-Path $runDir ('fixture-' + [guid]::NewGuid().ToString('N') + '.json')
@@ -46,11 +69,7 @@ try {
     $deadline = [DateTime]::UtcNow.AddSeconds(90)
     while (!$probeProcess.HasExited) {
         if ([DateTime]::UtcNow -gt $deadline) { throw 'Probe exceeded bounded run time' }
-        $sample = [ordered]@{
-            Time = [DateTime]::UtcNow.ToString('o')
-            TCPListeners = @(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object OwningProcess -eq $probeProcess.Id | Select-Object LocalAddress,LocalPort)
-            UDPSockets = @(Get-NetUDPEndpoint -ErrorAction SilentlyContinue | Where-Object OwningProcess -eq $probeProcess.Id | Select-Object LocalAddress,LocalPort)
-        }
+        $sample = Read-ClientSockets -OwnerProcessId $probeProcess.Id
         $probeProcess.Refresh()
         $sample.ProcessAlive = !$probeProcess.HasExited
         $samples.Add($sample)
@@ -69,19 +88,23 @@ $checks = (Get-Content -LiteralPath $result | ConvertFrom-Json).checks
 # Raw adapter semantics are observations. The corresponding guard tests are gates.
 $required = @($checks | Where-Object name -NotMatch '^[^/]+/(pre-canceled-dial|close-rejects-new-business)$')
 $failed = @($required | Where-Object { !$_.passed })
+$failedSocketSamples = @($samples | Where-Object { !$_.QuerySucceeded })
+$socketQueriesSucceeded = $samples.Count -gt 0 -and $failedSocketSamples.Count -eq 0
 $liveSamples = @($samples | Where-Object ProcessAlive)
 $lastLive = @($liveSamples | Select-Object -Last 3)
-$noListeners = @($liveSamples | Where-Object { $_.TCPListeners.Count -gt 0 }).Count -eq 0
-$udpDrained = $lastLive.Count -eq 3 -and @($lastLive | Where-Object { $_.UDPSockets.Count -gt 0 }).Count -eq 0
+$noListeners = $socketQueriesSucceeded -and $liveSamples.Count -gt 0 -and @($liveSamples | Where-Object { $_.TCPListeners.Count -gt 0 }).Count -eq 0
+$udpDrained = $socketQueriesSucceeded -and $lastLive.Count -eq 3 -and @($lastLive | Where-Object { $_.UDPSockets.Count -gt 0 }).Count -eq 0
 $unchanged = (Get-Content (Join-Path $runDir 'side-effects.json') | ConvertFrom-Json).Unchanged
 $summary = [ordered]@{
     Mode = $(if ($ExerciseAfterClose) { 'raw-post-close-observation' } else { 'controlled-lifecycle' })
     RequiredChecks = $required.Count
     FailedChecks = @($failed | ForEach-Object { $_.name })
+    SocketQueriesSucceeded = $socketQueriesSucceeded
+    FailedSocketSamples = $failedSocketSamples.Count
     NoTCPListenersObserved = $noListeners
     UDPDrainedBeforeExit = $udpDrained
     SystemStateUnchanged = $unchanged
-    Passed = ($failed.Count -eq 0 -and $noListeners -and $unchanged -and ($udpDrained -or $ExerciseAfterClose))
+    Passed = ($failed.Count -eq 0 -and $socketQueriesSucceeded -and $noListeners -and $unchanged -and ($udpDrained -or $ExerciseAfterClose))
 }
 $summary | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $runDir 'summary.json')
 $summary | ConvertTo-Json -Depth 4

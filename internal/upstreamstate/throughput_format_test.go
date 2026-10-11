@@ -57,6 +57,41 @@ func TestThroughputUTCAndDurationContract(t *testing.T) {
 	}
 }
 
+func TestThroughputClaimPreservesMonotonicCooldown(t *testing.T) {
+	m := testMonitor(t, fixture)
+	m.throughputStatePath = filepath.Join(t.TempDir(), "throughput.json")
+	if !m.claimThroughput(false) {
+		t.Fatal("initial throughput attempt was not claimed")
+	}
+	// Round(0) preserves the wall time and location, removing only the
+	// monotonic reading. Equality here would make cooldowns clock-sensitive.
+	claimed := m.lastThroughput
+	if claimed == claimed.Round(0) {
+		t.Fatal("claim discarded the monotonic clock")
+	}
+	if err := m.saveThroughputTime(); err != nil {
+		t.Fatal(err)
+	}
+	if m.lastThroughput != claimed {
+		t.Fatal("persistence changed the in-memory cooldown clock")
+	}
+	b, err := os.ReadFile(m.throughputStatePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var state throughputState
+	if err := json.Unmarshal(b, &state); err != nil {
+		t.Fatal(err)
+	}
+	if !state.LastAttempt.Equal(claimed) || state.LastAttempt.Location() != time.UTC {
+		t.Fatal("persisted attempt must represent the same instant in UTC")
+	}
+	m.batchThroughput = nil
+	if m.claimThroughput(false) {
+		t.Fatal("immediate automatic retry bypassed cooldown")
+	}
+}
+
 func TestThroughputV1Golden(t *testing.T) {
 	b, err := os.ReadFile("testdata/throughput-v1.json")
 	if err != nil {

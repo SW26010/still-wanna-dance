@@ -93,7 +93,8 @@ func (m *Monitor) claimThroughput(manual bool) bool {
 	if !due {
 		return false
 	}
-	m.lastThroughput = time.Now().UTC()
+	// Keep the monotonic reading for live cooldowns; persistence converts to UTC.
+	m.lastThroughput = time.Now()
 	if m.throughputStatePath != "" {
 		if err := m.saveThroughputTime(); err != nil {
 			slog.Error("monitor_throughput_state_save_failed", "error", err)

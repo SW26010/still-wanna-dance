@@ -57,6 +57,8 @@ func scanInventory(ctx context.Context, s Settings, allowMissingRoot bool) Inven
 		// or a missing root with previously observed media, is still an error.
 		if rootEntries, rootErr := os.ReadDir(s.StorageDir); (rootErr == nil && len(rootEntries) == 0) || (allowMissingRoot && os.IsNotExist(rootErr)) {
 			err = nil
+		} else if os.IsNotExist(rootErr) && !allowMissingRoot {
+			err = missingStorageRootError(s.StorageDir, rootErr)
 		}
 	}
 	if err != nil {
@@ -110,6 +112,8 @@ func checkInventoryDirectory(root string, allowMissingRoot bool) error {
 	if os.IsNotExist(err) {
 		if entries, rootErr := os.ReadDir(root); (rootErr == nil && len(entries) == 0) || (allowMissingRoot && os.IsNotExist(rootErr)) {
 			return nil
+		} else if os.IsNotExist(rootErr) && !allowMissingRoot {
+			return missingStorageRootError(root, rootErr)
 		}
 	}
 	if err == nil {
@@ -128,9 +132,7 @@ func checkInventoryDirectory(root string, allowMissingRoot bool) error {
 func (c *Console) startInventoryScan() {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
-	c.inventoryMu.Lock()
-	allowMissingRoot := c.inventory.Videos == 0
-	c.inventoryMu.Unlock()
+	allowMissingRoot := !c.storageUsageKnown()
 	c.mu.Lock()
 	if c.closing {
 		c.mu.Unlock()

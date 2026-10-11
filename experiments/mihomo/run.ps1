@@ -8,7 +8,7 @@ $env:GOARCH = 'amd64'
 function Check-Exit([string]$Step) { if ($LASTEXITCODE -ne 0) { throw "$Step failed ($LASTEXITCODE)" } }
 & go build -o (Join-Path $runDir 'baseline.exe') .
 Check-Exit 'baseline build'
-& go build -o (Join-Path $runDir 'fixture.exe') ./cmd/fixture
+& go build -o (Join-Path $runDir 'fixture.exe') ../../internal/proxyengine/mihomo/testfixture
 Check-Exit 'fixture build'
 & go build -o (Join-Path $runDir 'probe.exe') ./cmd/probe
 Check-Exit 'client build'

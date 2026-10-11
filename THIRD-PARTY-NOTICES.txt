@@ -2,9 +2,12 @@ Still Wanna Dance third-party notices
 
 Still Wanna Dance is licensed under the MIT License in LICENSE. Third-party components
 retain their own copyright and license terms, reproduced below.
-This source inventory covers all modules in go.mod, including indirect modules;
-some modules or subcomponents may not be linked on every target. Release packages
-append the licenses from the Go toolchain used to build the executable.
+This inventory covers dependencies approved for the existing desktop executable;
+some modules or subcomponents may not be linked on every target. The internal,
+not-yet-enabled Mihomo adapter has additional dependencies documented in
+internal/proxyengine/mihomo/README.md and LICENSE.mihomo. Its combined executable
+must not be treated as covered by the existing MIT-only distribution notices.
+Release packages append the licenses from the Go toolchain used to build the executable.
 When upgrading dependencies, review and update the versioned notices and embedded
 third-party notices below. The package script rejects unreviewed module versions.
 

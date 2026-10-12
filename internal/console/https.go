@@ -17,7 +17,8 @@ import (
 
 // Only the hosts managed by Still Wanna Dance are forwarded. Keep the original SNI
 // and encrypted bytes intact: certificates, HTTP and video remain end-to-end.
-// The selected upstream dialer handles DNS and connections.
+// The console always supplies its controlled direct DNS/dial path, independent
+// of the proxy strategy used by the application's own HTTP/HTTPS requests.
 func httpsOrigin(name string) string {
 	name = strings.ToLower(strings.TrimSuffix(name, "."))
 	if name == "api.udon.dance" || upstreamrequest.Default.IsResourceDomain(name) {

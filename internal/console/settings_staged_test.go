@@ -33,7 +33,7 @@ func TestSavedSettingsDoNotChangeRuntime(t *testing.T) {
 	active, engine, client := c.settings, c.service, c.client
 	next := active
 	next.StorageDir = filepath.Join(t.TempDir(), "new-cache")
-	next.SOCKS5Address, next.UpstreamMode = "127.0.0.1:1080", "socks5"
+	next.SOCKS5Address, next.UpstreamMode = "127.0.0.1:1080", "proxy"
 	if runtime.GOOS == "windows" {
 		next.SOCKS5Username, next.SOCKS5Password = "user", "secret"
 	}

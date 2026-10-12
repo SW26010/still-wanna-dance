@@ -113,7 +113,11 @@ func (c *Console) resolveNodeWithClient(ctx context.Context, id int64, upstream 
 	if err := cacheproxy.ValidateVideoURL(u.String(), cacheproxy.DefaultConfig().MaxFileBytes); err != nil {
 		return "", fmt.Errorf("歌曲返回了无效的视频地址：%w", err)
 	}
-	upstreamrequest.Default.ObserveResourceSourcesAtRevision(revision, "playback/"+node+"/"+strconv.FormatInt(id, 10), []upstreamrequest.ResourceSource{{API: r.URL.String(), Node: node, SongID: id, ResourceURL: u.String(), ObservedAt: time.Now()}}, 10*time.Minute)
+	channelID := ""
+	if channel, ok := client.Transport.(interface{ ChannelID() string }); ok {
+		channelID = channel.ChannelID()
+	}
+	upstreamrequest.Default.ObserveResourceSourcesAtRevision(revision, "playback/"+node+"/"+strconv.FormatInt(id, 10), []upstreamrequest.ResourceSource{{API: r.URL.String(), APIChannelID: channelID, Node: node, SongID: id, ResourceURL: u.String(), ObservedAt: time.Now()}}, 10*time.Minute)
 	c.mu.Lock()
 	engine := c.service
 	c.mu.Unlock()

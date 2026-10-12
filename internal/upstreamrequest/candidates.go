@@ -43,6 +43,12 @@ type CandidateReadiness struct{ Direct, Proxy bool }
 type CandidateDiscovery interface {
 	CandidatesWithReadiness(context.Context, string) ([]Candidate, CandidateReadiness, error)
 }
+
+// ProxyMembership separates configured identities from the executable subset.
+// False means the node store is unavailable, not an authoritative empty store.
+type ProxyMembership interface {
+	KnownProxyIDs() ([]string, bool)
+}
 type DialFunc func(context.Context, string, string) (net.Conn, error)
 
 // Proxy is a fixed egress. ID describes its connection configuration, never
@@ -237,6 +243,8 @@ type candidateTransport struct {
 	transport *http.Transport
 }
 
+func (t *candidateTransport) ChannelID() string { return t.candidate.ID }
+
 func (t *candidateTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	if !strings.EqualFold(r.URL.Hostname(), t.candidate.Host) || !t.pool.usable(t.candidate) {
 		return nil, ErrUnavailable
@@ -262,6 +270,18 @@ func (p *Pool) Close() {
 type Transport struct {
 	http.RoundTripper
 	*Pool
+	RetainedProxies ProxyMembership
+}
+
+func (t *Transport) KnownProxyIDs() ([]string, bool) {
+	if t.RetainedProxies != nil {
+		return t.RetainedProxies.KnownProxyIDs()
+	}
+	var ids []string
+	for _, proxy := range t.Pool.proxies {
+		ids = append(ids, proxy.ID)
+	}
+	return ids, true
 }
 
 func (t *Transport) CloseIdleConnections() {

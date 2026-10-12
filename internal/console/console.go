@@ -54,6 +54,7 @@ type Settings struct {
 	QueuePrefetchCount        int    `json:"queuePrefetchCount"`
 	DownloadUpstream          string `json:"downloadUpstream"`
 	UpstreamMode              string `json:"upstreamMode"`
+	ProxyBackend              string `json:"proxyBackend"`
 	SOCKS5Address             string `json:"socks5Address"`
 	SOCKS5Username            string `json:"socks5Username"`
 	SOCKS5Password            string `json:"socks5Password,omitempty"`
@@ -182,6 +183,13 @@ func New(configPath, address string) (*Console, error) {
 		c.loadSetupApplication()
 		c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport)
 	}
+	if err != nil && c.client != nil {
+		c.client.CloseIdleConnections()
+		if tr, ok := c.client.Transport.(interface{ Retire() }); ok {
+			tr.Retire()
+		}
+		c.dns.close()
+	}
 	return c, err
 }
 
@@ -221,11 +229,20 @@ func absoluteSettings(s Settings) (Settings, error) {
 	if s.UpstreamMode == "" {
 		s.UpstreamMode = "direct"
 	}
-	if s.UpstreamMode != "direct" && s.UpstreamMode != "socks5" && s.UpstreamMode != "auto" {
-		return s, errors.New("上游连接必须是 direct、socks5 或 auto")
+	if s.UpstreamMode == "socks5" {
+		s.UpstreamMode = "proxy"
+	} // legacy saved policy
+	if s.UpstreamMode != "direct" && s.UpstreamMode != "proxy" && s.UpstreamMode != "auto" {
+		return s, errors.New("上游连接必须是 direct、proxy 或 auto")
+	}
+	if s.ProxyBackend == "" {
+		s.ProxyBackend = "external-socks5"
+	}
+	if s.ProxyBackend != "external-socks5" && s.ProxyBackend != "mihomo" {
+		return s, errors.New("代理后端必须是 external-socks5 或 mihomo")
 	}
 	s.SOCKS5Address = strings.TrimSpace(s.SOCKS5Address)
-	if s.UpstreamMode == "socks5" || s.UpstreamMode == "auto" {
+	if s.UpstreamMode != "direct" && s.ProxyBackend == "external-socks5" {
 		if err := validateSOCKS5Address(s.SOCKS5Address); err != nil {
 			return s, err
 		}
@@ -389,7 +406,7 @@ func (c *Console) ensureEngine() error {
 		var transports []http.RoundTripper
 		for _, selection := range c.operationSelections(upstreamstate.Resource, upstreamstate.Constraints{Target: target}) {
 			transports = append(transports, selection.Channel.Transport)
-			if len(transports) == 4 {
+			if len(transports) == 6 {
 				break
 			}
 		}
@@ -485,7 +502,7 @@ func (c *Console) startLocked() (err error) {
 	c.mu.Lock()
 	c.httpServer = h
 	c.videoListener = l
-	relay := newHTTPSRelay(secure, c.upstreamDial)
+	relay := newHTTPSRelay(secure, c.dns.DialContext)
 	relay.beginResourceLoad = upstreamrequest.Default.BeginResourceLoad
 	c.https = relay
 	c.cdnError = ""

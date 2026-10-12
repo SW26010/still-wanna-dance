@@ -26,6 +26,7 @@ type setupPlan struct {
 	CustomStorage bool    `json:"customStorage"`
 	MaxCacheBytes int64   `json:"maxCacheBytes"`
 	UpstreamMode  string  `json:"upstreamMode"`
+	ProxyBackend  string  `json:"proxyBackend"`
 	SOCKS5Address string  `json:"socks5Address"`
 	SOCKS5User    string  `json:"socks5Username"`
 	Password      *string `json:"socks5Password"`
@@ -110,6 +111,7 @@ func (c *Console) validateSetupPlanSnapshot(p setupPlan) (Settings, error) {
 			return s, errors.New("请至少选择一种连接方式")
 		}
 		s.UpstreamMode, s.SOCKS5Address, s.SOCKS5Username = p.UpstreamMode, p.SOCKS5Address, p.SOCKS5User
+		s.ProxyBackend = p.ProxyBackend
 		if p.Password != nil {
 			s.SOCKS5Password, s.proxySecret, s.proxySecretError = *p.Password, "", ""
 		}

@@ -15,4 +15,14 @@
 ## 待实机验收
 
 - LA-034：节点导入、受保护快照、保存与重启；在完整 UI 接入后执行。
-- 运行时多节点及 UI 后续交付将在本记录补充自动检查与对应台账。
+- LA-035：多节点运行、冷启动选路、游戏 HTTPS 直连、退出与备用历史。
+
+## 桌面运行时
+
+策略规范为 `direct/proxy/auto`，旧 `socks5` 值读取后归一化为 `proxy`；`proxyBackend` 独立为 `external-socks5/mihomo`，缺省兼容外部 SOCKS5。底层 `socks5/host/stable-v1-*` 历史键仍表示固定代理出口，不因 UI 命名改变。
+
+`network_mihomo.go` 对生效快照按 HMAC 身份排序，最多创建 5 个 Node，备用仅保留配置和历史身份。当前持久状态只有吞吐/冷却，没有可比较的资源首响应样本，因此启动采用稳定暂定集合，不声称全局 Top 5。K 仅为启动策略参数；正常业务和测速只暴露活跃集合。没有推荐时业务直接使用同一固定候选，不先等测速。强制代理下空库或无法解密均明确失败；auto 允许直连。密钥异常保留坏文件，使用新随机临时身份并禁止据此删除旧历史。
+
+候选池先退役，随后关闭自有 Mihomo Node；启动失败也清理已创建对象。游戏 HTTPS relay 单独使用 `c.dns.DialContext`，应用 HTTPS 回源仍可代理。可确认的固定出口写入已有 ResourceSource.APIChannelID。
+
+本地独立回环服务验证 Console → Mihomo → Pool 的 SS、VLESS TLS、AnyTLS、Hysteria2 冷启动 HTTP 请求及正文；无公网代理、游戏或第三方互操作覆盖。另验证 K 与保存总数分离、K 变化身份不变、临时身份不继承、退役拒绝新流、强制代理无节点不直连、auto 直连、游戏 relay 与应用 API 拨号分离，以及已保存备用/读取失败/已删除节点的历史清理差异。原设置测试的 `socks5` 期望改为规范策略 `proxy`。

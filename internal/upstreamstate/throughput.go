@@ -145,7 +145,17 @@ func (m *Monitor) persistThroughputResult() {
 }
 
 // Called with m.mu held after candidate discovery, independently of history.
-func (m *Monitor) pruneThroughputLocked(valid map[string]bool, prepared map[string]upstreamrequest.CandidateReadiness) {
+func (m *Monitor) pruneThroughputLocked(valid map[string]bool, prepared map[string]upstreamrequest.CandidateReadiness, provider upstreamrequest.Candidates) {
+	var known map[string]bool
+	authoritative := true
+	if membership, ok := provider.(upstreamrequest.ProxyMembership); ok {
+		var ids []string
+		ids, authoritative = membership.KnownProxyIDs()
+		known = make(map[string]bool, len(ids))
+		for _, id := range ids {
+			known[id] = true
+		}
+	}
 	changed := false
 	for key := range m.throughput {
 		parts := strings.SplitN(key, "/", 3)
@@ -155,6 +165,10 @@ func (m *Monitor) pruneThroughputLocked(valid map[string]bool, prepared map[stri
 		ready := prepared[entry(Resource, parts[1])]
 		canPrune := ready.Direct
 		if len(parts) == 3 && strings.HasPrefix(parts[2], "socks5/") {
+			identity := strings.Split(parts[2], "/")
+			if !authoritative || len(identity) == 3 && known[identity[2]] {
+				continue
+			}
 			canPrune = ready.Proxy
 		}
 		if !canPrune {

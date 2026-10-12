@@ -20,15 +20,34 @@ func channelAttempt(ctx context.Context, limit time.Duration, remaining int) (co
 
 func (c *Console) operationSelections(op upstreamstate.Operation, q upstreamstate.Constraints) []upstreamstate.Selection {
 	c.mu.Lock()
-	m, mode := c.monitor, c.settings.UpstreamMode
+	m, mode, client := c.monitor, channelMode(c.settings.UpstreamMode), c.client
 	c.mu.Unlock()
-	if m == nil {
-		return nil
-	}
 	if mode == "direct" || mode == "socks5" {
 		q.Mode = mode
 	}
-	return m.Selections(op, q)
+	if m != nil {
+		if selections := m.Selections(op, q); len(selections) > 0 {
+			return selections
+		}
+	}
+	// Cold Mihomo traffic uses the same fixed candidates as Monitor. It does not
+	// wait for a probe, silently use the old SOCKS backend, or invent a score.
+	if client != nil {
+		if runtime, ok := client.Transport.(*mihomoTransport); ok {
+			target := q.Target
+			if target == "" {
+				target = q.Entry
+			}
+			var selections []upstreamstate.Selection
+			for _, channel := range runtime.Current(target) {
+				if q.Mode == "" || channel.Mode == q.Mode {
+					selections = append(selections, upstreamstate.Selection{Channel: channel})
+				}
+			}
+			return selections
+		}
+	}
+	return nil
 }
 
 func (c *Console) operationClients(op upstreamstate.Operation, q upstreamstate.Constraints) []*http.Client {
@@ -44,7 +63,7 @@ func (c *Console) operationClients(op upstreamstate.Operation, q upstreamstate.C
 		client := *base
 		client.Transport = s.Channel.Transport
 		clients = append(clients, &client)
-		if len(clients) == 4 {
+		if len(clients) == 6 {
 			break
 		}
 	}

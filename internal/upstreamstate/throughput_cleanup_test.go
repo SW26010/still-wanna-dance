@@ -16,6 +16,31 @@ import (
 
 type cleanupDNS struct{ err error }
 
+type retainedCandidates struct {
+	*candidateFixture
+	ids   []string
+	ready bool
+}
+
+func (p retainedCandidates) KnownProxyIDs() ([]string, bool) { return p.ids, p.ready }
+
+func TestStandbyProxyThroughputSurvivesActiveSubset(t *testing.T) {
+	standby := "stable-v1-" + strings.Repeat("c", 64)
+	deleted := "stable-v1-" + strings.Repeat("d", 64)
+	key := func(id string) string { return "resource/play.udon.dance/socks5/play.udon.dance/" + id }
+	for _, ready := range []bool{false, true} {
+		m := &Monitor{throughput: map[string]observation{key(standby): {}, key(deleted): {}}}
+		p := retainedCandidates{ids: []string{standby}, ready: ready}
+		m.pruneThroughputLocked(nil, map[string]upstreamrequest.CandidateReadiness{entry(Resource, "play.udon.dance"): {Proxy: true}}, p)
+		if _, ok := m.throughput[key(standby)]; !ok {
+			t.Fatal("saved standby node lost history")
+		}
+		if _, ok := m.throughput[key(deleted)]; ok == ready {
+			t.Fatal("deleted/unknown membership cleanup incorrect")
+		}
+	}
+}
+
 func (d *cleanupDNS) Addresses(context.Context, string) ([]upstreamrequest.Address, error) {
 	return nil, d.err
 }

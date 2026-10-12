@@ -344,7 +344,7 @@ func TestConsoleNetworkSwitchPreservesInflightRequest(t *testing.T) {
 	}
 }
 
-func TestConsoleSOCKS5APIAndHTTPSRelay(t *testing.T) {
+func TestConsoleSOCKS5APIAndHTTPSRelayDialPaths(t *testing.T) {
 	cert, roots := relayCertificate(t)
 	backend := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.TLS.ServerName != r.Host {
@@ -400,12 +400,14 @@ func TestConsoleSOCKS5APIAndHTTPSRelay(t *testing.T) {
 		t.Fatal(err)
 	}
 	transport := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots}, DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
-		return (&net.Dialer{}).DialContext(ctx, network, c.https.listener.Addr().String())
+		// Exercise the exact dial path supplied to the game relay against a
+		// controlled ephemeral endpoint. A proxy dial would hit socksPeer above.
+		return c.https.dial(ctx, network, backend.Listener.Addr().String())
 	}}
 	defer transport.CloseIdleConnections()
 	observeTestResources(t)
 	check(&http.Client{Transport: transport, Timeout: 3 * time.Second}, "https://nya.xin.moe/test")
-	if calls.Load() != 2 {
+	if calls.Load() != 1 {
 		t.Fatalf("got %d proxy connections", calls.Load())
 	}
 }
@@ -429,7 +431,7 @@ func TestConsoleSOCKS5CacheAndSettingsSwitch(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer loaded.Close()
-	if loaded.settings.UpstreamMode != "socks5" || loaded.settings.SOCKS5Address != address {
+	if loaded.settings.UpstreamMode != "proxy" || loaded.settings.SOCKS5Address != address {
 		t.Fatal("proxy settings not persisted")
 	}
 	if c.client == originalClient {

@@ -397,7 +397,7 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 		// authoritative mode-specific sets: DNS failure preserves direct
 		// history even when proxy fallback succeeds. Unqueried routes wait.
 		if ctx.Err() == nil {
-			m.pruneThroughputLocked(valid, prepared)
+			m.pruneThroughputLocked(valid, prepared, provider)
 		}
 	}
 }

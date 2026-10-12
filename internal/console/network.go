@@ -108,10 +108,14 @@ func NewAuthenticatedSOCKS5Dialer(address, username, password string) (func(cont
 }
 
 func (c *Console) networkFor(s Settings) (upstreamDialFunc, *http.Client, error) {
+	if s.ProxyBackend == "mihomo" {
+		return c.mihomoNetworkFor(s, defaultActiveProxyLimit)
+	}
 	dial := upstreamDialFunc(c.dns.DialContext)
 	var proxyDial upstreamrequest.DialFunc
 	var proxyID string
-	if s.UpstreamMode == "socks5" || s.UpstreamMode == "auto" {
+	mode := channelMode(s.UpstreamMode)
+	if mode == "socks5" || mode == "auto" {
 		var err error
 		if s.proxySecretError != "" {
 			proxyDial = func(context.Context, string, string) (net.Conn, error) {
@@ -129,7 +133,7 @@ func (c *Console) networkFor(s Settings) (upstreamDialFunc, *http.Client, error)
 		if err != nil {
 			return nil, nil, err
 		}
-		if s.UpstreamMode == "socks5" {
+		if mode == "socks5" {
 			dial = upstreamDialFunc(proxyDial)
 		} else {
 			// Legacy raw dial callers have no operation/measurement context.
@@ -143,19 +147,28 @@ func (c *Console) networkFor(s Settings) (upstreamDialFunc, *http.Client, error)
 			}
 		}
 	}
-	pool, err := upstreamrequest.NewPool(s.UpstreamMode, c.dns, proxyDial, proxyID)
+	pool, err := upstreamrequest.NewPool(mode, c.dns, proxyDial, proxyID)
 	if err != nil {
 		return nil, nil, err
 	}
 	client := &http.Client{
 		Timeout: 30 * time.Second,
-		Transport: &upstreamrequest.Transport{Pool: pool, RoundTripper: &http.Transport{
+		Transport: &upstreamrequest.Transport{Pool: pool, RetainedProxies: c.retainedProxyNodes(s, proxyID), RoundTripper: &http.Transport{
 			DialContext: dial, ResponseHeaderTimeout: 20 * time.Second,
 			TLSHandshakeTimeout: 10 * time.Second, IdleConnTimeout: 90 * time.Second,
 		}},
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	return dial, client, nil
+}
+
+// Persisted channel keys retain their existing prefix independently of UI
+// policy names and the implementation used by each fixed outbound.
+func channelMode(mode string) string {
+	if mode == "proxy" {
+		return "socks5"
+	}
+	return mode
 }
 
 // The client belongs to this Console's active configuration. Saving settings

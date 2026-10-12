@@ -56,13 +56,18 @@ test('reading a node file prevents premature save and survives status refresh', 
   assert.equal(p.requests.some(r=>r.url==='/api/settings'),false);
 });
 
-test('discarding during a node import ignores a late result', async () => {
+test('discarding a node import ignores its late result without unlocking a new import', async () => {
   const p=page(),get=id=>p.document.getElementById(id);
   p.finishBatch(0,{upstreamMode:'proxy',proxyBackend:'mihomo'});await flush();
   get('proxyImportText').value='pending';get('settings').dispatchEvent({type:'input'});get('proxyImport').click();
   const request=p.requests.at(-1);vm.runInContext('resetProxyImport()',p.context);
+  get('proxyImportText').value='new draft';get('settings').dispatchEvent({type:'input'});get('proxyImport').click();
+  const current=p.requests.at(-1);
   request.finish({id:'obsolete',accepted:1,skipped:0,failed:0,items:[]});await flush();
-  assert.equal(get('proxyImportID').value,'');assert.equal(get('proxyImportText').value,'');
+  assert.equal(get('proxyImportID').value,'');assert.equal(get('proxyImportText').value,'new draft');
+  assert.equal(get('save').disabled,true);
+  current.finish({id:'current',accepted:1,skipped:0,failed:0,items:[]});await flush();
+  assert.equal(get('proxyImportID').value,'current');assert.equal(get('save').disabled,false);
 });
 
 test('wizard diagnostic rows expose results inline and age direct throughput samples', () => {

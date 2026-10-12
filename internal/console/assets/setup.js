@@ -68,6 +68,7 @@
   }
   function initializeDraft() {
     original = {dirty:settingsDirty, baseline:settingsBaseline, values:fields().map(field => [field,field.value,field.checked])};
+    globalThis.swdResetProxyImport?.();
     checkedPath = '';
     settingsDirty = false;
     // The start panel stays mounted while the first authenticated
@@ -116,6 +117,7 @@
   }
   function discard() {
     navigationRevision++;
+    globalThis.swdResetProxyImport?.();
     $('setupTermsDialog').close();
     cancelFolder();
     termsRequest++; terms = null;

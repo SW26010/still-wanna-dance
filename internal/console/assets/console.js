@@ -341,6 +341,7 @@ globalThis.swdProxyImportPending = () => proxyImportPending;
 const proxyImportReports = new Map();
 function resetProxyImport() {
   proxyImportGeneration++;
+  proxyImportPending = false;
   $('proxyImportID').value = '';
   $('proxyImportCount').value = '';
   $('proxyImportText').value = '';
@@ -351,6 +352,7 @@ function resetProxyImport() {
   $('proxyImportDetails').hidden = true;
   proxyImportReports.delete('');
 }
+globalThis.swdResetProxyImport = resetProxyImport;
 globalThis.swdRenderProxyControls = (unavailable = false) => {
   const enabled = !!$('upstreamMode').value && $('upstreamMode').value !== 'direct';
   const embedded = $('proxyBackend').value === 'mihomo';
@@ -389,8 +391,10 @@ $('proxyImportFile').addEventListener('change', async () => {
     $('settings').dispatchEvent(new Event('input', {bubbles:true}));
   } catch (_) { if (generation === proxyImportGeneration) notice('无法读取节点文件，请重新选择。'); }
   finally {
-    if (generation === proxyImportGeneration) $('proxyImportFile').value = '';
-    proxyImportPending = false; renderControls();
+    if (generation === proxyImportGeneration) {
+      $('proxyImportFile').value = '';
+      proxyImportPending = false; renderControls();
+    }
   }
 });
 $('proxyImportText').addEventListener('input', () => { proxyImportGeneration++; });
@@ -413,7 +417,9 @@ $('proxyImport').addEventListener('click', async () => {
     notice('节点已检查并加入本次草稿。请核对逐条结果，再保存设置或完成引导。');
   } catch (error) {
     if (generation === proxyImportGeneration) notice('导入未完成：' + error.message + '。已有配置保持不变。');
-  } finally { proxyImportPending = false; renderControls(); }
+  } finally {
+    if (generation === proxyImportGeneration) { proxyImportPending = false; renderControls(); }
+  }
 });
 $('proxyImportDiscard').addEventListener('click', () => {
   resetProxyImport(); $('settings').dispatchEvent(new Event('input', {bubbles:true}));
@@ -783,7 +789,7 @@ $('discardSettings').addEventListener('click', () => {
 });
 async function saveSettings() {
   if (!settingsDirty) return true;
-  if (busy || exiting || !connected || !lastState || activationPending(lastState)) {
+  if (busy || exiting || !connected || !lastState || activationPending(lastState) || proxyImportPending) {
     notice('暂时无法保存设置，请等待连接或当前操作结束后重试。');
     return false;
   }

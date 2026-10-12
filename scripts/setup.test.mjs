@@ -9,7 +9,7 @@ const html = ['index.html','setup.html'].map(f=>readFileSync(new URL('../interna
 const buttons = [...html.matchAll(/<button\b[^>]*\bid="([^"]+)"/g)].map(m=>m[1]);
 const flush = ()=>new Promise(resolve=>setImmediate(resolve));
 function deferred(){let resolve;const promise=new Promise(r=>resolve=r);return {resolve,promise};}
-function setup({step='welcome',request=async()=>({}),stateOverride={},receipt={accepted:true},search='',reconnect=async()=>({state:'reloading'}),confirm=()=>true,applicationID='',firstEntry=false}={}) {
+function setup({step='welcome',request=async()=>({}),stateOverride={},receipt={accepted:true},search='',reconnect=async()=>({state:'reloading'}),confirm=()=>true,applicationID='',firstEntry=false,sharedImport=false}={}) {
   const nodes=new Map(),events={},windowEvents={},calls=[];
   const node=id=>{
     if(!nodes.has(id))nodes.set(id,{id,value:'',checked:false,hidden:false,dataset:{},listeners:{},
@@ -22,6 +22,7 @@ function setup({step='welcome',request=async()=>({}),stateOverride={},receipt={a
       closest(selector){return selector==='[data-setup-settings]'?this.group:null;},
       querySelectorAll(){return [];},before(marker){marker.parentNode=this.parentNode;},after(child){child.parentNode=this.parentNode;},
       append(...children){for(const child of children)child.parentNode=this;},
+      replaceChildren(){},
     });return nodes.get(id);
   };
   const groups=['storage','proxy'].map(name=>{const n=node(name+'Group');n.dataset.setupSettings=name;return n;});
@@ -44,7 +45,7 @@ function setup({step='welcome',request=async()=>({}),stateOverride={},receipt={a
     renderControls(){window.swdSetupRenderControls?.();},setText:(id,value)=>{node(id).textContent=value;},
     requestRefresh:async()=>{if(firstEntry){calls.push({path:'/api/status'});const data=await request('/api/status');context.connected=!data.error;if(!data.error)context.lastState=state;}events.consolestate?.();},reconnectAfterRestart:async()=>{calls.push({path:'reconnect'});return reconnect();},
     fetch:async(path,options={})=>{
-      const body=options.body?JSON.parse(options.body):null;calls.push({path,body});
+      const body=options.body?(path==='/api/proxy/import'?options.body:JSON.parse(options.body)):null;calls.push({path,body});
       if(path==='/api/setup'&&!options.method)return {ok:true,json:async()=>({step,state:'active'})};
       const data=await request(path,body);
       if(path==='/api/setup/storage')return {ok:!data.error,json:async()=>({space:{state:'ok'},writable:{state:'ok',message:'可写'},library:{state:'ok',message:'新库'},freeBytes:1,totalBytes:2,...data})};
@@ -52,6 +53,15 @@ function setup({step='welcome',request=async()=>({}),stateOverride={},receipt={a
       return {ok:data.status ? data.status < 400 : !data.error,status:data.status || (data.error?400:200),json:async()=>path==='/api/terms/current'?{text:'完整条款',version:'v1',sha256:'hash1',accepted:receipt.accepted,...data}:data,text:async()=>data.error||'完整条款'};
     },
   };
+  if(sharedImport){
+    context.renderImport=()=>{};
+    context.settingsFingerprint=()=>JSON.stringify(ids.map(id=>[node(id).value,node(id).checked]));
+    context.notice=()=>{};
+    context.action=async(path,body)=>{calls.push({path:'/api/'+path,body});return true;};
+    vm.runInNewContext(consoleScript.slice(consoleScript.indexOf('let proxyImportGeneration'),consoleScript.indexOf('function renderControls()')),context);
+    vm.runInNewContext(consoleScript.slice(consoleScript.indexOf('async function saveSettings()'),consoleScript.indexOf("$('settings').addEventListener('submit'")),context);
+    node('settings').addEventListener('input',()=>{context.settingsDirty=context.settingsFingerprint()!==context.settingsBaseline;context.renderControls();});
+  }
   vm.runInNewContext(script,context);
   return {node,window,context,events,windowEvents,calls,memory,
     go:name=>node('setupStep'+name[0].toUpperCase()+name.slice(1)).onclick(),
@@ -59,6 +69,32 @@ function setup({step='welcome',request=async()=>({}),stateOverride={},receipt={a
   };
 }
 const business=s=>s.calls.filter(c=>['/api/settings','/api/setup/apply','/api/import/start','/api/activation/enable'].includes(c.path));
+
+for(const source of ['request','file'])test(`leaving setup invalidates a pending node ${source} before restoring saved settings`,async()=>{
+  const pending=deferred();
+  const s=setup({step:'proxy',sharedImport:true,request:path=>path==='/api/proxy/import'?pending.promise:Promise.resolve({})});await flush();
+  const original=s.context.lastState.settings;
+  s.node('storageDir').value='D:\\abandoned';s.node('upstreamMode').value='proxy';s.node('proxyBackend').value='mihomo';
+  if(source==='request'){
+    s.node('proxyImportText').value='synthetic node';s.emit('settings','input');s.emit('proxyImport','click');
+  }else{
+    s.node('proxyImportFile').files=[{size:10,text:()=>pending.promise}];s.emit('proxyImportFile','change');
+  }
+  assert.equal(s.window.swdProxyImportPending(),true);
+  s.node('setupLeave').onclick();
+  assert.equal(s.window.swdProxyImportPending(),false);
+  assert.equal(s.node('storageDir').value,original.storageDir);
+  assert.equal(s.node('upstreamMode').value,original.upstreamMode);
+  assert.equal(s.node('proxyBackend').value,'external-socks5');
+  pending.resolve(source==='request'?{id:'abandoned-node-draft',accepted:1,items:[]}:'abandoned node file');await flush();
+  assert.equal(s.node('proxyImportID').value,'');assert.equal(s.node('proxyImportText').value,'');
+  assert.equal(s.context.settingsDirty,false);
+  s.node('requestRetentionDays').value='7';s.context.settingsDirty=true;
+  await s.context.saveSettings();
+  const saved=s.calls.find(c=>c.path==='/api/settings').body;
+  assert.equal(saved.storageDir,original.storageDir);assert.equal(saved.upstreamMode,original.upstreamMode);
+  assert.equal(saved.proxyBackend,'external-socks5');assert.equal(saved.proxyImportID,'');assert.equal(saved.requestRetentionDays,7);
+});
 
 test('wizard stages Mihomo draft through the shared final save and omits raw nodes',async()=>{
   const s=setup({step:'proxy'});await flush();

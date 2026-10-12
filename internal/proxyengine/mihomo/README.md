@@ -1,9 +1,13 @@
 # Fixed Mihomo adapter
 
 This package is the only production boundary allowed to import/use Mihomo. It
-creates fixed outbound nodes; it does not load subscriptions or full runtime
-configs, start listeners/controllers, or change system networking. The desktop
-does not enable this backend yet. No user-visible setting or behavior changes.
+parses imported node data and creates fixed outbound nodes; it does not fetch
+subscriptions, load full runtime configs, start listeners/controllers, or change
+system networking. The desktop settings page and setup wizard share this import
+path. Console protects saved snapshots with DPAPI CurrentUser and creates up to
+five active nodes after restart; saving does not replace the running backend.
+See the [issue #14 development validation](../../../docs/issue-14-validation.md)
+for integration checks and pending live acceptance.
 
 ```go
 node, err := mihomo.New(mihomo.Config{
@@ -26,7 +30,10 @@ defer pool.Close()
 replacement publish the new generation, close the old pool, then close its
 nodes. Never reuse a node ID for a different connection configuration; keyed
 fingerprints and source/generation management belong to the caller. This package
-does not implement subscription refresh or node identity generation.
+does not implement subscription refresh or node identity generation. Desktop
+runtime ownership is implemented in
+[`network_mihomo.go`](../../console/network_mihomo.go); configuration changes
+take effect on restart, with retirement closing the old pool and nodes.
 
 ## Lifecycle contract
 
@@ -66,10 +73,18 @@ or independently initialize Mihomo; application direct DNS remains separate.
 The initial audited surface is SS (cipher/password), VLESS TCP (uuid and optional
 TLS), AnyTLS and Hysteria2. Common fields: name/type/server/port. TLS nodes accept
 fingerprint/skip-cert-verify/alpn plus servername (VLESS) or sni (AnyTLS/Hysteria2).
+VLESS also accepts client-fingerprint.
 Values are parsed by upstream, not translated through a homegrown protocol
 schema. Unknown fields are rejected rather than ignored: full runtime config,
 dynamic groups, dialer-proxy chains, interface/routing-mark, plugins, smux,
 certificate files and advanced transports need separate review and tests.
+
+Import normalization preserves case-sensitive custom VLESS IDs and canonicalizes
+parseable UUIDs. With VLESS TLS disabled or omitted, validated servername,
+fingerprint, client-fingerprint, skip-cert-verify and alpn are removed because
+they do not affect the connection. With TLS enabled they remain part of its
+identity. Reimport existing snapshots to apply this normalization; startup does
+not rewrite them or merge history from older redundant identities.
 
 Two internal policies are enforced regardless of user input:
 
@@ -109,7 +124,7 @@ a clean source tree (`go test -tags=no_easytier ./...`, `go vet -tags=no_easytie
 ./...`); ignored local artifacts with .go files can otherwise pollute `./...`.
 This is not public-server interoperability, VRChat or long-duration soak coverage.
 
-Local validation on 2026-10-11: Go 1.25.0/CGO=0 clean-source full tests, vet,
+Historical adapter validation on 2026-10-11: Go 1.25.0/CGO=0 clean-source tests, vet,
 Windows build and Linux amd64 cross-build passed; existing desktop build and
 package-notices check passed. Local `-race` could not build because this Windows
 host has no gcc. The retained Linux CI race check still needs to run; these
@@ -121,6 +136,10 @@ with historical MIT grants and third-party notices preserved. See
 [the audit](../../../docs/issue-30-license-audit.md). The pinned go-lzo license
 option is a maintainer-accepted non-blocking risk, not a confirmed compatibility
 finding. Its presence alone does not reject a release. Required corresponding
-source, notices and exact dependency checks still apply. The current desktop
-entry does not yet link this adapter; retain actual build evidence after #14
-integration. No fork or engine replacement is introduced for this risk.
+source, notices and exact dependency checks still apply. The desktop entry now
+links this adapter. The [desktop release-chain evidence](../../../docs/issue-14-validation.md#实际桌面发行链)
+records the actual linked dependencies, corresponding source, offline rebuild
+and Portable smoke for commit `17fa8b5`. Later fixes have their own validation
+scope in that record; those historical artifacts do not cover newer code.
+Repeat release verification for the version being shipped. No fork or engine
+replacement is introduced for this risk.

@@ -34,7 +34,10 @@ var page string
 //go:embed about.html
 var aboutPage string
 
-//go:embed assets/console.css assets/console.js assets/cache.js assets/navigation.js
+//go:embed setup.html
+var setupPage string
+
+//go:embed assets/console.css assets/console.js assets/cache.js assets/navigation.js assets/setup.js assets/storage-benefit.svg
 var assets embed.FS
 
 type Settings struct {
@@ -117,6 +120,9 @@ type Console struct {
 	monitorManual       bool
 	monitorManualAt     time.Time
 	monitorManualDone   chan struct{}
+	setupNetwork        *setupNetwork
+	setupApplyMu        sync.Mutex
+	setupApplication    SetupApplication // protected by mu
 }
 
 func New(configPath, address string) (*Console, error) {
@@ -161,6 +167,7 @@ func New(configPath, address string) (*Console, error) {
 	}
 	if err == nil {
 		c.loadSnapshots()
+		c.loadSetupApplication()
 		c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport)
 	}
 	return c, err
@@ -287,6 +294,10 @@ func (c *Console) save(s Settings) error {
 func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
+	return c.saveSettingsLocked(s, preservePassword)
+}
+
+func (c *Console) saveSettingsLocked(s Settings, preservePassword bool) error {
 	c.mu.Lock()
 	if c.closing {
 		c.mu.Unlock()
@@ -306,6 +317,13 @@ func (c *Console) saveSettings(s Settings, preservePassword bool) error {
 	s, err = c.resolveSettings(s)
 	if err != nil {
 		return err
+	}
+	// Preserve an existing library when saving unrelated settings. New choices
+	// must use the default location or a directory outside Portable.
+	if s.StorageDir != oldSettings.StorageDir {
+		if err = c.validateStorageSelection(s.StorageDir, false); err != nil {
+			return err
+		}
 	}
 	if err = writableDir(s.StorageDir); err != nil {
 		return fmt.Errorf("目录不可写：%w", err)
@@ -369,7 +387,10 @@ func (c *Console) ensureEngine() error {
 }
 
 // AutoStart applies independent startup preferences after consent.
-func (c *Console) AutoStart() { c.autoStart(readHostsStatus) }
+func (c *Console) AutoStart() {
+	c.autoStart(readHostsStatus)
+	c.resumeSetupApplication(c.startImport)
+}
 
 func (c *Console) autoStart(inspect func() HostsStatus) {
 	if !c.termsAccepted() {
@@ -527,6 +548,9 @@ func (c *Console) BeginShutdown() {
 	c.cancelTermsExitLocked()
 	c.queueDesired = false
 	upstreamrequest.Default.Release(c.requestRevision)
+	if c.setupNetwork != nil {
+		c.setupNetwork.channel.Release(c.setupNetwork.revision)
+	}
 	if c.batchCancel != nil {
 		c.batchCancel()
 	}
@@ -549,6 +573,7 @@ func (c *Console) Close() error {
 	c.BeginShutdown()
 	c.mu.Lock()
 	monitor := c.monitor
+	setupNetwork := c.setupNetwork
 	monitorManualDone := c.monitorManualDone
 	done, importDone, queueDone := c.batchDone, c.importDone, c.queueDone
 	c.mu.Unlock()
@@ -556,6 +581,7 @@ func (c *Console) Close() error {
 	inventoryDone := c.inventoryDone
 	c.inventoryMu.Unlock()
 	err := c.stop()
+	setupNetwork.close()
 	if monitor != nil {
 		monitor.Close()
 	}
@@ -605,9 +631,18 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if c.serveTerms(w, r) {
 		return
 	}
+	if r.Method == "GET" && r.URL.Path == "/api/setup" {
+		progress, err := c.setupProgress()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		writeJSON(w, progress)
+		return
+	}
 	if r.Method == "GET" && r.URL.Path == "/" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		io.WriteString(w, strings.ReplaceAll(page, "__TOKEN__", c.token))
+		io.WriteString(w, strings.ReplaceAll(strings.ReplaceAll(page, "__SETUP__", setupPage), "__TOKEN__", c.token))
 		return
 	}
 	if r.Method == "GET" && r.URL.Path == "/about" {
@@ -615,7 +650,11 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, aboutPage)
 		return
 	}
-	if r.Method == "GET" && (r.URL.Path == "/assets/console.css" || r.URL.Path == "/assets/console.js" || r.URL.Path == "/assets/cache.js" || r.URL.Path == "/assets/navigation.js") {
+	if r.Method == "GET" && r.URL.Path == "/help" {
+		c.serveHelp(w)
+		return
+	}
+	if r.Method == "GET" && (r.URL.Path == "/assets/console.css" || r.URL.Path == "/assets/console.js" || r.URL.Path == "/assets/cache.js" || r.URL.Path == "/assets/navigation.js" || r.URL.Path == "/assets/setup.js" || r.URL.Path == "/assets/storage-benefit.svg") {
 		content, err := assets.ReadFile(strings.TrimPrefix(r.URL.Path, "/"))
 		if err != nil {
 			http.Error(w, "asset unavailable", http.StatusInternalServerError)
@@ -624,6 +663,9 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		contentType := "text/css; charset=utf-8"
 		if strings.HasSuffix(r.URL.Path, ".js") {
 			contentType = "text/javascript; charset=utf-8"
+		}
+		if strings.HasSuffix(r.URL.Path, ".svg") {
+			contentType = "image/svg+xml"
 		}
 		w.Header().Set("Content-Type", contentType)
 		w.Write(content)
@@ -657,7 +699,12 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			SOCKS5CredentialError string                  `json:"socks5CredentialError,omitempty"`
 			Activation            Activation              `json:"activation"`
 			DefaultLogDir         string                  `json:"defaultLogDir"`
+			DefaultStorageDir     string                  `json:"defaultStorageDir"`
+			PortableDir           string                  `json:"portableDir"`
 			UpstreamMonitor       upstreamstate.Status    `json:"upstreamMonitor"`
+			SetupNetwork          setupNetworkStatus      `json:"setupNetwork"`
+			SetupApplication      SetupApplication        `json:"setupApplication"`
+			SetupSettingsVersion  string                  `json:"setupSettingsVersion"`
 		}{
 			Running: running, Settings: c.savedSettings, ActiveSettings: c.settings,
 			RestartRequired: c.savedSettings != c.settings,
@@ -666,7 +713,11 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			SOCKS5PasswordSet:     c.savedSettings.SOCKS5Password != "",
 			SOCKS5CredentialError: c.savedSettings.proxySecretError,
 			Activation:            c.activation, DefaultLogDir: defaultLogDir(),
-			UpstreamMonitor: c.monitorSnapshotLocked(),
+			DefaultStorageDir: c.defaultStorageDir(), PortableDir: portableDir(),
+			UpstreamMonitor:      c.monitorSnapshotLocked(),
+			SetupNetwork:         c.setupNetworkSnapshotLocked(),
+			SetupApplication:     c.setupApplication,
+			SetupSettingsVersion: setupSettingsVersion(c.savedSettings),
 		}
 		result.Settings.SOCKS5Password = ""
 		result.ActiveSettings.SOCKS5Password = ""
@@ -779,6 +830,46 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
 	var err error
 	switch r.URL.Path {
+	case "/api/setup/validate", "/api/setup/apply":
+		var input setupPlan
+		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+			if r.URL.Path == "/api/setup/validate" {
+				_, err = c.validateSetupPlan(input)
+			} else {
+				var result SetupApplication
+				result, err = c.applySetupPlan(input)
+				if err == nil {
+					writeJSON(w, result)
+					_ = http.NewResponseController(w).Flush()
+					if result.Phase == "restart" {
+						c.exitOnce.Do(func() { close(c.restartRequested) })
+					}
+					return
+				}
+			}
+		}
+	case "/api/setup/network":
+		err = c.checkSetupNetwork()
+	case "/api/setup/logs":
+		writeJSON(w, c.inspectSetupLogs())
+		return
+	case "/api/setup/storage":
+		var input struct {
+			Path string `json:"path"`
+		}
+		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+			var result setupStorage
+			result, err = c.inspectSetupStorage(input.Path)
+			if err == nil {
+				writeJSON(w, result)
+				return
+			}
+		}
+	case "/api/setup":
+		var progress SetupProgress
+		if err = json.NewDecoder(r.Body).Decode(&progress); err == nil {
+			err = c.saveSetupProgress(progress)
+		}
 	case "/api/upstream/check":
 		err = c.requestMonitorCheck()
 	case "/api/upstream/check/catalog":
@@ -836,9 +927,15 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/api/settings":
 		var input struct {
 			Settings
-			Password *string `json:"socks5Password"`
+			CustomStorage bool    `json:"customStorage"`
+			Password      *string `json:"socks5Password"`
 		}
 		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+			if input.CustomStorage {
+				if err = c.validateStorageSelection(input.StorageDir, true); err != nil {
+					break
+				}
+			}
 			if input.Password != nil {
 				input.Settings.SOCKS5Password = *input.Password
 			}

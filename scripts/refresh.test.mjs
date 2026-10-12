@@ -387,6 +387,7 @@ for (const removeAuth of [false, true]) {
     assert.equal(get('socks5Password').value, '');
     assert.match(get('socks5Password').placeholder, /已保存/);
     if (removeAuth) get('socks5Username').value = '';
+    else get('throughputIntervalMinutes').value = '25';
     get('settings').dispatchEvent({ type: 'change' });
     get('settings').dispatchEvent({ type: 'submit' });
     const body = JSON.parse(p.requests[2].body);
@@ -582,7 +583,7 @@ for (const outcome of ['success', 'failure', 'lost response']) {
     await flush();
     vm.runInContext("$('storageDir').value = 'relative'; $('settings').dispatchEvent({ type: 'input' })", p.context);
     p.fireTimer(); // A pre-save read remains in flight when saving completes.
-    const action = vm.runInContext("action('settings', { storageDir: 'relative' })", p.context);
+    const action = vm.runInContext("saveSettings()", p.context);
     if (outcome === 'lost response') p.requests[4].reject(new Error('offline'));
     else p.requests[4].finish(outcome === 'success' ? { ok: true } : { error: 'invalid' }, outcome === 'success');
     await flush();
@@ -590,7 +591,7 @@ for (const outcome of ['success', 'failure', 'lost response']) {
     await flush();
     assert.equal(vm.runInContext("$('storageDir').value", p.context), 'relative');
     p.finishBatch(5, { storageDir: 'D:/effective/relative' });
-    await action;
+    assert.equal(await action, outcome === 'success');
     assert.equal(vm.runInContext("$('storageDir').value", p.context), outcome === 'success' ? 'D:/effective/relative' : 'relative');
     p.fireTimer();
     p.finishBatch(7, { storageDir: 'D:/latest' });
@@ -673,6 +674,7 @@ function page(hidden = false) {
   }
   const context = vm.createContext({
     document,
+    Event,
     AbortController,
     AbortSignal,
     URLSearchParams,
@@ -812,6 +814,20 @@ test('restart timeout offers manual recovery and does not retry the command', as
   assert.match(p.document.getElementById('notice').textContent, /结果尚未确认.*手动启动/);
   assert.equal(p.requests.filter(r => r.url === '/api/restart').length, 1);
   assert.equal(p.timers.size, 0);
+});
+
+test('restart reconnection reports a timeout to callers without resending any action', async () => {
+  const p = page();
+  p.finishBatch(0);await flush();
+  let now=0;
+  p.context.Date=class extends Date {static now(){return now;}};
+  const pending=vm.runInContext('reconnectAfterRestart()',p.context);
+  p.requests.at(-1).reject(new Error('offline'));await flush();
+  now=61000;p.retryRestart();
+  const result=await pending;
+  assert.equal(result.state,'timeout');assert.match(result.message,/60 秒.*重新连接.*原清单/);
+  assert.equal(vm.runInContext('connected',p.context),false);
+  assert.equal(p.requests.some(r=>r.url==='/api/restart'||r.url==='/api/setup/apply'),false);
 });
 
 test('nonempty queue renders three songs in order, falls back to IDs, and replaces stale nodes', async () => {
@@ -1690,9 +1706,7 @@ test('log directory requires explicit manual selection and resets to automatic',
  assert.equal(get('logDir').disabled, true);
  assert.equal(get('logDir').value, 'current-user/logs');
  get('settings').dispatchEvent({ type: 'submit' });
- const body = JSON.parse(p.requests[2].body);
- assert.equal(body.manualLogDir, false);
- assert.equal(body.logDir, '');
+ assert.equal(p.requests.length, 2, 'restoring original settings must not write');
 });
 
 test('manual log directory loads and submits the explicit path', async () => {
@@ -1703,6 +1717,8 @@ test('manual log directory loads and submits the explicit path', async () => {
  assert.equal(get('manualLogDir').checked, true);
  assert.equal(get('logDir').disabled, false);
  assert.equal(get('logDir').value, 'custom/logs');
+ get('throughputIntervalMinutes').value = '25';
+ get('settings').dispatchEvent({ type: 'change' });
  get('settings').dispatchEvent({ type: 'submit' });
  const body = JSON.parse(p.requests[2].body);
  assert.equal(body.manualLogDir, true);

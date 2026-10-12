@@ -132,6 +132,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
+	started := stubSetupNetwork(t, c)
 	request := func(method, path, body, token, origin string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, "http://"+c.address+path, strings.NewReader(body))
 		r.Header.Set("X-SWD-Token", token)
@@ -154,7 +155,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 		t.Fatal("direct start bypass")
 	}
 	w := request("GET", "/", "", "", "")
-	if w.Code != 200 || !strings.Contains(w.Body.String(), "软件许可不等于") || !strings.Contains(w.Body.String(), `id="accept" disabled`) || strings.Contains(w.Body.String(), "ZgotmplZ") {
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "软件许可不等于") || !strings.Contains(w.Body.String(), `id="accept" class="primary" type="submit"`) || strings.Contains(w.Body.String(), `type="checkbox"`) || strings.Contains(w.Body.String(), "ZgotmplZ") {
 		t.Fatal("missing usable consent page")
 	}
 	if w := request("POST", "/api/stop", "{}", c.token, ""); w.Code != 200 {
@@ -162,6 +163,14 @@ func TestTermsGateAndPersistence(t *testing.T) {
 	}
 	if w := request("POST", "/api/hosts/disable", "{}", "", ""); w.Code != 403 {
 		t.Fatal("cleanup bypasses authentication")
+	}
+	w = request("GET", "/api/terms/current", "", "", "")
+	var current map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &current); err != nil || w.Code != 200 || current["text"] != legal.Text || current["sha256"] != legal.Hash() || current["version"] != legal.Version || current["accepted"] != false {
+		t.Fatal("current terms unavailable before acceptance", err)
+	}
+	if c.setupNetwork.done != nil {
+		t.Fatal("viewing terms started diagnosis")
 	}
 	body, _ := json.Marshal(map[string]any{"version": legal.Version, "sha256": legal.Hash(), "agree": true, "contentRights": true})
 	for _, tc := range []struct {
@@ -177,11 +186,19 @@ func TestTermsGateAndPersistence(t *testing.T) {
 			t.Fatalf("bad acceptance %d", w.Code)
 		}
 	}
-	if c.termsAccepted() {
-		t.Fatal("invalid request accepted")
+	if c.termsAccepted() || c.setupNetwork.done != nil {
+		t.Fatal("invalid request accepted or started diagnosis")
 	}
 	if w := request("POST", "/api/terms/accept", string(body), c.token, ""); w.Code != 200 {
 		t.Fatal(w.Body.String())
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("successful consent did not immediately start diagnosis")
+	}
+	if c.service != nil || c.queueCancel != nil {
+		t.Fatal("consent started business services")
 	}
 	reloaded, err := New(c.configPath, c.address)
 	if err != nil {
@@ -191,6 +208,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 	if !reloaded.termsAccepted() {
 		t.Fatal("receipt not persisted")
 	}
+	assertCurrentTermsAccepted(t, reloaded, true)
 	if w := request("GET", "/", "", "", ""); strings.Contains(w.Body.String(), `id="consent"`) {
 		t.Fatal("still gated")
 	}
@@ -206,7 +224,21 @@ func TestTermsGateAndPersistence(t *testing.T) {
 		if stale.termsAccepted() {
 			t.Fatal("stale or corrupt receipt accepted")
 		}
+		assertCurrentTermsAccepted(t, stale, false)
 		stale.Close()
+	}
+}
+
+func assertCurrentTermsAccepted(t *testing.T, c *Console, want bool) {
+	t.Helper()
+	w := httptest.NewRecorder()
+	c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/api/terms/current", nil))
+	var current map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &current); err != nil || w.Code != 200 || current["accepted"] != want {
+		t.Fatalf("current terms acceptance: want %v, got %s (%v)", want, w.Body, err)
+	}
+	if c.setupNetwork != nil {
+		t.Fatal("reading current consent started diagnosis")
 	}
 }
 
@@ -225,5 +257,13 @@ func TestTermsPersistenceFailureDoesNotAccept(t *testing.T) {
 	}
 	if c.termsAccepted() {
 		t.Fatal("accepted without saved receipt")
+	}
+	body, _ := json.Marshal(map[string]any{"version": legal.Version, "sha256": legal.Hash(), "agree": true, "contentRights": true})
+	r := httptest.NewRequest("POST", "http://"+c.address+"/api/terms/accept", strings.NewReader(string(body)))
+	r.Header.Set("X-SWD-Token", c.token)
+	w := httptest.NewRecorder()
+	c.ServeHTTP(w, r)
+	if w.Code != 500 || c.termsAccepted() || c.setupNetwork != nil {
+		t.Fatal("failed receipt write granted consent or started diagnosis")
 	}
 }

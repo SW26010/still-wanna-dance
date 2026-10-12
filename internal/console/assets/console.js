@@ -61,6 +61,7 @@ function renderStableList(id, items, keyOf, create, context = null) {
 function notice(text) {
   setText('notice', text);
   $('notice').hidden = !text;
+  globalThis.swdSetupNotice?.(text);
 }
 function render(s) {
   lastState = s;
@@ -76,6 +77,7 @@ function render(s) {
   renderControls();
   renderQueue(s);
   renderBatch(s);
+  document.dispatchEvent(new Event('consolestate'));
 }
 
 function healthImpact(h, settings) {
@@ -97,36 +99,10 @@ function healthImpact(h, settings) {
   return summaries.join('；') + '。检测样本不保证每首歌曲可播放。';
 }
 
-function renderHealth(h, settings) {
-  const results = h.results || [];
+function renderHealthResult(r, throughputMinutes, throughputWait) {
   const states = { available: '可用', unavailable: '不可用', unknown: '待测', stale: '已过期', closed: '已关闭' };
   const reasons = { no_channel: '没有有效候选', no_sample: '等待有效歌曲及资源样本', expired: '观测已过期', timeout: '请求超时', origin_timeout: '源站响应超时（Cloudflare 524）', network_error: '网络请求失败', resolution_unavailable: '无可用资源地址', invalid: '响应校验失败', restricted: '访问受限', upstream_error: '上游错误', http_error: 'HTTP 响应异常' };
-  const available = results.filter(r => r.state === 'available').length;
-  setText('healthImpact', healthImpact(h, settings));
-  for (const [id, operation] of [['catalogHealthSummary', 'catalog'], ['playbackHealthSummary', 'playback_url'], ['resourceHealthSummary', 'resource']]) {
-    const group = results.filter(r => r.operation === operation);
-    const count = group.filter(r => r.state === 'available').length;
-    setText(id, h.closed ? '已关闭' : !group.length ? '等待检测' : count ? count + ' / ' + group.length + ' 条线路可用' : group.some(r => r.state === 'unavailable') ? '暂无可用线路' : '等待有效检测结果');
-  }
-  const checkNames = { catalog: '视频列表', playback: '播放地址解析', latency: '视频资源响应延迟', throughput: '视频资源吞吐速度' };
-  setText('healthSummary', h.closed ? '网络检测已关闭' : h.manual && h.checking ? '手动检测中：' + (checkNames[h.checkKind] || '全部项目') : h.resourcesPaused ? '业务正在加载视频，自动资源测速已暂停' : h.checking ? '正在检测…' + (available ? '已有 ' + available + ' 条线路可用。' : '') : !results.length ? '等待首次检测…' : available ? '已有 ' + available + ' 条检测线路可用；各环节结果见下方。' : '尚无可用线路，请展开下方结果查看原因。');
-  setText('healthRoute', '当前检测范围：' + ({ direct: '全部直连 IP', socks5: 'SOCKS5', auto: '全部直连 IP 与 SOCKS5' }[settings.upstreamMode] || '等待网络配置'));
-  const dated = v => v && !v.startsWith('0001');
-  const date = v => dated(v) ? new Date(v).toLocaleString() : '—';
-  setText('healthTime', '最近完成：' + date(h.finished) + ' · 下次检测：' + date(h.nextCheck));
-  const throughputMinutes = (h.policy?.throughputInterval || 20 * 60 * 1e9) / (60 * 1e9);
-  const throughputStates = { closed: '监测已关闭', business_busy: '业务正在加载视频，自动测速已暂停', running: '正在依次测量资源通道', preparing: '正在获取歌曲及资源地址', other_manual_check: '等待当前手动检测结束', not_scheduled: '自动调度尚未启动', cooldown: '等待 ' + throughputMinutes + ' 分钟间隔到期', due: '已到期，等待调度', waiting_sample: '等待有效歌曲及资源地址', persistence_error: '保存测速记录失败，自动测速已延期' };
-  const throughputWait = throughputStates[h.throughputStatus] || '等待调度信息';
-  setText('healthThroughputSchedule', '下次自动吞吐测速：' + (dated(h.nextThroughput) ? date(h.nextThroughput) : '首次具备样本时') +
-    ' · ' + throughputWait + (h.throughputSaveFailed ? ' · 测速记录保存失败，重启可能无法恢复' : ''));
-  const groups = [
-    ['healthCatalog', 'catalog', 'api'],
-    ['healthCatalogKiva', 'catalog', 'kiva'],
-    ['healthCatalogWanna', 'catalog', 'wanna'],
-    ['healthPlaybackHkg', 'playback_url', 'hkg'],
-    ['healthPlaybackCf', 'playback_url', 'cf'],
-  ];
-  const renderResult = r => {
+  const date = v => v && !v.startsWith('0001') ? new Date(v).toLocaleString() : '—';
     const row = document.createElement('li');
     const title = document.createElement('strong');
     title.textContent = (r.mode === 'direct' ? '直连 ' + r.ip : r.mode === 'socks5' ? 'SOCKS5' : '无候选') + ' · ' + (states[r.state] || r.state) + (r.reason ? ' · ' + (reasons[r.reason] || r.reason) : '');
@@ -178,7 +154,35 @@ function renderHealth(h, settings) {
     technical.append(recentElement('summary', '', '线路技术详情'), detail);
     row.append(title, technical);
     return row;
-  };
+}
+function renderHealth(h, settings) {
+  const results = h.results || [];
+  const available = results.filter(r => r.state === 'available').length;
+  setText('healthImpact', healthImpact(h, settings));
+  for (const [id, operation] of [['catalogHealthSummary', 'catalog'], ['playbackHealthSummary', 'playback_url'], ['resourceHealthSummary', 'resource']]) {
+    const group = results.filter(r => r.operation === operation);
+    const count = group.filter(r => r.state === 'available').length;
+    setText(id, h.closed ? '已关闭' : !group.length ? '等待检测' : count ? count + ' / ' + group.length + ' 条线路可用' : group.some(r => r.state === 'unavailable') ? '暂无可用线路' : '等待有效检测结果');
+  }
+  const checkNames = { catalog: '视频列表', playback: '播放地址解析', latency: '视频资源响应延迟', throughput: '视频资源吞吐速度' };
+  setText('healthSummary', h.closed ? '网络检测已关闭' : h.manual && h.checking ? '手动检测中：' + (checkNames[h.checkKind] || '全部项目') : h.resourcesPaused ? '业务正在加载视频，自动资源测速已暂停' : h.checking ? '正在检测…' + (available ? '已有 ' + available + ' 条线路可用。' : '') : !results.length ? '等待首次检测…' : available ? '已有 ' + available + ' 条检测线路可用；各环节结果见下方。' : '尚无可用线路，请展开下方结果查看原因。');
+  setText('healthRoute', '当前检测范围：' + ({ direct: '全部直连 IP', socks5: 'SOCKS5', auto: '全部直连 IP 与 SOCKS5' }[settings.upstreamMode] || '等待网络配置'));
+  const dated = v => v && !v.startsWith('0001');
+  const date = v => dated(v) ? new Date(v).toLocaleString() : '—';
+  setText('healthTime', '最近完成：' + date(h.finished) + ' · 下次检测：' + date(h.nextCheck));
+  const throughputMinutes = (h.policy?.throughputInterval || 20 * 60 * 1e9) / (60 * 1e9);
+  const throughputStates = { closed: '监测已关闭', business_busy: '业务正在加载视频，自动测速已暂停', running: '正在依次测量资源通道', preparing: '正在获取歌曲及资源地址', other_manual_check: '等待当前手动检测结束', not_scheduled: '自动调度尚未启动', cooldown: '等待 ' + throughputMinutes + ' 分钟间隔到期', due: '已到期，等待调度', waiting_sample: '等待有效歌曲及资源地址', persistence_error: '保存测速记录失败，自动测速已延期' };
+  const throughputWait = throughputStates[h.throughputStatus] || '等待调度信息';
+  setText('healthThroughputSchedule', '下次自动吞吐测速：' + (dated(h.nextThroughput) ? date(h.nextThroughput) : '首次具备样本时') +
+    ' · ' + throughputWait + (h.throughputSaveFailed ? ' · 测速记录保存失败，重启可能无法恢复' : ''));
+  const groups = [
+    ['healthCatalog', 'catalog', 'api'],
+    ['healthCatalogKiva', 'catalog', 'kiva'],
+    ['healthCatalogWanna', 'catalog', 'wanna'],
+    ['healthPlaybackHkg', 'playback_url', 'hkg'],
+    ['healthPlaybackCf', 'playback_url', 'cf'],
+  ];
+  const renderResult = r => renderHealthResult(r, throughputMinutes, throughputWait);
   for (const [id, operation, route] of groups) {
     const matching = results.filter(r => r.operation === operation && (!route || r.route === route));
     if (operation === 'catalog') {
@@ -228,7 +232,7 @@ function renderActivation(s) {
     failed: '启用未完成：' + a.error, stopped: s.cdnError ? '服务已停止：' + s.cdnError : '本次检测已结束。' };
   setText('activationProgress', progress[a.phase] || (a.phase === 'waiting' ? '启用步骤已完成，请核对下方实时状态。' : ''));
   setText('activationNext', active ? '请等待当前操作完成，勿重复提交。' : !s.running
-    ? s.cdnError ? '请展开高级接入设置查看错误，处理后重试。' : ''
+    ? s.cdnError ? '缓存服务启动失败，请根据错误提示处理后重试。' : ''
     : s.hosts.needsMigration ? '下一步：点击「启用游戏加速」清理本程序旧版 hosts 条目，完成接入迁移。'
     : !s.hosts.ready ? '下一步：检查 hosts 冲突或管理员权限后重试。服务已运行，接入尚未完成。'
     : a.phase !== 'waiting' ? '下一步：点击「重新检测视频请求」，然后在游戏中点歌。'
@@ -326,7 +330,7 @@ $('importCleanupButton').addEventListener('click', () => {
 });
 function renderSettings(s) {
   renderImport(s);
-  if (!settingsDirty) {
+  if (!settingsDirty && !globalThis.swdSetupOwnsSettings?.()) {
     $('autoStartQueue').checked = !!s.settings.autoStartQueue;
     $('autoStartCDN').checked = !!s.settings.autoStartCDN;
     $('throughputIntervalMinutes').value = s.settings.throughputIntervalMinutes ?? 20;
@@ -344,6 +348,7 @@ function renderSettings(s) {
     $('socks5Password').title = s.socks5CredentialError || '';
     $('socks5CredentialError').textContent = s.socks5CredentialError || '';
     $('maxCacheGiB').value = (s.settings.maxCacheBytes || 0) / 1073741824;
+    globalThis.swdSetupSettingsLoaded?.(s);
     settingsBaseline = settingsFingerprint();
   }
 }
@@ -389,6 +394,7 @@ function renderControls() {
   $('socks5Password').disabled ||= $('upstreamMode').value === 'direct';
   $('socks5Address').required = $('upstreamMode').value !== 'direct';
   $('proxyFields').hidden = $('upstreamMode').value === 'direct';
+  globalThis.swdSetupRenderControls?.(unavailable);
   $('inventoryScan').disabled = unavailable || !lastInventory || !!lastInventory.scanning;
   if (typeof updateCacheControls === 'function') updateCacheControls();
   setText('settingsAvailability', !connected ? '连接控制台后可修改设置。' : busy
@@ -568,17 +574,22 @@ async function reconnectAfterRestart() {
       const nextToken = page.querySelector('meta[name="swd-token"]')?.content;
       if (response.ok && nextToken && nextToken !== token) {
         location.reload();
-        return;
+        return {state:'reloading'};
       }
     } catch (_) { /* The listener is unavailable while the old instance exits. */ }
     await new Promise(resolve => setTimeout(resolve, 500));
   }
   setText('connection', '尚未连接到重启后的应用');
   notice('重启结果尚未确认。请刷新页面；若仍无法连接，请查看程序日志并手动启动应用。');
+  connected = false;
+  renderControls();
+  return {state:'timeout',message:'60 秒内未连接到重启后的应用。请重新连接并核对，或刷新页面；仍无法连接时请查看日志并手动启动应用。原清单记录已保留，不会重复提交。'};
 }
 
 async function action(path, body) {
   if (busy || exiting) return;
+  if (path === 'restart' && lastState?.import?.running && !window.confirm('导入仍在运行。现在重启会中断导入且不会自动续传。建议等导入结束再重启；确定现在中断并重启吗？')) return;
+  if (path === 'import/start' && lastState?.activeSettings?.storageDir !== lastState?.settings?.storageDir && !window.confirm('已保存的新存储目录尚未生效。本次将导入到当前生效目录：' + lastState.activeSettings.storageDir + '。若要使用新目录，请取消并先重启应用。仍要导入当前目录吗？')) return;
   if (path === 'exit' && !window.confirm('确定退出整个应用？所有服务和后台任务将停止，hosts 映射会保留。需要恢复 hosts 时，请取消并先恢复。')) return;
   const origin = document.activeElement;
   busy = true;
@@ -640,6 +651,7 @@ async function action(path, body) {
             ? '已移除 Still Wanna Dance 添加的 hosts 映射。其他已有映射保持不变。'
             : '操作已完成。',
     );
+    return true;
   } catch (e) {
     if (path === 'restart') {
       // A dropped acknowledgement does not prove the restart was rejected.
@@ -677,9 +689,13 @@ $('discardSettings').addEventListener('click', () => {
   renderControls();
   $('save').focus();
 });
-$('settings').addEventListener('submit', (e) => {
-  e.preventDefault();
-  action('settings', {
+async function saveSettings() {
+  if (!settingsDirty) return true;
+  if (busy || exiting || !connected || !lastState || activationPending(lastState)) {
+    notice('暂时无法保存设置，请等待连接或当前操作结束后重试。');
+    return false;
+  }
+  return !!await action('settings', {
     autoStartCDN: $('autoStartCDN').checked,
     autoStartQueue: $('autoStartQueue').checked,
     throughputIntervalMinutes: Number($('throughputIntervalMinutes').value),
@@ -692,10 +708,17 @@ $('settings').addEventListener('submit', (e) => {
     ...($('socks5Password').value || !$('socks5Username').value
       ? { socks5Password: $('socks5Password').value } : {}),
     storageDir: $('storageDir').value,
+    ...($('page-setup') && !$('page-setup').hidden ? {customStorage: $('setupCustomStorage').checked} : {}),
     manualLogDir: $('manualLogDir').checked,
     logDir: $('manualLogDir').checked ? $('logDir').value : '',
     maxCacheBytes: Math.round(Number($('maxCacheGiB').value) * 1073741824),
   });
+}
+$('settings').addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (globalThis.swdSetupSubmit?.()) return;
+  if (!settingsDirty) { notice('设置未改变，无需重复保存。'); return; }
+  void saveSettings();
 });
 // All refresh triggers share one running batch and one scheduled timer.
 const refreshInterval = 5000;

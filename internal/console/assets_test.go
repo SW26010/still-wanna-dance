@@ -25,9 +25,15 @@ func TestPageLoadsEmbeddedAssets(t *testing.T) {
 		t.Fatal("page did not inject the action token")
 	}
 	refs := regexp.MustCompile(`(?:href|src)="(/assets/[^"]+)"`).FindAllStringSubmatch(html, -1)
-	if len(refs) != 4 {
-		t.Fatalf("expected stylesheet and three scripts, got %v", refs)
+	if len(refs) != 5 {
+		t.Fatalf("expected stylesheet and four scripts, got %v", refs)
 	}
+	// Capacity research belongs in Help, outside the short setup flow.
+	figures := regexp.MustCompile(`href="(/assets/[^"]+\.svg)"`).FindAllStringSubmatch(request("/help", c.address).Body.String(), -1)
+	if len(figures) != 1 {
+		t.Fatalf("expected capacity reference in Help, got %v", figures)
+	}
+	refs = append(refs, figures...)
 	for _, ref := range refs {
 		path := ref[1]
 		t.Run(path, func(t *testing.T) {
@@ -38,6 +44,9 @@ func TestPageLoadsEmbeddedAssets(t *testing.T) {
 			wantType := "text/css; charset=utf-8"
 			if strings.HasSuffix(path, ".js") {
 				wantType = "text/javascript; charset=utf-8"
+			}
+			if strings.HasSuffix(path, ".svg") {
+				wantType = "image/svg+xml"
 			}
 			if w.Header().Get("Content-Type") != wantType {
 				t.Fatal(w.Header())

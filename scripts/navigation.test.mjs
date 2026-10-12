@@ -3,18 +3,19 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
 
-const html = readFileSync(new URL('../internal/console/index.html', import.meta.url), 'utf8');
+const html = readFileSync(new URL('../internal/console/index.html', import.meta.url), 'utf8')
+  .replace('__SETUP__', readFileSync(new URL('../internal/console/setup.html', import.meta.url), 'utf8'));
 const script = readFileSync(new URL('../internal/console/assets/navigation.js', import.meta.url), 'utf8');
-const keys = ['home', 'monitor', 'cache', 'library', 'settings'];
+const keys = ['home', 'monitor', 'cache', 'library', 'settings', 'setup'];
 function page(hash = '') {
   let focused, scrolls = 0, pageChanges = 0, expectedPage;
   const events = {}, skipEvents = {};
   const nodes = new Map([...html.matchAll(/\bid="([^"]+)"/g)].map(([, id]) => [id, {
-    id, tagName: id === 'service' ? 'DETAILS' : 'DIV', textContent: '', hidden: false, value: '',
+    id, tagName: id === 'service' ? 'DETAILS' : 'DIV', textContent: '', hidden: false, value: '', dataset: {},
     focus() { focused = this; }, scrollIntoView() { scrolls++; },
   }]));
   const panels = keys.map(key => Object.assign(nodes.get('page-' + key), { dataset: { page: key } }));
-  const links = keys.map(key => ({ dataset: { pageLink: key },
+  const links = keys.filter(key => key !== 'setup').map(key => ({ dataset: { pageLink: key },
     setAttribute(name, value) { this[name] = value; }, removeAttribute(name) { delete this[name]; } }));
   const window = { location: { hash }, history: { replaceState(_, __, next) { window.location.hash = next; } },
     addEventListener(name, callback) { events[name] = callback; }, scrollTo() { scrolls++; } };
@@ -42,10 +43,21 @@ test('all routes show exactly one page with matching navigation and title', () =
   for (const key of [...keys, ...keys.toReversed()]) {
     p.go('#/' + key);
     assert.deepEqual(p.panels.filter(n => !n.hidden).map(n => n.dataset.page), [key]);
-    assert.deepEqual(p.links.filter(n => n['aria-current'] === 'page').map(n => n.dataset.pageLink), [key]);
+    assert.deepEqual(p.links.filter(n => n['aria-current'] === 'page').map(n => n.dataset.pageLink), key === 'setup' ? [] : [key]);
     assert.equal(p.document.title, p.nodes.get('pageLabel').textContent + ' · Still Wanna Dance');
   }
   assert.equal(p.focused.id, 'main');
+});
+
+test('setup owns the page without console navigation, including direct load and return', () => {
+  const p = page('#/setup');
+  for (const route of ['setup', 'settings', 'setup', 'home']) {
+    p.go('#/' + route);
+    for (const id of ['consoleHeader', 'consoleNav', 'consoleHero', 'consoleFooter']) assert.equal(p.nodes.get(id).hidden, route === 'setup');
+    assert.equal(p.nodes.get('consoleShell').dataset.view, route === 'setup' ? 'setup' : 'console');
+  }
+  assert.doesNotMatch(html, /data-page-link="setup"/);
+  assert.match(html, /href="#\/setup">重新打开使用引导/);
 });
 
 test('only a changed page requests fresh data, after panel visibility updates', () => {
@@ -102,13 +114,13 @@ test('navigation keeps drafts, selection, confirmation and expanded details moun
   assert.equal(p.nodes.get('cacheSearch').value, '舞曲');
   assert.equal(p.nodes.get('failures').open, true);
   assert.equal(p.skip(), true);
-  assert.equal(p.window.location.hash, '#/settings');
+  assert.equal(p.window.location.hash, '#/setup');
   assert.equal(p.focused.id, 'main');
 });
 
 test('markup groups every existing section once with only home initially visible', () => {
   const groups = { home: ['activation', 'service'], monitor: ['downloads', 'recent', 'network', 'healthCheck', 'healthCatalog', 'healthCatalogKiva', 'healthCatalogWanna', 'healthPlaybackHkg', 'healthPlaybackCf', 'healthResources'],
-    cache: ['overview', 'cache'], library: ['queue', 'batch'], settings: ['preferences'] };
+    cache: ['overview', 'cache'], library: ['queue', 'batch'], settings: ['preferences'], setup: ['setupTitle', 'setupNext', 'setupReset', 'setupLeave'] };
   const markupKeys = [...keys].sort((a, b) => html.indexOf(`id="page-${a}"`) - html.indexOf(`id="page-${b}"`));
   const positions = markupKeys.map(key => html.indexOf(`id="page-${key}"`));
   for (const [i, key] of markupKeys.entries()) {

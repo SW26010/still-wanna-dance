@@ -158,6 +158,10 @@ func (c *Console) termsPagePresence(pageID string, leaving bool) {
 
 // The gate precedes all application routes, including read APIs that can start work.
 func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
+	if r.Method == "GET" && r.URL.Path == "/api/terms/current" {
+		writeJSON(w, map[string]any{"text": legal.Text, "version": legal.Version, "sha256": legal.Hash(), "accepted": c.termsAccepted()})
+		return true
+	}
 	if r.Method == "GET" && r.URL.Path == "/terms.txt" {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		fmt.Fprint(w, legal.Text)
@@ -173,7 +177,8 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 		_ = termsTemplate.Execute(w, struct {
 			Text, Version, Hash, Token, PageID string
 			Accepted                           bool
-		}{legal.Text, legal.Version, legal.Hash(), c.token, pageID, c.termsAccepted()})
+			Welcome                            bool
+		}{legal.Text, legal.Version, legal.Hash(), c.token, pageID, c.termsAccepted(), r.URL.Path == "/"})
 		return true
 	}
 	if r.URL.Path == "/api/terms/leave" || r.URL.Path == "/api/terms/return" {
@@ -212,13 +217,18 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 			ContentRights bool   `json:"contentRights"`
 		}
 		if json.NewDecoder(http.MaxBytesReader(w, r.Body, 2048)).Decode(&input) != nil || !input.Agree || !input.ContentRights || input.Version != legal.Version || input.Hash != legal.Hash() {
-			http.Error(w, "请重新阅读当前条款并主动勾选两项确认", 400)
+			http.Error(w, "请重新阅读当前条款并主动确认同意及内容授权声明", 400)
 			return true
 		}
 		if err := c.acceptTerms(); err != nil {
 			slog.Error("terms_accept_failed", "error", err)
 			http.Error(w, "无法安全保存同意记录：需要 Windows 当前用户保护及可写的配置目录，请检查运行环境和日志后重试", 500)
 			return true
+		}
+		// Start at durable consent, independently of progress writes, browser
+		// navigation and the final settings application. Failure cannot revoke consent.
+		if err := c.checkSetupNetwork(); err != nil {
+			slog.Error("setup_network_start_failed", "error", err)
 		}
 		writeJSON(w, map[string]bool{"ok": true})
 		return true
@@ -232,30 +242,53 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 
 var termsTemplate = template.Must(template.New("terms").Parse(`<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>使用条款 · Still Wanna Dance</title><link rel="stylesheet" href="/assets/console.css"></head>
-<body><main style="max-width:880px;margin:32px auto;padding:24px"><h1>使用条款与内容权利声明</h1>
+<body><main class="setup-gate {{if .Accepted}}terms-readonly{{end}}">
+{{if not .Accepted}}<nav class="setup-steps" aria-label="引导步骤"><ol>
+<li><button id="gateWelcome" type="button" {{if .Welcome}}aria-current="step"{{end}}><span class="setup-step-number">1</span>欢迎使用</button></li>
+<li><button id="gateTerms" type="button" {{if not .Welcome}}aria-current="step"{{end}}><span class="setup-step-number">2</span>使用条款</button></li>
+<li><button disabled><span class="setup-step-number">3</span>存储设置</button></li><li><button disabled><span class="setup-step-number">4</span>导入视频</button></li><li><button disabled><span class="setup-step-number">5</span>网络检测</button></li><li><button disabled><span class="setup-step-number">6</span>上游设置</button></li><li><button disabled><span class="setup-step-number">7</span>本机接入</button></li><li><button disabled><span class="setup-step-number">8</span>核对应用</button></li>
+</ol></nav>{{end}}<div class="setup-gate-content">
+{{if not .Accepted}}<section id="welcome" {{if not .Welcome}}hidden{{end}} aria-labelledby="welcomeTitle">
+<h1 id="welcomeTitle" tabindex="-1">欢迎使用 Still Wanna Dance</h1>
+<p class="setup-slogan">Load failed?<br>But I still wanna dance!</p>
+<p class="setup-lead">播过即缓存，再播从本地读取。</p>
+<h2>运行方式与使用边界</h2>
+<ul class="setup-points"><li>Windows · VRChat WannaDance；解压后运行 SWD.exe。</li><li>HTTP 视频可缓存；HTTPS 仅透传。</li><li>同意条款后，关闭网页仍在托盘运行。</li><li>修改 hosts 需要 UAC；退出或删除程序后映射仍生效，停用前需手动恢复。</li></ul>
+<p class="setup-note">下一页阅读条款。未同意时功能停用；关闭此页约 60 秒后尝试退出。</p>
+</section>{{end}}
+<section id="termsPanel" {{if and .Welcome (not .Accepted)}}hidden{{end}} aria-labelledby="termsTitle"><h1 id="termsTitle" tabindex="-1">使用条款与内容权利声明</h1>
 {{if .Accepted}}<p>本机已确认当前条款。<a href="/">返回控制台</a></p>{{end}}
 <p><strong>MIT 仅授权本项目软件，不授予视频、音乐等第三方内容的使用权。能下载、已缓存或个人使用，均不当然等于获得授权。</strong></p>
 {{if not .Accepted}}<p>请特别阅读第 2、4、5 条。不同意不会启用缓存或下载；仍可恢复 hosts。</p>
 <p>未同意时，关闭或离开本页约 60 秒后程序将尝试自动退出；重新打开本页可取消。已同意后，关闭网页不会退出程序。</p>{{end}}
 <p>条款版本：{{.Version}} · <a href="/terms.txt" target="_blank" rel="noopener">查看／保存纯文本</a></p>
-<article style="white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8">{{.Text}}</article>
+<article class="setup-terms" tabindex="0" aria-label="完整使用条款">{{.Text}}</article>
 {{if not .Accepted}}
-<form id="consent"><p><label><input type="checkbox" id="rights" required> 我理解软件许可不等于第三方内容授权，并将基于必要授权或其他合法依据使用内容。</label></p>
-<p><label><input type="checkbox" id="agree" required> 我已阅读并同意完整条款，包括系统与数据影响以及担保与责任边界。</label></p>
-<button type="submit" id="accept" disabled>同意并进入</button> <button type="button" id="decline">不同意，保持停用</button></form>{{end}}
-<p><button type="button" id="restore">恢复 Still Wanna Dance 管理的 hosts</button> <button type="button" id="stop">停止缓存服务</button></p>
-<p id="result" role="status" aria-live="polite"></p></main>
+<form id="consent"><p>点击“确认同意条款”表示我已阅读并同意完整条款，包括系统与数据影响以及担保与责任边界；理解软件许可不等于第三方内容授权，并将基于必要授权或其他合法依据使用内容。确认立即保存。</p>
+</form>{{end}}
+</section>
+</div><div class="setup-footer"><p id="result" role="status" aria-live="polite"></p>
+<div class="setup-navigation"><div class="actions"><button type="button" id="restore">恢复 hosts</button><button type="button" id="stop">停止缓存服务</button></div>
+{{if not .Accepted}}<div class="actions"><button id="backWelcome" type="button" {{if .Welcome}}hidden{{end}}>上一步</button><button id="decline" type="button" {{if .Welcome}}hidden{{end}}>不同意，保持停用</button><button id="accept" class="primary" type="submit" form="consent" {{if .Welcome}}hidden{{end}}>确认同意条款</button><button id="readTerms" class="primary" type="button" {{if not .Welcome}}hidden{{end}}>下一步</button></div>{{end}}
+</div></div></main>
 <script>
 const token={{.Token}}, version={{.Version}}, sha256={{.Hash}}, pageID={{.PageID}};
 const result=document.getElementById('result');
 async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-SWD-Token':token},body:JSON.stringify(body)});if(!r.ok)throw new Error(await r.text());}
 const form=document.getElementById('consent');
-if(form){const agree=document.getElementById('agree'), rights=document.getElementById('rights'), accept=document.getElementById('accept');let busy=false;
+if(form){const accept=document.getElementById('accept');let busy=false;
+function showTerms(show){document.getElementById('welcome').hidden=show;document.getElementById('termsPanel').hidden=!show;document.getElementById('readTerms').hidden=show;for(const id of ['backWelcome','decline','accept'])document.getElementById(id).hidden=!show;
+const welcome=document.getElementById('gateWelcome'), terms=document.getElementById('gateTerms');if(show){terms.setAttribute('aria-current','step');welcome.removeAttribute('aria-current');}else{welcome.setAttribute('aria-current','step');terms.removeAttribute('aria-current');}document.getElementById(show?'termsTitle':'welcomeTitle').focus();}
+document.getElementById('readTerms').onclick=()=>showTerms(true);
+document.getElementById('backWelcome').onclick=()=>showTerms(false);
+document.getElementById('gateWelcome').onclick=()=>showTerms(false);
+document.getElementById('gateTerms').onclick=()=>showTerms(true);
 function presence(action){fetch('/api/terms/'+action,{method:'POST',keepalive:true,headers:{'Content-Type':'application/json','X-SWD-Token':token},body:JSON.stringify({pageID})}).catch(()=>{});}
 window.addEventListener('pagehide',()=>presence('leave'));
 window.addEventListener('pageshow',e=>{if(e.persisted)presence('return');});
-function update(){accept.disabled=busy||!agree.checked||!rights.checked;}form.addEventListener('change',update);
-form.addEventListener('submit',async e=>{e.preventDefault();if(busy||!agree.checked||!rights.checked)return;busy=true;update();try{await post('/api/terms/accept',{version,sha256,agree:true,contentRights:true});location.replace('/');}catch(e){result.textContent=e.message;busy=false;update();}});
-document.getElementById('decline').onclick=()=>{agree.checked=rights.checked=false;update();result.textContent='未同意，缓存与下载保持停用。可恢复 hosts 后关闭本页，程序将在约 60 秒后尝试自动退出；也可通过托盘退出。';};}
+function update(){accept.disabled=busy;}
+form.addEventListener('submit',e=>{e.preventDefault();return confirmTerms();});
+async function confirmTerms(){if(busy)return;busy=true;update();try{await post('/api/terms/accept',{version,sha256,agree:true,contentRights:true});try{await post('/api/setup',{schemaVersion:1,step:'terms',state:'active'});}catch(_){/* Consent is already durable; progress cannot revoke it or block entry. */}location.replace('/#/setup');}catch(e){result.textContent=e.message;busy=false;update();}}
+document.getElementById('decline').onclick=()=>{result.textContent='未同意，缓存与下载保持停用。可恢复 hosts 后关闭本页，程序将在约 60 秒后尝试自动退出；也可通过托盘退出。';};}
 for(const [id,path] of [['restore','/api/hosts/disable'],['stop','/api/stop']]){document.getElementById(id).onclick=async()=>{try{await post(path,{});result.textContent=id==='restore'?'hosts 恢复操作已完成。':'缓存服务已停止。';}catch(e){result.textContent=e.message;}};}
 </script></body></html>`))

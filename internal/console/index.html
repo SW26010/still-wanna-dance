@@ -10,24 +10,26 @@
     <script src="/assets/navigation.js" defer></script>
     <script src="/assets/console.js" defer></script>
     <script src="/assets/cache.js" defer></script>
+    <script src="/assets/setup.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main">跳到主要内容</a>
-    <div class="shell console-shell">
-      <header>
+    <div class="shell console-shell" id="consoleShell">
+      <header id="consoleHeader">
         <div class="brand"><span aria-hidden="true">↘</span>Still Wanna Dance</div>
         <div id="connection" role="status">正在连接…</div>
       </header>
-      <nav aria-label="控制台页面">
+      <nav id="consoleNav" aria-label="控制台页面">
         <a href="#/home" data-page-link="home" aria-current="page">开始使用</a>
         <a href="#/library" data-page-link="library">准备歌曲</a>
         <a href="#/cache" data-page-link="cache">本地缓存</a>
         <a href="#/monitor" data-page-link="monitor">运行状态</a>
         <a href="#/settings" data-page-link="settings">设置</a>
+        <a href="/help">使用帮助</a>
       </nav>
       <main id="main" tabindex="-1">
       <div class="visually-hidden" id="pageLabel">开始使用</div>
-      <section class="hero">
+      <section class="hero" id="consoleHero">
         <div>
           <h1 id="pageTitle">Load failed? But I still wanna dance!</h1>
           <p class="muted" id="pageDescription">复用已下载视频，也可提前准备房间队列。</p>
@@ -36,12 +38,14 @@
       </section>
       <noscript><p class="notice">控制台需要启用 JavaScript 才能切换页面和管理服务。</p></noscript>
       <div id="notice" class="notice" role="status" hidden></div>
+      __SETUP__
       <div id="page-home" data-page="home">
         <section class="card" id="activation" aria-labelledby="activationTitle" tabindex="-1">
         <div class="card-head"><h2 id="activationTitle">启用游戏加速</h2><a href="#service">高级接入设置</a></div>
         <p>启用后，在游戏中请求一首歌曲以检查接入。首次接入可能需要管理员权限。</p>
         <p class="hint">接入会修改本机 hosts，让游戏视频使用本地缓存；网页 HTTPS 视频仅转发。退出应用不会恢复接入，停用前请在下方恢复 hosts。</p>
-        <div class="actions"><button class="primary" id="enableAcceleration" data-action="activation/enable">启用游戏加速</button></div>
+        <section id="activationBody" tabindex="-1" aria-label="游戏接入操作">
+        <div class="actions" id="activationActions"><button class="primary" id="enableAcceleration" data-action="activation/enable">启用游戏加速</button></div>
         <div id="activationProgress" role="status">正在检查状态…</div>
         <ol aria-label="游戏加速接入状态">
           <li id="activationService">服务：待检查</li>
@@ -49,6 +53,7 @@
           <li id="activationRequest">视频请求：尚未开始本次检测</li>
         </ol>
         <p id="activationNext" class="hint"></p>
+        </section>
         <details class="help" id="activationTiming"><summary>检测时间</summary><p id="activationTime" class="muted"></p></details>
         <details class="help"><summary>接入与检测说明</summary><p class="hint">游戏 HTTP 视频可使用缓存，网页 HTTPS 播放仅转发。收到请求不代表游戏已播放成功。停用或卸载前，请在「高级接入设置」中恢复 hosts；退出应用不会自动恢复。</p></details>
       </section>
@@ -88,7 +93,7 @@
           <div id="hostsActionError" role="status"></div>
           <div class="actions hosts-actions">
             <button data-action="hosts/enable">修改 hosts</button
-            ><button data-action="hosts/disable">恢复 hosts</button>
+            ><button id="restoreHosts" data-action="hosts/disable">恢复 hosts</button>
           </div>
           <div class="hint">
             仅在实际修改时请求管理员权限。映射长期保留，停止缓存服务
@@ -98,6 +103,7 @@
 
       </div>
       <div id="page-monitor" data-page="monitor" hidden>
+        <section class="card"><h2>向导直连诊断</h2><p id="setupNetworkBackground" role="status">尚未运行向导诊断</p><details class="help"><summary>直连诊断详情</summary><ul id="setupDirectResults" class="health-checks"></ul></details><a href="#/setup">返回使用引导</a></section>
         <div>
           <label><input id="pauseMonitor" type="checkbox" aria-describedby="monitorRefreshState" /> 暂停下载与请求刷新</label>
           <p id="monitorRefreshState" class="hint" role="status">每 5 秒刷新；仅暂停下载和最近请求的展示更新，网络检测仍刷新，后台任务继续运行。</p>
@@ -288,7 +294,8 @@
         </section>
       </div>
       <div id="page-settings" data-page="settings" hidden>
-        <section class="card" aria-labelledby="importTitle">
+        <section class="card"><h2>使用引导</h2><p>整理存储、网络与导入清单，最后核对并应用。</p><a href="#/setup">重新打开使用引导</a></section>
+        <section class="card" id="importCard" aria-labelledby="importTitle">
           <h2 id="importTitle">从外部目录导入视频</h2>
           <p class="hint">先更新歌曲清单，再递归扫描并逐个校验 MD5，仅导入本地缺少的匹配视频。开始扫描后固定文件列表，不追踪改名或移动的文件。同盘使用 NTFS 硬链接，异盘复制；硬链接的两处文件共享内容，请勿修改源视频。</p>
           <p id="importDestination" class="hint"></p>
@@ -310,15 +317,8 @@
           </div>
           <div id="settingsActionError" role="status"></div>
           <form id="settings" aria-describedby="settingsAvailability">
-            <fieldset><legend>存储与启动</legend>
-            <label for="autoStartCDN"
-              ><input
-                id="autoStartCDN"
-                name="autoStartCDN" aria-describedby="autoStartHint"
-                type="checkbox"
-              />启动应用时开启本地缓存服务</label
-            >
-            <div class="hint" id="autoStartHint">下次启动应用时生效，不自动修改游戏接入（hosts）。</div>
+            <fieldset data-setup-settings="storage"><legend>存储与启动</legend>
+            <label class="setup-only"><input id="setupCustomStorage" type="checkbox" aria-describedby="setupStorageLocationHint"> 指定位置（Portable 目录外）</label>
             <label for="storageDir">存储文件夹</label
             ><input
               id="storageDir" aria-describedby="storageDirHint"
@@ -327,10 +327,11 @@
               spellcheck="false"
               placeholder="D:\still-wanna-dance-data"
             />
+            <p id="setupStorageLocationHint" class="setup-only setup-note">未勾选时使用 Portable 内的默认目录。</p>
             <div class="hint" id="storageDirHint">
               统一保存视频、歌曲资料和统计记录。下载中的文件也保存在此目录。
             </div>
-            <label for="maxCacheGiB">视频缓存上限（GiB）</label
+            <div class="setup-capacity"><label for="maxCacheGiB">视频缓存上限（GiB）</label><span id="setupDiskSpace" class="setup-only setup-note" role="status">正在读取分区容量…</span></div
             ><input
               id="maxCacheGiB" aria-describedby="maxCacheGiBHint"
               type="number"
@@ -341,6 +342,15 @@
               value="0"
             />
             <div class="hint" id="maxCacheGiBHint">0 表示不限。超限时清理低优先级视频；使用中的视频和临时文件可能使占用暂时超限。</div>
+            <div class="setup-storage-extra">
+            <label for="autoStartCDN"
+              ><input
+                id="autoStartCDN"
+                name="autoStartCDN" aria-describedby="autoStartHint"
+                type="checkbox"
+              />启动应用时开启本地缓存服务</label
+            >
+            <div class="hint" id="autoStartHint">下次启动应用时生效，不自动修改游戏接入（hosts）。</div>
             <label for="requestRetentionDays">请求明细保留天数</label
             ><input
               id="requestRetentionDays" aria-describedby="requestRetentionDaysHint"
@@ -352,16 +362,12 @@
               value="30"
             />
             <div class="hint" id="requestRetentionDaysHint">默认 30 天，0 表示永久保留。只清理请求明细，累计统计保留。</div>
-            </fieldset><fieldset><legend>网络连接</legend>
-            <label for="downloadUpstream">播放地址接口选择</label
-            ><select id="downloadUpstream" aria-describedby="downloadUpstreamHint" name="downloadUpstream">
-              <option value="auto">自动（推荐）</option>
-              <option value="cf">node=cf（播放地址接口）</option>
-              <option value="hkg">node=nya（播放地址接口）</option>
-            </select>
-            <div class="hint" id="downloadUpstreamHint">默认自动选择。固定线路只使用指定播放地址接口，视频来源由接口决定。</div>
-            <label for="upstreamMode">上游连接</label>
-            <select id="upstreamMode" aria-describedby="directConnectionHint" name="upstreamMode">
+            </div>
+            </fieldset><fieldset data-setup-settings="proxy"><legend>网络连接</legend>
+            <div class="setup-only setup-upstreams"><label><input id="setupDirect" type="checkbox" checked> 直连</label><label><input id="setupSocks5" type="checkbox"> SOCKS5</label></div>
+            <label for="upstreamMode" class="console-only">上游连接</label>
+            <select id="upstreamMode" class="console-only" aria-describedby="directConnectionHint" name="upstreamMode">
+              <option value="" disabled hidden>请选择至少一种连接方式</option>
               <option value="direct">直连（内置 DNS）</option>
               <option value="socks5">SOCKS5 代理</option>
               <option value="auto">自动选择直连或 SOCKS5</option>
@@ -375,12 +381,22 @@
             <label for="socks5Password">SOCKS5 密码</label>
             <input id="socks5Password" aria-describedby="socks5PasswordHint" name="socks5Password" type="password" autocomplete="new-password" />
             <div class="hint" id="socks5PasswordHint">填写代理软件的主机:端口。无需认证时留空；已有密码留空则保留，清空用户名和密码可移除认证。密码由 Windows 当前用户加密保护，换用户或电脑后可能需要重新输入。</div>
+            <p class="setup-only hint">无需认证可留空；已有密码留空保留，清空用户名和密码可移除认证。</p>
             <div class="hint" id="socks5CredentialError" role="status"></div>
             </div>
+            <div class="console-only">
+            <label for="downloadUpstream">播放地址接口选择</label
+            ><select id="downloadUpstream" aria-describedby="downloadUpstreamHint" name="downloadUpstream">
+              <option value="auto">自动（推荐）</option>
+              <option value="cf">node=cf（播放地址接口）</option>
+              <option value="hkg">node=nya（播放地址接口）</option>
+            </select>
+            <div class="hint" id="downloadUpstreamHint">默认自动选择。固定线路只使用指定播放地址接口，视频来源由接口决定。</div>
             <label for="throughputIntervalMinutes">自动测速间隔（分钟）</label>
             <input id="throughputIntervalMinutes" type="number" min="1" max="1440" step="1" required value="20" aria-describedby="throughputIntervalHint" />
             <div class="hint" id="throughputIntervalHint">默认 20 分钟，按上次测速时间安排下一次检测。</div>
-            </fieldset><fieldset><legend>房间队列</legend>
+            </div>
+            </fieldset><fieldset data-setup-settings="environment"><legend>房间队列与游戏日志</legend>
             <label for="autoStartQueue"><input id="autoStartQueue" name="autoStartQueue" type="checkbox" /> 启动应用时开启房间队列预缓存</label>
             <p class="hint">与缓存服务的自动启动独立。下载补齐期间临时暂停。</p>
             <label for="queuePrefetchCount">队列预缓存数量</label>
@@ -392,16 +408,17 @@
             <div class="hint" id="logDirHint">默认自动识别。仅在无法找到游戏日志时手动指定，取消勾选可恢复自动。</div>
             </fieldset>
             <p id="settingsAvailability" role="status">运行中可保存，重启应用后生效</p>
-            <button class="primary" type="submit" id="save">保存设置</button>
+            <div class="console-only"><button class="primary" type="submit" id="save">保存设置</button>
             <button type="button" id="discardSettings" disabled>放弃更改</button>
             <button type="button" id="restart" data-action="restart" hidden>立即重启并应用</button>
+            </div>
             <p class="hint">重启会停止当前服务和任务，按已保存的自动启动设置重新启动。批量任务需手动重新开始，hosts 映射保留。</p>
           </form>
         </section>
       </div>
       </main>
-      <footer>
-        <a href="/about">关于</a> · <a href="/terms">使用条款</a>
+      <footer id="consoleFooter">
+        <a href="/help">使用帮助</a> · <a href="/about">关于</a> · <a href="/terms">使用条款</a>
         <p>关闭网页后程序仍在运行。退出前如需停用游戏接入，请先<a href="#service">恢复 hosts</a>。</p>
         <button id="exit" data-action="exit">退出整个应用</button>
       </footer>

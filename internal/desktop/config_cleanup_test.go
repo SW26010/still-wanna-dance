@@ -3,6 +3,7 @@ package desktop
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"still-wanna-dance/internal/apppaths"
@@ -27,14 +28,29 @@ func TestConfigCleanupBelongsToLiveLease(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	owned := []string{p.Config, p.Terms, p.State("throughput"), p.State("inventory"), p.State("batch"), p.State("attempt")}
+	owned := []string{p.Config, p.Terms, p.State("throughput"), p.State("inventory"), p.State("batch"), p.State("attempt"), p.State("setup"), p.State("setup-apply"), p.State("setup-apply-" + strings.Repeat("a0", 32))}
 	for _, target := range owned {
 		put(target)
 		put(filepath.Join(filepath.Dir(target), workfiles.TempName(target)))
 	}
 	unknown := []string{filepath.Join(dir, workfiles.TempName("b.json")), filepath.Join(dir, ".settings-123"), filepath.Join(p.Root, "channel.key"), filepath.Join(p.Root, "channel.key.corrupt-123"), filepath.Join(p.Root, "state", ".snapshot-123"), filepath.Join(p.Root, "state", "throughput.json.corrupt-123")}
+	for _, name := range []string{
+		".setup-apply-" + strings.Repeat("a", 63) + ".json.swd-tmp",
+		".setup-apply-" + strings.Repeat("a", 65) + ".json.swd-tmp",
+		".setup-apply-" + strings.Repeat("A", 64) + ".json.swd-tmp",
+		".setup-apply-" + strings.Repeat("g", 64) + ".json.swd-tmp",
+		".setup-apply-" + strings.Repeat("a", 64) + ".json.swd-tmp.backup",
+		".setup-apply.json.swd-tmp.backup",
+	} {
+		unknown = append(unknown, filepath.Join(p.Root, "state", name))
+	}
+	other := apppaths.ForConfig(filepath.Join(dir, "other.json")).State("setup-apply")
+	unknown = append(unknown, filepath.Join(filepath.Dir(other), workfiles.TempName(other)))
 	for _, path := range unknown {
 		put(path)
+	}
+	if err := workfiles.Write(p.State("setup-apply"), []byte("new receipt")); err == nil {
+		t.Fatal("abandoned slot did not reproduce write failure")
 	}
 	if second, err := LockConfig(path); err == nil {
 		second.Close()
@@ -53,6 +69,11 @@ func TestConfigCleanupBelongsToLiveLease(t *testing.T) {
 			t.Fatal("protected file changed", target, err)
 		}
 	}
+	for _, target := range owned[len(owned)-2:] {
+		if err := workfiles.Write(target, []byte("new receipt")); err != nil {
+			t.Fatal("receipt write still blocked after startup cleanup", target, err)
+		}
+	}
 	lease.Close()
 	tmp := filepath.Join(dir, workfiles.TempName(path))
 	put(tmp)
@@ -61,5 +82,34 @@ func TestConfigCleanupBelongsToLiveLease(t *testing.T) {
 	}
 	if _, err := os.Stat(tmp); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestConfigCleanupDoesNotTraverseReceiptNamedDirectory(t *testing.T) {
+	p := apppaths.ForConfig(filepath.Join(t.TempDir(), "config.json"))
+	lease, err := LockConfig(p.Config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lease.Close()
+	if err := lease.CleanWorkFiles(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Dir(p.State("setup-apply"))); !os.IsNotExist(err) {
+		t.Fatal("cleanup created missing state directory", err)
+	}
+	target := p.State("setup-apply-" + strings.Repeat("f", 64))
+	child := filepath.Join(filepath.Dir(target), workfiles.TempName(target), "keep")
+	if err := os.MkdirAll(filepath.Dir(child), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(child, []byte("keep"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := lease.CleanWorkFiles(); err == nil {
+		t.Fatal("unsafe receipt slot was accepted")
+	}
+	if data, err := os.ReadFile(child); err != nil || string(data) != "keep" {
+		t.Fatal("unsafe directory was traversed or changed", err)
 	}
 }

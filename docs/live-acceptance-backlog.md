@@ -43,6 +43,8 @@
 
 ## #16 新增待验收
 
+2026-10-12 提交整理 1/4（存储边界，LA-029 / 29.4）：`workfiles.CheckFutureDir` 与 `cacheproxy.InspectStorage` 在目标尚不存在时逐级检查已有祖先。下轮在外部 junction 下指定不存在的多级缓存目录，分别执行目录检查、离页和最终应用；均应拒绝，正式配置与目标内容不变，普通新目录仍可使用。证据：脱敏路径关系、检查结果、配置/目录前后清单与哈希。自动检查：暂存版本的 console 存储场景、workfiles 全量与 cacheproxy Storage/Layout 测试通过；不替代实机验收。
+
 | 编号 | 功能与代码/验证依据 | 下轮步骤与通过条件 | 必需证据 / 环境 | 状态 | 批次 / 结果报告 |
 | --- | --- | --- | --- | --- | --- |
 | LA-029 | #16 清单式可重入引导；`internal/console/{terms,setup,setup_apply,setup_storage,setup_logs}.go`、`assets/{setup,console,navigation}.js`、`internal/desktop/config_lock.go` | 按[最终场景 29.1–29.10](issue-16-validation.md#待实机验收-la-029)逐项验证：一次性条款确认/有效记录门禁、独立内容校验、草稿与本页重置、离开挽留、存储边界/分区容量、最终确认后重启导入、同 ID 回执/超时恢复、临时槽清理、即时 hosts/UAC/80与443端口、VRC 日志只读检测、页面与离线帮助；确认前业务配置与导入不变，失败可见且无重复应用 | 隔离 Portable；文字操作记录、请求时序、脱敏配置/回执/日志、文件清单和哈希、hosts 差异、源码/包哈希及清理回执；不携带图片等二进制。至少真实重启后导入、UAC 拒绝/成功，联动 LA-004/009；自动检查见验证记录 | 待验收 | — |

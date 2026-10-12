@@ -12,7 +12,7 @@ import (
 // a database, taking its writer lease, cleaning files, or reading video bodies.
 // The runtime must still revalidate when opening; this is a point-in-time hint.
 func InspectStorage(root string) (existing bool, err error) {
-	if err := workfiles.CheckDir(root); err != nil && !os.IsNotExist(err) {
+	if err := workfiles.CheckFutureDir(root); err != nil {
 		return false, err
 	}
 	if err := checkStorageLayout(root); err != nil {

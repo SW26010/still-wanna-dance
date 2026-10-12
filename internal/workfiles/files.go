@@ -12,21 +12,31 @@ import (
 
 // CheckDir rejects redirected work directories, including Windows junctions.
 func CheckDir(path string) error {
+	return checkDir(path, false)
+}
+
+// CheckFutureDir checks every existing ancestor without creating the missing
+// suffix. A missing leaf must not hide an unsafe junction or symlink above it.
+func CheckFutureDir(path string) error {
+	return checkDir(path, true)
+}
+
+func checkDir(path string, allowMissing bool) error {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return err
 	}
 	for {
 		info, err := os.Lstat(path)
-		if err != nil {
+		if err != nil && !(allowMissing && os.IsNotExist(err)) {
 			return err
 		}
-		if !Directory(info) {
+		if err == nil && !Directory(info) {
 			return fmt.Errorf("unsafe work directory: %s", path)
 		}
 		parent := filepath.Dir(path)
 		if parent == path {
-			return nil
+			return err
 		}
 		path = parent
 	}

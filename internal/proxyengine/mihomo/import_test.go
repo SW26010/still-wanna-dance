@@ -3,6 +3,7 @@ package mihomo
 import (
 	"encoding/base64"
 	"encoding/json"
+	"maps"
 	"strings"
 	"testing"
 
@@ -150,5 +151,68 @@ func TestImportYAMLIsolatesInvalidItems(t *testing.T) {
 		if _, err := Import([]byte(input)); err == nil {
 			t.Fatal("invalid YAML document accepted")
 		}
+	}
+}
+
+func TestImportVLESSTLSOptionsOnlyDistinguishEnabledTLS(t *testing.T) {
+	options := map[string]any{
+		"servername": "private-sni.example", "fingerprint": strings.Repeat("ab", 32),
+		"client-fingerprint": "chrome", "skip-cert-verify": true, "alpn": []string{"h2"},
+	}
+	for _, mode := range []string{"missing", "disabled", "enabled"} {
+		t.Run(mode, func(t *testing.T) {
+			base := map[string]any{"type": "vless", "server": "localhost", "port": 1234, "uuid": "UserA"}
+			if mode != "missing" {
+				base["tls"] = mode == "enabled"
+			}
+			inputs := []map[string]any{base}
+			for key, value := range options {
+				p := maps.Clone(base)
+				p[key] = value
+				inputs = append(inputs, p)
+			}
+			data, _ := json.Marshal(map[string]any{"proxies": inputs})
+			r, err := Import(data)
+			want := 1
+			if mode == "enabled" {
+				want = len(inputs)
+			}
+			if err != nil || r.Accepted != want || r.Skipped != len(inputs)-want || r.Failed != 0 {
+				t.Fatalf("TLS identity counts: %+v %v", r.Items, err)
+			}
+			if mode != "enabled" {
+				for key := range options {
+					if _, exists := r.Nodes[0][key]; exists {
+						t.Fatalf("inactive TLS option retained: %s", key)
+					}
+				}
+			}
+		})
+	}
+	// VLESS URI conversion supplies TLS defaults too; the plain YAML and URI
+	// must produce the same connection identity when TLS is not enabled.
+	plain, _ := Import([]byte("proxies: [{type: vless, server: localhost, port: 1234, uuid: UserA}]"))
+	a, _ := json.Marshal(plain.Nodes)
+	for _, query := range []string{"", "?security=none&sni=private-sni.example&alpn=h2&pcs=" + strings.Repeat("ab", 32)} {
+		r, err := Import([]byte("vless://UserA@localhost:1234" + query))
+		b, _ := json.Marshal(r.Nodes)
+		if err != nil || r.Accepted != 1 || string(a) != string(b) {
+			t.Fatal("inactive URI TLS options changed identity", err)
+		}
+	}
+}
+
+func TestInactiveTLSNormalizationStillRejectsInvalidOptions(t *testing.T) {
+	for key, value := range map[string]any{
+		"tls": "false", "servername": true, "skip-cert-verify": "true",
+		"fingerprint": true, "client-fingerprint": 42, "alpn": map[string]any{"invalid": true},
+		"certificate": "private-unsupported", "sni": "private-unsupported",
+	} {
+		t.Run(key, func(t *testing.T) {
+			p := map[string]any{"type": "vless", "server": "localhost", "port": 1234, "uuid": "UserA", key: value}
+			if _, err := Normalize(p); err == nil {
+				t.Fatal("discarding inactive TLS bypassed validation")
+			}
+		})
 	}
 }

@@ -104,3 +104,11 @@ YAML 先识别文档结构，再逐条解码 proxies 列表；字符串、null�
 新增接口回归覆盖 12 次连续导入/丢弃、重复释放、鉴权拒绝、其他草稿与配置不变、8 份活跃上限；设置/引导专项 209/209 通过，覆盖替换、迟到清理、等待清理时再次离开，以及引导退出/恢复默认后普通设置草稿仍可保存。LA-036 补充实际桌面操作步骤，继续待验收。
 
 两批修复完成后的 Go 1.25.0 全量 `go test -tags=no_easytier ./cmd/... ./internal/...`、同范围 vet、241 项 Node 测试及生产脚本 Windows amd64 桌面构建均通过；`go mod tidy -diff`、gofmt 和 diff 空白检查通过。本次没有执行 Linux 运行、race、发行包/离线重建或真实游戏验收，先前产物记录不覆盖这些修复。
+
+### 未启用 TLS 的 VLESS 身份
+
+核对固定 Mihomo v1.19.32 的 TCP `streamTLSConn`：只有 TLS 开启时才使用 servername、fingerprint、client-fingerprint、skip-cert-verify 和 alpn。导入归一化先执行原有类型、允许字段及上游解析校验，再从未开启 TLS 的 VLESS 中剔除这五项；避免同一实际连接因无效 TLS 参数而分成多个身份、分散观测或占据多个活跃名额。TLS 开启时仍保留并区分这些有效参数，其他协议不受影响；未知字段和无效类型仍拒绝。
+
+新增回归覆盖 TLS 缺省/false 时逐项去重、TLS=true 时参数保持区分、URI/YAML 等价输入、无效参数不能绕过校验，以及 Console 导入快照、HMAC 身份和活跃名额均合并为一个。旧快照不在启动时静默改写；重新导入、保存并重启后应用新归一化，旧冗余身份的历史不自动合并。LA-034 增补对应场景，继续待验收。
+
+本轮 Go 1.25.0 的 `go test -tags=no_easytier ./internal/proxyengine/mihomo ./internal/console` 及同范围 vet 通过，包含本地协议夹具与上述新回归；gofmt 和 diff 空白检查通过。未重复无改动的前端测试，也未执行实机、race 或发行包重建。

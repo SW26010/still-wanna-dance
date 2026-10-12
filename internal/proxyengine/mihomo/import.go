@@ -268,5 +268,12 @@ func Normalize(input map[string]any) (map[string]any, error) {
 		return nil, ErrConfig
 	}
 	_ = n.Close()
+	if p["type"] == "vless" && p["tls"] != true {
+		// TCP VLESS ignores these options without TLS. Validate them above
+		// before dropping them so normalization cannot bypass the allowlist.
+		for _, key := range []string{"servername", "fingerprint", "client-fingerprint", "skip-cert-verify", "alpn"} {
+			delete(p, key)
+		}
+	}
 	return p, nil
 }

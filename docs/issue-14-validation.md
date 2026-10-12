@@ -45,3 +45,9 @@
 ## 维护门禁
 
 现有 Windows/Linux 检查增加 `pull_request` 触发，沿用 Go 1.25、`no_easytier`、Linux race 和 Windows Portable smoke。Dependabot 每周提交 Go 模块更新建议，不设置自动合并；Mihomo 继续固定 v1.19.32，单独人工复核 adapter、协议夹具、声明和完整对应源码后升级。本地不 push，因此未触发/声称通过远端 CI。仅维护工具配置，无新增产品行为，不另建实机项。
+
+## 固定工具链与产物复验
+
+Go 1.25.0 / Windows amd64：`go test -tags=no_easytier ./cmd/... ./internal/...`、同范围 `go vet` 通过；CGO=0 的 Linux amd64 桌面交叉构建通过，`go mod tidy` 无变化，gofmt 和 diff 空白检查通过。UI 最新专项 203/203 通过。尝试四个核心包 `-race` 因 `gcc` 不在 PATH 而编译失败；没有可用 WSL，故本轮不声称 race 或 Linux 运行测试通过，保留 PR CI Linux race 检查。
+
+正式流程前核对实际桌面编译依赖，发现新 YAML 导入库不在旧声明清单；补入固定版本原始 LICENSE、NOTICE、源码版权头、哈希和 Go h1，声明专项 2/2 通过。此变更仅补第三方交付材料，不改变运行行为；LA-034/035/036 保持待验收。

@@ -1,6 +1,8 @@
 # 第三方声明核对
 
-`reviewed-modules.json` 固定 Windows 桌面入口与已固定的 Mihomo adapter 依赖并集：97 个模块。每项包含模块版本、Go h1、原许可文件路径与 SHA256；整个根 `THIRD-PARTY-NOTICES.txt` 的 LF 文本另有 SHA256。构建从实际 EXE 读取模块身份；新增、升级、replacement、声明内容变化而未复核时失败。Go runtime/标准库许可按实际构建工具链追加。
+`reviewed-modules.json` 固定 Windows 桌面入口与已固定的 Mihomo adapter 依赖并集：98 个模块。每项包含模块版本、Go h1、原许可文件路径与 SHA256；整个根 `THIRD-PARTY-NOTICES.txt` 的 LF 文本另有 SHA256。构建从实际 EXE 读取模块身份；新增、升级、replacement、声明内容变化而未复核时失败。Go runtime/标准库许可按实际构建工具链追加。
+
+2026-10-13 #14 将 Mihomo 接入真实桌面，并新增一次性导入所用 `go.yaml.in/yaml/v3 v3.0.5`。核对固定模块的 LICENSE、NOTICE 与源文件头：libyaml 移植文件保留 Kirill Simonov/Canonical MIT，其余文件保留 Canonical Apache-2.0；原文追加至总声明，原始文件 SHA256 和模块 h1 加入清单，完整模块 ZIP 随对应源码交付。该模块没有额外嵌入二进制或生成输入声明。本次保留全部旧记录，不因 `no_easytier` 删除历史声明。
 
 2026-10-12 核对保留原有 SQLite、musl、Go 等声明，补入依赖模块内根目录及子目录的 LICENSE/LICENCE/COPYING/NOTICE/COPYRIGHT 全文（含原文件后缀），并保守收集源码开头版权行。包含一些未链接的源码/测试组件，不据此声称它们全部进入 EXE。上游完整模块 ZIP 仍独立随对应源码交付。
 

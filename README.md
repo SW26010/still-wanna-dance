@@ -112,6 +112,6 @@ Windows 桌面版需要 Go 1.25 或更新版本、Git 和 PowerShell。在仓库
 
 ## 开源许可与内容使用
 
-本项目采用 [MIT 许可证](LICENSE)，欢迎使用、修改和贡献。第三方依赖许可见[第三方声明](THIRD-PARTY-NOTICES.txt)。
+当前发行版采用 [GNU GPLv3](LICENSE)，自有新贡献使用 `GPL-3.0-only`；[历史 MIT 授权](LICENSE-MIT)仍有效。欢迎在适用许可下使用、修改和贡献。授权范围及对应源码义务见[许可说明](LICENSING.md)，第三方依赖保留[原始声明](THIRD-PARTY-NOTICES.txt)。
 
 软件开源许可不包含视频、音乐等第三方内容的授权。请仅在具有必要授权或其他合法依据时使用相关内容，并阅读[使用条款与内容权利声明](internal/legal/TERMS.txt)。仓库不包含视频、原版二进制或完整游戏日志。

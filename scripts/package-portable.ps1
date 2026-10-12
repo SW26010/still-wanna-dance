@@ -30,6 +30,7 @@ try {
     & "$PSScriptRoot/build-desktop.ps1" -Output (Join-Path $folder 'SWD.exe')
     Copy-Item -LiteralPath 'docs/portable-readme.txt' -Destination (Join-Path $folder 'README.txt')
     Copy-Item -LiteralPath 'LICENSE' -Destination (Join-Path $licenses 'LICENSE')
+    Copy-Item -LiteralPath 'LICENSE-MIT' -Destination (Join-Path $licenses 'LICENSE-MIT')
     Copy-Item -LiteralPath 'internal/legal/TERMS.txt' -Destination (Join-Path $licenses 'TERMS.txt')
     & "$PSScriptRoot/package-notices.ps1" -Executable (Join-Path $folder 'SWD.exe') -Output (Join-Path $licenses 'THIRD-PARTY-NOTICES.txt')
     $goVersion = & go version

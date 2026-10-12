@@ -1,15 +1,16 @@
 Still Wanna Dance third-party notices
 
-Still Wanna Dance is licensed under the MIT License in LICENSE. Third-party components
-retain their own copyright and license terms, reproduced below.
-This inventory covers dependencies approved for the existing desktop executable;
-some modules or subcomponents may not be linked on every target. The internal,
-not-yet-enabled Mihomo adapter has additional dependencies documented in
-internal/proxyengine/mihomo/README.md and LICENSE.mihomo. Its combined executable
-must not be treated as covered by the existing MIT-only distribution notices.
-Release packages append the licenses from the Go toolchain used to build the executable.
-When upgrading dependencies, review and update the versioned notices and embedded
-third-party notices below. The package script rejects unreviewed module versions.
+Copyright (c) 2026 Still Wanna Dance contributors.
+The current combined SWD distribution is offered under GNU GPL version 3. New
+original contributions use GPL-3.0-only. LICENSE contains GPLv3; LICENSE-MIT
+preserves historical MIT grants. Third-party components retain their own
+copyright and license terms, reproduced below. This inventory covers reviewed
+dependency versions; package checks reject unregistered versions and replacements.
+The maintainer accepted the unresolved license-version option of rasky/go-lzo
+v0.0.0-20200203143853-96a758eda86e as a non-blocking risk on 2026-10-12, not as proof
+of compatibility. Other license, notice and source-delivery requirements remain.
+Release packages append the actual Go toolchain's notices. See LICENSING.md and
+docs/issue-30-license-audit.md in the corresponding source for scope and evidence.
 
 ========================================================================
 Module: golang.org/x/net v0.57.0

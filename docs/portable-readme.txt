@@ -1,7 +1,7 @@
 Still Wanna Dance — Windows x64 portable
 
 首次使用请阅读 licenses/TERMS.txt，在控制台主动确认内容权利声明并同意完整条款。
-MIT 仅授权软件，不授予视频、音乐等第三方内容的下载、传播或商业使用权。
+软件许可证仅授权软件，不授予视频、音乐等第三方内容的下载、传播或商业使用权。
 未同意或条款更新后未重新确认时，不会自动启动播放网关或下载；仍可恢复 hosts。
 确认记录保存在 data/terms.json，由 Windows DPAPI 当前用户保护，无需额外 UAC。
 同用户在原环境中连同数据搬迁或升级且条款未变时保留确认；其他用户或普通独立机器须重新确认。
@@ -72,7 +72,7 @@ stepstash-console.json、still-wanna-dance-data 或 stepstash-data 会拒绝默�
 网页 HTTPS 播放保持原站加密连接，不使用本地缓存。
 目录不可写时请选择用户可写位置，避免 Program Files 等受保护目录。
 构建溯源见 build-info.json，下载完整性校验见 ZIP 旁 .sha256 文件。
-项目 MIT 许可见 licenses/LICENSE，第三方及 Go 运行库声明见
+当前发行的 GPLv3 全文见 licenses/LICENSE，历史 MIT 声明见 licenses/LICENSE-MIT；第三方及 Go 运行库声明见
 licenses/THIRD-PARTY-NOTICES.txt；重新分发或升级时保留并更新许可文件。
 
 程序日志位于 data/logs/app.log，与 VRChat 日志读取设置无关。

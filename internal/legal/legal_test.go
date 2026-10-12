@@ -6,7 +6,7 @@ import (
 )
 
 func TestExplicitVersionRequired(t *testing.T) {
-	for _, v := range []string{"", "true", "old"} {
+	for _, v := range []string{"", "true", "old", "2026-10-11.1"} {
 		if CheckAcceptance(v) == nil {
 			t.Fatalf("accepted %q", v)
 		}

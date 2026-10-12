@@ -110,10 +110,12 @@ package-notices check passed. Local `-race` could not build because this Windows
 host has no gcc. The retained Linux CI race check still needs to run; these
 results do not claim race-detector coverage or a Linux runtime test.
 
-Mihomo v1.19.32's GPLv3 text is preserved in `LICENSE.mihomo`. This source-only
-integration does not declare a future combined binary MIT-only or clear it for
-distribution. Current desktop entry points do not link this backend. Before
-enabling it there, review the combined license, corresponding source/build
-materials and all newly linked transitive notices. The existing packaging check
-continues to reject modules without versioned reviewed notices; no exception
-was added for Mihomo.
+Mihomo v1.19.32's GPLv3 text is preserved in `LICENSE.mihomo`. SWD's current
+combined distribution uses GPLv3; new original contributions use GPL-3.0-only,
+with historical MIT grants and third-party notices preserved. See
+[the audit](../../../docs/issue-30-license-audit.md). The pinned go-lzo license
+option is a maintainer-accepted non-blocking risk, not a confirmed compatibility
+finding. Its presence alone does not reject a release. Required corresponding
+source, notices and exact dependency checks still apply. The current desktop
+entry does not yet link this adapter; retain actual build evidence after #14
+integration. No fork or engine replacement is introduced for this risk.

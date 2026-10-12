@@ -18,6 +18,7 @@ SWD/
   build-info.json
   licenses/
     LICENSE
+    LICENSE-MIT
     TERMS.txt
     THIRD-PARTY-NOTICES.txt
 ```
@@ -28,7 +29,7 @@ SWD/
 
 `build-info.json` 记录版本、提交 SHA、dirty 状态、UTC 构建时间、Go 版本及目标平台。版本标签不等于 Git tag；允许打包未提交代码，并明确标记 dirty。
 
-`licenses/LICENSE` 为项目 MIT 许可证。`licenses/THIRD-PARTY-NOTICES.txt` 包含直接/间接依赖及内嵌组件许可全文；打包追加实际 Go 工具链声明。脚本从 EXE 模块版本校验声明覆盖，未登记版本或 replacement 会阻止打包。更新依赖需核对实际许可，不能只改声明中的版本号。单独分发 EXE 也应附带必要许可。
+`licenses/LICENSE` 为 GPLv3 全文，`licenses/LICENSE-MIT` 保留历史 MIT 授权与版权；自有新贡献采用 GPL-3.0-only，第三方许可不改写。`licenses/THIRD-PARTY-NOTICES.txt` 包含直接/间接依赖及内嵌组件许可全文；打包追加实际 Go 工具链声明。脚本从 EXE 模块版本校验声明覆盖，未登记版本或 replacement 会阻止打包。更新依赖需核对实际许可，不能只改声明中的版本号。单独分发 EXE 也应附带必要许可。
 
 用户双击 SWD.exe 显示托盘并打开网页；同一实际 EXE 和配置重复启动才打开已有实例，不同安装或配置显示冲突及归属。无需 CMD / PS1 启动脚本。仅编译可执行 `./scripts/build-desktop.ps1`，默认输出 `bin/SWD.exe`。
 

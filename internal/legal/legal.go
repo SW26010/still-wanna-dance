@@ -8,7 +8,7 @@ import (
 	"fmt"
 )
 
-const Version = "2026-10-11.1"
+const Version = "2026-10-12.1"
 
 //go:embed TERMS.txt
 var Text string

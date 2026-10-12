@@ -100,6 +100,6 @@ The current configuration format is version 3. Unversioned and version 1/2 test 
 
 ## License and content use
 
-This project is released under the [MIT License](LICENSE). You are welcome to use, modify, and contribute to it. Dependency licenses are included in the [third-party notices](THIRD-PARTY-NOTICES.txt).
+The current distribution is offered under [GNU GPLv3](LICENSE); new original contributions use `GPL-3.0-only`. [Historical MIT grants](LICENSE-MIT) remain valid. You are welcome to use, modify, and contribute under the applicable licenses. See [licensing and source delivery](LICENSING.md) and the preserved [third-party notices](THIRD-PARTY-NOTICES.txt).
 
 The software license does not grant rights to third-party videos, music, or other content. Use content only with the necessary authorization or another lawful basis, and read the [terms of use and content rights statement (Chinese)](internal/legal/TERMS.txt). This repository does not include videos, binaries from the original application, or complete game logs.

@@ -12,6 +12,10 @@ import (
 )
 
 type Options struct {
+	// Channel selects an application-owned observation scope. Nil uses Default.
+	// Diagnostics can supply a private channel without publishing probe transports
+	// or recommendations to business consumers. The owner closes its transports.
+	Channel *upstreamrequest.Channel
 	// OnCatalog receives successful responses once per batch, outside monitor locks.
 	// It must respect cancellation; Close waits for it to return.
 	OnCatalog           func(context.Context, []CatalogResponse)
@@ -73,10 +77,14 @@ type Monitor struct {
 }
 
 func NewMonitor(o Options) (*Monitor, error) {
-	return newMonitor(o, upstreamrequest.Default)
+	channel := o.Channel
+	if channel == nil {
+		channel = upstreamrequest.Default
+	}
+	return newMonitor(o, channel)
 }
 
-// The request-channel seam is private. Callers only configure check policy.
+// Both business and scoped diagnostics use the same measurement implementation.
 func newMonitor(o Options, channel *upstreamrequest.Channel) (*Monitor, error) {
 	p := normalized(o.Policy)
 	if err := validatePolicy(p); err != nil {

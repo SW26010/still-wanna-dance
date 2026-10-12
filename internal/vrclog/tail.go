@@ -14,6 +14,25 @@ const DiscoverInterval = 15 * time.Second
 const maxChunk = 4 << 20
 const maxLine = 1 << 20
 
+// LatestPath selects by VRChat's sortable session filename, not modification
+// time: copying an old log must not make it the current session.
+func LatestPath(dir string) (string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", err
+	}
+	latest := ""
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasPrefix(e.Name(), "output_log_") && strings.HasSuffix(e.Name(), ".txt") && e.Name() > latest {
+			latest = e.Name()
+		}
+	}
+	if latest == "" {
+		return "", nil
+	}
+	return filepath.Join(dir, latest), nil
+}
+
 // Tail is single-owner. Existing logs start at EOF; new sessions start at zero.
 // Partial UTF-8 lines are retained until the next newline, with bounded memory.
 type Tail struct {
@@ -31,20 +50,11 @@ func (t *Tail) Poll(now time.Time) ([]Event, error) {
 	var events []Event
 	if !now.Before(t.nextScan) {
 		t.nextScan = now.Add(DiscoverInterval)
-		entries, err := os.ReadDir(t.Dir)
+		path, err := LatestPath(t.Dir)
 		if err != nil {
 			return nil, err
 		}
-		// VRChat filenames contain sortable session start timestamps. Do not jump
-		// backwards when an old log's mtime changes (e.g. an archive copy).
-		latest := ""
-		for _, e := range entries {
-			if !e.IsDir() && strings.HasPrefix(e.Name(), "output_log_") && strings.HasSuffix(e.Name(), ".txt") && e.Name() > latest {
-				latest = e.Name()
-			}
-		}
-		if latest != "" && (t.Path == "" || latest > filepath.Base(t.Path)) {
-			path := filepath.Join(t.Dir, latest)
+		if path != "" && (t.Path == "" || filepath.Base(path) > filepath.Base(t.Path)) {
 			info, err := os.Stat(path)
 			if err != nil {
 				return nil, err

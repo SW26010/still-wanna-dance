@@ -17,10 +17,12 @@ test('Mihomo import stages a private report and saves only an opaque draft ID', 
   get('proxyImportText').value='private URI input'; get('settings').dispatchEvent({type:'input'});
   assert.match(get('proxyImportText').validationMessage,/先检查/);
   get('proxyImport').click();
+  assert.equal(get('save').disabled,true);
   const request=p.requests.at(-1); assert.equal(request.url,'/api/proxy/import'); assert.equal(request.body,'private URI input');
   assert.equal(p.requests.some(r=>r.url==='/api/settings'),false);
   request.finish({id:'opaque-node-draft',accepted:2,skipped:1,failed:1,items:[{index:1,status:'accepted',protocol:'ss'},{index:2,status:'failed',reason:'不支持'}]}); await flush();
   assert.equal(get('proxyImportText').value,''); assert.equal(get('proxyImportID').value,'opaque-node-draft');
+  assert.equal(get('save').disabled,false);
   assert.match(get('proxyImportSummary').textContent,/接受 2.*跳过 1.*失败 1/);
   assert.equal(get('proxyImportResults').children.length,2); assert.doesNotMatch(get('proxyImportResults').textContent,/private/);
   get('settings').dispatchEvent({type:'submit'});

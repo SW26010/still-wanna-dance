@@ -70,6 +70,13 @@ test('wizard stages Mihomo draft through the shared final save and omits raw nod
   assert.equal(applied.body.proxyImportText,undefined);
 });
 
+test('wizard cannot apply while a node preview is pending',async()=>{
+  const s=setup({step:'finish'});await flush();
+  s.window.swdProxyImportPending=()=>true;s.context.renderControls();
+  assert.equal(s.node('setupNext').disabled,true);assert.equal(s.node('storageDir').disabled,true);
+  s.window.swdProxyImportPending=()=>false;s.context.renderControls();assert.equal(s.node('setupNext').disabled,false);
+});
+
 test('one network retry runs all diagnostics and preserves failure feedback',async()=>{
   let failed=true;
   const s=setup({step:'proxy',request:async path=>path==='/api/setup/network'&&failed?{error:'离线'}:{}});await flush();

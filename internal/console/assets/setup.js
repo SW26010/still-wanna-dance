@@ -154,7 +154,7 @@
       for (const id of ['setupCustomStorage','setupDirect','setupSocks5']) $(id).disabled = true;
       return;
     }
-    const locked = applying || !!application || advancing;
+    const locked = applying || !!application || advancing || !!globalThis.swdProxyImportPending?.();
     for (const id of ['setupShowTerms','setupCloseTerms']) $(id).disabled = false;
     $('setupRestoreHelp').disabled = beforeConsentBusy || hostsUpdating;
     $('setupAcceptTerms').disabled = locked || terms?.accepted === true;
@@ -466,7 +466,7 @@
   function renderNavigation() {
     $('setupCheckAccess').disabled = accessChecking || logsChecking || !connected;
     $('setupCheckAccess').dataset.busy = String(accessChecking || logsChecking);
-    const locked = loading || !entered || advancing || applying || !!application;
+    const locked = loading || !entered || advancing || applying || !!application || !!globalThis.swdProxyImportPending?.();
     stepButtons.forEach((button,index) => {
       button.disabled = locked || !canVisitStep(steps[index]);
       if (steps[index] === step) button.setAttribute('aria-current','step'); else button.removeAttribute('aria-current');
@@ -481,6 +481,7 @@
     $('setupNext').disabled = loading || !entered || advancing || applying || checkingReceipt || waitingForRestart() || application?.phase === 'importing';
     $('setupNext').disabled ||= step === 'finish' && !connected && !restartProblem;
     $('setupNext').disabled ||= step === 'welcome' && !canVisitStep('storage');
+    $('setupNext').disabled ||= !!globalThis.swdProxyImportPending?.();
     $('setupNext').hidden = false;
     $('setupNext').textContent = restartProblem ? '重新连接并核对' : application?.phase === 'uncertain' ? '核对应用结果' : application ? '返回控制台' : step === 'finish' ? '确认并应用' : '下一步';
     $('setupLeave').disabled = beforeConsentBusy || applying || waitingForRestart() || application?.phase === 'importing';

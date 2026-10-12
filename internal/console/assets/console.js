@@ -337,6 +337,7 @@ $('importCleanupButton').addEventListener('click', () => {
   action('import/cleanup', {id: lastState.import.id, confirmed: true});
 });
 let proxyImportGeneration = 0, proxyImportPending = false;
+globalThis.swdProxyImportPending = () => proxyImportPending;
 const proxyImportReports = new Map();
 function resetProxyImport() {
   proxyImportGeneration++;
@@ -445,7 +446,7 @@ function renderSettings(s) {
 
 function renderControls() {
   const s = lastState;
-  const unavailable = exiting || !connected || busy || !s || activationPending(s);
+  const unavailable = exiting || !connected || busy || !s || activationPending(s) || !!globalThis.swdProxyImportPending?.();
   for (const b of document.querySelectorAll('button')) b.disabled = unavailable;
   $('importStart').disabled ||= !!s?.import?.running;
   $('importSource').disabled = unavailable || !!s?.import?.running;

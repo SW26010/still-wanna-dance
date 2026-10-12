@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"maps"
 	"net"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -209,6 +211,37 @@ func TestProtocolsAndMultiPool(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestConvertedVLESSTLSUsesAuditedFingerprint(t *testing.T) {
+	for _, params := range fixtureNodes {
+		if params["type"] != "vless" {
+			continue
+		}
+		u := &url.URL{Scheme: "vless", User: url.User(params["uuid"].(string)), Host: net.JoinHostPort(params["server"].(string), fmt.Sprint(params["port"]))}
+		query := url.Values{"security": {"tls"}, "sni": {params["servername"].(string)}, "pcs": {params["fingerprint"].(string)}}
+		u.RawQuery = query.Encode()
+		result, err := Import([]byte(u.String()))
+		if err != nil || result.Accepted != 1 {
+			t.Fatal("VLESS import failed", err)
+		}
+		var calls atomic.Int32
+		n, err := New(Config{ID: "stable-v1-" + strings.Repeat("c", 64), Parameters: result.Nodes[0]}, nodeOptions(t, &calls))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer n.Close()
+		pool, err := upstreamrequest.NewMultiPool("socks5", nil, []upstreamrequest.Proxy{n.Proxy()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer pool.Close()
+		if err := httpThrough(pool.Current("http://business.invalid")[0].Transport, "/", 2*time.Second); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	t.Fatal("missing VLESS fixture")
 }
 
 func TestRealColdDNSCancellationAndRetirement(t *testing.T) {

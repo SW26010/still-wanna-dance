@@ -1,0 +1,86 @@
+{
+  "revision": "17fa8b5cf06a0a87ea8dcbef9b7b123a7d3acd50",
+  "tag": "v0.0.0-issue14-validation.2",
+  "toolchain": "go1.25.0",
+  "target": "windows/amd64",
+  "modules": 96,
+  "sourceGraphModules": 194,
+  "completeModuleZIPs": 96,
+  "sourceFiles": 1161,
+  "assets": [
+    {
+      "kind": "portable",
+      "name": "still-wanna-dance-v0.0.0-issue14-validation.2-windows-amd64-portable.zip",
+      "sha256": "a84801fdd08d864627ef9dd16d9efc6a83b17a8a0638952e24ea89e1988549e3",
+      "bytes": 16165136
+    },
+    {
+      "kind": "source",
+      "name": "still-wanna-dance-v0.0.0-issue14-validation.2-corresponding-source.tar.gz",
+      "sha256": "1a75ce9641cd93c4e5fc5bcb924fd37e2b340120448b241d106ef674b4f15e94",
+      "bytes": 185936966
+    }
+  ],
+  "executable": {
+    "bytes": 42090496,
+    "sha256": "a5688f7ea63a10fadd54dbbd12ae35d42d8b6ed8fd730924e21751ca3fe2cc1a",
+    "settings": {
+      "-buildmode": "exe",
+      "-compiler": "gc",
+      "-tags": "no_easytier",
+      "-trimpath": "true",
+      "CGO_ENABLED": "0",
+      "GOARCH": "amd64",
+      "GOOS": "windows",
+      "GOAMD64": "v1",
+      "vcs": "git",
+      "vcs.revision": "17fa8b5cf06a0a87ea8dcbef9b7b123a7d3acd50",
+      "vcs.modified": "false"
+    }
+  },
+  "independentRebuild": {
+    "verified": true,
+    "executableSHA256": "2dc50de757a5b1bd22bf7f31768a2a5dbdc68ca2902c9b034d2a5b05ac459b18",
+    "bitReproducible": false
+  },
+  "linkedModuleIdentities": [
+    {
+      "path": "github.com/metacubex/mihomo",
+      "version": "v1.19.32",
+      "sum": "h1:uD7ZC3P77isWD554NNvtee65L+99+/C5hyc+Lk8rVEk="
+    },
+    {
+      "path": "github.com/rasky/go-lzo",
+      "version": "v0.0.0-20200203143853-96a758eda86e",
+      "sum": "h1:dCWirM5F3wMY+cmRda/B1BiPsFtmzXqV9b0hLWtVBMs="
+    },
+    {
+      "path": "go.yaml.in/yaml/v3",
+      "version": "v3.0.5",
+      "sum": "h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw="
+    }
+  ],
+  "checks": {
+    "deliveredAssetHashes": true,
+    "sourceFileHashes": true,
+    "exeSourceAndNoticesIdentity": true,
+    "easyTierModuleAbsent": true,
+    "knownEasyTierWasmAbsent": true,
+    "noSourceGitOrArtifacts": true,
+    "moduleZIPsContainNoWasmEntries": true
+  },
+  "scope": "Local development validation only. No published release, game, tray, hosts, or cross-user acceptance.",
+  "linkedDesktopSymbolProbe": {
+    "revision": "17fa8b5cf06a0a87ea8dcbef9b7b123a7d3acd50",
+    "build": "go build -trimpath -tags=no_easytier -ldflags -H=windowsgui ./cmd/still-wanna-dance-console",
+    "purpose": "Same desktop entry with symbols retained, separately from the stripped production EXE.",
+    "observed": [
+      "github.com/metacubex/mihomo/adapter.ParseProxy",
+      "github.com/metacubex/mihomo/adapter/outbound.NewShadowSocks",
+      "github.com/metacubex/mihomo/adapter/outbound.NewVless",
+      "github.com/metacubex/mihomo/adapter/outbound.NewAnyTLS",
+      "github.com/metacubex/mihomo/adapter/outbound.NewHysteria2",
+      "github.com/rasky/go-lzo.Decompress1X"
+    ]
+  }
+}

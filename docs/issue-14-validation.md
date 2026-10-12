@@ -53,3 +53,26 @@ Go 1.25.0 / Windows amd64：`go test -tags=no_easytier ./cmd/... ./internal/...`
 正式流程前核对实际桌面编译依赖，发现新 YAML 导入库不在旧声明清单；补入固定版本原始 LICENSE、NOTICE、源码版权头、哈希和 Go h1，声明专项 2/2 通过。此变更仅补第三方交付材料，不改变运行行为；LA-034/035/036 保持待验收。
 
 同步 README（中/英）、控制台指南和内置帮助：移除“未接入向导”的旧说明，写明共用导入、草稿替换、加密、活跃上限以及游戏 HTTPS 始终直连；手动桌面构建示例补 `no_easytier`。仅说明现有已实现行为，不新增实机项；帮助页转义/重入与嵌入资源测试通过。
+
+### 实际桌面发行链
+
+被测源码 `17fa8b5cf06a0a87ea8dcbef9b7b123a7d3acd50`，在独立本地克隆创建 `v0.0.0-issue14-validation.2`，主仓库没有该标签。产物仅在忽略目录 `artifacts/issue14/release-check/`，没有 push、上传或创建 Release。第一次对 `1001655` 的构建被 YAML 声明缺失拦下，没有交付附件；补齐后整条流程成功。验证克隆的 origin 已核实是本地仓库目录，不是 GitHub。
+
+执行 `node scripts/release.mjs create` 完成干净检出的全量 Node、Go 测试和 vet，生成对应源码，生产参数构建桌面 EXE，空模块/编译缓存、仅包内 file GOPROXY 独立重建，再对真实 Portable ZIP 做隔离 smoke。随后对最终落盘附件重新校验大小/SHA256、解压源码逐文件哈希以及 EXE、源码身份、SOURCE 入口与第三方声明。结果见[脱敏产物记录](evidence/issue14-development/release-validation.json)。
+
+| 产物 | 字节数 | SHA256 |
+| --- | ---: | --- |
+| Portable ZIP | 16,165,136 | `a84801fdd08d864627ef9dd16d9efc6a83b17a8a0638952e24ea89e1988549e3` |
+| 完整对应源码 tar.gz | 185,936,966 | `1a75ce9641cd93c4e5fc5bcb924fd37e2b340120448b241d106ef674b4f15e94` |
+| 正式桌面 EXE | 42,090,496 | `a5688f7ea63a10fadd54dbbd12ae35d42d8b6ed8fd730924e21751ca3fe2cc1a` |
+| 独立重建 EXE | — | `2dc50de757a5b1bd22bf7f31768a2a5dbdc68ca2902c9b034d2a5b05ac459b18` |
+
+实际 EXE 有 96 个固定依赖，包括 Mihomo v1.19.32、go-lzo 和 YAML；对应源码交付 194 个模块图记录、96 个完整模块 ZIP、1,161 个文件及既有 SQLite 原始输入。生产 EXE 记录 `no_easytier`，没有 EasyTier 模块和已知完整 WASM 字节；96 个模块 ZIP 内没有 `.wasm` 条目。源码不含 `.git` 或本地 artifacts。独立重建依赖身份相同，不声称 EXE 比特一致。
+
+另用同一桌面入口保留符号构建，并用 `go tool nm` 确认 ParseProxy、SS/VLESS/AnyTLS/Hysteria2 构造器以及 go-lzo.Decompress1X 实际保留，避免把模块图当作链接证据。符号探针与剥离符号的生产 EXE 分开记录。go-lzo 的版本选项疑点继续沿用已接受的非阻断风险，没有宣称许可证兼容性已确认。
+
+Portable smoke 只运行自己创建的 `-no-tray -no-open` 隔离进程，覆盖条款门禁、配置身份/锁、异常退出后的启动、覆盖升级、移动、并发配置隔离和旧布局拒绝；结束后回收这些进程，未接受条款、启动游戏、操作真实托盘或修改 hosts。
+
+后续 `d190f64` 仅更新内置帮助和使用文档，不改变代理实现；帮助/嵌入资源专项通过，最终 Node 全量 **235/235** 通过。上述测试产物对应 `17fa8b5`，不冒充包含后续帮助文字的发行包。真正发布时须按实际版本重新构建、同发两个附件并核验公开下载（#5）；本地测试标签生成的下载 URL 当前没有发布。
+
+开发完成。**LA-034、LA-035、LA-036 继续待实机验收**，原台账所有历史项保留。本轮未覆盖真实 VRChat/托盘、第三方公网代理、跨真实用户/机器、Linux 运行和 race；自动夹具与 Portable smoke 不替代这些结论。末次记录与证据提交不改变产品运行行为，不新增实机项。

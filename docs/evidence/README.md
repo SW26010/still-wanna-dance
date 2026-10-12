@@ -8,6 +8,7 @@
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [issue14-development/release-validation.json](issue14-development/release-validation.json) | #14 桌面接入后的本地正式构建、实际附件哈希、96 个依赖及完整源码、独立重建和符号证据；仅开发验证，非发布或实机验收，详见[记录](../issue-14-validation.md) |
 | [issue-16-ui/20261012-single-confirm.md](issue-16-ui/20261012-single-confirm.md) | #16 直连范围固定标注、单次应用直达控制台、修复入口/导入条件显示及空间文案；211 项前端、Go 与内存浏览器开发检查，LA-029/030 待验收 |
 | [issue-16-ui/20261012-picker-focus-dpi.md](issue-16-ui/20261012-picker-focus-dpi.md) | #16 目录窗口归属与 Per-Monitor V2 DPI；原生 API 定向测试、预览取消清理，窗口视觉与多屏缩放仍待 LA-029 |
 | [issue-16-ui/20261012-local-feedback.md](issue-16-ui/20261012-local-feedback.md) | #16 目录框局部提示、hosts 成功文案去重、存储/网络刷新稳定布局；208 项前端测试、Go 定向回归和延迟内存预览，仍待实机验收 |

@@ -13,7 +13,10 @@ MIT 仅授权软件，不授予视频、音乐等第三方内容的下载、传�
    无需启动脚本，也不需要安装 Go、Node.js 或其他运行库。
    同意条款后关闭网页，程序仍在托盘运行；再次双击会打开已有控制台。
    未同意时关闭条款页会尝试在 60 秒后退出，重新打开可取消。
-3. 在设置中选择存储目录，保存后重启应用以应用设置。
+3. 首次从欢迎页主动确认条款，再按引导检查存储、可选导入、网络、上游和本机接入。
+   无需修改的步骤直接下一步，最后核对并应用；可从设置或帮助重新打开引导。
+   “使用帮助”提供离线操作说明。
+   也可在设置中选择存储目录，保存后重启应用以应用设置。
    默认存储为 data/storage，按需创建；视频在 videos，资料和统计在 storage.sqlite。
    VRChat 日志默认随当前用户自动读取，仅自定义路径时勾选“手动指定”。
    全曲目下载可能占用大量空间，请按需设置容量上限。
@@ -27,7 +30,7 @@ MIT 仅授权软件，不授予视频、音乐等第三方内容的下载、传�
 条款确认、通道身份密钥、可重建状态和日志分别为：
   data/terms.json
   data/channel.key
-  data/state/throughput.json、inventory.json、batch.json、attempt.json
+  data/state/throughput.json、inventory.json、batch.json、attempt.json、setup.json
   data/logs/app.log 及其轮转副本
 以上文件只在相应功能需要时创建。任务摘要不是断点续传记录。
 

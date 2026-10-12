@@ -24,7 +24,7 @@ Just extract and run. The app lives in the Windows system tray and requires no G
 The desktop app targets Windows x64. Choose a writable folder for the app and allow enough disk space for your videos. Chinese interface labels are included below to help you find the controls.
 
 1. Look for a Windows portable ZIP on the [releases page](https://github.com/SW26010/still-wanna-dance/releases). Extract the entire archive, then double-click `SWD.exe`. If no release package is available yet, you can [build from source](#build-from-source).
-2. The app opens its local web console. On first launch, read and accept the terms of use.
+2. The app opens a welcome page, followed by the terms for your explicit acceptance. The guide covers storage, optional import, network checks, upstream settings and local access, then lets you review and apply your changes. Keep the defaults with Next where no changes are needed. Reopen the guide from Settings or Help (使用帮助).
 3. Open Settings (设置) and choose your storage folder, save, then click Restart and apply (立即重启并应用). The VRChat log folder is detected automatically by default.
 4. On Get started (开始使用), click Enable game acceleration (启用游戏加速) and follow the prompts to configure the hosts entries. Windows will ask for permission when the app needs to modify the hosts file.
 5. Enter WannaDance and request a song. Check the connection and request status on Get started, then use Activity (运行状态) and Local cache (本地缓存) to follow downloads and inspect cached files.

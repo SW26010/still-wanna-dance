@@ -69,3 +69,46 @@ func TestProtectedNodesSaveRestartMoveAndFailedReplacement(t *testing.T) {
 		t.Fatal("failed save changed disk")
 	}
 }
+
+func TestSetupAppliesNodeDraftOnlyAtFinalConfirmation(t *testing.T) {
+	c := testConsole(t)
+	result, err := c.importProxyNodes([]byte(nodeFixture))
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := setupTestPlan(c)
+	plan.UpstreamMode, plan.ProxyBackend, plan.ProxyImportID = "proxy", "mihomo", result.ID
+	preview := plan
+	preview.Page = "proxy"
+	before, _ := os.ReadFile(c.configPath)
+	if _, err := c.validateSetupPlan(preview); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := os.ReadFile(c.configPath)
+	if !bytes.Equal(before, after) || c.savedSettings.nodeSnapshot != "" {
+		t.Fatal("validation persisted nodes")
+	}
+	applied, err := c.applySetupPlan(plan)
+	if err != nil || !applied.ConfigSaved || applied.Phase != "restart" {
+		t.Fatal("wizard did not save nodes", err, applied.Phase)
+	}
+	if c.savedSettings.nodeSnapshot == "" || c.settings.nodeSnapshot != "" {
+		t.Fatal("wizard activated draft early")
+	}
+	receipt, _ := os.ReadFile(c.files().State("setup-apply"))
+	if bytes.Contains(receipt, []byte("private")) || bytes.Contains(receipt, []byte(result.ID)) {
+		t.Fatal("receipt retained private nodes or draft token")
+	}
+	if _, err := c.validateSetupPlan(preview); err == nil {
+		t.Fatal("stale wizard ignored changed snapshot")
+	}
+	loaded, err := New(c.configPath, c.address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer loaded.Close()
+	loaded.resumeSetupApplication(func(string) error { t.Fatal("unexpected media import"); return nil })
+	if loaded.setupApplication.Phase != "completed" || loaded.settings.nodeSnapshot != c.savedSettings.nodeSnapshot || len(loaded.client.Transport.(*mihomoTransport).nodes) != 1 {
+		t.Fatal("node restart continuation failed")
+	}
+}

@@ -9,6 +9,44 @@ const cacheScript = readFileSync(new URL('../internal/console/assets/cache.js', 
 const flush = () => new Promise(resolve => setImmediate(resolve));
 const resourceGroup = (p, domain) => p.document.getElementById('healthResources').children.find(s => s.children[0]?.textContent === domain)?.children[1];
 
+test('Mihomo import stages a private report and saves only an opaque draft ID', async () => {
+  const p = page(), get = id => p.document.getElementById(id);
+  p.finishBatch(0, {upstreamMode:'proxy',proxyBackend:'mihomo'}, {proxyNodes:{saved:9,loaded:7,active:5}}); await flush();
+  assert.equal(get('socks5Address').disabled,true); assert.equal(get('socks5Address').required,false);
+  assert.match(get('proxyNodeStatus').textContent,/9.*7.*5/);
+  get('proxyImportText').value='private URI input'; get('settings').dispatchEvent({type:'input'});
+  assert.match(get('proxyImportText').validationMessage,/先检查/);
+  get('proxyImport').click();
+  const request=p.requests.at(-1); assert.equal(request.url,'/api/proxy/import'); assert.equal(request.body,'private URI input');
+  assert.equal(p.requests.some(r=>r.url==='/api/settings'),false);
+  request.finish({id:'opaque-node-draft',accepted:2,skipped:1,failed:1,items:[{index:1,status:'accepted',protocol:'ss'},{index:2,status:'failed',reason:'不支持'}]}); await flush();
+  assert.equal(get('proxyImportText').value,''); assert.equal(get('proxyImportID').value,'opaque-node-draft');
+  assert.match(get('proxyImportSummary').textContent,/接受 2.*跳过 1.*失败 1/);
+  assert.equal(get('proxyImportResults').children.length,2); assert.doesNotMatch(get('proxyImportResults').textContent,/private/);
+  get('settings').dispatchEvent({type:'submit'});
+  const saved=JSON.parse(p.requests.at(-1).body); assert.equal(saved.proxyImportID,'opaque-node-draft'); assert.equal(saved.proxyBackend,'mihomo');
+  assert.doesNotMatch(p.requests.at(-1).body,/private URI|nodes|password/);
+});
+
+test('all rejected imports display per-item errors and cannot replace the saved library', async () => {
+  const p=page(),get=id=>p.document.getElementById(id);
+  p.finishBatch(0,{upstreamMode:'proxy',proxyBackend:'mihomo'});await flush();
+  get('proxyImportText').value='unsupported input';get('settings').dispatchEvent({type:'input'});get('proxyImport').click();
+  p.requests.at(-1).finish({accepted:0,skipped:0,failed:1,items:[{index:1,status:'failed',reason:'不支持'}]});await flush();
+  assert.equal(get('proxyImportID').value,'');assert.match(get('proxyImportSummary').textContent,/不会替换/);
+  assert.match(get('proxyImportResults').textContent,/第 1 条.*不支持/);assert.ok(get('proxyImportText').validationMessage);
+  get('proxyImportDiscard').click();assert.equal(get('proxyImportText').value,'');assert.equal(get('proxyImportDetails').hidden,true);
+});
+
+test('discarding during a node import ignores a late result', async () => {
+  const p=page(),get=id=>p.document.getElementById(id);
+  p.finishBatch(0,{upstreamMode:'proxy',proxyBackend:'mihomo'});await flush();
+  get('proxyImportText').value='pending';get('settings').dispatchEvent({type:'input'});get('proxyImport').click();
+  const request=p.requests.at(-1);vm.runInContext('resetProxyImport()',p.context);
+  request.finish({id:'obsolete',accepted:1,skipped:0,failed:0,items:[]});await flush();
+  assert.equal(get('proxyImportID').value,'');assert.equal(get('proxyImportText').value,'');
+});
+
 test('wizard diagnostic rows expose results inline and age direct throughput samples', () => {
   const p=page();
   p.context.now=Date.parse('2026-10-12T00:10:00Z');
@@ -60,8 +98,8 @@ test('canonical monitor renders every channel, throughput, unknown and stale sta
   assert.equal(get('healthPlaybackHkg').children.length, 1);
   assert.match(get('healthPlaybackHkg').children[0].children[1].textContent, /首字节 12.0 ms/);
   assert.equal(get('healthPlaybackCf').children.length, 1);
-  assert.match(get('healthPlaybackCf').children[0].children[0].textContent, /SOCKS5.*请求超时/);
-  assert.match(get('healthRoute').textContent, /全部直连 IP 与 SOCKS5/);
+  assert.match(get('healthPlaybackCf').children[0].children[0].textContent, /代理.*请求超时/);
+  assert.match(get('healthRoute').textContent, /全部直连 IP 与活跃代理出口/);
   assert.equal(get('healthCheck').disabled, false);
   p.fireTimer();
   p.finishBatch(2, {}, { settings: { upstreamMode: 'direct' }, upstreamMonitor: { checking: true, results: [] } });
@@ -630,6 +668,8 @@ function page(hidden = false, termsGate = null) {
       disabled: false,
       hidden: false,
       value: '',
+      setCustomValidity(value) { this.validationMessage = value; },
+      checkValidity() { return !this.validationMessage && !(this.required && !this.value); },
       get textContent() { return ownText + this.children.map(child => child.textContent).join(''); },
       set textContent(value) { ownText = String(value); this.children = []; },
       addEventListener(event, callback) {
@@ -637,7 +677,7 @@ function page(hidden = false, termsGate = null) {
         handlers.get(event).push(callback);
       },
       dispatchEvent(event) {
-        event.target ??= this;
+        if (!event.target) Object.defineProperty(event, 'target', {value:this, configurable:true});
         event.preventDefault ??= () => { event.defaultPrevented = true; };
         for (const callback of handlers.get(event.type) || []) callback(event);
         return !event.defaultPrevented;
@@ -1016,6 +1056,7 @@ test('settings submit prevents navigation and serializes the edited controls', a
     upstreamMode: 'socks5', socks5Address: '127.0.0.1:7891',
     socks5Username: 'test-user', socks5Password: 'test-secret',
     requestRetentionDays: 0, maxCacheBytes: 1342177280, throughputIntervalMinutes: 20,
+    proxyBackend: 'external-socks5', proxyImportID: '',
   });
   assert.equal(get('save').disabled, true);
   p.requests[2].finish({ ok: true });

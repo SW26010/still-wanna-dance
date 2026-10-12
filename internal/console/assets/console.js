@@ -12,7 +12,7 @@ let settingsDirty = false,
   uncertainAction = '';
 let settingsBaseline = null;
 function settingsFingerprint() {
-  const values = ['storageDir', 'downloadUpstream', 'upstreamMode', 'socks5Address', 'socks5Username', 'socks5Password']
+  const values = ['storageDir', 'downloadUpstream', 'upstreamMode', 'proxyBackend', 'proxyImportID', 'proxyImportText', 'socks5Address', 'socks5Username', 'socks5Password']
     .map(id => String($(id).value ?? ''));
   for (const id of ['maxCacheGiB', 'requestRetentionDays', 'throughputIntervalMinutes', 'queuePrefetchCount']) {
     const value = String($(id).value ?? '');
@@ -105,7 +105,7 @@ function renderHealthResult(r, throughputMinutes, throughputWait, expanded = fal
   const date = v => v && !v.startsWith('0001') ? new Date(v).toLocaleString() : '—';
     const row = document.createElement('li');
     const title = document.createElement('strong');
-    title.textContent = (r.mode === 'direct' ? '直连 ' + r.ip : r.mode === 'socks5' ? 'SOCKS5' : '无候选') + ' · ' + (states[r.state] || r.state) + (r.reason ? ' · ' + (reasons[r.reason] || r.reason) : '');
+    title.textContent = (r.mode === 'direct' ? '直连 ' + r.ip : r.mode === 'socks5' ? '代理 ' + (r.channelID?.split('/').at(-1)?.slice(-8) || '') : '无候选') + ' · ' + (states[r.state] || r.state) + (r.reason ? ' · ' + (reasons[r.reason] || r.reason) : '');
     title.className = r.state === 'available' ? 'good' : '';
     const detail = document.createElement('div');
     detail.className = 'hint';
@@ -174,7 +174,7 @@ function renderHealth(h, settings) {
   }
   const checkNames = { catalog: '视频列表', playback: '播放地址解析', latency: '视频资源响应延迟', throughput: '视频资源吞吐速度' };
   setText('healthSummary', h.closed ? '网络检测已关闭' : h.manual && h.checking ? '手动检测中：' + (checkNames[h.checkKind] || '全部项目') : h.resourcesPaused ? '业务正在加载视频，自动资源测速已暂停' : h.checking ? '正在检测…' + (available ? '已有 ' + available + ' 条线路可用。' : '') : !results.length ? '等待首次检测…' : available ? '已有 ' + available + ' 条检测线路可用；各环节结果见下方。' : '尚无可用线路，请展开下方结果查看原因。');
-  setText('healthRoute', '当前检测范围：' + ({ direct: '全部直连 IP', socks5: 'SOCKS5', auto: '全部直连 IP 与 SOCKS5' }[settings.upstreamMode] || '等待网络配置'));
+  setText('healthRoute', '当前检测范围：' + ({ direct: '全部直连 IP', proxy: '活跃代理出口', socks5: '活跃代理出口', auto: '全部直连 IP 与活跃代理出口' }[settings.upstreamMode] || '等待网络配置'));
   const dated = v => v && !v.startsWith('0001');
   const date = v => dated(v) ? new Date(v).toLocaleString() : '—';
   setText('healthTime', '最近完成：' + date(h.finished) + ' · 下次检测：' + date(h.nextCheck));
@@ -336,8 +336,88 @@ $('importCleanupButton').addEventListener('click', () => {
   $('importDeleteSources').checked = false;
   action('import/cleanup', {id: lastState.import.id, confirmed: true});
 });
+let proxyImportGeneration = 0, proxyImportPending = false;
+const proxyImportReports = new Map();
+function resetProxyImport() {
+  proxyImportGeneration++;
+  $('proxyImportID').value = '';
+  $('proxyImportCount').value = '';
+  $('proxyImportText').value = '';
+  $('proxyImportFile').value = '';
+  $('proxyImportText').setCustomValidity('');
+  setText('proxyImportSummary', '');
+  $('proxyImportResults').replaceChildren();
+  $('proxyImportDetails').hidden = true;
+  proxyImportReports.delete('');
+}
+globalThis.swdRenderProxyControls = (unavailable = false) => {
+  const enabled = !!$('upstreamMode').value && $('upstreamMode').value !== 'direct';
+  const embedded = $('proxyBackend').value === 'mihomo';
+  $('proxyFields').hidden = !enabled;
+  $('proxyBackend').disabled = unavailable || !enabled;
+  $('externalProxyFields').hidden = embedded;
+  $('mihomoProxyFields').hidden = !embedded;
+  for (const id of ['socks5Address','socks5Username','socks5Password']) $(id).disabled = unavailable || !enabled || embedded;
+  $('socks5Address').required = enabled && !embedded;
+  for (const id of ['proxyImportText','proxyImportFile','proxyImport','proxyImportDiscard'])
+    $(id).disabled = unavailable || !enabled || !embedded || proxyImportPending;
+  $('proxyImport').disabled ||= !$('proxyImportText').value.trim();
+  $('proxyImportDiscard').disabled ||= !$('proxyImportText').value && !$('proxyImportID').value;
+  $('proxyImportText').setCustomValidity($('proxyImportText').value.trim() ? '请先检查节点内容，或清除本次导入草稿。' : '');
+  const report = proxyImportReports.get($('proxyImportID').value);
+  if (report) {
+    setText('proxyImportSummary', `本次接受 ${report.accepted} 个，重复跳过 ${report.skipped} 个，失败 ${report.failed} 个。` + (report.id ? '保存时将以接受的节点替换整份节点库；草稿 2 小时有效。' : '没有有效节点，不会替换已有节点库。请修改内容或清除本次草稿。'));
+    renderStableList('proxyImportResults', report.items || [], row => row.index, row => {
+      const item = document.createElement('li');
+      item.textContent = `第 ${row.index} 条${row.protocol ? ' · '+row.protocol : ''}：` + ({accepted:'接受',skipped:'跳过',failed:'失败'}[row.status] || row.status) + (row.reason ? ' · '+row.reason : '');
+      return item;
+    });
+    $('proxyImportDetails').hidden = false;
+  }
+};
+$('proxyImportFile').addEventListener('change', async () => {
+  const file = $('proxyImportFile').files?.[0];
+  if (!file) return;
+  const generation = ++proxyImportGeneration;
+  if (file.size > 2*1024*1024) { notice('节点文件超过 2 MiB。'); $('proxyImportFile').value = ''; return; }
+  try {
+    const content = await file.text();
+    if (generation !== proxyImportGeneration) return;
+    $('proxyImportText').value = content;
+    $('settings').dispatchEvent(new Event('input', {bubbles:true}));
+  } catch (_) { notice('无法读取节点文件，请重新选择。'); }
+  finally { if (generation === proxyImportGeneration) $('proxyImportFile').value = ''; }
+});
+$('proxyImportText').addEventListener('input', () => { proxyImportGeneration++; });
+$('proxyImport').addEventListener('click', async () => {
+  if ($('proxyImport').disabled) return;
+  const generation = ++proxyImportGeneration, content = $('proxyImportText').value;
+  proxyImportPending = true; renderControls();
+  try {
+    const response = await fetch('/api/proxy/import', {method:'POST', headers:{'Content-Type':'text/plain', 'X-SWD-Token':token}, body:content, signal:AbortSignal.timeout(30000)});
+    if (!response.ok) throw new Error(await response.text());
+    const result = await response.json();
+    if (generation !== proxyImportGeneration || $('proxyImportText').value !== content) return;
+    if (proxyImportReports.size >= 8) proxyImportReports.delete(proxyImportReports.keys().next().value);
+    proxyImportReports.set(result.id || '',result);
+    $('proxyImportID').value = result.id || '';
+    $('proxyImportCount').value = String(result.accepted);
+    if (!result.id) { $('settings').dispatchEvent(new Event('input', {bubbles:true})); notice('没有受支持的有效节点。请查看逐条结果；已有配置保持不变。'); return; }
+    $('proxyImportText').value = '';
+    $('settings').dispatchEvent(new Event('input', {bubbles:true}));
+    notice('节点已检查并加入本次草稿。请核对逐条结果，再保存设置或完成引导。');
+  } catch (error) {
+    if (generation === proxyImportGeneration) notice('导入未完成：' + error.message + '。已有配置保持不变。');
+  } finally { proxyImportPending = false; renderControls(); }
+});
+$('proxyImportDiscard').addEventListener('click', () => {
+  resetProxyImport(); $('settings').dispatchEvent(new Event('input', {bubbles:true}));
+});
 function renderSettings(s) {
   renderImport(s);
+  const nodes = s.proxyNodes || {};
+  setText('proxyNodeStatus', `已保存 ${nodes.saved || 0} 个 · 当前已加载 ${nodes.loaded || 0} 个 · 活跃 ${nodes.active || 0} 个`);
+  setText('proxyNodeError', [nodes.error, nodes.activeError].filter((v,i,a) => v && a.indexOf(v) === i).join('；'));
   if (!settingsDirty && !globalThis.swdSetupOwnsSettings?.()) {
     $('autoStartQueue').checked = !!s.settings.autoStartQueue;
     $('autoStartCDN').checked = !!s.settings.autoStartCDN;
@@ -348,7 +428,9 @@ function renderSettings(s) {
     $('logDir').value = s.settings.logDir;
     $('manualLogDir').checked = !!s.settings.manualLogDir;
     $('downloadUpstream').value = s.settings.downloadUpstream || 'auto';
-    $('upstreamMode').value = s.settings.upstreamMode || 'direct';
+    $('upstreamMode').value = s.settings.upstreamMode === 'socks5' ? 'proxy' : s.settings.upstreamMode || 'direct';
+    $('proxyBackend').value = s.settings.proxyBackend || 'external-socks5';
+    resetProxyImport();
     $('socks5Address').value = s.settings.socks5Address || '';
     $('socks5Username').value = s.settings.socks5Username || '';
     $('socks5Password').value = '';
@@ -396,12 +478,8 @@ function renderControls() {
   $('logDir').required = $('manualLogDir').checked;
   if (!$('manualLogDir').checked && s) $('logDir').value = s.defaultLogDir || s.settings.logDir;
   $('directConnectionHint').hidden = $('upstreamMode').value !== 'direct';
-  $('upstreamMode').setAttribute('aria-describedby', $('upstreamMode').value === 'direct' ? 'directConnectionHint' : 'socks5PasswordHint');
-  $('socks5Address').disabled ||= $('upstreamMode').value === 'direct';
-  $('socks5Username').disabled ||= $('upstreamMode').value === 'direct';
-  $('socks5Password').disabled ||= $('upstreamMode').value === 'direct';
-  $('socks5Address').required = $('upstreamMode').value !== 'direct';
-  $('proxyFields').hidden = $('upstreamMode').value === 'direct';
+  $('upstreamMode').setAttribute('aria-describedby', $('upstreamMode').value === 'direct' ? 'directConnectionHint' : 'proxyBackendHint');
+  globalThis.swdRenderProxyControls?.(unavailable);
   globalThis.swdSetupRenderControls?.(unavailable);
   $('inventoryScan').disabled = unavailable || !lastInventory || !!lastInventory.scanning;
   if (typeof updateCacheControls === 'function') updateCacheControls();
@@ -647,6 +725,7 @@ async function action(path, body) {
       return;
     }
     if (path === 'settings') {
+      resetProxyImport();
       settingsDirty = false;
       settingsRevision++;
     }
@@ -711,6 +790,8 @@ async function saveSettings() {
     queuePrefetchCount: Number($('queuePrefetchCount').value),
     downloadUpstream: $('downloadUpstream').value,
     upstreamMode: $('upstreamMode').value,
+    proxyBackend: $('proxyBackend').value,
+    proxyImportID: $('proxyImportID').value,
     socks5Address: $('socks5Address').value,
     socks5Username: $('socks5Username').value,
     ...($('socks5Password').value || !$('socks5Username').value

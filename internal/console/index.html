@@ -362,16 +362,20 @@
             <p class="hint" id="autoStartHint">两项默认启用，分别控制，互不跟随。保存后在下次启动控制台程序时生效，重新打开网页不会触发。</p>
             <p class="hint">自动启用需已同意使用条款，不自动修改游戏接入（hosts）。手动启停不会改变这两项设置。</p>
             </fieldset><fieldset data-setup-settings="proxy"><legend>网络连接</legend>
-            <div class="setup-only setup-upstreams"><label><input id="setupDirect" type="checkbox" checked> 直连</label><label><input id="setupSocks5" type="checkbox"> SOCKS5 代理</label></div>
+            <div class="setup-only setup-upstreams"><label><input id="setupDirect" type="checkbox" checked> 直连</label><label><input id="setupSocks5" type="checkbox"> 代理</label></div>
             <label for="upstreamMode" class="console-only">上游连接</label>
             <select id="upstreamMode" class="console-only" aria-describedby="directConnectionHint" name="upstreamMode">
               <option value="" disabled hidden>请选择至少一种连接方式</option>
               <option value="direct">直连（内置 DNS）</option>
-              <option value="socks5">SOCKS5 代理</option>
-              <option value="auto">自动选择直连或 SOCKS5</option>
+              <option value="proxy">强制代理</option>
+              <option value="auto">自动选择直连或代理</option>
             </select>
-            <div class="hint" id="directConnectionHint">默认直连。如需由代理软件处理连接和域名解析，请选择 SOCKS5。</div>
+            <div class="hint" id="directConnectionHint">默认直连。需要代理时，可选择外部 SOCKS5 或导入内嵌 Mihomo 节点。</div>
             <div id="proxyFields">
+            <label for="proxyBackend">代理后端</label>
+            <select id="proxyBackend" name="proxyBackend" aria-describedby="proxyBackendHint"><option value="external-socks5">外部 SOCKS5</option><option value="mihomo">内嵌 Mihomo</option></select>
+            <p class="hint" id="proxyBackendHint">代理只用于本应用回源。游戏 HTTPS 兼容透传始终直连。更改保存后需重启应用。</p>
+            <div id="externalProxyFields">
             <label for="socks5Address">SOCKS5 地址</label>
             <input id="socks5Address" aria-describedby="socks5PasswordHint" name="socks5Address" type="text" placeholder="127.0.0.1:7891" autocomplete="off" spellcheck="false" />
             <label for="socks5Username">SOCKS5 用户名（可选）</label>
@@ -382,6 +386,21 @@
             <p id="setupProxyNewHint" class="setup-only hint">用户名和密码仅在代理要求认证时填写。</p>
             <p id="setupProxySavedHint" class="setup-only hint" hidden>已有密码留空保留；清空用户名和密码可移除认证。</p>
             <div class="hint" id="socks5CredentialError" role="status"></div>
+            </div>
+            <div id="mihomoProxyFields" hidden>
+              <p id="proxyNodeStatus" role="status"></p>
+              <p id="proxyNodeError" class="hint" role="status"></p>
+              <label for="proxyImportText">粘贴节点内容</label>
+              <textarea id="proxyImportText" rows="5" autocomplete="off" spellcheck="false" aria-describedby="proxyImportHint"></textarea>
+              <label for="proxyImportFile">或选择节点文件</label>
+              <input id="proxyImportFile" type="file" accept=".yaml,.yml,.txt,.json" aria-describedby="proxyImportHint">
+              <p class="hint" id="proxyImportHint">支持 YAML 的 proxies、逐行 URI 和 Base64 URI 列表，最多 2 MiB / 2048 条。仅支持基础 SS、VLESS TCP/TLS、AnyTLS、Hysteria2；高级传输会逐条报错。检查仅生成草稿，保存后替换整份节点库，重启生效。不会自动更新订阅。</p>
+              <input id="proxyImportID" type="hidden"><input id="proxyImportCount" type="hidden">
+              <div class="actions"><button id="proxyImport" type="button">检查并导入到草稿</button><button id="proxyImportDiscard" type="button">清除本次导入草稿</button></div>
+              <p id="proxyImportSummary" role="status"></p>
+              <details id="proxyImportDetails" hidden><summary>逐条导入结果</summary><ul id="proxyImportResults"></ul></details>
+              <p class="hint">节点快照由 Windows 当前用户加密保护；换用户或电脑后可能需要重新导入。默认最多 5 个活跃节点，备用节点保留。初始集合不代表全部节点的最优排名。</p>
+            </div>
             </div>
             <div class="console-only">
             <label for="downloadUpstream">播放地址接口选择</label

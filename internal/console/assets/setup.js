@@ -30,7 +30,7 @@
   // Step access depends on the server's saved receipt, never form validity.
   const canVisitStep = name => steps.includes(name) && (name === 'welcome' || (terms?.accepted === true && !startingSession));
   const stepButtons = steps.map(name => $('setupStep' + name[0].toUpperCase() + name.slice(1)));
-  const fields = () => [...$('settings').querySelectorAll('input, select')];
+  const fields = () => [...$('settings').querySelectorAll('input, select, textarea')].filter(field => field.type !== 'file');
   const draftValues = () => JSON.stringify([fields().map(field => [field.id,field.value,field.checked]),$('setupCapacityLimited').checked,$('setupImportEnabled').checked]);
   const hasDraftChanges = () => entered && !!draft && !application && (draftValues() !== draftBaseline || !!$('setupImportSource').value.trim());
   const confirmDiscard = () => !hasDraftChanges() || window.confirm('本轮引导的更改尚未应用。确定放弃更改并离开吗？');
@@ -49,7 +49,7 @@
   window.swdSetupSettingsLoaded = s => {
     $('setupCustomStorage').checked = pathKey($('storageDir').value) !== pathKey(s.defaultStorageDir);
     $('setupDirect').checked = ['direct','auto'].includes($('upstreamMode').value);
-    $('setupSocks5').checked = ['socks5','auto'].includes($('upstreamMode').value);
+    $('setupSocks5').checked = ['proxy','socks5','auto'].includes($('upstreamMode').value);
     syncCapacity();
   };
   function syncCapacity() {
@@ -62,6 +62,7 @@
     return {baseVersion, storageDir:$('storageDir').value, customStorage:$('setupCustomStorage').checked,
       maxCacheBytes:Math.round(Number($('maxCacheGiB').value) * 1073741824),
       upstreamMode:$('upstreamMode').value, socks5Address:$('socks5Address').value, socks5Username:$('socks5Username').value,
+      proxyBackend:$('proxyBackend').value || 'external-socks5', proxyImportID:$('proxyImportID').value,
       ...($('socks5Password').value || !$('socks5Username').value ? {socks5Password:$('socks5Password').value} : {}),
       importSource:$('setupImportSource').value.trim()};
   }
@@ -169,6 +170,7 @@
     $('storageDir').readOnly = true;
     $('storageDir').disabled ||= !$('setupCustomStorage').checked;
     for (const id of ['socks5Address','socks5Username','socks5Password']) $(id).disabled ||= $('upstreamMode').value === 'direct';
+    globalThis.swdRenderProxyControls?.(locked || startingSession || !connected);
     const path = pathKey($('storageDir').value), root = pathKey(lastState?.portableDir);
     $('storageDir').setCustomValidity($('setupCustomStorage').checked && root && (path === root || path.startsWith(root + '\\')) ? '指定位置必须在程序文件夹之外。' : '');
     $('setupDirect').setCustomValidity(!$('upstreamMode').value ? '请至少选择一种连接方式。' : '');
@@ -229,7 +231,7 @@
     $('settings').dispatchEvent(new Event('input',{bubbles:true}));
   });
   for (const id of ['setupDirect','setupSocks5']) $(id).addEventListener('input', () => {
-    $('upstreamMode').value = $('setupDirect').checked ? ($('setupSocks5').checked ? 'auto' : 'direct') : ($('setupSocks5').checked ? 'socks5' : '');
+    $('upstreamMode').value = $('setupDirect').checked ? ($('setupSocks5').checked ? 'auto' : 'direct') : ($('setupSocks5').checked ? 'proxy' : '');
   });
   async function loadTerms() {
     const request = ++termsRequest;
@@ -446,7 +448,7 @@
   }
   function defaults(page = step) {
     if (page === 'storage') return {storageDir:lastState?.defaultStorageDir || '',maxCacheGiB:'0',setupImportSource:''};
-    if (page === 'proxy') return {upstreamMode:'direct',socks5Address:'',socks5Username:'',socks5Password:''};
+    if (page === 'proxy') return {upstreamMode:'direct',proxyBackend:'external-socks5',proxyImportID:'',proxyImportCount:'',proxyImportText:'',socks5Address:'',socks5Username:'',socks5Password:''};
     return null;
   }
   function atDefaults(page = step) {
@@ -492,14 +494,16 @@
   function renderSummary(s) {
     const p = {...(draft || plan())}, current = s.activeSettings || s.settings;
     if (application?.importSource) p.importSource = application.importSource;
-    const mode = value => ({direct:'直连',socks5:'仅 SOCKS5 代理',auto:'直连 + SOCKS5 代理'}[value] || '未选择');
+    const mode = value => ({direct:'直连',proxy:'强制代理',socks5:'强制代理',auto:'直连 + 代理'}[value] || '未选择');
     const capacity = bytes => bytes ? (bytes / 1073741824) + ' GiB' : '不限';
     const change = (label,before,after) => label + '：' + (before === after ? after : before + ' → ' + after);
     const storage = path => pathKey(path) === pathKey(s.defaultStorageDir) ? '默认' : '自定义 · ' + path;
     const lines = [change('存储',storage(current.storageDir),storage(p.storageDir)),change('缓存空间上限',capacity(current.maxCacheBytes),capacity(p.maxCacheBytes))];
     lines.push(p.importSource ? '导入：' + p.importSource + '\n目标：' + p.storageDir + ' · 保留源文件' : '导入：不执行');
     lines.push(change('网络连接',mode(current.upstreamMode),mode(p.upstreamMode)));
-    if (p.upstreamMode !== 'direct') {
+    if (p.upstreamMode !== 'direct') lines.push('代理后端：' + (p.proxyBackend === 'mihomo' ? '内嵌 Mihomo' : '外部 SOCKS5'));
+    if (p.proxyImportID) lines.push('节点库：将替换为本次导入的 ' + $('proxyImportCount').value + ' 个节点（保存后重启生效）');
+    if (p.upstreamMode !== 'direct' && p.proxyBackend !== 'mihomo') {
       lines.push(change('代理地址',current.socks5Address || '未设置',p.socks5Address || '未设置'));
       lines.push(change('认证用户',current.socks5Username || '无',p.socks5Username || '无'));
       if (p.socks5Password) lines.push('代理密码：将更新');
@@ -514,8 +518,8 @@
       }
     }
     setText('setupSummary',lines.join('\n'));
-    const changed = advancedChanged || ['storageDir','maxCacheBytes','upstreamMode','socks5Address','socks5Username'].some(key =>
-      key === 'storageDir' ? pathKey(current[key]) !== pathKey(p[key]) : (current[key] ?? '') !== (p[key] ?? '')) || (p.socks5Password === '' && s.socks5PasswordSet);
+    const changed = advancedChanged || !!p.proxyImportID || ['storageDir','maxCacheBytes','upstreamMode','proxyBackend','socks5Address','socks5Username'].some(key =>
+      key === 'storageDir' ? pathKey(current[key]) !== pathKey(p[key]) : key === 'proxyBackend' ? (current[key] || 'external-socks5') !== p[key] : (current[key] ?? '') !== (p[key] ?? '')) || (p.socks5Password === '' && s.socks5PasswordSet);
     const restart = changed ? '将重启程序，正在进行的播放和任务会中断。' : p.socks5Password || s.restartRequired ? '如最终设置与当前运行配置不同，将重启程序并中断播放和任务。' : '';
     setText('setupApplyHint',restart + (p.importSource ? (changed ? '重启后开始导入。' : '确认后开始导入。') + '关闭网页不影响导入，重启程序会中止导入。' : ''));
     setText('setupApplyResult',application ? (application.configSaved ? '配置已保存。' : '') + (restartProblem || (application.phase === 'restart' ? '正在重启，之后执行导入…' : application.phase === 'completed' ? (application.importStarted ? '设置已应用，导入已启动；进度可在设置页查看。' : '清单已应用。') : application.error || '正在应用…')) : '');
@@ -552,8 +556,8 @@
       return {available:available.length > 0,failed,text:label + '：' + text};
     });
     const mode = $('upstreamMode').value, proxy = mode && mode !== 'direct';
-    const proxyValid = $('socks5Address').value.trim() && $('socks5Address').checkValidity();
-    setText('setupDirectAdvice',!mode ? '请在下方选择直连或代理，再继续。' : proxy ? (proxyValid ? '以上仅为直连检测结果，尚未验证代理。' : '请先在下方填写有效的代理地址，再继续。') : diagnostic.running ? '正在检测直连，可继续下一步。' : diagnostic.error ? '检测未完成。建议重新检测，也可先继续设置。' : checks.every(c => c.available) ? '直连检查通过，建议保持直连并继续。' : checks.some(c => c.failed) ? '部分直连检查失败。建议重试；需要代理时可在下方配置。' : checks.some(c => c.available) ? '部分检查已通过，其余尚未确认。建议先保持直连并继续；若游戏加载失败，再配置代理。' : '尚未取得检测结果。可以重试检测，也可先继续设置。');
+    const proxyValid = $('proxyBackend').value === 'mihomo' ? !!$('proxyImportID').value || !!lastState?.proxyNodes?.saved && !lastState?.proxyNodes?.error : $('socks5Address').value.trim() && $('socks5Address').checkValidity();
+    setText('setupDirectAdvice',!mode ? '请在下方选择直连或代理，再继续。' : proxy ? (proxyValid ? '以上仅为直连检测结果，尚未验证代理。' : '请先在下方填写有效的代理地址，或导入受支持的节点，再继续。') : diagnostic.running ? '正在检测直连，可继续下一步。' : diagnostic.error ? '检测未完成。建议重新检测，也可先继续设置。' : checks.every(c => c.available) ? '直连检查通过，建议保持直连并继续。' : checks.some(c => c.failed) ? '部分直连检查失败。建议重试；需要代理时可在下方配置。' : checks.some(c => c.available) ? '部分检查已通过，其余尚未确认。建议先保持直连并继续；若游戏加载失败，再配置代理。' : '尚未取得检测结果。可以重试检测，也可先继续设置。');
     $('setupDirectAdvice').hidden = !!mode && (!proxy || !!proxyValid) && !diagnostic.error && !checks.some(c => c.failed);
   }
   function update() {

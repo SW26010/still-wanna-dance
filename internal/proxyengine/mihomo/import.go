@@ -21,9 +21,10 @@ const MaxImportBytes = 2 << 20
 const MaxImportNodes = 2048
 
 type ImportItem struct {
-	Index  int    `json:"index"`
-	Status string `json:"status"`
-	Reason string `json:"reason,omitempty"`
+	Index    int    `json:"index"`
+	Status   string `json:"status"`
+	Reason   string `json:"reason,omitempty"`
+	Protocol string `json:"protocol,omitempty"`
 }
 
 type ImportResult struct {
@@ -75,6 +76,7 @@ func Import(data []byte) (ImportResult, error) {
 			item.Reason = "不支持的协议、传输或选项，或节点参数无效"
 			result.Failed++
 		} else {
+			item.Protocol, _ = p["type"].(string)
 			canonical, _ := json.Marshal(p)
 			if seen[string(canonical)] {
 				item.Status, item.Reason = "skipped", "重复的有效连接配置"

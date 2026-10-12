@@ -353,6 +353,9 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool) error {
 	if err != nil {
 		return err
 	}
+	if err = validateProxyNodeSelection(s); err != nil {
+		return err
+	}
 	// Preserve an existing library when saving unrelated settings. New choices
 	// must use the default location or a directory outside Portable.
 	if s.StorageDir != oldSettings.StorageDir {

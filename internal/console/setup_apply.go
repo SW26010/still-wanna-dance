@@ -125,6 +125,11 @@ func (c *Console) validateSetupPlanSnapshot(p setupPlan) (Settings, error) {
 	if err != nil {
 		return s, err
 	}
+	if p.Page == "" || p.Page == "proxy" {
+		if err = validateProxyNodeSelection(s); err != nil {
+			return s, err
+		}
+	}
 	if p.Page == "" || p.Page == "storage" {
 		if err = writableDir(s.StorageDir); err != nil {
 			return s, fmt.Errorf("存储目录不可写：%w", err)

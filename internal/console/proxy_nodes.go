@@ -42,6 +42,13 @@ type proxyNodeStatus struct {
 	ActiveError string `json:"activeError,omitempty"`
 }
 
+func validateProxyNodeSelection(s Settings) error {
+	if s.ProxyBackend == "mihomo" && s.UpstreamMode != "direct" && s.nodeSnapshot == "" && s.nodeSecretError == "" {
+		return errors.New("请先导入至少一个受支持的 Mihomo 节点")
+	}
+	return nil
+}
+
 func nodeDocument(snapshot string) proxyNodeDocument {
 	var doc proxyNodeDocument
 	_ = json.Unmarshal([]byte(snapshot), &doc)

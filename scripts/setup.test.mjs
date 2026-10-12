@@ -25,7 +25,7 @@ function setup({step='welcome',request=async()=>({}),stateOverride={},receipt={a
     });return nodes.get(id);
   };
   const groups=['storage','proxy'].map(name=>{const n=node(name+'Group');n.dataset.setupSettings=name;return n;});
-  const ids=['storageDir','maxCacheGiB','upstreamMode','socks5Address','socks5Username','socks5Password','setupCustomStorage','setupDirect','setupSocks5'];
+  const ids=['storageDir','maxCacheGiB','upstreamMode','proxyBackend','proxyImportID','proxyImportCount','proxyImportText','socks5Address','socks5Username','socks5Password','setupCustomStorage','setupDirect','setupSocks5'];
   for(const id of ids)node(id).group=groups[['storageDir','maxCacheGiB','setupCustomStorage'].includes(id)?0:1];
   node('settings').querySelectorAll=()=>ids.map(node);
   node('preferences').parentNode=node('page-settings');
@@ -59,6 +59,16 @@ function setup({step='welcome',request=async()=>({}),stateOverride={},receipt={a
   };
 }
 const business=s=>s.calls.filter(c=>['/api/settings','/api/setup/apply','/api/import/start','/api/activation/enable'].includes(c.path));
+
+test('wizard stages Mihomo draft through the shared final save and omits raw nodes',async()=>{
+  const s=setup({step:'proxy'});await flush();
+  s.node('upstreamMode').value='proxy';s.node('proxyBackend').value='mihomo';s.node('proxyImportID').value='opaque';s.node('proxyImportCount').value='6';
+  s.events.consolestate();await s.go('finish');
+  assert.match(s.node('setupSummary').textContent,/内嵌 Mihomo/);assert.match(s.node('setupSummary').textContent,/替换.*6 个/);
+  assert.equal(business(s).length,0);await s.node('setupNext').onclick();
+  const applied=business(s).find(c=>c.path==='/api/setup/apply');assert.equal(applied.body.proxyImportID,'opaque');assert.equal(applied.body.proxyBackend,'mihomo');
+  assert.equal(applied.body.proxyImportText,undefined);
+});
 
 test('one network retry runs all diagnostics and preserves failure feedback',async()=>{
   let failed=true;
@@ -313,7 +323,7 @@ test('reordered free navigation only validates and stages settings without start
   await s.node('setupNext').onclick();assert.equal(s.node('setupTitle').textContent,'网络');
   await s.go('finish');
   assert.match(s.node('setupSummary').textContent,/25 GiB/);assert.match(s.node('setupSummary').textContent,/D:\\videos/);
-  assert.match(s.node('setupSummary').textContent,/直连 \+ SOCKS5/);assert.equal(business(s).length,0);
+  assert.match(s.node('setupSummary').textContent,/直连 \+ 代理/);assert.equal(business(s).length,0);
   assert.deepEqual(s.calls.filter(c=>c.path==='/api/setup/validate').map(c=>c.body.page),['proxy','storage','proxy']);
 });
 
@@ -730,7 +740,7 @@ test('fresh first entry does not auto-open terms or restore hosts on hover',asyn
 test('custom storage and upstream checkbox constraints remain enforced',async()=>{
   const s=setup({step:'storage'});await flush();s.node('setupCustomStorage').checked=true;s.emit('setupCustomStorage','change');s.node('storageDir').value='C:\\Portable\\other';s.context.renderControls();assert.match(s.node('storageDir').validationMessage,/程序文件夹/);
   s.node('storageDir').value='D:\\media';s.node('setupDefaultStorage').onclick();assert.equal(s.node('storageDir').value,s.context.lastState.defaultStorageDir);
-  for(const [a,b,mode]of [[true,false,'direct'],[false,true,'socks5'],[true,true,'auto'],[false,false,'']]){s.node('setupDirect').checked=a;s.node('setupSocks5').checked=b;s.emit('setupDirect','input');assert.equal(s.node('upstreamMode').value,mode);}
+  for(const [a,b,mode]of [[true,false,'direct'],[false,true,'proxy'],[true,true,'auto'],[false,false,'']]){s.node('setupDirect').checked=a;s.node('setupSocks5').checked=b;s.emit('setupDirect','input');assert.equal(s.node('upstreamMode').value,mode);}
 });
 
 test('discard clears wizard-only invalidity before returning to ordinary settings',async()=>{

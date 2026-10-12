@@ -122,7 +122,9 @@ type Console struct {
 	monitorManualDone   chan struct{}
 	setupNetwork        *setupNetwork
 	setupApplyMu        sync.Mutex
-	setupApplication    SetupApplication // protected by mu
+	setupApplication    SetupApplication   // protected by mu
+	setupFolderCancel   context.CancelFunc // protected by mu; also serializes dialogs
+	setupFolderPicker   func(context.Context, string, string) (string, error)
 }
 
 func New(configPath, address string) (*Console, error) {
@@ -545,6 +547,9 @@ func (c *Console) BeginShutdown() {
 	c.lifecycleMu.Lock()
 	c.mu.Lock()
 	c.closing = true
+	if c.setupFolderCancel != nil {
+		c.setupFolderCancel()
+	}
 	c.cancelTermsExitLocked()
 	c.queueDesired = false
 	upstreamrequest.Default.Release(c.requestRevision)
@@ -835,6 +840,19 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
 	var err error
 	switch r.URL.Path {
+	case "/api/setup/folder":
+		var input struct {
+			Kind string `json:"kind"`
+			Path string `json:"path"`
+		}
+		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+			var path string
+			path, err = c.selectSetupFolder(r.Context(), input.Kind, input.Path)
+			if err == nil {
+				writeJSON(w, map[string]any{"path": path, "canceled": path == ""})
+				return
+			}
+		}
 	case "/api/setup/receipt":
 		var input struct {
 			ID string `json:"id"`

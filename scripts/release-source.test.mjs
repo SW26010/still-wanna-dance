@@ -3,15 +3,17 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import { withTemp, run, jsonStream, safePath, cleanRevision, createSource, extractSource, verifyBundle, readJSON, writeJSON, rebuild, checkExecutable, supplementalInputs } from './release-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 function fixture(temp) {
   const root = path.join(temp, 'repo'); fs.mkdirSync(root);
-  for (const [name, text] of Object.entries({ 'go.mod': 'module still-wanna-dance\n\ngo 1.25.0\n', 'go.sum': '', LICENSE: 'fixture GPL', 'LICENSE-MIT': 'fixture MIT', 'LICENSING.md': 'fixture policy', 'THIRD-PARTY-NOTICES.txt': 'fixture notices', 'scripts/build-desktop.ps1': '# fixture', 'cmd/still-wanna-dance-console/main.go': 'package main\nfunc main() {}\n' })) {
+  for (const [name, text] of Object.entries({ 'go.mod': 'module still-wanna-dance\n\ngo 1.25.0\n', 'go.sum': '', LICENSE: 'fixture GPL', 'LICENSE-MIT': 'fixture MIT', 'LICENSING.md': 'fixture policy', 'THIRD-PARTY-NOTICES.txt': 'fixture notices', 'scripts/build-desktop.ps1': '# fixture', 'cmd/still-wanna-dance-console/main.go': 'package main\nfunc main() {}\n', 'docs/evidence/old.json': '{}', 'experiments/probe.go': 'historical probe', 'docs/research/chart.json': '[1,2,3]', 'scripts/render-chart.py': '# source for an embedded chart' })) {
     const dest = path.join(root, name); fs.mkdirSync(path.dirname(dest), { recursive: true }); fs.writeFileSync(dest, text);
   }
   fs.copyFileSync(path.join(here, 'release-source.mjs'), path.join(root, 'scripts/release-source.mjs'));
+  fs.copyFileSync(path.join(here, '../.gitattributes'), path.join(root, '.gitattributes'));
   run('git', ['init', '--quiet'], root);
   run('git', ['config', 'core.autocrlf', 'false'], root);
   run('git', ['add', '.'], root);
@@ -46,6 +48,11 @@ test('complete source archive rebuilds without Git metadata or populated Go cach
   const result = createSource({ root, tag: 'v0.0.0-test', outputDir: path.join(temp, 'out') });
   const bundle = extractSource(result.archive, path.join(temp, 'extracted'));
   assert.equal(fs.existsSync(path.join(bundle, 'source/.git')), false);
+  for (const omitted of ['docs/evidence/old.json', 'experiments/probe.go']) {
+    assert.ok(fs.existsSync(path.join(root, omitted)), 'history remains in the repository');
+    assert.equal(fs.existsSync(path.join(bundle, 'source', omitted)), false);
+  }
+  for (const kept of ['docs/research/chart.json', 'scripts/render-chart.py']) assert.ok(fs.existsSync(path.join(bundle, 'source', kept)));
   const output = path.join(temp, 'rebuilt.exe');
   assert.equal(rebuild({ bundle, output }).manifest.revision, result.manifest.revision);
   assert.ok(fs.statSync(output).size > 0);
@@ -63,6 +70,36 @@ test('complete source archive rebuilds without Git metadata or populated Go cach
   writeJSON(manifestFile, original);
   fs.writeFileSync(path.join(bundle, 'source/unlisted.go'), 'package main');
   assert.throws(() => verifyBundle(bundle), /unmanifested/);
+}));
+
+test('unused graph modules need metadata only, even when their ZIP is unavailable', { timeout: 180000 }, () => withTemp(temp => {
+  const previous = Object.fromEntries(['GOPROXY', 'GOSUMDB', 'GOMODCACHE'].map(k => [k, process.env[k]]));
+  try {
+    const proxy = path.join(temp, 'metadata-proxy'), base = path.join(proxy, 'example.org/unused/@v');
+    fs.mkdirSync(base, { recursive: true });
+    fs.writeFileSync(path.join(base, 'v1.0.0.mod'), 'module example.org/unused\n\ngo 1.25.0\n');
+    writeJSON(path.join(base, 'v1.0.0.info'), { Version: 'v1.0.0', Time: '2026-01-01T00:00:00Z' });
+    process.env.GOPROXY = pathToFileURL(proxy).href;
+    process.env.GOSUMDB = 'off';
+    process.env.GOMODCACHE = path.join(temp, 'empty-modules');
+    const root = fixture(temp);
+    fs.appendFileSync(path.join(root, 'go.mod'), '\nrequire example.org/unused v1.0.0\n');
+    run('go', ['list', '-mod=mod', '-m', 'all'], root, { GOWORK: 'off', GOTOOLCHAIN: 'local' });
+    run('git', ['add', '.'], root);
+    run('git', ['-c', 'user.name=SWD test', '-c', 'user.email=test@example.invalid', 'commit', '--quiet', '-m', 'unused dependency'], root);
+    run('git', ['tag', 'v0.0.1-test'], root);
+    const result = createSource({ root, tag: 'v0.0.1-test', outputDir: path.join(temp, 'out') });
+    const bundle = extractSource(result.archive, path.join(temp, 'extracted'));
+    assert.equal(result.manifest.modules.length, 1);
+    const mod = result.manifest.modules[0];
+    assert.equal(mod.sourceIncluded, false);
+    assert.equal(mod.sum, null);
+    assert.equal(fs.existsSync(path.join(bundle, mod.proxyBase + '.zip')), false);
+    assert.ok(fs.existsSync(path.join(bundle, mod.proxyBase + '.mod')));
+    rebuild({ bundle, output: path.join(temp, 'rebuilt.exe') });
+  } finally {
+    for (const [key, value] of Object.entries(previous)) if (value === undefined) delete process.env[key]; else process.env[key] = value;
+  }
 }));
 
 test('binary identity rejects wrong revision, dirty state and unrecorded module versions; accepted go-lzo is allowed', () => {

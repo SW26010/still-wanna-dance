@@ -10,9 +10,11 @@
 node scripts/release-source.mjs create --tag v1.2.3 --output artifacts
 ```
 
-脚本拒绝 dirty/untracked、标签不指向 HEAD、模块 replacement、尚未支持的符号链接或子模块。使用 `git archive` 导出提交，忽略本地数据、缓存和未跟踪文件。对生产入口重新列出实际编译依赖，将所需模块的完整 `.zip` 放入本地 Go proxy，同时保留整个固定模块图的 `.mod`、`.info` 和版本清单，以支持只读离线解析。清单中的 `sourceIncluded` 区分源码与仅图元数据；未用于当前桌面的模块不作为额外源码负载分发。没有用 `go mod vendor` 代替完整模块源码。一般用途的 Go、Node.js、tar、编译器/代码生成工具及操作系统不随源码包安装。
+脚本拒绝 dirty/untracked、标签不指向 HEAD、模块 replacement、尚未支持的符号链接或子模块。使用 `git archive` 导出提交，忽略本地数据、缓存和未跟踪文件；`.gitattributes` 的 `export-ignore` 排除历史 `experiments/` 和 `docs/evidence/`，原文件仍保留在相同提交的仓库中。保留产品源码、测试、许可、构建脚本，以及内置图表的研究聚合数据和绘图脚本。
 
-完整模块 ZIP 也不自动证明“首选修改形式”齐全：SQLite Go 模块省略嵌套的 `vendor_libsqlite3` 生成工具，实际 SQLite C 原稿也需另取。因此 `docs/licenses/source-inputs.json` 固定补充输入的版本、提交和哈希：modernc SQLite 上游完整 Git 快照（含嵌套模块/生成脚本）与对应的 SQLite 3.50.4 原始源码 ZIP。源码包 `upstream/` 保存这些原始档案；Go 模块内生成命令及条件参数保留。修改 SQLite 原稿时参考原快照的 Makefile、`vendor_libsqlite3/main.go` 和生成 Go 文件头部命令，需另装相应通用 C/Go 生成工具。普通桌面重建使用已交付的 Go 输入，不需要重新生成 SQLite。
+按生产入口及相同构建标签重新列出实际编译依赖，仅下载这些模块的完整 `.zip`，放入本地 Go proxy。同时只查询整个固定模块图的 `.mod`、`.info` 元数据和版本清单，支持只读离线解析，不再下载未使用模块的 ZIP。清单中的 `sourceIncluded` 区分源码与仅图元数据；未取得的未使用模块 ZIP 校验和允许为 `null`，不伪造已交付源码，所有实际交付文件仍记录 SHA256。完整源码模块必须有 Go h1，EXE 引用仅元数据模块时拒绝。没有裁剪原模块 ZIP，保证 Go 校验和和原许可完整。一般用途的 Go、Node.js、tar、编译器/代码生成工具及操作系统不随源码包安装。
+
+完整模块 ZIP 也不自动证明“首选修改形式”齐全：SQLite Go 模块省略嵌套的 `vendor_libsqlite3` 生成工具，实际 SQLite C 原稿也需另取。因此 `docs/licenses/source-inputs.json` 固定补充输入的版本、提交、选定路径和哈希：只从 modernc SQLite 固定 Git 提交导出 `vendor_libsqlite3/` 三个文件及 `LICENSE`，另保留对应的 SQLite 3.50.4 原始源码 ZIP。源码包 `upstream/` 保存这两个档案，不再重复交付整个 modernc SQLite 仓库。导出关闭 Git 换行转换，避免 Windows/Linux 生成不同归档。Go 模块 ZIP 内已有 Makefile、生成代码和条件参数；修改 SQLite 原稿时结合补充的生成辅助程序参考这些命令，需另装相应通用 C/Go 生成工具。普通桌面重建使用已交付的 Go 输入，不需要重新生成 SQLite。
 
 当前 Mihomo 尚未接入桌面。桌面生产构建、依赖收集和离线重建统一使用官方 `-tags=no_easytier`，排除 SWD 不支持的 EasyTier 及其 WASM，无需 Fork。发行检查同时核对 EXE 的构建标签和模块身份。若将来确需启用 EasyTier，仍须另行核实并交付对应源码；指定 Git SHA 不可读取不等于源码未公开。其他内嵌 `.wasm/.syso/.a/.dll` 的原始源码交付仍须复核，见[专项记录](licenses/README.md)。这不改变 go-lzo 已接受的非阻断风险。
 
@@ -22,7 +24,7 @@ node scripts/release-source.mjs create --tag v1.2.3 --output artifacts
 SWD-source/
   BUILD.txt
   source-manifest.json
-  source/                  固定提交全部受控文件（无 .git）
+  source/                  固定提交受控文件，排除历史实验/验收证据（无 .git）
   proxy/                   编译所需完整模块 ZIP + 全图 Go proxy 元数据
   upstream/                生成/嵌入代码的额外原始源码和脚本
 ```

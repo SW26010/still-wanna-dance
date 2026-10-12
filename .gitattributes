@@ -1,1 +1,5 @@
 * text=auto eol=lf
+
+# Historical experiments/evidence stay in Git, outside release source archives.
+experiments export-ignore
+docs/evidence export-ignore

@@ -102,7 +102,7 @@ export function createSource({ root, tag, outputDir }) {
     run('git', ['archive', '--format=tar', '--output', snapshot, revision], root);
     run('tar', ['-xf', snapshot, '-C', source], root, { TAR_OPTIONS: '' });
     const env = goEnv();
-    const graph = jsonStream(run('go', ['list', '-m', '-json', 'all'], source, env));
+    const graph = jsonStream(run('go', ['list', '-mod=readonly', '-m', '-json', 'all'], source, env));
     if (graph.some(m => m.Replace)) throw Error('Replacement modules require review before source delivery');
     const selected = graph.filter(m => !m.Main).sort((a, b) => a.Path.localeCompare(b.Path));
     const packages = jsonStream(run('go', ['list', '-tags=' + buildTags, '-mod=readonly', '-deps', '-json', desktopEntry], source, env));
@@ -113,32 +113,40 @@ export function createSource({ root, tag, outputDir }) {
     // Preserve full graph metadata, but supply ZIPs for this production build.
     // Unlinked modules can contain unrelated precompiled artifacts with their
     // own source obligations; do not redistribute them as incidental payload.
-    // Run explicit downloads outside the snapshot so test-only modules cannot
-    // add their checksums to its go.sum. Bound command length on Windows.
-    const downloaded = [];
-    for (let i = 0; i < selected.length; i += 40) downloaded.push(...jsonStream(run('go', ['mod', 'download', '-json', ...selected.slice(i, i + 40).map(m => `${m.Path}@${m.Version}`)], temp, env)));
+    // Explicit metadata queries fetch .mod/.info only, including lazy graph
+    // entries. Download source ZIPs only for compiled modules. Work outside the
+    // snapshot so queries cannot add unrelated sums to its go.sum.
+    const metadata = [], downloaded = [];
+    const sourceModules = selected.filter(m => compiled.has(m.Path));
+    for (let i = 0; i < selected.length; i += 40) metadata.push(...jsonStream(run('go', ['list', '-m', '-json', ...selected.slice(i, i + 40).map(m => `${m.Path}@${m.Version}`)], temp, env)));
+    for (let i = 0; i < sourceModules.length; i += 40) downloaded.push(...jsonStream(run('go', ['mod', 'download', '-json', ...sourceModules.slice(i, i + 40).map(m => `${m.Path}@${m.Version}`)], temp, env)));
     const modules = [];
     for (const m of selected) {
-      const d = downloaded.find(d => d.Path === m.Path && d.Version === m.Version);
-      if (!d || d.Error || !d.Zip || !d.GoMod || !d.Info || !d.Sum || !d.GoModSum) throw Error(`Incomplete module source: ${m.Path}@${m.Version}`);
-      if (m.Sum && m.Sum !== d.Sum || m.GoModSum && m.GoModSum !== d.GoModSum) throw Error(`Module checksum changed: ${m.Path}`);
       const base = `proxy/${escapeModule(m.Path)}/@v/${escapeModule(m.Version)}`;
       const sourceIncluded = compiled.has(m.Path);
+      const d = (sourceIncluded ? downloaded : metadata).find(d => d.Path === m.Path && d.Version === m.Version);
+      if (!d || d.Error || !d.GoMod || sourceIncluded && (!d.Zip || !d.Info || !d.Sum || !d.GoModSum)) throw Error(`Incomplete module source: ${m.Path}@${m.Version}`);
+      if (sourceIncluded && (m.Sum && m.Sum !== d.Sum || m.GoModSum && m.GoModSum !== d.GoModSum)) throw Error(`Module checksum changed: ${m.Path}`);
       if (sourceIncluded && d.Dir && filesUnder(d.Dir).some(p => /\.(wasm|syso|a|dll)$/i.test(p)) && !policy.generatedModules.some(r => r.module === m.Path && r.inputs.length)) throw Error(`Embedded binary requires original source review: ${m.Path}`);
-      for (const [suffix, original] of [...(sourceIncluded ? [['.zip', d.Zip]] : []), ['.mod', d.GoMod], ['.info', d.Info]]) {
+      for (const [suffix, original] of [...(sourceIncluded ? [['.zip', d.Zip]] : []), ['.mod', d.GoMod]]) {
         const dest = safePath(bundle, base + suffix); fs.mkdirSync(path.dirname(dest), { recursive: true }); fs.copyFileSync(original, dest);
       }
       fs.writeFileSync(safePath(bundle, path.posix.dirname(base) + '/list'), m.Version + '\n');
-      modules.push({ path: m.Path, version: m.Version, sum: d.Sum, goModSum: d.GoModSum, proxyBase: base, sourceIncluded });
+      writeJSON(safePath(bundle, base + '.info'), { Version: m.Version, Time: d.Time ?? m.Time });
+      // No source hash is invented for an unused module whose ZIP was not
+      // downloaded. Every delivered metadata file still has a manifest SHA256.
+      modules.push({ path: m.Path, version: m.Version, sum: sourceIncluded ? d.Sum : m.Sum ?? null, goModSum: sourceIncluded ? d.GoModSum : m.GoModSum ?? null, proxyBase: base, sourceIncluded });
     }
     if (extras.length) fs.mkdirSync(path.join(bundle, 'upstream'));
     for (const [i, input] of extras.entries()) {
       const dest = safePath(bundle, 'upstream/' + input.file);
       if (input.kind === 'git') {
         const checkout = path.join(temp, `upstream-${i}`);
-        run('git', ['clone', '--quiet', '--depth', '1', '--branch', input.ref, input.url, checkout], temp);
+        if (!Array.isArray(input.paths) || !input.paths.length) throw Error('Git source input needs an explicit path selection');
+        for (const name of input.paths) safePath(checkout, name);
+        run('git', ['clone', '--quiet', '--filter=blob:none', '--no-checkout', '--depth', '1', '--branch', input.ref, input.url, checkout], temp);
         if (run('git', ['rev-parse', 'HEAD'], checkout).trim() !== input.revision) throw Error('Upstream source tag changed');
-        run('git', ['archive', '--format=tar', `--prefix=${input.prefix}`, '--output', dest, input.revision], checkout);
+        run('git', ['-c', 'core.autocrlf=false', 'archive', '--format=tar', `--prefix=${input.prefix}`, '--output', dest, input.revision, '--', ...input.paths], checkout);
       } else if (input.kind === 'https') run(process.execPath, [path.join(source, 'scripts/fetch-source-input.mjs'), input.url, dest, input.sha256], source);
       else throw Error('Unsupported source input');
       if (sha256(dest) !== input.sha256) throw Error(`Upstream source hash mismatch: ${input.file}`);
@@ -148,7 +156,7 @@ export function createSource({ root, tag, outputDir }) {
     const currentSum = run('git', ['show', `${revision}:go.sum`], root);
     if (fs.readFileSync(path.join(source, 'go.mod'), 'utf8') !== currentMod || fs.readFileSync(path.join(source, 'go.sum'), 'utf8') !== currentSum) throw Error('Module download changed source go.mod/go.sum');
     const toolchain = run('go', ['env', 'GOVERSION'], source, env).trim();
-    fs.writeFileSync(path.join(bundle, 'BUILD.txt'), `SWD ${tag}\nCommit: ${revision}\nLicense: GPL-3.0-only for new SWD contributions; see source/LICENSING.md.\n\nInstall ${toolchain}, Node.js 22+ and tar (general-purpose build tools).\nFrom this directory run:\n  node source/scripts/release-source.mjs rebuild --bundle . --output ../SWD-rebuilt.exe\nThe verifier checks all source/proxy file hashes, uses fresh Go caches and ONLY\nthe included file GOPROXY; it does not download modules or a toolchain.\nSource includes full module ZIPs, original notices, generated inputs and scripts.\nNo bit-for-bit binary reproducibility is claimed.\n`);
+    fs.writeFileSync(path.join(bundle, 'BUILD.txt'), `SWD ${tag}\nCommit: ${revision}\nLicense: GPL-3.0-only for new SWD contributions; see source/LICENSING.md.\n\nInstall ${toolchain}, Node.js 22+ and tar (general-purpose build tools).\nFrom this directory run:\n  node source/scripts/release-source.mjs rebuild --bundle . --output ../SWD-rebuilt.exe\nThe verifier checks all source/proxy file hashes, uses fresh Go caches and ONLY\nthe included file GOPROXY; it does not download modules or a toolchain.\nSource includes full module ZIPs, original notices, generated inputs and scripts.\nGit export-ignore omits historical experiments/ and docs/evidence/; these remain\nin the repository at the recorded commit. Research/chart inputs are retained.\nNo bit-for-bit binary reproducibility is claimed.\n`);
     const manifest = { schemaVersion: 1, tag, revision, repository, target: 'windows/amd64', toolchain, entry: desktopEntry, productionFlags, modules, supplementalInputs: extras,
       files: filesUnder(bundle).map(p => ({ path: p, bytes: fs.statSync(safePath(bundle, p)).size, sha256: sha256(safePath(bundle, p)) })) };
     writeJSON(path.join(bundle, 'source-manifest.json'), manifest);
@@ -177,9 +185,10 @@ export function verifyBundle(bundle) {
   for (const mod of m.modules) {
     const id = `${mod.path}@${mod.version}`;
     const base = `proxy/${escapeModule(mod.path)}/@v/${escapeModule(mod.version)}`;
-    if (modules.has(id) || mod.proxyBase !== base || !/^h1:/.test(mod.sum) || !/^h1:/.test(mod.goModSum)) throw Error(`Invalid module identity: ${id}`);
+    if (modules.has(id) || mod.proxyBase !== base || [mod.sum, mod.goModSum].some(s => s !== null && !/^h1:/.test(s)) || mod.sourceIncluded && (!mod.sum || !mod.goModSum)) throw Error(`Invalid module identity: ${id}`);
     modules.add(id);
     if (typeof mod.sourceIncluded !== 'boolean') throw Error(`Missing module source scope: ${id}`);
+    if (!mod.sourceIncluded && seen.has(base + '.zip')) throw Error(`Unexpected uncompiled module ZIP: ${id}`);
     for (const suffix of [...(mod.sourceIncluded ? ['.zip'] : []), '.mod', '.info']) if (!seen.has(base + suffix)) throw Error(`Missing complete module source: ${id}${suffix}`);
   }
   const compiled = m.modules.filter(mod => mod.sourceIncluded);

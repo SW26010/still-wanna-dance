@@ -99,3 +99,19 @@ func TestSetupFolderSingleDialogAndShutdownCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestMergedStoragePageChecksImportSourceWithoutStartingIt(t *testing.T) {
+	c := testConsole(t)
+	p := setupTestPlan(c)
+	p.Page, p.ImportSource = "storage", filepath.Join(t.TempDir(), "missing-source")
+	if _, err := c.validateSetupPlan(p); err == nil {
+		t.Fatal("merged storage page ignored missing import source")
+	}
+	p.ImportSource = t.TempDir()
+	if _, err := c.validateSetupPlan(p); err != nil {
+		t.Fatal(err)
+	}
+	if c.service != nil || c.importStatus.Running {
+		t.Fatal("validation started import")
+	}
+}

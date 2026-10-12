@@ -7,7 +7,7 @@ const html = readFileSync(new URL('../internal/console/index.html', import.meta.
   .replace('__SETUP__', readFileSync(new URL('../internal/console/setup.html', import.meta.url), 'utf8'));
 const script = readFileSync(new URL('../internal/console/assets/navigation.js', import.meta.url), 'utf8');
 const keys = ['home', 'monitor', 'cache', 'library', 'settings', 'setup'];
-function page(hash = '') {
+function page(hash = '', termsGate = null, pathname = '/') {
   let focused, scrolls = 0, pageChanges = 0, expectedPage;
   const events = {}, skipEvents = {};
   const nodes = new Map([...html.matchAll(/\bid="([^"]+)"/g)].map(([, id]) => [id, {
@@ -17,7 +17,7 @@ function page(hash = '') {
   const panels = keys.map(key => Object.assign(nodes.get('page-' + key), { dataset: { page: key } }));
   const links = keys.filter(key => key !== 'setup').map(key => ({ dataset: { pageLink: key },
     setAttribute(name, value) { this[name] = value; }, removeAttribute(name) { delete this[name]; } }));
-  const window = { location: { hash }, history: { replaceState(_, __, next) { window.location.hash = next; } },
+  const window = { swdTermsGate: termsGate, location: { hash, pathname, search:'' }, history: { replaceState(_, __, next) { const url=new URL(next,'http://fixture.invalid'+window.location.pathname); window.location.hash=url.hash;window.location.pathname=url.pathname; } },
     addEventListener(name, callback) { events[name] = callback; }, scrollTo() { scrolls++; } };
   const document = { getElementById: id => nodes.get(id),
     dispatchEvent(event) {
@@ -35,6 +35,22 @@ function page(hash = '') {
     go(next, expected) { expectedPage = expected; window.location.hash = next; events.hashchange(); },
     skip() { let prevented = false; skipEvents.click({ preventDefault() { prevented = true; } }); return prevented; } };
 }
+
+test('unaccepted first entry keeps every deep link in the same wizard', () => {
+  for (const hash of ['', '#/home', '#/settings', '#service', '#/setup']) {
+    const p=page(hash,{step:'welcome'});
+    assert.equal(p.window.location.hash,'#/setup');
+    assert.deepEqual(p.panels.filter(n=>!n.hidden).map(n=>n.dataset.page),['setup']);
+    p.go('#/settings','setup');assert.equal(p.window.location.hash,'#/setup');
+    p.window.swdTermsGate=null;p.go('#/settings','settings');
+  }
+});
+
+test('direct terms entry normalizes its address without leaving the document', () => {
+  const p=page('',{step:'terms'},'/terms');
+  assert.equal(p.window.location.pathname,'/');assert.equal(p.window.location.hash,'#/setup');
+  assert.equal(p.pageChanges,0);assert.equal(p.panels.find(n=>!n.hidden).dataset.page,'setup');
+});
 
 test('all routes show exactly one page with matching navigation and title', () => {
   const p = page();

@@ -125,7 +125,7 @@ func (c *Console) validateSetupPlanSnapshot(p setupPlan) (Settings, error) {
 			}
 		}
 	}
-	if (p.Page == "" || p.Page == "import") && strings.TrimSpace(p.ImportSource) != "" {
+	if (p.Page == "" || p.Page == "import" || p.Page == "storage") && strings.TrimSpace(p.ImportSource) != "" {
 		if _, err = setupImportSource(p.ImportSource, s.StorageDir, p.Page == ""); err != nil {
 			return s, err
 		}

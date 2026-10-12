@@ -1,5 +1,9 @@
 // Keep each page mounted: navigation must not reset drafts, selections or tasks.
 (() => {
+  // /terms also enters the wizard before consent. Normalize its address without
+  // loading another document so a later refresh resumes the wizard normally.
+  if (window.swdTermsGate && window.location.pathname === '/terms')
+    window.history.replaceState(null, '', '/' + window.location.search + window.location.hash);
   window.swdInitialRoute = window.location.hash;
   const pages = {
     home: ['开始使用', 'Load failed? But I still wanna dance!', '为 VRChat WannaDance 复用已下载视频，也可提前准备房间队列。'],
@@ -18,9 +22,9 @@
     const hash = window.location.hash === '#/upstream' ? 'network' : window.location.hash.slice(1);
     // The skip link moves focus without changing the selected page.
     if (hash === 'main' && !initial) return;
-    const page = Object.hasOwn(pages, hash.slice(1)) && hash.startsWith('/')
+    const page = window.swdTermsGate ? 'setup' : Object.hasOwn(pages, hash.slice(1)) && hash.startsWith('/')
       ? hash.slice(1) : Object.hasOwn(legacy, hash) ? legacy[hash] : 'home';
-    const target = Object.hasOwn(legacy, hash) ? document.getElementById(hash) : null;
+    const target = !window.swdTermsGate && Object.hasOwn(legacy, hash) ? document.getElementById(hash) : null;
     const changed = current !== page;
     if (changed && window.swdBeforeNavigate && !window.swdBeforeNavigate(current, page)) {
       window.history.replaceState(null, '', '#/' + current);

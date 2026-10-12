@@ -43,18 +43,18 @@ func validateStorageLocation(path, defaultPath, portable string, custom bool) er
 		return nil
 	}
 	if portable == "" {
-		return fmt.Errorf("无法确认 Portable 目录，请重试")
+		return fmt.Errorf("无法确认程序文件夹，请重试")
 	}
 	root, err := desktop.CanonicalPath(portable)
 	if err != nil {
-		return fmt.Errorf("无法确认 Portable 目录：%w", err)
+		return fmt.Errorf("无法确认程序文件夹：%w", err)
 	}
 	target, err := desktop.CanonicalPath(path)
 	if err != nil {
 		return fmt.Errorf("无法确认存储目录：%w", err)
 	}
 	if pathContains(portable, path) || pathContains(root, target) {
-		return fmt.Errorf("指定位置必须在 Portable 目录之外；使用内置位置请取消勾选“指定位置”")
+		return fmt.Errorf("请选择程序文件夹之外的位置，或点击“使用默认文件夹”")
 	}
 	return nil
 }

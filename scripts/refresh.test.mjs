@@ -9,6 +9,18 @@ const cacheScript = readFileSync(new URL('../internal/console/assets/cache.js', 
 const flush = () => new Promise(resolve => setImmediate(resolve));
 const resourceGroup = (p, domain) => p.document.getElementById('healthResources').children.find(s => s.children[0]?.textContent === domain)?.children[1];
 
+test('wizard diagnostic rows expose results inline and age direct throughput samples', () => {
+  const p=page();
+  p.context.now=Date.parse('2026-10-12T00:10:00Z');
+  vm.runInContext('Date.now = () => now',p.context);
+  p.context.sample={operation:'resource',mode:'direct',ip:'192.0.2.1',state:'available',entry:'https://fixture.invalid',estimatedSpeedBPS:1048576,throughputObservedAt:'2026-10-12T00:00:00Z',transferDurationMS:1000,transferredBytes:1048576};
+  const row=vm.runInContext('renderHealthResult(sample, 1, "等待重试", true)',p.context);
+  assert.equal(row.children.some(n=>['DETAILS','SUMMARY'].includes(n.tagName)),false);
+  assert.match(row.textContent,/1024.0 KiB\/s.*历史样本（已过期）/);
+  const unknown=vm.runInContext('renderHealthResult({operation:"resource",mode:"direct",state:"unknown",reason:"no_sample"}, 1, "等待重试", true)',p.context);
+  assert.match(unknown.textContent,/尚无成功样本.*未取得该域名的有效资源地址/);
+});
+
 test('canonical monitor renders every channel, throughput, unknown and stale states', async () => {
   const p = page();
   p.finishBatch(0, {}, { settings: { upstreamMode: 'auto' }, upstreamMonitor: {
@@ -600,7 +612,7 @@ for (const outcome of ['success', 'failure', 'lost response']) {
   });
 }
 
-function page(hidden = false) {
+function page(hidden = false, termsGate = null) {
   const requests = [];
   const timers = new Map();
   const elements = new Map();
@@ -673,6 +685,7 @@ function page(hidden = false) {
     if (tagName === 'button') buttons.push(node);
   }
   const context = vm.createContext({
+    swdTermsGate: termsGate,
     document,
     Event,
     AbortController,
@@ -733,6 +746,16 @@ function page(hidden = false) {
     get actionDeadlines() { return [...timers.values()].filter(t => [30000, 120000].includes(t.delay)); },
   };
 }
+
+test('first entry does not poll business APIs until durable consent opens the session', async () => {
+  const p=page(false,{step:'welcome'});
+  assert.equal(p.requests.length,0);assert.equal(p.timers.size,0);
+  p.visibility(false);p.document.dispatchEvent(new Event('pagechange'));
+  assert.equal(p.requests.length,0);
+  p.context.swdTermsGate=null;vm.runInContext('requestRefresh()',p.context);
+  assert.equal(p.requests[0].url,'/api/status');
+  p.finishBatch();await flush();assert.equal(p.timers.size,1);
+});
 
 test('saved settings and queue intent are separate from active display and runtime', async () => {
   const p = page(), get = id => p.document.getElementById(id);

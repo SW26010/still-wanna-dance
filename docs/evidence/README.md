@@ -8,6 +8,17 @@
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [issue-16-ui/20261012-single-confirm.md](issue-16-ui/20261012-single-confirm.md) | #16 直连范围固定标注、单次应用直达控制台、修复入口/导入条件显示及空间文案；211 项前端、Go 与内存浏览器开发检查，LA-029/030 待验收 |
+| [issue-16-ui/20261012-picker-focus-dpi.md](issue-16-ui/20261012-picker-focus-dpi.md) | #16 目录窗口归属与 Per-Monitor V2 DPI；原生 API 定向测试、预览取消清理，窗口视觉与多屏缩放仍待 LA-029 |
+| [issue-16-ui/20261012-local-feedback.md](issue-16-ui/20261012-local-feedback.md) | #16 目录框局部提示、hosts 成功文案去重、存储/网络刷新稳定布局；208 项前端测试、Go 定向回归和延迟内存预览，仍待实机验收 |
+| [issue-16-ui/20261012-dialog-controls.md](issue-16-ui/20261012-dialog-controls.md) | #16 条款弹窗及失效记录重确认、直接恢复 hosts、导入目录文本框、网络/接入统一刷新；自动回归和浏览器内存检查，LA-029/030 待实机 |
+| [issue-16-ui/20261012-layout-spec.md](issue-16-ui/20261012-layout-spec.md) | #16 按用户四页稿调整：同意状态、单行存储/容量、导入复选框、分项网络重测、接入状态与应用摘要；202 项前端测试和 Go/浏览器模拟检查，LA-029/030 待实机 |
+| [issue-16-ui/20261012-four-step-setup.md](issue-16-ui/20261012-four-step-setup.md) | #16 四步引导、现代 Windows 目录选择器、单行存储控件与同页接入/完成；199 项前端回归、Go 与浏览器文字记录，原生窗口视觉确认及 LA-029/030 待验收 |
+| [issue-16-ui/20261012-six-step-setup.md](issue-16-ui/20261012-six-step-setup.md) | #16 六步引导、目录选择接口、合并配置及完成状态；198 项前端回归、Go 与模拟浏览器文字记录，原生窗口及 LA-029/030 仍待实机 |
+| [issue-16-ui/20261012-ux-copy.md](issue-16-ui/20261012-ux-copy.md) | #16 新用户文案精简与网络结果层级；自动检查和模拟浏览器文本记录，LA-029/030 待实机验收 |
+| [issue-16-ui/20261012-same-page-consent.md](issue-16-ui/20261012-same-page-consent.md) | #16 首次与完整向导合并：同页确认、阅读位置保留、业务门禁和加载失败恢复；自动测试及内存夹具，仍待实机验收 |
+| [issue-16-ui/20261012-review-fixes.md](issue-16-ui/20261012-review-fixes.md) | #16 评审修正：HMAC 配置版本、真实首次入口模板、原 ID 回执查询和 junction 祖先预检；自动测试与内存浏览器检查，仍待实机验收 |
+| [issue-16-ui/20261012-layout-feedback.md](issue-16-ui/20261012-layout-feedback.md) | #16 页面反馈修正：五种 CSS 视口 × 八步、正文条款按钮、当前页网络结果、hosts 按钮、三态圆点；仅内存夹具开发检查，LA-029/030 待实机验收 |
 | [issue-16-ui/README.md](issue-16-ui/README.md) | #16 最终浏览器内存夹具检查：条款确认、重入测速、草稿挽留及重启超时恢复；仅文字结果，LA-029/030 仍待实机验收 |
 | [live-acceptance-20261007.json](live-acceptance-20261007.json) | `8b522c5` 联合实机验收：播放、预缓存途中点播/预览、双连接共享下载、故障与桌面生命周期；相对时间及清理前文件校验，结论见[验收报告](../live-acceptance-20261007.md) |
 | [current-release-live-20260925.json](current-release-live-20260925.json) | 历史构建 `c69e844` portable 联合实机验收：播放、队列、统计、容量淘汰、桌面退出/重启及真实 hosts UAC 操作 |

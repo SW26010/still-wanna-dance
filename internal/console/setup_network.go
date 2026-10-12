@@ -51,7 +51,14 @@ func (c *Console) newSetupNetwork() (*setupNetwork, error) {
 	return &setupNetwork{monitor: monitor, client: client, channel: channel, revision: revision}, nil
 }
 
-func (c *Console) checkSetupNetwork() error {
+func (c *Console) checkSetupNetwork(selected ...upstreamstate.CheckKind) error {
+	var kind upstreamstate.CheckKind
+	if len(selected) > 0 {
+		kind = selected[0]
+		if !upstreamstate.ValidCheckKind(kind) {
+			return errors.New("未知检测项目")
+		}
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
@@ -78,7 +85,12 @@ func (c *Console) checkSetupNetwork() error {
 		defer close(done)
 		// An explicit complete Monitor check includes throughput and bypasses the
 		// automatic cooldown. It lasts beyond a browser request or page navigation.
-		err := n.monitor.Check(context.Background())
+		var err error
+		if kind == "" {
+			err = n.monitor.Check(context.Background())
+		} else {
+			err = n.monitor.CheckSelected(context.Background(), kind)
+		}
 		c.mu.Lock()
 		n.running = false
 		if err != nil {

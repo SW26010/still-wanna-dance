@@ -12,6 +12,56 @@ import (
 	"time"
 )
 
+// Optional export lets the UI fixture preview the exact first-entry HTML from
+// ServeHTTP, rather than an approximation of the already-accepted wizard.
+func TestFirstEntryUsesViewportWizardAndModalConsent(t *testing.T) {
+	c, err := New(filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	for _, tc := range []struct{ path, name string }{{"/", "welcome.html"}, {"/terms", "terms.html"}} {
+		w := httptest.NewRecorder()
+		c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+tc.path, nil))
+		html := w.Body.String()
+		dialog, content, accept := strings.Index(html, `<dialog id="setupTermsDialog"`), strings.Index(html, `id="setupTermsText"`), strings.Index(html, `id="setupAcceptTerms"`)
+		if w.Code != 200 || dialog < 0 || content < dialog || accept < content || !strings.Contains(html, `id="consoleShell" data-view="setup"`) || !strings.Contains(html, `id="setupStepStorage"`) || !strings.Contains(html, `window.swdTermsGate = {`) {
+			t.Fatal("first-entry wizard layout incomplete", tc.path)
+		}
+		if strings.Contains(html, "location.replace") || strings.Contains(html, `__TERMS_GATE__`) {
+			t.Fatal("first entry still requires another document")
+		}
+		if dir := os.Getenv("SWD_UI_TERMS_EXPORT_DIR"); dir != "" {
+			if err := os.MkdirAll(dir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			// This is a test-only token. Replace it so the memory fixture can bind
+			// its own token without exposing any live application's credentials.
+			html = strings.ReplaceAll(html, c.token, "__TOKEN__")
+			if err := os.WriteFile(filepath.Join(dir, tc.name), []byte(html), 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	for _, path := range []string{"/api/status", "/api/inventory", "/api/setup", "/api/downloads"} {
+		w := httptest.NewRecorder()
+		c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+path, nil))
+		if w.Code != 428 {
+			t.Fatalf("business read %s bypassed consent: %d", path, w.Code)
+		}
+	}
+	for _, path := range []string{"/assets/navigation.js", "/assets/console.js", "/assets/setup.js", "/assets/cache.js"} {
+		w := httptest.NewRecorder()
+		c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+path, nil))
+		if w.Code != 200 {
+			t.Fatalf("wizard asset %s unavailable: %d", path, w.Code)
+		}
+	}
+	if _, err := os.Stat(c.files().ChannelKey); !os.IsNotExist(err) {
+		t.Fatal("first entry created a business key")
+	}
+}
+
 func TestTermsPageExitTimeout(t *testing.T) {
 	for _, action := range []string{"leave", "reopen", "return", "accept", "accept-after-timeout"} {
 		t.Run(action, func(t *testing.T) {
@@ -155,7 +205,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 		t.Fatal("direct start bypass")
 	}
 	w := request("GET", "/", "", "", "")
-	if w.Code != 200 || !strings.Contains(w.Body.String(), "软件许可不等于") || !strings.Contains(w.Body.String(), `id="accept" class="primary" type="submit"`) || strings.Contains(w.Body.String(), `type="checkbox"`) || strings.Contains(w.Body.String(), "ZgotmplZ") {
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "同意完整条款") || !strings.Contains(w.Body.String(), `id="setupAcceptTerms" type="button"`) || !strings.Contains(w.Body.String(), `window.swdTermsGate = {`) || strings.Contains(w.Body.String(), "ZgotmplZ") {
 		t.Fatal("missing usable consent page")
 	}
 	if w := request("POST", "/api/stop", "{}", c.token, ""); w.Code != 200 {
@@ -209,7 +259,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 		t.Fatal("receipt not persisted")
 	}
 	assertCurrentTermsAccepted(t, reloaded, true)
-	if w := request("GET", "/", "", "", ""); strings.Contains(w.Body.String(), `id="consent"`) {
+	if w := request("GET", "/", "", "", ""); !strings.Contains(w.Body.String(), `window.swdTermsGate = null;`) {
 		t.Fatal("still gated")
 	}
 	receipt, _ := json.Marshal(c.terms)
@@ -266,4 +316,42 @@ func TestTermsPersistenceFailureDoesNotAccept(t *testing.T) {
 	if w.Code != 500 || c.termsAccepted() || c.setupNetwork != nil {
 		t.Fatal("failed receipt write granted consent or started diagnosis")
 	}
+}
+
+func TestTermsReconfirmationDistinguishesMissingAndUnverifiableRecords(t *testing.T) {
+	c, err := New(filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	check := func(accepted, needsConfirmation bool) {
+		t.Helper()
+		w := httptest.NewRecorder()
+		c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/api/terms/current", nil))
+		var current struct {
+			Accepted          bool `json:"accepted"`
+			NeedsConfirmation bool `json:"needsConfirmation"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &current); err != nil || w.Code != 200 || current.Accepted != accepted || current.NeedsConfirmation != needsConfirmation {
+			t.Fatalf("unexpected confirmation state: %s (%v)", w.Body, err)
+		}
+	}
+	check(false, false)
+	for _, data := range []string{`broken`, `{"format":1,"protection":"dpapi-current-user","ciphertext":"AA=="}`} {
+		if err := os.WriteFile(c.files().Terms, []byte(data), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := c.loadTerms(); err != nil {
+			t.Fatal(err)
+		}
+		check(false, true)
+	}
+	if err := c.acceptTerms(); err != nil {
+		t.Fatal(err)
+	}
+	check(true, false)
+	if err := c.loadTerms(); err != nil {
+		t.Fatal(err)
+	}
+	check(true, false)
 }

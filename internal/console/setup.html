@@ -1,76 +1,78 @@
 <div id="page-setup" data-page="setup" hidden>
   <nav class="setup-steps" aria-label="引导步骤">
     <ol>
-      <li><button type="button" id="setupStepWelcome" disabled><span class="setup-step-number">1</span>欢迎使用</button></li>
-      <li><button type="button" id="setupStepTerms" disabled><span class="setup-step-number">2</span>使用条款</button></li>
-      <li><button type="button" id="setupStepStorage" disabled><span class="setup-step-number">3</span>存储设置</button></li>
-      <li><button type="button" id="setupStepImport" disabled><span class="setup-step-number">4</span>导入视频</button></li>
-      <li><button type="button" id="setupStepDirect" disabled><span class="setup-step-number">5</span>网络检测</button></li>
-      <li><button type="button" id="setupStepProxy" disabled><span class="setup-step-number">6</span>上游设置</button></li>
-      <li><button type="button" id="setupStepEnvironment" disabled><span class="setup-step-number">7</span>本机接入</button></li>
-      <li><button type="button" id="setupStepFinish" disabled><span class="setup-step-number">8</span>核对应用</button></li>
+      <li><button type="button" id="setupStepWelcome" disabled><span class="setup-step-number">1</span>开始</button></li>
+      <li><button type="button" id="setupStepStorage" disabled><span class="setup-step-number">2</span>存储</button></li>
+      <li><button type="button" id="setupStepProxy" disabled><span class="setup-step-number">3</span>网络</button></li>
+      <li><button type="button" id="setupStepFinish" disabled><span class="setup-step-number">4</span>启用</button></li>
     </ol>
     <div class="setup-exit"><button id="setupLeave" type="button">放弃更改并退出引导</button></div>
   </nav>
-  <div class="setup-heading"><p id="setupPosition" class="hint"></p><h1 id="setupTitle" tabindex="-1">欢迎使用</h1></div>
+  <div class="setup-heading"><h1 id="setupTitle" class="visually-hidden" tabindex="-1">开始</h1></div>
   <div class="setup-content">
     <section data-setup-step="welcome">
-      <p class="setup-slogan">Load failed?<br>But I still wanna dance!</p>
-      <p class="setup-lead">播过即缓存，再播从本地读取。</p>
-      <h2>运行方式与使用边界</h2>
-      <ul class="setup-points"><li>Windows · VRChat WannaDance；解压后运行 SWD.exe。</li><li>HTTP 视频可缓存；HTTPS 仅透传。</li><li>关闭网页后仍在托盘运行；退出不恢复 hosts。</li></ul>
-      <p class="setup-note">自由浏览，最后统一核对并应用。条款确认与 hosts 开关即时生效。</p>
-    </section>
-    <section data-setup-step="terms" hidden>
-      <p class="setup-lead">软件许可不等于内容授权。</p>
-      <p id="setupTermsState" class="setup-note" role="status">正在读取确认记录…</p>
-      <article id="setupTermsText" class="setup-terms" tabindex="0" aria-label="完整使用条款">正在读取条款…</article>
-      <a href="/terms.txt" target="_blank" rel="noopener">查看／保存纯文本</a>
-      <p class="setup-note">点击“确认同意条款”表示已阅读并同意完整条款，包括系统与数据影响、担保与责任边界；理解软件许可不等于内容授权，将基于必要授权或其他合法依据使用内容。确认立即保存。</p>
+      <h2 class="setup-brand">Still Wanna Dance <span>(SWD)</span></h2>
+      <p class="setup-slogan">Load failed? But I still wanna dance!</p>
+      <p class="setup-lead">专为 VRChat WannaDance 设计的高性能视频加速器</p>
+      <ul class="setup-features"><li>本地缓存</li><li>队列预加载</li><li>直连优化</li><li>自定义代理</li></ul>
+      <p>本工具自动后台运行，使用 WebUI 操作，可通过系统托盘图标管理。</p>
+      <p class="setup-principle">技术原理：通过修改系统 hosts 劫持 HTTP 视频请求</p>
+      <div class="setup-consent"><span id="setupTermsIcon" class="setup-state-icon" aria-hidden="true">○</span><span id="setupTermsLabel">阅读并同意</span><button id="setupShowTerms" class="setup-text-button" type="button" aria-haspopup="dialog" aria-controls="setupTermsDialog">完整条款</button></div>
+      <p id="setupTermsState" class="visually-hidden" role="status">正在读取确认记录…</p>
+      <details id="setupRepair" class="setup-repair"><summary>修复已有安装</summary><p class="setup-note">移除本程序的 hosts 映射，需要管理员确认，立即生效。</p><button id="setupRestoreHelp" type="button">恢复游戏直连</button><p id="setupRestoreResult" role="status"></p></details>
     </section>
     <section data-setup-step="storage" hidden>
-      <p class="setup-lead">默认随 Portable 保存，也可指定外部位置。</p>
+      <div class="setup-storage-row"><label for="setupStoragePath">视频缓存位置：</label><div class="setup-folder-field"><input id="setupStoragePath" type="text" readonly spellcheck="false" title="点击或按回车选择文件夹" aria-haspopup="dialog" aria-describedby="setupStorageFeedback"><div id="setupStorageFeedback" class="setup-field-feedback" role="alert" hidden><span aria-hidden="true">!</span><span id="setupStorageFeedbackText"></span></div></div><button id="setupDefaultStorage" type="button">默认位置</button><span id="setupDiskSpace" class="setup-note" role="status"></span></div>
       <div id="setupStorageSlot"></div>
-      <p class="setup-note">最后确认后应用；换目录不搬迁旧库。容量 0 表示不限。</p>
-      <div class="setup-check"><button id="setupCheckStorage" type="button">检查目录</button><div id="setupStorageStatus" role="status">尚未检查</div></div>
-      <p class="setup-note">历史回测覆盖率：20 GiB ≈ 52% · 50 GiB ≈ 68% · 100 GiB ≈ 75%。仅供参考。</p>
-    </section>
-    <section data-setup-step="import" hidden>
-      <p class="setup-lead">已有视频？直接复用。</p>
-      <h2>导入方式</h2><p>同卷优先硬链接，跨卷复制；联网校验 MD5，重复跳过。</p>
-      <p class="setup-note">默认保留源文件。硬链接共享内容，请勿修改源视频；不迁移旧统计。</p>
-      <div class="setup-import-target"><p id="setupImportTarget" role="status"></p><button type="button" id="setupChangeStorage">调整目标目录</button></div>
-      <label for="setupImportSource">视频来源目录（可留空）</label><input id="setupImportSource" type="text" placeholder="例如 D:\Videos" autocomplete="off">
-      <p class="setup-note">最后确认后才开始，使用清单中的目标目录。开始后关网页不中断，重启不续传。</p>
-    </section>
-    <section data-setup-step="direct" hidden>
-      <p class="setup-lead">看看直连能跑多快。</p><div id="setupDirectStatus" role="status">正在检测…</div><p id="setupDirectAdvice"></p>
-      <button type="button" id="setupRetryNetwork">重新检测</button>
-      <p class="setup-note">每个资源通道最多测 3 秒或 16 MiB，不改变上游设置。<a href="/#/monitor" target="_blank" rel="noopener">另页查看完整结果</a>。</p>
+      <div class="setup-capacity-choice" role="group" aria-label="缓存空间上限" aria-describedby="setupCapacityHint"><span>缓存空间上限：</span><label><input id="setupCapacityUnlimited" type="radio" name="setupCapacity" checked> 不限制</label><label><input id="setupCapacityLimited" type="radio" name="setupCapacity"> 限制为</label><label class="visually-hidden" for="setupCapacityValue">缓存容量（GiB）</label><input id="setupCapacityValue" type="number" min="0.01" max="8388607" step="0.01" value="40" required disabled><span>GiB</span></div>
+      <p id="setupCapacityHint" class="setup-note">完整数据约 430 GiB。空间不足时，建议将缓存限制在 40 GiB 以内，以获得最佳空间收益。</p>
+      <p id="setupStorageMoveHint" class="setup-note" hidden>更换目录不会搬迁已有数据。</p>
+      <div class="setup-check"><div id="setupStorageStatus" role="status"></div><button id="setupCheckStorage" type="button" hidden>重新检查</button></div>
+      <div class="setup-import-row"><label><input id="setupImportEnabled" type="checkbox" aria-controls="setupImportFolder setupImportDetails"> 导入已有视频</label><div id="setupImportFolder" class="setup-folder-field" hidden><input id="setupImportSelection" type="text" readonly disabled spellcheck="false" placeholder="点击选择文件夹" aria-label="导入视频文件夹" aria-haspopup="dialog" title="点击或按回车选择文件夹" aria-describedby="setupImportFeedback"><div id="setupImportFeedback" class="setup-field-feedback" role="alert" hidden><span aria-hidden="true">!</span><span id="setupImportFeedbackText"></span></div></div></div>
+      <input id="setupImportSource" type="hidden">
+      <div id="setupImportDetails" hidden><p class="setup-note">可选择存有 WannaDance 视频或旧缓存视频的文件夹，包含子文件夹，无需特定目录结构。</p>
+      <p class="setup-note">请放心，我们不会修改来源文件，并且会尽量使用硬链接来避免双份空间占用。导入后请勿修改源视频。</p></div>
     </section>
     <section data-setup-step="proxy" hidden>
-      <p class="setup-lead">选择允许使用的连接方式。</p><div id="setupProxySlot"></div>
-      <p class="setup-note">两项都选：自动选路。仅选 SOCKS5：不回退直连。最后确认后应用。</p>
-    </section>
-    <section data-setup-step="environment" hidden>
-      <p class="setup-lead">确认本机的接入条件。</p>
-      <h2>hosts 映射</h2><p id="setupHosts" role="status">正在检查…</p>
-      <label><input id="setupHostsEnabled" type="checkbox"> 启用本机 hosts 映射</label><p id="setupHostsResult" role="status"></p>
-      <p>修改 hosts 需要管理员权限（UAC）。<strong>映射写入系统，退出或删除程序后仍然生效。</strong>停用前请手动恢复 hosts。</p>
-      <p class="setup-note">开关立即执行，不随“放弃更改”撤销。只改变 hosts；缓存服务可在控制台启动。</p>
-      <h2>本地端口</h2><ul class="setup-ports"><li id="setupPort80" role="status">HTTP · 80：正在检查…</li><li id="setupPort443" role="status">HTTPS · 443：正在检查…</li></ul>
-      <h2>VRC 日志</h2><div class="setup-check"><button id="setupCheckLogs" type="button">重新检测日志</button><div id="setupLogsStatus" role="status">尚未检测</div></div>
-      <p id="setupLogsPath" class="setup-note"></p><p class="setup-note">检查当前日志位置能否读取，不代表 VRChat 正在运行。</p>
+      <div class="setup-section-heading"><h2>网络环境检测（直连）</h2><button id="setupRetryNetwork" class="setup-refresh" type="button" aria-label="重新检测直连网络" title="重新检测直连网络">↻</button></div>
+      <div class="setup-network-rows">
+        <div><span id="setupCatalogIcon" class="setup-state-icon" aria-hidden="true">○</span><span>歌曲列表：</span><span id="setupCatalogStatus" role="status">尚未检测</span></div>
+        <div><span id="setupPlaybackIcon" class="setup-state-icon" aria-hidden="true">○</span><span>播放地址：</span><span id="setupPlaybackStatus" role="status">尚未检测</span></div>
+        <div><span id="setupResourceIcon" class="setup-state-icon" aria-hidden="true">○</span><span>视频下载：</span><span id="setupResourceStatus" role="status">尚未检测</span></div>
+      </div>
+      <p id="setupDirectStatus" class="setup-note" role="status"></p>
+      <hr class="setup-divider">
+      <h2>连接方式</h2>
+      <div id="setupProxySlot"></div>
+      <p class="setup-note">两项都选时自动选择；只选代理时不会直连。</p>
+      <p id="setupDirectAdvice" class="setup-note" role="status"></p>
     </section>
     <section data-setup-step="finish" hidden>
-      <p class="setup-lead">确认这份清单，再应用。</p><div id="setupSummary" role="status"></div>
-      <p id="setupApplyHint" class="setup-note">设置变更会重启应用，随后在新目录开始导入。正在进行的播放会中断。</p>
+      <div id="setupGameAccess">
+        <div class="setup-section-heading"><h2>接入检查</h2><button id="setupCheckAccess" class="setup-refresh" type="button" aria-label="刷新接入检查" title="重新检查 hosts、端口及 VRChat 日志">↻</button></div>
+        <div class="setup-access-row"><span id="setupHostsIcon" class="setup-state-icon" aria-hidden="true">○</span><span id="setupHosts" role="status" title="接入会修改系统 hosts，需要管理员确认；立即生效，退出程序后仍保留。点击恢复可撤销。">hosts 状态：正在检查…</span><button id="setupHostsEnable" type="button" title="修改系统 hosts，需要管理员确认；立即生效，退出程序后仍保留。可点击恢复撤销。">接入</button><button id="setupHostsRestore" type="button" hidden title="请求管理员权限，移除本程序的 hosts 映射，立即恢复游戏直连。">恢复</button></div>
+        <p id="setupHostsResult" role="status"></p>
+        <div id="setupAccessDetails">
+          <div class="setup-access-row"><span id="setupPort80Icon" class="setup-state-icon" aria-hidden="true">○</span><span id="setupPort80" role="status">80 (HTTP) 端口状态：正在检查…</span></div>
+          <div class="setup-access-row"><span id="setupPort443Icon" class="setup-state-icon" aria-hidden="true">○</span><span id="setupPort443" role="status">443 (HTTPS) 端口状态：正在检查…</span></div>
+          <div class="setup-access-row"><span id="setupLogsIcon" class="setup-state-icon" aria-hidden="true">○</span><span>VRChat 日志：</span><span id="setupLogsPath" class="setup-path" role="status"></span></div>
+          <p id="setupLogsStatus" class="setup-note" role="status"></p>
+        </div>
+        <p id="setupAccessCheck" class="setup-note" role="status"></p>
+        <hr class="setup-divider">
+      </div>
+      <h2 id="setupReviewTitle">应用配置</h2>
+      <div id="setupSummary" role="status"></div>
+      <p id="setupApplyHint" class="setup-note"></p>
       <p id="setupApplyResult" role="status"></p>
-      <p class="setup-note">已确认的条款与已执行的 hosts 开关不在本次待应用范围内。</p>
     </section>
   </div>
-  <div class="setup-footer">
-    <div class="setup-feedback"><p id="setupMessage" role="status"></p><p id="setupSaveState" role="status"></p></div>
-    <div class="setup-navigation"><button id="setupReset" type="button" disabled title="恢复当前页出厂默认值">重置</button><div class="actions"><button id="setupBack" type="button">上一步</button><button id="setupAcceptTerms" type="button" hidden>确认同意条款</button><button class="primary" id="setupNext" type="button">下一步</button></div></div>
-  </div>
+  <div class="setup-footer"><div class="setup-feedback"><p id="setupMessage" role="status"></p><p id="setupSaveState" role="status"></p></div><div class="setup-navigation"><button id="setupReset" type="button" disabled>恢复本页默认</button><div class="actions"><button id="setupBack" type="button">上一步</button><button class="primary" id="setupNext" type="button">下一步</button></div></div></div>
+  <dialog id="setupTermsDialog" class="setup-terms-dialog" aria-labelledby="setupTermsHeading">
+    <div class="setup-dialog-heading"><h2 id="setupTermsHeading">完整条款</h2><button id="setupCloseTerms" type="button" aria-label="关闭条款" title="关闭条款">×</button></div>
+    <p id="setupTermsNotice" class="setup-note" hidden></p>
+    <article id="setupTermsText" class="setup-terms" tabindex="0" autofocus aria-label="完整使用条款">正在读取条款…</article>
+    <p id="setupTermsResult" role="status"></p>
+    <div class="setup-dialog-footer"><div><p class="setup-note">同意后立即保存。</p><a href="/terms.txt" target="_blank" rel="noopener">查看／保存纯文本</a></div><button id="setupAcceptTerms" type="button" class="primary">同意完整条款</button></div>
+  </dialog>
 </div>

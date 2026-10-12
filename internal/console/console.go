@@ -60,18 +60,19 @@ type Settings struct {
 }
 
 type Console struct {
-	identity             desktop.Identity
-	exitRequested        chan struct{}
-	restartRequested     chan struct{}
-	exitOnce             sync.Once
-	terms                termsReceipt // protected by mu; separate from editable settings
-	termsProtection      dataProtection
-	termsPageID          string
-	termsExitTimer       *time.Timer
-	termsExitGeneration  uint64     // invalidates callbacks already waiting for mu
-	activationMu         sync.Mutex // rejects duplicate wizard submissions, including across tabs
-	activation           Activation // protected by mu; never persisted
-	activationGeneration uint64     // protected by mu; distinguishes same-clock-tick retries
+	identity               desktop.Identity
+	exitRequested          chan struct{}
+	restartRequested       chan struct{}
+	exitOnce               sync.Once
+	terms                  termsReceipt // protected by mu; separate from editable settings
+	termsNeedsConfirmation bool         // an existing record could not be verified for this user/version
+	termsProtection        dataProtection
+	termsPageID            string
+	termsExitTimer         *time.Timer
+	termsExitGeneration    uint64     // invalidates callbacks already waiting for mu
+	activationMu           sync.Mutex // rejects duplicate wizard submissions, including across tabs
+	activation             Activation // protected by mu; never persisted
+	activationGeneration   uint64     // protected by mu; distinguishes same-clock-tick retries
 	// Acquire lifecycleMu before mu; state readers never wait on lifecycleMu.
 	lifecycleMu         sync.Mutex
 	queueUpdateMu       sync.Mutex // acquire before mu; serializes engine queue protection
@@ -646,8 +647,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == "GET" && r.URL.Path == "/" {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		io.WriteString(w, strings.ReplaceAll(strings.ReplaceAll(page, "__SETUP__", setupPage), "__TOKEN__", c.token))
+		c.serveConsolePage(w, nil)
 		return
 	}
 	if r.Method == "GET" && r.URL.Path == "/about" {
@@ -892,6 +892,12 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	case "/api/setup/network":
 		err = c.checkSetupNetwork()
+	case "/api/setup/network/catalog":
+		err = c.checkSetupNetwork(upstreamstate.CheckCatalog)
+	case "/api/setup/network/playback":
+		err = c.checkSetupNetwork(upstreamstate.CheckPlayback)
+	case "/api/setup/network/throughput":
+		err = c.checkSetupNetwork(upstreamstate.CheckThroughput)
 	case "/api/setup/logs":
 		writeJSON(w, c.inspectSetupLogs())
 		return

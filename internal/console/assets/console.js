@@ -99,7 +99,7 @@ function healthImpact(h, settings) {
   return summaries.join('；') + '。检测样本不保证每首歌曲可播放。';
 }
 
-function renderHealthResult(r, throughputMinutes, throughputWait) {
+function renderHealthResult(r, throughputMinutes, throughputWait, expanded = false) {
   const states = { available: '可用', unavailable: '不可用', unknown: '待测', stale: '已过期', closed: '已关闭' };
   const reasons = { no_channel: '没有有效候选', no_sample: '等待有效歌曲及资源样本', expired: '观测已过期', timeout: '请求超时', origin_timeout: '源站响应超时（Cloudflare 524）', network_error: '网络请求失败', resolution_unavailable: '无可用资源地址', invalid: '响应校验失败', restricted: '访问受限', upstream_error: '上游错误', http_error: 'HTTP 响应异常' };
   const date = v => v && !v.startsWith('0001') ? new Date(v).toLocaleString() : '—';
@@ -133,11 +133,15 @@ function renderHealthResult(r, throughputMinutes, throughputWait) {
         (song ? ' · 歌曲 #' + song : '') +
         ' · 测速时间 ' + date(at) +
         (durationMS != null ? ' · 下载 ' + (durationMS / 1000).toFixed(2) + ' s / ' + (bytes / 1048576).toFixed(2) + ' MiB' : '') +
-        (saved && Date.now() >= new Date(at).getTime() + throughputMinutes * 60 * 1000 ? ' · 历史样本（已过期）' : '') : noData);
+        (Date.now() >= new Date(at).getTime() + throughputMinutes * 60 * 1000 ? ' · 历史样本（已过期）' : '') : noData);
+      if (expanded) {
+        row.append(title, detail, latency, throughput);
+        return row;
+      }
       const technical = recentElement('details', 'help');
       technical.append(recentElement('summary', '', '线路技术详情'), detail, latency, throughput);
       const quickLatency = recentElement('div', 'hint', '响应延迟：' + (r.estimatedLatencyMS != null ? r.estimatedLatencyMS.toFixed(1) + ' ms' : '暂无有效数据'));
-      const expired = saved && Date.now() >= new Date(at).getTime() + throughputMinutes * 60 * 1000;
+      const expired = Date.now() >= new Date(at).getTime() + throughputMinutes * 60 * 1000;
       const quickSpeed = recentElement('div', 'hint', '下载速度：' + (speed != null ? (speed / 1024).toFixed(1) + ' KiB/s' + (expired ? '（历史样本，已过期）' : '') : '尚无成功样本'));
       row.append(title, technical, quickLatency, quickSpeed);
       return row;
@@ -150,6 +154,10 @@ function renderHealthResult(r, throughputMinutes, throughputWait) {
       (r.sampleSongID ? ' · 歌曲 #' + r.sampleSongID : '') +
       (r.http ? ' · HTTP ' + r.http : '') +
       ' · 观测 ' + date(r.observedAt) + ' · 有效至 ' + date(r.validUntil);
+    if (expanded) {
+      row.append(title, detail);
+      return row;
+    }
     const technical = recentElement('details', 'help');
     technical.append(recentElement('summary', '', '线路技术详情'), detail);
     row.append(title, technical);
@@ -590,7 +598,7 @@ async function action(path, body) {
   if (busy || exiting) return;
   if (path === 'restart' && lastState?.import?.running && !window.confirm('导入仍在运行。现在重启会中断导入且不会自动续传。建议等导入结束再重启；确定现在中断并重启吗？')) return;
   if (path === 'import/start' && lastState?.activeSettings?.storageDir !== lastState?.settings?.storageDir && !window.confirm('已保存的新存储目录尚未生效。本次将导入到当前生效目录：' + lastState.activeSettings.storageDir + '。若要使用新目录，请取消并先重启应用。仍要导入当前目录吗？')) return;
-  if (path === 'exit' && !window.confirm('确定退出整个应用？所有服务和后台任务将停止，hosts 映射会保留。需要恢复 hosts 时，请取消并先恢复。')) return;
+  if (path === 'exit' && !window.confirm('确定退出整个应用？所有服务和后台任务将停止，hosts 映射会保留。需要恢复游戏直连 时，请取消并先恢复。')) return;
   const origin = document.activeElement;
   busy = true;
   uncertainAction = '';
@@ -734,7 +742,7 @@ function scheduleRefresh() {
 
 function requestRefresh() {
   clearTimeout(refreshTimer);
-  if (exiting || document.hidden) return;
+  if (exiting || document.hidden || globalThis.swdTermsGate) return;
   refreshPending = true;
   if (refreshTask) return refreshTask;
   refreshTask = (async () => {

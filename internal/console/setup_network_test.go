@@ -106,6 +106,47 @@ func TestSetupNetworkGateSingleFlightAndShutdown(t *testing.T) {
 	}
 }
 
+func TestSetupSelectedNetworkRoutesKeepConsentAndDiagnosticScope(t *testing.T) {
+	for _, kind := range []upstreamstate.CheckKind{upstreamstate.CheckCatalog, upstreamstate.CheckPlayback, upstreamstate.CheckThroughput} {
+		t.Run(string(kind), func(t *testing.T) {
+			c := testConsole(t)
+			started := stubSetupNetwork(t, c)
+			before := upstreamrequest.Default.Snapshot()
+			request := func(token string) int {
+				r := httptest.NewRequest("POST", "http://"+c.address+"/api/setup/network/"+string(kind), strings.NewReader("{}"))
+				r.Header.Set("X-SWD-Token", token)
+				w := httptest.NewRecorder()
+				c.ServeHTTP(w, r)
+				return w.Code
+			}
+			if status := request(""); status != 403 {
+				t.Fatalf("missing token: %d", status)
+			}
+			accepted := c.terms
+			c.terms = termsReceipt{}
+			if status := request(c.token); status != 428 {
+				t.Fatalf("missing consent: %d", status)
+			}
+			c.terms = accepted
+			if status := request(c.token); status != 200 {
+				t.Fatalf("selected check: %d", status)
+			}
+			select {
+			case <-started:
+			case <-time.After(time.Second):
+				t.Fatal("selected diagnostic never started")
+			}
+			if got := c.setupNetwork.monitor.Snapshot().CheckKind; got != kind {
+				t.Fatalf("kind %q, want %q", got, kind)
+			}
+			if after := upstreamrequest.Default.Snapshot(); after.Transport != before.Transport || after.Revision != before.Revision {
+				t.Fatal("selected diagnostic changed business channel")
+			}
+			c.BeginShutdown()
+		})
+	}
+}
+
 // Isolated transport: never contacts an upstream, even on consent API tests.
 func stubSetupNetwork(t *testing.T, c *Console) <-chan struct{} {
 	t.Helper()

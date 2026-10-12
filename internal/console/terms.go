@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"still-wanna-dance/internal/legal"
@@ -58,11 +59,13 @@ func (c *Console) termsAccepted() bool {
 
 func (c *Console) loadTerms() error {
 	c.terms = termsReceipt{}
+	c.termsNeedsConfirmation = false
 	c.termsProtection = defaultTermsProtection
 	f, err := os.Open(c.files().Terms)
 	if os.IsNotExist(err) {
 		return nil
 	}
+	c.termsNeedsConfirmation = true
 	if err != nil {
 		return fmt.Errorf("读取条款确认记录：%w", err)
 	}
@@ -89,6 +92,7 @@ func (c *Console) loadTerms() error {
 		return nil
 	}
 	c.terms = receipt.termsReceipt
+	c.termsNeedsConfirmation = false
 	return nil
 }
 
@@ -116,6 +120,7 @@ func (c *Console) acceptTerms() error {
 		return err
 	}
 	c.terms = receipt
+	c.termsNeedsConfirmation = false
 	c.cancelTermsExitLocked()
 	return c.startMonitorLocked()
 }
@@ -157,9 +162,33 @@ func (c *Console) termsPagePresence(pageID string, leaving bool) {
 }
 
 // The gate precedes all application routes, including read APIs that can start work.
+type termsEntry struct {
+	PageID string `json:"pageID"`
+	Step   string `json:"step"`
+}
+
+func (c *Console) serveConsolePage(w http.ResponseWriter, entry *termsEntry) {
+	boot, _ := json.Marshal(entry)
+	html := strings.NewReplacer("__SETUP__", setupPage, "__TOKEN__", c.token, "__TERMS_GATE__", string(boot)).Replace(page)
+	if entry != nil {
+		// Render the same mounted wizard before scripts run, without exposing or
+		// reading business state. Authorization remains in serveTerms.
+		html = strings.Replace(html, `id="consoleShell"`, `id="consoleShell" data-view="setup"`, 1)
+		for _, id := range []string{"consoleHeader", "consoleNav", "consoleHero", "consoleFooter", "page-home"} {
+			html = strings.Replace(html, `id="`+id+`"`, `id="`+id+`" hidden`, 1)
+		}
+		html = strings.Replace(html, `id="page-setup" data-page="setup" hidden`, `id="page-setup" data-page="setup"`, 1)
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	io.WriteString(w, html)
+}
+
 func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 	if r.Method == "GET" && r.URL.Path == "/api/terms/current" {
-		writeJSON(w, map[string]any{"text": legal.Text, "version": legal.Version, "sha256": legal.Hash(), "accepted": c.termsAccepted()})
+		c.mu.Lock()
+		accepted, needsConfirmation := c.terms.valid(), c.termsNeedsConfirmation
+		c.mu.Unlock()
+		writeJSON(w, map[string]any{"text": legal.Text, "version": legal.Version, "sha256": legal.Hash(), "accepted": accepted, "needsConfirmation": needsConfirmation})
 		return true
 	}
 	if r.Method == "GET" && r.URL.Path == "/terms.txt" {
@@ -168,17 +197,21 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	if r.Method == "GET" && (r.URL.Path == "/terms" || (r.URL.Path == "/" && !c.termsAccepted())) {
+		if c.termsAccepted() {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_ = termsTemplate.Execute(w, struct{ Text, Version, Token string }{legal.Text, legal.Version, c.token})
+			return true
+		}
 		c.mu.Lock()
 		c.cancelTermsExitLocked()
 		c.termsPageID = rand.Text()
 		pageID := c.termsPageID
 		c.mu.Unlock()
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = termsTemplate.Execute(w, struct {
-			Text, Version, Hash, Token, PageID string
-			Accepted                           bool
-			Welcome                            bool
-		}{legal.Text, legal.Version, legal.Hash(), c.token, pageID, c.termsAccepted(), r.URL.Path == "/"})
+		step := "welcome"
+		if r.URL.Path == "/terms" {
+			step = "terms"
+		}
+		c.serveConsolePage(w, &termsEntry{PageID: pageID, Step: step})
 		return true
 	}
 	if r.URL.Path == "/api/terms/leave" || r.URL.Path == "/api/terms/return" {
@@ -233,7 +266,7 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 		writeJSON(w, map[string]bool{"ok": true})
 		return true
 	}
-	if !c.termsAccepted() && r.URL.Path != "/api/identity" && r.URL.Path != "/api/stop" && r.URL.Path != "/api/queue/stop" && r.URL.Path != "/api/exit" && r.URL.Path != "/api/restart" && r.URL.Path != "/api/hosts/disable" && r.URL.Path != "/assets/console.css" && r.URL.Path != "/about" {
+	if !c.termsAccepted() && r.URL.Path != "/api/identity" && r.URL.Path != "/api/stop" && r.URL.Path != "/api/queue/stop" && r.URL.Path != "/api/exit" && r.URL.Path != "/api/restart" && r.URL.Path != "/api/hosts/disable" && !strings.HasPrefix(r.URL.Path, "/assets/") && r.URL.Path != "/about" {
 		http.Error(w, "请先打开控制台阅读并同意使用条款", http.StatusPreconditionRequired)
 		return true
 	}
@@ -242,53 +275,13 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 
 var termsTemplate = template.Must(template.New("terms").Parse(`<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>使用条款 · Still Wanna Dance</title><link rel="stylesheet" href="/assets/console.css"></head>
-<body><main class="setup-gate {{if .Accepted}}terms-readonly{{end}}">
-{{if not .Accepted}}<nav class="setup-steps" aria-label="引导步骤"><ol>
-<li><button id="gateWelcome" type="button" {{if .Welcome}}aria-current="step"{{end}}><span class="setup-step-number">1</span>欢迎使用</button></li>
-<li><button id="gateTerms" type="button" {{if not .Welcome}}aria-current="step"{{end}}><span class="setup-step-number">2</span>使用条款</button></li>
-<li><button disabled><span class="setup-step-number">3</span>存储设置</button></li><li><button disabled><span class="setup-step-number">4</span>导入视频</button></li><li><button disabled><span class="setup-step-number">5</span>网络检测</button></li><li><button disabled><span class="setup-step-number">6</span>上游设置</button></li><li><button disabled><span class="setup-step-number">7</span>本机接入</button></li><li><button disabled><span class="setup-step-number">8</span>核对应用</button></li>
-</ol></nav>{{end}}<div class="setup-gate-content">
-{{if not .Accepted}}<section id="welcome" {{if not .Welcome}}hidden{{end}} aria-labelledby="welcomeTitle">
-<h1 id="welcomeTitle" tabindex="-1">欢迎使用 Still Wanna Dance</h1>
-<p class="setup-slogan">Load failed?<br>But I still wanna dance!</p>
-<p class="setup-lead">播过即缓存，再播从本地读取。</p>
-<h2>运行方式与使用边界</h2>
-<ul class="setup-points"><li>Windows · VRChat WannaDance；解压后运行 SWD.exe。</li><li>HTTP 视频可缓存；HTTPS 仅透传。</li><li>同意条款后，关闭网页仍在托盘运行。</li><li>修改 hosts 需要 UAC；退出或删除程序后映射仍生效，停用前需手动恢复。</li></ul>
-<p class="setup-note">下一页阅读条款。未同意时功能停用；关闭此页约 60 秒后尝试退出。</p>
-</section>{{end}}
-<section id="termsPanel" {{if and .Welcome (not .Accepted)}}hidden{{end}} aria-labelledby="termsTitle"><h1 id="termsTitle" tabindex="-1">使用条款与内容权利声明</h1>
-{{if .Accepted}}<p>本机已确认当前条款。<a href="/">返回控制台</a></p>{{end}}
-<p><strong>MIT 仅授权本项目软件，不授予视频、音乐等第三方内容的使用权。能下载、已缓存或个人使用，均不当然等于获得授权。</strong></p>
-{{if not .Accepted}}<p>请特别阅读第 2、4、5 条。不同意不会启用缓存或下载；仍可恢复 hosts。</p>
-<p>未同意时，关闭或离开本页约 60 秒后程序将尝试自动退出；重新打开本页可取消。已同意后，关闭网页不会退出程序。</p>{{end}}
+<body><main class="setup-gate terms-readonly"><div class="setup-gate-content">
+<h1>使用条款与内容权利声明</h1><p>本机已确认当前条款。<a href="/">返回控制台</a></p>
+<p class="setup-lead">软件许可不等于内容授权。</p>
 <p>条款版本：{{.Version}} · <a href="/terms.txt" target="_blank" rel="noopener">查看／保存纯文本</a></p>
 <article class="setup-terms" tabindex="0" aria-label="完整使用条款">{{.Text}}</article>
-{{if not .Accepted}}
-<form id="consent"><p>点击“确认同意条款”表示我已阅读并同意完整条款，包括系统与数据影响以及担保与责任边界；理解软件许可不等于第三方内容授权，并将基于必要授权或其他合法依据使用内容。确认立即保存。</p>
-</form>{{end}}
-</section>
-</div><div class="setup-footer"><p id="result" role="status" aria-live="polite"></p>
-<div class="setup-navigation"><div class="actions"><button type="button" id="restore">恢复 hosts</button><button type="button" id="stop">停止缓存服务</button></div>
-{{if not .Accepted}}<div class="actions"><button id="backWelcome" type="button" {{if .Welcome}}hidden{{end}}>上一步</button><button id="decline" type="button" {{if .Welcome}}hidden{{end}}>不同意，保持停用</button><button id="accept" class="primary" type="submit" form="consent" {{if .Welcome}}hidden{{end}}>确认同意条款</button><button id="readTerms" class="primary" type="button" {{if not .Welcome}}hidden{{end}}>下一步</button></div>{{end}}
-</div></div></main>
-<script>
-const token={{.Token}}, version={{.Version}}, sha256={{.Hash}}, pageID={{.PageID}};
-const result=document.getElementById('result');
-async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-SWD-Token':token},body:JSON.stringify(body)});if(!r.ok)throw new Error(await r.text());}
-const form=document.getElementById('consent');
-if(form){const accept=document.getElementById('accept');let busy=false;
-function showTerms(show){document.getElementById('welcome').hidden=show;document.getElementById('termsPanel').hidden=!show;document.getElementById('readTerms').hidden=show;for(const id of ['backWelcome','decline','accept'])document.getElementById(id).hidden=!show;
-const welcome=document.getElementById('gateWelcome'), terms=document.getElementById('gateTerms');if(show){terms.setAttribute('aria-current','step');welcome.removeAttribute('aria-current');}else{welcome.setAttribute('aria-current','step');terms.removeAttribute('aria-current');}document.getElementById(show?'termsTitle':'welcomeTitle').focus();}
-document.getElementById('readTerms').onclick=()=>showTerms(true);
-document.getElementById('backWelcome').onclick=()=>showTerms(false);
-document.getElementById('gateWelcome').onclick=()=>showTerms(false);
-document.getElementById('gateTerms').onclick=()=>showTerms(true);
-function presence(action){fetch('/api/terms/'+action,{method:'POST',keepalive:true,headers:{'Content-Type':'application/json','X-SWD-Token':token},body:JSON.stringify({pageID})}).catch(()=>{});}
-window.addEventListener('pagehide',()=>presence('leave'));
-window.addEventListener('pageshow',e=>{if(e.persisted)presence('return');});
-function update(){accept.disabled=busy;}
-form.addEventListener('submit',e=>{e.preventDefault();return confirmTerms();});
-async function confirmTerms(){if(busy)return;busy=true;update();try{await post('/api/terms/accept',{version,sha256,agree:true,contentRights:true});try{await post('/api/setup',{schemaVersion:1,step:'terms',state:'active'});}catch(_){/* Consent is already durable; progress cannot revoke it or block entry. */}location.replace('/#/setup');}catch(e){result.textContent=e.message;busy=false;update();}}
-document.getElementById('decline').onclick=()=>{result.textContent='未同意，缓存与下载保持停用。可恢复 hosts 后关闭本页，程序将在约 60 秒后尝试自动退出；也可通过托盘退出。';};}
-for(const [id,path] of [['restore','/api/hosts/disable'],['stop','/api/stop']]){document.getElementById(id).onclick=async()=>{try{await post(path,{});result.textContent=id==='restore'?'hosts 恢复操作已完成。':'缓存服务已停止。';}catch(e){result.textContent=e.message;}};}
+<div class="actions"><button type="button" id="restore">恢复游戏直连</button><button type="button" id="stop">停止缓存服务</button></div><p id="result" role="status" aria-live="polite"></p>
+</div></main><script>
+const token={{.Token}}, result=document.getElementById('result');
+for(const [id,path] of [['restore','/api/hosts/disable'],['stop','/api/stop']]){document.getElementById(id).onclick=async()=>{try{const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-SWD-Token':token},body:'{}'});if(!r.ok)throw new Error(await r.text());result.textContent=id==='restore'?'hosts 恢复操作已完成。':'缓存服务已停止。';}catch(e){result.textContent=e.message;}};}
 </script></body></html>`))

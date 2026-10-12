@@ -2,6 +2,8 @@
 
 正式 Windows amd64 发行必须将 Portable ZIP 与独立的完整对应源码包放在**同一个 GitHub Release**。GitHub 自动生成的 Source code ZIP/TAR 不含依赖源码，不能替代本包。源码入口、工具链、构建参数和所有依赖固定到同一版本，不承诺逐字节可复现 EXE。
 
+正式交付使用 `scripts/package-portable.ps1 -ReleaseTag v1.2.3`，它会生成、重建并验证成对的二进制/源码；下面的 `create` 是只生成源码的低层命令，单独执行不代表已经完成发行校验。完整流程与公开附件检查见[打包说明](packaging.md)。
+
 源码包由干净工作区的版本标签生成：
 
 ```powershell

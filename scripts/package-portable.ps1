@@ -1,11 +1,19 @@
 param(
     [ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9._-]*$')]
     [string]$Version = ('dev-' + (Get-Date -Format 'yyyyMMdd-HHmmss')),
-    [string]$OutputDir = 'artifacts'
+    [string]$OutputDir = 'artifacts',
+    [string]$ReleaseTag
 )
 $ErrorActionPreference = 'Stop'
 Push-Location (Split-Path -Parent $PSScriptRoot)
 try {
+    if ($ReleaseTag) {
+        if ($PSBoundParameters.ContainsKey('Version')) { throw 'Use ReleaseTag alone for a formal package.' }
+        node scripts/release.mjs create --tag $ReleaseTag --output $OutputDir
+        if ($LASTEXITCODE -ne 0) { throw 'Formal release checks failed.' }
+        return
+    }
+    if ($Version -match '^v?\d+\.\d+\.\d+(?:[-+].*)?$') { throw 'A versioned release requires -ReleaseTag and matching corresponding source. Use dev-/ci- labels for local builds.' }
     # Capture source state before tests/builds can create unignored output directories.
     $revision = & git rev-parse HEAD
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read Git revision.' }
@@ -31,10 +39,12 @@ try {
     Copy-Item -LiteralPath 'docs/portable-readme.txt' -Destination (Join-Path $folder 'README.txt')
     Copy-Item -LiteralPath 'LICENSE' -Destination (Join-Path $licenses 'LICENSE')
     Copy-Item -LiteralPath 'LICENSE-MIT' -Destination (Join-Path $licenses 'LICENSE-MIT')
+    Copy-Item -LiteralPath 'LICENSING.md' -Destination (Join-Path $licenses 'LICENSING.md')
     Copy-Item -LiteralPath 'internal/legal/TERMS.txt' -Destination (Join-Path $licenses 'TERMS.txt')
     & "$PSScriptRoot/package-notices.ps1" -Executable (Join-Path $folder 'SWD.exe') -Output (Join-Path $licenses 'THIRD-PARTY-NOTICES.txt')
     $goVersion = & go version
     $metadata = [ordered]@{
+        kind = 'development'
         version = $Version
         revision = "$revision"
         dirty = [bool]$changes
@@ -43,6 +53,10 @@ try {
         target = 'windows/amd64'
     }
     $metadata | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $folder 'build-info.json') -Encoding UTF8
+    [ordered]@{ kind = 'development'; version = $Version; revision = "$revision"; dirty = [bool]$changes } |
+        ConvertTo-Json | Set-Content -LiteralPath (Join-Path $licenses 'SOURCE.json') -Encoding UTF8
+    "Development build: $Version`nCommit: $revision`nThis is not a formal distribution. No official corresponding-source asset is claimed.`nPrepare formal releases using scripts/package-portable.ps1 -ReleaseTag and deliver the generated complete source archive. See docs/corresponding-source.md and LICENSING.md." |
+        Set-Content -LiteralPath (Join-Path $licenses 'SOURCE.txt') -Encoding UTF8
     Compress-Archive -LiteralPath $folder -DestinationPath $zip
     $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
     "$hash  $name.zip" | Set-Content -LiteralPath "$zip.sha256" -Encoding ASCII

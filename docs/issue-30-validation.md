@@ -22,3 +22,11 @@
 - 解压无 `.git` 的源码包，Go 1.27.1、Windows amd64、CGO=0、全新模块及编译缓存、仅包内 file GOPROXY 重建成功；EXE SHA256 `2fab37730c1f671c558e950f1ae947e1049af913d0916d9618841c415c99d131`。Go 的 downloading 日志在此指向本地 proxy，不是网络下载。11 个实际二进制模块均匹配清单；当前桌面仍未链接 Mihomo/go-lzo。
 - `node --test scripts/release-notices.test.mjs`：2/2 通过，覆盖声明被删、未登记模块、版本/校验变更拒绝及已接受 go-lzo 允许；真实重建 EXE 的声明覆盖校验通过。
 - 保留原有声明，增加固定桌面/adapter 并集 97 模块及原文件 SHA256；展示文本仅统一 LF、去除行尾空白，原模块 ZIP 字节不改。原文件哈希指向上游字节，汇总声明哈希指向展示文本，两者用途不同。
+
+## 正式发行门禁实现（2026-10-12）
+
+- `node --test scripts/*.test.mjs`：227/227 通过。新增发行负例覆盖缺源码、资产损坏、非法 URL/名称、错误 tag/commit、缺少独立重建记录，以及公开源码返回 404。网络用例使用受控响应，不冒充已发布 GitHub 资产验证。
+- `go test ./cmd/... ./internal/...`、`go vet ./cmd/... ./internal/...`：全部通过（正常 Windows 用户权限）。没有对包含忽略实验源码的整个工作目录宣称 `go test ./...` 通过。
+- 正式流程固定 tag/commit，从干净独立检出构建并核对实际 EXE；生成源码附件、SOURCE 入口、哈希发行清单和 Release notes，独立重建后执行真实 Portable ZIP 隔离 smoke。开发包明确标记 development。tag CI 接入同一正式流程，代码不执行 push 或 GitHub Release 发布。
+- 本段记录实现及回归通过；真实完整正式链验证结果另记。公开附件当前未发布，公开可用性、Mihomo 接入后的最终桌面 EXE、LA-033 仍未验收，#30 不据此关闭。
+- 交付工具和 CI 变化不改变应用运行行为，因此不新增实机项；已有 LA 项保持不变。

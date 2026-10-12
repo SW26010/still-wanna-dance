@@ -55,7 +55,7 @@ try {
     if ((Split-Path -Leaf $folder) -cne 'SWD') { throw 'ZIP installation directory must be stable: SWD.' }
     $shipped = @(Get-ChildItem -LiteralPath $folder | ForEach-Object Name | Sort-Object)
     if (($shipped -join '|') -cne 'build-info.json|licenses|README.txt|SWD.exe') { throw 'Unexpected delivered files or bundled user data.' }
-    foreach ($name in @('LICENSE', 'LICENSE-MIT', 'THIRD-PARTY-NOTICES.txt', 'TERMS.txt')) {
+    foreach ($name in @('LICENSE', 'LICENSE-MIT', 'LICENSING.md', 'THIRD-PARTY-NOTICES.txt', 'TERMS.txt', 'SOURCE.txt', 'SOURCE.json')) {
         $file = Join-Path (Join-Path $folder 'licenses') $name
         if (!(Test-Path -LiteralPath $file -PathType Leaf) -or (Get-Item -LiteralPath $file).Length -eq 0) {
             throw "Missing or empty license file: $name"

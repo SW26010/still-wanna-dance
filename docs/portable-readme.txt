@@ -74,6 +74,10 @@ stepstash-console.json、still-wanna-dance-data 或 stepstash-data 会拒绝默�
 构建溯源见 build-info.json，下载完整性校验见 ZIP 旁 .sha256 文件。
 当前发行的 GPLv3 全文见 licenses/LICENSE，历史 MIT 声明见 licenses/LICENSE-MIT；第三方及 Go 运行库声明见
 licenses/THIRD-PARTY-NOTICES.txt；重新分发或升级时保留并更新许可文件。
+正式版的准确对应源码下载、提交和校验见 licenses/SOURCE.txt；源码在同一 GitHub Release
+作为独立附件提供，普通使用不必下载。GitHub 自动的 Source code ZIP/TAR 不能替代该附件。
+镜像须保留声明并提供匹配源码的同等获取方式；离线再分发请同时附完整对应源码。
+本地开发包会明确标为 development，不宣称存在正式源码附件；授权范围见 licenses/LICENSING.md。
 
 程序日志位于 data/logs/app.log，与 VRChat 日志读取设置无关。
 每行 JSON；单文件最多 5 MiB，保留 .1、.2、.3 三份旧日志，总计最多约 20 MiB。

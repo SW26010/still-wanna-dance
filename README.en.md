@@ -102,4 +102,6 @@ The current configuration format is version 3. Unversioned and version 1/2 test 
 
 The current distribution is offered under [GNU GPLv3](LICENSE); new original contributions use `GPL-3.0-only`. [Historical MIT grants](LICENSE-MIT) remain valid. You are welcome to use, modify, and contribute under the applicable licenses. See [licensing and source delivery](LICENSING.md) and the preserved [third-party notices](THIRD-PARTY-NOTICES.txt).
 
+Formal releases provide a separate `*-corresponding-source.tar.gz` asset in the same GitHub Release. The package's `licenses/SOURCE.txt` contains its exact URL and checksum. Downloading source is optional for users; developers can follow the included BUILD.txt for an independent rebuild.
+
 The software license does not grant rights to third-party videos, music, or other content. Use content only with the necessary authorization or another lawful basis, and read the [terms of use and content rights statement (Chinese)](internal/legal/TERMS.txt). This repository does not include videos, binaries from the original application, or complete game logs.

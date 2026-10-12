@@ -14,7 +14,7 @@ export function run(command, args, cwd, env = {}) {
   return execFileSync(command, args, { cwd, env: { ...process.env, ...env }, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true });
 }
 export function goEnv(extra = {}) {
-  return { GOOS: 'windows', GOARCH: 'amd64', GOAMD64: 'v1', CGO_ENABLED: '0', GOFLAGS: '', GOWORK: 'off', GOTOOLCHAIN: 'local', GOENV: 'off', ...extra };
+  return { GOOS: 'windows', GOARCH: 'amd64', GOAMD64: 'v1', CGO_ENABLED: '0', GOFLAGS: '', GOEXPERIMENT: '', GO111MODULE: 'on', GOWORK: 'off', GOTOOLCHAIN: 'local', GOENV: 'off', ...extra };
 }
 export function sha256(file) {
   const hash = crypto.createHash('sha256'), buffer = Buffer.alloc(1024 * 1024);
@@ -56,11 +56,13 @@ export function filesUnder(root, dir = root) {
 export function withTemp(fn) {
   const base = path.resolve(os.tmpdir());
   const dir = fs.mkdtempSync(path.join(base, 'swd-source-'));
-  try { return fn(dir); } finally {
+  const cleanup = () => {
     const target = path.resolve(dir);
     if (path.dirname(target) !== base || !path.basename(target).startsWith('swd-source-')) throw Error('Refusing unsafe temporary cleanup');
     fs.rmSync(target, { recursive: true, force: true });
-  }
+  };
+  try { const result = fn(dir); if (result?.then) return result.finally(cleanup); cleanup(); return result; }
+  catch (e) { cleanup(); throw e; }
 }
 export function cleanRevision(root, tag) {
   if (run('git', ['status', '--porcelain', '--untracked-files=all'], root).trim()) throw Error('Source packaging requires a clean tracked and untracked worktree');
@@ -151,20 +153,24 @@ export function verifyBundle(bundle) {
 }
 
 export function extractSource(archive, dest) {
+  extractArchive(archive, dest, 'SWD-source');
+  const bundle = path.join(dest, 'SWD-source'); verifyBundle(bundle); return bundle;
+}
+
+export function extractArchive(archive, dest, prefix) {
   // Reject traversal, links and non-regular entries before invoking standard tar.
-  const names = run('tar', ['-tzf', path.resolve(archive)], undefined, { TAR_OPTIONS: '' }).trim().split(/\r?\n/);
-  const modes = run('tar', ['-tvzf', path.resolve(archive)], undefined, { TAR_OPTIONS: '' }).trim().split(/\r?\n/);
+  const names = run('tar', ['-tf', path.resolve(archive)], undefined, { TAR_OPTIONS: '' }).trim().split(/\r?\n/);
+  const modes = run('tar', ['-tvf', path.resolve(archive)], undefined, { TAR_OPTIONS: '' }).trim().split(/\r?\n/);
   const seen = new Set();
   for (const name of names) {
     const p = name.replace(/\/$/, ''); safePath(dest, p);
-    if (!(p === 'SWD-source' || p.startsWith('SWD-source/')) || seen.has(p)) throw Error('Unexpected source archive entry');
+    if (!(p === prefix || p.startsWith(prefix + '/')) || seen.has(p)) throw Error('Unexpected archive entry');
     seen.add(p);
   }
   if (modes.length !== names.length || modes.some(line => !/^[-d]/.test(line))) throw Error('Source archive contains links or special entries');
   if (fs.existsSync(dest)) throw Error('Extraction destination must be new');
   fs.mkdirSync(dest, { recursive: true });
-  run('tar', ['-xzf', path.resolve(archive), '-C', dest], undefined, { TAR_OPTIONS: '' });
-  const bundle = path.join(dest, 'SWD-source'); verifyBundle(bundle); return bundle;
+  run('tar', ['-xf', path.resolve(archive), '-C', dest], undefined, { TAR_OPTIONS: '' });
 }
 
 export function executableInfo(executable) {

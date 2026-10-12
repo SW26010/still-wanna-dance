@@ -678,6 +678,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/api/status" && r.Method == "GET" {
 		c.mu.Lock()
 		running := c.httpServer != nil
+		setupVersion, setupVersionErr := c.setupSettingsVersion(c.savedSettings)
 		result := struct {
 			Running               bool                    `json:"running"`
 			Settings              Settings                `json:"settings"`
@@ -705,6 +706,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			SetupNetwork          setupNetworkStatus      `json:"setupNetwork"`
 			SetupApplication      SetupApplication        `json:"setupApplication"`
 			SetupSettingsVersion  string                  `json:"setupSettingsVersion"`
+			SetupSettingsError    string                  `json:"setupSettingsError,omitempty"`
 		}{
 			Running: running, Settings: c.savedSettings, ActiveSettings: c.settings,
 			RestartRequired: c.savedSettings != c.settings,
@@ -716,8 +718,11 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			DefaultStorageDir: c.defaultStorageDir(), PortableDir: portableDir(),
 			UpstreamMonitor:      c.monitorSnapshotLocked(),
 			SetupNetwork:         c.setupNetworkSnapshotLocked(),
-			SetupApplication:     c.setupApplication,
-			SetupSettingsVersion: setupSettingsVersion(c.savedSettings),
+			SetupApplication:     c.setupApplication.public(),
+			SetupSettingsVersion: setupVersion,
+		}
+		if setupVersionErr != nil {
+			result.SetupSettingsError = setupVersionErr.Error()
 		}
 		result.Settings.SOCKS5Password = ""
 		result.ActiveSettings.SOCKS5Password = ""
@@ -830,6 +835,25 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
 	var err error
 	switch r.URL.Path {
+	case "/api/setup/receipt":
+		var input struct {
+			ID string `json:"id"`
+		}
+		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+			c.setupApplyMu.Lock()
+			var receipt SetupApplication
+			receipt, err = c.readSetupReceipt(input.ID)
+			c.setupApplyMu.Unlock()
+			if err == nil {
+				writeJSON(w, receipt.public())
+				return
+			}
+			if os.IsNotExist(err) {
+				w.WriteHeader(http.StatusNotFound)
+				writeJSON(w, map[string]string{"error": "未找到原应用回执；请核对正式配置与导入任务，不会自动重新执行"})
+				return
+			}
+		}
 	case "/api/setup/validate", "/api/setup/apply":
 		var input setupPlan
 		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
@@ -839,7 +863,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				var result SetupApplication
 				result, err = c.applySetupPlan(input)
 				if err == nil {
-					writeJSON(w, result)
+					writeJSON(w, result.public())
 					_ = http.NewResponseController(w).Flush()
 					if result.Phase == "restart" {
 						c.exitOnce.Do(func() { close(c.restartRequested) })

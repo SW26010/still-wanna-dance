@@ -82,7 +82,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
     config.lock                   # 启动获取，退出释放，文件可保留
     logs/app.log                  # 启动创建，最多另有 .1 / .2 / .3
     terms.json                    # 用户确认当前条款后才写入
-    channel.key                   # 使用 SOCKS5 通道身份时才生成
+    channel.key                   # 查询引导配置版本或使用 SOCKS5 通道身份时生成
     state/                        # 相关操作首次保存结果时才创建
       throughput.json
       inventory.json
@@ -124,7 +124,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | EXE、licenses、README、构建信息 | 由交付包拥有；升级仅覆盖这些路径 | 可从相应构建重新取得，许可随分发保留 |
 | `C` | 主设置；首次成功打开和保存设置时写入 | 必须备份；代理密码为 CurrentUser DPAPI 密文，换用户/机器可能需重配 |
 | `R/terms.json` | 用户主动确认后写入；条款变化要求重新确认 | 随配置备份；缺失则重新确认，不是身份或内容授权证明 |
-| `R/channel.key` | 32 字节通道身份密钥；仅缺失时生成，损坏则保留原文件并使用临时身份 | 随配置备份；缺失重建会改变 SOCKS5 稳定身份和旧样本关联 |
+| `R/channel.key` | 32 字节密钥，供通道身份和独立用途的引导配置 HMAC 使用；仅缺失时生成。损坏时通道可用临时身份，引导版本校验则明确失败 | 随配置备份；缺失重建会改变 SOCKS5 稳定身份、旧样本关联与引导配置版本，旧清单不能继续导入 |
 | `R/state/throughput.json` | 测速尝试冷却与历史样本；网络监测需要持久化时更新 | 可重建；丢失旧样本和冷却时间，不包含凭据或播放 URL |
 | `R/state/inventory.json` | 最近成功的库存快照；扫描失败保留上次结果 | 可重新扫描 |
 | `R/state/batch.json`、`attempt.json` | 成功批量任务摘要、最近尝试摘要 | 可重新运行；不是断点续传记录，丢失的历史摘要不可恢复 |
@@ -136,7 +136,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | `S/tmp/import-<数字>/video` | 单次导入硬链接或跨卷复制暂存；操作结束只删除自己的 `video` 及空目录，崩溃后仅清理空目录或恰有一个普通 `video` 文件的已知目录，绝不递归删除陌生内容 | 不必备份；合法库启动时按媒体锁及格式校验后清理；源视频和完整缓存不受影响 |
 | `B/.<配置文件名>.swd-tmp`、`R/.terms.json.swd-tmp`、`R/state/.<状态文件名>.swd-tmp` | 主配置、条款与四类状态的固定原子工作槽（各目标至多一个）；配置锁持有者启动时只清理本实例已知工作槽，不全盘扫描 | 非备份对象；未知文件及旧随机命名不泛化删除，工作槽占用/不安全时拒绝清理并保留最后有效数据 |
 | 可写性探测目录中的 `.swd-probe-*` | Windows 使用内核 delete-on-close 创建临时探测文件，正常关闭或进程终止后删除；不扫描用户外部目录 | 非备份对象 |
-| `R/channel.key` 损坏、`R/state/throughput.json` 损坏 | 密钥损坏时原文件原地保留、告警并使用进程内临时身份；测速状态损坏时跳过载入并在下次成功保存时原子替换，均不再新增 `.corrupt-*` 副本 | 密钥需要恢复原始备份才能恢复历史身份；旧试验版的 `.corrupt-*` 不自动清理 |
+| `R/channel.key` 损坏、`R/state/throughput.json` 损坏 | 密钥损坏时原文件原地保留，通道告警并使用进程内临时身份；引导拒绝配置版本校验、应用及重启后的导入衔接。测速状态损坏时跳过载入并在下次成功保存时原子替换，均不再新增 `.corrupt-*` 副本 | 密钥需要恢复原始备份才能恢复历史身份和配置版本；旧试验版的 `.corrupt-*` 不自动清理 |
 
 库存和任务快照独立使用 `schemaVersion=1`，只保存 `storageDir` 与 `result`。相对库路径以 B 为基准，整体移动后可用；切换库不加载另一库的结果。损坏或不支持的快照跳过，不引入迁移链。设置、密钥和状态属于配置实例，不塞入可外置的媒体 SQLite。未来 #14 节点/订阅持久化及现有 #15 条款凭据属于 R，须遵守各自格式合同；#16 引导应复用配置与条款状态。
 
@@ -202,7 +202,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | config.json / 自定义配置 | schemaVersion=3；字段见 Settings：目录文本，manualLogDir/autoStartCDN/autoStartQueue 布尔，requestRetentionDays（0=不清明细）、maxCacheBytes（0=不限）、queuePrefetchCount（缺失/0→3，1–100）、throughputIntervalMinutes（缺失/0→20，1–1440）、downloadUpstream（空→auto，auto/cf/hkg，hkg 对应 API nya）、upstreamMode（空→direct，direct/auto/socks5）、代理地址与用户名。缺失采用构造默认（保留期 30 天），显式 null 对标量沿用默认；false/合法 0 保留。未知字段以 RawMessage 保留数值精度；格式缺失/未来/旧版本、明文 socks5Password 均拒绝写入 |
 | config.proxySecret | 缺字段=无保存密码。封套 `{version:1, protection:"dpapi-current-user", ciphertext:"<base64>"}`；与整个配置一起原子替换，无第二份凭据文件/明文快照。未知格式、null、损坏或当前用户解密失败=不可用并保留原值；省略设置 API 密码保留密文，明确输入新密码替换，用户名/密码一起清空移除。状态仅返回可用标志和固定诊断，不返回密文/明文 |
 | terms.json | 封套 `{format:1, protection:"dpapi-current-user", ciphertext:"<base64>"}`；密文包含 purpose=`swd-terms-receipt-v1`、version（条款版本）、sha256（正文摘要）及 acceptedAt（非零有效时间）。封套版本独立于条款版本。每次启动由当前用户解密，缺失/旧明文/未知格式/损坏/解密失败/条款不符均不授予同意；不自动覆盖失效记录。只有明确勾选提交且保护及原子写成功后更新内存。记录上限 64 KiB；允许系统时钟回拨，不用本地时间证明身份 |
-| channel.key | 无复杂封套，精确 32 个随机字节。HMAC-SHA256 输入为 JSON 数组 `["socks5-channel-v1",address,username,password]`，输出 stable-v1-hex；域分隔符冻结。缺失排他生成；长度错误时原文件保留并告警，使用临时通道身份，不复用持久样本；不可读时同样使用临时通道身份。不是加密密码的密钥 |
+| channel.key | 无复杂封套，精确 32 个随机字节。通道 HMAC-SHA256 输入为 JSON 数组 `["socks5-channel-v1",address,username,password]`，输出 stable-v1-hex；域分隔符冻结。引导版本使用独立前缀 `swd-setup-settings-v1` 加 NUL 字节，再加完整 Settings JSON（含密码；不可解密时追加受保护凭据），输出 hmac-v1-hex。缺失排他生成；长度错误或不可读时，通道使用临时身份且不复用持久样本，引导版本则返回错误，不回退公开摘要或临时密钥。不是加密密码的密钥 |
 | state/throughput.json | schemaVersion=1、lastAttempt、samples；sample 包含 observedAt、songID、bytes、durationNs。只恢复合法域名通道和稳定代理身份、正字节/时长且非未来样本。无版本/其它版本不解释；坏 JSON 保留至下一次成功的原子保存，不生成隔离副本；历史节点键不迁移，重新采样。它不是网络当前健康真相 |
 | state/inventory.json | schemaVersion=1、storageDir、result；result 为 Inventory：catalog（revision/checkedAt/message/error）、coverageKnown/coveredSongs/totalSongs/catalogRevision/videos/bytes/scanning/updated/error；恢复强制 scanning=false |
 | state/batch.json、attempt.json | 同一独立快照版本 1 和库归属；result 为 Batch：catalog/catalogWarning/budgetReached/catalogHits/reused/scanOnly/missing/updated/finished/running/phase/total/checked/hits/downloaded/failed/current/failures（id/name/error）。恢复 running=false；attempt 需 finished 非零。不是可恢复执行队列 |

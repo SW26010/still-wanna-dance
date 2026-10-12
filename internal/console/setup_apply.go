@@ -1,11 +1,13 @@
 package console
 
 import (
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -42,14 +44,32 @@ type SetupApplication struct {
 	TargetVersion string `json:"targetVersion,omitempty"`
 }
 
-func setupSettingsVersion(s Settings) string {
+func (c *Console) setupSettingsVersion(s Settings) (string, error) {
+	key, err := loadProxyIdentityKey(c.files().ChannelKey)
+	if err != nil {
+		return "", fmt.Errorf("无法验证引导配置版本，请恢复通道身份密钥后重试：%w", err)
+	}
+	defer clear(key)
 	data, _ := json.Marshal(s)
 	// Include unreadable protected credentials in the concurrency check as well.
 	if s.proxySecretError != "" {
 		data = append(data, []byte(s.proxySecret)...)
 	}
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:])
+	defer clear(data)
+	// Domain separation keeps this verifier independent of public channel IDs.
+	// Never fall back to a public digest or a process-local key: restart matching
+	// must cover credentials, including protected credentials we cannot decrypt.
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte("swd-setup-settings-v1\x00"))
+	mac.Write(data)
+	return "hmac-v1-" + hex.EncodeToString(mac.Sum(nil)), nil
+}
+
+func (a SetupApplication) public() SetupApplication {
+	// The browser only needs the execution result, including for legacy receipts
+	// whose internal target version was an unkeyed credential verifier.
+	a.TargetVersion = ""
+	return a
 }
 
 func (c *Console) validateSetupPlan(p setupPlan) (Settings, error) {
@@ -66,7 +86,11 @@ func (c *Console) validateSetupPlanSnapshot(p setupPlan) (Settings, error) {
 	if closing || !accepted {
 		return s, errors.New("请先同意条款，并等待应用就绪")
 	}
-	if p.BaseVersion != setupSettingsVersion(s) {
+	version, err := c.setupSettingsVersion(s)
+	if err != nil {
+		return s, err
+	}
+	if p.BaseVersion != version {
 		return s, errors.New("正式设置已在别处改变，请放弃本轮草稿并重新进入引导")
 	}
 	if p.Page == "" || p.Page == "storage" {
@@ -84,7 +108,6 @@ func (c *Console) validateSetupPlanSnapshot(p setupPlan) (Settings, error) {
 			s.SOCKS5Password, s.proxySecret, s.proxySecretError = *p.Password, "", ""
 		}
 	}
-	var err error
 	s, err = c.resolveSettings(s)
 	if err != nil {
 		return s, err
@@ -157,6 +180,29 @@ func (c *Console) setupReceiptPath(id string) string {
 	return c.files().State("setup-apply-" + hex.EncodeToString(sum[:]))
 }
 
+func (c *Console) readSetupReceipt(id string) (SetupApplication, error) {
+	if id == "" || len(id) > 80 {
+		return SetupApplication{}, errors.New("无效的应用清单 ID")
+	}
+	c.mu.Lock()
+	current := c.setupApplication
+	c.mu.Unlock()
+	if current.ID == id {
+		return current, nil
+	}
+	f, err := os.Open(c.setupReceiptPath(id))
+	if err != nil {
+		return SetupApplication{}, err
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, 8193))
+	var receipt SetupApplication
+	if err != nil || len(data) > 8192 || json.Unmarshal(data, &receipt) != nil || receipt.ID != id {
+		return SetupApplication{}, errors.New("无法确认此清单的历史回执；不会重复执行")
+	}
+	return receipt, nil
+}
+
 func (c *Console) loadSetupApplication() {
 	data, err := os.ReadFile(c.files().State("setup-apply"))
 	if os.IsNotExist(err) {
@@ -183,12 +229,8 @@ func (c *Console) applySetupPlan(p setupPlan) (SetupApplication, error) {
 	taskRunning := c.importStatus.Running || c.batch.Running || c.queue.Running
 	c.mu.Unlock()
 	if p.ID != "" && len(p.ID) <= 80 {
-		if data, readErr := os.ReadFile(c.setupReceiptPath(p.ID)); readErr == nil {
-			var receipt SetupApplication
+		if receipt, readErr := c.readSetupReceipt(p.ID); readErr == nil {
 			c.lifecycleMu.Unlock()
-			if json.Unmarshal(data, &receipt) != nil || receipt.ID != p.ID {
-				return previous, errors.New("无法确认此清单的历史回执；不会重复执行")
-			}
 			return receipt, nil
 		} else if !os.IsNotExist(readErr) {
 			c.lifecycleMu.Unlock()
@@ -216,7 +258,12 @@ func (c *Console) applySetupPlan(p setupPlan) (SetupApplication, error) {
 		c.lifecycleMu.Unlock()
 		return previous, errors.New("现有导入或队列任务仍在运行，请结束后再应用；本轮草稿保留")
 	}
-	a := SetupApplication{ID: p.ID, Phase: "preparing", TargetVersion: setupSettingsVersion(s)}
+	version, err := c.setupSettingsVersion(s)
+	if err != nil {
+		c.lifecycleMu.Unlock()
+		return previous, err
+	}
+	a := SetupApplication{ID: p.ID, Phase: "preparing", TargetVersion: version}
 	if strings.TrimSpace(p.ImportSource) != "" {
 		a.ImportSource, err = setupImportSource(p.ImportSource, s.StorageDir, true)
 		if err != nil {
@@ -230,10 +277,12 @@ func (c *Console) applySetupPlan(p setupPlan) (SetupApplication, error) {
 			a.ConfigSaved = true
 			// Use the exact normalized, persisted settings for restart matching.
 			c.mu.Lock()
-			a.TargetVersion = setupSettingsVersion(c.savedSettings)
+			a.TargetVersion, err = c.setupSettingsVersion(c.savedSettings)
 			c.mu.Unlock()
 			a.Phase = "restart"
-			err = c.writeSetupApplication(a)
+			if err == nil {
+				err = c.writeSetupApplication(a)
+			}
 		}
 	}
 	c.lifecycleMu.Unlock()
@@ -264,8 +313,13 @@ func (c *Console) resumeSetupApplicationLocked(startImport func(string) error) {
 	if a.Phase != "restart" || !accepted {
 		return
 	}
-	if a.TargetVersion != setupSettingsVersion(active) {
+	version, err := c.setupSettingsVersion(active)
+	if err != nil || a.TargetVersion != version {
 		a.Phase, a.Error = "failed", "当前配置与已确认清单不一致；未启动导入，请重新核对"
+		if err != nil {
+			a.Error = err.Error() + "；未启动导入"
+		}
+		a.TargetVersion = "" // Do not preserve a legacy unkeyed verifier on rewrite.
 		_ = c.writeSetupApplication(a)
 		return
 	}

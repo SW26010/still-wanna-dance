@@ -3,6 +3,8 @@ param(
     [Parameter(Mandatory = $true)][string]$Output
 )
 $ErrorActionPreference = 'Stop'
+node (Join-Path $PSScriptRoot 'release-notices.mjs') $Executable
+if ($LASTEXITCODE -ne 0) { throw 'Reviewed license inventory check failed.' }
 $source = Join-Path (Split-Path -Parent $PSScriptRoot) 'THIRD-PARTY-NOTICES.txt'
 $notices = [IO.File]::ReadAllText($source)
 $info = @(& go version -m $Executable)

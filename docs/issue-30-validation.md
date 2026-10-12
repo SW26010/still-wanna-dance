@@ -36,3 +36,4 @@
 - `4c98d03` 的正式构建和独立重建通过，真实 ZIP smoke 在旧 `id="consent"` 断言失败，发行输出未被交付。检查当前 `serveConsolePage` 确认门禁已改为引导页；测试现改查 `setupAcceptTerms` 与服务器渲染的 `data-view="setup"`，继续断言 API 428、条款正文一致和未生成媒体/凭据。复用该实际测试 EXE、新建纯交付 ZIP 重跑：完整 Portable smoke 通过；没有靠接受条款绕过失败。
 - 深入源码检查发现模块 ZIP 不含所有生成输入：补充 SQLite 固定提交完整树和 SQLite 3.50.4 C 原稿；将源码包收窄为当前生产编译需要的完整 ZIP 与全图元数据，避免分发无关预编译 WASM。已知未来 EasyTier 内嵌 WASM 的原始源码缺口单独 fail closed，详见[原始源码记录](licenses/README.md)。这没有更改 go-lzo 的风险接受决定。
 - 源码/声明/发行专项测试共 11/11 通过，新增 SQLite 版本变更必须复核、EasyTier 缺源码拒绝、go-lzo 未决许可仍允许的负例。
+- 补充源码下载实测中，Node 对 SQLite ZIP 的 GET 长时间无响应（HEAD 可达）；停止本轮该下载子进程，Windows 下载改用已验证可用的 `Invoke-WebRequest`，固定 SHA256 校验仍强制执行。新下载路径实测通过，不复用未校验响应，也未将失败构建输出为正式包。

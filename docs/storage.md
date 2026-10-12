@@ -82,7 +82,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
     config.lock                   # 启动获取，退出释放，文件可保留
     logs/app.log                  # 启动创建，最多另有 .1 / .2 / .3
     terms.json                    # 用户确认当前条款后才写入
-    channel.key                   # 查询引导配置版本或使用 SOCKS5 通道身份时生成
+    channel.key                   # 查询引导配置版本或使用代理通道身份时生成
     state/                        # 相关操作首次保存结果时才创建
       throughput.json
       inventory.json
@@ -122,9 +122,9 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | 路径 / 数据 | 生成、更新与退出行为 | 备份与重建 |
 | --- | --- | --- |
 | EXE、licenses、README、构建信息 | 由交付包拥有；升级仅覆盖这些路径 | 可从相应构建重新取得，许可随分发保留 |
-| `C` | 主设置；首次成功打开和保存设置时写入 | 必须备份；代理密码为 CurrentUser DPAPI 密文，换用户/机器可能需重配 |
+| `C` | 主设置；首次成功打开和保存设置时写入 | 必须备份；代理密码和节点快照为 CurrentUser DPAPI 密文，换用户/机器可能需重配 |
 | `R/terms.json` | 用户主动确认后写入；条款变化要求重新确认 | 随配置备份；缺失则重新确认，不是身份或内容授权证明 |
-| `R/channel.key` | 32 字节密钥，供通道身份和独立用途的引导配置 HMAC 使用；仅缺失时生成。损坏时通道可用临时身份，引导版本校验则明确失败 | 随配置备份；缺失重建会改变 SOCKS5 稳定身份、旧样本关联与引导配置版本，旧清单不能继续导入 |
+| `R/channel.key` | 32 字节密钥，供通道身份和独立用途的引导配置 HMAC 使用；仅缺失时生成。损坏时通道可用临时身份，引导版本校验则明确失败 | 随配置备份；缺失重建会改变外部 SOCKS5 与 Mihomo 节点稳定身份、旧样本关联与引导配置版本，旧清单不能继续导入 |
 | `R/state/throughput.json` | 测速尝试冷却与历史样本；网络监测需要持久化时更新 | 可重建；丢失旧样本和冷却时间，不包含凭据或播放 URL |
 | `R/state/inventory.json` | 最近成功的库存快照；扫描失败保留上次结果 | 可重新扫描 |
 | `R/state/batch.json`、`attempt.json` | 成功批量任务摘要、最近尝试摘要 | 可重新运行；不是断点续传记录，丢失的历史摘要不可恢复 |
@@ -199,17 +199,23 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 | 文件 | 内部格式、缺失/失效语义 |
 | --- | --- |
-| config.json / 自定义配置 | schemaVersion=3；字段见 Settings：目录文本，manualLogDir/autoStartCDN/autoStartQueue 布尔（两个 autoStart 字段独立且默认 true），requestRetentionDays（0=不清明细）、maxCacheBytes（0=不限）、queuePrefetchCount（缺失/0→3，1–100）、throughputIntervalMinutes（缺失/0→20，1–1440）、downloadUpstream（空→auto，auto/cf/hkg，hkg 对应 API nya）、upstreamMode（空→direct，direct/auto/socks5）、代理地址与用户名。缺失采用构造默认（保留期 30 天），显式 null 对标量沿用默认；false/合法 0 保留。未知字段以 RawMessage 保留数值精度；格式缺失/未来/旧版本、明文 socks5Password 均拒绝写入 |
+| config.json / 自定义配置 | schemaVersion=3；字段见 Settings：目录文本，manualLogDir/autoStartCDN/autoStartQueue 布尔（两个 autoStart 字段独立且默认 true），requestRetentionDays（0=不清明细）、maxCacheBytes（0=不限）、queuePrefetchCount（缺失/0→3，1–100）、throughputIntervalMinutes（缺失/0→20，1–1440）、downloadUpstream（空→auto，auto/cf/hkg，hkg 对应 API nya）、upstreamMode（空→direct，direct/proxy/auto；旧 socks5 读取后归一化为 proxy）、proxyBackend（空→external-socks5，external-socks5/mihomo）、外部 SOCKS5 地址与用户名。策略和后端独立，保存后重启生效；历史通道键仍沿用 socks5 前缀。缺失采用构造默认（保留期 30 天），显式 null 对标量沿用默认；false/合法 0 保留。未知字段以 RawMessage 保留数值精度；格式缺失/未来/旧版本、明文 socks5Password 均拒绝写入 |
 | config.proxySecret | 缺字段=无保存密码。封套 `{version:1, protection:"dpapi-current-user", ciphertext:"<base64>"}`；与整个配置一起原子替换，无第二份凭据文件/明文快照。未知格式、null、损坏或当前用户解密失败=不可用并保留原值；省略设置 API 密码保留密文，明确输入新密码替换，用户名/密码一起清空移除。状态仅返回可用标志和固定诊断，不返回密文/明文 |
 | config.proxyNodes | 可选节点快照，复用 version=1 / dpapi-current-user 封套；解密载荷为 `{version:1,nodes:[归一化有效连接参数]}`。整份文档含服务器及凭据均加密，与 config 同一原子替换；无明文副本。坏/未知封套保留并提示重新导入，不视为空库。输入限 2 MiB / 2048 条，保存数与运行活跃 K 无关。导入预览只存于本进程内存，草稿最多 8 份、2 小时有效；设置或引导最终保存才替换，失败保留旧快照。展示名不入快照；状态仅含数量及固定诊断 |
 | terms.json | 封套 `{format:1, protection:"dpapi-current-user", ciphertext:"<base64>"}`；密文包含 purpose=`swd-terms-receipt-v1`、version（条款版本）、sha256（正文摘要）及 acceptedAt（非零有效时间）。封套版本独立于条款版本。每次启动由当前用户解密，缺失/旧明文/未知格式/损坏/解密失败/条款不符均不授予同意；不自动覆盖失效记录。只有明确勾选提交且保护及原子写成功后更新内存。记录上限 64 KiB；允许系统时钟回拨，不用本地时间证明身份 |
-| channel.key | 无复杂封套，精确 32 个随机字节。通道 HMAC-SHA256 输入为 JSON 数组 `["socks5-channel-v1",address,username,password]`，输出 stable-v1-hex；域分隔符冻结。引导版本使用独立前缀 `swd-setup-settings-v1` 加 NUL 字节，再加完整 Settings JSON（含密码；不可解密时追加受保护凭据），输出 hmac-v1-hex。缺失排他生成；长度错误或不可读时，通道使用临时身份且不复用持久样本，引导版本则返回错误，不回退公开摘要或临时密钥。不是加密密码的密钥 |
+| channel.key | 无复杂封套，精确 32 个随机字节，供下述 HMAC-SHA256 用途共享，域分隔符冻结。缺失排他生成；长度错误或不可读时保留原文件，通道使用临时身份且不复用持久样本，引导版本则返回错误，不回退公开摘要或临时密钥。不是加密凭据或节点快照的密钥 |
 | state/throughput.json | schemaVersion=1、lastAttempt、samples；sample 包含 observedAt、songID、bytes、durationNs。只恢复合法域名通道和稳定代理身份、正字节/时长且非未来样本。无版本/其它版本不解释；坏 JSON 保留至下一次成功的原子保存，不生成隔离副本；历史节点键不迁移，重新采样。它不是网络当前健康真相 |
 | state/inventory.json | schemaVersion=1、storageDir、result；result 为 Inventory：catalog（revision/checkedAt/message/error）、coverageKnown/coveredSongs/totalSongs/catalogRevision/videos/bytes/scanning/updated/error；恢复强制 scanning=false |
 | state/batch.json、attempt.json | 同一独立快照版本 1 和库归属；result 为 Batch：catalog/catalogWarning/budgetReached/catalogHits/reused/scanOnly/missing/updated/finished/running/phase/total/checked/hits/downloaded/failed/current/failures（id/name/error）。恢复 running=false；attempt 需 finished 非零。不是可恢复执行队列 |
 | Windows 会话发现 JSON | address（仅 127.0.0.1 回环地址）、Identity（SWD 应用/协议版本、EXE、配置、PID 和进程创建时间）；仅供临时发现，还核实进程、端口和后端身份；无需用户数据迁移版本，不作为授权依据 |
 
-DPAPI CurrentUser 不使用路径作为额外熵，不请求 UAC。同用户覆盖/移动可用；另一用户或普通独立机器可能不可用，但域用户漫游可能保留能力，**不是绝对设备绑定**。非 Windows 无明文替代方案：保存密码明确失败，已有封套显示不可用。强制代理的不可用凭据使代理拨号失败；Auto 保留已明示的直连优先/代理回退策略，不篡改保存的偏好。未来节点令牌、私钥、带认证订阅 URL 必须使用同等保护，不落盘原始导入副本。
+通道身份和引导版本的 HMAC 输入分别为：
+
+- 外部 SOCKS5：JSON 数组 `["socks5-channel-v1",address,username,password]`，输出 `stable-v1-` 加十六进制摘要。
+- Mihomo 节点：`swd-mihomo-node-v1` 加 NUL 字节，再加归一化有效连接参数的 JSON，输出同样的 `stable-v1-` 摘要。展示名、导入顺序和活跃上限 K 不参与身份；连接参数或凭据变化会改变身份。
+- 引导配置版本：`swd-setup-settings-v1` 加 NUL 字节，再依次连接完整 Settings JSON（含外部密码）、不可解密时的外部受保护凭据原文、JSON 字符串数组 `[nodeSnapshot,nodeSecret]`，输出 `hmac-v1-` 加十六进制摘要。数组覆盖可读节点快照及不可读封套，节点变更同样使旧引导草稿和重启衔接失效；节点内容不通过 Settings JSON 暴露。
+
+DPAPI CurrentUser 不使用路径作为额外熵，不请求 UAC。同用户覆盖/移动可用；另一用户或普通独立机器可能不可用，但域用户漫游可能保留能力，**不是绝对设备绑定**。非 Windows 无明文替代方案：保存密码或节点快照明确失败，已有封套显示不可用。强制代理的不可用凭据使代理拨号失败；Auto 保留允许直连/代理回退的策略，不篡改保存的偏好。节点连接参数及凭据已由整份快照保护；未来增加令牌、私钥、带认证订阅 URL 同样必须保护，不落盘原始导入副本。
 
 诊断日志也使用 RFC 3339 UTC 时刻，但不是恢复业务状态的格式；错误文本和事件属性可以随实现变化，不为日志增加用户数据迁移版本。
 

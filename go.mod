@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/gofrs/uuid/v5 v5.4.0
 	github.com/metacubex/mihomo v1.19.32
-	github.com/miekg/dns v1.1.63
+	github.com/miekg/dns v1.1.73
 	golang.org/x/net v0.57.0
 	modernc.org/sqlite v1.39.1
 )
@@ -115,12 +115,10 @@ require (
 	go4.org/mem v0.0.0-20240501181205-ae6ca9944745 // indirect
 	go4.org/netipx v0.0.0-20260823151212-3075585bcbeb // indirect
 	golang.org/x/crypto v0.54.0 // indirect
-	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/term v0.45.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 	golang.org/x/time v0.10.0 // indirect
-	golang.org/x/tools v0.47.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 )
 

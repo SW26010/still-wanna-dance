@@ -1,6 +1,6 @@
 module still-wanna-dance
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/gofrs/uuid/v5 v5.4.0
@@ -132,7 +132,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
-	golang.org/x/sys v0.47.0
+	golang.org/x/sys v0.49.0
 	modernc.org/libc v1.66.10 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect

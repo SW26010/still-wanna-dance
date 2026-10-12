@@ -3,7 +3,7 @@ module still-wanna-dance
 go 1.25.0
 
 require (
-	github.com/gofrs/uuid/v5 v5.4.0
+	github.com/gofrs/uuid/v5 v5.5.1
 	github.com/metacubex/mihomo v1.19.32
 	github.com/miekg/dns v1.1.63
 	golang.org/x/net v0.57.0

@@ -85,3 +85,21 @@ Portable smoke 实测包含同意前 API 428、条款文本一致、固定交付
 - 全图仅查询 `.mod/.info` 元数据，源码 ZIP 仅下载实际编译模块。未使用模块没有已知 ZIP h1 时清单记录 `null`，不冒充已取得源码；实际编译模块仍强制 Go h1 和完整 ZIP。新增测试提供一个仅有元数据、根本没有 ZIP 的模块，完整打包和全新缓存离线重建通过。
 - 源码专项 7 项通过，包括历史文件排除但仓库保留、图表输入保留、缺 ZIP 的未使用模块可构建、漏带编译标签和 EasyTier 模块残留拒绝。下面再记录真实最终附件的验证，不把夹具测试当作完整发行验证。
 - 本次仅修改构建/交付工具与文档，不改变产品运行行为；不新增实机项，已有台账全部保留。
+
+### 精简后的真实附件验证
+
+被测实现提交 `96dec315cf64a4a94f124fde1ae6bbe3c4e8feef`，Windows amd64、Go 1.27.1、CGO=0。在独立临时克隆建立 `v0.0.0-source-slim-validation`，执行完整正式发行流程；主仓库未创建该标签，没有 push、上传或发布。产物保留在忽略目录 `artifacts/issue30/source-slim-check/`，是本地验证包。
+
+| 产物 | 字节数 | SHA256 |
+| --- | ---: | --- |
+| 精简对应源码 tar.gz | 76,393,234 | `809a0758c1e42eb195c91a0ba8f9b18781a1009af42180b2358c753e81f66f4d` |
+| Portable ZIP | 6,874,723 | `cad36fa7b758bebe6d7f0ca7eaba94ed34c6c3554acca06f010f48497b59eaf1` |
+| 生产 EXE | — | `eb3b69ac8566e08366aa8ef2b37d4e9daa69e3d624dccdc4505116f3c8b6c166` |
+| 无 Git、空缓存独立重建 EXE | — | `2c7dfcdc3e6844956cdf54ba51d91235a105f0df185902809bcc022ba977e195` |
+
+- 源码包较旧包 115,091,522 字节减少 38,698,288 字节（33.62%）。清单仍为 194 个模块图记录、11 个完整模块 ZIP；交付文件 1,067 项（不含清单自身）。补充的 SQLite 生成器档案实测仅四个文件：LICENSE 与 `vendor_libsqlite3` 的 main.go/go.mod/go.sum，共 20,480 字节的 tar。
+- 干净检出的全部 Node 测试、Go `./cmd/... ./internal/...` 测试及 vet 通过。生产构建与独立重建都使用同一 `no_easytier` 标签、新建 Go 模块/编译缓存和仅包内 file GOPROXY；11 个 EXE 模块身份相同。Go 的 downloading 日志此时读取包内文件，不是联网下载。不声称 EXE 比特相同。
+- 真实 Portable ZIP 隔离检查通过，覆盖同意前门禁、身份、覆盖升级、移动、锁和旧布局拒绝；未接受条款、启动游戏、操作托盘或修改 hosts。
+- 对最终落盘附件另核对文件大小/SHA256、解压后的所有源码文件校验、EXE 与 SOURCE/声明的对应关系。EXE 记录 `-tags=no_easytier`，无 EasyTier 模块，未包含已知 WASM 完整字节；逐一检查源码包内部 ZIP，也无 WASM 文件或 WASM 文件头。
+- 实际归档确认无 `source/experiments/`、`source/docs/evidence/`、旧整份 SQLite tar；内置图表的研究数据和绘图脚本仍在，原模块 ZIP 和 SQLite C 原稿保留。当前桌面仍未接入 Mihomo；未来集成的排除证据来自前述实际 adapter 探针，#14 接入后仍复验桌面产物。
+- 本段记录提交仅增加验证证据，不改变被测实现；既有 LA-033 等实机项及正式公开下载检查继续待办，#30 不据此关闭。

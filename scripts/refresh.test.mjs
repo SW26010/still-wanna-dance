@@ -40,6 +40,22 @@ test('all rejected imports display per-item errors and cannot replace the saved 
   get('proxyImportDiscard').click();assert.equal(get('proxyImportText').value,'');assert.equal(get('proxyImportDetails').hidden,true);
 });
 
+test('reading a node file prevents premature save and survives status refresh', async () => {
+  const p=page(),get=id=>p.document.getElementById(id);
+  p.finishBatch(0,{upstreamMode:'proxy',proxyBackend:'mihomo'});await flush();
+  let finish;
+  get('proxyImportFile').files=[{size:42,text:()=>new Promise(resolve=>{finish=resolve;})}];
+  get('proxyImportFile').dispatchEvent({type:'change'});
+  assert.equal(get('save').disabled,true);
+  p.fireTimer();p.finishBatch(2,{upstreamMode:'proxy',proxyBackend:'mihomo'});await flush();
+  assert.equal(get('save').disabled,true);
+  finish('synthetic node file');await flush();
+  assert.equal(get('proxyImportText').value,'synthetic node file');
+  assert.match(get('proxyImportText').validationMessage,/先检查/);
+  assert.equal(get('proxyImport').disabled,false);
+  assert.equal(p.requests.some(r=>r.url==='/api/settings'),false);
+});
+
 test('discarding during a node import ignores a late result', async () => {
   const p=page(),get=id=>p.document.getElementById(id);
   p.finishBatch(0,{upstreamMode:'proxy',proxyBackend:'mihomo'});await flush();

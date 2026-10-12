@@ -381,13 +381,17 @@ $('proxyImportFile').addEventListener('change', async () => {
   if (!file) return;
   const generation = ++proxyImportGeneration;
   if (file.size > 2*1024*1024) { notice('节点文件超过 2 MiB。'); $('proxyImportFile').value = ''; return; }
+  proxyImportPending = true; renderControls();
   try {
     const content = await file.text();
     if (generation !== proxyImportGeneration) return;
     $('proxyImportText').value = content;
     $('settings').dispatchEvent(new Event('input', {bubbles:true}));
-  } catch (_) { notice('无法读取节点文件，请重新选择。'); }
-  finally { if (generation === proxyImportGeneration) $('proxyImportFile').value = ''; }
+  } catch (_) { if (generation === proxyImportGeneration) notice('无法读取节点文件，请重新选择。'); }
+  finally {
+    if (generation === proxyImportGeneration) $('proxyImportFile').value = '';
+    proxyImportPending = false; renderControls();
+  }
 });
 $('proxyImportText').addEventListener('input', () => { proxyImportGeneration++; });
 $('proxyImport').addEventListener('click', async () => {
@@ -419,7 +423,7 @@ function renderSettings(s) {
   const nodes = s.proxyNodes || {};
   setText('proxyNodeStatus', `已保存 ${nodes.saved || 0} 个 · 当前已加载 ${nodes.loaded || 0} 个 · 活跃 ${nodes.active || 0} 个`);
   setText('proxyNodeError', [nodes.error, nodes.activeError].filter((v,i,a) => v && a.indexOf(v) === i).join('；'));
-  if (!settingsDirty && !globalThis.swdSetupOwnsSettings?.()) {
+  if (!settingsDirty && !proxyImportPending && !globalThis.swdSetupOwnsSettings?.()) {
     $('autoStartQueue').checked = !!s.settings.autoStartQueue;
     $('autoStartCDN').checked = !!s.settings.autoStartCDN;
     $('throughputIntervalMinutes').value = s.settings.throughputIntervalMinutes ?? 20;

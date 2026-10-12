@@ -147,7 +147,7 @@ func (c *Console) importProxyNodes(data []byte) (proxyImportResult, error) {
 		}
 	}
 	if len(c.proxyImports) >= 8 {
-		return result, errors.New("待保存的节点草稿过多，请保存已有草稿或重启后再导入")
+		return result, errors.New("待保存的节点草稿过多，请保存或丢弃已有草稿后再导入")
 	}
 	result.ID = hex.EncodeToString(id)
 	c.proxyImports[result.ID] = proxyImportDraft{string(snapshot), base.nodeSnapshot, base.nodeSecret, time.Now().Add(2 * time.Hour)}

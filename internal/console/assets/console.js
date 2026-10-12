@@ -339,9 +339,22 @@ $('importCleanupButton').addEventListener('click', () => {
 let proxyImportGeneration = 0, proxyImportPending = false;
 globalThis.swdProxyImportPending = () => proxyImportPending;
 const proxyImportReports = new Map();
-function resetProxyImport() {
+const proxyImportReleases = new Map();
+function releaseProxyImport(id) {
+  if (!id) return;
+  proxyImportReports.delete(id);
+  if (proxyImportReleases.has(id)) return proxyImportReleases.get(id);
+  // Local discard must work offline. Expiration remains the fallback when the
+  // server cannot be reached or the page closes before cleanup is delivered.
+  const pending = fetch('/api/proxy/import/discard', {method:'POST', headers:{'Content-Type':'application/json','X-SWD-Token':token}, body:JSON.stringify({id}), signal:AbortSignal.timeout(10000)})
+    .catch(() => {}).finally(() => proxyImportReleases.delete(id));
+  proxyImportReleases.set(id,pending);
+  return pending;
+}
+function resetProxyImport({preserve = false} = {}) {
   proxyImportGeneration++;
   proxyImportPending = false;
+  if (!preserve) void releaseProxyImport($('proxyImportID').value);
   $('proxyImportID').value = '';
   $('proxyImportCount').value = '';
   $('proxyImportText').value = '';
@@ -403,10 +416,14 @@ $('proxyImport').addEventListener('click', async () => {
   const generation = ++proxyImportGeneration, content = $('proxyImportText').value;
   proxyImportPending = true; renderControls();
   try {
+    // Finish outstanding releases before asking for another quota slot.
+    if (proxyImportReleases.size) await Promise.all(proxyImportReleases.values());
+    if (generation !== proxyImportGeneration || $('proxyImportText').value !== content) return;
     const response = await fetch('/api/proxy/import', {method:'POST', headers:{'Content-Type':'text/plain', 'X-SWD-Token':token}, body:content, signal:AbortSignal.timeout(30000)});
     if (!response.ok) throw new Error(await response.text());
     const result = await response.json();
-    if (generation !== proxyImportGeneration || $('proxyImportText').value !== content) return;
+    if (generation !== proxyImportGeneration || $('proxyImportText').value !== content) { void releaseProxyImport(result.id); return; }
+    if ($('proxyImportID').value !== result.id) void releaseProxyImport($('proxyImportID').value);
     if (proxyImportReports.size >= 8) proxyImportReports.delete(proxyImportReports.keys().next().value);
     proxyImportReports.set(result.id || '',result);
     $('proxyImportID').value = result.id || '';
@@ -736,7 +753,8 @@ async function action(path, body) {
       return;
     }
     if (path === 'settings') {
-      resetProxyImport();
+      proxyImportReports.delete($('proxyImportID').value);
+      resetProxyImport({preserve:true}); // The successful save consumed it.
       settingsDirty = false;
       settingsRevision++;
     }

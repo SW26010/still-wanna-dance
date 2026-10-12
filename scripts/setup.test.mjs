@@ -55,6 +55,7 @@ function setup({step='welcome',request=async()=>({}),stateOverride={},receipt={a
   };
   if(sharedImport){
     context.renderImport=()=>{};
+    context.renderControls=()=>{window.swdRenderProxyControls?.();window.swdSetupRenderControls?.();};
     context.settingsFingerprint=()=>JSON.stringify(ids.map(id=>[node(id).value,node(id).checked]));
     context.notice=()=>{};
     context.action=async(path,body)=>{calls.push({path:'/api/'+path,body});return true;};
@@ -87,6 +88,9 @@ for(const source of ['request','file'])test(`leaving setup invalidates a pending
   assert.equal(s.node('upstreamMode').value,original.upstreamMode);
   assert.equal(s.node('proxyBackend').value,'external-socks5');
   pending.resolve(source==='request'?{id:'abandoned-node-draft',accepted:1,items:[]}:'abandoned node file');await flush();
+  const released=s.calls.filter(c=>c.path==='/api/proxy/import/discard');
+  assert.equal(released.length,source==='request'?1:0);
+  if(source==='request')assert.equal(released[0].body.id,'abandoned-node-draft');
   assert.equal(s.node('proxyImportID').value,'');assert.equal(s.node('proxyImportText').value,'');
   assert.equal(s.context.settingsDirty,false);
   s.node('requestRetentionDays').value='7';s.context.settingsDirty=true;
@@ -573,6 +577,31 @@ test('ordinary settings draft survives a separate wizard visit and discard',asyn
   s.context.settingsDirty=true;s.node('socks5Password').value='ordinary-secret';s.node('storageDir').value='ordinary draft';
   s.node('page-setup').hidden=false;s.events.pagechange();assert.notEqual(s.node('storageDir').value,'ordinary draft');
   s.node('setupLeave').onclick();assert.equal(s.node('storageDir').value,'ordinary draft');assert.equal(s.node('socks5Password').value,'ordinary-secret');
+});
+
+for(const action of ['leave','reset'])test(`wizard ${action} releases its node draft and preserves the earlier settings draft`,async()=>{
+  let id=0;
+  const s=setup({step:'proxy',sharedImport:true,request:async path=>path==='/api/proxy/import'?{id:'draft-'+(++id),accepted:1,items:[]}: {}});
+  await flush();s.node('setupLeave').onclick();s.node('page-setup').hidden=true;
+  const importNodes=async text=>{
+    s.node('upstreamMode').value='proxy';s.node('proxyBackend').value='mihomo';
+    s.node('proxyImportText').value=text;s.emit('settings','input');s.emit('proxyImport','click');await flush();
+  };
+  await importNodes('ordinary');assert.equal(s.node('proxyImportID').value,'draft-1');
+  s.node('page-setup').hidden=false;s.events.pagechange();
+  assert.equal(s.node('proxyImportID').value,'');
+  assert.equal(s.calls.some(c=>c.path==='/api/proxy/import/discard'),false);
+  await flush();await s.go('proxy');
+  await importNodes('wizard');assert.equal(s.node('proxyImportID').value,'draft-2');
+  if(action==='reset'){
+    s.node('setupReset').onclick();assert.equal(s.node('proxyImportID').value,'');
+  }
+  s.node('setupLeave').onclick();await flush();
+  assert.equal(s.node('proxyImportID').value,'draft-1');
+  const released=s.calls.filter(c=>c.path==='/api/proxy/import/discard');
+  assert.equal(released.length,1);assert.equal(released[0].body.id,'draft-2');
+  s.node('page-setup').hidden=true;await s.context.saveSettings();
+  assert.equal(s.calls.find(c=>c.path==='/api/settings').body.proxyImportID,'draft-1');
 });
 
 test('reset affects current page only and never starts import',async()=>{

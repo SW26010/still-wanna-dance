@@ -113,3 +113,56 @@ func TestUnavailableProxyNodesPreserveEnvelope(t *testing.T) {
 		t.Fatal("status leaked envelope")
 	}
 }
+
+func TestProxyImportDiscardReclaimsOnlyNamedDraft(t *testing.T) {
+	c := testConsole(t)
+	before, _ := os.ReadFile(c.configPath)
+	retained, err := c.importProxyNodes([]byte(nodeFixture))
+	if err != nil {
+		t.Fatal(err)
+	}
+	discard := func(id, token, origin string) int {
+		t.Helper()
+		body, _ := json.Marshal(map[string]string{"id": id})
+		r := httptest.NewRequest("POST", "http://"+c.address+"/api/proxy/import/discard", bytes.NewReader(body))
+		r.Header.Set("X-SWD-Token", token)
+		r.Header.Set("Origin", origin)
+		w := httptest.NewRecorder()
+		c.ServeHTTP(w, r)
+		return w.Code
+	}
+	if discard(retained.ID, "", "") != 403 || discard(retained.ID, c.token, "http://other.invalid") != 403 {
+		t.Fatal("discard bypassed authorization")
+	}
+	for range 12 {
+		r, err := c.importProxyNodes([]byte(nodeFixture))
+		if err != nil || r.ID == "" {
+			t.Fatal("discard did not release quota", err)
+		}
+		if discard(r.ID, c.token, "") != 200 || discard(r.ID, c.token, "") != 200 {
+			t.Fatal("discard must be idempotent")
+		}
+		s := c.savedSettings
+		s.nodeImportID = r.ID
+		if _, err := c.mergeProxyNodes(s, c.savedSettings); err == nil {
+			t.Fatal("discarded draft remained usable")
+		}
+		s.nodeImportID = retained.ID
+		if _, err := c.mergeProxyNodes(s, c.savedSettings); err != nil {
+			t.Fatal("discard affected another draft", err)
+		}
+	}
+	// Releasing abandoned drafts does not remove the cap on genuinely live ones.
+	for range 7 {
+		if _, err := c.importProxyNodes([]byte(nodeFixture)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := c.importProxyNodes([]byte(nodeFixture)); err == nil {
+		t.Fatal("live draft quota disappeared")
+	}
+	after, _ := os.ReadFile(c.configPath)
+	if !bytes.Equal(before, after) || c.savedSettings.nodeSnapshot != "" || c.settings.nodeSnapshot != "" {
+		t.Fatal("discard changed saved or active settings")
+	}
+}

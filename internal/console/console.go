@@ -892,6 +892,19 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
 	var err error
 	switch r.URL.Path {
+	case "/api/proxy/import/discard":
+		var input struct {
+			ID string `json:"id"`
+		}
+		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+			c.mu.Lock()
+			delete(c.proxyImports, input.ID)
+			c.mu.Unlock()
+			// Idempotent even after a successful save or expiration. Only the
+			// named in-memory draft is released; saved settings never change.
+			writeJSON(w, map[string]bool{"ok": true})
+			return
+		}
 	case "/api/setup/folder":
 		var input struct {
 			Kind string `json:"kind"`

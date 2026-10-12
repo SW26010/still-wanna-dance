@@ -68,7 +68,7 @@
   }
   function initializeDraft() {
     original = {dirty:settingsDirty, baseline:settingsBaseline, values:fields().map(field => [field,field.value,field.checked])};
-    globalThis.swdResetProxyImport?.();
+    globalThis.swdResetProxyImport?.({preserve:true}); // Restore this draft on discard.
     checkedPath = '';
     settingsDirty = false;
     // The start panel stays mounted while the first authenticated
@@ -733,6 +733,7 @@
   window.swdSetupSubmit = () => {if (!isOpen()) return false; void $('setupNext').onclick(); return true;};
   $('setupReset').onclick = () => {
     if ($('setupReset').disabled) return;
+    if (step === 'proxy') globalThis.swdResetProxyImport?.();
     for (const [id,value] of Object.entries(defaults() || {})) $(id).value = value;
     cancelFolder();
     if (step === 'storage') {$('setupCustomStorage').checked = false;$('setupImportEnabled').checked = false;syncCapacity();}

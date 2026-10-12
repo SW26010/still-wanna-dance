@@ -64,10 +64,48 @@ test('discarding a node import ignores its late result without unlocking a new i
   get('proxyImportText').value='new draft';get('settings').dispatchEvent({type:'input'});get('proxyImport').click();
   const current=p.requests.at(-1);
   request.finish({id:'obsolete',accepted:1,skipped:0,failed:0,items:[]});await flush();
+  const cleanup=p.requests.at(-1);
+  assert.equal(cleanup.url,'/api/proxy/import/discard');assert.equal(JSON.parse(cleanup.body).id,'obsolete');
+  cleanup.finish({ok:true});await flush();
   assert.equal(get('proxyImportID').value,'');assert.equal(get('proxyImportText').value,'new draft');
   assert.equal(get('save').disabled,true);
   current.finish({id:'current',accepted:1,skipped:0,failed:0,items:[]});await flush();
   assert.equal(get('proxyImportID').value,'current');assert.equal(get('save').disabled,false);
+});
+
+test('replacing and discarding node drafts releases their quota before another import', async () => {
+  const p=page(),get=id=>p.document.getElementById(id);
+  p.finishBatch(0,{upstreamMode:'proxy',proxyBackend:'mihomo'});await flush();
+  const start=content=>{get('proxyImportText').value=content;get('settings').dispatchEvent({type:'input'});get('proxyImport').click();};
+  start('first');p.requests.at(-1).finish({id:'first',accepted:1,items:[]});await flush();
+  start('replacement');p.requests.at(-1).finish({id:'replacement',accepted:1,items:[]});await flush();
+  const old=p.requests.at(-1);
+  assert.equal(old.url,'/api/proxy/import/discard');assert.equal(JSON.parse(old.body).id,'first');
+  assert.equal(get('proxyImportID').value,'replacement');
+  get('proxyImportDiscard').click();
+  const discarded=p.requests.at(-1);
+  assert.equal(discarded.url,'/api/proxy/import/discard');assert.equal(JSON.parse(discarded.body).id,'replacement');
+  assert.equal(get('proxyImportID').value,'');assert.equal(get('proxyImportDetails').hidden,true);
+  const count=p.requests.length;
+  start('next');assert.equal(get('save').disabled,true);assert.equal(p.requests.length,count);
+  old.finish({ok:true});await flush();assert.equal(p.requests.length,count);
+  discarded.finish({ok:true});await flush();
+  assert.equal(p.requests.at(-1).url,'/api/proxy/import');assert.equal(p.requests.at(-1).body,'next');
+  p.requests.at(-1).finish({id:'next',accepted:1,items:[]});await flush();
+  assert.equal(get('proxyImportID').value,'next');assert.equal(get('save').disabled,false);
+});
+
+test('leaving a draft during quota cleanup cannot send its delayed import', async () => {
+  const p=page(),get=id=>p.document.getElementById(id);
+  p.finishBatch(0,{upstreamMode:'proxy',proxyBackend:'mihomo'});await flush();
+  get('proxyImportText').value='first';get('settings').dispatchEvent({type:'input'});get('proxyImport').click();
+  p.requests.at(-1).finish({id:'first',accepted:1,items:[]});await flush();get('proxyImportDiscard').click();
+  const cleanup=p.requests.at(-1),count=p.requests.length;
+  get('proxyImportText').value='abandoned';get('settings').dispatchEvent({type:'input'});get('proxyImport').click();
+  vm.runInContext('resetProxyImport()',p.context);
+  cleanup.finish({error:'offline'},false);await flush();
+  assert.equal(p.requests.length,count);assert.equal(get('proxyImportID').value,'');
+  assert.equal(vm.runInContext('proxyImportPending',p.context),false);
 });
 
 test('wizard diagnostic rows expose results inline and age direct throughput samples', () => {

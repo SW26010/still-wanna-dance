@@ -51,3 +51,5 @@
 Go 1.25.0 / Windows amd64：`go test -tags=no_easytier ./cmd/... ./internal/...`、同范围 `go vet` 通过；CGO=0 的 Linux amd64 桌面交叉构建通过，`go mod tidy` 无变化，gofmt 和 diff 空白检查通过。UI 最新专项 203/203 通过。尝试四个核心包 `-race` 因 `gcc` 不在 PATH 而编译失败；没有可用 WSL，故本轮不声称 race 或 Linux 运行测试通过，保留 PR CI Linux race 检查。
 
 正式流程前核对实际桌面编译依赖，发现新 YAML 导入库不在旧声明清单；补入固定版本原始 LICENSE、NOTICE、源码版权头、哈希和 Go h1，声明专项 2/2 通过。此变更仅补第三方交付材料，不改变运行行为；LA-034/035/036 保持待验收。
+
+同步 README（中/英）、控制台指南和内置帮助：移除“未接入向导”的旧说明，写明共用导入、草稿替换、加密、活跃上限以及游戏 HTTPS 始终直连；手动桌面构建示例补 `no_easytier`。仅说明现有已实现行为，不新增实机项；帮助页转义/重入与嵌入资源测试通过。

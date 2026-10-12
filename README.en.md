@@ -16,7 +16,7 @@ Just extract and run. The app lives in the Windows system tray and requires no G
 - **Prepare upcoming songs**: read the room queue from VRChat logs and prefetch valid songs in the first 3 queue positions by default. Adjust the number to suit your needs.
 - **See what is happening**: check active downloads, upstream speed, recent requests, and queue readiness in the console.
 - **Manage your disk space**: choose a storage folder, find and delete cached videos, and check file integrity. Set a video cache limit to automatically remove lower-priority videos first.
-- **Choose your connection**: select playback API parameters (Auto, node=cf, or node=nya); resource domains come from valid API responses, with either a direct connection using built-in encrypted DNS or a SOCKS5 proxy.
+- **Choose your connection**: select playback API parameters (Auto, node=cf, or node=nya); resource domains come from valid API responses. Application requests can use built-in encrypted DNS directly, external SOCKS5, or imported embedded Mihomo nodes. Game HTTPS passthrough always connects directly.
 - **Prepare more of your library**: scan local files, verify existing videos, or download missing videos ahead of time.
 
 ## Quick start

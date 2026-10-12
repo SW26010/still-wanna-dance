@@ -409,9 +409,6 @@ func (c *Console) ensureEngine() error {
 		var transports []http.RoundTripper
 		for _, selection := range c.operationSelections(upstreamstate.Resource, upstreamstate.Constraints{Target: target}) {
 			transports = append(transports, selection.Channel.Transport)
-			if len(transports) == 6 {
-				break
-			}
 		}
 		return transports
 	}

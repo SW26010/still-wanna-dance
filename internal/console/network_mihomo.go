@@ -51,6 +51,7 @@ func (c *Console) retainedProxyNodes(s Settings, externalID string) upstreamrequ
 // of whether the current mode grants any proxy business eligibility.
 type mihomoTransport struct {
 	*upstreamrequest.Transport
+	direct          *mihomoDirectTransport
 	nodes           []*mihomo.Node
 	known           []string
 	authoritative   bool
@@ -66,10 +67,27 @@ func (t *mihomoTransport) Retire() {
 	t.once.Do(func() {
 		t.retired.Store(true)
 		t.Transport.Retire() // reject new candidate requests first
+		if t.direct != nil {
+			t.direct.CloseIdleConnections()
+		}
 		for _, n := range t.nodes {
 			_ = n.Close()
 		}
 	})
+}
+
+// Only a business fallback: DNS is resolved by the existing controlled dialer
+// on demand. It has no pinned IP/channel ID and never becomes a measured sample.
+type mihomoDirectTransport struct {
+	*http.Transport
+	owner *mihomoTransport
+}
+
+func (t *mihomoDirectTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if t.owner.retired.Load() {
+		return nil, net.ErrClosed
+	}
+	return t.Transport.RoundTrip(r)
 }
 
 func (c *Console) mihomoNetworkFor(s Settings, limit int) (upstreamDialFunc, *http.Client, error) {
@@ -169,5 +187,15 @@ func (c *Console) mihomoNetworkFor(s Settings, limit int) (upstreamDialFunc, *ht
 	runtime.Transport = &upstreamrequest.Transport{Pool: pool, RoundTripper: &http.Transport{
 		DialContext: dial, ResponseHeaderTimeout: 20 * time.Second, TLSHandshakeTimeout: 10 * time.Second, IdleConnTimeout: 90 * time.Second,
 	}}
+	if s.UpstreamMode != "proxy" && s.UpstreamMode != "socks5" {
+		runtime.direct = &mihomoDirectTransport{owner: runtime, Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+				if runtime.retired.Load() {
+					return nil, net.ErrClosed
+				}
+				return c.dns.DialContext(ctx, network, address)
+			}, ResponseHeaderTimeout: 20 * time.Second, TLSHandshakeTimeout: 10 * time.Second, IdleConnTimeout: 90 * time.Second,
+		}}
+	}
 	return dial, &http.Client{Timeout: 30 * time.Second, Transport: runtime, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, nil
 }

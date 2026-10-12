@@ -15,9 +15,11 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
 
@@ -111,6 +113,109 @@ func TestMihomoMissingNodesForcedFailureAndAutoDirect(t *testing.T) {
 			}
 			response.Body.Close()
 		}
+	}
+}
+
+func TestMihomoColdAutoUsesDirectWithoutMonitorOrDNSCache(t *testing.T) {
+	c := testConsole(t)
+	const target = "https://play.udon.dance/files/1/42-video.mp4?e=0123456789abcdef0123456789abcdef&s=12"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target, http.StatusFound) }))
+	defer server.Close()
+	s := runtimeNodeSettings(t, c, 1)
+	s.UpstreamMode = "auto"
+	_, client, err := c.networkFor(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.client.Transport.(interface{ Retire() }).Retire()
+	c.client, c.settings, c.apiBase = client, s, server.URL
+	clients := c.operationClients(upstreamstate.PlaybackURL, upstreamstate.Constraints{Entry: server.URL})
+	if len(clients) != 2 {
+		t.Fatalf("missing cold direct path: %d clients", len(clients))
+	}
+	if len(c.dns.CurrentAddresses("127.0.0.1")) != 0 {
+		t.Fatal("selection unexpectedly populated DNS")
+	}
+	if _, pinned := clients[0].Transport.(interface{ ChannelID() string }); pinned {
+		t.Fatal("unresolved direct path claims a pinned channel")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if got, err := c.resolveNode(ctx, 42, "cf"); err != nil || got != target {
+		t.Fatalf("cold auto failed: %s %v", got, err)
+	}
+	client.Transport.(*mihomoTransport).Retire()
+	if _, err := clients[0].Get(server.URL); !errors.Is(err, net.ErrClosed) {
+		t.Fatal("retired direct fallback allowed a request", err)
+	}
+}
+
+func TestMihomoBusinessFallbackReachesFifthProxy(t *testing.T) {
+	const target = "https://play.udon.dance/files/1/42-video.mp4?e=0123456789abcdef0123456789abcdef&s=12"
+	var directCalls atomic.Int32
+	direct := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		directCalls.Add(1)
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer direct.Close()
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target, http.StatusFound) }))
+	defer proxy.Close()
+	for _, mode := range []string{"proxy", "cold-auto", "warm-auto"} {
+		t.Run(mode, func(t *testing.T) {
+			c := testConsole(t)
+			s := runtimeNodeSettings(t, c, 5)
+			if mode != "proxy" {
+				s.UpstreamMode = "auto"
+			}
+			_, client, err := c.networkFor(s)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tr := client.Transport.(*mihomoTransport)
+			// Controlled fixed dialers isolate the business selection/HTTP retry
+			// contract; protocol interoperability has its own loopback fixtures.
+			calls := make([]int, 5)
+			var exits []upstreamrequest.Proxy
+			for i, id := range tr.known {
+				exits = append(exits, upstreamrequest.Proxy{ID: id, Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+					calls[i]++
+					if i < 4 {
+						return nil, errors.New("fixture offline")
+					}
+					return (&net.Dialer{}).DialContext(ctx, network, strings.TrimPrefix(proxy.URL, "http://"))
+				}})
+			}
+			tr.Pool.Close()
+			tr.Pool, err = upstreamrequest.NewMultiPool(channelMode(s.UpstreamMode), c.dns, exits)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mode == "warm-auto" {
+				c.dns.cache = map[string]dnsEntry{"127.0.0.1": {ips: []string{"127.0.0.1", "127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5", "127.0.0.6"}, until: time.Now().Add(time.Hour)}}
+			}
+			c.client.Transport.(interface{ Retire() }).Retire()
+			c.client, c.settings, c.apiBase = client, s, direct.URL
+			selections := c.operationSelections(upstreamstate.Resource, upstreamstate.Constraints{Target: direct.URL})
+			want := 6
+			if mode == "proxy" {
+				want = 5
+			}
+			if len(selections) != want {
+				t.Fatalf("candidate budget: got %d want %d", len(selections), want)
+			}
+			before := directCalls.Load()
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			if got, err := c.resolveNode(ctx, 42, "cf"); err != nil || got != target {
+				t.Fatalf("fifth proxy omitted: calls=%v error=%v", calls, err)
+			}
+			if !slices.Equal(calls, []int{1, 1, 1, 1, 1}) {
+				t.Fatalf("wrong fixed attempts: %v", calls)
+			}
+			if mode == "proxy" && directCalls.Load() != before || mode != "proxy" && directCalls.Load() != before+1 {
+				t.Fatal("wrong direct eligibility")
+			}
+		})
 	}
 }
 

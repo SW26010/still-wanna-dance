@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/applog"
+	"still-wanna-dance/internal/upstreamrequest"
 )
 
 func (s *Server) routeRequest(ctx context.Context, v video) (*http.Request, error) {
@@ -86,7 +87,7 @@ func (s *Server) candidates(r *http.Request, attempts *resourceAttempts) *resour
 	if len(transports) == 0 {
 		transports = []http.RoundTripper{s.client.Transport}
 	}
-	candidates := &resourceCandidates{transports: append([]http.RoundTripper(nil), transports[:min(4, len(transports))]...)}
+	candidates := &resourceCandidates{transports: append([]http.RoundTripper(nil), transports[:min(upstreamrequest.MaxOperationCandidates, len(transports))]...)}
 	attempts.targets[key] = candidates
 	return candidates
 }
@@ -128,7 +129,7 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 	transports := candidates.transports
 	var failures []error
 	// One configured channel may retry a failed block once. Multiple measured
-	// channels advance without revisiting a failed candidate (at most four).
+	// channels advance without revisiting a failed candidate within the shared budget.
 	limit := max(2, len(transports))
 	for candidates.next < limit {
 		if err := r.Context().Err(); err != nil {

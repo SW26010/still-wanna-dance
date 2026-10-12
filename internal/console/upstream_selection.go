@@ -3,9 +3,12 @@ package console
 import (
 	"context"
 	"net/http"
+	"net/url"
+	"slices"
 	"strings"
 	"time"
 
+	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
 
@@ -25,29 +28,72 @@ func (c *Console) operationSelections(op upstreamstate.Operation, q upstreamstat
 	if mode == "direct" || mode == "socks5" {
 		q.Mode = mode
 	}
+	var selections []upstreamstate.Selection
 	if m != nil {
-		if selections := m.Selections(op, q); len(selections) > 0 {
-			return selections
-		}
+		selections = m.Selections(op, q)
 	}
 	// Cold Mihomo traffic uses the same fixed candidates as Monitor. It does not
 	// wait for a probe, silently use the old SOCKS backend, or invent a score.
 	if client != nil {
-		if runtime, ok := client.Transport.(*mihomoTransport); ok {
+		if runtime, ok := client.Transport.(*mihomoTransport); ok && !runtime.retired.Load() {
 			target := q.Target
 			if target == "" {
 				target = q.Entry
 			}
-			var selections []upstreamstate.Selection
-			for _, channel := range runtime.Current(target) {
-				if q.Mode == "" || channel.Mode == q.Mode {
-					selections = append(selections, upstreamstate.Selection{Channel: channel})
+			current := runtime.Current(target)
+			measured := len(selections) > 0
+			if !measured {
+				for _, channel := range current {
+					if q.Mode == "" || channel.Mode == q.Mode {
+						selections = append(selections, upstreamstate.Selection{Channel: channel})
+					}
 				}
 			}
-			return selections
+			u, err := url.Parse(target)
+			if runtime.direct != nil && q.Mode != "socks5" && err == nil && u.Hostname() != "" && (u.Scheme == "http" || u.Scheme == "https") &&
+				!slices.ContainsFunc(current, func(c upstreamrequest.Candidate) bool { return c.Mode == "direct" }) {
+				fallback := upstreamstate.Selection{Channel: upstreamrequest.Candidate{Host: u.Hostname(), Mode: "direct", Transport: runtime.direct}}
+				if measured {
+					selections = append(selections, fallback)
+				} else {
+					selections = append([]upstreamstate.Selection{fallback}, selections...)
+				}
+			}
 		}
 	}
-	return nil
+	return boundedSelections(selections)
+}
+
+// Keep Monitor's relative order, reserving space for the active proxy exits and
+// at least one direct path in Auto. Multiple direct IPs must not crowd out every
+// proxy (or the fifth active node) before either API or download attempts start.
+func boundedSelections(selections []upstreamstate.Selection) []upstreamstate.Selection {
+	limit := upstreamrequest.MaxOperationCandidates
+	if len(selections) <= limit {
+		return selections
+	}
+	proxies := 0
+	for _, s := range selections {
+		if s.Channel.Mode == "socks5" {
+			proxies++
+		}
+	}
+	directBudget := max(1, limit-proxies)
+	if proxies == len(selections) {
+		directBudget = 0
+	}
+	proxyBudget := limit - directBudget
+	var out []upstreamstate.Selection
+	for _, s := range selections {
+		if s.Channel.Mode == "direct" && directBudget > 0 {
+			out = append(out, s)
+			directBudget--
+		} else if s.Channel.Mode == "socks5" && proxyBudget > 0 {
+			out = append(out, s)
+			proxyBudget--
+		}
+	}
+	return out
 }
 
 func (c *Console) operationClients(op upstreamstate.Operation, q upstreamstate.Constraints) []*http.Client {
@@ -63,9 +109,6 @@ func (c *Console) operationClients(op upstreamstate.Operation, q upstreamstate.C
 		client := *base
 		client.Transport = s.Channel.Transport
 		clients = append(clients, &client)
-		if len(clients) == 6 {
-			break
-		}
 	}
 	return clients
 }

@@ -45,7 +45,8 @@ type Config struct {
 	Logger               *slog.Logger
 	// DialContext supplies upstream connections (independent DNS or SOCKS5).
 	DialContext func(context.Context, string, string) (net.Conn, error)
-	// ResourceTransports supplies measured channels for this exact URL's host.
+	// ResourceTransports supplies ranked or cold-start channels for this URL's host,
+	// bounded by upstreamrequest.MaxOperationCandidates before download begins.
 	// It never resolves a song or changes the resource address/content.
 	ResourceTransports func(string) []http.RoundTripper
 }

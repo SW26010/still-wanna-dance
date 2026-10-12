@@ -196,9 +196,11 @@ func TestTermsGateAndPersistence(t *testing.T) {
 			t.Fatalf("%s: %d", path, w.Code)
 		}
 	}
-	c.settings.AutoStartCDN = true
+	if !c.settings.AutoStartCDN || !c.settings.AutoStartQueue {
+		t.Fatal("startup preferences should default to enabled")
+	}
 	c.AutoStart()
-	if c.httpServer != nil || c.service != nil {
+	if c.httpServer != nil || c.service != nil || c.queue.Running || c.queueDesired {
 		t.Fatal("started before acceptance")
 	}
 	if err := c.start(); err == nil {

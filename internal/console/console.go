@@ -143,7 +143,10 @@ func New(configPath, address string) (*Console, error) {
 	}
 	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: "https://x.kiva.moe/api/v2/wanna/songs"}
 	c.identity = identity
-	c.settings = Settings{StorageDir: apppaths.ForConfig(configPath).DefaultStorage, RequestRetentionDays: 30}
+	c.settings = Settings{
+		StorageDir: apppaths.ForConfig(configPath).DefaultStorage, RequestRetentionDays: 30,
+		AutoStartCDN: true, AutoStartQueue: true,
+	}
 	c.exitRequested = make(chan struct{})
 	c.restartRequested = make(chan struct{})
 	c.dns = &directDNS{}

@@ -318,7 +318,7 @@
           </div>
           <div id="settingsActionError" role="status"></div>
           <form id="settings" aria-describedby="settingsAvailability">
-            <fieldset data-setup-settings="storage"><legend>存储与启动</legend>
+            <fieldset data-setup-settings="storage"><legend>存储</legend>
             <label class="setup-only"><input id="setupCustomStorage" type="checkbox"> 指定其他位置（程序文件夹外）</label>
             <label for="storageDir">存储文件夹</label
             ><input
@@ -343,14 +343,6 @@
             />
             <div class="hint" id="maxCacheGiBHint">0 表示不限。超限时清理低优先级视频；使用中的视频和临时文件可能使占用暂时超限。</div>
             <div class="setup-storage-extra">
-            <label for="autoStartCDN"
-              ><input
-                id="autoStartCDN"
-                name="autoStartCDN" aria-describedby="autoStartHint"
-                type="checkbox"
-              />启动应用时开启本地播放网关</label
-            >
-            <div class="hint" id="autoStartHint">下次启动应用时生效，不自动修改游戏接入（hosts）。</div>
             <label for="requestRetentionDays">请求明细保留天数</label
             ><input
               id="requestRetentionDays" aria-describedby="requestRetentionDaysHint"
@@ -363,6 +355,12 @@
             />
             <div class="hint" id="requestRetentionDaysHint">默认 30 天，0 表示永久保留。只清理请求明细，累计统计保留。</div>
             </div>
+            </fieldset>
+            <fieldset class="console-only"><legend>控制台启动</legend>
+            <label for="autoStartCDN"><input id="autoStartCDN" name="autoStartCDN" type="checkbox" checked aria-describedby="autoStartHint" /> 运行控制台时自动启用播放网关</label>
+            <label for="autoStartQueue"><input id="autoStartQueue" name="autoStartQueue" type="checkbox" checked aria-describedby="autoStartHint" /> 运行控制台时自动启用房间队列预缓存</label>
+            <p class="hint" id="autoStartHint">两项默认启用，分别控制，互不跟随。保存后在下次启动控制台程序时生效，重新打开网页不会触发。</p>
+            <p class="hint">自动启用需已同意使用条款，不自动修改游戏接入（hosts）。手动启停不会改变这两项设置。</p>
             </fieldset><fieldset data-setup-settings="proxy"><legend>网络连接</legend>
             <div class="setup-only setup-upstreams"><label><input id="setupDirect" type="checkbox" checked> 直连</label><label><input id="setupSocks5" type="checkbox"> SOCKS5 代理</label></div>
             <label for="upstreamMode" class="console-only">上游连接</label>
@@ -398,8 +396,7 @@
             <div class="hint" id="throughputIntervalHint">默认 20 分钟，按上次测速时间安排下一次检测。</div>
             </div>
             </fieldset><fieldset data-setup-settings="environment"><legend>房间队列与游戏日志</legend>
-            <label for="autoStartQueue"><input id="autoStartQueue" name="autoStartQueue" type="checkbox" /> 启动应用时开启房间队列预缓存</label>
-            <p class="hint">与播放网关的自动启动独立。下载补齐期间临时暂停。</p>
+            <p class="hint">下载补齐期间，房间队列预缓存会临时暂停。</p>
             <label for="queuePrefetchCount">队列预缓存数量</label>
             <input id="queuePrefetchCount" aria-describedby="queuePrefetchCountHint" type="number" min="1" max="100" step="1" required value="3" />
             <div class="hint" id="queuePrefetchCountHint">默认 3，范围 1～100。准备队列前 N 个位置中的有效曲目。</div>

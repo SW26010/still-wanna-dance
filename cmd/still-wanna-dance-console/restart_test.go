@@ -48,7 +48,7 @@ func TestApplicationRestartReleasesConfigAndKeepsAddress(t *testing.T) {
 	defer client.CloseIdleConnections()
 	var address, token string
 	urlPattern := regexp.MustCompile(`http://127\.0\.0\.1:\d+`)
-	tokenPattern := regexp.MustCompile(`const token="([a-f0-9]+)"`)
+	tokenPattern := regexp.MustCompile(`name="swd-token"\s+content="([a-f0-9]+)"`)
 	poll := func(check func() bool) {
 		t.Helper()
 		deadline := time.Now().Add(15 * time.Second)

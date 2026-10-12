@@ -1687,20 +1687,30 @@ test('cache pagination handles an emptied store and bounds retries during concur
   assert.equal(vm.runInContext('cacheOffset', p.context), 0);
 });
 
-for (const enabled of [false, true]) {
- test('queue preference renders and saves ' + enabled, async () => {
-  const p = page();
-  p.finishBatch(0, { autoStartQueue: enabled });
-  await flush();
-  const get = id => p.document.getElementById(id);
-  assert.equal(get('autoStartQueue').checked, enabled);
-  assert.equal(get('autoStartQueue').disabled, false);
-  assert.equal(get('queuePhase').textContent, '已关闭');
-  get('autoStartQueue').checked = !enabled;
-  get('settings').dispatchEvent({ type: 'input' });
-  get('settings').dispatchEvent({ type: 'submit' });
-  assert.equal(JSON.parse(p.requests[2].body).autoStartQueue, !enabled);
- });
+for (const gateway of [false, true]) {
+ for (const queue of [false, true]) {
+  for (const changed of ['autoStartCDN', 'autoStartQueue']) {
+   test(`startup preferences render independently and save ${changed}: gateway=${gateway} queue=${queue}`, async () => {
+    const p = page();
+    const values = { autoStartCDN: gateway, autoStartQueue: queue };
+    p.finishBatch(0, values);
+    await flush();
+    const get = id => p.document.getElementById(id);
+    for (const [id, enabled] of Object.entries(values)) {
+      assert.equal(get(id).checked, enabled);
+      assert.equal(get(id).disabled, false);
+    }
+    assert.equal(get('queuePhase').textContent, '已关闭');
+    get(changed).checked = !values[changed];
+    get('settings').dispatchEvent({ type: 'input' });
+    get('settings').dispatchEvent({ type: 'submit' });
+    const saved = JSON.parse(p.requests[2].body);
+    for (const [id, enabled] of Object.entries(values)) {
+      assert.equal(saved[id], id === changed ? !enabled : enabled);
+    }
+   });
+  }
+ }
 }
 
 test('queue cannot independently lock settings when CDN is stopped', async () => {

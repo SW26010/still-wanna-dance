@@ -2,41 +2,66 @@ package console
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
 
 func TestAutoStartSetting(t *testing.T) {
 	c := testConsole(t)
-	c.AutoStart()
-	if c.DesktopState().CDN || c.service != nil {
-		t.Fatal("CDN started with default settings")
+	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+		t.Fatal(err)
 	}
-	for _, enabled := range []bool{true, false} {
-		s := c.settings
-		s.AutoStartCDN = enabled
-		if err := c.save(s); err != nil {
-			t.Fatal(err)
+	c.AutoStart()
+	if !c.DesktopState().CDN || !c.queue.Running || !c.queueDesired {
+		t.Fatal("default settings did not start both services")
+	}
+	postTaskAction(t, c, "stop")
+	postTaskAction(t, c, "queue/stop")
+	w := httptest.NewRecorder()
+	c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/", nil))
+	if w.Code != 200 || c.DesktopState().CDN || c.queue.Running || c.queueDesired {
+		t.Fatal("opening the web console restarted manually stopped services")
+	}
+	if !c.settings.AutoStartCDN || !c.settings.AutoStartQueue || !c.savedSettings.AutoStartCDN || !c.savedSettings.AutoStartQueue {
+		t.Fatal("manual stop changed startup preferences")
+	}
+}
+
+func TestAutoStartHonorsIndependentSavedSettings(t *testing.T) {
+	for _, gateway := range []bool{false, true} {
+		for _, queue := range []bool{false, true} {
+			t.Run(fmt.Sprintf("gateway=%v/queue=%v", gateway, queue), func(t *testing.T) {
+				c := testConsole(t)
+				if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+					t.Fatal(err)
+				}
+				s := c.settings
+				s.AutoStartCDN, s.AutoStartQueue = gateway, queue
+				if err := c.save(s); err != nil {
+					t.Fatal(err)
+				}
+				if c.httpServer != nil || c.queue.Running || c.queueDesired {
+					t.Fatal("saving startup preferences started services immediately")
+				}
+				c = restartTestConsole(t, c)
+				c.AutoStart()
+				if c.settings.AutoStartCDN != gateway || c.DesktopState().CDN != gateway || c.settings.AutoStartQueue != queue || c.queue.Running != queue || c.queueDesired != queue {
+					t.Fatalf("saved preferences not honored: gateway=%v queue=%v desired=%v", c.DesktopState().CDN, c.queue.Running, c.queueDesired)
+				}
+			})
 		}
-		loaded, err := New(c.configPath, c.address)
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() { loaded.Close() })
-		loaded.videoAddress = "127.0.0.1:0"
-		loaded.httpsAddress = "127.0.0.1:0"
-		loaded.AutoStart()
-		if loaded.settings.AutoStartCDN != enabled || loaded.DesktopState().CDN != enabled {
-			t.Fatalf("saved autoStartCDN=%v was not honored", enabled)
-		}
-		loaded.Close()
 	}
 }
 
 func TestAutoStartFailureKeepsConsoleAvailable(t *testing.T) {
 	c := testConsole(t)
+	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+		t.Fatal(err)
+	}
 	occupied, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -63,6 +88,9 @@ func TestAutoStartFailureKeepsConsoleAvailable(t *testing.T) {
 	if c.DesktopState().CDN || c.videoListener != nil || c.https != nil {
 		t.Fatal("failed auto start left CDN partially running")
 	}
+	if !c.queue.Running || !c.queueDesired {
+		t.Fatal("gateway startup failure stopped queue prefetch")
+	}
 	r := httptest.NewRequest("GET", "http://"+c.address+"/api/status", nil)
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, r)
@@ -75,5 +103,13 @@ func TestAutoStartFailureKeepsConsoleAvailable(t *testing.T) {
 	}
 	if !c.DesktopState().CDN || c.cdnError != "" {
 		t.Fatal("manual retry did not recover")
+	}
+}
+
+func TestAutoStartQueueFailureStillStartsGateway(t *testing.T) {
+	c := testConsole(t) // The isolated log directory does not exist.
+	c.AutoStart()
+	if !c.DesktopState().CDN || c.queue.Running || !c.queueDesired || c.actionErrors["queue"] == "" {
+		t.Fatal("queue startup failure affected gateway or was not reported")
 	}
 }

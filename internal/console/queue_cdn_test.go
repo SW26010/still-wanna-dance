@@ -90,6 +90,7 @@ func TestAutoStartQueueDoesNotRequireCDN(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.settings.AutoStartQueue = true
+	c.settings.AutoStartCDN = false
 	c.AutoStart()
 	if !c.queue.Running || !c.queueDesired || c.httpServer != nil {
 		t.Fatal("queue startup depends on CDN")

@@ -37,3 +37,36 @@
 - 深入源码检查发现模块 ZIP 不含所有生成输入：补充 SQLite 固定提交完整树和 SQLite 3.50.4 C 原稿；将源码包收窄为当前生产编译需要的完整 ZIP 与全图元数据，避免分发无关预编译 WASM。已知未来 EasyTier 内嵌 WASM 的原始源码缺口单独 fail closed，详见[原始源码记录](licenses/README.md)。这没有更改 go-lzo 的风险接受决定。
 - 源码/声明/发行专项测试共 11/11 通过，新增 SQLite 版本变更必须复核、EasyTier 缺源码拒绝、go-lzo 未决许可仍允许的负例。
 - 补充源码下载实测中，Node 对 SQLite ZIP 的 GET 长时间无响应（HEAD 可达）；停止本轮该下载子进程，Windows 下载改用已验证可用的 `Invoke-WebRequest`，固定 SHA256 校验仍强制执行。新下载路径实测通过，不复用未校验响应，也未将失败构建输出为正式包。
+
+## 最终本地发行链（2026-10-12）
+
+被测实现提交：`11d8aa5ac49362cab18e708763050e9d8a0ebbea`。在独立临时本地克隆创建 `v0.0.0-issue30-validation`，主仓库没有该 tag，没有 push、上传或创建 GitHub Release。产物仅保留在忽略目录 `artifacts/issue30/release-check/`，不是已发布版本。
+
+正式流程完整通过：独立干净检出的全部 Node 回归、`go test ./cmd/... ./internal/...`、`go vet ./cmd/... ./internal/...`、源归档/哈希核验、生产参数构建、源码独立重建、真实 ZIP 的 Portable smoke。公开下载测试仍仅为受控响应负例，未伪称公开资产已存在。
+
+| 产物 | 字节数 | SHA256 |
+| --- | ---: | --- |
+| Portable ZIP | 6,874,687 | `405ae33cb32b3e9b5a58f134a76150f14d42caf87fb184e1a33f26ef7c7de105` |
+| 完整对应源码 tar.gz | 115,091,522 | `af0613fd4195c8ef5e01ad3ea9f0699b0b142c0415f3c0654367f2114cab9a41` |
+| 原始生产参数 EXE | — | `53871339cc263e5ad6b745143ac9b6b15a96e54c76a8a681ce5d7455e4586614` |
+| 独立重建 EXE（无 VCS 标记） | — | `2fab37730c1f671c558e950f1ae947e1049af913d0916d9618841c415c99d131` |
+
+源码清单包含 194 个模块图记录，其中当前生产编译所需 11 个模块交付完整 ZIP，1158 个文件逐项校验；另外包含固定 SQLite 上游完整树与 3.50.4 原稿，原稿 VERSION 文件也已核对。生产构建和独立重建均使用全新模块/编译缓存与包内 file GOPROXY；源码包没有 `.git`。实际 EXE 的 11 个依赖版本/h1 均相同，当前仍无 Mihomo/go-lzo，不将模块元数据当作未来所有函数保留的证明。EXE 哈希不同是预期范围，没有宣称比特可复现。
+
+随后直接对**最终落盘的两个附件**运行：
+
+```powershell
+node scripts/release.mjs verify --manifest artifacts/issue30/release-check/still-wanna-dance-v0.0.0-issue30-validation-release.json
+```
+
+结果 `verified: true`：重新检查 ZIP/源码 SHA256、解压布局、实际 EXE/包内声明与 SOURCE 的对应关系，并再独立重建成功。另补的身份负例明确拒绝“EXE 引用的模块仅交付 .mod/.info、没有完整 ZIP”。
+
+Portable smoke 实测包含同意前 API 428、条款文本一致、固定交付路径、配置锁/实例身份、强制结束后重启、覆盖升级数据不变、整目录移动、并发自定义配置隔离及旧布局拒绝；只启动自己创建的 `-no-tray -no-open` 隔离进程，结束时终止这些进程，未接受条款、启动游戏、修改 hosts 或运行真实托盘。
+
+开发实现已完成，以下发布/实机条件仍开放：
+
+- **LA-033**：真实旧确认记录升级、关于/条款页面人工核对及用户数据保持，与 LA-003/009/029 联动。
+- **#14 接入后**：复验实际桌面 EXE 与编译/链接证据；补齐 EasyTier WASM 精确生产源码及所需非系统依赖。该源码缺口会阻止受影响的结合发行，go-lzo 未决许可本身继续非阻断。未预先 Fork 或替换内核，未向上游发消息。
+- **正式发布时**：使用实际版本 tag 重新走门禁，同一 Release 提供两个附件、校验与源码入口；运行 `verify-published` 核验公开无凭据下载。#30 保持 release blocker，不以本地验证关闭。
+
+最终记录提交只补验证文字/负例，不改变产品运行行为；未新增其他实机项，已有台账全部保留。

@@ -72,6 +72,7 @@ test('binary identity rejects wrong revision, dirty state and unrecorded module 
   assert.doesNotThrow(() => checkExecutable(info, manifest));
   for (const change of [{ 'vcs.modified': 'true' }, { 'vcs.revision': 'b'.repeat(40) }, { GOOS: 'linux' }, { GOAMD64: 'v3' }]) assert.throws(() => checkExecutable({ ...info, settings: { ...info.settings, ...change } }, manifest));
   assert.throws(() => checkExecutable({ ...info, modules: [{ ...mod, version: 'v1.0.0' }] }, manifest), /dependency differs/);
+  assert.throws(() => checkExecutable(info, { ...manifest, modules: [{ ...mod, sourceIncluded: false }] }), /dependency differs/);
 });
 
 test('embedded artifacts need their original source; accepted go-lzo uncertainty is independent', () => {

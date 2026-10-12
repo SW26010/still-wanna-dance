@@ -75,6 +75,18 @@ export function cleanRevision(root, tag) {
 }
 export const escapeModule = text => text.replace(/[A-Z]/g, c => '!' + c.toLowerCase());
 
+export function supplementalInputs(policy, modules) {
+  const inputs = [];
+  for (const mod of modules) {
+    const rule = policy.generatedModules.find(r => r.module === mod.path);
+    if (!rule) continue;
+    if (rule.version !== mod.version) throw Error(`Generated source input review required: ${mod.path}@${mod.version}`);
+    if (rule.blocked) throw Error(`Incomplete corresponding source: ${mod.path}: ${rule.blocked}`);
+    inputs.push(...rule.inputs);
+  }
+  return inputs;
+}
+
 export function createSource({ root, tag, outputDir }) {
   root = path.resolve(root); outputDir = path.resolve(outputDir);
   const revision = cleanRevision(root, tag);
@@ -92,7 +104,14 @@ export function createSource({ root, tag, outputDir }) {
     const graph = jsonStream(run('go', ['list', '-m', '-json', 'all'], source, env));
     if (graph.some(m => m.Replace)) throw Error('Replacement modules require review before source delivery');
     const selected = graph.filter(m => !m.Main).sort((a, b) => a.Path.localeCompare(b.Path));
-    // Explicit versions ensure even build/test/generator modules are supplied.
+    const packages = jsonStream(run('go', ['list', '-mod=readonly', '-deps', '-json', desktopEntry], source, env));
+    const compiled = new Set(packages.filter(p => p.Module && !p.Module.Main).map(p => p.Module.Path));
+    const policyFile = path.join(source, 'docs/licenses/source-inputs.json');
+    const policy = compiled.size ? readJSON(policyFile) : { generatedModules: [] };
+    const extras = supplementalInputs(policy, selected.filter(m => compiled.has(m.Path)).map(m => ({ path: m.Path, version: m.Version })));
+    // Preserve full graph metadata, but supply ZIPs for this production build.
+    // Unlinked modules can contain unrelated precompiled artifacts with their
+    // own source obligations; do not redistribute them as incidental payload.
     // Run explicit downloads outside the snapshot so test-only modules cannot
     // add their checksums to its go.sum. Bound command length on Windows.
     const downloaded = [];
@@ -103,11 +122,25 @@ export function createSource({ root, tag, outputDir }) {
       if (!d || d.Error || !d.Zip || !d.GoMod || !d.Info || !d.Sum || !d.GoModSum) throw Error(`Incomplete module source: ${m.Path}@${m.Version}`);
       if (m.Sum && m.Sum !== d.Sum || m.GoModSum && m.GoModSum !== d.GoModSum) throw Error(`Module checksum changed: ${m.Path}`);
       const base = `proxy/${escapeModule(m.Path)}/@v/${escapeModule(m.Version)}`;
-      for (const [suffix, original] of [['.zip', d.Zip], ['.mod', d.GoMod], ['.info', d.Info]]) {
+      const sourceIncluded = compiled.has(m.Path);
+      if (sourceIncluded && d.Dir && filesUnder(d.Dir).some(p => /\.(wasm|syso|a|dll)$/i.test(p)) && !policy.generatedModules.some(r => r.module === m.Path && r.inputs.length)) throw Error(`Embedded binary requires original source review: ${m.Path}`);
+      for (const [suffix, original] of [...(sourceIncluded ? [['.zip', d.Zip]] : []), ['.mod', d.GoMod], ['.info', d.Info]]) {
         const dest = safePath(bundle, base + suffix); fs.mkdirSync(path.dirname(dest), { recursive: true }); fs.copyFileSync(original, dest);
       }
       fs.writeFileSync(safePath(bundle, path.posix.dirname(base) + '/list'), m.Version + '\n');
-      modules.push({ path: m.Path, version: m.Version, sum: d.Sum, goModSum: d.GoModSum, proxyBase: base });
+      modules.push({ path: m.Path, version: m.Version, sum: d.Sum, goModSum: d.GoModSum, proxyBase: base, sourceIncluded });
+    }
+    if (extras.length) fs.mkdirSync(path.join(bundle, 'upstream'));
+    for (const [i, input] of extras.entries()) {
+      const dest = safePath(bundle, 'upstream/' + input.file);
+      if (input.kind === 'git') {
+        const checkout = path.join(temp, `upstream-${i}`);
+        run('git', ['clone', '--quiet', '--depth', '1', '--branch', input.ref, input.url, checkout], temp);
+        if (run('git', ['rev-parse', 'HEAD'], checkout).trim() !== input.revision) throw Error('Upstream source tag changed');
+        run('git', ['archive', '--format=tar', `--prefix=${input.prefix}`, '--output', dest, input.revision], checkout);
+      } else if (input.kind === 'https') run(process.execPath, [path.join(source, 'scripts/fetch-source-input.mjs'), input.url, dest, input.sha256], source);
+      else throw Error('Unsupported source input');
+      if (sha256(dest) !== input.sha256) throw Error(`Upstream source hash mismatch: ${input.file}`);
     }
     // Downloading must not silently revise the checked-in build inputs.
     const currentMod = run('git', ['show', `${revision}:go.mod`], root);
@@ -115,7 +148,7 @@ export function createSource({ root, tag, outputDir }) {
     if (fs.readFileSync(path.join(source, 'go.mod'), 'utf8') !== currentMod || fs.readFileSync(path.join(source, 'go.sum'), 'utf8') !== currentSum) throw Error('Module download changed source go.mod/go.sum');
     const toolchain = run('go', ['env', 'GOVERSION'], source, env).trim();
     fs.writeFileSync(path.join(bundle, 'BUILD.txt'), `SWD ${tag}\nCommit: ${revision}\nLicense: GPL-3.0-only for new SWD contributions; see source/LICENSING.md.\n\nInstall ${toolchain}, Node.js 22+ and tar (general-purpose build tools).\nFrom this directory run:\n  node source/scripts/release-source.mjs rebuild --bundle . --output ../SWD-rebuilt.exe\nThe verifier checks all source/proxy file hashes, uses fresh Go caches and ONLY\nthe included file GOPROXY; it does not download modules or a toolchain.\nSource includes full module ZIPs, original notices, generated inputs and scripts.\nNo bit-for-bit binary reproducibility is claimed.\n`);
-    const manifest = { schemaVersion: 1, tag, revision, repository, target: 'windows/amd64', toolchain, entry: desktopEntry, productionFlags, modules,
+    const manifest = { schemaVersion: 1, tag, revision, repository, target: 'windows/amd64', toolchain, entry: desktopEntry, productionFlags, modules, supplementalInputs: extras,
       files: filesUnder(bundle).map(p => ({ path: p, bytes: fs.statSync(safePath(bundle, p)).size, sha256: sha256(safePath(bundle, p)) })) };
     writeJSON(path.join(bundle, 'source-manifest.json'), manifest);
     verifyBundle(bundle);
@@ -145,8 +178,14 @@ export function verifyBundle(bundle) {
     const base = `proxy/${escapeModule(mod.path)}/@v/${escapeModule(mod.version)}`;
     if (modules.has(id) || mod.proxyBase !== base || !/^h1:/.test(mod.sum) || !/^h1:/.test(mod.goModSum)) throw Error(`Invalid module identity: ${id}`);
     modules.add(id);
-    for (const suffix of ['.zip', '.mod', '.info']) if (!seen.has(base + suffix)) throw Error(`Missing complete module source: ${id}${suffix}`);
+    if (typeof mod.sourceIncluded !== 'boolean') throw Error(`Missing module source scope: ${id}`);
+    for (const suffix of [...(mod.sourceIncluded ? ['.zip'] : []), '.mod', '.info']) if (!seen.has(base + suffix)) throw Error(`Missing complete module source: ${id}${suffix}`);
   }
+  const compiled = m.modules.filter(mod => mod.sourceIncluded);
+  const policy = compiled.length ? readJSON(path.join(bundle, 'source/docs/licenses/source-inputs.json')) : { generatedModules: [] };
+  const extras = supplementalInputs(policy, compiled);
+  if (JSON.stringify(extras) !== JSON.stringify(m.supplementalInputs)) throw Error('Supplemental source inventory mismatch');
+  for (const input of extras) if (!seen.has('upstream/' + input.file) || sha256(safePath(bundle, 'upstream/' + input.file)) !== input.sha256) throw Error(`Missing original source input: ${input.file}`);
   const actual = filesUnder(bundle).filter(p => p !== 'source-manifest.json');
   if (actual.length !== seen.size || actual.some(p => !seen.has(p))) throw Error('Unexpected unmanifested source input');
   return m;
@@ -190,7 +229,7 @@ export function executableInfo(executable) {
 export function checkExecutable(info, manifest, requireRevision = true) {
   if (info.entry !== 'still-wanna-dance/' + desktopEntry.slice(2) || info.toolchain !== manifest.toolchain || info.settings.GOOS !== 'windows' || info.settings.GOARCH !== 'amd64' || info.settings.GOAMD64 !== 'v1' || info.settings.CGO_ENABLED !== '0' || info.settings['-trimpath'] !== 'true') throw Error('Binary target/toolchain/entry differs from source');
   if (requireRevision && (info.settings['vcs.revision'] !== manifest.revision || info.settings['vcs.modified'] !== 'false')) throw Error('Binary revision is missing, dirty or differs from source');
-  for (const mod of info.modules) if (!manifest.modules.some(m => m.path === mod.path && m.version === mod.version && m.sum === mod.sum)) throw Error(`Binary dependency differs from source: ${mod.path}`);
+  for (const mod of info.modules) if (!manifest.modules.some(m => m.path === mod.path && m.version === mod.version && m.sum === mod.sum && m.sourceIncluded)) throw Error(`Binary dependency differs from source: ${mod.path}`);
 }
 
 export function rebuild({ bundle, output }) {

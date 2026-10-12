@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "generatedModules": [
+    {
+      "module": "modernc.org/sqlite",
+      "version": "v1.39.1",
+      "inputs": [
+        {
+          "kind": "git",
+          "url": "https://gitlab.com/cznic/sqlite.git",
+          "ref": "v1.39.1",
+          "revision": "17e06226647c18b11f8bce329dea8d9c24901f3f",
+          "prefix": "modernc-sqlite/",
+          "file": "modernc-sqlite.tar",
+          "sha256": "9792e7bd5b354a8a8930b30f4e5107d7fc487e72d3fde2139e61277b987bea06"
+        },
+        {
+          "kind": "https",
+          "url": "https://www.sqlite.org/2025/sqlite-src-3500400.zip",
+          "file": "sqlite-src-3500400.zip",
+          "sha256": "b7b4dc060f36053902fb65b344bbbed592e64b2291a26ac06fe77eec097850e9"
+        }
+      ]
+    },
+    {
+      "module": "github.com/easytier/easytier/easytier-go",
+      "version": "v0.0.0-20260910071355-3d0c9c3ca5e2",
+      "blocked": "Embedded LGPLv3 WASM source must be supplied at recorded producer commit 63519db2b5f2a6a1b9b7f20905f036dab54eb829, including required Rust dependencies and build scripts. This is source delivery, not the accepted go-lzo license risk.",
+      "inputs": []
+    }
+  ]
+}

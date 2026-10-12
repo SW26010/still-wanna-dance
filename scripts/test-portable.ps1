@@ -85,7 +85,7 @@ try {
         try { $status = Invoke-WebRequest "$url/" -UseBasicParsing -TimeoutSec 1; break } catch { Start-Sleep -Milliseconds 250 }
     }
     if ($null -eq $status) { throw 'Portable startup timed out.' }
-    if ($status.Content -notmatch 'id="consent"') { throw 'Fresh install did not require consent.' }
+    if ($status.Content -notmatch 'id="setupAcceptTerms"' -or $status.Content -notmatch 'id="consoleShell" data-view="setup"') { throw 'Fresh install did not show the consent-gated setup page.' }
     $gate = Invoke-WebRequest "$url/api/status" -SkipHttpErrorCheck
     if ([int]$gate.StatusCode -ne 428) { throw 'API was accessible before consent.' }
     $servedTerms = Invoke-WebRequest "$url/terms.txt" -UseBasicParsing

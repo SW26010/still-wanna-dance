@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { withTemp, run, jsonStream, safePath, cleanRevision, createSource, extractSource, verifyBundle, readJSON, writeJSON, rebuild, checkExecutable } from './release-source.mjs';
+import { withTemp, run, jsonStream, safePath, cleanRevision, createSource, extractSource, verifyBundle, readJSON, writeJSON, rebuild, checkExecutable, supplementalInputs } from './release-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 function fixture(temp) {
@@ -66,10 +66,18 @@ test('complete source archive rebuilds without Git metadata or populated Go cach
 }));
 
 test('binary identity rejects wrong revision, dirty state and unrecorded module versions; accepted go-lzo is allowed', () => {
-  const mod = { path: 'github.com/rasky/go-lzo', version: 'v0.0.0-20200203143853-96a758eda86e', sum: 'h1:fixture' };
+  const mod = { path: 'github.com/rasky/go-lzo', version: 'v0.0.0-20200203143853-96a758eda86e', sum: 'h1:fixture', sourceIncluded: true };
   const manifest = { revision: 'a'.repeat(40), toolchain: 'go1.25.0', modules: [mod] };
   const info = { entry: 'still-wanna-dance/cmd/still-wanna-dance-console', toolchain: 'go1.25.0', modules: [mod], settings: { GOOS: 'windows', GOARCH: 'amd64', GOAMD64: 'v1', CGO_ENABLED: '0', '-trimpath': 'true', 'vcs.revision': manifest.revision, 'vcs.modified': 'false' } };
   assert.doesNotThrow(() => checkExecutable(info, manifest));
   for (const change of [{ 'vcs.modified': 'true' }, { 'vcs.revision': 'b'.repeat(40) }, { GOOS: 'linux' }, { GOAMD64: 'v3' }]) assert.throws(() => checkExecutable({ ...info, settings: { ...info.settings, ...change } }, manifest));
   assert.throws(() => checkExecutable({ ...info, modules: [{ ...mod, version: 'v1.0.0' }] }, manifest), /dependency differs/);
+});
+
+test('embedded artifacts need their original source; accepted go-lzo uncertainty is independent', () => {
+  const policy = readJSON(path.join(here, '../docs/licenses/source-inputs.json'));
+  assert.deepEqual(supplementalInputs(policy, [{ path: 'github.com/rasky/go-lzo', version: 'v0.0.0-20200203143853-96a758eda86e' }]), []);
+  assert.throws(() => supplementalInputs(policy, [{ path: 'github.com/easytier/easytier/easytier-go', version: 'v0.0.0-20260910071355-3d0c9c3ca5e2' }]), /Incomplete corresponding source/);
+  assert.equal(supplementalInputs(policy, [{ path: 'modernc.org/sqlite', version: 'v1.39.1' }]).length, 2);
+  assert.throws(() => supplementalInputs(policy, [{ path: 'modernc.org/sqlite', version: 'v9.0.0' }]), /review required/);
 });

@@ -44,7 +44,7 @@ Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的
 
 临时 Go 探测源码即使放在 Git 忽略的 `artifacts/` 中，仍会被 `go test ./...` 和 `go vet ./...` 发现。独立探测文件应在首行添加 `//go:build ignore` 并空一行；需要执行时用 `go run` 明确列出入口及其辅助源文件，避免多个 `main` 混入同一个包。也可放入独立的工具模块。
 
-入口位于 `cmd/still-wanna-dance`，协议、缓存和下载管理位于 `internal/cacheproxy`。运行方法见 [命令行服务手册](service.md)。默认缓存、构建产物及测试覆盖率文件已忽略；测试使用 Go 的独立临时目录，不写入原版缓存或证据目录。安装环境不会启动缓存服务或修改 hosts。
+入口位于 `cmd/still-wanna-dance`，协议、缓存和下载管理位于 `internal/cacheproxy`。运行方法见 [命令行服务手册](service.md)。默认缓存、构建产物及测试覆盖率文件已忽略；测试使用 Go 的独立临时目录，不写入原版缓存或证据目录。安装环境不会启动播放网关或修改 hosts。
 
 可选实网验收脚本 `scripts/acceptance.mjs` 使用 Node.js 标准库，不增加 Go 服务依赖：
 
@@ -57,7 +57,7 @@ node --test scripts/acceptance-protocol.test.mjs scripts/acceptance-request.test
 
 两个可执行文件参数分别默认上述路径。脚本在 `test-runs/acceptance-*` 中建立独立服务库和控制台库，记录两个程序的 SHA256、响应状态/头、字节数、哈希、耗时和进程日志。下载 1343/1344 及控制台独立的 1343 样本（当前合计约 106 MB）。覆盖直接视频冷下载、跨 Host Range 内容命中、重启 HEAD 复用、播放 API 接管后直接返回视频、控制台 Auto 冷/热播放，以及重启后上游不可用时的本地 GET/HEAD/Range 降级和无缓存歌曲的 502。Auto 使用真实选路，不能据此保证每种线路故障或测速组合均已覆盖；故障分支另由 Go 测试覆盖。
 
-验收前须由操作者在当前 Windows 用户下阅读并确认当前条款，第三个参数传入该 `terms.json`。脚本原样复制密文到独立配置，先启动关闭 CDN/队列自动启动的控制台，通过门禁验证凭据，并核对内嵌条款与当前源码一致；不会解密、伪造或自动点击同意。失效凭据返回 environment/blocked；缺少控制台程序也会阻塞全部验收，因为不能验证同意。验证成功后才启动服务链路；缺少服务程序仅阻塞服务链路，控制台 Auto 与本地降级仍继续。
+验收前须由操作者在当前 Windows 用户下阅读并确认当前条款，第三个参数传入该 `terms.json`。脚本原样复制密文到独立配置，先启动关闭播放网关/队列自动启动的控制台，通过门禁验证凭据，并核对内嵌条款与当前源码一致；不会解密、伪造或自动点击同意。失效凭据返回 environment/blocked；缺少控制台程序也会阻塞全部验收，因为不能验证同意。验证成功后才启动服务链路；缺少服务程序仅阻塞服务链路，控制台 Auto 与本地降级仍继续。
 
 条款保护回归可运行 `go test ./internal/console -run Terms -count=1`。Windows 使用真实 DPAPI，包含独立子进程读取和同用户搬迁；Linux 测试进程使用临时认证加密替身，生产代码仍明确拒绝非 Windows 凭据保存。这不替代真实跨用户/跨机器测试，验证范围见 [#15 验收记录](issue-15-validation.md)。
 

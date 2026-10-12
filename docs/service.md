@@ -1,6 +1,6 @@
 # 命令行服务使用手册
 
-本地 HTTP 视频缓存服务使用 Go 实现，SQLite 请求统计使用纯 Go 驱动，无需安装数据库服务。当前统一存储通过可控上游测试；真实 CF/HKG 下载与原版回读记录来自旧存储版本。VRChat 联合验收及发现的问题见[验收记录](acceptance.md)。
+命令行入口提供播放网关的 HTTP 播放、缓存与回源能力，使用 Go 实现；SQLite 请求统计使用纯 Go 驱动，无需安装数据库服务。此入口不包含桌面控制台的 HTTPS 透传和 Monitor 通道推荐，能力范围见下方「游戏接入」。当前统一存储通过可控上游测试；真实 CF/HKG 下载与原版回读记录来自旧存储版本。VRChat 联合验收及发现的问题见[验收记录](acceptance.md)。
 
 ## 启动
 
@@ -29,7 +29,7 @@ go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
 
 本页 `still-wanna-dance.exe` 命令行入口支持 HTTP 视频请求及 `api.udon.dance/Api/Songs/play?id=…` 的 GET/HEAD，接受省略 node、`node=cf` 或 `node=nya`。它通过 HTTPS 获取上游视频地址，按资源指纹命中缓存或边下边播，直接以 HTTP 返回视频，支持单段 Range。游戏入口须使用 HTTP，播放器须接受 API 地址直接返回视频；游戏内兼容性仍待实测。其他 API 路径的 GET/HEAD 返回 307，指向原站 HTTPS。
 
-CLI 不监听 443，也不支持 `/v/` 或 SHA。hosts 同时影响 HTTP/HTTPS，因此映射后的域名若被客户端通过 HTTPS 访问（包括上述 307），CLI 单独运行无法承接该连接。需要同时兼容网页 HTTPS 播放时，使用 `SWD.exe`：其 CDN 同时启动 HTTP 缓存和 HTTPS 透传，详见[本地控制台](console.md#网页-https-播放)。透传不使用本地缓存。更详细的原版接入记录见[复现手册](testing-runbook.md)，其中原版命令不能直接当作 Still Wanna Dance 命令使用。
+CLI 不监听 443，也不支持 `/v/` 或 SHA。hosts 同时影响 HTTP/HTTPS，因此映射后的域名若被客户端通过 HTTPS 访问（包括上述 307），CLI 单独运行无法承接该连接。需要同时兼容网页 HTTPS 播放时，使用 `SWD.exe`：其播放网关同时启动 HTTP 播放和 HTTPS 透传，详见[本地控制台](console.md#网页-https-播放)。透传不使用本地缓存。更详细的原版接入记录见[复现手册](testing-runbook.md)，其中原版命令不能直接当作 Still Wanna Dance 命令使用。
 
 ## 缓存和下载规则
 

@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 // First-use acceptance now lives in setup.js and is covered by setup.test.mjs.
 // This template is only the independently opened, already-accepted legal text.
-for (const [id,path,message] of [['restore','/api/hosts/disable','hosts 恢复操作已完成。'],['stop','/api/stop','缓存服务已停止。']]) {
+for (const [id,path,message] of [['restore','/api/hosts/disable','hosts 恢复操作已完成。'],['stop','/api/stop','播放网关已停止。']]) {
   test('readonly terms retains authenticated '+id+' and displays errors',async()=>{
     const source=readFileSync(new URL('../internal/console/terms.go',import.meta.url),'utf8');
     const script=source.match(/<script>([\s\S]*?)<\/script>/)[1].replace('{{.Token}}','"test-token"');

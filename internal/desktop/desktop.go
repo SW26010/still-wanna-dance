@@ -172,9 +172,9 @@ type Item struct {
 }
 
 func Menu(s State, busy bool) []Item {
-	label := "启动本地 CDN"
+	label := "启动本地播放网关"
 	if s.CDN {
-		label = "关闭本地 CDN"
+		label = "关闭本地播放网关"
 	}
 	return []Item{{OpenConsole, "打开控制台", false}, {0, "", false}, {ToggleCDN, label, busy}, {CancelBatch, "停止批量任务", busy || !s.Batch}, {0, "", false}, {Exit, "退出 Still Wanna Dance", false}}
 }

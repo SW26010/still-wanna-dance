@@ -98,7 +98,7 @@ func TestConfigLifetimeLock(t *testing.T) {
 
 func TestMenuMatchesRuntime(t *testing.T) {
 	items := Menu(State{CDN: true, Batch: true}, false)
-	if items[2].Label != "关闭本地 CDN" || items[3].Disabled {
+	if items[2].Label != "关闭本地播放网关" || items[3].Disabled {
 		t.Fatal(items)
 	}
 	items = Menu(State{}, true)

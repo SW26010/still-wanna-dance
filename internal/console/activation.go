@@ -53,11 +53,11 @@ func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(str
 	c.activationPhase("hosts")
 	if !hosts.Ready {
 		if err = change("enable"); err != nil {
-			return fmt.Errorf("CDN 已运行，但 hosts 接入未完成：%w；处理后可重试，也可在单项管理中关闭 CDN", err)
+			return fmt.Errorf("播放网关已运行，但 hosts 接入未完成：%w；处理后可重试，也可在「高级接入设置」中停止播放网关", err)
 		}
 	}
 	if hosts = inspect(); !hosts.Ready {
-		return fmt.Errorf("CDN 已运行，但 hosts 检查未通过：%s", hosts.Message)
+		return fmt.Errorf("播放网关已运行，但 hosts 检查未通过：%s", hosts.Message)
 	}
 	c.mu.Lock()
 	c.activation.Phase, c.activation.ReadyAt = "waiting", time.Now()

@@ -49,7 +49,7 @@
         <div class="actions" id="activationActions"><button class="primary" id="enableAcceleration" data-action="activation/enable">启用游戏加速</button></div>
         <div id="activationProgress" role="status">正在检查状态…</div>
         <ol aria-label="游戏加速接入状态">
-          <li id="activationService">服务：待检查</li>
+          <li id="activationService">播放网关：待检查</li>
           <li id="activationHosts">hosts：待检查</li>
           <li id="activationRequest">视频请求：尚未开始本次检测</li>
         </ol>
@@ -60,17 +60,17 @@
       </section>
         <details class="card" id="service" aria-labelledby="serviceTitle" tabindex="-1">
           <summary id="serviceTitle">高级接入设置</summary>
-          <p class="hint">可分别控制本地缓存服务和游戏接入。</p>
+          <p class="hint">可分别控制本地播放网关和游戏接入。</p>
           <div class="actions">
             <button class="primary" id="start" data-action="start">
-              启动缓存服务</button
-            ><button id="stop" data-action="stop">停止缓存服务</button>
+              启动播放网关</button
+            ><button id="stop" data-action="stop">停止播放网关</button>
           </div>
           <div id="serviceError" role="status"></div>
           <div class="check">
             <span aria-hidden="true" class="dot" id="portDot">●</span>
             <div class="grow">
-              <strong>HTTP 缓存 · 80</strong><small id="portText">检查中</small>
+              <strong>HTTP 播放 · 80</strong><small id="portText">检查中</small>
             </div>
           </div>
           <div class="check">
@@ -97,7 +97,7 @@
             ><button id="restoreHosts" data-action="hosts/disable">恢复游戏直连</button>
           </div>
           <div class="hint">
-            仅在实际修改时请求管理员权限。映射长期保留，停止缓存服务
+            仅在实际修改时请求管理员权限。映射长期保留，停止播放网关
             或退出控制台不会恢复。「恢复游戏直连」仅移除 Still Wanna Dance 添加的映射；如有其他映射，仍需根据接入状态检查。
           </div>
         </details>
@@ -348,7 +348,7 @@
                 id="autoStartCDN"
                 name="autoStartCDN" aria-describedby="autoStartHint"
                 type="checkbox"
-              />启动应用时开启本地缓存服务</label
+              />启动应用时开启本地播放网关</label
             >
             <div class="hint" id="autoStartHint">下次启动应用时生效，不自动修改游戏接入（hosts）。</div>
             <label for="requestRetentionDays">请求明细保留天数</label
@@ -399,7 +399,7 @@
             </div>
             </fieldset><fieldset data-setup-settings="environment"><legend>房间队列与游戏日志</legend>
             <label for="autoStartQueue"><input id="autoStartQueue" name="autoStartQueue" type="checkbox" /> 启动应用时开启房间队列预缓存</label>
-            <p class="hint">与缓存服务的自动启动独立。下载补齐期间临时暂停。</p>
+            <p class="hint">与播放网关的自动启动独立。下载补齐期间临时暂停。</p>
             <label for="queuePrefetchCount">队列预缓存数量</label>
             <input id="queuePrefetchCount" aria-describedby="queuePrefetchCountHint" type="number" min="1" max="100" step="1" required value="3" />
             <div class="hint" id="queuePrefetchCountHint">默认 3，范围 1～100。准备队列前 N 个位置中的有效曲目。</div>

@@ -280,8 +280,8 @@ var termsTemplate = template.Must(template.New("terms").Parse(`<!doctype html>
 <p class="setup-lead">软件许可不等于内容授权。</p>
 <p>条款版本：{{.Version}} · <a href="/terms.txt" target="_blank" rel="noopener">查看／保存纯文本</a></p>
 <article class="setup-terms" tabindex="0" aria-label="完整使用条款">{{.Text}}</article>
-<div class="actions"><button type="button" id="restore">恢复游戏直连</button><button type="button" id="stop">停止缓存服务</button></div><p id="result" role="status" aria-live="polite"></p>
+<div class="actions"><button type="button" id="restore">恢复游戏直连</button><button type="button" id="stop">停止播放网关</button></div><p id="result" role="status" aria-live="polite"></p>
 </div></main><script>
 const token={{.Token}}, result=document.getElementById('result');
-for(const [id,path] of [['restore','/api/hosts/disable'],['stop','/api/stop']]){document.getElementById(id).onclick=async()=>{try{const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-SWD-Token':token},body:'{}'});if(!r.ok)throw new Error(await r.text());result.textContent=id==='restore'?'hosts 恢复操作已完成。':'缓存服务已停止。';}catch(e){result.textContent=e.message;}};}
+for(const [id,path] of [['restore','/api/hosts/disable'],['stop','/api/stop']]){document.getElementById(id).onclick=async()=>{try{const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-SWD-Token':token},body:'{}'});if(!r.ok)throw new Error(await r.text());result.textContent=id==='restore'?'hosts 恢复操作已完成。':'播放网关已停止。';}catch(e){result.textContent=e.message;}};}
 </script></body></html>`))

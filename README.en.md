@@ -4,7 +4,7 @@
 
 **Load failed? But I still wanna dance!**
 
-Still Wanna Dance is an open-source local video cache for **VRChat WannaDance players on Windows**. Keep videos on your computer, prepare upcoming songs in the room queue, and manage downloads and cached files through a simple local web console.
+Still Wanna Dance is an open-source playback tool for **VRChat WannaDance players on Windows**. Its local playback gateway handles WannaDance HTTP playback requests using upstream routing and local video caching. Keep videos on your computer, prepare upcoming songs in the room queue, and manage downloads and cached files through a simple local web console.
 
 Just extract and run. The app lives in the Windows system tray and requires no Go, Node.js, or database installation.
 
@@ -29,7 +29,7 @@ The desktop app targets Windows x64. Choose a writable folder for the app and al
 4. On Get started (开始使用), click Enable game acceleration (启用游戏加速) and follow the prompts to configure the hosts entries. Windows will ask for permission when the app needs to modify the hosts file.
 5. Enter WannaDance and request a song. Check the connection and request status on Get started, then use Activity (运行状态) and Local cache (本地缓存) to follow downloads and inspect cached files.
 
-To prepare upcoming songs, enable Room queue prefetch (房间队列预缓存) in Prepare songs (准备歌曲) before requesting songs. Its start/stop controls are independent of the CDN. First-time downloads still depend on the upstream server and your network. “Request received” (收到请求) means a request reached the local service; check playback in the game itself. If no requests arrive after setup, try rejoining the world or restarting the game to refresh DNS.
+To prepare upcoming songs, enable Room queue prefetch (房间队列预缓存) in Prepare songs (准备歌曲) before requesting songs. Its start/stop controls are independent of the playback gateway, and both share the local cache. To play cached videos in the game, start the gateway and enable game access. First-time downloads still depend on the upstream server and your network. “Request received” (收到请求) means a request reached the local playback gateway; check playback in the game itself. If no requests arrive after setup, try rejoining the world or restarting the game to refresh DNS.
 
 After accepting the terms, closing the web page leaves the app running in the system tray. Before acceptance, closing the terms page attempts to exit the app after 60 seconds; reopening it cancels the countdown. Use the tray menu to reopen the console. Quit from the page footer or the tray menu to stop all services and background tasks; hosts mappings remain in place.
 
@@ -49,7 +49,7 @@ For detailed instructions, see the [console guide](docs/console.md) and [portabl
 | Adjust how many queue positions to prefetch | Settings (设置) → Queue prefetch count (队列预缓存数量), then save and restart |
 | Start or stop queue prefetch independently | Prepare songs (准备歌曲) → Room queue prefetch (房间队列预缓存) |
 
-“Local CDN” in the console refers to the cache service running on your computer. Everyday use is handled through the web console and system tray. A [standalone command-line service](docs/service.md) is also available for custom setups.
+Playback Gateway (播放网关) runs on your computer and handles playback requests, cache reads, upstream downloads, video delivery, and HTTPS forwarding for connections affected by game access. Local Cache (本地缓存) covers video storage, indexing, verification, and cleanup. Upstream channels (上游通道) are direct or proxy connections and their evaluation and selection. Game access (游戏接入) uses hosts mappings to direct requests to the local playback gateway. Everyday use is handled through the web console and system tray. A [standalone command-line service](docs/service.md) is also available for custom setups.
 
 ## Things to know
 

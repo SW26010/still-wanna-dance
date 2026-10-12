@@ -262,7 +262,7 @@ test('activation separates current service, hosts and session evidence, with pro
   vm.runInContext('render(snapshot)', p.context);
   assert.equal(get('enableAcceleration').disabled, false);
   assert.match(get('enableAcceleration').textContent, /重试/);
-  assert.match(get('activationNext').textContent, /服务已运行，接入尚未完成/);
+  assert.match(get('activationNext').textContent, /播放网关已运行，接入尚未完成/);
   assert.match(get('activationProgress').textContent, /UAC canceled/);
   p.context.snapshot.hosts.ready = true;
   p.context.snapshot.activation = { phase: 'waiting', firstRequest: '2026-09-27T01:01:00Z' };
@@ -1253,7 +1253,7 @@ for (const ok of [true, false]) {
     p.finishBatch(3);
     await action;
     assert.equal(vm.runInContext('uncertainAction', p.context), '');
-    assert.match(vm.runInContext("$('notice').textContent", p.context), ok ? /缓存服务已启动/ : /端口已占用/);
+    assert.match(vm.runInContext("$('notice').textContent", p.context), ok ? /播放网关已启动/ : /端口已占用/);
   });
 }
 

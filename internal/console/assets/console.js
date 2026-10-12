@@ -229,20 +229,20 @@ function renderActivation(s) {
   const a = s.activation || {}, active = activationPending(s);
   const dated = v => v && !v.startsWith('0001');
   const received = dated(a.firstRequest);
-  setText('activationService', s.running ? '缓存服务：运行中' : '缓存服务：未运行');
+  setText('activationService', s.running ? '播放网关：运行中' : '播放网关：未运行');
   setText('activationHosts', s.hosts.ready ? '游戏接入：已完成' : '游戏接入：' + (s.hosts.needsMigration ? s.hosts.message : '尚未完成，请点击「启用游戏加速」'));
   setText('activationRequest', received
     ? '视频请求：本次已收到视频请求（不代表播放成功）'
     : '视频请求：' + (a.phase === 'waiting' ? '等待本次视频请求' : a.phase === 'stopped' ? '检测已结束' : '尚未检测'));
-  const progress = { checking: '正在检查接入配置…', starting: '正在启动服务并检查端口…',
-    hosts: '服务已运行，正在检查 / 修改 hosts；如出现 UAC 提示，请允许管理员权限…',
-    migration_required: s.hosts.needsMigration ? '服务已自动启动，但 hosts 迁移未完成：' + a.error : 'hosts 状态已更新，请重新检测视频请求。',
-    failed: '启用未完成：' + a.error, stopped: s.cdnError ? '服务已停止：' + s.cdnError : '本次检测已结束。' };
+  const progress = { checking: '正在检查接入配置…', starting: '正在启动播放网关并检查端口…',
+    hosts: '播放网关已运行，正在检查 / 修改 hosts；如出现 UAC 提示，请允许管理员权限…',
+    migration_required: s.hosts.needsMigration ? '播放网关已自动启动，但 hosts 迁移未完成：' + a.error : 'hosts 状态已更新，请重新检测视频请求。',
+    failed: '启用未完成：' + a.error, stopped: s.cdnError ? '播放网关已停止：' + s.cdnError : '本次检测已结束。' };
   setText('activationProgress', progress[a.phase] || (a.phase === 'waiting' ? '启用步骤已完成，请核对下方实时状态。' : ''));
   setText('activationNext', active ? '请等待当前操作完成，勿重复提交。' : !s.running
-    ? s.cdnError ? '缓存服务启动失败，请根据错误提示处理后重试。' : ''
+    ? s.cdnError ? '播放网关启动失败，请根据错误提示处理后重试。' : ''
     : s.hosts.needsMigration ? '下一步：点击「启用游戏加速」清理本程序旧版 hosts 条目，完成接入迁移。'
-    : !s.hosts.ready ? '下一步：检查 hosts 冲突或管理员权限后重试。服务已运行，接入尚未完成。'
+    : !s.hosts.ready ? '下一步：检查 hosts 冲突或管理员权限后重试。播放网关已运行，接入尚未完成。'
     : a.phase !== 'waiting' ? '下一步：点击「重新检测视频请求」，然后在游戏中点歌。'
     : received ? '已收到请求，请在游戏中确认播放。无法播放时，可到「运行状态」查看网络检测。'
     : '下一步：在游戏中请求一首歌曲。如一直没有请求，请重新进入世界或重启游戏后重试。');
@@ -290,7 +290,7 @@ function renderService(s) {
   setText('httpsText', s.running
     ? 'HTTPS 转发已就绪'
     : s.httpsPortOK
-      ? '端口可用，随缓存服务启动'
+      ? '端口可用，随播放网关启动'
       : s.httpsPortOwner
         ? '被 ' +
           s.httpsPortOwner.name +
@@ -652,7 +652,7 @@ async function action(path, body) {
     }
     notice(
       path === 'start'
-        ? '缓存服务已启动。若游戏尚未接入，请在「开始使用」点击「启用游戏加速」。'
+        ? '播放网关已启动。若游戏尚未接入，请在「开始使用」点击「启用游戏加速」。'
         : path === 'settings'
           ? '设置已保存。更改将在重启应用后生效。'
           : path === 'hosts/disable'

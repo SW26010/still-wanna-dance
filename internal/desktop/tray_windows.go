@@ -183,9 +183,9 @@ func (t *tray) tooltip() string {
 		return "Still Wanna Dance · 正在退出"
 	}
 	s := t.options.State()
-	text := "Still Wanna Dance · CDN 已关闭"
+	text := "Still Wanna Dance · 播放网关已关闭"
 	if s.CDN {
-		text = "Still Wanna Dance · CDN 运行中"
+		text = "Still Wanna Dance · 播放网关运行中"
 	}
 	if s.Batch {
 		text += " · 批量任务运行中"

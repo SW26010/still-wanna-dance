@@ -16,7 +16,7 @@ try {
     $env:GOWORK = 'off'
     $env:GOTOOLCHAIN = 'local'
     $env:GOENV = 'off'
-    go build -trimpath -mod=readonly -ldflags '-s -w -H=windowsgui' -o $Output ./cmd/still-wanna-dance-console
+    go build -tags=no_easytier -trimpath -mod=readonly -ldflags '-s -w -H=windowsgui' -o $Output ./cmd/still-wanna-dance-console
     if ($LASTEXITCODE -ne 0) { throw 'Desktop build failed.' }
     Write-Host "Built $Output (Windows tray, no console window)."
 } finally {

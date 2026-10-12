@@ -68,9 +68,11 @@ test('complete source archive rebuilds without Git metadata or populated Go cach
 test('binary identity rejects wrong revision, dirty state and unrecorded module versions; accepted go-lzo is allowed', () => {
   const mod = { path: 'github.com/rasky/go-lzo', version: 'v0.0.0-20200203143853-96a758eda86e', sum: 'h1:fixture', sourceIncluded: true };
   const manifest = { revision: 'a'.repeat(40), toolchain: 'go1.25.0', modules: [mod] };
-  const info = { entry: 'still-wanna-dance/cmd/still-wanna-dance-console', toolchain: 'go1.25.0', modules: [mod], settings: { GOOS: 'windows', GOARCH: 'amd64', GOAMD64: 'v1', CGO_ENABLED: '0', '-trimpath': 'true', 'vcs.revision': manifest.revision, 'vcs.modified': 'false' } };
+  const info = { entry: 'still-wanna-dance/cmd/still-wanna-dance-console', toolchain: 'go1.25.0', modules: [mod], settings: { GOOS: 'windows', GOARCH: 'amd64', GOAMD64: 'v1', CGO_ENABLED: '0', '-trimpath': 'true', '-tags': 'no_easytier', 'vcs.revision': manifest.revision, 'vcs.modified': 'false' } };
   assert.doesNotThrow(() => checkExecutable(info, manifest));
-  for (const change of [{ 'vcs.modified': 'true' }, { 'vcs.revision': 'b'.repeat(40) }, { GOOS: 'linux' }, { GOAMD64: 'v3' }]) assert.throws(() => checkExecutable({ ...info, settings: { ...info.settings, ...change } }, manifest));
+  for (const change of [{ 'vcs.modified': 'true' }, { 'vcs.revision': 'b'.repeat(40) }, { GOOS: 'linux' }, { GOAMD64: 'v3' }, { '-tags': '' }]) assert.throws(() => checkExecutable({ ...info, settings: { ...info.settings, ...change } }, manifest));
+  const easytier = { ...mod, path: 'github.com/easytier/easytier/easytier-go' };
+  assert.throws(() => checkExecutable({ ...info, modules: [easytier] }, { ...manifest, modules: [easytier] }), /EasyTier must be excluded/);
   assert.throws(() => checkExecutable({ ...info, modules: [{ ...mod, version: 'v1.0.0' }] }, manifest), /dependency differs/);
   assert.throws(() => checkExecutable(info, { ...manifest, modules: [{ ...mod, sourceIncluded: false }] }), /dependency differs/);
 });

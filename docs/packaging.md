@@ -10,7 +10,7 @@
 ./scripts/package-portable.ps1 -ReleaseTag v1.2.3
 ```
 
-开发包先运行三个前端测试文件（refresh、navigation、terms）、`go test ./cmd/... ./internal/...`、`go vet ./cmd/... ./internal/...`，失败即停止。正式包在独立干净检出中运行全部 Node 测试和上述 Go 检查，排除原目录中被 Git 忽略的额外代码/嵌入资源。构建使用 `GOOS=windows GOARCH=amd64 GOAMD64=v1 CGO_ENABLED=0`、`-trimpath -mod=readonly -ldflags '-s -w -H=windowsgui'`；不继承 GOFLAGS、工作区覆盖或 Go 实验配置，不自动下载工具链。
+开发包先运行三个前端测试文件（refresh、navigation、terms）、`go test -tags=no_easytier ./cmd/... ./internal/...`、`go vet -tags=no_easytier ./cmd/... ./internal/...`，失败即停止。正式包在独立干净检出中运行全部 Node 测试和上述 Go 检查，排除原目录中被 Git 忽略的额外代码/嵌入资源。构建使用 `GOOS=windows GOARCH=amd64 GOAMD64=v1 CGO_ENABLED=0`、`-tags=no_easytier -trimpath -mod=readonly -ldflags '-s -w -H=windowsgui'`；不继承 GOFLAGS、工作区覆盖或 Go 实验配置，不自动下载工具链。
 
 ZIP 名允许带版本；ZIP 内固定为：
 

@@ -9,7 +9,8 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 
 export const desktopEntry = './cmd/still-wanna-dance-console';
 export const repository = 'SW26010/still-wanna-dance';
-export const productionFlags = ['-trimpath', '-mod=readonly', '-ldflags', '-s -w -H=windowsgui'];
+export const buildTags = 'no_easytier';
+export const productionFlags = ['-tags=' + buildTags, '-trimpath', '-mod=readonly', '-ldflags', '-s -w -H=windowsgui'];
 export function run(command, args, cwd, env = {}) {
   return execFileSync(command, args, { cwd, env: { ...process.env, ...env }, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true });
 }
@@ -104,7 +105,7 @@ export function createSource({ root, tag, outputDir }) {
     const graph = jsonStream(run('go', ['list', '-m', '-json', 'all'], source, env));
     if (graph.some(m => m.Replace)) throw Error('Replacement modules require review before source delivery');
     const selected = graph.filter(m => !m.Main).sort((a, b) => a.Path.localeCompare(b.Path));
-    const packages = jsonStream(run('go', ['list', '-mod=readonly', '-deps', '-json', desktopEntry], source, env));
+    const packages = jsonStream(run('go', ['list', '-tags=' + buildTags, '-mod=readonly', '-deps', '-json', desktopEntry], source, env));
     const compiled = new Set(packages.filter(p => p.Module && !p.Module.Main).map(p => p.Module.Path));
     const policyFile = path.join(source, 'docs/licenses/source-inputs.json');
     const policy = compiled.size ? readJSON(policyFile) : { generatedModules: [] };
@@ -227,7 +228,8 @@ export function executableInfo(executable) {
   return { entry, toolchain, modules, settings };
 }
 export function checkExecutable(info, manifest, requireRevision = true) {
-  if (info.entry !== 'still-wanna-dance/' + desktopEntry.slice(2) || info.toolchain !== manifest.toolchain || info.settings.GOOS !== 'windows' || info.settings.GOARCH !== 'amd64' || info.settings.GOAMD64 !== 'v1' || info.settings.CGO_ENABLED !== '0' || info.settings['-trimpath'] !== 'true') throw Error('Binary target/toolchain/entry differs from source');
+  if (info.entry !== 'still-wanna-dance/' + desktopEntry.slice(2) || info.toolchain !== manifest.toolchain || info.settings.GOOS !== 'windows' || info.settings.GOARCH !== 'amd64' || info.settings.GOAMD64 !== 'v1' || info.settings.CGO_ENABLED !== '0' || info.settings['-trimpath'] !== 'true' || info.settings['-tags'] !== buildTags) throw Error('Binary target/toolchain/entry differs from source');
+  if (info.modules.some(m => m.path === 'github.com/easytier/easytier/easytier-go')) throw Error('EasyTier must be excluded from the desktop build');
   if (requireRevision && (info.settings['vcs.revision'] !== manifest.revision || info.settings['vcs.modified'] !== 'false')) throw Error('Binary revision is missing, dirty or differs from source');
   for (const mod of info.modules) if (!manifest.modules.some(m => m.path === mod.path && m.version === mod.version && m.sum === mod.sum && m.sourceIncluded)) throw Error(`Binary dependency differs from source: ${mod.path}`);
 }

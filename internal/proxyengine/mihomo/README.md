@@ -86,6 +86,11 @@ Two internal policies are enforced regardless of user input:
 
 The **root** go.mod/go.sum pin official Mihomo v1.19.32. No fork or protobuf
 replace is introduced; the selected protobuf remains v1.34.2 for these paths.
+Desktop builds and CI use upstream's `-tags=no_easytier` to exclude the unused
+EasyTier WASM. SS, VLESS, AnyTLS and Hysteria2 remain available. Source collection
+and independent rebuilds use the same tag; release verification rejects binaries
+without it or with EasyTier module metadata. This does not change the adapter's
+existing protocol allowlist or require a Mihomo fork.
 Go 1.25.0 / Windows amd64 / CGO=0 builds and runs the adapter. The independent
 experiment's Go 1.27.1 result is not used as evidence for this baseline. CI stays
 on Go 1.25.x with `GOTOOLCHAIN=local`, explicitly builds with CGO=0, and retains
@@ -99,8 +104,8 @@ concurrent/idempotent Close. The shared `testfixture` executable contains server
 imports; the adapter test process does not import inbound packages. The fixture
 permits only fixed loopback destinations and is killed after each test run.
 
-Run `go test ./internal/proxyengine/mihomo` using Go 1.25. For full CI parity use
-a clean source tree (`go test ./...`, `go vet ./...`, `CGO_ENABLED=0 go build
+Run `go test -tags=no_easytier ./internal/proxyengine/mihomo` using Go 1.25. For full CI parity use
+a clean source tree (`go test -tags=no_easytier ./...`, `go vet -tags=no_easytier ./...`, `CGO_ENABLED=0 go build -tags=no_easytier
 ./...`); ignored local artifacts with .go files can otherwise pollute `./...`.
 This is not public-server interoperability, VRChat or long-duration soak coverage.
 

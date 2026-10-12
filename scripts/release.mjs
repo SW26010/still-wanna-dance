@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { run, goEnv, sha256, readJSON, writeJSON, filesUnder, withTemp, cleanRevision, createSource, extractSource, extractArchive, executableInfo, checkExecutable, rebuild, repository, desktopEntry, productionFlags } from './release-source.mjs';
+import { run, goEnv, sha256, readJSON, writeJSON, filesUnder, withTemp, cleanRevision, createSource, extractSource, extractArchive, executableInfo, checkExecutable, rebuild, repository, desktopEntry, productionFlags, buildTags } from './release-source.mjs';
 import { validateNotices } from './release-notices.mjs';
 
 export const assetURL = (tag, name) => `https://github.com/${repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(name)}`;
@@ -61,8 +61,8 @@ export function createRelease({ root, tag, outputDir }) {
     const nodeTests = fs.readdirSync(path.join(checkout, 'scripts')).filter(f => f.endsWith('.test.mjs')).map(f => 'scripts/' + f);
     console.log('Checking clean release checkout...');
     run(process.execPath, ['--test', ...nodeTests], checkout);
-    run('go', ['test', './cmd/...', './internal/...'], checkout, goEnv());
-    run('go', ['vet', './cmd/...', './internal/...'], checkout, goEnv());
+    run('go', ['test', '-tags=' + buildTags, './cmd/...', './internal/...'], checkout, goEnv());
+    run('go', ['vet', '-tags=' + buildTags, './cmd/...', './internal/...'], checkout, goEnv());
     const results = path.join(temp, 'results'); fs.mkdirSync(results);
     console.log('Collecting complete corresponding source...');
     const source = createSource({ root: checkout, tag, outputDir: results });

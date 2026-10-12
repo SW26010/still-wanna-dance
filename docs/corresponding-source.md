@@ -14,7 +14,7 @@ node scripts/release-source.mjs create --tag v1.2.3 --output artifacts
 
 完整模块 ZIP 也不自动证明“首选修改形式”齐全：SQLite Go 模块省略嵌套的 `vendor_libsqlite3` 生成工具，实际 SQLite C 原稿也需另取。因此 `docs/licenses/source-inputs.json` 固定补充输入的版本、提交和哈希：modernc SQLite 上游完整 Git 快照（含嵌套模块/生成脚本）与对应的 SQLite 3.50.4 原始源码 ZIP。源码包 `upstream/` 保存这些原始档案；Go 模块内生成命令及条件参数保留。修改 SQLite 原稿时参考原快照的 Makefile、`vendor_libsqlite3/main.go` 和生成 Go 文件头部命令，需另装相应通用 C/Go 生成工具。普通桌面重建使用已交付的 Go 输入，不需要重新生成 SQLite。
 
-当前 Mihomo 尚未接入桌面。接入后源码集自动扩展，但发现的内嵌 `.wasm/.syso/.a/.dll` 若没有原始源码交付复核会失败；已知 EasyTier WASM 的上游来源缺口见[专项记录](licenses/README.md)。这属于完整对应源码要求，不是重新将 go-lzo 授权疑点设为阻断。
+当前 Mihomo 尚未接入桌面。桌面生产构建、依赖收集和离线重建统一使用官方 `-tags=no_easytier`，排除 SWD 不支持的 EasyTier 及其 WASM，无需 Fork。发行检查同时核对 EXE 的构建标签和模块身份。若将来确需启用 EasyTier，仍须另行核实并交付对应源码；指定 Git SHA 不可读取不等于源码未公开。其他内嵌 `.wasm/.syso/.a/.dll` 的原始源码交付仍须复核，见[专项记录](licenses/README.md)。这不改变 go-lzo 已接受的非阻断风险。
 
 产物 `still-wanna-dance-v1.2.3-corresponding-source.tar.gz` 解压为：
 

@@ -24,7 +24,7 @@ func checkedParameters(input map[string]any) (map[string]any, string, error) {
 	case "ss":
 		fields += "cipher password "
 	case "vless":
-		fields += "uuid tls servername fingerprint skip-cert-verify alpn "
+		fields += "uuid tls servername fingerprint client-fingerprint skip-cert-verify alpn "
 	case "anytls":
 		fields += "password sni fingerprint skip-cert-verify alpn "
 	case "hysteria2":

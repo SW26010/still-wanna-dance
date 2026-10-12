@@ -41,6 +41,10 @@ var setupPage string
 var assets embed.FS
 
 type Settings struct {
+	nodeSnapshot              string
+	nodeSecret                string
+	nodeSecretError           string
+	nodeImportID              string // transient request only; cleared before publish
 	proxySecret               string
 	proxySecretError          string
 	ThroughputIntervalMinutes int    `json:"throughputIntervalMinutes"`
@@ -60,6 +64,7 @@ type Settings struct {
 }
 
 type Console struct {
+	proxyImports           map[string]proxyImportDraft // protected by mu
 	identity               desktop.Identity
 	exitRequested          chan struct{}
 	restartRequested       chan struct{}
@@ -159,6 +164,7 @@ func New(configPath, address string) (*Console, error) {
 			return nil, fmt.Errorf("读取控制台配置：%w", err)
 		}
 		loadProxySecret(fields, &c.settings)
+		loadProxyNodes(fields, &c.settings)
 	}
 	c.settings, err = c.resolveSettings(c.settings)
 	c.savedSettings = c.settings
@@ -320,6 +326,12 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool) error {
 		s.proxySecretError = ""
 	}
 	var err error
+	s, err = c.mergeProxyNodes(s, oldSettings)
+	if err != nil {
+		return err
+	}
+	importID := s.nodeImportID
+	s.nodeImportID = ""
 	s, err = c.resolveSettings(s)
 	if err != nil {
 		return err
@@ -339,6 +351,7 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool) error {
 	}
 	c.mu.Lock()
 	c.savedSettings = s
+	delete(c.proxyImports, importID)
 	c.mu.Unlock()
 	slog.Info("settings_saved", "storage_dir", s.StorageDir, "vrchat_log_dir", s.LogDir)
 	return nil
@@ -706,6 +719,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Traffic               cacheproxy.TrafficStats `json:"traffic"`
 			SOCKS5PasswordSet     bool                    `json:"socks5PasswordSet"`
 			SOCKS5CredentialError string                  `json:"socks5CredentialError,omitempty"`
+			ProxyNodes            proxyNodeStatus         `json:"proxyNodes"`
 			Activation            Activation              `json:"activation"`
 			DefaultLogDir         string                  `json:"defaultLogDir"`
 			DefaultStorageDir     string                  `json:"defaultStorageDir"`
@@ -722,6 +736,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Import: c.importStatus, Batch: c.batch, Queue: c.queue, LastBatch: c.lastBatch,
 			SOCKS5PasswordSet:     c.savedSettings.SOCKS5Password != "",
 			SOCKS5CredentialError: c.savedSettings.proxySecretError,
+			ProxyNodes:            c.proxyNodesStatusLocked(),
 			Activation:            c.activation, DefaultLogDir: defaultLogDir(),
 			DefaultStorageDir: c.defaultStorageDir(), PortableDir: portableDir(),
 			UpstreamMonitor:      c.monitorSnapshotLocked(),
@@ -838,6 +853,23 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
 		http.Error(w, "invalid origin or token", 403)
+		return
+	}
+	// Only this data-only import endpoint has a larger payload allowance.
+	if r.URL.Path == "/api/proxy/import" {
+		r.Body = http.MaxBytesReader(w, r.Body, 2<<20)
+		data, err := io.ReadAll(r.Body)
+		defer clear(data)
+		if err != nil {
+			http.Error(w, "节点内容读取失败或超过 2 MiB", http.StatusBadRequest)
+			return
+		}
+		result, err := c.importProxyNodes(data)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeJSON(w, result)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
@@ -979,6 +1011,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var input struct {
 			Settings
 			CustomStorage bool    `json:"customStorage"`
+			ProxyImportID string  `json:"proxyImportID"`
 			Password      *string `json:"socks5Password"`
 		}
 		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
@@ -990,6 +1023,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if input.Password != nil {
 				input.Settings.SOCKS5Password = *input.Password
 			}
+			input.Settings.nodeImportID = input.ProxyImportID
 			err = c.saveSettings(input.Settings, input.Password == nil)
 		}
 	case "/api/hosts/enable":

@@ -30,6 +30,7 @@ type setupPlan struct {
 	SOCKS5User    string  `json:"socks5Username"`
 	Password      *string `json:"socks5Password"`
 	ImportSource  string  `json:"importSource"`
+	ProxyImportID string  `json:"proxyImportID"`
 }
 
 // The approved continuation contains no credentials. A restart can start its
@@ -55,6 +56,11 @@ func (c *Console) setupSettingsVersion(s Settings) (string, error) {
 	if s.proxySecretError != "" {
 		data = append(data, []byte(s.proxySecret)...)
 	}
+	// Nodes are intentionally absent from Settings JSON, but must participate
+	// in stale-draft detection and restart continuation verification.
+	nodes, _ := json.Marshal([]string{s.nodeSnapshot, s.nodeSecret})
+	data = append(data, nodes...)
+	clear(nodes)
 	defer clear(data)
 	// Domain separation keeps this verifier independent of public channel IDs.
 	// Never fall back to a public digest or a process-local key: restart matching
@@ -106,6 +112,11 @@ func (c *Console) validateSetupPlanSnapshot(p setupPlan) (Settings, error) {
 		s.UpstreamMode, s.SOCKS5Address, s.SOCKS5Username = p.UpstreamMode, p.SOCKS5Address, p.SOCKS5User
 		if p.Password != nil {
 			s.SOCKS5Password, s.proxySecret, s.proxySecretError = *p.Password, "", ""
+		}
+		s.nodeImportID = p.ProxyImportID
+		s, err = c.mergeProxyNodes(s, s)
+		if err != nil {
+			return s, err
 		}
 	}
 	s, err = c.resolveSettings(s)
@@ -254,7 +265,9 @@ func (c *Console) applySetupPlan(p setupPlan) (SetupApplication, error) {
 		c.lifecycleMu.Unlock()
 		return previous, err
 	}
-	if taskRunning && (s != active || strings.TrimSpace(p.ImportSource) != "") {
+	effective := s
+	effective.nodeImportID = ""
+	if taskRunning && (effective != active || strings.TrimSpace(p.ImportSource) != "") {
 		c.lifecycleMu.Unlock()
 		return previous, errors.New("现有导入或队列任务仍在运行，请结束后再应用；本轮草稿保留")
 	}
@@ -291,7 +304,7 @@ func (c *Console) applySetupPlan(p setupPlan) (SetupApplication, error) {
 		_ = c.writeSetupApplication(a)
 		return a, nil // Return partial results instead of claiming nothing happened.
 	}
-	if s == active {
+	if effective == active {
 		c.resumeSetupApplicationLocked(c.startImport)
 		c.mu.Lock()
 		a = c.setupApplication

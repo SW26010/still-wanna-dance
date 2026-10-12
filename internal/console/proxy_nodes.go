@@ -1,0 +1,172 @@
+package console
+
+import (
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"time"
+
+	"still-wanna-dance/internal/proxyengine/mihomo"
+)
+
+const unavailableProxyNodes = "已保存的节点快照无法读取，请重新导入并保存、重启；原密文仍保留"
+
+// The whole node document is protected, including endpoints and display data.
+// Immutable JSON strings keep Settings comparable without exposing node data
+// through its public API. Protection and identity have independent purposes.
+type proxyNodeDocument struct {
+	Version int              `json:"version"`
+	Nodes   []map[string]any `json:"nodes"`
+}
+
+type proxyImportDraft struct {
+	Snapshot     string
+	BaseSnapshot string
+	BaseSecret   string
+	Expires      time.Time
+}
+
+type proxyImportResult struct {
+	mihomo.ImportResult
+	ID string `json:"id,omitempty"`
+}
+
+type proxyNodeStatus struct {
+	Saved       int    `json:"saved"`
+	Loaded      int    `json:"loaded"`
+	Active      int    `json:"active"`
+	Error       string `json:"error,omitempty"`
+	ActiveError string `json:"activeError,omitempty"`
+}
+
+func nodeDocument(snapshot string) proxyNodeDocument {
+	var doc proxyNodeDocument
+	_ = json.Unmarshal([]byte(snapshot), &doc)
+	return doc
+}
+
+func loadProxyNodes(fields map[string]json.RawMessage, s *Settings) {
+	raw := fields["proxyNodes"]
+	if len(raw) == 0 {
+		return
+	}
+	s.nodeSecret, s.nodeSecretError = string(raw), unavailableProxyNodes
+	var envelope proxySecretEnvelope
+	if json.Unmarshal(raw, &envelope) != nil || envelope.Version != 1 || envelope.Protection != "dpapi-current-user" {
+		return
+	}
+	plain, err := unprotectUserData(envelope.Ciphertext)
+	if err != nil {
+		return
+	}
+	defer clear(plain)
+	var doc proxyNodeDocument
+	if len(plain) > mihomo.MaxImportBytes || json.Unmarshal(plain, &doc) != nil || doc.Version != 1 || len(doc.Nodes) == 0 || len(doc.Nodes) > mihomo.MaxImportNodes {
+		return
+	}
+	for _, p := range doc.Nodes {
+		if _, err := mihomo.Normalize(p); err != nil {
+			return
+		}
+	}
+	s.nodeSnapshot, s.nodeSecret, s.nodeSecretError = string(plain), "", ""
+}
+
+func storedProxyNodes(s Settings) (json.RawMessage, error) {
+	if s.nodeSecretError != "" {
+		if s.nodeSecret == "" {
+			return nil, errors.New(unavailableProxyNodes)
+		}
+		return json.RawMessage(s.nodeSecret), nil
+	}
+	if s.nodeSnapshot == "" {
+		return nil, nil
+	}
+	plain := []byte(s.nodeSnapshot)
+	defer clear(plain)
+	cipher, err := protectUserData(plain)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(proxySecretEnvelope{1, "dpapi-current-user", cipher})
+}
+
+func nodeIdentity(key []byte, p map[string]any) string {
+	data, _ := json.Marshal(p)
+	defer clear(data)
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte("swd-mihomo-node-v1\x00"))
+	mac.Write(data)
+	return "stable-v1-" + hex.EncodeToString(mac.Sum(nil))
+}
+
+// Import only stages a bounded, expiring in-memory draft. Saving settings or
+// the wizard explicitly commits it; preview never activates or persists it.
+func (c *Console) importProxyNodes(data []byte) (proxyImportResult, error) {
+	c.mu.Lock()
+	base := c.savedSettings
+	allowed := !c.closing && c.terms.valid()
+	c.mu.Unlock()
+	if !allowed {
+		return proxyImportResult{}, errors.New("请先同意条款，并等待应用就绪")
+	}
+	parsed, err := mihomo.Import(data)
+	result := proxyImportResult{ImportResult: parsed}
+	if err != nil || parsed.Accepted == 0 {
+		return result, err
+	}
+	snapshot, err := json.Marshal(proxyNodeDocument{Version: 1, Nodes: parsed.Nodes})
+	if err != nil || len(snapshot) > mihomo.MaxImportBytes {
+		return result, errors.New("节点快照超过 2 MiB")
+	}
+	id := make([]byte, 24)
+	if _, err = rand.Read(id); err != nil {
+		return result, err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closing {
+		return result, errors.New("控制台正在退出")
+	}
+	if c.proxyImports == nil {
+		c.proxyImports = make(map[string]proxyImportDraft)
+	}
+	for key, draft := range c.proxyImports {
+		if time.Now().After(draft.Expires) {
+			delete(c.proxyImports, key)
+		}
+	}
+	if len(c.proxyImports) >= 8 {
+		return result, errors.New("待保存的节点草稿过多，请保存已有草稿或重启后再导入")
+	}
+	result.ID = hex.EncodeToString(id)
+	c.proxyImports[result.ID] = proxyImportDraft{string(snapshot), base.nodeSnapshot, base.nodeSecret, time.Now().Add(2 * time.Hour)}
+	return result, nil
+}
+
+func (c *Console) mergeProxyNodes(s Settings, old Settings) (Settings, error) {
+	if s.nodeImportID == "" {
+		s.nodeSnapshot, s.nodeSecret, s.nodeSecretError = old.nodeSnapshot, old.nodeSecret, old.nodeSecretError
+		return s, nil
+	}
+	c.mu.Lock()
+	draft, exists := c.proxyImports[s.nodeImportID]
+	c.mu.Unlock()
+	if !exists || time.Now().After(draft.Expires) {
+		return s, errors.New("节点导入草稿已过期，请重新导入")
+	}
+	if old.nodeSnapshot != draft.BaseSnapshot || old.nodeSecret != draft.BaseSecret {
+		return s, errors.New("已保存节点已在别处改变，请重新导入")
+	}
+	s.nodeSnapshot, s.nodeSecret, s.nodeSecretError = draft.Snapshot, "", ""
+	return s, nil
+}
+
+// Caller holds mu. Only counts and fixed errors are returned, never user names,
+// addresses, credentials, URIs, or encrypted envelopes.
+func (c *Console) proxyNodesStatusLocked() proxyNodeStatus {
+	return proxyNodeStatus{Saved: len(nodeDocument(c.savedSettings.nodeSnapshot).Nodes), Loaded: len(nodeDocument(c.settings.nodeSnapshot).Nodes), Error: c.savedSettings.nodeSecretError, ActiveError: c.settings.nodeSecretError}
+}

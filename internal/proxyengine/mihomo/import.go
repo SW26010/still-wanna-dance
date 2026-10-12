@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gofrs/uuid/v5"
 	"github.com/metacubex/mihomo/common/convert"
 	"go.yaml.in/yaml/v3"
 )
@@ -45,11 +46,28 @@ func Import(data []byte) (ImportResult, error) {
 	}
 	data = bytes.TrimSpace(bytes.TrimPrefix(data, []byte{0xef, 0xbb, 0xbf}))
 	var inputs []map[string]any
-	var document struct {
-		Proxies []map[string]any `yaml:"proxies"`
+	var root yaml.Node
+	if yaml.Unmarshal(data, &root) != nil {
+		return result, errors.New("节点内容格式无效，请检查 YAML 语法或 URI 列表")
 	}
-	if yaml.Unmarshal(data, &document) == nil && document.Proxies != nil {
-		inputs = document.Proxies
+	if len(root.Content) > 0 && root.Content[0].Kind == yaml.MappingNode {
+		var document struct {
+			Proxies yaml.Node `yaml:"proxies"`
+		}
+		var entries []yaml.Node
+		if root.Decode(&document) != nil || document.Proxies.Kind == 0 || document.Proxies.Decode(&entries) != nil {
+			return result, errors.New("YAML proxies 必须是节点列表")
+		}
+		if len(entries) > MaxImportNodes {
+			return result, errors.New("节点条目超过 2048 个")
+		}
+		for _, entry := range entries {
+			var p map[string]any
+			if entry.Decode(&p) != nil {
+				p = nil // One invalid item must not reject its valid siblings.
+			}
+			inputs = append(inputs, p)
+		}
 	} else {
 		// Upstream decoder handles padded/raw standard and URL-safe Base64.
 		decoded := convert.DecodeBase64(data)
@@ -215,8 +233,12 @@ func Normalize(input map[string]any) (map[string]any, error) {
 		if v, ok := p["encryption"]; ok && (v == "none" || v == "") {
 			delete(p, "encryption")
 		}
-		if uuid, ok := p["uuid"].(string); ok {
-			p["uuid"] = strings.ToLower(uuid)
+		if id, ok := p["uuid"].(string); ok {
+			// Use the upstream UUID parser. Custom IDs are case-sensitive input
+			// to VLESS's UUID mapping and must retain their original spelling.
+			if parsed, err := uuid.FromString(id); err == nil {
+				p["uuid"] = parsed.String()
+			}
 		}
 	}
 	for _, key := range []string{"tls", "skip-cert-verify"} {

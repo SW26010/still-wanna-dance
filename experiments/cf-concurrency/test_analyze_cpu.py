@@ -1,8 +1,12 @@
 import unittest
-from analyze_cpu import subtract, union, window
+from analyze_cpu import subtract, union, window, pack_trace, unpack_trace
 from run_cpu import plan
 
 class SchedulingTests(unittest.TestCase):
+    def test_lossless_trace_encoding(self):
+        original=dict(id="test",intervals=[[20,40,1,0],[10,30,2,1],[20,22,3,2]],ready=[[10,4],[20,8]],switchUS=[10,20,20],systemInterrupts=[[12,15,0]])
+        restored=unpack_trace(pack_trace(original))
+        self.assertEqual(restored,{**original,"intervals":sorted(original["intervals"])})
     def test_nested_interrupt_subtraction(self):
         blocks=union([(20,40),(25,30),(35,50),(70,90)])
         self.assertEqual(list(subtract(10,80,blocks,[b for a,b in blocks])),[(10,20),(50,70)])
@@ -22,6 +26,8 @@ class SchedulingTests(unittest.TestCase):
         self.assertEqual(w["maxSimultaneousPhysical"],2)
         self.assertEqual(w["runningPercent"],{"0":60,"1":20,"2":20})
         self.assertEqual(w["peak100msCores"],2)
+        self.assertEqual(w["peak10msCores"],2)
+        self.assertEqual(w["peakSingleLogical10msPercent"],100)
     def test_complete_predefined_plan(self):
         rows=plan()
         self.assertEqual(len(rows),3)

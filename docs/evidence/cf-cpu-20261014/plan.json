@@ -1,0 +1,241 @@
+{
+  "seed": 20261014,
+  "holdSeconds": 6,
+  "staggerMS": 250,
+  "trialCapMiB": 2048,
+  "batchCapMiB": 20480,
+  "orders": [
+    [
+      {
+        "id": "r1-idle",
+        "kind": "idle",
+        "n": 1
+      },
+      {
+        "id": "r1-burst-12",
+        "kind": "burst",
+        "n": 12
+      },
+      {
+        "id": "r1-burst-4",
+        "kind": "burst",
+        "n": 4
+      },
+      {
+        "id": "r1-burst-1",
+        "kind": "burst",
+        "n": 1
+      },
+      {
+        "id": "r1-burst-16",
+        "kind": "burst",
+        "n": 16
+      },
+      {
+        "id": "r1-burst-32",
+        "kind": "burst",
+        "n": 32
+      },
+      {
+        "id": "r1-stagger-12",
+        "kind": "stagger",
+        "n": 12
+      },
+      {
+        "id": "r1-stagger-32",
+        "kind": "stagger",
+        "n": 32
+      },
+      {
+        "id": "r1-burst-24",
+        "kind": "burst",
+        "n": 24
+      },
+      {
+        "id": "r1-stagger-4",
+        "kind": "stagger",
+        "n": 4
+      },
+      {
+        "id": "r1-stepped-32",
+        "kind": "stepped",
+        "n": 32
+      },
+      {
+        "id": "r1-stagger-16",
+        "kind": "stagger",
+        "n": 16
+      },
+      {
+        "id": "r1-burst-8",
+        "kind": "burst",
+        "n": 8
+      },
+      {
+        "id": "r1-stagger-8",
+        "kind": "stagger",
+        "n": 8
+      },
+      {
+        "id": "r1-stagger-24",
+        "kind": "stagger",
+        "n": 24
+      }
+    ],
+    [
+      {
+        "id": "r2-idle",
+        "kind": "idle",
+        "n": 1
+      },
+      {
+        "id": "r2-stagger-24",
+        "kind": "stagger",
+        "n": 24
+      },
+      {
+        "id": "r2-stagger-12",
+        "kind": "stagger",
+        "n": 12
+      },
+      {
+        "id": "r2-burst-4",
+        "kind": "burst",
+        "n": 4
+      },
+      {
+        "id": "r2-stagger-16",
+        "kind": "stagger",
+        "n": 16
+      },
+      {
+        "id": "r2-burst-8",
+        "kind": "burst",
+        "n": 8
+      },
+      {
+        "id": "r2-stagger-8",
+        "kind": "stagger",
+        "n": 8
+      },
+      {
+        "id": "r2-burst-24",
+        "kind": "burst",
+        "n": 24
+      },
+      {
+        "id": "r2-burst-1",
+        "kind": "burst",
+        "n": 1
+      },
+      {
+        "id": "r2-burst-12",
+        "kind": "burst",
+        "n": 12
+      },
+      {
+        "id": "r2-stepped-32",
+        "kind": "stepped",
+        "n": 32
+      },
+      {
+        "id": "r2-burst-32",
+        "kind": "burst",
+        "n": 32
+      },
+      {
+        "id": "r2-stagger-4",
+        "kind": "stagger",
+        "n": 4
+      },
+      {
+        "id": "r2-burst-16",
+        "kind": "burst",
+        "n": 16
+      },
+      {
+        "id": "r2-stagger-32",
+        "kind": "stagger",
+        "n": 32
+      }
+    ],
+    [
+      {
+        "id": "r3-idle",
+        "kind": "idle",
+        "n": 1
+      },
+      {
+        "id": "r3-stagger-24",
+        "kind": "stagger",
+        "n": 24
+      },
+      {
+        "id": "r3-stagger-8",
+        "kind": "stagger",
+        "n": 8
+      },
+      {
+        "id": "r3-burst-8",
+        "kind": "burst",
+        "n": 8
+      },
+      {
+        "id": "r3-burst-16",
+        "kind": "burst",
+        "n": 16
+      },
+      {
+        "id": "r3-stepped-32",
+        "kind": "stepped",
+        "n": 32
+      },
+      {
+        "id": "r3-stagger-4",
+        "kind": "stagger",
+        "n": 4
+      },
+      {
+        "id": "r3-burst-1",
+        "kind": "burst",
+        "n": 1
+      },
+      {
+        "id": "r3-stagger-16",
+        "kind": "stagger",
+        "n": 16
+      },
+      {
+        "id": "r3-burst-24",
+        "kind": "burst",
+        "n": 24
+      },
+      {
+        "id": "r3-burst-4",
+        "kind": "burst",
+        "n": 4
+      },
+      {
+        "id": "r3-burst-12",
+        "kind": "burst",
+        "n": 12
+      },
+      {
+        "id": "r3-stagger-12",
+        "kind": "stagger",
+        "n": 12
+      },
+      {
+        "id": "r3-burst-32",
+        "kind": "burst",
+        "n": 32
+      },
+      {
+        "id": "r3-stagger-32",
+        "kind": "stagger",
+        "n": 32
+      }
+    ]
+  ],
+  "exeSHA256": "aea4d1b92134574e8c22e6991567e524232747fbb93d0e1346eba29c22912dbb"
+}

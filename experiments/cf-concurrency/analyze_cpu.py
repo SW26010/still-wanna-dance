@@ -15,6 +15,33 @@ import statistics
 
 PROVIDER = "{e3d074a8-25fb-4d47-9427-3bc102cf5d31}"
 
+def pack_trace(trace):
+    """Lossless integer delta coding keeps public scheduling evidence compact."""
+    packed={k:v for k,v in trace.items() if k not in ("intervals","ready","switchUS","systemInterrupts")}
+    packed["encoding"]="delta-us-v1"
+    for source,dest,end_is_absolute in (("intervals","intervalsDelta",True),("ready","readyDelta",False),("systemInterrupts","systemInterruptsDelta",True)):
+        previous=0;result=[]
+        for row in sorted(trace.get(source,[])):
+            result.append([row[0]-previous,row[1]-row[0] if end_is_absolute else row[1],*row[2:]])
+            previous=row[0]
+        packed[dest]=result
+    previous=0;packed["switchDeltaUS"]=[]
+    for value in sorted(trace.get("switchUS",[])):
+        packed["switchDeltaUS"].append(value-previous);previous=value
+    return packed
+
+def unpack_trace(packed):
+    if packed.get("encoding")!="delta-us-v1":return packed
+    trace={k:v for k,v in packed.items() if k not in ("encoding","intervalsDelta","readyDelta","switchDeltaUS","systemInterruptsDelta")}
+    for source,dest,end_is_absolute in (("intervalsDelta","intervals",True),("readyDelta","ready",False),("systemInterruptsDelta","systemInterrupts",True)):
+        previous=0;result=[]
+        for row in packed[source]:
+            previous+=row[0];result.append([previous,previous+row[1] if end_is_absolute else row[1],*row[2:]])
+        trace[dest]=result
+    previous=0;trace["switchUS"]=[]
+    for value in packed["switchDeltaUS"]:previous+=value;trace["switchUS"].append(previous)
+    return trace
+
 def pid(value):
     return int(re.search(r"\(\s*(-?\d+)\)", value).group(1))
 
@@ -102,7 +129,7 @@ def extract(path, reports):
             for x,y in subtract(a,b,excluded.get(cpu,[]),ends.get(cpu,[])):
                 clean.append([x-zero,y-zero,names[t],cpu])
         system_interrupts=[[max(a,zero)-zero,min(b,end)-zero,cpu] for cpu,v in excluded.items() for a,b in v if a<end and b>zero]
-        yield r,dict(id=r["id"],durationUS=end-zero,stopUS=stop-zero,stageUS=[m-zero for m in marks[1:-2]],threadsCreated=len(names),intervals=clean,ready=[[a-zero,b] for a,b in ready[process] if zero<=a<=end],switchUS=[a-zero for a in switches[process] if zero<=a<=end],systemInterrupts=system_interrupts,rawScheduledUS=raw,interruptOverlapUS=raw-sum(b-a for a,b,t,c in clean),eventsLost=0,buffersLost=0)
+        yield r,dict(id=r["id"],traceBeginUS=zero,durationUS=end-zero,stopUS=stop-zero,stageUS=[m-zero for m in marks[1:-2]],threadsCreated=len(names),intervals=clean,ready=[[a-zero,b] for a,b in ready[process] if zero<=a<=end],switchUS=[a-zero for a in switches[process] if zero<=a<=end],systemInterrupts=system_interrupts,rawScheduledUS=raw,interruptOverlapUS=raw-sum(b-a for a,b,t,c in clean),eventsLost=0,buffersLost=0)
 
 def percentile(values,p):
     if not values:return 0
@@ -113,12 +140,17 @@ def window(trace,a,b,logical,core_masks):
     events=defaultdict(int);per_cpu=Counter();per_thread=Counter();per_core=Counter()
     core_of={i:j for j,m in enumerate(core_masks) for i in range(logical) if m&(1<<i)}
     bins=[0.0]*int((b-a+99999)//100000)
+    bins10=[0.0]*int((b-a+9999)//10000)
+    logical10=defaultdict(float)
     core_events=defaultdict(list)
     for x,y,t,c in segments:
         events[x]+=1;events[y]-=1;per_cpu[c]+=y-x;per_thread[t]+=y-x;per_core[core_of[c]]+=y-x
         core_events[x].append((core_of[c],1));core_events[y].append((core_of[c],-1))
         for i in range((x-a)//100000,(y-a-1)//100000+1):
             bins[i]+=max(0,min(y,a+(i+1)*100000)-max(x,a+i*100000))
+        for i in range((x-a)//10000,(y-a-1)//10000+1):
+            value=max(0,min(y,a+(i+1)*10000)-max(x,a+i*10000))
+            bins10[i]+=value;logical10[c,i]+=value
     histogram=Counter();count=0;previous=a;peak=0
     for ts,delta in sorted(events.items()):
         histogram[count]+=ts-previous;count+=delta;peak=max(peak,count);previous=ts
@@ -132,9 +164,10 @@ def window(trace,a,b,logical,core_masks):
     complete_bins=bins[:duration//100000]
     windows100=[v/100000 for v in complete_bins]
     windows1s=[sum(complete_bins[i:i+10])/1000000 for i in range(len(complete_bins)-9)]
+    windows10=[v/10000 for v in bins10[:duration//10000]]
     ready=[d for ts,d in trace["ready"] if a<=ts<b]
     interrupt_us=sum(max(0,min(b,y)-max(a,x)) for x,y,c in trace.get("systemInterrupts",[]))
-    return dict(startMS=a/1000,endMS=b/1000,cpuMS=total/1000,coreEquivalent=total/duration,machinePercent=100*total/duration/logical,peak100msCores=max(windows100,default=0),p95_100msCores=percentile(windows100,.95),peak1sCores=max(windows1s,default=0),maxSimultaneousLogical=peak,maxSimultaneousPhysical=physical_peak,logicalTouched=len(per_cpu),physicalTouched=len(per_core),activeThreads=len(per_thread),cpuByLogicalMS={str(k):v/1000 for k,v in sorted(per_cpu.items())},cpuByThreadMS={str(k):v/1000 for k,v in sorted(per_thread.items())},runningPercent={str(k):100*v/duration for k,v in sorted(histogram.items())},twoOrMorePercent=100*sum(v for k,v in histogram.items() if k>=2)/duration,fourOrMorePercent=100*sum(v for k,v in histogram.items() if k>=4)/duration,readyP95US=percentile(ready,.95),readyMaxUS=max(ready,default=0),readyTransitions=len(ready),contextSwitches=sum(a<=ts<b for ts in trace.get("switchUS",[])),systemInterruptMS=interrupt_us/1000,systemInterruptMachinePercent=100*interrupt_us/duration/logical,series100msCores=windows100)
+    return dict(startMS=a/1000,endMS=b/1000,cpuMS=total/1000,coreEquivalent=total/duration,machinePercent=100*total/duration/logical,peak100msCores=max(windows100,default=0),p95_100msCores=percentile(windows100,.95),peak1sCores=max(windows1s,default=0),peak10msCores=max(windows10,default=0),p99_10msCores=percentile(windows10,.99),peakSingleLogical10msPercent=max((v/100 for (c,i),v in logical10.items() if i<duration//10000),default=0),maxSimultaneousLogical=peak,maxSimultaneousPhysical=physical_peak,logicalTouched=len(per_cpu),physicalTouched=len(per_core),activeThreads=len(per_thread),cpuByLogicalMS={str(k):v/1000 for k,v in sorted(per_cpu.items())},cpuByThreadMS={str(k):v/1000 for k,v in sorted(per_thread.items())},runningPercent={str(k):100*v/duration for k,v in sorted(histogram.items())},twoOrMorePercent=100*sum(v for k,v in histogram.items() if k>=2)/duration,fourOrMorePercent=100*sum(v for k,v in histogram.items() if k>=4)/duration,readyP95US=percentile(ready,.95),readyMaxUS=max(ready,default=0),readyTransitions=len(ready),contextSwitches=sum(a<=ts<b for ts in trace.get("switchUS",[])),systemInterruptMS=interrupt_us/1000,systemInterruptMachinePercent=100*interrupt_us/duration/logical,series100msCores=windows100)
 
 def analyze_report(r,t):
     masks=r["coreMasks"]
@@ -171,7 +204,8 @@ def main():
             public=dict(r);public.pop("pid");
             for o in public["requests"] or []:o.pop("remote",None)
             reports.append(public)
-            with gzip.GzipFile(filename=str(args.out/(r["id"]+"-scheduling.json.gz")),mode="wb",mtime=0) as f:f.write((json.dumps(t,separators=(",",":"))+"\n").encode())
+            (args.out/(r["id"]+"-scheduling.json.gz")).write_bytes(gzip.compress((json.dumps(pack_trace(t),separators=(",",":"))+"\n").encode(),mtime=0))
+        print(f"analyzed round {round_no}",flush=True)
     with gzip.GzipFile(filename=str(args.out/"trials.json.gz"),mode="wb",mtime=0) as f:f.write((json.dumps(reports,separators=(",",":"))+"\n").encode())
     (args.out/"summary.json").write_text(json.dumps(summaries,indent=2)+"\n",encoding="utf-8")
     print(json.dumps(dict(trials=len(reports),requests=sum(len(r["requests"] or []) for r in reports),MiB=sum(o["bytes"] for r in reports for o in r["requests"] or [])/2**20,allOK=all(r["ok"] for r in reports))))

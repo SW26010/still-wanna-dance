@@ -1,0 +1,358 @@
+{
+  "schemaVersion": 2,
+  "batch": "cf-cpu-20261014",
+  "hashBasis": "git-blob",
+  "pathBasis": "repository-relative",
+  "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5",
+  "originalMetadata": {
+    "date": "2026-10-14",
+    "kind": "development-cpu-experiment",
+    "productBaseline": "d9ef49852f4f9b8a9c3a07c9827a2c0a41f5eb53",
+    "workloadCommit": "d6f12801e8fea951019c3dd16e558faa22f12744",
+    "analysisSnapshot": "source files in the same Git commit as this manifest",
+    "buildSHA256": "aea4d1b92134574e8c22e6991567e524232747fbb93d0e1346eba29c22912dbb",
+    "preliminaryWorkloadCommit": "459bcfebde62735930b93ffeeb60919c3932704a",
+    "redaction": [
+      "Private signed URL, strong ETag value, absolute capture clocks and personal paths excluded",
+      "PIDs removed; thread IDs replaced by within-trial aliases; public host and pinned IP retained",
+      "No other process identities in published scheduling data; system-wide interrupts contain only relative times and CPU index",
+      "Raw ETL/CSV and unfinished interrupted trial retained only under ignored artifacts directory"
+    ],
+    "validation": {
+      "primaryTrials": 45,
+      "primaryRequests": 13406,
+      "allBodiesVerified": true,
+      "traceEventsLost": 0,
+      "traceBuffersLost": 0,
+      "xperfCrosschecks": 30,
+      "losslessTraceRoundtrips": 45,
+      "pythonTests": 8,
+      "windowsRace": "pass",
+      "vet": "pass",
+      "cleanup": "helper exited; no owned ETW session or probe process",
+      "privacyScan": "pass"
+    },
+    "exclusions": [
+      "Entire incomplete 1 GiB-cap preliminary block",
+      "Entire interrupted round-2 attempt whose beginning overlapped trace analysis; replaced in original order"
+    ]
+  },
+  "originalManifest": {
+    "storage": "archive",
+    "path": "docs/evidence/cf-cpu-20261014/manifest.json"
+  },
+  "archive": {
+    "batch": "cf-cpu-20261014",
+    "name": "cf-cpu-20261014-v1.zip",
+    "bytes": 46303250,
+    "sha256": "60528c76c542c3015f38768049d0d30fbf7d283762733342c81efed9aa486c9c",
+    "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261014-cf-v1/cf-cpu-20261014-v1.zip",
+    "status": "prepared-local",
+    "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5"
+  },
+  "files": [
+    {
+      "path": "docs/evidence/cf-cpu-20261014/checks.json",
+      "bytes": 8828,
+      "sha256": "55fc765afcd458dea27475a2884be866acc816a29d732f0b461c359c61550604"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/cleanup.json",
+      "bytes": 209,
+      "sha256": "7bfbedc5bac81edd2b437f54742c32f573a3c7a77d6e42b35dccc211929ad780"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/cpu-summary.svg",
+      "bytes": 101968,
+      "sha256": "737acb55f90612f86242b2475c038ab785a9541f24117c598097e4fd905656fb"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/cpu-timeline.svg",
+      "bytes": 89752,
+      "sha256": "4b2156cbf5d644148a5e730ef494e36dba290b89db5f01fc13dbb126b93aaae4"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/crosschecks.json",
+      "bytes": 4058,
+      "sha256": "96207f1c253485f7bca170e9be5a2247503aaeef189290676562220ab0f7f818"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/environment.json",
+      "bytes": 565,
+      "sha256": "d9248519588ff1067e5fadde43c579e848822cd1749daefd5784b6cb29c57e5f"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/plan.json",
+      "bytes": 4198,
+      "sha256": "ccca84e979932287ac5a4e1e35a4acc832d12c5e87fb0a19d503a3fd6872010c"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/plot-data.json",
+      "bytes": 36589,
+      "sha256": "cb173d0377f97a26c25bf0e8e127347562b9df66f8d96dd2bfc387ecc041f457"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/reference.json",
+      "bytes": 6723,
+      "sha256": "0517111cb1cc6835ea6f751343f1c17cd50a7708c49a26f70bb008563aca3963"
+    }
+  ],
+  "archivedFiles": [
+    {
+      "path": "docs/evidence/cf-cpu-20261014/cpu-summary.png",
+      "bytes": 237690,
+      "sha256": "355b459722fe41e66cb9243e3b72cbf8a0f4927a4344413330276f440b7ae2fb"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/cpu-timeline.png",
+      "bytes": 377204,
+      "sha256": "175c6d6088c794db946bf5d632939ccfcba588a1155cbd31c61ba9dfd2590905"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/interference.json.gz",
+      "bytes": 111015,
+      "sha256": "a9caafa2443ec1e94f8821a9a3e832a74f8f5b06bcc1c5b011d1454949b17a28"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/preliminary.json.gz",
+      "bytes": 214027,
+      "sha256": "e5e15d585d3d763353f354202b1209958e4f7b15fc197d51ef787cfaf22eb61a"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r1-burst-1-scheduling.json.gz",
+      "bytes": 91448,
+      "sha256": "0191c994e2479811a49f81ed8940ed080bcecaa8753af99a1b0abf56bb947e1d"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r1-burst-12-scheduling.json.gz",
+      "bytes": 562922,
+      "sha256": "34a4db12a03aca152acb35b766cdf700818c9166c4f0923a2de077ac97e7e0cc"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r1-burst-16-scheduling.json.gz",
+      "bytes": 596388,
+      "sha256": "a3fe77f216c416948e69f3c4eaa0b5dee55167543385550ce3641a0957c4526f"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r1-burst-24-scheduling.json.gz",
+      "bytes": 661094,
+      "sha256": "82135b8e8a90ea5467076e2b3f8cb51f427b4d1c6a9d4ed2d2fcb2b96e46689a"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r1-burst-32-scheduling.json.gz",
+      "bytes": 702899,
+      "sha256": "aaf816ab24e089f1bdb376791fc0e8e6b06a7a13221ae173abba3c5d8e41be8b"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r1-burst-4-scheduling.json.gz",
+      "bytes": 250278,
+      "sha256": "185053315963b37e6c18d5d4819d4614fc32d8ff7402505e08cceea751d2cd22"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r1-burst-8-scheduling.json.gz",
+      "bytes": 367743,
+      "sha256": "0c7a8c476cda24bdf9016f656475d9d9e68c0ada7279c81f248886bcbfcfaaee"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r1-idle-scheduling.json.gz",
+      "bytes": 18749,
+      "sha256": "6e0a1166d433840e1079226b2f6141aae6811bf8083210d9016396502f1e0c38"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r1-stagger-12-scheduling.json.gz",
+      "bytes": 741970,
+      "sha256": "4f0f0d9a818f08f1e65e70c72d5fa6551b1485feb04f68a9e0d7b283873475cb"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r1-stagger-16-scheduling.json.gz",
+      "bytes": 913555,
+      "sha256": "570c8251a799442902284f78dc8e646ceb63f5be9d5718e737a14bc3daf60b25"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r1-stagger-24-scheduling.json.gz",
+      "bytes": 1386587,
+      "sha256": "2818f522e0ff1325a85b4458b919a4e057daa4d84c5f05d98a07ee14a52e89ee"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r1-stagger-32-scheduling.json.gz",
+      "bytes": 1664263,
+      "sha256": "5a303f1f04855622be255ad19f8066bc7fb70166c49431729b38a49c418af82a"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r1-stagger-4-scheduling.json.gz",
+      "bytes": 335469,
+      "sha256": "e2470a4f8ef92f2d7049a6bcd5496ea9f6d7e5489a042abce07533db26a13ef9"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r1-stagger-8-scheduling.json.gz",
+      "bytes": 575400,
+      "sha256": "8ad9b62e91e436ad07571942dccbd4b6a91fe076e8346b594821e045903c000f"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r1-stepped-32-scheduling.json.gz",
+      "bytes": 3788086,
+      "sha256": "92b380da071b315996b7c2e32fd99ebc0cedba459a5829385c829cdcd19b8691"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r2-burst-1-scheduling.json.gz",
+      "bytes": 103350,
+      "sha256": "73a53094b8be8a044d3ac721352a773d6a7f8949420ab3486766e8fc2905a9c4"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r2-burst-12-scheduling.json.gz",
+      "bytes": 494758,
+      "sha256": "60fe7b5025c185bf38fa22d4bf27c352155b4792a90f795f7aafe6b7d72120e4"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r2-burst-16-scheduling.json.gz",
+      "bytes": 600247,
+      "sha256": "dce0332eb165edd119132632fac61f5c21c8ae75c82f8e7304cecddb0591a007"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r2-burst-24-scheduling.json.gz",
+      "bytes": 729675,
+      "sha256": "e769e8523d9ae2fe47ecab32cbf2b064159e568f188b6b604850fa1cc6b7f3b0"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r2-burst-32-scheduling.json.gz",
+      "bytes": 658434,
+      "sha256": "ff251179ebfb3561ef54b0e96eba40b882c04c303d5a32c9b7ae35c501fa54c6"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r2-burst-4-scheduling.json.gz",
+      "bytes": 282133,
+      "sha256": "ca43e1947ba7eb63ab09fe9f3666640e85f045642894fe10119443c46bae91b9"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r2-burst-8-scheduling.json.gz",
+      "bytes": 441008,
+      "sha256": "48d9adbadcef56393a454c55acbd6054281930c9364cd0d470bdfbf531e3fa78"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r2-idle-scheduling.json.gz",
+      "bytes": 16226,
+      "sha256": "154165f5a40e066557fb204477fa55aed6362c0bfebd16c3b8e5b984cf4b1606"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r2-stagger-12-scheduling.json.gz",
+      "bytes": 777171,
+      "sha256": "a8db6d309d20fa5eb0fa68439f917758c96dfb4c2183bc3d829d1b8bb365d15d"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r2-stagger-16-scheduling.json.gz",
+      "bytes": 1004138,
+      "sha256": "1c1c80c87a1add277a2bbd9c563c2c5a9738584481bd8508f6e05073c1fe44d6"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r2-stagger-24-scheduling.json.gz",
+      "bytes": 1275135,
+      "sha256": "3392c06296c3e5f8c4fbf2a4a7a1467d707b46644a3b9aff0d7c603bc945ac4c"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r2-stagger-32-scheduling.json.gz",
+      "bytes": 1626243,
+      "sha256": "cdfbe1703da08c9e4f7321d50dd7b1e93c229bbd1e737821d5eb8bf3f131c04c"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r2-stagger-4-scheduling.json.gz",
+      "bytes": 314050,
+      "sha256": "00df1d23a5472fdb2b2e463c07184f245d11518789039ff6932130e3d4ac21a6"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r2-stagger-8-scheduling.json.gz",
+      "bytes": 553746,
+      "sha256": "36d04ec38539dbb527dee5da9fe2ad62522c20ad46508deed2360a093fd2b6e6"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r2-stepped-32-scheduling.json.gz",
+      "bytes": 3808025,
+      "sha256": "8c46e40722e65d0ddb56a7c01c3d23c35e04283dbc98f7952abed3627074a92b"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r3-burst-1-scheduling.json.gz",
+      "bytes": 103654,
+      "sha256": "8be51b11ba61ed778c5a70dcbb4634e9b4a518935f7b6b7b3d024f73a74a0085"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r3-burst-12-scheduling.json.gz",
+      "bytes": 534616,
+      "sha256": "c19be508ed38646b76fe68a0823d44b5cbb8b8a0807c10330e93516b812dec2e"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r3-burst-16-scheduling.json.gz",
+      "bytes": 597913,
+      "sha256": "8a44ed47d84f0a10c93778823ee1ca7bb45c4a3de2114d264653d489841cdd4b"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r3-burst-24-scheduling.json.gz",
+      "bytes": 694055,
+      "sha256": "32bbefef0b66b79ca7e161167e8aa1d41d8bc91cc2198c6a32a2c7e7794a61db"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r3-burst-32-scheduling.json.gz",
+      "bytes": 769045,
+      "sha256": "8203d98f732b4162aa13d32682198299ba30671f735dbaa609b0a8c6f94d3436"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r3-burst-4-scheduling.json.gz",
+      "bytes": 283146,
+      "sha256": "b6c6c5e0326019f10cff35caf4f88826d964269ec340ba46f226a6aa2b23fc35"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r3-burst-8-scheduling.json.gz",
+      "bytes": 437074,
+      "sha256": "115f1fe3f6461cc39db21192a4392a3235d52039d60862f96376f103d3ab2bf9"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r3-idle-scheduling.json.gz",
+      "bytes": 15681,
+      "sha256": "33ae15cf4327212eef17205e6fa999b55bfa51861dc131c915fbd8cb1ba75662"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r3-stagger-12-scheduling.json.gz",
+      "bytes": 798086,
+      "sha256": "5f7fb3838d631d54d63d0133a5c0bcc608482099ca492b18b8e5ad410fb500c4"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r3-stagger-16-scheduling.json.gz",
+      "bytes": 954730,
+      "sha256": "563d85c4475653edd92ba0767fc396017cbb2c21bb68c190afebd417163ec6e6"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r3-stagger-24-scheduling.json.gz",
+      "bytes": 1333574,
+      "sha256": "a8300e894ee4380af817aa09ce790492e8f486ed2403882674fc730954da0c04"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r3-stagger-32-scheduling.json.gz",
+      "bytes": 1639369,
+      "sha256": "43a9111da58d441fdca5260f21eac4cf504fef3faf558fc4f66c9c08e7049b60"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r3-stagger-4-scheduling.json.gz",
+      "bytes": 324121,
+      "sha256": "f16c480a3e93873836a62b8ec1ed6d97cea3862b61bf877dfbe750f081377628"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r3-stagger-8-scheduling.json.gz",
+      "bytes": 573499,
+      "sha256": "f94a51f3c94e008fa9ded60a0e76b06e859426c31c5aa529e2f0b42d8643d7b3"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/r3-stepped-32-scheduling.json.gz",
+      "bytes": 3780749,
+      "sha256": "419843727f9993a49fe03120019c48e12032fc13de45d283e5d7a2b07be826a6"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/summary.json",
+      "bytes": 714480,
+      "sha256": "e1f37b8bc2e85074af3fe77fd05a19316ef710fce542f3d00fb0def34efb618b"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-20261014/trials.json.gz",
+      "bytes": 916196,
+      "sha256": "a8776cdeaf423f149a7d3e22c67f11af3c8e49ca0b9b5b79f4c4570456d2f619"
+    }
+  ],
+  "provenance": "Original measured commits and executable hashes are unchanged. Original manifests, recorded analysis source bytes and workload source snapshots are retained in the archive. See ../history-rewrite-20261014.json for equivalent rewritten commits."
+}

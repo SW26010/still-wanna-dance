@@ -1,0 +1,393 @@
+{
+  "allPassed": true,
+  "trials": [
+    {
+      "id": "r1-burst-1",
+      "requests": 16,
+      "bytes": 16777216,
+      "peak": 1,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r1-burst-12",
+      "requests": 188,
+      "bytes": 197132288,
+      "peak": 12,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r1-burst-16",
+      "requests": 226,
+      "bytes": 236978176,
+      "peak": 16,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r1-burst-24",
+      "requests": 244,
+      "bytes": 255852544,
+      "peak": 24,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r1-burst-32",
+      "requests": 329,
+      "bytes": 344981504,
+      "peak": 32,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r1-burst-4",
+      "requests": 64,
+      "bytes": 67108864,
+      "peak": 4,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r1-burst-8",
+      "requests": 95,
+      "bytes": 99614720,
+      "peak": 8,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r1-idle",
+      "requests": 0,
+      "bytes": 0,
+      "peak": 0,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r1-stagger-12",
+      "requests": 226,
+      "bytes": 236978176,
+      "peak": 12,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r1-stagger-16",
+      "requests": 297,
+      "bytes": 311427072,
+      "peak": 16,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r1-stagger-24",
+      "requests": 495,
+      "bytes": 519045120,
+      "peak": 24,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r1-stagger-32",
+      "requests": 676,
+      "bytes": 708837376,
+      "peak": 32,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r1-stagger-4",
+      "requests": 74,
+      "bytes": 77594624,
+      "peak": 4,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r1-stagger-8",
+      "requests": 162,
+      "bytes": 169869312,
+      "peak": 8,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r1-stepped-32",
+      "requests": 1382,
+      "bytes": 1449132032,
+      "peak": 32,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r2-burst-1",
+      "requests": 16,
+      "bytes": 16777216,
+      "peak": 1,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r2-burst-12",
+      "requests": 161,
+      "bytes": 168820736,
+      "peak": 12,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r2-burst-16",
+      "requests": 212,
+      "bytes": 222298112,
+      "peak": 16,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r2-burst-24",
+      "requests": 267,
+      "bytes": 279969792,
+      "peak": 24,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r2-burst-32",
+      "requests": 275,
+      "bytes": 288358400,
+      "peak": 32,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r2-burst-4",
+      "requests": 69,
+      "bytes": 72351744,
+      "peak": 4,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r2-burst-8",
+      "requests": 121,
+      "bytes": 126877696,
+      "peak": 8,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r2-idle",
+      "requests": 0,
+      "bytes": 0,
+      "peak": 0,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r2-stagger-12",
+      "requests": 249,
+      "bytes": 261095424,
+      "peak": 12,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r2-stagger-16",
+      "requests": 355,
+      "bytes": 372244480,
+      "peak": 16,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r2-stagger-24",
+      "requests": 474,
+      "bytes": 497025024,
+      "peak": 24,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r2-stagger-32",
+      "requests": 636,
+      "bytes": 666894336,
+      "peak": 32,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r2-stagger-4",
+      "requests": 77,
+      "bytes": 80740352,
+      "peak": 4,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r2-stagger-8",
+      "requests": 168,
+      "bytes": 176160768,
+      "peak": 8,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r2-stepped-32",
+      "requests": 1370,
+      "bytes": 1436549120,
+      "peak": 32,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r3-burst-1",
+      "requests": 16,
+      "bytes": 16777216,
+      "peak": 1,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r3-burst-12",
+      "requests": 173,
+      "bytes": 181403648,
+      "peak": 12,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r3-burst-16",
+      "requests": 215,
+      "bytes": 225443840,
+      "peak": 16,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r3-burst-24",
+      "requests": 267,
+      "bytes": 279969792,
+      "peak": 24,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r3-burst-32",
+      "requests": 307,
+      "bytes": 321912832,
+      "peak": 32,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r3-burst-4",
+      "requests": 71,
+      "bytes": 74448896,
+      "peak": 4,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r3-burst-8",
+      "requests": 138,
+      "bytes": 144703488,
+      "peak": 8,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r3-idle",
+      "requests": 0,
+      "bytes": 0,
+      "peak": 0,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r3-stagger-12",
+      "requests": 244,
+      "bytes": 255852544,
+      "peak": 12,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r3-stagger-16",
+      "requests": 349,
+      "bytes": 365953024,
+      "peak": 16,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r3-stagger-24",
+      "requests": 513,
+      "bytes": 537919488,
+      "peak": 24,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r3-stagger-32",
+      "requests": 632,
+      "bytes": 662700032,
+      "peak": 32,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r3-stagger-4",
+      "requests": 73,
+      "bytes": 76546048,
+      "peak": 4,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r3-stagger-8",
+      "requests": 154,
+      "bytes": 161480704,
+      "peak": 8,
+      "contentVerified": true,
+      "scheduleVerified": true
+    },
+    {
+      "id": "r3-stepped-32",
+      "requests": 1330,
+      "bytes": 1394606080,
+      "peak": 32,
+      "contentVerified": true,
+      "scheduleVerified": true
+    }
+  ],
+  "totalBytes": 14057209856,
+  "preliminaryBytes": 3148199212,
+  "attributes": {
+    "protocol": {
+      "HTTP/1.1": 13406
+    },
+    "cache": {
+      "HIT": 13406
+    },
+    "colo": {
+      "SEA": 13406
+    },
+    "server": {
+      "cloudflare": 13406
+    }
+  },
+  "primaryExcludedTrials": [],
+  "preliminaryExclusion": "Entire incomplete 459bcfe block excluded: local 1024-block traffic cap at staircase 32-worker transition; all data retained, no speed-based exclusion.",
+  "tests": [
+    "Go Windows race experiment package passed before and after primary bound correction",
+    "go vet experiment package passed",
+    "Eight Python analysis tests passed"
+  ],
+  "sourceCommit": "d6f12801e8fea951019c3dd16e558faa22f12744",
+  "exeSHA256": "aea4d1b92134574e8c22e6991567e524232747fbb93d0e1346eba29c22912dbb",
+  "interferenceCompletedBytes": 1684013056,
+  "interferenceInterruptedTrialUpperBytes": 2147483648,
+  "interferenceExclusion": "First attempt of round 2 overlapped ETW CSV analysis from round 1 at its beginning. Entire incomplete attempt excluded by interference criterion, then repeated in the same predefined order. Eight finished trials retained; current unsaved trial was terminated. Not excluded by throughput."
+}

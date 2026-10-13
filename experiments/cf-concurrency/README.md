@@ -121,3 +121,7 @@ python experiments/cf-concurrency/analyze_sweep.py artifacts/cf-concurrency/high
 CPU 主指标由 ETW 调度区间计算，并扣除合并后的 DPC/ISR 区间；以 xperf 自带 `cswitch -process -thread -exc_dpcisr -range` 做独立校核。100 ms/1 s 峰值是窗口平均，另列瞬时并行线程数及其持续占比。用系统拓扑查询确定 SMT 同胞关系，不能凭编号猜测物理核心。GetProcessTimes 每 100 ms 仅作为量化较粗的交叉记录，不以其短窗口差值替代调度数据。处理器迁移、线程数、Go goroutine 和 HTTP 在途数分开报告。
 
 这仍是 HTTP 传输实验：含 TLS、SHA256 和记录开销，未包含完整缓存引擎的磁盘、MD5、读者竞争或 VRChat。空闲基线量化工具固定开销；ETW 全系统开销及实际游戏帧时间需要另行验证。阶段标记首次试采参数问题、采集失败和剔除的试采必须在报告保留，不混入正式样本。
+
+公开调度证据采用 `delta-us-v1` 无损整数编码：按起始时刻排序，`intervalsDelta` 每项为 `[与前一项起点的微秒差, 持续微秒, 组内线程序号, 逻辑 CPU]`；`systemInterruptsDelta` 同理但没有线程序号；`readyDelta` 第二项原样保留 Ready 持续时间；`switchDeltaUS` 为相邻切入事件的时间差。使用 `analyze_cpu.unpack_trace` 可完整还原后复算。压缩不降低时间分辨率，不丢弃短峰。
+
+若发现编译/轨迹分析等本任务外加负载与测量重叠，保留整次受影响区组，移入明确命名的忽略目录，按原顺序重跑完整区组；`--trace-stem` 用新名称避免覆盖旧 ETL。主采集完成并确认退出后才做批量分析。合计 24 GiB 预算保守计入历史完成数据、未保存中断组的 2 GiB 上界及试采/预热流量。

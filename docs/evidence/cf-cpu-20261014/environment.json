@@ -1,0 +1,30 @@
+{
+  "cpu": {
+    "Name": "AMD Ryzen 7 9850X3D 8-Core Processor           ",
+    "NumberOfCores": 8,
+    "NumberOfLogicalProcessors": 16,
+    "MaxClockSpeed": 4700
+  },
+  "os": {
+    "Caption": "Microsoft Windows 11 专业版",
+    "Version": "10.0.26300",
+    "BuildNumber": "26300"
+  },
+  "vrcProcesses": 0,
+  "powerPlan": "电源方案 GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (平衡)",
+  "dnsIPv4": [
+    "104.26.4.28",
+    "104.26.5.28",
+    "172.67.69.58"
+  ],
+  "coreMasks": [
+    3,
+    12,
+    48,
+    192,
+    768,
+    3072,
+    12288,
+    49152
+  ]
+}

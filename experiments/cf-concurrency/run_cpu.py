@@ -38,23 +38,30 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--root", type=Path, default=Path("artifacts/cf-cpu"))
     p.add_argument("--round", type=int, choices=[1, 2, 3], required=True)
+    p.add_argument("--trace-stem", help="new trace filename for a documented replacement round")
     args = p.parse_args()
     root = args.root.resolve()
     exe = root / "cpu-probe.exe"
     rows = plan()
     (root / "plan.json").write_text(json.dumps(dict(seed=20261014, holdSeconds=6, staggerMS=250, trialCapMiB=2048, batchCapMiB=20480, orders=rows, exeSHA256=hashlib.sha256(exe.read_bytes()).hexdigest()), indent=2)+"\n")
-    stem = f"cpu-main-r{args.round}"
+    stem = args.trace_stem or f"cpu-main-r{args.round}"
     for arm in rows[args.round-1]:
         if (root / (arm["id"]+".json")).exists():
             raise RuntimeError("Refusing to replace an existing trial")
     started = False
     total = sum(sum(o["bytes"] for o in json.loads(f.read_text())["requests"] or []) for f in root.glob("r*-*.json"))
+    archived=sum(sum(o["bytes"] for o in json.loads(f.read_text())["requests"] or []) for folder in ("preliminary-cap01","interference-r2") for f in (root/folder).glob("r*-*.json"))
+    # Reserve a full 2 GiB for the terminated, unsaved interference trial,
+    # and 205 MiB for two warmups plus the earlier 13 MiB pilot.
+    extra=archived+(2048+205)*1048576
     try:
         trace(root, "start", stem)
         started = True
         for arm in rows[args.round-1]:
             if total >= 18*1024**3:
                 raise RuntimeError("Batch traffic reserve exhausted; stopping below 20 GiB")
+            if total+extra+2*1024**3>24*1024**3:
+                raise RuntimeError("Combined experiment traffic reserve exhausted; stopping below 24 GiB")
             time.sleep(1)
             out = root / (arm["id"]+".json")
             command = [str(exe), "-mode", "cpu", "-private", str(root/"target.json"), "-ips", "104.26.4.28", "-cpu-reference", str(root/"reference.json"), "-cpu-kind", arm["kind"], "-cpu-n", str(arm["n"]), "-cpu-hold", "6s", "-cpu-id", arm["id"], "-out", str(out)]

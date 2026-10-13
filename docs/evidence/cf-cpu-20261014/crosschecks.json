@@ -1,0 +1,186 @@
+{
+  "allPassed": true,
+  "method": "xperf cswitch -process -exc_dpcisr; exact ETW begin/end markers; tolerance max(500 us, 0.5%)",
+  "checks": [
+    {
+      "id": "r1-burst-1",
+      "xperfCPUUS": 105471,
+      "parsedCPUUS": 105417,
+      "absoluteDifferenceUS": 54
+    },
+    {
+      "id": "r1-burst-12",
+      "xperfCPUUS": 638360,
+      "parsedCPUUS": 638181,
+      "absoluteDifferenceUS": 179
+    },
+    {
+      "id": "r1-burst-16",
+      "xperfCPUUS": 667419,
+      "parsedCPUUS": 667011,
+      "absoluteDifferenceUS": 408
+    },
+    {
+      "id": "r1-burst-24",
+      "xperfCPUUS": 841425,
+      "parsedCPUUS": 841144,
+      "absoluteDifferenceUS": 281
+    },
+    {
+      "id": "r1-burst-32",
+      "xperfCPUUS": 947560,
+      "parsedCPUUS": 947279,
+      "absoluteDifferenceUS": 281
+    },
+    {
+      "id": "r1-burst-4",
+      "xperfCPUUS": 260498,
+      "parsedCPUUS": 260629,
+      "absoluteDifferenceUS": 131
+    },
+    {
+      "id": "r1-burst-8",
+      "xperfCPUUS": 420463,
+      "parsedCPUUS": 420352,
+      "absoluteDifferenceUS": 111
+    },
+    {
+      "id": "r1-idle",
+      "xperfCPUUS": 3835,
+      "parsedCPUUS": 3832,
+      "absoluteDifferenceUS": 3
+    },
+    {
+      "id": "r1-stagger-32",
+      "xperfCPUUS": 2060861,
+      "parsedCPUUS": 2060315,
+      "absoluteDifferenceUS": 546
+    },
+    {
+      "id": "r1-stepped-32",
+      "xperfCPUUS": 4226022,
+      "parsedCPUUS": 4225101,
+      "absoluteDifferenceUS": 921
+    },
+    {
+      "id": "r2-burst-1",
+      "xperfCPUUS": 111044,
+      "parsedCPUUS": 111057,
+      "absoluteDifferenceUS": 13
+    },
+    {
+      "id": "r2-burst-12",
+      "xperfCPUUS": 560949,
+      "parsedCPUUS": 560907,
+      "absoluteDifferenceUS": 42
+    },
+    {
+      "id": "r2-burst-16",
+      "xperfCPUUS": 719918,
+      "parsedCPUUS": 719545,
+      "absoluteDifferenceUS": 373
+    },
+    {
+      "id": "r2-burst-24",
+      "xperfCPUUS": 945216,
+      "parsedCPUUS": 944990,
+      "absoluteDifferenceUS": 226
+    },
+    {
+      "id": "r2-burst-32",
+      "xperfCPUUS": 882308,
+      "parsedCPUUS": 881926,
+      "absoluteDifferenceUS": 382
+    },
+    {
+      "id": "r2-burst-4",
+      "xperfCPUUS": 287932,
+      "parsedCPUUS": 287918,
+      "absoluteDifferenceUS": 14
+    },
+    {
+      "id": "r2-burst-8",
+      "xperfCPUUS": 483465,
+      "parsedCPUUS": 483389,
+      "absoluteDifferenceUS": 76
+    },
+    {
+      "id": "r2-idle",
+      "xperfCPUUS": 3747,
+      "parsedCPUUS": 3732,
+      "absoluteDifferenceUS": 15
+    },
+    {
+      "id": "r2-stagger-32",
+      "xperfCPUUS": 2018687,
+      "parsedCPUUS": 2017747,
+      "absoluteDifferenceUS": 940
+    },
+    {
+      "id": "r2-stepped-32",
+      "xperfCPUUS": 4260555,
+      "parsedCPUUS": 4259520,
+      "absoluteDifferenceUS": 1035
+    },
+    {
+      "id": "r3-burst-1",
+      "xperfCPUUS": 112743,
+      "parsedCPUUS": 112718,
+      "absoluteDifferenceUS": 25
+    },
+    {
+      "id": "r3-burst-12",
+      "xperfCPUUS": 598059,
+      "parsedCPUUS": 598025,
+      "absoluteDifferenceUS": 34
+    },
+    {
+      "id": "r3-burst-16",
+      "xperfCPUUS": 715499,
+      "parsedCPUUS": 715020,
+      "absoluteDifferenceUS": 479
+    },
+    {
+      "id": "r3-burst-24",
+      "xperfCPUUS": 840057,
+      "parsedCPUUS": 840010,
+      "absoluteDifferenceUS": 47
+    },
+    {
+      "id": "r3-burst-32",
+      "xperfCPUUS": 986312,
+      "parsedCPUUS": 986011,
+      "absoluteDifferenceUS": 301
+    },
+    {
+      "id": "r3-burst-4",
+      "xperfCPUUS": 292922,
+      "parsedCPUUS": 292963,
+      "absoluteDifferenceUS": 41
+    },
+    {
+      "id": "r3-burst-8",
+      "xperfCPUUS": 463501,
+      "parsedCPUUS": 463423,
+      "absoluteDifferenceUS": 78
+    },
+    {
+      "id": "r3-idle",
+      "xperfCPUUS": 3817,
+      "parsedCPUUS": 3823,
+      "absoluteDifferenceUS": 6
+    },
+    {
+      "id": "r3-stagger-32",
+      "xperfCPUUS": 1984394,
+      "parsedCPUUS": 1983915,
+      "absoluteDifferenceUS": 479
+    },
+    {
+      "id": "r3-stepped-32",
+      "xperfCPUUS": 4296919,
+      "parsedCPUUS": 4295489,
+      "absoluteDifferenceUS": 1430
+    }
+  ]
+}

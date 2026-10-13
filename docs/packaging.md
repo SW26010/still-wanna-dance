@@ -37,7 +37,7 @@ SWD/
 
 正式包同时生成独立的 `*-corresponding-source.tar.gz` 及 SHA256、`*-release.json` 和可用作 Release 正文的 `*-release-notes.md`。完整源码不放进 Portable。`licenses/SOURCE.txt` 给出该 tag 的准确源码附件 URL、提交、校验及构建入口；`SOURCE.json` 将 EXE 哈希与源码哈希绑定，发行清单再绑定 ZIP/源码资产哈希和实际 EXE 模块。详见[完整对应源码](corresponding-source.md)。
 
-正式流程用最终源码附件进行全新缓存、仅包内 file GOPROXY 的独立重建，比较实际二进制模块；再运行真实 ZIP 的 Portable 隔离验证，全部成功才复制到输出目录。缺少 notices、源码、构建脚本、错误 tag/commit、dirty 或版本/哈希不符均失败。`go-lzo` 固定版本的[已接受风险](issue-30-license-audit.md)保留在产物记录中，不作为失败条件。不声称尚未接入桌面的 Mihomo 已经过桌面验收。
+正式流程用最终源码附件进行全新缓存、仅包内 file GOPROXY 的独立重建，比较实际二进制模块；再运行真实 ZIP 的 Portable 隔离验证，全部成功才复制到输出目录。缺少 notices、源码、构建脚本、错误 tag/commit、dirty 或版本/哈希不符均失败。`go-lzo` 固定版本的[已接受风险](issue-30-license-audit.md)保留在产物记录中，不作为失败条件。Mihomo 已接入桌面；发行链自动验证不替代 LA-034/035/036 的真实桌面、代理和游戏验收，实际覆盖版本见[开发验证记录](issue-14-validation.md)。
 
 已有产物可再次独立验证：
 

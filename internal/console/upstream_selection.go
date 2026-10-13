@@ -32,8 +32,8 @@ func (c *Console) operationSelections(op upstreamstate.Operation, q upstreamstat
 	if m != nil {
 		selections = m.Selections(op, q)
 	}
-	// Cold Mihomo traffic uses the same fixed candidates as Monitor. It does not
-	// wait for a probe, silently use the old SOCKS backend, or invent a score.
+	// Keep measured preferences first, then append the remaining active Mihomo
+	// candidates. Partial observations must not disable business fallbacks.
 	if client != nil {
 		if runtime, ok := client.Transport.(*mihomoTransport); ok && !runtime.retired.Load() {
 			target := q.Target
@@ -42,11 +42,10 @@ func (c *Console) operationSelections(op upstreamstate.Operation, q upstreamstat
 			}
 			current := runtime.Current(target)
 			measured := len(selections) > 0
-			if !measured {
-				for _, channel := range current {
-					if q.Mode == "" || channel.Mode == q.Mode {
-						selections = append(selections, upstreamstate.Selection{Channel: channel})
-					}
+			for _, channel := range current {
+				if (q.Mode == "" || channel.Mode == q.Mode) &&
+					!slices.ContainsFunc(selections, func(s upstreamstate.Selection) bool { return s.Channel.ID == channel.ID }) {
+					selections = append(selections, upstreamstate.Selection{Channel: channel})
 				}
 			}
 			u, err := url.Parse(target)

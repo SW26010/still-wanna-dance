@@ -1,0 +1,156 @@
+{
+  "kind": "development-evaluation",
+  "date": "2026-10-13",
+  "hashBasis": "git-blob (UTF-8 LF per .gitattributes)",
+  "binaryHashBasis": "actual-file-bytes",
+  "evidence": [
+    {
+      "path": "docs/evidence/issue14-incremental-20261013/bindings-backlog128.json",
+      "bytes": 95835,
+      "sha256": "91763ad11bc1e2392ef2d4ee4917dcea0bbfc7320c2bf69e9e7b6ba0bbb26cbc"
+    },
+    {
+      "path": "docs/evidence/issue14-incremental-20261013/history-bindings-backlog5.json",
+      "bytes": 91227,
+      "sha256": "3ce8f7accffd6405fbc9c5f25964b0c47b11c1600dd0794b855da9d4df289823"
+    },
+    {
+      "path": "docs/evidence/issue14-incremental-20261013/history-lifecycle-backlog5.json",
+      "bytes": 36695,
+      "sha256": "7da55ef29331c9305a082ad75db23f4a785ee5c76d409ec201a51e5b937fb213"
+    },
+    {
+      "path": "docs/evidence/issue14-incremental-20261013/history-sandbox.json",
+      "bytes": 1020,
+      "sha256": "7e6903f42abb9b6d5d68e1fe7cda5912a6d1d3dfa50a866df2e8b2abb1e6494b"
+    },
+    {
+      "path": "docs/evidence/issue14-incremental-20261013/lifecycle-build.json",
+      "bytes": 43117,
+      "sha256": "1c98797a037137ff1ed3919cf2424396801a6b307d3cc7300532e08f6e4624df"
+    },
+    {
+      "path": "docs/evidence/issue14-incremental-20261013/lifecycle.json",
+      "bytes": 67414,
+      "sha256": "f7d4aa776f1bff5a26bd4fd151602e0148e1be892a1542c16bf359ef9c309cd9"
+    }
+  ],
+  "source": [
+    {
+      "path": "experiments/runtime-mihomo/export_evidence.py",
+      "bytes": 6534,
+      "sha256": "af88dc099f0424b52696d3e6b299f45956a37302f0a56c1b0e537b771a6f927a"
+    },
+    {
+      "path": "experiments/runtime-mihomo/export_incremental.py",
+      "bytes": 3280,
+      "sha256": "5a29470832c89a0a9118059e2bccc38909355060423682a419c63c4b3c0f0199"
+    },
+    {
+      "path": "experiments/runtime-mihomo/go.mod",
+      "bytes": 8320,
+      "sha256": "fbd784c80fc3ebc3c199eb9af1e51f241a14f7df1f76b94d3af5e5d40a460fab"
+    },
+    {
+      "path": "experiments/runtime-mihomo/go.sum",
+      "bytes": 36092,
+      "sha256": "21b935fc577e43e86a0bb3483a8b5a8eb49bd8b4b2d15379874dfb4c7fc51d1f"
+    },
+    {
+      "path": "experiments/runtime-mihomo/incremental.ps1",
+      "bytes": 2570,
+      "sha256": "66e3e16a0d41b4db8324c83aa14127a466d939d74d6cae3d22db1cf9a9b3a373"
+    },
+    {
+      "path": "experiments/runtime-mihomo/incremental.py",
+      "bytes": 14152,
+      "sha256": "9db7272b09ad1d2fd7487c3983f2f2c6872d4bb36d273345ca56540e0b4e4897"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/admission.go",
+      "bytes": 4211,
+      "sha256": "6918e2713438ed12b18be32f7fc826d721185d16e8a5ef6cb53e9d31188b1a2a"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/admission_test.go",
+      "bytes": 3843,
+      "sha256": "eaa2225c724f50536684bc22f3a9efb6f2644dc7e2f7897d96a0128888286f84"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/backend.go",
+      "bytes": 8101,
+      "sha256": "d6b7d20f34b842622698d0e1a03b91d6eb0aadd523eefc6eb830fcccf890d4e6"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/clock_other.go",
+      "bytes": 143,
+      "sha256": "fea737ddb29e63d08fb257105c3a2318a0db7200a26d8f399f9d12400a414545"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/clock_windows.go",
+      "bytes": 494,
+      "sha256": "5daf414a50864bca7cc70fec1d64dcafc99c60bac009795d193d6bdf4055e2aa"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/external.go",
+      "bytes": 677,
+      "sha256": "22c32c81a2753345063053eec3753ab83327960bf999e6f28bbed7c9896d6889"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/main.go",
+      "bytes": 9334,
+      "sha256": "8a9254d6daf5d5ef4da7a2a02322664e99684dac10cc4645db3bb0069aed9113"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/native.go",
+      "bytes": 2677,
+      "sha256": "f1fec4ec4e4f251e23c04e4426aad556aefd6ae03fd3b6016278eb2b9c90e9d6"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/native_test.go",
+      "bytes": 2380,
+      "sha256": "7156db273c7ba2266f1b562544c49ef68c52a1481dc30535a300c5a8eb46e46b"
+    },
+    {
+      "path": "experiments/runtime-mihomo/README.md",
+      "bytes": 5231,
+      "sha256": "8d7e6f9e0398f57e30cddb0dc261acdb79051c686fce453acf4d2111ce768dbb"
+    },
+    {
+      "path": "experiments/runtime-mihomo/run.ps1",
+      "bytes": 2131,
+      "sha256": "635c116211178361dde44d2cc8eef71bc3c5f05a47b6dc2c9cd45339ff345985"
+    },
+    {
+      "path": "experiments/runtime-mihomo/run.py",
+      "bytes": 18037,
+      "sha256": "718257c6218e267809f777c44cfc39f5ebb3a55d3459b9a7831a92c265b28007"
+    },
+    {
+      "path": "experiments/runtime-mihomo/soak.py",
+      "bytes": 3781,
+      "sha256": "f18eef1ed196559f2f5c22f6ef70640492c78c6f87cfb1dcf46171c9dce56c5b"
+    },
+    {
+      "path": "experiments/managed-mihomo/run.py",
+      "bytes": 29697,
+      "sha256": "26d15a595502f6052c1a4aaef1723a863c36703cd3dadb46ce4a878cc3ce13c8"
+    },
+    {
+      "path": "internal/proxyengine/mihomo/testfixture/main.go",
+      "bytes": 6166,
+      "sha256": "a0e84cdf51a65d24b4ee830a98db0545ba6493cdfbbff3639d38034b7413db60"
+    },
+    {
+      "path": "internal/proxyengine/mihomo/testfixture/counts.go",
+      "bytes": 1295,
+      "sha256": "240925863da9dee8c95ee7b30f9843cb54d1129278223df12720e3376dc18b88"
+    },
+    {
+      "path": "docs/issue-14-incremental-evaluation.md",
+      "bytes": 5865,
+      "sha256": "a114f932d1239f7f2a330ba466ec7125f289fbdf98e4cc0315688835be4d3592"
+    }
+  ],
+  "redaction": "Only fixed categories, counts, loopback ports, relative timings and build identities. No private inputs, credentials, signed URLs or personal paths. Failures are retained."
+}

@@ -176,6 +176,21 @@ func (r *fullRuntime) bindingChecks() map[string]any {
 	}
 	return map[string]any{"unknownAndBuiltinRejected": failed, "fixedCount": len(r.bindings)}
 }
+
+// Fault injection between commands only, to prove the captured B2 objects do
+// not follow global name rebinding. Never used by a product entry point.
+func (r *fullRuntime) swapNames() bool {
+	if r.admission == nil || len(r.bindings) < 2 {
+		return false
+	}
+	cloned := make(map[string]C.Proxy)
+	for name, p := range tunnel.Proxies() {
+		cloned[name] = p
+	}
+	cloned["n0"], cloned["n1"] = cloned["n1"], cloned["n0"]
+	tunnel.UpdateProxies(cloned, tunnel.Providers())
+	return true
+}
 func (r *fullRuntime) Close() {
 	r.mu.Lock()
 	if r.closed {

@@ -25,3 +25,18 @@
 分阶段记录实际运行、失败、证据与限制。自动开发检查与实机验收分别管理。最终结果在后续评估提交中补齐。
 
 第一阶段：`incremental.ps1 -Phase build` 成功。`go test -mod=readonly -tags=no_easytier ./probe -count=1` 通过（含迟到结果、容量、退役、200 次取消交付竞争、无效目标与原生输入门禁）；内嵌和 `external_only` 两种 vet 通过，驱动/核心/夹具构建成功。尚不能用这些单元测试证明真实协议生命周期。
+
+### B2 实际生命周期
+
+[最终矩阵](evidence/issue14-incremental-20261013/lifecycle.json) **51/51**。SS、VLESS/TLS、AnyTLS、Hysteria2 均经过真实回环协议握手、预热后预取消、HTTP 请求取消与恢复、退役关闭；SOCKS5/TLS/QUIC 无响应握手各经过 6×32 次 HTTP 取消压力。拨号峰值上限 64，等待 4 秒后在途拨号为 0；退役后本层占用和核心统计均为 0，采样无 TCP 监听和 UDP 端口。AnyTLS 退役即时 goroutine 为 4，31 秒后为 3。这里未观测私有协议对象数量，网络表与任务数不能代替“所有内部会话瞬时销毁”的证明。
+
+两个带标记出口完成 40 路并发与 Range 正文哈希验证。实验在请求批次之间交换全局 `n0/n1` 映射并关闭空闲连接，B2 捕获的固定对象仍保持原出口。缺名、空名、DIRECT/GLOBAL/REJECT 被本代映射拒绝，失败代理没有请求可直连陷阱。订阅顶层 TUN/规则/端口未执行，业务目标未交本地 DNS。`executor.Shutdown` 后仍能新建请求，完整封装退役后旧 Transport 拒绝新请求；标准库 Resolver/Transport 未变，但核心全局 resolver/inner 保留。合成后台 panic 终止宿主，不声称发现上游 panic 漏洞。
+
+**保留的失败与归因：**
+
+- [沙箱轮次](evidence/issue14-incremental-20261013/history-sandbox.json)：网络表看不到本轮已知监听，阳性对照失败，停止；没有把空表当成无监听证据。正常用户上下文读取后通过。
+- [首轮生命周期](evidence/issue14-incremental-20261013/history-lifecycle-backlog5.json)：49/51，两项 40 路并发失败，其余通过。首轮没有逐请求保存这两项的细节，此限制保留。
+- [专项复现](evidence/issue14-incremental-20261013/history-bindings-backlog5.json)：Python 默认 accept backlog=5 下 B2 两批分别 23/40、19/40 请求失败，约 1–3 毫秒内、尚未取得 HTTP 连接；B1/C 两批均通过。只改为 backlog=128、保持相同驱动二进制后，[三路线同负载全部通过](evidence/issue14-incremental-20261013/bindings-backlog128.json)。这支持夹具接入容量影响结果，不能推断 B2 公网稳定性差；首轮未细分底层 errno，不能把“连接拒绝”写成已直接测得。之后新增固定 errno 分类以便后续记录。
+- 相关 `upstreamrequest` 测试在沙箱通过；`upstreamstate` 在沙箱临时目录原子 rename 被拒绝。正常用户上下文 `go test -mod=readonly -tags=no_easytier ./internal/upstreamrequest ./internal/upstreamstate -count=1` 两包通过，不改产品代码来适应沙箱故障。
+
+复跑：`incremental.ps1 -Phase lifecycle`；专项比较用 Python 运行 `incremental.py --bin <本轮绝对输出目录> --phase bindings --backlog 5` 或 `128`。需要网络表能看到阳性对照。构建身份见 [lifecycle-build.json](evidence/issue14-incremental-20261013/lifecycle-build.json)，文件校验见 [manifest.json](evidence/issue14-incremental-20261013/manifest.json)。正常结束已验证本轮全部进程退出、provider 明文文件为 0、hosts 哈希不变。原始夹具清单留在受限的忽略目录。

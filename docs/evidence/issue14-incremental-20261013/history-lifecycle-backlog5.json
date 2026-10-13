@@ -1,0 +1,1433 @@
+{
+  "date": "2026-10-13",
+  "phase": "lifecycle",
+  "baseRevision": "3c3df3db619be13e14507e6c341549eb8b2e1afb",
+  "checks": [
+    {
+      "name": "network-table-positive-control",
+      "passed": true
+    },
+    {
+      "name": "B2-native-uri",
+      "passed": true
+    },
+    {
+      "name": "B2-native-base64",
+      "passed": true
+    },
+    {
+      "name": "B2-native-yaml",
+      "passed": true
+    },
+    {
+      "name": "B2-reject-empty",
+      "passed": true
+    },
+    {
+      "name": "B2-reject-malformed",
+      "passed": true
+    },
+    {
+      "name": "B2-reject-direct",
+      "passed": true
+    },
+    {
+      "name": "B2-no-listeners",
+      "passed": true
+    },
+    {
+      "name": "B2-binding-negative",
+      "passed": true,
+      "details": {
+        "fixedCount": 2,
+        "unknownAndBuiltinRejected": true
+      }
+    },
+    {
+      "name": "B2-40-concurrent-fixed-exits",
+      "passed": false
+    },
+    {
+      "name": "B2-name-rebind-injected",
+      "passed": true
+    },
+    {
+      "name": "B2-captured-exits-ignore-rebind",
+      "passed": false
+    },
+    {
+      "name": "B2-range-body",
+      "passed": true
+    },
+    {
+      "name": "B2-pre-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-header-cancel",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 0.007700000423938036,
+          "reused": true,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0,
+          "elapsedMS": 150.59969999128953
+        },
+        {
+          "connectionMS": 0.011600001016631722,
+          "reused": true,
+          "index": 1,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0,
+          "elapsedMS": 150.13619998353533
+        }
+      ]
+    },
+    {
+      "name": "B2-body-cancel",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 0.00969998654909432,
+          "reused": true,
+          "index": 0,
+          "ok": false,
+          "status": 200,
+          "bytes": 1,
+          "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0.26929998421110213,
+          "elapsedMS": 150.40109999245033
+        },
+        {
+          "connectionMS": 0.015400000847876072,
+          "reused": true,
+          "index": 1,
+          "ok": false,
+          "status": 200,
+          "bytes": 1,
+          "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0.5080999981146306,
+          "elapsedMS": 149.9935000028927
+        }
+      ]
+    },
+    {
+      "name": "B2-reuse-after-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-global-boundary",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 2,
+          "openConnections": 2,
+          "peak": 40,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 2,
+        "goroutines": 7,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-shutdown-alone-not-disposal",
+      "passed": true
+    },
+    {
+      "name": "B2-retirement",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 40,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-failed-proxy-no-direct",
+      "passed": true
+    },
+    {
+      "name": "B2-target-DNS-remote",
+      "passed": true
+    },
+    {
+      "name": "B2-ss-warm-session",
+      "passed": true,
+      "serverConnections": 4
+    },
+    {
+      "name": "B2-ss-warm-pre-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-ss-warm-HTTP-cancel",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-ss-healthy-after-warm-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-ss-retired",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "network": {
+        "tcp": [],
+        "udp": []
+      }
+    },
+    {
+      "name": "B2-vless-warm-session",
+      "passed": true,
+      "serverConnections": 4
+    },
+    {
+      "name": "B2-vless-warm-pre-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-vless-warm-HTTP-cancel",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-vless-healthy-after-warm-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-vless-retired",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "network": {
+        "tcp": [],
+        "udp": []
+      }
+    },
+    {
+      "name": "B2-anytls-warm-session",
+      "passed": true,
+      "serverConnections": 1
+    },
+    {
+      "name": "B2-anytls-warm-pre-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-anytls-warm-HTTP-cancel",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 12,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-anytls-healthy-after-warm-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-anytls-retired",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 4,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "network": {
+        "tcp": [],
+        "udp": []
+      }
+    },
+    {
+      "name": "B2-hysteria2-warm-session",
+      "passed": true,
+      "serverConnections": 1
+    },
+    {
+      "name": "B2-hysteria2-warm-pre-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-hysteria2-warm-HTTP-cancel",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 11,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-hysteria2-healthy-after-warm-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-hysteria2-retired",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "network": {
+        "tcp": [],
+        "udp": []
+      }
+    },
+    {
+      "name": "B2-socks5-slow-handshake-cancel",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 0,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0,
+          "elapsedMS": 100.72629997739568
+        }
+      ]
+    },
+    {
+      "name": "B2-socks5-detached-dials-bounded",
+      "passed": true,
+      "samples": [
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 11,
+            "openConnections": 0,
+            "peak": 27,
+            "pending": 11,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 25,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 23,
+            "openConnections": 0,
+            "peak": 36,
+            "pending": 23,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 49,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 37,
+            "openConnections": 0,
+            "peak": 52,
+            "pending": 37,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 77,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 51,
+            "openConnections": 0,
+            "peak": 58,
+            "pending": 51,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 105,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 59,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 59,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 121,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 131,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        }
+      ],
+      "final": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-vless-slow-handshake-cancel",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 0,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0,
+          "elapsedMS": 100.5674000189174
+        }
+      ]
+    },
+    {
+      "name": "B2-vless-detached-dials-bounded",
+      "passed": true,
+      "samples": [
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 18,
+            "openConnections": 0,
+            "peak": 23,
+            "pending": 18,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 39,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 32,
+            "openConnections": 0,
+            "peak": 50,
+            "pending": 32,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 67,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 43,
+            "openConnections": 0,
+            "peak": 57,
+            "pending": 43,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 89,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 56,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 56,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 115,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 131,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 131,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        }
+      ],
+      "final": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-anytls-slow-handshake-cancel",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 0,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0,
+          "elapsedMS": 100.55329999886453
+        }
+      ]
+    },
+    {
+      "name": "B2-anytls-detached-dials-bounded",
+      "passed": true,
+      "samples": [
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 15,
+            "openConnections": 0,
+            "peak": 22,
+            "pending": 15,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 34,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 27,
+            "openConnections": 0,
+            "peak": 38,
+            "pending": 27,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 58,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 40,
+            "openConnections": 0,
+            "peak": 49,
+            "pending": 40,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 84,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 52,
+            "openConnections": 0,
+            "peak": 63,
+            "pending": 52,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 108,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 61,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 61,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 126,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 132,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        }
+      ],
+      "final": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 4,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-hysteria2-slow-handshake-cancel",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 0,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0,
+          "elapsedMS": 100.29189998749644
+        }
+      ]
+    },
+    {
+      "name": "B2-hysteria2-detached-dials-bounded",
+      "passed": true,
+      "samples": [
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 32,
+            "openConnections": 0,
+            "peak": 32,
+            "pending": 32,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 72,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 136,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 136,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 136,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 136,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 136,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        }
+      ],
+      "final": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-synthetic-panic-ends-host",
+      "passed": true
+    }
+  ],
+  "benchmarks": [],
+  "soak": [],
+  "scope": "development only; no architecture selection or product migration",
+  "binaries": {
+    "B.exe": {
+      "sha256": "59c888a45c2c2f3da9f91428d5fd7d855a869b0c5b1a5cdaab186fcd678ee8b8",
+      "bytes": 60995072
+    },
+    "C.exe": {
+      "sha256": "f423e138a651107939a7a0a8791521fa059456ec48b6029fe29c69c08e826c14",
+      "bytes": 28251136
+    },
+    "core.exe": {
+      "sha256": "71c7602a98c235a1c230cc89fc869d3026f5c1369d82e990309b01058ec75cea",
+      "bytes": 55928832
+    },
+    "fixture.exe": {
+      "sha256": "a480f3267efcd336d4dc3c07a218bc6f97b6c5c3f864f0493151ca1a401b7bbb",
+      "bytes": 28299264
+    }
+  },
+  "anytlsAfter31Seconds": {
+    "admission": {
+      "dialTimeoutMS": 3000,
+      "lateClosed": 0,
+      "limit": 64,
+      "occupied": 0,
+      "openConnections": 0,
+      "peak": 8,
+      "pending": 0,
+      "retired": true
+    },
+    "coreDNSInstalled": true,
+    "coreTracked": 0,
+    "goroutines": 3,
+    "innerGlobalInstalled": true,
+    "openPipes": 0,
+    "peakPending": 0,
+    "pending": 0,
+    "retired": true,
+    "slotLimit": 64,
+    "standardResolverUnchanged": true,
+    "standardTransportUnchanged": true,
+    "systemHosts": false
+  },
+  "slowHandshakeRetirement": [
+    {
+      "protocol": "socks5",
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "network": {
+        "tcp": [],
+        "udp": []
+      }
+    },
+    {
+      "protocol": "vless",
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "network": {
+        "tcp": [],
+        "udp": []
+      }
+    },
+    {
+      "protocol": "anytls",
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 4,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "network": {
+        "tcp": [],
+        "udp": []
+      }
+    },
+    {
+      "protocol": "hysteria2",
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "network": {
+        "tcp": [],
+        "udp": []
+      }
+    }
+  ],
+  "cleanup": {
+    "allOwnedProcessesExited": true,
+    "providerFilesRemaining": 0,
+    "hostsUnchanged": true
+  }
+}

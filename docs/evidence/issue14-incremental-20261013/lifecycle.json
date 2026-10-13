@@ -1,0 +1,2398 @@
+{
+  "date": "2026-10-13",
+  "phase": "lifecycle",
+  "fixtureAcceptBacklog": 128,
+  "baseRevision": "3c3df3db619be13e14507e6c341549eb8b2e1afb",
+  "checks": [
+    {
+      "name": "network-table-positive-control",
+      "passed": true
+    },
+    {
+      "name": "B2-native-uri",
+      "passed": true
+    },
+    {
+      "name": "B2-native-base64",
+      "passed": true
+    },
+    {
+      "name": "B2-native-yaml",
+      "passed": true
+    },
+    {
+      "name": "B2-reject-empty",
+      "passed": true
+    },
+    {
+      "name": "B2-reject-malformed",
+      "passed": true
+    },
+    {
+      "name": "B2-reject-direct",
+      "passed": true
+    },
+    {
+      "name": "B2-no-listeners",
+      "passed": true
+    },
+    {
+      "name": "B2-binding-negative",
+      "passed": true,
+      "details": {
+        "fixedCount": 2,
+        "unknownAndBuiltinRejected": true
+      }
+    },
+    {
+      "name": "B2-40-concurrent-fixed-exits",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 7.200099993497133,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 8.249200007412583,
+          "elapsedMS": 8.277899993117899
+        },
+        {
+          "connectionMS": 7.316300005186349,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 10.028100019553676,
+          "elapsedMS": 11.196100007509813
+        },
+        {
+          "connectionMS": 7.960200018715113,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 9.232200012775138,
+          "elapsedMS": 9.2585000093095
+        },
+        {
+          "connectionMS": 11.313400027574971,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 14.52110000536777,
+          "elapsedMS": 14.553400018485263
+        },
+        {
+          "connectionMS": 9.717600012663752,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 13.806300004944205,
+          "elapsedMS": 13.83219999843277
+        },
+        {
+          "connectionMS": 12.428299989551306,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 16.18219999363646,
+          "elapsedMS": 17.205399984959513
+        },
+        {
+          "connectionMS": 9.620400000130758,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 11.558600002899766,
+          "elapsedMS": 11.576900025829673
+        },
+        {
+          "connectionMS": 9.964400000171736,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 12.876900000264868,
+          "elapsedMS": 12.904100003652275
+        },
+        {
+          "connectionMS": 10.776199982501566,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 14.21439999830909,
+          "elapsedMS": 16.02519999141805
+        },
+        {
+          "connectionMS": 8.047099981922656,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 9.18729999102652,
+          "elapsedMS": 10.992800001986325
+        },
+        {
+          "connectionMS": 8.581700007198378,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 10.311399993952364,
+          "elapsedMS": 12.608199991518632
+        },
+        {
+          "connectionMS": 5.554200004553422,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 7.623000012245029,
+          "elapsedMS": 7.643200020538643
+        },
+        {
+          "connectionMS": 8.201099990401417,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 9.210199990775436,
+          "elapsedMS": 9.871499991277233
+        },
+        {
+          "connectionMS": 4.859299981035292,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 6.086799985496327,
+          "elapsedMS": 7.311199995456263
+        },
+        {
+          "connectionMS": 9.185800008708611,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 11.007799999788404,
+          "elapsedMS": 12.64400000218302
+        },
+        {
+          "connectionMS": 10.132399998838082,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 11.019500001566485,
+          "elapsedMS": 13.69599997997284
+        },
+        {
+          "connectionMS": 12.533400004031137,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 15.080999990459532,
+          "elapsedMS": 15.115699992747977
+        },
+        {
+          "connectionMS": 10.882900009164587,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 13.233100005891174,
+          "elapsedMS": 13.256800011731684
+        },
+        {
+          "connectionMS": 12.425199995050207,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 15.385699982289225,
+          "elapsedMS": 17.356700001982972
+        },
+        {
+          "connectionMS": 6.443799997214228,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 7.656600006157532,
+          "elapsedMS": 7.683300005737692
+        },
+        {
+          "connectionMS": 13.564299995778129,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 18.646300013642758,
+          "elapsedMS": 18.671800004085526
+        },
+        {
+          "connectionMS": 13.504600006854162,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 15.484700008528307,
+          "elapsedMS": 15.79110001330264
+        },
+        {
+          "connectionMS": 12.405100016621873,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 13.83229999919422,
+          "elapsedMS": 14.623900002334267
+        },
+        {
+          "connectionMS": 13.067399995634332,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 15.71979999425821,
+          "elapsedMS": 15.748199977679178
+        },
+        {
+          "connectionMS": 12.457000004360452,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 18.334099993808195,
+          "elapsedMS": 18.364999996265396
+        },
+        {
+          "connectionMS": 7.1736999962013215,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 10.47939999261871,
+          "elapsedMS": 11.63509997422807
+        },
+        {
+          "connectionMS": 8.395399985602126,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 11.30770001327619,
+          "elapsedMS": 12.414700002409518
+        },
+        {
+          "connectionMS": 13.186099997255951,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 16.992799995932728,
+          "elapsedMS": 18.242099991766736
+        },
+        {
+          "connectionMS": 5.5164000077638775,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 7.528700021794066,
+          "elapsedMS": 7.564400002593175
+        },
+        {
+          "connectionMS": 7.706900010816753,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 9.138900000834838,
+          "elapsedMS": 10.244400007650256
+        },
+        {
+          "connectionMS": 7.531999988714233,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 8.479899988742545,
+          "elapsedMS": 8.506899990607053
+        },
+        {
+          "connectionMS": 10.857999994186684,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 11.84240001020953,
+          "elapsedMS": 13.894999981857836
+        },
+        {
+          "connectionMS": 5.694099992979318,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 6.815200002165511,
+          "elapsedMS": 7.3056000110227615
+        },
+        {
+          "connectionMS": 3.5265999904368073,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 4.462099983356893,
+          "elapsedMS": 4.798799986019731
+        },
+        {
+          "connectionMS": 4.366499983007088,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 5.652699997881427,
+          "elapsedMS": 5.6859999895095825
+        },
+        {
+          "connectionMS": 12.868200021330267,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 15.792699996381998,
+          "elapsedMS": 15.814900019904599
+        },
+        {
+          "connectionMS": 11.532399978023022,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 15.15679998556152,
+          "elapsedMS": 17.48419998330064
+        },
+        {
+          "connectionMS": 13.119299983372912,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 15.042399987578392,
+          "elapsedMS": 15.066799998749048
+        },
+        {
+          "connectionMS": 5.895699985558167,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 7.748500007437542,
+          "elapsedMS": 7.772799988742918
+        },
+        {
+          "connectionMS": 13.641300000017509,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 18.406399991363287,
+          "elapsedMS": 19.267099996795878
+        }
+      ]
+    },
+    {
+      "name": "B2-name-rebind-injected",
+      "passed": true
+    },
+    {
+      "name": "B2-captured-exits-ignore-rebind",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 13.811900018481538,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 15.583000000333413,
+          "elapsedMS": 16.75680000334978
+        },
+        {
+          "connectionMS": 10.408000001916662,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 12.450500013073906,
+          "elapsedMS": 12.47660000808537
+        },
+        {
+          "connectionMS": 9.680299990577623,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 12.469899986172095,
+          "elapsedMS": 13.634300004923716
+        },
+        {
+          "connectionMS": 10.958400001982227,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 11.775199993280694,
+          "elapsedMS": 12.740900012431666
+        },
+        {
+          "connectionMS": 11.440400005085394,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 13.142399984644726,
+          "elapsedMS": 13.92420000047423
+        },
+        {
+          "connectionMS": 8.778999996138737,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 10.397499980172142,
+          "elapsedMS": 10.856899985810742
+        },
+        {
+          "connectionMS": 16.141200001584366,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 19.978399999672547,
+          "elapsedMS": 20.092599996132776
+        },
+        {
+          "connectionMS": 9.300400008214638,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 12.77279999339953,
+          "elapsedMS": 12.80100000440143
+        },
+        {
+          "connectionMS": 16.021299990825355,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 17.341399972792715,
+          "elapsedMS": 19.46999999927357
+        },
+        {
+          "connectionMS": 12.93430000077933,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 15.299799997592345,
+          "elapsedMS": 15.321999992011115
+        },
+        {
+          "connectionMS": 13.655300019308925,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 15.286400011973456,
+          "elapsedMS": 16.148599999723956
+        },
+        {
+          "connectionMS": 13.505600014468655,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 16.38640000601299,
+          "elapsedMS": 16.419399995356798
+        },
+        {
+          "connectionMS": 19.40729998750612,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 21.531000005779788,
+          "elapsedMS": 23.387799999909475
+        },
+        {
+          "connectionMS": 11.128899990580976,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 12.490399996750057,
+          "elapsedMS": 13.188699987949803
+        },
+        {
+          "connectionMS": 8.369899995159358,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 9.718199988128617,
+          "elapsedMS": 10.89420000789687
+        },
+        {
+          "connectionMS": 12.437099998351187,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 13.994699984323233,
+          "elapsedMS": 14.02050000615418
+        },
+        {
+          "connectionMS": 16.74210000783205,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 19.96440000948496,
+          "elapsedMS": 20.32040001358837
+        },
+        {
+          "connectionMS": 12.120100000174716,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 13.053700007731095,
+          "elapsedMS": 14.138700003968552
+        },
+        {
+          "connectionMS": 16.305800003465265,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 19.835000013699755,
+          "elapsedMS": 20.144799986155704
+        },
+        {
+          "connectionMS": 10.122200008481741,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 10.82900000619702,
+          "elapsedMS": 11.00100000621751
+        },
+        {
+          "connectionMS": 19.96330000110902,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 22.51870001782663,
+          "elapsedMS": 22.543099999893457
+        },
+        {
+          "connectionMS": 13.983900018502027,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 16.771200025686994,
+          "elapsedMS": 16.78680002805777
+        },
+        {
+          "connectionMS": 19.087100023170933,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 20.858700008830056,
+          "elapsedMS": 20.901900017634034
+        },
+        {
+          "connectionMS": 12.871900020400062,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 14.749499998288229,
+          "elapsedMS": 17.12289999704808
+        },
+        {
+          "connectionMS": 14.436299999943003,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 18.382999987807125,
+          "elapsedMS": 19.5808999997098
+        },
+        {
+          "connectionMS": 8.722700004000217,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 10.927099996479228,
+          "elapsedMS": 12.122999993152916
+        },
+        {
+          "connectionMS": 18.884199991589412,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 21.62280000629835,
+          "elapsedMS": 21.653200004948303
+        },
+        {
+          "connectionMS": 10.536600020714104,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 12.002200004644692,
+          "elapsedMS": 13.00250002532266
+        },
+        {
+          "connectionMS": 14.246400009142235,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 16.45039999857545,
+          "elapsedMS": 17.000599997118115
+        },
+        {
+          "connectionMS": 12.732200004393235,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 15.88590000756085,
+          "elapsedMS": 16.431500000180677
+        },
+        {
+          "connectionMS": 17.227400006959215,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 21.4550000091549,
+          "elapsedMS": 21.48170000873506
+        },
+        {
+          "connectionMS": 7.743699999991804,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 9.553200012305751,
+          "elapsedMS": 10.04530000500381
+        },
+        {
+          "connectionMS": 10.634800011757761,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 15.280199993867427,
+          "elapsedMS": 15.30649999040179
+        },
+        {
+          "connectionMS": 7.002900005318224,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 7.591300003696233,
+          "elapsedMS": 8.115100004943088
+        },
+        {
+          "connectionMS": 19.49780000722967,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 21.62120002321899,
+          "elapsedMS": 23.512300016591325
+        },
+        {
+          "connectionMS": 7.923800003482029,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 9.54460000502877,
+          "elapsedMS": 10.02450002124533
+        },
+        {
+          "connectionMS": 19.897199992556125,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 23.967499990249053,
+          "elapsedMS": 23.990799993043765
+        },
+        {
+          "connectionMS": 12.118599988752976,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 14.32699998258613,
+          "elapsedMS": 15.52119999541901
+        },
+        {
+          "connectionMS": 17.323899985058233,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 19.102799997199327,
+          "elapsedMS": 20.060099981492385
+        },
+        {
+          "connectionMS": 12.99819999258034,
+          "reused": true,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 15.31970000360161,
+          "elapsedMS": 15.344599989475682
+        }
+      ]
+    },
+    {
+      "name": "B2-range-body",
+      "passed": true
+    },
+    {
+      "name": "B2-pre-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-header-cancel",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 0.007499998901039362,
+          "reused": true,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0,
+          "elapsedMS": 149.78209999389946
+        },
+        {
+          "connectionMS": 0.01920000067912042,
+          "reused": true,
+          "index": 1,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0,
+          "elapsedMS": 150.1711000164505
+        }
+      ]
+    },
+    {
+      "name": "B2-body-cancel",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 0.012200005585327744,
+          "reused": true,
+          "index": 0,
+          "ok": false,
+          "status": 200,
+          "bytes": 1,
+          "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0.34610001603141427,
+          "elapsedMS": 150.3159000130836
+        },
+        {
+          "connectionMS": 0.020499981474131346,
+          "reused": true,
+          "index": 1,
+          "ok": false,
+          "status": 200,
+          "bytes": 1,
+          "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0.40699998498894274,
+          "elapsedMS": 149.96689997497015
+        }
+      ]
+    },
+    {
+      "name": "B2-reuse-after-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-global-boundary",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 2,
+          "openConnections": 2,
+          "peak": 40,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 2,
+        "goroutines": 7,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-shutdown-alone-not-disposal",
+      "passed": true
+    },
+    {
+      "name": "B2-retirement",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 40,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-failed-proxy-no-direct",
+      "passed": true
+    },
+    {
+      "name": "B2-target-DNS-remote",
+      "passed": true
+    },
+    {
+      "name": "B2-ss-warm-session",
+      "passed": true,
+      "serverConnections": 4
+    },
+    {
+      "name": "B2-ss-warm-pre-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-ss-warm-HTTP-cancel",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-ss-healthy-after-warm-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-ss-retired",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "network": {
+        "tcp": [],
+        "udp": []
+      }
+    },
+    {
+      "name": "B2-vless-warm-session",
+      "passed": true,
+      "serverConnections": 4
+    },
+    {
+      "name": "B2-vless-warm-pre-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-vless-warm-HTTP-cancel",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-vless-healthy-after-warm-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-vless-retired",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "network": {
+        "tcp": [],
+        "udp": []
+      }
+    },
+    {
+      "name": "B2-anytls-warm-session",
+      "passed": true,
+      "serverConnections": 1
+    },
+    {
+      "name": "B2-anytls-warm-pre-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-anytls-warm-HTTP-cancel",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 12,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-anytls-healthy-after-warm-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-anytls-retired",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 4,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "network": {
+        "tcp": [],
+        "udp": []
+      }
+    },
+    {
+      "name": "B2-hysteria2-warm-session",
+      "passed": true,
+      "serverConnections": 1
+    },
+    {
+      "name": "B2-hysteria2-warm-pre-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-hysteria2-warm-HTTP-cancel",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 11,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-hysteria2-healthy-after-warm-cancel",
+      "passed": true
+    },
+    {
+      "name": "B2-hysteria2-retired",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "network": {
+        "tcp": [],
+        "udp": []
+      }
+    },
+    {
+      "name": "B2-socks5-slow-handshake-cancel",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 0,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0,
+          "elapsedMS": 100.23250000085682
+        }
+      ]
+    },
+    {
+      "name": "B2-socks5-detached-dials-bounded",
+      "passed": true,
+      "samples": [
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 32,
+            "openConnections": 0,
+            "peak": 32,
+            "pending": 32,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 67,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 131,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 131,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 131,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 131,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 131,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        }
+      ],
+      "final": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-vless-slow-handshake-cancel",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 0,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0,
+          "elapsedMS": 100.28199999942444
+        }
+      ]
+    },
+    {
+      "name": "B2-vless-detached-dials-bounded",
+      "passed": true,
+      "samples": [
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 32,
+            "openConnections": 0,
+            "peak": 32,
+            "pending": 32,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 67,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 131,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 131,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 131,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 131,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 131,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        }
+      ],
+      "final": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-anytls-slow-handshake-cancel",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 0,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0,
+          "elapsedMS": 99.7942999820225
+        }
+      ]
+    },
+    {
+      "name": "B2-anytls-detached-dials-bounded",
+      "passed": true,
+      "samples": [
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 32,
+            "openConnections": 0,
+            "peak": 32,
+            "pending": 32,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 68,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 132,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 132,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 132,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 132,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 132,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        }
+      ],
+      "final": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 4,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-hysteria2-slow-handshake-cancel",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 0,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0,
+          "elapsedMS": 100.49019998405129
+        }
+      ]
+    },
+    {
+      "name": "B2-hysteria2-detached-dials-bounded",
+      "passed": true,
+      "samples": [
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 32,
+            "openConnections": 0,
+            "peak": 32,
+            "pending": 32,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 72,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 136,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 136,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 136,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 136,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 64,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 136,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        }
+      ],
+      "final": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-synthetic-panic-ends-host",
+      "passed": true
+    }
+  ],
+  "benchmarks": [],
+  "soak": [],
+  "scope": "development only; no architecture selection or product migration",
+  "binaries": {
+    "B.exe": {
+      "sha256": "625ee49bb8a9c79cedc0fb23e2fdb1680ca5b1eb44c0535d842585fd00895485",
+      "bytes": 60994560
+    },
+    "C.exe": {
+      "sha256": "f423e138a651107939a7a0a8791521fa059456ec48b6029fe29c69c08e826c14",
+      "bytes": 28251136
+    },
+    "core.exe": {
+      "sha256": "71c7602a98c235a1c230cc89fc869d3026f5c1369d82e990309b01058ec75cea",
+      "bytes": 55928832
+    },
+    "fixture.exe": {
+      "sha256": "a480f3267efcd336d4dc3c07a218bc6f97b6c5c3f864f0493151ca1a401b7bbb",
+      "bytes": 28299264
+    }
+  },
+  "anytlsAfter31Seconds": {
+    "admission": {
+      "dialTimeoutMS": 3000,
+      "lateClosed": 0,
+      "limit": 64,
+      "occupied": 0,
+      "openConnections": 0,
+      "peak": 8,
+      "pending": 0,
+      "retired": true
+    },
+    "coreDNSInstalled": true,
+    "coreTracked": 0,
+    "goroutines": 3,
+    "innerGlobalInstalled": true,
+    "openPipes": 0,
+    "peakPending": 0,
+    "pending": 0,
+    "retired": true,
+    "slotLimit": 64,
+    "standardResolverUnchanged": true,
+    "standardTransportUnchanged": true,
+    "systemHosts": false
+  },
+  "slowHandshakeRetirement": [
+    {
+      "protocol": "socks5",
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "network": {
+        "tcp": [],
+        "udp": []
+      }
+    },
+    {
+      "protocol": "vless",
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "network": {
+        "tcp": [],
+        "udp": []
+      }
+    },
+    {
+      "protocol": "anytls",
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 4,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "network": {
+        "tcp": [],
+        "udp": []
+      }
+    },
+    {
+      "protocol": "hysteria2",
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "network": {
+        "tcp": [],
+        "udp": []
+      }
+    }
+  ],
+  "cleanup": {
+    "allOwnedProcessesExited": true,
+    "providerFilesRemaining": 0,
+    "hostsUnchanged": true
+  }
+}

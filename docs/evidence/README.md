@@ -70,6 +70,10 @@
 时间已按下述隐私规则转换，不应再按绝对时区时间解释。
 
 
+## Issue #14 中立增量评估（2026-10-13，开发检查）
+
+[评估报告](../issue-14-incremental-evaluation.md)、[脱敏证据与校验清单](issue14-incremental-20261013/manifest.json)。保留 B2 生命周期、夹具容量失败及对照，不作最终选型；不是 LIVE 实机批次。
+
 ## Privacy normalization
 
 Personal paths and real media signature parameters are redacted. Exact capture/playback timestamps are replaced by T+seconds relative to the earliest timestamp in each file; clock-only excerpts use a separate per-file clock baseline. Relative times across different files are not directly comparable. Source log filenames use stable session aliases. Calendar dates in document names and development history remain for version tracking. HTTP capture dates are redacted. These historical evidence URLs are not reusable credentials.

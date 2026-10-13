@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-13",
+  "phase": "lifecycle",
+  "baseRevision": "3c3df3db619be13e14507e6c341549eb8b2e1afb",
+  "checks": [
+    {
+      "name": "network-table-positive-control",
+      "passed": false
+    }
+  ],
+  "benchmarks": [],
+  "soak": [],
+  "scope": "development only; no architecture selection or product migration",
+  "binaries": {
+    "B.exe": {
+      "sha256": "59c888a45c2c2f3da9f91428d5fd7d855a869b0c5b1a5cdaab186fcd678ee8b8",
+      "bytes": 60995072
+    },
+    "C.exe": {
+      "sha256": "f423e138a651107939a7a0a8791521fa059456ec48b6029fe29c69c08e826c14",
+      "bytes": 28251136
+    },
+    "core.exe": {
+      "sha256": "71c7602a98c235a1c230cc89fc869d3026f5c1369d82e990309b01058ec75cea",
+      "bytes": 55928832
+    },
+    "fixture.exe": {
+      "sha256": "a480f3267efcd336d4dc3c07a218bc6f97b6c5c3f864f0493151ca1a401b7bbb",
+      "bytes": 28299264
+    }
+  },
+  "fatal": "RuntimeError",
+  "cleanup": {
+    "allOwnedProcessesExited": true,
+    "providerFilesRemaining": 0,
+    "hostsUnchanged": true
+  }
+}

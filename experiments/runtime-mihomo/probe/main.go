@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"still-wanna-dance/internal/console"
@@ -29,6 +30,7 @@ type endpoint struct {
 	Parameters                  map[string]any
 }
 type command struct {
+	SwapNames, CloseIdle                           bool
 	Bindings, RawDial                              bool
 	Address                                        string
 	ExportSource                                   bool
@@ -42,15 +44,17 @@ type command struct {
 	Monitor                                        bool
 }
 type observation struct {
-	Index       int     `json:"index"`
-	OK          bool    `json:"ok"`
-	Status      int     `json:"status"`
-	Bytes       int64   `json:"bytes"`
-	SHA256      string  `json:"sha256,omitempty"`
-	Marker      string  `json:"marker,omitempty"`
-	Error       string  `json:"error,omitempty"`
-	FirstByteMS float64 `json:"firstByteMS"`
-	ElapsedMS   float64 `json:"elapsedMS"`
+	ConnectionMS float64 `json:"connectionMS"`
+	Reused       bool    `json:"reused"`
+	Index        int     `json:"index"`
+	OK           bool    `json:"ok"`
+	Status       int     `json:"status"`
+	Bytes        int64   `json:"bytes"`
+	SHA256       string  `json:"sha256,omitempty"`
+	Marker       string  `json:"marker,omitempty"`
+	Error        string  `json:"error,omitempty"`
+	FirstByteMS  float64 `json:"firstByteMS"`
+	ElapsedMS    float64 `json:"elapsedMS"`
 }
 
 func main() {
@@ -122,6 +126,14 @@ func main() {
 		if cmd.Bindings && backend != nil {
 			json.NewEncoder(os.Stdout).Encode(backend.bindingChecks())
 			continue
+		}
+		if cmd.SwapNames && backend != nil {
+			pool.CloseIdleConnections()
+			json.NewEncoder(os.Stdout).Encode(map[string]any{"swapped": backend.swapNames()})
+			continue
+		}
+		if cmd.CloseIdle {
+			pool.CloseIdleConnections()
 		}
 		if cmd.ShutdownOnly && backend != nil {
 			backend.ShutdownOnly()
@@ -237,7 +249,13 @@ func main() {
 					results[i] = o
 					return
 				}
-				ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{GotFirstResponseByte: func() { o.FirstByteMS = (clockSeconds() - start) * 1000 }})
+				ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+					GotConn: func(info httptrace.GotConnInfo) {
+						o.ConnectionMS = (clockSeconds() - start) * 1000
+						o.Reused = info.Reused
+					},
+					GotFirstResponseByte: func() { o.FirstByteMS = (clockSeconds() - start) * 1000 },
+				})
 				r, _ := http.NewRequestWithContext(ctx, "GET", cmd.URL, nil)
 				if cmd.Range != "" {
 					r.Header.Set("Range", cmd.Range)
@@ -264,6 +282,8 @@ func main() {
 						o.Error = "retired"
 					case errors.As(err, &ne) && ne.Timeout():
 						o.Error = "timeout"
+					case errors.Is(err, syscall.ECONNREFUSED):
+						o.Error = "connection-refused"
 					default:
 						o.Error = "transport-failed"
 					}

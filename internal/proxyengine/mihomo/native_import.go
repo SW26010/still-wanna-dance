@@ -93,6 +93,11 @@ func nativeParameters(input map[string]any) (map[string]any, error) {
 	} else {
 		p["server"] = strings.ToLower(strings.TrimSuffix(host, "."))
 	}
+	// The native parser owns required/alternative fields, such as port-range.
+	// Normalize and validate a port only when explicitly provided.
+	if _, present := p["port"]; !present {
+		return p, nil
+	}
 	if port, ok := p["port"].(string); ok {
 		n, err := strconv.Atoi(port)
 		if err != nil {

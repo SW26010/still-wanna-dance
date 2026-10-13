@@ -61,3 +61,13 @@ Console 持有一个 Runtime，仍以现有 `Proxy{ID,Dial}` / `NewMultiPool` �
 本地包保留在 `artifacts/issue14-b2/release-check/`：Portable ZIP 19,362,806 字节，对应源码 194,582,359 字节。EXE SHA256 为 `7af46bcbe3ed80079cd5ac5e1ea0499bb354498ad916e182c5dfece5a29da5de`，包哈希与源码哈希见证据。`v0.0.0-issue14-b2-validation` 只存在于忽略目录内的本地验证副本；未给主仓库创建标签、未发布 GitHub Release、未 push。包内生成的发布 URL 是待发布占位链接，并非可下载的远端资产。
 
 开发实现完成；实机 **LA-034/035/036、LA-018/012** 保持待验收。下一轮仍需真实节点、游戏播放/下载、桌面重启/退出、跨用户或机器快照，以及约定时长的持续运行证据。60 秒回环和 Portable smoke 不替代这些场景。
+
+## 审查收尾
+
+2026-10-13 在 `786b4a1` 基础上修复两项审查发现。`ErrUnavailable` 现归类为 `channel_unavailable`，直连 DNS 候选过期/移除不再显示“代理运行时已退出”；只有 `ErrRetired` 使用该退出诊断。独立诊断继续保留已有质量、吞吐与资源来源，不更新原样本时间或延长有效期。行内诊断及自动测速状态同步显示“通道已失效”。
+
+原生导入仅在提供 `port` 时执行通用规范化和范围校验，必填字段、替代字段和互斥关系交由 Mihomo 原生解析器判断。Mieru 仅含合法 `port-range` 的节点可接受，不补造单端口；单端口字符串仍规范化，同时提供两者、缺少两者和反向范围仍拒绝，没有新增逐协议字段规则。
+
+本轮自动检查使用 Go **1.25.0 / Windows amd64 / CGO=0**：`go test -count=1 -tags=no_easytier ./internal/proxyengine/mihomo ./internal/upstreamstate ./internal/upstreamrequest` 三包通过，相同三包的 `go vet -tags=no_easytier` 通过，覆盖原生导入、错误分类、历史观测保留与候选过期/关闭；`node --test scripts/refresh.test.mjs` **128/128** 通过，包含直连通道失效与真实运行时退出的不同文案，以及已有延迟/吞吐仍可见。Mieru 此处只验证本地导入语义，不声称真实服务端连通。
+
+台账 **LA-034/035** 已补充范围端口导入、保存/重启和通道诊断步骤，联合 LA-036 核对界面；状态继续待验收。上述旧发行链及 `5af35b4` 包不包含本次产品修复，本轮未重新构建发行包、启动游戏或修改 hosts；原有 race 未覆盖范围继续保留。

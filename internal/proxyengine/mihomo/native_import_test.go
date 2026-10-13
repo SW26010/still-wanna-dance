@@ -62,6 +62,44 @@ func TestNativeMixedItemsAndIdentity(t *testing.T) {
 	}
 }
 
+func TestNativeMieruPortAlternatives(t *testing.T) {
+	r, err := Import([]byte("proxies: [{type: mieru, server: 127.0.0.1, port-range: 12000-12002, transport: TCP, username: fixture, password: fixture}]"))
+	if err != nil || r.Accepted != 1 || r.Nodes[0]["port-range"] != "12000-12002" {
+		t.Fatalf("native port-range import: %+v %v", r.Items, err)
+	}
+	if _, present := r.Nodes[0]["port"]; present {
+		t.Fatal("port-range gained a synthetic port")
+	}
+	base := maps.Clone(r.Nodes[0])
+	delete(base, "port-range")
+	for _, tc := range []struct {
+		name   string
+		fields map[string]any
+		valid  bool
+	}{
+		{"single-port", map[string]any{"port": "1234"}, true},
+		{"both", map[string]any{"port": 1234, "port-range": "12000-12002"}, false},
+		{"neither", nil, false},
+		{"reversed-range", map[string]any{"port-range": "12002-12000"}, false},
+		{"invalid-port", map[string]any{"port": 65536}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := maps.Clone(base)
+			maps.Copy(p, tc.fields)
+			normalized, err := Normalize(p)
+			if !tc.valid {
+				if err != ErrConfig {
+					t.Fatalf("invalid port selection accepted: %v", err)
+				}
+				return
+			}
+			if err != nil || normalized["port"] != float64(1234) {
+				t.Fatalf("single port normalization: %v %v", normalized, err)
+			}
+		})
+	}
+}
+
 func TestNativeCapabilityGate(t *testing.T) {
 	base := map[string]any{"type": "ss", "server": "localhost", "port": 1234, "cipher": "aes-128-gcm", "password": "private"}
 	for _, key := range []string{"dialer-proxy", "DIALER_PROXY", "interface_name", "private-key", "CA", "foo-file", "state-path", "realm-opts", "smux", "-"} {

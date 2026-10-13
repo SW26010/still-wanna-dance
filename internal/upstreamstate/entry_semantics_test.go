@@ -21,7 +21,7 @@ func TestEntryFailureFeedbackBoundaries(t *testing.T) {
 		{"peer-eof", "network_error", io.EOF},
 		{"local-capacity", "local_capacity", upstreamrequest.ErrCapacity},
 		{"retired", "runtime_retired", upstreamrequest.ErrRetired},
-		{"channel-unavailable", "runtime_retired", upstreamrequest.ErrUnavailable},
+		{"channel-unavailable", "channel_unavailable", upstreamrequest.ErrUnavailable},
 		{"request-cancel", "canceled", context.Canceled},
 		{"request-deadline", "timeout", context.DeadlineExceeded},
 	} {

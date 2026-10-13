@@ -22,7 +22,7 @@ func TestLocalFailuresPreserveRecommendationSamplesAndSources(t *testing.T) {
 	if !ok {
 		t.Fatal("missing baseline recommendation")
 	}
-	for _, state := range []string{"local_capacity", "runtime_retired", "canceled"} {
+	for _, state := range []string{"local_capacity", "runtime_retired", "channel_unavailable", "canceled"} {
 		m.mu.Lock()
 		o := observation{op: Resource, route: "play.udon.dance", channel: before.Channel.ID, state: state, at: time.Now(), songID: 42}
 		m.record(o)
@@ -56,9 +56,11 @@ func TestLocalPlaybackFailureKeepsResourceDiscovery(t *testing.T) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.record(prior)
-	m.record(observation{op: PlaybackURL, route: "cf", state: "local_capacity", at: time.Now()})
-	if got := m.resourceSources["playback_url/cf"]; got.resourceHost != prior.resourceHost || got.at != prior.at {
-		t.Fatal("local failure erased discovery")
+	for _, state := range []string{"local_capacity", "channel_unavailable"} {
+		m.record(observation{op: PlaybackURL, route: "cf", state: state, at: time.Now()})
+		if got := m.resourceSources["playback_url/cf"]; got.resourceHost != prior.resourceHost || got.at != prior.at {
+			t.Fatal("local failure erased discovery", state)
+		}
 	}
 	if r := m.resultLocked(PlaybackURL, "cf", time.Now().Add(m.policy.Lifetime+time.Second)); r.State != "stale" {
 		t.Fatal("local diagnostic renewed sample")

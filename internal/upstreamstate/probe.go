@@ -105,8 +105,11 @@ func errorState(err error) string {
 	if errors.Is(err, upstreamrequest.ErrCapacity) {
 		return "local_capacity"
 	}
-	if errors.Is(err, upstreamrequest.ErrRetired) || errors.Is(err, upstreamrequest.ErrUnavailable) {
+	if errors.Is(err, upstreamrequest.ErrRetired) {
 		return "runtime_retired"
+	}
+	if errors.Is(err, upstreamrequest.ErrUnavailable) {
+		return "channel_unavailable"
 	}
 	if errors.Is(err, context.Canceled) {
 		return "canceled"
@@ -119,7 +122,7 @@ func errorState(err error) string {
 }
 
 func localObservation(state string) bool {
-	return state == "canceled" || state == "local_capacity" || state == "runtime_retired"
+	return state == "canceled" || state == "local_capacity" || state == "runtime_retired" || state == "channel_unavailable"
 }
 func httpState(code int) string {
 	if code == 524 {

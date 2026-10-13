@@ -1,0 +1,73 @@
+{
+  "revision": "acbb673c1bc7f7cd0bbfce77ef5383f208223e5c",
+  "tag": "v0.0.0-issue14-validation.3",
+  "toolchain": "go1.25.0",
+  "target": "windows/amd64",
+  "modules": 96,
+  "sourceGraphModules": 194,
+  "completeModuleZIPs": 96,
+  "sourceFiles": 1161,
+  "assets": [
+    {
+      "kind": "portable",
+      "name": "still-wanna-dance-v0.0.0-issue14-validation.3-windows-amd64-portable.zip",
+      "sha256": "f4b35fc4346ced7f9d751c377b255aeb2837e47d2c3d6a43959ab44b2a5e8e53",
+      "bytes": 16175115
+    },
+    {
+      "kind": "source",
+      "name": "still-wanna-dance-v0.0.0-issue14-validation.3-corresponding-source.tar.gz",
+      "sha256": "f800a2f0878835d502ee40595de37069efc08969beb3b55730b50ccf31a65ce0",
+      "bytes": 185953895
+    }
+  ],
+  "executable": {
+    "bytes": 42105856,
+    "sha256": "24b2c2aa0e5dff7cce4830cfa1816df6db4c71f0b678391e8beed2496888975e",
+    "settings": {
+      "-buildmode": "exe",
+      "-compiler": "gc",
+      "-tags": "no_easytier",
+      "-trimpath": "true",
+      "CGO_ENABLED": "0",
+      "GOARCH": "amd64",
+      "GOOS": "windows",
+      "GOAMD64": "v1",
+      "vcs": "git",
+      "vcs.revision": "acbb673c1bc7f7cd0bbfce77ef5383f208223e5c",
+      "vcs.modified": "false"
+    }
+  },
+  "independentRebuild": {
+    "verified": true,
+    "executableSHA256": "e3574f41a4ec4e32bbcba50ab81de5db76e44a64e0e4f17e458e549e70ef8ccb",
+    "bitReproducible": false
+  },
+  "linkedModuleIdentities": [
+    {
+      "path": "github.com/metacubex/mihomo",
+      "version": "v1.19.32",
+      "sum": "h1:uD7ZC3P77isWD554NNvtee65L+99+/C5hyc+Lk8rVEk="
+    },
+    {
+      "path": "github.com/rasky/go-lzo",
+      "version": "v0.0.0-20200203143853-96a758eda86e",
+      "sum": "h1:dCWirM5F3wMY+cmRda/B1BiPsFtmzXqV9b0hLWtVBMs="
+    },
+    {
+      "path": "go.yaml.in/yaml/v3",
+      "version": "v3.0.5",
+      "sum": "h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw="
+    }
+  ],
+  "checks": {
+    "deliveredAssetHashes": true,
+    "sourceFileHashes": true,
+    "exeSourceAndNoticesIdentity": true,
+    "easyTierModuleAbsent": true,
+    "knownEasyTierWasmAbsent": true,
+    "noSourceGitOrArtifacts": true,
+    "moduleZIPsContainNoWasmEntries": true
+  },
+  "scope": "Local development validation only. No published release, game, tray, hosts, or cross-user acceptance."
+}

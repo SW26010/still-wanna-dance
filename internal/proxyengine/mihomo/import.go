@@ -40,6 +40,10 @@ type ImportResult struct {
 // The returned canonical maps contain secrets and must stay inside protected
 // storage; only the result counters and fixed diagnostics are public.
 func Import(data []byte) (ImportResult, error) {
+	return importNodes(data, convertURI, Normalize)
+}
+
+func importNodes(data []byte, convertLine func(string) (map[string]any, error), normalize func(map[string]any) (map[string]any, error)) (ImportResult, error) {
 	var result ImportResult
 	if len(data) == 0 || len(data) > MaxImportBytes {
 		return result, errors.New("节点内容为空或超过 2 MiB")
@@ -76,7 +80,7 @@ func Import(data []byte) (ImportResult, error) {
 			if line == "" {
 				continue
 			}
-			p, _ := convertURI(line)
+			p, _ := convertLine(line)
 			inputs = append(inputs, p)
 			if len(inputs) > MaxImportNodes {
 				break
@@ -89,7 +93,7 @@ func Import(data []byte) (ImportResult, error) {
 	seen := make(map[string]bool)
 	for i, input := range inputs {
 		item := ImportItem{Index: i + 1, Status: "failed"}
-		p, err := Normalize(input)
+		p, err := normalize(input)
 		if err != nil {
 			item.Reason = "不支持的协议、传输或选项，或节点参数无效"
 			result.Failed++

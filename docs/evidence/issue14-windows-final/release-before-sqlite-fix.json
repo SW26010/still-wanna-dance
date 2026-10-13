@@ -1,0 +1,112 @@
+{
+  "revision": "8e3eef97c06ba5347d6e38f5621242ab029af16e",
+  "tag": "v0.0.0-issue14-windows-final",
+  "toolchain": "go1.25.0",
+  "target": "windows/amd64",
+  "modules": 109,
+  "sourceGraphModules": 195,
+  "completeModuleZIPs": 109,
+  "sourceFiles": 1190,
+  "supplementalInputs": [
+    {
+      "kind": "https",
+      "url": "https://git.zx2c4.com/wintun/snapshot/wintun-0.14.1.tar.xz",
+      "file": "wintun-0.14.1.tar.xz",
+      "sha256": "636f00ec329113f37039a96964737f6b6ae3982b34620955ff7a746e5e504d28"
+    },
+    {
+      "kind": "https",
+      "url": "https://www.wintun.net/builds/wintun-0.14.1.zip",
+      "file": "wintun-0.14.1-signed.zip",
+      "sha256": "07c256185d6ee3652e09fa55c0b673e2624b565e02c4b9091c79ca7d2f24ef51"
+    },
+    {
+      "kind": "git",
+      "url": "https://gitlab.com/cznic/sqlite.git",
+      "ref": "v1.39.1",
+      "revision": "17e06226647c18b11f8bce329dea8d9c24901f3f",
+      "prefix": "modernc-sqlite/",
+      "paths": [
+        "LICENSE",
+        "vendor_libsqlite3"
+      ],
+      "file": "modernc-sqlite-generator.tar",
+      "sha256": "bead0df19c42d02a3adafa675dc6f0e7f1cb8d7c28daa7a1e7919b63618661dd"
+    },
+    {
+      "kind": "https",
+      "url": "https://www.sqlite.org/2025/sqlite-src-3500400.zip",
+      "file": "sqlite-src-3500400.zip",
+      "sha256": "b7b4dc060f36053902fb65b344bbbed592e64b2291a26ac06fe77eec097850e9"
+    }
+  ],
+  "assets": [
+    {
+      "kind": "portable",
+      "name": "still-wanna-dance-v0.0.0-issue14-windows-final-windows-amd64-portable.zip",
+      "sha256": "3007c2d6ae2a7dd61cc6c7d35851177389ed203d741fff53b85c326fa37ad3cf",
+      "bytes": 19362010
+    },
+    {
+      "kind": "source",
+      "name": "still-wanna-dance-v0.0.0-issue14-windows-final-corresponding-source.tar.gz",
+      "sha256": "124b9946d721d6af17c61679a59a826c2db759dd1e84786c2a15b14967f090ea",
+      "bytes": 194586340
+    }
+  ],
+  "executable": {
+    "bytes": 50674176,
+    "sha256": "f882d51171bbca95b89880de99a823847020f503f91887fe8f645fcce90c90b2",
+    "settings": {
+      "-buildmode": "exe",
+      "-compiler": "gc",
+      "-tags": "no_easytier",
+      "-trimpath": "true",
+      "CGO_ENABLED": "0",
+      "GOARCH": "amd64",
+      "GOOS": "windows",
+      "GOAMD64": "v1",
+      "vcs": "git",
+      "vcs.revision": "8e3eef97c06ba5347d6e38f5621242ab029af16e",
+      "vcs.time": "2026-10-13T14:49:39Z",
+      "vcs.modified": "false"
+    }
+  },
+  "independentRebuild": {
+    "verified": true,
+    "executableSHA256": "1d7a508d0cb40dcc341c937afaee79aa31db07fa5df61e74a7dd944aba7ed63e",
+    "bitReproducible": false
+  },
+  "linkedModuleIdentities": [
+    {
+      "path": "github.com/metacubex/mihomo",
+      "version": "v1.19.32",
+      "sum": "h1:uD7ZC3P77isWD554NNvtee65L+99+/C5hyc+Lk8rVEk="
+    },
+    {
+      "path": "github.com/metacubex/sing-tun",
+      "version": "v0.4.27",
+      "sum": "h1:dWCpFDlWelQrhH3y5KkMrJXEXYeJ0V2LROP8Cxv96MI="
+    },
+    {
+      "path": "github.com/rasky/go-lzo",
+      "version": "v0.0.0-20200203143853-96a758eda86e",
+      "sum": "h1:dCWirM5F3wMY+cmRda/B1BiPsFtmzXqV9b0hLWtVBMs="
+    },
+    {
+      "path": "go.yaml.in/yaml/v3",
+      "version": "v3.0.5",
+      "sum": "h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw="
+    }
+  ],
+  "checks": {
+    "deliveredAssetHashes": true,
+    "sourceFileHashes": true,
+    "exeSourceAndNoticesIdentity": true,
+    "easyTierModuleAbsent": true,
+    "knownEasyTierWasmAbsent": true,
+    "noSourceGitOrArtifacts": true,
+    "moduleZIPsContainNoWasmEntries": true
+  },
+  "scope": "Local development validation only. No published release, game, tray, hosts, or cross-user acceptance."
+}

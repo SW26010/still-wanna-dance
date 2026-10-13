@@ -79,3 +79,11 @@ Console 持有一个 Runtime，仍以现有 `Proxy{ID,Dial}` / `NewMultiPool` �
 首轮全仓 race 没有 DATA RACE 报告，但 `TestLiveTailCoalescesSnapshotsBeforeDownload` 因关闭后 SQLite 文件仍被占用失败，随后 10 次原样复测中 2 次失败。独立受控查询确认取消后 `DB.Close` 返回成功仍可残留文件句柄，与[SQLite 上游 !81](https://gitlab.com/cznic/sqlite/-/merge_requests/81)一致。采用已发布的 `modernc.org/sqlite v1.40.1` 修复，保留 SQLite 3.50.4 引擎及其他依赖版本，同步许可证和对应源码输入，不在 SWD 中复制驱动修补。新增 Windows 文件释放回归在旧驱动失败、新驱动连续 10 次通过；原 Console 失败测试在修复版本也连续 10 次通过。带关闭日志的诊断副本未复现，不能以该诊断运行代替最终版本回归。
 
 `8e3eef9` 的 B2 五协议 60 秒 race 负载通过；这个结果和该版本的发行包均保留为修复前证据。修复后的全仓 `go test -count=1 -tags=no_easytier -race -json ./...` 通过（14 个包、1,188 个测试/子测试通过、15 个跳过，无失败或 DATA RACE）。发行声明及源码策略的 9 个脚本测试通过。最终发行产物和精确版本在后续归档中记录。产品行为涉及取消和退出，已补充 LA-018/012；其余实机项继续积攒，没有游戏、hosts 或跨用户验收结论。
+
+最终修复提交为 **`2ec1b062502659185a1d71e19cba5de0ab0e03c8`**。全仓 race 在提交前的候选树运行；与该提交的 664 个受版本控制文件逐一比较，仅本报告增加完成结果，产品、测试及依赖输入全部一致。15 项跳过包括 6 项交互/公网 opt-in、7 项缺少 Windows symlink 权限、1 项未配置第二卷、1 项另行运行的 soak；不计入通过。随后在该提交的干净副本单独运行五协议 60 秒 race 负载，10 个 worker 完成 **26,675** 次正常请求，每十次插入一次 20 ms 取消，关闭后全部准入槽与拨号 worker 归零。运行时测试及隔离子进程均带 race 检测器，夹具服务器为普通构建。未执行 Linux race，不将 Windows 已覆盖路径的通过解释为所有路径无竞争。
+
+该提交使用 Go **1.25.0 / Windows amd64 / CGO=0** 的完整发行链通过：脚本测试、cmd/internal Go 测试与 vet、正式桌面 EXE、109 份实际链接模块完整 ZIP、195 个模块图条目、SQLite/Wintun 对应源码及声明均核对；独立重建使用空缓存和仅 file GOPROXY，Portable ZIP 的条款门禁、实例身份和搬迁 smoke 通过。实际产物二次检查通过，确认链接 SQLite v1.40.1，源码不含 Git/artifacts，EXE 与模块 ZIP 无所检查的 EasyTier/WASM 内容；不承诺重建 EXE 逐字节相同。
+
+最终本地产物位于 `artifacts/issue14-windows-final/release-fixed/`：Portable ZIP **19,379,909** 字节，SHA256 `1baa82c16c7633eb7a06ac00f5c43fb25308389204a13767541ed44de33c4583`；对应源码 **194,596,267** 字节，SHA256 `abb719797566021fd0deafbeb1ccfb57af929ee91d8e6ba6ae8ab711a8c83fee`。EXE SHA256 为 `d94c308313477f977652896b53da7b92ec46b910773d9949be50a354456e22c3`。标签 `v0.0.0-issue14-windows-fixed` 仅在忽略目录的验证副本中；没有主仓库标签、push、公开 Release 或 `verify-published`，包内发布 URL 仍为占位链接。
+
+完整的[开发检查与失败历史](evidence/issue14-windows-final/development-checks.json)、[最终发行证据](evidence/issue14-windows-final/release-validation.json)、[修复前发行证据](evidence/issue14-windows-final/release-before-sqlite-fix.json)及[Git blob 校验清单](evidence/issue14-windows-final/manifest.json)共同归档，原始日志保留于忽略目录。本次证据归档不改变产品行为，不新增实机编号；**LA-034/035/036、LA-018/012** 保持待验收。开发侧发行与 Windows race 收尾完成，真实节点、游戏、托盘、跨用户及长期运行仍按台账集中验收。

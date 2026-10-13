@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "sourceRevision": "2ec1b062502659185a1d71e19cba5de0ab0e03c8",
+  "hashBasis": "git-blob",
+  "scope": "Automated development checks; not a LIVE acceptance batch.",
+  "files": [
+    {
+      "path": "development-checks.json",
+      "bytes": 14743,
+      "sha256": "905d6696ebbcbeaa5481e254b6d9b49ba408c3d68cdcc3dd803b2e99ddf78566"
+    },
+    {
+      "path": "release-before-sqlite-fix.json",
+      "bytes": 3601,
+      "sha256": "99ac21895cb06ad7692e3b2671f714e6551f19fba60c2be558a7276afdb58200"
+    },
+    {
+      "path": "release-validation.json",
+      "bytes": 3741,
+      "sha256": "f58aa3bce6ff548de9937c124ecb1dcd33c32412a7267bb81a0edf8ef1bc938a"
+    }
+  ],
+  "source": "Derived from retained local release, Go JSON test and compiler-control outputs.",
+  "sanitization": "Derived aggregate results only. No usernames, local absolute paths, real subscription URLs, proxy credentials or exact capture times. Raw logs and local packages remain under ignored artifacts/issue14-windows-final/."
+}

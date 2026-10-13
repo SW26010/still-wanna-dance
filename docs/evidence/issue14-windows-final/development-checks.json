@@ -1,0 +1,394 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-14",
+  "scope": "Local Windows automated development validation only. No game, hosts, interactive tray, cross-user, public proxy or publication acceptance.",
+  "sourceRevision": "2ec1b062502659185a1d71e19cba5de0ab0e03c8",
+  "previousRevision": "8e3eef97c06ba5347d6e38f5621242ab029af16e",
+  "environment": {
+    "os": "Windows amd64",
+    "build": "26300.9457",
+    "go": "go1.25.0",
+    "cgoForRace": 1,
+    "cgoForRelease": 0,
+    "compiler": "w64devkit 2.10.0 / GCC 16.2.0 / MinGW-w64 14.0.0",
+    "compilerAsset": "https://github.com/skeeto/w64devkit/releases/download/v2.10.0/w64devkit-x64-2.10.0.7z.exe",
+    "compilerArchiveBytes": 67127496,
+    "compilerArchiveSHA256": "18d0a4c71a166f8401ab6305781bec5882b40b5e06ba9807c61cb5f3b3c6325e",
+    "compilerDigestMatchedPublisher": true,
+    "compilerScope": "Portable extraction under ignored artifacts; absolute CC, process-local environment; no global install or OS security changes.",
+    "env": {
+      "GOTOOLCHAIN": "local",
+      "GOENV": "off",
+      "GOWORK": "off",
+      "GOFLAGS": "",
+      "CGO_ENABLED": "1",
+      "CC": "LOCAL_W64DEVKIT/bin/gcc.exe"
+    }
+  },
+  "detectorControl": {
+    "safeExitCode": 0,
+    "dataRaceDetected": true,
+    "unsafeExitCode": 66,
+    "status": "passed",
+    "safeProgram": "Two mutex-protected workers incrementing a counter.",
+    "unsafeProgram": "Same workers with mutex deliberately disabled; expected detector exit is a control, not a product failure."
+  },
+  "checks": {
+    "fullRace": {
+      "command": "go test -count=1 -tags=no_easytier -race -json ./...",
+      "status": "passed",
+      "packagePass": 14,
+      "passedTestsAndSubtests": 1188,
+      "failedTests": [],
+      "skippedTests": [
+        {
+          "package": "still-wanna-dance/internal/desktop",
+          "test": "TestLiveTrayLifecycle"
+        },
+        {
+          "package": "still-wanna-dance/internal/cacheproxy",
+          "test": "TestImportCrossVolumeCopy"
+        },
+        {
+          "package": "still-wanna-dance/internal/desktop",
+          "test": "TestCanonicalPathThroughDirectoryAlias"
+        },
+        {
+          "package": "still-wanna-dance/internal/console",
+          "test": "TestLiveCatalogCompleteBody"
+        },
+        {
+          "package": "still-wanna-dance/internal/console",
+          "test": "TestLiveIndependentDNS"
+        },
+        {
+          "package": "still-wanna-dance/internal/console",
+          "test": "TestLiveDoHProviders"
+        },
+        {
+          "package": "still-wanna-dance/internal/console",
+          "test": "TestHTTPSLiveBrowser"
+        },
+        {
+          "package": "still-wanna-dance/internal/cacheproxy",
+          "test": "TestCacheDirectoryRejectsSymlinkComponents/videos"
+        },
+        {
+          "package": "still-wanna-dance/internal/cacheproxy",
+          "test": "TestCacheDirectoryRejectsSymlinkComponents/root"
+        },
+        {
+          "package": "still-wanna-dance/internal/cacheproxy",
+          "test": "TestCacheDirectoryRejectsSymlinkComponents/ancestor"
+        },
+        {
+          "package": "still-wanna-dance/internal/cacheproxy",
+          "test": "TestCacheManagementRejectsSymlinks"
+        },
+        {
+          "package": "still-wanna-dance/internal/cacheproxy",
+          "test": "TestCacheManagementRejectsDirectoryLinks"
+        },
+        {
+          "package": "still-wanna-dance/internal/proxyengine/mihomo",
+          "test": "TestRuntimeSoak"
+        },
+        {
+          "package": "still-wanna-dance/internal/cacheproxy",
+          "test": "TestTemporaryCleanupPreservesLinks"
+        },
+        {
+          "package": "still-wanna-dance/internal/console",
+          "test": "TestLiveHTTPSUpstreams"
+        }
+      ],
+      "packagesWithoutTests": [
+        "still-wanna-dance/cmd/still-wanna-dance-replay",
+        "still-wanna-dance/data/initial-priority",
+        "still-wanna-dance/internal/proxyengine/mihomo/testfixture"
+      ],
+      "dataRaceReports": 0,
+      "sourceBinding": {
+        "baseRevision": "8e3eef97c06ba5347d6e38f5621242ab029af16e",
+        "finalRevision": "2ec1b062502659185a1d71e19cba5de0ab0e03c8",
+        "comparedTrackedFiles": 664,
+        "matchingFiles": 663,
+        "normalizedFileListSHA256": "6a0139e9268bf2869bfbe9c20a67fe7be0c1b8abc04cd14b46745a1a9c19dc6d",
+        "differentFiles": [
+          "docs/issue-14-b2-integration.md"
+        ],
+        "explanation": "Full suite ran on the SQLite fix candidate before committing. Compared every tracked file against the clean final revision, normalizing text CRLF to LF. Only the integration report gained the completed result; code, tests, modules, notices and all other inputs match."
+      },
+      "skipReasons": {
+        "interactiveOrPublicNetworkOptIn": 6,
+        "missingSymlinkPrivilege": 7,
+        "secondVolumeNotConfigured": 1,
+        "soakOptInRunSeparatelyBelow": 1
+      }
+    },
+    "canceledStorageRegression": {
+      "command": "go test -count=10 -tags=no_easytier -race ./internal/cacheproxy -run ^TestCanceledStorageQueryReleasesFile$",
+      "fixedDependency": "modernc.org/sqlite v1.40.1",
+      "status": "passed",
+      "repetitions": 10,
+      "failed": 0,
+      "checks": [
+        "Controlled query cancellation returns context.Canceled",
+        "DB.Close succeeds",
+        "Windows can remove the database file after close"
+      ]
+    },
+    "originalConsoleRegression": {
+      "command": "go test -count=10 -tags=no_easytier -race -json ./internal/console -run ^TestLiveTailCoalescesSnapshotsBeforeDownload$",
+      "fixedDependency": "modernc.org/sqlite v1.40.1",
+      "status": "passed",
+      "packagePass": 1,
+      "passedTestsAndSubtests": 10,
+      "failedTests": [],
+      "skippedTests": [],
+      "packagesWithoutTests": [],
+      "dataRaceReports": 0
+    },
+    "runtimeSoak": {
+      "sourceRevision": "2ec1b062502659185a1d71e19cba5de0ab0e03c8",
+      "cleanCheckout": true,
+      "command": "SWD_B2_SOAK=1 go test -count=1 -tags=no_easytier -race -json ./internal/proxyengine/mihomo -run ^TestRuntimeSoak$",
+      "protocols": [
+        "SS",
+        "VLESS/TLS",
+        "AnyTLS",
+        "Hysteria2",
+        "VMess/WS"
+      ],
+      "status": "passed",
+      "seconds": 60,
+      "workers": 10,
+      "delayPerIterationMS": 20,
+      "normalRequests": 26675,
+      "workerRequests": [
+        2675,
+        2668,
+        2665,
+        2665,
+        2674,
+        2674,
+        2675,
+        2655,
+        2655,
+        2669
+      ],
+      "cancelEveryRequests": 10,
+      "cancelDeadlineMS": 20,
+      "allAdmissionSlotsAndDialWorkersDrained": true,
+      "dataRaceReports": 0,
+      "instrumentation": "Production runtime test and its isolated child use the race-instrumented test binary. Synthetic local fixture servers are separate ordinary builds."
+    },
+    "release": {
+      "sourceRevision": "2ec1b062502659185a1d71e19cba5de0ab0e03c8",
+      "command": "node scripts/release.mjs create --root LOCAL_CLEAN_CLONE --tag v0.0.0-issue14-windows-fixed --output LOCAL_ARTIFACTS",
+      "status": "passed",
+      "goTests": "go test -tags=no_easytier ./cmd/... ./internal/...",
+      "vet": "go vet -tags=no_easytier ./cmd/... ./internal/...",
+      "nodeTests": "node --test scripts/*.test.mjs",
+      "deliveredAssetInspection": true,
+      "actualEXEIdentityAndNotices": true,
+      "completeCorrespondingSource": true,
+      "freshCachesFileOnlyProxyRebuild": true,
+      "portableConsentIdentityAndMoveSmoke": true,
+      "published": false,
+      "details": "release-validation.json"
+    }
+  },
+  "failureAndEarlierRunHistory": [
+    {
+      "stage": "Previous turn",
+      "status": "toolchain-blocked",
+      "description": "Zig-built race binaries on Go 1.25/1.27 could link but ThreadSanitizer failed to allocate memory (Windows error 87). Preserved in ../issue14-b2/development-checks.json; does not describe the working GCC run."
+    },
+    {
+      "stage": "Initial full race",
+      "sourceRevision": "8e3eef97c06ba5347d6e38f5621242ab029af16e",
+      "dependency": "modernc.org/sqlite v1.39.1",
+      "status": "failed",
+      "packagePass": 13,
+      "passedTestsAndSubtests": 1186,
+      "failedTests": [
+        {
+          "package": "still-wanna-dance/internal/console",
+          "test": "TestLiveTailCoalescesSnapshotsBeforeDownload"
+        }
+      ],
+      "skippedTests": [
+        {
+          "package": "still-wanna-dance/internal/desktop",
+          "test": "TestLiveTrayLifecycle"
+        },
+        {
+          "package": "still-wanna-dance/internal/cacheproxy",
+          "test": "TestImportCrossVolumeCopy"
+        },
+        {
+          "package": "still-wanna-dance/internal/desktop",
+          "test": "TestCanonicalPathThroughDirectoryAlias"
+        },
+        {
+          "package": "still-wanna-dance/internal/console",
+          "test": "TestLiveCatalogCompleteBody"
+        },
+        {
+          "package": "still-wanna-dance/internal/console",
+          "test": "TestLiveIndependentDNS"
+        },
+        {
+          "package": "still-wanna-dance/internal/console",
+          "test": "TestLiveDoHProviders"
+        },
+        {
+          "package": "still-wanna-dance/internal/console",
+          "test": "TestHTTPSLiveBrowser"
+        },
+        {
+          "package": "still-wanna-dance/internal/cacheproxy",
+          "test": "TestCacheDirectoryRejectsSymlinkComponents/videos"
+        },
+        {
+          "package": "still-wanna-dance/internal/cacheproxy",
+          "test": "TestCacheDirectoryRejectsSymlinkComponents/root"
+        },
+        {
+          "package": "still-wanna-dance/internal/cacheproxy",
+          "test": "TestCacheDirectoryRejectsSymlinkComponents/ancestor"
+        },
+        {
+          "package": "still-wanna-dance/internal/cacheproxy",
+          "test": "TestCacheManagementRejectsSymlinks"
+        },
+        {
+          "package": "still-wanna-dance/internal/cacheproxy",
+          "test": "TestCacheManagementRejectsDirectoryLinks"
+        },
+        {
+          "package": "still-wanna-dance/internal/proxyengine/mihomo",
+          "test": "TestRuntimeSoak"
+        },
+        {
+          "package": "still-wanna-dance/internal/cacheproxy",
+          "test": "TestTemporaryCleanupPreservesLinks"
+        },
+        {
+          "package": "still-wanna-dance/internal/console",
+          "test": "TestLiveHTTPSUpstreams"
+        }
+      ],
+      "packagesWithoutTests": [
+        "still-wanna-dance/cmd/still-wanna-dance-replay",
+        "still-wanna-dance/data/initial-priority",
+        "still-wanna-dance/internal/proxyengine/mihomo/testfixture"
+      ],
+      "dataRaceReports": 0,
+      "reason": "Console live-tail test could not remove storage.sqlite during TempDir cleanup: closed database still held a file handle. No DATA RACE report."
+    },
+    {
+      "stage": "Original live-tail repeat",
+      "sourceRevision": "8e3eef97c06ba5347d6e38f5621242ab029af16e",
+      "status": "failed",
+      "repetitions": 10,
+      "packagePass": 0,
+      "passedTestsAndSubtests": 8,
+      "failedTests": [
+        {
+          "package": "still-wanna-dance/internal/console",
+          "test": "TestLiveTailCoalescesSnapshotsBeforeDownload"
+        },
+        {
+          "package": "still-wanna-dance/internal/console",
+          "test": "TestLiveTailCoalescesSnapshotsBeforeDownload"
+        }
+      ],
+      "skippedTests": [],
+      "packagesWithoutTests": [],
+      "dataRaceReports": 0,
+      "reason": "Same file-handle failure reproduced twice."
+    },
+    {
+      "stage": "Diagnostic copy",
+      "sourceRevision": "8e3eef97c06ba5347d6e38f5621242ab029af16e",
+      "status": "diagnostic-only",
+      "repetitions": 10,
+      "packagePass": 1,
+      "passedTestsAndSubtests": 10,
+      "failedTests": [],
+      "skippedTests": [],
+      "packagesWithoutTests": [],
+      "dataRaceReports": 0,
+      "reason": "Temporary DB-close logging did not reproduce failure; diagnostic instrumentation was removed and is not final validation."
+    },
+    {
+      "stage": "Controlled cancellation comparison",
+      "status": "cause-confirmed",
+      "oldDependency": "modernc.org/sqlite v1.39.1",
+      "oldFileReleased": false,
+      "newDependency": "modernc.org/sqlite v1.40.1",
+      "newFileReleased": true,
+      "upstreamFix": "https://gitlab.com/cznic/sqlite/-/merge_requests/81",
+      "details": "Driver cancellation discarded returned Rows without closing its statement. New permanent Windows storage regression also failed on the old dependency and passed 10 repetitions on the fixed dependency."
+    },
+    {
+      "stage": "Initial five-protocol race soak",
+      "sourceRevision": "8e3eef97c06ba5347d6e38f5621242ab029af16e",
+      "status": "passed",
+      "seconds": 60,
+      "workers": 10,
+      "delayPerIterationMS": 20,
+      "normalRequests": 26681,
+      "workerRequests": [
+        2655,
+        2655,
+        2663,
+        2675,
+        2677,
+        2677,
+        2676,
+        2663,
+        2670,
+        2670
+      ],
+      "cancelEveryRequests": 10,
+      "cancelDeadlineMS": 20,
+      "allAdmissionSlotsAndDialWorkersDrained": true,
+      "dataRaceReports": 0,
+      "supersededForFinalProductBy": "2ec1b062502659185a1d71e19cba5de0ab0e03c8"
+    },
+    {
+      "stage": "Initial release",
+      "sourceRevision": "8e3eef97c06ba5347d6e38f5621242ab029af16e",
+      "status": "passed",
+      "details": "release-before-sqlite-fix.json",
+      "limitation": "Does not include the SQLite correction."
+    },
+    {
+      "stage": "Module download in restricted sandbox",
+      "status": "environment-blocked",
+      "reason": "Module-cache write permission denied; normal-user retry succeeded with verified Go module sums."
+    },
+    {
+      "stage": "Detector-control wrapper",
+      "status": "harness-corrected",
+      "reason": "Initial PowerShell wrapper propagated intentional unsafe exit 66 despite control success; explicit final exit 0 added and controls rerun successfully."
+    }
+  ],
+  "limitations": [
+    "Race evidence covers executed Windows paths; not a proof that every path is race-free.",
+    "Linux race execution was not performed; existing CI remains available for a later authorized push.",
+    "Public release URLs remain placeholders; verify-published was not run.",
+    "Game, real nodes, tray UI, cross-user DPAPI, cross-volume and sustained real-world acceptance remain pending."
+  ],
+  "pendingLiveAcceptance": [
+    "LA-034",
+    "LA-035",
+    "LA-036",
+    "LA-018",
+    "LA-012"
+  ],
+  "privacy": "Derived aggregate results only. No usernames, local absolute paths, real subscription URLs, proxy credentials or exact capture times. Raw logs and local packages remain under ignored artifacts/issue14-windows-final/."
+}

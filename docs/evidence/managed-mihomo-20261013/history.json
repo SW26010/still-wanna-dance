@@ -1,0 +1,1720 @@
+{
+  "runs": [
+    {
+      "localSource": "run-e991ec4400/results.json",
+      "note": "Initial 26-check run. Monitor not attempted. Sub-millisecond timing used coarse clock; excluded from final performance table.",
+      "baseRevision": "e3d3c365ea5b17710eb896103c5ac502e9fc97f1",
+      "coreSHA256": "3a4ee96943342c044e48eb4fad10abb25d158a02575b8f346364fb648f013812",
+      "probeSHA256": "d1e11a64389574809ae8a7b13807d20d9d13e056a3cf7f12f55c981c2cb31e7a",
+      "checks": [
+        {
+          "name": "version-provider-singleton-group-mapping",
+          "passed": true,
+          "counts": [
+            1,
+            1
+          ],
+          "startupMS": 1000.0
+        },
+        {
+          "name": "controller-requires-secret",
+          "passed": true
+        },
+        {
+          "name": "two-fixed-exits-concurrent",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 26.015,
+              "elapsedMS": 26.594
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 22.819,
+              "elapsedMS": 22.819
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 20.896,
+              "elapsedMS": 21.804
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 19.033,
+              "elapsedMS": 19.033
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 24.966,
+              "elapsedMS": 25.504
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 24.329,
+              "elapsedMS": 24.329
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 19.033,
+              "elapsedMS": 19.033
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 27.105,
+              "elapsedMS": 27.618
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 22.307,
+              "elapsedMS": 22.307
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 21.804,
+              "elapsedMS": 21.804
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 40.597,
+              "elapsedMS": 40.597
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 21.804,
+              "elapsedMS": 21.804
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 24.966,
+              "elapsedMS": 25.504
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 17.559,
+              "elapsedMS": 18.333
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 18.333,
+              "elapsedMS": 19.033
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 26.015,
+              "elapsedMS": 26.594
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 22.819,
+              "elapsedMS": 23.438
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 22.819,
+              "elapsedMS": 23.438
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 25.504,
+              "elapsedMS": 26.015
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 26.594,
+              "elapsedMS": 27.105
+            }
+          ]
+        },
+        {
+          "name": "additional-proxy-server-dns",
+          "passed": true,
+          "queries": [
+            "extra.invalid",
+            "proxy.invalid"
+          ]
+        },
+        {
+          "name": "request-cancellation",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "deadline-or-cancel",
+              "firstByteMS": 0,
+              "elapsedMS": 200.341
+            },
+            {
+              "index": 1,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "deadline-or-cancel",
+              "firstByteMS": 0,
+              "elapsedMS": 200.341
+            }
+          ]
+        },
+        {
+          "name": "socks-requires-credentials",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 2.036
+            }
+          ]
+        },
+        {
+          "name": "failed-node-no-direct",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 1.553
+            },
+            {
+              "index": 1,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 2685.144
+            }
+          ]
+        },
+        {
+          "name": "empty-provider-publication-refused",
+          "passed": true,
+          "counts": [
+            0
+          ]
+        },
+        {
+          "name": "empty-provider-reject-fallback",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 1.598
+            }
+          ]
+        },
+        {
+          "name": "multi-provider-publication-refused",
+          "passed": true,
+          "counts": [
+            2
+          ]
+        },
+        {
+          "name": "invalid-listener-proxy-no-direct",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 1.04
+            }
+          ],
+          "coreAPIReady": true
+        },
+        {
+          "name": "port-conflict-not-ready-for-publication",
+          "passed": true,
+          "coreAPIReady": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "deadline-or-cancel",
+              "firstByteMS": 0,
+              "elapsedMS": 200.077
+            }
+          ]
+        },
+        {
+          "name": "invalid-config-no-ready",
+          "passed": true,
+          "exitCode": 1
+        },
+        {
+          "name": "crash-retire-restart-new-generation",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 0
+            },
+            {
+              "index": 1,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 0.751
+            }
+          ]
+        },
+        {
+          "name": "owner-killed-no-orphan",
+          "passed": true
+        },
+        {
+          "name": "native-yaml-uri-base64-load",
+          "passed": true,
+          "counts": [
+            1,
+            1,
+            1
+          ],
+          "connectivity": "not-attempted"
+        },
+        {
+          "name": "private-native-single-entry-providers",
+          "passed": true,
+          "inputEntries": 30,
+          "loadedEntries": 30,
+          "counts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "connectivity": "not-attempted"
+        },
+        {
+          "name": "private-native-base64-whole-provider",
+          "passed": true,
+          "counts": [
+            30
+          ],
+          "connectivity": "not-attempted"
+        },
+        {
+          "name": "private-first-two-https-connectivity",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 577,
+              "sha256": "25ddf2c883e0d1958ea971d279a7e4f0fd446724ee3db7db19dadabd4a62e484",
+              "firstByteMS": 1070.055,
+              "elapsedMS": 1070.055
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 577,
+              "sha256": "25ddf2c883e0d1958ea971d279a7e4f0fd446724ee3db7db19dadabd4a62e484",
+              "firstByteMS": 1080.804,
+              "elapsedMS": 1080.804
+            }
+          ],
+          "scope": "public HTTPS diagnostic only, not SWD API/video"
+        },
+        {
+          "name": "benchmark-0-embedded",
+          "passed": true
+        },
+        {
+          "name": "benchmark-0-managed",
+          "passed": true
+        },
+        {
+          "name": "benchmark-1-managed",
+          "passed": true
+        },
+        {
+          "name": "benchmark-1-embedded",
+          "passed": true
+        },
+        {
+          "name": "benchmark-2-embedded",
+          "passed": true
+        },
+        {
+          "name": "benchmark-2-managed",
+          "passed": true
+        },
+        {
+          "name": "system-hosts-and-proxy-unchanged",
+          "passed": true
+        }
+      ],
+      "cleanup": {
+        "trackedCoresExited": true,
+        "providerPlaintextFilesRemaining": 0,
+        "rawLogs": "ACL-restricted ignored run directory",
+        "systemHostsUnchanged": true,
+        "systemProxyUnchanged": true
+      }
+    },
+    {
+      "localSource": "run-34ad0b7b93/results.json",
+      "note": "Driver defect: Monitor ResourceTimeout=10s violates existing <=3s contract. Initialization refused; no product defect inferred.",
+      "baseRevision": "e3d3c365ea5b17710eb896103c5ac502e9fc97f1",
+      "coreSHA256": "3a4ee96943342c044e48eb4fad10abb25d158a02575b8f346364fb648f013812",
+      "probeSHA256": "02c427e926e268398865b338fab2c06f43c81a7878bbdd4891da4ae158ec3e6b",
+      "checks": [
+        {
+          "name": "version-provider-singleton-group-mapping",
+          "passed": true,
+          "counts": [
+            1,
+            1
+          ],
+          "startupMS": 592.9999999934807
+        },
+        {
+          "name": "loopback-listeners-no-udp-inbound",
+          "passed": true,
+          "tcpListeners": 3,
+          "udpOnSocksPorts": false
+        },
+        {
+          "name": "controller-requires-secret",
+          "passed": true
+        },
+        {
+          "name": "two-fixed-exits-concurrent",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 17.981899989536032,
+              "elapsedMS": 18.00419998471625
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 17.517499974928796,
+              "elapsedMS": 17.72000000346452
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 12.813900015316904,
+              "elapsedMS": 13.248800009023398
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 11.217499995836988,
+              "elapsedMS": 11.564699991140515
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 12.192800000775605,
+              "elapsedMS": 12.756800017086789
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 18.633100000442937,
+              "elapsedMS": 18.67709998623468
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 14.42500000121072,
+              "elapsedMS": 14.45459999376908
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 9.790999989490956,
+              "elapsedMS": 9.862500010058284
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 11.746700009098276,
+              "elapsedMS": 12.344499991741031
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 10.631000011926517,
+              "elapsedMS": 10.803699988173321
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 13.00710000214167,
+              "elapsedMS": 13.815699989208952
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 18.202700011897832,
+              "elapsedMS": 18.80750001873821
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 10.428600013256073,
+              "elapsedMS": 11.3771999895107
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 9.791099990252405,
+              "elapsedMS": 10.24959998903796
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 13.7449000030756,
+              "elapsedMS": 14.338600012706593
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 13.354299997445196,
+              "elapsedMS": 13.399199990089983
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 10.002900002291426,
+              "elapsedMS": 10.033600003225729
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 17.326700006378815,
+              "elapsedMS": 17.36440000240691
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 17.68309998442419,
+              "elapsedMS": 17.957899981411174
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 13.810899981763214,
+              "elapsedMS": 14.136699988739565
+            }
+          ]
+        },
+        {
+          "name": "additional-proxy-server-dns",
+          "passed": true,
+          "queries": [
+            "extra.invalid",
+            "proxy.invalid"
+          ]
+        },
+        {
+          "name": "request-cancellation",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "deadline-or-cancel",
+              "firstByteMS": 0,
+              "elapsedMS": 200.22589998552576
+            },
+            {
+              "index": 1,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "deadline-or-cancel",
+              "firstByteMS": 0,
+              "elapsedMS": 200.2308999944944
+            }
+          ]
+        },
+        {
+          "name": "socks-requires-credentials",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 0.9398000256624073
+            }
+          ]
+        },
+        {
+          "name": "failed-node-no-direct",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 1.4775999879930168
+            },
+            {
+              "index": 1,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "deadline-or-cancel",
+              "firstByteMS": 0,
+              "elapsedMS": 3000.0217000197154
+            }
+          ]
+        },
+        {
+          "name": "syntax-success-does-not-prove-provider-load",
+          "passed": true,
+          "syntaxExitCode": 0
+        },
+        {
+          "name": "empty-provider-publication-refused",
+          "passed": true,
+          "counts": [
+            0
+          ]
+        },
+        {
+          "name": "empty-provider-reject-fallback",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 1.0167000000365078
+            }
+          ]
+        },
+        {
+          "name": "multi-provider-publication-refused",
+          "passed": true,
+          "counts": [
+            2
+          ]
+        },
+        {
+          "name": "invalid-listener-proxy-no-direct",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 1.0461000201757997
+            }
+          ],
+          "coreAPIReady": true
+        },
+        {
+          "name": "port-conflict-not-ready-for-publication",
+          "passed": true,
+          "coreAPIReady": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "deadline-or-cancel",
+              "firstByteMS": 0,
+              "elapsedMS": 199.9055999913253
+            }
+          ]
+        },
+        {
+          "name": "invalid-config-no-ready",
+          "passed": true,
+          "exitCode": 1
+        },
+        {
+          "name": "crash-retire-restart-new-generation",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 0.4935000033583492
+            },
+            {
+              "index": 1,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 0.2477999951224774
+            }
+          ]
+        },
+        {
+          "name": "owner-killed-no-orphan",
+          "passed": true
+        },
+        {
+          "name": "native-yaml-uri-base64-load",
+          "passed": true,
+          "counts": [
+            1,
+            1,
+            1
+          ],
+          "connectivity": "not-attempted"
+        },
+        {
+          "name": "private-native-single-entry-providers",
+          "passed": true,
+          "inputEntries": 30,
+          "loadedEntries": 30,
+          "counts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "connectivity": "not-attempted"
+        },
+        {
+          "name": "private-native-base64-whole-provider",
+          "passed": true,
+          "counts": [
+            30
+          ],
+          "connectivity": "not-attempted"
+        },
+        {
+          "name": "private-first-two-https-connectivity",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 577,
+              "sha256": "25ddf2c883e0d1958ea971d279a7e4f0fd446724ee3db7db19dadabd4a62e484",
+              "firstByteMS": 1837.6906999910716,
+              "elapsedMS": 1838.049799989676
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 577,
+              "sha256": "25ddf2c883e0d1958ea971d279a7e4f0fd446724ee3db7db19dadabd4a62e484",
+              "firstByteMS": 1837.5930000038352,
+              "elapsedMS": 1838.0499000195414
+            }
+          ],
+          "scope": "public HTTPS diagnostic only, not SWD API/video"
+        },
+        {
+          "name": "private-swd-monitor-and-selected-business",
+          "passed": false,
+          "observation": {
+            "monitorReady": false
+          }
+        },
+        {
+          "name": "benchmark-0-embedded",
+          "passed": true
+        },
+        {
+          "name": "benchmark-0-managed",
+          "passed": true
+        },
+        {
+          "name": "benchmark-1-managed",
+          "passed": true
+        },
+        {
+          "name": "benchmark-1-embedded",
+          "passed": true
+        },
+        {
+          "name": "benchmark-2-embedded",
+          "passed": true
+        },
+        {
+          "name": "benchmark-2-managed",
+          "passed": true
+        },
+        {
+          "name": "system-hosts-and-proxy-unchanged",
+          "passed": true
+        },
+        {
+          "name": "network-interface-table-and-winhttp-proxy-unchanged",
+          "passed": true
+        }
+      ],
+      "cleanup": {
+        "trackedCoresExited": true,
+        "providerPlaintextFilesRemaining": 0,
+        "rawLogs": "ACL-restricted ignored run directory",
+        "systemHostsUnchanged": true,
+        "systemProxyUnchanged": true
+      }
+    },
+    {
+      "localSource": "run-5187bb12d9/results.json",
+      "note": "Monitor succeeded including two 4 MiB video samples; subsequent driver request omitted song ID and returned 404. Corrected before final run.",
+      "baseRevision": "e3d3c365ea5b17710eb896103c5ac502e9fc97f1",
+      "coreSHA256": "3a4ee96943342c044e48eb4fad10abb25d158a02575b8f346364fb648f013812",
+      "probeSHA256": "cb9be8490a5adabcab075d171a989327d5bd8637a8a75ea6c3b85a79e0701084",
+      "checks": [
+        {
+          "name": "version-provider-singleton-group-mapping",
+          "passed": true,
+          "counts": [
+            1,
+            1
+          ],
+          "startupMS": 625.0
+        },
+        {
+          "name": "loopback-listeners-no-udp-inbound",
+          "passed": true,
+          "tcpListeners": 3,
+          "udpOnSocksPorts": false
+        },
+        {
+          "name": "controller-requires-secret",
+          "passed": true
+        },
+        {
+          "name": "two-fixed-exits-concurrent",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 13.00839998293668,
+              "elapsedMS": 13.04260001052171
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 15.244400012306869,
+              "elapsedMS": 15.48430000548251
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 8.650200004922226,
+              "elapsedMS": 9.410800004843622
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 10.99789998261258,
+              "elapsedMS": 11.347199993906543
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 18.252700014272705,
+              "elapsedMS": 18.480400001863018
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 14.32869999553077,
+              "elapsedMS": 14.36699999612756
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 18.670899997232482,
+              "elapsedMS": 18.698699976084754
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 8.184600010281429,
+              "elapsedMS": 8.253700012573972
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 18.277499999385327,
+              "elapsedMS": 18.489799986127764
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 9.673599997768179,
+              "elapsedMS": 9.708400000818074
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 16.894400003366172,
+              "elapsedMS": 16.92419999744743
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 13.55360000161454,
+              "elapsedMS": 14.296499983174726
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 17.8963000071235,
+              "elapsedMS": 18.11410000664182
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 15.873700001975521,
+              "elapsedMS": 16.27389999339357
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 14.021499984664842,
+              "elapsedMS": 14.09020001301542
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 11.59509998979047,
+              "elapsedMS": 12.214999995194376
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 11.069500003941357,
+              "elapsedMS": 12.634799990337342
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 13.111899985233322,
+              "elapsedMS": 13.412300002528355
+            },
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+              "marker": "A",
+              "firstByteMS": 9.42439999198541,
+              "elapsedMS": 9.451399993849918
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 9,
+              "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+              "marker": "B",
+              "firstByteMS": 12.258300004759803,
+              "elapsedMS": 12.302399991312996
+            }
+          ]
+        },
+        {
+          "name": "additional-proxy-server-dns",
+          "passed": true,
+          "queries": [
+            "extra.invalid",
+            "proxy.invalid"
+          ]
+        },
+        {
+          "name": "request-cancellation",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "deadline-or-cancel",
+              "firstByteMS": 0,
+              "elapsedMS": 200.2455000183545
+            },
+            {
+              "index": 1,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "deadline-or-cancel",
+              "firstByteMS": 0,
+              "elapsedMS": 200.2617999969516
+            }
+          ]
+        },
+        {
+          "name": "socks-requires-credentials",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 0.8274000138044357
+            }
+          ]
+        },
+        {
+          "name": "failed-node-no-direct",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 1.7393000016454607
+            },
+            {
+              "index": 1,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "deadline-or-cancel",
+              "firstByteMS": 0,
+              "elapsedMS": 3000.241500005359
+            }
+          ]
+        },
+        {
+          "name": "syntax-success-does-not-prove-provider-load",
+          "passed": true,
+          "syntaxExitCode": 0
+        },
+        {
+          "name": "empty-provider-publication-refused",
+          "passed": true,
+          "counts": [
+            0
+          ]
+        },
+        {
+          "name": "empty-provider-reject-fallback",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 1.1878999939654022
+            }
+          ]
+        },
+        {
+          "name": "multi-provider-publication-refused",
+          "passed": true,
+          "counts": [
+            2
+          ]
+        },
+        {
+          "name": "invalid-listener-proxy-no-direct",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 1.1406000121496618
+            }
+          ],
+          "coreAPIReady": true
+        },
+        {
+          "name": "port-conflict-not-ready-for-publication",
+          "passed": true,
+          "coreAPIReady": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "deadline-or-cancel",
+              "firstByteMS": 0,
+              "elapsedMS": 199.8957000032533
+            }
+          ]
+        },
+        {
+          "name": "invalid-config-no-ready",
+          "passed": true,
+          "exitCode": 1
+        },
+        {
+          "name": "core-crash-interrupts-active-bodies",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 200,
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "error": "transport-failed",
+              "firstByteMS": 3.583799989428371,
+              "elapsedMS": 4.629600007319823
+            },
+            {
+              "index": 1,
+              "ok": false,
+              "status": 200,
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "error": "transport-failed",
+              "firstByteMS": 3.563000005669892,
+              "elapsedMS": 4.6415999822784215
+            }
+          ]
+        },
+        {
+          "name": "crash-retire-restart-new-generation",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 0.24480000138282776
+            },
+            {
+              "index": 1,
+              "ok": false,
+              "status": 0,
+              "bytes": 0,
+              "error": "transport-failed",
+              "firstByteMS": 0,
+              "elapsedMS": 0.28330000350251794
+            }
+          ]
+        },
+        {
+          "name": "owner-killed-no-orphan",
+          "passed": true
+        },
+        {
+          "name": "native-yaml-uri-base64-load",
+          "passed": true,
+          "counts": [
+            1,
+            1,
+            1
+          ],
+          "connectivity": "not-attempted"
+        },
+        {
+          "name": "private-native-single-entry-providers",
+          "passed": true,
+          "inputEntries": 30,
+          "loadedEntries": 30,
+          "counts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "connectivity": "not-attempted"
+        },
+        {
+          "name": "private-native-base64-whole-provider",
+          "passed": true,
+          "counts": [
+            30
+          ],
+          "connectivity": "not-attempted"
+        },
+        {
+          "name": "private-first-two-https-connectivity",
+          "passed": true,
+          "requests": [
+            {
+              "index": 0,
+              "ok": true,
+              "status": 200,
+              "bytes": 577,
+              "sha256": "25ddf2c883e0d1958ea971d279a7e4f0fd446724ee3db7db19dadabd4a62e484",
+              "firstByteMS": 365.56600002222694,
+              "elapsedMS": 365.72820000583306
+            },
+            {
+              "index": 1,
+              "ok": true,
+              "status": 200,
+              "bytes": 577,
+              "sha256": "25ddf2c883e0d1958ea971d279a7e4f0fd446724ee3db7db19dadabd4a62e484",
+              "firstByteMS": 367.2493000049144,
+              "elapsedMS": 367.28239999501966
+            }
+          ],
+          "scope": "public HTTPS diagnostic only, not SWD API/video"
+        },
+        {
+          "name": "private-swd-monitor-and-selected-business",
+          "passed": false,
+          "observation": {
+            "businessStatus": 404,
+            "businessUsesSelectedTransport": true,
+            "completed": true,
+            "monitorReady": true,
+            "results": [
+              {
+                "bytes": 0,
+                "http": 0,
+                "index": 0,
+                "latencyMS": null,
+                "operation": "catalog",
+                "speedBPS": null,
+                "state": "unknown"
+              },
+              {
+                "bytes": 0,
+                "http": 0,
+                "index": 1,
+                "latencyMS": null,
+                "operation": "catalog",
+                "speedBPS": null,
+                "state": "unknown"
+              },
+              {
+                "bytes": 0,
+                "http": 0,
+                "index": 0,
+                "latencyMS": null,
+                "operation": "catalog",
+                "speedBPS": null,
+                "state": "unknown"
+              },
+              {
+                "bytes": 0,
+                "http": 0,
+                "index": 1,
+                "latencyMS": null,
+                "operation": "catalog",
+                "speedBPS": null,
+                "state": "unknown"
+              },
+              {
+                "bytes": 0,
+                "http": 0,
+                "index": 0,
+                "latencyMS": null,
+                "operation": "catalog",
+                "speedBPS": null,
+                "state": "unknown"
+              },
+              {
+                "bytes": 0,
+                "http": 0,
+                "index": 1,
+                "latencyMS": null,
+                "operation": "catalog",
+                "speedBPS": null,
+                "state": "unknown"
+              },
+              {
+                "bytes": 0,
+                "http": 302,
+                "index": 0,
+                "latencyMS": 284.7822,
+                "operation": "playback_url",
+                "speedBPS": null,
+                "state": "available"
+              },
+              {
+                "bytes": 0,
+                "http": 302,
+                "index": 1,
+                "latencyMS": 191.9978,
+                "operation": "playback_url",
+                "speedBPS": null,
+                "state": "available"
+              },
+              {
+                "bytes": 0,
+                "http": 302,
+                "index": 0,
+                "latencyMS": 185.0894,
+                "operation": "playback_url",
+                "speedBPS": null,
+                "state": "available"
+              },
+              {
+                "bytes": 0,
+                "http": 302,
+                "index": 1,
+                "latencyMS": 291.1554,
+                "operation": "playback_url",
+                "speedBPS": null,
+                "state": "available"
+              },
+              {
+                "bytes": 4194304,
+                "http": 206,
+                "index": 0,
+                "latencyMS": 750.8716,
+                "operation": "resource",
+                "speedBPS": 8044292.955213758,
+                "state": "available"
+              },
+              {
+                "bytes": 4194304,
+                "http": 206,
+                "index": 1,
+                "latencyMS": 341.3132,
+                "operation": "resource",
+                "speedBPS": 8033510.757497112,
+                "state": "available"
+              }
+            ]
+          }
+        },
+        {
+          "name": "benchmark-0-embedded",
+          "passed": true
+        },
+        {
+          "name": "benchmark-0-managed",
+          "passed": true
+        },
+        {
+          "name": "benchmark-1-managed",
+          "passed": true
+        },
+        {
+          "name": "benchmark-1-embedded",
+          "passed": true
+        },
+        {
+          "name": "benchmark-2-embedded",
+          "passed": true
+        },
+        {
+          "name": "benchmark-2-managed",
+          "passed": true
+        },
+        {
+          "name": "system-hosts-and-proxy-unchanged",
+          "passed": true
+        },
+        {
+          "name": "network-interface-table-and-winhttp-proxy-unchanged",
+          "passed": true
+        }
+      ],
+      "cleanup": {
+        "trackedCoresExited": true,
+        "providerPlaintextFilesRemaining": 0,
+        "rawLogs": "ACL-restricted ignored run directory",
+        "systemHostsUnchanged": true,
+        "systemProxyUnchanged": true
+      }
+    }
+  ],
+  "preflightLimitations": [
+    "Sandbox blocked CIM inventory and then netsh interface query before any test child was launched. Completed network checks outside sandbox without network-setting mutations."
+  ]
+}

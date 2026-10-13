@@ -8,6 +8,7 @@
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [managed-mihomo-20261013/manifest.json](managed-mihomo-20261013/manifest.json) | 完整 Mihomo 独立进程的 31 项开发检查、30 条原生 VMess/WS 加载、前两节点真实 Monitor/播放/视频取样、固定出口与 Windows 进程边界、3 轮性能比较及失败历史；不是生产切换或实机通过，见[报告](../managed-mihomo-validation-20261013.md) |
 | [issue14-development/release-validation.json](issue14-development/release-validation.json) | #14 桌面接入后的本地正式构建、实际附件哈希、96 个依赖及完整源码、独立重建和符号证据；仅开发验证，非发布或实机验收，详见[记录](../issue-14-validation.md) |
 | [issue14-development/release-validation-final.json](issue14-development/release-validation-final.json) | #14 评审修复后 `acbb673` 的生产 EXE、完整对应源码、全新缓存离线重建及 Portable 隔离验证；最终附件与源码文件哈希复核，仅开发验证，LA-034/035/036 仍待实机，详见[记录](../issue-14-validation.md#最终产品代码的发行链复验) |
 | [issue14-development/subscription-import-check.json](issue14-development/subscription-import-check.json) | 用户提供订阅在 `08ae90f` 的导入兼容检查：30 条 VMess/WS 全部超出当前支持范围；未执行节点连接或游戏验证，不包含私人链接或节点参数 |

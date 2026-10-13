@@ -108,6 +108,17 @@ func run() error {
 			<-r.Context().Done()
 			return
 		}
+		// Deterministic development benchmark payload; never used by product code.
+		if r.URL.Path == "/resource" {
+			w.Header().Set("Content-Length", strconv.Itoa(16<<20))
+			block := make([]byte, 64<<10)
+			for i := 0; i < 256; i++ {
+				if _, err := w.Write(block); err != nil {
+					return
+				}
+			}
+			return
+		}
 		w.Header().Set("Content-Type", "text/plain")
 		io.WriteString(w, "mihomo-embedded-business-response\n")
 	}))

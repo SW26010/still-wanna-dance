@@ -1,0 +1,95 @@
+{
+  "batch": "DEV-MANAGED-MIHOMO-20261013",
+  "date": "2026-10-13",
+  "sourceRevision": "e3d3c365ea5b17710eb896103c5ac502e9fc97f1",
+  "workspaceChanges": "Uncommitted additive experiment plus testfixture resource endpoint; exact implementation blobs listed below.",
+  "hashBasis": "git-blob",
+  "core": {
+    "version": "v1.19.32",
+    "sha256": "3a4ee96943342c044e48eb4fad10abb25d158a02575b8f346364fb648f013812",
+    "build": "Go 1.25.0 windows/amd64 CGO=0; no_easytier; trimpath; Version linker value only",
+    "sourceModuleSum": "h1:uD7ZC3P77isWD554NNvtee65L+99+/C5hyc+Lk8rVEk=",
+    "moduleZipSHA256": "2a63640dcdd4ff2fb429488b120515c2e2fb2391cf6d2c2d6f21a8dc86b864e4",
+    "sourceFilesComparedWithOriginalZIP": 1009
+  },
+  "probeSHA256": "818e9542c74d1820f6ae1458a5e99db42f88700251b2ee1bbcc0fa4b4ffd888e",
+  "fixtureSHA256": "c95c8bd7b1c6d1a8315bd8e935cb1f11e819ba756c33f356ecd8d40268ecc328",
+  "files": [
+    {
+      "path": "docs/evidence/managed-mihomo-20261013/history.json",
+      "bytes": 50153,
+      "sha256": "925a08cc31a28fbfa655cf33c3266d5ff02dd6f505b993bb6f3d2d144e201f78",
+      "gitBlobSHA1": "c118c6a28b9d0eea950103b96828ab1cf1e7d7dc"
+    },
+    {
+      "path": "docs/evidence/managed-mihomo-20261013/results.json",
+      "bytes": 106596,
+      "sha256": "860df90be7f05a0cbb62d2e45a9bb3d98f56e41664b0fb127ffa9984c1d8a49c",
+      "gitBlobSHA1": "e0ddc4e31b76ef9cd095f82d194c1125c000cf95"
+    },
+    {
+      "path": "docs/evidence/managed-mihomo-20261013/summary.json",
+      "bytes": 1421,
+      "sha256": "cad6f8ff5cf7679bbca089810a9dcf1abffc07f0659ca0332d6557fa3d17c08f",
+      "gitBlobSHA1": "720b8316ddbf536d65bdb49e7fbd3d6db4ccfe73"
+    },
+    {
+      "path": "docs/evidence/managed-mihomo-20261013/verification.json",
+      "bytes": 1440,
+      "sha256": "67d542df0a3078be29a89da64e7e163e644aaa2389fea45b4a575ecec68e95a8",
+      "gitBlobSHA1": "53782f1126f9f007a7ef785887984d3451748ce9"
+    }
+  ],
+  "implementation": [
+    {
+      "path": "internal/proxyengine/mihomo/testfixture/main.go",
+      "bytes": 6166,
+      "sha256": "a0e84cdf51a65d24b4ee830a98db0545ba6493cdfbbff3639d38034b7413db60",
+      "gitBlobSHA1": "bf2f61cbde9989424210f2e092d6c34d3b2bdb70"
+    },
+    {
+      "path": "experiments/managed-mihomo/probe/clock_other.go",
+      "bytes": 143,
+      "sha256": "fea737ddb29e63d08fb257105c3a2318a0db7200a26d8f399f9d12400a414545",
+      "gitBlobSHA1": "da4d48b34d3b40d7de8980317eb81ef863846d61"
+    },
+    {
+      "path": "experiments/managed-mihomo/probe/clock_windows.go",
+      "bytes": 494,
+      "sha256": "5daf414a50864bca7cc70fec1d64dcafc99c60bac009795d193d6bdf4055e2aa",
+      "gitBlobSHA1": "a2c6369c98415705d3c4735817ff0dcceef1110e"
+    },
+    {
+      "path": "experiments/managed-mihomo/probe/main.go",
+      "bytes": 6948,
+      "sha256": "5bbf3877597b56198d691dd2af5c5c159bd8b6bd459efd94c6c06747f5dd04b4",
+      "gitBlobSHA1": "3c82183268c40a0ab2cdaace309a7e2e2d122cdd"
+    },
+    {
+      "path": "experiments/managed-mihomo/run.py",
+      "bytes": 29697,
+      "sha256": "26d15a595502f6052c1a4aaef1723a863c36703cd3dadb46ce4a878cc3ce13c8",
+      "gitBlobSHA1": "d0c83974dbdd24b4cdf059f12debec49da8862ee"
+    },
+    {
+      "path": "experiments/managed-mihomo/run.ps1",
+      "bytes": 2303,
+      "sha256": "338777b529b9a4b0373b0bbd152677e4bee8e29b8bfd155e286d2db4939de3b2",
+      "gitBlobSHA1": "34ae131587d14e3bfd3d82ac20904675f0aa4951"
+    }
+  ],
+  "collection": "Explicit safe-field projection by run.py and probe/main.go, no raw core output. summary.json computed from final results.json; history preserves prior checks and build identities.",
+  "redaction": "No subscription URL/token, original URI, proxy name/server/credential, signed resource URL, private absolute path or absolute activity timestamp. Loopback fixture hostnames and A/B markers are synthetic.",
+  "validation": {
+    "adapterPackageTests": "passed",
+    "probeAndFixtureVet": "passed",
+    "pythonAndPowerShellSyntax": "passed",
+    "finalBlackBoxChecks": "31/31",
+    "notRun": [
+      "full product suite",
+      "Linux/race",
+      "game/desktop acceptance",
+      "release packaging"
+    ]
+  }
+}

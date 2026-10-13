@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-13",
+  "scope": "Post-run read-only checks for the final development run, not live acceptance",
+  "runtimeDirectoryACL": {
+    "inheritanceDisabled": true,
+    "explicitRuleCount": 2,
+    "inheritedRuleCount": 0,
+    "principals": ["current-user", "SYSTEM"],
+    "source": "Get-Acl on final run directory; directory was restricted before provider writes"
+  },
+  "cleanup": {
+    "providerPlaintextFilesRemaining": 0,
+    "coreVerifiedProbeFixtureProcessesRemaining": 0,
+    "source": "Read-only directory enumeration and process-name inventory after all owned Jobs closed"
+  },
+  "checks": {
+    "adapterPackageTests": "passed; Go 1.25.0, no_easytier, count=1, timeout=120s",
+    "probeAndFixtureVet": "passed after final driver correction",
+    "pythonSyntax": "passed",
+    "powerShellSyntax": "passed",
+    "reportAndToolRelativeLinks": "passed",
+    "gitDiffCheck": "passed",
+    "gitBlobCanonicalHashes": "verified",
+    "privacy": "pending source, docs and evidence compared against original URI strings, private VMess identity/server/display fields, subscription token and local absolute paths; none found"
+  },
+  "git": {"committed": false, "pushed": false},
+  "limitations": [
+    "No game, desktop UI, cross-user DPAPI, actual session shutdown or release packaging acceptance",
+    "No product backend switch",
+    "Private raw diagnostics and original subscription remain local in ignored directories"
+  ]
+}

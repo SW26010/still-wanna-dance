@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-13",
+  "baseRevision": "e3d3c365ea5b17710eb896103c5ac502e9fc97f1",
+  "scope": "isolated Windows development experiment; no game, saved settings, hosts or system proxy writes",
+  "checks": {
+    "total": 31,
+    "passed": 31
+  },
+  "comparisons": {
+    "embedded": {
+      "coldFirstByteMedianMS": 1.4518000243697315,
+      "warmFirstByteMedianMS": 0.09440000576432794,
+      "throughputMiBps": [
+        710.9724714856914,
+        931.0885369715024,
+        928.46941093661
+      ],
+      "throughputMedianMiBps": 928.46941093661,
+      "idleWorkingSetMedianBytes": 16097280,
+      "idlePrivateMedianBytes": 17010688,
+      "cpuSecondsPer128MiBMedian": 0.125,
+      "coreAPIReadyMS": [
+        null,
+        null,
+        null
+      ]
+    },
+    "managed": {
+      "coldFirstByteMedianMS": 2.7956999838352203,
+      "warmFirstByteMedianMS": 0.1230000052601099,
+      "throughputMiBps": [
+        214.01074868664023,
+        175.86161889185038,
+        216.52773085541088
+      ],
+      "throughputMedianMiBps": 214.01074868664023,
+      "idleWorkingSetMedianBytes": 38055936,
+      "idlePrivateMedianBytes": 37777408,
+      "cpuSecondsPer128MiBMedian": 0.25,
+      "coreAPIReadyMS": [
+        593.9999999827705,
+        594.0000000118744,
+        593.9999999827705
+      ]
+    }
+  },
+  "interpretation": "Three paired short local SS runs, not a real-video A/B or full desktop resource comparison."
+}

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "files": [
+    {
+      "path": "development-checks.json",
+      "sha256": "51c9def09781dce5556bfae39235086baa9bc3dc13fde2b3d41041a49dd90f3d"
+    },
+    {
+      "path": "release-validation.json",
+      "sha256": "4c5e54d1497b53b16d7f29379b3718803261ae5ed039df2a55550a1e5144ab51"
+    }
+  ]
+}

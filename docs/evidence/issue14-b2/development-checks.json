@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-13",
+  "scope": "Development checks only; no game, hosts, real tray, cross-user or public proxy acceptance.",
+  "productRevision": "5af35b4806a85d1e36049e443072a1cf7380c6e5",
+  "cleanTreeRevision": "56c9967",
+  "checks": [
+    {
+      "name": "Windows product tests and vet",
+      "toolchain": "go1.25.0",
+      "cgo": 0,
+      "commands": [
+        "go test -count=1 -tags=no_easytier ./cmd/... ./internal/...",
+        "go vet -tags=no_easytier ./cmd/... ./internal/..."
+      ],
+      "status": "passed"
+    },
+    {
+      "name": "Final clean tree tests and vet",
+      "toolchain": "go1.25.0",
+      "cgo": 0,
+      "commands": [
+        "go test -tags=no_easytier ./...",
+        "go vet -tags=no_easytier ./..."
+      ],
+      "status": "passed"
+    },
+    {
+      "name": "Linux amd64 cross-build",
+      "toolchain": "go1.25.0",
+      "cgo": 0,
+      "command": "GOOS=linux GOARCH=amd64 go build -tags=no_easytier ./cmd/still-wanna-dance-console",
+      "status": "passed",
+      "limitation": "Build only; no Linux execution or race-detector coverage."
+    },
+    {
+      "name": "Frontend and release-tool tests",
+      "command": "node --test scripts/*.test.mjs",
+      "tests": 242,
+      "passed": 242,
+      "status": "passed"
+    },
+    {
+      "name": "Console fixed exits",
+      "protocols": [
+        "SS",
+        "VLESS/TLS",
+        "AnyTLS",
+        "Hysteria2",
+        "VMess/WS"
+      ],
+      "command": "go test -count=1 -tags=no_easytier ./internal/console -run ^TestConsoleMihomoProtocolsColdHTTP$",
+      "status": "passed",
+      "environment": "Synthetic local servers only"
+    },
+    {
+      "name": "Full runtime and paced workload",
+      "toolchain": "go1.27.1",
+      "command": "SWD_B2_SOAK=1 go test -v -count=1 -tags=no_easytier ./internal/proxyengine/mihomo",
+      "protocols": [
+        "SS",
+        "VLESS/TLS",
+        "AnyTLS",
+        "Hysteria2",
+        "VMess/WS"
+      ],
+      "seconds": 60,
+      "workers": 10,
+      "delayPerIterationMS": 20,
+      "normalRequests": 26757,
+      "cancelEveryRequests": 10,
+      "allAdmissionSlotsAndDialWorkersDrained": true,
+      "status": "passed"
+    },
+    {
+      "name": "Admission deadline handoff",
+      "command": "go test -tags=no_easytier ./internal/proxyengine/mihomo -run TestAdmission",
+      "status": "passed"
+    },
+    {
+      "name": "Actual release chain",
+      "command": "node scripts/release.mjs create --root LOCAL_CLEAN_CLONE --tag v0.0.0-issue14-b2-validation --output LOCAL_ARTIFACTS",
+      "status": "passed",
+      "sourceChecks": true,
+      "noticesChecks": true,
+      "independentOfflineRebuild": true,
+      "portableConsentGateSmoke": true,
+      "published": false
+    },
+    {
+      "name": "Race detector",
+      "toolchains": [
+        "go1.25.0",
+        "go1.27.1"
+      ],
+      "compiler": "portable Zig 0.17.0",
+      "status": "not-covered",
+      "reason": "Test executables link with the Windows synchronization import library, but ThreadSanitizer fails at startup allocating address space, Windows error 87. Fixed image base did not resolve it.",
+      "retainedFollowup": "Existing Linux CI race command remains; no push or remote run."
+    }
+  ],
+  "retainedFailures": [
+    {
+      "name": "Sandbox regression attempts",
+      "symptoms": [
+        "Temporary file atomic replacement access denied",
+        "Temporary Git initialization access denied",
+        "Process identity access denied"
+      ],
+      "resolution": "Affected suites rerun successfully as normal Windows user with isolated test data."
+    },
+    {
+      "name": "Unpaced 60-second workload",
+      "attempts": 2,
+      "symptom": "Loopback EOF/reset failures after high connection churn; an adjacent full-suite run reported Windows ephemeral-port exhaustion.",
+      "resolution": "Preserved failed logs locally; use a paced sustained workload and rerun the ordinary suite independently. No claim of unlimited host connection capacity."
+    },
+    {
+      "name": "Clean tree historical helper",
+      "symptom": "clock_other.go had two go:build directives",
+      "resolution": "56c9967 combines them; final clean-tree suite and cross-build pass. Only an excluded historical tool changed."
+    }
+  ],
+  "pendingLiveAcceptance": [
+    "LA-034",
+    "LA-035",
+    "LA-036",
+    "LA-018",
+    "LA-012"
+  ],
+  "privacy": "Only synthetic endpoints and public module/build metadata recorded; raw local logs, original subscriptions and credentials are excluded."
+}

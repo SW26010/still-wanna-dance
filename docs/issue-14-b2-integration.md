@@ -49,3 +49,15 @@ Console 持有一个 Runtime，仍以现有 `Proxy{ID,Dial}` / `NewMultiPool` �
 第五协议补充：包含 VMess/WS 的完整核心测试通过，60 秒十个 worker 共 26,757 次正常请求，每十次穿插一次取消，最终全部准入槽与拨号 worker 归零；Console 五协议冷请求专项通过。没有使用原始私人订阅或公网代理。
 
 本机没有已安装 C 编译器；仅在忽略目录解压官方 Zig 0.17.0，补充 Windows 系统同步库后 Go 1.25/1.27 的 race 二进制可链接，但 ThreadSanitizer 启动时均报地址分配失败（错误 87），固定映像基址复查也未解决。**不声称 race 通过**；现有 Linux CI race 检查仍保留，本轮不 push、不触发远端 CI。该限制不等同发现业务数据竞争。
+
+## 最终开发验证与提交
+
+实现按顺序提交为 `9c1c294`（原生导入边界）、`4383a84`（有界固定出口核心）、`c74ba50`（Console/Monitor 接线）、`d7132b3`（移除旧 A 与五协议回归）、`5af35b4`（声明和对应源码输入）。后续 `56c9967` 修正历史工具中重复的构建约束，仅工具变化，不新增实机项。
+
+最终干净副本 `56c9967` 使用 Go **1.25.0**、CGO=0 完成 `go test -tags=no_easytier ./...`、`go vet -tags=no_easytier ./...` 和 Linux amd64 桌面入口交叉构建。不是 Linux 执行验证。结构化[开发检查及失败范围](evidence/issue14-b2/development-checks.json)与[证据哈希清单](evidence/issue14-b2/manifest.json)保存了失败、复测和未覆盖项；完整原始工具日志仅在忽略目录中。
+
+实际发行链绑定 **`5af35b4806a85d1e36049e443072a1cf7380c6e5`**（后续仅历史工具/本报告变化，产品代码未变），Go 1.25.0 / Windows amd64 / CGO=0 / no_easytier：真实桌面 EXE、109 个实际链接模块的声明、109 份完整模块 ZIP、195 个模块图条目的元数据及 SQLite/Wintun 原始输入全部核对。导出的源码无 Git 和本地 artifacts，无 EasyTier 模块或其已知 WASM。空缓存、仅 file GOPROXY 的独立重建通过，不承诺逐字节相同；真实 Portable ZIP 的隔离条款门禁、实例身份和搬迁 smoke 通过，未进入游戏或修改 hosts。见[发行证据](evidence/issue14-b2/release-validation.json)。
+
+本地包保留在 `artifacts/issue14-b2/release-check/`：Portable ZIP 19,362,806 字节，对应源码 194,582,359 字节。EXE SHA256 为 `7af46bcbe3ed80079cd5ac5e1ea0499bb354498ad916e182c5dfece5a29da5de`，包哈希与源码哈希见证据。`v0.0.0-issue14-b2-validation` 只存在于忽略目录内的本地验证副本；未给主仓库创建标签、未发布 GitHub Release、未 push。包内生成的发布 URL 是待发布占位链接，并非可下载的远端资产。
+
+开发实现完成；实机 **LA-034/035/036、LA-018/012** 保持待验收。下一轮仍需真实节点、游戏播放/下载、桌面重启/退出、跨用户或机器快照，以及约定时长的持续运行证据。60 秒回环和 Portable smoke 不替代这些场景。

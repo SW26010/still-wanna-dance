@@ -7,9 +7,18 @@ go test -mod=readonly -tags=no_easytier ./probe -count=1
 go build -mod=readonly -trimpath -tags=no_easytier -o ../../artifacts/issue14/directed/B.exe ./probe
 go build -mod=readonly -trimpath -tags=no_easytier -o ../../artifacts/issue14/directed/hotfixture.exe ./hotfixture
 python directed.py --bin ../../artifacts/issue14/directed
+python retry.py --bin ../../artifacts/issue14/directed
 ```
 
 `directed_evidence.py --label hot --verify-ref <本轮提交>` 校验该轮 Git blob；后续修改实验源码后应指定实际实验提交。旧 `verify_incremental.py` 针对 `3a91bb6` 的历史输入，应在对应版本执行，不能把新代码标成旧二进制的输入。
+
+`retry.py` 以真实 SOCKS 握手计数区分 EOF 与回复码失败，观察 HTTP 取消后的独立核心预算。它不重现或归因历史 backlog，不添加协议重试。相应证据用 `--label retry` 校验；热流证据固定在 `7e669f6`。定向生产包回归（只添加测试，不改行为）：
+
+```powershell
+go test -mod=readonly -tags=no_easytier ./internal/console ./internal/upstreamstate ./internal/cacheproxy -run 'Test(BusinessRetryDoesNotResetBudgetOrRewriteMonitor|BusinessResolutionReservesFallbackDeadline|EntryFailureFeedbackBoundaries|ResourceFallbackIncludesRangeValidationAndBody|FullResponseFallbackKeepsTaskDeadline|ResourceBodyFallbackStopsAtFourChannels|ChannelChangeCancelsAndDiscardsLateResults|SharedCheckCancellationAndClose)$' -count=1
+```
+
+该命令在仓库根目录执行。Windows 需要可创建隔离用户配置、正常原子 rename 的测试环境；沙箱权限错误单列保留，不改产品来迎合环境。
 
 2026-10-13 后续中立增量评估见[新报告](../../docs/issue-14-incremental-evaluation.md)。`incremental.ps1 -Phase build` 构建 B1/B2/D 共用驱动与 C/核心/夹具；`-Phase lifecycle` 执行 B2 新增门槛，`-Phase compare` 执行必要本地对照，`-Phase real -PrivateSubscription <文件>` 在明确授权后单独做有限公网补测。参数 `-GoExe`、`-PythonExe` 与下述一致，输出另存 `artifacts/issue14/incremental/`，不覆盖历史实验结果。B2/D 性能阶段拨号预算 5 秒，生命周期 3 秒；D 只做入口诊断，不是新增正式后端。
 

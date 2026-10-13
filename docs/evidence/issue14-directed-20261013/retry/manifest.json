@@ -1,0 +1,185 @@
+{
+  "hashBasis": "git-blob UTF-8 LF",
+  "binaryHashBasis": "actual file bytes",
+  "baseRevision": "7e669f60aeab9cd41c4cbaf871db953d8a009900",
+  "evidence": [
+    {
+      "path": "docs/evidence/issue14-directed-20261013/retry/build.json",
+      "bytes": 12520,
+      "sha256": "06fc0b09a361dd2cc1c3d0521b0e8ef544459a7ce680174bf70982abb4b7130d"
+    },
+    {
+      "path": "docs/evidence/issue14-directed-20261013/retry/history.json",
+      "bytes": 7989,
+      "sha256": "33f13e51784b5f8830887da24f041265800a7d1e0c8149cb8a7f7e95488b7cbd"
+    },
+    {
+      "path": "docs/evidence/issue14-directed-20261013/retry/results.json",
+      "bytes": 10101,
+      "sha256": "865de30cf6be426250324aa7ffc6120dddb8e8fc92fbc605a4ee468a4eeeb48d"
+    },
+    {
+      "path": "docs/evidence/issue14-directed-20261013/retry/tests.json",
+      "bytes": 14178,
+      "sha256": "382e9dc9856fbd043692fe8397f207766e27982b2719f4541a3ae84000c9c311"
+    }
+  ],
+  "source": [
+    {
+      "path": "experiments/managed-mihomo/run.py",
+      "bytes": 29697,
+      "sha256": "26d15a595502f6052c1a4aaef1723a863c36703cd3dadb46ce4a878cc3ce13c8"
+    },
+    {
+      "path": "experiments/runtime-mihomo/directed_evidence.py",
+      "bytes": 3397,
+      "sha256": "bc7edfbaa34b79999951be177f5af9041cdc633987588e34d32680afef71191e"
+    },
+    {
+      "path": "experiments/runtime-mihomo/export_incremental.py",
+      "bytes": 3280,
+      "sha256": "5a29470832c89a0a9118059e2bccc38909355060423682a419c63c4b3c0f0199"
+    },
+    {
+      "path": "experiments/runtime-mihomo/go.mod",
+      "bytes": 8320,
+      "sha256": "fbd784c80fc3ebc3c199eb9af1e51f241a14f7df1f76b94d3af5e5d40a460fab"
+    },
+    {
+      "path": "experiments/runtime-mihomo/go.sum",
+      "bytes": 36092,
+      "sha256": "21b935fc577e43e86a0bb3483a8b5a8eb49bd8b4b2d15379874dfb4c7fc51d1f"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/admission.go",
+      "bytes": 4211,
+      "sha256": "6918e2713438ed12b18be32f7fc826d721185d16e8a5ef6cb53e9d31188b1a2a"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/admission_test.go",
+      "bytes": 6415,
+      "sha256": "2fe196bf45315befd56cd5a83492359de7d2f159238a2e82b51076a19eebe193"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/backend.go",
+      "bytes": 8649,
+      "sha256": "7ba528ca0d074af9d295455c304068a82ce51ab6a6a09303db3366baeb8b7737"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/clock_other.go",
+      "bytes": 143,
+      "sha256": "fea737ddb29e63d08fb257105c3a2318a0db7200a26d8f399f9d12400a414545"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/clock_windows.go",
+      "bytes": 494,
+      "sha256": "5daf414a50864bca7cc70fec1d64dcafc99c60bac009795d193d6bdf4055e2aa"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/directed.go",
+      "bytes": 8296,
+      "sha256": "105076b993a896ce1e31d875823a524ec9b29fa13a2951842ee0f389216a070d"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/external.go",
+      "bytes": 1034,
+      "sha256": "6942390b81d80e590b0c3756d153684cdb4b37f808dee8fb5c1f60a4ca0f7665"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/inbound.go",
+      "bytes": 1309,
+      "sha256": "86eda9ca5bac7840fddecced320d3df55b9c6bc6ec6674aea3e45e388bd26b7b"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/main.go",
+      "bytes": 9920,
+      "sha256": "c46db8e61e06fe35895f87bdb633afe426653f09f8ee50198ceb3b4e162d231f"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/native.go",
+      "bytes": 2677,
+      "sha256": "f1fec4ec4e4f251e23c04e4426aad556aefd6ae03fd3b6016278eb2b9c90e9d6"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/native_test.go",
+      "bytes": 2380,
+      "sha256": "7156db273c7ba2266f1b562544c49ef68c52a1481dc30535a300c5a8eb46e46b"
+    },
+    {
+      "path": "experiments/runtime-mihomo/retry.py",
+      "bytes": 7520,
+      "sha256": "d536cc6c0e0ebcb32894a65b764fb7650c8b591f3bddef0dba9e6a4344fe4123"
+    },
+    {
+      "path": "experiments/runtime-mihomo/run.py",
+      "bytes": 18037,
+      "sha256": "718257c6218e267809f777c44cfc39f5ebb3a55d3459b9a7831a92c265b28007"
+    },
+    {
+      "path": "go.mod",
+      "bytes": 7357,
+      "sha256": "f63c37ac78a77cd489227ad4ccdda79530bafd371e49187a8fe2a53148d05926"
+    },
+    {
+      "path": "go.sum",
+      "bytes": 32125,
+      "sha256": "db4b97183fbce6d152e2a38b74d8251481e837653cdbaf1797966f260b4b08bb"
+    },
+    {
+      "path": "internal/cacheproxy/ranges.go",
+      "bytes": 8813,
+      "sha256": "8eaae3709d6549778135b5157db0d3cb404de7fa14cd2454d420e55dfd47bd77"
+    },
+    {
+      "path": "internal/cacheproxy/resource_fallback_test.go",
+      "bytes": 7277,
+      "sha256": "c2d291a0332823c46b3c2f960ab57d99632ef9934c77fdd9e11900471863d5bf"
+    },
+    {
+      "path": "internal/cacheproxy/routes.go",
+      "bytes": 7145,
+      "sha256": "03683f71dbd13facf08ccec1d17a4eac2a8b8632ce8814834595c9e10b83f078"
+    },
+    {
+      "path": "internal/console/batch.go",
+      "bytes": 12798,
+      "sha256": "1fe5e82acd95031db4189e7003f7744d1c9e923f0f12f0d123fe78d5f64a5846"
+    },
+    {
+      "path": "internal/console/retry_boundary_test.go",
+      "bytes": 2885,
+      "sha256": "f91d510a4d3276712ef7c56448040d07abcc46eecfc91a754deb18c4f02d2a15"
+    },
+    {
+      "path": "internal/console/upstream_selection.go",
+      "bytes": 4369,
+      "sha256": "84d2c72f82a3e3f84487e7d04e7a327ca2f933f063036a68efc0bb8efb52a8b9"
+    },
+    {
+      "path": "internal/console/upstream_selection_test.go",
+      "bytes": 9032,
+      "sha256": "b2e4bba227bffdd8251f8de3df4d9a82088e27f88eab40434e200eadd7ece3fe"
+    },
+    {
+      "path": "internal/upstreamrequest/candidates.go",
+      "bytes": 8861,
+      "sha256": "eca0a9a3567e27fb748c876bec45d9fc63576d7d61d8f5ba0afe44842f414a72"
+    },
+    {
+      "path": "internal/upstreamstate/entry_semantics_test.go",
+      "bytes": 2124,
+      "sha256": "c1cb40cab16c6eb0ddc888c94258b6cb944d5c9cf53c5664f85e70d24a40c5fa"
+    },
+    {
+      "path": "internal/upstreamstate/probe.go",
+      "bytes": 10190,
+      "sha256": "ee7488958b13eebbb106c8afa3723ef0bb3da796817a39682f0dc06296a13363"
+    },
+    {
+      "path": "internal/upstreamstate/routes.go",
+      "bytes": 10963,
+      "sha256": "3148e3c4bb927faf0f192fe150ea73b33cf42ce440d9649d3571ba617ce1605b"
+    }
+  ],
+  "redaction": "Only loopback fixture categories/counts/timings, test outcomes and build identity; no raw node/control URLs or credentials."
+}

@@ -14,6 +14,7 @@ def main():
     ap.add_argument("--label", choices=("hot", "retry"), required=True)
     ap.add_argument("--result", type=Path)
     ap.add_argument("--tests", type=Path, action="append", default=[])
+    ap.add_argument("--history", type=Path, action="append", default=[])
     ap.add_argument("--binary", type=Path, action="append", default=[])
     ap.add_argument("--go")
     ap.add_argument("--source", action="append", default=[])
@@ -38,7 +39,7 @@ def main():
         for line in log.read_text(encoding="utf-8-sig").splitlines():
             event = json.loads(line)
             if event.get("Action") in ("pass", "fail", "skip"):
-                tests.append({k: event[k] for k in ("Action", "Package", "Test", "Elapsed") if k in event})
+                tests.append({"run": log.stem, **{k: event[k] for k in ("Action", "Package", "Test", "Elapsed") if k in event}})
     identity = {}
     for binary in args.binary:
         raw = subprocess.check_output([args.go, "version", "-m", str(binary)], text=True)
@@ -46,10 +47,14 @@ def main():
                                  "metadata": [s.strip() for s in raw.splitlines()[1:]]}
     screen(tests)
     screen(identity)
+    history = [json.loads(p.read_text(encoding="utf-8")) for p in args.history]
+    screen(history)
     dest.mkdir(parents=True)
     write(dest / "results.json", result)
     write(dest / "tests.json", tests)
     write(dest / "build.json", identity)
+    if history:
+        write(dest / "history.json", history)
     def entry(path):
         data = path.read_text(encoding="utf-8").replace("\r\n", "\n").encode()
         return {"path": path.relative_to(ROOT).as_posix(), "bytes": len(data), "sha256": digest(data)}

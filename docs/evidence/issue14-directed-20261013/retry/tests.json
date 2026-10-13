@@ -1,0 +1,486 @@
+[
+  {
+    "run": "retry-tests",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestChannelChangeCancelsAndDiscardsLateResults",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/peer-eof/connect",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/peer-eof/headers",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/local-capacity/connect",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/local-capacity/headers",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/retired/connect",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/retired/headers",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/request-cancel/connect",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/request-cancel/headers",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/request-deadline/connect",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/request-deadline/headers",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestSharedCheckCancellationAndClose",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Elapsed": 0.379
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/console",
+    "Test": "TestBusinessRetryDoesNotResetBudgetOrRewriteMonitor/fallback",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/console",
+    "Test": "TestBusinessRetryDoesNotResetBudgetOrRewriteMonitor/all-fail",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/console",
+    "Test": "TestBusinessRetryDoesNotResetBudgetOrRewriteMonitor/parent-canceled",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/console",
+    "Test": "TestBusinessRetryDoesNotResetBudgetOrRewriteMonitor",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/console",
+    "Test": "TestBusinessResolutionReservesFallbackDeadline",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/console",
+    "Elapsed": 0.886
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestFullResponseFallbackKeepsTaskDeadline/single",
+    "Elapsed": 0.74
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestFullResponseFallbackKeepsTaskDeadline/with-backup",
+    "Elapsed": 0.72
+  },
+  {
+    "run": "retry-tests",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestFullResponseFallbackKeepsTaskDeadline/task-deadline",
+    "Elapsed": 0.21
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestFullResponseFallbackKeepsTaskDeadline",
+    "Elapsed": 1.68
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody/later=false/wrong-range",
+    "Elapsed": 0.01
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody/later=false/short",
+    "Elapsed": 0.01
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody/later=false/header-timeout",
+    "Elapsed": 0.52
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody/later=false/body-timeout",
+    "Elapsed": 0.52
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody/later=true/wrong-range",
+    "Elapsed": 0.02
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody/later=true/short",
+    "Elapsed": 0.02
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody/later=true/header-timeout",
+    "Elapsed": 0.53
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody/later=true/body-timeout",
+    "Elapsed": 0.53
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody",
+    "Elapsed": 2.15
+  },
+  {
+    "run": "retry-tests",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceBodyFallbackStopsAtFourChannels",
+    "Elapsed": 0.01
+  },
+  {
+    "run": "retry-tests",
+    "Action": "fail",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Elapsed": 4.328
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestChannelChangeCancelsAndDiscardsLateResults",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/peer-eof/connect",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/peer-eof/headers",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/local-capacity/connect",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/local-capacity/headers",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/retired/connect",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/retired/headers",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/request-cancel/connect",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/request-cancel/headers",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/request-deadline/connect",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries/request-deadline/headers",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestEntryFailureFeedbackBoundaries",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Test": "TestSharedCheckCancellationAndClose",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/upstreamstate",
+    "Elapsed": 0.394
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/console",
+    "Test": "TestBusinessRetryDoesNotResetBudgetOrRewriteMonitor/fallback",
+    "Elapsed": 0.01
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/console",
+    "Test": "TestBusinessRetryDoesNotResetBudgetOrRewriteMonitor/all-fail",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/console",
+    "Test": "TestBusinessRetryDoesNotResetBudgetOrRewriteMonitor/parent-canceled",
+    "Elapsed": 0
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/console",
+    "Test": "TestBusinessRetryDoesNotResetBudgetOrRewriteMonitor",
+    "Elapsed": 0.01
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestFullResponseFallbackKeepsTaskDeadline/single",
+    "Elapsed": 0.73
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/console",
+    "Test": "TestBusinessResolutionReservesFallbackDeadline",
+    "Elapsed": 0.5
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/console",
+    "Elapsed": 1.397
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestFullResponseFallbackKeepsTaskDeadline/with-backup",
+    "Elapsed": 0.72
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestFullResponseFallbackKeepsTaskDeadline/task-deadline",
+    "Elapsed": 0.21
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestFullResponseFallbackKeepsTaskDeadline",
+    "Elapsed": 1.66
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody/later=false/wrong-range",
+    "Elapsed": 0.01
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody/later=false/short",
+    "Elapsed": 0.01
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody/later=false/header-timeout",
+    "Elapsed": 0.52
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody/later=false/body-timeout",
+    "Elapsed": 0.52
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody/later=true/wrong-range",
+    "Elapsed": 0.01
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody/later=true/short",
+    "Elapsed": 0.01
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody/later=true/header-timeout",
+    "Elapsed": 0.52
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody/later=true/body-timeout",
+    "Elapsed": 0.52
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceFallbackIncludesRangeValidationAndBody",
+    "Elapsed": 2.13
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Test": "TestResourceBodyFallbackStopsAtFourChannels",
+    "Elapsed": 0.01
+  },
+  {
+    "run": "retry-tests-normal",
+    "Action": "pass",
+    "Package": "still-wanna-dance/internal/cacheproxy",
+    "Elapsed": 4.274
+  }
+]

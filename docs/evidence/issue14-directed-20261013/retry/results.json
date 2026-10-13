@@ -1,0 +1,406 @@
+{
+  "baseRevision": "7e669f60aeab9cd41c4cbaf871db953d8a009900",
+  "scope": "controlled SOCKS failures; no inferred attribution of historical backlog results",
+  "checks": [
+    {
+      "name": "B-first-reply-code-5",
+      "passed": true,
+      "attempts": 1,
+      "requests": [
+        {
+          "connectionMS": 0.06639998173341155,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "transport-failed",
+          "firstByteMS": 0,
+          "elapsedMS": 1.3774999824818224
+        }
+      ]
+    },
+    {
+      "name": "B-next-request-after-reply-code-5",
+      "passed": true,
+      "attempts": 2,
+      "requests": [
+        {
+          "connectionMS": 0.02479998511262238,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 1.427799987141043,
+          "elapsedMS": 1.4692999830003828
+        }
+      ]
+    },
+    {
+      "name": "B-persistent-reply-code-5",
+      "passed": true,
+      "attempts": 1,
+      "requests": [
+        {
+          "connectionMS": 0.11210000957362354,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "transport-failed",
+          "firstByteMS": 0,
+          "elapsedMS": 1.3697000104002655
+        }
+      ]
+    },
+    {
+      "name": "B-first-handshake-eof",
+      "passed": true,
+      "attempts": 2,
+      "requests": [
+        {
+          "connectionMS": 0.05649999366141856,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 27.68249998916872,
+          "elapsedMS": 27.718299999833107
+        }
+      ]
+    },
+    {
+      "name": "B-persistent-handshake-eof",
+      "passed": true,
+      "attempts": 10,
+      "requests": [
+        {
+          "connectionMS": 0.05669999518431723,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "transport-failed",
+          "firstByteMS": 0,
+          "elapsedMS": 3590.79919999931
+        }
+      ]
+    },
+    {
+      "name": "B-pre-cancel-never-starts-peer",
+      "passed": true
+    },
+    {
+      "name": "B-HTTP-cancel-can-leave-dial-running",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 0.05699999746866524,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0,
+          "elapsedMS": 100.13019997859374
+        }
+      ],
+      "state": {
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 4,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 1,
+        "pending": 1,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B-detached-work-drains-at-core-budget",
+      "passed": true,
+      "elapsedSeconds": 5.030999999988126,
+      "peerAttempts": 1,
+      "state": {
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 1,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-first-reply-code-5",
+      "passed": true,
+      "attempts": 1,
+      "requests": [
+        {
+          "connectionMS": 1.3689000043086708,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "transport-failed",
+          "firstByteMS": 0,
+          "elapsedMS": 1.4543000143021345
+        }
+      ]
+    },
+    {
+      "name": "B2-next-request-after-reply-code-5",
+      "passed": true,
+      "attempts": 2,
+      "requests": [
+        {
+          "connectionMS": 22.649899998214096,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 23.033699981169775,
+          "elapsedMS": 23.089599999366328
+        }
+      ]
+    },
+    {
+      "name": "B2-persistent-reply-code-5",
+      "passed": true,
+      "attempts": 1,
+      "requests": [
+        {
+          "connectionMS": 1.2233000015839934,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "transport-failed",
+          "firstByteMS": 0,
+          "elapsedMS": 1.2999000027775764
+        }
+      ]
+    },
+    {
+      "name": "B2-first-handshake-eof",
+      "passed": true,
+      "attempts": 1,
+      "requests": [
+        {
+          "connectionMS": 0,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "transport-failed",
+          "firstByteMS": 0,
+          "elapsedMS": 1.220100006321445
+        }
+      ]
+    },
+    {
+      "name": "B2-next-request-after-handshake-eof",
+      "passed": true,
+      "attempts": 2,
+      "requests": [
+        {
+          "connectionMS": 25.503400014713407,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 25.919600011548027,
+          "elapsedMS": 25.987800006987527
+        }
+      ]
+    },
+    {
+      "name": "B2-persistent-handshake-eof",
+      "passed": true,
+      "attempts": 1,
+      "requests": [
+        {
+          "connectionMS": 0,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "transport-failed",
+          "firstByteMS": 0,
+          "elapsedMS": 1.3676000235136598
+        }
+      ]
+    },
+    {
+      "name": "B2-native-SOCKS-reply-code-not-Dial-error",
+      "passed": true,
+      "attempts": 1,
+      "requests": [
+        {
+          "connectionMS": 0,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 0,
+          "bytes": 0,
+          "firstByteMS": 0,
+          "elapsedMS": 1.2023000163026154
+        }
+      ]
+    },
+    {
+      "name": "B2-pre-cancel-never-starts-peer",
+      "passed": true
+    },
+    {
+      "name": "B2-HTTP-cancel-can-leave-dial-running",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 0,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0,
+          "elapsedMS": 100.00360000412911
+        }
+      ],
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 5000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 1,
+          "openConnections": 0,
+          "peak": 1,
+          "pending": 1,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 5,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-detached-work-drains-at-core-budget",
+      "passed": true,
+      "elapsedSeconds": 5.030999999988126,
+      "peerAttempts": 1,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 5000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 1,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-raw-context-cancels-actual-handshake",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 0,
+          "reused": false,
+          "index": 0,
+          "ok": false,
+          "status": 0,
+          "bytes": 0,
+          "error": "deadline-or-cancel",
+          "firstByteMS": 0,
+          "elapsedMS": 100.45030000037514
+        }
+      ],
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 5000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 1,
+          "pending": 0,
+          "retired": false
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": false,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    }
+  ],
+  "cases": [],
+  "binaries": {
+    "B.exe": {
+      "sha256": "08c77320c1b7af285b1d5493816074ea02b459f7dfeab3a257deebe2d3a11dec"
+    }
+  },
+  "cleanup": {
+    "allOwnedProcessesExited": true,
+    "hostsUnchanged": true
+  }
+}

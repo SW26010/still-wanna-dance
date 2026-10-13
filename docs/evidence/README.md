@@ -8,6 +8,8 @@
 
 #14 B2 后续定向验证：[热流取消/排空/恢复清单](issue14-directed-20261013/hot/manifest.json)，24 项真实回环检查及有界但不保证恢复的通用模型，见[报告](../issue-14-directed-validation.md)。仅开发测试，不代表实机通过。
 
+同轮[重试/失败反馈清单](issue14-directed-20261013/retry/manifest.json)：19 项受控入口检查、3 包定向回归、初轮反例与沙箱失败；明确本地容量/退役分类仍有接入缺口，不提前决定 B2/C。
+
 | 文件 | 来源与用途 |
 | --- | --- |
 | [runtime-mihomo-20261013/manifest.json](runtime-mihomo-20261013/manifest.json) | #14 最新要求的完整内嵌 B / 独立进程 C 对照：69 项开发检查、同一 VMess/WS 节点和视频 Range 三轮取样、各 60 秒连续负载、全局状态/故障边界、失败历史及构建身份；无生产切换或实机通过，见[评估与实施设计](../mihomo-runtime-evaluation-20261013.md) |

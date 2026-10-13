@@ -38,16 +38,36 @@
 
 | 场景 / 指标 | 基线 | 修正后 |
 | --- | ---: | ---: |
-| 每请求受限 / 纯预缓存完成 | 685.40 ms | 265.14 ms（约 2.59 倍吞吐） |
-| 每请求受限 / 播放加 Seek 后完整下载 | 636.19 ms | 345.85 ms |
-| 每请求受限 / 首正文 | 53.33 ms | 53.22 ms |
-| 每请求受限 / Seek | 54.69 ms | 55.02 ms |
-| 共享总带宽 / 纯预缓存完成 | 412.61 ms | 409.67 ms（无明显收益） |
-| 共享总带宽 / 首正文 | 30.06 ms | 29.23 ms |
-| 共享总带宽 / Seek | 65.57 ms | 33.98 ms |
+| 每请求受限 / 纯预缓存完成 | 685.40 ms | 265.18 ms（约 2.58 倍吞吐） |
+| 每请求受限 / 播放加 Seek 后完整下载 | 636.19 ms | 346.94 ms |
+| 每请求受限 / 首正文 | 53.33 ms | 53.55 ms |
+| 每请求受限 / Seek | 54.69 ms | 54.81 ms |
+| 共享总带宽 / 纯预缓存完成 | 412.61 ms | 411.50 ms（无明显收益） |
+| 共享总带宽 / 首正文 | 30.06 ms | 29.90 ms |
+| 共享总带宽 / Seek | 65.57 ms | 33.66 ms |
 
-修正后所有测量的正文传输/内容大小比为 `1.000`（工具显示精度），纯预缓存每文件仍 13 个请求；播放/Seek 场景为 13.67–14 个请求，包含本地让位后的剩余区间请求。它不是所有真实网络上的流量上限，网络中已发送但取消前尚未读取的数据可能重复传输。完整[基线输出](evidence/issue20-development/benchmark-baseline.txt)和[修正后输出](evidence/issue20-development/benchmark-playback-priority.txt)保留。
+修正后所有测量的正文传输/内容大小比为 `1.000`（工具显示精度），纯预缓存每文件仍 13 个请求；播放/Seek 场景为 13.67–14 个请求，包含本地让位后的剩余区间请求。它不是所有真实网络上的流量上限，网络中已发送但取消前尚未读取的数据可能重复传输。完整[基线输出](evidence/issue20-development/benchmark-baseline.txt)、[播放保护首次修正输出](evidence/issue20-development/benchmark-playback-priority.txt)和[收尾修正后最终输出](evidence/issue20-development/benchmark-final.txt)均保留；上表采用最终输出。
 
 新增自动回归：弱/缺失 ETag 的有效内容、强 ETag 变弱/消失/变化拒绝、弱 ETag 下错误内容 MD5 拒绝、失败后等待所有 Body.Close 完成并回收临时文件；让位后从精确 64 KiB 位置恢复、已有失败通道不重试、重定向终点保留、恢复后的 Range/ETag 错误拒绝、播放器加入已有预缓存。上述核心并发场景及原多读者/取消场景通过十轮 Windows race；最终新增的首块加入及重定向恢复也单独通过十轮 race。共享 Seek 允许有依据的取消/续取，因此原“任何 Seek 块都只请求一次”断言调整为完整性和有界调度检查；无跳转时每块恰好一次仍由独立并发测试验证。
 
-未执行公网视频 A/B、真实播放器卡顿或长时间游戏验收；这些仍属于 LA-037。最终整仓检查将在后续提交记录。
+未执行公网视频 A/B、真实播放器卡顿或长时间游戏验收；这些仍属于 LA-037。
+
+## 收尾审查与最终检查
+
+审查发现请求从读取优先降为后台时，另一个较早等待者可能仍在等它，而降级者又开始遵守 FIFO；若此时没有其他事件，会留下空闲额度。`request_budget.go` 在自身优先级改变时通知共同队列。新增回归在 `aa32e33` 隔离副本稳定等待超时失败，修正后 20 轮 Windows race 通过。台账 LA-037 增加对应需求消失/额度释放的实机步骤。
+
+最终使用 Go 1.25.0 / Windows amd64，race 编译器为已有 w64devkit GCC 16.2.0：
+
+| 检查 | 实际结果 |
+| --- | --- |
+| `go test -race -tags=no_easytier ./cmd/... ./internal/... ./data/... -count=1 -timeout=240s -json` | `aa32e33` 全部正式包通过：14 个测试包，1,209 个测试/子测试通过，15 项跳过，无 DATA RACE；另 3 个包无测试 |
+| 收尾唤醒修正后，相同参数复测 `./internal/cacheproxy ./internal/console ./cmd/still-wanna-dance-console` | 3 包、943 个测试/子测试通过，12 项跳过，无 DATA RACE；包括新增唤醒回归。其余包未改动 |
+| `go vet -tags=no_easytier ./cmd/... ./internal/... ./data/...` | 最终代码通过 |
+| `CGO_ENABLED=0 go build -tags=no_easytier ./cmd/... ./internal/... ./data/...` | 最终代码通过 |
+| `git diff --check` | 通过 |
+
+15 项跳过为：6 项真实桌面/公网 opt-in，7 项缺少 Windows symlink 权限，1 项未配置第二卷，1 项另行 opt-in 的代理 soak。它们未计入通过，不宣称跨卷、真实游戏或长期网络运行已覆盖。采用明确的正式源码包路径，避免纳入忽略目录中历史实验/基线副本；没有为通过测试删除这些文件。
+
+产品改动均限于 `internal/cacheproxy`，未改配置/存储版本、Monitor、代理后端、界面或跨歌曲准备数量，无新依赖。旧并发文档已加当前实现并保留历史评估。原始测试日志保留在忽略的 `artifacts/issue20/`，仓库只保存脱敏检查摘要和回环对照。未启动游戏、修改 hosts、重新打包发布或 push；开发完成与 LA-037 待实机验收分开。
+
+完整包结果、收尾复测、工具链、失败历史和最终 Go 文件 Git blob 身份见[开发检查摘要](evidence/issue20-development/development-checks.json)。最终源码以这些 blob 身份与本地提交共同核对；对照夹具与旧版隔离副本逐字节相同。

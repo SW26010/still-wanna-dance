@@ -1,0 +1,236 @@
+{
+  "date": "2026-10-14",
+  "scope": "Development verification only. Public video A/B and real-game acceptance remain pending as LA-037.",
+  "source": {
+    "baseline": "a159768968478288a751d8addd654d759dcee4d1",
+    "fullRaceCommit": "aa32e3314712425bfefc4dc3ae79af26eeb63f4e",
+    "finalReviewSourceChanges": [
+      "internal/cacheproxy/request_budget.go",
+      "internal/cacheproxy/request_budget_test.go"
+    ],
+    "finalChangedGoBlobs": [
+      {
+        "path": "internal/cacheproxy/cache.go",
+        "gitBlob": "f5ee398e44cfa6d68edd9cec21c15e0425fabc25"
+      },
+      {
+        "path": "internal/cacheproxy/range_abandon_test.go",
+        "gitBlob": "ebc6c596aa878db17db2b4f55b0048b536b22d66"
+      },
+      {
+        "path": "internal/cacheproxy/range_benchmark_test.go",
+        "gitBlob": "1c11a0ace1828086c7bf03cca0da4d1698938f71"
+      },
+      {
+        "path": "internal/cacheproxy/range_parallel_failure_test.go",
+        "gitBlob": "a7b3cece86bb783fcd38c3f538ee87783d4fa86f"
+      },
+      {
+        "path": "internal/cacheproxy/range_parallel_test.go",
+        "gitBlob": "87489350741c02b4b90d597fbbb61d759c02857a"
+      },
+      {
+        "path": "internal/cacheproxy/range_work.go",
+        "gitBlob": "9fcaf8c1ed3eb0efc1d1e62aadc875e0041019cc"
+      },
+      {
+        "path": "internal/cacheproxy/range_yield_test.go",
+        "gitBlob": "3c1f95263a1d5aa3ec1d37c62bc2691986f06311"
+      },
+      {
+        "path": "internal/cacheproxy/ranges.go",
+        "gitBlob": "1c1e1c9196c7c2ad9a8daa22a306a2ca9de7089f"
+      },
+      {
+        "path": "internal/cacheproxy/ranges_test.go",
+        "gitBlob": "1ea99217a411c8d925091ac92a361c16be525ca7"
+      },
+      {
+        "path": "internal/cacheproxy/request_budget.go",
+        "gitBlob": "d1eb7f2f116fc4b768b44e44811d6f0854a68f02"
+      },
+      {
+        "path": "internal/cacheproxy/request_budget_test.go",
+        "gitBlob": "6e2f54194f1672da01eaf48e9542897081848b6e"
+      },
+      {
+        "path": "internal/cacheproxy/routes.go",
+        "gitBlob": "3632c836426b65938ad4004c714993a8adbec061"
+      },
+      {
+        "path": "internal/cacheproxy/server.go",
+        "gitBlob": "c36594f07da56e1b8a8ed25ce9d20cd2d95119ba"
+      },
+      {
+        "path": "internal/cacheproxy/stream.go",
+        "gitBlob": "abc7f55200eb005713b0084a524dee8439354140"
+      }
+    ]
+  },
+  "environment": {
+    "go": "1.25.0",
+    "os": "windows",
+    "arch": "amd64",
+    "buildTag": "no_easytier",
+    "raceCompiler": "w64devkit 2.10.0 / GCC 16.2.0",
+    "runtimeInputs": "Synthetic loopback HTTP services and disposable temporary caches."
+  },
+  "fullRace": {
+    "exitCode": 0,
+    "passedTests": 1209,
+    "skippedTests": 15,
+    "failedTests": [],
+    "packages": [
+      {
+        "Package": "still-wanna-dance/cmd/still-wanna-dance-replay",
+        "Action": "skip",
+        "Elapsed": 0.001
+      },
+      {
+        "Package": "still-wanna-dance/internal/apppaths",
+        "Action": "pass",
+        "Elapsed": 1.155
+      },
+      {
+        "Package": "still-wanna-dance/internal/proxyengine/mihomo/testfixture",
+        "Action": "skip",
+        "Elapsed": 0
+      },
+      {
+        "Package": "still-wanna-dance/data/initial-priority",
+        "Action": "skip",
+        "Elapsed": 0
+      },
+      {
+        "Package": "still-wanna-dance/internal/applog",
+        "Action": "pass",
+        "Elapsed": 1.375
+      },
+      {
+        "Package": "still-wanna-dance/cmd/still-wanna-dance",
+        "Action": "pass",
+        "Elapsed": 2.145
+      },
+      {
+        "Package": "still-wanna-dance/internal/legal",
+        "Action": "pass",
+        "Elapsed": 1.181
+      },
+      {
+        "Package": "still-wanna-dance/internal/videometa",
+        "Action": "pass",
+        "Elapsed": 1.213
+      },
+      {
+        "Package": "still-wanna-dance/internal/vrclog",
+        "Action": "pass",
+        "Elapsed": 1.228
+      },
+      {
+        "Package": "still-wanna-dance/internal/workfiles",
+        "Action": "pass",
+        "Elapsed": 1.274
+      },
+      {
+        "Package": "still-wanna-dance/internal/upstreamrequest",
+        "Action": "pass",
+        "Elapsed": 1.399
+      },
+      {
+        "Package": "still-wanna-dance/cmd/still-wanna-dance-console",
+        "Action": "pass",
+        "Elapsed": 4.075
+      },
+      {
+        "Package": "still-wanna-dance/internal/desktop",
+        "Action": "pass",
+        "Elapsed": 2.81
+      },
+      {
+        "Package": "still-wanna-dance/internal/upstreamstate",
+        "Action": "pass",
+        "Elapsed": 3.766
+      },
+      {
+        "Package": "still-wanna-dance/internal/proxyengine/mihomo",
+        "Action": "pass",
+        "Elapsed": 21.222
+      },
+      {
+        "Package": "still-wanna-dance/internal/cacheproxy",
+        "Action": "pass",
+        "Elapsed": 24.571
+      },
+      {
+        "Package": "still-wanna-dance/internal/console",
+        "Action": "pass",
+        "Elapsed": 76.753
+      }
+    ]
+  },
+  "afterReviewRace": {
+    "exitCode": 0,
+    "passedTests": 943,
+    "skippedTests": 12,
+    "failedTests": [],
+    "packages": [
+      {
+        "Package": "still-wanna-dance/cmd/still-wanna-dance-console",
+        "Action": "pass",
+        "Elapsed": 3.835
+      },
+      {
+        "Package": "still-wanna-dance/internal/cacheproxy",
+        "Action": "pass",
+        "Elapsed": 24.604
+      },
+      {
+        "Package": "still-wanna-dance/internal/console",
+        "Action": "pass",
+        "Elapsed": 76.065
+      }
+    ]
+  },
+  "otherChecks": [
+    {
+      "command": "go test -race -tags=no_easytier ./internal/cacheproxy -run TestVideoRequestBudgetDemotionWakesEarlierWaiter -count=20 -timeout=60s",
+      "exitCode": 0
+    },
+    {
+      "command": "go vet -tags=no_easytier ./cmd/... ./internal/... ./data/...",
+      "exitCode": 0
+    },
+    {
+      "command": "CGO_ENABLED=0 go build -tags=no_easytier ./cmd/... ./internal/... ./data/...",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "benchmark": {
+    "command": "go test -tags=no_easytier ./internal/cacheproxy -run ^$ -bench ^BenchmarkRangeDownload$ -benchtime=3x -count=3",
+    "baselineHarnessIdentical": true,
+    "files": [
+      "benchmark-baseline.txt",
+      "benchmark-initial-parallel.txt",
+      "benchmark-playback-priority.txt",
+      "benchmark-final.txt"
+    ],
+    "interpretation": "Per-request bottleneck and shared-total-bandwidth controls; independent serial runs, identical payload and new cache per iteration. Not public-network throughput or game first-frame latency."
+  },
+  "failureHistory": [
+    "Initial sandbox runs hit existing Windows atomic-rename Access is denied errors; normal-user isolated tests passed.",
+    "Initial parallel implementation regressed shared-capacity first-body and seek latency; raw benchmark retained and scheduler corrected.",
+    "Old exact-one-request seek assertions required distinguishing intentional cancel/resume from duplicate parallel claims; no-jump uniqueness remains tested.",
+    "The demotion regression failed on aa32e33 with available capacity left idle; the final correction passed 20 race repetitions and dependent package reruns."
+  ],
+  "deferred": [
+    "Public upstream fixed-channel A/B and real game audio/video/seek checks (LA-037)",
+    "15 opt-in/environment-dependent tests were skipped in the full run; see report for scope.",
+    "No release packaging, Linux execution, push, game launch, hosts changes or live acceptance."
+  ],
+  "privacy": "No private URLs, proxy credentials, player or room data, raw desktop logs or personal paths. Raw test logs remain in ignored artifacts/issue20.",
+  "evidenceNormalization": "Benchmark text retains all measured values; trailing whitespace removed and line endings normalized to LF. Original command logs remain in ignored artifacts/issue20."
+}

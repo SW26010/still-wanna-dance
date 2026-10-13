@@ -1,7 +1,7 @@
 goos: windows
 goarch: amd64
 pkg: still-wanna-dance/internal/cacheproxy
-cpu: AMD Ryzen 7 9850X3D 8-Core Processor           
+cpu: AMD Ryzen 7 9850X3D 8-Core Processor
 BenchmarkRangeDownload/per_request/prefetch-16         	       3	 264855433 ns/op	  47.51 MB/s	         3.000 peak_requests	        13.00 requests/op	         1.000 traffic_ratio
 BenchmarkRangeDownload/per_request/prefetch-16         	       3	 276745800 ns/op	  45.47 MB/s	         3.000 peak_requests	        13.00 requests/op	         1.000 traffic_ratio
 BenchmarkRangeDownload/per_request/prefetch-16         	       3	 259649133 ns/op	  48.46 MB/s	         3.000 peak_requests	        13.00 requests/op	         1.000 traffic_ratio

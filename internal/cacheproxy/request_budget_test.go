@@ -203,3 +203,54 @@ func TestVideoRequestBudgetReleasesFailedAttempts(t *testing.T) {
 		}
 	}
 }
+
+func TestVideoRequestBudgetDemotionWakesEarlierWaiter(t *testing.T) {
+	b := newRequestBudget(1, 1)
+	// Arrange the interleaving where A observes B as urgent, then B demotes
+	// before evaluating its own queue position. Capacity is already available;
+	// no active HTTP completion remains to rescue a missed wakeup.
+	b.active, b.speculative = 1, 1
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	wakeA, wakeB := make(chan struct{}), make(chan struct{})
+	urgent, demoteOnObservation := true, false // accessed under b.mu
+	ctxA := context.WithValue(ctx, requestPriorityKey{}, requestPriority(func() (bool, <-chan struct{}) { return false, wakeA }))
+	ctxB := context.WithValue(ctx, requestPriorityKey{}, requestPriority(func() (bool, <-chan struct{}) {
+		observed := urgent
+		if demoteOnObservation && urgent {
+			urgent = false
+			close(wakeB)
+			wakeB = make(chan struct{})
+		}
+		return observed, wakeB
+	}))
+	gotA, gotB := make(chan func(), 1), make(chan func(), 1)
+	go func() { release, _ := b.acquire(ctxA); gotA <- release }()
+	waitRequestQueue(t, b, 1)
+	go func() { release, _ := b.acquire(ctxB); gotB <- release }()
+	waitRequestQueue(t, b, 2)
+	b.mu.Lock()
+	b.active, b.speculative = 0, 0
+	demoteOnObservation = true
+	close(wakeA)
+	wakeA = make(chan struct{})
+	b.mu.Unlock()
+	select {
+	case release := <-gotA:
+		if release == nil {
+			t.Fatal("demotion left available capacity unused")
+		}
+		release()
+	case <-ctx.Done():
+		t.Fatal("earlier waiter was not notified of demotion")
+	}
+	select {
+	case release := <-gotB:
+		if release == nil {
+			t.Fatal("demoted waiter did not follow FIFO")
+		}
+		release()
+	case <-ctx.Done():
+		t.Fatal("demoted waiter stalled")
+	}
+}

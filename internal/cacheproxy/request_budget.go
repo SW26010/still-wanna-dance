@@ -56,6 +56,7 @@ func (b *requestBudget) acquire(ctx context.Context) (func(), error) {
 	b.mu.Lock()
 	b.waiters = append(b.waiters, w)
 	b.signalLocked()
+	previousUrgent, priorityKnown := false, false
 	for {
 		index := slices.Index(b.waiters, w)
 		if err := ctx.Err(); err != nil {
@@ -65,12 +66,18 @@ func (b *requestBudget) acquire(ctx context.Context) (func(), error) {
 			return nil, err
 		}
 		urgent, priorityChanged := w.urgent()
+		if priorityKnown && urgent != previousUrgent {
+			// In particular, a demoted request must wake earlier background
+			// waiters which were deferring to it. Otherwise both can sleep
+			// with unused capacity until an unrelated request changes state.
+			b.signalLocked()
+		}
+		previousUrgent, priorityKnown = urgent, true
 		ready := b.active < b.limit && (urgent || b.speculative < b.background)
 		for i, other := range b.waiters {
 			if other.ctx.Err() != nil {
 				continue
 			}
-			otherUrgent, _ := other.urgent()
 			if other == w {
 				// Later urgent requests also precede this background waiter.
 				if urgent {
@@ -78,6 +85,7 @@ func (b *requestBudget) acquire(ctx context.Context) (func(), error) {
 				}
 				continue
 			}
+			otherUrgent, _ := other.urgent()
 			if otherUrgent || !urgent && i < index {
 				ready = false
 				break

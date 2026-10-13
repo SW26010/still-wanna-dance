@@ -16,6 +16,7 @@ import (
 const rangeBlockSize int64 = 1 << 20
 
 var errRangeAbandoned = errors.New("range has no waiting readers")
+var errRangeYielded = errors.New("range yielded to seek")
 
 // readRangeBlock fills a worker-owned buffer, including one extra byte to detect
 // oversized responses. Preserve non-EOF errors even when returned with data.
@@ -53,6 +54,9 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 		return err
 	}
 	work := newRangeWork(v.size)
+	// Cold playback gets its first block before speculative fan-out. Prefetch
+	// can fill parallel ranges immediately, and a tail reader still bypasses 0.
+	work.startup = !flight.background
 	sp := &spool{file: f, changed: make(chan struct{}), refs: 1, demand: work.demand, track: work.trackReader}
 	flight.spool = sp
 	close(flight.streaming)
@@ -86,65 +90,107 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 			}
 		}
 		var last error
-		for attempt := 0; attempt < 4; attempt++ {
+		var received int64
+		resume := func() {
+			if r := attempts.resume(); r != nil {
+				if selected, err := s.parse(r); err == nil && selected.key == v.key && selected.size == v.size {
+					blockVideo.host, blockVideo.path, blockVideo.query = selected.host, selected.path, selected.query
+				}
+			}
+		}
+		for failures := 0; failures < 4; {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
-			if resp == nil {
-				req, err := s.routeRequest(ctx, blockVideo)
-				if err != nil {
-					return applog.SafeError(err)
-				}
-				req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", start, end-1))
-				if etag != "" {
-					req.Header.Set("If-Match", etag)
-				}
-				candidates := s.candidates(req, attempts)
-				if candidates.next >= max(2, len(candidates.transports)) {
-					break
-				}
-				resp, err = s.videoResponse(req, v, attempts)
-				if err != nil {
-					last = applog.SafeError(err)
-					continue
-				}
-			}
-			if resp.Request != nil {
-				// videoResponse has already checked redirect trust. Parsing here
-				// retains metadata without extending global host registration.
-				selected, err := s.parse(resp.Request)
-				if err != nil || selected.key != v.key || selected.size != v.size {
-					resp.Body.Close()
-					return fmt.Errorf("%w: invalid final range endpoint", errUpstreamDownload)
-				}
-				blockVideo.host, blockVideo.path, blockVideo.query = selected.host, selected.path, selected.query
-			}
-			if err := validateRangeResponse(resp, start, end, v.size); err != nil {
+			work.mu.Lock()
+			wait := work.shouldWaitLocked(block)
+			work.mu.Unlock()
+			if resp != nil && wait {
+				// An immediate tail Seek can arrive before the first worker runs.
 				resp.Body.Close()
 				resp = nil
-				last = err
-				continue
+				resume()
 			}
-			if etag != "" && resp.Header.Get("ETag") != etag {
-				resp.Body.Close()
-				resp = nil
-				last = errors.New("upstream entity changed between ranges")
-				continue
+			transferCtx, endTransfer, err := work.beginTransfer(ctx, block)
+			if err != nil {
+				return err
 			}
-			if *buffer == nil {
-				*buffer = make([]byte, min(rangeBlockSize, v.size)+1)
-			}
-			data, err := readRangeBlock(contextReader{ctx, progressReader{upstreamReader{resp.Body}, flight.progress}}, (*buffer)[:end-start+1])
-			resp.Body.Close()
+			var data []byte
+			exhausted := false
+			err = func() error {
+				if resp == nil {
+					attempts.current = nil
+					req, err := s.routeRequest(transferCtx, blockVideo)
+					if err != nil {
+						return err
+					}
+					req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", start+received, end-1))
+					if etag != "" {
+						req.Header.Set("If-Match", etag)
+					}
+					candidates := s.candidates(req, attempts)
+					if candidates.next >= max(2, len(candidates.transports)) {
+						exhausted = true
+						return last
+					}
+					resp, err = s.videoResponse(req, v, attempts)
+					if err != nil {
+						return err
+					}
+				}
+				defer resp.Body.Close()
+				body := resp.Body
+				stop := context.AfterFunc(transferCtx, func() { body.Close() })
+				defer stop()
+				if resp.Request != nil {
+					selected, err := s.parse(resp.Request)
+					if err != nil || selected.key != v.key || selected.size != v.size {
+						return errors.New("invalid final range endpoint")
+					}
+					blockVideo.host, blockVideo.path, blockVideo.query = selected.host, selected.path, selected.query
+				}
+				if err := validateRangeResponse(resp, start+received, end, v.size); err != nil {
+					return err
+				}
+				if etag != "" && resp.Header.Get("ETag") != etag {
+					return errors.New("upstream entity changed between ranges")
+				}
+				if *buffer == nil {
+					*buffer = make([]byte, min(rangeBlockSize, v.size)+1)
+				}
+				data, err = readRangeBlock(contextReader{transferCtx, progressReader{upstreamReader{body}, flight.progress}}, (*buffer)[received:end-start+1])
+				if err != nil {
+					return err
+				}
+				if received+int64(len(data)) != end-start {
+					return io.ErrUnexpectedEOF
+				}
+				return nil
+			}()
+			yielded := errors.Is(context.Cause(transferCtx), errRangeYielded)
+			endTransfer()
 			resp = nil
-			if err != nil || int64(len(data)) != end-start {
-				last = applog.SafeError(err)
-				if last == nil {
-					last = io.ErrUnexpectedEOF
+			if exhausted {
+				break
+			}
+			if err != nil && yielded && ctx.Err() == nil {
+				received += int64(len(data))
+				// A canceled response with all advertised bytes but without EOF
+				// still needs normal oversize validation; do not publish it early.
+				if received >= end-start {
+					received = 0
 				}
+				resume()
+				flight.log.Debug("download_range_yielded", "block", block, "retained_bytes", received)
 				continue
 			}
-			if _, err := sp.WriteAt(data, start); err != nil {
+			if err != nil {
+				last = applog.SafeError(err)
+				received = 0
+				failures++
+				continue
+			}
+			if _, err := sp.WriteAt((*buffer)[:end-start], start); err != nil {
 				return err
 			}
 			work.finish(block)

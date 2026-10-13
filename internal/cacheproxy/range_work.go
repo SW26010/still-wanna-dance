@@ -19,6 +19,9 @@ type rangeWork struct {
 	order            map[int64]uint64
 	sequence         uint64
 	active           map[int64]context.CancelCauseFunc
+	transfers        map[int64]context.CancelCauseFunc
+	seeks            map[int64]bool
+	startup          bool
 	cursors          map[*rangeCursor]bool
 	changed          chan struct{}
 	blocks, complete int64
@@ -27,6 +30,7 @@ type rangeWork struct {
 type rangeCursor struct {
 	ctx   context.Context
 	block int64
+	seek  bool
 }
 
 func newRangeWork(size int64) *rangeWork {
@@ -34,6 +38,7 @@ func newRangeWork(size int64) *rangeWork {
 		claimed: map[int64]bool{0: true}, done: make(map[int64]bool),
 		readers: make(map[int64]int), order: make(map[int64]uint64),
 		active: make(map[int64]context.CancelCauseFunc), cursors: make(map[*rangeCursor]bool),
+		transfers: make(map[int64]context.CancelCauseFunc), seeks: make(map[int64]bool),
 		changed: make(chan struct{}), blocks: (size + rangeBlockSize - 1) / rangeBlockSize,
 	}
 }
@@ -57,6 +62,7 @@ func (w *rangeWork) trackReader(ctx context.Context) func(int64) {
 		w.mu.Lock()
 		defer w.mu.Unlock()
 		if block := offset / rangeBlockSize; ctx.Err() == nil && cursor.block != block {
+			cursor.seek = cursor.block < 0 && block > 0 || cursor.block >= 0 && (block > cursor.block+1 || block < cursor.block)
 			cursor.block = block
 			w.signalLocked()
 		}
@@ -75,6 +81,26 @@ func (w *rangeWork) demand(offset int64) func() {
 		w.order[block] = w.sequence
 	}
 	w.readers[block]++
+	if block == 0 {
+		// A player joining an existing prefetch needs the same first-block
+		// protection as a download that originally started in the foreground.
+		w.seeks[block] = true
+	}
+	for cursor := range w.cursors {
+		if cursor.ctx.Err() == nil && cursor.block == block && cursor.seek {
+			cursor.seek = false
+			w.seeks[block] = true
+		}
+	}
+	if w.seeks[block] {
+		// First-block waits and actual jumps yield transfers. Ordinary later
+		// sequential reads do not repeatedly cancel useful prefetch.
+		for b, cancel := range w.transfers {
+			if w.readers[b] == 0 {
+				cancel(errRangeYielded)
+			}
+		}
+	}
 	w.signalLocked()
 	return sync.OnceFunc(func() {
 		w.mu.Lock()
@@ -83,12 +109,58 @@ func (w *rangeWork) demand(offset int64) func() {
 		if w.readers[block] == 0 {
 			delete(w.readers, block)
 			delete(w.order, block)
+			delete(w.seeks, block)
 			if cancel := w.active[block]; cancel != nil {
 				cancel(errRangeAbandoned)
 			}
 		}
 		w.signalLocked()
 	})
+}
+
+func (w *rangeWork) shouldWaitLocked(block int64) bool {
+	if w.readers[block] > 0 {
+		return false
+	}
+	if w.startup && !w.done[0] && block != 0 {
+		return true
+	}
+	for b := range w.seeks {
+		if !w.done[b] {
+			return true
+		}
+	}
+	return false
+}
+
+// A yielding worker keeps its block claim and partial buffer, but releases the
+// HTTP request. Resume waits for the Seek instead of repeatedly reopening it.
+func (w *rangeWork) beginTransfer(ctx context.Context, block int64) (context.Context, func(), error) {
+	for {
+		w.mu.Lock()
+		if err := ctx.Err(); err != nil {
+			w.mu.Unlock()
+			return nil, nil, err
+		}
+		if !w.shouldWaitLocked(block) {
+			child, cancel := context.WithCancelCause(ctx)
+			w.transfers[block] = cancel
+			w.mu.Unlock()
+			return child, func() {
+				w.mu.Lock()
+				delete(w.transfers, block)
+				cancel(nil)
+				w.mu.Unlock()
+			}, nil
+		}
+		changed := w.changed
+		w.mu.Unlock()
+		select {
+		case <-ctx.Done():
+			return nil, nil, ctx.Err()
+		case <-changed:
+		}
+	}
 }
 
 func (w *rangeWork) requestContext(ctx context.Context, block int64) context.Context {

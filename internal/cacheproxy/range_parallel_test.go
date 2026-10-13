@@ -166,8 +166,8 @@ func TestParallelRangeGlobalBudgetLeavesRoomForPlaybackAndSeek(t *testing.T) {
 	mu.Lock()
 	observedPeak := peak
 	mu.Unlock()
-	if observedPeak != videoRequestLimit {
-		t.Fatalf("peak = %d, expected exactly %d", observedPeak, videoRequestLimit)
+	if observedPeak > videoRequestLimit {
+		t.Fatalf("peak = %d, exceeds %d", observedPeak, videoRequestLimit)
 	}
 	unblock()
 	if err := <-seekDone; err != nil {

@@ -70,6 +70,18 @@ type resourceCandidates struct {
 }
 type resourceAttempts struct {
 	targets map[string]*resourceCandidates
+	current *resourceCandidates
+	request *http.Request
+}
+
+// Local scheduling cancellation is not a failed channel. Resume the last
+// validated request on that channel without revisiting earlier failures.
+func (a *resourceAttempts) resume() *http.Request {
+	if a.current != nil {
+		a.current.next--
+		a.current = nil
+	}
+	return a.request
 }
 
 func (s *Server) candidates(r *http.Request, attempts *resourceAttempts) *resourceCandidates {
@@ -164,6 +176,7 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 			// full-body 200 must be able to retain the parent task's deadline.
 			budget = time.AfterFunc(time.Until(deadline)/time.Duration(limit-i), func() { cancelCause(context.DeadlineExceeded) })
 		}
+		attempts.current, attempts.request = candidates, r
 		resp, err := client.Do(r.Clone(ctx))
 		if err == nil && resp.StatusCode < 500 {
 			resp.Body = &resourceBody{ReadCloser: resp.Body, cancel: cancel, ctx: ctx, budget: budget, attempts: attempts, release: release}

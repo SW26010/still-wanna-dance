@@ -1,0 +1,18 @@
+goos: windows
+goarch: amd64
+pkg: still-wanna-dance/internal/cacheproxy
+cpu: AMD Ryzen 7 9850X3D 8-Core Processor           
+BenchmarkRangeDownload/per_request/prefetch-16         	       3	 265326500 ns/op	  47.42 MB/s	         3.000 peak_requests	        13.00 requests/op	         1.000 traffic_ratio
+BenchmarkRangeDownload/per_request/prefetch-16         	       3	 265137100 ns/op	  47.46 MB/s	         3.000 peak_requests	        13.00 requests/op	         1.000 traffic_ratio
+BenchmarkRangeDownload/per_request/prefetch-16         	       3	 264738767 ns/op	  47.53 MB/s	         3.000 peak_requests	        13.00 requests/op	         1.000 traffic_ratio
+BenchmarkRangeDownload/per_request/playback_seek-16    	       3	 345053567 ns/op	  36.47 MB/s	        53.10 first_body_ms	         3.000 peak_requests	        13.67 requests/op	        54.74 seek_ms	         1.000 traffic_ratio
+BenchmarkRangeDownload/per_request/playback_seek-16    	       3	 345852633 ns/op	  36.38 MB/s	        53.22 first_body_ms	         3.000 peak_requests	        14.00 requests/op	        56.46 seek_ms	         1.000 traffic_ratio
+BenchmarkRangeDownload/per_request/playback_seek-16    	       3	 349375300 ns/op	  36.02 MB/s	        53.33 first_body_ms	         3.000 peak_requests	        14.00 requests/op	        55.02 seek_ms	         1.000 traffic_ratio
+BenchmarkRangeDownload/shared_capacity/prefetch-16     	       3	 409382600 ns/op	  30.74 MB/s	         3.000 peak_requests	        13.00 requests/op	         1.000 traffic_ratio
+BenchmarkRangeDownload/shared_capacity/prefetch-16     	       3	 409673467 ns/op	  30.71 MB/s	         3.000 peak_requests	        13.00 requests/op	         1.000 traffic_ratio
+BenchmarkRangeDownload/shared_capacity/prefetch-16     	       3	 411851833 ns/op	  30.55 MB/s	         3.000 peak_requests	        13.00 requests/op	         1.000 traffic_ratio
+BenchmarkRangeDownload/shared_capacity/playback_seek-16         	       3	 411310300 ns/op	  30.59 MB/s	        30.27 first_body_ms	         3.000 peak_requests	        13.67 requests/op	        33.98 seek_ms	         1.000 traffic_ratio
+BenchmarkRangeDownload/shared_capacity/playback_seek-16         	       3	 413638967 ns/op	  30.42 MB/s	        29.14 first_body_ms	         3.000 peak_requests	        14.00 requests/op	        34.51 seek_ms	         1.000 traffic_ratio
+BenchmarkRangeDownload/shared_capacity/playback_seek-16         	       3	 410797900 ns/op	  30.63 MB/s	        29.23 first_body_ms	         3.000 peak_requests	        14.00 requests/op	        33.69 seek_ms	         1.000 traffic_ratio
+PASS
+ok  	still-wanna-dance/internal/cacheproxy	18.664s

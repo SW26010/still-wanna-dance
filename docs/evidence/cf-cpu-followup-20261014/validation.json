@@ -1,0 +1,15 @@
+{
+  "formalTrials": 105,
+  "formalChecksPassed": true,
+  "raceTrials": 3,
+  "racePassed": true,
+  "pilotTrials": 4,
+  "pilotPassed": true,
+  "cacheproxyPackageRegressionPassed": true,
+  "cacheproxyVetPassed": true,
+  "pythonAnalysisTestsPassed": 8,
+  "initialSandboxPackageRun": "existing cache-publication Access denied; successful retry used normal user permissions and workspace test temporary directory",
+  "measuredBinariesUnchanged": true,
+  "allPreliminaryPayloadMiB": 255.25,
+  "uacHelperRecoverySmokePassed": true
+}

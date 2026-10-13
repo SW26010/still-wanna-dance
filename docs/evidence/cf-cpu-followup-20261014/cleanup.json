@@ -1,0 +1,275 @@
+{
+  "helperExited": true,
+  "ownedSessionsRemaining": 0,
+  "probeProcessesRemaining": 0,
+  "originReceipts": 7,
+  "allOriginsExited": true,
+  "uacPrompts": 1,
+  "helperLifetimeMinutes": 240,
+  "maxTraceMinutes": 10,
+  "gameStartedByExperiment": false,
+  "productDefaultsChanged": false,
+  "removedFixtureCaches": [
+    {
+      "directory": "pilot-engine-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "pilot-engine-compete-cache",
+      "bytes": 100769792.0
+    },
+    {
+      "directory": "pilot-engine-prefetch-cache",
+      "bytes": 33660928.0
+    },
+    {
+      "directory": "r1-engine-16-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r1-engine-16-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r1-engine-16-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r1-engine-32-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r1-engine-32-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r1-engine-32-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r1-engine-4-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r1-engine-4-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r1-engine-4-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r1-engine-8-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r1-engine-8-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r1-engine-8-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r2-engine-16-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r2-engine-16-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r2-engine-16-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r2-engine-32-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r2-engine-32-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r2-engine-32-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r2-engine-4-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r2-engine-4-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r2-engine-4-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r2-engine-8-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r2-engine-8-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r2-engine-8-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r3-engine-16-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r3-engine-16-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r3-engine-16-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r3-engine-32-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r3-engine-32-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r3-engine-32-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r3-engine-4-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r3-engine-4-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r3-engine-4-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r3-engine-8-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r3-engine-8-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r3-engine-8-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r4-engine-16-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r4-engine-16-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r4-engine-16-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r4-engine-32-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r4-engine-32-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r4-engine-32-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r4-engine-4-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r4-engine-4-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r4-engine-4-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r4-engine-8-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r4-engine-8-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r4-engine-8-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r5-engine-16-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r5-engine-16-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r5-engine-16-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r5-engine-32-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r5-engine-32-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r5-engine-32-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r5-engine-4-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r5-engine-4-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r5-engine-4-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "r5-engine-8-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "r5-engine-8-compete-cache",
+      "bytes": 201433088.0
+    },
+    {
+      "directory": "r5-engine-8-prefetch-cache",
+      "bytes": 67215360.0
+    },
+    {
+      "directory": "race-engine-cancel-cache",
+      "bytes": 106496.0
+    },
+    {
+      "directory": "race-engine-compete-cache",
+      "bytes": 100769792.0
+    }
+  ],
+  "privateTracesAndLogsRetained": true
+}

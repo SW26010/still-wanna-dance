@@ -1,0 +1,767 @@
+{
+  "allPassed": true,
+  "trials": [
+    {
+      "id": "r1-idle",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-engine-16-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-raw-32-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-engine-16-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-engine-8-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-raw-8-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-engine-32-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-raw-16-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-engine-4-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-raw-4-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-engine-32-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-raw-4-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-engine-8-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-raw-32-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-engine-32-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-raw-16-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-engine-8-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-engine-16-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-engine-4-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-engine-4-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r1-raw-8-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-idle",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-engine-4-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-raw-4-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-raw-32-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-engine-8-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-engine-8-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-raw-4-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-engine-8-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-raw-8-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-engine-4-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-engine-16-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-raw-32-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-engine-32-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-engine-16-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-engine-16-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-raw-16-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-raw-8-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-engine-4-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-engine-32-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-raw-16-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r2-engine-32-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-idle",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-raw-16-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-engine-32-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-raw-32-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-engine-16-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-raw-8-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-engine-16-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-raw-4-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-raw-4-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-engine-4-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-engine-8-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-engine-4-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-engine-4-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-engine-32-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-engine-16-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-raw-8-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-engine-32-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-engine-8-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-raw-16-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-raw-32-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r3-engine-8-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-idle",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-engine-4-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-raw-4-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-raw-32-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-engine-4-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-raw-4-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-raw-8-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-engine-8-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-engine-8-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-raw-16-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-engine-32-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-engine-4-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-engine-16-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-engine-16-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-engine-8-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-raw-16-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-engine-32-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-engine-16-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-raw-32-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-raw-8-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r4-engine-32-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-idle",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-raw-32-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-raw-32-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-engine-4-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-engine-16-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-engine-8-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-engine-32-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-raw-8-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-engine-32-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-engine-32-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-raw-16-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-raw-4-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-raw-16-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-engine-8-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-engine-16-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-engine-16-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-raw-8-warm",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-engine-8-compete",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-raw-4-cold",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-engine-4-prefetch",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    },
+    {
+      "id": "r5-engine-4-cancel",
+      "passed": true,
+      "eventsLost": 0,
+      "buffersLost": 0,
+      "losslessTrace": true
+    }
+  ],
+  "exportWarnings": [
+    {
+      "trace": "follow-r1",
+      "invalidEventWarnings": 52,
+      "note": "Other kernel event decoding warnings are distinct from ETW event/buffer loss"
+    },
+    {
+      "trace": "follow-r2",
+      "invalidEventWarnings": 4,
+      "note": "Other kernel event decoding warnings are distinct from ETW event/buffer loss"
+    },
+    {
+      "trace": "follow-r3",
+      "invalidEventWarnings": 24,
+      "note": "Other kernel event decoding warnings are distinct from ETW event/buffer loss"
+    },
+    {
+      "trace": "follow-r4",
+      "invalidEventWarnings": 28,
+      "note": "Other kernel event decoding warnings are distinct from ETW event/buffer loss"
+    },
+    {
+      "trace": "follow-r5",
+      "invalidEventWarnings": 4,
+      "note": "Other kernel event decoding warnings are distinct from ETW event/buffer loss"
+    }
+  ]
+}

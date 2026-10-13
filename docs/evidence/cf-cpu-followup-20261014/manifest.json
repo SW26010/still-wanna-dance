@@ -1,0 +1,638 @@
+{
+  "schemaVersion": 2,
+  "batch": "cf-cpu-followup-20261014",
+  "hashBasis": "git-blob",
+  "pathBasis": "repository-relative",
+  "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5",
+  "originalMetadata": {
+    "batch": "CF-CPU-FOLLOWUP-20261014",
+    "type": "development-experiment",
+    "workloadCommit": "5c6b63d1f4cfee870e241bf4e73c9d816e0fbb32",
+    "source": "Separate-process local TLS fixture, opt-in complete-cache workload, Windows ETW and native xperf crosscheck",
+    "sanitization": "Private PIDs, absolute paths, origin ports, certificates and raw ETL/CSV excluded. Thread IDs are per-trial aliases; timestamps are relative microseconds. All payloads are deterministic synthetic fixtures.",
+    "limitation": "No VRChat, real CF traffic or game-frame measurements. Product defaults unchanged; LA-037 pending."
+  },
+  "originalManifest": {
+    "storage": "archive",
+    "path": "docs/evidence/cf-cpu-followup-20261014/manifest.json"
+  },
+  "archive": {
+    "batch": "cf-cpu-followup-20261014",
+    "name": "cf-cpu-followup-20261014-v1.zip",
+    "bytes": 10962129,
+    "sha256": "e23c81110762d9ca73f5033866825119cd07ea584d558dfebb51ebd642633b36",
+    "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261014-cf-v1/cf-cpu-followup-20261014-v1.zip",
+    "status": "prepared-local",
+    "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5"
+  },
+  "files": [
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/aggregates.json",
+      "bytes": 79413,
+      "sha256": "3895f99d13d6c2bf87edffb53f6d87ff6565e0eb3dde17da2f0e7fb49ad42bef"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/builds.json",
+      "bytes": 953,
+      "sha256": "ea31bf0a6f81b9bb479db4021ecb5ed3f59bdc5260ebdb026813aee56cb651bf"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/checks.json",
+      "bytes": 15881,
+      "sha256": "eff1b16594bc494d17aa065a9fd1085023578a7c74e9d88bbe7a18af95a68af8"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/cleanup.json",
+      "bytes": 6025,
+      "sha256": "4c16e7ea266d2706b81c5ffe09017416a976e7b306b4790ce273caee8edb0389"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/crosschecks.json",
+      "bytes": 5706,
+      "sha256": "b88134a1ca6f36aa741b30f6f91512e5a264dd881f1da8c1dd8789416db87562"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/environment.json",
+      "bytes": 471,
+      "sha256": "ff2529b12723913272e4a39a05f5502111b43c84dbaa7bb767d1055a927cebf4"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/followup-summary.svg",
+      "bytes": 79162,
+      "sha256": "4c2131482343b116932bcde722250d9fa7cd03e4bcd91eff31b18d6b14d20850"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/helper-check.json",
+      "bytes": 58,
+      "sha256": "ea40c69159a71cfc495ea21c57ce995cdcbc50df07b64d2e5dcff5e6413141f2"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/plan.json",
+      "bytes": 17855,
+      "sha256": "c5d6c0d74d63de489ee7999ce56607323a474b47a19dc58fc79267a3f32b3956"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/run-totals.json",
+      "bytes": 13098,
+      "sha256": "2b917bb5768fc669373a6eec23f4c41ab72a0eb513b4bfc332218db075e813a9"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/source.json",
+      "bytes": 95,
+      "sha256": "9aa98a7b0e3e90ac296bd4ef78f35a8a9aaee0412673cb6fcbc0576bc7ce2aaa"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/validation.json",
+      "bytes": 525,
+      "sha256": "c8ccbfb559b82d75c27b20b1b389973c6b0eb6593630bfc99f632e65a5b3e48f"
+    }
+  ],
+  "archivedFiles": [
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/followup-summary.png",
+      "bytes": 260724,
+      "sha256": "c4d080ee03ba98533929bbe56daa2f0f59b06e11a20129c020ffba91da9f18dc"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/preliminary.json.gz",
+      "bytes": 9100,
+      "sha256": "387efd0c18e7203693fd4f66f2d0cbbab911cf44e52665db5a134f464eaa7a0c"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-engine-16-cancel-scheduling.json.gz",
+      "bytes": 13453,
+      "sha256": "7d33375e207c988182061f2822dadcc233f1844acbd526267b49427619c4f43b"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-engine-16-compete-scheduling.json.gz",
+      "bytes": 190976,
+      "sha256": "8a75f6f477eed3b0e17afe25d32bcfcecd9f7583685d3e84d61ae5649afc3392"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-engine-16-prefetch-scheduling.json.gz",
+      "bytes": 73690,
+      "sha256": "c3c955b6178e2fe46d6d2d12a42396c46aafc980f526de3b0e0aff580c87be39"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-engine-32-cancel-scheduling.json.gz",
+      "bytes": 11347,
+      "sha256": "aa74dc81799113994cb9a89a290ee84185efd4d0216056bbc1fc9cc5137e3d72"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-engine-32-compete-scheduling.json.gz",
+      "bytes": 188127,
+      "sha256": "67af57efee994c1dccea19736a26ef7aafab303e20d3a233577c172904616ffd"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-engine-32-prefetch-scheduling.json.gz",
+      "bytes": 91036,
+      "sha256": "a977fbf9e6adc8c351525471b90646ff90852bef64b09f11dd78fed1e6387c7a"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-engine-4-cancel-scheduling.json.gz",
+      "bytes": 6336,
+      "sha256": "f6cf437f080b4ee8c8955d27db46eec3d4d67926597b3c4fde7d5ccc6aa78f35"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-engine-4-compete-scheduling.json.gz",
+      "bytes": 196455,
+      "sha256": "b43bf6f185f0a8f10020eb828e070f80837d5649779309b8ec0a35e88b701620"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-engine-4-prefetch-scheduling.json.gz",
+      "bytes": 71376,
+      "sha256": "c8d0b4ad164bdcb5cbcf77c0e15a44dcb588911f52a6f6dd0f91e58a43ed9212"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-engine-8-cancel-scheduling.json.gz",
+      "bytes": 7809,
+      "sha256": "6bfe606fb0d193b388ca05150881cd6a60a3851166316e71b1f06bb3dd2350f7"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-engine-8-compete-scheduling.json.gz",
+      "bytes": 201552,
+      "sha256": "8128c1d016e46d230ea783b00a1f94aaec16704244020aaa302edf464341f978"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-engine-8-prefetch-scheduling.json.gz",
+      "bytes": 85691,
+      "sha256": "b4fade5933a0766cd2f61bc467d19b5cd7ce00d410d6215ba79a043d17d1c5c6"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-idle-scheduling.json.gz",
+      "bytes": 27384,
+      "sha256": "de27da7c3bfabb6ca2c7f75e7d3937862d4577155324d402770dba401e75e7f0"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-raw-16-cold-scheduling.json.gz",
+      "bytes": 99232,
+      "sha256": "e6e9b342e5965255ace089c7a4e65389b94d20d8d39f285b2d44ca4d42df2c72"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-raw-16-warm-scheduling.json.gz",
+      "bytes": 92769,
+      "sha256": "ef567385e9aba41f523cdab83dbaab443b3311581d38f434750ff18608592599"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-raw-32-cold-scheduling.json.gz",
+      "bytes": 187613,
+      "sha256": "9c019e82491364ca932800f2cba3e8fd488a67590d3276430e08b3f4d80a55f8"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-raw-32-warm-scheduling.json.gz",
+      "bytes": 80494,
+      "sha256": "ec9bdc613c1e9946ea5ba7cda660216bee87dc20c390efe9db408c20f16ce88b"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-raw-4-cold-scheduling.json.gz",
+      "bytes": 90558,
+      "sha256": "2aceead37df4a3d9645c62388a8f8cdd29d5ce6caf0e253beede89f7f690d2fc"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-raw-4-warm-scheduling.json.gz",
+      "bytes": 78811,
+      "sha256": "c9848e9a163b3cc93a64f78fd53bfbf682f932a0ec927698c5ebc8fb4da67f9b"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-raw-8-cold-scheduling.json.gz",
+      "bytes": 79731,
+      "sha256": "51a8a64d292f5329e2a0fd03b131ccfd132833b65597aff641592669e4ef5d4d"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r1-raw-8-warm-scheduling.json.gz",
+      "bytes": 70968,
+      "sha256": "c4242c18008cf69f968ff4ac8ffb211b770c364b1dfd232ae969dedb3582b9c4"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-engine-16-cancel-scheduling.json.gz",
+      "bytes": 8894,
+      "sha256": "e87e94321f6994e229c85a74ed391db112ff12eb47b787ef45f610854f82e66d"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-engine-16-compete-scheduling.json.gz",
+      "bytes": 159063,
+      "sha256": "15ea062bfd951fda9c8c2561656ce89c121ff69bed4bc4335f5559bb442eb4ab"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-engine-16-prefetch-scheduling.json.gz",
+      "bytes": 58016,
+      "sha256": "0efa34353828fdd54593f172168ef14d91bf1abb3face024936ff013b5380995"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-engine-32-cancel-scheduling.json.gz",
+      "bytes": 11507,
+      "sha256": "6d6833190861589a0b4bc3031673c6a00d62ba6d043a83ba705cb19454bbc8db"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-engine-32-compete-scheduling.json.gz",
+      "bytes": 159968,
+      "sha256": "e0420ae7eb5ae5e4c7d799c26866253cb8208137843a09b551c3709c95e251b9"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-engine-32-prefetch-scheduling.json.gz",
+      "bytes": 59657,
+      "sha256": "4fd9ff638802604266df341b26058b7733cad66762b999135280c11d846a6d00"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-engine-4-cancel-scheduling.json.gz",
+      "bytes": 6396,
+      "sha256": "cfbe60cb1e1468375f645631d1f0300e8206e4b75c066de3e07f97fd5469496c"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-engine-4-compete-scheduling.json.gz",
+      "bytes": 209921,
+      "sha256": "c468be06a9ce7386c8aeae0697440b21065c3ba97a11a2a9e88a28e76210c6d3"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-engine-4-prefetch-scheduling.json.gz",
+      "bytes": 54431,
+      "sha256": "9afa80186b03f9f15b1c632b645f98d687d472327735fd7b475750e0de42a805"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-engine-8-cancel-scheduling.json.gz",
+      "bytes": 6191,
+      "sha256": "1eeccef60c440237e87225222210f1dc1242c3ba15f7328d6d67fd885a319931"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-engine-8-compete-scheduling.json.gz",
+      "bytes": 173246,
+      "sha256": "2a5355ef6639817df71188711d42e35fca9657cbaf73cc6df89b5b455ded869c"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-engine-8-prefetch-scheduling.json.gz",
+      "bytes": 62458,
+      "sha256": "a4ac103a594278a99ee4c3e9e2861b277def7679b6d206d4b84c6408ae5219ba"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-idle-scheduling.json.gz",
+      "bytes": 22379,
+      "sha256": "d1a35a231539eb1a73d757f2cce9bfdf133142883a21c0a7388a0cf047400930"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-raw-16-cold-scheduling.json.gz",
+      "bytes": 64763,
+      "sha256": "c189defee6d0ef1d143f3b6ac5a9fcd34aaebf461f82f0054fc2a52458de46ce"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-raw-16-warm-scheduling.json.gz",
+      "bytes": 62833,
+      "sha256": "693b75af93c0c3c85d216f0f395924547636ece02fedcdee825e76bde22a9e7e"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-raw-32-cold-scheduling.json.gz",
+      "bytes": 65850,
+      "sha256": "3395924ef06b129db9af5888c050a362c28f79319b7637ffe6052da4d4ccb6de"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-raw-32-warm-scheduling.json.gz",
+      "bytes": 68459,
+      "sha256": "7b5aa979d2159d457686936b0656767a05958c414b757720476d858e41c122fb"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-raw-4-cold-scheduling.json.gz",
+      "bytes": 71246,
+      "sha256": "509663e6776232c154da74a016090200adc6661517eb8ffded5d6940c7651ff0"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-raw-4-warm-scheduling.json.gz",
+      "bytes": 76512,
+      "sha256": "1606e7aa1618c268bc9f31671d9d0451c19fb375f8cc628f2c6c23ac77d763a2"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-raw-8-cold-scheduling.json.gz",
+      "bytes": 64831,
+      "sha256": "a406f19fb6eb27710b94bef48df87d88afa9ca6692e3739423bf90c3d03169b1"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r2-raw-8-warm-scheduling.json.gz",
+      "bytes": 91211,
+      "sha256": "dee46d4715de29aeefb54bc686e4e9d2e826058cc53794f0bc9dbe3a63bc3caa"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-engine-16-cancel-scheduling.json.gz",
+      "bytes": 8593,
+      "sha256": "5fe4b0866febbf8af17ccf574608509e929eeb740b5f3ad95915b8ea4574e2b8"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-engine-16-compete-scheduling.json.gz",
+      "bytes": 177562,
+      "sha256": "ef390f0a6f11be5aec048ac42a2460b3ba975b94d2fa7cb891912a7514c1ac74"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-engine-16-prefetch-scheduling.json.gz",
+      "bytes": 58221,
+      "sha256": "cde41c10f5bb55870ac1b2766631b5bdf67a988f319cc017b7a859ec87d978c1"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-engine-32-cancel-scheduling.json.gz",
+      "bytes": 12901,
+      "sha256": "a0fce262d3def0984fef92edc17791d8af338d6b17a820dc920fe997522c8f30"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-engine-32-compete-scheduling.json.gz",
+      "bytes": 169975,
+      "sha256": "b85ce72eabc0ad4b6fc1a0984e78957a44cb11ed96946166a2b0b4041cacfa4c"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-engine-32-prefetch-scheduling.json.gz",
+      "bytes": 59264,
+      "sha256": "7f9152b52e92d6a336862b1e6a5ea2e36620024d923ad59f52b4b8607624768a"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-engine-4-cancel-scheduling.json.gz",
+      "bytes": 6583,
+      "sha256": "99e39d2ef6c39cabc12e0c36d933414f672d6b27d6a73f6086556a8e4add6df5"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-engine-4-compete-scheduling.json.gz",
+      "bytes": 155825,
+      "sha256": "7c027ce28c5302f1f2c87bf568162437600f1e463fcf00907e0fc82548b6adb6"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-engine-4-prefetch-scheduling.json.gz",
+      "bytes": 54299,
+      "sha256": "d7035b073db0832d0a22ef4f773b3b6956d2428f0899d35faa6728f15b51801b"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-engine-8-cancel-scheduling.json.gz",
+      "bytes": 6678,
+      "sha256": "802effc1308a2e0993994d1caf80de770d3590f175c7b008456561d97940964c"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-engine-8-compete-scheduling.json.gz",
+      "bytes": 187382,
+      "sha256": "bf98f806f4ab5d01c394b8bc71b0a9a2d77fbe96edaf7f32cac0c3fa3e4b05dc"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-engine-8-prefetch-scheduling.json.gz",
+      "bytes": 60433,
+      "sha256": "1748338b2b47ccaa61eb2cb99f3c834920058d707babd9169b0cef2a7c9fbc47"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-idle-scheduling.json.gz",
+      "bytes": 15672,
+      "sha256": "3c7c271e53642d99d61f737bd9899f2627bd01431b80dbb83ad23ab3889ece05"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-raw-16-cold-scheduling.json.gz",
+      "bytes": 66923,
+      "sha256": "6954355133a85944177a2d24b2b111f25eea003ea83f300d66f878a529fd2282"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-raw-16-warm-scheduling.json.gz",
+      "bytes": 74005,
+      "sha256": "bb60c316d75fd5ebe4446480a6702e96572878b01100bd60111eb33cd94355f3"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-raw-32-cold-scheduling.json.gz",
+      "bytes": 92704,
+      "sha256": "e89c07b75bfc94c01b28e5f93001fe6db1a5131afe0382efff1e5dc0139ef7e2"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-raw-32-warm-scheduling.json.gz",
+      "bytes": 65353,
+      "sha256": "e47a82b7ce4b0269f31f861da9ad14d18527846f98b9d1d3acd7e39c79989c75"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-raw-4-cold-scheduling.json.gz",
+      "bytes": 64102,
+      "sha256": "7421b33000e43bf5e1784d2db9225ea147e08bbd7e723a7461306cd035b5e340"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-raw-4-warm-scheduling.json.gz",
+      "bytes": 65689,
+      "sha256": "0281f01b6b7158fe5506100afc1d2be02cf227544637be1ef59b53e2952d2f4a"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-raw-8-cold-scheduling.json.gz",
+      "bytes": 66810,
+      "sha256": "d4ea2a3dad1db9ac5c6de3a20638ab8752adeafa1be5d3484278cc0d20d65b23"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r3-raw-8-warm-scheduling.json.gz",
+      "bytes": 65066,
+      "sha256": "88551a8cd088a1500e3c44a90d23b44d21be3cbe01d2d559277b50ee1c707dad"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-engine-16-cancel-scheduling.json.gz",
+      "bytes": 9603,
+      "sha256": "6f37bb56359b9a0d071076aaf1fb9b6126ef42731c5dab694b112c368f37192e"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-engine-16-compete-scheduling.json.gz",
+      "bytes": 163216,
+      "sha256": "4993f7d5f79aa677030d968c53a05b913108eb8466aaf19082602689ef40a6b6"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-engine-16-prefetch-scheduling.json.gz",
+      "bytes": 57432,
+      "sha256": "612f0456c59989df80d9e601ba24291aec355e64627da0d964caa4e0d1ef91ef"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-engine-32-cancel-scheduling.json.gz",
+      "bytes": 11796,
+      "sha256": "040f23996d7546be50cd11a85f98981c2e6ef43f52257bc5cd5426af1c577ec3"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-engine-32-compete-scheduling.json.gz",
+      "bytes": 168952,
+      "sha256": "fb9fd14278954d7249dff2ce057391314d6e75e9368428a3fc6e98fd1ea58525"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-engine-32-prefetch-scheduling.json.gz",
+      "bytes": 61777,
+      "sha256": "343195870b387a580750d8eba0f34af06aa571f5dd61a3cc7ae60a9064b23a72"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-engine-4-cancel-scheduling.json.gz",
+      "bytes": 7157,
+      "sha256": "6929e220885c7633ef014c29bda16ea69361c7dea5c2128e89b3d9c94d4980b3"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-engine-4-compete-scheduling.json.gz",
+      "bytes": 160834,
+      "sha256": "51cce6c779aa4e516d7dda325af8fba61f99daf998a9c9336763953261dfb490"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-engine-4-prefetch-scheduling.json.gz",
+      "bytes": 62977,
+      "sha256": "cc46c01aa2623907194402f789efc2731a729b09a8093c6baa3b9ef7e0331010"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-engine-8-cancel-scheduling.json.gz",
+      "bytes": 6434,
+      "sha256": "261f4c9d1417467ef9f97b389ce071c7f412400d0a5046e046288ce5f8d86ed4"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-engine-8-compete-scheduling.json.gz",
+      "bytes": 181621,
+      "sha256": "8a1ffc3617ca733c975609aaa17a39018937e352e4e12f50201acbb955379b81"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-engine-8-prefetch-scheduling.json.gz",
+      "bytes": 54654,
+      "sha256": "703898a09c7595cea253f321f975f0d177aa8712724e5c6967c200427cf2218d"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-idle-scheduling.json.gz",
+      "bytes": 49098,
+      "sha256": "f868551018de61b39ff85c54440573d0acc442ceb5a11020d775c1e30fe78f88"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-raw-16-cold-scheduling.json.gz",
+      "bytes": 71834,
+      "sha256": "1b09dc84146a577d663682a674d776a2912753dc17261520e7ffe95e31b9ce18"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-raw-16-warm-scheduling.json.gz",
+      "bytes": 65891,
+      "sha256": "4fed774c8b443b2ed21bbf13ab2c8aa0bec27d4233790e43355b18cc8c063c72"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-raw-32-cold-scheduling.json.gz",
+      "bytes": 67534,
+      "sha256": "e0decf1864709b3652b366ddc04f7aabc45d38e3e03940638e946c4af08fb3b5"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-raw-32-warm-scheduling.json.gz",
+      "bytes": 79981,
+      "sha256": "c463ec8711b6bdea9c1bc9f6bacb8a0fb3980c9a13ca9e2753312bb9c8d3fc5a"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-raw-4-cold-scheduling.json.gz",
+      "bytes": 95724,
+      "sha256": "b12b8a681115757806071a2b694ee3e254b24498b234425b4db69b614a2fb11d"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-raw-4-warm-scheduling.json.gz",
+      "bytes": 74040,
+      "sha256": "169cb58b0a7b7eb9b1738f0e751c85eaec73e5c85febc8759a4a94397bd0fca3"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-raw-8-cold-scheduling.json.gz",
+      "bytes": 80871,
+      "sha256": "ac8f8faa99a3b9914fcbcd9ee613782cf55abd54a68351481f07a2bb536855e7"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r4-raw-8-warm-scheduling.json.gz",
+      "bytes": 65130,
+      "sha256": "1ef3be9805ead1f9670fe94c7c032abf6d3b727da3d00a68472675daefe345d2"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-engine-16-cancel-scheduling.json.gz",
+      "bytes": 8220,
+      "sha256": "c8c7e2939b79352d4bcbf72246dabf06a0727f209798411d7742d929c9368840"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-engine-16-compete-scheduling.json.gz",
+      "bytes": 161228,
+      "sha256": "682d91242a4e303a4d9e16c0747d82247d37fa8af5752a070736eabbd1e6a160"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-engine-16-prefetch-scheduling.json.gz",
+      "bytes": 58168,
+      "sha256": "6d16729392f6f2e6128a2dcd54079b02304f0a438f1d6d9648fedb2dbd095558"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-engine-32-cancel-scheduling.json.gz",
+      "bytes": 11805,
+      "sha256": "119c026ba56f5a754382fefed51d511e6f84ee9a3ff4c0dce92892090468c218"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-engine-32-compete-scheduling.json.gz",
+      "bytes": 165440,
+      "sha256": "1a4d6b2048f3c9bdc795ab7efb1908a20135fbe37eaa9da209bf6009cead2ff8"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-engine-32-prefetch-scheduling.json.gz",
+      "bytes": 63592,
+      "sha256": "1c81a07514589afdc9473b03f4c80982bc246c6d63363a20edf94f0394fcc82b"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-engine-4-cancel-scheduling.json.gz",
+      "bytes": 7215,
+      "sha256": "25070f4d932a6c7dab83b3709e58bf5dca6cafdaf15b20831b31182d985a6aec"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-engine-4-compete-scheduling.json.gz",
+      "bytes": 157283,
+      "sha256": "be2257fbaaca273bd0eb256891d0275afc2c80badf0c2aa322ee61a9167b6a0d"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-engine-4-prefetch-scheduling.json.gz",
+      "bytes": 54934,
+      "sha256": "7f87f9caeb3424dc465a11a26b479ad4affafd73a2a111dd098cd48007851147"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-engine-8-cancel-scheduling.json.gz",
+      "bytes": 6179,
+      "sha256": "5cad3680d2b4d6080465ff7ff5e0de0907bc832bbeed224ce2659873e84e81ae"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-engine-8-compete-scheduling.json.gz",
+      "bytes": 155067,
+      "sha256": "44d2f53f6f171cec85e3f973527bb6bc49107ece672c36161404e1e019db1db4"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-engine-8-prefetch-scheduling.json.gz",
+      "bytes": 56239,
+      "sha256": "f5c12826167f2d90036ea788801f45f623dbf252b3dfaf39b302fdbfde1b3b0d"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-idle-scheduling.json.gz",
+      "bytes": 17871,
+      "sha256": "f7595773b13371e081dfd56d2f942a007deadacc54fc953f8ec5654640748399"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-raw-16-cold-scheduling.json.gz",
+      "bytes": 68186,
+      "sha256": "46421ba30fb7d69264f2ecc72d9923812a5ea52619c2d849088ddc4973bfdf3a"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-raw-16-warm-scheduling.json.gz",
+      "bytes": 67309,
+      "sha256": "2ee55e1043809759cf0e9ca732c37bacb6e3dc56e69dacd5832ad63b7c8a62bb"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-raw-32-cold-scheduling.json.gz",
+      "bytes": 66155,
+      "sha256": "f620ed9619ea5ea0bab2b1e504b6ccd8b5014b4ff1192492771ef0b80d3658dc"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-raw-32-warm-scheduling.json.gz",
+      "bytes": 63776,
+      "sha256": "88eff9366d369956fba9d56af1b66b0005f24c219fa64cdfc7804a70c5238491"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-raw-4-cold-scheduling.json.gz",
+      "bytes": 65955,
+      "sha256": "cf78b6ab30d19bb423fe3e5fa2149b1a04ba5a69ada043938677781c31f035b8"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-raw-4-warm-scheduling.json.gz",
+      "bytes": 64112,
+      "sha256": "e5fb4aad8dce22dba607c3fcb71e96949f4a1cd4d08e7e572748ff9d853e1a74"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-raw-8-cold-scheduling.json.gz",
+      "bytes": 64737,
+      "sha256": "b74776e0050672253b54f29e09bb01264d8d07a6f257b33ff2d746c4eeb0a2da"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/r5-raw-8-warm-scheduling.json.gz",
+      "bytes": 78208,
+      "sha256": "22027c12d750dc5c79c917b9697515429a3e5e4a1e846ee40f0275a843dd5043"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/summary.json",
+      "bytes": 1290137,
+      "sha256": "8b3a3a1765c5f47adf40782d5bef535a19f925acd9e9bd2147430f9bdb81c543"
+    },
+    {
+      "path": "docs/evidence/cf-cpu-followup-20261014/trials.json.gz",
+      "bytes": 257526,
+      "sha256": "9d3a240b4af29f458bbd94386c15ef3a626e447c7c2e5d5df6d27a3eb8805d46"
+    }
+  ],
+  "provenance": "Original measured commits and executable hashes are unchanged. Original manifests, recorded analysis source bytes and workload source snapshots are retained in the archive. See ../history-rewrite-20261014.json for equivalent rewritten commits."
+}

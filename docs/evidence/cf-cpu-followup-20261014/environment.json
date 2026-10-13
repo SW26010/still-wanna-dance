@@ -1,0 +1,17 @@
+{
+  "cpu": {
+    "Name": "AMD Ryzen 7 9850X3D 8-Core Processor           ",
+    "NumberOfCores": 8,
+    "NumberOfLogicalProcessors": 16
+  },
+  "os": {
+    "Caption": "Microsoft Windows 11 \u4e13\u4e1a\u7248",
+    "BuildNumber": "26300",
+    "Version": "10.0.26300"
+  },
+  "measuredWorkloadGo": "1.25.0 windows/amd64",
+  "network": "TLS HTTP/1.1, IPv4 loopback, separate local origin",
+  "powerPlanChanged": false,
+  "affinityChanged": false,
+  "priorityChanged": false
+}

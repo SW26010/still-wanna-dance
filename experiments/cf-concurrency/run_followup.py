@@ -11,7 +11,7 @@ import time
 import urllib.request
 
 REPO = Path(__file__).resolve().parents[2]
-GO = Path(r"C:\Users\Himalia\go\pkg\mod\golang.org\toolchain@v0.0.1-go1.25.0.windows-amd64\bin\go.exe")
+GO = Path(os.environ.get("SWD_EXPERIMENT_GO", str(Path.home()/"go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.windows-amd64/bin/go.exe")))
 ROOT = REPO / "artifacts/cf-cpu-followup"
 LEVELS = (4, 8, 16, 32)
 

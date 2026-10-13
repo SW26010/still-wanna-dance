@@ -1,0 +1,888 @@
+{
+  "seed": 2026101402,
+  "rateMiB": 16,
+  "maxConcurrency": 32,
+  "rawBlocks": 96,
+  "engineBlocks": 64,
+  "rounds": [
+    [
+      {
+        "ID": "r1-idle",
+        "Mode": "idle",
+        "N": 1,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r1-engine-16-compete",
+        "Mode": "engine",
+        "N": 16,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r1-raw-32-warm",
+        "Mode": "raw",
+        "N": 32,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r1-engine-16-prefetch",
+        "Mode": "engine",
+        "N": 16,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r1-engine-8-cancel",
+        "Mode": "engine",
+        "N": 8,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r1-raw-8-cold",
+        "Mode": "raw",
+        "N": 8,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r1-engine-32-cancel",
+        "Mode": "engine",
+        "N": 32,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r1-raw-16-warm",
+        "Mode": "raw",
+        "N": 16,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r1-engine-4-prefetch",
+        "Mode": "engine",
+        "N": 4,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r1-raw-4-warm",
+        "Mode": "raw",
+        "N": 4,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r1-engine-32-compete",
+        "Mode": "engine",
+        "N": 32,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r1-raw-4-cold",
+        "Mode": "raw",
+        "N": 4,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r1-engine-8-prefetch",
+        "Mode": "engine",
+        "N": 8,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r1-raw-32-cold",
+        "Mode": "raw",
+        "N": 32,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r1-engine-32-prefetch",
+        "Mode": "engine",
+        "N": 32,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r1-raw-16-cold",
+        "Mode": "raw",
+        "N": 16,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r1-engine-8-compete",
+        "Mode": "engine",
+        "N": 8,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r1-engine-16-cancel",
+        "Mode": "engine",
+        "N": 16,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r1-engine-4-compete",
+        "Mode": "engine",
+        "N": 4,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r1-engine-4-cancel",
+        "Mode": "engine",
+        "N": 4,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r1-raw-8-warm",
+        "Mode": "raw",
+        "N": 8,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      }
+    ],
+    [
+      {
+        "ID": "r2-idle",
+        "Mode": "idle",
+        "N": 1,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r2-engine-4-cancel",
+        "Mode": "engine",
+        "N": 4,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r2-raw-4-cold",
+        "Mode": "raw",
+        "N": 4,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r2-raw-32-warm",
+        "Mode": "raw",
+        "N": 32,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r2-engine-8-compete",
+        "Mode": "engine",
+        "N": 8,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r2-engine-8-prefetch",
+        "Mode": "engine",
+        "N": 8,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r2-raw-4-warm",
+        "Mode": "raw",
+        "N": 4,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r2-engine-8-cancel",
+        "Mode": "engine",
+        "N": 8,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r2-raw-8-warm",
+        "Mode": "raw",
+        "N": 8,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r2-engine-4-compete",
+        "Mode": "engine",
+        "N": 4,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r2-engine-16-cancel",
+        "Mode": "engine",
+        "N": 16,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r2-raw-32-cold",
+        "Mode": "raw",
+        "N": 32,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r2-engine-32-prefetch",
+        "Mode": "engine",
+        "N": 32,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r2-engine-16-compete",
+        "Mode": "engine",
+        "N": 16,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r2-engine-16-prefetch",
+        "Mode": "engine",
+        "N": 16,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r2-raw-16-cold",
+        "Mode": "raw",
+        "N": 16,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r2-raw-8-cold",
+        "Mode": "raw",
+        "N": 8,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r2-engine-4-prefetch",
+        "Mode": "engine",
+        "N": 4,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r2-engine-32-compete",
+        "Mode": "engine",
+        "N": 32,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r2-raw-16-warm",
+        "Mode": "raw",
+        "N": 16,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r2-engine-32-cancel",
+        "Mode": "engine",
+        "N": 32,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      }
+    ],
+    [
+      {
+        "ID": "r3-idle",
+        "Mode": "idle",
+        "N": 1,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r3-raw-16-cold",
+        "Mode": "raw",
+        "N": 16,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r3-engine-32-prefetch",
+        "Mode": "engine",
+        "N": 32,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r3-raw-32-warm",
+        "Mode": "raw",
+        "N": 32,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r3-engine-16-prefetch",
+        "Mode": "engine",
+        "N": 16,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r3-raw-8-cold",
+        "Mode": "raw",
+        "N": 8,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r3-engine-16-cancel",
+        "Mode": "engine",
+        "N": 16,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r3-raw-4-warm",
+        "Mode": "raw",
+        "N": 4,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r3-raw-4-cold",
+        "Mode": "raw",
+        "N": 4,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r3-engine-4-prefetch",
+        "Mode": "engine",
+        "N": 4,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r3-engine-8-cancel",
+        "Mode": "engine",
+        "N": 8,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r3-engine-4-cancel",
+        "Mode": "engine",
+        "N": 4,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r3-engine-4-compete",
+        "Mode": "engine",
+        "N": 4,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r3-engine-32-cancel",
+        "Mode": "engine",
+        "N": 32,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r3-engine-16-compete",
+        "Mode": "engine",
+        "N": 16,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r3-raw-8-warm",
+        "Mode": "raw",
+        "N": 8,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r3-engine-32-compete",
+        "Mode": "engine",
+        "N": 32,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r3-engine-8-prefetch",
+        "Mode": "engine",
+        "N": 8,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r3-raw-16-warm",
+        "Mode": "raw",
+        "N": 16,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r3-raw-32-cold",
+        "Mode": "raw",
+        "N": 32,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r3-engine-8-compete",
+        "Mode": "engine",
+        "N": 8,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      }
+    ],
+    [
+      {
+        "ID": "r4-idle",
+        "Mode": "idle",
+        "N": 1,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r4-engine-4-cancel",
+        "Mode": "engine",
+        "N": 4,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r4-raw-4-cold",
+        "Mode": "raw",
+        "N": 4,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r4-raw-32-warm",
+        "Mode": "raw",
+        "N": 32,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r4-engine-4-prefetch",
+        "Mode": "engine",
+        "N": 4,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r4-raw-4-warm",
+        "Mode": "raw",
+        "N": 4,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r4-raw-8-cold",
+        "Mode": "raw",
+        "N": 8,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r4-engine-8-compete",
+        "Mode": "engine",
+        "N": 8,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r4-engine-8-cancel",
+        "Mode": "engine",
+        "N": 8,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r4-raw-16-cold",
+        "Mode": "raw",
+        "N": 16,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r4-engine-32-compete",
+        "Mode": "engine",
+        "N": 32,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r4-engine-4-compete",
+        "Mode": "engine",
+        "N": 4,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r4-engine-16-prefetch",
+        "Mode": "engine",
+        "N": 16,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r4-engine-16-compete",
+        "Mode": "engine",
+        "N": 16,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r4-engine-8-prefetch",
+        "Mode": "engine",
+        "N": 8,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r4-raw-16-warm",
+        "Mode": "raw",
+        "N": 16,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r4-engine-32-cancel",
+        "Mode": "engine",
+        "N": 32,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r4-engine-16-cancel",
+        "Mode": "engine",
+        "N": 16,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r4-raw-32-cold",
+        "Mode": "raw",
+        "N": 32,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r4-raw-8-warm",
+        "Mode": "raw",
+        "N": 8,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r4-engine-32-prefetch",
+        "Mode": "engine",
+        "N": 32,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      }
+    ],
+    [
+      {
+        "ID": "r5-idle",
+        "Mode": "idle",
+        "N": 1,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r5-raw-32-cold",
+        "Mode": "raw",
+        "N": 32,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r5-raw-32-warm",
+        "Mode": "raw",
+        "N": 32,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r5-engine-4-compete",
+        "Mode": "engine",
+        "N": 4,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r5-engine-16-compete",
+        "Mode": "engine",
+        "N": 16,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r5-engine-8-cancel",
+        "Mode": "engine",
+        "N": 8,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r5-engine-32-cancel",
+        "Mode": "engine",
+        "N": 32,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r5-raw-8-cold",
+        "Mode": "raw",
+        "N": 8,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r5-engine-32-compete",
+        "Mode": "engine",
+        "N": 32,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r5-engine-32-prefetch",
+        "Mode": "engine",
+        "N": 32,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r5-raw-16-cold",
+        "Mode": "raw",
+        "N": 16,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r5-raw-4-warm",
+        "Mode": "raw",
+        "N": 4,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r5-raw-16-warm",
+        "Mode": "raw",
+        "N": 16,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r5-engine-8-prefetch",
+        "Mode": "engine",
+        "N": 8,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r5-engine-16-cancel",
+        "Mode": "engine",
+        "N": 16,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r5-engine-16-prefetch",
+        "Mode": "engine",
+        "N": 16,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r5-raw-8-warm",
+        "Mode": "raw",
+        "N": 8,
+        "Scenario": "",
+        "Warm": true,
+        "Blocks": 96
+      },
+      {
+        "ID": "r5-engine-8-compete",
+        "Mode": "engine",
+        "N": 8,
+        "Scenario": "compete",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r5-raw-4-cold",
+        "Mode": "raw",
+        "N": 4,
+        "Scenario": "",
+        "Warm": false,
+        "Blocks": 96
+      },
+      {
+        "ID": "r5-engine-4-prefetch",
+        "Mode": "engine",
+        "N": 4,
+        "Scenario": "prefetch",
+        "Warm": false,
+        "Blocks": 64
+      },
+      {
+        "ID": "r5-engine-4-cancel",
+        "Mode": "engine",
+        "N": 4,
+        "Scenario": "cancel",
+        "Warm": false,
+        "Blocks": 64
+      }
+    ]
+  ],
+  "engineBudgets": {
+    "4": [
+      6,
+      4,
+      3
+    ],
+    "8": [
+      8,
+      6,
+      7
+    ],
+    "16": [
+      16,
+      14,
+      15
+    ],
+    "32": [
+      32,
+      30,
+      31
+    ]
+  },
+  "budgetMeaning": [
+    "total requests",
+    "background requests",
+    "background workers per video"
+  ],
+  "localPayloadBudgetMiB": 12288,
+  "publicNetworkBytes": 0
+}

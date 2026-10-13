@@ -1,0 +1,30 @@
+[
+  {
+    "n": 4,
+    "workers": 3,
+    "exe": "follow-4.exe",
+    "sha256": "d7dace4bde9324df0ac7ec4efb21e3db45044eec3ee5424e4c9a103516392df3",
+    "overlaySHA256": "e28b9459fb352c8f11a1350c7f4b320f7f61e2cddad27436203c6d5628cb8634"
+  },
+  {
+    "n": 8,
+    "workers": 7,
+    "exe": "follow-8.exe",
+    "sha256": "0f02890e4edba95c5af65ca9ff46d66b2cb5258dade2d3e5aff36becca82e8b1",
+    "overlaySHA256": "262e48b830d82aa9bb64738dabf082aff5f2bc707866096aa30ff69b8e6b6cd3"
+  },
+  {
+    "n": 16,
+    "workers": 15,
+    "exe": "follow-16.exe",
+    "sha256": "fb0f4bfc53773c506709568890d0b06c71189249c4110e5ee267ad022a365fe0",
+    "overlaySHA256": "5b2f77ac705d1f76fa34419a2e4791ffb3e96864c5c749ad0946d665ba79e53e"
+  },
+  {
+    "n": 32,
+    "workers": 31,
+    "exe": "follow-32.exe",
+    "sha256": "e0c4f7df25a7d53ef1e53e926e141eaf311f68b01e10549872f711758cc478e0",
+    "overlaySHA256": "6ad6bb8943dc8f1be33fc0469302651ca9a0b18ecf3f769bc6d8e9a60f085c44"
+  }
+]

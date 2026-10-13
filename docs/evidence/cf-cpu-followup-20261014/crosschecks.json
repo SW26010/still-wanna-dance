@@ -1,0 +1,257 @@
+{
+  "allPassed": true,
+  "checks": [
+    {
+      "id": "r1-idle",
+      "xperfCPUUS": 4620,
+      "parsedCPUUS": 4615,
+      "absoluteDifferenceUS": 5
+    },
+    {
+      "id": "r1-engine-16-compete",
+      "xperfCPUUS": 873066,
+      "parsedCPUUS": 873026,
+      "absoluteDifferenceUS": 40
+    },
+    {
+      "id": "r1-raw-32-warm",
+      "xperfCPUUS": 209865,
+      "parsedCPUUS": 209886,
+      "absoluteDifferenceUS": 21
+    },
+    {
+      "id": "r1-engine-16-prefetch",
+      "xperfCPUUS": 317416,
+      "parsedCPUUS": 317400,
+      "absoluteDifferenceUS": 16
+    },
+    {
+      "id": "r1-engine-8-cancel",
+      "xperfCPUUS": 58982,
+      "parsedCPUUS": 58981,
+      "absoluteDifferenceUS": 1
+    },
+    {
+      "id": "r1-raw-8-cold",
+      "xperfCPUUS": 200187,
+      "parsedCPUUS": 200214,
+      "absoluteDifferenceUS": 27
+    },
+    {
+      "id": "r1-engine-32-cancel",
+      "xperfCPUUS": 93248,
+      "parsedCPUUS": 93232,
+      "absoluteDifferenceUS": 16
+    },
+    {
+      "id": "r1-raw-16-warm",
+      "xperfCPUUS": 201357,
+      "parsedCPUUS": 201344,
+      "absoluteDifferenceUS": 13
+    },
+    {
+      "id": "r1-engine-4-prefetch",
+      "xperfCPUUS": 252668,
+      "parsedCPUUS": 252643,
+      "absoluteDifferenceUS": 25
+    },
+    {
+      "id": "r1-raw-4-warm",
+      "xperfCPUUS": 173369,
+      "parsedCPUUS": 173344,
+      "absoluteDifferenceUS": 25
+    },
+    {
+      "id": "r1-engine-32-compete",
+      "xperfCPUUS": 794439,
+      "parsedCPUUS": 794440,
+      "absoluteDifferenceUS": 1
+    },
+    {
+      "id": "r1-raw-4-cold",
+      "xperfCPUUS": 173171,
+      "parsedCPUUS": 173224,
+      "absoluteDifferenceUS": 53
+    },
+    {
+      "id": "r1-engine-8-prefetch",
+      "xperfCPUUS": 293322,
+      "parsedCPUUS": 293389,
+      "absoluteDifferenceUS": 67
+    },
+    {
+      "id": "r1-raw-32-cold",
+      "xperfCPUUS": 220736,
+      "parsedCPUUS": 220722,
+      "absoluteDifferenceUS": 14
+    },
+    {
+      "id": "r1-engine-32-prefetch",
+      "xperfCPUUS": 328503,
+      "parsedCPUUS": 328471,
+      "absoluteDifferenceUS": 32
+    },
+    {
+      "id": "r1-raw-16-cold",
+      "xperfCPUUS": 209036,
+      "parsedCPUUS": 209041,
+      "absoluteDifferenceUS": 5
+    },
+    {
+      "id": "r1-engine-8-compete",
+      "xperfCPUUS": 762194,
+      "parsedCPUUS": 762078,
+      "absoluteDifferenceUS": 116
+    },
+    {
+      "id": "r1-engine-16-cancel",
+      "xperfCPUUS": 76938,
+      "parsedCPUUS": 76883,
+      "absoluteDifferenceUS": 55
+    },
+    {
+      "id": "r1-engine-4-compete",
+      "xperfCPUUS": 746972,
+      "parsedCPUUS": 747008,
+      "absoluteDifferenceUS": 36
+    },
+    {
+      "id": "r1-engine-4-cancel",
+      "xperfCPUUS": 50967,
+      "parsedCPUUS": 50962,
+      "absoluteDifferenceUS": 5
+    },
+    {
+      "id": "r1-raw-8-warm",
+      "xperfCPUUS": 177890,
+      "parsedCPUUS": 177922,
+      "absoluteDifferenceUS": 32
+    },
+    {
+      "id": "r5-idle",
+      "xperfCPUUS": 4485,
+      "parsedCPUUS": 4493,
+      "absoluteDifferenceUS": 8
+    },
+    {
+      "id": "r5-raw-32-cold",
+      "xperfCPUUS": 218341,
+      "parsedCPUUS": 218404,
+      "absoluteDifferenceUS": 63
+    },
+    {
+      "id": "r5-raw-32-warm",
+      "xperfCPUUS": 191600,
+      "parsedCPUUS": 191577,
+      "absoluteDifferenceUS": 23
+    },
+    {
+      "id": "r5-engine-4-compete",
+      "xperfCPUUS": 714207,
+      "parsedCPUUS": 714111,
+      "absoluteDifferenceUS": 96
+    },
+    {
+      "id": "r5-engine-16-compete",
+      "xperfCPUUS": 798553,
+      "parsedCPUUS": 798605,
+      "absoluteDifferenceUS": 52
+    },
+    {
+      "id": "r5-engine-8-cancel",
+      "xperfCPUUS": 54849,
+      "parsedCPUUS": 54861,
+      "absoluteDifferenceUS": 12
+    },
+    {
+      "id": "r5-engine-32-cancel",
+      "xperfCPUUS": 91160,
+      "parsedCPUUS": 91156,
+      "absoluteDifferenceUS": 4
+    },
+    {
+      "id": "r5-raw-8-cold",
+      "xperfCPUUS": 187348,
+      "parsedCPUUS": 187366,
+      "absoluteDifferenceUS": 18
+    },
+    {
+      "id": "r5-engine-32-compete",
+      "xperfCPUUS": 821402,
+      "parsedCPUUS": 821383,
+      "absoluteDifferenceUS": 19
+    },
+    {
+      "id": "r5-engine-32-prefetch",
+      "xperfCPUUS": 314380,
+      "parsedCPUUS": 314308,
+      "absoluteDifferenceUS": 72
+    },
+    {
+      "id": "r5-raw-16-cold",
+      "xperfCPUUS": 193835,
+      "parsedCPUUS": 193813,
+      "absoluteDifferenceUS": 22
+    },
+    {
+      "id": "r5-raw-4-warm",
+      "xperfCPUUS": 179437,
+      "parsedCPUUS": 179424,
+      "absoluteDifferenceUS": 13
+    },
+    {
+      "id": "r5-raw-16-warm",
+      "xperfCPUUS": 183146,
+      "parsedCPUUS": 183144,
+      "absoluteDifferenceUS": 2
+    },
+    {
+      "id": "r5-engine-8-prefetch",
+      "xperfCPUUS": 275349,
+      "parsedCPUUS": 275342,
+      "absoluteDifferenceUS": 7
+    },
+    {
+      "id": "r5-engine-16-cancel",
+      "xperfCPUUS": 65696,
+      "parsedCPUUS": 65705,
+      "absoluteDifferenceUS": 9
+    },
+    {
+      "id": "r5-engine-16-prefetch",
+      "xperfCPUUS": 291318,
+      "parsedCPUUS": 291354,
+      "absoluteDifferenceUS": 36
+    },
+    {
+      "id": "r5-raw-8-warm",
+      "xperfCPUUS": 170149,
+      "parsedCPUUS": 170185,
+      "absoluteDifferenceUS": 36
+    },
+    {
+      "id": "r5-engine-8-compete",
+      "xperfCPUUS": 744483,
+      "parsedCPUUS": 744590,
+      "absoluteDifferenceUS": 107
+    },
+    {
+      "id": "r5-raw-4-cold",
+      "xperfCPUUS": 183030,
+      "parsedCPUUS": 183009,
+      "absoluteDifferenceUS": 21
+    },
+    {
+      "id": "r5-engine-4-prefetch",
+      "xperfCPUUS": 268848,
+      "parsedCPUUS": 268906,
+      "absoluteDifferenceUS": 58
+    },
+    {
+      "id": "r5-engine-4-cancel",
+      "xperfCPUUS": 52571,
+      "parsedCPUUS": 52560,
+      "absoluteDifferenceUS": 11
+    }
+  ]
+}

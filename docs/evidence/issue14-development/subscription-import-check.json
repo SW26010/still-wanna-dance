@@ -1,0 +1,31 @@
+{
+  "revision": "08ae90f462d2bfe43fcb9e8d169d1ae5b5a329d9",
+  "date": "2026-10-13",
+  "toolchain": "go1.25.0",
+  "buildTags": "no_easytier",
+  "source": "User-provided private subscription; URL, token, node identities and parameters omitted.",
+  "fetch": {
+    "status": 200,
+    "tlsVerification": true,
+    "redirectsFollowed": false,
+    "userAgent": "StillWannaDance-Development-Check/1",
+    "bytes": 13420,
+    "contentType": "text/html",
+    "actualFormat": "base64-uri-list"
+  },
+  "classification": [
+    { "protocol": "vmess", "transport": "ws", "tlsField": "", "count": 30 }
+  ],
+  "import": {
+    "entry": "internal/proxyengine/mihomo.Import",
+    "accepted": 0,
+    "skipped": 0,
+    "failed": 30,
+    "documentError": false,
+    "reason": "VMess and WebSocket are outside the current adapter's supported protocol and transport scope."
+  },
+  "nodeConnectivity": "not-attempted-no-accepted-nodes",
+  "businessRequestsThroughNodes": "not-attempted",
+  "scope": "Development import compatibility check only; no game, desktop UI, hosts changes, saved application configuration changes, or live acceptance completion.",
+  "cleanup": "Fetch and import helper processes exited; private input and local diagnostic files remain only in the ignored artifacts directory."
+}

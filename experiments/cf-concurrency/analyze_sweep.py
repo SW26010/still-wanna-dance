@@ -10,6 +10,21 @@ def distribution(values):
     return {"values": values, "median": stats.median(values), "min": min(values), "max": max(values)}
 
 
+def peak_occupancy(observations):
+    # Go durations are integer nanoseconds. Adding decoded float milliseconds
+    # can invent ~1e-13 ms overlaps at adjacent request boundaries.
+    events = []
+    for o in observations:
+        start = round(o["startMS"] * 1_000_000)
+        end = start + round(o["elapsedMS"] * 1_000_000)
+        events.extend(((start, 1), (end, -1)))
+    active = peak = 0
+    for _, delta in sorted(events):  # end before start at the same instant
+        active += delta
+        peak = max(peak, active)
+    return peak
+
+
 def summarize(data):
     runs = data["runs"]
     warm = [r for r in runs if r["round"] == 0]
@@ -83,13 +98,11 @@ def summarize(data):
     summary["ipOccupancy"] = []
     for r in runs:
         by_ip = {}
-        for ip in r["ips"]:
+        for i, ip in enumerate(r["ips"]):
             observations = [o for o in r["requests"] if o["targetIP"] == ip]
-            events = sorted([(o["startMS"], 1) for o in observations] + [(o["startMS"] + o["elapsedMS"], -1) for o in observations])
-            active = peak = 0
-            for _, delta in events:
-                active += delta
-                peak = max(peak, active)
+            peak = peak_occupancy(observations)
+            limit = r["concurrency"] // len(r["ips"]) + (i < r["concurrency"] % len(r["ips"]))
+            assert peak == limit, (r["arm"], ip, peak, limit)
             by_ip[ip] = {"peak": peak, "mean": sum(o["elapsedMS"] for o in observations) / r["elapsedMS"], "bytes": sum(o["bytes"] for o in observations), "requests": len(observations)}
         summary["ipOccupancy"].append({"round": r["round"], "arm": r["arm"], "ips": by_ip})
     return summary

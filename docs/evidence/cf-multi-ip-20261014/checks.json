@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-14",
+  "kind": "development-network-experiment",
+  "productBaseline": "d9ef49852f4f9b8a9c3a07c9827a2c0a41f5eb53",
+  "toolCommit": "421683716ed3aa6b1ee82d5b76bfd783eecb215e",
+  "build": {
+    "go": "go1.25.0",
+    "platform": "windows/amd64",
+    "CGO_ENABLED": "0",
+    "tags": "no_easytier",
+    "trimpath": true,
+    "cleanWorktreeAtBuild": true,
+    "sha256": "65d26d4db2b73f001e119bc2d868fb7b2667e1dd4bc0a0f1d1bb2f7d12f3b3e5"
+  },
+  "checks": [
+    {
+      "command": "go test -race -tags=no_easytier ./experiments/cf-concurrency -count=3 -timeout=120s",
+      "result": "passed; existing w64devkit GCC"
+    },
+    {
+      "command": "go vet -tags=no_easytier ./experiments/cf-concurrency",
+      "result": "passed before measurements"
+    },
+    {
+      "command": "go build -tags=no_easytier -trimpath -o sweep-probe.exe ./experiments/cf-concurrency",
+      "result": "passed at toolCommit before measurements"
+    },
+    {
+      "command": "python -m unittest discover -s experiments/cf-concurrency -p 'test_*.py'",
+      "result": "2 passed; adjacent float endpoints and genuine one-nanosecond overlap"
+    },
+    {
+      "command": "python experiments/cf-concurrency/analyze_sweep.py sweep-01.json --out summary.json",
+      "result": "all runs, plan/order, bytes, SHA256, peer IP, total peak, per-IP peak and completeness checks passed"
+    }
+  ],
+  "preflight": {
+    "song": 1343,
+    "resourceBytes": 32867177,
+    "ip": "104.26.5.28",
+    "protocol": "HTTP/1.1",
+    "cache": "HIT",
+    "colo": "SEA",
+    "bodyBytes": 1024
+  },
+  "results": {
+    "successfulRunsIncludingWarmups": 54,
+    "requests": 1446,
+    "bodyBytes": 1698693120,
+    "excludedTrials": 0,
+    "status": {
+      "206": 1446
+    },
+    "protocol": {
+      "HTTP/1.1": 1446
+    },
+    "colo": {
+      "SEA": 1446
+    },
+    "cache": {
+      "HIT": 1446
+    },
+    "server": {
+      "cloudflare": 1446
+    }
+  },
+  "referenceMatchesPreviousExperiment": true,
+  "perIPPeaksMatchAllocatedWorkers": true,
+  "singleIPTwelveRequestRuns": {
+    "runs": 9,
+    "connectionsPerRun": 12
+  },
+  "samplePolicy": "All three complete rounds retained. Warmups excluded from performance summaries only. No failures, replacement trials or outlier exclusion.",
+  "interference": "Compilation, vet and other agent-run throughput tests finished before sweep. No system-wide traffic or CPU isolation.",
+  "analysisCorrection": "Float millisecond endpoint addition initially invented up to 4.55e-13 ms overlaps. Reconstructing original integer nanoseconds removes these artifacts. Raw data, throughput, duration, in-process total peak and paired ratios unchanged. Final analyzer/tests are included with report.",
+  "privacy": "Only public host/IP, relative times, content hashes and aggregate/test metrics. No full resource URL, raw ETag, CF request ID, username, private path or absolute capture time.",
+  "scope": "Product defaults and engine remain unchanged. No game, hosts or product cache operation. No new live-acceptance item; LA-037 pending.",
+  "cleanup": "Probe exited normally; no remaining sweep-probe process. Private target and raw helper logs kept only in ignored artifacts. No push.",
+  "limitations": [
+    "one resource and time period",
+    "30 MiB prefix only",
+    "three replicates per arm",
+    "no independent bandwidth or packet-loss attribution",
+    "no HTTP/2/HTTP/3 or IPv6",
+    "no engine/global budget/MD5 publication",
+    "no player startup or seek measurement",
+    "no explicit retries; standard-library transparent retry not independently counted",
+    "no traffic monitoring or TUN exclusion"
+  ]
+}

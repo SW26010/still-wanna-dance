@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 2,
+  "batch": "cf-multi-ip-20261014",
+  "hashBasis": "git-blob",
+  "pathBasis": "repository-relative",
+  "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5",
+  "originalMetadata": {
+    "date": "2026-10-14",
+    "kind": "development-network-experiment",
+    "productBaseline": "d9ef49852f4f9b8a9c3a07c9827a2c0a41f5eb53",
+    "toolCommit": "421683716ed3aa6b1ee82d5b76bfd783eecb215e",
+    "buildSHA256": "65d26d4db2b73f001e119bc2d868fb7b2667e1dd4bc0a0f1d1bb2f7d12f3b3e5",
+    "source": "Locally captured direct pinned CF Range experiment; public JSON normalized to UTF-8/LF. Original private inputs remain ignored. Related source hashes describe the final offline analysis revision; measured Go source is toolCommit."
+  },
+  "originalManifest": {
+    "storage": "archive",
+    "path": "docs/evidence/cf-multi-ip-20261014/manifest.json"
+  },
+  "archive": {
+    "batch": "cf-multi-ip-20261014",
+    "name": "cf-multi-ip-20261014-v1.zip",
+    "bytes": 4172886,
+    "sha256": "93de81697bab82f1bf20328bed798895601d684bc49c082a0ba31327d83d764f",
+    "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261014-cf-v1/cf-multi-ip-20261014-v1.zip",
+    "status": "prepared-local",
+    "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5"
+  },
+  "files": [
+    {
+      "path": "docs/evidence/cf-multi-ip-20261014/checks.json",
+      "bytes": 3621,
+      "sha256": "516e9666e14ecb45ec8c334e8bf0ea35ba1fc1fab97d0b8db932b03a2b41e968"
+    },
+    {
+      "path": "docs/evidence/cf-multi-ip-20261014/dns.json",
+      "bytes": 540,
+      "sha256": "c3bb57e8ee04373e5d897587d2accaf891f67925b9f636839396a04cbca7eb17"
+    },
+    {
+      "path": "docs/evidence/cf-multi-ip-20261014/summary.json",
+      "bytes": 36339,
+      "sha256": "74b540c8af382fa8e8942fe2b86c05938b3f3c072c8dbc9802241caa5c6a2f50"
+    },
+    {
+      "path": "docs/evidence/cf-multi-ip-20261014/throughput.svg",
+      "bytes": 31677,
+      "sha256": "1a7ba6dd8c097a04aa392b5794986093c0ef84cc4128041c68baf932ab655aad"
+    }
+  ],
+  "archivedFiles": [
+    {
+      "path": "docs/evidence/cf-multi-ip-20261014/sweep-01.json",
+      "bytes": 984386,
+      "sha256": "b6812d83871b4f8c72e039fc121aa5400220f730e8c18391056825f700d0a1d1"
+    },
+    {
+      "path": "docs/evidence/cf-multi-ip-20261014/throughput.png",
+      "bytes": 90690,
+      "sha256": "976fa0ce5329bd5f082f0db237126f81385b4f69ec3669d0f25693dfe96e541c"
+    }
+  ],
+  "provenance": "Original measured commits and executable hashes are unchanged. Original manifests, recorded analysis source bytes and workload source snapshots are retained in the archive. See ../history-rewrite-20261014.json for equivalent rewritten commits."
+}

@@ -14,6 +14,7 @@
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [cf-multi-ip-20261014/manifest.json](cf-multi-ip-20261014/manifest.json) | #20 三个 DNS IPv4 单独及合用的 4/6/8/12 路同总并发对照；三轮共 54 组、1,446 请求、1,620 MiB，全部保留，见[报告](../issue-20-cf-multi-ip-20261014.md)。仅开发实验，默认设置及 LA-037 待验收状态不变 |
 | [cf-concurrency-20261014/manifest.json](cf-concurrency-20261014/manifest.json) | #20 固定 CF 资源/直连地址、30 MiB 区间的 1/2/3/4 路及长 Range 对照；保存全部 27 组、607 请求、首轮干扰排除和补测，主分析四个配对。仅上游吞吐开发实验，不改默认、不替代 LA-037，见[报告](../issue-20-cf-concurrency-20261014.md) |
 | [issue20-development/development-checks.json](issue20-development/development-checks.json) | #20 最终源码身份、Windows race、构建检查及[同一回环内容的 Range 并发 A/B](issue20-development/benchmark-final.txt)，保留[旧版基线](issue20-development/benchmark-baseline.txt)和[初版等待退化](issue20-development/benchmark-initial-parallel.txt)；边界见[验证记录](../issue-20-validation.md)，真实线路与游戏仍待 LA-037 |
 | [issue14-windows-final/manifest.json](issue14-windows-final/manifest.json) | #14 `2ec1b06` 本地 Windows 发行与 race 收尾：全仓 race、五协议 60 秒负载、SQLite 取消泄漏的初轮失败及上游修复回归、实际发行包/完整源码/离线重建；保留修复前证据，仅开发验证，LA-034/035/036、LA-018/012 仍待实机，见[集成记录](../issue-14-b2-integration.md#windows-发行与-race-收尾) |

@@ -3,20 +3,20 @@
   "generatedModules": [
     {
       "module": "modernc.org/sqlite",
-      "version": "v1.39.1",
+      "version": "v1.40.1",
       "inputs": [
         {
           "kind": "git",
           "url": "https://gitlab.com/cznic/sqlite.git",
-          "ref": "v1.39.1",
-          "revision": "17e06226647c18b11f8bce329dea8d9c24901f3f",
+          "ref": "v1.40.1",
+          "revision": "d33e568298f6d0da40718843d3562d716f7c4f1b",
           "prefix": "modernc-sqlite/",
           "paths": [
             "LICENSE",
             "vendor_libsqlite3"
           ],
           "file": "modernc-sqlite-generator.tar",
-          "sha256": "bead0df19c42d02a3adafa675dc6f0e7f1cb8d7c28daa7a1e7919b63618661dd"
+          "sha256": "d6b2789d5b21d17c1878f2ad2056bfec1f56ede34f57791b53b5fb34daa95e25"
         },
         {
           "kind": "https",

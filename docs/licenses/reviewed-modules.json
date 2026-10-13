@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-13",
-  "noticesSHA256": "45607c3d6900f8d0e2c7d2a26e587652a3deb1c48fae0d51f8dce16cef7a6ad7",
+  "reviewedAt": "2026-10-14",
+  "noticesSHA256": "2d582927ef45a8394244f4c9587fb9042902bacbb0d5b2763b2127fab258f5ef",
   "modules": [
     {
       "path": "github.com/andybalholm/brotli",
@@ -1375,8 +1375,8 @@
     },
     {
       "path": "modernc.org/sqlite",
-      "version": "v1.39.1",
-      "sum": "h1:H+/wGFzuSCIEVCvXYVHX5RQglwhMOvtHSv+VtidL2r4=",
+      "version": "v1.40.1",
+      "sum": "h1:VfuXcxcUWWKRBuP8+BR9L7VnmusMgBNNnBYGEe9w/iY=",
       "licenseFiles": [
         {
           "path": "LICENSE",

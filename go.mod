@@ -6,7 +6,7 @@ require (
 	github.com/metacubex/mihomo v1.19.32
 	github.com/sirupsen/logrus v1.9.4
 	golang.org/x/net v0.57.0
-	modernc.org/sqlite v1.39.1
+	modernc.org/sqlite v1.40.1
 )
 
 require (

@@ -71,3 +71,11 @@ Console 持有一个 Runtime，仍以现有 `Proxy{ID,Dial}` / `NewMultiPool` �
 本轮自动检查使用 Go **1.25.0 / Windows amd64 / CGO=0**：`go test -count=1 -tags=no_easytier ./internal/proxyengine/mihomo ./internal/upstreamstate ./internal/upstreamrequest` 三包通过，相同三包的 `go vet -tags=no_easytier` 通过，覆盖原生导入、错误分类、历史观测保留与候选过期/关闭；`node --test scripts/refresh.test.mjs` **128/128** 通过，包含直连通道失效与真实运行时退出的不同文案，以及已有延迟/吞吐仍可见。Mieru 此处只验证本地导入语义，不声称真实服务端连通。
 
 台账 **LA-034/035** 已补充范围端口导入、保存/重启和通道诊断步骤，联合 LA-036 核对界面；状态继续待验收。上述旧发行链及 `5af35b4` 包不包含本次产品修复，本轮未重新构建发行包、启动游戏或修改 hosts；原有 race 未覆盖范围继续保留。
+
+## Windows 发行与 race 收尾
+
+2026-10-13 至 14 日，先对 `8e3eef9` 完成干净副本发行、离线源码重建与 Portable 检查。使用经发布方 SHA256 校验的便携 w64devkit 2.10.0（GCC 16.2.0 / MinGW-w64 14.0.0）配合 Go 1.25.0，race 检测器可以启动；有锁最小对照退出 0，故意无锁对照报告 DATA RACE 并退出 66。此前 Zig 启动失败继续保留为工具链失败历史。
+
+首轮全仓 race 没有 DATA RACE 报告，但 `TestLiveTailCoalescesSnapshotsBeforeDownload` 因关闭后 SQLite 文件仍被占用失败，随后 10 次原样复测中 2 次失败。独立受控查询确认取消后 `DB.Close` 返回成功仍可残留文件句柄，与[SQLite 上游 !81](https://gitlab.com/cznic/sqlite/-/merge_requests/81)一致。采用已发布的 `modernc.org/sqlite v1.40.1` 修复，保留 SQLite 3.50.4 引擎及其他依赖版本，同步许可证和对应源码输入，不在 SWD 中复制驱动修补。新增 Windows 文件释放回归在旧驱动失败、新驱动连续 10 次通过；原 Console 失败测试在修复版本也连续 10 次通过。带关闭日志的诊断副本未复现，不能以该诊断运行代替最终版本回归。
+
+`8e3eef9` 的 B2 五协议 60 秒 race 负载通过；这个结果和该版本的发行包均保留为修复前证据。修复后的全仓 `go test -count=1 -tags=no_easytier -race -json ./...` 通过（14 个包、1,188 个测试/子测试通过、15 个跳过，无失败或 DATA RACE）。发行声明及源码策略的 9 个脚本测试通过。最终发行产物和精确版本在后续归档中记录。产品行为涉及取消和退出，已补充 LA-018/012；其余实机项继续积攒，没有游戏、hosts 或跨用户验收结论。

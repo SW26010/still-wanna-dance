@@ -118,6 +118,6 @@ test('embedded artifacts need their original source; accepted go-lzo uncertainty
   const policy = readJSON(path.join(here, '../docs/licenses/source-inputs.json'));
   assert.deepEqual(supplementalInputs(policy, [{ path: 'github.com/rasky/go-lzo', version: 'v0.0.0-20200203143853-96a758eda86e' }]), []);
   assert.throws(() => supplementalInputs(policy, [{ path: 'github.com/easytier/easytier/easytier-go', version: 'v0.0.0-20260910071355-3d0c9c3ca5e2' }]), /Incomplete corresponding source/);
-  assert.equal(supplementalInputs(policy, [{ path: 'modernc.org/sqlite', version: 'v1.39.1' }]).length, 2);
+  assert.equal(supplementalInputs(policy, [{ path: 'modernc.org/sqlite', version: 'v1.40.1' }]).length, 2);
   assert.throws(() => supplementalInputs(policy, [{ path: 'modernc.org/sqlite', version: 'v9.0.0' }]), /review required/);
 });

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 2,
+  "batch": "cf-high-concurrency-20261014",
+  "hashBasis": "git-blob",
+  "pathBasis": "repository-relative",
+  "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5",
+  "originalMetadata": {
+    "date": "2026-10-14",
+    "kind": "development-network-experiment",
+    "productBaseline": "d9ef49852f4f9b8a9c3a07c9827a2c0a41f5eb53",
+    "toolCommit": "a8a8e90a717a7f60b600df500fd0f97ffeb12788",
+    "buildSHA256": "3da315fe49c503bce7698af1bd661bec5fb26d0201977417e1b8b78c9d8ead87",
+    "source": "Locally captured direct pinned CF Range experiment; public JSON normalized UTF-8/LF; private inputs retained in ignored artifacts. All measured and analysis sources match toolCommit."
+  },
+  "originalManifest": {
+    "storage": "archive",
+    "path": "docs/evidence/cf-high-concurrency-20261014/manifest.json"
+  },
+  "archive": {
+    "batch": "cf-high-concurrency-20261014",
+    "name": "cf-high-concurrency-20261014-v1.zip",
+    "bytes": 4312160,
+    "sha256": "1d6a405896b7f361f16668d67f13289f5a06a3fce0ce90a95c8bfacbd36156df",
+    "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261014-cf-v1/cf-high-concurrency-20261014-v1.zip",
+    "status": "prepared-local",
+    "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5"
+  },
+  "files": [
+    {
+      "path": "docs/evidence/cf-high-concurrency-20261014/checks.json",
+      "bytes": 4843,
+      "sha256": "d68a2bd47a97df6a8b338d0dabc80498a10762cf7cc0e13cef4c4bd6a2fb09a1"
+    },
+    {
+      "path": "docs/evidence/cf-high-concurrency-20261014/selection.json",
+      "bytes": 3028,
+      "sha256": "24f55b9a1d63843d8540baeb3fedf090e874bd67174d777d04179b6f276b611b"
+    },
+    {
+      "path": "docs/evidence/cf-high-concurrency-20261014/summary.json",
+      "bytes": 12465,
+      "sha256": "95361739eb8d74aadd218cc45aecd25b887f01572f42efa181859fc65b0f2950"
+    },
+    {
+      "path": "docs/evidence/cf-high-concurrency-20261014/throughput.svg",
+      "bytes": 20617,
+      "sha256": "57eb7f0cca45076353f023fb2260c2ea58067bf1098bfcbfc47e029a157011d6"
+    }
+  ],
+  "archivedFiles": [
+    {
+      "path": "docs/evidence/cf-high-concurrency-20261014/high-01.json",
+      "bytes": 1580664,
+      "sha256": "4429f5bf06539c4dadf62bb25479169393848d8fc46df114a3375011d95a0b84"
+    },
+    {
+      "path": "docs/evidence/cf-high-concurrency-20261014/throughput.png",
+      "bytes": 83139,
+      "sha256": "ee5ce306532f22b54a425df78a705f21646c4a0c22adad24de82df25ef91c636"
+    }
+  ],
+  "provenance": "Original measured commits and executable hashes are unchanged. Original manifests, recorded analysis source bytes and workload source snapshots are retained in the archive. See ../history-rewrite-20261014.json for equivalent rewritten commits."
+}

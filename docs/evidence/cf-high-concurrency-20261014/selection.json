@@ -1,0 +1,112 @@
+{
+  "dns": {
+    "source": "Windows Resolve-DnsName -Type A -DnsOnly -NoHostsFile",
+    "host": "play.udon.dance",
+    "selectedIP": "104.26.4.28",
+    "records": [
+      {
+        "Name": "play.udon.dance",
+        "IPAddress": "104.26.5.28",
+        "TTL": 300
+      },
+      {
+        "Name": "play.udon.dance",
+        "IPAddress": "104.26.4.28",
+        "TTL": 300
+      },
+      {
+        "Name": "play.udon.dance",
+        "IPAddress": "172.67.69.58",
+        "TTL": 300
+      }
+    ]
+  },
+  "candidates": [
+    {
+      "song": 1344,
+      "host": "play.udon.dance",
+      "resourceBytes": 40548476,
+      "preflightIP": "172.67.69.58",
+      "strongETagPresent": true,
+      "bodyBytes": 1024,
+      "selected": false
+    },
+    {
+      "song": 1981,
+      "host": "play.udon.dance",
+      "resourceBytes": 33424954,
+      "preflightIP": "104.26.4.28",
+      "strongETagPresent": true,
+      "bodyBytes": 1024,
+      "selected": false
+    },
+    {
+      "song": 4062,
+      "host": "play.udon.dance",
+      "resourceBytes": 41163586,
+      "preflightIP": "104.26.4.28",
+      "strongETagPresent": true,
+      "bodyBytes": 1024,
+      "selected": false
+    },
+    {
+      "song": 6763,
+      "host": "play.udon.dance",
+      "resourceBytes": 42085320,
+      "preflightIP": "172.67.69.58",
+      "strongETagPresent": true,
+      "bodyBytes": 1024,
+      "selected": false
+    },
+    {
+      "song": 10552,
+      "host": "play.udon.dance",
+      "resourceBytes": 103118762,
+      "preflightIP": "104.26.4.28",
+      "strongETagPresent": true,
+      "bodyBytes": 1024,
+      "selected": true
+    },
+    {
+      "song": 6776,
+      "host": "play.udon.dance",
+      "resourceBytes": 67256325,
+      "preflightIP": "104.26.4.28",
+      "strongETagPresent": true,
+      "bodyBytes": 1024,
+      "selected": false
+    },
+    {
+      "song": 10689,
+      "host": "play.udon.dance",
+      "resourceBytes": 39019338,
+      "preflightIP": "104.26.5.28",
+      "strongETagPresent": true,
+      "bodyBytes": 1024,
+      "selected": false
+    },
+    {
+      "song": 9898,
+      "host": "play.udon.dance",
+      "resourceBytes": 130223214,
+      "preflightIP": "104.26.5.28",
+      "strongETagPresent": true,
+      "bodyBytes": 1024,
+      "selected": false
+    }
+  ],
+  "selectedSong": 10552,
+  "selectedIntervalBytes": 100663296,
+  "selectionRule": "Metadata-only screening before throughput measurements. Initially sought >=128 MiB; none of eight candidates qualified. Selected first >=96 MiB candidate, with 96 divisible by all five concurrency levels. No speed-based selection. Candidate IDs from repository public priorities and a saved public catalog (long entries not marked disablePublic).",
+  "candidateProbeBuildSHA256": "65d26d4db2b73f001e119bc2d868fb7b2667e1dd4bc0a0f1d1bb2f7d12f3b3e5",
+  "finalPreflight": {
+    "song": 10552,
+    "resourceBytes": 103118762,
+    "ip": "104.26.5.28",
+    "protocol": "HTTP/1.1",
+    "cache": "HIT",
+    "colo": "SEA",
+    "bodyBytes": 1024,
+    "build": "same binary as measurements"
+  }
+}

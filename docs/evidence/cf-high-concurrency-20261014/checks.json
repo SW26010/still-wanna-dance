@@ -1,0 +1,162 @@
+{
+  "date": "2026-10-14",
+  "kind": "development-network-experiment",
+  "productBaseline": "d9ef49852f4f9b8a9c3a07c9827a2c0a41f5eb53",
+  "toolCommit": "a8a8e90a717a7f60b600df500fd0f97ffeb12788",
+  "build": {
+    "go": "go1.25.0",
+    "platform": "windows/amd64",
+    "CGO_ENABLED": "0",
+    "tags": "no_easytier",
+    "trimpath": true,
+    "cleanWorktreeAtBuild": true,
+    "sha256": "3da315fe49c503bce7698af1bd661bec5fb26d0201977417e1b8b78c9d8ead87"
+  },
+  "checks": [
+    {
+      "command": "go test -race -tags=no_easytier ./experiments/cf-concurrency -count=3 -timeout=120s",
+      "result": "passed; existing w64devkit GCC; includes real 16/24/32-way loopback gates and invalid/insufficient bounds"
+    },
+    {
+      "command": "go vet -tags=no_easytier ./experiments/cf-concurrency",
+      "result": "passed before measurements"
+    },
+    {
+      "command": "go build -tags=no_easytier -trimpath -o high-probe.exe ./experiments/cf-concurrency",
+      "result": "passed at clean toolCommit before measurements"
+    },
+    {
+      "command": "python -m unittest discover -s experiments/cf-concurrency -p 'test_*.py'",
+      "result": "2 passed"
+    },
+    {
+      "command": "analyze_sweep.summarize(previous multi-IP evidence), JSON round-trip comparison",
+      "result": "previous summary reproduced exactly, excluding new levels metadata; initial in-memory comparison was corrected to normalize JSON object numeric keys"
+    },
+    {
+      "command": "python experiments/cf-concurrency/analyze_sweep.py high-01.json --out high-summary.json --chart high-throughput.png",
+      "result": "all runs, planned order, complete rounds, byte coverage, hashes, peer IP and actual peaks passed; chart rendered and visually checked"
+    }
+  ],
+  "results": {
+    "successfulRunsIncludingWarmups": 26,
+    "requests": 2401,
+    "bodyBytes": 2617245696,
+    "excludedTrials": 0,
+    "status": {
+      "206": 2401
+    },
+    "protocol": {
+      "HTTP/1.1": 2401
+    },
+    "colo": {
+      "SEA": 2401
+    },
+    "cache": {
+      "HIT": 2401
+    },
+    "server": {
+      "cloudflare": 2401
+    }
+  },
+  "durationSeconds": 154.57842609999997,
+  "additionalPreflightBodyBytes": 9216,
+  "connectionObservations": {
+    "8": {
+      "distinctFinalGotConnIDs": [
+        8,
+        8,
+        8,
+        8,
+        8
+      ],
+      "requestsMarkedReused": [
+        88,
+        88,
+        88,
+        88,
+        88
+      ]
+    },
+    "12": {
+      "distinctFinalGotConnIDs": [
+        12,
+        12,
+        12,
+        17,
+        12
+      ],
+      "requestsMarkedReused": [
+        84,
+        84,
+        84,
+        84,
+        84
+      ]
+    },
+    "16": {
+      "distinctFinalGotConnIDs": [
+        23,
+        18,
+        16,
+        23,
+        17
+      ],
+      "requestsMarkedReused": [
+        80,
+        80,
+        80,
+        80,
+        80
+      ]
+    },
+    "24": {
+      "distinctFinalGotConnIDs": [
+        24,
+        24,
+        31,
+        28,
+        24
+      ],
+      "requestsMarkedReused": [
+        72,
+        72,
+        72,
+        71,
+        72
+      ]
+    },
+    "32": {
+      "distinctFinalGotConnIDs": [
+        32,
+        32,
+        32,
+        32,
+        32
+      ],
+      "requestsMarkedReused": [
+        64,
+        64,
+        64,
+        64,
+        64
+      ]
+    }
+  },
+  "connectionLimitations": "Final GotConn connection IDs and Reused flags only; not a full dial/TLS/transparent-retry trace. Cumulative IDs do not equal simultaneous request count or prove a cause of extra connections.",
+  "selection": "All five complete rounds retained, no outliers excluded or replacement samples. Warmup excluded from performance aggregates only. New resource and interval, with contemporaneous 8/12 controls.",
+  "interference": "All tool compilation/checks finished before measurement; no task-run parallel throughput work. No system-wide traffic or CPU isolation.",
+  "privacy": "No full resource URLs, raw ETags, CF request IDs, username, private paths or absolute capture times. Private input and discovery helper files remain ignored.",
+  "scope": "Experimental tools/tests/docs only, product defaults and global budget unchanged. No game/hosts/proxy/cache changes. No new acceptance item; LA-037 pending.",
+  "cleanup": "Probe exited normally; zero high-probe processes observed. Local commits only, no push.",
+  "limitations": [
+    "one resource/IP/time period",
+    "96 MiB prefix, not whole-file MD5",
+    "32-way has only three waves and includes connection/tail effects",
+    "five repetitions per arm; no statistical equivalence or universal capacity claim",
+    "no HTTP/2/HTTP/3 or IPv6",
+    "no engine/player/seek/fairness or CPU-memory validation",
+    "no packet capture or physical-bottleneck attribution",
+    "no explicit retry; transparent transport retry not independently counted"
+  ]
+}

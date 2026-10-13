@@ -14,6 +14,7 @@
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [cf-high-concurrency-20261014/manifest.json](cf-high-concurrency-20261014/manifest.json) | #20 固定单 IP、新资源 96 MiB 区间的 8/12/16/24/32 路五轮位置平衡对照；26 组、2,401 请求、2,496 MiB，全部保留，见[报告](../issue-20-cf-high-concurrency-20261014.md)。32 路仍有收益，不代表最优默认值；LA-037 待验收 |
 | [cf-multi-ip-20261014/manifest.json](cf-multi-ip-20261014/manifest.json) | #20 三个 DNS IPv4 单独及合用的 4/6/8/12 路同总并发对照；三轮共 54 组、1,446 请求、1,620 MiB，全部保留，见[报告](../issue-20-cf-multi-ip-20261014.md)。仅开发实验，默认设置及 LA-037 待验收状态不变 |
 | [cf-concurrency-20261014/manifest.json](cf-concurrency-20261014/manifest.json) | #20 固定 CF 资源/直连地址、30 MiB 区间的 1/2/3/4 路及长 Range 对照；保存全部 27 组、607 请求、首轮干扰排除和补测，主分析四个配对。仅上游吞吐开发实验，不改默认、不替代 LA-037，见[报告](../issue-20-cf-concurrency-20261014.md) |
 | [issue20-development/development-checks.json](issue20-development/development-checks.json) | #20 最终源码身份、Windows race、构建检查及[同一回环内容的 Range 并发 A/B](issue20-development/benchmark-final.txt)，保留[旧版基线](issue20-development/benchmark-baseline.txt)和[初版等待退化](issue20-development/benchmark-initial-parallel.txt)；边界见[验证记录](../issue-20-validation.md)，真实线路与游戏仍待 LA-037 |

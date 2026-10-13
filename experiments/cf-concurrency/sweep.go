@@ -59,6 +59,13 @@ func sweep(ctx context.Context, t target, ips []string, size int64, out string) 
 	if err := validateIPs(ips); err != nil {
 		return err
 	}
+	return executePlan(ctx, t, ips, size, out, sweepOrders(ips), "3 complete randomized blocks; seed 20261014; fixed per-IP worker slots with a shared block queue; rotated surplus slots; fresh product candidate pools; strong ETag and per-block SHA256; supplied DNS IPv4 addresses; 12 requests max; not product engine or game")
+}
+
+func executePlan(ctx context.Context, t target, ips []string, size int64, out string, orders [][]sweepArm, method string) error {
+	if err := validateIPs(ips); err != nil {
+		return err
+	}
 	if t.ETag == "" || len(t.ETag) < 2 || t.ETag[:2] == "W/" {
 		return errors.New("sweep requires a strong ETag from preflight")
 	}
@@ -75,8 +82,8 @@ func sweep(ctx context.Context, t target, ips []string, size int64, out string) 
 		Orders   [][]sweepArm `json:"orders"`
 		Runs     []runResult  `json:"runs"`
 	}{Host: t.Host, IPs: ips, Song: t.Song, Size: t.Size, Interval: size,
-		Method: "3 complete randomized blocks; seed 20261014; fixed per-IP worker slots with a shared block queue; rotated surplus slots; fresh product candidate pools; strong ETag and per-block SHA256; supplied DNS IPv4 addresses; 12 requests max; not product engine or game",
-		Orders: sweepOrders(ips)}
+		Method: method,
+		Orders: orders}
 	var reference []string
 	execute := func(round int, arm sweepArm) (runResult, error) {
 		trial, stop := context.WithTimeout(ctx, 120*time.Second)

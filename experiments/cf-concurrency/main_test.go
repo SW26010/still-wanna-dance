@@ -15,9 +15,9 @@ import (
 )
 
 func fixtureBody() ([]byte, []string) {
-	body := make([]byte, 12*blockSize)
+	body := make([]byte, 32*blockSize)
 	var hashes []string
-	for i := range 12 {
+	for i := range 32 {
 		block := body[int64(i)*blockSize : int64(i+1)*blockSize]
 		for j := range block {
 			block[j] = byte(i*37 + j%251)
@@ -30,7 +30,7 @@ func fixtureBody() ([]byte, []string) {
 
 func TestMeasureConcurrentRangesAndLongControl(t *testing.T) {
 	body, hashes := fixtureBody()
-	for _, n := range []int{0, 1, 2, 3, 4, 6, 8, 12} {
+	for _, n := range []int{0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32} {
 		t.Run(fmt.Sprint(n), func(t *testing.T) {
 			var mu sync.Mutex
 			arrived := 0
@@ -71,7 +71,7 @@ func TestMeasureConcurrentRangesAndLongControl(t *testing.T) {
 			if result.MiBPerSec <= 0 || result.MeanActive <= 0 || result.MeanActive > float64(max(n, 1))+0.01 {
 				t.Fatalf("invalid metrics: %+v", result)
 			}
-			want := 12
+			want := 32
 			if n == 0 {
 				want = 1
 			}

@@ -80,3 +80,30 @@ python experiments/cf-concurrency/analyze_sweep.py artifacts/cf-concurrency/swee
 三个地址时共 `3 次预热 + 3 × 17 次测量 = 54` 个区间，30 MiB 时正文上限为 1,620 MiB（另有 API/1 KiB 预检及协议开销）。只有 30 个分块，12 路只有约 2.5 波请求，短任务的建连与尾部空闲都计入，不能直接外推到长视频稳态吞吐。
 
 分析要求每轮完整、无失败、执行顺序与计划一致，所有区间、逐块哈希、远端身份和实际峰值均符合声明；不提供排除慢样本的选项。逐轮配对比较 6/4、8/6、12/8、同并发多 IP / 各单 IP，以及多 IP / 当轮最快单 IP。后者只是观测上界对照，不是事先可知的最优选路策略。图中误差线是三次观测范围，不是置信区间；保留每次原始结果，不凭三个样本声称统计显著性。
+
+## 单 IP 的 8/12/16/24/32 路扩展
+
+`high` 模式只接受一个显式 IPv4，固定五档 8/12/16/24/32，各测五次。区间必须为 96–128 MiB 的整数 MiB 且不超过资源大小，不能把只有 30 个块的任务标成真正的 32 路。产品块大小仍为 1 MiB，不通过缩小块、重复下载同一块或加入其他 IP 凑并发。
+
+本轮选取至少 96 MiB 的资源，使用前 96 MiB；五档均能整除 96，32 路有三批请求。资源按元数据大小筛选，不按测得速度挑选；换资源后重测同期 8/12 路，绝不拿上一资源的绝对吞吐直接作基线。三批请求仍不代表长时间稳态，建连和尾部空闲仍计入。
+
+固定顺序在取样前生成，每档在五个位置各出现一次；前序干扰并未完全平衡：
+
+| 轮次 | 顺序 |
+| --- | --- |
+| 1 | 8、12、32、16、24 |
+| 2 | 12、16、8、24、32 |
+| 3 | 16、24、12、32、8 |
+| 4 | 24、32、16、8、12 |
+| 5 | 32、8、24、12、16 |
+
+```powershell
+# 使用已按新源码构建的 high-probe.exe；先完成测试、vet、构建。
+& artifacts/cf-concurrency/high-probe.exe -mode prepare -song 10552 -private artifacts/cf-concurrency/high-target.json
+& artifacts/cf-concurrency/high-probe.exe -mode high -private artifacts/cf-concurrency/high-target.json -ips '104.26.4.28' -mib 96 -out artifacts/cf-concurrency/high-01.json
+python experiments/cf-concurrency/analyze_sweep.py artifacts/cf-concurrency/high-01.json --out artifacts/cf-concurrency/high-summary.json --chart artifacts/cf-concurrency/high-throughput.png
+```
+
+先做一次长 Range 预热建立参照，再执行 25 组；96 MiB 时正文为 `26 × 96 = 2,496 MiB`（约 2.44 GiB），另有资源筛选、API/预检和协议开销。复用原有强 ETag、精确 206/范围/长度、实际远端、SHA256、120 秒单组/30 分钟批次上限、2 秒间隔及停止规则；无实验层重试。`-rounds` 仅控制旧 `measure` 模式，`high` 始终五轮。
+
+分析程序从保存的计划读取档位与轮数，仍验证完整性且不能静默删失败样本。报告同轮相邻档位增益、全部五次结果和观测范围；将相邻档增益中位数不超过 5% 且五次方向不一致视为“收益接近平台”的工程线索，不能代替统计等效性证明或线路物理上限。如果到 32 路仍明显提速，结论必须是“在已测范围尚未到头”，不能外推未经测量的 48/64 路。

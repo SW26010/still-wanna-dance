@@ -291,7 +291,7 @@ func measureIPs(ctx context.Context, t target, ips []string, size int64, n int, 
 	if n == 0 {
 		result.Arm = "long"
 	}
-	if err := validateIPs(ips); err != nil || n < 0 || n > 12 || max(n, 1) < len(ips) || size <= 0 || size%blockSize != 0 {
+	if err := validateIPs(ips); err != nil || n < 0 || n > 32 || max(n, 1) < len(ips) || size <= 0 || size%blockSize != 0 || (n > 0 && size/blockSize < int64(n)) {
 		result.Error = "invalid measurement parameters"
 		return result
 	}
@@ -387,8 +387,8 @@ func main() {
 	}
 }
 func run() error {
-	mode := flag.String("mode", "prepare", "prepare, measure, or sweep")
-	ips := flag.String("ips", "", "sweep only: 1..3 comma-separated DNS IPv4 addresses")
+	mode := flag.String("mode", "prepare", "prepare, measure, sweep, or high")
+	ips := flag.String("ips", "", "sweep: 1..3 IPv4 addresses; high: exactly one DNS IPv4 address")
 	private := flag.String("private", "artifacts/cf-concurrency/target.json", "private target file")
 	out := flag.String("out", "artifacts/cf-concurrency/results.json", "measurement output")
 	song := flag.Int("song", 1343, "API song ID")
@@ -406,7 +406,7 @@ func run() error {
 		}
 		return save(*private, t)
 	}
-	if *mode != "measure" && *mode != "sweep" {
+	if *mode != "measure" && *mode != "sweep" && *mode != "high" {
 		return errors.New("unknown mode")
 	}
 	var t target
@@ -421,8 +421,12 @@ func run() error {
 	if err != nil || u.Scheme != "https" || u.Hostname() != t.Host || net.ParseIP(t.IP) == nil {
 		return errors.New("invalid private target")
 	}
-	if *sizeMiB < 1 || *sizeMiB > 32 {
-		return errors.New("measurement size must be 1..32 MiB")
+	maxMiB := 32
+	if *mode == "high" {
+		maxMiB = 128
+	}
+	if *sizeMiB < 1 || *sizeMiB > maxMiB {
+		return fmt.Errorf("measurement size must be 1..%d MiB", maxMiB)
 	}
 	if *rounds < 1 || *rounds > 4 {
 		return errors.New("measurement rounds must be 1..4")
@@ -430,6 +434,9 @@ func run() error {
 	size := int64(*sizeMiB) * blockSize
 	if size > t.Size {
 		return errors.New("resource smaller than requested interval")
+	}
+	if *mode == "high" {
+		return high(ctx, t, strings.Split(*ips, ","), size, *out)
 	}
 	if *mode == "sweep" {
 		return sweep(ctx, t, strings.Split(*ips, ","), size, *out)

@@ -1,6 +1,4 @@
-//go:build historical_a
-
-//go:build !windows
+//go:build historical_a && !windows
 
 package main
 

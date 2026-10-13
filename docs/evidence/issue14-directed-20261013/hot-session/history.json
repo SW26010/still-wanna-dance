@@ -1,0 +1,811 @@
+[
+  {
+    "scope": "loopback development; no product migration or architecture selection",
+    "baseRevision": "90ca63b4b48aa9e484071cf56e339b7250bfb71f",
+    "checks": [
+      {
+        "name": "cancel/warm-business",
+        "passed": true
+      },
+      {
+        "name": "cancel/warm-response-gate-entered",
+        "passed": true
+      },
+      {
+        "name": "cancel/release-restores-request",
+        "passed": true
+      },
+      {
+        "name": "cancel/all-64-responses-deterministically-blocked",
+        "passed": true
+      },
+      {
+        "name": "cancel/gate-stays-blocked-until-intervention",
+        "passed": true
+      },
+      {
+        "name": "cancel/saturation-rejects-without-new-work",
+        "passed": true
+      },
+      {
+        "name": "cancel/blocked-callers-return",
+        "passed": true
+      },
+      {
+        "name": "cancel/blocked-work-drains-without-gate-release",
+        "passed": true
+      },
+      {
+        "name": "cancel/healthy-after-saturation-on-same-session",
+        "passed": true
+      },
+      {
+        "name": "cancel/new-held-request-recovers-after-release",
+        "passed": true
+      },
+      {
+        "name": "retire/warm-business",
+        "passed": true
+      },
+      {
+        "name": "retire/warm-response-gate-entered",
+        "passed": true
+      },
+      {
+        "name": "retire/release-restores-request",
+        "passed": true
+      },
+      {
+        "name": "retire/all-64-responses-deterministically-blocked",
+        "passed": true
+      },
+      {
+        "name": "retire/gate-stays-blocked-until-intervention",
+        "passed": true
+      },
+      {
+        "name": "retire/saturation-rejects-without-new-work",
+        "passed": true
+      },
+      {
+        "name": "retire/blocked-callers-return",
+        "passed": true
+      },
+      {
+        "name": "retire/blocked-work-drains-without-gate-release",
+        "passed": true
+      },
+      {
+        "name": "retire/retired-generation-stays-unavailable",
+        "passed": true
+      },
+      {
+        "name": "retire/replacement-generation-recovers",
+        "passed": true
+      },
+      {
+        "name": "retire/replacement-has-new-handshake",
+        "passed": true
+      },
+      {
+        "name": "credit/warm-business",
+        "passed": true
+      },
+      {
+        "name": "credit/credit-exhaustion-fails-without-waiting",
+        "passed": true
+      },
+      {
+        "name": "credit/credit-workers-and-peer-drain",
+        "passed": true
+      },
+      {
+        "name": "credit/credit-recovery-on-same-session",
+        "passed": true
+      }
+    ],
+    "scenarios": [
+      {
+        "scenario": "cancel",
+        "peerMaxIncomingStreams": 128,
+        "blockedPeer": {
+          "canceled": 0,
+          "completed": 2,
+          "entered": 65,
+          "handshakes": 1,
+          "held": 64,
+          "peak": 64,
+          "peers": 1
+        },
+        "blockedRuntime": {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 64,
+            "peak": 64,
+            "pending": 0,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 64,
+          "goroutines": 206,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        "checks": [
+          {
+            "details": null,
+            "name": "warm-business",
+            "passed": true
+          },
+          {
+            "details": {
+              "peer": {
+                "canceled": 0,
+                "completed": 1,
+                "entered": 1,
+                "handshakes": 1,
+                "held": 1,
+                "peak": 1,
+                "peers": 1
+              },
+              "runtime": {
+                "admission": {
+                  "dialTimeoutMS": 3000,
+                  "lateClosed": 0,
+                  "limit": 64,
+                  "occupied": 1,
+                  "openConnections": 1,
+                  "peak": 1,
+                  "pending": 0,
+                  "retired": false
+                },
+                "coreDNSInstalled": true,
+                "coreTracked": 1,
+                "goroutines": 17,
+                "innerGlobalInstalled": true,
+                "openPipes": 0,
+                "peakPending": 0,
+                "pending": 0,
+                "retired": false,
+                "slotLimit": 64,
+                "standardResolverUnchanged": true,
+                "standardTransportUnchanged": true,
+                "systemHosts": false
+              }
+            },
+            "name": "warm-response-gate-entered",
+            "passed": true
+          },
+          {
+            "details": null,
+            "name": "release-restores-request",
+            "passed": true
+          },
+          {
+            "details": {
+              "admission": {
+                "dialTimeoutMS": 3000,
+                "lateClosed": 0,
+                "limit": 64,
+                "occupied": 64,
+                "openConnections": 64,
+                "peak": 64,
+                "pending": 0,
+                "retired": false
+              },
+              "coreDNSInstalled": true,
+              "coreTracked": 64,
+              "goroutines": 206,
+              "innerGlobalInstalled": true,
+              "openPipes": 0,
+              "peakPending": 0,
+              "pending": 0,
+              "retired": false,
+              "slotLimit": 64,
+              "standardResolverUnchanged": true,
+              "standardTransportUnchanged": true,
+              "systemHosts": false
+            },
+            "name": "all-64-responses-deterministically-blocked",
+            "passed": true
+          },
+          {
+            "details": {
+              "heldMS": 100.33
+            },
+            "name": "gate-stays-blocked-until-intervention",
+            "passed": true
+          },
+          {
+            "details": {
+              "admission": {
+                "dialTimeoutMS": 3000,
+                "lateClosed": 0,
+                "limit": 64,
+                "occupied": 64,
+                "openConnections": 64,
+                "peak": 64,
+                "pending": 0,
+                "retired": false
+              },
+              "coreDNSInstalled": true,
+              "coreTracked": 64,
+              "goroutines": 206,
+              "innerGlobalInstalled": true,
+              "openPipes": 0,
+              "peakPending": 0,
+              "pending": 0,
+              "retired": false,
+              "slotLimit": 64,
+              "standardResolverUnchanged": true,
+              "standardTransportUnchanged": true,
+              "systemHosts": false
+            },
+            "name": "saturation-rejects-without-new-work",
+            "passed": true
+          },
+          {
+            "details": {
+              "elapsedMS": 0,
+              "errors": 64
+            },
+            "name": "blocked-callers-return",
+            "passed": true
+          },
+          {
+            "details": {
+              "peer": {
+                "canceled": 64,
+                "completed": 2,
+                "entered": 65,
+                "handshakes": 1,
+                "held": 0,
+                "peak": 64,
+                "peers": 1
+              },
+              "runtime": {
+                "admission": {
+                  "dialTimeoutMS": 3000,
+                  "lateClosed": 0,
+                  "limit": 64,
+                  "occupied": 0,
+                  "openConnections": 0,
+                  "peak": 64,
+                  "pending": 0,
+                  "retired": false
+                },
+                "coreDNSInstalled": true,
+                "coreTracked": 0,
+                "goroutines": 13,
+                "innerGlobalInstalled": true,
+                "openPipes": 0,
+                "peakPending": 0,
+                "pending": 0,
+                "retired": false,
+                "slotLimit": 64,
+                "standardResolverUnchanged": true,
+                "standardTransportUnchanged": true,
+                "systemHosts": false
+              }
+            },
+            "name": "blocked-work-drains-without-gate-release",
+            "passed": true
+          },
+          {
+            "details": {
+              "peer": {
+                "canceled": 64,
+                "completed": 3,
+                "entered": 65,
+                "handshakes": 1,
+                "held": 0,
+                "peak": 64,
+                "peers": 1
+              },
+              "runtime": {
+                "admission": {
+                  "dialTimeoutMS": 3000,
+                  "lateClosed": 0,
+                  "limit": 64,
+                  "occupied": 0,
+                  "openConnections": 0,
+                  "peak": 64,
+                  "pending": 0,
+                  "retired": false
+                },
+                "coreDNSInstalled": true,
+                "coreTracked": 0,
+                "goroutines": 13,
+                "innerGlobalInstalled": true,
+                "openPipes": 0,
+                "peakPending": 0,
+                "pending": 0,
+                "retired": false,
+                "slotLimit": 64,
+                "standardResolverUnchanged": true,
+                "standardTransportUnchanged": true,
+                "systemHosts": false
+              }
+            },
+            "name": "healthy-after-saturation-on-same-session",
+            "passed": true
+          },
+          {
+            "details": {
+              "canceled": 64,
+              "completed": 4,
+              "entered": 66,
+              "handshakes": 1,
+              "held": 0,
+              "peak": 64,
+              "peers": 1
+            },
+            "name": "new-held-request-recovers-after-release",
+            "passed": true
+          }
+        ],
+        "finalPeer": {
+          "canceled": 64,
+          "completed": 4,
+          "entered": 66,
+          "handshakes": 1,
+          "held": 0,
+          "peak": 64,
+          "peers": 1
+        },
+        "finalRuntime": {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 0,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 0,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 13,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        "initialPeer": {
+          "canceled": 0,
+          "completed": 1,
+          "entered": 0,
+          "handshakes": 1,
+          "held": 0,
+          "peak": 0,
+          "peers": 1
+        }
+      },
+      {
+        "scenario": "retire",
+        "peerMaxIncomingStreams": 128,
+        "blockedPeer": {
+          "canceled": 0,
+          "completed": 2,
+          "entered": 65,
+          "handshakes": 1,
+          "held": 64,
+          "peak": 64,
+          "peers": 1
+        },
+        "blockedRuntime": {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 64,
+            "openConnections": 64,
+            "peak": 64,
+            "pending": 0,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 64,
+          "goroutines": 206,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        "checks": [
+          {
+            "details": null,
+            "name": "warm-business",
+            "passed": true
+          },
+          {
+            "details": {
+              "peer": {
+                "canceled": 0,
+                "completed": 1,
+                "entered": 1,
+                "handshakes": 1,
+                "held": 1,
+                "peak": 1,
+                "peers": 1
+              },
+              "runtime": {
+                "admission": {
+                  "dialTimeoutMS": 3000,
+                  "lateClosed": 0,
+                  "limit": 64,
+                  "occupied": 1,
+                  "openConnections": 1,
+                  "peak": 1,
+                  "pending": 0,
+                  "retired": false
+                },
+                "coreDNSInstalled": true,
+                "coreTracked": 1,
+                "goroutines": 17,
+                "innerGlobalInstalled": true,
+                "openPipes": 0,
+                "peakPending": 0,
+                "pending": 0,
+                "retired": false,
+                "slotLimit": 64,
+                "standardResolverUnchanged": true,
+                "standardTransportUnchanged": true,
+                "systemHosts": false
+              }
+            },
+            "name": "warm-response-gate-entered",
+            "passed": true
+          },
+          {
+            "details": null,
+            "name": "release-restores-request",
+            "passed": true
+          },
+          {
+            "details": {
+              "admission": {
+                "dialTimeoutMS": 3000,
+                "lateClosed": 0,
+                "limit": 64,
+                "occupied": 64,
+                "openConnections": 64,
+                "peak": 64,
+                "pending": 0,
+                "retired": false
+              },
+              "coreDNSInstalled": true,
+              "coreTracked": 64,
+              "goroutines": 206,
+              "innerGlobalInstalled": true,
+              "openPipes": 0,
+              "peakPending": 0,
+              "pending": 0,
+              "retired": false,
+              "slotLimit": 64,
+              "standardResolverUnchanged": true,
+              "standardTransportUnchanged": true,
+              "systemHosts": false
+            },
+            "name": "all-64-responses-deterministically-blocked",
+            "passed": true
+          },
+          {
+            "details": {
+              "heldMS": 100.498
+            },
+            "name": "gate-stays-blocked-until-intervention",
+            "passed": true
+          },
+          {
+            "details": {
+              "admission": {
+                "dialTimeoutMS": 3000,
+                "lateClosed": 0,
+                "limit": 64,
+                "occupied": 64,
+                "openConnections": 64,
+                "peak": 64,
+                "pending": 0,
+                "retired": false
+              },
+              "coreDNSInstalled": true,
+              "coreTracked": 64,
+              "goroutines": 206,
+              "innerGlobalInstalled": true,
+              "openPipes": 0,
+              "peakPending": 0,
+              "pending": 0,
+              "retired": false,
+              "slotLimit": 64,
+              "standardResolverUnchanged": true,
+              "standardTransportUnchanged": true,
+              "systemHosts": false
+            },
+            "name": "saturation-rejects-without-new-work",
+            "passed": true
+          },
+          {
+            "details": {
+              "elapsedMS": 0.505,
+              "errors": 64
+            },
+            "name": "blocked-callers-return",
+            "passed": true
+          },
+          {
+            "details": {
+              "peer": {
+                "canceled": 64,
+                "completed": 2,
+                "entered": 65,
+                "handshakes": 1,
+                "held": 0,
+                "peak": 64,
+                "peers": 1
+              },
+              "runtime": {
+                "admission": {
+                  "dialTimeoutMS": 3000,
+                  "lateClosed": 0,
+                  "limit": 64,
+                  "occupied": 0,
+                  "openConnections": 0,
+                  "peak": 64,
+                  "pending": 0,
+                  "retired": true
+                },
+                "coreDNSInstalled": true,
+                "coreTracked": 0,
+                "goroutines": 5,
+                "innerGlobalInstalled": true,
+                "openPipes": 0,
+                "peakPending": 0,
+                "pending": 0,
+                "retired": true,
+                "slotLimit": 64,
+                "standardResolverUnchanged": true,
+                "standardTransportUnchanged": true,
+                "systemHosts": false
+              }
+            },
+            "name": "blocked-work-drains-without-gate-release",
+            "passed": true
+          },
+          {
+            "details": {
+              "admission": {
+                "dialTimeoutMS": 3000,
+                "lateClosed": 0,
+                "limit": 64,
+                "occupied": 0,
+                "openConnections": 0,
+                "peak": 64,
+                "pending": 0,
+                "retired": true
+              },
+              "coreDNSInstalled": true,
+              "coreTracked": 0,
+              "goroutines": 5,
+              "innerGlobalInstalled": true,
+              "openPipes": 0,
+              "peakPending": 0,
+              "pending": 0,
+              "retired": true,
+              "slotLimit": 64,
+              "standardResolverUnchanged": true,
+              "standardTransportUnchanged": true,
+              "systemHosts": false
+            },
+            "name": "retired-generation-stays-unavailable",
+            "passed": true
+          }
+        ],
+        "finalPeer": {
+          "canceled": 64,
+          "completed": 2,
+          "entered": 65,
+          "handshakes": 1,
+          "held": 0,
+          "peak": 64,
+          "peers": 1
+        },
+        "finalRuntime": {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 0,
+            "openConnections": 0,
+            "peak": 64,
+            "pending": 0,
+            "retired": true
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 5,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": true,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        "initialPeer": {
+          "canceled": 0,
+          "completed": 1,
+          "entered": 0,
+          "handshakes": 1,
+          "held": 0,
+          "peak": 0,
+          "peers": 1
+        }
+      },
+      {
+        "scenario": "credit",
+        "peerMaxIncomingStreams": 2,
+        "checks": [
+          {
+            "details": null,
+            "name": "warm-business",
+            "passed": true
+          },
+          {
+            "details": {
+              "failureMS": 0,
+              "held": 2
+            },
+            "name": "credit-exhaustion-fails-without-waiting",
+            "passed": true
+          },
+          {
+            "details": {
+              "admission": {
+                "dialTimeoutMS": 3000,
+                "lateClosed": 0,
+                "limit": 64,
+                "occupied": 0,
+                "openConnections": 0,
+                "peak": 3,
+                "pending": 0,
+                "retired": false
+              },
+              "coreDNSInstalled": true,
+              "coreTracked": 0,
+              "goroutines": 13,
+              "innerGlobalInstalled": true,
+              "openPipes": 0,
+              "peakPending": 0,
+              "pending": 0,
+              "retired": false,
+              "slotLimit": 64,
+              "standardResolverUnchanged": true,
+              "standardTransportUnchanged": true,
+              "systemHosts": false
+            },
+            "name": "credit-workers-and-peer-drain",
+            "passed": true
+          },
+          {
+            "details": {
+              "attempts": 3,
+              "peer": {
+                "canceled": 2,
+                "completed": 2,
+                "entered": 2,
+                "handshakes": 1,
+                "held": 0,
+                "peak": 2,
+                "peers": 1
+              }
+            },
+            "name": "credit-recovery-on-same-session",
+            "passed": true
+          }
+        ],
+        "creditBlockedState": {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 2,
+            "openConnections": 2,
+            "peak": 3,
+            "pending": 0,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 2,
+          "goroutines": 13,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        "creditPeer": {
+          "canceled": 0,
+          "completed": 1,
+          "entered": 2,
+          "handshakes": 1,
+          "held": 2,
+          "peak": 2,
+          "peers": 1
+        },
+        "initialPeer": {
+          "canceled": 0,
+          "completed": 1,
+          "entered": 0,
+          "handshakes": 1,
+          "held": 0,
+          "peak": 0,
+          "peers": 1
+        }
+      }
+    ],
+    "binaries": {
+      "B.exe": {
+        "sha256": "3f0202c258ad052c215b252ef6227c303d47832780c8b411308fd2d10bcf25dc",
+        "bytes": 61049856
+      },
+      "hotfixture.exe": {
+        "sha256": "e0b8fae6c65986c3e38d57edb934f1bdfecc5dfee3f2952e2e69d47b175f1003",
+        "bytes": 14436352
+      }
+    },
+    "replacement": [
+      {
+        "connectionMS": 2.600700012408197,
+        "reused": false,
+        "index": 0,
+        "ok": true,
+        "status": 200,
+        "bytes": 2,
+        "sha256": "2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df",
+        "firstByteMS": 2.7796000067610294,
+        "elapsedMS": 2.814500010572374
+      }
+    ],
+    "replacementPeer": {
+      "canceled": 64,
+      "completed": 3,
+      "entered": 65,
+      "handshakes": 2,
+      "held": 0,
+      "peak": 64,
+      "peers": 2
+    },
+    "cleanup": {
+      "allOwnedProcessesExited": true,
+      "hostsUnchanged": true
+    }
+  }
+]

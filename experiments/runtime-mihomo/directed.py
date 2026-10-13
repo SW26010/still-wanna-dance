@@ -74,6 +74,12 @@ def main():
                 out["checks"].append({"name": "retire/replacement-generation-recovers", "passed": ok})
                 out["replacement"] = rows
                 print("retire replacement-generation-recovers", "PASS" if ok else "FAIL", flush=True)
+                with m.urllib.request.build_opener(m.urllib.request.ProxyHandler({})).open(private["control"] + "/stats", timeout=1) as response:
+                    state = json.load(response)
+                out["replacementPeer"] = state
+                ok = state["handshakes"] == 2
+                out["checks"].append({"name": "retire/replacement-has-new-handshake", "passed": ok})
+                print("retire replacement-has-new-handshake", "PASS" if ok else "FAIL", flush=True)
                 probe.close()
                 probe = None
             fixture.stdin.close()

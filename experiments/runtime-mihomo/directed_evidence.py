@@ -11,7 +11,7 @@ from export_incremental import ROOT, digest, screen, write
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--label", choices=("hot", "retry"), required=True)
+    ap.add_argument("--label", choices=("hot", "retry", "hot-session", "retry-final"), required=True)
     ap.add_argument("--result", type=Path)
     ap.add_argument("--tests", type=Path, action="append", default=[])
     ap.add_argument("--history", type=Path, action="append", default=[])
@@ -40,6 +40,8 @@ def main():
             event = json.loads(line)
             if event.get("Action") in ("pass", "fail", "skip"):
                 tests.append({"run": log.stem, **{k: event[k] for k in ("Action", "Package", "Test", "Elapsed") if k in event}})
+            if "panic: sync: WaitGroup is reused before previous Wait has returned" in event.get("Output", ""):
+                tests.append({"run": log.stem, "Action": "diagnostic", "reason": "waitgroup-reuse-panic"})
     identity = {}
     for binary in args.binary:
         raw = subprocess.check_output([args.go, "version", "-m", str(binary)], text=True)

@@ -4,7 +4,7 @@
 
 ## Hysteria2：可控阻塞、排空与恢复
 
-[最终结果](evidence/issue14-directed-20261013/hot/results.json) **24/24**；[单元测试](evidence/issue14-directed-20261013/hot/tests.json)、[构建身份](evidence/issue14-directed-20261013/hot/build.json)、[源码及证据哈希](evidence/issue14-directed-20261013/hot/manifest.json)。先前 256 次随机定时取消的“未触发”记录保留，不能改写成当时已通过。
+[初轮结果](evidence/issue14-directed-20261013/hot/results.json) **24/24**；[单元测试](evidence/issue14-directed-20261013/hot/tests.json)、[构建身份](evidence/issue14-directed-20261013/hot/build.json)、[源码及证据哈希](evidence/issue14-directed-20261013/hot/manifest.json)。随后补强会话身份观测并修正排空辅助层，最终[25/25](evidence/issue14-directed-20261013/hot-session/results.json)，见下文。先前 256 次随机定时取消的“未触发”记录保留，不能改写成当时已通过。
 
 源码核对发现，固定版本 `sing-quic/hysteria2.Client.DialConn` 在已有会话上调用**非等待式 `OpenStream()`**；额度不足立即报错，没有使用 `OpenStreamSync(ctx)`。返回的 `clientConn` 在首次 Write 发送 TCP 请求、首次 Read 等待 TCP 响应。因此必须区分“本地 QUIC 流对象分配”“Hysteria2 TCP 响应完成”“HTTP 首响应”，不能把 Dial 返回或 `GotConn` 当作后两者成功。
 
@@ -26,9 +26,19 @@
 
 这是**不配合取消的上游函数模型**，不是本轮发现 Hysteria2 有永久挂起故障。它明确了通用封装的保证范围：限制任务增长和迟到连接所有权，不保证不返回的任意 Go 函数可被终止。若未来实际协议存在这种长期不收敛，不能通过提前归还槽位、不断创建新任务来“恢复”；应保留失败并据真实故障讨论上游修复或更大故障域的恢复。本文不据此决定 B2/C。
 
+### 收尾复核发现及修正
+
+初轮用 UDP peer 地址观察会话延续，不能独立排除同地址重新握手。夹具补用上游 TLS `GetConfigForClient` 公共回调只计数、不改变配置：最终[热流矩阵](evidence/issue14-directed-20261013/hot-session/results.json) **25/25**，取消、额度释放和再次请求期间握手数始终为 1；退役后的替换进程请求使握手数增为 2。由此区分原会话恢复和新代次重连，仍不推断所有内部协议对象的数量。
+
+这次复核的单元测试实际触发 `sync: WaitGroup is reused before previous Wait has returned`。原因是实验 `admission.wait(timeout)` 在超时后仍遗留后台 Wait；活跃代次排空后接受新工作时，旧 Wait 尚未返回。原运行时正常只在退役后调用 wait，但恢复模型对活跃代次的限时观测暴露了这个辅助层问题，不能忽略失败。修正为锁保护的工作计数及每一批工作的完成 channel，限时观察不启动后台等待者；准入数量、拨号预算和协议路径不变。
+
+[测试证据](evidence/issue14-directed-20261013/hot-session/tests.json)中 `unit` 保留 panic 导致的包失败，`unit-fixed` 是修正后完整实验单测通过，`recovery-repeat` 是同一确定性屏障模型连续 10 次通过（每次 release/retire 两个子例），不是用随机增加 Hysteria2 次数补覆盖。复核中修改辅助层前的一轮 25 项结果保存在 [history.json](evidence/issue14-directed-20261013/hot-session/history.json)，最终二进制和源码以 [manifest](evidence/issue14-directed-20261013/hot-session/manifest.json) 为准。
+
 ## 重试、预算与失败反馈
 
 [受控矩阵](evidence/issue14-directed-20261013/retry/results.json) **19/19**，使用第一提交 `7e669f6` 对应的同一个驱动二进制，不修改核心重试或协议实现。观测对象是回环 SOCKS peer 的实际请求次数，不靠 HTTP 耗时推断重试。
+
+辅助层修正后，使用最终驱动再跑同一套小矩阵，结果仍为[19/19](evidence/issue14-directed-20261013/retry-final/results.json)。前后构建分别保留，以下表格的具体次数与 5.031 秒取自首轮，不能混为同一轮测量。
 
 | 注入 | B1 | B2 |
 | --- | --- | --- |

@@ -33,6 +33,7 @@ type peer struct {
 	mu                                       sync.Mutex
 	gate                                     chan struct{}
 	held, peak, entered, completed, canceled int
+	handshakes                               int
 	peers                                    map[string]bool
 }
 
@@ -112,7 +113,7 @@ func (p *peer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]int{"held": p.held, "peak": p.peak, "entered": p.entered, "completed": p.completed, "canceled": p.canceled, "peers": len(p.peers)})
+	json.NewEncoder(w).Encode(map[string]int{"held": p.held, "peak": p.peak, "entered": p.entered, "completed": p.completed, "canceled": p.canceled, "peers": len(p.peers), "handshakes": p.handshakes})
 }
 
 func run() error {
@@ -141,7 +142,13 @@ func run() error {
 		return err
 	}
 	p := &peer{gate: make(chan struct{}), peers: map[string]bool{}}
-	service, err := hysteria2.NewService[string](hysteria2.ServiceOptions{Context: context.Background(), Logger: logger.NOP(), TLSConfig: &tls.Config{Certificates: []tls.Certificate{pair}}, QUICConfig: &quic.Config{MaxIncomingStreams: int64(limit)}, Handler: p})
+	tlsConfig := &tls.Config{Certificates: []tls.Certificate{pair}, GetConfigForClient: func(*tls.ClientHelloInfo) (*tls.Config, error) {
+		p.mu.Lock()
+		p.handshakes++
+		p.mu.Unlock()
+		return nil, nil // Use the unchanged original TLS config.
+	}}
+	service, err := hysteria2.NewService[string](hysteria2.ServiceOptions{Context: context.Background(), Logger: logger.NOP(), TLSConfig: tlsConfig, QUICConfig: &quic.Config{MaxIncomingStreams: int64(limit)}, Handler: p})
 	if err != nil {
 		return err
 	}

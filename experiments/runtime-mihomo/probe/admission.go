@@ -20,7 +20,8 @@ type admission struct {
 	cancel              context.CancelFunc
 	closed              bool
 	slots               chan struct{}
-	work                sync.WaitGroup
+	workers             int
+	drained             chan struct{}
 	connections         map[*admittedConn]bool
 	pending, peak, late int
 	timeout             time.Duration
@@ -34,7 +35,9 @@ type admittedConn struct {
 
 func newAdmission(limit int, timeout time.Duration) *admission {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &admission{ctx: ctx, cancel: cancel, slots: make(chan struct{}, limit), connections: map[*admittedConn]bool{}, timeout: timeout}
+	drained := make(chan struct{})
+	close(drained)
+	return &admission{ctx: ctx, cancel: cancel, slots: make(chan struct{}, limit), connections: map[*admittedConn]bool{}, timeout: timeout, drained: drained}
 }
 
 func (c *admittedConn) Close() error {
@@ -74,7 +77,10 @@ func (a *admission) wrap(dial upstreamrequest.DialFunc) upstreamrequest.DialFunc
 		if len(a.slots) > a.peak {
 			a.peak = len(a.slots)
 		}
-		a.work.Add(1)
+		if a.workers == 0 {
+			a.drained = make(chan struct{})
+		}
+		a.workers++
 		a.mu.Unlock()
 		opCtx, cancel := context.WithTimeout(ctx, a.timeout)
 		stop := context.AfterFunc(a.ctx, cancel)
@@ -84,7 +90,14 @@ func (a *admission) wrap(dial upstreamrequest.DialFunc) upstreamrequest.DialFunc
 		}
 		done := make(chan result)
 		go func() {
-			defer a.work.Done()
+			defer func() {
+				a.mu.Lock()
+				a.workers--
+				if a.workers == 0 {
+					close(a.drained)
+				}
+				a.mu.Unlock()
+			}()
 			defer cancel()
 			defer stop()
 			conn, err := dial(opCtx, network, address)
@@ -164,12 +177,17 @@ func (a *admission) retire() {
 }
 
 func (a *admission) wait(timeout time.Duration) bool {
-	done := make(chan struct{})
-	go func() { a.work.Wait(); close(done) }()
+	// Observe this worker generation without leaving a blocked WaitGroup
+	// waiter behind on timeout. A live runtime may accept work again later.
+	a.mu.Lock()
+	done := a.drained
+	a.mu.Unlock()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 	select {
 	case <-done:
 		return true
-	case <-time.After(timeout):
+	case <-timer.C:
 		return false
 	}
 }

@@ -87,9 +87,13 @@ func (r *fullRuntime) directed(cmd command, pool *upstreamrequest.Pool) map[stri
 	check("warm-business", healthy(), nil)
 	initial := stats("/stats")
 	out["initialPeer"] = initial
-	if initial == nil || initial["peers"] != 1 {
+	if initial == nil || initial["peers"] != 1 || initial["handshakes"] != 1 {
 		check("warm-session-observed", false, initial)
 		return out
+	}
+	sameSession := func() bool {
+		s := stats("/stats")
+		return s != nil && s["peers"] == initial["peers"] && s["handshakes"] == initial["handshakes"]
 	}
 	pool.CloseIdleConnections()
 	if cmd.Directed == "credit" {
@@ -135,7 +139,7 @@ func (r *fullRuntime) directed(cmd command, pool *upstreamrequest.Pool) map[stri
 		}), r.snapshot())
 		attempts := 0
 		ok := wait(func() bool { attempts++; return healthy() })
-		check("credit-recovery-on-same-session", ok && stats("/stats")["peers"] == initial["peers"], map[string]any{"attempts": attempts, "peer": stats("/stats")})
+		check("credit-recovery-on-same-session", ok && sameSession(), map[string]any{"attempts": attempts, "peer": stats("/stats")})
 		return out
 	}
 	// One released handshake proves the fixture is capable of successful
@@ -186,7 +190,7 @@ func (r *fullRuntime) directed(cmd command, pool *upstreamrequest.Pool) map[stri
 	blocked = wait(func() bool { s := stats("/stats"); return s != nil && s["held"] == 64 })
 	out["blockedPeer"] = stats("/stats")
 	out["blockedRuntime"] = r.snapshot()
-	check("all-64-responses-deterministically-blocked", blocked && r.admission.snapshot()["occupied"] == 64, out["blockedRuntime"])
+	check("all-64-responses-deterministically-blocked", blocked && sameSession() && r.admission.snapshot()["occupied"] == 64, out["blockedRuntime"])
 	if !blocked {
 		cancel()
 		collect(done)
@@ -235,7 +239,7 @@ func (r *fullRuntime) directed(cmd command, pool *upstreamrequest.Pool) map[stri
 		}
 		check("retired-generation-stays-unavailable", errors.Is(e, upstreamrequest.ErrUnavailable), r.snapshot())
 	} else {
-		check("healthy-after-saturation-on-same-session", healthy() && stats("/stats")["peers"] == initial["peers"], map[string]any{"peer": stats("/stats"), "runtime": r.snapshot()})
+		check("healthy-after-saturation-on-same-session", healthy() && sameSession(), map[string]any{"peer": stats("/stats"), "runtime": r.snapshot()})
 		// Re-enter the gate to show that cancellation did not disable it; then
 		// release it and demand a successful response on the original session.
 		cancel, done = batch(1)
@@ -243,7 +247,7 @@ func (r *fullRuntime) directed(cmd command, pool *upstreamrequest.Pool) map[stri
 		blocked = wait(func() bool { s := stats("/stats"); return s != nil && s["held"] == 1 })
 		stats("/release")
 		es, returned = collect(done)
-		check("new-held-request-recovers-after-release", blocked && returned && len(es) == 1 && es[0] == nil, nil)
+		check("new-held-request-recovers-after-release", blocked && returned && len(es) == 1 && es[0] == nil && sameSession(), stats("/stats"))
 	}
 	out["finalPeer"] = stats("/stats")
 	out["finalRuntime"] = r.snapshot()

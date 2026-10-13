@@ -10,6 +10,8 @@
 
 同轮[重试/失败反馈清单](issue14-directed-20261013/retry/manifest.json)：19 项受控入口检查、3 包定向回归、初轮反例与沙箱失败；明确本地容量/退役分类仍有接入缺口，不提前决定 B2/C。
 
+收尾复核：[热流会话身份与辅助层修正](issue14-directed-20261013/hot-session/manifest.json)最终 25 项通过，保留实际 WaitGroup panic 和修正后测试；[最终驱动重试复测](issue14-directed-20261013/retry-final/manifest.json)19 项通过。历史轮次未覆盖重写。
+
 | 文件 | 来源与用途 |
 | --- | --- |
 | [runtime-mihomo-20261013/manifest.json](runtime-mihomo-20261013/manifest.json) | #14 最新要求的完整内嵌 B / 独立进程 C 对照：69 项开发检查、同一 VMess/WS 节点和视频 Range 三轮取样、各 60 秒连续负载、全局状态/故障边界、失败历史及构建身份；无生产切换或实机通过，见[评估与实施设计](../mihomo-runtime-evaluation-20261013.md) |

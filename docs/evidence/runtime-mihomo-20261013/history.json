@@ -1,0 +1,190 @@
+[
+  {
+    "iteration": 1,
+    "binaries": {
+      "B.exe": {
+        "sha256": "52312dbf2c785b98cd03ff12ed34a25aaab2a60ba5f11dd3b20707c998913a65",
+        "bytes": 60960256
+      },
+      "C.exe": {
+        "sha256": "88398b49f2cc0e1388813f790c7217316f7116d3b4a7fa325380e8f8d8ad898a",
+        "bytes": 28246528
+      },
+      "core.exe": {
+        "sha256": "71c7602a98c235a1c230cc89fc869d3026f5c1369d82e990309b01058ec75cea",
+        "bytes": 55928832
+      },
+      "fixture.exe": {
+        "sha256": "a480f3267efcd336d4dc3c07a218bc6f97b6c5c3f864f0493151ca1a401b7bbb",
+        "bytes": 28299264
+      }
+    },
+    "checksTotal": 60,
+    "failedChecks": [
+      {
+        "name": "C-only-loopback-listeners",
+        "passed": false,
+        "inventory": {
+          "tcp": [],
+          "udp": []
+        }
+      },
+      {
+        "name": "B-cancel-burst-converges",
+        "passed": false,
+        "samples": [
+          {
+            "sockets": 31,
+            "probe": {
+              "coreDNSInstalled": true,
+              "coreTracked": 0,
+              "goroutines": 35,
+              "innerGlobalInstalled": true,
+              "openPipes": 0,
+              "peakPending": 32,
+              "pending": 32,
+              "retired": false,
+              "slotLimit": 32,
+              "systemHosts": false
+            },
+            "memory": 26890240
+          },
+          {
+            "sockets": 32,
+            "probe": {
+              "coreDNSInstalled": true,
+              "coreTracked": 0,
+              "goroutines": 67,
+              "innerGlobalInstalled": true,
+              "openPipes": 0,
+              "peakPending": 32,
+              "pending": 32,
+              "retired": false,
+              "slotLimit": 32,
+              "systemHosts": false
+            },
+            "memory": 27029504
+          },
+          {
+            "sockets": 32,
+            "probe": {
+              "coreDNSInstalled": true,
+              "coreTracked": 0,
+              "goroutines": 99,
+              "innerGlobalInstalled": true,
+              "openPipes": 0,
+              "peakPending": 32,
+              "pending": 32,
+              "retired": false,
+              "slotLimit": 32,
+              "systemHosts": false
+            },
+            "memory": 27291648
+          },
+          {
+            "sockets": 32,
+            "probe": {
+              "coreDNSInstalled": true,
+              "coreTracked": 0,
+              "goroutines": 131,
+              "innerGlobalInstalled": true,
+              "openPipes": 0,
+              "peakPending": 32,
+              "pending": 32,
+              "retired": false,
+              "slotLimit": 32,
+              "systemHosts": false
+            },
+            "memory": 27557888
+          },
+          {
+            "sockets": 32,
+            "probe": {
+              "coreDNSInstalled": true,
+              "coreTracked": 0,
+              "goroutines": 163,
+              "innerGlobalInstalled": true,
+              "openPipes": 0,
+              "peakPending": 32,
+              "pending": 32,
+              "retired": false,
+              "slotLimit": 32,
+              "systemHosts": false
+            },
+            "memory": 27918336
+          },
+          {
+            "sockets": 32,
+            "probe": {
+              "coreDNSInstalled": true,
+              "coreTracked": 0,
+              "goroutines": 195,
+              "innerGlobalInstalled": true,
+              "openPipes": 0,
+              "peakPending": 32,
+              "pending": 32,
+              "retired": false,
+              "slotLimit": 32,
+              "systemHosts": false
+            },
+            "memory": 28278784
+          }
+        ],
+        "final": {
+          "coreDNSInstalled": true,
+          "coreTracked": 0,
+          "goroutines": 167,
+          "innerGlobalInstalled": true,
+          "openPipes": 2,
+          "peakPending": 32,
+          "pending": 32,
+          "retired": false,
+          "slotLimit": 32,
+          "systemHosts": false
+        }
+      }
+    ],
+    "cleanup": {
+      "probesExited": true,
+      "coresExited": true,
+      "providerPlaintextRemaining": 0,
+      "hostsUnchanged": true
+    },
+    "interpretation": "32-slot waiting implementation accumulated detached HTTP dials; sandbox socket table was empty, so no-listener observations were inconclusive. Later runner requires a positive control."
+  },
+  {
+    "iteration": 2,
+    "binaries": {
+      "B.exe": {
+        "sha256": "a4373de34f7c2397dd1e4131053ac40c02a7724b47c26f302293edc78b11e794",
+        "bytes": 60960256
+      },
+      "C.exe": {
+        "sha256": "88398b49f2cc0e1388813f790c7217316f7116d3b4a7fa325380e8f8d8ad898a",
+        "bytes": 28246528
+      },
+      "core.exe": {
+        "sha256": "71c7602a98c235a1c230cc89fc869d3026f5c1369d82e990309b01058ec75cea",
+        "bytes": 55928832
+      },
+      "fixture.exe": {
+        "sha256": "a480f3267efcd336d4dc3c07a218bc6f97b6c5c3f864f0493151ca1a401b7bbb",
+        "bytes": 28299264
+      }
+    },
+    "checksTotal": 60,
+    "failedChecks": [
+      {
+        "name": "B-concurrent-fixed-exits",
+        "passed": false
+      }
+    ],
+    "cleanup": {
+      "probesExited": true,
+      "coresExited": true,
+      "providerPlaintextRemaining": 0,
+      "hostsUnchanged": true
+    },
+    "interpretation": "Fail-fast removed queue accumulation; 40 concurrent healthy requests exceeded experimental 32-operation cap. Final cap is 64 and retains the same 40-request test."
+  }
+]

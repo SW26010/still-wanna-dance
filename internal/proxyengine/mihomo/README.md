@@ -1,11 +1,12 @@
 # Fixed Mihomo adapter
 
-Architecture direction (2026-10-13): development of additional protocol-specific
-branches is paused in favor of a managed standalone core. The
-[replacement validation](../../../docs/managed-mihomo-validation-20261013.md)
-records native-input compatibility, process boundaries and measured costs. This
-package remains the current production backend until that migration is built;
-the experimental tools are not a second production backend.
+Architecture review (2026-10-13): stop adding protocol-specific branches here.
+The [complete-runtime B/C evaluation](../../../docs/mihomo-runtime-evaluation-20261013.md)
+demonstrates both the embedded memory-entry route and the standalone-core route.
+It recommends C for the next production implementation based on lifecycle/fault
+boundaries and the observed real-resource samples, while recording B's lower
+resource costs. This package remains the current production backend until that
+migration is built; neither experiment is a second production backend.
 
 This package is the only production boundary allowed to import/use Mihomo. It
 parses imported node data and creates fixed outbound nodes; it does not fetch

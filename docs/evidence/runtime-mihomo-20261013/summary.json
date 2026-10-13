@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-13",
+  "baseRevision": "640ff7eb282ae22ec56a0fcc8bacc57153ab273b",
+  "checks": {
+    "total": 69,
+    "passed": 69
+  },
+  "soakPassed": true,
+  "comparisons": {
+    "B": {
+      "throughputMiBps": [
+        740.8299147659081,
+        614.4611511529756,
+        887.9374393693332
+      ],
+      "throughputMedianMiBps": 740.8299147659081,
+      "idleWorkingSetMedianBytes": 20901888,
+      "cpuSecondsPer128MiBMedian": 0.1875,
+      "readyMedianMS": 29.306499985978007
+    },
+    "C": {
+      "throughputMiBps": [
+        330.480870325318,
+        369.3331171208358,
+        273.9462166487729
+      ],
+      "throughputMedianMiBps": 330.480870325318,
+      "idleWorkingSetMedianBytes": 36478976,
+      "cpuSecondsPer128MiBMedian": 0.28125,
+      "readyMedianMS": 616.3676000142004
+    }
+  },
+  "real": {
+    "B": {
+      "samplesCold": 6,
+      "samplesWarm": 6,
+      "coldMedianMS": 742.5758500030497,
+      "coldRangeMS": [
+        412.9966000036802,
+        5450.909800012596
+      ],
+      "warmMedianMS": 136.31470000836998,
+      "warmRangeMS": [
+        130.28129999293014,
+        466.7316999984905
+      ]
+    },
+    "C": {
+      "samplesCold": 6,
+      "samplesWarm": 6,
+      "coldMedianMS": 436.9674499757821,
+      "coldRangeMS": [
+        409.94180002599023,
+        445.96489999094047
+      ],
+      "warmMedianMS": 138.0953500047326,
+      "warmRangeMS": [
+        132.79340000008233,
+        148.0685000133235
+      ]
+    }
+  },
+  "recommendation": "C for next production implementation; B finite feasibility demonstrated; no production switch"
+}

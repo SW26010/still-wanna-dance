@@ -1,0 +1,198 @@
+{
+  "secondsPerMode": 60,
+  "binaries": {
+    "B.exe": "e8033ee356a62f700ad017899719381b2812fa779b5beb82321caa16e9d573f5",
+    "C.exe": "664d419322fb9d1ced8d665c67d54083de72403d71e15bf760d54f916ea05ced",
+    "core.exe": "71c7602a98c235a1c230cc89fc869d3026f5c1369d82e990309b01058ec75cea"
+  },
+  "runs": [
+    {
+      "mode": "B",
+      "samples": [
+        {
+          "elapsedSeconds": 0.05481619999045506,
+          "state": {
+            "coreDNSInstalled": true,
+            "coreTracked": 2,
+            "goroutines": 9,
+            "innerGlobalInstalled": true,
+            "openPipes": 1,
+            "peakPending": 8,
+            "pending": 2,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": 24203264
+        },
+        {
+          "elapsedSeconds": 10.0537120999943,
+          "state": {
+            "coreDNSInstalled": true,
+            "coreTracked": 2,
+            "goroutines": 9,
+            "innerGlobalInstalled": true,
+            "openPipes": 1,
+            "peakPending": 8,
+            "pending": 2,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": 27721728
+        },
+        {
+          "elapsedSeconds": 20.054861599986907,
+          "state": {
+            "coreDNSInstalled": true,
+            "coreTracked": 2,
+            "goroutines": 9,
+            "innerGlobalInstalled": true,
+            "openPipes": 1,
+            "peakPending": 8,
+            "pending": 2,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": 28782592
+        },
+        {
+          "elapsedSeconds": 30.053447899990715,
+          "state": {
+            "coreDNSInstalled": true,
+            "coreTracked": 2,
+            "goroutines": 9,
+            "innerGlobalInstalled": true,
+            "openPipes": 1,
+            "peakPending": 8,
+            "pending": 2,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": 29036544
+        },
+        {
+          "elapsedSeconds": 40.053698900010204,
+          "state": {
+            "coreDNSInstalled": true,
+            "coreTracked": 2,
+            "goroutines": 9,
+            "innerGlobalInstalled": true,
+            "openPipes": 1,
+            "peakPending": 8,
+            "pending": 2,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": 29474816
+        },
+        {
+          "elapsedSeconds": 50.054458099999465,
+          "state": {
+            "coreDNSInstalled": true,
+            "coreTracked": 2,
+            "goroutines": 9,
+            "innerGlobalInstalled": true,
+            "openPipes": 1,
+            "peakPending": 8,
+            "pending": 2,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": 29417472
+        }
+      ],
+      "requests": 480,
+      "failures": 0,
+      "durationSeconds": 60.000388099986594,
+      "retired": true,
+      "afterRetire": {
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 8,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      },
+      "passed": true
+    },
+    {
+      "mode": "C",
+      "samples": [
+        {
+          "elapsedSeconds": 0.055000699998345226,
+          "state": {
+            "goroutines": 5
+          },
+          "memory": 44032000
+        },
+        {
+          "elapsedSeconds": 10.054527499974938,
+          "state": {
+            "goroutines": 5
+          },
+          "memory": 48451584
+        },
+        {
+          "elapsedSeconds": 20.054363399976864,
+          "state": {
+            "goroutines": 5
+          },
+          "memory": 49811456
+        },
+        {
+          "elapsedSeconds": 30.055407899984857,
+          "state": {
+            "goroutines": 5
+          },
+          "memory": 50442240
+        },
+        {
+          "elapsedSeconds": 40.0540900999913,
+          "state": {
+            "goroutines": 5
+          },
+          "memory": 50331648
+        },
+        {
+          "elapsedSeconds": 50.05462959999568,
+          "state": {
+            "goroutines": 5
+          },
+          "memory": 50323456
+        }
+      ],
+      "requests": 480,
+      "failures": 0,
+      "durationSeconds": 60.00009799998952,
+      "retired": true,
+      "afterRetire": {
+        "goroutines": 3
+      },
+      "passed": true
+    }
+  ],
+  "providerPlaintextRemaining": 0
+}

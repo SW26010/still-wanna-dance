@@ -65,6 +65,7 @@ type Server struct {
 	playbackChecks    map[string]*playbackCheck // protected by mu
 	slots             chan struct{}
 	localChecks       chan struct{}
+	requests          *requestBudget
 	verifyMu          sync.Mutex
 	verified          map[string]*verifiedFile
 	background        int
@@ -174,6 +175,7 @@ func New(cfg Config) (*Server, error) {
 	}
 
 	s := &Server{cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
+		requests:    newRequestBudget(videoRequestLimit, backgroundRequestLimit),
 		versionPins: make(map[string]int),
 		usage:       usage,
 		flights:     make(map[string]*flight), slots: make(chan struct{}, cfg.MaxDownloads), localChecks: make(chan struct{}, cfg.MaxDownloads), capacityChanged: make(chan struct{}),

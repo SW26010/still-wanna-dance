@@ -84,6 +84,7 @@ func (w *rangeWork) demand(offset int64) func() {
 				cancel(errRangeAbandoned)
 			}
 		}
+		w.signalLocked()
 	}
 }
 func (w *rangeWork) next(ctx context.Context, background bool) (int64, context.Context, bool) {
@@ -112,6 +113,12 @@ func (w *rangeWork) next(ctx context.Context, background bool) (int64, context.C
 				blockCtx, cancel = context.WithCancelCause(ctx)
 				w.active[block] = cancel
 			}
+			claimed := block
+			blockCtx = context.WithValue(blockCtx, requestPriorityKey{}, requestPriority(func() (bool, <-chan struct{}) {
+				w.mu.Lock()
+				defer w.mu.Unlock()
+				return w.readers[claimed] > 0, w.changed
+			}))
 			w.mu.Unlock()
 			return block, blockCtx, true
 		}

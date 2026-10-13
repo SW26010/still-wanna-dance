@@ -103,10 +103,18 @@ type resourceBody struct {
 	attempts *resourceAttempts
 	once     sync.Once
 	err      error
+	release  func()
 }
 
 func (b *resourceBody) Close() error {
-	b.once.Do(func() { b.useTaskDeadline(); b.cancel(); b.err = b.ReadCloser.Close() })
+	b.once.Do(func() {
+		if b.release != nil {
+			defer b.release()
+		}
+		b.useTaskDeadline()
+		b.cancel()
+		b.err = b.ReadCloser.Close()
+	})
 	return b.err
 }
 
@@ -135,10 +143,15 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		if err := r.Context().Err(); err != nil {
 			return nil, err
 		}
+		release, err := s.requests.acquire(r.Context())
+		if err != nil {
+			return nil, err
+		}
 		i := candidates.next
 		candidates.next++
 		transport := transports[i%len(transports)]
 		if transport == nil {
+			release()
 			continue
 		}
 		client := *s.client
@@ -153,7 +166,7 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		}
 		resp, err := client.Do(r.Clone(ctx))
 		if err == nil && resp.StatusCode < 500 {
-			resp.Body = &resourceBody{ReadCloser: resp.Body, cancel: cancel, ctx: ctx, budget: budget, attempts: attempts}
+			resp.Body = &resourceBody{ReadCloser: resp.Body, cancel: cancel, ctx: ctx, budget: budget, attempts: attempts, release: release}
 			return resp, nil
 		}
 		if err == nil {
@@ -167,6 +180,7 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 			budget.Stop()
 		}
 		cancel()
+		release()
 		failures = append(failures, applog.SafeError(err))
 		if len(transports) == 1 {
 			break

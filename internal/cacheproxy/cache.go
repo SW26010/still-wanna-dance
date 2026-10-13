@@ -259,6 +259,7 @@ func checkOpenFile(ctx context.Context, f *os.File, v video) error {
 }
 
 func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResult, source string, resultErr error) {
+	ctx = s.resourceRequestContext(ctx, v.key)
 	defer func() { resultErr = s.storageError(resultErr) }()
 	path := s.cfg.videoFile(v.key)
 	if _, err := s.verifiedFile(ctx, v); err == nil {

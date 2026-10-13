@@ -195,6 +195,10 @@ func safeError(err error) string {
 }
 
 func fetch(ctx context.Context, c *http.Client, t target, start, length int64, zero time.Time, state *traceState, reference []string) (o observation) {
+	return fetchBuffered(ctx, c, t, start, length, zero, state, reference, nil)
+}
+
+func fetchBuffered(ctx context.Context, c *http.Client, t target, start, length int64, zero time.Time, state *traceState, reference []string, buf []byte) (o observation) {
 	begin := time.Now()
 	o.Offset, o.Length, o.StartMS = start, length, ms(begin.Sub(zero))
 	o.TargetIP = t.IP
@@ -237,7 +241,9 @@ func fetch(ctx context.Context, c *http.Client, t target, start, length int64, z
 		o.Error = safeError(err)
 		return
 	}
-	buf := make([]byte, blockSize)
+	if buf == nil {
+		buf = make([]byte, blockSize)
+	}
 	for remaining := length; remaining > 0; {
 		want := min(int64(len(buf)), remaining)
 		// Measure the first readable body byte separately from response headers.
@@ -394,6 +400,11 @@ func run() error {
 	song := flag.Int("song", 1343, "API song ID")
 	sizeMiB := flag.Int("mib", 32, "same prefix length for every arm")
 	rounds := flag.Int("rounds", 4, "number of balanced-order rows, 1..4 (use 4 for primary comparisons)")
+	cpuKind := flag.String("cpu-kind", "burst", "CPU: idle, burst, stagger, or stepped")
+	cpuN := flag.Int("cpu-n", 4, "CPU: maximum workers, at most 32")
+	cpuHold := flag.Duration("cpu-hold", 6*time.Second, "CPU: hold time per final target or step")
+	cpuID := flag.String("cpu-id", "pilot", "CPU: trace correlation ID")
+	cpuRef := flag.String("cpu-reference", "artifacts/cf-cpu/reference.json", "CPU: verified warmup hashes")
 	flag.Parse()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -406,7 +417,7 @@ func run() error {
 		}
 		return save(*private, t)
 	}
-	if *mode != "measure" && *mode != "sweep" && *mode != "high" {
+	if *mode != "measure" && *mode != "sweep" && *mode != "high" && *mode != "cpu" && *mode != "cpu-warmup" {
 		return errors.New("unknown mode")
 	}
 	var t target
@@ -420,6 +431,30 @@ func run() error {
 	u, err := url.Parse(t.URL)
 	if err != nil || u.Scheme != "https" || u.Hostname() != t.Host || net.ParseIP(t.IP) == nil {
 		return errors.New("invalid private target")
+	}
+	if *mode == "cpu" || *mode == "cpu-warmup" {
+		if *ips != "" {
+			if validateIPs([]string{*ips}) != nil {
+				return errors.New("CPU requires one IPv4")
+			}
+			t.IP = *ips
+		}
+		if t.ETag == "" || strings.HasPrefix(t.ETag, "W/") {
+			return errors.New("CPU requires strong ETag")
+		}
+		if *mode == "cpu-warmup" {
+			trial, cancel := context.WithTimeout(ctx, 90*time.Second)
+			defer cancel()
+			r := measure(trial, t, 96*blockSize, 0, nil, time.Now())
+			if err := save(*out, r); err != nil {
+				return err
+			}
+			if !r.OK {
+				return errors.New("CPU warmup failed")
+			}
+			return save(*cpuRef, r.Requests[0].Hashes)
+		}
+		return cpuTrial(ctx, t, *cpuKind, *cpuN, *cpuHold, *cpuID, *cpuRef, *out)
 	}
 	maxMiB := 32
 	if *mode == "high" {

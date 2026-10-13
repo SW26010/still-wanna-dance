@@ -102,6 +102,12 @@ func doProbeRequest(ctx context.Context, client *http.Client, target, byteRange 
 	return resp, t, err
 }
 func errorState(err error) string {
+	if errors.Is(err, upstreamrequest.ErrCapacity) {
+		return "local_capacity"
+	}
+	if errors.Is(err, upstreamrequest.ErrRetired) || errors.Is(err, upstreamrequest.ErrUnavailable) {
+		return "runtime_retired"
+	}
 	if errors.Is(err, context.Canceled) {
 		return "canceled"
 	}
@@ -110,6 +116,10 @@ func errorState(err error) string {
 		return "timeout"
 	}
 	return "network_error"
+}
+
+func localObservation(state string) bool {
+	return state == "canceled" || state == "local_capacity" || state == "runtime_retired"
 }
 func httpState(code int) string {
 	if code == 524 {

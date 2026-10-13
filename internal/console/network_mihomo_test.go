@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
 	"strings"
@@ -23,9 +24,25 @@ import (
 	"still-wanna-dance/internal/upstreamstate"
 )
 
+// Complete core globals get a fresh process, never a production reset hook.
+func consoleMihomoProcess(t *testing.T) bool {
+	t.Helper()
+	if os.Getenv("SWD_CONSOLE_CORE_TEST") == t.Name() {
+		return true
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^"+regexp.QuoteMeta(t.Name())+"$")
+	cmd.Env = append(os.Environ(), "SWD_CONSOLE_CORE_TEST="+t.Name())
+	if b, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("console core process: %v\n%s", err, b)
+	}
+	return false
+}
+
 func runtimeNodeSettings(t *testing.T, c *Console, count int) Settings {
 	t.Helper()
-	doc := proxyNodeDocument{Version: 1}
+	doc := proxyNodeDocument{Version: proxyNodeDocumentVersion}
 	for i := range count {
 		doc.Nodes = append(doc.Nodes, map[string]any{"type": "ss", "server": "127.0.0.1", "port": float64(10000 + i), "cipher": "aes-128-gcm", "password": "fixture-only"})
 	}
@@ -36,6 +53,9 @@ func runtimeNodeSettings(t *testing.T, c *Console, count int) Settings {
 }
 
 func TestMihomoActiveLimitMembershipIdentityAndRetirement(t *testing.T) {
+	if !consoleMihomoProcess(t) {
+		return
+	}
 	c := testConsole(t)
 	s := runtimeNodeSettings(t, c, 8)
 	dial, client, err := c.mihomoNetworkFor(s, 5)
@@ -45,10 +65,12 @@ func TestMihomoActiveLimitMembershipIdentityAndRetirement(t *testing.T) {
 	tr := client.Transport.(*mihomoTransport)
 	defer tr.Retire()
 	known, ready := tr.KnownProxyIDs()
-	if len(known) != 8 || !ready || len(tr.nodes) != 5 || len(tr.Current("https://resource.invalid")) != 5 {
+	if len(known) != 8 || !ready || len(tr.proxies) != 5 || len(tr.Current("https://resource.invalid")) != 5 {
 		t.Fatal("K capped saved membership or exposed standby")
 	}
-	_, smaller, err := c.mihomoNetworkFor(s, 2)
+	directSettings := s
+	directSettings.UpstreamMode = "direct"
+	_, smaller, err := c.mihomoNetworkFor(directSettings, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,8 +101,8 @@ func TestMihomoActiveLimitMembershipIdentityAndRetirement(t *testing.T) {
 	if _, err := dial(context.Background(), "tcp", "127.0.0.1:1"); !errors.Is(err, net.ErrClosed) {
 		t.Fatal("raw dial survived retirement", err)
 	}
-	for _, node := range tr.nodes {
-		if _, err := node.DialContext(context.Background(), "tcp", "resource.invalid:80"); !errors.Is(err, net.ErrClosed) {
+	for _, node := range tr.proxies {
+		if _, err := node.Dial(context.Background(), "tcp", "resource.invalid:80"); !errors.Is(err, upstreamrequest.ErrRetired) {
 			t.Fatal("node survived retirement")
 		}
 	}
@@ -117,6 +139,9 @@ func TestMihomoMissingNodesForcedFailureAndAutoDirect(t *testing.T) {
 }
 
 func TestMihomoColdAutoUsesDirectWithoutMonitorOrDNSCache(t *testing.T) {
+	if !consoleMihomoProcess(t) {
+		return
+	}
 	c := testConsole(t)
 	const target = "https://play.udon.dance/files/1/42-video.mp4?e=0123456789abcdef0123456789abcdef&s=12"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target, http.StatusFound) }))
@@ -162,6 +187,9 @@ func TestMihomoBusinessFallbackReachesFifthProxy(t *testing.T) {
 	defer proxy.Close()
 	for _, mode := range []string{"proxy", "cold-auto", "warm-auto"} {
 		t.Run(mode, func(t *testing.T) {
+			if !consoleMihomoProcess(t) {
+				return
+			}
 			c := testConsole(t)
 			s := runtimeNodeSettings(t, c, 5)
 			if mode != "proxy" {
@@ -225,6 +253,7 @@ func TestMihomoCorruptKeyPreservedWithFreshIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := runtimeNodeSettings(t, c, 1)
+	s.UpstreamMode = "direct" // Identity/membership do not require another core.
 	var last string
 	for range 2 {
 		_, client, err := c.networkFor(s)
@@ -280,11 +309,14 @@ func TestConsoleMihomoProtocolsColdHTTP(t *testing.T) {
 	}
 	for _, node := range fixture.Nodes {
 		t.Run(fmt.Sprint(node["type"]), func(t *testing.T) {
+			if !consoleMihomoProcess(t) {
+				return
+			}
 			c := testConsole(t)
 			// Keep real controlled DNS resolution bypassed only for the local
 			// proxy fixture; the destination remains a remote-resolved hostname.
-			c.dns.cache = map[string]dnsEntry{"proxy.invalid": {ips: []string{"127.0.0.1"}, until: time.Now().Add(time.Hour)}}
-			doc, _ := json.Marshal(proxyNodeDocument{Version: 1, Nodes: []map[string]any{node}})
+			node["server"] = "127.0.0.1"
+			doc, _ := json.Marshal(proxyNodeDocument{Version: proxyNodeDocumentVersion, Nodes: []map[string]any{node}})
 			s := c.settings
 			s.ProxyBackend, s.UpstreamMode, s.nodeSnapshot = "mihomo", "proxy", string(doc)
 			_, client, err := c.networkFor(s)

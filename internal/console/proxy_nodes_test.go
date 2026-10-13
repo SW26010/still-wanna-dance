@@ -167,19 +167,19 @@ func TestProxyImportDiscardReclaimsOnlyNamedDraft(t *testing.T) {
 	}
 }
 
-func TestProxyImportInactiveTLSKeepsOneIdentityAndActiveSlot(t *testing.T) {
+func TestProxyImportNamesAndOrderingPreserveIdentity(t *testing.T) {
 	c := testConsole(t)
 	const base = "type: vless, server: localhost, port: 1234, uuid: UserA"
 	inputs := []string{
-		"proxies: [{" + base + "}]",
-		"proxies: [{" + base + "}, {" + base + ", tls: false, servername: ignored.example, client-fingerprint: chrome, skip-cert-verify: true, alpn: [h2]}]",
+		"proxies: [{name: one, " + base + "}]",
+		"proxies: [{name: two, " + base + "}, {name: one, " + base + "}]",
 	}
 	key := []byte(strings.Repeat("k", 32))
 	var snapshot, identity string
 	for i, input := range inputs {
 		r, err := c.importProxyNodes([]byte(input))
 		if err != nil || r.Accepted != 1 || r.Skipped != i {
-			t.Fatal("inactive TLS duplicate retained", err)
+			t.Fatal("renamed duplicate retained", err)
 		}
 		s := c.savedSettings
 		s.nodeImportID = r.ID
@@ -191,17 +191,17 @@ func TestProxyImportInactiveTLSKeepsOneIdentityAndActiveSlot(t *testing.T) {
 		if i == 0 {
 			snapshot, identity = s.nodeSnapshot, id
 		} else if s.nodeSnapshot != snapshot || id != identity {
-			t.Fatal("inactive TLS changed snapshot or stable identity")
+			t.Fatal("display name changed snapshot or stable identity")
 		}
-		s.ProxyBackend, s.UpstreamMode = "mihomo", "proxy"
+		s.ProxyBackend, s.UpstreamMode = "mihomo", "direct"
 		_, client, err := c.networkFor(s)
 		if err != nil {
 			t.Fatal(err)
 		}
 		tr := client.Transport.(*mihomoTransport)
 		defer tr.Retire()
-		if len(tr.known) != 1 || len(tr.nodes) != 1 {
-			t.Fatal("inactive TLS duplicate occupied another active slot")
+		if len(tr.known) != 1 || len(tr.proxies) != 0 {
+			t.Fatal("duplicate membership or activated direct-only runtime")
 		}
 	}
 }

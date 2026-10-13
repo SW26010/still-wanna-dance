@@ -201,6 +201,11 @@ func (m *Monitor) throughputStatus(s Status, now time.Time) string {
 	if !s.Scheduled {
 		return "not_scheduled"
 	}
+	for _, r := range s.Results {
+		if r.Operation == Resource && r.LocalDiagnostic != "" && !r.LocalObservedAt.Before(m.lastThroughput) {
+			return r.LocalDiagnostic
+		}
+	}
 	if now.Before(s.NextThroughput) {
 		return "cooldown"
 	}

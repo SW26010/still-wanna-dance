@@ -13,6 +13,7 @@ import (
 )
 
 const unavailableProxyNodes = "已保存的节点快照无法读取，请重新导入并保存、重启；原密文仍保留"
+const proxyNodeDocumentVersion = 2
 
 // The whole node document is protected, including endpoints and display data.
 // Immutable JSON strings keep Settings comparable without exposing node data
@@ -71,11 +72,15 @@ func loadProxyNodes(fields map[string]json.RawMessage, s *Settings) {
 	}
 	defer clear(plain)
 	var doc proxyNodeDocument
-	if len(plain) > mihomo.MaxImportBytes || json.Unmarshal(plain, &doc) != nil || doc.Version != 1 || len(doc.Nodes) == 0 || len(doc.Nodes) > mihomo.MaxImportNodes {
+	if len(plain) > mihomo.MaxImportBytes || json.Unmarshal(plain, &doc) != nil || len(doc.Nodes) == 0 || len(doc.Nodes) > mihomo.MaxImportNodes {
+		return
+	}
+	if doc.Version != proxyNodeDocumentVersion {
+		s.nodeSecretError = "节点快照版本不兼容，请从原始内容重新导入并保存、重启；原密文仍保留"
 		return
 	}
 	for _, p := range doc.Nodes {
-		if _, err := mihomo.Normalize(p); err != nil {
+		if _, err := mihomo.NormalizeNative(p); err != nil {
 			return
 		}
 	}
@@ -105,7 +110,7 @@ func nodeIdentity(key []byte, p map[string]any) string {
 	data, _ := json.Marshal(p)
 	defer clear(data)
 	mac := hmac.New(sha256.New, key)
-	mac.Write([]byte("swd-mihomo-node-v1\x00"))
+	mac.Write([]byte("swd-mihomo-node-v2\x00"))
 	mac.Write(data)
 	return "stable-v1-" + hex.EncodeToString(mac.Sum(nil))
 }
@@ -120,12 +125,12 @@ func (c *Console) importProxyNodes(data []byte) (proxyImportResult, error) {
 	if !allowed {
 		return proxyImportResult{}, errors.New("请先同意条款，并等待应用就绪")
 	}
-	parsed, err := mihomo.Import(data)
+	parsed, err := mihomo.ImportNative(data)
 	result := proxyImportResult{ImportResult: parsed}
 	if err != nil || parsed.Accepted == 0 {
 		return result, err
 	}
-	snapshot, err := json.Marshal(proxyNodeDocument{Version: 1, Nodes: parsed.Nodes})
+	snapshot, err := json.Marshal(proxyNodeDocument{Version: proxyNodeDocumentVersion, Nodes: parsed.Nodes})
 	if err != nil || len(snapshot) > mihomo.MaxImportBytes {
 		return result, errors.New("节点快照超过 2 MiB")
 	}
@@ -178,7 +183,7 @@ func (c *Console) proxyNodesStatusLocked() proxyNodeStatus {
 	status := proxyNodeStatus{Saved: len(nodeDocument(c.savedSettings.nodeSnapshot).Nodes), Loaded: len(nodeDocument(c.settings.nodeSnapshot).Nodes), Error: c.savedSettings.nodeSecretError, ActiveError: c.settings.nodeSecretError}
 	if c.client != nil {
 		if tr, ok := c.client.Transport.(*mihomoTransport); ok {
-			status.Active = len(tr.nodes)
+			status.Active = len(tr.proxies)
 			if status.ActiveError == "" {
 				status.ActiveError = tr.identityWarning
 			}

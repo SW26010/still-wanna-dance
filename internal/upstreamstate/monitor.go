@@ -43,6 +43,7 @@ type Status struct {
 // Monitor is independent of consumers and network configuration. Nothing starts
 // automatically; the owner explicitly starts and closes the monitor.
 type Monitor struct {
+	diagnostics             map[string]observation
 	resourceSources         map[string]observation
 	onCatalog               func(context.Context, []CatalogResponse)
 	throughputPolicyPending bool
@@ -106,6 +107,7 @@ func requestClient(t http.RoundTripper) *http.Client {
 func (m *Monitor) refreshChannelLocked() upstreamrequest.Snapshot {
 	s := m.channel.Snapshot()
 	if s.Revision != m.revision {
+		m.diagnostics = nil
 		m.revision = s.Revision
 		if s.Candidates != nil {
 			// Retain unchanged direct paths. Proxy configurations have distinct

@@ -104,6 +104,10 @@ function renderHealthResult(r, throughputMinutes, throughputWait, expanded = fal
   const reasons = { no_channel: '没有有效候选', no_sample: '等待有效歌曲及资源样本', expired: '观测已过期', timeout: '请求超时', origin_timeout: '源站响应超时（Cloudflare 524）', network_error: '网络请求失败', resolution_unavailable: '无可用资源地址', invalid: '响应校验失败', restricted: '访问受限', upstream_error: '上游错误', http_error: 'HTTP 响应异常' };
   const date = v => v && !v.startsWith('0001') ? new Date(v).toLocaleString() : '—';
     const row = document.createElement('li');
+    if (r.localDiagnostic) {
+      const local = { local_capacity: '本地代理连接额度已满', runtime_retired: '代理运行时已退出', canceled: '本次检测已取消' };
+      row.append(recentElement('div', 'hint', (local[r.localDiagnostic] || '本次检测未完成') + ' · ' + date(r.localObservedAt) + '；保留此前观测，未计为节点失败。'));
+    }
     const title = document.createElement('strong');
     title.textContent = (r.mode === 'direct' ? '直连 ' + r.ip : r.mode === 'socks5' ? '代理 ' + (r.channelID?.split('/').at(-1)?.slice(-8) || '') : '无候选') + ' · ' + (states[r.state] || r.state) + (r.reason ? ' · ' + (reasons[r.reason] || r.reason) : '');
     title.className = r.state === 'available' ? 'good' : '';
@@ -180,6 +184,7 @@ function renderHealth(h, settings) {
   setText('healthTime', '最近完成：' + date(h.finished) + ' · 下次检测：' + date(h.nextCheck));
   const throughputMinutes = (h.policy?.throughputInterval || 20 * 60 * 1e9) / (60 * 1e9);
   const throughputStates = { closed: '监测已关闭', business_busy: '业务正在加载视频，自动测速已暂停', running: '正在依次测量资源通道', preparing: '正在获取歌曲及资源地址', other_manual_check: '等待当前手动检测结束', not_scheduled: '自动调度尚未启动', cooldown: '等待 ' + throughputMinutes + ' 分钟间隔到期', due: '已到期，等待调度', waiting_sample: '等待有效歌曲及资源地址', persistence_error: '保存测速记录失败，自动测速已延期' };
+  Object.assign(throughputStates, { local_capacity: '本地连接额度已满，本次未取得新样本', runtime_retired: '代理运行时已退出，本次未取得新样本', canceled: '本次测速已取消，保留此前样本' });
   const throughputWait = throughputStates[h.throughputStatus] || '等待调度信息';
   setText('healthThroughputSchedule', '下次自动吞吐测速：' + (dated(h.nextThroughput) ? date(h.nextThroughput) : '首次具备样本时') +
     ' · ' + throughputWait + (h.throughputSaveFailed ? ' · 测速记录保存失败，重启可能无法恢复' : ''));

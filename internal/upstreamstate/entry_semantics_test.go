@@ -2,7 +2,6 @@ package upstreamstate
 
 import (
 	"context"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptrace"
@@ -12,17 +11,17 @@ import (
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
-// Characterizes the current observation contract before a B2 integration:
 // GotConn is an entry-stage event, not proof of a healthy remote connection.
-// Local admission/retirement errors currently have no separate health class.
+// Local execution failures preserve remote quality and remain diagnostic.
 func TestEntryFailureFeedbackBoundaries(t *testing.T) {
 	for _, tc := range []struct {
 		name, state string
 		err         error
 	}{
 		{"peer-eof", "network_error", io.EOF},
-		{"local-capacity", "network_error", errors.New("dial-capacity")},
-		{"retired", "network_error", upstreamrequest.ErrUnavailable},
+		{"local-capacity", "local_capacity", upstreamrequest.ErrCapacity},
+		{"retired", "runtime_retired", upstreamrequest.ErrRetired},
+		{"channel-unavailable", "runtime_retired", upstreamrequest.ErrUnavailable},
 		{"request-cancel", "canceled", context.Canceled},
 		{"request-deadline", "timeout", context.DeadlineExceeded},
 	} {
@@ -51,8 +50,8 @@ func TestEntryFailureFeedbackBoundaries(t *testing.T) {
 				m.record(o)
 				result := m.resultLocked(Catalog, "api", time.Now())
 				m.mu.Unlock()
-				if tc.state == "canceled" {
-					if result.State != "available" {
+				if localObservation(tc.state) {
+					if result.State != "available" || result.Samples != 1 || result.LocalDiagnostic != tc.state {
 						t.Fatal("caller cancellation replaced good observation", result)
 					}
 				} else if result.State != "unavailable" || result.Reason != tc.state || result.EstimatedLatencyMS != nil {

@@ -51,6 +51,9 @@ func (b timedSampleBody) Read(p []byte) (int, error) {
 func TestMihomoPartialObservationsKeepActiveFallbacks(t *testing.T) {
 	for _, mode := range []string{"proxy", "cold-auto", "warm-auto"} {
 		t.Run(mode, func(t *testing.T) {
+			if !consoleMihomoProcess(t) {
+				return
+			}
 			c := testConsole(t)
 			s := runtimeNodeSettings(t, c, 8) // Three saved standby nodes must stay out.
 			if mode != "proxy" {

@@ -14,6 +14,16 @@ Mihomo 使用的 logrus 输出在包初始化时永久丢弃，转换前即生�
 
 第一批自动检查：go test -tags=no_easytier ./internal/proxyengine/mihomo 通过（包含新原生导入测试与旧执行层回归）。
 
+## Console 与 Monitor 切换
+
+Console 持有一个 Runtime，仍以现有 `Proxy{ID,Dial}` / `NewMultiPool` 连接业务与 Monitor；仅初始化稳定暂定集合中最多 5 个出口。空库、密文不可读与纯直连不启动完整核心；强制代理无隐式直连。游戏 HTTPS 兼容透传仍独立直连。已有候选/共同预算、第五代理及部分节点已有观测时的剩余活跃回退保持不变。
+
+节点载荷升至 version=2，DPAPI 封套仍为 version=1。旧载荷不迁移、不解释、不覆盖密文，只有用户重新导入并保存才替换；HMAC 域改为 `swd-mihomo-node-v2`，稳定指纹外层格式仍为 `stable-v1-`。旧 `channel.key` 保留，不复用旧节点观测；未知和坏快照同样保留。冻结旧明文夹具 `testdata/proxy-nodes-v1.json` 以验证拒绝和显式替换。
+
+公共请求边界提供 `ErrCapacity` / `ErrRetired`。Monitor 将本地容量、退役和调用者取消保存在独立短期诊断中，保留原质量、来源和历史吞吐，不更新其时间或增加样本；正常超时、HTTP/正文/Range 错误仍按失败处理。UI 显示诊断与既有观测，测速状态也能解释未取得新样本。失败尝试保留原有自动测速冷却，避免繁忙时持续重试。
+
+第三批自动检查：正常 Windows 用户环境中 `go test -tags=no_easytier ./internal/console ./internal/upstreamstate ./internal/upstreamrequest` 全部通过，包含真实 Console 到四协议回环、完整草稿/DPAPI/失败保存、第五候选/部分观测回退；本地质量与资源发现定向回归通过。`node --test scripts/refresh.test.mjs scripts/setup.test.mjs` **210/210** 通过。首次沙箱运行的进程身份/原子替换权限失败以及随后发现的测试多次初始化问题均未计为通过；测试已改为独立进程后重跑通过。LA-034/035/036 同步更新，LA-018/012 的真实退出和持续使用留待集中验收。
+
 ## 完整运行时与所有权
 
 新增 `NewRuntime`：受控 `ParseWithBytes → ApplyConfig`，仅传入活跃节点，捕获固定对象后调用 `proxydialer.New(proxy,true)`。每进程只允许一次完整初始化，失败或退役后不能重新启动。目录由调用方传入绝对应用路径；配置无代理入站、TUN、订阅规则或自动更新；核心使用不读 hosts 的证书校验 DoH，标准库默认 resolver/transport 和 SWD 直连解析器保持独立。

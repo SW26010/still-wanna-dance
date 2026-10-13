@@ -225,6 +225,20 @@ test('throughput history and automatic waiting reason remain visible independent
   assert.match(get('healthThroughputSchedule').textContent, /业务正在加载视频，自动测速已暂停/);
 });
 
+test('local proxy capacity remains diagnostic beside valid measurements', async () => {
+  const p = page(), get = id => p.document.getElementById(id);
+  p.finishBatch(0, {}, { upstreamMonitor: { throughputStatus: 'local_capacity', results: [
+    { operation: 'resource', route: 'play.udon.dance', state: 'available', entry: 'https://play.udon.dance', estimatedLatencyMS: 12, localDiagnostic: 'local_capacity', localObservedAt: '2030-01-01T00:00:00Z', lastThroughput: { observedAt: '2030-01-01T00:00:00Z', songID: 42, bytes: 16777216, durationNs: 2000000000 } },
+  ] } });
+  await flush();
+  assert.match(get('healthThroughputSchedule').textContent, /本地连接额度已满，本次未取得新样本/);
+  const row = resourceGroup(p, 'play.udon.dance').children[0];
+  assert.match(row.children[0].textContent, /本地代理连接额度已满.*保留此前观测，未计为节点失败/);
+  assert.match(row.children[1].textContent, /可用/);
+  assert.match(row.children[3].textContent, /12.0 ms/);
+  assert.match(row.children[4].textContent, /8192.0 KiB\/s/);
+});
+
 test('budget stop shows a settings link and clears for the next task', async () => {
   const p = page();
   p.finishBatch(0, {}, { batch: { budgetReached: true, phase: '容量预算不足' } });

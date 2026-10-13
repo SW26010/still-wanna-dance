@@ -70,7 +70,42 @@ func TestProtectedNodesSaveRestartMoveAndFailedReplacement(t *testing.T) {
 	}
 }
 
+func TestLegacyNodeSnapshotPreservedUntilExplicitReimport(t *testing.T) {
+	c := testConsole(t)
+	plain, err := os.ReadFile("testdata/proxy-nodes-v1.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cipher, err := protectUserData(plain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope, _ := json.Marshal(proxySecretEnvelope{1, "dpapi-current-user", cipher})
+	s := c.savedSettings
+	loadProxyNodes(map[string]json.RawMessage{"proxyNodes": envelope}, &s)
+	if s.nodeSnapshot != "" || s.nodeSecretError == "" {
+		t.Fatal("legacy silently reinterpreted")
+	}
+	stored, err := storedProxyNodes(s)
+	if err != nil || !bytes.Equal(stored, envelope) {
+		t.Fatal("legacy ciphertext changed", err)
+	}
+	c.savedSettings = s
+	result, err := c.importProxyNodes([]byte(nodeFixture))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.nodeImportID = result.ID
+	next, err := c.mergeProxyNodes(s, c.savedSettings)
+	if err != nil || nodeDocument(next.nodeSnapshot).Version != proxyNodeDocumentVersion || next.nodeSecretError != "" {
+		t.Fatal("explicit reimport failed", err)
+	}
+}
+
 func TestSetupAppliesNodeDraftOnlyAtFinalConfirmation(t *testing.T) {
+	if !consoleMihomoProcess(t) {
+		return
+	}
 	c := testConsole(t)
 	result, err := c.importProxyNodes([]byte(nodeFixture))
 	if err != nil {
@@ -108,7 +143,7 @@ func TestSetupAppliesNodeDraftOnlyAtFinalConfirmation(t *testing.T) {
 	}
 	defer loaded.Close()
 	loaded.resumeSetupApplication(func(string) error { t.Fatal("unexpected media import"); return nil })
-	if loaded.setupApplication.Phase != "completed" || loaded.settings.nodeSnapshot != c.savedSettings.nodeSnapshot || len(loaded.client.Transport.(*mihomoTransport).nodes) != 1 {
+	if loaded.setupApplication.Phase != "completed" || loaded.settings.nodeSnapshot != c.savedSettings.nodeSnapshot || len(loaded.client.Transport.(*mihomoTransport).proxies) != 1 {
 		t.Fatal("node restart continuation failed")
 	}
 }

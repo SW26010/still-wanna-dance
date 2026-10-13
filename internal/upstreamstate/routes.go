@@ -88,6 +88,8 @@ func normalized(p Policy) Policy {
 // identify the checked service in every state; they are not recommendations.
 // A resource Entry is never a playable URL for an arbitrary video.
 type Result struct {
+	LocalDiagnostic      string                           `json:"localDiagnostic,omitempty"`
+	LocalObservedAt      time.Time                        `json:"localObservedAt,omitzero"`
 	Sources              []upstreamrequest.ResourceSource `json:"sources,omitempty"`
 	LastThroughput       *ThroughputSample                `json:"lastThroughput,omitempty"`
 	ThroughputSongID     int64                            `json:"throughputSongID,omitempty"`
@@ -203,7 +205,7 @@ func validUntil(o observation, p Policy) time.Time {
 
 // All following helpers are called with m.mu held.
 func (m *Monitor) observePlaybackDomains(o observation) {
-	if o.op != PlaybackURL || o.state == "canceled" || m.closed {
+	if o.op != PlaybackURL || localObservation(o.state) || m.closed {
 		return
 	}
 	key := string(o.op) + "/" + o.route
@@ -225,12 +227,24 @@ func (m *Monitor) observePlaybackDomains(o observation) {
 }
 
 func (m *Monitor) record(o observation) {
-	if m.closed || o.state == "canceled" {
+	if m.closed {
 		return
 	}
 	key := string(o.op) + "/" + o.route
 	if o.channel != "" {
 		key += "/" + o.channel
+	}
+	if localObservation(o.state) {
+		if m.diagnostics == nil {
+			m.diagnostics = make(map[string]observation)
+		}
+		if !o.at.Before(m.diagnostics[key].at) {
+			m.diagnostics[key] = o
+		}
+		return
+	}
+	if !o.at.Before(m.diagnostics[key].at) {
+		delete(m.diagnostics, key)
 	}
 	m.observePlaybackDomains(o)
 	h := m.history[key]
@@ -264,6 +278,9 @@ func (m *Monitor) resultLocked(op Operation, id string, now time.Time) Result {
 }
 func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (r Result) {
 	r = Result{Operation: op, Route: id, Entry: entry(op, id), State: "unknown", Reason: "no_sample"}
+	if o, ok := m.diagnostics[key]; ok && now.Before(o.at.Add(m.policy.FailureLifetime)) {
+		r.LocalDiagnostic, r.LocalObservedAt = o.state, o.at
+	}
 	r.Sources = m.sourcesLocked(op, id, now)
 	defer func() {
 		if op != Resource {

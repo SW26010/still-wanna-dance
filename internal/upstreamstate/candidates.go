@@ -388,6 +388,11 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 				delete(m.history, key)
 			}
 		}
+		for key := range m.diagnostics {
+			if !valid[key] {
+				delete(m.diagnostics, key)
+			}
+		}
 		for key := range m.resourceSources {
 			if !valid[key] {
 				m.removeResourceSourceLocked(key)

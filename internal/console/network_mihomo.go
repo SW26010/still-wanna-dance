@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/netip"
+	"path/filepath"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -52,7 +52,8 @@ func (c *Console) retainedProxyNodes(s Settings, externalID string) upstreamrequ
 type mihomoTransport struct {
 	*upstreamrequest.Transport
 	direct          *mihomoDirectTransport
-	nodes           []*mihomo.Node
+	core            *mihomo.Runtime
+	proxies         []upstreamrequest.Proxy
 	known           []string
 	authoritative   bool
 	identityWarning string
@@ -70,8 +71,10 @@ func (t *mihomoTransport) Retire() {
 		if t.direct != nil {
 			t.direct.CloseIdleConnections()
 		}
-		for _, n := range t.nodes {
-			_ = n.Close()
+		if t.core != nil {
+			if err := t.core.Close(); err != nil {
+				slog.Warn("mihomo_runtime_drain_incomplete")
+			}
 		}
 	})
 }
@@ -121,34 +124,23 @@ func (c *Console) mihomoNetworkFor(s Settings, limit int) (upstreamDialFunc, *ht
 	if s.UpstreamMode != "direct" {
 		// No durable, comparable resource first-response samples exist at boot.
 		// This is a stable provisional set, not a claimed global Top K.
+		var active []mihomo.Config
 		for _, id := range runtime.known[:min(limit, len(runtime.known))] {
-			n, err := mihomo.New(mihomo.Config{ID: id, Parameters: configs[id]}, mihomo.Options{LookupIP: func(ctx context.Context, host string) ([]netip.Addr, error) {
-				ips, err := c.dns.lookup(ctx, host)
-				if err != nil {
-					return nil, err
-				}
-				var out []netip.Addr
-				for _, ip := range ips {
-					if a, err := netip.ParseAddr(ip); err == nil {
-						out = append(out, a)
-					}
-				}
-				return out, nil
-			}})
+			active = append(active, mihomo.Config{ID: id, Parameters: configs[id]})
+		}
+		if len(active) > 0 {
+			core, err := mihomo.NewRuntime(active, mihomo.RuntimeOptions{Home: filepath.Join(c.files().Root, "state", "mihomo")})
 			if err != nil {
-				for _, existing := range runtime.nodes {
-					_ = existing.Close()
-				}
-				return nil, nil, errors.New("无法创建已保存代理节点，请重新导入")
+				return nil, nil, errors.New("无法启动代理运行时，请检查节点并重启应用")
 			}
-			runtime.nodes = append(runtime.nodes, n)
-			proxies = append(proxies, n.Proxy())
+			runtime.core, proxies = core, core.Proxies()
 		}
 	}
+	runtime.proxies = proxies
 	pool, err := upstreamrequest.NewMultiPool(channelMode(s.UpstreamMode), c.dns, proxies)
 	if err != nil {
-		for _, n := range runtime.nodes {
-			_ = n.Close()
+		if runtime.core != nil {
+			_ = runtime.core.Close()
 		}
 		return nil, nil, err
 	}

@@ -112,11 +112,11 @@ python experiments/cf-concurrency/analyze_sweep.py artifacts/cf-concurrency/high
 
 `cpu` 每次启动一个新进程及连接池，在同一 IP 上循环读取已验证的 96 个 1 MiB 区间。这里有意重复流量，以保持负载直到规定时间；不能称为唯一文件下载吞吐。每个工作者复用一个 1 MiB 缓冲区（与产品 Range 工作者的保留方式一致），仍逐请求检查 206、范围、长度、强 ETag、IP 和 SHA256。旧吞吐模式的缓冲区策略不变。
 
-固定随机种子 20261014，三轮各 15 组：空闲基线；1/4/8/12/16/24/32 路同时启动；4/8/12/16/24/32 路每 250 ms 增加 1 路；1→4→8→12→16→24→32 每档保持 6 秒。前两类到达目标后保持 6 秒，稳态分析取最后约 4 秒；阶段升档保留已有连接。计划先于正式结果冻结。单组最多 1 GiB，总量预留后限制在 16 GiB 内；遇错误即停，正文自然排空最多 20 秒。不超过 32 路。
+固定随机种子 20261014，三轮各 15 组：空闲基线；1/4/8/12/16/24/32 路同时启动；4/8/12/16/24/32 路每 250 ms 增加 1 路；1→4→8→12→16→24→32 每档保持 6 秒。前两类到达目标后保持 6 秒，稳态分析取最后约 4 秒；阶段升档保留已有连接。计划先于正式结果冻结。单组最多 2 GiB，主批次预留后限制在 20 GiB 内；遇错误即停，正文自然排空最多 20 秒。不超过 32 路。初版 1 GiB 限制在阶梯第 36 秒触发，本地取消 29 个在途请求；该不完整批次保留为预实验，不能混入主比较。主批次与预实验合计上限 24 GiB。
 
 经用户授权，以 UAC 启动 `trace-helper.ps1 -TraceDirectory <绝对忽略目录>`。助手只接受 start/stop/quit，最长 60 分钟；有既存内核采集则拒绝，不修改其他会话。记录进程/线程、上下文切换、ReadyThread、DPC/ISR 和本实验阶段提供程序，不记录 CPU 栈。原始 ETL、CSV、系统进程名称及私密 URL 均只留在 `artifacts/`。
 
-`run_cpu.py --round 1`（然后 2、3）调用同目录 `cpu-probe.exe`，并由助手在每轮前后启停 ETW。先用 `-mode cpu-warmup` 保存 reference.json；目标资源及 IP 与 high 实验相同。用 `xperf -i cpu-r1.etl -o cpu-r1.csv -a dumper` 导出；`analyze_cpu.py --out <脱敏证据目录>` 只提取本实验进程，线程 ID 变为组内序号，去除 PID 和完整远端端口。
+`run_cpu.py --round 1`（然后 2、3）调用同目录 `cpu-probe.exe`，并由助手在每轮前后启停 ETW。先用 `-mode cpu-warmup` 保存 reference.json；目标资源及 IP 与 high 实验相同。用 `xperf -i cpu-main-r1.etl -o cpu-main-r1.csv -a dumper` 导出；`analyze_cpu.py --out <脱敏证据目录>` 只提取本实验进程，线程 ID 变为组内序号，去除 PID 和完整远端端口。
 
 CPU 主指标由 ETW 调度区间计算，并扣除合并后的 DPC/ISR 区间；以 xperf 自带 `cswitch -process -thread -exc_dpcisr -range` 做独立校核。100 ms/1 s 峰值是窗口平均，另列瞬时并行线程数及其持续占比。用系统拓扑查询确定 SMT 同胞关系，不能凭编号猜测物理核心。GetProcessTimes 每 100 ms 仅作为量化较粗的交叉记录，不以其短窗口差值替代调度数据。处理器迁移、线程数、Go goroutine 和 HTTP 在途数分开报告。
 

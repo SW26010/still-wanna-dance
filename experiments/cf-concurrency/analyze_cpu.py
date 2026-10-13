@@ -42,6 +42,7 @@ def extract(path, reports):
     markers = defaultdict(list)
     threads = defaultdict(set)
     ready = defaultdict(list)
+    switches = defaultdict(list)
     interrupts = defaultdict(list)
     current = {}
     ready_at = {}
@@ -72,6 +73,7 @@ def extract(path, reports):
                     start=ready_at.pop(tid)
                     if ts>=start: ready[process].append((ts,ts-start))
                 current[cpu]=(ts,process,tid)
+                if process in targets: switches[process].append(ts)
             elif name in ("DPC","DPCTmr","Interrupt"):
                 elapsed,cpu=int(row[2]),int(row[3])
                 if elapsed>0: interrupts[cpu].append((ts-elapsed,ts))
@@ -99,7 +101,8 @@ def extract(path, reports):
             if t not in names: raise ValueError("missing thread lifetime")
             for x,y in subtract(a,b,excluded.get(cpu,[]),ends.get(cpu,[])):
                 clean.append([x-zero,y-zero,names[t],cpu])
-        yield r,dict(id=r["id"],durationUS=end-zero,stopUS=stop-zero,stageUS=[m-zero for m in marks[1:-2]],threadsCreated=len(names),intervals=clean,ready=[[a-zero,b] for a,b in ready[process] if zero<=a<=end],rawScheduledUS=raw,interruptOverlapUS=raw-sum(b-a for a,b,t,c in clean),eventsLost=0,buffersLost=0)
+        system_interrupts=[[max(a,zero)-zero,min(b,end)-zero,cpu] for cpu,v in excluded.items() for a,b in v if a<end and b>zero]
+        yield r,dict(id=r["id"],durationUS=end-zero,stopUS=stop-zero,stageUS=[m-zero for m in marks[1:-2]],threadsCreated=len(names),intervals=clean,ready=[[a-zero,b] for a,b in ready[process] if zero<=a<=end],switchUS=[a-zero for a in switches[process] if zero<=a<=end],systemInterrupts=system_interrupts,rawScheduledUS=raw,interruptOverlapUS=raw-sum(b-a for a,b,t,c in clean),eventsLost=0,buffersLost=0)
 
 def percentile(values,p):
     if not values:return 0
@@ -125,10 +128,13 @@ def window(trace,a,b,logical,core_masks):
         for c,d in changes:physical_count[c]+=d
         physical_peak=max(physical_peak,sum(v>0 for v in physical_count.values()))
     total=sum(per_cpu.values());duration=b-a
-    windows100=[v/min(100000,duration-i*100000) for i,v in enumerate(bins)]
-    windows1s=[sum(bins[i:i+10])/1000000 for i in range(len(bins)-9)]
+    # A final fractional bin must not masquerade as a 100 ms peak.
+    complete_bins=bins[:duration//100000]
+    windows100=[v/100000 for v in complete_bins]
+    windows1s=[sum(complete_bins[i:i+10])/1000000 for i in range(len(complete_bins)-9)]
     ready=[d for ts,d in trace["ready"] if a<=ts<b]
-    return dict(startMS=a/1000,endMS=b/1000,cpuMS=total/1000,coreEquivalent=total/duration,machinePercent=100*total/duration/logical,peak100msCores=max(windows100,default=0),p95_100msCores=percentile(windows100,.95),peak1sCores=max(windows1s,default=0),maxSimultaneousLogical=peak,maxSimultaneousPhysical=physical_peak,logicalTouched=len(per_cpu),physicalTouched=len(per_core),activeThreads=len(per_thread),cpuByLogicalMS={str(k):v/1000 for k,v in sorted(per_cpu.items())},cpuByThreadMS={str(k):v/1000 for k,v in sorted(per_thread.items())},runningPercent={str(k):100*v/duration for k,v in sorted(histogram.items())},twoOrMorePercent=100*sum(v for k,v in histogram.items() if k>=2)/duration,fourOrMorePercent=100*sum(v for k,v in histogram.items() if k>=4)/duration,readyP95US=percentile(ready,.95),readyMaxUS=max(ready,default=0),contextSwitches=len(ready),series100msCores=windows100)
+    interrupt_us=sum(max(0,min(b,y)-max(a,x)) for x,y,c in trace.get("systemInterrupts",[]))
+    return dict(startMS=a/1000,endMS=b/1000,cpuMS=total/1000,coreEquivalent=total/duration,machinePercent=100*total/duration/logical,peak100msCores=max(windows100,default=0),p95_100msCores=percentile(windows100,.95),peak1sCores=max(windows1s,default=0),maxSimultaneousLogical=peak,maxSimultaneousPhysical=physical_peak,logicalTouched=len(per_cpu),physicalTouched=len(per_core),activeThreads=len(per_thread),cpuByLogicalMS={str(k):v/1000 for k,v in sorted(per_cpu.items())},cpuByThreadMS={str(k):v/1000 for k,v in sorted(per_thread.items())},runningPercent={str(k):100*v/duration for k,v in sorted(histogram.items())},twoOrMorePercent=100*sum(v for k,v in histogram.items() if k>=2)/duration,fourOrMorePercent=100*sum(v for k,v in histogram.items() if k>=4)/duration,readyP95US=percentile(ready,.95),readyMaxUS=max(ready,default=0),readyTransitions=len(ready),contextSwitches=sum(a<=ts<b for ts in trace.get("switchUS",[])),systemInterruptMS=interrupt_us/1000,systemInterruptMachinePercent=100*interrupt_us/duration/logical,series100msCores=windows100)
 
 def analyze_report(r,t):
     masks=r["coreMasks"]
@@ -160,14 +166,14 @@ def main():
     reports=[];summaries=[]
     for round_no in (1,2,3):
         group=[json.loads(f.read_text()) for f in sorted(args.root.glob(f"r{round_no}-*.json"))]
-        for r,t in extract(args.root/f"cpu-r{round_no}.csv",group):
+        for r,t in extract(args.root/f"cpu-main-r{round_no}.csv",group):
             summaries.append(analyze_report(r,t))
             public=dict(r);public.pop("pid");
             for o in public["requests"] or []:o.pop("remote",None)
             reports.append(public)
             with gzip.GzipFile(filename=str(args.out/(r["id"]+"-scheduling.json.gz")),mode="wb",mtime=0) as f:f.write((json.dumps(t,separators=(",",":"))+"\n").encode())
-    for name,value in (("trials.json",reports),("summary.json",summaries)):
-        (args.out/name).write_text(json.dumps(value,indent=2)+"\n",encoding="utf-8")
+    with gzip.GzipFile(filename=str(args.out/"trials.json.gz"),mode="wb",mtime=0) as f:f.write((json.dumps(reports,separators=(",",":"))+"\n").encode())
+    (args.out/"summary.json").write_text(json.dumps(summaries,indent=2)+"\n",encoding="utf-8")
     print(json.dumps(dict(trials=len(reports),requests=sum(len(r["requests"] or []) for r in reports),MiB=sum(o["bytes"] for r in reports for o in r["requests"] or [])/2**20,allOK=all(r["ok"] for r in reports))))
 
 if __name__=="__main__":main()

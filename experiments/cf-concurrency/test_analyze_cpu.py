@@ -30,5 +30,10 @@ class SchedulingTests(unittest.TestCase):
             self.assertEqual(len({a["id"] for a in row}),15)
             self.assertTrue(all(1<=a["n"]<=32 for a in row))
             self.assertEqual(sum(a["kind"]=="stepped" for a in row),1)
+    def test_partial_bin_is_not_a_100ms_peak(self):
+        t=dict(intervals=[[100000,100001,1,0]],ready=[])
+        w=window(t,0,100001,2,[3])
+        self.assertEqual(w["peak100msCores"],0)
+        self.assertEqual(w["maxSimultaneousLogical"],1)
 
 if __name__=="__main__":unittest.main()

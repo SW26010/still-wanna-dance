@@ -196,10 +196,10 @@ func cpuTrial(parent context.Context, t target, kind string, n int, hold time.Du
 			buffer := make([]byte, blockSize)
 			for !stopping.Load() && ctx.Err() == nil {
 				i := next.Add(1) - 1
-				if i >= 1024 {
+				if i >= 2048 {
 					resultsMu.Lock()
 					r.OK = false
-					r.Error = "1 GiB trial traffic cap reached"
+					r.Error = "2 GiB trial traffic cap reached"
 					resultsMu.Unlock()
 					cancel()
 					return
@@ -209,8 +209,10 @@ func cpuTrial(parent context.Context, t target, kind string, n int, hold time.Du
 				resultsMu.Lock()
 				r.Requests = append(r.Requests, o)
 				if o.Error != "" {
+					if r.OK {
+						r.Error = "request failed; see observations"
+					}
 					r.OK = false
-					r.Error = "request failed; see observations"
 				}
 				resultsMu.Unlock()
 				if o.Error != "" {

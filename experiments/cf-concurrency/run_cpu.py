@@ -42,8 +42,8 @@ def main():
     root = args.root.resolve()
     exe = root / "cpu-probe.exe"
     rows = plan()
-    (root / "plan.json").write_text(json.dumps(dict(seed=20261014, holdSeconds=6, staggerMS=250, trialCapMiB=1024, batchCapMiB=16384, orders=rows, exeSHA256=hashlib.sha256(exe.read_bytes()).hexdigest()), indent=2)+"\n")
-    stem = f"cpu-r{args.round}"
+    (root / "plan.json").write_text(json.dumps(dict(seed=20261014, holdSeconds=6, staggerMS=250, trialCapMiB=2048, batchCapMiB=20480, orders=rows, exeSHA256=hashlib.sha256(exe.read_bytes()).hexdigest()), indent=2)+"\n")
+    stem = f"cpu-main-r{args.round}"
     for arm in rows[args.round-1]:
         if (root / (arm["id"]+".json")).exists():
             raise RuntimeError("Refusing to replace an existing trial")
@@ -53,8 +53,8 @@ def main():
         trace(root, "start", stem)
         started = True
         for arm in rows[args.round-1]:
-            if total >= 15*1024**3:
-                raise RuntimeError("Batch traffic reserve exhausted; stopping below 16 GiB")
+            if total >= 18*1024**3:
+                raise RuntimeError("Batch traffic reserve exhausted; stopping below 20 GiB")
             time.sleep(1)
             out = root / (arm["id"]+".json")
             command = [str(exe), "-mode", "cpu", "-private", str(root/"target.json"), "-ips", "104.26.4.28", "-cpu-reference", str(root/"reference.json"), "-cpu-kind", arm["kind"], "-cpu-n", str(arm["n"]), "-cpu-hold", "6s", "-cpu-id", arm["id"], "-out", str(out)]

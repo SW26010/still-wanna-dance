@@ -33,6 +33,9 @@ type fullRuntime struct {
 	C.Tunnel
 	admission        *admission
 	bindings         map[string]C.Proxy
+	mode             string
+	listeners        []C.InboundListener
+	privateEndpoints []endpoint
 	mu               sync.Mutex
 	closed           bool
 	connections      map[*ownedConn]bool
@@ -86,8 +89,13 @@ func startRuntime(init command) (*fullRuntime, error) {
 	savedResolver, savedTransport := net.DefaultResolver, http.DefaultTransport
 	executor.ApplyConfig(parsed, true)
 	r := &fullRuntime{Tunnel: tunnel.Tunnel, connections: map[*ownedConn]bool{}, slots: make(chan struct{}, 64), defaultResolver: savedResolver, defaultTransport: savedTransport}
-	if init.Mode == "B2" {
-		r.admission = newAdmission(64, 3*time.Second)
+	r.mode = init.Mode
+	if init.Mode == "B2" || init.Mode == "D" {
+		timeout := 3 * time.Second
+		if init.DialTimeoutMS > 0 && init.DialTimeoutMS <= 5000 {
+			timeout = time.Duration(init.DialTimeoutMS) * time.Millisecond
+		}
+		r.admission = newAdmission(64, timeout)
 	}
 	r.bindings = make(map[string]C.Proxy)
 	for i := range nodes {
@@ -102,8 +110,17 @@ func startRuntime(init command) (*fullRuntime, error) {
 		var dial upstreamrequest.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
 			return r.dial(ctx, network, address, name)
 		}
-		if r.admission != nil {
+		if init.Mode == "B2" {
 			dial = r.admission.wrap(proxydialer.New(p, true).DialContext)
+		}
+		if init.Mode == "D" {
+			var err error
+			dial, err = r.startFixedSOCKS(name)
+			if err != nil {
+				r.Close()
+				return nil, errors.New("fixed-inbound-failed")
+			}
+			dial = r.admission.wrap(dial)
 		}
 		r.proxies = append(r.proxies, upstreamrequest.Proxy{ID: fmt.Sprintf("stable-v1-%064x", i+1), Dial: dial})
 	}
@@ -180,7 +197,7 @@ func (r *fullRuntime) bindingChecks() map[string]any {
 // Fault injection between commands only, to prove the captured B2 objects do
 // not follow global name rebinding. Never used by a product entry point.
 func (r *fullRuntime) swapNames() bool {
-	if r.admission == nil || len(r.bindings) < 2 {
+	if r.mode != "B2" || len(r.bindings) < 2 {
 		return false
 	}
 	cloned := make(map[string]C.Proxy)
@@ -208,6 +225,9 @@ func (r *fullRuntime) Close() {
 	}
 	if r.admission != nil {
 		r.admission.retire()
+	}
+	for _, listener := range r.listeners {
+		listener.Close()
 	}
 	for _, p := range r.coreProxies {
 		p.Close()

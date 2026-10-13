@@ -30,6 +30,7 @@ type endpoint struct {
 	Parameters                  map[string]any
 }
 type command struct {
+	DialTimeoutMS                                  int
 	SwapNames, CloseIdle                           bool
 	Bindings, RawDial                              bool
 	Address                                        string
@@ -79,7 +80,7 @@ func main() {
 	}
 	var proxies []upstreamrequest.Proxy
 	var backend *fullRuntime
-	if init.Mode == "B" || init.Mode == "B2" {
+	if init.Mode == "B" || init.Mode == "B2" || init.Mode == "D" {
 		var err error
 		backend, err = startRuntime(init)
 		if err != nil {
@@ -112,7 +113,12 @@ func main() {
 			backend.Close()
 		}
 	}()
-	json.NewEncoder(os.Stdout).Encode(map[string]any{"ready": true, "channels": len(proxies)})
+	ready := map[string]any{"ready": true, "channels": len(proxies)}
+	// Private runner IPC only, never copied into exported evidence.
+	if backend != nil && init.Mode == "D" {
+		ready["privateEndpoints"] = backend.endpoints()
+	}
+	json.NewEncoder(os.Stdout).Encode(ready)
 	var previous []upstreamrequest.Candidate
 	for scan.Scan() {
 		var cmd command
@@ -233,6 +239,7 @@ func main() {
 				}
 				start := clockSeconds()
 				o := observation{Index: idx}
+				var traceMu sync.Mutex
 				if cmd.RawDial {
 					conn, err := proxies[idx].Dial(ctx, "tcp", cmd.Address)
 					if conn != nil {
@@ -251,10 +258,12 @@ func main() {
 				}
 				ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
 					GotConn: func(info httptrace.GotConnInfo) {
+						traceMu.Lock()
+						defer traceMu.Unlock()
 						o.ConnectionMS = (clockSeconds() - start) * 1000
 						o.Reused = info.Reused
 					},
-					GotFirstResponseByte: func() { o.FirstByteMS = (clockSeconds() - start) * 1000 },
+					GotFirstResponseByte: func() { traceMu.Lock(); defer traceMu.Unlock(); o.FirstByteMS = (clockSeconds() - start) * 1000 },
 				})
 				r, _ := http.NewRequestWithContext(ctx, "GET", cmd.URL, nil)
 				if cmd.Range != "" {
@@ -289,7 +298,9 @@ func main() {
 					}
 				}
 				o.ElapsedMS = (clockSeconds() - start) * 1000
+				traceMu.Lock()
 				results[i] = o
+				traceMu.Unlock()
 			}
 			wg.Add(1)
 			if cmd.Concurrent {

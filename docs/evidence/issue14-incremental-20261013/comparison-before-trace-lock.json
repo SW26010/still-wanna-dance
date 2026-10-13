@@ -1,0 +1,4523 @@
+{
+  "date": "2026-10-13",
+  "phase": "compare",
+  "fixtureAcceptBacklog": 128,
+  "baseRevision": "9a5143481ae3f0c72ee4ed927e3a0868ae5e84b6",
+  "checks": [
+    {
+      "name": "network-table-positive-control",
+      "passed": true
+    },
+    {
+      "name": "D-only-two-loopback-listeners",
+      "passed": true,
+      "network": {
+        "tcp": [
+          {
+            "LocalAddress": "127.0.0.1",
+            "LocalPort": 56077
+          },
+          {
+            "LocalAddress": "127.0.0.1",
+            "LocalPort": 56078
+          }
+        ],
+        "udp": []
+      }
+    },
+    {
+      "name": "D-requires-auth-and-rejects-wrong-credentials",
+      "passed": true,
+      "noAuthOfferSelectedMethods": [
+        2,
+        2
+      ]
+    },
+    {
+      "name": "D-fixed-exits",
+      "passed": true,
+      "requests": [
+        {
+          "connectionMS": 0.7101999945007265,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 4.570999997667968,
+          "elapsedMS": 4.597699997248128
+        },
+        {
+          "connectionMS": 0.7425999792758375,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 4.30699999560602,
+          "elapsedMS": 4.347999987658113
+        },
+        {
+          "connectionMS": 0.7818000158295035,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 4.266200005076826,
+          "elapsedMS": 4.588100011460483
+        },
+        {
+          "connectionMS": 0.823200010927394,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 4.543000017292798,
+          "elapsedMS": 4.585400020005181
+        }
+      ]
+    },
+    {
+      "name": "D-range",
+      "passed": true
+    },
+    {
+      "name": "D-listeners-closed-on-retirement",
+      "passed": true,
+      "state": {
+        "admission": {
+          "dialTimeoutMS": 5000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 4,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "D-failed-proxy-no-direct",
+      "passed": true
+    },
+    {
+      "name": "B2-bulk-0",
+      "passed": true
+    },
+    {
+      "name": "B-bulk-0",
+      "passed": true
+    },
+    {
+      "name": "C-bulk-0",
+      "passed": true
+    },
+    {
+      "name": "D-bulk-0",
+      "passed": true
+    },
+    {
+      "name": "B-bulk-1",
+      "passed": true
+    },
+    {
+      "name": "C-bulk-1",
+      "passed": true
+    },
+    {
+      "name": "D-bulk-1",
+      "passed": true
+    },
+    {
+      "name": "B2-bulk-1",
+      "passed": true
+    },
+    {
+      "name": "C-bulk-2",
+      "passed": true
+    },
+    {
+      "name": "D-bulk-2",
+      "passed": true
+    },
+    {
+      "name": "B2-bulk-2",
+      "passed": true
+    },
+    {
+      "name": "B-bulk-2",
+      "passed": true
+    },
+    {
+      "name": "B2-60-second-mixed-load",
+      "passed": true
+    }
+  ],
+  "benchmarks": [
+    {
+      "mode": "B2",
+      "round": 0,
+      "startupMS": 30.184400005964562,
+      "idle": [
+        {
+          "workingSetBytes": 20848640,
+          "privateBytes": 20045824,
+          "cpuSeconds": 0.015625
+        }
+      ],
+      "cold": [
+        {
+          "connectionMS": 1.7737000016495585,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 2.441399992676452,
+          "elapsedMS": 2.4907999904826283
+        }
+      ],
+      "warm": [
+        {
+          "connectionMS": 0.008599978173151612,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.13689999468624592,
+          "elapsedMS": 0.17839999054558575
+        },
+        {
+          "connectionMS": 0.008100003469735384,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12229999992996454,
+          "elapsedMS": 0.15140001778490841
+        },
+        {
+          "connectionMS": 0.00790000194683671,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11210000957362354,
+          "elapsedMS": 0.1365999924018979
+        },
+        {
+          "connectionMS": 0.006499991286545992,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.16419999883510172,
+          "elapsedMS": 0.19749999046325684
+        },
+        {
+          "connectionMS": 0.00790000194683671,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10720000136643648,
+          "elapsedMS": 0.12780001270584762
+        },
+        {
+          "connectionMS": 0.0029999937396496534,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08579998393543065,
+          "elapsedMS": 0.10759997530840337
+        },
+        {
+          "connectionMS": 0.0030999945010989904,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09190000128000975,
+          "elapsedMS": 0.12050001532770693
+        },
+        {
+          "connectionMS": 0.002500019036233425,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.05080000846646726,
+          "elapsedMS": 0.0653000024612993
+        },
+        {
+          "connectionMS": 0.013399985618889332,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08179998258128762,
+          "elapsedMS": 0.1109000004362315
+        },
+        {
+          "connectionMS": 0.00790000194683671,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09280000813305378,
+          "elapsedMS": 0.10720000136643648
+        },
+        {
+          "connectionMS": 0.007099995855242014,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.07270000060088933,
+          "elapsedMS": 0.0838999985717237
+        },
+        {
+          "connectionMS": 0.0040000013541430235,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.0889000075403601,
+          "elapsedMS": 0.10079998173750937
+        },
+        {
+          "connectionMS": 0.0027999922167509794,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.0824000162538141,
+          "elapsedMS": 0.09139999747276306
+        },
+        {
+          "connectionMS": 0.006999995093792677,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.0735999783501029,
+          "elapsedMS": 0.09929999941959977
+        },
+        {
+          "connectionMS": 0.008400005754083395,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08599998545832932,
+          "elapsedMS": 0.10679999832063913
+        },
+        {
+          "connectionMS": 0.006099988240748644,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.07809998351149261,
+          "elapsedMS": 0.10889998520724475
+        },
+        {
+          "connectionMS": 0.0041000021155923605,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.0633999879937619,
+          "elapsedMS": 0.09180000051856041
+        },
+        {
+          "connectionMS": 0.00580001506023109,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.06880000000819564,
+          "elapsedMS": 0.08759999764151871
+        },
+        {
+          "connectionMS": 0.002600019797682762,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.060200021835044026,
+          "elapsedMS": 0.08480000542476773
+        },
+        {
+          "connectionMS": 0.007100024959072471,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.06250001024454832,
+          "elapsedMS": 0.08300002082251012
+        }
+      ],
+      "bulk": [
+        {
+          "connectionMS": 0.006199989002197981,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.1134999911300838,
+          "elapsedMS": 16.280299983918667
+        },
+        {
+          "connectionMS": 0.00689999433234334,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.13509998098015785,
+          "elapsedMS": 15.389999985927716
+        },
+        {
+          "connectionMS": 0.007800001185387373,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.13080000644549727,
+          "elapsedMS": 15.612700022757053
+        },
+        {
+          "connectionMS": 0.006799993570894003,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.16070000128820539,
+          "elapsedMS": 15.47680000658147
+        },
+        {
+          "connectionMS": 0.007599999662488699,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.16299998969770968,
+          "elapsedMS": 15.100799995707348
+        },
+        {
+          "connectionMS": 0.009000010322779417,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.16750002396292984,
+          "elapsedMS": 15.461800008779392
+        },
+        {
+          "connectionMS": 0.009400013368576765,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.16170000890269876,
+          "elapsedMS": 15.091300010681152
+        },
+        {
+          "connectionMS": 0.008600007276982069,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.1613000058569014,
+          "elapsedMS": 15.288499998860061
+        }
+      ],
+      "bulkWallSeconds": 0.12387300000409596,
+      "cpuSeconds": 0.125
+    },
+    {
+      "mode": "B",
+      "round": 0,
+      "startupMS": 33.890799997607246,
+      "idle": [
+        {
+          "workingSetBytes": 20865024,
+          "privateBytes": 20066304,
+          "cpuSeconds": 0.015625
+        }
+      ],
+      "cold": [
+        {
+          "connectionMS": 0.0881000014487654,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 2.90099999983795,
+          "elapsedMS": 2.9519999807234854
+        }
+      ],
+      "warm": [
+        {
+          "connectionMS": 0.011600001016631722,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.18360000103712082,
+          "elapsedMS": 0.2114999806508422
+        },
+        {
+          "connectionMS": 0.01650000922381878,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.26240001898258924,
+          "elapsedMS": 0.287900009425357
+        },
+        {
+          "connectionMS": 0.007399998139590025,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.17729998216964304,
+          "elapsedMS": 0.1991999743040651
+        },
+        {
+          "connectionMS": 0.007099995855242014,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.13699999544769526,
+          "elapsedMS": 0.15839998377487063
+        },
+        {
+          "connectionMS": 0.0047000066842883825,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1154000055976212,
+          "elapsedMS": 0.1404999929945916
+        },
+        {
+          "connectionMS": 0.00790000194683671,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10820000898092985,
+          "elapsedMS": 0.13279999257065356
+        },
+        {
+          "connectionMS": 0.006199989002197981,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1008999824989587,
+          "elapsedMS": 0.12229999992996454
+        },
+        {
+          "connectionMS": 0.0031999952625483274,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1595000212546438,
+          "elapsedMS": 0.21749999723397195
+        },
+        {
+          "connectionMS": 0.009099981980398297,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.21589998505078256,
+          "elapsedMS": 0.23639999562874436
+        },
+        {
+          "connectionMS": 0.006400019628927112,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11829999857582152,
+          "elapsedMS": 0.13540001236833632
+        },
+        {
+          "connectionMS": 0.008800008799880743,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11110000195913017,
+          "elapsedMS": 0.13880000915378332
+        },
+        {
+          "connectionMS": 0.006300018867477775,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12420001439750195,
+          "elapsedMS": 0.14970000484026968
+        },
+        {
+          "connectionMS": 0.006299989763647318,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09289997979067266,
+          "elapsedMS": 0.11140000424347818
+        },
+        {
+          "connectionMS": 0.0043000036384910345,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11049999739043415,
+          "elapsedMS": 0.1306000049225986
+        },
+        {
+          "connectionMS": 0.005699985194951296,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10239999392069876,
+          "elapsedMS": 0.12689997674897313
+        },
+        {
+          "connectionMS": 0.006199989002197981,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12290000449866056,
+          "elapsedMS": 0.14769998961128294
+        },
+        {
+          "connectionMS": 0.0050000089686363935,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12159999459981918,
+          "elapsedMS": 0.15020000864751637
+        },
+        {
+          "connectionMS": 0.005500012775883079,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.0923000043258071,
+          "elapsedMS": 0.11319998884573579
+        },
+        {
+          "connectionMS": 0.002600019797682762,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09859999408945441,
+          "elapsedMS": 0.12870001955889165
+        },
+        {
+          "connectionMS": 0.006100017344579101,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10140001541003585,
+          "elapsedMS": 0.12630000128410757
+        }
+      ],
+      "bulk": [
+        {
+          "connectionMS": 0.006699992809444666,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.14600000577047467,
+          "elapsedMS": 17.499300010968
+        },
+        {
+          "connectionMS": 0.0109999964479357,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.1598999951966107,
+          "elapsedMS": 17.114899994339794
+        },
+        {
+          "connectionMS": 0.01409999094903469,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.17300000763498247,
+          "elapsedMS": 28.567300003487617
+        },
+        {
+          "connectionMS": 0.026699999580159783,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.21890000789426267,
+          "elapsedMS": 18.049400008749217
+        },
+        {
+          "connectionMS": 0.013499986380338669,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.20329997641965747,
+          "elapsedMS": 16.12580000073649
+        },
+        {
+          "connectionMS": 0.018799997633323073,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.40180000360123813,
+          "elapsedMS": 17.34510000096634
+        },
+        {
+          "connectionMS": 0.012800010154023767,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.16240001423284411,
+          "elapsedMS": 15.531100012594834
+        },
+        {
+          "connectionMS": 0.010199990356341004,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.18549998640082777,
+          "elapsedMS": 14.477099990472198
+        }
+      ],
+      "bulkWallSeconds": 0.14488759997766465,
+      "cpuSeconds": 0.203125
+    },
+    {
+      "mode": "C",
+      "round": 0,
+      "startupMS": 630.4450999596156,
+      "idle": [
+        {
+          "workingSetBytes": 14102528,
+          "privateBytes": 16523264,
+          "cpuSeconds": 0.015625
+        },
+        {
+          "workingSetBytes": 22310912,
+          "privateBytes": 20897792,
+          "cpuSeconds": 0.015625
+        }
+      ],
+      "cold": [
+        {
+          "connectionMS": 1.0260999843012542,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 2.9568999889306724,
+          "elapsedMS": 3.0300999933388084
+        }
+      ],
+      "warm": [
+        {
+          "connectionMS": 0.01279998105019331,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.22489999537356198,
+          "elapsedMS": 0.2621999883558601
+        },
+        {
+          "connectionMS": 0.007800001185387373,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.16930000856518745,
+          "elapsedMS": 0.19770002108998597
+        },
+        {
+          "connectionMS": 0.007599999662488699,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.18149998504668474,
+          "elapsedMS": 0.222400005441159
+        },
+        {
+          "connectionMS": 0.007599999662488699,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.13569998554885387,
+          "elapsedMS": 0.18060000729747117
+        },
+        {
+          "connectionMS": 0.013100012438371778,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.13600001693703234,
+          "elapsedMS": 0.15700000221841037
+        },
+        {
+          "connectionMS": 0.00589998671784997,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.16429999959655106,
+          "elapsedMS": 0.19109999993816018
+        },
+        {
+          "connectionMS": 0.008100003469735384,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1970000157598406,
+          "elapsedMS": 0.2334000018890947
+        },
+        {
+          "connectionMS": 0.014300021575763822,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1776000135578215,
+          "elapsedMS": 0.19000002066604793
+        },
+        {
+          "connectionMS": 0.00580001506023109,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.18470000941306353,
+          "elapsedMS": 0.21540001034736633
+        },
+        {
+          "connectionMS": 0.016200006939470768,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.17640000442042947,
+          "elapsedMS": 0.20710000535473228
+        },
+        {
+          "connectionMS": 0.005999987479299307,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.15029998030513525,
+          "elapsedMS": 0.18429997726343572
+        },
+        {
+          "connectionMS": 0.0039000005926936865,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12889999197795987,
+          "elapsedMS": 0.15720000374130905
+        },
+        {
+          "connectionMS": 0.007399998139590025,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.18400000408291817,
+          "elapsedMS": 0.215600011870265
+        },
+        {
+          "connectionMS": 0.007199996616691351,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.15810001059435308,
+          "elapsedMS": 0.1875000016298145
+        },
+        {
+          "connectionMS": 0.008500006515532732,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.14360001659952104,
+          "elapsedMS": 0.1663000148255378
+        },
+        {
+          "connectionMS": 0.00580001506023109,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1416000013705343,
+          "elapsedMS": 0.17330000991933048
+        },
+        {
+          "connectionMS": 0.007800001185387373,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.15820001135580242,
+          "elapsedMS": 0.17400001524947584
+        },
+        {
+          "connectionMS": 0.0033999967854470015,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.14489999739453197,
+          "elapsedMS": 0.1781000173650682
+        },
+        {
+          "connectionMS": 0.006200018106028438,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.14760001795366406,
+          "elapsedMS": 0.18770000315271318
+        },
+        {
+          "connectionMS": 0.007700000423938036,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.18549998640082777,
+          "elapsedMS": 0.20889998995698988
+        }
+      ],
+      "bulk": [
+        {
+          "connectionMS": 0.005199981387704611,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.20669997320510447,
+          "elapsedMS": 71.11369998892769
+        },
+        {
+          "connectionMS": 0.00790000194683671,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.19150000298395753,
+          "elapsedMS": 43.023400008678436
+        },
+        {
+          "connectionMS": 0.007800001185387373,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.15830001211725175,
+          "elapsedMS": 32.87049999926239
+        },
+        {
+          "connectionMS": 0.007700000423938036,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.1638999965507537,
+          "elapsedMS": 53.551700024399906
+        },
+        {
+          "connectionMS": 0.015600002370774746,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.2474999928381294,
+          "elapsedMS": 18.409800017252564
+        },
+        {
+          "connectionMS": 0.011500000255182385,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.21089997608214617,
+          "elapsedMS": 18.646299984538928
+        },
+        {
+          "connectionMS": 0.01680001150816679,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.23249999503605068,
+          "elapsedMS": 31.941599998390302
+        },
+        {
+          "connectionMS": 0.010100018698722124,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.19150000298395753,
+          "elapsedMS": 17.898899997817352
+        }
+      ],
+      "bulkWallSeconds": 0.2876262000063434,
+      "cpuSeconds": 0.203125
+    },
+    {
+      "mode": "D",
+      "round": 0,
+      "startupMS": 30.82629997516051,
+      "idle": [
+        {
+          "workingSetBytes": 21094400,
+          "privateBytes": 19636224,
+          "cpuSeconds": 0.015625
+        }
+      ],
+      "cold": [
+        {
+          "connectionMS": 0.604800006840378,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 2.1157000155653805,
+          "elapsedMS": 2.1554999984800816
+        }
+      ],
+      "warm": [
+        {
+          "connectionMS": 0.008300004992634058,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.18450000789016485,
+          "elapsedMS": 0.2195000124629587
+        },
+        {
+          "connectionMS": 0.014899997040629387,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.18820000695995986,
+          "elapsedMS": 0.22220000391826034
+        },
+        {
+          "connectionMS": 0.006100017344579101,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.13920001219958067,
+          "elapsedMS": 0.15880001592449844
+        },
+        {
+          "connectionMS": 0.006100017344579101,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10960001964122057,
+          "elapsedMS": 0.1314000110141933
+        },
+        {
+          "connectionMS": 0.0031999952625483274,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09349998435936868,
+          "elapsedMS": 0.11319998884573579
+        },
+        {
+          "connectionMS": 0.008000002708286047,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12440001592040062,
+          "elapsedMS": 0.15470001380890608
+        },
+        {
+          "connectionMS": 0.005500012775883079,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12110001989640296,
+          "elapsedMS": 0.14700001338496804
+        },
+        {
+          "connectionMS": 0.006999995093792677,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10229999315924942,
+          "elapsedMS": 0.12519999290816486
+        },
+        {
+          "connectionMS": 0.0034999975468963385,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10130001464858651,
+          "elapsedMS": 0.12070001685060561
+        },
+        {
+          "connectionMS": 0.006000016583129764,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10770000517368317,
+          "elapsedMS": 0.12700000661425292
+        },
+        {
+          "connectionMS": 0.0039000005926936865,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08850000449456275,
+          "elapsedMS": 0.10030000703409314
+        },
+        {
+          "connectionMS": 0.0028999929782003164,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08789999992586672,
+          "elapsedMS": 0.10730000212788582
+        },
+        {
+          "connectionMS": 0.005499983672052622,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10599999222904444,
+          "elapsedMS": 0.12479998986236751
+        },
+        {
+          "connectionMS": 0.007199996616691351,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08510000770911574,
+          "elapsedMS": 0.10699999984353781
+        },
+        {
+          "connectionMS": 0.0030999945010989904,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.07660000119358301,
+          "elapsedMS": 0.09770001634024084
+        },
+        {
+          "connectionMS": 0.0042000028770416975,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.07949999417178333,
+          "elapsedMS": 0.0957000011112541
+        },
+        {
+          "connectionMS": 0.0032999960239976645,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.0743999844416976,
+          "elapsedMS": 0.08800000068731606
+        },
+        {
+          "connectionMS": 0.0031999952625483274,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.076299998909235,
+          "elapsedMS": 0.08569998317398131
+        },
+        {
+          "connectionMS": 0.00200001522898674,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.06479999865405262,
+          "elapsedMS": 0.07499998901039362
+        },
+        {
+          "connectionMS": 0.0040000013541430235,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08220001473091543,
+          "elapsedMS": 0.09899999713525176
+        }
+      ],
+      "bulk": [
+        {
+          "connectionMS": 0.0047000066842883825,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.22449999232776463,
+          "elapsedMS": 40.565600007539615
+        },
+        {
+          "connectionMS": 0.007800001185387373,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.5575999966822565,
+          "elapsedMS": 18.431500007864088
+        },
+        {
+          "connectionMS": 0.008000002708286047,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.2564000023994595,
+          "elapsedMS": 19.925000000512227
+        },
+        {
+          "connectionMS": 0.00689999433234334,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.363900006050244,
+          "elapsedMS": 16.957199986791238
+        },
+        {
+          "connectionMS": 0.008000002708286047,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.31670002499595284,
+          "elapsedMS": 17.481800023233518
+        },
+        {
+          "connectionMS": 0.008000002708286047,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.24259998463094234,
+          "elapsedMS": 17.769199999747798
+        },
+        {
+          "connectionMS": 0.008800008799880743,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.5109999910928309,
+          "elapsedMS": 22.45839999523014
+        },
+        {
+          "connectionMS": 0.007700000423938036,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.4876999882981181,
+          "elapsedMS": 18.036599998595193
+        }
+      ],
+      "bulkWallSeconds": 0.17176939998171292,
+      "cpuSeconds": 0.21875
+    },
+    {
+      "mode": "B",
+      "round": 1,
+      "startupMS": 30.7877000013832,
+      "idle": [
+        {
+          "workingSetBytes": 20586496,
+          "privateBytes": 19607552,
+          "cpuSeconds": 0.03125
+        }
+      ],
+      "cold": [
+        {
+          "connectionMS": 0.06479999865405262,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 2.306199981831014,
+          "elapsedMS": 2.3416999902110547
+        }
+      ],
+      "warm": [
+        {
+          "connectionMS": 0.008700008038431406,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1810000103432685,
+          "elapsedMS": 0.20229999790899456
+        },
+        {
+          "connectionMS": 0.00790000194683671,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.14869999722577631,
+          "elapsedMS": 0.16639998648315668
+        },
+        {
+          "connectionMS": 0.006799993570894003,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.14689998351968825,
+          "elapsedMS": 0.1674999948590994
+        },
+        {
+          "connectionMS": 0.007700000423938036,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.13540001236833632,
+          "elapsedMS": 0.15579999308101833
+        },
+        {
+          "connectionMS": 0.005999987479299307,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12129999231547117,
+          "elapsedMS": 0.14560000272467732
+        },
+        {
+          "connectionMS": 0.005600013537332416,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11029999586753547,
+          "elapsedMS": 0.12549999519251287
+        },
+        {
+          "connectionMS": 0.002400018274784088,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12740000966005027,
+          "elapsedMS": 0.14089999604038894
+        },
+        {
+          "connectionMS": 0.005699985194951296,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11910000466741621,
+          "elapsedMS": 0.13599998783320189
+        },
+        {
+          "connectionMS": 0.016099977074190974,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1640999980736524,
+          "elapsedMS": 0.20009998115710914
+        },
+        {
+          "connectionMS": 0.013200013199821115,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1516000193078071,
+          "elapsedMS": 0.16330002108588815
+        },
+        {
+          "connectionMS": 0.006499991286545992,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12350000906735659,
+          "elapsedMS": 0.1393999846186489
+        },
+        {
+          "connectionMS": 0.007800001185387373,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11829999857582152,
+          "elapsedMS": 0.1385000068694353
+        },
+        {
+          "connectionMS": 0.005900015821680427,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12390001211315393,
+          "elapsedMS": 0.1852000132203102
+        },
+        {
+          "connectionMS": 0.005900015821680427,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.13490000856108963,
+          "elapsedMS": 0.14390001888386905
+        },
+        {
+          "connectionMS": 0.002900022082030773,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10309999925084412,
+          "elapsedMS": 0.12569999671541154
+        },
+        {
+          "connectionMS": 0.00580001506023109,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.13540001236833632,
+          "elapsedMS": 0.15480001457035542
+        },
+        {
+          "connectionMS": 0.00580001506023109,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09710001177154481,
+          "elapsedMS": 0.13780000153928995
+        },
+        {
+          "connectionMS": 0.008799979696050286,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1340000017080456,
+          "elapsedMS": 0.16529997810721397
+        },
+        {
+          "connectionMS": 0.005799985956400633,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10299999848939478,
+          "elapsedMS": 0.1278999843634665
+        },
+        {
+          "connectionMS": 0.005600013537332416,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10599999222904444,
+          "elapsedMS": 0.13190001482143998
+        }
+      ],
+      "bulk": [
+        {
+          "connectionMS": 0.006900023436173797,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.1762000028975308,
+          "elapsedMS": 26.547900022706017
+        },
+        {
+          "connectionMS": 0.006699992809444666,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.17330000991933048,
+          "elapsedMS": 19.75400000810623
+        },
+        {
+          "connectionMS": 0.006500020390376449,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.15430001076310873,
+          "elapsedMS": 21.45240001846105
+        },
+        {
+          "connectionMS": 0.014299992471933365,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.20659997244365513,
+          "elapsedMS": 33.49179998622276
+        },
+        {
+          "connectionMS": 0.0158999755512923,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.2238999877590686,
+          "elapsedMS": 34.29859998868778
+        },
+        {
+          "connectionMS": 0.016299978597089648,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.2151999797206372,
+          "elapsedMS": 55.536999978357926
+        },
+        {
+          "connectionMS": 0.02160001895390451,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.21260001813061535,
+          "elapsedMS": 45.14900001231581
+        },
+        {
+          "connectionMS": 0.025100016500800848,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.21280001965351403,
+          "elapsedMS": 76.7980000237003
+        }
+      ],
+      "bulkWallSeconds": 0.31321289998595603,
+      "cpuSeconds": 0.3125
+    },
+    {
+      "mode": "C",
+      "round": 1,
+      "startupMS": 601.382900000317,
+      "idle": [
+        {
+          "workingSetBytes": 14159872,
+          "privateBytes": 16670720,
+          "cpuSeconds": 0.015625
+        },
+        {
+          "workingSetBytes": 22253568,
+          "privateBytes": 21147648,
+          "cpuSeconds": 0.03125
+        }
+      ],
+      "cold": [
+        {
+          "connectionMS": 0.8713999995961785,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 2.389100001892075,
+          "elapsedMS": 2.439000003505498
+        }
+      ],
+      "warm": [
+        {
+          "connectionMS": 0.00890000956133008,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.17090002074837685,
+          "elapsedMS": 0.19570000586099923
+        },
+        {
+          "connectionMS": 0.007599999662488699,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12549999519251287,
+          "elapsedMS": 0.16689999029040337
+        },
+        {
+          "connectionMS": 0.004599976819008589,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11749999248422682,
+          "elapsedMS": 0.14329998521134257
+        },
+        {
+          "connectionMS": 0.0046000059228390455,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11520000407472253,
+          "elapsedMS": 0.13679999392479658
+        },
+        {
+          "connectionMS": 0.0032999960239976645,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09329998283647001,
+          "elapsedMS": 0.12089998926967382
+        },
+        {
+          "connectionMS": 0.0025999906938523054,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11799999629147351,
+          "elapsedMS": 0.14109999756328762
+        },
+        {
+          "connectionMS": 0.0053000112529844046,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.14630000805482268,
+          "elapsedMS": 0.17900002421811223
+        },
+        {
+          "connectionMS": 0.0033999967854470015,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12110001989640296,
+          "elapsedMS": 0.14360001659952104
+        },
+        {
+          "connectionMS": 0.0024999899324029684,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.16579998191446066,
+          "elapsedMS": 0.2049999893642962
+        },
+        {
+          "connectionMS": 0.007499998901039362,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1343000039923936,
+          "elapsedMS": 0.1598000235389918
+        },
+        {
+          "connectionMS": 0.010000017937272787,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12569999671541154,
+          "elapsedMS": 0.15770000754855573
+        },
+        {
+          "connectionMS": 0.006199989002197981,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1294999965466559,
+          "elapsedMS": 0.17469999147579074
+        },
+        {
+          "connectionMS": 0.007000024197623134,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.16039999900385737,
+          "elapsedMS": 0.1826000225264579
+        },
+        {
+          "connectionMS": 0.0044000043999403715,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11690001701936126,
+          "elapsedMS": 0.14340001507662237
+        },
+        {
+          "connectionMS": 0.0047000066842883825,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12179999612271786,
+          "elapsedMS": 0.14519999967887998
+        },
+        {
+          "connectionMS": 0.0042000028770416975,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10810000821948051,
+          "elapsedMS": 0.1286999904550612
+        },
+        {
+          "connectionMS": 0.0040000013541430235,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12039998546242714,
+          "elapsedMS": 0.13679999392479658
+        },
+        {
+          "connectionMS": 0.0048000074457377195,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10659999679774046,
+          "elapsedMS": 0.12729997979477048
+        },
+        {
+          "connectionMS": 0.010399991879239678,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10219999239780009,
+          "elapsedMS": 0.12919999426230788
+        },
+        {
+          "connectionMS": 0.0040000013541430235,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10679999832063913,
+          "elapsedMS": 0.11940000695176423
+        }
+      ],
+      "bulk": [
+        {
+          "connectionMS": 0.0045000051613897085,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.17110002227127552,
+          "elapsedMS": 148.01280002575368
+        },
+        {
+          "connectionMS": 0.008500006515532732,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.5602999881375581,
+          "elapsedMS": 183.76179999904707
+        },
+        {
+          "connectionMS": 0.008500006515532732,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.20740000763908029,
+          "elapsedMS": 109.92280000937171
+        },
+        {
+          "connectionMS": 0.00890000956133008,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.2617000136524439,
+          "elapsedMS": 199.54739999957383
+        },
+        {
+          "connectionMS": 0.015300000086426735,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.26599998818710446,
+          "elapsedMS": 189.2119999974966
+        },
+        {
+          "connectionMS": 0.016600009985268116,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.22899999748915434,
+          "elapsedMS": 170.33429999719374
+        },
+        {
+          "connectionMS": 0.014999997802078724,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.23249999503605068,
+          "elapsedMS": 126.6145000117831
+        },
+        {
+          "connectionMS": 0.011900003300979733,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.20640000002458692,
+          "elapsedMS": 57.40009999135509
+        }
+      ],
+      "bulkWallSeconds": 1.1849804999947082,
+      "cpuSeconds": 0.515625
+    },
+    {
+      "mode": "D",
+      "round": 1,
+      "startupMS": 30.809700023382902,
+      "idle": [
+        {
+          "workingSetBytes": 21188608,
+          "privateBytes": 19808256,
+          "cpuSeconds": 0.015625
+        }
+      ],
+      "cold": [
+        {
+          "connectionMS": 0.6301000248640776,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 2.00020000920631,
+          "elapsedMS": 2.0437000202946365
+        }
+      ],
+      "warm": [
+        {
+          "connectionMS": 0.007700000423938036,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.18319999799132347,
+          "elapsedMS": 0.2080999838653952
+        },
+        {
+          "connectionMS": 0.017400016076862812,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12140002218075097,
+          "elapsedMS": 0.14470002497546375
+        },
+        {
+          "connectionMS": 0.0035999983083456755,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.07660000119358301,
+          "elapsedMS": 0.09310001041740179
+        },
+        {
+          "connectionMS": 0.008000002708286047,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1221999991685152,
+          "elapsedMS": 0.14509999891743064
+        },
+        {
+          "connectionMS": 0.005999987479299307,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11209998046979308,
+          "elapsedMS": 0.13619998935610056
+        },
+        {
+          "connectionMS": 0.007399998139590025,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1312999811489135,
+          "elapsedMS": 0.15089998487383127
+        },
+        {
+          "connectionMS": 0.0037999998312443495,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10069998097606003,
+          "elapsedMS": 0.12579999747686088
+        },
+        {
+          "connectionMS": 0.005500012775883079,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.0850000069476664,
+          "elapsedMS": 0.10530001600272954
+        },
+        {
+          "connectionMS": 0.006200018106028438,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12440001592040062,
+          "elapsedMS": 0.14700001338496804
+        },
+        {
+          "connectionMS": 0.005699985194951296,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10349997319281101,
+          "elapsedMS": 0.12589999823831022
+        },
+        {
+          "connectionMS": 0.005400012014433742,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1024999946821481,
+          "elapsedMS": 0.12000001152046025
+        },
+        {
+          "connectionMS": 0.0030999945010989904,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09959997260011733,
+          "elapsedMS": 0.11709998943842947
+        },
+        {
+          "connectionMS": 0.004299974534660578,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10729997302405536,
+          "elapsedMS": 0.12159999459981918
+        },
+        {
+          "connectionMS": 0.007499998901039362,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.13550001312978566,
+          "elapsedMS": 0.1618000096641481
+        },
+        {
+          "connectionMS": 0.006499991286545992,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.0892000098247081,
+          "elapsedMS": 0.11069999891333282
+        },
+        {
+          "connectionMS": 0.004999979864805937,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.083099992480129,
+          "elapsedMS": 0.09479999425821006
+        },
+        {
+          "connectionMS": 0.0022999884095042944,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10039997869171202,
+          "elapsedMS": 0.12349997996352613
+        },
+        {
+          "connectionMS": 0.008299975888803601,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.14659998123534024,
+          "elapsedMS": 0.17079999088309705
+        },
+        {
+          "connectionMS": 0.006199989002197981,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11649998486973345,
+          "elapsedMS": 0.1281999866478145
+        },
+        {
+          "connectionMS": 0.0023999891709536314,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.07929999264888465,
+          "elapsedMS": 0.10410000686533749
+        }
+      ],
+      "bulk": [
+        {
+          "connectionMS": 0.005500012775883079,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.22190000163391232,
+          "elapsedMS": 20.602400007192045
+        },
+        {
+          "connectionMS": 0.00790000194683671,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.33680000342428684,
+          "elapsedMS": 46.80119999102317
+        },
+        {
+          "connectionMS": 0.02060001133941114,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.6190999993123114,
+          "elapsedMS": 27.296499989461154
+        },
+        {
+          "connectionMS": 0.011900003300979733,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.3267000138293952,
+          "elapsedMS": 18.415900005493313
+        },
+        {
+          "connectionMS": 0.016700010746717453,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.38750001112930477,
+          "elapsedMS": 17.624600004637614
+        },
+        {
+          "connectionMS": 0.010299991117790341,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.5008000007364899,
+          "elapsedMS": 17.94250000966713
+        },
+        {
+          "connectionMS": 0.008700008038431406,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.6080000021029264,
+          "elapsedMS": 36.97169999941252
+        },
+        {
+          "connectionMS": 0.009000010322779417,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.1970000157598406,
+          "elapsedMS": 30.924299993785098
+        }
+      ],
+      "bulkWallSeconds": 0.21675319998757914,
+      "cpuSeconds": 0.21875
+    },
+    {
+      "mode": "B2",
+      "round": 1,
+      "startupMS": 30.120200011879206,
+      "idle": [
+        {
+          "workingSetBytes": 20582400,
+          "privateBytes": 19607552,
+          "cpuSeconds": 0.015625
+        }
+      ],
+      "cold": [
+        {
+          "connectionMS": 1.6327000048477203,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 2.0423000096343458,
+          "elapsedMS": 2.091000002110377
+        }
+      ],
+      "warm": [
+        {
+          "connectionMS": 0.008500006515532732,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1370999962091446,
+          "elapsedMS": 0.16460000188089907
+        },
+        {
+          "connectionMS": 0.004999979864805937,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.06849999772384763,
+          "elapsedMS": 0.10629999451339245
+        },
+        {
+          "connectionMS": 0.007299997378140688,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08990001515485346,
+          "elapsedMS": 0.11670001549646258
+        },
+        {
+          "connectionMS": 0.007599999662488699,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10450000991113484,
+          "elapsedMS": 0.13410000246949494
+        },
+        {
+          "connectionMS": 0.0037999998312443495,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08609998621977866,
+          "elapsedMS": 0.10979999206028879
+        },
+        {
+          "connectionMS": 0.0023999891709536314,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.0805000017862767,
+          "elapsedMS": 0.09859999408945441
+        },
+        {
+          "connectionMS": 0.012100004823878407,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10000000474974513,
+          "elapsedMS": 0.12340000830590725
+        },
+        {
+          "connectionMS": 0.014100020052865148,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10060000931844115,
+          "elapsedMS": 0.13120000949129462
+        },
+        {
+          "connectionMS": 0.007100024959072471,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10260002454742789,
+          "elapsedMS": 0.12320000678300858
+        },
+        {
+          "connectionMS": 0.007099995855242014,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.07959999493323267,
+          "elapsedMS": 0.09459999273531139
+        },
+        {
+          "connectionMS": 0.005700014298781753,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09400001727044582,
+          "elapsedMS": 0.1173000200651586
+        },
+        {
+          "connectionMS": 0.002800021320581436,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.06710001616738737,
+          "elapsedMS": 0.0987000239547342
+        },
+        {
+          "connectionMS": 0.011099997209385037,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.0754999928176403,
+          "elapsedMS": 0.08779999916441739
+        },
+        {
+          "connectionMS": 0.005099980626255274,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.07089998689480126,
+          "elapsedMS": 0.09759998647496104
+        },
+        {
+          "connectionMS": 0.0047000066842883825,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.06940000457689166,
+          "elapsedMS": 0.08460000390186906
+        },
+        {
+          "connectionMS": 0.0031999952625483274,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.07149999146349728,
+          "elapsedMS": 0.08929998148232698
+        },
+        {
+          "connectionMS": 0.004799978341907263,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.0675999908708036,
+          "elapsedMS": 0.09699998190626502
+        },
+        {
+          "connectionMS": 0.006699992809444666,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09519999730400741,
+          "elapsedMS": 0.11389999417588115
+        },
+        {
+          "connectionMS": 0.005700014298781753,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08759999764151871,
+          "elapsedMS": 0.1063000236172229
+        },
+        {
+          "connectionMS": 0.0051000097300857306,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.05959998816251755,
+          "elapsedMS": 0.0889000075403601
+        }
+      ],
+      "bulk": [
+        {
+          "connectionMS": 0.006399990525096655,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.1244999875780195,
+          "elapsedMS": 16.228299995418638
+        },
+        {
+          "connectionMS": 0.00890000956133008,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.10830000974237919,
+          "elapsedMS": 15.628599998308346
+        },
+        {
+          "connectionMS": 0.00790000194683671,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.14940000255592167,
+          "elapsedMS": 14.906199998222291
+        },
+        {
+          "connectionMS": 0.008000002708286047,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.1438999897800386,
+          "elapsedMS": 15.039299993077293
+        },
+        {
+          "connectionMS": 0.008200004231184721,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.1210999907925725,
+          "elapsedMS": 34.989000007044524
+        },
+        {
+          "connectionMS": 0.006500020390376449,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.1078000059351325,
+          "elapsedMS": 14.469600020674989
+        },
+        {
+          "connectionMS": 0.008200004231184721,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.13890000991523266,
+          "elapsedMS": 14.642099995398894
+        },
+        {
+          "connectionMS": 0.009000010322779417,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.11920000542886555,
+          "elapsedMS": 14.091699995333329
+        }
+      ],
+      "bulkWallSeconds": 0.14011340000433847,
+      "cpuSeconds": 0.09375
+    },
+    {
+      "mode": "C",
+      "round": 2,
+      "startupMS": 615.7092000066768,
+      "idle": [
+        {
+          "workingSetBytes": 14180352,
+          "privateBytes": 16945152,
+          "cpuSeconds": 0.015625
+        },
+        {
+          "workingSetBytes": 22245376,
+          "privateBytes": 20721664,
+          "cpuSeconds": 0.015625
+        }
+      ],
+      "cold": [
+        {
+          "connectionMS": 0.9744000271894038,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 2.442299999529496,
+          "elapsedMS": 2.5080000050365925
+        }
+      ],
+      "warm": [
+        {
+          "connectionMS": 0.007599999662488699,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1914000022225082,
+          "elapsedMS": 0.22230000467970967
+        },
+        {
+          "connectionMS": 0.005900015821680427,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12549999519251287,
+          "elapsedMS": 0.1508000132162124
+        },
+        {
+          "connectionMS": 0.012600008631125093,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1286999904550612,
+          "elapsedMS": 0.1568000006955117
+        },
+        {
+          "connectionMS": 0.007399998139590025,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.13769997167401016,
+          "elapsedMS": 0.15319997328333557
+        },
+        {
+          "connectionMS": 0.01400001929141581,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.13050000416114926,
+          "elapsedMS": 0.16250001499429345
+        },
+        {
+          "connectionMS": 0.0048000074457377195,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09830002090893686,
+          "elapsedMS": 0.12770001194439828
+        },
+        {
+          "connectionMS": 0.0041000021155923605,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09169999975711107,
+          "elapsedMS": 0.11079999967478216
+        },
+        {
+          "connectionMS": 0.0051000097300857306,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11439999798312783,
+          "elapsedMS": 0.14170000213198364
+        },
+        {
+          "connectionMS": 0.00680002267472446,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11590000940486789,
+          "elapsedMS": 0.1584000128787011
+        },
+        {
+          "connectionMS": 0.008100003469735384,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11680001625791192,
+          "elapsedMS": 0.13630001922138035
+        },
+        {
+          "connectionMS": 0.007599999662488699,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09669997962191701,
+          "elapsedMS": 0.12270000297576189
+        },
+        {
+          "connectionMS": 0.010899995686486363,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.14089999604038894,
+          "elapsedMS": 0.1621000119484961
+        },
+        {
+          "connectionMS": 0.0050000089686363935,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1018000184558332,
+          "elapsedMS": 0.11690001701936126
+        },
+        {
+          "connectionMS": 0.005600013537332416,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10590002057142556,
+          "elapsedMS": 0.135900016175583
+        },
+        {
+          "connectionMS": 0.0051000097300857306,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10810000821948051,
+          "elapsedMS": 0.1294999965466559
+        },
+        {
+          "connectionMS": 0.0043000036384910345,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10689999908208847,
+          "elapsedMS": 0.1280000142287463
+        },
+        {
+          "connectionMS": 0.0049000082071870565,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12700000661425292,
+          "elapsedMS": 0.15100001473911107
+        },
+        {
+          "connectionMS": 0.0050000089686363935,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10890001431107521,
+          "elapsedMS": 0.13190001482143998
+        },
+        {
+          "connectionMS": 0.0042000028770416975,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09640000644139946,
+          "elapsedMS": 0.11870000162161887
+        },
+        {
+          "connectionMS": 0.005999987479299307,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1320999872405082,
+          "elapsedMS": 0.1568000006955117
+        }
+      ],
+      "bulk": [
+        {
+          "connectionMS": 0.005099980626255274,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.17789998673833907,
+          "elapsedMS": 90.02209999016486
+        },
+        {
+          "connectionMS": 0.007099995855242014,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.152900000102818,
+          "elapsedMS": 183.53399998159148
+        },
+        {
+          "connectionMS": 0.013900018529966474,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.24870000197552145,
+          "elapsedMS": 187.54340001032688
+        },
+        {
+          "connectionMS": 0.013599987141788006,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.21299999207258224,
+          "elapsedMS": 18.206399981863797
+        },
+        {
+          "connectionMS": 0.016699981642886996,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.19619998056441545,
+          "elapsedMS": 50.31349998898804
+        },
+        {
+          "connectionMS": 0.010399991879239678,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.2128999913111329,
+          "elapsedMS": 38.735700014512986
+        },
+        {
+          "connectionMS": 0.007700000423938036,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.18699999782256782,
+          "elapsedMS": 18.092599988449365
+        },
+        {
+          "connectionMS": 0.008299975888803601,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.4291999794077128,
+          "elapsedMS": 43.54459999012761
+        }
+      ],
+      "bulkWallSeconds": 0.6301499000110198,
+      "cpuSeconds": 0.140625
+    },
+    {
+      "mode": "D",
+      "round": 2,
+      "startupMS": 30.591000017011538,
+      "idle": [
+        {
+          "workingSetBytes": 21102592,
+          "privateBytes": 19787776,
+          "cpuSeconds": 0.03125
+        }
+      ],
+      "cold": [
+        {
+          "connectionMS": 0.603599997702986,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 2.0215999975334853,
+          "elapsedMS": 2.0548000175040215
+        }
+      ],
+      "warm": [
+        {
+          "connectionMS": 0.009000010322779417,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1976999919861555,
+          "elapsedMS": 0.2246999938506633
+        },
+        {
+          "connectionMS": 0.006299989763647318,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12049998622387648,
+          "elapsedMS": 0.1379000023007393
+        },
+        {
+          "connectionMS": 0.006999995093792677,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10549998842179775,
+          "elapsedMS": 0.12909999350085855
+        },
+        {
+          "connectionMS": 0.005900015821680427,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08540000999346375,
+          "elapsedMS": 0.10710000060498714
+        },
+        {
+          "connectionMS": 0.0030999945010989904,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08910000906325877,
+          "elapsedMS": 0.11680001625791192
+        },
+        {
+          "connectionMS": 0.007499998901039362,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1297999988310039,
+          "elapsedMS": 0.14910000027157366
+        },
+        {
+          "connectionMS": 0.006100017344579101,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12030001380480826,
+          "elapsedMS": 0.1508000132162124
+        },
+        {
+          "connectionMS": 0.009400013368576765,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.18500001169741154,
+          "elapsedMS": 0.21520000882446766
+        },
+        {
+          "connectionMS": 0.007599999662488699,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.16950001008808613,
+          "elapsedMS": 0.19680001423694193
+        },
+        {
+          "connectionMS": 0.00580001506023109,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12820001575164497,
+          "elapsedMS": 0.142700009746477
+        },
+        {
+          "connectionMS": 0.00790000194683671,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.14859999646432698,
+          "elapsedMS": 0.17559999832883477
+        },
+        {
+          "connectionMS": 0.007800001185387373,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10209999163635075,
+          "elapsedMS": 0.11289998656138778
+        },
+        {
+          "connectionMS": 0.005199981387704611,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.0887999776750803,
+          "elapsedMS": 0.09809999028220773
+        },
+        {
+          "connectionMS": 0.0032999960239976645,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1176999940071255,
+          "elapsedMS": 0.1446999958716333
+        },
+        {
+          "connectionMS": 0.008000002708286047,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10979999206028879,
+          "elapsedMS": 0.12939999578520656
+        },
+        {
+          "connectionMS": 0.005699985194951296,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12589999823831022,
+          "elapsedMS": 0.15320000238716602
+        },
+        {
+          "connectionMS": 0.0053000112529844046,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.12100001913495362,
+          "elapsedMS": 0.14760001795366406
+        },
+        {
+          "connectionMS": 0.007299997378140688,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11100000119768083,
+          "elapsedMS": 0.12680000509135425
+        },
+        {
+          "connectionMS": 0.006000016583129764,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11760002234950662,
+          "elapsedMS": 0.13520001084543765
+        },
+        {
+          "connectionMS": 0.005799985956400633,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10519998613744974,
+          "elapsedMS": 0.11699998867698014
+        }
+      ],
+      "bulk": [
+        {
+          "connectionMS": 0.013599987141788006,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.2859999949578196,
+          "elapsedMS": 42.88019999512471
+        },
+        {
+          "connectionMS": 0.007799972081556916,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.5098999827168882,
+          "elapsedMS": 17.74209999712184
+        },
+        {
+          "connectionMS": 0.006799993570894003,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.42660001781769097,
+          "elapsedMS": 27.2660999908112
+        },
+        {
+          "connectionMS": 0.008100003469735384,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.23839998175390065,
+          "elapsedMS": 20.422899979166687
+        },
+        {
+          "connectionMS": 0.006599992047995329,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.45870000030845404,
+          "elapsedMS": 17.94970000628382
+        },
+        {
+          "connectionMS": 0.00790000194683671,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.5034999921917915,
+          "elapsedMS": 17.336000018985942
+        },
+        {
+          "connectionMS": 0.009599985787644982,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.2793000021483749,
+          "elapsedMS": 17.602299980353564
+        },
+        {
+          "connectionMS": 0.008599978173151612,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.20699997548945248,
+          "elapsedMS": 35.2831999771297
+        }
+      ],
+      "bulkWallSeconds": 0.19661590000032447,
+      "cpuSeconds": 0.21875
+    },
+    {
+      "mode": "B2",
+      "round": 2,
+      "startupMS": 30.27940000174567,
+      "idle": [
+        {
+          "workingSetBytes": 20758528,
+          "privateBytes": 19931136,
+          "cpuSeconds": 0.03125
+        }
+      ],
+      "cold": [
+        {
+          "connectionMS": 1.7155000241473317,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 2.0772000134456903,
+          "elapsedMS": 2.116700023179874
+        }
+      ],
+      "warm": [
+        {
+          "connectionMS": 0.009100011084228754,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10229999315924942,
+          "elapsedMS": 0.12700000661425292
+        },
+        {
+          "connectionMS": 0.007199996616691351,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11039999662898481,
+          "elapsedMS": 0.14640000881627202
+        },
+        {
+          "connectionMS": 0.006099988240748644,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.07949999417178333,
+          "elapsedMS": 0.09729998419061303
+        },
+        {
+          "connectionMS": 0.005799985956400633,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08110000635497272,
+          "elapsedMS": 0.10320000001229346
+        },
+        {
+          "connectionMS": 0.0051000097300857306,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08700002217665315,
+          "elapsedMS": 0.10930001735687256
+        },
+        {
+          "connectionMS": 0.0037999998312443495,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08560001151636243,
+          "elapsedMS": 0.10160001693293452
+        },
+        {
+          "connectionMS": 0.007199996616691351,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08280001929961145,
+          "elapsedMS": 0.10560001828707755
+        },
+        {
+          "connectionMS": 0.007599999662488699,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08080000407062471,
+          "elapsedMS": 0.10490001295693219
+        },
+        {
+          "connectionMS": 0.005999987479299307,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09109999518841505,
+          "elapsedMS": 0.12240000069141388
+        },
+        {
+          "connectionMS": 0.008600007276982069,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09470002260059118,
+          "elapsedMS": 0.11310001718811691
+        },
+        {
+          "connectionMS": 0.005600013537332416,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08379999781027436,
+          "elapsedMS": 0.09830002090893686
+        },
+        {
+          "connectionMS": 0.00790000194683671,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09590000263415277,
+          "elapsedMS": 0.10939998901449144
+        },
+        {
+          "connectionMS": 0.006999995093792677,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.07979999645613134,
+          "elapsedMS": 0.10420000762678683
+        },
+        {
+          "connectionMS": 0.0049000082071870565,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.062700011767447,
+          "elapsedMS": 0.08210001396946609
+        },
+        {
+          "connectionMS": 0.003100023604929447,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08820000221021473,
+          "elapsedMS": 0.11060002725571394
+        },
+        {
+          "connectionMS": 0.00300002284348011,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.07569999434053898,
+          "elapsedMS": 0.09700001101009548
+        },
+        {
+          "connectionMS": 0.0027999922167509794,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.07270000060088933,
+          "elapsedMS": 0.09889999637380242
+        },
+        {
+          "connectionMS": 0.00689999433234334,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08590001380071044,
+          "elapsedMS": 0.10120001388713717
+        },
+        {
+          "connectionMS": 0.010199990356341004,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.07529999129474163,
+          "elapsedMS": 0.08840000373311341
+        },
+        {
+          "connectionMS": 0.005999987479299307,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09479999425821006,
+          "elapsedMS": 0.12089998926967382
+        }
+      ],
+      "bulk": [
+        {
+          "connectionMS": 0.005099980626255274,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.13879998004995286,
+          "elapsedMS": 15.883199987001717
+        },
+        {
+          "connectionMS": 0.007599999662488699,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.13970001600682735,
+          "elapsedMS": 14.926000003470108
+        },
+        {
+          "connectionMS": 0.006299989763647318,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.12499999138526618,
+          "elapsedMS": 21.541499998420477
+        },
+        {
+          "connectionMS": 0.006600021151825786,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.10820000898092985,
+          "elapsedMS": 15.25010002660565
+        },
+        {
+          "connectionMS": 0.006599992047995329,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.13010000111535192,
+          "elapsedMS": 15.630100009730086
+        },
+        {
+          "connectionMS": 0.00790000194683671,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.13530001160688698,
+          "elapsedMS": 55.90089998440817
+        },
+        {
+          "connectionMS": 0.007399998139590025,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.12879999121651053,
+          "elapsedMS": 23.859399982029572
+        },
+        {
+          "connectionMS": 0.008200004231184721,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.11679998715408146,
+          "elapsedMS": 14.518899988615885
+        }
+      ],
+      "bulkWallSeconds": 0.17765359999611974,
+      "cpuSeconds": 0.078125
+    },
+    {
+      "mode": "B",
+      "round": 2,
+      "startupMS": 30.484699993394315,
+      "idle": [
+        {
+          "workingSetBytes": 20819968,
+          "privateBytes": 20262912,
+          "cpuSeconds": 0.015625
+        }
+      ],
+      "cold": [
+        {
+          "connectionMS": 0.05709999823011458,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 1.9853999838232994,
+          "elapsedMS": 2.0163999870419502
+        }
+      ],
+      "warm": [
+        {
+          "connectionMS": 0.007700000423938036,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1340000017080456,
+          "elapsedMS": 0.15070001245476305
+        },
+        {
+          "connectionMS": 0.006399990525096655,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.0906999921426177,
+          "elapsedMS": 0.11039999662898481
+        },
+        {
+          "connectionMS": 0.008200004231184721,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.11749999248422682,
+          "elapsedMS": 0.14640000881627202
+        },
+        {
+          "connectionMS": 0.006999995093792677,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.1154000055976212,
+          "elapsedMS": 0.13780000153928995
+        },
+        {
+          "connectionMS": 0.005499983672052622,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08339999476447701,
+          "elapsedMS": 0.09769998723641038
+        },
+        {
+          "connectionMS": 0.007700000423938036,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10099998326040804,
+          "elapsedMS": 0.10809997911565006
+        },
+        {
+          "connectionMS": 0.0027999922167509794,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10090001160278916,
+          "elapsedMS": 0.10599999222904444
+        },
+        {
+          "connectionMS": 0.002500019036233425,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.06089999806135893,
+          "elapsedMS": 0.06590000702999532
+        },
+        {
+          "connectionMS": 0.0021999876480549574,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09039998985826969,
+          "elapsedMS": 0.11419999646022916
+        },
+        {
+          "connectionMS": 0.00589998671784997,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09319998207502067,
+          "elapsedMS": 0.10599999222904444
+        },
+        {
+          "connectionMS": 0.0025999906938523054,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.0686999992467463,
+          "elapsedMS": 0.08319999324157834
+        },
+        {
+          "connectionMS": 0.004999979864805937,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08069997420534492,
+          "elapsedMS": 0.09709998266771436
+        },
+        {
+          "connectionMS": 0.00969998654909432,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09129999671131372,
+          "elapsedMS": 0.10979999206028879
+        },
+        {
+          "connectionMS": 0.004599976819008589,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.06439999560825527,
+          "elapsedMS": 0.07679997361265123
+        },
+        {
+          "connectionMS": 0.0035999983083456755,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.09620000491850078,
+          "elapsedMS": 0.10400000610388815
+        },
+        {
+          "connectionMS": 0.0025999906938523054,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08219998562708497,
+          "elapsedMS": 0.10859998292289674
+        },
+        {
+          "connectionMS": 0.0044000043999403715,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08080000407062471,
+          "elapsedMS": 0.09799998952075839
+        },
+        {
+          "connectionMS": 0.008300004992634058,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.10559998918324709,
+          "elapsedMS": 0.1221999991685152
+        },
+        {
+          "connectionMS": 0.0032999960239976645,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.07989999721758068,
+          "elapsedMS": 0.09319998207502067
+        },
+        {
+          "connectionMS": 0.0048000074457377195,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 34,
+          "sha256": "b6c375c74e08a83d69d3b1c1f5bfe2478424531f7c40ac427904cc4c7a6b06d4",
+          "firstByteMS": 0.08009999874047935,
+          "elapsedMS": 0.10460001067258418
+        }
+      ],
+      "bulk": [
+        {
+          "connectionMS": 0.006099988240748644,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.12489999062381685,
+          "elapsedMS": 28.017800010275096
+        },
+        {
+          "connectionMS": 0.013499986380338669,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.13040000339969993,
+          "elapsedMS": 14.616700005717576
+        },
+        {
+          "connectionMS": 0.006300018867477775,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.12630000128410757,
+          "elapsedMS": 18.957599997520447
+        },
+        {
+          "connectionMS": 0.007700000423938036,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.12059998698532581,
+          "elapsedMS": 44.68540000380017
+        },
+        {
+          "connectionMS": 0.007199996616691351,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.156299996888265,
+          "elapsedMS": 60.10679999599233
+        },
+        {
+          "connectionMS": 0.007400027243420482,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.13190001482143998,
+          "elapsedMS": 16.528100008144975
+        },
+        {
+          "connectionMS": 0.007599999662488699,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.1503999810665846,
+          "elapsedMS": 15.287399990484118
+        },
+        {
+          "connectionMS": 0.007099995855242014,
+          "reused": true,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 16777216,
+          "sha256": "080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e",
+          "firstByteMS": 0.1196000084746629,
+          "elapsedMS": 16.846900020027533
+        }
+      ],
+      "bulkWallSeconds": 0.2151853000104893,
+      "cpuSeconds": 0.28125
+    }
+  ],
+  "soak": [
+    {
+      "mode": "B2",
+      "requests": 480,
+      "failures": 0,
+      "samples": [
+        {
+          "elapsedSeconds": 0.05433900002390146,
+          "state": {
+            "admission": {
+              "dialTimeoutMS": 5000,
+              "lateClosed": 0,
+              "limit": 64,
+              "occupied": 1,
+              "openConnections": 1,
+              "peak": 8,
+              "pending": 0,
+              "retired": false
+            },
+            "coreDNSInstalled": true,
+            "coreTracked": 1,
+            "goroutines": 5,
+            "innerGlobalInstalled": true,
+            "openPipes": 0,
+            "peakPending": 0,
+            "pending": 0,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": {
+            "workingSetBytes": 24236032,
+            "privateBytes": 23298048,
+            "cpuSeconds": 0.015625
+          }
+        },
+        {
+          "elapsedSeconds": 10.053154000022914,
+          "state": {
+            "admission": {
+              "dialTimeoutMS": 5000,
+              "lateClosed": 0,
+              "limit": 64,
+              "occupied": 1,
+              "openConnections": 1,
+              "peak": 8,
+              "pending": 0,
+              "retired": false
+            },
+            "coreDNSInstalled": true,
+            "coreTracked": 1,
+            "goroutines": 5,
+            "innerGlobalInstalled": true,
+            "openPipes": 0,
+            "peakPending": 0,
+            "pending": 0,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": {
+            "workingSetBytes": 27119616,
+            "privateBytes": 26165248,
+            "cpuSeconds": 0.015625
+          }
+        },
+        {
+          "elapsedSeconds": 20.05337610002607,
+          "state": {
+            "admission": {
+              "dialTimeoutMS": 5000,
+              "lateClosed": 0,
+              "limit": 64,
+              "occupied": 1,
+              "openConnections": 1,
+              "peak": 8,
+              "pending": 0,
+              "retired": false
+            },
+            "coreDNSInstalled": true,
+            "coreTracked": 1,
+            "goroutines": 5,
+            "innerGlobalInstalled": true,
+            "openPipes": 0,
+            "peakPending": 0,
+            "pending": 0,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": {
+            "workingSetBytes": 29192192,
+            "privateBytes": 28270592,
+            "cpuSeconds": 0.03125
+          }
+        },
+        {
+          "elapsedSeconds": 30.054265200014925,
+          "state": {
+            "admission": {
+              "dialTimeoutMS": 5000,
+              "lateClosed": 0,
+              "limit": 64,
+              "occupied": 1,
+              "openConnections": 1,
+              "peak": 8,
+              "pending": 0,
+              "retired": false
+            },
+            "coreDNSInstalled": true,
+            "coreTracked": 1,
+            "goroutines": 5,
+            "innerGlobalInstalled": true,
+            "openPipes": 0,
+            "peakPending": 0,
+            "pending": 0,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": {
+            "workingSetBytes": 29310976,
+            "privateBytes": 28233728,
+            "cpuSeconds": 0.03125
+          }
+        },
+        {
+          "elapsedSeconds": 40.05347710000933,
+          "state": {
+            "admission": {
+              "dialTimeoutMS": 5000,
+              "lateClosed": 0,
+              "limit": 64,
+              "occupied": 1,
+              "openConnections": 1,
+              "peak": 8,
+              "pending": 0,
+              "retired": false
+            },
+            "coreDNSInstalled": true,
+            "coreTracked": 1,
+            "goroutines": 5,
+            "innerGlobalInstalled": true,
+            "openPipes": 0,
+            "peakPending": 0,
+            "pending": 0,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": {
+            "workingSetBytes": 29491200,
+            "privateBytes": 28356608,
+            "cpuSeconds": 0.046875
+          }
+        },
+        {
+          "elapsedSeconds": 50.05300480002188,
+          "state": {
+            "admission": {
+              "dialTimeoutMS": 5000,
+              "lateClosed": 0,
+              "limit": 64,
+              "occupied": 1,
+              "openConnections": 1,
+              "peak": 8,
+              "pending": 0,
+              "retired": false
+            },
+            "coreDNSInstalled": true,
+            "coreTracked": 1,
+            "goroutines": 5,
+            "innerGlobalInstalled": true,
+            "openPipes": 0,
+            "peakPending": 0,
+            "pending": 0,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": {
+            "workingSetBytes": 29233152,
+            "privateBytes": 28266496,
+            "cpuSeconds": 0.046875
+          }
+        }
+      ],
+      "durationSeconds": 60.0004313000245,
+      "retired": true,
+      "afterRetire": {
+        "admission": {
+          "dialTimeoutMS": 5000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    }
+  ],
+  "scope": "development only; no architecture selection or product migration",
+  "binaries": {
+    "B.exe": {
+      "sha256": "0808ae047183cf72abeadff5fdfd7280c00f350b127d2b766818e118ba96da3d",
+      "bytes": 61003264
+    },
+    "C.exe": {
+      "sha256": "50c4129b095c7f406ee23b0b1340ff9c88076e953fd81c0f8728c2272c7114ad",
+      "bytes": 28251136
+    },
+    "core.exe": {
+      "sha256": "71c7602a98c235a1c230cc89fc869d3026f5c1369d82e990309b01058ec75cea",
+      "bytes": 55928832
+    },
+    "fixture.exe": {
+      "sha256": "a480f3267efcd336d4dc3c07a218bc6f97b6c5c3f864f0493151ca1a401b7bbb",
+      "bytes": 28299264
+    }
+  },
+  "admissionPolicy": {
+    "B": "64 complete tunnel operations; native 5-second connect timeout",
+    "B2": "64 dials plus owned connections; 5-second dial timeout in this phase",
+    "C": "historical unrestricted ingress; native 5-second connect timeout",
+    "D": "64 frontend dials plus connections; core tunnel operations not bounded by that counter",
+    "comparisonLimit": "no equal core-capacity claim; normal benchmark stays below 64"
+  },
+  "realBusinessStatus": "not-run: no private input supplied",
+  "cleanup": {
+    "allOwnedProcessesExited": true,
+    "providerFilesRemaining": 0,
+    "hostsUnchanged": true
+  }
+}

@@ -16,3 +16,4 @@ func (*fullRuntime) ShutdownOnly()                 {}
 func (*fullRuntime) snapshot() map[string]any      { return nil }
 func (*fullRuntime) bindingChecks() map[string]any { return nil }
 func (*fullRuntime) swapNames() bool               { return false }
+func (*fullRuntime) endpoints() []endpoint         { return nil }

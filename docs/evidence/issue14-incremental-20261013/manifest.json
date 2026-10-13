@@ -10,6 +10,16 @@
       "sha256": "91763ad11bc1e2392ef2d4ee4917dcea0bbfc7320c2bf69e9e7b6ba0bbb26cbc"
     },
     {
+      "path": "docs/evidence/issue14-incremental-20261013/comparison-before-trace-lock-build.json",
+      "bytes": 43117,
+      "sha256": "526429aebf73dd309efa69a0364ecbcb74761d6f8f03ead71dcd1922f6a28765"
+    },
+    {
+      "path": "docs/evidence/issue14-incremental-20261013/comparison-before-trace-lock.json",
+      "bytes": 143798,
+      "sha256": "d79fd6fa55428fdaaf34f16c848fcfe230ed88d4772b8028b4105a899e53d69b"
+    },
+    {
       "path": "docs/evidence/issue14-incremental-20261013/history-bindings-backlog5.json",
       "bytes": 91227,
       "sha256": "3ce8f7accffd6405fbc9c5f25964b0c47b11c1600dd0794b855da9d4df289823"
@@ -58,13 +68,13 @@
     },
     {
       "path": "experiments/runtime-mihomo/incremental.ps1",
-      "bytes": 2570,
-      "sha256": "66e3e16a0d41b4db8324c83aa14127a466d939d74d6cae3d22db1cf9a9b3a373"
+      "bytes": 2588,
+      "sha256": "aff8a93b95f2fa6b109d8aaea6c74c310057164dfcc9c65b78a0d65ff3fbf133"
     },
     {
       "path": "experiments/runtime-mihomo/incremental.py",
-      "bytes": 14152,
-      "sha256": "9db7272b09ad1d2fd7487c3983f2f2c6872d4bb36d273345ca56540e0b4e4897"
+      "bytes": 22021,
+      "sha256": "9691e7a8b09d5a23405d82ac419c274d0b2c2a8138d18989e495d19c9bbabf95"
     },
     {
       "path": "experiments/runtime-mihomo/probe/admission.go",
@@ -78,8 +88,8 @@
     },
     {
       "path": "experiments/runtime-mihomo/probe/backend.go",
-      "bytes": 8101,
-      "sha256": "d6b7d20f34b842622698d0e1a03b91d6eb0aadd523eefc6eb830fcccf890d4e6"
+      "bytes": 8649,
+      "sha256": "7ba528ca0d074af9d295455c304068a82ce51ab6a6a09303db3366baeb8b7737"
     },
     {
       "path": "experiments/runtime-mihomo/probe/clock_other.go",
@@ -93,13 +103,18 @@
     },
     {
       "path": "experiments/runtime-mihomo/probe/external.go",
-      "bytes": 677,
-      "sha256": "22c32c81a2753345063053eec3753ab83327960bf999e6f28bbed7c9896d6889"
+      "bytes": 743,
+      "sha256": "893360b7cf8d157a905ab022bebe15c5418a8f33b53fd834561fbfb4174d407b"
+    },
+    {
+      "path": "experiments/runtime-mihomo/probe/inbound.go",
+      "bytes": 1309,
+      "sha256": "86eda9ca5bac7840fddecced320d3df55b9c6bc6ec6674aea3e45e388bd26b7b"
     },
     {
       "path": "experiments/runtime-mihomo/probe/main.go",
-      "bytes": 9334,
-      "sha256": "8a9254d6daf5d5ef4da7a2a02322664e99684dac10cc4645db3bb0069aed9113"
+      "bytes": 9739,
+      "sha256": "0fe538de7090cd43eb2a1fea635fadd8d42345a2563c2996e8c12447109ad3d4"
     },
     {
       "path": "experiments/runtime-mihomo/probe/native.go",
@@ -113,8 +128,8 @@
     },
     {
       "path": "experiments/runtime-mihomo/README.md",
-      "bytes": 5231,
-      "sha256": "8d7e6f9e0398f57e30cddb0dc261acdb79051c686fce453acf4d2111ce768dbb"
+      "bytes": 5440,
+      "sha256": "3f4d1b91e043d075a2873633a080256f3c51fb7ec5a7aeba42bd730de0bfeabc"
     },
     {
       "path": "experiments/runtime-mihomo/run.ps1",
@@ -148,8 +163,8 @@
     },
     {
       "path": "docs/issue-14-incremental-evaluation.md",
-      "bytes": 5865,
-      "sha256": "a114f932d1239f7f2a330ba466ec7125f289fbdf98e4cc0315688835be4d3592"
+      "bytes": 7610,
+      "sha256": "6e77026d591a33d32aecee42e560e7843d5e361810d94d1d56a9cc6c23c4eccb"
     }
   ],
   "redaction": "Only fixed categories, counts, loopback ports, relative timings and build identities. No private inputs, credentials, signed URLs or personal paths. Failures are retained."

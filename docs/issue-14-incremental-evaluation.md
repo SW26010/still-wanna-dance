@@ -40,3 +40,13 @@
 - 相关 `upstreamrequest` 测试在沙箱通过；`upstreamstate` 在沙箱临时目录原子 rename 被拒绝。正常用户上下文 `go test -mod=readonly -tags=no_easytier ./internal/upstreamrequest ./internal/upstreamstate -count=1` 两包通过，不改产品代码来适应沙箱故障。
 
 复跑：`incremental.ps1 -Phase lifecycle`；专项比较用 Python 运行 `incremental.py --bin <本轮绝对输出目录> --phase bindings --backlog 5` 或 `128`。需要网络表能看到阳性对照。构建身份见 [lifecycle-build.json](evidence/issue14-incremental-20261013/lifecycle-build.json)，文件校验见 [manifest.json](evidence/issue14-incremental-20261013/manifest.json)。正常结束已验证本轮全部进程退出、provider 明文文件为 0、hosts 哈希不变。原始夹具清单留在受限的忽略目录。
+
+### D 与共同负载工具
+
+为区分历史 B1/C 合成吞吐差异中的入口与进程因素，增加 D 的小范围诊断：同一完整 executor，使用上游导出的 `inbound.NewSocks`、`BaseOption.SpecialProxy` 和随机认证，绑定 `127.0.0.1:0` 后读取实际端口，每入口固定一个本代出口。没有自制 SOCKS 服务或协议实现。只验证认证、固定出口、Range、失败无直连和监听清理，不复制完整协议矩阵。
+
+初轮本地对照 [20/20](evidence/issue14-incremental-20261013/comparison-before-trace-lock.json) 包含 D 边界、四种入口三轮共同 SS 负载及 B2 60 秒混合取消负载。随后代码审查发现 HTTP trace 回调可能异步写测量字段，已加互斥保护；此前未运行 race，不能声称观察到了数据竞争。保留原轮次，正式汇总使用修正测量器后的复测，不把前后数字混为同一构建。
+
+B2/D 在性能阶段使用 5 秒拨号预算，与上游 tunnel 的 5 秒连接预算对齐；生命周期阶段保留更紧的 3 秒预算。所有方案的请求超时、节点、目标和字节数相同，但准入含义仍不同：B1 限制完整 tunnel 操作，B2 限制原生拨号及交付连接，D 只限制本机 SOCKS 前端，C 沿用原实验的入口。正常负载低于 64，不用这些计数作对等压力容量排名。D/C 的客户端连接关闭不意味着核心在途握手立即结束。
+
+`-Phase compare` 可独立执行全部本地成本检查；`-Phase real -PrivateSubscription <本地文件>` 只补公网验证，避免重复本地套件。用户已明确授权本轮复用既有私人订阅的前两个节点进行有限 API/视频取样；不拉取/更新订阅，不保存签名资源 URL。

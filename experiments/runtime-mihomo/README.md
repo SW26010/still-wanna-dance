@@ -1,6 +1,6 @@
 # 完整运行时 B/C 有限对照
 
-2026-10-13 后续中立增量评估见[新报告](../../docs/issue-14-incremental-evaluation.md)。`incremental.ps1 -Phase build` 构建 B1/B2 共用驱动与 C/核心/夹具；`-Phase lifecycle` 执行 B2 新增门槛，`-Phase compare` 执行必要对照。参数 `-GoExe`、`-PythonExe` 与下述一致，输出另存 `artifacts/issue14/incremental/`，不覆盖历史实验结果。
+2026-10-13 后续中立增量评估见[新报告](../../docs/issue-14-incremental-evaluation.md)。`incremental.ps1 -Phase build` 构建 B1/B2/D 共用驱动与 C/核心/夹具；`-Phase lifecycle` 执行 B2 新增门槛，`-Phase compare` 执行必要本地对照，`-Phase real -PrivateSubscription <文件>` 在明确授权后单独做有限公网补测。参数 `-GoExe`、`-PythonExe` 与下述一致，输出另存 `artifacts/issue14/incremental/`，不覆盖历史实验结果。B2/D 性能阶段拨号预算 5 秒，生命周期 3 秒；D 只做入口诊断，不是新增正式后端。
 
 对应 [issue #14 当前要求](https://github.com/SW26010/still-wanna-dance/issues/14)，比较 **B：完整 executor + 原生内存入口** 和 **C：同版本完整核心进程 + 固定 SOCKS5**。不调用旧 `Node.New`，不扩展旧协议白名单，不接入产品。结论、失败历史和生产设计见[评估报告](../../docs/mihomo-runtime-evaluation-20261013.md)。
 

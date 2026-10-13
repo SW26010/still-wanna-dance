@@ -1,7 +1,7 @@
 param(
     [string]$GoExe = 'go',
     [string]$PythonExe = 'python',
-    [ValidateSet('build','lifecycle','compare')][string]$Phase = 'build',
+    [ValidateSet('build','lifecycle','compare','bindings','real')][string]$Phase = 'build',
     [string]$PrivateSubscription = ''
 )
 $ErrorActionPreference = 'Stop'

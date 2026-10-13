@@ -1,3 +1,5 @@
+//go:build historical_a
+
 package main
 
 import (

@@ -17,6 +17,24 @@ type blockedCloseConn struct {
 	once             sync.Once
 }
 
+func TestAdmissionDeadlineRejectsLateNativeSuccess(t *testing.T) {
+	a := newAdmission(1, 20*time.Millisecond)
+	left, right := net.Pipe()
+	defer right.Close()
+	dial := a.wrap(func(ctx context.Context, _, _ string) (net.Conn, error) {
+		<-ctx.Done()
+		return left, nil
+	})
+	conn, err := dial(context.Background(), "tcp", "target.invalid:80")
+	if conn != nil || !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatal("late native success escaped deadline", err)
+	}
+	waitSignal(t, a.retire())
+	if _, err := left.Write([]byte("x")); err == nil {
+		t.Fatal("late connection still open")
+	}
+}
+
 func (c *blockedCloseConn) Close() error {
 	c.once.Do(func() { close(c.entered); <-c.release })
 	return c.Conn.Close()

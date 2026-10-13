@@ -80,7 +80,7 @@ func loadProxyNodes(fields map[string]json.RawMessage, s *Settings) {
 		return
 	}
 	for _, p := range doc.Nodes {
-		if _, err := mihomo.NormalizeNative(p); err != nil {
+		if _, err := mihomo.Normalize(p); err != nil {
 			return
 		}
 	}
@@ -125,7 +125,7 @@ func (c *Console) importProxyNodes(data []byte) (proxyImportResult, error) {
 	if !allowed {
 		return proxyImportResult{}, errors.New("请先同意条款，并等待应用就绪")
 	}
-	parsed, err := mihomo.ImportNative(data)
+	parsed, err := mihomo.Import(data)
 	result := proxyImportResult{ImportResult: parsed}
 	if err != nil || parsed.Accepted == 0 {
 		return result, err

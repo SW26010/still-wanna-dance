@@ -394,7 +394,7 @@
               <textarea id="proxyImportText" rows="5" autocomplete="off" spellcheck="false" aria-describedby="proxyImportHint"></textarea>
               <label for="proxyImportFile">或选择节点文件</label>
               <input id="proxyImportFile" type="file" accept=".yaml,.yml,.txt,.json" aria-describedby="proxyImportHint">
-              <p class="hint" id="proxyImportHint">支持 YAML 的 proxies、逐行 URI 和 Base64 URI 列表，最多 2 MiB / 2048 条。仅支持基础 SS、VLESS TCP/TLS、AnyTLS、Hysteria2；高级传输会逐条报错。检查仅生成草稿，保存后替换整份节点库，重启生效。不会自动更新订阅。</p>
+              <p class="hint" id="proxyImportHint">支持 YAML 的 proxies、逐行 URI 和 Base64 URI 列表，最多 2 MiB / 2048 条。支持 Mihomo 节点配置（含 VMess/WS）；代理组、链式代理和文件或系统网络选项不导入。检查仅生成草稿，保存后替换整份节点库，重启生效。不会自动更新订阅。</p>
               <input id="proxyImportID" type="hidden"><input id="proxyImportCount" type="hidden">
               <div class="actions"><button id="proxyImport" type="button">检查并导入到草稿</button><button id="proxyImportDiscard" type="button">清除本次导入草稿</button></div>
               <p id="proxyImportSummary" role="status"></p>

@@ -1,3 +1,5 @@
+//go:build historical_a
+
 // Development-only black-box driver. Not imported by a product entry point.
 package main
 

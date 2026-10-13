@@ -29,6 +29,7 @@ import (
 	"github.com/metacubex/mihomo/listener/sing_hysteria2"
 	"github.com/metacubex/mihomo/listener/sing_shadowsocks"
 	"github.com/metacubex/mihomo/listener/sing_vless"
+	"github.com/metacubex/mihomo/listener/sing_vmess"
 )
 
 type fixtureTunnel struct {
@@ -88,7 +89,7 @@ func run() error {
 		return fmt.Errorf("usage: fixture manifest.json")
 	}
 	counts := map[string]*countingListen{}
-	for _, name := range []string{"ss", "vless", "anytls", "hysteria2"} {
+	for _, name := range []string{"ss", "vless", "anytls", "hysteria2", "vmess"} {
 		counts[name] = &countingListen{udpPeers: map[string]bool{}}
 	}
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -150,11 +151,16 @@ func run() error {
 		return err
 	}
 	defer hy.Close()
+	vm, err := sing_vmess.New(LC.VmessServer{Listen: "127.0.0.1:0", Users: []LC.VmessUser{{Username: "test", UUID: uuid}}, WsPath: "/stream"}, counts["vmess"], tunnel)
+	if err != nil {
+		return err
+	}
+	defer vm.Close()
 	var nodes []map[string]any
 	for _, item := range []struct {
 		protocol string
 		listener C.MultiAddrListener
-	}{{"ss", ss}, {"vless", vl}, {"anytls", at}, {"hysteria2", hy}} {
+	}{{"ss", ss}, {"vless", vl}, {"anytls", at}, {"hysteria2", hy}, {"vmess", vm}} {
 		address := item.listener.AddrList()[0].String()
 		_, portText, _ := net.SplitHostPort(address)
 		port, _ := strconv.Atoi(portText)
@@ -162,6 +168,12 @@ func run() error {
 		if item.protocol == "ss" {
 			node["cipher"] = "aes-128-gcm"
 			node["password"] = password
+		} else if item.protocol == "vmess" {
+			node["uuid"] = uuid
+			node["cipher"] = "auto"
+			node["alterId"] = 0
+			node["network"] = "ws"
+			node["ws-opts"] = map[string]any{"path": "/stream"}
 		} else {
 			node["fingerprint"] = fingerprint
 			if item.protocol == "vless" {

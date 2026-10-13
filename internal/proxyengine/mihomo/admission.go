@@ -87,7 +87,9 @@ func (a *admission) wrap(dial upstreamrequest.DialFunc) upstreamrequest.DialFunc
 		a.workers++
 		a.mu.Unlock()
 		op, cancel := context.WithTimeout(ctx, a.timeout)
+		defer cancel()
 		stop := context.AfterFunc(a.ctx, cancel)
+		defer stop()
 		type result struct {
 			conn *admittedConn
 			err  error
@@ -95,8 +97,6 @@ func (a *admission) wrap(dial upstreamrequest.DialFunc) upstreamrequest.DialFunc
 		done := make(chan result)
 		go func() {
 			defer func() {
-				stop()
-				cancel()
 				a.mu.Lock()
 				a.workers--
 				a.signalDrained()
@@ -147,6 +147,9 @@ func (a *admission) wrap(dial upstreamrequest.DialFunc) upstreamrequest.DialFunc
 			err := ctx.Err()
 			if err == nil && a.ctx.Err() != nil {
 				err = upstreamrequest.ErrRetired
+			}
+			if err == nil {
+				err = op.Err()
 			}
 			if err != nil {
 				if r.conn != nil {

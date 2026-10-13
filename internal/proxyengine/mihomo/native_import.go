@@ -18,12 +18,6 @@ import (
 // core's unredacted event stream or temporarily enable its sink for debugging.
 func init() { logrus.SetOutput(io.Discard) }
 
-// ImportNative is staged separately until the complete runtime is connected.
-// Preview never applies a config or acquires the process's runtime ownership.
-func ImportNative(data []byte) (ImportResult, error) {
-	return importNodes(data, nativeURI, NormalizeNative)
-}
-
 func nativeURI(line string) (map[string]any, error) {
 	nodes, err := convert.ConvertsV2Ray([]byte(line))
 	if err != nil || len(nodes) != 1 {
@@ -32,10 +26,10 @@ func nativeURI(line string) (map[string]any, error) {
 	return nodes[0], nil
 }
 
-// NormalizeNative preserves native connection semantics, including credentials
+// Normalize preserves native connection semantics, including credentials
 // and otherwise unknown options. It deliberately does not equate every encoding
 // or protocol default. A conservative new identity is safer than wrong reuse.
-func NormalizeNative(input map[string]any) (map[string]any, error) {
+func Normalize(input map[string]any) (map[string]any, error) {
 	nativeConfigMu.Lock()
 	defer nativeConfigMu.Unlock()
 	p, err := nativeParameters(input)

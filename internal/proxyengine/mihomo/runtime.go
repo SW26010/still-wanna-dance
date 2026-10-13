@@ -1,3 +1,4 @@
+// Package mihomo owns SWD's single controlled native runtime and fixed exits.
 package mihomo
 
 import (
@@ -21,6 +22,17 @@ import (
 
 const defaultConnectionsPerNode = 32
 const runtimeCloseBudget = 3 * time.Second
+
+// Config contains immutable connection parameters and a keyed stable identity.
+type Config struct {
+	ID         string
+	Parameters map[string]any
+}
+
+var (
+	ErrConfig = errors.New("mihomo: unsupported or invalid node configuration")
+	ErrDial   = errors.New("mihomo: connection failed")
+)
 
 var runtimeStarted atomic.Bool
 var nativeConfigMu sync.Mutex
@@ -105,7 +117,7 @@ func NewRuntime(configs []Config, options RuntimeOptions) (*Runtime, error) {
 func runtimeConfig(nodes []map[string]any) map[string]any {
 	// Literal-IP DoH avoids bootstrap/system hosts, with normal certificate
 	// verification. This is core-owned DNS; SWD's existing directDNS is untouched.
-	dns := []string{"https://1.1.1.1/dns-query", "https://1.0.0.1/dns-query"}
+	dns := []string{"https://223.5.5.5/dns-query", "https://1.1.1.1/dns-query"}
 	return map[string]any{
 		"mode": "rule", "log-level": "silent", "allow-lan": false, "find-process-mode": "off",
 		"port": 0, "socks-port": 0, "mixed-port": 0, "redir-port": 0, "tproxy-port": 0,

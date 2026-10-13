@@ -114,7 +114,7 @@ python experiments/cf-concurrency/analyze_sweep.py artifacts/cf-concurrency/high
 
 固定随机种子 20261014，三轮各 15 组：空闲基线；1/4/8/12/16/24/32 路同时启动；4/8/12/16/24/32 路每 250 ms 增加 1 路；1→4→8→12→16→24→32 每档保持 6 秒。前两类到达目标后保持 6 秒，稳态分析取最后约 4 秒；阶段升档保留已有连接。计划先于正式结果冻结。单组最多 2 GiB，主批次预留后限制在 20 GiB 内；遇错误即停，正文自然排空最多 20 秒。不超过 32 路。初版 1 GiB 限制在阶梯第 36 秒触发，本地取消 29 个在途请求；该不完整批次保留为预实验，不能混入主比较。主批次与预实验合计上限 24 GiB。
 
-经用户授权，以 UAC 启动 `trace-helper.ps1 -TraceDirectory <绝对忽略目录>`。助手只接受 start/stop/quit，最长 60 分钟；有既存内核采集则拒绝，不修改其他会话。记录进程/线程、上下文切换、ReadyThread、DPC/ISR 和本实验阶段提供程序，不记录 CPU 栈。原始 ETL、CSV、系统进程名称及私密 URL 均只留在 `artifacts/`。
+经用户授权，以 UAC 启动 `trace-helper.ps1 -TraceDirectory <绝对忽略目录>`。助手只接受 start/stop/quit，默认最长 60 分钟，可用 `-LifetimeMinutes` 明确设置 1–360 分钟；单段采集默认最多 10 分钟（`-MaxTraceMinutes` 为 1–15）。有既存内核采集则拒绝，不修改其他会话。参数错误会停止本助手持有的采集并返回错误，助手仍可接收下一次请求，避免调整实验后重复 UAC；清理失败则退出。普通权限实验程序与助手分离，助手不接受命令、脚本或可执行文件路径。记录进程/线程、上下文切换、ReadyThread、DPC/ISR 和本实验阶段提供程序，不记录 CPU 栈。原始 ETL、CSV、系统进程名称及私密 URL 均只留在 `artifacts/`。
 
 `run_cpu.py --round 1`（然后 2、3）调用同目录 `cpu-probe.exe`，并由助手在每轮前后启停 ETW。先用 `-mode cpu-warmup` 保存 reference.json；目标资源及 IP 与 high 实验相同。用 `xperf -i cpu-main-r1.etl -o cpu-main-r1.csv -a dumper` 导出；`analyze_cpu.py --out <脱敏证据目录>` 只提取本实验进程，线程 ID 变为组内序号，去除 PID 和完整远端端口。
 

@@ -1,4 +1,8 @@
-param([Parameter(Mandatory=$true)][string]$TraceDirectory)
+param(
+    [Parameter(Mandatory=$true)][string]$TraceDirectory,
+    [ValidateRange(1,360)][int]$LifetimeMinutes = 60,
+    [ValidateRange(1,15)][int]$MaxTraceMinutes = 10
+)
 $ErrorActionPreference = 'Stop'
 $traceRoot = [IO.Path]::GetFullPath($TraceDirectory)
 if (-not (Test-Path -LiteralPath $traceRoot -PathType Container)) { throw 'Trace directory must already exist' }
@@ -11,6 +15,7 @@ $kernelOwned = $false
 $markerOwned = $false
 $lastId = ''
 $stem = ''
+$traceStarted = $null
 function Publish([string]$id, [string]$state, [string]$detail) {
     $value = [ordered]@{ id=$id; state=$state; detail=$detail }
     $temp = Join-Path $traceRoot 'trace-status.tmp'
@@ -39,14 +44,18 @@ try {
     $principal=[Security.Principal.WindowsPrincipal]::new($identity)
     if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Administrator token required' }
     Publish '' 'ready' 'Elevated helper; only bounded ETW start/stop requests accepted'
-    $deadline=[DateTime]::UtcNow.AddMinutes(60)
+    $deadline=[DateTime]::UtcNow.AddMinutes($LifetimeMinutes)
     while ([DateTime]::UtcNow -lt $deadline) {
         Start-Sleep -Milliseconds 250
+        if ($kernelOwned -and $traceStarted -and [DateTime]::UtcNow -gt $traceStarted.AddMinutes($MaxTraceMinutes)) {
+            Stop-OwnedTrace
+            Publish $lastId 'error' 'Trace duration limit reached; helper remains available'
+        }
         if (-not (Test-Path -LiteralPath $requestPath)) { continue }
         try { $request=Get-Content -LiteralPath $requestPath -Raw | ConvertFrom-Json } catch { continue }
         if (-not $request.id -or $request.id -eq $lastId) { continue }
         $lastId=[string]$request.id
-        switch ($request.action) {
+        try { switch ($request.action) {
             'start' {
                 if ($kernelOwned -or $markerOwned) { throw 'This helper already owns a trace' }
                 $stem=[string]$request.stem
@@ -56,6 +65,7 @@ try {
                 if (Test-Path -LiteralPath (Join-Path $traceRoot ($stem+'.etl'))) { throw 'Refusing to overwrite existing evidence' }
                 Invoke-Xperf @('-on','PROC_THREAD+LOADER+CSWITCH+DISPATCHER+DPC+INTERRUPT','-BufferSize','256','-MinBuffers','64','-MaxBuffers','256','-f',(Join-Path $traceRoot ($stem+'-kernel.etl')))
                 $kernelOwned=$true
+                $traceStarted=[DateTime]::UtcNow
                 Invoke-Xperf @('-start',$markerName,'-on',($markerProvider+':0x1:5'),'-BufferSize','64','-MinBuffers','4','-MaxBuffers','16','-f',(Join-Path $traceRoot ($stem+'-markers.etl')))
                 $markerOwned=$true
                 Publish $lastId 'recording' $stem
@@ -70,10 +80,14 @@ try {
                 exit 0
             }
             default { throw 'Only start, stop and quit actions are accepted' }
+        } } catch {
+            $requestFailure=$_.Exception.Message
+            Stop-OwnedTrace
+            Publish $lastId 'error' ($requestFailure+'; helper remains available')
         }
     }
     Stop-OwnedTrace
-    Publish $lastId 'exited' '60-minute helper limit reached; owned trace sessions stopped'
+    Publish $lastId 'exited' ($LifetimeMinutes.ToString()+'-minute helper limit reached; owned trace sessions stopped')
 } catch {
     $failure=$_.Exception.Message
     try { Stop-OwnedTrace } catch { $failure += '; cleanup: '+$_.Exception.Message }

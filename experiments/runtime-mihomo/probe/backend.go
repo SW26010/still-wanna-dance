@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/metacubex/mihomo/component/proxydialer"
 	"github.com/metacubex/mihomo/component/resolver"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/hub/executor"
@@ -30,6 +31,8 @@ var initialized atomic.Bool
 
 type fullRuntime struct {
 	C.Tunnel
+	admission        *admission
+	bindings         map[string]C.Proxy
 	mu               sync.Mutex
 	closed           bool
 	connections      map[*ownedConn]bool
@@ -83,6 +86,10 @@ func startRuntime(init command) (*fullRuntime, error) {
 	savedResolver, savedTransport := net.DefaultResolver, http.DefaultTransport
 	executor.ApplyConfig(parsed, true)
 	r := &fullRuntime{Tunnel: tunnel.Tunnel, connections: map[*ownedConn]bool{}, slots: make(chan struct{}, 64), defaultResolver: savedResolver, defaultTransport: savedTransport}
+	if init.Mode == "B2" {
+		r.admission = newAdmission(64, 3*time.Second)
+	}
+	r.bindings = make(map[string]C.Proxy)
 	for i := range nodes {
 		name := fmt.Sprintf("n%d", i)
 		p, ok := tunnel.Proxies()[name]
@@ -91,9 +98,14 @@ func startRuntime(init command) (*fullRuntime, error) {
 			return nil, errors.New("missing-fixed-outbound")
 		}
 		r.coreProxies = append(r.coreProxies, p)
-		r.proxies = append(r.proxies, upstreamrequest.Proxy{ID: fmt.Sprintf("stable-v1-%064x", i+1), Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+		r.bindings[name] = p
+		var dial upstreamrequest.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
 			return r.dial(ctx, network, address, name)
-		}})
+		}
+		if r.admission != nil {
+			dial = r.admission.wrap(proxydialer.New(p, true).DialContext)
+		}
+		r.proxies = append(r.proxies, upstreamrequest.Proxy{ID: fmt.Sprintf("stable-v1-%064x", i+1), Dial: dial})
 	}
 	return r, nil
 }
@@ -143,6 +155,27 @@ func (r *fullRuntime) dial(ctx context.Context, network, address, name string) (
 	return c, nil
 }
 func (r *fullRuntime) ShutdownOnly() { executor.Shutdown() }
+
+// Excludes built-ins and dynamic groups. Production bindings use New(proxy,true)
+// with the captured object, so later global name changes cannot rebind them.
+type fixedTunnel struct {
+	C.Tunnel
+	bindings map[string]C.Proxy
+}
+
+func (t fixedTunnel) Proxies() map[string]C.Proxy { return t.bindings }
+func (r *fullRuntime) bindingChecks() map[string]any {
+	t := fixedTunnel{Tunnel: r.Tunnel, bindings: r.bindings}
+	failed := true
+	for _, name := range []string{"", "missing", "DIRECT", "GLOBAL", "REJECT"} {
+		conn, err := proxydialer.NewByName(name, t).DialContext(context.Background(), "tcp", "127.0.0.1:1")
+		if conn != nil {
+			conn.Close()
+		}
+		failed = failed && err != nil
+	}
+	return map[string]any{"unknownAndBuiltinRejected": failed, "fixedCount": len(r.bindings)}
+}
 func (r *fullRuntime) Close() {
 	r.mu.Lock()
 	if r.closed {
@@ -158,6 +191,9 @@ func (r *fullRuntime) Close() {
 	for _, c := range cs {
 		c.Close()
 	}
+	if r.admission != nil {
+		r.admission.retire()
+	}
 	for _, p := range r.coreProxies {
 		p.Close()
 	}
@@ -167,6 +203,9 @@ func (r *fullRuntime) Close() {
 		}
 	}
 	executor.Shutdown()
+	if r.admission != nil {
+		r.admission.wait(7 * time.Second)
+	}
 	// A diagnostic bound, not a claim that arbitrary core code can be stopped.
 	done := make(chan struct{})
 	go func() { r.work.Wait(); close(done) }()
@@ -182,5 +221,9 @@ func (r *fullRuntime) snapshot() map[string]any {
 	r.mu.Unlock()
 	tracked := 0
 	statistic.DefaultManager.Range(func(statistic.Tracker) bool { tracked++; return true })
-	return map[string]any{"standardResolverUnchanged": net.DefaultResolver == r.defaultResolver, "standardTransportUnchanged": http.DefaultTransport == r.defaultTransport, "pending": r.pending.Load(), "peakPending": r.peak.Load(), "openPipes": count, "retired": closed, "goroutines": runtime.NumGoroutine(), "coreTracked": tracked, "systemHosts": resolver.UseSystemHosts, "coreDNSInstalled": resolver.DefaultResolver != nil, "innerGlobalInstalled": inner.GetTunnel() != nil, "slotLimit": cap(r.slots)}
+	out := map[string]any{"standardResolverUnchanged": net.DefaultResolver == r.defaultResolver, "standardTransportUnchanged": http.DefaultTransport == r.defaultTransport, "pending": r.pending.Load(), "peakPending": r.peak.Load(), "openPipes": count, "retired": closed, "goroutines": runtime.NumGoroutine(), "coreTracked": tracked, "systemHosts": resolver.UseSystemHosts, "coreDNSInstalled": resolver.DefaultResolver != nil, "innerGlobalInstalled": inner.GetTunnel() != nil, "slotLimit": cap(r.slots)}
+	if r.admission != nil {
+		out["admission"] = r.admission.snapshot()
+	}
+	return out
 }

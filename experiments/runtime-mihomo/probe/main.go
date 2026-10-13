@@ -29,6 +29,8 @@ type endpoint struct {
 	Parameters                  map[string]any
 }
 type command struct {
+	Bindings, RawDial                              bool
+	Address                                        string
 	ExportSource                                   bool
 	Payload, Home, DNS, Range                      string
 	Prepare, Stats, ShutdownOnly, Panic, PreCancel bool
@@ -73,7 +75,7 @@ func main() {
 	}
 	var proxies []upstreamrequest.Proxy
 	var backend *fullRuntime
-	if init.Mode == "B" {
+	if init.Mode == "B" || init.Mode == "B2" {
 		var err error
 		backend, err = startRuntime(init)
 		if err != nil {
@@ -116,6 +118,10 @@ func main() {
 		if cmd.Panic {
 			go func() { panic("synthetic-core-goroutine-fault") }()
 			select {}
+		}
+		if cmd.Bindings && backend != nil {
+			json.NewEncoder(os.Stdout).Encode(backend.bindingChecks())
+			continue
 		}
 		if cmd.ShutdownOnly && backend != nil {
 			backend.ShutdownOnly()
@@ -215,6 +221,22 @@ func main() {
 				}
 				start := clockSeconds()
 				o := observation{Index: idx}
+				if cmd.RawDial {
+					conn, err := proxies[idx].Dial(ctx, "tcp", cmd.Address)
+					if conn != nil {
+						conn.Close()
+					}
+					o.OK = err == nil
+					if err != nil {
+						o.Error = "dial-failed"
+						if ctx.Err() != nil {
+							o.Error = "deadline-or-cancel"
+						}
+					}
+					o.ElapsedMS = (clockSeconds() - start) * 1000
+					results[i] = o
+					return
+				}
 				ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{GotFirstResponseByte: func() { o.FirstByteMS = (clockSeconds() - start) * 1000 }})
 				r, _ := http.NewRequestWithContext(ctx, "GET", cmd.URL, nil)
 				if cmd.Range != "" {

@@ -1,9 +1,0 @@
-version: 2
-updates:
-  - package-ecosystem: gomod
-    directory: /
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-    # Proposals only, with no automatic merge. Before accepting a Mihomo
-    # version change, review adapters, protocol fixtures, notices and source.

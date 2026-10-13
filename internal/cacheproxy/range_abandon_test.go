@@ -12,7 +12,7 @@ import (
 )
 
 func TestCanceledSeekReleasesWorkerWithoutCancelingSharedReaders(t *testing.T) {
-	body := bytes.Repeat([]byte("z"), int(rangeBlockSize*4))
+	body := bytes.Repeat([]byte("z"), int(rangeBlockSize*8))
 	prefix, oldStarted, oldCanceled := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	var oldRequests atomic.Int32
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
@@ -22,14 +22,16 @@ func TestCanceledSeekReleasesWorkerWithoutCancelingSharedReaders(t *testing.T) {
 		w.Header().Set("Content-Length", fmt.Sprint(end-start+1))
 		w.WriteHeader(206)
 		w.(http.Flusher).Flush()
-		if start == 0 {
+		// Occupy every background worker so this scenario exercises a
+		// demand-owned tail request, independent of speculative scheduling.
+		if start < rangeBackgroundWorkers*rangeBlockSize {
 			select {
 			case <-prefix:
 			case <-r.Context().Done():
 				return
 			}
 		}
-		if start == 2*rangeBlockSize && oldRequests.Add(1) == 1 {
+		if start == 6*rangeBlockSize && oldRequests.Add(1) == 1 {
 			close(oldStarted)
 			<-r.Context().Done()
 			close(oldCanceled)
@@ -53,7 +55,7 @@ func TestCanceledSeekReleasesWorkerWithoutCancelingSharedReaders(t *testing.T) {
 	original := f.spool.demand
 	f.spool.demand = func(offset int64) func() {
 		release := original(offset)
-		if offset == 2*rangeBlockSize {
+		if offset == 6*rangeBlockSize {
 			registered <- struct{}{}
 		}
 		return release
@@ -61,7 +63,7 @@ func TestCanceledSeekReleasesWorkerWithoutCancelingSharedReaders(t *testing.T) {
 	f.spool.mu.Unlock()
 	done := make(chan error, 2)
 	for _, reader := range []*spoolReader{one, two} {
-		reader.Seek(2*rangeBlockSize, io.SeekStart)
+		reader.Seek(6*rangeBlockSize, io.SeekStart)
 		go func() { _, err := reader.Read(make([]byte, 8)); done <- err }()
 	}
 	for range 2 {
@@ -98,7 +100,7 @@ func TestCanceledSeekReleasesWorkerWithoutCancelingSharedReaders(t *testing.T) {
 	}
 	three := f.spool.reader(ctx, v.size)
 	defer three.Close()
-	three.Seek(3*rangeBlockSize, io.SeekStart)
+	three.Seek(7*rangeBlockSize, io.SeekStart)
 	got := make([]byte, 8)
 	if _, err := io.ReadFull(three, got); err != nil || !bytes.Equal(got, body[:8]) {
 		t.Fatalf("new seek stalled: %v", err)

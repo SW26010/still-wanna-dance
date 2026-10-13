@@ -47,127 +47,13 @@ func validateRangeResponse(r *http.Response, start, end, size int64) error {
 	return nil
 }
 
-// Two workers per flight bound global requests to 2*MaxDownloads. One worker
-// always remains available for reader demand while the other fills holes.
-// Block claims coalesce overlapping requests without a goroutine per reader.
-type rangeWork struct {
-	mu               sync.Mutex
-	claimed, done    map[int64]bool
-	pending          map[int64]bool
-	readers          map[int64]int
-	active           map[int64]context.CancelCauseFunc
-	changed          chan struct{}
-	blocks, complete int64
-}
-
-func (w *rangeWork) signalLocked() { close(w.changed); w.changed = make(chan struct{}) }
-func (w *rangeWork) demand(offset int64) func() {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	block := offset / rangeBlockSize
-	if block < 0 || block >= w.blocks || w.done[block] {
-		return func() {}
-	}
-	w.readers[block]++
-	if !w.claimed[block] {
-		w.pending[block] = true
-	}
-	w.signalLocked()
-	return func() {
-		w.mu.Lock()
-		defer w.mu.Unlock()
-		w.readers[block]--
-		if w.readers[block] == 0 {
-			delete(w.readers, block)
-			delete(w.pending, block)
-			if cancel := w.active[block]; cancel != nil {
-				cancel(errRangeAbandoned)
-			}
-		}
-		w.signalLocked()
-	}
-}
-func (w *rangeWork) next(ctx context.Context, background bool) (int64, context.Context, bool) {
-	for {
-		w.mu.Lock()
-		var block int64 = -1
-		for b := range w.pending {
-			if !w.claimed[b] && !w.done[b] && (block < 0 || b < block) {
-				block = b
-			}
-		}
-		if block < 0 && background {
-			for b := int64(0); b < w.blocks; b++ {
-				if !w.done[b] && !w.claimed[b] {
-					block = b
-					break
-				}
-			}
-		}
-		if block >= 0 {
-			w.claimed[block] = true
-			delete(w.pending, block)
-			blockCtx := ctx
-			if !background {
-				var cancel context.CancelCauseFunc
-				blockCtx, cancel = context.WithCancelCause(ctx)
-				w.active[block] = cancel
-			}
-			claimed := block
-			blockCtx = context.WithValue(blockCtx, requestPriorityKey{}, requestPriority(func() (bool, <-chan struct{}) {
-				w.mu.Lock()
-				defer w.mu.Unlock()
-				return w.readers[claimed] > 0, w.changed
-			}))
-			w.mu.Unlock()
-			return block, blockCtx, true
-		}
-		finished, changed := w.complete == w.blocks, w.changed
-		w.mu.Unlock()
-		if finished {
-			return 0, ctx, false
-		}
-		select {
-		case <-ctx.Done():
-			return 0, ctx, false
-		case <-changed:
-		}
-	}
-}
-func (w *rangeWork) finish(block int64) {
-	w.mu.Lock()
-	w.done[block] = true
-	w.complete++
-	delete(w.claimed, block)
-	if cancel := w.active[block]; cancel != nil {
-		cancel(nil)
-		delete(w.active, block)
-	}
-	w.signalLocked()
-	w.mu.Unlock()
-}
-
-func (w *rangeWork) abandon(block int64) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	delete(w.claimed, block)
-	delete(w.active, block)
-	// A new reader may have arrived while the canceled request unwound.
-	if w.readers[block] > 0 {
-		w.pending[block] = true
-	}
-	w.signalLocked()
-}
-
 func (s *Server) publishRanges(ctx context.Context, first *http.Response, path string, v video, flight *flight) error {
 	f, err := os.CreateTemp(s.cfg.tempDir(), "download-*.part")
 	if err != nil {
 		return err
 	}
-	work := &rangeWork{claimed: map[int64]bool{0: true}, done: make(map[int64]bool), pending: make(map[int64]bool), changed: make(chan struct{}), blocks: (v.size + rangeBlockSize - 1) / rangeBlockSize}
-	work.readers = make(map[int64]int)
-	work.active = make(map[int64]context.CancelCauseFunc)
-	sp := &spool{file: f, changed: make(chan struct{}), refs: 1, demand: work.demand}
+	work := newRangeWork(v.size)
+	sp := &spool{file: f, changed: make(chan struct{}), refs: 1, demand: work.demand, track: work.trackReader}
 	flight.spool = sp
 	close(flight.streaming)
 	flight.progress.setStage("range_download")
@@ -266,14 +152,13 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 		}
 		return fmt.Errorf("%w: range %d-%d: %w", errUpstreamDownload, start, end-1, last)
 	}
-	results := make(chan struct{}, 2)
-	worker := func(background bool) {
-		defer func() { results <- struct{}{} }()
+	var workers sync.WaitGroup
+	worker := func(background bool, initial *http.Response) {
 		// Allocate only when this worker reads a valid response, then reuse for
 		// later blocks and retries. WriteAt consumes the bytes before reuse.
 		var buffer []byte
-		if background {
-			if err := readBlock(ctx, 0, first, &buffer); err != nil {
+		if initial != nil {
+			if err := readBlock(work.requestContext(ctx, 0), 0, initial, &buffer); err != nil {
 				cancel(err)
 				return
 			}
@@ -293,10 +178,12 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 			}
 		}
 	}
-	go worker(true)
-	go worker(false)
-	<-results
-	<-results
+	workers.Go(func() { worker(true, first) })
+	for i := 1; i < min(rangeBackgroundWorkers, int(work.blocks)); i++ {
+		workers.Go(func() { worker(true, nil) })
+	}
+	workers.Go(func() { worker(false, nil) })
+	workers.Wait()
 	// The first failure cancels its peer; that internal cancellation is not
 	// another root cause. Parent shutdown/deadlines retain their own cause.
 	err = context.Cause(ctx)

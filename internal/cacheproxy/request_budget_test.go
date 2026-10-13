@@ -254,3 +254,63 @@ func TestVideoRequestBudgetDemotionWakesEarlierWaiter(t *testing.T) {
 		t.Fatal("demoted waiter stalled")
 	}
 }
+
+func TestVideoRequestBudgetTransientPromotionWakesEarlierWaiter(t *testing.T) {
+	b := newRequestBudget(1, 1)
+	b.active, b.speculative = 1, 1
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	wakeA, wakeB := make(chan struct{}), make(chan struct{})
+	// Callbacks run under b.mu. Both waiters initially observe B as background.
+	// When capacity becomes available, A sees B briefly promoted and defers;
+	// B's own next observation is background again. No HTTP completion remains
+	// to wake A, so observing only B's boolean priority would strand the queue.
+	urgent, promote, demote := false, false, false
+	ctxA := context.WithValue(ctx, requestPriorityKey{}, requestPriority(func() (bool, <-chan struct{}) {
+		if promote {
+			promote = false
+			urgent, demote = true, true
+			close(wakeB)
+			wakeB = make(chan struct{})
+		}
+		return false, wakeA
+	}))
+	ctxB := context.WithValue(ctx, requestPriorityKey{}, requestPriority(func() (bool, <-chan struct{}) {
+		observed, changed := urgent, wakeB
+		if demote {
+			demote, urgent = false, false
+			close(wakeB)
+			wakeB = make(chan struct{})
+		}
+		return observed, changed
+	}))
+	gotA, gotB := make(chan func(), 1), make(chan func(), 1)
+	go func() { release, _ := b.acquire(ctxA); gotA <- release }()
+	waitRequestQueue(t, b, 1)
+	go func() { release, _ := b.acquire(ctxB); gotB <- release }()
+	waitRequestQueue(t, b, 2)
+	b.mu.Lock()
+	b.active, b.speculative = 0, 0
+	promote = true
+	close(wakeA)
+	wakeA = make(chan struct{})
+	b.mu.Unlock()
+	select {
+	case release := <-gotA:
+		if release == nil {
+			t.Fatal("transient promotion left available capacity unused")
+		}
+		release()
+	case <-ctx.Done():
+		t.Fatal("earlier waiter missed transient priority changes")
+	}
+	select {
+	case release := <-gotB:
+		if release == nil {
+			t.Fatal("transiently promoted waiter did not follow FIFO")
+		}
+		release()
+	case <-ctx.Done():
+		t.Fatal("transiently promoted waiter stalled")
+	}
+}

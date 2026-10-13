@@ -13,7 +13,8 @@ const videoRequestLimit = 6
 const backgroundRequestLimit = 4
 
 // A queued block can become urgent without canceling or duplicating its request.
-// The callback returns a snapshot and its change notification. It must never
+// The callback returns a snapshot and its notification channel for that state
+// generation; a change closes the channel and replaces it. It must never
 // acquire the budget mutex; the budget does not run callbacks holding Server.mu.
 type requestPriority func() (urgent bool, changed <-chan struct{})
 type requestPriorityKey struct{}
@@ -56,7 +57,8 @@ func (b *requestBudget) acquire(ctx context.Context) (func(), error) {
 	b.mu.Lock()
 	b.waiters = append(b.waiters, w)
 	b.signalLocked()
-	previousUrgent, priorityKnown := false, false
+	var previousChange <-chan struct{}
+	priorityKnown := false
 	for {
 		index := slices.Index(b.waiters, w)
 		if err := ctx.Err(); err != nil {
@@ -66,13 +68,13 @@ func (b *requestBudget) acquire(ctx context.Context) (func(), error) {
 			return nil, err
 		}
 		urgent, priorityChanged := w.urgent()
-		if priorityKnown && urgent != previousUrgent {
-			// In particular, a demoted request must wake earlier background
-			// waiters which were deferring to it. Otherwise both can sleep
-			// with unused capacity until an unrelated request changes state.
+		if priorityKnown && priorityChanged != previousChange {
+			// Another waiter may have observed a transient promotion which
+			// this waiter missed. Notify on generation changes even when our
+			// own priority is unchanged, so neither waits on the other.
 			b.signalLocked()
 		}
-		previousUrgent, priorityKnown = urgent, true
+		previousChange, priorityKnown = priorityChanged, true
 		ready := b.active < b.limit && (urgent || b.speculative < b.background)
 		for i, other := range b.waiters {
 			if other.ctx.Err() != nil {

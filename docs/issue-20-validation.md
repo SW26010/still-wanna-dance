@@ -71,3 +71,11 @@
 产品改动均限于 `internal/cacheproxy`，未改配置/存储版本、Monitor、代理后端、界面或跨歌曲准备数量，无新依赖。旧并发文档已加当前实现并保留历史评估。原始测试日志保留在忽略的 `artifacts/issue20/`，仓库只保存脱敏检查摘要和回环对照。未启动游戏、修改 hosts、重新打包发布或 push；开发完成与 LA-037 待实机验收分开。
 
 完整包结果、收尾复测、工具链、失败历史和最终 Go 文件 Git blob 身份见[开发检查摘要](evidence/issue20-development/development-checks.json)。最终源码以这些 blob 身份与本地提交共同核对；对照夹具与旧版隔离副本逐字节相同。
+
+## 后续审查修复（2026-10-14）
+
+上述性能对照及开发检查摘要对应 `cd89c1c` 及之前的实现，作为历史证据保留；不代表本节修复后的源码身份。
+
+审查补充发现：较晚请求短暂晋升又降级时，较早请求可能看见它为读取优先而让行，但它自身两次采样都为后台。仅比较优先级布尔值会漏掉共同队列唤醒，留下空闲额度。`request_budget.go` 改为比较优先级通知通道的代次；即使最终优先级相同，只要期间发生过通知也广播唤醒，保留同级 FIFO 和原请求上限。
+
+自动验证使用 Go 1.25.0 / Windows amd64 / `-race -tags=no_easytier`：新增 `TestVideoRequestBudgetTransientPromotionWakesEarlierWaiter` 在原 `cd89c1c` 实现连续 3 次因队列停滞失败；修复后全部 `TestVideoRequestBudget` 测试连续 20 次通过，无 DATA RACE。测试固定两请求的观察顺序和空闲额度，检查瞬态升降后两者按 FIFO 完成，不依赖其他下载完成事件唤醒。原始输出仅保留于忽略目录 `artifacts/issue20-review-fixes/`。实机状态继续为 LA-037 待验收。

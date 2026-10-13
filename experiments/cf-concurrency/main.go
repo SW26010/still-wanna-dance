@@ -151,6 +151,7 @@ type observation struct {
 	Connection  int      `json:"connection"`
 	Reused      bool     `json:"reused"`
 	Remote      string   `json:"remote"`
+	TargetIP    string   `json:"targetIP,omitempty"`
 	Cache       string   `json:"cache"`
 	Age         string   `json:"age,omitempty"`
 	Colo        string   `json:"colo,omitempty"`
@@ -162,6 +163,7 @@ type runResult struct {
 	Round       int           `json:"round"`
 	Arm         string        `json:"arm"`
 	Concurrency int           `json:"concurrency"`
+	IPs         []string      `json:"ips,omitempty"`
 	StartMS     float64       `json:"startMS"`
 	ElapsedMS   float64       `json:"elapsedMS"`
 	Bytes       int64         `json:"bytes"`
@@ -195,6 +197,7 @@ func safeError(err error) string {
 func fetch(ctx context.Context, c *http.Client, t target, start, length int64, zero time.Time, state *traceState, reference []string) (o observation) {
 	begin := time.Now()
 	o.Offset, o.Length, o.StartMS = start, length, ms(begin.Sub(zero))
+	o.TargetIP = t.IP
 	state.mu.Lock()
 	state.active++
 	state.peak = max(state.peak, state.active)
@@ -223,6 +226,11 @@ func fetch(ctx context.Context, c *http.Client, t target, start, length int64, z
 		return
 	}
 	defer resp.Body.Close()
+	peer, _, peerErr := net.SplitHostPort(o.Remote)
+	if peerErr != nil || !net.ParseIP(peer).Equal(net.ParseIP(t.IP)) {
+		o.Error = "connected to unexpected IP"
+		return
+	}
 	o.Status, o.Protocol = resp.StatusCode, resp.Proto
 	o.Cache, o.Age, o.Colo, o.Server = resp.Header.Get("CF-Cache-Status"), resp.Header.Get("Age"), colo(resp.Header.Get("CF-Ray")), resp.Header.Get("Server")
 	if err = validateResponse(resp, start, length, t.Size, t.ETag); err != nil {
@@ -275,16 +283,30 @@ func fetch(ctx context.Context, c *http.Client, t target, start, length int64, z
 }
 
 func measure(ctx context.Context, t target, size int64, n int, reference []string, zero time.Time) runResult {
-	result := runResult{Concurrency: max(n, 1), Arm: fmt.Sprintf("range-%d", n)}
+	return measureIPs(ctx, t, []string{t.IP}, size, n, reference, zero)
+}
+
+func measureIPs(ctx context.Context, t target, ips []string, size int64, n int, reference []string, zero time.Time) runResult {
+	result := runResult{Concurrency: max(n, 1), Arm: fmt.Sprintf("range-%d", n), IPs: append([]string(nil), ips...)}
 	if n == 0 {
 		result.Arm = "long"
 	}
-	c, closeClient, err := clientFor(t)
-	if err != nil {
-		result.Error = safeError(err)
+	if err := validateIPs(ips); err != nil || n < 0 || n > 12 || max(n, 1) < len(ips) || size <= 0 || size%blockSize != 0 {
+		result.Error = "invalid measurement parameters"
 		return result
 	}
-	defer closeClient()
+	clients := make([]*http.Client, len(ips))
+	for i, ip := range ips {
+		pinned := t
+		pinned.IP = ip
+		c, closeClient, err := clientFor(pinned)
+		if err != nil {
+			result.Error = safeError(err)
+			return result
+		}
+		defer closeClient()
+		clients[i] = c
+	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	state := &traceState{connections: make(map[net.Conn]int)}
@@ -297,7 +319,10 @@ func measure(ctx context.Context, t target, size int64, n int, reference []strin
 	begin := time.Now()
 	result.StartMS = ms(begin.Sub(zero))
 	var workers sync.WaitGroup
-	for range max(n, 1) {
+	for worker := range max(n, 1) {
+		pinned := t
+		pinned.IP = ips[worker%len(ips)]
+		c := clients[worker%len(ips)]
 		workers.Go(func() {
 			for {
 				i := int(next.Add(1) - 1)
@@ -308,7 +333,7 @@ func measure(ctx context.Context, t target, size int64, n int, reference []strin
 				if n == 0 {
 					start, length = 0, size
 				}
-				o := fetch(ctx, c, t, start, length, begin, state, reference)
+				o := fetch(ctx, c, pinned, start, length, begin, state, reference)
 				result.Requests[i] = o
 				if o.Error != "" {
 					cancel()
@@ -362,7 +387,8 @@ func main() {
 	}
 }
 func run() error {
-	mode := flag.String("mode", "prepare", "prepare or measure")
+	mode := flag.String("mode", "prepare", "prepare, measure, or sweep")
+	ips := flag.String("ips", "", "sweep only: 1..3 comma-separated DNS IPv4 addresses")
 	private := flag.String("private", "artifacts/cf-concurrency/target.json", "private target file")
 	out := flag.String("out", "artifacts/cf-concurrency/results.json", "measurement output")
 	song := flag.Int("song", 1343, "API song ID")
@@ -380,7 +406,7 @@ func run() error {
 		}
 		return save(*private, t)
 	}
-	if *mode != "measure" {
+	if *mode != "measure" && *mode != "sweep" {
 		return errors.New("unknown mode")
 	}
 	var t target
@@ -404,6 +430,9 @@ func run() error {
 	size := int64(*sizeMiB) * blockSize
 	if size > t.Size {
 		return errors.New("resource smaller than requested interval")
+	}
+	if *mode == "sweep" {
+		return sweep(ctx, t, strings.Split(*ips, ","), size, *out)
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()

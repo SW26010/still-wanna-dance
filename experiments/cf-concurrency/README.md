@@ -58,3 +58,25 @@ python experiments/cf-concurrency/analyze.py artifacts/cf-concurrency/run-01.jso
 ```
 
 脚本要求每个纳入的配对轮次包含全部五组且全部成功；内容参照、固定地址、歌曲和区间必须一致。失败组或不完整轮次必须另行报告，不能静默删除后计算仅成功样本的加速比。
+
+## 扩展：4/6/8/12 路与多 IP
+
+`measure` 保留上面的四路实验。`sweep` 是独立的开发实验，最多 12 个在途请求、三个 IPv4 地址；不修改产品的 3 路默认值或全局 6/4 配额。先用 `Resolve-DnsName -Type A -DnsOnly -NoHostsFile` 核对并单独保存本次系统 DNS 答案，再以 `-ips` 显式固定地址；工具不会自动发现、替换或删除失败地址，也不在实验中按 DNS TTL 换址。TLS 域名、Host、资源 URL 均相同。
+
+```powershell
+Resolve-DnsName play.udon.dance -Type A -DnsOnly -NoHostsFile
+# 完成上述测试、vet 和编译后运行；ips 必须来自本次 DNS 核对。
+& artifacts/cf-concurrency/probe.exe -mode prepare -private artifacts/cf-concurrency/sweep-target.json
+& artifacts/cf-concurrency/probe.exe -mode sweep -private artifacts/cf-concurrency/sweep-target.json -ips '104.26.4.28,104.26.5.28,172.67.69.58' -mib 30 -out artifacts/cf-concurrency/sweep.json
+python experiments/cf-concurrency/analyze_sweep.py artifacts/cf-concurrency/sweep.json --out artifacts/cf-concurrency/sweep-summary.json --chart artifacts/cf-concurrency/sweep.png
+```
+
+每个 IP 都先执行一次完整长 Range 预热，必须有强 ETag，并逐块匹配第一个地址的 SHA256；失败即保留结果并停止，不能把不可达地址静默剔除。每个分块也检查实际远端 IP 和目标一致。此处“跨 IP 校验”只验证同一区间的表示一致，不证明三个地址对应不同物理服务器。
+
+三个 IP 各自单独运行 4/6/8/12 路，再比较三 IP 合用的相同四档**总并发**；另有 IP1 单个长 Range 对照，共 17 组。每轮包含所有组一次，共三轮，用固定种子 `20261014` 事先打乱顺序；完整计划在初次结果文件中保存。这是随机完整区组，三轮不构成完整顺序平衡。
+
+合用时每个工作者固定使用一个 IP，各 IP 共享待下载块队列；快 IP 自然领取更多块，没有失败重试或迁移。12 路为每 IP 4 路，6 路为每 IP 2 路；4 路的 2/1/1 与 8 路的 3/3/2 额外名额在三轮轮换。比较结果时同时展示各单 IP，避免把选到较快地址误认为多 IP 聚合带宽。保持新连接池、1 MiB 块、同一前缀、2 秒间隔、120 秒组超时、30 分钟批次超时和停止条件。
+
+三个地址时共 `3 次预热 + 3 × 17 次测量 = 54` 个区间，30 MiB 时正文上限为 1,620 MiB（另有 API/1 KiB 预检及协议开销）。只有 30 个分块，12 路只有约 2.5 波请求，短任务的建连与尾部空闲都计入，不能直接外推到长视频稳态吞吐。
+
+分析要求每轮完整、无失败、执行顺序与计划一致，所有区间、逐块哈希、远端身份和实际峰值均符合声明；不提供排除慢样本的选项。逐轮配对比较 6/4、8/6、12/8、同并发多 IP / 各单 IP，以及多 IP / 当轮最快单 IP。后者只是观测上界对照，不是事先可知的最优选路策略。图中误差线是三次观测范围，不是置信区间；保留每次原始结果，不凭三个样本声称统计显著性。

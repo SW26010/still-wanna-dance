@@ -79,3 +79,18 @@
 审查补充发现：较晚请求短暂晋升又降级时，较早请求可能看见它为读取优先而让行，但它自身两次采样都为后台。仅比较优先级布尔值会漏掉共同队列唤醒，留下空闲额度。`request_budget.go` 改为比较优先级通知通道的代次；即使最终优先级相同，只要期间发生过通知也广播唤醒，保留同级 FIFO 和原请求上限。
 
 自动验证使用 Go 1.25.0 / Windows amd64 / `-race -tags=no_easytier`：新增 `TestVideoRequestBudgetTransientPromotionWakesEarlierWaiter` 在原 `cd89c1c` 实现连续 3 次因队列停滞失败；修复后全部 `TestVideoRequestBudget` 测试连续 20 次通过，无 DATA RACE。测试固定两请求的观察顺序和空闲额度，检查瞬态升降后两者按 FIFO 完成，不依赖其他下载完成事件唤醒。原始输出仅保留于忽略目录 `artifacts/issue20-review-fixes/`。实机状态继续为 LA-037 待验收。
+
+另一个审查问题是：真实候选失败后，下一候选可能排队等待请求额度；此时 Seek 让位会错误回退到此前失败的候选。`routes.go` 在真实失败后清除可恢复游标标记，保留已消费的候选次数；因 `errRangeYielded` 被本地打断的尝试仍允许在原通道恢复。
+
+新增 `TestResourceResumeSkipsFailedChannelWhileNextAttemptQueued` 固定“第一候选失败 → 另一读取请求占据释放的额度 → 下一候选排队 → Seek 取消 → 恢复”的顺序；连接错误与 HTTP 503 两个场景在修复前各连续 3 次失败，调用次数均为 `[2, 1]`，修复后均为 `[1, 1]`。另以 `TestResourceResumeRetriesChannelYieldedBeforeHeaders` 确认真正因让位中断的首候选仍被恢复，不错误切换到备选。新增续取测试及原有首块让位、64 KiB 部分恢复、重定向终点、Range/ETag 拒绝场景连续 10 轮 Windows race 通过。首次沙箱运行在既有文件发布步骤遇到 `Access is denied`；正常用户权限、测试专用临时缓存复测通过，原失败输出保留。没有执行游戏、hosts 或公网 A/B。
+
+两处修复后的联合检查（Go 1.25.0 / Windows amd64，race 使用已有 w64devkit GCC；请求唤醒修复为 `425de9f`，通道修复与本段同一提交）：
+
+| 检查 | 结果 |
+| --- | --- |
+| `go test -race -tags=no_easytier ./internal/cacheproxy ./internal/console ./cmd/still-wanna-dance-console -count=1 -timeout=240s -json` | 3 包通过，948 个测试/子测试通过，12 项跳过，0 失败、无 DATA RACE |
+| `CGO_ENABLED=0 go vet -tags=no_easytier ./cmd/... ./internal/... ./data/...` | 通过 |
+| `CGO_ENABLED=0 go build -tags=no_easytier ./cmd/... ./internal/... ./data/...` | 通过 |
+| `git diff --check` | 通过 |
+
+12 项跳过为 5 项实网/浏览器 opt-in、6 项缺少 Windows symlink 权限及 1 项未配置跨卷测试。原始联合回归、vet/build 输出与定向复现同存于上述忽略目录；仅开发验证，不替代 LA-037 实机验收。未重跑性能对照或重新打包，没有 push。

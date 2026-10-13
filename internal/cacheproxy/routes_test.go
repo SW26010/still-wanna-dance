@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"still-wanna-dance/internal/upstreamrequest"
 )
@@ -66,5 +67,136 @@ func TestResourceFallbackIsBounded(t *testing.T) {
 	}
 	if calls != upstreamrequest.MaxOperationCandidates {
 		t.Fatal("unbounded fallback", calls)
+	}
+}
+
+func TestResourceResumeSkipsFailedChannelWhileNextAttemptQueued(t *testing.T) {
+	for _, failure := range []string{"transport", "status"} {
+		t.Run(failure, func(t *testing.T) {
+			s := &Server{client: &http.Client{}, requests: newRequestBudget(1, 1)}
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			transferCtx, yield := context.WithCancelCause(ctx)
+			defer yield(nil)
+			started, fail := make(chan struct{}), make(chan struct{})
+			var calls [2]int
+			s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+				return []http.RoundTripper{
+					resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+						calls[0]++
+						if calls[0] == 1 {
+							close(started)
+							select {
+							case <-fail:
+							case <-r.Context().Done():
+								return nil, r.Context().Err()
+							}
+						}
+						if failure == "transport" {
+							return nil, errors.New("controlled channel failure")
+						}
+						return &http.Response{StatusCode: 503, Header: make(http.Header), Body: http.NoBody, Request: r}, nil
+					}),
+					resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+						calls[1]++
+						return &http.Response{StatusCode: 200, Header: make(http.Header), Body: http.NoBody, Request: r}, nil
+					}),
+				}
+			}
+			r, _ := http.NewRequestWithContext(transferCtx, "GET", videoURL(payload), nil)
+			attempts := new(resourceAttempts)
+			done := make(chan error, 1)
+			go func() {
+				resp, err := s.resourceResponse(r, attempts)
+				if resp != nil {
+					resp.Body.Close()
+				}
+				done <- err
+			}()
+			select {
+			case <-started:
+			case <-ctx.Done():
+				t.Fatal("first candidate did not start")
+			}
+			// An urgent request takes the slot released by the failed channel,
+			// leaving the next candidate queued when the range yields to Seek.
+			gotSlot := make(chan func(), 1)
+			go func() { release, _ := s.requests.acquire(urgentRequestContext(ctx)); gotSlot <- release }()
+			waitRequestQueue(t, s.requests, 1)
+			close(fail)
+			release := <-gotSlot
+			if release == nil {
+				t.Fatal("urgent request did not acquire released slot")
+			}
+			defer release()
+			waitRequestQueue(t, s.requests, 1)
+			yield(errRangeYielded)
+			if err := <-done; !errors.Is(err, context.Canceled) {
+				t.Fatalf("queued attempt did not yield: %v", err)
+			}
+			attempts.resume()
+			release()
+			resp, err := s.resourceResponse(r.Clone(ctx), attempts)
+			if err != nil {
+				t.Fatal("next candidate did not resume", err)
+			}
+			resp.Body.Close()
+			if calls != [2]int{1, 1} {
+				t.Fatalf("resume revisited failed channel: calls=%v", calls)
+			}
+		})
+	}
+}
+
+func TestResourceResumeRetriesChannelYieldedBeforeHeaders(t *testing.T) {
+	s := &Server{client: &http.Client{}, requests: newRequestBudget(1, 1)}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	transferCtx, yield := context.WithCancelCause(ctx)
+	defer yield(nil)
+	started := make(chan struct{})
+	var calls [2]int
+	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+		var transports []http.RoundTripper
+		for i := range 2 {
+			transports = append(transports, resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+				calls[i]++
+				if i == 0 && calls[i] == 1 {
+					close(started)
+					<-r.Context().Done()
+					return nil, r.Context().Err()
+				}
+				return &http.Response{StatusCode: 200, Header: make(http.Header), Body: http.NoBody, Request: r}, nil
+			}))
+		}
+		return transports
+	}
+	r, _ := http.NewRequestWithContext(transferCtx, "GET", videoURL(payload), nil)
+	attempts := new(resourceAttempts)
+	done := make(chan error, 1)
+	go func() {
+		resp, err := s.resourceResponse(r, attempts)
+		if resp != nil {
+			resp.Body.Close()
+		}
+		done <- err
+	}()
+	select {
+	case <-started:
+	case <-ctx.Done():
+		t.Fatal("first candidate did not start")
+	}
+	yield(errRangeYielded)
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("active attempt did not yield: %v", err)
+	}
+	attempts.resume()
+	resp, err := s.resourceResponse(r.Clone(ctx), attempts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if calls != [2]int{2, 0} {
+		t.Fatalf("local yield abandoned its channel: calls=%v", calls)
 	}
 }

@@ -189,6 +189,12 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		if err != nil && ctx.Err() != nil {
 			err = context.Cause(ctx)
 		}
+		if !errors.Is(context.Cause(ctx), errRangeYielded) {
+			// A real failure consumes this candidate. A later Seek may cancel
+			// the next candidate while it is still waiting for request quota;
+			// resume must not rewind to this failed attempt in that case.
+			attempts.current = nil
+		}
 		if budget != nil {
 			budget.Stop()
 		}

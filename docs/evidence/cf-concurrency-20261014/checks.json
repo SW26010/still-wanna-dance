@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-14",
+  "scope": "Development HTTP range experiment only; product defaults unchanged; LA-037 remains pending.",
+  "productBaseline": "d9ef49852f4f9b8a9c3a07c9827a2c0a41f5eb53",
+  "toolCommit": "0cfaa584d4bf0d40bc95f09359d8c0f3d7da2410",
+  "buildEnvironment": {
+    "go": "go1.25.0",
+    "platform": "windows/amd64",
+    "CGO_ENABLED": "0",
+    "tags": "no_easytier",
+    "trimpath": true
+  },
+  "builds": [
+    {
+      "batch": "run-01",
+      "sha256": "88cb97d6ba084365268c8e4b3fa5afeaae4cc6cc136da67da386caf76ccc1d7c"
+    },
+    {
+      "batch": "run-02",
+      "sha256": "2bf696a9dd7951b52eec6954e717d2005ad9fc48c6cb386bdabccccd60593fe4"
+    }
+  ],
+  "sourceNote": "Both binaries built at product baseline with uncommitted experiment sources. run-01 predates the -rounds CLI flag and always executes four rows; run-02 adds only the row-count option. Measurement functions are the same. Published Go source is in toolCommit; later plot layout adjustment does not change numerical analysis.",
+  "checks": [
+    {
+      "command": "go test -race -tags=no_easytier ./experiments/cf-concurrency -count=3 -timeout=60s",
+      "result": "passed",
+      "raceToolchain": "existing w64devkit GCC"
+    },
+    {
+      "command": "go test -race -tags=no_easytier ./experiments/cf-concurrency -count=1 -timeout=60s",
+      "result": "passed after adding -rounds"
+    },
+    {
+      "command": "go vet -tags=no_easytier ./experiments/cf-concurrency",
+      "result": "passed"
+    },
+    {
+      "command": "go build -tags=no_easytier -trimpath ./experiments/cf-concurrency",
+      "result": "passed; measured binaries recorded above"
+    },
+    {
+      "command": "analyze.py run-01.json run-02.json --exclude-round run-01:1",
+      "result": "four complete successful paired rounds; same fixed route, interval and warmup hashes"
+    }
+  ],
+  "selection": {
+    "includedRounds": [
+      "run-01:2",
+      "run-01:3",
+      "run-01:4",
+      "run-02:1"
+    ],
+    "excludedRound": "run-01:1",
+    "reason": "Tool vet was launched during the first measurement batch. Before running a replacement, the entire first round was conservatively excluded for possible local-load interference. All five arms are preserved. Slow but valid samples in other rounds remain included.",
+    "warmups": [
+      "run-01:0",
+      "run-02:0"
+    ]
+  },
+  "results": {
+    "successfulRuns": 27,
+    "observedRangeRequests": 607,
+    "observedHTTPFailures": 0,
+    "hashFailures": 0,
+    "bodyBytes": 849346560,
+    "additionalPreflightBodyBytes": 1024
+  },
+  "privacy": "No full resource URL, raw ETag, CF request ID, username, private path or absolute capture time in evidence. Request and run times are relative to their own batch/run. Private target remains in ignored artifacts.",
+  "limitations": [
+    "one resource",
+    "one pinned direct IP and observation period",
+    "no full engine/MD5 publication",
+    "no game or player latency",
+    "no system-wide traffic isolation",
+    "no explicit retry; transparent transport retry not counted"
+  ],
+  "visualization": "Optional Matplotlib was installed only in ignored experiment directory after all measurements. An initial sandbox permission failure installing it did not affect measurements."
+}

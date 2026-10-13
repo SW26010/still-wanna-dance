@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "releaseTag": "evidence-20261014-cf-v1",
+  "archives": [
+    {
+      "batch": "cf-concurrency-20261014",
+      "name": "cf-concurrency-20261014-v1.zip",
+      "bytes": 2037402,
+      "sha256": "5e0e34762338a84d04f4ab92ab3fab8f3c768caf56d5a33eb232824396d90e15",
+      "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261014-cf-v1/cf-concurrency-20261014-v1.zip",
+      "status": "prepared-local",
+      "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5"
+    },
+    {
+      "batch": "cf-cpu-20261014",
+      "name": "cf-cpu-20261014-v1.zip",
+      "bytes": 46303250,
+      "sha256": "60528c76c542c3015f38768049d0d30fbf7d283762733342c81efed9aa486c9c",
+      "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261014-cf-v1/cf-cpu-20261014-v1.zip",
+      "status": "prepared-local",
+      "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5"
+    },
+    {
+      "batch": "cf-cpu-followup-20261014",
+      "name": "cf-cpu-followup-20261014-v1.zip",
+      "bytes": 10962129,
+      "sha256": "e23c81110762d9ca73f5033866825119cd07ea584d558dfebb51ebd642633b36",
+      "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261014-cf-v1/cf-cpu-followup-20261014-v1.zip",
+      "status": "prepared-local",
+      "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5"
+    },
+    {
+      "batch": "cf-high-concurrency-20261014",
+      "name": "cf-high-concurrency-20261014-v1.zip",
+      "bytes": 4312160,
+      "sha256": "1d6a405896b7f361f16668d67f13289f5a06a3fce0ce90a95c8bfacbd36156df",
+      "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261014-cf-v1/cf-high-concurrency-20261014-v1.zip",
+      "status": "prepared-local",
+      "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5"
+    },
+    {
+      "batch": "cf-multi-ip-20261014",
+      "name": "cf-multi-ip-20261014-v1.zip",
+      "bytes": 4172886,
+      "sha256": "93de81697bab82f1bf20328bed798895601d684bc49c082a0ba31327d83d764f",
+      "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261014-cf-v1/cf-multi-ip-20261014-v1.zip",
+      "status": "prepared-local",
+      "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5"
+    }
+  ]
+}

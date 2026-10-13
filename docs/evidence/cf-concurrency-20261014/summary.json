@@ -1,0 +1,290 @@
+{
+  "scope": "Single direct route, one content prefix and one observation period; exploratory, not game acceptance",
+  "host": "play.udon.dance",
+  "ip": "104.26.4.28",
+  "song": 1343,
+  "resourceBytes": 32867177,
+  "intervalBytes": 31457280,
+  "sessionsHaveIdenticalReferenceHashes": true,
+  "protocols": [
+    "HTTP/1.1"
+  ],
+  "cacheStates": [
+    "HIT"
+  ],
+  "colos": [
+    "SEA"
+  ],
+  "servers": [
+    "cloudflare"
+  ],
+  "downloadedBodyBytesExcludingPreflight": 849346560,
+  "observedRequestsExcludingPreflight": 607,
+  "warmupRuns": 2,
+  "primaryRuns": 20,
+  "excludedRuns": 5,
+  "excludedRoundKeys": [
+    "run-01:1"
+  ],
+  "summaries": {
+    "range-1": {
+      "samples": 4,
+      "medianMiBPerSec": 1.454998014180371,
+      "minMiBPerSec": 0.6734298493143022,
+      "maxMiBPerSec": 1.6808969346726468,
+      "medianSeconds": 20.6532071,
+      "pairedSpeedupsVsOne": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "medianPairedSpeedupVsOne": 1.0,
+      "peaks": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "medianActiveRequests": 1.0000000000000002,
+      "medianRequestHeadersMS": 224.2665,
+      "medianRequestBodyAndValidationMS": 355.4567,
+      "medianHeadersShareOfRequestTime": 0.4359474106528346,
+      "reusedRequests": 116,
+      "requests": 120
+    },
+    "range-2": {
+      "samples": 4,
+      "medianMiBPerSec": 3.000110090086031,
+      "minMiBPerSec": 2.8681759103913005,
+      "maxMiBPerSec": 3.659706531061039,
+      "medianSeconds": 10.0002166,
+      "pairedSpeedupsVsOne": [
+        4.4890019172143605,
+        1.893722179589974,
+        2.622645695539791,
+        1.7711926496377286
+      ],
+      "medianPairedSpeedupVsOne": 2.2581839375648824,
+      "peaks": [
+        2,
+        2,
+        2,
+        2
+      ],
+      "medianActiveRequests": 1.9335190673886864,
+      "medianRequestHeadersMS": 216.2935,
+      "medianRequestBodyAndValidationMS": 292.4557,
+      "medianHeadersShareOfRequestTime": 0.4213996058248046,
+      "reusedRequests": 112,
+      "requests": 120
+    },
+    "range-3": {
+      "samples": 4,
+      "medianMiBPerSec": 4.454384523822339,
+      "minMiBPerSec": 3.9303330646776007,
+      "maxMiBPerSec": 4.786324360873732,
+      "medianSeconds": 6.753705,
+      "pairedSpeedupsVsOne": [
+        5.836291736517966,
+        2.785984928987014,
+        3.360407570729287,
+        2.8474823542978647
+      ],
+      "medianPairedSpeedupVsOne": 3.1039449625135758,
+      "peaks": [
+        3,
+        3,
+        3,
+        3
+      ],
+      "medianActiveRequests": 2.939706948608745,
+      "medianRequestHeadersMS": 223.07945,
+      "medianRequestBodyAndValidationMS": 277.30145,
+      "medianHeadersShareOfRequestTime": 0.45921867966560503,
+      "reusedRequests": 108,
+      "requests": 120
+    },
+    "range-4": {
+      "samples": 4,
+      "medianMiBPerSec": 5.470028914578322,
+      "minMiBPerSec": 5.099362956983236,
+      "maxMiBPerSec": 6.1153933133555665,
+      "medianSeconds": 5.4884339,
+      "pairedSpeedupsVsOne": [
+        7.9032987988860395,
+        3.366870455341496,
+        4.0258263448173235,
+        3.638172684600995
+      ],
+      "medianPairedSpeedupVsOne": 3.8319995147091594,
+      "peaks": [
+        4,
+        4,
+        4,
+        4
+      ],
+      "medianActiveRequests": 3.816029290134517,
+      "medianRequestHeadersMS": 220.27765,
+      "medianRequestBodyAndValidationMS": 278.64779999999996,
+      "medianHeadersShareOfRequestTime": 0.4775974331420155,
+      "reusedRequests": 104,
+      "requests": 120
+    },
+    "long": {
+      "samples": 4,
+      "medianMiBPerSec": 5.976443264623542,
+      "minMiBPerSec": 5.76941317144719,
+      "maxMiBPerSec": 6.743835173654767,
+      "medianSeconds": 5.0210148,
+      "pairedSpeedupsVsOne": [
+        8.731460747492463,
+        4.452638416486357,
+        4.134519118258277,
+        3.6128688847613226
+      ],
+      "medianPairedSpeedupVsOne": 4.293578767372317,
+      "peaks": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "medianActiveRequests": 1.0,
+      "medianRequestHeadersMS": 674.26075,
+      "medianRequestBodyAndValidationMS": 4183.57295,
+      "medianHeadersShareOfRequestTime": 0.14263412600863773,
+      "reusedRequests": 0,
+      "requests": 4
+    }
+  },
+  "pairedFourVsThree": [
+    1.3541644516216877,
+    1.2085027525851306,
+    1.1980172821547435,
+    1.2776805022548066
+  ],
+  "medianPairedFourVsThree": 1.2430916274199686,
+  "rounds": [
+    {
+      "key": "run-01:2",
+      "arms": {
+        "range-1": {
+          "mibPerSec": 0.6734298493143022,
+          "seconds": 44.5480699,
+          "peakRequests": 1
+        },
+        "range-2": {
+          "mibPerSec": 3.0230278846812806,
+          "seconds": 9.9238251,
+          "peakRequests": 2
+        },
+        "range-3": {
+          "mibPerSec": 3.9303330646776007,
+          "seconds": 7.6329408999999995,
+          "peakRequests": 3
+        },
+        "range-4": {
+          "mibPerSec": 5.322317319219731,
+          "seconds": 5.6366425,
+          "peakRequests": 4
+        },
+        "long": {
+          "mibPerSec": 5.8800262954775935,
+          "seconds": 5.102018,
+          "peakRequests": 1
+        }
+      }
+    },
+    {
+      "key": "run-01:3",
+      "arms": {
+        "range-1": {
+          "mibPerSec": 1.514570585539804,
+          "seconds": 19.8075945,
+          "peakRequests": 1
+        },
+        "range-2": {
+          "mibPerSec": 2.8681759103913005,
+          "seconds": 10.459609500000001,
+          "peakRequests": 2
+        },
+        "range-3": {
+          "mibPerSec": 4.219570825200931,
+          "seconds": 7.1097278,
+          "peakRequests": 3
+        },
+        "range-4": {
+          "mibPerSec": 5.099362956983236,
+          "seconds": 5.8830878,
+          "peakRequests": 4
+        },
+        "long": {
+          "mibPerSec": 6.743835173654767,
+          "seconds": 4.4485073,
+          "peakRequests": 1
+        }
+      }
+    },
+    {
+      "key": "run-01:4",
+      "arms": {
+        "range-1": {
+          "mibPerSec": 1.3954254428209378,
+          "seconds": 21.4988197,
+          "peakRequests": 1
+        },
+        "range-2": {
+          "mibPerSec": 3.659706531061039,
+          "seconds": 8.1973786,
+          "peakRequests": 2
+        },
+        "range-3": {
+          "mibPerSec": 4.689198222443747,
+          "seconds": 6.3976822,
+          "peakRequests": 3
+        },
+        "range-4": {
+          "mibPerSec": 5.617740509936912,
+          "seconds": 5.3402253,
+          "peakRequests": 4
+        },
+        "long": {
+          "mibPerSec": 5.76941317144719,
+          "seconds": 5.1998356,
+          "peakRequests": 1
+        }
+      }
+    },
+    {
+      "key": "run-02:1",
+      "arms": {
+        "range-1": {
+          "mibPerSec": 1.6808969346726468,
+          "seconds": 17.8476142,
+          "peakRequests": 1
+        },
+        "range-2": {
+          "mibPerSec": 2.9771922954907812,
+          "seconds": 10.0766081,
+          "peakRequests": 2
+        },
+        "range-3": {
+          "mibPerSec": 4.786324360873732,
+          "seconds": 6.2678576999999995,
+          "peakRequests": 3
+        },
+        "range-4": {
+          "mibPerSec": 6.1153933133555665,
+          "seconds": 4.9056534,
+          "peakRequests": 4
+        },
+        "long": {
+          "mibPerSec": 6.072860233769491,
+          "seconds": 4.9400116,
+          "peakRequests": 1
+        }
+      }
+    }
+  ]
+}

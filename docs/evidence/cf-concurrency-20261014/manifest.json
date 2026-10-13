@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 2,
+  "batch": "cf-concurrency-20261014",
+  "hashBasis": "git-blob",
+  "pathBasis": "repository-relative",
+  "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5",
+  "originalMetadata": {
+    "date": "2026-10-14",
+    "kind": "development-network-experiment",
+    "productBaseline": "d9ef49852f4f9b8a9c3a07c9827a2c0a41f5eb53",
+    "redaction": "Public resource host/IP/song, relative timing and block SHA256 only. No full video URL, raw ETag, private paths, CF request ID or absolute capture timestamp.",
+    "note": "Manifest excludes itself. All listed files are text normalized to LF under repository .gitattributes; staged Git blobs are checked before commit. Executable hashes refer to actual bytes in checks.json."
+  },
+  "originalManifest": {
+    "storage": "archive",
+    "path": "docs/evidence/cf-concurrency-20261014/manifest.json"
+  },
+  "archive": {
+    "batch": "cf-concurrency-20261014",
+    "name": "cf-concurrency-20261014-v1.zip",
+    "bytes": 2037402,
+    "sha256": "5e0e34762338a84d04f4ab92ab3fab8f3c768caf56d5a33eb232824396d90e15",
+    "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261014-cf-v1/cf-concurrency-20261014-v1.zip",
+    "status": "prepared-local",
+    "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5"
+  },
+  "files": [
+    {
+      "path": "docs/evidence/cf-concurrency-20261014/checks.json",
+      "bytes": 3246,
+      "sha256": "1b9a0d570bb2ecae538d2b91f5ec32ca8935e69feb3136d3159969f46fe3760f"
+    },
+    {
+      "path": "docs/evidence/cf-concurrency-20261014/summary.json",
+      "bytes": 7380,
+      "sha256": "8fc99b673c8ec6d5f0cf5bea9e8237356eccb51744ca8997515d31e0fe1db2bd"
+    }
+  ],
+  "archivedFiles": [
+    {
+      "path": "docs/evidence/cf-concurrency-20261014/run-01.json",
+      "bytes": 317116,
+      "sha256": "dedc43bdcd4be185453b1b682f6e11b1471048f345fb5e66d0464b371ad7e968"
+    },
+    {
+      "path": "docs/evidence/cf-concurrency-20261014/run-02.json",
+      "bytes": 81943,
+      "sha256": "674c17a10c9bb6c1d0715b1be1b254a37343fac0667f8a34c074a7934d896f69"
+    }
+  ],
+  "provenance": "Original measured commits and executable hashes are unchanged. Original manifests, recorded analysis source bytes and workload source snapshots are retained in the archive. See ../history-rewrite-20261014.json for equivalent rewritten commits."
+}

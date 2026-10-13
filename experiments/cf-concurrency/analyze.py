@@ -98,7 +98,7 @@ def plot(result, selected, destination):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(figsize=(9.5, 5.5), layout="constrained")
+    fig, ax = plt.subplots(figsize=(8, 5), layout="constrained")
     colors = ["#375A7F", "#2980B9", "#179C8A", "#D78B22", "#8056A0"]
     for i, arm in enumerate(ARMS):
         values = [r["mibPerSec"] for r in selected if r["arm"] == arm]
@@ -110,14 +110,14 @@ def plot(result, selected, destination):
         ax.text(i, max(values)+.18, f"{median:.2f}", ha="center", fontweight="bold", color=colors[i])
     ax.set_xticks(range(5), ["1 Range", "2 Ranges", "3 Ranges\n(current)", "4 Ranges", "1 long Range\n(control)"])
     ax.set_ylabel("Verified throughput (MiB/s)")
-    ax.set_title("CF prefix download: concurrent 1 MiB ranges", loc="left", fontweight="bold")
-    ax.text(0, 1.02, "30 MiB / fixed direct IP / HTTP/1.1 / SEA / cache HIT", transform=ax.transAxes, fontsize=10)
+    fig.suptitle("CF prefix download: concurrent 1 MiB ranges", x=.08, ha="left", fontweight="bold")
+    ax.set_title("30 MiB / fixed direct IP / HTTP/1.1 / SEA / cache HIT", loc="left", fontsize=10, pad=12)
     ax.set_ylim(0, max(r["mibPerSec"] for r in selected)+.9)
     ax.grid(axis="y", alpha=.2)
     ax.spines[["top", "right"]].set_visible(False)
     fig.supxlabel("Dots: four paired rounds. Bar/line: median. One potentially confounded round was retained but excluded.", fontsize=9)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(destination, dpi=160)
+    fig.savefig(destination, dpi=140, bbox_inches="tight")
     plt.close(fig)
 
 

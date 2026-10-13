@@ -36,6 +36,8 @@ func nativeURI(line string) (map[string]any, error) {
 // and otherwise unknown options. It deliberately does not equate every encoding
 // or protocol default. A conservative new identity is safer than wrong reuse.
 func NormalizeNative(input map[string]any) (map[string]any, error) {
+	nativeConfigMu.Lock()
+	defer nativeConfigMu.Unlock()
 	p, err := nativeParameters(input)
 	if err != nil {
 		return nil, err

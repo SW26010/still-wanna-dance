@@ -1,6 +1,12 @@
 # 第三方声明核对
 
-`reviewed-modules.json` 固定 Windows 桌面入口与已固定的 Mihomo adapter 依赖并集：98 个模块。每项包含模块版本、Go h1、原许可文件路径与 SHA256；整个根 `THIRD-PARTY-NOTICES.txt` 的 LF 文本另有 SHA256。构建从实际 EXE 读取模块身份；新增、升级、replacement、声明内容变化而未复核时失败。Go runtime/标准库许可按实际构建工具链追加。
+`reviewed-modules.json` 固定 Windows 桌面入口与已固定的 Mihomo adapter 依赖并集：111 个模块。每项包含模块版本、Go h1、原许可文件路径与 SHA256；整个根 `THIRD-PARTY-NOTICES.txt` 的 LF 文本另有 SHA256。构建从实际 EXE 读取模块身份；新增、升级、replacement、声明内容变化而未复核时失败。Go runtime/标准库许可按实际构建工具链追加。
+
+2026-10-13 B2 完整核心新增 13 个实际链接模块：regexp2、age、maxminddb-golang、chi、mhurl、sing-tun、go-ole、bodgit/plumbing、bodgit/windows、sevenzip、golang-lru/v2、xz、ppmd。固定版本、Go h1、根及子目录许可文件 SHA256 已加入清单，完整原文和源码版权头追加总声明。age 的 bech32 内联 MIT、golang-lru 的 list BSD 分别保留；sing-tun 的 GPL-3.0-or-later、gVisor Apache-2.0、Wintun/winfw MIT 不能概括成一种授权。
+
+maxminddb 的 mmap_windows.go 保留 Evan Shaw BSD 头但根 LICENSE 为 ISC，补入其明确来源 [edsrzf/mmap-go LICENSE](https://github.com/edsrzf/mmap-go/blob/main/LICENSE)（GitHub connector 读取，blob 8f05f338ac5a0543e5cef2898cf5c06208b761aa），本地 mmap-go-BSD.txt。sing-tun 的 Wintun/memmod 绑定补入 [wintun-go MIT 原文](https://git.zx2c4.com/wintun-go/tree/LICENSE)（blob f85e365de02a257e41b27305e74277428218ff96），本地 wintun-go-MIT.txt，版权行保留在总声明。
+
+sing-tun ZIP 含四架构 Wintun DLL，Windows amd64 构建会嵌入对应文件，关闭 TUN 不等于删去该依赖。四个文件逐字节哈希均与 [官方 Wintun 0.14.1](https://www.wintun.net/) ZIP 一致；amd64 SHA256 为 e5da8447dc2c320edc0fc52fa01885c103de8c118481f683643cacc3220dafce。官方区分 GPLv2 驱动源码、MIT Go 绑定及已签名 DLL 的独立预编译许可；DLL 未修改，只由上游绑定使用其 API，保留完整二进制许可（wintun-binary-license.txt），不把它改称 GPLv3。source-inputs.json 同时固定交付官方 0.14.1 源码（含驱动/API/构建脚本，SHA256 636f00ec329113f37039a96964737f6b6ae3982b34620955ff7a746e5e504d28）和原始已签名 ZIP（SHA256 07c256185d6ee3652e09fa55c0b673e2624b565e02c4b9091c79ca7d2f24ef51）。Go 离线重建复用原始已签名 DLL，不声称重建微软签名。sing-tun 汇编的生成器与系统调用生成入口已在完整模块 ZIP 内，源码材料并未仅以二进制哈希替代。
 
 2026-10-13 #14 将 Mihomo 接入真实桌面，并新增一次性导入所用 `go.yaml.in/yaml/v3 v3.0.5`。核对固定模块的 LICENSE、NOTICE 与源文件头：libyaml 移植文件保留 Kirill Simonov/Canonical MIT，其余文件保留 Canonical Apache-2.0；原文追加至总声明，原始文件 SHA256 和模块 h1 加入清单，完整模块 ZIP 随对应源码交付。该模块没有额外嵌入二进制或生成输入声明。本次保留全部旧记录，不因 `no_easytier` 删除历史声明。
 

@@ -11,7 +11,10 @@
           "ref": "v1.39.1",
           "revision": "17e06226647c18b11f8bce329dea8d9c24901f3f",
           "prefix": "modernc-sqlite/",
-          "paths": ["LICENSE", "vendor_libsqlite3"],
+          "paths": [
+            "LICENSE",
+            "vendor_libsqlite3"
+          ],
           "file": "modernc-sqlite-generator.tar",
           "sha256": "bead0df19c42d02a3adafa675dc6f0e7f1cb8d7c28daa7a1e7919b63618661dd"
         },
@@ -28,6 +31,24 @@
       "version": "v0.0.0-20260910071355-3d0c9c3ca5e2",
       "blocked": "Desktop builds exclude EasyTier using upstream no_easytier. Enabling its WASM requires reviewed corresponding Rust source, dependencies and build scripts; provenance currently records unresolved commit 63519db2b5f2a6a1b9b7f20905f036dab54eb829. A verified corresponding source tree may establish provenance without that Git SHA. This is source delivery, not the accepted go-lzo license risk.",
       "inputs": []
+    },
+    {
+      "module": "github.com/metacubex/sing-tun",
+      "version": "v0.4.27",
+      "inputs": [
+        {
+          "kind": "https",
+          "url": "https://git.zx2c4.com/wintun/snapshot/wintun-0.14.1.tar.xz",
+          "file": "wintun-0.14.1.tar.xz",
+          "sha256": "636f00ec329113f37039a96964737f6b6ae3982b34620955ff7a746e5e504d28"
+        },
+        {
+          "kind": "https",
+          "url": "https://www.wintun.net/builds/wintun-0.14.1.zip",
+          "file": "wintun-0.14.1-signed.zip",
+          "sha256": "07c256185d6ee3652e09fa55c0b673e2624b565e02c4b9091c79ca7d2f24ef51"
+        }
+      ]
     }
   ]
 }

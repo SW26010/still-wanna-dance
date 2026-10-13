@@ -1,0 +1,121 @@
+[
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestAdmissionLateResultKeepsCapacityUntilUpstreamEnds",
+    "Elapsed": 0
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestAdmissionRetirementOwnsConnectionsAndPendingDials",
+    "Elapsed": 0
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestAdmissionCancellationHandoffRace",
+    "Elapsed": 0
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestAdmissionPreCancelAndInvalidTargetsNeverDial",
+    "Elapsed": 0
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestAdmissionBoundedDoesNotImplyRecovery/release",
+    "Elapsed": 0.05
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestAdmissionBoundedDoesNotImplyRecovery/retire",
+    "Elapsed": 0.05
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestAdmissionBoundedDoesNotImplyRecovery",
+    "Elapsed": 0.1
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestNativeCapabilityBoundary/dialer-proxy",
+    "Elapsed": 0
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestNativeCapabilityBoundary/dialer_proxy",
+    "Elapsed": 0
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestNativeCapabilityBoundary/INTERFACE_NAME",
+    "Elapsed": 0
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestNativeCapabilityBoundary/routing-mark",
+    "Elapsed": 0
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestNativeCapabilityBoundary/private-key",
+    "Elapsed": 0
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestNativeCapabilityBoundary/certificate",
+    "Elapsed": 0
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestNativeCapabilityBoundary/realm-opts",
+    "Elapsed": 0
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestNativeCapabilityBoundary/plugin",
+    "Elapsed": 0
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestNativeCapabilityBoundary/state-dir",
+    "Elapsed": 0
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestNativeCapabilityBoundary/client-key-file",
+    "Elapsed": 0
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestNativeCapabilityBoundary",
+    "Elapsed": 0
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Test": "TestNativeFormats",
+    "Elapsed": 0
+  },
+  {
+    "Action": "pass",
+    "Package": "still-wanna-dance/experiments/runtime-mihomo/probe",
+    "Elapsed": 0.672
+  }
+]

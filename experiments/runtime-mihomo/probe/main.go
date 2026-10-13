@@ -30,6 +30,7 @@ type endpoint struct {
 	Parameters                  map[string]any
 }
 type command struct {
+	Directed, ControlURL                           string
 	DialTimeoutMS                                  int
 	SwapNames, CloseIdle                           bool
 	Bindings, RawDial                              bool
@@ -128,6 +129,10 @@ func main() {
 		if cmd.Panic {
 			go func() { panic("synthetic-core-goroutine-fault") }()
 			select {}
+		}
+		if cmd.Directed != "" && backend != nil {
+			json.NewEncoder(os.Stdout).Encode(backend.directed(cmd, pool))
+			continue
 		}
 		if cmd.Bindings && backend != nil {
 			json.NewEncoder(os.Stdout).Encode(backend.bindingChecks())

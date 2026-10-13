@@ -1,5 +1,16 @@
 # 完整运行时 B/C 有限对照
 
+后续定向验证见[报告](../../docs/issue-14-directed-validation.md)。Hysteria2 使用上游服务端响应门闩及流额度限制，区分非等待式热 OpenStream 与延迟协议响应。仅回环，不使用私人订阅。固定 Go 1.25.0，在本目录用 `CGO_ENABLED=0`、`GOTOOLCHAIN=local` 执行：
+
+```powershell
+go test -mod=readonly -tags=no_easytier ./probe -count=1
+go build -mod=readonly -trimpath -tags=no_easytier -o ../../artifacts/issue14/directed/B.exe ./probe
+go build -mod=readonly -trimpath -tags=no_easytier -o ../../artifacts/issue14/directed/hotfixture.exe ./hotfixture
+python directed.py --bin ../../artifacts/issue14/directed
+```
+
+`directed_evidence.py --label hot --verify-ref <本轮提交>` 校验该轮 Git blob；后续修改实验源码后应指定实际实验提交。旧 `verify_incremental.py` 针对 `3a91bb6` 的历史输入，应在对应版本执行，不能把新代码标成旧二进制的输入。
+
 2026-10-13 后续中立增量评估见[新报告](../../docs/issue-14-incremental-evaluation.md)。`incremental.ps1 -Phase build` 构建 B1/B2/D 共用驱动与 C/核心/夹具；`-Phase lifecycle` 执行 B2 新增门槛，`-Phase compare` 执行必要本地对照，`-Phase real -PrivateSubscription <文件>` 在明确授权后单独做有限公网补测。参数 `-GoExe`、`-PythonExe` 与下述一致，输出另存 `artifacts/issue14/incremental/`，不覆盖历史实验结果。B2/D 性能阶段拨号预算 5 秒，生命周期 3 秒；D 只做入口诊断，不是新增正式后端。
 
 `-Phase attribution` 执行受控 DNS 延迟和热会话取消竞争。本轮 Hysteria2 热建流快于 1 ms 定时器，未触发所需取消场景，因此该命令返回非零；不可据其他通过项将其标为通过。`export_incremental.py` 只导出脱敏 JSON、拒绝覆盖旧证据；`summarize_incremental.py` 生成含样本数/失败数的描述性统计；`verify_incremental.py --staged --bin <输出目录>` 核对 Git 暂存字节、二进制哈希、101 个共同链接模块和已评估 Go 源码。

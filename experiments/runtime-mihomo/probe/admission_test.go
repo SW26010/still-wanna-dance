@@ -130,3 +130,89 @@ func TestAdmissionPreCancelAndInvalidTargetsNeverDial(t *testing.T) {
 		t.Fatal("UDP accepted")
 	}
 }
+
+// Adversarial dialer model, not a claim about Hysteria2: expiring caller and
+// operation contexts cannot force a non-cooperative upstream function to end.
+func TestAdmissionBoundedDoesNotImplyRecovery(t *testing.T) {
+	for _, retire := range []bool{false, true} {
+		t.Run(map[bool]string{false: "release", true: "retire"}[retire], func(t *testing.T) {
+			a := newAdmission(4, 20*time.Millisecond)
+			defer a.retire()
+			entered, release := make(chan struct{}, 4), make(chan struct{})
+			var releaseOnce sync.Once
+			unblock := func() { releaseOnce.Do(func() { close(release) }) }
+			defer unblock()
+			dial := a.wrap(func(context.Context, string, string) (net.Conn, error) {
+				entered <- struct{}{}
+				<-release
+				client, peer := net.Pipe()
+				peer.Close()
+				return client, nil
+			})
+			done := make(chan error, 4)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			for i := 0; i < 4; i++ {
+				go func() { _, err := dial(ctx, "tcp", "example.invalid:80"); done <- err }()
+			}
+			for i := 0; i < 4; i++ {
+				select {
+				case <-entered:
+				case <-time.After(time.Second):
+					t.Fatal("worker barrier")
+				}
+			}
+			cancel()
+			for i := 0; i < 4; i++ {
+				select {
+				case err := <-done:
+					if err == nil {
+						t.Fatal("caller succeeded")
+					}
+				case <-time.After(time.Second):
+					t.Fatal("caller hung")
+				}
+			}
+			if retire {
+				a.retire()
+			}
+			if a.wait(50 * time.Millisecond) {
+				t.Fatal("non-cooperative workers reported drained")
+			}
+			if s := a.snapshot(); s["pending"] != 4 || s["occupied"] != 4 {
+				t.Fatal(s)
+			}
+			healthy := a.wrap(func(context.Context, string, string) (net.Conn, error) {
+				client, peer := net.Pipe()
+				peer.Close()
+				return client, nil
+			})
+			_, err := healthy(context.Background(), "tcp", "example.invalid:80")
+			if retire {
+				if !errors.Is(err, upstreamrequest.ErrUnavailable) {
+					t.Fatal(err)
+				}
+			} else if err == nil || err.Error() != "dial-capacity" {
+				t.Fatalf("full pending slots must reject healthy work: %v", err)
+			}
+			unblock()
+			if !a.wait(time.Second) {
+				t.Fatal("workers did not drain after release")
+			}
+			if s := a.snapshot(); s["pending"] != 0 || s["occupied"] != 0 || s["lateClosed"] != 4 {
+				t.Fatal(s)
+			}
+			c, err := healthy(context.Background(), "tcp", "example.invalid:80")
+			if retire {
+				if c != nil || !errors.Is(err, upstreamrequest.ErrUnavailable) {
+					t.Fatal("retired generation revived")
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("recovery failed: %v", err)
+				}
+				c.Close()
+			}
+		})
+	}
+}

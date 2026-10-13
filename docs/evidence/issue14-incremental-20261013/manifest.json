@@ -5,6 +5,11 @@
   "binaryHashBasis": "actual-file-bytes",
   "evidence": [
     {
+      "path": "docs/evidence/issue14-incremental-20261013/attribution.json",
+      "bytes": 15496,
+      "sha256": "993fb00733e2371c8424b30974bf860b626495ae80acd0ae3af6f2cbbf94bd3f"
+    },
+    {
       "path": "docs/evidence/issue14-incremental-20261013/bindings-backlog128.json",
       "bytes": 95835,
       "sha256": "91763ad11bc1e2392ef2d4ee4917dcea0bbfc7320c2bf69e9e7b6ba0bbb26cbc"
@@ -18,6 +23,16 @@
       "path": "docs/evidence/issue14-incremental-20261013/comparison-before-trace-lock.json",
       "bytes": 143798,
       "sha256": "d79fd6fa55428fdaaf34f16c848fcfe230ed88d4772b8028b4105a899e53d69b"
+    },
+    {
+      "path": "docs/evidence/issue14-incremental-20261013/comparison-build.json",
+      "bytes": 43117,
+      "sha256": "b1442a64ecea5bf3e9155f0dafceaadae3933c4ea7a11221c5da30a58cc8e260"
+    },
+    {
+      "path": "docs/evidence/issue14-incremental-20261013/comparison.json",
+      "bytes": 173569,
+      "sha256": "7dff90df84caac3eb21a48326242898de11397bdda423e09b69db57b97546a44"
     },
     {
       "path": "docs/evidence/issue14-incremental-20261013/history-bindings-backlog5.json",
@@ -43,6 +58,11 @@
       "path": "docs/evidence/issue14-incremental-20261013/lifecycle.json",
       "bytes": 67414,
       "sha256": "f7d4aa776f1bff5a26bd4fd151602e0148e1be892a1542c16bf359ef9c309cd9"
+    },
+    {
+      "path": "docs/evidence/issue14-incremental-20261013/summary.json",
+      "bytes": 18140,
+      "sha256": "553d57c5ff178dd9508408379de75cc2938976712c169862c7a5ae74264cf98f"
     }
   ],
   "source": [
@@ -68,13 +88,13 @@
     },
     {
       "path": "experiments/runtime-mihomo/incremental.ps1",
-      "bytes": 2588,
-      "sha256": "aff8a93b95f2fa6b109d8aaea6c74c310057164dfcc9c65b78a0d65ff3fbf133"
+      "bytes": 2709,
+      "sha256": "fcd1b05285aca820cd51729779da0ee8c7e4af0047113dacc718f49ff89ed105"
     },
     {
       "path": "experiments/runtime-mihomo/incremental.py",
-      "bytes": 22021,
-      "sha256": "9691e7a8b09d5a23405d82ac419c274d0b2c2a8138d18989e495d19c9bbabf95"
+      "bytes": 24379,
+      "sha256": "9854f08738096df82909b5345599e0af482226c2c17ea21b45c3cb8d240fd436"
     },
     {
       "path": "experiments/runtime-mihomo/probe/admission.go",
@@ -128,8 +148,8 @@
     },
     {
       "path": "experiments/runtime-mihomo/README.md",
-      "bytes": 5440,
-      "sha256": "3f4d1b91e043d075a2873633a080256f3c51fb7ec5a7aeba42bd730de0bfeabc"
+      "bytes": 5963,
+      "sha256": "10f218a3954765fe775b8f4330f9606ea5b656a34277f943b3424bba08794068"
     },
     {
       "path": "experiments/runtime-mihomo/run.ps1",
@@ -145,6 +165,16 @@
       "path": "experiments/runtime-mihomo/soak.py",
       "bytes": 3781,
       "sha256": "f18eef1ed196559f2f5c22f6ef70640492c78c6f87cfb1dcf46171c9dce56c5b"
+    },
+    {
+      "path": "experiments/runtime-mihomo/summarize_incremental.py",
+      "bytes": 3640,
+      "sha256": "3f955dd49e84fc4de24b70c24fb61154edfb95a84fd0d64e1a8e3d92e500b801"
+    },
+    {
+      "path": "experiments/runtime-mihomo/verify_incremental.py",
+      "bytes": 2846,
+      "sha256": "0ac0054189527a7eb3a265e03244a8cedf71b9a0e54a2d8f2980349ba6f938ec"
     },
     {
       "path": "experiments/managed-mihomo/run.py",
@@ -163,8 +193,8 @@
     },
     {
       "path": "docs/issue-14-incremental-evaluation.md",
-      "bytes": 7610,
-      "sha256": "6e77026d591a33d32aecee42e560e7843d5e361810d94d1d56a9cc6c23c4eccb"
+      "bytes": 15914,
+      "sha256": "9a62c4eb08d4cd7ad4d009070f36c88764a928e91b6c05c5bd63c145cb937f54"
     }
   ],
   "redaction": "Only fixed categories, counts, loopback ports, relative timings and build identities. No private inputs, credentials, signed URLs or personal paths. Failures are retained."

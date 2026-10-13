@@ -1,7 +1,7 @@
 param(
     [string]$GoExe = 'go',
     [string]$PythonExe = 'python',
-    [ValidateSet('build','lifecycle','compare','bindings','real')][string]$Phase = 'build',
+    [ValidateSet('build','lifecycle','compare','bindings','real','attribution')][string]$Phase = 'build',
     [string]$PrivateSubscription = ''
 )
 $ErrorActionPreference = 'Stop'
@@ -9,6 +9,7 @@ $taskRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $taskOutput = Join-Path $taskRoot 'artifacts/issue14/incremental'
 $taskOldToolchain = $env:GOTOOLCHAIN
 $taskOldCGO = $env:CGO_ENABLED
+if ($PrivateSubscription) { $PrivateSubscription = (Resolve-Path -LiteralPath $PrivateSubscription).Path }
 try {
     $env:GOTOOLCHAIN = 'local'
     $env:CGO_ENABLED = '0'

@@ -26,6 +26,12 @@ class Blackhole(m.socketserver.BaseRequestHandler):
         self.server.packets += 1
 
 
+class TimedDNS(m.DNSFixture):
+    def handle(self):
+        time.sleep(self.server.delay_ms/1000)
+        super().handle()
+
+
 class Evaluation:
     def __init__(self, args):
         self.args = args
@@ -320,10 +326,41 @@ class Evaluation:
             else:self.record("real-source-available",False)
         else:self.out["realBusinessStatus"]="not-run: no private input supplied"
 
+    def attribution(self):
+        # Controlled delay only demonstrates which trace interval contains DNS;
+        # it cannot explain a past public-network outlier retrospectively.
+        fixtures,nodes=self.marked();payload=json.dumps({"proxies":nodes})
+        for delay in (0,250):
+            dns=self.server(m.DNSServer(("127.0.0.1",0),TimedDNS),queries=[],delay_ms=delay)
+            for mode in ("B","B2","C","D"):
+                before=len(dns.queries)
+                p,c=self.start(mode,payload,"127.0.0.1:"+str(dns.server_address[1]))
+                rs=p.request()
+                self.record(mode+"-controlled-DNS-"+str(delay),len(rs)==2 and all(x["ok"] for x in rs),
+                            delayMS=delay,queries=len(dns.queries)-before,requests=rs)
+                self.stop(p,c)
+        fixture=self.fixture()
+        for node in fixture["nodes"][2:]:
+            name=node["type"];p,c=self.start("B2",json.dumps({"proxies":[node]}))
+            warmed=p.request();samples=[];rows=[]
+            for _ in range(4):
+                rows.extend(p.request(RawDial=True,Address="business.invalid:80",Iterations=64,Concurrent=True,CancelAfterMS=1,TimeoutMS=1000))
+                samples.append(p.ask({"Stats":True}))
+            time.sleep(4);recovered=p.request()
+            retired=p.ask({"Retire":True,"URL":"http://business.invalid/api"});state=p.ask({"Stats":True})
+            cancelled=sum(x.get("error")=="deadline-or-cancel" for x in rows)
+            self.record("B2-"+name+"-warm-cancel-competition",len(rows)==256 and cancelled>0 and all(x["ok"] for x in warmed+recovered)
+                        and all(x["elapsedMS"]<1000 for x in rows) and all(s["admission"]["peak"]<=64 for s in samples)
+                        and retired["retired"] and state["admission"]["occupied"]==0,
+                        attempts=len(rows),completedBeforeCancel=sum(x["ok"] for x in rows),cancelled=cancelled,
+                        rejected=sum(not x["ok"] and x.get("error")!="deadline-or-cancel" for x in rows),
+                        maxElapsedMS=max(x["elapsedMS"] for x in rows),samples=samples,afterRetire=state)
+            self.stop(p,c)
+
 
 def main():
     ap=argparse.ArgumentParser();ap.add_argument("--bin",type=Path,required=True)
-    ap.add_argument("--phase",choices=("lifecycle","compare","bindings","real"),required=True)
+    ap.add_argument("--phase",choices=("lifecycle","compare","bindings","real","attribution"),required=True)
     ap.add_argument("--private-subscription",type=Path)
     ap.add_argument("--backlog",type=int,default=128,choices=(5,128))
     args=ap.parse_args();e=Evaluation(args)
@@ -331,6 +368,7 @@ def main():
         if args.phase=="lifecycle":e.lifecycle()
         elif args.phase=="bindings":e.bindings()
         elif args.phase=="real":e.real()
+        elif args.phase=="attribution":e.attribution()
         else:e.compare()
     except BaseException as exc:
         e.out["fatal"]=type(exc).__name__;print("RUNNER",type(exc).__name__,flush=True)

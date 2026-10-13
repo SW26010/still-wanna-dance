@@ -1,0 +1,644 @@
+{
+  "scope": "finite development measurements; no architecture selected",
+  "binaries": {
+    "B.exe": {
+      "sha256": "634224640c3d215624393c3276180a1122ff311abb607b0bafad0400cbfa4d4f",
+      "bytes": 61005824
+    },
+    "C.exe": {
+      "sha256": "c3258fafc33a422e459236d4271350950857dbd9af52f96141fa9d0052e1cbcb",
+      "bytes": 28254720
+    },
+    "core.exe": {
+      "sha256": "71c7602a98c235a1c230cc89fc869d3026f5c1369d82e990309b01058ec75cea",
+      "bytes": 55928832
+    },
+    "fixture.exe": {
+      "sha256": "a480f3267efcd336d4dc3c07a218bc6f97b6c5c3f864f0493151ca1a401b7bbb",
+      "bytes": 28299264
+    }
+  },
+  "checks": {
+    "total": 38,
+    "passed": 38
+  },
+  "local": {
+    "B": {
+      "rounds": 3,
+      "throughputMiBps": {
+        "count": 3,
+        "median": 884.1800163498315,
+        "min": 841.5593569132559,
+        "max": 990.6729689725177
+      },
+      "cpuSecondsPer128MiB": {
+        "count": 3,
+        "median": 0.15625,
+        "min": 0.109375,
+        "max": 0.171875
+      },
+      "idleTotalWorkingSetBytes": {
+        "count": 3,
+        "median": 20746240,
+        "min": 20701184,
+        "max": 20836352
+      },
+      "readyMS": {
+        "count": 3,
+        "median": 29.454600007738918,
+        "min": 28.942400007508695,
+        "max": 29.746500018518418
+      },
+      "failedRequests": 0
+    },
+    "B2": {
+      "rounds": 3,
+      "throughputMiBps": {
+        "count": 3,
+        "median": 865.0758733913054,
+        "min": 822.4524374593631,
+        "max": 1052.487035131686
+      },
+      "cpuSecondsPer128MiB": {
+        "count": 3,
+        "median": 0.09375,
+        "min": 0.078125,
+        "max": 0.109375
+      },
+      "idleTotalWorkingSetBytes": {
+        "count": 3,
+        "median": 20815872,
+        "min": 20713472,
+        "max": 20856832
+      },
+      "readyMS": {
+        "count": 3,
+        "median": 29.333200014661998,
+        "min": 28.79800001392141,
+        "max": 29.41739998641424
+      },
+      "failedRequests": 0
+    },
+    "C": {
+      "rounds": 3,
+      "throughputMiBps": {
+        "count": 3,
+        "median": 546.5591539790021,
+        "min": 290.1602795481714,
+        "max": 619.628174707582
+      },
+      "cpuSecondsPer128MiB": {
+        "count": 3,
+        "median": 0.265625,
+        "min": 0.234375,
+        "max": 0.28125
+      },
+      "idleTotalWorkingSetBytes": {
+        "count": 3,
+        "median": 36319232,
+        "min": 36237312,
+        "max": 36495360
+      },
+      "readyMS": {
+        "count": 3,
+        "median": 634.2571999994107,
+        "min": 633.0292999919038,
+        "max": 634.4522000290453
+      },
+      "failedRequests": 0
+    },
+    "D": {
+      "rounds": 3,
+      "throughputMiBps": {
+        "count": 3,
+        "median": 719.0583032379211,
+        "min": 587.595581823945,
+        "max": 809.1535495936442
+      },
+      "cpuSecondsPer128MiB": {
+        "count": 3,
+        "median": 0.203125,
+        "min": 0.171875,
+        "max": 0.28125
+      },
+      "idleTotalWorkingSetBytes": {
+        "count": 3,
+        "median": 21061632,
+        "min": 20893696,
+        "max": 21204992
+      },
+      "readyMS": {
+        "count": 3,
+        "median": 30.87980000418611,
+        "min": 30.663000012282282,
+        "max": 30.972299980930984
+      },
+      "failedRequests": 0
+    }
+  },
+  "real": {
+    "B": {
+      "cold": {
+        "attempts": 6,
+        "failures": 0,
+        "elapsedMSAllAttempts": {
+          "count": 6,
+          "median": 1043.9463000075193,
+          "min": 944.8617000016384,
+          "max": 3115.992200007895
+        },
+        "firstByteMSSuccessful": {
+          "count": 6,
+          "median": 482.8682499937713,
+          "min": 396.7240999918431,
+          "max": 2014.7268000000622
+        },
+        "connectionMSSuccessful": {
+          "count": 6,
+          "median": 0.05750000127591193,
+          "min": 0.03250001464039087,
+          "max": 0.07120001828297973
+        },
+        "responseAfterConnectionMSSuccessful": {
+          "count": 6,
+          "median": 482.8076499834424,
+          "min": 396.6808999830391,
+          "max": 2014.6942999854218
+        },
+        "reusedConnections": 0
+      },
+      "warm": {
+        "attempts": 6,
+        "failures": 0,
+        "elapsedMSAllAttempts": {
+          "count": 6,
+          "median": 394.5094499940751,
+          "min": 267.6142000127584,
+          "max": 822.0742999983486
+        },
+        "firstByteMSSuccessful": {
+          "count": 6,
+          "median": 134.62449998769443,
+          "min": 123.50200000219047,
+          "max": 193.82020001648925
+        },
+        "connectionMSSuccessful": {
+          "count": 6,
+          "median": 0.017349986592307687,
+          "min": 0.01300001167692244,
+          "max": 0.01889999839477241
+        },
+        "responseAfterConnectionMSSuccessful": {
+          "count": 6,
+          "median": 134.6089500002563,
+          "min": 123.4833000053186,
+          "max": 193.80130001809448
+        },
+        "reusedConnections": 6
+      }
+    },
+    "B2": {
+      "cold": {
+        "attempts": 6,
+        "failures": 0,
+        "elapsedMSAllAttempts": {
+          "count": 6,
+          "median": 1117.3426000023028,
+          "min": 963.907500001369,
+          "max": 2632.8035999904387
+        },
+        "firstByteMSSuccessful": {
+          "count": 6,
+          "median": 517.456100002164,
+          "min": 400.64609999535605,
+          "max": 2091.086600004928
+        },
+        "connectionMSSuccessful": {
+          "count": 6,
+          "median": 252.94425000902265,
+          "min": 244.71270001959056,
+          "max": 396.6462000098545
+        },
+        "responseAfterConnectionMSSuccessful": {
+          "count": 6,
+          "median": 185.91385000036098,
+          "min": 148.35649999440648,
+          "max": 1843.9446999982465
+        },
+        "reusedConnections": 0
+      },
+      "warm": {
+        "attempts": 6,
+        "failures": 0,
+        "elapsedMSAllAttempts": {
+          "count": 6,
+          "median": 583.472950005671,
+          "min": 300.4893000179436,
+          "max": 803.1704000022728
+        },
+        "firstByteMSSuccessful": {
+          "count": 6,
+          "median": 133.56169998587575,
+          "min": 127.21519998740405,
+          "max": 198.02849998814054
+        },
+        "connectionMSSuccessful": {
+          "count": 6,
+          "median": 0.018999999156221747,
+          "min": 0.013300013961270452,
+          "max": 0.021400017431005836
+        },
+        "responseAfterConnectionMSSuccessful": {
+          "count": 6,
+          "median": 133.54424998397008,
+          "min": 127.19609998748638,
+          "max": 198.00709999981336
+        },
+        "reusedConnections": 6
+      }
+    },
+    "C": {
+      "cold": {
+        "attempts": 6,
+        "failures": 0,
+        "elapsedMSAllAttempts": {
+          "count": 6,
+          "median": 1014.4071000104304,
+          "min": 979.2595999897458,
+          "max": 1322.5961000134703
+        },
+        "firstByteMSSuccessful": {
+          "count": 6,
+          "median": 437.88554999628104,
+          "min": 408.622800023295,
+          "max": 746.0405000019819
+        },
+        "connectionMSSuccessful": {
+          "count": 6,
+          "median": 0.8505500009050593,
+          "min": 0.5287999811116606,
+          "max": 1.1540999985300004
+        },
+        "responseAfterConnectionMSSuccessful": {
+          "count": 6,
+          "median": 436.9474500126671,
+          "min": 407.6888000126928,
+          "max": 745.4239999933634
+        },
+        "reusedConnections": 0
+      },
+      "warm": {
+        "attempts": 6,
+        "failures": 0,
+        "elapsedMSAllAttempts": {
+          "count": 6,
+          "median": 350.5060500028776,
+          "min": 212.8476000216324,
+          "max": 510.41479999548756
+        },
+        "firstByteMSSuccessful": {
+          "count": 6,
+          "median": 136.9362999976147,
+          "min": 126.16040001739748,
+          "max": 150.26450000004843
+        },
+        "connectionMSSuccessful": {
+          "count": 6,
+          "median": 0.01510001311544329,
+          "min": 0.011399999493733048,
+          "max": 0.02680000034160912
+        },
+        "responseAfterConnectionMSSuccessful": {
+          "count": 6,
+          "median": 136.91719999769703,
+          "min": 126.14649999886751,
+          "max": 150.25029997923411
+        },
+        "reusedConnections": 6
+      }
+    },
+    "D": {
+      "cold": {
+        "attempts": 6,
+        "failures": 0,
+        "elapsedMSAllAttempts": {
+          "count": 6,
+          "median": 994.7471500054235,
+          "min": 902.6845999760553,
+          "max": 2290.6659000145737
+        },
+        "firstByteMSSuccessful": {
+          "count": 6,
+          "median": 431.8925000115996,
+          "min": 372.7554999932181,
+          "max": 1391.0289000195917
+        },
+        "connectionMSSuccessful": {
+          "count": 6,
+          "median": 0.6332499906420708,
+          "min": 0.5806999979540706,
+          "max": 0.7943000236991793
+        },
+        "responseAfterConnectionMSSuccessful": {
+          "count": 6,
+          "median": 431.1643999972148,
+          "min": 372.1199000137858,
+          "max": 1390.42910002172
+        },
+        "reusedConnections": 0
+      },
+      "warm": {
+        "attempts": 6,
+        "failures": 0,
+        "elapsedMSAllAttempts": {
+          "count": 6,
+          "median": 390.5364499951247,
+          "min": 215.7160000060685,
+          "max": 936.153499991633
+        },
+        "firstByteMSSuccessful": {
+          "count": 6,
+          "median": 141.9203999976162,
+          "min": 118.30020000343211,
+          "max": 370.7331999903545
+        },
+        "connectionMSSuccessful": {
+          "count": 6,
+          "median": 0.019049999536946416,
+          "min": 0.01270000939257443,
+          "max": 0.035500008380040526
+        },
+        "responseAfterConnectionMSSuccessful": {
+          "count": 6,
+          "median": 141.89379999879748,
+          "min": 118.28749999403954,
+          "max": 370.71279998053797
+        },
+        "reusedConnections": 6
+      }
+    }
+  },
+  "admissionPolicy": {
+    "B": "64 complete tunnel operations; native 5-second connect timeout",
+    "B2": "64 dials plus owned connections; 5-second dial timeout in this phase",
+    "C": "historical unrestricted ingress; native 5-second connect timeout",
+    "D": "64 frontend dials plus connections; core tunnel operations not bounded by that counter",
+    "comparisonLimit": "no equal core-capacity claim; normal benchmark stays below 64"
+  },
+  "cleanup": {
+    "allOwnedProcessesExited": true,
+    "providerFilesRemaining": 0,
+    "hostsUnchanged": true
+  },
+  "soak": [
+    {
+      "mode": "B2",
+      "requests": 480,
+      "failures": 0,
+      "samples": [
+        {
+          "elapsedSeconds": 0.05479670001659542,
+          "state": {
+            "admission": {
+              "dialTimeoutMS": 5000,
+              "lateClosed": 0,
+              "limit": 64,
+              "occupied": 1,
+              "openConnections": 1,
+              "peak": 8,
+              "pending": 0,
+              "retired": false
+            },
+            "coreDNSInstalled": true,
+            "coreTracked": 1,
+            "goroutines": 5,
+            "innerGlobalInstalled": true,
+            "openPipes": 0,
+            "peakPending": 0,
+            "pending": 0,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": {
+            "workingSetBytes": 25071616,
+            "privateBytes": 24076288,
+            "cpuSeconds": 0.015625
+          }
+        },
+        {
+          "elapsedSeconds": 10.05264390000957,
+          "state": {
+            "admission": {
+              "dialTimeoutMS": 5000,
+              "lateClosed": 0,
+              "limit": 64,
+              "occupied": 1,
+              "openConnections": 1,
+              "peak": 8,
+              "pending": 0,
+              "retired": false
+            },
+            "coreDNSInstalled": true,
+            "coreTracked": 1,
+            "goroutines": 5,
+            "innerGlobalInstalled": true,
+            "openPipes": 0,
+            "peakPending": 0,
+            "pending": 0,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": {
+            "workingSetBytes": 26710016,
+            "privateBytes": 25624576,
+            "cpuSeconds": 0.015625
+          }
+        },
+        {
+          "elapsedSeconds": 20.053710300009698,
+          "state": {
+            "admission": {
+              "dialTimeoutMS": 5000,
+              "lateClosed": 0,
+              "limit": 64,
+              "occupied": 1,
+              "openConnections": 1,
+              "peak": 8,
+              "pending": 0,
+              "retired": false
+            },
+            "coreDNSInstalled": true,
+            "coreTracked": 1,
+            "goroutines": 5,
+            "innerGlobalInstalled": true,
+            "openPipes": 0,
+            "peakPending": 0,
+            "pending": 0,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": {
+            "workingSetBytes": 28413952,
+            "privateBytes": 27250688,
+            "cpuSeconds": 0.046875
+          }
+        },
+        {
+          "elapsedSeconds": 30.053698900010204,
+          "state": {
+            "admission": {
+              "dialTimeoutMS": 5000,
+              "lateClosed": 0,
+              "limit": 64,
+              "occupied": 1,
+              "openConnections": 1,
+              "peak": 8,
+              "pending": 0,
+              "retired": false
+            },
+            "coreDNSInstalled": true,
+            "coreTracked": 1,
+            "goroutines": 5,
+            "innerGlobalInstalled": true,
+            "openPipes": 0,
+            "peakPending": 0,
+            "pending": 0,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": {
+            "workingSetBytes": 29224960,
+            "privateBytes": 28065792,
+            "cpuSeconds": 0.046875
+          }
+        },
+        {
+          "elapsedSeconds": 40.05496540002059,
+          "state": {
+            "admission": {
+              "dialTimeoutMS": 5000,
+              "lateClosed": 0,
+              "limit": 64,
+              "occupied": 1,
+              "openConnections": 1,
+              "peak": 8,
+              "pending": 0,
+              "retired": false
+            },
+            "coreDNSInstalled": true,
+            "coreTracked": 1,
+            "goroutines": 5,
+            "innerGlobalInstalled": true,
+            "openPipes": 0,
+            "peakPending": 0,
+            "pending": 0,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": {
+            "workingSetBytes": 29380608,
+            "privateBytes": 28147712,
+            "cpuSeconds": 0.0625
+          }
+        },
+        {
+          "elapsedSeconds": 50.05391710001277,
+          "state": {
+            "admission": {
+              "dialTimeoutMS": 5000,
+              "lateClosed": 0,
+              "limit": 64,
+              "occupied": 1,
+              "openConnections": 1,
+              "peak": 8,
+              "pending": 0,
+              "retired": false
+            },
+            "coreDNSInstalled": true,
+            "coreTracked": 1,
+            "goroutines": 5,
+            "innerGlobalInstalled": true,
+            "openPipes": 0,
+            "peakPending": 0,
+            "pending": 0,
+            "retired": false,
+            "slotLimit": 64,
+            "standardResolverUnchanged": true,
+            "standardTransportUnchanged": true,
+            "systemHosts": false
+          },
+          "memory": {
+            "workingSetBytes": 29241344,
+            "privateBytes": 27885568,
+            "cpuSeconds": 0.078125
+          }
+        }
+      ],
+      "durationSeconds": 60.00005830000737,
+      "retired": true,
+      "afterRetire": {
+        "admission": {
+          "dialTimeoutMS": 5000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 8,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    }
+  ],
+  "otherMatrices": {
+    "lifecycle": {
+      "source": "lifecycle.json",
+      "total": 51,
+      "conditionsMet": 51,
+      "unmetChecks": []
+    },
+    "attribution": {
+      "source": "attribution.json",
+      "total": 11,
+      "conditionsMet": 10,
+      "unmetChecks": [
+        "B2-hysteria2-warm-cancel-competition"
+      ]
+    }
+  },
+  "limitations": [
+    "Three local rounds and at most six cold/six warm samples per mode; no population inference",
+    "Cold means first request per channel in a fresh runtime; second channel may reuse core DNS cache",
+    "GotConn for B1 is a pipe, and for C/D a local SOCKS connection; it need not mark remote handshake completion",
+    "C includes driver and core working sets; excludes fixture; startup includes controller readiness polling",
+    "Local fixture/provider structure and scheduling differ; D does not isolate process cost perfectly",
+    "No game, long-session, release, DPAPI or whole-product acceptance claim"
+  ]
+}

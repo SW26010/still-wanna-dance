@@ -1,0 +1,556 @@
+{
+  "date": "2026-10-13",
+  "phase": "attribution",
+  "fixtureAcceptBacklog": 128,
+  "baseRevision": "d5e066c8a9c0994bb0cb8fc0747f41cdf3a01c47",
+  "checks": [
+    {
+      "name": "network-table-positive-control",
+      "passed": true
+    },
+    {
+      "name": "B-controlled-DNS-0",
+      "passed": true,
+      "delayMS": 0,
+      "queries": 3,
+      "requests": [
+        {
+          "connectionMS": 0.06349998875521123,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 23.73079999233596,
+          "elapsedMS": 23.79000000655651
+        },
+        {
+          "connectionMS": 0.04610000178217888,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 1.5336000069510192,
+          "elapsedMS": 1.5595000004395843
+        }
+      ]
+    },
+    {
+      "name": "B2-controlled-DNS-0",
+      "passed": true,
+      "delayMS": 0,
+      "queries": 3,
+      "requests": [
+        {
+          "connectionMS": 15.500899986363947,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 15.833399986149743,
+          "elapsedMS": 15.909599984297529
+        },
+        {
+          "connectionMS": 1.0603999835439026,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 1.3738999841734767,
+          "elapsedMS": 1.4131999923847616
+        }
+      ]
+    },
+    {
+      "name": "C-controlled-DNS-0",
+      "passed": true,
+      "delayMS": 0,
+      "queries": 3,
+      "requests": [
+        {
+          "connectionMS": 0.8891000179573894,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 20.021500007715076,
+          "elapsedMS": 20.115200022701174
+        },
+        {
+          "connectionMS": 0.48850002349354327,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 15.70500002708286,
+          "elapsedMS": 15.755800006445497
+        }
+      ]
+    },
+    {
+      "name": "D-controlled-DNS-0",
+      "passed": true,
+      "delayMS": 0,
+      "queries": 3,
+      "requests": [
+        {
+          "connectionMS": 0.5818999779876322,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 2.2271999914664775,
+          "elapsedMS": 2.276599989272654
+        },
+        {
+          "connectionMS": 0.3658000205177814,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 1.6983000095933676,
+          "elapsedMS": 1.7287000082433224
+        }
+      ]
+    },
+    {
+      "name": "B-controlled-DNS-250",
+      "passed": true,
+      "delayMS": 250,
+      "queries": 2,
+      "requests": [
+        {
+          "connectionMS": 0.057199998991563916,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 271.83310000691563,
+          "elapsedMS": 271.88830001978204
+        },
+        {
+          "connectionMS": 0.04290000651963055,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 126.75200001103804,
+          "elapsedMS": 126.84310000622645
+        }
+      ]
+    },
+    {
+      "name": "B2-controlled-DNS-250",
+      "passed": true,
+      "delayMS": 250,
+      "queries": 3,
+      "requests": [
+        {
+          "connectionMS": 252.85879999864846,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 253.2710999948904,
+          "elapsedMS": 253.3333999745082
+        },
+        {
+          "connectionMS": 114.38099999213591,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 114.81529998127371,
+          "elapsedMS": 114.85179999726824
+        }
+      ]
+    },
+    {
+      "name": "C-controlled-DNS-250",
+      "passed": true,
+      "delayMS": 250,
+      "queries": 3,
+      "requests": [
+        {
+          "connectionMS": 0.965600018389523,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 254.30120000964962,
+          "elapsedMS": 254.39539999933913
+        },
+        {
+          "connectionMS": 0.447600003099069,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 102.59620001306757,
+          "elapsedMS": 102.66130001400597
+        }
+      ]
+    },
+    {
+      "name": "D-controlled-DNS-250",
+      "passed": true,
+      "delayMS": 250,
+      "queries": 3,
+      "requests": [
+        {
+          "connectionMS": 0.6070000235922635,
+          "reused": false,
+          "index": 0,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "b2ce039a47e5670131aa1b05aeb44f52864fb1001d629bb284b8a0631ddc8350",
+          "marker": "A",
+          "firstByteMS": 253.60530000762083,
+          "elapsedMS": 253.66850002319552
+        },
+        {
+          "connectionMS": 0.4697000258602202,
+          "reused": false,
+          "index": 1,
+          "ok": true,
+          "status": 200,
+          "bytes": 9,
+          "sha256": "054390bfba7e1a09e9780536c54a4423f9a0faa1eef11327fa6d2a54a4b3c9f4",
+          "marker": "B",
+          "firstByteMS": 123.02810000255704,
+          "elapsedMS": 123.0830000131391
+        }
+      ]
+    },
+    {
+      "name": "B2-anytls-warm-cancel-competition",
+      "passed": true,
+      "attempts": 256,
+      "completedBeforeCancel": 0,
+      "cancelled": 253,
+      "rejected": 3,
+      "maxElapsedMS": 2.1625999943353236,
+      "samples": [
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 13,
+            "openConnections": 1,
+            "peak": 64,
+            "pending": 12,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 1,
+          "goroutines": 20,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 1,
+            "openConnections": 1,
+            "peak": 64,
+            "pending": 0,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 1,
+          "goroutines": 7,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 1,
+            "openConnections": 1,
+            "peak": 64,
+            "pending": 0,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 1,
+          "goroutines": 7,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 2,
+            "openConnections": 1,
+            "peak": 64,
+            "pending": 1,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 1,
+          "goroutines": 8,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        }
+      ],
+      "afterRetire": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 64,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 4,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    },
+    {
+      "name": "B2-hysteria2-warm-cancel-competition",
+      "passed": false,
+      "attempts": 256,
+      "completedBeforeCancel": 256,
+      "cancelled": 0,
+      "rejected": 0,
+      "maxElapsedMS": 0.658600009046495,
+      "samples": [
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 1,
+            "openConnections": 1,
+            "peak": 27,
+            "pending": 0,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 1,
+          "goroutines": 13,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 1,
+            "openConnections": 1,
+            "peak": 29,
+            "pending": 0,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 1,
+          "goroutines": 13,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 1,
+            "openConnections": 1,
+            "peak": 37,
+            "pending": 0,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 1,
+          "goroutines": 13,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        },
+        {
+          "admission": {
+            "dialTimeoutMS": 3000,
+            "lateClosed": 0,
+            "limit": 64,
+            "occupied": 1,
+            "openConnections": 1,
+            "peak": 37,
+            "pending": 0,
+            "retired": false
+          },
+          "coreDNSInstalled": true,
+          "coreTracked": 1,
+          "goroutines": 13,
+          "innerGlobalInstalled": true,
+          "openPipes": 0,
+          "peakPending": 0,
+          "pending": 0,
+          "retired": false,
+          "slotLimit": 64,
+          "standardResolverUnchanged": true,
+          "standardTransportUnchanged": true,
+          "systemHosts": false
+        }
+      ],
+      "afterRetire": {
+        "admission": {
+          "dialTimeoutMS": 3000,
+          "lateClosed": 0,
+          "limit": 64,
+          "occupied": 0,
+          "openConnections": 0,
+          "peak": 37,
+          "pending": 0,
+          "retired": true
+        },
+        "coreDNSInstalled": true,
+        "coreTracked": 0,
+        "goroutines": 3,
+        "innerGlobalInstalled": true,
+        "openPipes": 0,
+        "peakPending": 0,
+        "pending": 0,
+        "retired": true,
+        "slotLimit": 64,
+        "standardResolverUnchanged": true,
+        "standardTransportUnchanged": true,
+        "systemHosts": false
+      }
+    }
+  ],
+  "benchmarks": [],
+  "soak": [],
+  "scope": "development only; no architecture selection or product migration",
+  "binaries": {
+    "B.exe": {
+      "sha256": "634224640c3d215624393c3276180a1122ff311abb607b0bafad0400cbfa4d4f",
+      "bytes": 61005824
+    },
+    "C.exe": {
+      "sha256": "c3258fafc33a422e459236d4271350950857dbd9af52f96141fa9d0052e1cbcb",
+      "bytes": 28254720
+    },
+    "core.exe": {
+      "sha256": "71c7602a98c235a1c230cc89fc869d3026f5c1369d82e990309b01058ec75cea",
+      "bytes": 55928832
+    },
+    "fixture.exe": {
+      "sha256": "a480f3267efcd336d4dc3c07a218bc6f97b6c5c3f864f0493151ca1a401b7bbb",
+      "bytes": 28299264
+    }
+  },
+  "cleanup": {
+    "allOwnedProcessesExited": true,
+    "providerFilesRemaining": 0,
+    "hostsUnchanged": true
+  }
+}

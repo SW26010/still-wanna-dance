@@ -124,3 +124,9 @@ LA-040 同步更新超过 16 个缺块的立即启动、普通请求恢复、缓
 首次缓存/控制台联合 race 中，缓存全部通过；控制台的 Portable 迁移测试一次遇到 Windows 临时目录重命名 Access is denied，未涉及队列或下载断言（review-cache-console-race.jsonl）。保留失败输出，未修改该产品路径或测试规避错误；同一测试隔离连续 10 轮 race 通过（review-console-move-recheck.log）。
 
 最终全部受控 Go 源码目录 go test -tags=no_easytier -race ./cmd/... ./internal/... ./data/... ./experiments/... -count=1 -timeout=180s -json 通过：17 个测试包、1,298 个测试/子测试通过、16 项按条件跳过，无 race 报告（review-final-race.jsonl），包含上述 Portable 迁移场景。本轮最终日志也确认三个启动上限字段实际输出正确。全部同范围 go vet 与 CGO_ENABLED=0 go build 通过（review-final-vet.log、review-final-build.log）；脚本及前端未修改，不重复运行其历史已通过的测试。台账 41 项编号唯一，LA-040 更新、LA-041 保留待验收。四批修复均仅本地提交，未 push、未启动游戏或改 hosts。
+
+## 12. 最后一块完成与空计划的交错
+
+当前代码在生成计划前检查完整性，最后一块随后完成会被计划过滤，空计划分支误返回 errPreempted。受控需求上下文仅在测试中设置同步屏障，令真实块执行恰好在计划检查需求时完成；原实现确认 1 MiB 已下载却以 canceled 结束、读取截断且正式文件不存在（last-range-before.log）。同一交错下的损坏正文也被取消分支抢先结束，未进入整文件校验。
+
+完成检查移到计划生成后、撤销块需求前，并重新观察初始化 channel。完整范围先等待执行任务结果收割，再进入原 MD5/发布流程；空计划只有在内容尚未完整且没有有效需求时才退出。未加运行时测试钩子或额外状态。合法正文及等长损坏正文的确定性交错、首块初始化回归、多块请求共享、冷流读取及响应拒绝发布回归，连续 20 轮 race 通过（last-range-race.log）。合法流完整读取并发布；损坏流明确返回完整性错误且无正式文件。LA-040 同步补充最后一块的步骤和证据，真实游戏继续待验收。

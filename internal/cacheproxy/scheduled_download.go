@@ -478,6 +478,16 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 		if published, err := w.reapCompleted(&initialized); err != nil || published {
 			return err
 		}
+		now := time.Now()
+		plan, changed := w.plan(now, initialized)
+		// Planning filters completed blocks, so an empty plan can mean the
+		// last range just finished. Check completion after that filtering and
+		// before withdrawing demands; drain task results before hashing.
+		select {
+		case <-w.initialized:
+			initialized = true
+		default:
+		}
 		if initialized {
 			f.ranges.mu.Lock()
 			complete := int64(len(f.ranges.done)) == (v.size+rangeBlockSize-1)/rangeBlockSize
@@ -493,8 +503,6 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 				continue
 			}
 		}
-		now := time.Now()
-		plan, changed := w.plan(now, initialized)
 		until, err := w.reconcile(plan, now)
 		if err != nil {
 			return err

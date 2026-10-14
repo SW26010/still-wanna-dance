@@ -25,7 +25,7 @@ func TestQueueReservationSurvivesCanceledDownloadWaiter(t *testing.T) {
 	setRetentionLimit(t, s, 1)
 	s.SetQueueSongs([]int64{42})
 	s.UpdatePrefetchQueue([]int64{42}, false)
-	ctx, cancel := context.WithCancel(context.WithValue(context.Background(), queueDemandKey{}, true))
+	ctx, cancel := context.WithCancel(s.queueDemandContext(context.Background(), "42"))
 	defer cancel()
 	result := make(chan error, 1)
 	go func() {

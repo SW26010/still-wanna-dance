@@ -28,6 +28,11 @@ type scheduledWait struct {
 	block int64
 	at    time.Time
 }
+type queueSource struct {
+	song       string
+	generation uint64
+}
+
 type blockSource struct {
 	kind string
 	id   any
@@ -35,14 +40,15 @@ type blockSource struct {
 type plannedNeed struct {
 	need     blocksched.Need
 	revision int64
-}
-type attachedNeed struct {
-	handle *blocksched.Demand
-	plan   plannedNeed
+	source   demandSource
 }
 type scheduledBlock struct {
 	task         *blocksched.Task
-	needs        map[blockSource]attachedNeed
+	needs        map[blockSource]plannedNeed
+	handoffs     []handoffContribution
+	merged       *blocksched.Demand
+	published    blocksched.Need
+	nextExpiry   time.Time
 	handoffUntil time.Time
 	retiring     bool
 }
@@ -188,7 +194,7 @@ func (w *downloadSession) submit(block int64) (*scheduledBlock, error) {
 		return nil, errors.Join(errBusy, err)
 	}
 	t.Watch(w.wake)
-	j := &scheduledBlock{task: t, needs: make(map[blockSource]attachedNeed)}
+	j := &scheduledBlock{task: t, needs: make(map[blockSource]plannedNeed)}
 	w.jobs[block] = j
 	return j, nil
 }
@@ -210,14 +216,14 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 		first = w.f.ranges.prefix
 		w.f.ranges.mu.Unlock()
 	}
-	add := func(block int64, source blockSource, ready time.Time, blocking bool, revision int64) {
+	add := func(block int64, source blockSource, ready time.Time, blocking bool, revision int64, origin demandSource) {
 		if block < 0 || block >= blocks || done(block) {
 			return
 		}
 		if plan[block] == nil {
 			plan[block] = make(map[blockSource]plannedNeed)
 		}
-		plan[block][source] = plannedNeed{blocksched.Need{Owner: w.v.key, ReadyBy: ready, LeaseUntil: now.Add(sourceLease), Blocking: blocking}, revision}
+		plan[block][source] = plannedNeed{need: blocksched.Need{Owner: w.v.key, ReadyBy: ready, LeaseUntil: now.Add(sourceLease), Blocking: blocking}, revision: revision, source: origin}
 	}
 	var window []int64
 	for b := first; b < blocks && len(window) < scheduledWindow; b++ {
@@ -243,7 +249,11 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 					ready = w.started.Add(time.Second)
 				}
 			}
-			add(b, blockSource{kind, d}, ready, false, 0)
+			origin := sourceBatch
+			if d.playback {
+				origin = sourceGET
+			}
+			add(b, blockSource{kind, d}, ready, false, 0, origin)
 		}
 	}
 	for song, key := range w.s.prefetchResources {
@@ -251,8 +261,12 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 			continue
 		}
 		if position, ok := w.s.prefetchOrder[song]; ok {
+			origin := sourceQueue
+			if position == 0 {
+				origin = sourceQueueHead
+			}
 			for _, b := range window {
-				add(b, blockSource{"queue", song}, now.Add(10*time.Second+time.Duration(position)*30*time.Second+time.Duration(b)*2*time.Second), false, int64(position))
+				add(b, blockSource{"queue", queueSource{song, w.s.prefetchGeneration[song]}}, now.Add(10*time.Second+time.Duration(position)*30*time.Second+time.Duration(b)*2*time.Second), false, int64(position), origin)
 			}
 		}
 	}
@@ -263,11 +277,11 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 			continue
 		}
 		for distance := int64(0); distance <= rangeReadAheadBlocks; distance++ {
-			add(c.block+distance, blockSource{"read", c}, c.at.Add(time.Duration(distance+1)*2*time.Second), false, c.block)
+			add(c.block+distance, blockSource{"read", c}, c.at.Add(time.Duration(distance+1)*2*time.Second), false, c.block, sourceGET)
 		}
 	}
 	for d := range w.waits {
-		add(d.block, blockSource{"blocking", d}, d.at, true, 0)
+		add(d.block, blockSource{"blocking", d}, d.at, true, 0, sourceGET)
 	}
 	w.mu.Unlock()
 	// Before headers, only block 0 can establish Range capability and entity.
@@ -281,6 +295,8 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 	return plan, changed
 }
 
+// All source transitions for one block are merged before a single scheduler
+// update. The scheduler never observes the intermediate GET/handoff ordering.
 func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, now time.Time) (time.Time, error) {
 	var until time.Time
 	order := make([]int64, 0, len(plan))
@@ -289,7 +305,6 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 	}
 	sort.Slice(order, func(i, j int) bool { return order[i] < order[j] })
 	for _, block := range order {
-		needs := plan[block]
 		j := w.jobs[block]
 		if j == nil {
 			var err error
@@ -301,21 +316,55 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 		if j.retiring {
 			continue
 		}
-		for source, p := range needs {
-			if old, ok := j.needs[source]; ok {
-				if old.plan.revision == p.revision {
-					p.need.ReadyBy = old.plan.need.ReadyBy
-				}
-				if old.plan.need.LeaseUntil.Sub(now) > sourceLease/2 && old.plan.revision == p.revision {
-					continue
-				}
-				if old.handle.Update(p.need) {
-					j.needs[source] = attachedNeed{old.handle, p}
-					continue
+		for source, p := range plan[block] {
+			if old, ok := j.needs[source]; ok && old.revision == p.revision && old.source == p.source {
+				p.need.ReadyBy = old.need.ReadyBy
+				if old.need.LeaseUntil.Sub(now) > sourceLease/2 {
+					p.need.LeaseUntil = old.need.LeaseUntil
 				}
 			}
-			handle := j.task.Add(p.need)
-			if !handle.Accepted() {
+			j.needs[source] = p
+		}
+	}
+	order = order[:0]
+	for block := range w.jobs {
+		order = append(order, block)
+	}
+	sort.Slice(order, func(i, j int) bool { return order[i] < order[j] })
+	for _, block := range order {
+		j := w.jobs[block]
+		if j.retiring {
+			continue
+		}
+		for source, old := range j.needs {
+			if _, ok := plan[block][source]; ok {
+				continue
+			}
+			delete(j.needs, source)
+			reason := w.withdrawal(block, source)
+			if h, ok := makeHandoff(old, reason, now); ok {
+				j.handoffs = append(j.handoffs, h)
+				if w.f.log != nil {
+					w.f.log.Debug("block_demand_handoff", "block", block, "from", old.source.String(), "reason", "source_gone", "ready_by", h.need.ReadyBy, "lease_until", h.need.LeaseUntil)
+				}
+			}
+		}
+		n := j.aggregate(now)
+		if len(j.needs)+len(j.handoffs) > maxBlockContributions {
+			return until, errors.Join(errBusy, blocksched.ErrCapacity)
+		}
+		until = maxTime(until, n.LeaseUntil)
+		if !n.LeaseUntil.After(now) {
+			j.retiring = true
+			j.task.Close()
+			continue
+		}
+		if j.merged != nil && j.published == n {
+			continue
+		}
+		if j.merged == nil || !j.merged.Update(n) {
+			j.merged = j.task.Add(n)
+			if !j.merged.Accepted() {
 				select {
 				case <-j.task.Done():
 					continue
@@ -323,40 +372,38 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 					return until, errors.Join(errBusy, blocksched.ErrCapacity)
 				}
 			}
-			j.needs[source] = attachedNeed{handle, p}
 		}
-	}
-	for block, j := range w.jobs {
-		for source, old := range j.needs {
-			if _, ok := plan[block][source]; ok {
-				continue
-			}
-			var handoff *blocksched.Need
-			grace, delay := time.Duration(0), time.Duration(0)
-			switch source.kind {
-			case "get", "read":
-				grace, delay = getHandoff, 2*time.Second
-			case "queue":
-				grace, delay = queueHandoff, 5*time.Second
-			}
-			if grace > 0 {
-				n := handoffNeed(old.plan.need, now, grace, delay)
-				handoff = &n
-				j.handoffUntil = maxTime(j.handoffUntil, n.LeaseUntil)
-			}
-			old.handle.Close(handoff)
-			delete(j.needs, source)
-		}
-		if len(j.needs) > 0 {
-			until = maxTime(until, now.Add(sourceLease))
-		}
-		until = maxTime(until, j.handoffUntil)
-		if len(j.needs) == 0 && !j.handoffUntil.After(now) && !j.retiring {
-			j.retiring = true
-			j.task.Close()
-		}
+		j.published = n
+		w.logDemand(block, j)
 	}
 	return until, nil
+}
+
+func (w *downloadSession) withdrawal(block int64, source blockSource) withdrawalReason {
+	if w.ctx.Err() != nil {
+		return withdrawalShutdown
+	}
+	// The first executor publishes ranges before closing initialized. Do not
+	// read that pointer concurrently with first-response initialization.
+	select {
+	case <-w.initialized:
+		w.f.ranges.mu.Lock()
+		done := w.f.ranges.done[block]
+		w.f.ranges.mu.Unlock()
+		if done {
+			return withdrawalCompleted
+		}
+	default:
+	}
+	if source.kind == "blocking" {
+		return withdrawalReadMoved
+	}
+	if source.kind == "read" {
+		if c, ok := source.id.(*scheduledCursor); ok && c.ctx.Err() == nil {
+			return withdrawalReadMoved
+		}
+	}
+	return withdrawalSourceGone
 }
 func handoffNeed(n blocksched.Need, now time.Time, grace, delay time.Duration) blocksched.Need {
 	n.Blocking = false
@@ -441,8 +488,8 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 			wait = min(wait, until.Sub(now))
 		}
 		for _, j := range w.jobs {
-			if len(j.needs) == 0 && j.handoffUntil.After(now) {
-				wait = min(wait, j.handoffUntil.Sub(now))
+			if j.nextExpiry.After(now) {
+				wait = min(wait, j.nextExpiry.Sub(now))
 			}
 		}
 		timer.Reset(max(time.Millisecond, wait))

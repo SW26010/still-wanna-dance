@@ -21,6 +21,8 @@ func testSession(t *testing.T) (*downloadSession, *Server) {
 	v := video{key: "content", size: 20 * rangeBlockSize}
 	f := &flight{ranges: &rangeDownload{done: make(map[int64]bool)}}
 	w := &downloadSession{s: s, ctx: context.Background(), v: v, f: f, started: time.Now(), wake: make(chan struct{}, 1), cursors: make(map[*scheduledCursor]bool), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
+	w.initialized = make(chan struct{})
+	close(w.initialized)
 	return w, s
 }
 
@@ -88,11 +90,11 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 	// A blocked synthetic executor allows inspecting leases without network.
 	w.s.scheduler = s.scheduler
 	s.UpdatePrefetchQueue([]int64{1, 2}, false)
-	_, release := s.addDemand(context.WithValue(context.Background(), queueDemandKey{}, true), video{key: w.v.key, songID: "2"}, false)
+	_, release := s.addDemand(s.queueDemandContext(context.Background(), "2"), video{key: w.v.key, songID: "2"}, false)
 	defer release()
 	now := time.Now()
 	plan, _ := w.plan(now, false)
-	old := plan[0][blockSource{"queue", "2"}].need.ReadyBy
+	old := plan[0][blockSource{"queue", queueSource{"2", s.prefetchGeneration["2"]}}].need.ReadyBy
 	s.UpdatePrefetchQueue([]int64{2, 1}, false)
 	plan, _ = w.plan(now, false)
 	if !plan[0][blockSource{"queue", "2"}].need.ReadyBy.Before(old) {
@@ -102,7 +104,7 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 		<-ctx.Done()
 		return blocksched.Result{Err: blocksched.ErrPaused, Remaining: 1}
 	})
-	w.jobs[0] = &scheduledBlock{task: job, needs: make(map[blockSource]attachedNeed)}
+	w.jobs[0] = &scheduledBlock{task: job, needs: make(map[blockSource]plannedNeed)}
 	if _, err := w.reconcile(plan, now); err != nil {
 		t.Fatal(err)
 	}
@@ -135,12 +137,12 @@ func TestBlockLeaseRemovalDoesNotDropOtherOwner(t *testing.T) {
 		<-ctx.Done()
 		return blocksched.Result{Err: blocksched.ErrPaused, Remaining: 1}
 	})
-	w.jobs[0] = &scheduledBlock{task: job, needs: make(map[blockSource]attachedNeed)}
+	w.jobs[0] = &scheduledBlock{task: job, needs: make(map[blockSource]plannedNeed)}
 	now := time.Now()
 	read := blockSource{"read", "a"}
 	queue := blockSource{"queue", "b"}
 	need := blocksched.Need{Owner: "shared", ReadyBy: now, LeaseUntil: now.Add(sourceLease)}
-	plan := map[int64]map[blockSource]plannedNeed{0: {read: {need: need}, queue: {need: need}}}
+	plan := map[int64]map[blockSource]plannedNeed{0: {read: {need: need, source: sourceGET}, queue: {need: need, source: sourceQueue}}}
 	w.reconcile(plan, now)
 	delete(plan[0], read)
 	w.reconcile(plan, now)

@@ -131,7 +131,8 @@ func (s *Server) PrefetchPlayback(ctx context.Context, id int64) (string, error)
 	}
 }
 
-// PrefetchQueuePlayback uses the latest queue snapshot's rank, including reorderings.
+// PrefetchQueuePlayback captures source identity before asynchronous resolution.
+// Reorders update its attributes; removal/reset prevents late resolution revival.
 func (s *Server) PrefetchQueuePlayback(ctx context.Context, id int64) (string, error) {
-	return s.PrefetchPlayback(context.WithValue(ctx, queueDemandKey{}, true), id)
+	return s.PrefetchPlayback(s.queueDemandContext(ctx, strconv.FormatInt(id, 10)), id)
 }

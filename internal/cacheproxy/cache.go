@@ -64,7 +64,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		}
 		f := s.flights[v.key]
 
-		if demand.queue && !s.queueContainsLocked(demand.song) {
+		if demand.queue && !s.validQueueSourceLocked(demand) {
 			s.mu.Unlock()
 			return nil, nil, context.Canceled
 		}

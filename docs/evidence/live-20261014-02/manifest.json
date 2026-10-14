@@ -38,8 +38,8 @@
     },
     {
       "path": "get-lifetimes.json",
-      "bytes": 40091,
-      "sha256": "eba2199785e85743593a99727b9939dfe91b2608cad33867c0819bea081c1ee5",
+      "bytes": 40131,
+      "sha256": "a3a9376b5e33db004d06db34415b46f6a0833b7e60fbc1dbfbb378e96dd8e67a",
       "source": "Allowlisted gateway events and game callbacks, explicit user operations/feedback, cache hashes and cleanup receipts",
       "redaction": "Relative timestamps; anonymous host labels; no raw URLs, credentials, private paths, account or room identities"
     }
@@ -72,8 +72,8 @@
     },
     {
       "path": "experiments/live-get-probe/get-lifetimes.mjs",
-      "bytes": 7870,
-      "sha256": "099b684b8fbc3970994181d61b34efda7c5b0542e04d100fba922a7908ccdb2e"
+      "bytes": 7910,
+      "sha256": "d27b23d80abe1dbe0cdc78f9e27508743e26c482265245bf016f026cc5acd399"
     }
   ],
   "testedCodePatch": {

@@ -6,7 +6,7 @@
   "limitations": [
     "HTTP start/finish logs approximate demand lifetime; cancellation invalidates demand before finish logging, and registration follows start logging. No lock-level P0 timestamps.",
     "Game callbacks have one-second resolution; user acknowledgements do not timestamp the actual action.",
-    "Queue prefetch disabled; no actual competing-task preemption tested. Proposed one-second grace is an engineering starting point, not experimentally validated."
+    "Queue prefetch disabled; no actual competing-task preemption tested. Grace necessity, priority semantics and duration remain undecided; a one-second candidate is not an accepted or validated policy."
   ],
   "aggregate": {
     "coldWindows": 8,

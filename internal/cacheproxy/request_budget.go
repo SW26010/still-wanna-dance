@@ -126,6 +126,6 @@ func (s *Server) resourceRequestContext(ctx context.Context, key string) context
 	return context.WithValue(ctx, requestPriorityKey{}, requestPriority(func() (bool, <-chan struct{}) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		return s.resourceRankLocked(key).level == 0, s.capacityChanged
+		return s.resourceRankLocked(key).level == priorityPlayback, s.capacityChanged
 	}))
 }

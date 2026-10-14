@@ -1,6 +1,6 @@
 # 需求调度验证（issue #22）
 
-2026-10-11，Windows 本地自动化验证。实现范围和运行语义见[队列预缓存](queue-prefetch.md#资源需求与优先级)。这些结果不代表当前构建已完成 VRChat 实机验收。
+2026-10-11 起的 Windows 本地自动化验证记录。各节保留对应版本的行为；当前实现范围和运行语义见[队列预缓存](queue-prefetch.md#资源需求与优先级)，2026-10-14 的 GET 宽限和等级顺延见本文末节。这些结果不代表当前构建已完成 VRChat 实机验收。
 
 ## 自动化结果
 
@@ -137,3 +137,31 @@ go test -race ./internal/cacheproxy -run 'TestResumedForeground|TestWholeFlight|
 首次完整测试在已有 `TestParallelRangeGlobalBudgetLeavesRoomForPlaybackAndSeek` 的上游 handler 峰值断言失败（8），没有抹去该记录。该夹具将客户端已经关闭、但服务器尚未退出的 handler 也计为在途请求。用修复前暂存的 `range_work.go` 作 overlay，仅让 handler 延后 25 ms 返回，5 次均复现（峰值 7–10）。`range_parallel_test.go` 改为在客户端 transport 发起请求时计入，失败或正文 `Close` 完成后归还，并检查全部下载完成时计数为零；原有前台/Seek 可推进及全局最多 6 个请求的断言保留。同样的 handler 延迟对照修正后 20 轮 race 通过（6.595 秒），正式测试不加入延迟。这是测试观测边界修正，不改变产品请求额度，不另增实机项。
 
 原始日志在忽略目录 `artifacts/seat-preemption-check/`：`startup-tail-before-fix.log`、`startup-tail-final-race.log`、`startup-tail-cache-race.log`、`startup-tail-budget-baseline.log`、`startup-tail-budget-fixed.log`、`startup-tail-cache-final-race.log`。**开发完成，LA-038 仍待实机验收**；台账已补充首块关闭后连续尾读的时序及 worker 证据要求，没有启动游戏、修改 hosts 或执行 commit/push。
+
+## 2026-10-14：GET 重连宽限（方案三）
+
+在 `392245f18eb379507a60c6ffba8e380d6b9f544b` 的引擎内抢占续传基础上实现用户选定的方案三：P0 为仍有有效视频 GET 的资源；最后一个 GET 结束或取消后，未完成下载或暂停检查点获得固定 1 秒的 P1；原队首、后续队列、补齐需求顺延为 P2、P3、P4。按 MD5 合并需求，同一资源的重叠 GET 不提前启动宽限；重连立即恢复 P0，下一次全部结束再计算完整 1 秒。
+
+实现位于 `demand.go`、`cache.go`、`server.go`、`request_budget.go`。到期主动唤醒容量等待者，按当时的队列/补齐需求重新排名；队列清空或变化不抹掉尚未到期的 GET 宽限，引擎关闭则立即清除计时器。旧计时器使用状态身份校验，不能降级已经重连的新 P0。完成发布在唤醒读取者之前清除宽限，避免已完成下载在清理窗口内重新取得 P1。HEAD、完整缓存读取和没有下载任务的结束请求不保留宽限。
+
+P1 可以被活跃 P0 抢占；存在可抢占的更低级资源时，P0 优先选择后者。P1 不获得 P0 的 HTTP 优先额度，也不独立创建或复活下载任务。已有有效等待者按资源合并后的排名参与调度；已取消或已移出队列的等待者不能借 P1 复活。被抢占的 Range 任务沿用现有检查点续传，原有大小/MD5 校验、非 Range 顺序回退及引擎内恢复范围不变。
+
+新增 `playback_grace_test.go` 覆盖重叠 GET、取消回调尚未运行时的排名、重连与旧计时器竞态、精确到期与主动唤醒、队列清空/重排、完成及热缓存排除、抢占选择、有效等待者与无效等待者、HTTP 优先额度和关闭清理。`TestWholeFlightPreemptionResumesRangeDownload/grace` 验证 P1 被新 P0 抢占后，两个完整块不重取、两个部分块分别从块内 64 KiB 续取，最终内容与 MD5 一致。已有优先级与短 GET 抢占测试同步更新。
+
+自动检查（Windows amd64，沿用已有 Go/race 工具链；测试临时目录与日志均在忽略目录 `artifacts/playback-grace-check/`）：
+
+| 检查 | 结果 |
+| --- | --- |
+| 定向普通回归，覆盖宽限、排名、HEAD、队列让位及抢占续传 | 通过，3.299 秒 |
+| 下述定向 race 连续 10 轮 | 通过，33.726 秒 |
+| 最终 `go test -race -tags=no_easytier ./cmd/... ./internal/... ./data/... -count=1 -timeout=240s` | 14 个有测试包全部通过；缓存包 29.615 秒，包含完成发布和无效等待者的最终收尾修正 |
+| `go vet -tags=no_easytier ./cmd/... ./internal/... ./data/...` | 通过 |
+| `gofmt`、`git diff --check` | 通过 |
+
+```powershell
+go test -race ./internal/cacheproxy -run 'TestPlaybackGrace|TestDemandRanks|TestHEADHasNoGrace|TestQueueDemandPreemption|TestWholeFlightPreemptionResumesRangeDownload|TestRepeatedPreemption|TestGETReattaches|TestVideoRequestBudget' -count=10 -timeout=120s
+```
+
+首次定向 race 发现新增完整下载测试误传空上游 handler，导致夹具 panic/502；修正为返回测试正文后重跑通过，没有 DATA RACE 报告。失败日志 `targeted-race.log` 保留，不计为通过。最终全仓 race 在普通测试权限下运行，以覆盖需要 Windows 文件链接及子进程的已有夹具。其余原始日志为 `targeted.log`、`targeted-race-final.log`、`full-race.log`、`vet.log`；定向十轮之后的产品收尾修改由最终全仓 race 覆盖。
+
+**开发完成，LA-039 待实机验收，联动 LA-038 的抢占续传验证。** 历史 LIVE-20261014-02 只记录旧版本 GET 行为，不作为本次宽限策略的通过依据。本次没有启动游戏或修改 hosts。

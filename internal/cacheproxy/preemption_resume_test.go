@@ -15,7 +15,7 @@ import (
 )
 
 func TestWholeFlightPreemptionResumesRangeDownload(t *testing.T) {
-	for _, mode := range []string{"valid", "weak", "changed-entity", "wrong-range", "corrupt", "foreground", "shutdown", "storage-failure"} {
+	for _, mode := range []string{"valid", "grace", "weak", "changed-entity", "wrong-range", "corrupt", "foreground", "shutdown", "storage-failure"} {
 		t.Run(mode, func(t *testing.T) { testWholeFlightResume(t, mode) })
 	}
 }
@@ -134,6 +134,10 @@ func testWholeFlightResume(t *testing.T, mode string) {
 		t.Fatalf("received %d bytes before preemption", received)
 	}
 	partial := old.spool.file.Name()
+	if mode == "grace" {
+		assertResponse(t, request(s, "GET", target, map[string]string{"Range": "bytes=0-2"}), http.StatusPartialContent, string(body[:3]))
+		checkResourceLevel(t, s, key, priorityGrace)
+	}
 	if mode == "storage-failure" {
 		if err := old.spool.file.Close(); err != nil {
 			t.Fatal(err)

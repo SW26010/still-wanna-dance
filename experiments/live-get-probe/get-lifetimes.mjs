@@ -92,7 +92,7 @@ const result = {schemaVersion: 1, batch: 'LIVE-20261014-02', sourceSHA: '3fae4b8
   method: 'Per-resource union of validated downstream GET lifetimes, including resolver GETs. Clip at publication/Stop/End/last confirmed action. Integer milliseconds, half-open intervals. Overlap duration means at least two GETs, not sum of request-pair overlaps.',
   limitations: ['HTTP start/finish logs approximate demand lifetime; cancellation invalidates demand before finish logging, and registration follows start logging. No lock-level P0 timestamps.',
     'Game callbacks have one-second resolution; user acknowledgements do not timestamp the actual action.',
-    'Queue prefetch disabled; no actual competing-task preemption tested. Proposed one-second grace is an engineering starting point, not experimentally validated.'],
+    'Queue prefetch disabled; no actual competing-task preemption tested. Grace necessity, priority semantics and duration remain undecided; a one-second candidate is not an accepted or validated policy.'],
   aggregate: {coldWindows: stages.length, gapCount: gaps.length, maximumGapMs: Math.max(...gaps.map(g => g.durationMs)),
     totalGapMs: gaps.reduce((n, g) => n + g.durationMs, 0), preemptionEventsAcrossAll14Stages: preemptions.length},
   stages, exclusions};

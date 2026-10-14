@@ -149,6 +149,12 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			timedCtx, stop := context.WithTimeout(workerCtx, s.cfg.DownloadTimeout)
 			defer stop()
 			f.path, f.source, f.err = s.prepare(timedCtx, v, f)
+			if f.err == nil {
+				s.mu.Lock()
+				f.completed = true
+				s.clearPlaybackGraceLocked(v.key)
+				s.mu.Unlock()
+			}
 			if errors.Is(context.Cause(workerCtx), errPreempted) && errors.Is(f.err, context.Canceled) {
 				f.err = errPreempted
 			}
@@ -178,6 +184,9 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			}
 			s.mu.Lock()
 			delete(s.flights, v.key)
+			if s.paused[v.key] == nil {
+				s.clearPlaybackGraceLocked(v.key)
+			}
 			<-s.slots
 			if background {
 				s.background--

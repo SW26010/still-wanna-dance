@@ -141,7 +141,7 @@ func TestQueueDemandPreemptionProtectsGETAndSharedContent(t *testing.T) {
 				}
 				stopGET()
 				receiveDemandEvent(t, getDone)
-				// B is still wanted, and can now reclaim A's no-demand slot.
+				// B is still wanted, and reclaims A only after its grace expires.
 				if got := receiveDemandEvent(t, canceled); got != videoKey("xa") {
 					t.Fatalf("GET release did not demote A: %s", got)
 				}
@@ -344,7 +344,7 @@ func TestGETReattachesAfterSameResourcePreemption(t *testing.T) {
 	}
 	finish()
 	if got := receiveDemandEvent(t, started); got != videoKey("old") {
-		t.Fatalf("P0 lost admission to P3: %s", got)
+		t.Fatalf("P0 lost admission to P4: %s", got)
 	}
 	assertResponse(t, receiveDemandEvent(t, getDone), 200, "old")
 	if got := receiveDemandEvent(t, started); got != videoKey("new") {
@@ -359,7 +359,7 @@ func TestGETReattachesAfterSameResourcePreemption(t *testing.T) {
 	assertNoPartial(t, cfg.tempDir())
 }
 
-func TestHEADAndCompletedRangeDoNotKeepPlaybackDemand(t *testing.T) {
+func TestHEADHasNoGraceAndCompletedRangeYieldsToLiveGET(t *testing.T) {
 	for _, method := range []string{"HEAD", "GET"} {
 		t.Run(method, func(t *testing.T) {
 			canceled := make(chan struct{})
@@ -384,7 +384,11 @@ func TestHEADAndCompletedRangeDoNotKeepPlaybackDemand(t *testing.T) {
 			s.mu.Lock()
 			rank := s.resourceRankLocked(videoKey(payload))
 			s.mu.Unlock()
-			if rank != noDemand {
+			want := noDemand
+			if method == "GET" {
+				want = downloadRank{level: priorityGrace}
+			}
+			if rank != want {
 				t.Fatalf("completed %s left demand: %+v", method, rank)
 			}
 			assertResponse(t, request(s, "GET", videoURL("new"), nil), 200, "new")

@@ -34,6 +34,7 @@ type video struct {
 type flight struct {
 	cancel        context.CancelCauseFunc // protected by Server.mu
 	preempted     bool
+	completed     bool // protected by Server.mu; published/hit before reader wakeup
 	background    bool
 	size          int64
 	monitorSongs  map[string]bool // protected by Server.mu; includes background callers
@@ -62,6 +63,7 @@ type Server struct {
 	flights           map[string]*flight
 	paused            map[string]*rangeDownload // protected by mu; this engine only
 	demands           map[*downloadDemand]bool  // protected by mu, separate from file pins
+	playbackGrace     map[string]*playbackGrace // protected by mu, transient resource demand
 	prefetchOrder     map[string]int
 	prefetchResources map[string]string
 	playbackChecks    map[string]*playbackCheck // protected by mu
@@ -211,6 +213,9 @@ func (s *Server) Close() error {
 	s.once.Do(func() {
 		s.mu.Lock()
 		s.closed = true
+		for key := range s.playbackGrace {
+			s.clearPlaybackGraceLocked(key)
+		}
 		s.cancel()
 		s.mu.Unlock()
 		s.wg.Wait()

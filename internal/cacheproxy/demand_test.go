@@ -20,10 +20,10 @@ func TestDemandRanksAndLifetimes(t *testing.T) {
 			t.Fatalf("rank = %+v, want %+v", got, want)
 		}
 	}
-	check(downloadRank{level: 1})
+	check(downloadRank{level: 2})
 	release1()
 	s.UpdatePrefetchQueue([]int64{3, 2}, false)
-	check(downloadRank{level: 2, position: 1})
+	check(downloadRank{level: 3, position: 1})
 	ctx, cancel := context.WithCancel(context.Background())
 	_, releaseGET := s.addDemand(ctx, video{key: "shared"}, true)
 	_, releaseOtherGET := s.addDemand(context.Background(), video{key: "shared"}, true)
@@ -38,7 +38,7 @@ func TestDemandRanksAndLifetimes(t *testing.T) {
 	releaseGET()
 	release2()
 	_, releaseBatch := s.addDemand(context.Background(), video{key: "shared"}, false)
-	check(downloadRank{level: 3})
+	check(downloadRank{level: 4})
 	releaseBatch()
 	check(noDemand)
 }

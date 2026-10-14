@@ -177,3 +177,41 @@ func TestHandoffDefersFutureDeadlineWithoutExtendingValidity(t *testing.T) {
 		}
 	}
 }
+
+func TestCompletionRechecksRangeInitialization(t *testing.T) {
+	for _, ranged := range []bool{false, true} {
+		t.Run(map[bool]string{false: "sequential_published", true: "first_range_only"}[ranged], func(t *testing.T) {
+			w, s := testSession(t)
+			w.initialized = make(chan struct{})
+			s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
+			defer s.scheduler.Close()
+			// Coordinator snapshots before the worker has received response headers.
+			initialized := false
+			task, err := s.scheduler.Submit("first", rangeBlockSize, func(context.Context, *blocksched.Progress) blocksched.Result {
+				if ranged {
+					w.f.ranges.done[0] = true // Only one of twenty blocks exists.
+					close(w.initialized)
+				}
+				return blocksched.Result{}
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			w.jobs[0] = &scheduledBlock{task: task}
+			task.Add(blocksched.Need{Owner: "video", LeaseUntil: time.Now().Add(time.Minute)})
+			<-task.Done() // Worker initialization and completion precede observation.
+			published, err := w.reapCompleted(&initialized)
+			if err != nil || published == ranged || initialized != ranged || len(w.jobs) != 0 {
+				t.Fatalf("published=%v initialized=%v jobs=%d err=%v", published, initialized, len(w.jobs), err)
+			}
+			if ranged {
+				_, release := s.addDemand(context.Background(), w.v, false)
+				defer release()
+				plan, _ := w.plan(time.Now(), initialized)
+				if _, ok := plan[1]; !ok {
+					t.Fatal("remaining ranges were not planned")
+				}
+			}
+		})
+	}
+}

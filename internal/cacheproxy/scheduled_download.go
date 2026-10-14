@@ -418,6 +418,32 @@ func maxTime(a, b time.Time) time.Time {
 	return a
 }
 
+// reapCompleted distinguishes a published sequential body from a completed range.
+func (w *downloadSession) reapCompleted(initialized *bool) (bool, error) {
+	for block, j := range w.jobs {
+		select {
+		case <-j.task.Done():
+			if err := j.task.Err(); err != nil && !(j.retiring && errors.Is(err, context.Canceled)) {
+				return false, err
+			}
+			delete(w.jobs, block)
+			// Headers and the first range can finish after the loop's snapshot.
+			// Observe initialization again after Done before deciding that a
+			// successful task published the entire sequential response.
+			select {
+			case <-w.initialized:
+				*initialized = true
+			default:
+			}
+			if !*initialized && !j.retiring {
+				return true, nil
+			} // sequential 200, already published
+		default:
+		}
+	}
+	return false, nil
+}
+
 func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *flight) (result error) {
 	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, path: path, started: time.Now(), wake: make(chan struct{}, 1), initialized: make(chan struct{}), cursors: make(map[*scheduledCursor]bool), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
 	defer func() {
@@ -446,18 +472,8 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 			initialized = true
 		default:
 		}
-		for block, j := range w.jobs {
-			select {
-			case <-j.task.Done():
-				if err := j.task.Err(); err != nil && !(j.retiring && errors.Is(err, context.Canceled)) {
-					return err
-				}
-				delete(w.jobs, block)
-				if !initialized && !j.retiring {
-					return nil
-				} // sequential 200, already published
-			default:
-			}
+		if published, err := w.reapCompleted(&initialized); err != nil || published {
+			return err
 		}
 		if initialized {
 			f.ranges.mu.Lock()

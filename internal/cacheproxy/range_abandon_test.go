@@ -22,9 +22,8 @@ func TestCanceledSeekReleasesWorkerWithoutCancelingSharedReaders(t *testing.T) {
 		w.Header().Set("Content-Length", fmt.Sprint(end-start+1))
 		w.WriteHeader(206)
 		w.(http.Flusher).Flush()
-		// Occupy every background worker so this scenario exercises a
-		// demand-owned tail request, independent of speculative scheduling.
-		if start < backgroundRequestLimit*rangeBlockSize {
+		// Hold the prefix while two readers share the distant tail request.
+		if start < 4*rangeBlockSize {
 			select {
 			case <-prefix:
 			case <-r.Context().Done():

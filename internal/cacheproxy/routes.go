@@ -192,8 +192,8 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		}
 		if !errors.Is(context.Cause(ctx), errRangeYielded) && !errors.Is(context.Cause(ctx), errPreempted) && !errors.Is(context.Cause(ctx), blocksched.ErrPaused) {
 			// A real failure consumes this candidate. A later Seek may cancel
-			// the next candidate while it is still waiting for request quota;
-			// resume must not rewind to this failed attempt in that case.
+			// the next candidate before headers; resume must not rewind to the
+			// earlier failed attempt in that case.
 			attempts.current = nil
 		}
 		if budget != nil {

@@ -85,7 +85,7 @@ func TestSourceAndWithdrawalReasonDetermineHandoff(t *testing.T) {
 
 func TestQueuePromotionDemotionDoesNotCreateHandoff(t *testing.T) {
 	w, s := testSession(t)
-	s.scheduler = blocksched.New(blocksched.Config{Limit: 1, Background: 1})
+	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
 	defer s.scheduler.Close()
 	task, _ := s.scheduler.Submit("test", 1, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
 		<-ctx.Done()
@@ -168,7 +168,7 @@ func TestQueueSourceIdentityOnlySurvivesContinuousMembership(t *testing.T) {
 
 func TestBlockSourceMetadataIsBounded(t *testing.T) {
 	w, s := testSession(t)
-	s.scheduler = blocksched.New(blocksched.Config{Limit: 1, Background: 1})
+	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
 	defer s.scheduler.Close()
 	task, _ := s.scheduler.Submit("test", 1, nil)
 	w.jobs[0] = &scheduledBlock{task: task, needs: make(map[blockSource]plannedNeed)}

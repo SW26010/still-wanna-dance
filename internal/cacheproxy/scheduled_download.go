@@ -123,8 +123,8 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 	stop := context.AfterFunc(w.ctx, func() { cancel(context.Cause(w.ctx)) })
 	defer stop()
 	defer cancel(nil)
-	// The global block permit already bounds all retries/redirects. The HTTP
-	// guard remains a final lifecycle check, with no second priority policy.
+	// The global block admission covers retries/redirects. HTTP attempts only
+	// track their lifecycle; no lower-level hard quota delays blocked reads.
 
 	var initial *http.Response
 	if w.f.ranges == nil {

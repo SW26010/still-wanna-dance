@@ -18,7 +18,7 @@ func need(owner string, blocking bool, ready, lease time.Duration) Need {
 
 func TestIndependentLeasesAndLateUpdates(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		s := New(Config{Limit: 1, Background: 1})
+		s := New(Config{SoftLimit: 1})
 		defer s.Close()
 		started := make(chan struct{}, 2)
 		j, _ := s.Submit("shared", 100, func(ctx context.Context, p *Progress) Result {
@@ -53,9 +53,9 @@ func TestIndependentLeasesAndLateUpdates(t *testing.T) {
 	})
 }
 
-func TestSharedExecutionFairBlockingAndReleaseAfterCleanup(t *testing.T) {
+func TestSharedExecutionFairDeadlinesAndReleaseAfterCleanup(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		s := New(Config{Limit: 1, Background: 1})
+		s := New(Config{SoftLimit: 1})
 		defer s.Close()
 		gate := make(chan struct{})
 		cleanup := make(chan struct{})
@@ -74,7 +74,7 @@ func TestSharedExecutionFairBlockingAndReleaseAfterCleanup(t *testing.T) {
 			if key == "b" {
 				owner = "b"
 			}
-			j.Add(need(owner, true, 0, time.Hour))
+			j.Add(need(owner, false, time.Minute, time.Hour))
 			dup, _ := s.Submit(key, 1, nil)
 			if dup != j {
 				t.Fatal("duplicate execution")
@@ -105,7 +105,7 @@ func TestSharedExecutionFairBlockingAndReleaseAfterCleanup(t *testing.T) {
 
 func TestDeadlineDoesNotCancelAndCloseDrains(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		s := New(Config{Limit: 1, Background: 1, MaxTasks: 1})
+		s := New(Config{SoftLimit: 1, MaxTasks: 1})
 		j, _ := s.Submit("a", 100, func(ctx context.Context, p *Progress) Result {
 			<-ctx.Done()
 			return Result{Err: ErrPaused, Remaining: 50}

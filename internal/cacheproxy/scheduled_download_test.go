@@ -12,7 +12,7 @@ import (
 // adaptation are tested separately; this sets only the execution policy.
 func fixedBlockScheduler(s *Server) {
 	s.scheduler.Close()
-	s.scheduler = blocksched.New(blocksched.Config{Limit: 6, Background: 4, PreemptAfter: 20 * time.Millisecond, Cooldown: 20 * time.Millisecond})
+	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 4, PreemptAfter: 20 * time.Millisecond, Cooldown: 20 * time.Millisecond})
 }
 
 func testSession(t *testing.T) (*downloadSession, *Server) {
@@ -85,7 +85,7 @@ func TestBlockDemandFollowsActualWaitAndIndependentReaders(t *testing.T) {
 
 func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 	w, s := testSession(t)
-	s.scheduler = blocksched.New(blocksched.Config{Limit: 1, Background: 1})
+	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
 	defer s.scheduler.Close()
 	// A blocked synthetic executor allows inspecting leases without network.
 	w.s.scheduler = s.scheduler
@@ -136,7 +136,7 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 
 func TestBlockLeaseRemovalDoesNotDropOtherOwner(t *testing.T) {
 	w, s := testSession(t)
-	s.scheduler = blocksched.New(blocksched.Config{Limit: 1, Background: 1})
+	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
 	defer s.scheduler.Close()
 	job, _ := s.scheduler.Submit("test", 1, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
 		<-ctx.Done()

@@ -7,52 +7,32 @@ import (
 	"net/http"
 	"sync"
 	"testing"
-	"time"
 )
 
-func waitRequestQueue(t *testing.T, b *requestBudget, count int) {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	for {
-		b.mu.Lock()
-		n, changed := b.waiting, b.changed
-		b.mu.Unlock()
-		if n == count {
-			return
+func TestVideoRequestActivityHasNoSecondQuota(t *testing.T) {
+	b := new(requestActivity)
+	var releases []func()
+	for range videoRequestSoftLimit + 3 {
+		release, err := b.acquire(context.Background())
+		if err != nil {
+			t.Fatal(err)
 		}
-		select {
-		case <-ctx.Done():
-			t.Fatalf("waiting for %d queued requests, got %d", count, n)
-		case <-changed:
-		}
-	}
-}
-
-func TestVideoRequestBudgetCapacityCancellationAndReuse(t *testing.T) {
-	b := newRequestBudget(1)
-	held, err := b.acquire(context.Background())
-	if err != nil {
-		t.Fatal(err)
+		releases = append(releases, release)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { _, err := b.acquire(ctx); done <- err }()
-	waitRequestQueue(t, b, 1)
 	cancel()
-	if err := <-done; !errors.Is(err, context.Canceled) {
+	if _, err := b.acquire(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
-	waitRequestQueue(t, b, 0)
-	held()
-	held()
-	next, err := b.acquire(context.Background())
-	if err != nil {
-		t.Fatal(err)
+	if b.active != len(releases) {
+		t.Fatal("incorrect active count", b.active)
 	}
-	next()
+	for _, release := range releases {
+		release()
+		release()
+	}
 	if b.active != 0 {
-		t.Fatal("quota leaked")
+		t.Fatal("request activity leaked")
 	}
 }
 
@@ -67,9 +47,9 @@ func (b *delayedRequestClose) Close() error {
 	return nil
 }
 
-func TestVideoRequestBudgetHoldsResponseUntilCloseCompletes(t *testing.T) {
+func TestVideoRequestActivityHoldsResponseUntilCloseCompletes(t *testing.T) {
 	s, _ := setup(t, nil)
-	s.requests = newRequestBudget(1)
+	s.requests = new(requestActivity)
 	body := &delayedRequestClose{started: make(chan struct{}), finish: make(chan struct{})}
 	defer close(body.finish)
 	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
@@ -87,19 +67,16 @@ func TestVideoRequestBudgetHoldsResponseUntilCloseCompletes(t *testing.T) {
 	closed := make(chan struct{})
 	go func() { resp.Body.Close(); close(closed) }()
 	<-body.started
-	waitCtx, stop := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { _, err := s.requests.acquire(waitCtx); done <- err }()
-	waitRequestQueue(t, s.requests, 1)
+	next, err := s.requests.acquire(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	next()
 	s.requests.mu.Lock()
 	active := s.requests.active
 	s.requests.mu.Unlock()
 	if active != 1 {
-		t.Fatalf("canceled response released quota during Close: %d", active)
-	}
-	stop()
-	if err := <-done; !errors.Is(err, context.Canceled) {
-		t.Fatal(err)
+		t.Fatalf("canceled response stopped counting during Close: %d", active)
 	}
 	// Complete Close before checking for the final, exactly-once release.
 	body.finish <- struct{}{}
@@ -108,11 +85,11 @@ func TestVideoRequestBudgetHoldsResponseUntilCloseCompletes(t *testing.T) {
 	s.requests.mu.Lock()
 	defer s.requests.mu.Unlock()
 	if s.requests.active != 0 {
-		t.Fatal("quota leaked")
+		t.Fatal("request activity leaked")
 	}
 }
 
-func TestVideoRequestBudgetReleasesFailedAttempts(t *testing.T) {
+func TestVideoRequestActivityReleasesFailedAttempts(t *testing.T) {
 	for _, status := range []int{0, 503} {
 		s, _ := setup(t, nil)
 		s.cfg.ResourceTransports = func(string) []http.RoundTripper {

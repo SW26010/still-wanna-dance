@@ -147,7 +147,7 @@ func TestParallelRangeFailureJoinsClosingPeersBeforeCleanup(t *testing.T) {
 	s.requests.mu.Unlock()
 	// Additional failing attempts may still be unwinding; both gated bodies
 	// must remain counted, regardless of that independent completion ordering.
-	if active < 2 || active > videoRequestLimit {
+	if active < 2 || active > videoRequestSoftLimit {
 		t.Fatalf("closing requests released early: %d", active)
 	}
 	unblock()

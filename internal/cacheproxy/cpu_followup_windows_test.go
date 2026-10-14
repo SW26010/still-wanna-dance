@@ -478,16 +478,11 @@ func followEngine(ctx context.Context, p followPlan, tr *followTransport, r *fol
 			return nil
 		})
 	}()
-	if p.N != 4 {
-		s.requests = newRequestBudget(p.N)
-		s.scheduler.Close()
-		s.scheduler = blocksched.New(blocksched.Config{Limit: p.N, Background: p.N - 2, GrowInterval: 250 * time.Millisecond, PreemptAfter: 200 * time.Millisecond, Cooldown: 500 * time.Millisecond, Adaptive: true})
-	}
-	r.BudgetTotal = s.requests.limit
-	r.BudgetBackground = backgroundRequestLimit
-	if p.N != 4 {
-		r.BudgetBackground = p.N - 2
-	}
+	s.scheduler.Close()
+	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: p.N, GrowInterval: 250 * time.Millisecond, PreemptAfter: 200 * time.Millisecond, Cooldown: 500 * time.Millisecond, Adaptive: true})
+	// These legacy report columns now describe ordinary admission's soft cap;
+	// Blocking bypasses it and there is no separate background quota.
+	r.BudgetTotal, r.BudgetBackground = p.N, p.N
 	r.BackgroundWorkers = 0 // global block scheduling; no per-video worker count
 	if p.Scenario == "prefetch" {
 		start := time.Now()

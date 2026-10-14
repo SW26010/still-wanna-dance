@@ -7,9 +7,9 @@ import (
 	"time"
 )
 
-func TestRampReuseEmergencyAndNoIdleCredit(t *testing.T) {
+func TestRampReuseAndNoIdleCredit(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		s := New(Config{Limit: 6, Background: 4, GrowInterval: 250 * time.Millisecond})
+		s := New(Config{SoftLimit: 6, GrowInterval: 250 * time.Millisecond})
 		defer s.Close()
 		started := make(chan time.Time, 8)
 		gates := make([]chan struct{}, 4)
@@ -62,7 +62,7 @@ func TestRampReuseEmergencyAndNoIdleCredit(t *testing.T) {
 
 func TestContentionPausesProgressWithoutCancelStorm(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		s := New(Config{Limit: 3, Background: 2, GrowInterval: 250 * time.Millisecond, PreemptAfter: 200 * time.Millisecond, Cooldown: 500 * time.Millisecond})
+		s := New(Config{SoftLimit: 3, GrowInterval: 250 * time.Millisecond, PreemptAfter: 200 * time.Millisecond, Cooldown: 500 * time.Millisecond})
 		defer s.Close()
 		paused := make(chan time.Time, 1)
 		started := make(chan struct{}, 4)
@@ -102,11 +102,11 @@ func TestContentionPausesProgressWithoutCancelStorm(t *testing.T) {
 
 func TestDeadlineCostEstimateAndNoGainRollback(t *testing.T) {
 	now := time.Now()
-	s := &state{cfg: Config{Limit: 6, Background: 4, Adaptive: true}, jobs: map[string]*job{}, control: controller{rate: 1 << 20}}
+	s := &state{cfg: Config{SoftLimit: 6, Adaptive: true}, jobs: map[string]*job{}, control: controller{rate: 1 << 20}}
 	for _, key := range []string{"a", "b", "c", "d", "e", "f"} {
 		s.jobs[key] = &job{remaining: 2 << 20, need: Need{Owner: key, ReadyBy: now.Add(2 * time.Second)}}
 	}
-	if n := s.estimate(now); n != 4 {
+	if n := s.estimate(now); n != 6 {
 		t.Fatal(n)
 	}
 	s.jobs["a"].need.Blocking = true
@@ -128,7 +128,7 @@ func TestDeadlineCostEstimateAndNoGainRollback(t *testing.T) {
 
 func TestDueDeadlineCanYieldSmallRequestWithoutProgress(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		s := New(Config{Limit: 1, Background: 1, PreemptAfter: 200 * time.Millisecond, Cooldown: time.Second})
+		s := New(Config{SoftLimit: 1, PreemptAfter: 200 * time.Millisecond, Cooldown: time.Second})
 		defer s.Close()
 		started := make(chan string, 4)
 		old, _ := s.Submit("headers", 25, func(ctx context.Context, _ *Progress) Result {

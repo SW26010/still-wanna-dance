@@ -81,7 +81,7 @@ func (b *rangeCountedBody) Close() error {
 	return err
 }
 
-func TestParallelRangeGlobalBudgetLeavesRoomForPlaybackAndSeek(t *testing.T) {
+func TestParallelRangeSoftLimitAllowsPlaybackAndSeek(t *testing.T) {
 	bodies := [][]byte{
 		bytes.Repeat([]byte("a"), int(rangeBlockSize*9)),
 		bytes.Repeat([]byte("b"), int(rangeBlockSize*9)),
@@ -116,7 +116,7 @@ func TestParallelRangeGlobalBudgetLeavesRoomForPlaybackAndSeek(t *testing.T) {
 		}
 		w.Write(body[start : end+1])
 	})
-	// The budget covers client requests through Body.Close. An upstream
+	// Activity counts client requests through Body.Close. An upstream
 	// handler can outlive a canceled request and must not inflate this count.
 	transport := resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
 		mu.Lock()
@@ -189,8 +189,9 @@ func TestParallelRangeGlobalBudgetLeavesRoomForPlaybackAndSeek(t *testing.T) {
 	mu.Lock()
 	observedPeak := peak
 	mu.Unlock()
-	if observedPeak > videoRequestLimit {
-		t.Fatalf("peak = %d, exceeds %d", observedPeak, videoRequestLimit)
+	// This scenario has one actual blocked reader, which may exceed the cap.
+	if observedPeak > videoRequestSoftLimit+1 {
+		t.Fatalf("peak = %d, exceeds ordinary cap plus one blocked read", observedPeak)
 	}
 	unblock()
 	if err := <-seekDone; err != nil {
@@ -210,7 +211,7 @@ func TestParallelRangeGlobalBudgetLeavesRoomForPlaybackAndSeek(t *testing.T) {
 	observedPeak = peak
 	remaining := active
 	mu.Unlock()
-	if observedPeak > videoRequestLimit {
+	if observedPeak > videoRequestSoftLimit+1 {
 		t.Fatalf("global peak = %d", observedPeak)
 	}
 	if remaining != 0 {

@@ -72,7 +72,7 @@ type Server struct {
 	playbackChecks     map[string]*playbackCheck // protected by mu
 	slots              chan struct{}
 	localChecks        chan struct{}
-	requests           *requestBudget
+	requests           *requestActivity
 	scheduler          *blocksched.Scheduler
 	rangeBuffers       chan []byte
 	verifyMu           sync.Mutex
@@ -184,8 +184,8 @@ func New(cfg Config) (*Server, error) {
 	}
 
 	s := &Server{cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
-		requests:     newRequestBudget(videoRequestLimit),
-		rangeBuffers: make(chan []byte, videoRequestLimit),
+		requests:     new(requestActivity),
+		rangeBuffers: make(chan []byte, videoRequestSoftLimit),
 		versionPins:  make(map[string]int),
 		usage:        usage,
 		flights:      make(map[string]*flight), slots: make(chan struct{}, maxResourceSessions), localChecks: make(chan struct{}, cfg.MaxDownloads), capacityChanged: make(chan struct{}),
@@ -207,7 +207,7 @@ func New(cfg Config) (*Server, error) {
 	s.retentionWake = make(chan struct{}, 1)
 	s.retentionDone = make(chan struct{})
 	go s.retentionLoop()
-	s.scheduler = blocksched.New(blocksched.Config{Limit: videoRequestLimit, Background: backgroundRequestLimit,
+	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: videoRequestSoftLimit,
 		GrowInterval: 250 * time.Millisecond, PreemptAfter: 200 * time.Millisecond, Cooldown: 500 * time.Millisecond, Adaptive: true,
 		Observe: func(e blocksched.Event) {
 			cfg.Logger.Debug("block_schedule", "event", e.Kind, "block_key", e.Key, "reason", e.Reason, "active", e.Active, "open", e.Open, "target", e.Target, "blocking", e.Blocking, "ready_by", e.ReadyBy, "remaining_bytes", e.Remaining, "supply_bytes_per_worker_second", e.Supply)

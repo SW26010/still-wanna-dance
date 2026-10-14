@@ -70,15 +70,16 @@ func TestResourceFallbackIsBounded(t *testing.T) {
 	}
 }
 
-func TestResourceResumeSkipsFailedChannelWhileNextAttemptQueued(t *testing.T) {
+func TestResourceResumeSkipsFailedChannelWhenNextAttemptYields(t *testing.T) {
 	for _, failure := range []string{"transport", "status"} {
 		t.Run(failure, func(t *testing.T) {
-			s := &Server{client: &http.Client{}, requests: newRequestBudget(1)}
+			s := &Server{client: &http.Client{}, requests: new(requestActivity)}
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 			transferCtx, yield := context.WithCancelCause(ctx)
 			defer yield(nil)
 			started, fail := make(chan struct{}), make(chan struct{})
+			nextStarted := make(chan struct{})
 			var calls [2]int
 			s.cfg.ResourceTransports = func(string) []http.RoundTripper {
 				return []http.RoundTripper{
@@ -99,6 +100,11 @@ func TestResourceResumeSkipsFailedChannelWhileNextAttemptQueued(t *testing.T) {
 					}),
 					resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
 						calls[1]++
+						if calls[1] == 1 {
+							close(nextStarted)
+							<-r.Context().Done()
+							return nil, r.Context().Err()
+						}
 						return &http.Response{StatusCode: 200, Header: make(http.Header), Body: http.NoBody, Request: r}, nil
 					}),
 				}
@@ -118,30 +124,24 @@ func TestResourceResumeSkipsFailedChannelWhileNextAttemptQueued(t *testing.T) {
 			case <-ctx.Done():
 				t.Fatal("first candidate did not start")
 			}
-			// An urgent request takes the slot released by the failed channel,
-			// leaving the next candidate queued when the range yields to Seek.
-			gotSlot := make(chan func(), 1)
-			go func() { release, _ := s.requests.acquire(ctx); gotSlot <- release }()
-			waitRequestQueue(t, s.requests, 1)
+			// The failed channel is consumed; pause the next one before headers.
 			close(fail)
-			release := <-gotSlot
-			if release == nil {
-				t.Fatal("urgent request did not acquire released slot")
+			select {
+			case <-nextStarted:
+			case <-ctx.Done():
+				t.Fatal("next candidate did not start")
 			}
-			defer release()
-			waitRequestQueue(t, s.requests, 1)
 			yield(errRangeYielded)
-			if err := <-done; !errors.Is(err, context.Canceled) {
-				t.Fatalf("queued attempt did not yield: %v", err)
+			if err := <-done; !errors.Is(err, errRangeYielded) {
+				t.Fatalf("active attempt did not yield: %v", err)
 			}
 			attempts.resume()
-			release()
 			resp, err := s.resourceResponse(r.Clone(ctx), attempts)
 			if err != nil {
 				t.Fatal("next candidate did not resume", err)
 			}
 			resp.Body.Close()
-			if calls != [2]int{1, 1} {
+			if calls != [2]int{1, 2} {
 				t.Fatalf("resume revisited failed channel: calls=%v", calls)
 			}
 		})
@@ -155,7 +155,7 @@ func TestResourceResumeRetriesChannelYieldedBeforeHeaders(t *testing.T) {
 }
 
 func testResourceResumeBeforeHeaders(t *testing.T, cause error) {
-	s := &Server{client: &http.Client{}, requests: newRequestBudget(1)}
+	s := &Server{client: &http.Client{}, requests: new(requestActivity)}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	transferCtx, yield := context.WithCancelCause(ctx)

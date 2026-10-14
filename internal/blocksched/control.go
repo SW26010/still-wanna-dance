@@ -77,16 +77,13 @@ func (s *state) measure(now time.Time) {
 	c.nextSample = now.Add(sampleInterval)
 }
 func (s *state) estimate(now time.Time) int {
-	count, blocking := 0, 0
+	count := 0
 	var timed []*job
 	for _, j := range s.jobs {
 		if j.retiring || j.need.Owner == "" {
 			continue
 		}
 		count++
-		if j.need.Blocking {
-			blocking++
-		}
 		if !j.need.ReadyBy.IsZero() {
 			timed = append(timed, j)
 		}
@@ -99,7 +96,7 @@ func (s *state) estimate(now time.Time) int {
 	if s.control.rate == 0 {
 		for _, j := range timed {
 			if j.need.ReadyBy.Before(now.Add(catchupWindow)) {
-				target = min(count, s.cfg.Background)
+				target = min(count, s.cfg.SoftLimit)
 				break
 			}
 		}
@@ -116,13 +113,7 @@ func (s *state) estimate(now time.Time) int {
 	if now.Before(s.control.coolUntil) {
 		target = min(target, s.control.cap)
 	}
-	// A finite emergency allowance protects two independent blocked reads.
-	target = max(target, min(blocking, 2))
-	ceiling := s.cfg.Background
-	if blocking > 0 {
-		ceiling = s.cfg.Limit
-	}
-	return min(count, ceiling, target)
+	return min(count, s.cfg.SoftLimit, target)
 }
 func (s *state) regulate(now time.Time) {
 	c := &s.control
@@ -133,7 +124,7 @@ func (s *state) regulate(now time.Time) {
 		}
 	}()
 	if s.cfg.GrowInterval <= 0 {
-		c.target = s.cfg.Limit
+		c.target = s.cfg.SoftLimit
 	} else {
 		if s.active > 0 && (c.nextSample.IsZero() || !now.Before(c.nextSample)) {
 			s.measure(now)
@@ -147,15 +138,10 @@ func (s *state) regulate(now time.Time) {
 			c.estimated = s.estimate(now)
 			c.nextEstimate = now.Add(sampleInterval)
 		}
-		ceiling := s.cfg.Background
-		if s.hasBlocking() {
-			ceiling = s.cfg.Limit
-		}
-		c.target = min(s.wanted, ceiling, max(c.estimated, min(2, s.wanted)))
+		c.target = min(s.wanted, s.cfg.SoftLimit, max(c.estimated, min(2, s.wanted)))
 		if now.Before(c.coolUntil) {
 			c.target = min(c.target, c.cap)
 		}
-		c.target = max(c.target, min(s.blocking, 2))
 		if c.target == 0 {
 			c.open = 1
 			c.nextGrow = time.Time{}
@@ -169,9 +155,6 @@ func (s *state) regulate(now time.Time) {
 		}
 		if c.target < c.open {
 			c.open = c.target
-		}
-		if s.hasBlocking() {
-			c.open = max(c.open, min(2, c.target))
 		}
 		if c.open < c.target {
 			if c.nextGrow.IsZero() {

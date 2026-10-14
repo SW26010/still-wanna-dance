@@ -10,7 +10,7 @@ import (
 
 func TestSummaryUpdatesReleaseOldOwnersAndCounters(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		s := New(Config{Limit: 1, Background: 1})
+		s := New(Config{SoftLimit: 1})
 		defer s.Close()
 		j, _ := s.Submit("shared", 100, func(ctx context.Context, _ *Progress) Result {
 			<-ctx.Done()
@@ -59,7 +59,7 @@ func TestResponseCostDiscoveryAndMetadataCapacity(t *testing.T) {
 	if j.remaining != 7<<20 {
 		t.Fatal("sequential fallback cost was truncated", j.remaining)
 	}
-	s := New(Config{Limit: 1, Background: 1, MaxTasks: 1, MaxDemands: 1})
+	s := New(Config{SoftLimit: 1, MaxTasks: 1, MaxDemands: 1})
 	defer s.Close()
 	task, _ := s.Submit("one", 1, func(ctx context.Context, _ *Progress) Result {
 		<-ctx.Done()
@@ -92,7 +92,7 @@ func TestResponseCostDiscoveryAndMetadataCapacity(t *testing.T) {
 func BenchmarkDemandUpdate(b *testing.B) {
 	for _, count := range []int{16, 1024, 4096} {
 		b.Run(strconv.Itoa(count), func(b *testing.B) {
-			s := New(Config{Limit: 1, Background: 1, GrowInterval: 250 * time.Millisecond, Adaptive: true})
+			s := New(Config{SoftLimit: 1, GrowInterval: 250 * time.Millisecond, Adaptive: true})
 			defer s.Close()
 			var d *Demand
 			for i := 0; i < count; i++ {

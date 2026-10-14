@@ -58,9 +58,11 @@ func (p *Progress) Add(n int64) {
 }
 
 type Config struct {
-	Limit, Background, MaxTasks, MaxDemands int
-	GrowInterval, PreemptAfter, Cooldown    time.Duration
-	Adaptive                                bool
+	// SoftLimit bounds ordinary admission. Actual blocked reads bypass both
+	// this limit and growth pacing; metadata capacity still bounds total work.
+	SoftLimit, MaxTasks, MaxDemands      int
+	GrowInterval, PreemptAfter, Cooldown time.Duration
+	Adaptive                             bool
 	// Optional event sink; it must be fast and must not call back into Scheduler.
 	Observe func(Event)
 }
@@ -172,23 +174,23 @@ func (d *Demand) Close() {
 }
 
 type job struct {
-	task                  *Task
-	run                   Run
-	remaining             int64
-	initialRemaining      int64
-	needs                 map[uint64]*lease
-	need                  Need
-	index                 int
-	delayIndex            int
-	sequence, fair        uint64
-	cancel                context.CancelCauseFunc
-	progress              *Progress
-	retiring, speculative bool
-	yielding              bool
-	terminal              error
-	notBefore             time.Time
-	started               time.Time
-	sampled               int64
+	task             *Task
+	run              Run
+	remaining        int64
+	initialRemaining int64
+	needs            map[uint64]*lease
+	need             Need
+	index            int
+	delayIndex       int
+	sequence, fair   uint64
+	cancel           context.CancelCauseFunc
+	progress         *Progress
+	retiring         bool
+	yielding         bool
+	terminal         error
+	notBefore        time.Time
+	started          time.Time
+	sampled          int64
 }
 type lease struct {
 	id    uint64
@@ -201,36 +203,35 @@ type completion struct {
 	result Result
 }
 type state struct {
-	s                               *Scheduler
-	cfg                             Config
-	jobs                            map[string]*job
-	running                         map[*job]bool
-	wanted, blocking                int
-	ready                           readyHeap
-	expiry                          leaseHeap
-	owners                          map[string]uint64
-	groups                          map[string]map[*job]bool
-	sequence                        uint64
-	active, background, demandCount int
-	closing                         bool
-	control                         controller
-	delayed                         map[*job]bool
-	sleeping                        delayHeap
-	contention                      time.Time
+	s                   *Scheduler
+	cfg                 Config
+	jobs                map[string]*job
+	running             map[*job]bool
+	wanted, blocking    int
+	ready               readyHeap
+	expiry              leaseHeap
+	owners              map[string]uint64
+	groups              map[string]map[*job]bool
+	sequence            uint64
+	active, demandCount int
+	closing             bool
+	control             controller
+	delayed             map[*job]bool
+	sleeping            delayHeap
+	contention          time.Time
 }
 
 func New(cfg Config) *Scheduler {
-	cfg.Limit = max(1, cfg.Limit)
-	cfg.Background = max(1, min(cfg.Limit, cfg.Background))
+	cfg.SoftLimit = max(1, cfg.SoftLimit)
 	if cfg.MaxTasks <= 0 {
 		cfg.MaxTasks = 4096
 	}
 	if cfg.MaxDemands <= 0 {
 		cfg.MaxDemands = 32768
 	}
-	s := &Scheduler{commands: make(chan func(*state), 64), finished: make(chan completion, cfg.Limit), done: make(chan struct{})}
+	s := &Scheduler{commands: make(chan func(*state), 64), finished: make(chan completion, cfg.SoftLimit), done: make(chan struct{})}
 	st := &state{s: s, cfg: cfg, jobs: make(map[string]*job), running: make(map[*job]bool), owners: make(map[string]uint64), groups: make(map[string]map[*job]bool), delayed: make(map[*job]bool)}
-	st.control.open = cfg.Limit
+	st.control.open = cfg.SoftLimit
 	if cfg.GrowInterval > 0 {
 		st.control.open = 1
 	}
@@ -432,9 +433,9 @@ func (s *state) emit(kind, reason string, j *job) {
 	s.cfg.Observe(e)
 }
 func (s *state) dispatch() {
-	for s.ready.Len() > 0 && s.active < s.control.open {
+	for s.ready.Len() > 0 {
 		j := s.ready[0]
-		if !j.need.Blocking && s.background >= s.cfg.Background {
+		if !j.need.Blocking && s.active >= s.control.open {
 			return
 		}
 		heap.Pop(&s.ready)
@@ -448,16 +449,13 @@ func (s *state) dispatch() {
 			}
 		}
 		ctx, cancel := context.WithCancelCause(context.Background())
-		j.cancel, j.progress, j.speculative = cancel, new(Progress), !j.need.Blocking
+		j.cancel, j.progress = cancel, new(Progress)
 		j.started, j.sampled, j.yielding = time.Now(), 0, false
 		s.active++
 		s.running[j] = true
 		j.initialRemaining = j.remaining
 		if s.cfg.GrowInterval > 0 && s.control.nextSample.IsZero() {
 			s.control.nextSample = time.Now().Add(sampleInterval)
-		}
-		if j.speculative {
-			s.background++
 		}
 		s.emit("started", "demand", j)
 		go func() { s.s.finished <- completion{j, j.run(ctx, j.progress)} }()
@@ -506,9 +504,6 @@ func (s *state) loop() {
 			j.cancel = nil
 			s.active--
 			delete(s.running, j)
-			if j.speculative {
-				s.background--
-			}
 			if j.retiring {
 				err := j.terminal
 				if c.result.Err != nil && !errors.Is(c.result.Err, ErrPaused) && !errors.Is(c.result.Err, context.Canceled) && !errors.Is(c.result.Err, context.DeadlineExceeded) {

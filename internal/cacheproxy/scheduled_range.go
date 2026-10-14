@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
+
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/blocksched"
-	"strings"
 )
 
 func isScheduledPause(ctx context.Context) bool {
@@ -37,6 +38,14 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 		etag = ""
 	}
 	var bytes []byte
+	defer func() {
+		if bytes != nil {
+			select {
+			case s.rangeBuffers <- bytes:
+			default:
+			}
+		}
+	}()
 	buffer := &bytes
 	start, end := block*rangeBlockSize, min((block+1)*rangeBlockSize, v.size)
 	// Redirect progress belongs to this block; other workers keep their
@@ -53,7 +62,7 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 	last, received := state.last, state.received
 	if received > 0 {
 		if *buffer == nil {
-			*buffer = make([]byte, min(rangeBlockSize, v.size)+1)
+			*buffer = s.rangeBuffer()
 		}
 		if _, err := f.ReadAt((*buffer)[:received], start); err != nil {
 			return err
@@ -125,7 +134,7 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 				return errors.New("upstream entity changed between ranges")
 			}
 			if *buffer == nil {
-				*buffer = make([]byte, min(rangeBlockSize, v.size)+1)
+				*buffer = s.rangeBuffer()
 			}
 			data, err = readRangeBlock(contextReader{transferCtx, schedulerProgressReader{progressReader{upstreamReader{body}, flight.progress}, progress}}, (*buffer)[received:end-start+1])
 			if err != nil {
@@ -146,6 +155,8 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 			// A canceled response with all advertised bytes but without EOF
 			// still needs normal oversize validation; do not publish it early.
 			if received >= end-start {
+				progress.SetSize(end - start)
+				progress.Invalidate()
 				received = 0
 			}
 			if preempted {
@@ -153,6 +164,8 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 			}
 		}
 		if err != nil {
+			progress.SetSize(end - start)
+			progress.Invalidate()
 			last = applog.SafeError(err)
 			received = 0
 			failures++
@@ -165,4 +178,13 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 		return nil
 	}
 	return fmt.Errorf("%w: range %d-%d: %w", errUpstreamDownload, start, end-1, last)
+}
+
+func (s *Server) rangeBuffer() []byte {
+	select {
+	case buffer := <-s.rangeBuffers:
+		return buffer
+	default:
+		return make([]byte, rangeBlockSize+1)
+	}
 }

@@ -12,9 +12,9 @@ var errPreempted = errors.Join(context.Canceled, errors.New("download paused wit
 
 type queueDemandKey struct{}
 type downloadDemand struct {
-	ctx                      context.Context
-	key, song                string
-	queue, playback, waiting bool
+	ctx             context.Context
+	key, song       string
+	queue, playback bool
 }
 
 func (s *Server) queueContainsLocked(song string) bool { _, ok := s.prefetchOrder[song]; return ok }

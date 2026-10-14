@@ -112,6 +112,12 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 	if err != nil || !until.Equal(now.Add(queueHandoff)) {
 		t.Fatal(until, err)
 	}
+	w.jobs[0].task.Watch(w.wake)
+	// Handoff must defer the original queue deadline, not make it more urgent.
+	// (The plan was obtained at the same now for both queue orders.)
+	if handoff := w.jobs[0].handoffUntil; !handoff.Equal(now.Add(queueHandoff)) {
+		t.Fatal(handoff)
+	}
 	// An unrelated later event must not slide the abandoned queue's lease.
 	later, _ := w.reconcile(plan, now.Add(time.Second))
 	if !later.Equal(until) {
@@ -143,4 +149,24 @@ func TestBlockLeaseRemovalDoesNotDropOtherOwner(t *testing.T) {
 	}
 	job.Close()
 	<-job.Done()
+}
+
+func TestHandoffDefersFutureDeadlineWithoutExtendingValidity(t *testing.T) {
+	now := time.Now()
+	for _, ready := range []time.Time{now.Add(time.Minute), now.Add(-time.Minute), {}} {
+		original := blocksched.Need{Owner: "video", Blocking: true, ReadyBy: ready, LeaseUntil: now.Add(sourceLease)}
+		h := handoffNeed(original, now, getHandoff, 2*time.Second)
+		if h.Blocking || !h.LeaseUntil.Equal(now.Add(getHandoff)) {
+			t.Fatal("handoff kept blocking or original long validity", h)
+		}
+		if ready.After(now) && !h.ReadyBy.Equal(ready.Add(2*time.Second)) {
+			t.Fatal("future work was promoted by disconnect", h)
+		}
+		if !ready.After(now) && !h.ReadyBy.Equal(now.Add(2*time.Second)) {
+			t.Fatal("overdue work retained stale urgency", h)
+		}
+		if !original.Blocking {
+			t.Fatal("independent source was mutated")
+		}
+	}
 }

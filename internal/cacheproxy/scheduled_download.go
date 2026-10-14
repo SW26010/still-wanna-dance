@@ -44,6 +44,7 @@ type scheduledBlock struct {
 	task         *blocksched.Task
 	needs        map[blockSource]attachedNeed
 	handoffUntil time.Time
+	retiring     bool
 }
 type downloadSession struct {
 	s           *Server
@@ -118,7 +119,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 	defer cancel(nil)
 	// The global block permit already bounds all retries/redirects. The HTTP
 	// guard remains a final lifecycle check, with no second priority policy.
-	ctx = context.WithValue(ctx, requestPriorityKey{}, requestPriority(func() (bool, <-chan struct{}) { return true, nil }))
+
 	var initial *http.Response
 	if w.f.ranges == nil {
 		resp, host, err := w.s.openUpstream(ctx, w.v)
@@ -134,6 +135,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 		}
 		w.f.log.Info("upstream_response", "host", host, "status", resp.StatusCode, "content_length", resp.ContentLength)
 		if resp.StatusCode != http.StatusPartialContent {
+			p.SetSize(w.v.size)
 			w.f.sequentialDemand = func(int64) func() { return w.demand(0) }
 			w.f.log.Info("range_unavailable", "host", host, "fallback", "sequential")
 			stopBody := context.AfterFunc(ctx, func() { resp.Body.Close() })
@@ -173,9 +175,17 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 
 func (w *downloadSession) submit(block int64) (*scheduledBlock, error) {
 	key := fmt.Sprintf("%s/%d/%d", w.v.key, w.v.size, block)
-	t, err := w.s.scheduler.Submit(key, min(rangeBlockSize, w.v.size-block*rangeBlockSize), func(ctx context.Context, p *blocksched.Progress) blocksched.Result { return w.run(ctx, p, block) })
+	remaining := min(rangeBlockSize, w.v.size-block*rangeBlockSize)
+	if w.f.ranges != nil {
+		w.f.ranges.mu.Lock()
+		if state := w.f.ranges.partial[block]; state != nil {
+			remaining -= state.received
+		}
+		w.f.ranges.mu.Unlock()
+	}
+	t, err := w.s.scheduler.Submit(key, remaining, func(ctx context.Context, p *blocksched.Progress) blocksched.Result { return w.run(ctx, p, block) })
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(errBusy, err)
 	}
 	t.Watch(w.wake)
 	j := &scheduledBlock{task: t, needs: make(map[blockSource]attachedNeed)}
@@ -186,16 +196,22 @@ func (w *downloadSession) submit(block int64) (*scheduledBlock, error) {
 func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[blockSource]plannedNeed, <-chan struct{}) {
 	plan := make(map[int64]map[blockSource]plannedNeed)
 	blocks := (w.v.size + rangeBlockSize - 1) / rangeBlockSize
-	done := map[int64]bool{}
+	done := func(block int64) bool {
+		if !initialized {
+			return false
+		}
+		w.f.ranges.mu.Lock()
+		defer w.f.ranges.mu.Unlock()
+		return w.f.ranges.done[block]
+	}
+	first := int64(0)
 	if initialized {
 		w.f.ranges.mu.Lock()
-		for b := range w.f.ranges.done {
-			done[b] = true
-		}
+		first = w.f.ranges.prefix
 		w.f.ranges.mu.Unlock()
 	}
 	add := func(block int64, source blockSource, ready time.Time, blocking bool, revision int64) {
-		if block < 0 || block >= blocks || done[block] {
+		if block < 0 || block >= blocks || done(block) {
 			return
 		}
 		if plan[block] == nil {
@@ -204,8 +220,8 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 		plan[block][source] = plannedNeed{blocksched.Need{Owner: w.v.key, ReadyBy: ready, LeaseUntil: now.Add(sourceLease), Blocking: blocking}, revision}
 	}
 	var window []int64
-	for b := int64(0); b < blocks && len(window) < scheduledWindow; b++ {
-		if !done[b] {
+	for b := first; b < blocks && len(window) < scheduledWindow; b++ {
+		if !done(b) {
 			window = append(window, b)
 		}
 	}
@@ -282,6 +298,9 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 				return until, err
 			}
 		}
+		if j.retiring {
+			continue
+		}
 		for source, p := range needs {
 			if old, ok := j.needs[source]; ok {
 				if old.plan.revision == p.revision {
@@ -321,10 +340,7 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 				grace, delay = queueHandoff, 5*time.Second
 			}
 			if grace > 0 {
-				n := old.plan.need
-				n.Blocking = false
-				n.LeaseUntil = now.Add(grace)
-				n.ReadyBy = now.Add(delay)
+				n := handoffNeed(old.plan.need, now, grace, delay)
 				handoff = &n
 				j.handoffUntil = maxTime(j.handoffUntil, n.LeaseUntil)
 			}
@@ -335,8 +351,18 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 			until = maxTime(until, now.Add(sourceLease))
 		}
 		until = maxTime(until, j.handoffUntil)
+		if len(j.needs) == 0 && !j.handoffUntil.After(now) && !j.retiring {
+			j.retiring = true
+			j.task.Close()
+		}
 	}
 	return until, nil
+}
+func handoffNeed(n blocksched.Need, now time.Time, grace, delay time.Duration) blocksched.Need {
+	n.Blocking = false
+	n.LeaseUntil = now.Add(grace)
+	n.ReadyBy = maxTime(n.ReadyBy, now).Add(delay)
+	return n
 }
 func maxTime(a, b time.Time) time.Time {
 	if b.After(a) {
@@ -376,11 +402,11 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 		for block, j := range w.jobs {
 			select {
 			case <-j.task.Done():
-				if err := j.task.Err(); err != nil {
+				if err := j.task.Err(); err != nil && !(j.retiring && errors.Is(err, context.Canceled)) {
 					return err
 				}
 				delete(w.jobs, block)
-				if !initialized {
+				if !initialized && !j.retiring {
 					return nil
 				} // sequential 200, already published
 			default:
@@ -413,6 +439,11 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 		wait := sourceLease / 3
 		if len(plan) == 0 {
 			wait = min(wait, until.Sub(now))
+		}
+		for _, j := range w.jobs {
+			if len(j.needs) == 0 && j.handoffUntil.After(now) {
+				wait = min(wait, j.handoffUntil.Sub(now))
+			}
 		}
 		timer.Reset(max(time.Millisecond, wait))
 		var init <-chan struct{}

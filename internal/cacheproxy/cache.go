@@ -63,7 +63,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			return nil, nil, failure
 		}
 		f := s.flights[v.key]
-		demand.waiting = f == nil || f.preempted
+
 		if demand.queue && !s.queueContainsLocked(demand.song) {
 			s.mu.Unlock()
 			return nil, nil, context.Canceled
@@ -108,7 +108,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		}
 		s.mu.Lock()
 	}
-	demand.waiting = false
+
 	f := s.flights[v.key]
 	if f != nil && f.size != v.size {
 		s.mu.Unlock()
@@ -174,15 +174,16 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			}
 			s.mu.Lock()
 			checkpoint := f.ranges
+			var discarded []*rangeDownload
 			if checkpoint != nil && errors.Is(f.err, errPreempted) && !s.closed && s.storageFailure == nil {
-				if s.paused == nil {
-					s.paused = make(map[string]*rangeDownload)
-				}
-				s.paused[v.key] = checkpoint
+				discarded = s.retainPausedLocked(v.key, checkpoint)
 				f.log.Info("download_paused", "retained_bytes", checkpoint.bytes())
 				checkpoint = nil // the engine now owns this reference
 			}
 			s.mu.Unlock()
+			for _, victim := range discarded {
+				victim.storage.release()
+			}
 			if checkpoint != nil {
 				checkpoint.storage.release()
 			}

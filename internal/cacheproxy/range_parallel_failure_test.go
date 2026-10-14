@@ -168,7 +168,7 @@ func TestParallelRangeFailureJoinsClosingPeersBeforeCleanup(t *testing.T) {
 	}
 	s.requests.mu.Lock()
 	defer s.requests.mu.Unlock()
-	if s.requests.active != 0 || s.requests.speculative != 0 {
+	if s.requests.active != 0 {
 		t.Fatal("request quota leaked")
 	}
 }

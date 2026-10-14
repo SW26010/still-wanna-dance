@@ -19,6 +19,7 @@ func TestRampReuseEmergencyAndNoIdleCredit(t *testing.T) {
 				started <- time.Now()
 				select {
 				case <-gates[i]:
+					p.Add(100)
 				case <-ctx.Done():
 				}
 				return Result{}
@@ -47,7 +48,12 @@ func TestRampReuseEmergencyAndNoIdleCredit(t *testing.T) {
 		synctest.Wait()
 		time.Sleep(time.Minute)
 		var open int
-		s.call(func(s *state) { open = s.control.open })
+		s.call(func(s *state) {
+			open = s.control.open
+			if s.control.bytes != 0 || s.control.workerSeconds != 0 {
+				t.Error("idle carried a drained sample into next burst")
+			}
+		})
 		if open != 1 {
 			t.Fatalf("idle capacity accumulated: %d", open)
 		}
@@ -118,4 +124,26 @@ func TestDeadlineCostEstimateAndNoGainRollback(t *testing.T) {
 	if n := s.estimate(now); n != 2 {
 		t.Fatal(n)
 	}
+}
+
+func TestDueDeadlineCanYieldSmallRequestWithoutProgress(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		s := New(Config{Limit: 1, Background: 1, PreemptAfter: 200 * time.Millisecond, Cooldown: time.Second})
+		defer s.Close()
+		started := make(chan string, 4)
+		old, _ := s.Submit("headers", 25, func(ctx context.Context, _ *Progress) Result {
+			started <- "old"
+			<-ctx.Done()
+			return Result{Err: ErrPaused, Remaining: 25}
+		})
+		old.Add(need("old", false, time.Minute, time.Hour))
+		<-started
+		now := time.Now()
+		next, _ := s.Submit("due", 25, func(ctx context.Context, _ *Progress) Result { started <- "due"; return Result{} })
+		next.Add(need("next", false, time.Second, time.Hour))
+		if got := <-started; got != "due" || time.Since(now) != 200*time.Millisecond {
+			t.Fatal("deadline stuck behind silent small request", got, time.Since(now))
+		}
+		old.Close()
+	})
 }

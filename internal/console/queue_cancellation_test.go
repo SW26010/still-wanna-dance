@@ -17,7 +17,7 @@ import (
 	"still-wanna-dance/internal/vrclog"
 )
 
-func TestQueueInvalidationPreemptsObsoleteFlights(t *testing.T) {
+func TestQueueInvalidationReplacesSourcesDuringHandoff(t *testing.T) {
 	for _, change := range []string{"remove", "room", "outside top three", "reorder"} {
 		t.Run(change, func(t *testing.T) {
 			c := testConsole(t)
@@ -74,7 +74,7 @@ func TestQueueInvalidationPreemptsObsoleteFlights(t *testing.T) {
 					return ""
 				}
 			}
-			// Fill both background slots before replacing the queue.
+			// Establish both old sources before replacing the queue.
 			take(started)
 			take(started)
 			take(resolved)
@@ -90,9 +90,8 @@ func TestQueueInvalidationPreemptsObsoleteFlights(t *testing.T) {
 			if id := take(resolved); id != "3" {
 				t.Fatal(id)
 			}
-			if path := take(started); !strings.Contains(path, "/3-") {
-				t.Fatalf("new head blocked by obsolete flights: %s", path)
-			}
+			// Resolution/caller replacement must progress immediately. Network work
+			// keeps a finite handoff and starts according to block deadlines.
 			c.mu.Lock()
 			old := c.queue.waiters[3]
 			songs := []vrclog.Song{{ID: 4}}
@@ -110,9 +109,6 @@ func TestQueueInvalidationPreemptsObsoleteFlights(t *testing.T) {
 			}
 			if id := take(resolved); id != "4" {
 				t.Fatalf("new queue blocked behind obsolete waiter: %s", id)
-			}
-			if path := take(started); !strings.Contains(path, "/4-") {
-				t.Fatalf("replacement head blocked by obsolete flights: %s", path)
 			}
 			unblock()
 			deadline := time.Now().Add(3 * time.Second)

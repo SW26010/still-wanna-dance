@@ -40,6 +40,8 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"still-wanna-dance/internal/blocksched"
 )
 
 type followPlan struct {
@@ -477,10 +479,15 @@ func followEngine(ctx context.Context, p followPlan, tr *followTransport, r *fol
 		})
 	}()
 	if p.N != 4 {
-		s.requests = newRequestBudget(p.N, p.N-2)
+		s.requests = newRequestBudget(p.N)
+		s.scheduler.Close()
+		s.scheduler = blocksched.New(blocksched.Config{Limit: p.N, Background: p.N - 2, GrowInterval: 250 * time.Millisecond, PreemptAfter: 200 * time.Millisecond, Cooldown: 500 * time.Millisecond, Adaptive: true})
 	}
 	r.BudgetTotal = s.requests.limit
-	r.BudgetBackground = s.requests.background
+	r.BudgetBackground = backgroundRequestLimit
+	if p.N != 4 {
+		r.BudgetBackground = p.N - 2
+	}
 	r.BackgroundWorkers = 0 // global block scheduling; no per-video worker count
 	if p.Scenario == "prefetch" {
 		start := time.Now()

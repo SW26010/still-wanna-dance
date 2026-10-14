@@ -44,12 +44,15 @@ func (f *spoolFile) release() {
 // file; no buffers, readers, running workers or HTTP bodies survive a pause.
 // Server.mu transfers ownership between a flight and Server.paused.
 type rangeDownload struct {
-	mu      sync.Mutex
-	storage *spoolFile
-	video   video
-	etag    string
-	done    map[int64]bool
-	partial map[int64]*rangeResumeBlock
+	mu          sync.Mutex
+	storage     *spoolFile
+	video       video
+	etag        string
+	done        map[int64]bool
+	partial     map[int64]*rangeResumeBlock
+	prefix      int64
+	pausedOrder uint64
+	pausedSize  int64
 }
 
 type rangeResumeBlock struct {
@@ -74,6 +77,9 @@ func (d *rangeDownload) take(block int64) *rangeResumeBlock {
 func (d *rangeDownload) finish(block int64) {
 	d.mu.Lock()
 	d.done[block] = true
+	for d.done[d.prefix] {
+		d.prefix++
+	}
 	d.mu.Unlock()
 }
 
@@ -133,4 +139,47 @@ func (s *Server) newRangeDownload(v video, first *http.Response, log *slog.Logge
 	}
 	return &rangeDownload{storage: &spoolFile{file: f, refs: 1, log: log}, video: rangeVideo(v),
 		etag: first.Header.Get("ETag"), done: make(map[int64]bool), partial: make(map[int64]*rangeResumeBlock)}, nil
+}
+
+// Bound retained checkpoints independently of published-cache retention. Count
+// file length (including gaps), not just validated bytes. Readers own separate
+// references, so eviction cannot close an older response's open file.
+const maxPausedFiles = 32
+const maxPausedBytes int64 = 512 << 20
+
+// Caller holds Server.mu and releases returned references outside the lock.
+func (s *Server) retainPausedLocked(key string, d *rangeDownload) []*rangeDownload {
+	info, err := d.storage.file.Stat()
+	if err != nil {
+		s.cfg.Logger.Warn("paused_stat_failed", "error", applog.SafeError(err))
+		return []*rangeDownload{d}
+	}
+	if s.paused == nil {
+		s.paused = make(map[string]*rangeDownload)
+	}
+	d.pausedOrder, d.pausedSize = s.sequence.Add(1), info.Size()
+	s.paused[key] = d
+	return s.trimPausedLocked(maxPausedFiles, maxPausedBytes)
+}
+
+func (s *Server) trimPausedLocked(files int, limit int64) []*rangeDownload {
+	var drop []*rangeDownload
+	for {
+		var bytes int64
+		var oldest string
+		for key, checkpoint := range s.paused {
+			bytes += checkpoint.pausedSize
+			if oldest == "" || checkpoint.pausedOrder < s.paused[oldest].pausedOrder {
+				oldest = key
+			}
+		}
+		if len(s.paused) <= files && bytes <= limit {
+			break
+		}
+		victim := s.paused[oldest]
+		delete(s.paused, oldest)
+		drop = append(drop, victim)
+		s.cfg.Logger.Debug("paused_evicted", "resource_key", oldest, "file_bytes", victim.pausedSize, "reason", "checkpoint_limit")
+	}
+	return drop
 }

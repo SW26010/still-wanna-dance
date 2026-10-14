@@ -12,6 +12,9 @@ const catchupWindow = 2 * time.Second
 type controller struct {
 	open, target         int
 	nextGrow, nextSample time.Time
+	nextEstimate         time.Time
+	estimated            int
+	discard              bool
 	bytes                int64
 	workerSeconds        float64
 	rate, previousRate   float64
@@ -26,16 +29,19 @@ func earlier(a, b time.Time) time.Time {
 	}
 	return a
 }
-func (s *state) hasBlocking() bool {
-	for _, j := range s.jobs {
-		if j.need.Owner != "" && j.need.Blocking && !j.retiring {
-			return true
-		}
-	}
-	return false
-}
+func (s *state) hasBlocking() bool { return s.blocking > 0 }
 func (s *state) sampleProgress(j *job, now time.Time) {
 	if j.progress == nil {
+		return
+	}
+	if size := j.progress.size.Load(); size > 0 && size != j.initialRemaining {
+		j.initialRemaining = size
+		j.remaining = max(0, size-j.sampled)
+	}
+	if j.progress.invalid.Load() {
+		s.control.discard = true
+		j.remaining = j.initialRemaining
+		j.started, j.sampled = now, j.progress.bytes.Load()
 		return
 	}
 	n := j.progress.bytes.Load()
@@ -46,12 +52,10 @@ func (s *state) sampleProgress(j *job, now time.Time) {
 }
 func (s *state) measure(now time.Time) {
 	c := &s.control
-	for _, j := range s.jobs {
-		if j.cancel != nil {
-			s.sampleProgress(j, now)
-		}
+	for j := range s.running {
+		s.sampleProgress(j, now)
 	}
-	if c.workerSeconds > 0 && c.bytes > 0 {
+	if !c.discard && c.workerSeconds > 0 && c.bytes > 0 {
 		perWorker := float64(c.bytes) / c.workerSeconds
 		throughput := float64(c.bytes) / sampleInterval.Seconds()
 		concurrency := c.workerSeconds / sampleInterval.Seconds()
@@ -65,10 +69,11 @@ func (s *state) measure(now time.Time) {
 		if concurrency > c.previousConcurrency+0.75 && c.previousConcurrency >= 1 && throughput < c.previousRate*1.10 {
 			c.cap = max(1, int(math.Ceil(c.previousConcurrency)))
 			c.coolUntil = now.Add(5 * time.Second)
+			s.emit("backoff", "no_throughput_gain", nil)
 		}
 		c.previousRate, c.previousConcurrency = throughput, concurrency
 	}
-	c.bytes, c.workerSeconds = 0, 0
+	c.bytes, c.workerSeconds, c.discard = 0, 0, false
 	c.nextSample = now.Add(sampleInterval)
 }
 func (s *state) estimate(now time.Time) int {
@@ -121,13 +126,36 @@ func (s *state) estimate(now time.Time) int {
 }
 func (s *state) regulate(now time.Time) {
 	c := &s.control
+	previousOpen, previousTarget := c.open, c.target
+	defer func() {
+		if c.open != previousOpen || c.target != previousTarget {
+			s.emit("capacity", "demand_and_supply", nil)
+		}
+	}()
 	if s.cfg.GrowInterval <= 0 {
 		c.target = s.cfg.Limit
 	} else {
 		if s.active > 0 && (c.nextSample.IsZero() || !now.Before(c.nextSample)) {
 			s.measure(now)
 		}
-		c.target = s.estimate(now)
+		// Aggregate cost only on the bounded control cadence. Demand updates
+		// touch their block and heaps; they never sort every task.
+		if s.wanted == 0 {
+			c.estimated = 0
+			c.nextEstimate = time.Time{}
+		} else if c.nextEstimate.IsZero() || !now.Before(c.nextEstimate) {
+			c.estimated = s.estimate(now)
+			c.nextEstimate = now.Add(sampleInterval)
+		}
+		ceiling := s.cfg.Background
+		if s.hasBlocking() {
+			ceiling = s.cfg.Limit
+		}
+		c.target = min(s.wanted, ceiling, max(c.estimated, min(2, s.wanted)))
+		if now.Before(c.coolUntil) {
+			c.target = min(c.target, c.cap)
+		}
+		c.target = max(c.target, min(s.blocking, 2))
 		if c.target == 0 {
 			c.open = 1
 			c.nextGrow = time.Time{}
@@ -135,6 +163,7 @@ func (s *state) regulate(now time.Time) {
 				c.nextSample = time.Time{}
 				c.previousConcurrency = 0
 				c.previousRate = 0
+				c.bytes, c.workerSeconds, c.discard = 0, 0, false
 			}
 			return
 		}
@@ -166,8 +195,8 @@ func (s *state) regulate(now time.Time) {
 	if len(s.ready) > 0 && !s.ready[0].need.ReadyBy.IsZero() && !s.ready[0].need.ReadyBy.After(now.Add(catchupWindow)) {
 		due = s.ready[0]
 	}
-	for _, j := range s.jobs {
-		if j.cancel != nil && !j.need.Blocking && !j.retiring && j.remaining > 64<<10 && (blocking || due != nil && needBefore(due.need, j.need)) {
+	for j := range s.running {
+		if j.cancel != nil && !j.need.Blocking && !j.retiring && !j.yielding && (j.remaining > 64<<10 || j.progress != nil && j.progress.bytes.Load() == 0) && (blocking || due != nil && needBefore(due.need, j.need)) {
 			if victim == nil || needBefore(victim.need, j.need) || !needBefore(j.need, victim.need) && j.remaining > victim.remaining {
 				victim = j
 			}
@@ -181,22 +210,23 @@ func (s *state) regulate(now time.Time) {
 		s.contention = now.Add(s.cfg.PreemptAfter)
 	}
 	if !now.Before(s.contention) {
+		victim.yielding = true
 		victim.cancel(ErrPaused)
-		s.emit("yield_requested", "blocking_contention", victim)
+		reason := "deadline_contention"
+		if blocking {
+			reason = "blocking_contention"
+		}
+		s.emit("yield_requested", reason, victim)
 		s.contention = now.Add(s.cfg.PreemptAfter)
 	}
 }
 func (s *state) nextControlEvent(now time.Time) time.Time {
-	next := earlier(s.control.nextGrow, s.contention)
+	next := earlier(earlier(s.control.nextGrow, s.contention), s.control.nextEstimate)
 	if s.active > 0 && s.cfg.GrowInterval > 0 {
 		next = earlier(next, s.control.nextSample)
 	}
-	if !s.hasBlocking() {
-		for j := range s.delayed {
-			if j.notBefore.After(now) {
-				next = earlier(next, j.notBefore)
-			}
-		}
+	if !s.hasBlocking() && len(s.sleeping) > 0 {
+		next = earlier(next, s.sleeping[0].notBefore)
 	}
 	if len(s.ready) > 0 && !s.ready[0].need.ReadyBy.IsZero() {
 		at := s.ready[0].need.ReadyBy.Add(-catchupWindow)

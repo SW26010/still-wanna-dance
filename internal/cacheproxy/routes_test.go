@@ -73,7 +73,7 @@ func TestResourceFallbackIsBounded(t *testing.T) {
 func TestResourceResumeSkipsFailedChannelWhileNextAttemptQueued(t *testing.T) {
 	for _, failure := range []string{"transport", "status"} {
 		t.Run(failure, func(t *testing.T) {
-			s := &Server{client: &http.Client{}, requests: newRequestBudget(1, 1)}
+			s := &Server{client: &http.Client{}, requests: newRequestBudget(1)}
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 			transferCtx, yield := context.WithCancelCause(ctx)
@@ -121,7 +121,7 @@ func TestResourceResumeSkipsFailedChannelWhileNextAttemptQueued(t *testing.T) {
 			// An urgent request takes the slot released by the failed channel,
 			// leaving the next candidate queued when the range yields to Seek.
 			gotSlot := make(chan func(), 1)
-			go func() { release, _ := s.requests.acquire(urgentRequestContext(ctx)); gotSlot <- release }()
+			go func() { release, _ := s.requests.acquire(ctx); gotSlot <- release }()
 			waitRequestQueue(t, s.requests, 1)
 			close(fail)
 			release := <-gotSlot
@@ -155,7 +155,7 @@ func TestResourceResumeRetriesChannelYieldedBeforeHeaders(t *testing.T) {
 }
 
 func testResourceResumeBeforeHeaders(t *testing.T, cause error) {
-	s := &Server{client: &http.Client{}, requests: newRequestBudget(1, 1)}
+	s := &Server{client: &http.Client{}, requests: newRequestBudget(1)}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	transferCtx, yield := context.WithCancelCause(ctx)

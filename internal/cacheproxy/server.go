@@ -73,6 +73,7 @@ type Server struct {
 	localChecks       chan struct{}
 	requests          *requestBudget
 	scheduler         *blocksched.Scheduler
+	rangeBuffers      chan []byte
 	verifyMu          sync.Mutex
 	verified          map[string]*verifiedFile
 	background        int
@@ -182,10 +183,11 @@ func New(cfg Config) (*Server, error) {
 	}
 
 	s := &Server{cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
-		requests:    newRequestBudget(videoRequestLimit, backgroundRequestLimit),
-		versionPins: make(map[string]int),
-		usage:       usage,
-		flights:     make(map[string]*flight), slots: make(chan struct{}, maxResourceSessions), localChecks: make(chan struct{}, cfg.MaxDownloads), capacityChanged: make(chan struct{}),
+		requests:     newRequestBudget(videoRequestLimit),
+		rangeBuffers: make(chan []byte, videoRequestLimit),
+		versionPins:  make(map[string]int),
+		usage:        usage,
+		flights:      make(map[string]*flight), slots: make(chan struct{}, maxResourceSessions), localChecks: make(chan struct{}, cfg.MaxDownloads), capacityChanged: make(chan struct{}),
 		client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
 	if err := s.loadTraffic(usage.db); err != nil {
@@ -207,7 +209,7 @@ func New(cfg Config) (*Server, error) {
 	s.scheduler = blocksched.New(blocksched.Config{Limit: videoRequestLimit, Background: backgroundRequestLimit,
 		GrowInterval: 250 * time.Millisecond, PreemptAfter: 200 * time.Millisecond, Cooldown: 500 * time.Millisecond, Adaptive: true,
 		Observe: func(e blocksched.Event) {
-			cfg.Logger.Debug("block_schedule", "event", e.Kind, "block_key", e.Key, "reason", e.Reason, "active", e.Active, "open", e.Open, "target", e.Target, "blocking", e.Blocking, "ready_by", e.ReadyBy)
+			cfg.Logger.Debug("block_schedule", "event", e.Kind, "block_key", e.Key, "reason", e.Reason, "active", e.Active, "open", e.Open, "target", e.Target, "blocking", e.Blocking, "ready_by", e.ReadyBy, "remaining_bytes", e.Remaining, "supply_bytes_per_worker_second", e.Supply)
 		}})
 	cfg.Logger.Info("cache_engine_ready", "removed_partials", cleaned, "max_downloads", cfg.MaxDownloads,
 		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "max_cache_bytes", cfg.MaxCacheBytes)

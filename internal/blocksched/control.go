@@ -145,6 +145,7 @@ func (s *state) regulate(now time.Time) {
 		if c.target == 0 {
 			c.open = 1
 			c.nextGrow = time.Time{}
+			s.contention = time.Time{}
 			if s.active == 0 {
 				c.nextSample = time.Time{}
 				c.previousConcurrency = 0

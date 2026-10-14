@@ -100,6 +100,41 @@ func TestContentionPausesProgressWithoutCancelStorm(t *testing.T) {
 	})
 }
 
+func TestContentionStopsWhenAllLeasesExpire(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		s := New(Config{SoftLimit: 16, GrowInterval: 250 * time.Millisecond, PreemptAfter: 200 * time.Millisecond})
+		defer s.Close()
+		started := make(chan struct{}, 2)
+		run := func(ctx context.Context, _ *Progress) Result {
+			started <- struct{}{}
+			<-ctx.Done()
+			return Result{}
+		}
+		background, _ := s.Submit("background", 1<<20, run)
+		background.Add(need("background", false, time.Minute, 100*time.Millisecond))
+		<-started
+		blocking, _ := s.Submit("blocking", 1<<20, run)
+		blocking.Add(need("blocking", true, 0, 100*time.Millisecond))
+		<-started
+		synctest.Wait()
+		var contention, next time.Time
+		s.call(func(s *state) { contention = s.contention })
+		if contention.IsZero() {
+			t.Fatal("test did not establish contention")
+		}
+		// Expiry withdraws both contributions in the same event-loop iteration.
+		time.Sleep(100 * time.Millisecond)
+		synctest.Wait()
+		s.call(func(s *state) { next = s.nextControlEvent(time.Now()) })
+		if !next.IsZero() {
+			t.Fatalf("idle scheduler still has a control wakeup in %v", time.Until(next))
+		}
+		// Crossing the former contention deadline must leave the loop idle.
+		time.Sleep(time.Second)
+		synctest.Wait()
+	})
+}
+
 func TestDeadlineCostEstimateAndNoGainRollback(t *testing.T) {
 	now := time.Now()
 	s := &state{cfg: Config{SoftLimit: 6, Adaptive: true}, jobs: map[string]*job{}, control: controller{rate: 1 << 20}}

@@ -140,3 +140,8 @@ LA-040 同步更新超过 16 个缺块的立即启动、普通请求恢复、缓
 新增首次请求回归及既有候选预算、失败通道跳过、响应头前暂停和 Seek 部分续传回归，连续 20 轮 race 通过（initial-open-race.log）。断言连续两次暂停后失败通道仍只调用一次，当前通道三次，成功重定向一次；首块字节正确，全部 HTTP 活动计数收尾归零。LA-040 联合 LA-038 增加相应步骤及证据要求，实机继续积攒。
 
 两项修复后的最终全受控源码检查通过：go test -tags=no_easytier -race ./cmd/... ./internal/... ./data/... ./experiments/... -count=1 -timeout=180s -json，17 个测试包、1,306 个测试/子测试通过、16 项按条件跳过，无 race 报告（completion-open-final-race.jsonl）。同范围 go vet 与 CGO_ENABLED=0 go build 均通过（completion-open-final-vet.log、completion-open-final-build.log）。台账 41 个编号保持唯一；两项修复分开本地提交，未 push、未启动游戏或修改 hosts，LA-040/041 仍待实机验收。
+## 14. 无需求时清除竞争计时
+
+核实当前版本仍会在目标并发归零时提前返回，留下尚未触发的竞争时间。新增真实调度事件循环的虚拟时间回归：后台与 Blocking 需求建立竞争后，两份租约在 100 ms 同时到期；旧实现仍留下 100 ms 后的唤醒，越过原 200 ms 竞争时刻会反复使用过期时间。回归在越过该时刻前检查并明确失败，避免以测试超时替代诊断（`idle-contention-before.log`）。
+
+目标并发归零时同步清除竞争计时，保留活动任务的正常收尾采样。修复后空闲调度器不再安排控制唤醒，跨过原竞争时刻仍保持空闲；核心完整 race 连续 20 轮通过（`idle-contention-race.log`）。LA-040 增补竞争后快速清空的 CPU 与唤醒观测，真实游戏继续待验收。

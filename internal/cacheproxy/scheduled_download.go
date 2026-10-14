@@ -57,6 +57,7 @@ type downloadSession struct {
 	wake        chan struct{}
 	initialized chan struct{}
 	initOnce    sync.Once
+	opening     *resourceAttempts // first executor's state until headers are accepted
 	mu          sync.Mutex
 	cursors     map[*scheduledCursor]bool
 	waits       map[*scheduledWait]bool
@@ -123,13 +124,22 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 
 	var initial *http.Response
 	if w.f.ranges == nil {
-		resp, host, err := w.s.openUpstream(ctx, w.v)
+		if w.opening == nil {
+			w.opening = new(resourceAttempts)
+		}
+		resp, host, err := w.s.openUpstream(ctx, w.v, w.opening)
 		if err != nil {
 			if isScheduledPause(ctx) {
+				if r := w.opening.resume(); r != nil {
+					// Keep the validated endpoint/cursor, not a canceled run's
+					// context. The next execution supplies its own deadline.
+					w.opening.request = r.Clone(context.Background())
+				}
 				return blocksched.Result{Err: blocksched.ErrPaused, Remaining: min(rangeBlockSize, w.v.size)}
 			}
 			return blocksched.Result{Err: fmt.Errorf("%w: %w", errUpstreamDownload, err)}
 		}
+		w.opening = nil // The response body now owns the cursor, including block 0.
 		defer resp.Body.Close()
 		if resp.Request != nil && resp.Request.URL != nil {
 			w.f.progress.setHost(resp.Request.URL.Hostname())

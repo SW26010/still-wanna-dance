@@ -58,6 +58,9 @@ func (s *Server) videoResponse(r *http.Request, original video, attempts *resour
 			return nil, err
 		}
 		next.Header = r.Header.Clone()
+		// This redirect succeeded. A pause before the next request must keep
+		// its validated destination rather than rewind the previous channel.
+		attempts.current, attempts.request = nil, next
 		r = next
 	}
 	return nil, errors.New("too many video redirects")
@@ -212,13 +215,15 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 	return nil, errors.Join(failures...)
 }
 
-func (s *Server) openUpstream(ctx context.Context, v video) (*http.Response, string, error) {
+func (s *Server) openUpstream(ctx context.Context, v video, attempts *resourceAttempts) (*http.Response, string, error) {
 	r, err := s.routeRequest(ctx, v)
 	if err != nil {
 		return nil, "", err
 	}
+	if attempts.request != nil {
+		r = attempts.request.Clone(ctx)
+	}
 	r.Header.Set("Range", fmt.Sprintf("bytes=0-%d", min(v.size, rangeBlockSize)-1))
-	attempts := new(resourceAttempts)
 	for {
 		resp, err := s.videoResponse(r, v, attempts)
 		if err != nil {
@@ -236,6 +241,7 @@ func (s *Server) openUpstream(ctx context.Context, v video) (*http.Response, str
 		}
 		if err != nil {
 			resp.Body.Close()
+			attempts.current = nil // Rejected headers consume this channel.
 			// Retry this validated endpoint on the next measured channel.
 			if resp.Request != nil {
 				r = resp.Request.Clone(ctx)

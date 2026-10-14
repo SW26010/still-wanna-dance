@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 
@@ -49,31 +48,42 @@ func validateRangeResponse(r *http.Response, start, end, size int64) error {
 }
 
 func (s *Server) publishRanges(ctx context.Context, first *http.Response, path string, v video, flight *flight) error {
-	f, err := os.CreateTemp(s.cfg.tempDir(), "download-*.part")
-	if err != nil {
-		return err
+	if first != nil {
+		// Pin all subsequent segments to the first response's validated endpoint.
+		if first.Request != nil {
+			selected, err := s.parseResolved(first.Request)
+			if err != nil {
+				return err
+			}
+			v.host, v.path, v.query = selected.host, selected.path, selected.query
+		}
+		var err error
+		flight.ranges, err = s.newRangeDownload(v, first, flight.log)
+		if err != nil {
+			return err
+		}
 	}
+	download := flight.ranges
+	v = download.video
+	f := download.storage.file
 	work := newRangeWork(v.size)
+	if first == nil {
+		delete(work.claimed, 0)
+	}
 	// Cold playback gets its first block before speculative fan-out. Prefetch
 	// can fill parallel ranges immediately, and a tail reader still bypasses 0.
 	work.startup = !flight.background
-	sp := &spool{file: f, changed: make(chan struct{}), refs: 1, demand: work.demand, track: work.trackReader}
+	sp := download.spool(work)
 	flight.spool = sp
 	close(flight.streaming)
 	flight.progress.setStage("range_download")
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
-	stopFirst := context.AfterFunc(ctx, func() { first.Body.Close() })
-	defer stopFirst()
-	// Pin all subsequent segments to the first response's validated endpoint.
-	if first.Request != nil {
-		selected, parseErr := s.parseResolved(first.Request)
-		if parseErr != nil {
-			return parseErr
-		}
-		v.host, v.path, v.query = selected.host, selected.path, selected.query
+	if first != nil {
+		stopFirst := context.AfterFunc(ctx, func() { first.Body.Close() })
+		defer stopFirst()
 	}
-	etag := first.Header.Get("ETag")
+	etag := download.etag
 	if strings.HasPrefix(etag, "W/") {
 		etag = ""
 	}
@@ -81,16 +91,24 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 		start, end := block*rangeBlockSize, min((block+1)*rangeBlockSize, v.size)
 		// Redirect progress belongs to this block; other workers keep their
 		// own endpoint and candidate cursor.
-		blockVideo := v
+		state := download.take(block)
+		blockVideo := state.video
 		resp := initial
-		attempts := new(resourceAttempts)
+		attempts := state.attempts
 		if resp != nil {
 			if body, ok := resp.Body.(*resourceBody); ok {
 				attempts = body.attempts
 			}
 		}
-		var last error
-		var received int64
+		last, received := state.last, state.received
+		if received > 0 {
+			if *buffer == nil {
+				*buffer = make([]byte, min(rangeBlockSize, v.size)+1)
+			}
+			if _, err := f.ReadAt((*buffer)[:received], start); err != nil {
+				return err
+			}
+		}
 		resume := func() {
 			if r := attempts.resume(); r != nil {
 				if selected, err := s.parse(r); err == nil && selected.key == v.key && selected.size == v.size {
@@ -98,8 +116,20 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 				}
 			}
 		}
-		for failures := 0; failures < 4; {
+		failures := state.failures
+		pause := func() error {
+			resume()
+			state.video, state.received, state.failures, state.last, state.attempts = blockVideo, received, failures, last, attempts
+			if err := download.save(block, state, *buffer); err != nil {
+				return err
+			}
+			return errPreempted
+		}
+		for failures < 4 {
 			if err := ctx.Err(); err != nil {
+				if errors.Is(context.Cause(ctx), errPreempted) {
+					return pause()
+				}
 				return err
 			}
 			work.mu.Lock()
@@ -113,6 +143,9 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 			}
 			transferCtx, endTransfer, err := work.beginTransfer(ctx, block)
 			if err != nil {
+				if errors.Is(context.Cause(ctx), errPreempted) {
+					return pause()
+				}
 				return err
 			}
 			var data []byte
@@ -168,17 +201,21 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 				return nil
 			}()
 			yielded := errors.Is(context.Cause(transferCtx), errRangeYielded)
+			preempted := errors.Is(context.Cause(ctx), errPreempted)
 			endTransfer()
 			resp = nil
 			if exhausted {
 				break
 			}
-			if err != nil && yielded && ctx.Err() == nil {
+			if err != nil && (preempted || yielded && ctx.Err() == nil) {
 				received += int64(len(data))
 				// A canceled response with all advertised bytes but without EOF
 				// still needs normal oversize validation; do not publish it early.
 				if received >= end-start {
 					received = 0
+				}
+				if preempted {
+					return pause()
 				}
 				resume()
 				flight.log.Debug("download_range_yielded", "block", block, "retained_bytes", received)
@@ -193,19 +230,34 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 			if _, err := sp.WriteAt((*buffer)[:end-start], start); err != nil {
 				return err
 			}
+			download.finish(block)
 			work.finish(block)
 			return nil
 		}
 		return fmt.Errorf("%w: range %d-%d: %w", errUpstreamDownload, start, end-1, last)
 	}
 	var workers sync.WaitGroup
+	var failureMu sync.Mutex
+	var workerFailure error
+	fail := func(err error) {
+		// A filesystem failure while flushing a pause must not be hidden by
+		// the parent cancellation, which has already won the context's cause.
+		if !errors.Is(err, context.Canceled) {
+			failureMu.Lock()
+			if workerFailure == nil || !errors.Is(err, errUpstreamDownload) && !errors.Is(err, context.DeadlineExceeded) {
+				workerFailure = err
+			}
+			failureMu.Unlock()
+		}
+		cancel(err)
+	}
 	worker := func(background bool, initial *http.Response) {
 		// Allocate only when this worker reads a valid response, then reuse for
 		// later blocks and retries. WriteAt consumes the bytes before reuse.
 		var buffer []byte
 		if initial != nil {
 			if err := readBlock(work.requestContext(ctx, 0), 0, initial, &buffer); err != nil {
-				cancel(err)
+				fail(err)
 				return
 			}
 		}
@@ -219,7 +271,7 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 					work.abandon(block)
 					continue
 				}
-				cancel(err)
+				fail(err)
 				return
 			}
 		}
@@ -232,7 +284,10 @@ func (s *Server) publishRanges(ctx context.Context, first *http.Response, path s
 	workers.Wait()
 	// The first failure cancels its peer; that internal cancellation is not
 	// another root cause. Parent shutdown/deadlines retain their own cause.
-	err = context.Cause(ctx)
+	if workerFailure != nil {
+		return workerFailure
+	}
+	err := context.Cause(ctx)
 	if err != nil {
 		return err
 	}

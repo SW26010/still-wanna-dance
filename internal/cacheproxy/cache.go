@@ -114,6 +114,10 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		s.mu.Unlock()
 		return nil, nil, errors.New("shared resource size mismatch")
 	}
+	if paused := s.paused[v.key]; paused != nil && paused.video.size != v.size {
+		s.mu.Unlock()
+		return nil, nil, errors.New("paused resource size mismatch")
+	}
 	if f == nil {
 		// Bound all workers (including validation); callers sharing a key do not consume another slot.
 		select {
@@ -123,6 +127,8 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			return nil, nil, errBusy
 		}
 		f = &flight{size: v.size, done: make(chan struct{}), streaming: make(chan struct{}), id: s.flightSequence.Add(1)}
+		f.ranges = s.paused[v.key]
+		delete(s.paused, v.key)
 		workerCtx, cancel := context.WithCancelCause(s.ctx)
 		f.cancel, f.background = cancel, background
 		f.log = log.With("flight_id", f.id, "host", v.host)
@@ -143,7 +149,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			timedCtx, stop := context.WithTimeout(workerCtx, s.cfg.DownloadTimeout)
 			defer stop()
 			f.path, f.source, f.err = s.prepare(timedCtx, v, f)
-			if errors.Is(context.Cause(workerCtx), errPreempted) && f.err != nil {
+			if errors.Is(context.Cause(workerCtx), errPreempted) && errors.Is(f.err, context.Canceled) {
 				f.err = errPreempted
 			}
 			f.progress.finish(f.err)
@@ -155,6 +161,20 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			if f.spool != nil {
 				f.spool.finish(f.err)
 				f.spool.release()
+			}
+			s.mu.Lock()
+			checkpoint := f.ranges
+			if checkpoint != nil && errors.Is(f.err, errPreempted) && !s.closed && s.storageFailure == nil {
+				if s.paused == nil {
+					s.paused = make(map[string]*rangeDownload)
+				}
+				s.paused[v.key] = checkpoint
+				f.log.Info("download_paused", "retained_bytes", checkpoint.bytes())
+				checkpoint = nil // the engine now owns this reference
+			}
+			s.mu.Unlock()
+			if checkpoint != nil {
+				checkpoint.storage.release()
 			}
 			s.mu.Lock()
 			delete(s.flights, v.key)
@@ -291,23 +311,33 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 		defer release()
 	}
 	flight.log.Info("download_started", "key", v.key, "size", v.size)
-	flight.progress.setStage("upstream_headers")
-	resp, selectedHost, err := s.openUpstream(ctx, v)
-	if err != nil {
-		return "", "", fmt.Errorf("%w: %w", errUpstreamDownload, applog.SafeError(err))
-	}
-	defer resp.Body.Close()
-	// The response request is the final validated URL, including redirects.
-	if resp.Request != nil && resp.Request.URL != nil {
-		flight.progress.setHost(resp.Request.URL.Hostname())
-	}
-	flight.log.Info("upstream_response", "host", selectedHost, "status", resp.StatusCode, "content_length", resp.ContentLength)
 	var publishErr error
-	if resp.StatusCode == 206 {
-		publishErr = s.publishRanges(ctx, resp, path, v, flight)
+	if flight.ranges != nil {
+		retained := flight.ranges.bytes()
+		flight.progress.mu.Lock()
+		flight.progress.bytes = retained
+		flight.progress.mu.Unlock()
+		flight.progress.setHost(flight.ranges.video.host)
+		flight.log.Info("download_resumed", "retained_bytes", retained)
+		publishErr = s.publishRanges(ctx, nil, path, v, flight)
 	} else {
-		flight.log.Info("range_unavailable", "host", selectedHost, "fallback", "sequential")
-		publishErr = s.publish(ctx, resp.Body, path, v, flight)
+		flight.progress.setStage("upstream_headers")
+		resp, selectedHost, err := s.openUpstream(ctx, v)
+		if err != nil {
+			return "", "", fmt.Errorf("%w: %w", errUpstreamDownload, applog.SafeError(err))
+		}
+		defer resp.Body.Close()
+		// The response request is the final validated URL, including redirects.
+		if resp.Request != nil && resp.Request.URL != nil {
+			flight.progress.setHost(resp.Request.URL.Hostname())
+		}
+		flight.log.Info("upstream_response", "host", selectedHost, "status", resp.StatusCode, "content_length", resp.ContentLength)
+		if resp.StatusCode == 206 {
+			publishErr = s.publishRanges(ctx, resp, path, v, flight)
+		} else {
+			flight.log.Info("range_unavailable", "host", selectedHost, "fallback", "sequential")
+			publishErr = s.publish(ctx, resp.Body, path, v, flight)
+		}
 	}
 	if err := publishErr; err != nil {
 		return "", "", err
@@ -325,7 +355,7 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 	if err != nil {
 		return err
 	}
-	sp := &spool{file: f, changed: make(chan struct{}), refs: 1}
+	sp := &spool{file: f, storage: &spoolFile{file: f, refs: 1, log: flight.log}, changed: make(chan struct{}), refs: 1}
 	flight.spool = sp
 	close(flight.streaming)
 	h := md5.New()

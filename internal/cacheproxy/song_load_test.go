@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -259,9 +260,8 @@ func TestFailedCachedURLPreservesRefreshFailure(t *testing.T) {
 func TestQueueCancellationDoesNotCancelJoinedRangePlayback(t *testing.T) {
 	body := bytes.Repeat([]byte("q"), int(rangeBlockSize*2))
 	prefix, release := make(chan struct{}), make(chan struct{})
-	var requests atomic.Int32
+	started := sync.OnceFunc(func() { close(prefix) })
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
-		requests.Add(1)
 		var start, end int64
 		fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
 		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(body)))
@@ -269,7 +269,7 @@ func TestQueueCancellationDoesNotCancelJoinedRangePlayback(t *testing.T) {
 		w.WriteHeader(206)
 		w.(http.Flusher).Flush()
 		if start == 0 {
-			close(prefix)
+			started()
 			select {
 			case <-release:
 			case <-r.Context().Done():
@@ -279,7 +279,8 @@ func TestQueueCancellationDoesNotCancelJoinedRangePlayback(t *testing.T) {
 		w.Write(body[start : end+1])
 	})
 	defer close(release)
-	target := fmt.Sprintf("http://play.udon.dance/files/1/42-video.mp4?e=%x&s=%d", md5.Sum(body), len(body))
+	key := fmt.Sprintf("%x", md5.Sum(body))
+	target := fmt.Sprintf("http://play.udon.dance/files/1/42-video.mp4?e=%s&s=%d", key, len(body))
 	s.cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return target, nil }
 	queueCtx, cancelQueue := context.WithCancel(context.Background())
 	defer cancelQueue()
@@ -291,6 +292,12 @@ func TestQueueCancellationDoesNotCancelJoinedRangePlayback(t *testing.T) {
 	case <-prefix:
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
+	}
+	s.mu.Lock()
+	queuedFlight := s.flights[key]
+	s.mu.Unlock()
+	if queuedFlight == nil {
+		t.Fatal("missing queue flight")
 	}
 	cancelQueue()
 	select {
@@ -308,8 +315,13 @@ func TestQueueCancellationDoesNotCancelJoinedRangePlayback(t *testing.T) {
 	if w.Code != 206 || !bytes.Equal(w.Body.Bytes(), body[len(body)-16:]) {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	if requests.Load() != 2 {
-		t.Fatal("playback did not share queue flight", requests.Load())
+	// The tail Seek can yield and retry block 0 within the same flight. Count
+	// shared tasks directly instead of treating every HTTP retry as a new one.
+	s.mu.Lock()
+	joinedFlight := s.flights[key]
+	s.mu.Unlock()
+	if joinedFlight != queuedFlight {
+		t.Fatal("playback did not share queue flight")
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 type spool struct {
 	mu        sync.Mutex
 	file      *os.File
+	storage   *spoolFile
 	changed   chan struct{}
 	available int64
 	complete  bool
@@ -96,8 +97,12 @@ func (s *spool) release() {
 	s.mu.Lock()
 	s.refs--
 	if s.refs == 0 {
-		s.file.Close()
-		os.Remove(s.file.Name())
+		if s.storage != nil {
+			s.storage.release()
+		} else {
+			s.file.Close()
+			os.Remove(s.file.Name())
+		}
 	}
 	s.mu.Unlock()
 }

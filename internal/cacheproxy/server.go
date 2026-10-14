@@ -44,6 +44,7 @@ type flight struct {
 	done          chan struct{}
 	streaming     chan struct{}
 	spool         *spool
+	ranges        *rangeDownload // owned by worker, transferred under Server.mu
 	path, source  string
 	err           error
 }
@@ -59,7 +60,8 @@ type Server struct {
 	mu                sync.Mutex
 	storageFailure    error // protected by mu; prevents new downloads until restart
 	flights           map[string]*flight
-	demands           map[*downloadDemand]bool // protected by mu, separate from file pins
+	paused            map[string]*rangeDownload // protected by mu; this engine only
+	demands           map[*downloadDemand]bool  // protected by mu, separate from file pins
 	prefetchOrder     map[string]int
 	prefetchResources map[string]string
 	playbackChecks    map[string]*playbackCheck // protected by mu
@@ -212,6 +214,12 @@ func (s *Server) Close() error {
 		s.cancel()
 		s.mu.Unlock()
 		s.wg.Wait()
+		// Workers and handlers have released their file references. Paused
+		// checkpoints have no worker to clean them up during cancellation.
+		for key, checkpoint := range s.paused {
+			checkpoint.storage.release()
+			delete(s.paused, key)
+		}
 		<-s.retentionDone
 		// All references are now released; finish any deferred eviction before closing usage.
 		s.ResetQueueSongs(nil)

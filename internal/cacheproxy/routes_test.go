@@ -149,6 +149,12 @@ func TestResourceResumeSkipsFailedChannelWhileNextAttemptQueued(t *testing.T) {
 }
 
 func TestResourceResumeRetriesChannelYieldedBeforeHeaders(t *testing.T) {
+	for _, cause := range []error{errRangeYielded, errPreempted} {
+		t.Run(cause.Error(), func(t *testing.T) { testResourceResumeBeforeHeaders(t, cause) })
+	}
+}
+
+func testResourceResumeBeforeHeaders(t *testing.T, cause error) {
 	s := &Server{client: &http.Client{}, requests: newRequestBudget(1, 1)}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -186,7 +192,7 @@ func TestResourceResumeRetriesChannelYieldedBeforeHeaders(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("first candidate did not start")
 	}
-	yield(errRangeYielded)
+	yield(cause)
 	if err := <-done; !errors.Is(err, context.Canceled) {
 		t.Fatalf("active attempt did not yield: %v", err)
 	}

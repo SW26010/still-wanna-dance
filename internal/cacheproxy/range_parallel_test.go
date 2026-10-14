@@ -70,6 +70,17 @@ func TestParallelRangeDownloadClaimsEachBlockOnce(t *testing.T) {
 	}
 }
 
+type rangeCountedBody struct {
+	io.ReadCloser
+	closed func()
+}
+
+func (b *rangeCountedBody) Close() error {
+	err := b.ReadCloser.Close()
+	b.closed()
+	return err
+}
+
 func TestParallelRangeGlobalBudgetLeavesRoomForPlaybackAndSeek(t *testing.T) {
 	bodies := [][]byte{
 		bytes.Repeat([]byte("a"), int(rangeBlockSize*9)),
@@ -93,11 +104,6 @@ func TestParallelRangeGlobalBudgetLeavesRoomForPlaybackAndSeek(t *testing.T) {
 		body := bodyByKey[key]
 		var start, end int64
 		fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
-		mu.Lock()
-		active++
-		peak = max(peak, active)
-		mu.Unlock()
-		defer func() { mu.Lock(); active--; mu.Unlock() }()
 		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(body)))
 		w.Header().Set("Content-Length", fmt.Sprint(end-start+1))
 		w.WriteHeader(206)
@@ -110,6 +116,23 @@ func TestParallelRangeGlobalBudgetLeavesRoomForPlaybackAndSeek(t *testing.T) {
 		}
 		w.Write(body[start : end+1])
 	})
+	// The budget covers client requests through Body.Close. An upstream
+	// handler can outlive a canceled request and must not inflate this count.
+	transport := resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+		mu.Lock()
+		active++
+		peak = max(peak, active)
+		mu.Unlock()
+		release := sync.OnceFunc(func() { mu.Lock(); active--; mu.Unlock() })
+		resp, err := s.client.Transport.RoundTrip(r)
+		if err != nil {
+			release()
+			return resp, err
+		}
+		resp.Body = &rangeCountedBody{ReadCloser: resp.Body, closed: release}
+		return resp, nil
+	})
+	s.cfg.ResourceTransports = func(string) []http.RoundTripper { return []http.RoundTripper{transport} }
 	var videos []video
 	for _, body := range bodies {
 		r, _ := http.NewRequest("GET", videoURL(string(body)), nil)
@@ -185,9 +208,13 @@ func TestParallelRangeGlobalBudgetLeavesRoomForPlaybackAndSeek(t *testing.T) {
 	}
 	mu.Lock()
 	observedPeak = peak
+	remaining := active
 	mu.Unlock()
 	if observedPeak > videoRequestLimit {
 		t.Fatalf("global peak = %d", observedPeak)
+	}
+	if remaining != 0 {
+		t.Fatalf("completed downloads retained %d requests", remaining)
 	}
 }
 

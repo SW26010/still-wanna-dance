@@ -181,12 +181,23 @@ func (w *rangeWork) next(ctx context.Context, background bool) (int64, context.C
 		var block int64 = -1
 		// FIFO demands prevent readers at low offsets from starving a tail Seek.
 		for b, order := range w.order {
+			// Startup must belong to a background worker: it can yield while
+			// the reserved reader worker completes a later tail Seek.
+			if w.startup && b == 0 && !background {
+				continue
+			}
 			if !w.claimed[b] && !w.done[b] && (block < 0 || order < w.order[block]) {
 				block = b
 			}
 		}
 		demanded := block >= 0
 		if block < 0 && background {
+			// Resumes have no initial response holding block 0. Give startup
+			// an owner before read-ahead can occupy every background worker
+			// waiting for it. Actual reader demands still take priority above.
+			if w.startup && !w.done[0] && !w.claimed[0] {
+				block = 0
+			}
 			// Prefer proximity, then offset for deterministic ties. These remain
 			// speculative requests and cannot consume the global reader reserve.
 			for distance := int64(1); distance <= rangeReadAheadBlocks && block < 0; distance++ {
@@ -209,7 +220,9 @@ func (w *rangeWork) next(ctx context.Context, background bool) (int64, context.C
 		if block >= 0 {
 			w.claimed[block] = true
 			blockCtx := ctx
-			if demanded {
+			// Other claimed blocks can depend on startup even after its last
+			// reader leaves. Keep that owner until completion or flight cancel.
+			if demanded && !(w.startup && block == 0) {
 				var cancel context.CancelCauseFunc
 				blockCtx, cancel = context.WithCancelCause(ctx)
 				w.active[block] = cancel

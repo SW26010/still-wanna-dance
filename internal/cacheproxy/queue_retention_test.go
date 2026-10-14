@@ -24,7 +24,8 @@ func TestQueueReservationSurvivesCanceledDownloadWaiter(t *testing.T) {
 	})
 	setRetentionLimit(t, s, 1)
 	s.SetQueueSongs([]int64{42})
-	ctx, cancel := context.WithCancel(context.Background())
+	s.UpdatePrefetchQueue([]int64{42}, false)
+	ctx, cancel := context.WithCancel(context.WithValue(context.Background(), queueDemandKey{}, true))
 	defer cancel()
 	result := make(chan error, 1)
 	go func() {
@@ -39,6 +40,7 @@ func TestQueueReservationSurvivesCanceledDownloadWaiter(t *testing.T) {
 	// The console cancels the waiter when it moves outside the first three,
 	// while retaining the song in the full pending queue.
 	s.SetQueueSongs([]int64{1, 2, 3, 42})
+	s.UpdatePrefetchQueue([]int64{1, 2, 3}, false)
 	cancel()
 	select {
 	case err := <-result:

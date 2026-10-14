@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/applog"
+	"still-wanna-dance/internal/blocksched"
 	"still-wanna-dance/internal/videometa"
 	"still-wanna-dance/internal/workfiles"
 )
@@ -32,22 +33,24 @@ type video struct {
 	size                   int64
 }
 type flight struct {
-	cancel        context.CancelCauseFunc // protected by Server.mu
-	preempted     bool
-	completed     bool // protected by Server.mu; published/hit before reader wakeup
-	background    bool
-	size          int64
-	monitorSongs  map[string]bool // protected by Server.mu; includes background callers
-	playbackSongs map[string]*playbackSong
-	id            uint64
-	log           *slog.Logger
-	progress      *downloadProgress
-	done          chan struct{}
-	streaming     chan struct{}
-	spool         *spool
-	ranges        *rangeDownload // owned by worker, transferred under Server.mu
-	path, source  string
-	err           error
+	cancel           context.CancelCauseFunc // protected by Server.mu
+	preempted        bool
+	completed        bool // protected by Server.mu; published/hit before reader wakeup
+	background       bool
+	size             int64
+	monitorSongs     map[string]bool // protected by Server.mu; includes background callers
+	releases         []func()        // attached obtain callers; invoked after flight cleanup
+	sequentialDemand func(int64) func()
+	playbackSongs    map[string]*playbackSong
+	id               uint64
+	log              *slog.Logger
+	progress         *downloadProgress
+	done             chan struct{}
+	streaming        chan struct{}
+	spool            *spool
+	ranges           *rangeDownload // owned by worker, transferred under Server.mu
+	path, source     string
+	err              error
 }
 
 type Server struct {
@@ -63,13 +66,13 @@ type Server struct {
 	flights           map[string]*flight
 	paused            map[string]*rangeDownload // protected by mu; this engine only
 	demands           map[*downloadDemand]bool  // protected by mu, separate from file pins
-	playbackGrace     map[string]*playbackGrace // protected by mu, transient resource demand
 	prefetchOrder     map[string]int
 	prefetchResources map[string]string
 	playbackChecks    map[string]*playbackCheck // protected by mu
 	slots             chan struct{}
 	localChecks       chan struct{}
 	requests          *requestBudget
+	scheduler         *blocksched.Scheduler
 	verifyMu          sync.Mutex
 	verified          map[string]*verifiedFile
 	background        int
@@ -182,7 +185,7 @@ func New(cfg Config) (*Server, error) {
 		requests:    newRequestBudget(videoRequestLimit, backgroundRequestLimit),
 		versionPins: make(map[string]int),
 		usage:       usage,
-		flights:     make(map[string]*flight), slots: make(chan struct{}, cfg.MaxDownloads), localChecks: make(chan struct{}, cfg.MaxDownloads), capacityChanged: make(chan struct{}),
+		flights:     make(map[string]*flight), slots: make(chan struct{}, maxResourceSessions), localChecks: make(chan struct{}, cfg.MaxDownloads), capacityChanged: make(chan struct{}),
 		client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
 	if err := s.loadTraffic(usage.db); err != nil {
@@ -201,6 +204,11 @@ func New(cfg Config) (*Server, error) {
 	s.retentionWake = make(chan struct{}, 1)
 	s.retentionDone = make(chan struct{})
 	go s.retentionLoop()
+	s.scheduler = blocksched.New(blocksched.Config{Limit: videoRequestLimit, Background: backgroundRequestLimit,
+		GrowInterval: 250 * time.Millisecond, PreemptAfter: 200 * time.Millisecond, Cooldown: 500 * time.Millisecond, Adaptive: true,
+		Observe: func(e blocksched.Event) {
+			cfg.Logger.Debug("block_schedule", "event", e.Kind, "block_key", e.Key, "reason", e.Reason, "active", e.Active, "open", e.Open, "target", e.Target, "blocking", e.Blocking, "ready_by", e.ReadyBy)
+		}})
 	cfg.Logger.Info("cache_engine_ready", "removed_partials", cleaned, "max_downloads", cfg.MaxDownloads,
 		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "max_cache_bytes", cfg.MaxCacheBytes)
 	return s, nil
@@ -213,12 +221,10 @@ func (s *Server) Close() error {
 	s.once.Do(func() {
 		s.mu.Lock()
 		s.closed = true
-		for key := range s.playbackGrace {
-			s.clearPlaybackGraceLocked(key)
-		}
 		s.cancel()
 		s.mu.Unlock()
 		s.wg.Wait()
+		s.scheduler.Close()
 		// Workers and handlers have released their file references. Paused
 		// checkpoints have no worker to clean them up during cancellation.
 		for key, checkpoint := range s.paused {

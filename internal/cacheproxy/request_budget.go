@@ -121,11 +121,3 @@ func (b *requestBudget) acquire(ctx context.Context) (func(), error) {
 		b.mu.Lock()
 	}
 }
-
-func (s *Server) resourceRequestContext(ctx context.Context, key string) context.Context {
-	return context.WithValue(ctx, requestPriorityKey{}, requestPriority(func() (bool, <-chan struct{}) {
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		return s.resourceRankLocked(key).level == priorityPlayback, s.capacityChanged
-	}))
-}

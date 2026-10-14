@@ -10,7 +10,7 @@ import (
 var ErrLocalStorage = errors.New("local cache storage unavailable")
 
 func (s *Server) storageError(err error) error {
-	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, errUpstreamDownload) {
+	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, errUpstreamDownload) || errors.Is(err, errBusy) {
 		return err
 	}
 	if !errors.Is(err, ErrLocalStorage) {

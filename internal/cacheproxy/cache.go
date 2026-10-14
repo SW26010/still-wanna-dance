@@ -17,6 +17,10 @@ var errBusy = errors.New("download capacity reached")
 var errInvalidCache = errors.New("invalid cached video")
 var errUpstreamDownload = errors.New("upstream download failed")
 
+// File/session metadata is bounded independently of network concurrency. Queue
+// and batch callers remain bounded upstream; all admitted blocks compete globally.
+const maxResourceSessions = 32
+
 func (s *Server) obtain(ctx context.Context, v video) (*flight, *spoolReader, error) {
 	return s.obtainMode(ctx, v, false)
 }
@@ -28,14 +32,16 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 func (s *Server) obtainDemand(ctx context.Context, v video, background, playback bool) (*flight, *spoolReader, error) {
 	ctx = applog.WithTrace(ctx)
 	demand, releaseDemand := s.addDemand(ctx, v, playback)
-	defer releaseDemand()
+	transferred := false
+	defer func() {
+		if !transferred {
+			releaseDemand()
+		}
+	}()
 	log := s.cfg.Logger.With("trace_id", applog.TraceID(ctx), "resource_key", v.key, "background", background)
 	waitStart := time.Now()
 	waitLogged := false
 	s.mu.Lock()
-	// Background capacity belongs to the actual flight, even if its caller
-	// cancels. Keep one slot for playback when the configured limit permits it.
-	limit := max(1, min(2, s.cfg.MaxDownloads-1))
 	for {
 		if err := ctx.Err(); err != nil {
 			s.mu.Unlock()
@@ -58,12 +64,11 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		}
 		f := s.flights[v.key]
 		demand.waiting = f == nil || f.preempted
-		rank := s.resourceRankLocked(v.key)
-		if demand.queue && s.demandRankLocked(demand) == noDemand {
+		if demand.queue && !s.queueContainsLocked(demand.song) {
 			s.mu.Unlock()
 			return nil, nil, context.Canceled
 		}
-		if f != nil && !f.preempted || (f == nil && len(s.slots) < cap(s.slots) && (!background || s.background < limit) && !s.earlierWaiterLocked(demand, rank)) {
+		if f != nil && !f.preempted || (f == nil && len(s.slots) < cap(s.slots)) {
 			break
 		}
 		changed := s.capacityChanged
@@ -77,16 +82,11 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			return f, nil, err
 		}
 		s.mu.Lock()
-		// Recheck after disk I/O: a GET or queue snapshot may have changed the victim.
+		// Recheck after disk I/O: the requested session may have finished cleanup.
 		if changed != s.capacityChanged {
 			continue
 		}
-		rank = s.resourceRankLocked(v.key)
 		preempting := false
-		if ctx.Err() == nil && !s.closed && !s.earlierWaiterLocked(demand, rank) &&
-			(len(s.slots) >= cap(s.slots) || background && s.background >= limit) {
-			preempting = s.preemptLocked(v.key, rank, background && s.background >= limit)
-		}
 		if f := s.flights[v.key]; f != nil && f.preempted {
 			preempting = true
 		}
@@ -152,11 +152,15 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			if f.err == nil {
 				s.mu.Lock()
 				f.completed = true
-				s.clearPlaybackGraceLocked(v.key)
 				s.mu.Unlock()
 			}
 			if errors.Is(context.Cause(workerCtx), errPreempted) && errors.Is(f.err, context.Canceled) {
 				f.err = errPreempted
+			}
+			if errors.Is(f.err, errPreempted) {
+				s.mu.Lock()
+				f.preempted = true
+				s.mu.Unlock()
 			}
 			f.progress.finish(f.err)
 			if errors.Is(f.err, errPreempted) {
@@ -184,9 +188,6 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			}
 			s.mu.Lock()
 			delete(s.flights, v.key)
-			if s.paused[v.key] == nil {
-				s.clearPlaybackGraceLocked(v.key)
-			}
 			<-s.slots
 			if background {
 				s.background--
@@ -194,7 +195,11 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			close(s.capacityChanged)
 			s.capacityChanged = make(chan struct{})
 			close(f.done)
+			releases := f.releases
 			s.mu.Unlock()
+			for _, release := range releases {
+				release()
+			}
 		}()
 	}
 	if v.songID != "" {
@@ -202,6 +207,10 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 	}
 	if !background && v.songID != "" {
 		s.attachPlaybackSongLocked(f, v)
+	}
+	if background {
+		f.releases = append(f.releases, releaseDemand)
+		transferred = true
 	}
 	s.mu.Unlock()
 	log.Info("cache_task_attached", "flight_id", f.id, "wait_ms", time.Since(waitStart).Milliseconds())
@@ -218,6 +227,8 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			return f, nil, nil
 		}
 		if reader := f.spool.reader(ctx, v.size); reader != nil {
+			reader.releaseDemand = releaseDemand
+			transferred = true
 			return f, reader, nil
 		}
 		select {
@@ -288,7 +299,6 @@ func checkOpenFile(ctx context.Context, f *os.File, v video) error {
 }
 
 func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResult, source string, resultErr error) {
-	ctx = s.resourceRequestContext(ctx, v.key)
 	defer func() { resultErr = s.storageError(resultErr) }()
 	path := s.cfg.videoFile(v.key)
 	if _, err := s.verifiedFile(ctx, v); err == nil {
@@ -320,7 +330,6 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 		defer release()
 	}
 	flight.log.Info("download_started", "key", v.key, "size", v.size)
-	var publishErr error
 	if flight.ranges != nil {
 		retained := flight.ranges.bytes()
 		flight.progress.mu.Lock()
@@ -328,26 +337,8 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 		flight.progress.mu.Unlock()
 		flight.progress.setHost(flight.ranges.video.host)
 		flight.log.Info("download_resumed", "retained_bytes", retained)
-		publishErr = s.publishRanges(ctx, nil, path, v, flight)
-	} else {
-		flight.progress.setStage("upstream_headers")
-		resp, selectedHost, err := s.openUpstream(ctx, v)
-		if err != nil {
-			return "", "", fmt.Errorf("%w: %w", errUpstreamDownload, applog.SafeError(err))
-		}
-		defer resp.Body.Close()
-		// The response request is the final validated URL, including redirects.
-		if resp.Request != nil && resp.Request.URL != nil {
-			flight.progress.setHost(resp.Request.URL.Hostname())
-		}
-		flight.log.Info("upstream_response", "host", selectedHost, "status", resp.StatusCode, "content_length", resp.ContentLength)
-		if resp.StatusCode == 206 {
-			publishErr = s.publishRanges(ctx, resp, path, v, flight)
-		} else {
-			flight.log.Info("range_unavailable", "host", selectedHost, "fallback", "sequential")
-			publishErr = s.publish(ctx, resp.Body, path, v, flight)
-		}
 	}
+	publishErr := s.publishScheduled(ctx, path, v, flight)
 	if err := publishErr; err != nil {
 		return "", "", err
 	}
@@ -364,7 +355,7 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 	if err != nil {
 		return err
 	}
-	sp := &spool{file: f, storage: &spoolFile{file: f, refs: 1, log: flight.log}, changed: make(chan struct{}), refs: 1}
+	sp := &spool{file: f, storage: &spoolFile{file: f, refs: 1, log: flight.log}, changed: make(chan struct{}), refs: 1, demand: flight.sequentialDemand}
 	flight.spool = sp
 	close(flight.streaming)
 	h := md5.New()

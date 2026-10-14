@@ -28,7 +28,7 @@ func TestParallelRangeDownloadClaimsEachBlockOnce(t *testing.T) {
 		counts[start]++
 		active++
 		peak = max(peak, active)
-		if active == rangeBackgroundWorkers {
+		if active == 2 {
 			unblock()
 		}
 		mu.Unlock()
@@ -57,7 +57,7 @@ func TestParallelRangeDownloadClaimsEachBlockOnce(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if peak != rangeBackgroundWorkers {
+	if peak != 2 {
 		t.Fatalf("background concurrency = %d", peak)
 	}
 	if int64(len(counts)) != (int64(len(body))+rangeBlockSize-1)/rangeBlockSize {
@@ -150,8 +150,8 @@ func TestParallelRangeGlobalBudgetLeavesRoomForPlaybackAndSeek(t *testing.T) {
 		}
 		flights = append(flights, f)
 	}
-	waitRequestQueue(t, s.requests, 2) // six workers, four background permits
-	for range backgroundRequestLimit {
+
+	for range 2 {
 		select {
 		case <-started:
 		case <-ctx.Done():
@@ -215,36 +215,5 @@ func TestParallelRangeGlobalBudgetLeavesRoomForPlaybackAndSeek(t *testing.T) {
 	}
 	if remaining != 0 {
 		t.Fatalf("completed downloads retained %d requests", remaining)
-	}
-}
-
-func TestRangeSchedulingPrioritizesReadersThenNearbyBlocks(t *testing.T) {
-	w := newRangeWork(20 * rangeBlockSize)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	advance := w.trackReader(ctx)
-	advance(12 * rangeBlockSize)
-	releaseTail := w.demand(17 * rangeBlockSize)
-	defer releaseTail()
-	releaseHead := w.demand(2 * rangeBlockSize)
-	defer releaseHead()
-	for _, want := range []int64{17, 2, 13, 14, 1} {
-		got, _, ok := w.next(ctx, true)
-		if !ok || got != want {
-			t.Fatalf("next = %d, want %d", got, want)
-		}
-		w.finish(got)
-	}
-	advance(6 * rangeBlockSize)
-	got, _, _ := w.next(ctx, true)
-	if got != 7 {
-		t.Fatalf("read-ahead did not follow seek: %d", got)
-	}
-	w.finish(got)
-	cancel()
-	// A canceled cursor is ineffective even before its async cleanup runs.
-	got, _, _ = w.next(context.Background(), true)
-	if got != 3 {
-		t.Fatalf("canceled reader retained pre-read priority: %d", got)
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/applog"
+	"still-wanna-dance/internal/blocksched"
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
@@ -189,7 +190,7 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		if err != nil && ctx.Err() != nil {
 			err = context.Cause(ctx)
 		}
-		if !errors.Is(context.Cause(ctx), errRangeYielded) && !errors.Is(context.Cause(ctx), errPreempted) {
+		if !errors.Is(context.Cause(ctx), errRangeYielded) && !errors.Is(context.Cause(ctx), errPreempted) && !errors.Is(context.Cause(ctx), blocksched.ErrPaused) {
 			// A real failure consumes this candidate. A later Seek may cancel
 			// the next candidate while it is still waiting for request quota;
 			// resume must not rewind to this failed attempt in that case.

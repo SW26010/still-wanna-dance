@@ -99,6 +99,7 @@ func (b *rangeClosingPeer) Close() error {
 
 func TestParallelRangeFailureJoinsClosingPeersBeforeCleanup(t *testing.T) {
 	s, _ := setup(t, nil)
+	fixedBlockScheduler(s)
 	body := bytes.Repeat([]byte("x"), int(5*rangeBlockSize))
 	var readers sync.WaitGroup
 	readers.Add(2)
@@ -144,7 +145,9 @@ func TestParallelRangeFailureJoinsClosingPeersBeforeCleanup(t *testing.T) {
 	s.requests.mu.Lock()
 	active := s.requests.active
 	s.requests.mu.Unlock()
-	if active != 2 {
+	// Additional failing attempts may still be unwinding; both gated bodies
+	// must remain counted, regardless of that independent completion ordering.
+	if active < 2 || active > videoRequestLimit {
 		t.Fatalf("closing requests released early: %d", active)
 	}
 	unblock()

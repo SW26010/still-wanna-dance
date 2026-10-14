@@ -481,7 +481,7 @@ func followEngine(ctx context.Context, p followPlan, tr *followTransport, r *fol
 	}
 	r.BudgetTotal = s.requests.limit
 	r.BudgetBackground = s.requests.background
-	r.BackgroundWorkers = rangeBackgroundWorkers
+	r.BackgroundWorkers = 0 // global block scheduling; no per-video worker count
 	if p.Scenario == "prefetch" {
 		start := time.Now()
 		_, e = s.Prefetch(ctx, urls[0])

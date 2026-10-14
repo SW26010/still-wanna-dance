@@ -284,8 +284,9 @@ func TestQueueCancellationDoesNotCancelJoinedRangePlayback(t *testing.T) {
 	s.cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return target, nil }
 	queueCtx, cancelQueue := context.WithCancel(context.Background())
 	defer cancelQueue()
+	s.UpdatePrefetchQueue([]int64{42}, false)
 	done := make(chan error, 1)
-	go func() { _, err := s.PrefetchPlayback(queueCtx, 42); done <- err }()
+	go func() { _, err := s.PrefetchQueuePlayback(queueCtx, 42); done <- err }()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	select {
@@ -299,6 +300,7 @@ func TestQueueCancellationDoesNotCancelJoinedRangePlayback(t *testing.T) {
 	if queuedFlight == nil {
 		t.Fatal("missing queue flight")
 	}
+	s.UpdatePrefetchQueue(nil, true)
 	cancelQueue()
 	select {
 	case err := <-done:

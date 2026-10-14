@@ -91,6 +91,14 @@ func (s *state) estimate(now time.Time) int {
 	}
 	// A single cautious probe is useful even before measured supply exists.
 	target := min(2, count)
+	if s.control.rate == 0 {
+		for _, j := range timed {
+			if j.need.ReadyBy.Before(now.Add(catchupWindow)) {
+				target = min(count, s.cfg.Background)
+				break
+			}
+		}
+	}
 	if s.cfg.Adaptive && s.control.rate > 0 {
 		sort.Slice(timed, func(i, j int) bool { return timed[i].need.ReadyBy.Before(timed[j].need.ReadyBy) })
 		var bytes int64
@@ -115,37 +123,37 @@ func (s *state) regulate(now time.Time) {
 	c := &s.control
 	if s.cfg.GrowInterval <= 0 {
 		c.target = s.cfg.Limit
-		return
-	}
-	if s.active > 0 && (c.nextSample.IsZero() || !now.Before(c.nextSample)) {
-		s.measure(now)
-	}
-	c.target = s.estimate(now)
-	if c.target == 0 {
-		c.open = 1
-		c.nextGrow = time.Time{}
-		if s.active == 0 {
-			c.nextSample = time.Time{}
-			c.previousConcurrency = 0
-			c.previousRate = 0
-		}
-		return
-	}
-	if c.target < c.open {
-		c.open = c.target
-	}
-	if s.hasBlocking() {
-		c.open = max(c.open, min(2, c.target))
-	}
-	if c.open < c.target {
-		if c.nextGrow.IsZero() {
-			c.nextGrow = now.Add(s.cfg.GrowInterval)
-		} else if !now.Before(c.nextGrow) {
-			c.open++
-			c.nextGrow = now.Add(s.cfg.GrowInterval)
-		}
 	} else {
-		c.nextGrow = time.Time{}
+		if s.active > 0 && (c.nextSample.IsZero() || !now.Before(c.nextSample)) {
+			s.measure(now)
+		}
+		c.target = s.estimate(now)
+		if c.target == 0 {
+			c.open = 1
+			c.nextGrow = time.Time{}
+			if s.active == 0 {
+				c.nextSample = time.Time{}
+				c.previousConcurrency = 0
+				c.previousRate = 0
+			}
+			return
+		}
+		if c.target < c.open {
+			c.open = c.target
+		}
+		if s.hasBlocking() {
+			c.open = max(c.open, min(2, c.target))
+		}
+		if c.open < c.target {
+			if c.nextGrow.IsZero() {
+				c.nextGrow = now.Add(s.cfg.GrowInterval)
+			} else if !now.Before(c.nextGrow) {
+				c.open++
+				c.nextGrow = now.Add(s.cfg.GrowInterval)
+			}
+		} else {
+			c.nextGrow = time.Time{}
+		}
 	}
 	if s.cfg.PreemptAfter <= 0 {
 		return
@@ -153,18 +161,19 @@ func (s *state) regulate(now time.Time) {
 	// A free request slot does not remove bandwidth contention. Give existing
 	// low-urgency transfers a bounded chance to finish before yielding one.
 	var victim *job
-	blocking := false
+	blocking := s.hasBlocking()
+	var due *job
+	if len(s.ready) > 0 && !s.ready[0].need.ReadyBy.IsZero() && !s.ready[0].need.ReadyBy.After(now.Add(catchupWindow)) {
+		due = s.ready[0]
+	}
 	for _, j := range s.jobs {
-		if j.need.Blocking && j.need.Owner != "" {
-			blocking = true
-		}
-		if j.cancel != nil && !j.need.Blocking && !j.retiring && j.remaining > 64<<10 {
+		if j.cancel != nil && !j.need.Blocking && !j.retiring && j.remaining > 64<<10 && (blocking || due != nil && needBefore(due.need, j.need)) {
 			if victim == nil || needBefore(victim.need, j.need) || !needBefore(j.need, victim.need) && j.remaining > victim.remaining {
 				victim = j
 			}
 		}
 	}
-	if !blocking || victim == nil {
+	if (!blocking && due == nil) || victim == nil {
 		s.contention = time.Time{}
 		return
 	}
@@ -187,6 +196,12 @@ func (s *state) nextControlEvent(now time.Time) time.Time {
 			if j.notBefore.After(now) {
 				next = earlier(next, j.notBefore)
 			}
+		}
+	}
+	if len(s.ready) > 0 && !s.ready[0].need.ReadyBy.IsZero() {
+		at := s.ready[0].need.ReadyBy.Add(-catchupWindow)
+		if at.After(now) {
+			next = earlier(next, at)
 		}
 	}
 	return next

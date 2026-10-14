@@ -80,6 +80,8 @@ func TestPublicationDistinguishesLocalAndUpstreamFailures(t *testing.T) {
 				body = publishReaderFunc(func([]byte) (int, error) { return 0, context.Canceled })
 			}
 			s.client.Transport = publishTransport{body}
+			_, release := s.addDemand(context.Background(), v, false)
+			defer release()
 			_, _, err = s.prepare(context.Background(), v, f)
 			if err == nil {
 				t.Fatal("expected publication failure")

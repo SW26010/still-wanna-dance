@@ -105,15 +105,13 @@ func (d *rangeDownload) bytes() int64 {
 	return n
 }
 
-func (d *rangeDownload) spool(work *rangeWork) *spool {
+func (d *rangeDownload) makeSpool(demand func(int64) func(), track func(context.Context) func(int64)) *spool {
 	d.storage.retain()
-	sp := &spool{file: d.storage.file, storage: d.storage, changed: make(chan struct{}), refs: 1, demand: work.demand, track: work.trackReader}
-	for block := int64(0); block < work.blocks; block++ {
+	sp := &spool{file: d.storage.file, storage: d.storage, changed: make(chan struct{}), refs: 1, demand: demand, track: track, sparse: true}
+	for block := int64(0); block < (d.video.size+rangeBlockSize-1)/rangeBlockSize; block++ {
 		if !d.done[block] {
 			continue
 		}
-		work.done[block] = true
-		work.complete++
 		start, end := block*rangeBlockSize, min((block+1)*rangeBlockSize, d.video.size)
 		if n := len(sp.intervals); n > 0 && sp.intervals[n-1].end == start {
 			sp.intervals[n-1].end = end

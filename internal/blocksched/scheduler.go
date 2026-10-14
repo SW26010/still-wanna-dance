@@ -107,6 +107,8 @@ type Demand struct {
 	id   uint64
 }
 
+func (d *Demand) Accepted() bool { return d.id != 0 }
+
 func (t *Task) Add(n Need) *Demand {
 	d := &Demand{task: t}
 	t.s.call(func(s *state) {
@@ -458,7 +460,11 @@ func (s *state) loop() {
 				s.background--
 			}
 			if j.retiring {
-				s.finish(j, j.terminal)
+				err := j.terminal
+				if c.result.Err != nil && !errors.Is(c.result.Err, ErrPaused) && !errors.Is(c.result.Err, context.Canceled) && !errors.Is(c.result.Err, context.DeadlineExceeded) {
+					err = c.result.Err
+				}
+				s.finish(j, err)
 			} else if errors.Is(c.result.Err, ErrPaused) {
 				j.remaining = c.result.Remaining
 				j.notBefore = time.Now().Add(s.cfg.Cooldown)

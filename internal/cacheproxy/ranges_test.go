@@ -115,7 +115,7 @@ func TestRangeTailReadableWhilePrefixBlocked(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if peak > rangeBackgroundWorkers+1 || len(counts) != 3 {
+	if peak > backgroundRequestLimit+1 || len(counts) != 3 {
 		t.Fatal("unbounded requests", peak, counts)
 	}
 	for block, n := range counts {

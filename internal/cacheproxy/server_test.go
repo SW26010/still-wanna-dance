@@ -295,6 +295,7 @@ func TestOwnershipCapacityTimeoutAndShutdown(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
+	s.slots = make(chan struct{}, 1) // exercise the file-session admission bound
 	done := make(chan *responseRecorder, 1)
 	go func() { done <- request(s, "GET", videoURL(payload), nil) }()
 	<-started

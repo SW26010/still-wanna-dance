@@ -21,6 +21,7 @@ type spool struct {
 	err       error
 	refs      int
 	intervals []byteInterval
+	sparse    bool
 	demand    func(int64) func()
 	track     func(context.Context) func(int64)
 }
@@ -108,18 +109,25 @@ func (s *spool) release() {
 }
 
 type spoolReader struct {
-	spool        *spool
-	ctx          context.Context
-	cancel       context.CancelFunc
-	closeOnce    sync.Once
-	size, offset int64
-	err          error
-	verifyFull   bool
-	advance      func(int64)
+	spool         *spool
+	ctx           context.Context
+	cancel        context.CancelFunc
+	closeOnce     sync.Once
+	size, offset  int64
+	err           error
+	verifyFull    bool
+	advance       func(int64)
+	releaseDemand func()
 }
 
 func (r *spoolReader) Close() error {
-	r.closeOnce.Do(func() { r.cancel(); r.spool.release() })
+	r.closeOnce.Do(func() {
+		r.cancel()
+		if r.releaseDemand != nil {
+			r.releaseDemand()
+		}
+		r.spool.release()
+	})
 	return nil
 }
 
@@ -148,7 +156,7 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 		s.mu.Lock()
 		available, complete, failure, changed := s.available, s.complete, s.err, s.changed
 		demand := s.demand
-		if demand != nil {
+		if s.sparse {
 			available = 0
 			for _, interval := range s.intervals {
 				if interval.start <= r.offset && r.offset < interval.end {
@@ -162,7 +170,7 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 			r.err = failure
 			return 0, failure
 		}
-		if (demand == nil || r.verifyFull) && !complete && available >= r.size {
+		if (!s.sparse || r.verifyFull) && !complete && available >= r.size {
 			available = r.size - 1
 		}
 		if available > r.size {

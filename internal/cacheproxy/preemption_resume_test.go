@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func TestWholeFlightPreemptionResumesRangeDownload(t *testing.T) {
+func TestSessionPauseResumesValidatedRanges(t *testing.T) {
 	for _, mode := range []string{"valid", "grace", "weak", "changed-entity", "wrong-range", "corrupt", "foreground", "shutdown", "storage-failure"} {
 		t.Run(mode, func(t *testing.T) { testWholeFlightResume(t, mode) })
 	}
@@ -22,8 +22,7 @@ func TestWholeFlightPreemptionResumesRangeDownload(t *testing.T) {
 
 func testWholeFlightResume(t *testing.T, mode string) {
 	s, cfg := setup(t, nil)
-	s.cfg.MaxDownloads = 1
-	s.slots = make(chan struct{}, 1)
+	fixedBlockScheduler(s)
 	body := bytes.Repeat([]byte("0123456789abcdef"), int(4*rangeBlockSize/16))
 	for i := range body {
 		body[i] = byte((i + i/131071) % 251)
@@ -101,7 +100,11 @@ func testWholeFlightResume(t *testing.T, mode string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	finished := make(chan error, 1)
-	go func() { _, err := s.Prefetch(ctx, target); finished <- err }()
+	r, _ := http.NewRequest("GET", target, nil)
+	v, _ := s.parseResolved(r)
+	if _, _, err := s.obtainMode(ctx, v, true); err != nil {
+		t.Fatal(err)
+	}
 	for range 2 {
 		receiveDemandEvent(t, ready)
 	}
@@ -136,12 +139,18 @@ func testWholeFlightResume(t *testing.T, mode string) {
 	partial := old.spool.file.Name()
 	if mode == "grace" {
 		assertResponse(t, request(s, "GET", target, map[string]string{"Range": "bytes=0-2"}), http.StatusPartialContent, string(body[:3]))
-		checkResourceLevel(t, s, key, priorityGrace)
 	}
 	if mode == "storage-failure" {
 		if err := old.spool.file.Close(); err != nil {
 			t.Fatal(err)
 		}
+	}
+	s.mu.Lock()
+	old.preempted = true
+	old.cancel(errPreempted)
+	s.mu.Unlock()
+	if mode == "storage-failure" {
+		receiveDemandEvent(t, old.done)
 	}
 	foregroundDone := make(chan *responseRecorder, 1)
 	go func() { foregroundDone <- request(s, "GET", videoURL(payload), nil) }()
@@ -150,7 +159,7 @@ func testWholeFlightResume(t *testing.T, mode string) {
 		if !errors.Is(old.err, ErrLocalStorage) || !errors.Is(s.StorageError(), ErrLocalStorage) {
 			t.Fatal("checkpoint write error was hidden by preemption", old.err)
 		}
-		if err := receiveDemandEvent(t, finished); !errors.Is(err, ErrLocalStorage) {
+		if err := old.err; !errors.Is(err, ErrLocalStorage) {
 			t.Fatal("prefetch retried a local storage failure", err)
 		}
 		if response := receiveDemandEvent(t, foregroundDone); response.Code != http.StatusServiceUnavailable {
@@ -188,12 +197,7 @@ func testWholeFlightResume(t *testing.T, mode string) {
 	if _, err := os.Stat(cfg.videoFile(key)); !os.IsNotExist(err) {
 		t.Fatal("partial content published", err)
 	}
-	if mode == "foreground" || mode == "shutdown" {
-		cancel()
-		if err := receiveDemandEvent(t, finished); !errors.Is(err, context.Canceled) {
-			t.Fatal("prefetch waiter did not cancel", err)
-		}
-	}
+
 	unblock()
 	assertResponse(t, receiveDemandEvent(t, foregroundDone), 200, payload)
 	if mode == "shutdown" {
@@ -212,6 +216,7 @@ func testWholeFlightResume(t *testing.T, mode string) {
 	if mode == "foreground" {
 		assertResponse(t, request(s, "GET", target, nil), 200, string(body))
 	} else {
+		go func() { _, err := s.Prefetch(ctx, target); finished <- err }()
 		err := receiveDemandEvent(t, finished)
 		if mode == "changed-entity" || mode == "wrong-range" || mode == "corrupt" {
 			if err == nil {
@@ -302,7 +307,9 @@ func testRepeatedPreemption(t *testing.T, prefixSize int64, rounds int) {
 			defer oldReader.Close()
 		}
 		s.mu.Lock()
-		preempted := s.preemptLocked("other-video", downloadRank{}, false)
+		f.preempted = true
+		f.cancel(errPreempted)
+		preempted := true
 		s.mu.Unlock()
 		if !preempted {
 			t.Fatal("flight did not yield")

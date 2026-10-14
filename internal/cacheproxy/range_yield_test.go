@@ -63,6 +63,7 @@ func (r *gatedFirstRange) Close() error { return nil }
 
 func TestFirstReaderWaitYieldsExistingPrefetch(t *testing.T) {
 	s, _ := setup(t, nil)
+	fixedBlockScheduler(s)
 	body := bytes.Repeat([]byte("x"), int(5*rangeBlockSize))
 	ready, closed := make(chan int64, 2), make(chan int64, 2)
 	gate := make(chan struct{})
@@ -128,8 +129,17 @@ func TestSeekYieldsAndResumesPartialBlocksOnTheirExistingChannels(t *testing.T) 
 	for _, result := range []string{"valid", "redirect", "changed-entity", "wrong-range"} {
 		t.Run(result, func(t *testing.T) {
 			s, _ := setup(t, nil)
+			fixedBlockScheduler(s)
 			body := bytes.Repeat([]byte("0123456789abcdef"), int(9*rangeBlockSize/16))
 			ready := make(chan int64, 3)
+			closed := make(chan int64, 3)
+			seekGate := make(chan struct{})
+			go func() {
+				for range 3 {
+					<-closed
+				}
+				close(seekGate)
+			}()
 			var mu sync.Mutex
 			attempted := make(map[int64]int)
 			badChannelCalls, redirects := 0, 0
@@ -159,7 +169,7 @@ func TestSeekYieldsAndResumesPartialBlocksOnTheirExistingChannels(t *testing.T) 
 						}
 						if block >= 1 && block <= 3 {
 							if start%rangeBlockSize == 0 {
-								resp.Body = &yieldingRangeBody{ctx: r.Context(), prefix: body[start : start+64*1024], block: block, ready: ready}
+								resp.Body = &yieldingRangeBody{ctx: r.Context(), prefix: body[start : start+64*1024], block: block, ready: ready, closed: closed}
 							} else {
 								if start%rangeBlockSize != 64*1024 {
 									t.Errorf("unexpected resume offset %d", start)
@@ -171,6 +181,9 @@ func TestSeekYieldsAndResumesPartialBlocksOnTheirExistingChannels(t *testing.T) 
 									resp.Header.Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", block*rangeBlockSize, end, len(body)))
 								}
 							}
+						}
+						if block == 7 {
+							resp.Body = &gatedFirstRange{ctx: r.Context(), gate: seekGate, Reader: bytes.NewReader(body[start : end+1])}
 						}
 						return resp, nil
 					}))

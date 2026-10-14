@@ -23,7 +23,7 @@ type spool struct {
 	intervals []byteInterval
 	sparse    bool
 	demand    func(int64) func()
-	track     func(context.Context) func(int64)
+	track     func(context.Context) (func(int64), func())
 }
 
 type byteInterval struct{ start, end int64 }
@@ -89,7 +89,7 @@ func (s *spool) reader(ctx context.Context, size int64) *spoolReader {
 	ctx, cancel := context.WithCancel(ctx)
 	r := &spoolReader{spool: s, ctx: ctx, cancel: cancel, size: size}
 	if s.track != nil {
-		r.advance = s.track(ctx)
+		r.advance, r.releaseCursor = s.track(ctx)
 	}
 	return r
 }
@@ -117,12 +117,16 @@ type spoolReader struct {
 	err           error
 	verifyFull    bool
 	advance       func(int64)
+	releaseCursor func()
 	releaseDemand func()
 }
 
 func (r *spoolReader) Close() error {
 	r.closeOnce.Do(func() {
 		r.cancel()
+		if r.releaseCursor != nil {
+			r.releaseCursor()
+		}
 		if r.releaseDemand != nil {
 			r.releaseDemand()
 		}

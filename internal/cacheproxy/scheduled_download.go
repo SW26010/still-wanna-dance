@@ -21,6 +21,7 @@ const queueHandoff = 20 * time.Second
 
 type scheduledCursor struct {
 	ctx   context.Context
+	exit  sourceExit
 	block int64
 	at    time.Time
 }
@@ -70,16 +71,23 @@ func (w *downloadSession) signal() {
 	default:
 	}
 }
-func (w *downloadSession) track(ctx context.Context) func(int64) {
+func (w *downloadSession) track(ctx context.Context) (func(int64), func()) {
 	c := &scheduledCursor{ctx: ctx, block: -1}
 	w.mu.Lock()
 	w.cursors[c] = true
 	w.mu.Unlock()
-	context.AfterFunc(ctx, func() { w.mu.Lock(); delete(w.cursors, c); w.mu.Unlock(); w.signal() })
+	release := sync.OnceFunc(func() {
+		c.exit.record()
+		w.mu.Lock()
+		delete(w.cursors, c)
+		w.mu.Unlock()
+		w.signal()
+	})
+	stop := context.AfterFunc(ctx, release)
 	return func(offset int64) {
 		w.mu.Lock()
 		changed := false
-		if ctx.Err() == nil && c.block != offset/rangeBlockSize {
+		if c.exit.active(ctx) && c.block != offset/rangeBlockSize {
 			c.block = offset / rangeBlockSize
 			c.at = time.Now()
 			changed = true
@@ -88,7 +96,7 @@ func (w *downloadSession) track(ctx context.Context) func(int64) {
 		if changed {
 			w.signal()
 		}
-	}
+	}, func() { stop(); release() }
 }
 func (w *downloadSession) demand(offset int64) func() {
 	d := &scheduledWait{block: offset / rangeBlockSize, at: time.Now()}
@@ -239,7 +247,7 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 	w.s.mu.Lock()
 	changed := w.s.capacityChanged
 	for d := range w.s.demands {
-		if d.key != w.v.key || d.ctx.Err() != nil || d.queue {
+		if d.key != w.v.key || !d.exit.active(d.ctx) || d.queue {
 			continue
 		}
 		kind := "batch"
@@ -274,7 +282,7 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 	w.s.mu.Unlock()
 	w.mu.Lock()
 	for c := range w.cursors {
-		if c.ctx.Err() != nil || c.block < 0 {
+		if !c.exit.active(c.ctx) || c.block < 0 {
 			continue
 		}
 		for distance := int64(0); distance <= rangeReadAheadBlocks; distance++ {
@@ -348,17 +356,26 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 			delete(j.needs, source)
 			reason := w.withdrawal(block, source)
 			at := now
-			if q, ok := source.id.(*queueSource); ok {
+			switch record := source.id.(type) {
+			case *downloadDemand:
+				if exited := record.exit.when(); !exited.IsZero() {
+					at = exited
+				}
+			case *scheduledCursor:
+				if exited := record.exit.when(); !exited.IsZero() {
+					at = exited
+				}
+			case *queueSource:
 				w.s.mu.Lock()
-				if !q.removedAt.IsZero() {
-					old.source, old.need.ReadyBy, at = q.origin(), q.readyBy(block), q.removedAt
+				if !record.removedAt.IsZero() {
+					old.source, old.need.ReadyBy, at = record.origin(), record.readyBy(block), record.removedAt
 				}
 				w.s.mu.Unlock()
 			}
 			if h, ok := makeHandoff(old, reason, at); ok {
 				j.handoffs = append(j.handoffs, h)
 				if w.f.log != nil {
-					w.f.log.Debug("block_demand_handoff", "block", block, "from", old.source.String(), "reason", "source_gone", "ready_by", h.need.ReadyBy, "lease_until", h.need.LeaseUntil)
+					w.f.log.Debug("block_demand_handoff", "block", block, "from", old.source.String(), "reason", "source_gone", "withdrawn_at", at, "ready_by", h.need.ReadyBy, "lease_until", h.need.LeaseUntil)
 				}
 			}
 		}
@@ -412,7 +429,7 @@ func (w *downloadSession) withdrawal(block int64, source blockSource) withdrawal
 		return withdrawalReadMoved
 	}
 	if source.kind == "read" {
-		if c, ok := source.id.(*scheduledCursor); ok && c.ctx.Err() == nil {
+		if c, ok := source.id.(*scheduledCursor); ok && c.exit.active(c.ctx) {
 			return withdrawalReadMoved
 		}
 	}

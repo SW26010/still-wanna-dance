@@ -9,7 +9,7 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
-func queueLifecycleSession(t *testing.T) (*downloadSession, *Server) {
+func demandLifecycleSession(t *testing.T) (*downloadSession, *Server) {
 	t.Helper()
 	w, s := testSession(t)
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
@@ -31,7 +31,7 @@ func registerQueueResource(t *testing.T, s *Server, song, key string) {
 	t.Cleanup(release)
 }
 
-func reconcileQueue(t *testing.T, w *downloadSession) {
+func reconcileSession(t *testing.T, w *downloadSession) {
 	t.Helper()
 	now := time.Now()
 	plan, _ := w.plan(now, false)
@@ -42,18 +42,18 @@ func reconcileQueue(t *testing.T, w *downloadSession) {
 
 func TestQueueReorderUsesOneTimeBase(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		w, s := queueLifecycleSession(t)
+		w, s := demandLifecycleSession(t)
 		s.UpdatePrefetchQueue([]int64{1, 2, 3}, false)
 		registerQueueResource(t, s, "2", w.v.key)
 		registerQueueResource(t, s, "3", w.v.key)
-		reconcileQueue(t, w)
+		reconcileSession(t, w)
 		for i := 0; i < 7; i++ {
 			time.Sleep(10 * time.Second)
-			reconcileQueue(t, w) // Keep the live sources' leases renewed.
+			reconcileSession(t, w) // Keep the live sources' leases renewed.
 		}
 		time.Sleep(5 * time.Second)
 		s.UpdatePrefetchQueue([]int64{2, 1, 3}, false)
-		reconcileQueue(t, w)
+		reconcileSession(t, w)
 		j := w.jobs[0]
 		if want := time.Now().Add(10 * time.Second); !j.published.ReadyBy.Equal(want) {
 			t.Fatalf("new head lost priority: earliest=%v want=%v", j.published.ReadyBy, want)
@@ -66,7 +66,7 @@ func TestQueueReorderUsesOneTimeBase(t *testing.T) {
 		ready := j.published.ReadyBy
 		time.Sleep(5 * time.Second)
 		s.UpdatePrefetchQueue([]int64{2, 1, 3}, false)
-		reconcileQueue(t, w)
+		reconcileSession(t, w)
 		if !j.published.ReadyBy.Equal(ready) {
 			t.Fatal("identical queue snapshot slid the deadline")
 		}
@@ -86,17 +86,17 @@ func TestCoalescedQueueChangesPreserveWithdrawalSource(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
-				w, s := queueLifecycleSession(t)
+				w, s := demandLifecycleSession(t)
 				s.UpdatePrefetchQueue(tc.before, false)
 				registerQueueResource(t, s, "2", w.v.key)
-				reconcileQueue(t, w)
+				reconcileSession(t, w)
 				time.Sleep(time.Second)
 				s.UpdatePrefetchQueue(tc.middle, false)
 				time.Sleep(time.Second)
 				s.UpdatePrefetchQueue([]int64{1}, false)
 				removedAt := time.Now()
 				time.Sleep(tc.delay) // No coordinator observation of the intermediate state.
-				reconcileQueue(t, w)
+				reconcileSession(t, w)
 				j := w.jobs[0]
 				if tc.handoff {
 					if j.retiring || len(j.handoffs) != 1 || !j.handoffUntil.Equal(removedAt.Add(queueHandoff)) {
@@ -107,7 +107,7 @@ func TestCoalescedQueueChangesPreserveWithdrawalSource(t *testing.T) {
 					if !j.handoffs[0].need.ReadyBy.Equal(removedAt.Add(14 * time.Second)) {
 						t.Fatal("handoff used the stale ordinary-queue deadline", j.handoffs[0].need.ReadyBy)
 					}
-					reconcileQueue(t, w)
+					reconcileSession(t, w)
 					if len(j.handoffs) != 1 || !j.handoffUntil.Equal(removedAt.Add(queueHandoff)) {
 						t.Fatal("withdrawal was replayed or renewed")
 					}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -36,9 +37,35 @@ func (q *queueSource) readyBy(block int64) time.Time {
 
 type downloadDemand struct {
 	ctx             context.Context
+	exit            sourceExit
 	key, song       string
 	queue, playback bool
 	queueSource     *queueSource
+}
+
+// sourceExit freezes withdrawal before registry locks or coalesced coordinator
+// wakeups can delay it. It belongs to the original source, never to a handoff.
+type sourceExit struct{ at atomic.Pointer[time.Time] }
+
+func (e *sourceExit) record() {
+	if e.at.Load() == nil {
+		now := time.Now()
+		e.at.CompareAndSwap(nil, &now)
+	}
+}
+
+func (e *sourceExit) active(ctx context.Context) bool {
+	if ctx.Err() != nil {
+		e.record() // Planning can observe cancellation before AfterFunc runs.
+	}
+	return e.at.Load() == nil
+}
+
+func (e *sourceExit) when() time.Time {
+	if at := e.at.Load(); at != nil {
+		return *at
+	}
+	return time.Time{}
 }
 
 func (s *Server) queueContainsLocked(song string) bool { return s.prefetchSources[song] != nil }
@@ -100,7 +127,13 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 	}
 	s.notifyCapacityLocked()
 	s.mu.Unlock()
-	release := sync.OnceFunc(func() { s.mu.Lock(); delete(s.demands, d); s.notifyCapacityLocked(); s.mu.Unlock() })
+	release := sync.OnceFunc(func() {
+		d.exit.record()
+		s.mu.Lock()
+		delete(s.demands, d)
+		s.notifyCapacityLocked()
+		s.mu.Unlock()
+	})
 	stop := context.AfterFunc(ctx, release)
 	return d, func() { stop(); release() }
 }

@@ -33,7 +33,8 @@ func TestBlockDemandFollowsActualWaitAndIndependentReaders(t *testing.T) {
 	defer cancel()
 	_, release := s.addDemand(ctx, w.v, true)
 	defer release()
-	advance := w.track(ctx)
+	advance, releaseCursor := w.track(ctx)
+	defer releaseCursor()
 	advance(12 * rangeBlockSize)
 	plan, _ := w.plan(time.Now(), true)
 	for _, needs := range plan {

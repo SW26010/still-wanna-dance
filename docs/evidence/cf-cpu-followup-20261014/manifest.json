@@ -22,8 +22,9 @@
     "bytes": 10962129,
     "sha256": "e23c81110762d9ca73f5033866825119cd07ea584d558dfebb51ebd642633b36",
     "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261014-cf-v1/cf-cpu-followup-20261014-v1.zip",
-    "status": "prepared-local",
-    "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5"
+    "status": "published-verified",
+    "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5",
+    "publiclyVerifiedAt": "2026-10-14T04:26:39Z"
   },
   "files": [
     {

@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261014-02",
+  "productSourceDiffEmpty": true,
+  "sourceSHA": "3fae4b81642f27a7a406a828bd8fa0eb79dc8e94",
+  "getLifetimeAnalysis": {
+    "coldWindows": 8,
+    "gapCount": 26,
+    "maximumGapMs": 514,
+    "totalGapMs": 4529,
+    "preemptionEventsAcrossAll14Stages": 0,
+    "method": "Per-resource union, publication/operation bounds; no direct demand-lock measurement",
+    "result": "passed offline arithmetic and input checks; suggested grace not implemented or validated"
+  },
+  "coldChecks": [
+    {
+      "stage": "fr-unlimited",
+      "key": "c156912b596f0dccdda03210bbcdbac2",
+      "requestID": 4,
+      "requestStarted": 205.927,
+      "published": 218.511,
+      "valid": true
+    },
+    {
+      "stage": "fn-unlimited-retry1",
+      "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+      "requestID": 6,
+      "requestStarted": 76.032,
+      "published": 87.71,
+      "valid": true
+    },
+    {
+      "stage": "preview-unlimited-retry1",
+      "key": "a23191233a3f914afe16850c6c04813b",
+      "requestID": 5,
+      "requestStarted": 45.02,
+      "published": 60.77,
+      "valid": true
+    },
+    {
+      "stage": "dual-unlimited",
+      "key": "3590929cbfde34b1e542150d48546150",
+      "requestID": 10,
+      "requestStarted": 167.505,
+      "published": 177.578,
+      "valid": true
+    }
+  ],
+  "hotChecks": [
+    {
+      "stage": "fr-hot",
+      "key": "c156912b596f0dccdda03210bbcdbac2",
+      "windowStart": 0,
+      "responseCount": 4,
+      "allHIT": true
+    },
+    {
+      "stage": "fn-hot",
+      "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+      "windowStart": 55,
+      "responseCount": 6,
+      "allHIT": true
+    },
+    {
+      "stage": "preview-unlimited",
+      "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+      "windowStart": 34,
+      "responseCount": 11,
+      "allHIT": true
+    },
+    {
+      "stage": "dual-hot",
+      "key": "3590929cbfde34b1e542150d48546150",
+      "windowStart": 0,
+      "responseCount": 7,
+      "allHIT": true
+    }
+  ],
+  "sharedDownload": {
+    "stage": "dual-unlimited",
+    "key": "3590929cbfde34b1e542150d48546150",
+    "formalRequestID": 5,
+    "previewSeekRequestID": 10,
+    "overlapConfirmed": true,
+    "formalRange": "bytes=0-",
+    "previewRange": "bytes=37781504-54919232"
+  },
+  "cacheIntegrityChecks": [
+    {
+      "purpose": "preparation only",
+      "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+      "bytes": 45355460,
+      "song": 10938,
+      "verified": true,
+      "md5": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+      "sourceStage": "dual-unlimited"
+    },
+    {
+      "md5": "3590929cbfde34b1e542150d48546150",
+      "sourceStage": "dual-unlimited",
+      "verified": true,
+      "song": 1314,
+      "bytes": 54919233,
+      "key": "3590929cbfde34b1e542150d48546150"
+    },
+    {
+      "sourceStage": "fn-unlimited-retry1",
+      "song": 3194,
+      "verified": true,
+      "bytes": 66379679,
+      "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+      "md5": "4b48ef70c18353fbab007ce7ea4b8ba4"
+    },
+    {
+      "bytes": 45849828,
+      "md5": "c123d0dd70b20aabcc2544c4e3fe294b",
+      "verified": true,
+      "song": 3214,
+      "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+      "sourceStage": "preview-unlimited"
+    },
+    {
+      "sourceStage": "preview-unlimited-retry1",
+      "bytes": 38976068,
+      "md5": "a23191233a3f914afe16850c6c04813b",
+      "key": "a23191233a3f914afe16850c6c04813b",
+      "song": 5396,
+      "verified": true
+    },
+    {
+      "md5": "c156912b596f0dccdda03210bbcdbac2",
+      "bytes": 67256325,
+      "key": "c156912b596f0dccdda03210bbcdbac2",
+      "verified": true,
+      "sourceStage": "fr-unlimited"
+    }
+  ],
+  "automatedChecks": [
+    {
+      "check": "Unchanged helper test/vet calibration",
+      "result": "Passed before LIVE-20261014-01; unchanged executable reused, not rerun here"
+    },
+    {
+      "check": "New capture/summary scripts syntax and finalized output",
+      "result": "passed"
+    },
+    {
+      "check": "Cold operation precedes publish; hot target HIT; shared-reader overlap; no open request at close",
+      "result": "passed"
+    },
+    {
+      "check": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "check": "repository artifact policy",
+      "result": "passed tracked tree/history; untracked experiment text and evidence separately inspected"
+    }
+  ],
+  "cleanup": {
+    "hostsByteIdentical": true,
+    "hostsSHA256": "2d6bdfb341be3a6234b24742377f93aa7c7cfb0d9fd64efa9282c87852e57085",
+    "managedAPI": false,
+    "remainingProcessCount": 0,
+    "remainingListenerCount": 0,
+    "remainingTemporaryFileCount": 0,
+    "dataRetained": "Complete isolated videos and private raw evidence in ignored lab; no mount; game left running"
+  },
+  "privacy": {
+    "method": "Allowlisted fields, anonymous host aliases, relative time, manual review plus forbidden-pattern scan; no private URL/account/room/path/credential values",
+    "fullLogs": "ignored local lab only"
+  },
+  "limits": [
+    "No direct demand-lock or actual preemption measurement",
+    "Downstream GET count does not verify upstream 6/4 budget",
+    "Client cache coexists with SWD cache",
+    "Case 9 reopened backward seek lacks explicit outcome feedback",
+    "Rate fixed at 1 Mbps, not verified as slightly below each song bitrate"
+  ],
+  "git": {
+    "commit": false,
+    "push": false
+  }
+}

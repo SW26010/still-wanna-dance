@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 2,
+  "batch": "LIVE-20261014-02",
+  "status": "closed-partial-acceptance",
+  "hashBasis": "git-blob",
+  "lineEndings": "LF",
+  "sourceSHA": "3fae4b81642f27a7a406a828bd8fa0eb79dc8e94",
+  "executables": [
+    {
+      "name": "SWD.exe",
+      "sha256": "c8f57e192690b93d522a896f48c8e0d4f6ef20938fb29d588de1b1ed76ca1d27"
+    },
+    {
+      "name": "get-probe.exe",
+      "sha256": "984ccc8bfc8ff3eaff89865bb804b95119e24b6ab493a193cf0cacac6827e824"
+    }
+  ],
+  "build": {
+    "go": "go1.27.1 windows/amd64",
+    "tags": "no_easytier",
+    "CGO": 0,
+    "package": null
+  },
+  "files": [
+    {
+      "path": "observations.json",
+      "bytes": 168021,
+      "sha256": "f0cac30df201045b5b5acf7619489e9a89df1194f36670aa4a91d1a7bdea8714",
+      "source": "Allowlisted gateway events and game callbacks, explicit user operations/feedback, cache hashes and cleanup receipts",
+      "redaction": "Relative timestamps; anonymous host labels; no raw URLs, credentials, private paths, account or room identities"
+    },
+    {
+      "path": "checks.json",
+      "bytes": 5353,
+      "sha256": "bf8a372737a0747c57c618cf9ccdfa6e55278e26bfd023f9a242ba79d5e395bf",
+      "source": "Allowlisted gateway events and game callbacks, explicit user operations/feedback, cache hashes and cleanup receipts",
+      "redaction": "Relative timestamps; anonymous host labels; no raw URLs, credentials, private paths, account or room identities"
+    },
+    {
+      "path": "get-lifetimes.json",
+      "bytes": 40091,
+      "sha256": "eba2199785e85743593a99727b9939dfe91b2608cad33867c0819bea081c1ee5",
+      "source": "Allowlisted gateway events and game callbacks, explicit user operations/feedback, cache hashes and cleanup receipts",
+      "redaction": "Relative timestamps; anonymous host labels; no raw URLs, credentials, private paths, account or room identities"
+    }
+  ],
+  "tools": [
+    {
+      "path": "experiments/live-get-probe/main.go",
+      "bytes": 6868,
+      "sha256": "e7e1267181a5445350158db584df04967ef0decf58c9e4212bbb5744aeaed878"
+    },
+    {
+      "path": "experiments/live-get-probe/main_test.go",
+      "bytes": 2186,
+      "sha256": "94e1b029af571951b921079016569e7a2bea0cb67663fd2a237a85dd39cc39a9"
+    },
+    {
+      "path": "experiments/live-get-probe/observe.mjs",
+      "bytes": 2441,
+      "sha256": "f3007601ccaa762df57152ab20a1d6685af5a4b9beacd863e34714bfa556b8c7"
+    },
+    {
+      "path": "experiments/live-get-probe/capture-interaction.mjs",
+      "bytes": 4317,
+      "sha256": "be5cd3179e72036294bbbc13a9770599ade291cf8dd4fcb51ecacfa695caf71d"
+    },
+    {
+      "path": "experiments/live-get-probe/interaction-summary.mjs",
+      "bytes": 4594,
+      "sha256": "545b0f34c40581590f49bb4508d20b6e2eb8e4f207f62f6114afc4a8d54b5f89"
+    },
+    {
+      "path": "experiments/live-get-probe/get-lifetimes.mjs",
+      "bytes": 7870,
+      "sha256": "099b684b8fbc3970994181d61b34efda7c5b0542e04d100fba922a7908ccdb2e"
+    }
+  ],
+  "testedCodePatch": {
+    "privatePath": "<lab>/tested-code.patch",
+    "bytes": 9817,
+    "sha256": "f52f00b3560eb4bfe08252dd8a91b03c9e04585d712d7b0e158e1721e633318d",
+    "scope": "Frozen uncommitted executable source additions; analysis and report edits do not change tested executable"
+  },
+  "privatePreparationScripts": [
+    {
+      "privatePath": "<lab>/start-stage.ps1",
+      "bytes": 4173,
+      "actualSHA256": "e34688a8af5756bc238cfe172d9520df333f9e2f9110f93aaeed8bbf80fab229"
+    },
+    {
+      "privatePath": "<lab>/warm-cache.mjs",
+      "bytes": 1334,
+      "actualSHA256": "71e6236f32ae6d16c66b7582f395bfb4d9b395db0cc64f7134ae8ff10f117357"
+    },
+    {
+      "privatePath": "<lab>/restore-hosts.ps1",
+      "bytes": 1753,
+      "actualSHA256": "d129ed6836e12961ebe0afb6ca3ea1f9a7bfd3aaf20a1adefba02191682d35de"
+    }
+  ],
+  "fullTrace": {
+    "status": "local-unpublished",
+    "stages": 14,
+    "note": "Detailed allowlisted traces retained locally; no public archive URL claimed. Git keeps concise support for reported results. Private raw logs are excluded."
+  }
+}

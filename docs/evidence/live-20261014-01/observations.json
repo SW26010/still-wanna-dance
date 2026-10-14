@@ -1,0 +1,685 @@
+{
+  "schemaVersion": 2,
+  "batch": "LIVE-20261014-01",
+  "status": "closed-partial-acceptance",
+  "sourceSHA": "3fae4b81642f27a7a406a828bd8fa0eb79dc8e94",
+  "VRChatBuild": "2026.4.1-1931-68b4616cf3-Release",
+  "WindowsBuild": "26100.9278",
+  "timeBasis": "each stage starts at its first validated HTTP request; game events use earliest valid baseline request as shared zero; game timestamps have one-second resolution",
+  "scope": "GET behavior only; independent cold-cache natural-play samples, plus explicitly separated exploratory operations. No actual preemption acceptance.",
+  "stages": [
+    {
+      "id": "baseline",
+      "song": 8935,
+      "rateBytesPerSecond": 0,
+      "actualMode": "direct",
+      "key": "721d1371b3aa9280fefe4ece94b3a71e",
+      "fileBytes": 21996300,
+      "offsetFromBatchSeconds": 0,
+      "initialResolverContaminated": false,
+      "mixedOperations": false,
+      "GETCount": 2,
+      "playerGETCount": 1,
+      "completedPlayerGETCount": 1,
+      "maximumInternalGETGapMs": 505,
+      "publishedAtSeconds": 20.358,
+      "preemptions": 0,
+      "relayMedianMiBps": null,
+      "relayPeakMiBps": null,
+      "requestExamples": [
+        {
+          "id": 1,
+          "role": "resolver-user-agent",
+          "range": "",
+          "startMs": 0,
+          "endMs": 5008,
+          "bytes": 393216,
+          "status": 200,
+          "outcome": "canceled",
+          "firstBodyMs": 5391.3464
+        },
+        {
+          "id": 2,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "startMs": 5513,
+          "endMs": 20695,
+          "bytes": 21996300,
+          "status": 206,
+          "outcome": "completed",
+          "firstBodyMs": 0.5035
+        }
+      ],
+      "playerMode": "unknown",
+      "modeEvidence": "Not retrospectively assumed"
+    },
+    {
+      "id": "2m",
+      "song": 2502,
+      "rateBytesPerSecond": 2097152,
+      "actualMode": "proxy",
+      "key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "fileBytes": 80602639,
+      "offsetFromBatchSeconds": 94.64,
+      "initialResolverContaminated": true,
+      "mixedOperations": false,
+      "GETCount": 1,
+      "playerGETCount": 1,
+      "completedPlayerGETCount": 1,
+      "maximumInternalGETGapMs": 0,
+      "publishedAtSeconds": 56.359,
+      "preemptions": 0,
+      "relayMedianMiBps": 1.539,
+      "relayPeakMiBps": 1.902,
+      "requestExamples": [
+        {
+          "id": 1,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "startMs": 0,
+          "endMs": 56213,
+          "bytes": 80602639,
+          "status": 206,
+          "outcome": "completed",
+          "firstBodyMs": 6988.2768
+        }
+      ],
+      "playerMode": "unknown",
+      "modeEvidence": "Not retrospectively assumed",
+      "relayMeanMiBps": 1.411
+    },
+    {
+      "id": "1m",
+      "song": 4598,
+      "rateBytesPerSecond": 1048576,
+      "actualMode": "proxy",
+      "key": "ba52593f9a238a486df91a1bf23b9248",
+      "fileBytes": 35169662,
+      "offsetFromBatchSeconds": 236.35,
+      "initialResolverContaminated": false,
+      "mixedOperations": false,
+      "GETCount": 2,
+      "playerGETCount": 1,
+      "completedPlayerGETCount": 1,
+      "maximumInternalGETGapMs": 421,
+      "publishedAtSeconds": 37.292,
+      "preemptions": 0,
+      "relayMedianMiBps": 0.996,
+      "relayPeakMiBps": 1.01,
+      "requestExamples": [
+        {
+          "id": 1,
+          "role": "resolver-user-agent",
+          "range": "",
+          "startMs": 0,
+          "endMs": 3326,
+          "bytes": 393216,
+          "status": 200,
+          "outcome": "canceled",
+          "firstBodyMs": 3735.0631
+        },
+        {
+          "id": 2,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "startMs": 3747,
+          "endMs": 37224,
+          "bytes": 35169662,
+          "status": 206,
+          "outcome": "completed",
+          "firstBodyMs": 0.7028
+        }
+      ],
+      "playerMode": "unknown",
+      "modeEvidence": "Not retrospectively assumed",
+      "relayMeanMiBps": 0.926
+    },
+    {
+      "id": "half",
+      "song": 10552,
+      "rateBytesPerSecond": 524288,
+      "actualMode": "proxy",
+      "key": "bf49ffdbb8260a7e0487d260a29e8d70",
+      "fileBytes": 103118762,
+      "offsetFromBatchSeconds": 368.138,
+      "initialResolverContaminated": false,
+      "mixedOperations": false,
+      "GETCount": 2,
+      "playerGETCount": 1,
+      "completedPlayerGETCount": 1,
+      "maximumInternalGETGapMs": 352,
+      "publishedAtSeconds": 200.644,
+      "preemptions": 0,
+      "relayMedianMiBps": 0.499,
+      "relayPeakMiBps": 0.512,
+      "requestExamples": [
+        {
+          "id": 1,
+          "role": "resolver-user-agent",
+          "range": "",
+          "startMs": 0,
+          "endMs": 3780,
+          "bytes": 393216,
+          "status": 200,
+          "outcome": "canceled",
+          "firstBodyMs": 4186.4051
+        },
+        {
+          "id": 2,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "startMs": 4132,
+          "endMs": 200444,
+          "bytes": 103118762,
+          "status": 206,
+          "outcome": "completed",
+          "firstBodyMs": 0.5027
+        }
+      ],
+      "playerMode": "unknown",
+      "modeEvidence": "Not retrospectively assumed",
+      "relayMeanMiBps": 0.494
+    },
+    {
+      "id": "stress",
+      "song": 6776,
+      "rateBytesPerSecond": 131072,
+      "actualMode": "proxy",
+      "key": "c156912b596f0dccdda03210bbcdbac2",
+      "fileBytes": 67256325,
+      "offsetFromBatchSeconds": 1245.778,
+      "initialResolverContaminated": false,
+      "mixedOperations": true,
+      "GETCount": 22,
+      "playerGETCount": 19,
+      "completedPlayerGETCount": 1,
+      "maximumInternalGETGapMs": 18068,
+      "publishedAtSeconds": null,
+      "preemptions": 0,
+      "relayMedianMiBps": 0.125,
+      "relayPeakMiBps": 0.137,
+      "requestExamples": [
+        {
+          "id": 1,
+          "role": "resolver-user-agent",
+          "range": "",
+          "startMs": 0,
+          "endMs": 9134,
+          "bytes": 393216,
+          "status": 200,
+          "outcome": "canceled",
+          "firstBodyMs": 10001.5044
+        },
+        {
+          "id": 2,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "startMs": 9531,
+          "endMs": 33549,
+          "bytes": 2097152,
+          "status": 206,
+          "outcome": "canceled",
+          "firstBodyMs": 0.5641
+        },
+        {
+          "id": 3,
+          "role": "WMF-player",
+          "range": "bytes=2785280-67256324",
+          "startMs": 33560,
+          "endMs": 56558,
+          "bytes": 2064384,
+          "status": 206,
+          "outcome": "canceled",
+          "firstBodyMs": 583.394
+        },
+        {
+          "id": 16,
+          "role": "WMF-player",
+          "range": "bytes=56967168-67256324",
+          "startMs": 193682,
+          "endMs": 232867,
+          "bytes": 704512,
+          "status": 206,
+          "outcome": "canceled",
+          "firstBodyMs": 9114.5059
+        },
+        {
+          "id": 21,
+          "role": "WMF-player",
+          "range": "bytes=942080-3571711",
+          "startMs": 209431,
+          "endMs": 213049,
+          "bytes": 2629632,
+          "status": 206,
+          "outcome": "completed",
+          "firstBodyMs": 2.102
+        },
+        {
+          "id": 22,
+          "role": "WMF-player",
+          "range": "bytes=6553600-67256324",
+          "startMs": 250935,
+          "endMs": 427458,
+          "bytes": 34340864,
+          "status": 206,
+          "outcome": "canceled",
+          "firstBodyMs": 1.0054
+        }
+      ],
+      "playerMode": "unknown",
+      "modeEvidence": "Not retrospectively assumed",
+      "relayMeanMiBps": 0.123
+    },
+    {
+      "id": "quarter-clean",
+      "song": 1981,
+      "rateBytesPerSecond": 262144,
+      "actualMode": "proxy",
+      "key": "dc23702caf2f8da163ea416c135ee5c1",
+      "fileBytes": 33424954,
+      "offsetFromBatchSeconds": 2444.314,
+      "initialResolverContaminated": false,
+      "mixedOperations": false,
+      "GETCount": 3,
+      "playerGETCount": 2,
+      "completedPlayerGETCount": 0,
+      "maximumInternalGETGapMs": 404,
+      "publishedAtSeconds": null,
+      "preemptions": 0,
+      "relayMedianMiBps": 0.232,
+      "relayPeakMiBps": 0.261,
+      "requestExamples": [
+        {
+          "id": 1,
+          "role": "resolver-user-agent",
+          "range": "",
+          "startMs": 0,
+          "endMs": 5335,
+          "bytes": 393216,
+          "status": 200,
+          "outcome": "canceled",
+          "firstBodyMs": 5736.2163
+        },
+        {
+          "id": 2,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "startMs": 5739,
+          "endMs": 121208,
+          "bytes": 20971520,
+          "status": 206,
+          "outcome": "canceled",
+          "firstBodyMs": 1.5137
+        },
+        {
+          "id": 3,
+          "role": "WMF-player",
+          "range": "bytes=20963328-33424953",
+          "startMs": 121354,
+          "endMs": 139627,
+          "bytes": 8192,
+          "status": 206,
+          "outcome": "canceled",
+          "firstBodyMs": 0.5055
+        }
+      ],
+      "playerMode": "formal",
+      "modeEvidence": "User explicitly confirmed 1981 formal",
+      "gameStopAtSeconds": 139.33,
+      "gameStopSource": {
+        "source": "game-session",
+        "line": 2364
+      },
+      "playingReconnectGapsMs": [
+        146
+      ],
+      "playerGETsStartedBeforeStop": 2,
+      "playerGETsStartedAfterStop": 0,
+      "lastGETEndedAfterGameStopSeconds": 0.297,
+      "feedback": "1981播了一会就卡住，然后继续播",
+      "gameEvents": [
+        {
+          "event": "resolver_requested",
+          "t": -1.67,
+          "source": "game-session",
+          "line": 2301,
+          "song": 1981
+        },
+        {
+          "event": "yt_dlp_exited",
+          "t": 5.33,
+          "source": "game-session",
+          "line": 2336,
+          "exitCode": 0,
+          "durationMs": 6989
+        },
+        {
+          "event": "resolver_returned",
+          "t": 5.33,
+          "source": "game-session",
+          "line": 2337,
+          "song": 1981
+        },
+        {
+          "event": "OnVideoStart",
+          "t": 8.33,
+          "source": "game-session",
+          "line": 2354,
+          "song": 1981
+        },
+        {
+          "event": "StopVideo",
+          "t": 139.33,
+          "source": "game-session",
+          "line": 2364
+        }
+      ],
+      "relayMeanMiBps": 0.181
+    },
+    {
+      "id": "64k",
+      "song": 1344,
+      "rateBytesPerSecond": 65536,
+      "actualMode": "proxy",
+      "key": "8f26d29704140a431dea0c1374f2eeba",
+      "fileBytes": 40548476,
+      "offsetFromBatchSeconds": 2743.057,
+      "initialResolverContaminated": false,
+      "mixedOperations": false,
+      "GETCount": 8,
+      "playerGETCount": 7,
+      "completedPlayerGETCount": 0,
+      "maximumInternalGETGapMs": 516,
+      "publishedAtSeconds": null,
+      "preemptions": 0,
+      "relayMedianMiBps": 0.065,
+      "relayPeakMiBps": 0.069,
+      "requestExamples": [
+        {
+          "id": 1,
+          "role": "resolver-user-agent",
+          "range": "",
+          "startMs": 0,
+          "endMs": 17253,
+          "bytes": 262144,
+          "status": 200,
+          "outcome": "canceled",
+          "firstBodyMs": 18075.0621
+        },
+        {
+          "id": 2,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "startMs": 17650,
+          "endMs": 50461,
+          "bytes": 1048576,
+          "status": 206,
+          "outcome": "canceled",
+          "firstBodyMs": 0.6721
+        },
+        {
+          "id": 3,
+          "role": "WMF-player",
+          "range": "bytes=1040384-40548475",
+          "startMs": 50974,
+          "endMs": 66051,
+          "bytes": 3153920,
+          "status": 206,
+          "outcome": "canceled",
+          "firstBodyMs": 0.6876
+        },
+        {
+          "id": 4,
+          "role": "WMF-player",
+          "range": "bytes=8110080-40548475",
+          "startMs": 66063,
+          "endMs": 114464,
+          "bytes": 278528,
+          "status": 206,
+          "outcome": "canceled",
+          "firstBodyMs": 17064.3195
+        },
+        {
+          "id": 5,
+          "role": "WMF-player",
+          "range": "bytes=8380416-40548475",
+          "startMs": 114980,
+          "endMs": 146464,
+          "bytes": 8192,
+          "status": 206,
+          "outcome": "canceled",
+          "firstBodyMs": 0.5061
+        },
+        {
+          "id": 6,
+          "role": "WMF-player",
+          "range": "bytes=8380416-40548475",
+          "startMs": 146980,
+          "endMs": 178466,
+          "bytes": 8192,
+          "status": 206,
+          "outcome": "canceled",
+          "firstBodyMs": 1.0412
+        },
+        {
+          "id": 8,
+          "role": "WMF-player",
+          "range": "bytes=8380416-40548475",
+          "startMs": 210970,
+          "endMs": 216070,
+          "bytes": 8192,
+          "status": 206,
+          "outcome": "canceled",
+          "firstBodyMs": 1.0006
+        }
+      ],
+      "playerMode": "formal",
+      "modeEvidence": "Formal-only operation requested; game start confirms song 1344; user reported playback",
+      "gameStopAtSeconds": 174.587,
+      "gameStopSource": {
+        "source": "game-session",
+        "line": 2554
+      },
+      "playingReconnectGapsMs": [
+        513,
+        12,
+        516,
+        516
+      ],
+      "playerGETsStartedBeforeStop": 5,
+      "playerGETsStartedAfterStop": 2,
+      "lastGETEndedAfterGameStopSeconds": 41.483,
+      "feedback": "加载很久，播放了一点，又卡住很久",
+      "gameEvents": [
+        {
+          "event": "resolver_requested",
+          "t": -2.413,
+          "source": "game-session",
+          "line": 2442,
+          "song": 1344
+        },
+        {
+          "event": "yt_dlp_exited",
+          "t": 17.587,
+          "source": "game-session",
+          "line": 2477,
+          "exitCode": 0,
+          "durationMs": 19343
+        },
+        {
+          "event": "resolver_returned",
+          "t": 17.587,
+          "source": "game-session",
+          "line": 2478,
+          "song": 1344
+        },
+        {
+          "event": "OnVideoStart",
+          "t": 17.587,
+          "source": "game-session",
+          "line": 2493,
+          "song": 1344
+        },
+        {
+          "event": "StopVideo",
+          "t": 174.587,
+          "source": "game-session",
+          "line": 2554
+        },
+        {
+          "event": "StopVideo",
+          "t": 174.587,
+          "source": "game-session",
+          "line": 2577
+        }
+      ],
+      "relayMeanMiBps": 0.062
+    }
+  ],
+  "natural128KiB": {
+    "song": 6776,
+    "windowEndSeconds": 96.131,
+    "endReason": "assistant requested first seek; later interactions excluded from this natural-play window",
+    "feedback": "播了1秒卡住一会，然后又播1秒卡住一会",
+    "completedPlayerRequests": 4,
+    "maximumReconnectGapAfterResolverMs": 12,
+    "finalRequestCensored": true,
+    "playerMode": "unknown",
+    "interpretation": "HTTP changes and reported stutter are observed; cannot retrospectively attribute every nonzero range to automatic reconnect by one player because preview has a nonzero default offset"
+  },
+  "exploratorySeek128KiB": {
+    "classification": "mixed operations, not independent Seek acceptance",
+    "forwardFeedback": "拖过去，但卡住没反应",
+    "backwardFeedback": "从开头可以连续播",
+    "allGETsIdleGap": {
+      "fromMs": 232867,
+      "toMs": 250935,
+      "durationMs": 18068
+    },
+    "progressAroundGap": [
+      {
+        "t": 225,
+        "bytes": 28033006,
+        "source": "app.log",
+        "line": 281
+      },
+      {
+        "t": 240.001,
+        "bytes": 29752468,
+        "source": "app.log",
+        "line": 284
+      },
+      {
+        "t": 255,
+        "bytes": 31227886,
+        "source": "app.log",
+        "line": 287
+      }
+    ],
+    "note": "Merge all overlapping requests before calculating idle time. The finite request ended earlier, but another old GET remained active. P0 release inferred from source; no direct demand-release instrumentation. This is a same-resource all-GET gap; not evidence of an 18-second formal-player-only gap.",
+    "playerMode": "seek requires preview; coexistence with formal playback not confirmed"
+  },
+  "fileChecks": [
+    {
+      "stage": "baseline",
+      "song": 8935,
+      "size": 21996300,
+      "md5": "721d1371b3aa9280fefe4ece94b3a71e",
+      "expectedMD5": "721d1371b3aa9280fefe4ece94b3a71e",
+      "match": true
+    },
+    {
+      "stage": "2m",
+      "song": 2502,
+      "size": 80602639,
+      "md5": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "expectedMD5": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "match": true
+    },
+    {
+      "stage": "1m",
+      "song": 4598,
+      "size": 35169662,
+      "md5": "ba52593f9a238a486df91a1bf23b9248",
+      "expectedMD5": "ba52593f9a238a486df91a1bf23b9248",
+      "match": true
+    },
+    {
+      "stage": "half",
+      "song": 10552,
+      "size": 103118762,
+      "md5": "bf49ffdbb8260a7e0487d260a29e8d70",
+      "expectedMD5": "bf49ffdbb8260a7e0487d260a29e8d70",
+      "match": true
+    },
+    {
+      "stage": "stress",
+      "song": 6776,
+      "publishedFileExists": false
+    },
+    {
+      "stage": "quarter-clean",
+      "song": 1981,
+      "publishedFileExists": false
+    },
+    {
+      "stage": "64k",
+      "song": 1344,
+      "publishedFileExists": false
+    }
+  ],
+  "gameEventCounts": {
+    "resolver_requested": 14,
+    "yt_dlp_started": 14,
+    "yt_dlp_exited": 14,
+    "resolver_returned": 14,
+    "OnVideoStart": 36,
+    "OnVideoEnd": 4,
+    "resolver_error": 3,
+    "StopVideo": 12
+  },
+  "excludedSamples": [
+    {
+      "id": "2m-initial-resolver",
+      "reason": "Song 2502 began during gateway restart; previous service returned canceled 503. Subsequent WMF transfer retained with limitation."
+    },
+    {
+      "id": "quarter",
+      "reason": "Old 6776 WMF GET restarted and created a concurrent download before new 10689 started; aggregate cap shared by two songs",
+      "songs": [
+        6776,
+        10689,
+        2821
+      ],
+      "feedback": "10689放弃。选了2821，等了很久开始播放，但也很快卡住"
+    }
+  ],
+  "pending": [
+    "Isolated preview Seek, refresh and node switching not executed; user explicitly chose closure",
+    "Actual cross-resource task preemption during a GET gap not reproduced; LA-008/037 remain open"
+  ],
+  "limitations": [
+    "Different songs and times; not a same-content throughput A/B.",
+    "Aggregate upstream TCP cap includes TLS and any monitor traffic; not gateway-to-player throttle.",
+    "No queue prefetch in this round. Canceled songs can continue background downloads until gateway reset.",
+    "Detailed sanitized trace is local and unpublished; Git retains concise evidence only.",
+    "Game StopVideo times have one-second resolution. GETs that start after StopVideo are excluded from playing-reconnect statistics.",
+    "Neither partial low-bandwidth file was published; absence of whole-file MD5 is intentional, not a claimed pass."
+  ],
+  "cleanup": {
+    "status": "verified",
+    "hostsByteIdentical": true,
+    "managedMappingAbsent": true,
+    "testProcessesRemaining": 0,
+    "testListenersRemaining": 0,
+    "temporaryFilesRemaining": 0,
+    "userClosure": "已停止，本轮收尾并恢复接入",
+    "retained": "Private original logs, isolated config/cache, frozen binaries and detailed sanitized trace remain in ignored local lab; no game process terminated"
+  },
+  "playerModes": {
+    "formal": "Must enqueue first; no seek control; human enqueue-to-play delay is separate from load latency",
+    "preview": "Immediate, starts at a default nonzero position, seekable; can coexist with formal playback",
+    "historical": "First four modes not confirmed; user cannot recall 6776 mode",
+    "source": "Explicit user clarification in this live-test conversation"
+  }
+}

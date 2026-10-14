@@ -1,0 +1,1554 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261014-02",
+  "sourceSHA": "3fae4b81642f27a7a406a828bd8fa0eb79dc8e94",
+  "method": "Per-resource union of validated downstream GET lifetimes, including resolver GETs. Clip at publication/Stop/End/last confirmed action. Integer milliseconds, half-open intervals. Overlap duration means at least two GETs, not sum of request-pair overlaps.",
+  "limitations": [
+    "HTTP start/finish logs approximate demand lifetime; cancellation invalidates demand before finish logging, and registration follows start logging. No lock-level P0 timestamps.",
+    "Game callbacks have one-second resolution; user acknowledgements do not timestamp the actual action.",
+    "Queue prefetch disabled; no actual competing-task preemption tested. Proposed one-second grace is an engineering starting point, not experimentally validated."
+  ],
+  "aggregate": {
+    "coldWindows": 8,
+    "gapCount": 26,
+    "maximumGapMs": 514,
+    "totalGapMs": 4529,
+    "preemptionEventsAcrossAll14Stages": 0
+  },
+  "stages": [
+    {
+      "id": "fr-limited",
+      "song": 6776,
+      "key": "c156912b596f0dccdda03210bbcdbac2",
+      "traceSHA256LF": "bab4b20306807eff70c345ff90655668becba4949bd4eee0db6ea8754c8bf7ae",
+      "publication": null,
+      "bound": 281.085,
+      "boundReason": "first game StopVideo",
+      "observation": {
+        "from": 72.576,
+        "to": 281.085,
+        "maximumConcurrent": 2,
+        "overlapMs": 15827,
+        "coveredMs": 208048,
+        "uncoveredMs": 461,
+        "maximumGapMs": 448,
+        "gaps": [
+          {
+            "from": 82.213,
+            "to": 82.661,
+            "durationMs": 448,
+            "previousRequestID": 1,
+            "nextRequestID": 2,
+            "kind": "initial resolver/WMF handoff"
+          },
+          {
+            "from": 187.243,
+            "to": 187.245,
+            "durationMs": 2,
+            "previousRequestID": 7,
+            "nextRequestID": 8,
+            "kind": "subsequent all-GET gap"
+          },
+          {
+            "from": 215.338,
+            "to": 215.341,
+            "durationMs": 3,
+            "previousRequestID": 8,
+            "nextRequestID": 9,
+            "kind": "subsequent all-GET gap"
+          },
+          {
+            "from": 219.705,
+            "to": 219.708,
+            "durationMs": 3,
+            "previousRequestID": 9,
+            "nextRequestID": 10,
+            "kind": "subsequent all-GET gap"
+          },
+          {
+            "from": 229.109,
+            "to": 229.112,
+            "durationMs": 3,
+            "previousRequestID": 10,
+            "nextRequestID": 11,
+            "kind": "subsequent all-GET gap"
+          },
+          {
+            "from": 264.947,
+            "to": 264.949,
+            "durationMs": 2,
+            "previousRequestID": 11,
+            "nextRequestID": 12,
+            "kind": "subsequent all-GET gap"
+          }
+        ]
+      },
+      "interaction": {
+        "from": 149.02,
+        "to": 165.257,
+        "maximumConcurrent": 2,
+        "overlapMs": 15827,
+        "coveredMs": 16237,
+        "uncoveredMs": 0,
+        "maximumGapMs": 0,
+        "gaps": []
+      },
+      "WMFOnly": {
+        "from": 72.576,
+        "to": 281.085,
+        "maximumConcurrent": 2,
+        "overlapMs": 15826,
+        "coveredMs": 198411,
+        "uncoveredMs": 10098,
+        "maximumGapMs": 3,
+        "gaps": [
+          {
+            "from": 187.243,
+            "to": 187.245,
+            "durationMs": 2,
+            "previousRequestID": 7,
+            "nextRequestID": 8
+          },
+          {
+            "from": 215.338,
+            "to": 215.341,
+            "durationMs": 3,
+            "previousRequestID": 8,
+            "nextRequestID": 9
+          },
+          {
+            "from": 219.705,
+            "to": 219.708,
+            "durationMs": 3,
+            "previousRequestID": 9,
+            "nextRequestID": 10
+          },
+          {
+            "from": 229.109,
+            "to": 229.112,
+            "durationMs": 3,
+            "previousRequestID": 10,
+            "nextRequestID": 11
+          },
+          {
+            "from": 264.947,
+            "to": 264.949,
+            "durationMs": 2,
+            "previousRequestID": 11,
+            "nextRequestID": 12
+          }
+        ]
+      },
+      "flightIDs": [
+        1
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "role": "resolver-user-agent",
+          "range": "",
+          "start": 72.576,
+          "end": 82.213,
+          "status": 200,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 2,
+          "role": "WMF-player",
+          "range": "bytes=671744-67256324",
+          "start": 82.661,
+          "end": 155.525,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 3,
+          "role": "resolver-user-agent",
+          "range": "",
+          "start": 149.02,
+          "end": 149.021,
+          "status": 200,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 4,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "start": 149.421,
+          "end": 149.991,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 5,
+          "role": "WMF-player",
+          "range": "bytes=9142272-67256324",
+          "start": 149.995,
+          "end": 165.198,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 6,
+          "role": "WMF-player",
+          "range": "bytes=8306688-67256324",
+          "start": 155.528,
+          "end": 165.257,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 7,
+          "role": "WMF-player",
+          "range": "bytes=11485184-67256324",
+          "start": 165.201,
+          "end": 187.243,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 8,
+          "role": "WMF-player",
+          "range": "bytes=13811712-67256324",
+          "start": 187.245,
+          "end": 215.338,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 9,
+          "role": "WMF-player",
+          "range": "bytes=16777216-67256324",
+          "start": 215.341,
+          "end": 219.705,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 10,
+          "role": "WMF-player",
+          "range": "bytes=19087360-67256324",
+          "start": 219.708,
+          "end": 229.109,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 11,
+          "role": "WMF-player",
+          "range": "bytes=20611072-67256324",
+          "start": 229.112,
+          "end": 264.947,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 12,
+          "role": "WMF-player",
+          "range": "bytes=24068096-67256324",
+          "start": 264.949,
+          "end": 299.674,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 13,
+          "role": "WMF-player",
+          "range": "bytes=26951680-67256324",
+          "start": 299.676,
+          "end": 300.22,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        }
+      ]
+    },
+    {
+      "id": "fr-unlimited",
+      "song": 6776,
+      "key": "c156912b596f0dccdda03210bbcdbac2",
+      "traceSHA256LF": "0224118505382421bbb1ab605c4e1ad4b47ff8b74d794c0fa3eabf8e663732f6",
+      "publication": 218.511,
+      "bound": 275.182,
+      "boundReason": "first game StopVideo",
+      "observation": {
+        "from": 183.173,
+        "to": 218.511,
+        "maximumConcurrent": 2,
+        "overlapMs": 2,
+        "coveredMs": 34788,
+        "uncoveredMs": 550,
+        "maximumGapMs": 470,
+        "gaps": [
+          {
+            "from": 188.283,
+            "to": 188.753,
+            "durationMs": 470,
+            "previousRequestID": 1,
+            "nextRequestID": 2,
+            "kind": "initial resolver/WMF handoff"
+          },
+          {
+            "from": 205.847,
+            "to": 205.927,
+            "durationMs": 80,
+            "previousRequestID": 2,
+            "nextRequestID": 4,
+            "kind": "subsequent all-GET gap"
+          }
+        ]
+      },
+      "interaction": {
+        "from": 205.476,
+        "to": 206.927,
+        "maximumConcurrent": 2,
+        "overlapMs": 2,
+        "coveredMs": 1371,
+        "uncoveredMs": 80,
+        "maximumGapMs": 80,
+        "gaps": [
+          {
+            "from": 205.847,
+            "to": 205.927,
+            "durationMs": 80,
+            "previousRequestID": 2,
+            "nextRequestID": 4
+          }
+        ]
+      },
+      "WMFOnly": {
+        "from": 183.173,
+        "to": 218.511,
+        "maximumConcurrent": 1,
+        "overlapMs": 0,
+        "coveredMs": 29678,
+        "uncoveredMs": 5660,
+        "maximumGapMs": 80,
+        "gaps": [
+          {
+            "from": 205.847,
+            "to": 205.927,
+            "durationMs": 80,
+            "previousRequestID": 2,
+            "nextRequestID": 4
+          }
+        ]
+      },
+      "flightIDs": [
+        1
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "role": "resolver-user-agent",
+          "range": "",
+          "start": 183.173,
+          "end": 188.283,
+          "status": 200,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 2,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "start": 188.753,
+          "end": 205.847,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 3,
+          "role": "resolver-user-agent",
+          "range": "",
+          "start": 205.476,
+          "end": 205.478,
+          "status": 200,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 4,
+          "role": "WMF-player",
+          "range": "bytes=11018240-67256324",
+          "start": 205.927,
+          "end": 275.848,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        }
+      ]
+    },
+    {
+      "id": "fn-limited",
+      "song": 6332,
+      "key": "7643401fefce4bb23c52b98c7ed95118",
+      "traceSHA256LF": "d2282d79451c504837e781f5659bac03dc2131fcde4449c75e2eb23a0a627539",
+      "publication": null,
+      "bound": 166.986,
+      "boundReason": "first game StopVideo",
+      "observation": {
+        "from": 31.521,
+        "to": 166.986,
+        "maximumConcurrent": 2,
+        "overlapMs": 31301,
+        "coveredMs": 135087,
+        "uncoveredMs": 378,
+        "maximumGapMs": 362,
+        "gaps": [
+          {
+            "from": 40.49,
+            "to": 40.852,
+            "durationMs": 362,
+            "previousRequestID": 1,
+            "nextRequestID": 2,
+            "kind": "initial resolver/WMF handoff"
+          },
+          {
+            "from": 66.356,
+            "to": 66.369,
+            "durationMs": 13,
+            "previousRequestID": 2,
+            "nextRequestID": 3,
+            "kind": "subsequent all-GET gap"
+          },
+          {
+            "from": 101.891,
+            "to": 101.894,
+            "durationMs": 3,
+            "previousRequestID": 3,
+            "nextRequestID": 4,
+            "kind": "subsequent all-GET gap"
+          }
+        ]
+      },
+      "interaction": {
+        "from": 124.646,
+        "to": 156.367,
+        "maximumConcurrent": 2,
+        "overlapMs": 31301,
+        "coveredMs": 31721,
+        "uncoveredMs": 0,
+        "maximumGapMs": 0,
+        "gaps": []
+      },
+      "WMFOnly": {
+        "from": 31.521,
+        "to": 166.986,
+        "maximumConcurrent": 2,
+        "overlapMs": 31300,
+        "coveredMs": 126118,
+        "uncoveredMs": 9347,
+        "maximumGapMs": 13,
+        "gaps": [
+          {
+            "from": 66.356,
+            "to": 66.369,
+            "durationMs": 13,
+            "previousRequestID": 2,
+            "nextRequestID": 3
+          },
+          {
+            "from": 101.891,
+            "to": 101.894,
+            "durationMs": 3,
+            "previousRequestID": 3,
+            "nextRequestID": 4
+          }
+        ]
+      },
+      "flightIDs": [
+        1
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "role": "resolver-user-agent",
+          "range": "",
+          "start": 31.521,
+          "end": 40.49,
+          "status": 200,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 2,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "start": 40.852,
+          "end": 66.356,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 3,
+          "role": "WMF-player",
+          "range": "bytes=5488640-49795810",
+          "start": 66.369,
+          "end": 101.891,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 4,
+          "role": "WMF-player",
+          "range": "bytes=14827520-49795810",
+          "start": 101.894,
+          "end": 130.787,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 5,
+          "role": "resolver-user-agent",
+          "range": "",
+          "start": 124.646,
+          "end": 124.647,
+          "status": 200,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 6,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "start": 125.053,
+          "end": 125.433,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 7,
+          "role": "WMF-player",
+          "range": "bytes=22593536-49795810",
+          "start": 125.444,
+          "end": 173.374,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 8,
+          "role": "WMF-player",
+          "range": "bytes=22593536-49795810",
+          "start": 130.79,
+          "end": 156.367,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 9,
+          "role": "WMF-player",
+          "range": "bytes=34979840-49795810",
+          "start": 173.386,
+          "end": 197.522,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        }
+      ]
+    },
+    {
+      "id": "fn-unlimited-retry1",
+      "song": 3194,
+      "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+      "traceSHA256LF": "bbe39c95e386e9316f72af5f392c0c315e3bc27a66b44a83a11b9dee32beb605",
+      "publication": 87.71,
+      "bound": 158.26,
+      "boundReason": "target game StopVideo",
+      "observation": {
+        "from": 54.821,
+        "to": 87.71,
+        "maximumConcurrent": 2,
+        "overlapMs": 1,
+        "coveredMs": 32474,
+        "uncoveredMs": 415,
+        "maximumGapMs": 394,
+        "gaps": [
+          {
+            "from": 56.118,
+            "to": 56.512,
+            "durationMs": 394,
+            "previousRequestID": 3,
+            "nextRequestID": 4,
+            "kind": "initial resolver/WMF handoff"
+          },
+          {
+            "from": 76.011,
+            "to": 76.032,
+            "durationMs": 21,
+            "previousRequestID": 4,
+            "nextRequestID": 6,
+            "kind": "subsequent all-GET gap"
+          }
+        ]
+      },
+      "interaction": {
+        "from": 75.691,
+        "to": 77.032,
+        "maximumConcurrent": 2,
+        "overlapMs": 1,
+        "coveredMs": 1320,
+        "uncoveredMs": 21,
+        "maximumGapMs": 21,
+        "gaps": [
+          {
+            "from": 76.011,
+            "to": 76.032,
+            "durationMs": 21,
+            "previousRequestID": 4,
+            "nextRequestID": 6
+          }
+        ]
+      },
+      "WMFOnly": {
+        "from": 54.821,
+        "to": 87.71,
+        "maximumConcurrent": 1,
+        "overlapMs": 0,
+        "coveredMs": 31177,
+        "uncoveredMs": 1712,
+        "maximumGapMs": 21,
+        "gaps": [
+          {
+            "from": 76.011,
+            "to": 76.032,
+            "durationMs": 21,
+            "previousRequestID": 4,
+            "nextRequestID": 6
+          }
+        ]
+      },
+      "flightIDs": [
+        2
+      ],
+      "requests": [
+        {
+          "id": 3,
+          "role": "resolver-user-agent",
+          "range": "",
+          "start": 54.821,
+          "end": 56.118,
+          "status": 200,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 4,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "start": 56.512,
+          "end": 76.011,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 5,
+          "role": "resolver-user-agent",
+          "range": "",
+          "start": 75.691,
+          "end": 75.692,
+          "status": 200,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 6,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "start": 76.032,
+          "end": 121.563,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "completed"
+        }
+      ]
+    },
+    {
+      "id": "preview-limited-retry1",
+      "song": 3214,
+      "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+      "traceSHA256LF": "8b6546b6dff96e00d64874d91ce5ca8b6cc4b209f33cc2942a95f8fecd336edf",
+      "publication": null,
+      "bound": 205.538,
+      "boundReason": "last seek feedback; exact preview stop unavailable",
+      "observation": {
+        "from": 54.75,
+        "to": 205.538,
+        "maximumConcurrent": 2,
+        "overlapMs": 17562,
+        "coveredMs": 149296,
+        "uncoveredMs": 1492,
+        "maximumGapMs": 514,
+        "gaps": [
+          {
+            "from": 72.821,
+            "to": 73.278,
+            "durationMs": 457,
+            "previousRequestID": 2,
+            "nextRequestID": 3,
+            "kind": "initial resolver/WMF handoff"
+          },
+          {
+            "from": 73.626,
+            "to": 73.628,
+            "durationMs": 2,
+            "previousRequestID": 3,
+            "nextRequestID": 4,
+            "kind": "subsequent all-GET gap"
+          },
+          {
+            "from": 96.932,
+            "to": 96.935,
+            "durationMs": 3,
+            "previousRequestID": 4,
+            "nextRequestID": 5,
+            "kind": "subsequent all-GET gap"
+          },
+          {
+            "from": 106.776,
+            "to": 106.779,
+            "durationMs": 3,
+            "previousRequestID": 5,
+            "nextRequestID": 6,
+            "kind": "subsequent all-GET gap"
+          },
+          {
+            "from": 148.879,
+            "to": 149.392,
+            "durationMs": 513,
+            "previousRequestID": 6,
+            "nextRequestID": 7,
+            "kind": "subsequent all-GET gap"
+          },
+          {
+            "from": 180.87,
+            "to": 181.384,
+            "durationMs": 514,
+            "previousRequestID": 7,
+            "nextRequestID": 8,
+            "kind": "subsequent all-GET gap"
+          }
+        ]
+      },
+      "interaction": {
+        "from": 96.935,
+        "to": 107.779,
+        "maximumConcurrent": 1,
+        "overlapMs": 0,
+        "coveredMs": 10841,
+        "uncoveredMs": 3,
+        "maximumGapMs": 3,
+        "gaps": [
+          {
+            "from": 106.776,
+            "to": 106.779,
+            "durationMs": 3,
+            "previousRequestID": 5,
+            "nextRequestID": 6
+          }
+        ]
+      },
+      "WMFOnly": {
+        "from": 54.75,
+        "to": 205.538,
+        "maximumConcurrent": 1,
+        "overlapMs": 0,
+        "coveredMs": 149160,
+        "uncoveredMs": 1628,
+        "maximumGapMs": 593,
+        "gaps": [
+          {
+            "from": 72.685,
+            "to": 73.278,
+            "durationMs": 593,
+            "previousRequestID": 1,
+            "nextRequestID": 3
+          },
+          {
+            "from": 73.626,
+            "to": 73.628,
+            "durationMs": 2,
+            "previousRequestID": 3,
+            "nextRequestID": 4
+          },
+          {
+            "from": 96.932,
+            "to": 96.935,
+            "durationMs": 3,
+            "previousRequestID": 4,
+            "nextRequestID": 5
+          },
+          {
+            "from": 106.776,
+            "to": 106.779,
+            "durationMs": 3,
+            "previousRequestID": 5,
+            "nextRequestID": 6
+          },
+          {
+            "from": 148.879,
+            "to": 149.392,
+            "durationMs": 513,
+            "previousRequestID": 6,
+            "nextRequestID": 7
+          },
+          {
+            "from": 180.87,
+            "to": 181.384,
+            "durationMs": 514,
+            "previousRequestID": 7,
+            "nextRequestID": 8
+          }
+        ]
+      },
+      "flightIDs": [
+        1
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "role": "WMF-player",
+          "range": "bytes=6283264-45849827",
+          "start": 54.75,
+          "end": 72.685,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 2,
+          "role": "resolver-user-agent",
+          "range": "",
+          "start": 55.123,
+          "end": 72.821,
+          "status": 200,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 3,
+          "role": "WMF-player",
+          "range": "bytes=6283264-45849827",
+          "start": 73.278,
+          "end": 73.626,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 4,
+          "role": "WMF-player",
+          "range": "bytes=6283264-45849827",
+          "start": 73.628,
+          "end": 96.932,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 5,
+          "role": "WMF-player",
+          "range": "bytes=8486912-45849827",
+          "start": 96.935,
+          "end": 106.776,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 6,
+          "role": "WMF-player",
+          "range": "bytes=25919488-45849827",
+          "start": 106.779,
+          "end": 148.879,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 7,
+          "role": "WMF-player",
+          "range": "bytes=26206208-45849827",
+          "start": 149.392,
+          "end": 180.87,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 8,
+          "role": "WMF-player",
+          "range": "bytes=26206208-45849827",
+          "start": 181.384,
+          "end": 212.872,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 9,
+          "role": "WMF-player",
+          "range": "bytes=26206208-45849827",
+          "start": 213.389,
+          "end": 244.87,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 10,
+          "role": "WMF-player",
+          "range": "bytes=26206208-45849827",
+          "start": 245.387,
+          "end": 275.664,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        }
+      ]
+    },
+    {
+      "id": "preview-unlimited-retry1",
+      "song": 5396,
+      "key": "a23191233a3f914afe16850c6c04813b",
+      "traceSHA256LF": "246ffab0ce91343b6bbdd22f53dd7c0d623e5cc58d680050b879f7414c23780f",
+      "publication": 60.77,
+      "bound": 131.797,
+      "boundReason": "seek feedback",
+      "observation": {
+        "from": 36.578,
+        "to": 60.77,
+        "maximumConcurrent": 1,
+        "overlapMs": 0,
+        "coveredMs": 23774,
+        "uncoveredMs": 418,
+        "maximumGapMs": 393,
+        "gaps": [
+          {
+            "from": 38.441,
+            "to": 38.834,
+            "durationMs": 393,
+            "previousRequestID": 2,
+            "nextRequestID": 3,
+            "kind": "initial resolver/WMF handoff"
+          },
+          {
+            "from": 41.669,
+            "to": 41.68,
+            "durationMs": 11,
+            "previousRequestID": 3,
+            "nextRequestID": 4,
+            "kind": "subsequent all-GET gap"
+          },
+          {
+            "from": 45.017,
+            "to": 45.02,
+            "durationMs": 3,
+            "previousRequestID": 4,
+            "nextRequestID": 5,
+            "kind": "subsequent all-GET gap"
+          },
+          {
+            "from": 53.498,
+            "to": 53.509,
+            "durationMs": 11,
+            "previousRequestID": 5,
+            "nextRequestID": 6,
+            "kind": "subsequent all-GET gap"
+          }
+        ]
+      },
+      "interaction": {
+        "from": 41.68,
+        "to": 46.02,
+        "maximumConcurrent": 1,
+        "overlapMs": 0,
+        "coveredMs": 4337,
+        "uncoveredMs": 3,
+        "maximumGapMs": 3,
+        "gaps": [
+          {
+            "from": 45.017,
+            "to": 45.02,
+            "durationMs": 3,
+            "previousRequestID": 4,
+            "nextRequestID": 5
+          }
+        ]
+      },
+      "WMFOnly": {
+        "from": 36.578,
+        "to": 60.77,
+        "maximumConcurrent": 1,
+        "overlapMs": 0,
+        "coveredMs": 21911,
+        "uncoveredMs": 2281,
+        "maximumGapMs": 11,
+        "gaps": [
+          {
+            "from": 41.669,
+            "to": 41.68,
+            "durationMs": 11,
+            "previousRequestID": 3,
+            "nextRequestID": 4
+          },
+          {
+            "from": 45.017,
+            "to": 45.02,
+            "durationMs": 3,
+            "previousRequestID": 4,
+            "nextRequestID": 5
+          },
+          {
+            "from": 53.498,
+            "to": 53.509,
+            "durationMs": 11,
+            "previousRequestID": 5,
+            "nextRequestID": 6
+          }
+        ]
+      },
+      "flightIDs": [
+        1
+      ],
+      "requests": [
+        {
+          "id": 2,
+          "role": "resolver-user-agent",
+          "range": "",
+          "start": 36.578,
+          "end": 38.441,
+          "status": 200,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 3,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "start": 38.834,
+          "end": 41.669,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 4,
+          "role": "WMF-player",
+          "range": "bytes=3948544-38976067",
+          "start": 41.68,
+          "end": 45.017,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 5,
+          "role": "WMF-player",
+          "range": "bytes=23724032-38976067",
+          "start": 45.02,
+          "end": 53.498,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 6,
+          "role": "WMF-player",
+          "range": "bytes=25755648-38976067",
+          "start": 53.509,
+          "end": 66.557,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "completed"
+        }
+      ]
+    },
+    {
+      "id": "dual-limited",
+      "song": 10938,
+      "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+      "traceSHA256LF": "179ca6fa9bc356cb38c92c49e3155f9c213cf2873b730ba69270388510c9e3b9",
+      "publication": null,
+      "bound": 325.569,
+      "boundReason": "first target OnVideoEnd",
+      "observation": {
+        "from": 63.204,
+        "to": 325.569,
+        "maximumConcurrent": 2,
+        "overlapMs": 193484,
+        "coveredMs": 261956,
+        "uncoveredMs": 409,
+        "maximumGapMs": 398,
+        "gaps": [
+          {
+            "from": 72.049,
+            "to": 72.447,
+            "durationMs": 398,
+            "previousRequestID": 1,
+            "nextRequestID": 2,
+            "kind": "initial resolver/WMF handoff"
+          },
+          {
+            "from": 97.548,
+            "to": 97.559,
+            "durationMs": 11,
+            "previousRequestID": 2,
+            "nextRequestID": 3,
+            "kind": "subsequent all-GET gap"
+          }
+        ]
+      },
+      "interaction": {
+        "from": 130.561,
+        "to": 325.569,
+        "maximumConcurrent": 2,
+        "overlapMs": 193484,
+        "coveredMs": 195008,
+        "uncoveredMs": 0,
+        "maximumGapMs": 0,
+        "gaps": []
+      },
+      "WMFOnly": {
+        "from": 63.204,
+        "to": 325.569,
+        "maximumConcurrent": 2,
+        "overlapMs": 193483,
+        "coveredMs": 253111,
+        "uncoveredMs": 9254,
+        "maximumGapMs": 11,
+        "gaps": [
+          {
+            "from": 97.548,
+            "to": 97.559,
+            "durationMs": 11,
+            "previousRequestID": 2,
+            "nextRequestID": 3
+          }
+        ]
+      },
+      "flightIDs": [
+        1
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "role": "resolver-user-agent",
+          "range": "",
+          "start": 63.204,
+          "end": 72.049,
+          "status": 200,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 2,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "start": 72.447,
+          "end": 97.548,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 3,
+          "role": "WMF-player",
+          "range": "bytes=4374528-45355459",
+          "start": 97.559,
+          "end": 131.553,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 5,
+          "role": "resolver-user-agent",
+          "range": "",
+          "start": 130.561,
+          "end": 130.562,
+          "status": 200,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 6,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "start": 130.962,
+          "end": 131.339,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 7,
+          "role": "WMF-player",
+          "range": "bytes=4374528-45355459",
+          "start": 131.348,
+          "end": 158.254,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 8,
+          "role": "WMF-player",
+          "range": "bytes=8749056-45355459",
+          "start": 131.556,
+          "end": 140.625,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 9,
+          "role": "WMF-player",
+          "range": "bytes=13205504-45355459",
+          "start": 140.628,
+          "end": 158.272,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 10,
+          "role": "WMF-player",
+          "range": "bytes=12304384-45355459",
+          "start": 158.265,
+          "end": 192.608,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 11,
+          "role": "WMF-player",
+          "range": "bytes=17711104-45355459",
+          "start": 158.274,
+          "end": 175.917,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 12,
+          "role": "WMF-player",
+          "range": "bytes=21397504-45355459",
+          "start": 175.92,
+          "end": 193.507,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 13,
+          "role": "WMF-player",
+          "range": "bytes=17711104-45355459",
+          "start": 192.619,
+          "end": 208.717,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 14,
+          "role": "WMF-player",
+          "range": "bytes=25837568-45355459",
+          "start": 193.51,
+          "end": 210.139,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 15,
+          "role": "WMF-player",
+          "range": "bytes=23625728-45355459",
+          "start": 208.72,
+          "end": 219.149,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 16,
+          "role": "WMF-player",
+          "range": "bytes=28917760-45355459",
+          "start": 210.141,
+          "end": 227.8,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 17,
+          "role": "WMF-player",
+          "range": "bytes=26705920-45355459",
+          "start": 219.161,
+          "end": 236.689,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 18,
+          "role": "WMF-player",
+          "range": "bytes=37699584-45355459",
+          "start": 227.812,
+          "end": 245.554,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 19,
+          "role": "WMF-player",
+          "range": "bytes=31113216-45355459",
+          "start": 236.7,
+          "end": 254.521,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 20,
+          "role": "WMF-player",
+          "range": "bytes=41238528-45355459",
+          "start": 245.557,
+          "end": 263.227,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 21,
+          "role": "WMF-player",
+          "range": "bytes=34586624-45355459",
+          "start": 254.532,
+          "end": 303.443,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 22,
+          "role": "WMF-player",
+          "range": "bytes=44318720-45355459",
+          "start": 263.23,
+          "end": 280.723,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 23,
+          "role": "WMF-player",
+          "range": "bytes=44744704-45355459",
+          "start": 280.726,
+          "end": 311.44,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 24,
+          "role": "WMF-player",
+          "range": "bytes=34594816-45355459",
+          "start": 303.947,
+          "end": 335.448,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 25,
+          "role": "WMF-player",
+          "range": "bytes=45080576-45355459",
+          "start": 311.955,
+          "end": 325.738,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "completed"
+        },
+        {
+          "id": 27,
+          "role": "WMF-player",
+          "range": "bytes=34594816-45355459",
+          "start": 335.966,
+          "end": 353.276,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        }
+      ]
+    },
+    {
+      "id": "dual-unlimited",
+      "song": 1314,
+      "key": "3590929cbfde34b1e542150d48546150",
+      "traceSHA256LF": "8dd937fe73bc8d76cddc536b1a1bb6aea8c7230baeb8d9cb932c3303bb770414",
+      "publication": 177.578,
+      "bound": 200.723,
+      "boundReason": "dual playback feedback",
+      "observation": {
+        "from": 150.173,
+        "to": 177.578,
+        "maximumConcurrent": 2,
+        "overlapMs": 13542,
+        "coveredMs": 26999,
+        "uncoveredMs": 406,
+        "maximumGapMs": 406,
+        "gaps": [
+          {
+            "from": 154.649,
+            "to": 155.055,
+            "durationMs": 406,
+            "previousRequestID": 4,
+            "nextRequestID": 5,
+            "kind": "initial resolver/WMF handoff"
+          }
+        ]
+      },
+      "interaction": {
+        "from": 163.621,
+        "to": 177.578,
+        "maximumConcurrent": 2,
+        "overlapMs": 13542,
+        "coveredMs": 13957,
+        "uncoveredMs": 0,
+        "maximumGapMs": 0,
+        "gaps": []
+      },
+      "WMFOnly": {
+        "from": 150.173,
+        "to": 177.578,
+        "maximumConcurrent": 2,
+        "overlapMs": 13540,
+        "coveredMs": 22523,
+        "uncoveredMs": 4882,
+        "maximumGapMs": 0,
+        "gaps": []
+      },
+      "flightIDs": [
+        3
+      ],
+      "requests": [
+        {
+          "id": 4,
+          "role": "resolver-user-agent",
+          "range": "",
+          "start": 150.173,
+          "end": 154.649,
+          "status": 200,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 5,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "start": 155.055,
+          "end": 224.707,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "completed"
+        },
+        {
+          "id": 7,
+          "role": "resolver-user-agent",
+          "range": "",
+          "start": 163.621,
+          "end": 163.623,
+          "status": 200,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 8,
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "start": 164.023,
+          "end": 164.478,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 9,
+          "role": "WMF-player",
+          "range": "bytes=5177344-54919232",
+          "start": 164.481,
+          "end": 167.493,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "canceled"
+        },
+        {
+          "id": 10,
+          "role": "WMF-player",
+          "range": "bytes=37781504-54919232",
+          "start": 167.505,
+          "end": 191.383,
+          "status": 206,
+          "cache": "MISS",
+          "outcome": "completed"
+        }
+      ]
+    }
+  ],
+  "exclusions": [
+    {
+      "stage": "preview-limited-retry1",
+      "from": 205.538,
+      "to": 275.602,
+      "reason": "After last seek feedback and before stop acknowledgement; no exact preview stop timestamp. Two later 517 ms gaps are excluded from confirmed-operation maximum."
+    },
+    {
+      "stage": "preview-unlimited",
+      "from": 6.917,
+      "to": 34.433,
+      "publication": 24.275,
+      "reason": "Old preview was stopped; residual request then preparation. Download continues without GET, finishes before new user playback. Not a 27.516 second active-playback gap."
+    },
+    {
+      "stage": "fn-unlimited-retry1",
+      "song": 3136,
+      "from": 20.135,
+      "to": 50.413,
+      "reason": "Previous video stopped during preparation; its no-reader download tail is not the target 3194 playback."
+    },
+    {
+      "stage": "fr-hot",
+      "from": 38.869,
+      "to": 46.481,
+      "reason": "Complete SWD cache; refresh WMF returns 304. No unfinished download to protect."
+    },
+    {
+      "stage": "dual-hot",
+      "from": 24.608,
+      "to": 35.093,
+      "reason": "Complete SWD cache; formal WMF returns 304 and uses client cache. Two playing UIs do not imply two persistent GETs."
+    }
+  ]
+}

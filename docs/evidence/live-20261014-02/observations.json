@@ -1,0 +1,6198 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261014-02",
+  "status": "closed-partial-acceptance",
+  "sourceSHA": "3fae4b81642f27a7a406a828bd8fa0eb79dc8e94",
+  "cacheChecks": [
+    {
+      "purpose": "preparation only",
+      "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+      "bytes": 45355460,
+      "song": 10938,
+      "verified": true,
+      "md5": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+      "sourceStage": "dual-unlimited"
+    },
+    {
+      "md5": "3590929cbfde34b1e542150d48546150",
+      "sourceStage": "dual-unlimited",
+      "verified": true,
+      "song": 1314,
+      "bytes": 54919233,
+      "key": "3590929cbfde34b1e542150d48546150"
+    },
+    {
+      "sourceStage": "fn-unlimited-retry1",
+      "song": 3194,
+      "verified": true,
+      "bytes": 66379679,
+      "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+      "md5": "4b48ef70c18353fbab007ce7ea4b8ba4"
+    },
+    {
+      "bytes": 45849828,
+      "md5": "c123d0dd70b20aabcc2544c4e3fe294b",
+      "verified": true,
+      "song": 3214,
+      "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+      "sourceStage": "preview-unlimited"
+    },
+    {
+      "sourceStage": "preview-unlimited-retry1",
+      "bytes": 38976068,
+      "md5": "a23191233a3f914afe16850c6c04813b",
+      "key": "a23191233a3f914afe16850c6c04813b",
+      "song": 5396,
+      "verified": true
+    },
+    {
+      "md5": "c156912b596f0dccdda03210bbcdbac2",
+      "bytes": 67256325,
+      "key": "c156912b596f0dccdda03210bbcdbac2",
+      "verified": true,
+      "sourceStage": "fr-unlimited"
+    }
+  ],
+  "stages": [
+    {
+      "id": "fr-limited",
+      "rateBytesPerSecond": 125000,
+      "timeBasis": "seconds from this service cache_engine_ready; game timestamps one-second resolution; operation instruction/feedback times are not exact action times",
+      "requestCount": 13,
+      "WMFRequestCount": 11,
+      "openRequests": 0,
+      "maximumConcurrentGETs": 2,
+      "internalAllGETGaps": [
+        {
+          "from": 82.213,
+          "to": 82.661,
+          "seconds": 0.448
+        },
+        {
+          "from": 187.243,
+          "to": 187.245,
+          "seconds": 0.002
+        },
+        {
+          "from": 215.338,
+          "to": 215.341,
+          "seconds": 0.003
+        },
+        {
+          "from": 219.705,
+          "to": 219.708,
+          "seconds": 0.003
+        },
+        {
+          "from": 229.109,
+          "to": 229.112,
+          "seconds": 0.003
+        },
+        {
+          "from": 264.947,
+          "to": 264.949,
+          "seconds": 0.002
+        },
+        {
+          "from": 299.674,
+          "to": 299.676,
+          "seconds": 0.002
+        }
+      ],
+      "resourceKeys": [
+        "c156912b596f0dccdda03210bbcdbac2"
+      ],
+      "resources": [
+        {
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "requestCount": 13,
+          "internalGETGaps": [
+            {
+              "from": 82.213,
+              "to": 82.661,
+              "seconds": 0.448
+            },
+            {
+              "from": 187.243,
+              "to": 187.245,
+              "seconds": 0.002
+            },
+            {
+              "from": 215.338,
+              "to": 215.341,
+              "seconds": 0.003
+            },
+            {
+              "from": 219.705,
+              "to": 219.708,
+              "seconds": 0.003
+            },
+            {
+              "from": 229.109,
+              "to": 229.112,
+              "seconds": 0.003
+            },
+            {
+              "from": 264.947,
+              "to": 264.949,
+              "seconds": 0.002
+            },
+            {
+              "from": 299.674,
+              "to": 299.676,
+              "seconds": 0.002
+            }
+          ],
+          "downloadStartedAt": 72.576,
+          "bytes": 67256325,
+          "HITResponses": 0,
+          "flightIDs": [
+            1
+          ]
+        }
+      ],
+      "attachedFlightIDs": [
+        1
+      ],
+      "requestExamples": [
+        {
+          "id": 1,
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 72.576,
+          "end": 82.213,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 10044.098
+        },
+        {
+          "id": 2,
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "role": "WMF-player",
+          "range": "bytes=671744-67256324",
+          "hostAlias": "host-1",
+          "start": 82.661,
+          "end": 155.525,
+          "status": 206,
+          "bytes": 7225344,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5047
+        },
+        {
+          "id": 3,
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 149.02,
+          "end": 149.021,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.6482
+        },
+        {
+          "id": 4,
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 149.421,
+          "end": 149.991,
+          "status": 206,
+          "bytes": 1310720,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5294
+        },
+        {
+          "id": 5,
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "role": "WMF-player",
+          "range": "bytes=9142272-67256324",
+          "hostAlias": "host-1",
+          "start": 149.995,
+          "end": 165.198,
+          "status": 206,
+          "bytes": 524288,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 5806.5015
+        },
+        {
+          "id": 13,
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "role": "WMF-player",
+          "range": "bytes=26951680-67256324",
+          "hostAlias": "host-1",
+          "start": 299.676,
+          "end": 300.22,
+          "status": 206,
+          "bytes": 311296,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 509.4788
+        }
+      ],
+      "keyEvents": [
+        {
+          "t": 72.576,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 8,
+          "resource_key": "c156912b596f0dccdda03210bbcdbac2",
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "flight_id": 1,
+          "background": false,
+          "size": 67256325,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 320.874,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 84,
+          "resource_key": "c156912b596f0dccdda03210bbcdbac2",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 29474798,
+          "outcome": "canceled",
+          "elapsed_ms": 248297,
+          "stage": "range_download",
+          "hostAlias": "host-2",
+          "errorClass": "context-canceled"
+        }
+      ],
+      "operations": [
+        {
+          "stage": "fr-limited",
+          "song": 6776,
+          "preview": "off",
+          "event": "instruction",
+          "action": "formal-start",
+          "nextAction": "refresh only after confirmation",
+          "node": "cf",
+          "t": 37.394
+        },
+        {
+          "feedback": "等待一会开始播放几秒卡住很久，然后又开始播放几秒又卡住很久",
+          "action": "formal-start",
+          "song": 6776,
+          "event": "feedback",
+          "stage": "fr-limited",
+          "t": 135.233
+        },
+        {
+          "node": "cf",
+          "action": "formal-refresh-once",
+          "song": 6776,
+          "event": "instruction",
+          "stage": "fr-limited",
+          "t": 135.328
+        },
+        {
+          "feedback": "重新加载后黑屏没有反应",
+          "song": 6776,
+          "event": "feedback",
+          "action": "formal-refresh-once",
+          "stage": "fr-limited",
+          "t": 192.586
+        },
+        {
+          "action": "stop",
+          "song": 6776,
+          "stage": "fr-limited",
+          "feedback": "持续黑屏。已停止播放",
+          "event": "feedback",
+          "result": "refresh remained black throughout observation",
+          "t": 317.497
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 71.085,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 2686,
+          "song": "6776",
+          "node": "cf"
+        },
+        {
+          "t": 82.085,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 2719,
+          "song": "6776",
+          "node": "cf"
+        },
+        {
+          "t": 82.085,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 2730
+        },
+        {
+          "t": 82.085,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 2731
+        },
+        {
+          "t": 82.085,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 2734,
+          "song": "6776"
+        },
+        {
+          "t": 148.085,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 2766,
+          "song": "6776",
+          "node": "cf"
+        },
+        {
+          "t": 149.085,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 2778,
+          "song": "6776",
+          "node": "cf"
+        },
+        {
+          "t": 149.085,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 2790
+        },
+        {
+          "t": 149.085,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 2793,
+          "song": "6776"
+        },
+        {
+          "t": 281.085,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 2850
+        },
+        {
+          "t": 283.085,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 2873
+        },
+        {
+          "t": 284.085,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 2895
+        },
+        {
+          "t": 287.085,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 2917
+        },
+        {
+          "t": 287.085,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 2939
+        }
+      ],
+      "limits": "GET concurrency is downstream and does not measure upstream request budget. Open requests are right-censored. Operation timestamps are instruction/acknowledgment times. Game callback is not proof of visible playback."
+    },
+    {
+      "id": "fr-unlimited",
+      "rateBytesPerSecond": 0,
+      "timeBasis": "seconds from this service cache_engine_ready; game timestamps one-second resolution; operation instruction/feedback times are not exact action times",
+      "requestCount": 4,
+      "WMFRequestCount": 2,
+      "openRequests": 0,
+      "maximumConcurrentGETs": 2,
+      "internalAllGETGaps": [
+        {
+          "from": 188.283,
+          "to": 188.753,
+          "seconds": 0.47
+        },
+        {
+          "from": 205.847,
+          "to": 205.927,
+          "seconds": 0.08
+        }
+      ],
+      "resourceKeys": [
+        "c156912b596f0dccdda03210bbcdbac2"
+      ],
+      "resources": [
+        {
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "requestCount": 4,
+          "internalGETGaps": [
+            {
+              "from": 188.283,
+              "to": 188.753,
+              "seconds": 0.47
+            },
+            {
+              "from": 205.847,
+              "to": 205.927,
+              "seconds": 0.08
+            }
+          ],
+          "downloadStartedAt": 183.174,
+          "publishedAt": 218.511,
+          "bytes": 67256325,
+          "HITResponses": 0,
+          "flightIDs": [
+            1
+          ]
+        }
+      ],
+      "attachedFlightIDs": [
+        1
+      ],
+      "requestExamples": [
+        {
+          "id": 1,
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 183.173,
+          "end": 188.283,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 6083.6794
+        },
+        {
+          "id": 2,
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 188.753,
+          "end": 205.847,
+          "status": 206,
+          "bytes": 11796480,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5037
+        },
+        {
+          "id": 3,
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 205.476,
+          "end": 205.478,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.6271
+        },
+        {
+          "id": 4,
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "role": "WMF-player",
+          "range": "bytes=11018240-67256324",
+          "hostAlias": "host-1",
+          "start": 205.927,
+          "end": 275.848,
+          "status": 206,
+          "bytes": 45842432,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0
+        }
+      ],
+      "keyEvents": [
+        {
+          "t": 183.174,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 95,
+          "resource_key": "c156912b596f0dccdda03210bbcdbac2",
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "flight_id": 1,
+          "background": false,
+          "size": 67256325,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 218.437,
+          "event": "download_verified",
+          "source": "app.log",
+          "line": 117,
+          "resource_key": "c156912b596f0dccdda03210bbcdbac2",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 67256325,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 218.511,
+          "event": "download_published",
+          "source": "app.log",
+          "line": 120,
+          "resource_key": "c156912b596f0dccdda03210bbcdbac2",
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "flight_id": 1,
+          "background": false,
+          "size": 67256325,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 218.511,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 121,
+          "resource_key": "c156912b596f0dccdda03210bbcdbac2",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 67256325,
+          "outcome": "completed",
+          "elapsed_ms": 35336,
+          "stage": "index",
+          "hostAlias": "host-2"
+        }
+      ],
+      "operations": [
+        {
+          "song": 6776,
+          "node": "cf",
+          "stage": "fr-unlimited",
+          "action": "formal-start-then-refresh",
+          "event": "instruction",
+          "note": "Refresh once about 3 seconds after visible playback starts; preview closed.",
+          "t": 148.395
+        },
+        {
+          "feedback": "6776起播正常，刷新后很快恢复",
+          "stage": "fr-unlimited",
+          "song": 6776,
+          "action": "formal-refresh",
+          "event": "feedback",
+          "t": 243.778
+        },
+        {
+          "feedback": "原进度继续。通常正式播放为了考虑玩家间同步是不会等某个玩家的。已停止",
+          "event": "feedback",
+          "song": 6776,
+          "action": "stop",
+          "stage": "fr-unlimited",
+          "t": 315.273
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 181.182,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 3022,
+          "song": "6776",
+          "node": "cf"
+        },
+        {
+          "t": 188.182,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 3055,
+          "song": "6776",
+          "node": "cf"
+        },
+        {
+          "t": 191.182,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3068
+        },
+        {
+          "t": 191.182,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3069
+        },
+        {
+          "t": 191.182,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3072,
+          "song": "6776"
+        },
+        {
+          "t": 204.182,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 3082,
+          "song": "6776",
+          "node": "cf"
+        },
+        {
+          "t": 205.182,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 3093,
+          "song": "6776",
+          "node": "cf"
+        },
+        {
+          "t": 206.182,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3105
+        },
+        {
+          "t": 206.182,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3108,
+          "song": "6776"
+        },
+        {
+          "t": 275.182,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 3121
+        }
+      ],
+      "limits": "GET concurrency is downstream and does not measure upstream request budget. Open requests are right-censored. Operation timestamps are instruction/acknowledgment times. Game callback is not proof of visible playback."
+    },
+    {
+      "id": "fr-hot",
+      "rateBytesPerSecond": 0,
+      "timeBasis": "seconds from this service cache_engine_ready; game timestamps one-second resolution; operation instruction/feedback times are not exact action times",
+      "requestCount": 4,
+      "WMFRequestCount": 2,
+      "openRequests": 0,
+      "maximumConcurrentGETs": 1,
+      "internalAllGETGaps": [
+        {
+          "from": 22.212,
+          "to": 22.669,
+          "seconds": 0.457
+        },
+        {
+          "from": 38.869,
+          "to": 46.481,
+          "seconds": 7.612
+        },
+        {
+          "from": 46.49,
+          "to": 46.955,
+          "seconds": 0.465
+        }
+      ],
+      "resourceKeys": [
+        "c156912b596f0dccdda03210bbcdbac2"
+      ],
+      "resources": [
+        {
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "requestCount": 4,
+          "internalGETGaps": [
+            {
+              "from": 22.212,
+              "to": 22.669,
+              "seconds": 0.457
+            },
+            {
+              "from": 38.869,
+              "to": 46.481,
+              "seconds": 7.612
+            },
+            {
+              "from": 46.49,
+              "to": 46.955,
+              "seconds": 0.465
+            }
+          ],
+          "HITResponses": 4,
+          "flightIDs": []
+        }
+      ],
+      "attachedFlightIDs": [],
+      "requestExamples": [
+        {
+          "id": 1,
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 22.202,
+          "end": 22.212,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0.5207
+        },
+        {
+          "id": 2,
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "role": "WMF-player",
+          "range": "bytes=56066048-67256324",
+          "hostAlias": "host-1",
+          "start": 22.669,
+          "end": 38.869,
+          "status": 206,
+          "bytes": 11190277,
+          "outcome": "completed",
+          "cache": "HIT",
+          "firstBodyMs": 1.0037
+        },
+        {
+          "id": 3,
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 46.481,
+          "end": 46.49,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0.5049
+        },
+        {
+          "id": 4,
+          "key": "c156912b596f0dccdda03210bbcdbac2",
+          "role": "WMF-player",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 46.955,
+          "end": 46.955,
+          "status": 304,
+          "bytes": 0,
+          "outcome": "completed",
+          "cache": "HIT",
+          "firstBodyMs": null
+        }
+      ],
+      "keyEvents": [
+        {
+          "t": 22.202,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 135,
+          "request_id": 1,
+          "resource_key": "c156912b596f0dccdda03210bbcdbac2",
+          "range": "",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "resolver-user-agent"
+        },
+        {
+          "t": 22.669,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 139,
+          "request_id": 2,
+          "resource_key": "c156912b596f0dccdda03210bbcdbac2",
+          "range": "bytes=56066048-67256324",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 46.481,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 143,
+          "request_id": 3,
+          "resource_key": "c156912b596f0dccdda03210bbcdbac2",
+          "range": "",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "resolver-user-agent"
+        },
+        {
+          "t": 46.955,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 147,
+          "request_id": 4,
+          "resource_key": "c156912b596f0dccdda03210bbcdbac2",
+          "range": "",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        }
+      ],
+      "operations": [
+        {
+          "song": 6776,
+          "note": "Preview closed; refresh after a few seconds of normal formal playback.",
+          "cacheKey": "c156912b596f0dccdda03210bbcdbac2",
+          "node": "cf",
+          "stage": "fr-hot",
+          "event": "instruction",
+          "action": "formal-start-then-refresh",
+          "cacheMD5Verified": true,
+          "t": 18.3
+        },
+        {
+          "action": "formal-refresh",
+          "feedback": "6776起播正常，刷新后很快恢复",
+          "stage": "fr-hot",
+          "event": "feedback",
+          "song": 6776,
+          "t": 61.419
+        },
+        {
+          "action": "stop",
+          "stage": "fr-hot",
+          "feedback": "done",
+          "event": "feedback",
+          "t": 135.597
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 20.657,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 3190,
+          "song": "6776",
+          "node": "cf"
+        },
+        {
+          "t": 21.657,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 3223,
+          "song": "6776",
+          "node": "cf"
+        },
+        {
+          "t": 30.657,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3236
+        },
+        {
+          "t": 30.657,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3237
+        },
+        {
+          "t": 30.657,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3240,
+          "song": "6776"
+        },
+        {
+          "t": 44.657,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 3250,
+          "song": "6776",
+          "node": "cf"
+        },
+        {
+          "t": 46.657,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 3263,
+          "song": "6776",
+          "node": "cf"
+        },
+        {
+          "t": 46.657,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3275
+        },
+        {
+          "t": 46.657,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3278,
+          "song": "6776"
+        },
+        {
+          "t": 122.657,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 3285
+        }
+      ],
+      "limits": "GET concurrency is downstream and does not measure upstream request budget. Open requests are right-censored. Operation timestamps are instruction/acknowledgment times. Game callback is not proof of visible playback."
+    },
+    {
+      "id": "fn-limited",
+      "rateBytesPerSecond": 125000,
+      "timeBasis": "seconds from this service cache_engine_ready; game timestamps one-second resolution; operation instruction/feedback times are not exact action times",
+      "requestCount": 9,
+      "WMFRequestCount": 7,
+      "openRequests": 0,
+      "maximumConcurrentGETs": 2,
+      "internalAllGETGaps": [
+        {
+          "from": 40.49,
+          "to": 40.852,
+          "seconds": 0.362
+        },
+        {
+          "from": 66.356,
+          "to": 66.369,
+          "seconds": 0.013
+        },
+        {
+          "from": 101.891,
+          "to": 101.894,
+          "seconds": 0.003
+        },
+        {
+          "from": 173.374,
+          "to": 173.386,
+          "seconds": 0.012
+        }
+      ],
+      "resourceKeys": [
+        "7643401fefce4bb23c52b98c7ed95118"
+      ],
+      "resources": [
+        {
+          "key": "7643401fefce4bb23c52b98c7ed95118",
+          "requestCount": 9,
+          "internalGETGaps": [
+            {
+              "from": 40.49,
+              "to": 40.852,
+              "seconds": 0.362
+            },
+            {
+              "from": 66.356,
+              "to": 66.369,
+              "seconds": 0.013
+            },
+            {
+              "from": 101.891,
+              "to": 101.894,
+              "seconds": 0.003
+            },
+            {
+              "from": 173.374,
+              "to": 173.386,
+              "seconds": 0.012
+            }
+          ],
+          "downloadStartedAt": 31.521,
+          "bytes": 49795811,
+          "HITResponses": 0,
+          "flightIDs": [
+            1
+          ]
+        }
+      ],
+      "attachedFlightIDs": [
+        1
+      ],
+      "requestExamples": [
+        {
+          "id": 1,
+          "key": "7643401fefce4bb23c52b98c7ed95118",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 31.521,
+          "end": 40.49,
+          "status": 200,
+          "bytes": 262144,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 9355.1194
+        },
+        {
+          "id": 2,
+          "key": "7643401fefce4bb23c52b98c7ed95118",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 40.852,
+          "end": 66.356,
+          "status": 206,
+          "bytes": 2097152,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5033
+        },
+        {
+          "id": 3,
+          "key": "7643401fefce4bb23c52b98c7ed95118",
+          "role": "WMF-player",
+          "range": "bytes=5488640-49795810",
+          "hostAlias": "host-1",
+          "start": 66.369,
+          "end": 101.891,
+          "status": 206,
+          "bytes": 1097728,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 9526.5431
+        },
+        {
+          "id": 4,
+          "key": "7643401fefce4bb23c52b98c7ed95118",
+          "role": "WMF-player",
+          "range": "bytes=14827520-49795810",
+          "hostAlias": "host-1",
+          "start": 101.894,
+          "end": 130.787,
+          "status": 206,
+          "bytes": 1327104,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 9312.2274
+        },
+        {
+          "id": 5,
+          "key": "7643401fefce4bb23c52b98c7ed95118",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 124.646,
+          "end": 124.647,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5049
+        },
+        {
+          "id": 6,
+          "key": "7643401fefce4bb23c52b98c7ed95118",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 125.053,
+          "end": 125.433,
+          "status": 206,
+          "bytes": 4718592,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5635
+        },
+        {
+          "id": 7,
+          "key": "7643401fefce4bb23c52b98c7ed95118",
+          "role": "WMF-player",
+          "range": "bytes=22593536-49795810",
+          "hostAlias": "host-1",
+          "start": 125.444,
+          "end": 173.374,
+          "status": 206,
+          "bytes": 933888,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 14278.3041
+        },
+        {
+          "id": 9,
+          "key": "7643401fefce4bb23c52b98c7ed95118",
+          "role": "WMF-player",
+          "range": "bytes=34979840-49795810",
+          "hostAlias": "host-1",
+          "start": 173.386,
+          "end": 197.522,
+          "status": 206,
+          "bytes": 671744,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 9160.4044
+        }
+      ],
+      "keyEvents": [
+        {
+          "t": 31.521,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 162,
+          "resource_key": "7643401fefce4bb23c52b98c7ed95118",
+          "key": "7643401fefce4bb23c52b98c7ed95118",
+          "flight_id": 1,
+          "background": false,
+          "size": 49795811,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 197.522,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 217,
+          "resource_key": "7643401fefce4bb23c52b98c7ed95118",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 19732572,
+          "outcome": "canceled",
+          "elapsed_ms": 166000,
+          "stage": "range_download",
+          "hostAlias": "host-2",
+          "errorClass": "context-canceled"
+        }
+      ],
+      "operations": [
+        {
+          "event": "instruction",
+          "stage": "fn-limited",
+          "action": "formal-start",
+          "note": "User chooses a song not played this game session; preview closed; no switch yet.",
+          "node": "cf",
+          "t": 16.563
+        },
+        {
+          "song": 6332,
+          "action": "formal-start",
+          "feedback": "6332等待一会开始播放几秒卡住很久",
+          "stage": "fn-limited",
+          "event": "feedback",
+          "t": 101.56
+        },
+        {
+          "song": 6332,
+          "action": "switch-node",
+          "from": "cf",
+          "note": "Switch once to another available game video node; report actual destination; no refresh or preview.",
+          "stage": "fn-limited",
+          "event": "instruction",
+          "t": 101.589
+        },
+        {
+          "feedback": "切换到hkg，画面刷新后一直卡住；随后 done 确认停止",
+          "song": 6332,
+          "nodeLabel": "HKG",
+          "stage": "fn-limited",
+          "action": "switch-node-and-stop",
+          "event": "feedback",
+          "to": "nya",
+          "t": 197.455
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 29.986,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 3357,
+          "song": "6332",
+          "node": "cf"
+        },
+        {
+          "t": 39.986,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 3393,
+          "song": "6332",
+          "node": "cf"
+        },
+        {
+          "t": 40.986,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3404
+        },
+        {
+          "t": 40.986,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3405
+        },
+        {
+          "t": 40.986,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3408,
+          "song": "6332"
+        },
+        {
+          "t": 122.986,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 3446,
+          "song": "6332",
+          "node": "nya"
+        },
+        {
+          "t": 122.986,
+          "event": "OnVideoError",
+          "source": "game-session",
+          "line": 3459
+        },
+        {
+          "t": 124.986,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 3462,
+          "song": "6332",
+          "node": "nya"
+        },
+        {
+          "t": 124.986,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3475
+        },
+        {
+          "t": 124.986,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3478,
+          "song": "6332"
+        },
+        {
+          "t": 166.986,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 3502
+        },
+        {
+          "t": 166.986,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 3526
+        },
+        {
+          "t": 168.986,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 3550
+        }
+      ],
+      "limits": "GET concurrency is downstream and does not measure upstream request budget. Open requests are right-censored. Operation timestamps are instruction/acknowledgment times. Game callback is not proof of visible playback."
+    },
+    {
+      "id": "fn-unlimited",
+      "rateBytesPerSecond": 0,
+      "timeBasis": "seconds from this service cache_engine_ready; game timestamps one-second resolution; operation instruction/feedback times are not exact action times",
+      "requestCount": 11,
+      "WMFRequestCount": 7,
+      "openRequests": 0,
+      "maximumConcurrentGETs": 2,
+      "internalAllGETGaps": [
+        {
+          "from": 58.777,
+          "to": 59.172,
+          "seconds": 0.395
+        },
+        {
+          "from": 60.406,
+          "to": 63.103,
+          "seconds": 2.697
+        },
+        {
+          "from": 63.104,
+          "to": 63.495,
+          "seconds": 0.391
+        },
+        {
+          "from": 63.926,
+          "to": 63.929,
+          "seconds": 0.003
+        },
+        {
+          "from": 68.62,
+          "to": 70.108,
+          "seconds": 1.488
+        },
+        {
+          "from": 72.611,
+          "to": 73,
+          "seconds": 0.389
+        },
+        {
+          "from": 90.705,
+          "to": 90.725,
+          "seconds": 0.02
+        },
+        {
+          "from": 91.252,
+          "to": 91.256,
+          "seconds": 0.004
+        }
+      ],
+      "resourceKeys": [
+        "32bde68a95e2f0a1bd00d3deb5532ff6",
+        "ce8532582d841b47375eadff0afc4ff8"
+      ],
+      "resources": [
+        {
+          "key": "32bde68a95e2f0a1bd00d3deb5532ff6",
+          "requestCount": 5,
+          "internalGETGaps": [
+            {
+              "from": 58.777,
+              "to": 59.172,
+              "seconds": 0.395
+            },
+            {
+              "from": 60.406,
+              "to": 63.103,
+              "seconds": 2.697
+            },
+            {
+              "from": 63.104,
+              "to": 63.495,
+              "seconds": 0.391
+            },
+            {
+              "from": 63.926,
+              "to": 63.929,
+              "seconds": 0.003
+            }
+          ],
+          "downloadStartedAt": 56.21,
+          "publishedAt": 99.229,
+          "bytes": 58736505,
+          "HITResponses": 0,
+          "flightIDs": [
+            1
+          ]
+        },
+        {
+          "key": "ce8532582d841b47375eadff0afc4ff8",
+          "requestCount": 5,
+          "internalGETGaps": [
+            {
+              "from": 72.611,
+              "to": 73,
+              "seconds": 0.389
+            },
+            {
+              "from": 90.705,
+              "to": 90.725,
+              "seconds": 0.02
+            },
+            {
+              "from": 91.252,
+              "to": 91.256,
+              "seconds": 0.004
+            }
+          ],
+          "downloadStartedAt": 70.109,
+          "publishedAt": 111.917,
+          "bytes": 67222868,
+          "HITResponses": 0,
+          "flightIDs": [
+            2
+          ]
+        }
+      ],
+      "attachedFlightIDs": [
+        1,
+        2
+      ],
+      "requestExamples": [
+        {
+          "id": 1,
+          "role": "WMF-player",
+          "range": "bytes=35651584-49795810",
+          "hostAlias": "host-1",
+          "end": 1.87,
+          "status": 400,
+          "bytes": 17,
+          "outcome": "canceled",
+          "cache": "",
+          "firstBodyMs": 1389.6635
+        },
+        {
+          "id": 2,
+          "key": "32bde68a95e2f0a1bd00d3deb5532ff6",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 56.21,
+          "end": 58.777,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 2979.6652
+        },
+        {
+          "id": 3,
+          "key": "32bde68a95e2f0a1bd00d3deb5532ff6",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 59.172,
+          "end": 60.406,
+          "status": 206,
+          "bytes": 1048576,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5411
+        },
+        {
+          "id": 4,
+          "key": "32bde68a95e2f0a1bd00d3deb5532ff6",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 63.103,
+          "end": 63.104,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5035
+        },
+        {
+          "id": 5,
+          "key": "32bde68a95e2f0a1bd00d3deb5532ff6",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 63.495,
+          "end": 63.926,
+          "status": 206,
+          "bytes": 4456448,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5065
+        },
+        {
+          "id": 6,
+          "key": "32bde68a95e2f0a1bd00d3deb5532ff6",
+          "role": "WMF-player",
+          "range": "bytes=58310656-58736504",
+          "hostAlias": "host-1",
+          "start": 63.929,
+          "end": 68.62,
+          "status": 206,
+          "bytes": 425849,
+          "outcome": "completed",
+          "cache": "MISS",
+          "firstBodyMs": 3986.6456
+        },
+        {
+          "id": 7,
+          "key": "ce8532582d841b47375eadff0afc4ff8",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 70.108,
+          "end": 72.611,
+          "status": 200,
+          "bytes": 262144,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 2911.8967
+        },
+        {
+          "id": 8,
+          "key": "ce8532582d841b47375eadff0afc4ff8",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 73,
+          "end": 90.705,
+          "status": 206,
+          "bytes": 21495808,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0
+        },
+        {
+          "id": 9,
+          "key": "ce8532582d841b47375eadff0afc4ff8",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 90.333,
+          "end": 90.334,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5057
+        },
+        {
+          "id": 10,
+          "key": "ce8532582d841b47375eadff0afc4ff8",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 90.725,
+          "end": 91.252,
+          "status": 206,
+          "bytes": 1835008,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5045
+        },
+        {
+          "id": 11,
+          "key": "ce8532582d841b47375eadff0afc4ff8",
+          "role": "WMF-player",
+          "range": "bytes=2260992-67222867",
+          "hostAlias": "host-1",
+          "start": 91.256,
+          "end": 139.011,
+          "status": 206,
+          "bytes": 56852480,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 2.0807
+        }
+      ],
+      "keyEvents": [
+        {
+          "t": 56.21,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 229,
+          "resource_key": "32bde68a95e2f0a1bd00d3deb5532ff6",
+          "key": "32bde68a95e2f0a1bd00d3deb5532ff6",
+          "flight_id": 1,
+          "background": false,
+          "size": 58736505,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 70.109,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 256,
+          "resource_key": "ce8532582d841b47375eadff0afc4ff8",
+          "key": "ce8532582d841b47375eadff0afc4ff8",
+          "flight_id": 2,
+          "background": false,
+          "size": 67222868,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 99.16,
+          "event": "download_verified",
+          "source": "app.log",
+          "line": 283,
+          "resource_key": "32bde68a95e2f0a1bd00d3deb5532ff6",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 58736505,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 99.229,
+          "event": "download_published",
+          "source": "app.log",
+          "line": 286,
+          "resource_key": "32bde68a95e2f0a1bd00d3deb5532ff6",
+          "key": "32bde68a95e2f0a1bd00d3deb5532ff6",
+          "flight_id": 1,
+          "background": false,
+          "size": 58736505,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 99.229,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 287,
+          "resource_key": "32bde68a95e2f0a1bd00d3deb5532ff6",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 58736505,
+          "outcome": "completed",
+          "elapsed_ms": 43019,
+          "stage": "index",
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 111.845,
+          "event": "download_verified",
+          "source": "app.log",
+          "line": 290,
+          "resource_key": "ce8532582d841b47375eadff0afc4ff8",
+          "flight_id": 2,
+          "background": false,
+          "bytes": 67222868,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 111.917,
+          "event": "download_published",
+          "source": "app.log",
+          "line": 293,
+          "resource_key": "ce8532582d841b47375eadff0afc4ff8",
+          "key": "ce8532582d841b47375eadff0afc4ff8",
+          "flight_id": 2,
+          "background": false,
+          "size": 67222868,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 111.917,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 294,
+          "resource_key": "ce8532582d841b47375eadff0afc4ff8",
+          "flight_id": 2,
+          "background": false,
+          "bytes": 67222868,
+          "outcome": "completed",
+          "elapsed_ms": 41808,
+          "stage": "index",
+          "hostAlias": "host-2"
+        }
+      ],
+      "operations": [
+        {
+          "event": "instruction",
+          "stage": "fn-unlimited",
+          "from": "cf",
+          "to": "nya",
+          "note": "New song not played this session; switch about 3 seconds after visible playback; preview closed.",
+          "action": "formal-start-then-switch-node",
+          "t": 48.229
+        },
+        {
+          "feedback": "3136起播正常，切到hkg后很快恢复",
+          "limitation": "3133 download remained active at switch; preserve as confounded observation, redo independent case.",
+          "event": "feedback",
+          "song": 3136,
+          "to": "nya",
+          "stage": "fn-unlimited",
+          "action": "switch-node",
+          "t": 141.535
+        },
+        {
+          "event": "feedback",
+          "stage": "fn-unlimited",
+          "action": "stop",
+          "feedback": "done",
+          "t": 153.122
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 54.413,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 3625,
+          "song": "3133",
+          "node": "nya"
+        },
+        {
+          "t": 58.413,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 3661,
+          "song": "3133",
+          "node": "nya"
+        },
+        {
+          "t": 59.413,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 3665
+        },
+        {
+          "t": 60.413,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 3688
+        },
+        {
+          "t": 60.413,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 3710
+        },
+        {
+          "t": 61.413,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 3737,
+          "song": "3133",
+          "node": "cf"
+        },
+        {
+          "t": 63.413,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 3750,
+          "song": "3133",
+          "node": "cf"
+        },
+        {
+          "t": 63.413,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3762
+        },
+        {
+          "t": 63.413,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3765,
+          "song": "3133"
+        },
+        {
+          "t": 68.413,
+          "event": "OnVideoEnd",
+          "source": "game-session",
+          "line": 3800,
+          "song": "3133"
+        },
+        {
+          "t": 68.413,
+          "event": "OnVideoEnd",
+          "source": "game-session",
+          "line": 3801,
+          "song": "3133"
+        },
+        {
+          "t": 68.413,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 3833,
+          "song": "3136",
+          "node": "cf"
+        },
+        {
+          "t": 72.413,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 3868,
+          "song": "3136",
+          "node": "cf"
+        },
+        {
+          "t": 78.413,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3883
+        },
+        {
+          "t": 78.413,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3884
+        },
+        {
+          "t": 78.413,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3887,
+          "song": "3136"
+        },
+        {
+          "t": 89.413,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 3901,
+          "song": "3136",
+          "node": "nya"
+        },
+        {
+          "t": 90.413,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 3914,
+          "song": "3136",
+          "node": "nya"
+        },
+        {
+          "t": 90.413,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3926
+        },
+        {
+          "t": 90.413,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 3929,
+          "song": "3136"
+        },
+        {
+          "t": 138.413,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 3938
+        }
+      ],
+      "limits": "GET concurrency is downstream and does not measure upstream request budget. Open requests are right-censored. Operation timestamps are instruction/acknowledgment times. Game callback is not proof of visible playback."
+    },
+    {
+      "id": "fn-unlimited-retry1",
+      "rateBytesPerSecond": 0,
+      "timeBasis": "seconds from this service cache_engine_ready; game timestamps one-second resolution; operation instruction/feedback times are not exact action times",
+      "requestCount": 6,
+      "WMFRequestCount": 3,
+      "openRequests": 0,
+      "maximumConcurrentGETs": 2,
+      "internalAllGETGaps": [
+        {
+          "from": 17.286,
+          "to": 17.737,
+          "seconds": 0.451
+        },
+        {
+          "from": 20.135,
+          "to": 54.821,
+          "seconds": 34.686
+        },
+        {
+          "from": 56.118,
+          "to": 56.512,
+          "seconds": 0.394
+        },
+        {
+          "from": 76.011,
+          "to": 76.032,
+          "seconds": 0.021
+        }
+      ],
+      "resourceKeys": [
+        "ce8532582d841b47375eadff0afc4ff8",
+        "4b48ef70c18353fbab007ce7ea4b8ba4"
+      ],
+      "resources": [
+        {
+          "key": "ce8532582d841b47375eadff0afc4ff8",
+          "requestCount": 2,
+          "internalGETGaps": [
+            {
+              "from": 17.286,
+              "to": 17.737,
+              "seconds": 0.451
+            }
+          ],
+          "downloadStartedAt": 14.644,
+          "publishedAt": 50.413,
+          "bytes": 67222868,
+          "HITResponses": 0,
+          "flightIDs": [
+            1
+          ]
+        },
+        {
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "requestCount": 4,
+          "internalGETGaps": [
+            {
+              "from": 56.118,
+              "to": 56.512,
+              "seconds": 0.394
+            },
+            {
+              "from": 76.011,
+              "to": 76.032,
+              "seconds": 0.021
+            }
+          ],
+          "downloadStartedAt": 54.821,
+          "publishedAt": 87.71,
+          "bytes": 66379679,
+          "HITResponses": 0,
+          "flightIDs": [
+            2
+          ]
+        }
+      ],
+      "attachedFlightIDs": [
+        1,
+        2
+      ],
+      "requestExamples": [
+        {
+          "id": 1,
+          "key": "ce8532582d841b47375eadff0afc4ff8",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 14.644,
+          "end": 17.286,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 3032.213
+        },
+        {
+          "id": 2,
+          "key": "ce8532582d841b47375eadff0afc4ff8",
+          "role": "WMF-player",
+          "range": "bytes=20807680-67222867",
+          "hostAlias": "host-1",
+          "start": 17.737,
+          "end": 20.135,
+          "status": 206,
+          "bytes": 163840,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 2313.4602
+        },
+        {
+          "id": 3,
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 54.821,
+          "end": 56.118,
+          "status": 200,
+          "bytes": 262144,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 1689.5567
+        },
+        {
+          "id": 4,
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 56.512,
+          "end": 76.011,
+          "status": 206,
+          "bytes": 28835840,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5144
+        },
+        {
+          "id": 5,
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 75.691,
+          "end": 75.692,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5029
+        },
+        {
+          "id": 6,
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 76.032,
+          "end": 121.563,
+          "status": 206,
+          "bytes": 66379679,
+          "outcome": "completed",
+          "cache": "MISS",
+          "firstBodyMs": 0.8339
+        }
+      ],
+      "keyEvents": [
+        {
+          "t": 14.644,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 309,
+          "resource_key": "ce8532582d841b47375eadff0afc4ff8",
+          "key": "ce8532582d841b47375eadff0afc4ff8",
+          "flight_id": 1,
+          "background": false,
+          "size": 67222868,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 50.342,
+          "event": "download_verified",
+          "source": "app.log",
+          "line": 324,
+          "resource_key": "ce8532582d841b47375eadff0afc4ff8",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 67222868,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 50.413,
+          "event": "download_published",
+          "source": "app.log",
+          "line": 327,
+          "resource_key": "ce8532582d841b47375eadff0afc4ff8",
+          "key": "ce8532582d841b47375eadff0afc4ff8",
+          "flight_id": 1,
+          "background": false,
+          "size": 67222868,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 50.413,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 328,
+          "resource_key": "ce8532582d841b47375eadff0afc4ff8",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 67222868,
+          "outcome": "completed",
+          "elapsed_ms": 35768,
+          "stage": "index",
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 54.821,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 331,
+          "resource_key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "flight_id": 2,
+          "background": false,
+          "size": 66379679,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 87.638,
+          "event": "download_verified",
+          "source": "app.log",
+          "line": 353,
+          "resource_key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "flight_id": 2,
+          "background": false,
+          "bytes": 66379679,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 87.71,
+          "event": "download_published",
+          "source": "app.log",
+          "line": 356,
+          "resource_key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "flight_id": 2,
+          "background": false,
+          "size": 66379679,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 87.71,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 357,
+          "resource_key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "flight_id": 2,
+          "background": false,
+          "bytes": 66379679,
+          "outcome": "completed",
+          "elapsed_ms": 32888,
+          "stage": "index",
+          "hostAlias": "host-2"
+        }
+      ],
+      "operations": [
+        {
+          "from": "cf",
+          "note": "Only one fresh song in queue; preview closed; switch about 3 seconds after playback.",
+          "event": "instruction",
+          "to": "nya",
+          "action": "formal-start-then-switch-node",
+          "stage": "fn-unlimited-retry1",
+          "t": 21.206
+        },
+        {
+          "song": 3194,
+          "action": "switch-node",
+          "to": "nya",
+          "event": "feedback",
+          "stage": "fn-unlimited-retry1",
+          "feedback": "3194起播正常，切到hkg后很快恢复",
+          "t": 105.239
+        },
+        {
+          "stage": "fn-unlimited-retry1",
+          "action": "stop",
+          "feedback": "done",
+          "event": "feedback",
+          "t": 180.783
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 13.26,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 3968,
+          "song": "3136",
+          "node": "cf"
+        },
+        {
+          "t": 17.26,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 3981,
+          "song": "3136",
+          "node": "cf"
+        },
+        {
+          "t": 17.26,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 3982
+        },
+        {
+          "t": 17.26,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 4004
+        },
+        {
+          "t": 53.26,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 4076,
+          "song": "3194",
+          "node": "cf"
+        },
+        {
+          "t": 56.26,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 4109,
+          "song": "3194",
+          "node": "cf"
+        },
+        {
+          "t": 63.26,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4122
+        },
+        {
+          "t": 63.26,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4123
+        },
+        {
+          "t": 63.26,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4126,
+          "song": "3194"
+        },
+        {
+          "t": 74.26,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 4138,
+          "song": "3194",
+          "node": "nya"
+        },
+        {
+          "t": 75.26,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 4151,
+          "song": "3194",
+          "node": "nya"
+        },
+        {
+          "t": 76.26,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4163
+        },
+        {
+          "t": 76.26,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4166,
+          "song": "3194"
+        },
+        {
+          "t": 158.26,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 4175
+        }
+      ],
+      "limits": "GET concurrency is downstream and does not measure upstream request budget. Open requests are right-censored. Operation timestamps are instruction/acknowledgment times. Game callback is not proof of visible playback."
+    },
+    {
+      "id": "fn-hot",
+      "rateBytesPerSecond": 0,
+      "timeBasis": "seconds from this service cache_engine_ready; game timestamps one-second resolution; operation instruction/feedback times are not exact action times",
+      "requestCount": 11,
+      "WMFRequestCount": 6,
+      "openRequests": 0,
+      "maximumConcurrentGETs": 2,
+      "internalAllGETGaps": [
+        {
+          "from": 40.265,
+          "to": 40.721,
+          "seconds": 0.456
+        },
+        {
+          "from": 41.074,
+          "to": 41.086,
+          "seconds": 0.012
+        },
+        {
+          "from": 41.091,
+          "to": 45.845,
+          "seconds": 4.754
+        },
+        {
+          "from": 47.499,
+          "to": 47.89,
+          "seconds": 0.391
+        },
+        {
+          "from": 50.584,
+          "to": 55.294,
+          "seconds": 4.71
+        },
+        {
+          "from": 55.303,
+          "to": 55.748,
+          "seconds": 0.445
+        },
+        {
+          "from": 75.863,
+          "to": 75.938,
+          "seconds": 0.075
+        },
+        {
+          "from": 75.938,
+          "to": 124.849,
+          "seconds": 48.911
+        },
+        {
+          "from": 124.858,
+          "to": 125.297,
+          "seconds": 0.439
+        }
+      ],
+      "resourceKeys": [
+        "4b48ef70c18353fbab007ce7ea4b8ba4",
+        "f77db2cb00ebe69e200b56dec4ff5057"
+      ],
+      "resources": [
+        {
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "requestCount": 9,
+          "internalGETGaps": [
+            {
+              "from": 40.265,
+              "to": 40.721,
+              "seconds": 0.456
+            },
+            {
+              "from": 41.074,
+              "to": 41.086,
+              "seconds": 0.012
+            },
+            {
+              "from": 41.091,
+              "to": 55.294,
+              "seconds": 14.203
+            },
+            {
+              "from": 55.303,
+              "to": 55.748,
+              "seconds": 0.445
+            },
+            {
+              "from": 75.863,
+              "to": 75.938,
+              "seconds": 0.075
+            },
+            {
+              "from": 75.938,
+              "to": 124.849,
+              "seconds": 48.911
+            },
+            {
+              "from": 124.858,
+              "to": 125.297,
+              "seconds": 0.439
+            }
+          ],
+          "HITResponses": 9,
+          "flightIDs": []
+        },
+        {
+          "key": "f77db2cb00ebe69e200b56dec4ff5057",
+          "requestCount": 2,
+          "internalGETGaps": [
+            {
+              "from": 47.499,
+              "to": 47.89,
+              "seconds": 0.391
+            }
+          ],
+          "downloadStartedAt": 45.845,
+          "publishedAt": 66.878,
+          "bytes": 52550886,
+          "HITResponses": 0,
+          "flightIDs": [
+            1
+          ]
+        }
+      ],
+      "attachedFlightIDs": [
+        1
+      ],
+      "requestExamples": [
+        {
+          "id": 1,
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 40.255,
+          "end": 40.265,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0.5039
+        },
+        {
+          "id": 2,
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "role": "WMF-player",
+          "range": "bytes=28164096-66379678",
+          "hostAlias": "host-1",
+          "start": 40.721,
+          "end": 41.074,
+          "status": 206,
+          "bytes": 917504,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0.704
+        },
+        {
+          "id": 3,
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "role": "WMF-player",
+          "range": "bytes=65748992-66379678",
+          "hostAlias": "host-1",
+          "start": 41.086,
+          "end": 41.091,
+          "status": 206,
+          "bytes": 630687,
+          "outcome": "completed",
+          "cache": "HIT",
+          "firstBodyMs": 10.3997
+        },
+        {
+          "id": 4,
+          "key": "f77db2cb00ebe69e200b56dec4ff5057",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 45.845,
+          "end": 47.499,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 2039.4148
+        },
+        {
+          "id": 5,
+          "key": "f77db2cb00ebe69e200b56dec4ff5057",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 47.89,
+          "end": 50.584,
+          "status": 206,
+          "bytes": 2097152,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 1.0048
+        },
+        {
+          "id": 6,
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 55.294,
+          "end": 55.303,
+          "status": 200,
+          "bytes": 262144,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0
+        },
+        {
+          "id": 7,
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 55.748,
+          "end": 75.863,
+          "status": 206,
+          "bytes": 29622272,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0
+        },
+        {
+          "id": 8,
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 75.529,
+          "end": 75.538,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0.5036
+        },
+        {
+          "id": 9,
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "role": "WMF-player",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 75.938,
+          "end": 75.938,
+          "status": 304,
+          "bytes": 0,
+          "outcome": "completed",
+          "cache": "HIT",
+          "firstBodyMs": null
+        },
+        {
+          "id": 10,
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 124.849,
+          "end": 124.858,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0.5038
+        },
+        {
+          "id": 11,
+          "key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "role": "WMF-player",
+          "range": "bytes=29024256-66379678",
+          "hostAlias": "host-1",
+          "start": 125.297,
+          "end": 130.917,
+          "status": 206,
+          "bytes": 8486912,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0.5026
+        }
+      ],
+      "keyEvents": [
+        {
+          "t": 40.255,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 371,
+          "request_id": 1,
+          "resource_key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "range": "",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "resolver-user-agent"
+        },
+        {
+          "t": 40.721,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 375,
+          "request_id": 2,
+          "resource_key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "range": "bytes=28164096-66379678",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 41.086,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 379,
+          "request_id": 3,
+          "resource_key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "range": "bytes=65748992-66379678",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 45.845,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 384,
+          "resource_key": "f77db2cb00ebe69e200b56dec4ff5057",
+          "key": "f77db2cb00ebe69e200b56dec4ff5057",
+          "flight_id": 1,
+          "background": false,
+          "size": 52550886,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 55.294,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 397,
+          "request_id": 6,
+          "resource_key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "range": "",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "resolver-user-agent"
+        },
+        {
+          "t": 55.748,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 401,
+          "request_id": 7,
+          "resource_key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "range": "bytes=0-",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 66.82,
+          "event": "download_verified",
+          "source": "app.log",
+          "line": 404,
+          "resource_key": "f77db2cb00ebe69e200b56dec4ff5057",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 52550886,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 66.878,
+          "event": "download_published",
+          "source": "app.log",
+          "line": 407,
+          "resource_key": "f77db2cb00ebe69e200b56dec4ff5057",
+          "key": "f77db2cb00ebe69e200b56dec4ff5057",
+          "flight_id": 1,
+          "background": false,
+          "size": 52550886,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 66.878,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 408,
+          "resource_key": "f77db2cb00ebe69e200b56dec4ff5057",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 52550886,
+          "outcome": "completed",
+          "elapsed_ms": 21032,
+          "stage": "index",
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 75.529,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 410,
+          "request_id": 8,
+          "resource_key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "range": "",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "resolver-user-agent"
+        },
+        {
+          "t": 75.938,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 416,
+          "request_id": 9,
+          "resource_key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "range": "",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 124.849,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 420,
+          "request_id": 10,
+          "resource_key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "range": "",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "resolver-user-agent"
+        },
+        {
+          "t": 125.297,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 424,
+          "request_id": 11,
+          "resource_key": "4b48ef70c18353fbab007ce7ea4b8ba4",
+          "range": "bytes=29024256-66379678",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        }
+      ],
+      "operations": [
+        {
+          "song": 3194,
+          "action": "formal-start-then-switch-node",
+          "event": "instruction",
+          "stage": "fn-hot",
+          "to": "nya",
+          "note": "Only formal; complete SWD cache from previous stage.",
+          "from": "cf",
+          "cacheMD5Verified": true,
+          "t": 17.638
+        },
+        {
+          "feedback": "3194起播正常，切到hkg后很快恢复",
+          "event": "feedback",
+          "action": "switch-node",
+          "song": 3194,
+          "to": "nya",
+          "stage": "fn-hot",
+          "t": 103.604
+        },
+        {
+          "action": "prepare-next-and-stop",
+          "stage": "fn-hot",
+          "note": "After target operation, restore CF then stop formal, close preview and empty queue.",
+          "event": "feedback",
+          "feedback": "done",
+          "t": 147.968
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 38.417,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 4206,
+          "song": "3194",
+          "node": "cf"
+        },
+        {
+          "t": 40.417,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 4219,
+          "song": "3194",
+          "node": "cf"
+        },
+        {
+          "t": 40.417,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4230
+        },
+        {
+          "t": 40.417,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4233,
+          "song": "3194"
+        },
+        {
+          "t": 40.417,
+          "event": "OnVideoEnd",
+          "source": "game-session",
+          "line": 4241,
+          "song": "3194"
+        },
+        {
+          "t": 40.417,
+          "event": "OnVideoEnd",
+          "source": "game-session",
+          "line": 4242,
+          "song": "3194"
+        },
+        {
+          "t": 44.417,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 4304,
+          "song": "2722",
+          "node": "cf"
+        },
+        {
+          "t": 47.417,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 4321,
+          "song": "2722",
+          "node": "cf"
+        },
+        {
+          "t": 54.417,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 4386,
+          "song": "3194",
+          "node": "cf"
+        },
+        {
+          "t": 55.417,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 4389,
+          "song": "3194",
+          "node": "cf"
+        },
+        {
+          "t": 58.417,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4402
+        },
+        {
+          "t": 58.417,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4403
+        },
+        {
+          "t": 58.417,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4406,
+          "song": "3194"
+        },
+        {
+          "t": 74.417,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 4420,
+          "song": "3194",
+          "node": "nya"
+        },
+        {
+          "t": 75.417,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 4433,
+          "song": "3194",
+          "node": "nya"
+        },
+        {
+          "t": 75.417,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4445
+        },
+        {
+          "t": 75.417,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4448,
+          "song": "3194"
+        },
+        {
+          "t": 123.417,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 4460,
+          "song": "3194",
+          "node": "cf"
+        },
+        {
+          "t": 124.417,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 4473,
+          "song": "3194",
+          "node": "cf"
+        },
+        {
+          "t": 125.417,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4485
+        },
+        {
+          "t": 125.417,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4488,
+          "song": "3194"
+        },
+        {
+          "t": 130.417,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 4495
+        }
+      ],
+      "limits": "GET concurrency is downstream and does not measure upstream request budget. Open requests are right-censored. Operation timestamps are instruction/acknowledgment times. Game callback is not proof of visible playback."
+    },
+    {
+      "id": "preview-limited",
+      "rateBytesPerSecond": 125000,
+      "timeBasis": "seconds from this service cache_engine_ready; game timestamps one-second resolution; operation instruction/feedback times are not exact action times",
+      "requestCount": 16,
+      "WMFRequestCount": 12,
+      "openRequests": 0,
+      "maximumConcurrentGETs": 2,
+      "internalAllGETGaps": [
+        {
+          "from": 51.655,
+          "to": 52.058,
+          "seconds": 0.403
+        },
+        {
+          "from": 52.503,
+          "to": 52.506,
+          "seconds": 0.003
+        },
+        {
+          "from": 86.204,
+          "to": 92.045,
+          "seconds": 5.841
+        },
+        {
+          "from": 92.046,
+          "to": 92.496,
+          "seconds": 0.45
+        },
+        {
+          "from": 94.056,
+          "to": 94.058,
+          "seconds": 0.002
+        },
+        {
+          "from": 126.201,
+          "to": 126.716,
+          "seconds": 0.515
+        },
+        {
+          "from": 135.08,
+          "to": 135.091,
+          "seconds": 0.011
+        },
+        {
+          "from": 166.205,
+          "to": 172.069,
+          "seconds": 5.864
+        },
+        {
+          "from": 172.07,
+          "to": 172.519,
+          "seconds": 0.449
+        },
+        {
+          "from": 179.684,
+          "to": 179.695,
+          "seconds": 0.011
+        },
+        {
+          "from": 201.777,
+          "to": 201.784,
+          "seconds": 0.007
+        },
+        {
+          "from": 235.136,
+          "to": 235.139,
+          "seconds": 0.003
+        },
+        {
+          "from": 266.195,
+          "to": 272.017,
+          "seconds": 5.822
+        },
+        {
+          "from": 272.019,
+          "to": 272.415,
+          "seconds": 0.396
+        }
+      ],
+      "resourceKeys": [
+        "621e42e4a30d28c3ee0c3f6527a733ea",
+        "c123d0dd70b20aabcc2544c4e3fe294b"
+      ],
+      "resources": [
+        {
+          "key": "621e42e4a30d28c3ee0c3f6527a733ea",
+          "requestCount": 1,
+          "internalGETGaps": [],
+          "downloadStartedAt": 31.895,
+          "bytes": 39019338,
+          "HITResponses": 0,
+          "flightIDs": [
+            1
+          ]
+        },
+        {
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "requestCount": 15,
+          "internalGETGaps": [
+            {
+              "from": 51.655,
+              "to": 52.058,
+              "seconds": 0.403
+            },
+            {
+              "from": 52.503,
+              "to": 52.506,
+              "seconds": 0.003
+            },
+            {
+              "from": 86.204,
+              "to": 92.045,
+              "seconds": 5.841
+            },
+            {
+              "from": 92.046,
+              "to": 92.496,
+              "seconds": 0.45
+            },
+            {
+              "from": 94.056,
+              "to": 94.058,
+              "seconds": 0.002
+            },
+            {
+              "from": 126.201,
+              "to": 126.716,
+              "seconds": 0.515
+            },
+            {
+              "from": 135.08,
+              "to": 135.091,
+              "seconds": 0.011
+            },
+            {
+              "from": 166.205,
+              "to": 172.069,
+              "seconds": 5.864
+            },
+            {
+              "from": 172.07,
+              "to": 172.519,
+              "seconds": 0.449
+            },
+            {
+              "from": 179.684,
+              "to": 179.695,
+              "seconds": 0.011
+            },
+            {
+              "from": 201.777,
+              "to": 201.784,
+              "seconds": 0.007
+            },
+            {
+              "from": 235.136,
+              "to": 235.139,
+              "seconds": 0.003
+            },
+            {
+              "from": 266.195,
+              "to": 272.017,
+              "seconds": 5.822
+            },
+            {
+              "from": 272.019,
+              "to": 272.415,
+              "seconds": 0.396
+            }
+          ],
+          "downloadStartedAt": 32.722,
+          "bytes": 45849828,
+          "HITResponses": 0,
+          "flightIDs": [
+            2
+          ]
+        }
+      ],
+      "attachedFlightIDs": [
+        1,
+        2
+      ],
+      "requestExamples": [
+        {
+          "id": 1,
+          "key": "621e42e4a30d28c3ee0c3f6527a733ea",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 31.895,
+          "end": 47.926,
+          "status": 206,
+          "bytes": 1048576,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 16082.0025
+        },
+        {
+          "id": 2,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 32.722,
+          "end": 51.655,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 19324.2067
+        },
+        {
+          "id": 3,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 52.058,
+          "end": 52.503,
+          "status": 206,
+          "bytes": 1048576,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5181
+        },
+        {
+          "id": 4,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=5029888-45849827",
+          "hostAlias": "host-1",
+          "start": 52.506,
+          "end": 86.204,
+          "status": 503,
+          "bytes": 20,
+          "outcome": "canceled",
+          "cache": "",
+          "firstBodyMs": 33699.0672
+        },
+        {
+          "id": 5,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 92.045,
+          "end": 92.046,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0
+        },
+        {
+          "id": 6,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=1040384-45849827",
+          "hostAlias": "host-1",
+          "start": 92.496,
+          "end": 94.056,
+          "status": 206,
+          "bytes": 8192,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5028
+        },
+        {
+          "id": 7,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=1040384-45849827",
+          "hostAlias": "host-1",
+          "start": 94.058,
+          "end": 126.201,
+          "status": 206,
+          "bytes": 8192,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 1.5691
+        },
+        {
+          "id": 9,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=8486912-45849827",
+          "hostAlias": "host-1",
+          "start": 135.091,
+          "end": 166.205,
+          "status": 503,
+          "bytes": 20,
+          "outcome": "canceled",
+          "cache": "",
+          "firstBodyMs": 31123.06
+        },
+        {
+          "id": 10,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 172.069,
+          "end": 172.07,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5293
+        },
+        {
+          "id": 11,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=2088960-45849827",
+          "hostAlias": "host-1",
+          "start": 172.519,
+          "end": 179.684,
+          "status": 206,
+          "bytes": 8192,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.6018
+        },
+        {
+          "id": 12,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=2088960-45849827",
+          "hostAlias": "host-1",
+          "start": 179.695,
+          "end": 201.777,
+          "status": 206,
+          "bytes": 2105344,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 9.856
+        },
+        {
+          "id": 14,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=10764288-45849827",
+          "hostAlias": "host-1",
+          "start": 235.139,
+          "end": 266.195,
+          "status": 503,
+          "bytes": 20,
+          "outcome": "canceled",
+          "cache": "",
+          "firstBodyMs": 31057.7308
+        },
+        {
+          "id": 15,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 272.017,
+          "end": 272.019,
+          "status": 200,
+          "bytes": 262144,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5043
+        },
+        {
+          "id": 16,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 272.415,
+          "end": 286.412,
+          "status": 206,
+          "bytes": 6291456,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5038
+        }
+      ],
+      "keyEvents": [
+        {
+          "t": 31.895,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 439,
+          "resource_key": "621e42e4a30d28c3ee0c3f6527a733ea",
+          "key": "621e42e4a30d28c3ee0c3f6527a733ea",
+          "flight_id": 1,
+          "background": false,
+          "size": 39019338,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 32.722,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 446,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "flight_id": 2,
+          "background": false,
+          "size": 45849828,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 308.267,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 554,
+          "resource_key": "621e42e4a30d28c3ee0c3f6527a733ea",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 21479424,
+          "outcome": "canceled",
+          "elapsed_ms": 276371,
+          "stage": "range_download",
+          "hostAlias": "host-2",
+          "errorClass": "context-canceled"
+        },
+        {
+          "t": 308.267,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 556,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "flight_id": 2,
+          "background": false,
+          "bytes": 12631140,
+          "outcome": "canceled",
+          "elapsed_ms": 275544,
+          "stage": "range_download",
+          "hostAlias": "host-2",
+          "errorClass": "context-canceled"
+        }
+      ],
+      "operations": [
+        {
+          "action": "preview-start",
+          "event": "instruction",
+          "node": "cf",
+          "note": "Fresh song, formal stopped, queue empty, no seek yet; report default preview position.",
+          "stage": "preview-limited",
+          "t": 15.085
+        },
+        {
+          "stage": "preview-limited",
+          "song": 3214,
+          "limitation": "Concurrent key 621e42e4a30d28c3ee0c3f6527a733ea also downloading; seek not yet instructed.",
+          "feedback": "3214预览，黑屏，默认开始位置未知",
+          "action": "preview-start",
+          "event": "feedback",
+          "t": 110.56
+        },
+        {
+          "otherKey": "621e42e4a30d28c3ee0c3f6527a733ea",
+          "song": 3214,
+          "action": "preview-start-update",
+          "stage": "preview-limited",
+          "otherSong": 10689,
+          "mappingEvidence": "Read-only song_media lookup",
+          "feedback": "预览黑屏很久以后从头播放两秒又一直卡住；正式已停止",
+          "event": "feedback",
+          "t": 208.59
+        },
+        {
+          "stage": "preview-limited",
+          "action": "stop",
+          "feedback": "已停止预览；此前已确认正式停止",
+          "event": "feedback",
+          "t": 308.203
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 31.327,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 4522,
+          "song": "3214",
+          "node": "cf"
+        },
+        {
+          "t": 51.327,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 4525,
+          "song": "3214",
+          "node": "cf"
+        },
+        {
+          "t": 52.327,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4527
+        },
+        {
+          "t": 52.327,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4528
+        },
+        {
+          "t": 52.327,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4530,
+          "song": "3214"
+        },
+        {
+          "t": 85.327,
+          "event": "OnVideoError",
+          "source": "game-session",
+          "line": 4537,
+          "song": "3214"
+        },
+        {
+          "t": 90.327,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 4542,
+          "song": "3214",
+          "node": "cf"
+        },
+        {
+          "t": 92.327,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 4545,
+          "song": "3214",
+          "node": "cf"
+        },
+        {
+          "t": 92.327,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4547
+        },
+        {
+          "t": 92.327,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4548
+        },
+        {
+          "t": 92.327,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4550,
+          "song": "3214"
+        },
+        {
+          "t": 139.327,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 4555
+        },
+        {
+          "t": 139.327,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 4577
+        },
+        {
+          "t": 140.327,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 4599
+        },
+        {
+          "t": 158.327,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 4623
+        },
+        {
+          "t": 159.327,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 4645
+        },
+        {
+          "t": 159.327,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 4667
+        },
+        {
+          "t": 165.327,
+          "event": "OnVideoError",
+          "source": "game-session",
+          "line": 4690,
+          "song": "3214"
+        },
+        {
+          "t": 170.327,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 4695,
+          "song": "3214",
+          "node": "cf"
+        },
+        {
+          "t": 172.327,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 4698,
+          "song": "3214",
+          "node": "cf"
+        },
+        {
+          "t": 172.327,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4700
+        },
+        {
+          "t": 172.327,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4701
+        },
+        {
+          "t": 172.327,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4703,
+          "song": "3214"
+        },
+        {
+          "t": 265.327,
+          "event": "OnVideoError",
+          "source": "game-session",
+          "line": 4715,
+          "song": "3214"
+        },
+        {
+          "t": 270.327,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 4720,
+          "song": "3214",
+          "node": "cf"
+        },
+        {
+          "t": 272.327,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 4723,
+          "song": "3214",
+          "node": "cf"
+        },
+        {
+          "t": 272.327,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4725
+        },
+        {
+          "t": 272.327,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4726
+        },
+        {
+          "t": 272.327,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4728,
+          "song": "3214"
+        }
+      ],
+      "limits": "GET concurrency is downstream and does not measure upstream request budget. Open requests are right-censored. Operation timestamps are instruction/acknowledgment times. Game callback is not proof of visible playback."
+    },
+    {
+      "id": "preview-limited-retry1",
+      "rateBytesPerSecond": 125000,
+      "timeBasis": "seconds from this service cache_engine_ready; game timestamps one-second resolution; operation instruction/feedback times are not exact action times",
+      "requestCount": 10,
+      "WMFRequestCount": 9,
+      "openRequests": 0,
+      "maximumConcurrentGETs": 2,
+      "internalAllGETGaps": [
+        {
+          "from": 72.821,
+          "to": 73.278,
+          "seconds": 0.457
+        },
+        {
+          "from": 73.626,
+          "to": 73.628,
+          "seconds": 0.002
+        },
+        {
+          "from": 96.932,
+          "to": 96.935,
+          "seconds": 0.003
+        },
+        {
+          "from": 106.776,
+          "to": 106.779,
+          "seconds": 0.003
+        },
+        {
+          "from": 148.879,
+          "to": 149.392,
+          "seconds": 0.513
+        },
+        {
+          "from": 180.87,
+          "to": 181.384,
+          "seconds": 0.514
+        },
+        {
+          "from": 212.872,
+          "to": 213.389,
+          "seconds": 0.517
+        },
+        {
+          "from": 244.87,
+          "to": 245.387,
+          "seconds": 0.517
+        }
+      ],
+      "resourceKeys": [
+        "c123d0dd70b20aabcc2544c4e3fe294b"
+      ],
+      "resources": [
+        {
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "requestCount": 10,
+          "internalGETGaps": [
+            {
+              "from": 72.821,
+              "to": 73.278,
+              "seconds": 0.457
+            },
+            {
+              "from": 73.626,
+              "to": 73.628,
+              "seconds": 0.002
+            },
+            {
+              "from": 96.932,
+              "to": 96.935,
+              "seconds": 0.003
+            },
+            {
+              "from": 106.776,
+              "to": 106.779,
+              "seconds": 0.003
+            },
+            {
+              "from": 148.879,
+              "to": 149.392,
+              "seconds": 0.513
+            },
+            {
+              "from": 180.87,
+              "to": 181.384,
+              "seconds": 0.514
+            },
+            {
+              "from": 212.872,
+              "to": 213.389,
+              "seconds": 0.517
+            },
+            {
+              "from": 244.87,
+              "to": 245.387,
+              "seconds": 0.517
+            }
+          ],
+          "downloadStartedAt": 54.751,
+          "bytes": 45849828,
+          "HITResponses": 0,
+          "flightIDs": [
+            1
+          ]
+        }
+      ],
+      "attachedFlightIDs": [
+        1
+      ],
+      "requestExamples": [
+        {
+          "id": 1,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=6283264-45849827",
+          "hostAlias": "host-1",
+          "start": 54.75,
+          "end": 72.685,
+          "status": 206,
+          "bytes": 8192,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 18248.7059
+        },
+        {
+          "id": 2,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 55.123,
+          "end": 72.821,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 17695.9497
+        },
+        {
+          "id": 3,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=6283264-45849827",
+          "hostAlias": "host-1",
+          "start": 73.278,
+          "end": 73.626,
+          "status": 206,
+          "bytes": 8192,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5039
+        },
+        {
+          "id": 4,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=6283264-45849827",
+          "hostAlias": "host-1",
+          "start": 73.628,
+          "end": 96.932,
+          "status": 206,
+          "bytes": 270336,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 1.5851
+        },
+        {
+          "id": 5,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=8486912-45849827",
+          "hostAlias": "host-1",
+          "start": 96.935,
+          "end": 106.776,
+          "status": 206,
+          "bytes": 524288,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 9841.754
+        },
+        {
+          "id": 6,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=25919488-45849827",
+          "hostAlias": "host-1",
+          "start": 106.779,
+          "end": 148.879,
+          "status": 206,
+          "bytes": 294912,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 9170.3599
+        },
+        {
+          "id": 7,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=26206208-45849827",
+          "hostAlias": "host-1",
+          "start": 149.392,
+          "end": 180.87,
+          "status": 206,
+          "bytes": 8192,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5037
+        },
+        {
+          "id": 8,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=26206208-45849827",
+          "hostAlias": "host-1",
+          "start": 181.384,
+          "end": 212.872,
+          "status": 206,
+          "bytes": 8192,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.505
+        },
+        {
+          "id": 9,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=26206208-45849827",
+          "hostAlias": "host-1",
+          "start": 213.389,
+          "end": 244.87,
+          "status": 206,
+          "bytes": 8192,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5034
+        },
+        {
+          "id": 10,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=26206208-45849827",
+          "hostAlias": "host-1",
+          "start": 245.387,
+          "end": 275.664,
+          "status": 206,
+          "bytes": 8192,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5041
+        }
+      ],
+      "keyEvents": [
+        {
+          "t": 54.751,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 567,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "flight_id": 1,
+          "background": false,
+          "size": 45849828,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 275.664,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 628,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 26906286,
+          "outcome": "canceled",
+          "elapsed_ms": 220913,
+          "stage": "range_download",
+          "hostAlias": "host-2",
+          "errorClass": "context-canceled"
+        }
+      ],
+      "operations": [
+        {
+          "song": 3214,
+          "action": "preview-start",
+          "stage": "preview-limited-retry1",
+          "node": "cf",
+          "note": "Only preview, formal stopped and queue empty; SWD cold, player may retain partial data; no seek yet.",
+          "event": "instruction",
+          "t": 32.408
+        },
+        {
+          "event": "feedback",
+          "feedback": "3214预览，黑屏，默认开始位置未知",
+          "song": 3214,
+          "stage": "preview-limited-retry1",
+          "action": "preview-start",
+          "t": 97.11
+        },
+        {
+          "event": "instruction",
+          "observeSeconds": 20,
+          "targetFraction": 0.7,
+          "song": 3214,
+          "stage": "preview-limited-retry1",
+          "action": "seek-forward",
+          "t": 97.139
+        },
+        {
+          "attempts": 2,
+          "song": 3214,
+          "action": "seek-forward",
+          "feedback": "拖动了两次，进度条均自动跳回0，始终黑屏",
+          "stage": "preview-limited-retry1",
+          "event": "feedback",
+          "t": 140.917
+        },
+        {
+          "song": 3214,
+          "action": "seek-backward",
+          "targetSeconds": 10,
+          "event": "instruction",
+          "observeSeconds": 10,
+          "stage": "preview-limited-retry1",
+          "t": 159.641
+        },
+        {
+          "event": "feedback",
+          "action": "seek-backward",
+          "feedback": "跳回0",
+          "pictureStatus": "not explicitly restated",
+          "stage": "preview-limited-retry1",
+          "song": 3214,
+          "t": 205.538
+        },
+        {
+          "event": "feedback",
+          "note": "No additional picture status supplied for backward seek.",
+          "action": "stop",
+          "stage": "preview-limited-retry1",
+          "feedback": "done",
+          "t": 275.602
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 54.003,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 4734,
+          "song": "3214",
+          "node": "cf"
+        },
+        {
+          "t": 73.003,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 4737,
+          "song": "3214",
+          "node": "cf"
+        },
+        {
+          "t": 73.003,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4739
+        },
+        {
+          "t": 73.003,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4740
+        },
+        {
+          "t": 73.003,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4742,
+          "song": "3214"
+        }
+      ],
+      "limits": "GET concurrency is downstream and does not measure upstream request budget. Open requests are right-censored. Operation timestamps are instruction/acknowledgment times. Game callback is not proof of visible playback."
+    },
+    {
+      "id": "preview-unlimited",
+      "rateBytesPerSecond": 0,
+      "timeBasis": "seconds from this service cache_engine_ready; game timestamps one-second resolution; operation instruction/feedback times are not exact action times",
+      "requestCount": 12,
+      "WMFRequestCount": 10,
+      "openRequests": 0,
+      "maximumConcurrentGETs": 1,
+      "internalAllGETGaps": [
+        {
+          "from": 6.917,
+          "to": 34.433,
+          "seconds": 27.516
+        },
+        {
+          "from": 34.618,
+          "to": 35.237,
+          "seconds": 0.619
+        },
+        {
+          "from": 35.246,
+          "to": 35.705,
+          "seconds": 0.459
+        },
+        {
+          "from": 36.014,
+          "to": 36.017,
+          "seconds": 0.003
+        },
+        {
+          "from": 40.049,
+          "to": 40.06,
+          "seconds": 0.011
+        },
+        {
+          "from": 49.038,
+          "to": 189.094,
+          "seconds": 140.056
+        },
+        {
+          "from": 189.353,
+          "to": 189.886,
+          "seconds": 0.533
+        },
+        {
+          "from": 189.894,
+          "to": 190.327,
+          "seconds": 0.433
+        },
+        {
+          "from": 190.639,
+          "to": 190.65,
+          "seconds": 0.011
+        },
+        {
+          "from": 193.493,
+          "to": 193.504,
+          "seconds": 0.011
+        },
+        {
+          "from": 196.528,
+          "to": 196.539,
+          "seconds": 0.011
+        }
+      ],
+      "resourceKeys": [
+        "c123d0dd70b20aabcc2544c4e3fe294b"
+      ],
+      "resources": [
+        {
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "requestCount": 12,
+          "internalGETGaps": [
+            {
+              "from": 6.917,
+              "to": 34.433,
+              "seconds": 27.516
+            },
+            {
+              "from": 34.618,
+              "to": 35.237,
+              "seconds": 0.619
+            },
+            {
+              "from": 35.246,
+              "to": 35.705,
+              "seconds": 0.459
+            },
+            {
+              "from": 36.014,
+              "to": 36.017,
+              "seconds": 0.003
+            },
+            {
+              "from": 40.049,
+              "to": 40.06,
+              "seconds": 0.011
+            },
+            {
+              "from": 49.038,
+              "to": 189.094,
+              "seconds": 140.056
+            },
+            {
+              "from": 189.353,
+              "to": 189.886,
+              "seconds": 0.533
+            },
+            {
+              "from": 189.894,
+              "to": 190.327,
+              "seconds": 0.433
+            },
+            {
+              "from": 190.639,
+              "to": 190.65,
+              "seconds": 0.011
+            },
+            {
+              "from": 193.493,
+              "to": 193.504,
+              "seconds": 0.011
+            },
+            {
+              "from": 196.528,
+              "to": 196.539,
+              "seconds": 0.011
+            }
+          ],
+          "downloadStartedAt": 1.748,
+          "publishedAt": 24.275,
+          "bytes": 45849828,
+          "HITResponses": 11,
+          "flightIDs": [
+            1
+          ]
+        }
+      ],
+      "attachedFlightIDs": [
+        1
+      ],
+      "requestExamples": [
+        {
+          "id": 1,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=22446080-25919487",
+          "hostAlias": "host-1",
+          "start": 1.748,
+          "end": 6.917,
+          "status": 206,
+          "bytes": 622592,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 6296.6945
+        },
+        {
+          "id": 2,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 34.433,
+          "end": 34.618,
+          "status": 206,
+          "bytes": 4456448,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0.9997
+        },
+        {
+          "id": 3,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 35.237,
+          "end": 35.246,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0.5891
+        },
+        {
+          "id": 4,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=3694592-45849827",
+          "hostAlias": "host-1",
+          "start": 35.705,
+          "end": 36.014,
+          "status": 206,
+          "bytes": 1048576,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0.5029
+        },
+        {
+          "id": 6,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=35536896-45849827",
+          "hostAlias": "host-1",
+          "start": 40.06,
+          "end": 49.038,
+          "status": 206,
+          "bytes": 10312932,
+          "outcome": "completed",
+          "cache": "HIT",
+          "firstBodyMs": 9.7846
+        },
+        {
+          "id": 7,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 189.094,
+          "end": 189.353,
+          "status": 206,
+          "bytes": 1835008,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 1.5056
+        },
+        {
+          "id": 8,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 189.886,
+          "end": 189.894,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 1.0046
+        },
+        {
+          "id": 9,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=1130496-45849827",
+          "hostAlias": "host-1",
+          "start": 190.327,
+          "end": 190.639,
+          "status": 206,
+          "bytes": 1048576,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0.5035
+        },
+        {
+          "id": 12,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=43778048-45849827",
+          "hostAlias": "host-1",
+          "start": 196.539,
+          "end": 196.548,
+          "status": 206,
+          "bytes": 2071780,
+          "outcome": "completed",
+          "cache": "HIT",
+          "firstBodyMs": 10.2972
+        }
+      ],
+      "keyEvents": [
+        {
+          "t": 1.748,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 639,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "flight_id": 1,
+          "background": false,
+          "size": 45849828,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 24.227,
+          "event": "download_verified",
+          "source": "app.log",
+          "line": 648,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 45849828,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 24.275,
+          "event": "download_published",
+          "source": "app.log",
+          "line": 651,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "flight_id": 1,
+          "background": false,
+          "size": 45849828,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 24.275,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 652,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 45849828,
+          "outcome": "completed",
+          "elapsed_ms": 22526,
+          "stage": "index",
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 34.433,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 654,
+          "request_id": 2,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "range": "bytes=0-",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 35.237,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 658,
+          "request_id": 3,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "range": "",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "resolver-user-agent"
+        },
+        {
+          "t": 35.705,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 662,
+          "request_id": 4,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "range": "bytes=3694592-45849827",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 36.017,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 666,
+          "request_id": 5,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "range": "bytes=5029888-45849827",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 40.06,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 670,
+          "request_id": 6,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "range": "bytes=35536896-45849827",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 189.094,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 674,
+          "request_id": 7,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "range": "bytes=0-",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 189.886,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 678,
+          "request_id": 8,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "range": "",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "resolver-user-agent"
+        },
+        {
+          "t": 190.327,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 682,
+          "request_id": 9,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "range": "bytes=1130496-45849827",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 190.65,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 686,
+          "request_id": 10,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "range": "bytes=5029888-45849827",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 193.504,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 690,
+          "request_id": 11,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "range": "bytes=35536896-45849827",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 196.539,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 694,
+          "request_id": 12,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "range": "bytes=43778048-45849827",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        }
+      ],
+      "operations": [
+        {
+          "action": "preview-start-then-seek-forward",
+          "node": "cf",
+          "song": 3214,
+          "event": "instruction",
+          "note": "SWD cold; client may retain partial data; formal stopped; seek about 3 seconds after picture starts.",
+          "stage": "preview-unlimited",
+          "targetFraction": 0.7,
+          "t": 28.299
+        },
+        {
+          "feedback": "3214预览起播正常，从约15%开始，拖到约70%正常",
+          "targetFraction": 0.7,
+          "stage": "preview-unlimited",
+          "action": "preview-start-then-seek-forward",
+          "event": "feedback",
+          "song": 3214,
+          "defaultFraction": 0.15,
+          "t": 76.578
+        },
+        {
+          "song": 3214,
+          "event": "classification",
+          "action": "reclassify-as-hot",
+          "note": "Residual GET at t=1.748 caused complete publication t=24.275 before user reload t=34.266 and forward seek t=40.060; evidence applies to case 9, not cold case 8.",
+          "stage": "preview-unlimited",
+          "t": 126.739
+        },
+        {
+          "song": 3214,
+          "targetSeconds": 10,
+          "event": "instruction",
+          "action": "seek-backward-then-stop",
+          "note": "Actual condition complete SWD cache; then stop preview.",
+          "stage": "preview-unlimited",
+          "t": 126.769
+        },
+        {
+          "event": "feedback",
+          "feedback": "预览结束后拖动进度条无效，重新进入预览拖动了，现在已退出",
+          "resultAfterReopen": "not explicitly reported",
+          "stage": "preview-unlimited",
+          "action": "seek-backward-reopen-and-stop",
+          "song": 3214,
+          "t": 264.75
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 34.266,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 4777,
+          "song": "3214",
+          "node": "cf"
+        },
+        {
+          "t": 35.266,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 4780,
+          "song": "3214",
+          "node": "cf"
+        },
+        {
+          "t": 35.266,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4782
+        },
+        {
+          "t": 35.266,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4783
+        },
+        {
+          "t": 35.266,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4785,
+          "song": "3214"
+        },
+        {
+          "t": 188.266,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 4799,
+          "song": "3214",
+          "node": "cf"
+        },
+        {
+          "t": 189.266,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 4802,
+          "song": "3214",
+          "node": "cf"
+        },
+        {
+          "t": 190.266,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4804
+        },
+        {
+          "t": 190.266,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4805
+        },
+        {
+          "t": 190.266,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4807,
+          "song": "3214"
+        }
+      ],
+      "limits": "GET concurrency is downstream and does not measure upstream request budget. Open requests are right-censored. Operation timestamps are instruction/acknowledgment times. Game callback is not proof of visible playback."
+    },
+    {
+      "id": "preview-unlimited-retry1",
+      "rateBytesPerSecond": 0,
+      "timeBasis": "seconds from this service cache_engine_ready; game timestamps one-second resolution; operation instruction/feedback times are not exact action times",
+      "requestCount": 6,
+      "WMFRequestCount": 5,
+      "openRequests": 0,
+      "maximumConcurrentGETs": 1,
+      "internalAllGETGaps": [
+        {
+          "from": 35.61,
+          "to": 36.578,
+          "seconds": 0.968
+        },
+        {
+          "from": 38.441,
+          "to": 38.834,
+          "seconds": 0.393
+        },
+        {
+          "from": 41.669,
+          "to": 41.68,
+          "seconds": 0.011
+        },
+        {
+          "from": 45.017,
+          "to": 45.02,
+          "seconds": 0.003
+        },
+        {
+          "from": 53.498,
+          "to": 53.509,
+          "seconds": 0.011
+        }
+      ],
+      "resourceKeys": [
+        "c123d0dd70b20aabcc2544c4e3fe294b",
+        "a23191233a3f914afe16850c6c04813b"
+      ],
+      "resources": [
+        {
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "requestCount": 1,
+          "internalGETGaps": [],
+          "HITResponses": 1,
+          "flightIDs": []
+        },
+        {
+          "key": "a23191233a3f914afe16850c6c04813b",
+          "requestCount": 5,
+          "internalGETGaps": [
+            {
+              "from": 38.441,
+              "to": 38.834,
+              "seconds": 0.393
+            },
+            {
+              "from": 41.669,
+              "to": 41.68,
+              "seconds": 0.011
+            },
+            {
+              "from": 45.017,
+              "to": 45.02,
+              "seconds": 0.003
+            },
+            {
+              "from": 53.498,
+              "to": 53.509,
+              "seconds": 0.011
+            }
+          ],
+          "downloadStartedAt": 36.578,
+          "publishedAt": 60.77,
+          "bytes": 38976068,
+          "HITResponses": 0,
+          "flightIDs": [
+            1
+          ]
+        }
+      ],
+      "attachedFlightIDs": [
+        1
+      ],
+      "requestExamples": [
+        {
+          "id": 1,
+          "key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 35.389,
+          "end": 35.61,
+          "status": 206,
+          "bytes": 4423680,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0.7956
+        },
+        {
+          "id": 2,
+          "key": "a23191233a3f914afe16850c6c04813b",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 36.578,
+          "end": 38.441,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 2257.917
+        },
+        {
+          "id": 3,
+          "key": "a23191233a3f914afe16850c6c04813b",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 38.834,
+          "end": 41.669,
+          "status": 206,
+          "bytes": 3407872,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 1.0059
+        },
+        {
+          "id": 4,
+          "key": "a23191233a3f914afe16850c6c04813b",
+          "role": "WMF-player",
+          "range": "bytes=3948544-38976067",
+          "hostAlias": "host-1",
+          "start": 41.68,
+          "end": 45.017,
+          "status": 206,
+          "bytes": 3883008,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 9.8129
+        },
+        {
+          "id": 6,
+          "key": "a23191233a3f914afe16850c6c04813b",
+          "role": "WMF-player",
+          "range": "bytes=25755648-38976067",
+          "hostAlias": "host-1",
+          "start": 53.509,
+          "end": 66.557,
+          "status": 206,
+          "bytes": 13220420,
+          "outcome": "completed",
+          "cache": "MISS",
+          "firstBodyMs": 10.3501
+        }
+      ],
+      "keyEvents": [
+        {
+          "t": 35.389,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 708,
+          "request_id": 1,
+          "resource_key": "c123d0dd70b20aabcc2544c4e3fe294b",
+          "range": "bytes=0-",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 36.578,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 713,
+          "resource_key": "a23191233a3f914afe16850c6c04813b",
+          "key": "a23191233a3f914afe16850c6c04813b",
+          "flight_id": 1,
+          "background": false,
+          "size": 38976068,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 60.726,
+          "event": "download_verified",
+          "source": "app.log",
+          "line": 737,
+          "resource_key": "a23191233a3f914afe16850c6c04813b",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 38976068,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 60.77,
+          "event": "download_published",
+          "source": "app.log",
+          "line": 740,
+          "resource_key": "a23191233a3f914afe16850c6c04813b",
+          "key": "a23191233a3f914afe16850c6c04813b",
+          "flight_id": 1,
+          "background": false,
+          "size": 38976068,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 60.77,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 741,
+          "resource_key": "a23191233a3f914afe16850c6c04813b",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 38976068,
+          "outcome": "completed",
+          "elapsed_ms": 24192,
+          "stage": "index",
+          "hostAlias": "host-2"
+        }
+      ],
+      "operations": [
+        {
+          "node": "cf",
+          "note": "Fresh target song not present in SWD cache; complete 3214 retained for late old GETs; formal stopped.",
+          "targetFraction": 0.7,
+          "event": "instruction",
+          "stage": "preview-unlimited-retry1",
+          "action": "preview-start-then-seek-forward",
+          "t": 16.258
+        },
+        {
+          "song": 5396,
+          "event": "feedback",
+          "defaultFraction": 0.15,
+          "stage": "preview-unlimited-retry1",
+          "action": "preview-start-then-seek-forward",
+          "feedback": "预览起播正常，从约15%开始，拖到约70%等几秒后正常；歌曲ID随后更正为5396",
+          "targetFraction": 0.7,
+          "t": 131.797
+        },
+        {
+          "action": "stop",
+          "feedback": "done",
+          "stage": "preview-unlimited-retry1",
+          "event": "feedback",
+          "t": 185.756
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 34.441,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 4842,
+          "song": "5396",
+          "node": "cf"
+        },
+        {
+          "t": 38.441,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 4845,
+          "song": "5396",
+          "node": "cf"
+        },
+        {
+          "t": 41.441,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4847
+        },
+        {
+          "t": 41.441,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4848
+        },
+        {
+          "t": 41.441,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4850,
+          "song": "5396"
+        }
+      ],
+      "limits": "GET concurrency is downstream and does not measure upstream request budget. Open requests are right-censored. Operation timestamps are instruction/acknowledgment times. Game callback is not proof of visible playback."
+    },
+    {
+      "id": "dual-limited",
+      "rateBytesPerSecond": 125000,
+      "timeBasis": "seconds from this service cache_engine_ready; game timestamps one-second resolution; operation instruction/feedback times are not exact action times",
+      "requestCount": 28,
+      "WMFRequestCount": 25,
+      "openRequests": 0,
+      "maximumConcurrentGETs": 2,
+      "internalAllGETGaps": [
+        {
+          "from": 72.049,
+          "to": 72.447,
+          "seconds": 0.398
+        },
+        {
+          "from": 97.548,
+          "to": 97.559,
+          "seconds": 0.011
+        }
+      ],
+      "resourceKeys": [
+        "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+        "a23191233a3f914afe16850c6c04813b",
+        "92624f93385c54100bd291b73a41ffa4"
+      ],
+      "resources": [
+        {
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "requestCount": 25,
+          "internalGETGaps": [
+            {
+              "from": 72.049,
+              "to": 72.447,
+              "seconds": 0.398
+            },
+            {
+              "from": 97.548,
+              "to": 97.559,
+              "seconds": 0.011
+            },
+            {
+              "from": 335.448,
+              "to": 335.966,
+              "seconds": 0.518
+            }
+          ],
+          "downloadStartedAt": 63.205,
+          "bytes": 45355460,
+          "HITResponses": 0,
+          "flightIDs": [
+            1
+          ]
+        },
+        {
+          "key": "a23191233a3f914afe16850c6c04813b",
+          "requestCount": 1,
+          "internalGETGaps": [],
+          "HITResponses": 1,
+          "flightIDs": []
+        },
+        {
+          "key": "92624f93385c54100bd291b73a41ffa4",
+          "requestCount": 2,
+          "internalGETGaps": [
+            {
+              "from": 347.073,
+              "to": 347.415,
+              "seconds": 0.342
+            }
+          ],
+          "downloadStartedAt": 327.456,
+          "bytes": 49991648,
+          "HITResponses": 0,
+          "flightIDs": [
+            2
+          ]
+        }
+      ],
+      "attachedFlightIDs": [
+        1,
+        2
+      ],
+      "requestExamples": [
+        {
+          "id": 1,
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 63.204,
+          "end": 72.049,
+          "status": 200,
+          "bytes": 262144,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 9235.6085
+        },
+        {
+          "id": 2,
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 72.447,
+          "end": 97.548,
+          "status": 206,
+          "bytes": 2097152,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.8026
+        },
+        {
+          "id": 3,
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "role": "WMF-player",
+          "range": "bytes=4374528-45355459",
+          "hostAlias": "host-1",
+          "start": 97.559,
+          "end": 131.553,
+          "status": 206,
+          "bytes": 1261568,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 8075.4266
+        },
+        {
+          "id": 4,
+          "key": "a23191233a3f914afe16850c6c04813b",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 129.794,
+          "end": 129.978,
+          "status": 206,
+          "bytes": 4980736,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0.5039
+        },
+        {
+          "id": 5,
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 130.561,
+          "end": 130.562,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5043
+        },
+        {
+          "id": 6,
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 130.962,
+          "end": 131.339,
+          "status": 206,
+          "bytes": 4718592,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.7083
+        },
+        {
+          "id": 17,
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "role": "WMF-player",
+          "range": "bytes=26705920-45355459",
+          "hostAlias": "host-1",
+          "start": 219.161,
+          "end": 236.689,
+          "status": 206,
+          "bytes": 491520,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 17537.2744
+        },
+        {
+          "id": 18,
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "role": "WMF-player",
+          "range": "bytes=37699584-45355459",
+          "hostAlias": "host-1",
+          "start": 227.812,
+          "end": 245.554,
+          "status": 206,
+          "bytes": 49152,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 17751.3176
+        },
+        {
+          "id": 19,
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "role": "WMF-player",
+          "range": "bytes=31113216-45355459",
+          "hostAlias": "host-1",
+          "start": 236.7,
+          "end": 254.521,
+          "status": 206,
+          "bytes": 344064,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 17830.0164
+        },
+        {
+          "id": 20,
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "role": "WMF-player",
+          "range": "bytes=41238528-45355459",
+          "hostAlias": "host-1",
+          "start": 245.557,
+          "end": 263.227,
+          "status": 206,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 17670.0997
+        },
+        {
+          "id": 25,
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "role": "WMF-player",
+          "range": "bytes=45080576-45355459",
+          "hostAlias": "host-1",
+          "start": 311.955,
+          "end": 325.738,
+          "status": 206,
+          "bytes": 274884,
+          "outcome": "completed",
+          "cache": "MISS",
+          "firstBodyMs": 0.65
+        },
+        {
+          "id": 26,
+          "key": "92624f93385c54100bd291b73a41ffa4",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 327.455,
+          "end": 347.073,
+          "status": 503,
+          "bytes": 20,
+          "outcome": "canceled",
+          "cache": "",
+          "firstBodyMs": 20014.23
+        },
+        {
+          "id": 27,
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "role": "WMF-player",
+          "range": "bytes=34594816-45355459",
+          "hostAlias": "host-1",
+          "start": 335.966,
+          "end": 353.276,
+          "status": 206,
+          "bytes": 8192,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5034
+        },
+        {
+          "id": 28,
+          "key": "92624f93385c54100bd291b73a41ffa4",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 347.415,
+          "end": 353.841,
+          "status": 503,
+          "bytes": 20,
+          "outcome": "canceled",
+          "cache": "",
+          "firstBodyMs": 6425.5857
+        }
+      ],
+      "keyEvents": [
+        {
+          "t": 63.205,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 756,
+          "resource_key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "flight_id": 1,
+          "background": false,
+          "size": 45355460,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 129.794,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 775,
+          "request_id": 4,
+          "resource_key": "a23191233a3f914afe16850c6c04813b",
+          "range": "bytes=0-",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 327.456,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 878,
+          "resource_key": "92624f93385c54100bd291b73a41ffa4",
+          "key": "92624f93385c54100bd291b73a41ffa4",
+          "flight_id": 2,
+          "background": false,
+          "size": 49991648,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 353.841,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 901,
+          "resource_key": "92624f93385c54100bd291b73a41ffa4",
+          "flight_id": 2,
+          "background": false,
+          "bytes": 555672,
+          "outcome": "canceled",
+          "elapsed_ms": 26386,
+          "stage": "range_download",
+          "hostAlias": "host-2",
+          "errorClass": "context-canceled"
+        },
+        {
+          "t": 353.841,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 903,
+          "resource_key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 33834469,
+          "outcome": "canceled",
+          "elapsed_ms": 290637,
+          "stage": "range_download",
+          "hostAlias": "host-2",
+          "errorClass": "context-canceled"
+        }
+      ],
+      "operations": [
+        {
+          "node": "cf",
+          "event": "instruction",
+          "action": "formal-start",
+          "stage": "dual-limited",
+          "note": "Fresh target; preview closed; start formal alone first. Existing complete old videos retained to absorb late GETs.",
+          "t": 32.304
+        },
+        {
+          "event": "feedback",
+          "song": 10938,
+          "stage": "dual-limited",
+          "action": "formal-start",
+          "feedback": "10938加载许久播放一点卡住很久",
+          "t": 99.123
+        },
+        {
+          "song": 10938,
+          "stage": "dual-limited",
+          "event": "instruction",
+          "action": "add-same-video-preview",
+          "note": "Keep formal playing; no seek yet; compare both pictures.",
+          "t": 117.786
+        },
+        {
+          "song": 10938,
+          "action": "add-same-video-preview",
+          "formal": "仍然卡住",
+          "stage": "dual-limited",
+          "event": "feedback",
+          "preview": "从约20%播一点卡住很久",
+          "t": 194.223
+        },
+        {
+          "stage": "dual-limited",
+          "song": 10938,
+          "observeSeconds": 15,
+          "targetFraction": 0.7,
+          "event": "instruction",
+          "action": "seek-preview-forward",
+          "note": "Keep formal unchanged; report both players separately.",
+          "t": 223.89
+        },
+        {
+          "feedback": "预览进度条跳回来，两个播放均保持卡住",
+          "action": "seek-preview-forward",
+          "song": 10938,
+          "event": "feedback",
+          "stage": "dual-limited",
+          "limitation": "Formal already stalled before preview seek; incremental impact cannot be isolated from visual feedback.",
+          "t": 322.143
+        },
+        {
+          "event": "feedback",
+          "feedback": "done",
+          "action": "stop-both",
+          "stage": "dual-limited",
+          "t": 353.777
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 61.569,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 4927,
+          "song": "10938",
+          "node": "cf"
+        },
+        {
+          "t": 71.569,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 4960,
+          "song": "10938",
+          "node": "cf"
+        },
+        {
+          "t": 72.569,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4971
+        },
+        {
+          "t": 72.569,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4972
+        },
+        {
+          "t": 72.569,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 4975,
+          "song": "10938"
+        },
+        {
+          "t": 129.569,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 5003,
+          "song": "10938",
+          "node": "cf"
+        },
+        {
+          "t": 130.569,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 5007,
+          "song": "10938",
+          "node": "cf"
+        },
+        {
+          "t": 130.569,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5009
+        },
+        {
+          "t": 130.569,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5010
+        },
+        {
+          "t": 130.569,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5012,
+          "song": "10938"
+        },
+        {
+          "t": 325.569,
+          "event": "OnVideoEnd",
+          "source": "game-session",
+          "line": 5102,
+          "song": "10938"
+        },
+        {
+          "t": 325.569,
+          "event": "OnVideoEnd",
+          "source": "game-session",
+          "line": 5103,
+          "song": "10938"
+        },
+        {
+          "t": 325.569,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 5138,
+          "song": "5735",
+          "node": "cf"
+        },
+        {
+          "t": 332.569,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 5166
+        },
+        {
+          "t": 332.569,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 5188
+        },
+        {
+          "t": 332.569,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 5210
+        },
+        {
+          "t": 335.569,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 5232
+        },
+        {
+          "t": 346.569,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 5256,
+          "song": "5735",
+          "node": "cf"
+        }
+      ],
+      "limits": "GET concurrency is downstream and does not measure upstream request budget. Open requests are right-censored. Operation timestamps are instruction/acknowledgment times. Game callback is not proof of visible playback."
+    },
+    {
+      "id": "dual-unlimited",
+      "rateBytesPerSecond": 0,
+      "timeBasis": "seconds from this service cache_engine_ready; game timestamps one-second resolution; operation instruction/feedback times are not exact action times",
+      "requestCount": 10,
+      "WMFRequestCount": 7,
+      "openRequests": 0,
+      "maximumConcurrentGETs": 2,
+      "internalAllGETGaps": [
+        {
+          "from": 47.339,
+          "to": 150.173,
+          "seconds": 102.834
+        },
+        {
+          "from": 154.649,
+          "to": 155.055,
+          "seconds": 0.406
+        }
+      ],
+      "resourceKeys": [
+        "92624f93385c54100bd291b73a41ffa4",
+        "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+        "3590929cbfde34b1e542150d48546150"
+      ],
+      "resources": [
+        {
+          "key": "92624f93385c54100bd291b73a41ffa4",
+          "requestCount": 2,
+          "internalGETGaps": [],
+          "downloadStartedAt": 0.503,
+          "publishedAt": 19.329,
+          "bytes": 49991648,
+          "HITResponses": 0,
+          "flightIDs": [
+            1
+          ]
+        },
+        {
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "requestCount": 2,
+          "internalGETGaps": [
+            {
+              "from": 47.339,
+              "to": 162.841,
+              "seconds": 115.502
+            }
+          ],
+          "downloadStartedAt": 28.218,
+          "publishedAt": 47.334,
+          "bytes": 45355460,
+          "HITResponses": 1,
+          "flightIDs": [
+            2
+          ]
+        },
+        {
+          "key": "3590929cbfde34b1e542150d48546150",
+          "requestCount": 6,
+          "internalGETGaps": [
+            {
+              "from": 154.649,
+              "to": 155.055,
+              "seconds": 0.406
+            }
+          ],
+          "downloadStartedAt": 150.173,
+          "publishedAt": 177.578,
+          "bytes": 54919233,
+          "HITResponses": 0,
+          "flightIDs": [
+            3
+          ]
+        }
+      ],
+      "attachedFlightIDs": [
+        1,
+        2,
+        3
+      ],
+      "requestExamples": [
+        {
+          "id": 1,
+          "key": "92624f93385c54100bd291b73a41ffa4",
+          "role": "WMF-player",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 0.503,
+          "end": 3.59,
+          "status": 200,
+          "bytes": 589824,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 3026.8657
+        },
+        {
+          "id": 2,
+          "key": "92624f93385c54100bd291b73a41ffa4",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 3.548,
+          "end": 38.777,
+          "status": 206,
+          "bytes": 49991648,
+          "outcome": "completed",
+          "cache": "MISS",
+          "firstBodyMs": 0.5039
+        },
+        {
+          "id": 3,
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "role": "lab-warmup",
+          "range": "",
+          "hostAlias": "host-2",
+          "start": 28.218,
+          "end": 47.339,
+          "status": 200,
+          "bytes": 45355460,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 2801.1868
+        },
+        {
+          "id": 4,
+          "key": "3590929cbfde34b1e542150d48546150",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 150.173,
+          "end": 154.649,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 5685.9198
+        },
+        {
+          "id": 5,
+          "key": "3590929cbfde34b1e542150d48546150",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 155.055,
+          "end": 224.707,
+          "status": 206,
+          "bytes": 54919233,
+          "outcome": "completed",
+          "cache": "MISS",
+          "firstBodyMs": 0.503
+        },
+        {
+          "id": 6,
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 162.841,
+          "end": 162.97,
+          "status": 206,
+          "bytes": 4456448,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0.5032
+        },
+        {
+          "id": 7,
+          "key": "3590929cbfde34b1e542150d48546150",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 163.621,
+          "end": 163.623,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 0.5031
+        },
+        {
+          "id": 8,
+          "key": "3590929cbfde34b1e542150d48546150",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 164.023,
+          "end": 164.478,
+          "status": 206,
+          "bytes": 4456448,
+          "outcome": "canceled",
+          "cache": "MISS",
+          "firstBodyMs": 2.7678
+        },
+        {
+          "id": 10,
+          "key": "3590929cbfde34b1e542150d48546150",
+          "role": "WMF-player",
+          "range": "bytes=37781504-54919232",
+          "hostAlias": "host-1",
+          "start": 167.505,
+          "end": 191.383,
+          "status": 206,
+          "bytes": 17137729,
+          "outcome": "completed",
+          "cache": "MISS",
+          "firstBodyMs": 2771.6719
+        }
+      ],
+      "keyEvents": [
+        {
+          "t": 0.503,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 914,
+          "resource_key": "92624f93385c54100bd291b73a41ffa4",
+          "key": "92624f93385c54100bd291b73a41ffa4",
+          "flight_id": 1,
+          "background": false,
+          "size": 49991648,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 19.274,
+          "event": "download_verified",
+          "source": "app.log",
+          "line": 926,
+          "resource_key": "92624f93385c54100bd291b73a41ffa4",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 49991648,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 19.329,
+          "event": "download_published",
+          "source": "app.log",
+          "line": 929,
+          "resource_key": "92624f93385c54100bd291b73a41ffa4",
+          "key": "92624f93385c54100bd291b73a41ffa4",
+          "flight_id": 1,
+          "background": false,
+          "size": 49991648,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 19.329,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 930,
+          "resource_key": "92624f93385c54100bd291b73a41ffa4",
+          "flight_id": 1,
+          "background": false,
+          "bytes": 49991648,
+          "outcome": "completed",
+          "elapsed_ms": 18826,
+          "stage": "index",
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 28.218,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 933,
+          "resource_key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "flight_id": 2,
+          "background": false,
+          "size": 45355460,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 47.286,
+          "event": "download_verified",
+          "source": "app.log",
+          "line": 942,
+          "resource_key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "flight_id": 2,
+          "background": false,
+          "bytes": 45355460,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 47.334,
+          "event": "download_published",
+          "source": "app.log",
+          "line": 945,
+          "resource_key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "flight_id": 2,
+          "background": false,
+          "size": 45355460,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 47.334,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 946,
+          "resource_key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "flight_id": 2,
+          "background": false,
+          "bytes": 45355460,
+          "outcome": "completed",
+          "elapsed_ms": 19116,
+          "stage": "index",
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 150.173,
+          "event": "download_started",
+          "source": "app.log",
+          "line": 951,
+          "resource_key": "3590929cbfde34b1e542150d48546150",
+          "key": "3590929cbfde34b1e542150d48546150",
+          "flight_id": 3,
+          "background": false,
+          "size": 54919233,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 162.841,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 962,
+          "request_id": 6,
+          "resource_key": "ca3a22ffbed8ebe81eabb02d6ac39b7b",
+          "range": "bytes=0-",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 177.523,
+          "event": "download_verified",
+          "source": "app.log",
+          "line": 982,
+          "resource_key": "3590929cbfde34b1e542150d48546150",
+          "flight_id": 3,
+          "background": false,
+          "bytes": 54919233,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 177.578,
+          "event": "download_published",
+          "source": "app.log",
+          "line": 985,
+          "resource_key": "3590929cbfde34b1e542150d48546150",
+          "key": "3590929cbfde34b1e542150d48546150",
+          "flight_id": 3,
+          "background": false,
+          "size": 54919233,
+          "hostAlias": "host-2"
+        },
+        {
+          "t": 177.578,
+          "event": "cache_task_finished",
+          "source": "app.log",
+          "line": 986,
+          "resource_key": "3590929cbfde34b1e542150d48546150",
+          "flight_id": 3,
+          "background": false,
+          "bytes": 54919233,
+          "outcome": "completed",
+          "elapsed_ms": 27405,
+          "stage": "index",
+          "hostAlias": "host-2"
+        }
+      ],
+      "operations": [
+        {
+          "action": "warm-old-video",
+          "event": "preparation",
+          "note": "Assistant loopback warmup under unlimited relay; excluded from game test; new target not yet selected.",
+          "song": 10938,
+          "stage": "dual-unlimited",
+          "t": 56.823
+        },
+        {
+          "targetFraction": 0.7,
+          "action": "formal-then-preview-then-seek",
+          "note": "Fresh longer song, start formal then same video preview promptly, seek preview about 2 seconds after preview picture; no waiting for additional assistant prompt.",
+          "event": "instruction",
+          "node": "cf",
+          "stage": "dual-unlimited",
+          "t": 80.137
+        },
+        {
+          "feedback": "1314均正常",
+          "event": "feedback",
+          "stage": "dual-unlimited",
+          "action": "formal-then-preview-then-seek",
+          "song": 1314,
+          "t": 200.723
+        },
+        {
+          "event": "feedback",
+          "action": "stop-both",
+          "stage": "dual-unlimited",
+          "feedback": "done",
+          "t": 244.063
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 3.686,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5267
+        },
+        {
+          "t": 3.686,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5268
+        },
+        {
+          "t": 3.686,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5271,
+          "song": "5735"
+        },
+        {
+          "t": 39.686,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 5281
+        },
+        {
+          "t": 147.686,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 5360,
+          "song": "1314",
+          "node": "cf"
+        },
+        {
+          "t": 154.686,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 5393,
+          "song": "1314",
+          "node": "cf"
+        },
+        {
+          "t": 158.686,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5404
+        },
+        {
+          "t": 158.686,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5405
+        },
+        {
+          "t": 158.686,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5408,
+          "song": "1314"
+        },
+        {
+          "t": 162.686,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 5419,
+          "song": "1314",
+          "node": "cf"
+        },
+        {
+          "t": 163.686,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 5422,
+          "song": "1314",
+          "node": "cf"
+        },
+        {
+          "t": 163.686,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5424
+        },
+        {
+          "t": 163.686,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5425
+        },
+        {
+          "t": 163.686,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5427,
+          "song": "1314"
+        },
+        {
+          "t": 229.686,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 5435
+        }
+      ],
+      "limits": "GET concurrency is downstream and does not measure upstream request budget. Open requests are right-censored. Operation timestamps are instruction/acknowledgment times. Game callback is not proof of visible playback."
+    },
+    {
+      "id": "dual-hot",
+      "rateBytesPerSecond": 0,
+      "timeBasis": "seconds from this service cache_engine_ready; game timestamps one-second resolution; operation instruction/feedback times are not exact action times",
+      "requestCount": 7,
+      "WMFRequestCount": 5,
+      "openRequests": 0,
+      "maximumConcurrentGETs": 1,
+      "internalAllGETGaps": [
+        {
+          "from": 24.206,
+          "to": 24.608,
+          "seconds": 0.402
+        },
+        {
+          "from": 24.608,
+          "to": 35.093,
+          "seconds": 10.485
+        },
+        {
+          "from": 35.325,
+          "to": 35.941,
+          "seconds": 0.616
+        },
+        {
+          "from": 35.95,
+          "to": 36.409,
+          "seconds": 0.459
+        },
+        {
+          "from": 36.77,
+          "to": 36.782,
+          "seconds": 0.012
+        },
+        {
+          "from": 38.492,
+          "to": 38.503,
+          "seconds": 0.011
+        }
+      ],
+      "resourceKeys": [
+        "3590929cbfde34b1e542150d48546150"
+      ],
+      "resources": [
+        {
+          "key": "3590929cbfde34b1e542150d48546150",
+          "requestCount": 7,
+          "internalGETGaps": [
+            {
+              "from": 24.206,
+              "to": 24.608,
+              "seconds": 0.402
+            },
+            {
+              "from": 24.608,
+              "to": 35.093,
+              "seconds": 10.485
+            },
+            {
+              "from": 35.325,
+              "to": 35.941,
+              "seconds": 0.616
+            },
+            {
+              "from": 35.95,
+              "to": 36.409,
+              "seconds": 0.459
+            },
+            {
+              "from": 36.77,
+              "to": 36.782,
+              "seconds": 0.012
+            },
+            {
+              "from": 38.492,
+              "to": 38.503,
+              "seconds": 0.011
+            }
+          ],
+          "HITResponses": 7,
+          "flightIDs": []
+        }
+      ],
+      "attachedFlightIDs": [],
+      "requestExamples": [
+        {
+          "id": 1,
+          "key": "3590929cbfde34b1e542150d48546150",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 24.197,
+          "end": 24.206,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0.5044
+        },
+        {
+          "id": 2,
+          "key": "3590929cbfde34b1e542150d48546150",
+          "role": "WMF-player",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 24.608,
+          "end": 24.608,
+          "status": 304,
+          "bytes": 0,
+          "outcome": "completed",
+          "cache": "HIT",
+          "firstBodyMs": null
+        },
+        {
+          "id": 3,
+          "key": "3590929cbfde34b1e542150d48546150",
+          "role": "WMF-player",
+          "range": "bytes=0-",
+          "hostAlias": "host-1",
+          "start": 35.093,
+          "end": 35.325,
+          "status": 206,
+          "bytes": 1933312,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 1.5044
+        },
+        {
+          "id": 4,
+          "key": "3590929cbfde34b1e542150d48546150",
+          "role": "resolver-user-agent",
+          "range": "",
+          "hostAlias": "host-1",
+          "start": 35.941,
+          "end": 35.95,
+          "status": 200,
+          "bytes": 393216,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0
+        },
+        {
+          "id": 5,
+          "key": "3590929cbfde34b1e542150d48546150",
+          "role": "WMF-player",
+          "range": "bytes=1556480-54919232",
+          "hostAlias": "host-1",
+          "start": 36.409,
+          "end": 36.77,
+          "status": 206,
+          "bytes": 1048576,
+          "outcome": "canceled",
+          "cache": "HIT",
+          "firstBodyMs": 0.5022
+        },
+        {
+          "id": 7,
+          "key": "3590929cbfde34b1e542150d48546150",
+          "role": "WMF-player",
+          "range": "bytes=39763968-54919232",
+          "hostAlias": "host-1",
+          "start": 38.503,
+          "end": 56.965,
+          "status": 206,
+          "bytes": 15155265,
+          "outcome": "completed",
+          "cache": "HIT",
+          "firstBodyMs": 10.4245
+        }
+      ],
+      "keyEvents": [
+        {
+          "t": 24.197,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 1002,
+          "request_id": 1,
+          "resource_key": "3590929cbfde34b1e542150d48546150",
+          "range": "",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "resolver-user-agent"
+        },
+        {
+          "t": 24.608,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 1006,
+          "request_id": 2,
+          "resource_key": "3590929cbfde34b1e542150d48546150",
+          "range": "",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 35.093,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 1010,
+          "request_id": 3,
+          "resource_key": "3590929cbfde34b1e542150d48546150",
+          "range": "bytes=0-",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 35.941,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 1014,
+          "request_id": 4,
+          "resource_key": "3590929cbfde34b1e542150d48546150",
+          "range": "",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "resolver-user-agent"
+        },
+        {
+          "t": 36.409,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 1018,
+          "request_id": 5,
+          "resource_key": "3590929cbfde34b1e542150d48546150",
+          "range": "bytes=1556480-54919232",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 36.782,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 1022,
+          "request_id": 6,
+          "resource_key": "3590929cbfde34b1e542150d48546150",
+          "range": "bytes=5177344-54919232",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        },
+        {
+          "t": 38.503,
+          "event": "playback_local_hit",
+          "source": "app.log",
+          "line": 1026,
+          "request_id": 7,
+          "resource_key": "3590929cbfde34b1e542150d48546150",
+          "range": "bytes=39763968-54919232",
+          "method": "GET",
+          "hostAlias": "host-1",
+          "role": "WMF-player"
+        }
+      ],
+      "operations": [
+        {
+          "targetFraction": 0.7,
+          "node": "cf",
+          "action": "formal-then-preview-then-seek",
+          "stage": "dual-hot",
+          "note": "Complete SWD cache; formal remains unchanged while preview seeks.",
+          "song": 1314,
+          "cacheMD5Verified": true,
+          "event": "instruction",
+          "t": 14.027
+        },
+        {
+          "feedback": "1314均正常",
+          "song": 1314,
+          "stage": "dual-hot",
+          "event": "feedback",
+          "action": "formal-then-preview-then-seek",
+          "t": 115.805
+        },
+        {
+          "stage": "dual-hot",
+          "action": "stop-both",
+          "feedback": "done",
+          "event": "feedback",
+          "t": 115.824
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 22.504,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 5505,
+          "song": "1314",
+          "node": "cf"
+        },
+        {
+          "t": 24.504,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 5538,
+          "song": "1314",
+          "node": "cf"
+        },
+        {
+          "t": 32.504,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5551
+        },
+        {
+          "t": 32.504,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5552
+        },
+        {
+          "t": 32.504,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5555,
+          "song": "1314"
+        },
+        {
+          "t": 34.504,
+          "event": "resolver_requested",
+          "source": "game-session",
+          "line": 5566,
+          "song": "1314",
+          "node": "cf"
+        },
+        {
+          "t": 35.504,
+          "event": "resolver_returned",
+          "source": "game-session",
+          "line": 5569,
+          "song": "1314",
+          "node": "cf"
+        },
+        {
+          "t": 36.504,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5571
+        },
+        {
+          "t": 36.504,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5572
+        },
+        {
+          "t": 36.504,
+          "event": "OnVideoStart",
+          "source": "game-session",
+          "line": 5574,
+          "song": "1314"
+        },
+        {
+          "t": 88.504,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 5583
+        },
+        {
+          "t": 88.504,
+          "event": "StopVideo",
+          "source": "game-session",
+          "line": 5606
+        }
+      ],
+      "limits": "GET concurrency is downstream and does not measure upstream request budget. Open requests are right-censored. Operation timestamps are instruction/acknowledgment times. Game callback is not proof of visible playback."
+    }
+  ]
+}

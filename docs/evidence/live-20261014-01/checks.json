@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261014-01",
+  "productSourceDiffEmpty": true,
+  "sourceSHA": "3fae4b81642f27a7a406a828bd8fa0eb79dc8e94",
+  "testedCodePatch": {
+    "privatePath": "<lab>/tested-code.patch",
+    "bytes": 9817,
+    "sha256": "f52f00b3560eb4bfe08252dd8a91b03c9e04585d712d7b0e158e1721e633318d",
+    "scope": "Reconstructs the only uncommitted executable source additions; report/analysis-only changes are outside the tested code patch"
+  },
+  "buildInputs": [
+    {
+      "path": "experiments/live-get-probe/main.go",
+      "actualBuildInputSHA256": "e7e1267181a5445350158db584df04967ef0decf58c9e4212bbb5744aeaed878",
+      "gitBlobSHA256": "e7e1267181a5445350158db584df04967ef0decf58c9e4212bbb5744aeaed878"
+    },
+    {
+      "path": "experiments/live-get-probe/main_test.go",
+      "actualBuildInputSHA256": "94e1b029af571951b921079016569e7a2bea0cb67663fd2a237a85dd39cc39a9",
+      "gitBlobSHA256": "94e1b029af571951b921079016569e7a2bea0cb67663fd2a237a85dd39cc39a9"
+    }
+  ],
+  "automatedChecks": [
+    {
+      "command": "go test -tags=no_easytier ./experiments/live-get-probe -count=3 -timeout=45s",
+      "result": "passed in this session before live samples; 4.040s"
+    },
+    {
+      "command": "go vet -tags=no_easytier ./experiments/live-get-probe",
+      "result": "passed in this session"
+    },
+    {
+      "command": "node --check observe.mjs; node --check summarize.mjs; node --check review-evidence.mjs",
+      "result": "passed; syntax only"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "node scripts/check-repository-artifacts.mjs",
+      "result": "passed for tracked tree/history; untracked additions separately inspected"
+    }
+  ],
+  "cleanup": {
+    "hostsByteIdentical": true,
+    "managedAPI": false,
+    "remainingProcessCount": 0,
+    "remainingListenerCount": 0,
+    "remainingTemporaryFileCount": 0
+  },
+  "privacy": {
+    "method": "Allowlisted fields, relative times, user feedback with no account identifiers; checked public evidence for private paths, signed URLs, tokens and room IDs",
+    "fullLogs": "ignored local lab only"
+  },
+  "git": {
+    "commit": false,
+    "push": false
+  }
+}

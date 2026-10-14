@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 2,
+  "batch": "LIVE-20261014-01",
+  "status": "closed-partial-acceptance",
+  "hashBasis": "git-blob",
+  "lineEndings": "LF",
+  "sourceSHA": "3fae4b81642f27a7a406a828bd8fa0eb79dc8e94",
+  "executables": [
+    {
+      "name": "SWD.exe",
+      "sha256": "C8F57E192690B93D522A896F48C8E0D4F6EF20938FB29D588DE1B1ED76CA1D27"
+    },
+    {
+      "name": "get-probe.exe",
+      "sha256": "984CCC8BFC8FF3EAFF89865BB804B95119E24B6AB493A193CF0CACAC6827E824"
+    }
+  ],
+  "build": {
+    "go": "go version go1.27.1 windows/amd64",
+    "tags": "no_easytier",
+    "CGO": 0,
+    "package": null
+  },
+  "files": [
+    {
+      "path": "checks.json",
+      "bytes": 2206,
+      "sha256": "648b6697de5afa5bfd39f8022b0a2621317804593f973daad0fa53731cc02a0e",
+      "source": "Allowlisted app-log events, relay samples, game-event tokens, local file hashes, explicit user feedback and verification receipts",
+      "redaction": "Relative times; no usernames, room IDs, raw URLs, tokens, terms credentials, absolute private paths or raw game lines"
+    },
+    {
+      "path": "observations.json",
+      "bytes": 20034,
+      "sha256": "379d53c3ecad2bf4893f796814dbb410f4b99295ad8ed7fc7185cf39db1468d6",
+      "source": "Allowlisted app-log events, relay samples, game-event tokens, local file hashes, explicit user feedback and verification receipts",
+      "redaction": "Relative times; no usernames, room IDs, raw URLs, tokens, terms credentials, absolute private paths or raw game lines"
+    }
+  ],
+  "testedCodePatch": {
+    "privatePath": "<lab>/tested-code.patch",
+    "bytes": 9817,
+    "sha256": "f52f00b3560eb4bfe08252dd8a91b03c9e04585d712d7b0e158e1721e633318d",
+    "scope": "Reconstructs the only uncommitted executable source additions; report/analysis-only changes are outside the tested code patch"
+  },
+  "tools": [
+    {
+      "path": "experiments/live-get-probe/main.go",
+      "bytes": 6868,
+      "sha256": "e7e1267181a5445350158db584df04967ef0decf58c9e4212bbb5744aeaed878"
+    },
+    {
+      "path": "experiments/live-get-probe/main_test.go",
+      "bytes": 2186,
+      "sha256": "94e1b029af571951b921079016569e7a2bea0cb67663fd2a237a85dd39cc39a9"
+    },
+    {
+      "path": "experiments/live-get-probe/observe.mjs",
+      "bytes": 2441,
+      "sha256": "f3007601ccaa762df57152ab20a1d6685af5a4b9beacd863e34714bfa556b8c7"
+    },
+    {
+      "path": "experiments/live-get-probe/summarize.mjs",
+      "bytes": 8839,
+      "sha256": "021a5f97e17bb51455a1f369e4d4cd99cf67ccff4da538f0cc5326c82309562b"
+    },
+    {
+      "path": "experiments/live-get-probe/review-evidence.mjs",
+      "bytes": 10396,
+      "sha256": "7ff5d0a64b2c8e7a765ba3a9611961c47e9296815389918003e364d624e3d7b5"
+    },
+    {
+      "path": "experiments/live-get-probe/README.md",
+      "bytes": 3415,
+      "sha256": "a00f159de9e2a1d2cbca7f0345cbde81340a2e041c2ae37a8c26dcdb6a0476fe"
+    }
+  ],
+  "fullTrace": {
+    "status": "local-unpublished",
+    "note": "No public attachment or archive URL claimed. Git contains concise evidence supporting the report; raw private logs are not publishable."
+  }
+}

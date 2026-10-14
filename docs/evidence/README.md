@@ -16,6 +16,8 @@
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [live-20261014-02/manifest.json](live-20261014-02/manifest.json) | 正式刷新/切节点、预览拖动、同视频双播放器及预览拖动的 1 Mbps/不限速/缓存十二场景；保留旧请求干扰、实际热缓存重分类和反馈缺口。不限速/缓存主要交互正常，限速未恢复；hosts/进程/监听已恢复。[报告](../live-acceptance-20261014-02.md)，LA-008/020/037 仍未结 |
+| [live-20261014-01/manifest.json](live-20261014-01/manifest.json) | 真实 VRChat GET 限速观测：前四档顺序播放、128 KiB/s 混合探索、256/64 KiB/s 独立正式播放；保留模式不明和切档重连干扰，hosts/进程/监听已恢复。[报告](../live-acceptance-20261014-01.md)，LA-008/037 未结项 |
 | [cf-cpu-followup-20261014/manifest.json](cf-cpu-followup-20261014/manifest.json) | #20 无 VRC 的等速 CPU 与完整缓存竞争补测：独立本地 TLS 上游、五轮 105 组、零公网流量；含冷/热连接、首读/Seek、内存、取消后关闭、ETW 和 42 组独立 xperf 校核。一次 UAC 的受限助手已退出；见[报告](../issue-20-cf-cpu-followup-20261014.md)。仅实验，默认值未改，LA-037 待验收 |
 | [cf-cpu-20261014/manifest.json](cf-cpu-20261014/manifest.json) | #20 单 IP、最高 32 路的 CPU 调度实验：同时启动、每 250 ms 加一路、逐档增加，三轮共 45 组、13,406 个校验通过的请求；包含逐线程/逻辑处理器证据、峰值及独立 xperf 校核，保留流量上限失败和干扰重测历史。见[报告](../issue-20-cf-cpu-20261014.md)；未运行游戏，LA-037 待验收 |
 | [cf-high-concurrency-20261014/manifest.json](cf-high-concurrency-20261014/manifest.json) | #20 固定单 IP、新资源 96 MiB 区间的 8/12/16/24/32 路五轮位置平衡对照；26 组、2,401 请求、2,496 MiB，全部保留，见[报告](../issue-20-cf-high-concurrency-20261014.md)。32 路仍有收益，不代表最优默认值；LA-037 待验收 |

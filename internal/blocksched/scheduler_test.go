@@ -38,10 +38,9 @@ func TestIndependentLeasesAndLateUpdates(t *testing.T) {
 		if summary.Blocking || summary.Owner != "b" {
 			t.Fatalf("stale urgency: %+v", summary)
 		}
-		h := need("b", false, time.Second, time.Second)
-		b.Close(&h)
+		b.Close()
 		if b.Update(need("b", true, 0, time.Hour)) {
-			t.Fatal("closed handle revived handoff")
+			t.Fatal("closed handle revived demand")
 		}
 		time.Sleep(2 * time.Second)
 		synctest.Wait()
@@ -81,7 +80,7 @@ func TestSharedExecutionFairBlockingAndReleaseAfterCleanup(t *testing.T) {
 				t.Fatal("duplicate execution")
 			}
 		}
-		d.Close(nil)
+		d.Close()
 		synctest.Wait()
 		select {
 		case <-started:

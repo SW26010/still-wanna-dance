@@ -25,7 +25,7 @@ func TestSummaryUpdatesReleaseOldOwnersAndCounters(t *testing.T) {
 				t.Errorf("stale owner/counters: %d %d %d %d", st.wanted, st.blocking, len(st.groups), len(st.owners))
 			}
 		})
-		d.Close(nil)
+		d.Close()
 		synctest.Wait()
 		s.call(func(st *state) {
 			if st.wanted != 0 || st.blocking != 0 || len(st.groups) != 0 || len(st.sleeping) != 0 {
@@ -72,10 +72,15 @@ func TestResponseCostDiscoveryAndMetadataCapacity(t *testing.T) {
 	if !d.Accepted() || task.Add(need("two", false, 0, time.Hour)).Accepted() {
 		t.Fatal("demand bound ignored")
 	}
-	h := need("one", false, time.Minute, time.Hour)
-	d.Close(&h)
+	if !d.Update(need("one", false, time.Minute, time.Hour)) {
+		t.Fatal("existing demand update rejected at capacity")
+	}
 	if task.Add(need("two", false, 0, time.Hour)).Accepted() {
-		t.Fatal("handoff escaped demand limit")
+		t.Fatal("update escaped demand limit")
+	}
+	d.Close()
+	if !task.Add(need("two", false, 0, time.Hour)).Accepted() {
+		t.Fatal("closed demand leaked capacity")
 	}
 	task.Close()
 	<-task.Done()

@@ -94,10 +94,15 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 	defer release()
 	now := time.Now()
 	plan, _ := w.plan(now, false)
-	old := plan[0][blockSource{"queue", queueSource{"2", s.prefetchGeneration["2"]}}].need.ReadyBy
+	key := blockSource{"queue", queueSource{"2", s.prefetchGeneration["2"]}}
+	before, ok := plan[0][key]
+	if !ok || before.source != sourceQueue || before.need.ReadyBy.IsZero() {
+		t.Fatal("ordinary queue source missing")
+	}
 	s.UpdatePrefetchQueue([]int64{2, 1}, false)
 	plan, _ = w.plan(now, false)
-	if !plan[0][blockSource{"queue", "2"}].need.ReadyBy.Before(old) {
+	after, ok := plan[0][key]
+	if !ok || after.source != sourceQueueHead || !after.need.ReadyBy.Equal(before.need.ReadyBy.Add(-30*time.Second)) {
 		t.Fatal("queue reorder did not update deadline")
 	}
 	job, _ := s.scheduler.Submit("test", 1, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {

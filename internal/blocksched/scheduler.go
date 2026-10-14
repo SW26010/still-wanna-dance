@@ -158,9 +158,8 @@ func (d *Demand) Update(n Need) bool {
 	return ok
 }
 
-// Close atomically withdraws the old contribution. A finite handoff is an
-// independent lease, so a late Update cannot extend it or revive Blocking.
-func (d *Demand) Close(handoff *Need) {
+// Close withdraws this contribution. A late Update cannot recreate it.
+func (d *Demand) Close() {
 	d.task.s.call(func(s *state) {
 		v := s.lookup(d)
 		if v == nil {
@@ -168,15 +167,6 @@ func (d *Demand) Close(handoff *Need) {
 		}
 		j := v.job
 		s.removeLease(v)
-		if handoff != nil && handoff.LeaseUntil.After(time.Now()) {
-			s.sequence++
-			n := *handoff
-			n.Blocking = false
-			v = &lease{id: s.sequence, job: j, need: n, index: -1}
-			j.needs[v.id] = v
-			s.demandCount++
-			heap.Push(&s.expiry, v)
-		}
 		s.refresh(j)
 	})
 }

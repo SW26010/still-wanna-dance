@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "historyBaseline": "a159768968478288a751d8addd654d759dcee4d1",
+  "warnBytes": 262144,
+  "maxBytes": 1048576,
+  "exceptions": [
+    {
+      "path": "internal/cacheproxy/testdata/storage-v2.sqlite",
+      "kind": "binary-fixture",
+      "bytes": 106496,
+      "sha256": "5d42aa094ea8fae9e91bb1358226454e8ac8c3a08e36621541ec492dbc0f78ad",
+      "reason": "Frozen schema v2 compatibility fixture; preserve its original bytes."
+    },
+    {
+      "path": "THIRD-PARTY-NOTICES.txt",
+      "kind": "large-text",
+      "bytes": 694294,
+      "sha256": "2d582927ef45a8394244f4c9587fb9042902bacbb0d5b2763b2127fab258f5ef",
+      "reason": "Required complete third-party license notices."
+    },
+    {
+      "path": "docs/research/cache-priority/study-data.json",
+      "kind": "large-text",
+      "bytes": 2458087,
+      "sha256": "0ce6e567545eaebafe74e7c951258f42f02cba7f5ff4b7d71f5d6993c02b7bb9",
+      "reason": "Published research data retained without rewriting remote history."
+    },
+    {
+      "path": "docs/research/cache-priority/size-snapshot.json",
+      "kind": "large-text",
+      "bytes": 2026746,
+      "sha256": "77f862efbc28b860867f382d17ab55afe01775881cec51087cca936bfc430c57",
+      "reason": "Published research input retained without rewriting remote history."
+    },
+    {
+      "path": "docs/evidence/live-acceptance-20261007.json",
+      "kind": "large-text",
+      "bytes": 289569,
+      "sha256": "8dbee2516b7d7eaeb7d5f98406aa929ff5a5967b2d393cc3c44c565479c117b2",
+      "reason": "Published historical acceptance evidence; retain unchanged."
+    }
+  ]
+}

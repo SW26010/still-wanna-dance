@@ -125,3 +125,7 @@ CPU 主指标由 ETW 调度区间计算，并扣除合并后的 DPC/ISR 区间�
 公开调度证据采用 `delta-us-v1` 无损整数编码：按起始时刻排序，`intervalsDelta` 每项为 `[与前一项起点的微秒差, 持续微秒, 组内线程序号, 逻辑 CPU]`；`systemInterruptsDelta` 同理但没有线程序号；`readyDelta` 第二项原样保留 Ready 持续时间；`switchDeltaUS` 为相邻切入事件的时间差。使用 `analyze_cpu.unpack_trace` 可完整还原后复算。压缩不降低时间分辨率，不丢弃短峰。
 
 若发现编译/轨迹分析等本任务外加负载与测量重叠，保留整次受影响区组，移入明确命名的忽略目录，按原顺序重跑完整区组；`--trace-stem` 用新名称避免覆盖旧 ETL。主采集完成并确认退出后才做批量分析。合计 24 GiB 预算保守计入历史完成数据、未保存中断组的 2 GiB 上界及试采/预热流量。
+
+## 历史证据获取与绘图
+
+完整脱敏请求和调度轨迹已归档。先按[证据存储约定](../../docs/evidence-storage.md)运行 `python scripts/evidence_archive.py <batch>`，再将原脚本的输入指向 `artifacts/evidence/<batch>/docs/evidence/<batch>/`。Git 保留报告、精简绘图数据与 SVG；原始清单、历史脚本及被测源码快照随附件保存。现有采集命令生成的完整数据应写入忽略目录，不能直接提交图片或压缩包。

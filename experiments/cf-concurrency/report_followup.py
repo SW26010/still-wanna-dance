@@ -5,18 +5,18 @@ import sys
 
 REPO=Path(__file__).resolve().parents[2]
 OUT=REPO/"docs/evidence/cf-cpu-followup-20261014"
-sys.path.insert(0,str(REPO/"artifacts/cf-concurrency/plot-deps-final"))
 
 def table(headers,rows):
     return "| "+" | ".join(headers)+" |\n| "+" | ".join("---" for _ in headers)+" |\n"+"\n".join("| "+" | ".join(map(str,r))+" |" for r in rows)+"\n"
 
 def main():
-    data=json.loads((OUT/"aggregates.json").read_text());rows=json.loads((OUT/"summary.json").read_text())
+    data=json.loads((OUT/"aggregates.json").read_text());rows=json.loads((OUT/"run-totals.json").read_text())
     def get(mode,variant,n):return next(r for r in data if (r["mode"],r["variant"],r["n"])==(mode,variant,n))
     def metric(mode,variant,n,key,stat="median"):return get(mode,variant,n)[key][stat]
     levels=[4,8,16,32]
     import matplotlib
     matplotlib.use("Agg")
+    matplotlib.rcParams.update({"svg.hashsalt":"swd-cf-evidence-v1", "svg.fonttype":"none"})
     import matplotlib.pyplot as plt
     fig,axes=plt.subplots(2,2,figsize=(13,8.5),layout="constrained")
     for warm,label,color in (("cold","Fresh connections","#1f6da8"),("warm","Reused connections","#d17823")):
@@ -38,7 +38,8 @@ def main():
     axes[1,0].set_title("Complete engine: foreground vs two prefetches")
     axes[1,1].set_title("Complete engine: memory cost")
     fig.suptitle("Concurrency follow-up: five paired repetitions\nPoints = medians; whiskers = observed min/max, not confidence intervals",fontsize=13)
-    fig.savefig(OUT/"followup-summary.png",dpi=160);plt.close(fig)
+    fig.savefig(OUT/"followup-summary.svg",metadata={"Date":None});plt.close(fig)
+    if "--chart-only" in sys.argv:return
 
     b4=get("engine","compete",4);b32=get("engine","compete",32)
     traffic=sum(r["originBytes"] for r in rows)+sum(r["target"]*1048576 for r in rows if r["mode"]=="raw" and r["warm"])
@@ -69,7 +70,7 @@ def main():
     text+=table(["候选","首读 ms","Seek ms","三文件全流程 s","进程 CPU ms","私有内存峰值 MiB"],[[n,f'{metric("engine","compete",n,"firstBodyMS"):.1f}',f'{metric("engine","compete",n,"seekMS"):.1f}',f'{metric("engine","compete",n,"elapsedMS")/1000:.3f}',f'{metric("engine","compete",n,"cpuMS"):.2f}',f'{metric("engine","compete",n,"peakPrivateMiB"):.1f}'] for n in levels])
     text+='\n请求预留使前台能发出请求，但并不为正在接收正文的前台连接预留带宽。这里后台连接越多，固定共享带宽被越多在途请求分担；前台等一个完整 1 MiB 块的时间增加。这个解释与受控上游的发送规则和实际请求轨迹一致，不等同于已经测出 CF 的内部限速规则。\n\n## 完整模块：单文件与取消后关闭\n\n'
     text+=table(["候选","单文件全流程 s","单文件 CPU ms","取消等待者 ms","引擎关闭 ms","遗留活动请求/分块"],[[n,f'{metric("engine","prefetch",n,"elapsedMS")/1000:.3f}',f'{metric("engine","prefetch",n,"cpuMS"):.2f}',f'{metric("engine","cancel",n,"cancelWaitMS"):.2f}',f'{metric("engine","cancel",n,"closeMS"):.2f}',"0 / 0"] for n in levels])
-    text+='\n取消组先取消两个 Prefetch 调用的等待上下文，等待返回后关闭引擎。它证明这一组合的退出和清理，不证明仅取消等待者就立即停止所有共享下载。内存峰值按 100 ms 采样，短峰可能遗漏；进程结束也不能替代长时间运行中的泄漏检查。\n\n![CPU、播放等待与内存对照](evidence/cf-cpu-followup-20261014/followup-summary.png)\n\n## 决策含义与边界\n\n本轮支持把“可用带宽未吃满时提高并发”和“播放时后台让出资源”分开考虑。先前 CF 实验中的高并发吞吐收益仍然成立；本轮显示，它并不保证带宽饱和时的播放收益。现在没有依据直接把所有场景统一改成 32 路，也不能只凭低平均 CPU 推导 VRC 无感。\n\n暂不继续提高并发上限。后续 VRC 实机应优先核对前台帧时间、首播和 Seek，再选择固定默认或有界渐增策略。本地单一 16 MiB/s、20 ms 响应头模型不能代表所有宽带、Wi-Fi、代理、丢包、CDN MISS 或 CF 节点。五次首读/Seek 足以呈现本次较大的差异，不能估计可靠的极端尾延迟或所有硬件上的上界。\n\n## 检查、权限与证据\n\n本轮仅批准一次 UAC，管理员辅助进程只处理固定 ETW start/stop/quit，普通实验进程不提权。辅助进程本轮上限 4 小时、单段 10 分钟；错误请求后继续采集的实测通过。最终退出与原点/会话清理由清理回执确认。\n\n预实验四组与 race 三组通过；缓存模块完整回归、vet 和已有八项 Python 分析回归通过。一次默认沙箱全包回归在既有文件发布路径遇到 Access denied，改用普通用户权限与仓库内测试临时目录后通过；原始私密复测日志留在忽略目录。没有把权限失败算作并发性能样本。\n\n[实验设计](../experiments/cf-concurrency/FOLLOWUP.md)、[统计汇总](evidence/cf-cpu-followup-20261014/aggregates.json)、[调度分析](evidence/cf-cpu-followup-20261014/summary.json)、[脱敏原始观测](evidence/cf-cpu-followup-20261014/trials.json.gz)、[完整性检查](evidence/cf-cpu-followup-20261014/checks.json)、[独立 xperf 校核](evidence/cf-cpu-followup-20261014/crosschecks.json)、[清理回执](evidence/cf-cpu-followup-20261014/cleanup.json)、[证据哈希清单](evidence/cf-cpu-followup-20261014/manifest.json)。原始 ETL/CSV、进程 PID、绝对路径和测试日志仅在忽略目录保留。\n'
+    text+='\n取消组先取消两个 Prefetch 调用的等待上下文，等待返回后关闭引擎。它证明这一组合的退出和清理，不证明仅取消等待者就立即停止所有共享下载。内存峰值按 100 ms 采样，短峰可能遗漏；进程结束也不能替代长时间运行中的泄漏检查。\n\n![CPU、播放等待与内存对照](evidence/cf-cpu-followup-20261014/followup-summary.svg)\n\n## 决策含义与边界\n\n本轮支持把“可用带宽未吃满时提高并发”和“播放时后台让出资源”分开考虑。先前 CF 实验中的高并发吞吐收益仍然成立；本轮显示，它并不保证带宽饱和时的播放收益。现在没有依据直接把所有场景统一改成 32 路，也不能只凭低平均 CPU 推导 VRC 无感。\n\n暂不继续提高并发上限。后续 VRC 实机应优先核对前台帧时间、首播和 Seek，再选择固定默认或有界渐增策略。本地单一 16 MiB/s、20 ms 响应头模型不能代表所有宽带、Wi-Fi、代理、丢包、CDN MISS 或 CF 节点。五次首读/Seek 足以呈现本次较大的差异，不能估计可靠的极端尾延迟或所有硬件上的上界。\n\n## 检查、权限与证据\n\n本轮仅批准一次 UAC，管理员辅助进程只处理固定 ETW start/stop/quit，普通实验进程不提权。辅助进程本轮上限 4 小时、单段 10 分钟；错误请求后继续采集的实测通过。最终退出与原点/会话清理由清理回执确认。\n\n预实验四组与 race 三组通过；缓存模块完整回归、vet 和已有八项 Python 分析回归通过。一次默认沙箱全包回归在既有文件发布路径遇到 Access denied，改用普通用户权限与仓库内测试临时目录后通过；原始私密复测日志留在忽略目录。没有把权限失败算作并发性能样本。\n\n[实验设计](../experiments/cf-concurrency/FOLLOWUP.md)、[统计汇总](evidence/cf-cpu-followup-20261014/aggregates.json)、[调度分析](evidence/cf-cpu-followup-20261014/manifest.json)、[脱敏原始观测](evidence/cf-cpu-followup-20261014/manifest.json)、[完整性检查](evidence/cf-cpu-followup-20261014/checks.json)、[独立 xperf 校核](evidence/cf-cpu-followup-20261014/crosschecks.json)、[清理回执](evidence/cf-cpu-followup-20261014/cleanup.json)、[证据哈希清单](evidence/cf-cpu-followup-20261014/manifest.json)。原始 ETL/CSV、进程 PID、绝对路径和测试日志仅在忽略目录保留。\n'
     idle=[r["windows"]["full"] for r in rows if r["mode"]=="idle"]
     idle_note=f'空闲采样工具占整机 CPU 为 {min(r["machinePercent"] for r in idle):.4f}%–{max(r["machinePercent"] for r in idle):.4f}%，最大 10 ms 窗口为 {max(r["peak10msCores"] for r in idle)*100/16:.4f}%。这只量化进程内采样，不是全系统 ETW 的开销；本轮没有 ETW 开关配对。\n\n'
     text=text.replace('## 完整模块：播放竞争',idle_note+'## 完整模块：播放竞争')

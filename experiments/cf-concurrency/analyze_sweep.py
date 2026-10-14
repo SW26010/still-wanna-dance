@@ -113,9 +113,11 @@ def summarize(data):
 
 
 def chart(summary, path):
+    import matplotlib
+    matplotlib.rcParams.update({"svg.hashsalt":"swd-cf-evidence-v1", "svg.fonttype":"none"})
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(10, 6), layout="constrained")
-    levels = summary["levels"]
+    levels = summary.get("levels") or sorted(int(name.split('-')[1]) for name in summary["arms"] if name.startswith('ip1-'))
     routes = [f"ip{i+1}" for i in range(len(summary["ips"]))] + (["multi"] if len(summary["ips"]) > 1 else [])
     for route in routes:
         rows = [summary["arms"][f"{route}-{n}"]["mibPerSec"] for n in levels]
@@ -131,7 +133,7 @@ def chart(summary, path):
     ax.grid(alpha=.2)
     ax.legend(fontsize=9)
     fig.text(.5, -.01, f'{summary["rounds"]} complete rounds; median and observed min/max. One resource/path/period; no trials excluded.', ha="center", fontsize=9)
-    fig.savefig(path, dpi=140, bbox_inches="tight")
+    fig.savefig(path, dpi=140, bbox_inches="tight", metadata={"Date":None} if str(path).endswith('.svg') else None)
 
 
 if __name__ == "__main__":

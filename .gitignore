@@ -39,3 +39,12 @@ Thumbs.db
 # Desktop data beside a repository-root executable; keep tracked seed data
 /data/*
 !/data/initial-priority/
+
+# Generated evidence is archived; Git keeps only manifests, small data and SVG.
+/docs/evidence/**/*.png
+/docs/evidence/**/*.jpg
+/docs/evidence/**/*.jpeg
+/docs/evidence/**/*.webp
+/docs/evidence/**/*.gz
+/docs/evidence/**/*.zip
+__pycache__/

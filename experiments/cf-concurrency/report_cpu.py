@@ -62,7 +62,7 @@ ETW 记录上下文切换与 ReadyThread，按逻辑处理器重建运行区间�
     speed=median("burst",32,"mibPerSec")/median("burst",4,"mibPerSec")
     text+=f'''\n从 4 到 32 路，稳态吞吐中位数约 {speed:.2f} 倍，CPU 增加约 {b32-b4:.3f} 个整机百分点。这既包含并发管理，也包含每秒处理更多数据的成本；没有固定总带宽的随机对照，不能把差值全部归因于“并发调度”。每 GiB 成本用于辅助区分这两件事，不能替代等速实验。
 
-![CPU 与吞吐对照](evidence/cf-cpu-20261014/cpu-summary.png)
+![CPU 与吞吐对照](evidence/cf-cpu-20261014/cpu-summary.svg)
 
 ## 峰值、核心与线程
 
@@ -87,7 +87,7 @@ OS 线程统计包括 Go 运行时、网络、采样及进程生命周期线程�
 
 '''
     text+=table(["档位","计划活动时间","MiB/s 中位数","整机 CPU % 中位数","CPU 秒/GiB"],[[n,f"{i*6}–{(i+1)*6} s",f"{median('stepped',n,'mibPerSec'):.2f}",f"{median('stepped',n,'machinePercent'):.3f}",f"{median('stepped',n,'cpuSecondsPerGiB'):.2f}"] for i,n in enumerate(levels)])
-    text+='''\n![三种过程的 CPU 时序](evidence/cf-cpu-20261014/cpu-timeline.png)
+    text+='''\n![三种过程的 CPU 时序](evidence/cf-cpu-20261014/cpu-timeline.svg)
 
 时序图事先固定展示第 2 次有效测量，不挑选最平滑或最差的一次。左轴为 100 ms 平均逻辑处理器当量，右轴为在途 HTTP 请求数。所有三轮的 100 ms 序列、线程/逻辑处理器占用、排空、Ready 延迟和精细调度区间均可从证据复算。
 
@@ -111,7 +111,7 @@ OS 线程统计包括 Go 运行时、网络、采样及进程生命周期线程�
 ## 验证、证据与验收状态
 
 - 开发检查：实验包 Windows race、vet 通过，流量边界修正后又在采集结束时复跑通过；Python 分析回归包括迁移不冒充并行、真实重叠、嵌套中断去重、末尾不足窗口不冒充峰值及完整计划。
-- [环境与拓扑](evidence/cf-cpu-20261014/environment.json)、[计划](evidence/cf-cpu-20261014/plan.json)、[完整性校验](evidence/cf-cpu-20261014/checks.json)、[独立 xperf 校核](evidence/cf-cpu-20261014/crosschecks.json)、[统计结果](evidence/cf-cpu-20261014/summary.json)、[原始请求及进程计时](evidence/cf-cpu-20261014/trials.json.gz)、[哈希清单](evidence/cf-cpu-20261014/manifest.json)。每组 `*-scheduling.json.gz` 包含脱敏线程序号、逻辑 CPU 编号、相对微秒区间与系统中断时间；不包含其他进程身份。使用 `delta-us-v1` 无损整数差分压缩，调用 `analyze_cpu.unpack_trace` 可完整还原；45 组均验证压缩前后整数逐项一致，不降采样。
+- [环境与拓扑](evidence/cf-cpu-20261014/environment.json)、[计划](evidence/cf-cpu-20261014/plan.json)、[完整性校验](evidence/cf-cpu-20261014/checks.json)、[独立 xperf 校核](evidence/cf-cpu-20261014/crosschecks.json)、[统计结果](evidence/cf-cpu-20261014/manifest.json)、[原始请求及进程计时](evidence/cf-cpu-20261014/manifest.json)、[哈希清单](evidence/cf-cpu-20261014/manifest.json)。每组 `*-scheduling.json.gz` 包含脱敏线程序号、逻辑 CPU 编号、相对微秒区间与系统中断时间；不包含其他进程身份。使用 `delta-us-v1` 无损整数差分压缩，调用 `analyze_cpu.unpack_trace` 可完整还原；45 组均验证压缩前后整数逐项一致，不降采样。
 - 原始 ETL/CSV、私密资源 URL、PID/系统进程信息只留在忽略目录。公开证据移除 PID、完整远端端口和个人路径；阶段相对时间零点为各组 begin 标记，traceBeginUS 为本轮 ETW 起点后的相对时间，不是绝对时钟。
 - 本次只有实验工具、测试、文档和开发证据变化，因此不新增实机编号。产品行为未改，LA-037 保持待验收。本地提交，不推送。
 - [清理回执](evidence/cf-cpu-20261014/cleanup.json)：管理员助手 exited，匹配的内核/标记采集会话为 0，测试下载进程为 0。原始证据保留在本地忽略目录，没有修改系统设置。

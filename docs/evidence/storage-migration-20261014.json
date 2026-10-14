@@ -1,0 +1,23 @@
+{
+  "kind": "artifact-storage-verification",
+  "matplotlib": "3.11.2",
+  "checks": [
+    "cf-multi-ip-20261014: complete summary recomputed exactly",
+    "cf-high-concurrency-20261014: complete summary recomputed exactly",
+    "followup: all aggregate values recomputed exactly",
+    "CPU: compact plotting data reproduced exactly from complete archive",
+    "initial CF: original exclusion and complete summary recomputed exactly",
+    "five SVGs: deterministic regeneration; vector-only"
+  ],
+  "productBehaviorChanged": false,
+  "liveAcceptancePerformed": false,
+  "originalManifestHashesVerified": 238,
+  "archivePrivacyPatternScan": "pass",
+  "archiveMemberChecks": 262,
+  "tests": {
+    "artifactGuard": 2,
+    "archiveRestore": 2,
+    "analysisRegression": 8
+  },
+  "visualQA": "Five regenerated charts inspected; labels, legends and plots readable."
+}

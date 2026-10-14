@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 1,
+  "baseUnchanged": "a159768968478288a751d8addd654d759dcee4d1",
+  "originalHead": "4489acf70236d91ce16bade80d7cba47e4db5cf5",
+  "rewrittenHead": "8d8ad559e678f7edb679982772bbbf662bba8e19",
+  "scope": "Only unpublished commits. Original measured commit IDs and executable hashes remain historical facts; source snapshots are in the evidence archives.",
+  "commits": [
+    {
+      "originalCommit": "92640c64612da03ab05110c7f13f5659a98a475e",
+      "rewrittenCommit": "92640c64612da03ab05110c7f13f5659a98a475e",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "df6ee0001c4fad316f6f1f0d6af876f32bf7d438",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    },
+    {
+      "originalCommit": "9c6e5bd63b1e92fb59f52cf721e08d54fad1fcd3",
+      "rewrittenCommit": "9c6e5bd63b1e92fb59f52cf721e08d54fad1fcd3",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "5b010b3d8939ef1a9443c81f90fe05c3876e7b7f",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    },
+    {
+      "originalCommit": "aa32e3314712425bfefc4dc3ae79af26eeb63f4e",
+      "rewrittenCommit": "aa32e3314712425bfefc4dc3ae79af26eeb63f4e",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "482551eef3a858322cfe9798ca75b2aab67fca29",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    },
+    {
+      "originalCommit": "cd89c1cb05f8a39fd41955537bcf4786a155a23c",
+      "rewrittenCommit": "cd89c1cb05f8a39fd41955537bcf4786a155a23c",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "8462cef5332a3cb6ec8d82e5d19c45f8a2565c9e",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    },
+    {
+      "originalCommit": "425de9fc58a35927e7c662115c5eb02b71d6206f",
+      "rewrittenCommit": "425de9fc58a35927e7c662115c5eb02b71d6206f",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "2031c1363f7d3fc5e25d4f60645e434d6f023809",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    },
+    {
+      "originalCommit": "d9ef49852f4f9b8a9c3a07c9827a2c0a41f5eb53",
+      "rewrittenCommit": "d9ef49852f4f9b8a9c3a07c9827a2c0a41f5eb53",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "f7c27b56d6fe35a317501c0c3505d36fea3a5f8a",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    },
+    {
+      "originalCommit": "0cfaa584d4bf0d40bc95f09359d8c0f3d7da2410",
+      "rewrittenCommit": "0cfaa584d4bf0d40bc95f09359d8c0f3d7da2410",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "f7c27b56d6fe35a317501c0c3505d36fea3a5f8a",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    },
+    {
+      "originalCommit": "2349ed5351d55531adb8282fa6293277eeb71235",
+      "rewrittenCommit": "d0d9254895391c2f9a50b231de4d3fc6a5fe96fb",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "f7c27b56d6fe35a317501c0c3505d36fea3a5f8a",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    },
+    {
+      "originalCommit": "421683716ed3aa6b1ee82d5b76bfd783eecb215e",
+      "rewrittenCommit": "0a3c254123de5af18f6feda7b266a2c976152021",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "f7c27b56d6fe35a317501c0c3505d36fea3a5f8a",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    },
+    {
+      "originalCommit": "06d12043f72db354427957a2d9aa8a4b2bc24523",
+      "rewrittenCommit": "74ab99f69dea55701987d1f406652191957ddf6a",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "f7c27b56d6fe35a317501c0c3505d36fea3a5f8a",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    },
+    {
+      "originalCommit": "a8a8e90a717a7f60b600df500fd0f97ffeb12788",
+      "rewrittenCommit": "e6cdf03ae8575557e9d8c1bbd838497274f3e05e",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "f7c27b56d6fe35a317501c0c3505d36fea3a5f8a",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    },
+    {
+      "originalCommit": "197ad9041b3d10ccc83c5e10b0c3b0ce484f8ed3",
+      "rewrittenCommit": "531d281184d99441e1b7e7e9f523d3b08e84d8a9",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "f7c27b56d6fe35a317501c0c3505d36fea3a5f8a",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    },
+    {
+      "originalCommit": "459bcfebde62735930b93ffeeb60919c3932704a",
+      "rewrittenCommit": "60275d1230db987c76855b2568733020df8981c9",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "f7c27b56d6fe35a317501c0c3505d36fea3a5f8a",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    },
+    {
+      "originalCommit": "d6f12801e8fea951019c3dd16e558faa22f12744",
+      "rewrittenCommit": "fe34f4bd6d9fd5630159f86135f1114b391936a1",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "f7c27b56d6fe35a317501c0c3505d36fea3a5f8a",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    },
+    {
+      "originalCommit": "e43791b01e7feeae23dc8c24b25ddba0f5f141c5",
+      "rewrittenCommit": "74b3458f96cf5df9fbb46b50a648f8594fc68ad2",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "f7c27b56d6fe35a317501c0c3505d36fea3a5f8a",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    },
+    {
+      "originalCommit": "5c6b63d1f4cfee870e241bf4e73c9d816e0fbb32",
+      "rewrittenCommit": "fb4c43a15c7c3c66a191db1e16be9649cb610667",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "2f8cc7dd6cf54f3b486c399f13ce59ce02a34960",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    },
+    {
+      "originalCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5",
+      "rewrittenCommit": "8d8ad559e678f7edb679982772bbbf662bba8e19",
+      "unchangedSourceObjects": {
+        "cmd": "5fc53383ceef9fb37d4e0cba8600d6867fcda67c",
+        "internal": "2f8cc7dd6cf54f3b486c399f13ce59ce02a34960",
+        "go.mod": "8d8b0680af67a6d75cdb92dcff14b316e5abba03",
+        "go.sum": "46a728d6fa904223684c013ac94cae7d34eb9150"
+      }
+    }
+  ]
+}

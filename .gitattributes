@@ -1,5 +1,8 @@
 * text=auto eol=lf
 
-# Historical experiments/evidence stay in Git, outside release source archives.
+# Experiment sources, small evidence and archive manifests stay outside release source archives.
 experiments export-ignore
 docs/evidence export-ignore
+
+# Frozen compatibility fixture; all other binary artifacts are external assets.
+internal/cacheproxy/testdata/storage-v2.sqlite binary

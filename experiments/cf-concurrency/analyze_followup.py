@@ -13,7 +13,7 @@ import analyze_cpu as cpu
 
 REPO=Path(__file__).resolve().parents[2]
 ROOT=REPO/"artifacts/cf-cpu-followup"
-OUT=REPO/"docs/evidence/cf-cpu-followup-20261014"
+OUT=ROOT/"evidence-export"
 XPERF=Path(r"C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\xperf.exe")
 
 def save(path,value):

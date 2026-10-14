@@ -147,3 +147,42 @@ func TestDueDeadlineCanYieldSmallRequestWithoutProgress(t *testing.T) {
 		old.Close()
 	})
 }
+
+func TestContentionUsesCurrentProgressBeforeNextSample(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		size, received int64
+		retry, pause   bool
+	}{
+		{"small_tail", 1 << 20, (1 << 20) - (32 << 10), false, false},
+		{"awaiting_eof", 1 << 20, 1 << 20, false, false},
+		{"large_tail", 1 << 20, (1 << 20) - (128 << 10), false, true},
+		{"sequential_cost", 8 << 20, 1 << 20, false, true},
+		{"retry_tail", 1 << 20, (1 << 20) - (32 << 10), true, false},
+		{"retry_headers", 32 << 10, 0, true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			now := time.Now()
+			p := new(Progress)
+			paused := false
+			j := &job{progress: p, remaining: 1 << 20, initialRemaining: 1 << 20, started: now,
+				need: Need{Owner: "background", ReadyBy: now.Add(time.Minute)}, cancel: func(error) { paused = true }}
+			s := &state{cfg: Config{SoftLimit: 16, GrowInterval: 250 * time.Millisecond, PreemptAfter: 200 * time.Millisecond},
+				running: map[*job]bool{j: true}, jobs: map[string]*job{"background": j}, active: 1, wanted: 2, blocking: 1}
+			s.regulate(now) // The next throughput sample is at 500 ms.
+			p.SetSize(tc.size)
+			if tc.retry {
+				p.Add(tc.size)
+				p.Invalidate()
+			}
+			p.Add(tc.received)
+			s.regulate(now.Add(200 * time.Millisecond))
+			if paused != tc.pause {
+				t.Fatalf("paused=%v, want %v; sampled remaining=%d", paused, tc.pause, j.remaining)
+			}
+			if !s.control.nextSample.Equal(now.Add(sampleInterval)) {
+				t.Fatal("victim selection changed throughput sampling cadence")
+			}
+		})
+	}
+}

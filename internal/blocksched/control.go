@@ -173,15 +173,28 @@ func (s *state) regulate(now time.Time) {
 	// A free request slot does not remove bandwidth contention. Give existing
 	// low-urgency transfers a bounded chance to finish before yielding one.
 	var victim *job
+	var victimRemaining int64
 	blocking := s.hasBlocking()
 	var due *job
 	if len(s.ready) > 0 && !s.ready[0].need.ReadyBy.IsZero() && !s.ready[0].need.ReadyBy.After(now.Add(catchupWindow)) {
 		due = s.ready[0]
 	}
 	for j := range s.running {
-		if j.cancel != nil && !j.need.Blocking && !j.retiring && !j.yielding && (j.remaining > 64<<10 || j.progress != nil && j.progress.bytes.Load() == 0) && (blocking || due != nil && needBefore(due.need, j.need)) {
-			if victim == nil || needBefore(victim.need, j.need) || !needBefore(j.need, victim.need) && j.remaining > victim.remaining {
+		// Contention can fire before the next 500 ms supply sample. Inspect
+		// useful progress now, including response size discovery and retries.
+		remaining, received := j.remaining, int64(0)
+		if p := j.progress; p != nil {
+			size := p.size.Load()
+			if size == 0 {
+				size = j.initialRemaining
+			}
+			received = p.received.Load()
+			remaining = max(0, size-received)
+		}
+		if j.cancel != nil && !j.need.Blocking && !j.retiring && !j.yielding && (remaining > 64<<10 || received == 0) && (blocking || due != nil && needBefore(due.need, j.need)) {
+			if victim == nil || needBefore(victim.need, j.need) || !needBefore(j.need, victim.need) && remaining > victimRemaining {
 				victim = j
+				victimRemaining = remaining
 			}
 		}
 	}

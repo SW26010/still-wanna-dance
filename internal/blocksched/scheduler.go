@@ -35,9 +35,10 @@ type Result struct {
 type Run func(context.Context, *Progress) Result
 
 type Progress struct {
-	bytes   atomic.Int64
-	size    atomic.Int64
-	invalid atomic.Bool
+	bytes    atomic.Int64 // all network bytes, including discarded attempts
+	received atomic.Int64 // useful bytes since the last discard
+	size     atomic.Int64
+	invalid  atomic.Bool
 }
 
 // SetSize corrects the execution cost after capability/response discovery.
@@ -48,11 +49,16 @@ func (p *Progress) SetSize(n int64) {
 }
 
 // Invalidate excludes an execution with discarded/retried bytes from supply
-// estimation. Transfer counters can still report its actual network traffic.
-func (p *Progress) Invalidate() { p.invalid.Store(true) }
+// estimation and resets useful progress for the next attempt. Transfer counters
+// can still report its actual network traffic.
+func (p *Progress) Invalidate() {
+	p.invalid.Store(true)
+	p.received.Store(0)
+}
 
 func (p *Progress) Add(n int64) {
 	if n > 0 {
+		p.received.Add(n)
 		p.bytes.Add(n)
 	}
 }

@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"still-wanna-dance/internal/blocksched"
@@ -84,54 +85,56 @@ func TestBlockDemandFollowsActualWaitAndIndependentReaders(t *testing.T) {
 }
 
 func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
-	w, s := testSession(t)
-	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
-	defer s.scheduler.Close()
-	// A blocked synthetic executor allows inspecting leases without network.
-	w.s.scheduler = s.scheduler
-	s.UpdatePrefetchQueue([]int64{1, 2}, false)
-	_, release := s.addDemand(s.queueDemandContext(context.Background(), "2"), video{key: w.v.key, songID: "2"}, false)
-	defer release()
-	now := time.Now()
-	plan, _ := w.plan(now, false)
-	key := blockSource{"queue", queueSource{"2", s.prefetchGeneration["2"]}}
-	before, ok := plan[0][key]
-	if !ok || before.source != sourceQueue || before.need.ReadyBy.IsZero() {
-		t.Fatal("ordinary queue source missing")
-	}
-	s.UpdatePrefetchQueue([]int64{2, 1}, false)
-	plan, _ = w.plan(now, false)
-	after, ok := plan[0][key]
-	if !ok || after.source != sourceQueueHead || !after.need.ReadyBy.Equal(before.need.ReadyBy.Add(-30*time.Second)) {
-		t.Fatal("queue reorder did not update deadline")
-	}
-	job, _ := s.scheduler.Submit("test", 1, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
-		<-ctx.Done()
-		return blocksched.Result{Err: blocksched.ErrPaused, Remaining: 1}
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
+		defer s.scheduler.Close()
+		// A blocked synthetic executor allows inspecting leases without network.
+		w.s.scheduler = s.scheduler
+		s.UpdatePrefetchQueue([]int64{1, 2}, false)
+		_, release := s.addDemand(s.queueDemandContext(context.Background(), "2"), video{key: w.v.key, songID: "2"}, false)
+		defer release()
+		now := time.Now()
+		plan, _ := w.plan(now, false)
+		key := blockSource{"queue", s.prefetchSources["2"]}
+		before, ok := plan[0][key]
+		if !ok || before.source != sourceQueue || before.need.ReadyBy.IsZero() {
+			t.Fatal("ordinary queue source missing")
+		}
+		s.UpdatePrefetchQueue([]int64{2, 1}, false)
+		plan, _ = w.plan(now, false)
+		after, ok := plan[0][key]
+		if !ok || after.source != sourceQueueHead || !after.need.ReadyBy.Equal(before.need.ReadyBy.Add(-30*time.Second)) {
+			t.Fatal("queue reorder did not update deadline")
+		}
+		job, _ := s.scheduler.Submit("test", 1, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
+			<-ctx.Done()
+			return blocksched.Result{Err: blocksched.ErrPaused, Remaining: 1}
+		})
+		w.jobs[0] = &scheduledBlock{task: job, needs: make(map[blockSource]plannedNeed)}
+		if _, err := w.reconcile(plan, now); err != nil {
+			t.Fatal(err)
+		}
+		s.UpdatePrefetchQueue(nil, true)
+		plan, _ = w.plan(now, false)
+		until, err := w.reconcile(plan, now)
+		if err != nil || !until.Equal(now.Add(queueHandoff)) {
+			t.Fatal(until, err)
+		}
+		w.jobs[0].task.Watch(w.wake)
+		// Handoff must defer the original queue deadline, not make it more urgent.
+		// (The plan was obtained at the same now for both queue orders.)
+		if handoff := w.jobs[0].handoffUntil; !handoff.Equal(now.Add(queueHandoff)) {
+			t.Fatal(handoff)
+		}
+		// An unrelated later event must not slide the abandoned queue's lease.
+		later, _ := w.reconcile(plan, now.Add(time.Second))
+		if !later.Equal(until) {
+			t.Fatal("handoff was extended without a source")
+		}
+		job.Close()
+		<-job.Done()
 	})
-	w.jobs[0] = &scheduledBlock{task: job, needs: make(map[blockSource]plannedNeed)}
-	if _, err := w.reconcile(plan, now); err != nil {
-		t.Fatal(err)
-	}
-	s.UpdatePrefetchQueue(nil, true)
-	plan, _ = w.plan(now, false)
-	until, err := w.reconcile(plan, now)
-	if err != nil || !until.Equal(now.Add(queueHandoff)) {
-		t.Fatal(until, err)
-	}
-	w.jobs[0].task.Watch(w.wake)
-	// Handoff must defer the original queue deadline, not make it more urgent.
-	// (The plan was obtained at the same now for both queue orders.)
-	if handoff := w.jobs[0].handoffUntil; !handoff.Equal(now.Add(queueHandoff)) {
-		t.Fatal(handoff)
-	}
-	// An unrelated later event must not slide the abandoned queue's lease.
-	later, _ := w.reconcile(plan, now.Add(time.Second))
-	if !later.Equal(until) {
-		t.Fatal("handoff was extended without a source")
-	}
-	job.Close()
-	<-job.Done()
 }
 
 func TestBlockLeaseRemovalDoesNotDropOtherOwner(t *testing.T) {

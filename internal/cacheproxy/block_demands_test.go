@@ -138,20 +138,20 @@ func TestReadProgressAndCompletionDoNotProduceHandoff(t *testing.T) {
 func TestQueueSourceIdentityOnlySurvivesContinuousMembership(t *testing.T) {
 	_, s := testSession(t)
 	s.UpdatePrefetchQueue([]int64{1, 2}, false)
-	first := s.prefetchGeneration["1"]
+	first := s.prefetchSources["1"]
 	oldContext := s.queueDemandContext(context.Background(), "1")
 	s.UpdatePrefetchQueue([]int64{2, 1}, false)
-	if s.prefetchGeneration["1"] != first {
+	if s.prefetchSources["1"] != first {
 		t.Fatal("reorder replaced original source")
 	}
 	s.UpdatePrefetchQueue([]int64{2}, false)
 	s.UpdatePrefetchQueue([]int64{1, 2}, false)
-	next := s.prefetchGeneration["1"]
+	next := s.prefetchSources["1"]
 	if next == first {
 		t.Fatal("removed queue source was revived")
 	}
 	s.UpdatePrefetchQueue([]int64{1, 2}, true)
-	if s.prefetchGeneration["1"] == next {
+	if s.prefetchSources["1"] == next {
 		t.Fatal("room reset inherited old source attributes")
 	}
 	late, release := s.addDemand(oldContext, video{songID: "1", key: "old-result"}, false)

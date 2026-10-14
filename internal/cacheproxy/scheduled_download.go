@@ -28,11 +28,6 @@ type scheduledWait struct {
 	block int64
 	at    time.Time
 }
-type queueSource struct {
-	song       string
-	generation uint64
-}
-
 type blockSource struct {
 	kind string
 	id   any
@@ -260,13 +255,9 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 		if key != w.v.key {
 			continue
 		}
-		if position, ok := w.s.prefetchOrder[song]; ok {
-			origin := sourceQueue
-			if position == 0 {
-				origin = sourceQueueHead
-			}
+		if source := w.s.prefetchSources[song]; source != nil {
 			for _, b := range window {
-				add(b, blockSource{"queue", queueSource{song, w.s.prefetchGeneration[song]}}, now.Add(10*time.Second+time.Duration(position)*30*time.Second+time.Duration(b)*2*time.Second), false, int64(position), origin)
+				add(b, blockSource{"queue", source}, source.readyBy(b), false, int64(source.position), source.origin())
 			}
 		}
 	}
@@ -318,7 +309,11 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 		}
 		for source, p := range plan[block] {
 			if old, ok := j.needs[source]; ok && old.revision == p.revision && old.source == p.source {
-				p.need.ReadyBy = old.need.ReadyBy
+				// Queue deadlines already use a stable, shared epoch. Even an
+				// unchanged position must follow that epoch after a reorder.
+				if source.kind != "queue" {
+					p.need.ReadyBy = old.need.ReadyBy
+				}
 				if old.need.LeaseUntil.Sub(now) > sourceLease/2 {
 					p.need.LeaseUntil = old.need.LeaseUntil
 				}
@@ -342,7 +337,15 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 			}
 			delete(j.needs, source)
 			reason := w.withdrawal(block, source)
-			if h, ok := makeHandoff(old, reason, now); ok {
+			at := now
+			if q, ok := source.id.(*queueSource); ok {
+				w.s.mu.Lock()
+				if !q.removedAt.IsZero() {
+					old.source, old.need.ReadyBy, at = q.origin(), q.readyBy(block), q.removedAt
+				}
+				w.s.mu.Unlock()
+			}
+			if h, ok := makeHandoff(old, reason, at); ok {
 				j.handoffs = append(j.handoffs, h)
 				if w.f.log != nil {
 					w.f.log.Debug("block_demand_handoff", "block", block, "from", old.source.String(), "reason", "source_gone", "ready_by", h.need.ReadyBy, "lease_until", h.need.LeaseUntil)

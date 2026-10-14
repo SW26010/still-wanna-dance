@@ -54,52 +54,51 @@ type flight struct {
 }
 
 type Server struct {
-	resourceHosts      sync.Map // validated API/programmatic URLs, host -> expiry
-	mappingMu          sync.Mutex
-	stats              trafficStats
-	cfg                Config
-	client             *http.Client
-	ctx                context.Context
-	cancel             context.CancelFunc
-	mu                 sync.Mutex
-	storageFailure     error // protected by mu; prevents new downloads until restart
-	flights            map[string]*flight
-	paused             map[string]*rangeDownload // protected by mu; this engine only
-	demands            map[*downloadDemand]bool  // protected by mu, separate from file pins
-	prefetchOrder      map[string]int
-	prefetchGeneration map[string]uint64
-	prefetchResources  map[string]string
-	playbackChecks     map[string]*playbackCheck // protected by mu
-	slots              chan struct{}
-	localChecks        chan struct{}
-	requests           *requestActivity
-	scheduler          *blocksched.Scheduler
-	rangeBuffers       chan []byte
-	verifyMu           sync.Mutex
-	verified           map[string]*verifiedFile
-	background         int
-	capacityChanged    chan struct{}
-	wg                 sync.WaitGroup
-	closed             bool
-	unlock             func() error
-	once               sync.Once
-	sequence           atomic.Uint64
-	flightSequence     atomic.Uint64
-	usage              *usageStore
-	retentionMu        sync.Mutex
-	retentionRunMu     sync.Mutex
-	retentionWake      chan struct{}
-	retentionDone      chan struct{}
-	retained           map[string]retainedVideo
-	retainedBytes      int64
-	retentionChanges   map[string]bool
-	versionPins        map[string]int
-	songResources      map[string]map[string]bool
-	queueSongs         map[string]bool
-	queueProtected     map[string]bool
-	queueHandoffs      map[string]time.Time
-	handoffProtected   map[string]time.Time
-	deletingVideos     map[string]chan struct{}
+	resourceHosts     sync.Map // validated API/programmatic URLs, host -> expiry
+	mappingMu         sync.Mutex
+	stats             trafficStats
+	cfg               Config
+	client            *http.Client
+	ctx               context.Context
+	cancel            context.CancelFunc
+	mu                sync.Mutex
+	storageFailure    error // protected by mu; prevents new downloads until restart
+	flights           map[string]*flight
+	paused            map[string]*rangeDownload // protected by mu; this engine only
+	demands           map[*downloadDemand]bool  // protected by mu, separate from file pins
+	prefetchSources   map[string]*queueSource
+	prefetchResources map[string]string
+	playbackChecks    map[string]*playbackCheck // protected by mu
+	slots             chan struct{}
+	localChecks       chan struct{}
+	requests          *requestActivity
+	scheduler         *blocksched.Scheduler
+	rangeBuffers      chan []byte
+	verifyMu          sync.Mutex
+	verified          map[string]*verifiedFile
+	background        int
+	capacityChanged   chan struct{}
+	wg                sync.WaitGroup
+	closed            bool
+	unlock            func() error
+	once              sync.Once
+	sequence          atomic.Uint64
+	flightSequence    atomic.Uint64
+	usage             *usageStore
+	retentionMu       sync.Mutex
+	retentionRunMu    sync.Mutex
+	retentionWake     chan struct{}
+	retentionDone     chan struct{}
+	retained          map[string]retainedVideo
+	retainedBytes     int64
+	retentionChanges  map[string]bool
+	versionPins       map[string]int
+	songResources     map[string]map[string]bool
+	queueSongs        map[string]bool
+	queueProtected    map[string]bool
+	queueHandoffs     map[string]time.Time
+	handoffProtected  map[string]time.Time
+	deletingVideos    map[string]chan struct{}
 }
 
 func New(cfg Config) (*Server, error) {

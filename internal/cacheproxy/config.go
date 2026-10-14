@@ -41,8 +41,10 @@ type Config struct {
 	MaxCacheBytes int64
 	// RequestRetentionDays bounds request details; zero keeps them indefinitely.
 	RequestRetentionDays int
-	MaxDownloads         int
-	Logger               *slog.Logger
+	// MaxDownloads is the legacy name for the local file validation limit.
+	// Resource sessions and upstream block scheduling have independent limits.
+	MaxDownloads int
+	Logger       *slog.Logger
 	// DialContext supplies upstream connections (independent DNS or SOCKS5).
 	DialContext func(context.Context, string, string) (net.Conn, error)
 	// ResourceTransports supplies ranked or cold-start channels for this URL's host,

@@ -44,6 +44,8 @@ func (p *Progress) Add(n int64) {
 
 type Config struct {
 	Limit, Background, MaxTasks, MaxDemands int
+	GrowInterval, PreemptAfter, Cooldown    time.Duration
+	Adaptive                                bool
 	// Optional event sink; it must be fast and must not call back into Scheduler.
 	Observe func(Event)
 }
@@ -66,6 +68,28 @@ type Task struct {
 	key  string
 	done chan struct{}
 	err  error // read only after Done
+	wake chan<- struct{}
+}
+
+// Watch coalesces completion notifications for a resource coordinator. It does
+// not create a waiting goroutine for every queued block.
+func (t *Task) Watch(wake chan<- struct{}) {
+	t.s.call(func(s *state) {
+		t.wake = wake
+		select {
+		case <-t.done:
+			notify(wake)
+		default:
+		}
+	})
+}
+func notify(wake chan<- struct{}) {
+	if wake != nil {
+		select {
+		case wake <- struct{}{}:
+		default:
+		}
+	}
 }
 
 func (t *Task) Done() <-chan struct{} { return t.done }
@@ -150,6 +174,9 @@ type job struct {
 	progress              *Progress
 	retiring, speculative bool
 	terminal              error
+	notBefore             time.Time
+	started               time.Time
+	sampled               int64
 }
 type lease struct {
 	id    uint64
@@ -172,6 +199,9 @@ type state struct {
 	sequence                        uint64
 	active, background, demandCount int
 	closing                         bool
+	control                         controller
+	delayed                         map[*job]bool
+	contention                      time.Time
 }
 
 func New(cfg Config) *Scheduler {
@@ -184,7 +214,11 @@ func New(cfg Config) *Scheduler {
 		cfg.MaxDemands = 32768
 	}
 	s := &Scheduler{commands: make(chan func(*state), 64), finished: make(chan completion, cfg.Limit), done: make(chan struct{})}
-	st := &state{s: s, cfg: cfg, jobs: make(map[string]*job), owners: make(map[string]uint64), groups: make(map[string]map[*job]bool)}
+	st := &state{s: s, cfg: cfg, jobs: make(map[string]*job), owners: make(map[string]uint64), groups: make(map[string]map[*job]bool), delayed: make(map[*job]bool)}
+	st.control.open = cfg.Limit
+	if cfg.GrowInterval > 0 {
+		st.control.open = 1
+	}
 	go st.loop()
 	return s
 }
@@ -286,6 +320,14 @@ func (s *state) refresh(j *job) {
 	if j.cancel != nil {
 		return
 	}
+	if !n.Blocking && (!j.notBefore.IsZero() && time.Now().Before(j.notBefore) || s.delayed[j] && s.hasBlocking()) {
+		s.delayed[j] = true
+		if j.index >= 0 {
+			heap.Remove(&s.ready, j.index)
+		}
+		return
+	}
+	delete(s.delayed, j)
 	if j.index < 0 {
 		heap.Push(&s.ready, j)
 	} else {
@@ -329,20 +371,22 @@ func (s *state) finish(j *job, err error) {
 		s.removeLease(v)
 	}
 	delete(s.jobs, j.task.key)
+	delete(s.delayed, j)
 	s.ungroup(j)
 	if len(s.groups[j.need.Owner]) == 0 {
 		delete(s.owners, j.need.Owner)
 	}
 	j.task.err = err
 	close(j.task.done)
+	notify(j.task.wake)
 }
 func (s *state) emit(kind, reason string, j *job) {
 	if s.cfg.Observe != nil {
-		s.cfg.Observe(Event{Kind: kind, Reason: reason, Key: j.task.key, Active: s.active, Open: s.cfg.Limit, Target: s.cfg.Limit, Blocking: j.need.Blocking, ReadyBy: j.need.ReadyBy})
+		s.cfg.Observe(Event{Kind: kind, Reason: reason, Key: j.task.key, Active: s.active, Open: s.control.open, Target: s.control.target, Blocking: j.need.Blocking, ReadyBy: j.need.ReadyBy})
 	}
 }
 func (s *state) dispatch() {
-	for s.ready.Len() > 0 && s.active < s.cfg.Limit {
+	for s.ready.Len() > 0 && s.active < s.control.open {
 		j := s.ready[0]
 		if !j.need.Blocking && s.background >= s.cfg.Background {
 			return
@@ -359,7 +403,11 @@ func (s *state) dispatch() {
 		}
 		ctx, cancel := context.WithCancelCause(context.Background())
 		j.cancel, j.progress, j.speculative = cancel, new(Progress), !j.need.Blocking
+		j.started, j.sampled = time.Now(), 0
 		s.active++
+		if s.cfg.GrowInterval > 0 && s.control.nextSample.IsZero() {
+			s.control.nextSample = time.Now().Add(sampleInterval)
+		}
 		if j.speculative {
 			s.background++
 		}
@@ -379,14 +427,22 @@ func (s *state) loop() {
 			s.demandCount--
 			s.refresh(v.job)
 		}
+		for j := range s.delayed {
+			s.refresh(j)
+		}
+		s.regulate(now)
 		s.dispatch()
 		if s.closing && s.active == 0 {
 			return
 		}
 		timer.Stop()
 		var tick <-chan time.Time
+		next := s.nextControlEvent(now)
 		if len(s.expiry) > 0 {
-			timer.Reset(max(0, time.Until(s.expiry[0].need.LeaseUntil)))
+			next = earlier(next, s.expiry[0].need.LeaseUntil)
+		}
+		if !next.IsZero() {
+			timer.Reset(max(0, time.Until(next)))
 			tick = timer.C
 		}
 		select {
@@ -394,6 +450,7 @@ func (s *state) loop() {
 			fn(s)
 		case c := <-s.s.finished:
 			j := c.job
+			s.sampleProgress(j, time.Now())
 			j.cancel(nil)
 			j.cancel = nil
 			s.active--
@@ -404,6 +461,8 @@ func (s *state) loop() {
 				s.finish(j, j.terminal)
 			} else if errors.Is(c.result.Err, ErrPaused) {
 				j.remaining = c.result.Remaining
+				j.notBefore = time.Now().Add(s.cfg.Cooldown)
+				s.delayed[j] = true
 				s.emit("paused", "lease_or_contention", j)
 				s.refresh(j)
 			} else {

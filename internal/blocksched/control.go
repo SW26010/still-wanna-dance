@@ -106,8 +106,14 @@ func (s *state) estimate(now time.Time) int {
 		var bytes int64
 		for _, j := range timed {
 			bytes += j.remaining
-			horizon := max(catchupWindow, j.need.ReadyBy.Sub(now)).Seconds()
-			target = max(target, int(math.Ceil(float64(bytes)/horizon/s.control.rate)))
+			horizon := j.need.ReadyBy.Sub(now)
+			if horizon <= 0 {
+				horizon = catchupWindow
+			}
+			// A future deadline uses its actual remaining time. Bound the
+			// estimate before conversion even when that time is almost zero.
+			needed := math.Ceil(float64(bytes) / horizon.Seconds() / s.control.rate)
+			target = max(target, int(min(float64(s.cfg.SoftLimit), needed)))
 		}
 	}
 	if now.Before(s.control.coolUntil) {

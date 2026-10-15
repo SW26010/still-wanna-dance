@@ -161,6 +161,36 @@ func TestDeadlineCostEstimateAndNoGainRollback(t *testing.T) {
 	}
 }
 
+func TestEstimateUsesActualTimeUntilDeadline(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		deadline  time.Duration
+		remaining int64
+		limit     int
+		want      int
+	}{
+		{"one_second", time.Second, 512 << 10, 16, 4},
+		{"half_second", 500 * time.Millisecond, 512 << 10, 16, 8},
+		{"round_up", 1500 * time.Millisecond, 512 << 10, 16, 3},
+		{"at_deadline", 0, 512 << 10, 16, 2},
+		{"overdue", -time.Second, 512 << 10, 16, 2},
+		{"future_soft_limit", time.Second, 512 << 10, 3, 3},
+		{"near_deadline_large_backlog", time.Nanosecond, 1 << 51, 16, 8},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			now := time.Now()
+			s := &state{cfg: Config{SoftLimit: tc.limit, Adaptive: true}, jobs: make(map[string]*job), control: controller{rate: 1 << 20}}
+			for i := range 8 {
+				key := string(rune('a' + i))
+				s.jobs[key] = &job{remaining: tc.remaining, need: Need{Owner: key, ReadyBy: now.Add(tc.deadline)}}
+			}
+			if got := s.estimate(now); got != tc.want {
+				t.Fatalf("estimated %d requests, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestDueDeadlineCanYieldSmallRequestWithoutProgress(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := New(Config{SoftLimit: 1, PreemptAfter: 200 * time.Millisecond, Cooldown: time.Second})

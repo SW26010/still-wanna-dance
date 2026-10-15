@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"sort"
 	"sync"
@@ -583,11 +582,8 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 		}
 	}
 	f.progress.setStage("hash")
-	if _, err := f.ranges.storage.file.Seek(0, io.SeekStart); err != nil {
+	if err := s.checkDownloadedFile(ctx, f.ranges.storage.file, v); err != nil {
 		return err
-	}
-	if err := checkOpenFile(ctx, f.ranges.storage.file, v); err != nil {
-		return fmt.Errorf("%w: %w", errUpstreamDownload, err)
 	}
 	f.log.Info("download_verified", "bytes", v.size, "size_ok", true, "checksum_ok", true)
 	return s.publishSpool(ctx, f.ranges.storage.file, path, v, f)

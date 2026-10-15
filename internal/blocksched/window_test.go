@@ -14,8 +14,8 @@ func TestWindowBoundaryAndDeadlineDiagnostics(t *testing.T) {
 		wait            time.Duration
 		urgent, overdue bool
 	}{
-		{"outside", 40 * time.Second, 7 * time.Second, false, false},
-		{"window_equality", 33 * time.Second, 0, false, false},
+		{"outside", 510 * time.Second, 7 * time.Second, false, false},
+		{"window_equality", 503 * time.Second, 0, false, false},
 		{"latest_start_equality", 3 * time.Second, 0, true, false},
 		{"deadline_equality", 0, 0, true, false},
 		{"past_deadline", -time.Second, 0, true, true},
@@ -87,7 +87,7 @@ func TestWindowBacklogDrivesGrowthAndIdleResetsIt(t *testing.T) {
 			t.Fatal("initial ramp", len(started))
 		}
 		for _, d := range demands {
-			d.Update(need("later", false, time.Minute, time.Hour))
+			d.Update(need("later", false, 15*time.Minute, time.Hour))
 		}
 		time.Sleep(5 * time.Second)
 		synctest.Wait()
@@ -114,7 +114,7 @@ func TestWindowBacklogDrivesGrowthAndIdleResetsIt(t *testing.T) {
 			t.Fatal("window backlog failed to grow")
 		}
 		for _, d := range demands {
-			d.Update(need("future", false, time.Minute, time.Hour))
+			d.Update(need("future", false, 15*time.Minute, time.Hour))
 		}
 		close(release)
 		synctest.Wait()
@@ -159,9 +159,9 @@ func TestCompletedSlowSampleMovesWindowWithoutReordering(t *testing.T) {
 		probe.Add(need("probe", true, 0, time.Hour))
 		for _, key := range []string{"later", "earlier"} {
 			j, _ := s.Submit(key, standardBlockSize, func(context.Context, *Progress) Result { started <- key; return Result{} })
-			ready := now.Add(40 * time.Second)
+			ready := now.Add(510 * time.Second)
 			if key == "earlier" {
-				ready = now.Add(39 * time.Second)
+				ready = now.Add(509 * time.Second)
 			}
 			j.Add(Need{Owner: key, ReadyBy: ready, LeaseUntil: now.Add(time.Hour)})
 		}

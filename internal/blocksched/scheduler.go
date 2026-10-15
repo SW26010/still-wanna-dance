@@ -57,7 +57,7 @@ type Config struct {
 	// this limit and growth pacing; metadata capacity still bounds total work.
 	SoftLimit, MaxTasks, MaxDemands int
 	GrowInterval                    time.Duration
-	// PrepareAhead is the lead M in ReadyBy <= now + T + M; zero uses 30s.
+	// PrepareAhead is the lead M in ReadyBy <= now + T + M; zero uses DefaultPrepareAhead.
 	PrepareAhead time.Duration
 	// Optional event sink; it must be fast and must not call back into Scheduler.
 	Observe func(Event)
@@ -215,7 +215,7 @@ type state struct {
 func New(cfg Config) *Scheduler {
 	cfg.SoftLimit = max(1, cfg.SoftLimit)
 	if cfg.PrepareAhead <= 0 {
-		cfg.PrepareAhead = defaultPrepareAhead
+		cfg.PrepareAhead = DefaultPrepareAhead
 	}
 	if cfg.MaxTasks <= 0 {
 		cfg.MaxTasks = 4096

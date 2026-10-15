@@ -17,7 +17,7 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := c.settings
-	if !want.AutoStartCDN || !want.AutoStartQueue {
+	if !want.AutoStartCDN || !want.AutoStartQueue || want.PrepareAheadSeconds != 500 {
 		t.Fatal("first launch should enable both startup preferences")
 	}
 	c.Close()
@@ -25,7 +25,7 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(fields["storageDir"]) != `"storage"` || string(fields["schemaVersion"]) != "3" || string(fields["autoStartCDN"]) != "true" || string(fields["autoStartQueue"]) != "true" {
+	if string(fields["prepareAheadSeconds"]) != "500" || string(fields["storageDir"]) != `"storage"` || string(fields["schemaVersion"]) != "3" || string(fields["autoStartCDN"]) != "true" || string(fields["autoStartQueue"]) != "true" {
 		t.Fatal(fields)
 	}
 	if _, err := os.Stat(filepath.Join(root, "storage")); !os.IsNotExist(err) {

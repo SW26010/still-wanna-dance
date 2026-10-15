@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"still-wanna-dance/internal/blocksched"
 	"still-wanna-dance/internal/videometa"
 )
 
@@ -39,7 +40,9 @@ type Config struct {
 	// sequential fallback, and local validation/publication phases separately.
 	// Scheduling waits are governed by demand leases and caller cancellation.
 	DownloadTimeout time.Duration
-	MaxFileBytes    int64
+	// PrepareAhead is the extra lead M for scheduled downloads; zero uses the default.
+	PrepareAhead time.Duration
+	MaxFileBytes int64
 	// MaxCacheBytes bounds retained videos in the canonical video store; zero is unlimited.
 	MaxCacheBytes int64
 	// RequestRetentionDays bounds request details; zero keeps them indefinitely.
@@ -63,6 +66,7 @@ func DefaultConfig() Config {
 		StorageDir:           "still-wanna-dance-data",
 		Origins:              make(map[string]string),
 		DownloadTimeout:      10 * time.Minute,
+		PrepareAhead:         blocksched.DefaultPrepareAhead,
 		MaxFileBytes:         2 << 30,
 		MaxDownloads:         3,
 		Logger:               slog.New(slog.NewJSONHandler(os.Stderr, nil)),
@@ -78,6 +82,9 @@ func (c Config) validate() error {
 	}
 	if c.MaxCacheBytes < 0 {
 		return errors.New("cache limit cannot be negative")
+	}
+	if c.PrepareAhead < 0 {
+		return errors.New("download preparation lead cannot be negative")
 	}
 	if c.StorageDir == "" || c.DownloadTimeout <= 0 || c.MaxFileBytes <= 0 || c.MaxFileBytes == int64(^uint64(0)>>1) || c.MaxDownloads < 1 {
 		return errors.New("storage directory is required; timeout, file limit and download limit must be positive")

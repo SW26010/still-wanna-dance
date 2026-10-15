@@ -2,7 +2,8 @@ package blocksched
 
 import "time"
 
-const defaultPrepareAhead = 30 * time.Second
+// DefaultPrepareAhead is the default lead M for the activation window.
+const DefaultPrepareAhead = 500 * time.Second
 
 type controller struct {
 	open     int

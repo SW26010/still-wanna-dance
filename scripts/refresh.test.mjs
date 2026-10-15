@@ -514,6 +514,36 @@ test('throughput interval settings render and submit custom minutes', async () =
   assert.equal(JSON.parse(p.requests[2].body).throughputIntervalMinutes, 45);
 });
 
+test('preparation lead defaults to 500 seconds, retains drafts and submits changes', async () => {
+  const p = page(), get = id => p.document.getElementById(id);
+  p.finishBatch();
+  await flush();
+  assert.equal(get('prepareAheadSeconds').value, 500);
+  get('prepareAheadSeconds').value = '30';
+  get('settings').dispatchEvent({ type: 'input' });
+  assert.equal(vm.runInContext('settingsDirty', p.context), true);
+  p.fireTimer();
+  p.finishBatch(2, { prepareAheadSeconds: 500 });
+  await flush();
+  assert.equal(get('prepareAheadSeconds').value, '30');
+  get('discardSettings').click();
+  assert.equal(get('prepareAheadSeconds').value, 500);
+  assert.equal(vm.runInContext('settingsDirty', p.context), false);
+  get('prepareAheadSeconds').value = '60';
+  get('settings').dispatchEvent({ type: 'change' });
+  get('settings').dispatchEvent({ type: 'submit' });
+  const saved = p.requests.at(-1);
+  assert.equal(saved.url, '/api/settings');
+  assert.equal(JSON.parse(saved.body).prepareAheadSeconds, 60);
+  assert.equal(get('prepareAheadSeconds').disabled, true);
+  saved.finish({ ok: true });
+  await flush();
+  p.finishBatch(5, { prepareAheadSeconds: 60 }, { restartRequired: true });
+  await flush();
+  assert.equal(get('prepareAheadSeconds').value, 60);
+  assert.equal(get('restart').hidden, false);
+});
+
 for (const removeAuth of [false, true]) {
   test(`saved SOCKS5 password is hidden and ${removeAuth ? 'explicitly cleared with username' : 'omitted when unchanged'}`, async () => {
     const p = page();
@@ -1122,7 +1152,7 @@ test('settings submit prevents navigation and serializes the edited controls', a
   await flush();
   const get = id => p.document.getElementById(id);
   const values = {
-    queuePrefetchCount: '7',
+    queuePrefetchCount: '7', prepareAheadSeconds: '900',
     storageDir: 'D:/draft', logDir: 'D:/logs', downloadUpstream: 'hkg',
     upstreamMode: 'socks5', socks5Address: '127.0.0.1:7891',
     socks5Username: 'test-user', socks5Password: 'test-secret',
@@ -1138,7 +1168,7 @@ test('settings submit prevents navigation and serializes the edited controls', a
   assert.equal(p.requests[2].url, '/api/settings');
   assert.equal(p.requests[2].method, 'POST');
   assert.deepEqual(JSON.parse(p.requests[2].body), {
-    queuePrefetchCount: 7, autoStartQueue: false,
+    queuePrefetchCount: 7, prepareAheadSeconds: 900, autoStartQueue: false,
     autoStartCDN: true, storageDir: 'D:/draft', manualLogDir: true, logDir: 'D:/logs', downloadUpstream: 'hkg',
     upstreamMode: 'socks5', socks5Address: '127.0.0.1:7891',
     socks5Username: 'test-user', socks5Password: 'test-secret',

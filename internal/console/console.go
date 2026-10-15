@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/apppaths"
+	"still-wanna-dance/internal/blocksched"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/desktop"
 	"still-wanna-dance/internal/upstreamrequest"
@@ -52,6 +53,7 @@ type Settings struct {
 	RequestRetentionDays      int    `json:"requestRetentionDays"`
 	AutoStartCDN              bool   `json:"autoStartCDN"`
 	QueuePrefetchCount        int    `json:"queuePrefetchCount"`
+	PrepareAheadSeconds       int    `json:"prepareAheadSeconds"`
 	DownloadUpstream          string `json:"downloadUpstream"`
 	UpstreamMode              string `json:"upstreamMode"`
 	ProxyBackend              string `json:"proxyBackend"`
@@ -256,6 +258,12 @@ func absoluteSettings(s Settings) (Settings, error) {
 	if s.QueuePrefetchCount < 1 || s.QueuePrefetchCount > 100 {
 		return s, errors.New("队列预缓存数量必须为 1～100")
 	}
+	if s.PrepareAheadSeconds == 0 {
+		s.PrepareAheadSeconds = int(blocksched.DefaultPrepareAhead / time.Second)
+	}
+	if s.PrepareAheadSeconds < 1 || s.PrepareAheadSeconds > 86400 {
+		return s, errors.New("提前准备时间 M 必须为 1～86400 秒")
+	}
 	if s.DownloadUpstream == "" {
 		s.DownloadUpstream = "auto"
 	}
@@ -395,6 +403,7 @@ func (c *Console) ensureEngine() error {
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
 	cfg.RequestRetentionDays = c.settings.RequestRetentionDays
+	cfg.PrepareAhead = time.Duration(c.settings.PrepareAheadSeconds) * time.Second
 	cfg.DialContext = c.upstreamDial
 	mode := c.settings.DownloadUpstream
 	if mode == "cf" {

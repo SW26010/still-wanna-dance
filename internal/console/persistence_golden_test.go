@@ -23,7 +23,7 @@ func TestConfigurationAndInventoryGolden(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	if c.settings.RequestRetentionDays != 0 || c.settings.AutoStartCDN || c.settings.StorageDir != filepath.Join(root, "storage") {
+	if c.settings.PrepareAheadSeconds != 500 || c.settings.RequestRetentionDays != 0 || c.settings.AutoStartCDN || c.settings.StorageDir != filepath.Join(root, "storage") {
 		t.Fatal("configuration defaults changed")
 	}
 	if err := c.save(c.settings); err != nil {

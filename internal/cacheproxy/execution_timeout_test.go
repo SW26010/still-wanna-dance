@@ -41,7 +41,7 @@ func TestExecutionTimeoutExcludesInitialQueueWindow(t *testing.T) {
 	s.cfg.DownloadTimeout = 150 * time.Millisecond
 	queued := make(chan struct{}, 8)
 	s.scheduler.Close()
-	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1, Observe: func(e blocksched.Event) {
+	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1, PrepareAhead: 30 * time.Second, Observe: func(e blocksched.Event) {
 		if e.Kind == "queued" {
 			queued <- struct{}{}
 		}
@@ -111,7 +111,7 @@ func TestExecutionTimeoutExcludesWaitBetweenPlaybackBlocks(t *testing.T) {
 	v, _ := s.parseResolved(r)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	ctx = context.WithValue(ctx, playbackClockKey{}, &playbackClock{at: time.Now(), media: mediaTiming{v.size, 2 * time.Minute}})
+	ctx = context.WithValue(ctx, playbackClockKey{}, &playbackClock{at: time.Now(), media: mediaTiming{v.size, 15 * time.Minute}})
 	f, reader, err := s.obtain(ctx, v)
 	if err != nil {
 		t.Fatal(err)

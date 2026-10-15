@@ -2,7 +2,7 @@
 
 本页按实现先后保留开发与自动检查记录，最初依据会话「全局调度器设计」（`01a13b63-0ffa-7ad2-918a-fe93a9f25c70`）实施，后续按讨论继续收敛，分批本地提交，不推送。
 
-**阅读当前设计请先看[设计说明](block-scheduler-design.md)与[运行规则](download-concurrency.md)。** 截至第 35 节，已采用统一 T+M 启动窗口、完成事件更新 T、按可启动积压缓增，初始 T=3 秒、M=30 秒；第 34 节补全独立补齐的提前准入。下文早期的目标并发反推、两秒追赶、500 ms 采样、无收益回退、竞争暂停和旧参数都是历史阶段，不是当前约定。各次测试只证明其当时覆盖的实现；实机仍待 LA-040 / LA-041。
+**阅读当前设计请先看[设计说明](block-scheduler-design.md)与[运行规则](download-concurrency.md)。** 截至第 36 节，已采用统一 T+M 启动窗口、完成事件更新 T、按可启动积压缓增，初始 T=3 秒、M=500 秒，M 可在设置中调整；第 34 节补全独立补齐的提前准入。下文早期的目标并发反推、两秒追赶、500 ms 采样、无收益回退、竞争暂停和旧参数都是历史阶段，不是当前约定。各次测试只证明其当时覆盖的实现；实机仍待 LA-040 / LA-041 / LA-043。
 
 ## 1. 独立调度核心
 
@@ -312,3 +312,17 @@ HTTP 在地址解析前记录的到达时刻随 Range 起点一起传给 GET 需
 本轮分别本地提交执行超时边界、同块补齐准入和保守参数，LA-040 增补各自步骤与证据，LA-041 保留；没有启动游戏、改 hosts 或 push。参数效果与提前缓存代价仍需真实播放验收。
 
 最终全源码 `go test -tags=no_easytier -race ./cmd/... ./internal/... ./data/... ./experiments/... -count=1 -timeout=180s -json` 通过：17 个包、1,395 个测试/子测试通过，16 项按条件跳过，无 race 报告（window-boundaries-final-race.jsonl）。同范围 `go vet` 与 `CGO_ENABLED=0 go build` 通过（window-boundaries-vet.log、window-boundaries-build.log）。双索引引入后以及默认参数调整后，调度核心分别完整连续 20 轮 race 通过（opportunistic-core-race.log、conservative-window-core-race.log）。LA-040/041 继续待实机验收，自动结果不代替游戏内证据。
+
+## 36. M 默认 500 秒及设置可调
+
+2026-10-15：调度器默认 M 改为 500 秒，控制台新增「提前准备时间 M（秒）」及持久字段 `prepareAheadSeconds`，接受 1～86400 的整数；缺失/0 采用默认 500。同版本配置无需迁移，已有配置加载不强制改写。值经 `cacheproxy.Config.PrepareAhead` 传入共享调度器，沿用保存与运行配置分离的机制：保存只更新下次启动配置，重启整个应用后生效。设置草稿参与脏状态、轮询保护、放弃更改和保存；引导确认摘要包含此前已保存的 M 变更。
+
+回归覆盖新配置落盘、旧 v3 配置缺字段回退、API 合法边界/非法类型与越界拒绝、失败不改文件、保存与运行快照分离、仅启停网关不应用、重启持久化、引擎向调度器传递短窗口，以及默认 ReadyBy 前 503 秒的启动等号边界。未来任务夹具改为 15 分钟或显式 M=30 秒，保留窗口外等待、补齐需求撤销、调度等待不消耗执行预算的原验证目的；慢样本窗口跟随新默认平移。T 初值、样本口径、250 ms 缓增、普通软上限和 Blocking 规则不变。
+
+开发检查（不代表实机通过）：
+
+- `go test -tags=no_easytier ./internal/blocksched ./internal/cacheproxy ./internal/console -count=1 -timeout=180s`：三个包完整回归通过，原始输出仅本地 `artifacts/prepare-ahead-checks/go-tests.log`。初次沙箱执行因 Windows 拒绝原子重命名造成存储/配置测试失败；正常权限下使用测试临时配置与缓存重跑通过。
+- `node --test scripts/refresh.test.mjs scripts/setup.test.mjs scripts/navigation.test.mjs`：222 项通过，包含新设置默认值、草稿保护、放弃、保存数字及待重启提示；原始输出仅本地 `artifacts/prepare-ahead-ui-tests.log`。
+- 正式源码目录 `./cmd/... ./internal/... ./data/... ./experiments/...` 的 `go vet -tags=no_easytier` 与 `CGO_ENABLED=0 go build -tags=no_easytier` 均通过，输出仅本地 `artifacts/prepare-ahead-checks/{vet-source,build-source}.log`。初次 `./...` 检查纳入忽略目录 artifacts 中的旧临时源码，因包名冲突、缺少嵌入文件等失败；保留原输出及历史资料，随后按上述正式源码范围检查通过。
+
+新增待实机验收 LA-043，联动 LA-001/040/041；具体步骤、预期和证据见台账。未启动游戏、修改 hosts，未 commit/push；已有实机批次和历史失败证据保留。

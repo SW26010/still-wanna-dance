@@ -13,7 +13,7 @@ Just extract and run. The app lives in the Windows system tray and requires no G
 ## Get your videos ready to dance
 
 - **Put your cache to work**: read complete cached videos locally to avoid repeat downloads. On the first play, stream while downloading and save the video for later.
-- **Prepare upcoming songs**: read the room queue from VRChat logs and prefetch valid songs in the first 3 queue positions by default. Adjust the number to suit your needs.
+- **Prepare upcoming songs**: read the room queue from VRChat logs and prepare videos for upcoming songs, scheduling downloads around their estimated playback times.
 - **See what is happening**: check active downloads, upstream speed, recent requests, and queue readiness in the console.
 - **Manage your disk space**: choose a storage folder, find and delete cached videos, and check file integrity. Set a video cache limit to automatically remove lower-priority videos first.
 - **Choose your connection**: select playback API parameters (Auto, node=cf, or node=nya); resource domains come from valid API responses. Application requests can use built-in encrypted DNS directly, external SOCKS5, or imported embedded Mihomo nodes. Game HTTPS passthrough always connects directly.
@@ -46,7 +46,7 @@ For detailed instructions, see the [console guide](docs/console.md) and [portabl
 | Find cached videos, free space, and view request statistics | Local cache (本地缓存) |
 | Check missing videos and download them | Prepare songs (准备歌曲) |
 | Change folders, cache limits, upstream selection, or proxy settings | Settings (设置) |
-| Adjust how many queue positions to prefetch | Settings (设置) → Queue prefetch count (队列预缓存数量), then save and restart |
+| Adjust how early to prepare videos | Settings (设置) → Preparation lead M in seconds (提前准备时间 M（秒）), then save and restart |
 | Start or stop queue prefetch independently | Prepare songs (准备歌曲) → Room queue prefetch (房间队列预缓存) |
 
 Playback Gateway (播放网关) runs on your computer and handles playback requests, cache reads, upstream downloads, video delivery, and HTTPS forwarding for connections affected by game access. Local Cache (本地缓存) covers video storage, indexing, verification, and cleanup. Upstream channels (上游通道) are direct or proxy connections and their evaluation and selection. Game access (游戏接入) uses hosts mappings to direct requests to the local playback gateway. Everyday use is handled through the web console and system tray. A [standalone command-line service](docs/service.md) is also available for custom setups.

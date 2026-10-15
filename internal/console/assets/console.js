@@ -14,7 +14,7 @@ let settingsBaseline = null;
 function settingsFingerprint() {
   const values = ['storageDir', 'downloadUpstream', 'upstreamMode', 'proxyBackend', 'proxyImportID', 'proxyImportText', 'socks5Address', 'socks5Username', 'socks5Password']
     .map(id => String($(id).value ?? ''));
-  for (const id of ['maxCacheGiB', 'requestRetentionDays', 'throughputIntervalMinutes', 'queuePrefetchCount']) {
+  for (const id of ['maxCacheGiB', 'requestRetentionDays', 'throughputIntervalMinutes', 'queuePrefetchCount', 'prepareAheadSeconds']) {
     const value = String($(id).value ?? '');
     values.push(value === '' ? '' : Number(value));
   }
@@ -457,6 +457,7 @@ function renderSettings(s) {
     $('throughputIntervalMinutes').value = s.settings.throughputIntervalMinutes ?? 20;
     $('requestRetentionDays').value = s.settings.requestRetentionDays ?? 30;
     $('queuePrefetchCount').value = s.settings.queuePrefetchCount || 3;
+    $('prepareAheadSeconds').value = s.settings.prepareAheadSeconds ?? 500;
     $('storageDir').value = s.settings.storageDir;
     $('logDir').value = s.settings.logDir;
     $('manualLogDir').checked = !!s.settings.manualLogDir;
@@ -504,6 +505,7 @@ function renderControls() {
     'socks5Username',
     'socks5Password',
     'queuePrefetchCount',
+    'prepareAheadSeconds',
     'save',
   ])
     $(id).disabled = unavailable;
@@ -822,6 +824,7 @@ async function saveSettings() {
     throughputIntervalMinutes: Number($('throughputIntervalMinutes').value),
     requestRetentionDays: Number($('requestRetentionDays').value),
     queuePrefetchCount: Number($('queuePrefetchCount').value),
+    prepareAheadSeconds: Number($('prepareAheadSeconds').value),
     downloadUpstream: $('downloadUpstream').value,
     upstreamMode: $('upstreamMode').value,
     proxyBackend: $('proxyBackend').value,

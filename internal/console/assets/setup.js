@@ -514,7 +514,7 @@
     }
     // Previously saved advanced changes are also activated by the restart.
     let advancedChanged = false;
-    for (const [key,label] of [['autoStartCDN','自动启动播放网关'],['autoStartQueue','自动启动队列'],['queuePrefetchCount','队列预缓存数'],['requestRetentionDays','请求保留天数'],['throughputIntervalMinutes','测速间隔（分钟）'],['downloadUpstream','回源线路'],['manualLogDir','手动日志位置'],['logDir','日志目录']]) {
+    for (const [key,label] of [['autoStartCDN','自动启动播放网关'],['autoStartQueue','自动启动队列'],['queuePrefetchCount','队列预缓存数'],['prepareAheadSeconds','提前准备时间 M（秒）'],['requestRetentionDays','请求保留天数'],['throughputIntervalMinutes','测速间隔（分钟）'],['downloadUpstream','回源线路'],['manualLogDir','手动日志位置'],['logDir','日志目录']]) {
       if (current[key] !== s.settings[key]) {
         advancedChanged = true;
         lines.push(change(label,String(current[key]),String(s.settings[key])) + '（此前已保存）');

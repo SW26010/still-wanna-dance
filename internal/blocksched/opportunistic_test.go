@@ -28,7 +28,7 @@ func TestMixedDemandKeepsDeadlineAndOpportunisticAdmission(t *testing.T) {
 			hold.Add(need("hold", false, 0, time.Hour))
 			<-started
 			shared, _ := s.Submit("shared", 1, run("shared"))
-			d := shared.Add(need("playback", false, time.Minute, time.Hour))
+			d := shared.Add(need("playback", false, 15*time.Minute, time.Hour))
 			shared.Add(need("batch", false, 0, time.Hour))
 			other, _ := s.Submit("other", 1, run("other"))
 			other.Add(need("other", false, 2*time.Second, time.Hour))
@@ -85,7 +85,7 @@ func TestMixedDemandWithdrawalRemovesOnlyEarlyAdmission(t *testing.T) {
 			hold.Add(need("hold", false, 0, time.Hour))
 			started := make(chan struct{}, 1)
 			j, _ := s.Submit("mixed", 1, func(context.Context, *Progress) Result { started <- struct{}{}; return Result{} })
-			playback := j.Add(need("playback", false, time.Minute, time.Hour))
+			playback := j.Add(need("playback", false, 15*time.Minute, time.Hour))
 			batch := j.Add(need("batch", false, 0, 100*time.Millisecond))
 			if expire {
 				time.Sleep(100 * time.Millisecond)

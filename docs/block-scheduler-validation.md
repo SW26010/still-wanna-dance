@@ -214,3 +214,11 @@ checkDownloadedFile 仅将 errInvalidCache（大小或 MD5 不匹配）标记为
 确定性虚拟时间回归覆盖容量为 1 的租约到期/主动撤销/从未添加需求、保留期前后边界、重复提交不续期、Watch 完成通知、旧句柄不能影响同键新任务、有效重接取消旧计时、其他孤儿独立到期、Blocking 与长冷却中的排队/暂停任务回收，以及延迟执行收尾和真实错误保留。核心完整 race 连续 20 轮通过（orphan-retention-core-final-race-2.log）。核心与缓存完整 `go test -tags=no_easytier -race ./internal/blocksched ./internal/cacheproxy -count=1 -timeout=120s -json` 通过，481 个测试/子测试通过、8 项按条件跳过，无 race 报告（orphan-retention-integration-race-2.jsonl）。首次缓存回归的 Windows 硬链接、目录联接和相关子进程受沙箱权限拒绝，失败日志 orphan-retention-integration-race.jsonl 保留，使用正常文件权限重跑同一范围通过，未修改产品行为绕过检查。
 
 全部受控 Go 源码目录的 `go vet -tags=no_easytier` 和 `CGO_ENABLED=0 go build -tags=no_easytier` 通过（orphan-retention-vet.log、orphan-retention-build.log）。台账仍为 41 个唯一编号；本次补充 LA-040 的管理层失联、任务容量回收和实际播放证据，LA-041 观测继续保留。只提交本修复及对应文档，其他研究文件/脚本不属于本次变更；未 push、未启动游戏或修改 hosts，实机继续积攒。
+
+## 24. Blocking 绕过准入，已有下载自然完成
+
+按用户更新的独立带宽假设，准入统一为 need.Blocking || active < open。删除“有 Blocking 就禁止普通准入”、优先级竞争选择暂停对象、200 ms 竞争计时、500 ms 恢复冷却及其等待堆；产品与实验夹具移除对应配置。Blocking 计入总 active，只有执行器完成正文关闭和全部收尾后才扣减，已经运行的同块继续共享。目标降低仍由供数/期限估算控制，但只影响后续补位；普通排队任务按 ReadyBy 排序。需求归零、租约到期、显式任务关闭及引擎关闭的取消/前缀保存/清理、30 秒孤儿回收继续保留。
+
+新增虚拟时间回归覆盖 open=4、4 路普通加 2 路 Blocking、active=4 不补位/降到 3 才补位、Blocking 存续期间可复用空额度、关闭收尾期间仍计数、排队块晋升立即执行、身份变化共享已有执行、紧迫普通期限不能抢占在途，以及目标下降自然完成。原竞争暂停与小尾部保护断言删除；空闲计时与孤儿回收仍保留，暂停夹具改为需求撤销触发。HTTP 首读和 Seek 回归改为保持 Blocking 超过旧阈值，确认已有部分响应未关闭、没有重复 Range，随后全文件校验和发布正确。取消后的前缀、失败候选、重定向和响应有效性继续由现有会话恢复及首次请求恢复回归覆盖。新策略与关联生命周期定向 race 连续 3 轮通过（natural-admission-focused-race.log）。
+
+LA-040 主项及服务/队列/并发说明同步到新规则；历史竞争暂停要求明确标记由本轮取代，保留历史记录和 LA-041。开发分两步本地提交：先调整准入与生命周期回归，再移除只服务旧暂停选择的冗余统计状态。真实网络带宽假设、吞吐与音画效果仍待实机验收；未启动游戏、未修改 hosts 或 push。

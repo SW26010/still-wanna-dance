@@ -13,7 +13,7 @@ import (
 // adaptation are tested separately; this sets only the execution policy.
 func fixedBlockScheduler(s *Server) {
 	s.scheduler.Close()
-	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 4, PreemptAfter: 20 * time.Millisecond, Cooldown: 20 * time.Millisecond})
+	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 4})
 }
 
 func testSession(t *testing.T) (*downloadSession, *Server) {

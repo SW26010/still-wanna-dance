@@ -151,7 +151,6 @@ func (s *state) regulate(now time.Time) {
 		if c.target == 0 {
 			c.open = 1
 			c.nextGrow = time.Time{}
-			s.contention = time.Time{}
 			if s.active == 0 {
 				c.nextSample = time.Time{}
 				c.previousConcurrency = 0
@@ -174,71 +173,15 @@ func (s *state) regulate(now time.Time) {
 			c.nextGrow = time.Time{}
 		}
 	}
-	if s.cfg.PreemptAfter <= 0 {
-		return
-	}
-	// A free request slot does not remove bandwidth contention. Give existing
-	// low-urgency transfers a bounded chance to finish before yielding one.
-	var victim *job
-	var victimRemaining int64
-	blocking := s.hasBlocking()
-	var due *job
-	if len(s.ready) > 0 && !s.ready[0].need.ReadyBy.IsZero() && !s.ready[0].need.ReadyBy.After(now.Add(catchupWindow)) {
-		due = s.ready[0]
-	}
-	for j := range s.running {
-		// Contention can fire before the next 500 ms supply sample. Inspect
-		// useful progress now, including response size discovery and retries.
-		remaining, received := j.remaining, int64(0)
-		if p := j.progress; p != nil {
-			size := p.size.Load()
-			if size == 0 {
-				size = j.initialRemaining
-			}
-			received = p.received.Load()
-			remaining = max(0, size-received)
-		}
-		if j.cancel != nil && !j.need.Blocking && !j.retiring && !j.yielding && (remaining > 64<<10 || received == 0) && (blocking || due != nil && needBefore(due.need, j.need)) {
-			if victim == nil || needBefore(victim.need, j.need) || !needBefore(j.need, victim.need) && remaining > victimRemaining {
-				victim = j
-				victimRemaining = remaining
-			}
-		}
-	}
-	if (!blocking && due == nil) || victim == nil {
-		s.contention = time.Time{}
-		return
-	}
-	if s.contention.IsZero() {
-		s.contention = now.Add(s.cfg.PreemptAfter)
-	}
-	if !now.Before(s.contention) {
-		victim.yielding = true
-		victim.cancel(ErrPaused)
-		reason := "deadline_contention"
-		if blocking {
-			reason = "blocking_contention"
-		}
-		s.emit("yield_requested", reason, victim)
-		s.contention = now.Add(s.cfg.PreemptAfter)
-	}
 }
+
 func (s *state) nextControlEvent(now time.Time) time.Time {
-	next := earlier(earlier(s.control.nextGrow, s.contention), s.control.nextEstimate)
+	next := earlier(s.control.nextGrow, s.control.nextEstimate)
 	if first := s.orphans.Front(); first != nil {
 		next = earlier(next, first.Value.(*job).orphanUntil)
 	}
 	if s.active > 0 && s.cfg.GrowInterval > 0 {
 		next = earlier(next, s.control.nextSample)
-	}
-	if !s.hasBlocking() && len(s.sleeping) > 0 {
-		next = earlier(next, s.sleeping[0].notBefore)
-	}
-	if len(s.ready) > 0 && !s.ready[0].need.ReadyBy.IsZero() {
-		at := s.ready[0].need.ReadyBy.Add(-catchupWindow)
-		if at.After(now) {
-			next = earlier(next, at)
-		}
 	}
 	return next
 }

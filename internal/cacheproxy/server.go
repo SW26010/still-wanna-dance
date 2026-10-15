@@ -207,7 +207,7 @@ func New(cfg Config) (*Server, error) {
 	s.retentionDone = make(chan struct{})
 	go s.retentionLoop()
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: videoRequestSoftLimit,
-		GrowInterval: 250 * time.Millisecond, PreemptAfter: 200 * time.Millisecond, Cooldown: 500 * time.Millisecond, Adaptive: true,
+		GrowInterval: 250 * time.Millisecond, Adaptive: true,
 		Observe: func(e blocksched.Event) {
 			cfg.Logger.Debug("block_schedule", "event", e.Kind, "block_key", e.Key, "reason", e.Reason, "active", e.Active, "open", e.Open, "target", e.Target, "blocking", e.Blocking, "ready_by", e.ReadyBy, "remaining_bytes", e.Remaining, "supply_bytes_per_worker_second", e.Supply)
 		}})

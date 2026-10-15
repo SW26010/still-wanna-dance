@@ -176,7 +176,7 @@ func TestOrphanRetirementWaitsForCleanup(t *testing.T) {
 func TestOrphanQueuedAndPausedTasksExpireDuringBlocking(t *testing.T) {
 	for _, paused := range []bool{false, true} {
 		synctest.Test(t, func(t *testing.T) {
-			s := New(Config{SoftLimit: 1, MaxTasks: 2, PreemptAfter: 200 * time.Millisecond, Cooldown: time.Hour})
+			s := New(Config{SoftLimit: 1, MaxTasks: 2})
 			defer s.Close()
 			started := make(chan struct{}, 1)
 			background, _ := s.Submit("background", 1<<20, func(ctx context.Context, _ *Progress) Result {
@@ -185,8 +185,9 @@ func TestOrphanQueuedAndPausedTasksExpireDuringBlocking(t *testing.T) {
 				return Result{Err: ErrPaused, Remaining: 512 << 10}
 			})
 			if paused {
-				background.Add(need("background", false, time.Minute, time.Second))
+				d := background.Add(need("background", false, time.Minute, time.Second))
 				<-started
+				d.Close()
 			}
 			blocking, _ := s.Submit("blocking", 1, func(ctx context.Context, _ *Progress) Result {
 				<-ctx.Done()
@@ -201,13 +202,13 @@ func TestOrphanQueuedAndPausedTasksExpireDuringBlocking(t *testing.T) {
 			select {
 			case <-background.Done():
 			default:
-				t.Fatal("Blocking/cooldown prevented orphan retirement", paused)
+				t.Fatal("Blocking prevented orphan retirement", paused)
 			}
 			if len(started) != 0 {
 				t.Fatal("orphan started or resumed without demand")
 			}
 			s.call(func(st *state) {
-				if len(st.jobs) != 1 || st.demandCount != 1 || st.active != 1 || st.orphans.Len() != 0 || len(st.sleeping) != 0 || len(st.delayed) != 0 {
+				if len(st.jobs) != 1 || st.demandCount != 1 || st.active != 1 || st.orphans.Len() != 0 || len(st.ready) != 0 {
 					t.Error("orphan left metadata behind or removed the independent reader")
 				}
 			})

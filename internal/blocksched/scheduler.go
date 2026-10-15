@@ -67,9 +67,9 @@ func (p *Progress) Add(n int64) {
 type Config struct {
 	// SoftLimit bounds ordinary admission. Actual blocked reads bypass both
 	// this limit and growth pacing; metadata capacity still bounds total work.
-	SoftLimit, MaxTasks, MaxDemands      int
-	GrowInterval, PreemptAfter, Cooldown time.Duration
-	Adaptive                             bool
+	SoftLimit, MaxTasks, MaxDemands int
+	GrowInterval                    time.Duration
+	Adaptive                        bool
 	// Optional event sink; it must be fast and must not call back into Scheduler.
 	Observe func(Event)
 }
@@ -188,14 +188,12 @@ type job struct {
 	needs            map[uint64]*lease
 	need             Need
 	index            int
-	delayIndex       int
 	sequence, fair   uint64
 	cancel           context.CancelCauseFunc
 	progress         *Progress
 	retiring         bool
 	yielding         bool
 	terminal         error
-	notBefore        time.Time
 	started          time.Time
 	sampled          int64
 	orphanUntil      time.Time
@@ -225,9 +223,6 @@ type state struct {
 	active, demandCount int
 	closing             bool
 	control             controller
-	delayed             map[*job]bool
-	sleeping            delayHeap
-	contention          time.Time
 	orphans             list.List
 }
 
@@ -240,7 +235,7 @@ func New(cfg Config) *Scheduler {
 		cfg.MaxDemands = 32768
 	}
 	s := &Scheduler{commands: make(chan func(*state), 64), finished: make(chan completion, cfg.SoftLimit), done: make(chan struct{})}
-	st := &state{s: s, cfg: cfg, jobs: make(map[string]*job), running: make(map[*job]bool), owners: make(map[string]uint64), groups: make(map[string]map[*job]bool), delayed: make(map[*job]bool)}
+	st := &state{s: s, cfg: cfg, jobs: make(map[string]*job), running: make(map[*job]bool), owners: make(map[string]uint64), groups: make(map[string]map[*job]bool)}
 	st.control.open = cfg.SoftLimit
 	if cfg.GrowInterval > 0 {
 		st.control.open = 1
@@ -284,7 +279,7 @@ func (s *Scheduler) Submit(key string, remaining int64, run Run) (*Task, error) 
 		}
 		st.sequence++
 		t = &Task{s: s, key: key, done: make(chan struct{})}
-		j := &job{task: t, run: run, remaining: remaining, needs: make(map[uint64]*lease), index: -1, delayIndex: -1, sequence: st.sequence}
+		j := &job{task: t, run: run, remaining: remaining, needs: make(map[uint64]*lease), index: -1, sequence: st.sequence}
 		st.jobs[key] = j
 		st.retainOrphan(j)
 	}) {
@@ -360,7 +355,6 @@ func (s *state) refresh(j *job) {
 		s.removeOrphan(j)
 	}
 	if n.Owner == "" || j.retiring {
-		s.removeDelayed(j)
 		if j.index >= 0 {
 			heap.Remove(&s.ready, j.index)
 		}
@@ -373,14 +367,6 @@ func (s *state) refresh(j *job) {
 	if j.cancel != nil {
 		return
 	}
-	if !n.Blocking && (!j.notBefore.IsZero() && time.Now().Before(j.notBefore) || s.delayed[j] && s.hasBlocking()) {
-		s.addDelayed(j)
-		if j.index >= 0 {
-			heap.Remove(&s.ready, j.index)
-		}
-		return
-	}
-	s.removeDelayed(j)
 	if j.index < 0 {
 		heap.Push(&s.ready, j)
 		s.emit("queued", "demand", j)
@@ -434,7 +420,6 @@ func (s *state) finish(j *job, err error) {
 	}
 	delete(s.jobs, j.task.key)
 	s.removeOrphan(j)
-	s.removeDelayed(j)
 	s.ungroup(j)
 	if len(s.groups[j.need.Owner]) == 0 {
 		delete(s.owners, j.need.Owner)
@@ -456,10 +441,8 @@ func (s *state) emit(kind, reason string, j *job) {
 func (s *state) dispatch() {
 	for s.ready.Len() > 0 {
 		j := s.ready[0]
-		// With contention yielding enabled, keep released bandwidth available
-		// to blocked readers. Fresh background work must wait just like paused
-		// work, even when a request slot is free.
-		if !j.need.Blocking && (s.active >= s.control.open || s.cfg.PreemptAfter > 0 && s.hasBlocking()) {
+		// Blocking bypasses admission but remains part of active until cleanup.
+		if !j.need.Blocking && s.active >= s.control.open {
 			return
 		}
 		heap.Pop(&s.ready)
@@ -499,11 +482,6 @@ func (s *state) loop() {
 			s.refresh(v.job)
 		}
 		s.expireOrphans(now)
-		if !s.hasBlocking() {
-			for len(s.sleeping) > 0 && !s.sleeping[0].notBefore.After(now) {
-				s.refresh(s.sleeping[0])
-			}
-		}
 		s.regulate(now)
 		s.dispatch()
 		if s.closing && s.active == 0 {
@@ -540,9 +518,7 @@ func (s *state) loop() {
 				s.finish(j, err)
 			} else if errors.Is(c.result.Err, ErrPaused) {
 				j.remaining = c.result.Remaining
-				j.notBefore = time.Now().Add(s.cfg.Cooldown)
-				s.addDelayed(j)
-				s.emit("paused", "lease_or_contention", j)
+				s.emit("paused", "no_demand", j)
 				s.refresh(j)
 			} else {
 				s.emit("finished", "execution", j)
@@ -593,34 +569,4 @@ func (h *leaseHeap) Pop() any {
 	*h = a[:len(a)-1]
 	l.index = -1
 	return l
-}
-
-func (s *state) addDelayed(j *job) {
-	s.delayed[j] = true
-	if j.delayIndex < 0 {
-		heap.Push(&s.sleeping, j)
-	} else {
-		heap.Fix(&s.sleeping, j.delayIndex)
-	}
-}
-func (s *state) removeDelayed(j *job) {
-	delete(s.delayed, j)
-	if j.delayIndex >= 0 {
-		heap.Remove(&s.sleeping, j.delayIndex)
-	}
-}
-
-type delayHeap []*job
-
-func (h delayHeap) Len() int           { return len(h) }
-func (h delayHeap) Less(i, j int) bool { return h[i].notBefore.Before(h[j].notBefore) }
-func (h delayHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i]; h[i].delayIndex = i; h[j].delayIndex = j }
-func (h *delayHeap) Push(v any)        { j := v.(*job); j.delayIndex = len(*h); *h = append(*h, j) }
-func (h *delayHeap) Pop() any {
-	a := *h
-	j := a[len(a)-1]
-	a[len(a)-1] = nil
-	*h = a[:len(a)-1]
-	j.delayIndex = -1
-	return j
 }

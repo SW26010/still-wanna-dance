@@ -263,6 +263,10 @@
 
 2026-10-15 播放期限补充 **LA-040**：代码依据 `internal/cacheproxy/{media_timing,playback_timing,demand,scheduled_download,server}.go` 及对应回归。使用已知 media.byte_size 和同 MD5 清单 end 的视频，从开头、半程和尾部发 GET，延迟解析/下载后核对 ReadyBy 仍以原始请求到达时刻为基准；连续读取不得把未来块期限后移，实际缺块仍立即 Blocking。覆盖后缀 Range、条件 Range、HEAD、无效/多 Range、同内容多读者、资源版本不匹配及大小/时长单项或双项缺失，确认兜底只影响估算、不写回资源事实。保存请求到达/偏移、所用大小时长、逐块 ReadyBy、实际播放点与缓冲/音画证据，并报告比例估算误差。自动化验证单列，实机仍待验收。
 
+2026-10-15 队列播放时间补充 **LA-040**（联合 LA-041）：代码依据 `internal/cacheproxy/{queue_timing,demand,song_load}.go`、`queue_timing_test.go`、`queue_lifecycle_test.go`。并行两个不同剩余时长的 GET，核对队首开始时刻取较早预计结束值，后项逐首累加本地清单 end，块偏移使用各自媒体比例；取消较早 GET 时按其余有效 GET 重算，最后一个 GET 传输退出后保留已算出的队列起点。无 GET 时从首次队列快照开始，重复快照不滑动；队列重排、未知占位、解析补齐大小和清单变化应更新受影响期限，普通批量/HEAD 不充当播放，过时 URL 结果不复活旧来源，原固定 10/30/2 秒估算被取代。保留 playback_timing、queue_playback_timing、逐块 ReadyBy、清单/大小依据、请求生命周期、队列顺序和实际开播时间轴，记录探测/尾部索引或变码率带来的估计偏差。自动回归单列，真实游戏继续待验收。
+
+上述队列期限场景另延迟本地元数据/来源更新，同时替换或重排队列：新歌曲须在引擎完成同一快照的来源更新后才派发，不能因临时空来源错误进入 60 秒重试；状态页和停止取消仍应响应。依据 `internal/console/{queue,queue_cancellation_test,queue_lock_test}.go`，保留派发、来源更新、失败计数和停止响应的时间线，归入 LA-040。
+
 ## 队首消失至正式播放的时长观测
 
 | 编号 | 功能与代码/验证依据 | 下轮步骤与通过条件 | 必需证据 / 环境 | 状态 | 批次 / 结果报告 |

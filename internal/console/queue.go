@@ -331,12 +331,16 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 	c.queue.prefetchCount = c.settings.QueuePrefetchCount
 	window := c.queue.windowSize()
 	c.queue.protect = func(ids []int64, reset bool) {
-		engine.UpdatePrefetchQueue(ids[:min(len(ids), window)], reset)
+		if err := engine.UpdatePrefetchQueue(ids[:min(len(ids), window)], reset); err != nil {
+			slog.Warn("queue_timing_failed", "error", err)
+		}
 		_ = engine.UpdateQueueSongs(ctx, ids, reset)
 	}
 	ids := queueSongIDs(c.queue.Songs)
 	c.mu.Unlock()
-	engine.UpdatePrefetchQueue(ids[:min(len(ids), window)], false)
+	if err := engine.UpdatePrefetchQueue(ids[:min(len(ids), window)], false); err != nil {
+		slog.Warn("queue_timing_failed", "error", err)
+	}
 	_ = engine.UpdateQueueSongs(ctx, ids, false)
 	c.queueUpdateMu.Unlock()
 	type result struct {
@@ -370,6 +374,9 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		if ctx.Err() != nil {
 			return
 		}
+		// The visible snapshot can precede the engine's metadata/source update.
+		// Dispatch only after that same serialized update has finished.
+		c.queueUpdateMu.Lock()
 		c.mu.Lock()
 		if c.queue.Generation != generation {
 			generation = c.queue.Generation
@@ -436,6 +443,7 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 			c.queue.Current = ids[0]
 		}
 		c.mu.Unlock()
+		c.queueUpdateMu.Unlock()
 		select {
 		case <-ctx.Done():
 			return

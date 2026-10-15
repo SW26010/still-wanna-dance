@@ -19,9 +19,10 @@ type queueDemandKey struct{}
 // coalesced wakeups cannot lose the source at withdrawal. Only existing demand
 // references retain removed members; no transition history is accumulated.
 type queueSource struct {
-	song             string
-	position         int
-	epoch, removedAt time.Time
+	song               string
+	position           int
+	startAt, removedAt time.Time
+	timing             mediaTiming
 }
 
 func (q *queueSource) origin() demandSource {
@@ -32,7 +33,7 @@ func (q *queueSource) origin() demandSource {
 }
 
 func (q *queueSource) readyBy(block int64) time.Time {
-	return q.epoch.Add(10*time.Second + time.Duration(q.position)*30*time.Second + time.Duration(block)*2*time.Second)
+	return q.startAt.Add(q.timing.at(block * rangeBlockSize))
 }
 
 type downloadDemand struct {
@@ -70,13 +71,26 @@ func (e *sourceExit) when() time.Time {
 }
 
 func (s *Server) queueContainsLocked(song string) bool { return s.prefetchSources[song] != nil }
-func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) {
+func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
+	if !s.beginRequest() {
+		return context.Canceled
+	}
+	defer s.wg.Done()
+	now := time.Now()
+	timings, err := s.queueTimings(context.Background(), ids)
+	if err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	now := time.Now()
 	previous := s.prefetchSources
 	next := make(map[string]*queueSource, len(ids))
-	changed := reset
+	changed := reset || len(ids) != len(s.prefetchOrder)
+	for i, id := range ids {
+		if i >= len(s.prefetchOrder) || s.prefetchOrder[i] != id {
+			changed = true
+		}
+	}
 	for i, id := range ids {
 		if id > 0 {
 			song := strconv.FormatInt(id, 10)
@@ -88,6 +102,12 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) {
 				}
 				changed = changed || source.position != i
 				source.position = i
+				timing, ok := timings[song]
+				if !ok {
+					timing = estimateMediaTiming(0, 0)
+				}
+				changed = changed || source.timing != timing
+				source.timing = timing
 				next[song] = source
 			}
 		}
@@ -99,18 +119,21 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) {
 		}
 	}
 	if !changed {
-		return // Repeated snapshots must not postpone queue deadlines.
-	}
-	for _, source := range next {
-		source.epoch = now
+		return nil // Repeated snapshots must not postpone queue deadlines.
 	}
 	s.prefetchSources = next
+	s.prefetchOrder = append([]int64(nil), ids...)
+	if reset {
+		s.queueStart = time.Time{}
+	}
+	s.retimeQueueLocked(now)
 	for song := range s.prefetchResources {
 		if reset || !s.queueContainsLocked(song) {
 			delete(s.prefetchResources, song)
 		}
 	}
 	s.notifyCapacityLocked()
+	return nil
 }
 func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downloadDemand, func()) {
 	token, queue := ctx.Value(queueDemandKey{}).(*queueSource)
@@ -127,6 +150,7 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 		s.demands = make(map[*downloadDemand]bool)
 	}
 	s.demands[d] = true
+	s.retimeQueueLocked(time.Now())
 	if queue && ctx.Err() == nil && s.validQueueSourceLocked(d) {
 		if s.prefetchResources == nil {
 			s.prefetchResources = make(map[string]string)
@@ -139,6 +163,7 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 		d.exit.record()
 		s.mu.Lock()
 		delete(s.demands, d)
+		s.retimeQueueLocked(time.Now())
 		s.notifyCapacityLocked()
 		s.mu.Unlock()
 	})

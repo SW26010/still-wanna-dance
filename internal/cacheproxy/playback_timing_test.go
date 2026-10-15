@@ -1,12 +1,42 @@
 package cacheproxy
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"testing"
 	"testing/synctest"
 	"time"
 )
+
+func TestHTTPRangeUpdatesQueuePlaybackAnchor(t *testing.T) {
+	body := bytes.Repeat([]byte("x"), int(2*rangeBlockSize))
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write(body) })
+	r, _ := http.NewRequest("GET", videoURL(string(body)), nil)
+	v, _ := s.parseResolved(r)
+	if _, err := s.usage.db.Exec("INSERT INTO media(md5,byte_size) VALUES (?,?)", v.key, v.size); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.usage.db.Exec("INSERT INTO songs(song_id,end) VALUES (1,120)"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.usage.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (1,?)", v.key); err != nil {
+		t.Fatal(err)
+	}
+	s.UpdatePrefetchQueue([]int64{2}, false)
+	before := time.Now()
+	w := request(s, "GET", videoURL(string(body)), map[string]string{"Range": "bytes=1048576-1048583"})
+	if w.Code != http.StatusPartialContent || w.Body.String() != "xxxxxxxx" {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	after := time.Now()
+	s.mu.Lock()
+	start := s.prefetchSources["2"].startAt
+	s.mu.Unlock()
+	if start.Before(before.Add(time.Minute)) || start.After(after.Add(time.Minute)) {
+		t.Fatal("GET arrival/Range was not propagated to the queue", before, start, after)
+	}
+}
 
 func TestPlaybackRangePosition(t *testing.T) {
 	v := video{key: "checksum", size: 1000}

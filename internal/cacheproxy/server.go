@@ -68,6 +68,8 @@ type Server struct {
 	demands           map[*downloadDemand]bool  // protected by mu, separate from file pins
 	prefetchSources   map[string]*queueSource
 	prefetchResources map[string]string
+	prefetchOrder     []int64
+	queueStart        time.Time
 	playbackChecks    map[string]*playbackCheck // protected by mu
 	slots             chan struct{}
 	localChecks       chan struct{}

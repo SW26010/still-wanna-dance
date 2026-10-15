@@ -43,6 +43,7 @@ func reconcileSession(t *testing.T, w *downloadSession) {
 func TestQueueReorderUsesOneTimeBase(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := demandLifecycleSession(t)
+		base := time.Now()
 		s.UpdatePrefetchQueue([]int64{1, 2, 3}, false)
 		registerQueueResource(t, s, "2", w.v.key)
 		registerQueueResource(t, s, "3", w.v.key)
@@ -55,11 +56,11 @@ func TestQueueReorderUsesOneTimeBase(t *testing.T) {
 		s.UpdatePrefetchQueue([]int64{2, 1, 3}, false)
 		reconcileSession(t, w)
 		j := w.jobs[0]
-		if want := time.Now().Add(10 * time.Second); !j.published.ReadyBy.Equal(want) {
+		if want := base; !j.published.ReadyBy.Equal(want) {
 			t.Fatalf("new head lost priority: earliest=%v want=%v", j.published.ReadyBy, want)
 		}
 		for _, p := range j.needs {
-			if p.source == sourceQueue && !p.need.ReadyBy.Equal(time.Now().Add(70*time.Second)) {
+			if p.source == sourceQueue && !p.need.ReadyBy.Equal(base.Add(2*typicalDuration)) {
 				t.Fatal("unchanged third position retained the previous queue epoch", p.need.ReadyBy)
 			}
 		}
@@ -102,9 +103,9 @@ func TestCoalescedQueueChangesPreserveWithdrawalSource(t *testing.T) {
 					if j.retiring || len(j.handoffs) != 1 || !j.handoffUntil.Equal(removedAt.Add(queueHandoff)) {
 						t.Fatalf("missing/freshened handoff: retiring=%v handoffs=%d until=%v", j.retiring, len(j.handoffs), j.handoffUntil)
 					}
-					// Promotion occurred one second before removal: head ready at +9s,
-					// then handoff defers it by 5s, independent of observation delay.
-					if !j.handoffs[0].need.ReadyBy.Equal(removedAt.Add(14 * time.Second)) {
+					// The head is already due at removal; handoff adds 5s from
+					// withdrawal, independent of coordinator observation delay.
+					if !j.handoffs[0].need.ReadyBy.Equal(removedAt.Add(5 * time.Second)) {
 						t.Fatal("handoff used the stale ordinary-queue deadline", j.handoffs[0].need.ReadyBy)
 					}
 					reconcileSession(t, w)

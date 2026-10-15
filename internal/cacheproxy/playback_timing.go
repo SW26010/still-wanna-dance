@@ -79,5 +79,9 @@ func (s *Server) playbackContext(r *http.Request, v video, at time.Time) (contex
 	if err != nil {
 		return nil, err
 	}
-	return context.WithValue(r.Context(), playbackClockKey{}, &playbackClock{at: at, offset: offset, media: m}), nil
+	p := &playbackClock{at: at, offset: offset, media: m}
+	if s.cfg.Logger != nil {
+		s.cfg.Logger.Debug("playback_timing", "resource_key", v.key, "arrived_at", at, "range_start", offset, "media_bytes", m.size, "duration_seconds", m.duration.Seconds(), "estimated_end", p.end())
+	}
+	return context.WithValue(r.Context(), playbackClockKey{}, p), nil
 }

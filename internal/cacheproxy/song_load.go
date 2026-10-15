@@ -119,6 +119,9 @@ func (s *Server) PrefetchPlayback(ctx context.Context, id int64) (string, error)
 		return "HIT", nil
 	}
 	for {
+		if err := s.refreshQueueResourceTiming(ctx, v); err != nil {
+			return "", err
+		}
 		source, err := s.prefetchVideo(ctx, v)
 		if err == nil || v.cached == nil || !errors.Is(err, errUpstreamDownload) || ctx.Err() != nil {
 			return source, err

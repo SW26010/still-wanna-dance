@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/blocksched"
 )
 
 func TestParallelRangeEntityValidation(t *testing.T) {
@@ -175,3 +177,52 @@ func TestParallelRangeFailureJoinsClosingPeersBeforeCleanup(t *testing.T) {
 
 // Ensure the test peer retains the same ownership contract as an HTTP body.
 var _ io.ReadCloser = (*rangeClosingPeer)(nil)
+
+func TestParallelRangeCleanupPreservesCheckpointFailure(t *testing.T) {
+	s, _ := setup(t, nil)
+	s.scheduler.Close()
+	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 2})
+	f, v := completedRangeFlight(t, s, strings.Repeat("x", int(2*rangeBlockSize)))
+	clear(f.ranges.done)
+	f.ranges.prefix = 0
+	f.spool = f.ranges.makeSpool(nil, nil)
+	w := &downloadSession{s: s, f: f, jobs: make(map[int64]*scheduledBlock)}
+	ready, peerStarted := make(chan int64, 1), make(chan struct{})
+	upstream := fmt.Errorf("%w: controlled failed peer", errUpstreamDownload)
+	for block := int64(0); block < 2; block++ {
+		task, err := s.scheduler.Submit(fmt.Sprint(block), rangeBlockSize, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
+			if block == 1 {
+				close(peerStarted)
+				<-ctx.Done()
+				return blocksched.Result{Err: upstream}
+			}
+			resp := &http.Response{StatusCode: 206, ContentLength: rangeBlockSize,
+				Header: http.Header{"Content-Range": {fmt.Sprintf("bytes 0-%d/%d", rangeBlockSize-1, v.size)}},
+				Body:   &yieldingRangeBody{ctx: ctx, prefix: bytes.Repeat([]byte("x"), 64<<10), ready: ready}}
+			return blocksched.Result{Err: s.readScheduledRange(ctx, block, resp, f, p)}
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		w.jobs[block] = &scheduledBlock{task: task}
+		task.Add(blocksched.Need{Owner: "background", LeaseUntil: time.Now().Add(time.Minute)})
+	}
+	defer w.close(nil)
+	receiveDemandEvent(t, ready)
+	receiveDemandEvent(t, peerStarted)
+	if err := f.ranges.storage.file.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// Both tasks remain in the coordinator's map: one reports the upstream
+	// failure, the other fails while saving its prefix during cancellation.
+	err := s.storageError(w.close(upstream))
+	if !errors.Is(w.jobs[0].task.Err(), os.ErrClosed) || !errors.Is(w.jobs[1].task.Err(), errUpstreamDownload) {
+		t.Fatal("test did not produce both cleanup failures", w.jobs[0].task.Err(), w.jobs[1].task.Err())
+	}
+	if !errors.Is(err, ErrLocalStorage) || !errors.Is(err, os.ErrClosed) || errors.Is(err, errUpstreamDownload) || s.StorageError() == nil {
+		t.Fatal("upstream cleanup masked the checkpoint failure", err, s.StorageError())
+	}
+	if _, reader, err := s.obtain(context.Background(), v); reader != nil || !errors.Is(err, ErrLocalStorage) {
+		t.Fatal("checkpoint failure did not stop subsequent downloads", err)
+	}
+}

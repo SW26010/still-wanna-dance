@@ -490,22 +490,22 @@ func (w *downloadSession) reapCompleted(initialized *bool) (bool, error) {
 	return false, nil
 }
 
+func (w *downloadSession) close(result error) error {
+	if errors.Is(result, errPreempted) {
+		w.s.preemptFlight(w.f, nil)
+	}
+	for _, j := range w.jobs {
+		j.task.Close()
+	}
+	for _, j := range w.jobs {
+		result = preferDownloadError(result, j.task.Err())
+	}
+	return result
+}
+
 func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *flight) (result error) {
 	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, path: path, started: time.Now(), wake: make(chan struct{}, 1), initialized: make(chan struct{}), cursors: make(map[*scheduledCursor]bool), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
-	defer func() {
-		if errors.Is(result, errPreempted) {
-			s.preemptFlight(f, nil)
-		}
-		for _, j := range w.jobs {
-			j.task.Close()
-		}
-		for _, j := range w.jobs {
-			err := j.task.Err()
-			if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, errPreempted) && !errors.Is(err, blocksched.ErrClosed) {
-				result = err
-			}
-		}
-	}()
+	defer func() { result = w.close(result) }()
 	initialized := f.ranges != nil
 	if initialized {
 		w.initialize(f.ranges)

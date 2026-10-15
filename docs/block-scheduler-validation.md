@@ -196,3 +196,11 @@ GET 延迟处理、重复关闭、固定到期、队列升降/合并通知、正
 checkDownloadedFile 仅将 errInvalidCache（大小或 MD5 不匹配）标记为上游完整性失败，Seek/Stat/Read 的本地错误和上下文取消原样返回，由 prepare 的统一分类决定存储熔断。避免文件读取故障被 errUpstreamDownload 包装后绕过熔断。
 
 确定性故障上下文在最终校验完成 Seek/Stat 后、第一次文件读取前关闭句柄，确认 os.ErrClosed 和 ErrLocalStorage 保留，StorageError 记录故障且拒绝后续冷下载；另覆盖 Seek 失败、等长损坏正文及读取前取消。全部路径拒绝发布且归还校验额度。联测原顺序暂停、发布健康与存储熔断回归，连续 10 轮 race 通过（final-validation-errors-race.log）。LA-040 联合 LA-010 增补本地故障及完整性对照，实机继续积攒。
+
+## 22. 并行收尾优先保留存储故障
+
+资源会话仍先撤销全部任务，再逐个等待收尾；提取 close 统一处理生命周期，并用同一存储错误判定为最终错误选定优先级。已发现的本地错误不能被后续上游失败或取消覆盖，后到的本地错误可替换上游失败；不把上游标记 Join 回本地错误链，防止调用方错误地允许线路回退。正常取消、超时及核心暂停/关闭均不单独触发存储熔断。
+
+新增确定性错误顺序排列，覆盖本地错误先/后于上游、取消、超时、关闭、暂停和容量错误；另用真实分块读取在取消时保存 64 KiB 前缀，注入文件关闭故障，同时让另一个任务在收尾时返回上游失败。确认两种故障均发生，最终保留 os.ErrClosed、记录 ErrLocalStorage 并拒绝下一个冷下载。联测并行正文关闭、完整校验和顺序暂停故障，连续 10 轮 race 通过（cleanup-error-priority-race.log）。LA-040 联合 LA-010/038 增补重合故障证据，实机继续积攒。
+
+本轮四项修复后的全受控源码检查通过：`go test -tags=no_easytier -race ./cmd/... ./internal/... ./data/... ./experiments/... -count=1 -timeout=180s -json`，17 个测试包、1,341 个测试/子测试通过、16 项按条件跳过，无 race 报告（admission-validation-cleanup-final-race.jsonl）；全部 10 个新增测试/子测试均有通过记录。同范围 `go vet` 与 `CGO_ENABLED=0 go build` 通过（admission-validation-cleanup-final-vet.log、admission-validation-cleanup-final-build.log）。台账仍为 41 个唯一编号，四项修复分别本地提交，未 push、未启动游戏或修改 hosts；LA-040 联合 LA-010/038 与 LA-041 开播空挡观测继续待实机验收。日志只留本地忽略目录。

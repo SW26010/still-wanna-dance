@@ -3,12 +3,15 @@ package cacheproxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/blocksched"
 )
 
 func TestStorageFailureStopsDownloadsButKeepsHits(t *testing.T) {
@@ -76,5 +79,32 @@ func TestIndexFailureStopsNewDownloads(t *testing.T) {
 	}
 	if source, err := s.Prefetch(context.Background(), videoURL(payload)); source != "HIT" || err != nil {
 		t.Fatal("published cache unavailable", source, err)
+	}
+}
+
+func TestDownloadCleanupErrorPriority(t *testing.T) {
+	local := &os.PathError{Op: "write", Path: "checkpoint", Err: os.ErrClosed}
+	upstream := fmt.Errorf("%w: failed block", errUpstreamDownload)
+	for _, first := range []error{nil, upstream, context.Canceled, context.DeadlineExceeded, blocksched.ErrClosed, blocksched.ErrPaused, errBusy} {
+		for _, localFirst := range []bool{false, true} {
+			errorsInOrder := []error{first, local}
+			if localFirst {
+				errorsInOrder[0], errorsInOrder[1] = errorsInOrder[1], errorsInOrder[0]
+			}
+			var result error
+			for _, err := range errorsInOrder {
+				result = preferDownloadError(result, err)
+			}
+			s := new(Server)
+			result = s.storageError(result)
+			if !errors.Is(result, os.ErrClosed) || !errors.Is(result, ErrLocalStorage) || s.StorageError() == nil || errors.Is(result, errUpstreamDownload) {
+				t.Fatalf("order=%v localFirst=%v lost local failure: %v", first, localFirst, result)
+			}
+		}
+	}
+	for _, next := range []error{nil, context.Canceled, context.DeadlineExceeded, blocksched.ErrClosed, blocksched.ErrPaused} {
+		if err := preferDownloadError(upstream, next); err != upstream {
+			t.Fatal("routine cleanup replaced the upstream failure", err)
+		}
 	}
 }

@@ -58,6 +58,12 @@ Playback Gateway (播放网关) runs on your computer and handles playback reque
 - **You control cache capacity.** Video storage is unlimited by default. Downloading the full library can take substantial space, so consider setting a limit first. Files being played or downloaded can temporarily push actual disk usage above that limit.
 - **The project is still evolving.** Automated tests and historical tests with the game are documented. Recent storage and playback API changes still need complete end-to-end validation with VRChat. Feedback from different networks and player environments is welcome. See [supported functionality and limitations](docs/scope.md).
 
+## Core design: schedule data by when it is needed
+
+The current source uses **global block scheduling driven by expected completion times**. Playback, read-ahead, queue preparation, and library downloads contribute independent demands for content blocks. Demands share one download per block and can be withdrawn independently. HTTP request positions and local media metadata estimate when each block is needed; a shared block-time estimate and preparation margin define its activation window. Eligible backlog includes blocks inside the activation window and blocks with an independent untimed demand allowing early execution. Either kind can drive gradual concurrency growth; a block actually holding up a read is admitted immediately.
+
+See the [design, formulas, and worked example (Chinese)](docs/block-scheduler-design.md). Playback, throughput, and CPU effects of this model still await live acceptance under LA-040 / LA-041.
+
 ## Build from source
 
 To build the Windows desktop app, install Go 1.25 or later, Git, and PowerShell. Run these commands from the repository folder:
@@ -85,6 +91,7 @@ The detailed guides below are currently in Chinese.
 | --- | --- |
 | [Local console](docs/console.md) | Web controls, system tray, game setup, and network settings |
 | [Queue prefetching](docs/queue-prefetch.md) | How upcoming songs are prepared and how to configure it |
+| [Global block scheduler design](docs/block-scheduler-design.md) / [Runtime rules](docs/download-concurrency.md) | Independent demands, playback deadlines, activation windows, and gradual concurrency growth |
 | [Cache capacity management](docs/cache-retention.md) | Retention priority, capacity limits, and automatic cleanup |
 | [Command-line service](docs/service.md) | Standalone startup, options, and cache behavior |
 | [Unified storage](docs/storage.md) | Where videos, song metadata, and statistics are stored |

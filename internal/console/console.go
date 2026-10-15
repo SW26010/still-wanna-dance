@@ -94,6 +94,7 @@ type Console struct {
 	mu                  sync.Mutex
 	settings            Settings // immutable active configuration for this Console
 	savedSettings       Settings // last successfully persisted configuration
+	autoStartPending    bool     // protected by mu; startup deferred until setup succeeds after consent
 	configPath          string
 	token               string
 	address             string
@@ -438,10 +439,15 @@ func (c *Console) AutoStart() {
 }
 
 func (c *Console) autoStart(inspect func() HostsStatus) {
-	if !c.termsAccepted() {
+	c.mu.Lock()
+	if !c.terms.valid() {
+		c.autoStartPending = true
+		c.mu.Unlock()
 		return
 	}
-	c.mu.Lock()
+	// Consume the startup attempt even if a service fails. Later wizard visits
+	// must not retry it or override a subsequent manual stop.
+	c.autoStartPending = false
 	enabled := c.settings.AutoStartCDN
 	queueEnabled := c.settings.AutoStartQueue
 	c.mu.Unlock()

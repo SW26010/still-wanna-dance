@@ -218,7 +218,7 @@ test('a first-entry document with an existing receipt recovers to completion wit
   assert.equal(business(s).length,0);
 });
 
-for (const ready of [false,true]) test('one confirmation returns to the console without changing access/service state '+ready,async()=>{
+for (const ready of [false,true]) test('one confirmation returns to the console without separate access/service requests '+ready,async()=>{
   const result=deferred();
   const s=setup({step:'finish',stateOverride:{hosts:{ready},running:ready},request:async path=>path==='/api/setup/apply'?result.promise:{}});await flush();
   const applying=s.node('setupNext').onclick();await flush();await s.node('setupNext').onclick();

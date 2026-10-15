@@ -359,5 +359,14 @@ func (c *Console) resumeSetupApplicationLocked(startImport func(string) error) {
 	a.Phase = "completed"
 	if c.writeSetupApplication(a) == nil {
 		_ = c.saveSetupProgress(SetupProgress{SchemaVersion: 1, Step: "finish", State: "completed"})
+		c.mu.Lock()
+		pending := c.autoStartPending
+		c.mu.Unlock()
+		if pending {
+			// No restart was needed: finish the startup skipped by the terms
+			// gate, only after the approved application has a success receipt.
+			// A restarted process already applied its startup preferences.
+			c.autoStart(readHostsStatus)
+		}
 	}
 }

@@ -96,7 +96,7 @@ func TestQueuePromotionDemotionDoesNotCreateHandoff(t *testing.T) {
 	key := blockSource{"queue", "song"}
 	for i, origin := range []demandSource{sourceQueue, sourceQueueHead, sourceQueue} {
 		p := plannedNeed{source: origin, revision: int64(i), need: blocksched.Need{Owner: "shared", ReadyBy: now.Add(time.Duration(i+1) * time.Second), LeaseUntil: now.Add(sourceLease)}}
-		if _, err := w.reconcile(map[int64]map[blockSource]plannedNeed{0: {key: p}}, now); err != nil {
+		if _, _, err := w.reconcile(map[int64]map[blockSource]plannedNeed{0: {key: p}}, now, nil); err != nil {
 			t.Fatal(err)
 		}
 		j := w.jobs[0]
@@ -105,7 +105,7 @@ func TestQueuePromotionDemotionDoesNotCreateHandoff(t *testing.T) {
 		}
 	}
 	// Its current source is ordinary queue; removal must end it directly.
-	if until, err := w.reconcile(nil, now); err != nil || !until.IsZero() {
+	if until, _, err := w.reconcile(nil, now, nil); err != nil || !until.IsZero() {
 		t.Fatal("ordinary queue removal acquired grace", until, err)
 	}
 	if err := task.Err(); !errors.Is(err, context.Canceled) {
@@ -177,7 +177,7 @@ func TestBlockSourceMetadataIsBounded(t *testing.T) {
 	for i := 0; i <= maxBlockContributions; i++ {
 		plan[0][blockSource{"get", i}] = plannedNeed{source: sourceGET, need: blocksched.Need{Owner: "v", LeaseUntil: now.Add(sourceLease)}}
 	}
-	if _, err := w.reconcile(plan, now); !errors.Is(err, blocksched.ErrCapacity) || !errors.Is(err, errBusy) {
+	if _, _, err := w.reconcile(plan, now, nil); !errors.Is(err, blocksched.ErrCapacity) || !errors.Is(err, errBusy) {
 		t.Fatal("source bound ignored", err)
 	}
 	task.Close()

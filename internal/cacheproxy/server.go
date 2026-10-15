@@ -34,8 +34,8 @@ type video struct {
 }
 type flight struct {
 	cancel           context.CancelCauseFunc // protected by Server.mu
-	preempted        bool
-	completed        bool // protected by Server.mu; published/hit before reader wakeup
+	preempted        bool                    // protected by Server.mu; no new readers once cleanup is committed
+	completed        bool                    // protected by Server.mu; published/hit before reader wakeup
 	background       bool
 	size             int64
 	monitorSongs     map[string]bool // protected by Server.mu; includes background callers

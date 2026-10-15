@@ -21,6 +21,18 @@ var errUpstreamDownload = errors.New("upstream download failed")
 // and batch callers remain bounded upstream; all admitted blocks compete globally.
 const maxResourceSessions = 32
 
+// Commit the admission cutoff under the same lock used to register/attach GETs.
+// A plan snapshot may only retire the flight if no new source arrived meanwhile.
+func (s *Server) preemptFlight(f *flight, changed <-chan struct{}) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if changed != nil && changed != s.capacityChanged {
+		return false
+	}
+	f.preempted = true
+	return true
+}
+
 func (s *Server) obtain(ctx context.Context, v video) (*flight, *spoolReader, error) {
 	return s.obtainMode(ctx, v, false)
 }
@@ -158,9 +170,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 				f.err = errPreempted
 			}
 			if errors.Is(f.err, errPreempted) {
-				s.mu.Lock()
-				f.preempted = true
-				s.mu.Unlock()
+				s.preemptFlight(f, nil)
 			}
 			f.progress.finish(f.err)
 			if errors.Is(f.err, errPreempted) {

@@ -113,12 +113,12 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 			return blocksched.Result{Err: blocksched.ErrPaused, Remaining: 1}
 		})
 		w.jobs[0] = &scheduledBlock{task: job, needs: make(map[blockSource]plannedNeed)}
-		if _, err := w.reconcile(plan, now); err != nil {
+		if _, _, err := w.reconcile(plan, now, nil); err != nil {
 			t.Fatal(err)
 		}
 		s.UpdatePrefetchQueue(nil, true)
 		plan, _ = w.plan(now, false)
-		until, err := w.reconcile(plan, now)
+		until, _, err := w.reconcile(plan, now, nil)
 		if err != nil || !until.Equal(now.Add(queueHandoff)) {
 			t.Fatal(until, err)
 		}
@@ -129,7 +129,7 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 			t.Fatal(handoff)
 		}
 		// An unrelated later event must not slide the abandoned queue's lease.
-		later, _ := w.reconcile(plan, now.Add(time.Second))
+		later, _, _ := w.reconcile(plan, now.Add(time.Second), nil)
 		if !later.Equal(until) {
 			t.Fatal("handoff was extended without a source")
 		}
@@ -152,9 +152,9 @@ func TestBlockLeaseRemovalDoesNotDropOtherOwner(t *testing.T) {
 	queue := blockSource{"queue", "b"}
 	need := blocksched.Need{Owner: "shared", ReadyBy: now, LeaseUntil: now.Add(sourceLease)}
 	plan := map[int64]map[blockSource]plannedNeed{0: {read: {need: need, source: sourceGET}, queue: {need: need, source: sourceQueue}}}
-	w.reconcile(plan, now)
+	w.reconcile(plan, now, nil)
 	delete(plan[0], read)
-	w.reconcile(plan, now)
+	w.reconcile(plan, now, nil)
 	if len(w.jobs[0].needs) != 1 || !w.jobs[0].handoffUntil.Equal(now.Add(getHandoff)) {
 		t.Fatal("independent source lost or bad GET handoff")
 	}

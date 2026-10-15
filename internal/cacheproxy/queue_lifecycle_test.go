@@ -35,7 +35,7 @@ func reconcileSession(t *testing.T, w *downloadSession) {
 	t.Helper()
 	now := time.Now()
 	plan, _ := w.plan(now, false)
-	if _, err := w.reconcile(plan, now); err != nil {
+	if _, _, err := w.reconcile(plan, now, nil); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -163,6 +163,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 			// Sequential bodies have no safe partial restart. End this flight;
 			// its next owner opens a new body after cleanup.
 			if err != nil && isScheduledPause(ctx) {
+				w.s.preemptFlight(w.f, nil)
 				err = errPreempted
 			}
 			return blocksched.Result{Err: err}
@@ -306,7 +307,7 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 
 // All source transitions for one block are merged before a single scheduler
 // update. The scheduler never observes the intermediate GET/handoff ordering.
-func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, now time.Time) (time.Time, error) {
+func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, now time.Time, changed <-chan struct{}) (time.Time, bool, error) {
 	var until time.Time
 	order := make([]int64, 0, len(plan))
 	for block := range plan {
@@ -319,7 +320,7 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 			var err error
 			j, err = w.submit(block)
 			if err != nil {
-				return until, err
+				return until, false, err
 			}
 		}
 		if j.retiring {
@@ -344,6 +345,7 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 		order = append(order, block)
 	}
 	sort.Slice(order, func(i, j int) bool { return order[i] < order[j] })
+	updates := make(map[int64]blocksched.Need, len(order))
 	for _, block := range order {
 		j := w.jobs[block]
 		if j.retiring {
@@ -381,9 +383,23 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 		}
 		n := j.aggregate(now)
 		if len(j.needs)+len(j.handoffs) > maxBlockContributions {
-			return until, errors.Join(errBusy, blocksched.ErrCapacity)
+			return until, false, errors.Join(errBusy, blocksched.ErrCapacity)
 		}
 		until = maxTime(until, n.LeaseUntil)
+		updates[block] = n
+	}
+	// Stop accepting readers before canceling the last tasks or waiting for
+	// their bodies/checkpoints to close. A concurrent GET invalidates an idle
+	// snapshot and must be planned before any irreversible task retirement.
+	if len(plan) == 0 && !until.After(now) && !w.s.preemptFlight(w.f, changed) {
+		return until, true, nil
+	}
+	for _, block := range order {
+		n, ok := updates[block]
+		if !ok {
+			continue
+		}
+		j := w.jobs[block]
 		if !n.LeaseUntil.After(now) {
 			j.retiring = true
 			j.task.Close()
@@ -399,14 +415,14 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 				case <-j.task.Done():
 					continue
 				default:
-					return until, errors.Join(errBusy, blocksched.ErrCapacity)
+					return until, false, errors.Join(errBusy, blocksched.ErrCapacity)
 				}
 			}
 		}
 		j.published = n
 		w.logDemand(block, j)
 	}
-	return until, nil
+	return until, false, nil
 }
 
 func (w *downloadSession) withdrawal(block int64, source blockSource) withdrawalReason {
@@ -477,6 +493,9 @@ func (w *downloadSession) reapCompleted(initialized *bool) (bool, error) {
 func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *flight) (result error) {
 	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, path: path, started: time.Now(), wake: make(chan struct{}, 1), initialized: make(chan struct{}), cursors: make(map[*scheduledCursor]bool), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
 	defer func() {
+		if errors.Is(result, errPreempted) {
+			s.preemptFlight(f, nil)
+		}
 		for _, j := range w.jobs {
 			j.task.Close()
 		}
@@ -530,9 +549,12 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 				continue
 			}
 		}
-		until, err := w.reconcile(plan, now)
+		until, retry, err := w.reconcile(plan, now, changed)
 		if err != nil {
 			return err
+		}
+		if retry {
+			continue
 		}
 		if len(plan) == 0 && !until.After(now) {
 			return errPreempted

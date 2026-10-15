@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "batch": "live-20261015-02",
+  "archive": {
+    "batch": "live-20261015-02",
+    "name": "live-20261015-02-v1.zip",
+    "releaseTag": "evidence-20261015-live-02-v1",
+    "bytes": 3138185,
+    "sha256": "8239c600c8312134c22cfc19002a9081f93b36ee1f5e2f35dabf3ee26ac520b2",
+    "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261015-live-02-v1/live-20261015-02-v1.zip",
+    "status": "prepared-local-unpublished",
+    "sourceRevision": "4d8714003f6e7981ad200cfd8a0d970668ce5a6a",
+    "originalEvidenceCommit": null,
+    "publiclyVerifiedAt": null
+  },
+  "publishedURL": null,
+  "releaseTarget": "Pending: clean commit containing this storage organization; no tag or Release created.",
+  "locations": {
+    "local": "artifacts/acceptance-evidence/LIVE-20261015-02/live-20261015-02-v1.zip",
+    "backup": "<local-backup-root>/evidence/live-20261015-02/live-20261015-02-v1.zip"
+  },
+  "verification": {
+    "outerSHA256": "passed",
+    "inventoryCoverage": "passed",
+    "membersVerified": 14,
+    "nestedSourceFilesVerified": 662,
+    "backupSHA256": "passed",
+    "publicDownload": "not-performed"
+  },
+  "requestSummary": {
+    "requests": 96,
+    "groups": [
+      {
+        "status": 200,
+        "outcome": "canceled",
+        "cache": "HIT",
+        "count": 33
+      },
+      {
+        "status": 200,
+        "outcome": "canceled",
+        "cache": "MISS",
+        "count": 11
+      },
+      {
+        "status": 206,
+        "outcome": "canceled",
+        "cache": "HIT",
+        "count": 3
+      },
+      {
+        "status": 206,
+        "outcome": "canceled",
+        "cache": "MISS",
+        "count": 9
+      },
+      {
+        "status": 206,
+        "outcome": "completed",
+        "cache": "HIT",
+        "count": 35
+      },
+      {
+        "status": 206,
+        "outcome": "completed",
+        "cache": "MISS",
+        "count": 5
+      }
+    ],
+    "completedLengthMatches": 40,
+    "canceledWithWriteError": 52
+  },
+  "archivedEvidence": [
+    {
+      "id": "E-003",
+      "path": "docs/evidence/live-20261015-02/requests.json",
+      "bytes": 56212,
+      "sha256": "0c3cfbb445242bbebd4baa60daac804d1cb3665f6e7fa807d6bca4b0b6b522cc"
+    },
+    {
+      "id": "E-004",
+      "path": "docs/evidence/live-20261015-02/lifecycle.json",
+      "bytes": 53144,
+      "sha256": "c0da7d10095641d63b811de65691ed74eaa86c2c504c36b3c91b5ca4d2779b83"
+    },
+    {
+      "id": "E-005",
+      "path": "docs/evidence/live-20261015-02/playback-records.json",
+      "bytes": 22913,
+      "sha256": "529a1730a501498b5b33c534b9a963c29ba9bbf2155bd34d71f143e3bc43ff59"
+    },
+    {
+      "id": "E-006",
+      "path": "docs/evidence/live-20261015-02/game-signals.json",
+      "bytes": 40588,
+      "sha256": "4c986860360240bbebe3aaffbf8b9640e2896e7da783554bdb4a13007a82e28c"
+    },
+    {
+      "id": "E-007",
+      "path": "docs/evidence/live-20261015-02/queue-handoffs.json",
+      "bytes": 24954,
+      "sha256": "60dddb1133dc7de6d504ea0d45a49e9d01adafa92e3e9cd3a64fdd4fa726a620"
+    },
+    {
+      "id": "E-009",
+      "path": "docs/evidence/live-20261015-02/errors-and-cancellations.json",
+      "bytes": 10476,
+      "sha256": "75ec9ba0bf34b8dfa3dd2d889ec0c396aa7cd8b7a7a7eab3ecccfc5e6aaaad6b"
+    }
+  ],
+  "sourceArchive": {
+    "path": "_provenance/source-4d8714003f6e7981ad200cfd8a0d970668ce5a6a.zip",
+    "sha256": "67425d17194df4779557e1e3875384a6b5e9ae31bd693f519ea2d1f69446dcd2",
+    "documentationRedactions": [
+      {
+        "path": "docs/issue-30-license-audit.md",
+        "originalSHA256": "86a00db393780046fbe6d9d65cfb38ce9ef3d0d0b59f8bf3524bdfe0fe0c4c9b",
+        "redactedSHA256": "262636652449bd91b529987705fb4501039b9789504ebf66dfa6d783341a7ad6",
+        "reason": "Historical author identity or literal username in privacy-check regex; only archive documentation/experimental tool copy changed, product source unchanged."
+      },
+      {
+        "path": "experiments/live-get-probe/get-lifetimes.mjs",
+        "originalSHA256": "d27b23d80abe1dbe0cdc78f9e27508743e26c482265245bf016f026cc5acd399",
+        "redactedSHA256": "d158f9dde4cd04f158fc1df2cbe941da030d5e90eac4b7564a9696775d7ffca6",
+        "reason": "Historical author identity or literal username in privacy-check regex; only archive documentation/experimental tool copy changed, product source unchanged."
+      }
+    ]
+  },
+  "limitations": "Local archive and backup verified. The planned URL is not yet a published or publicly verified attachment. Publication remains outstanding; runtime conclusions and acceptance states unchanged."
+}

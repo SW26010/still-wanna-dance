@@ -1,0 +1,19 @@
+{
+  "processQuery": "Get-Process full enumeration filtered by product names",
+  "productProcesses": [],
+  "listenerQueryStatus": "MethodInvocationException",
+  "listeners": [],
+  "windows": {
+    "displayVersion": "26H2",
+    "build": "26300",
+    "ubr": 9711
+  },
+  "inspectionMutations": "none; did not launch apps, change hosts, clear caches or modify live databases",
+  "hostsScope": "Current managed mappings only; pre-run baseline unavailable",
+  "listenerFallback": {
+    "method": "netstat -ano -p tcp; filter LISTENING on 80/443/8787",
+    "exitCode": 0,
+    "listeners": []
+  },
+  "managedHostsLinesPresent": false
+}

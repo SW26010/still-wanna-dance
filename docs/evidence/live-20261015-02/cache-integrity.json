@@ -1,0 +1,438 @@
+{
+  "files": [
+    {
+      "resource_key": "7821740c15cd322a6570de113d21aada",
+      "published_t_s": 422.543381,
+      "published_line": 74,
+      "exists": true,
+      "bytes": 24585141,
+      "md5": "7821740c15cd322a6570de113d21aada",
+      "expected_bytes": 24585141,
+      "media_byte_size": 24585141,
+      "ok": true
+    },
+    {
+      "resource_key": "d75284560f6b08634d45b8651b52761e",
+      "published_t_s": 422.634801,
+      "published_line": 80,
+      "exists": true,
+      "bytes": 20734896,
+      "md5": "d75284560f6b08634d45b8651b52761e",
+      "expected_bytes": 20734896,
+      "media_byte_size": 20734896,
+      "ok": true
+    },
+    {
+      "resource_key": "5f882789ff0e85e5ed55532491bc92f9",
+      "published_t_s": 429.76351,
+      "published_line": 89,
+      "exists": true,
+      "bytes": 24090347,
+      "md5": "5f882789ff0e85e5ed55532491bc92f9",
+      "expected_bytes": 24090347,
+      "media_byte_size": 24090347,
+      "ok": true
+    },
+    {
+      "resource_key": "6092fc2dd4b34117c0d960b69b8f988b",
+      "published_t_s": 576.06705,
+      "published_line": 109,
+      "exists": true,
+      "bytes": 60320555,
+      "md5": "6092fc2dd4b34117c0d960b69b8f988b",
+      "expected_bytes": 60320555,
+      "media_byte_size": 60320555,
+      "ok": true
+    },
+    {
+      "resource_key": "b88ac059168621640d7589f712180835",
+      "published_t_s": 681.583104,
+      "published_line": 165,
+      "exists": true,
+      "bytes": 49744003,
+      "md5": "b88ac059168621640d7589f712180835",
+      "expected_bytes": 49744003,
+      "media_byte_size": 49744003,
+      "ok": true
+    },
+    {
+      "resource_key": "55640d00db89901e40f391a8e3aa9bcd",
+      "published_t_s": 930.061338,
+      "published_line": 221,
+      "exists": true,
+      "bytes": 57658290,
+      "md5": "55640d00db89901e40f391a8e3aa9bcd",
+      "expected_bytes": 57658290,
+      "media_byte_size": 57658290,
+      "ok": true
+    },
+    {
+      "resource_key": "4650664fd8a10df7dbb7b04e48c11774",
+      "published_t_s": 1042.182834,
+      "published_line": 244,
+      "exists": true,
+      "bytes": 49346279,
+      "md5": "4650664fd8a10df7dbb7b04e48c11774",
+      "expected_bytes": 49346279,
+      "media_byte_size": 49346279,
+      "ok": true
+    },
+    {
+      "resource_key": "d05b4c792693e2b0ce5dfa3cdc845e0f",
+      "published_t_s": 1352.769901,
+      "published_line": 287,
+      "exists": true,
+      "bytes": 66207596,
+      "md5": "d05b4c792693e2b0ce5dfa3cdc845e0f",
+      "expected_bytes": 66207596,
+      "media_byte_size": 66207596,
+      "ok": true
+    },
+    {
+      "resource_key": "851ce9e60c7b7229073db702a3273a22",
+      "published_t_s": 1622.673853,
+      "published_line": 322,
+      "exists": true,
+      "bytes": 73781206,
+      "md5": "851ce9e60c7b7229073db702a3273a22",
+      "expected_bytes": 73781206,
+      "media_byte_size": 73781206,
+      "ok": true
+    },
+    {
+      "resource_key": "ab505a0fb1e93be8d3d31eafa3d99c08",
+      "published_t_s": 1934.980274,
+      "published_line": 356,
+      "exists": true,
+      "bytes": 85850616,
+      "md5": "ab505a0fb1e93be8d3d31eafa3d99c08",
+      "expected_bytes": 85850616,
+      "media_byte_size": 85850616,
+      "ok": true
+    },
+    {
+      "resource_key": "7b982d0721fb8fc3e635871e84299393",
+      "published_t_s": 2234.175718,
+      "published_line": 386,
+      "exists": true,
+      "bytes": 80296731,
+      "md5": "7b982d0721fb8fc3e635871e84299393",
+      "expected_bytes": 80296731,
+      "media_byte_size": 80296731,
+      "ok": true
+    },
+    {
+      "resource_key": "97accdd9522b8e24c42aa9efb87b5e91",
+      "published_t_s": 2514.216462,
+      "published_line": 412,
+      "exists": true,
+      "bytes": 26293335,
+      "md5": "97accdd9522b8e24c42aa9efb87b5e91",
+      "expected_bytes": 26293335,
+      "media_byte_size": 26293335,
+      "ok": true
+    },
+    {
+      "resource_key": "31e0b59fa4cffe92def6cb02ffa0d0fc",
+      "published_t_s": 2736.479445,
+      "published_line": 440,
+      "exists": true,
+      "bytes": 76567153,
+      "md5": "31e0b59fa4cffe92def6cb02ffa0d0fc",
+      "expected_bytes": 76567153,
+      "media_byte_size": 76567153,
+      "ok": true
+    },
+    {
+      "resource_key": "e34b68d32f30c40271af4c07f95d9891",
+      "published_t_s": 3077.639678,
+      "published_line": 484,
+      "exists": true,
+      "bytes": 21365956,
+      "md5": "e34b68d32f30c40271af4c07f95d9891",
+      "expected_bytes": 21365956,
+      "media_byte_size": 21365956,
+      "ok": true
+    },
+    {
+      "resource_key": "4b37fcef0f7e6d3bf5cfb10f5484eb28",
+      "published_t_s": 3240.310033,
+      "published_line": 503,
+      "exists": true,
+      "bytes": 33792832,
+      "md5": "4b37fcef0f7e6d3bf5cfb10f5484eb28",
+      "expected_bytes": 33792832,
+      "media_byte_size": 33792832,
+      "ok": true
+    },
+    {
+      "resource_key": "a05064681e647c20aae66ad0100aaab7",
+      "published_t_s": 3619.917411,
+      "published_line": 557,
+      "exists": true,
+      "bytes": 77447629,
+      "md5": "a05064681e647c20aae66ad0100aaab7",
+      "expected_bytes": 77447629,
+      "media_byte_size": 77447629,
+      "ok": true
+    },
+    {
+      "resource_key": "1aadb787be131f9937135eb49b24962d",
+      "published_t_s": 3730.720187,
+      "published_line": 582,
+      "exists": true,
+      "bytes": 59940456,
+      "md5": "1aadb787be131f9937135eb49b24962d",
+      "expected_bytes": 59940456,
+      "media_byte_size": 59940456,
+      "ok": true
+    },
+    {
+      "resource_key": "3b598605e178813c8ec75e5c90086109",
+      "published_t_s": 3903.642625,
+      "published_line": 612,
+      "exists": true,
+      "bytes": 44603043,
+      "md5": "3b598605e178813c8ec75e5c90086109",
+      "expected_bytes": 44603043,
+      "media_byte_size": 44603043,
+      "ok": true
+    },
+    {
+      "resource_key": "4e2f9af2e59e5009e6f267cc03be63d0",
+      "published_t_s": 4379.319451,
+      "published_line": 661,
+      "exists": true,
+      "bytes": 65646044,
+      "md5": "4e2f9af2e59e5009e6f267cc03be63d0",
+      "expected_bytes": 65646044,
+      "media_byte_size": 65646044,
+      "ok": true
+    },
+    {
+      "resource_key": "420237fe452bb6faebb825899be6ca32",
+      "published_t_s": 4446.796695,
+      "published_line": 686,
+      "exists": true,
+      "bytes": 22696460,
+      "md5": "420237fe452bb6faebb825899be6ca32",
+      "expected_bytes": 22696460,
+      "media_byte_size": 22696460,
+      "ok": true
+    },
+    {
+      "resource_key": "a297760bbe586cb06ae8dc75e16fe008",
+      "published_t_s": 4959.875474,
+      "published_line": 739,
+      "exists": true,
+      "bytes": 29664072,
+      "md5": "a297760bbe586cb06ae8dc75e16fe008",
+      "expected_bytes": 29664072,
+      "media_byte_size": 29664072,
+      "ok": true
+    },
+    {
+      "resource_key": "63c961593bffd59fa254cf3e8eb01a3c",
+      "published_t_s": 5025.561478,
+      "published_line": 776,
+      "exists": true,
+      "bytes": 30941456,
+      "md5": "63c961593bffd59fa254cf3e8eb01a3c",
+      "expected_bytes": 30941456,
+      "media_byte_size": 30941456,
+      "ok": true
+    },
+    {
+      "resource_key": "740c0a44af135f3f9f1fba1f4dbef175",
+      "published_t_s": 5415.72066,
+      "published_line": 818,
+      "exists": true,
+      "bytes": 63390416,
+      "md5": "740c0a44af135f3f9f1fba1f4dbef175",
+      "expected_bytes": 63390416,
+      "media_byte_size": 63390416,
+      "ok": true
+    },
+    {
+      "resource_key": "91a14076eff3dcb80592920f728c5560",
+      "published_t_s": 5526.07566,
+      "published_line": 834,
+      "exists": true,
+      "bytes": 80121044,
+      "md5": "91a14076eff3dcb80592920f728c5560",
+      "expected_bytes": 80121044,
+      "media_byte_size": 80121044,
+      "ok": true
+    },
+    {
+      "resource_key": "cbab86c74589decc83fcf27d3eb41d4a",
+      "published_t_s": 5820.753985,
+      "published_line": 879,
+      "exists": true,
+      "bytes": 20069004,
+      "md5": "cbab86c74589decc83fcf27d3eb41d4a",
+      "expected_bytes": 20069004,
+      "media_byte_size": 20069004,
+      "ok": true
+    },
+    {
+      "resource_key": "57dae133cf2d51c521c8c179d757731c",
+      "published_t_s": 5917.2318,
+      "published_line": 894,
+      "exists": true,
+      "bytes": 23404070,
+      "md5": "57dae133cf2d51c521c8c179d757731c",
+      "expected_bytes": 23404070,
+      "media_byte_size": 23404070,
+      "ok": true
+    },
+    {
+      "resource_key": "69ff01ee1fe8e827272f6a234e28919c",
+      "published_t_s": 6329.148335,
+      "published_line": 938,
+      "exists": true,
+      "bytes": 27197330,
+      "md5": "69ff01ee1fe8e827272f6a234e28919c",
+      "expected_bytes": 27197330,
+      "media_byte_size": 27197330,
+      "ok": true
+    },
+    {
+      "resource_key": "bb3bc8838f4c9d4dcfa6dba7fd950939",
+      "published_t_s": 6334.108458,
+      "published_line": 947,
+      "exists": true,
+      "bytes": 29932913,
+      "md5": "bb3bc8838f4c9d4dcfa6dba7fd950939",
+      "expected_bytes": 29932913,
+      "media_byte_size": 29932913,
+      "ok": true
+    },
+    {
+      "resource_key": "14bb1606044f7fd454f7c667d240dfae",
+      "published_t_s": 6914.564509,
+      "published_line": 1037,
+      "exists": true,
+      "bytes": 17946191,
+      "md5": "14bb1606044f7fd454f7c667d240dfae",
+      "expected_bytes": 17946191,
+      "media_byte_size": 17946191,
+      "ok": true
+    },
+    {
+      "resource_key": "1526deb5a6594efb6e2123325dd75a46",
+      "published_t_s": 7145.568132,
+      "published_line": 1090,
+      "exists": true,
+      "bytes": 48992729,
+      "md5": "1526deb5a6594efb6e2123325dd75a46",
+      "expected_bytes": 48992729,
+      "media_byte_size": 48992729,
+      "ok": true
+    },
+    {
+      "resource_key": "c16ad9816dd586a22fb21ab3a2a4004b",
+      "published_t_s": 7225.696223,
+      "published_line": 1101,
+      "exists": true,
+      "bytes": 51213354,
+      "md5": "c16ad9816dd586a22fb21ab3a2a4004b",
+      "expected_bytes": 51213354,
+      "media_byte_size": 51213354,
+      "ok": true
+    },
+    {
+      "resource_key": "0a4b69e06b6966534f3ba3949007cc6b",
+      "published_t_s": 7318.87258,
+      "published_line": 1128,
+      "exists": true,
+      "bytes": 50339039,
+      "md5": "0a4b69e06b6966534f3ba3949007cc6b",
+      "expected_bytes": 50339039,
+      "media_byte_size": 50339039,
+      "ok": true
+    },
+    {
+      "resource_key": "711238edebe5df1948f7b76ce37d61f3",
+      "published_t_s": 7746.287581,
+      "published_line": 1159,
+      "exists": true,
+      "bytes": 34425221,
+      "md5": "711238edebe5df1948f7b76ce37d61f3",
+      "expected_bytes": 34425221,
+      "media_byte_size": 34425221,
+      "ok": true
+    },
+    {
+      "resource_key": "b8a05fc6059eb9d561e2f09547425b1b",
+      "published_t_s": 7813.732619,
+      "published_line": 1198,
+      "exists": true,
+      "bytes": 25112493,
+      "md5": "b8a05fc6059eb9d561e2f09547425b1b",
+      "expected_bytes": 25112493,
+      "media_byte_size": 25112493,
+      "ok": true
+    },
+    {
+      "resource_key": "1779df69549b953031d868f623317e06",
+      "published_t_s": 7824.31096,
+      "published_line": 1208,
+      "exists": true,
+      "bytes": 57108750,
+      "md5": "1779df69549b953031d868f623317e06",
+      "expected_bytes": 57108750,
+      "media_byte_size": 57108750,
+      "ok": true
+    },
+    {
+      "resource_key": "275bc497c7639152357fd02b457436e4",
+      "published_t_s": 8172.961436,
+      "published_line": 1236,
+      "exists": true,
+      "bytes": 65790418,
+      "md5": "275bc497c7639152357fd02b457436e4",
+      "expected_bytes": 65790418,
+      "media_byte_size": 65790418,
+      "ok": true
+    },
+    {
+      "resource_key": "5cc0f9d560db30f904582e95b364d49e",
+      "published_t_s": 8294.172617,
+      "published_line": 1273,
+      "exists": true,
+      "bytes": 50469296,
+      "md5": "5cc0f9d560db30f904582e95b364d49e",
+      "expected_bytes": 50469296,
+      "media_byte_size": 50469296,
+      "ok": true
+    },
+    {
+      "resource_key": "f6a2e789fd3e7b54dcefa28f7e40d4b4",
+      "published_t_s": 8335.706937,
+      "published_line": 1284,
+      "exists": true,
+      "bytes": 44366759,
+      "md5": "f6a2e789fd3e7b54dcefa28f7e40d4b4",
+      "expected_bytes": 44366759,
+      "media_byte_size": 44366759,
+      "ok": true
+    }
+  ],
+  "total_bytes": 1771453123,
+  "all_ok": true,
+  "video_file_count": 38,
+  "non_video_file_suffix_counts": {},
+  "swd_integrity_check": [
+    [
+      "ok"
+    ]
+  ],
+  "swd_foreign_key_check": [],
+  "dance_integrity_check": [
+    [
+      "ok"
+    ]
+  ],
+  "dance_foreign_key_check": []
+}

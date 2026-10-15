@@ -1,0 +1,140 @@
+{
+  "batch": "LIVE-20261015-02",
+  "status": "closed-partial-retrospective",
+  "source": "4d8714003f6e7981ad200cfd8a0d970668ce5a6a",
+  "inspectionHead": "29c632976b6b1d6218b84039f5b9571d9153f4fb",
+  "builds": {
+    "SWD.exe": {
+      "bytes": 50430976,
+      "sha256": "929c945040453e60008440d82c243c0bbde4178f9982af3b6108fd087b539c5d"
+    },
+    "DancingLog.exe": {
+      "bytes": 2671213,
+      "sha256": "38291b4d2212bca24b3293fa0a72020b310640696b76cb563397311b4becefe3"
+    },
+    "DancingLogCli.exe": {
+      "bytes": 2675309,
+      "sha256": "891d60e8c99c63ce74f2043f8c82e8c2700fa3c6fb6549352dfebc0d0ddea6a5"
+    }
+  },
+  "releasePackage": null,
+  "hashBasis": "git-blob",
+  "schemaVersion": 2,
+  "pathBasis": "repository-relative",
+  "originalManifest": {
+    "storage": "archive",
+    "path": "docs/evidence/live-20261015-02/manifest.json"
+  },
+  "archive": {
+    "batch": "live-20261015-02",
+    "name": "live-20261015-02-v1.zip",
+    "releaseTag": "evidence-20261015-live-02-v1",
+    "bytes": 3138185,
+    "sha256": "8239c600c8312134c22cfc19002a9081f93b36ee1f5e2f35dabf3ee26ac520b2",
+    "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261015-live-02-v1/live-20261015-02-v1.zip",
+    "status": "prepared-local-unpublished",
+    "sourceRevision": "4d8714003f6e7981ad200cfd8a0d970668ce5a6a",
+    "originalEvidenceCommit": null,
+    "publiclyVerifiedAt": null
+  },
+  "files": [
+    {
+      "id": "E-001",
+      "path": "docs/evidence/live-20261015-02/summary.json",
+      "bytes": 3663,
+      "sha256": "4e4df464ee5071a5023000a666744e30c670d3fc4ae8e0499ada9e57fedb2d9d",
+      "gitBlob": "ef688c771a3aef197c3901eb3bc3bb5de37bdf95",
+      "sourceAndSanitization": "Derived counts and cross-checks from read-only app/game/capture/SQLite snapshots; common relative clock, no identities or URLs."
+    },
+    {
+      "id": "E-002",
+      "path": "docs/evidence/live-20261015-02/provenance.json",
+      "bytes": 4400,
+      "sha256": "a2897f1ef946ccd17e74db53c9a651f0fd495e98e1c09c7e8d95afc0cc0b9e83",
+      "gitBlob": "65071415720172b86fb8dc365e0560847febe5ef",
+      "sourceAndSanitization": "Build identity and after-run binary hashes, raw-source hashes and allowlisted configuration; private paths, credentials and exact personal timestamps omitted."
+    },
+    {
+      "id": "E-008",
+      "path": "docs/evidence/live-20261015-02/cache-integrity.json",
+      "bytes": 12384,
+      "sha256": "456cc8910f7d1a3a51043800139c4c26b2080267f73005d01257a297fab6aaec",
+      "gitBlob": "836b5afa00c9ac8ef3186305bcd3cfa9ab741441",
+      "sourceAndSanitization": "Read-only MD5/size of every published current mp4 and database sizes; integrity/foreign-key checks on consistent read-only-source SQLite backups; private paths omitted."
+    },
+    {
+      "id": "E-010",
+      "path": "docs/evidence/live-20261015-02/environment.json",
+      "bytes": 627,
+      "sha256": "894526832895394020ae575e918949514ce89b9ad86b17dead17f30d9831e0be",
+      "gitBlob": "1bbc479a039d204ff42ddac2546e11a4feac731f",
+      "sourceAndSanitization": "Post-run read-only process enumeration, successful netstat fallback, managed-hosts presence and Windows version; no full hosts or private network connections."
+    },
+    {
+      "id": "E-011",
+      "path": "docs/evidence/live-20261015-02/archive-summary.json",
+      "bytes": 4570,
+      "sha256": "3ad01c31f19408931f9f846cb18f470b04f12e440d6d72cd4be31cb3bdac66d4",
+      "gitBlob": "ddd1f8162463dbfe65f44fb4a8cab01ae5e5f562",
+      "sourceAndSanitization": "Versioned archive and local verification metadata, compact request groups; no private paths, raw runtime data or working public URL claim."
+    },
+    {
+      "id": "E-012",
+      "path": "docs/evidence/live-20261015-02/privacy-review.json",
+      "bytes": 1257,
+      "sha256": "c7f7bae8e74500ac8a734dd70bed9c1a85dbcf674c1dd33cfc04b3f01da3408d",
+      "gitBlob": "226cbed75607c07fa43a7e16b35fd43a09823bc0",
+      "sourceAndSanitization": "Archive and source privacy validation summary; exact private values and paths omitted."
+    }
+  ],
+  "archivedFiles": [
+    {
+      "id": "E-003",
+      "path": "docs/evidence/live-20261015-02/requests.json",
+      "bytes": 56212,
+      "sha256": "0c3cfbb445242bbebd4baa60daac804d1cb3665f6e7fa807d6bca4b0b6b522cc",
+      "sourceAndSanitization": "All 96 request_finished events joined to request_started by service/request ID; line numbers, byte counts, status and outcomes retained, URLs/user-agent/network error text removed.",
+      "hashBasis": "archive-member-bytes"
+    },
+    {
+      "id": "E-004",
+      "path": "docs/evidence/live-20261015-02/lifecycle.json",
+      "bytes": 53144,
+      "sha256": "c0da7d10095641d63b811de65691ed74eaa86c2c504c36b3c91b5ca4d2779b83",
+      "sourceAndSanitization": "Allowlisted application/task/queue lifecycle events and all app ERRORs; relative times and source line numbers; session/trace/PID/path removed.",
+      "hashBasis": "archive-member-bytes"
+    },
+    {
+      "id": "E-005",
+      "path": "docs/evidence/live-20261015-02/playback-records.json",
+      "bytes": 22913,
+      "sha256": "529a1730a501498b5b33c534b9a963c29ba9bbf2155bd34d71f143e3bc43ff59",
+      "sourceAndSanitization": "43 folded events joined one-to-one to read-only SQLite records by song ID and actual-start/request fallback; game line ranges, relative times and settlement retained; names/players/rooms/URLs removed.",
+      "hashBasis": "archive-member-bytes"
+    },
+    {
+      "id": "E-006",
+      "path": "docs/evidence/live-20261015-02/game-signals.json",
+      "bytes": 40588,
+      "sha256": "4c986860360240bbebe3aaffbf8b9640e2896e7da783554bdb4a13007a82e28c",
+      "sourceAndSanitization": "Allowlisted DanceTrail parsed events with original game line numbers, song IDs and relative timing; all raw lines and user/world identifiers removed.",
+      "hashBasis": "archive-member-bytes"
+    },
+    {
+      "id": "E-007",
+      "path": "docs/evidence/live-20261015-02/queue-handoffs.json",
+      "bytes": 24954,
+      "sha256": "60dddb1133dc7de6d504ea0d45a49e9d01adafa92e3e9cd3a64fdd4fa726a620",
+      "sourceAndSanitization": "Complete queue markers parsed from original game log; only numeric song ID order retained; candidate GET/resource linkage and seconds-resolution timing limitations explicit.",
+      "hashBasis": "archive-member-bytes"
+    },
+    {
+      "id": "E-009",
+      "path": "docs/evidence/live-20261015-02/errors-and-cancellations.json",
+      "bytes": 10476,
+      "sha256": "75ec9ba0bf34b8dfa3dd2d889ec0c396aa7cd8b7a7a7eab3ecccfc5e6aaaad6b",
+      "sourceAndSanitization": "All 11 SWD ERRORs linked to request/publication/pause evidence; selected game errors classified without raw private content; relative time and source lines retained.",
+      "hashBasis": "archive-member-bytes"
+    }
+  ]
+}

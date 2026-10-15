@@ -1,0 +1,122 @@
+{
+  "batch": "LIVE-20261015-02",
+  "mode": "retrospective-read-only",
+  "source_revision": "4d8714003f6e7981ad200cfd8a0d970668ce5a6a",
+  "build_dirty": false,
+  "version": "dev-20261015-4d87140",
+  "toolchain": "go version go1.27.1 windows/amd64",
+  "executables": {
+    "SWD.exe": {
+      "bytes": 50430976,
+      "sha256": "929c945040453e60008440d82c243c0bbde4178f9982af3b6108fd087b539c5d"
+    },
+    "DancingLog.exe": {
+      "bytes": 2671213,
+      "sha256": "38291b4d2212bca24b3293fa0a72020b310640696b76cb563397311b4becefe3"
+    },
+    "DancingLogCli.exe": {
+      "bytes": 2675309,
+      "sha256": "891d60e8c99c63ce74f2043f8c82e8c2700fa3c6fb6549352dfebc0d0ddea6a5"
+    }
+  },
+  "release_package": null,
+  "dance_source_revision": null,
+  "private_sources": [
+    {
+      "alias": "app.log",
+      "bytes": 563712,
+      "sha256": "6792fa1ede7092a645056e35d9f37177caa0ca1dc10fa86d2af1068c7fb16f96",
+      "unchanged_at_snapshot_check": true
+    },
+    {
+      "alias": "build-info.json",
+      "bytes": 279,
+      "sha256": "2b7512d815c763573cb49cdd3d9087bbf632a27fee589a5cc36d1d62c99cc361",
+      "unchanged_at_snapshot_check": true
+    },
+    {
+      "alias": "config.json",
+      "bytes": 428,
+      "sha256": "bfdbf4089361c65990aecd810dac93111717efb0a0554afb98311b0ec08b44da",
+      "unchanged_at_snapshot_check": true
+    },
+    {
+      "alias": "dance-summary.json",
+      "bytes": 2702,
+      "sha256": "d717181dff452757c50020efed6dd928e915e179cab56f13a0484b3f778a63d7",
+      "unchanged_at_snapshot_check": true
+    },
+    {
+      "alias": "playback_events.jsonl",
+      "bytes": 88137,
+      "sha256": "1c2ea57561d994c3c1c93f87a793e23675c5943cf0264feef3856b235d0a20df",
+      "unchanged_at_snapshot_check": true
+    },
+    {
+      "alias": "parsed_events.jsonl",
+      "bytes": 1688749,
+      "sha256": "08916c80b22927017690cd3e3f1a2a521aff3063095fbe9790e6ba34d31f6bd4",
+      "unchanged_at_snapshot_check": true
+    },
+    {
+      "alias": "game.log",
+      "bytes": 2105974,
+      "sha256": "48402c181c3d42a8fa7daa57294b60f87fb371a3579a46e72ea15bad3d74b427",
+      "unchanged_at_snapshot_check": true
+    },
+    {
+      "alias": "capture-raw.log",
+      "bytes": 2106091,
+      "sha256": "bf7cdd933df17fc8b5cbf0d87574f4e0266d79c236272443eb3a14259a97009a",
+      "unchanged_at_snapshot_check": true
+    },
+    {
+      "alias": "swd.sqlite",
+      "bytes": 4886528,
+      "sha256": "ac156b61b40c5c6d908e16aa2954701861837c7d62d3d4763e95991fc502f83f",
+      "method": "sqlite read-only source backup"
+    },
+    {
+      "alias": "dance.sqlite",
+      "bytes": 13475840,
+      "sha256": "ceb807841463a6276e037b91a090e39734daea3254499e6e7eb3255f03218969",
+      "method": "sqlite read-only source backup"
+    }
+  ],
+  "clock": {
+    "zero": "DanceTrail capture start; absolute clock omitted",
+    "vrc_timezone": "UTC+08:00",
+    "swd_timezone": "UTC",
+    "cross_clock_offset_assumed_seconds": 0,
+    "vrc_resolution_seconds": 1,
+    "app_queue_poll_interval_seconds": 3,
+    "capture_duration_seconds": 8956.153191
+  },
+  "settings": {
+    "prepareAheadSeconds": 500,
+    "queuePrefetchCount": 3,
+    "upstreamMode": "direct",
+    "downloadUpstream": "auto",
+    "autoStartCDN": true,
+    "autoStartQueue": true,
+    "maxCacheBytes": 0
+  },
+  "vrchat_build": "2026.3.3p2-1921-15c4a824b2-Release",
+  "world": "WannaDance / PyPyDance parser; exact world version not recorded",
+  "user_feedback": "整体正常，未发现明显问题",
+  "limitations": [
+    "No pre-run EXE hash; current file hash agrees with observed build revision but cannot prove file was never replaced.",
+    "No DEBUG block_schedule/playback_timing/queue_playback_timing events.",
+    "No pre-run hosts snapshot or resource-use sampling.",
+    "No UI screenshots or per-song audio/video recording."
+  ],
+  "inspection_head": "29c632976b6b1d6218b84039f5b9571d9153f4fb",
+  "inspection_initial_worktree_clean": true,
+  "product_paths_diff_between_run_and_inspection_head": [],
+  "build_identity_checks": [
+    "Both application_build events name the same clean source revision.",
+    "build-info.json and go version -m SWD.exe agree.",
+    "cmd/, internal/, go.mod and go.sum unchanged between run revision and inspection HEAD."
+  ],
+  "raw_preservation": "Read-only source SQLite backup and copied logs under ignored artifacts/acceptance-evidence/LIVE-20261015-02; no binaries or videos copied to public evidence."
+}

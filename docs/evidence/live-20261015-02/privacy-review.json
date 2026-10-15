@@ -1,0 +1,25 @@
+{
+  "batch": "LIVE-20261015-02",
+  "archive": "live-20261015-02-v1.zip",
+  "archiveSHA256": "8239c600c8312134c22cfc19002a9081f93b36ee1f5e2f35dabf3ee26ac520b2",
+  "publicAndNestedFilesChecked": 677,
+  "privateExactValuesCompared": 20,
+  "unresolvedSensitiveFindings": 0,
+  "reviewedSourceMatches": [
+    {
+      "path": "internal/console/about.html",
+      "category": "Preexisting static acknowledgment in public product source; no runtime identity mapping or private log content included.",
+      "occurrences": 1
+    }
+  ],
+  "sourceRedactions": "Two recorded documentation/experimental-tool identity redactions only; product source bytes unchanged.",
+  "validation": [
+    "Original complete sanitized evidence matches original manifest.",
+    "Outer archive, inventory and nested source member hashes checked.",
+    "Independent local backup hash matches.",
+    "No raw private runtime logs, live databases, credentials or binaries included.",
+    "Git evidence checksums and report links pass."
+  ],
+  "publication": "prepared-local-unpublished; no public download verification performed",
+  "limitations": "Exact-value and selected pattern checks cover these inspected files and source snapshot; not a guarantee about unrelated historical content."
+}

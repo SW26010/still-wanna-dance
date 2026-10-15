@@ -51,6 +51,18 @@
       "status": "published-verified",
       "originalEvidenceCommit": "4489acf70236d91ce16bade80d7cba47e4db5cf5",
       "publiclyVerifiedAt": "2026-10-14T04:26:39Z"
+    },
+    {
+      "batch": "live-20261015-02",
+      "name": "live-20261015-02-v1.zip",
+      "releaseTag": "evidence-20261015-live-02-v1",
+      "bytes": 3138185,
+      "sha256": "8239c600c8312134c22cfc19002a9081f93b36ee1f5e2f35dabf3ee26ac520b2",
+      "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261015-live-02-v1/live-20261015-02-v1.zip",
+      "status": "prepared-local-unpublished",
+      "sourceRevision": "4d8714003f6e7981ad200cfd8a0d970668ce5a6a",
+      "originalEvidenceCommit": null,
+      "publiclyVerifiedAt": null
     }
   ]
 }

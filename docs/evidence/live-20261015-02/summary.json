@@ -1,0 +1,159 @@
+{
+  "event_counts": {
+    "application_starting": 2,
+    "application_build": 2,
+    "console_ready": 2,
+    "console_action_completed": 14,
+    "cache_engine_ready": 2,
+    "settings_saved": 1,
+    "queue_started": 2,
+    "cdn_started": 2,
+    "application_stopping": 2,
+    "queue_stopped": 2,
+    "cdn_stopped": 2,
+    "cache_engine_stopped": 2,
+    "application_stopped": 1,
+    "vrchat_log_changed": 1,
+    "queue_updated": 109,
+    "queue_song_started": 36,
+    "prefetch_started": 36,
+    "cache_task_attached": 61,
+    "download_started": 44,
+    "request_started": 96,
+    "upstream_response": 42,
+    "download_stage": 158,
+    "download_first_byte": 42,
+    "playback_song_failed": 11,
+    "served": 56,
+    "request_finished": 96,
+    "download_verified": 38,
+    "download_published": 38,
+    "cache_task_finished": 44,
+    "prefetch_finished": 36,
+    "queue_song_ready": 33,
+    "download_progress": 190,
+    "playback_local_hit": 71,
+    "client_disconnected": 40,
+    "cache_task_canceled": 6,
+    "download_paused": 6,
+    "download_resumed": 2,
+    "queue_song_canceled": 3,
+    "queue_song_discarded": 3
+  },
+  "request_status_counts": {
+    "200": 44,
+    "206": 52
+  },
+  "request_outcome_counts": {
+    "canceled": 56,
+    "completed": 40
+  },
+  "request_cache_counts": {
+    "MISS": 25,
+    "HIT": 71
+  },
+  "record_count": 43,
+  "folded_event_count": 43,
+  "db_status_counts": {
+    "accepted": 37,
+    "needs_attention": 6
+  },
+  "record_matching_ok": true,
+  "pending_records": 0,
+  "manual_decisions_for_session": 0,
+  "confirmed_play_starts": 40,
+  "events_without_confirmed_start": [
+    29,
+    32,
+    33
+  ],
+  "delay_seconds": {
+    "min": 10.0,
+    "median": 10.0,
+    "max": 14.0,
+    "mean": 10.175,
+    "counts": {
+      "10.0": 36,
+      "11.0": 3,
+      "14.0": 1
+    }
+  },
+  "raw_start_signals": 43,
+  "extra_start_signals": [
+    {
+      "song_id": "5724",
+      "game_line": 1812,
+      "t_s": 627.714758
+    },
+    {
+      "song_id": "1480",
+      "game_line": 6209,
+      "t_s": 4958.714758
+    },
+    {
+      "song_id": "1183",
+      "game_line": 9307,
+      "t_s": 6887.714758
+    }
+  ],
+  "preview_signals": [
+    {
+      "game_line": 1800,
+      "t_s": 621.714758,
+      "type": "preview",
+      "parser": "wannadance_preview",
+      "song_id": "5724",
+      "load_seconds": null,
+      "wait_seconds": null
+    },
+    {
+      "game_line": 6174,
+      "t_s": 4945.714758,
+      "type": "preview",
+      "parser": "wannadance_preview",
+      "song_id": "1480",
+      "load_seconds": null,
+      "wait_seconds": null
+    }
+  ],
+  "published_count": 38,
+  "cache_bytes": 1771453123,
+  "cache_all_ok": true,
+  "capture_warnings": [],
+  "capture_errors": [],
+  "capture_stop_requested": true,
+  "thumbnail_errors": 33,
+  "video_error_signals": 0,
+  "debug_timing_events": 0,
+  "raw_vrcx_request_count": 43,
+  "raw_vrcx_to_folded_order_song_and_request_time_match": true,
+  "archive_decoded_lines_match_source": true,
+  "archive_comparison_decode": "utf-8-sig with replacement; byte hashes differ and originals preserved",
+  "completed_request_length_check": {
+    "checked": 40,
+    "all_match_content_length": true
+  },
+  "requests_without_finish": 0,
+  "upstream_first_response_status_counts": {
+    "206": 42
+  },
+  "canceled_requests_with_write_error": 52,
+  "game_video_loaded_samples": 23,
+  "load_plus_world_wait_seconds_range": [
+    9.9999995,
+    10.0
+  ],
+  "queue_handoff_samples": 37,
+  "queue_head_to_start_seconds_range": [
+    9,
+    11
+  ],
+  "queue_head_to_first_candidate_get_seconds_range": [
+    0.962168,
+    2.371064
+  ],
+  "handoff_first_get_cache_counts": {
+    "HIT": 33,
+    "MISS": 4
+  }
+}

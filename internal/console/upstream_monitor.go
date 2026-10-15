@@ -24,7 +24,12 @@ func (c *Console) startMonitorLocked() error {
 		return nil
 	}
 	if c.monitor == nil {
-		m, err := upstreamstate.NewMonitor(upstreamstate.Options{OnCatalog: c.syncMonitorCatalogs, ThroughputStatePath: c.files().State("throughput"), Policy: upstreamstate.Policy{ThroughputInterval: time.Duration(c.settings.ThroughputIntervalMinutes) * time.Minute}})
+		m, err := upstreamstate.NewMonitor(upstreamstate.Options{
+			OnCatalog: c.syncMonitorCatalogs, OnPlaybackURL: c.syncMonitorPlaybackURL,
+			PlaybackSongCandidates: c.monitorPlaybackSongCandidates,
+			ThroughputStatePath:    c.files().State("throughput"),
+			Policy:                 upstreamstate.Policy{ThroughputInterval: time.Duration(c.settings.ThroughputIntervalMinutes) * time.Minute},
+		})
 		if err != nil {
 			return err
 		}

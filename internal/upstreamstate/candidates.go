@@ -327,6 +327,7 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 	id := m.songID
 	m.mu.Unlock()
 	m.deliverCatalogs(ctx, source.Revision, catalogs)
+	id = m.selectPlaybackSong(ctx, source.Revision, kind, id)
 	if id > 0 && kind != CheckCatalog {
 		// Keep one real sample per returned domain across all API nodes and
 		// channels, then measure each domain's resource channels only once.
@@ -335,9 +336,10 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 			cs := prepare(entry(PlaybackURL, r.id))
 			samples := make([]*videoSample, len(cs))
 			parallel(cs, func(i int, c upstreamrequest.Candidate) {
-				o, s := probePlayback(ctx, requestClient(c.Transport), p, id, r)
+				o, s, response := probePlaybackResponse(ctx, requestClient(c.Transport), p, id, r)
 				samples[i] = s
 				publish(o, c)
+				m.deliverPlaybackURL(ctx, source.Revision, response)
 			})
 			if kind == CheckPlayback {
 				continue

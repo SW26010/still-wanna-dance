@@ -39,3 +39,55 @@ P2 修复后的最终完整回归：`go test -tags=no_easytier ./internal/cachep
 ## 待实机验收
 
 开发行为登记为 [LA-042](live-acceptance-backlog.md)，包含实际解析入口、正文尚未下载、共享资源、重启持久化、迟到/非法观察、映射冲突、取消后继续冷加载及故障恢复证据。联合 LA-010/019 回归，不启动本轮游戏验收，不改 hosts。自动结果不能替代真实客户端和控制台验收。实现、自动测试、本文及台账作为同一变更纳入版本控制。
+
+## 定时探测复用播放地址
+
+2026-10-15：运行期 Monitor 增加 `OnPlaybackURL`，在普通及多候选播放 API 探测成功后、资源采样前交付原始 URL、歌曲 ID、规范 API/节点及请求起止时间。Console 在现有存储生命周期锁下调用 `ObserveSongURL`，复用其校验、事务、排序与存储故障处理。自动与手动检测共享该路径；只更新实际抽样歌曲，不增加 API 请求或媒体下载，也不把资源采样计为播放。引导独立网络诊断未注册此回调。
+
+回调在 Monitor 锁外运行，可跨通道并发；取消/退休批次不交付，退出取消并等待回调。迟到查询按原查询起始时间排序，不因较晚写库变成新证据。持久化失败记录脱敏 `monitor_song_url_sync_failed`，与 API 可用性及探测耗时分离，完整签名 URL 不进入状态快照。
+
+| 测试 | 验证内容 |
+| --- | --- |
+| `TestPlaybackURLDeliveryReusesProbeResponses` | 普通/双候选的播放专项分别只有 3/6 次原请求、2/4 次回调、零资源请求；完整签名 URL 保留，歌曲 ID 不误用资源路径 ID，API 无查询参数，节点 cf/nya，时间取原请求，回调可读取快照且私密 URL 不外泄 |
+| `TestPlaybackURLDeliveryRejectsInvalidCanceledAndRetiredResponses` | 非法大小、非重定向响应、已取消/退休批次不交付；配置替换后新批次仍按原机制重试 |
+| `TestPlaybackURLDeliveryPrecedesResourceProbe` | 普通/多候选在正文采样前完成地址回调；资源 503 不丢弃已有地址证据 |
+| `TestPlaybackURLDeliveryCloseCancelsAndWaits` | Close 取消回调上下文，等待回调释放后才结束 |
+| `TestMonitorLifecycleConsentAndStatus` | 真正启动自动监测，原 14 次请求不变；两节点各留一条可复用 URL，共享资源大小已补齐，不产生播放/请求统计，条款门禁及状态查询仍有效 |
+| `TestMonitorPlaybackURLPersistsMetadataWithoutDownload` | Console 无额外网络请求或媒体文件；更新大小/来源路径，旧请求迟到不覆盖新值，保存原请求时间，共享 MD5，保留冲突时的清单映射 |
+| `TestMonitorPlaybackURLCanceledOrClosingDoesNotOpenStorage` | 取消/退出时不初始化数据库 |
+| `TestMonitorPlaybackURLStorageFailureRollsBack` | 无清单的播放专项可初始化库；注入资源写入失败后地址一起回滚，并保留本地存储故障 |
+
+本次测试使用隔离临时库和内存上游，原始自动日志保存于忽略目录 `artifacts/monitor-song-url-20261015/`。实机范围补充至 LA-042，未操作日常数据库、未启动游戏或修改 hosts。
+
+自动执行记录（Windows amd64、Go 1.27.1、`CGO_ENABLED=0`）：
+
+- 定向 `go test -tags=no_easytier ./internal/upstreamstate ./internal/console -run 'Test(PlaybackURLDelivery|MonitorPlaybackURL|MonitorLifecycleConsentAndStatus)' -count=1 -timeout=90s` 在常规本机权限下通过，见 `focused-host.log`。沙箱内控制台初始化遇到已有的 Windows `renameat` 权限/无效句柄限制，改用仓库内隔离 TEMP 仍复现，保留 `focused.log`；没有修改产品文件操作实现来绕过限制。
+- 首轮三个包完整回归见 `packages-host.jsonl`：upstreamstate 160 个测试/子测试通过；cacheproxy 494 通过、8 跳过，既有 `TestCanceledSeekReleasesWorkerWithoutCancelingSharedReaders` 出现 `new seek stalled`；console 582 通过、5 跳过，既有 `TestQueueLatestSnapshotDedupAndRetry` 报 `latest queue was not prepared`。本次新增测试和扩展的自动监测集成测试全部通过，首轮失败记录保留。
+- Seek 失败测试在相同隔离环境定向连续 5 次通过，见 `seek-repeat.log`；随后使用 `go test -tags=no_easytier -p=1 ./internal/cacheproxy ./internal/console -count=1 -timeout=180s -json` 串行复核，cacheproxy 495 通过、8 跳过；console 582 通过、5 跳过，仍只有 `TestQueueLatestSnapshotDedupAndRetry` 失败，本轮报 `future queue entry published early`，见 `packages-recheck-host.jsonl`。该结果不抹去首轮时序失败，也不等同实机通过。
+- 对未修改 Git 基线 `eed5e7b98f22bb4f3cef00c5b6caadadb4636873` 导出的独立副本运行 console 整包，同一队列测试在 `queue_test.go:108` 复现 `future queue entry published early`；579 通过、5 跳过、1 失败，见 `console-baseline-full.jsonl`。基线单项一次及连续 10 次曾通过，当前工作区单项重复也有失败，分别见 `queue-baseline-complete.log`、`queue-baseline-repeat.log`、`queue-current-repeat.log`，不能用单项通过覆盖整包失败。未将这一已有队列问题纳入本次实现修复，完整 console 回归仍未全绿。
+- `go vet -tags=no_easytier ./internal/upstreamstate ./internal/cacheproxy ./internal/console` 通过，见 `vet.log`；变更 Go 文件格式及 Git 空白检查通过。本次未运行 race 检查。
+
+## 按保留分数优先补齐缺项
+
+2026-10-15：新增 `SongMetadataCandidates` 读取已有歌曲映射与 URL/大小缺项，直接调用 `resourcePriorities`，与缓存容量淘汰及批量补齐使用同一评分。真实需求替换内置先验并按原 60 天半衰期衰减，共享 MD5 的所有歌曲分数相加；候选按资源分数、资源最大歌曲 ID、候选歌曲 ID 降序。只缺一侧节点地址也会入选，地址须匹配当前 MD5/API，非空且未标失败；大小须为正数。单纯超过播放复用期的 URL 仍算元数据已存在，避免高分歌曲每天重新填表而饿死低分缺项。
+
+Monitor 在清单同步后、播放 API 请求前选择，每批仍用原请求探测一首。普通/候选通道与自动/手动检测共享逻辑；只测清单不选歌。未补齐候选在一遍内只试一次，全部剩余项尝试后再从最高分重试，失败/冲突歌曲不会一直挡住后续项；已齐项下一批自动跳过，全部齐备恢复原抽样。遍历记录仅在进程内，配置退休清空，重启按持久化缺项重排，无额外表或字段。空库/尚未建立引擎时仍走原抽样，不因选歌单独初始化库。
+
+| 测试 | 验证内容 |
+| --- | --- |
+| `TestSongMetadataCandidatesUseRetentionPriority` | 共享资源分数相加、同分编号顺序、逐项完成后退出，已完成关联仍贡献共享分数 |
+| `TestSongMetadataCandidatesUsePriorAndDecayedDemand` | 无需求时沿用内置先验，旧真实需求覆盖先验并衰减后改变顺序 |
+| `TestSongMetadataCandidatesDetectMissingCurrentMetadata` | NULL/零大小、缺 cf/nya、空地址、失败地址、其他 API、界面节点名 hkg、旧 MD5 均缺项；齐备和单纯过期不缺，不新增需求/请求统计 |
+| `TestPlaybackSampleUsesPriorityPassAndFallsBack` | 普通/双通道按 73→91→73 遍历失败项，再在齐备后回退原样本 42；HTTP 次数及样本缓存复用不变 |
+| `TestPlaybackSampleSelectionAfterCatalogAndWithoutRemoteSample` | 清单交付后才选本地歌曲，远端清单全失败时已有本地候选仍能探测 |
+| `TestPlaybackSampleSelectionCancellationAndCatalogOnly` | 取消/退休不选择，只测清单不查询，选择过程中取消不消耗遍历记录 |
+| `TestMonitorMetadataBackfillFollowsRetentionOrder` | 通过 Console 实际启动自动监测，先补高先验 1981、下一轮补 5404、齐备后回抽样 42；两节点多通道 URL/大小逐步保存，总请求 14→18→22，后两次仅播放地址检测无新增正文采样 |
+| `TestMonitorMetadataCandidatesDoNotOpenOrReviveStorage` | 无引擎时不建库，已打开库在取消/退出时不返回候选 |
+
+自动日志保留在忽略目录 `artifacts/monitor-metadata-priority-20261015/`。本轮仍为开发验证，实机补充至 LA-042，未对日常库做回填、未启动游戏或修改 hosts。
+
+执行记录（Windows amd64、Go 1.27.1、`CGO_ENABLED=0`，常规本机权限，隔离 TEMP 与模拟上游）：
+
+- `go test -tags=no_easytier ./internal/upstreamstate ./internal/cacheproxy ./internal/console -run 'Test(PlaybackSample|SongMetadataCandidates|MonitorMetadata|MonitorLifecycleConsentAndStatus)' -count=1 -timeout=90s` 通过，见 `focused.log`。
+- `go test -tags=no_easytier -p=1 ./internal/upstreamstate ./internal/cacheproxy ./internal/console -count=1 -timeout=180s -json`：upstreamstate 165 个测试/子测试通过；cacheproxy 508 通过、8 跳过，既有 `TestCanceledSeekReleasesWorkerWithoutCancelingSharedReaders` 再现 `new seek stalled`；console 584 通过、5 跳过，既有 `TestQueueLatestSnapshotDedupAndRetry` 再现 `latest queue was not prepared`。本次新增测试均通过，完整回归仍未全绿，见 `packages.jsonl`。沿用上节的 Seek 重复结果及队列未修改基线失败证据，本轮未修改两项行为，也未用重复运行隐藏失败。
+- 同范围 `go vet -tags=no_easytier` 通过，见 `vet.log`；变更 Go 文件的 `gofmt`、`git diff --check` 通过，台账 43 个编号唯一。未运行 race；未执行 Git commit/push。

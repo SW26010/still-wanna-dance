@@ -268,12 +268,22 @@ func kivaSongSample(body []byte) (int64, string) {
 }
 
 func probePlayback(parent context.Context, client *http.Client, p Policy, id int64, r route) (o observation, sample *videoSample) {
+	o, sample, _ = probePlaybackResponse(parent, client, p, id, r)
+	return
+}
+
+func probePlaybackResponse(parent context.Context, client *http.Client, p Policy, id int64, r route) (o observation, sample *videoSample, result PlaybackURLResponse) {
 	o = observation{op: PlaybackURL, route: r.id, songID: id}
 	ctx, cancel := context.WithTimeout(parent, p.RequestTimeout)
 	defer cancel()
 	started := time.Now()
 	resp, t, err := doProbeRequest(ctx, client, entry(PlaybackURL, r.id)+"&id="+strconv.FormatInt(id, 10), "")
-	defer func() { o.finishTiming(started, t.snapshot()) }()
+	defer func() {
+		o.finishTiming(started, t.snapshot())
+		if o.state == "available" {
+			result.QueryStartedAt, result.ObservedAt = started, o.at
+		}
+	}()
 	if err != nil {
 		o.state = errorState(err)
 		return
@@ -297,7 +307,8 @@ func probePlayback(parent context.Context, client *http.Client, p Policy, id int
 	o.state = "available"
 	o.resourceHost = s.host
 	o.resourceSource = upstreamrequest.ResourceSource{API: entry(PlaybackURL, r.id) + "&id=" + strconv.FormatInt(id, 10), Node: r.node, SongID: id, ResourceURL: u.String(), Domain: u.Host, Path: u.Path}
-	return o, &s
+	result = PlaybackURLResponse{SongID: id, URL: u.String(), API: apiBase + "/Api/Songs/play", Node: r.node}
+	return o, &s, result
 }
 
 func probeResource(parent context.Context, client *http.Client, p Policy, id int64, s videoSample) (o observation) {

@@ -18,9 +18,17 @@ type Options struct {
 	Channel *upstreamrequest.Channel
 	// OnCatalog receives successful responses once per batch, outside monitor locks.
 	// It must respect cancellation; Close waits for it to return.
-	OnCatalog           func(context.Context, []CatalogResponse)
-	Policy              Policy
-	ThroughputStatePath string
+	OnCatalog func(context.Context, []CatalogResponse)
+	// OnPlaybackURL receives each valid API response outside monitor locks,
+	// before resource probing. Calls may overlap across nodes/channels; the
+	// consumer must respect cancellation. Close waits for callbacks to return.
+	OnPlaybackURL func(context.Context, PlaybackURLResponse)
+	// PlaybackSongCandidates returns incomplete songs in business priority order.
+	// Called once per playback batch after catalog delivery, outside monitor locks.
+	// Nil/empty retains the normal catalog sample. Close cancels/waits for it.
+	PlaybackSongCandidates func(context.Context) []int64
+	Policy                 Policy
+	ThroughputStatePath    string
 }
 type Status struct {
 	LastThroughputAttempt time.Time `json:"lastThroughputAttempt"`
@@ -46,6 +54,9 @@ type Monitor struct {
 	diagnostics             map[string]observation
 	resourceSources         map[string]observation
 	onCatalog               func(context.Context, []CatalogResponse)
+	onPlaybackURL           func(context.Context, PlaybackURLResponse)
+	playbackSongCandidates  func(context.Context) []int64
+	playbackSongsAttempted  map[int64]bool
 	throughputPolicyPending bool
 	throughputSaveFailed    bool
 	batchKind               CheckKind
@@ -96,6 +107,8 @@ func newMonitor(o Options, channel *upstreamrequest.Channel) (*Monitor, error) {
 	m := &Monitor{ctx: ctx, cancel: cancel, channel: channel, revision: snapshot.Revision, policy: p, history: make(map[string][]observation), wake: make(chan struct{}, 1), throughputStatePath: o.ThroughputStatePath, throughput: make(map[string]observation)}
 	m.loadThroughputTime()
 	m.onCatalog = o.OnCatalog
+	m.onPlaybackURL = o.OnPlaybackURL
+	m.playbackSongCandidates = o.PlaybackSongCandidates
 	return m, nil
 }
 
@@ -107,6 +120,7 @@ func requestClient(t http.RoundTripper) *http.Client {
 func (m *Monitor) refreshChannelLocked() upstreamrequest.Snapshot {
 	s := m.channel.Snapshot()
 	if s.Revision != m.revision {
+		m.playbackSongsAttempted = nil
 		m.diagnostics = nil
 		m.revision = s.Revision
 		if s.Candidates != nil {
@@ -481,6 +495,7 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 	id = m.songID
 	m.mu.Unlock()
 	m.deliverCatalogs(ctx, source.Revision, catalogs)
+	id = m.selectPlaybackSong(ctx, source.Revision, kind, id)
 	if kind == CheckCatalog || id == 0 || ctx.Err() != nil {
 		return
 	}
@@ -491,10 +506,11 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 		wg.Add(1)
 		go func(r route) {
 			defer wg.Done()
-			resolved, sample := probePlayback(ctx, client, p, id, r)
+			resolved, sample, response := probePlaybackResponse(ctx, client, p, id, r)
 			m.mu.Lock()
 			record(resolved)
 			m.mu.Unlock()
+			m.deliverPlaybackURL(ctx, source.Revision, response)
 			if kind == CheckPlayback || sample == nil {
 				return
 			}

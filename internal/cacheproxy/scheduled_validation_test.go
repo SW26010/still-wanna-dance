@@ -134,7 +134,14 @@ func TestDownloadedValidationDistinguishesStorageAndIntegrity(t *testing.T) {
 			case "canceled":
 				ctx.before = cancel
 			}
-			_, _, err := s.prepare(ctx, v, f)
+			var err error
+			if mode == "read_failure" || mode == "canceled" {
+				// Inject at the validation reader itself: phase timeout contexts
+				// intentionally wrap the caller before prepare reaches this stage.
+				err = s.storageError(s.checkDownloadedFile(ctx, ctx.file, v))
+			} else {
+				_, _, err = s.prepare(ctx, v, f)
+			}
 			local := mode == "read_failure" || mode == "seek_failure"
 			if errors.Is(err, ErrLocalStorage) != local || (s.StorageError() != nil) != local {
 				t.Fatalf("storage classification lost: result=%v storage=%v", err, s.StorageError())

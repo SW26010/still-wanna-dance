@@ -137,6 +137,10 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 	stop := context.AfterFunc(w.ctx, func() { cancel(context.Cause(w.ctx)) })
 	defer stop()
 	defer cancel(nil)
+	// Run is called only after scheduler admission. A whole block (including
+	// retries), or a sequential fallback, gets one bounded execution budget.
+	ctx, stopExecution := context.WithTimeout(ctx, w.s.cfg.DownloadTimeout)
+	defer stopExecution()
 	// The global block admission covers retries/redirects. HTTP attempts only
 	// track their lifecycle; no lower-level hard quota delays blocked reads.
 
@@ -588,6 +592,10 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 		case <-init:
 		}
 	}
+	// Hashing and publication stay bounded without charging the preceding
+	// intentional waits between playback-driven block executions.
+	ctx, stopPublication := context.WithTimeout(ctx, s.cfg.DownloadTimeout)
+	defer stopPublication()
 	f.progress.setStage("hash")
 	if err := s.checkDownloadedFile(ctx, f.ranges.storage.file, v); err != nil {
 		return err

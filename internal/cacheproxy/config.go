@@ -34,7 +34,10 @@ type Config struct {
 	OriginScheme    string
 	ResolvePlayback func(context.Context, string, string) (string, error)
 	// PlaybackNode constrains cached addresses when a node is selected manually.
-	PlaybackNode    string
+	PlaybackNode string
+	// DownloadTimeout bounds each admitted block (including retries), a whole
+	// sequential fallback, and local validation/publication phases separately.
+	// Scheduling waits are governed by demand leases and caller cancellation.
 	DownloadTimeout time.Duration
 	MaxFileBytes    int64
 	// MaxCacheBytes bounds retained videos in the canonical video store; zero is unlimited.

@@ -290,3 +290,9 @@ HTTP 在地址解析前记录的到达时刻随 Range 起点一起传给 GET 需
 当前规则文档及 LA-040 同步到窗口模型，历史目标估算记录保留并明确已取代，LA-041 开播时长观测继续积攒。本轮未更改前端或响应模型，无需重复纯前端测试；未启动游戏、修改 hosts 或 push。
 
 最终无 overlay 的全源码 `go test -tags=no_easytier -race ./cmd/... ./internal/... ./data/... ./experiments/... -count=1 -timeout=180s -json` 通过：17 个包、1,387 个测试/子测试通过，16 项按条件跳过，无 race 报告（activation-window-final-race.jsonl）。相同源码目录的 `go vet` 与 `CGO_ENABLED=0 go build` 均通过（activation-window-vet.log、activation-window-build.log）。台账仍为 42 个唯一编号，LA-040/041 保持待实机验收；修改分为完成耗时测量与窗口准入两个本地提交，不推送。
+
+## 33. 调度等待与执行超时分离
+
+移除资源会话创建时的总墙钟计时。DownloadTimeout 改为每次块准入后的执行预算，同次连接/候选/重试共用；顺序 200 回退按一次整文件执行计时。首次缓存校验、最终分块文件校验/发布及索引记录各有有限上下文；正常窗口和块间等待只受来源、租约、调用方及引擎生命周期控制。命令行说明和服务文档同步。
+
+实际下载夹具用 150/300 ms 预算，在首次远期队列以及首块完成后等待两倍预算，确认没有提前请求/失败，队首提升或尾部实际读取后完成发布。校验额度满载仍按独立预算退出，存储熔断不把正常超时当本地故障。相关执行超时、顺序停滞、关闭、验证和错误分类回归连续 3 轮 race 通过（execution-timeout-focused-race-2.log）。第一轮暴露原 Err 方法注入依赖上下文未包装，读故障/取消注入移到真实校验函数入口，完整 prepare 的校验不匹配/Seek 故障覆盖保留；初次输出 execution-timeout-focused-race.log 保留。LA-040 补充上述实机步骤，未启动游戏、修改 hosts 或 push。

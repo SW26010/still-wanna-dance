@@ -43,7 +43,7 @@ func run() (resultErr error) {
 		cfg.Origins[host] = address
 		return nil
 	})
-	flag.DurationVar(&cfg.DownloadTimeout, "download-timeout", cfg.DownloadTimeout, "shared cache task timeout (validation, download and publication); excludes admission wait and response transfer")
+	flag.DurationVar(&cfg.DownloadTimeout, "download-timeout", cfg.DownloadTimeout, "timeout per admitted block (including retries), sequential download, or local validation/publication phase; excludes scheduling waits and response transfer")
 	flag.Int64Var(&cfg.MaxFileBytes, "max-file-bytes", cfg.MaxFileBytes, "maximum video size in bytes (s URL parameter)")
 	flag.IntVar(&cfg.MaxDownloads, "max-downloads", cfg.MaxDownloads, "maximum concurrent local file validations (does not limit upstream downloads)")
 	flag.Int64Var(&cfg.MaxCacheBytes, "max-cache-bytes", cfg.MaxCacheBytes, "retained video limit in bytes; 0 is unlimited; excludes temporary files and database")

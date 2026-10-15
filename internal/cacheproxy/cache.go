@@ -158,9 +158,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			defer s.wg.Done()
 			defer s.releaseVideo(v)
 			defer cancel(nil)
-			timedCtx, stop := context.WithTimeout(workerCtx, s.cfg.DownloadTimeout)
-			defer stop()
-			f.path, f.source, f.err = s.prepare(timedCtx, v, f)
+			f.path, f.source, f.err = s.prepare(workerCtx, v, f)
 			if f.err == nil {
 				s.mu.Lock()
 				f.completed = true
@@ -312,14 +310,16 @@ func checkOpenFile(ctx context.Context, f *os.File, v video) error {
 func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResult, source string, resultErr error) {
 	defer func() { resultErr = s.storageError(resultErr) }()
 	path := s.cfg.videoFile(v.key)
-	if _, err := s.verifiedFile(ctx, v); err == nil {
+	checkCtx, stopCheck := context.WithTimeout(ctx, s.cfg.DownloadTimeout)
+	defer stopCheck()
+	if _, err := s.verifiedFile(checkCtx, v); err == nil {
 		flight.progress.setStage("index")
-		if err := s.recordVideo(ctx, v); err != nil {
+		if err := s.recordVideo(checkCtx, v); err != nil {
 			return "", "", err
 		}
 		return path, "HIT", nil
-	} else if ctx.Err() != nil {
-		return "", "", ctx.Err()
+	} else if checkCtx.Err() != nil {
+		return "", "", checkCtx.Err()
 	} else if !errors.Is(err, os.ErrNotExist) {
 		if !errors.Is(err, errInvalidCache) {
 			return "", "", err
@@ -336,6 +336,7 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 			return "", "", err
 		}
 	}
+	stopCheck() // Waiting for a block's activation window has no execution timer.
 	if s.cfg.BeginResourceLoad != nil {
 		release := s.cfg.BeginResourceLoad()
 		defer release()
@@ -354,7 +355,9 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 		return "", "", err
 	}
 	flight.progress.setStage("index")
-	if err := s.recordVideo(ctx, v); err != nil {
+	indexCtx, stopIndex := context.WithTimeout(ctx, s.cfg.DownloadTimeout)
+	defer stopIndex()
+	if err := s.recordVideo(indexCtx, v); err != nil {
 		return "", "", err
 	}
 	flight.log.Info("download_published", "key", v.key, "size", v.size)

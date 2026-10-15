@@ -12,7 +12,6 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
-const scheduledWindow = 8
 const rangeReadAheadBlocks int64 = 2
 const sourceLease = 30 * time.Second
 const getHandoff = 2 * time.Second
@@ -230,6 +229,10 @@ func (w *downloadSession) submit(block int64) (*scheduledBlock, error) {
 func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[blockSource]plannedNeed, <-chan struct{}) {
 	plan := make(map[int64]map[blockSource]plannedNeed)
 	blocks := (w.v.size + rangeBlockSize - 1) / rangeBlockSize
+	// Only the first request can establish Range support and entity identity.
+	if !initialized {
+		blocks = min(blocks, 1)
+	}
 	done := func(block int64) bool {
 		if !initialized {
 			return false
@@ -253,10 +256,13 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 		}
 		plan[block][source] = plannedNeed{need: blocksched.Need{Owner: w.v.key, ReadyBy: ready, LeaseUntil: now.Add(sourceLease), Blocking: blocking}, revision: revision, source: origin}
 	}
-	var window []int64
-	for b := first; b < blocks && len(window) < scheduledWindow; b++ {
+	// Every missing block of an admitted resource must be visible to the
+	// global scheduler. A per-resource count would hide both eligible backlog
+	// and earlier deadlines behind the blocks that are already running.
+	var pending []int64
+	for b := first; b < blocks; b++ {
 		if !done(b) {
-			window = append(window, b)
+			pending = append(pending, b)
 		}
 	}
 	w.s.mu.Lock()
@@ -269,7 +275,7 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 		if d.playback {
 			kind = "get"
 		}
-		for _, b := range window {
+		for _, b := range pending {
 			ready := time.Time{}
 			if d.clock != nil {
 				ready = d.clock.ready(b * rangeBlockSize)
@@ -286,7 +292,7 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 			continue
 		}
 		if source := w.s.prefetchSources[song]; source != nil {
-			for _, b := range window {
+			for _, b := range pending {
 				add(b, blockSource{"queue", source}, source.readyBy(b), false, int64(source.position), source.origin())
 			}
 		}
@@ -305,14 +311,6 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 		add(d.block, blockSource{"blocking", d}, d.at, true, 0, sourceGET)
 	}
 	w.mu.Unlock()
-	// Before headers, only block 0 can establish Range capability and entity.
-	if !initialized {
-		for b := range plan {
-			if b != 0 {
-				delete(plan, b)
-			}
-		}
-	}
 	return plan, changed
 }
 

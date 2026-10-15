@@ -44,10 +44,18 @@ func TestBlockDemandFollowsActualWaitAndIndependentReaders(t *testing.T) {
 			}
 		}
 	}
-	if _, ok := plan[14]; !ok {
+	hasRead := func(block int64) bool {
+		for source := range plan[block] {
+			if source.kind == "read" {
+				return true
+			}
+		}
+		return false
+	}
+	if !hasRead(14) {
 		t.Fatal("missing finite read ahead")
 	}
-	if _, ok := plan[15]; ok {
+	if hasRead(15) {
 		t.Fatal("unbounded read ahead")
 	}
 	one, two := w.demand(12*rangeBlockSize), w.demand(12*rangeBlockSize)
@@ -75,7 +83,7 @@ func TestBlockDemandFollowsActualWaitAndIndependentReaders(t *testing.T) {
 	}
 	advance(4 * rangeBlockSize)
 	plan, _ = w.plan(time.Now(), true)
-	if _, ok := plan[14]; ok {
+	if hasRead(14) {
 		t.Fatal("Seek retained old read window")
 	}
 	cancel()

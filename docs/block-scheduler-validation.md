@@ -326,3 +326,20 @@ HTTP 在地址解析前记录的到达时刻随 Range 起点一起传给 GET 需
 - 正式源码目录 `./cmd/... ./internal/... ./data/... ./experiments/...` 的 `go vet -tags=no_easytier` 与 `CGO_ENABLED=0 go build -tags=no_easytier` 均通过，输出仅本地 `artifacts/prepare-ahead-checks/{vet-source,build-source}.log`。初次 `./...` 检查纳入忽略目录 artifacts 中的旧临时源码，因包名冲突、缺少嵌入文件等失败；保留原输出及历史资料，随后按上述正式源码范围检查通过。
 
 新增待实机验收 LA-043，联动 LA-001/040/041；具体步骤、预期和证据见台账。未启动游戏、修改 hosts，未 commit/push；已有实机批次和历史失败证据保留。
+
+## 37. 移除每视频固定候选数量
+
+2026-10-16：删除 `scheduledWindow=8` 和每资源候选数量截断。完成 Range/实体初始化后，GET、队列及补齐对已接入资源的全部未完成块生成需求，保留各自 ReadyBy、来源和租约，由全局 T+M 窗口、250 ms 缓增及普通软上限 16 决定执行。没有改成另一固定候选数，也没有改动调度核心。首次响应头前仍仅提交首块，顺序 200 仍只占一次执行；每读取位置的当前块和后面两块继续是独立需求，实际等待才赋予 Blocking。同块去重、完成块过滤、交接、取消、内容校验和发布沿用原流程。
+
+资源会话和全局任务/需求元数据容量保护保留；排队不分配正文缓冲。已接入资源的全部缺块现在计入全局注册容量，超过 4,096 个已注册块时沿用容量错误并清理，不能将“无每视频候选数限制”理解为无限任务内存。未接入的库资源不会展开。
+
+新增 `scheduled_candidates_test.go` 覆盖三种来源的完整候选、初始化门禁与已完成块过滤、跨资源第 8 块以后的期限顺序、生产下载路径单视频升到 16 路且普通请求不超限、全部分块只请求一次及完整内容发布，以及全局容量拒绝后的任务回收。原读取窗口测试改为检查读取来源本身的撤销，避免把独立 GET 仍需的块误判为旧 Seek 残留；Blocking 超限夹具不再引用被删除的窗口常量。
+
+开发检查（全部使用隔离夹具，不代表实机通过）：
+
+- 旧产品文件通过 Go overlay 接入新增回归，GET/队列/补齐均只生成 8 个候选，跨资源排序在 `content/8` 处被 `later/0` 抢先；四处预期失败保留于本地 `artifacts/remove-resource-window/before-regression.log`，工作区产品文件未回退。
+- 新增回归及相关读取/Blocking 定向检查通过（`focused.log`，5.088 s）。真实回环 HTTP 的 20 MiB 单视频在未触发额外 Read/Seek 时达到 16 路，仍阻止第 17 个普通请求；释放响应后完成全部内容及最终校验发布。
+- `go test -tags=no_easytier -race ./internal/cacheproxy ./internal/blocksched -count=1 -timeout=180s` 完整通过，分别 38.499 s / 1.131 s，无 race 报告（`packages-race-normal.log`）。首轮沙箱日志保留为 `packages-race.log`：硬链接/junction 权限拒绝及 ThreadSanitizer 异常退出，未作为通过证据；正常 Windows 权限重跑成功。
+- 两个相关包的 `go vet -tags=no_easytier` 通过（`vet.log`）；正式源码目录 `./cmd/... ./internal/... ./data/... ./experiments/...` 的 `CGO_ENABLED=0 go build -tags=no_easytier` 通过（`build.log`）。日志均位于上述本地忽略目录。
+
+LA-040 更新本次步骤、预期和证据需求，新版本待实机验收；历史失败和报告保留，本次不宣称已解决历史卡顿/Seek 根因。未启动游戏、修改 hosts，未执行 Git commit/push；工作区其他并行变更保持原样。

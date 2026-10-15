@@ -12,7 +12,8 @@ import (
 
 func TestBlockedReadersOpenHTTPBeyondSoftLimit(t *testing.T) {
 	const readers = 20
-	body := bytes.Repeat([]byte("x"), int((scheduledWindow+readers)*rangeBlockSize))
+	const firstReadBlock = 1
+	body := bytes.Repeat([]byte("x"), int((firstReadBlock+readers)*rangeBlockSize))
 	started := make(chan int64, 128)
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
 		var start, end int64
@@ -36,12 +37,12 @@ func TestBlockedReadersOpenHTTPBeyondSoftLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	done := make(chan struct{}, readers+1)
-	// Each actual read waits on a different block beyond the ordinary window.
-	// A duplicate reader must share block 8 rather than create a 21st request.
+	// Each actual read waits on a different block after the initial request.
+	// A duplicate reader must share block 1 rather than create a 21st request.
 	for i := range readers + 1 {
 		reader := f.spool.reader(ctx, v.size)
 		defer reader.Close()
-		reader.Seek(int64(scheduledWindow+i%readers)*rangeBlockSize, io.SeekStart)
+		reader.Seek(int64(firstReadBlock+i%readers)*rangeBlockSize, io.SeekStart)
 		go func() {
 			reader.Read(make([]byte, 1))
 			done <- struct{}{}
@@ -51,7 +52,7 @@ func TestBlockedReadersOpenHTTPBeyondSoftLimit(t *testing.T) {
 	for len(seen) < readers {
 		select {
 		case block := <-started:
-			if block >= scheduledWindow {
+			if block >= firstReadBlock {
 				seen[block]++
 				if seen[block] != 1 {
 					t.Fatal("blocked readers duplicated a shared request", block)

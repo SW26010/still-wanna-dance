@@ -170,3 +170,11 @@ GET 延迟处理、重复关闭、固定到期、队列升降/合并通知、正
 旧估算把未来不足 2 秒的期限也扩为追赶窗口，回归复现 4 MiB / 1 MiB/s 在剩余 1 秒时被估为 2 路，0.5 秒和 1.5 秒场景也被低估（deadline-horizon-before.log）。现在只对 ReadyBy 已到或已过的任务使用 2 秒追赶窗口，未来期限使用正的真实剩余时间；浮点需求先限于软上限再转整数，避免极近期限/大剩余量溢出后反而低估。
 
 新增七个边界场景覆盖 0.5/1/1.5 秒、恰好到期、已超时、软上限与近零正时间的大剩余量；核心全部 race 连续 20 轮通过（deadline-horizon-race.log）。供数采样、普通请求缓升与无收益回退规则保持，估算目标不冒充吞吐保证。LA-040 补充目标估算与实际开放额度的对照证据，实机继续积攒。
+
+## 18. 顺序暂停保留本地写入错误
+
+新增确定性交错：200 顺序正文在 contextReader 已检查上下文之后触发暂停，等待取消传到请求，再返回字节并使本地文件写入失败。旧实现将写入错误替换为 errPreempted，StorageError 仍为空（sequential-pause-before.log）。
+
+顺序执行现在只把 context.Canceled 或 blocksched.ErrPaused 错误链转换为会话暂停，保留同时发生的存储及完整性错误。原任务收尾的错误优先级与 prepare 的存储分类继续生效，不另建故障分类机制。回归确认原始 os.ErrClosed 和 ErrLocalStorage 同时保留，当前引擎熔断且后续冷下载不再发起上游请求；正常取消对照仍返回暂停，不误熔断，失败正文没有正式文件。新增交错及既有创建/写入/发布/上游/完整性错误分类回归连续 20 轮 race 通过（sequential-pause-race.log）。LA-040 联合 LA-010 补充故障重合、后续请求与实际体验证据，真实游戏继续待验收。
+
+本轮三项修复后的全受控源码检查通过：go test -tags=no_easytier -race ./cmd/... ./internal/... ./data/... ./experiments/... -count=1 -timeout=180s -json，17 个测试包、1,331 个测试/子测试通过、16 项按条件跳过，无 race 报告（flight-deadline-pause-final-race.jsonl）。同范围 go vet 与 CGO_ENABLED=0 go build 通过（flight-deadline-pause-final-vet.log、flight-deadline-pause-final-build.log）。台账 41 个编号保持唯一。三项修复分开本地提交，未 push、未启动游戏或修改 hosts；LA-040 联合 LA-010/038 及原 LA-041 观测继续待实机验收。

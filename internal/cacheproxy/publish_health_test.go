@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -99,6 +100,72 @@ func TestPublicationDistinguishesLocalAndUpstreamFailures(t *testing.T) {
 			}
 			if mode == "canceled" && !errors.Is(err, context.Canceled) {
 				t.Fatal("lost cancellation", err)
+			}
+		})
+	}
+}
+
+func TestSequentialPausePreservesLocalWriteFailure(t *testing.T) {
+	for _, writeFailure := range []bool{false, true} {
+		name := "cancellation"
+		if writeFailure {
+			name = "write_failure"
+		}
+		t.Run(name, func(t *testing.T) {
+			s, cfg := setup(t, nil)
+			r, _ := http.NewRequest("GET", videoURL(payload), nil)
+			v, err := s.parseResolved(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			parent, stop := context.WithTimeout(context.Background(), 5*time.Second)
+			defer stop()
+			ctx, cancel := context.WithCancelCause(parent)
+			defer cancel(nil)
+			f := &flight{log: cfg.Logger, streaming: make(chan struct{})}
+			f.progress = startProgress(cfg.Logger, v.size, time.Hour)
+			defer func() {
+				f.progress.finish(err)
+				if f.spool != nil {
+					f.spool.finish(err)
+					f.spool.release()
+				}
+			}()
+			var requests atomic.Int32
+			s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+				return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+					requests.Add(1)
+					body := publishReaderFunc(func(p []byte) (int, error) {
+						// Cancellation lands after contextReader's check, before
+						// io.Copy writes the bytes returned by this read.
+						cancel(errPreempted)
+						<-r.Context().Done()
+						if writeFailure {
+							if err := f.spool.file.Close(); err != nil {
+								return 0, err
+							}
+							return copy(p, payload), nil
+						}
+						return 0, context.Canceled
+					})
+					return &http.Response{StatusCode: 200, Header: make(http.Header), ContentLength: v.size, Body: io.NopCloser(body), Request: r}, nil
+				})}
+			}
+			_, release := s.addDemand(context.Background(), v, false)
+			defer release()
+			_, _, err = s.prepare(ctx, v, f)
+			if writeFailure {
+				if !errors.Is(err, ErrLocalStorage) || !errors.Is(err, os.ErrClosed) || !errors.Is(s.StorageError(), ErrLocalStorage) {
+					t.Fatal("pause hid the local write failure", err, s.StorageError())
+				}
+				if _, reader, nextErr := s.obtain(parent, v); !errors.Is(nextErr, ErrLocalStorage) || reader != nil || requests.Load() != 1 {
+					t.Fatal("storage failure did not stop the next download", nextErr, requests.Load())
+				}
+			} else if !errors.Is(err, errPreempted) || s.StorageError() != nil {
+				t.Fatal("ordinary pause became a storage fault", err, s.StorageError())
+			}
+			if _, fileErr := os.Stat(cfg.videoFile(v.key)); !os.IsNotExist(fileErr) {
+				t.Fatal("failed sequential body was published", fileErr)
 			}
 		})
 	}

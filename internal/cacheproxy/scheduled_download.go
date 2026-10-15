@@ -161,8 +161,9 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 			defer stopBody()
 			err := w.s.publish(ctx, schedulerProgressReader{resp.Body, p}, w.path, w.v, w.f)
 			// Sequential bodies have no safe partial restart. End this flight;
-			// its next owner opens a new body after cleanup.
-			if err != nil && isScheduledPause(ctx) {
+			// its next owner opens a new body after cleanup. Preserve storage
+			// and integrity errors that happen to coincide with cancellation.
+			if isScheduledPause(ctx) && (errors.Is(err, context.Canceled) || errors.Is(err, blocksched.ErrPaused)) {
 				w.s.preemptFlight(w.f, nil)
 				err = errPreempted
 			}

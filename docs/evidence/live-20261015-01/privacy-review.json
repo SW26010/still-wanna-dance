@@ -1,0 +1,46 @@
+{
+  "evidenceID": "E-014",
+  "batch": "LIVE-20261015-01",
+  "reviewDate": "2026-10-15",
+  "status": "checked-no-unresolved-sensitive-findings",
+  "scope": {
+    "publicWorktreeFiles": 21,
+    "archiveDirectFiles": 8,
+    "nestedSourceFiles": 575,
+    "includes": [
+      "report, backlog and evidence index",
+      "all batch public evidence and manifest",
+      "acceptance relay source, tests and documentation",
+      "candidate archive traces, provenance and nested source snapshot"
+    ],
+    "excludes": ["unrelated Git history", "previous remote publications"]
+  },
+  "checks": [
+    "Actual local username and personal paths",
+    "Player/world/instance identifiers and Windows account SID",
+    "Private keys, service tokens, JWT and authentication headers",
+    "Signed URL parameters and precise capture timestamps",
+    "Exact comparison against 14 values from local credentials and logs; values themselves are not included",
+    "Public evidence SHA256 and Git blob hashes",
+    "Outer archive and every listed member hash; nested snapshot contents",
+    "Git tracking, index and ignore rules for private raw materials"
+  ],
+  "findingsResolved": [
+    {
+      "location": "nested source docs/issue-30-license-audit.md:5",
+      "category": "historical author identity",
+      "action": "Anonymized only the v2 archive copy as <maintainer>; original repository documentation and product code unchanged.",
+      "provenance": "Original and redacted document hashes recorded in the archive provenance.",
+      "priorArchiveDisposition": "v1 retained privately, not published and not approved for publication"
+    }
+  ],
+  "reviewedFalsePositives": [
+    {"location": "internal/cacheproxy/md5_resources_test.go:27", "category": "test-only token placeholder", "occurrences": 1},
+    {"location": "internal/cacheproxy/range_errors_test.go:65", "category": "test-only token/signature placeholders", "occurrences": 2}
+  ],
+  "unresolvedSensitiveFindings": 0,
+  "runtimePrivateMaterialTrackedOrStaged": false,
+  "candidateArchive": "live-20261015-01-sanitized-v2.zip",
+  "publicationState": "At completion of this review no commit, push or Release had been performed. Subsequent user-authorized Git publication is recorded in Git history; the full archive remains local and unpublished.",
+  "limitations": "Pattern checks and exact-value comparison cover the inspected files, not a guarantee about unrelated materials or prior external disclosure. Legitimate source test placeholders and public protocol/resource hashes are retained."
+}

@@ -1,0 +1,10 @@
+--- a/cmd/still-wanna-dance-console/main.go
++++ b/cmd/still-wanna-dance-console/main.go
+@@ -130,6 +130,7 @@
+ 	}
+ 	previousLogger := slog.Default()
+ 	slog.SetDefault(slog.New(slog.NewJSONHandler(writer, &slog.HandlerOptions{
++		Level: slog.LevelDebug,
+ 		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
+ 			if a.Value.Kind() == slog.KindTime {
+ 				a.Value = slog.TimeValue(a.Value.Time().UTC())

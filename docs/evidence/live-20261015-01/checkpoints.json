@@ -1,0 +1,527 @@
+{
+  "evidenceID": "E-008",
+  "batch": "LIVE-20261015-01",
+  "sources": [
+    "session-events.json",
+    "block-schedule.csv",
+    "relay-samples.csv",
+    "observations.json"
+  ],
+  "slowSeek": {
+    "key": "d03407b12d071fbde870d82a890e26f1",
+    "service": "service-2",
+    "request": 7,
+    "rangeStart": 45498368,
+    "firstBodyMs": 14718.2909,
+    "block": 43,
+    "events": [
+      {
+        "t": 2585.934,
+        "event": "block_schedule",
+        "source": "app.log",
+        "line": 3289,
+        "service": "service-2",
+        "scheduleEvent": "queued",
+        "block_key": "d03407b12d071fbde870d82a890e26f1/73858314/43",
+        "active": 1,
+        "open": 1,
+        "blocking": true,
+        "opportunistic": false,
+        "work_bytes": 1048576,
+        "block_time_ms": 8574,
+        "prepare_ahead_ms": 30000,
+        "start_urgent": false,
+        "overdue": false,
+        "ready_by": 2585.924,
+        "reason": "demand"
+      },
+      {
+        "t": 2585.934,
+        "event": "block_schedule",
+        "source": "app.log",
+        "line": 3290,
+        "service": "service-2",
+        "scheduleEvent": "started",
+        "block_key": "d03407b12d071fbde870d82a890e26f1/73858314/43",
+        "active": 2,
+        "open": 1,
+        "blocking": true,
+        "opportunistic": false,
+        "work_bytes": 1048576,
+        "block_time_ms": 8574,
+        "prepare_ahead_ms": 30000,
+        "start_urgent": true,
+        "overdue": true,
+        "ready_by": 2585.924,
+        "reason": "demand"
+      },
+      {
+        "t": 2600.642,
+        "event": "block_schedule",
+        "source": "app.log",
+        "line": 3328,
+        "service": "service-2",
+        "scheduleEvent": "sample",
+        "block_key": "d03407b12d071fbde870d82a890e26f1/73858314/43",
+        "active": 11,
+        "open": 11,
+        "blocking": true,
+        "opportunistic": false,
+        "work_bytes": 1048576,
+        "block_time_ms": 9252,
+        "prepare_ahead_ms": 30000,
+        "start_urgent": false,
+        "overdue": false,
+        "ready_by": 2585.924,
+        "reason": "readable_block"
+      },
+      {
+        "t": 2600.642,
+        "event": "block_schedule",
+        "source": "app.log",
+        "line": 3329,
+        "service": "service-2",
+        "scheduleEvent": "finished",
+        "block_key": "d03407b12d071fbde870d82a890e26f1/73858314/43",
+        "active": 10,
+        "open": 11,
+        "blocking": true,
+        "opportunistic": false,
+        "work_bytes": 1048576,
+        "block_time_ms": 9252,
+        "prepare_ahead_ms": 30000,
+        "start_urgent": false,
+        "overdue": false,
+        "ready_by": 2585.924,
+        "reason": "execution"
+      }
+    ],
+    "inference": "Blocking block 43 was queued and started at the same logged millisecond; it became readable about 14.708 seconds later while 11 blocks were active. Delay is observed during execution, not demonstrated scheduler admission starvation. Shared bandwidth is a plausible contributor, not a proven exclusive root cause. UI recovery time is not measured."
+  },
+  "resume": [
+    {
+      "key": "7157691aba7f3359efad4710b9d5b0ab",
+      "service": "service-1",
+      "resumed": {
+        "t": 1867.12,
+        "event": "download_resumed",
+        "source": "app.log",
+        "line": 2576,
+        "service": "service-1",
+        "resource_key": "7157691aba7f3359efad4710b9d5b0ab",
+        "flight_id": 9,
+        "retained_bytes": 10485760,
+        "trace": "trace-25"
+      },
+      "published": {
+        "t": 1906.114,
+        "event": "download_published",
+        "source": "app.log",
+        "line": 2835,
+        "service": "service-1",
+        "resource_key": "7157691aba7f3359efad4710b9d5b0ab",
+        "key": "7157691aba7f3359efad4710b9d5b0ab",
+        "flight_id": 9,
+        "size": 37328119,
+        "trace": "trace-25"
+      },
+      "restartedBlocks": [
+        {
+          "block": 10,
+          "t": 1877.707,
+          "line": 2639
+        },
+        {
+          "block": 11,
+          "t": 1880.793,
+          "line": 2646
+        },
+        {
+          "block": 12,
+          "t": 1881.259,
+          "line": 2654
+        },
+        {
+          "block": 13,
+          "t": 1881.821,
+          "line": 2663
+        },
+        {
+          "block": 14,
+          "t": 1882.143,
+          "line": 2671
+        },
+        {
+          "block": 15,
+          "t": 1883.469,
+          "line": 2683
+        },
+        {
+          "block": 16,
+          "t": 1884.543,
+          "line": 2691
+        },
+        {
+          "block": 17,
+          "t": 1885.507,
+          "line": 2698
+        },
+        {
+          "block": 18,
+          "t": 1886.762,
+          "line": 2706
+        },
+        {
+          "block": 19,
+          "t": 1887.836,
+          "line": 2714
+        },
+        {
+          "block": 20,
+          "t": 1888.79,
+          "line": 2723
+        },
+        {
+          "block": 21,
+          "t": 1890.086,
+          "line": 2731
+        },
+        {
+          "block": 22,
+          "t": 1891.16,
+          "line": 2738
+        },
+        {
+          "block": 23,
+          "t": 1892.217,
+          "line": 2747
+        },
+        {
+          "block": 24,
+          "t": 1893.199,
+          "line": 2755
+        },
+        {
+          "block": 25,
+          "t": 1894.518,
+          "line": 2763
+        },
+        {
+          "block": 26,
+          "t": 1895.579,
+          "line": 2771
+        },
+        {
+          "block": 27,
+          "t": 1896.542,
+          "line": 2778
+        },
+        {
+          "block": 28,
+          "t": 1897.635,
+          "line": 2787
+        },
+        {
+          "block": 29,
+          "t": 1898.962,
+          "line": 2794
+        },
+        {
+          "block": 30,
+          "t": 1900.004,
+          "line": 2800
+        },
+        {
+          "block": 31,
+          "t": 1900.939,
+          "line": 2805
+        },
+        {
+          "block": 32,
+          "t": 1902.274,
+          "line": 2812
+        },
+        {
+          "block": 33,
+          "t": 1903.354,
+          "line": 2817
+        },
+        {
+          "block": 34,
+          "t": 1904.395,
+          "line": 2824
+        },
+        {
+          "block": 35,
+          "t": 1905.392,
+          "line": 2828
+        }
+      ],
+      "file": {
+        "storage": "primary",
+        "name": "7157691aba7f3359efad4710b9d5b0ab.mp4",
+        "bytes": 37328119,
+        "md5": "7157691aba7f3359efad4710b9d5b0ab",
+        "matchesName": true,
+        "checkedAt": 5874.343
+      }
+    },
+    {
+      "key": "8d767b6a39c152116ac4560305b2245c",
+      "service": "service-2",
+      "resumed": {
+        "t": 2994.849,
+        "event": "download_resumed",
+        "source": "app.log",
+        "line": 4263,
+        "service": "service-2",
+        "resource_key": "8d767b6a39c152116ac4560305b2245c",
+        "flight_id": 3,
+        "retained_bytes": 31457280,
+        "trace": "trace-46"
+      },
+      "published": {
+        "t": 3068.646,
+        "event": "download_published",
+        "source": "app.log",
+        "line": 4592,
+        "service": "service-2",
+        "resource_key": "8d767b6a39c152116ac4560305b2245c",
+        "key": "8d767b6a39c152116ac4560305b2245c",
+        "flight_id": 3,
+        "size": 64706860,
+        "trace": "trace-46"
+      },
+      "restartedBlocks": [
+        {
+          "block": 30,
+          "t": 2995.302,
+          "line": 4311
+        },
+        {
+          "block": 31,
+          "t": 2995.553,
+          "line": 4322
+        },
+        {
+          "block": 32,
+          "t": 2995.804,
+          "line": 4327
+        },
+        {
+          "block": 33,
+          "t": 2996.054,
+          "line": 4329
+        },
+        {
+          "block": 34,
+          "t": 2996.304,
+          "line": 4331
+        },
+        {
+          "block": 35,
+          "t": 2996.554,
+          "line": 4333
+        },
+        {
+          "block": 36,
+          "t": 2996.804,
+          "line": 4335
+        },
+        {
+          "block": 37,
+          "t": 2997.055,
+          "line": 4337
+        },
+        {
+          "block": 38,
+          "t": 3010.413,
+          "line": 4350
+        },
+        {
+          "block": 39,
+          "t": 3010.617,
+          "line": 4358
+        },
+        {
+          "block": 40,
+          "t": 3012.081,
+          "line": 4366
+        },
+        {
+          "block": 41,
+          "t": 3012.086,
+          "line": 4371
+        },
+        {
+          "block": 42,
+          "t": 3012.631,
+          "line": 4381
+        },
+        {
+          "block": 43,
+          "t": 3012.987,
+          "line": 4389
+        },
+        {
+          "block": 44,
+          "t": 3015.839,
+          "line": 4408
+        },
+        {
+          "block": 45,
+          "t": 3020.214,
+          "line": 4409
+        },
+        {
+          "block": 46,
+          "t": 3025.4,
+          "line": 4414
+        },
+        {
+          "block": 47,
+          "t": 3028.904,
+          "line": 4456
+        },
+        {
+          "block": 48,
+          "t": 3033.573,
+          "line": 4472
+        },
+        {
+          "block": 49,
+          "t": 3036.97,
+          "line": 4492
+        },
+        {
+          "block": 50,
+          "t": 3039.792,
+          "line": 4500
+        },
+        {
+          "block": 51,
+          "t": 3042.052,
+          "line": 4509
+        },
+        {
+          "block": 52,
+          "t": 3044.59,
+          "line": 4517
+        },
+        {
+          "block": 53,
+          "t": 3046.835,
+          "line": 4525
+        },
+        {
+          "block": 54,
+          "t": 3049.084,
+          "line": 4534
+        },
+        {
+          "block": 55,
+          "t": 3051.597,
+          "line": 4541
+        },
+        {
+          "block": 56,
+          "t": 3054.042,
+          "line": 4548
+        },
+        {
+          "block": 57,
+          "t": 3056.301,
+          "line": 4556
+        },
+        {
+          "block": 58,
+          "t": 3058.55,
+          "line": 4563
+        },
+        {
+          "block": 59,
+          "t": 3061.97,
+          "line": 4571
+        },
+        {
+          "block": 60,
+          "t": 3064.582,
+          "line": 4578
+        },
+        {
+          "block": 61,
+          "t": 3066.847,
+          "line": 4583
+        }
+      ],
+      "file": {
+        "storage": "primary",
+        "name": "8d767b6a39c152116ac4560305b2245c.mp4",
+        "bytes": 64706860,
+        "md5": "8d767b6a39c152116ac4560305b2245c",
+        "matchesName": true,
+        "checkedAt": 5874.461
+      }
+    }
+  ],
+  "perConnection": [
+    {
+      "phase": "connection-1mbps",
+      "key": "0c68b3054dc9d3cbba1006e5af493558",
+      "service": "service-3",
+      "rateBytesPerSecond": 125000,
+      "downloadStarted": 3709.375,
+      "downloadPublished": 3936.691,
+      "bytes": 63303027,
+      "seconds": 253,
+      "estimatedFileAverageMbps": 2.001676743083004,
+      "maxResourceTCPConnections": 8,
+      "maxAggregateMbpsOverAtLeast10s": 6.839087843137255,
+      "maxIndividualMbpsOverAtLeast10s": 0.9879741176470589,
+      "recentWindow": {
+        "from": 3907.269,
+        "to": 3936.469,
+        "aggregateMbps": 2.106724657534247
+      },
+      "firstResolverBodyMs": 10828.8364,
+      "completedFile": {
+        "storage": "primary",
+        "name": "0c68b3054dc9d3cbba1006e5af493558.mp4",
+        "bytes": 63303027,
+        "md5": "0c68b3054dc9d3cbba1006e5af493558",
+        "matchesName": true,
+        "checkedAt": 5873.895
+      },
+      "limits": "Resource TCP includes TLS and transfer chunks up to 16384 bytes. Connection lifetime may span multiple Range requests. Counters sampled approximately once a second; at-least-10-second windows still have chunk-boundary quantization. File size/end is a whole-file average, not an instantaneous video-only bitrate. Only target download time window is summarized; post-song automatic playback excluded."
+    },
+    {
+      "phase": "connection-0.5mbps",
+      "key": "4c1517e10aa4eaa9341bc75f33167b63",
+      "service": "service-4",
+      "rateBytesPerSecond": 62500,
+      "downloadStarted": 4051.772,
+      "downloadPublished": 4278.583,
+      "bytes": 60013882,
+      "seconds": 243,
+      "estimatedFileAverageMbps": 1.9757656625514404,
+      "maxResourceTCPConnections": 10,
+      "maxAggregateMbpsOverAtLeast10s": 4.0187169811320755,
+      "maxIndividualMbpsOverAtLeast10s": 0.5101363330448995,
+      "recentWindow": {
+        "from": 4248.073,
+        "to": 4277.873,
+        "aggregateMbps": 1.651326174496644
+      },
+      "firstResolverBodyMs": 18909.2292,
+      "completedFile": {
+        "storage": "primary",
+        "name": "4c1517e10aa4eaa9341bc75f33167b63.mp4",
+        "bytes": 60013882,
+        "md5": "4c1517e10aa4eaa9341bc75f33167b63",
+        "matchesName": true,
+        "checkedAt": 5874.004
+      },
+      "limits": "Resource TCP includes TLS and transfer chunks up to 16384 bytes. Connection lifetime may span multiple Range requests. Counters sampled approximately once a second; at-least-10-second windows still have chunk-boundary quantization. File size/end is a whole-file average, not an instantaneous video-only bitrate. Only target download time window is summarized; post-song automatic playback excluded."
+    }
+  ]
+}

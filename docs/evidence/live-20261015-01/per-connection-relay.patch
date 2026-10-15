@@ -1,0 +1,168 @@
+diff --git a/experiments/live-get-probe/README.md b/experiments/live-get-probe/README.md
+index 5b290cc..843b6e2 100644
+--- a/experiments/live-get-probe/README.md
++++ b/experiments/live-get-probe/README.md
+@@ -1,8 +1,8 @@
+ # 真实播放器 GET 限速观测工具
+ 
+-仅供集中实机验收。独立、只监听 loopback 的 SOCKS5 中继，使用产品的 DoH 回源解析，不修改生产缓存引擎。仅接受 TCP CONNECT 到 443。所有资源连接的上游到网关字节共用一个节流器；`api.udon.dance` 和 `x.kiva.moe` 的元数据连接豁免。TLS 不解密、不更换证书；计数包括 TLS 开销，不能当成纯视频正文吞吐。
++仅供集中实机验收。独立、只监听 loopback 的 SOCKS5 中继，使用产品的 DoH 回源解析，不修改生产缓存引擎。仅接受 TCP CONNECT 到 443。默认所有资源连接的上游到网关字节共用一个节流器；使用 `-per-connection` 后，每条上游 TCP 连接各有一个节流器，多连接的吞吐可以叠加。`api.udon.dance` 和 `x.kiva.moe` 的元数据连接豁免。TLS 不解密、不更换证书；计数包括 TLS 开销，不能当成纯视频正文吞吐。
+ 
+-默认监听 `127.0.0.1:19081`。`-bytes-per-second 0` 不限速；例如 `1048576` 为合计 1 MiB/s。使用 16 KiB 最大转发块，不积攒空闲突发额度；已取消的排队块可能留下小量未使用额度。`-stop-file <path>` 文件出现时关闭监听和本轮连接；`-duration` 默认 45 分钟，作为遗忘清理的兜底。每秒日志保留连接数及累计受限/豁免字节。
++默认监听 `127.0.0.1:19081`。`-bytes-per-second 0` 不限速；例如 `1048576` 为合计 1 MiB/s。每连接 1 Mbps 使用 `-per-connection -bytes-per-second 125000`，0.5 Mbps 使用 `62500`，这里 Mbps 为十进制。连接可能复用多个 HTTP Range，限速不是按请求重置。使用 16 KiB 最大转发块，不积攒空闲突发额度；已取消的排队块可能留下小量未使用额度。`-stop-file <path>` 文件出现时关闭监听和本轮连接；`-duration` 默认 45 分钟，作为遗忘清理的兜底。每秒日志保留连接数、累计受限/豁免字节及各连接的匿名 ID/累计字节。短采样窗口可能跨过转发块边界，应报告量化误差，不把单个瞬时样本当成精确带宽上限。
+ 
+ 每档启动独立中继，控制台设置 `upstreamMode=proxy`、`proxyBackend=external-socks5`、`socks5Address=127.0.0.1:19081`，避免直接回源绕过上限。先关闭预缓存并使用新的隔离缓存；不修改日常存储。游戏接入及条款确认由正常控制台流程完成。已有播放器缓存不能通过清空服务器目录排除，必须依据实际 GET 范围和接收字节判断样本。
+ 
+@@ -16,4 +16,6 @@
+ 
+ 开发校准：`go test -tags=no_easytier ./experiments/live-get-probe -count=3`。四路合计 512 KiB 在 512 KiB/s 下不得短于 1 秒；中继字节一致、取消关闭与连接计数归零分别检查。它们不代表真实游戏通过。
+ 
++每连接限速另检查三条独立连接各自的字节额度可以同时完成，不因共享配额延长到三倍时间。本工具改动不改变产品运行行为，无需新增实机台账项；实际游戏场景归入原 LA-020/037/040，记录工具源码差异、EXE 哈希和限速范围。
++
+ 原始日志、二进制、hosts 备份和隔离存储仅放入忽略的 `artifacts/acceptance-evidence/<batch>/`。实机结果、脱敏摘要、manifest、索引和台账按仓库验收机制一起交付。
+diff --git a/experiments/live-get-probe/main.go b/experiments/live-get-probe/main.go
+index ab9d11f..838b778 100644
+--- a/experiments/live-get-probe/main.go
++++ b/experiments/live-get-probe/main.go
+@@ -55,13 +55,43 @@ func (p *pacer) wait(ctx context.Context, n int) error {
+ }
+ 
+ type relay struct {
+-	pace    *pacer
+-	dial    func(context.Context, string, string) (net.Conn, error)
+-	log     *slog.Logger
+-	seq     atomic.Uint64
+-	active  atomic.Int64
+-	limited atomic.Int64
+-	exempt  atomic.Int64
++	pace          *pacer
++	perConnection bool
++	dial          func(context.Context, string, string) (net.Conn, error)
++	log           *slog.Logger
++	seq           atomic.Uint64
++	active        atomic.Int64
++	limited       atomic.Int64
++	exempt        atomic.Int64
++	streams       sync.Map
++}
++
++type streamCounter struct {
++	ID      uint64 `json:"id"`
++	Limited bool   `json:"limited"`
++	Bytes   int64  `json:"bytes"`
++}
++
++type liveStream struct {
++	limited bool
++	bytes   atomic.Int64
++}
++
++func (r *relay) connectionPacer() *pacer {
++	if r.perConnection {
++		return &pacer{rate: r.pace.rate}
++	}
++	return r.pace
++}
++
++func (r *relay) streamSamples() []streamCounter {
++	var samples []streamCounter
++	r.streams.Range(func(key, value any) bool {
++		s := value.(*liveStream)
++		samples = append(samples, streamCounter{key.(uint64), s.limited, s.bytes.Load()})
++		return true
++	})
++	return samples
+ }
+ 
+ func destination(c net.Conn) (string, string, error) {
+@@ -159,6 +189,10 @@ func (r *relay) serve(ctx context.Context, client net.Conn) {
+ 	r.active.Add(1)
+ 	defer r.active.Add(-1)
+ 	limited := host != "api.udon.dance" && host != "x.kiva.moe"
++	pace := r.connectionPacer()
++	stream := &liveStream{limited: limited}
++	r.streams.Store(id, stream)
++	defer r.streams.Delete(id)
+ 	r.log.Info("connection_started", "id", id, "host", host, "limited", limited)
+ 	started := time.Now()
+ 	var sent int64
+@@ -177,12 +211,13 @@ func (r *relay) serve(ctx context.Context, client net.Conn) {
+ 		n, readErr := upstream.Read(buf)
+ 		if n > 0 {
+ 			if limited {
+-				if err := r.pace.wait(ctx, n); err != nil {
++				if err := pace.wait(ctx, n); err != nil {
+ 					return
+ 				}
+ 			}
+ 			written, writeErr := client.Write(buf[:n])
+ 			sent += int64(written)
++			stream.bytes.Add(int64(written))
+ 			if limited {
+ 				r.limited.Add(int64(written))
+ 			} else {
+@@ -201,6 +236,7 @@ func (r *relay) serve(ctx context.Context, client net.Conn) {
+ func main() {
+ 	address := flag.String("listen", "127.0.0.1:19081", "loopback SOCKS5 address")
+ 	rate := flag.Int64("bytes-per-second", 0, "aggregate incoming TCP rate; 0 unlimited")
++	perConnection := flag.Bool("per-connection", false, "apply incoming rate separately to each TCP connection instead of the aggregate")
+ 	stopFile := flag.String("stop-file", "", "stop when this file exists")
+ 	duration := flag.Duration("duration", 45*time.Minute, "maximum lab lifetime")
+ 	flag.Parse()
+@@ -217,7 +253,7 @@ func main() {
+ 	}
+ 	defer listener.Close()
+ 	context.AfterFunc(ctx, func() { listener.Close() })
+-	r := &relay{pace: &pacer{rate: *rate}, dial: console.NewUpstreamDialer(), log: log}
++	r := &relay{pace: &pacer{rate: *rate}, perConnection: *perConnection, dial: console.NewUpstreamDialer(), log: log}
+ 	go func() {
+ 		tick := time.NewTicker(200 * time.Millisecond)
+ 		defer tick.Stop()
+@@ -234,13 +270,13 @@ func main() {
+ 					}
+ 				}
+ 				if time.Now().After(next) {
+-					log.Info("sample", "active", r.active.Load(), "limited_bytes", r.limited.Load(), "exempt_bytes", r.exempt.Load())
++					log.Info("sample", "active", r.active.Load(), "limited_bytes", r.limited.Load(), "exempt_bytes", r.exempt.Load(), "connections", r.streamSamples())
+ 					next = time.Now().Add(time.Second)
+ 				}
+ 			}
+ 		}
+ 	}()
+-	log.Info("ready", "listen", *address, "bytes_per_second", *rate, "quantum", quantum, "max_seconds", duration.Seconds())
++	log.Info("ready", "listen", *address, "bytes_per_second", *rate, "per_connection", *perConnection, "quantum", quantum, "max_seconds", duration.Seconds())
+ 	var workers sync.WaitGroup
+ 	slots := make(chan struct{}, 64)
+ 	for {
+diff --git a/experiments/live-get-probe/main_test.go b/experiments/live-get-probe/main_test.go
+index 42100b9..2b678e5 100644
+--- a/experiments/live-get-probe/main_test.go
++++ b/experiments/live-get-probe/main_test.go
+@@ -40,6 +40,27 @@ func TestAggregatePacingAndCancellation(t *testing.T) {
+ 	}
+ }
+ 
++func TestConnectionPacingDoesNotShareBandwidth(t *testing.T) {
++	r := &relay{pace: &pacer{rate: 128 * 1024}, perConnection: true}
++	ctx, cancel := context.WithTimeout(context.Background(), 1800*time.Millisecond)
++	defer cancel()
++	var wg sync.WaitGroup
++	for range 3 {
++		pace := r.connectionPacer()
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			for range 8 {
++				if err := pace.wait(ctx, quantum); err != nil {
++					t.Errorf("independent stream lost its own allowance: %v", err)
++					return
++				}
++			}
++		}()
++	}
++	wg.Wait()
++}
++
+ func TestRelayPreservesBytesAndClosesOnCancel(t *testing.T) {
+ 	client, server := net.Pipe()
+ 	remote, upstream := net.Pipe()

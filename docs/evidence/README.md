@@ -16,6 +16,7 @@
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [live-20261015-01/manifest.json](live-20261015-01/manifest.json) | 本轮联合实机已收尾：CF 冷热/队列/续传、两档每连接限速完整播放、存储故障抑制与恢复；保留卡顿/Seek 长等待及错误提示缺口，十项均未整项结项；hosts/权限和进程清理已验证，见[报告](../live-acceptance-20261015-01.md) |
 | [live-20261014-02/manifest.json](live-20261014-02/manifest.json) | 正式刷新/切节点、预览拖动、同视频双播放器及预览拖动的 1 Mbps/不限速/缓存十二场景；保留旧请求干扰、实际热缓存重分类和反馈缺口。不限速/缓存主要交互正常，限速未恢复；hosts/进程/监听已恢复。[报告](../live-acceptance-20261014-02.md)，LA-008/020/037 仍未结 |
 | [live-20261014-01/manifest.json](live-20261014-01/manifest.json) | 真实 VRChat GET 限速观测：前四档顺序播放、128 KiB/s 混合探索、256/64 KiB/s 独立正式播放；保留模式不明和切档重连干扰，hosts/进程/监听已恢复。[报告](../live-acceptance-20261014-01.md)，LA-008/037 未结项 |
 | [cf-cpu-followup-20261014/manifest.json](cf-cpu-followup-20261014/manifest.json) | #20 无 VRC 的等速 CPU 与完整缓存竞争补测：独立本地 TLS 上游、五轮 105 组、零公网流量；含冷/热连接、首读/Seek、内存、取消后关闭、ETW 和 42 组独立 xperf 校核。一次 UAC 的受限助手已退出；见[报告](../issue-20-cf-cpu-followup-20261014.md)。仅实验，默认值未改，LA-037 待验收 |

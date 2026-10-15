@@ -1,0 +1,26 @@
+{
+  "filename": "live-20261015-01-sanitized-v2.zip",
+  "limitations": "No Release created or uploaded. Runtime private material excluded. v1 remains local only and must not be published; v2 is the candidate sanitized archive.",
+  "bytes": 3052483,
+  "batch": "LIVE-20261015-01",
+  "status": "prepared-local-unpublished",
+  "publicURL": null,
+  "evidenceID": "E-013",
+  "contents": [
+    "complete allowlisted relative-time events",
+    "complete block schedule",
+    "full resource counters",
+    "frozen source snapshot with a documented author-identity redaction",
+    "sanitizing script provenance"
+  ],
+  "sha256": "c341d180cec60df4a0535eba2ed2a7945be8d2ccaed6dda9cfa416c80f611462",
+  "memberVerification": "All seven listed members verified after repacking; nested source checked separately. Fixed ZIP timestamps.",
+  "revision": 2,
+  "supersedes": {
+    "filename": "live-20261015-01-sanitized-v1.zip",
+    "sha256": "ee8d88230a56f24d8854b0623821b0df18b633507221dd054fe19c14d11305e2",
+    "status": "private-local-only-do-not-publish",
+    "reason": "Historical author identity occurred in the nested source documentation."
+  },
+  "sourceSnapshot": "Frozen commit with one declared documentation-only identity redaction; product source unchanged."
+}

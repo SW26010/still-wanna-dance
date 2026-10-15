@@ -1,0 +1,50 @@
+{
+  "evidenceID": "E-001",
+  "batch": "LIVE-20261015-01",
+  "source": "1e2bdb5f2372c53b744e155392c89e44e735a443",
+  "sourceInitiallyClean": true,
+  "builds": {
+    "A": "2b9143ca384c673aa509e1f614f61b8d0d52a233aed753528b0bbaf5f009dffb",
+    "B": "565de4243d9925fa094db1713cf309d477ec209bcc9be4a0ed6d275ee77890db",
+    "relay": "82db5f901ae616677321c248fed23cd44ffa96016074467037f61817b4092881",
+    "relayPerConnection": "1d7e98ddcda333bb2fb65979d995604e0267d633bc21b7e1c30733be9ac7b06e"
+  },
+  "overlayMainSHA256": "3bf016ba194835155821bc6364725dd76040c0b16d7f84bc8c8443310081d0dc",
+  "releasePackage": null,
+  "windows": {
+    "ProductName": "Windows 10 Pro",
+    "DisplayVersion": "26H2",
+    "CurrentBuild": "26300",
+    "UBR": 9711
+  },
+  "gameVersion": "2026.4.1-1932-6909bc90a0-Release",
+  "worldVersion": "unconfirmed",
+  "timeBasis": "Seconds relative to initial environment snapshot; original timestamp kept locally. Game clock parsed with +08:00; application ISO timestamps use UTC.",
+  "snapshotAt": 5873.667,
+  "hosts": {
+    "beforeSHA256": "2d6bdfb341be3a6234b24742377f93aa7c7cfb0d9fd64efa9282c87852e57085",
+    "beforeRelevantCount": 0,
+    "currentSHA256": "2d6bdfb341be3a6234b24742377f93aa7c7cfb0d9fd64efa9282c87852e57085",
+    "apiMappedToLoopback": false,
+    "fullContents": "private-only"
+  },
+  "runtime": {
+    "gateway": false,
+    "queue": false,
+    "upstreamMode": "proxy",
+    "downloadUpstream": "auto",
+    "autoStartCDN": false,
+    "autoStartQueue": false,
+    "storage": "fault-copy",
+    "activationPhase": "stopped"
+  },
+  "limitations": [
+    "Initial sandbox tray startup failed with Access is denied; real desktop startup succeeded.",
+    "Registry build differs from game startup OS string. WMF UA reports 26100.9711.",
+    "Build B enables Debug logging and is not a default-logging CPU baseline."
+  ],
+  "workingTreeHeadAtClose": "4d8714003f6e7981ad200cfd8a0d970668ce5a6a",
+  "statusSnapshot": "Captured after stopping the gateway and before normal application exit; E-012 confirms final process and port exit.",
+  "savedUpstreamModeAtClose": "direct",
+  "frozenExecutableReverified": true
+}

@@ -1,0 +1,127 @@
+{
+  "batch": "LIVE-20261015-01",
+  "status": "closed-partial",
+  "source": "1e2bdb5f2372c53b744e155392c89e44e735a443",
+  "builds": {
+    "A": "2b9143ca384c673aa509e1f614f61b8d0d52a233aed753528b0bbaf5f009dffb",
+    "B": "565de4243d9925fa094db1713cf309d477ec209bcc9be4a0ed6d275ee77890db",
+    "relay": "82db5f901ae616677321c248fed23cd44ffa96016074467037f61817b4092881",
+    "relayPerConnection": "1d7e98ddcda333bb2fb65979d995604e0267d633bc21b7e1c30733be9ac7b06e"
+  },
+  "releasePackage": null,
+  "hashBasis": "git-blob",
+  "files": [
+    {
+      "id": "E-002",
+      "path": "debug-logging.patch",
+      "bytes": 402,
+      "sha256": "4158403ba5fc510e3c8bc1c7d620a962cbca62e8bac8f57a0079d6da16973523",
+      "gitBlob": "258eb39c6ae55fd74c50023df52d375c355a1947",
+      "sourceAndSanitization": "Go overlay for logger-only instrumentation; source-relative patch, no private paths."
+    },
+    {
+      "id": "E-001",
+      "path": "preflight.json",
+      "bytes": 2134,
+      "sha256": "6c5d1b63c4680a8e5eaea66cc430e24b2179a76eff86ea738b03922ecc11b340",
+      "gitBlob": "80c379e2ce99964c66486092eea92640be1bbf1f",
+      "sourceAndSanitization": "Local source/build/host preflight and read-only status; private paths and credentials omitted."
+    },
+    {
+      "id": "E-003",
+      "path": "observations.json",
+      "bytes": 16578,
+      "sha256": "758c02c91173ac3eaffff197e771d8d86ddfad3cc4df95ef8dd9a30715e98774",
+      "gitBlob": "7e6e8ff71da3dc2381f23c7fda4ae05ce9cb40ce",
+      "sourceAndSanitization": "User-authored feedback and requested conditions from this chat; precise operation times not inferred."
+    },
+    {
+      "id": "E-004",
+      "path": "session-events.json",
+      "bytes": 246532,
+      "sha256": "3eb8791fc09865e8b36e73aac3caa6f7504e5c9ba48325cbee144c47a2135ed3",
+      "gitBlob": "db2feecabc37d09a92694dee60e3de23e0190eb6",
+      "sourceAndSanitization": "Allowlisted application/game events and independent video MD5; relative times, reader/service aliases, no URLs or player/room details."
+    },
+    {
+      "id": "E-008",
+      "path": "checkpoints.json",
+      "bytes": 13215,
+      "sha256": "fe314f4beec60746cc2563c3bdbe1b657e76e7b81712009dc8fe65ed646e19d6",
+      "gitBlob": "8e77d85d2debf5458d5bd9a5bc668b26c20b440a",
+      "sourceAndSanitization": "Derived slow-seek and resume checkpoints using E-004/E-006, with explicit inference limits and independent completed-file hashes."
+    },
+    {
+      "id": "E-005",
+      "path": "resource-samples.json",
+      "bytes": 36324,
+      "sha256": "16f2e1dfbe3e415818398ca05a8683f9f08546111c4765c0b1531b4da9c9123b",
+      "gitBlob": "5dc53fda067d0f4a334382d33115b588aa32afa7",
+      "sourceAndSanitization": "Read-only process resource counters; roles replace process IDs, common relative clock, no paths or window contents."
+    },
+    {
+      "id": "E-006",
+      "path": "block-schedule.csv",
+      "bytes": 10099,
+      "sha256": "0f45b469613b851fd1821289646fdbe3a1f15bb64a3989f038fb159c45e315c4",
+      "gitBlob": "2c8126bf08c2bc7d9de560123570cd9f54d62830",
+      "sourceAndSanitization": "Selected first-block and slow-seek-block schedule events; same T0 and local log references. Full trace prepared separately, not published. Complete resume starts are listed in E-008."
+    },
+    {
+      "id": "E-007",
+      "path": "relay-samples.csv",
+      "bytes": 50756,
+      "sha256": "f39f607c5a6f7aa2069c466087f10236a3dcf0c6536a47e01921ab5783c0befb",
+      "gitBlob": "bf1a847f1ac69df9e41bd79c5ee671ed2645f46d",
+      "sourceAndSanitization": "Loopback SOCKS5 relay aggregate incoming TCP counters, including TLS; metadata hosts exempt. Absolute time, destination hosts and addresses omitted."
+    },
+    {
+      "id": "E-009",
+      "path": "per-connection-relays.csv",
+      "bytes": 229098,
+      "sha256": "ceb4c4443aa2d0c59fc712ea8d39195ba567d648a385a7a6924f670f159f12f4",
+      "gitBlob": "85fb92387ea55ea49dd488317c4ad6518c397b2a",
+      "sourceAndSanitization": "Per-connection relay counters; IDs are scoped to phase, incoming TCP includes TLS, metadata marked exempt. Active counts all connections. No destination host or address."
+    },
+    {
+      "id": "E-010",
+      "path": "per-connection-relay.patch",
+      "bytes": 8617,
+      "sha256": "968436dff0bbffa305084b058401f11880c40e9986ca9b79b7dd1bea1f415b0a",
+      "gitBlob": "1f4e59e7fa40484fe01e580492600fee519ea0a8",
+      "sourceAndSanitization": "Reproducible change to the acceptance-only relay and its tests/docs relative to the frozen source; product executable unchanged."
+    },
+    {
+      "id": "E-011",
+      "path": "storage-fault.json",
+      "bytes": 9049,
+      "sha256": "42fb0aa22fe4e8604ee14c285f86678305ae9b3837403ef383adb9406cb19a5a",
+      "gitBlob": "63c8883b082d6a734f68604881ba0b21c5f2eea5",
+      "sourceAndSanitization": "Isolated ACL action outcomes, stage counts and selected request/download events; exact ACL, identity SID and paths omitted. Common relative clock and independent completed-file hashes."
+    },
+    {
+      "id": "E-012",
+      "path": "cleanup.json",
+      "bytes": 1232,
+      "sha256": "616f95e2eed4ac011e698c1cd5c8366348fbc8f2ba2116baa51b19181dfeae0a",
+      "gitBlob": "956b59ebbf9ea49182d53c7529494f596c9124d5",
+      "sourceAndSanitization": "Normal hosts/exit action receipts, exact baseline hash comparison, original ACL check, scoped process and listener checks. Paths and user identity omitted."
+    },
+    {
+      "id": "E-013",
+      "path": "archive-summary.json",
+      "sourceAndSanitization": "Prepared unpublished sanitized archive identity, size/hash and member verification; no local absolute path or public URL claimed.",
+      "bytes": 1256,
+      "sha256": "fd7b2750693bd548fb1490818a2c4220b3e63111902c2257916c565b6f27179a",
+      "gitBlob": "2234df3d2e01689f812253084bb7742f940438b0"
+    },
+    {
+      "id": "E-014",
+      "path": "privacy-review.json",
+      "sourceAndSanitization": "Scope, methods, resolved identity redaction and manually reviewed test placeholders. No actual credential values or user identities included.",
+      "bytes": 2542,
+      "sha256": "f01ff7fdfa380a5270a16af3bea53d6562bd6357fb9843d1894f5f0ca77a7f71",
+      "gitBlob": "0f8e0c018f8e27bc7ec9cf87f15f5448fffd8340"
+    }
+  ]
+}

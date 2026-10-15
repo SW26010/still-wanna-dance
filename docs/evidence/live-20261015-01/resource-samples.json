@@ -1,0 +1,1618 @@
+{
+  "evidenceID": "E-005",
+  "timeBasis": "Same T0 as preflight",
+  "method": "Read-only process counters sampled about every five seconds, summarized into relative-minute buckets. CPU deltas divided by logical processors. Maxima are per metric and need not be simultaneous. CPU peak retains its actual sample time. Not a short-peak or game frame-time measurement.",
+  "originalSampleCount": 604,
+  "coverage": {
+    "from": 960.85,
+    "to": 4382.007
+  },
+  "buckets": [
+    {
+      "from": 960.85,
+      "to": 1016.014,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1010.996,
+        "percent": 0.078
+      },
+      "maxWorkingSet": 201756672,
+      "maxPrivateBytes": 181837824,
+      "maxHandles": 652,
+      "maxThreads": 24
+    },
+    {
+      "from": 960.85,
+      "to": 1016.014,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 995.952,
+        "percent": 11.934
+      },
+      "maxWorkingSet": 4202901504,
+      "maxPrivateBytes": 6695006208,
+      "maxHandles": 4330,
+      "maxThreads": 205
+    },
+    {
+      "from": 1021.024,
+      "to": 1076.151,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1046.08,
+        "percent": 0.136
+      },
+      "maxWorkingSet": 201760768,
+      "maxPrivateBytes": 181837824,
+      "maxHandles": 649,
+      "maxThreads": 24
+    },
+    {
+      "from": 1021.024,
+      "to": 1076.151,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1071.137,
+        "percent": 11.329
+      },
+      "maxWorkingSet": 4146069504,
+      "maxPrivateBytes": 6717440000,
+      "maxHandles": 4005,
+      "maxThreads": 206
+    },
+    {
+      "from": 1081.162,
+      "to": 1136.312,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1086.173,
+        "percent": 0.819
+      },
+      "maxWorkingSet": 261378048,
+      "maxPrivateBytes": 241537024,
+      "maxHandles": 647,
+      "maxThreads": 24
+    },
+    {
+      "from": 1081.162,
+      "to": 1136.312,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1116.273,
+        "percent": 12.806
+      },
+      "maxWorkingSet": 4201689088,
+      "maxPrivateBytes": 6667104256,
+      "maxHandles": 3787,
+      "maxThreads": 189
+    },
+    {
+      "from": 1141.32,
+      "to": 1196.489,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1161.381,
+        "percent": 0.137
+      },
+      "maxWorkingSet": 216764416,
+      "maxPrivateBytes": 196874240,
+      "maxHandles": 641,
+      "maxThreads": 24
+    },
+    {
+      "from": 1141.32,
+      "to": 1196.489,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1181.446,
+        "percent": 9.84
+      },
+      "maxWorkingSet": 4134109184,
+      "maxPrivateBytes": 6576402432,
+      "maxHandles": 3790,
+      "maxThreads": 189
+    },
+    {
+      "from": 1201.507,
+      "to": 1256.648,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1241.616,
+        "percent": 0.058
+      },
+      "maxWorkingSet": 161316864,
+      "maxPrivateBytes": 141426688,
+      "maxHandles": 637,
+      "maxThreads": 25
+    },
+    {
+      "from": 1201.507,
+      "to": 1256.648,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1256.648,
+        "percent": 8.542
+      },
+      "maxWorkingSet": 4133617664,
+      "maxPrivateBytes": 6575742976,
+      "maxHandles": 3790,
+      "maxThreads": 189
+    },
+    {
+      "from": 1261.666,
+      "to": 1316.838,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1301.799,
+        "percent": 0.234
+      },
+      "maxWorkingSet": 164065280,
+      "maxPrivateBytes": 144904192,
+      "maxHandles": 642,
+      "maxThreads": 25
+    },
+    {
+      "from": 1261.666,
+      "to": 1316.838,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1311.823,
+        "percent": 8.193
+      },
+      "maxWorkingSet": 4143386624,
+      "maxPrivateBytes": 6611603456,
+      "maxHandles": 3905,
+      "maxThreads": 201
+    },
+    {
+      "from": 1321.841,
+      "to": 1376.974,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1321.841,
+        "percent": 0.02
+      },
+      "maxWorkingSet": 131948544,
+      "maxPrivateBytes": 112599040,
+      "maxHandles": 635,
+      "maxThreads": 24
+    },
+    {
+      "from": 1321.841,
+      "to": 1376.974,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1321.841,
+        "percent": 9.155
+      },
+      "maxWorkingSet": 4143759360,
+      "maxPrivateBytes": 6609784832,
+      "maxHandles": 3903,
+      "maxThreads": 201
+    },
+    {
+      "from": 1381.983,
+      "to": 1437.133,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1381.983,
+        "percent": 0.019
+      },
+      "maxWorkingSet": 132132864,
+      "maxPrivateBytes": 112795648,
+      "maxHandles": 634,
+      "maxThreads": 24
+    },
+    {
+      "from": 1381.983,
+      "to": 1437.133,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1422.089,
+        "percent": 8.958
+      },
+      "maxWorkingSet": 4145934336,
+      "maxPrivateBytes": 6612926464,
+      "maxHandles": 3903,
+      "maxThreads": 201
+    },
+    {
+      "from": 1442.138,
+      "to": 1497.252,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1477.205,
+        "percent": 0.098
+      },
+      "maxWorkingSet": 130506752,
+      "maxPrivateBytes": 111230976,
+      "maxHandles": 642,
+      "maxThreads": 24
+    },
+    {
+      "from": 1442.138,
+      "to": 1497.252,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1497.252,
+        "percent": 8.63
+      },
+      "maxWorkingSet": 4144263168,
+      "maxPrivateBytes": 6616752128,
+      "maxHandles": 3903,
+      "maxThreads": 201
+    },
+    {
+      "from": 1502.258,
+      "to": 1557.373,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1542.346,
+        "percent": 1.034
+      },
+      "maxWorkingSet": 196571136,
+      "maxPrivateBytes": 176553984,
+      "maxHandles": 647,
+      "maxThreads": 24
+    },
+    {
+      "from": 1502.258,
+      "to": 1557.373,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1517.287,
+        "percent": 8.761
+      },
+      "maxWorkingSet": 4145508352,
+      "maxPrivateBytes": 6617903104,
+      "maxHandles": 3895,
+      "maxThreads": 202
+    },
+    {
+      "from": 1562.388,
+      "to": 1617.544,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1562.388,
+        "percent": 0.779
+      },
+      "maxWorkingSet": 205324288,
+      "maxPrivateBytes": 185389056,
+      "maxHandles": 648,
+      "maxThreads": 24
+    },
+    {
+      "from": 1562.388,
+      "to": 1617.544,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1567.394,
+        "percent": 8.154
+      },
+      "maxWorkingSet": 4147003392,
+      "maxPrivateBytes": 6627778560,
+      "maxHandles": 3898,
+      "maxThreads": 202
+    },
+    {
+      "from": 1622.553,
+      "to": 1677.697,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1622.553,
+        "percent": 0.039
+      },
+      "maxWorkingSet": 204972032,
+      "maxPrivateBytes": 185389056,
+      "maxHandles": 638,
+      "maxThreads": 24
+    },
+    {
+      "from": 1622.553,
+      "to": 1677.697,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1632.584,
+        "percent": 9.715
+      },
+      "maxWorkingSet": 4146192384,
+      "maxPrivateBytes": 6626476032,
+      "maxHandles": 3891,
+      "maxThreads": 202
+    },
+    {
+      "from": 1682.707,
+      "to": 1737.828,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1732.819,
+        "percent": 0.839
+      },
+      "maxWorkingSet": 231264256,
+      "maxPrivateBytes": 211677184,
+      "maxHandles": 648,
+      "maxThreads": 24
+    },
+    {
+      "from": 1682.707,
+      "to": 1737.828,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1702.759,
+        "percent": 16.231
+      },
+      "maxWorkingSet": 4153827328,
+      "maxPrivateBytes": 6687158272,
+      "maxHandles": 3896,
+      "maxThreads": 201
+    },
+    {
+      "from": 1742.836,
+      "to": 1797.92,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1757.858,
+        "percent": 0.742
+      },
+      "maxWorkingSet": 207499264,
+      "maxPrivateBytes": 187817984,
+      "maxHandles": 648,
+      "maxThreads": 24
+    },
+    {
+      "from": 1742.836,
+      "to": 1797.92,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1767.872,
+        "percent": 14.391
+      },
+      "maxWorkingSet": 4152307712,
+      "maxPrivateBytes": 6595641344,
+      "maxHandles": 3794,
+      "maxThreads": 189
+    },
+    {
+      "from": 1802.935,
+      "to": 1858.086,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1822.988,
+        "percent": 0.564
+      },
+      "maxWorkingSet": 208875520,
+      "maxPrivateBytes": 189194240,
+      "maxHandles": 647,
+      "maxThreads": 24
+    },
+    {
+      "from": 1802.935,
+      "to": 1858.086,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1822.988,
+        "percent": 15.365
+      },
+      "maxWorkingSet": 4152307712,
+      "maxPrivateBytes": 6595641344,
+      "maxHandles": 3786,
+      "maxThreads": 189
+    },
+    {
+      "from": 1863.093,
+      "to": 1918.261,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1863.093,
+        "percent": 0.468
+      },
+      "maxWorkingSet": 207319040,
+      "maxPrivateBytes": 187908096,
+      "maxHandles": 653,
+      "maxThreads": 24
+    },
+    {
+      "from": 1863.093,
+      "to": 1918.261,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1908.234,
+        "percent": 15.163
+      },
+      "maxWorkingSet": 4149514240,
+      "maxPrivateBytes": 6667440128,
+      "maxHandles": 3896,
+      "maxThreads": 200
+    },
+    {
+      "from": 1923.272,
+      "to": 1978.397,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1973.384,
+        "percent": 0.778
+      },
+      "maxWorkingSet": 211374080,
+      "maxPrivateBytes": 196890624,
+      "maxHandles": 647,
+      "maxThreads": 24
+    },
+    {
+      "from": 1923.272,
+      "to": 1978.397,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1948.325,
+        "percent": 13.489
+      },
+      "maxWorkingSet": 4149673984,
+      "maxPrivateBytes": 6622986240,
+      "maxHandles": 3896,
+      "maxThreads": 200
+    },
+    {
+      "from": 1983.413,
+      "to": 2038.573,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2003.47,
+        "percent": 0.956
+      },
+      "maxWorkingSet": 245526528,
+      "maxPrivateBytes": 231038976,
+      "maxHandles": 649,
+      "maxThreads": 24
+    },
+    {
+      "from": 1983.413,
+      "to": 2038.573,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 1983.413,
+        "percent": 14.816
+      },
+      "maxWorkingSet": 4013416448,
+      "maxPrivateBytes": 6533988352,
+      "maxHandles": 3878,
+      "maxThreads": 197
+    },
+    {
+      "from": 2043.598,
+      "to": 2098.758,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2043.598,
+        "percent": 1.069
+      },
+      "maxWorkingSet": 203677696,
+      "maxPrivateBytes": 189034496,
+      "maxHandles": 645,
+      "maxThreads": 24
+    },
+    {
+      "from": 2043.598,
+      "to": 2098.758,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2058.645,
+        "percent": 14.418
+      },
+      "maxWorkingSet": 4012527616,
+      "maxPrivateBytes": 6450978816,
+      "maxHandles": 3773,
+      "maxThreads": 187
+    },
+    {
+      "from": 2103.771,
+      "to": 2118.824,
+      "role": "swd",
+      "samples": 4,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2118.824,
+        "percent": 0.662
+      },
+      "maxWorkingSet": 192090112,
+      "maxPrivateBytes": 177434624,
+      "maxHandles": 645,
+      "maxThreads": 24
+    },
+    {
+      "from": 2103.771,
+      "to": 2123.836,
+      "role": "game",
+      "samples": 5,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2123.836,
+        "percent": 13.21
+      },
+      "maxWorkingSet": 4011728896,
+      "maxPrivateBytes": 6450089984,
+      "maxHandles": 3768,
+      "maxThreads": 186
+    },
+    {
+      "from": 2201.325,
+      "to": 2216.368,
+      "role": "swd",
+      "samples": 4,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2206.339,
+        "percent": 0
+      },
+      "maxWorkingSet": 128626688,
+      "maxPrivateBytes": 116088832,
+      "maxHandles": 463,
+      "maxThreads": 23
+    },
+    {
+      "from": 2201.325,
+      "to": 2216.368,
+      "role": "game",
+      "samples": 4,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2201.325,
+        "percent": 13.669
+      },
+      "maxWorkingSet": 4012023808,
+      "maxPrivateBytes": 6450348032,
+      "maxHandles": 3769,
+      "maxThreads": 185
+    },
+    {
+      "from": 2221.38,
+      "to": 2276.519,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2221.38,
+        "percent": 0.019
+      },
+      "maxWorkingSet": 128630784,
+      "maxPrivateBytes": 116088832,
+      "maxHandles": 461,
+      "maxThreads": 23
+    },
+    {
+      "from": 2221.38,
+      "to": 2276.519,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2251.443,
+        "percent": 16.341
+      },
+      "maxWorkingSet": 4011962368,
+      "maxPrivateBytes": 6450470912,
+      "maxHandles": 3771,
+      "maxThreads": 184
+    },
+    {
+      "from": 2281.532,
+      "to": 2336.64,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2336.64,
+        "percent": 0.02
+      },
+      "maxWorkingSet": 102244352,
+      "maxPrivateBytes": 89530368,
+      "maxHandles": 457,
+      "maxThreads": 21
+    },
+    {
+      "from": 2281.532,
+      "to": 2336.64,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2286.545,
+        "percent": 15.409
+      },
+      "maxWorkingSet": 4011954176,
+      "maxPrivateBytes": 6450421760,
+      "maxHandles": 3771,
+      "maxThreads": 183
+    },
+    {
+      "from": 2341.647,
+      "to": 2396.776,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2366.706,
+        "percent": 0.019
+      },
+      "maxWorkingSet": 102248448,
+      "maxPrivateBytes": 89530368,
+      "maxHandles": 457,
+      "maxThreads": 21
+    },
+    {
+      "from": 2341.647,
+      "to": 2396.776,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2381.736,
+        "percent": 14.714
+      },
+      "maxWorkingSet": 4011929600,
+      "maxPrivateBytes": 6450397184,
+      "maxHandles": 3765,
+      "maxThreads": 183
+    },
+    {
+      "from": 2401.789,
+      "to": 2456.93,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2436.886,
+        "percent": 0.409
+      },
+      "maxWorkingSet": 160894976,
+      "maxPrivateBytes": 148140032,
+      "maxHandles": 477,
+      "maxThreads": 26
+    },
+    {
+      "from": 2401.789,
+      "to": 2456.93,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2446.914,
+        "percent": 14.955
+      },
+      "maxWorkingSet": 4010446848,
+      "maxPrivateBytes": 6448963584,
+      "maxHandles": 3770,
+      "maxThreads": 184
+    },
+    {
+      "from": 2461.942,
+      "to": 2517.073,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2497.015,
+        "percent": 0.02
+      },
+      "maxWorkingSet": 160894976,
+      "maxPrivateBytes": 148140032,
+      "maxHandles": 477,
+      "maxThreads": 26
+    },
+    {
+      "from": 2461.942,
+      "to": 2517.073,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2497.015,
+        "percent": 16.182
+      },
+      "maxWorkingSet": 4012285952,
+      "maxPrivateBytes": 6449246208,
+      "maxHandles": 3787,
+      "maxThreads": 184
+    },
+    {
+      "from": 2522.082,
+      "to": 2577.215,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2527.1,
+        "percent": 0.058
+      },
+      "maxWorkingSet": 161161216,
+      "maxPrivateBytes": 148373504,
+      "maxHandles": 485,
+      "maxThreads": 26
+    },
+    {
+      "from": 2522.082,
+      "to": 2577.215,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2547.159,
+        "percent": 15.575
+      },
+      "maxWorkingSet": 4019875840,
+      "maxPrivateBytes": 6502658048,
+      "maxHandles": 3921,
+      "maxThreads": 200
+    },
+    {
+      "from": 2582.231,
+      "to": 2637.392,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2582.231,
+        "percent": 0.039
+      },
+      "maxWorkingSet": 127574016,
+      "maxPrivateBytes": 114958336,
+      "maxHandles": 491,
+      "maxThreads": 23
+    },
+    {
+      "from": 2582.231,
+      "to": 2637.392,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2632.376,
+        "percent": 15.546
+      },
+      "maxWorkingSet": 4031197184,
+      "maxPrivateBytes": 6612361216,
+      "maxHandles": 4033,
+      "maxThreads": 204
+    },
+    {
+      "from": 2642.404,
+      "to": 2697.587,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2672.503,
+        "percent": 0.195
+      },
+      "maxWorkingSet": 128704512,
+      "maxPrivateBytes": 116269056,
+      "maxHandles": 490,
+      "maxThreads": 23
+    },
+    {
+      "from": 2642.404,
+      "to": 2697.587,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2677.521,
+        "percent": 19.695
+      },
+      "maxWorkingSet": 4099051520,
+      "maxPrivateBytes": 6593232896,
+      "maxHandles": 4040,
+      "maxThreads": 205
+    },
+    {
+      "from": 2702.602,
+      "to": 2757.735,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2727.672,
+        "percent": 0.448
+      },
+      "maxWorkingSet": 172855296,
+      "maxPrivateBytes": 159969280,
+      "maxHandles": 486,
+      "maxThreads": 25
+    },
+    {
+      "from": 2702.602,
+      "to": 2757.735,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2707.616,
+        "percent": 15.328
+      },
+      "maxWorkingSet": 4033355776,
+      "maxPrivateBytes": 6560268288,
+      "maxHandles": 4029,
+      "maxThreads": 204
+    },
+    {
+      "from": 2762.753,
+      "to": 2817.886,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2797.837,
+        "percent": 0.02
+      },
+      "maxWorkingSet": 172855296,
+      "maxPrivateBytes": 159969280,
+      "maxHandles": 483,
+      "maxThreads": 25
+    },
+    {
+      "from": 2762.753,
+      "to": 2817.886,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2772.775,
+        "percent": 14.764
+      },
+      "maxWorkingSet": 4033634304,
+      "maxPrivateBytes": 6560673792,
+      "maxHandles": 4022,
+      "maxThreads": 202
+    },
+    {
+      "from": 2822.9,
+      "to": 2878.026,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2842.942,
+        "percent": 0.02
+      },
+      "maxWorkingSet": 172916736,
+      "maxPrivateBytes": 159985664,
+      "maxHandles": 489,
+      "maxThreads": 23
+    },
+    {
+      "from": 2822.9,
+      "to": 2878.026,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2878.026,
+        "percent": 14.976
+      },
+      "maxWorkingSet": 3884535808,
+      "maxPrivateBytes": 6513762304,
+      "maxHandles": 3934,
+      "maxThreads": 201
+    },
+    {
+      "from": 2883.039,
+      "to": 2938.163,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2883.039,
+        "percent": 0
+      },
+      "maxWorkingSet": 130605056,
+      "maxPrivateBytes": 117665792,
+      "maxHandles": 483,
+      "maxThreads": 24
+    },
+    {
+      "from": 2883.039,
+      "to": 2938.163,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2913.112,
+        "percent": 14.473
+      },
+      "maxWorkingSet": 3941380096,
+      "maxPrivateBytes": 6513623040,
+      "maxHandles": 3906,
+      "maxThreads": 199
+    },
+    {
+      "from": 2943.175,
+      "to": 2998.307,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2998.307,
+        "percent": 0.039
+      },
+      "maxWorkingSet": 130605056,
+      "maxPrivateBytes": 117665792,
+      "maxHandles": 489,
+      "maxThreads": 24
+    },
+    {
+      "from": 2943.175,
+      "to": 2998.307,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 2943.175,
+        "percent": 13.815
+      },
+      "maxWorkingSet": 4325146624,
+      "maxPrivateBytes": 6725832704,
+      "maxHandles": 3913,
+      "maxThreads": 198
+    },
+    {
+      "from": 3003.315,
+      "to": 3058.446,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3033.39,
+        "percent": 0.389
+      },
+      "maxWorkingSet": 175140864,
+      "maxPrivateBytes": 162209792,
+      "maxHandles": 491,
+      "maxThreads": 23
+    },
+    {
+      "from": 3003.315,
+      "to": 3058.446,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3048.418,
+        "percent": 14.963
+      },
+      "maxWorkingSet": 4409548800,
+      "maxPrivateBytes": 6678827008,
+      "maxHandles": 3913,
+      "maxThreads": 199
+    },
+    {
+      "from": 3063.459,
+      "to": 3118.588,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3073.486,
+        "percent": 0.136
+      },
+      "maxWorkingSet": 175140864,
+      "maxPrivateBytes": 162209792,
+      "maxHandles": 489,
+      "maxThreads": 23
+    },
+    {
+      "from": 3063.459,
+      "to": 3118.588,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3083.504,
+        "percent": 14.444
+      },
+      "maxWorkingSet": 4322906112,
+      "maxPrivateBytes": 6540005376,
+      "maxHandles": 3913,
+      "maxThreads": 199
+    },
+    {
+      "from": 3123.605,
+      "to": 3178.739,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3153.671,
+        "percent": 0.058
+      },
+      "maxWorkingSet": 175140864,
+      "maxPrivateBytes": 162209792,
+      "maxHandles": 485,
+      "maxThreads": 23
+    },
+    {
+      "from": 3123.605,
+      "to": 3178.739,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3153.671,
+        "percent": 13.134
+      },
+      "maxWorkingSet": 4183093248,
+      "maxPrivateBytes": 6492258304,
+      "maxHandles": 3803,
+      "maxThreads": 187
+    },
+    {
+      "from": 3183.757,
+      "to": 3238.908,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3228.878,
+        "percent": 0.039
+      },
+      "maxWorkingSet": 130048000,
+      "maxPrivateBytes": 117420032,
+      "maxHandles": 491,
+      "maxThreads": 23
+    },
+    {
+      "from": 3183.757,
+      "to": 3238.908,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3183.757,
+        "percent": 14.109
+      },
+      "maxWorkingSet": 4181168128,
+      "maxPrivateBytes": 6526722048,
+      "maxHandles": 3801,
+      "maxThreads": 186
+    },
+    {
+      "from": 3243.914,
+      "to": 3299.054,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3268.985,
+        "percent": 0.214
+      },
+      "maxWorkingSet": 132243456,
+      "maxPrivateBytes": 120193024,
+      "maxHandles": 495,
+      "maxThreads": 23
+    },
+    {
+      "from": 3243.914,
+      "to": 3299.054,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3243.914,
+        "percent": 14.436
+      },
+      "maxWorkingSet": 4184129536,
+      "maxPrivateBytes": 6511030272,
+      "maxHandles": 3911,
+      "maxThreads": 198
+    },
+    {
+      "from": 3304.066,
+      "to": 3359.222,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3329.146,
+        "percent": 0.623
+      },
+      "maxWorkingSet": 180477952,
+      "maxPrivateBytes": 167763968,
+      "maxHandles": 490,
+      "maxThreads": 23
+    },
+    {
+      "from": 3304.066,
+      "to": 3359.222,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3339.171,
+        "percent": 14.491
+      },
+      "maxWorkingSet": 4184367104,
+      "maxPrivateBytes": 6511276032,
+      "maxHandles": 3919,
+      "maxThreads": 199
+    },
+    {
+      "from": 3364.231,
+      "to": 3399.335,
+      "role": "swd",
+      "samples": 8,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3379.276,
+        "percent": 0.156
+      },
+      "maxWorkingSet": 180477952,
+      "maxPrivateBytes": 167763968,
+      "maxHandles": 490,
+      "maxThreads": 23
+    },
+    {
+      "from": 3364.231,
+      "to": 3399.335,
+      "role": "game",
+      "samples": 8,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3379.276,
+        "percent": 15.219
+      },
+      "maxWorkingSet": 4166684672,
+      "maxPrivateBytes": 6493446144,
+      "maxHandles": 3919,
+      "maxThreads": 198
+    },
+    {
+      "from": 3704.589,
+      "to": 3719.645,
+      "role": "swd",
+      "samples": 4,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3709.614,
+        "percent": 0.039
+      },
+      "maxWorkingSet": 86044672,
+      "maxPrivateBytes": 75132928,
+      "maxHandles": 449,
+      "maxThreads": 21
+    },
+    {
+      "from": 3704.589,
+      "to": 3719.645,
+      "role": "game",
+      "samples": 4,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3719.645,
+        "percent": 13.133
+      },
+      "maxWorkingSet": 4171403264,
+      "maxPrivateBytes": 6511857664,
+      "maxHandles": 3871,
+      "maxThreads": 193
+    },
+    {
+      "from": 3724.667,
+      "to": 3779.805,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3729.682,
+        "percent": 0.039
+      },
+      "maxWorkingSet": 88023040,
+      "maxPrivateBytes": 76447744,
+      "maxHandles": 455,
+      "maxThreads": 22
+    },
+    {
+      "from": 3724.667,
+      "to": 3779.805,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3729.682,
+        "percent": 14.838
+      },
+      "maxWorkingSet": 4157407232,
+      "maxPrivateBytes": 6489223168,
+      "maxHandles": 3930,
+      "maxThreads": 201
+    },
+    {
+      "from": 3784.823,
+      "to": 3839.943,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3809.872,
+        "percent": 0.019
+      },
+      "maxWorkingSet": 88739840,
+      "maxPrivateBytes": 76881920,
+      "maxHandles": 453,
+      "maxThreads": 20
+    },
+    {
+      "from": 3784.823,
+      "to": 3839.943,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3829.912,
+        "percent": 14.14
+      },
+      "maxWorkingSet": 4155473920,
+      "maxPrivateBytes": 6487314432,
+      "maxHandles": 3928,
+      "maxThreads": 199
+    },
+    {
+      "from": 3844.962,
+      "to": 3895.057,
+      "role": "swd",
+      "samples": 11,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3880.022,
+        "percent": 0.039
+      },
+      "maxWorkingSet": 89042944,
+      "maxPrivateBytes": 77045760,
+      "maxHandles": 453,
+      "maxThreads": 20
+    },
+    {
+      "from": 3844.962,
+      "to": 3895.057,
+      "role": "game",
+      "samples": 11,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3844.962,
+        "percent": 15.527
+      },
+      "maxWorkingSet": 4156497920,
+      "maxPrivateBytes": 6488289280,
+      "maxHandles": 3925,
+      "maxThreads": 199
+    },
+    {
+      "from": 3900.063,
+      "to": 3955.203,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3940.172,
+        "percent": 0.526
+      },
+      "maxWorkingSet": 179724288,
+      "maxPrivateBytes": 167735296,
+      "maxHandles": 472,
+      "maxThreads": 24
+    },
+    {
+      "from": 3900.063,
+      "to": 3955.203,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3910.082,
+        "percent": 14.65
+      },
+      "maxWorkingSet": 4155785216,
+      "maxPrivateBytes": 6487646208,
+      "maxHandles": 3921,
+      "maxThreads": 200
+    },
+    {
+      "from": 3960.215,
+      "to": 4000.317,
+      "role": "swd",
+      "samples": 9,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3980.268,
+        "percent": 0.117
+      },
+      "maxWorkingSet": 179888128,
+      "maxPrivateBytes": 167833600,
+      "maxHandles": 483,
+      "maxThreads": 24
+    },
+    {
+      "from": 3960.215,
+      "to": 4005.335,
+      "role": "game",
+      "samples": 10,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 3995.306,
+        "percent": 18.939
+      },
+      "maxWorkingSet": 4225671168,
+      "maxPrivateBytes": 6546485248,
+      "maxHandles": 3911,
+      "maxThreads": 197
+    },
+    {
+      "from": 4036.045,
+      "to": 4076.152,
+      "role": "swd",
+      "samples": 9,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 4056.098,
+        "percent": 0.019
+      },
+      "maxWorkingSet": 159399936,
+      "maxPrivateBytes": 147288064,
+      "maxHandles": 490,
+      "maxThreads": 26
+    },
+    {
+      "from": 4036.045,
+      "to": 4076.152,
+      "role": "game",
+      "samples": 9,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 4041.056,
+        "percent": 15.571
+      },
+      "maxWorkingSet": 4178911232,
+      "maxPrivateBytes": 6501752832,
+      "maxHandles": 3938,
+      "maxThreads": 200
+    },
+    {
+      "from": 4081.171,
+      "to": 4136.293,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 4096.194,
+        "percent": 0.059
+      },
+      "maxWorkingSet": 159522816,
+      "maxPrivateBytes": 147345408,
+      "maxHandles": 489,
+      "maxThreads": 25
+    },
+    {
+      "from": 4081.171,
+      "to": 4136.293,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 4106.219,
+        "percent": 14.916
+      },
+      "maxWorkingSet": 4148932608,
+      "maxPrivateBytes": 6486433792,
+      "maxHandles": 3933,
+      "maxThreads": 199
+    },
+    {
+      "from": 4141.307,
+      "to": 4196.461,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 4151.329,
+        "percent": 0.078
+      },
+      "maxWorkingSet": 159526912,
+      "maxPrivateBytes": 147312640,
+      "maxHandles": 484,
+      "maxThreads": 24
+    },
+    {
+      "from": 4141.307,
+      "to": 4196.461,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 4171.385,
+        "percent": 16.357
+      },
+      "maxWorkingSet": 4149878784,
+      "maxPrivateBytes": 6487306240,
+      "maxHandles": 3925,
+      "maxThreads": 198
+    },
+    {
+      "from": 4201.476,
+      "to": 4256.642,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 4246.611,
+        "percent": 0.058
+      },
+      "maxWorkingSet": 115097600,
+      "maxPrivateBytes": 102920192,
+      "maxHandles": 483,
+      "maxThreads": 24
+    },
+    {
+      "from": 4201.476,
+      "to": 4256.642,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 4241.594,
+        "percent": 15.331
+      },
+      "maxWorkingSet": 4151644160,
+      "maxPrivateBytes": 6488911872,
+      "maxHandles": 3922,
+      "maxThreads": 196
+    },
+    {
+      "from": 4261.656,
+      "to": 4316.829,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 4281.716,
+        "percent": 0.137
+      },
+      "maxWorkingSet": 115113984,
+      "maxPrivateBytes": 102920192,
+      "maxHandles": 488,
+      "maxThreads": 26
+    },
+    {
+      "from": 4261.656,
+      "to": 4316.829,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 4276.709,
+        "percent": 15.485
+      },
+      "maxWorkingSet": 4151656448,
+      "maxPrivateBytes": 6488911872,
+      "maxHandles": 3923,
+      "maxThreads": 196
+    },
+    {
+      "from": 4321.847,
+      "to": 4377.001,
+      "role": "swd",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 4331.869,
+        "percent": 0.351
+      },
+      "maxWorkingSet": 180551680,
+      "maxPrivateBytes": 168464384,
+      "maxHandles": 494,
+      "maxThreads": 26
+    },
+    {
+      "from": 4321.847,
+      "to": 4377.001,
+      "role": "game",
+      "samples": 12,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 4341.885,
+        "percent": 13.998
+      },
+      "maxWorkingSet": 4143501312,
+      "maxPrivateBytes": 6504005632,
+      "maxHandles": 3824,
+      "maxThreads": 196
+    },
+    {
+      "from": 4382.007,
+      "to": 4382.007,
+      "role": "game",
+      "samples": 1,
+      "logicalProcessors": 16,
+      "maxCpuSample": {
+        "t": 4382.007,
+        "percent": 14.221
+      },
+      "maxWorkingSet": 4142665728,
+      "maxPrivateBytes": 6451298304,
+      "maxHandles": 3794,
+      "maxThreads": 187
+    }
+  ],
+  "limits": "Sampling gaps and service restarts prevent a continuous baseline. Service-5/6/7 were not sampled. Complete samples are in the prepared unpublished sanitized archive."
+}

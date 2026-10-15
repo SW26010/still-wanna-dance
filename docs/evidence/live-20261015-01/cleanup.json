@@ -1,0 +1,40 @@
+{
+  "evidenceID": "E-012",
+  "batch": "LIVE-20261015-01",
+  "actions": [
+    {
+      "t": 5433.779,
+      "action": "hosts-disable",
+      "result": "completed"
+    },
+    {
+      "t": 5470.988,
+      "hostsHash": "2d6bdfb341be3a6234b24742377f93aa7c7cfb0d9fd64efa9282c87852e57085",
+      "faultACLMatchesOriginal": true,
+      "action": "restore-verification",
+      "hostsMatchesOriginal": true
+    },
+    {
+      "t": 5471.071,
+      "gateway": false,
+      "queue": false,
+      "action": "stop-gateway-and-helpers",
+      "savedUpstreamMode": "direct"
+    },
+    {
+      "t": 5526.986,
+      "result": "requested",
+      "action": "application-exit"
+    },
+    {
+      "t": 5560.444,
+      "action": "final-process-port-check",
+      "allOwnedProcessesExited": true,
+      "allAcceptancePortsClosed": true,
+      "ownedProcessCount": 0,
+      "remainingPorts": []
+    }
+  ],
+  "dataDisposition": "Isolated test data and private logs retained locally under the ignored batch directory. No daily storage changed. Unknown sentinel retained in fault-copy/tmp; abnormal termination test was canceled before execution.",
+  "scope": "Cleanup covers this acceptance session only; no game process or unrelated process was terminated."
+}

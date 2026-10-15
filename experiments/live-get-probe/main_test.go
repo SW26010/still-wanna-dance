@@ -40,6 +40,27 @@ func TestAggregatePacingAndCancellation(t *testing.T) {
 	}
 }
 
+func TestConnectionPacingDoesNotShareBandwidth(t *testing.T) {
+	r := &relay{pace: &pacer{rate: 128 * 1024}, perConnection: true}
+	ctx, cancel := context.WithTimeout(context.Background(), 1800*time.Millisecond)
+	defer cancel()
+	var wg sync.WaitGroup
+	for range 3 {
+		pace := r.connectionPacer()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range 8 {
+				if err := pace.wait(ctx, quantum); err != nil {
+					t.Errorf("independent stream lost its own allowance: %v", err)
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}
+
 func TestRelayPreservesBytesAndClosesOnCancel(t *testing.T) {
 	client, server := net.Pipe()
 	remote, upstream := net.Pipe()

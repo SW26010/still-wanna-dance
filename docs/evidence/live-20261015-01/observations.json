@@ -1,0 +1,400 @@
+{
+  "evidenceID": "E-003",
+  "batch": "LIVE-20261015-01",
+  "operationClock": "Historical chat response times were not captured; they are not used as precise action times.",
+  "records": [
+    {
+      "id": "B0",
+      "kind": "user-feedback",
+      "stage": "direct-baseline",
+      "song": 3893,
+      "text": "3893播放，未观察到异常",
+      "conditions": "Requested CF, formal-only, approximately 20 seconds. Exact wait and observation length not independently confirmed.",
+      "result": "Short baseline observation only."
+    },
+    {
+      "id": "B1",
+      "kind": "user-feedback",
+      "stage": "stop-and-terms",
+      "text": "done",
+      "promptSummary": "Stop song, clear queue, close preview, manually read and confirm terms; remain in guide.",
+      "observed": "API became accessible after consent; normal hosts-enable action was logged during user setup. User proceeded farther than the requested pause; do not claim setup remained unchanged."
+    },
+    {
+      "id": "C1",
+      "kind": "user-feedback",
+      "stage": "cold-direct",
+      "song": 10946,
+      "text": "10946未见异常",
+      "conditions": "Requested formal-only CF, no refresh/seek/preview, about 30 seconds; exact startup delay not reported.",
+      "result": "Playback experience normal over reported observation. Complete-file validation and tail playback evaluated separately."
+    },
+    {
+      "id": "H1",
+      "kind": "user-feedback",
+      "stage": "warm-replay",
+      "song": 10946,
+      "text": "10946重播未见异常",
+      "conditions": "Requested stop, replay the same song, observe about 20 seconds, then stop and clear. Exact startup wait and final stop not explicitly reported.",
+      "result": "Observed HIT plus player 304/0 bytes; client cache coexists. No pure SWD warm-body claim."
+    },
+    {
+      "id": "P1",
+      "kind": "user-feedback",
+      "stage": "cold-preview-seek",
+      "song": 3224,
+      "text": "3224预览及拖动未见异常",
+      "conditions": "Requested stop formal playback, preview only, one seek to about 70 percent, observe about 15 seconds. Exact recovery delay not reported. Game StopVideo precedes this sample.",
+      "result": "WMF range moved from 2965504 to 30457856 while target was incomplete; later complete file MD5 matched."
+    },
+    {
+      "id": "D1",
+      "kind": "user-feedback",
+      "stage": "cold-dual-seek",
+      "song": 3127,
+      "text": "3127未见异常",
+      "conditions": "Requested formal playback then same-song preview and one preview seek to about 70 percent. Exact delay and player-specific observations were not separately quantified.",
+      "result": "Formal WMF request 10 overlaps preview requests 13 and 14. Seek requested bytes 20004864 onward while still incomplete; one download flight, independent final MD5 correct. An old 3224 request was a HIT and caused no old-resource download."
+    },
+    {
+      "id": "Q0",
+      "kind": "user-feedback",
+      "stage": "queue-prerequisite",
+      "text": "两路已停，队列已清空",
+      "result": "Queue listener enabled after this explicit confirmation; empty status confirmed."
+    },
+    {
+      "id": "Q1",
+      "kind": "user-feedback",
+      "stage": "queue-order",
+      "text": "6254，3261",
+      "result": "Game queue snapshot and application status both show 6254 then 3261."
+    },
+    {
+      "id": "Q2",
+      "kind": "user-feedback",
+      "stage": "queue-manual-start",
+      "song": 6254,
+      "text": "6254播放未见异常",
+      "conditions": "Requested manual start of 6254 with 3261 retained and preview off; exact perceived wait not supplied. Target partly prefetched by actual start, so not a zero-byte-cold sample.",
+      "result": "Game queue disappearance, WMF GET and OnVideoStart recorded; incomplete target at GET, later MD5 correct."
+    },
+    {
+      "id": "Q3-wait",
+      "kind": "user-feedback",
+      "stage": "natural-transition",
+      "text": "预计需要等待两分钟直到6254结束",
+      "result": "Waiting is not evidence of transition completion."
+    },
+    {
+      "id": "Q3",
+      "kind": "user-feedback",
+      "stage": "natural-transition",
+      "song": 3261,
+      "text": "3261已自然开始播放；切换后音画正常，没有明显卡顿",
+      "conditions": "Requested natural end of 6254 and automatic start of queued 3261, no preview. No precise subjective black-screen duration supplied."
+    },
+    {
+      "id": "Q4",
+      "kind": "user-feedback",
+      "stage": "queue-add-reorder",
+      "text": "8771，8653；done",
+      "promptSummary": "While 3261 played, add 8771 then 8653; subsequently reorder to 8653 then 8771 and wait at least five seconds."
+    },
+    {
+      "id": "Q5",
+      "kind": "user-feedback",
+      "stage": "queue-delete-ordinary",
+      "text": "done",
+      "promptSummary": "Delete only the trailing 8771; keep head 8653 and formal playback."
+    },
+    {
+      "id": "Q6",
+      "kind": "user-feedback",
+      "stage": "queue-delete-head-and-stop",
+      "text": "done",
+      "promptSummary": "Delete last head 8653, stop formal playback, close preview, leave queue empty.",
+      "limitation": "Game automatically started an additional 6211 after 3261 ended before the observed stop; retain this interference, no user playback-quality claim for 6211."
+    },
+    {
+      "id": "R1",
+      "kind": "user-feedback",
+      "stage": "resume-paused",
+      "song": 8653,
+      "text": "8653正式播放未见异常",
+      "conditions": "Requested formal playback with preview off after 10 MiB retained pause; exact observation duration not measured."
+    },
+    {
+      "id": "CONT",
+      "kind": "user-direction",
+      "stage": "continue-priorities",
+      "text": "按优先级和紧要程度继续"
+    },
+    {
+      "id": "S0",
+      "kind": "user-feedback",
+      "stage": "slow-phase-prerequisite",
+      "text": "两路已停、队列为空",
+      "conditions": "Explicit confirmation before changing relay settings and restarting the isolated SWD."
+    },
+    {
+      "id": "S-select",
+      "kind": "user-direction",
+      "stage": "song-selection",
+      "text": "不知道哪个是3分钟以上的，你查查数据库表，按”end“为时常，给我推荐一个",
+      "result": "Read-only SQLite query: song 1383 Poker Face, end 270 seconds, start 0; no completed file and no prior ID in the captured game log. Recommended for controlled slow sample."
+    },
+    {
+      "id": "S1",
+      "kind": "user-feedback",
+      "stage": "slow-single-playback",
+      "song": 1383,
+      "text": "1383播放，未见异常",
+      "conditions": "Requested CF, preview closed, observe about 10 seconds after picture; relay aggregate incoming 524288 bytes/s, queue listener off. Exact startup wait not supplied."
+    },
+    {
+      "id": "S2",
+      "kind": "user-feedback",
+      "stage": "slow-dual-seek",
+      "song": 1383,
+      "text": "1383预览拖动到70很久加载不出来；1383开头曾有一次微小卡顿",
+      "conditions": "Requested formal continued plus preview seek about 70 percent; exact subjective duration not supplied."
+    },
+    {
+      "id": "S2-recovered",
+      "kind": "user-feedback",
+      "stage": "slow-dual-seek-recovered",
+      "song": 1383,
+      "text": "1383预览70开始播放。正式播放未见异常",
+      "result": "Preview recovered after initial long-load report; no permanent-hang claim."
+    },
+    {
+      "id": "S3",
+      "kind": "user-feedback",
+      "stage": "preview-close-control",
+      "song": 1383,
+      "text": "关闭预览前后正式播放未见异常"
+    },
+    {
+      "id": "S4",
+      "kind": "user-feedback",
+      "stage": "completed-file-seek-control",
+      "song": 1383,
+      "text": "拖动预览未见异常",
+      "conditions": "Repeat same-song preview seek after complete download, then close preview. Subjective delay not quantified."
+    },
+    {
+      "id": "S5",
+      "kind": "user-feedback",
+      "stage": "slow-cancel-prerequisite",
+      "text": "done",
+      "promptSummary": "Stop 1383, close preview and clear queue."
+    },
+    {
+      "id": "S6",
+      "kind": "user-feedback",
+      "stage": "slow-cold-second-song",
+      "song": 1058,
+      "text": "1058开头曾有一次微小卡顿，之后未见异常",
+      "conditions": "Read-only catalog lookup: Electricity, end 270 seconds, start 0, no completed local file. Requested formal CF and preview closed."
+    },
+    {
+      "id": "S7",
+      "kind": "user-feedback",
+      "stage": "slow-cancel",
+      "song": 1058,
+      "text": "done",
+      "promptSummary": "Stop formal playback, close preview, clear queue while file incomplete."
+    },
+    {
+      "id": "S8",
+      "kind": "user-feedback",
+      "stage": "slow-resume",
+      "song": 1058,
+      "text": "1058再拨未见异常",
+      "conditions": "Requested same-song formal playback and 20-second observation, preview closed; exact startup delay not reported."
+    },
+    {
+      "id": "S9",
+      "kind": "user-feedback",
+      "stage": "stop-after-slow-resume",
+      "text": "done。测试完了吗，怎么这么早就恢复直连",
+      "result": "Stop confirmed; user challenged premature end. No hosts restoration was performed. Continue priority acceptance."
+    },
+    {
+      "id": "SQ1",
+      "kind": "user-feedback",
+      "stage": "slow-queue-add",
+      "text": "done",
+      "promptSummary": "Queue 1355 then 1723; no formal playback or preview."
+    },
+    {
+      "id": "SQ2",
+      "kind": "user-feedback",
+      "stage": "slow-queue-reorder",
+      "text": "done",
+      "promptSummary": "Reorder to 1723 then 1355; leave playback stopped."
+    },
+    {
+      "id": "SQ3",
+      "kind": "user-feedback",
+      "stage": "slow-queue-handoff",
+      "song": 1723,
+      "text": "1723未见异常",
+      "promptSummary": "Manually start head 1723, leave 1355 queued, no preview."
+    },
+    {
+      "id": "SQ4",
+      "kind": "user-feedback",
+      "stage": "slow-queue-delete",
+      "song": 1723,
+      "text": "done。1723未见异常",
+      "promptSummary": "Delete remaining 1355 while 1723 formally plays; observe interference."
+    },
+    {
+      "id": "SQ5",
+      "kind": "user-feedback",
+      "stage": "phase-change-prerequisite",
+      "text": "done。我其实想测测单路限速小于码率的实际情况。假设视频码率2mbps，我想单路限1mbps或0.5mbps试试",
+      "result": "Both players/queue stop requested and confirmed. User prioritized per-connection testing before storage-fault phase; fault copy prepared but not activated."
+    },
+    {
+      "id": "PC0",
+      "kind": "user-direction",
+      "stage": "per-connection-scope",
+      "text": "每条上游连接分别限速，允许多个分块连接叠加（推荐，按“单路”理解）"
+    },
+    {
+      "id": "PC1",
+      "kind": "user-feedback",
+      "stage": "per-connection-1mbps-start",
+      "song": 1384,
+      "text": "1384未见异常",
+      "conditions": "Requested formal CF, preview closed, no queue listener, about 20 seconds after picture. Exact startup delay not reported. Same MD5 metadata from read-only backup: 63303027 bytes/end 253 seconds; runtime size matched."
+    },
+    {
+      "id": "PC2",
+      "kind": "user-feedback",
+      "stage": "per-connection-1mbps-sustained",
+      "song": 1384,
+      "text": "未见异常",
+      "conditions": "Requested a further approximately 60 seconds with no seek or preview; exact duration not independently measured."
+    },
+    {
+      "id": "PC3",
+      "kind": "user-feedback",
+      "stage": "per-connection-1mbps-end",
+      "song": 1384,
+      "text": "1384正常结束，随后自动播10485，被手动终止",
+      "conditions": "Automatic following song is interference and excluded from target throughput window."
+    },
+    {
+      "id": "PC4",
+      "kind": "user-feedback",
+      "stage": "per-connection-0.5mbps-start",
+      "song": 1033,
+      "text": "1033加载似乎稍慢，开始播放后未见异常",
+      "conditions": "CF, formal player only; exact perceived startup time not supplied."
+    },
+    {
+      "id": "PC5",
+      "kind": "user-feedback",
+      "stage": "per-connection-0.5mbps-sustained",
+      "song": 1033,
+      "text": "未见异常",
+      "conditions": "Requested a further approximately 60 seconds without seeking or preview; exact duration not measured."
+    },
+    {
+      "id": "PC6",
+      "kind": "user-feedback",
+      "stage": "per-connection-0.5mbps-end",
+      "song": 1033,
+      "text": "1033正常结束，随后自动播1010，被手动终止",
+      "conditions": "Automatic following song is interference and excluded from target throughput window."
+    },
+    {
+      "id": "F1",
+      "kind": "user-feedback",
+      "stage": "storage-unwritable-cold",
+      "song": 1048,
+      "text": "播放器错误,\n可能是网络连接不稳定.\n请尝试在「玩家选项」中切换视频CDN节点\n在2秒后重试",
+      "conditions": "Injected denial of file creation only on isolated fault-copy/tmp; CF, preview closed. The video CDN sentence is a transcription of the game error, not an instruction to change the node."
+    },
+    {
+      "id": "F2",
+      "kind": "user-feedback",
+      "stage": "storage-unwritable-warm",
+      "song": 1383,
+      "text": "1383未见异常",
+      "conditions": "1048 stopped; formal cached 1383, CF, preview closed. Service-5 request 77 returned the full 73858314-byte body with HIT/206."
+    },
+    {
+      "id": "F3",
+      "kind": "user-feedback",
+      "stage": "storage-permission-restored-same-engine",
+      "song": 1048,
+      "text": "播放器错误,\n可能是网络连接不稳定.\n请尝试在「玩家选项」中切换视频CDN节点\n在2秒后重试",
+      "conditions": "Original ACL restored exactly, write/remove probe succeeded. Application was not restarted."
+    },
+    {
+      "id": "F4",
+      "kind": "user-feedback",
+      "stage": "stop-before-gateway-queue-toggle",
+      "text": "done",
+      "promptSummary": "Stop 1048, close preview, clear queue."
+    },
+    {
+      "id": "F5",
+      "kind": "user-feedback",
+      "stage": "storage-gateway-queue-toggle",
+      "song": 1048,
+      "text": "播放器错误,\n可能是网络连接不稳定.\n请尝试在「玩家选项」中切换视频CDN节点\n在5秒后重试",
+      "conditions": "Same service-5 engine, normal stop/start gateway and start/stop queue endpoints; CF."
+    },
+    {
+      "id": "F6",
+      "kind": "user-feedback",
+      "stage": "stop-before-full-restart",
+      "text": "done",
+      "promptSummary": "Stop ongoing automatic retries of 1048, close preview and clear queue before full application restart."
+    },
+    {
+      "id": "F-UI1",
+      "kind": "assistant-ui-observation",
+      "stage": "storage-error-visibility",
+      "text": "开始使用页未见存储故障提示；运行状态页显示暂无活动下载任务，1048 请求失败；展开明细仅显示 HTTP 503 / 请求失败，没有首个本地存储错误或需重启说明。",
+      "conditions": "Observed live browser DOM during the retained-fault phase: home and monitor after cached playback, expanded HTTP 503 detail after ACL restoration but before full restart. No screenshot or game frame-time measurement.",
+      "result": "Storage cause/restart guidance is not visibly explained on these inspected surfaces; backend fault retention is evaluated separately."
+    },
+    {
+      "id": "F7",
+      "kind": "user-feedback",
+      "stage": "storage-full-restart-recovery",
+      "song": 1048,
+      "text": "未见异常",
+      "result": "Service-6 new engine published 64404576 bytes; independent MD5 matched."
+    },
+    {
+      "id": "END1",
+      "kind": "user-direction",
+      "stage": "end-session",
+      "text": "今天测试差不多了，着手收尾",
+      "result": "LA-007 crash preparation canceled before any 1003 request or forced termination. Prepared relay and service were stopped normally."
+    },
+    {
+      "id": "END2",
+      "kind": "user-feedback",
+      "stage": "cleanup-stop",
+      "text": "done",
+      "promptSummary": "Stop formal playback, close preview, clear queue before restoring direct connection."
+    },
+    {
+      "id": "END3",
+      "kind": "user-feedback",
+      "stage": "direct-restored-playback",
+      "song": 3893,
+      "text": "3893未见异常",
+      "conditions": "After exact hosts restoration and gateway stop; requested approximately 10 seconds and then stop. Final stop not separately confirmed; game process was left untouched."
+    }
+  ]
+}

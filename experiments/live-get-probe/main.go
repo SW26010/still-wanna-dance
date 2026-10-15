@@ -55,13 +55,43 @@ func (p *pacer) wait(ctx context.Context, n int) error {
 }
 
 type relay struct {
-	pace    *pacer
-	dial    func(context.Context, string, string) (net.Conn, error)
-	log     *slog.Logger
-	seq     atomic.Uint64
-	active  atomic.Int64
-	limited atomic.Int64
-	exempt  atomic.Int64
+	pace          *pacer
+	perConnection bool
+	dial          func(context.Context, string, string) (net.Conn, error)
+	log           *slog.Logger
+	seq           atomic.Uint64
+	active        atomic.Int64
+	limited       atomic.Int64
+	exempt        atomic.Int64
+	streams       sync.Map
+}
+
+type streamCounter struct {
+	ID      uint64 `json:"id"`
+	Limited bool   `json:"limited"`
+	Bytes   int64  `json:"bytes"`
+}
+
+type liveStream struct {
+	limited bool
+	bytes   atomic.Int64
+}
+
+func (r *relay) connectionPacer() *pacer {
+	if r.perConnection {
+		return &pacer{rate: r.pace.rate}
+	}
+	return r.pace
+}
+
+func (r *relay) streamSamples() []streamCounter {
+	var samples []streamCounter
+	r.streams.Range(func(key, value any) bool {
+		s := value.(*liveStream)
+		samples = append(samples, streamCounter{key.(uint64), s.limited, s.bytes.Load()})
+		return true
+	})
+	return samples
 }
 
 func destination(c net.Conn) (string, string, error) {
@@ -159,6 +189,10 @@ func (r *relay) serve(ctx context.Context, client net.Conn) {
 	r.active.Add(1)
 	defer r.active.Add(-1)
 	limited := host != "api.udon.dance" && host != "x.kiva.moe"
+	pace := r.connectionPacer()
+	stream := &liveStream{limited: limited}
+	r.streams.Store(id, stream)
+	defer r.streams.Delete(id)
 	r.log.Info("connection_started", "id", id, "host", host, "limited", limited)
 	started := time.Now()
 	var sent int64
@@ -177,12 +211,13 @@ func (r *relay) serve(ctx context.Context, client net.Conn) {
 		n, readErr := upstream.Read(buf)
 		if n > 0 {
 			if limited {
-				if err := r.pace.wait(ctx, n); err != nil {
+				if err := pace.wait(ctx, n); err != nil {
 					return
 				}
 			}
 			written, writeErr := client.Write(buf[:n])
 			sent += int64(written)
+			stream.bytes.Add(int64(written))
 			if limited {
 				r.limited.Add(int64(written))
 			} else {
@@ -201,6 +236,7 @@ func (r *relay) serve(ctx context.Context, client net.Conn) {
 func main() {
 	address := flag.String("listen", "127.0.0.1:19081", "loopback SOCKS5 address")
 	rate := flag.Int64("bytes-per-second", 0, "aggregate incoming TCP rate; 0 unlimited")
+	perConnection := flag.Bool("per-connection", false, "apply incoming rate separately to each TCP connection instead of the aggregate")
 	stopFile := flag.String("stop-file", "", "stop when this file exists")
 	duration := flag.Duration("duration", 45*time.Minute, "maximum lab lifetime")
 	flag.Parse()
@@ -217,7 +253,7 @@ func main() {
 	}
 	defer listener.Close()
 	context.AfterFunc(ctx, func() { listener.Close() })
-	r := &relay{pace: &pacer{rate: *rate}, dial: console.NewUpstreamDialer(), log: log}
+	r := &relay{pace: &pacer{rate: *rate}, perConnection: *perConnection, dial: console.NewUpstreamDialer(), log: log}
 	go func() {
 		tick := time.NewTicker(200 * time.Millisecond)
 		defer tick.Stop()
@@ -234,13 +270,13 @@ func main() {
 					}
 				}
 				if time.Now().After(next) {
-					log.Info("sample", "active", r.active.Load(), "limited_bytes", r.limited.Load(), "exempt_bytes", r.exempt.Load())
+					log.Info("sample", "active", r.active.Load(), "limited_bytes", r.limited.Load(), "exempt_bytes", r.exempt.Load(), "connections", r.streamSamples())
 					next = time.Now().Add(time.Second)
 				}
 			}
 		}
 	}()
-	log.Info("ready", "listen", *address, "bytes_per_second", *rate, "quantum", quantum, "max_seconds", duration.Seconds())
+	log.Info("ready", "listen", *address, "bytes_per_second", *rate, "per_connection", *perConnection, "quantum", quantum, "max_seconds", duration.Seconds())
 	var workers sync.WaitGroup
 	slots := make(chan struct{}, 64)
 	for {

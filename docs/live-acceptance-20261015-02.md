@@ -45,7 +45,7 @@
 
 [manifest](evidence/live-20261015-02/manifest.json) 使用 schema v2：Git 内 `files` 按 Git blob 字节校验，附件内 `archivedFiles` 按实际存档字节校验；以下全部使用共同相对时间轴。完整逐请求、生命周期、播放和队列轨迹已移出 Git，原始脱敏文件及原清单在版本化 ZIP 中原样保留，结论与台账状态不变。
 
-[附件摘要与校验信息](evidence/live-20261015-02/archive-summary.json)：`live-20261015-02-v1.zip`，3,138,185 字节，SHA256 `8239c600c8312134c22cfc19002a9081f93b36ee1f5e2f35dabf3ee26ac520b2`。已验证本地归档、独立本地备份、14 个归档成员及 662 个冻结源码文件；源码副本中两处历史身份字符串已作有记录的脱敏，产品源码字节不变。**尚未上传或发布 Release，索引为 `prepared-local-unpublished`，计划 URL 不是已验证的下载链接。** 公开持久附件交付仍待完成。
+[附件摘要与校验信息](evidence/live-20261015-02/archive-summary.json)：`live-20261015-02-v1.zip`，3,138,185 字节，SHA256 `8239c600c8312134c22cfc19002a9081f93b36ee1f5e2f35dabf3ee26ac520b2`。已验证本地归档、独立本地备份、14 个归档成员及 662 个冻结源码文件；源码副本中两处历史身份字符串已作有记录的脱敏，产品源码字节不变。**已发布为[开发证据预发布 Release](https://github.com/SW26010/still-wanna-dance/releases/tag/evidence-20261015-live-02-v1)，索引为 `published-verified`，未设为 Latest。** 发布前复查 51 项本地身份/凭据/签名参数及敏感模式，无未解决项；公开 ZIP 与批准候选逐字节一致，校验清单、14 个成员及 662 个源码文件回验全部通过。见[隐私复核](evidence/live-20261015-02/privacy-review.json)与[公开下载回执](evidence/live-20261015-02/publication-verification.json)。
 
 | ID | 文件 | 内容与复算口径 |
 | --- | --- | --- |
@@ -60,9 +60,10 @@
 | E-009 | `errors-and-cancellations.json`（[附件清单 E-009](evidence/live-20261015-02/manifest.json)） | 11 条取消错误逐条资源关联及有限游戏错误分类；无玩家/房间/签名地址 |
 | E-010 | [environment.json](evidence/live-20261015-02/environment.json) | 当前进程、监听、hosts 映射及 Windows 信息；Get-NetTCPConnection 查询失败，改用成功的 netstat 交叉核查，不把空错误输出当作无监听 |
 
-完整明细恢复后位于 `artifacts/evidence/live-20261015-02/docs/evidence/live-20261015-02/`，文件名和来源行号保持不变。发布前可使用已校验的本地包：
+完整明细恢复后位于 `artifacts/evidence/live-20261015-02/docs/evidence/live-20261015-02/`，文件名和来源行号保持不变。可直接从公开 URL 下载校验；离线时使用已校验的同名本地包：
 
 ```powershell
+python scripts/evidence_archive.py live-20261015-02 --verify-only
 python scripts/evidence_archive.py live-20261015-02 --local-dir artifacts/acceptance-evidence/LIVE-20261015-02
 ```
 
@@ -96,7 +97,7 @@ LA-041 将“真实事件日志时间”和“SWD 轮询发现时间”分别保
 - [x] 脱敏、相对时间、链接和证据索引已检查；原始私密材料未进入版本控制变更。
 - [x] 报告、Git 内摘要、schema v2 manifest、台账和附件索引作为同一提交交付。
 - [x] 版本化 ZIP、本地独立备份、归档成员及冻结源码逐文件校验通过；原始完整脱敏清单保留在附件中。
-- [ ] 将附件发布至同仓库版本化预发布 Release，并从公开 URL 回下载验证；完成前不能宣称公开持久归档交付完整。
+- [x] 附件已发布至同仓库版本化预发布 Release，从无需登录的公开 URL 回下载，ZIP/清单/成员/嵌套源码校验通过；索引已记为 published-verified。
 - 自动检查：离线日志对账、视频 MD5/大小、两库完整性与外键检查、证据哈希、隐私扫描及 `git diff --check`；未重跑产品单元测试，未更改产品行为，无新增 LA 编号。
 - 存储整理：仅改变证据归属，未改变产品行为、运行结论或实机状态，不新增 LA 编号。
-- Git commit：随包含本报告的 `test(acceptance): record LIVE-20261015-02 retrospective results` 提交交付；push / Release：**未推送、未发布**。
+- Git commit / push：验收材料提交 `ed0470a` 已由证据标签发布；发布回执随本报告更新提交并推送。标签固定指向 `ed0470a`，实际运行源码与历史结论不变。

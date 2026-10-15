@@ -17,9 +17,55 @@
     "Original complete sanitized evidence matches original manifest.",
     "Outer archive, inventory and nested source member hashes checked.",
     "Independent local backup hash matches.",
-    "No raw private runtime logs, live databases, credentials or binaries included.",
+    "No raw private runtime logs, live databases, credentials or runtime executables included; the registered synthetic SQLite source fixture is retained.",
     "Git evidence checksums and report links pass."
   ],
-  "publication": "prepared-local-unpublished; no public download verification performed",
-  "limitations": "Exact-value and selected pattern checks cover these inspected files and source snapshot; not a guarantee about unrelated historical content."
+  "publication": "published-verified; unauthenticated public ZIP and SHA256 sidecar roundtrip passed; published ZIP matches the approved candidate byte-for-byte.",
+  "limitations": "Exact-value and selected pattern checks cover these inspected files and source snapshot; not a guarantee about unrelated historical content.",
+  "prepublicationRescan": {
+    "outerMembers": 14,
+    "nestedSourceFiles": 662,
+    "filesInspected": 684,
+    "privateComparators": 51,
+    "patterns": [
+      "private-path",
+      "vrchat-identity",
+      "private-room-instance",
+      "windows-sid",
+      "private-key",
+      "service-token",
+      "jwt",
+      "signed-query",
+      "credential-header",
+      "exact-capture-clock"
+    ],
+    "reviewed": [
+      {
+        "file": "source/experiments/live-get-probe/get-lifetimes.mjs",
+        "kind": "generic-privacy-scanner-regex",
+        "line": 108
+      },
+      {
+        "file": "source/internal/cacheproxy/md5_resources_test.go",
+        "kind": "synthetic-test-value",
+        "line": 27
+      },
+      {
+        "file": "source/internal/cacheproxy/range_errors_test.go",
+        "kind": "synthetic-test-value",
+        "line": 65
+      },
+      {
+        "file": "source/internal/cacheproxy/range_errors_test.go",
+        "kind": "synthetic-test-value",
+        "line": 65
+      },
+      {
+        "file": "source/internal/console/about.html",
+        "kind": "preexisting-static-public-acknowledgment"
+      }
+    ],
+    "unresolvedSensitiveFindings": 0
+  },
+  "publicationReceipt": "docs/evidence/live-20261015-02/publication-verification.json"
 }

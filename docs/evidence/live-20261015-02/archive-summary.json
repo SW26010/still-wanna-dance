@@ -8,13 +8,16 @@
     "bytes": 3138185,
     "sha256": "8239c600c8312134c22cfc19002a9081f93b36ee1f5e2f35dabf3ee26ac520b2",
     "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261015-live-02-v1/live-20261015-02-v1.zip",
-    "status": "prepared-local-unpublished",
+    "status": "published-verified",
     "sourceRevision": "4d8714003f6e7981ad200cfd8a0d970668ce5a6a",
     "originalEvidenceCommit": null,
-    "publiclyVerifiedAt": null
+    "publiclyVerifiedAt": "2026-10-15T14:56:23Z",
+    "releaseTagCommit": "ed0470a0ec506a92980c358d51dff5fb6f62d369",
+    "evidenceCommit": "ed0470a0ec506a92980c358d51dff5fb6f62d369",
+    "releaseId": 413937530
   },
-  "publishedURL": null,
-  "releaseTarget": "Pending: clean commit containing this storage organization; no tag or Release created.",
+  "publishedURL": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261015-live-02-v1/live-20261015-02-v1.zip",
+  "releaseTarget": "ed0470a0ec506a92980c358d51dff5fb6f62d369",
   "locations": {
     "local": "artifacts/acceptance-evidence/LIVE-20261015-02/live-20261015-02-v1.zip",
     "backup": "<local-backup-root>/evidence/live-20261015-02/live-20261015-02-v1.zip"
@@ -25,7 +28,10 @@
     "membersVerified": 14,
     "nestedSourceFilesVerified": 662,
     "backupSHA256": "passed",
-    "publicDownload": "not-performed"
+    "publicDownload": "passed",
+    "publiclyVerifiedAt": "2026-10-15T14:56:23Z",
+    "checksumSidecar": "passed",
+    "publishedArchiveMatchesApprovedCandidate": true
   },
   "requestSummary": {
     "requests": 96,
@@ -126,5 +132,6 @@
       }
     ]
   },
-  "limitations": "Local archive and backup verified. The planned URL is not yet a published or publicly verified attachment. Publication remains outstanding; runtime conclusions and acceptance states unchanged."
+  "limitations": "Privacy reviewed; public ZIP and checksum roundtrip verified. Runtime conclusions and unresolved acceptance states unchanged. Original evidence manifest and the frozen source snapshot remain unchanged inside the archive.",
+  "publicationReceipt": "docs/evidence/live-20261015-02/publication-verification.json"
 }

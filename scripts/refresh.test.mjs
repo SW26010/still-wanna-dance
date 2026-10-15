@@ -986,7 +986,8 @@ test('nonempty queue renders three songs in order, falls back to IDs, and replac
   p.finishBatch(0, {}, { queue: {
     running: true, current: '11', active: ['11', '12'], completed: 2,
     file: 'output_log.txt', logError: '日志不可读', error: '下载失败',
-    songs: [{ songId: 11, title }, { songId: 12 }, { songId: 13, title: '第三首' }, { songId: 14, title: '第四首' }],
+    songs: [{ songId: 11, title: 'ignored log title' }, { songId: 12 }, { songId: 13 }, { songId: 14 }],
+    titles: { 11: title, 13: '第三首', 14: '第四首' },
   } });
   await flush();
   assert.equal(get('connection').textContent, '● 控制台已连接');
@@ -2008,7 +2009,7 @@ test('automatic startup keeps pending hosts migration visible', async () => {
 
 test('queue, failures and monitor reuse unchanged nodes across snapshots', () => {
   const p = page(true), get = id => p.document.getElementById(id);
-  p.context.state = { activeSettings: { queuePrefetchCount: 3 }, queue: { songs: [{ songId: 1, title: 'A' }, { songId: 2, title: 'B' }] }, batch: { failures: [{ id: 1, name: 'A', error: 'failed' }], failed: 1 } };
+  p.context.state = { activeSettings: { queuePrefetchCount: 3 }, queue: { songs: [{ songId: 1 }, { songId: 2 }], titles: { 1: 'A', 2: 'B' } }, batch: { failures: [{ id: 1, name: 'A', error: 'failed' }], failed: 1 } };
   p.context.health = { results: [{ operation: 'catalog', route: 'api', entry: 'catalog', mode: 'direct', ip: '1.2.3.4', state: 'available' }, { operation: 'resource', route: 'video.example', entry: 'video.example', mode: 'direct', state: 'unknown' }] };
   const render = () => vm.runInContext('renderQueue(state); renderBatch(state); renderHealth(health, {})', p.context);
   render();

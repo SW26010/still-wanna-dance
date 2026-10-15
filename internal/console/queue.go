@@ -18,18 +18,19 @@ import (
 )
 
 type QueueStatus struct {
-	Desired       bool          `json:"desired"` // populated from Console user intent in status responses
-	Running       bool          `json:"running"`
-	File          string        `json:"file"`
-	Songs         []vrclog.Song `json:"songs"`
-	Current       int64         `json:"current"`
-	Active        []int64       `json:"active"`
-	Completed     int           `json:"completed"`
-	Error         string        `json:"error"`
-	Failures      []Failure     `json:"failures"`
-	LogError      string        `json:"logError"`
-	Updated       time.Time     `json:"updated"`
-	Generation    uint64        `json:"-"`
+	Desired       bool              `json:"desired"` // populated from Console user intent in status responses
+	Running       bool              `json:"running"`
+	File          string            `json:"file"`
+	Songs         []vrclog.Song     `json:"songs"`
+	Titles        map[string]string `json:"titles,omitempty"` // local catalog, filled for the status response
+	Current       int64             `json:"current"`
+	Active        []int64           `json:"active"`
+	Completed     int               `json:"completed"`
+	Error         string            `json:"error"`
+	Failures      []Failure         `json:"failures"`
+	LogError      string            `json:"logError"`
+	Updated       time.Time         `json:"updated"`
+	Generation    uint64            `json:"-"`
 	waiters       map[int64]*queueWaiter
 	prepared      map[int64]bool
 	protect       func([]int64, bool)
@@ -145,7 +146,7 @@ func (q *QueueStatus) refreshErrors() {
 	var messages []string
 	for _, song := range q.Songs {
 		if f, ok := byID[song.ID]; ok {
-			f.Name = song.Title
+			f.Name = "" // Enriched from the engine's catalog snapshot when shown.
 			q.Failures = append(q.Failures, f)
 			messages = append(messages, fmt.Sprintf("歌曲 %d：%s（最早 60 秒后重试）", f.ID, f.Error))
 			delete(byID, song.ID)

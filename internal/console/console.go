@@ -780,6 +780,11 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		result.Hosts = readHostsStatus()
 		if service != nil {
 			result.Traffic = service.TrafficStats()
+			result.Queue.Titles = service.QueueTitles()
+			for i := range result.Queue.Failures {
+				f := &result.Queue.Failures[i]
+				f.Name = result.Queue.Titles[strconv.FormatInt(f.ID, 10)]
+			}
 		} else {
 			result.Traffic = cacheproxy.ReadTrafficStats(result.ActiveSettings.StorageDir)
 		}

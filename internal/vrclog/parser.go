@@ -8,9 +8,7 @@ import (
 )
 
 type Song struct {
-	ID       int64   `json:"songId"`
-	Title    string  `json:"title"`
-	Duration float64 `json:"duration"`
+	ID int64 `json:"songId"`
 }
 
 type Event struct {

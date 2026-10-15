@@ -23,6 +23,7 @@ type queueSource struct {
 	position           int
 	startAt, removedAt time.Time
 	timing             mediaTiming
+	title              string
 }
 
 func (q *queueSource) origin() demandSource {
@@ -102,12 +103,12 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 				}
 				changed = changed || source.position != i
 				source.position = i
-				timing, ok := timings[song]
+				metadata, ok := timings[song]
 				if !ok {
-					timing = estimateMediaTiming(0, 0)
+					metadata.timing = estimateMediaTiming(0, 0)
 				}
-				changed = changed || source.timing != timing
-				source.timing = timing
+				changed = changed || source.timing != metadata.timing || source.title != metadata.title
+				source.timing, source.title = metadata.timing, metadata.title
 				next[song] = source
 			}
 		}

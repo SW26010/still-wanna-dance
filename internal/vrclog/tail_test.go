@@ -1,6 +1,7 @@
 package vrclog
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -72,7 +73,7 @@ func TestTailEOFPartialRotationTruncation(t *testing.T) {
 	}
 	appendBytes([]byte(snapshot[cut:]))
 	events, err = tail.Poll(now.Add(6 * time.Second))
-	if err != nil || len(events) != 1 || events[0].Songs[0].Title != "中文舞曲" {
+	if err != nil || len(events) != 1 || events[0].Songs[0].ID != 1321 {
 		t.Fatal(events, err)
 	}
 	if err = os.WriteFile(p, []byte("[Behaviour] OnLeftRoom\n"), 0600); err != nil {
@@ -101,6 +102,17 @@ func TestTailEOFPartialRotationTruncation(t *testing.T) {
 	_, err = tail.Poll(now.Add(30 * time.Second))
 	if err != nil || tail.Path != newPath {
 		t.Fatal(tail.Path, err)
+	}
+}
+
+func TestParseExtractsOnlyQueueOrder(t *testing.T) {
+	e, ok, err := Parse(`[VideoQueueManager] OnPreSerialization: queue info serialized: [{"songId":2,"title":{"untrusted":true},"duration":"not a duration"},{"songId":-1,"playerNames":["ignored"]},{"songId":1,"title":"log title","duration":99999}]`)
+	if err != nil || !ok {
+		t.Fatal(e, ok, err)
+	}
+	got, err := json.Marshal(e.Songs)
+	if err != nil || string(got) != `[{"songId":2},{"songId":-1},{"songId":1}]` {
+		t.Fatal(string(got), err)
 	}
 }
 

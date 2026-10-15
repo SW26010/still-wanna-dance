@@ -61,6 +61,9 @@ func TestQueueUsesCatalogDurationAndRefreshesUnknownSize(t *testing.T) {
 	if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,start,end) VALUES (1,50,100),(2,5,300),(3,0,NULL)`); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := s.usage.db.Exec("UPDATE songs SET name='本地清单名称' WHERE song_id=1"); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := s.usage.db.Exec(`INSERT INTO song_media(song_id,md5) VALUES (1,?),(2,?),(3,?)`, key, key, key); err != nil {
 		t.Fatal(err)
 	}
@@ -68,6 +71,14 @@ func TestQueueUsesCatalogDurationAndRefreshesUnknownSize(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := s.prefetchSources["1"].startAt
+	titles := s.QueueTitles()
+	if titles["1"] != "本地清单名称" || titles["2"] != "" {
+		t.Fatal(titles)
+	}
+	titles["1"] = "caller mutation"
+	if s.QueueTitles()["1"] != "本地清单名称" {
+		t.Fatal("mutable catalog title snapshot")
+	}
 	if s.prefetchSources["2"].startAt != base.Add(100*time.Second+typicalDuration) || s.prefetchSources["3"].startAt != base.Add(400*time.Second+typicalDuration) {
 		t.Fatal("queue ignored catalog durations or unknown position")
 	}

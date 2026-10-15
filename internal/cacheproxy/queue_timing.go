@@ -8,8 +8,13 @@ import (
 	"time"
 )
 
-func (s *Server) queueTimings(ctx context.Context, ids []int64) (map[string]mediaTiming, error) {
-	result := make(map[string]mediaTiming)
+type queueMetadata struct {
+	timing mediaTiming
+	title  string
+}
+
+func (s *Server) queueTimings(ctx context.Context, ids []int64) (map[string]queueMetadata, error) {
+	result := make(map[string]queueMetadata)
 	if s.usage == nil || len(ids) == 0 {
 		return result, nil
 	}
@@ -17,7 +22,7 @@ func (s *Server) queueTimings(ctx context.Context, ids []int64) (map[string]medi
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.usage.db.QueryContext(ctx, `SELECT q.value,m.byte_size,s.end
+	rows, err := s.usage.db.QueryContext(ctx, `SELECT q.value,m.byte_size,s.end,substr(COALESCE(NULLIF(s.name,''),s.composed_title,''),1,300)
  FROM json_each(?) q LEFT JOIN songs s ON s.song_id=q.value
  LEFT JOIN song_media sm ON sm.song_id=s.song_id LEFT JOIN media m ON m.md5=sm.md5`, string(encoded))
 	if err != nil {
@@ -28,14 +33,29 @@ func (s *Server) queueTimings(ctx context.Context, ids []int64) (map[string]medi
 		var id int64
 		var size sql.NullInt64
 		var seconds sql.NullFloat64
-		if err := rows.Scan(&id, &size, &seconds); err != nil {
+		var title string
+		if err := rows.Scan(&id, &size, &seconds, &title); err != nil {
 			return nil, s.storageError(err)
 		}
 		if id > 0 {
-			result[strconv.FormatInt(id, 10)] = estimateMediaTiming(size.Int64, seconds.Float64)
+			result[strconv.FormatInt(id, 10)] = queueMetadata{estimateMediaTiming(size.Int64, seconds.Float64), title}
 		}
 	}
 	return result, s.storageError(rows.Err())
+}
+
+// Names for presentation come from the same local catalog snapshot as timing.
+// The log supplies only IDs/order. Return a copy, never mutable source objects.
+func (s *Server) QueueTitles() map[string]string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	titles := make(map[string]string, len(s.prefetchSources))
+	for id, q := range s.prefetchSources {
+		if q.title != "" {
+			titles[id] = q.title
+		}
+	}
+	return titles
 }
 
 // Call under Server.mu. Request completion does not mean playback completion:

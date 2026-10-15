@@ -555,7 +555,7 @@ function renderQueue(s) {
       : '预缓存未就绪，请检查日志目录');
   setText('queueDetail', (q.file || '尚未发现日志') + ' · 本次开启后累计准备成功 ' + q.completed + ' 次');
   setText('queueError', q.logError || q.error || '');
-  renderStableList('queueSongs', (q.songs || []).slice(0, count).map(song => ({ id: song.songId, text: song.title || String(song.songId) })),
+  renderStableList('queueSongs', (q.songs || []).slice(0, count).map(song => ({ id: song.songId, text: (q.titles || {})[song.songId] || String(song.songId) })),
     song => song.id, song => recentElement('li', '', song.text));
 }
 

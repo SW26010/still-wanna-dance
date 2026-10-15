@@ -11,7 +11,7 @@
 - dancing-log 默认轮询 0.25 秒。Still Wanna Dance 每 **3 秒**检查当前日志并从字节偏移读取增量，每 **15 秒**扫描新日志文件；没有新增内容时不解析、不请求歌曲 API。
 - 初次启动从现有最新文件末尾开始，等待新的队列同步。不会重放旧会话；在点歌前开启最稳妥。新会话文件从头读取，按 VRChat 文件名中的会话时间选取，旧文件 mtime 改变不会倒退。
 - 保留尚未写完的行，完整换行后再解码，支持 UTF-8 跨次写入。单次最多读取 4 MiB，单行最多 1 MiB。截断、替换、读取失败、异常队列行会清空待处理队列。
-- 处理 `OnPreSerialization: queue info serialized:` 和 `OnDeserialization: syncedQueuedInfoJson =` 两类 JSON 数组。忽略当前视频 userData 和预览事件；不读取玩家姓名到业务状态，不持久化完整日志。
+- 处理 `OnPreSerialization: queue info serialized:` 和 `OnDeserialization: syncedQueuedInfoJson =` 两类 JSON 数组，仅提取 songId 顺序（包括未知占位）；不提取日志中的标题、时长和玩家姓名。忽略当前视频 userData 和预览事件，不持久化完整日志。控制台歌曲名称来自本地清单，未知时显示 ID；调度时长和大小也只使用自己的媒体数据。
 - 离房、进入新房间、应用正常退出或文件切换时清空待处理队列；日志 5 分钟无新增时也清空，等待新的同步。
 - 当前文件新增日志通常在 0～3 秒内被读取，新日志发现通常在 0～15 秒内。游戏本身的日志缓冲、磁盘和系统调度会增加延迟，这不是严格实时保证。
 

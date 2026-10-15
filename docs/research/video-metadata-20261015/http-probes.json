@@ -1,0 +1,460 @@
+{
+  "resource_host": "play.udon.dance",
+  "transport": "HTTPS; OS resolver; no proxy",
+  "user_agent": "Mozilla/5.0",
+  "sample_method": "10 observed URL size deciles and 3 tail-moov source paths",
+  "probes": [
+    {
+      "song_id": 10234,
+      "resource_no": 2576,
+      "byte_size": 5838704,
+      "local_duration_seconds": 46.401,
+      "moov_before_mdat": true,
+      "head": {
+        "status": 200,
+        "content_length": "5838704",
+        "accept_ranges": "bytes",
+        "duration_or_bitrate_headers": []
+      },
+      "ranges": [
+        {
+          "offset": 0,
+          "bytes": 65536,
+          "status": 206,
+          "content_range_total": 5838704,
+          "matches_local": true
+        }
+      ],
+      "remote_metadata": {
+        "duration_seconds": 46.401,
+        "timescale": 1000,
+        "moov_offset": 32,
+        "moov_bytes": 59210,
+        "moov_before_mdat": true,
+        "mvhd_version": 0
+      },
+      "duration_matches_local": true,
+      "body_bytes_read": 65536,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 1224,
+      "resource_no": 3035,
+      "byte_size": 22518364,
+      "local_duration_seconds": 161.797,
+      "moov_before_mdat": true,
+      "head": {
+        "status": 200,
+        "content_length": "22518364",
+        "accept_ranges": "bytes",
+        "duration_or_bitrate_headers": []
+      },
+      "ranges": [
+        {
+          "offset": 0,
+          "bytes": 65536,
+          "status": 206,
+          "content_range_total": 22518364,
+          "matches_local": true
+        }
+      ],
+      "remote_metadata": {
+        "duration_seconds": 161.797,
+        "timescale": 1000,
+        "moov_offset": 32,
+        "moov_bytes": 121083,
+        "moov_before_mdat": true,
+        "mvhd_version": 0
+      },
+      "duration_matches_local": true,
+      "body_bytes_read": 65536,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 5375,
+      "resource_no": 2507,
+      "byte_size": 28945758,
+      "local_duration_seconds": 159.777,
+      "moov_before_mdat": true,
+      "head": {
+        "status": 200,
+        "content_length": "28945758",
+        "accept_ranges": "bytes",
+        "duration_or_bitrate_headers": []
+      },
+      "ranges": [
+        {
+          "offset": 0,
+          "bytes": 65536,
+          "status": 206,
+          "content_range_total": 28945758,
+          "matches_local": true
+        }
+      ],
+      "remote_metadata": {
+        "duration_seconds": 159.777,
+        "timescale": 1000,
+        "moov_offset": 32,
+        "moov_bytes": 152658,
+        "moov_before_mdat": true,
+        "mvhd_version": 0
+      },
+      "duration_matches_local": true,
+      "body_bytes_read": 65536,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 2979,
+      "resource_no": 7290,
+      "byte_size": 37751989,
+      "local_duration_seconds": 266.31,
+      "moov_before_mdat": true,
+      "head": {
+        "status": 200,
+        "content_length": "37751989",
+        "accept_ranges": "bytes",
+        "duration_or_bitrate_headers": []
+      },
+      "ranges": [
+        {
+          "offset": 0,
+          "bytes": 65536,
+          "status": 206,
+          "content_range_total": 37751989,
+          "matches_local": true
+        }
+      ],
+      "remote_metadata": {
+        "duration_seconds": 266.31,
+        "timescale": 1000,
+        "moov_offset": 32,
+        "moov_bytes": 282271,
+        "moov_before_mdat": true,
+        "mvhd_version": 0
+      },
+      "duration_matches_local": true,
+      "body_bytes_read": 65536,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 1456,
+      "resource_no": 4118,
+      "byte_size": 47582656,
+      "local_duration_seconds": 181.232,
+      "moov_before_mdat": true,
+      "head": {
+        "status": 200,
+        "content_length": "47582656",
+        "accept_ranges": "bytes",
+        "duration_or_bitrate_headers": []
+      },
+      "ranges": [
+        {
+          "offset": 0,
+          "bytes": 65536,
+          "status": 206,
+          "content_range_total": 47582656,
+          "matches_local": true
+        }
+      ],
+      "remote_metadata": {
+        "duration_seconds": 181.232,
+        "timescale": 1000,
+        "moov_offset": 32,
+        "moov_bytes": 133552,
+        "moov_before_mdat": true,
+        "mvhd_version": 0
+      },
+      "duration_matches_local": true,
+      "body_bytes_read": 65536,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 10664,
+      "resource_no": 8102,
+      "byte_size": 54284375,
+      "local_duration_seconds": 135.117,
+      "moov_before_mdat": true,
+      "head": {
+        "status": 200,
+        "content_length": "54284375",
+        "accept_ranges": "bytes",
+        "duration_or_bitrate_headers": []
+      },
+      "ranges": [
+        {
+          "offset": 0,
+          "bytes": 65536,
+          "status": 206,
+          "content_range_total": 54284375,
+          "matches_local": true
+        }
+      ],
+      "remote_metadata": {
+        "duration_seconds": 135.117,
+        "timescale": 1000,
+        "moov_offset": 32,
+        "moov_bytes": 181537,
+        "moov_before_mdat": true,
+        "mvhd_version": 0
+      },
+      "duration_matches_local": true,
+      "body_bytes_read": 65536,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 4850,
+      "resource_no": 6928,
+      "byte_size": 59596750,
+      "local_duration_seconds": 211.44,
+      "moov_before_mdat": true,
+      "head": {
+        "status": 200,
+        "content_length": "59596750",
+        "accept_ranges": "bytes",
+        "duration_or_bitrate_headers": []
+      },
+      "ranges": [
+        {
+          "offset": 0,
+          "bytes": 65536,
+          "status": 206,
+          "content_range_total": 59596750,
+          "matches_local": true
+        }
+      ],
+      "remote_metadata": {
+        "duration_seconds": 211.44,
+        "timescale": 1000,
+        "moov_offset": 32,
+        "moov_bytes": 121031,
+        "moov_before_mdat": true,
+        "mvhd_version": 0
+      },
+      "duration_matches_local": true,
+      "body_bytes_read": 65536,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 9886,
+      "resource_no": 7936,
+      "byte_size": 66294589,
+      "local_duration_seconds": 231.25,
+      "moov_before_mdat": true,
+      "head": {
+        "status": 200,
+        "content_length": "66294589",
+        "accept_ranges": "bytes",
+        "duration_or_bitrate_headers": []
+      },
+      "ranges": [
+        {
+          "offset": 0,
+          "bytes": 65536,
+          "status": 206,
+          "content_range_total": 66294589,
+          "matches_local": true
+        }
+      ],
+      "remote_metadata": {
+        "duration_seconds": 231.25,
+        "timescale": 1000,
+        "moov_offset": 32,
+        "moov_bytes": 261654,
+        "moov_before_mdat": true,
+        "mvhd_version": 0
+      },
+      "duration_matches_local": true,
+      "body_bytes_read": 65536,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 8041,
+      "resource_no": 3971,
+      "byte_size": 78492764,
+      "local_duration_seconds": 217.877,
+      "moov_before_mdat": true,
+      "head": {
+        "status": 200,
+        "content_length": "78492764",
+        "accept_ranges": "bytes",
+        "duration_or_bitrate_headers": []
+      },
+      "ranges": [
+        {
+          "offset": 0,
+          "bytes": 65536,
+          "status": 206,
+          "content_range_total": 78492764,
+          "matches_local": true
+        }
+      ],
+      "remote_metadata": {
+        "duration_seconds": 217.877,
+        "timescale": 48000,
+        "moov_offset": 32,
+        "moov_bytes": 278995,
+        "moov_before_mdat": true,
+        "mvhd_version": 0
+      },
+      "duration_matches_local": true,
+      "body_bytes_read": 65536,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 49,
+      "resource_no": 4942,
+      "byte_size": 123565207,
+      "local_duration_seconds": 416.617,
+      "moov_before_mdat": true,
+      "head": {
+        "status": 200,
+        "content_length": "123565207",
+        "accept_ranges": "bytes",
+        "duration_or_bitrate_headers": []
+      },
+      "ranges": [
+        {
+          "offset": 0,
+          "bytes": 65536,
+          "status": 206,
+          "content_range_total": 123565207,
+          "matches_local": true
+        }
+      ],
+      "remote_metadata": {
+        "duration_seconds": 416.617,
+        "timescale": 1000,
+        "moov_offset": 32,
+        "moov_bytes": 470286,
+        "moov_before_mdat": true,
+        "mvhd_version": 0
+      },
+      "duration_matches_local": true,
+      "body_bytes_read": 65536,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 1519,
+      "resource_no": 1341,
+      "byte_size": 14425203,
+      "local_duration_seconds": 235.102,
+      "moov_before_mdat": false,
+      "head": {
+        "status": 200,
+        "content_length": "14425203",
+        "accept_ranges": "bytes",
+        "duration_or_bitrate_headers": []
+      },
+      "ranges": [
+        {
+          "offset": 0,
+          "bytes": 65536,
+          "status": 206,
+          "content_range_total": 14425203,
+          "matches_local": true
+        },
+        {
+          "offset": 14180389,
+          "bytes": 65536,
+          "status": 206,
+          "content_range_total": 14425203,
+          "matches_local": true
+        }
+      ],
+      "remote_metadata": {
+        "duration_seconds": 235.102,
+        "timescale": 1000,
+        "moov_offset": 14180389,
+        "moov_bytes": 244814,
+        "moov_before_mdat": false,
+        "mvhd_version": 0
+      },
+      "duration_matches_local": true,
+      "body_bytes_read": 131072,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 7824,
+      "resource_no": 5049,
+      "byte_size": 54216296,
+      "local_duration_seconds": 190.084,
+      "moov_before_mdat": false,
+      "head": {
+        "status": 200,
+        "content_length": "54216296",
+        "accept_ranges": "bytes",
+        "duration_or_bitrate_headers": []
+      },
+      "ranges": [
+        {
+          "offset": 0,
+          "bytes": 65536,
+          "status": 206,
+          "content_range_total": 54216296,
+          "matches_local": true
+        },
+        {
+          "offset": 54080494,
+          "bytes": 65536,
+          "status": 206,
+          "content_range_total": 54216296,
+          "matches_local": true
+        }
+      ],
+      "remote_metadata": {
+        "duration_seconds": 190.084,
+        "timescale": 1000,
+        "moov_offset": 54080494,
+        "moov_bytes": 135802,
+        "moov_before_mdat": false,
+        "mvhd_version": 0
+      },
+      "duration_matches_local": true,
+      "body_bytes_read": 131072,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 4291,
+      "resource_no": 966,
+      "byte_size": 76434242,
+      "local_duration_seconds": 277.111,
+      "moov_before_mdat": false,
+      "head": {
+        "status": 200,
+        "content_length": "76434242",
+        "accept_ranges": "bytes",
+        "duration_or_bitrate_headers": []
+      },
+      "ranges": [
+        {
+          "offset": 0,
+          "bytes": 65536,
+          "status": 206,
+          "content_range_total": 76434242,
+          "matches_local": true
+        },
+        {
+          "offset": 76158276,
+          "bytes": 65536,
+          "status": 206,
+          "content_range_total": 76434242,
+          "matches_local": true
+        }
+      ],
+      "remote_metadata": {
+        "duration_seconds": 277.111,
+        "timescale": 1000,
+        "moov_offset": 76158276,
+        "moov_bytes": 275966,
+        "moov_before_mdat": false,
+        "mvhd_version": 0
+      },
+      "duration_matches_local": true,
+      "body_bytes_read": 131072,
+      "local_full_md5_matches_url_e": true
+    }
+  ],
+  "successes": 13,
+  "body_bytes_read": 1048576
+}

@@ -1,0 +1,25 @@
+{
+  "duration_seconds": {
+    "default": 210,
+    "mean_absolute_error": 36.83360687145432,
+    "p90_absolute_error": 79.019,
+    "fraction_at_or_below_default": 0.5366432598160419
+  },
+  "overall_mbps": {
+    "default": 1.8,
+    "mean_absolute_error": 0.5815075292869778,
+    "p90_absolute_error": 1.1442914279537344,
+    "fraction_at_or_below_default": 0.4434774008505588
+  },
+  "size_mib": {
+    "default": 45,
+    "mean_absolute_error": 16.503141113162783,
+    "p90_absolute_error": 31.49979305267334,
+    "fraction_at_or_below_default": 0.5043022450796163
+  },
+  "fraction_at_or_below_3_mbps": 0.9686480071209573,
+  "fraction_at_or_below_80_mib": 0.9623182672337058,
+  "fraction_at_or_below_285_seconds": 0.9591533972900801,
+  "consistent_triple_size_mib": 45.06111145019531,
+  "size_duration_correlation": 0.49304055429049437
+}

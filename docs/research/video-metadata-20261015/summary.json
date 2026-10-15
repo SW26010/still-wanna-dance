@@ -1,0 +1,378 @@
+{
+  "date": "2026-10-15",
+  "database_sha256": "e068660e952a560a8de2a16e9a220ca13597b9538a2043c6e20a4674c5cc0740",
+  "database_quick_check": "ok",
+  "catalog_members": 10463,
+  "songs": 10463,
+  "media_rows": 10413,
+  "unique_current_media": 10129,
+  "local_files": 10111,
+  "parsed_files": 10111,
+  "failures": [],
+  "current_local_resources": 10067,
+  "unreferenced_local_resources": 44,
+  "matched_songs": 10399,
+  "missing_songs": 64,
+  "db_size_matches": 10111,
+  "total_gib": 434.4428002340719,
+  "duration_seconds": {
+    "n": 10111,
+    "mean": 205.3363550857204,
+    "std": 50.51514027861968,
+    "min": 8.684,
+    "p01": 79.76316666666666,
+    "p05": 122.555,
+    "p10": 144.173,
+    "p25": 178.5085,
+    "median": 206.078,
+    "p75": 234.243,
+    "p90": 261.20126984126983,
+    "p95": 280.567,
+    "p99": 321.17709999999994,
+    "max": 926.208
+  },
+  "overall_mbps": {
+    "n": 10111,
+    "mean": 1.7973117281754014,
+    "std": 0.6993181689720424,
+    "min": 0.22523263894051818,
+    "p01": 0.4023935376977975,
+    "p05": 0.6208773191002182,
+    "p10": 0.8328374104811009,
+    "p25": 1.18680079303445,
+    "median": 1.9524877709223225,
+    "p75": 2.2542568913025605,
+    "p90": 2.408659577999746,
+    "p95": 2.8916026085114104,
+    "p99": 3.561407331690842,
+    "max": 4.781241974387213
+  },
+  "size_mib": {
+    "n": 10111,
+    "mean": 43.9985587419335,
+    "std": 20.18568709654268,
+    "min": 0.3161659240722656,
+    "p01": 8.207605552673341,
+    "p05": 13.415709972381592,
+    "p10": 17.61034393310547,
+    "p25": 27.56146812438965,
+    "median": 44.71518135070801,
+    "p75": 57.64385652542114,
+    "p90": 68.33011817932129,
+    "p95": 76.34986305236816,
+    "p99": 94.55205011367792,
+    "max": 176.5453872680664
+  },
+  "moov_before_mdat": 9988,
+  "moov_bytes": {
+    "n": 10111,
+    "mean": 196828.93215310058,
+    "std": 68192.97907626096,
+    "min": 9867.0,
+    "p01": 66209.0,
+    "p05": 100303.0,
+    "p10": 112639.0,
+    "p25": 145246.5,
+    "median": 195578.0,
+    "p75": 241046.5,
+    "p90": 279979.0,
+    "p95": 304483.5,
+    "p99": 364542.89999999973,
+    "max": 1012315.0
+  },
+  "url_checks": {
+    "total": 264,
+    "has_s_e": 264,
+    "size_equals_db": 264,
+    "e_equals_db_md5": 264,
+    "local_comparable": 256,
+    "size_equals_local": 256
+  },
+  "end_minus_duration": {
+    "n": 10399,
+    "mean": -0.34256701789704713,
+    "std": 0.3719009557217889,
+    "min": -8.067000000000007,
+    "p01": -0.9780000000000086,
+    "p05": -0.9199999999999875,
+    "p10": -0.8470000000000028,
+    "p25": -0.6239999999999952,
+    "median": -0.3340000000000032,
+    "p75": -0.09800000000001319,
+    "p90": 0.15799999999998704,
+    "p95": 0.32200000000000273,
+    "p99": 0.4519999999999982,
+    "max": 2.8899999999999864
+  },
+  "end_abs_error": {
+    "n": 10399,
+    "mean": 0.4147304440678329,
+    "std": 0.2892423575152056,
+    "min": 0.0,
+    "p01": 0.002999999999985903,
+    "p05": 0.03899999999998727,
+    "p10": 0.07400000000001228,
+    "p25": 0.18196371882085316,
+    "median": 0.3709999999999809,
+    "p75": 0.6239999999999952,
+    "p90": 0.8470000000000084,
+    "p95": 0.9199999999999875,
+    "p99": 0.9780200000000092,
+    "max": 8.067000000000007
+  },
+  "end_error_within": {
+    "0.1": 1447,
+    "0.5": 6876,
+    "1": 10395,
+    "2": 10396,
+    "5": 10398,
+    "10": 10399
+  },
+  "positive_start_songs": [
+    {
+      "song_id": 1519,
+      "resource_no": 1341,
+      "start": 16.0,
+      "end": 233.0,
+      "duration_seconds": 235.102,
+      "end_minus_duration": -2.102000000000004,
+      "end_start_minus_duration": -18.102000000000004
+    },
+    {
+      "song_id": 3049,
+      "resource_no": 923,
+      "start": 194.0,
+      "end": 193.0,
+      "duration_seconds": 193.4,
+      "end_minus_duration": -0.4000000000000057,
+      "end_start_minus_duration": -194.4
+    },
+    {
+      "song_id": 4170,
+      "resource_no": 5691,
+      "start": 18.0,
+      "end": 240.0,
+      "duration_seconds": 240.107,
+      "end_minus_duration": -0.10699999999999932,
+      "end_start_minus_duration": -18.107
+    },
+    {
+      "song_id": 4509,
+      "resource_no": 9832,
+      "start": 5.0,
+      "end": 199.0,
+      "duration_seconds": 199.321,
+      "end_minus_duration": -0.32099999999999795,
+      "end_start_minus_duration": -5.320999999999998
+    },
+    {
+      "song_id": 4592,
+      "resource_no": 639,
+      "start": 25.0,
+      "end": 195.0,
+      "duration_seconds": 195.2,
+      "end_minus_duration": -0.19999999999998863,
+      "end_start_minus_duration": -25.19999999999999
+    }
+  ],
+  "largest_end_errors": [
+    {
+      "song_id": 3914,
+      "resource_no": 8031,
+      "start": 0.0,
+      "end": 192.0,
+      "duration_seconds": 200.067,
+      "end_minus_duration": -8.067000000000007,
+      "end_start_minus_duration": -8.067000000000007
+    },
+    {
+      "song_id": 4293,
+      "resource_no": 7708,
+      "start": 0.0,
+      "end": 313.0,
+      "duration_seconds": 310.11,
+      "end_minus_duration": 2.8899999999999864,
+      "end_start_minus_duration": 2.8899999999999864
+    },
+    {
+      "song_id": 1519,
+      "resource_no": 1341,
+      "start": 16.0,
+      "end": 233.0,
+      "duration_seconds": 235.102,
+      "end_minus_duration": -2.102000000000004,
+      "end_start_minus_duration": -18.102000000000004
+    },
+    {
+      "song_id": 4365,
+      "resource_no": 693,
+      "start": 0.0,
+      "end": 220.0,
+      "duration_seconds": 218.118,
+      "end_minus_duration": 1.882000000000005,
+      "end_start_minus_duration": 1.882000000000005
+    },
+    {
+      "song_id": 8563,
+      "resource_no": 409,
+      "start": 0.0,
+      "end": 138.0,
+      "duration_seconds": 138.995,
+      "end_minus_duration": -0.9950000000000045,
+      "end_start_minus_duration": -0.9950000000000045
+    },
+    {
+      "song_id": 9380,
+      "resource_no": 9457,
+      "start": 0.0,
+      "end": 213.0,
+      "duration_seconds": 213.995,
+      "end_minus_duration": -0.9950000000000045,
+      "end_start_minus_duration": -0.9950000000000045
+    },
+    {
+      "song_id": 9457,
+      "resource_no": 4063,
+      "start": 0.0,
+      "end": 189.0,
+      "duration_seconds": 189.995,
+      "end_minus_duration": -0.9950000000000045,
+      "end_start_minus_duration": -0.9950000000000045
+    },
+    {
+      "song_id": 10740,
+      "resource_no": 5821,
+      "start": 0.0,
+      "end": 274.0,
+      "duration_seconds": 274.994,
+      "end_minus_duration": -0.9940000000000282,
+      "end_start_minus_duration": -0.9940000000000282
+    },
+    {
+      "song_id": 6313,
+      "resource_no": 6077,
+      "start": 0.0,
+      "end": 199.0,
+      "duration_seconds": 199.994,
+      "end_minus_duration": -0.9939999999999998,
+      "end_start_minus_duration": -0.9939999999999998
+    },
+    {
+      "song_id": 6690,
+      "resource_no": 2774,
+      "start": 0.0,
+      "end": 229.0,
+      "duration_seconds": 229.994,
+      "end_minus_duration": -0.9939999999999998,
+      "end_start_minus_duration": -0.9939999999999998
+    },
+    {
+      "song_id": 6947,
+      "resource_no": 7239,
+      "start": 0.0,
+      "end": 139.0,
+      "duration_seconds": 139.994,
+      "end_minus_duration": -0.9939999999999998,
+      "end_start_minus_duration": -0.9939999999999998
+    },
+    {
+      "song_id": 7461,
+      "resource_no": 9573,
+      "start": 0.0,
+      "end": 199.0,
+      "duration_seconds": 199.994,
+      "end_minus_duration": -0.9939999999999998,
+      "end_start_minus_duration": -0.9939999999999998
+    },
+    {
+      "song_id": 7681,
+      "resource_no": 5447,
+      "start": 0.0,
+      "end": 244.0,
+      "duration_seconds": 244.994,
+      "end_minus_duration": -0.9939999999999998,
+      "end_start_minus_duration": -0.9939999999999998
+    },
+    {
+      "song_id": 8258,
+      "resource_no": 8104,
+      "start": 0.0,
+      "end": 229.0,
+      "duration_seconds": 229.994,
+      "end_minus_duration": -0.9939999999999998,
+      "end_start_minus_duration": -0.9939999999999998
+    },
+    {
+      "song_id": 8534,
+      "resource_no": 2718,
+      "start": 0.0,
+      "end": 184.0,
+      "duration_seconds": 184.994,
+      "end_minus_duration": -0.9939999999999998,
+      "end_start_minus_duration": -0.9939999999999998
+    },
+    {
+      "song_id": 9515,
+      "resource_no": 582,
+      "start": 0.0,
+      "end": 184.0,
+      "duration_seconds": 184.994,
+      "end_minus_duration": -0.9939999999999998,
+      "end_start_minus_duration": -0.9939999999999998
+    },
+    {
+      "song_id": 5299,
+      "resource_no": 4554,
+      "start": 0.0,
+      "end": 230.0,
+      "duration_seconds": 230.993,
+      "end_minus_duration": -0.992999999999995,
+      "end_start_minus_duration": -0.992999999999995
+    },
+    {
+      "song_id": 5983,
+      "resource_no": 6841,
+      "start": 0.0,
+      "end": 184.0,
+      "duration_seconds": 184.993,
+      "end_minus_duration": -0.992999999999995,
+      "end_start_minus_duration": -0.992999999999995
+    },
+    {
+      "song_id": 6853,
+      "resource_no": 5119,
+      "start": 0.0,
+      "end": 215.0,
+      "duration_seconds": 215.993,
+      "end_minus_duration": -0.992999999999995,
+      "end_start_minus_duration": -0.992999999999995
+    },
+    {
+      "song_id": 11252,
+      "resource_no": 2474,
+      "start": 0.0,
+      "end": 230.0,
+      "duration_seconds": 230.993,
+      "end_minus_duration": -0.992999999999995,
+      "end_start_minus_duration": -0.992999999999995
+    }
+  ],
+  "catalog_revision": [
+    {
+      "catalog_key": "songs",
+      "revision": "20261014145614",
+      "source": "https://x.kiva.moe/api/v2/wanna/songs"
+    },
+    {
+      "catalog_key": "song_names",
+      "revision": "20261005235824",
+      "source": "https://x.kiva.moe/api/v2/wanna/songs"
+    }
+  ],
+  "independent_validation": {
+    "library": "PyAV 19.0.1",
+    "n": 89,
+    "max_absolute_duration_delta": 0.16665199999999913,
+    "max_absolute_bit_rate_delta": 1782.5901639342774
+  }
+}

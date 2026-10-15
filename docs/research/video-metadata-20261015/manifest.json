@@ -1,0 +1,106 @@
+{
+  "date": "2026-10-15",
+  "source_commit": "945e1e84ad5d5d85012b32ee79c24db1fde73460",
+  "source_commit_note": "Repository baseline when collecting the research snapshot; scripts are identified by the file hashes below.",
+  "environment": {
+    "python": "3.12.14",
+    "numpy": "2.5.4",
+    "matplotlib": "3.11.2",
+    "pyav": "19.0.1",
+    "plot_font": "Microsoft YaHei"
+  },
+  "hashBasis": "LF-normalized UTF-8 bytes (Git blob content under .gitattributes)",
+  "redaction": "Anonymous resource numbers; no resource URL, MD5, titles, personal paths, identities or credentials. Raw inputs remain in ignored artifacts directory.",
+  "files": [
+    {
+      "path": "docs/research/video-metadata-20261015/catalog-comparison-current.csv",
+      "bytes": 633496,
+      "sha256": "46cbb406a905dfabe93caea0c5280d65d0d3a2a1e86e7c1ae9fd7e2a71223322"
+    },
+    {
+      "path": "docs/research/video-metadata-20261015/catalog-comparison.csv",
+      "bytes": 708802,
+      "sha256": "89bae74f501a222a958be124c560697c57ef8c46a1c23a35e433e36f6eef3e28"
+    },
+    {
+      "path": "docs/research/video-metadata-20261015/catalog-fields.json",
+      "bytes": 3823,
+      "sha256": "4faeacce045c56502f543941455c3b25a1de9eb0a24844a8c310869a749a3d68"
+    },
+    {
+      "path": "docs/research/video-metadata-20261015/checks.json",
+      "bytes": 669,
+      "sha256": "f7629c0a8c76f88ce99dfe6c78bc4af88853d36d93a238c9c78371044cfa8b22"
+    },
+    {
+      "path": "docs/research/video-metadata-20261015/fallback-analysis.json",
+      "bytes": 833,
+      "sha256": "0f071761632dc3c2eda4c3bf61cb21b06868fc573331714e54c93621d8a03818"
+    },
+    {
+      "path": "docs/research/video-metadata-20261015/histogram-bins.json",
+      "bytes": 3293,
+      "sha256": "03e7a1a52f0989bd61b828de12f5f268d0c04f85848a03b4d694502cce8cfc85"
+    },
+    {
+      "path": "docs/research/video-metadata-20261015/histograms.svg",
+      "bytes": 195581,
+      "sha256": "621bda206d0a12c3a8c846908852909f37c4ffc69d735866766c60a4bbe1f736"
+    },
+    {
+      "path": "docs/research/video-metadata-20261015/http-probes-default-ua.json",
+      "bytes": 5048,
+      "sha256": "6a2fc1b8468fce334f08c0da2a729e6c5bcbc259842e5129832d5d8244861343"
+    },
+    {
+      "path": "docs/research/video-metadata-20261015/http-probes.json",
+      "bytes": 11903,
+      "sha256": "1dc47cbf6481a0ab0dbd13ad859e540458c2ed86176df020e0d5e81bc52088d9"
+    },
+    {
+      "path": "docs/research/video-metadata-20261015/independent-validation.json",
+      "bytes": 24481,
+      "sha256": "20392f9e336c55d35ba662d075c3801fc2cf3450b79452a8c1c077799f7957c1"
+    },
+    {
+      "path": "docs/research/video-metadata-20261015/measurements.csv",
+      "bytes": 890688,
+      "sha256": "a112fbdf30ce9f7f5bc439377fcac3ade69d8da7e24ebaecb0f1844f80f2243e"
+    },
+    {
+      "path": "docs/research/video-metadata-20261015/summary.json",
+      "bytes": 9840,
+      "sha256": "83e8ff6f112cb30f09edf8f53bdb18727227c81f63d8dc6c2847deac38bd2f5c"
+    },
+    {
+      "path": "docs/research/video-metadata-20261015.md",
+      "bytes": 18378,
+      "sha256": "aac79ddaa3fdcaa0565d07d79197e45faf1b9d6ee96899aa8d0a6d9aff4e2d1e"
+    },
+    {
+      "path": "scripts/video-metadata-study/analyze.py",
+      "bytes": 10610,
+      "sha256": "fd7acd15f4b7c20a514f104b376901b503faf6a02193c903200abf33c1af3a02"
+    },
+    {
+      "path": "scripts/video-metadata-study/plot.py",
+      "bytes": 5713,
+      "sha256": "aaa3f256f038350f36a0b4d1a10c483fffc2c43c4bf7dc9bab016595f1e1870a"
+    },
+    {
+      "path": "scripts/video-metadata-study/probe.py",
+      "bytes": 9580,
+      "sha256": "a9f1f7f74b2fc42f63ec3f5e5af49c610e259c345916b95b46cb7738797b08b0"
+    },
+    {
+      "path": "scripts/video-metadata-study/requirements.txt",
+      "bytes": 102,
+      "sha256": "b4d65187339a2c42d543973849317fedada970edbabbafd4358abf166a9455d5"
+    },
+    {
+      "path": "scripts/video-metadata-study/verify.py",
+      "bytes": 9658,
+      "sha256": "f47e9c665a63c6b15cbebd5f9ff8437a6453a01b175147d73c37536379530c75"
+    }
+  ]
+}

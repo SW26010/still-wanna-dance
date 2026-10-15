@@ -1,0 +1,981 @@
+[
+  {
+    "resource_no": 3462,
+    "av_duration_seconds": 143.824399,
+    "mvhd_duration_seconds": 143.825,
+    "duration_delta": -0.0006009999999889715,
+    "av_bit_rate": 3659509,
+    "formula_bit_rate": 3659494.5802190164,
+    "video_stream_bitrates": [
+      3521651
+    ]
+  },
+  {
+    "resource_no": 3252,
+    "av_duration_seconds": 165.883356,
+    "mvhd_duration_seconds": 165.884,
+    "duration_delta": -0.0006439999999940937,
+    "av_bit_rate": 1766049,
+    "formula_bit_rate": 1766042.7286537583,
+    "video_stream_bitrates": [
+      1630785
+    ]
+  },
+  {
+    "resource_no": 7214,
+    "av_duration_seconds": 215.550839,
+    "mvhd_duration_seconds": 215.551,
+    "duration_delta": -0.000160999999991418,
+    "av_bit_rate": 1609444,
+    "formula_bit_rate": 1609443.2964820391,
+    "video_stream_bitrates": [
+      1475573
+    ]
+  },
+  {
+    "resource_no": 7881,
+    "av_duration_seconds": 153.76254,
+    "mvhd_duration_seconds": 153.763,
+    "duration_delta": -0.00046000000000390173,
+    "av_bit_rate": 1112302,
+    "formula_bit_rate": 1112299.4738656243,
+    "video_stream_bitrates": [
+      979286
+    ]
+  },
+  {
+    "resource_no": 172,
+    "av_duration_seconds": 236.44,
+    "mvhd_duration_seconds": 236.44,
+    "duration_delta": 0.0,
+    "av_bit_rate": 2267617,
+    "formula_bit_rate": 2267617.019116901,
+    "video_stream_bitrates": [
+      2137697
+    ]
+  },
+  {
+    "resource_no": 661,
+    "av_duration_seconds": 223.92,
+    "mvhd_duration_seconds": 223.92,
+    "duration_delta": 0.0,
+    "av_bit_rate": 2251569,
+    "formula_bit_rate": 2251569.774919614,
+    "video_stream_bitrates": [
+      2121650
+    ]
+  },
+  {
+    "resource_no": 490,
+    "av_duration_seconds": 175.589297,
+    "mvhd_duration_seconds": 175.59,
+    "duration_delta": -0.0007030000000156633,
+    "av_bit_rate": 1500353,
+    "formula_bit_rate": 1500347.035708184,
+    "video_stream_bitrates": [
+      1365106
+    ]
+  },
+  {
+    "resource_no": 9995,
+    "av_duration_seconds": 170.898866,
+    "mvhd_duration_seconds": 170.899,
+    "duration_delta": -0.00013400000000274304,
+    "av_bit_rate": 2294260,
+    "formula_bit_rate": 2294258.7610225924,
+    "video_stream_bitrates": [
+      2161524
+    ]
+  },
+  {
+    "resource_no": 3181,
+    "av_duration_seconds": 214.622041,
+    "mvhd_duration_seconds": 214.623,
+    "duration_delta": -0.0009589999999946031,
+    "av_bit_rate": 1118952,
+    "formula_bit_rate": 1118947.1025938506,
+    "video_stream_bitrates": [
+      983521
+    ]
+  },
+  {
+    "resource_no": 8605,
+    "av_duration_seconds": 134.443537,
+    "mvhd_duration_seconds": 134.444,
+    "duration_delta": -0.00046299999999632746,
+    "av_bit_rate": 1491369,
+    "formula_bit_rate": 1491364.01773229,
+    "video_stream_bitrates": [
+      1358018
+    ]
+  },
+  {
+    "resource_no": 6923,
+    "av_duration_seconds": 227.253469,
+    "mvhd_duration_seconds": 227.254,
+    "duration_delta": -0.0005309999999951742,
+    "av_bit_rate": 923275,
+    "formula_bit_rate": 923273.0601001523,
+    "video_stream_bitrates": [
+      785582
+    ]
+  },
+  {
+    "resource_no": 6484,
+    "av_duration_seconds": 213.925442,
+    "mvhd_duration_seconds": 213.926,
+    "duration_delta": -0.0005579999999838492,
+    "av_bit_rate": 2102694,
+    "formula_bit_rate": 2102689.4159662686,
+    "video_stream_bitrates": [
+      1972134
+    ]
+  },
+  {
+    "resource_no": 9380,
+    "av_duration_seconds": 109.899819,
+    "mvhd_duration_seconds": 109.9,
+    "duration_delta": -0.00018100000001197714,
+    "av_bit_rate": 1783394,
+    "formula_bit_rate": 1783391.9563239308,
+    "video_stream_bitrates": [
+      1685246
+    ]
+  },
+  {
+    "resource_no": 6433,
+    "av_duration_seconds": 188.75458,
+    "mvhd_duration_seconds": 188.755,
+    "duration_delta": -0.0004199999999912052,
+    "av_bit_rate": 795233,
+    "formula_bit_rate": 795231.3210246087,
+    "video_stream_bitrates": [
+      684349
+    ]
+  },
+  {
+    "resource_no": 3815,
+    "av_duration_seconds": 129.358141,
+    "mvhd_duration_seconds": 129.359,
+    "duration_delta": -0.0008590000000197051,
+    "av_bit_rate": 1301049,
+    "formula_bit_rate": 1301040.9171375784,
+    "video_stream_bitrates": [
+      1190715
+    ]
+  },
+  {
+    "resource_no": 8154,
+    "av_duration_seconds": 272.161088,
+    "mvhd_duration_seconds": 272.162,
+    "duration_delta": -0.0009119999999711581,
+    "av_bit_rate": 1141977,
+    "formula_bit_rate": 1141973.795019143,
+    "video_stream_bitrates": [
+      1006219
+    ]
+  },
+  {
+    "resource_no": 952,
+    "av_duration_seconds": 191.007347,
+    "mvhd_duration_seconds": 191.008,
+    "duration_delta": -0.0006529999999997926,
+    "av_bit_rate": 719497,
+    "formula_bit_rate": 719495.1415647512,
+    "video_stream_bitrates": [
+      584310
+    ]
+  },
+  {
+    "resource_no": 3837,
+    "av_duration_seconds": 251.033333,
+    "mvhd_duration_seconds": 251.034,
+    "duration_delta": -0.0006669999999928677,
+    "av_bit_rate": 3689626,
+    "formula_bit_rate": 3689616.3547567264,
+    "video_stream_bitrates": [
+      3555993
+    ]
+  },
+  {
+    "resource_no": 9041,
+    "av_duration_seconds": 243.670204,
+    "mvhd_duration_seconds": 243.671,
+    "duration_delta": -0.0007959999999798129,
+    "av_bit_rate": 2172900,
+    "formula_bit_rate": 2172892.9909591214,
+    "video_stream_bitrates": [
+      2039483
+    ]
+  },
+  {
+    "resource_no": 2949,
+    "av_duration_seconds": 249.382336,
+    "mvhd_duration_seconds": 249.383,
+    "duration_delta": -0.000664000000000442,
+    "av_bit_rate": 1977014,
+    "formula_bit_rate": 1977009.563602972,
+    "video_stream_bitrates": [
+      1783586
+    ]
+  },
+  {
+    "resource_no": 1006,
+    "av_duration_seconds": 202.2,
+    "mvhd_duration_seconds": 202.2,
+    "duration_delta": 0.0,
+    "av_bit_rate": 2232635,
+    "formula_bit_rate": 2232635.331355094,
+    "video_stream_bitrates": [
+      2102712
+    ]
+  },
+  {
+    "resource_no": 4444,
+    "av_duration_seconds": 179.908209,
+    "mvhd_duration_seconds": 179.909,
+    "duration_delta": -0.0007909999999924366,
+    "av_bit_rate": 1757680,
+    "formula_bit_rate": 1757672.912416833,
+    "video_stream_bitrates": [
+      1624197
+    ]
+  },
+  {
+    "resource_no": 1095,
+    "av_duration_seconds": 228.554014,
+    "mvhd_duration_seconds": 228.555,
+    "duration_delta": -0.0009860000000116997,
+    "av_bit_rate": 1915318,
+    "formula_bit_rate": 1915310.0479096936,
+    "video_stream_bitrates": [
+      1779918
+    ]
+  },
+  {
+    "resource_no": 5756,
+    "av_duration_seconds": 146.912653,
+    "mvhd_duration_seconds": 146.913,
+    "duration_delta": -0.0003470000000049822,
+    "av_bit_rate": 1927203,
+    "formula_bit_rate": 1927199.3084342433,
+    "video_stream_bitrates": [
+      1792312
+    ]
+  },
+  {
+    "resource_no": 3898,
+    "av_duration_seconds": 192.383333,
+    "mvhd_duration_seconds": 192.384,
+    "duration_delta": -0.0006669999999928677,
+    "av_bit_rate": 2383575,
+    "formula_bit_rate": 2383567.1157684634,
+    "video_stream_bitrates": [
+      2057146
+    ]
+  },
+  {
+    "resource_no": 4425,
+    "av_duration_seconds": 193.329342,
+    "mvhd_duration_seconds": 193.33,
+    "duration_delta": -0.0006580000000155906,
+    "av_bit_rate": 2320401,
+    "formula_bit_rate": 2320393.192986086,
+    "video_stream_bitrates": [
+      2187637
+    ]
+  },
+  {
+    "resource_no": 6404,
+    "av_duration_seconds": 188.499592,
+    "mvhd_duration_seconds": 188.5,
+    "duration_delta": -0.00040799999999308056,
+    "av_bit_rate": 2257192,
+    "formula_bit_rate": 2257187.819628647,
+    "video_stream_bitrates": [
+      2122688
+    ]
+  },
+  {
+    "resource_no": 2887,
+    "av_duration_seconds": 148.909569,
+    "mvhd_duration_seconds": 148.91,
+    "duration_delta": -0.00043099999999185457,
+    "av_bit_rate": 1291009,
+    "formula_bit_rate": 1291005.4126653683,
+    "video_stream_bitrates": [
+      1155964
+    ]
+  },
+  {
+    "resource_no": 385,
+    "av_duration_seconds": 135.883175,
+    "mvhd_duration_seconds": 135.884,
+    "duration_delta": -0.00082499999999186,
+    "av_bit_rate": 714078,
+    "formula_bit_rate": 714074.5341614907,
+    "video_stream_bitrates": [
+      578439
+    ]
+  },
+  {
+    "resource_no": 745,
+    "av_duration_seconds": 225.04,
+    "mvhd_duration_seconds": 225.04,
+    "duration_delta": 0.0,
+    "av_bit_rate": 2251402,
+    "formula_bit_rate": 2251402.7372911484,
+    "video_stream_bitrates": [
+      2121489
+    ]
+  },
+  {
+    "resource_no": 26,
+    "av_duration_seconds": 201.571769,
+    "mvhd_duration_seconds": 201.572,
+    "duration_delta": -0.00023100000001363696,
+    "av_bit_rate": 2673264,
+    "formula_bit_rate": 2673261.2466017106,
+    "video_stream_bitrates": [
+      2536135
+    ]
+  },
+  {
+    "resource_no": 8809,
+    "av_duration_seconds": 282.8585,
+    "mvhd_duration_seconds": 282.859,
+    "duration_delta": -0.0004999999999881766,
+    "av_bit_rate": 1907164,
+    "formula_bit_rate": 1907161.3489406384,
+    "video_stream_bitrates": [
+      1719827
+    ]
+  },
+  {
+    "resource_no": 7203,
+    "av_duration_seconds": 229.320272,
+    "mvhd_duration_seconds": 229.321,
+    "duration_delta": -0.0007280000000093878,
+    "av_bit_rate": 2423616,
+    "formula_bit_rate": 2423609.0022283173,
+    "video_stream_bitrates": [
+      2289305
+    ]
+  },
+  {
+    "resource_no": 6967,
+    "av_duration_seconds": 145.565896,
+    "mvhd_duration_seconds": 145.566,
+    "duration_delta": -0.00010399999999322063,
+    "av_bit_rate": 1520828,
+    "formula_bit_rate": 1520827.7757168568,
+    "video_stream_bitrates": [
+      1385650
+    ]
+  },
+  {
+    "resource_no": 2731,
+    "av_duration_seconds": 231.828027,
+    "mvhd_duration_seconds": 231.829,
+    "duration_delta": -0.0009730000000160999,
+    "av_bit_rate": 2161215,
+    "formula_bit_rate": 2161206.682511679,
+    "video_stream_bitrates": [
+      2026117
+    ]
+  },
+  {
+    "resource_no": 210,
+    "av_duration_seconds": 218.731973,
+    "mvhd_duration_seconds": 218.732,
+    "duration_delta": -2.6999999988674972e-05,
+    "av_bit_rate": 2268695,
+    "formula_bit_rate": 2268695.28006876,
+    "video_stream_bitrates": [
+      2133385
+    ]
+  },
+  {
+    "resource_no": 9996,
+    "av_duration_seconds": 202.431565,
+    "mvhd_duration_seconds": 202.432,
+    "duration_delta": -0.00043499999998175554,
+    "av_bit_rate": 994050,
+    "formula_bit_rate": 994048.3717989251,
+    "video_stream_bitrates": [
+      858621
+    ]
+  },
+  {
+    "resource_no": 7304,
+    "av_duration_seconds": 243.916667,
+    "mvhd_duration_seconds": 243.917,
+    "duration_delta": -0.0003330000000119071,
+    "av_bit_rate": 2385293,
+    "formula_bit_rate": 2385290.340566668,
+    "video_stream_bitrates": [
+      2058878
+    ]
+  },
+  {
+    "resource_no": 8133,
+    "av_duration_seconds": 273.437528,
+    "mvhd_duration_seconds": 273.438,
+    "duration_delta": -0.00047200000000202635,
+    "av_bit_rate": 718248,
+    "formula_bit_rate": 718247.0029769089,
+    "video_stream_bitrates": [
+      630304
+    ]
+  },
+  {
+    "resource_no": 942,
+    "av_duration_seconds": 208.654512,
+    "mvhd_duration_seconds": 208.655,
+    "duration_delta": -0.00048799999999005195,
+    "av_bit_rate": 1057326,
+    "formula_bit_rate": 1057324.1762718363,
+    "video_stream_bitrates": [
+      923697
+    ]
+  },
+  {
+    "resource_no": 1874,
+    "av_duration_seconds": 201.525986,
+    "mvhd_duration_seconds": 201.526,
+    "duration_delta": -1.4000000021496817e-05,
+    "av_bit_rate": 2244980,
+    "formula_bit_rate": 2244980.042277423,
+    "video_stream_bitrates": [
+      2109459
+    ]
+  },
+  {
+    "resource_no": 1136,
+    "av_duration_seconds": 212.833313,
+    "mvhd_duration_seconds": 212.834,
+    "duration_delta": -0.000686999999999216,
+    "av_bit_rate": 1064384,
+    "formula_bit_rate": 1064381.1796987322,
+    "video_stream_bitrates": [
+      838441
+    ]
+  },
+  {
+    "resource_no": 3122,
+    "av_duration_seconds": 177.818413,
+    "mvhd_duration_seconds": 177.819,
+    "duration_delta": -0.0005869999999958964,
+    "av_bit_rate": 2255304,
+    "formula_bit_rate": 2255296.9030306097,
+    "video_stream_bitrates": [
+      2124690
+    ]
+  },
+  {
+    "resource_no": 8742,
+    "av_duration_seconds": 202.617324,
+    "mvhd_duration_seconds": 202.618,
+    "duration_delta": -0.0006759999999985666,
+    "av_bit_rate": 2266210,
+    "formula_bit_rate": 2266203.0421778914,
+    "video_stream_bitrates": [
+      2130783
+    ]
+  },
+  {
+    "resource_no": 610,
+    "av_duration_seconds": 141.920363,
+    "mvhd_duration_seconds": 141.921,
+    "duration_delta": -0.0006369999999833453,
+    "av_bit_rate": 1159744,
+    "formula_bit_rate": 1159739.3479470974,
+    "video_stream_bitrates": [
+      1024726
+    ]
+  },
+  {
+    "resource_no": 7225,
+    "av_duration_seconds": 152.624762,
+    "mvhd_duration_seconds": 152.625,
+    "duration_delta": -0.00023799999999596366,
+    "av_bit_rate": 2227676,
+    "formula_bit_rate": 2227673.1072891075,
+    "video_stream_bitrates": [
+      2094708
+    ]
+  },
+  {
+    "resource_no": 9148,
+    "av_duration_seconds": 215.666667,
+    "mvhd_duration_seconds": 215.667,
+    "duration_delta": -0.0003330000000119071,
+    "av_bit_rate": 2342220,
+    "formula_bit_rate": 2342217.362878883,
+    "video_stream_bitrates": [
+      2015772
+    ]
+  },
+  {
+    "resource_no": 3341,
+    "av_duration_seconds": 205.775238,
+    "mvhd_duration_seconds": 205.776,
+    "duration_delta": -0.0007620000000088112,
+    "av_bit_rate": 1485555,
+    "formula_bit_rate": 1485549.9961122773,
+    "video_stream_bitrates": [
+      1350418
+    ]
+  },
+  {
+    "resource_no": 7756,
+    "av_duration_seconds": 211.371247,
+    "mvhd_duration_seconds": 211.372,
+    "duration_delta": -0.0007530000000031123,
+    "av_bit_rate": 2252536,
+    "formula_bit_rate": 2252528.660371288,
+    "video_stream_bitrates": [
+      2117275
+    ]
+  },
+  {
+    "resource_no": 301,
+    "av_duration_seconds": 201.409887,
+    "mvhd_duration_seconds": 201.41,
+    "duration_delta": -0.00011299999999891952,
+    "av_bit_rate": 3744984,
+    "formula_bit_rate": 3744982.195521573,
+    "video_stream_bitrates": [
+      3609397
+    ]
+  },
+  {
+    "resource_no": 7679,
+    "av_duration_seconds": 224.959833,
+    "mvhd_duration_seconds": 224.96,
+    "duration_delta": -0.00016700000000469117,
+    "av_bit_rate": 2945186,
+    "formula_bit_rate": 2945184.708392603,
+    "video_stream_bitrates": [
+      2625327
+    ]
+  },
+  {
+    "resource_no": 9199,
+    "av_duration_seconds": 218.84,
+    "mvhd_duration_seconds": 218.84,
+    "duration_delta": 0.0,
+    "av_bit_rate": 2243253,
+    "formula_bit_rate": 2243253.4088832024,
+    "video_stream_bitrates": [
+      2113332
+    ]
+  },
+  {
+    "resource_no": 3026,
+    "av_duration_seconds": 155.968435,
+    "mvhd_duration_seconds": 155.969,
+    "duration_delta": -0.0005649999999945976,
+    "av_bit_rate": 1356301,
+    "formula_bit_rate": 1356296.5974007656,
+    "video_stream_bitrates": [
+      1221034
+    ]
+  },
+  {
+    "resource_no": 9539,
+    "av_duration_seconds": 157.933313,
+    "mvhd_duration_seconds": 157.934,
+    "duration_delta": -0.000686999999999216,
+    "av_bit_rate": 1551728,
+    "formula_bit_rate": 1551722.0611141364,
+    "video_stream_bitrates": [
+      1429453
+    ]
+  },
+  {
+    "resource_no": 4460,
+    "av_duration_seconds": 210.85,
+    "mvhd_duration_seconds": 210.85,
+    "duration_delta": 0.0,
+    "av_bit_rate": 2358642,
+    "formula_bit_rate": 2358642.409295708,
+    "video_stream_bitrates": [
+      2032221
+    ]
+  },
+  {
+    "resource_no": 4059,
+    "av_duration_seconds": 217.733515,
+    "mvhd_duration_seconds": 217.734,
+    "duration_delta": -0.0004849999999976262,
+    "av_bit_rate": 1231697,
+    "formula_bit_rate": 1231694.9305115417,
+    "video_stream_bitrates": [
+      1096424
+    ]
+  },
+  {
+    "resource_no": 6223,
+    "av_duration_seconds": 238.492154,
+    "mvhd_duration_seconds": 238.493,
+    "duration_delta": -0.0008459999999956835,
+    "av_bit_rate": 1689614,
+    "formula_bit_rate": 1689608.0639683346,
+    "video_stream_bitrates": [
+      1553467
+    ]
+  },
+  {
+    "resource_no": 2190,
+    "av_duration_seconds": 190.659048,
+    "mvhd_duration_seconds": 190.66,
+    "duration_delta": -0.0009519999999838547,
+    "av_bit_rate": 2229531,
+    "formula_bit_rate": 2229520.360851778,
+    "video_stream_bitrates": [
+      2096530
+    ]
+  },
+  {
+    "resource_no": 2183,
+    "av_duration_seconds": 118.050249,
+    "mvhd_duration_seconds": 118.051,
+    "duration_delta": -0.0007510000000081618,
+    "av_bit_rate": 2104475,
+    "formula_bit_rate": 2104462.1053612423,
+    "video_stream_bitrates": [
+      1971922
+    ]
+  },
+  {
+    "resource_no": 1602,
+    "av_duration_seconds": 179.519667,
+    "mvhd_duration_seconds": 179.52,
+    "duration_delta": -0.0003330000000119071,
+    "av_bit_rate": 850291,
+    "formula_bit_rate": 850290.1515151515,
+    "video_stream_bitrates": [
+      749086
+    ]
+  },
+  {
+    "resource_no": 5000,
+    "av_duration_seconds": 186.223605,
+    "mvhd_duration_seconds": 186.224,
+    "duration_delta": -0.0003949999999974807,
+    "av_bit_rate": 823426,
+    "formula_bit_rate": 823424.5639659765,
+    "video_stream_bitrates": [
+      687734
+    ]
+  },
+  {
+    "resource_no": 529,
+    "av_duration_seconds": 177.307574,
+    "mvhd_duration_seconds": 177.308,
+    "duration_delta": -0.00042600000000447835,
+    "av_bit_rate": 3752374,
+    "formula_bit_rate": 3752365.96205473,
+    "video_stream_bitrates": [
+      3614433
+    ]
+  },
+  {
+    "resource_no": 539,
+    "av_duration_seconds": 184.88,
+    "mvhd_duration_seconds": 184.88,
+    "duration_delta": 0.0,
+    "av_bit_rate": 2241763,
+    "formula_bit_rate": 2241763.392470792,
+    "video_stream_bitrates": [
+      2111790
+    ]
+  },
+  {
+    "resource_no": 6316,
+    "av_duration_seconds": 247.873016,
+    "mvhd_duration_seconds": 247.874,
+    "duration_delta": -0.0009839999999883275,
+    "av_bit_rate": 796823,
+    "formula_bit_rate": 796820.6750203733,
+    "video_stream_bitrates": [
+      660496
+    ]
+  },
+  {
+    "resource_no": 559,
+    "av_duration_seconds": 8.683855,
+    "mvhd_duration_seconds": 8.684,
+    "duration_delta": -0.0001449999999998397,
+    "av_bit_rate": 305416,
+    "formula_bit_rate": 305411.3311837863,
+    "video_stream_bitrates": [
+      258451
+    ]
+  },
+  {
+    "resource_no": 4631,
+    "av_duration_seconds": 20.033,
+    "mvhd_duration_seconds": 20.033,
+    "duration_delta": 0.0,
+    "av_bit_rate": 1842625,
+    "formula_bit_rate": 1842625.6676483802,
+    "video_stream_bitrates": [
+      1750625
+    ]
+  },
+  {
+    "resource_no": 3849,
+    "av_duration_seconds": 22.933,
+    "mvhd_duration_seconds": 22.933,
+    "duration_delta": 0.0,
+    "av_bit_rate": 1210112,
+    "formula_bit_rate": 1210112.2400034885,
+    "video_stream_bitrates": [
+      1007489
+    ]
+  },
+  {
+    "resource_no": 5037,
+    "av_duration_seconds": 812.001383,
+    "mvhd_duration_seconds": 812.002,
+    "duration_delta": -0.0006169999999201536,
+    "av_bit_rate": 1489847,
+    "formula_bit_rate": 1489846.665402302,
+    "video_stream_bitrates": [
+      1303746
+    ]
+  },
+  {
+    "resource_no": 1901,
+    "av_duration_seconds": 822.542449,
+    "mvhd_duration_seconds": 822.544,
+    "duration_delta": -0.001550999999949454,
+    "av_bit_rate": 762107,
+    "formula_bit_rate": 762105.9833881228,
+    "video_stream_bitrates": [
+      435299
+    ]
+  },
+  {
+    "resource_no": 7055,
+    "av_duration_seconds": 926.207667,
+    "mvhd_duration_seconds": 926.208,
+    "duration_delta": -0.0003329999999550637,
+    "av_bit_rate": 332855,
+    "formula_bit_rate": 332855.62638197903,
+    "video_stream_bitrates": [
+      201968
+    ]
+  },
+  {
+    "resource_no": 4322,
+    "av_duration_seconds": 201.758186,
+    "mvhd_duration_seconds": 201.759,
+    "duration_delta": -0.0008139999999912106,
+    "av_bit_rate": 225233,
+    "formula_bit_rate": 225232.63894051817,
+    "video_stream_bitrates": [
+      91312
+    ]
+  },
+  {
+    "resource_no": 5694,
+    "av_duration_seconds": 218.731973,
+    "mvhd_duration_seconds": 218.732,
+    "duration_delta": -2.6999999988674972e-05,
+    "av_bit_rate": 227458,
+    "formula_bit_rate": 227458.40572024212,
+    "video_stream_bitrates": [
+      91242
+    ]
+  },
+  {
+    "resource_no": 8004,
+    "av_duration_seconds": 178.027392,
+    "mvhd_duration_seconds": 178.028,
+    "duration_delta": -0.0006079999999997199,
+    "av_bit_rate": 245133,
+    "formula_bit_rate": 245132.18145460266,
+    "video_stream_bitrates": [
+      111041
+    ]
+  },
+  {
+    "resource_no": 7736,
+    "av_duration_seconds": 202.4,
+    "mvhd_duration_seconds": 202.467,
+    "duration_delta": -0.06700000000000728,
+    "av_bit_rate": 4724216,
+    "formula_bit_rate": 4722652.876765102,
+    "video_stream_bitrates": [
+      4523453
+    ]
+  },
+  {
+    "resource_no": 6462,
+    "av_duration_seconds": 251.266667,
+    "mvhd_duration_seconds": 251.267,
+    "duration_delta": -0.0003329999999834854,
+    "av_bit_rate": 4734155,
+    "formula_bit_rate": 4734149.315270211,
+    "video_stream_bitrates": [
+      4533405
+    ]
+  },
+  {
+    "resource_no": 1279,
+    "av_duration_seconds": 219.7,
+    "mvhd_duration_seconds": 219.734,
+    "duration_delta": -0.034000000000020236,
+    "av_bit_rate": 4781981,
+    "formula_bit_rate": 4781241.974387214,
+    "video_stream_bitrates": [
+      4581287
+    ]
+  },
+  {
+    "resource_no": 140,
+    "av_duration_seconds": 54.984853,
+    "mvhd_duration_seconds": 54.985,
+    "duration_delta": -0.0001469999999983429,
+    "av_bit_rate": 309133,
+    "formula_bit_rate": 309133.03628262255,
+    "video_stream_bitrates": [
+      174707
+    ]
+  },
+  {
+    "resource_no": 544,
+    "av_duration_seconds": 41.168549,
+    "mvhd_duration_seconds": 41.169,
+    "duration_delta": -0.00045099999999820284,
+    "av_bit_rate": 524496,
+    "formula_bit_rate": 524490.3689669411,
+    "video_stream_bitrates": [
+      415841
+    ]
+  },
+  {
+    "resource_no": 4334,
+    "av_duration_seconds": 260.833333,
+    "mvhd_duration_seconds": 260.834,
+    "duration_delta": -0.0006670000000212895,
+    "av_bit_rate": 4712693,
+    "formula_bit_rate": 4712681.260878567,
+    "video_stream_bitrates": [
+      4511900
+    ]
+  },
+  {
+    "resource_no": 7619,
+    "av_duration_seconds": 718.037,
+    "mvhd_duration_seconds": 718.037,
+    "duration_delta": 0.0,
+    "av_bit_rate": 1971911,
+    "formula_bit_rate": 1971911.3638990747,
+    "video_stream_bitrates": [
+      1845202
+    ]
+  },
+  {
+    "resource_no": 2765,
+    "av_duration_seconds": 524.88,
+    "mvhd_duration_seconds": 524.88,
+    "duration_delta": 0.0,
+    "av_bit_rate": 2821540,
+    "formula_bit_rate": 2821540.253010212,
+    "video_stream_bitrates": [
+      2623080
+    ]
+  },
+  {
+    "resource_no": 1341,
+    "av_duration_seconds": 235.034807,
+    "mvhd_duration_seconds": 235.102,
+    "duration_delta": -0.06719300000000317,
+    "av_bit_rate": 490998,
+    "formula_bit_rate": 490857.68730168184,
+    "video_stream_bitrates": [
+      354661
+    ]
+  },
+  {
+    "resource_no": 923,
+    "av_duration_seconds": 193.4,
+    "mvhd_duration_seconds": 193.4,
+    "duration_delta": 0.0,
+    "av_bit_rate": 2251982,
+    "formula_bit_rate": 2251982.006204757,
+    "video_stream_bitrates": [
+      2122064
+    ]
+  },
+  {
+    "resource_no": 8031,
+    "av_duration_seconds": 200.033407,
+    "mvhd_duration_seconds": 200.067,
+    "duration_delta": -0.03359299999999621,
+    "av_bit_rate": 2248701,
+    "formula_bit_rate": 2248324.0514427666,
+    "video_stream_bitrates": [
+      2112825
+    ]
+  },
+  {
+    "resource_no": 5691,
+    "av_duration_seconds": 240.039807,
+    "mvhd_duration_seconds": 240.107,
+    "duration_delta": -0.06719300000000317,
+    "av_bit_rate": 2440103,
+    "formula_bit_rate": 2439420.225149621,
+    "video_stream_bitrates": [
+      2303851
+    ]
+  },
+  {
+    "resource_no": 7708,
+    "av_duration_seconds": 310.043074,
+    "mvhd_duration_seconds": 310.11,
+    "duration_delta": -0.06692600000002358,
+    "av_bit_rate": 988360,
+    "formula_bit_rate": 988147.6379349263,
+    "video_stream_bitrates": [
+      851970
+    ]
+  },
+  {
+    "resource_no": 693,
+    "av_duration_seconds": 218.051174,
+    "mvhd_duration_seconds": 218.118,
+    "duration_delta": -0.06682599999999184,
+    "av_bit_rate": 2075906,
+    "formula_bit_rate": 2075270.083165993,
+    "video_stream_bitrates": [
+      1940251
+    ]
+  },
+  {
+    "resource_no": 9832,
+    "av_duration_seconds": 199.320091,
+    "mvhd_duration_seconds": 199.321,
+    "duration_delta": -0.0009090000000071541,
+    "av_bit_rate": 1679822,
+    "formula_bit_rate": 1679815.052101886,
+    "video_stream_bitrates": [
+      1544460
+    ]
+  },
+  {
+    "resource_no": 639,
+    "av_duration_seconds": 195.033348,
+    "mvhd_duration_seconds": 195.2,
+    "duration_delta": -0.16665199999999913,
+    "av_bit_rate": 2088443,
+    "formula_bit_rate": 2086660.4098360657,
+    "video_stream_bitrates": [
+      1952536
+    ]
+  }
+]

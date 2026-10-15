@@ -85,6 +85,7 @@ Windows 桌面版需要 Go 1.25 或更新版本、Git 和 PowerShell。在仓库
 | [队列预缓存](docs/queue-prefetch.md) | 提前准备待播歌曲的方式与设置 |
 | [缓存容量管理](docs/cache-retention.md) | 保留优先级、容量上限与自动清理 |
 | [缓存收益研究](docs/research/cache-priority.md) | 历史需求回测、评分公式与空间预算的覆盖收益 |
+| [视频元数据研究](docs/research/video-metadata-20261015.md) | 下载前可获信息、时长/码率/大小分布与缺失值估算 |
 | [命令行服务](docs/service.md) | 独立启动、参数和缓存行为 |
 | [统一存储](docs/storage.md) | 视频、歌曲资料与统计的存放方式 |
 | [功能范围](docs/scope.md) | 支持范围、兼容限制与验证依据 |

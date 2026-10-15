@@ -1,0 +1,4 @@
+# Versions used for the 2026-10-15 study (Python 3.12.14).
+numpy==2.5.4
+matplotlib==3.11.2
+av==19.0.1

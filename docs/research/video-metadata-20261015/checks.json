@@ -1,0 +1,23 @@
+{
+  "type": "research data checks; not game acceptance",
+  "checks": {
+    "measurement_count": true,
+    "unique_resources": true,
+    "size_matches": true,
+    "resource_coverage": true,
+    "rate_formula": true,
+    "stats_recomputed": true,
+    "histograms_include_all_files": true,
+    "local_catalog_comparison": true,
+    "current_catalog_comparison": true,
+    "fallback_recomputed": true,
+    "remote_crosschecks": true,
+    "remote_byte_budget": true,
+    "failed_probe_evidence_retained": true,
+    "independent_validation": true,
+    "no_private_resource_identifiers": true,
+    "report_local_links": true,
+    "script_syntax": true
+  },
+  "passed": true
+}

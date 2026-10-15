@@ -1,0 +1,191 @@
+{
+  "resource_host": "play.udon.dance",
+  "transport": "HTTPS; OS resolver; no proxy",
+  "sample_method": "10 observed URL size deciles and 3 tail-moov source paths",
+  "probes": [
+    {
+      "song_id": 10234,
+      "resource_no": 2576,
+      "byte_size": 5838704,
+      "local_duration_seconds": 46.401,
+      "moov_before_mdat": true,
+      "head": {
+        "error": "HTTPError"
+      },
+      "ranges": [],
+      "range_error": "HTTPError: HTTP Error 403: Forbidden",
+      "body_bytes_read": 0,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 1224,
+      "resource_no": 3035,
+      "byte_size": 22518364,
+      "local_duration_seconds": 161.797,
+      "moov_before_mdat": true,
+      "head": {
+        "error": "HTTPError"
+      },
+      "ranges": [],
+      "range_error": "HTTPError: HTTP Error 403: Forbidden",
+      "body_bytes_read": 0,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 5375,
+      "resource_no": 2507,
+      "byte_size": 28945758,
+      "local_duration_seconds": 159.777,
+      "moov_before_mdat": true,
+      "head": {
+        "error": "HTTPError"
+      },
+      "ranges": [],
+      "range_error": "HTTPError: HTTP Error 403: Forbidden",
+      "body_bytes_read": 0,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 2979,
+      "resource_no": 7290,
+      "byte_size": 37751989,
+      "local_duration_seconds": 266.31,
+      "moov_before_mdat": true,
+      "head": {
+        "error": "HTTPError"
+      },
+      "ranges": [],
+      "range_error": "HTTPError: HTTP Error 403: Forbidden",
+      "body_bytes_read": 0,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 1456,
+      "resource_no": 4118,
+      "byte_size": 47582656,
+      "local_duration_seconds": 181.232,
+      "moov_before_mdat": true,
+      "head": {
+        "error": "HTTPError"
+      },
+      "ranges": [],
+      "range_error": "HTTPError: HTTP Error 403: Forbidden",
+      "body_bytes_read": 0,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 10664,
+      "resource_no": 8102,
+      "byte_size": 54284375,
+      "local_duration_seconds": 135.117,
+      "moov_before_mdat": true,
+      "head": {
+        "error": "HTTPError"
+      },
+      "ranges": [],
+      "range_error": "HTTPError: HTTP Error 403: Forbidden",
+      "body_bytes_read": 0,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 4850,
+      "resource_no": 6928,
+      "byte_size": 59596750,
+      "local_duration_seconds": 211.44,
+      "moov_before_mdat": true,
+      "head": {
+        "error": "HTTPError"
+      },
+      "ranges": [],
+      "range_error": "HTTPError: HTTP Error 403: Forbidden",
+      "body_bytes_read": 0,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 9886,
+      "resource_no": 7936,
+      "byte_size": 66294589,
+      "local_duration_seconds": 231.25,
+      "moov_before_mdat": true,
+      "head": {
+        "error": "HTTPError"
+      },
+      "ranges": [],
+      "range_error": "HTTPError: HTTP Error 403: Forbidden",
+      "body_bytes_read": 0,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 8041,
+      "resource_no": 3971,
+      "byte_size": 78492764,
+      "local_duration_seconds": 217.877,
+      "moov_before_mdat": true,
+      "head": {
+        "error": "HTTPError"
+      },
+      "ranges": [],
+      "range_error": "HTTPError: HTTP Error 403: Forbidden",
+      "body_bytes_read": 0,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 49,
+      "resource_no": 4942,
+      "byte_size": 123565207,
+      "local_duration_seconds": 416.617,
+      "moov_before_mdat": true,
+      "head": {
+        "error": "HTTPError"
+      },
+      "ranges": [],
+      "range_error": "HTTPError: HTTP Error 403: Forbidden",
+      "body_bytes_read": 0,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 1519,
+      "resource_no": 1341,
+      "byte_size": 14425203,
+      "local_duration_seconds": 235.102,
+      "moov_before_mdat": false,
+      "head": {
+        "error": "HTTPError"
+      },
+      "ranges": [],
+      "range_error": "HTTPError: HTTP Error 403: Forbidden",
+      "body_bytes_read": 0,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 7824,
+      "resource_no": 5049,
+      "byte_size": 54216296,
+      "local_duration_seconds": 190.084,
+      "moov_before_mdat": false,
+      "head": {
+        "error": "HTTPError"
+      },
+      "ranges": [],
+      "range_error": "HTTPError: HTTP Error 403: Forbidden",
+      "body_bytes_read": 0,
+      "local_full_md5_matches_url_e": true
+    },
+    {
+      "song_id": 4291,
+      "resource_no": 966,
+      "byte_size": 76434242,
+      "local_duration_seconds": 277.111,
+      "moov_before_mdat": false,
+      "head": {
+        "error": "HTTPError"
+      },
+      "ranges": [],
+      "range_error": "HTTPError: HTTP Error 403: Forbidden",
+      "body_bytes_read": 0,
+      "local_full_md5_matches_url_e": true
+    }
+  ],
+  "successes": 0,
+  "body_bytes_read": 0
+}

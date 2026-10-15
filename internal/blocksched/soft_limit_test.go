@@ -26,7 +26,7 @@ func TestBlockingBypassesSoftLimitAndRamp(t *testing.T) {
 		now := time.Now()
 		ordinaryRelease, blockingRelease := make(chan struct{}), make(chan struct{})
 		ordinary, _ := s.Submit("ordinary", 1, run("ordinary", ordinaryRelease))
-		ordinary.Add(need("ordinary", false, time.Minute, 24*time.Hour))
+		ordinary.Add(need("ordinary", false, time.Second, 24*time.Hour))
 		<-started
 		var blocked []*Task
 		for i := range 20 {
@@ -39,7 +39,7 @@ func TestBlockingBypassesSoftLimitAndRamp(t *testing.T) {
 		duplicate, _ := s.Submit("0", 1, nil)
 		duplicate.Add(need("another-reader", true, 0, 24*time.Hour))
 		queued, _ := s.Submit("queued", 1, run("queued", nil))
-		queued.Add(need("queued", false, time.Minute, 24*time.Hour))
+		queued.Add(need("queued", false, time.Second, 24*time.Hour))
 		synctest.Wait()
 		if len(started) != 20 || !time.Now().Equal(now) || duplicate != blocked[0] {
 			t.Fatal("blocked reads waited, hit a cap, or duplicated work", len(started), time.Since(now))

@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -39,9 +38,6 @@ type Progress struct {
 	// Written by the executor and read only after Run returns.
 	admitted, ready time.Time
 	work            int64
-	bytes           atomic.Int64 // all network bytes, including discarded attempts
-	size            atomic.Int64
-	invalid         atomic.Bool
 }
 
 // Ready records when a checked block becomes readable. Call only for a block,
@@ -53,42 +49,24 @@ func (p *Progress) Ready() {
 	}
 }
 
-// SetSize corrects the execution cost after capability/response discovery.
-func (p *Progress) SetSize(n int64) {
-	if n > 0 {
-		p.size.Store(n)
-	}
-}
-
-// Invalidate excludes an execution with discarded/retried bytes from supply
-// estimation. Transfer counters still report its actual network traffic.
-func (p *Progress) Invalidate() {
-	p.invalid.Store(true)
-}
-
-func (p *Progress) Add(n int64) {
-	if n > 0 {
-		p.bytes.Add(n)
-	}
-}
-
 type Config struct {
 	// SoftLimit bounds ordinary admission. Actual blocked reads bypass both
 	// this limit and growth pacing; metadata capacity still bounds total work.
 	SoftLimit, MaxTasks, MaxDemands int
 	GrowInterval                    time.Duration
-	Adaptive                        bool
+	// PrepareAhead is the lead M in ReadyBy <= now + T + M; zero uses 2s.
+	PrepareAhead time.Duration
 	// Optional event sink; it must be fast and must not call back into Scheduler.
 	Observe func(Event)
 }
 type Event struct {
-	Kind, Key, Reason    string
-	Active, Open, Target int
-	Blocking             bool
-	ReadyBy              time.Time
-	Remaining            int64
-	Supply               float64
-	BlockTime            time.Duration
+	Kind, Key, Reason       string
+	Active, Open            int
+	Blocking                bool
+	ReadyBy                 time.Time
+	WorkBytes               int64
+	BlockTime, PrepareAhead time.Duration
+	StartUrgent, Overdue    bool
 }
 
 type Scheduler struct {
@@ -190,22 +168,19 @@ func (d *Demand) Close() {
 }
 
 type job struct {
-	task             *Task
-	run              Run
-	remaining        int64
-	initialRemaining int64
-	needs            map[uint64]*lease
-	need             Need
-	index            int
-	sequence, fair   uint64
-	cancel           context.CancelCauseFunc
-	progress         *Progress
-	retiring         bool
-	terminal         error
-	started          time.Time
-	sampled          int64
-	orphanUntil      time.Time
-	orphan           *list.Element
+	task           *Task
+	run            Run
+	remaining      int64
+	needs          map[uint64]*lease
+	need           Need
+	index          int
+	sequence, fair uint64
+	cancel         context.CancelCauseFunc
+	progress       *Progress
+	retiring       bool
+	terminal       error
+	orphanUntil    time.Time
+	orphan         *list.Element
 }
 type lease struct {
 	id    uint64
@@ -221,9 +196,8 @@ type state struct {
 	s                   *Scheduler
 	cfg                 Config
 	jobs                map[string]*job
-	running             map[*job]bool
-	wanted              int
 	ready               readyHeap
+	untimed             readyHeap
 	expiry              leaseHeap
 	owners              map[string]uint64
 	groups              map[string]map[*job]bool
@@ -237,6 +211,9 @@ type state struct {
 
 func New(cfg Config) *Scheduler {
 	cfg.SoftLimit = max(1, cfg.SoftLimit)
+	if cfg.PrepareAhead <= 0 {
+		cfg.PrepareAhead = defaultPrepareAhead
+	}
 	if cfg.MaxTasks <= 0 {
 		cfg.MaxTasks = 4096
 	}
@@ -244,7 +221,7 @@ func New(cfg Config) *Scheduler {
 		cfg.MaxDemands = 32768
 	}
 	s := &Scheduler{commands: make(chan func(*state), 64), finished: make(chan completion, cfg.SoftLimit), done: make(chan struct{})}
-	st := &state{s: s, cfg: cfg, jobs: make(map[string]*job), running: make(map[*job]bool), owners: make(map[string]uint64), groups: make(map[string]map[*job]bool)}
+	st := &state{s: s, cfg: cfg, jobs: make(map[string]*job), owners: make(map[string]uint64), groups: make(map[string]map[*job]bool)}
 	st.control.open = cfg.SoftLimit
 	if cfg.GrowInterval > 0 {
 		st.control.open = 1
@@ -338,14 +315,15 @@ func (s *state) refresh(j *job) {
 		}
 	}
 	n.ReadyBy = earliest
+	oldQueue := s.queue(j)
+	if j.index >= 0 && untimed(j.need) != untimed(n) {
+		heap.Remove(oldQueue, j.index)
+	}
 	if j.need.Owner != n.Owner {
 		s.ungroup(j)
-	} else if n.Owner != "" {
-		s.wanted--
 	}
 	j.need = n
 	if n.Owner != "" {
-		s.wanted++
 		if s.groups[n.Owner] == nil {
 			s.groups[n.Owner] = make(map[*job]bool)
 		}
@@ -359,7 +337,7 @@ func (s *state) refresh(j *job) {
 	}
 	if n.Owner == "" || j.retiring {
 		if j.index >= 0 {
-			heap.Remove(&s.ready, j.index)
+			heap.Remove(s.queue(j), j.index)
 		}
 		if j.cancel != nil {
 			j.cancel(ErrPaused)
@@ -370,10 +348,10 @@ func (s *state) refresh(j *job) {
 		return
 	}
 	if j.index < 0 {
-		heap.Push(&s.ready, j)
+		heap.Push(s.queue(j), j)
 		s.emit("queued", "demand", j)
 	} else {
-		heap.Fix(&s.ready, j.index)
+		heap.Fix(s.queue(j), j.index)
 	}
 }
 func (s *state) ungroup(j *job) {
@@ -381,12 +359,18 @@ func (s *state) ungroup(j *job) {
 	if !s.groups[owner][j] {
 		return
 	}
-	s.wanted--
 	delete(s.groups[owner], j)
 	if len(s.groups[owner]) == 0 {
 		delete(s.groups, owner)
 		delete(s.owners, owner)
 	}
+}
+func untimed(n Need) bool { return !n.Blocking && n.ReadyBy.IsZero() }
+func (s *state) queue(j *job) *readyHeap {
+	if untimed(j.need) {
+		return &s.untimed
+	}
+	return &s.ready
 }
 func needBefore(a, b Need) bool {
 	if a.Blocking != b.Blocking {
@@ -412,7 +396,7 @@ func (s *state) retire(j *job, err error) {
 }
 func (s *state) finish(j *job, err error) {
 	if j.index >= 0 {
-		heap.Remove(&s.ready, j.index)
+		heap.Remove(s.queue(j), j.index)
 	}
 	for _, v := range j.needs {
 		s.removeLease(v)
@@ -431,39 +415,41 @@ func (s *state) emit(kind, reason string, j *job) {
 	if s.cfg.Observe == nil {
 		return
 	}
-	e := Event{Kind: kind, Reason: reason, Active: s.active, Open: s.control.open, Target: s.control.target, Supply: s.control.rate, BlockTime: s.durations.value()}
+	e := Event{Kind: kind, Reason: reason, Active: s.active, Open: s.control.open, BlockTime: s.durations.value(), PrepareAhead: s.cfg.PrepareAhead}
 	if j != nil {
-		e.Key, e.Blocking, e.ReadyBy, e.Remaining = j.task.key, j.need.Blocking, j.need.ReadyBy, j.remaining
+		e.Key, e.Blocking, e.ReadyBy, e.WorkBytes = j.task.key, j.need.Blocking, j.need.ReadyBy, j.remaining
+		if kind == "started" && !j.need.ReadyBy.IsZero() {
+			now := time.Now()
+			e.StartUrgent = !j.need.ReadyBy.After(now.Add(e.BlockTime))
+			e.Overdue = j.need.ReadyBy.Before(now)
+		}
 	}
 	s.cfg.Observe(e)
 }
-func (s *state) dispatch() {
-	for s.ready.Len() > 0 {
-		j := s.ready[0]
+func (s *state) dispatch(now time.Time) {
+	for {
+		j := s.nextReady(now)
+		if j == nil {
+			return
+		}
 		// Blocking bypasses admission but remains part of active until cleanup.
 		if !j.need.Blocking && s.active >= s.control.open {
 			return
 		}
-		heap.Pop(&s.ready)
+		heap.Pop(s.queue(j))
 		s.sequence++
 		s.owners[j.need.Owner] = s.sequence
 		// Only this fairness group changes; deadlines in other groups do not.
 		for other := range s.groups[j.need.Owner] {
 			other.fair = s.sequence
 			if other.index >= 0 {
-				heap.Fix(&s.ready, other.index)
+				heap.Fix(s.queue(other), other.index)
 			}
 		}
 		ctx, cancel := context.WithCancelCause(context.Background())
 		j.cancel, j.progress = cancel, new(Progress)
 		j.progress.admitted, j.progress.work = time.Now(), j.remaining
-		j.started, j.sampled = time.Now(), 0
 		s.active++
-		s.running[j] = true
-		j.initialRemaining = j.remaining
-		if s.cfg.GrowInterval > 0 && s.control.nextSample.IsZero() {
-			s.control.nextSample = time.Now().Add(sampleInterval)
-		}
 		s.emit("started", "demand", j)
 		go func() { s.s.finished <- completion{j, j.run(ctx, j.progress)} }()
 	}
@@ -482,8 +468,8 @@ func (s *state) loop() {
 			s.refresh(v.job)
 		}
 		s.expireOrphans(now)
+		s.dispatch(now)
 		s.regulate(now)
-		s.dispatch()
 		if s.closing && s.active == 0 {
 			return
 		}
@@ -508,11 +494,9 @@ func (s *state) loop() {
 			if c.result.Err == nil && s.durations.observe(j.progress, time.Now()) {
 				s.emit("sample", "readable_block", j)
 			}
-			s.sampleProgress(j, time.Now())
 			j.cancel(nil)
 			j.cancel = nil
 			s.active--
-			delete(s.running, j)
 			if j.retiring {
 				err := j.terminal
 				if c.result.Err != nil && !errors.Is(c.result.Err, ErrPaused) && !errors.Is(c.result.Err, context.Canceled) && !errors.Is(c.result.Err, context.DeadlineExceeded) {

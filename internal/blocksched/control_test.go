@@ -19,12 +19,11 @@ func TestRampReuseAndNoIdleCredit(t *testing.T) {
 				started <- time.Now()
 				select {
 				case <-gates[i]:
-					p.Add(100)
 				case <-ctx.Done():
 				}
 				return Result{}
 			})
-			j.Add(need("same", false, time.Minute, time.Hour))
+			j.Add(need("same", false, time.Second, time.Hour))
 		}
 		first := <-started
 		synctest.Wait()
@@ -50,8 +49,8 @@ func TestRampReuseAndNoIdleCredit(t *testing.T) {
 		var open int
 		s.call(func(s *state) {
 			open = s.control.open
-			if s.control.bytes != 0 || s.control.workerSeconds != 0 {
-				t.Error("idle carried a drained sample into next burst")
+			if !s.nextControlEvent(time.Now()).IsZero() {
+				t.Error("idle scheduler has a control timer")
 			}
 		})
 		if open != 1 {
@@ -71,7 +70,7 @@ func TestIdleStopsControlTimersWhenAllLeasesExpire(t *testing.T) {
 			return Result{}
 		}
 		background, _ := s.Submit("background", 1<<20, run)
-		background.Add(need("background", false, time.Minute, 100*time.Millisecond))
+		background.Add(need("background", false, time.Second, 100*time.Millisecond))
 		<-started
 		blocking, _ := s.Submit("blocking", 1<<20, run)
 		blocking.Add(need("blocking", true, 0, 100*time.Millisecond))
@@ -89,60 +88,4 @@ func TestIdleStopsControlTimersWhenAllLeasesExpire(t *testing.T) {
 		time.Sleep(time.Second)
 		synctest.Wait()
 	})
-}
-
-func TestDeadlineCostEstimateAndNoGainRollback(t *testing.T) {
-	now := time.Now()
-	s := &state{cfg: Config{SoftLimit: 6, Adaptive: true}, jobs: map[string]*job{}, control: controller{rate: 1 << 20}}
-	for _, key := range []string{"a", "b", "c", "d", "e", "f"} {
-		s.jobs[key] = &job{remaining: 2 << 20, need: Need{Owner: key, ReadyBy: now.Add(2 * time.Second)}}
-	}
-	if n := s.estimate(now); n != 6 {
-		t.Fatal(n)
-	}
-	s.jobs["a"].need.Blocking = true
-	if n := s.estimate(now); n != 6 {
-		t.Fatal(n)
-	}
-	s.control.previousConcurrency = 2
-	s.control.previousRate = 2 << 20
-	s.control.workerSeconds = 2
-	s.control.bytes = 1 << 20
-	s.measure(now)
-	if s.control.cap != 2 || !s.control.coolUntil.After(now) {
-		t.Fatal("no-gain expansion did not back off")
-	}
-	if n := s.estimate(now); n != 2 {
-		t.Fatal(n)
-	}
-}
-
-func TestEstimateUsesActualTimeUntilDeadline(t *testing.T) {
-	for _, tc := range []struct {
-		name      string
-		deadline  time.Duration
-		remaining int64
-		limit     int
-		want      int
-	}{
-		{"one_second", time.Second, 512 << 10, 16, 4},
-		{"half_second", 500 * time.Millisecond, 512 << 10, 16, 8},
-		{"round_up", 1500 * time.Millisecond, 512 << 10, 16, 3},
-		{"at_deadline", 0, 512 << 10, 16, 2},
-		{"overdue", -time.Second, 512 << 10, 16, 2},
-		{"future_soft_limit", time.Second, 512 << 10, 3, 3},
-		{"near_deadline_large_backlog", time.Nanosecond, 1 << 51, 16, 8},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			now := time.Now()
-			s := &state{cfg: Config{SoftLimit: tc.limit, Adaptive: true}, jobs: make(map[string]*job), control: controller{rate: 1 << 20}}
-			for i := range 8 {
-				key := string(rune('a' + i))
-				s.jobs[key] = &job{remaining: tc.remaining, need: Need{Owner: key, ReadyBy: now.Add(tc.deadline)}}
-			}
-			if got := s.estimate(now); got != tc.want {
-				t.Fatalf("estimated %d requests, want %d", got, tc.want)
-			}
-		})
-	}
 }

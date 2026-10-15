@@ -185,7 +185,7 @@ func TestOrphanQueuedAndPausedTasksExpireDuringBlocking(t *testing.T) {
 				return Result{Err: ErrPaused, Remaining: 512 << 10}
 			})
 			if paused {
-				d := background.Add(need("background", false, time.Minute, time.Second))
+				d := background.Add(need("background", false, time.Second, time.Second))
 				<-started
 				d.Close()
 			}
@@ -195,7 +195,7 @@ func TestOrphanQueuedAndPausedTasksExpireDuringBlocking(t *testing.T) {
 			})
 			blocking.Add(need("reader", true, 0, time.Hour))
 			if !paused {
-				background.Add(need("background", false, time.Minute, time.Second))
+				background.Add(need("background", false, time.Second, time.Second))
 			}
 			time.Sleep(time.Second + orphanRetention)
 			synctest.Wait()

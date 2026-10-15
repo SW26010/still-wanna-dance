@@ -21,14 +21,14 @@ func TestSummaryUpdatesReleaseOldOwnersAndCounters(t *testing.T) {
 			d.Update(need(strconv.Itoa(i), i%2 == 0, time.Minute, time.Hour))
 		}
 		s.call(func(st *state) {
-			if st.wanted != 1 || len(st.groups) != 1 || len(st.owners) > 1 {
-				t.Errorf("stale owner/counters: %d %d %d", st.wanted, len(st.groups), len(st.owners))
+			if len(st.groups) != 1 || len(st.owners) > 1 {
+				t.Errorf("stale owner/counters: %d %d", len(st.groups), len(st.owners))
 			}
 		})
 		d.Close()
 		synctest.Wait()
 		s.call(func(st *state) {
-			if st.wanted != 0 || len(st.groups) != 0 || len(st.ready) != 0 {
+			if len(st.groups) != 0 || len(st.ready)+len(st.untimed) != 0 {
 				t.Error("withdrawn demand retained scheduler metadata")
 			}
 		})
@@ -36,29 +36,7 @@ func TestSummaryUpdatesReleaseOldOwnersAndCounters(t *testing.T) {
 	})
 }
 
-func TestRetriedBytesDoNotInflateSupply(t *testing.T) {
-	now := time.Now()
-	p := new(Progress)
-	j := &job{progress: p, started: now.Add(-sampleInterval), remaining: 100, initialRemaining: 100}
-	s := &state{running: map[*job]bool{j: true}, control: controller{rate: 42}}
-	p.Add(1000)
-	p.Invalidate()
-	s.measure(now)
-	if s.control.rate != 42 || j.remaining != 100 {
-		t.Fatal("retry inflated throughput or erased remaining work")
-	}
-}
-
-func TestResponseCostDiscoveryAndMetadataCapacity(t *testing.T) {
-	p := new(Progress)
-	p.SetSize(8 << 20)
-	p.Add(1 << 20)
-	j := &job{progress: p, initialRemaining: 1 << 20, remaining: 1 << 20, started: time.Now()}
-	st := &state{}
-	st.sampleProgress(j, time.Now())
-	if j.remaining != 7<<20 {
-		t.Fatal("sequential fallback cost was truncated", j.remaining)
-	}
+func TestMetadataCapacity(t *testing.T) {
 	s := New(Config{SoftLimit: 1, MaxTasks: 1, MaxDemands: 1})
 	defer s.Close()
 	task, _ := s.Submit("one", 1, func(ctx context.Context, _ *Progress) Result {
@@ -92,7 +70,7 @@ func TestResponseCostDiscoveryAndMetadataCapacity(t *testing.T) {
 func BenchmarkDemandUpdate(b *testing.B) {
 	for _, count := range []int{16, 1024, 4096} {
 		b.Run(strconv.Itoa(count), func(b *testing.B) {
-			s := New(Config{SoftLimit: 1, GrowInterval: 250 * time.Millisecond, Adaptive: true})
+			s := New(Config{SoftLimit: 1, GrowInterval: 250 * time.Millisecond})
 			defer s.Close()
 			var d *Demand
 			for i := 0; i < count; i++ {

@@ -197,6 +197,12 @@ func TestParallelRangeSoftLimitAllowsPlaybackAndSeek(t *testing.T) {
 	if err := <-seekDone; err != nil {
 		t.Fatal(err)
 	}
+	// Future playback blocks wait for their window. Reading the body advances
+	// actual blocked reads and keeps the original full-publication assertion.
+	got, err := io.ReadAll(playback)
+	if err != nil || !bytes.Equal(got, bodies[2]) {
+		t.Fatal("playback bytes differ", err)
+	}
 	for _, flight := range flights {
 		select {
 		case <-flight.done:

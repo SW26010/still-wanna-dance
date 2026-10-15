@@ -479,7 +479,7 @@ func followEngine(ctx context.Context, p followPlan, tr *followTransport, r *fol
 		})
 	}()
 	s.scheduler.Close()
-	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: p.N, GrowInterval: 250 * time.Millisecond, Adaptive: true})
+	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: p.N, GrowInterval: 250 * time.Millisecond})
 	// These legacy report columns now describe ordinary admission's soft cap;
 	// Blocking bypasses it and there is no separate background quota.
 	r.BudgetTotal, r.BudgetBackground = p.N, p.N

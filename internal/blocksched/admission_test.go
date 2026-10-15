@@ -63,8 +63,8 @@ func TestBlockingCountsTowardOrdinaryAdmissionWithoutPreemption(t *testing.T) {
 		}
 		// Losing Blocking while an ordinary contribution remains must not restart.
 		oneDemand.Update(need("blocking-one", false, time.Minute, time.Hour))
-		submit("later", false, 2*time.Minute)
-		submit("earlier", false, time.Minute)
+		submit("later", false, 2*time.Second)
+		submit("earlier", false, time.Second)
 		time.Sleep(time.Second)
 		synctest.Wait()
 		assertState := func(active int) {
@@ -113,7 +113,7 @@ func TestQueuedPromotionBypassesQuotaAndKeepsSharedExecution(t *testing.T) {
 			}
 		}
 		old, _ := s.Submit("old", 1, run("old"))
-		old.Add(need("old", false, time.Minute, 24*time.Hour))
+		old.Add(need("old", false, time.Second, 24*time.Hour))
 		<-started
 		next, _ := s.Submit("next", 1, run("next"))
 		d := next.Add(need("next", false, time.Minute, 24*time.Hour))
@@ -153,7 +153,7 @@ func TestUrgentOrdinaryDeadlineWaitsForNaturalCompletion(t *testing.T) {
 			}
 			return Result{}
 		})
-		old.Add(need("old", false, time.Minute, time.Hour))
+		old.Add(need("old", false, time.Second, time.Hour))
 		<-started
 		for _, key := range []string{"later", "due"} {
 			j, _ := s.Submit(key, 25, func(context.Context, *Progress) Result { started <- key; return Result{} })
@@ -174,62 +174,6 @@ func TestUrgentOrdinaryDeadlineWaitsForNaturalCompletion(t *testing.T) {
 		}
 		if got := <-started; got != "later" {
 			t.Fatal(got)
-		}
-	})
-}
-
-func TestLowerTargetReducesRefillWithoutCancelingActiveWork(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		s := New(Config{SoftLimit: 4, GrowInterval: 250 * time.Millisecond, Adaptive: true})
-		defer s.Close()
-		started, canceled := make(chan struct{}, 8), make(chan struct{}, 8)
-		var demands []*Demand
-		var gates []chan struct{}
-		for i := range 6 {
-			gate := make(chan struct{})
-			gates = append(gates, gate)
-			key := string(rune('a' + i))
-			j, _ := s.Submit(key, 1<<20, func(ctx context.Context, _ *Progress) Result {
-				started <- struct{}{}
-				select {
-				case <-gate:
-				case <-ctx.Done():
-					canceled <- struct{}{}
-				}
-				return Result{}
-			})
-			demands = append(demands, j.Add(need(key, false, time.Second, time.Hour)))
-		}
-		time.Sleep(750 * time.Millisecond)
-		synctest.Wait()
-		if len(started) != 4 {
-			t.Fatal("test did not fill ordinary capacity")
-		}
-		for range 4 {
-			<-started
-		}
-		s.call(func(st *state) { st.control.rate = 1 << 20 })
-		for _, d := range demands {
-			d.Update(need("later", false, time.Minute, time.Hour))
-		}
-		time.Sleep(time.Second)
-		synctest.Wait()
-		s.call(func(st *state) {
-			if st.control.target != 2 || st.control.open != 2 || st.active != 4 {
-				t.Error("target reduction interrupted active work", st.control.target, st.control.open, st.active)
-			}
-		})
-		for i := range 2 {
-			close(gates[i])
-			synctest.Wait()
-			if len(started) != 0 || len(canceled) != 0 {
-				t.Fatal("target reduction canceled work or refilled too early")
-			}
-		}
-		close(gates[2])
-		synctest.Wait()
-		if len(started) != 1 || len(canceled) != 0 {
-			t.Fatal("new ordinary quota was not reused at active < open")
 		}
 	})
 }

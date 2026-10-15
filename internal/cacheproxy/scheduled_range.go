@@ -16,16 +16,6 @@ func isScheduledPause(ctx context.Context) bool {
 	return errors.Is(context.Cause(ctx), blocksched.ErrPaused) || errors.Is(context.Cause(ctx), errPreempted)
 }
 
-type schedulerProgressReader struct {
-	io.Reader
-	progress *blocksched.Progress
-}
-
-func (r schedulerProgressReader) Read(p []byte) (int, error) {
-	n, err := r.Reader.Read(p)
-	r.progress.Add(int64(n))
-	return n, err
-}
 func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *http.Response, flight *flight, progress *blocksched.Progress) error {
 	if initial != nil {
 		defer initial.Body.Close()
@@ -136,7 +126,7 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 			if *buffer == nil {
 				*buffer = s.rangeBuffer()
 			}
-			data, err = readRangeBlock(contextReader{transferCtx, schedulerProgressReader{progressReader{upstreamReader{body}, flight.progress}, progress}}, (*buffer)[received:end-start+1])
+			data, err = readRangeBlock(contextReader{transferCtx, progressReader{upstreamReader{body}, flight.progress}}, (*buffer)[received:end-start+1])
 			if err != nil {
 				return err
 			}
@@ -155,8 +145,6 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 			// A canceled response with all advertised bytes but without EOF
 			// still needs normal oversize validation; do not publish it early.
 			if received >= end-start {
-				progress.SetSize(end - start)
-				progress.Invalidate()
 				received = 0
 			}
 			if preempted {
@@ -164,8 +152,6 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 			}
 		}
 		if err != nil {
-			progress.SetSize(end - start)
-			progress.Invalidate()
 			last = applog.SafeError(err)
 			received = 0
 			failures++

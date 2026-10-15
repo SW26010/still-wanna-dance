@@ -164,12 +164,11 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 		}
 		w.f.log.Info("upstream_response", "host", host, "status", resp.StatusCode, "content_length", resp.ContentLength)
 		if resp.StatusCode != http.StatusPartialContent {
-			p.SetSize(w.v.size)
 			w.f.sequentialDemand = func(int64) func() { return w.demand(0) }
 			w.f.log.Info("range_unavailable", "host", host, "fallback", "sequential")
 			stopBody := context.AfterFunc(ctx, func() { resp.Body.Close() })
 			defer stopBody()
-			err := w.s.publish(ctx, schedulerProgressReader{resp.Body, p}, w.path, w.v, w.f)
+			err := w.s.publish(ctx, resp.Body, w.path, w.v, w.f)
 			// Sequential bodies have no safe partial restart. End this flight;
 			// its next owner opens a new body after cleanup. Preserve storage
 			// and integrity errors that happen to coincide with cancellation.

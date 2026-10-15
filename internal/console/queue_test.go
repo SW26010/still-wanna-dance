@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -87,6 +88,32 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	c.mu.Unlock()
 	once.Do(func() { close(release) })
 	deadline := time.Now().Add(3 * time.Second)
+	for {
+		c.mu.Lock()
+		waiting := slices.Contains(c.queue.Active, 4) && c.queue.Error != ""
+		completed := c.queue.Completed
+		c.mu.Unlock()
+		if waiting {
+			if completed != 0 {
+				t.Fatal("future queue entry downloaded outside its activation window")
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("latest queue was not prepared")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if _, err := os.Stat(fixtureVideoPath(c.settings.StorageDir, "4", body+"4")); !os.IsNotExist(err) {
+		t.Fatal("future queue entry published early", err)
+	}
+	// The unknown placeholder and failed song each retain a playback duration.
+	// Promoting 4 into the window activates its existing demand without another
+	// resolution; the retained failure must still remain visible after success.
+	c.mu.Lock()
+	c.setQueueSongsLocked([]vrclog.Song{{ID: 4}, {ID: -1}, {ID: 5}, {ID: 2}}, false)
+	c.mu.Unlock()
+	deadline = time.Now().Add(3 * time.Second)
 	for {
 		c.mu.Lock()
 		ready := c.queue.Completed == 1 && c.queue.Error != ""

@@ -55,7 +55,6 @@ func TestDurationUsesAdmissionToReadableAndHoldsSlotThroughCleanup(t *testing.T)
 		gate := make(chan struct{})
 		j, _ := s.Submit("standard", standardBlockSize, func(_ context.Context, p *Progress) Result {
 			time.Sleep(time.Second) // headers and checks count, even without body progress
-			p.Invalidate()          // a discarded attempt still costs execution time
 			time.Sleep(2 * time.Second)
 			p.Ready()
 			<-gate

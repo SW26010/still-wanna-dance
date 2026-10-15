@@ -28,7 +28,7 @@ func TestSummaryUpdatesReleaseOldOwnersAndCounters(t *testing.T) {
 		d.Close()
 		synctest.Wait()
 		s.call(func(st *state) {
-			if len(st.groups) != 0 || len(st.ready)+len(st.untimed) != 0 {
+			if len(st.groups) != 0 || st.ready.Len()+st.untimed.Len() != 0 {
 				t.Error("withdrawn demand retained scheduler metadata")
 			}
 		})

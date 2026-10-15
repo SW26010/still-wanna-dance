@@ -208,7 +208,7 @@ func TestOrphanQueuedAndPausedTasksExpireDuringBlocking(t *testing.T) {
 				t.Fatal("orphan started or resumed without demand")
 			}
 			s.call(func(st *state) {
-				if len(st.jobs) != 1 || st.demandCount != 1 || st.active != 1 || st.orphans.Len() != 0 || len(st.ready) != 0 {
+				if len(st.jobs) != 1 || st.demandCount != 1 || st.active != 1 || st.orphans.Len() != 0 || st.ready.Len() != 0 {
 					t.Error("orphan left metadata behind or removed the independent reader")
 				}
 			})

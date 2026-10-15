@@ -23,6 +23,9 @@ type Need struct {
 	Owner               string
 	ReadyBy, LeaseUntil time.Time
 	Blocking            bool
+	// Opportunistic preserves an independent ordinary demand that can use
+	// capacity before ReadyBy. It bypasses only the window, never the quota.
+	Opportunistic bool
 }
 
 type Result struct {
@@ -62,7 +65,7 @@ type Config struct {
 type Event struct {
 	Kind, Key, Reason       string
 	Active, Open            int
-	Blocking                bool
+	Blocking, Opportunistic bool
 	ReadyBy                 time.Time
 	WorkBytes               int64
 	BlockTime, PrepareAhead time.Duration
@@ -173,7 +176,7 @@ type job struct {
 	remaining      int64
 	needs          map[uint64]*lease
 	need           Need
-	index          int
+	index          [2]int // one membership per deadline/opportunistic heap
 	sequence, fair uint64
 	cancel         context.CancelCauseFunc
 	progress       *Progress
@@ -222,6 +225,7 @@ func New(cfg Config) *Scheduler {
 	}
 	s := &Scheduler{commands: make(chan func(*state), 64), finished: make(chan completion, cfg.SoftLimit), done: make(chan struct{})}
 	st := &state{s: s, cfg: cfg, jobs: make(map[string]*job), owners: make(map[string]uint64), groups: make(map[string]map[*job]bool)}
+	st.untimed.slot = 1
 	st.control.open = cfg.SoftLimit
 	if cfg.GrowInterval > 0 {
 		st.control.open = 1
@@ -265,7 +269,7 @@ func (s *Scheduler) Submit(key string, remaining int64, run Run) (*Task, error) 
 		}
 		st.sequence++
 		t = &Task{s: s, key: key, done: make(chan struct{})}
-		j := &job{task: t, run: run, remaining: remaining, needs: make(map[uint64]*lease), index: -1, sequence: st.sequence}
+		j := &job{task: t, run: run, remaining: remaining, needs: make(map[uint64]*lease), index: [2]int{-1, -1}, sequence: st.sequence}
 		st.jobs[key] = j
 		st.retainOrphan(j)
 	}) {
@@ -303,10 +307,12 @@ func (s *state) removeLease(v *lease) {
 func (s *state) refresh(j *job) {
 	n := Need{}
 	var earliest time.Time
+	opportunistic := false
 	for _, v := range j.needs {
 		if !v.need.LeaseUntil.After(time.Now()) {
 			continue
 		}
+		opportunistic = opportunistic || v.need.Opportunistic || v.need.ReadyBy.IsZero()
 		if !v.need.ReadyBy.IsZero() && (earliest.IsZero() || v.need.ReadyBy.Before(earliest)) {
 			earliest = v.need.ReadyBy
 		}
@@ -314,11 +320,7 @@ func (s *state) refresh(j *job) {
 			n = v.need
 		}
 	}
-	n.ReadyBy = earliest
-	oldQueue := s.queue(j)
-	if j.index >= 0 && untimed(j.need) != untimed(n) {
-		heap.Remove(oldQueue, j.index)
-	}
+	n.ReadyBy, n.Opportunistic = earliest, opportunistic
 	if j.need.Owner != n.Owner {
 		s.ungroup(j)
 	}
@@ -336,9 +338,7 @@ func (s *state) refresh(j *job) {
 		s.removeOrphan(j)
 	}
 	if n.Owner == "" || j.retiring {
-		if j.index >= 0 {
-			heap.Remove(s.queue(j), j.index)
-		}
+		s.unqueue(j)
 		if j.cancel != nil {
 			j.cancel(ErrPaused)
 		}
@@ -347,11 +347,11 @@ func (s *state) refresh(j *job) {
 	if j.cancel != nil {
 		return
 	}
-	if j.index < 0 {
-		heap.Push(s.queue(j), j)
+	wasQueued := j.index[0] >= 0 || j.index[1] >= 0
+	s.ready.set(j, n.Blocking || !n.ReadyBy.IsZero())
+	s.untimed.set(j, !n.Blocking && n.Opportunistic)
+	if !wasQueued {
 		s.emit("queued", "demand", j)
-	} else {
-		heap.Fix(s.queue(j), j.index)
 	}
 }
 func (s *state) ungroup(j *job) {
@@ -365,12 +365,9 @@ func (s *state) ungroup(j *job) {
 		delete(s.owners, owner)
 	}
 }
-func untimed(n Need) bool { return !n.Blocking && n.ReadyBy.IsZero() }
-func (s *state) queue(j *job) *readyHeap {
-	if untimed(j.need) {
-		return &s.untimed
-	}
-	return &s.ready
+func (s *state) unqueue(j *job) {
+	s.ready.set(j, false)
+	s.untimed.set(j, false)
 }
 func needBefore(a, b Need) bool {
 	if a.Blocking != b.Blocking {
@@ -395,9 +392,7 @@ func (s *state) retire(j *job, err error) {
 	}
 }
 func (s *state) finish(j *job, err error) {
-	if j.index >= 0 {
-		heap.Remove(s.queue(j), j.index)
-	}
+	s.unqueue(j)
 	for _, v := range j.needs {
 		s.removeLease(v)
 	}
@@ -418,6 +413,7 @@ func (s *state) emit(kind, reason string, j *job) {
 	e := Event{Kind: kind, Reason: reason, Active: s.active, Open: s.control.open, BlockTime: s.durations.value(), PrepareAhead: s.cfg.PrepareAhead}
 	if j != nil {
 		e.Key, e.Blocking, e.ReadyBy, e.WorkBytes = j.task.key, j.need.Blocking, j.need.ReadyBy, j.remaining
+		e.Opportunistic = j.need.Opportunistic
 		if kind == "started" && !j.need.ReadyBy.IsZero() {
 			now := time.Now()
 			e.StartUrgent = !j.need.ReadyBy.After(now.Add(e.BlockTime))
@@ -436,14 +432,16 @@ func (s *state) dispatch(now time.Time) {
 		if !j.need.Blocking && s.active >= s.control.open {
 			return
 		}
-		heap.Pop(s.queue(j))
+		s.unqueue(j)
 		s.sequence++
 		s.owners[j.need.Owner] = s.sequence
 		// Only this fairness group changes; deadlines in other groups do not.
 		for other := range s.groups[j.need.Owner] {
 			other.fair = s.sequence
-			if other.index >= 0 {
-				heap.Fix(s.queue(other), other.index)
+			for _, h := range []*readyHeap{&s.ready, &s.untimed} {
+				if index := other.index[h.slot]; index >= 0 {
+					heap.Fix(h, index)
+				}
 			}
 		}
 		ctx, cancel := context.WithCancelCause(context.Background())
@@ -516,11 +514,27 @@ func (s *state) loop() {
 	}
 }
 
-type readyHeap []*job
+type readyHeap struct {
+	jobs []*job
+	slot int
+}
 
-func (h readyHeap) Len() int { return len(h) }
+func (h readyHeap) Len() int    { return len(h.jobs) }
+func (h readyHeap) first() *job { return h.jobs[0] }
+func (h *readyHeap) set(j *job, member bool) {
+	index := j.index[h.slot]
+	if index >= 0 {
+		if member {
+			heap.Fix(h, index)
+		} else {
+			heap.Remove(h, index)
+		}
+	} else if member {
+		heap.Push(h, j)
+	}
+}
 func (h readyHeap) Less(i, j int) bool {
-	a, b := h[i], h[j]
+	a, b := h.jobs[i], h.jobs[j]
 	if needBefore(a.need, b.need) {
 		return true
 	}
@@ -532,14 +546,21 @@ func (h readyHeap) Less(i, j int) bool {
 	}
 	return a.sequence < b.sequence
 }
-func (h readyHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i]; h[i].index = i; h[j].index = j }
-func (h *readyHeap) Push(v any)   { j := v.(*job); j.index = len(*h); *h = append(*h, j) }
+func (h readyHeap) Swap(i, j int) {
+	h.jobs[i], h.jobs[j] = h.jobs[j], h.jobs[i]
+	h.jobs[i].index[h.slot], h.jobs[j].index[h.slot] = i, j
+}
+func (h *readyHeap) Push(v any) {
+	j := v.(*job)
+	j.index[h.slot] = len(h.jobs)
+	h.jobs = append(h.jobs, j)
+}
 func (h *readyHeap) Pop() any {
-	a := *h
+	a := h.jobs
 	j := a[len(a)-1]
 	a[len(a)-1] = nil
-	*h = a[:len(a)-1]
-	j.index = -1
+	h.jobs = a[:len(a)-1]
+	j.index[h.slot] = -1
 	return j
 }
 

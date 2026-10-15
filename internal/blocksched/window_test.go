@@ -119,7 +119,7 @@ func TestWindowBacklogDrivesGrowthAndIdleResetsIt(t *testing.T) {
 		close(release)
 		synctest.Wait()
 		s.call(func(st *state) {
-			if st.active != 0 || st.control.open != 1 || len(st.ready) != 1 {
+			if st.active != 0 || st.control.open != 1 || st.ready.Len() != 1 {
 				t.Error("future queue prevented idle shrink")
 			}
 		})
@@ -136,7 +136,7 @@ func TestSoftLimitWaitHasNoPastWindowWakeup(t *testing.T) {
 		}
 		synctest.Wait()
 		s.call(func(st *state) {
-			if st.active != 1 || len(st.ready) != 1 || !st.nextControlEvent(time.Now()).IsZero() {
+			if st.active != 1 || st.ready.Len() != 1 || !st.nextControlEvent(time.Now()).IsZero() {
 				t.Error("full quota installed an already elapsed timer")
 			}
 		})

@@ -54,7 +54,7 @@ func (w *downloadSession) logDemand(block int64, j *scheduledBlock) {
 	}
 	w.f.log.Debug("block_demand", "block", block, "get_sources", get, "head_sources", head, "queue_sources", queue, "batch_sources", batch,
 		"handoff_sources", len(j.handoffs), "handoff_suppressed", get > 0 && len(j.handoffs) > 0,
-		"blocking", j.published.Blocking, "ready_by", j.published.ReadyBy, "lease_until", j.published.LeaseUntil, "next_expiry", j.nextExpiry)
+		"blocking", j.published.Blocking, "opportunistic", j.published.Opportunistic, "ready_by", j.published.ReadyBy, "lease_until", j.published.LeaseUntil, "next_expiry", j.nextExpiry)
 }
 
 func makeHandoff(old plannedNeed, reason withdrawalReason, now time.Time) (handoffContribution, bool) {
@@ -97,6 +97,7 @@ func (j *scheduledBlock) aggregate(now time.Time) blocksched.Need {
 		}
 		if urgency {
 			n.Blocking = n.Blocking || need.Blocking
+			n.Opportunistic = n.Opportunistic || need.Opportunistic || need.ReadyBy.IsZero()
 			if !need.ReadyBy.IsZero() && (n.ReadyBy.IsZero() || need.ReadyBy.Before(n.ReadyBy)) {
 				n.ReadyBy = need.ReadyBy
 			}

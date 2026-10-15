@@ -211,7 +211,7 @@ func New(cfg Config) (*Server, error) {
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: videoRequestSoftLimit,
 		GrowInterval: 250 * time.Millisecond,
 		Observe: func(e blocksched.Event) {
-			cfg.Logger.Debug("block_schedule", "event", e.Kind, "block_key", e.Key, "reason", e.Reason, "active", e.Active, "open", e.Open, "blocking", e.Blocking, "ready_by", e.ReadyBy, "work_bytes", e.WorkBytes, "block_time_ms", e.BlockTime.Milliseconds(), "prepare_ahead_ms", e.PrepareAhead.Milliseconds(), "start_urgent", e.StartUrgent, "overdue", e.Overdue)
+			cfg.Logger.Debug("block_schedule", "event", e.Kind, "block_key", e.Key, "reason", e.Reason, "active", e.Active, "open", e.Open, "blocking", e.Blocking, "opportunistic", e.Opportunistic, "ready_by", e.ReadyBy, "work_bytes", e.WorkBytes, "block_time_ms", e.BlockTime.Milliseconds(), "prepare_ahead_ms", e.PrepareAhead.Milliseconds(), "start_urgent", e.StartUrgent, "overdue", e.Overdue)
 		}})
 	cfg.Logger.Info("cache_engine_ready", "removed_partials", cleaned, "max_local_validations", cfg.MaxDownloads,
 		"max_resource_sessions", maxResourceSessions, "video_request_soft_limit", videoRequestSoftLimit,

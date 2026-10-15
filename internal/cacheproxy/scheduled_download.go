@@ -463,7 +463,7 @@ func (w *downloadSession) withdrawal(block int64, source blockSource) withdrawal
 	return withdrawalSourceGone
 }
 func handoffNeed(n blocksched.Need, now time.Time, grace, delay time.Duration) blocksched.Need {
-	n.Blocking = false
+	n.Blocking, n.Opportunistic = false, false
 	n.LeaseUntil = now.Add(grace)
 	n.ReadyBy = maxTime(n.ReadyBy, now).Add(delay)
 	return n

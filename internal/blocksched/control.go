@@ -19,14 +19,14 @@ func earlier(a, b time.Time) time.Time {
 // The timed heap contains Blocking and finite deadlines. Untimed background
 // work can use capacity while its head is outside the activation window.
 func (s *state) nextReady(now time.Time) *job {
-	if len(s.ready) > 0 {
-		j := s.ready[0]
+	if s.ready.Len() > 0 {
+		j := s.ready.first()
 		if j.need.Blocking || !s.windowAt(j).After(now) {
 			return j
 		}
 	}
-	if len(s.untimed) > 0 {
-		return s.untimed[0]
+	if s.untimed.Len() > 0 {
+		return s.untimed.first()
 	}
 	return nil
 }
@@ -69,8 +69,8 @@ func (s *state) regulate(now time.Time) {
 
 func (s *state) nextControlEvent(now time.Time) time.Time {
 	next := s.control.nextGrow
-	if len(s.ready) > 0 && !s.ready[0].need.Blocking {
-		if at := s.windowAt(s.ready[0]); at.After(now) {
+	if s.ready.Len() > 0 && !s.ready.first().need.Blocking {
+		if at := s.windowAt(s.ready.first()); at.After(now) {
 			next = earlier(next, at)
 		}
 	}

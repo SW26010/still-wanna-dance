@@ -32,10 +32,13 @@
     "bytes": 3138185,
     "sha256": "8239c600c8312134c22cfc19002a9081f93b36ee1f5e2f35dabf3ee26ac520b2",
     "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261015-live-02-v1/live-20261015-02-v1.zip",
-    "status": "prepared-local-unpublished",
+    "status": "published-verified",
     "sourceRevision": "4d8714003f6e7981ad200cfd8a0d970668ce5a6a",
     "originalEvidenceCommit": null,
-    "publiclyVerifiedAt": null
+    "publiclyVerifiedAt": "2026-10-15T14:56:23Z",
+    "releaseTagCommit": "ed0470a0ec506a92980c358d51dff5fb6f62d369",
+    "evidenceCommit": "ed0470a0ec506a92980c358d51dff5fb6f62d369",
+    "releaseId": 413937530
   },
   "files": [
     {
@@ -73,18 +76,26 @@
     {
       "id": "E-011",
       "path": "docs/evidence/live-20261015-02/archive-summary.json",
-      "bytes": 4570,
-      "sha256": "3ad01c31f19408931f9f846cb18f470b04f12e440d6d72cd4be31cb3bdac66d4",
-      "gitBlob": "ddd1f8162463dbfe65f44fb4a8cab01ae5e5f562",
+      "bytes": 5055,
+      "sha256": "f3bf12364f983b40c3d8dae38718337e8534f90b3e87410af60e6a674c2dc592",
+      "gitBlob": "33c37adf01c8a2a1e3a89fea987555eb4780e097",
       "sourceAndSanitization": "Versioned archive and local verification metadata, compact request groups; no private paths, raw runtime data or working public URL claim."
     },
     {
       "id": "E-012",
       "path": "docs/evidence/live-20261015-02/privacy-review.json",
-      "bytes": 1257,
-      "sha256": "c7f7bae8e74500ac8a734dd70bed9c1a85dbcf674c1dd33cfc04b3f01da3408d",
-      "gitBlob": "226cbed75607c07fa43a7e16b35fd43a09823bc0",
+      "bytes": 2670,
+      "sha256": "60ac31e3dd61f6fc0d07585a32760a66b4ef3488d4793d20c9c21d17e6edc94b",
+      "gitBlob": "b23305edf2d4de49d8507a5c436b4f2bdbe364a6",
       "sourceAndSanitization": "Archive and source privacy validation summary; exact private values and paths omitted."
+    },
+    {
+      "id": "E-013",
+      "path": "docs/evidence/live-20261015-02/publication-verification.json",
+      "sourceAndSanitization": "Public Release metadata and unauthenticated download/hash verification receipt; publication times only, no personal runtime clock, credentials or private paths.",
+      "bytes": 1098,
+      "sha256": "af94e931d3fc6b1724ed4f66f7e77661cdbc5a9e1c4bdb2d5a39dcaed9f8110d",
+      "gitBlob": "65486a31b9663e14f8259011ccbef5bb3050f70d"
     }
   ],
   "archivedFiles": [

@@ -1,0 +1,19 @@
+{
+  "batch": "LIVE-20261015-02",
+  "verifiedAt": "2026-10-15T14:56:23Z",
+  "releaseUrl": "https://github.com/SW26010/still-wanna-dance/releases/tag/evidence-20261015-live-02-v1",
+  "releaseId": 413937530,
+  "releaseTag": "evidence-20261015-live-02-v1",
+  "releaseTagCommit": "ed0470a0ec506a92980c358d51dff5fb6f62d369",
+  "releasePublishedAt": "2026-10-15T14:55:47Z",
+  "prerelease": true,
+  "markedLatest": false,
+  "archiveUrl": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261015-live-02-v1/live-20261015-02-v1.zip",
+  "archiveBytes": 3138185,
+  "archiveSHA256": "8239c600c8312134c22cfc19002a9081f93b36ee1f5e2f35dabf3ee26ac520b2",
+  "verifiedMembers": 14,
+  "nestedSourceFilesVerified": 662,
+  "checksumSidecarVerified": true,
+  "checksumSidecarSHA256": "60015db3554cb8fdc59257ffe3770c42092367277b5c86f04a931ea0fcb0ae30",
+  "method": "Unauthenticated HTTPS GET of public ZIP and SHA256 sidecar; full ZIP size/hash, complete member inventory, every member hash and nested source hashes verified; downloaded ZIP also matches local approved candidate byte-for-byte."
+}

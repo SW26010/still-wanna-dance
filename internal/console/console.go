@@ -21,6 +21,7 @@ import (
 
 	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/blocksched"
+	"still-wanna-dance/internal/branding"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/desktop"
 	"still-wanna-dance/internal/upstreamrequest"
@@ -688,6 +689,17 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Reject DNS rebinding and cross-origin writes; no external page can obtain the token.
 	if r.Host != c.address {
 		http.Error(w, "invalid host", 403)
+		return
+	}
+	// Branding is public even before terms acceptance, like the other UI assets.
+	if r.Method == http.MethodGet && r.URL.Path == "/assets/logo.svg" {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Write(branding.SVG)
+		return
+	}
+	if r.Method == http.MethodGet && r.URL.Path == "/favicon.ico" {
+		w.Header().Set("Content-Type", "image/x-icon")
+		w.Write(branding.ICO)
 		return
 	}
 	if c.serveTerms(w, r) {

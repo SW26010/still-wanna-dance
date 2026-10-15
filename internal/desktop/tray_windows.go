@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	"still-wanna-dance/internal/branding"
 )
 
 var user32 = syscall.NewLazyDLL("user32.dll")
@@ -329,24 +331,24 @@ func (t *tray) showMenu() {
 }
 
 func makeIcon() (uintptr, error) {
-	const size = 32
-	mask := make([]byte, size*size/8)
-	pixels := make([]byte, size*size*4)
-	for y := 0; y < size; y++ {
-		for x := 0; x < size; x++ {
-			i := ((size-1-y)*size + x) * 4
-			corner := (x < 4 || x >= size-4) && (y < 4 || y >= size-4)
-			if corner {
-				mask[(size-1-y)*4+x/8] |= 1 << uint(7-x%8)
-				continue
-			}
-			pixels[i], pixels[i+1], pixels[i+2], pixels[i+3] = 152, 237, 176, 255
-			if (x >= 9 && x <= 12 && y >= 8 && y <= 21) || (y >= 19 && y <= 22 && x >= 9 && x <= 23) || (x >= 20 && x <= 23 && y >= 13 && y <= 22) {
-				pixels[i], pixels[i+1], pixels[i+2] = 22, 32, 20
-			}
-		}
+	size, _, _ := user32.NewProc("GetSystemMetrics").Call(49) // SM_CXSMICON, after DPI awareness is set.
+	if size == 0 {
+		size = 32
 	}
-	h, _, err := user32.NewProc("CreateIcon").Call(0, size, size, 1, 32, uintptr(unsafe.Pointer(&mask[0])), uintptr(unsafe.Pointer(&pixels[0])))
+	return makeIconAtSize(int(size))
+}
+
+func makeIconAtSize(size int) (uintptr, error) {
+	data, err := branding.IconResource(size)
+	if err != nil {
+		return 0, err
+	}
+	// ICO image offsets need not be DWORD aligned. Use uint32 backing storage
+	// for Win32's required alignment, while passing the original byte length.
+	aligned := make([]uint32, (len(data)+3)/4)
+	copy(unsafe.Slice((*byte)(unsafe.Pointer(&aligned[0])), len(data)), data)
+	h, _, err := user32.NewProc("CreateIconFromResourceEx").Call(uintptr(unsafe.Pointer(&aligned[0])), uintptr(len(data)), 1, 0x00030000, uintptr(size), uintptr(size), 0)
+	runtime.KeepAlive(aligned)
 	if h == 0 {
 		return 0, fmt.Errorf("创建图标：%w", err)
 	}

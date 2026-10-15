@@ -10,7 +10,7 @@
 
 2026-10-12 补全核对：历史实机基线为 [2026-10-07 / 8b522c5](live-acceptance-20261007.md)，核对到 `cf6d733ed2c168fd56488f8c9cb3f84690e51e0a` 的全部提交，并读取 GitHub 全部 16 个已关闭 Issue 的正文及评论。见[提交与 Issue 覆盖清单](live-acceptance-audit-20261012.md)。Issue 关闭代表其约定的实现或历史验证完成，不自动关闭本台账中的新版本回归或遗留实机项。
 
-共 44 项未结项，包含新增功能、行为修复后的回归以及历史未覆盖项；每行内的场景须逐个记录结果，部分完成不整行结项。LA-009 的专项步骤原样保留。#16 开发新增 LA-029/030，播放网关命名新增 LA-031，独立默认自动启用新增 LA-032，#14 节点接入新增 LA-034/035/036，#20 视频请求额度新增 LA-037，本次运行内席位续传新增 LA-038，GET 重连宽限新增 LA-039，全局块调度新增 LA-040，队首消失至正式播放时长观测新增 LA-041，地址解析补齐资源大小新增 LA-042，M 默认 500 秒及设置可调新增 LA-043，引导页手动检测与 CF 并发测速新增 LA-045；各项实际状态与已执行批次见下表，不因开发检查通过而结项。
+共 45 项未结项，包含新增功能、行为修复后的回归以及历史未覆盖项；每行内的场景须逐个记录结果，部分完成不整行结项。LA-009 的专项步骤原样保留。#16 开发新增 LA-029/030，播放网关命名新增 LA-031，独立默认自动启用新增 LA-032，#14 节点接入新增 LA-034/035/036，#20 视频请求额度新增 LA-037，本次运行内席位续传新增 LA-038，GET 重连宽限新增 LA-039，全局块调度新增 LA-040，队首消失至正式播放时长观测新增 LA-041，地址解析补齐资源大小新增 LA-042，M 默认 500 秒及设置可调新增 LA-043，引导页手动检测与 CF 并发测速新增 LA-045，网页与托盘统一闪电标志新增 LA-046；各项实际状态与已执行批次见下表，不因开发检查通过而结项。
 
 | 编号 | 功能与代码/验证依据 | 下轮步骤与通过条件 | 必需证据 / 环境 | 状态 | 批次 / 结果报告 |
 | --- | --- | --- | --- | --- | --- |
@@ -329,13 +329,23 @@ LA-042 补充取消边界：在隔离库控制请求取消/超时，使事务自
 
 自动检查（2026-10-16，本次工作区）：`node --test scripts/setup-calibration.test.mjs scripts/setup.test.mjs scripts/refresh.test.mjs` 230 项通过；`go test -race -tags=no_easytier ./internal/upstreamstate ./internal/console -run 'Calibration|Connectivity' -count=1 -timeout=90s` 两包通过（console 首次受沙箱临时配置重命名权限限制，在沙箱外单独复跑通过）；两包 `go vet -tags=no_easytier` 与控制台构建通过。回归覆盖直连/SOCKS5 多域名固定候选和共享并发上限，以及两种检测的取消请求失败、取消已确认但响应丢失。本项尚未实机验收，不恢复已清理的过时报告或沿用旧构建结果。
 
+## 网页与托盘统一闪电标志
+
+| 编号 | 功能与代码/验证依据 | 下轮步骤与通过条件 | 必需证据 / 环境 | 状态 | 批次 / 结果报告 |
+| --- | --- | --- | --- | --- | --- |
+| LA-046 | 用户提供的新 SVG 原样保存，网页页头/引导/帮助/关于/条款及标签页统一标志，Windows 托盘按系统小图标尺寸选择同源 ICO；`internal/branding/{branding.go,logo.svg,logo.ico}`、`internal/desktop/{tray_windows.go,icon_windows_test.go}`、`internal/console/{console.go,index.html,setup.html,help.html,about.html,terms.go,assets/console.css,assets_test.go,terms_test.go}`；生成入口 `scripts/generate-logo.mjs` | 使用本次构建启动隔离配置：首次未确认条款时引导标志及 favicon 正常、业务接口仍受门禁；主动确认后依次打开控制台、帮助、关于和只读条款，页头与浏览器标签页均为深绿底闪电图案，无旧箭头或缺图。覆盖浅色/深色、窄窗口、100%/125%/150%/200% 缩放，图案比例与颜色正确，文字和操作不被遮挡。检查 `/favicon.ico` 与 SVG 两种图标资源均可用；退出再启动及托盘重开网页后仍一致，托盘菜单与退出正常，联动 LA-006/028 | 真实 Windows 桌面及浏览器；源码/EXE 哈希、浏览器版本/主题/DPI、页头/标签页/托盘截图或人工记录、资源请求类型及错误、退出/重开记录；本地路径与配置脱敏。无须游戏或改 hosts；自动解码与内存预览不代替托盘实机观测 | 待验收 | — |
+
+自动检查（2026-10-16，本次工作区）：`go test -tags=no_easytier ./internal/branding ./internal/desktop ./internal/console -run 'TestBrandIconWindowsDecode|TestPageLoadsEmbeddedAssets|TestFirstEntryUsesViewportWizardAndModalConsent|TestTerms' -count=1 -timeout=90s` 中 Windows 图标创建/位图检查覆盖 16、20、24、32、36、40、48、64、128、256 像素，通过；控制台首次受沙箱临时配置原子重命名权限限制，同一筛选在沙箱外复跑通过。前端 `navigation/setup/terms` 92 项通过，产物策略 3 项通过（临时 Git 写入首次受沙箱限制，沙箱外复跑通过）。三包 `go vet -tags=no_easytier` 和 `scripts/build-desktop.ps1 -Output bin/SWD-logo.exe` 通过；原 SVG 与用户输入 SHA256 相同。独立无界面 Edge + 内存夹具检查引导/关于页、深浅主题、1280/390 宽度共八组：logo 加载/比例、favicon 请求、无横向溢出和无 JS 异常均通过，并查看生成截图；预览材料仅放本地忽略目录 `artifacts/logo-preview/`。未启动产品托盘、游戏或新一轮实机验收，未修改 hosts，LA-046 继续积攒。
+
+2026-10-16 **LA-046 提交前对齐修正**：按 [Win32 `CreateIconFromResourceEx` 契约](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createiconfromresourceex)，将 ICO 子切片复制到 `[]uint32` 存储以保证 DWORD 对齐，传入原始资源字节长度，并保持缓冲区存活至调用返回。原 amd64 解码已通过，无实际故障证据，本次属于契约修正；十档原生图标解码在 `-gcflags=all=-d=checkptr=2` 下复跑通过，desktop `go vet -tags=no_easytier` 通过。沿用上表实机步骤和证据要求，LA-046 状态仍为待验收。
+
 ## 已结项与历史轮次
 
 本机制初始化后尚无结项。2026-10-07 报告为历史参考，并不关闭本表的新版本待验项。
 
 ## 新项填写格式
 
-沿用表中六列，新编号从 LA-046 继续，不复用已经分配过的编号。写出可复现步骤和明确通过条件，引用开发提交或实现路径及自动验证记录；环境暂缺也先登记。开始一轮填批次，结束填结果报告链接；失败/阻塞/未测继续留在当前积攒中。不要只写“测试一下”或把自动测试数量当作实机证据。
+沿用表中六列，新编号从 LA-047 继续，不复用已经分配过的编号。写出可复现步骤和明确通过条件，引用开发提交或实现路径及自动验证记录；环境暂缺也先登记。开始一轮填批次，结束填结果报告链接；失败/阻塞/未测继续留在当前积攒中。不要只写“测试一下”或把自动测试数量当作实机证据。
 
 2026-10-15 完成耗时采样补充 **LA-040**：代码依据增加 `internal/blocksched/duration.go`、`duration_test.go` 及 `scheduled_range.go`。在隔离慢速上游分别延迟响应头、正文、块写入和完成后的清理，核对 `block_schedule` 的 `sample/readable_block`、`block_time_ms`：T 从实际获准执行算至完整块通过检查并可读，排队、暂停和后续清理不计入；清理结束前 active 仍占用。完整 1 MiB 的慢响应及成功重试参与均值，尾块、部分续传、失败/暂停执行和顺序 200 不作为标准块样本。保留各阶段相对时间、块大小/续传偏移、采样与 active 日志、最终文件哈希和实际播放反馈；自动回归单独记录，实机仍待验收。
 

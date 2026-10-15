@@ -5,6 +5,13 @@
   "maxBytes": 1048576,
   "exceptions": [
     {
+      "path": "internal/branding/logo.ico",
+      "kind": "product-icon",
+      "bytes": 56913,
+      "sha256": "8b5e5ddd6da7e97fba3900e95c31c3cda07dc2bfe7bfd949970b9a962e231b7e",
+      "reason": "Runtime tray and browser icon, generated from the user-supplied internal/branding/logo.svg by scripts/generate-logo.mjs; required by ordinary offline Go builds."
+    },
+    {
       "path": "internal/cacheproxy/testdata/storage-v2.sqlite",
       "kind": "binary-fixture",
       "bytes": 106496,

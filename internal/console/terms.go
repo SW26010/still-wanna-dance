@@ -269,8 +269,9 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 }
 
 var termsTemplate = template.Must(template.New("terms").Parse(`<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>使用条款 · Still Wanna Dance</title><link rel="stylesheet" href="/assets/console.css"></head>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>使用条款 · Still Wanna Dance</title><link rel="icon" href="/favicon.ico"><link rel="icon" href="/assets/logo.svg" type="image/svg+xml" sizes="any"><link rel="stylesheet" href="/assets/console.css"></head>
 <body><main class="setup-gate terms-readonly"><div class="setup-gate-content">
+<div class="brand"><img class="brand-logo" src="/assets/logo.svg" width="32" height="32" alt="">Still Wanna Dance</div>
 <h1>使用条款与内容权利声明</h1><p>本机已确认当前条款。<a href="/">返回控制台</a></p>
 <p class="setup-lead">软件许可不等于内容授权。</p>
 <p>条款版本：{{.Version}} · <a href="/terms.txt" target="_blank" rel="noopener">查看／保存纯文本</a></p>

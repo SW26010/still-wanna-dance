@@ -107,12 +107,19 @@ const server = createServer(async (req,res) => {
       res.setHeader('Content-Type','text/html; charset=utf-8');
       return res.end(index.replace('__SETUP__',setup.replace('<div class="setup-heading">','<div class="setup-heading"><p class="setup-note" role="note">'+previewNotice+'</p>')).replaceAll('__TOKEN__',token).replace('__TERMS_GATE__',JSON.stringify(consents?null:{step:'welcome',pageID:'fixture-page'})));
     }
+    if(path==='/assets/logo.svg' || path==='/favicon.ico') {
+      res.setHeader('Content-Type',path.endsWith('.svg')?'image/svg+xml':'image/x-icon');
+      return res.end(await readFile(new URL('../branding/'+(path.endsWith('.svg')?'logo.svg':'logo.ico'),base)));
+    }
+    if(path==='/about') {
+      res.setHeader('Content-Type','text/html; charset=utf-8');return res.end(await readFile(new URL('about.html',base)));
+    }
     if(path==='/help') {
       let html=await readFile(new URL('help.html',base),'utf8');
       for(const [key,value] of Object.entries({Config:'C:\\SWD-UI-Test\\data\\config.json',Root:'C:\\SWD-UI-Test\\data',Storage:active.storageDir,Log:'C:\\SWD-UI-Test\\data\\logs\\app.log'}))html=html.replaceAll('{{.'+key+'}}',value);
       res.setHeader('Content-Type','text/html; charset=utf-8');return res.end(html);
     }
-    const assets=new Set(['/assets/console.js','/assets/navigation.js','/assets/cache.js','/assets/setup.js','/assets/console.css','/assets/storage-benefit.svg']);
+    const assets=new Set(['/assets/console.js','/assets/navigation.js','/assets/cache.js','/assets/setup.js','/assets/setup-calibration.js','/assets/console.css','/assets/storage-benefit.svg']);
     if(assets.has(path)) {res.setHeader('Content-Type',path.endsWith('.js')?'text/javascript; charset=utf-8':path.endsWith('.svg')?'image/svg+xml':'text/css; charset=utf-8');return res.end(await readFile(new URL(path.slice(1),base)));}
     res.writeHead(404);res.end('fixture route not found');
   } catch(error) {if (!res.headersSent) res.writeHead(500);if (!res.writableEnded) res.end(String(error));}

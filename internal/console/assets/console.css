@@ -71,14 +71,12 @@ header {
   font-size: 1.25rem;
   font-weight: 600;
 }
-.brand span {
-  display: inline-grid;
-  place-items: center;
+.brand-logo {
+  display: block;
+  flex-shrink: 0;
   width: 2rem;
   height: 2rem;
-  border-radius: .5rem;
-  background: var(--brand);
-  color: var(--on-brand);
+  object-fit: contain;
 }
 #connection {
   margin-inline-start: auto;
@@ -255,7 +253,8 @@ body:has(.console-shell[data-view="setup"]) { height: 100%; overflow: hidden; }
 #setupDirectPageResults .setup-network-detail { color: var(--muted); font-size: .75rem; margin-top: .375rem; }
 #page-setup .setup-check { margin-block: .75rem; }
 #page-setup .setup-ports { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; margin-block: .5rem; }
-#page-setup .setup-brand { font-size: 1.5rem; margin-top: 0; }
+#page-setup .setup-brand { display: flex; align-items: center; flex-wrap: wrap; gap: .625rem; font-size: 1.5rem; margin-top: 0; }
+.setup-brand .brand-logo { width: 2.5rem; height: 2.5rem; }
 .setup-brand span { color: var(--muted); font-size: 1rem; }
 .setup-features { display: grid; grid-template-columns: repeat(2, max-content); gap: .35rem 2.5rem; padding-left: 1.25rem; margin-block: 1rem; }
 .setup-principle, .setup-consent, .setup-import-row, .setup-access-row { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }

@@ -50,7 +50,7 @@ func TestFirstEntryUsesViewportWizardAndModalConsent(t *testing.T) {
 			t.Fatalf("business read %s bypassed consent: %d", path, w.Code)
 		}
 	}
-	for _, path := range []string{"/assets/navigation.js", "/assets/console.js", "/assets/setup.js", "/assets/cache.js"} {
+	for _, path := range []string{"/assets/navigation.js", "/assets/console.js", "/assets/setup.js", "/assets/cache.js", "/assets/logo.svg", "/favicon.ico"} {
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+path, nil))
 		if w.Code != 200 {

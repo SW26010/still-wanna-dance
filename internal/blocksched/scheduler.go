@@ -57,7 +57,7 @@ type Config struct {
 	// this limit and growth pacing; metadata capacity still bounds total work.
 	SoftLimit, MaxTasks, MaxDemands int
 	GrowInterval                    time.Duration
-	// PrepareAhead is the lead M in ReadyBy <= now + T + M; zero uses 2s.
+	// PrepareAhead is the lead M in ReadyBy <= now + T + M; zero uses 30s.
 	PrepareAhead time.Duration
 	// Optional event sink; it must be fast and must not call back into Scheduler.
 	Observe func(Event)

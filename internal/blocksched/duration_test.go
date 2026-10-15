@@ -10,7 +10,7 @@ import (
 func TestCompletedBlockDurationDecayAndComparableSamples(t *testing.T) {
 	now := time.Now()
 	d := new(durationEstimate)
-	if d.value() != time.Second {
+	if d.value() != 3*time.Second {
 		t.Fatal("missing initial estimate")
 	}
 	sample := func(work int64, elapsed time.Duration, readable bool) bool {

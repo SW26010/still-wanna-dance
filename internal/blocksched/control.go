@@ -2,7 +2,7 @@ package blocksched
 
 import "time"
 
-const defaultPrepareAhead = 2 * time.Second
+const defaultPrepareAhead = 30 * time.Second
 
 type controller struct {
 	open     int

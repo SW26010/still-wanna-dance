@@ -14,9 +14,9 @@ func TestWindowBoundaryAndDeadlineDiagnostics(t *testing.T) {
 		wait            time.Duration
 		urgent, overdue bool
 	}{
-		{"outside", 10 * time.Second, 7 * time.Second, false, false},
-		{"window_equality", 3 * time.Second, 0, false, false},
-		{"latest_start_equality", time.Second, 0, true, false},
+		{"outside", 40 * time.Second, 7 * time.Second, false, false},
+		{"window_equality", 33 * time.Second, 0, false, false},
+		{"latest_start_equality", 3 * time.Second, 0, true, false},
 		{"deadline_equality", 0, 0, true, false},
 		{"past_deadline", -time.Second, 0, true, true},
 	} {
@@ -159,9 +159,9 @@ func TestCompletedSlowSampleMovesWindowWithoutReordering(t *testing.T) {
 		probe.Add(need("probe", true, 0, time.Hour))
 		for _, key := range []string{"later", "earlier"} {
 			j, _ := s.Submit(key, standardBlockSize, func(context.Context, *Progress) Result { started <- key; return Result{} })
-			ready := now.Add(12 * time.Second)
+			ready := now.Add(40 * time.Second)
 			if key == "earlier" {
-				ready = now.Add(11 * time.Second)
+				ready = now.Add(39 * time.Second)
 			}
 			j.Add(Need{Owner: key, ReadyBy: ready, LeaseUntil: now.Add(time.Hour)})
 		}
@@ -237,7 +237,7 @@ func TestDeadlineUpdatesRearmWindowWithoutTouchingRunningWork(t *testing.T) {
 		a.Update(need("first", false, 30*time.Second, time.Hour))
 		synctest.Wait()
 		s.call(func(st *state) {
-			if time.Until(st.nextControlEvent(time.Now())) != 18*time.Second {
+			if time.Until(st.nextControlEvent(time.Now())) != 16*time.Second {
 				t.Error("deadline change did not move the timed heap head")
 			}
 		})
@@ -245,7 +245,7 @@ func TestDeadlineUpdatesRearmWindowWithoutTouchingRunningWork(t *testing.T) {
 			t.Fatal("obsolete window fired", got)
 		}
 		// The running block's overdue deadline must not trigger capacity growth.
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 		synctest.Wait()
 		s.call(func(st *state) {
 			if st.control.open != 1 || !st.control.nextGrow.IsZero() {
@@ -257,5 +257,41 @@ func TestDeadlineUpdatesRearmWindowWithoutTouchingRunningWork(t *testing.T) {
 		if got := <-started; got != "first" || time.Since(now) != time.Second {
 			t.Fatal("earlier deadline failed to enter paced admission", got)
 		}
+	})
+}
+
+func TestLargePrepareAheadStillRampsAndCapsOrdinaryWork(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		s := New(Config{SoftLimit: 4, GrowInterval: 250 * time.Millisecond, PrepareAhead: 500 * time.Second})
+		defer s.Close()
+		started := make(chan time.Time, 16)
+		run := func(ctx context.Context, _ *Progress) Result { started <- time.Now(); <-ctx.Done(); return Result{} }
+		now := time.Now()
+		for i := range 10 {
+			key := string(rune('a' + i))
+			j, _ := s.Submit(key, standardBlockSize, run)
+			j.Add(need(key, false, 450*time.Second, time.Hour))
+		}
+		time.Sleep(time.Second)
+		synctest.Wait()
+		if len(started) != 4 {
+			t.Fatal("large M bypassed soft limit", len(started))
+		}
+		for i := range 4 {
+			if at := <-started; at.Sub(now) != time.Duration(i)*250*time.Millisecond {
+				t.Fatal("large M bypassed ramp", at.Sub(now))
+			}
+		}
+		j, _ := s.Submit("blocking", standardBlockSize, run)
+		j.Add(need("reader", true, 900*time.Second, time.Hour))
+		if at := <-started; at != time.Now() {
+			t.Fatal("Blocking waited for window or quota")
+		}
+		synctest.Wait()
+		s.call(func(st *state) {
+			if st.active != 5 || st.control.open != 4 || !st.nextControlEvent(time.Now()).IsZero() {
+				t.Error("large window altered active accounting or left a past-time wakeup")
+			}
+		})
 	})
 }

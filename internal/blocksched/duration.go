@@ -6,7 +6,7 @@ import (
 )
 
 const standardBlockSize = 1 << 20
-const initialBlockTime = time.Second
+const initialBlockTime = 3 * time.Second
 const sampleHalfLife = 30 * time.Second
 
 // A time-decayed mean of comparable completed executions. No periodic tick is

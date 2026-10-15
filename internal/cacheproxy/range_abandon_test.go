@@ -108,6 +108,20 @@ func TestCanceledSeekReleasesWorkerWithoutCancelingSharedReaders(t *testing.T) {
 	if _, err := io.ReadFull(three, got); err != nil || !bytes.Equal(got, body[:8]) {
 		t.Fatalf("new seek stalled: %v", err)
 	}
+	// The raw tail reader owns only its read window. Once the old GET's
+	// handoff expires, a new full GET must own the remaining holes; completing
+	// the tail alone does not require the abandoned prefix to finish.
+	f, full, err := s.obtain(ctx, v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if full != nil {
+		defer full.Close()
+		all, err := io.ReadAll(full)
+		if err != nil || !bytes.Equal(all, body) {
+			t.Fatalf("full GET did not refill abandoned holes: %v", err)
+		}
+	}
 	select {
 	case <-f.done:
 		if f.err != nil {

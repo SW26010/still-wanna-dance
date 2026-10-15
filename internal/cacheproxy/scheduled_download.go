@@ -116,7 +116,17 @@ func (w *downloadSession) initialize(d *rangeDownload) {
 
 // The initial request is itself a scheduled block. A 200 fallback keeps that
 // one execution until body close; a 206 exposes the spool before reading block 0.
-func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block int64) blocksched.Result {
+func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block int64) (result blocksched.Result) {
+	if w.ctx.Err() != nil {
+		return blocksched.Result{Err: context.Cause(w.ctx)}
+	}
+	defer func() {
+		// A withdrawn block can resume in this session, but a canceled session
+		// cannot. Its checkpoint belongs to the next flight after cleanup.
+		if errors.Is(result.Err, blocksched.ErrPaused) && w.ctx.Err() != nil {
+			result.Err = context.Cause(w.ctx)
+		}
+	}()
 	if deadline, ok := w.ctx.Deadline(); ok {
 		var stop context.CancelFunc
 		ctx, stop = context.WithDeadline(ctx, deadline)

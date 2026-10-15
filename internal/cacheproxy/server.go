@@ -405,6 +405,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	event.demand = r.Method == http.MethodGet && v.songID != ""
+	if r.Method == http.MethodGet {
+		ctx, timingErr := s.playbackContext(r, v, start)
+		if timingErr != nil {
+			http.Error(w, "playback metadata unavailable", cacheErrorStatus(timingErr))
+			return
+		}
+		r = r.WithContext(ctx)
+	}
 	s.pinVideo(v)
 	defer func() { s.releaseVideo(v) }()
 	releaseDemand := func() {}
@@ -420,6 +428,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		replacement, fallbackErr := s.retrySongURL(r.Context(), v)
 		if fallbackErr != nil {
 			return errors.Join(cause, fmt.Errorf("cached URL refresh: %w", fallbackErr))
+		}
+		if r.Method == http.MethodGet {
+			ctx, err := s.playbackContext(r, replacement, start)
+			if err != nil {
+				return err
+			}
+			r = r.WithContext(ctx)
 		}
 		s.pinVideo(replacement)
 		releaseDemand()

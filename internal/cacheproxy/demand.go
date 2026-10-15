@@ -41,6 +41,7 @@ type downloadDemand struct {
 	key, song       string
 	queue, playback bool
 	queueSource     *queueSource
+	clock           *playbackClock
 }
 
 // sourceExit freezes withdrawal before registry locks or coalesced coordinator
@@ -114,6 +115,13 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) {
 func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downloadDemand, func()) {
 	token, queue := ctx.Value(queueDemandKey{}).(*queueSource)
 	d := &downloadDemand{ctx: ctx, key: v.key, song: v.songID, queue: queue, playback: playback, queueSource: token}
+	if playback {
+		var observed bool
+		d.clock, observed = ctx.Value(playbackClockKey{}).(*playbackClock)
+		if !observed {
+			d.clock = &playbackClock{at: time.Now(), media: estimateMediaTiming(v.size, 0)}
+		}
+	}
 	s.mu.Lock()
 	if s.demands == nil {
 		s.demands = make(map[*downloadDemand]bool)

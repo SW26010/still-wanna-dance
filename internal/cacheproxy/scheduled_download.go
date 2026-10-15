@@ -23,6 +23,7 @@ type scheduledCursor struct {
 	exit  sourceExit
 	block int64
 	at    time.Time
+	clock *playbackClock
 }
 type scheduledWait struct {
 	block int64
@@ -71,7 +72,7 @@ func (w *downloadSession) signal() {
 	}
 }
 func (w *downloadSession) track(ctx context.Context) (func(int64), func()) {
-	c := &scheduledCursor{ctx: ctx, block: -1}
+	c := &scheduledCursor{ctx: ctx, block: -1, clock: clockFromContext(ctx)}
 	w.mu.Lock()
 	w.cursors[c] = true
 	w.mu.Unlock()
@@ -87,6 +88,9 @@ func (w *downloadSession) track(ctx context.Context) (func(int64), func()) {
 		w.mu.Lock()
 		changed := false
 		if c.exit.active(ctx) && c.block != offset/rangeBlockSize {
+			if c.clock == nil {
+				c.clock = &playbackClock{at: time.Now(), offset: offset, media: estimateMediaTiming(w.v.size, 0)}
+			}
 			c.block = offset / rangeBlockSize
 			c.at = time.Now()
 			changed = true
@@ -267,11 +271,8 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 		}
 		for _, b := range window {
 			ready := time.Time{}
-			if d.playback {
-				ready = w.started.Add(time.Minute + time.Duration(b)*2*time.Second)
-				if !initialized {
-					ready = w.started.Add(time.Second)
-				}
+			if d.clock != nil {
+				ready = d.clock.ready(b * rangeBlockSize)
 			}
 			origin := sourceBatch
 			if d.playback {
@@ -297,7 +298,7 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 			continue
 		}
 		for distance := int64(0); distance <= rangeReadAheadBlocks; distance++ {
-			add(c.block+distance, blockSource{"read", c}, c.at.Add(time.Duration(distance+1)*2*time.Second), false, c.block, sourceGET)
+			add(c.block+distance, blockSource{"read", c}, c.clock.ready((c.block+distance)*rangeBlockSize), false, c.block, sourceGET)
 		}
 	}
 	for d := range w.waits {

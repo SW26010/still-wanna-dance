@@ -240,3 +240,9 @@ LA-040 主项及服务/队列/并发说明同步到新规则；历史竞争暂�
 最终隔离范围检查通过：`go test -overlay=<本地隔离映射> -tags=no_easytier -race ./cmd/... ./internal/... ./data/... ./experiments/... -count=1 -timeout=180s -json`，17 个测试包、1,341 个测试/子测试通过、16 项按条件跳过，无 race 报告（natural-admission-isolated-final-race-2.jsonl）。同范围 overlay 的 `go vet` 与 `CGO_ENABLED=0 go build` 通过（natural-admission-isolated-final-vet.log、natural-admission-isolated-final-build.log）。首次 overlay 调用因 PowerShell 参数未加引号丢失文件扩展名而在加载前退出，改为带引号的绝对路径后通过，初次输出保留。共享工作区无 overlay 的 vet/build 也已通过（natural-admission-final-vet-2.log、natural-admission-final-build-2.log）；共享工作区的另一项改动仍由其自身验证与提交。
 
 本轮三个提交分别承载准入策略、会话取消修复和无用状态清理，均仅在本地。LA-040 当前规则及 LA-041 开播时长观测保留待验收，联合 LA-038/010；未 push、未启动游戏、未修改 hosts。
+
+## 27. GET 按请求到达及媒体比例计算期限
+
+新增只读媒体估算，按 media.byte_size 和与资源 MD5 匹配的清单 end 计算字节/时间比例；直接资源尚无大小记录时可使用已验证 URL.s，不使用路径推断歌曲身份，不把 end 减去 start。只缺一项用 2 Mbps 补足，两项都缺用 45 MiB、210 秒；平均总码率由有效估算对派生，不保存冗余字段。SQL 故障继续进入存储错误分类，估计值不写回数据库。
+
+HTTP 在地址解析前记录的到达时刻随 Range 起点一起传给 GET 需求和读取游标，重试保持原始时刻。块 ReadyBy 使用到达时间加相对媒体偏移，已越过的块立即到期；取消、交接、Blocking 和下载完整性规则保留。测试覆盖版本匹配、共享 MD5、缺失值、无事实回写、Range/后缀/条件 Range、HEAD/无效 Range，以及延迟处理和读取推进不滑动期限。新的计算/期限测试及已有 GET 生命周期、交接、首读/Seek、整会话取消定向 race 连续 3 轮通过（playback-clock-focused-race.log）。首轮媒体夹具的多语句绑定错误已修正并保留失败输出，产品查询没有据此放宽匹配。LA-040 增补对应实机步骤，LA-041 保留，未启动游戏或 push。

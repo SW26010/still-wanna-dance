@@ -261,6 +261,8 @@
 
 2026-10-15 会话取消边界补充 **LA-040**（联合 LA-038）：代码依据 `internal/cacheproxy/{scheduled_download,scheduled_cancel_test,range_abandon_test}.go`。在响应头等待或已接收部分正文时结束整个资源会话，并延迟协调器收尾，确认旧任务不重新发 HTTP，保存的前缀由后续会话恢复；仅撤销块需求时仍能正常恢复。两个读者共用 Seek 块，关闭一个不影响另一个；都关闭并经过交接后，再发完整 GET，确认缺块补齐、完整 MD5 与尾段播放正确。保存取消/执行/HTTP 起止与次数、恢复 Range、检查点字节数、正式文件哈希和实际续播证据；存储故障仍按 LA-010 熔断，自动化结果单列。
 
+2026-10-15 播放期限补充 **LA-040**：代码依据 `internal/cacheproxy/{media_timing,playback_timing,demand,scheduled_download,server}.go` 及对应回归。使用已知 media.byte_size 和同 MD5 清单 end 的视频，从开头、半程和尾部发 GET，延迟解析/下载后核对 ReadyBy 仍以原始请求到达时刻为基准；连续读取不得把未来块期限后移，实际缺块仍立即 Blocking。覆盖后缀 Range、条件 Range、HEAD、无效/多 Range、同内容多读者、资源版本不匹配及大小/时长单项或双项缺失，确认兜底只影响估算、不写回资源事实。保存请求到达/偏移、所用大小时长、逐块 ReadyBy、实际播放点与缓冲/音画证据，并报告比例估算误差。自动化验证单列，实机仍待验收。
+
 ## 队首消失至正式播放的时长观测
 
 | 编号 | 功能与代码/验证依据 | 下轮步骤与通过条件 | 必需证据 / 环境 | 状态 | 批次 / 结果报告 |

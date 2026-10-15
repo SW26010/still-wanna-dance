@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -50,7 +51,10 @@ func (s *Server) checkDownloadedFile(ctx context.Context, file *os.File, v video
 		return err
 	}
 	if err := checkOpenFile(ctx, file, v); err != nil {
-		return fmt.Errorf("%w: %w", errUpstreamDownload, err)
+		if errors.Is(err, errInvalidCache) {
+			return fmt.Errorf("%w: %w", errUpstreamDownload, err)
+		}
+		return err
 	}
 	return nil
 }

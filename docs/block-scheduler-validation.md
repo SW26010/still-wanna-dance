@@ -190,3 +190,9 @@ GET 延迟处理、重复关闭、固定到期、队列升降/合并通知、正
 分块下载完成后的 Seek 与整文件 MD5 现在由 checkDownloadedFile 取得 Server.localChecks 额度，和已缓存文件验证共用 MaxDownloads；校验结束立即归还，正式发布不占校验额度。排队响应上下文取消，成功、Seek 失败及校验失败均通过 defer 释放。
 
 新增完整分块文件的收尾回归：占满全部额度时不能校验/发布，等待超时不能释放别人的额度；释放竞争额度后新会话可校验并发布完整内容，损坏正文拒绝发布且不泄漏额度。联测已有缓存验证取消和最后一块完成竞态，连续 10 轮 race 通过（final-validation-capacity-race-2.log）。提取时遗留未使用 import 的首次编译失败日志保留，移除后重跑通过。LA-040 增加校验并发、排队取消和播放尾段证据，实机仍待验收。
+
+## 21. 完整校验区分上游完整性与本地读取故障
+
+checkDownloadedFile 仅将 errInvalidCache（大小或 MD5 不匹配）标记为上游完整性失败，Seek/Stat/Read 的本地错误和上下文取消原样返回，由 prepare 的统一分类决定存储熔断。避免文件读取故障被 errUpstreamDownload 包装后绕过熔断。
+
+确定性故障上下文在最终校验完成 Seek/Stat 后、第一次文件读取前关闭句柄，确认 os.ErrClosed 和 ErrLocalStorage 保留，StorageError 记录故障且拒绝后续冷下载；另覆盖 Seek 失败、等长损坏正文及读取前取消。全部路径拒绝发布且归还校验额度。联测原顺序暂停、发布健康与存储熔断回归，连续 10 轮 race 通过（final-validation-errors-race.log）。LA-040 联合 LA-010 增补本地故障及完整性对照，实机继续积攒。

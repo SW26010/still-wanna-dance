@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"os"
 	"testing"
@@ -87,5 +88,76 @@ func TestDownloadedValidationFailureReleasesCapacity(t *testing.T) {
 	}
 	if _, err := os.Stat(cfg.videoFile(v.key)); !os.IsNotExist(err) {
 		t.Fatal("published corrupt content", err)
+	}
+}
+
+// Trigger only when the final hash reaches its first read, after Seek and Stat.
+// The completed fixture has no writers/readers that share this file offset.
+type validationReadContext struct {
+	context.Context
+	file   *os.File
+	before func()
+}
+
+func (c *validationReadContext) Err() error {
+	if offset, err := c.file.Seek(0, io.SeekCurrent); err == nil && offset == 0 && c.before != nil {
+		before := c.before
+		c.before = nil
+		before()
+	}
+	return c.Context.Err()
+}
+
+func TestDownloadedValidationDistinguishesStorageAndIntegrity(t *testing.T) {
+	for _, mode := range []string{"read_failure", "seek_failure", "checksum_failure", "canceled"} {
+		t.Run(mode, func(t *testing.T) {
+			s, cfg := setup(t, nil)
+			f, v := completedRangeFlight(t, s, payload)
+			parent, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			ctx := &validationReadContext{Context: parent, file: f.ranges.storage.file}
+			switch mode {
+			case "read_failure":
+				ctx.before = func() {
+					if err := ctx.file.Close(); err != nil {
+						t.Error(err)
+					}
+				}
+			case "seek_failure":
+				if err := ctx.file.Close(); err != nil {
+					t.Fatal(err)
+				}
+			case "checksum_failure":
+				if _, err := ctx.file.WriteAt([]byte("!"), 0); err != nil {
+					t.Fatal(err)
+				}
+			case "canceled":
+				ctx.before = cancel
+			}
+			_, _, err := s.prepare(ctx, v, f)
+			local := mode == "read_failure" || mode == "seek_failure"
+			if errors.Is(err, ErrLocalStorage) != local || (s.StorageError() != nil) != local {
+				t.Fatalf("storage classification lost: result=%v storage=%v", err, s.StorageError())
+			}
+			if errors.Is(err, errUpstreamDownload) != (mode == "checksum_failure") {
+				t.Fatal("local read or cancellation marked as upstream failure", err)
+			}
+			if local {
+				if !errors.Is(err, os.ErrClosed) {
+					t.Fatal("underlying local error lost", err)
+				}
+				if _, reader, nextErr := s.obtain(context.Background(), v); reader != nil || !errors.Is(nextErr, ErrLocalStorage) {
+					t.Fatal("storage failure did not stop the next cold download", nextErr)
+				}
+			} else if mode == "canceled" && !errors.Is(err, context.Canceled) {
+				t.Fatal("cancellation lost", err)
+			}
+			if len(s.localChecks) != 0 {
+				t.Fatal("failed validation leaked capacity")
+			}
+			if _, err := os.Stat(cfg.videoFile(v.key)); !os.IsNotExist(err) {
+				t.Fatal("failed validation published a file", err)
+			}
+		})
 	}
 }

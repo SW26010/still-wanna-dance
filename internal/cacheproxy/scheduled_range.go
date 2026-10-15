@@ -175,6 +175,7 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 			return err
 		}
 		download.finish(block)
+		progress.Ready()
 		return nil
 	}
 	return fmt.Errorf("%w: range %d-%d: %w", errUpstreamDownload, start, end-1, last)

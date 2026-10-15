@@ -270,3 +270,9 @@ HTTP 在地址解析前记录的到达时刻随 Range 起点一起传给 GET 需
 最终全部受控 Go 源码目录 `go test -tags=no_easytier -race ./cmd/... ./internal/... ./data/... ./experiments/... -count=1 -timeout=180s -json` 通过：17 个测试包、1,378 个测试/子测试通过、16 项按条件跳过，无 race 报告（playback-timing-final-race.jsonl）。同范围 `go vet` 与 `CGO_ENABLED=0 go build` 通过（playback-timing-final-vet.log、playback-timing-final-build.log）；前端 221 项通过记录见上节。台账 42 个编号保持唯一，LA-040 的动态期限和来源边界、LA-041 的真实开播间隔继续待验收，关联 LA-038/010。
 
 本轮分为 GET 媒体期限、队列预计播完时间、日志顺序与本地名称、条件 Range 和收尾四个本地提交；未 push、未启动游戏或修改 hosts。没有读取日常私有库或回填估计值，所有数据库和 HTTP 测试使用隔离夹具，原始自动验证日志只放本地忽略目录。
+
+## 31. 完成事件的标准块耗时测量
+
+加入标准 1 MiB 块从获准执行到通过检查并可读的测量，初始 T=1 秒，历史样本权重按 30 秒半衰期衰减，只有完成事件更新平均值。范围执行在完整块写入及完成登记后标记 Ready，正文/资源收尾仍须全部结束才能释放 active。尾块、部分续传、失败/暂停与顺序 200 不贡献标准块样本；完整块成功重试的全部连接与传输等待计入，正常慢样本不会被筛掉。此提交先建立测量和日志，窗口准入在后续提交替换旧供数控制。
+
+虚拟时间回归覆盖排队/清理排除、重复 Ready 不延长采样、失败/暂停排除、慢样本与同批权重、半衰期和长期空闲。调度核心全部单元测试通过；调度及 Range/顺序/完成边界定向 race 结果见本地 block-duration-focused-race.log。LA-040 增补采样的实机步骤和证据，LA-041 保留；没有启动游戏或修改 hosts。

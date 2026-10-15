@@ -36,9 +36,21 @@ type Result struct {
 type Run func(context.Context, *Progress) Result
 
 type Progress struct {
-	bytes   atomic.Int64 // all network bytes, including discarded attempts
-	size    atomic.Int64
-	invalid atomic.Bool
+	// Written by the executor and read only after Run returns.
+	admitted, ready time.Time
+	work            int64
+	bytes           atomic.Int64 // all network bytes, including discarded attempts
+	size            atomic.Int64
+	invalid         atomic.Bool
+}
+
+// Ready records when a checked block becomes readable. Call only for a block,
+// not a sequential whole-resource fallback. Cleanup may continue after Ready;
+// the active slot is held until Run returns. Calls belong to the Run goroutine.
+func (p *Progress) Ready() {
+	if p.ready.IsZero() {
+		p.ready = time.Now()
+	}
 }
 
 // SetSize corrects the execution cost after capability/response discovery.
@@ -76,6 +88,7 @@ type Event struct {
 	ReadyBy              time.Time
 	Remaining            int64
 	Supply               float64
+	BlockTime            time.Duration
 }
 
 type Scheduler struct {
@@ -218,6 +231,7 @@ type state struct {
 	active, demandCount int
 	closing             bool
 	control             controller
+	durations           durationEstimate
 	orphans             list.List
 }
 
@@ -417,7 +431,7 @@ func (s *state) emit(kind, reason string, j *job) {
 	if s.cfg.Observe == nil {
 		return
 	}
-	e := Event{Kind: kind, Reason: reason, Active: s.active, Open: s.control.open, Target: s.control.target, Supply: s.control.rate}
+	e := Event{Kind: kind, Reason: reason, Active: s.active, Open: s.control.open, Target: s.control.target, Supply: s.control.rate, BlockTime: s.durations.value()}
 	if j != nil {
 		e.Key, e.Blocking, e.ReadyBy, e.Remaining = j.task.key, j.need.Blocking, j.need.ReadyBy, j.remaining
 	}
@@ -442,6 +456,7 @@ func (s *state) dispatch() {
 		}
 		ctx, cancel := context.WithCancelCause(context.Background())
 		j.cancel, j.progress = cancel, new(Progress)
+		j.progress.admitted, j.progress.work = time.Now(), j.remaining
 		j.started, j.sampled = time.Now(), 0
 		s.active++
 		s.running[j] = true
@@ -490,6 +505,9 @@ func (s *state) loop() {
 			fn(s)
 		case c := <-s.s.finished:
 			j := c.job
+			if c.result.Err == nil && s.durations.observe(j.progress, time.Now()) {
+				s.emit("sample", "readable_block", j)
+			}
 			s.sampleProgress(j, time.Now())
 			j.cancel(nil)
 			j.cancel = nil

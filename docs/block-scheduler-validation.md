@@ -230,3 +230,13 @@ LA-040 主项及服务/队列/并发说明同步到新规则；历史竞争暂�
 执行入口现在直接拒绝已取消会话；执行退出仅将“块可恢复暂停”转换为已取消会话的终态原因，保留存储错误和保存好的检查点。活跃会话中的块需求撤销仍可恢复。确定性回归刻意保留核心需求，分别在响应头前和首段正文后取消资源，确认执行一次、HTTP 一次、Task.Done 完成、后续迟到执行不发请求，正文检查点准确保存。新回归及原完整会话恢复、候选恢复、顺序本地写入错误、并行收尾错误回归连续 20 轮 race 通过（session-terminal-cancel-race.log）；新增的执行次数断言再连续 20 轮通过（session-terminal-cancel-final-race.log）。
 
 第二次全源码回归中，旧 Seek 测试在所有完整 GET 已关闭后仍要求整文件发布，依赖原竞争暂停促使其他块先完成。尾块读取成功，但剩余交接正常到期后会话退出。测试现在显式再发完整 GET 来持有未完成块需求，校验全文件内容及发布；原共享读者不互相取消的断言保留，连续 10 轮 race 通过（natural-admission-canceled-seek-race.log）。失败输出 natural-admission-final-race-2.jsonl 留档；该夹具修正不改变产品行为。LA-040 联合 LA-038 增补取消边界与实际续播证据，仍待实机验收。
+
+## 26. 清理旧暂停状态与本轮验证范围
+
+移除已没有读者的 Progress.received、job.yielding、Blocking 汇总计数及 hasBlocking；Progress.Add 不再为旧小尾部暂停选择器重复累加原子计数。仍保留网络流量、有效性与剩余量估算、Need.Blocking 准入、Owner 公平排序和容量边界断言。该提交只清理未使用状态，不新增产品行为或实机编号；本轮行为仍按 LA-040 验收，LA-041 观测保留。核心完整 race 连续 20 轮通过（natural-admission-core-race.log）。
+
+第三次共享工作区全源码 race 中，调度核心、缓存及另外 14 个包通过，无 race 报告；唯一失败是另一个并行变更提前写入资源元数据，使 TestLocalStorageFailureStopsConsoleFallback/index 的旧“先下载一次”预期变成零次下载（natural-admission-final-race-3.jsonl）。没有把该变更或其新增 LA-042 纳入本任务提交，也没有修改其文件来绕过测试。最终验证用 Go overlay 将 song_urls.go、storage.go、song_urls_test.go 映射到 7f3cff7 中的版本，并屏蔽其新增 song_url_metadata_test.go；本任务源码及所有其他原有测试原样执行。overlay 和原始日志只留本地忽略目录，工作区文件不被替换。
+
+最终隔离范围检查通过：`go test -overlay=<本地隔离映射> -tags=no_easytier -race ./cmd/... ./internal/... ./data/... ./experiments/... -count=1 -timeout=180s -json`，17 个测试包、1,341 个测试/子测试通过、16 项按条件跳过，无 race 报告（natural-admission-isolated-final-race-2.jsonl）。同范围 overlay 的 `go vet` 与 `CGO_ENABLED=0 go build` 通过（natural-admission-isolated-final-vet.log、natural-admission-isolated-final-build.log）。首次 overlay 调用因 PowerShell 参数未加引号丢失文件扩展名而在加载前退出，改为带引号的绝对路径后通过，初次输出保留。共享工作区无 overlay 的 vet/build 也已通过（natural-admission-final-vet-2.log、natural-admission-final-build-2.log）；共享工作区的另一项改动仍由其自身验证与提交。
+
+本轮三个提交分别承载准入策略、会话取消修复和无用状态清理，均仅在本地。LA-040 当前规则及 LA-041 开播时长观测保留待验收，联合 LA-038/010；未 push、未启动游戏、未修改 hosts。

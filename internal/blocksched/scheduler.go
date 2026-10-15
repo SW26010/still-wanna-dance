@@ -36,10 +36,9 @@ type Result struct {
 type Run func(context.Context, *Progress) Result
 
 type Progress struct {
-	bytes    atomic.Int64 // all network bytes, including discarded attempts
-	received atomic.Int64 // useful bytes since the last discard
-	size     atomic.Int64
-	invalid  atomic.Bool
+	bytes   atomic.Int64 // all network bytes, including discarded attempts
+	size    atomic.Int64
+	invalid atomic.Bool
 }
 
 // SetSize corrects the execution cost after capability/response discovery.
@@ -50,16 +49,13 @@ func (p *Progress) SetSize(n int64) {
 }
 
 // Invalidate excludes an execution with discarded/retried bytes from supply
-// estimation and resets useful progress for the next attempt. Transfer counters
-// can still report its actual network traffic.
+// estimation. Transfer counters still report its actual network traffic.
 func (p *Progress) Invalidate() {
 	p.invalid.Store(true)
-	p.received.Store(0)
 }
 
 func (p *Progress) Add(n int64) {
 	if n > 0 {
-		p.received.Add(n)
 		p.bytes.Add(n)
 	}
 }
@@ -192,7 +188,6 @@ type job struct {
 	cancel           context.CancelCauseFunc
 	progress         *Progress
 	retiring         bool
-	yielding         bool
 	terminal         error
 	started          time.Time
 	sampled          int64
@@ -214,7 +209,7 @@ type state struct {
 	cfg                 Config
 	jobs                map[string]*job
 	running             map[*job]bool
-	wanted, blocking    int
+	wanted              int
 	ready               readyHeap
 	expiry              leaseHeap
 	owners              map[string]uint64
@@ -333,16 +328,10 @@ func (s *state) refresh(j *job) {
 		s.ungroup(j)
 	} else if n.Owner != "" {
 		s.wanted--
-		if j.need.Blocking {
-			s.blocking--
-		}
 	}
 	j.need = n
 	if n.Owner != "" {
 		s.wanted++
-		if n.Blocking {
-			s.blocking++
-		}
 		if s.groups[n.Owner] == nil {
 			s.groups[n.Owner] = make(map[*job]bool)
 		}
@@ -360,7 +349,6 @@ func (s *state) refresh(j *job) {
 		}
 		if j.cancel != nil {
 			j.cancel(ErrPaused)
-			j.yielding = true
 		}
 		return
 	}
@@ -380,9 +368,6 @@ func (s *state) ungroup(j *job) {
 		return
 	}
 	s.wanted--
-	if j.need.Blocking {
-		s.blocking--
-	}
 	delete(s.groups[owner], j)
 	if len(s.groups[owner]) == 0 {
 		delete(s.groups, owner)
@@ -457,7 +442,7 @@ func (s *state) dispatch() {
 		}
 		ctx, cancel := context.WithCancelCause(context.Background())
 		j.cancel, j.progress = cancel, new(Progress)
-		j.started, j.sampled, j.yielding = time.Now(), 0, false
+		j.started, j.sampled = time.Now(), 0
 		s.active++
 		s.running[j] = true
 		j.initialRemaining = j.remaining

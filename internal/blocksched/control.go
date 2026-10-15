@@ -29,7 +29,6 @@ func earlier(a, b time.Time) time.Time {
 	}
 	return a
 }
-func (s *state) hasBlocking() bool { return s.blocking > 0 }
 func (s *state) sampleProgress(j *job, now time.Time) {
 	if j.progress == nil {
 		return

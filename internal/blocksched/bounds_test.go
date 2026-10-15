@@ -21,14 +21,14 @@ func TestSummaryUpdatesReleaseOldOwnersAndCounters(t *testing.T) {
 			d.Update(need(strconv.Itoa(i), i%2 == 0, time.Minute, time.Hour))
 		}
 		s.call(func(st *state) {
-			if st.wanted != 1 || st.blocking != 0 || len(st.groups) != 1 || len(st.owners) > 1 {
-				t.Errorf("stale owner/counters: %d %d %d %d", st.wanted, st.blocking, len(st.groups), len(st.owners))
+			if st.wanted != 1 || len(st.groups) != 1 || len(st.owners) > 1 {
+				t.Errorf("stale owner/counters: %d %d %d", st.wanted, len(st.groups), len(st.owners))
 			}
 		})
 		d.Close()
 		synctest.Wait()
 		s.call(func(st *state) {
-			if st.wanted != 0 || st.blocking != 0 || len(st.groups) != 0 || len(st.ready) != 0 {
+			if st.wanted != 0 || len(st.groups) != 0 || len(st.ready) != 0 {
 				t.Error("withdrawn demand retained scheduler metadata")
 			}
 		})

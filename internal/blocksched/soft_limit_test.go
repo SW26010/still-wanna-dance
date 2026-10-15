@@ -132,3 +132,52 @@ func TestBlockingPromotionBypassesResumeCooldown(t *testing.T) {
 		}
 	})
 }
+
+func TestBlockingContentionDoesNotRefillBackgroundSlots(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		started, paused := 0, 0
+		s := New(Config{SoftLimit: 16, GrowInterval: 250 * time.Millisecond,
+			PreemptAfter: 200 * time.Millisecond, Cooldown: 500 * time.Millisecond,
+			Observe: func(e Event) {
+				if !e.Blocking && e.Kind == "started" {
+					started++
+				}
+				if e.Kind == "paused" {
+					paused++
+				}
+			}})
+		defer s.Close()
+		for i := range 24 {
+			j, _ := s.Submit(fmt.Sprint(i), 1<<20, func(ctx context.Context, _ *Progress) Result {
+				<-ctx.Done()
+				return Result{Err: ErrPaused, Remaining: 1 << 20}
+			})
+			j.Add(need("background", false, time.Second, time.Hour))
+		}
+		time.Sleep(15 * 250 * time.Millisecond)
+		synctest.Wait()
+		if started != 16 {
+			t.Fatal("background did not fill ordinary capacity", started)
+		}
+		front, _ := s.Submit("front", 1<<20, func(ctx context.Context, _ *Progress) Result {
+			<-ctx.Done()
+			return Result{}
+		})
+		d := front.Add(need("reader", true, 0, time.Hour))
+		time.Sleep(1200 * time.Millisecond)
+		synctest.Wait()
+		if paused != 6 || started != 16 {
+			t.Fatalf("yielded bandwidth was refilled: paused=%d background starts=%d", paused, started)
+		}
+		s.call(func(st *state) {
+			if st.active != 11 {
+				t.Error("background competition did not decrease", st.active)
+			}
+		})
+		d.Close()
+		synctest.Wait()
+		if started <= 16 {
+			t.Fatal("ordinary admission did not resume after Blocking ended")
+		}
+	})
+}

@@ -441,7 +441,10 @@ func (s *state) emit(kind, reason string, j *job) {
 func (s *state) dispatch() {
 	for s.ready.Len() > 0 {
 		j := s.ready[0]
-		if !j.need.Blocking && s.active >= s.control.open {
+		// With contention yielding enabled, keep released bandwidth available
+		// to blocked readers. Fresh background work must wait just like paused
+		// work, even when a request slot is free.
+		if !j.need.Blocking && (s.active >= s.control.open || s.cfg.PreemptAfter > 0 && s.hasBlocking()) {
 			return
 		}
 		heap.Pop(&s.ready)

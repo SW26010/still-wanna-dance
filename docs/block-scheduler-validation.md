@@ -178,3 +178,9 @@ GET 延迟处理、重复关闭、固定到期、队列升降/合并通知、正
 顺序执行现在只把 context.Canceled 或 blocksched.ErrPaused 错误链转换为会话暂停，保留同时发生的存储及完整性错误。原任务收尾的错误优先级与 prepare 的存储分类继续生效，不另建故障分类机制。回归确认原始 os.ErrClosed 和 ErrLocalStorage 同时保留，当前引擎熔断且后续冷下载不再发起上游请求；正常取消对照仍返回暂停，不误熔断，失败正文没有正式文件。新增交错及既有创建/写入/发布/上游/完整性错误分类回归连续 20 轮 race 通过（sequential-pause-race.log）。LA-040 联合 LA-010 补充故障重合、后续请求与实际体验证据，真实游戏继续待验收。
 
 本轮三项修复后的全受控源码检查通过：go test -tags=no_easytier -race ./cmd/... ./internal/... ./data/... ./experiments/... -count=1 -timeout=180s -json，17 个测试包、1,331 个测试/子测试通过、16 项按条件跳过，无 race 报告（flight-deadline-pause-final-race.jsonl）。同范围 go vet 与 CGO_ENABLED=0 go build 通过（flight-deadline-pause-final-vet.log、flight-deadline-pause-final-build.log）。台账 41 个编号保持唯一。三项修复分开本地提交，未 push、未启动游戏或修改 hosts；LA-040 联合 LA-010/038 及原 LA-041 观测继续待实机验收。
+
+## 19. 持续 Blocking 阻止后台补位
+
+核实 dispatch 只检查开放额度，旧后台让位后新后台确实能补位。启用竞争让位时，普通请求准入同时检查是否仍有 Blocking；已有后台保留 200 ms 让位节奏和小尾部保护，Blocking 启动及晋升仍立即放行，最后一份 Blocking 撤销后恢复普通准入。不增加新的计时或竞争状态。
+
+新增产品参数回归：16 路后台和 8 个排队块遇到持续 Blocking，1.2 秒内恰好暂停 6 块、没有启动任何替补后台，总在途降至 11；Blocking 撤销后普通请求恢复。核心全部 race 连续 10 轮通过（blocking-admission-race.log），涵盖 Blocking 突破软上限、晋升绕过冷却与普通渐增。LA-040 增加持续竞争期间的请求时间线和实际播放证据，实机继续积攒。

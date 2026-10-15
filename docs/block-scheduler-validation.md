@@ -262,3 +262,11 @@ HTTP 在地址解析前记录的到达时刻随 Range 起点一起传给 GET 需
 从 vrclog.Song 移除标题和时长字段，解码只保留 ID 顺序；其它 JSON 字段不进入业务状态。控制台名称从队列元数据同次查询的本地清单 name/composed_title 取得，通过独立的只读快照提供，未知名称回退 ID。状态接口和前端不再使用日志标题，失败列表也从本地清单补名称。
 
 回归用错误类型的日志标题/时长及含玩家字段的快照，确认只输出原 ID 顺序；跨 UTF-8 写入、截断、换房/轮换、既有队列生命周期保留。真实库检查名称来自本地清单且返回值不能修改内部状态。日志、缓存、控制台相关 race 连续 3 轮通过（queue-log-order-only-race.log）；前端回归改用独立名称映射，并保留 ID 回退、稳定节点复用和 HTML 文本渲染断言。refresh/navigation/setup 共 221 项前端测试通过（playback-timing-frontend-2.log），旧标题夹具的首次失败输出保留。LA-040 增补边界验收，真实游戏继续积攒。
+
+## 30. 条件 Range 与最终收尾
+
+日期型 If-Range 复用已验证本地文件和 localChecks 配额核对修改时间，读取期间持有资源引用。匹配时沿用 Range 起点；不匹配或冷流无文件时间时，按实际整文件响应从 0 估算。真实 HTTP 回归核对匹配/不匹配分别返回 206/200，半程视频的队列起点分别为剩余 60/120 秒；与普通 Range、ETag 和请求到达时间场景连续 3 轮 race 通过（playback-condition-range-race.log）。移除旧固定估算专用的会话 started 和读取游标 at，不增加新的计时器或持久化字段。LA-040 增补条件请求的实际响应与期限对照。
+
+最终全部受控 Go 源码目录 `go test -tags=no_easytier -race ./cmd/... ./internal/... ./data/... ./experiments/... -count=1 -timeout=180s -json` 通过：17 个测试包、1,378 个测试/子测试通过、16 项按条件跳过，无 race 报告（playback-timing-final-race.jsonl）。同范围 `go vet` 与 `CGO_ENABLED=0 go build` 通过（playback-timing-final-vet.log、playback-timing-final-build.log）；前端 221 项通过记录见上节。台账 42 个编号保持唯一，LA-040 的动态期限和来源边界、LA-041 的真实开播间隔继续待验收，关联 LA-038/010。
+
+本轮分为 GET 媒体期限、队列预计播完时间、日志顺序与本地名称、条件 Range 和收尾四个本地提交；未 push、未启动游戏或修改 hosts。没有读取日常私有库或回填估计值，所有数据库和 HTTP 测试使用隔离夹具，原始自动验证日志只放本地忽略目录。

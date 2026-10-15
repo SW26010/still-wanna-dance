@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"net/http"
+	"os"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -35,6 +36,48 @@ func TestHTTPRangeUpdatesQueuePlaybackAnchor(t *testing.T) {
 	s.mu.Unlock()
 	if start.Before(before.Add(time.Minute)) || start.After(after.Add(time.Minute)) {
 		t.Fatal("GET arrival/Range was not propagated to the queue", before, start, after)
+	}
+}
+
+func TestHTTPDateRangeUsesActualPlaybackOffset(t *testing.T) {
+	body := bytes.Repeat([]byte("x"), int(2*rangeBlockSize))
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write(body) })
+	target := videoURL(string(body))
+	r, _ := http.NewRequest("GET", target, nil)
+	v, _ := s.parseResolved(r)
+	if w := request(s, "GET", target, nil); w.Code != 200 {
+		t.Fatal(w.Code)
+	}
+	if _, err := s.usage.db.Exec("INSERT INTO songs(song_id,end) VALUES (1,120)"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.usage.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (1,?)", v.key); err != nil {
+		t.Fatal(err)
+	}
+	date := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	if err := os.Chtimes(cfg.videoFile(v.key), date, date); err != nil {
+		t.Fatal(err)
+	}
+	s.UpdatePrefetchQueue([]int64{2}, false)
+	for _, valid := range []bool{true, false} {
+		validator, remaining, status := date, time.Minute, 206
+		if !valid {
+			validator = validator.Add(-time.Second)
+			remaining = 2 * time.Minute
+			status = 200
+		}
+		before := time.Now()
+		w := request(s, "GET", target, map[string]string{"Range": "bytes=1048576-1048583", "If-Range": validator.Format(http.TimeFormat)})
+		after := time.Now()
+		if w.Code != status {
+			t.Fatal(valid, w.Code)
+		}
+		s.mu.Lock()
+		start := s.queueStart
+		s.mu.Unlock()
+		if start.Before(before.Add(remaining)) || start.After(after.Add(remaining)) {
+			t.Fatal(valid, start, before, after)
+		}
 	}
 }
 

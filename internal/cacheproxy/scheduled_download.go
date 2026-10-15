@@ -22,7 +22,6 @@ type scheduledCursor struct {
 	ctx   context.Context
 	exit  sourceExit
 	block int64
-	at    time.Time
 	clock *playbackClock
 }
 type scheduledWait struct {
@@ -54,7 +53,6 @@ type downloadSession struct {
 	v           video
 	f           *flight
 	path        string
-	started     time.Time
 	wake        chan struct{}
 	initialized chan struct{}
 	initOnce    sync.Once
@@ -92,7 +90,6 @@ func (w *downloadSession) track(ctx context.Context) (func(int64), func()) {
 				c.clock = &playbackClock{at: time.Now(), offset: offset, media: estimateMediaTiming(w.v.size, 0)}
 			}
 			c.block = offset / rangeBlockSize
-			c.at = time.Now()
 			changed = true
 		}
 		w.mu.Unlock()
@@ -515,7 +512,7 @@ func (w *downloadSession) close(result error) error {
 }
 
 func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *flight) (result error) {
-	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, path: path, started: time.Now(), wake: make(chan struct{}, 1), initialized: make(chan struct{}), cursors: make(map[*scheduledCursor]bool), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
+	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, path: path, wake: make(chan struct{}, 1), initialized: make(chan struct{}), cursors: make(map[*scheduledCursor]bool), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
 	defer func() { result = w.close(result) }()
 	initialized := f.ranges != nil
 	if initialized {

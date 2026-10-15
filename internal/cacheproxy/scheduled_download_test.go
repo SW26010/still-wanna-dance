@@ -21,7 +21,7 @@ func testSession(t *testing.T) (*downloadSession, *Server) {
 	s := &Server{capacityChanged: make(chan struct{})}
 	v := video{key: "content", size: 20 * rangeBlockSize}
 	f := &flight{ranges: &rangeDownload{done: make(map[int64]bool)}}
-	w := &downloadSession{s: s, ctx: context.Background(), v: v, f: f, started: time.Now(), wake: make(chan struct{}, 1), cursors: make(map[*scheduledCursor]bool), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
+	w := &downloadSession{s: s, ctx: context.Background(), v: v, f: f, wake: make(chan struct{}, 1), cursors: make(map[*scheduledCursor]bool), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
 	w.initialized = make(chan struct{})
 	close(w.initialized)
 	return w, s

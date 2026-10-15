@@ -2,7 +2,9 @@ package cacheproxy
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -38,7 +40,7 @@ func playbackRangeStart(r *http.Request, v video) (int64, bool) {
 		return 0, true
 	}
 	// An unmatched validator causes ServeContent to send the full entity.
-	// A date validator is resolved later against the verified file timestamp.
+	// playbackContext resolves dates against the verified file before this call.
 	if validator := r.Header.Get("If-Range"); validator != "" && validator != `"`+v.key+`"` {
 		return 0, true
 	}
@@ -71,6 +73,24 @@ func playbackRangeStart(r *http.Request, v video) (int64, bool) {
 }
 
 func (s *Server) playbackContext(r *http.Request, v video, at time.Time) (context.Context, error) {
+	if r.Method == http.MethodGet && r.Header.Get("Range") != "" {
+		if date, err := http.ParseTime(r.Header.Get("If-Range")); err == nil {
+			// ServeContent applies a date range only to a matching local file;
+			// cold spools have no modification time. Use the same verified handle
+			// and quota as serving, with a pin for its complete lifetime.
+			s.pinVideo(v)
+			file, verifyErr := s.verifiedFile(r.Context(), v)
+			matches := verifyErr == nil && file.info.ModTime().Unix() == date.Unix()
+			s.releaseVideo(v)
+			if verifyErr != nil && !os.IsNotExist(verifyErr) && !errors.Is(verifyErr, errInvalidCache) {
+				return nil, s.storageError(verifyErr)
+			}
+			if matches {
+				r = r.Clone(r.Context())
+				r.Header.Del("If-Range")
+			}
+		}
+	}
 	offset, ok := playbackRangeStart(r, v)
 	if !ok {
 		return context.WithValue(r.Context(), playbackClockKey{}, (*playbackClock)(nil)), nil

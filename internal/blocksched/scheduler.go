@@ -4,6 +4,7 @@ package blocksched
 
 import (
 	"container/heap"
+	"container/list"
 	"context"
 	"errors"
 	"sync"
@@ -197,6 +198,8 @@ type job struct {
 	notBefore        time.Time
 	started          time.Time
 	sampled          int64
+	orphanUntil      time.Time
+	orphan           *list.Element
 }
 type lease struct {
 	id    uint64
@@ -225,6 +228,7 @@ type state struct {
 	delayed             map[*job]bool
 	sleeping            delayHeap
 	contention          time.Time
+	orphans             list.List
 }
 
 func New(cfg Config) *Scheduler {
@@ -259,6 +263,9 @@ func (s *Scheduler) call(fn func(*state)) bool {
 		return false
 	}
 }
+
+// Submit shares an existing task by key. Tasks without a valid demand begin
+// retirement after orphanRetention; callers can submit anew once Done closes.
 func (s *Scheduler) Submit(key string, remaining int64, run Run) (*Task, error) {
 	var t *Task
 	var err error
@@ -277,7 +284,9 @@ func (s *Scheduler) Submit(key string, remaining int64, run Run) (*Task, error) 
 		}
 		st.sequence++
 		t = &Task{s: s, key: key, done: make(chan struct{})}
-		st.jobs[key] = &job{task: t, run: run, remaining: remaining, needs: make(map[uint64]*lease), index: -1, delayIndex: -1, sequence: st.sequence}
+		j := &job{task: t, run: run, remaining: remaining, needs: make(map[uint64]*lease), index: -1, delayIndex: -1, sequence: st.sequence}
+		st.jobs[key] = j
+		st.retainOrphan(j)
 	}) {
 		return nil, ErrClosed
 	}
@@ -345,6 +354,11 @@ func (s *state) refresh(j *job) {
 		s.groups[n.Owner][j] = true
 	}
 	j.fair = s.owners[n.Owner]
+	if n.Owner == "" && !j.retiring {
+		s.retainOrphan(j)
+	} else {
+		s.removeOrphan(j)
+	}
 	if n.Owner == "" || j.retiring {
 		s.removeDelayed(j)
 		if j.index >= 0 {
@@ -419,6 +433,7 @@ func (s *state) finish(j *job, err error) {
 		s.removeLease(v)
 	}
 	delete(s.jobs, j.task.key)
+	s.removeOrphan(j)
 	s.removeDelayed(j)
 	s.ungroup(j)
 	if len(s.groups[j.need.Owner]) == 0 {
@@ -483,6 +498,7 @@ func (s *state) loop() {
 			s.emit("expired", "lease", v.job)
 			s.refresh(v.job)
 		}
+		s.expireOrphans(now)
 		if !s.hasBlocking() {
 			for len(s.sleeping) > 0 && !s.sleeping[0].notBefore.After(now) {
 				s.refresh(s.sleeping[0])
@@ -505,6 +521,9 @@ func (s *state) loop() {
 		}
 		select {
 		case fn := <-s.s.commands:
+			// A command and the timer can become ready together. Apply elapsed
+			// retention before admitting a demand or checking task capacity.
+			s.expireOrphans(time.Now())
 			fn(s)
 		case c := <-s.s.finished:
 			j := c.job

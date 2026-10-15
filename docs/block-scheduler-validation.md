@@ -204,3 +204,13 @@ checkDownloadedFile 仅将 errInvalidCache（大小或 MD5 不匹配）标记为
 新增确定性错误顺序排列，覆盖本地错误先/后于上游、取消、超时、关闭、暂停和容量错误；另用真实分块读取在取消时保存 64 KiB 前缀，注入文件关闭故障，同时让另一个任务在收尾时返回上游失败。确认两种故障均发生，最终保留 os.ErrClosed、记录 ErrLocalStorage 并拒绝下一个冷下载。联测并行正文关闭、完整校验和顺序暂停故障，连续 10 轮 race 通过（cleanup-error-priority-race.log）。LA-040 联合 LA-010/038 增补重合故障证据，实机继续积攒。
 
 本轮四项修复后的全受控源码检查通过：`go test -tags=no_easytier -race ./cmd/... ./internal/... ./data/... ./experiments/... -count=1 -timeout=180s -json`，17 个测试包、1,341 个测试/子测试通过、16 项按条件跳过，无 race 报告（admission-validation-cleanup-final-race.jsonl）；全部 10 个新增测试/子测试均有通过记录。同范围 `go vet` 与 `CGO_ENABLED=0 go build` 通过（admission-validation-cleanup-final-vet.log、admission-validation-cleanup-final-build.log）。台账仍为 41 个唯一编号，四项修复分别本地提交，未 push、未启动游戏或修改 hosts；LA-040 联合 LA-010/038 与 LA-041 开播空挡观测继续待实机验收。日志只留本地忽略目录。
+
+## 23. 无需求任务有限保留与自动回收
+
+核实原实现仅暂停执行，任务留在 jobs 中直至调用方 Close；租约兜底没有释放 MaxTasks。现在没有有效需求的任务保留 30 秒，包括提交后从未 Add 的任务；保留期内新有效需求取消回收计时，再次归零才开始新的保留期。重复提交、无效需求更新及暂停收尾均不能续期。到期进入退休状态并拒绝新需求，沿用既有收尾协议，执行器返回后关闭 Done/通知 Watch 并释放任务容量；显式 Close 和引擎关闭立即退休。收尾的真实错误优先于取消，未完成的执行器不提前释放容量。
+
+固定期限用标准库链表按进入无需求状态的顺序管理，重接/完成常数时间移除；期限并入原事件循环的单一定时器，不扫描全部任务、不增加任务级 goroutine。处理命令前也检查到期队列，防止命令与定时器同时就绪时迟到重接越过退休边界。该保留只涉及核心元数据，不延长来源租约、交接或上游执行许可，也不增加原始来源字段。
+
+确定性虚拟时间回归覆盖容量为 1 的租约到期/主动撤销/从未添加需求、保留期前后边界、重复提交不续期、Watch 完成通知、旧句柄不能影响同键新任务、有效重接取消旧计时、其他孤儿独立到期、Blocking 与长冷却中的排队/暂停任务回收，以及延迟执行收尾和真实错误保留。核心完整 race 连续 20 轮通过（orphan-retention-core-final-race-2.log）。核心与缓存完整 `go test -tags=no_easytier -race ./internal/blocksched ./internal/cacheproxy -count=1 -timeout=120s -json` 通过，481 个测试/子测试通过、8 项按条件跳过，无 race 报告（orphan-retention-integration-race-2.jsonl）。首次缓存回归的 Windows 硬链接、目录联接和相关子进程受沙箱权限拒绝，失败日志 orphan-retention-integration-race.jsonl 保留，使用正常文件权限重跑同一范围通过，未修改产品行为绕过检查。
+
+全部受控 Go 源码目录的 `go vet -tags=no_easytier` 和 `CGO_ENABLED=0 go build -tags=no_easytier` 通过（orphan-retention-vet.log、orphan-retention-build.log）。台账仍为 41 个唯一编号；本次补充 LA-040 的管理层失联、任务容量回收和实际播放证据，LA-041 观测继续保留。只提交本修复及对应文档，其他研究文件/脚本不属于本次变更；未 push、未启动游戏或修改 hosts，实机继续积攒。

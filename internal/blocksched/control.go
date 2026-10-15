@@ -225,6 +225,9 @@ func (s *state) regulate(now time.Time) {
 }
 func (s *state) nextControlEvent(now time.Time) time.Time {
 	next := earlier(earlier(s.control.nextGrow, s.contention), s.control.nextEstimate)
+	if first := s.orphans.Front(); first != nil {
+		next = earlier(next, first.Value.(*job).orphanUntil)
+	}
 	if s.active > 0 && s.cfg.GrowInterval > 0 {
 		next = earlier(next, s.control.nextSample)
 	}

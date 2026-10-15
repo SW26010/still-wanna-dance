@@ -830,3 +830,45 @@ details[open] > .recent-summary .recent-expand::before { content: '▾ '; }
 /* Multi-line diagnostics remain plain text so paths and upstream messages never
    become HTML. Keep each result legible without replacing its DOM on polling. */
 #setupSummary, #setupStorageStatus { white-space: pre-line; overflow-wrap: anywhere; }
+
+.setup-calibration { margin-block: 1.25rem; }
+.setup-network-heading select { width: auto; max-width: 100%; min-height: 1.75rem; height: 1.75rem; padding: 0 .25rem; margin: 0; border: 0; background: transparent; font-size: .875rem; }
+.setup-network-heading select option { color: var(--text); background: var(--card); }
+.setup-section-heading h3 { margin: 0; font-size: 1rem; white-space: nowrap; }
+.setup-test-heading { min-height: 1.75rem; gap: .35rem; }
+.setup-test-control { position: relative; display: inline-flex; flex: 0 0 auto; }
+.setup-test-toggle { display: inline-grid; place-items: center; padding: .25rem; min-height: 1.5rem; width: 1.5rem; height: 1.5rem; border: 0; background: transparent; flex: 0 0 auto; }
+.setup-test-toggle:hover:not(:disabled), .setup-test-toggle:disabled { background: transparent; border: 0; }
+.setup-test-toggle span { display: block; width: .65rem; height: .75rem; background: currentColor; clip-path: polygon(0 0, 100% 50%, 0 100%); }
+.setup-test-toggle[data-running="true"] span { width: .65rem; height: .65rem; clip-path: none; }
+.setup-test-tooltip { visibility: hidden; position: absolute; z-index: 30; top: calc(100% + .35rem); left: -5rem; width: min(21rem, calc(100vw - 3rem)); padding: .5rem .65rem; border-radius: .3rem; color: var(--text); background: var(--card); box-shadow: 0 2px 10px #0004; font-size: .8125rem; line-height: 1.6; font-weight: 400; pointer-events: none; }
+.setup-test-control:hover > .setup-test-tooltip, .setup-test-control:focus-within > .setup-test-tooltip { visibility: visible; }
+.setup-test-status { flex: 1; min-width: 0; height: 1.4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: .75rem; }
+.setup-test-status:has(.setup-test-connection:not(:empty)) > :first-child { display: none; }
+.setup-detecting::after { content: "…"; display: inline-block; width: 1em; vertical-align: bottom; animation: setup-ellipsis 1.2s steps(4, end) infinite; }
+@keyframes setup-ellipsis { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+.setup-calibration-metrics { display: grid; gap: .5rem; margin-block: .75rem; font-size: .875rem; }
+.setup-calibration-speed-row { display: flex; align-items: baseline; gap: 1.5rem; white-space: nowrap; }
+.setup-calibration-cpu-row { display: flex; align-items: baseline; gap: .7rem; white-space: nowrap; }
+.setup-calibration-metric { display: inline-flex; align-items: baseline; gap: .3rem; }
+.setup-calibration-metric output { display: inline-block; width: 10ch; text-align: right; font-variant-numeric: tabular-nums; }
+.setup-calibration-cpu-row output { width: 6ch; }
+#setupCalibrationLimit { display: inline-block; width: 2ch; text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 480px) { .setup-calibration-metrics { font-size: .75rem; } .setup-calibration-speed-row, .setup-calibration-cpu-row { gap: .25rem; } .setup-calibration-metric { gap: .2rem; } }
+.setup-calibration-advice { margin: 1.25rem 0 0; }
+.setup-calibration-gauge { position: relative; height: 4.6rem; margin: 0 1.5rem; }
+.setup-calibration-bar { position: relative; height: 1.5rem; border-radius: .25rem; background: linear-gradient(to right, #b52b38 0% 33.3333%, #e9b949 33.3333% 66.6667%, #247b4b 66.6667% 100%); }
+.setup-calibration-zones { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; height: 100%; align-items: center; font-size: .75rem; font-weight: 600; color: white; }
+.setup-calibration-zones span:nth-child(2) { color: #242424; }
+.setup-calibration-pointer { position: absolute; top: -.25rem; bottom: -.2rem; width: 2px; background: var(--text); box-shadow: 0 0 0 1px var(--bg); transform: translateX(-50%); transition: left .15s linear; }
+.setup-calibration-pointer::before { content: ""; position: absolute; width: .7rem; height: .5rem; top: -.5rem; left: 50%; transform: translateX(-50%); background: var(--text); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.setup-calibration-ticks { position: relative; height: 1.5rem; font-size: .7rem; font-variant-numeric: tabular-nums; }
+.setup-calibration-ticks span { position: absolute; padding-top: .35rem; white-space: nowrap; transform: translateX(-50%); }
+.setup-calibration-ticks span::before { content: ""; position: absolute; left: 50%; top: 0; height: .25rem; border-left: 1px solid var(--text); }
+.setup-calibration-pointer-value { position: absolute; top: 3rem; width: 6.5ch; text-align: center; transform: translateX(-50%); white-space: nowrap; font-size: .8125rem; font-variant-numeric: tabular-nums; transition: left .15s linear; }
+@media (prefers-reduced-motion: reduce) { .setup-detecting::after { animation: none; } .setup-calibration-pointer, .setup-calibration-pointer-value { transition: none; } }
+@media (forced-colors: active) {
+  .setup-calibration-bar { border: 1px solid CanvasText; }
+  .setup-calibration-zones, .setup-calibration-zones span:nth-child(2) { color: CanvasText; }
+  .setup-calibration-pointer, .setup-calibration-pointer::before { forced-color-adjust: none; background: CanvasText; }
+}

@@ -14,6 +14,7 @@ import (
 // One low-frequency observer per active flight also reports blocked reads.
 // Stop joins it so no progress record can follow the terminal event.
 type downloadProgress struct {
+	observeBytes             func(int64)
 	mu                       sync.Mutex
 	log                      *slog.Logger
 	start, changed, lastByte time.Time
@@ -124,6 +125,9 @@ func (r progressReader) Read(b []byte) (int, error) {
 		}
 		sample.bytes += int64(n)
 		p.mu.Unlock()
+		if p.observeBytes != nil {
+			p.observeBytes(int64(n))
+		}
 		if first {
 			p.log.Info("download_first_byte", "elapsed_ms", time.Since(p.start).Milliseconds())
 		}

@@ -145,6 +145,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		f.cancel, f.background = cancel, background
 		f.log = log.With("flight_id", f.id, "host", v.host)
 		f.progress = startProgress(f.log, v.size, 15*time.Second)
+		f.progress.observeBytes = s.cfg.ObserveDownloadBytes
 		f.monitorSongs = make(map[string]bool)
 		s.flights[v.key] = f
 		if background {

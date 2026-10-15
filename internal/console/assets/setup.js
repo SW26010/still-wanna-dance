@@ -66,6 +66,8 @@
       ...($('socks5Password').value || !$('socks5Username').value ? {socks5Password:$('socks5Password').value} : {}),
       importSource:$('setupImportSource').value.trim()};
   }
+  // The manual calibration reuses this visit's proxy draft without applying it.
+  window.swdSetupCalibrationPlan = () => ({...plan(), page:'proxy', upstreamMode:'proxy'});
   function initializeDraft() {
     original = {dirty:settingsDirty, baseline:settingsBaseline, values:fields().map(field => [field,field.value,field.checked])};
     globalThis.swdResetProxyImport?.({preserve:true}); // Restore this draft on discard.
@@ -256,7 +258,7 @@
       if (startingSession && terms.accepted === true) void startSession();
       if (entered && isOpen() && terms.accepted === true && diagnoseOnEntry) {
         diagnoseOnEntry = false;
-        if (!application && !applicationID) void checkNetwork();
+        // Diagnostics start only from their own manual buttons.
       }
     } catch (_) {
       if (request === termsRequest) setText('setupTermsText', '条款暂时无法载入，请重试或使用下方链接阅读完整文本。');
@@ -325,19 +327,6 @@
       if (entered && revision === navigationRevision && connected) await checkLogs();
     } finally {accessChecking = false;renderNavigation();}
   };
-  let networkStarting = false, networkStartError = '';
-  async function checkNetwork(kind = '') {
-    if (networkStarting) return;
-    networkStarting = true; networkStartError = ''; update();
-    try {
-      const response = await fetch('/api/setup/network' + (kind ? '/' + kind : ''), {method:'POST',headers:{'Content-Type':'application/json','X-SWD-Token':token},body:'{}',signal:AbortSignal.timeout(15000)});
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || '诊断未能启动');
-      await requestRefresh();
-    } catch (error) { networkStartError = '直连诊断启动结果未确认：' + error.message + '。请重试。'; }
-    finally { networkStarting = false; update(); }
-  }
-  $('setupRetryNetwork').onclick = () => checkNetwork();
   async function checkStorage() {
     const path = $('storageDir').value.trim();
     if (storagePendingPath === path) return;
@@ -528,8 +517,6 @@
     setText('setupApplyResult',application ? (application.configSaved ? '配置已保存。' : '') + (restartProblem || (application.phase === 'restart' ? '正在重启，之后执行导入…' : application.phase === 'completed' ? (application.importStarted ? '设置已应用，导入已启动；进度可在设置页查看。' : '清单已应用。') : application.error || '正在应用…')) : '');
     $('setupApplyHint').hidden = !!application;
   }
-  const networkNames = {catalog:'歌曲列表',playback_url:'播放地址',resource:'视频下载'};
-  const networkStatusIDs = {catalog:'setupCatalogStatus',playback_url:'setupPlaybackStatus',resource:'setupResourceStatus'};
   function statusIcon(id, state) {
     setText(id,state === 'ok' ? '✓' : state === 'failed' ? '!' : '○');
     $(id).dataset.state = state;
@@ -541,27 +528,11 @@
     const at = saved?.observedAt || r.throughputObservedAt;
     return {speed:Number.isFinite(speed) && speed > 0 ? speed : null, fresh:Date.now() < Date.parse(at) + minutes * 60000};
   }
-  function renderNetworkOverview(diagnostic, health, minutes) {
-    const results = health.results || [];
-    const checks = Object.entries(networkNames).map(([operation,label]) => {
-      const group = results.filter(r => r.operation === operation);
-      const available = group.filter(r => r.state === 'available' && freshNetworkResult(r));
-      const failed = group.length > 0 && group.every(r => r.state === 'unavailable' && freshNetworkResult(r));
-      let text = available.length ? '检查成功' + (available.length < group.length ? '，部分线路未通过或待确认' : '') : failed ? '检查失败' : '尚未确认';
-      const latencies = available.map(r => r.estimatedLatencyMS).filter(ms => Number.isFinite(ms) && ms >= 0);
-      if (latencies.length) text += ' · 响应 ' + Math.min(...latencies).toFixed(0) + ' ms';
-      if (operation === 'resource') {
-        const speeds = available.map(r => networkSample(r,minutes)).filter(s => s.fresh && s.speed !== null).map(s => s.speed);
-        text += speeds.length ? ' · 最高 ' + (Math.max(...speeds) / 1048576).toFixed(2) + ' MiB/s' : ' · 暂无有效测速';
-      }
-      setText(networkStatusIDs[operation],text);
-      statusIcon(networkStatusIDs[operation].replace('Status','Icon'),available.length ? 'ok' : failed ? 'failed' : 'unknown');
-      return {available:available.length > 0,failed,text:label + '：' + text};
-    });
+  function renderNetworkAdvice() {
     const mode = $('upstreamMode').value, proxy = mode && mode !== 'direct';
     const proxyValid = $('proxyBackend').value === 'mihomo' ? !!$('proxyImportID').value || !!lastState?.proxyNodes?.saved && !lastState?.proxyNodes?.error : $('socks5Address').value.trim() && $('socks5Address').checkValidity();
-    setText('setupDirectAdvice',!mode ? '请在下方选择直连或代理，再继续。' : proxy ? (proxyValid ? '以上仅为直连检测结果，尚未验证代理。' : '请先在下方填写有效的代理地址，或导入受支持的节点，再继续。') : diagnostic.running ? '正在检测直连，可继续下一步。' : diagnostic.error ? '检测未完成。建议重新检测，也可先继续设置。' : checks.every(c => c.available) ? '直连检查通过，建议保持直连并继续。' : checks.some(c => c.failed) ? '部分直连检查失败。建议重试；需要代理时可在下方配置。' : checks.some(c => c.available) ? '部分检查已通过，其余尚未确认。建议先保持直连并继续；若游戏加载失败，再配置代理。' : '尚未取得检测结果。可以重试检测，也可先继续设置。');
-    $('setupDirectAdvice').hidden = !!mode && (!proxy || !!proxyValid) && !diagnostic.error && !checks.some(c => c.failed);
+    setText('setupDirectAdvice', !mode ? '请在下方选择直连或代理，再继续。' : proxy && !proxyValid ? '请先在下方填写有效的代理地址，或导入受支持的节点，再继续。' : '');
+    $('setupDirectAdvice').hidden = !!mode && (!proxy || !!proxyValid);
   }
   function update() {
     if (isOpen() && !entered && window.location.hash === '#/setup') begin();
@@ -587,17 +558,9 @@
     renderNavigation();
     if (isOpen() && step === 'storage' && checkedPath !== $('storageDir').value.trim()) void checkStorage();
     const diagnostic = s.setupNetwork || {}, health = diagnostic.monitor || {};
-    const status = diagnostic.running ? '正在检测…' : diagnostic.error ? '未完成：' + diagnostic.error : '';
-    setText('setupDirectStatus',networkStartError || (diagnostic.error ? status : ''));
-    setText('setupNetworkBackground',status);
-    for (const id of ['setupRetryNetwork']) {
-      $(id).disabled = networkStarting || !!diagnostic.running || !connected;
-      $(id).dataset.busy = String(networkStarting || !!diagnostic.running);
-      $(id).setAttribute('aria-busy',String(networkStarting || !!diagnostic.running));
-      $(id).setAttribute('title',networkStarting || diagnostic.running ? '正在检测直连网络…' : '重新检测直连网络');
-    }
+    setText('setupNetworkBackground', diagnostic.running ? '正在检测…' : diagnostic.error || '');
     const minutes = (health.policy?.throughputInterval || 20 * 60 * 1e9) / (60 * 1e9);
-    renderNetworkOverview(diagnostic,health,minutes);
+    renderNetworkAdvice();
     const results = health.results || [];
     renderStableList('setupDirectResults',results,r => r.operation + '/' + r.route + '/' + r.channelID,r => {
       const row = renderHealthResult(r,minutes,diagnostic.running ? '正在测量' : '等待重试');

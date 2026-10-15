@@ -19,6 +19,10 @@ import (
 // Overrides retain the original HTTP Host and TLS identity; environment proxies
 // are not used.
 type Config struct {
+	// Optional observation sinks. They must be fast, concurrency-safe, and must
+	// not call back into the engine or scheduler. Nil leaves normal work unchanged.
+	ObserveBlockSchedule func(blocksched.Event)
+	ObserveDownloadBytes func(int64)
 	// BeginResourceLoad marks real upstream video work, including prefetch.
 	// Release is called after the response closes; local hits never call it.
 	BeginResourceLoad func() func()

@@ -5,7 +5,9 @@ import (
 	"sync"
 )
 
-const videoRequestSoftLimit = 16
+// VideoRequestSoftLimit is the normal scheduler capacity (Blocking can exceed it).
+const VideoRequestSoftLimit = 16
+const videoRequestSoftLimit = VideoRequestSoftLimit
 
 // The block scheduler is the only admission controller. Track each actual
 // HTTP attempt through Body.Close without adding a second queue or hard limit.

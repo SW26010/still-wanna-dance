@@ -10,13 +10,18 @@ import (
 )
 
 type setupNetwork struct {
-	monitor  *upstreamstate.Monitor
-	client   *http.Client
-	channel  *upstreamrequest.Channel
-	revision uint64
-	done     chan struct{}
-	running  bool
-	err      string
+	connectivity        setupConnectivityStatus
+	connectivityChanged chan struct{}
+	connectivityCancel  context.CancelFunc
+	connectivityDone    chan struct{}
+	calibration         *upstreamstate.Calibration
+	monitor             *upstreamstate.Monitor
+	client              *http.Client
+	channel             *upstreamrequest.Channel
+	revision            uint64
+	done                chan struct{}
+	running             bool
+	err                 string
 }
 
 type setupNetworkStatus struct {
@@ -75,6 +80,14 @@ func (c *Console) checkSetupNetwork(selected ...upstreamstate.CheckKind) error {
 		}
 	}
 	n := c.setupNetwork
+	if n.connectivity.Running {
+		return errors.New("请先停止连通性检测")
+	}
+	if n.calibration != nil {
+		if state, _ := n.calibration.Snapshot(); state.Running {
+			return errors.New("请先停止 CF 并发测速，再运行直连诊断")
+		}
+	}
 	if n.running {
 		return nil
 	}
@@ -104,6 +117,12 @@ func (c *Console) checkSetupNetwork(selected ...upstreamstate.CheckKind) error {
 func (n *setupNetwork) close() {
 	if n == nil {
 		return
+	}
+	if n.calibration != nil {
+		n.calibration.Close()
+	}
+	if n.connectivityDone != nil {
+		<-n.connectivityDone
 	}
 	n.monitor.Close()
 	if n.done != nil {

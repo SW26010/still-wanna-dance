@@ -288,6 +288,24 @@ func (s *Scheduler) Close() {
 	})
 	<-s.done
 }
+
+// SetSoftLimit changes only ordinary admission. Existing executions drain;
+// raising the ceiling still uses the configured growth interval. Call outside
+// Observe, which runs on the scheduler goroutine.
+func (s *Scheduler) SetSoftLimit(limit int) bool {
+	if limit < 1 {
+		return false
+	}
+	return s.call(func(st *state) {
+		st.cfg.SoftLimit = limit
+		st.control.open = min(st.control.open, limit)
+		if st.cfg.GrowInterval <= 0 {
+			st.control.open = limit
+		}
+		st.control.nextGrow = time.Time{}
+		st.emit("capacity", "limit_changed", nil)
+	})
+}
 func (s *state) lookup(d *Demand) *lease {
 	j := s.jobs[d.task.key]
 	if j == nil || j.task != d.task || j.retiring {

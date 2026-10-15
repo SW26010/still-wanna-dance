@@ -22,7 +22,7 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 	}
 	download := flight.ranges
 	v := download.video
-	f, sp := download.storage.file, flight.spool
+	sp := flight.spool
 	etag := download.etag
 	if strings.HasPrefix(etag, "W/") {
 		etag = ""
@@ -54,7 +54,7 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 		if *buffer == nil {
 			*buffer = s.rangeBuffer()
 		}
-		if _, err := f.ReadAt((*buffer)[:received], start); err != nil {
+		if _, err := download.storage.file.ReadAt((*buffer)[:received], start); err != nil {
 			return err
 		}
 	}
@@ -67,6 +67,11 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 	}
 	failures := state.failures
 	pause := func() error {
+		if flight.discard {
+			// No media/checkpoint is retained by the diagnostic. Its owner ends
+			// the load on cancellation instead of resuming discarded content.
+			return context.Canceled
+		}
 		resume()
 		state.video, state.received, state.failures, state.last, state.attempts = blockVideo, received, failures, last, attempts
 		if err := download.save(block, state, *buffer); err != nil {
@@ -123,6 +128,18 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 			if etag != "" && resp.Header.Get("ETag") != etag {
 				return errors.New("upstream entity changed between ranges")
 			}
+			if flight.discard {
+				// Stream into io.Discard's small reusable buffer; never allocate
+				// a block-sized buffer, spool, or whole-video checksum state.
+				n, err := io.Copy(io.Discard, io.LimitReader(contextReader{transferCtx, progressReader{upstreamReader{body}, flight.progress}}, end-start+1))
+				if err != nil {
+					return err
+				}
+				if n != end-start {
+					return io.ErrUnexpectedEOF
+				}
+				return nil
+			}
 			if *buffer == nil {
 				*buffer = s.rangeBuffer()
 			}
@@ -157,8 +174,10 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 			failures++
 			continue
 		}
-		if _, err := sp.WriteAt((*buffer)[:end-start], start); err != nil {
-			return err
+		if !flight.discard {
+			if _, err := sp.WriteAt((*buffer)[:end-start], start); err != nil {
+				return err
+			}
 		}
 		download.finish(block)
 		progress.Ready()

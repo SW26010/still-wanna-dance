@@ -8,6 +8,20 @@ const controls = consoleScript.slice(consoleScript.indexOf('function renderContr
 const html = ['index.html','setup.html'].map(f=>readFileSync(new URL('../internal/console/'+f,import.meta.url),'utf8')).join('\n');
 const buttons = [...html.matchAll(/<button\b[^>]*\bid="([^"]+)"/g)].map(m=>m[1]);
 const flush = ()=>new Promise(resolve=>setImmediate(resolve));
+test('calibration reads the current proxy draft without saving or changing routing',async()=>{
+  const s=setup({step:'proxy'});await flush();
+  s.node('socks5Address').value='127.0.0.1:7891';
+  s.node('socks5Username').value='fixture-user';
+  s.node('socks5Password').value='';
+  const count=s.calls.length,mode=s.node('upstreamMode').value;
+  const draft=s.window.swdSetupCalibrationPlan();
+  assert.equal(draft.socks5Address,'127.0.0.1:7891');
+  assert.equal(draft.baseVersion,'v1');assert.equal(draft.page,'proxy');assert.equal(draft.upstreamMode,'proxy');
+  assert.equal(Object.hasOwn(draft,'socks5Password'),false);
+  assert.equal(s.calls.length,count);assert.equal(s.node('upstreamMode').value,mode);
+  s.node('socks5Password').value='new-fixture-secret';
+  assert.equal(s.window.swdSetupCalibrationPlan().socks5Password,'new-fixture-secret');
+});
 function deferred(){let resolve;const promise=new Promise(r=>resolve=r);return {resolve,promise};}
 function setup({step='welcome',request=async()=>({}),stateOverride={},receipt={accepted:true},search='',reconnect=async()=>({state:'reloading'}),confirm=()=>true,applicationID='',firstEntry=false,sharedImport=false}={}) {
   const nodes=new Map(),events={},windowEvents={},calls=[];
@@ -117,21 +131,8 @@ test('wizard cannot apply while a node preview is pending',async()=>{
   s.window.swdProxyImportPending=()=>false;s.context.renderControls();assert.equal(s.node('setupNext').disabled,false);
 });
 
-test('one network retry runs all diagnostics and preserves failure feedback',async()=>{
-  let failed=true;
-  const s=setup({step:'proxy',request:async path=>path==='/api/setup/network'&&failed?{error:'离线'}:{}});await flush();
-  await s.node('setupRetryNetwork').onclick();
-  assert.match(s.node('setupDirectStatus').textContent,/离线/);
-  s.events.consolestate();assert.match(s.node('setupDirectStatus').textContent,/离线/);
-  failed=false;await s.node('setupRetryNetwork').onclick();
-  assert.deepEqual(s.calls.filter(c=>c.path.startsWith('/api/setup/network')).map(c=>c.path),['/api/setup/network','/api/setup/network']);
-  assert.equal(s.node('setupDirectStatus').textContent,'');assert.equal(business(s).length,0);
-});
-
-test('network icons require fresh success and checking import never opens a picker',async()=>{
+test('checking import never opens a picker',async()=>{
   const s=setup({step:'storage',stateOverride:{setupNetwork:{monitor:{results:[{operation:'catalog',state:'available',estimatedLatencyMS:24},{operation:'playback_url',state:'available',estimatedLatencyMS:12,validUntil:'2000-01-01T00:00:00Z'}]}}},request:async path=>path==='/api/setup/folder'?{canceled:true}:{}});await flush();
-  assert.match(s.node('setupCatalogStatus').textContent,/响应 24 ms/);assert.doesNotMatch(s.node('setupPlaybackStatus').textContent,/12 ms/);
-  assert.equal(s.node('setupCatalogIcon').dataset.state,'ok');assert.equal(s.node('setupPlaybackIcon').dataset.state,'unknown');assert.equal(s.node('setupResourceIcon').dataset.state,'unknown');
   assert.equal(s.node('setupImportFolder').hidden,true);assert.equal(s.node('setupImportDetails').hidden,true);
   s.node('setupImportEnabled').checked=true;await s.node('setupImportEnabled').onchange();
   assert.equal(s.node('setupImportFolder').hidden,false);assert.equal(s.node('setupImportDetails').hidden,false);
@@ -185,17 +186,6 @@ test('storage reset keeps displayed results during one coalesced directory check
   d.resolve({});await flush();assert.equal(s.node('setupDiskSpace').textContent,space);assert.equal(s.node('setupStorageStatus').textContent,'');
 });
 
-test('network refresh retains results and uses the button busy state without transient paragraphs',async()=>{
-  const d=deferred();const diagnostic={monitor:{results:[{operation:'catalog',state:'available',estimatedLatencyMS:24}]}};
-  const s=setup({step:'proxy',stateOverride:{setupNetwork:diagnostic},request:async path=>path==='/api/setup/network'?d.promise:{}});await flush();
-  const result=s.node('setupCatalogStatus').textContent;
-  const pending=s.node('setupRetryNetwork').onclick();await flush();
-  assert.equal(s.node('setupCatalogStatus').textContent,result);assert.equal(s.node('setupDirectStatus').textContent,'');assert.equal(s.node('setupRetryNetwork').getAttribute('aria-busy'),'true');
-  diagnostic.running=true;d.resolve({});await pending;
-  assert.equal(s.node('setupDirectStatus').textContent,'');assert.equal(s.node('setupRetryNetwork').disabled,true);
-  diagnostic.running=false;s.events.consolestate();assert.equal(s.node('setupDirectStatus').textContent,'');assert.equal(s.node('setupRetryNetwork').getAttribute('aria-busy'),'false');
-});
-
 test('capacity choice maps unlimited to zero and rejects a non-positive limit before leaving',async()=>{
   const s=setup({step:'storage'});await flush();assert.equal(s.node('setupCapacityUnlimited').checked,true);
   s.node('setupCapacityUnlimited').checked=false;s.node('setupCapacityLimited').checked=true;s.node('setupCapacityValue').value='0';s.emit('setupCapacityLimited','input');
@@ -239,58 +229,14 @@ test('failed application remains visible instead of returning as if it completed
   assert.equal(s.node('setupNext').textContent,'返回控制台');
 });
 
-test('successful direct checks keep their scope label when a valid proxy is prefilled or selected',async()=>{
-  assert.match(html,/<h2>网络环境检测（直连）<\/h2>/);
-  for(const mode of ['direct','auto','socks5']) {
-    const s=setup({step:'proxy',stateOverride:{
-      settings:{storageDir:'C:\\Portable\\data\\storage',upstreamMode:mode,socks5Address:'127.0.0.1:1080'},
-      setupNetwork:{monitor:{results:['catalog','playback_url','resource'].map(operation=>({operation,state:'available'}))}},
-    }});await flush();
-    for(const id of ['setupCatalogIcon','setupPlaybackIcon','setupResourceIcon'])assert.equal(s.node(id).dataset.state,'ok');
-    s.node('upstreamMode').value='auto';s.events.consolestate();
-    assert.match(s.node('setupDirectAdvice').textContent,/仅为直连检测结果，尚未验证代理/);
-    assert.equal(s.node('setupRetryNetwork').getAttribute('title'),'重新检测直连网络');
-  }
-});
-
-test('network overview requires all three checks and a fresh speed, not a fast resource alone',async()=>{
-  const now=new Date().toISOString(), future=new Date(Date.now()+60000).toISOString();
-  const health={results:[{operation:'resource',state:'available',validUntil:future,estimatedSpeedBPS:4*2**20,throughputObservedAt:now}]};
-  const s=setup({stateOverride:{setupNetwork:{monitor:health}}});await flush();
-  assert.match(s.node('setupDirectAdvice').textContent,/尚未确认/);
-  assert.match(s.node('setupCatalogStatus').textContent,/尚未确认/);
-  assert.match(s.node('setupResourceStatus').textContent,/检查成功 · 最高 4.00 MiB\/s/);
-  health.results.push({operation:'catalog',state:'available',validUntil:future},{operation:'playback_url',state:'available',validUntil:future});s.events.consolestate();
-  assert.match(s.node('setupDirectAdvice').textContent,/直连检查通过/);
-  health.results[0].throughputObservedAt='2000-01-01T00:00:00Z';s.events.consolestate();
-  assert.match(s.node('setupResourceStatus').textContent,/暂无有效测速/);
-  assert.doesNotMatch(s.node('setupResourceStatus').textContent,/4.00/);
-  health.results[0].validUntil='2000-01-01T00:00:00Z';s.events.consolestate();
-  assert.match(s.node('setupDirectAdvice').textContent,/尚未确认/);
-  assert.match(s.node('setupResourceStatus').textContent,/尚未确认/);
-});
-
-test('network failures, missing samples and incomplete runs do not claim direct access works',async()=>{
-  const health={results:[{operation:'catalog',state:'unavailable'},{operation:'playback_url',state:'unknown',reason:'no_sample'}]};
-  const diagnostic={monitor:health};const s=setup({stateOverride:{setupNetwork:diagnostic}});await flush();
-  assert.match(s.node('setupDirectAdvice').textContent,/检查失败/);
-  assert.match(s.node('setupCatalogStatus').textContent,/检查失败/);
-  assert.match(s.node('setupPlaybackStatus').textContent,/尚未确认/);
-  health.results.push({operation:'catalog',state:'available'});s.events.consolestate();
-  assert.match(s.node('setupCatalogStatus').textContent,/检查成功，部分线路未通过或待确认/);
-  assert.match(s.node('setupDirectAdvice').textContent,/尚未确认/);
-  diagnostic.error='连接中断';s.events.consolestate();assert.match(s.node('setupDirectAdvice').textContent,/未完成/);
-  diagnostic.running=true;s.events.consolestate();assert.match(s.node('setupDirectAdvice').textContent,/正在检测/);
-});
-
 test('network advice asks for missing proxy configuration before suggesting continuation',async()=>{
   const s=setup({step:'proxy'});await flush();
   s.node('setupSocks5').checked=true;s.node('socks5Address').required=true;s.emit('setupSocks5','input');s.context.renderControls();s.events.consolestate();
   assert.match(s.node('setupDirectAdvice').textContent,/先.*填写.*代理地址/);
   await s.go('finish');assert.equal(s.node('setupTitle').textContent,'网络');assert.equal(s.node('socks5Address').reported,true);
   s.node('socks5Address').value='127.0.0.1:1080';s.events.consolestate();
-  assert.match(s.node('setupDirectAdvice').textContent,/尚未验证代理/);
-  assert.match(s.node('setupDirectAdvice').textContent,/仅为直连检测/);
+  assert.equal(s.node('setupDirectAdvice').hidden,true);
+
   s.node('upstreamMode').value='';s.events.consolestate();assert.match(s.node('setupDirectAdvice').textContent,/选择直连或代理/);
 });
 
@@ -488,19 +434,19 @@ test('next follows the requested sequence after one immediate confirmation',asyn
   assert.equal(business(s).length,0);assert.equal(s.calls.filter(c=>c.path==='/api/terms/accept').length,1);
 });
 
-for(const entry of ['settings','help'])test(entry+' reentry starts one direct diagnosis with valid saved consent',async()=>{
+for(const entry of ['settings','help'])test(entry+' reentry keeps diagnostics manual with valid saved consent',async()=>{
   const s=setup(entry==='help'?{search:'?setup=1'}:{});await flush();
   if(entry==='settings'){
     s.node('setupLeave').onclick();s.node('page-setup').hidden=false;
     s.window.swdBeforeNavigate('settings','setup');s.events.pagechange();await flush();
   }else assert.equal(s.calls.find(c=>c.path==='replaceURL').url,'/#/setup');
-  assert.equal(s.calls.filter(c=>c.path==='/api/setup/network').length,1);
+  assert.equal(s.calls.filter(c=>c.path==='/api/setup/network').length,0);
   await s.go('welcome');await flush();await s.go('proxy');await s.go('welcome');await flush();s.events.consolestate();
-  assert.equal(s.calls.filter(c=>c.path==='/api/setup/network').length,1);
+  assert.equal(s.calls.filter(c=>c.path==='/api/setup/network').length,0);
   assert.equal(s.calls.some(c=>c.path==='/api/terms/accept'),false);
   s.node('setupLeave').onclick();s.node('page-setup').hidden=false;
   s.window.swdBeforeNavigate('settings','setup');s.events.pagechange();await flush();
-  assert.equal(s.calls.filter(c=>c.path==='/api/setup/network').length,2);
+  assert.equal(s.calls.filter(c=>c.path==='/api/setup/network').length,0);
 });
 
 test('entry without valid consent never requests diagnosis and confirmation does not duplicate the server trigger',async()=>{
@@ -827,4 +773,12 @@ test('pending validation freezes edited fields while discard remains available',
   const d=deferred();const s=setup({step:'storage',request:path=>path==='/api/setup/validate'?d.promise:Promise.resolve({})});await flush();
   const pending=s.go('finish');assert.equal(s.node('maxCacheGiB').disabled,true);assert.equal(s.node('setupLeave').disabled,false);
   d.resolve({});await pending;
+});
+
+test('console polling and navigation never start diagnostics or overwrite event-owned results',async()=>{
+ const s=setup({step:'proxy',search:'?setup=1'});await flush();
+ for(const id of ['setupCatalogStatus','setupPlaybackStatus','setupResourceStatus'])s.node(id).textContent='event-owned';
+ s.context.lastState.setupNetwork={running:true,monitor:{results:[{operation:'resource',state:'available',estimatedSpeedBPS:900000}]}};s.events.consolestate();
+ for(const id of ['setupCatalogStatus','setupPlaybackStatus','setupResourceStatus'])assert.equal(s.node(id).textContent,'event-owned');
+ assert.equal(s.calls.some(c=>c.path.startsWith('/api/setup/network')),false);
 });

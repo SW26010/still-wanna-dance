@@ -34,13 +34,32 @@
       <p class="setup-note">请放心，我们不会修改来源文件，并且会尽量使用硬链接来避免双份空间占用。导入后请勿修改源视频。</p></div>
     </section>
     <section data-setup-step="proxy" hidden>
-      <div class="setup-section-heading"><h2>网络环境检测（直连）</h2><button id="setupRetryNetwork" class="setup-refresh" type="button" aria-label="重新检测直连网络" title="重新检测直连网络">↻</button></div>
-      <div class="setup-network-rows">
-        <div><span id="setupCatalogIcon" class="setup-state-icon" aria-hidden="true">○</span><span>歌曲列表：</span><span id="setupCatalogStatus" role="status">尚未检测</span></div>
-        <div><span id="setupPlaybackIcon" class="setup-state-icon" aria-hidden="true">○</span><span>播放地址：</span><span id="setupPlaybackStatus" role="status">尚未检测</span></div>
-        <div><span id="setupResourceIcon" class="setup-state-icon" aria-hidden="true">○</span><span>视频下载：</span><span id="setupResourceStatus" role="status">尚未检测</span></div>
-      </div>
-      <p id="setupDirectStatus" class="setup-note" role="status"></p>
+      <div class="setup-section-heading setup-network-heading"><h2>网络环境检测</h2><select id="setupNetworkUpstream" aria-label="检测上游" disabled><option value="direct" selected>直连</option><option value="proxy">代理（SOCKS5）</option></select></div>
+      <section id="setupConnectivity" aria-labelledby="setupConnectivityTitle">
+        <div class="setup-section-heading setup-test-heading"><h3 id="setupConnectivityTitle">连通性检测</h3><span class="setup-test-control"><button id="setupConnectivityToggle" class="setup-test-toggle" type="button" aria-label="开始连通性检测" aria-describedby="setupConnectivityTooltip" data-running="false" disabled><span aria-hidden="true"></span></button><span id="setupConnectivityTooltip" class="setup-test-tooltip" role="tooltip">请先准备好日常游戏的网络环境，保持常用加速器、代理和 TUN 设置，并暂停其他下载，再手动开始</span></span><span class="setup-test-status" role="status"><span id="setupConnectivityStatus"></span><span id="setupConnectivityConnection" class="setup-test-connection"></span></span></div>
+        <div class="setup-network-rows">
+          <div><span id="setupCatalogIcon" class="setup-state-icon" aria-hidden="true">○</span><span>歌曲列表：</span><span id="setupCatalogStatus" role="status">尚未检测</span></div>
+          <div><span id="setupPlaybackIcon" class="setup-state-icon" aria-hidden="true">○</span><span>播放地址：</span><span id="setupPlaybackStatus" role="status">尚未检测</span></div>
+          <div><span id="setupResourceIcon" class="setup-state-icon" aria-hidden="true">○</span><span>视频下载：</span><span id="setupResourceStatus" role="status">尚未检测</span></div>
+        </div>
+      </section>
+      <section id="setupCalibration" class="setup-calibration" aria-labelledby="setupCalibrationTitle">
+        <div class="setup-section-heading setup-test-heading"><h3 id="setupCalibrationTitle">CF 并发测速</h3><span class="setup-test-control"><button id="setupCalibrationToggle" class="setup-test-toggle" type="button" aria-label="开始CF 并发测速" aria-describedby="setupCalibrationTooltip" data-running="false" disabled><span aria-hidden="true"></span></button><span id="setupCalibrationTooltip" class="setup-test-tooltip" role="tooltip">请先准备好日常游戏的网络环境，保持常用加速器、代理和 TUN 设置，并暂停其他下载，再手动开始</span></span><span class="setup-test-status" role="status"><span id="setupCalibrationStatus">尚未测速</span><span id="setupCalibrationConnection" class="setup-test-connection"></span></span></div>
+        <div id="setupCalibrationResults" class="setup-calibration-metrics">
+          <div class="setup-calibration-speed-row">
+            <span id="setupCalibrationSingleRow" class="setup-calibration-metric"><span>单路速度</span><output id="setupCalibrationSingleSpeed">— Mbps</output></span>
+            <span id="setupCalibrationFullRow" class="setup-calibration-metric"><span>满路速度（<span id="setupCalibrationLimit">—</span>并发）</span><output id="setupCalibrationFullSpeed">— Mbps</output></span>
+          </div>
+          <div class="setup-calibration-cpu-row"><span>CPU 使用率：</span><span id="setupCalibrationFullCPURow" class="setup-calibration-metric"><span aria-label="满路稳定采样阶段的平均 CPU 使用率">平均</span><output id="setupCalibrationCPUAverage">—%</output></span><span id="setupCalibrationCPURow" class="setup-calibration-metric"><span aria-label="正式下载全程的 CPU P99，不含视频准备">p99</span><output id="setupCalibrationCPUP99">—%</output></span></div>
+        </div>
+        <figure class="setup-calibration-advice">
+          <div id="setupCalibrationGauge" class="setup-calibration-gauge" role="img" aria-label="尚无满路速度样本；以 2 Mbps 为 1×，分段对数刻度，≤1 倍不可用，1 至 2 倍不稳定，>2 倍可用">
+            <div class="setup-calibration-bar"><div class="setup-calibration-zones" aria-hidden="true"><span>不可用</span><span>不稳定</span><span>可用</span></div><span id="setupCalibrationPointer" class="setup-calibration-pointer" hidden></span></div>
+            <div class="setup-calibration-ticks" aria-hidden="true"><span style="left:0">0.25×</span><span style="left:33.3333%">1×</span><span style="left:66.6667%">2×</span><span style="left:80.9524%">16×</span><span style="left:100%">256×+</span></div>
+            <span id="setupCalibrationPointerValue" class="setup-calibration-pointer-value" hidden></span>
+          </div>
+        </figure>
+      </section>
       <hr class="setup-divider">
       <h2>连接方式</h2>
       <div id="setupProxySlot"></div>

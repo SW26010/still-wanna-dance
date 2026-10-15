@@ -246,8 +246,8 @@ func TestTermsGateAndPersistence(t *testing.T) {
 	}
 	select {
 	case <-started:
-	case <-time.After(time.Second):
-		t.Fatal("successful consent did not immediately start diagnosis")
+		t.Fatal("consent must not start manual diagnostics")
+	default:
 	}
 	if c.service != nil || c.queueCancel != nil {
 		t.Fatal("consent started business services")

@@ -33,6 +33,7 @@ type video struct {
 	size                   int64
 }
 type flight struct {
+	discard          bool                    // isolated measurement only; never serves cached media
 	cancel           context.CancelCauseFunc // protected by Server.mu
 	preempted        bool                    // protected by Server.mu; no new readers once cleanup is committed
 	completed        bool                    // protected by Server.mu; published/hit before reader wakeup
@@ -208,16 +209,23 @@ func New(cfg Config) (*Server, error) {
 	s.retentionWake = make(chan struct{}, 1)
 	s.retentionDone = make(chan struct{})
 	go s.retentionLoop()
-	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: videoRequestSoftLimit,
-		GrowInterval: 250 * time.Millisecond,
-		PrepareAhead: cfg.PrepareAhead,
-		Observe: func(e blocksched.Event) {
-			cfg.Logger.Debug("block_schedule", "event", e.Kind, "block_key", e.Key, "reason", e.Reason, "active", e.Active, "open", e.Open, "blocking", e.Blocking, "opportunistic", e.Opportunistic, "ready_by", e.ReadyBy, "work_bytes", e.WorkBytes, "block_time_ms", e.BlockTime.Milliseconds(), "prepare_ahead_ms", e.PrepareAhead.Milliseconds(), "start_urgent", e.StartUrgent, "overdue", e.Overdue)
-		}})
+	s.scheduler = newDownloadScheduler(cfg)
 	cfg.Logger.Info("cache_engine_ready", "removed_partials", cleaned, "max_local_validations", cfg.MaxDownloads,
 		"max_resource_sessions", maxResourceSessions, "video_request_soft_limit", videoRequestSoftLimit,
 		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "max_cache_bytes", cfg.MaxCacheBytes)
 	return s, nil
+}
+
+func newDownloadScheduler(cfg Config) *blocksched.Scheduler {
+	return blocksched.New(blocksched.Config{SoftLimit: videoRequestSoftLimit,
+		GrowInterval: 250 * time.Millisecond,
+		PrepareAhead: cfg.PrepareAhead,
+		Observe: func(e blocksched.Event) {
+			if cfg.ObserveBlockSchedule != nil {
+				cfg.ObserveBlockSchedule(e)
+			}
+			cfg.Logger.Debug("block_schedule", "event", e.Kind, "block_key", e.Key, "reason", e.Reason, "active", e.Active, "open", e.Open, "blocking", e.Blocking, "opportunistic", e.Opportunistic, "ready_by", e.ReadyBy, "work_bytes", e.WorkBytes, "block_time_ms", e.BlockTime.Milliseconds(), "prepare_ahead_ms", e.PrepareAhead.Milliseconds(), "start_urgent", e.StartUrgent, "overdue", e.Overdue)
+		}})
 }
 
 // Close cancels downloads, waits for handlers and cleanup, then flushes usage.

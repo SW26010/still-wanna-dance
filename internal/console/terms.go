@@ -258,11 +258,6 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 			http.Error(w, "无法安全保存同意记录：需要 Windows 当前用户保护及可写的配置目录，请检查运行环境和日志后重试", 500)
 			return true
 		}
-		// Start at durable consent, independently of progress writes, browser
-		// navigation and the final settings application. Failure cannot revoke consent.
-		if err := c.checkSetupNetwork(); err != nil {
-			slog.Error("setup_network_start_failed", "error", err)
-		}
 		writeJSON(w, map[string]bool{"ok": true})
 		return true
 	}

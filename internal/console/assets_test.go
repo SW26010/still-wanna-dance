@@ -25,8 +25,8 @@ func TestPageLoadsEmbeddedAssets(t *testing.T) {
 		t.Fatal("page did not inject the action token")
 	}
 	refs := regexp.MustCompile(`(?:href|src)="(/assets/[^"]+)"`).FindAllStringSubmatch(html, -1)
-	if len(refs) != 5 {
-		t.Fatalf("expected stylesheet and four scripts, got %v", refs)
+	if len(refs) != 6 {
+		t.Fatalf("expected stylesheet and five scripts, got %v", refs)
 	}
 	// Capacity research belongs in Help, outside the short setup flow.
 	figures := regexp.MustCompile(`href="(/assets/[^"]+\.svg)"`).FindAllStringSubmatch(request("/help", c.address).Body.String(), -1)

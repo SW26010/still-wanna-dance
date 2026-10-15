@@ -480,7 +480,9 @@ function renderSettings(s) {
 function renderControls() {
   const s = lastState;
   const unavailable = exiting || !connected || busy || !s || activationPending(s) || !!globalThis.swdProxyImportPending?.();
-  for (const b of document.querySelectorAll('button')) b.disabled = unavailable;
+  // Manual diagnostics own their controls through event subscriptions.
+  for (const b of document.querySelectorAll('button'))
+    if (b.id !== 'setupCalibrationToggle' && b.id !== 'setupConnectivityToggle') b.disabled = unavailable;
   $('importStart').disabled ||= !!s?.import?.running;
   $('importSource').disabled = unavailable || !!s?.import?.running;
   $('importDeleteSources').disabled = unavailable || !!s?.import?.running;

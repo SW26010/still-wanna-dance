@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"sort"
 	"sync"
@@ -108,7 +109,9 @@ func (w *downloadSession) demand(offset int64) func() {
 
 func (w *downloadSession) initialize(d *rangeDownload) {
 	w.f.ranges = d
-	w.f.spool = d.makeSpool(w.demand, w.track)
+	if !w.f.discard {
+		w.f.spool = d.makeSpool(w.demand, w.track)
+	}
 	w.f.progress.setStage("range_download")
 	close(w.f.streaming)
 	w.initOnce.Do(func() { close(w.initialized) })
@@ -171,6 +174,10 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 			w.f.log.Info("range_unavailable", "host", host, "fallback", "sequential")
 			stopBody := context.AfterFunc(ctx, func() { resp.Body.Close() })
 			defer stopBody()
+			if w.f.discard {
+				_, err := io.Copy(io.Discard, contextReader{ctx, progressReader{upstreamReader{resp.Body}, w.f.progress}})
+				return blocksched.Result{Err: err}
+			}
 			err := w.s.publish(ctx, resp.Body, w.path, w.v, w.f)
 			// Sequential bodies have no safe partial restart. End this flight;
 			// its next owner opens a new body after cleanup. Preserve storage
@@ -189,9 +196,16 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 			}
 			v.host, v.path, v.query = selected.host, selected.path, selected.query
 		}
-		d, err := w.s.newRangeDownload(v, resp, w.f.log)
-		if err != nil {
-			return blocksched.Result{Err: err}
+		var d *rangeDownload
+		if w.f.discard {
+			d = &rangeDownload{video: rangeVideo(v), etag: resp.Header.Get("ETag"),
+				done: make(map[int64]bool), partial: make(map[int64]*rangeResumeBlock)}
+		} else {
+			var err error
+			d, err = w.s.newRangeDownload(v, resp, w.f.log)
+			if err != nil {
+				return blocksched.Result{Err: err}
+			}
 		}
 		w.initialize(d)
 		initial = resp
@@ -592,6 +606,9 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 	}
 	// Hashing and publication stay bounded without charging the preceding
 	// intentional waits between playback-driven block executions.
+	if f.discard {
+		return nil
+	}
 	ctx, stopPublication := context.WithTimeout(ctx, s.cfg.DownloadTimeout)
 	defer stopPublication()
 	f.progress.setStage("hash")

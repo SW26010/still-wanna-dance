@@ -147,6 +147,17 @@ func probeCatalogRoute(parent context.Context, client *http.Client, p Policy, ro
 }
 
 func probeCatalogResponse(parent context.Context, client *http.Client, p Policy, route string) (o observation, id int64, result CatalogResponse) {
+	o, id, result = probeCatalogData(parent, client, p, route)
+	// Udon stays monitor-only: do not deliver its body to business consumers.
+	if route != "kiva" && route != "wanna" {
+		result = CatalogResponse{}
+	}
+	return
+}
+
+// The diagnostic can select several IDs from this one validated response.
+// Ordinary monitor delivery still filters Udon in probeCatalogResponse.
+func probeCatalogData(parent context.Context, client *http.Client, p Policy, route string) (o observation, id int64, result CatalogResponse) {
 	defer func() {
 		if o.state != "available" {
 			result = CatalogResponse{}
@@ -178,8 +189,8 @@ func probeCatalogResponse(parent context.Context, client *http.Client, p Policy,
 		o.state = "invalid"
 		return
 	}
+	result = CatalogResponse{Route: route, Source: entry(Catalog, route), Body: body}
 	if route == "kiva" || route == "wanna" {
-		result = CatalogResponse{Route: route, Source: entry(Catalog, route), Body: body}
 		id, o.catalogTime = kivaSongSample(body)
 		if id == 0 {
 			o.state = "invalid"
@@ -221,7 +232,6 @@ func probeCatalogResponse(parent context.Context, client *http.Client, p Policy,
 	}
 	o.state = "available"
 	o.bytes = int64(len(body))
-	// Udon stays monitor-only: do not deliver its body to business consumers.
 	return
 }
 

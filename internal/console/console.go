@@ -38,7 +38,7 @@ var aboutPage string
 //go:embed setup.html
 var setupPage string
 
-//go:embed assets/console.css assets/console.js assets/cache.js assets/navigation.js assets/setup.js assets/storage-benefit.svg
+//go:embed assets/console.css assets/console.js assets/cache.js assets/navigation.js assets/setup.js assets/setup-calibration.js assets/storage-benefit.svg
 var assets embed.FS
 
 type Settings struct {
@@ -603,6 +603,14 @@ func (c *Console) BeginShutdown() {
 	c.queueDesired = false
 	upstreamrequest.Default.Release(c.requestRevision)
 	if c.setupNetwork != nil {
+		if c.setupNetwork.connectivityCancel != nil {
+			c.setupNetwork.connectivityCancel()
+		}
+		c.setupNetwork.connectivity.Closed = true
+		c.publishSetupConnectivityLocked()
+		if c.setupNetwork.calibration != nil {
+			c.setupNetwork.calibration.Shutdown()
+		}
 		c.setupNetwork.channel.Release(c.setupNetwork.revision)
 	}
 	if c.batchCancel != nil {
@@ -707,7 +715,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.serveHelp(w)
 		return
 	}
-	if r.Method == "GET" && (r.URL.Path == "/assets/console.css" || r.URL.Path == "/assets/console.js" || r.URL.Path == "/assets/cache.js" || r.URL.Path == "/assets/navigation.js" || r.URL.Path == "/assets/setup.js" || r.URL.Path == "/assets/storage-benefit.svg") {
+	if r.Method == "GET" && (r.URL.Path == "/assets/console.css" || r.URL.Path == "/assets/console.js" || r.URL.Path == "/assets/cache.js" || r.URL.Path == "/assets/navigation.js" || r.URL.Path == "/assets/setup.js" || r.URL.Path == "/assets/setup-calibration.js" || r.URL.Path == "/assets/storage-benefit.svg") {
 		content, err := assets.ReadFile(strings.TrimPrefix(r.URL.Path, "/"))
 		if err != nil {
 			http.Error(w, "asset unavailable", http.StatusInternalServerError)
@@ -884,6 +892,14 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, result)
 		return
 	}
+	if r.Method == "GET" && r.URL.Path == "/api/setup/network/calibration/events" {
+		c.serveSetupCalibrationEvents(w, r)
+		return
+	}
+	if r.Method == "GET" && r.URL.Path == "/api/setup/network/connectivity/events" {
+		c.serveSetupConnectivityEvents(w, r)
+		return
+	}
 	if r.Method != "POST" {
 		http.Error(w, "not found", 404)
 		return
@@ -977,6 +993,20 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	case "/api/setup/network":
 		err = c.checkSetupNetwork()
+	case "/api/setup/network/calibration/start":
+		var input setupCalibrationRequest
+		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+			err = c.controlSetupCalibration(false, input)
+		}
+	case "/api/setup/network/calibration/cancel":
+		err = c.controlSetupCalibration(true, setupCalibrationRequest{})
+	case "/api/setup/network/connectivity/start":
+		var input setupCalibrationRequest
+		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+			err = c.controlSetupConnectivity(false, input)
+		}
+	case "/api/setup/network/connectivity/cancel":
+		err = c.controlSetupConnectivity(true, setupCalibrationRequest{})
 	case "/api/setup/network/catalog":
 		err = c.checkSetupNetwork(upstreamstate.CheckCatalog)
 	case "/api/setup/network/playback":

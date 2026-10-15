@@ -10,7 +10,10 @@ import (
 
 const typicalDuration = 210 * time.Second
 const typicalSize int64 = 45 << 20
-const typicalBitrate = 2_000_000 // bits/s, including audio and container overhead
+
+// TypicalBitrate is the estimated total media bitrate, in bits/s, including
+// audio and container overhead. It is not measured metadata for a video.
+const TypicalBitrate = 2_000_000
 
 // An estimate only: never persisted as media metadata. Bitrate is derived from
 // the pair when needed, so byte positions and the end time use the same scale.
@@ -26,9 +29,9 @@ func estimateMediaTiming(size int64, seconds float64) mediaTiming {
 	case !hasSize && !hasDuration:
 		return mediaTiming{typicalSize, typicalDuration}
 	case !hasDuration:
-		seconds = float64(size) * 8 / typicalBitrate
+		seconds = float64(size) * 8 / TypicalBitrate
 	case !hasSize:
-		bytes := math.Ceil(seconds * typicalBitrate / 8)
+		bytes := math.Ceil(seconds * TypicalBitrate / 8)
 		if bytes >= float64(math.MaxInt64) {
 			return mediaTiming{typicalSize, typicalDuration}
 		}

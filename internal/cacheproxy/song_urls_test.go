@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 )
@@ -74,6 +75,13 @@ func TestSongURLConflictPreservesMapping(t *testing.T) {
 	var mapped string
 	if err := s.usage.db.QueryRow("SELECT md5 FROM song_media WHERE song_id=42").Scan(&mapped); err != nil || mapped != expected {
 		t.Fatal(mapped, err)
+	}
+	var size sql.NullInt64
+	if err := s.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", expected).Scan(&size); err != nil || size.Valid {
+		t.Fatal("conflicting URL changed the mapped resource", size, err)
+	}
+	if err := s.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", "0123456789abcdef0123456789abcdef").Scan(&size); err != nil || !size.Valid || size.Int64 != 12 {
+		t.Fatal("conflicting URL did not record its own resource size", size, err)
 	}
 	urls, err := s.SongURLs(ctx, 42, "")
 	if err != nil || len(urls) != 1 || urls[0].MD5 == expected {

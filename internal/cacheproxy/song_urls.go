@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"net/http"
 	"net/url"
@@ -17,9 +18,10 @@ type SongURL struct {
 	QueryStartedAt, ObservedAt time.Time
 }
 
-// ObserveSongURL preserves the complete URL and never changes catalog mappings.
+// ObserveSongURL atomically records the complete URL and its resource metadata
+// without downloading media or changing catalog mappings.
 // Each API/node has one latest observation, so signed URL churn is bounded.
-func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) error {
+func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error) {
 	if !s.beginRequest() {
 		return context.Canceled
 	}
@@ -38,7 +40,14 @@ func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.usage.db.ExecContext(ctx, `INSERT INTO song_urls
+	// Roll back/release the database transaction before retaining a storage fault.
+	defer func() { resultErr = s.songURLStorageError(ctx, resultErr) }()
+	tx, err := s.usage.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `INSERT INTO song_urls
  (song_id,api,node,url,md5,byte_size,query_started_at,observed_at) VALUES (?,?,?,?,?,?,?,?)
  ON CONFLICT(song_id,api,node) DO UPDATE SET url=excluded.url, md5=excluded.md5,
  byte_size=excluded.byte_size, query_started_at=excluded.query_started_at,
@@ -46,13 +55,34 @@ func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) error {
  WHERE excluded.query_started_at>song_urls.query_started_at`,
 		o.SongID, o.API, o.Node, o.URL, v.key, v.size, o.QueryStartedAt.UnixNano(), o.ObservedAt.UnixNano())
 	if err != nil {
-		return s.storageError(err)
+		return err
+	}
+	accepted, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if accepted == 0 {
+		return nil // A stale/tied observation must not update resource metadata either.
+	}
+	if _, err := tx.ExecContext(ctx, upsertMediaSQL, v.key, v.size, v.path); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
 	}
 	var mapped string
 	if err := s.usage.db.QueryRowContext(ctx, "SELECT md5 FROM song_media WHERE song_id=?", o.SongID).Scan(&mapped); err == nil && mapped != v.key {
 		s.cfg.Logger.Warn("song_md5_mismatch", "song_id", o.SongID, "mapped_md5", mapped, "url_md5", v.key, "node", o.Node)
 	}
 	return nil
+}
+
+func (s *Server) songURLStorageError(ctx context.Context, err error) error {
+	// Cancellation may roll back the transaction before Commit checks its state.
+	if errors.Is(err, sql.ErrTxDone) && ctx.Err() != nil {
+		err = ctx.Err()
+	}
+	return s.storageError(err)
 }
 
 // SongURLs returns recent usable observations without probing them. Empty node

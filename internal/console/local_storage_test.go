@@ -77,7 +77,8 @@ func TestLocalStorageFailureStopsConsoleFallback(t *testing.T) {
 				t.Fatal("retried API/node/song after local failure", queries.Load())
 			}
 			want := int32(1)
-			if mode == "observation" {
+			// URL evidence and media metadata now commit during address resolution.
+			if mode == "observation" || mode == "index" {
 				want = 0
 			}
 			if downloads.Load() != want {

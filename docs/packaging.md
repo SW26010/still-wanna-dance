@@ -10,7 +10,7 @@
 ./scripts/package-portable.ps1 -ReleaseTag v1.2.3
 ```
 
-开发包先运行三个前端测试文件（refresh、navigation、terms）、`go test -tags=no_easytier ./cmd/... ./internal/...`、`go vet -tags=no_easytier ./cmd/... ./internal/...`，失败即停止。正式包在独立干净检出中运行全部 Node 测试和上述 Go 检查，排除原目录中被 Git 忽略的额外代码/嵌入资源。构建使用 `GOOS=windows GOARCH=amd64 GOAMD64=v1 CGO_ENABLED=0`、`-tags=no_easytier -trimpath -mod=readonly -ldflags '-s -w -H=windowsgui'`；不继承 GOFLAGS、工作区覆盖或 Go 实验配置，不自动下载工具链。
+开发包先运行依赖无关的前端源码/资源清单校验（`scripts/check-webui.mjs`）、`go test -tags=no_easytier ./cmd/... ./internal/...`、`go vet -tags=no_easytier ./cmd/... ./internal/...`，失败即停止。正式包在独立干净检出中运行全部 Node 测试和上述 Go 检查，排除原目录中被 Git 忽略的额外代码/嵌入资源。构建使用 `GOOS=windows GOARCH=amd64 GOAMD64=v1 CGO_ENABLED=0`、`-tags=no_easytier -trimpath -mod=readonly -ldflags '-s -w -H=windowsgui'`；不继承 GOFLAGS、工作区覆盖或 Go 实验配置，不自动下载工具链。
 
 ZIP 名允许带版本；ZIP 内固定为：
 
@@ -80,3 +80,7 @@ Windows CI 在 tag 上运行正式流程，并上传 ZIP、源码、校验、发
 - 自动化回归另覆盖固定 SQLite/配置/快照样本、缺表/索引/新增列拒绝、未来/旧版本拒绝、缺失数据库不重建、事务失败回滚、纳秒查询竞争及时间回拨、CurrentUser DPAPI 同用户移动、篡改/未知封套保留、强制代理失败而非直连、显式凭据重配及保存失败不丢原密文。
 
 Windows 受限沙箱中的临时文件重命名曾返回 Access denied；最终结果来自正常用户权限的本地测试，并非忽略那些失败。跨用户/普通跨机器的真实 DPAPI 环境、真实断电/磁盘耗尽、VRChat 音画、托盘交互及 UAC 联合测试本轮未执行。旧试验配置/数据库无迁移，便携覆盖验证不代表跨格式升级支持；#15 法律凭据防伪及 #24–#26 各自剩余范围仍独立推进。
+
+### Fluent UI 构建检查
+
+界面源码修改后先按开发指南重建并运行浏览器测试。CI 校验完整前端构建一致性并执行 24 个浏览器场景；开发包可直接使用已提交资源，只需 Node 做哈希校验。正式对应源码包额外要求固定 pnpm，并收集 npm 源码存储、验证前端完全离线重建。Portable 第三方声明包括 `docs/licenses/WEBUI-NOTICES.txt`。`test-portable.ps1` 在未确认条款的隔离进程检查新 bootstrap、JS/CSS 和 API 门禁，仍不自动接受条款或启用游戏链路。

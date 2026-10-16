@@ -38,6 +38,8 @@ export function checkDelivery(folder, manifest, sourceAsset, sourceRoot) {
   for (const [shipped, original] of [['LICENSE', 'LICENSE'], ['LICENSE-MIT', 'LICENSE-MIT'], ['LICENSING.md', 'LICENSING.md'], ['TERMS.txt', 'internal/legal/TERMS.txt']]) if (sha256(path.join(folder, 'licenses', shipped)) !== sha256(path.join(sourceRoot, original))) throw Error(`Delivered license differs from source: ${shipped}`);
   const notices = fs.readFileSync(path.join(folder, 'licenses/THIRD-PARTY-NOTICES.txt'), 'utf8');
   if (!notices.startsWith(fs.readFileSync(path.join(sourceRoot, 'THIRD-PARTY-NOTICES.txt'), 'utf8').trimEnd()) || !notices.includes(`Go runtime and standard library: ${manifest.toolchain}`)) throw Error('Incomplete packaged notices');
+  const webuiNotices=path.join(sourceRoot,'docs/licenses/WEBUI-NOTICES.txt');
+  if(fs.existsSync(webuiNotices) && !notices.includes(fs.readFileSync(webuiNotices,'utf8').trim()))throw Error('Missing embedded frontend license notices');
   const instructions = fs.readFileSync(path.join(folder, 'licenses/SOURCE.txt'), 'utf8');
   if (!instructions.includes(record.sourceURL) || !instructions.includes(record.sourceSHA256)) throw Error('Missing source download instructions');
   return info;
@@ -78,7 +80,7 @@ export function createRelease({ root, tag, outputDir }) {
     const sourceAsset = { kind: 'source', name: names.source, sha256: source.sha256, bytes: fs.statSync(source.archive).size, url: assetURL(tag, names.source) };
     const record = { schemaVersion: 1, kind: 'formal', tag, revision, sourceURL: sourceAsset.url, sourceSHA256: source.sha256, executableSHA256: sha256(path.join(folder, 'SWD.exe')), acceptedRisks: [acceptedRisk] };
     writeJSON(path.join(licenses, 'SOURCE.json'), record);
-    fs.writeFileSync(path.join(licenses, 'SOURCE.txt'), `Complete Corresponding Source / 完整对应源码\nVersion: ${tag}\nCommit: ${revision}\nDownload: ${sourceAsset.url}\nSHA256: ${source.sha256}\n\nDownload the source asset from the same official GitHub Release as this ZIP.\nThe automatic GitHub Source code ZIP/TAR is not a substitute. Extract the\nsource asset and follow BUILD.txt (recorded Go toolchain, Node.js 22+, tar).\nMirrors must retain notices and provide this matching source with equivalent\naccess. For offline redistribution supply the matching source archive too;\na network-only link is not an offline source-delivery plan. See LICENSING.md.\n`);
+    fs.writeFileSync(path.join(licenses, 'SOURCE.txt'), `Complete Corresponding Source / 完整对应源码\nVersion: ${tag}\nCommit: ${revision}\nDownload: ${sourceAsset.url}\nSHA256: ${source.sha256}\n\nDownload the source asset from the same official GitHub Release as this ZIP.\nThe automatic GitHub Source code ZIP/TAR is not a substitute. Extract the\nsource asset and follow BUILD.txt (recorded Go toolchain, Node.js 22+, pinned pnpm, tar).\nMirrors must retain notices and provide this matching source with equivalent\naccess. For offline redistribution supply the matching source archive too;\na network-only link is not an offline source-delivery plan. See LICENSING.md.\n`);
     writeJSON(path.join(folder, 'build-info.json'), { kind: 'formal', version: tag, revision, dirty: false, builtAtUtc: new Date().toISOString(), toolchain: source.manifest.toolchain, target: source.manifest.target });
     const info = checkDelivery(folder, source.manifest, sourceAsset, path.join(bundle, 'source'));
     console.log('Rebuilding independently from delivered source with fresh caches...');

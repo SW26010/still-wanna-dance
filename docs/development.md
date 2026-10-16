@@ -1,6 +1,6 @@
 # 开发环境
 
-Still Wanna Dance 使用 Go，管理 UI 采用本地 HTML/CSS/JavaScript 页面。
+Still Wanna Dance 使用 Go，管理 UI 采用 React + TypeScript + Fluent UI React v9，资源编译进 EXE 后在本地浏览器运行。
 
 下载架构从[全局块调度设计](block-scheduler-design.md)开始阅读：需求管理层解释 GET/队列与交接，`internal/blocksched` 统一处理块期限、租约、启动窗口和并发；资源层负责执行与文件一致性。[运行规则](download-concurrency.md)是当前参数依据，[开发记录](block-scheduler-validation.md)按历史顺序保留实现和自动检查，不应将早期策略当作现状。
 
@@ -8,9 +8,16 @@ Still Wanna Dance 使用 Go，管理 UI 采用本地 HTML/CSS/JavaScript 页面�
 
 每次完成新功能或影响用户行为的修复后，必须同步更新[待实机验收台账](live-acceptance-backlog.md)，登记操作步骤、预期与证据需求。功能先积攒到下一轮集中验收，自动检查通过不等于实机通过。每轮按[实机验收机制](live-acceptance-process.md)交付报告、脱敏证据、哈希清单及台账结果；失败、阻塞、未测项继续保留。纯文档/测试工具变更不影响产品行为时说明不适用原因即可。
 
-控制台页面结构位于 `internal/console/index.html`，样式和脚本分别位于 `internal/console/assets/console.css`、`internal/console/assets/console.js`。三者通过 `go:embed` 编译进可执行文件，无需前端构建步骤或额外分发资源文件；修改后需重新编译。脚本按区域拆分渲染函数，操作请求与刷新调度集中在后半部分。页面注入当前会话 token，静态脚本从页面的 meta 标签读取。
+前端源码在 `webui/src`；Go 的 `internal/console/webui.html` 只负责外壳和经过 JSON 转义的 bootstrap。`webui/build.mjs` 用 esbuild 生成并提交 `internal/console/assets/webui`、第三方声明和构建清单。普通 Go 构建直接嵌入这些产物；桌面构建脚本用 Node 校验源码和产物哈希，界面改动后必须先重建。前端开发：
 
-前端刷新和操作超时回归测试使用 Node.js 标准库，运行 `node --test scripts/refresh.test.mjs`。
+```powershell
+pnpm --dir webui install --frozen-lockfile
+pnpm --dir webui build
+pnpm --dir webui check
+pnpm --dir webui test
+```
+
+使用 `webui/package.json` 固定的 pnpm 版本。浏览器测试默认使用本机 Edge；CI 安装 Playwright Chromium，测试只调用内存夹具，不修改 hosts 或访问真实上游。截图保存在忽略目录 `artifacts/webui-tests`。工具测试仍用 `node --test scripts/*.test.mjs`。架构、浏览器覆盖和真实系统验收边界见[Fluent 迁移记录](fluent-ui-migration.md)。
 
 ## Windows 环境
 
@@ -36,9 +43,9 @@ Go 自带构建、测试、格式化和静态检查工具。当前纯 Go 方案�
 仓库已有 `go.mod`，最低 Go 1.25。SQLite 使用纯 Go 驱动 `modernc.org/sqlite`，依赖版本以 `go.mod` 为准；上面的 Go 1.27.1 是当时的本机环境记录。开发命令：
 
 ```powershell
-go fmt ./...
-go test ./...
-go vet ./...
+go fmt ./cmd/... ./internal/...
+go test -tags=no_easytier ./cmd/... ./internal/...
+go vet -tags=no_easytier ./cmd/... ./internal/...
 go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
 ```
 

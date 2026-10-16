@@ -31,7 +31,7 @@ SWD-source/
 
 清单记录提交、标签、工具链、目标、参数、模块版本及 Go h1 校验、补充原始源码来源，每个文件的字节数与 SHA256。清单不记录自身哈希，整个归档另有 SHA256。原始模块 ZIP 不修改。源码和 EXE 对应检查另读取 EXE 的真实 Go build info，不接受只写在外部 JSON 的版本声明；EXE 中的模块必须有实际完整 ZIP，只有元数据不够。
 
-安装 BUILD.txt 中记录的 Go 版本、Node.js 22+ 和 tar 后，从解压目录执行：
+安装 BUILD.txt 中记录的 Go 版本、Node.js 22+、固定 pnpm 和 tar 后，从解压目录执行：
 
 ```powershell
 node source/scripts/release-source.mjs rebuild --bundle . --output ../SWD-rebuilt.exe
@@ -42,3 +42,11 @@ node source/scripts/release-source.mjs rebuild --bundle . --output ../SWD-rebuil
 许可证风险处理见[许可审计](issue-30-license-audit.md)。`go-lzo` 的固定版本即使进入 EXE，也只保留已接受风险及证据，不自动阻止发布；缺少源码、声明或对应关系仍会失败。
 
 源码生成和独立重建属于交付工具验证，不改变应用运行行为，无需新增实机台账项；条款升级仍跟踪 LA-033。
+
+## Fluent UI 前端源码
+
+源码包增加 `frontend-store/`：由固定 pnpm 的 `fetch --ignore-scripts` 按锁文件收集完整 npm 包（含许可、JS/TS、source maps 和构建依赖），不把带符号链接的 node_modules 打包。支持 Windows/Linux/macOS 的 x64/arm64 构建依赖，所需包的原始内容由 pnpm integrity 和总文件清单共同校验。Go、Node、固定 pnpm 和 Windows PowerShell 属于另行安装的通用工具。
+
+正式源码生成前检查已提交前端与源码一致。独立重建先在临时副本使用该存储执行 `pnpm install --offline --frozen-lockfile --ignore-scripts`，再执行类型检查和 esbuild 重建，比对 JS、CSS、第三方声明的实际字节，然后才构建 Go。原归档及其存储保持只读，缺包、缺资源、版本不符或字节不一致都停止。前端原稿、锁文件、构建脚本与存储随同一源码清单交付，运行 Portable 不需要 Node 或 pnpm。
+
+pnpm v11 的 `projects/` 仅保存构建机项目链接，归档前清除；包内容与索引保留。离线安装在临时存储副本执行，避免向原源码包写入新的项目链接。此清理有 junction 目标保留测试，实际清理后的存储已完成离线安装和重建比对。

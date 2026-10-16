@@ -66,14 +66,16 @@ See the [design, formulas, and worked example (Chinese)](docs/block-scheduler-de
 
 ## Build from source
 
-To build the Windows desktop app, install Go 1.25 or later, Git, and PowerShell. Run these commands from the repository folder:
+To build the Windows desktop app, install Go 1.25 or later, Node.js 22+ (asset verification), Git, and PowerShell. Run these commands from the repository folder:
 
 ```powershell
 .\scripts\build-desktop.ps1
 .\bin\SWD.exe
 ```
 
-Web assets and SQLite dependencies are compiled into the executable. There is no separate frontend build or database service to set up.
+Web assets and SQLite dependencies are compiled into the executable. Ordinary Go builds use the checked-in browser bundle. Editing the React UI requires the frontend build below; no separate runtime service is needed.
+
+For UI changes, use the pinned pnpm version in `webui/package.json`, then run `pnpm --dir webui install --frozen-lockfile`, `pnpm --dir webui build`, and `pnpm --dir webui test`. See the [frontend guide](docs/fluent-ui-migration.md).
 
 See the [development guide](docs/development.md) for environment setup and test commands, and the [packaging guide](docs/packaging.md) to create a distributable ZIP.
 

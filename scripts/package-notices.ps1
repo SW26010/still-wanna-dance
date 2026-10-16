@@ -28,6 +28,8 @@ $goVersion = & go env GOVERSION
 if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the Go toolchain.' }
 if (!$info[0].EndsWith(": $goVersion")) { throw 'Executable and selected Go toolchain versions differ.' }
 $builder = [Text.StringBuilder]::new($notices.TrimEnd())
+$webNotices = Join-Path (Split-Path -Parent $PSScriptRoot) 'docs/licenses/WEBUI-NOTICES.txt'
+[void]$builder.AppendLine().AppendLine().AppendLine([IO.File]::ReadAllText($webNotices).TrimEnd())
 [void]$builder.AppendLine().AppendLine().AppendLine("Go runtime and standard library: $goVersion")
 $files = @((Get-Item -LiteralPath (Join-Path $goRoot 'LICENSE')))
 # Include bundled library notices conservatively; not all are linked on every platform.

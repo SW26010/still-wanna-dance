@@ -19,8 +19,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read Git revision.' }
     $changes = & git status --porcelain
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read Git status.' }
-    node --test scripts/refresh.test.mjs scripts/navigation.test.mjs scripts/terms.test.mjs
-    if ($LASTEXITCODE -ne 0) { throw 'Frontend tests failed.' }
+    node scripts/check-webui.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Embedded Web UI is stale. Rebuild webui before packaging.' }
     go test -tags=no_easytier ./cmd/... ./internal/...
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
     go vet -tags=no_easytier ./cmd/... ./internal/...

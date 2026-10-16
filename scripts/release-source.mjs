@@ -6,6 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
+import { collectFrontend, rebuildFrontend } from './webui-source.mjs';
 
 export const desktopEntry = './cmd/still-wanna-dance-console';
 export const repository = 'SW26010/still-wanna-dance';
@@ -101,6 +102,7 @@ export function createSource({ root, tag, outputDir }) {
     const snapshot = path.join(temp, 'snapshot.tar');
     run('git', ['archive', '--format=tar', '--output', snapshot, revision], root);
     run('tar', ['-xf', snapshot, '-C', source], root, { TAR_OPTIONS: '' });
+    const frontend = collectFrontend(source, bundle, temp);
     const env = goEnv();
     const graph = jsonStream(run('go', ['list', '-mod=readonly', '-m', '-json', 'all'], source, env));
     if (graph.some(m => m.Replace)) throw Error('Replacement modules require review before source delivery');
@@ -156,8 +158,8 @@ export function createSource({ root, tag, outputDir }) {
     const currentSum = run('git', ['show', `${revision}:go.sum`], root);
     if (fs.readFileSync(path.join(source, 'go.mod'), 'utf8') !== currentMod || fs.readFileSync(path.join(source, 'go.sum'), 'utf8') !== currentSum) throw Error('Module download changed source go.mod/go.sum');
     const toolchain = run('go', ['env', 'GOVERSION'], source, env).trim();
-    fs.writeFileSync(path.join(bundle, 'BUILD.txt'), `SWD ${tag}\nCommit: ${revision}\nLicense: GPL-3.0-only for new SWD contributions; see source/LICENSING.md.\n\nInstall ${toolchain}, Node.js 22+ and tar (general-purpose build tools).\nFrom this directory run:\n  node source/scripts/release-source.mjs rebuild --bundle . --output ../SWD-rebuilt.exe\nThe verifier checks all source/proxy file hashes, uses fresh Go caches and ONLY\nthe included file GOPROXY; it does not download modules or a toolchain.\nSource includes full module ZIPs, original notices, generated inputs and scripts.\nGit export-ignore omits historical experiments/ and docs/evidence/; these remain\nin the repository at the recorded commit. Research/chart inputs are retained.\nNo bit-for-bit binary reproducibility is claimed.\n`);
-    const manifest = { schemaVersion: 1, tag, revision, repository, target: 'windows/amd64', toolchain, entry: desktopEntry, productionFlags, modules, supplementalInputs: extras,
+    fs.writeFileSync(path.join(bundle, 'BUILD.txt'), `SWD ${tag}\nCommit: ${revision}\nLicense: GPL-3.0-only for new SWD contributions; see source/LICENSING.md.\n\nInstall ${toolchain}, Node.js 22+, the pnpm version in source/webui/package.json,\nand tar (general-purpose build tools).\nFrom this directory run:\n  node source/scripts/release-source.mjs rebuild --bundle . --output ../SWD-rebuilt.exe\nThe verifier checks all source/proxy file hashes, uses fresh Go caches and ONLY\nthe included file GOPROXY; it does not download modules or a toolchain.\nSource includes full module ZIPs, locked npm packages in frontend-store,\noriginal notices, generated inputs and scripts. The frontend is rebuilt offline\nwith pnpm and its assets/notices are byte-checked before the Go build.\nGit export-ignore omits historical experiments/ and docs/evidence/; these remain\nin the repository at the recorded commit. Research/chart inputs are retained.\nNo bit-for-bit binary reproducibility is claimed.\n`);
+    const manifest = { schemaVersion: 1, tag, revision, repository, target: 'windows/amd64', toolchain, entry: desktopEntry, productionFlags, modules, supplementalInputs: extras, frontend,
       files: filesUnder(bundle).map(p => ({ path: p, bytes: fs.statSync(safePath(bundle, p)).size, sha256: sha256(safePath(bundle, p)) })) };
     writeJSON(path.join(bundle, 'source-manifest.json'), manifest);
     verifyBundle(bundle);
@@ -181,6 +183,11 @@ export function verifyBundle(bundle) {
   }
   for (const name of ['go.mod', 'go.sum', 'LICENSE', 'LICENSE-MIT', 'LICENSING.md', 'THIRD-PARTY-NOTICES.txt', 'scripts/build-desktop.ps1', 'scripts/release-source.mjs']) if (!seen.has('source/' + name)) throw Error(`Missing source input: ${name}`);
   if (!seen.has('BUILD.txt')) throw Error('Missing build instructions');
+  if(seen.has('source/webui/package.json')) {
+    const pkg=readJSON(path.join(bundle,'source/webui/package.json'));
+    if(m.frontend?.packageManager!==pkg.packageManager || m.frontend?.store!=='frontend-store' || ![...seen].some(p=>p.startsWith('frontend-store/')))throw Error('Missing locked frontend source store');
+    for(const name of ['build-manifest.json','pnpm-lock.yaml','build.mjs','src/main.tsx'])if(!seen.has('source/webui/'+name))throw Error('Missing frontend build input: '+name);
+  }
   const modules = new Set();
   for (const mod of m.modules) {
     const id = `${mod.path}@${mod.version}`;
@@ -252,6 +259,7 @@ export function rebuild({ bundle, output }) {
   return withTemp(temp => {
     const env = goEnv({ GOPROXY: pathToFileURL(path.join(bundle, 'proxy')).href, GOSUMDB: 'off', GONOPROXY: 'none', GONOSUMDB: 'none', GOPRIVATE: '', GOMODCACHE: path.join(temp, 'modules'), GOCACHE: path.join(temp, 'build') });
     const source = path.join(bundle, 'source');
+    rebuildFrontend(source,bundle,temp);
     if (run('go', ['env', 'GOVERSION'], source, env).trim() !== manifest.toolchain) throw Error(`Install recorded toolchain ${manifest.toolchain} for independent verification`);
     run('go', ['build', ...productionFlags, '-buildvcs=false', '-o', output, desktopEntry], source, env);
     const info = executableInfo(output); checkExecutable(info, manifest, false);

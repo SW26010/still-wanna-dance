@@ -66,7 +66,7 @@ Still Wanna Dance 是为 **Windows 上的 VRChat WannaDance 玩家**打造的开
 
 ## 从源码构建
 
-Windows 桌面版需要 Go 1.25 或更新版本、Git 和 PowerShell。在仓库目录执行：
+Windows 桌面版需要 Go 1.25 或更新版本、Node.js 22+（资源校验）、Git 和 PowerShell。在仓库目录执行：
 
 ```powershell
 .\scripts\build-desktop.ps1
@@ -74,6 +74,8 @@ Windows 桌面版需要 Go 1.25 或更新版本、Git 和 PowerShell。在仓库
 ```
 
 网页资源和 SQLite 依赖会编译进程序，无需额外搭建前端或数据库服务。
+
+修改网页界面时，使用 `webui/package.json` 固定的 pnpm，依次执行 `pnpm --dir webui install --frozen-lockfile`、`pnpm --dir webui build` 和 `pnpm --dir webui test`；详见[Fluent 前端开发与验证](docs/fluent-ui-migration.md)。
 
 开发环境、测试命令见[开发指南](docs/development.md)；生成可分发的 ZIP 见[打包说明](docs/packaging.md)。
 

@@ -13,6 +13,7 @@ function fixture(temp) {
     const dest = path.join(root, name); fs.mkdirSync(path.dirname(dest), { recursive: true }); fs.writeFileSync(dest, text);
   }
   fs.copyFileSync(path.join(here, 'release-source.mjs'), path.join(root, 'scripts/release-source.mjs'));
+  for(const name of ['webui-source.mjs','check-webui.mjs'])fs.copyFileSync(path.join(here,name),path.join(root,'scripts',name));
   fs.copyFileSync(path.join(here, '../.gitattributes'), path.join(root, '.gitattributes'));
   run('git', ['init', '--quiet'], root);
   run('git', ['config', 'core.autocrlf', 'false'], root);

@@ -6,6 +6,8 @@ foreach ($key in @('GOOS', 'GOARCH', 'GOAMD64', 'CGO_ENABLED', 'GOFLAGS', 'GOEXP
 }
 Push-Location (Split-Path -Parent $PSScriptRoot)
 try {
+    node scripts/check-webui.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Embedded Web UI is stale. Run pnpm --dir webui build.' }
     $env:GOOS = 'windows'
     $env:GOARCH = 'amd64'
     $env:GOAMD64 = 'v1'

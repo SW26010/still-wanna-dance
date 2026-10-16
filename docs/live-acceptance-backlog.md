@@ -355,3 +355,11 @@ LA-042 补充取消边界：在隔离库控制请求取消/超时，使事务自
 2026-10-15 混合同块需求补充 **LA-040**：代码依据 `block_demands.go`、`internal/blocksched/scheduler.go`、`opportunistic_test.go` 和 `opportunistic_demand_test.go`。隔离上游提供 1 MiB+123 字节资源，GET 先读取完整首块并保持连接，尾部播放期限仍在未来；加入独立补齐后尾部应利用空额度下载、最终校验发布，原 GET 后续读到正确尾部，两块各请求一次。额度已满时补齐仍等待，不能变成 Blocking；有限期限进入窗口后仍按原 ReadyBy 排序。另在排队期间撤销或到期补齐来源，确认提前准入取消而播放期限及需求仍存活，交接不继承提前权限。保留需求摘要的 opportunistic/ReadyBy/Blocking、active/open、来源退出与请求时间、Range 次数、哈希及播放反馈；实机待验收，LA-041 继续保留。
 
 2026-10-15 保守启动参数补充 **LA-040**：本轮将初始 T 从 1 秒调为 3 秒，默认 M 从 2 秒调为 30 秒，替代上方旧默认值；完成样本及 30 秒半衰期不变。在受控上游核对无历史样本时首次普通任务在 ReadyBy 前 33 秒入窗、边界准时启动，随后按实际完成样本更新 T。另用 500 秒 M 对照更早预取：普通请求仍遵守每 250 ms 增路和 16 路软上限，Blocking 仍独立绕过；记录提前下载量、资源占用、时间窗口及实际开播表现，不把大提前量当作必达保证。代码依据 `internal/blocksched/{duration,control,window_test}.go`，自动回归单列，实机待验收。
+
+## 2026-10-16 A1–A8 代码修复后的补充验收
+
+以下补充并入原编号，保留历史报告与失败证据，均待下一轮实机验收。本轮仅开发和自动验证，没有启动游戏或修改 hosts。
+
+- **A1 / LA-019、LA-040**：代码依据 `internal/cacheproxy/{scheduled_range,range_resume}.go`。受控六候选让前五路返回合法 Range 头但短正文、第六路正常，冷播应依次到达第六路并完成校验；全失败应在候选耗尽或同次执行预算到期后退出。暂停/恢复不能重试已失败候选或刷新同次执行预算。保留每路请求次数、Range/取消/恢复时间线、最终 MD5 及游戏音画反馈。
+
+自动检查独立记录：A1 的 `go test -tags=no_easytier ./internal/cacheproxy -run 'Resource.*Fallback|Resource.*Resume|LaterRangeRedirect|ExecutionTimeout|Scheduled.*Pause' -count=1 -timeout=120s` 通过。首次沙箱运行受测试临时文件原子重命名权限限制，沙箱外同命令复跑通过，不代表实机验收。

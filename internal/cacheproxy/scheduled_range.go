@@ -65,7 +65,6 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 			}
 		}
 	}
-	failures := state.failures
 	pause := func() error {
 		if flight.discard {
 			// No media/checkpoint is retained by the diagnostic. Its owner ends
@@ -73,13 +72,13 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 			return context.Canceled
 		}
 		resume()
-		state.video, state.received, state.failures, state.last, state.attempts = blockVideo, received, failures, last, attempts
+		state.video, state.received, state.last, state.attempts = blockVideo, received, last, attempts
 		if err := download.save(block, state, *buffer); err != nil {
 			return err
 		}
 		return blocksched.ErrPaused
 	}
-	for failures < 4 {
+	for {
 		if err := ctx.Err(); err != nil {
 			if isScheduledPause(ctx) {
 				return pause()
@@ -171,7 +170,6 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 		if err != nil {
 			last = applog.SafeError(err)
 			received = 0
-			failures++
 			continue
 		}
 		if !flight.discard {

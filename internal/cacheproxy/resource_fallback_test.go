@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/upstreamrequest"
 )
 
 func TestFullResponseFallbackKeepsTaskDeadline(t *testing.T) {
@@ -123,7 +125,7 @@ func TestResourceFallbackIncludesRangeValidationAndBody(t *testing.T) {
 	}
 }
 
-func TestResourceBodyFallbackStopsAtFourChannels(t *testing.T) {
+func TestResourceBodyFallbackStopsAtCandidateBudget(t *testing.T) {
 	s, _ := setup(t, nil)
 	var calls atomic.Int32
 	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
@@ -139,8 +141,35 @@ func TestResourceBodyFallbackStopsAtFourChannels(t *testing.T) {
 	if _, err := s.Prefetch(context.Background(), videoURL(payload)); err == nil {
 		t.Fatal("short content accepted")
 	}
-	if calls.Load() != 4 {
+	if calls.Load() != upstreamrequest.MaxOperationCandidates {
 		t.Fatalf("attempts=%d", calls.Load())
+	}
+}
+
+func TestResourceBodyFallbackReachesLastCandidate(t *testing.T) {
+	s, _ := setup(t, nil)
+	var calls [upstreamrequest.MaxOperationCandidates]atomic.Int32
+	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+		var transports []http.RoundTripper
+		for i := range calls {
+			transports = append(transports, resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+				calls[i].Add(1)
+				body := "short"
+				if i == len(calls)-1 {
+					body = payload
+				}
+				return &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": {"bytes 0-35/36"}}, ContentLength: 36, Body: io.NopCloser(bytes.NewBufferString(body)), Request: r}, nil
+			}))
+		}
+		return transports
+	}
+	if _, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil {
+		t.Fatal(err)
+	}
+	for i := range calls {
+		if calls[i].Load() != 1 {
+			t.Fatalf("candidate %d: calls=%d", i, calls[i].Load())
+		}
 	}
 }
 

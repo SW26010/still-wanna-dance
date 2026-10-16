@@ -58,7 +58,6 @@ type rangeDownload struct {
 type rangeResumeBlock struct {
 	video    video
 	received int64
-	failures int
 	last     error
 	attempts *resourceAttempts
 }

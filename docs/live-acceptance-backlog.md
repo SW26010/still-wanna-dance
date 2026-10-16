@@ -379,3 +379,7 @@ LA-042 补充取消边界：在隔离库控制请求取消/超时，使事务自
 - **A6 / LA-019、LA-025、LA-045**：代码依据 `internal/videometa/playback.go`、`internal/console/batch.go`、`internal/cacheproxy/{playback,server,redirect}.go`、`internal/upstreamstate/probe.go`。使用同一受控播放 API，在业务解析、独立缓存入口和 Monitor 分别返回绝对、根相对及 `//host` Location；都按实际请求地址解析并校验资源路径/MD5/大小，不能为解析重定向额外下载正文。空 Location、凭据、片段、非 HTTP(S)、不合法主机和超限大小一致拒绝，调用方仍负责选路/重试/观测。保存三入口解析结果与请求次数、脱敏错误、持久 URL/大小及冷播放反馈。
 
 自动检查：A6 的 `go test -tags=no_easytier ./internal/videometa ./internal/upstreamstate ./internal/cacheproxy ./internal/console -run 'Playback|Resolve|Redirect|Sample|VideoURL' -count=1 -timeout=120s` 四包通过，三入口相对地址各仅请求一次，协议负例通过；未执行实机验收。
+
+- **A4 / LA-030、LA-045（补充 45.6）**：代码依据 `internal/upstreamstate/{monitor,check,candidates}.go`。普通 Transport 与多候选两种配置分别让 CF API 持续挂起，另一线路应先完成播放地址与资源首字节观测。两条 API 线路各最多两个在途候选，清单候选最多四路，资源正文探测跨域名/候选始终串行；每个资源域名只枚举/探测一次。再验证候选全部失败、DNS 部分失败、检测中取消/换配置及退出：排空请求，不交付旧批次，不混用草稿和业务实例状态。保留各候选 API/Range 开始结束时刻、资源并发峰值、域名去重、取消/配置版本及界面进度；联动原多轮缺项补齐步骤。
+
+自动检查：A4 新增普通/候选两种 CF 挂起回归；`go test -race -tags=no_easytier ./internal/upstreamstate ./internal/console -count=1 -timeout=180s` 两包完整通过（22.365 s / 81.118 s，使用已有便携 GCC），包含资源串行、去重、取消、草稿隔离及连续选歌回归。实机继续积攒。

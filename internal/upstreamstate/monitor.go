@@ -420,9 +420,8 @@ func (m *Monitor) Close() {
 	}
 }
 func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
-	// Check has verified the channel. This client belongs only to this batch;
+	// Check has verified the channel. Its snapshot belongs to this batch;
 	// channel changes cancel the batch instead of replacing its dependencies.
-	client := requestClient(source.Transport)
 	ctx, cancel := m.batchCtx, m.batchCancel
 	kind := m.batchKind
 	defer cancel()
@@ -472,83 +471,5 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 	m.mu.Unlock()
 	defer m.publishProgress(ctx, "")
 	m.publishProgress(ctx, Catalog)
-	if source.Candidates != nil {
-		m.checkCandidates(ctx, p, source, record)
-		return
-	}
-	var id int64
-	var sampleAt time.Time
-	var catalogs []CatalogResponse
-	if !kind.includes(Catalog) {
-		id = m.cachedSong(p)
-	}
-	for _, route := range routeIDs(Catalog) {
-		if !kind.includes(Catalog) && id > 0 {
-			break
-		}
-		if ctx.Err() != nil {
-			break
-		}
-		catalog, candidateID, response := probeCatalogResponse(ctx, client, p, route)
-		if len(response.Body) > 0 {
-			catalogs = append(catalogs, response)
-		}
-		m.mu.Lock()
-		record(catalog)
-		m.mu.Unlock()
-		if id == 0 && candidateID > 0 {
-			id, sampleAt = candidateID, catalog.at
-		}
-	}
-	m.mu.Lock()
-	if id > 0 && !sampleAt.IsZero() && !m.closed && m.revision == source.Revision {
-		m.songID = id
-		m.songAt = sampleAt
-	}
-	if !time.Now().Before(m.songAt.Add(m.policy.SampleLifetime)) {
-		m.songID = 0
-	}
-	id = m.songID
-	m.mu.Unlock()
-	m.deliverCatalogs(ctx, source.Revision, catalogs)
-	id = m.selectPlaybackSong(ctx, source.Revision, kind, id)
-	if kind == CheckCatalog || id == 0 || ctx.Err() != nil {
-		return
-	}
-	m.publishProgress(ctx, PlaybackURL)
-	var wg sync.WaitGroup
-	resourceSlot := make(chan struct{}, 1)
-	seen := make(map[string]bool) // protected by resourceSlot
-	for _, r := range playbackRoutes {
-		wg.Add(1)
-		go func(r route) {
-			defer wg.Done()
-			resolved, sample, response := probePlaybackResponse(ctx, client, p, id, r)
-			m.mu.Lock()
-			record(resolved)
-			m.mu.Unlock()
-			m.deliverPlaybackURL(ctx, source.Revision, response)
-			if kind == CheckPlayback || sample == nil {
-				return
-			}
-			select {
-			case resourceSlot <- struct{}{}:
-			case <-ctx.Done():
-				return
-			}
-			defer func() { <-resourceSlot }()
-			if seen[sample.host] {
-				return
-			}
-			if len(seen) == 0 {
-				m.publishProgress(ctx, Resource)
-			}
-			seen[sample.host] = true
-			resource := m.probeResourceWhenIdle(ctx, client, p, id, *sample)
-			m.mu.Lock()
-			record(resource)
-			m.mu.Unlock()
-		}(r)
-	}
-	wg.Wait()
+	m.checkRoutes(ctx, p, source, record)
 }

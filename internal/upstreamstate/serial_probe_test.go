@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -14,6 +15,59 @@ import (
 type serialProbeChannels struct {
 	*candidateFixture
 	transport http.RoundTripper
+}
+
+func TestPlaybackRoutesProgressIndependentlyInBothMonitorModes(t *testing.T) {
+	for _, candidates := range []bool{false, true} {
+		t.Run(map[bool]string{false: "ordinary", true: "candidates"}[candidates], func(t *testing.T) {
+			cfStarted, otherResource := make(chan struct{}), make(chan struct{})
+			gate := make(chan struct{})
+			var cfOnce, otherOnce sync.Once
+			tr := transportFunc(func(r *http.Request) (*http.Response, error) {
+				if r.URL.Path == "/Api/Songs/play" && r.URL.Query().Get("node") == "cf" {
+					cfOnce.Do(func() { close(cfStarted) })
+					select {
+					case <-gate:
+					case <-r.Context().Done():
+						return nil, r.Context().Err()
+					}
+				}
+				if r.Header.Get("Range") != "" && r.URL.Host == "nya.xin.moe" {
+					otherOnce.Do(func() { close(otherResource) })
+				}
+				return fixture(r)
+			})
+			ch := upstreamrequest.NewChannel()
+			if candidates {
+				ch.Publish(serialProbeChannels{&candidateFixture{expires: time.Now().Add(time.Hour), second: true, changed: make(chan struct{})}, tr})
+			} else {
+				ch.Publish(tr)
+			}
+			m, err := newMonitor(Options{}, ch)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer m.Close()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			done := make(chan error, 1)
+			go func() { done <- m.CheckSelected(ctx, CheckConnectivity) }()
+			select {
+			case <-cfStarted:
+			case <-time.After(time.Second):
+				t.Fatal("CF did not start")
+			}
+			select {
+			case <-otherResource:
+			case <-time.After(time.Second):
+				t.Fatal("CF stalled the other route's resource probe")
+			}
+			close(gate)
+			if err := <-done; err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
 }
 
 func (f serialProbeChannels) Current(target string) []upstreamrequest.Candidate {

@@ -55,7 +55,7 @@ export function Cache({ visible }: {visible: boolean}) {
     <List navigationMode="composite" className="records" aria-label="缓存文件">{entries.map((e,i) => <ListItem key={e.key}><div role="gridcell" className="record-content">
       {i > 0 && <Divider className="record-divider" />}
       <Checkbox aria-label={'选择 '+cacheLabel(e)} label={e.songs.length>2?`${e.songs.slice(0,2).map(s=>`${s.title || '未知歌名'}（ID ${s.id}）`).join(' / ')} 等 ${e.songCount} 首`:cacheLabel(e)} checked={selected.includes(e.key)} disabled={disabled || !e.known || e.protected} onChange={(_, v) => setSelected(v.checked ? [...selected,e.key] : selected.filter(k => k !== e.key))} />
-      <p>{gib(e.bytes)} · 最近请求：{dated(e.lastRequest)?date(e.lastRequest):'无记录'} · {e.state}{e.protected && ' · 受保护（正在使用 / 校验 / 待播）'}</p>
+      <p>{gib(e.bytes)} · 最近请求：{e.lastRequest>0?date(e.lastRequest):'无记录'} · {e.state}{e.protected && ' · 受保护（正在使用 / 校验 / 待播）'}</p>
       {e.songCount > 1 && <p>共享文件 · 关联 {e.songCount} 首歌曲；删除会影响全部关联歌曲。</p>}
       <Details title="资源与版本详情"><p>资源指纹：{e.key}</p><p>文件大小：{e.bytes.toLocaleString()} 字节</p>{e.songs.map(song => <p key={song.id}>{song.title || '未知歌名'} · ID {song.id} · {song.current ? '本地当前引用' : '历史关联（非当前引用）'}</p>)}{e.songCount > e.songs.length && <p>仅展示前 {e.songs.length} 首；另有 {e.songCount - e.songs.length} 首关联歌曲，删除同样受影响。可按歌曲 ID 搜索。</p>}</Details>
       <Button disabled={disabled || !e.known} onClick={() => void operate('open',[e])}>定位文件</Button>

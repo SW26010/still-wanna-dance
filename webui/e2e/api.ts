@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import type { Status } from '../src/types';
+import type { CacheEntry, Status } from '../src/types';
 export function statusFixture(): Status {
   const settings = {storageDir:'C:\\UI-Test\\storage',maxCacheBytes:0,requestRetentionDays:30,throughputIntervalMinutes:20,queuePrefetchCount:3,prepareAheadSeconds:500,downloadUpstream:'auto',upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',autoStartCDN:true,autoStartQueue:true,manualLogDir:false,logDir:'C:\\UI-Test\\logs'};
   return {running:false,settings:{...settings},activeSettings:{...settings},restartRequired:false,hosts:{ready:false,message:'尚未接入'},portOK:true,httpsPortOK:true,batch:{},lastBatch:{},import:{},queue:{},defaultLogDir:settings.logDir,defaultStorageDir:settings.storageDir,portableDir:'C:\\UI-Test',setupSettingsVersion:'1',activation:{},upstreamMonitor:{results:[]}};
@@ -11,7 +11,7 @@ export async function mockAPI(page: Page) {
   const terms={text:'测试完整条款。软件许可不等于内容授权。',version:'fixture',sha256:'fixture-hash',accepted:true,needsConfirmation:false};
   const diagnostics={connectivity:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,results:[],lastValid:{}},calibration:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,lastValid:{},referenceBitrateBPS:2000000}};
   const emit=async(kind:keyof typeof diagnostics)=>{await page.request.post('/__fixture/events',{data:{id:fixtureID,kind,state:diagnostics[kind]}});};
-  const files = [1,2].map(id => ({key:'key'+id,stamp:'stamp'+id,bytes:1073741824,songs:[{id,title:'测试歌曲 '+id,current:true}],songCount:1,known:true,protected:id===2,state:'已缓存'}));
+  const files: CacheEntry[] = [1,2].map(id => ({key:'key'+id,stamp:'stamp'+id,bytes:1073741824,lastRequest:id===1?Date.UTC(2026,9,16,8,30):0,songs:[{id,title:'测试歌曲 '+id,current:true}],songCount:1,known:true,protected:id===2,state:'已缓存'}));
   await page.route('**/api/**',async route => {
     const req = route.request(), url = new URL(req.url()), path = url.pathname.slice(5), body = req.method()==='POST' ? path==='proxy/import'?{text:req.postData()}:req.postDataJSON() : {};
     calls.push({path,body,token:req.headers()['x-swd-token']});

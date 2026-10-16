@@ -48,7 +48,7 @@ export interface Inventory {
 }
 export interface Song { id: number; title?: string; current?: boolean }
 export interface CacheEntry {
-  key: string; stamp: string; bytes: number; songs: Song[]; songCount: number; known: boolean; protected: boolean; state: string; lastRequest?: string;
+  key: string; stamp: string; bytes: number; songs: Song[]; songCount: number; known: boolean; protected: boolean; state: string; lastRequest: number;
 }
 export interface CachePage {storageID: string; entries: CacheEntry[]; total: number; totalBytes?: number; fileCount: number}
 export interface RequestRecord {

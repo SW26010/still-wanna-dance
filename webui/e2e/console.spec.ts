@@ -18,6 +18,21 @@ test('drafts survive polling and navigation; save preserves active config and bl
   expect(api.calls.filter(c=>c.path==='settings')).toHaveLength(1);
   expect(api.calls.every(c=>c.token==='browser-fixture-token')).toBe(true);
 });
+test('cache renders Unix millisecond request times and zero as no record', async ({page}) => {
+  const api=await mockAPI(page), errors:string[]=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('/#/cache');
+  const rows=page.getByRole('grid',{name:'缓存文件'}).getByRole('row');
+  const requested=await page.evaluate(at=>new Date(at).toLocaleString(),api.files[0].lastRequest);
+  await expect(rows.first()).toContainText('最近请求：'+requested);
+  await expect(rows.nth(1)).toContainText('最近请求：无记录');
+  await page.getByRole('button',{name:'刷新文件列表'}).click();
+  await expect(rows.first()).toContainText('最近请求：'+requested);
+  await navigate(page,'设置'); await navigate(page,'本地缓存');
+  await expect(rows.first().getByRole('checkbox')).toBeEnabled();
+  expect(errors).toEqual([]);
+});
+
 test('cache protects in-use files and only deletes confirmed stamped selections', async ({page}) => {
   const api=await mockAPI(page); await page.goto('/#/cache');
   await expect(page.getByRole('checkbox',{name:/测试歌曲 2/})).toBeDisabled();

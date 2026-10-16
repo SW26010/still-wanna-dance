@@ -4,18 +4,16 @@ import (
 	"context"
 	"io"
 	"os"
-	"time"
 )
 
 // A verified handle lives until the version's last worker/request pin is released.
 // Keeping the handle open prevents pathname replacement from changing the bytes
 // served. Each response uses a SectionReader so concurrent seeks are independent.
 type verifiedFile struct {
-	done      chan struct{}
-	file      *os.File
-	info      os.FileInfo
-	err       error
-	checkedAt time.Time
+	done chan struct{}
+	file *os.File
+	info os.FileInfo
+	err  error
 }
 
 // The caller must hold a version pin for the entire lifetime of the returned file.

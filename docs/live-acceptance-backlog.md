@@ -387,3 +387,11 @@ LA-042 补充取消边界：在隔离库控制请求取消/超时，使事务自
 - **A7 / LA-001、LA-021、LA-029、LA-034**：代码依据 `internal/console/{console,proxy_nodes,settings_version,setup_apply}.go`。连续轮询状态，节点数量与已保存/当前运行配置保持对应；导入新节点后保存，仅 saved 数变化，重启后 loaded 更新；失败保存不改变数量和引导版本。配置版本首次需要时生成，此后复用，保存后更新；显式引导校验/应用/恢复仍重新读取密钥并更新错误状态，损坏或替换密钥不能凭旧版本继续执行，修复后经显式校验/保存或重启刷新。hosts 与端口仍每次状态请求读取，验证外部占用/恢复能反映。保留状态响应、保存/重启前后值、脱敏密钥错误与恢复操作、端口/hosts 观测及 UI 草稿；没有证据宣称此前存在明显卡顿，也不预设性能提升幅度。
 
 自动检查：A7 的 `go test -race -tags=no_easytier ./internal/console -run 'StatusDerived|Settings|SetupVersion|SetupSettings|ProxyImport|ProxyNodes|PortableLayout|FirstEntry' -count=1 -timeout=120s` 通过。覆盖重复轮询不重读密钥、显式验证不复用旧密钥、保存失败、节点保存/加载及未使用功能不创建 channel.key；使用已有便携 GCC，实机继续积攒。
+
+**A8 清理说明**：删除仅写入的 `verifiedFile.checkedAt`、未引用的 `errRangeAbandoned` 及仅测试调用的 `CheckReferences`。快照更新/共享 MD5/缺失与孤儿文件、使用期间防淘汰的有效测试改为调用生产入口 `ReadLocalCatalog`，同步 `docs/storage.md`。没有改变产品可见行为，因此不新增实机验收项；原 LA-023/024 及全部未结项保留。定向 `go test -tags=no_easytier ./internal/cacheproxy -run 'MD5Reference|LocalCatalog|Verification|Verified|Range' -count=1 -timeout=120s` 通过。
+
+本轮 A1–A8 最终自动验证（2026-10-16，均为本地隔离检查）：
+
+- 使用已有便携 GCC、`CGO_ENABLED=1`：`go test -race -tags=no_easytier ./cmd/... ./internal/... ./data/... ./experiments/... -count=1 -timeout=180s` 全部通过，无 race 报告；cacheproxy 41.710 s、console 95.849 s、upstreamstate 22.167 s。
+- 相同正式源码范围的 `go vet -tags=no_easytier`、默认 `CGO_ENABLED=0` 的 `go build -tags=no_easytier` 通过；受改动包 `gofmt -l` 无输出，`git diff --check` 通过。前端未改，不重复构建前端或运行浏览器实机操作。
+- 八项按 A1、A2、A3、A5、A6、A4、A7、A8 分别作本地提交；未 push、未启动游戏、未改 hosts。自动检查不替代上述原编号的实机证据，不关闭历史失败或未测场景。

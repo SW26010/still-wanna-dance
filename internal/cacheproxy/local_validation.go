@@ -7,7 +7,6 @@ import (
 	"hash/crc32"
 	"io"
 	"os"
-	"time"
 )
 
 // Bound lock storage while coalescing checks of a resource across scanners and
@@ -78,7 +77,7 @@ func validateLocalFile(ctx context.Context, root string, f *verifiedFile, v vide
 		if !before.Mode().IsRegular() {
 			return false, errInvalidCache
 		}
-		f.info, f.checkedAt = before, time.Now()
+		f.info = before
 		return true, nil
 	}
 	if err := checkOpenFile(ctx, f.file, v); err != nil {
@@ -91,6 +90,6 @@ func validateLocalFile(ctx context.Context, root string, f *verifiedFile, v vide
 	if !sameVerifiedFile(before, after) {
 		return false, fmt.Errorf("%w: cached file changed during validation", errInvalidCache)
 	}
-	f.info, f.checkedAt = after, time.Now()
+	f.info = after
 	return false, nil
 }

@@ -9,7 +9,6 @@ import (
 
 const rangeBlockSize int64 = 1 << 20
 
-var errRangeAbandoned = errors.New("range has no waiting readers")
 var errRangeYielded = errors.New("range yielded to seek")
 
 // readRangeBlock fills a worker-owned buffer, including one extra byte to detect

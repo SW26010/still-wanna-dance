@@ -81,10 +81,11 @@ func TestMD5ReferenceSnapshotCatalogUpdatesAndMissing(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	r, release, err := s.CheckReferences(ctx)
+	snapshot, release, err := s.ReadLocalCatalog(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+	r := snapshot.Files
 	if r.Complete || len(r.Present) != 1 || len(r.Missing) != 1 || len(r.Missing[b]) != 1 || r.Present[orphan] {
 		t.Fatalf("%+v", r)
 	}
@@ -96,11 +97,12 @@ func TestMD5ReferenceSnapshotCatalogUpdatesAndMissing(t *testing.T) {
 	assertSongResource(t, s, "2", b)
 	assertSongResource(t, s, "3", b)
 	assertSongResource(t, s, "4", a)
-	r, release, err = s.CheckReferences(ctx)
+	snapshot, release, err = s.ReadLocalCatalog(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer release()
+	r = snapshot.Files
 	if len(r.References) != 4 || len(r.Missing[b]) != 2 {
 		t.Fatalf("%+v", r)
 	}
@@ -231,13 +233,13 @@ func TestMD5ReferenceSnapshotProtectsFilesDuringUse(t *testing.T) {
 		t.Fatal(err)
 	}
 	putRetained(t, cfg.videoFile(key), 10)
-	r, release, err := s.CheckReferences(context.Background())
+	snapshot, release, err := s.ReadLocalCatalog(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !r.Complete {
+	if !snapshot.Files.Complete {
 		release()
-		t.Fatal(r)
+		t.Fatal(snapshot.Files)
 	}
 	setRetentionLimit(t, s, 1)
 	s.trimCache()

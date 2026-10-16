@@ -71,6 +71,7 @@ type CalibrationResult struct {
 	SingleSpeedBPS      *float64 `json:"singleSpeedBPS"`
 	FullSpeedBPS        *float64 `json:"fullSpeedBPS"`
 	FullCPUPercent      *float64 `json:"fullCPUPercent"`
+	CPUP95Percent       *float64 `json:"cpuP95Percent"`
 	CPUP99Percent       *float64 `json:"cpuP99Percent"`
 	ReferenceBitrateBPS int64    `json:"referenceBitrateBPS"`
 }
@@ -451,7 +452,7 @@ func (c *Calibration) run(ctx context.Context, done chan struct{}, channel *upst
 			}
 			c.saved[upstream] = CalibrationResult{Run: c.state.Run, Upstream: upstream, ConcurrencyLimit: c.state.ConcurrencyLimit, FullConcurrency: c.state.FullConcurrency,
 				SingleSpeedBPS: c.state.SingleSpeedBPS, FullSpeedBPS: c.state.FullSpeedBPS, FullCPUPercent: c.state.FullCPUPercent,
-				CPUP99Percent: c.state.CPUP99Percent, ReferenceBitrateBPS: cacheproxy.TypicalBitrate}
+				CPUP95Percent: c.state.CPUP95Percent, CPUP99Percent: c.state.CPUP99Percent, ReferenceBitrateBPS: cacheproxy.TypicalBitrate}
 		}
 		c.cancel()
 		c.publishLocked()

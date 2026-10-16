@@ -53,16 +53,22 @@ test('wizard draft is independent of settings and failed apply never resubmits a
 });
 test('manual SSE diagnostics restore saved results when cancellation is confirmed but response is lost',async({page})=>{
   const api=await mockAPI(page);
-  Object.assign(api.diagnostics.calibration,{lastValid:{direct:{singleSpeedBPS:500000,fullSpeedBPS:2000000,fullConcurrency:8,fullCPUPercent:3,cpuP99Percent:5,referenceBitrateBPS:2000000}}});
+  Object.assign(api.diagnostics.calibration,{lastValid:{direct:{singleSpeedBPS:500000,fullSpeedBPS:2000000,fullConcurrency:8,fullCPUPercent:3,cpuP95Percent:5,cpuP99Percent:16.58,referenceBitrateBPS:2000000}}});
   await api.emit('calibration');
   await page.goto('/#/setup');await navigateStep(page,'3. 网络');
   await expect(page.getByRole('button',{name:'开始CF 并发测速'})).toBeEnabled();
   await expect(page.getByText('16.00 Mbps',{exact:true})).toBeVisible();
+  const cpu=page.getByText('CPU 使用率：',{exact:false});
+  await expect(cpu).toHaveText('CPU 使用率：平均 3.00% · p95 5.00%');
+  await expect(page.getByLabel('正式下载全程的 CPU P95，不含视频准备')).toBeVisible();
   await page.getByRole('button',{name:'开始CF 并发测速'}).click();
   await expect(page.getByRole('button',{name:'停止并放弃CF 并发测速'})).toBeEnabled();
+  Object.assign(api.diagnostics.calibration,{revision:3,fullCPUPercent:2,cpuP95Percent:4.89,cpuP99Percent:16.58});await api.emit('calibration');
+  await expect(cpu).toHaveText('CPU 使用率：平均 2.00% · p95 4.89%');
   await page.route('**/api/setup/network/calibration/cancel',async r=>{Object.assign(api.diagnostics.calibration,{revision:10,running:false,phase:'canceled'});await api.emit('calibration');await r.abort();});
   await page.getByRole('button',{name:'停止并放弃CF 并发测速'}).click();
   await expect(page.getByText('16.00 Mbps',{exact:true})).toBeVisible();
+  await expect(cpu).toHaveText('CPU 使用率：平均 3.00% · p95 5.00%');
   await expect(page.getByRole('button',{name:'开始CF 并发测速'})).toBeEnabled();
   expect(api.calls.filter(c=>c.path==='setup/network/calibration/start')).toHaveLength(1);
 });

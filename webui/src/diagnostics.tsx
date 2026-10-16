@@ -8,7 +8,7 @@ import { Feedback, Panel } from './ui';
 interface EventState { revision: number; run: number; upstream: string; running: boolean; closed?: boolean; phase: string }
 interface ConnectionResult {operation:string;state:string;latencyMS?:number | null}
 interface Connectivity extends EventState { results?: ConnectionResult[]; lastValid?: Record<string,ConnectionResult[]> }
-interface Measurement {singleSpeedBPS?:number | null;fullSpeedBPS?:number | null;fullConcurrency?:number;fullCPUPercent?:number | null;cpuP99Percent?:number | null;referenceBitrateBPS?:number}
+interface Measurement {singleSpeedBPS?:number | null;fullSpeedBPS?:number | null;fullConcurrency?:number;fullCPUPercent?:number | null;cpuP95Percent?:number | null;referenceBitrateBPS?:number}
 interface Calibration extends EventState, Measurement {
   lastValid?:Record<string,Measurement>; measurementStage?:string; reason?:string; preparationProgress?:number;
   liveSingleSpeedBPS?:number | null; liveFullSpeedBPS?:number | null; liveSpeedBPS?:number | null; open?:number;
@@ -74,7 +74,7 @@ function Speed({state:s,upstream,discard}: {state?:Calibration;upstream:string;d
   const label = !matches ? previous?'上次有效结果':'尚未测速' : canceled ? s?.running?'正在停止…':s?.phase==='failed'?previous?'未完成，保留上次结果':'测速未完成':previous?'已恢复上次结果':'已放弃检测' : s?.phase==='preparing'?'准备视频…'+(s.preparationProgress?` ${s.preparationProgress}%`:''): s?.running?stages[s.measurementStage || ''] || '测速中…':complete?'测速完成':s?.phase==='completed'?'样本不足':previous?'上次有效结果':'尚未测速';
   return <><p role="status">{label}{s?.reason==='preparation_insufficient' && ' · 视频准备不足，请重试'}</p>
     <div className="metrics"><div>单路速度 <output><Text block size={600} font="numeric">{metric(single,8/1e6)} Mbps</Text></output></div><div>满路速度（{(live?s.open:result.fullConcurrency) || '—'} 并发）<output><Text block size={600} font="numeric">{metric(full,8/1e6)} Mbps</Text></output></div></div>
-    <p>CPU 使用率：<span aria-label="满路稳定采样阶段的平均 CPU 使用率">平均</span> <output>{metric(result.fullCPUPercent)}%</output> · <span aria-label="正式下载全程的 CPU P99，不含视频准备">p99</span> <output>{metric(result.cpuP99Percent)}%</output></p>
+    <p>CPU 使用率：<span aria-label="满路稳定采样阶段的平均 CPU 使用率">平均</span> <output>{metric(result.fullCPUPercent)}%</output> · <span aria-label="正式下载全程的 CPU P95，不含视频准备">p95</span> <output>{metric(result.cpuP95Percent)}%</output></p>
     {usable ? <div role="group" aria-label={`${live?'当前':'满路'} ${metric(ratio)} 倍，${advice}${live?'（测量中）':''}`}>
       <GaugeChart chartValue={ratio} maxValue={maximum} chartValueFormat={()=>metric(ratio)+'×'} sublabel={advice}
         segments={[

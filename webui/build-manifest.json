@@ -12,7 +12,7 @@
     "webui/src/bootstrap.ts": "13b165ccbe995d1256e89327ea5be9c94cf6288da13d300c6146442cd7c32c05",
     "webui/src/cache-capacity.tsx": "2b8326d94fa20ac51f694566a971b544b0042f8c0fe137a3b05e45297492e9dd",
     "webui/src/cache.tsx": "b836ee3f99050d0119b4cbbcf0efbdffe52b6de30b5c5ec8e91e94553e6e338a",
-    "webui/src/diagnostics.tsx": "75235ac4fba5145815d51e6fb4526abb906797ca84ffa18ea8c7acb84066b3ff",
+    "webui/src/diagnostics.tsx": "4a9473fea305d92bb0d1139cd825b4aaab62908a24d3e6b0fbb062f9498ba18e",
     "webui/src/documents.tsx": "63c1af2eb3078364d8587589d4f929ee7cae430837cfe2e286dbc672af66bde0",
     "webui/src/help-content.tsx": "79f11bac0ae3ed22b42d357a8b8d9abf02dda6e282991b1a2fd7e88b14f48a96",
     "webui/src/home-library.tsx": "68a2ba64a61212ebb3d32b414bca3ae3ec2dda0c31437731bcec6cee9735bfcf",
@@ -30,6 +30,6 @@
   "outputs": {
     "docs/licenses/WEBUI-NOTICES.txt": "65377ac28669c1ed34c21c6c3dcfdb74bae0868b334d8d8dd292e356171387ae",
     "internal/console/assets/webui/app.css": "1891360f469ff2335e8f112e5236d90a7af544ce37d1fea33292576850ab6bba",
-    "internal/console/assets/webui/app.js": "4bbab996ed87275421b9b9a345c692391cbca6f30f771b706453ae79bda96de5"
+    "internal/console/assets/webui/app.js": "2a32e8376586137e88dd4a2ce08c16bdfcdb5f0d6c45ababd95b9f9a574a6df8"
   }
 }

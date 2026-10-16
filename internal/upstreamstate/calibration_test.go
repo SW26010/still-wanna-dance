@@ -412,6 +412,9 @@ func TestCalibrationMultipleVideosFinishBothMeasurementStages(t *testing.T) {
 	if previous.Run != s.Run || previous.FullSpeedBPS == nil || *previous.FullSpeedBPS != *s.FullSpeedBPS || previous.FullConcurrency != 16 || s.LiveSpeedBPS == nil {
 		t.Fatal("completed measurement not retained")
 	}
+	if s.CPUP95Percent != nil && (previous.CPUP95Percent == nil || *previous.CPUP95Percent != *s.CPUP95Percent) {
+		t.Fatal("completed CPU P95 not retained")
+	}
 	// Retrying and canceling cannot replace a completed observation, including
 	// a fresh event subscription that never saw the previous run finish.
 	if err := c.Start(); err != nil {
@@ -421,6 +424,9 @@ func TestCalibrationMultipleVideosFinishBothMeasurementStages(t *testing.T) {
 	after := awaitCalibration(t, c, func(s CalibrationStatus) bool { return !s.Running })
 	if after.Phase != "canceled" || after.LastValid["direct"].Run != previous.Run || *after.LastValid["direct"].FullSpeedBPS != *previous.FullSpeedBPS {
 		t.Fatal("canceled run lost previous measurement")
+	}
+	if previous.CPUP95Percent != nil && (after.LastValid["direct"].CPUP95Percent == nil || *after.LastValid["direct"].CPUP95Percent != *previous.CPUP95Percent) {
+		t.Fatal("canceled run lost previous CPU P95")
 	}
 	delete(after.LastValid, "direct")
 	if current, _ := c.Snapshot(); current.LastValid["direct"].Run != previous.Run {

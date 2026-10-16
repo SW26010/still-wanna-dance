@@ -375,3 +375,7 @@ LA-042 补充取消边界：在隔离库控制请求取消/超时，使事务自
 - **A5 / LA-023、LA-045**：代码依据 `internal/catalogmeta/catalog.go`、`internal/cacheproxy/catalog_format.go`、`internal/upstreamstate/probe.go`。受控 Kiva/WannaInfo 清单分别注入相同 ID/MD5 重复、冲突 ID、非法日期和缺 entries；Monitor 与入库均拒绝基础无效清单，不覆盖旧库。合法的不同 ID 共享 MD5 应接受。另注入非法可选资料字段，Monitor 可抽样连接，但入库明确拒绝；可连接不等于可入库。保存脱敏响应夹具、Monitor 状态、入库诊断和数据库版本/映射前后摘要，联动真实播放回归。
 
 自动检查：A5 的 `go test -tags=no_easytier ./internal/upstreamstate ./internal/cacheproxy ./internal/console -run 'Catalog|Kiva|Wanna|Conflict' -count=1 -timeout=120s` 三包通过，包含抽样/入库一致性及可选资料边界对照；实机状态不变。
+
+- **A6 / LA-019、LA-025、LA-045**：代码依据 `internal/videometa/playback.go`、`internal/console/batch.go`、`internal/cacheproxy/{playback,server,redirect}.go`、`internal/upstreamstate/probe.go`。使用同一受控播放 API，在业务解析、独立缓存入口和 Monitor 分别返回绝对、根相对及 `//host` Location；都按实际请求地址解析并校验资源路径/MD5/大小，不能为解析重定向额外下载正文。空 Location、凭据、片段、非 HTTP(S)、不合法主机和超限大小一致拒绝，调用方仍负责选路/重试/观测。保存三入口解析结果与请求次数、脱敏错误、持久 URL/大小及冷播放反馈。
+
+自动检查：A6 的 `go test -tags=no_easytier ./internal/videometa ./internal/upstreamstate ./internal/cacheproxy ./internal/console -run 'Playback|Resolve|Redirect|Sample|VideoURL' -count=1 -timeout=120s` 四包通过，三入口相对地址各仅请求一次，协议负例通过；未执行实机验收。

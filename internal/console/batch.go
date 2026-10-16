@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -100,18 +99,9 @@ func (c *Console) resolveNodeWithClient(ctx context.Context, id int64, upstream 
 		return "", applog.SafeError(err)
 	}
 	defer resp.Body.Close()
-	if !cacheproxy.IsSongRedirect(resp.StatusCode) {
-		return "", fmt.Errorf("歌曲地址接口返回 %d", resp.StatusCode)
-	}
-	u, err := url.Parse(resp.Header.Get("Location"))
+	u, _, err := videometa.PlaybackLocation(resp, cacheproxy.DefaultConfig().MaxFileBytes)
 	if err != nil {
 		return "", applog.SafeError(err)
-	}
-	if (u.Scheme != "http" && u.Scheme != "https") || !videometa.ValidHost(u.Host) || u.User != nil || u.Fragment != "" {
-		return "", errors.New("歌曲返回了无效的视频域名或协议")
-	}
-	if err := cacheproxy.ValidateVideoURL(u.String(), cacheproxy.DefaultConfig().MaxFileBytes); err != nil {
-		return "", fmt.Errorf("歌曲返回了无效的视频地址：%w", err)
 	}
 	channelID := ""
 	if channel, ok := client.Transport.(interface{ ChannelID() string }); ok {

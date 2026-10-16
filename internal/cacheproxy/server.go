@@ -293,8 +293,8 @@ func ValidateVideoURL(target string, maxFileBytes int64) error {
 }
 
 func parseVideoURL(r *http.Request, maxFileBytes int64) (video, error) {
-	if (r.URL.Scheme != "http" && r.URL.Scheme != "https") || r.URL.User != nil || r.URL.Fragment != "" || !videometa.ValidHost(r.URL.Host) {
-		return video{}, errors.New("unsupported video URL")
+	if _, err := videometa.ValidateURL(r.URL, maxFileBytes); err != nil {
+		return video{}, err
 	}
 	return parseVideo(r, maxFileBytes)
 }

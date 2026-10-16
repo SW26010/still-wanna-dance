@@ -3,7 +3,6 @@ package cacheproxy
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/applog"
+	"still-wanna-dance/internal/videometa"
 )
 
 var errPlaybackUpstream = errors.New("playback upstream failed")
@@ -184,10 +184,11 @@ func (s *Server) resolvePlaybackVideo(ctx context.Context, q url.Values) (video,
 		resp, err = s.client.Do(req)
 		if err == nil {
 			resp.Body.Close()
-			if !IsSongRedirect(resp.StatusCode) {
-				err = fmt.Errorf("API status %d", resp.StatusCode)
+			var location *url.URL
+			location, _, err = videometa.PlaybackLocation(resp, s.cfg.MaxFileBytes)
+			if err == nil {
+				target = location.String()
 			}
-			target = resp.Header.Get("Location")
 		}
 	}
 	if err != nil {

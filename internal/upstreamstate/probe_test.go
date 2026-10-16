@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptrace"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -12,6 +13,21 @@ import (
 )
 
 type countingBody struct{ read atomic.Int64 }
+
+func TestMonitorPlaybackResolvesRelativeLocation(t *testing.T) {
+	u, _ := url.Parse(videoFixture)
+	calls := 0
+	client := requestClient(transportFunc(func(r *http.Request) (*http.Response, error) {
+		calls++
+		resp := response(302, "")
+		resp.Header.Set("Location", u.RequestURI())
+		return resp, nil
+	}))
+	o, sample := probePlayback(context.Background(), client, DefaultPolicy(), 42, playbackRoutes[0])
+	if o.state != "available" || sample == nil || sample.host != "api.udon.dance" || calls != 1 {
+		t.Fatal(o, sample, calls)
+	}
+}
 
 func TestCatalogSamplesOnlyValidSongs(t *testing.T) {
 	client := requestClient(transportFunc(func(*http.Request) (*http.Response, error) {

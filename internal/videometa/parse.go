@@ -1,5 +1,5 @@
 // Package videometa validates the shared video path and query protocol.
-// Host, scheme, redirect, and cache policies belong to callers.
+// Playback redirects share URL validation; route and cache policies belong to callers.
 package videometa
 
 import (

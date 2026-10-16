@@ -30,10 +30,10 @@ type videoSample struct {
 
 func parseSample(target string) (videoSample, error) {
 	u, err := url.Parse(target)
-	if err != nil || u.User != nil || u.Fragment != "" || !videometa.ValidHost(u.Host) || (u.Scheme != "https" && u.Scheme != "http") {
+	if err != nil {
 		return videoSample{}, errors.New("unsupported video URL")
 	}
-	meta, err := videometa.Parse(u, 2<<30)
+	meta, err := videometa.ValidateURL(u, 2<<30)
 	if err != nil {
 		return videoSample{}, err
 	}
@@ -267,20 +267,18 @@ func probePlaybackResponse(parent context.Context, client *http.Client, p Policy
 	}
 	defer resp.Body.Close()
 	o.http = resp.StatusCode
-	if resp.StatusCode != 301 && resp.StatusCode != 302 && resp.StatusCode != 307 && resp.StatusCode != 308 {
+	if !videometa.IsPlaybackRedirect(resp.StatusCode) {
 		o.state = httpState(resp.StatusCode)
 		return
 	}
-	u, err := resp.Location()
+	u, meta, err := videometa.PlaybackLocation(resp, 2<<30)
 	if err != nil {
 		o.state = "invalid"
 		return
 	}
-	s, err := parseSample(u.String())
-	if err != nil {
-		o.state = "invalid"
-		return
-	}
+	resourceURL := *u
+	resourceURL.Scheme = "https"
+	s := videoSample{resourceURL.String(), u.Host, meta.Checksum, meta.Size}
 	o.state = "available"
 	o.resourceHost = s.host
 	o.resourceSource = upstreamrequest.ResourceSource{API: entry(PlaybackURL, r.id) + "&id=" + strconv.FormatInt(id, 10), Node: r.node, SongID: id, ResourceURL: u.String(), Domain: u.Host, Path: u.Path}

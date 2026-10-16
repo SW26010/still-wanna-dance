@@ -83,4 +83,4 @@ Windows 受限沙箱中的临时文件重命名曾返回 Access denied；最终�
 
 ### Fluent UI 构建检查
 
-界面源码修改后先按开发指南重建并运行浏览器测试。CI 校验完整前端构建一致性并执行 24 个浏览器场景；开发包可直接使用已提交资源，只需 Node 做哈希校验。正式对应源码包额外要求固定 pnpm，并收集 npm 源码存储、验证前端完全离线重建。Portable 第三方声明包括 `docs/licenses/WEBUI-NOTICES.txt`。`test-portable.ps1` 在未确认条款的隔离进程检查新 bootstrap、JS/CSS 和 API 门禁，仍不自动接受条款或启用游戏链路。
+界面源码修改后先按开发指南重建并运行浏览器测试。CI 校验完整前端构建一致性并执行浏览器场景，测试范围及最新结果统一见 [UI 验证记录](fluent-ui-migration.md#验证与待验收)；开发包可直接使用已提交资源，只需 Node 做哈希校验。正式对应源码包额外要求固定 pnpm，并收集 npm 源码存储、验证前端完全离线重建。Portable 第三方声明包括 `docs/licenses/WEBUI-NOTICES.txt`。`test-portable.ps1` 在未确认条款的隔离进程检查新 bootstrap、JS/CSS 和 API 门禁，仍不自动接受条款或启用游戏链路。

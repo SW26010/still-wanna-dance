@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -38,7 +39,7 @@ func TestProtectedProxySecretMoveTamperAndRecovery(t *testing.T) {
 	moved.Close()
 	var fields map[string]json.RawMessage
 	json.Unmarshal(b, &fields)
-	var envelope proxySecretEnvelope
+	var envelope protectedEnvelope
 	json.Unmarshal(fields["proxySecret"], &envelope)
 	envelope.Ciphertext[len(envelope.Ciphertext)-1] ^= 0xff
 	fields["proxySecret"], _ = json.Marshal(envelope)
@@ -66,7 +67,7 @@ func TestProtectedProxySecretMoveTamperAndRecovery(t *testing.T) {
 	after, _ := os.ReadFile(path)
 	var retained map[string]json.RawMessage
 	json.Unmarshal(after, &retained)
-	var actual proxySecretEnvelope
+	var actual protectedEnvelope
 	json.Unmarshal(retained["proxySecret"], &actual)
 	if !bytes.Equal(actual.Ciphertext, envelope.Ciphertext) {
 		t.Fatal("lost invalid ciphertext")
@@ -82,5 +83,25 @@ func TestProtectedProxySecretMoveTamperAndRecovery(t *testing.T) {
 	defer repaired.Close()
 	if repaired.settings.proxySecretError != "" || repaired.settings.SOCKS5Password != next.SOCKS5Password {
 		t.Fatal("explicit replacement failed")
+	}
+}
+
+func TestProxySecretRejectsOversizedProtectedPassword(t *testing.T) {
+	cipher, err := protectUserData([]byte(strings.Repeat("p", 256)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(protectedEnvelope{1, "dpapi-current-user", cipher})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var s Settings
+	loadProxySecret(map[string]json.RawMessage{"proxySecret": raw}, &s)
+	if s.SOCKS5Password != "" || s.proxySecretError != unavailableProxySecret {
+		t.Fatal("valid envelope bypassed password length validation")
+	}
+	stored, err := storedProxySecret(s)
+	if err != nil || !bytes.Equal(stored, raw) {
+		t.Fatal("invalid password payload lost its original ciphertext", err)
 	}
 }

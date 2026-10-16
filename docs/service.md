@@ -97,7 +97,7 @@ FROM song_usage ORDER BY last_demand_at DESC;
 | `-max-file-bytes` | `2147483648`（2 GiB） |
 | `-max-cache-bytes` | `0`，缓存容量不限；单位为字节 |
 | `-request-retention-days` | `30`，请求明细保留天数；范围 0～36500，0 为永久保留，热度汇总长期保留 |
-| `-max-downloads` | `3`，仅限制本地文件校验并发（`localChecks`）；资源会话固定上限 32，上游视频请求由全局块调度器控制，普通请求软上限 16，Blocking 缺块立即放行 |
+| `-max-downloads` | `3`，仅限制本地文件校验并发（内部 `MaxLocalValidations` / `localChecks`）；资源会话固定上限 32，上游视频请求由全局块调度器控制，普通请求软上限 16，Blocking 缺块立即放行 |
 
 回源参数是 HTTPS 服务的 TCP `host:port`，不是 URL；修改端口不会切换成 HTTP。自定义地址在直连模式下通过内置 DoH 解析，在代理模式下交给 SOCKS5；两者均验证对应视频原域名的证书。不要将回源地址配置到本服务。默认仅用于本机；无鉴权，不建议监听公网地址。配置受信任，外部请求不能任意指定回源目标。
 

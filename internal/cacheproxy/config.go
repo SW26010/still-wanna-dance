@@ -53,10 +53,11 @@ type Config struct {
 	MaxCacheBytes int64
 	// RequestRetentionDays bounds request details; zero keeps them indefinitely.
 	RequestRetentionDays int
-	// MaxDownloads is the legacy name for the local file validation limit.
+	// MaxLocalValidations bounds concurrent local file validations.
+	// The CLI retains the legacy -max-downloads flag.
 	// Resource sessions and upstream block scheduling have independent limits.
-	MaxDownloads int
-	Logger       *slog.Logger
+	MaxLocalValidations int
+	Logger              *slog.Logger
 	// DialContext supplies upstream connections (independent DNS or SOCKS5).
 	DialContext func(context.Context, string, string) (net.Conn, error)
 	// ResourceTransports supplies ranked or cold-start channels for this URL's host,
@@ -76,7 +77,7 @@ func DefaultConfig() Config {
 		DownloadTimeout:      10 * time.Minute,
 		PrepareAhead:         blocksched.DefaultPrepareAhead,
 		MaxFileBytes:         2 << 30,
-		MaxDownloads:         3,
+		MaxLocalValidations:  3,
 		Logger:               slog.New(slog.NewJSONHandler(os.Stderr, nil)),
 	}
 }
@@ -94,7 +95,7 @@ func (c Config) validate() error {
 	if c.PrepareAhead < 0 {
 		return errors.New("download preparation lead cannot be negative")
 	}
-	if c.StorageDir == "" || c.DownloadTimeout <= 0 || c.MaxFileBytes <= 0 || c.MaxFileBytes == int64(^uint64(0)>>1) || c.MaxDownloads < 1 {
+	if c.StorageDir == "" || c.DownloadTimeout <= 0 || c.MaxFileBytes <= 0 || c.MaxFileBytes == int64(^uint64(0)>>1) || c.MaxLocalValidations < 1 {
 		return errors.New("storage directory is required; timeout, file limit and download limit must be positive")
 	}
 	for host := range c.Origins {

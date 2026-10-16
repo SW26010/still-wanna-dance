@@ -190,7 +190,7 @@ func New(cfg Config) (*Server, error) {
 		rangeBuffers: make(chan []byte, videoRequestSoftLimit),
 		versionPins:  make(map[string]int),
 		usage:        usage,
-		flights:      make(map[string]*flight), slots: make(chan struct{}, maxResourceSessions), localChecks: make(chan struct{}, cfg.MaxDownloads), capacityChanged: make(chan struct{}),
+		flights:      make(map[string]*flight), slots: make(chan struct{}, maxResourceSessions), localChecks: make(chan struct{}, cfg.MaxLocalValidations), capacityChanged: make(chan struct{}),
 		client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
 	if err := s.loadTraffic(usage.db); err != nil {
@@ -210,7 +210,7 @@ func New(cfg Config) (*Server, error) {
 	s.retentionDone = make(chan struct{})
 	go s.retentionLoop()
 	s.scheduler = newDownloadScheduler(cfg)
-	cfg.Logger.Info("cache_engine_ready", "removed_partials", cleaned, "max_local_validations", cfg.MaxDownloads,
+	cfg.Logger.Info("cache_engine_ready", "removed_partials", cleaned, "max_local_validations", cfg.MaxLocalValidations,
 		"max_resource_sessions", maxResourceSessions, "video_request_soft_limit", videoRequestSoftLimit,
 		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "max_cache_bytes", cfg.MaxCacheBytes, "cache_unlimited", cfg.CacheUnlimited)
 	return s, nil

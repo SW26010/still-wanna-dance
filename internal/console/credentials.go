@@ -7,12 +7,6 @@ import (
 
 const unavailableProxySecret = "已保存的代理凭据无法解密，请重新输入密码并保存、重启；原密文仍保留"
 
-type proxySecretEnvelope struct {
-	Version    int    `json:"version"`
-	Protection string `json:"protection"`
-	Ciphertext []byte `json:"ciphertext"`
-}
-
 func loadProxySecret(fields map[string]json.RawMessage, s *Settings) {
 	raw := fields["proxySecret"]
 	if len(raw) == 0 {
@@ -20,11 +14,7 @@ func loadProxySecret(fields map[string]json.RawMessage, s *Settings) {
 	}
 	s.proxySecret = string(raw)
 	s.proxySecretError = unavailableProxySecret
-	var envelope proxySecretEnvelope
-	if json.Unmarshal(raw, &envelope) != nil || envelope.Version != 1 || envelope.Protection != "dpapi-current-user" {
-		return
-	}
-	plain, err := unprotectUserData(envelope.Ciphertext)
+	plain, err := decodeProtectedEnvelope(raw)
 	if err != nil {
 		return
 	}
@@ -47,9 +37,7 @@ func storedProxySecret(s Settings) (json.RawMessage, error) {
 	if s.SOCKS5Password == "" {
 		return nil, nil
 	}
-	cipher, err := protectUserData([]byte(s.SOCKS5Password))
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(proxySecretEnvelope{1, "dpapi-current-user", cipher})
+	plain := []byte(s.SOCKS5Password)
+	defer clear(plain)
+	return encodeProtectedEnvelope(plain)
 }

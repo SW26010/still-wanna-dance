@@ -1,11 +1,8 @@
 package console
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
-	"time"
 
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
@@ -98,30 +95,10 @@ func (c *Console) serveSetupCalibrationEvents(w http.ResponseWriter, r *http.Req
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("X-Accel-Buffering", "no")
-	controller := http.NewResponseController(w)
-	for {
+	serveSetupEvents(w, r, "calibration", func() setupEventSnapshot {
 		state, changed := test.Snapshot()
-		body, err := json.Marshal(state)
-		if err != nil {
-			return
-		}
-		// A slow/disconnected browser must never hold shutdown or measurement.
-		_ = controller.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		if _, err = fmt.Fprintf(w, "id: %d\nevent: calibration\ndata: %s\n\n", state.Revision, body); err != nil {
-			return
-		}
-		if err = controller.Flush(); err != nil || state.Closed {
-			return
-		}
-		_ = controller.SetWriteDeadline(time.Time{})
-		select {
-		case <-r.Context().Done():
-			return
-		case <-changed:
-		}
-	}
+		return setupEventSnapshot{state: state, revision: state.Revision, closed: state.Closed, changed: changed}
+	})
 }
 
 // Both checks validate the same unsaved SOCKS5 draft.

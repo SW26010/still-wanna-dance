@@ -2,12 +2,9 @@ package console
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"slices"
-	"time"
 
 	"still-wanna-dance/internal/upstreamstate"
 )
@@ -195,29 +192,10 @@ func (c *Console) serveSetupConnectivityEvents(w http.ResponseWriter, r *http.Re
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("X-Accel-Buffering", "no")
-	controller := http.NewResponseController(w)
-	for {
+	serveSetupEvents(w, r, "connectivity", func() setupEventSnapshot {
 		c.mu.Lock()
 		state, changed := c.setupNetwork.connectivity, c.setupNetwork.connectivityChanged
 		c.mu.Unlock()
-		body, err := json.Marshal(state)
-		if err != nil {
-			return
-		}
-		_ = controller.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		if _, err = fmt.Fprintf(w, "id: %d\nevent: connectivity\ndata: %s\n\n", state.Revision, body); err != nil {
-			return
-		}
-		if err = controller.Flush(); err != nil || state.Closed {
-			return
-		}
-		_ = controller.SetWriteDeadline(time.Time{})
-		select {
-		case <-r.Context().Done():
-			return
-		case <-changed:
-		}
-	}
+		return setupEventSnapshot{state: state, revision: state.Revision, closed: state.Closed, changed: changed}
+	})
 }

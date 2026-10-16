@@ -288,7 +288,7 @@ func TestOwnershipCapacityTimeoutAndShutdown(t *testing.T) {
 		t.Fatal("second cache owner accepted")
 	}
 	s.Close()
-	cfg.MaxDownloads = 1
+	cfg.MaxLocalValidations = 1
 	cfg.DownloadTimeout = 200 * time.Millisecond
 	s, err := New(cfg)
 	if err != nil {

@@ -38,7 +38,7 @@ func TestProtectedNodesSaveRestartMoveAndFailedReplacement(t *testing.T) {
 	}
 	var fields map[string]json.RawMessage
 	json.Unmarshal(b, &fields)
-	var envelope proxySecretEnvelope
+	var envelope protectedEnvelope
 	json.Unmarshal(fields["proxyNodes"], &envelope)
 	envelope.Ciphertext[len(envelope.Ciphertext)-1] ^= 0xff
 	fields["proxyNodes"], _ = json.Marshal(envelope)
@@ -80,7 +80,7 @@ func TestLegacyNodeSnapshotPreservedUntilExplicitReimport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	envelope, _ := json.Marshal(proxySecretEnvelope{1, "dpapi-current-user", cipher})
+	envelope, _ := json.Marshal(protectedEnvelope{1, "dpapi-current-user", cipher})
 	s := c.savedSettings
 	loadProxyNodes(map[string]json.RawMessage{"proxyNodes": envelope}, &s)
 	if s.nodeSnapshot != "" || s.nodeSecretError == "" {

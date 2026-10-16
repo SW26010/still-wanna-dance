@@ -62,11 +62,7 @@ func loadProxyNodes(fields map[string]json.RawMessage, s *Settings) {
 		return
 	}
 	s.nodeSecret, s.nodeSecretError = string(raw), unavailableProxyNodes
-	var envelope proxySecretEnvelope
-	if json.Unmarshal(raw, &envelope) != nil || envelope.Version != 1 || envelope.Protection != "dpapi-current-user" {
-		return
-	}
-	plain, err := unprotectUserData(envelope.Ciphertext)
+	plain, err := decodeProtectedEnvelope(raw)
 	if err != nil {
 		return
 	}
@@ -99,11 +95,7 @@ func storedProxyNodes(s Settings) (json.RawMessage, error) {
 	}
 	plain := []byte(s.nodeSnapshot)
 	defer clear(plain)
-	cipher, err := protectUserData(plain)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(proxySecretEnvelope{1, "dpapi-current-user", cipher})
+	return encodeProtectedEnvelope(plain)
 }
 
 func nodeIdentity(key []byte, p map[string]any) string {

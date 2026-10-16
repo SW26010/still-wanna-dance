@@ -397,3 +397,18 @@ LA-042 补充取消边界：在隔离库控制请求取消/超时，使事务自
 - 使用已有便携 GCC、`CGO_ENABLED=1`：`go test -race -tags=no_easytier ./cmd/... ./internal/... ./data/... ./experiments/... -count=1 -timeout=180s` 全部通过，无 race 报告；cacheproxy 41.710 s、console 95.849 s、upstreamstate 22.167 s。
 - 相同正式源码范围的 `go vet -tags=no_easytier`、默认 `CGO_ENABLED=0` 的 `go build -tags=no_easytier` 通过；受改动包 `gofmt -l` 无输出，`git diff --check` 通过。前端未改，不重复构建前端或运行浏览器实机操作。
 - 八项按 A1、A2、A3、A5、A6、A4、A7、A8 分别作本地提交；未 push、未启动游戏、未改 hosts。自动检查不替代上述原编号的实机证据，不关闭历史失败或未测场景。
+
+## 2026-10-16 等价重构的开发验证说明（不新增实机要求）
+
+本轮共用 SSE 发送循环和 CurrentUser 信封编解码，内部 `MaxDownloads` 改名为 `MaxLocalValidations`。事件协议、调用方内容校验/错误文案/原密文保留、CLI `-max-downloads` 的默认值及运行行为保持。这三项为等价整理，没有新增功能或用户可见行为变化，因此仅记录开发验证，不新增实机验收项，也不扩大原有项目的步骤、通过条件或证据要求。原有未结项、状态和历史报告保持。
+
+- SSE：`internal/console/{setup_events,setup_calibration,setup_connectivity}.go` 共用序列化、写入期限、Flush 和取消退出，各入口保留状态获取与事件名称。
+- 加密信封：`internal/console/{protected_envelope,credentials,proxy_nodes}.go` 共用编解码，各入口保留内容校验、错误文案及原密文保留逻辑，没有新依赖或格式迁移。
+- 本地校验命名：`internal/cacheproxy/{config,server}.go`、`cmd/still-wanna-dance/main.go` 使用 `MaxLocalValidations`，CLI 名称、帮助、默认值和启动日志字段保持；当前文档同步内部名称，历史开发记录保留。
+
+自动检查记录（本地隔离开发验证，不改变既有实机验收结论）：
+
+- 首轮定向测试受 Windows 沙箱临时文件原子重命名权限限制，控制台配置保存与缓存发布报 Access is denied；未据此判断产品回归。
+- 在沙箱外使用已有便携 GCC、`CGO_ENABLED=1`，`go test -race -tags=no_easytier ./internal/console ./internal/cacheproxy ./cmd/still-wanna-dance -count=1 -timeout=180s` 三包完整通过（88.873 s / 45.117 s / 1.597 s），无 race 报告。覆盖两路 SSE 写入/Flush 失败、取消、事件帧、写入期限及既有重连/关闭；两类信封拒绝/原样保留、CurrentUser 保存/搬迁/损坏/替换、超长密码及旧节点文档拒绝；本地校验额度、取消和归还沿用完整缓存包回归。
+- `go vet -tags=no_easytier ./cmd/... ./internal/console ./internal/cacheproxy`、`go build -tags=no_easytier ./cmd/...` 通过。`go run -tags=no_easytier ./cmd/still-wanna-dance -help` 正常退出，`-max-downloads` 帮助和默认值 3 保持；受改 Go 文件 `gofmt -l` 无输出，`git diff --check` 通过。
+- 未启动产品实机验收或游戏、未修改 hosts，未执行 Git commit/push。本轮重构开发完成，不附加实机验收任务。

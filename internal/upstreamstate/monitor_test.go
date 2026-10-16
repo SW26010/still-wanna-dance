@@ -26,7 +26,7 @@ func (f transportFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 }
 
 const catalogFixture = `{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":42}]}]}}`
-const kivaFixture = `{"code":200,"data":{"time":"2026-10-05","groups":[{"entries":[{"id":42,"checksum":"0123456789abcdef0123456789abcdef"}]}]}}`
+const kivaFixture = `{"code":200,"data":{"time":"20261005000000","groups":[{"entries":[{"id":42,"checksum":"0123456789abcdef0123456789abcdef"}]}]}}`
 const videoFixture = "https://play.udon.dance/files/123/42-abc.mp4?e=0123456789abcdef0123456789abcdef&s=131072"
 
 func response(status int, body string) *http.Response {

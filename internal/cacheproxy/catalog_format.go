@@ -3,14 +3,15 @@ package cacheproxy
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
+
+	"still-wanna-dance/internal/catalogmeta"
 )
 
-var ErrInvalidCatalogMapping = errors.New("清单 ID 或 MD5 无效或重复")
+var ErrInvalidCatalogMapping = catalogmeta.ErrInvalidMapping
 
 // CatalogSong is the fixed upstream song schema. Pointers preserve unknown
 // values independently from zero, false, and the empty string.
@@ -49,66 +50,27 @@ type Catalog struct {
 // endpoints. They publish YYYYMMDDhhmmss without an offset, at second precision.
 // UTC here is a common comparison axis, not a claim about the publisher's zone.
 func ParseCatalogTime(value string) (time.Time, error) {
-	if len(value) != 14 {
-		return time.Time{}, fmt.Errorf("清单时间必须为 YYYYMMDDhhmmss")
-	}
-	t, err := time.Parse("20060102150405", value)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("清单时间无效: %w", err)
-	}
-	return t, nil
+	return catalogmeta.ParseTime(value)
 }
 
 // ParseCatalog accepts the shared MD5 catalog envelope. It rejects the whole
 // candidate on malformed data rather than committing a partial reference set.
 func ParseCatalog(body []byte, source string) (Catalog, error) {
-	var envelope struct {
-		Code int `json:"code"`
-		Data struct {
-			Time   string `json:"time"`
-			Groups []struct {
-				Entries []json.RawMessage `json:"entries"`
-			} `json:"groups"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(body, &envelope); err != nil {
-		return Catalog{}, fmt.Errorf("清单格式无效: %w", err)
-	}
-	c := Catalog{Revision: envelope.Data.Time, Source: source}
-	if envelope.Code != 200 || envelope.Data.Groups == nil {
-		return c, fmt.Errorf("清单格式无效")
-	}
-	var entries []json.RawMessage
-	seen := map[int64]bool{}
-	for _, g := range envelope.Data.Groups {
-		if g.Entries == nil {
-			return c, fmt.Errorf("清单缺少 entries")
-		}
-		for _, raw := range g.Entries {
-			var mapping struct {
-				ID  int64  `json:"id"`
-				MD5 string `json:"checksum"`
-			}
-			if err := json.Unmarshal(raw, &mapping); err != nil {
-				return c, fmt.Errorf("%w: %v", ErrInvalidCatalogMapping, err)
-			}
-			if mapping.ID <= 0 || !validMD5(strings.ToLower(mapping.MD5)) || seen[mapping.ID] {
-				return c, fmt.Errorf("%w: %d", ErrInvalidCatalogMapping, mapping.ID)
-			}
-			seen[mapping.ID] = true
-			entries = append(entries, raw)
-		}
+	base, err := catalogmeta.Parse(body)
+	c := Catalog{Revision: base.Revision, Source: source}
+	if err != nil {
+		return c, err
 	}
 	// Validate every identity before optional metadata so metadata errors cannot
 	// mask invalid or duplicate ID/MD5 mappings in the catalog.
-	for _, raw := range entries {
+	for _, entry := range base.Entries {
 		var song CatalogSong
-		if err := json.Unmarshal(raw, &song); err != nil {
+		if err := json.Unmarshal(entry.Raw, &song); err != nil {
 			return c, fmt.Errorf("清单资料格式无效: %w", err)
 		}
 		c.Songs = append(c.Songs, song)
 	}
-	c, _, err := normalizeCatalog(c)
+	c, _, err = normalizeCatalog(c)
 	return c, err
 }
 
@@ -124,7 +86,7 @@ func normalizeCatalog(c Catalog) (Catalog, string, error) {
 	for i := range c.Songs {
 		s := &c.Songs[i]
 		s.MD5 = strings.ToLower(s.MD5)
-		if s.ID <= 0 || !validMD5(s.MD5) || (i > 0 && c.Songs[i-1].ID == s.ID) {
+		if !catalogmeta.ValidIdentity(s.ID, s.MD5) || (i > 0 && c.Songs[i-1].ID == s.ID) {
 			return c, "", fmt.Errorf("%w: %d", ErrInvalidCatalogMapping, s.ID)
 		}
 		ayaID := bytes.TrimSpace(s.AyaID)

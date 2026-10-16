@@ -371,3 +371,7 @@ LA-042 补充取消边界：在隔离库控制请求取消/超时，使事务自
 - **A3 / LA-040（联动 LA-020/041）**：代码依据 `internal/blocksched/{scheduler,registration}.go`、`internal/cacheproxy/scheduled_download.go`。在隔离受控上游让两部 2 GiB 视频完成首块、留下 4,094 个远期块，再冷播第三部并拖动到尚未登记的位置；容量仍有界，满容量只延迟登记，前台 Blocking 可替换尚未执行的较低优先级块。释放容量后原需求继续，不能重复已完成块、丢失交接期限或因容量直接报下载失败；全为在途任务时等待容量，取消/退出及时结束。记录任务/需求数峰值、容量释放与重新登记、每块请求/字节、最终哈希、进程空闲 CPU 和游戏播放/Seek 反馈；历史失败报告继续保留。
 
 自动检查：A3 两个 2 GiB 视频/4,094 个未来块的回归、容量释放、全部在途等待和紧急替换测试通过；`go test -tags=no_easytier ./internal/blocksched ./internal/cacheproxy -count=1 -timeout=180s` 两包完整通过。使用已有便携 GCC 设置 `CGO_ENABLED=1` 后，同范围完整 `-race` 通过（1.241 s / 42.405 s），`go vet` 通过；默认环境未启用 cgo 的首次 race 命令未执行测试。以上是本地隔离自动结果，实机仍待验收。
+
+- **A5 / LA-023、LA-045**：代码依据 `internal/catalogmeta/catalog.go`、`internal/cacheproxy/catalog_format.go`、`internal/upstreamstate/probe.go`。受控 Kiva/WannaInfo 清单分别注入相同 ID/MD5 重复、冲突 ID、非法日期和缺 entries；Monitor 与入库均拒绝基础无效清单，不覆盖旧库。合法的不同 ID 共享 MD5 应接受。另注入非法可选资料字段，Monitor 可抽样连接，但入库明确拒绝；可连接不等于可入库。保存脱敏响应夹具、Monitor 状态、入库诊断和数据库版本/映射前后摘要，联动真实播放回归。
+
+自动检查：A5 的 `go test -tags=no_easytier ./internal/upstreamstate ./internal/cacheproxy ./internal/console -run 'Catalog|Kiva|Wanna|Conflict' -count=1 -timeout=120s` 三包通过，包含抽样/入库一致性及可选资料边界对照；实机状态不变。

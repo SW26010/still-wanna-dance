@@ -3,7 +3,6 @@ package upstreamstate
 import (
 	"context"
 	"crypto/tls"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"still-wanna-dance/internal/catalogmeta"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/videometa"
 )
@@ -238,45 +238,12 @@ func probeCatalogData(parent context.Context, client *http.Client, p Policy, rou
 // Kiva supplies a versioned catalog with resource MD5s, unlike Udon's list.
 // Reject invalid or conflicting mappings before using the list as a sample.
 func kivaSongSample(body []byte) (int64, string) {
-	var v struct {
-		Code int `json:"code"`
-		Data struct {
-			Time   string `json:"time"`
-			Groups []struct {
-				Entries []struct {
-					ID       int64  `json:"id"`
-					Checksum string `json:"checksum"`
-				} `json:"entries"`
-			} `json:"groups"`
-		} `json:"data"`
+	c, err := catalogmeta.Parse(body)
+	if err != nil {
+		return 0, c.Revision
 	}
-	if json.Unmarshal(body, &v) != nil || v.Code != 200 || v.Data.Time == "" {
-		return 0, v.Data.Time
-	}
-	seen := make(map[int64]string)
-	var id int64
-	for _, group := range v.Data.Groups {
-		for _, song := range group.Entries {
-			digest, err := hex.DecodeString(song.Checksum)
-			if song.ID <= 0 || err != nil || len(digest) != 16 {
-				return 0, v.Data.Time
-			}
-			checksum := string(digest)
-			if previous, ok := seen[song.ID]; ok {
-				if previous != checksum {
-					return 0, v.Data.Time
-				}
-				continue
-			}
-			seen[song.ID] = checksum
-			if rand.IntN(len(seen)) == 0 {
-				id = song.ID
-			}
-		}
-	}
-	return id, v.Data.Time
+	return c.Entries[rand.IntN(len(c.Entries))].ID, c.Revision
 }
-
 func probePlayback(parent context.Context, client *http.Client, p Policy, id int64, r route) (o observation, sample *videoSample) {
 	o, sample, _ = probePlaybackResponse(parent, client, p, id, r)
 	return

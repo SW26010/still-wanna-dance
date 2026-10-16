@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -49,6 +50,11 @@ func (b *delayedRequestClose) Close() error {
 
 func TestVideoRequestActivityHoldsResponseUntilCloseCompletes(t *testing.T) {
 	s, _ := setup(t, nil)
+	var busy atomic.Int32
+	s.cfg.BeginResourceLoad = func() func() {
+		busy.Add(1)
+		return func() { busy.Add(-1) }
+	}
 	s.requests = new(requestActivity)
 	body := &delayedRequestClose{started: make(chan struct{}), finish: make(chan struct{})}
 	defer close(body.finish)
@@ -75,7 +81,7 @@ func TestVideoRequestActivityHoldsResponseUntilCloseCompletes(t *testing.T) {
 	s.requests.mu.Lock()
 	active := s.requests.active
 	s.requests.mu.Unlock()
-	if active != 1 {
+	if active != 1 || busy.Load() != 1 {
 		t.Fatalf("canceled response stopped counting during Close: %d", active)
 	}
 	// Complete Close before checking for the final, exactly-once release.
@@ -84,7 +90,7 @@ func TestVideoRequestActivityHoldsResponseUntilCloseCompletes(t *testing.T) {
 	resp.Body.Close()
 	s.requests.mu.Lock()
 	defer s.requests.mu.Unlock()
-	if s.requests.active != 0 {
+	if s.requests.active != 0 || busy.Load() != 0 {
 		t.Fatal("request activity leaked")
 	}
 }
@@ -92,6 +98,11 @@ func TestVideoRequestActivityHoldsResponseUntilCloseCompletes(t *testing.T) {
 func TestVideoRequestActivityReleasesFailedAttempts(t *testing.T) {
 	for _, status := range []int{0, 503} {
 		s, _ := setup(t, nil)
+		var busy atomic.Int32
+		s.cfg.BeginResourceLoad = func() func() {
+			busy.Add(1)
+			return func() { busy.Add(-1) }
+		}
 		s.cfg.ResourceTransports = func(string) []http.RoundTripper {
 			return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
 				if status == 0 {
@@ -107,7 +118,7 @@ func TestVideoRequestActivityReleasesFailedAttempts(t *testing.T) {
 		s.requests.mu.Lock()
 		active := s.requests.active
 		s.requests.mu.Unlock()
-		if active != 0 {
+		if active != 0 || busy.Load() != 0 {
 			t.Fatalf("failed attempt leaked %d slots", active)
 		}
 	}

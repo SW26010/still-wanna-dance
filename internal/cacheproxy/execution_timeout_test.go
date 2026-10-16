@@ -38,6 +38,11 @@ func TestDownloadedPublicationKeepsIndependentTimeout(t *testing.T) {
 
 func TestExecutionTimeoutExcludesInitialQueueWindow(t *testing.T) {
 	s, _ := setup(t, nil)
+	var active atomic.Int32
+	s.cfg.BeginResourceLoad = func() func() {
+		active.Add(1)
+		return func() { active.Add(-1) }
+	}
 	s.cfg.DownloadTimeout = 150 * time.Millisecond
 	queued := make(chan struct{}, 8)
 	s.scheduler.Close()
@@ -80,6 +85,9 @@ func TestExecutionTimeoutExcludesInitialQueueWindow(t *testing.T) {
 	}
 	if requests.Load() != 0 {
 		t.Fatal("future queue requested upstream before activation")
+	}
+	if active.Load() != 0 {
+		t.Fatal("waiting for the download window suppressed automatic probes")
 	}
 	if err := s.UpdatePrefetchQueue([]int64{2}, false); err != nil {
 		t.Fatal(err)

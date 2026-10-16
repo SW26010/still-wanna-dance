@@ -338,10 +338,6 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 		}
 	}
 	stopCheck() // Waiting for a block's activation window has no execution timer.
-	if s.cfg.BeginResourceLoad != nil {
-		release := s.cfg.BeginResourceLoad()
-		defer release()
-	}
 	flight.log.Info("download_started", "key", v.key, "size", v.size)
 	if flight.ranges != nil {
 		retained := flight.ranges.bytes()

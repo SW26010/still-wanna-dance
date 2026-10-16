@@ -181,6 +181,10 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 			budget = time.AfterFunc(time.Until(deadline)/time.Duration(limit-i), func() { cancelCause(context.DeadlineExceeded) })
 		}
 		attempts.current, attempts.request = candidates, r
+		if s.cfg.BeginResourceLoad != nil {
+			endLoad, endRequest := s.cfg.BeginResourceLoad(), release
+			release = sync.OnceFunc(func() { endLoad(); endRequest() })
+		}
 		resp, err := client.Do(r.Clone(ctx))
 		if err == nil && resp.StatusCode < 500 {
 			resp.Body = &resourceBody{ReadCloser: resp.Body, cancel: cancel, ctx: ctx, budget: budget, attempts: attempts, release: release}

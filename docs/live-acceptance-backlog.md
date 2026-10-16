@@ -363,3 +363,7 @@ LA-042 补充取消边界：在隔离库控制请求取消/超时，使事务自
 - **A1 / LA-019、LA-040**：代码依据 `internal/cacheproxy/{scheduled_range,range_resume}.go`。受控六候选让前五路返回合法 Range 头但短正文、第六路正常，冷播应依次到达第六路并完成校验；全失败应在候选耗尽或同次执行预算到期后退出。暂停/恢复不能重试已失败候选或刷新同次执行预算。保留每路请求次数、Range/取消/恢复时间线、最终 MD5 及游戏音画反馈。
 
 自动检查独立记录：A1 的 `go test -tags=no_easytier ./internal/cacheproxy -run 'Resource.*Fallback|Resource.*Resume|LaterRangeRedirect|ExecutionTimeout|Scheduled.*Pause' -count=1 -timeout=120s` 通过。首次沙箱运行受测试临时文件原子重命名权限限制，沙箱外同命令复跑通过，不代表实机验收。
+
+- **A2 / LA-016、LA-040**：代码依据 `internal/cacheproxy/{cache,routes}.go`。远期队列等待窗口且回源数为零时，自动资源探测仍能开始；队首提升或前台读取实际回源后，自动采样让出带宽。慢正文、取消、重定向和失败重试中，忙碌持续到每个响应关闭完毕，全部关闭后恢复自动探测。记录 Monitor 暂停状态、真实回源/响应关闭时刻、探测请求及游戏播放反馈。
+
+自动检查：A2 的 `go test -tags=no_easytier ./internal/cacheproxy ./internal/upstreamstate -run 'ResourceLoad|VideoRequestActivity|ExecutionTimeoutExcludes|ResourcePriority|Automatic.*|Business.*' -count=1 -timeout=120s` 通过（沙箱外本地隔离测试）。

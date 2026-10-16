@@ -24,8 +24,7 @@ func TestFirstEntryUsesViewportWizardAndModalConsent(t *testing.T) {
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+tc.path, nil))
 		html := w.Body.String()
-		dialog, content, accept := strings.Index(html, `<dialog id="setupTermsDialog"`), strings.Index(html, `id="setupTermsText"`), strings.Index(html, `id="setupAcceptTerms"`)
-		if w.Code != 200 || dialog < 0 || content < dialog || accept < content || !strings.Contains(html, `id="consoleShell" data-view="setup"`) || !strings.Contains(html, `id="setupStepStorage"`) || !strings.Contains(html, `window.swdTermsGate = {`) {
+		if w.Code != 200 || !strings.Contains(html, `id="root"`) || !strings.Contains(html, `"termsGate":{"pageID":`) || !strings.Contains(html, `/assets/webui/app.js`) {
 			t.Fatal("first-entry wizard layout incomplete", tc.path)
 		}
 		if strings.Contains(html, "location.replace") || strings.Contains(html, `__TERMS_GATE__`) {
@@ -50,7 +49,7 @@ func TestFirstEntryUsesViewportWizardAndModalConsent(t *testing.T) {
 			t.Fatalf("business read %s bypassed consent: %d", path, w.Code)
 		}
 	}
-	for _, path := range []string{"/assets/navigation.js", "/assets/console.js", "/assets/setup.js", "/assets/cache.js", "/assets/logo.svg", "/favicon.ico"} {
+	for _, path := range []string{"/assets/webui/app.js", "/assets/webui/app.css", "/assets/logo.svg", "/favicon.ico"} {
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+path, nil))
 		if w.Code != 200 {
@@ -207,7 +206,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 		t.Fatal("direct start bypass")
 	}
 	w := request("GET", "/", "", "", "")
-	if w.Code != 200 || !strings.Contains(w.Body.String(), "同意完整条款") || !strings.Contains(w.Body.String(), `id="setupAcceptTerms" type="button"`) || !strings.Contains(w.Body.String(), `window.swdTermsGate = {`) || strings.Contains(w.Body.String(), "ZgotmplZ") {
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `/assets/webui/app.js`) || !strings.Contains(w.Body.String(), `"termsGate":{"pageID":`) || strings.Contains(w.Body.String(), "ZgotmplZ") {
 		t.Fatal("missing usable consent page")
 	}
 	if w := request("POST", "/api/stop", "{}", c.token, ""); w.Code != 200 {
@@ -261,7 +260,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 		t.Fatal("receipt not persisted")
 	}
 	assertCurrentTermsAccepted(t, reloaded, true)
-	if w := request("GET", "/", "", "", ""); !strings.Contains(w.Body.String(), `window.swdTermsGate = null;`) {
+	if w := request("GET", "/", "", "", ""); !strings.Contains(w.Body.String(), `"termsGate":null`) {
 		t.Fatal("still gated")
 	}
 	receipt, _ := json.Marshal(c.terms)

@@ -6,6 +6,8 @@
 
 这里保存精简、脱敏后的测试证据，使新仓库不依赖旧对话即可理解已验证的结论。它们不是完整网络抓包。索引中标明 StepStash 的文件属于历史构建验收，其余为原版调查结果。两者均不能替代当前 StepStash 构建的测试；证据文件名和内容保留采集时的名称与记录。
 
+Fluent UI 迁移已替代旧引导布局；逐轮 UI 开发记录按本次清理要求移除，当前浏览器覆盖见[UI 验证](../fluent-ui-migration.md#验证与待验收)。真实游戏报告和仍在使用的实验/失败证据保留。
+
 ## 文件索引
 
 #14 B2 后续定向验证：[热流取消/排空/恢复清单](issue14-directed-20261013/hot/manifest.json)，24 项真实回环检查及有界但不保证恢复的通用模型，见[报告](../issue-14-directed-validation.md)。仅开发测试，不代表实机通过。
@@ -32,18 +34,6 @@
 | [issue14-development/release-validation.json](issue14-development/release-validation.json) | #14 桌面接入后的本地正式构建、实际附件哈希、96 个依赖及完整源码、独立重建和符号证据；仅开发验证，非发布或实机验收，详见[记录](../issue-14-validation.md) |
 | [issue14-development/release-validation-final.json](issue14-development/release-validation-final.json) | #14 评审修复后 `acbb673` 的生产 EXE、完整对应源码、全新缓存离线重建及 Portable 隔离验证；最终附件与源码文件哈希复核，仅开发验证，LA-034/035/036 仍待实机，详见[记录](../issue-14-validation.md#最终产品代码的发行链复验) |
 | [issue14-development/subscription-import-check.json](issue14-development/subscription-import-check.json) | 用户提供订阅在 `08ae90f` 的导入兼容检查：30 条 VMess/WS 全部超出当前支持范围；未执行节点连接或游戏验证，不包含私人链接或节点参数 |
-| [issue-16-ui/20261012-single-confirm.md](issue-16-ui/20261012-single-confirm.md) | #16 直连范围固定标注、单次应用直达控制台、修复入口/导入条件显示及空间文案；211 项前端、Go 与内存浏览器开发检查，LA-029/030 待验收 |
-| [issue-16-ui/20261012-picker-focus-dpi.md](issue-16-ui/20261012-picker-focus-dpi.md) | #16 目录窗口归属与 Per-Monitor V2 DPI；原生 API 定向测试、预览取消清理，窗口视觉与多屏缩放仍待 LA-029 |
-| [issue-16-ui/20261012-local-feedback.md](issue-16-ui/20261012-local-feedback.md) | #16 目录框局部提示、hosts 成功文案去重、存储/网络刷新稳定布局；208 项前端测试、Go 定向回归和延迟内存预览，仍待实机验收 |
-| [issue-16-ui/20261012-dialog-controls.md](issue-16-ui/20261012-dialog-controls.md) | #16 条款弹窗及失效记录重确认、直接恢复 hosts、导入目录文本框、网络/接入统一刷新；自动回归和浏览器内存检查，LA-029/030 待实机 |
-| [issue-16-ui/20261012-layout-spec.md](issue-16-ui/20261012-layout-spec.md) | #16 按用户四页稿调整：同意状态、单行存储/容量、导入复选框、分项网络重测、接入状态与应用摘要；202 项前端测试和 Go/浏览器模拟检查，LA-029/030 待实机 |
-| [issue-16-ui/20261012-four-step-setup.md](issue-16-ui/20261012-four-step-setup.md) | #16 四步引导、现代 Windows 目录选择器、单行存储控件与同页接入/完成；199 项前端回归、Go 与浏览器文字记录，原生窗口视觉确认及 LA-029/030 待验收 |
-| [issue-16-ui/20261012-six-step-setup.md](issue-16-ui/20261012-six-step-setup.md) | #16 六步引导、目录选择接口、合并配置及完成状态；198 项前端回归、Go 与模拟浏览器文字记录，原生窗口及 LA-029/030 仍待实机 |
-| [issue-16-ui/20261012-ux-copy.md](issue-16-ui/20261012-ux-copy.md) | #16 新用户文案精简与网络结果层级；自动检查和模拟浏览器文本记录，LA-029/030 待实机验收 |
-| [issue-16-ui/20261012-same-page-consent.md](issue-16-ui/20261012-same-page-consent.md) | #16 首次与完整向导合并：同页确认、阅读位置保留、业务门禁和加载失败恢复；自动测试及内存夹具，仍待实机验收 |
-| [issue-16-ui/20261012-review-fixes.md](issue-16-ui/20261012-review-fixes.md) | #16 评审修正：HMAC 配置版本、真实首次入口模板、原 ID 回执查询和 junction 祖先预检；自动测试与内存浏览器检查，仍待实机验收 |
-| [issue-16-ui/20261012-layout-feedback.md](issue-16-ui/20261012-layout-feedback.md) | #16 页面反馈修正：五种 CSS 视口 × 八步、正文条款按钮、当前页网络结果、hosts 按钮、三态圆点；仅内存夹具开发检查，LA-029/030 待实机验收 |
-| [issue-16-ui/README.md](issue-16-ui/README.md) | #16 最终浏览器内存夹具检查：条款确认、重入测速、草稿挽留及重启超时恢复；仅文字结果，LA-029/030 仍待实机验收 |
 | [live-acceptance-20261007.json](live-acceptance-20261007.json) | `8b522c5` 联合实机验收：播放、预缓存途中点播/预览、双连接共享下载、故障与桌面生命周期；相对时间及清理前文件校验，结论见[验收报告](../live-acceptance-20261007.md) |
 | [current-release-live-20260925.json](current-release-live-20260925.json) | 历史构建 `c69e844` portable 联合实机验收：播放、队列、统计、容量淘汰、桌面退出/重启及真实 hosts UAC 操作 |
 | [auto-sha-live-20260925.json](auto-sha-live-20260925.json) | 第二次 StepStash 联合测试的阶段性记录：10271 Auto 本地命中、SHA 解析超时与独立 TCP 连接失败 |

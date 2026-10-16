@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"log/slog"
 	"net/http"
@@ -168,19 +167,7 @@ type termsEntry struct {
 }
 
 func (c *Console) serveConsolePage(w http.ResponseWriter, entry *termsEntry) {
-	boot, _ := json.Marshal(entry)
-	html := strings.NewReplacer("__SETUP__", setupPage, "__TOKEN__", c.token, "__TERMS_GATE__", string(boot)).Replace(page)
-	if entry != nil {
-		// Render the same mounted wizard before scripts run, without exposing or
-		// reading business state. Authorization remains in serveTerms.
-		html = strings.Replace(html, `id="consoleShell"`, `id="consoleShell" data-view="setup"`, 1)
-		for _, id := range []string{"consoleHeader", "consoleNav", "consoleHero", "consoleFooter", "page-home"} {
-			html = strings.Replace(html, `id="`+id+`"`, `id="`+id+`" hidden`, 1)
-		}
-		html = strings.Replace(html, `id="page-setup" data-page="setup" hidden`, `id="page-setup" data-page="setup"`, 1)
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	io.WriteString(w, html)
+	c.serveWebUI(w, "console", "本地控制台", map[string]any{"termsGate": entry})
 }
 
 func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
@@ -199,7 +186,7 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 	if r.Method == "GET" && (r.URL.Path == "/terms" || (r.URL.Path == "/" && !c.termsAccepted())) {
 		if c.termsAccepted() {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_ = termsTemplate.Execute(w, struct{ Text, Version, Token string }{legal.Text, legal.Version, c.token})
+			c.serveWebUI(w, "terms", "使用条款", map[string]any{"terms": map[string]string{"text": legal.Text, "version": legal.Version}})
 			return true
 		}
 		c.mu.Lock()
@@ -267,17 +254,3 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 	}
 	return false
 }
-
-var termsTemplate = template.Must(template.New("terms").Parse(`<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>使用条款 · Still Wanna Dance</title><link rel="icon" href="/favicon.ico"><link rel="icon" href="/assets/logo.svg" type="image/svg+xml" sizes="any"><link rel="stylesheet" href="/assets/console.css"></head>
-<body><main class="setup-gate terms-readonly"><div class="setup-gate-content">
-<div class="brand"><img class="brand-logo" src="/assets/logo.svg" width="32" height="32" alt="">Still Wanna Dance</div>
-<h1>使用条款与内容权利声明</h1><p>本机已确认当前条款。<a href="/">返回控制台</a></p>
-<p class="setup-lead">软件许可不等于内容授权。</p>
-<p>条款版本：{{.Version}} · <a href="/terms.txt" target="_blank" rel="noopener">查看／保存纯文本</a></p>
-<article class="setup-terms" tabindex="0" aria-label="完整使用条款">{{.Text}}</article>
-<div class="actions"><button type="button" id="restore">恢复游戏直连</button><button type="button" id="stop">停止播放网关</button></div><p id="result" role="status" aria-live="polite"></p>
-</div></main><script>
-const token={{.Token}}, result=document.getElementById('result');
-for(const [id,path] of [['restore','/api/hosts/disable'],['stop','/api/stop']]){document.getElementById(id).onclick=async()=>{try{const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-SWD-Token':token},body:'{}'});if(!r.ok)throw new Error(await r.text());result.textContent=id==='restore'?'hosts 恢复操作已完成。':'播放网关已停止。';}catch(e){result.textContent=e.message;}};}
-</script></body></html>`))

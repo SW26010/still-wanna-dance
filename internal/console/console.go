@@ -30,16 +30,7 @@ import (
 	"still-wanna-dance/internal/workfiles"
 )
 
-//go:embed index.html
-var page string
-
-//go:embed about.html
-var aboutPage string
-
-//go:embed setup.html
-var setupPage string
-
-//go:embed assets/console.css assets/console.js assets/cache.js assets/navigation.js assets/setup.js assets/setup-calibration.js assets/storage-benefit.svg
+//go:embed assets/storage-benefit.svg
 var assets embed.FS
 
 type Settings struct {
@@ -702,6 +693,9 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Write(branding.ICO)
 		return
 	}
+	if serveWebUIAsset(w, r) {
+		return
+	}
 	if c.serveTerms(w, r) {
 		return
 	}
@@ -719,28 +713,20 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == "GET" && r.URL.Path == "/about" {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		io.WriteString(w, aboutPage)
+		c.serveWebUI(w, "about", "关于", nil)
 		return
 	}
 	if r.Method == "GET" && r.URL.Path == "/help" {
 		c.serveHelp(w)
 		return
 	}
-	if r.Method == "GET" && (r.URL.Path == "/assets/console.css" || r.URL.Path == "/assets/console.js" || r.URL.Path == "/assets/cache.js" || r.URL.Path == "/assets/navigation.js" || r.URL.Path == "/assets/setup.js" || r.URL.Path == "/assets/setup-calibration.js" || r.URL.Path == "/assets/storage-benefit.svg") {
+	if r.Method == "GET" && r.URL.Path == "/assets/storage-benefit.svg" {
 		content, err := assets.ReadFile(strings.TrimPrefix(r.URL.Path, "/"))
 		if err != nil {
 			http.Error(w, "asset unavailable", http.StatusInternalServerError)
 			return
 		}
-		contentType := "text/css; charset=utf-8"
-		if strings.HasSuffix(r.URL.Path, ".js") {
-			contentType = "text/javascript; charset=utf-8"
-		}
-		if strings.HasSuffix(r.URL.Path, ".svg") {
-			contentType = "image/svg+xml"
-		}
-		w.Header().Set("Content-Type", contentType)
+		w.Header().Set("Content-Type", "image/svg+xml")
 		w.Write(content)
 		return
 	}

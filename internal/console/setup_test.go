@@ -38,7 +38,7 @@ func TestSetupProgressCannotAuthorizeTerms(t *testing.T) {
 	}
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/", nil))
-	if !strings.Contains(w.Body.String(), `"step":"welcome"`) || !strings.Contains(w.Body.String(), `<section data-setup-step="welcome">`) || !strings.Contains(w.Body.String(), `<dialog id="setupTermsDialog"`) {
+	if !strings.Contains(w.Body.String(), `"step":"welcome"`) || !strings.Contains(w.Body.String(), `"page":"console"`) || !strings.Contains(w.Body.String(), `id="swd-bootstrap"`) {
 		t.Fatal("missing welcome before consent")
 	}
 }

@@ -24,24 +24,20 @@ func TestPageLoadsEmbeddedAssets(t *testing.T) {
 	if !strings.Contains(html, `name="swd-token" content="`+c.token+`"`) || strings.Contains(html, "__TOKEN__") {
 		t.Fatal("page did not inject the action token")
 	}
-	scripts := regexp.MustCompile(`<script src="(/assets/[^"]+)"`).FindAllStringSubmatch(html, -1)
-	if len(scripts) != 5 || !strings.Contains(html, `rel="stylesheet" href="/assets/console.css"`) {
-		t.Fatalf("expected stylesheet and five scripts, got %v", scripts)
+	scripts := regexp.MustCompile(`<script type="module" src="(/assets/[^"]+)"`).FindAllStringSubmatch(html, -1)
+	if len(scripts) != 1 || !strings.Contains(html, `rel="stylesheet" href="/assets/webui/app.css"`) {
+		t.Fatalf("expected Fluent stylesheet and module, got %v", scripts)
 	}
 	assetRefs := regexp.MustCompile(`(?:href|src)="(/assets/[^"]+|/favicon\.ico)"`)
 	var refs [][]string
 	for _, pagePath := range []string{"/", "/help", "/about", "/terms"} {
 		page := request(pagePath, c.address)
-		if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `rel="icon" href="/assets/logo.svg"`) || !strings.Contains(page.Body.String(), `class="brand-logo"`) {
+		if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `rel="icon" href="/assets/logo.svg"`) {
 			t.Fatalf("page %s lacks application branding: %d", pagePath, page.Code)
 		}
 		refs = append(refs, assetRefs.FindAllStringSubmatch(page.Body.String(), -1)...)
 	}
-	// Capacity research belongs in Help, outside the short setup flow.
-	figures := regexp.MustCompile(`<a href="(/assets/[^"]+\.svg)"`).FindAllStringSubmatch(request("/help", c.address).Body.String(), -1)
-	if len(figures) != 1 {
-		t.Fatalf("expected capacity reference in Help, got %v", figures)
-	}
+	refs = append(refs, []string{"", "/assets/storage-benefit.svg"})
 	seen := make(map[string]bool)
 	for _, ref := range refs {
 		path := ref[1]

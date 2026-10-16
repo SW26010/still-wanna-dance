@@ -46,7 +46,7 @@ export interface Inventory {
   updated?: string; coverageKnown?: boolean; totalSongs: number; coveredSongs: number; scanning?: boolean; error?: string;
   catalogRevision?: string; catalog?: {checkedAt?: string; revision?: string; error?: string; message?: string};
 }
-export interface Song { id: number; title?: string; current?: boolean }
+export interface Song { id: string; title?: string; current?: boolean }
 export interface CacheEntry {
   key: string; stamp: string; bytes: number; songs: Song[]; songCount: number; known: boolean; protected: boolean; state: string; lastRequest: number;
 }

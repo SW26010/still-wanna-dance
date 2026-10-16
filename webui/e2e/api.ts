@@ -11,7 +11,7 @@ export async function mockAPI(page: Page) {
   const terms={text:'测试完整条款。软件许可不等于内容授权。',version:'fixture',sha256:'fixture-hash',accepted:true,needsConfirmation:false};
   const diagnostics={connectivity:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,results:[],lastValid:{}},calibration:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,lastValid:{},referenceBitrateBPS:2000000}};
   const emit=async(kind:keyof typeof diagnostics)=>{await page.request.post('/__fixture/events',{data:{id:fixtureID,kind,state:diagnostics[kind]}});};
-  const files: CacheEntry[] = [1,2].map(id => ({key:'key'+id,stamp:'stamp'+id,bytes:1073741824,lastRequest:id===1?Date.UTC(2026,9,16,8,30):0,songs:[{id,title:'测试歌曲 '+id,current:true}],songCount:1,known:true,protected:id===2,state:'已缓存'}));
+  const files: CacheEntry[] = [1,2].map(id => ({key:'key'+id,stamp:'stamp'+id,bytes:1073741824,lastRequest:id===1?Date.UTC(2026,9,16,8,30):0,songs:[{id:String(id),title:'测试歌曲 '+id,current:true}],songCount:1,known:true,protected:id===2,state:'已缓存'}));
   await page.route('**/api/**',async route => {
     const req = route.request(), url = new URL(req.url()), path = url.pathname.slice(5), body = req.method()==='POST' ? path==='proxy/import'?{text:req.postData()}:req.postDataJSON() : {};
     calls.push({path,body,token:req.headers()['x-swd-token']});

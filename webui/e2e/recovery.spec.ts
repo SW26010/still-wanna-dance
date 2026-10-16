@@ -78,7 +78,7 @@ test('reload reconciles the original application ID without submitting again',as
 
 test('monitor groups ranges, clears failed reads, and recovers focus after a row disappears',async({page})=>{
   await mockAPI(page);let failed=false;
-  const rows=[2,1].map(id=>({id,at:1700000000000+id*1000,resource:'fixture-resource',method:'GET',range:'bytes=0-',elapsedMS:100,bytes:200,status:206,cache:'HIT',outcome:'completed',songs:[{id:1,title:'分段歌曲'}]}));
+  const rows=[2,1].map(id=>({id,at:1700000000000+id*1000,resource:'fixture-resource',method:'GET',range:'bytes=0-',elapsedMS:100,bytes:200,status:206,cache:'HIT',outcome:'completed',songs:[{id:'1',title:'分段歌曲'}]}));
   await page.route('**/api/requests?*',r=>failed?r.fulfill({status:500,json:{error:'unavailable'}}):r.fulfill({json:{storageID:'fixture',requests:rows,hasMore:false}}));
   await page.clock.install();await page.goto('/#/monitor');
   const group=page.getByRole('button',{name:'分段歌曲 · 请求 ×2',exact:true});await group.click();

@@ -41,7 +41,7 @@ export function requestOutcome(r: RequestRecord) {
 }
 export const requestCache = (r: RequestRecord) => ({HIT:'缓存命中',MISS:'回源',WAIT:'等待共享下载',UNKNOWN:'缓存状态未知'}[r.cache] || '缓存状态未知');
 
-export function requestTitle(r: {resource:string;songs?:{id:number;title?:string}[];moreSongs?:boolean}) {
+export function requestTitle(r: Pick<RequestRecord,'resource'|'songs'|'moreSongs'>) {
   const songs=r.songs || [];
   if(!songs.length)return '未知歌名 · 资源 '+r.resource;
   return (songs.length>1||r.moreSongs?'关联曲目（播放歌曲未确定）：':'关联曲目：')+songs.map(s=>(s.title||'未知歌名')+'（ID '+s.id+'）').join(' / ')+(r.moreSongs?' / …更多关联曲目':'');

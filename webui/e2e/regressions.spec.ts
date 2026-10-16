@@ -40,7 +40,7 @@ test('terms hosts recovery waits for UAC and reports a timed out result as uncon
 
 test('request group remains expanded and focused as its oldest request changes',async({page})=>{
   await mockAPI(page);let ids=[3,2];
-  const record=(id:number)=>({id,at:1700000000000+id*1000,resource:'fixture-resource',method:'GET',range:'bytes=0-',elapsedMS:100,bytes:200,status:206,cache:'HIT',outcome:'completed',songs:[{id:1,title:'分段歌曲'}]});
+  const record=(id:number)=>({id,at:1700000000000+id*1000,resource:'fixture-resource',method:'GET',range:'bytes=0-',elapsedMS:100,bytes:200,status:206,cache:'HIT',outcome:'completed',songs:[{id:'1',title:'分段歌曲'}]});
   await page.route('**/api/requests?*',r=>r.fulfill({json:{storageID:'fixture',requests:(new URL(r.request().url()).searchParams.get('limit')==='100'?[4,3,2,1]:ids).map(record),hasMore:true}}));
   await page.clock.install();await page.goto('/#/monitor');
   const group=page.getByRole('button',{name:'分段歌曲 · 请求 ×2',exact:true});await group.click();

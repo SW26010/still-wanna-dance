@@ -13,14 +13,17 @@ const (
 	CheckPlayback   CheckKind = "playback"
 	CheckLatency    CheckKind = "latency"
 	CheckThroughput CheckKind = "throughput"
+	// CheckConnectivity checks every operation, using one-byte resource probes.
+	CheckConnectivity CheckKind = "connectivity"
 )
 
 func ValidCheckKind(kind CheckKind) bool {
-	return kind == CheckCatalog || kind == CheckPlayback || kind == CheckLatency || kind == CheckThroughput
+	return kind == CheckCatalog || kind == CheckPlayback || kind == CheckLatency || kind == CheckThroughput || kind == CheckConnectivity
 }
 
 // CheckSelected preempts automatic work and reserves the next batch for the
 // requested operation. Prerequisite lookups do not replace unrelated results.
+// Cancellation stops and drains the reserved work, leaving the Monitor reusable.
 func (m *Monitor) CheckSelected(ctx context.Context, kind CheckKind) error {
 	if !ValidCheckKind(kind) {
 		return errors.New("unknown monitor check kind")
@@ -39,7 +42,20 @@ func (m *Monitor) CheckSelected(ctx context.Context, kind CheckKind) error {
 		m.batchCancel()
 	}
 	m.mu.Unlock()
-	defer func() { m.mu.Lock(); close(m.manualDone); m.manualDone = nil; m.mu.Unlock() }()
+	defer func() {
+		// checkRequest can return as soon as its caller is canceled. Keep the
+		// reservation until the batch has released requests and callbacks.
+		m.mu.Lock()
+		done := m.active
+		m.mu.Unlock()
+		if done != nil {
+			<-done
+		}
+		m.mu.Lock()
+		close(m.manualDone)
+		m.manualDone = nil
+		m.mu.Unlock()
+	}()
 	return m.checkRequest(ctx, true, kind)
 }
 
@@ -53,5 +69,5 @@ func (m *Monitor) cachedSong(p Policy) int64 {
 }
 
 func (k CheckKind) includes(op Operation) bool {
-	return k == "" || (k == CheckCatalog && op == Catalog) || (k == CheckPlayback && op == PlaybackURL) || ((k == CheckLatency || k == CheckThroughput) && op == Resource)
+	return k == "" || k == CheckConnectivity || (k == CheckCatalog && op == Catalog) || (k == CheckPlayback && op == PlaybackURL) || ((k == CheckLatency || k == CheckThroughput) && op == Resource)
 }

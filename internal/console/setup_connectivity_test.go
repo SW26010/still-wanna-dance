@@ -3,16 +3,21 @@ package console
 import (
 	"bufio"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"still-wanna-dance/internal/upstreamrequest"
+	"still-wanna-dance/internal/upstreamstate"
 )
 
 func TestSetupConnectivityEventsManualCancelDiscardAndShutdown(t *testing.T) {
@@ -205,5 +210,131 @@ func TestSetupConnectivityCancelRetainsCompletedResults(t *testing.T) {
 	c.mu.Unlock()
 	if result.Phase != "canceled" || len(result.Results) != 0 || len(result.LastValid["direct"]) != 3 || result.LastValid["direct"][0].State != "failed" {
 		t.Fatal("cancel lost completed results", result)
+	}
+}
+
+func TestSetupConnectivityReusesMonitorResponsesToInitializeStorage(t *testing.T) {
+	c := testConsole(t)
+	stubSetupNetwork(t, c)
+	var requests atomic.Int32
+	const md5 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	c.setupNetwork.channel.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
+		requests.Add(1)
+		body := ""
+		status := http.StatusOK
+		header := make(http.Header)
+		switch r.URL.Path {
+		case "/Api/Songs/list":
+			body = string(monitorNames("20261016000000", "Udon must not replace MD5 metadata").Body)
+			// Use one ID so the chosen playback sample is deterministic.
+			body = strings.ReplaceAll(body, `,{"id":2,"name":"new song"}`, "")
+		case "/api/v2/wanna/songs":
+			body = string(monitorFull("kiva", "20261016000000", "initialized by monitor", md5).Body)
+		case "/api/wannaInfo":
+			body = string(monitorFull("wanna", "20261015000000", "older mirror", md5).Body)
+		case "/Api/Songs/play":
+			status = http.StatusFound
+			header.Set("Location", "https://play.udon.dance/files/1/42-video.mp4?e="+md5+"&s=1234")
+		default:
+			if r.Header.Get("Range") != "bytes=0-0" {
+				t.Error("unexpected download", r.URL.Path, r.Header.Get("Range"))
+			}
+			status, body = http.StatusPartialContent, "x"
+			header.Set("Content-Range", "bytes 0-0/1234")
+		}
+		return &http.Response{StatusCode: status, Header: header, Body: io.NopCloser(strings.NewReader(body))}, nil
+	}))
+	before, settings := upstreamrequest.Default.Snapshot(), c.settings
+	if err := c.controlSetupConnectivity(false, setupCalibrationRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-c.setupNetwork.connectivityDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("connectivity did not complete")
+	}
+	c.mu.Lock()
+	state := c.setupNetwork.connectivity
+	c.mu.Unlock()
+	if state.Phase != "completed" || len(state.Results) != 3 || len(state.LastValid["direct"]) != 3 {
+		t.Fatal(state)
+	}
+	for _, row := range state.Results {
+		if row.State != "available" || row.LatencyMS == nil {
+			t.Fatal("missing successful summary", row)
+		}
+	}
+	// Three lists, both playback nodes, one deduplicated resource host. Storage
+	// initialization must not fetch any of those responses a second time.
+	if requests.Load() != 6 {
+		t.Fatal("unexpected upstream request count", requests.Load())
+	}
+	db, err := sql.Open("sqlite", filepath.Join(c.settings.StorageDir, "storage.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var name, checksum string
+	var size int64
+	if err := db.QueryRow("SELECT name,md5,byte_size FROM songs JOIN song_media USING(song_id) JOIN media USING(md5) WHERE song_id=1").Scan(&name, &checksum, &size); err != nil || name != "initialized by monitor" || checksum != md5 || size != 1234 {
+		t.Fatalf("initial metadata %q %q %d: %v", name, checksum, size, err)
+	}
+	for _, node := range []string{"cf", "nya"} {
+		urls, err := c.service.SongURLs(context.Background(), 1, node)
+		if err != nil || len(urls) != 1 {
+			t.Fatalf("playback metadata %s: %v %v", node, urls, err)
+		}
+	}
+	for _, dir := range []string{"videos", "tmp"} {
+		files, err := os.ReadDir(filepath.Join(c.settings.StorageDir, dir))
+		if err != nil && !os.IsNotExist(err) || len(files) != 0 {
+			t.Fatal("connectivity retained video data", dir, files, err)
+		}
+	}
+	if after := upstreamrequest.Default.Snapshot(); after.Transport != before.Transport || after.Revision != before.Revision || c.settings != settings {
+		t.Fatal("diagnostic changed business routing")
+	}
+}
+
+func TestSetupConnectivityCanceledCatalogDoesNotInitializeStorage(t *testing.T) {
+	c := testConsole(t)
+	stubSetupNetwork(t, c)
+	entered := make(chan struct{})
+	c.setupNetwork.channel.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Host == "wanna.kiva.moe" {
+			close(entered)
+			<-r.Context().Done()
+			return nil, r.Context().Err()
+		}
+		body := monitorFull("kiva", "20261016000000", "must not be delivered", strings.Repeat("a", 32)).Body
+		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(string(body)))}, nil
+	}))
+	if err := c.controlSetupConnectivity(false, setupCalibrationRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("catalog not requested")
+	}
+	if err := c.controlSetupConnectivity(true, setupCalibrationRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	<-c.setupNetwork.connectivityDone
+	if c.service != nil {
+		t.Fatal("canceled batch initialized storage")
+	}
+}
+
+func TestSetupConnectivitySummaryAcceptsAnyAvailableCandidate(t *testing.T) {
+	ms := 12.0
+	rows := []upstreamstate.Result{
+		{Operation: upstreamstate.Catalog, State: "failed", Reason: "http_error"},
+		{Operation: upstreamstate.Catalog, State: "available", EstimatedLatencyMS: &ms},
+		{Operation: upstreamstate.Catalog, State: "failed", Reason: "timeout"},
+	}
+	row := summarizeConnectivity(upstreamstate.Catalog, rows)
+	if row.State != "available" || row.Reason != "" || row.LatencyMS == nil || *row.LatencyMS != ms {
+		t.Fatal(row)
 	}
 }

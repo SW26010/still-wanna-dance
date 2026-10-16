@@ -23,6 +23,9 @@ type Options struct {
 	// before resource probing. Calls may overlap across nodes/channels; the
 	// consumer must respect cancellation. Close waits for callbacks to return.
 	OnPlaybackURL func(context.Context, PlaybackURLResponse)
+	// OnProgress receives phase boundaries and completed results outside locks.
+	// Calls within a batch are sequential; Close cancels and waits for callbacks.
+	OnProgress func(context.Context, CheckProgress)
 	// PlaybackSongCandidates returns incomplete songs in business priority order.
 	// Called once per playback batch after catalog delivery, outside monitor locks.
 	// Nil/empty retains the normal catalog sample. Close cancels/waits for it.
@@ -55,6 +58,7 @@ type Monitor struct {
 	resourceSources         map[string]observation
 	onCatalog               func(context.Context, []CatalogResponse)
 	onPlaybackURL           func(context.Context, PlaybackURLResponse)
+	onProgress              func(context.Context, CheckProgress)
 	playbackSongCandidates  func(context.Context) []int64
 	playbackSongsAttempted  map[int64]bool
 	throughputPolicyPending bool
@@ -108,6 +112,7 @@ func newMonitor(o Options, channel *upstreamrequest.Channel) (*Monitor, error) {
 	m.loadThroughputTime()
 	m.onCatalog = o.OnCatalog
 	m.onPlaybackURL = o.OnPlaybackURL
+	m.onProgress = o.OnProgress
 	m.playbackSongCandidates = o.PlaybackSongCandidates
 	return m, nil
 }
@@ -341,7 +346,7 @@ func (m *Monitor) checkRequest(ctx context.Context, manual bool, selected ...Che
 			m.mu.Unlock()
 			return errors.New("monitor closed")
 		}
-		if !manual && m.manualDone != nil {
+		if m.manualDone != nil && (!manual || kind == "") {
 			done := m.manualDone
 			m.mu.Unlock()
 			select {
@@ -367,7 +372,16 @@ func (m *Monitor) checkRequest(ctx context.Context, manual bool, selected ...Che
 			m.batchThroughput = nil
 			m.active = make(chan struct{})
 			m.started = time.Now()
-			go m.check(m.active, source)
+			stopCaller := func() bool { return false }
+			if kind != "" {
+				// A selected check owns its reserved batch; canceling it must
+				// not require closing the monitor and losing traversal state.
+				stopCaller = context.AfterFunc(ctx, m.batchCancel)
+			}
+			go func(done chan struct{}) {
+				defer stopCaller()
+				m.check(done, source)
+			}(m.active)
 		}
 		done := m.active
 		revision := m.batchRevision
@@ -456,6 +470,8 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 	m.mu.Lock()
 	p := m.policy
 	m.mu.Unlock()
+	defer m.publishProgress(ctx, "")
+	m.publishProgress(ctx, Catalog)
 	if source.Candidates != nil {
 		m.checkCandidates(ctx, p, source, record)
 		return
@@ -463,11 +479,11 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 	var id int64
 	var sampleAt time.Time
 	var catalogs []CatalogResponse
-	if kind != "" && kind != CheckCatalog {
+	if !kind.includes(Catalog) {
 		id = m.cachedSong(p)
 	}
 	for _, route := range routeIDs(Catalog) {
-		if kind != "" && kind != CheckCatalog && id > 0 {
+		if !kind.includes(Catalog) && id > 0 {
 			break
 		}
 		if ctx.Err() != nil {
@@ -499,6 +515,7 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 	if kind == CheckCatalog || id == 0 || ctx.Err() != nil {
 		return
 	}
+	m.publishProgress(ctx, PlaybackURL)
 	var wg sync.WaitGroup
 	resourceSlot := make(chan struct{}, 1)
 	seen := make(map[string]bool) // protected by resourceSlot
@@ -522,6 +539,9 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 			defer func() { <-resourceSlot }()
 			if seen[sample.host] {
 				return
+			}
+			if len(seen) == 0 {
+				m.publishProgress(ctx, Resource)
 			}
 			seen[sample.host] = true
 			resource := m.probeResourceWhenIdle(ctx, client, p, id, *sample)

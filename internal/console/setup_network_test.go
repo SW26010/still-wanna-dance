@@ -161,7 +161,7 @@ func stubSetupNetwork(t *testing.T, c *Console) <-chan struct{} {
 	})
 	channel := upstreamrequest.NewChannel()
 	revision := channel.Publish(transport)
-	monitor, err := upstreamstate.NewMonitor(upstreamstate.Options{Channel: channel})
+	monitor, err := c.newSetupMonitor(channel)
 	if err != nil {
 		t.Fatal(err)
 	}

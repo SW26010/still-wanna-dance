@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"time"
 
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
 
 type setupNetwork struct {
+	connectivityPhase   int
+	proxy               *setupMonitorScope
 	connectivity        setupConnectivityStatus
 	connectivityChanged chan struct{}
 	connectivityCancel  context.CancelFunc
@@ -22,6 +25,67 @@ type setupNetwork struct {
 	done                chan struct{}
 	running             bool
 	err                 string
+}
+
+// A draft proxy keeps its Monitor (including the song traversal) until the
+// proxy identity changes or the application exits. It never starts a scheduler.
+type setupMonitorScope struct {
+	monitor  *upstreamstate.Monitor
+	client   *http.Client
+	channel  *upstreamrequest.Channel
+	revision uint64
+	identity string
+}
+
+func (s *setupMonitorScope) close() {
+	if s == nil {
+		return
+	}
+	s.monitor.Close()
+	s.channel.Release(s.revision)
+	s.client.CloseIdleConnections()
+	if transport, ok := s.client.Transport.(interface{ Retire() }); ok {
+		transport.Retire()
+	}
+}
+
+func (c *Console) newSetupMonitor(channel *upstreamrequest.Channel) (*upstreamstate.Monitor, error) {
+	return c.newUpstreamMonitor(upstreamstate.Options{
+		Channel: channel, Policy: upstreamstate.Policy{RequestTimeout: 10 * time.Second},
+		OnProgress: c.updateSetupConnectivity,
+	})
+}
+
+// Caller holds c.mu and has excluded every other setup network task.
+func (c *Console) setupConnectivityMonitorLocked(upstream string, settings Settings) (*upstreamstate.Monitor, error) {
+	n := c.setupNetwork
+	if upstream == "direct" {
+		return n.monitor, nil
+	}
+	identity, err := c.proxyIdentity(settings)
+	if err != nil {
+		return nil, err
+	}
+	if n.proxy != nil && identity != "" && n.proxy.identity == identity {
+		return n.proxy.monitor, nil
+	}
+	_, client, err := c.networkFor(settings)
+	if err != nil {
+		return nil, err
+	}
+	channel := upstreamrequest.NewChannel()
+	revision := channel.Publish(client.Transport)
+	monitor, err := c.newSetupMonitor(channel)
+	if err != nil {
+		channel.Release(revision)
+		client.CloseIdleConnections()
+		client.Transport.(interface{ Retire() }).Retire()
+		return nil, err
+	}
+	// The old scope is idle: no callback can be waiting for c.mu here.
+	n.proxy.close()
+	n.proxy = &setupMonitorScope{monitor, client, channel, revision, identity}
+	return monitor, nil
 }
 
 type setupNetworkStatus struct {
@@ -48,7 +112,7 @@ func (c *Console) newSetupNetwork() (*setupNetwork, error) {
 	}
 	channel := upstreamrequest.NewChannel()
 	revision := channel.Publish(client.Transport)
-	monitor, err := upstreamstate.NewMonitor(upstreamstate.Options{Channel: channel})
+	monitor, err := c.newSetupMonitor(channel)
 	if err != nil {
 		client.Transport.(interface{ Retire() }).Retire()
 		return nil, err
@@ -124,6 +188,7 @@ func (n *setupNetwork) close() {
 	if n.connectivityDone != nil {
 		<-n.connectivityDone
 	}
+	n.proxy.close()
 	n.monitor.Close()
 	if n.done != nil {
 		<-n.done

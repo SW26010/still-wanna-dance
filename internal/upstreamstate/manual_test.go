@@ -2,6 +2,7 @@ package upstreamstate
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"sync/atomic"
 	"testing"
@@ -9,6 +10,57 @@ import (
 
 	"still-wanna-dance/internal/upstreamrequest"
 )
+
+func TestSelectedCancellationDrainsAndKeepsMonitorReusable(t *testing.T) {
+	m := testMonitor(t, fixture)
+	entered, canceled, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	m.onProgress = func(ctx context.Context, p CheckProgress) {
+		if p.Operation != Catalog {
+			t.Error("unexpected progress after cancellation", p.Operation)
+			return
+		}
+		close(entered)
+		<-ctx.Done()
+		close(canceled)
+		<-release
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- m.CheckSelected(ctx, CheckConnectivity) }()
+	<-entered
+	cancel()
+	select {
+	case <-canceled:
+	case <-time.After(time.Second):
+		close(release)
+		t.Fatal("selected cancellation did not reach the batch")
+	}
+	select {
+	case <-done:
+		close(release)
+		t.Fatal("returned before callback drained")
+	default:
+	}
+	// A generic manual check must not join or replace this reserved batch.
+	waitCtx, stop := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer stop()
+	if err := m.Check(waitCtx); !errors.Is(err, context.DeadlineExceeded) {
+		close(release)
+		t.Fatal("another check bypassed the reservation", err)
+	}
+	close(release)
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatal(err)
+	}
+	if state := m.Snapshot(); state.Checking || state.Manual || state.Closed {
+		t.Fatal("monitor did not return to idle", state)
+	}
+	m.onProgress = nil
+	if err := m.CheckSelected(context.Background(), CheckConnectivity); err != nil {
+		t.Fatal("monitor could not be reused", err)
+	}
+}
 
 func TestSelectedChecksScopeAndBusinessPriority(t *testing.T) {
 	for _, candidates := range []bool{false, true} {

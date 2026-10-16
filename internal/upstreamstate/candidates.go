@@ -271,14 +271,14 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 	var ids []int64
 	var catalogs []CatalogResponse
 	reusedSong := false
-	if kind != "" && kind != CheckCatalog {
+	if !kind.includes(Catalog) {
 		if id := m.cachedSong(p); id > 0 {
 			ids = append(ids, id)
 			reusedSong = true
 		}
 	}
 	for _, route := range routeIDs(Catalog) {
-		if kind != "" && kind != CheckCatalog {
+		if !kind.includes(Catalog) {
 			found := false
 			for _, id := range ids {
 				found = found || id > 0
@@ -329,6 +329,7 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 	m.deliverCatalogs(ctx, source.Revision, catalogs)
 	id = m.selectPlaybackSong(ctx, source.Revision, kind, id)
 	if id > 0 && kind != CheckCatalog {
+		m.publishProgress(ctx, PlaybackURL)
 		// Keep one real sample per returned domain across all API nodes and
 		// channels, then measure each domain's resource channels only once.
 		byHost := make(map[string]videoSample)
@@ -357,6 +358,9 @@ func (m *Monitor) checkCandidates(ctx context.Context, p Policy, source upstream
 			resourceHosts = append(resourceHosts, host)
 		}
 		sort.Strings(resourceHosts)
+		if len(resourceHosts) > 0 {
+			m.publishProgress(ctx, Resource)
+		}
 		for _, host := range resourceHosts {
 			sample, ok := byHost[host]
 			if !ok {

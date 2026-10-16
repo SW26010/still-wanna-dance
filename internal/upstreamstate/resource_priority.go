@@ -11,10 +11,11 @@ func (m *Monitor) probeResourceWhenIdle(ctx context.Context, client *http.Client
 	kind := m.batchKind
 	m.mu.Unlock()
 	if manual {
-		if kind != CheckLatency && ctx.Err() == nil {
+		throughput := kind != CheckLatency && kind != CheckConnectivity
+		if throughput && ctx.Err() == nil {
 			m.claimThroughput(true)
 		}
-		return probeResourceMode(ctx, client, p, id, sample, kind != CheckLatency)
+		return probeResourceMode(ctx, client, p, id, sample, throughput)
 	}
 	var throughput bool
 	firstAttempt := true

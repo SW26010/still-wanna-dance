@@ -8,6 +8,15 @@ import (
 	"still-wanna-dance/internal/upstreamstate"
 )
 
+// All console monitors use the same catalog, selection and persistence policy.
+// Callers only customize the observation scope, schedule and presentation.
+func (c *Console) newUpstreamMonitor(o upstreamstate.Options) (*upstreamstate.Monitor, error) {
+	o.OnCatalog = c.syncMonitorCatalogs
+	o.OnPlaybackURL = c.syncMonitorPlaybackURL
+	o.PlaybackSongCandidates = c.monitorPlaybackSongCandidates
+	return upstreamstate.NewMonitor(o)
+}
+
 // StartUpstreamMonitor attaches the canonical monitor to the console lifetime.
 // A pending start is completed by acceptTerms; constructing/reading never probes.
 func (c *Console) StartUpstreamMonitor() error {
@@ -24,11 +33,9 @@ func (c *Console) startMonitorLocked() error {
 		return nil
 	}
 	if c.monitor == nil {
-		m, err := upstreamstate.NewMonitor(upstreamstate.Options{
-			OnCatalog: c.syncMonitorCatalogs, OnPlaybackURL: c.syncMonitorPlaybackURL,
-			PlaybackSongCandidates: c.monitorPlaybackSongCandidates,
-			ThroughputStatePath:    c.files().State("throughput"),
-			Policy:                 upstreamstate.Policy{ThroughputInterval: time.Duration(c.settings.ThroughputIntervalMinutes) * time.Minute},
+		m, err := c.newUpstreamMonitor(upstreamstate.Options{
+			ThroughputStatePath: c.files().State("throughput"),
+			Policy:              upstreamstate.Policy{ThroughputInterval: time.Duration(c.settings.ThroughputIntervalMinutes) * time.Minute},
 		})
 		if err != nil {
 			return err

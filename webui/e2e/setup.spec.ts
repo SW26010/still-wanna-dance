@@ -88,12 +88,12 @@ test('diagnostic upstream and completed results survive wizard step changes',asy
   await expect(page.getByRole('heading',{name:'启用',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'上一步',exact:true}).click();
   await expect(upstream).toHaveValue('proxy');
-  await expect(page.getByText('歌曲列表：可连接 · 响应 42 ms',{exact:true})).toBeVisible();
+  await expect(page.getByText('歌曲列表：可连接 · 估计响应时间 42 ms',{exact:true})).toBeVisible();
   await expect(page.getByText('16.00 Mbps',{exact:true})).toBeVisible();
   await upstream.selectOption('direct');
   await navigateStep(page,'2. 存储');await navigateStep(page,'3. 网络');
   await expect(upstream).toHaveValue('direct');
-  await expect(page.getByText('歌曲列表：可连接 · 响应 11 ms',{exact:true})).toBeVisible();
+  await expect(page.getByText('歌曲列表：可连接 · 估计响应时间 11 ms',{exact:true})).toBeVisible();
   await expect(page.getByText('8.00 Mbps',{exact:true})).toBeVisible();
   const starts=api.calls.filter(c=>c.path.startsWith('setup/network/')&&c.path.endsWith('/start'));
   expect(starts.map(c=>({path:c.path,upstream:c.body.upstream}))).toEqual([

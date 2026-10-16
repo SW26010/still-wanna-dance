@@ -48,3 +48,7 @@ Thumbs.db
 /docs/evidence/**/*.gz
 /docs/evidence/**/*.zip
 __pycache__/
+
+# Frontend dependency cache; runtime bundles are versioned for offline Go builds.
+node_modules/
+/webui/coverage/

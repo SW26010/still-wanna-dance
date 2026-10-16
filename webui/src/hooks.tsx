@@ -1,0 +1,111 @@
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, createContext, useContext, type ReactNode, type FocusEvent } from 'react';
+import { Button, Dialog, DialogSurface, DialogBody, DialogTitle, DialogContent, DialogActions } from '@fluentui/react-components';
+import { APIError, request, hostsActionTimeout, hostsActionPending, unconfirmedAction } from './api';
+import { bootstrap } from './bootstrap';
+import { active, type Status } from './types';
+
+// When polling removes the focused row, return focus to its labelled region.
+export function useFocusRecovery() {
+  const ref=useRef<HTMLDivElement>(null), focused=useRef<HTMLElement>(null);
+  useLayoutEffect(()=>{
+    if(focused.current && !focused.current.isConnected){
+      if(document.activeElement===document.body)ref.current?.focus();
+      focused.current=null;
+    }
+  });
+  return {ref,onFocusCapture:(event:FocusEvent<HTMLDivElement>)=>{focused.current=event.target as HTMLElement;}};
+}
+
+// One request at a time, abort stale reads on route/save/pause, suspend hidden tabs.
+export function useResource<T>(path: string, enabled = true, revision = 0, interval = 5000, retain = false) {
+  const [data, setData] = useState<T>(), [error, setError] = useState(''), [loading, setLoading] = useState(false);
+  const [loadedRevision, setLoadedRevision] = useState<number>();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = useCallback(() => setRefreshKey(v => v + 1), []);
+  useEffect(() => {
+    if (!enabled) return;
+    let disposed = false, pending = false, rerun = false, timer: ReturnType<typeof setTimeout>;
+    const controller = new AbortController();
+    const run = async () => {
+      clearTimeout(timer);
+      if (disposed || document.hidden) return;
+      if (pending) { rerun = true; return; }
+      pending = true; setLoading(true);
+      try {
+        const next = await request<T>(path, undefined, AbortSignal.any([controller.signal, AbortSignal.timeout(35000)]));
+        if (!disposed) { setData(next); setLoadedRevision(revision); setError(''); }
+      } catch (e) { if (!disposed) { setError(String(e)); if (!retain) setData(undefined); } }
+      finally {
+        pending = false;
+        if (!disposed) { setLoading(false); if (rerun) { rerun = false; void run(); } else if (interval > 0) timer = setTimeout(run, interval); }
+      }
+    };
+    const visibility = () => { if (document.hidden) clearTimeout(timer); else void run(); };
+    void run(); document.addEventListener('visibilitychange', visibility);
+    return () => { disposed = true; clearTimeout(timer); controller.abort(); document.removeEventListener('visibilitychange', visibility); };
+  }, [path, enabled, revision, refreshKey, interval, retain]);
+  return { data, error, loading, refresh, loadedRevision };
+}
+
+export function useConfirmation() {
+  const [prompt, setPrompt] = useState<{title: string; content: ReactNode; confirmLabel:string}>();
+  const resolve = useRef<(answer: boolean) => void>(() => {});
+  const confirm = (title: string, content: ReactNode, confirmLabel='确认') => new Promise<boolean>(done => { resolve.current(false); resolve.current = done; setPrompt({title, content, confirmLabel}); });
+  const close = (answer: boolean) => { resolve.current(answer); setPrompt(undefined); };
+  useEffect(() => () => resolve.current(false), []);
+  const dialog = <Dialog open={!!prompt} onOpenChange={(_, d) => { if (!d.open) close(false); }}><DialogSurface>
+    <DialogBody><DialogTitle>{prompt?.title}</DialogTitle><DialogContent>{prompt?.content}</DialogContent>
+    <DialogActions><Button onClick={() => close(false)}>取消</Button><Button appearance="primary" onClick={() => close(true)}>{prompt?.confirmLabel}</Button></DialogActions></DialogBody>
+  </DialogSurface></Dialog>;
+  return {confirm, dialog};
+}
+
+export async function reconnect() {
+  const end = Date.now() + 60000;
+  while (Date.now() < end) {
+    try {
+      const response = await fetch('/', {cache: 'no-store', signal: AbortSignal.timeout(2000)});
+      const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
+      const token = doc.querySelector<HTMLMetaElement>('meta[name="swd-token"]')?.content;
+      if (response.ok && token && token !== bootstrap.token) { location.reload(); return; }
+    } catch { /* Listener is unavailable during restart. */ }
+    await new Promise(r => setTimeout(r, 500));
+  }
+  throw new Error('60 秒内未连接到新进程。请刷新页面并核对日志，勿重复提交原操作。');
+}
+
+export function useConsole(enabled: boolean) {
+  const [revision, setRevision] = useState(0), [busy, setBusy] = useState(false), [stopped, setStopped] = useState(false), [message, setMessage] = useState('');
+  const [settingsEpoch, setSettingsEpoch] = useState(0);
+  const discardSettings = useCallback(() => setSettingsEpoch(v => v + 1), []);
+  const lock = useRef(false);
+  const status = useResource<Status>('status', enabled && !stopped, revision, 5000, true);
+  const refresh = () => { setRevision(v => v + 1); };
+  const confirmation = useConfirmation();
+  async function action(path: string, body: unknown = {}): Promise<boolean> {
+    if (lock.current || stopped) return false;
+    if (path === 'exit' && !await confirmation.confirm('退出整个应用？', '确定退出整个应用？所有服务和后台任务将停止，hosts 映射会保留。需要恢复游戏直连 时，请取消并先恢复。')) return false;
+    if (path === 'restart' && status.data?.import.running && !await confirmation.confirm('导入仍在运行', '导入仍在运行。现在重启会中断导入且不会自动续传。建议等导入结束再重启；确定现在中断并重启吗？')) return false;
+    if (lock.current || stopped) return false;
+    lock.current = true; setBusy(true);
+    const hosts = path.startsWith('hosts/') || path === 'activation/enable';
+    setMessage(hosts ? hostsActionPending : '正在处理…');
+    try {
+      await request(path, body, AbortSignal.timeout(hosts ? hostsActionTimeout : 30000));
+      if (path === 'exit') { setStopped(true); setMessage('退出请求已接受。正在停止服务和后台任务，hosts 映射仍保留。'); return true; }
+      if (path === 'restart') { setStopped(true); setMessage('正在重启应用，连接恢复后自动刷新。'); await reconnect(); return true; }
+      setMessage(path === 'settings' ? '设置已保存，重启应用后生效。' : '操作已完成。'); return true;
+    } catch (e) {
+      if (path === 'restart' && !(e instanceof APIError)) {
+        setStopped(true); setMessage('重启响应未确认，正在等待新进程…');
+        try { await reconnect(); } catch (problem) { setMessage(String(problem)); } return false;
+      }
+      setMessage(e instanceof APIError ? e.message : unconfirmedAction); return false;
+    } finally { lock.current = false; setBusy(false); refresh(); }
+  }
+  return { status, revision, busy, stopped, settingsEpoch, discardSettings, message, setMessage, refresh, action, confirm: confirmation.confirm, dialog: confirmation.dialog,
+    unavailable: busy || stopped || !status.data || !!status.error || active(status.data) };
+}
+type ConsoleModel = ReturnType<typeof useConsole>;
+export const ConsoleContext = createContext<ConsoleModel | null>(null);
+export const useApp = () => { const model = useContext(ConsoleContext); if (!model) throw new Error('Missing console provider'); return model; };

@@ -1,0 +1,5 @@
+allowBuilds:
+  esbuild: true
+supportedArchitectures:
+  os: [win32, linux, darwin]
+  cpu: [x64, arm64]

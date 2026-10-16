@@ -96,6 +96,7 @@ func TestRetentionStartupAndUnknownFiles(t *testing.T) {
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()
 	cfg.MaxCacheBytes = 1
+	cfg.CacheUnlimited = false
 	initial, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -114,17 +115,21 @@ func TestRetentionStartupAndUnknownFiles(t *testing.T) {
 	expectRetained(t, unknown, true)
 }
 func TestOversizedVideoStillServed(t *testing.T) {
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(payload)) })
-	setRetentionLimit(t, s, 1)
-	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
-	// Close waits for the independent download worker and its eviction pass.
-	if err := s.Close(); err != nil {
-		t.Fatal(err)
-	}
-	expectRetained(t, testVideoFile(t, cfg, payload), false)
-	files, err := filepath.Glob(filepath.Join(cfg.videosDir(), "*.mp4"))
-	if err != nil || len(files) != 0 {
-		t.Fatalf("retained %v: %v", files, err)
+	for _, limit := range []int64{0, 1} {
+		t.Run(fmt.Sprint(limit), func(t *testing.T) {
+			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(payload)) })
+			setRetentionLimit(t, s, limit)
+			assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
+			// Close waits for the independent download worker and its eviction pass.
+			if err := s.Close(); err != nil {
+				t.Fatal(err)
+			}
+			expectRetained(t, testVideoFile(t, cfg, payload), false)
+			files, err := filepath.Glob(filepath.Join(cfg.videosDir(), "*.mp4"))
+			if err != nil || len(files) != 0 {
+				t.Fatalf("retained %v: %v", files, err)
+			}
+		})
 	}
 }
 func TestPrefetchDoesNotDisplacePopularVideo(t *testing.T) {
@@ -264,6 +269,7 @@ func setRetentionLimit(t *testing.T, s *Server, limit int64) {
 	defer s.retentionRunMu.Unlock()
 	s.retentionMu.Lock()
 	s.cfg.MaxCacheBytes = limit
+	s.cfg.CacheUnlimited = false
 	s.retentionMu.Unlock()
 	if err := s.reconcileRetention(); err != nil {
 		t.Fatal(err)
@@ -349,6 +355,7 @@ func TestRetentionPublicationAndEvictionAccounting(t *testing.T) {
 	// No reconciliation: eviction must use the publication's tracked bytes.
 	s.retentionMu.Lock()
 	s.cfg.MaxCacheBytes = 1
+	s.cfg.CacheUnlimited = false
 	s.requestRetentionLocked()
 	s.retentionMu.Unlock()
 	if err := s.Close(); err != nil {

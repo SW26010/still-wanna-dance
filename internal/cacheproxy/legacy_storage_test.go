@@ -74,6 +74,7 @@ func TestLegacyStorageMarkerPreventsInitializationCleanupAndDeletion(t *testing.
 			}
 			before := snapshot()
 			cfg.MaxCacheBytes = 1
+			cfg.CacheUnlimited = false
 			// Repeated attempts also prove rejection releases the directory lock.
 			for range 2 {
 				s, err := New(cfg)

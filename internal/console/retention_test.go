@@ -2,10 +2,44 @@ package console
 
 import "testing"
 
+func TestCacheUnlimitedAndZeroSettings(t *testing.T) {
+	c := testConsole(t)
+	if !c.settings.CacheUnlimited {
+		t.Fatal("default must be unlimited")
+	}
+	for _, unlimited := range []bool{false, true} {
+		s := c.settings
+		s.CacheUnlimited, s.MaxCacheBytes = unlimited, 0
+		if err := c.save(s); err != nil {
+			t.Fatal(err)
+		}
+		if !c.settings.CacheUnlimited {
+			t.Fatal("saving changed active settings")
+		}
+		loaded, err := New(c.configPath, c.address)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if loaded.settings.CacheUnlimited != unlimited || loaded.settings.MaxCacheBytes != 0 {
+			t.Fatalf("capacity choice lost: %+v", loaded.settings)
+		}
+		loaded.mu.Lock()
+		err = loaded.ensureEngine()
+		loaded.mu.Unlock()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := loaded.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestCacheLimitSettingsPersist(t *testing.T) {
 	c := testConsole(t)
 	settings := c.settings
 	settings.MaxCacheBytes = 5 << 30
+	settings.CacheUnlimited = false
 	if err := c.save(settings); err != nil {
 		t.Fatal(err)
 	}
@@ -18,6 +52,7 @@ func TestCacheLimitSettingsPersist(t *testing.T) {
 		t.Fatal("limit lost on restart")
 	}
 	settings.MaxCacheBytes = -1
+	settings.CacheUnlimited = false
 	if err := c.save(settings); err == nil {
 		t.Fatal("negative limit accepted")
 	}

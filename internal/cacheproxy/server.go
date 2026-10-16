@@ -212,7 +212,7 @@ func New(cfg Config) (*Server, error) {
 	s.scheduler = newDownloadScheduler(cfg)
 	cfg.Logger.Info("cache_engine_ready", "removed_partials", cleaned, "max_local_validations", cfg.MaxDownloads,
 		"max_resource_sessions", maxResourceSessions, "video_request_soft_limit", videoRequestSoftLimit,
-		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "max_cache_bytes", cfg.MaxCacheBytes)
+		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "max_cache_bytes", cfg.MaxCacheBytes, "cache_unlimited", cfg.CacheUnlimited)
 	return s, nil
 }
 

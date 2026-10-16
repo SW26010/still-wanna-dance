@@ -5,6 +5,7 @@ import { decode, request } from './api';
 import { useApp } from './hooks';
 import { Details, Feedback, Panel, Progress } from './ui';
 import { type Settings, type Status } from './types';
+import { CacheCapacityFields } from './cache-capacity';
 
 const numeric = ['requestRetentionDays','throughputIntervalMinutes','queuePrefetchCount','prepareAheadSeconds'] as const;
 type NumberField = typeof numeric[number];
@@ -101,7 +102,7 @@ export function SettingsPage() {
     <ImportPanel />
     <Panel id="preferences" title="偏好设置"><Feedback error>{s.actionErrors?.settings}</Feedback><form className="form-grid" onSubmit={async e => { e.preventDefault(); if (!dirty || disabled || d.proxyImportText.trim()) return; if (await app.action('settings', settingsPayload(d))) { setDraft(d); setAwaitingRevision(app.revision + 1); } }}>
       <fieldset disabled={disabled}><legend>存储</legend><Field label="存储文件夹" required hint="统一保存视频、歌曲资料和统计记录。下载中的文件也保存在此目录。"><Input required value={d.storageDir} onChange={(_, v) => update({storageDir:v.value})} /></Field>
-      {numberField('maxCacheGiB','视频缓存上限（GiB）',0,8388607,'0 表示不限。超限时清理低优先级视频；使用中的视频和临时文件可能使占用暂时超限。','0.01')}
+      <CacheCapacityFields anchor="maxCacheGiB" unlimited={d.cacheUnlimited} value={d.maxCacheGiB} disabled={disabled} onChange={update} />
       {numberField('requestRetentionDays','请求明细保留天数',0,36500,'默认 30 天，0 表示永久保留。只清理请求明细，累计统计保留。')}</fieldset>
       <fieldset disabled={disabled}><legend>控制台启动</legend><Checkbox label="运行控制台时自动启用播放网关" checked={d.autoStartCDN} onChange={(_, v) => update({autoStartCDN:!!v.checked})} /><Checkbox label="运行控制台时自动启用房间队列预缓存" checked={d.autoStartQueue} onChange={(_, v) => update({autoStartQueue:!!v.checked})} /><p>两项默认启用，分别控制，互不跟随。保存后在下次启动控制台程序时生效，重新打开网页不会触发。</p><p>自动启用需已同意使用条款，不自动修改游戏接入（hosts）。手动启停不会改变这两项设置。</p></fieldset>
       <fieldset><legend>网络连接</legend><NetworkFields draft={d} update={update} disabled={app.unavailable || syncing} status={s} onPending={setPending} />

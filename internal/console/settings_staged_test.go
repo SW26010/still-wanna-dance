@@ -90,6 +90,7 @@ func TestSettingsSaveFailureAndRevert(t *testing.T) {
 		t.Fatal(err)
 	}
 	next.MaxCacheBytes = -1
+	next.CacheUnlimited = false
 	if err := c.save(next); err == nil {
 		t.Fatal("invalid settings saved")
 	}
@@ -100,6 +101,7 @@ func TestSettingsSaveFailureAndRevert(t *testing.T) {
 	// A destination directory forces the final replacement to fail.
 	c.configPath = t.TempDir()
 	next.MaxCacheBytes = 1
+	next.CacheUnlimited = false
 	if err := c.save(next); err == nil || c.savedSettings != active {
 		t.Fatal("failed write changed snapshot")
 	}

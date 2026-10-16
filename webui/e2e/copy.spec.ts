@@ -21,7 +21,8 @@ test('console preserves baseline explanations across every page and proxy backen
   // Saved-credential hint belongs to the wizard's proxy fields.
   await page.goto('/#/setup');await navigateStep(page,'3. 网络');
   await page.getByRole('checkbox',{name:'代理',exact:true}).check();text+=await textWithDetails(page);
-  for(const paragraph of baseline.paragraphs['index.html'])expect(text,paragraph).toContain(compact(paragraph));
+  // Zero capacity now means no retention; the pre-migration sentinel explanation is intentionally replaced.
+  for(const paragraph of baseline.paragraphs['index.html'].filter(p=>!p.startsWith('0 表示不限。')))expect(text,paragraph).toContain(compact(paragraph));
 });
 test('documents and wizard retain baseline prose and labels',async({page})=>{
   await mockAPI(page);

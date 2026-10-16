@@ -30,7 +30,7 @@ type batchBudget struct {
 // Keep the initial inventory and completed reservations charged for this run:
 // eviction must not turn a bounded fill into a rolling full-library download.
 func (s *Server) WithBatchBudget(ctx context.Context) context.Context {
-	if s.cfg.MaxCacheBytes == 0 {
+	if s.cfg.CacheUnlimited {
 		return ctx
 	}
 	b := &batchBudget{entries: make(map[string]budgetEntry)}

@@ -167,6 +167,7 @@ func TestCacheDeletionProtectsPinsQueueChecksAndStore(t *testing.T) {
 	cfg := fixtureConfig()
 	cfg.StorageDir = root
 	cfg.MaxCacheBytes = 1000
+	cfg.CacheUnlimited = false
 	s, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)

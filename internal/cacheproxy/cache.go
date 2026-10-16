@@ -423,7 +423,7 @@ func (s *Server) publishSpool(ctx context.Context, f *os.File, path string, v vi
 	s.retentionMu.Lock()
 	item := retainedVideo{path: path, key: v.key, size: info.Size(), recent: info.ModTime().UnixMilli(), modified: info.ModTime().UnixNano()}
 	s.retainVideoLocked(v.key, &item)
-	if s.cfg.MaxCacheBytes > 0 && s.retainedBytes > s.cfg.MaxCacheBytes {
+	if !s.cfg.CacheUnlimited && s.retainedBytes > s.cfg.MaxCacheBytes {
 		s.requestRetentionLocked()
 	}
 	s.retentionMu.Unlock()

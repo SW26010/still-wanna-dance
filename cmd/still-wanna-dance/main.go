@@ -46,9 +46,21 @@ func run() (resultErr error) {
 	flag.DurationVar(&cfg.DownloadTimeout, "download-timeout", cfg.DownloadTimeout, "timeout per admitted block (including retries), sequential download, or local validation/publication phase; excludes scheduling waits and response transfer")
 	flag.Int64Var(&cfg.MaxFileBytes, "max-file-bytes", cfg.MaxFileBytes, "maximum video size in bytes (s URL parameter)")
 	flag.IntVar(&cfg.MaxDownloads, "max-downloads", cfg.MaxDownloads, "maximum concurrent local file validations (does not limit upstream downloads)")
-	flag.Int64Var(&cfg.MaxCacheBytes, "max-cache-bytes", cfg.MaxCacheBytes, "retained video limit in bytes; 0 is unlimited; excludes temporary files and database")
+	flag.Int64Var(&cfg.MaxCacheBytes, "max-cache-bytes", cfg.MaxCacheBytes, "retained video limit in bytes; 0 keeps only protected videos; excludes temporary files and database")
+	flag.BoolVar(&cfg.CacheUnlimited, "cache-unlimited", cfg.CacheUnlimited, "retain videos without a capacity limit (mutually exclusive with -max-cache-bytes when true)")
 	flag.IntVar(&cfg.RequestRetentionDays, "request-retention-days", cfg.RequestRetentionDays, "request detail retention in days; 0 is unlimited (summaries are always retained)")
 	flag.Parse()
+	limitSet, unlimitedSet := false, false
+	flag.Visit(func(f *flag.Flag) {
+		limitSet = limitSet || f.Name == "max-cache-bytes"
+		unlimitedSet = unlimitedSet || f.Name == "cache-unlimited"
+	})
+	if limitSet {
+		if unlimitedSet && cfg.CacheUnlimited {
+			return fmt.Errorf("-max-cache-bytes cannot be combined with -cache-unlimited=true")
+		}
+		cfg.CacheUnlimited = false
+	}
 	if *showTerms {
 		fmt.Print(legal.Text)
 		return nil

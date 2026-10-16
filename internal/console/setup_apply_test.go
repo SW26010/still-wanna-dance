@@ -18,7 +18,26 @@ func setupTestPlan(c *Console) setupPlan {
 	s := c.savedSettings
 	version, _ := c.setupSettingsVersion(s)
 	return setupPlan{ID: "test-application", BaseVersion: version, StorageDir: s.StorageDir,
-		MaxCacheBytes: s.MaxCacheBytes, UpstreamMode: s.UpstreamMode, SOCKS5Address: s.SOCKS5Address, SOCKS5User: s.SOCKS5Username}
+		CacheUnlimited: s.CacheUnlimited, MaxCacheBytes: s.MaxCacheBytes, UpstreamMode: s.UpstreamMode, SOCKS5Address: s.SOCKS5Address, SOCKS5User: s.SOCKS5Username}
+}
+
+func TestSetupCacheUnlimitedAndZero(t *testing.T) {
+	for _, unlimited := range []bool{false, true} {
+		c := testConsole(t)
+		p := setupTestPlan(c)
+		p.CacheUnlimited, p.MaxCacheBytes = unlimited, 0
+		validated, err := c.validateSetupPlan(p)
+		if err != nil || validated.CacheUnlimited != unlimited || validated.MaxCacheBytes != 0 {
+			t.Fatalf("validate: %+v %v", validated, err)
+		}
+		a, err := c.applySetupPlan(p)
+		if err != nil || !a.ConfigSaved || c.savedSettings.CacheUnlimited != unlimited || c.savedSettings.MaxCacheBytes != 0 {
+			t.Fatalf("apply: %+v %v", a, err)
+		}
+		if !c.settings.CacheUnlimited || c.settings.MaxCacheBytes != 40<<30 {
+			t.Fatal("wizard changed active settings before restart")
+		}
+	}
 }
 
 func TestSetupValidationNeverSavesOrStarts(t *testing.T) {
@@ -28,6 +47,7 @@ func TestSetupValidationNeverSavesOrStarts(t *testing.T) {
 	p := setupTestPlan(c)
 	p.StorageDir = filepath.Join(t.TempDir(), "new-library")
 	p.MaxCacheBytes = 12 << 30
+	p.CacheUnlimited = false
 	if _, err := c.validateSetupPlan(p); err != nil {
 		t.Fatal(err)
 	}
@@ -51,6 +71,7 @@ func TestSetupValidationNeverSavesOrStarts(t *testing.T) {
 func TestSetupApplyRestartsBeforeImportAndResumesOnce(t *testing.T) {
 	c := testConsole(t)
 	p := setupTestPlan(c)
+	p.CacheUnlimited = false
 	p.StorageDir, p.ImportSource, p.MaxCacheBytes = filepath.Join(t.TempDir(), "new-library"), t.TempDir(), 25<<30
 	old := c.settings
 	a, err := c.applySetupPlan(p)

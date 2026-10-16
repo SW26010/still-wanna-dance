@@ -47,7 +47,9 @@ type Config struct {
 	// PrepareAhead is the extra lead M for scheduled downloads; zero uses the default.
 	PrepareAhead time.Duration
 	MaxFileBytes int64
-	// MaxCacheBytes bounds retained videos in the canonical video store; zero is unlimited.
+	// CacheUnlimited disables the retained-video budget independently of its value.
+	CacheUnlimited bool
+	// MaxCacheBytes bounds retained videos; zero reclaims every unprotected video.
 	MaxCacheBytes int64
 	// RequestRetentionDays bounds request details; zero keeps them indefinitely.
 	RequestRetentionDays int
@@ -65,6 +67,8 @@ type Config struct {
 
 func DefaultConfig() Config {
 	return Config{
+		CacheUnlimited:       true,
+		MaxCacheBytes:        40 << 30,
 		RequestRetentionDays: 30,
 		OriginScheme:         "https",
 		StorageDir:           "still-wanna-dance-data",

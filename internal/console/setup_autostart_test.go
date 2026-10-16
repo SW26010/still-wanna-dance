@@ -80,6 +80,7 @@ func TestSetupDeferredAutoStartHonorsPreferencesOnce(t *testing.T) {
 					p := setupTestPlan(c)
 					if restart {
 						p.MaxCacheBytes = 25 << 30
+						p.CacheUnlimited = false
 					}
 					if _, err := c.validateSetupPlan(p); err != nil {
 						t.Fatal(err)

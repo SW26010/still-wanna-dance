@@ -14,8 +14,12 @@ import (
 )
 
 func TestBatchStopsAtBudget(t *testing.T) {
-	for _, limit := range []int64{0, 5, 20} {
-		t.Run(fmt.Sprint(limit), func(t *testing.T) {
+	for _, tc := range []struct {
+		unlimited bool
+		limit     int64
+	}{{true, 0}, {false, 0}, {false, 5}, {false, 20}} {
+		limit := tc.limit
+		t.Run(fmt.Sprint(tc), func(t *testing.T) {
 			c := testConsole(t)
 			defer c.Close()
 			var downloads atomic.Int32
@@ -40,6 +44,7 @@ func TestBatchStopsAtBudget(t *testing.T) {
 			c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
 			cfg := fixtureCacheConfig()
 			cfg.StorageDir, cfg.OriginScheme, cfg.MaxCacheBytes = c.settings.StorageDir, "http", limit
+			cfg.CacheUnlimited = tc.unlimited
 			for host := range cfg.Origins {
 				cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
 			}
@@ -60,13 +65,13 @@ func TestBatchStopsAtBudget(t *testing.T) {
 				t.Fatal("batch stalled")
 			}
 			want := int32(1)
-			if limit > 0 && limit < 10 {
+			if !tc.unlimited && limit < 10 {
 				want = 0
 			}
-			if downloads.Load() != want || c.batch.Failed != 0 || c.batch.BudgetReached != (limit > 0 && limit < 10) || c.batch.Running {
+			if downloads.Load() != want || c.batch.Failed != 0 || c.batch.BudgetReached != (!tc.unlimited && limit < 10) || c.batch.Running {
 				t.Fatalf("downloads=%d batch=%+v", downloads.Load(), c.batch)
 			}
-			if limit > 0 && limit < 10 && (!strings.Contains(c.batch.Phase, "设置") || !c.lastBatch.Updated.IsZero()) {
+			if !tc.unlimited && limit < 10 && (!strings.Contains(c.batch.Phase, "设置") || !c.lastBatch.Updated.IsZero()) {
 				t.Fatalf("wrong stop result: %+v", c.batch)
 			}
 		})

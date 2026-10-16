@@ -55,7 +55,7 @@ func TestBatchBudgetReuseFailureAndEviction(t *testing.T) {
 
 func TestBatchBudgetUnlimitedAndOrdinaryPrefetch(t *testing.T) {
 	for _, limit := range []int64{0, 1} {
-		s := &Server{cfg: Config{MaxCacheBytes: limit}}
+		s := &Server{cfg: Config{MaxCacheBytes: limit, CacheUnlimited: limit == 0}}
 		ctx := context.Background()
 		if limit == 0 {
 			ctx = s.WithBatchBudget(ctx)

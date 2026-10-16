@@ -42,7 +42,7 @@ export function Cache({ visible }: {visible: boolean}) {
     finally { setPending(false); if (action === 'delete') { setSelected([]); page.refresh(); } }
   }
   return <><Panel id="cache" {...focus} title="本地文件"><p>按文件管理 · 每页 50 项</p><p>按歌曲查找并清理本地视频。正在使用或准备播放的文件不可删除。</p><p>刷新文件列表只读取本机文件；下方的覆盖率统计会联网更新歌曲清单。</p>
-    <p>{page.data ? `${page.data.fileCount} 个视频文件 · 占用 ${gib(page.data.totalBytes)} · 当前上限：${s.activeSettings.maxCacheBytes ? gib(s.activeSettings.maxCacheBytes) : '不限'}` : '视频占用待读取'}</p>
+    <p>{page.data ? `${page.data.fileCount} 个视频文件 · 占用 ${gib(page.data.totalBytes)} · 当前上限：${s.activeSettings.cacheUnlimited ? '不限' : s.activeSettings.maxCacheBytes === 0 ? '0 GiB（不持久保留缓存）' : gib(s.activeSettings.maxCacheBytes)}` : '视频占用待读取'}</p>
     <form className="actions" onSubmit={e => { e.preventDefault(); setOffset(0); setQuery({q:search,sort}); page.refresh(); }}>
       <Field label="歌名或歌曲 ID"><Input type="search" maxLength={300} value={search} onChange={(_, v) => setSearch(v.value)} /></Field>
       <Field label="排序"><Select value={sort} onChange={(_, v) => setSort(v.value)}><option value="recent">最近请求优先</option><option value="size">占用从大到小</option><option value="title">歌名顺序</option></Select></Field>

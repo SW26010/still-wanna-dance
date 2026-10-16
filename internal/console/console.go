@@ -53,6 +53,7 @@ type Settings struct {
 	SOCKS5Username            string `json:"socks5Username"`
 	SOCKS5Password            string `json:"socks5Password,omitempty"`
 	MaxCacheBytes             int64  `json:"maxCacheBytes"`
+	CacheUnlimited            bool   `json:"cacheUnlimited"`
 	StorageDir                string `json:"storageDir"`
 	LogDir                    string `json:"logDir"`
 	ManualLogDir              bool   `json:"manualLogDir"`
@@ -147,6 +148,7 @@ func New(configPath, address string) (*Console, error) {
 	c.settings = Settings{
 		StorageDir: apppaths.ForConfig(configPath).DefaultStorage, RequestRetentionDays: 30,
 		AutoStartCDN: true, AutoStartQueue: true,
+		CacheUnlimited: true, MaxCacheBytes: 40 << 30,
 	}
 	c.exitRequested = make(chan struct{})
 	c.restartRequested = make(chan struct{})
@@ -395,6 +397,7 @@ func (c *Console) ensureEngine() error {
 	cfg.Logger = slog.Default().With("component", "cache")
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
+	cfg.CacheUnlimited = c.settings.CacheUnlimited
 	cfg.RequestRetentionDays = c.settings.RequestRetentionDays
 	cfg.PrepareAhead = time.Duration(c.settings.PrepareAheadSeconds) * time.Second
 	cfg.DialContext = c.upstreamDial

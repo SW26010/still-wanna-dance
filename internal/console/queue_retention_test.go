@@ -62,6 +62,7 @@ func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) 
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = limit
+	cfg.CacheUnlimited = false
 	cfg.Origins["nya.xin.moe"] = strings.TrimPrefix(origin.URL, "http://")
 	cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
 	engine, err := cacheproxy.New(cfg)

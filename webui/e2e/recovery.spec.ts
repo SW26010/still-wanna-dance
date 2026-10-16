@@ -6,7 +6,7 @@ test('legacy anchors focus after initial reads and within the same page',async({
   await mockAPI(page);await page.goto('/#queuePrefetchCount');
   await expect(page.getByRole('spinbutton',{name:/队列预缓存数量/})).toBeFocused();
   await page.evaluate(()=>{location.hash='maxCacheGiB';});
-  await expect(page.getByRole('spinbutton',{name:/视频缓存上限/})).toBeFocused();
+  await expect(page.locator('#maxCacheGiB')).toBeFocused();
   await page.evaluate(()=>{location.hash='recent';});await expect(page.locator('#recent')).toBeFocused();
 });
 

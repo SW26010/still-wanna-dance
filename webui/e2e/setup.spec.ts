@@ -66,6 +66,42 @@ test('manual SSE diagnostics restore saved results when cancellation is confirme
   await expect(page.getByRole('button',{name:'开始CF 并发测速'})).toBeEnabled();
   expect(api.calls.filter(c=>c.path==='setup/network/calibration/start')).toHaveLength(1);
 });
+test('diagnostic upstream and completed results survive wizard step changes',async({page})=>{
+  const api=await mockAPI(page);
+  const directConnection=[{operation:'catalog',state:'available',latencyMS:11}];
+  const proxyConnection=[{operation:'catalog',state:'available',latencyMS:42}];
+  const directSpeed={singleSpeedBPS:250000,fullSpeedBPS:1000000,fullConcurrency:4,referenceBitrateBPS:2000000};
+  const proxySpeed={singleSpeedBPS:500000,fullSpeedBPS:2000000,fullConcurrency:8,referenceBitrateBPS:2000000};
+  await page.goto('/#/setup');await navigateStep(page,'3. 网络');
+  const upstream=page.getByRole('combobox',{name:'检测上游',exact:true});
+  await expect(upstream).toBeEnabled();await upstream.selectOption('proxy');
+  await page.getByRole('button',{name:'开始连通性检测'}).click();
+  await expect(page.getByRole('button',{name:'停止并放弃连通性检测'})).toBeEnabled();
+  Object.assign(api.diagnostics.connectivity,{revision:3,running:false,phase:'completed',results:proxyConnection,lastValid:{direct:directConnection,proxy:proxyConnection}});
+  await api.emit('connectivity');
+  await page.getByRole('button',{name:'开始CF 并发测速'}).click();
+  await expect(page.getByRole('button',{name:'停止并放弃CF 并发测速'})).toBeEnabled();
+  Object.assign(api.diagnostics.calibration,{revision:3,running:false,phase:'completed',...proxySpeed,lastValid:{direct:directSpeed,proxy:proxySpeed}});
+  await api.emit('calibration');await expect(upstream).toBeEnabled();
+  await expect(page.getByText('16.00 Mbps',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'下一步',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'启用',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'上一步',exact:true}).click();
+  await expect(upstream).toHaveValue('proxy');
+  await expect(page.getByText('歌曲列表：可连接 · 响应 42 ms',{exact:true})).toBeVisible();
+  await expect(page.getByText('16.00 Mbps',{exact:true})).toBeVisible();
+  await upstream.selectOption('direct');
+  await navigateStep(page,'2. 存储');await navigateStep(page,'3. 网络');
+  await expect(upstream).toHaveValue('direct');
+  await expect(page.getByText('歌曲列表：可连接 · 响应 11 ms',{exact:true})).toBeVisible();
+  await expect(page.getByText('8.00 Mbps',{exact:true})).toBeVisible();
+  const starts=api.calls.filter(c=>c.path.startsWith('setup/network/')&&c.path.endsWith('/start'));
+  expect(starts.map(c=>({path:c.path,upstream:c.body.upstream}))).toEqual([
+    {path:'setup/network/connectivity/start',upstream:'proxy'},
+    {path:'setup/network/calibration/start',upstream:'proxy'},
+  ]);
+});
+
 test('wizard mobile layout and terms focus trap',async({page},info)=>{
   await mockAPI(page);await page.setViewportSize({width:390,height:844});await page.goto('/#/setup');
   for(const label of ['1. 开始','2. 存储','3. 网络','4. 启用']){

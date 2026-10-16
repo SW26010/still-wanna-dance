@@ -85,9 +85,8 @@ function Speed({state:s,upstream,discard}: {state?:Calibration;upstream:string;d
     </div> : <p>尚无速度样本</p>}
     <Caption1 as="p">以 2 Mbps 为 1×；≤1 倍不可用，1 至 2 倍不稳定，&gt;2 倍可用</Caption1></>;
 }
-export function Diagnostics({visible,proxy}: {visible:boolean;proxy:unknown}) {
-  const [upstream,setUpstream]=useState('direct');
-  const connectivity=useDiagnostic<Connectivity>('connectivity',visible,setUpstream), calibration=useDiagnostic<Calibration>('calibration',visible,setUpstream);
+export function Diagnostics({visible,proxy,upstream,onUpstreamChange}: {visible:boolean;proxy:unknown;upstream:string;onUpstreamChange:(value:string)=>void}) {
+  const connectivity=useDiagnostic<Connectivity>('connectivity',visible,onUpstreamChange), calibration=useDiagnostic<Calibration>('calibration',visible,onUpstreamChange);
   const panels=[connectivity,calibration];
   const busy=panels.some(p=>!p.online || p.pending || p.intent || p.state?.running || p.state?.closed);
   const button=(kind:Kind,label:string) => {
@@ -99,7 +98,7 @@ export function Diagnostics({visible,proxy}: {visible:boolean;proxy:unknown}) {
   const c=connectivity.state, discard=connectivity.intent==='cancel' || ['canceling','canceled'].includes(c?.phase || '');
   const matching=!c?.run || c.upstream===upstream;
   const rows=matching&&!discard ? c?.results || [] : c?.lastValid?.[upstream] || [];
-  return <><Field label="检测上游"><Select value={upstream} disabled={busy} onChange={(_,v)=>setUpstream(v.value)}><option value="direct">直连</option><option value="proxy">代理（SOCKS5）</option></Select></Field>
+  return <><Field label="检测上游"><Select value={upstream} disabled={busy} onChange={(_,v)=>onUpstreamChange(v.value)}><option value="direct">直连</option><option value="proxy">代理（SOCKS5）</option></Select></Field>
     <Panel title="连通性检测" action={button('connectivity','连通性检测')}><div><span role="status">{connectivity.intent==='start'?'正在启动…':discard?c?.running?'正在停止…':'已恢复上次结果':''}</span></div>
       <div className="diagnostic-rows">{[['catalog','歌曲列表'],['playback_url','播放地址'],['resource','视频下载']].map(([op,label])=>{const row=rows.find(r=>r.operation===op);return <p key={op}>{row?.state==='checking'&&<Spinner size="tiny"/>}{label}：{({available:'可连接',failed:'连接失败',skipped:'未检测（前项未通过）',checking:'检测中'}[row?.state || ''] || (c?.running&&matching&&!discard?'等待检测':'尚未检测'))}{valid(row?.latencyMS)&&` · 响应 ${Math.round(row.latencyMS)} ms`}</p>;})}</div><Feedback>{connectivity.message}</Feedback>
     </Panel><Panel title="CF 并发测速" action={button('calibration','CF 并发测速')}><Speed state={calibration.state} upstream={upstream} discard={calibration.intent==='cancel'} /><Feedback>{calibration.message}</Feedback></Panel></>;

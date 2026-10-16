@@ -383,3 +383,7 @@ LA-042 补充取消边界：在隔离库控制请求取消/超时，使事务自
 - **A4 / LA-030、LA-045（补充 45.6）**：代码依据 `internal/upstreamstate/{monitor,check,candidates}.go`。普通 Transport 与多候选两种配置分别让 CF API 持续挂起，另一线路应先完成播放地址与资源首字节观测。两条 API 线路各最多两个在途候选，清单候选最多四路，资源正文探测跨域名/候选始终串行；每个资源域名只枚举/探测一次。再验证候选全部失败、DNS 部分失败、检测中取消/换配置及退出：排空请求，不交付旧批次，不混用草稿和业务实例状态。保留各候选 API/Range 开始结束时刻、资源并发峰值、域名去重、取消/配置版本及界面进度；联动原多轮缺项补齐步骤。
 
 自动检查：A4 新增普通/候选两种 CF 挂起回归；`go test -race -tags=no_easytier ./internal/upstreamstate ./internal/console -count=1 -timeout=180s` 两包完整通过（22.365 s / 81.118 s，使用已有便携 GCC），包含资源串行、去重、取消、草稿隔离及连续选歌回归。实机继续积攒。
+
+- **A7 / LA-001、LA-021、LA-029、LA-034**：代码依据 `internal/console/{console,proxy_nodes,settings_version,setup_apply}.go`。连续轮询状态，节点数量与已保存/当前运行配置保持对应；导入新节点后保存，仅 saved 数变化，重启后 loaded 更新；失败保存不改变数量和引导版本。配置版本首次需要时生成，此后复用，保存后更新；显式引导校验/应用/恢复仍重新读取密钥并更新错误状态，损坏或替换密钥不能凭旧版本继续执行，修复后经显式校验/保存或重启刷新。hosts 与端口仍每次状态请求读取，验证外部占用/恢复能反映。保留状态响应、保存/重启前后值、脱敏密钥错误与恢复操作、端口/hosts 观测及 UI 草稿；没有证据宣称此前存在明显卡顿，也不预设性能提升幅度。
+
+自动检查：A7 的 `go test -race -tags=no_easytier ./internal/console -run 'StatusDerived|Settings|SetupVersion|SetupSettings|ProxyImport|ProxyNodes|PortableLayout|FirstEntry' -count=1 -timeout=120s` 通过。覆盖重复轮询不重读密钥、显式验证不复用旧密钥、保存失败、节点保存/加载及未使用功能不创建 channel.key；使用已有便携 GCC，实机继续积攒。

@@ -48,6 +48,12 @@ type SetupApplication struct {
 }
 
 func (c *Console) setupSettingsVersion(s Settings) (string, error) {
+	c.setupVersionMu.Lock()
+	defer c.setupVersionMu.Unlock()
+	return c.computeSettingsVersionLocked(s)
+}
+
+func (c *Console) computeSetupSettingsVersion(s Settings) (string, error) {
 	key, err := loadProxyIdentityKey(c.files().ChannelKey)
 	if err != nil {
 		return "", fmt.Errorf("无法验证引导配置版本，请恢复通道身份密钥后重试：%w", err)
@@ -299,8 +305,9 @@ func (c *Console) applySetupPlan(p setupPlan) (SetupApplication, error) {
 			a.ConfigSaved = true
 			// Use the exact normalized, persisted settings for restart matching.
 			c.mu.Lock()
-			a.TargetVersion, err = c.setupSettingsVersion(c.savedSettings)
+			saved := c.savedSettings
 			c.mu.Unlock()
+			a.TargetVersion, err = c.setupSettingsVersion(saved)
 			a.Phase = "restart"
 			if err == nil {
 				err = c.writeSetupApplication(a)

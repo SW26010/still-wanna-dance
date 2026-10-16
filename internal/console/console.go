@@ -87,7 +87,11 @@ type Console struct {
 	mu                  sync.Mutex
 	settings            Settings // immutable active configuration for this Console
 	savedSettings       Settings // last successfully persisted configuration
-	autoStartPending    bool     // protected by mu; startup deferred until setup succeeds after consent
+	savedNodeCount      int
+	loadedNodeCount     int
+	setupVersionMu      sync.Mutex // key I/O never holds mu
+	setupVersion        settingsVersionCache
+	autoStartPending    bool // protected by mu; startup deferred until setup succeeds after consent
 	configPath          string
 	token               string
 	address             string
@@ -166,6 +170,8 @@ func New(configPath, address string) (*Console, error) {
 	}
 	c.settings, err = c.resolveSettings(c.settings)
 	c.savedSettings = c.settings
+	c.loadedNodeCount = len(nodeDocument(c.settings.nodeSnapshot).Nodes)
+	c.savedNodeCount = c.loadedNodeCount
 	if err == nil {
 		err = c.loadTerms()
 	}
@@ -372,8 +378,11 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool) error {
 	if err = c.writeConfigFile(s); err != nil {
 		return err
 	}
+	nodeCount := len(nodeDocument(s.nodeSnapshot).Nodes)
+	c.refreshSettingsVersionIfUsed(s)
 	c.mu.Lock()
 	c.savedSettings = s
+	c.savedNodeCount = nodeCount
 	delete(c.proxyImports, importID)
 	c.mu.Unlock()
 	slog.Info("settings_saved", "storage_dir", s.StorageDir, "vrchat_log_dir", s.LogDir)
@@ -740,7 +749,6 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/api/status" && r.Method == "GET" {
 		c.mu.Lock()
 		running := c.httpServer != nil
-		setupVersion, setupVersionErr := c.setupSettingsVersion(c.savedSettings)
 		result := struct {
 			Running               bool                    `json:"running"`
 			Settings              Settings                `json:"settings"`
@@ -780,14 +788,11 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ProxyNodes:            c.proxyNodesStatusLocked(),
 			Activation:            c.activation, DefaultLogDir: defaultLogDir(),
 			DefaultStorageDir: c.defaultStorageDir(), PortableDir: portableDir(),
-			UpstreamMonitor:      c.monitorSnapshotLocked(),
-			SetupNetwork:         c.setupNetworkSnapshotLocked(),
-			SetupApplication:     c.setupApplication.public(),
-			SetupSettingsVersion: setupVersion,
+			UpstreamMonitor:  c.monitorSnapshotLocked(),
+			SetupNetwork:     c.setupNetworkSnapshotLocked(),
+			SetupApplication: c.setupApplication.public(),
 		}
-		if setupVersionErr != nil {
-			result.SetupSettingsError = setupVersionErr.Error()
-		}
+		versionSettings := result.Settings
 		result.Settings.SOCKS5Password = ""
 		result.ActiveSettings.SOCKS5Password = ""
 		result.Queue.Desired = c.queueDesired
@@ -801,6 +806,11 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		result.Queue.Failures = append([]Failure(nil), c.queue.Failures...)
 		result.Batch.Failures = append([]Failure(nil), c.batch.Failures...)
 		c.mu.Unlock()
+		var versionErr error
+		result.SetupSettingsVersion, versionErr = c.cachedSettingsVersion(versionSettings)
+		if versionErr != nil {
+			result.SetupSettingsError = versionErr.Error()
+		}
 		result.Hosts = readHostsStatus()
 		if service != nil {
 			result.Traffic = service.TrafficStats()

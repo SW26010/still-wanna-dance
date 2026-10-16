@@ -180,7 +180,7 @@ func (c *Console) mergeProxyNodes(s Settings, old Settings) (Settings, error) {
 // Caller holds mu. Only counts and fixed errors are returned, never user names,
 // addresses, credentials, URIs, or encrypted envelopes.
 func (c *Console) proxyNodesStatusLocked() proxyNodeStatus {
-	status := proxyNodeStatus{Saved: len(nodeDocument(c.savedSettings.nodeSnapshot).Nodes), Loaded: len(nodeDocument(c.settings.nodeSnapshot).Nodes), Error: c.savedSettings.nodeSecretError, ActiveError: c.settings.nodeSecretError}
+	status := proxyNodeStatus{Saved: c.savedNodeCount, Loaded: c.loadedNodeCount, Error: c.savedSettings.nodeSecretError, ActiveError: c.settings.nodeSecretError}
 	if c.client != nil {
 		if tr, ok := c.client.Transport.(*mihomoTransport); ok {
 			status.Active = len(tr.proxies)

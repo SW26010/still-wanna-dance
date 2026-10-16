@@ -15,6 +15,7 @@ var (
 	ErrPaused   = errors.New("block execution paused")
 	ErrClosed   = errors.New("block scheduler closed")
 	ErrCapacity = errors.New("block scheduler metadata capacity reached")
+	ErrDeferred = errors.New("queued block deferred for more urgent work")
 )
 
 // Need separates urgency from validity. An overdue ReadyBy never cancels work.
@@ -127,19 +128,23 @@ func (d *Demand) Accepted() bool { return d.id != 0 }
 
 func (t *Task) Add(n Need) *Demand {
 	d := &Demand{task: t}
-	t.s.call(func(s *state) {
-		j := s.jobs[t.key]
-		if j == nil || j.task != t || j.retiring || n.Owner == "" || s.demandCount >= s.cfg.MaxDemands || !n.LeaseUntil.After(time.Now()) {
-			return
-		}
-		s.sequence++
-		d.id = s.sequence
-		v := &lease{id: d.id, job: j, need: n, index: -1}
-		j.needs[d.id] = v
-		s.demandCount++
-		heap.Push(&s.expiry, v)
-		s.refresh(j)
-	})
+	t.s.call(func(s *state) { d = s.add(t, n) })
+	return d
+}
+
+func (s *state) add(t *Task, n Need) *Demand {
+	d := &Demand{task: t}
+	j := s.jobs[t.key]
+	if j == nil || j.task != t || j.retiring || n.Owner == "" || s.demandCount >= s.cfg.MaxDemands || !n.LeaseUntil.After(time.Now()) {
+		return d
+	}
+	s.sequence++
+	d.id = s.sequence
+	v := &lease{id: d.id, job: j, need: n, index: -1}
+	j.needs[d.id] = v
+	s.demandCount++
+	heap.Push(&s.expiry, v)
+	s.refresh(j)
 	return d
 }
 
@@ -210,6 +215,7 @@ type state struct {
 	control             controller
 	durations           durationEstimate
 	orphans             list.List
+	capacityChanged     chan struct{}
 }
 
 func New(cfg Config) *Scheduler {
@@ -224,7 +230,7 @@ func New(cfg Config) *Scheduler {
 		cfg.MaxDemands = 32768
 	}
 	s := &Scheduler{commands: make(chan func(*state), 64), finished: make(chan completion, cfg.SoftLimit), done: make(chan struct{})}
-	st := &state{s: s, cfg: cfg, jobs: make(map[string]*job), owners: make(map[string]uint64), groups: make(map[string]map[*job]bool)}
+	st := &state{s: s, cfg: cfg, jobs: make(map[string]*job), owners: make(map[string]uint64), groups: make(map[string]map[*job]bool), capacityChanged: make(chan struct{})}
 	st.untimed.slot = 1
 	st.control.open = cfg.SoftLimit
 	if cfg.GrowInterval > 0 {
@@ -281,6 +287,7 @@ func (s *Scheduler) Close() {
 	s.once.Do(func() {
 		s.call(func(st *state) {
 			st.closing = true
+			st.capacityAvailable()
 			for _, j := range st.jobs {
 				st.retire(j, ErrClosed)
 			}
@@ -321,8 +328,10 @@ func (s *state) removeLease(v *lease) {
 	heap.Remove(&s.expiry, v.index)
 	delete(v.job.needs, v.id)
 	s.demandCount--
+	s.capacityAvailable()
 }
 func (s *state) refresh(j *job) {
+	previous := j.need
 	n := Need{}
 	var earliest time.Time
 	opportunistic := false
@@ -343,6 +352,9 @@ func (s *state) refresh(j *job) {
 		s.ungroup(j)
 	}
 	j.need = n
+	if previous.Blocking != n.Blocking || previous.ReadyBy != n.ReadyBy || previous.Opportunistic != n.Opportunistic {
+		s.capacityAvailable()
+	}
 	if n.Owner != "" {
 		if s.groups[n.Owner] == nil {
 			s.groups[n.Owner] = make(map[*job]bool)
@@ -415,6 +427,7 @@ func (s *state) finish(j *job, err error) {
 		s.removeLease(v)
 	}
 	delete(s.jobs, j.task.key)
+	s.capacityAvailable()
 	s.removeOrphan(j)
 	s.ungroup(j)
 	if len(s.groups[j.need.Owner]) == 0 {

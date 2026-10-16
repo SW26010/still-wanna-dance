@@ -61,6 +61,7 @@ type downloadSession struct {
 	cursors     map[*scheduledCursor]bool
 	waits       map[*scheduledWait]bool
 	jobs        map[int64]*scheduledBlock // resource coordinator only
+	capacity    <-chan struct{}
 }
 
 func (w *downloadSession) signal() {
@@ -220,7 +221,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 	return blocksched.Result{Err: err, Remaining: remaining}
 }
 
-func (w *downloadSession) submit(block int64) (*scheduledBlock, error) {
+func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Need) error {
 	key := fmt.Sprintf("%s/%d/%d", w.v.key, w.v.size, block)
 	remaining := min(rangeBlockSize, w.v.size-block*rangeBlockSize)
 	if w.f.ranges != nil {
@@ -230,14 +231,15 @@ func (w *downloadSession) submit(block int64) (*scheduledBlock, error) {
 		}
 		w.f.ranges.mu.Unlock()
 	}
-	t, err := w.s.scheduler.Submit(key, remaining, func(ctx context.Context, p *blocksched.Progress) blocksched.Result { return w.run(ctx, p, block) })
+	t, d, err := w.s.scheduler.Schedule(key, remaining, func(ctx context.Context, p *blocksched.Progress) blocksched.Result { return w.run(ctx, p, block) }, n)
 	if err != nil {
-		return nil, errors.Join(errBusy, err)
+		return err
 	}
 	t.Watch(w.wake)
-	j := &scheduledBlock{task: t, needs: make(map[blockSource]plannedNeed)}
+	j.task, j.merged, j.published = t, d, n
 	w.jobs[block] = j
-	return j, nil
+	w.logDemand(block, j)
+	return nil
 }
 
 func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[blockSource]plannedNeed, <-chan struct{}) {
@@ -332,17 +334,36 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 // update. The scheduler never observes the intermediate GET/handoff ordering.
 func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, now time.Time, changed <-chan struct{}) (time.Time, bool, error) {
 	var until time.Time
+	capacity := w.s.scheduler.CapacityChanged()
+	w.capacity = nil
 	order := make([]int64, 0, len(plan))
 	for block := range plan {
 		order = append(order, block)
 	}
-	sort.Slice(order, func(i, j int) bool { return order[i] < order[j] })
+	// Register actual blocked reads before ordinary blocks of this resource.
+	sort.Slice(order, func(i, j int) bool {
+		blocking := func(block int64) bool {
+			for _, p := range plan[block] {
+				if p.need.Blocking {
+					return true
+				}
+			}
+			return false
+		}
+		if a, b := blocking(order[i]), blocking(order[j]); a != b {
+			return a
+		}
+		return order[i] < order[j]
+	})
 	for _, block := range order {
 		j := w.jobs[block]
 		if j == nil {
-			var err error
-			j, err = w.submit(block)
-			if err != nil {
+			j = &scheduledBlock{needs: plan[block]}
+			if err := w.submit(block, j, j.aggregate(now)); err != nil {
+				if errors.Is(err, blocksched.ErrCapacity) {
+					w.capacity = capacity
+					continue
+				}
 				return until, false, err
 			}
 		}
@@ -425,8 +446,21 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 		j := w.jobs[block]
 		if !n.LeaseUntil.After(now) {
 			j.retiring = true
-			j.task.Close()
+			if j.task != nil {
+				j.task.Close()
+			} else {
+				delete(w.jobs, block)
+			}
 			continue
+		}
+		if j.task == nil {
+			if err := w.submit(block, j, n); err != nil {
+				if errors.Is(err, blocksched.ErrCapacity) {
+					w.capacity = capacity
+					continue
+				}
+				return until, false, err
+			}
 		}
 		if j.merged != nil && j.published == n {
 			continue
@@ -490,8 +524,15 @@ func maxTime(a, b time.Time) time.Time {
 // reapCompleted distinguishes a published sequential body from a completed range.
 func (w *downloadSession) reapCompleted(initialized *bool) (bool, error) {
 	for block, j := range w.jobs {
+		if j.task == nil {
+			continue
+		}
 		select {
 		case <-j.task.Done():
+			if errors.Is(j.task.Err(), blocksched.ErrDeferred) {
+				j.task, j.merged = nil, nil
+				continue
+			}
 			if err := j.task.Err(); err != nil && !(j.retiring && errors.Is(err, context.Canceled)) {
 				return false, err
 			}
@@ -518,10 +559,14 @@ func (w *downloadSession) close(result error) error {
 		w.s.preemptFlight(w.f, nil)
 	}
 	for _, j := range w.jobs {
-		j.task.Close()
+		if j.task != nil {
+			j.task.Close()
+		}
 	}
 	for _, j := range w.jobs {
-		result = preferDownloadError(result, j.task.Err())
+		if j.task != nil && !errors.Is(j.task.Err(), blocksched.ErrDeferred) {
+			result = preferDownloadError(result, j.task.Err())
+		}
 	}
 	return result
 }
@@ -600,6 +645,7 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 		case <-ctx.Done():
 		case <-w.wake:
 		case <-changed:
+		case <-w.capacity:
 		case <-timer.C:
 		case <-init:
 		}

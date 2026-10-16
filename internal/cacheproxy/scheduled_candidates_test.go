@@ -3,7 +3,6 @@ package cacheproxy
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -194,17 +193,74 @@ func TestExpandedResourceRetainsGlobalMetadataCapacity(t *testing.T) {
 	w, s := testSession(t)
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 16, MaxTasks: 16})
 	defer s.scheduler.Close()
-	_, release := s.addDemand(context.Background(), w.v, false)
+	ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: time.Now().Add(time.Hour), media: mediaTiming{w.v.size, time.Hour}})
+	_, release := s.addDemand(ctx, w.v, true)
 	defer release()
 	plan, changed := w.plan(time.Now(), true)
 	_, _, err := w.reconcile(plan, time.Now(), changed)
-	if !errors.Is(err, blocksched.ErrCapacity) || !errors.Is(err, errBusy) {
-		t.Fatal("global metadata capacity was bypassed", err)
+	if err != nil || len(w.jobs) != 16 || w.capacity == nil {
+		t.Fatal("capacity should defer excess registration", len(w.jobs), err)
+	}
+	first := w.jobs[0].task
+	first.Close()
+	<-first.Done()
+	initialized := true
+	if _, err := w.reapCompleted(&initialized); err == nil { // deliberate cancellation is still terminal
+		t.Fatal("explicit cancellation disappeared")
+	}
+	delete(w.jobs, 0)
+	w.f.ranges.done[0] = true
+	plan, changed = w.plan(time.Now(), true)
+	if _, _, err := w.reconcile(plan, time.Now(), changed); err != nil || w.jobs[16] == nil {
+		t.Fatal("freed capacity was not reused", err)
 	}
 	w.close(err)
 	for block := range 16 {
 		if _, err := s.scheduler.Submit(fmt.Sprint(block), 1, nil); err != nil {
 			t.Fatal("failed resource leaked task capacity", block, err)
 		}
+	}
+}
+
+func TestTwoLargeFutureVideosDoNotRejectNewResource(t *testing.T) {
+	w, s := testSession(t)
+	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
+	defer s.scheduler.Close()
+	var sessions []*downloadSession
+	for i := range 3 {
+		session := w
+		if i > 0 {
+			session, _ = testSession(t)
+			session.s = s
+		}
+		session.v.key = fmt.Sprintf("video-%d", i)
+		session.v.size = 2 << 30
+		session.f.ranges.done[0], session.f.ranges.prefix = true, 1
+		ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: time.Now().Add(time.Duration(i+1) * time.Hour), media: mediaTiming{session.v.size, time.Hour}})
+		_, release := s.addDemand(ctx, session.v, true)
+		defer release()
+		plan, changed := session.plan(time.Now(), true)
+		if _, _, err := session.reconcile(plan, time.Now(), changed); err != nil {
+			t.Fatal("new video failed at metadata capacity", err)
+		}
+		sessions = append(sessions, session)
+	}
+	if len(sessions[0].jobs) != 2047 || len(sessions[1].jobs) != 2047 || len(sessions[2].jobs) != 2 || sessions[2].capacity == nil {
+		t.Fatal("expected bounded registration of 4096 tasks", len(sessions[0].jobs), len(sessions[1].jobs), len(sessions[2].jobs))
+	}
+	started := make(chan struct{})
+	task, _, err := s.scheduler.Schedule("foreground", 1, func(context.Context, *blocksched.Progress) blocksched.Result {
+		close(started)
+		return blocksched.Result{}
+	}, blocksched.Need{Owner: "foreground", Blocking: true, LeaseUntil: time.Now().Add(time.Minute)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	if err := task.Err(); err != nil {
+		t.Fatal(err)
+	}
+	for _, session := range sessions {
+		session.close(nil)
 	}
 }

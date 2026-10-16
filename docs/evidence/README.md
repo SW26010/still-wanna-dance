@@ -2,7 +2,7 @@
 
 存储与复算遵循[证据与大文件约定](../evidence-storage.md)。完整实验附件见[归档索引](archives.json)；各批次清单区分 Git 中的小文件与附件中的完整材料。只有公开下载和哈希回验成功的附件才标为 `published-verified`。
 
-后续每轮实机验收必须按[实机验收机制](../live-acceptance-process.md)提交报告及 `live-YYYYMMDD-NN/` 脱敏证据目录（含 `manifest.json`），在本索引增加入口，并更新[待验收台账](../live-acceptance-backlog.md)。历史证据保持原样，不补造缺失数据或将历史通过外推到当前构建。
+实际开展 VRC 验收时，由 agent 按[实机验收机制](../live-acceptance-process.md)准备简明报告及 `live-YYYYMMDD-NN/` 必要脱敏证据（含 `manifest.json`），在本索引增加入口并更新[台账](../live-acceptance-backlog.md)。同一证据可支持多个场景，不要求逐旧编号重复采集；普通开发检查不套用整轮 LIVE 交付。历史证据保持原样，不补造缺失数据或将历史通过外推到当前构建。下方旧记录中的待验编号按[2026-10-16 分流](../live-acceptance-backlog.md#旧编号去向2026-10-16)解释，不自动恢复为当前游戏要求。
 
 这里保存精简、脱敏后的测试证据，使新仓库不依赖旧对话即可理解已验证的结论。它们不是完整网络抓包。索引中标明 StepStash 的文件属于历史构建验收，其余为原版调查结果。两者均不能替代当前 StepStash 构建的测试；证据文件名和内容保留采集时的名称与记录。
 

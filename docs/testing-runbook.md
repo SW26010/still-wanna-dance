@@ -1,6 +1,6 @@
 # 复现操作手册
 
-当前项目的集中实机验收遵循[实机验收机制](live-acceptance-process.md)：从[台账](live-acceptance-backlog.md)选取积攒项，并使用[报告模板](live-acceptance-report-template.md)交付本轮结果和证据。下文历史操作仅供参考，实际接入与配置以当前实现为准。
+当前项目的集中 VRC 验收遵循[实机验收机制](live-acceptance-process.md)：先由 agent 完成开发验证，只从[台账](live-acceptance-backlog.md)选择仍必须在游戏中判断的场景，合并操作并复用已有证据；实际开测后使用[报告模板](live-acceptance-report-template.md)。下文历史操作仅供参考，不是每轮必跑清单，实际接入与配置以当前实现为准。
 
 > 历史记录说明（2026-10-06）：文中的 CF/HKG 是当时的界面、日志标签或 API 参数称呼。域名、IP 及地理位置只属于当次观测，不构成节点到域名的固定映射，也不保证这些域名持续存在。当前实现以有效 API 返回的域名集合为准，见[资源域名规则](resource-domains.md)。原始证据保持原样。
 

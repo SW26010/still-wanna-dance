@@ -62,7 +62,7 @@ Still Wanna Dance 是为 **Windows 上的 VRChat WannaDance 玩家**打造的开
 
 当前源码采用**以期望完成时间驱动的全局块调度**：把播放、预读、队列和补齐转换为独立的内容块需求，同块共享下载，各来源独立撤销。根据 HTTP 请求位置与本地媒体资料估算每块何时需要，再用统一的块耗时与提前余量形成启动窗口；可启动积压（已入窗任务及允许提前执行的独立补齐需求）驱动并发逐路增加，实际读取等待的缺块立即处理。
 
-这套设计将“下载谁、何时启动、开几路、何时撤销”分别表达清楚。原理、公式与实例见[全局块调度设计](docs/block-scheduler-design.md)。当前模型的真实播放、吞吐和 CPU 效果仍待 LA-040 / LA-041 实机验收。
+这套设计将“下载谁、何时启动、开几路、何时撤销”分别表达清楚。原理、公式与实例见[全局块调度设计](docs/block-scheduler-design.md)。开发者负责用受控负载验证吞吐、CPU 与调度边界；真实播放器的慢网拖动、游戏内卡顿及队列交接仍按 LA-040 / LA-041 集中验收。
 
 ## 从源码构建
 
@@ -99,7 +99,7 @@ Windows 桌面版需要 Go 1.25 或更新版本、Node.js 22+（资源校验）�
 | [统一存储](docs/storage.md) | 视频、歌曲资料与统计的存放方式 |
 | [功能范围](docs/scope.md) | 支持范围、兼容限制与验证依据 |
 | [测试与验收](docs/test-results.md) | 测试记录与结果说明 |
-| [实机验收机制](docs/live-acceptance-process.md) / [待验收台账](docs/live-acceptance-backlog.md) | 新功能集中积攒、逐轮报告与证据交付 |
+| [实机验收机制](docs/live-acceptance-process.md) / [待验收台账](docs/live-acceptance-backlog.md) | 开发者先完成可替代验证，仅合并积攒必须 VRC 的剩余场景 |
 | [开发指南](docs/development.md) | 开发环境、代码入口与测试命令 |
 
 ## 升级与备份

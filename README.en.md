@@ -62,7 +62,7 @@ Playback Gateway (播放网关) runs on your computer and handles playback reque
 
 The current source uses **global block scheduling driven by expected completion times**. Playback, read-ahead, queue preparation, and library downloads contribute independent demands for content blocks. Demands share one download per block and can be withdrawn independently. HTTP request positions and local media metadata estimate when each block is needed; a shared block-time estimate and preparation margin define its activation window. Eligible backlog includes blocks inside the activation window and blocks with an independent untimed demand allowing early execution. Either kind can drive gradual concurrency growth; a block actually holding up a read is admitted immediately.
 
-See the [design, formulas, and worked example (Chinese)](docs/block-scheduler-design.md). Playback, throughput, and CPU effects of this model still await live acceptance under LA-040 / LA-041.
+See the [design, formulas, and worked example (Chinese)](docs/block-scheduler-design.md). Developers verify throughput, CPU usage, and scheduling boundaries with controlled workloads. Slow-network seeking, in-game stutter, and queue handoff with the actual VRChat player remain grouped under LA-040 / LA-041 for live acceptance.
 
 ## Build from source
 

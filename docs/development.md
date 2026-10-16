@@ -6,7 +6,7 @@ Still Wanna Dance 使用 Go，管理 UI 采用 React + TypeScript + Fluent UI Re
 
 ## 功能完成与实机验收
 
-每次完成新功能或影响用户行为的修复后，必须同步更新[待实机验收台账](live-acceptance-backlog.md)，登记操作步骤、预期与证据需求。功能先积攒到下一轮集中验收，自动检查通过不等于实机通过。每轮按[实机验收机制](live-acceptance-process.md)交付报告、脱敏证据、哈希清单及台账结果；失败、阻塞、未测项继续保留。纯文档/测试工具变更不影响产品行为时说明不适用原因即可。
+开发者（含 agent）先完成能由自动测试、隔离服务和浏览器判断的验证；只有必须依赖 VRC 播放器、真实游戏事件或游戏内体验的剩余风险才进入[待实机验收台账](live-acceptance-backlog.md)，说明不可替代的原因，并优先合并到已有操作。无需为每项行为改动登记，也不把已通过的代码断言重复交给游戏用户。托盘、跨用户等 Windows 条件单独记录环境缺口，见[非 VRC 分流](validation-followups.md)。按[实机验收机制](live-acceptance-process.md)积攒必要游戏场景；等待期间 agent 继续验证和准备，实际开测后承担采集、脱敏、报告及清理。
 
 前端源码在 `webui/src`；Go 的 `internal/console/webui.html` 只负责外壳和经过 JSON 转义的 bootstrap。`webui/build.mjs` 用 esbuild 生成并提交 `internal/console/assets/webui`、第三方声明和构建清单。普通 Go 构建直接嵌入这些产物；桌面构建脚本用 Node 校验源码和产物哈希，界面改动后必须先重建。前端开发：
 

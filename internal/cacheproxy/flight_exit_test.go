@@ -15,9 +15,25 @@ import (
 	"time"
 )
 
-type flightEventWriter func([]byte) (int, error)
+type flightEventHandler struct {
+	slog.Handler
+	handle func(slog.Record)
+}
 
-func (f flightEventWriter) Write(p []byte) (int, error) { return f(p) }
+func (h flightEventHandler) Handle(ctx context.Context, r slog.Record) error {
+	// Run outside the text handler's lock so a delayed coordinator does not
+	// block logs from the executor or an arriving GET.
+	h.handle(r)
+	return h.Handler.Handle(ctx, r)
+}
+func (h flightEventHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	h.Handler = h.Handler.WithAttrs(attrs)
+	return h
+}
+func (h flightEventHandler) WithGroup(name string) slog.Handler {
+	h.Handler = h.Handler.WithGroup(name)
+	return h
+}
 
 func TestGETArrivingAfterIdleSnapshotKeepsFlight(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
@@ -49,18 +65,44 @@ func TestGETArrivingAfterIdleSnapshotKeepsFlight(t *testing.T) {
 }
 
 func TestNewGETWaitsForExitingFlightCleanup(t *testing.T) {
+	testNewGETDuringCleanup(t, false)
+}
+
+func TestNewGETDuringBlockPause(t *testing.T) {
+	testNewGETDuringCleanup(t, true)
+}
+
+func testNewGETDuringCleanup(t *testing.T, pauseBlock bool) {
+	t.Helper()
 	for _, status := range []int{http.StatusPartialContent, http.StatusOK} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
 			s, cfg := setup(t, nil)
 			events := make(chan string, 8)
-			s.cfg.Logger = slog.New(slog.NewTextHandler(flightEventWriter(func(p []byte) (int, error) {
-				for _, event := range []string{"cache_capacity_wait", "cache_task_attached"} {
-					if strings.Contains(string(p), event) {
-						events <- event
+			coordinatorGate := make(chan struct{})
+			resumeCoordinator := sync.OnceFunc(func() { close(coordinatorGate) })
+			defer resumeCoordinator()
+			s.cfg.Logger = slog.New(flightEventHandler{
+				Handler: slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelDebug}),
+				handle: func(r slog.Record) {
+					switch r.Message {
+					case "cache_capacity_wait", "cache_task_attached":
+						events <- r.Message
+					case "block_demand":
+						if !pauseBlock {
+							return
+						}
+						// Pause after the handoff lease reaches the scheduler. Its
+						// expiry must cancel the body before the coordinator can
+						// retire the flight, independent of timer/goroutine order.
+						r.Attrs(func(a slog.Attr) bool {
+							if a.Key == "handoff_sources" && a.Value.Int64() > 0 {
+								<-coordinatorGate
+							}
+							return true
+						})
 					}
-				}
-				return len(p), nil
-			}), nil))
+				},
+			})
 			cleanup, gate := make(chan struct{}), make(chan struct{})
 			unblock := sync.OnceFunc(func() { close(gate) })
 			defer unblock()
@@ -75,7 +117,13 @@ func TestNewGETWaitsForExitingFlightCleanup(t *testing.T) {
 				return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
 					var body io.ReadCloser = io.NopCloser(strings.NewReader(payload))
 					if requests.Add(1) == 1 {
-						body = stalledResourceBody{r.Context()}
+						body = io.NopCloser(publishReaderFunc(func([]byte) (int, error) {
+							<-r.Context().Done()
+							// Let asynchronous Close enter cleanup before Read
+							// returns and the executor reports its terminal result.
+							<-gate
+							return 0, r.Context().Err()
+						}))
 					}
 					h := make(http.Header)
 					if status == http.StatusPartialContent {
@@ -100,6 +148,14 @@ func TestNewGETWaitsForExitingFlightCleanup(t *testing.T) {
 			<-events // The first attachment precedes the handoff/cleanup gap.
 			reader.Close()
 			cancelFirst()
+			if !pauseBlock {
+				// This case commits session retirement, unlike a resumable
+				// block pause. Neither response kind may accept another GET.
+				s.mu.Lock()
+				old.preempted = true
+				old.cancel(errPreempted)
+				s.mu.Unlock()
+			}
 			receiveDemandEvent(t, cleanup)
 			type outcome struct {
 				flight *flight
@@ -121,15 +177,23 @@ func TestNewGETWaitsForExitingFlightCleanup(t *testing.T) {
 				}
 				result <- outcome{f, body, err}
 			}()
-			if event := receiveDemandEvent(t, events); event != "cache_capacity_wait" {
-				t.Error("new GET attached before old cleanup finished", event)
+			// A paused 206 may resume in the same session; a canceled 200 has
+			// no safe restart and must wait for a replacement session.
+			reuse := pauseBlock && status == http.StatusPartialContent
+			wantEvent := "cache_capacity_wait"
+			if reuse {
+				wantEvent = "cache_task_attached"
+			}
+			if event := receiveDemandEvent(t, events); event != wantEvent {
+				t.Errorf("new GET admission = %s, want %s", event, wantEvent)
 			}
 			if requests.Load() != 1 {
 				t.Error("replacement started before old cleanup finished")
 			}
+			resumeCoordinator()
 			unblock()
 			got := receiveDemandEvent(t, result)
-			if got.err != nil || got.flight == old || string(got.body) != payload {
+			if got.err != nil || (got.flight == old) != reuse || string(got.body) != payload {
 				t.Fatalf("GET did not recover after cleanup: old=%v bytes=%d error=%v", got.flight == old, len(got.body), got.err)
 			}
 			if body, err := os.ReadFile(cfg.videoFile(v.key)); err != nil || string(body) != payload {

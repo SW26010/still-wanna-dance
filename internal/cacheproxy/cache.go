@@ -80,6 +80,12 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			s.mu.Unlock()
 			return nil, nil, context.Canceled
 		}
+		// Lease expiry can cancel a sequential response before its coordinator
+		// or executor commits retirement. Never attach to that canceled body,
+		// even while Read/Close are still unwinding. Range blocks can resume.
+		if f != nil && f.sequentialCtx != nil && f.sequentialCtx.Err() != nil {
+			f.preempted = true
+		}
 		if f != nil && !f.preempted || (f == nil && len(s.slots) < cap(s.slots)) {
 			break
 		}

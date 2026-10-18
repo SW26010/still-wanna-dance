@@ -134,6 +134,9 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 		}
 		w.f.log.Info("upstream_response", "host", host, "status", resp.StatusCode, "content_length", resp.ContentLength)
 		if resp.StatusCode != http.StatusPartialContent {
+			w.s.mu.Lock()
+			w.f.sequentialCtx = ctx
+			w.s.mu.Unlock()
 			w.f.sequentialDemand = func(int64) func() { return w.demand(block * rangeBlockSize) }
 			w.f.log.Info("range_unavailable", "host", host, "fallback", "sequential")
 			stopBody := context.AfterFunc(ctx, func() { resp.Body.Close() })

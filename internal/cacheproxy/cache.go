@@ -354,7 +354,7 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 
 // A sequential response uses the same complete-block store as Range downloads.
 // Incomplete blocks remain in memory and are discarded when execution stops.
-func (s *Server) publish(ctx context.Context, src io.Reader, path string, v video, flight *flight) error {
+func (s *Server) readSequential(ctx context.Context, src io.Reader, v video, flight *flight) error {
 	if flight.ranges == nil {
 		d, err := s.newLocalResource(v, &http.Response{StatusCode: http.StatusOK, Header: make(http.Header)}, flight.log)
 		if err != nil {
@@ -393,9 +393,7 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 		}
 		s.requestBlockReclamation()
 	}
-	ctx, stopPublication := context.WithTimeout(ctx, s.cfg.DownloadTimeout)
-	defer stopPublication()
-	return s.publishBlocks(ctx, path, v, flight)
+	return nil
 }
 
 // Mark errors at the network reader, before io.Copy combines source reads and

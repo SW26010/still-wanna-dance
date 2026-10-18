@@ -48,8 +48,8 @@ func TestWindowBoundaryAndDeadlineDiagnostics(t *testing.T) {
 				}
 				synctest.Wait()
 				s.call(func(st *state) {
-					if st.control.open != 1 || !st.nextControlEvent(time.Now()).IsZero() {
-						t.Error("running task requested capacity or periodic wakeups")
+					if st.control.open != 1 || st.nextControlEvent(time.Now()) != Deadline(now.Add(tc.ready)) {
+						t.Error("running task lost its deadline or requested capacity")
 					}
 				})
 				for _, e := range events {
@@ -135,7 +135,7 @@ func TestSoftLimitWaitHasNoPastWindowWakeup(t *testing.T) {
 		}
 		synctest.Wait()
 		s.call(func(st *state) {
-			if st.active != 1 || st.ready.Len() != 1 || !st.nextControlEvent(time.Now()).IsZero() {
+			if st.active != 1 || st.ready.Len() != 1 || time.Until(st.nextControlEvent(time.Now())) != 29*time.Second {
 				t.Error("full quota installed an already elapsed timer")
 			}
 		})
@@ -287,7 +287,7 @@ func TestLargePrepareAheadStillRampsAndCapsOrdinaryWork(t *testing.T) {
 		}
 		synctest.Wait()
 		s.call(func(st *state) {
-			if st.active != 5 || st.control.open != 4 || !st.nextControlEvent(time.Now()).IsZero() {
+			if st.active != 5 || st.control.open != 4 || st.nextControlEvent(time.Now()) != now.Add(480*time.Second) {
 				t.Error("large window altered active accounting or left a past-time wakeup")
 			}
 		})

@@ -16,7 +16,7 @@ import (
 func TestStoppedInitialRequestStartsWithFreshCandidates(t *testing.T) {
 	for _, failure := range []string{"transport", "status", "invalid-range", "redirect"} {
 		t.Run(failure, func(t *testing.T) {
-			s, cfg := setup(t, nil)
+			s, _ := setup(t, nil)
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			r, _ := http.NewRequest("GET", videoURL(payload), nil)
@@ -27,7 +27,7 @@ func TestStoppedInitialRequestStartsWithFreshCandidates(t *testing.T) {
 			f := &flight{streaming: make(chan struct{}), log: s.cfg.Logger}
 			f.progress = startProgress(f.log, v.size, time.Minute)
 			defer f.progress.finish(nil)
-			w := &downloadSession{s: s, ctx: ctx, v: v, f: f, path: cfg.videoFile(v.key), initialized: make(chan struct{}), wake: make(chan struct{}, 1)}
+			w := &downloadSession{s: s, ctx: ctx, v: v, f: f, initialized: make(chan struct{}), wake: make(chan struct{}, 1)}
 			defer func() {
 				if f.spool != nil {
 					f.spool.release()

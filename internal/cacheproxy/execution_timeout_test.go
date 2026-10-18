@@ -36,6 +36,57 @@ func TestDownloadedPublicationKeepsIndependentTimeout(t *testing.T) {
 	}
 }
 
+func TestSequentialPublicationOutlivesDownloadDeadline(t *testing.T) {
+	s, cfg := setup(t, nil)
+	s.cfg.DownloadTimeout = 3 * time.Second
+	finished := make(chan struct{}, 1)
+	s.scheduler.Close()
+	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1, Observe: func(e blocksched.Event) {
+		if e.Kind == "finished" {
+			finished <- struct{}{}
+		}
+	}})
+	defer func() {
+		for len(s.localChecks) > 0 {
+			<-s.localChecks
+		}
+	}()
+	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+		return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+			for range cap(s.localChecks) {
+				s.localChecks <- struct{}{}
+			}
+			return &http.Response{StatusCode: 200, ContentLength: int64(len(payload)), Header: make(http.Header), Body: io.NopCloser(bytes.NewBufferString(payload)), Request: r}, nil
+		})}
+	}
+	r, _ := http.NewRequest("GET", videoURL(payload), nil)
+	v, _ := s.parseResolved(r)
+	deadline := time.Now().Add(time.Second)
+	ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: deadline.Add(-blocksched.DownloadGrace), limit: v.size, media: estimateMediaTiming(v.size, 0)})
+	f, reader, err := s.obtain(ctx, v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reader.Close()
+	if got, err := io.ReadAll(reader); err != nil || string(got) != payload {
+		t.Fatal("sequential bytes were not readable before publication", err)
+	}
+	receiveDemandEvent(t, finished) // Body and task have drained; merge still waits.
+	time.Sleep(max(0, time.Until(deadline)))
+	select {
+	case <-f.done:
+		t.Fatal("download deadline canceled independent publication", f.err)
+	default:
+	}
+	for range cap(s.localChecks) {
+		<-s.localChecks
+	}
+	receiveDemandEvent(t, f.done)
+	if got, err := os.ReadFile(cfg.videoFile(v.key)); f.err != nil || err != nil || string(got) != payload {
+		t.Fatal("sequential publication did not survive its former download deadline", f.err, err)
+	}
+}
+
 func TestExecutionTimeoutExcludesInitialQueueWindow(t *testing.T) {
 	s, _ := setup(t, nil)
 	var active atomic.Int32

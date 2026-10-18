@@ -33,7 +33,6 @@ type downloadSession struct {
 	ctx         context.Context
 	v           video
 	f           *flight
-	path        string
 	wake        chan struct{}
 	initialized chan struct{}
 	initOnce    sync.Once
@@ -116,7 +115,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 				_, err := io.Copy(io.Discard, contextReader{ctx, progressReader{upstreamReader{resp.Body}, w.f.progress}})
 				return blocksched.Result{Err: err}
 			}
-			err := w.s.publish(ctx, resp.Body, w.path, w.v, w.f)
+			err := w.s.readSequential(ctx, resp.Body, w.v, w.f)
 			// Sequential bodies have no safe partial restart. End this flight;
 			// its next owner opens a new body after cleanup. Preserve storage
 			// and integrity errors that happen to coincide with cancellation.
@@ -336,7 +335,7 @@ func maxTime(a, b time.Time) time.Time {
 	return a
 }
 
-// reapCompleted distinguishes a published sequential body from a completed range.
+// reapCompleted distinguishes a complete sequential body from a completed range.
 func (w *downloadSession) reapCompleted(initialized *bool) (bool, error) {
 	for block, j := range w.jobs {
 		if j.task == nil {
@@ -348,6 +347,10 @@ func (w *downloadSession) reapCompleted(initialized *bool) (bool, error) {
 				j.task, j.merged = nil, nil
 				continue
 			}
+			// Lease expiry can finish before the coordinator marks retirement.
+			// The scheduler's plain cancellation is still a stopped old task;
+			// transport failures carry their own upstream error marker.
+			j.retiring = j.retiring || j.task.Err() == context.Canceled
 			// A stopped sequential body has already exposed its spool. Only
 			// Range work can be recreated within this session. Done publishes
 			// the executor's sequentialCtx before we inspect it here.
@@ -360,7 +363,7 @@ func (w *downloadSession) reapCompleted(initialized *bool) (bool, error) {
 			delete(w.jobs, block)
 			// Headers and the first range can finish after the loop's snapshot.
 			// Observe initialization again after Done before deciding that a
-			// successful task published the entire sequential response.
+			// successful task downloaded the entire sequential response.
 			select {
 			case <-w.initialized:
 				*initialized = true
@@ -368,7 +371,7 @@ func (w *downloadSession) reapCompleted(initialized *bool) (bool, error) {
 			}
 			if !*initialized && !j.retiring {
 				return true, nil
-			} // sequential 200, already published
+			} // sequential 200, ready for independent local publication
 			if j.task.Err() == nil && !w.f.discard && w.s.zeroVideoBudget() {
 				if w.finished == nil {
 					w.finished = make(map[int64]bool)
@@ -399,7 +402,7 @@ func (w *downloadSession) close(result error) error {
 }
 
 func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *flight) (result error) {
-	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, path: path, wake: make(chan struct{}, 1), initialized: make(chan struct{}), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
+	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, wake: make(chan struct{}, 1), initialized: make(chan struct{}), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
 	defer func() { result = w.close(result) }()
 	initialized := f.ranges != nil && (!f.ranges.sequential || f.ranges.complete())
 	if initialized {
@@ -416,8 +419,12 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 			initialized = true
 		default:
 		}
-		if published, err := w.reapCompleted(&initialized); err != nil || published {
+		whole, err := w.reapCompleted(&initialized)
+		if err != nil {
 			return err
+		}
+		if whole {
+			break
 		}
 		now := time.Now()
 		plan, changed, active := w.plan(now, initialized)

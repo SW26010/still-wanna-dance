@@ -32,6 +32,10 @@ func (s *Scheduler) Schedule(key string, remaining int64, run Run, n Need) (*Tas
 			err = ErrCapacity
 			return
 		}
+		if Expired(n.ReadyBy, now) {
+			err = ErrExpired
+			return
+		}
 		j := st.jobs[key]
 		if j != nil && j.retiring {
 			err = ErrCapacity
@@ -59,7 +63,7 @@ func (s *Scheduler) Schedule(key string, remaining int64, run Run, n Need) (*Tas
 		if j == nil {
 			st.sequence++
 			task = &Task{s: s, key: key, done: make(chan struct{})}
-			j = &job{task: task, run: run, remaining: remaining, needs: make(map[uint64]*lease), index: [2]int{-1, -1}, sequence: st.sequence}
+			j = &job{task: task, run: run, remaining: remaining, needs: make(map[uint64]*lease), index: [2]int{-1, -1}, deadlineIndex: -1, sequence: st.sequence}
 			st.jobs[key] = j
 		}
 		task = j.task

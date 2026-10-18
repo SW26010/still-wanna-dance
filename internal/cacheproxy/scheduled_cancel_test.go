@@ -8,10 +8,33 @@ import (
 	"net/http"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"still-wanna-dance/internal/blocksched"
 )
+
+func TestLeaseStopCompletesBeforeCoordinatorRetirement(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
+		defer s.scheduler.Close()
+		task, _, err := s.scheduler.Schedule("old", 1, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
+			<-ctx.Done()
+			return blocksched.Result{Err: ctx.Err()}
+		}, blocksched.Need{Owner: "owner", LeaseUntil: time.Now().Add(time.Second)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		w.jobs[0] = &scheduledBlock{task: task}
+		time.Sleep(time.Second)
+		<-task.Done()
+		initialized := true
+		if whole, err := w.reapCompleted(&initialized); whole || err != nil || len(w.jobs) != 0 {
+			t.Fatal("completed lease retirement failed a newly attached GET", whole, err, len(w.jobs))
+		}
+	})
+}
 
 func TestCanceledSessionCannotRestartTask(t *testing.T) {
 	for _, headers := range []bool{true, false} {
@@ -20,7 +43,7 @@ func TestCanceledSessionCannotRestartTask(t *testing.T) {
 			name = "waiting_headers"
 		}
 		t.Run(name, func(t *testing.T) {
-			s, cfg := setup(t, nil)
+			s, _ := setup(t, nil)
 			body := bytes.Repeat([]byte("x"), int(rangeBlockSize))
 			r, _ := http.NewRequest("GET", videoURL(string(body)), nil)
 			v, _ := s.parseResolved(r)
@@ -28,7 +51,7 @@ func TestCanceledSessionCannotRestartTask(t *testing.T) {
 			defer cancel(nil)
 			f := &flight{streaming: make(chan struct{}), log: s.cfg.Logger}
 			f.progress = startProgress(f.log, v.size, time.Minute)
-			w := &downloadSession{s: s, ctx: ctx, v: v, f: f, path: cfg.videoFile(v.key), initialized: make(chan struct{}), wake: make(chan struct{}, 1)}
+			w := &downloadSession{s: s, ctx: ctx, v: v, f: f, initialized: make(chan struct{}), wake: make(chan struct{}, 1)}
 			defer func() {
 				f.progress.finish(nil)
 				if f.spool != nil {

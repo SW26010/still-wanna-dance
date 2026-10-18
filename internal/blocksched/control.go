@@ -74,6 +74,9 @@ func (s *state) regulate(now time.Time) {
 
 func (s *state) nextControlEvent(now time.Time) time.Time {
 	next := s.control.nextGrow
+	if len(s.deadlines) > 0 {
+		next = earlier(next, Deadline(s.deadlines[0].need.ReadyBy))
+	}
 	if s.ready.Len() > 0 && !s.ready.first().need.Blocking {
 		if at := s.windowAt(s.ready.first()); at.After(now) {
 			next = earlier(next, at)

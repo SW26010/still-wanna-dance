@@ -6,6 +6,7 @@ import (
 	"container/heap"
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -14,9 +15,11 @@ var (
 	ErrClosed   = errors.New("block scheduler closed")
 	ErrCapacity = errors.New("block scheduler metadata capacity reached")
 	ErrDeferred = errors.New("queued block deferred for more urgent work")
+	ErrExpired  = fmt.Errorf("download need-by window expired: %w", context.DeadlineExceeded)
 )
 
-// Need separates urgency from validity. An overdue ReadyBy never cancels work.
+// Need separates urgency from source validity. Finite work must end at
+// ReadyBy + DownloadGrace even while its source lease remains valid.
 // Owner is opaque and must be shared by duplicate/overlapping requests.
 type Need struct {
 	Owner               string
@@ -184,6 +187,7 @@ type job struct {
 	progress       *Progress
 	retiring       bool
 	terminal       error
+	deadlineIndex  int
 }
 type lease struct {
 	id    uint64
@@ -202,6 +206,7 @@ type state struct {
 	ready               readyHeap
 	untimed             readyHeap
 	expiry              leaseHeap
+	deadlines           deadlineHeap
 	owners              map[string]uint64
 	groups              map[string]map[*job]bool
 	sequence            uint64
@@ -317,6 +322,7 @@ func (s *state) refresh(j *job) {
 		s.ungroup(j)
 	}
 	j.need = n
+	s.updateDeadline(j)
 	if previous.Blocking != n.Blocking || previous.ReadyBy != n.ReadyBy || previous.Opportunistic != n.Opportunistic {
 		s.capacityAvailable()
 	}
@@ -391,6 +397,7 @@ func (s *state) retire(j *job, err error) {
 }
 func (s *state) finish(j *job, err error) {
 	s.unqueue(j)
+	s.removeDeadline(j)
 	for _, v := range j.needs {
 		s.removeLease(v)
 	}
@@ -469,6 +476,7 @@ func (s *state) loop() {
 	defer timer.Stop()
 	for {
 		now := time.Now()
+		s.expireDeadlines(now)
 		s.expireLeases(now)
 		s.dispatch(now)
 		s.regulate(now)
@@ -489,9 +497,14 @@ func (s *state) loop() {
 		case fn := <-s.s.commands:
 			// A command may win selection against a due timer. Apply actual
 			// expiry first so a new demand cannot revive the expired task.
-			s.expireLeases(time.Now())
+			now := time.Now()
+			s.expireDeadlines(now)
+			s.expireLeases(now)
 			fn(s)
 		case c := <-s.s.finished:
+			// Deadline wins when completion and its timer are both observable.
+			// Readable bytes alone do not extend response/write cleanup time.
+			s.expireDeadlines(time.Now())
 			j := c.job
 			if c.result.Err == nil && j.progress.comparable() {
 				s.emit("sample", "readable_block", j)

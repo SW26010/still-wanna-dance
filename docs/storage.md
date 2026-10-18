@@ -1,5 +1,7 @@
 # 统一存储
 
+本页维护当前落盘与存储契约。本地资源管理的后续外部接口及已确认的第一版存储边界，见 canonical 文档[下载需求与资源管理设计](download-resource-design.md)；设计结论不表示后续接口已经实现。
+
 > 当前采用[曲库、资源关联与歌曲需求统计](song-catalog-design.md)模型。主库为 `storage.sqlite`，SQLite `application_id=0x53574443`（SWDC）、`user_version=2`。这是发布前冻结格式（版本 1 为试验格式），不实现旧格式兼容或迁移。
 
 MD5 文件身份和下载保护仍遵循 [MD5 视频资源管理](md5-resource-design.md)。无版本旧配置及旧数据库请保留备份，使用独立的新配置和存储目录；不要通过更名或修改版本号复用。

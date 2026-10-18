@@ -2,7 +2,7 @@
 
 Still Wanna Dance 使用 Go，管理 UI 采用 React + TypeScript + Fluent UI React v9，资源编译进 EXE 后在本地浏览器运行。
 
-下载架构从[全局块调度设计](block-scheduler-design.md)开始阅读：需求管理层解释 GET/队列与交接，`internal/blocksched` 统一处理块期限、租约、启动窗口和并发；资源层负责执行与文件一致性。[运行规则](download-concurrency.md)是当前参数依据，[开发记录](block-scheduler-validation.md)按历史顺序保留实现和自动检查，不应将早期策略当作现状。
+下载架构的后续设计以[下载需求与资源管理设计](download-resource-design.md)为 canonical 文档，区分已确认事项与待讨论事项。阅读当前实现时从[全局块调度设计](block-scheduler-design.md)开始：需求管理层解释 GET/队列与交接，`internal/blocksched` 统一处理块期限、租约、启动窗口和并发；资源层负责执行与文件一致性。[运行规则](download-concurrency.md)是当前参数依据，[开发记录](block-scheduler-validation.md)按历史顺序保留实现和自动检查，不应将目标设计或早期策略当作现状。
 
 ## 功能完成与实机验收
 

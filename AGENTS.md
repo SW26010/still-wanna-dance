@@ -18,7 +18,7 @@
 ## 文档入口
 
 - 开发环境、构建与测试：[开发说明](docs/development.md)。
-- 下载架构与当前调度规则：[全局块调度设计](docs/block-scheduler-design.md)、[运行规则](docs/download-concurrency.md)。
+- 下载架构后续设计的 canonical 文档：[下载需求与资源管理设计](docs/download-resource-design.md)（已确认事项与待讨论事项）；当前实现：[全局块调度设计](docs/block-scheduler-design.md)、[运行规则](docs/download-concurrency.md)。
 - 配置、运行与存储契约：[配置生命周期](docs/settings-lifecycle.md)、[存储约定](docs/storage.md)。
 - 界面内容、组件与交互：[WebUI 内容约定](docs/webui-content.md)、[Fluent UI 迁移约定](docs/fluent-ui-migration.md)、[可访问性与浏览器验收](docs/webui-accessibility.md)。
 - 开发、行为修复或验收前阅读：[验证与实机验收机制](docs/live-acceptance-process.md)、[VRC 待验台账](docs/live-acceptance-backlog.md)。

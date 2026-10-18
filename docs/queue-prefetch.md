@@ -39,6 +39,8 @@
 
 完整缓存的 30 秒交接保护仍由文件保留层单独管理，与下载需求租约不是同一策略。关闭引擎立即取消所有执行和租约，等待正文/写盘清理；不提供跨重启断点续传。旧等级日志按原版本解释，新调度可通过 block_schedule 事件检查块身份、Blocking、ReadyBy、放行/暂停原因、active/open、block_time_ms/prepare_ahead_ms，以及 started 的 start_urgent/overdue；不再输出 target/supply。通过 block_demand 与 block_demand_handoff 检查来源汇总和交接转换；常规任务日志继续区分完成、失败与取消。
 
+以上为当前实现。后续设计已确定移除独立的离队后 30 秒文件保护，交接按使用需求的生命周期维护，本地保留统一依赖最后一份需求结束后 1 分钟的本地延续保护；具体规则见[下载需求与资源管理设计](download-resource-design.md#常规播放交接与同块需求重新接入)，实现尚未迁移。
+
 开发验证见[块调度记录](block-scheduler-validation.md)。旧实机报告继续保留；新规则待 LA-040，关联 LA-037/038/039。
 
 ## 现有设置说明

@@ -91,6 +91,7 @@ Windows 桌面版需要 Go 1.25 或更新版本、Node.js 22+（资源校验）�
 | --- | --- |
 | [本地控制台](docs/console.md) | 网页操作、托盘、游戏接入与网络设置 |
 | [队列预缓存](docs/queue-prefetch.md) | 提前准备待播歌曲的方式与设置 |
+| [下载需求与资源管理设计](docs/download-resource-design.md) | 后续架构的 canonical 文档：已确认事项与待讨论事项 |
 | [全局块调度设计](docs/block-scheduler-design.md) / [运行规则](docs/download-concurrency.md) | 核心重构：独立需求、播放期限、提前窗口与并发缓增 |
 | [缓存容量管理](docs/cache-retention.md) | 保留优先级、容量上限与自动清理 |
 | [缓存收益研究](docs/research/cache-priority.md) | 历史需求回测、评分公式与空间预算的覆盖收益 |

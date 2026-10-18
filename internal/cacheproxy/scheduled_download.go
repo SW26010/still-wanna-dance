@@ -91,10 +91,9 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 	stop := context.AfterFunc(w.ctx, func() { cancel(context.Cause(w.ctx)) })
 	defer stop()
 	defer cancel(nil)
-	// Run is called only after scheduler admission. A whole block (including
-	// retries), or a sequential fallback, gets one bounded execution budget.
-	ctx, stopExecution := context.WithTimeout(ctx, w.s.cfg.DownloadTimeout)
-	defer stopExecution()
+	// Each upstream attempt owns its timeout; intentional scheduler waits and
+	// retries do not consume a shared execution timer. Parent cancellation and
+	// the demand/task lifetime still bound all attempts.
 	// The global block admission covers retries/redirects. HTTP attempts only
 	// track their lifecycle; no lower-level hard quota delays blocked reads.
 

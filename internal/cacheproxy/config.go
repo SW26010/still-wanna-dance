@@ -40,8 +40,8 @@ type Config struct {
 	ResolvePlayback func(context.Context, string, string) (string, error)
 	// PlaybackNode constrains cached addresses when a node is selected manually.
 	PlaybackNode string
-	// DownloadTimeout bounds each admitted block (including retries), a whole
-	// sequential fallback, and local validation/publication phases separately.
+	// DownloadTimeout bounds each upstream attempt (headers and body), including
+	// a sequential response, and each local validation/publication phase.
 	// Scheduling waits are governed by demand leases and caller cancellation.
 	DownloadTimeout time.Duration
 	// PrepareAhead is the full lead M for scheduled downloads; zero uses the default.

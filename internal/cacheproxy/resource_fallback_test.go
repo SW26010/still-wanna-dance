@@ -14,7 +14,7 @@ import (
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
-func TestFullResponseFallbackKeepsTaskDeadline(t *testing.T) {
+func TestFullResponseFallbackUsesFullAttemptTimeout(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
 		candidates int
@@ -23,7 +23,7 @@ func TestFullResponseFallbackKeepsTaskDeadline(t *testing.T) {
 	}{
 		{"single", 1, time.Second, true},
 		{"with-backup", 2, time.Second, true},
-		{"task-deadline", 2, 200 * time.Millisecond, false},
+		{"attempt-deadline", 2, 200 * time.Millisecond, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +53,7 @@ func TestFullResponseFallbackKeepsTaskDeadline(t *testing.T) {
 				t.Fatal(err)
 			}
 			if !tc.succeeds && !errors.Is(err, context.DeadlineExceeded) {
-				t.Fatalf("parent deadline lost: %v", err)
+				t.Fatalf("attempt deadline lost: %v", err)
 			}
 			if backup.Load() != 0 {
 				t.Fatalf("accepted full response was restarted: %d", backup.Load())

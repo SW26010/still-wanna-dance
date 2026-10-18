@@ -73,7 +73,7 @@ func TestResourceFallbackIsBounded(t *testing.T) {
 func TestResourceResumeSkipsFailedChannelWhenNextAttemptYields(t *testing.T) {
 	for _, failure := range []string{"transport", "status"} {
 		t.Run(failure, func(t *testing.T) {
-			s := &Server{client: &http.Client{}, requests: new(requestActivity)}
+			s := &Server{cfg: DefaultConfig(), client: &http.Client{}, requests: new(requestActivity)}
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 			transferCtx, yield := context.WithCancelCause(ctx)
@@ -155,7 +155,7 @@ func TestResourceResumeRetriesChannelYieldedBeforeHeaders(t *testing.T) {
 }
 
 func testResourceResumeBeforeHeaders(t *testing.T, cause error) {
-	s := &Server{client: &http.Client{}, requests: new(requestActivity)}
+	s := &Server{cfg: DefaultConfig(), client: &http.Client{}, requests: new(requestActivity)}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	transferCtx, yield := context.WithCancelCause(ctx)

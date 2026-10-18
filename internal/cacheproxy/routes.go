@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
-	"time"
 
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/blocksched"
@@ -113,13 +112,14 @@ func (s *Server) candidates(r *http.Request, attempts *resourceAttempts) *resour
 // route cache or health ranking. Close owns cancellation of a successful body.
 type resourceBody struct {
 	io.ReadCloser
-	cancel   context.CancelFunc
-	ctx      context.Context
-	budget   *time.Timer
-	attempts *resourceAttempts
-	once     sync.Once
-	err      error
-	release  func()
+	cancel    context.CancelFunc
+	ctx       context.Context
+	stopBody  func() bool
+	closeBody func() error
+	attempts  *resourceAttempts
+	once      sync.Once
+	err       error
+	release   func()
 }
 
 func (b *resourceBody) Close() error {
@@ -127,17 +127,13 @@ func (b *resourceBody) Close() error {
 		if b.release != nil {
 			defer b.release()
 		}
-		b.useTaskDeadline()
+		if b.stopBody != nil {
+			b.stopBody()
+		}
 		b.cancel()
-		b.err = b.ReadCloser.Close()
+		b.err = b.closeBody()
 	})
 	return b.err
-}
-
-func (b *resourceBody) useTaskDeadline() {
-	if b.budget != nil {
-		b.budget.Stop()
-	}
 }
 
 func (b *resourceBody) Read(p []byte) (int, error) {
@@ -153,7 +149,8 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 	transports := candidates.transports
 	var failures []error
 	// One configured channel may retry a failed block once. Multiple measured
-	// channels advance without revisiting a failed candidate within the shared budget.
+	// channels advance without revisiting a failed candidate. Each attempt has its
+	// own timeout; a shorter caller/task deadline still bounds the whole operation.
 	limit := max(2, len(transports))
 	for candidates.next < limit {
 		if err := r.Context().Err(); err != nil {
@@ -172,14 +169,7 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		}
 		client := *s.client
 		client.Transport = transport
-		ctx, cancelCause := context.WithCancelCause(r.Context())
-		cancel := func() { cancelCause(context.Canceled) }
-		var budget *time.Timer
-		if deadline, ok := r.Context().Deadline(); ok && len(transports) > 1 && limit-i > 1 {
-			// Use a removable timer, not an immutable child deadline: a valid
-			// full-body 200 must be able to retain the parent task's deadline.
-			budget = time.AfterFunc(time.Until(deadline)/time.Duration(limit-i), func() { cancelCause(context.DeadlineExceeded) })
-		}
+		ctx, cancel := context.WithTimeout(r.Context(), s.cfg.DownloadTimeout)
 		attempts.current, attempts.request = candidates, r
 		if s.cfg.BeginResourceLoad != nil {
 			endLoad, endRequest := s.cfg.BeginResourceLoad(), release
@@ -187,7 +177,9 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		}
 		resp, err := client.Do(r.Clone(ctx))
 		if err == nil && resp.StatusCode < 500 {
-			resp.Body = &resourceBody{ReadCloser: resp.Body, cancel: cancel, ctx: ctx, budget: budget, attempts: attempts, release: release}
+			closeBody := sync.OnceValue(resp.Body.Close)
+			stopBody := context.AfterFunc(ctx, func() { closeBody() })
+			resp.Body = &resourceBody{ReadCloser: resp.Body, cancel: cancel, ctx: ctx, stopBody: stopBody, closeBody: closeBody, attempts: attempts, release: release}
 			return resp, nil
 		}
 		if err == nil {
@@ -202,9 +194,6 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 			// the next candidate before headers; resume must not rewind to the
 			// earlier failed attempt in that case.
 			attempts.current = nil
-		}
-		if budget != nil {
-			budget.Stop()
 		}
 		cancel()
 		release()
@@ -257,11 +246,6 @@ func (s *Server) openUpstream(ctx context.Context, v video, block int64, attempt
 				continue
 			}
 			return nil, "", err
-		}
-		if resp.StatusCode == http.StatusOK {
-			if body, ok := resp.Body.(*resourceBody); ok {
-				body.useTaskDeadline()
-			}
 		}
 		return resp, v.host, nil
 	}

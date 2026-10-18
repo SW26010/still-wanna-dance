@@ -463,3 +463,11 @@ GET 时钟携带规范化请求结束位置，只为与实际响应区间相交�
 定向回归通过（aggregate-directed-final.log，2.332 s）；来源共享、GET 消费、交接、队列重排、保护和摘要过滤的 Windows race 连续三轮通过（aggregate-race.log，2.761 s）。console、blocksched 完整回归通过（aggregate-full.log，62.096 s / 0.164 s），相关三包 go vet 和 diff 检查通过。首轮整包中旧夹具依靠已移除的 handoff_sources 日志字段暂停协调器，改用聚合 lease_until 同步点；旧响应关闭期间新 GET 的接入/等待行为未修改，定向三轮通过（aggregate-cleanup.log，13.030 s），最终缓存整包通过（aggregate-cache-final.log，27.699 s）。其余编译调整和首轮失败日志保留。
 
 后续仍需块文件存储、持久化准入及下载截止/停止任务语义；未启动 VRC、改 hosts 或 push。
+
+## 48. 单次尝试超时与重试预算分离
+
+2026-10-19：DownloadTimeout 默认仍为 10 分钟，改为每个实际 HTTP 尝试的响应头/正文时限；移除块执行含重试的总计时和候选平分剩余预算。顺序 200 保持完整本次尝试时限，不能在接受正文后取消超时；本地校验/发布独立计时。候选数、验证、重定向和父级取消规则不变，不新增重试总时限或并行冗余。尝试取消主动关闭正文，通过 sync.OnceValue 与调用方收尾共享关闭结果，收尾完成后释放请求活动引用。
+
+定向回归通过（attempt-timeout-directed.log，8.033 s），三轮 Windows race 通过（attempt-timeout-race.log，25.413 s）；缓存及控制台完整回归通过（attempt-timeout-full.log，29.104 s / 63.379 s），go vet 和 diff 检查通过。新虚拟时间夹具验证：第一候选耗尽 1 秒后，第二候选仍能用新的 900 ms 成功；父级 1.5 秒截止仍能终止第二候选；不观察请求上下文的阻塞正文由超时关闭唤醒，关闭恰好一次、活动引用在回退前释放。已有顺序 200、Range 验证/正文回退、窗口等待及发布超时测试继续通过。
+
+此步骤尚未加入 need-by+30 秒下载截止，也未迁移块文件；相关目标继续后续提交。未启动 VRC、修改 hosts 或 push。

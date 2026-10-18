@@ -368,6 +368,8 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 		return fmt.Errorf("%w: download integrity mismatch", errUpstreamDownload)
 	}
 	flight.log.Info("download_verified", "bytes", n, "size_ok", true, "checksum_ok", true)
+	ctx, stopPublication := context.WithTimeout(ctx, s.cfg.DownloadTimeout)
+	defer stopPublication()
 	return s.publishSpool(ctx, f, path, v, flight)
 }
 

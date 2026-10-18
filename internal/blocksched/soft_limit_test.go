@@ -25,21 +25,21 @@ func TestBlockingBypassesSoftLimitAndRamp(t *testing.T) {
 		}
 		now := time.Now()
 		ordinaryRelease, blockingRelease := make(chan struct{}), make(chan struct{})
-		ordinary, _ := s.Submit("ordinary", 1, run("ordinary", ordinaryRelease))
-		ordinary.Add(need("ordinary", false, time.Second, 24*time.Hour))
+		_, _, _ = s.Schedule("ordinary", 1, run("ordinary", ordinaryRelease), need("ordinary", false, time.Second, 24*time.Hour))
+
 		<-started
 		var blocked []*Task
 		for i := range 20 {
 			key := fmt.Sprint(i)
-			j, _ := s.Submit(key, 1, run(key, blockingRelease))
-			j.Add(need(key, true, 0, 24*time.Hour))
+			j, _, _ := s.Schedule(key, 1, run(key, blockingRelease), need(key, true, 0, 24*time.Hour))
+
 			blocked = append(blocked, j)
 		}
 		// More readers of an already blocked block still share its execution.
-		duplicate, _ := s.Submit("0", 1, nil)
-		duplicate.Add(need("another-reader", true, 0, 24*time.Hour))
-		queued, _ := s.Submit("queued", 1, run("queued", nil))
-		queued.Add(need("queued", false, time.Second, 24*time.Hour))
+		duplicate, _, _ := s.Schedule("0", 1, nil, need("another-reader", true, 0, 24*time.Hour))
+
+		_, _, _ = s.Schedule("queued", 1, run("queued", nil), need("queued", false, time.Second, 24*time.Hour))
+
 		synctest.Wait()
 		if len(started) != 20 || !time.Now().Equal(now) || duplicate != blocked[0] {
 			t.Fatal("blocked reads waited, hit a cap, or duplicated work", len(started), time.Since(now))
@@ -75,15 +75,15 @@ func TestOrdinaryRequestsRampToFullSoftLimit(t *testing.T) {
 		release := make(chan struct{})
 		now := time.Now()
 		for i := range 20 {
-			j, _ := s.Submit(fmt.Sprint(i), 1<<20, func(ctx context.Context, _ *Progress) Result {
+			_, _, _ = s.Schedule(fmt.Sprint(i), 1<<20, func(ctx context.Context, _ *Progress) Result {
 				started <- time.Now()
 				select {
 				case <-release:
 				case <-ctx.Done():
 				}
 				return Result{}
-			})
-			j.Add(need("same", false, time.Second, time.Hour))
+			}, need("same", false, time.Second, time.Hour))
+
 		}
 		time.Sleep(15 * 250 * time.Millisecond)
 		synctest.Wait()

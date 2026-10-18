@@ -1,10 +1,9 @@
-// Package blocksched schedules opaque, resumable pieces of work. Callers own
+// Package blocksched schedules opaque pieces of work. Callers own
 // content identity and storage; the scheduler owns demand leases and execution.
 package blocksched
 
 import (
 	"container/heap"
-	"container/list"
 	"context"
 	"errors"
 	"sync"
@@ -12,7 +11,6 @@ import (
 )
 
 var (
-	ErrPaused   = errors.New("block execution paused")
 	ErrClosed   = errors.New("block scheduler closed")
 	ErrCapacity = errors.New("block scheduler metadata capacity reached")
 	ErrDeferred = errors.New("queued block deferred for more urgent work")
@@ -30,12 +28,11 @@ type Need struct {
 }
 
 type Result struct {
-	Err       error
-	Remaining int64
+	Err error
 }
 
-// Run must close bodies and save resumable progress before returning. A pause
-// returns ErrPaused and the remaining cost. No buffer is needed while queued.
+// Run must close bodies and finish writes before returning. Cancellation ends
+// this task; later work is scheduled anew. Queued tasks need no data buffer.
 type Run func(context.Context, *Progress) Result
 
 type Progress struct {
@@ -187,8 +184,6 @@ type job struct {
 	progress       *Progress
 	retiring       bool
 	terminal       error
-	orphanUntil    time.Time
-	orphan         *list.Element
 }
 type lease struct {
 	id    uint64
@@ -213,7 +208,6 @@ type state struct {
 	active, demandCount int
 	closing             bool
 	control             controller
-	orphans             list.List
 	capacityChanged     chan struct{}
 }
 
@@ -254,34 +248,6 @@ func (s *Scheduler) call(fn func(*state)) bool {
 	}
 }
 
-// Submit shares an existing task by key. Tasks without a valid demand begin
-// retirement after orphanRetention; callers can submit anew once Done closes.
-func (s *Scheduler) Submit(key string, remaining int64, run Run) (*Task, error) {
-	var t *Task
-	var err error
-	if !s.call(func(st *state) {
-		if st.closing {
-			err = ErrClosed
-			return
-		}
-		if j := st.jobs[key]; j != nil {
-			t = j.task
-			return
-		}
-		if len(st.jobs) >= st.cfg.MaxTasks {
-			err = ErrCapacity
-			return
-		}
-		st.sequence++
-		t = &Task{s: s, key: key, done: make(chan struct{})}
-		j := &job{task: t, run: run, remaining: remaining, needs: make(map[uint64]*lease), index: [2]int{-1, -1}, sequence: st.sequence}
-		st.jobs[key] = j
-		st.retainOrphan(j)
-	}) {
-		return nil, ErrClosed
-	}
-	return t, err
-}
 func (s *Scheduler) Close() {
 	s.once.Do(func() {
 		s.call(func(st *state) {
@@ -361,16 +327,16 @@ func (s *state) refresh(j *job) {
 		s.groups[n.Owner][j] = true
 	}
 	j.fair = s.owners[n.Owner]
-	if n.Owner == "" && !j.retiring {
-		s.retainOrphan(j)
-	} else {
-		s.removeOrphan(j)
-	}
-	if n.Owner == "" || j.retiring {
+	if j.retiring {
 		s.unqueue(j)
 		if j.cancel != nil {
-			j.cancel(ErrPaused)
+			j.cancel(j.terminal)
 		}
+		return
+	}
+	if n.Owner == "" {
+		s.emit("retired", "no_demand", j)
+		s.retire(j, context.Canceled)
 		return
 	}
 	if j.cancel != nil {
@@ -411,6 +377,9 @@ func needBefore(a, b Need) bool {
 	return a.ReadyBy.Before(b.ReadyBy)
 }
 func (s *state) retire(j *job, err error) {
+	if j.retiring {
+		return
+	}
 	j.retiring, j.terminal = true, err
 	for _, v := range j.needs {
 		s.removeLease(v)
@@ -427,7 +396,6 @@ func (s *state) finish(j *job, err error) {
 	}
 	delete(s.jobs, j.task.key)
 	s.capacityAvailable()
-	s.removeOrphan(j)
 	s.ungroup(j)
 	if len(s.groups[j.need.Owner]) == 0 {
 		delete(s.owners, j.need.Owner)
@@ -484,20 +452,24 @@ func (s *state) dispatch(now time.Time) {
 		go func() { s.s.finished <- completion{j, j.run(ctx, j.progress)} }()
 	}
 }
+
+func (s *state) expireLeases(now time.Time) {
+	for len(s.expiry) > 0 && !s.expiry[0].need.LeaseUntil.After(now) {
+		v := heap.Pop(&s.expiry).(*lease)
+		delete(v.job.needs, v.id)
+		s.demandCount--
+		s.emit("expired", "lease", v.job)
+		s.refresh(v.job)
+	}
+}
+
 func (s *state) loop() {
 	defer close(s.s.done)
 	timer := time.NewTimer(time.Hour)
 	defer timer.Stop()
 	for {
 		now := time.Now()
-		for len(s.expiry) > 0 && !s.expiry[0].need.LeaseUntil.After(now) {
-			v := heap.Pop(&s.expiry).(*lease)
-			delete(v.job.needs, v.id)
-			s.demandCount--
-			s.emit("expired", "lease", v.job)
-			s.refresh(v.job)
-		}
-		s.expireOrphans(now)
+		s.expireLeases(now)
 		s.dispatch(now)
 		s.regulate(now)
 		if s.closing && s.active == 0 {
@@ -515,9 +487,9 @@ func (s *state) loop() {
 		}
 		select {
 		case fn := <-s.s.commands:
-			// A command and the timer can become ready together. Apply elapsed
-			// retention before admitting a demand or checking task capacity.
-			s.expireOrphans(time.Now())
+			// A command may win selection against a due timer. Apply actual
+			// expiry first so a new demand cannot revive the expired task.
+			s.expireLeases(time.Now())
 			fn(s)
 		case c := <-s.s.finished:
 			j := c.job
@@ -529,14 +501,10 @@ func (s *state) loop() {
 			s.active--
 			if j.retiring {
 				err := j.terminal
-				if c.result.Err != nil && !errors.Is(c.result.Err, ErrPaused) && !errors.Is(c.result.Err, context.Canceled) && !errors.Is(c.result.Err, context.DeadlineExceeded) {
+				if c.result.Err != nil && !errors.Is(c.result.Err, context.Canceled) && !errors.Is(c.result.Err, context.DeadlineExceeded) {
 					err = c.result.Err
 				}
 				s.finish(j, err)
-			} else if errors.Is(c.result.Err, ErrPaused) {
-				j.remaining = c.result.Remaining
-				s.emit("paused", "no_demand", j)
-				s.refresh(j)
 			} else {
 				s.emit("finished", "execution", j)
 				s.finish(j, c.result.Err)

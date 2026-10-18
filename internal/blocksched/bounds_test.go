@@ -12,11 +12,11 @@ func TestSummaryUpdatesReleaseOldOwnersAndCounters(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := New(Config{SoftLimit: 1})
 		defer s.Close()
-		j, _ := s.Submit("shared", 100, func(ctx context.Context, _ *Progress) Result {
+		j, d, _ := s.Schedule("shared", 100, func(ctx context.Context, _ *Progress) Result {
 			<-ctx.Done()
-			return Result{Err: ErrPaused, Remaining: 100}
-		})
-		d := j.Add(need("first", true, 0, time.Hour))
+			return Result{Err: context.Canceled}
+		}, need("first", true, 0, time.Hour))
+
 		for i := 0; i < 100; i++ {
 			d.Update(need(strconv.Itoa(i), i%2 == 0, time.Minute, time.Hour))
 		}
@@ -39,14 +39,14 @@ func TestSummaryUpdatesReleaseOldOwnersAndCounters(t *testing.T) {
 func TestMetadataCapacity(t *testing.T) {
 	s := New(Config{SoftLimit: 1, MaxTasks: 1, MaxDemands: 1})
 	defer s.Close()
-	task, _ := s.Submit("one", 1, func(ctx context.Context, _ *Progress) Result {
+	task, d, _ := s.Schedule("one", 1, func(ctx context.Context, _ *Progress) Result {
 		<-ctx.Done()
-		return Result{Err: ErrPaused, Remaining: 1}
-	})
-	if _, err := s.Submit("two", 1, nil); err != ErrCapacity {
+		return Result{Err: context.Canceled}
+	}, need("one", true, 0, time.Hour))
+	if _, _, err := s.Schedule("two", 1, nil, need("two", false, time.Hour, 2*time.Hour)); err != ErrCapacity {
 		t.Fatal("task bound ignored", err)
 	}
-	d := task.Add(need("one", true, 0, time.Hour))
+
 	if !d.Accepted() || task.Add(need("two", false, 0, time.Hour)).Accepted() {
 		t.Fatal("demand bound ignored")
 	}
@@ -57,12 +57,12 @@ func TestMetadataCapacity(t *testing.T) {
 		t.Fatal("update escaped demand limit")
 	}
 	d.Close()
-	if !task.Add(need("two", false, 0, time.Hour)).Accepted() {
-		t.Fatal("closed demand leaked capacity")
+	if task.Add(need("two", false, 0, time.Hour)).Accepted() {
+		t.Fatal("withdrawn task accepted a replacement demand")
 	}
 	task.Close()
 	<-task.Done()
-	if _, err := s.Submit("two", 1, nil); err != nil {
+	if _, _, err := s.Schedule("two", 1, nil, need("two", false, time.Hour, 2*time.Hour)); err != nil {
 		t.Fatal("completed task leaked capacity", err)
 	}
 }
@@ -74,11 +74,11 @@ func BenchmarkDemandUpdate(b *testing.B) {
 			defer s.Close()
 			var d *Demand
 			for i := 0; i < count; i++ {
-				j, err := s.Submit(strconv.Itoa(i), 1<<20, func(ctx context.Context, _ *Progress) Result { <-ctx.Done(); return Result{} })
+				_, demand, err := s.Schedule(strconv.Itoa(i), 1<<20, func(ctx context.Context, _ *Progress) Result { <-ctx.Done(); return Result{} }, need(strconv.Itoa(i), false, time.Minute, time.Hour))
 				if err != nil {
 					b.Fatal(err)
 				}
-				d = j.Add(need(strconv.Itoa(i), false, time.Minute, time.Hour))
+				d = demand
 			}
 			n := need("update", false, time.Minute, time.Hour)
 			b.ReportAllocs()

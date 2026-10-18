@@ -13,7 +13,7 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
-func TestCanceledSessionCannotRestartPausedTask(t *testing.T) {
+func TestCanceledSessionCannotRestartTask(t *testing.T) {
 	for _, headers := range []bool{true, false} {
 		name := "partial_body"
 		if headers {
@@ -55,19 +55,19 @@ func TestCanceledSessionCannotRestartPausedTask(t *testing.T) {
 			}
 			// Leave the scheduler's demand valid, modeling a coordinator that has
 			// not processed the session cancellation yet. It must not restart Run.
-			task, err := s.scheduler.Submit("cancel-test", rangeBlockSize, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
+			task, _, err := s.scheduler.Schedule("cancel-test", rangeBlockSize, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
 				runs.Add(1)
 				return w.run(ctx, p, 0)
-			})
+			}, blocksched.Need{Owner: "video", LeaseUntil: time.Now().Add(time.Minute)})
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer func() { task.Close(); <-task.Done() }()
-			task.Add(blocksched.Need{Owner: "video", LeaseUntil: time.Now().Add(time.Minute)})
+
 			receiveDemandEvent(t, ready)
 			cancel(errPreempted)
 			receiveDemandEvent(t, task.Done())
-			if !errors.Is(task.Err(), errPreempted) || errors.Is(task.Err(), blocksched.ErrPaused) || calls.Load() != 1 || runs.Load() != 1 {
+			if !errors.Is(task.Err(), errPreempted) || calls.Load() != 1 || runs.Load() != 1 {
 				t.Fatal("canceled session remained restartable", task.Err(), calls.Load(), runs.Load())
 			}
 			// A dispatch already queued when the session ended also avoids HTTP.

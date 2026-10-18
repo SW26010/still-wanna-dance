@@ -83,9 +83,9 @@ func TestIndexFailureStopsNewDownloads(t *testing.T) {
 }
 
 func TestDownloadCleanupErrorPriority(t *testing.T) {
-	local := &os.PathError{Op: "write", Path: "checkpoint", Err: os.ErrClosed}
+	local := &os.PathError{Op: "write", Path: "block", Err: os.ErrClosed}
 	upstream := fmt.Errorf("%w: failed block", errUpstreamDownload)
-	for _, first := range []error{nil, upstream, context.Canceled, context.DeadlineExceeded, blocksched.ErrClosed, blocksched.ErrPaused, errBusy} {
+	for _, first := range []error{nil, upstream, context.Canceled, context.DeadlineExceeded, blocksched.ErrClosed, errBusy} {
 		for _, localFirst := range []bool{false, true} {
 			errorsInOrder := []error{first, local}
 			if localFirst {
@@ -102,7 +102,7 @@ func TestDownloadCleanupErrorPriority(t *testing.T) {
 			}
 		}
 	}
-	for _, next := range []error{nil, context.Canceled, context.DeadlineExceeded, blocksched.ErrClosed, blocksched.ErrPaused} {
+	for _, next := range []error{nil, context.Canceled, context.DeadlineExceeded, blocksched.ErrClosed} {
 		if err := preferDownloadError(upstream, next); err != upstream {
 			t.Fatal("routine cleanup replaced the upstream failure", err)
 		}

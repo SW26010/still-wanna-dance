@@ -79,8 +79,6 @@ func (s *state) nextControlEvent(now time.Time) time.Time {
 			next = earlier(next, at)
 		}
 	}
-	if first := s.orphans.Front(); first != nil {
-		next = earlier(next, first.Value.(*job).orphanUntil)
-	}
+
 	return next
 }

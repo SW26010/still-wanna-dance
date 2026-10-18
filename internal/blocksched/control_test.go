@@ -15,15 +15,15 @@ func TestRampReuseAndNoIdleCredit(t *testing.T) {
 		gates := make([]chan struct{}, 4)
 		for i := range gates {
 			gates[i] = make(chan struct{})
-			j, _ := s.Submit(string(rune('a'+i)), 100, func(ctx context.Context, p *Progress) Result {
+			_, _, _ = s.Schedule(string(rune('a'+i)), 100, func(ctx context.Context, p *Progress) Result {
 				started <- time.Now()
 				select {
 				case <-gates[i]:
 				case <-ctx.Done():
 				}
 				return Result{}
-			})
-			j.Add(need("same", false, time.Second, time.Hour))
+			}, need("same", false, time.Second, time.Hour))
+
 		}
 		first := <-started
 		synctest.Wait()
@@ -69,11 +69,11 @@ func TestIdleStopsControlTimersWhenAllLeasesExpire(t *testing.T) {
 			<-ctx.Done()
 			return Result{}
 		}
-		background, _ := s.Submit("background", 1<<20, run)
-		background.Add(need("background", false, time.Second, 100*time.Millisecond))
+		_, _, _ = s.Schedule("background", 1<<20, run, need("background", false, time.Second, 100*time.Millisecond))
+
 		<-started
-		blocking, _ := s.Submit("blocking", 1<<20, run)
-		blocking.Add(need("blocking", true, 0, 100*time.Millisecond))
+		_, _, _ = s.Schedule("blocking", 1<<20, run, need("blocking", true, 0, 100*time.Millisecond))
+
 		<-started
 		synctest.Wait()
 		var next time.Time

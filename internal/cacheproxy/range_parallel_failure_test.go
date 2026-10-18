@@ -194,19 +194,19 @@ func TestParallelRangeCleanupPreservesBlockWriteFailure(t *testing.T) {
 	f.ranges.storage.dir = localBlockPath(t, f.ranges.storage, 1)
 	f.ranges.storage.removeFiles(f.ranges.storage.retire(func(block int64) bool { return block == 0 }))
 	for block := int64(0); block < 2; block++ {
-		task, err := s.scheduler.Submit(fmt.Sprint(block), rangeBlockSize, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
+		task, _, err := s.scheduler.Schedule(fmt.Sprint(block), rangeBlockSize, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
 			started <- struct{}{}
 			<-ctx.Done()
 			if block == 1 {
 				return blocksched.Result{Err: upstream}
 			}
 			return blocksched.Result{Err: f.ranges.storage.store(0, bytes.Repeat([]byte("x"), int(rangeBlockSize)))}
-		})
+		}, blocksched.Need{Owner: "background", LeaseUntil: time.Now().Add(time.Minute)})
 		if err != nil {
 			t.Fatal(err)
 		}
 		w.jobs[block] = &scheduledBlock{task: task}
-		task.Add(blocksched.Need{Owner: "background", LeaseUntil: time.Now().Add(time.Minute)})
+
 	}
 	defer w.close(nil)
 	for range 2 {

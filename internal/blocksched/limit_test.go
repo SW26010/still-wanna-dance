@@ -16,15 +16,15 @@ func TestSetSoftLimitPreservesGrowthAndRunningTasks(t *testing.T) {
 		}
 		started := make(chan time.Time, 20)
 		for i := range 20 {
-			j, err := s.Submit(string(rune('a'+i)), 1<<20, func(ctx context.Context, _ *Progress) Result {
+			_, _, err := s.Schedule(string(rune('a'+i)), 1<<20, func(ctx context.Context, _ *Progress) Result {
 				started <- time.Now()
 				<-ctx.Done()
 				return Result{Err: ctx.Err()}
-			})
+			}, need("video", false, 0, time.Minute))
 			if err != nil {
 				t.Fatal(err)
 			}
-			j.Add(need("video", false, 0, time.Minute))
+
 		}
 		<-started
 		time.Sleep(5 * time.Second)

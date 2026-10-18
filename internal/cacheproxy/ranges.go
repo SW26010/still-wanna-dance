@@ -9,8 +9,6 @@ import (
 
 const rangeBlockSize int64 = 1 << 20
 
-var errRangeYielded = errors.New("range yielded to seek")
-
 // readRangeBlock fills a worker-owned buffer, including one extra byte to detect
 // oversized responses. Preserve non-EOF errors even when returned with data.
 func readRangeBlock(r io.Reader, buf []byte) ([]byte, error) {

@@ -70,7 +70,7 @@ func TestResourceFallbackIsBounded(t *testing.T) {
 	}
 }
 
-func TestResourceResumeSkipsFailedChannelWhenNextAttemptYields(t *testing.T) {
+func TestNewResourceExecutionRevisitsCandidatesAfterCancellation(t *testing.T) {
 	for _, failure := range []string{"transport", "status"} {
 		t.Run(failure, func(t *testing.T) {
 			s := &Server{cfg: DefaultConfig(), client: &http.Client{}, requests: new(requestActivity)}
@@ -124,37 +124,37 @@ func TestResourceResumeSkipsFailedChannelWhenNextAttemptYields(t *testing.T) {
 			case <-ctx.Done():
 				t.Fatal("first candidate did not start")
 			}
-			// The failed channel is consumed; pause the next one before headers.
+			// Stop the old execution while its next channel is awaiting headers.
 			close(fail)
 			select {
 			case <-nextStarted:
 			case <-ctx.Done():
 				t.Fatal("next candidate did not start")
 			}
-			yield(errRangeYielded)
-			if err := <-done; !errors.Is(err, errRangeYielded) {
+			yield(context.Canceled)
+			if err := <-done; !errors.Is(err, context.Canceled) {
 				t.Fatalf("active attempt did not yield: %v", err)
 			}
-			attempts.resume()
+			attempts = new(resourceAttempts)
 			resp, err := s.resourceResponse(r.Clone(ctx), attempts)
 			if err != nil {
-				t.Fatal("next candidate did not resume", err)
+				t.Fatal("new execution did not complete", err)
 			}
 			resp.Body.Close()
-			if calls != [2]int{1, 2} {
-				t.Fatalf("resume revisited failed channel: calls=%v", calls)
+			if calls != [2]int{2, 2} {
+				t.Fatalf("new execution skipped its original candidates: calls=%v", calls)
 			}
 		})
 	}
 }
 
-func TestResourceResumeRetriesChannelYieldedBeforeHeaders(t *testing.T) {
-	for _, cause := range []error{errRangeYielded, errPreempted} {
-		t.Run(cause.Error(), func(t *testing.T) { testResourceResumeBeforeHeaders(t, cause) })
+func TestNewResourceExecutionStartsAtFirstChannel(t *testing.T) {
+	for _, cause := range []error{context.Canceled, errPreempted} {
+		t.Run(cause.Error(), func(t *testing.T) { testNewResourceExecutionBeforeHeaders(t, cause) })
 	}
 }
 
-func testResourceResumeBeforeHeaders(t *testing.T, cause error) {
+func testNewResourceExecutionBeforeHeaders(t *testing.T, cause error) {
 	s := &Server{cfg: DefaultConfig(), client: &http.Client{}, requests: new(requestActivity)}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -196,13 +196,13 @@ func testResourceResumeBeforeHeaders(t *testing.T, cause error) {
 	if err := <-done; !errors.Is(err, context.Canceled) {
 		t.Fatalf("active attempt did not yield: %v", err)
 	}
-	attempts.resume()
+	attempts = new(resourceAttempts)
 	resp, err := s.resourceResponse(r.Clone(ctx), attempts)
 	if err != nil {
 		t.Fatal(err)
 	}
 	resp.Body.Close()
 	if calls != [2]int{2, 0} {
-		t.Fatalf("local yield abandoned its channel: calls=%v", calls)
+		t.Fatalf("new execution skipped its first channel: calls=%v", calls)
 	}
 }

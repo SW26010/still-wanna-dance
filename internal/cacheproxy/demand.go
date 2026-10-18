@@ -10,7 +10,7 @@ import (
 )
 
 // Resource ownership feeds the block-demand adapter. It carries no scheduling rank.
-var errPreempted = errors.Join(context.Canceled, errors.New("download paused without active demand"))
+var errPreempted = errors.Join(context.Canceled, errors.New("download stopped without active demand"))
 
 type queueDemandKey struct{}
 type sourceDemandKey struct{}

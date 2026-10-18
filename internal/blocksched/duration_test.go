@@ -38,16 +38,16 @@ func TestDurationUsesAdmissionToReadableAndHoldsSlotThroughCleanup(t *testing.T)
 		}})
 		defer s.Close()
 		gate := make(chan struct{})
-		j, _ := s.Submit("standard", standardBlockSize, func(_ context.Context, p *Progress) Result {
+		j, _, _ := s.Schedule("standard", standardBlockSize, func(_ context.Context, p *Progress) Result {
 			time.Sleep(time.Second) // headers and checks count, even without body progress
 			time.Sleep(2 * time.Second)
 			p.Ready()
 			<-gate
 			p.Ready() // a late duplicate cannot extend the readable timestamp
 			return Result{}
-		})
-		time.Sleep(10 * time.Second) // queued without a demand: excluded
-		j.Add(need("reader", true, 0, time.Hour))
+		}, need("reader", false, 510*time.Second, time.Hour))
+		time.Sleep(10 * time.Second) // queued outside the preparation window: excluded
+
 		time.Sleep(20 * time.Second)
 		synctest.Wait()
 		s.call(func(st *state) {
@@ -65,28 +65,28 @@ func TestDurationUsesAdmissionToReadableAndHoldsSlotThroughCleanup(t *testing.T)
 	})
 }
 
-func TestFailedAndPausedExecutionsDoNotSample(t *testing.T) {
+func TestFailedAndCanceledExecutionsDoNotSample(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		for _, err := range []error{ErrPaused, context.Canceled} {
+		for _, err := range []error{context.Canceled, context.DeadlineExceeded} {
 			var samples []Event
 			s := New(Config{SoftLimit: 1, Observe: func(e Event) {
 				if e.Kind == "sample" {
 					samples = append(samples, e)
 				}
 			}})
-			j, _ := s.Submit("failed", standardBlockSize, func(ctx context.Context, p *Progress) Result {
+			_, d, _ := s.Schedule("failed", standardBlockSize, func(ctx context.Context, p *Progress) Result {
 				time.Sleep(time.Second)
 				p.Ready()
 				<-ctx.Done()
-				return Result{Err: err, Remaining: standardBlockSize / 2}
-			})
-			d := j.Add(need("reader", true, 0, time.Hour))
+				return Result{Err: err}
+			}, need("reader", true, 0, time.Hour))
+
 			time.Sleep(2 * time.Second)
 			d.Close()
 			synctest.Wait()
 			s.call(func(st *state) {
 				if len(samples) != 0 {
-					t.Error("failed or paused execution sampled")
+					t.Error("failed or canceled execution sampled")
 				}
 			})
 			s.Close()

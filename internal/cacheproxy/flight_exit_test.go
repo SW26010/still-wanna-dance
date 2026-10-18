@@ -68,11 +68,11 @@ func TestNewGETWaitsForExitingFlightCleanup(t *testing.T) {
 	testNewGETDuringCleanup(t, false)
 }
 
-func TestNewGETDuringBlockPause(t *testing.T) {
+func TestNewGETDuringBlockStop(t *testing.T) {
 	testNewGETDuringCleanup(t, true)
 }
 
-func testNewGETDuringCleanup(t *testing.T, pauseBlock bool) {
+func testNewGETDuringCleanup(t *testing.T, stopBlock bool) {
 	t.Helper()
 	for _, status := range []int{http.StatusPartialContent, http.StatusOK} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
@@ -88,7 +88,7 @@ func testNewGETDuringCleanup(t *testing.T, pauseBlock bool) {
 					case "cache_capacity_wait", "cache_task_attached":
 						events <- r.Message
 					case "block_demand":
-						if !pauseBlock {
+						if !stopBlock {
 							return
 						}
 						// Pause after the handoff lease reaches the scheduler. Its
@@ -148,9 +148,9 @@ func testNewGETDuringCleanup(t *testing.T, pauseBlock bool) {
 			<-events // The first attachment precedes the handoff/cleanup gap.
 			reader.Close()
 			cancelFirst()
-			if !pauseBlock {
-				// This case commits session retirement, unlike a resumable
-				// block pause. Neither response kind may accept another GET.
+			if !stopBlock {
+				// This case commits session retirement rather than stopping
+				// one block task. Neither response may accept another GET.
 				s.mu.Lock()
 				old.preempted = true
 				old.cancel(errPreempted)
@@ -176,9 +176,9 @@ func testNewGETDuringCleanup(t *testing.T, pauseBlock bool) {
 				}
 				result <- outcome{f, body, err}
 			}()
-			// A paused 206 may resume in the same session; a canceled 200 has
+			// A stopped 206 can start a new task in this session; a canceled 200 has
 			// no safe restart and must wait for a replacement session.
-			reuse := pauseBlock && status == http.StatusPartialContent
+			reuse := stopBlock && status == http.StatusPartialContent
 			wantEvent := "cache_capacity_wait"
 			if reuse {
 				wantEvent = "cache_task_attached"

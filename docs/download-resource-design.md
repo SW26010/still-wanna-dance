@@ -267,7 +267,7 @@ need-by 的调整必须来自需求集合的实际变化，不能为了保留执
 
 常规播放交接继续依赖第 4 项的有界交接需求：整合后仍有合法下载资格的在途任务继续执行和共享，不因来源交接先停后启。普通下载失败后的重试、换源，以及尚未执行任务的容量延期不属于暂停／恢复，分别按错误处理和容量接入规则讨论；不新增优先级抢占。上游顺序 200 回退仍不提供分段续传，停止后需要重新下载。
 
-完整块现由 [local_resource.go](../internal/cacheproxy/local_resource.go) 的引擎注册表与 [local_blocks.go](../internal/cacheproxy/local_blocks.go) 的块文件持有，Range/顺序 200 共用；不保存半块前缀和跨会话候选游标，移除 32 个/512 MiB 检查点上限。新会话复用完整块并使用当前地址，合并快照和旧读者引用保持数据可读。调度核心的暂停、无需求 30 秒任务保留以及首次响应头前的游标仍待下一阶段移除，见 [scheduler.go](../internal/blocksched/scheduler.go) 和 [orphan.go](../internal/blocksched/orphan.go)。
+完整块现由 [local_resource.go](../internal/cacheproxy/local_resource.go) 的引擎注册表与 [local_blocks.go](../internal/cacheproxy/local_blocks.go) 的块文件持有，Range/顺序 200 共用；不保存半块前缀和跨会话候选游标，移除 32 个/512 MiB 检查点上限。新会话复用完整块并使用当前地址，合并快照和旧读者引用保持数据可读。调度核心的暂停、无需求 30 秒任务保留及首次响应头前的恢复游标均已移除，见 [scheduler.go](../internal/blocksched/scheduler.go) 和 [stop_test.go](../internal/blocksched/stop_test.go)。首份需求与任务通过 Schedule 原子登记，最后需求退出即结束旧任务；清理前拒绝重接并继续计入额度，清理后按当前摘要创建新任务。首次响应头、候选和重定向都重新开始；常规执行内的有界重试仍保留。Range 可在原资源会话中建立新任务，顺序 200 必须结束旧会话。
 
 ## 二、涉及但尚待讨论的事项
 

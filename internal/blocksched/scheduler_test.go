@@ -21,12 +21,12 @@ func TestIndependentLeasesAndLateUpdates(t *testing.T) {
 		s := New(Config{SoftLimit: 1})
 		defer s.Close()
 		started := make(chan struct{}, 2)
-		j, _ := s.Submit("shared", 100, func(ctx context.Context, p *Progress) Result {
+		j, a, _ := s.Schedule("shared", 100, func(ctx context.Context, p *Progress) Result {
 			started <- struct{}{}
 			<-ctx.Done()
-			return Result{Err: ErrPaused, Remaining: 80}
-		})
-		a := j.Add(need("a", true, -time.Second, time.Second))
+			return Result{Err: context.Canceled}
+		}, need("a", true, -time.Second, time.Second))
+
 		b := j.Add(need("b", false, time.Minute, 3*time.Second))
 		<-started
 		time.Sleep(2 * time.Second)
@@ -60,22 +60,22 @@ func TestSharedExecutionFairDeadlinesAndReleaseAfterCleanup(t *testing.T) {
 		gate := make(chan struct{})
 		cleanup := make(chan struct{})
 		started := make(chan string, 8)
-		first, _ := s.Submit("held", 1, func(ctx context.Context, p *Progress) Result {
+		_, d, _ := s.Schedule("held", 1, func(ctx context.Context, p *Progress) Result {
 			started <- "held"
 			<-ctx.Done()
 			<-cleanup
-			return Result{Err: ErrPaused, Remaining: 1}
-		})
-		d := first.Add(need("held", false, 0, time.Hour))
+			return Result{Err: context.Canceled}
+		}, need("held", false, 0, time.Hour))
+
 		<-started
 		for _, key := range []string{"a1", "a2", "b"} {
-			j, _ := s.Submit(key, 1, func(ctx context.Context, p *Progress) Result { started <- key; <-gate; return Result{} })
 			owner := "a"
 			if key == "b" {
 				owner = "b"
 			}
-			j.Add(need(owner, false, time.Minute, time.Hour))
-			dup, _ := s.Submit(key, 1, nil)
+			j, _, _ := s.Schedule(key, 1, func(ctx context.Context, p *Progress) Result { started <- key; <-gate; return Result{} }, need(owner, false, time.Minute, time.Hour))
+
+			dup, _, _ := s.Schedule(key, 1, nil, need(owner, false, time.Minute, time.Hour))
 			if dup != j {
 				t.Fatal("duplicate execution")
 			}
@@ -106,25 +106,25 @@ func TestSharedExecutionFairDeadlinesAndReleaseAfterCleanup(t *testing.T) {
 func TestDeadlineDoesNotCancelAndCloseDrains(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := New(Config{SoftLimit: 1, MaxTasks: 1})
-		j, _ := s.Submit("a", 100, func(ctx context.Context, p *Progress) Result {
+		j, _, _ := s.Schedule("a", 100, func(ctx context.Context, p *Progress) Result {
 			<-ctx.Done()
-			return Result{Err: ErrPaused, Remaining: 50}
-		})
-		j.Add(need("a", true, time.Second, time.Minute))
+			return Result{Err: context.Canceled}
+		}, need("a", true, time.Second, time.Minute))
+
 		time.Sleep(2 * time.Second)
 		select {
 		case <-j.Done():
 			t.Fatal("ReadyBy canceled task")
 		default:
 		}
-		if _, err := s.Submit("b", 1, nil); !errors.Is(err, ErrCapacity) {
+		if _, _, err := s.Schedule("b", 1, nil, need("b", false, time.Hour, 2*time.Hour)); !errors.Is(err, ErrCapacity) {
 			t.Fatal(err)
 		}
 		s.Close()
 		if !errors.Is(j.Err(), ErrClosed) {
 			t.Fatal(j.Err())
 		}
-		if _, err := s.Submit("c", 1, nil); !errors.Is(err, ErrClosed) {
+		if _, _, err := s.Schedule("c", 1, nil, need("c", false, time.Hour, 2*time.Hour)); !errors.Is(err, ErrClosed) {
 			t.Fatal(err)
 		}
 	})

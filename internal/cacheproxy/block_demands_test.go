@@ -56,11 +56,11 @@ func TestQueuePromotionDemotionDoesNotCreateHandoff(t *testing.T) {
 	w, s := testSession(t)
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
 	defer s.scheduler.Close()
-	task, _ := s.scheduler.Submit("test", 1, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
+	task, registered, _ := s.scheduler.Schedule("test", 1, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
 		<-ctx.Done()
-		return blocksched.Result{Err: blocksched.ErrPaused, Remaining: 1}
-	})
-	w.jobs[0] = &scheduledBlock{task: task}
+		return blocksched.Result{Err: context.Canceled}
+	}, blocksched.Need{Owner: "fixture", ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)})
+	w.jobs[0] = &scheduledBlock{task: task, merged: registered}
 	now := time.Now()
 	key := blockSource{"queue", "song"}
 	for i, origin := range []demandSource{sourceQueue, sourceQueueHead, sourceQueue} {

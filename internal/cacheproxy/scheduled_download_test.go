@@ -101,11 +101,11 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 		if !ok || !after.need.ReadyBy.Equal(before.need.ReadyBy.Add(-typicalDuration)) {
 			t.Fatal("queue reorder did not update deadline")
 		}
-		job, _ := s.scheduler.Submit("test", 1, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
+		job, registered, _ := s.scheduler.Schedule("test", 1, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
 			<-ctx.Done()
-			return blocksched.Result{Err: blocksched.ErrPaused, Remaining: 1}
-		})
-		w.jobs[0] = &scheduledBlock{task: job}
+			return blocksched.Result{Err: context.Canceled}
+		}, blocksched.Need{Owner: "fixture", ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)})
+		w.jobs[0] = &scheduledBlock{task: job, merged: registered}
 		if _, _, err := w.reconcile(plan, now, nil, false); err != nil {
 			t.Fatal(err)
 		}
@@ -135,11 +135,11 @@ func TestBlockLeaseRemovalDoesNotDropOtherOwner(t *testing.T) {
 	w, s := testSession(t)
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
 	defer s.scheduler.Close()
-	job, _ := s.scheduler.Submit("test", 1, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
+	job, registered, _ := s.scheduler.Schedule("test", 1, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
 		<-ctx.Done()
-		return blocksched.Result{Err: blocksched.ErrPaused, Remaining: 1}
-	})
-	w.jobs[0] = &scheduledBlock{task: job}
+		return blocksched.Result{Err: context.Canceled}
+	}, blocksched.Need{Owner: "fixture", ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)})
+	w.jobs[0] = &scheduledBlock{task: job, merged: registered}
 	now := time.Now()
 	read := blockSource{"get", "a"}
 	queue := blockSource{"queue", "b"}
@@ -166,18 +166,18 @@ func TestCompletionRechecksRangeInitialization(t *testing.T) {
 			defer s.scheduler.Close()
 			// Coordinator snapshots before the worker has received response headers.
 			initialized := false
-			task, err := s.scheduler.Submit("first", rangeBlockSize, func(context.Context, *blocksched.Progress) blocksched.Result {
+			task, _, err := s.scheduler.Schedule("first", rangeBlockSize, func(context.Context, *blocksched.Progress) blocksched.Result {
 				if ranged {
 					w.f.ranges.done[0] = true // Only one of twenty blocks exists.
 					close(w.initialized)
 				}
 				return blocksched.Result{}
-			})
+			}, blocksched.Need{Owner: "video", LeaseUntil: time.Now().Add(time.Minute)})
 			if err != nil {
 				t.Fatal(err)
 			}
 			w.jobs[0] = &scheduledBlock{task: task}
-			task.Add(blocksched.Need{Owner: "video", LeaseUntil: time.Now().Add(time.Minute)})
+
 			<-task.Done() // Worker initialization and completion precede observation.
 			published, err := w.reapCompleted(&initialized)
 			if err != nil || published == ranged || initialized != ranged || len(w.jobs) != 0 {

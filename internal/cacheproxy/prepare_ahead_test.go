@@ -28,16 +28,16 @@ func TestConfiguredPrepareAheadControlsEngineWindow(t *testing.T) {
 			}
 			defer s.Close()
 			started := make(chan struct{}, 1)
-			job, err := s.scheduler.Submit("window", 1, func(context.Context, *blocksched.Progress) blocksched.Result {
+			now := time.Now()
+			n := blocksched.Need{Owner: "window", ReadyBy: now.Add(200 * time.Second), LeaseUntil: now.Add(time.Hour)}
+			_, demand, err := s.scheduler.Schedule("window", 1, func(context.Context, *blocksched.Progress) blocksched.Result {
 				started <- struct{}{}
 				return blocksched.Result{}
-			})
+			}, n)
 			if err != nil {
 				t.Fatal(err)
 			}
-			now := time.Now()
-			n := blocksched.Need{Owner: "window", ReadyBy: now.Add(200 * time.Second), LeaseUntil: now.Add(time.Hour)}
-			demand := job.Add(n)
+
 			if tc.wait {
 				select {
 				case <-started:

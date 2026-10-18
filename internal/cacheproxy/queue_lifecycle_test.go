@@ -14,14 +14,14 @@ func demandLifecycleSession(t *testing.T) (*downloadSession, *Server) {
 	w, s := testSession(t)
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
 	t.Cleanup(s.scheduler.Close)
-	task, err := s.scheduler.Submit("queue", rangeBlockSize, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
+	task, registered, err := s.scheduler.Schedule("queue", rangeBlockSize, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
 		<-ctx.Done()
-		return blocksched.Result{Err: blocksched.ErrPaused, Remaining: rangeBlockSize}
-	})
+		return blocksched.Result{Err: context.Canceled}
+	}, blocksched.Need{Owner: "fixture", ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	w.jobs[0] = &scheduledBlock{task: task}
+	w.jobs[0] = &scheduledBlock{task: task, merged: registered}
 	return w, s
 }
 

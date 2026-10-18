@@ -25,13 +25,13 @@ func TestWindowBoundaryAndDeadlineDiagnostics(t *testing.T) {
 				s := New(Config{SoftLimit: 16, GrowInterval: time.Second, Observe: func(e Event) { events = append(events, e) }})
 				defer s.Close()
 				started := make(chan time.Time, 1)
-				j, _ := s.Submit("one", standardBlockSize, func(ctx context.Context, _ *Progress) Result {
+				now := time.Now()
+				_, _, _ = s.Schedule("one", standardBlockSize, func(ctx context.Context, _ *Progress) Result {
 					started <- time.Now()
 					<-ctx.Done()
 					return Result{}
-				})
-				now := time.Now()
-				j.Add(Need{Owner: "one", ReadyBy: now.Add(tc.ready), LeaseUntil: now.Add(time.Hour)})
+				}, Need{Owner: "one", ReadyBy: now.Add(tc.ready), LeaseUntil: now.Add(time.Hour)})
+
 				synctest.Wait()
 				if tc.wait > 0 {
 					if len(started) != 0 {
@@ -70,15 +70,15 @@ func TestWindowBacklogDrivesGrowthAndIdleResetsIt(t *testing.T) {
 		release := make(chan struct{})
 		var demands []*Demand
 		for _, key := range []string{"a", "b", "c", "d"} {
-			j, _ := s.Submit(key, standardBlockSize, func(ctx context.Context, _ *Progress) Result {
+			_, demand, _ := s.Schedule(key, standardBlockSize, func(ctx context.Context, _ *Progress) Result {
 				started <- key
 				select {
 				case <-release:
 				case <-ctx.Done():
 				}
 				return Result{}
-			})
-			demands = append(demands, j.Add(need(key, false, time.Second, time.Hour)))
+			}, need(key, false, time.Second, time.Hour))
+			demands = append(demands, demand)
 		}
 		time.Sleep(time.Second)
 		synctest.Wait()
@@ -130,8 +130,8 @@ func TestSoftLimitWaitHasNoPastWindowWakeup(t *testing.T) {
 		s := New(Config{SoftLimit: 1, GrowInterval: time.Second})
 		defer s.Close()
 		for _, key := range []string{"running", "waiting"} {
-			j, _ := s.Submit(key, standardBlockSize, func(ctx context.Context, _ *Progress) Result { <-ctx.Done(); return Result{} })
-			j.Add(need(key, false, -time.Second, time.Hour))
+			_, _, _ = s.Schedule(key, standardBlockSize, func(ctx context.Context, _ *Progress) Result { <-ctx.Done(); return Result{} }, need(key, false, -time.Second, time.Hour))
+
 		}
 		synctest.Wait()
 		s.call(func(st *state) {
@@ -150,19 +150,19 @@ func TestCompletedSlowSampleDoesNotMoveWindowOrReorder(t *testing.T) {
 		defer s.Close()
 		started := make(chan string, 4)
 		now := time.Now()
-		probe, _ := s.Submit("probe", standardBlockSize, func(_ context.Context, p *Progress) Result {
+		probe, _, _ := s.Schedule("probe", standardBlockSize, func(_ context.Context, p *Progress) Result {
 			time.Sleep(5 * time.Second)
 			p.Ready()
 			return Result{}
-		})
-		probe.Add(need("probe", true, 0, time.Hour))
+		}, need("probe", true, 0, time.Hour))
+
 		for _, key := range []string{"later", "earlier"} {
-			j, _ := s.Submit(key, standardBlockSize, func(context.Context, *Progress) Result { started <- key; return Result{} })
 			ready := now.Add(510 * time.Second)
 			if key == "earlier" {
 				ready = now.Add(509 * time.Second)
 			}
-			j.Add(Need{Owner: key, ReadyBy: ready, LeaseUntil: now.Add(time.Hour)})
+			_, _, _ = s.Schedule(key, standardBlockSize, func(context.Context, *Progress) Result { started <- key; return Result{} }, Need{Owner: key, ReadyBy: ready, LeaseUntil: now.Add(time.Hour)})
+
 		}
 		<-probe.Done()
 		if got := <-started; got != "earlier" || time.Since(now) != 9*time.Second {
@@ -181,15 +181,15 @@ func TestUntimedWorkUsesSpareCapacityAndDeadlineUpdatesMoveHeaps(t *testing.T) {
 		started := make(chan string, 8)
 		gate := make(chan struct{})
 		submit := func(key string, ready time.Duration) *Demand {
-			j, _ := s.Submit(key, 1, func(ctx context.Context, _ *Progress) Result {
+			_, demand, _ := s.Schedule(key, 1, func(ctx context.Context, _ *Progress) Result {
 				started <- key
 				select {
 				case <-gate:
 				case <-ctx.Done():
 				}
 				return Result{}
-			})
-			return j.Add(need(key, false, ready, time.Hour))
+			}, need(key, false, ready, time.Hour))
+			return demand
 		}
 		submit("future", time.Hour/2)
 		submit("background", 0)
@@ -229,10 +229,9 @@ func TestDeadlineUpdatesRearmWindowWithoutTouchingRunningWork(t *testing.T) {
 				return Result{}
 			}
 		}
-		first, _ := s.Submit("first", standardBlockSize, run("first"))
-		second, _ := s.Submit("second", standardBlockSize, run("second"))
-		a := first.Add(need("first", false, 10*time.Second, time.Hour))
-		second.Add(need("second", false, 20*time.Second, time.Hour))
+		_, a, _ := s.Schedule("first", standardBlockSize, run("first"), need("first", false, 10*time.Second, time.Hour))
+		_, _, _ = s.Schedule("second", standardBlockSize, run("second"), need("second", false, 20*time.Second, time.Hour))
+
 		a.Update(need("first", false, 30*time.Second, time.Hour))
 		synctest.Wait()
 		s.call(func(st *state) {
@@ -268,8 +267,8 @@ func TestLargePrepareAheadStillRampsAndCapsOrdinaryWork(t *testing.T) {
 		now := time.Now()
 		for i := range 10 {
 			key := string(rune('a' + i))
-			j, _ := s.Submit(key, standardBlockSize, run)
-			j.Add(need(key, false, 450*time.Second, time.Hour))
+			_, _, _ = s.Schedule(key, standardBlockSize, run, need(key, false, 450*time.Second, time.Hour))
+
 		}
 		time.Sleep(time.Second)
 		synctest.Wait()
@@ -281,8 +280,8 @@ func TestLargePrepareAheadStillRampsAndCapsOrdinaryWork(t *testing.T) {
 				t.Fatal("large M bypassed ramp", at.Sub(now))
 			}
 		}
-		j, _ := s.Submit("blocking", standardBlockSize, run)
-		j.Add(need("reader", true, 900*time.Second, time.Hour))
+		_, _, _ = s.Schedule("blocking", standardBlockSize, run, need("reader", true, 900*time.Second, time.Hour))
+
 		if at := <-started; at != time.Now() {
 			t.Fatal("Blocking waited for window or quota")
 		}

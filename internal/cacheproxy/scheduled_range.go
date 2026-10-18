@@ -12,10 +12,6 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
-func isScheduledPause(ctx context.Context) bool {
-	return errors.Is(context.Cause(ctx), blocksched.ErrPaused) || errors.Is(context.Cause(ctx), errPreempted)
-}
-
 func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *http.Response, flight *flight, progress *blocksched.Progress) error {
 	if initial != nil {
 		defer initial.Body.Close()
@@ -51,10 +47,7 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 	var last error
 	for {
 		if err := ctx.Err(); err != nil {
-			if isScheduledPause(ctx) {
-				return blocksched.ErrPaused
-			}
-			return err
+			return context.Cause(ctx)
 		}
 		transferCtx := ctx
 		var err error
@@ -62,7 +55,6 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 		exhausted := false
 		err = func() error {
 			if resp == nil {
-				attempts.current = nil
 				req, err := s.routeRequest(transferCtx, blockVideo)
 				if err != nil {
 					return err
@@ -122,13 +114,12 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 			}
 			return nil
 		}()
-		preempted := isScheduledPause(ctx)
 		resp = nil
 		if exhausted {
 			break
 		}
-		if err != nil && preempted {
-			return blocksched.ErrPaused
+		if err != nil && ctx.Err() != nil {
+			return context.Cause(ctx)
 		}
 		if err != nil {
 			last = applog.SafeError(err)

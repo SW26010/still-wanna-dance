@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"still-wanna-dance/internal/applog"
-	"still-wanna-dance/internal/blocksched"
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
@@ -57,9 +56,6 @@ func (s *Server) videoResponse(r *http.Request, original video, attempts *resour
 			return nil, err
 		}
 		next.Header = r.Header.Clone()
-		// This redirect succeeded. A pause before the next request must keep
-		// its validated destination rather than rewind the previous channel.
-		attempts.current, attempts.request = nil, next
 		r = next
 	}
 	return nil, errors.New("too many video redirects")
@@ -73,18 +69,6 @@ type resourceCandidates struct {
 }
 type resourceAttempts struct {
 	targets map[string]*resourceCandidates
-	current *resourceCandidates
-	request *http.Request
-}
-
-// Local scheduling cancellation is not a failed channel. Resume the last
-// validated request on that channel without revisiting earlier failures.
-func (a *resourceAttempts) resume() *http.Request {
-	if a.current != nil {
-		a.current.next--
-		a.current = nil
-	}
-	return a.request
 }
 
 func (s *Server) candidates(r *http.Request, attempts *resourceAttempts) *resourceCandidates {
@@ -170,7 +154,6 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		client := *s.client
 		client.Transport = transport
 		ctx, cancel := context.WithTimeout(r.Context(), s.cfg.DownloadTimeout)
-		attempts.current, attempts.request = candidates, r
 		if s.cfg.BeginResourceLoad != nil {
 			endLoad, endRequest := s.cfg.BeginResourceLoad(), release
 			release = sync.OnceFunc(func() { endLoad(); endRequest() })
@@ -189,12 +172,6 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		if err != nil && ctx.Err() != nil {
 			err = context.Cause(ctx)
 		}
-		if !errors.Is(context.Cause(ctx), errRangeYielded) && !errors.Is(context.Cause(ctx), errPreempted) && !errors.Is(context.Cause(ctx), blocksched.ErrPaused) {
-			// A real failure consumes this candidate. A later Seek may cancel
-			// the next candidate before headers; resume must not rewind to the
-			// earlier failed attempt in that case.
-			attempts.current = nil
-		}
 		cancel()
 		release()
 		failures = append(failures, applog.SafeError(err))
@@ -212,9 +189,6 @@ func (s *Server) openUpstream(ctx context.Context, v video, block int64, attempt
 	r, err := s.routeRequest(ctx, v)
 	if err != nil {
 		return nil, "", err
-	}
-	if attempts.request != nil {
-		r = attempts.request.Clone(ctx)
 	}
 	start := block * rangeBlockSize
 	end := min(v.size, start+rangeBlockSize)
@@ -236,7 +210,6 @@ func (s *Server) openUpstream(ctx context.Context, v video, block int64, attempt
 		}
 		if err != nil {
 			resp.Body.Close()
-			attempts.current = nil // Rejected headers consume this channel.
 			// Retry this validated endpoint on the next measured channel.
 			if resp.Request != nil {
 				r = resp.Request.Clone(ctx)

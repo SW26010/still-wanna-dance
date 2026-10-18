@@ -37,7 +37,6 @@ type downloadSession struct {
 	wake        chan struct{}
 	initialized chan struct{}
 	initOnce    sync.Once
-	opening     *resourceAttempts // first executor's state until headers are accepted
 	mu          sync.Mutex
 	waits       map[*scheduledWait]bool
 	jobs        map[int64]*scheduledBlock // resource coordinator only
@@ -72,17 +71,10 @@ func (w *downloadSession) initialize(d *localResource) {
 
 // The initial request is itself a scheduled block. A 200 fallback keeps that
 // one execution until body close; a 206 exposes the spool before reading its block.
-func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block int64) (result blocksched.Result) {
+func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block int64) blocksched.Result {
 	if w.ctx.Err() != nil {
 		return blocksched.Result{Err: context.Cause(w.ctx)}
 	}
-	defer func() {
-		// A withdrawn block can resume in this session, but a canceled session
-		// cannot. Its checkpoint belongs to the next flight after cleanup.
-		if errors.Is(result.Err, blocksched.ErrPaused) && w.ctx.Err() != nil {
-			result.Err = context.Cause(w.ctx)
-		}
-	}()
 	if deadline, ok := w.ctx.Deadline(); ok {
 		var stop context.CancelFunc
 		ctx, stop = context.WithDeadline(ctx, deadline)
@@ -100,22 +92,13 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 
 	var initial *http.Response
 	if w.f.ranges == nil || w.f.ranges.sequential {
-		if w.opening == nil {
-			w.opening = new(resourceAttempts)
-		}
-		resp, host, err := w.s.openUpstream(ctx, w.v, block, w.opening)
+		resp, host, err := w.s.openUpstream(ctx, w.v, block, new(resourceAttempts))
 		if err != nil {
-			if isScheduledPause(ctx) {
-				if r := w.opening.resume(); r != nil {
-					// Keep the validated endpoint/cursor, not a canceled run's
-					// context. The next execution supplies its own deadline.
-					w.opening.request = r.Clone(context.Background())
-				}
-				return blocksched.Result{Err: blocksched.ErrPaused, Remaining: min(rangeBlockSize, w.v.size-block*rangeBlockSize)}
+			if ctx.Err() != nil {
+				return blocksched.Result{Err: context.Cause(ctx)}
 			}
 			return blocksched.Result{Err: fmt.Errorf("%w: %w", errUpstreamDownload, err)}
 		}
-		w.opening = nil // The response body now owns the initial request's cursor.
 		defer resp.Body.Close()
 		if resp.Request != nil && resp.Request.URL != nil {
 			w.f.progress.setHost(resp.Request.URL.Hostname())
@@ -137,7 +120,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 			// Sequential bodies have no safe partial restart. End this flight;
 			// its next owner opens a new body after cleanup. Preserve storage
 			// and integrity errors that happen to coincide with cancellation.
-			if isScheduledPause(ctx) && (errors.Is(err, context.Canceled) || errors.Is(err, blocksched.ErrPaused)) {
+			if ctx.Err() != nil && errors.Is(err, context.Canceled) {
 				w.s.preemptFlight(w.f, nil)
 				err = errPreempted
 			}
@@ -170,8 +153,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 		initial = resp
 	}
 	err := w.s.readScheduledRange(ctx, block, initial, w.f, p)
-	remaining := min(rangeBlockSize, w.v.size-block*rangeBlockSize)
-	return blocksched.Result{Err: err, Remaining: remaining}
+	return blocksched.Result{Err: err}
 }
 
 func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Need) error {
@@ -223,7 +205,10 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]block
 			delete(plan, b)
 			continue
 		}
-		if b < 0 || b >= blocks || local != nil && local.has(b) {
+		// A completed write can precede Done. Keep an existing execution's
+		// demand through that final cleanup; availability prevents new work,
+		// rather than canceling a successful task before its result is observed.
+		if b < 0 || b >= blocks || local != nil && local.has(b) && w.jobs[b] == nil {
 			delete(plan, b)
 		}
 	}
@@ -294,7 +279,7 @@ func (w *downloadSession) reconcile(plan map[int64]blockUse, now time.Time, chan
 	}
 
 	// Stop accepting readers before canceling the last tasks or waiting for
-	// their bodies/checkpoints to close. A concurrent GET invalidates an idle
+	// their bodies and writes to close. A concurrent GET invalidates an idle
 	// snapshot and must be planned before any irreversible task retirement.
 	if !active && len(plan) == 0 && !until.After(now) && !w.s.preemptFlight(w.f, changed) {
 		return until, true, nil
@@ -329,12 +314,13 @@ func (w *downloadSession) reconcile(plan map[int64]blockUse, now time.Time, chan
 		if j.merged == nil || !j.merged.Update(n) {
 			j.merged = j.task.Add(n)
 			if !j.merged.Accepted() {
-				select {
-				case <-j.task.Done():
-					continue
-				default:
-					return until, false, errors.Join(errBusy, blocksched.ErrCapacity)
-				}
+				// A lease can end while its response is still closing. This
+				// coordinator owns the task's single merged contribution; an
+				// invalidated handle cannot revive it. Drain the old execution
+				// before submitting current usage as a fresh task.
+				j.retiring = true
+				j.task.Close()
+				continue
 			}
 		}
 		j.published = n
@@ -361,6 +347,12 @@ func (w *downloadSession) reapCompleted(initialized *bool) (bool, error) {
 			if errors.Is(j.task.Err(), blocksched.ErrDeferred) {
 				j.task, j.merged = nil, nil
 				continue
+			}
+			// A stopped sequential body has already exposed its spool. Only
+			// Range work can be recreated within this session. Done publishes
+			// the executor's sequentialCtx before we inspect it here.
+			if j.retiring && errors.Is(j.task.Err(), context.Canceled) && w.f.sequentialCtx != nil {
+				return false, errPreempted
 			}
 			if err := j.task.Err(); err != nil && !(j.retiring && errors.Is(err, context.Canceled)) {
 				return false, err

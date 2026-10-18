@@ -117,3 +117,45 @@ func TestLastRangeCompletingDuringPlanStillVerifiesAndPublishes(t *testing.T) {
 		})
 	}
 }
+
+func TestReadableBlockDrainsWithoutCancelingSuccessfulExecution(t *testing.T) {
+	w, s := testSession(t)
+	w.v.size = rangeBlockSize
+	w.f.ranges.video = resourceVideo(w.v)
+	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
+	defer s.scheduler.Close()
+	_, release := addTestDemand(t, s, context.Background(), w.v, false)
+	defer release()
+	ready, cleanup := make(chan struct{}), make(chan struct{})
+	finish := sync.OnceFunc(func() { close(cleanup) })
+	defer finish()
+	plan, _, _ := w.plan(time.Now(), true)
+	task, merged, err := s.scheduler.Schedule("draining", rangeBlockSize, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
+		w.f.ranges.finish(0)
+		p.Ready()
+		close(ready)
+		select {
+		case <-ctx.Done():
+			return blocksched.Result{Err: ctx.Err()}
+		case <-cleanup:
+			return blocksched.Result{}
+		}
+	}, plan[0].need)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.jobs[0] = &scheduledBlock{task: task, merged: merged, published: plan[0].need}
+	<-ready
+	plan, changed, active := w.plan(time.Now(), true)
+	if _, _, err := w.reconcile(plan, time.Now(), changed, active); err != nil || w.jobs[0].retiring {
+		t.Fatal("readability canceled successful final cleanup", err)
+	}
+	finish()
+	if err := task.Err(); err != nil {
+		t.Fatal("successful execution became cancellation", err)
+	}
+	initialized := true
+	if _, err := w.reapCompleted(&initialized); err != nil || !w.finished[0] {
+		t.Fatal("completed work was lost before zero-budget reclamation", err)
+	}
+}

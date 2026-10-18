@@ -1,6 +1,6 @@
 # 以期望完成时间驱动的全局块调度
 
-> 本页说明当前已实现的块调度架构。下载需求与资源管理的后续目标和待决问题，统一维护在 canonical 文档[下载需求与资源管理设计](download-resource-design.md)；其中已确认的目标不表示本页对应实现已改变。下载窗口已实现固定 M；后续新增 `need-by + 30 秒` 的下载延续截止，并且不保留块下载暂停／恢复；下载延续截止和暂停恢复尚待迁移，下文分别说明当前行为。
+> 本页说明当前已实现的块调度架构。下载需求与资源管理的后续目标和待决问题，统一维护在 canonical 文档[下载需求与资源管理设计](download-resource-design.md)；其中已确认的目标不表示本页对应实现已改变。下载窗口已实现固定 M，块下载停止后结束旧任务、按需新建任务，不保留暂停／恢复。`need-by + 30 秒` 下载截止仍待接入。
 
 **本次重构的核心设计，是把播放、预读、队列和补齐统一表达为对内容块的独立需求，再用“何时需要这块数据”驱动全局下载。** 视频语义留在需求管理层；调度核心只处理内容块、期望完成时间、需求有效期、真实读取阻塞和执行额度。
 
@@ -30,7 +30,7 @@ flowchart TD
     A["需求证据：HTTP GET / 实际 Read / 队列 ID 顺序 / 本地媒体资料 / 补齐请求"]
     B["需求管理：推导期限、保留独立来源、撤销与交接、按块汇总"]
     C["全局块调度：租约、期限堆、固定 M 窗口、公平分配、并发缓增"]
-    D["执行与存储：Range、重试、部分进度、响应检查、完整文件校验与发布"]
+    D["执行与存储：Range、重试、完整块、响应检查、完整文件校验与发布"]
     A --> B --> C --> D
     D -->|"可读耗时与执行完成"| C
     D -->|"块完成通知"| B
@@ -49,7 +49,7 @@ flowchart TD
 | `Blocking` | 这一刻是否确实有 Read 等待这个缺块？ | GET 到达、整部视频、固定开头窗口及预读均不能自动获得此标记 |
 | `Opportunistic` | 是否另有有效的无期限普通需求，允许提前使用空额度？ | 只绕过启动窗口，不绕过普通额度和缓增，不等于 Blocking |
 
-独立需求有可更新、可关闭的身份，核心以句柄管理。主动撤销是正常路径，租约到期负责兜底；关闭或过期后的旧更新不能复活需求。续期必须依据来源仍然有效，不能因为下载还在进行就给自己续命。无有效需求时停止执行，任务元数据最多保留 30 秒供重接；临时进度是否保留由另一套有界存储策略决定。
+独立需求有可更新、可关闭的身份，核心以句柄管理。主动撤销是正常路径，租约到期负责兜底；关闭或过期后的旧更新不能复活需求。续期必须依据来源仍然有效，不能因为下载还在进行就给自己续命。无有效需求时立即结束旧任务，不保留供重接的任务元数据；响应关闭及写入收尾完成后释放执行额度和任务容量。任务及首份需求通过 Schedule 原子登记，已结束句柄不能复活，新需求待旧清理完成后建立新任务。完整块由本地资源层独立保留，未完成块从块起点重下。
 
 例如块 K 同时被 A 的实际读取、B 的预读和补齐需要：A 退出只撤销 A 的贡献，B 的 ReadyBy 和补齐的提前准入仍有效；B 再退出，补齐可继续使用普通额度。K 始终只有一个共享任务。已经执行的块在仍有有效需求时自然完成，优先级变化不触发抢占。
 
@@ -71,7 +71,7 @@ flowchart TD
 
 新 GET 直接登记自己的需求并复用相同块，不必判定它是不是旧请求的继任者。新需求可以只接上部分块；其他块按各自租约结束。新队列需求也能共享下载，但不会继承旧 GET 的紧迫性或续长旧交接。本地保护按有限使用需求的独立提前窗口生效，最后一份块需求结束后延续 60 秒；已移除队列专属 30 秒文件保护。
 
-交接已按完整使用范围维护，包含已下载未消费块；有效期按真实退出时刻冻结，need-by 只在原值上平移。来源集合输出不含来源身份的 blockUse 摘要，下载协调器不再持有来源贡献或交接数组，本地保护复用同一整合投影。具体规则以[下载需求与资源管理设计](download-resource-design.md#常规播放交接与同块需求重新接入)为准；块文件存储与下载停止语义继续后续迁移。
+交接已按完整使用范围维护，包含已下载未消费块；有效期按真实退出时刻冻结，need-by 只在原值上平移。来源集合输出不含来源身份的 blockUse 摘要，下载协调器不再持有来源贡献或交接数组，本地保护复用同一整合投影。具体规则以[下载需求与资源管理设计](download-resource-design.md#常规播放交接与同块需求重新接入)为准；完整块存储与下载停止语义均已接入。
 
 ## 用自身数据推导播放与队列期限
 
@@ -131,7 +131,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 
 ## 事件驱动与生命周期边界
 
-核心一个事件循环持有任务和索引堆，等待需求变化、执行完成或最近的入窗/增路/租约/孤儿回收时刻。已入窗但满额度的任务等待完成或缓增事件，不把过去的入窗时间反复装成立即触发的定时器。没有每 500 ms 全任务汇总、排序和目标并发反推，也没有每块独立的轮询协程。
+核心一个事件循环持有任务和索引堆，等待需求变化、执行完成或最近的入窗/增路/租约时刻。已入窗但满额度的任务等待完成或缓增事件，不把过去的入窗时间反复装成立即触发的定时器。没有每 500 ms 全任务汇总、排序和目标并发反推，也没有每块独立的轮询协程。
 
 定位共享块、汇总该块的有限来源、调整相关索引即可响应变化。单个堆项调整为 O(log N)，检查堆首是否入窗为 O(1)；同 Owner 的公平性更新可能调整该组多个块，不能把整个事件处理夸大为恒定成本。网络、磁盘和正文关闭在执行器中完成，调度事件循环不等待这些操作。
 
@@ -145,7 +145,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 
 | 设计约定 | 实现与回归入口 |
 | --- | --- |
-| 独立需求、共享任务、租约与公平分配 | [scheduler.go](../internal/blocksched/scheduler.go)、[scheduler_test.go](../internal/blocksched/scheduler_test.go)、[orphan_test.go](../internal/blocksched/orphan_test.go) |
+| 独立需求、共享任务、租约与公平分配 | [scheduler.go](../internal/blocksched/scheduler.go)、[scheduler_test.go](../internal/blocksched/scheduler_test.go)、[stop_test.go](../internal/blocksched/stop_test.go) |
 | 来源过滤、有限交接、不识别继任者 | [block_demands.go](../internal/cacheproxy/block_demands.go)、[demand.go](../internal/cacheproxy/demand.go)、[block_demands_test.go](../internal/cacheproxy/block_demands_test.go) |
 | GET / 队列绝对期限与缺失值规则 | [media_timing.go](../internal/cacheproxy/media_timing.go)、[playback_timing.go](../internal/cacheproxy/playback_timing.go)、[queue_timing.go](../internal/cacheproxy/queue_timing.go) 及同名 `_test.go` |
 | 窗口、缓增、采样与准入例外 | [control.go](../internal/blocksched/control.go)、[duration.go](../internal/blocksched/duration.go)、[window_test.go](../internal/blocksched/window_test.go)、[opportunistic_test.go](../internal/blocksched/opportunistic_test.go) |

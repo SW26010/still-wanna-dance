@@ -15,7 +15,7 @@ func isLocalStorageError(err error) bool {
 	return err != nil && (errors.Is(err, ErrLocalStorage) ||
 		!errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) &&
 			!errors.Is(err, errUpstreamDownload) && !errors.Is(err, errBusy) && !errors.Is(err, ErrNotRetained) &&
-			!errors.Is(err, blocksched.ErrClosed) && !errors.Is(err, blocksched.ErrPaused))
+			!errors.Is(err, blocksched.ErrClosed))
 }
 
 // Preserve a storage failure regardless of task completion/map iteration order.
@@ -27,7 +27,7 @@ func preferDownloadError(current, next error) error {
 	if isLocalStorageError(next) {
 		return next
 	}
-	if errors.Is(next, context.Canceled) || errors.Is(next, context.DeadlineExceeded) || errors.Is(next, blocksched.ErrClosed) || errors.Is(next, blocksched.ErrPaused) {
+	if errors.Is(next, context.Canceled) || errors.Is(next, context.DeadlineExceeded) || errors.Is(next, blocksched.ErrClosed) {
 		return current
 	}
 	return next

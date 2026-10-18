@@ -24,14 +24,14 @@ func TestMixedDemandKeepsDeadlineAndOpportunisticAdmission(t *testing.T) {
 					return Result{}
 				}
 			}
-			hold, _ := s.Submit("hold", 1, run("hold"))
-			hold.Add(need("hold", false, 0, time.Hour))
+			_, _, _ = s.Schedule("hold", 1, run("hold"), need("hold", false, 0, time.Hour))
+
 			<-started
-			shared, _ := s.Submit("shared", 1, run("shared"))
-			d := shared.Add(need("playback", false, 15*time.Minute, time.Hour))
+			shared, d, _ := s.Schedule("shared", 1, run("shared"), need("playback", false, 15*time.Minute, time.Hour))
+
 			shared.Add(need("batch", false, 0, time.Hour))
-			other, _ := s.Submit("other", 1, run("other"))
-			other.Add(need("other", false, 2*time.Second, time.Hour))
+			_, _, _ = s.Schedule("other", 1, run("other"), need("other", false, 2*time.Second, time.Hour))
+
 			if earlier {
 				d.Update(need("playback", false, time.Second, time.Hour))
 			}
@@ -75,17 +75,17 @@ func TestMixedDemandWithdrawalRemovesOnlyEarlyAdmission(t *testing.T) {
 			s := New(Config{SoftLimit: 1})
 			defer s.Close()
 			gate := make(chan struct{})
-			hold, _ := s.Submit("hold", 1, func(ctx context.Context, _ *Progress) Result {
+			_, _, _ = s.Schedule("hold", 1, func(ctx context.Context, _ *Progress) Result {
 				select {
 				case <-gate:
 				case <-ctx.Done():
 				}
 				return Result{}
-			})
-			hold.Add(need("hold", false, 0, time.Hour))
+			}, need("hold", false, 0, time.Hour))
+
 			started := make(chan struct{}, 1)
-			j, _ := s.Submit("mixed", 1, func(context.Context, *Progress) Result { started <- struct{}{}; return Result{} })
-			playback := j.Add(need("playback", false, 15*time.Minute, time.Hour))
+			j, playback, _ := s.Schedule("mixed", 1, func(context.Context, *Progress) Result { started <- struct{}{}; return Result{} }, need("playback", false, 15*time.Minute, time.Hour))
+
 			batch := j.Add(need("batch", false, 0, 100*time.Millisecond))
 			if expire {
 				time.Sleep(100 * time.Millisecond)

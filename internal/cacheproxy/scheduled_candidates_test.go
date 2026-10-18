@@ -79,26 +79,26 @@ func TestResourceDeadlinesRemainVisibleBeyondEightBlocks(t *testing.T) {
 		}
 		now := time.Now()
 		// Hold admission until both resources have submitted their real plans.
-		gate, err := s.scheduler.Submit("gate", 1, run("gate"))
+		_, _, err := s.scheduler.Schedule("gate", 1, run("gate"), blocksched.Need{Owner: "gate", LeaseUntil: now.Add(time.Hour)})
 		if err != nil {
 			t.Fatal(err)
 		}
-		gate.Add(blocksched.Need{Owner: "gate", LeaseUntil: now.Add(time.Hour)})
+
 		<-started
 		for i, session := range []*downloadSession{w, other} {
 			clock := &playbackClock{at: now.Add(time.Duration(i) * 30 * time.Second), limit: session.v.size, media: mediaTiming{session.v.size, 20 * time.Second}}
 			ctx := context.WithValue(context.Background(), playbackClockKey{}, clock)
 			_, closeDemand := addTestDemand(t, s, ctx, session.v, true)
 			defer closeDemand()
+			plan, changed, active := session.plan(now, true)
 			for block := int64(0); block < session.v.size/rangeBlockSize; block++ {
 				key := fmt.Sprintf("%s/%d", session.v.key, block)
-				task, err := s.scheduler.Submit(key, rangeBlockSize, run(key))
+				task, merged, err := s.scheduler.Schedule(key, rangeBlockSize, run(key), plan[block].need)
 				if err != nil {
 					t.Fatal(err)
 				}
-				session.jobs[block] = &scheduledBlock{task: task}
+				session.jobs[block] = &scheduledBlock{task: task, merged: merged, published: plan[block].need}
 			}
-			plan, changed, active := session.plan(now, true)
 			if _, _, err := session.reconcile(plan, now, changed, active); err != nil {
 				t.Fatal(err)
 			}
@@ -214,7 +214,7 @@ func TestExpandedResourceRetainsGlobalMetadataCapacity(t *testing.T) {
 	}
 	w.close(err)
 	for block := range 16 {
-		if _, err := s.scheduler.Submit(fmt.Sprint(block), 1, nil); err != nil {
+		if _, _, err := s.scheduler.Schedule(fmt.Sprint(block), 1, nil, blocksched.Need{Owner: "future", ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)}); err != nil {
 			t.Fatal("failed resource leaked task capacity", block, err)
 		}
 	}

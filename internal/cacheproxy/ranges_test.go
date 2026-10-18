@@ -304,7 +304,7 @@ func TestRangeReadersSeekBackAndForth(t *testing.T) {
 	if len(counts) != 6 {
 		t.Fatal(counts)
 	}
-	// Jumps can yield and resume partial blocks. Unique fetching without jumps
+	// Jumps can stop blocks and later restart from the beginning. Fetching without jumps
 	// is covered by TestParallelRangeDownloadClaimsEachBlockOnce; this scenario
 	// verifies shared readers' bytes and completion through repeated seeks.
 }

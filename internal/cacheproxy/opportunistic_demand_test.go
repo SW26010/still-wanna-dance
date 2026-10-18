@@ -33,11 +33,7 @@ func TestAggregatePreservesIndependentUntimedDemand(t *testing.T) {
 	if n = j.aggregate(now); n.Opportunistic || n.ReadyBy != ready {
 		t.Fatal("withdrawn batch retained early admission", n)
 	}
-	// Handoffs retain only their computed finite deadline, never early admission.
-	h := handoffNeed(blocksched.Need{Opportunistic: true, Blocking: true}, now, getHandoff, time.Second)
-	if h.Opportunistic || h.Blocking || h.ReadyBy.IsZero() {
-		t.Fatal("handoff inherited execution privileges", h)
-	}
+
 }
 
 func TestBatchCompletesFutureTailSharedWithGET(t *testing.T) {

@@ -84,7 +84,6 @@ func (e *sourceExit) when() time.Time {
 	return time.Time{}
 }
 
-func (s *Server) queueContainsLocked(song string) bool { return s.prefetchSources[song] != nil }
 func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 	if !s.beginRequest() {
 		return context.Canceled
@@ -133,7 +132,7 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 			if source.position == 0 {
 				grace = queueHandoff
 			}
-			s.endUseLocked(source.use, now, grace)
+			s.endUseLocked(source.use, now, grace, playbackClock{at: source.startAt.Add(5 * time.Second), media: source.timing}, source.origin())
 			source.use = useSpan{}
 			changed = true
 		}
@@ -147,11 +146,6 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 		s.queueStart = time.Time{}
 	}
 	s.retimeQueueLocked(now)
-	for song := range s.prefetchResources {
-		if reset || !s.queueContainsLocked(song) {
-			delete(s.prefetchResources, song)
-		}
-	}
 	s.notifyCapacityLocked()
 	return nil
 }
@@ -200,12 +194,6 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 	}
 	s.demands[d] = true
 	s.retimeQueueLocked(time.Now())
-	if queue && ctx.Err() == nil && s.validQueueSourceLocked(d) {
-		if s.prefetchResources == nil {
-			s.prefetchResources = make(map[string]string)
-		}
-		s.prefetchResources[v.songID] = v.key
-	}
 	s.notifyCapacityLocked()
 	s.mu.Unlock()
 	release := sync.OnceFunc(func() {
@@ -215,20 +203,33 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 		}
 		d.exit.recordReason(reason)
 		s.mu.Lock()
-		if !d.queue {
-			grace := time.Duration(0)
-			if d.playback && d.exit.at.Load().reason == withdrawalSourceGone {
-				grace = getHandoff
-			}
-			s.endUseLocked(d.useSpan(), d.exit.when(), grace)
-		}
-		delete(s.demands, d)
-		s.retimeQueueLocked(time.Now())
-		s.notifyCapacityLocked()
+		s.removeDemandLocked(d)
 		s.mu.Unlock()
 	})
 	stop := context.AfterFunc(ctx, release)
 	return d, func() { stop(); release() }, nil
+}
+
+// Cancellation can be observed before its AfterFunc obtains mu. Transfer the
+// remaining usage atomically whichever observer gets here first; a snapshot
+// must never see a false gap between a GET and its handoff.
+func (s *Server) removeDemandLocked(d *downloadDemand) {
+	if !s.demands[d] {
+		return
+	}
+	if !d.queue {
+		grace := time.Duration(0)
+		var clock playbackClock
+		if d.playback && d.clock != nil && d.exit.at.Load().reason == withdrawalSourceGone {
+			grace = getHandoff
+			clock = *d.clock
+			clock.at = clock.at.Add(2 * time.Second)
+		}
+		s.endUseLocked(d.useSpan(), d.exit.when(), grace, clock, sourceGET)
+	}
+	delete(s.demands, d)
+	s.retimeQueueLocked(time.Now())
+	s.notifyCapacityLocked()
 }
 func (s *Server) notifyCapacityLocked() {
 	close(s.capacityChanged)

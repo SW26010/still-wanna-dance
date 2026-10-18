@@ -23,9 +23,9 @@ func TestResourceDemandsExposeAllMissingBlocks(t *testing.T) {
 			now := time.Now()
 			switch kind {
 			case "queue":
-				s.prefetchResources = map[string]string{"1": w.v.key}
 				s.prefetchSources = map[string]*queueSource{"1": {
 					song: "1", startAt: now, timing: mediaTiming{w.v.size, time.Minute},
+					use: useSpan{w.v.key, 0, 64},
 				}}
 			default:
 				_, release := addTestDemand(t, s, context.Background(), w.v, kind == "get")

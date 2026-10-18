@@ -83,8 +83,12 @@ func TestBlockDemandFollowsActualWaitAndIndependentReaders(t *testing.T) {
 	}
 	cancel()
 	plan, _, _ = w.plan(time.Now(), true)
-	if len(plan) != 0 {
-		t.Fatal("canceled context renewed itself")
+	for _, sources := range plan {
+		for _, p := range sources {
+			if p.source != sourceHandoff || p.need.LeaseUntil.After(time.Now().Add(getHandoff)) {
+				t.Fatal("canceled context renewed itself", p)
+			}
+		}
 	}
 }
 
@@ -96,7 +100,7 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 		// A blocked synthetic executor allows inspecting leases without network.
 		w.s.scheduler = s.scheduler
 		s.UpdatePrefetchQueue([]int64{1, 2}, false)
-		_, release := addTestDemand(t, s, s.queueDemandContext(context.Background(), "2"), video{key: w.v.key, songID: "2"}, false)
+		_, release := addTestDemand(t, s, s.queueDemandContext(context.Background(), "2"), video{key: w.v.key, songID: "2", size: w.v.size}, false)
 		defer release()
 		now := time.Now()
 		plan, _, _ := w.plan(now, false)
@@ -158,28 +162,11 @@ func TestBlockLeaseRemovalDoesNotDropOtherOwner(t *testing.T) {
 	w.reconcile(plan, now, nil, false)
 	delete(plan[0], read)
 	w.reconcile(plan, now, nil, false)
-	if len(w.jobs[0].needs) != 1 || !w.jobs[0].handoffUntil.Equal(now.Add(getHandoff)) {
-		t.Fatal("independent source lost or bad GET handoff")
+	if len(w.jobs[0].needs) != 1 || !w.jobs[0].handoffUntil.IsZero() {
+		t.Fatal("independent source lost or task manufactured GET handoff")
 	}
 	job.Close()
 	<-job.Done()
-}
-
-func TestHandoffDefersFutureDeadlineWithoutExtendingValidity(t *testing.T) {
-	now := time.Now()
-	for _, ready := range []time.Time{now.Add(time.Minute), now.Add(-time.Minute), {}} {
-		original := blocksched.Need{Owner: "video", Blocking: true, ReadyBy: ready, LeaseUntil: now.Add(sourceLease)}
-		h := handoffNeed(original, now, getHandoff, 2*time.Second)
-		if h.Blocking || !h.LeaseUntil.Equal(now.Add(getHandoff)) {
-			t.Fatal("handoff kept blocking or original long validity", h)
-		}
-		if !h.ReadyBy.Equal(ready.Add(2 * time.Second)) {
-			t.Fatal("handoff moved the original deadline to withdrawal time", h)
-		}
-		if !original.Blocking {
-			t.Fatal("independent source was mutated")
-		}
-	}
 }
 
 func TestCompletionRechecksRangeInitialization(t *testing.T) {

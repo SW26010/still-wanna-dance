@@ -99,8 +99,15 @@ func TestCompletedGETSpanKeepsReaderWithoutDownloadingOtherBlocks(t *testing.T) 
 	}
 	release()
 	plan, changed, active = w.plan(now, true)
+	if len(plan) != 0 || !active {
+		t.Fatal("client close lost readable handoff usage or restarted completed block", plan, active)
+	}
+	s.mu.Lock()
+	now = s.useHandoffs[0].until
+	s.mu.Unlock()
+	plan, changed, active = w.plan(now, true)
 	if _, retry, err := w.reconcile(plan, now, changed, active); err != nil || retry || !w.f.preempted {
-		t.Fatal("reader close retained an idle session", err, retry, w.f.preempted)
+		t.Fatal("expired handoff retained an idle session", err, retry, w.f.preempted)
 	}
 }
 
@@ -114,7 +121,7 @@ func TestInitialRangeTaskStaysSharedWhenAnotherGETArrives(t *testing.T) {
 	}
 	add(14)
 	w.jobs[14] = &scheduledBlock{} // The initial request is already waiting for headers.
-	later := add(2)
+	add(2)
 	plan, _, _ := w.plan(time.Now(), false)
 	if len(plan) != 1 || len(plan[14]) != 2 {
 		t.Fatal("concurrent GET opened another initial request", plan)
@@ -123,9 +130,7 @@ func TestInitialRangeTaskStaysSharedWhenAnotherGETArrives(t *testing.T) {
 	if len(plan) != 2 || len(plan[2]) != 1 || len(plan[14]) != 1 {
 		t.Fatal("initialized GETs did not regain their own ranges", plan)
 	}
-	if w.withdrawal(14, blockSource{"get", later}) != withdrawalNeedEnded {
-		t.Fatal("completed initialization gave an unrelated block a GET handoff")
-	}
+
 }
 
 func TestColdHTTPGETOnlyDownloadsItsRange(t *testing.T) {

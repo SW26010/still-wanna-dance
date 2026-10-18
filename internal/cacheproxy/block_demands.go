@@ -16,6 +16,7 @@ const (
 	sourceQueueHead
 	sourceQueue
 	sourceBatch
+	sourceHandoff
 )
 
 type withdrawalReason uint8
@@ -23,8 +24,6 @@ type withdrawalReason uint8
 const (
 	withdrawalSourceGone withdrawalReason = iota
 	withdrawalNeedEnded
-	withdrawalCompleted
-	withdrawalShutdown
 )
 
 const maxBlockContributions = 128
@@ -33,6 +32,21 @@ const maxBlockContributions = 128
 // needed at conversion time and is not retained in the runtime record.
 type handoffContribution struct {
 	need blocksched.Need
+}
+
+// These are snapshots for reconciliation and diagnostics, not source records.
+// Replacing a plan cannot manufacture or renew a handoff: the usage manager
+// already fixed its full range, deadline and expiry at source withdrawal.
+func (j *scheduledBlock) setPlan(plan map[blockSource]plannedNeed) {
+	j.needs = make(map[blockSource]plannedNeed, len(plan))
+	j.handoffs = j.handoffs[:0]
+	for source, p := range plan {
+		if p.source == sourceHandoff {
+			j.handoffs = append(j.handoffs, handoffContribution{need: p.need})
+		} else {
+			j.needs[source] = p
+		}
+	}
 }
 
 func (w *downloadSession) logDemand(block int64, j *scheduledBlock) {
@@ -55,22 +69,6 @@ func (w *downloadSession) logDemand(block int64, j *scheduledBlock) {
 	w.f.log.Debug("block_demand", "block", block, "get_sources", get, "head_sources", head, "queue_sources", queue, "batch_sources", batch,
 		"handoff_sources", len(j.handoffs), "handoff_suppressed", get > 0 && len(j.handoffs) > 0,
 		"blocking", j.published.Blocking, "opportunistic", j.published.Opportunistic, "ready_by", j.published.ReadyBy, "lease_until", j.published.LeaseUntil, "next_expiry", j.nextExpiry)
-}
-
-func makeHandoff(old plannedNeed, reason withdrawalReason, now time.Time) (handoffContribution, bool) {
-	if reason != withdrawalSourceGone || !old.need.LeaseUntil.After(now) {
-		return handoffContribution{}, false
-	}
-	var grace, delay time.Duration
-	switch old.source {
-	case sourceGET:
-		grace, delay = getHandoff, 2*time.Second
-	case sourceQueueHead:
-		grace, delay = queueHandoff, 5*time.Second
-	default:
-		return handoffContribution{}, false
-	}
-	return handoffContribution{need: handoffNeed(old.need, now, grace, delay)}, true
 }
 
 // aggregate preserves independent validity while filtering scheduling fields:

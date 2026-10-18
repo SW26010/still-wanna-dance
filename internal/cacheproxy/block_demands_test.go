@@ -50,39 +50,6 @@ func TestSourceFilteringKeepsIndependentLeases(t *testing.T) {
 	}
 }
 
-func TestSourceAndWithdrawalReasonDetermineHandoff(t *testing.T) {
-	now := time.Now()
-	for _, tc := range []struct {
-		name   string
-		source demandSource
-		reason withdrawalReason
-		grace  time.Duration
-	}{
-		{"get closed", sourceGET, withdrawalSourceGone, getHandoff},
-		{"head removed", sourceQueueHead, withdrawalSourceGone, queueHandoff},
-		{"ordinary removed", sourceQueue, withdrawalSourceGone, 0},
-		{"batch canceled", sourceBatch, withdrawalSourceGone, 0},
-		{"read unblocked", sourceGET, withdrawalNeedEnded, 0},
-		{"completed", sourceGET, withdrawalCompleted, 0},
-		{"shutdown", sourceGET, withdrawalShutdown, 0},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			p := plannedNeed{source: tc.source, need: blocksched.Need{Owner: "v", Blocking: true, ReadyBy: now.Add(time.Minute), LeaseUntil: now.Add(sourceLease)}}
-			h, ok := makeHandoff(p, tc.reason, now)
-			if ok != (tc.grace > 0) {
-				t.Fatal("wrong source transition", ok)
-			}
-			if ok && (h.need.Blocking || !h.need.LeaseUntil.Equal(now.Add(tc.grace)) || !h.need.ReadyBy.After(p.need.ReadyBy)) {
-				t.Fatal("handoff kept blocking or changed its fixed deadline", h)
-			}
-			p.need.LeaseUntil = now
-			if _, ok := makeHandoff(p, tc.reason, now); ok {
-				t.Fatal("expired source revived")
-			}
-		})
-	}
-}
-
 func TestQueuePromotionDemotionDoesNotCreateHandoff(t *testing.T) {
 	w, s := testSession(t)
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
@@ -113,27 +80,6 @@ func TestQueuePromotionDemotionDoesNotCreateHandoff(t *testing.T) {
 	}
 }
 
-func TestReadWaitAndCompletionDoNotProduceHandoff(t *testing.T) {
-	w, _ := testSession(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	key := blockSource{"blocking", &scheduledWait{}}
-	if w.withdrawal(0, key) != withdrawalNeedEnded {
-		t.Fatal("completed read wait was treated as GET exit")
-	}
-	cancel()
-	if w.withdrawal(0, key) != withdrawalNeedEnded {
-		t.Fatal("canceled read wait created a handoff")
-	}
-	w.f.ranges.done[0] = true
-	if w.withdrawal(0, key) != withdrawalCompleted {
-		t.Fatal("completed block created new handoff")
-	}
-	w.ctx = ctx
-	if w.withdrawal(0, key) != withdrawalShutdown {
-		t.Fatal("shutdown created new handoff")
-	}
-}
-
 func TestQueueSourceIdentityOnlySurvivesContinuousMembership(t *testing.T) {
 	_, s := testSession(t)
 	s.UpdatePrefetchQueue([]int64{1, 2}, false)
@@ -155,12 +101,12 @@ func TestQueueSourceIdentityOnlySurvivesContinuousMembership(t *testing.T) {
 	}
 	late, release := addTestDemand(t, s, oldContext, video{songID: "1", key: "old-result"}, false)
 	defer release()
-	if s.validQueueSourceLocked(late) || s.prefetchResources["1"] != "" {
+	if s.validQueueSourceLocked(late) || s.prefetchSources["1"].use.key != "" {
 		t.Fatal("late URL result revived a canceled queue source")
 	}
 	fresh, releaseFresh := addTestDemand(t, s, s.queueDemandContext(context.Background(), "1"), video{songID: "1", key: "new-result"}, false)
 	defer releaseFresh()
-	if !s.validQueueSourceLocked(fresh) || s.prefetchResources["1"] != "new-result" {
+	if !s.validQueueSourceLocked(fresh) || s.prefetchSources["1"].use.key != "new-result" {
 		t.Fatal("fresh queue source was not accepted")
 	}
 }

@@ -27,7 +27,7 @@ func demandLifecycleSession(t *testing.T) (*downloadSession, *Server) {
 
 func registerQueueResource(t *testing.T, s *Server, song, key string) {
 	t.Helper()
-	_, release := addTestDemand(t, s, s.queueDemandContext(context.Background(), song), video{key: key, songID: song}, false)
+	_, release := addTestDemand(t, s, s.queueDemandContext(context.Background(), song), video{key: key, songID: song, size: 20 * rangeBlockSize}, false)
 	t.Cleanup(release)
 }
 

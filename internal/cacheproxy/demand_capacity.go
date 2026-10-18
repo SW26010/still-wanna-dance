@@ -26,18 +26,19 @@ type useSpan struct {
 type useHandoff struct {
 	span  useSpan
 	until time.Time
+	clock playbackClock
 }
 
-type useHandoffHeap []useHandoff
+type useHandoffHeap []*useHandoff
 
 func (h useHandoffHeap) Len() int           { return len(h) }
 func (h useHandoffHeap) Less(i, j int) bool { return h[i].until.Before(h[j].until) }
 func (h useHandoffHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
-func (h *useHandoffHeap) Push(v any)        { *h = append(*h, v.(useHandoff)) }
+func (h *useHandoffHeap) Push(v any)        { *h = append(*h, v.(*useHandoff)) }
 func (h *useHandoffHeap) Pop() any {
 	a := *h
 	v := a[len(a)-1]
-	a[len(a)-1] = useHandoff{}
+	a[len(a)-1] = nil
 	*h = a[:len(a)-1]
 	return v
 }
@@ -101,14 +102,19 @@ func (s *Server) releaseUseLocked(span useSpan) {
 	}
 }
 
-func (s *Server) endUseLocked(span useSpan, at time.Time, grace time.Duration) {
+func (s *Server) endUseLocked(span useSpan, at time.Time, grace time.Duration, clock playbackClock, origin demandSource) {
 	if span.first >= span.last {
 		return
 	}
 	if grace > 0 && !s.closed && at.Add(grace).After(time.Now()) {
 		// Transfer the existing reference. Handoff never expands the source's
 		// remaining range, even when some blocks are already locally readable.
-		heap.Push(&s.useHandoffs, useHandoff{span, at.Add(grace)})
+		heap.Push(&s.useHandoffs, &useHandoff{span, at.Add(grace), clock})
+		if s.cfg.Logger != nil {
+			s.cfg.Logger.Debug("block_demand_handoff", "resource_key", span.key, "first_block", span.first, "last_block", span.last,
+				"from", origin.String(), "reason", "source_gone", "withdrawn_at", at,
+				"first_ready_by", clock.ready(span.first*rangeBlockSize), "lease_until", at.Add(grace))
+		}
 		s.armUseExpiryLocked()
 	} else {
 		s.releaseUseLocked(span)
@@ -137,7 +143,7 @@ func (s *Server) armUseExpiryLocked() {
 func (s *Server) expireUseLocked(now time.Time) {
 	changed := false
 	for len(s.useHandoffs) > 0 && !s.useHandoffs[0].until.After(now) {
-		h := heap.Pop(&s.useHandoffs).(useHandoff)
+		h := heap.Pop(&s.useHandoffs).(*useHandoff)
 		s.releaseUseLocked(h.span)
 		changed = true
 	}

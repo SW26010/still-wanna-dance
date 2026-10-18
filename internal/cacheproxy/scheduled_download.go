@@ -211,7 +211,6 @@ func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Ne
 func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[blockSource]plannedNeed, <-chan struct{}, bool) {
 	plan := make(map[int64]map[blockSource]plannedNeed)
 	blocks := (w.v.size + rangeBlockSize - 1) / rangeBlockSize
-	active := false
 	done := func(block int64) bool {
 		if !initialized {
 			return false
@@ -219,12 +218,6 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 		w.f.ranges.mu.Lock()
 		defer w.f.ranges.mu.Unlock()
 		return w.f.ranges.done[block]
-	}
-	first := int64(0)
-	if initialized {
-		w.f.ranges.mu.Lock()
-		first = w.f.ranges.prefix
-		w.f.ranges.mu.Unlock()
 	}
 	add := func(block int64, source blockSource, ready time.Time, blocking bool, revision int64, origin demandSource) {
 		if block < 0 || block >= blocks || done(block) {
@@ -236,54 +229,22 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 		plan[block][source] = plannedNeed{need: blocksched.Need{Owner: w.v.key, ReadyBy: ready, LeaseUntil: now.Add(sourceLease), Blocking: blocking}, revision: revision, source: origin}
 	}
 	w.s.mu.Lock()
+	usage, active := w.s.planUseLocked(w.v.key, now)
+	for block, needs := range usage {
+		if block >= 0 && block < blocks && !done(block) {
+			plan[block] = needs
+		}
+	}
+	// Malformed Range requests need response metadata only, until the HTTP
+	// handler can return ServeContent's rejection. They declare no usage.
+	if !initialized {
+		for d := range w.s.demands {
+			if d.key == w.v.key && d.playback && d.clock == nil {
+				add(0, blockSource{"metadata", d}, time.Time{}, false, 0, sourceGET)
+			}
+		}
+	}
 	changed := w.s.capacityChanged
-	for d := range w.s.demands {
-		if d.key != w.v.key || !d.exit.active(d.ctx) || d.queue {
-			continue
-		}
-		active = true // Completed request spans still have live readers.
-		kind, origin := "batch", sourceBatch
-		begin, end := first, blocks
-		if d.playback {
-			kind, origin = "get", sourceGET
-			if d.clock == nil {
-				// Invalid ranges need only response metadata for ServeContent's
-				// rejection, never an expanded playback demand.
-				if initialized {
-					continue
-				}
-				end = min(end, 1)
-			} else {
-				begin = max(begin, d.firstBlock)
-				end = min(end, d.lastBlock)
-			}
-		}
-		if !initialized {
-			end = min(end, begin+1)
-		}
-		for b := begin; b < end; b++ {
-			ready := time.Time{}
-			if d.clock != nil {
-				ready = d.clock.ready(b * rangeBlockSize)
-			}
-			add(b, blockSource{kind, d}, ready, false, 0, origin)
-		}
-	}
-	for song, key := range w.s.prefetchResources {
-		if key != w.v.key {
-			continue
-		}
-		if source := w.s.prefetchSources[song]; source != nil {
-			active = true
-			end := blocks
-			if !initialized {
-				end = min(end, first+1)
-			}
-			for b := first; b < end; b++ {
-				add(b, blockSource{"queue", source}, source.readyBy(b), false, int64(source.position), source.origin())
-			}
-		}
-	}
 	w.s.mu.Unlock()
 	w.mu.Lock()
 	for d := range w.waits {
@@ -304,7 +265,10 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 		needs := make(map[blockSource]plannedNeed)
 		for _, sources := range plan {
 			for source, need := range sources {
-				needs[source] = need
+				old, exists := needs[source]
+				if !exists || need.need.ReadyBy.Before(old.need.ReadyBy) {
+					needs[source] = need
+				}
 			}
 		}
 		plan = map[int64]map[blockSource]plannedNeed{initial: needs}
@@ -340,7 +304,8 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 	for _, block := range order {
 		j := w.jobs[block]
 		if j == nil {
-			j = &scheduledBlock{needs: plan[block]}
+			j = &scheduledBlock{}
+			j.setPlan(plan[block])
 			if err := w.submit(block, j, j.aggregate(now)); err != nil {
 				if errors.Is(err, blocksched.ErrCapacity) {
 					w.capacity = capacity
@@ -363,7 +328,7 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 					p.need.LeaseUntil = old.need.LeaseUntil
 				}
 			}
-			j.needs[source] = p
+			plan[block][source] = p
 		}
 	}
 	order = order[:0]
@@ -377,32 +342,7 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 		if j.retiring {
 			continue
 		}
-		for source, old := range j.needs {
-			if _, ok := plan[block][source]; ok {
-				continue
-			}
-			delete(j.needs, source)
-			reason := w.withdrawal(block, source)
-			at := now
-			switch record := source.id.(type) {
-			case *downloadDemand:
-				if exited := record.exit.when(); !exited.IsZero() {
-					at = exited
-				}
-			case *queueSource:
-				w.s.mu.Lock()
-				if !record.removedAt.IsZero() {
-					old.source, old.need.ReadyBy, at = record.origin(), record.readyBy(block), record.removedAt
-				}
-				w.s.mu.Unlock()
-			}
-			if h, ok := makeHandoff(old, reason, at); ok {
-				j.handoffs = append(j.handoffs, h)
-				if w.f.log != nil {
-					w.f.log.Debug("block_demand_handoff", "block", block, "from", old.source.String(), "reason", "source_gone", "withdrawn_at", at, "ready_by", h.need.ReadyBy, "lease_until", h.need.LeaseUntil)
-				}
-			}
-		}
+		j.setPlan(plan[block])
 		n := j.aggregate(now)
 		if len(j.needs)+len(j.handoffs) > maxBlockContributions {
 			return until, false, errors.Join(errBusy, blocksched.ErrCapacity)
@@ -460,43 +400,6 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 	return until, false, nil
 }
 
-func (w *downloadSession) withdrawal(block int64, source blockSource) withdrawalReason {
-	if w.ctx.Err() != nil {
-		return withdrawalShutdown
-	}
-	// The first executor publishes ranges before closing initialized. Do not
-	// read that pointer concurrently with first-response initialization.
-	select {
-	case <-w.initialized:
-		w.f.ranges.mu.Lock()
-		done := w.f.ranges.done[block]
-		w.f.ranges.mu.Unlock()
-		if done {
-			return withdrawalCompleted
-		}
-	default:
-	}
-	if source.kind == "blocking" {
-		return withdrawalNeedEnded
-	}
-	if d, ok := source.id.(*downloadDemand); ok && d.exit.active(d.ctx) {
-		// A shared initialization request can cease to be a dependency of a
-		// live GET once its own range is available. That is not a GET exit.
-		return withdrawalNeedEnded
-	}
-	if d, ok := source.id.(*downloadDemand); ok {
-		if exit := d.exit.at.Load(); exit != nil {
-			return exit.reason
-		}
-	}
-	return withdrawalSourceGone
-}
-func handoffNeed(n blocksched.Need, now time.Time, grace, delay time.Duration) blocksched.Need {
-	n.Blocking, n.Opportunistic = false, false
-	n.LeaseUntil = now.Add(grace)
-	n.ReadyBy = n.ReadyBy.Add(delay)
-	return n
-}
 func maxTime(a, b time.Time) time.Time {
 	if b.After(a) {
 		return b

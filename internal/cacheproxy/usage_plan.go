@@ -6,36 +6,30 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
-// planUseLocked is the complete source projection, including locally readable
+// projectUseLocked is the complete source projection, including locally readable
 // and completed blocks. Only the download adapter filters missing blocks.
 // Called with Server.mu; handoff identity/expiry belongs here, never to a task.
-func (s *Server) planUseLocked(key string, now time.Time) (map[int64]map[blockSource]plannedNeed, bool) {
-	if s.expireUseLocked(now) {
-		s.notifyCapacityLocked()
-	}
-	plan := make(map[int64]map[blockSource]plannedNeed)
+func (s *Server) projectUseLocked(key string, now time.Time) (map[useBlockID]map[blockSource]plannedNeed, bool) {
+	plan := make(map[useBlockID]map[blockSource]plannedNeed)
 	active := false
-	add := func(span useSpan, source blockSource, clock *playbackClock, until time.Time, origin demandSource, revision int64) {
-		if span.key != key {
+	add := func(span useSpan, source blockSource, clock *playbackClock, until time.Time, origin demandSource) {
+		if key != "" && span.key != key {
 			return
 		}
 		active = true
 		for block := span.first; block < span.last; block++ {
-			if plan[block] == nil {
-				plan[block] = make(map[blockSource]plannedNeed)
+			id := useBlockID{span.key, block}
+			if plan[id] == nil {
+				plan[id] = make(map[blockSource]plannedNeed)
 			}
 			ready := time.Time{}
 			if clock != nil {
 				ready = clock.ready(block * rangeBlockSize)
 			}
-			plan[block][source] = plannedNeed{need: blocksched.Need{Owner: key, ReadyBy: ready, LeaseUntil: until}, source: origin, revision: revision}
+			plan[id][source] = plannedNeed{need: blocksched.Need{Owner: span.key, ReadyBy: ready, LeaseUntil: until}, source: origin}
 		}
 	}
 	for d := range s.demands {
-		if !d.exit.active(d.ctx) {
-			s.removeDemandLocked(d)
-			continue
-		}
 		if d.queue {
 			continue // Queue ownership outlives its preparation waiter.
 		}
@@ -43,16 +37,46 @@ func (s *Server) planUseLocked(key string, now time.Time) (map[int64]map[blockSo
 		if d.playback {
 			kind, origin = "get", sourceGET
 		}
-		add(d.useSpan(), blockSource{kind, d}, d.clock, now.Add(sourceLease), origin, 0)
+		add(d.useSpan(), blockSource{kind, d}, d.clock, now.Add(sourceLease), origin)
 	}
 	for _, q := range s.prefetchSources {
 		clock := playbackClock{at: q.startAt, media: q.timing}
-		add(q.use, blockSource{"queue", q}, &clock, now.Add(sourceLease), q.origin(), int64(q.position))
+		add(q.use, blockSource{"queue", q}, &clock, now.Add(sourceLease), q.origin())
 	}
 	for _, h := range s.useHandoffs {
-		if h.until.After(now) {
-			add(h.span, blockSource{"handoff", h}, &h.clock, h.until, sourceHandoff, 0)
+		add(h.span, blockSource{"handoff", h}, &h.clock, h.until, sourceHandoff)
+	}
+	return plan, active
+}
+
+// Read snapshots first bring delayed exits up to date. Mutations recompute
+// protection from the same projection without recursively delivering exits.
+func (s *Server) refreshUseSourcesLocked(now time.Time) {
+	if s.expireUseLocked(now) {
+		s.notifyCapacityLocked()
+	}
+	for d := range s.demands {
+		if !d.exit.active(d.ctx) {
+			s.removeDemandLocked(d)
 		}
+	}
+}
+
+func (s *Server) aggregateUseProjectionLocked(key string, now time.Time) (map[useBlockID]blockUse, bool) {
+	projected, active := s.projectUseLocked(key, now)
+	plan := make(map[useBlockID]blockUse, len(projected))
+	for id, needs := range projected {
+		plan[id] = aggregateUse(needs, now)
+	}
+	return plan, active
+}
+
+func (s *Server) usePlanLocked(key string, now time.Time) (map[int64]blockUse, bool) {
+	s.refreshUseSourcesLocked(now)
+	projected, active := s.aggregateUseProjectionLocked(key, now)
+	plan := make(map[int64]blockUse, len(projected))
+	for id, use := range projected {
+		plan[id.block] = use
 	}
 	return plan, active
 }

@@ -21,7 +21,7 @@ func demandLifecycleSession(t *testing.T) (*downloadSession, *Server) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	w.jobs[0] = &scheduledBlock{task: task, needs: make(map[blockSource]plannedNeed)}
+	w.jobs[0] = &scheduledBlock{task: task}
 	return w, s
 }
 
@@ -65,9 +65,12 @@ func TestQueueReorderUsesOneTimeBase(t *testing.T) {
 		if want := base; !j.published.ReadyBy.Equal(want) {
 			t.Fatalf("new head lost priority: earliest=%v want=%v", j.published.ReadyBy, want)
 		}
-		for _, p := range j.needs {
-			if p.source == sourceQueue && !p.need.ReadyBy.Equal(base.Add(2*typicalDuration)) {
-				t.Fatal("unchanged third position retained the previous queue epoch", p.need.ReadyBy)
+		s.mu.Lock()
+		raw, _ := testSourcePlan(s, w.v.key, time.Now())
+		s.mu.Unlock()
+		for _, p := range raw[0] {
+			if p.source == sourceQueue && p.need.ReadyBy != base.Add(2*typicalDuration) {
+				t.Fatal("unchanged third position retained previous epoch", p.need.ReadyBy)
 			}
 		}
 		ready := j.published.ReadyBy
@@ -107,19 +110,19 @@ func TestCoalescedQueueChangesPreserveWithdrawalSource(t *testing.T) {
 				reconcileSession(t, w)
 				j := w.jobs[0]
 				if tc.handoff {
-					if j.retiring || len(j.handoffs) != 1 || !j.handoffUntil.Equal(removedAt.Add(queueHandoff)) {
-						t.Fatalf("missing/freshened handoff: retiring=%v handoffs=%d until=%v", j.retiring, len(j.handoffs), j.handoffUntil)
+					if j.retiring || !j.nextExpiry.Equal(removedAt.Add(queueHandoff)) {
+						t.Fatalf("missing/freshened handoff: retiring=%v expiry=%v", j.retiring, j.nextExpiry)
 					}
 					// Preserve the removed head's actual deadline, even if past.
-					if !j.handoffs[0].need.ReadyBy.Equal(source.readyBy(0).Add(5 * time.Second)) {
-						t.Fatal("handoff used the stale ordinary-queue deadline", j.handoffs[0].need.ReadyBy)
+					if !j.published.ReadyBy.Equal(source.readyBy(0).Add(5 * time.Second)) {
+						t.Fatal("handoff used the stale ordinary-queue deadline", j.published.ReadyBy)
 					}
 					reconcileSession(t, w)
-					if len(j.handoffs) != 1 || !j.handoffUntil.Equal(removedAt.Add(queueHandoff)) {
+					if !j.nextExpiry.Equal(removedAt.Add(queueHandoff)) {
 						t.Fatal("withdrawal was replayed or renewed")
 					}
-				} else if !j.retiring || len(j.handoffs) != 0 {
-					t.Fatal("ordinary/expired source was retained", j.handoffUntil)
+				} else if !j.retiring || !j.nextExpiry.IsZero() {
+					t.Fatal("ordinary/expired source was retained", j.nextExpiry)
 				}
 			})
 		})

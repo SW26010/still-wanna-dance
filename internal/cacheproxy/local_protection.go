@@ -35,31 +35,13 @@ func (s *Server) protectionAhead() time.Duration {
 // pending callbacks must not independently remove protection here.
 func (s *Server) refreshUseProtectionLocked() {
 	ready := make(map[useBlockID]time.Time)
-	add := func(span useSpan, clock *playbackClock) {
-		if clock == nil {
-			return // Untimed preparation is not an extra protection policy.
-		}
-		for b := span.first; b < span.last; b++ {
-			id := useBlockID{span.key, b}
-			if s.useBlocks[id] == 0 {
-				continue
-			}
-			at := clock.ready(b * rangeBlockSize)
-			if old := ready[id]; old.IsZero() || at.Before(old) {
+	projected, _ := s.aggregateUseProjectionLocked("", time.Now())
+	for id, use := range projected {
+		if s.useBlocks[id] > 0 {
+			if at := use.protectReady; !at.IsZero() {
 				ready[id] = at
 			}
 		}
-	}
-	for d := range s.demands {
-		if !d.queue {
-			add(d.useSpan(), d.clock)
-		}
-	}
-	for _, q := range s.prefetchSources {
-		add(q.use, &playbackClock{at: q.startAt, media: q.timing})
-	}
-	for _, h := range s.useHandoffs {
-		add(h.span, &h.clock)
 	}
 
 	s.retentionMu.Lock()

@@ -455,3 +455,11 @@ GET 时钟携带规范化请求结束位置，只为与实际响应区间相交�
 首轮保留旧 API 编译遗漏及沙箱 rename 权限失败；修正后正常权限运行。延迟通知测试曾在 synctest 中持锁睡眠而超时，已改为冻结事件后延迟投递，避免虚拟时钟被非持久阻塞限制。完整回归中旧 HTTP 测试期待请求结束立即淘汰，现改为检查延续保护和关闭清理；均保留失败日志。控制台、blocksched、cmd 完整回归通过（protection-full.log）。最终缓存整包通过（protection-cache-final.log，37.147 s），cacheproxy、console、blocksched 的 go vet 及 diff 检查通过。原始日志保存在本地忽略目录 artifacts/download-resource/。
 
 本步实现完整文件的统一保护判定，块文件逐块回收、持久化准入及下载截止仍待后续阶段；未启动 VRC、修改 hosts 或 push。
+
+## 47. 来源集合输出通用使用摘要
+
+2026-10-19：需求集合统一投影并整合完整范围，blockUse 不含来源身份。下载协调器只过滤本地可用块、叠加真实读取等待并维护调度句柄；移除任务里的来源 map、交接数组、逐来源期限补写和 128 份重复贡献限制。唯一块容量规则不变，150 个同资源来源仍共享 20 个块。保护与下载共用同一来源投影及整合函数；有限保护时刻包含仍有效的交接，GET 仅抑制交接的下载紧迫属性。
+
+定向回归通过（aggregate-directed-final.log，2.332 s）；来源共享、GET 消费、交接、队列重排、保护和摘要过滤的 Windows race 连续三轮通过（aggregate-race.log，2.761 s）。console、blocksched 完整回归通过（aggregate-full.log，62.096 s / 0.164 s），相关三包 go vet 和 diff 检查通过。首轮整包中旧夹具依靠已移除的 handoff_sources 日志字段暂停协调器，改用聚合 lease_until 同步点；旧响应关闭期间新 GET 的接入/等待行为未修改，定向三轮通过（aggregate-cleanup.log，13.030 s），最终缓存整包通过（aggregate-cache-final.log，27.699 s）。其余编译调整和首轮失败日志保留。
+
+后续仍需块文件存储、持久化准入及下载截止/停止任务语义；未启动 VRC、改 hosts 或 push。

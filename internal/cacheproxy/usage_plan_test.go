@@ -24,7 +24,7 @@ func TestUsageHandoffIncludesReadableRemainderWithoutDownloadPlanning(t *testing
 			// Force planning to observe cancellation before AfterFunc takes mu.
 			s.mu.Lock()
 			cancel()
-			usage, active := s.planUseLocked(w.v.key, now)
+			usage, active := testSourcePlan(s, w.v.key, now)
 			s.mu.Unlock()
 			if !active || len(usage) != 19 || len(usage[0]) != 0 {
 				t.Fatal("handoff failed to preserve only unconsumed usage", len(usage))
@@ -37,7 +37,7 @@ func TestUsageHandoffIncludesReadableRemainderWithoutDownloadPlanning(t *testing
 				}
 			}
 			plan, _, _ := w.plan(now, true)
-			if len(plan) != 17 || len(plan[1]) != 0 || len(plan[2]) != 0 {
+			if len(plan) != 17 || plan[1].need.Owner != "" || plan[2].need.Owner != "" {
 				t.Fatal("download adapter scheduled already readable handoff blocks", len(plan))
 			}
 			synctest.Wait()
@@ -49,7 +49,7 @@ func TestUsageHandoffIncludesReadableRemainderWithoutDownloadPlanning(t *testing
 			time.Sleep(getHandoff)
 			synctest.Wait()
 			s.mu.Lock()
-			usage, _ = s.planUseLocked(w.v.key, time.Now())
+			usage, _ = testSourcePlan(s, w.v.key, time.Now())
 			s.mu.Unlock()
 			if len(usage) != 0 || useCount(s) != 0 {
 				t.Fatal("handoff survived its original fixed expiry")
@@ -96,4 +96,16 @@ func TestSourceExitOnlyCreatesAuthorizedHandoffs(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Source identity assertions stay inside collection tests. Runtime consumers
+// receive only blockUse, before local availability or Blocking is applied.
+func testSourcePlan(s *Server, key string, now time.Time) (map[int64]map[blockSource]plannedNeed, bool) {
+	s.refreshUseSourcesLocked(now)
+	projected, active := s.projectUseLocked(key, now)
+	plan := make(map[int64]map[blockSource]plannedNeed, len(projected))
+	for id, needs := range projected {
+		plan[id.block] = needs
+	}
+	return plan, active
 }

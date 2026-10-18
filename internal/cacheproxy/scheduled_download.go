@@ -21,24 +21,12 @@ type scheduledWait struct {
 	block int64
 	at    time.Time
 }
-type blockSource struct {
-	kind string
-	id   any
-}
-type plannedNeed struct {
-	need     blocksched.Need
-	revision int64
-	source   demandSource
-}
 type scheduledBlock struct {
-	task         *blocksched.Task
-	needs        map[blockSource]plannedNeed
-	handoffs     []handoffContribution
-	merged       *blocksched.Demand
-	published    blocksched.Need
-	nextExpiry   time.Time
-	handoffUntil time.Time
-	retiring     bool
+	task       *blocksched.Task
+	merged     *blocksched.Demand
+	published  blocksched.Need
+	nextExpiry time.Time
+	retiring   bool
 }
 type downloadSession struct {
 	s           *Server
@@ -208,39 +196,15 @@ func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Ne
 	return nil
 }
 
-func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[blockSource]plannedNeed, <-chan struct{}, bool) {
-	plan := make(map[int64]map[blockSource]plannedNeed)
+func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]blockUse, <-chan struct{}, bool) {
 	blocks := (w.v.size + rangeBlockSize - 1) / rangeBlockSize
-	done := func(block int64) bool {
-		if !initialized {
-			return false
-		}
-		w.f.ranges.mu.Lock()
-		defer w.f.ranges.mu.Unlock()
-		return w.f.ranges.done[block]
-	}
-	add := func(block int64, source blockSource, ready time.Time, blocking bool, revision int64, origin demandSource) {
-		if block < 0 || block >= blocks || done(block) {
-			return
-		}
-		if plan[block] == nil {
-			plan[block] = make(map[blockSource]plannedNeed)
-		}
-		plan[block][source] = plannedNeed{need: blocksched.Need{Owner: w.v.key, ReadyBy: ready, LeaseUntil: now.Add(sourceLease), Blocking: blocking}, revision: revision, source: origin}
-	}
 	w.s.mu.Lock()
-	usage, active := w.s.planUseLocked(w.v.key, now)
-	for block, needs := range usage {
-		if block >= 0 && block < blocks && !done(block) {
-			plan[block] = needs
-		}
-	}
-	// Malformed Range requests need response metadata only, until the HTTP
-	// handler can return ServeContent's rejection. They declare no usage.
+	plan, active := w.s.usePlanLocked(w.v.key, now)
 	if !initialized {
+		// Malformed Range still needs response metadata before ServeContent rejects it.
 		for d := range w.s.demands {
 			if d.key == w.v.key && d.playback && d.clock == nil {
-				add(0, blockSource{"metadata", d}, time.Time{}, false, 0, sourceGET)
+				plan[0] = mergeUse(plan[0], blockUse{need: blocksched.Need{Owner: w.v.key, LeaseUntil: now.Add(sourceLease), Opportunistic: true}, nextExpiry: now.Add(sourceLease)})
 			}
 		}
 	}
@@ -248,37 +212,39 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 	w.s.mu.Unlock()
 	w.mu.Lock()
 	for d := range w.waits {
-		add(d.block, blockSource{"blocking", d}, d.at, true, 0, sourceGET)
+		plan[d.block] = mergeUse(plan[d.block], blockUse{need: blocksched.Need{Owner: w.v.key, ReadyBy: d.at, LeaseUntil: now.Add(sourceLease), Blocking: true}, nextExpiry: now.Add(sourceLease)})
 	}
 	w.mu.Unlock()
+	if initialized {
+		w.f.ranges.mu.Lock()
+		defer w.f.ranges.mu.Unlock()
+	}
+	for b := range plan {
+		if b < 0 || b >= blocks || initialized && w.f.ranges.done[b] {
+			delete(plan, b)
+		}
+	}
 	if !initialized && len(plan) > 0 {
-		// One request establishes the shared entity/Range capability. Keep
-		// its task stable while headers or sequential fallback are in flight.
 		initial := blocks
 		for b := range plan {
 			initial = min(initial, b)
 		}
 		for b := range w.jobs {
 			initial = b
-			break // Before initialization there is at most one task.
+			break
 		}
-		needs := make(map[blockSource]plannedNeed)
-		for _, sources := range plan {
-			for source, need := range sources {
-				old, exists := needs[source]
-				if !exists || need.need.ReadyBy.Before(old.need.ReadyBy) {
-					needs[source] = need
-				}
-			}
+		var merged blockUse
+		for _, use := range plan {
+			merged = mergeUse(merged, use)
 		}
-		plan = map[int64]map[blockSource]plannedNeed{initial: needs}
+		plan = map[int64]blockUse{initial: merged}
 	}
 	return plan, changed, active
 }
 
 // All source transitions for one block are merged before a single scheduler
 // update. The scheduler never observes the intermediate GET/handoff ordering.
-func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, now time.Time, changed <-chan struct{}, active bool) (time.Time, bool, error) {
+func (w *downloadSession) reconcile(plan map[int64]blockUse, now time.Time, changed <-chan struct{}, active bool) (time.Time, bool, error) {
 	var until time.Time
 	capacity := w.s.scheduler.CapacityChanged()
 	w.capacity = nil
@@ -288,15 +254,7 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 	}
 	// Register actual blocked reads before ordinary blocks of this resource.
 	sort.Slice(order, func(i, j int) bool {
-		blocking := func(block int64) bool {
-			for _, p := range plan[block] {
-				if p.need.Blocking {
-					return true
-				}
-			}
-			return false
-		}
-		if a, b := blocking(order[i]), blocking(order[j]); a != b {
+		if a, b := plan[order[i]].need.Blocking, plan[order[j]].need.Blocking; a != b {
 			return a
 		}
 		return order[i] < order[j]
@@ -305,30 +263,14 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 		j := w.jobs[block]
 		if j == nil {
 			j = &scheduledBlock{}
-			j.setPlan(plan[block])
-			if err := w.submit(block, j, j.aggregate(now)); err != nil {
+			j.nextExpiry = plan[block].nextExpiry
+			if err := w.submit(block, j, plan[block].need); err != nil {
 				if errors.Is(err, blocksched.ErrCapacity) {
 					w.capacity = capacity
 					continue
 				}
 				return until, false, err
 			}
-		}
-		if j.retiring {
-			continue
-		}
-		for source, p := range plan[block] {
-			if old, ok := j.needs[source]; ok && old.revision == p.revision && old.source == p.source {
-				// Queue deadlines already use a stable, shared epoch. Even an
-				// unchanged position must follow that epoch after a reorder.
-				if source.kind != "queue" {
-					p.need.ReadyBy = old.need.ReadyBy
-				}
-				if old.need.LeaseUntil.Sub(now) > sourceLease/2 {
-					p.need.LeaseUntil = old.need.LeaseUntil
-				}
-			}
-			plan[block][source] = p
 		}
 	}
 	order = order[:0]
@@ -342,14 +284,12 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 		if j.retiring {
 			continue
 		}
-		j.setPlan(plan[block])
-		n := j.aggregate(now)
-		if len(j.needs)+len(j.handoffs) > maxBlockContributions {
-			return until, false, errors.Join(errBusy, blocksched.ErrCapacity)
-		}
+		j.nextExpiry = plan[block].nextExpiry
+		n := plan[block].need
 		until = maxTime(until, n.LeaseUntil)
 		updates[block] = n
 	}
+
 	// Stop accepting readers before canceling the last tasks or waiting for
 	// their bodies/checkpoints to close. A concurrent GET invalidates an idle
 	// snapshot and must be planned before any irreversible task retirement.

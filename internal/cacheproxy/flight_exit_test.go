@@ -58,7 +58,7 @@ func TestGETArrivingAfterIdleSnapshotKeepsFlight(t *testing.T) {
 		if _, retry, err := w.reconcile(plan, now, changed, active); err != nil || retry {
 			t.Fatal("fresh GET plan was not applied", retry, err)
 		}
-		if len(w.jobs[0].needs) != 1 || w.f.preempted {
+		if w.jobs[0].published.Owner == "" || w.f.preempted {
 			t.Fatal("GET could not continue the existing flight")
 		}
 	})
@@ -95,7 +95,7 @@ func testNewGETDuringCleanup(t *testing.T, pauseBlock bool) {
 						// expiry must cancel the body before the coordinator can
 						// retire the flight, independent of timer/goroutine order.
 						r.Attrs(func(a slog.Attr) bool {
-							if a.Key == "handoff_sources" && a.Value.Int64() > 0 {
+							if a.Key == "lease_until" && !a.Value.Time().IsZero() && time.Until(a.Value.Time()) <= getHandoff {
 								<-coordinatorGate
 							}
 							return true

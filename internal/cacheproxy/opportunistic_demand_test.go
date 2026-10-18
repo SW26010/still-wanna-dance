@@ -18,19 +18,20 @@ func TestAggregatePreservesIndependentUntimedDemand(t *testing.T) {
 	now := time.Now()
 	get, batch := blockSource{"get", 1}, blockSource{"batch", 2}
 	ready := now.Add(time.Hour)
-	j := &scheduledBlock{needs: map[blockSource]plannedNeed{
+	sources := map[blockSource]plannedNeed{
 		get:   {source: sourceGET, need: blocksched.Need{Owner: "v", ReadyBy: ready, LeaseUntil: now.Add(time.Hour)}},
 		batch: {source: sourceBatch, need: blocksched.Need{Owner: "v", LeaseUntil: now.Add(time.Second)}},
-	}}
-	n := j.aggregate(now)
-	if !n.Opportunistic || n.Blocking || n.ReadyBy != ready || j.nextExpiry != now.Add(time.Second) {
-		t.Fatal("mixed summary", n, j.nextExpiry)
 	}
-	if n = j.aggregate(now.Add(time.Second)); n.Opportunistic || n.ReadyBy != ready {
+	summary := aggregateUse(sources, now)
+	n := summary.need
+	if !n.Opportunistic || n.Blocking || n.ReadyBy != ready || summary.nextExpiry != now.Add(time.Second) {
+		t.Fatal("mixed summary", n, summary.nextExpiry)
+	}
+	if n = aggregateUse(sources, now.Add(time.Second)).need; n.Opportunistic || n.ReadyBy != ready {
 		t.Fatal("expired batch retained early admission", n)
 	}
-	delete(j.needs, batch)
-	if n = j.aggregate(now); n.Opportunistic || n.ReadyBy != ready {
+	delete(sources, batch)
+	if n = aggregateUse(sources, now).need; n.Opportunistic || n.ReadyBy != ready {
 		t.Fatal("withdrawn batch retained early admission", n)
 	}
 

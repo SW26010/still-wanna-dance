@@ -26,96 +26,81 @@ const (
 	withdrawalNeedEnded
 )
 
-const maxBlockContributions = 128
-
-// Membership in this collection is Source=handoff; original source is only
-// needed at conversion time and is not retained in the runtime record.
-type handoffContribution struct {
-	need blocksched.Need
+// blockUse is the source-free contract between demand collection and resource
+// use. Protection includes all finite usage; download urgency alone filters an
+// old handoff while a live GET exists. Blocking is supplied separately by reads.
+type blockUse struct {
+	need         blocksched.Need
+	nextExpiry   time.Time
+	protectReady time.Time
 }
 
-// These are snapshots for reconciliation and diagnostics, not source records.
-// Replacing a plan cannot manufacture or renew a handoff: the usage manager
-// already fixed its full range, deadline and expiry at source withdrawal.
-func (j *scheduledBlock) setPlan(plan map[blockSource]plannedNeed) {
-	j.needs = make(map[blockSource]plannedNeed, len(plan))
-	j.handoffs = j.handoffs[:0]
-	for source, p := range plan {
-		if p.source == sourceHandoff {
-			j.handoffs = append(j.handoffs, handoffContribution{need: p.need})
-		} else {
-			j.needs[source] = p
+type blockSource struct {
+	kind string
+	id   any
+}
+type plannedNeed struct {
+	need   blocksched.Need
+	source demandSource
+}
+
+func earlier(a, b time.Time) time.Time {
+	if a.IsZero() || !b.IsZero() && b.Before(a) {
+		return b
+	}
+	return a
+}
+
+func mergeUse(a, b blockUse) blockUse {
+	if b.need.Owner != "" {
+		a.need.Owner = b.need.Owner
+	}
+	a.need.ReadyBy = earlier(a.need.ReadyBy, b.need.ReadyBy)
+	a.need.LeaseUntil = maxTime(a.need.LeaseUntil, b.need.LeaseUntil)
+	a.need.Blocking = a.need.Blocking || b.need.Blocking
+	a.need.Opportunistic = a.need.Opportunistic || b.need.Opportunistic
+	a.nextExpiry = earlier(a.nextExpiry, b.nextExpiry)
+	a.protectReady = earlier(a.protectReady, b.protectReady)
+	return a
+}
+
+// aggregateUse belongs to demand collection. Original identities never cross
+// this boundary, and no download task holds or expires source contributions.
+func aggregateUse(plan map[blockSource]plannedNeed, now time.Time) blockUse {
+	var result blockUse
+	get := false
+	for _, p := range plan {
+		if p.source == sourceGET && p.need.LeaseUntil.After(now) {
+			get = true
 		}
 	}
+	for _, p := range plan {
+		// The registry still owns a handoff until its fixed expiry is processed.
+		// Preserve its protection clock even when delivery of that event is late.
+		result.protectReady = earlier(result.protectReady, p.need.ReadyBy)
+		if !p.need.LeaseUntil.After(now) {
+			continue
+		}
+		n := p.need
+		if p.source == sourceHandoff && get {
+			n.ReadyBy = time.Time{}
+			n.Blocking = false
+			n.Opportunistic = false
+		} else {
+			n.Opportunistic = n.Opportunistic || n.ReadyBy.IsZero()
+		}
+		result = mergeUse(result, blockUse{need: n, nextExpiry: n.LeaseUntil})
+	}
+	return result
 }
 
 func (w *downloadSession) logDemand(block int64, j *scheduledBlock) {
 	if w.f.log == nil || !w.f.log.Enabled(w.ctx, slog.LevelDebug) {
 		return
 	}
-	var get, head, queue, batch int
-	for _, p := range j.needs {
-		switch p.source {
-		case sourceGET:
-			get++
-		case sourceQueueHead:
-			head++
-		case sourceQueue:
-			queue++
-		case sourceBatch:
-			batch++
-		}
-	}
-	w.f.log.Debug("block_demand", "block", block, "get_sources", get, "head_sources", head, "queue_sources", queue, "batch_sources", batch,
-		"handoff_sources", len(j.handoffs), "handoff_suppressed", get > 0 && len(j.handoffs) > 0,
-		"blocking", j.published.Blocking, "opportunistic", j.published.Opportunistic, "ready_by", j.published.ReadyBy, "lease_until", j.published.LeaseUntil, "next_expiry", j.nextExpiry)
-}
-
-// aggregate preserves independent validity while filtering scheduling fields:
-// any live GET suppresses handoff urgency, but does not delete/extend its lease.
-// The resource timer wakes at the earliest expiry to recompute this summary;
-// the scheduler's lease is a final lifetime bound if the manager stops updating.
-func (j *scheduledBlock) aggregate(now time.Time) blocksched.Need {
-	var n blocksched.Need
-	j.nextExpiry, j.handoffUntil = time.Time{}, time.Time{}
-	get := false
-	for _, p := range j.needs {
-		if p.source == sourceGET && p.need.LeaseUntil.After(now) {
-			get = true
-		}
-	}
-	include := func(need blocksched.Need, urgency bool) {
-		if !need.LeaseUntil.After(now) {
-			return
-		}
-		n.Owner = need.Owner
-		n.LeaseUntil = maxTime(n.LeaseUntil, need.LeaseUntil)
-		if j.nextExpiry.IsZero() || need.LeaseUntil.Before(j.nextExpiry) {
-			j.nextExpiry = need.LeaseUntil
-		}
-		if urgency {
-			n.Blocking = n.Blocking || need.Blocking
-			n.Opportunistic = n.Opportunistic || need.Opportunistic || need.ReadyBy.IsZero()
-			if !need.ReadyBy.IsZero() && (n.ReadyBy.IsZero() || need.ReadyBy.Before(n.ReadyBy)) {
-				n.ReadyBy = need.ReadyBy
-			}
-		}
-	}
-	for _, p := range j.needs {
-		include(p.need, true)
-	}
-	live := j.handoffs[:0]
-	for _, h := range j.handoffs {
-		if !h.need.LeaseUntil.After(now) {
-			continue
-		}
-		live = append(live, h)
-		include(h.need, !get)
-		j.handoffUntil = maxTime(j.handoffUntil, h.need.LeaseUntil)
-	}
-	clear(j.handoffs[len(live):])
-	j.handoffs = live
-	return n
+	w.f.log.Debug("block_demand", "block", block, "blocking", j.published.Blocking,
+		"opportunistic", j.published.Opportunistic, "ready_by", j.published.ReadyBy,
+		"lease_until", j.published.LeaseUntil, "next_expiry", j.nextExpiry)
 }
 
 func (s demandSource) String() string {

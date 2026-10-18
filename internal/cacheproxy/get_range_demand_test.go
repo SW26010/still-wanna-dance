@@ -34,17 +34,17 @@ func TestGETPlanOnlyIncludesRequestedBlocks(t *testing.T) {
 			}
 			p := &playbackClock{at: time.Now(), offset: span.start, limit: span.end, media: mediaTiming{w.v.size, 200 * time.Second}}
 			ctx := context.WithValue(context.Background(), playbackClockKey{}, p)
-			get, release := addTestDemand(t, s, ctx, w.v, true)
+			_, release := addTestDemand(t, s, ctx, w.v, true)
 			defer release()
 			plan, _, active := w.plan(time.Now(), false)
-			if !active || len(plan) != 1 || len(plan[tc.want[0]]) != 1 {
+			if !active || len(plan) != 1 || plan[tc.want[0]].need.Owner == "" {
 				t.Fatal("initial request did not start at the requested block", plan)
 			}
 			plan, _, _ = w.plan(time.Now(), true)
 			var got []int64
 			for block, needs := range plan {
 				got = append(got, block)
-				if len(needs) != 1 || needs[blockSource{"get", get}].need.Blocking {
+				if needs.need.Owner == "" || needs.need.Blocking {
 					t.Fatal("GET created an extra source or synthetic Blocking", block, needs)
 				}
 			}
@@ -59,21 +59,19 @@ func TestGETPlanOnlyIncludesRequestedBlocks(t *testing.T) {
 			if len(plan) != 20 {
 				t.Fatal("batch no longer covers the full resource", len(plan))
 			}
-			for _, n := range plan[0] {
-				if n.source != sourceBatch || !n.need.ReadyBy.IsZero() {
-					t.Fatal("prefix inherited playback urgency", n)
-				}
+			if n := plan[0].need; !n.ReadyBy.IsZero() || !n.Opportunistic {
+				t.Fatal("prefix inherited playback urgency", n)
 			}
 			closeBatch()
 			// Independent blocked readers still share just their current block.
 			one, two := w.demand(span.start), w.demand(span.start)
 			plan, _, _ = w.plan(time.Now(), true)
-			if len(plan[tc.want[0]]) != 3 {
+			if !plan[tc.want[0]].need.Blocking {
 				t.Fatal("lost independent waits")
 			}
 			one()
 			plan, _, _ = w.plan(time.Now(), true)
-			if len(plan[tc.want[0]]) != 2 {
+			if !plan[tc.want[0]].need.Blocking {
 				t.Fatal("one reader removed another")
 			}
 			two()
@@ -123,11 +121,11 @@ func TestInitialRangeTaskStaysSharedWhenAnotherGETArrives(t *testing.T) {
 	w.jobs[14] = &scheduledBlock{} // The initial request is already waiting for headers.
 	add(2)
 	plan, _, _ := w.plan(time.Now(), false)
-	if len(plan) != 1 || len(plan[14]) != 2 {
+	if len(plan) != 1 || plan[14].need.Owner == "" {
 		t.Fatal("concurrent GET opened another initial request", plan)
 	}
 	plan, _, _ = w.plan(time.Now(), true)
-	if len(plan) != 2 || len(plan[2]) != 1 || len(plan[14]) != 1 {
+	if len(plan) != 2 || plan[2].need.Owner == "" || plan[14].need.Owner == "" {
 		t.Fatal("initialized GETs did not regain their own ranges", plan)
 	}
 

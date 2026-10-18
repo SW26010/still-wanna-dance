@@ -27,7 +27,9 @@ func TestGETConsumptionWithdrawsOnlyDeliveredBlocks(t *testing.T) {
 	original := clock.ready(2 * rangeBlockSize)
 	for _, step := range []struct{ bytes, first int64 }{{1, 0}, {1, 1}, {rangeBlockSize, 2}, {2, 2}, {1, 3}} {
 		g.accept(step.bytes)
-		plan, _, _ := w.plan(time.Now(), true)
+		s.mu.Lock()
+		plan, _ := testSourcePlan(s, w.v.key, time.Now())
+		s.mu.Unlock()
 		for block := int64(0); block < 3; block++ {
 			_, own := plan[block][blockSource{"get", d}]
 			_, shared := plan[block][blockSource{"get", other}]

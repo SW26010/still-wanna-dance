@@ -51,43 +51,30 @@ func TestBlockDemandFollowsActualWaitAndIndependentReaders(t *testing.T) {
 	_, release := addTestDemand(t, s, ctx, w.v, true)
 	defer release()
 	plan, _, _ := w.plan(time.Now(), true)
-	for _, needs := range plan {
-		for _, n := range needs {
-			if n.need.Blocking {
-				t.Fatal("GET created synthetic Blocking")
-			}
+	for _, p := range plan {
+		if p.need.Blocking {
+			t.Fatal("GET created synthetic Blocking")
 		}
 	}
 	one, two := w.demand(12*rangeBlockSize), w.demand(12*rangeBlockSize)
-	count := func() int {
-		plan, _, _ := w.plan(time.Now(), true)
-		n := 0
-		for _, p := range plan[12] {
-			if p.need.Blocking {
-				n++
-			}
-		}
-		return n
-	}
-	if count() != 2 {
+	blocking := func() bool { plan, _, _ := w.plan(time.Now(), true); return plan[12].need.Blocking }
+	if !blocking() {
 		t.Fatal("independent demands merged destructively")
 	}
 	one()
 	one()
-	if count() != 1 {
+	if !blocking() {
 		t.Fatal("one reader removed another")
 	}
 	two()
-	if count() != 0 {
+	if blocking() {
 		t.Fatal("completed wait stayed blocking")
 	}
 	cancel()
 	plan, _, _ = w.plan(time.Now(), true)
-	for _, sources := range plan {
-		for _, p := range sources {
-			if p.source != sourceHandoff || p.need.LeaseUntil.After(time.Now().Add(getHandoff)) {
-				t.Fatal("canceled context renewed itself", p)
-			}
+	for _, p := range plan {
+		if p.need.LeaseUntil.After(time.Now().Add(getHandoff)) {
+			t.Fatal("canceled context renewed itself", p)
 		}
 	}
 }
@@ -104,22 +91,21 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 		defer release()
 		now := time.Now()
 		plan, _, _ := w.plan(now, false)
-		key := blockSource{"queue", s.prefetchSources["2"]}
-		before, ok := plan[0][key]
-		if !ok || before.source != sourceQueue || before.need.ReadyBy.IsZero() {
+		before, ok := plan[0]
+		if !ok || before.need.ReadyBy.IsZero() {
 			t.Fatal("ordinary queue source missing")
 		}
 		s.UpdatePrefetchQueue([]int64{2, 1}, false)
 		plan, _, _ = w.plan(now, false)
-		after, ok := plan[0][key]
-		if !ok || after.source != sourceQueueHead || !after.need.ReadyBy.Equal(before.need.ReadyBy.Add(-typicalDuration)) {
+		after, ok := plan[0]
+		if !ok || !after.need.ReadyBy.Equal(before.need.ReadyBy.Add(-typicalDuration)) {
 			t.Fatal("queue reorder did not update deadline")
 		}
 		job, _ := s.scheduler.Submit("test", 1, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
 			<-ctx.Done()
 			return blocksched.Result{Err: blocksched.ErrPaused, Remaining: 1}
 		})
-		w.jobs[0] = &scheduledBlock{task: job, needs: make(map[blockSource]plannedNeed)}
+		w.jobs[0] = &scheduledBlock{task: job}
 		if _, _, err := w.reconcile(plan, now, nil, false); err != nil {
 			t.Fatal(err)
 		}
@@ -132,7 +118,7 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 		w.jobs[0].task.Watch(w.wake)
 		// Handoff must defer the original queue deadline, not make it more urgent.
 		// (The plan was obtained at the same now for both queue orders.)
-		if handoff := w.jobs[0].handoffUntil; !handoff.Equal(now.Add(queueHandoff)) {
+		if handoff := w.jobs[0].published.LeaseUntil; !handoff.Equal(now.Add(queueHandoff)) {
 			t.Fatal(handoff)
 		}
 		// An unrelated later event must not slide the abandoned queue's lease.
@@ -153,16 +139,18 @@ func TestBlockLeaseRemovalDoesNotDropOtherOwner(t *testing.T) {
 		<-ctx.Done()
 		return blocksched.Result{Err: blocksched.ErrPaused, Remaining: 1}
 	})
-	w.jobs[0] = &scheduledBlock{task: job, needs: make(map[blockSource]plannedNeed)}
+	w.jobs[0] = &scheduledBlock{task: job}
 	now := time.Now()
 	read := blockSource{"get", "a"}
 	queue := blockSource{"queue", "b"}
 	need := blocksched.Need{Owner: "shared", ReadyBy: now, LeaseUntil: now.Add(sourceLease)}
-	plan := map[int64]map[blockSource]plannedNeed{0: {read: {need: need, source: sourceGET}, queue: {need: need, source: sourceQueue}}}
+	sources := map[blockSource]plannedNeed{read: {need: need, source: sourceGET}, queue: {need: need, source: sourceQueue}}
+	plan := map[int64]blockUse{0: aggregateUse(sources, now)}
 	w.reconcile(plan, now, nil, false)
-	delete(plan[0], read)
+	delete(sources, read)
+	plan[0] = aggregateUse(sources, now)
 	w.reconcile(plan, now, nil, false)
-	if len(w.jobs[0].needs) != 1 || !w.jobs[0].handoffUntil.IsZero() {
+	if w.jobs[0].retiring || w.jobs[0].published != need {
 		t.Fatal("independent source lost or task manufactured GET handoff")
 	}
 	job.Close()

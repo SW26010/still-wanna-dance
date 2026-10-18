@@ -32,7 +32,7 @@ func TestResourceDemandsExposeAllMissingBlocks(t *testing.T) {
 				defer release()
 			}
 			plan, _, _ := w.plan(now, false)
-			if len(plan) != 1 || len(plan[0]) != 1 {
+			if len(plan) != 1 || plan[0].need.Owner == "" {
 				t.Fatal("scheduled extra blocks before Range/entity initialization", len(plan))
 			}
 			w.f.ranges.done = map[int64]bool{0: true, 2: true, 63: true}
@@ -44,18 +44,16 @@ func TestResourceDemandsExposeAllMissingBlocks(t *testing.T) {
 			for block := int64(0); block < 64; block++ {
 				needs := plan[block]
 				if w.f.ranges.done[block] {
-					if len(needs) != 0 {
+					if needs.need.Owner != "" {
 						t.Fatal("completed block retained", block)
 					}
 					continue
 				}
-				if len(needs) != 1 {
+				if needs.need.Owner == "" {
 					t.Fatal("missing or duplicated source", block, needs)
 				}
-				for source, need := range needs {
-					if source.kind != kind || need.need.Blocking || need.need.ReadyBy.IsZero() != (kind == "batch") {
-						t.Fatal("expanding candidates changed source semantics", block, source, need)
-					}
+				if need := needs.need; need.Blocking || need.ReadyBy.IsZero() != (kind == "batch") {
+					t.Fatal("expanding candidates changed demand semantics", block, need)
 				}
 			}
 		})
@@ -99,7 +97,7 @@ func TestResourceDeadlinesRemainVisibleBeyondEightBlocks(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				session.jobs[block] = &scheduledBlock{task: task, needs: make(map[blockSource]plannedNeed)}
+				session.jobs[block] = &scheduledBlock{task: task}
 			}
 			plan, changed, active := session.plan(now, true)
 			if _, _, err := session.reconcile(plan, now, changed, active); err != nil {

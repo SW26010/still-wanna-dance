@@ -35,26 +35,26 @@ func TestGETWithdrawalTimeSurvivesDelayedReconciliation(t *testing.T) {
 					reconcileSession(t, w)
 					j := w.jobs[0]
 					if delay >= getHandoff {
-						if !j.retiring || len(j.handoffs) != 0 {
-							t.Fatalf("expired GET acquired fresh grace: retiring=%v handoffs=%d until=%v", j.retiring, len(j.handoffs), j.handoffUntil)
+						if !j.retiring || !j.nextExpiry.IsZero() {
+							t.Fatalf("expired GET acquired fresh grace: retiring=%v expiry=%v", j.retiring, j.nextExpiry)
 						}
 						return
 					}
 					until := removedAt.Add(getHandoff)
-					if j.retiring || len(j.handoffs) != 1 || !j.handoffUntil.Equal(until) {
-						t.Fatalf("GET handoff slid with processing: retiring=%v handoffs=%d until=%v want=%v", j.retiring, len(j.handoffs), j.handoffUntil, until)
+					if j.retiring || !j.nextExpiry.Equal(until) {
+						t.Fatalf("GET handoff slid with processing: retiring=%v expiry=%v want=%v", j.retiring, j.nextExpiry, until)
 					}
-					h := j.handoffs[0].need
+					h := j.published
 					if h.Blocking || !h.ReadyBy.Equal(ready.Add(2*time.Second)) {
 						t.Fatal("handoff used processing time or retained Blocking", h)
 					}
 					reconcileSession(t, w)
-					if len(j.handoffs) != 1 || j.handoffs[0].need != h {
+					if j.published != h {
 						t.Fatal("withdrawal replayed or renewed its handoff")
 					}
 					time.Sleep(time.Until(until))
 					reconcileSession(t, w)
-					if !j.retiring || len(j.handoffs) != 0 {
+					if !j.retiring || !j.nextExpiry.IsZero() {
 						t.Fatal("GET survived its original expiry")
 					}
 				})

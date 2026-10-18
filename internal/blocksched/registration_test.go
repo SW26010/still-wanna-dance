@@ -9,6 +9,20 @@ import (
 	"time"
 )
 
+func TestRegistrationUsesFixedWindowBoundary(t *testing.T) {
+	now := time.Now()
+	s := state{cfg: Config{PrepareAhead: 500 * time.Second}}
+	background := Need{Owner: "background"}
+	finite := Need{Owner: "finite", ReadyBy: now.Add(500*time.Second + time.Nanosecond)}
+	if s.registrationBefore(finite, background, now) {
+		t.Fatal("future deadline displaced eligible background work")
+	}
+	finite.ReadyBy = now.Add(500 * time.Second)
+	if !s.registrationBefore(finite, background, now) {
+		t.Fatal("deadline at the fixed window boundary did not take priority")
+	}
+}
+
 func TestScheduleCapacityDefersFutureBlocksForUrgentWork(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := New(Config{SoftLimit: 1, MaxTasks: 2, MaxDemands: 2})

@@ -110,7 +110,7 @@ export function SettingsPage() {
       {numberField('throughputIntervalMinutes','自动测速间隔（分钟）',1,1440,'默认 20 分钟，按上次测速时间安排下一次检测。')}</fieldset>
       <fieldset disabled={disabled}><legend>房间队列与游戏日志</legend><Caption1 as="p" className="hint">下载补齐期间，房间队列预缓存会临时暂停。</Caption1>
       {numberField('queuePrefetchCount','队列预缓存数量',1,100,'默认 3，范围 1～100。准备队列前 N 个位置中的有效曲目。')}
-      {numberField('prepareAheadSeconds','提前准备时间 M（秒）',1,86400,'默认 500 秒，范围 1～86400。数值越大，越早下载预计播放的内容，也会更早占用带宽和缓存空间。保存并重启应用后生效。')}
+      {numberField('prepareAheadSeconds','提前准备时间 M（秒）',120,86400,'默认 500 秒，范围 120～86400。数值越大，越早下载预计播放的内容，也会更早占用带宽和缓存空间。保存并重启应用后生效。')}
       <Checkbox label="手动指定 VRChat 日志目录" checked={d.manualLogDir} onChange={(_, v) => update({manualLogDir:!!v.checked})} />
       <Field label="VRChat 日志目录" hint="默认自动识别。仅在无法找到游戏日志时手动指定，取消勾选可恢复自动。"><Input required={d.manualLogDir} disabled={!d.manualLogDir || disabled} value={d.manualLogDir ? d.logDir : s.defaultLogDir} onChange={(_, v) => update({logDir:v.value})} /></Field></fieldset>
       <p role="status">{syncing ? '正在核对已保存的设置…' : dirty ? '有未保存的更改。保存并重启应用后生效。' : s.restartRequired ? '设置已保存，重启应用后生效。' : '配置与当前运行一致。更改后需保存并重启应用。'}</p>

@@ -16,7 +16,7 @@ func TestConfiguredPrepareAheadControlsEngineWindow(t *testing.T) {
 	}{
 		{"default", DefaultConfig().PrepareAhead, false},
 		{"zero_default", 0, false},
-		{"custom_short_window", 30 * time.Second, true},
+		{"custom_short_window", 120 * time.Second, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := fixtureConfig()
@@ -36,7 +36,7 @@ func TestConfiguredPrepareAheadControlsEngineWindow(t *testing.T) {
 				t.Fatal(err)
 			}
 			now := time.Now()
-			n := blocksched.Need{Owner: "window", ReadyBy: now.Add(100 * time.Second), LeaseUntil: now.Add(time.Hour)}
+			n := blocksched.Need{Owner: "window", ReadyBy: now.Add(200 * time.Second), LeaseUntil: now.Add(time.Hour)}
 			demand := job.Add(n)
 			if tc.wait {
 				select {

@@ -32,7 +32,7 @@ func TestSavedSettingsDoNotChangeRuntime(t *testing.T) {
 	}
 	active, engine, client := c.settings, c.service, c.client
 	next := active
-	next.PrepareAheadSeconds = 30
+	next.PrepareAheadSeconds = 120
 	next.StorageDir = filepath.Join(t.TempDir(), "new-cache")
 	next.SOCKS5Address, next.UpstreamMode = "127.0.0.1:1080", "proxy"
 	if runtime.GOOS == "windows" {
@@ -53,7 +53,7 @@ func TestSavedSettingsDoNotChangeRuntime(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil {
 		t.Fatal(err)
 	}
-	if !status.RestartRequired || status.Settings.PrepareAheadSeconds != 30 || status.ActiveSettings.PrepareAheadSeconds != 500 || status.Settings.StorageDir != next.StorageDir || status.ActiveSettings.StorageDir != active.StorageDir || status.Settings.SOCKS5Password != "" || status.ActiveSettings.SOCKS5Password != "" {
+	if !status.RestartRequired || status.Settings.PrepareAheadSeconds != 120 || status.ActiveSettings.PrepareAheadSeconds != 500 || status.Settings.StorageDir != next.StorageDir || status.ActiveSettings.StorageDir != active.StorageDir || status.Settings.SOCKS5Password != "" || status.ActiveSettings.SOCKS5Password != "" {
 		t.Fatalf("incorrect snapshots: %s", w.Body.String())
 	}
 	if err := c.stop(); err != nil {

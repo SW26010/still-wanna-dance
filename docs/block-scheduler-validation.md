@@ -379,3 +379,16 @@ GET 时钟携带规范化请求结束位置，只为与实际响应区间相交�
 - `./cmd/...` 回归通过（`flight-exit-fix-callers-20261018.log`）；`./cmd/... ./internal/...` 的 `go vet` 通过（`flight-exit-fix-vet-20261018.log`）。
 
 本次问题可由受控并发测试判断，不新增 VRC 验收项，也不据此关闭 LA-040 的历史游戏失败。默认零容量策略保持不变。本轮未启动游戏、修改 hosts，未执行 Git commit/push。
+
+## 40. 固定下载提前窗口
+
+2026-10-19：按 canonical 设计将下载准入、堆首唤醒及容量比较统一改为 ReadyBy − M。删除动态 T 的衰减均值和 start_urgent；保留成功标准块实际准入至可读耗时及测速完成计数。默认 M=500 秒，设置和引擎输入范围 120～86400 秒，0 使用默认值；依本轮授权不兼容或迁移旧的小值。120 秒是留出传输基准余量的输入下限，不是及时完成保证。
+
+开发验证（原始日志在本地忽略目录 artifacts/download-resource/）：
+
+- blocksched、console、upstreamstate 整包普通回归通过；配置与测速定向重跑通过。缓存整包两次均在 TestCanceledSeekReleasesWorkerWithoutCancelingSharedReaders 失败，独立五轮通过；保留失败并继续核对共享读取生命周期，不把重跑通过写成竞态已解决。
+- 窗口、注册边界、实际耗时及引擎透传的 Windows race 定向检查通过；四个相关包 go vet 通过。复用已有 w64devkit。
+- pnpm build/check 通过；3 项受影响的 Edge 设置与向导回归通过，覆盖保存与活动配置、保存后同步及独立向导草稿。
+- 首轮沙箱 Go 测试遇到 renameat Access is denied，浏览器启动也受沙箱限制；正常权限重跑得到上述结果，未将权限失败作为产品失败或通过。
+
+这一步只落实固定窗口，不表示需求集合、本地保护或块文件已迁移。未启动 VRC、修改 hosts 或 push。

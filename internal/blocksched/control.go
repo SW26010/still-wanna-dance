@@ -5,6 +5,10 @@ import "time"
 // DefaultPrepareAhead is the default lead M for the activation window.
 const DefaultPrepareAhead = 500 * time.Second
 
+// MinPrepareAhead leaves room beyond the roughly 67 s transfer baseline.
+// It is an input bound, not a guarantee that a cold download finishes in time.
+const MinPrepareAhead = 120 * time.Second
+
 type controller struct {
 	open     int
 	nextGrow time.Time
@@ -33,11 +37,11 @@ func (s *state) nextReady(now time.Time) *job {
 }
 
 func (s *state) windowAt(j *job) time.Time {
-	return j.need.ReadyBy.Add(-s.durations.value()).Add(-s.cfg.PrepareAhead)
+	return j.need.ReadyBy.Add(-s.cfg.PrepareAhead)
 }
 
 // Dispatch has already reused available slots. Grow only while eligible work
-// still waits for capacity; running work never asks for another full block T.
+// still waits for capacity; running work does not request additional slots.
 func (s *state) regulate(now time.Time) {
 	c := &s.control
 	before := c.open

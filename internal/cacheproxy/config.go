@@ -44,7 +44,7 @@ type Config struct {
 	// sequential fallback, and local validation/publication phases separately.
 	// Scheduling waits are governed by demand leases and caller cancellation.
 	DownloadTimeout time.Duration
-	// PrepareAhead is the extra lead M for scheduled downloads; zero uses the default.
+	// PrepareAhead is the full lead M for scheduled downloads; zero uses the default.
 	PrepareAhead time.Duration
 	MaxFileBytes int64
 	// CacheUnlimited disables the retained-video budget independently of its value.
@@ -92,8 +92,8 @@ func (c Config) validate() error {
 	if c.MaxCacheBytes < 0 {
 		return errors.New("cache limit cannot be negative")
 	}
-	if c.PrepareAhead < 0 {
-		return errors.New("download preparation lead cannot be negative")
+	if c.PrepareAhead != 0 && (c.PrepareAhead < blocksched.MinPrepareAhead || c.PrepareAhead > 24*time.Hour) {
+		return errors.New("download preparation lead must be between 120 and 86400 seconds")
 	}
 	if c.StorageDir == "" || c.DownloadTimeout <= 0 || c.MaxFileBytes <= 0 || c.MaxFileBytes == int64(^uint64(0)>>1) || c.MaxLocalValidations < 1 {
 		return errors.New("storage directory is required; timeout, file limit and download limit must be positive")

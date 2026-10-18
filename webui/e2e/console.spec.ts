@@ -4,16 +4,16 @@ import { mockAPI } from './api';
 
 test('drafts survive polling and navigation; save preserves active config and blocks dirty restart', async ({page}) => {
   const api=await mockAPI(page); await page.goto('/#/settings');
-  const m=page.getByRole('spinbutton',{name:/提前准备时间 M/}); await m.fill('30');
+  const m=page.getByRole('spinbutton',{name:/提前准备时间 M/}); await m.fill('120');
   await navigate(page,'开始使用');
   await page.getByRole('button',{name:'启动播放网关',exact:true}).click();
   await expect(page.getByText('操作已完成。',{exact:true})).toBeVisible();
-  await navigate(page,'设置'); await expect(m).toHaveValue('30');
+  await navigate(page,'设置'); await expect(m).toHaveValue('120');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeEnabled();
-  expect(api.state.settings.prepareAheadSeconds).toBe(30); expect(api.state.activeSettings.prepareAheadSeconds).toBe(500);
-  await m.fill('45'); await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeDisabled();
-  await page.getByRole('button',{name:'放弃更改',exact:true}).click(); await expect(m).toHaveValue('30');
+  expect(api.state.settings.prepareAheadSeconds).toBe(120); expect(api.state.activeSettings.prepareAheadSeconds).toBe(500);
+  await m.fill('145'); await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeDisabled();
+  await page.getByRole('button',{name:'放弃更改',exact:true}).click(); await expect(m).toHaveValue('120');
   await m.fill('-1'); await page.getByRole('button',{name:'保存设置',exact:true}).click();
   expect(api.calls.filter(c=>c.path==='settings')).toHaveLength(1);
   expect(api.calls.every(c=>c.token==='browser-fixture-token')).toBe(true);

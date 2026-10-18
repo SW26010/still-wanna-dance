@@ -541,8 +541,8 @@ func (c *Calibration) download(parent context.Context, client *http.Client, samp
 		c.state.Open, c.state.Active = e.Open, e.Active
 		c.state.PeakOpen = max(c.state.PeakOpen, e.Open)
 		c.state.PeakActive = max(c.state.PeakActive, e.Active)
-		c.state.BlockTimeMS = float64(e.BlockTime) / float64(time.Millisecond)
 		if e.Kind == "sample" {
+			c.state.BlockTimeMS = float64(e.BlockTime) / float64(time.Millisecond)
 			c.state.Completed++
 		}
 		windowPeak = max(windowPeak, e.Active)

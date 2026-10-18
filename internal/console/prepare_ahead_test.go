@@ -10,7 +10,7 @@ import (
 
 func TestPrepareAheadSettingsValidationAndPersistence(t *testing.T) {
 	c := testConsole(t)
-	for _, seconds := range []int{1, 30, 86400, 0} {
+	for _, seconds := range []int{120, 500, 86400, 0} {
 		next := c.settings
 		next.PrepareAheadSeconds = seconds
 		body, err := json.Marshal(next)
@@ -45,7 +45,7 @@ func TestPrepareAheadSettingsValidationAndPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, value := range []json.RawMessage{[]byte(`-1`), []byte(`86401`), []byte(`1.5`), []byte(`"500"`)} {
+	for _, value := range []json.RawMessage{[]byte(`-1`), []byte(`1`), []byte(`119`), []byte(`86401`), []byte(`1.5`), []byte(`"500"`)} {
 		body, _ := json.Marshal(c.savedSettings)
 		var fields map[string]json.RawMessage
 		if err := json.Unmarshal(body, &fields); err != nil {

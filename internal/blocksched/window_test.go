@@ -9,16 +9,15 @@ import (
 
 func TestWindowBoundaryAndDeadlineDiagnostics(t *testing.T) {
 	for _, tc := range []struct {
-		name            string
-		ready           time.Duration
-		wait            time.Duration
-		urgent, overdue bool
+		name    string
+		ready   time.Duration
+		wait    time.Duration
+		overdue bool
 	}{
-		{"outside", 510 * time.Second, 7 * time.Second, false, false},
-		{"window_equality", 503 * time.Second, 0, false, false},
-		{"latest_start_equality", 3 * time.Second, 0, true, false},
-		{"deadline_equality", 0, 0, true, false},
-		{"past_deadline", -time.Second, 0, true, true},
+		{"outside", 510 * time.Second, 10 * time.Second, false},
+		{"window_equality", 500 * time.Second, 0, false},
+		{"deadline_equality", 0, 0, false},
+		{"past_deadline", -time.Second, 0, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -54,7 +53,7 @@ func TestWindowBoundaryAndDeadlineDiagnostics(t *testing.T) {
 					}
 				})
 				for _, e := range events {
-					if e.Kind == "started" && (e.StartUrgent != tc.urgent || e.Overdue != tc.overdue) {
+					if e.Kind == "started" && e.Overdue != tc.overdue {
 						t.Fatalf("incorrect deadline diagnosis: %+v", e)
 					}
 				}
@@ -145,7 +144,7 @@ func TestSoftLimitWaitHasNoPastWindowWakeup(t *testing.T) {
 	})
 }
 
-func TestCompletedSlowSampleMovesWindowWithoutReordering(t *testing.T) {
+func TestCompletedSlowSampleDoesNotMoveWindowOrReorder(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := New(Config{SoftLimit: 1})
 		defer s.Close()
@@ -166,10 +165,10 @@ func TestCompletedSlowSampleMovesWindowWithoutReordering(t *testing.T) {
 			j.Add(Need{Owner: key, ReadyBy: ready, LeaseUntil: now.Add(time.Hour)})
 		}
 		<-probe.Done()
-		if got := <-started; got != "earlier" || time.Since(now) != 5*time.Second {
-			t.Fatal("sample did not activate earliest deadline", got, time.Since(now))
+		if got := <-started; got != "earlier" || time.Since(now) != 9*time.Second {
+			t.Fatal("sample moved earliest window", got, time.Since(now))
 		}
-		if got := <-started; got != "later" || time.Since(now) != 5*time.Second {
+		if got := <-started; got != "later" || time.Since(now) != 10*time.Second {
 			t.Fatal("sample changed deadline order", got)
 		}
 	})
@@ -237,7 +236,7 @@ func TestDeadlineUpdatesRearmWindowWithoutTouchingRunningWork(t *testing.T) {
 		a.Update(need("first", false, 30*time.Second, time.Hour))
 		synctest.Wait()
 		s.call(func(st *state) {
-			if time.Until(st.nextControlEvent(time.Now())) != 16*time.Second {
+			if time.Until(st.nextControlEvent(time.Now())) != 19*time.Second {
 				t.Error("deadline change did not move the timed heap head")
 			}
 		})
@@ -249,7 +248,7 @@ func TestDeadlineUpdatesRearmWindowWithoutTouchingRunningWork(t *testing.T) {
 		synctest.Wait()
 		s.call(func(st *state) {
 			if st.control.open != 1 || !st.control.nextGrow.IsZero() {
-				t.Error("running work used a full T to request another slot")
+				t.Error("running work requested another slot")
 			}
 		})
 		a.Update(need("first", false, time.Second, time.Hour))

@@ -58,7 +58,7 @@ type Config struct {
 	// this limit and growth pacing; metadata capacity still bounds total work.
 	SoftLimit, MaxTasks, MaxDemands int
 	GrowInterval                    time.Duration
-	// PrepareAhead is the lead M in ReadyBy <= now + T + M; zero uses DefaultPrepareAhead.
+	// PrepareAhead is the full lead M in ReadyBy <= now + M; zero uses DefaultPrepareAhead.
 	PrepareAhead time.Duration
 	// Optional event sink; it must be fast and must not call back into Scheduler.
 	Observe func(Event)
@@ -70,7 +70,7 @@ type Event struct {
 	ReadyBy                 time.Time
 	WorkBytes               int64
 	BlockTime, PrepareAhead time.Duration
-	StartUrgent, Overdue    bool
+	Overdue                 bool
 }
 
 type Scheduler struct {
@@ -213,7 +213,6 @@ type state struct {
 	active, demandCount int
 	closing             bool
 	control             controller
-	durations           durationEstimate
 	orphans             list.List
 	capacityChanged     chan struct{}
 }
@@ -441,14 +440,16 @@ func (s *state) emit(kind, reason string, j *job) {
 	if s.cfg.Observe == nil {
 		return
 	}
-	e := Event{Kind: kind, Reason: reason, Active: s.active, Open: s.control.open, BlockTime: s.durations.value(), PrepareAhead: s.cfg.PrepareAhead}
+	e := Event{Kind: kind, Reason: reason, Active: s.active, Open: s.control.open, PrepareAhead: s.cfg.PrepareAhead}
 	if j != nil {
 		e.Key, e.Blocking, e.ReadyBy, e.WorkBytes = j.task.key, j.need.Blocking, j.need.ReadyBy, j.remaining
 		e.Opportunistic = j.need.Opportunistic
 		if kind == "started" && !j.need.ReadyBy.IsZero() {
 			now := time.Now()
-			e.StartUrgent = !j.need.ReadyBy.After(now.Add(e.BlockTime))
 			e.Overdue = j.need.ReadyBy.Before(now)
+		}
+		if kind == "sample" {
+			e.BlockTime = j.progress.ready.Sub(j.progress.admitted)
 		}
 	}
 	s.cfg.Observe(e)
@@ -520,7 +521,7 @@ func (s *state) loop() {
 			fn(s)
 		case c := <-s.s.finished:
 			j := c.job
-			if c.result.Err == nil && s.durations.observe(j.progress, time.Now()) {
+			if c.result.Err == nil && j.progress.comparable() {
 				s.emit("sample", "readable_block", j)
 			}
 			j.cancel(nil)

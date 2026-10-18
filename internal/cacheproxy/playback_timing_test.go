@@ -18,6 +18,7 @@ func TestHTTPRangeUpdatesQueuePlaybackAnchor(t *testing.T) {
 	if _, err := s.usage.db.Exec("INSERT INTO media(md5,byte_size) VALUES (?,?)", v.key, v.size); err != nil {
 		t.Fatal(err)
 	}
+	s.wg.Wait()
 	if _, err := s.usage.db.Exec("INSERT INTO songs(song_id,end) VALUES (1,120)"); err != nil {
 		t.Fatal(err)
 	}

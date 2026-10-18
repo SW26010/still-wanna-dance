@@ -200,6 +200,7 @@ func testWholeFlightResume(t *testing.T, mode string) {
 
 	unblock()
 	assertResponse(t, receiveDemandEvent(t, foregroundDone), 200, payload)
+	s.wg.Wait() // The foreground response can precede its own spool cleanup.
 	if mode == "shutdown" {
 		if err := s.Close(); err != nil {
 			t.Fatal(err)
@@ -232,6 +233,7 @@ func testWholeFlightResume(t *testing.T, mode string) {
 			t.Fatal("prefetch did not resume", err)
 		}
 	}
+	s.wg.Wait() // Independently await persistence after foreground delivery.
 	got, err := os.ReadFile(cfg.videoFile(key))
 	if err != nil || !bytes.Equal(got, body) {
 		t.Fatal("retried content differs", err)

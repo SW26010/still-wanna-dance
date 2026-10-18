@@ -67,6 +67,7 @@ func TestCacheAccessSurvivesRequestCleanupAndRestart(t *testing.T) {
 	old := time.Now().Add(-31 * 24 * time.Hour)
 	s.usage.now = func() time.Time { return old }
 	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
+	s.wg.Wait()
 	s.usage.flush()
 	cleaner := &usageStore{db: s.usage.db, retention: 30 * 24 * time.Hour}
 	if n, err := cleaner.prune(time.Now()); err != nil || n != 1 {

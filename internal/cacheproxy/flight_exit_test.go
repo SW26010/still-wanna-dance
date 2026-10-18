@@ -168,7 +168,6 @@ func testNewGETDuringCleanup(t *testing.T, pauseBlock bool) {
 				var body []byte
 				if err == nil {
 					if reader != nil {
-						reader.verifyFull = true
 						body, err = io.ReadAll(reader)
 						reader.Close()
 					} else {
@@ -196,6 +195,7 @@ func testNewGETDuringCleanup(t *testing.T, pauseBlock bool) {
 			if got.err != nil || (got.flight == old) != reuse || string(got.body) != payload {
 				t.Fatalf("GET did not recover after cleanup: old=%v bytes=%d error=%v", got.flight == old, len(got.body), got.err)
 			}
+			<-got.flight.done // Delivery does not wait for validation/publication.
 			if body, err := os.ReadFile(cfg.videoFile(v.key)); err != nil || string(body) != payload {
 				t.Fatal("replacement was not verified and published", err)
 			}

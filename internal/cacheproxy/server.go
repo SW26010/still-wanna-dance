@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -428,9 +429,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.pinVideo(v)
 	defer func() { s.releaseVideo(v) }()
 	releaseDemand := func() {}
-	if r.Method == http.MethodGet {
-		_, releaseDemand = s.addDemand(r.Context(), v, true)
+	attachGET := func(resource video) {
+		if r.Method != http.MethodGet {
+			return
+		}
+		ctx := context.WithValue(r.Context(), httpGETKey{}, true)
+		// A replacement URL receives a fresh source, even for the same content.
+		ctx = context.WithValue(ctx, getDemandKey{}, (*downloadDemand)(nil))
+		demand, release := s.addDemand(ctx, resource, true)
+		releaseDemand = release
+		r = r.WithContext(context.WithValue(ctx, getDemandKey{}, demand))
+		response.consumption = &getConsumption{s: s, demand: demand, size: resource.size}
 	}
+	attachGET(v)
 	defer func() { releaseDemand() }()
 	if r.Method == http.MethodGet {
 		event.at = s.usage.startGET(v.songID, v.key)
@@ -450,9 +461,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		s.pinVideo(replacement)
 		releaseDemand()
-		if r.Method == http.MethodGet {
-			_, releaseDemand = s.addDemand(r.Context(), replacement, true)
-		}
+		attachGET(replacement)
 		s.releaseVideo(v)
 		v = replacement
 		event.id, event.key, event.host, event.size = v.key, v.key, v.host, v.size
@@ -520,13 +529,6 @@ loadVideo:
 			panic(http.ErrAbortHandler)
 		}
 		pending.commit()
-		// A complete GET has finished validation/publication. Drain its song
-		// record too; short Range/HEAD responses leave this to the worker.
-		if r.Method == http.MethodGet && response.status == http.StatusOK {
-			if err := s.waitPlaybackSong(r.Context(), f, v.songID); err != nil {
-				log.Error("playback_song_failed", "error", applog.SafeError(err))
-			}
-		}
 		log.Info("served", "cache", "MISS", "elapsed", time.Since(start))
 		return
 	}
@@ -559,6 +561,7 @@ type responseWriter struct {
 	status           int
 	bytes            int64
 	writeErr         error
+	consumption      *getConsumption
 }
 
 func (w *responseWriter) WriteHeader(status int) {
@@ -566,6 +569,9 @@ func (w *responseWriter) WriteHeader(status int) {
 		return
 	}
 	w.status = status
+	if w.consumption != nil {
+		w.consumption.start(status, w.Header())
+	}
 	w.headerLatency = time.Since(w.started)
 	w.ResponseWriter.WriteHeader(status)
 }
@@ -575,6 +581,12 @@ func (w *responseWriter) Write(p []byte) (int, error) {
 		w.WriteHeader(http.StatusOK)
 	}
 	n, err := w.ResponseWriter.Write(p)
+	if n < len(p) && err == nil {
+		err = io.ErrShortWrite
+	}
+	if w.consumption != nil && n > 0 {
+		w.consumption.accept(int64(n))
+	}
 	if n > 0 && w.bytes == 0 {
 		w.firstBodyLatency = time.Since(w.started)
 	}
@@ -599,7 +611,6 @@ func (w *responseWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter 
 type streamResponseWriter struct {
 	http.ResponseWriter
 	header    http.Header
-	stream    *spoolReader
 	status    int
 	committed bool
 }
@@ -610,9 +621,6 @@ func (w *streamResponseWriter) WriteHeader(status int) {
 		return
 	}
 	w.status = status
-	// If-Range can turn a ranged request into a full response. Only the
-	// actual response status determines whether to hold the final byte.
-	w.stream.verifyFull = status == http.StatusOK
 }
 func (w *streamResponseWriter) commit() {
 	if w.committed {
@@ -639,7 +647,7 @@ func (w *streamResponseWriter) Write(p []byte) (int, error) {
 // Closing here releases failed spools before waiting for a replacement URL.
 func serveStream(w http.ResponseWriter, r *http.Request, v video, stream *spoolReader) *streamResponseWriter {
 	defer stream.Close()
-	pending := &streamResponseWriter{ResponseWriter: w, header: w.Header().Clone(), stream: stream}
+	pending := &streamResponseWriter{ResponseWriter: w, header: w.Header().Clone()}
 	pending.Header().Set("Content-Type", "video/mp4")
 	pending.Header().Set("ETag", `"`+v.key+`"`)
 	pending.Header().Set("X-SWD-Cache", "MISS")

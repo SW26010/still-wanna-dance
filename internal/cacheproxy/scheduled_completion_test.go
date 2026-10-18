@@ -104,12 +104,11 @@ func TestLastRangeCompletingDuringPlanStillVerifiesAndPublishes(t *testing.T) {
 			}
 			reader := f.spool.reader(ctx, v.size)
 			defer reader.Close()
-			reader.verifyFull = true
 			got, readErr := io.ReadAll(reader)
 			<-done
 			published, fileErr := os.ReadFile(cfg.videoFile(v.key))
 			if corrupt {
-				if !errors.Is(result, errUpstreamDownload) || !errors.Is(readErr, errUpstreamDownload) || !os.IsNotExist(fileErr) {
+				if !errors.Is(result, errUpstreamDownload) || readErr != nil || !bytes.Equal(got, upstream) || !os.IsNotExist(fileErr) {
 					t.Fatalf("checksum was not enforced: result=%v read=%v file=%v", result, readErr, fileErr)
 				}
 			} else if result != nil || readErr != nil || fileErr != nil || !bytes.Equal(got, body) || !bytes.Equal(published, body) {

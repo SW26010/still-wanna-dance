@@ -13,6 +13,8 @@ import (
 var errPreempted = errors.Join(context.Canceled, errors.New("download paused without active demand"))
 
 type queueDemandKey struct{}
+type getDemandKey struct{}
+type httpGETKey struct{}
 
 // Identity lasts for one continuous queue membership. Mutable fields are
 // protected by Server.mu. Removal freezes the last position and its time, so
@@ -38,35 +40,45 @@ func (q *queueSource) readyBy(block int64) time.Time {
 }
 
 type downloadDemand struct {
-	ctx             context.Context
-	exit            sourceExit
-	key, song       string
-	queue, playback bool
-	queueSource     *queueSource
-	clock           *playbackClock
+	ctx                   context.Context
+	exit                  sourceExit
+	key, song             string
+	queue, playback       bool
+	queueSource           *queueSource
+	clock                 *playbackClock
+	firstBlock, lastBlock int64 // Remaining GET span, protected by Server.mu.
 }
 
 // sourceExit freezes withdrawal before registry locks or coalesced coordinator
 // wakeups can delay it. It belongs to the original source, never to a handoff.
-type sourceExit struct{ at atomic.Pointer[time.Time] }
+type sourceWithdrawal struct {
+	at     time.Time
+	reason withdrawalReason
+}
+type sourceExit struct {
+	at atomic.Pointer[sourceWithdrawal]
+}
 
-func (e *sourceExit) record() {
+func (e *sourceExit) recordReason(reason withdrawalReason) {
 	if e.at.Load() == nil {
-		now := time.Now()
-		e.at.CompareAndSwap(nil, &now)
+		e.at.CompareAndSwap(nil, &sourceWithdrawal{time.Now(), reason})
 	}
 }
 
 func (e *sourceExit) active(ctx context.Context) bool {
 	if ctx.Err() != nil {
-		e.record() // Planning can observe cancellation before AfterFunc runs.
+		reason := withdrawalSourceGone
+		if owned, _ := ctx.Value(httpGETKey{}).(bool); owned && !errors.Is(ctx.Err(), context.Canceled) {
+			reason = withdrawalNeedEnded
+		}
+		e.recordReason(reason) // Planning can observe cancellation before AfterFunc runs.
 	}
 	return e.at.Load() == nil
 }
 
 func (e *sourceExit) when() time.Time {
 	if at := e.at.Load(); at != nil {
-		return *at
+		return at.at
 	}
 	return time.Time{}
 }
@@ -137,6 +149,9 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 	return nil
 }
 func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downloadDemand, func()) {
+	if existing, ok := ctx.Value(getDemandKey{}).(*downloadDemand); playback && ok && existing != nil && existing.key == v.key {
+		return existing, func() {} // The HTTP response owns this source's lifetime.
+	}
 	token, queue := ctx.Value(queueDemandKey{}).(*queueSource)
 	d := &downloadDemand{ctx: ctx, key: v.key, song: v.songID, queue: queue, playback: playback, queueSource: token}
 	if playback {
@@ -144,6 +159,10 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 		d.clock, observed = ctx.Value(playbackClockKey{}).(*playbackClock)
 		if !observed {
 			d.clock = &playbackClock{at: time.Now(), limit: v.size, media: estimateMediaTiming(v.size, 0)}
+		}
+		if d.clock != nil {
+			d.firstBlock = d.clock.offset / rangeBlockSize
+			d.lastBlock = (d.clock.limit + rangeBlockSize - 1) / rangeBlockSize
 		}
 	}
 	s.mu.Lock()
@@ -161,7 +180,11 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 	s.notifyCapacityLocked()
 	s.mu.Unlock()
 	release := sync.OnceFunc(func() {
-		d.exit.record()
+		reason := withdrawalSourceGone
+		if owned, _ := ctx.Value(httpGETKey{}).(bool); owned && !errors.Is(ctx.Err(), context.Canceled) {
+			reason = withdrawalNeedEnded
+		}
+		d.exit.recordReason(reason)
 		s.mu.Lock()
 		delete(s.demands, d)
 		s.retimeQueueLocked(time.Now())

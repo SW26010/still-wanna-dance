@@ -156,6 +156,7 @@ func TestMD5UnknownIDColdLoadRecordsMappingAndCatalogWins(t *testing.T) {
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
 	s.cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return videoURL(payload), nil }
 	assertResponse(t, request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=42", nil), 200, payload)
+	s.wg.Wait()
 	key := parsedVideo(t, s, payload).key
 	assertSongResource(t, s, "42", key)
 	current := strings.Repeat("d", 32)

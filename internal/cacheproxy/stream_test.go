@@ -114,7 +114,7 @@ func TestColdStreamStartsBeforeCompletionAndSharesSeekingReaders(t *testing.T) {
 	assertResponse(t, request(s, "GET", videoURL(body), nil), 200, body)
 }
 
-func TestCorruptStreamAbortsNetworkAndNeverPublishes(t *testing.T) {
+func TestDeliveredCorruptStreamNeverPublishes(t *testing.T) {
 	body := strings.Repeat("a", 32768)
 	release := make(chan struct{})
 	var once sync.Once
@@ -146,8 +146,8 @@ func TestCorruptStreamAbortsNetworkAndNeverPublishes(t *testing.T) {
 	}
 	unblock()
 	rest, err := io.ReadAll(resp.Body)
-	if err == nil || len(first)+len(rest) >= len(body) {
-		t.Fatal("corrupt stream completed without transport error", len(rest), err)
+	if err != nil || len(first)+len(rest) != len(body) {
+		t.Fatal("byte delivery depended on whole-video checksum", len(rest), err)
 	}
 	s.wg.Wait()
 	for _, dir := range []string{cfg.videosDir(), cfg.tempDir()} {

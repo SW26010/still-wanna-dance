@@ -101,6 +101,7 @@ func TestColdHotCrossHostAndHTTP(t *testing.T) {
 	if w.Header().Get("X-SWD-Cache") != "MISS" {
 		t.Fatal(w.Header())
 	}
+	s.wg.Wait() // A delivered response no longer waits for publication.
 	lastModified := request(s, "HEAD", videoURL(payload), nil).Header().Get("Last-Modified")
 	etag := w.Header().Get("ETag")
 	for _, tc := range []struct {
@@ -210,7 +211,8 @@ func TestBadUpstreamNeverPublishesAndRetries(t *testing.T) {
 				}
 			})
 			w := request(s, "GET", videoURL(payload), nil)
-			if w.Code != 502 && !(w.aborted && w.Body.Len() < len(payload)) {
+			delivered := (mode == "checksum" || mode == "long") && w.Code == 200 && !w.aborted && w.Body.Len() == len(payload)
+			if !delivered && w.Code != 502 && !(w.aborted && w.Body.Len() < len(payload)) {
 				t.Fatalf("got %d", w.Code)
 			}
 			files, _ := filepath.Glob(filepath.Join(cfg.videosDir(), "*.mp4"))

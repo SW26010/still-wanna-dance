@@ -99,6 +99,7 @@ func TestLogsLinkSharedDownloadToBothRequests(t *testing.T) {
 	}
 	unblock()
 	wg.Wait()
+	s.wg.Wait() // Publication finishes independently of the GETs.
 	s.Close()
 	var flight any
 	traces := map[any]bool{}
@@ -135,9 +136,10 @@ func TestLogsLinkSharedDownloadToBothRequests(t *testing.T) {
 	}
 }
 
-func TestLogsIntegrityFailureDoesNotClaimCompletion(t *testing.T) {
+func TestLogsSeparateGETDeliveryFromIntegrityFailure(t *testing.T) {
 	s, logs := loggingServer(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, strings.Repeat("x", len(payload))) })
 	request(s, "GET", videoURL(payload), nil)
+	s.wg.Wait()
 	s.Close()
 	failed, terminal := false, false
 	for _, r := range logs.records(t) {
@@ -148,7 +150,7 @@ func TestLogsIntegrityFailureDoesNotClaimCompletion(t *testing.T) {
 			failed = true
 		case "request_finished":
 			terminal = true
-			if r["outcome"] == "completed" {
+			if r["outcome"] == "completed" && r["bytes"] != float64(len(payload)) {
 				t.Fatal(r)
 			}
 		}

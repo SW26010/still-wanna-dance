@@ -254,8 +254,8 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 				}
 				end = min(end, 1)
 			} else {
-				begin = max(begin, d.clock.offset/rangeBlockSize)
-				end = min(end, (d.clock.limit+rangeBlockSize-1)/rangeBlockSize)
+				begin = max(begin, d.firstBlock)
+				end = min(end, d.lastBlock)
 			}
 		}
 		if !initialized {
@@ -484,6 +484,11 @@ func (w *downloadSession) withdrawal(block int64, source blockSource) withdrawal
 		// live GET once its own range is available. That is not a GET exit.
 		return withdrawalNeedEnded
 	}
+	if d, ok := source.id.(*downloadDemand); ok {
+		if exit := d.exit.at.Load(); exit != nil {
+			return exit.reason
+		}
+	}
 	return withdrawalSourceGone
 }
 func handoffNeed(n blocksched.Need, now time.Time, grace, delay time.Duration) blocksched.Need {
@@ -580,20 +585,29 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 			initialized = true
 		default:
 		}
+		complete := false
 		if initialized {
 			f.ranges.mu.Lock()
-			complete := int64(len(f.ranges.done)) == (v.size+rangeBlockSize-1)/rangeBlockSize
+			complete = int64(len(f.ranges.done)) == (v.size+rangeBlockSize-1)/rangeBlockSize
 			f.ranges.mu.Unlock()
 			if complete && len(w.jobs) == 0 {
 				break
 			}
-			if complete {
-				select {
-				case <-ctx.Done():
-				case <-w.wake:
-				}
-				continue
+		}
+		// A reader can accept the last bytes before the executor reports Done.
+		// Drain that execution and its publication instead of treating delivery
+		// as abandonment. This also covers sequential bodies awaiting EOF.
+		select {
+		case <-f.streaming:
+			complete = complete || f.spool != nil && f.spool.hasAllBytes(v.size)
+		default:
+		}
+		if complete {
+			select {
+			case <-ctx.Done():
+			case <-w.wake:
 			}
+			continue
 		}
 		until, retry, err := w.reconcile(plan, now, changed, active)
 		if err != nil {

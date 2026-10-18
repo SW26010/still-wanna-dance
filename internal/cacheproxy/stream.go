@@ -9,8 +9,8 @@ import (
 )
 
 // spool is a single download shared by independently seeking HTTP clients.
-// ReadAt does not disturb the writer's offset. Sequential and full HTTP reads
-// hold the last byte until verification; range readers can access the tail early.
+// ReadAt does not disturb the writer's offset. HTTP byte delivery is independent
+// of whole-video verification and publication.
 type spool struct {
 	mu        sync.Mutex
 	file      *os.File
@@ -26,6 +26,17 @@ type spool struct {
 }
 
 type byteInterval struct{ start, end int64 }
+
+// Call only after the spool has been exposed to readers. Once all bytes are
+// readable, source withdrawal must not cancel the independent publication.
+func (s *spool) hasAllBytes(size int64) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.sparse {
+		return len(s.intervals) == 1 && s.intervals[0].start == 0 && s.intervals[0].end >= size
+	}
+	return s.available >= size
+}
 
 // WriteAt publishes only bytes whose write has completed, never sparse length.
 func (s *spool) WriteAt(p []byte, offset int64) (int, error) {
@@ -111,7 +122,6 @@ type spoolReader struct {
 	closeOnce     sync.Once
 	size, offset  int64
 	err           error
-	verifyFull    bool
 	releaseDemand func()
 }
 
@@ -158,13 +168,6 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 			}
 		}
 		s.mu.Unlock()
-		if failure != nil {
-			r.err = failure
-			return 0, failure
-		}
-		if (!s.sparse || r.verifyFull) && !complete && available >= r.size {
-			available = r.size - 1
-		}
 		if available > r.size {
 			available = r.size
 		}
@@ -179,6 +182,10 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 				r.err = err
 			}
 			return n, err
+		}
+		if failure != nil {
+			r.err = failure
+			return 0, failure
 		}
 		if complete {
 			r.err = io.ErrUnexpectedEOF

@@ -98,7 +98,7 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 		return 0, nil
 	}
 	for {
-		if err := r.ctx.Err(); err != nil {
+		if err := context.Cause(r.ctx); err != nil {
 			r.err = err
 			return 0, err
 		}
@@ -145,7 +145,7 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 		}
 		select {
 		case <-r.ctx.Done():
-			r.err = r.ctx.Err()
+			r.err = context.Cause(r.ctx)
 			return 0, r.err
 		case <-changed:
 		}

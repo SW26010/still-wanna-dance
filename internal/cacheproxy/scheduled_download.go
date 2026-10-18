@@ -160,6 +160,9 @@ func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Ne
 	remaining := min(rangeBlockSize, w.v.size-block*rangeBlockSize)
 	t, d, err := w.s.scheduler.Schedule(key, remaining, func(ctx context.Context, p *blocksched.Progress) blocksched.Result { return w.run(ctx, p, block) }, n)
 	if err != nil {
+		if errors.Is(err, blocksched.ErrExpired) {
+			w.s.expireDownload(w.f, w.v.key, block)
+		}
 		return err
 	}
 	t.Watch(w.wake)
@@ -343,6 +346,10 @@ func (w *downloadSession) reapCompleted(initialized *bool) (bool, error) {
 		}
 		select {
 		case <-j.task.Done():
+			if errors.Is(j.task.Err(), blocksched.ErrExpired) {
+				w.s.expireDownload(w.f, w.v.key, block)
+				return false, j.task.Err()
+			}
 			if errors.Is(j.task.Err(), blocksched.ErrDeferred) {
 				j.task, j.merged = nil, nil
 				continue

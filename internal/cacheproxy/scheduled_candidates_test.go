@@ -203,10 +203,9 @@ func TestExpandedResourceRetainsGlobalMetadataCapacity(t *testing.T) {
 	first.Close()
 	<-first.Done()
 	initialized := true
-	if _, err := w.reapCompleted(&initialized); err == nil { // deliberate cancellation is still terminal
-		t.Fatal("explicit cancellation disappeared")
+	if _, err := w.reapCompleted(&initialized); err != nil || w.jobs[0] != nil {
+		t.Fatal("stopped task was not retired before current usage is reconsidered", err)
 	}
-	delete(w.jobs, 0)
 	w.f.ranges.done[0] = true
 	plan, changed, active = w.plan(time.Now(), true)
 	if _, _, err := w.reconcile(plan, time.Now(), changed, active); err != nil || w.jobs[16] == nil {

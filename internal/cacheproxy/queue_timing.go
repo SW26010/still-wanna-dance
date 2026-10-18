@@ -87,6 +87,9 @@ func (s *Server) retimeQueueLocked(now time.Time) {
 		if q := s.prefetchSources[strconv.FormatInt(id, 10)]; q != nil {
 			duration = q.timing.duration
 			if q.position == i {
+				if q.startAt != start {
+					q.expired = false // Only an actual source clock change permits another preparation.
+				}
 				if q.startAt != start && s.cfg.Logger != nil {
 					s.cfg.Logger.Debug("queue_playback_timing", "song_id", q.song, "position", i, "starts_at", start, "media_bytes", q.timing.size, "duration_seconds", q.timing.duration.Seconds())
 				}
@@ -111,6 +114,7 @@ func (s *Server) refreshQueueResourceTiming(ctx context.Context, v video) error 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if ctx.Err() == nil && s.prefetchSources[q.song] == q && q.timing != timing {
+		q.expired = false
 		q.timing = timing
 		s.retimeQueueLocked(time.Now())
 		s.notifyCapacityLocked()

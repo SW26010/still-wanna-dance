@@ -7,6 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"still-wanna-dance/internal/blocksched"
 )
 
 // Resource ownership feeds the block-demand adapter. It carries no scheduling rank.
@@ -27,6 +29,7 @@ type queueSource struct {
 	timing             mediaTiming
 	title              string
 	use                useSpan
+	expired            bool // Failed preparation; a real queue timing change may rearm it.
 }
 
 func (q *queueSource) origin() demandSource {
@@ -42,6 +45,8 @@ func (q *queueSource) readyBy(block int64) time.Time {
 
 type downloadDemand struct {
 	ctx                   context.Context
+	cancel                context.CancelCauseFunc
+	flight                *flight // Attached download session, protected by Server.mu.
 	exit                  sourceExit
 	key, song             string
 	queue, playback       bool
@@ -120,6 +125,9 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 					metadata.timing = estimateMediaTiming(0, 0)
 				}
 				changed = changed || source.timing != metadata.timing || source.title != metadata.title
+				if source.timing != metadata.timing {
+					source.expired = false
+				}
 				source.timing, source.title = metadata.timing, metadata.title
 				next[song] = source
 			}
@@ -150,10 +158,13 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 	return nil
 }
 func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downloadDemand, func(), error) {
-	if err := ctx.Err(); err != nil {
+	if err := context.Cause(ctx); err != nil {
 		return nil, nil, err
 	}
 	if existing, ok := ctx.Value(sourceDemandKey{}).(*downloadDemand); ok && existing != nil && existing.key == v.key && existing.playback == playback {
+		if err := context.Cause(existing.ctx); err != nil {
+			return nil, nil, err
+		}
 		return existing, func() {}, nil // The response/preparation owns this source's lifetime.
 	}
 	token, queue := ctx.Value(queueDemandKey{}).(*queueSource)
@@ -178,6 +189,10 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 		return nil, nil, context.Canceled
 	}
 	if queue {
+		if s.validQueueSourceLocked(d) && token.expired {
+			s.mu.Unlock()
+			return nil, nil, blocksched.ErrExpired
+		}
 		if s.validQueueSourceLocked(d) && token.use != d.useSpan() {
 			if err := s.replaceUseLocked(token.use, d.useSpan(), false); err != nil {
 				s.mu.Unlock()
@@ -192,6 +207,7 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 	if s.demands == nil {
 		s.demands = make(map[*downloadDemand]bool)
 	}
+	d.ctx, d.cancel = context.WithCancelCause(ctx)
 	s.demands[d] = true
 	s.retimeQueueLocked(time.Now())
 	s.notifyCapacityLocked()
@@ -205,6 +221,7 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 		s.mu.Lock()
 		s.removeDemandLocked(d)
 		s.mu.Unlock()
+		d.cancel(nil)
 	})
 	stop := context.AfterFunc(ctx, release)
 	return d, func() { stop(); release() }, nil

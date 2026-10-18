@@ -44,6 +44,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 	if err != nil {
 		return nil, nil, err
 	}
+	ctx = demand.ctx // Service failures end the source without canceling the HTTP request context.
 	transferred := false
 	defer func() {
 		if !transferred {
@@ -55,7 +56,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 	waitLogged := false
 	s.mu.Lock()
 	for {
-		if err := ctx.Err(); err != nil {
+		if err := context.Cause(ctx); err != nil {
 			s.mu.Unlock()
 			return nil, nil, err
 		}
@@ -110,7 +111,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		}
 		select {
 		case <-ctx.Done():
-			return nil, nil, ctx.Err()
+			return nil, nil, context.Cause(ctx)
 		case <-s.ctx.Done():
 			return nil, nil, context.Canceled
 		case <-changed:
@@ -204,6 +205,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		f.releases = append(f.releases, releaseDemand)
 		transferred = true
 	}
+	demand.flight = f
 	s.mu.Unlock()
 	log.Info("cache_task_attached", "flight_id", f.id, "wait_ms", time.Since(waitStart).Milliseconds())
 	completed := func() (*flight, *spoolReader, error) {
@@ -223,7 +225,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 
 	select {
 	case <-ctx.Done():
-		return nil, nil, ctx.Err()
+		return nil, nil, context.Cause(ctx)
 	case <-f.done:
 		return completed()
 	case <-f.streaming:
@@ -237,7 +239,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		}
 		select {
 		case <-ctx.Done():
-			return nil, nil, ctx.Err()
+			return nil, nil, context.Cause(ctx)
 		case <-f.done:
 			return completed()
 		}

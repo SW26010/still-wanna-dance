@@ -81,6 +81,9 @@ func aggregateUse(plan map[blockSource]plannedNeed, now time.Time) blockUse {
 		if !p.need.LeaseUntil.After(now) {
 			continue
 		}
+		if p.source == sourceHandoff && blocksched.Expired(p.need.ReadyBy, now) {
+			continue // Usage/protection lasts to its fixed exit, but cannot fund another expired download.
+		}
 		n := p.need
 		if p.source == sourceHandoff && get {
 			n.ReadyBy = time.Time{}

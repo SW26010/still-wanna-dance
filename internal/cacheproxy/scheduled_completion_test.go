@@ -66,15 +66,16 @@ func TestLastRangeCompletingDuringPlanStillVerifiesAndPublishes(t *testing.T) {
 			}
 			f := &flight{streaming: make(chan struct{}), log: s.cfg.Logger}
 			f.progress = startProgress(f.log, v.size, time.Minute)
-			planCtx := &completeDuringPlanContext{Context: context.Background(), streaming: f.streaming, complete: func() {
+			demand, release := addTestDemand(t, s, context.Background(), v, true)
+			defer release()
+			planCtx := &completeDuringPlanContext{Context: demand.ctx, streaming: f.streaming, complete: func() {
 				close(gate)
 				select {
 				case <-finished:
 				case <-ctx.Done():
 				}
 			}}
-			_, release := addTestDemand(t, s, planCtx, v, true)
-			defer release()
+			demand.ctx = planCtx // Instrument the owned source context inspected by planning.
 			s.pinVideo(v)
 			defer s.releaseVideo(v)
 			done := make(chan struct{})

@@ -41,7 +41,7 @@ func (s *Server) addPreparation(ctx context.Context, v video) (*downloadDemand, 
 		if err := s.StorageError(); err != nil {
 			return nil, nil, err
 		}
-		if (v.size+rangeBlockSize-1)/rangeBlockSize > backgroundUseBlocks {
+		if blockCount(v.size) > backgroundUseBlocks {
 			return nil, nil, errors.New("resource exceeds background block usage capacity")
 		}
 		select {

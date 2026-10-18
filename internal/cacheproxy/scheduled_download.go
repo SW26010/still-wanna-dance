@@ -173,7 +173,7 @@ func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Ne
 }
 
 func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]blockUse, <-chan struct{}, bool) {
-	blocks := (w.v.size + rangeBlockSize - 1) / rangeBlockSize
+	blocks := blockCount(w.v.size)
 	w.s.mu.Lock()
 	plan, active := w.s.usePlanLocked(w.v.key, now)
 	if !initialized {

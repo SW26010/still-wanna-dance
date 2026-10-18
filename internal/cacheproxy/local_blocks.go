@@ -38,14 +38,6 @@ func newBlockFiles(dir string, size int64, log *slog.Logger) *blockFiles {
 	return &blockFiles{dir: dir, size: size, log: log, files: make(map[int64]*localBlockFile), refs: 1}
 }
 
-func blockCount(size int64) int64 { return (size + rangeBlockSize - 1) / rangeBlockSize }
-func blockBytes(size, block int64) int64 {
-	if block < 0 || block >= blockCount(size) {
-		return 0
-	}
-	return min(rangeBlockSize, size-block*rangeBlockSize)
-}
-
 func (f *blockFiles) retain() {
 	f.mu.Lock()
 	defer f.mu.Unlock()

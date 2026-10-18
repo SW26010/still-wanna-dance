@@ -170,7 +170,7 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 	token, queue := ctx.Value(queueDemandKey{}).(*queueSource)
 	d := &downloadDemand{ctx: ctx, key: v.key, song: v.songID, queue: queue, playback: playback, queueSource: token}
 	if !playback {
-		d.lastBlock = (v.size + rangeBlockSize - 1) / rangeBlockSize
+		d.lastBlock = blockCount(v.size)
 	}
 	if playback {
 		var observed bool
@@ -179,8 +179,7 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 			d.clock = &playbackClock{at: time.Now(), limit: v.size, media: estimateMediaTiming(v.size, 0)}
 		}
 		if d.clock != nil {
-			d.firstBlock = d.clock.offset / rangeBlockSize
-			d.lastBlock = (d.clock.limit + rangeBlockSize - 1) / rangeBlockSize
+			d.firstBlock, d.lastBlock = blocksForRange(d.clock.offset, d.clock.limit)
 		}
 	}
 	s.mu.Lock()

@@ -63,6 +63,26 @@ func TestDownloadExpiryRetainsManualAndLaterQueueSources(t *testing.T) {
 	})
 }
 
+func TestDownloadExpiryRetimesQueueAfterAllSharedGETsEnd(t *testing.T) {
+	// Exercise registry iteration orders; all failed sources belong to the
+	// same event, so none may become the queue's temporary surviving anchor.
+	for range 32 {
+		w, s := testSession(t)
+		s.UpdatePrefetchQueue([]int64{1}, false)
+		now := time.Now()
+		for _, duration := range []time.Duration{2 * time.Minute, 3 * time.Minute} {
+			ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: now.Add(-time.Minute), limit: w.v.size, media: mediaTiming{w.v.size, duration}})
+			d, release := addTestDemand(t, s, ctx, w.v, true)
+			t.Cleanup(release)
+			d.flight = w.f
+		}
+		s.expireDownload(w.f, w.v.key, 0)
+		if got := s.prefetchSources["1"].startAt; got != now.Add(time.Minute) {
+			t.Fatal("batch expiry retained a temporary queue anchor", got, now.Add(time.Minute))
+		}
+	}
+}
+
 func TestExpiredQueuePreparationRequiresActualSourceChange(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)

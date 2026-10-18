@@ -72,6 +72,9 @@ func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, res
 		if resultErr != nil {
 			outcome = "failed"
 		}
+		if errors.Is(resultErr, ErrNotRetained) {
+			outcome = "not_retained"
+		}
 		if ctx.Err() != nil {
 			outcome = "canceled"
 		}
@@ -89,6 +92,9 @@ retryDownload:
 	if errors.Is(err, errPreempted) {
 		goto retryDownload
 	}
+	if errors.Is(err, ErrNotRetained) && demand.queue {
+		return "TEMP", nil
+	}
 	if err != nil {
 		return "", err
 	}
@@ -98,6 +104,9 @@ retryDownload:
 	case <-f.done:
 		if errors.Is(f.err, errPreempted) {
 			goto retryDownload
+		}
+		if errors.Is(f.err, ErrNotRetained) && demand.queue {
+			return "TEMP", nil
 		}
 		if f.err != nil {
 			return f.source, f.err

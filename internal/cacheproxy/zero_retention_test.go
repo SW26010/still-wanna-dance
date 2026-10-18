@@ -13,19 +13,19 @@ import (
 	"time"
 )
 
-func TestZeroRetentionReusesQueueVideoUntilHandoffExpires(t *testing.T) {
+func TestZeroRetentionReusesExistingQueueVideoUntilHandoffExpires(t *testing.T) {
 	var downloads atomic.Int32
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
 		downloads.Add(1)
 		w.Write([]byte(payload))
 	})
-	setRetentionLimit(t, s, 0)
 	if err := s.UpdatePrefetchQueue([]int64{42}, false); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.PrefetchSong(s.queueDemandContext(context.Background(), "42"), "42", videoURL(payload)); err != nil {
 		t.Fatal(err)
 	}
+	setRetentionLimit(t, s, 0) // Existing published files still obey protection after a budget change.
 	path := testVideoFile(t, cfg, payload)
 	for range 2 {
 		assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)

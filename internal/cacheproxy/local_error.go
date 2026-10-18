@@ -14,7 +14,7 @@ var ErrLocalStorage = errors.New("local cache storage unavailable")
 func isLocalStorageError(err error) bool {
 	return err != nil && (errors.Is(err, ErrLocalStorage) ||
 		!errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) &&
-			!errors.Is(err, errUpstreamDownload) && !errors.Is(err, errBusy) &&
+			!errors.Is(err, errUpstreamDownload) && !errors.Is(err, errBusy) && !errors.Is(err, ErrNotRetained) &&
 			!errors.Is(err, blocksched.ErrClosed) && !errors.Is(err, blocksched.ErrPaused))
 }
 

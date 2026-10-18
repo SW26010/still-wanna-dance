@@ -236,56 +236,13 @@ func (s *Server) trimCachePass(reconcile bool) error {
 	if total <= limit {
 		return nil
 	}
-	// Only over-limit caches need usage synchronization, database reads and ranking.
-	s.usage.flush()
-	now := time.Now().UnixMilli()
-	refs := map[string]string{}
-	rows, err := s.usage.db.Query("SELECT song_id,md5 FROM song_media")
+	// Ranking is shared with admission before merge/publication.
+	priorities, err := s.retentionPriorities(context.Background())
 	if err != nil {
 		return err
 	}
-	for rows.Next() {
-		var id, key string
-		if err := rows.Scan(&id, &key); err != nil {
-			rows.Close()
-			return err
-		}
-		refs[id] = key
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return err
-	}
-	priorities, err := s.resourcePriorities(context.Background(), refs, now)
-	if err != nil {
-		return err
-	}
-	for i := range videos {
-		item := &videos[i]
-		p := priorities[item.key]
-		item.score = p.Score
-		item.songID = p.SongID
-		if p.LastDemand != 0 {
-			item.recent = p.LastDemand
-		}
-	}
-	sort.Slice(videos, func(i, j int) bool {
-		a, b := videos[i], videos[j]
-		if a.score != b.score {
-			return a.score < b.score
-		}
-		if a.songID != b.songID {
-			return a.songID < b.songID
-		}
-		if a.recent != b.recent {
-			return a.recent < b.recent
-		}
-		if a.modified != b.modified {
-			return a.modified < b.modified
-		}
-		return a.path < b.path
-	})
+	applyRetentionPriorities(videos, priorities)
+	sort.Slice(videos, func(i, j int) bool { return lowerRetentionPriority(videos[i], videos[j]) })
 	planned := total
 	for _, item := range videos {
 		if planned <= limit {

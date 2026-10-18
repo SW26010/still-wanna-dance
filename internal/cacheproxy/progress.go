@@ -95,6 +95,9 @@ func (p *downloadProgress) finish(err error) {
 	if err != nil {
 		outcome = "failed"
 	}
+	if errors.Is(err, ErrNotRetained) {
+		outcome = "not_retained"
+	}
 	if errors.Is(err, context.Canceled) {
 		outcome = "canceled"
 	}

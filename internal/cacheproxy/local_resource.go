@@ -1,6 +1,7 @@
 package cacheproxy
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -113,4 +114,22 @@ func (s *Server) closeLocalResources() {
 	for _, d := range resources {
 		d.storage.release()
 	}
+}
+
+// A flight can finish before its caller takes the streaming branch. Temporary
+// bytes remain independently readable even though publication was declined.
+func (s *Server) localBlockReader(ctx context.Context, v video) (*spoolReader, error) {
+	local, err := s.acquireLocalResource(v)
+	if err != nil {
+		return nil, err
+	}
+	if local == nil {
+		return nil, ErrNotRetained
+	}
+	defer local.storage.release()
+	sp := local.makeSpool(nil)
+	sp.finish(ErrNotRetained)
+	reader := sp.reader(ctx, v.size)
+	sp.release()
+	return reader, nil
 }

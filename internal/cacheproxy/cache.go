@@ -150,7 +150,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			defer s.releaseVideo(v)
 			defer cancel(nil)
 			f.path, f.source, f.err = s.prepare(workerCtx, v, f)
-			if f.err == nil {
+			if f.err == nil || errors.Is(f.err, ErrNotRetained) {
 				s.mu.Lock()
 				f.completed = true
 				s.mu.Unlock()
@@ -164,6 +164,8 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			f.progress.finish(f.err)
 			if errors.Is(f.err, errPreempted) {
 				f.log.Info("cache_task_canceled", "reason", "preempted")
+			} else if errors.Is(f.err, ErrNotRetained) {
+				f.log.Info("cache_not_retained")
 			} else if f.err != nil {
 				f.log.Error("cache_task_failed", "key", v.key, "error", applog.SafeError(f.err))
 			}
@@ -204,14 +206,26 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 	}
 	s.mu.Unlock()
 	log.Info("cache_task_attached", "flight_id", f.id, "wait_ms", time.Since(waitStart).Milliseconds())
-	select {
-	case <-ctx.Done():
-		return nil, nil, ctx.Err()
-	case <-f.done:
+	completed := func() (*flight, *spoolReader, error) {
+		if errors.Is(f.err, ErrNotRetained) && !background {
+			reader, err := s.localBlockReader(ctx, v)
+			if reader != nil {
+				reader.releaseDemand = releaseDemand
+				transferred = true
+			}
+			return f, reader, err
+		}
 		if f.err != nil {
 			return f, nil, f.err
 		}
 		return f, nil, s.waitPlaybackSong(ctx, f, v.songID)
+	}
+
+	select {
+	case <-ctx.Done():
+		return nil, nil, ctx.Err()
+	case <-f.done:
+		return completed()
 	case <-f.streaming:
 		if background {
 			return f, nil, nil
@@ -225,10 +239,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		case <-ctx.Done():
 			return nil, nil, ctx.Err()
 		case <-f.done:
-			if f.err != nil {
-				return f, nil, f.err
-			}
-			return f, nil, s.waitPlaybackSong(ctx, f, v.songID)
+			return completed()
 		}
 	}
 }

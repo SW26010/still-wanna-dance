@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -73,10 +74,10 @@ func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) 
 	return c, engine, body, calls
 }
 
-func TestQueueMoveOutsidePrefetchWindowDuringDownload(t *testing.T) {
+func TestQueueMoveOutsidePrefetchWindowKeepsTemporaryBlocks(t *testing.T) {
 	started, finish := make(chan struct{}), make(chan struct{})
 	var downloads atomic.Int32
-	c, engine, body, _ := queueRetentionFixture(t, 1, func() {
+	c, engine, body, _ := queueRetentionFixture(t, 0, func() {
 		if downloads.Add(1) == 1 {
 			close(started)
 			<-finish
@@ -114,8 +115,18 @@ func TestQueueMoveOutsidePrefetchWindowDuringDownload(t *testing.T) {
 		return len(c.queue.waiters) == 0
 	})
 	release.Do(func() { close(finish) })
-	path := fixtureVideoPath(c.settings.StorageDir, "1", body)
-	wait(func() bool { _, err := os.Stat(path); return err == nil })
+	var path string
+	wait(func() bool {
+		files, err := filepath.Glob(filepath.Join(c.settings.StorageDir, "tmp", "download-block-*.part"))
+		if err != nil || len(files) != 1 {
+			return false
+		}
+		path = files[0]
+		return true
+	})
+	if _, err := os.Stat(fixtureVideoPath(c.settings.StorageDir, "1", body)); !os.IsNotExist(err) {
+		t.Fatal("zero budget published a video", err)
+	}
 	// Let the asynchronous retention worker handle publication and release.
 	time.Sleep(100 * time.Millisecond)
 	if _, err := os.Stat(path); err != nil {
@@ -207,8 +218,8 @@ func TestBatchReportsBudgetStopWithoutDownloading(t *testing.T) {
 	}
 }
 
-func TestQueueDepartureKeepsFixedLocalProtection(t *testing.T) {
-	c, engine, body, calls := queueRetentionFixture(t, 1)
+func TestQueueDepartureKeepsTemporaryBytesAvailable(t *testing.T) {
+	c, engine, body, calls := queueRetentionFixture(t, 0)
 	c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 1}}}
 	ctx, cancel := context.WithCancel(context.Background())
 	done, wake := make(chan struct{}), make(chan struct{})
@@ -244,7 +255,14 @@ func TestQueueDepartureKeepsFixedLocalProtection(t *testing.T) {
 	c.setQueueSongsLocked([]vrclog.Song{{ID: -1}, {ID: -1}, {ID: -1}, {ID: 1}}, false)
 	c.mu.Unlock()
 	wake <- struct{}{}
-	path := fixtureVideoPath(c.settings.StorageDir, "1", body)
+	files, err := filepath.Glob(filepath.Join(c.settings.StorageDir, "tmp", "download-block-*.part"))
+	if err != nil || len(files) != 1 {
+		t.Fatal("queue did not keep a complete temporary block", files, err)
+	}
+	path := files[0]
+	if _, err := os.Stat(fixtureVideoPath(c.settings.StorageDir, "1", body)); !os.IsNotExist(err) {
+		t.Fatal("zero budget published a video", err)
+	}
 	time.Sleep(100 * time.Millisecond)
 	if _, err := os.Stat(path); err != nil {
 		t.Fatal("queued cache outside prefetch window was evicted", err)

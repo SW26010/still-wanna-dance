@@ -92,6 +92,7 @@ type Server struct {
 	usage            *usageStore
 	retentionMu      sync.Mutex
 	protection       map[string]map[int64]blockProtection // guarded by retentionMu
+	publications     map[string]*publicationReservation   // guarded by retentionMu; one per shared flight
 	localResources   map[string]*localResource            // guarded by retentionMu
 	retentionRunMu   sync.Mutex
 	retentionWake    chan struct{}

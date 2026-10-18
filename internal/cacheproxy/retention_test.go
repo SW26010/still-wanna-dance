@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -139,8 +140,8 @@ func TestPrefetchDoesNotDisplacePopularVideo(t *testing.T) {
 	seedPrioritySong(t, s, "1", strings.Repeat("1", 32))
 	s.usage.startGET("1", "")
 	setRetentionLimit(t, s, int64(len(payload)))
-	if _, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil {
-		t.Fatal(err)
+	if _, err := s.Prefetch(context.Background(), videoURL(payload)); !errors.Is(err, ErrNotRetained) {
+		t.Fatal("ineligible prefetch did not report retention denial", err)
 	}
 	s.Close()
 	expectRetained(t, p, true)

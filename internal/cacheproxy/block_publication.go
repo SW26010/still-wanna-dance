@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,7 +12,18 @@ import (
 
 // Publication reads a complete pinned snapshot. The snapshot survives source
 // changes/reclamation, while streaming readers keep their own block resource.
-func (s *Server) publishBlocks(ctx context.Context, path string, v video, flight *flight) error {
+func (s *Server) publishBlocks(ctx context.Context, path string, v video, flight *flight) (result error) {
+	reservation, err := s.reservePublication(ctx, v)
+	if err != nil {
+		return err
+	}
+	defer s.releasePublication(reservation)
+	ctx = reservation.ctx
+	defer func() {
+		if errors.Is(result, context.Canceled) && errors.Is(context.Cause(ctx), ErrNotRetained) {
+			result = ErrNotRetained
+		}
+	}()
 	select {
 	case s.localChecks <- struct{}{}:
 		defer func() { <-s.localChecks }()
@@ -40,7 +52,7 @@ func (s *Server) publishBlocks(ctx context.Context, path string, v video, flight
 		return fmt.Errorf("%w: %w: merged video integrity mismatch", errUpstreamDownload, errInvalidCache)
 	}
 	flight.log.Info("download_verified", "bytes", n, "size_ok", true, "checksum_ok", true)
-	return s.commitPublishedFile(ctx, file, path, v, flight)
+	return s.commitPublication(reservation, file, path, v, flight)
 }
 
 func (s *Server) commitPublishedFile(ctx context.Context, file *os.File, path string, v video, flight *flight) error {

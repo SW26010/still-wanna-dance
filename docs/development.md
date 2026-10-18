@@ -2,7 +2,7 @@
 
 Still Wanna Dance 使用 Go，管理 UI 采用 React + TypeScript + Fluent UI React v9，资源编译进 EXE 后在本地浏览器运行。
 
-下载架构的后续设计以[下载需求与资源管理设计](download-resource-design.md)为 canonical 文档，区分已确认事项与待讨论事项。阅读当前实现时从[全局块调度设计](block-scheduler-design.md)开始：需求管理层解释 GET/队列与交接，`internal/blocksched` 统一处理块期限、租约、启动窗口和并发；资源层负责执行与文件一致性。[运行规则](download-concurrency.md)是当前参数依据，[开发记录](block-scheduler-validation.md)按历史顺序保留实现和自动检查，不应将目标设计或早期策略当作现状。
+下载架构以[下载需求与资源管理设计](download-resource-design.md)为 canonical 文档，维护现行规则、实现接口及验证边界。阅读当前实现时从[全局块调度设计](block-scheduler-design.md)开始：需求管理层解释 GET/队列与交接，`internal/blocksched` 统一处理块期限、租约、启动窗口和并发；资源层负责执行与文件一致性。[运行规则](download-concurrency.md)是当前参数依据，[开发记录](block-scheduler-validation.md)按历史顺序保留实现和自动检查，不应将目标设计或早期策略当作现状。
 
 ## 功能完成与实机验收
 
@@ -49,7 +49,7 @@ go vet -tags=no_easytier ./cmd/... ./internal/...
 go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
 ```
 
-Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的 C 工具链，当前本机没有配置。
+Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的 C 工具链；本机已使用独立 w64devkit/GCC 完成下载与缓存整包检查，执行时显式设置 CGO_ENABLED=1 和 CC，工具及原始结果保存在忽略目录 artifacts/，不依赖全局 PATH。
 
 临时 Go 探测源码即使放在 Git 忽略的 `artifacts/` 中，仍会被 `go test ./...` 和 `go vet ./...` 发现。独立探测文件应在首行添加 `//go:build ignore` 并空一行；需要执行时用 `go run` 明确列出入口及其辅助源文件，避免多个 `main` 混入同一个包。也可放入独立的工具模块。
 

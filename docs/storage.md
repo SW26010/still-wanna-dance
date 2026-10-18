@@ -1,6 +1,6 @@
 # 统一存储
 
-本页维护当前落盘与存储契约。本地资源管理的后续外部接口及已确认的第一版存储边界，见 canonical 文档[下载需求与资源管理设计](download-resource-design.md)；设计结论不表示后续接口已经实现。
+本页维护当前落盘与存储契约。本地资源管理的规则、接口及验证边界见 canonical 文档[下载需求与资源管理设计](download-resource-design.md)。
 
 > 当前采用[曲库、资源关联与歌曲需求统计](song-catalog-design.md)模型。主库为 `storage.sqlite`，SQLite `application_id=0x53574443`（SWDC）、`user_version=2`。这是发布前冻结格式（版本 1 为试验格式），不实现旧格式兼容或迁移。
 

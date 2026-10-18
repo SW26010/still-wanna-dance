@@ -93,6 +93,7 @@ func TestCoalescedQueueChangesPreserveWithdrawalSource(t *testing.T) {
 				reconcileSession(t, w)
 				time.Sleep(time.Second)
 				s.UpdatePrefetchQueue(tc.middle, false)
+				source := s.prefetchSources["2"]
 				time.Sleep(time.Second)
 				s.UpdatePrefetchQueue([]int64{1}, false)
 				removedAt := time.Now()
@@ -103,9 +104,8 @@ func TestCoalescedQueueChangesPreserveWithdrawalSource(t *testing.T) {
 					if j.retiring || len(j.handoffs) != 1 || !j.handoffUntil.Equal(removedAt.Add(queueHandoff)) {
 						t.Fatalf("missing/freshened handoff: retiring=%v handoffs=%d until=%v", j.retiring, len(j.handoffs), j.handoffUntil)
 					}
-					// The head is already due at removal; handoff adds 5s from
-					// withdrawal, independent of coordinator observation delay.
-					if !j.handoffs[0].need.ReadyBy.Equal(removedAt.Add(5 * time.Second)) {
+					// Preserve the removed head's actual deadline, even if past.
+					if !j.handoffs[0].need.ReadyBy.Equal(source.readyBy(0).Add(5 * time.Second)) {
 						t.Fatal("handoff used the stale ordinary-queue deadline", j.handoffs[0].need.ReadyBy)
 					}
 					reconcileSession(t, w)

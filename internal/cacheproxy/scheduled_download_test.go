@@ -156,11 +156,8 @@ func TestHandoffDefersFutureDeadlineWithoutExtendingValidity(t *testing.T) {
 		if h.Blocking || !h.LeaseUntil.Equal(now.Add(getHandoff)) {
 			t.Fatal("handoff kept blocking or original long validity", h)
 		}
-		if ready.After(now) && !h.ReadyBy.Equal(ready.Add(2*time.Second)) {
-			t.Fatal("future work was promoted by disconnect", h)
-		}
-		if !ready.After(now) && !h.ReadyBy.Equal(now.Add(2*time.Second)) {
-			t.Fatal("overdue work retained stale urgency", h)
+		if !h.ReadyBy.Equal(ready.Add(2 * time.Second)) {
+			t.Fatal("handoff moved the original deadline to withdrawal time", h)
 		}
 		if !original.Blocking {
 			t.Fatal("independent source was mutated")

@@ -45,7 +45,7 @@ func TestGETWithdrawalTimeSurvivesDelayedReconciliation(t *testing.T) {
 						t.Fatalf("GET handoff slid with processing: retiring=%v handoffs=%d until=%v want=%v", j.retiring, len(j.handoffs), j.handoffUntil, until)
 					}
 					h := j.handoffs[0].need
-					if h.Blocking || !h.ReadyBy.Equal(maxTime(ready, removedAt).Add(2*time.Second)) {
+					if h.Blocking || !h.ReadyBy.Equal(ready.Add(2*time.Second)) {
 						t.Fatal("handoff used processing time or retained Blocking", h)
 					}
 					reconcileSession(t, w)

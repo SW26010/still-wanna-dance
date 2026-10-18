@@ -92,6 +92,7 @@ type Server struct {
 	flightSequence   atomic.Uint64
 	usage            *usageStore
 	retentionMu      sync.Mutex
+	protection       map[string]map[int64]blockProtection // guarded by retentionMu
 	retentionRunMu   sync.Mutex
 	retentionWake    chan struct{}
 	retentionDone    chan struct{}
@@ -99,11 +100,6 @@ type Server struct {
 	retainedBytes    int64
 	retentionChanges map[string]bool
 	versionPins      map[string]int
-	songResources    map[string]map[string]bool
-	queueSongs       map[string]bool
-	queueProtected   map[string]bool
-	queueHandoffs    map[string]time.Time
-	handoffProtected map[string]time.Time
 	deletingVideos   map[string]chan struct{}
 }
 
@@ -202,12 +198,6 @@ func New(cfg Config) (*Server, error) {
 		unlock()
 		return nil, fmt.Errorf("load traffic statistics: %w", err)
 	}
-	if err := s.loadSongResources(); err != nil {
-		cancel()
-		usage.close()
-		unlock()
-		return nil, fmt.Errorf("load song resources: %w", err)
-	}
 	s.trimCache()
 	s.retentionWake = make(chan struct{}, 1)
 	s.retentionDone = make(chan struct{})
@@ -254,7 +244,9 @@ func (s *Server) Close() error {
 		}
 		<-s.retentionDone
 		// All references are now released; finish any deferred eviction before closing usage.
-		s.ResetQueueSongs(nil)
+		s.retentionMu.Lock()
+		clear(s.protection)
+		s.retentionMu.Unlock()
 		s.runRetention(false)
 		s.usage.close()
 		s.client.CloseIdleConnections()

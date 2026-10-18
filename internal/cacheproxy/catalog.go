@@ -100,7 +100,6 @@ func (s *Server) SyncCatalog(ctx context.Context, c Catalog) error {
 	if err = commitCatalogCheck(ctx, tx, "已更新本地清单"); err != nil {
 		return err
 	}
-	s.refreshCatalogProtection(c.Songs)
 	return nil
 }
 

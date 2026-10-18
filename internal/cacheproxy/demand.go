@@ -232,6 +232,12 @@ func (s *Server) removeDemandLocked(d *downloadDemand) {
 	s.notifyCapacityLocked()
 }
 func (s *Server) notifyCapacityLocked() {
+	s.refreshUseProtectionLocked()
+	// Even a delayed source exit first establishes its frozen handoff clock,
+	// then ends it at the original deadline. No callback delay extends grace.
+	if s.expireUseLocked(time.Now()) {
+		s.refreshUseProtectionLocked()
+	}
 	close(s.capacityChanged)
 	s.capacityChanged = make(chan struct{})
 }

@@ -119,9 +119,6 @@ func (s *Server) PrefetchPlayback(ctx context.Context, id int64) (string, error)
 		}
 		defer releaseDemand()
 		preparationAdmitted(ctx)
-		s.retentionMu.Lock()
-		s.rememberSongResourceLocked(v.songID, v.key)
-		s.retentionMu.Unlock()
 		return "HIT", nil
 	}
 	for {

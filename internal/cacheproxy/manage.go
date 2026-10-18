@@ -250,7 +250,7 @@ func (s *Server) MarkCacheProtection(page *CachePage) {
 	defer s.retentionMu.Unlock()
 	for i := range page.Entries {
 		e := &page.Entries[i]
-		e.Protected = s.versionPins[e.Key] > 0 || s.queueReservedLocked(e.Key) || s.deletingVideos[e.Key] != nil
+		e.Protected = s.versionPins[e.Key] > 0 || s.videoProtectedLocked(e.Key) || s.deletingVideos[e.Key] != nil
 	}
 }
 
@@ -317,7 +317,7 @@ func (s *Server) deleteCache(ctx context.Context, selected []CacheSelection) ([]
 
 func (s *Server) removeCacheEntry(ctx context.Context, db *sql.DB, item CacheSelection) string {
 	s.retentionMu.Lock()
-	if s.queueReservedLocked(item.Key) || !s.beginVideoRemovalLocked(item.Key) {
+	if s.videoProtectedLocked(item.Key) || !s.beginVideoRemovalLocked(item.Key) {
 		s.retentionMu.Unlock()
 		return "protected"
 	}

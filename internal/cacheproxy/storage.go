@@ -61,7 +61,6 @@ func (s *Server) recordSongVideo(ctx context.Context, id string, v video) (resul
 	}
 	s.retentionMu.Lock()
 	defer s.retentionMu.Unlock()
-	s.rememberSongResourceLocked(id, v.key)
 	s.requestRetentionLocked()
 	return nil
 }

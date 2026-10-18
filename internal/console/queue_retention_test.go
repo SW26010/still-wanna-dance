@@ -136,10 +136,12 @@ func TestQueueMoveOutsidePrefetchWindowDuringDownload(t *testing.T) {
 	c.mu.Lock()
 	c.setQueueSongsLocked(nil, true)
 	c.mu.Unlock()
-	wait(func() bool { _, err := os.Stat(path); return os.IsNotExist(err) })
+	if _, err := os.Stat(path); err != nil {
+		t.Fatal("reset lost fixed local protection", err)
+	}
 }
 
-func TestQueueReentryAfterEviction(t *testing.T) {
+func TestQueueReentryDuringProtectionAfterRoomReset(t *testing.T) {
 	c, engine, body, calls := queueRetentionFixture(t, int64(len("audit video content")))
 	c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 1}}}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -163,21 +165,14 @@ func TestQueueReentryAfterEviction(t *testing.T) {
 	}
 	wait(1)
 	c.mu.Lock()
-	// A room reset releases the old cache immediately, allowing eviction.
+	// A room reset ends the old source; the fixed local grace still applies.
 	c.setQueueSongsLocked([]vrclog.Song{{ID: 2}}, true)
 	c.mu.Unlock()
 	wake <- struct{}{}
 	wait(2)
 	path := fixtureVideoPath(c.settings.StorageDir, "1", body)
-	deadline := time.Now().Add(time.Second)
-	for time.Now().Before(deadline) {
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			break
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Fatal("fixture did not evict song 1", err)
+	if _, err := os.Stat(path); err != nil {
+		t.Fatal("reset lost protected song", err)
 	}
 	before := calls.Load()
 	c.mu.Lock()
@@ -185,7 +180,7 @@ func TestQueueReentryAfterEviction(t *testing.T) {
 	c.mu.Unlock()
 	wake <- struct{}{}
 	wait(3)
-	t.Logf("song 1 evicted then requeued: API calls before=%d after=%d", before, calls.Load())
+	t.Logf("song 1 requeued during protection: API calls before=%d after=%d", before, calls.Load())
 	if _, err := os.Stat(path); err != nil {
 		t.Fatal("requeued song was not restored", err)
 	}
@@ -212,7 +207,7 @@ func TestBatchReportsBudgetStopWithoutDownloading(t *testing.T) {
 	}
 }
 
-func TestQueueProtectsOversizedCacheOutsidePrefetchWindow(t *testing.T) {
+func TestQueueDepartureKeepsFixedLocalProtection(t *testing.T) {
 	c, engine, body, calls := queueRetentionFixture(t, 1)
 	c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 1}}}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -264,14 +259,9 @@ func TestQueueProtectsOversizedCacheOutsidePrefetchWindow(t *testing.T) {
 	c.mu.Lock()
 	c.setQueueSongsLocked(nil, true)
 	c.mu.Unlock()
-	deadline = time.Now().Add(3 * time.Second)
-	for time.Now().Before(deadline) {
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			return
-		}
-		time.Sleep(5 * time.Millisecond)
+	if _, err := os.Stat(path); err != nil {
+		t.Fatal("reset removed existing protection tail", err)
 	}
-	t.Fatal("removed song remained protected")
 }
 
 func TestQueueCoalescedDepartureInvalidatesPreparedSong(t *testing.T) {

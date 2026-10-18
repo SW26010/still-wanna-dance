@@ -335,14 +335,12 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		if err := engine.UpdatePrefetchQueue(ids[:min(len(ids), window)], reset); err != nil {
 			slog.Warn("queue_timing_failed", "error", err)
 		}
-		_ = engine.UpdateQueueSongs(ctx, ids, reset)
 	}
 	ids := queueSongIDs(c.queue.Songs)
 	c.mu.Unlock()
 	if err := engine.UpdatePrefetchQueue(ids[:min(len(ids), window)], false); err != nil {
 		slog.Warn("queue_timing_failed", "error", err)
 	}
-	_ = engine.UpdateQueueSongs(ctx, ids, false)
 	c.queueUpdateMu.Unlock()
 	type result struct {
 		id         int64
@@ -367,7 +365,6 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		c.queue.protect = nil
 		c.mu.Unlock()
 		engine.UpdatePrefetchQueue(nil, true)
-		engine.ResetQueueSongs(nil)
 		c.queueUpdateMu.Unlock()
 	}()
 	var generation uint64

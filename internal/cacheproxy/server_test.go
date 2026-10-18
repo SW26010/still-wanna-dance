@@ -313,7 +313,7 @@ func TestOwnershipCapacityTimeoutAndShutdown(t *testing.T) {
 	}
 	s.wg.Wait()
 	s.mu.Lock()
-	s.releaseUseLocked(useSpan{"occupied", 0, maxUseBlocks - 1})
+	s.releaseUseLocked(useSpan{"occupied", 0, maxUseBlocks - 1}, time.Now())
 	s.mu.Unlock()
 	assertNoPartial(t, cfg.tempDir())
 	go func() { done <- request(s, "GET", videoURL(payload), nil) }()

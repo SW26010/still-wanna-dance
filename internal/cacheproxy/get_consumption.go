@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"fmt"
 	"net/http"
+	"time"
 )
 
 // Only the HTTP response writer advances delivery, never the Reader or Seek.
@@ -69,7 +70,7 @@ func (g *getConsumption) accept(n int64) {
 		g.s.mu.Unlock()
 		return
 	}
-	g.s.releaseUseLocked(useSpan{g.demand.key, g.demand.firstBlock, next})
+	g.s.releaseUseLocked(useSpan{g.demand.key, g.demand.firstBlock, next}, time.Now())
 	g.demand.firstBlock = next
 	g.s.notifyCapacityLocked()
 	g.s.mu.Unlock()

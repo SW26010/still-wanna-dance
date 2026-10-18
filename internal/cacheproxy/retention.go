@@ -117,24 +117,24 @@ func (s *Server) retentionLoop() {
 	defer close(s.retentionDone)
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
-	handoffTimer := time.NewTimer(time.Hour)
-	defer handoffTimer.Stop()
+	protectionTimer := time.NewTimer(time.Hour)
+	defer protectionTimer.Stop()
 	for {
 		s.retentionMu.Lock()
-		next := s.refreshHandoffsLocked(time.Now())
+		next := s.nextProtectionExpiryLocked(time.Now())
 		s.retentionMu.Unlock()
-		handoffTimer.Stop()
-		var handoffExpired <-chan time.Time
+		protectionTimer.Stop()
+		var protectionExpired <-chan time.Time
 		if !next.IsZero() {
-			handoffTimer.Reset(time.Until(next))
-			handoffExpired = handoffTimer.C
+			protectionTimer.Reset(time.Until(next))
+			protectionExpired = protectionTimer.C
 		}
 		select {
 		case <-s.ctx.Done():
 			return
 		case <-s.retentionWake:
 			s.runRetention(false)
-		case <-handoffExpired:
+		case <-protectionExpired:
 			s.runRetention(false)
 		case <-ticker.C:
 			s.runRetention(true)
@@ -292,9 +292,9 @@ func (s *Server) trimCachePass(reconcile bool) error {
 			break
 		}
 		s.retentionMu.Lock()
-		// Queue reservations outrank historical scores and do not count as
+		// Active block protection outranks historical scores and does not count as
 		// planned reclamation. Ordinary in-flight pins still defer eviction.
-		if s.queueReservedLocked(item.key) {
+		if s.videoProtectedLocked(item.key) {
 			s.retentionMu.Unlock()
 			continue
 		}

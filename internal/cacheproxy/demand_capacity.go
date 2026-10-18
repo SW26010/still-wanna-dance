@@ -56,7 +56,9 @@ func (r useSpan) contains(key string, block int64) bool {
 func (s *Server) replaceUseLocked(old, span useSpan, playback bool) error {
 	// Timer delivery may lag behind a registration at the expiry boundary.
 	// Admission uses the actual deadline, never the callback's scheduling time.
-	s.expireUseLocked(time.Now())
+	if s.expireUseLocked(time.Now()) {
+		s.notifyCapacityLocked()
+	}
 	added, removed := 0, 0
 	for b := span.first; b < span.last; b++ {
 		if !old.contains(span.key, b) && s.useBlocks[useBlockID{span.key, b}] == 0 {
@@ -85,18 +87,19 @@ func (s *Server) replaceUseLocked(old, span useSpan, playback bool) error {
 	}
 	for b := old.first; b < old.last; b++ {
 		if !span.contains(old.key, b) {
-			s.releaseUseLocked(useSpan{old.key, b, b + 1})
+			s.releaseUseLocked(useSpan{old.key, b, b + 1}, time.Now())
 		}
 	}
 	return nil
 }
 
-func (s *Server) releaseUseLocked(span useSpan) {
+func (s *Server) releaseUseLocked(span useSpan, at time.Time) {
 	for b := span.first; b < span.last; b++ {
 		id := useBlockID{span.key, b}
 		if n := s.useBlocks[id]; n > 1 {
 			s.useBlocks[id] = n - 1
 		} else {
+			s.endLocalUseLocked(id, at)
 			delete(s.useBlocks, id)
 		}
 	}
@@ -106,7 +109,7 @@ func (s *Server) endUseLocked(span useSpan, at time.Time, grace time.Duration, c
 	if span.first >= span.last {
 		return
 	}
-	if grace > 0 && !s.closed && at.Add(grace).After(time.Now()) {
+	if grace > 0 && !s.closed {
 		// Transfer the existing reference. Handoff never expands the source's
 		// remaining range, even when some blocks are already locally readable.
 		heap.Push(&s.useHandoffs, &useHandoff{span, at.Add(grace), clock})
@@ -117,7 +120,7 @@ func (s *Server) endUseLocked(span useSpan, at time.Time, grace time.Duration, c
 		}
 		s.armUseExpiryLocked()
 	} else {
-		s.releaseUseLocked(span)
+		s.releaseUseLocked(span, at)
 	}
 }
 
@@ -135,21 +138,21 @@ func (s *Server) armUseExpiryLocked() {
 		if s.closed {
 			return
 		}
-		s.expireUseLocked(time.Now())
+		if s.expireUseLocked(time.Now()) {
+			s.notifyCapacityLocked()
+		}
 		s.armUseExpiryLocked()
 	})
 }
 
-func (s *Server) expireUseLocked(now time.Time) {
+func (s *Server) expireUseLocked(now time.Time) bool {
 	changed := false
 	for len(s.useHandoffs) > 0 && !s.useHandoffs[0].until.After(now) {
 		h := heap.Pop(&s.useHandoffs).(*useHandoff)
-		s.releaseUseLocked(h.span)
+		s.releaseUseLocked(h.span, h.until)
 		changed = true
 	}
-	if changed {
-		s.notifyCapacityLocked()
-	}
+	return changed
 }
 
 // DemandCapacityChanged is captured before a registration attempt, so callers

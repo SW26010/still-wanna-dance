@@ -2,7 +2,9 @@ package cacheproxy
 
 import (
 	"context"
+	"crypto/md5"
 	"errors"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -18,8 +20,10 @@ func TestZeroRetentionReusesQueueVideoUntilHandoffExpires(t *testing.T) {
 		w.Write([]byte(payload))
 	})
 	setRetentionLimit(t, s, 0)
-	s.SetQueueSongs([]int64{42})
-	if _, err := s.PrefetchSong(context.Background(), "42", videoURL(payload)); err != nil {
+	if err := s.UpdatePrefetchQueue([]int64{42}, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.PrefetchSong(s.queueDemandContext(context.Background(), "42"), "42", videoURL(payload)); err != nil {
 		t.Fatal(err)
 	}
 	path := testVideoFile(t, cfg, payload)
@@ -31,13 +35,21 @@ func TestZeroRetentionReusesQueueVideoUntilHandoffExpires(t *testing.T) {
 	if downloads.Load() != 1 {
 		t.Fatalf("protected cache downloaded %d times", downloads.Load())
 	}
-	s.SetQueueSongs(nil)
+	if err := s.UpdatePrefetchQueue(nil, false); err != nil {
+		t.Fatal(err)
+	}
 	s.trimCache()
 	expectRetained(t, path, true)
-	// Shorten this test's handoff; exercise the worker's timer without a new request.
+	// The exact grace is tested with a virtual clock; exercise worker wakeup here.
+	s.mu.Lock()
+	s.expireUseLocked(time.Now().Add(queueHandoff))
+	s.refreshUseProtectionLocked()
+	s.mu.Unlock()
 	s.retentionMu.Lock()
-	s.queueHandoffs["42"] = time.Now().Add(30 * time.Millisecond)
-	s.refreshHandoffsLocked(time.Now())
+	for b, p := range s.protection[fmt.Sprintf("%x", md5.Sum([]byte(payload)))] {
+		p.until = time.Now().Add(30 * time.Millisecond)
+		s.protection[fmt.Sprintf("%x", md5.Sum([]byte(payload)))][b] = p
+	}
 	s.requestRetentionLocked()
 	s.retentionMu.Unlock()
 	expectRetained(t, path, false)

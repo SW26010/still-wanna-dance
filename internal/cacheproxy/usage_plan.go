@@ -10,7 +10,9 @@ import (
 // and completed blocks. Only the download adapter filters missing blocks.
 // Called with Server.mu; handoff identity/expiry belongs here, never to a task.
 func (s *Server) planUseLocked(key string, now time.Time) (map[int64]map[blockSource]plannedNeed, bool) {
-	s.expireUseLocked(now)
+	if s.expireUseLocked(now) {
+		s.notifyCapacityLocked()
+	}
 	plan := make(map[int64]map[blockSource]plannedNeed)
 	active := false
 	add := func(span useSpan, source blockSource, clock *playbackClock, until time.Time, origin demandSource, revision int64) {

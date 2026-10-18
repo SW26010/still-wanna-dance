@@ -195,6 +195,12 @@ func TestRetentionProtectsActiveHTTPResponse(t *testing.T) {
 	if w.Code != 200 || w.Body.String() != payload {
 		t.Fatal("response corrupted")
 	}
+	// Delivered bytes end usage, then keep the fixed local protection tail.
+	s.trimCache()
+	expectRetained(t, p, true)
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
 	expectRetained(t, p, false)
 }
 

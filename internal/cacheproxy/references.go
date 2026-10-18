@@ -8,9 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
-	"time"
 )
 
 func validMD5(key string) bool {
@@ -85,31 +83,4 @@ func CheckReferencedFiles(ctx context.Context, root string, references map[strin
 	}
 	r.Complete = len(r.Missing) == 0
 	return r, ctx.Err()
-}
-
-func (s *Server) refreshCatalogProtection(songs []CatalogSong) {
-	s.retentionMu.Lock()
-	now := time.Now()
-	for _, song := range songs {
-		id, key := strconv.FormatInt(song.ID, 10), song.MD5
-		// Catalog authority changes the persistent mapping, not reservations
-		// for content already prefetched for a pending song or its handoff.
-		if s.queueSongs[id] || now.Before(s.queueHandoffs[id]) {
-			s.rememberSongResourceLocked(id, key)
-			continue
-		}
-		if s.songResources == nil {
-			s.songResources = make(map[string]map[string]bool)
-		}
-		s.songResources[id] = map[string]bool{key: true}
-	}
-	s.queueProtected = map[string]bool{}
-	for id := range s.queueSongs {
-		for key := range s.songResources[id] {
-			s.queueProtected[key] = true
-		}
-	}
-	s.refreshHandoffsLocked(now)
-	s.requestRetentionLocked()
-	s.retentionMu.Unlock()
 }

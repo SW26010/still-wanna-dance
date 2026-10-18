@@ -46,7 +46,10 @@ type Config struct {
 	DownloadTimeout time.Duration
 	// PrepareAhead is the full lead M for scheduled downloads; zero uses the default.
 	PrepareAhead time.Duration
-	MaxFileBytes int64
+	// LocalProtectAhead independently controls protection of finite usage.
+	// Zero follows PrepareAhead; it does not grant untimed demands protection.
+	LocalProtectAhead time.Duration
+	MaxFileBytes      int64
 	// CacheUnlimited disables the retained-video budget independently of its value.
 	CacheUnlimited bool
 	// MaxCacheBytes bounds retained videos; zero reclaims every unprotected video.
@@ -83,6 +86,9 @@ func DefaultConfig() Config {
 }
 
 func (c Config) validate() error {
+	if c.LocalProtectAhead < 0 || c.LocalProtectAhead > 24*time.Hour {
+		return errors.New("local protection lead must be between 0 and 86400 seconds")
+	}
 	if c.OriginScheme != "https" && c.OriginScheme != "http" {
 		return errors.New("invalid origin scheme")
 	}

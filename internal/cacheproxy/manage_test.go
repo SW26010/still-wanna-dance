@@ -160,7 +160,7 @@ func TestCacheDeletionSharedMetadataAndStaleConfirmation(t *testing.T) {
 	}
 }
 
-func TestCacheDeletionProtectsPinsQueueChecksAndStore(t *testing.T) {
+func TestCacheDeletionProtectsPinsUsageChecksAndStore(t *testing.T) {
 	root, entries := managementFixture(t, 1)
 	e := entries[0]
 	ctx := context.Background()
@@ -180,12 +180,12 @@ func TestCacheDeletionProtectsPinsQueueChecksAndStore(t *testing.T) {
 		t.Fatal(r, err)
 	}
 	s.releaseVideo(video{key: e.Key})
-	s.SetQueueSongs([]int64{1})
+	protectTestVideo(s, e.Key)
 	r, err = s.DeleteCache(ctx, selected)
 	if err != nil || r[0].Result != "protected" {
 		t.Fatal(r, err)
 	}
-	s.ResetQueueSongs(nil)
+	clearTestProtection(s)
 	release, err := verificationLocks.acquire(ctx, root+e.Key)
 	if err != nil {
 		t.Fatal(err)
@@ -202,19 +202,19 @@ func TestCacheDeletionProtectsPinsQueueChecksAndStore(t *testing.T) {
 	s.beginVideoRemovalLocked(e.Key)
 	s.retentionMu.Unlock()
 	queued := make(chan struct{})
-	go func() { s.SetQueueSongs([]int64{1}); close(queued) }()
+	go func() { s.pinVideo(video{key: e.Key}); close(queued) }()
 	select {
 	case <-queued:
-		t.Fatal("queue raced deletion")
+		t.Fatal("pin raced deletion")
 	case <-time.After(20 * time.Millisecond):
 	}
 	s.finishVideoRemoval(e.Key, false)
 	select {
 	case <-queued:
 	case <-time.After(time.Second):
-		t.Fatal("queue blocked after reservation release")
+		t.Fatal("pin blocked after reservation release")
 	}
-	s.ResetQueueSongs(nil)
+	s.releaseVideo(video{key: e.Key})
 	r, err = s.DeleteCache(ctx, selected)
 	if err != nil || r[0].Result != "deleted" {
 		t.Fatal(r, err)
@@ -318,42 +318,5 @@ func TestCacheManagementRejectsDirectoryLinks(t *testing.T) {
 	}
 	if _, err := CacheDirectory(root); err == nil {
 		t.Fatal("accepted directory redirect")
-	}
-}
-
-func TestQueueUpdateCanCancelDeletionWaitWithoutApplyingPartialState(t *testing.T) {
-	root, entries := managementFixture(t, 1)
-	cfg := fixtureConfig()
-	cfg.StorageDir = root
-	s, err := New(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	s.SetQueueSongs([]int64{2})
-	s.retentionMu.Lock()
-	reserved := s.beginVideoRemovalLocked(entries[0].Key)
-	s.retentionMu.Unlock()
-	if !reserved {
-		t.Fatal("unable to reserve deletion")
-	}
-	defer s.finishVideoRemoval(entries[0].Key, false)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	done := make(chan error, 1)
-	go func() { done <- s.UpdateQueueSongs(ctx, []int64{1}, true) }()
-	cancel()
-	select {
-	case err := <-done:
-		if err != context.Canceled {
-			t.Fatal(err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("canceled queue update still waits for deletion")
-	}
-	s.retentionMu.Lock()
-	defer s.retentionMu.Unlock()
-	if !s.queueSongs["2"] || s.queueSongs["1"] {
-		t.Fatal("canceled update changed reservations", s.queueSongs)
 	}
 }

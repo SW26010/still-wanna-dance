@@ -6,8 +6,47 @@ import (
 	"net"
 	"slices"
 	"testing"
+	"testing/synctest"
 	"time"
 )
+
+func TestDNSPoolRetainsBothFamilies(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ips, ttl, err := collectDNS(context.Background(), []dnsQuery{
+			func(context.Context) ([]string, time.Duration, error) {
+				return []string{"192.0.2.1", "192.0.2.2", "192.0.2.3", "192.0.2.4", "192.0.2.5", "192.0.2.6"}, time.Minute, nil
+			},
+			func(context.Context) ([]string, time.Duration, error) {
+				time.Sleep(100 * time.Millisecond)
+				return []string{"2001:db8::1", "2001:db8::2", "2001:db8::3", "2001:db8::4"}, 10 * time.Second, nil
+			},
+		})
+		v6 := 0
+		for _, ip := range ips {
+			if net.ParseIP(ip).To4() == nil {
+				v6++
+			}
+		}
+		if err != nil || len(ips) != 6 || v6 != 3 || ttl != 10*time.Second {
+			t.Fatal(ips, ttl, err)
+		}
+	})
+}
+
+func TestDNSPoolSingleFamilyDoesNotWaitForOtherFamily(t *testing.T) {
+	for _, ip := range []string{"192.0.2.1", "2001:db8::1"} {
+		synctest.Test(t, func(t *testing.T) {
+			start := time.Now()
+			ips, ttl, err := collectDNS(context.Background(), []dnsQuery{
+				func(context.Context) ([]string, time.Duration, error) { return []string{ip}, time.Minute, nil },
+				func(ctx context.Context) ([]string, time.Duration, error) { <-ctx.Done(); return nil, 0, ctx.Err() },
+			})
+			if err != nil || !slices.Equal(ips, []string{ip}) || ttl != time.Minute || time.Since(start) != 200*time.Millisecond {
+				t.Fatal(ips, ttl, err, time.Since(start))
+			}
+		})
+	}
+}
 
 func TestDNSPoolMergesAnswersWithMinimumTTL(t *testing.T) {
 	ips, ttl, err := collectDNS(context.Background(), []dnsQuery{
@@ -59,6 +98,24 @@ func TestDNSPoolAllEncryptedFailuresReject(t *testing.T) {
 		t.Fatal("failed encrypted resolution produced usable addresses", ips, err)
 	}
 }
+
+func TestDNSPoolEmptyFamily(t *testing.T) {
+	empty := func(context.Context) ([]string, time.Duration, error) { return nil, 0, nil }
+	for _, available := range [][]string{nil, {"192.0.2.1"}, {"2001:db8::1"}} {
+		ips, ttl, err := collectDNS(context.Background(), []dnsQuery{
+			empty,
+			func(context.Context) ([]string, time.Duration, error) { return available, time.Minute, nil },
+		})
+		if len(available) == 0 {
+			if err == nil || err.Error() != "no usable DNS answers" || len(ips) != 0 || ttl != 0 {
+				t.Fatal("all-empty result must reject", ips, ttl, err)
+			}
+		} else if err != nil || !slices.Equal(ips, available) || ttl != time.Minute {
+			t.Fatal("empty family affected valid answers", ips, ttl, err)
+		}
+	}
+}
+
 func TestDNSDialRacesCandidatesWithoutRankingDNS(t *testing.T) {
 	l, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {

@@ -134,7 +134,7 @@ func (p *httpsRelay) forward(client net.Conn) error {
 		defer release()
 	}
 	ctx, cancel := context.WithTimeout(p.ctx, 15*time.Second)
-	upstream, err := p.dial(ctx, "tcp4", origin)
+	upstream, err := p.dial(ctx, "tcp", origin)
 	cancel()
 	if err != nil {
 		return err

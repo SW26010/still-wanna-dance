@@ -74,49 +74,60 @@ func TestHTTPSRelayPreservesTLSAndRange(t *testing.T) {
 	cert, roots := relayCertificate(t)
 	for _, host := range []string{"nya.xin.moe", "play.udon.dance", "api.udon.dance"} {
 		for _, version := range []uint16{tls.VersionTLS12, tls.VersionTLS13} {
-			t.Run(host+"/"+tls.VersionName(version), func(t *testing.T) {
-				path := "/video.mp4"
-				if host == "api.udon.dance" {
-					path = "/Api/Songs/list"
-				}
-				backend := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					if r.TLS.ServerName != host || r.Host != host || r.URL.Path != path || r.URL.RawQuery != "signed=unchanged" {
-						t.Errorf("altered request: host=%s SNI=%s URL=%s", r.Host, r.TLS.ServerName, r.URL)
+			for _, ip := range []string{"127.0.0.1", "::1"} {
+				t.Run(host+"/"+tls.VersionName(version)+"/"+ip, func(t *testing.T) {
+					path := "/video.mp4"
+					if host == "api.udon.dance" {
+						path = "/Api/Songs/list"
 					}
-					http.ServeContent(w, r, "video.mp4", time.Time{}, strings.NewReader("0123456789"))
-				}))
-				backend.TLS = &tls.Config{Certificates: []tls.Certificate{cert}}
-				backend.EnableHTTP2 = true
-				backend.StartTLS()
-				defer backend.Close()
-				p := runTestRelay(t, func(ctx context.Context, network, address string) (net.Conn, error) {
-					if address != net.JoinHostPort(host, "443") || network != "tcp4" {
-						t.Errorf("wrong upstream: %s %s", network, address)
-					}
-					return (&net.Dialer{}).DialContext(ctx, network, backend.Listener.Addr().String())
-				})
-				transport := &http.Transport{ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: version, MaxVersion: version}, DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
-					return (&net.Dialer{}).DialContext(ctx, network, p.listener.Addr().String())
-				}}
-				defer transport.CloseIdleConnections()
-				client := &http.Client{Transport: transport, Timeout: 5 * time.Second}
-				for _, method := range []string{"GET", "HEAD"} {
-					req, _ := http.NewRequest(method, "https://"+host+path+"?signed=unchanged", nil)
-					req.Header.Set("Range", "bytes=3-6")
-					resp, err := client.Do(req)
+					backend := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						if r.TLS.ServerName != host || r.Host != host || r.URL.Path != path || r.URL.RawQuery != "signed=unchanged" {
+							t.Errorf("altered request: host=%s SNI=%s URL=%s", r.Host, r.TLS.ServerName, r.URL)
+						}
+						http.ServeContent(w, r, "video.mp4", time.Time{}, strings.NewReader("0123456789"))
+					}))
+					backend.Listener.Close()
+					listener, err := net.Listen("tcp", net.JoinHostPort(ip, "0"))
 					if err != nil {
-						t.Fatal(err)
+						t.Fatalf("listen %s: %v", ip, err)
 					}
-					body, err := io.ReadAll(resp.Body)
-					resp.Body.Close()
-					if err != nil || resp.StatusCode != 206 || resp.Header.Get("Content-Range") != "bytes 3-6/10" || resp.ProtoMajor != 2 || len(resp.TLS.VerifiedChains) == 0 {
-						t.Fatalf("response: %s %v %v", resp.Status, resp.Header, err)
+					backend.Listener = listener
+					backend.TLS = &tls.Config{Certificates: []tls.Certificate{cert}}
+					backend.EnableHTTP2 = true
+					backend.StartTLS()
+					defer backend.Close()
+					_, port, _ := net.SplitHostPort(backend.Listener.Addr().String())
+					dns := &directDNS{cache: map[string]dnsEntry{host: {[]string{ip}, time.Now().Add(time.Minute)}}}
+					defer dns.close()
+					p := runTestRelay(t, func(ctx context.Context, network, address string) (net.Conn, error) {
+						if address != net.JoinHostPort(host, "443") || network != "tcp" {
+							t.Errorf("wrong upstream: %s %s", network, address)
+						}
+						return dns.DialContext(ctx, network, net.JoinHostPort(host, port))
+					})
+					transport := &http.Transport{ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: version, MaxVersion: version}, DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+						return (&net.Dialer{}).DialContext(ctx, network, p.listener.Addr().String())
+					}}
+					defer transport.CloseIdleConnections()
+					client := &http.Client{Transport: transport, Timeout: 5 * time.Second}
+					for _, method := range []string{"GET", "HEAD"} {
+						req, _ := http.NewRequest(method, "https://"+host+path+"?signed=unchanged", nil)
+						req.Header.Set("Range", "bytes=3-6")
+						resp, err := client.Do(req)
+						if err != nil {
+							t.Fatal(err)
+						}
+						body, err := io.ReadAll(resp.Body)
+						resp.Body.Close()
+						if err != nil || resp.StatusCode != 206 || resp.Header.Get("Content-Range") != "bytes 3-6/10" || resp.ProtoMajor != 2 || len(resp.TLS.VerifiedChains) == 0 {
+							t.Fatalf("response: %s %v %v", resp.Status, resp.Header, err)
+						}
+						if (method == "GET" && string(body) != "3456") || (method == "HEAD" && len(body) != 0) {
+							t.Fatalf("body: %q", body)
+						}
 					}
-					if (method == "GET" && string(body) != "3456") || (method == "HEAD" && len(body) != 0) {
-						t.Fatalf("body: %q", body)
-					}
-				}
-			})
+				})
+			}
 		}
 	}
 }

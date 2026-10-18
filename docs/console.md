@@ -190,7 +190,7 @@ SOCKS5 使用本地模拟服务验证域名转交、API HTTPS、缓存回源、�
 
 hosts 同时影响 HTTP 和 HTTPS。控制台启动播放网关时提供 TLS SNI 透传，防止网页的视频 HTTPS 请求被映射到本机后遭到连接拒绝。仅接受 `api.udon.dance` 和当前已由有效 API 响应确认的资源域名；新 hosts 接管只写入 API 域名，资源域名不预设，始终通过受控 DNS 直连其 443 端口，不读取系统 hosts；即使应用选择强制代理，兼容透传也不改变路径。不使用额外的 `ud-*` 回源别名，不开放通用代理。网页、封面和统计域名不纳入接管。
 
-转发始终复用下面的独立加密 DNS、TTL 缓存、多 IP 错峰建连与成功地址优先机制；直连失败不会改走代理。固定保留域名的原上游，不套用 HTTP 的播放接口参数设置，不跨线路替换路径或签名。TLS 握手及后续密文字节原样传递，浏览器直接验证原站证书；不安装证书、不解密、不改网页、不降级为 HTTP。网页 HTTPS 播放仍消耗上游流量，不命中或填充本地视频缓存，也不计入缓存热度。
+转发始终复用下面的独立加密 DNS、TTL 缓存和双栈连接机制，优先尝试 IPv6，必要时尝试 IPv4；直连失败不会改走代理。固定保留域名的原上游，不套用 HTTP 的播放接口参数设置，不跨线路替换路径或签名。TLS 握手及后续密文字节原样传递，浏览器直接验证原站证书；不安装证书、不解密、不改网页、不降级为 HTTP。网页 HTTPS 播放仍消耗上游流量，不命中或填充本地视频缓存，也不计入缓存热度。
 
 只绑定本机 IPv4，最多 128 条连接，ClientHello 限制为 64 KiB / 10 秒，建连最多 15 秒，两分钟双向均无进展的连接关闭。关闭播放网关会取消解析和建连并清理活动连接。此入口不支持无 SNI 或隐藏目标域名的握手，也不提供 QUIC/UDP 443。
 
@@ -216,7 +216,7 @@ hosts 同时影响 HTTP 和 HTTPS。控制台启动播放网关时提供 TLS SNI
 
 DNSPod 和 360 的入口发现只通过具备固定引导 IP 的 DoH 服务进行，不依赖本地 DNS；同入口并发引导合并，后续读取 TTL 缓存。没有硬编码 DNSPod 已下线的测试 IP。官方依据：[阿里服务资料](https://static-aliyun-doc.oss-cn-hangzhou.aliyuncs.com/download%2Fpdf%2F171662%2FAPI_Reference_intl_en-US.pdf)、[DNSPod 域名接入公告](https://docs.dnspod.cn/notices/mian-fei-ban-dot-dohbu-zai-gong-kai-ipjie-ru-de-gong-gao/)、[DNSPod 旧测试 IP 下线公告](https://docs.dnspod.cn/notices/guan-yu-doh-dotdu-li-ce-shi-ipxia-xian-de-gong-gao/)、[360 官方服务页](https://sdns.360.net/dnsPublic.html)。
 
-有限并发查询这些加密入口，首个有效答复后最多再收集 200ms，合并去重并最多保留 6 个 IPv4 候选；整体最多 6 秒。结果按已收集答复中 A 记录与 CNAME 链的最小 TTL 缓存（最多 300 秒）。连接候选每隔 200ms 错峰启动，单连接最多等待 5 秒；成功地址优先复用，取消其余连接，全部失败时清除缓存。IP 层衡量连接建立速度，视频小段测速在上游线路层进行。视频请求仍保留原始 HTTP Host，历史 UI 中 HKG 对应查询参数 `node=nya`，不代表资源域名。
+直连并发查询 A 与 AAAA，DNS 只维护有效地址池与 TTL，不记录连接胜者。普通建连采用成熟的 Happy Eyeballs 组件，优先尝试 IPv6并自动回退 IPv4；已由 Monitor 测速选定的 IP 则继续固定使用。双栈地址池、连接间隔、代理边界及验证以[上游通道的请求与连接规则](upstream-channels.md#请求与连接)为准。视频请求仍保留原始 HTTP Host，历史 UI 中 HKG 对应查询参数 `node=nya`，不代表资源域名。
 
 全部加密通道失败时明确报错。这保护的是客户端到解析服务的 DNS 链路，仍信任所选解析服务及系统证书信任库；DNS 模块本身不改变视频或 API 请求的 HTTP/HTTPS 协议。曲库业务仅使用 Kiva／WannaInfo 的 MD5 清单，Udon `https://api.udon.dance/Api/Songs/list` 只用于 monitor，不参与本地曲库更新或水位计算；游戏请求的 HTTP→HTTPS 跳转与 HTTPS 透传继续保留；播放地址 API、版本确认、视频下载、测速和 Range 回源统一使用 HTTPS，保留原始 Host、TLS SNI 和证书域名校验；连接或证书失败不降级至 HTTP，也不回退系统 DNS/hosts。此前依赖明文 DNS 劫持产生 fake-IP 的代理路径不再由此模块自动使用。
 

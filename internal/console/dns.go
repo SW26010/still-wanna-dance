@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.getoutline.org/sdk/transport"
+
 	"still-wanna-dance/internal/applog"
 )
 
@@ -105,9 +107,11 @@ func (d *directDNS) lookupShared(ctx context.Context, host string, query dnsQuer
 func (d *directDNS) resolve(ctx context.Context, host string) ([]string, time.Duration, error) {
 	var queries []dnsQuery
 	for _, provider := range dohProviders {
-		queries = append(queries, func(ctx context.Context) ([]string, time.Duration, error) {
-			return d.queryProvider(ctx, provider, host)
-		})
+		for _, kind := range []uint16{dnsTypeAAAA, dnsTypeA} {
+			queries = append(queries, func(ctx context.Context) ([]string, time.Duration, error) {
+				return d.queryProvider(ctx, provider, host, kind)
+			})
+		}
 	}
 	ips, ttl, err := collectDNS(ctx, queries)
 	if err != nil {
@@ -132,7 +136,20 @@ func collectDNS(ctx context.Context, queries []dnsQuery) ([]string, time.Duratio
 	for _, query := range queries {
 		go func(query dnsQuery) { ips, ttl, err := query(ctx); results <- result{ips, ttl, err} }(query)
 	}
-	var ips []string
+	// Cap each family while gathering; apply the shared cap only after
+	// interleaving so the first responder cannot crowd out the other family.
+	var families [2][]string
+	pool := func() []string {
+		var ips []string
+		for i := 0; i < max(len(families[0]), len(families[1])); i++ {
+			for _, family := range families {
+				if i < len(family) {
+					ips = append(ips, family[i])
+				}
+			}
+		}
+		return ips[:min(6, len(ips))]
+	}
 	ttl := 5 * time.Minute
 	seen := map[string]bool{}
 	var failures []error
@@ -146,12 +163,12 @@ func collectDNS(ctx context.Context, queries []dnsQuery) ([]string, time.Duratio
 	for range queries {
 		select {
 		case <-ctx.Done():
-			if len(ips) > 0 {
-				return ips, ttl, nil
+			if len(seen) > 0 {
+				return pool(), ttl, nil
 			}
 			return nil, 0, ctx.Err()
 		case <-settle:
-			return ips, ttl, nil
+			return pool(), ttl, nil
 		case r := <-results:
 			if r.err != nil {
 				failures = append(failures, r.err)
@@ -162,9 +179,13 @@ func collectDNS(ctx context.Context, queries []dnsQuery) ([]string, time.Duratio
 			}
 			ttl = min(ttl, r.ttl)
 			for _, ip := range r.ips {
-				if !seen[ip] && len(ips) < 6 {
+				family := 0
+				if parsed := net.ParseIP(ip); parsed != nil && parsed.To4() == nil {
+					family = 1
+				}
+				if !seen[ip] && len(families[family]) < 6 {
 					seen[ip] = true
-					ips = append(ips, ip)
+					families[family] = append(families[family], ip)
 				}
 			}
 			if timer == nil {
@@ -173,19 +194,22 @@ func collectDNS(ctx context.Context, queries []dnsQuery) ([]string, time.Duratio
 			}
 		}
 	}
-	if len(ips) == 0 {
+	if len(seen) == 0 {
+		if len(failures) == 0 {
+			return nil, 0, errors.New("no usable DNS answers")
+		}
 		return nil, 0, fmt.Errorf("no usable DNS answers: %w", errors.Join(failures...))
 	}
-	return ips, ttl, nil
+	return pool(), ttl, nil
 }
 
-func queryDNS(ctx context.Context, provider, ip, path, host string) ([]string, time.Duration, error) {
+func queryDNS(ctx context.Context, provider, ip, path, host string, kind uint16) ([]string, time.Duration, error) {
 	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
 	t := newDoHTransport(net.JoinHostPort(ip, "443"))
 	defer t.CloseIdleConnections()
 	client := &http.Client{Transport: t, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	return exchangeDoH(ctx, client, "https://"+provider+path, host)
+	return exchangeDoH(ctx, client, "https://"+provider+path, host, kind)
 }
 
 // Dial only the supplied IP; URL hostname still supplies TLS SNI and certificate
@@ -196,8 +220,8 @@ func newDoHTransport(address string) *http.Transport {
 	}}
 }
 
-func exchangeDoH(ctx context.Context, client *http.Client, endpoint, host string) ([]string, time.Duration, error) {
-	packet, err := newDNSQuery(host)
+func exchangeDoH(ctx context.Context, client *http.Client, endpoint, host string, kind uint16) ([]string, time.Duration, error) {
+	packet, err := newDNSQuery(host, kind)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -243,11 +267,11 @@ func dnsAddresses(answer dnsAnswer) ([]string, time.Duration, error) {
 			}
 			continue
 		}
-		if a.Type != 1 {
+		if a.Type != int(dnsTypeA) && a.Type != int(dnsTypeAAAA) {
 			continue
 		}
 		ip := net.ParseIP(a.Data)
-		if ip == nil || ip.To4() == nil || ip.IsLoopback() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() || ip.IsMulticast() || ip.IsPrivate() {
+		if ip == nil || (a.Type == int(dnsTypeA)) != (ip.To4() != nil) || ip.IsLoopback() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() || ip.IsMulticast() || ip.IsPrivate() {
 			continue
 		}
 		ips = append(ips, ip.String())
@@ -256,7 +280,7 @@ func dnsAddresses(answer dnsAnswer) ([]string, time.Duration, error) {
 		}
 	}
 	if len(ips) == 0 {
-		return nil, 0, fmt.Errorf("DNS 未返回可用的公网 IPv4 地址")
+		return nil, 0, fmt.Errorf("DNS 未返回可用的公网 IP 地址")
 	}
 	if ttl < 0 {
 		ttl = 0
@@ -265,7 +289,7 @@ func dnsAddresses(answer dnsAnswer) ([]string, time.Duration, error) {
 }
 
 func (d *directDNS) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
-	host, port, err := net.SplitHostPort(address)
+	host, _, err := net.SplitHostPort(address)
 	if err != nil {
 		return nil, err
 	}
@@ -273,44 +297,6 @@ func (d *directDNS) DialContext(ctx context.Context, network, address string) (n
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	type result struct {
-		conn net.Conn
-		err  error
-		ip   string
-	}
-	results := make(chan result)
-	for i, ip := range ips {
-		go func(i int, ip string) {
-			timer := time.NewTimer(time.Duration(i) * 200 * time.Millisecond)
-			defer timer.Stop()
-			select {
-			case <-ctx.Done():
-				return
-			case <-timer.C:
-			}
-			conn, err := (&net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}).DialContext(ctx, network, net.JoinHostPort(ip, port))
-			select {
-			case results <- result{conn, err, ip}:
-			case <-ctx.Done():
-				if conn != nil {
-					conn.Close()
-				}
-			}
-		}(i, ip)
-	}
-	var failures []error
-	for range ips {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case r := <-results:
-			if r.err == nil {
-				return r.conn, nil
-			}
-			failures = append(failures, r.err)
-		}
-	}
-	return nil, errors.Join(failures...)
+	dialer := &transport.TCPDialer{Dialer: net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}}
+	return dialResolvedIPs(ctx, network, address, ips, dialer)
 }

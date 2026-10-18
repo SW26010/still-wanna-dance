@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/metacubex/mihomo v1.19.32
 	github.com/sirupsen/logrus v1.9.4
+	golang.getoutline.org/sdk v0.0.23
 	golang.org/x/net v0.57.0
 	modernc.org/sqlite v1.40.1
 )

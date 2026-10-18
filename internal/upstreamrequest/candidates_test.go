@@ -77,18 +77,31 @@ func TestCandidateModesAndRemoteDNS(t *testing.T) {
 }
 
 func TestPinnedTLSHostExpiryAndConfigRetirement(t *testing.T) {
+	for _, ip := range []string{"127.0.0.1", "::1"} {
+		t.Run(ip, func(t *testing.T) { testPinnedTLSHostExpiryAndConfigRetirement(t, ip) })
+	}
+}
+
+func testPinnedTLSHostExpiryAndConfigRetirement(t *testing.T, ip string) {
 	var host, sni string
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		host = r.Host
 		sni = r.TLS.ServerName
 		w.WriteHeader(204)
 	}))
+	server.Listener.Close()
+	listener, err := net.Listen("tcp", net.JoinHostPort(ip, "0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	server.Listener = listener
+	server.StartTLS()
 	defer server.Close()
 	cert := server.Certificate()
 	name := cert.DNSNames[0]
 	_, port, _ := net.SplitHostPort(server.Listener.Addr().String())
 	target := "https://" + net.JoinHostPort(name, port) + "/test"
-	d := &testDNS{addresses: []Address{{"127.0.0.1", time.Now().Add(time.Minute)}}}
+	d := &testDNS{addresses: []Address{{ip, time.Now().Add(time.Minute)}}}
 	p, _ := NewPool("direct", d, nil)
 	defer p.Close()
 	cs, _ := p.Candidates(context.Background(), target)

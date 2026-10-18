@@ -55,7 +55,7 @@ func TestDoHValidatesTLSAndWireResponse(t *testing.T) {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
-			ips, ttl, err := exchangeDoH(ctx, client, "https://"+host+"/dns-query", "api.udon.dance")
+			ips, ttl, err := exchangeDoH(ctx, client, "https://"+host+"/dns-query", "api.udon.dance", dnsTypeA)
 			if mode == "valid" {
 				if err != nil || len(ips) != 1 || ips[0] != "203.0.113.9" || ttl != time.Minute {
 					t.Fatal(ips, ttl, err)
@@ -78,7 +78,7 @@ func TestLiveDoHProviders(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			start := time.Now()
-			ips, ttl, err := d.queryProvider(ctx, provider, "api.udon.dance")
+			ips, ttl, err := d.queryProvider(ctx, provider, "api.udon.dance", dnsTypeA)
 			if err != nil {
 				t.Fatal(err)
 			}

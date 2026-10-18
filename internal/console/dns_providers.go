@@ -19,20 +19,27 @@ var dohProviders = []dohProvider{
 	{"dns.google", "8.8.8.8"},
 }
 
-func (d *directDNS) queryProvider(ctx context.Context, provider dohProvider, host string) ([]string, time.Duration, error) {
+func (d *directDNS) queryProvider(ctx context.Context, provider dohProvider, host string, kind uint16) ([]string, time.Duration, error) {
 	if provider.ip != "" {
-		return queryDNS(ctx, provider.host, provider.ip, "/dns-query", host)
+		return queryDNS(ctx, provider.host, provider.ip, "/dns-query", host, kind)
 	}
 	ips, err := d.bootstrapProvider(ctx, provider.host)
 	if err != nil {
 		return nil, 0, err
 	}
+	return d.queryProviderIPs(ctx, provider.host, ips, func(ctx context.Context, ip string) ([]string, time.Duration, error) {
+		return queryDNS(ctx, provider.host, ip, "/dns-query", host, kind)
+	})
+}
+
+func (d *directDNS) queryProviderIPs(ctx context.Context, provider string, ips []string, query func(context.Context, string) ([]string, time.Duration, error)) ([]string, time.Duration, error) {
 	var failures []error
 	// Two HTTPS connection attempts at most per dynamically discovered provider.
 	for _, ip := range ips[:min(2, len(ips))] {
 		attempt, cancel := context.WithTimeout(ctx, 2*time.Second)
-		addresses, ttl, err := queryDNS(attempt, provider.host, ip, "/dns-query", host)
+		addresses, ttl, err := query(attempt, ip)
 		cancel()
+		// A valid empty answer also confirms the endpoint is working.
 		if err == nil {
 			return addresses, ttl, nil
 		}
@@ -46,7 +53,7 @@ func (d *directDNS) queryProvider(ctx context.Context, provider dohProvider, hos
 	}
 	// Force an encrypted bootstrap refresh after an endpoint changes or fails.
 	d.mu.Lock()
-	delete(d.cache, "bootstrap/"+provider.host)
+	delete(d.cache, "bootstrap/"+provider)
 	d.mu.Unlock()
 	return nil, 0, errors.Join(failures...)
 }
@@ -81,7 +88,7 @@ func (d *directDNS) bootstrapProvider(ctx context.Context, host string) ([]strin
 				continue
 			}
 			queries = append(queries, func(ctx context.Context) ([]string, time.Duration, error) {
-				return queryDNS(ctx, p.host, p.ip, "/dns-query", host)
+				return queryDNS(ctx, p.host, p.ip, "/dns-query", host, dnsTypeA)
 			})
 		}
 		ips, ttl, err := collectDNS(ctx, queries)

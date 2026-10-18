@@ -10,7 +10,15 @@ import (
 	"time"
 )
 
-func newDNSQuery(host string) ([]byte, error) {
+const (
+	dnsTypeA    uint16 = 1
+	dnsTypeAAAA uint16 = 28
+)
+
+func newDNSQuery(host string, kind uint16) ([]byte, error) {
+	if kind != dnsTypeA && kind != dnsTypeAAAA {
+		return nil, fmt.Errorf("unsupported DNS query type")
+	}
 	packet := make([]byte, 12)
 	if _, err := rand.Read(packet[:2]); err != nil {
 		return nil, err
@@ -24,7 +32,7 @@ func newDNSQuery(host string) ([]byte, error) {
 		packet = append(packet, byte(len(label)))
 		packet = append(packet, label...)
 	}
-	packet = append(packet, 0, 0, 1, 0, 1)
+	packet = append(packet, 0, byte(kind>>8), byte(kind), 0, 1)
 	if len(packet) > 271 {
 		return nil, fmt.Errorf("DNS name too long")
 	}
@@ -65,6 +73,7 @@ func parseDNSReply(query, b []byte) ([]string, time.Duration, error) {
 	}
 	off := len(query)
 	answer := dnsAnswer{}
+	onlyAliases := true
 	for i := 0; i < int(binary.BigEndian.Uint16(b[6:8])); i++ {
 		var err error
 		off, err = skipDNSName(b, off)
@@ -76,18 +85,22 @@ func parseDNSReply(query, b []byte) ([]string, time.Duration, error) {
 		}
 		kind := binary.BigEndian.Uint16(b[off:])
 		class := binary.BigEndian.Uint16(b[off+2:])
+		if kind != 5 || class != 1 {
+			onlyAliases = false
+		}
 		ttl := binary.BigEndian.Uint32(b[off+4:])
 		size := int(binary.BigEndian.Uint16(b[off+8:]))
 		off += 10
 		if off+size > len(b) {
 			return nil, 0, fmt.Errorf("truncated DNS data")
 		}
-		if kind == 1 && class == 1 && size == 4 {
+		queryKind := binary.BigEndian.Uint16(query[len(query)-4:])
+		if kind == queryKind && class == 1 && (kind == dnsTypeA && size == 4 || kind == dnsTypeAAAA && size == 16) {
 			answer.Answer = append(answer.Answer, struct {
 				Type int
 				TTL  int
 				Data string
-			}{1, int(ttl), net.IP(b[off : off+4]).String()})
+			}{int(kind), int(ttl), net.IP(b[off : off+size]).String()})
 		}
 		if kind == 5 && class == 1 {
 			end, err := skipDNSName(b, off)
@@ -101,6 +114,11 @@ func parseDNSReply(query, b []byte) ([]string, time.Duration, error) {
 			}{5, int(ttl), ""})
 		}
 		off += size
+	}
+	// NOERROR with no answers (or only CNAMEs) means this family has no
+	// address, not that the DoH endpoint failed. Do not cache a negative TTL.
+	if onlyAliases {
+		return nil, 0, nil
 	}
 	return dnsAddresses(answer)
 }

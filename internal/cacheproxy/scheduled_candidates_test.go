@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -27,7 +28,7 @@ func TestResourceDemandsExposeAllMissingBlocks(t *testing.T) {
 					song: "1", startAt: now, timing: mediaTiming{w.v.size, time.Minute},
 				}}
 			default:
-				_, release := s.addDemand(context.Background(), w.v, kind == "get")
+				_, release := addTestDemand(t, s, context.Background(), w.v, kind == "get")
 				defer release()
 			}
 			plan, _, _ := w.plan(now, false)
@@ -90,7 +91,7 @@ func TestResourceDeadlinesRemainVisibleBeyondEightBlocks(t *testing.T) {
 		for i, session := range []*downloadSession{w, other} {
 			clock := &playbackClock{at: now.Add(time.Duration(i) * 30 * time.Second), limit: session.v.size, media: mediaTiming{session.v.size, 20 * time.Second}}
 			ctx := context.WithValue(context.Background(), playbackClockKey{}, clock)
-			_, closeDemand := s.addDemand(ctx, session.v, true)
+			_, closeDemand := addTestDemand(t, s, ctx, session.v, true)
 			defer closeDemand()
 			for block := int64(0); block < session.v.size/rangeBlockSize; block++ {
 				key := fmt.Sprintf("%s/%d", session.v.key, block)
@@ -194,7 +195,7 @@ func TestExpandedResourceRetainsGlobalMetadataCapacity(t *testing.T) {
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 16, MaxTasks: 16})
 	defer s.scheduler.Close()
 	ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: time.Now().Add(time.Hour), limit: w.v.size, media: mediaTiming{w.v.size, time.Hour}})
-	_, release := s.addDemand(ctx, w.v, true)
+	_, release := addTestDemand(t, s, ctx, w.v, true)
 	defer release()
 	plan, changed, active := w.plan(time.Now(), true)
 	_, _, err := w.reconcile(plan, time.Now(), changed, active)
@@ -222,7 +223,7 @@ func TestExpandedResourceRetainsGlobalMetadataCapacity(t *testing.T) {
 	}
 }
 
-func TestTwoLargeFutureVideosDoNotRejectNewResource(t *testing.T) {
+func TestTwoLargeFutureVideosFillUsageCapacity(t *testing.T) {
 	w, s := testSession(t)
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
 	defer s.scheduler.Close()
@@ -237,7 +238,16 @@ func TestTwoLargeFutureVideosDoNotRejectNewResource(t *testing.T) {
 		session.v.size = 2 << 30
 		session.f.ranges.done[0], session.f.ranges.prefix = true, 1
 		ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: time.Now().Add(time.Duration(i+1) * time.Hour), limit: session.v.size, media: mediaTiming{session.v.size, time.Hour}})
-		_, release := s.addDemand(ctx, session.v, true)
+		_, release, err := s.addDemand(ctx, session.v, true)
+		if i == 2 {
+			if !errors.Is(err, ErrDemandCapacity) {
+				t.Fatal("future usage exceeded its complete-span capacity", err)
+			}
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
 		defer release()
 		plan, changed, active := session.plan(time.Now(), true)
 		if _, _, err := session.reconcile(plan, time.Now(), changed, active); err != nil {
@@ -245,8 +255,8 @@ func TestTwoLargeFutureVideosDoNotRejectNewResource(t *testing.T) {
 		}
 		sessions = append(sessions, session)
 	}
-	if len(sessions[0].jobs) != 2047 || len(sessions[1].jobs) != 2047 || len(sessions[2].jobs) != 2 || sessions[2].capacity == nil {
-		t.Fatal("expected bounded registration of 4096 tasks", len(sessions[0].jobs), len(sessions[1].jobs), len(sessions[2].jobs))
+	if len(sessions[0].jobs) != 2047 || len(sessions[1].jobs) != 2047 || len(s.useBlocks) != maxUseBlocks {
+		t.Fatal("completed blocks must retain usage without a download task", len(sessions[0].jobs), len(sessions[1].jobs), len(s.useBlocks))
 	}
 	started := make(chan struct{})
 	task, _, err := s.scheduler.Schedule("foreground", 1, func(context.Context, *blocksched.Progress) blocksched.Result {

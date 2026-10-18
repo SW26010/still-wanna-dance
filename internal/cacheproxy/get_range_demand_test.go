@@ -34,7 +34,7 @@ func TestGETPlanOnlyIncludesRequestedBlocks(t *testing.T) {
 			}
 			p := &playbackClock{at: time.Now(), offset: span.start, limit: span.end, media: mediaTiming{w.v.size, 200 * time.Second}}
 			ctx := context.WithValue(context.Background(), playbackClockKey{}, p)
-			get, release := s.addDemand(ctx, w.v, true)
+			get, release := addTestDemand(t, s, ctx, w.v, true)
 			defer release()
 			plan, _, active := w.plan(time.Now(), false)
 			if !active || len(plan) != 1 || len(plan[tc.want[0]]) != 1 {
@@ -53,7 +53,7 @@ func TestGETPlanOnlyIncludesRequestedBlocks(t *testing.T) {
 				t.Fatal("GET crossed its range", got, tc.want)
 			}
 			// Background completion is independent, and must not inherit GET urgency.
-			_, closeBatch := s.addDemand(context.Background(), w.v, false)
+			_, closeBatch := addTestDemand(t, s, context.Background(), w.v, false)
 			defer closeBatch()
 			plan, _, _ = w.plan(time.Now(), true)
 			if len(plan) != 20 {
@@ -86,7 +86,7 @@ func TestCompletedGETSpanKeepsReaderWithoutDownloadingOtherBlocks(t *testing.T) 
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
 	defer s.scheduler.Close()
 	p := &playbackClock{at: time.Now(), offset: 14 * rangeBlockSize, limit: 15 * rangeBlockSize, media: mediaTiming{w.v.size, time.Minute}}
-	_, release := s.addDemand(context.WithValue(context.Background(), playbackClockKey{}, p), w.v, true)
+	_, release := addTestDemand(t, s, context.WithValue(context.Background(), playbackClockKey{}, p), w.v, true)
 	defer release()
 	w.f.ranges.done[14] = true
 	now := time.Now()
@@ -108,7 +108,7 @@ func TestInitialRangeTaskStaysSharedWhenAnotherGETArrives(t *testing.T) {
 	w, s := testSession(t)
 	add := func(block int64) *downloadDemand {
 		p := &playbackClock{at: time.Now(), offset: block * rangeBlockSize, limit: (block + 1) * rangeBlockSize, media: mediaTiming{w.v.size, time.Minute}}
-		d, release := s.addDemand(context.WithValue(context.Background(), playbackClockKey{}, p), w.v, true)
+		d, release := addTestDemand(t, s, context.WithValue(context.Background(), playbackClockKey{}, p), w.v, true)
 		t.Cleanup(release)
 		return d
 	}

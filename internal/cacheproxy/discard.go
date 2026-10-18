@@ -65,7 +65,10 @@ func (d *DiscardLoader) Load(ctx context.Context, target string) error {
 	if err != nil {
 		return err
 	}
-	_, release := s.addDemand(ctx, v, false)
+	_, release, err := s.addDemand(ctx, v, false)
+	if err != nil {
+		return err
+	}
 	defer release()
 	now := time.Now()
 	f := &flight{discard: true, log: s.cfg.Logger, streaming: make(chan struct{}),
@@ -78,6 +81,9 @@ func (d *DiscardLoader) Close() {
 	s.once.Do(func() {
 		s.mu.Lock()
 		s.closed = true
+		if s.useExpiry != nil {
+			s.useExpiry.Stop()
+		}
 		s.cancel()
 		s.mu.Unlock()
 		s.wg.Wait()

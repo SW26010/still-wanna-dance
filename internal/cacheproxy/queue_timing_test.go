@@ -14,7 +14,7 @@ func TestQueueUsesEarliestGETEndAndKeepsLastAnchor(t *testing.T) {
 		add := func(seconds time.Duration, offset int64) func() {
 			p := &playbackClock{at: time.Now(), offset: offset, limit: 100, media: mediaTiming{100, seconds}}
 			ctx := context.WithValue(context.Background(), playbackClockKey{}, p)
-			_, release := s.addDemand(ctx, w.v, true)
+			_, release := addTestDemand(t, s, ctx, w.v, true)
 			return release
 		}
 		first := add(300*time.Second, 0)
@@ -113,7 +113,7 @@ func TestQueueUsesCatalogDurationAndRefreshesUnknownSize(t *testing.T) {
 func TestBatchCannotSetPlaybackQueueAnchor(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)
-		_, release := s.addDemand(context.Background(), w.v, false)
+		_, release := addTestDemand(t, s, context.Background(), w.v, false)
 		defer release()
 		time.Sleep(time.Minute)
 		s.UpdatePrefetchQueue([]int64{1}, false)

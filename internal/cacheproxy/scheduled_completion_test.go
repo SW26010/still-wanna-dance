@@ -73,7 +73,7 @@ func TestLastRangeCompletingDuringPlanStillVerifiesAndPublishes(t *testing.T) {
 				case <-ctx.Done():
 				}
 			}}
-			_, release := s.addDemand(planCtx, v, true)
+			_, release := addTestDemand(t, s, planCtx, v, true)
 			defer release()
 			s.pinVideo(v)
 			defer s.releaseVideo(v)

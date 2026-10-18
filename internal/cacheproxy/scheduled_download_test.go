@@ -19,6 +19,14 @@ func fixedBlockScheduler(s *Server) {
 func testSession(t *testing.T) (*downloadSession, *Server) {
 	t.Helper()
 	s := &Server{capacityChanged: make(chan struct{})}
+	t.Cleanup(func() {
+		s.mu.Lock()
+		s.closed = true
+		if s.useExpiry != nil {
+			s.useExpiry.Stop()
+		}
+		s.mu.Unlock()
+	})
 	v := video{key: "content", size: 20 * rangeBlockSize}
 	f := &flight{ranges: &rangeDownload{done: make(map[int64]bool)}}
 	w := &downloadSession{s: s, ctx: context.Background(), v: v, f: f, wake: make(chan struct{}, 1), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
@@ -27,11 +35,20 @@ func testSession(t *testing.T) (*downloadSession, *Server) {
 	return w, s
 }
 
+func addTestDemand(t *testing.T, s *Server, ctx context.Context, v video, playback bool) (*downloadDemand, func()) {
+	t.Helper()
+	d, release, err := s.addDemand(ctx, v, playback)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d, release
+}
+
 func TestBlockDemandFollowsActualWaitAndIndependentReaders(t *testing.T) {
 	w, s := testSession(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, release := s.addDemand(ctx, w.v, true)
+	_, release := addTestDemand(t, s, ctx, w.v, true)
 	defer release()
 	plan, _, _ := w.plan(time.Now(), true)
 	for _, needs := range plan {
@@ -79,7 +96,7 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 		// A blocked synthetic executor allows inspecting leases without network.
 		w.s.scheduler = s.scheduler
 		s.UpdatePrefetchQueue([]int64{1, 2}, false)
-		_, release := s.addDemand(s.queueDemandContext(context.Background(), "2"), video{key: w.v.key, songID: "2"}, false)
+		_, release := addTestDemand(t, s, s.queueDemandContext(context.Background(), "2"), video{key: w.v.key, songID: "2"}, false)
 		defer release()
 		now := time.Now()
 		plan, _, _ := w.plan(now, false)
@@ -192,7 +209,7 @@ func TestCompletionRechecksRangeInitialization(t *testing.T) {
 				t.Fatalf("published=%v initialized=%v jobs=%d err=%v", published, initialized, len(w.jobs), err)
 			}
 			if ranged {
-				_, release := s.addDemand(context.Background(), w.v, false)
+				_, release := addTestDemand(t, s, context.Background(), w.v, false)
 				defer release()
 				plan, _, _ := w.plan(time.Now(), initialized)
 				if _, ok := plan[1]; !ok {

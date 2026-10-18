@@ -26,6 +26,7 @@ type queueSource struct {
 	startAt, removedAt time.Time
 	timing             mediaTiming
 	title              string
+	use                useSpan
 }
 
 func (q *queueSource) origin() demandSource {
@@ -128,6 +129,12 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 	for song, source := range previous {
 		if next[song] != source {
 			source.removedAt = now
+			grace := time.Duration(0)
+			if source.position == 0 {
+				grace = queueHandoff
+			}
+			s.endUseLocked(source.use, now, grace)
+			source.use = useSpan{}
 			changed = true
 		}
 	}
@@ -148,12 +155,18 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 	s.notifyCapacityLocked()
 	return nil
 }
-func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downloadDemand, func()) {
+func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downloadDemand, func(), error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
 	if existing, ok := ctx.Value(getDemandKey{}).(*downloadDemand); playback && ok && existing != nil && existing.key == v.key {
-		return existing, func() {} // The HTTP response owns this source's lifetime.
+		return existing, func() {}, nil // The HTTP response owns this source's lifetime.
 	}
 	token, queue := ctx.Value(queueDemandKey{}).(*queueSource)
 	d := &downloadDemand{ctx: ctx, key: v.key, song: v.songID, queue: queue, playback: playback, queueSource: token}
+	if !playback {
+		d.lastBlock = (v.size + rangeBlockSize - 1) / rangeBlockSize
+	}
 	if playback {
 		var observed bool
 		d.clock, observed = ctx.Value(playbackClockKey{}).(*playbackClock)
@@ -166,6 +179,22 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 		}
 	}
 	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return nil, nil, context.Canceled
+	}
+	if queue {
+		if s.validQueueSourceLocked(d) && token.use != d.useSpan() {
+			if err := s.replaceUseLocked(token.use, d.useSpan(), false); err != nil {
+				s.mu.Unlock()
+				return nil, nil, err
+			}
+			token.use = d.useSpan()
+		}
+	} else if err := s.reserveUseLocked(d.useSpan(), playback); err != nil {
+		s.mu.Unlock()
+		return nil, nil, err
+	}
 	if s.demands == nil {
 		s.demands = make(map[*downloadDemand]bool)
 	}
@@ -186,13 +215,20 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 		}
 		d.exit.recordReason(reason)
 		s.mu.Lock()
+		if !d.queue {
+			grace := time.Duration(0)
+			if d.playback && d.exit.at.Load().reason == withdrawalSourceGone {
+				grace = getHandoff
+			}
+			s.endUseLocked(d.useSpan(), d.exit.when(), grace)
+		}
 		delete(s.demands, d)
 		s.retimeQueueLocked(time.Now())
 		s.notifyCapacityLocked()
 		s.mu.Unlock()
 	})
 	stop := context.AfterFunc(ctx, release)
-	return d, func() { stop(); release() }
+	return d, func() { stop(); release() }, nil
 }
 func (s *Server) notifyCapacityLocked() {
 	close(s.capacityChanged)

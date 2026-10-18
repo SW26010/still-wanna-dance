@@ -81,7 +81,7 @@ func TestPublicationDistinguishesLocalAndUpstreamFailures(t *testing.T) {
 				body = publishReaderFunc(func([]byte) (int, error) { return 0, context.Canceled })
 			}
 			s.client.Transport = publishTransport{body}
-			_, release := s.addDemand(context.Background(), v, false)
+			_, release := addTestDemand(t, s, context.Background(), v, false)
 			defer release()
 			_, _, err = s.prepare(context.Background(), v, f)
 			if err == nil {
@@ -151,7 +151,7 @@ func TestSequentialPausePreservesLocalWriteFailure(t *testing.T) {
 					return &http.Response{StatusCode: 200, Header: make(http.Header), ContentLength: v.size, Body: io.NopCloser(body), Request: r}, nil
 				})}
 			}
-			_, release := s.addDemand(context.Background(), v, false)
+			_, release := addTestDemand(t, s, context.Background(), v, false)
 			defer release()
 			_, _, err = s.prepare(ctx, v, f)
 			if writeFailure {

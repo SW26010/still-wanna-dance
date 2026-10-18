@@ -18,9 +18,9 @@ func TestGETConsumptionWithdrawsOnlyDeliveredBlocks(t *testing.T) {
 	w, s := testSession(t)
 	clock := &playbackClock{at: time.Now(), offset: rangeBlockSize - 2, limit: 2*rangeBlockSize + 3, media: estimateMediaTiming(w.v.size, 0)}
 	ctx := context.WithValue(context.Background(), playbackClockKey{}, clock)
-	d, closeGET := s.addDemand(ctx, w.v, true)
+	d, closeGET := addTestDemand(t, s, ctx, w.v, true)
 	defer closeGET()
-	other, closeOther := s.addDemand(ctx, w.v, true)
+	other, closeOther := addTestDemand(t, s, ctx, w.v, true)
 	defer closeOther()
 	g := &getConsumption{s: s, demand: d, size: w.v.size}
 	g.start(http.StatusPartialContent, http.Header{"Content-Range": {fmt.Sprintf("bytes %d-%d/%d", clock.offset, clock.limit-1, w.v.size)}})
@@ -57,7 +57,7 @@ func TestGETConsumptionCountsAcceptedBytesOnShortAndFailedWrites(t *testing.T) {
 	for _, failure := range []error{nil, io.ErrClosedPipe} {
 		w, s := testSession(t)
 		clock := &playbackClock{at: time.Now(), offset: rangeBlockSize - 2, limit: rangeBlockSize + 2, media: estimateMediaTiming(w.v.size, 0)}
-		d, release := s.addDemand(context.WithValue(context.Background(), playbackClockKey{}, clock), w.v, true)
+		d, release := addTestDemand(t, s, context.WithValue(context.Background(), playbackClockKey{}, clock), w.v, true)
 		defer release()
 		out := &acceptedWriter{httptest.NewRecorder(), 2, failure}
 		out.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", clock.offset, clock.limit-1, w.v.size))
@@ -120,7 +120,7 @@ func TestHTTPSourceExitOnlyHandsOffClientCancellation(t *testing.T) {
 	for _, canceled := range []bool{false, true} {
 		w, s := testSession(t)
 		ctx, cancel := context.WithCancel(context.WithValue(context.Background(), httpGETKey{}, true))
-		d, release := s.addDemand(ctx, w.v, true)
+		d, release := addTestDemand(t, s, ctx, w.v, true)
 		if canceled {
 			cancel()
 		}

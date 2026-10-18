@@ -38,7 +38,7 @@ func (h flightEventHandler) WithGroup(name string) slog.Handler {
 func TestGETArrivingAfterIdleSnapshotKeepsFlight(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := demandLifecycleSession(t)
-		_, release := s.addDemand(context.Background(), w.v, false)
+		_, release := addTestDemand(t, s, context.Background(), w.v, false)
 		reconcileSession(t, w)
 		release() // Batch withdrawal has no handoff, so this plan is idle.
 		now := time.Now()
@@ -46,7 +46,7 @@ func TestGETArrivingAfterIdleSnapshotKeepsFlight(t *testing.T) {
 		if len(plan) != 0 {
 			t.Fatal("test did not capture an idle plan")
 		}
-		_, releaseGET := s.addDemand(context.Background(), w.v, true)
+		_, releaseGET := addTestDemand(t, s, context.Background(), w.v, true)
 		defer releaseGET()
 		if _, retry, err := w.reconcile(plan, now, changed, active); err != nil || !retry {
 			t.Fatal("concurrent GET did not invalidate idle snapshot", retry, err)

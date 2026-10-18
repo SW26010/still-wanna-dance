@@ -43,7 +43,10 @@ func (s *Server) obtainMode(ctx context.Context, v video, background bool) (*fli
 
 func (s *Server) obtainDemand(ctx context.Context, v video, background, playback bool) (*flight, *spoolReader, error) {
 	ctx = applog.WithTrace(ctx)
-	demand, releaseDemand := s.addDemand(ctx, v, playback)
+	demand, releaseDemand, err := s.addDemand(ctx, v, playback)
+	if err != nil {
+		return nil, nil, err
+	}
 	transferred := false
 	defer func() {
 		if !transferred {

@@ -517,7 +517,10 @@ func followEngine(ctx context.Context, p followPlan, tr *followTransport, r *fol
 	if e != nil {
 		return e
 	}
-	_, release := s.addDemand(ctx, v, true)
+	_, release, e := s.addDemand(ctx, v, true)
+	if e != nil {
+		return e
+	}
 	defer release()
 	start := time.Now()
 	f, reader, e := s.obtain(ctx, v)

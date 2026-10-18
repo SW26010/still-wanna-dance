@@ -115,7 +115,7 @@ func TestPlaybackDeadlinesStayAtRequestArrival(t *testing.T) {
 		at := time.Now()
 		clock := &playbackClock{at: at, offset: 8 * rangeBlockSize, limit: 20 * rangeBlockSize, media: mediaTiming{20 * rangeBlockSize, 200 * time.Second}}
 		ctx := context.WithValue(context.Background(), playbackClockKey{}, clock)
-		_, release := s.addDemand(ctx, w.v, true)
+		_, release := addTestDemand(t, s, ctx, w.v, true)
 		defer release()
 		time.Sleep(10 * time.Second) // Resolution/download delays do not move the clock.
 		check := func(block int64, want time.Time) {
@@ -163,7 +163,7 @@ func TestPlaybackContextUsesArrivalAndIgnoresInvalidRanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d, release := s.addDemand(ctx, v, true)
+	d, release := addTestDemand(t, s, ctx, v, true)
 	defer release()
 	if d.clock != nil {
 		t.Fatal("invalid HTTP range gained an implicit clock")

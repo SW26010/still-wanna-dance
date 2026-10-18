@@ -13,6 +13,7 @@ type getConsumption struct {
 	demand                           *downloadDemand
 	size, position, limit, nextBlock int64
 	active                           bool
+	err                              error
 }
 
 func (g *getConsumption) start(status int, header http.Header) {
@@ -33,6 +34,15 @@ func (g *getConsumption) start(status int, header http.Header) {
 	d := g.demand
 	last := (end + rangeBlockSize - 1) / rangeBlockSize
 	if d.firstBlock != g.nextBlock || d.lastBlock != last {
+		if !g.s.demands[d] {
+			g.s.mu.Unlock()
+			return
+		}
+		if err := g.s.replaceUseLocked(d.useSpan(), useSpan{d.key, g.nextBlock, last}, true); err != nil {
+			g.err, g.active = err, false
+			g.s.mu.Unlock()
+			return
+		}
 		d.firstBlock, d.lastBlock = g.nextBlock, last
 		g.s.notifyCapacityLocked()
 	}
@@ -53,6 +63,13 @@ func (g *getConsumption) accept(n int64) {
 	}
 	g.nextBlock = next
 	g.s.mu.Lock()
+	// The request may have been canceled while Write was returning. Its
+	// withdrawal already transferred/released the entire remaining span.
+	if !g.s.demands[g.demand] {
+		g.s.mu.Unlock()
+		return
+	}
+	g.s.releaseUseLocked(useSpan{g.demand.key, g.demand.firstBlock, next})
 	g.demand.firstBlock = next
 	g.s.notifyCapacityLocked()
 	g.s.mu.Unlock()

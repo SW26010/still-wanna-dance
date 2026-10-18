@@ -153,12 +153,12 @@ func TestQueueSourceIdentityOnlySurvivesContinuousMembership(t *testing.T) {
 	if s.prefetchSources["1"] == next {
 		t.Fatal("room reset inherited old source attributes")
 	}
-	late, release := s.addDemand(oldContext, video{songID: "1", key: "old-result"}, false)
+	late, release := addTestDemand(t, s, oldContext, video{songID: "1", key: "old-result"}, false)
 	defer release()
 	if s.validQueueSourceLocked(late) || s.prefetchResources["1"] != "" {
 		t.Fatal("late URL result revived a canceled queue source")
 	}
-	fresh, releaseFresh := s.addDemand(s.queueDemandContext(context.Background(), "1"), video{songID: "1", key: "new-result"}, false)
+	fresh, releaseFresh := addTestDemand(t, s, s.queueDemandContext(context.Background(), "1"), video{songID: "1", key: "new-result"}, false)
 	defer releaseFresh()
 	if !s.validQueueSourceLocked(fresh) || s.prefetchResources["1"] != "new-result" {
 		t.Fatal("fresh queue source was not accepted")

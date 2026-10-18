@@ -15,7 +15,7 @@ func TestGETWithdrawalTimeSurvivesDelayedReconciliation(t *testing.T) {
 					w, s := demandLifecycleSession(t)
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
-					_, release := s.addDemand(ctx, w.v, true)
+					_, release := addTestDemand(t, s, ctx, w.v, true)
 					defer release()
 					reconcileSession(t, w)
 					ready := w.jobs[0].published.ReadyBy

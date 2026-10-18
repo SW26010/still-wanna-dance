@@ -69,6 +69,9 @@ type Server struct {
 	flights           map[string]*flight
 	paused            map[string]*rangeDownload // protected by mu; this engine only
 	demands           map[*downloadDemand]bool  // protected by mu, separate from file pins
+	useBlocks         map[useBlockID]int        // protected by mu; includes readable blocks
+	useHandoffs       useHandoffHeap
+	useExpiry         *time.Timer
 	prefetchSources   map[string]*queueSource
 	prefetchResources map[string]string
 	prefetchOrder     []int64
@@ -237,6 +240,10 @@ func (s *Server) Close() error {
 	s.once.Do(func() {
 		s.mu.Lock()
 		s.closed = true
+		if s.useExpiry != nil {
+			s.useExpiry.Stop()
+		}
+		s.notifyCapacityLocked()
 		s.cancel()
 		s.mu.Unlock()
 		s.wg.Wait()
@@ -429,19 +436,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.pinVideo(v)
 	defer func() { s.releaseVideo(v) }()
 	releaseDemand := func() {}
-	attachGET := func(resource video) {
+	attachGET := func(resource video) error {
 		if r.Method != http.MethodGet {
-			return
+			return nil
 		}
 		ctx := context.WithValue(r.Context(), httpGETKey{}, true)
 		// A replacement URL receives a fresh source, even for the same content.
 		ctx = context.WithValue(ctx, getDemandKey{}, (*downloadDemand)(nil))
-		demand, release := s.addDemand(ctx, resource, true)
+		demand, release, err := s.addDemand(ctx, resource, true)
+		if err != nil {
+			return err
+		}
 		releaseDemand = release
 		r = r.WithContext(context.WithValue(ctx, getDemandKey{}, demand))
 		response.consumption = &getConsumption{s: s, demand: demand, size: resource.size}
+		return nil
 	}
-	attachGET(v)
+	if err := attachGET(v); err != nil {
+		http.Error(w, "block demand capacity unavailable", cacheErrorStatus(err))
+		return
+	}
 	defer func() { releaseDemand() }()
 	if r.Method == http.MethodGet {
 		event.at = s.usage.startGET(v.songID, v.key)
@@ -461,7 +475,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		s.pinVideo(replacement)
 		releaseDemand()
-		attachGET(replacement)
+		if err := attachGET(replacement); err != nil {
+			s.releaseVideo(replacement)
+			return err
+		}
 		s.releaseVideo(v)
 		v = replacement
 		event.id, event.key, event.host, event.size = v.key, v.key, v.host, v.size
@@ -580,6 +597,10 @@ func (w *responseWriter) Write(p []byte) (int, error) {
 	if w.status == 0 {
 		w.WriteHeader(http.StatusOK)
 	}
+	if w.consumption != nil && w.consumption.err != nil {
+		w.writeErr = w.consumption.err
+		return 0, w.writeErr
+	}
 	n, err := w.ResponseWriter.Write(p)
 	if n < len(p) && err == nil {
 		err = io.ErrShortWrite
@@ -655,7 +676,7 @@ func serveStream(w http.ResponseWriter, r *http.Request, v video, stream *spoolR
 	return pending
 }
 func cacheErrorStatus(err error) int {
-	if errors.Is(err, ErrLocalStorage) || errors.Is(err, errBusy) || errors.Is(err, context.Canceled) {
+	if errors.Is(err, ErrLocalStorage) || errors.Is(err, errBusy) || errors.Is(err, ErrDemandCapacity) || errors.Is(err, context.Canceled) {
 		return http.StatusServiceUnavailable
 	}
 	if errors.Is(err, context.DeadlineExceeded) {

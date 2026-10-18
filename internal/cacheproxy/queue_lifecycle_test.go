@@ -27,16 +27,22 @@ func demandLifecycleSession(t *testing.T) (*downloadSession, *Server) {
 
 func registerQueueResource(t *testing.T, s *Server, song, key string) {
 	t.Helper()
-	_, release := s.addDemand(s.queueDemandContext(context.Background(), song), video{key: key, songID: song}, false)
+	_, release := addTestDemand(t, s, s.queueDemandContext(context.Background(), song), video{key: key, songID: song}, false)
 	t.Cleanup(release)
 }
 
 func reconcileSession(t *testing.T, w *downloadSession) {
 	t.Helper()
-	now := time.Now()
-	plan, changed, active := w.plan(now, false)
-	if _, _, err := w.reconcile(plan, now, changed, active); err != nil {
-		t.Fatal(err)
+	for {
+		now := time.Now()
+		plan, changed, active := w.plan(now, false)
+		_, retry, err := w.reconcile(plan, now, changed, active)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !retry {
+			return
+		}
 	}
 }
 

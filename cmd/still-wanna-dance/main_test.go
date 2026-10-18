@@ -50,6 +50,7 @@ func (w *observedWriter) Write(b []byte) (int, error) {
 
 func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	cfg := cacheproxy.DefaultConfig()
+	cfg.CacheUnlimited = true // This shutdown test serves a previously retained video.
 	cfg.Origins["play.udon.dance"] = "127.0.0.1:1"
 	cfg.OriginScheme = "http"
 	cfg.StorageDir = t.TempDir()

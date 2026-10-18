@@ -175,7 +175,7 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
   }
   function reset() {
     if(!draft||!s)return;folder.current?.abort();
-    if(step==='storage'){setCustom(false);setImportEnabled(false);setSource('');update({storageDir:s.defaultStorageDir,cacheUnlimited:true,maxCacheGiB:'40'});void checkStorage(s.defaultStorageDir);}
+    if(step==='storage'){setCustom(false);setImportEnabled(false);setSource('');update({storageDir:s.defaultStorageDir,cacheUnlimited:false,maxCacheGiB:'0'});void checkStorage(s.defaultStorageDir);}
     if(step==='proxy'){void releaseImport(draft.proxyImportID);update({upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',socks5Password:'',proxyImportID:'',proxyImportText:'',proxyReport:undefined});}
   }
   return <div className="wizard"><header><Brand /><Button disabled={busy||recovering||application?.phase==='importing'} onClick={async()=>{if(await leave(false))onExit();}}>{accepted?'放弃更改并退出引导':'退出'}</Button></header>

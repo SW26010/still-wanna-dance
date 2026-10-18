@@ -20,6 +20,9 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 	if !want.AutoStartCDN || !want.AutoStartQueue || want.PrepareAheadSeconds != 500 {
 		t.Fatal("first launch should enable both startup preferences")
 	}
+	if want.CacheUnlimited || want.MaxCacheBytes != 0 {
+		t.Fatal("first launch should not retain unprotected videos")
+	}
 	c.Close()
 	_, fields, err := readConfigFile(path)
 	if err != nil {
@@ -27,6 +30,9 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 	}
 	if string(fields["prepareAheadSeconds"]) != "500" || string(fields["storageDir"]) != `"storage"` || string(fields["schemaVersion"]) != "3" || string(fields["autoStartCDN"]) != "true" || string(fields["autoStartQueue"]) != "true" {
 		t.Fatal(fields)
+	}
+	if string(fields["cacheUnlimited"]) != "false" || string(fields["maxCacheBytes"]) != "0" {
+		t.Fatal("zero retention defaults were not persisted", fields)
 	}
 	if _, err := os.Stat(filepath.Join(root, "storage")); !os.IsNotExist(err) {
 		t.Fatal("opening console created media store", err)

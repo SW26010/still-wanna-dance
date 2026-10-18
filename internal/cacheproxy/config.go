@@ -68,8 +68,8 @@ type Config struct {
 
 func DefaultConfig() Config {
 	return Config{
-		CacheUnlimited:       true,
-		MaxCacheBytes:        40 << 30,
+		CacheUnlimited:       false,
+		MaxCacheBytes:        0,
 		RequestRetentionDays: 30,
 		OriginScheme:         "https",
 		StorageDir:           "still-wanna-dance-data",

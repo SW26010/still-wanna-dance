@@ -34,7 +34,7 @@ func TestSetupCacheUnlimitedAndZero(t *testing.T) {
 		if err != nil || !a.ConfigSaved || c.savedSettings.CacheUnlimited != unlimited || c.savedSettings.MaxCacheBytes != 0 {
 			t.Fatalf("apply: %+v %v", a, err)
 		}
-		if !c.settings.CacheUnlimited || c.settings.MaxCacheBytes != 40<<30 {
+		if c.settings.CacheUnlimited || c.settings.MaxCacheBytes != 0 {
 			t.Fatal("wizard changed active settings before restart")
 		}
 	}

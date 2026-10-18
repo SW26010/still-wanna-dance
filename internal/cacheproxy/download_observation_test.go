@@ -18,6 +18,7 @@ import (
 func TestPrefetchObservationUsesNormalNonblockingLoad(t *testing.T) {
 	payload := bytes.Repeat([]byte("x"), 3*int(rangeBlockSize)+17)
 	cfg := DefaultConfig()
+	cfg.CacheUnlimited = true // The second prefetch must reuse a retained video.
 	cfg.StorageDir = t.TempDir()
 	cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	var received atomic.Int64

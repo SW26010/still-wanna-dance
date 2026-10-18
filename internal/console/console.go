@@ -152,7 +152,7 @@ func New(configPath, address string) (*Console, error) {
 	c.settings = Settings{
 		StorageDir: apppaths.ForConfig(configPath).DefaultStorage, RequestRetentionDays: 30,
 		AutoStartCDN: true, AutoStartQueue: true,
-		CacheUnlimited: true, MaxCacheBytes: 40 << 30,
+		CacheUnlimited: false, MaxCacheBytes: 0,
 	}
 	c.exitRequested = make(chan struct{})
 	c.restartRequested = make(chan struct{})

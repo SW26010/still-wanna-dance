@@ -31,10 +31,11 @@ test('settings save zero independently of unlimited and preserve active capacity
 
 test('wizard restores zero, validates the same range, reviews and applies the explicit choice', async ({page}) => {
   const api = await mockAPI(page);
-  Object.assign(api.state.settings, {cacheUnlimited:false,maxCacheBytes:0});
   await page.goto('/#/setup');
   await navigateStep(page,'2. 存储');
   const input = page.getByRole('spinbutton', {name:'缓存容量（GiB）', exact:true});
+  await expect(page.getByRole('radio', {name:'不限制', exact:true})).toBeChecked();
+  await page.getByRole('button', {name:'恢复本页默认', exact:true}).click();
   await expect(page.getByRole('radio', {name:'限制为', exact:true})).toBeChecked();
   await expect(input).toHaveValue('0');
   for (const invalid of ['-1', '0.001', '8388608', '']) {

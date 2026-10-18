@@ -66,7 +66,7 @@ async function stop(child) {
 async function startService(name, storageDir) {
   const port = await freePort();
   const child = await launch(binary, ['-listen', `127.0.0.1:${port}`,
-    '-storage-dir', storageDir, '-download-timeout', '5m', '-accept-terms', termsVersion], name, port);
+    '-storage-dir', storageDir, '-cache-unlimited=true', '-download-timeout', '5m', '-accept-terms', termsVersion], name, port);
   return { child, port };
 }
 function videoFile(root, url) {
@@ -128,7 +128,7 @@ async function consoleService(name, storageDir, extra = {}) {
   const port = await freePort();
   const config = path.join(lab, `${name}.json`);
   fs.writeFileSync(config, JSON.stringify({ schemaVersion: 3, storageDir, logDir: path.join(lab, 'game-logs'),
-    downloadUpstream: 'auto', autoStartCDN: true, autoStartQueue: false, ...extra }));
+    downloadUpstream: 'auto', autoStartCDN: true, autoStartQueue: false, cacheUnlimited: true, ...extra }));
   // Reuse the operator's existing acceptance; never manufacture a receipt.
   fs.mkdirSync(config + '.d', { recursive: true });
   fs.writeFileSync(path.join(config + '.d', 'terms.json'), receipt);

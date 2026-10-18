@@ -70,7 +70,7 @@ func TestZeroRetentionProtectsReferencesAndReclaimsExistingVideos(t *testing.T) 
 func TestZeroRetentionStartupAndUnlimited(t *testing.T) {
 	for _, unlimited := range []bool{false, true} {
 		t.Run(map[bool]string{false: "zero", true: "unlimited"}[unlimited], func(t *testing.T) {
-			cfg := fixtureConfig()
+			cfg := DefaultConfig()
 			cfg.StorageDir = t.TempDir()
 			initial, err := New(cfg)
 			if err != nil {
@@ -81,7 +81,9 @@ func TestZeroRetentionStartupAndUnlimited(t *testing.T) {
 			}
 			path := cfg.videoFile(strings.Repeat("a", 32))
 			putRetained(t, path, 10)
-			cfg.MaxCacheBytes, cfg.CacheUnlimited = 0, unlimited
+			if unlimited {
+				cfg.CacheUnlimited = true
+			}
 			s, err := New(cfg)
 			if err != nil {
 				t.Fatal(err)

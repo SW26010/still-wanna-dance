@@ -95,7 +95,8 @@ FROM song_usage ORDER BY last_demand_at DESC;
 | `-origin DOMAIN=HOST:PORT` | 空；可重复指定可信的显式域名回源覆盖 |
 | `-download-timeout` | `10m`，分别限制每次已准入块执行（含其重试）、顺序整文件下载，以及共享任务的本地校验/发布阶段；不消耗于调度等待，不限制额度用尽时的独立本地校验路径 |
 | `-max-file-bytes` | `2147483648`（2 GiB） |
-| `-max-cache-bytes` | `0`，缓存容量不限；单位为字节 |
+| `-max-cache-bytes` | `0`，不长期保留视频，保护解除后回收；单位为字节 |
+| `-cache-unlimited` | `false`；设为 `true` 表示不限，不能与显式 `-max-cache-bytes` 同时指定 |
 | `-request-retention-days` | `30`，请求明细保留天数；范围 0～36500，0 为永久保留，热度汇总长期保留 |
 | `-max-downloads` | `3`，仅限制本地文件校验并发（内部 `MaxLocalValidations` / `localChecks`）；资源会话固定上限 32，上游视频请求由全局块调度器控制，普通请求软上限 16，Blocking 缺块立即放行 |
 

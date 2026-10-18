@@ -4,8 +4,8 @@ import "testing"
 
 func TestCacheUnlimitedAndZeroSettings(t *testing.T) {
 	c := testConsole(t)
-	if !c.settings.CacheUnlimited {
-		t.Fatal("default must be unlimited")
+	if c.settings.CacheUnlimited || c.settings.MaxCacheBytes != 0 {
+		t.Fatal("default must not retain unprotected videos")
 	}
 	for _, unlimited := range []bool{false, true} {
 		s := c.settings
@@ -13,7 +13,7 @@ func TestCacheUnlimitedAndZeroSettings(t *testing.T) {
 		if err := c.save(s); err != nil {
 			t.Fatal(err)
 		}
-		if !c.settings.CacheUnlimited {
+		if c.settings.CacheUnlimited || c.settings.MaxCacheBytes != 0 {
 			t.Fatal("saving changed active settings")
 		}
 		loaded, err := New(c.configPath, c.address)

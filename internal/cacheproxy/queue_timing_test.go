@@ -12,7 +12,7 @@ func TestQueueUsesEarliestGETEndAndKeepsLastAnchor(t *testing.T) {
 		w, s := testSession(t)
 		base := time.Now()
 		add := func(seconds time.Duration, offset int64) func() {
-			p := &playbackClock{at: time.Now(), offset: offset, media: mediaTiming{100, seconds}}
+			p := &playbackClock{at: time.Now(), offset: offset, limit: 100, media: mediaTiming{100, seconds}}
 			ctx := context.WithValue(context.Background(), playbackClockKey{}, p)
 			_, release := s.addDemand(ctx, w.v, true)
 			return release

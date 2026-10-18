@@ -119,7 +119,7 @@ func TestExecutionTimeoutExcludesWaitBetweenPlaybackBlocks(t *testing.T) {
 	v, _ := s.parseResolved(r)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	ctx = context.WithValue(ctx, playbackClockKey{}, &playbackClock{at: time.Now(), media: mediaTiming{v.size, 15 * time.Minute}})
+	ctx = context.WithValue(ctx, playbackClockKey{}, &playbackClock{at: time.Now(), limit: v.size, media: mediaTiming{v.size, 15 * time.Minute}})
 	f, reader, err := s.obtain(ctx, v)
 	if err != nil {
 		t.Fatal(err)

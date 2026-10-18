@@ -22,7 +22,7 @@ type withdrawalReason uint8
 
 const (
 	withdrawalSourceGone withdrawalReason = iota
-	withdrawalReadMoved
+	withdrawalNeedEnded
 	withdrawalCompleted
 	withdrawalShutdown
 )

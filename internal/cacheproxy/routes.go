@@ -219,7 +219,7 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 	return nil, errors.Join(failures...)
 }
 
-func (s *Server) openUpstream(ctx context.Context, v video, attempts *resourceAttempts) (*http.Response, string, error) {
+func (s *Server) openUpstream(ctx context.Context, v video, block int64, attempts *resourceAttempts) (*http.Response, string, error) {
 	r, err := s.routeRequest(ctx, v)
 	if err != nil {
 		return nil, "", err
@@ -227,7 +227,9 @@ func (s *Server) openUpstream(ctx context.Context, v video, attempts *resourceAt
 	if attempts.request != nil {
 		r = attempts.request.Clone(ctx)
 	}
-	r.Header.Set("Range", fmt.Sprintf("bytes=0-%d", min(v.size, rangeBlockSize)-1))
+	start := block * rangeBlockSize
+	end := min(v.size, start+rangeBlockSize)
+	r.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", start, end-1))
 	for {
 		resp, err := s.videoResponse(r, v, attempts)
 		if err != nil {
@@ -235,7 +237,7 @@ func (s *Server) openUpstream(ctx context.Context, v video, attempts *resourceAt
 		}
 		switch {
 		case resp.StatusCode == http.StatusPartialContent:
-			err = validateRangeResponse(resp, 0, min(v.size, rangeBlockSize), v.size)
+			err = validateRangeResponse(resp, start, end, v.size)
 		case resp.StatusCode != http.StatusOK:
 			err = fmt.Errorf("upstream status %d", resp.StatusCode)
 		case resp.Header.Get("Content-Encoding") != "" && resp.Header.Get("Content-Encoding") != "identity":

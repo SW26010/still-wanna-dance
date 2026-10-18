@@ -13,6 +13,7 @@ import (
 type playbackClock struct {
 	at     time.Time
 	offset int64
+	limit  int64 // Exclusive GET end; only the request span creates block needs.
 	media  mediaTiming
 }
 
@@ -24,52 +25,49 @@ func (p *playbackClock) ready(offset int64) time.Time {
 
 func (p *playbackClock) end() time.Time { return p.ready(p.media.size) }
 
-func clockFromContext(ctx context.Context) *playbackClock {
-	p, _ := ctx.Value(playbackClockKey{}).(*playbackClock)
-	return p
-}
-
-// Only estimates a playback position. HTTP response validation and Range
-// serving still belong to net/http. Invalid/multipart ranges are not clocks.
-func playbackRangeStart(r *http.Request, v video) (int64, bool) {
+// Match the single Range that ServeContent will serve. The request end bounds
+// download needs, but does not change the estimated end of media playback.
+func playbackRange(r *http.Request, v video) (byteInterval, bool) {
 	if r.Method != http.MethodGet {
-		return 0, false
+		return byteInterval{}, false
 	}
 	header := r.Header.Get("Range")
 	if header == "" {
-		return 0, true
+		return byteInterval{0, v.size}, true
 	}
 	// An unmatched validator causes ServeContent to send the full entity.
 	// playbackContext resolves dates against the verified file before this call.
 	if validator := r.Header.Get("If-Range"); validator != "" && validator != `"`+v.key+`"` {
-		return 0, true
+		return byteInterval{0, v.size}, true
 	}
 	if !strings.HasPrefix(header, "bytes=") || strings.Contains(header, ",") {
-		return 0, false
+		return byteInterval{}, false
 	}
 	left, right, ok := strings.Cut(strings.TrimSpace(strings.TrimPrefix(header, "bytes=")), "-")
 	if !ok {
-		return 0, false
+		return byteInterval{}, false
 	}
 	left, right = strings.TrimSpace(left), strings.TrimSpace(right)
 	if left == "" {
 		length, err := strconv.ParseInt(right, 10, 64)
 		if err != nil || length <= 0 {
-			return 0, false
+			return byteInterval{}, false
 		}
-		return max(0, v.size-length), true
+		return byteInterval{max(0, v.size-length), v.size}, true
 	}
 	start, err := strconv.ParseInt(left, 10, 64)
 	if err != nil || start < 0 || start >= v.size {
-		return 0, false
+		return byteInterval{}, false
 	}
+	limit := v.size
 	if right != "" {
 		end, err := strconv.ParseInt(right, 10, 64)
 		if err != nil || end < start {
-			return 0, false
+			return byteInterval{}, false
 		}
+		limit = min(end, v.size-1) + 1
 	}
-	return start, true
+	return byteInterval{start, limit}, true
 }
 
 func (s *Server) playbackContext(r *http.Request, v video, at time.Time) (context.Context, error) {
@@ -91,7 +89,7 @@ func (s *Server) playbackContext(r *http.Request, v video, at time.Time) (contex
 			}
 		}
 	}
-	offset, ok := playbackRangeStart(r, v)
+	span, ok := playbackRange(r, v)
 	if !ok {
 		return context.WithValue(r.Context(), playbackClockKey{}, (*playbackClock)(nil)), nil
 	}
@@ -99,9 +97,9 @@ func (s *Server) playbackContext(r *http.Request, v video, at time.Time) (contex
 	if err != nil {
 		return nil, err
 	}
-	p := &playbackClock{at: at, offset: offset, media: m}
+	p := &playbackClock{at: at, offset: span.start, limit: span.end, media: m}
 	if s.cfg.Logger != nil {
-		s.cfg.Logger.Debug("playback_timing", "resource_key", v.key, "arrived_at", at, "range_start", offset, "media_bytes", m.size, "duration_seconds", m.duration.Seconds(), "estimated_end", p.end())
+		s.cfg.Logger.Debug("playback_timing", "resource_key", v.key, "arrived_at", at, "range_start", span.start, "range_end", span.end, "media_bytes", m.size, "duration_seconds", m.duration.Seconds(), "estimated_end", p.end())
 	}
 	return context.WithValue(r.Context(), playbackClockKey{}, p), nil
 }

@@ -30,13 +30,13 @@ func TestResourceDemandsExposeAllMissingBlocks(t *testing.T) {
 				_, release := s.addDemand(context.Background(), w.v, kind == "get")
 				defer release()
 			}
-			plan, _ := w.plan(now, false)
+			plan, _, _ := w.plan(now, false)
 			if len(plan) != 1 || len(plan[0]) != 1 {
 				t.Fatal("scheduled extra blocks before Range/entity initialization", len(plan))
 			}
 			w.f.ranges.done = map[int64]bool{0: true, 2: true, 63: true}
 			w.f.ranges.prefix = 1
-			plan, _ = w.plan(now, true)
+			plan, _, _ = w.plan(now, true)
 			if len(plan) != 61 {
 				t.Fatal("resource candidates were capped or completed blocks retained", len(plan))
 			}
@@ -88,7 +88,7 @@ func TestResourceDeadlinesRemainVisibleBeyondEightBlocks(t *testing.T) {
 		gate.Add(blocksched.Need{Owner: "gate", LeaseUntil: now.Add(time.Hour)})
 		<-started
 		for i, session := range []*downloadSession{w, other} {
-			clock := &playbackClock{at: now.Add(time.Duration(i) * 30 * time.Second), media: mediaTiming{session.v.size, 20 * time.Second}}
+			clock := &playbackClock{at: now.Add(time.Duration(i) * 30 * time.Second), limit: session.v.size, media: mediaTiming{session.v.size, 20 * time.Second}}
 			ctx := context.WithValue(context.Background(), playbackClockKey{}, clock)
 			_, closeDemand := s.addDemand(ctx, session.v, true)
 			defer closeDemand()
@@ -100,8 +100,8 @@ func TestResourceDeadlinesRemainVisibleBeyondEightBlocks(t *testing.T) {
 				}
 				session.jobs[block] = &scheduledBlock{task: task, needs: make(map[blockSource]plannedNeed)}
 			}
-			plan, changed := session.plan(now, true)
-			if _, _, err := session.reconcile(plan, now, changed); err != nil {
+			plan, changed, active := session.plan(now, true)
+			if _, _, err := session.reconcile(plan, now, changed, active); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -193,11 +193,11 @@ func TestExpandedResourceRetainsGlobalMetadataCapacity(t *testing.T) {
 	w, s := testSession(t)
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 16, MaxTasks: 16})
 	defer s.scheduler.Close()
-	ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: time.Now().Add(time.Hour), media: mediaTiming{w.v.size, time.Hour}})
+	ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: time.Now().Add(time.Hour), limit: w.v.size, media: mediaTiming{w.v.size, time.Hour}})
 	_, release := s.addDemand(ctx, w.v, true)
 	defer release()
-	plan, changed := w.plan(time.Now(), true)
-	_, _, err := w.reconcile(plan, time.Now(), changed)
+	plan, changed, active := w.plan(time.Now(), true)
+	_, _, err := w.reconcile(plan, time.Now(), changed, active)
 	if err != nil || len(w.jobs) != 16 || w.capacity == nil {
 		t.Fatal("capacity should defer excess registration", len(w.jobs), err)
 	}
@@ -210,8 +210,8 @@ func TestExpandedResourceRetainsGlobalMetadataCapacity(t *testing.T) {
 	}
 	delete(w.jobs, 0)
 	w.f.ranges.done[0] = true
-	plan, changed = w.plan(time.Now(), true)
-	if _, _, err := w.reconcile(plan, time.Now(), changed); err != nil || w.jobs[16] == nil {
+	plan, changed, active = w.plan(time.Now(), true)
+	if _, _, err := w.reconcile(plan, time.Now(), changed, active); err != nil || w.jobs[16] == nil {
 		t.Fatal("freed capacity was not reused", err)
 	}
 	w.close(err)
@@ -236,11 +236,11 @@ func TestTwoLargeFutureVideosDoNotRejectNewResource(t *testing.T) {
 		session.v.key = fmt.Sprintf("video-%d", i)
 		session.v.size = 2 << 30
 		session.f.ranges.done[0], session.f.ranges.prefix = true, 1
-		ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: time.Now().Add(time.Duration(i+1) * time.Hour), media: mediaTiming{session.v.size, time.Hour}})
+		ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: time.Now().Add(time.Duration(i+1) * time.Hour), limit: session.v.size, media: mediaTiming{session.v.size, time.Hour}})
 		_, release := s.addDemand(ctx, session.v, true)
 		defer release()
-		plan, changed := session.plan(time.Now(), true)
-		if _, _, err := session.reconcile(plan, time.Now(), changed); err != nil {
+		plan, changed, active := session.plan(time.Now(), true)
+		if _, _, err := session.reconcile(plan, time.Now(), changed, active); err != nil {
 			t.Fatal("new video failed at metadata capacity", err)
 		}
 		sessions = append(sessions, session)

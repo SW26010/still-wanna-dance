@@ -185,7 +185,7 @@ func TestParallelRangeCleanupPreservesCheckpointFailure(t *testing.T) {
 	f, v := completedRangeFlight(t, s, strings.Repeat("x", int(2*rangeBlockSize)))
 	clear(f.ranges.done)
 	f.ranges.prefix = 0
-	f.spool = f.ranges.makeSpool(nil, nil)
+	f.spool = f.ranges.makeSpool(nil)
 	w := &downloadSession{s: s, f: f, jobs: make(map[int64]*scheduledBlock)}
 	ready, peerStarted := make(chan int64, 1), make(chan struct{})
 	upstream := fmt.Errorf("%w: controlled failed peer", errUpstreamDownload)

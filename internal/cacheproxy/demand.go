@@ -143,7 +143,7 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 		var observed bool
 		d.clock, observed = ctx.Value(playbackClockKey{}).(*playbackClock)
 		if !observed {
-			d.clock = &playbackClock{at: time.Now(), media: estimateMediaTiming(v.size, 0)}
+			d.clock = &playbackClock{at: time.Now(), limit: v.size, media: estimateMediaTiming(v.size, 0)}
 		}
 	}
 	s.mu.Lock()

@@ -21,7 +21,7 @@ func testSession(t *testing.T) (*downloadSession, *Server) {
 	s := &Server{capacityChanged: make(chan struct{})}
 	v := video{key: "content", size: 20 * rangeBlockSize}
 	f := &flight{ranges: &rangeDownload{done: make(map[int64]bool)}}
-	w := &downloadSession{s: s, ctx: context.Background(), v: v, f: f, wake: make(chan struct{}, 1), cursors: make(map[*scheduledCursor]bool), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
+	w := &downloadSession{s: s, ctx: context.Background(), v: v, f: f, wake: make(chan struct{}, 1), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
 	w.initialized = make(chan struct{})
 	close(w.initialized)
 	return w, s
@@ -33,34 +33,17 @@ func TestBlockDemandFollowsActualWaitAndIndependentReaders(t *testing.T) {
 	defer cancel()
 	_, release := s.addDemand(ctx, w.v, true)
 	defer release()
-	advance, releaseCursor := w.track(ctx)
-	defer releaseCursor()
-	advance(12 * rangeBlockSize)
-	plan, _ := w.plan(time.Now(), true)
+	plan, _, _ := w.plan(time.Now(), true)
 	for _, needs := range plan {
 		for _, n := range needs {
 			if n.need.Blocking {
-				t.Fatal("GET/window created synthetic Blocking")
+				t.Fatal("GET created synthetic Blocking")
 			}
 		}
-	}
-	hasRead := func(block int64) bool {
-		for source := range plan[block] {
-			if source.kind == "read" {
-				return true
-			}
-		}
-		return false
-	}
-	if !hasRead(14) {
-		t.Fatal("missing finite read ahead")
-	}
-	if hasRead(15) {
-		t.Fatal("unbounded read ahead")
 	}
 	one, two := w.demand(12*rangeBlockSize), w.demand(12*rangeBlockSize)
 	count := func() int {
-		plan, _ := w.plan(time.Now(), true)
+		plan, _, _ := w.plan(time.Now(), true)
 		n := 0
 		for _, p := range plan[12] {
 			if p.need.Blocking {
@@ -81,13 +64,8 @@ func TestBlockDemandFollowsActualWaitAndIndependentReaders(t *testing.T) {
 	if count() != 0 {
 		t.Fatal("completed wait stayed blocking")
 	}
-	advance(4 * rangeBlockSize)
-	plan, _ = w.plan(time.Now(), true)
-	if hasRead(14) {
-		t.Fatal("Seek retained old read window")
-	}
 	cancel()
-	plan, _ = w.plan(time.Now(), true)
+	plan, _, _ = w.plan(time.Now(), true)
 	if len(plan) != 0 {
 		t.Fatal("canceled context renewed itself")
 	}
@@ -104,14 +82,14 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 		_, release := s.addDemand(s.queueDemandContext(context.Background(), "2"), video{key: w.v.key, songID: "2"}, false)
 		defer release()
 		now := time.Now()
-		plan, _ := w.plan(now, false)
+		plan, _, _ := w.plan(now, false)
 		key := blockSource{"queue", s.prefetchSources["2"]}
 		before, ok := plan[0][key]
 		if !ok || before.source != sourceQueue || before.need.ReadyBy.IsZero() {
 			t.Fatal("ordinary queue source missing")
 		}
 		s.UpdatePrefetchQueue([]int64{2, 1}, false)
-		plan, _ = w.plan(now, false)
+		plan, _, _ = w.plan(now, false)
 		after, ok := plan[0][key]
 		if !ok || after.source != sourceQueueHead || !after.need.ReadyBy.Equal(before.need.ReadyBy.Add(-typicalDuration)) {
 			t.Fatal("queue reorder did not update deadline")
@@ -121,12 +99,12 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 			return blocksched.Result{Err: blocksched.ErrPaused, Remaining: 1}
 		})
 		w.jobs[0] = &scheduledBlock{task: job, needs: make(map[blockSource]plannedNeed)}
-		if _, _, err := w.reconcile(plan, now, nil); err != nil {
+		if _, _, err := w.reconcile(plan, now, nil, false); err != nil {
 			t.Fatal(err)
 		}
 		s.UpdatePrefetchQueue(nil, true)
-		plan, _ = w.plan(now, false)
-		until, _, err := w.reconcile(plan, now, nil)
+		plan, _, _ = w.plan(now, false)
+		until, _, err := w.reconcile(plan, now, nil, false)
 		if err != nil || !until.Equal(now.Add(queueHandoff)) {
 			t.Fatal(until, err)
 		}
@@ -137,7 +115,7 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 			t.Fatal(handoff)
 		}
 		// An unrelated later event must not slide the abandoned queue's lease.
-		later, _, _ := w.reconcile(plan, now.Add(time.Second), nil)
+		later, _, _ := w.reconcile(plan, now.Add(time.Second), nil, false)
 		if !later.Equal(until) {
 			t.Fatal("handoff was extended without a source")
 		}
@@ -156,13 +134,13 @@ func TestBlockLeaseRemovalDoesNotDropOtherOwner(t *testing.T) {
 	})
 	w.jobs[0] = &scheduledBlock{task: job, needs: make(map[blockSource]plannedNeed)}
 	now := time.Now()
-	read := blockSource{"read", "a"}
+	read := blockSource{"get", "a"}
 	queue := blockSource{"queue", "b"}
 	need := blocksched.Need{Owner: "shared", ReadyBy: now, LeaseUntil: now.Add(sourceLease)}
 	plan := map[int64]map[blockSource]plannedNeed{0: {read: {need: need, source: sourceGET}, queue: {need: need, source: sourceQueue}}}
-	w.reconcile(plan, now, nil)
+	w.reconcile(plan, now, nil, false)
 	delete(plan[0], read)
-	w.reconcile(plan, now, nil)
+	w.reconcile(plan, now, nil, false)
 	if len(w.jobs[0].needs) != 1 || !w.jobs[0].handoffUntil.Equal(now.Add(getHandoff)) {
 		t.Fatal("independent source lost or bad GET handoff")
 	}
@@ -219,7 +197,7 @@ func TestCompletionRechecksRangeInitialization(t *testing.T) {
 			if ranged {
 				_, release := s.addDemand(context.Background(), w.v, false)
 				defer release()
-				plan, _ := w.plan(time.Now(), initialized)
+				plan, _, _ := w.plan(time.Now(), initialized)
 				if _, ok := plan[1]; !ok {
 					t.Fatal("remaining ranges were not planned")
 				}

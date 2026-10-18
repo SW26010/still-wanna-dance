@@ -85,24 +85,25 @@ func TestPlaybackRangePosition(t *testing.T) {
 	v := video{key: "checksum", size: 1000}
 	for _, tc := range []struct {
 		header, validator string
-		offset            int64
+		start, end        int64
 		valid             bool
 	}{
-		{"", "", 0, true}, {"bytes=250-", "", 250, true}, {"bytes=250-700", "", 250, true},
-		{"bytes=-100", "", 900, true}, {"bytes=-2000", "", 0, true}, {"bytes=1000-", "", 0, false},
-		{"bytes=-0", "", 0, false}, {"bytes=50-10", "", 0, false}, {"bytes=1-2,4-5", "", 0, false},
-		{"bytes=250-", `"checksum"`, 250, true}, {"bytes=250-", `"other"`, 0, true},
+		{"", "", 0, 1000, true}, {"bytes=250-", "", 250, 1000, true}, {"bytes=250-700", "", 250, 701, true},
+		{"bytes=-100", "", 900, 1000, true}, {"bytes=-2000", "", 0, 1000, true}, {"bytes=1000-", "", 0, 0, false},
+		{"bytes=-0", "", 0, 0, false}, {"bytes=50-10", "", 0, 0, false}, {"bytes=1-2,4-5", "", 0, 0, false},
+		{"bytes=250-", `"checksum"`, 250, 1000, true}, {"bytes=250-", `"other"`, 0, 1000, true},
+		{"bytes=250-9223372036854775807", "", 250, 1000, true}, {"bytes=999-999", "", 999, 1000, true},
 	} {
 		r, _ := http.NewRequest("GET", "http://example.test", nil)
 		r.Header.Set("Range", tc.header)
 		r.Header.Set("If-Range", tc.validator)
-		offset, valid := playbackRangeStart(r, v)
-		if offset != tc.offset || valid != tc.valid {
-			t.Fatal(tc, offset, valid)
+		span, valid := playbackRange(r, v)
+		if span != (byteInterval{tc.start, tc.end}) || valid != tc.valid {
+			t.Fatal(tc, span, valid)
 		}
 	}
 	r, _ := http.NewRequest("HEAD", "http://example.test", nil)
-	if _, valid := playbackRangeStart(r, v); valid {
+	if _, valid := playbackRange(r, v); valid {
 		t.Fatal("HEAD became a playback observation")
 	}
 }
@@ -111,17 +112,14 @@ func TestPlaybackDeadlinesStayAtRequestArrival(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)
 		at := time.Now()
-		clock := &playbackClock{at: at, offset: 8 * rangeBlockSize, media: mediaTiming{20 * rangeBlockSize, 200 * time.Second}}
+		clock := &playbackClock{at: at, offset: 8 * rangeBlockSize, limit: 20 * rangeBlockSize, media: mediaTiming{20 * rangeBlockSize, 200 * time.Second}}
 		ctx := context.WithValue(context.Background(), playbackClockKey{}, clock)
 		_, release := s.addDemand(ctx, w.v, true)
 		defer release()
-		advance, closeReader := w.track(ctx)
-		defer closeReader()
 		time.Sleep(10 * time.Second) // Resolution/download delays do not move the clock.
-		advance(12 * rangeBlockSize)
 		check := func(block int64, want time.Time) {
 			t.Helper()
-			plan, _ := w.plan(time.Now(), true)
+			plan, _, _ := w.plan(time.Now(), true)
 			if len(plan[block]) == 0 {
 				t.Fatal("missing block", block)
 			}
@@ -131,10 +129,13 @@ func TestPlaybackDeadlinesStayAtRequestArrival(t *testing.T) {
 				}
 			}
 		}
-		check(0, at)
+		plan, _, _ := w.plan(time.Now(), true)
+		if len(plan[0]) != 0 {
+			t.Fatal("GET created a deadline before its range")
+		}
+		check(8, at)
 		check(12, at.Add(40*time.Second))
 		time.Sleep(20 * time.Second)
-		advance(13 * rangeBlockSize)
 		check(13, at.Add(50*time.Second))
 		if clock.end() != at.Add(120*time.Second) {
 			t.Fatal("incorrect remaining playback time", clock.end())
@@ -152,8 +153,8 @@ func TestPlaybackContextUsesArrivalAndIgnoresInvalidRanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := clockFromContext(ctx)
-	if p == nil || p.at != at || p.offset != 15_000_000 || p.end() != at.Add(180*time.Second) {
+	p, _ := ctx.Value(playbackClockKey{}).(*playbackClock)
+	if p == nil || p.at != at || p.offset != 15_000_000 || p.limit != 16_000_001 || p.end() != at.Add(180*time.Second) {
 		t.Fatal(p)
 	}
 	r.Header.Set("Range", "bytes=60000000-")

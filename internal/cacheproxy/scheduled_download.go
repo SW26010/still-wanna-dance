@@ -13,17 +13,10 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
-const rangeReadAheadBlocks int64 = 2
 const sourceLease = 30 * time.Second
 const getHandoff = 2 * time.Second
 const queueHandoff = 20 * time.Second
 
-type scheduledCursor struct {
-	ctx   context.Context
-	exit  sourceExit
-	block int64
-	clock *playbackClock
-}
 type scheduledWait struct {
 	block int64
 	at    time.Time
@@ -58,7 +51,6 @@ type downloadSession struct {
 	initOnce    sync.Once
 	opening     *resourceAttempts // first executor's state until headers are accepted
 	mu          sync.Mutex
-	cursors     map[*scheduledCursor]bool
 	waits       map[*scheduledWait]bool
 	jobs        map[int64]*scheduledBlock // resource coordinator only
 	capacity    <-chan struct{}
@@ -69,35 +61,6 @@ func (w *downloadSession) signal() {
 	case w.wake <- struct{}{}:
 	default:
 	}
-}
-func (w *downloadSession) track(ctx context.Context) (func(int64), func()) {
-	c := &scheduledCursor{ctx: ctx, block: -1, clock: clockFromContext(ctx)}
-	w.mu.Lock()
-	w.cursors[c] = true
-	w.mu.Unlock()
-	release := sync.OnceFunc(func() {
-		c.exit.record()
-		w.mu.Lock()
-		delete(w.cursors, c)
-		w.mu.Unlock()
-		w.signal()
-	})
-	stop := context.AfterFunc(ctx, release)
-	return func(offset int64) {
-		w.mu.Lock()
-		changed := false
-		if c.exit.active(ctx) && c.block != offset/rangeBlockSize {
-			if c.clock == nil {
-				c.clock = &playbackClock{at: time.Now(), offset: offset, media: estimateMediaTiming(w.v.size, 0)}
-			}
-			c.block = offset / rangeBlockSize
-			changed = true
-		}
-		w.mu.Unlock()
-		if changed {
-			w.signal()
-		}
-	}, func() { stop(); release() }
 }
 func (w *downloadSession) demand(offset int64) func() {
 	d := &scheduledWait{block: offset / rangeBlockSize, at: time.Now()}
@@ -111,7 +74,7 @@ func (w *downloadSession) demand(offset int64) func() {
 func (w *downloadSession) initialize(d *rangeDownload) {
 	w.f.ranges = d
 	if !w.f.discard {
-		w.f.spool = d.makeSpool(w.demand, w.track)
+		w.f.spool = d.makeSpool(w.demand)
 	}
 	w.f.progress.setStage("range_download")
 	close(w.f.streaming)
@@ -119,7 +82,7 @@ func (w *downloadSession) initialize(d *rangeDownload) {
 }
 
 // The initial request is itself a scheduled block. A 200 fallback keeps that
-// one execution until body close; a 206 exposes the spool before reading block 0.
+// one execution until body close; a 206 exposes the spool before reading its block.
 func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block int64) (result blocksched.Result) {
 	if w.ctx.Err() != nil {
 		return blocksched.Result{Err: context.Cause(w.ctx)}
@@ -152,7 +115,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 		if w.opening == nil {
 			w.opening = new(resourceAttempts)
 		}
-		resp, host, err := w.s.openUpstream(ctx, w.v, w.opening)
+		resp, host, err := w.s.openUpstream(ctx, w.v, block, w.opening)
 		if err != nil {
 			if isScheduledPause(ctx) {
 				if r := w.opening.resume(); r != nil {
@@ -160,18 +123,18 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 					// context. The next execution supplies its own deadline.
 					w.opening.request = r.Clone(context.Background())
 				}
-				return blocksched.Result{Err: blocksched.ErrPaused, Remaining: min(rangeBlockSize, w.v.size)}
+				return blocksched.Result{Err: blocksched.ErrPaused, Remaining: min(rangeBlockSize, w.v.size-block*rangeBlockSize)}
 			}
 			return blocksched.Result{Err: fmt.Errorf("%w: %w", errUpstreamDownload, err)}
 		}
-		w.opening = nil // The response body now owns the cursor, including block 0.
+		w.opening = nil // The response body now owns the initial request's cursor.
 		defer resp.Body.Close()
 		if resp.Request != nil && resp.Request.URL != nil {
 			w.f.progress.setHost(resp.Request.URL.Hostname())
 		}
 		w.f.log.Info("upstream_response", "host", host, "status", resp.StatusCode, "content_length", resp.ContentLength)
 		if resp.StatusCode != http.StatusPartialContent {
-			w.f.sequentialDemand = func(int64) func() { return w.demand(0) }
+			w.f.sequentialDemand = func(int64) func() { return w.demand(block * rangeBlockSize) }
 			w.f.log.Info("range_unavailable", "host", host, "fallback", "sequential")
 			stopBody := context.AfterFunc(ctx, func() { resp.Body.Close() })
 			defer stopBody()
@@ -242,13 +205,10 @@ func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Ne
 	return nil
 }
 
-func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[blockSource]plannedNeed, <-chan struct{}) {
+func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[blockSource]plannedNeed, <-chan struct{}, bool) {
 	plan := make(map[int64]map[blockSource]plannedNeed)
 	blocks := (w.v.size + rangeBlockSize - 1) / rangeBlockSize
-	// Only the first request can establish Range support and entity identity.
-	if !initialized {
-		blocks = min(blocks, 1)
-	}
+	active := false
 	done := func(block int64) bool {
 		if !initialized {
 			return false
@@ -272,33 +232,36 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 		}
 		plan[block][source] = plannedNeed{need: blocksched.Need{Owner: w.v.key, ReadyBy: ready, LeaseUntil: now.Add(sourceLease), Blocking: blocking}, revision: revision, source: origin}
 	}
-	// Every missing block of an admitted resource must be visible to the
-	// global scheduler. A per-resource count would hide both eligible backlog
-	// and earlier deadlines behind the blocks that are already running.
-	var pending []int64
-	for b := first; b < blocks; b++ {
-		if !done(b) {
-			pending = append(pending, b)
-		}
-	}
 	w.s.mu.Lock()
 	changed := w.s.capacityChanged
 	for d := range w.s.demands {
 		if d.key != w.v.key || !d.exit.active(d.ctx) || d.queue {
 			continue
 		}
-		kind := "batch"
+		active = true // Completed request spans still have live readers.
+		kind, origin := "batch", sourceBatch
+		begin, end := first, blocks
 		if d.playback {
-			kind = "get"
+			kind, origin = "get", sourceGET
+			if d.clock == nil {
+				// Invalid ranges need only response metadata for ServeContent's
+				// rejection, never an expanded playback demand.
+				if initialized {
+					continue
+				}
+				end = min(end, 1)
+			} else {
+				begin = max(begin, d.clock.offset/rangeBlockSize)
+				end = min(end, (d.clock.limit+rangeBlockSize-1)/rangeBlockSize)
+			}
 		}
-		for _, b := range pending {
+		if !initialized {
+			end = min(end, begin+1)
+		}
+		for b := begin; b < end; b++ {
 			ready := time.Time{}
 			if d.clock != nil {
 				ready = d.clock.ready(b * rangeBlockSize)
-			}
-			origin := sourceBatch
-			if d.playback {
-				origin = sourceGET
 			}
 			add(b, blockSource{kind, d}, ready, false, 0, origin)
 		}
@@ -308,31 +271,47 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]map[b
 			continue
 		}
 		if source := w.s.prefetchSources[song]; source != nil {
-			for _, b := range pending {
+			active = true
+			end := blocks
+			if !initialized {
+				end = min(end, first+1)
+			}
+			for b := first; b < end; b++ {
 				add(b, blockSource{"queue", source}, source.readyBy(b), false, int64(source.position), source.origin())
 			}
 		}
 	}
 	w.s.mu.Unlock()
 	w.mu.Lock()
-	for c := range w.cursors {
-		if !c.exit.active(c.ctx) || c.block < 0 {
-			continue
-		}
-		for distance := int64(0); distance <= rangeReadAheadBlocks; distance++ {
-			add(c.block+distance, blockSource{"read", c}, c.clock.ready((c.block+distance)*rangeBlockSize), false, c.block, sourceGET)
-		}
-	}
 	for d := range w.waits {
 		add(d.block, blockSource{"blocking", d}, d.at, true, 0, sourceGET)
 	}
 	w.mu.Unlock()
-	return plan, changed
+	if !initialized && len(plan) > 0 {
+		// One request establishes the shared entity/Range capability. Keep
+		// its task stable while headers or sequential fallback are in flight.
+		initial := blocks
+		for b := range plan {
+			initial = min(initial, b)
+		}
+		for b := range w.jobs {
+			initial = b
+			break // Before initialization there is at most one task.
+		}
+		needs := make(map[blockSource]plannedNeed)
+		for _, sources := range plan {
+			for source, need := range sources {
+				needs[source] = need
+			}
+		}
+		plan = map[int64]map[blockSource]plannedNeed{initial: needs}
+	}
+	return plan, changed, active
 }
 
 // All source transitions for one block are merged before a single scheduler
 // update. The scheduler never observes the intermediate GET/handoff ordering.
-func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, now time.Time, changed <-chan struct{}) (time.Time, bool, error) {
+func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, now time.Time, changed <-chan struct{}, active bool) (time.Time, bool, error) {
 	var until time.Time
 	capacity := w.s.scheduler.CapacityChanged()
 	w.capacity = nil
@@ -407,10 +386,6 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 				if exited := record.exit.when(); !exited.IsZero() {
 					at = exited
 				}
-			case *scheduledCursor:
-				if exited := record.exit.when(); !exited.IsZero() {
-					at = exited
-				}
 			case *queueSource:
 				w.s.mu.Lock()
 				if !record.removedAt.IsZero() {
@@ -435,7 +410,7 @@ func (w *downloadSession) reconcile(plan map[int64]map[blockSource]plannedNeed, 
 	// Stop accepting readers before canceling the last tasks or waiting for
 	// their bodies/checkpoints to close. A concurrent GET invalidates an idle
 	// snapshot and must be planned before any irreversible task retirement.
-	if len(plan) == 0 && !until.After(now) && !w.s.preemptFlight(w.f, changed) {
+	if !active && len(plan) == 0 && !until.After(now) && !w.s.preemptFlight(w.f, changed) {
 		return until, true, nil
 	}
 	for _, block := range order {
@@ -499,12 +474,12 @@ func (w *downloadSession) withdrawal(block int64, source blockSource) withdrawal
 	default:
 	}
 	if source.kind == "blocking" {
-		return withdrawalReadMoved
+		return withdrawalNeedEnded
 	}
-	if source.kind == "read" {
-		if c, ok := source.id.(*scheduledCursor); ok && c.exit.active(c.ctx) {
-			return withdrawalReadMoved
-		}
+	if d, ok := source.id.(*downloadDemand); ok && d.exit.active(d.ctx) {
+		// A shared initialization request can cease to be a dependency of a
+		// live GET once its own range is available. That is not a GET exit.
+		return withdrawalNeedEnded
 	}
 	return withdrawalSourceGone
 }
@@ -572,7 +547,7 @@ func (w *downloadSession) close(result error) error {
 }
 
 func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *flight) (result error) {
-	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, path: path, wake: make(chan struct{}, 1), initialized: make(chan struct{}), cursors: make(map[*scheduledCursor]bool), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
+	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, path: path, wake: make(chan struct{}, 1), initialized: make(chan struct{}), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
 	defer func() { result = w.close(result) }()
 	initialized := f.ranges != nil
 	if initialized {
@@ -593,7 +568,7 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 			return err
 		}
 		now := time.Now()
-		plan, changed := w.plan(now, initialized)
+		plan, changed, active := w.plan(now, initialized)
 		// Planning filters completed blocks, so an empty plan can mean the
 		// last range just finished. Check completion after that filtering and
 		// before withdrawing demands; drain task results before hashing.
@@ -617,18 +592,18 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 				continue
 			}
 		}
-		until, retry, err := w.reconcile(plan, now, changed)
+		until, retry, err := w.reconcile(plan, now, changed, active)
 		if err != nil {
 			return err
 		}
 		if retry {
 			continue
 		}
-		if len(plan) == 0 && !until.After(now) {
+		if !active && len(plan) == 0 && !until.After(now) {
 			return errPreempted
 		}
 		wait := sourceLease / 3
-		if len(plan) == 0 {
+		if !active && len(plan) == 0 {
 			wait = min(wait, until.Sub(now))
 		}
 		for _, j := range w.jobs {

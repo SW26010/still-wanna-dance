@@ -34,8 +34,8 @@ func registerQueueResource(t *testing.T, s *Server, song, key string) {
 func reconcileSession(t *testing.T, w *downloadSession) {
 	t.Helper()
 	now := time.Now()
-	plan, _ := w.plan(now, false)
-	if _, _, err := w.reconcile(plan, now, nil); err != nil {
+	plan, changed, active := w.plan(now, false)
+	if _, _, err := w.reconcile(plan, now, changed, active); err != nil {
 		t.Fatal(err)
 	}
 }

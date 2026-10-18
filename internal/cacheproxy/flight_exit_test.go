@@ -26,20 +26,20 @@ func TestGETArrivingAfterIdleSnapshotKeepsFlight(t *testing.T) {
 		reconcileSession(t, w)
 		release() // Batch withdrawal has no handoff, so this plan is idle.
 		now := time.Now()
-		plan, changed := w.plan(now, false)
+		plan, changed, active := w.plan(now, false)
 		if len(plan) != 0 {
 			t.Fatal("test did not capture an idle plan")
 		}
 		_, releaseGET := s.addDemand(context.Background(), w.v, true)
 		defer releaseGET()
-		if _, retry, err := w.reconcile(plan, now, changed); err != nil || !retry {
+		if _, retry, err := w.reconcile(plan, now, changed, active); err != nil || !retry {
 			t.Fatal("concurrent GET did not invalidate idle snapshot", retry, err)
 		}
 		if w.f.preempted || w.jobs[0].retiring {
 			t.Fatal("stale plan committed flight/task retirement")
 		}
-		plan, changed = w.plan(now, false)
-		if _, retry, err := w.reconcile(plan, now, changed); err != nil || retry {
+		plan, changed, active = w.plan(now, false)
+		if _, retry, err := w.reconcile(plan, now, changed, active); err != nil || retry {
 			t.Fatal("fresh GET plan was not applied", retry, err)
 		}
 		if len(w.jobs[0].needs) != 1 || w.f.preempted {

@@ -62,7 +62,7 @@ func TestSourceAndWithdrawalReasonDetermineHandoff(t *testing.T) {
 		{"head removed", sourceQueueHead, withdrawalSourceGone, queueHandoff},
 		{"ordinary removed", sourceQueue, withdrawalSourceGone, 0},
 		{"batch canceled", sourceBatch, withdrawalSourceGone, 0},
-		{"read advanced", sourceGET, withdrawalReadMoved, 0},
+		{"read unblocked", sourceGET, withdrawalNeedEnded, 0},
 		{"completed", sourceGET, withdrawalCompleted, 0},
 		{"shutdown", sourceGET, withdrawalShutdown, 0},
 	} {
@@ -96,7 +96,7 @@ func TestQueuePromotionDemotionDoesNotCreateHandoff(t *testing.T) {
 	key := blockSource{"queue", "song"}
 	for i, origin := range []demandSource{sourceQueue, sourceQueueHead, sourceQueue} {
 		p := plannedNeed{source: origin, revision: int64(i), need: blocksched.Need{Owner: "shared", ReadyBy: now.Add(time.Duration(i+1) * time.Second), LeaseUntil: now.Add(sourceLease)}}
-		if _, _, err := w.reconcile(map[int64]map[blockSource]plannedNeed{0: {key: p}}, now, nil); err != nil {
+		if _, _, err := w.reconcile(map[int64]map[blockSource]plannedNeed{0: {key: p}}, now, nil, false); err != nil {
 			t.Fatal(err)
 		}
 		j := w.jobs[0]
@@ -105,7 +105,7 @@ func TestQueuePromotionDemotionDoesNotCreateHandoff(t *testing.T) {
 		}
 	}
 	// Its current source is ordinary queue; removal must end it directly.
-	if until, _, err := w.reconcile(nil, now, nil); err != nil || !until.IsZero() {
+	if until, _, err := w.reconcile(nil, now, nil, false); err != nil || !until.IsZero() {
 		t.Fatal("ordinary queue removal acquired grace", until, err)
 	}
 	if err := task.Err(); !errors.Is(err, context.Canceled) {
@@ -113,17 +113,16 @@ func TestQueuePromotionDemotionDoesNotCreateHandoff(t *testing.T) {
 	}
 }
 
-func TestReadProgressAndCompletionDoNotProduceHandoff(t *testing.T) {
+func TestReadWaitAndCompletionDoNotProduceHandoff(t *testing.T) {
 	w, _ := testSession(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	c := &scheduledCursor{ctx: ctx}
-	key := blockSource{"read", c}
-	if w.withdrawal(0, key) != withdrawalReadMoved {
-		t.Fatal("normal read/seek was treated as GET exit")
+	key := blockSource{"blocking", &scheduledWait{}}
+	if w.withdrawal(0, key) != withdrawalNeedEnded {
+		t.Fatal("completed read wait was treated as GET exit")
 	}
 	cancel()
-	if w.withdrawal(0, key) != withdrawalSourceGone {
-		t.Fatal("closed reader lost its source exit")
+	if w.withdrawal(0, key) != withdrawalNeedEnded {
+		t.Fatal("canceled read wait created a handoff")
 	}
 	w.f.ranges.done[0] = true
 	if w.withdrawal(0, key) != withdrawalCompleted {
@@ -177,7 +176,7 @@ func TestBlockSourceMetadataIsBounded(t *testing.T) {
 	for i := 0; i <= maxBlockContributions; i++ {
 		plan[0][blockSource{"get", i}] = plannedNeed{source: sourceGET, need: blocksched.Need{Owner: "v", LeaseUntil: now.Add(sourceLease)}}
 	}
-	if _, _, err := w.reconcile(plan, now, nil); !errors.Is(err, blocksched.ErrCapacity) || !errors.Is(err, errBusy) {
+	if _, _, err := w.reconcile(plan, now, nil, false); !errors.Is(err, blocksched.ErrCapacity) || !errors.Is(err, errBusy) {
 		t.Fatal("source bound ignored", err)
 	}
 	task.Close()

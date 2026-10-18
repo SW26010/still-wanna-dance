@@ -493,3 +493,14 @@ GET 时钟携带规范化请求结束位置，只为与实际响应区间相交�
 定向检查覆盖满预算替换、低分拒绝且不进入 hash、保护阻止替换、低分先到预留可被撤销、旧释放不影响新预留、发布前保护改变、真正等待本地校验槽位的低分合并被取消、零预算多次 GET 复用临时块、不校验故意不匹配的 MD5、手动未完成和队列临时就绪。最终 cacheproxy/console/blocksched/cmd 完整回归通过（publication-admission-full-final.log，30.712 s / 60.040 s / 0.092 s）；相关三轮 Windows race 通过（publication-admission-race-final.log，3.782 s / 3.243 s），go vet 和 diff 检查通过。
 
 首轮新保护夹具未初始化 map，在持锁断言时触发清理等待并超时，已修正；初次完整回归中旧测试仍期待未准入内容先发布再淘汰，现改为临时块复用，已有正式视频在预算降为零后的保护测试保留。原失败和重跑日志均保存在 artifacts/download-resource/。零预算逐块积极回收、任务截止与调度核心停止语义仍待后续实现；未启动 VRC、修改 hosts 或 push。
+
+
+## 51. 零预算按块积极回收
+
+2026-10-19：仅有限视频预算为零时，完整块提交、来源变化及保护尾期到期触发现有 retentionLoop。保护判断与从可用集合移除共用 retentionMu；实际块读取及合并快照延迟对应旧文件删除，整份会话和 reader 引用不额外保护其他块。新写入使用独立路径，旧清理不会删除替换数据；仅引擎持有的空资源同时释放。正预算（包括已满）和不限模式保持临时完整块，不因落盘未准入积极清理。
+
+协调器保留当前零预算会话已经完成的块工作记录，回收不触发该会话反复补齐；实际缺块 Read 仍可重新请求，后续会话根据真实可用性重新准备。不为两个提前窗口不等长增加补偿保护，不因使用容量或资源引用而延长固定尾期。
+
+定向检查通过（block-reclamation-targeted.log）；完整 cacheproxy/console/blocksched/cmd 回归通过（block-reclamation-full.log，30.230 s / 59.936 s / 0.169 s），相关 Windows race 连续三轮通过（block-reclamation-race.log，14.267 s），go vet 和 diff 检查通过。覆盖：零/正/不限预算区别；过期与远期块回收；正在读取的旧文件与重新写入并存；GET 消费后固定 60 秒回收且 reader 仍打开；真实后台到期唤醒；四块 Range 在途逐块删除而不反复下载；真实缺块读取重新申请。
+
+原始日志位于本地忽略目录 artifacts/download-resource/。下载截止和调度核心停止语义仍待后续实现；未启动 VRC、修改 hosts 或 push。

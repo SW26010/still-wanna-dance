@@ -41,6 +41,7 @@ type downloadSession struct {
 	mu          sync.Mutex
 	waits       map[*scheduledWait]bool
 	jobs        map[int64]*scheduledBlock // resource coordinator only
+	finished    map[int64]bool            // Completed work in this session; independent of later zero-budget reclamation.
 	capacity    <-chan struct{}
 }
 
@@ -216,7 +217,12 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]block
 		local = w.s.localResources[w.v.key]
 		w.s.retentionMu.Unlock()
 	}
+	zeroBudget := w.s.zeroVideoBudget()
 	for b := range plan {
+		if zeroBudget && w.finished[b] && !plan[b].need.Blocking {
+			delete(plan, b)
+			continue
+		}
 		if b < 0 || b >= blocks || local != nil && local.has(b) {
 			delete(plan, b)
 		}
@@ -371,6 +377,12 @@ func (w *downloadSession) reapCompleted(initialized *bool) (bool, error) {
 			if !*initialized && !j.retiring {
 				return true, nil
 			} // sequential 200, already published
+			if j.task.Err() == nil && !w.f.discard && w.s.zeroVideoBudget() {
+				if w.finished == nil {
+					w.finished = make(map[int64]bool)
+				}
+				w.finished[block] = true
+			}
 		default:
 		}
 	}
@@ -428,6 +440,9 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 		complete := false
 		if initialized {
 			complete = f.ranges.complete()
+			if !complete && !f.discard && s.zeroVideoBudget() {
+				complete = len(plan) == 0 && w.allFetched()
+			}
 			if complete && len(w.jobs) == 0 {
 				break
 			}
@@ -488,4 +503,16 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 	ctx, stopPublication := context.WithTimeout(ctx, s.cfg.DownloadTimeout)
 	defer stopPublication()
 	return s.publishBlocks(ctx, path, v, f)
+}
+
+// Reclaiming an unprotected block does not request another download. A genuine
+// missing Read can still re-request it through Blocking. Keep this session's
+// completion fact so a wider download window cannot create a refill/evict loop.
+func (w *downloadSession) allFetched() bool {
+	for block := int64(0); block < blockCount(w.v.size); block++ {
+		if !w.finished[block] && !w.f.ranges.has(block) {
+			return false
+		}
+	}
+	return true
 }

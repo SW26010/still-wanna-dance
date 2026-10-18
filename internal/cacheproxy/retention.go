@@ -212,6 +212,7 @@ func (s *Server) reconcileRetention() error {
 }
 
 func (s *Server) trimCachePass(reconcile bool) error {
+	s.reclaimLocalBlocks()
 	s.retentionMu.Lock()
 	limit := s.cfg.MaxCacheBytes
 	unlimited := s.cfg.CacheUnlimited

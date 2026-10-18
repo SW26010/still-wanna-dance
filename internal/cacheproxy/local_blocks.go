@@ -11,6 +11,8 @@ import (
 	"still-wanna-dance/internal/applog"
 )
 
+var errBlockUnavailable = fmt.Errorf("block is no longer available: %w", os.ErrNotExist)
+
 // blockFiles owns immutable, complete blocks for one content identity. The
 // engine, current execution and old readers hold separate resource references;
 // none of those references alone prevents reclaiming an unprotected block.
@@ -160,7 +162,7 @@ func (f *blockFiles) pin(block int64) (*localBlockFile, error) {
 	}
 	b := f.files[block]
 	if b == nil {
-		return nil, os.ErrNotExist
+		return nil, errBlockUnavailable
 	}
 	b.pins++
 	return b, nil

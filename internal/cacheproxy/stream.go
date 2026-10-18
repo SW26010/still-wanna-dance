@@ -121,6 +121,12 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 			}
 			n, err := s.blocks.ReadAt(p[:next], r.offset)
 			r.offset += int64(n)
+			if errors.Is(err, errBlockUnavailable) {
+				if n > 0 {
+					return n, nil
+				}
+				continue // Re-check availability and register a genuine missing read.
+			}
 			if err != nil {
 				r.err = err
 			}

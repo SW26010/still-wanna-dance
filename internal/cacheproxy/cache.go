@@ -391,6 +391,7 @@ func (s *Server) publish(ctx context.Context, src io.Reader, path string, v vide
 		if _, err := sp.WriteAt(buffer[:size], block*rangeBlockSize); err != nil {
 			return err
 		}
+		s.requestBlockReclamation()
 	}
 	ctx, stopPublication := context.WithTimeout(ctx, s.cfg.DownloadTimeout)
 	defer stopPublication()

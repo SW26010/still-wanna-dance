@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+type byteInterval struct{ start, end int64 }
+
 type playbackClock struct {
 	at     time.Time
 	offset int64

@@ -17,8 +17,8 @@ func TestStartupCleansOnlyRecognizedTemporaryMedia(t *testing.T) {
 	if err := initial.Close(); err != nil {
 		t.Fatal(err)
 	}
-	removed := []string{"download-123.part", "download-publish-456.part", "import-789/video"}
-	kept := []string{"download-not-ours.part", "import-not-ours/video", "import-111/video", "import-111/notes", "import-222/nested/video", "notes"}
+	removed := []string{"download-block-789.part", "download-123.part", "download-publish-456.part", "import-789/video"}
+	kept := []string{"download-block-unknown.part", "download-not-ours.part", "import-not-ours/video", "import-111/video", "import-111/notes", "import-222/nested/video", "notes"}
 	for _, name := range append(append([]string{}, removed...), kept...) {
 		writeTestFile(t, filepath.Join(cfg.tempDir(), name), "keep content")
 	}

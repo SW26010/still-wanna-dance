@@ -40,48 +40,19 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 	start, end := block*rangeBlockSize, min((block+1)*rangeBlockSize, v.size)
 	// Redirect progress belongs to this block; other workers keep their
 	// own endpoint and candidate cursor.
-	state := download.take(block)
-	blockVideo := state.video
+	blockVideo := v
 	resp := initial
-	attempts := state.attempts
+	attempts := new(resourceAttempts)
 	if resp != nil {
 		if body, ok := resp.Body.(*resourceBody); ok {
 			attempts = body.attempts
 		}
 	}
-	last, received := state.last, state.received
-	if received > 0 {
-		if *buffer == nil {
-			*buffer = s.rangeBuffer()
-		}
-		if _, err := download.storage.file.ReadAt((*buffer)[:received], start); err != nil {
-			return err
-		}
-	}
-	resume := func() {
-		if r := attempts.resume(); r != nil {
-			if selected, err := s.parse(r); err == nil && selected.key == v.key && selected.size == v.size {
-				blockVideo.host, blockVideo.path, blockVideo.query = selected.host, selected.path, selected.query
-			}
-		}
-	}
-	pause := func() error {
-		if flight.discard {
-			// No media/checkpoint is retained by the diagnostic. Its owner ends
-			// the load on cancellation instead of resuming discarded content.
-			return context.Canceled
-		}
-		resume()
-		state.video, state.received, state.last, state.attempts = blockVideo, received, last, attempts
-		if err := download.save(block, state, *buffer); err != nil {
-			return err
-		}
-		return blocksched.ErrPaused
-	}
+	var last error
 	for {
 		if err := ctx.Err(); err != nil {
 			if isScheduledPause(ctx) {
-				return pause()
+				return blocksched.ErrPaused
 			}
 			return err
 		}
@@ -96,7 +67,7 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 				if err != nil {
 					return err
 				}
-				req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", start+received, end-1))
+				req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", start, end-1))
 				if etag != "" {
 					req.Header.Set("If-Match", etag)
 				}
@@ -121,7 +92,7 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 				}
 				blockVideo.host, blockVideo.path, blockVideo.query = selected.host, selected.path, selected.query
 			}
-			if err := validateRangeResponse(resp, start+received, end, v.size); err != nil {
+			if err := validateRangeResponse(resp, start, end, v.size); err != nil {
 				return err
 			}
 			if etag != "" && resp.Header.Get("ETag") != etag {
@@ -142,11 +113,11 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 			if *buffer == nil {
 				*buffer = s.rangeBuffer()
 			}
-			data, err = readRangeBlock(contextReader{transferCtx, progressReader{upstreamReader{body}, flight.progress}}, (*buffer)[received:end-start+1])
+			data, err = readRangeBlock(contextReader{transferCtx, progressReader{upstreamReader{body}, flight.progress}}, (*buffer)[:end-start+1])
 			if err != nil {
 				return err
 			}
-			if received+int64(len(data)) != end-start {
+			if int64(len(data)) != end-start {
 				return io.ErrUnexpectedEOF
 			}
 			return nil
@@ -157,19 +128,10 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 			break
 		}
 		if err != nil && preempted {
-			received += int64(len(data))
-			// A canceled response with all advertised bytes but without EOF
-			// still needs normal oversize validation; do not publish it early.
-			if received >= end-start {
-				received = 0
-			}
-			if preempted {
-				return pause()
-			}
+			return blocksched.ErrPaused
 		}
 		if err != nil {
 			last = applog.SafeError(err)
-			received = 0
 			continue
 		}
 		if !flight.discard {

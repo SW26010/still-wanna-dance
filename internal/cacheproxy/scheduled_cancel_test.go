@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"sync/atomic"
 	"testing"
@@ -75,14 +74,8 @@ func TestCanceledSessionCannotRestartPausedTask(t *testing.T) {
 			if result := w.run(context.Background(), new(blocksched.Progress), 0); !errors.Is(result.Err, errPreempted) || calls.Load() != 1 {
 				t.Fatal("late dispatch opened a canceled session", result.Err, calls.Load())
 			}
-			if !headers {
-				if f.ranges.bytes() != 64<<10 {
-					t.Fatal("session cancellation lost its saved prefix", f.ranges.bytes())
-				}
-				got := make([]byte, 64<<10)
-				if _, err := io.ReadFull(io.NewSectionReader(f.ranges.storage.file, 0, 64<<10), got); err != nil || !bytes.Equal(got, body[:64<<10]) {
-					t.Fatal("saved prefix differs", err)
-				}
+			if !headers && (f.ranges.bytes() != 0 || f.ranges.has(0)) {
+				t.Fatal("cancellation exposed an incomplete block", f.ranges.bytes())
 			}
 		})
 	}

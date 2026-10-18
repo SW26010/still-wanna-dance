@@ -72,6 +72,9 @@ func TestParallelRangeEntityValidation(t *testing.T) {
 			} else if statErr != nil || !bytes.Equal(got, body) {
 				t.Fatal("published bytes differ", statErr)
 			}
+			if err := s.Close(); err != nil {
+				t.Fatal(err)
+			}
 			entries, err := os.ReadDir(s.cfg.tempDir())
 			if err != nil || len(entries) != 0 {
 				t.Fatal("temporary files remain", entries, err)
@@ -178,28 +181,26 @@ func TestParallelRangeFailureJoinsClosingPeersBeforeCleanup(t *testing.T) {
 // Ensure the test peer retains the same ownership contract as an HTTP body.
 var _ io.ReadCloser = (*rangeClosingPeer)(nil)
 
-func TestParallelRangeCleanupPreservesCheckpointFailure(t *testing.T) {
+func TestParallelRangeCleanupPreservesBlockWriteFailure(t *testing.T) {
 	s, _ := setup(t, nil)
 	s.scheduler.Close()
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 2})
 	f, v := completedRangeFlight(t, s, strings.Repeat("x", int(2*rangeBlockSize)))
-	clear(f.ranges.done)
-	f.ranges.prefix = 0
 	f.spool = f.ranges.makeSpool(nil)
 	w := &downloadSession{s: s, f: f, jobs: make(map[int64]*scheduledBlock)}
-	ready, peerStarted := make(chan int64, 1), make(chan struct{})
+	started := make(chan struct{}, 2)
 	upstream := fmt.Errorf("%w: controlled failed peer", errUpstreamDownload)
+	// Invalid temporary destination forces an actual filesystem write failure.
+	f.ranges.storage.dir = localBlockPath(t, f.ranges.storage, 1)
+	f.ranges.storage.removeFiles(f.ranges.storage.retire(func(block int64) bool { return block == 0 }))
 	for block := int64(0); block < 2; block++ {
 		task, err := s.scheduler.Submit(fmt.Sprint(block), rangeBlockSize, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
+			started <- struct{}{}
+			<-ctx.Done()
 			if block == 1 {
-				close(peerStarted)
-				<-ctx.Done()
 				return blocksched.Result{Err: upstream}
 			}
-			resp := &http.Response{StatusCode: 206, ContentLength: rangeBlockSize,
-				Header: http.Header{"Content-Range": {fmt.Sprintf("bytes 0-%d/%d", rangeBlockSize-1, v.size)}},
-				Body:   &yieldingRangeBody{ctx: ctx, prefix: bytes.Repeat([]byte("x"), 64<<10), ready: ready}}
-			return blocksched.Result{Err: s.readScheduledRange(ctx, block, resp, f, p)}
+			return blocksched.Result{Err: f.ranges.storage.store(0, bytes.Repeat([]byte("x"), int(rangeBlockSize)))}
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -208,21 +209,14 @@ func TestParallelRangeCleanupPreservesCheckpointFailure(t *testing.T) {
 		task.Add(blocksched.Need{Owner: "background", LeaseUntil: time.Now().Add(time.Minute)})
 	}
 	defer w.close(nil)
-	receiveDemandEvent(t, ready)
-	receiveDemandEvent(t, peerStarted)
-	if err := f.ranges.storage.file.Close(); err != nil {
-		t.Fatal(err)
+	for range 2 {
+		receiveDemandEvent(t, started)
 	}
-	// Both tasks remain in the coordinator's map: one reports the upstream
-	// failure, the other fails while saving its prefix during cancellation.
 	err := s.storageError(w.close(upstream))
-	if !errors.Is(w.jobs[0].task.Err(), os.ErrClosed) || !errors.Is(w.jobs[1].task.Err(), errUpstreamDownload) {
-		t.Fatal("test did not produce both cleanup failures", w.jobs[0].task.Err(), w.jobs[1].task.Err())
-	}
-	if !errors.Is(err, ErrLocalStorage) || !errors.Is(err, os.ErrClosed) || errors.Is(err, errUpstreamDownload) || s.StorageError() == nil {
-		t.Fatal("upstream cleanup masked the checkpoint failure", err, s.StorageError())
+	if !errors.Is(w.jobs[1].task.Err(), errUpstreamDownload) || !errors.Is(err, ErrLocalStorage) || errors.Is(err, errUpstreamDownload) || s.StorageError() == nil {
+		t.Fatal("upstream cleanup masked block write failure", err, s.StorageError())
 	}
 	if _, reader, err := s.obtain(context.Background(), v); reader != nil || !errors.Is(err, ErrLocalStorage) {
-		t.Fatal("checkpoint failure did not stop subsequent downloads", err)
+		t.Fatal("write failure did not stop subsequent downloads", err)
 	}
 }

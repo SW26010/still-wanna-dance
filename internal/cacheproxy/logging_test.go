@@ -211,12 +211,12 @@ func TestLogsClientWriteFailureAfter200(t *testing.T) {
 func TestProgressReportsStallAndStopsBeforeTerminal(t *testing.T) {
 	logs := new(logCapture)
 	p := startProgress(slog.New(slog.NewJSONHandler(logs, nil)), 10, time.Millisecond)
-	p.setStage("download_and_hash")
+	p.setStage("download")
 	deadline := time.Now().Add(time.Second)
 	for {
 		found := false
 		for _, r := range logs.records(t) {
-			if r["msg"] == "download_progress" && r["stage"] == "download_and_hash" {
+			if r["msg"] == "download_progress" && r["stage"] == "download" {
 				found = true
 				if r["bytes"] != float64(0) || r["bytes_per_second"] != float64(0) {
 					t.Fatal(r)

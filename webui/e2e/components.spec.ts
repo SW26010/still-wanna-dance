@@ -52,7 +52,7 @@ test('native node file picker rejects oversize files and can reread the same fil
 test('download list releases focus to its panel when polling removes the active row', async ({page}) => {
   await mockAPI(page);
   let present = true;
-  await page.route('**/api/downloads', r=>r.fulfill({json:{bytesPerSecond:1024,tasks:present?[{id:'task',resource:'fixture-resource',songs:[{id:'1',title:'下载中的歌曲'}],stage:'download_and_hash',bytes:1024,size:2048,bytesPerSecond:1024,idleMS:0}]:[]}}));
+  await page.route('**/api/downloads', r=>r.fulfill({json:{bytesPerSecond:1024,tasks:present?[{id:'task',resource:'fixture-resource',songs:[{id:'1',title:'下载中的歌曲'}],stage:'download',bytes:1024,size:2048,bytesPerSecond:1024,idleMS:0}]:[]}}));
   await page.clock.install(); await page.goto('/#/monitor');
   const row = page.getByRole('grid', {name:'下载任务'}).getByRole('row');
   await row.focus(); await page.keyboard.press('ArrowRight');

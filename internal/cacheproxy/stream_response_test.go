@@ -5,8 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 )
@@ -28,13 +26,9 @@ func (w *firstBodyRecorder) Write(p []byte) (int, error) {
 func TestStreamResponseCompletesBeforeVerification(t *testing.T) {
 	for _, ifRange := range []string{`"different"`, `W/"current"`, "Wed, 21 Oct 2015 07:28:00 GMT", `"current"`} {
 		t.Run(ifRange, func(t *testing.T) {
-			file, err := os.Create(filepath.Join(t.TempDir(), "spool"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			sp := &spool{file: file, changed: make(chan struct{}), refs: 1, sparse: true, demand: func(int64) func() { return func() {} }}
-			defer sp.release()
 			const body = "complete bytes awaiting verification"
+			sp := &spool{blocks: newBlockFiles(t.TempDir(), int64(len(body)), nil), changed: make(chan struct{}), refs: 1, demand: func(int64) func() { return func() {} }}
+			defer sp.release()
 			if _, err := sp.WriteAt([]byte(body), 0); err != nil {
 				t.Fatal(err)
 			}

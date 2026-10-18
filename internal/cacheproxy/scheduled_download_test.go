@@ -28,7 +28,7 @@ func testSession(t *testing.T) (*downloadSession, *Server) {
 		s.mu.Unlock()
 	})
 	v := video{key: "content", size: 20 * rangeBlockSize}
-	f := &flight{ranges: &rangeDownload{done: make(map[int64]bool)}}
+	f := &flight{ranges: &localResource{done: make(map[int64]bool)}}
 	w := &downloadSession{s: s, ctx: context.Background(), v: v, f: f, wake: make(chan struct{}, 1), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
 	w.initialized = make(chan struct{})
 	close(w.initialized)

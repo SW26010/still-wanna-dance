@@ -10,22 +10,20 @@ import (
 	"testing"
 )
 
-func TestPausedCleanupFailureIsLoggedAndRetriedAtStartup(t *testing.T) {
+func TestBlockCleanupFailureIsLoggedAndRetriedAtStartup(t *testing.T) {
 	s, cfg := setup(t, nil)
 	r, _ := http.NewRequest("GET", videoURL(payload), nil)
 	v, _ := s.parseResolved(r)
 	var log bytes.Buffer
-	d, err := s.newRangeDownload(v, &http.Response{Header: make(http.Header)}, slog.New(slog.NewTextHandler(&log, nil)))
+	d, err := s.newLocalResource(v, &http.Response{Header: make(http.Header)}, slog.New(slog.NewTextHandler(&log, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := d.storage.file.WriteAt([]byte(payload[:4]), 0); err != nil {
-		d.storage.release()
+	if err := d.storage.store(0, []byte(payload)); err != nil {
 		t.Fatal(err)
 	}
-	d.partial[0] = &rangeResumeBlock{video: v, received: 4, attempts: new(resourceAttempts)}
-	s.paused = map[string]*rangeDownload{v.key: d}
-	path := d.storage.file.Name()
+	path := localBlockPath(t, d.storage, 0)
+	d.storage.release() // Only the registry remains.
 	// Windows denies deletion while this unrelated handle remains open.
 	held, err := os.Open(path)
 	if err != nil {
@@ -48,7 +46,7 @@ func TestPausedCleanupFailureIsLoggedAndRetriedAtStartup(t *testing.T) {
 	}
 	defer next.Close()
 	assertNoPartial(t, cfg.tempDir())
-	if len(next.paused) != 0 {
+	if len(next.localResources) != 0 {
 		t.Fatal("new engine recovered a previous engine's progress")
 	}
 	if _, err := next.verifiedFile(context.Background(), v); !os.IsNotExist(err) {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"time"
 
@@ -122,14 +123,14 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		s.mu.Unlock()
 		return nil, nil, errors.New("shared resource size mismatch")
 	}
-	if paused := s.paused[v.key]; paused != nil && paused.video.size != v.size {
-		s.mu.Unlock()
-		return nil, nil, errors.New("paused resource size mismatch")
-	}
 	if f == nil {
 		f = &flight{size: v.size, done: make(chan struct{}), streaming: make(chan struct{}), id: s.flightSequence.Add(1)}
-		f.ranges = s.paused[v.key]
-		delete(s.paused, v.key)
+		local, err := s.acquireLocalResource(v)
+		if err != nil {
+			s.mu.Unlock()
+			return nil, nil, err
+		}
+		f.ranges = local
 		workerCtx, cancel := context.WithCancelCause(s.ctx)
 		f.cancel, f.background = cancel, background
 		f.log = log.With("flight_id", f.id, "host", v.host)
@@ -170,20 +171,11 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 				f.spool.finish(f.err)
 				f.spool.release()
 			}
-			s.mu.Lock()
-			checkpoint := f.ranges
-			var discarded []*rangeDownload
-			if checkpoint != nil && errors.Is(f.err, errPreempted) && !s.closed && s.storageFailure == nil {
-				discarded = s.retainPausedLocked(v.key, checkpoint)
-				f.log.Info("download_paused", "retained_bytes", checkpoint.bytes())
-				checkpoint = nil // the engine now owns this reference
-			}
-			s.mu.Unlock()
-			for _, victim := range discarded {
-				victim.storage.release()
-			}
-			if checkpoint != nil {
-				checkpoint.storage.release()
+			if local := f.ranges; local != nil {
+				if f.err == nil || errors.Is(f.err, errInvalidCache) || local.bytes() == 0 {
+					s.forgetLocalResource(v.key, local)
+				}
+				local.storage.release()
 			}
 			s.mu.Lock()
 			delete(s.flights, v.key)
@@ -333,7 +325,7 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 		flight.progress.bytes = retained
 		flight.progress.mu.Unlock()
 		flight.progress.setHost(flight.ranges.video.host)
-		flight.log.Info("download_resumed", "retained_bytes", retained)
+		flight.log.Info("local_blocks_reused", "retained_bytes", retained)
 	}
 	publishErr := s.publishScheduled(ctx, path, v, flight)
 	if err := publishErr; err != nil {
@@ -349,71 +341,49 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 	return path, "MISS", nil
 }
 
+// A sequential response uses the same complete-block store as Range downloads.
+// Incomplete blocks remain in memory and are discarded when execution stops.
 func (s *Server) publish(ctx context.Context, src io.Reader, path string, v video, flight *flight) error {
-	f, err := os.CreateTemp(s.cfg.tempDir(), "download-*.part")
-	if err != nil {
-		return err
+	if flight.ranges == nil {
+		d, err := s.newLocalResource(v, &http.Response{StatusCode: http.StatusOK, Header: make(http.Header)}, flight.log)
+		if err != nil {
+			return err
+		}
+		flight.ranges = d
 	}
-	sp := &spool{file: f, storage: &spoolFile{file: f, refs: 1, log: flight.log}, changed: make(chan struct{}), refs: 1, demand: flight.sequentialDemand}
+	sp := flight.ranges.makeSpool(flight.sequentialDemand)
 	flight.spool = sp
 	close(flight.streaming)
-	h := md5.New()
-	flight.progress.setStage("download_and_hash")
-	n, err := io.Copy(io.MultiWriter(sp, h), io.LimitReader(contextReader{ctx, progressReader{upstreamReader{src}, flight.progress}}, v.size+1))
-	if err != nil {
-		return fmt.Errorf("download read/write: %w", err)
+	flight.progress.setStage("download")
+	reader := contextReader{ctx, progressReader{upstreamReader{src}, flight.progress}}
+	buffer := s.rangeBuffer()
+	defer func() {
+		select {
+		case s.rangeBuffers <- buffer:
+		default:
+		}
+	}()
+	for block := int64(0); block < blockCount(v.size); block++ {
+		size := blockBytes(v.size, block)
+		if _, err := io.ReadFull(reader, buffer[:size]); err != nil {
+			return fmt.Errorf("%w: sequential block: %w", errUpstreamDownload, err)
+		}
+		// Require EOF before exposing the final block; an oversized response is invalid.
+		if block == blockCount(v.size)-1 {
+			if _, err := io.ReadFull(reader, buffer[size:size+1]); err != io.EOF {
+				if err == nil {
+					err = errors.New("oversized sequential response")
+				}
+				return fmt.Errorf("%w: %w", errUpstreamDownload, err)
+			}
+		}
+		if _, err := sp.WriteAt(buffer[:size], block*rangeBlockSize); err != nil {
+			return err
+		}
 	}
-	if n != v.size || hex.EncodeToString(h.Sum(nil)) != v.key {
-		flight.log.Warn("download_integrity_failed", "bytes", n, "expected_bytes", v.size, "size_ok", n == v.size, "checksum_ok", hex.EncodeToString(h.Sum(nil)) == v.key)
-		return fmt.Errorf("%w: download integrity mismatch", errUpstreamDownload)
-	}
-	flight.log.Info("download_verified", "bytes", n, "size_ok", true, "checksum_ok", true)
 	ctx, stopPublication := context.WithTimeout(ctx, s.cfg.DownloadTimeout)
 	defer stopPublication()
-	return s.publishSpool(ctx, f, path, v, flight)
-}
-
-func (s *Server) publishSpool(ctx context.Context, f *os.File, path string, v video, flight *flight) error {
-	flight.progress.setStage("publish")
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	// Streaming readers retain the spool handle. Copy verified bytes to a closed
-	// publication file so Windows can rename it without invalidating active reads.
-	final, err := os.CreateTemp(s.cfg.tempDir(), "download-publish-*.part")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(final.Name())
-	defer final.Close()
-	if n, err := io.Copy(final, contextReader{ctx, io.NewSectionReader(f, 0, v.size)}); err != nil {
-		return err
-	} else if n != v.size {
-		return fmt.Errorf("%w: publication copy mismatch", errInvalidCache)
-	}
-	if err := final.Sync(); err != nil {
-		return err
-	}
-	if err := final.Close(); err != nil {
-		return err
-	}
-	info, err := os.Stat(final.Name())
-	if err != nil {
-		return err
-	}
-	// The worker owns a pin, so retention cannot reserve this resource while
-	// the atomic publication runs. Only inventory bookkeeping needs the lock.
-	if err := os.Rename(final.Name(), path); err != nil {
-		return err
-	}
-	s.retentionMu.Lock()
-	item := retainedVideo{path: path, key: v.key, size: info.Size(), recent: info.ModTime().UnixMilli(), modified: info.ModTime().UnixNano()}
-	s.retainVideoLocked(v.key, &item)
-	if !s.cfg.CacheUnlimited && s.retainedBytes > s.cfg.MaxCacheBytes {
-		s.requestRetentionLocked()
-	}
-	s.retentionMu.Unlock()
-	return nil
+	return s.publishBlocks(ctx, path, v, flight)
 }
 
 // Mark errors at the network reader, before io.Copy combines source reads and

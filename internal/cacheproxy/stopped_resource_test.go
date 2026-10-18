@@ -14,13 +14,13 @@ import (
 	"time"
 )
 
-func TestSessionPauseResumesValidatedRanges(t *testing.T) {
-	for _, mode := range []string{"valid", "grace", "weak", "changed-entity", "wrong-range", "corrupt", "foreground", "shutdown", "storage-failure"} {
-		t.Run(mode, func(t *testing.T) { testWholeFlightResume(t, mode) })
+func TestStoppedSessionReusesOnlyCompleteBlocks(t *testing.T) {
+	for _, mode := range []string{"valid", "grace", "weak", "changed-entity", "wrong-range", "corrupt", "foreground", "shutdown"} {
+		t.Run(mode, func(t *testing.T) { testWholeFlightReuse(t, mode) })
 	}
 }
 
-func testWholeFlightResume(t *testing.T, mode string) {
+func testWholeFlightReuse(t *testing.T, mode string) {
 	s, cfg := setup(t, nil)
 	fixedBlockScheduler(s)
 	body := bytes.Repeat([]byte("0123456789abcdef"), int(4*rangeBlockSize/16))
@@ -118,16 +118,15 @@ func testWholeFlightResume(t *testing.T, mode string) {
 	// other workers that have already read their partial prefixes.
 	for {
 		old.spool.mu.Lock()
-		intervals := append([]byteInterval(nil), old.spool.intervals...)
 		changed := old.spool.changed
 		old.spool.mu.Unlock()
-		if len(intervals) == 1 && intervals[0] == (byteInterval{0, 2 * rangeBlockSize}) {
+		if old.spool.blocks.available(0) == 2*rangeBlockSize {
 			break
 		}
 		select {
 		case <-changed:
 		case <-ctx.Done():
-			t.Fatal("completed blocks did not reach disk", intervals)
+			t.Fatal("completed blocks did not reach disk")
 		}
 	}
 	old.progress.mu.Lock()
@@ -136,44 +135,17 @@ func testWholeFlightResume(t *testing.T, mode string) {
 	if received != 2*rangeBlockSize+128*1024 {
 		t.Fatalf("received %d bytes before preemption", received)
 	}
-	partial := old.spool.file.Name()
+	partial := localBlockPath(t, old.spool.blocks, 0)
 	if mode == "grace" {
 		assertResponse(t, request(s, "GET", target, map[string]string{"Range": "bytes=0-2"}), http.StatusPartialContent, string(body[:3]))
 	}
-	if mode == "storage-failure" {
-		if err := old.spool.file.Close(); err != nil {
-			t.Fatal(err)
-		}
-	}
+
 	s.mu.Lock()
 	old.preempted = true
 	old.cancel(errPreempted)
 	s.mu.Unlock()
-	if mode == "storage-failure" {
-		receiveDemandEvent(t, old.done)
-	}
 	foregroundDone := make(chan *responseRecorder, 1)
 	go func() { foregroundDone <- request(s, "GET", videoURL(payload), nil) }()
-	if mode == "storage-failure" {
-		receiveDemandEvent(t, old.done)
-		if !errors.Is(old.err, ErrLocalStorage) || !errors.Is(s.StorageError(), ErrLocalStorage) {
-			t.Fatal("checkpoint write error was hidden by preemption", old.err)
-		}
-		if err := old.err; !errors.Is(err, ErrLocalStorage) {
-			t.Fatal("prefetch retried a local storage failure", err)
-		}
-		if response := receiveDemandEvent(t, foregroundDone); response.Code != http.StatusServiceUnavailable {
-			t.Fatal("storage failure did not stop other downloads", response.Code)
-		}
-		s.mu.Lock()
-		paused := len(s.paused)
-		s.mu.Unlock()
-		if paused != 0 {
-			t.Fatal("invalid checkpoint retained")
-		}
-		assertNoPartial(t, cfg.tempDir())
-		return
-	}
 	receiveDemandEvent(t, foregroundStarted)
 	receiveDemandEvent(t, old.done)
 	if !errors.Is(old.err, errPreempted) {
@@ -182,16 +154,15 @@ func testWholeFlightResume(t *testing.T, mode string) {
 	if _, err := os.Stat(partial); err != nil {
 		t.Fatal("preemption removed the partial file", err)
 	}
-	s.mu.Lock()
-	checkpoint := s.paused[key]
-	s.mu.Unlock()
-	if checkpoint == nil || checkpoint.bytes() != received {
-		t.Fatal("paused progress lost")
+	s.retentionMu.Lock()
+	checkpoint := s.localResources[key]
+	s.retentionMu.Unlock()
+	if checkpoint == nil || checkpoint.bytes() != 2*rangeBlockSize {
+		t.Fatal("complete local blocks lost")
 	}
 	for block := int64(2); block < 4; block++ {
-		prefix := make([]byte, 64*1024)
-		if _, err := checkpoint.storage.file.ReadAt(prefix, block*rangeBlockSize); err != nil || !bytes.Equal(prefix, body[block*rangeBlockSize:block*rangeBlockSize+64*1024]) {
-			t.Fatal("partial block was not saved to disk", block, err)
+		if checkpoint.has(block) {
+			t.Fatal("incomplete block became readable", block)
 		}
 	}
 	if _, err := os.Stat(cfg.videoFile(key)); !os.IsNotExist(err) {
@@ -205,12 +176,12 @@ func testWholeFlightResume(t *testing.T, mode string) {
 		if err := s.Close(); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := checkpoint.storage.file.Stat(); err == nil {
-			t.Fatal("paused file handle survived shutdown")
+		if _, err := os.Stat(partial); !os.IsNotExist(err) {
+			t.Fatal("block file survived shutdown")
 		}
 		assertNoPartial(t, cfg.tempDir())
-		if len(s.paused) != 0 {
-			t.Fatal("shutdown retained checkpoints")
+		if len(s.localResources) != 0 {
+			t.Fatal("shutdown retained local resources")
 		}
 		return
 	}
@@ -226,6 +197,9 @@ func testWholeFlightResume(t *testing.T, mode string) {
 			if _, err := os.Stat(cfg.videoFile(key)); !os.IsNotExist(err) {
 				t.Fatal("invalid resumed content published", err)
 			}
+			if err := s.Close(); err != nil {
+				t.Fatal(err)
+			}
 			assertNoPartial(t, cfg.tempDir())
 			return
 		}
@@ -240,25 +214,25 @@ func testWholeFlightResume(t *testing.T, mode string) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if len(starts) != 6 {
+	if len(starts) != 4 {
 		t.Fatal("unexpected request offsets", starts)
 	}
 	for block := int64(0); block < 4; block++ {
-		if starts[block*rangeBlockSize] != 1 {
-			t.Fatal("downloaded block prefix requested again", starts)
+		want := 1
+		if block >= 2 {
+			want = 2
 		}
-		if block >= 2 && starts[block*rangeBlockSize+64*1024] != 1 {
-			t.Fatal("partial block did not resume at saved offset", starts)
+		if starts[block*rangeBlockSize] != want {
+			t.Fatal("complete block reused or incomplete block restarted incorrectly", starts)
 		}
 	}
-	if failedChannel != 1 || redirects != 1 {
-		t.Fatalf("resume revisited failed channel or redirect: %d, %d", failedChannel, redirects)
+	if failedChannel != 2 || redirects != 2 {
+		t.Fatalf("new task reused an old request cursor: %d, %d", failedChannel, redirects)
 	}
-	t.Logf("whole-video preemption: retained %d bytes on disk; completed blocks skipped and partial blocks resumed at 64 KiB", received)
 	assertNoPartial(t, cfg.tempDir())
 }
 
-func TestRepeatedPreemptionResumesFirstBlockAndOldReaderReleasesSafely(t *testing.T) {
+func TestRepeatedStopRestartsIncompleteBlockAndOldReaderReleasesSafely(t *testing.T) {
 	testRepeatedPreemption(t, 64*1024, 3)
 }
 
@@ -321,22 +295,15 @@ func testRepeatedPreemption(t *testing.T, prefixSize int64, rounds int) {
 			t.Fatal(f.err)
 		}
 		s.mu.Lock()
-		checkpoint, occupied := s.paused[v.key], len(s.flights)
+		occupied := len(s.flights)
 		s.mu.Unlock()
-		wantBytes := int64(round+1) * prefixSize
-		if prefixSize == rangeBlockSize {
-			wantBytes = 0 // full body without EOF has not passed oversize validation
+		s.retentionMu.Lock()
+		checkpoint := s.localResources[v.key]
+		s.retentionMu.Unlock()
+		if checkpoint != nil || f.ranges.bytes() != 0 || occupied != 0 {
+			t.Fatal("stop retained incomplete data or held a slot")
 		}
-		if checkpoint == nil || checkpoint.bytes() != wantBytes || occupied != 0 {
-			t.Fatal("pause lost progress or held a slot")
-		}
-		if round == 0 {
-			wrongSize := v
-			wrongSize.size++
-			if _, _, err := s.obtainMode(ctx, wrongSize, true); err == nil {
-				t.Fatal("same key with a different size reused paused bytes")
-			}
-		}
+
 		s.requests.mu.Lock()
 		active := s.requests.active
 		s.requests.mu.Unlock()
@@ -370,13 +337,9 @@ func testRepeatedPreemption(t *testing.T, prefixSize int64, rounds int) {
 	if len(starts) != rounds+1 {
 		t.Fatal("unexpected retry", starts)
 	}
-	for i, start := range starts {
-		want := int64(i) * prefixSize
-		if prefixSize == rangeBlockSize {
-			want = 0
-		}
-		if start != want {
-			t.Fatal("repeated pause lost its prefix", starts)
+	for _, start := range starts {
+		if start != 0 {
+			t.Fatal("new task reused an incomplete prefix", starts)
 		}
 	}
 }

@@ -2,11 +2,8 @@ package cacheproxy
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"hash/crc32"
-	"io"
-	"os"
 )
 
 // Bound lock storage while coalescing checks of a resource across scanners and
@@ -36,27 +33,6 @@ func (locks *checkLocks) slot(key string) chan struct{} {
 }
 
 var verificationLocks = newCheckLocks()
-
-// Download finalization shares the local validation budget with cache hits.
-// Release the slot before publication, and let shutdown cancel queued checks.
-func (s *Server) checkDownloadedFile(ctx context.Context, file *os.File, v video) error {
-	select {
-	case s.localChecks <- struct{}{}:
-		defer func() { <-s.localChecks }()
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return err
-	}
-	if err := checkOpenFile(ctx, file, v); err != nil {
-		if errors.Is(err, errInvalidCache) {
-			return fmt.Errorf("%w: %w", errUpstreamDownload, err)
-		}
-		return err
-	}
-	return nil
-}
 
 func validateLocalFile(ctx context.Context, root string, f *verifiedFile, v video, force bool) (bool, error) {
 	unlock, err := verificationLocks.acquire(ctx, root+v.key)

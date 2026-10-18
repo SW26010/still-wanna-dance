@@ -36,7 +36,6 @@ func TestResourceDemandsExposeAllMissingBlocks(t *testing.T) {
 				t.Fatal("scheduled extra blocks before Range/entity initialization", len(plan))
 			}
 			w.f.ranges.done = map[int64]bool{0: true, 2: true, 63: true}
-			w.f.ranges.prefix = 1
 			plan, _, _ = w.plan(now, true)
 			if len(plan) != 61 {
 				t.Fatal("resource candidates were capped or completed blocks retained", len(plan))
@@ -234,7 +233,7 @@ func TestTwoLargeFutureVideosFillUsageCapacity(t *testing.T) {
 		}
 		session.v.key = fmt.Sprintf("video-%d", i)
 		session.v.size = 2 << 30
-		session.f.ranges.done[0], session.f.ranges.prefix = true, 1
+		session.f.ranges.done[0] = true
 		ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: time.Now().Add(time.Duration(i+1) * time.Hour), limit: session.v.size, media: mediaTiming{session.v.size, time.Hour}})
 		_, release, err := s.addDemand(ctx, session.v, true)
 		if i == 2 {

@@ -94,7 +94,7 @@ func TestInitialRequestPausePreservesCandidateProgress(t *testing.T) {
 				t.Fatal("initial request did not resume", result.Err)
 			}
 			got := make([]byte, len(payload))
-			if _, err := f.spool.file.ReadAt(got, 0); err != nil || string(got) != payload || !f.ranges.done[0] {
+			if _, err := f.spool.blocks.ReadAt(got, 0); err != nil || string(got) != payload || !f.ranges.has(0) {
 				t.Fatal("resumed first range did not complete", err)
 			}
 			if failedCalls != 1 || currentCalls != 3 || failure == "redirect" && redirects != 1 {

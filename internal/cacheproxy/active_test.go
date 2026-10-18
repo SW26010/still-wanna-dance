@@ -12,6 +12,7 @@ import (
 )
 
 func TestActiveSharedLifecycle(t *testing.T) {
+	body := strings.Repeat(payload, int(rangeBlockSize)/len(payload)+2)
 	for _, outcome := range []string{"complete", "redirect", "fail", "close"} {
 		t.Run(outcome, func(t *testing.T) {
 			release := make(chan struct{})
@@ -21,11 +22,11 @@ func TestActiveSharedLifecycle(t *testing.T) {
 			var calls atomic.Int32
 			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
 				if outcome == "redirect" && r.Host == "play.udon.dance" {
-					http.Redirect(w, r, strings.Replace(videoURL(payload), "play.udon.dance", "nya.xin.moe", 1), http.StatusTemporaryRedirect)
+					http.Redirect(w, r, strings.Replace(videoURL(body), "play.udon.dance", "nya.xin.moe", 1), http.StatusTemporaryRedirect)
 					return
 				}
 				calls.Add(1)
-				io.WriteString(w, payload[:5])
+				io.WriteString(w, body[:rangeBlockSize])
 				w.(http.Flusher).Flush()
 				select {
 				case <-release:
@@ -33,10 +34,10 @@ func TestActiveSharedLifecycle(t *testing.T) {
 					return
 				}
 				if outcome == "complete" || outcome == "redirect" {
-					io.WriteString(w, payload[5:])
+					io.WriteString(w, body[rangeBlockSize:])
 				}
 			})
-			v := parsedVideo(t, s, payload)
+			v := parsedVideo(t, s, body)
 			first, reader, err := s.obtain(context.Background(), v)
 			if err != nil {
 				t.Fatal(err)
@@ -79,12 +80,12 @@ func TestActiveSharedLifecycle(t *testing.T) {
 					t.Fatalf("duplicate or missing flight: %+v", snap)
 				}
 				task := snap.Tasks[0]
-				if task.Bytes == 5 && task.BytesPerSecond > 0 {
+				if task.Bytes == rangeBlockSize && task.BytesPerSecond > 0 {
 					host := "play.udon.dance"
 					if outcome == "redirect" {
 						host = "nya.xin.moe"
 					}
-					if task.Size != int64(len(payload)) || task.Host != host || len(task.Songs) != 2 || task.BytesPerSecond <= 0 || snap.BytesPerSecond != task.BytesPerSecond {
+					if task.Size != int64(len(body)) || task.Host != host || len(task.Songs) != 2 || task.BytesPerSecond <= 0 || snap.BytesPerSecond != task.BytesPerSecond {
 						t.Fatalf("bad snapshot: %+v", snap)
 					}
 					break
@@ -94,10 +95,10 @@ func TestActiveSharedLifecycle(t *testing.T) {
 				}
 				time.Sleep(time.Millisecond)
 			}
-			assertResponse(t, request(s, "GET", videoURL(payload), map[string]string{"Range": "bytes=0-2"}), 206, payload[:3])
-			assertResponse(t, request(s, "GET", videoURL(payload), map[string]string{"Range": "bytes=1-4"}), 206, payload[1:5])
+			assertResponse(t, request(s, "GET", videoURL(body), map[string]string{"Range": "bytes=0-2"}), 206, body[:3])
+			assertResponse(t, request(s, "GET", videoURL(body), map[string]string{"Range": "bytes=1-4"}), 206, body[1:5])
 			shared, err := s.ActiveDownloads(context.Background())
-			if err != nil || len(shared.Tasks) != 1 || shared.Tasks[0].Bytes != 5 {
+			if err != nil || len(shared.Tasks) != 1 || shared.Tasks[0].Bytes != rangeBlockSize {
 				t.Fatalf("Range bytes counted as upstream: %+v %v", shared, err)
 			}
 			var readers sync.WaitGroup
@@ -138,7 +139,7 @@ func TestActiveSharedLifecycle(t *testing.T) {
 
 func TestActiveRateWindow(t *testing.T) {
 	now := time.Unix(100, 0)
-	p := &downloadProgress{stage: "download_and_hash", changed: now.Add(-10 * time.Second)}
+	p := &downloadProgress{stage: "download", changed: now.Add(-10 * time.Second)}
 	p.samples[0] = progressSample{second: 99, bytes: 500}
 	p.samples[1] = progressSample{second: 94, bytes: 9000}
 	if p.rate(now) != 100 || p.rate(now) != 100 {
@@ -151,7 +152,7 @@ func TestActiveRateWindow(t *testing.T) {
 	if p.rate(now) != 0 {
 		t.Fatal("publication counted as upstream traffic")
 	}
-	p.stage = "download_and_hash"
+	p.stage = "download"
 	p.changed = now.Add(-time.Second)
 	if p.rate(now) != 500 {
 		t.Fatal("startup rate denominator")

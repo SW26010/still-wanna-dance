@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"os"
 	"sync"
 )
 
@@ -12,74 +11,31 @@ import (
 // ReadAt does not disturb the writer's offset. HTTP byte delivery is independent
 // of whole-video verification and publication.
 type spool struct {
-	mu        sync.Mutex
-	file      *os.File
-	storage   *spoolFile
-	changed   chan struct{}
-	available int64
-	complete  bool
-	err       error
-	refs      int
-	intervals []byteInterval
-	sparse    bool
-	demand    func(int64) func()
+	mu       sync.Mutex
+	blocks   *blockFiles
+	changed  chan struct{}
+	complete bool
+	err      error
+	refs     int
+	demand   func(int64) func()
 }
 
-type byteInterval struct{ start, end int64 }
+// Once all blocks are readable, withdrawing a source must not cancel publication.
+func (s *spool) hasAllBytes(size int64) bool { return s.blocks.complete() }
 
-// Call only after the spool has been exposed to readers. Once all bytes are
-// readable, source withdrawal must not cancel the independent publication.
-func (s *spool) hasAllBytes(size int64) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.sparse {
-		return len(s.intervals) == 1 && s.intervals[0].start == 0 && s.intervals[0].end >= size
-	}
-	return s.available >= size
-}
-
-// WriteAt publishes only bytes whose write has completed, never sparse length.
+// Only complete, validated blocks become visible to readers.
 func (s *spool) WriteAt(p []byte, offset int64) (int, error) {
-	n, err := s.file.WriteAt(p, offset)
-	if n == 0 {
-		return n, err
+	if offset < 0 || offset%rangeBlockSize != 0 {
+		return 0, errors.New("unaligned complete block write")
+	}
+	if err := s.blocks.store(offset/rangeBlockSize, p); err != nil {
+		return 0, err
 	}
 	s.mu.Lock()
-	merged := byteInterval{offset, offset + int64(n)}
-	var out []byteInterval
-	inserted := false
-	for _, interval := range s.intervals {
-		if interval.end < merged.start {
-			out = append(out, interval)
-		} else if merged.end < interval.start {
-			if !inserted {
-				out = append(out, merged)
-				inserted = true
-			}
-			out = append(out, interval)
-		} else {
-			merged.start = min(merged.start, interval.start)
-			merged.end = max(merged.end, interval.end)
-		}
-	}
-	if !inserted {
-		out = append(out, merged)
-	}
-	s.intervals = out
 	close(s.changed)
 	s.changed = make(chan struct{})
 	s.mu.Unlock()
-	return n, err
-}
-
-func (s *spool) Write(p []byte) (int, error) {
-	n, err := s.file.Write(p)
-	s.mu.Lock()
-	s.available += int64(n)
-	close(s.changed)
-	s.changed = make(chan struct{})
-	s.mu.Unlock()
-	return n, err
+	return len(p), nil
 }
 
 func (s *spool) finish(err error) {
@@ -105,12 +61,7 @@ func (s *spool) release() {
 	s.mu.Lock()
 	s.refs--
 	if s.refs == 0 {
-		if s.storage != nil {
-			s.storage.release()
-		} else {
-			s.file.Close()
-			os.Remove(s.file.Name())
-		}
+		s.blocks.release()
 	}
 	s.mu.Unlock()
 }
@@ -156,18 +107,10 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 		}
 		s := r.spool
 		s.mu.Lock()
-		available, complete, failure, changed := s.available, s.complete, s.err, s.changed
+		complete, failure, changed := s.complete, s.err, s.changed
 		demand := s.demand
-		if s.sparse {
-			available = 0
-			for _, interval := range s.intervals {
-				if interval.start <= r.offset && r.offset < interval.end {
-					available = interval.end
-					break
-				}
-			}
-		}
 		s.mu.Unlock()
+		available := s.blocks.available(r.offset)
 		if available > r.size {
 			available = r.size
 		}
@@ -176,7 +119,7 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 			if next > available-r.offset {
 				next = available - r.offset
 			}
-			n, err := s.file.ReadAt(p[:next], r.offset)
+			n, err := s.blocks.ReadAt(p[:next], r.offset)
 			r.offset += int64(n)
 			if err != nil {
 				r.err = err

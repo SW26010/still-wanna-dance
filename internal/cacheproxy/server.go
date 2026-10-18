@@ -51,7 +51,7 @@ type flight struct {
 	done             chan struct{}
 	streaming        chan struct{}
 	spool            *spool
-	ranges           *rangeDownload // owned by worker, transferred under Server.mu
+	ranges           *localResource // execution reference to engine-owned complete blocks
 	path, source     string
 	err              error
 }
@@ -67,9 +67,8 @@ type Server struct {
 	mu               sync.Mutex
 	storageFailure   error // protected by mu; prevents new downloads until restart
 	flights          map[string]*flight
-	paused           map[string]*rangeDownload // protected by mu; this engine only
-	demands          map[*downloadDemand]bool  // protected by mu, separate from file pins
-	useBlocks        map[useBlockID]int        // protected by mu; includes readable blocks
+	demands          map[*downloadDemand]bool // protected by mu, separate from file pins
+	useBlocks        map[useBlockID]int       // protected by mu; includes readable blocks
 	useHandoffs      useHandoffHeap
 	useExpiry        *time.Timer
 	prefetchSources  map[string]*queueSource
@@ -93,6 +92,7 @@ type Server struct {
 	usage            *usageStore
 	retentionMu      sync.Mutex
 	protection       map[string]map[int64]blockProtection // guarded by retentionMu
+	localResources   map[string]*localResource            // guarded by retentionMu
 	retentionRunMu   sync.Mutex
 	retentionWake    chan struct{}
 	retentionDone    chan struct{}
@@ -236,12 +236,7 @@ func (s *Server) Close() error {
 		s.mu.Unlock()
 		s.wg.Wait()
 		s.scheduler.Close()
-		// Workers and handlers have released their file references. Paused
-		// checkpoints have no worker to clean them up during cancellation.
-		for key, checkpoint := range s.paused {
-			checkpoint.storage.release()
-			delete(s.paused, key)
-		}
+		s.closeLocalResources()
 		<-s.retentionDone
 		// All references are now released; finish any deferred eviction before closing usage.
 		s.retentionMu.Lock()

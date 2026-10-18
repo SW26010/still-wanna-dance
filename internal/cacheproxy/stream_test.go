@@ -16,7 +16,7 @@ import (
 )
 
 func TestColdStreamStartsBeforeCompletionAndSharesSeekingReaders(t *testing.T) {
-	body := strings.Repeat("0123456789abcdef", 4096)
+	body := strings.Repeat("0123456789abcdef", int(2*rangeBlockSize/16))
 	release := make(chan struct{})
 	var releaseOnce sync.Once
 	unblock := func() { releaseOnce.Do(func() { close(release) }) }
@@ -25,11 +25,11 @@ func TestColdStreamStartsBeforeCompletionAndSharesSeekingReaders(t *testing.T) {
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
 		count.Add(1)
 		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-		io.WriteString(w, body[:2048])
+		io.WriteString(w, body[:rangeBlockSize])
 		w.(http.Flusher).Flush()
 		select {
 		case <-release:
-			io.WriteString(w, body[2048:])
+			io.WriteString(w, body[rangeBlockSize:])
 		case <-r.Context().Done():
 		}
 	})
@@ -38,7 +38,7 @@ func TestColdStreamStartsBeforeCompletionAndSharesSeekingReaders(t *testing.T) {
 	local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handlers.Add(1)
 		defer handlers.Done()
-		if r.Header.Get("Range") == "bytes=2048-" {
+		if r.Header.Get("Range") == "bytes=1048576-" {
 			close(tailStarted)
 		}
 		s.ServeHTTP(w, r)
@@ -87,7 +87,7 @@ func TestColdStreamStartsBeforeCompletionAndSharesSeekingReaders(t *testing.T) {
 		defer close(tailDone)
 		r, _ := http.NewRequest("GET", local.URL+strings.TrimPrefix(videoURL(body), "http://play.udon.dance"), nil)
 		r.Host = "play.udon.dance"
-		r.Header.Set("Range", "bytes=2048-")
+		r.Header.Set("Range", "bytes=1048576-")
 		remaining, tailErr = client.Do(r)
 	}()
 	select {
@@ -102,7 +102,7 @@ func TestColdStreamStartsBeforeCompletionAndSharesSeekingReaders(t *testing.T) {
 	}
 	defer remaining.Body.Close()
 	tail, err := io.ReadAll(remaining.Body)
-	if err != nil || string(tail) != body[2048:] {
+	if err != nil || string(tail) != body[rangeBlockSize:] {
 		t.Fatal("tail failed after resolver disconnect", err)
 	}
 	s.wg.Wait()
@@ -115,18 +115,18 @@ func TestColdStreamStartsBeforeCompletionAndSharesSeekingReaders(t *testing.T) {
 }
 
 func TestDeliveredCorruptStreamNeverPublishes(t *testing.T) {
-	body := strings.Repeat("a", 32768)
+	body := strings.Repeat("a", int(2*rangeBlockSize))
 	release := make(chan struct{})
 	var once sync.Once
 	unblock := func() { once.Do(func() { close(release) }) }
 	defer unblock()
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-		io.WriteString(w, body[:4096])
+		io.WriteString(w, body[:rangeBlockSize])
 		w.(http.Flusher).Flush()
 		select {
 		case <-release:
-			io.WriteString(w, strings.Repeat("b", len(body)-4096))
+			io.WriteString(w, strings.Repeat("b", len(body)-int(rangeBlockSize)))
 		case <-r.Context().Done():
 		}
 	})

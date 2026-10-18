@@ -59,7 +59,7 @@ func (w *downloadSession) demand(offset int64) func() {
 	return sync.OnceFunc(func() { w.mu.Lock(); delete(w.waits, d); w.mu.Unlock(); w.signal() })
 }
 
-func (w *downloadSession) initialize(d *rangeDownload) {
+func (w *downloadSession) initialize(d *localResource) {
 	w.f.ranges = d
 	if !w.f.discard {
 		w.f.spool = d.makeSpool(w.demand)
@@ -98,7 +98,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 	// track their lifecycle; no lower-level hard quota delays blocked reads.
 
 	var initial *http.Response
-	if w.f.ranges == nil {
+	if w.f.ranges == nil || w.f.ranges.sequential {
 		if w.opening == nil {
 			w.opening = new(resourceAttempts)
 		}
@@ -150,13 +150,17 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 			}
 			v.host, v.path, v.query = selected.host, selected.path, selected.query
 		}
-		var d *rangeDownload
+		var d *localResource
 		if w.f.discard {
-			d = &rangeDownload{video: rangeVideo(v), etag: resp.Header.Get("ETag"),
-				done: make(map[int64]bool), partial: make(map[int64]*rangeResumeBlock)}
+			d = &localResource{video: resourceVideo(v), etag: resp.Header.Get("ETag"),
+				done: make(map[int64]bool)}
+		} else if w.f.ranges != nil {
+			d = w.f.ranges
+			d.sequential = false
+			d.etag = resp.Header.Get("ETag")
 		} else {
 			var err error
-			d, err = w.s.newRangeDownload(v, resp, w.f.log)
+			d, err = w.s.newLocalResource(v, resp, w.f.log)
 			if err != nil {
 				return blocksched.Result{Err: err}
 			}
@@ -166,24 +170,12 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 	}
 	err := w.s.readScheduledRange(ctx, block, initial, w.f, p)
 	remaining := min(rangeBlockSize, w.v.size-block*rangeBlockSize)
-	w.f.ranges.mu.Lock()
-	if state := w.f.ranges.partial[block]; state != nil {
-		remaining -= state.received
-	}
-	w.f.ranges.mu.Unlock()
 	return blocksched.Result{Err: err, Remaining: remaining}
 }
 
 func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Need) error {
 	key := fmt.Sprintf("%s/%d/%d", w.v.key, w.v.size, block)
 	remaining := min(rangeBlockSize, w.v.size-block*rangeBlockSize)
-	if w.f.ranges != nil {
-		w.f.ranges.mu.Lock()
-		if state := w.f.ranges.partial[block]; state != nil {
-			remaining -= state.received
-		}
-		w.f.ranges.mu.Unlock()
-	}
 	t, d, err := w.s.scheduler.Schedule(key, remaining, func(ctx context.Context, p *blocksched.Progress) blocksched.Result { return w.run(ctx, p, block) }, n)
 	if err != nil {
 		return err
@@ -214,12 +206,18 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]block
 		plan[d.block] = mergeUse(plan[d.block], blockUse{need: blocksched.Need{Owner: w.v.key, ReadyBy: d.at, LeaseUntil: now.Add(sourceLease), Blocking: true}, nextExpiry: now.Add(sourceLease)})
 	}
 	w.mu.Unlock()
+	var local *localResource
 	if initialized {
-		w.f.ranges.mu.Lock()
-		defer w.f.ranges.mu.Unlock()
+		local = w.f.ranges // Initialization publishes the executor's resource view.
+	} else {
+		// Before initialization, the executor may still be assigning f.ranges.
+		// Reuse engine-owned availability without reading that unpublished field.
+		w.s.retentionMu.Lock()
+		local = w.s.localResources[w.v.key]
+		w.s.retentionMu.Unlock()
 	}
 	for b := range plan {
-		if b < 0 || b >= blocks || initialized && w.f.ranges.done[b] {
+		if b < 0 || b >= blocks || local != nil && local.has(b) {
 			delete(plan, b)
 		}
 	}
@@ -399,7 +397,7 @@ func (w *downloadSession) close(result error) error {
 func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *flight) (result error) {
 	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, path: path, wake: make(chan struct{}, 1), initialized: make(chan struct{}), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
 	defer func() { result = w.close(result) }()
-	initialized := f.ranges != nil
+	initialized := f.ranges != nil && (!f.ranges.sequential || f.ranges.complete())
 	if initialized {
 		w.initialize(f.ranges)
 	}
@@ -429,9 +427,7 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 		}
 		complete := false
 		if initialized {
-			f.ranges.mu.Lock()
-			complete = int64(len(f.ranges.done)) == (v.size+rangeBlockSize-1)/rangeBlockSize
-			f.ranges.mu.Unlock()
+			complete = f.ranges.complete()
 			if complete && len(w.jobs) == 0 {
 				break
 			}
@@ -491,10 +487,5 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 	}
 	ctx, stopPublication := context.WithTimeout(ctx, s.cfg.DownloadTimeout)
 	defer stopPublication()
-	f.progress.setStage("hash")
-	if err := s.checkDownloadedFile(ctx, f.ranges.storage.file, v); err != nil {
-		return err
-	}
-	f.log.Info("download_verified", "bytes", v.size, "size_ok", true, "checksum_ok", true)
-	return s.publishSpool(ctx, f.ranges.storage.file, path, v, f)
+	return s.publishBlocks(ctx, path, v, f)
 }

@@ -118,7 +118,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 
 已接入资源在确认 Range 支持及实体身份后，展开各有效来源所覆盖的全部未完成块：GET 按请求区间，队列和独立补齐按整文件。没有每视频固定候选数或独立并发额度，单视频在需求入窗且持续积压时也能逐步用满 16 路。首次响应头前只调度一个初始化块，冷 Range 从请求区间内的块开始；并发接入的读者共用当前初始化请求，确认实体后各自恢复区间边界。上游返回顺序 200 时仍只执行一次整文件回退。
 
-固定“当前块及后面两块”的读取窗口已删除，普通 GET 需求统一表达预先准备，实际 Read 等待只给当前块贡献 Blocking，多读者独立撤销。已下载区间仍有 GET 读者消费时保留资源会话，不生成区间外补齐任务；最后一个来源退出后沿原交接、暂停检查点和回收规则处理。只有完整文件校验成功才发布正式缓存。任务容量沿用全局保护，超容量推迟注册并等待容量变化，Blocking 可回收尚未执行的普通候选容量，不通过隐藏候选改变排序。
+固定“当前块及后面两块”的读取窗口已删除，普通 GET 需求统一表达预先准备，实际 Read 等待只给当前块贡献 Blocking，多读者独立撤销。已下载区间仍有 GET 读者消费时保留资源会话，不生成区间外补齐任务；最后一个来源退出后沿使用交接、完整块保留和回收规则处理。只有完整文件校验成功才发布正式缓存。任务容量沿用全局保护，超容量推迟注册并等待容量变化，Blocking 可回收尚未执行的普通候选容量，不通过隐藏候选改变排序。
 
 两种窗口例外必须分别理解：
 
@@ -135,7 +135,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 
 定位共享块、汇总该块的有限来源、调整相关索引即可响应变化。单个堆项调整为 O(log N)，检查堆首是否入窗为 O(1)；同 Owner 的公平性更新可能调整该组多个块，不能把整个事件处理夸大为恒定成本。网络、磁盘和正文关闭在执行器中完成，调度事件循环不等待这些操作。
 
-事件驱动不等于系统没有定时工作：资源协调器仍每 10 秒确认来源并续 30 秒活跃租约；VRC 日志按[队列文档](queue-prefetch.md#日志检测与频率)增量读取。缓冲只在实际执行时取得，资源会话、全局任务/需求数量与暂停检查点均有限，具体上限见[运行规则](download-concurrency.md)。
+事件驱动不等于系统没有定时工作：资源协调器仍每 10 秒确认来源并续 30 秒活跃租约；VRC 日志按[队列文档](queue-prefetch.md#日志检测与频率)增量读取。缓冲只在实际执行时取得，全局任务与使用需求数量有界，完整块由引擎本地资源注册表保留，已移除暂停检查点上限，具体上限见[运行规则](download-concurrency.md)。
 
 调度等待不消耗网络尝试预算：实际 HTTP 请求的响应头及正文共用一次 DownloadTimeout，默认 10 分钟；重试候选各自重新计时，不按剩余候选数平分，不另加包含重试的整轮执行时限。顺序 200 使用同一本次尝试时限，本地校验/发布各自计时。更早的父级取消与任务截止仍然生效。ReadyBy 不充当取消截止时间。来源撤销、租约到期、调用方取消、执行失败和引擎关闭继续独立控制生命周期；跨重启不恢复部分下载。
 
@@ -151,7 +151,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 | 窗口、缓增、采样与准入例外 | [control.go](../internal/blocksched/control.go)、[duration.go](../internal/blocksched/duration.go)、[window_test.go](../internal/blocksched/window_test.go)、[opportunistic_test.go](../internal/blocksched/opportunistic_test.go) |
 | 真实 Range、可读采样、超时及混合需求 | [scheduled_range.go](../internal/cacheproxy/scheduled_range.go)、[block_duration_test.go](../internal/cacheproxy/block_duration_test.go)、[execution_timeout_test.go](../internal/cacheproxy/execution_timeout_test.go)、[opportunistic_demand_test.go](../internal/cacheproxy/opportunistic_demand_test.go) |
 
-早期实现中的“剩余字节→所需吞吐→目标并发”、两秒追赶、500 ms 采样、无收益回退、竞争暂停和恢复冷却均已被后续实现取代。[开发记录](block-scheduler-validation.md)保留这些过程及失败证据，不作为当前运行规则；参数以当前 3 秒 T 初值、30 秒 M 为准。
+早期实现中的“剩余字节→所需吞吐→目标并发”、两秒追赶、500 ms 采样、无收益回退、竞争暂停和恢复冷却均已被后续实现取代。[开发记录](block-scheduler-validation.md)保留这些过程及失败证据，不作为当前运行规则；参数以固定 M 默认 500 秒为准，动态 T 已移除。
 
 **开发实现已有自动回归记录；当前模型的实机效果仍待 LA-040，开播时间近似及交接观测联动 LA-041，地址解析补齐大小联动 LA-042。** 关联的 LA-008/018/037/038/039 继续保留。旧固定 worker 的吞吐/CPU 实验和历史游戏报告不能证明新模型已降低卡顿、CPU 峰值或在所有网络下提速。
 

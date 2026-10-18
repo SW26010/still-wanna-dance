@@ -31,7 +31,7 @@ func cleanTemporaryFiles(dir string, logger *slog.Logger) (int, error) {
 	cleaned := 0
 	for _, entry := range entries {
 		name := entry.Name()
-		partial := workfiles.RandomName(name, "download-", ".part") || workfiles.RandomName(name, "download-publish-", ".part")
+		partial := workfiles.RandomName(name, "download-block-", ".part") || workfiles.RandomName(name, "download-", ".part") || workfiles.RandomName(name, "download-publish-", ".part")
 		importDir := workfiles.RandomName(name, "import-", "")
 		if !partial && !importDir {
 			continue

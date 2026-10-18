@@ -60,3 +60,15 @@
 Monitor 复用阶段协议字段未变。后续评审明确连通性延迟仍取 Monitor 的近期连续成功样本均值，页面改标「估计响应时间」并说明历史样本与首字节统计口径；后端补充字段及本轮状态筛选注释，计算逻辑不变。前端嵌入资源随文案重建；自动验证结果见下文。未启动游戏、未改 hosts、未执行 Git commit/push；自动检查不替代 LA-030/045 实机验收。
 
 文案修订自动验证：`pnpm --dir webui build`（含 TypeScript 检查）、`node scripts/check-webui.mjs`、控制台构建 `bin/SWD-setup-monitor-label.exe` 及 `git diff --check` 通过。现有 `webui/e2e/setup.spec.ts` 的上游/结果跨步骤恢复和窄屏布局/条款焦点两项回归通过（2 passed，3.9 s）；首次沙箱运行因 Edge 启动退出未执行到页面断言，正常用户环境重跑通过。未增加专门检查静态文案的测试，沿用既有结果恢复断言核对新标签。此次未重启用户正在查看的旧预览进程，网页新文案随新构建生效。
+
+## 2026-10-18 直连 CF 测速重试失败
+
+用户反馈直连 CF 多路测速失败后反复重试仍显示“测速未完成”，没有“视频准备不足”提示，重启程序后恢复。隔离真实控制台复现了连续两轮下载阶段 `channel_unavailable`，分别在增加并发至 2 / 5 路时失败；同批首轮是准备不足，属于不同失败。另一次重新启动的诊断构建连续三轮完成，说明重启后的成功不能单独证明问题已解决。
+
+固定 IP Transport 原来只检查 DNS 当前有效答案，TTL 到期而后台刷新尚未完成时，下一请求或建连直接返回 `ErrUnavailable`，没有通过前台解析重新确认原地址。新增回归使用真实回环 HTTP 连接，强制原 IP 记录过期；修复前第一次重试稳定失败，解析调用数仍为 1。修复在通道公共入口及建连入口共用 `ensureUsable`：有效地址继续复用；失效时通过已有共享解析器重新确认，仍固定同一 IP；解析失败、原 IP 移除和配置退役继续拒绝，调用者取消保持取消语义。当前契约见[上游通道](upstream-channels.md#请求与连接)。没有重建整个诊断实例、放宽 DNS 有效期或改变测速阶段与并发规则。
+
+自动验证：`go test ./internal/upstreamrequest -count=1`、使用现有便携 GCC 的 `go test -race ./internal/upstreamrequest -count=1`、`go test -tags=no_easytier ./internal/upstreamstate ./internal/console -run 'Test(Calibration|SetupCalibration|DNS|Pinned|Upstream|.*Local.*Fail)' -count=1` 通过；三个包的 `go vet -tags=no_easytier` 和控制台构建通过。回归覆盖有效记录不额外解析、同一固定 IP 连续三次过期后恢复、原 IP 移除、DNS 失败、外来主机、解析中取消及配置退役。最初 Console 测试因沙箱阻止临时配置原子重命名失败，正常用户权限下重跑通过；未把这次环境失败计作通过。
+
+修复后实网验证使用当前源码构建的 `bin/SWD-calibration-retry.exe`（SHA256 `831f5101672a873e55a80543d21baa891664e4f1abee877fbe72b0746d5ca5b1`），独立配置关闭网关/队列自动启动，原样复制并由控制台验证本机已有条款回执。一个进程连续启动六轮：第一轮 `preparation_insufficient`、准备视频数 0；其后五轮全部 `measurement_complete`，均达到 16 路并取得完整单路/满路样本，没有下载失败或 `channel_unavailable`，中途未重启。第一轮准备失败仍保留，不能将本轮写成六次全通过；现场网络存在波动，原用户环境尚未复测。
+
+SSE 阶段与终态原始记录保留在忽略目录 `artifacts/calibration-retry-1792333362866`（修复前失败）、`artifacts/calibration-retry-1792333475501`（重启后的诊断构建）及 `artifacts/calibration-retry-1792333714049`（修复后六轮）；未提交回执、配置或原始日志。测试期间没有并发运行本任务的编译/静态检查/另一轮测速，没有启动游戏或修改 hosts，结束后隔离进程已停止，未写入媒体文件。本次修改不涉及前端和 VRC 专属行为，验证在开发侧完成，不增加实机台账项；未 commit/push。

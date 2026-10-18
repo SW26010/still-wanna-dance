@@ -29,6 +29,101 @@ func (d *testDNS) Addresses(context.Context, string) ([]Address, error) {
 func (d *testDNS) CurrentAddresses(string) []Address { return d.addresses }
 func (d *testDNS) DNSChanged() <-chan struct{}       { return d.changed }
 
+type refreshingTestDNS struct {
+	testDNS
+	refresh func(context.Context) ([]Address, error)
+}
+
+func (d *refreshingTestDNS) Addresses(ctx context.Context, _ string) ([]Address, error) {
+	d.calls++
+	addresses, err := d.refresh(ctx)
+	if err == nil {
+		d.addresses = addresses
+	}
+	return addresses, err
+}
+
+func TestPinnedCandidateRefreshesExpiredDNSWithoutChangingIP(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Exercise a new connection for each block, as calibration ramps up.
+		w.Header().Set("Connection", "close")
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+	_, port, _ := net.SplitHostPort(server.Listener.Addr().String())
+	target := "http://fixture.example:" + port + "/video"
+	fresh := func(ip string) []Address { return []Address{{ip, time.Now().Add(time.Minute)}} }
+	d := &refreshingTestDNS{refresh: func(context.Context) ([]Address, error) { return fresh("127.0.0.1"), nil }}
+	p, err := NewPool("direct", d, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	cs, err := p.Candidates(context.Background(), target)
+	if err != nil || len(cs) != 1 {
+		t.Fatalf("initial candidates: %v %v", cs, err)
+	}
+	client := &http.Client{Transport: cs[0].Transport, Timeout: time.Second}
+	request := func() error {
+		resp, err := client.Get(target)
+		if resp != nil {
+			resp.Body.Close()
+		}
+		return err
+	}
+	if err := request(); err != nil || d.calls != 1 {
+		t.Fatalf("valid candidate should reuse DNS: calls=%d err=%v", d.calls, err)
+	}
+	for run := 1; run <= 3; run++ {
+		d.addresses[0].Expires = time.Now().Add(-time.Second)
+		if err := request(); err != nil || d.calls != run+1 {
+			t.Fatalf("request %d failed after TTL expiry: calls=%d err=%v", run, d.calls, err)
+		}
+	}
+	// A fresh answer must confirm the same pinned IP; never rotate silently.
+	d.addresses[0].Expires = time.Now().Add(-time.Second)
+	d.refresh = func(context.Context) ([]Address, error) { return fresh("127.0.0.2"), nil }
+	if err := request(); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("removed pinned IP accepted: %v", err)
+	}
+	// Failed DNS must not resurrect the expired address.
+	d.addresses = []Address{{"127.0.0.1", time.Now().Add(-time.Second)}}
+	d.refresh = func(context.Context) ([]Address, error) { return nil, errors.New("DNS offline") }
+	if err := request(); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("failed refresh accepted: %v", err)
+	}
+	// Foreign hosts must not initiate a DNS lookup.
+	calls := d.calls
+	r, _ := http.NewRequest(http.MethodGet, "http://other.example/video", nil)
+	if _, err := cs[0].Transport.RoundTrip(r); !errors.Is(err, ErrUnavailable) || d.calls != calls {
+		t.Fatalf("foreign host refreshed: calls=%d err=%v", d.calls, err)
+	}
+	// Cancellation during refresh remains cancellation, not a route failure.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	d.refresh = func(ctx context.Context) ([]Address, error) {
+		cancel()
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	r, _ = http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	if _, err := cs[0].Transport.RoundTrip(r); !errors.Is(err, context.Canceled) {
+		t.Fatalf("refresh cancellation lost: %v", err)
+	}
+	// Retirement during refresh must still reject a fresh answer.
+	d.refresh = func(context.Context) ([]Address, error) {
+		p.Close()
+		return fresh("127.0.0.1"), nil
+	}
+	if err := request(); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("retirement during refresh ignored: %v", err)
+	}
+	calls = d.calls
+	if err := request(); !errors.Is(err, ErrUnavailable) || d.calls != calls {
+		t.Fatalf("retired candidate refreshed: calls=%d err=%v", d.calls, err)
+	}
+}
+
 func TestCandidateModesAndRemoteDNS(t *testing.T) {
 	for _, mode := range []string{"direct", "socks5", "auto"} {
 		t.Run(mode, func(t *testing.T) {

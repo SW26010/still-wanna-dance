@@ -214,8 +214,8 @@ func (p *Pool) Current(target string) []Candidate {
 				if err != nil || !strings.EqualFold(h, c.Host) {
 					return nil, errors.New("channel host mismatch")
 				}
-				if !p.usable(c) {
-					return nil, ErrUnavailable
+				if err := p.ensureUsable(ctx, c); err != nil {
+					return nil, err
 				}
 				if c.Mode == "socks5" {
 					return proxyDial(ctx, network, address)
@@ -241,6 +241,29 @@ func (p *Pool) usable(c Candidate) bool {
 	return slices.ContainsFunc(p.dns.CurrentAddresses(c.Host), func(a Address) bool { return a.IP == c.IP && time.Now().Before(a.Expires) })
 }
 
+// Long-running callers can outlive a DNS answer, especially with short TTLs.
+// Revalidate the same IP through the shared resolver; never change the pinned
+// route or let a failed lookup/retired configuration revive an expired address.
+func (p *Pool) ensureUsable(ctx context.Context, c Candidate) error {
+	if p.usable(c) {
+		return nil
+	}
+	p.mu.Lock()
+	closed := p.closed
+	p.mu.Unlock()
+	if closed || c.Mode != "direct" {
+		return ErrUnavailable
+	}
+	_, err := p.dns.Addresses(ctx, c.Host)
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	if err != nil || !p.usable(c) {
+		return ErrUnavailable
+	}
+	return nil
+}
+
 type candidateTransport struct {
 	pool      *Pool
 	candidate Candidate
@@ -250,8 +273,11 @@ type candidateTransport struct {
 func (t *candidateTransport) ChannelID() string { return t.candidate.ID }
 
 func (t *candidateTransport) RoundTrip(r *http.Request) (*http.Response, error) {
-	if !strings.EqualFold(r.URL.Hostname(), t.candidate.Host) || !t.pool.usable(t.candidate) {
+	if !strings.EqualFold(r.URL.Hostname(), t.candidate.Host) {
 		return nil, ErrUnavailable
+	}
+	if err := t.pool.ensureUsable(r.Context(), t.candidate); err != nil {
+		return nil, err
 	}
 	return t.transport.RoundTrip(r)
 }

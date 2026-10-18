@@ -17,10 +17,6 @@ var errBusy = errors.New("download capacity reached")
 var errInvalidCache = errors.New("invalid cached video")
 var errUpstreamDownload = errors.New("upstream download failed")
 
-// File/session metadata is bounded independently of network concurrency. Queue
-// and batch callers remain bounded upstream; all admitted blocks compete globally.
-const maxResourceSessions = 32
-
 // Commit the admission cutoff under the same lock used to register/attach GETs.
 // A plan snapshot may only retire the flight if no new source arrived meanwhile.
 func (s *Server) preemptFlight(f *flight, changed <-chan struct{}) bool {
@@ -89,13 +85,12 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		if f != nil && f.sequentialCtx != nil && f.sequentialCtx.Err() != nil {
 			f.preempted = true
 		}
-		if f != nil && !f.preempted || (f == nil && len(s.slots) < cap(s.slots)) {
+		if f == nil || !f.preempted {
 			break
 		}
 		changed := s.capacityChanged
 		s.mu.Unlock()
-		// A busy download engine must still serve verified local files. Keep
-		// this disk work bounded independently of the network worker slots.
+		// A retiring resource session must still allow a verified local hit.
 		if f, err := s.localHit(ctx, v); f != nil || err != nil {
 			if err == nil && !background && v.songID != "" {
 				err = s.recordSongVideo(ctx, v.songID, v)
@@ -107,15 +102,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		if changed != s.capacityChanged {
 			continue
 		}
-		preempting := false
-		if f := s.flights[v.key]; f != nil && f.preempted {
-			preempting = true
-		}
 		s.mu.Unlock()
-		if !background && !preempting {
-			log.Warn("cache_capacity_rejected")
-			return nil, nil, errBusy
-		}
 		if !waitLogged {
 			log.Info("cache_capacity_wait")
 			waitLogged = true
@@ -140,13 +127,6 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		return nil, nil, errors.New("paused resource size mismatch")
 	}
 	if f == nil {
-		// Bound all workers (including validation); callers sharing a key do not consume another slot.
-		select {
-		case s.slots <- struct{}{}:
-		default:
-			s.mu.Unlock()
-			return nil, nil, errBusy
-		}
 		f = &flight{size: v.size, done: make(chan struct{}), streaming: make(chan struct{}), id: s.flightSequence.Add(1)}
 		f.ranges = s.paused[v.key]
 		delete(s.paused, v.key)
@@ -207,7 +187,6 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			}
 			s.mu.Lock()
 			delete(s.flights, v.key)
-			<-s.slots
 			if background {
 				s.background--
 			}

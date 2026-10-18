@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TestLocalHitsWhileAllDownloadSlotsAreOccupied(t *testing.T) {
+func TestSharedLocalHitsAtUsageCapacity(t *testing.T) {
 	started := make(chan struct{}, 3)
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
 		started <- struct{}{}
@@ -27,9 +27,12 @@ func TestLocalHitsWhileAllDownloadSlotsAreOccupied(t *testing.T) {
 	}
 	seed(videoURL(payload), payload)
 	corrupt := videoURL("also missing")
-	for i := 0; i < cap(s.slots); i++ {
-		s.slots <- struct{}{}
-	}
+	r, _ := http.NewRequest("GET", videoURL(payload), nil)
+	v, _ := s.parse(r)
+	s.mu.Lock()
+	s.reserveUseLocked(useSpan{v.key, 0, 1}, true)
+	s.reserveUseLocked(useSpan{"occupied", 0, maxUseBlocks - 1}, true)
+	s.mu.Unlock()
 	for _, tc := range []struct {
 		method  string
 		headers map[string]string

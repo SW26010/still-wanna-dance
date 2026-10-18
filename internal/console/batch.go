@@ -294,7 +294,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		c.batch.Phase = "正在按缺失 MD5 下载补齐"
 	}
 	c.mu.Unlock()
-	process := func(job *resourceJob) {
+	process := func(ctx context.Context, job *resourceJob) {
 		if ctx.Err() != nil {
 			return
 		}
@@ -361,17 +361,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 			c.batch.Downloaded += len(job.ids)
 		}
 	}
-	work := make(chan *resourceJob)
 	var wg sync.WaitGroup
-	for i := 0; i < 2; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for job := range work {
-				process(job)
-			}
-		}()
-	}
 dispatch:
 	for _, job := range jobs {
 		select {
@@ -379,10 +369,27 @@ dispatch:
 			break dispatch
 		case <-budgetStop:
 			break dispatch
-		case work <- job:
+		default:
+		}
+		jobCtx, admitted := cacheproxy.WithPreparationAdmission(ctx)
+		finished := make(chan struct{})
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer close(finished)
+			process(jobCtx, job)
+		}()
+		// Resolve the next ordered resource as soon as this one owns usage
+		// capacity. A local hit or early failure can finish without admission.
+		select {
+		case <-admitted:
+		case <-finished:
+		case <-ctx.Done():
+			break dispatch
+		case <-budgetStop:
+			break dispatch
 		}
 	}
-	close(work)
 	wg.Wait()
 	select {
 	case <-budgetStop:

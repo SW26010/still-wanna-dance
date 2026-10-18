@@ -321,7 +321,7 @@ func testRepeatedPreemption(t *testing.T, prefixSize int64, rounds int) {
 			t.Fatal(f.err)
 		}
 		s.mu.Lock()
-		checkpoint, occupied := s.paused[v.key], len(s.slots)
+		checkpoint, occupied := s.paused[v.key], len(s.flights)
 		s.mu.Unlock()
 		wantBytes := int64(round+1) * prefixSize
 		if prefixSize == rangeBlockSize {

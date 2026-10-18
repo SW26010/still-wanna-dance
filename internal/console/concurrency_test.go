@@ -16,7 +16,7 @@ import (
 	"still-wanna-dance/internal/vrclog"
 )
 
-func TestBackgroundModesDownloadTwoSongsConcurrently(t *testing.T) {
+func TestBackgroundModesAdmitNextSongBeforeEarlierDownloadsComplete(t *testing.T) {
 	for _, mode := range []string{"batch", "queue"} {
 		t.Run(mode, func(t *testing.T) {
 			c := testConsole(t)
@@ -77,21 +77,16 @@ func TestBackgroundModesDownloadTwoSongsConcurrently(t *testing.T) {
 				defer func() { cancel(); <-queueDone }()
 			}
 			seen := map[string]bool{}
-			for i := 0; i < 2; i++ {
+			for i := 0; i < 3; i++ {
 				select {
 				case path := <-started:
 					seen[path] = true
 				case <-time.After(3 * time.Second):
-					t.Fatal("second download did not start concurrently")
+					t.Fatal("third download remained behind a song-level limit")
 				}
 			}
-			if len(seen) != 2 {
+			if len(seen) != 3 {
 				t.Fatal("duplicate download", seen)
-			}
-			select {
-			case path := <-started:
-				t.Fatal("third download started before capacity freed", path)
-			case <-time.After(100 * time.Millisecond):
 			}
 			unblock()
 			deadline := time.After(5 * time.Second)

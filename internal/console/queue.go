@@ -324,8 +324,8 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 	}
 }
 
-// The coordinator owns deduplication and retry state; workers resolve/download
-// at most two songs and recheck the latest queue after resolving the URL.
+// The coordinator admits sources in queue order. Each admitted preparation
+// reports its result independently; completion never holds a song-level slot.
 func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wake <-chan struct{}) {
 	c.queueUpdateMu.Lock()
 	c.mu.Lock()
@@ -350,7 +350,9 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		wanted     bool
 		err        error
 	}
-	results := make(chan result, 2)
+	results := make(chan result)
+	var admitting int64
+	var admission <-chan struct{}
 	var wg sync.WaitGroup
 	defer func() {
 		c.mu.Lock()
@@ -383,24 +385,34 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 			generation = c.queue.Generation
 			retry = map[int64]time.Time{}
 		}
-		// Keep two address/download callers, but make room immediately for an
-		// earlier unprepared entry. Resource demand survives this caller swap.
-		selected := make(map[int64]bool)
-		for i, song := range c.queue.Songs {
-			if i >= c.queue.windowSize() || len(selected) == 2 {
-				break
-			}
-			if song.ID > 0 && !c.queue.prepared[song.ID] && !time.Now().Before(retry[song.ID]) {
-				selected[song.ID] = true
+		// Only the unresolved/unadmitted next source waits here. Already
+		// admitted resources keep downloading and reporting independently.
+		if admission != nil {
+			waiter := c.queue.waiters[admitting]
+			if waiter == nil || waiter.ctx.Err() != nil {
+				admission, admitting = nil, 0
+			} else {
+				select {
+				case <-admission:
+					admission, admitting = nil, 0
+				default:
+					// An earlier newly inserted source takes the pending place;
+					// already admitted sources need no caller replacement.
+					for i, song := range c.queue.Songs {
+						if i >= c.queue.windowSize() || song.ID == admitting {
+							break
+						}
+						if song.ID > 0 && !active[song.ID] && !c.queue.prepared[song.ID] && !time.Now().Before(retry[song.ID]) {
+							waiter.cancel()
+							admission, admitting = nil, 0
+							break
+						}
+					}
+				}
 			}
 		}
-		for id, waiter := range c.queue.waiters {
-			if !selected[id] {
-				waiter.cancel()
-			}
-		}
 		for i, song := range c.queue.Songs {
-			if i >= c.queue.windowSize() || len(active) >= 2 {
+			if i >= c.queue.windowSize() || admission != nil {
 				break
 			}
 			id := song.ID
@@ -410,6 +422,8 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 			active[id] = true
 			gen := generation
 			songCtx, cancel := context.WithCancel(applog.WithTrace(ctx))
+			songCtx, admission = cacheproxy.WithPreparationAdmission(songCtx)
+			admitting = id
 			slog.Info("queue_song_started", "trace_id", applog.TraceID(songCtx), "song_id", id, "generation", gen)
 			if c.queue.waiters == nil {
 				c.queue.waiters = make(map[int64]*queueWaiter)
@@ -429,7 +443,10 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 				} else {
 					_, err = engine.PrefetchQueuePlayback(songCtx, id)
 				}
-				results <- result{id, gen, !errors.Is(err, errSongRemoved), err}
+				select {
+				case results <- result{id, gen, !errors.Is(err, errSongRemoved), err}:
+				case <-ctx.Done():
+				}
 
 			}()
 		}
@@ -449,7 +466,12 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		case <-ctx.Done():
 			return
 		case <-wake:
+		case <-admission:
+			admission, admitting = nil, 0
 		case r := <-results:
+			if admitting == r.id {
+				admission, admitting = nil, 0
+			}
 			delete(active, r.id)
 			c.mu.Lock()
 			waiter := c.queue.waiters[r.id]

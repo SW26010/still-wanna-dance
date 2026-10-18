@@ -77,7 +77,6 @@ type Server struct {
 	prefetchOrder     []int64
 	queueStart        time.Time
 	playbackChecks    map[string]*playbackCheck // protected by mu
-	slots             chan struct{}
 	localChecks       chan struct{}
 	requests          *requestActivity
 	scheduler         *blocksched.Scheduler
@@ -195,7 +194,7 @@ func New(cfg Config) (*Server, error) {
 		rangeBuffers: make(chan []byte, videoRequestSoftLimit),
 		versionPins:  make(map[string]int),
 		usage:        usage,
-		flights:      make(map[string]*flight), slots: make(chan struct{}, maxResourceSessions), localChecks: make(chan struct{}, cfg.MaxLocalValidations), capacityChanged: make(chan struct{}),
+		flights:      make(map[string]*flight), localChecks: make(chan struct{}, cfg.MaxLocalValidations), capacityChanged: make(chan struct{}),
 		client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
 	if err := s.loadTraffic(usage.db); err != nil {
@@ -216,7 +215,7 @@ func New(cfg Config) (*Server, error) {
 	go s.retentionLoop()
 	s.scheduler = newDownloadScheduler(cfg)
 	cfg.Logger.Info("cache_engine_ready", "removed_partials", cleaned, "max_local_validations", cfg.MaxLocalValidations,
-		"max_resource_sessions", maxResourceSessions, "video_request_soft_limit", videoRequestSoftLimit,
+		"video_request_soft_limit", videoRequestSoftLimit,
 		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "max_cache_bytes", cfg.MaxCacheBytes, "cache_unlimited", cfg.CacheUnlimited)
 	return s, nil
 }
@@ -442,13 +441,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		ctx := context.WithValue(r.Context(), httpGETKey{}, true)
 		// A replacement URL receives a fresh source, even for the same content.
-		ctx = context.WithValue(ctx, getDemandKey{}, (*downloadDemand)(nil))
+		ctx = context.WithValue(ctx, sourceDemandKey{}, (*downloadDemand)(nil))
 		demand, release, err := s.addDemand(ctx, resource, true)
 		if err != nil {
 			return err
 		}
 		releaseDemand = release
-		r = r.WithContext(context.WithValue(ctx, getDemandKey{}, demand))
+		r = r.WithContext(context.WithValue(ctx, sourceDemandKey{}, demand))
 		response.consumption = &getConsumption{s: s, demand: demand, size: resource.size}
 		return nil
 	}

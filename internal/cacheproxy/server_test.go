@@ -297,10 +297,12 @@ func TestOwnershipCapacityTimeoutAndShutdown(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	s.slots = make(chan struct{}, 1) // exercise the file-session admission bound
 	done := make(chan *responseRecorder, 1)
 	go func() { done <- request(s, "GET", videoURL(payload), nil) }()
 	<-started
+	s.mu.Lock()
+	s.reserveUseLocked(useSpan{"occupied", 0, maxUseBlocks - 1}, true)
+	s.mu.Unlock()
 	w := request(s, "GET", videoURL("different"), nil)
 	if w.Code != 503 {
 		t.Fatal(w.Code)
@@ -310,6 +312,9 @@ func TestOwnershipCapacityTimeoutAndShutdown(t *testing.T) {
 		t.Fatal(w.Code)
 	}
 	s.wg.Wait()
+	s.mu.Lock()
+	s.releaseUseLocked(useSpan{"occupied", 0, maxUseBlocks - 1})
+	s.mu.Unlock()
 	assertNoPartial(t, cfg.tempDir())
 	go func() { done <- request(s, "GET", videoURL(payload), nil) }()
 	<-started

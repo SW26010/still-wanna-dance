@@ -13,7 +13,7 @@ import (
 var errPreempted = errors.Join(context.Canceled, errors.New("download paused without active demand"))
 
 type queueDemandKey struct{}
-type getDemandKey struct{}
+type sourceDemandKey struct{}
 type httpGETKey struct{}
 
 // Identity lasts for one continuous queue membership. Mutable fields are
@@ -159,8 +159,8 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 	if err := ctx.Err(); err != nil {
 		return nil, nil, err
 	}
-	if existing, ok := ctx.Value(getDemandKey{}).(*downloadDemand); playback && ok && existing != nil && existing.key == v.key {
-		return existing, func() {}, nil // The HTTP response owns this source's lifetime.
+	if existing, ok := ctx.Value(sourceDemandKey{}).(*downloadDemand); ok && existing != nil && existing.key == v.key && existing.playback == playback {
+		return existing, func() {}, nil // The response/preparation owns this source's lifetime.
 	}
 	token, queue := ctx.Value(queueDemandKey{}).(*queueSource)
 	d := &downloadDemand{ctx: ctx, key: v.key, song: v.songID, queue: queue, playback: playback, queueSource: token}

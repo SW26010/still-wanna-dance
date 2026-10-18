@@ -55,7 +55,7 @@ type Config struct {
 	RequestRetentionDays int
 	// MaxLocalValidations bounds concurrent local file validations.
 	// The CLI retains the legacy -max-downloads flag.
-	// Resource sessions and upstream block scheduling have independent limits.
+	// Usage capacity and upstream block execution have independent limits.
 	MaxLocalValidations int
 	Logger              *slog.Logger
 	// DialContext supplies upstream connections (independent DNS or SOCKS5).

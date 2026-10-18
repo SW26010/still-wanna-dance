@@ -58,11 +58,13 @@ func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, res
 	defer func() { finishBudget(resultErr == nil || ctx.Err() != nil) }()
 	log := s.cfg.Logger.With("trace_id", applog.TraceID(ctx), "song_id", id, "resource_key", v.key)
 	log.Info("prefetch_started")
-	_, releaseDemand, err := s.addDemand(ctx, v, false)
+	demand, releaseDemand, err := s.addPreparation(ctx, v)
 	if err != nil {
 		return "", err
 	}
 	defer releaseDemand()
+	ctx = context.WithValue(ctx, sourceDemandKey{}, demand)
+	preparationAdmitted(ctx)
 	s.pinVideo(v)
 	defer s.releaseVideo(v)
 	if id != "" {

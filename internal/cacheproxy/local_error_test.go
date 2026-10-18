@@ -46,7 +46,7 @@ func TestStorageFailureStopsDownloadsButKeepsHits(t *testing.T) {
 	s.mu.Lock()
 	active := len(s.flights)
 	s.mu.Unlock()
-	if active != 0 || len(s.slots) != 0 {
+	if active != 0 {
 		t.Fatal("failed flight retained capacity")
 	}
 }

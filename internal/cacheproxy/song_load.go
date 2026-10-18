@@ -113,6 +113,12 @@ func (s *Server) PrefetchPlayback(ctx context.Context, id int64) (string, error)
 		return "", err
 	}
 	if v.localOnly {
+		_, releaseDemand, err := s.addPreparation(ctx, v)
+		if err != nil {
+			return "", err
+		}
+		defer releaseDemand()
+		preparationAdmitted(ctx)
 		s.retentionMu.Lock()
 		s.rememberSongResourceLocked(v.songID, v.key)
 		s.retentionMu.Unlock()

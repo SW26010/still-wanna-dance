@@ -14,7 +14,7 @@ import (
 type localResource struct {
 	mu         sync.Mutex
 	storage    *blockFiles
-	video      video
+	video      video // Identity is immutable; routing changes only before a new flight starts.
 	etag       string
 	sequential bool           // A 200 origin must reopen a single response after stopping.
 	done       map[int64]bool // Availability only for the storage-free diagnostic loader.
@@ -90,7 +90,6 @@ func (s *Server) acquireLocalResource(v video) (*localResource, error) {
 		if d.video.size != v.size {
 			return nil, errors.New("local resource size mismatch")
 		}
-		d.video = resourceVideo(v) // A new execution uses the caller's current address.
 		d.storage.retain()
 	}
 	return d, nil

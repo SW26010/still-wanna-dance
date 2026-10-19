@@ -594,3 +594,9 @@ spoolReader 对返回、错误和上下文取消使用一次性清理；客户�
 初版 `go test -tags=no_easytier ./internal/cacheproxy -count=1 -timeout=2m` 整包通过（33.831 s），同包 go vet 与 diff 检查通过。日志在忽略目录 artifacts/download-resource/minimal-range-compat-20261019/：cache-suite-full-access.log、vet.log。首轮定向检查遇到沙箱默认临时目录的重命名拒绝；改用仓库隔离临时目录后，整包仍遇到硬链接、目录联接及子进程测试限制，分别保留 directed.log、cache-suite.log；随后在沙箱外使用同一隔离目录完成整包检查。撤掉两字段关系的运行时校验后，保护窗口与顺序 200 边界定向回归通过（0.928 s，window-convention.log），包含默认配置符合约定、较短值接受且不被抬高；diff 检查通过，未重复扩大整包矩阵。原始审查复现仍保存在 commit-review-20261019/，顺序 200 的复现现在作为明确接受的兼容边界，不将其改写为无缝恢复成功。
 
 未修改调度或并发机制，沿用第 58 项的完整竞态证据；未启动 VRC、修改 hosts、提交或 push。本次无须新增实机台账项目，既有播放器恢复风险仍按原场景积攒。
+
+## 60. 旧读者获取引用不回写执行地址
+
+2026-10-19：acquireLocalResource 只校验资源身份并获取引用；当前地址仅在创建新 flight、执行器启动前更新 host/path/query，身份字段保持不变。迟到的旧 GET 经 localBlockReader 读取保留块时不再覆盖新会话地址，避免与执行器无锁读取地址发生竞争。完整块共享、引用释放和下载选路规则不变。
+
+新增受控上游回归：保留首块，新会话用新地址下载第二块时暂停响应，旧 GET 获取并读取本地块后再放行，确认第三块仍使用新 host/path/query 并正常发布。通过 Go overlay 对照原代码，确定性捕获后续请求回退旧地址；该失败证据不等同于 race 检测器报错。修复后，本回归及本地资源生命周期、停止重建、完整块复用和发布相关 Windows race 检查通过（3.289 s），cacheproxy 的 go vet 与 diff 检查通过。原代码对照、通过结果和静态检查日志保存在忽略目录 artifacts/local-resource-reader-20261019/。本次不新增 VRC 待验场景。

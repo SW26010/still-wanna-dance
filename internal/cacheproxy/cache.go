@@ -131,6 +131,11 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			s.mu.Unlock()
 			return nil, nil, err
 		}
+		if local != nil {
+			// Only a new flight refreshes routing, before any executor starts.
+			// Late readers may acquire the same resource without changing it.
+			local.video.host, local.video.path, local.video.query = v.host, v.path, v.query
+		}
 		f.ranges = local
 		workerCtx, cancel := context.WithCancelCause(s.ctx)
 		f.cancel, f.background = cancel, background

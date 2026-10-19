@@ -1,11 +1,16 @@
 package cacheproxy
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
+	"time"
 )
 
 func localBlockPath(t *testing.T, blocks *blockFiles, block int64) string {
@@ -61,4 +66,77 @@ func TestLocalResourceLifetimePreservesCompleteBlocksAndReaders(t *testing.T) {
 		t.Fatal("last reader left a block file", err)
 	}
 	assertNoPartial(t, cfg.tempDir())
+}
+
+func TestLateLocalReaderPreservesNewFlightAddress(t *testing.T) {
+	body := bytes.Repeat([]byte("x"), int(3*rangeBlockSize))
+	oldURL := videoURL(string(body))
+	currentURL := strings.Replace(oldURL, "play.udon.dance", "nya.xin.moe", 1) + "&address=current"
+	currentURL = strings.Replace(currentURL, "/1344-", "/1345-", 1)
+	current, _ := http.NewRequest(http.MethodGet, currentURL, nil)
+	started := make(chan int64, 3)
+	gate := make(chan struct{}, 1)
+	defer close(gate)
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Host != current.URL.Host || r.URL.Path != current.URL.Path || r.URL.RawQuery != current.URL.RawQuery {
+			t.Error("new flight used an obsolete resource address", r.URL)
+		}
+		var start, end int64
+		if _, err := fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end); err != nil {
+			t.Error(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		started <- start
+		if start == rangeBlockSize {
+			select {
+			case <-gate:
+			case <-r.Context().Done():
+				return
+			}
+		}
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(body)))
+		w.WriteHeader(http.StatusPartialContent)
+		w.Write(body[start : end+1])
+	})
+	s.scheduler.SetSoftLimit(1)
+	oldRequest, _ := http.NewRequest(http.MethodGet, oldURL, nil)
+	oldVideo, err := s.parseResolved(oldRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Retained blocks can outlive their old flight; a delayed GET may still
+	// take its completed/ErrNotRetained branch after the next flight starts.
+	local, err := s.newLocalResource(oldVideo, &http.Response{StatusCode: http.StatusPartialContent, Header: make(http.Header)}, s.cfg.Logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer local.storage.release()
+	if err := local.storage.store(0, body[:rangeBlockSize]); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	finished := make(chan error, 1)
+	go func() { _, err := s.Prefetch(ctx, currentURL); finished <- err }()
+	if start := receiveDemandEvent(t, started); start != rangeBlockSize {
+		t.Fatal("new flight did not reuse the retained first block", start)
+	}
+	reader, err := s.localBlockReader(ctx, oldVideo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reader.Close()
+	got := make([]byte, 8)
+	if _, err := io.ReadFull(reader, got); err != nil || !bytes.Equal(got, body[:len(got)]) {
+		t.Fatal("late reader could not read retained bytes", err)
+	}
+	// The next missing block reads its route after the old GET acquired data.
+	gate <- struct{}{}
+	if start := receiveDemandEvent(t, started); start != 2*rangeBlockSize {
+		t.Fatal("unexpected next missing block", start)
+	}
+	if err := receiveDemandEvent(t, finished); err != nil {
+		t.Fatal(err)
+	}
 }

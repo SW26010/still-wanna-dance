@@ -8,7 +8,7 @@
     "webui/pnpm-lock.yaml": "950824f10bd7685719f68b51d031519a3064feae8f98a8cdfb2409dedc9c276c",
     "webui/pnpm-workspace.yaml": "f8374fb59aaf2874eb09ae9b7da311a1f2025595b5279341c1a819c4b85c4611",
     "webui/src/api.ts": "07a864e0c5ee077804132cc3ca45b46c8880070cc15d9f8bfae3c14f3aa2faf0",
-    "webui/src/app.tsx": "ad6cd6f92e045a77fdfa458809512ccf9cd51bcc85610c0608f47f62b63a0536",
+    "webui/src/app.tsx": "45818a49d3da87a0d57f4d7f1de77197b0a7847b5e0659670efea8d79d5f574d",
     "webui/src/bootstrap.ts": "13b165ccbe995d1256e89327ea5be9c94cf6288da13d300c6146442cd7c32c05",
     "webui/src/cache-capacity.tsx": "2b8326d94fa20ac51f694566a971b544b0042f8c0fe137a3b05e45297492e9dd",
     "webui/src/cache.tsx": "b836ee3f99050d0119b4cbbcf0efbdffe52b6de30b5c5ec8e91e94553e6e338a",
@@ -22,14 +22,14 @@
     "webui/src/requests.ts": "a36d9ef191f9d132b3d2966a4a9456976f2dc0bee2114099d5c8b20781d01ec8",
     "webui/src/settings.tsx": "b7d14fa5179861c4a00044c80fa9f2e24e21fdbb1fc41b1a10ae53c4e6908570",
     "webui/src/setup.tsx": "0c9a02a15d8ed6a00b9ede792582ad5f6e2c3d2ab4660d32716f274321a088b4",
-    "webui/src/styles.css": "470dd439d681d9e382b548672fcee19f54b9b8470b2384e4033c6aa4f32aa1c8",
-    "webui/src/types.ts": "ffe17b3b7a69bf22fd7e3bfc59fac43b69d5b875347a20cd1be3778aad23ba63",
+    "webui/src/styles.css": "70d85c5e4949e9c4c25cd50ecd855d1a542b44e647d2238e1bff1779101f0c65",
+    "webui/src/types.ts": "06498378be65e7f56d40fd6f4661c883755c9dea0671aea4cd794b4c797b5952",
     "webui/src/ui.tsx": "ce54953eff27177fca87e7d709ca52440f273dd64969a685cff56f3fd0d8e147",
     "webui/tsconfig.json": "8b7f2c63c61fc1e6c52d979af1d994b8f7cc2aa9562c2564fd5525385f028a6a"
   },
   "outputs": {
     "docs/licenses/WEBUI-NOTICES.txt": "65377ac28669c1ed34c21c6c3dcfdb74bae0868b334d8d8dd292e356171387ae",
-    "internal/console/assets/webui/app.css": "1891360f469ff2335e8f112e5236d90a7af544ce37d1fea33292576850ab6bba",
-    "internal/console/assets/webui/app.js": "50cd815503015a061fe5d09149c03be30a117c106f7b1c9174d713fc68733675"
+    "internal/console/assets/webui/app.css": "ce8eea093dc0ab18d83cae6fff55fef96f71425d95d05a6446c26e04b42bc5ed",
+    "internal/console/assets/webui/app.js": "3be871d4cfb178408606f25658be8fba3f9bd4c47f86e6f2106f3259f2fe2fea"
   }
 }

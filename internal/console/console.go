@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/blocksched"
 	"still-wanna-dance/internal/branding"
@@ -757,6 +758,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Hosts                 HostsStatus             `json:"hosts"`
 			PortOK                bool                    `json:"portOK"`
 			CDNError              string                  `json:"cdnError"`
+			StorageError          string                  `json:"storageError,omitempty"`
 			ActionErrors          map[string]string       `json:"actionErrors"`
 			Batch                 Batch                   `json:"batch"`
 			Import                ImportStatus            `json:"import"`
@@ -813,6 +815,9 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		result.Hosts = readHostsStatus()
 		if service != nil {
+			if err := service.StorageError(); err != nil {
+				result.StorageError = applog.SafeError(err).Error()
+			}
 			result.Traffic = service.TrafficStats()
 			result.Queue.Titles = service.QueueTitles()
 			for i := range result.Queue.Failures {

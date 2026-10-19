@@ -32,7 +32,7 @@ export interface Status {
   running: boolean; settings: Settings; activeSettings: Settings; restartRequired: boolean;
   hosts: {ready: boolean; needsMigration?: boolean; conflict?: boolean; message: string}; portOK: boolean; httpsPortOK: boolean;
   portOwner?: {name: string; pid: number}; httpsPortOwner?: {name: string; pid: number}; cdnError?: string;
-  actionErrors?: Record<string,string>; batch: Job; lastBatch: Job; import: ImportJob;
+  storageError?: string; actionErrors?: Record<string,string>; batch: Job; lastBatch: Job; import: ImportJob;
   queue: {running?: boolean; desired?: boolean; current?: number; active?: number[]; songs?: {songId: number}[]; titles?: Record<string,string>; file?: string; completed?: number; logError?: string; error?: string};
   traffic?: {hits?: number; hitRate?: number; savedBytes?: number; playbackTransfers?: number; requests?: number; misses?: number; coldBodyMS?: number; coldBodySamples?: number; localBodyMS?: number; localBodySamples?: number; error?: string};
   socks5PasswordSet?: boolean; socks5CredentialError?: string;

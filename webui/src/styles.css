@@ -26,6 +26,7 @@ legend { font-weight: var(--fontWeightSemibold); padding: 0 8px; }
 .page-heading { display: flex; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
 .fui-DialogSurface { max-height: calc(100dvh - 32px); overflow-y: auto; }
 .fui-DialogContent { overflow-wrap: anywhere; }
+.fui-MessageBarBody { min-width: 0; overflow-wrap: anywhere; }
 .wizard { min-height: calc(100dvh - 48px); }
 .wizard-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding-top: 16px; }
 .wizard-divider { margin-top: 28px; }

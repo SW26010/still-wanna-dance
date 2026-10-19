@@ -63,6 +63,7 @@ export function App() {
     <NavigationLayout items={pageLinks()} selected={page} hidden={page==='setup'}>
     <main ref={main} id="main" tabIndex={-1}><div className="page-heading" hidden={page==='setup'}><Title2 as="h1">{page === 'home' ? 'Load failed? But I still wanna dance!' : pages[page]}</Title2>{s && <Badge color={s.running && s.hosts.ready ? 'success' : 'informative'}>{s.running && s.hosts.ready ? '游戏接入：已完成' : s.running ? '游戏接入：等待配置' : '游戏接入：未启用'}</Badge>}</div><p hidden={page==='setup'}>{descriptions[page]}</p>
       <Feedback error={!!model.status.error}>{model.status.error ? '无法连接控制台，请检查程序是否仍在运行。' : ''}</Feedback><Feedback>{model.message}</Feedback>
+      {s?.storageError && <Feedback error><p><strong>本地存储故障，已停止新的下载。</strong>已完成缓存仍可读取。</p><p>请检查磁盘空间和目录权限，修复后退出并重新打开整个应用。仅重新启停播放网关或队列无法恢复下载。</p><p>首个错误：{s.storageError}</p></Feedback>}
       {!s && accepted && page!=='setup' && !model.status.error && <Spinner label="正在读取控制台状态" />}
       {s && <><div hidden={page !== 'home'}><Home /></div><div hidden={page !== 'library'}><Library /></div><div hidden={page !== 'cache'}><Cache visible={page === 'cache'} /></div><div hidden={page !== 'monitor'}><Monitor visible={page === 'monitor'} /></div><div hidden={page !== 'settings'}><SettingsPage /></div>
       </>}

@@ -233,13 +233,15 @@ func (s *Server) trimCachePass(reconcile bool) error {
 	limit := s.cfg.MaxCacheBytes
 	unlimited := s.cfg.CacheUnlimited
 	s.retentionMu.Unlock()
-	if unlimited {
-		return nil
-	}
+	// Resource-use coordination needs complete-file availability in every
+	// budget mode. Unlimited skips eviction, not inventory reconciliation.
 	if reconcile {
 		if err := s.reconcileRetention(); err != nil {
 			return err
 		}
+	}
+	if unlimited {
+		return nil
 	}
 	s.retentionMu.Lock()
 	total := s.retainedBytes

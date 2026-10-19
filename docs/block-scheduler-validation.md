@@ -646,3 +646,13 @@ Range 临时准备完成后，按资源保留一份轻量使用协调，直接�
 - cmd/internal 的 go vet、构建及 diff 检查通过（vet-final.log、build.log）。首轮新夹具因误按完整 URL 区分 HTTP/HTTPS 而返回错误正文，修正为按资源标识匹配；directed.log 和上述首次整包失败日志保留，未改写为通过。
 
 本次验证可由受控协议、时序及文件测试完成，不新增 VRC 台账条目，既有游戏体验风险仍按原场景积攒；未启动游戏或修改 hosts。
+
+## 64. 不限容量模式维护正式文件库存
+
+2026-10-19：outgoing 审查发现，不限容量模式在启动和定期目录核对前直接返回，重启后已有正式视频未进入内存库存。队列 HIT 启动资源使用协调后，将这些文件误判为缺失，反复创建准备会话；HIT 只写资源元数据、不补库存，因而无法退出循环。原始定向复现约 7.4 ms 创建 22 个会话，上游请求为 0，失败日志保留在 artifacts/commit-review-storage/reproduction.log。
+
+trimCachePass 现在在全部预算模式执行所需的目录核对，不限容量只跳过淘汰。复用既有库存和可用性通知，不新增状态或每次 HIT 的目录扫描；同步缓存保留说明及队列中的过时保护注释。
+
+新增 TestUnlimitedRestartQueueHitDoesNotRefetch，覆盖真实引擎重启、已有视频及歌曲映射、队列 HIT、无额外会话/上游请求和退出后文件仍保留；已有外部新增、删除和大小变化的库存核对测试扩展为有限/不限两种模式。定向回归通过（directed.log，1.005 s），cacheproxy 整包 Windows race 通过（cache-race.log，57.076 s），同包 go vet 与 diff 检查通过。日志位于忽略目录 artifacts/unlimited-inventory-fix-20261019/；测试使用工作区隔离临时目录，完整 Windows 文件及竞态测试在沙箱外执行。
+
+本次修复不改变下载窗口、保护或预算语义，不新增 VRC 台账项目；未启动游戏、修改 hosts、提交或推送。

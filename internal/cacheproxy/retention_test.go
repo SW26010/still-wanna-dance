@@ -328,23 +328,29 @@ func TestRetentionReleaseDoesNotWaitForWorker(t *testing.T) {
 }
 
 func TestRetentionReconciliationCorrectsExternalChanges(t *testing.T) {
-	s, cfg := setup(t, nil)
-	setRetentionLimit(t, s, 100)
-	one := cfg.videoFile(strings.Repeat("1", 32))
-	two := cfg.videoFile(strings.Repeat("2", 32))
-	putRetained(t, one, 10)
-	putRetained(t, two, 20)
-	s.runRetention(true) // The same pass used by the periodic timer.
-	if got := retainedBytes(s); got != 30 {
-		t.Fatalf("external additions: %d", got)
-	}
-	if err := os.Remove(one); err != nil {
-		t.Fatal(err)
-	}
-	putRetained(t, two, 15)
-	s.runRetention(true)
-	if got := retainedBytes(s); got != 15 {
-		t.Fatalf("external deletion/resize: %d", got)
+	for _, unlimited := range []bool{false, true} {
+		t.Run(fmt.Sprintf("unlimited=%v", unlimited), func(t *testing.T) {
+			s, cfg := setup(t, nil)
+			if !unlimited {
+				setRetentionLimit(t, s, 100)
+			}
+			one := cfg.videoFile(strings.Repeat("1", 32))
+			two := cfg.videoFile(strings.Repeat("2", 32))
+			putRetained(t, one, 10)
+			putRetained(t, two, 20)
+			s.runRetention(true) // The same pass used by the periodic timer.
+			if got := retainedBytes(s); got != 30 {
+				t.Fatalf("external additions: %d", got)
+			}
+			if err := os.Remove(one); err != nil {
+				t.Fatal(err)
+			}
+			putRetained(t, two, 15)
+			s.runRetention(true)
+			if got := retainedBytes(s); got != 15 {
+				t.Fatalf("external deletion/resize: %d", got)
+			}
+		})
 	}
 }
 

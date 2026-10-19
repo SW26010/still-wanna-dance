@@ -75,8 +75,8 @@ func (q *QueueStatus) setSongs(songs []vrclog.Song, reset bool) {
 	}
 	// Remember success only while a song stays in the prefetch window. Do
 	// this on every snapshot, including snapshots coalesced before a wake.
-	// Reentry checks the current version again; cached songs remain protected
-	// throughout the full queue, including outside the prefetch window.
+	// Reentry checks the current version again; the engine manages protection
+	// from registered usage and its local protection window.
 	for id := range q.prepared {
 		if !q.wants(id, q.Generation) {
 			delete(q.prepared, id)

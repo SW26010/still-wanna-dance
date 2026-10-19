@@ -2,16 +2,85 @@ package cacheproxy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 )
+
+func TestUnlimitedRestartQueueHitDoesNotRefetch(t *testing.T) {
+	cfg := fixtureConfig()
+	cfg.StorageDir = t.TempDir()
+	cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
+		return videoURL(payload), nil
+	}
+	var calls atomic.Int32
+	cfg.ResourceTransports = func(string) []http.RoundTripper {
+		return []http.RoundTripper{resourceTransportFunc(func(*http.Request) (*http.Response, error) {
+			calls.Add(1)
+			return nil, errors.New("existing cache must not require upstream video")
+		})}
+	}
+	initial, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { initial.Close() })
+	v := parsedVideo(t, initial, payload)
+	if err := os.WriteFile(cfg.videoFile(v.key), []byte(payload), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := initial.recordVideo(t.Context(), v); err != nil {
+		t.Fatal(err)
+	}
+	if err := initial.recordSongVideo(t.Context(), "42", v); err != nil {
+		t.Fatal(err)
+	}
+	if err := initial.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := s.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	if got := retainedBytes(s); got != int64(len(payload)) {
+		t.Errorf("startup inventory = %d bytes, want %d", got, len(payload))
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	defer cancel()
+	if err := s.UpdatePrefetchQueue([]int64{42}, false); err != nil {
+		t.Fatal(err)
+	}
+	if source, err := s.PrefetchQueuePlayback(ctx, 42); err != nil || source != "HIT" {
+		t.Fatal("queue preparation", source, err)
+	}
+	// A local HIT needs no flight at all. Allow the asynchronous coordinator
+	// to run; checking startup inventory above also detects the cause directly.
+	deadline := time.Now().Add(50 * time.Millisecond)
+	for s.flightSequence.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if flights := s.flightSequence.Load(); flights != 0 || calls.Load() != 0 {
+		t.Fatalf("cached queue item started %d flights and %d upstream requests", flights, calls.Load())
+	}
+	expectRetained(t, cfg.videoFile(v.key), true)
+}
 
 func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 	for _, tc := range []struct {

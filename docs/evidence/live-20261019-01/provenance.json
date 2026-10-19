@@ -1,0 +1,191 @@
+{
+  "batch": "LIVE-20261019-01",
+  "sourceSHA": "11fa828c3f656435c1162849b4f998cff6aecee6",
+  "workingTreeDirty": true,
+  "productionCodeUnchanged": true,
+  "initialProductRevision": "569122f20574034e70cf2017a7b0cd5fc65863f5",
+  "productSubtreesEqual": [
+    "cmd",
+    "internal",
+    "go.mod",
+    "go.sum"
+  ],
+  "binaries": [
+    {
+      "name": "SWD.exe",
+      "bytes": 51551744,
+      "sha256": "fea626ddc965f26cbdb525c7c6432acd3b5c8861c3755588b17175f1850fdd03",
+      "goVersion": "go1.27.1",
+      "sourceRevision": "569122f20574034e70cf2017a7b0cd5fc65863f5",
+      "modified": true,
+      "tags": [
+        "no_easytier"
+      ],
+      "cgoEnabled": false
+    },
+    {
+      "name": "SWD-debug.exe",
+      "bytes": 51551744,
+      "sha256": "afc3b9d4979ef893a935525690394100466de20788c26355fd339c4e3514518e",
+      "goVersion": "go1.27.1",
+      "sourceRevision": "11fa828c3f656435c1162849b4f998cff6aecee6",
+      "modified": true,
+      "tags": [
+        "no_easytier"
+      ],
+      "cgoEnabled": false
+    },
+    {
+      "name": "live-get-probe.exe",
+      "bytes": 37860352,
+      "sha256": "c3b9e7c807d15443a5086562358639b499b5409b1b16892b4e2c0a8a52f7ac81",
+      "goVersion": "go1.27.1",
+      "sourceRevision": "11fa828c3f656435c1162849b4f998cff6aecee6",
+      "modified": true,
+      "tags": [
+        "no_easytier"
+      ],
+      "cgoEnabled": false
+    },
+    {
+      "name": "relay-recovery.exe",
+      "bytes": 37861888,
+      "sha256": "f76a0414b96d045c3f000532319964d8f8e3ff7bc6c409e871f55530f010e921",
+      "goVersion": "go1.27.1",
+      "sourceRevision": "11fa828c3f656435c1162849b4f998cff6aecee6",
+      "modified": true,
+      "tags": [
+        "no_easytier"
+      ],
+      "cgoEnabled": false
+    }
+  ],
+  "releasePackage": null,
+  "instrumentation": "Debug build overlays only slog.HandlerOptions.Level; HTTP body fixture and SOCKS relay are separate processes",
+  "debugOverlay": {
+    "sha256": "adfcf7b1d0f3cc8796adb1819f5ae84720813486afc1f3b477b094c4424c2763",
+    "change": "Add Level: slog.LevelDebug to the console slog.HandlerOptions; original omitted Level (default Info)."
+  },
+  "initialBodyBuild": {
+    "patch": {
+      "name": "source.patch",
+      "bytes": 1406,
+      "sha256": "dbea08b2a29fc216be19d5c6b13394a02507d2cb1a94346322d250fcb64b41bc"
+    },
+    "untracked": [
+      {
+        "path": "experiments/live-get-probe/body.go",
+        "sha256": "25d9bb7e966bd919adb06a121f0a2b9270903f1f0c82ea75d98c04f11013d3be"
+      },
+      {
+        "path": "experiments/live-get-probe/body_test.go",
+        "sha256": "925de87402fa6f244d551d61cbf2837bbffab9342ad95c78d3aa542a6483fb9c"
+      }
+    ]
+  },
+  "toolHashBasis": "git-blob",
+  "tools": [
+    {
+      "path": "experiments/live-get-probe/body-summary.mjs",
+      "bytes": 1989,
+      "sha256": "b064f6101724eb1cebefcd798e273390b8fb6435ebc08f62262a25309a342262",
+      "gitBlob": "8bd2355ce7cd690a14a582174433a7aababe9709"
+    },
+    {
+      "path": "experiments/live-get-probe/body.go",
+      "bytes": 7627,
+      "sha256": "25d9bb7e966bd919adb06a121f0a2b9270903f1f0c82ea75d98c04f11013d3be",
+      "gitBlob": "c24c076a2466961a0d636bb55c5ff57b24048b67"
+    },
+    {
+      "path": "experiments/live-get-probe/body_test.go",
+      "bytes": 3487,
+      "sha256": "0d169b80e9d60cd58c72097a5cf460e97d7f2d5792134a07e78228b3c0e72a98",
+      "gitBlob": "f16763a43d18cb61fda88ff0c0539dd58670e87f"
+    },
+    {
+      "path": "experiments/live-get-probe/capture-interaction.mjs",
+      "bytes": 4317,
+      "sha256": "be5cd3179e72036294bbbc13a9770599ade291cf8dd4fcb51ecacfa695caf71d",
+      "gitBlob": "0b0cf17c0b8cdf4802df84ccf18e0c7205f67feb"
+    },
+    {
+      "path": "experiments/live-get-probe/game-events.mjs",
+      "bytes": 1007,
+      "sha256": "9350d38265029c21ab6f666ee07337d668bf476581d7c9270ab1aa9f640f6cf3",
+      "gitBlob": "c50b405d8d2ac4bfb7f78deee9ee6bc0c823c02f"
+    },
+    {
+      "path": "experiments/live-get-probe/get-lifetimes.mjs",
+      "bytes": 7910,
+      "sha256": "d27b23d80abe1dbe0cdc78f9e27508743e26c482265245bf016f026cc5acd399",
+      "gitBlob": "d9cd15515ec7c8299ea75ad27eae180ccc8f24ac"
+    },
+    {
+      "path": "experiments/live-get-probe/interaction-summary.mjs",
+      "bytes": 4594,
+      "sha256": "545b0f34c40581590f49bb4508d20b6e2eb8e4f207f62f6114afc4a8d54b5f89",
+      "gitBlob": "2a36da4d106b250db5d63dab1ca495c6f1738be9"
+    },
+    {
+      "path": "experiments/live-get-probe/main.go",
+      "bytes": 9780,
+      "sha256": "75073979e466942ed805b15bc7fe92664b42fce786b9dcdb2f1ef1d5c7d808e6",
+      "gitBlob": "f90e78875c741f10a08684af20731e333e566d36"
+    },
+    {
+      "path": "experiments/live-get-probe/main_test.go",
+      "bytes": 2708,
+      "sha256": "4005a946e23500760cee95af234f78763ee029a3951f2e6cadff0671bca0ceb1",
+      "gitBlob": "2b678e5299a10956920f99808d96daa167dc830a"
+    },
+    {
+      "path": "experiments/live-get-probe/observe.mjs",
+      "bytes": 2441,
+      "sha256": "f3007601ccaa762df57152ab20a1d6685af5a4b9beacd863e34714bfa556b8c7",
+      "gitBlob": "90d52a5c99ade0a9548db59488f4eb27bca68a15"
+    },
+    {
+      "path": "experiments/live-get-probe/product-observe.mjs",
+      "bytes": 1411,
+      "sha256": "949cd6a2762362c7e29a93bec17f069ff2708d5278d004562226829c5d3a8144",
+      "gitBlob": "5b245855e7e15908e2200e02a68113a01f4d717f"
+    },
+    {
+      "path": "experiments/live-get-probe/README.md",
+      "bytes": 6645,
+      "sha256": "ad4e9118116aa88e4be4b4908b89538b60a693cd343ff5430052812244cf4c86",
+      "gitBlob": "edd06dcb4713018a220642c54119e2c2b2649660"
+    },
+    {
+      "path": "experiments/live-get-probe/review-evidence.mjs",
+      "bytes": 10396,
+      "sha256": "7ff5d0a64b2c8e7a765ba3a9611961c47e9296815389918003e364d624e3d7b5",
+      "gitBlob": "0b6416bf6366c8355f22c72b27080ef2c73c1724"
+    },
+    {
+      "path": "experiments/live-get-probe/summarize.mjs",
+      "bytes": 8839,
+      "sha256": "021a5f97e17bb51455a1f369e4d4cd99cf67ccff4da538f0cc5326c82309562b",
+      "gitBlob": "251b32da30554649d803f01f8088cced772b31b8"
+    }
+  ],
+  "environment": {
+    "windows": "26H2 build 26300.9711",
+    "vrchat": "2026.4.1-1933-204f027ae8-Release",
+    "role": "single-user owner",
+    "worldVersion": "not independently identified",
+    "storage": "isolated batch directories",
+    "budgetsGiB": [
+      0,
+      1
+    ],
+    "cacheUnlimited": false,
+    "prepareAheadSeconds": 500,
+    "aggregateSlowRateBytesPerSecond": 125000,
+    "firstQueueRateBytesPerSecond": 524288
+  },
+  "privateInputs": "Raw game/application/relay logs, host backup, credentials, machine-specific settings and media stay in the ignored local lab; not archive members.",
+  "toolScope": "Frozen tool hashes at the original session/evidence preparation, before the post-session review corrections; these sources remain in the v2 archive.",
+  "postSessionReview": "docs/evidence/live-20261019-01/probe-review.json"
+}

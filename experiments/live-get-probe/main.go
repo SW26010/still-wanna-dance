@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -24,19 +25,39 @@ const quantum = 16 * 1024
 // each chunk is delayed until its complete byte allowance has elapsed.
 // A canceled reservation may leave a small unused allowance, never excess data.
 type pacer struct {
-	mu   sync.Mutex
-	rate int64
-	next time.Time
+	mu      sync.Mutex
+	rate    int64
+	next    time.Time
+	changed chan struct{}
+}
+
+func (p *pacer) setRate(rate int64) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.rate == rate {
+		return
+	}
+	p.rate = rate
+	p.next = time.Time{}
+	if p.changed != nil {
+		close(p.changed)
+	}
+	p.changed = make(chan struct{})
 }
 
 func (p *pacer) wait(ctx context.Context, n int) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	p.mu.Lock()
 	if p.rate == 0 {
+		p.mu.Unlock()
 		return nil
 	}
-	p.mu.Lock()
+	if p.changed == nil {
+		p.changed = make(chan struct{})
+	}
+	changed := p.changed
 	now := time.Now()
 	if p.next.Before(now) {
 		p.next = now
@@ -51,6 +72,8 @@ func (p *pacer) wait(ctx context.Context, n int) error {
 		return ctx.Err()
 	case <-t.C:
 		return nil
+	case <-changed:
+		return p.wait(ctx, n)
 	}
 }
 
@@ -234,12 +257,19 @@ func (r *relay) serve(ctx context.Context, client net.Conn) {
 }
 
 func main() {
+	bodyManifest := flag.String("body-manifest", "", "verified local media manifest; enables isolated HTTP body experiment")
+	bodyControl := flag.String("body-control", "", "JSON control file containing limitBytes (-1 unlimited), scoped to NSPlayer GET bodies")
+	bodyHTTPS := flag.String("body-https", "127.0.0.1:443", "opaque API TLS forwarding address; empty disables")
 	address := flag.String("listen", "127.0.0.1:19081", "loopback SOCKS5 address")
 	rate := flag.Int64("bytes-per-second", 0, "aggregate incoming TCP rate; 0 unlimited")
+	rateFile := flag.String("rate-file", "", "optional aggregate rate control JSON: bytesPerSecond")
 	perConnection := flag.Bool("per-connection", false, "apply incoming rate separately to each TCP connection instead of the aggregate")
 	stopFile := flag.String("stop-file", "", "stop when this file exists")
 	duration := flag.Duration("duration", 45*time.Minute, "maximum lab lifetime")
 	flag.Parse()
+	if *rateFile != "" && (*perConnection || *bodyManifest != "") {
+		panic("rate-file requires aggregate SOCKS mode")
+	}
 	host, _, err := net.SplitHostPort(*address)
 	if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() || *rate < 0 || *duration <= 0 {
 		panic("invalid lab options")
@@ -247,6 +277,12 @@ func main() {
 	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	ctx, cancel := context.WithTimeout(context.Background(), *duration)
 	defer cancel()
+	if *bodyManifest != "" {
+		if err := runBodyProbe(ctx, *address, *bodyHTTPS, *bodyManifest, *bodyControl, *stopFile, log); err != nil {
+			panic(err)
+		}
+		return
+	}
 	listener, err := net.Listen("tcp4", *address)
 	if err != nil {
 		panic(err)
@@ -254,6 +290,34 @@ func main() {
 	defer listener.Close()
 	context.AfterFunc(ctx, func() { listener.Close() })
 	r := &relay{pace: &pacer{rate: *rate}, perConnection: *perConnection, dial: console.NewUpstreamDialer(), log: log}
+	readRate := func() error {
+		if *rateFile == "" {
+			return nil
+		}
+		data, err := os.ReadFile(*rateFile)
+		if err != nil {
+			return err
+		}
+		var value struct {
+			Rate *int64 `json:"bytesPerSecond"`
+		}
+		if err := json.Unmarshal(data, &value); err != nil {
+			return err
+		}
+		if value.Rate == nil || *value.Rate < 0 {
+			return fmt.Errorf("invalid bytesPerSecond")
+		}
+		if *value.Rate != *rate {
+			*rate = *value.Rate
+			r.pace.setRate(*rate)
+			log.Info("rate_changed", "bytes_per_second", *rate)
+		}
+		return nil
+	}
+	if err := readRate(); err != nil {
+		panic(err)
+	}
+	log.Info("ready", "listen", *address, "bytes_per_second", *rate, "per_connection", *perConnection, "quantum", quantum, "max_seconds", duration.Seconds())
 	go func() {
 		tick := time.NewTicker(200 * time.Millisecond)
 		defer tick.Stop()
@@ -263,6 +327,11 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-tick.C:
+				if err := readRate(); err != nil {
+					log.Error("rate_control_failed")
+					cancel()
+					return
+				}
 				if *stopFile != "" {
 					if _, err := os.Stat(*stopFile); err == nil {
 						cancel()
@@ -276,7 +345,6 @@ func main() {
 			}
 		}
 	}()
-	log.Info("ready", "listen", *address, "bytes_per_second", *rate, "per_connection", *perConnection, "quantum", quantum, "max_seconds", duration.Seconds())
 	var workers sync.WaitGroup
 	slots := make(chan struct{}, 64)
 	for {

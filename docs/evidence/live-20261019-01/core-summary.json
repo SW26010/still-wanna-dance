@@ -1,0 +1,922 @@
+{
+  "batch": "LIVE-20261019-01",
+  "status": "closed-partial",
+  "timeBasis": "Seconds from first Debug engine ready, shared by all fields ending T and t. Game timestamps have one-second resolution; feedback timestamps record arrival, not action or first frame.",
+  "engines": [
+    {
+      "engine": "engine-1",
+      "t": 0,
+      "maxCacheBytes": 0,
+      "cacheUnlimited": false
+    },
+    {
+      "engine": "engine-2",
+      "t": 1149.453,
+      "maxCacheBytes": 0,
+      "cacheUnlimited": false
+    },
+    {
+      "engine": "engine-3",
+      "t": 1368.364,
+      "maxCacheBytes": 1073741824,
+      "cacheUnlimited": false
+    }
+  ],
+  "resources": {
+    "1343": "28711962048bed664c98f27e1d9d5842",
+    "1344": "8f26d29704140a431dea0c1374f2eeba",
+    "2365": "b95900a7209af8f5e1f3d66c0650f999",
+    "3261": "55640d00db89901e40f391a8e3aa9bcd",
+    "6254": "53d94ec04f90f47b81113b85785a0e77",
+    "8771": "c44a699a88309c506122572764b695d6",
+    "8935": "721d1371b3aa9280fefe4ece94b3a71e",
+    "10946": "9e69ed83ef923dcd05946e8eca18b533"
+  },
+  "requestCounts": {
+    "engine-1": 48,
+    "engine-2": 2,
+    "engine-3": 6
+  },
+  "requestExamples": [
+    {
+      "engine": "engine-1",
+      "id": 2,
+      "resource": "28711962048bed664c98f27e1d9d5842",
+      "startT": 81.154,
+      "endT": 111.154,
+      "range": "bytes=0-",
+      "client": "WMF",
+      "flight": 1,
+      "status": 504,
+      "acceptedBodyBytes": 16,
+      "outcome": "failed",
+      "cache": "",
+      "firstBodyMs": 30000.4928
+    },
+    {
+      "engine": "engine-1",
+      "id": 4,
+      "resource": "28711962048bed664c98f27e1d9d5842",
+      "startT": 111.148,
+      "endT": 111.154,
+      "range": "bytes=0-",
+      "client": "WMF",
+      "flight": 1,
+      "status": 504,
+      "acceptedBodyBytes": 16,
+      "outcome": "failed",
+      "cache": "",
+      "firstBodyMs": 6.3527
+    },
+    {
+      "engine": "engine-1",
+      "id": 5,
+      "resource": "28711962048bed664c98f27e1d9d5842",
+      "startT": 111.172,
+      "endT": 136.549,
+      "range": "bytes=0-",
+      "client": "WMF",
+      "flight": 2,
+      "status": 206,
+      "acceptedBodyBytes": 688128,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "firstBodyMs": 24984.4027
+    },
+    {
+      "engine": "engine-1",
+      "id": 6,
+      "resource": "28711962048bed664c98f27e1d9d5842",
+      "startT": 111.184,
+      "endT": 136.414,
+      "range": "bytes=0-",
+      "client": "WMF",
+      "flight": 2,
+      "status": 206,
+      "acceptedBodyBytes": 819200,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "firstBodyMs": 24973.6382
+    },
+    {
+      "engine": "engine-1",
+      "id": 8,
+      "resource": "28711962048bed664c98f27e1d9d5842",
+      "startT": 136.625,
+      "endT": 185.337,
+      "range": "bytes=475136-32867176",
+      "client": "WMF",
+      "flight": 2,
+      "status": 206,
+      "acceptedBodyBytes": 32392041,
+      "outcome": "completed",
+      "cache": "MISS",
+      "firstBodyMs": 1.0345
+    },
+    {
+      "engine": "engine-1",
+      "id": 20,
+      "resource": "8f26d29704140a431dea0c1374f2eeba",
+      "startT": 532.106,
+      "endT": 562.106,
+      "range": "bytes=0-",
+      "client": "WMF",
+      "flight": 9,
+      "status": 504,
+      "acceptedBodyBytes": 16,
+      "outcome": "failed",
+      "cache": "",
+      "firstBodyMs": 30000.5394
+    },
+    {
+      "engine": "engine-1",
+      "id": 21,
+      "resource": "8f26d29704140a431dea0c1374f2eeba",
+      "startT": 538.419,
+      "endT": 562.106,
+      "range": "bytes=0-",
+      "client": "WMF",
+      "flight": 9,
+      "status": 504,
+      "acceptedBodyBytes": 16,
+      "outcome": "failed",
+      "cache": "",
+      "firstBodyMs": 23687.3381
+    },
+    {
+      "engine": "engine-1",
+      "id": 25,
+      "resource": "8f26d29704140a431dea0c1374f2eeba",
+      "startT": 561.533,
+      "endT": 562.106,
+      "range": "bytes=0-",
+      "client": "WMF",
+      "flight": 9,
+      "status": 504,
+      "acceptedBodyBytes": 16,
+      "outcome": "failed",
+      "cache": "",
+      "firstBodyMs": 573.4745
+    },
+    {
+      "engine": "engine-1",
+      "id": 26,
+      "resource": "8f26d29704140a431dea0c1374f2eeba",
+      "startT": 562.127,
+      "endT": 576.304,
+      "range": "bytes=0-",
+      "client": "WMF",
+      "flight": 11,
+      "status": 206,
+      "acceptedBodyBytes": 1212416,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "firstBodyMs": 13946.4187
+    },
+    {
+      "engine": "engine-1",
+      "id": 27,
+      "resource": "8f26d29704140a431dea0c1374f2eeba",
+      "startT": 562.139,
+      "endT": 576.304,
+      "range": "bytes=0-",
+      "client": "WMF",
+      "flight": 11,
+      "status": 206,
+      "acceptedBodyBytes": 3768320,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "firstBodyMs": 13935.8834
+    },
+    {
+      "engine": "engine-1",
+      "id": 28,
+      "resource": "8f26d29704140a431dea0c1374f2eeba",
+      "startT": 562.149,
+      "endT": 576.451,
+      "range": "bytes=0-",
+      "client": "WMF",
+      "flight": 11,
+      "status": 206,
+      "acceptedBodyBytes": 3145728,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "firstBodyMs": 13924.393
+    },
+    {
+      "engine": "engine-1",
+      "id": 29,
+      "resource": "8f26d29704140a431dea0c1374f2eeba",
+      "startT": 562.506,
+      "endT": 576.582,
+      "range": "bytes=0-",
+      "client": "WMF",
+      "flight": 11,
+      "status": 206,
+      "acceptedBodyBytes": 1441792,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "firstBodyMs": 13569.8568
+    },
+    {
+      "engine": "engine-1",
+      "id": 37,
+      "resource": "53d94ec04f90f47b81113b85785a0e77",
+      "startT": 821.375,
+      "endT": 821.378,
+      "range": "",
+      "client": "other",
+      "flight": 16,
+      "status": 200,
+      "acceptedBodyBytes": 262144,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "firstBodyMs": 1.0126
+    },
+    {
+      "engine": "engine-1",
+      "id": 38,
+      "resource": "53d94ec04f90f47b81113b85785a0e77",
+      "startT": 821.77,
+      "endT": 928.149,
+      "range": "bytes=0-",
+      "client": "WMF",
+      "flight": 16,
+      "status": 206,
+      "acceptedBodyBytes": 50331648,
+      "outcome": "aborted",
+      "cache": "MISS",
+      "firstBodyMs": 0.5037
+    },
+    {
+      "engine": "engine-1",
+      "id": 43,
+      "resource": "53d94ec04f90f47b81113b85785a0e77",
+      "startT": 897.561,
+      "endT": 928.149,
+      "range": "bytes=37797888-52379699",
+      "client": "WMF",
+      "flight": 16,
+      "status": 206,
+      "acceptedBodyBytes": 12533760,
+      "outcome": "aborted",
+      "cache": "MISS",
+      "firstBodyMs": 2.1142
+    },
+    {
+      "engine": "engine-1",
+      "id": 45,
+      "resource": "53d94ec04f90f47b81113b85785a0e77",
+      "startT": 932.816,
+      "endT": 935.379,
+      "range": "bytes=50331648-52379699",
+      "client": "WMF",
+      "flight": 21,
+      "status": 206,
+      "acceptedBodyBytes": 2048052,
+      "outcome": "completed",
+      "cache": "MISS",
+      "firstBodyMs": 1277.0025
+    },
+    {
+      "engine": "engine-1",
+      "id": 47,
+      "resource": "55640d00db89901e40f391a8e3aa9bcd",
+      "startT": 1033.119,
+      "endT": 1033.12,
+      "range": "",
+      "client": "other",
+      "flight": 23,
+      "status": 200,
+      "acceptedBodyBytes": 262144,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "firstBodyMs": 0.5169
+    },
+    {
+      "engine": "engine-1",
+      "id": 48,
+      "resource": "55640d00db89901e40f391a8e3aa9bcd",
+      "startT": 1033.517,
+      "endT": 1074.573,
+      "range": "bytes=0-",
+      "client": "WMF",
+      "flight": 24,
+      "status": 206,
+      "acceptedBodyBytes": 53805056,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "firstBodyMs": 1.518
+    },
+    {
+      "engine": "engine-2",
+      "id": 1,
+      "resource": "721d1371b3aa9280fefe4ece94b3a71e",
+      "startT": 1329.592,
+      "endT": 1329.594,
+      "range": "",
+      "client": "other",
+      "flight": 2,
+      "status": 200,
+      "acceptedBodyBytes": 262144,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "firstBodyMs": 1.1677
+    },
+    {
+      "engine": "engine-2",
+      "id": 2,
+      "resource": "721d1371b3aa9280fefe4ece94b3a71e",
+      "startT": 1330.054,
+      "endT": 1344.118,
+      "range": "bytes=1875968-21996299",
+      "client": "WMF",
+      "flight": 3,
+      "status": 206,
+      "acceptedBodyBytes": 20120332,
+      "outcome": "completed",
+      "cache": "MISS",
+      "firstBodyMs": 1.1785
+    },
+    {
+      "engine": "engine-3",
+      "id": 1,
+      "resource": "9e69ed83ef923dcd05946e8eca18b533",
+      "startT": 1419.026,
+      "endT": 1421.063,
+      "range": "",
+      "client": "other",
+      "flight": 1,
+      "status": 200,
+      "acceptedBodyBytes": 262144,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "firstBodyMs": 2437.802
+    },
+    {
+      "engine": "engine-3",
+      "id": 2,
+      "resource": "9e69ed83ef923dcd05946e8eca18b533",
+      "startT": 1421.463,
+      "endT": 1474.77,
+      "range": "bytes=0-",
+      "client": "WMF",
+      "flight": 1,
+      "status": 206,
+      "acceptedBodyBytes": 40235633,
+      "outcome": "completed",
+      "cache": "MISS",
+      "firstBodyMs": 0.5278
+    },
+    {
+      "engine": "engine-3",
+      "id": 3,
+      "resource": "9e69ed83ef923dcd05946e8eca18b533",
+      "startT": 1661.827,
+      "endT": 1661.838,
+      "range": "",
+      "client": "other",
+      "status": 200,
+      "acceptedBodyBytes": 393216,
+      "outcome": "canceled",
+      "cache": "HIT",
+      "firstBodyMs": 1.0507
+    },
+    {
+      "engine": "engine-3",
+      "id": 4,
+      "resource": "9e69ed83ef923dcd05946e8eca18b533",
+      "startT": 1662.3,
+      "endT": 1662.3,
+      "range": "",
+      "client": "WMF",
+      "status": 304,
+      "acceptedBodyBytes": 0,
+      "outcome": "completed",
+      "cache": "HIT",
+      "firstBodyMs": null
+    },
+    {
+      "engine": "engine-3",
+      "id": 5,
+      "resource": "b95900a7209af8f5e1f3d66c0650f999",
+      "startT": 1698.778,
+      "endT": 1701.579,
+      "range": "",
+      "client": "other",
+      "flight": 2,
+      "status": 200,
+      "acceptedBodyBytes": 262144,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "firstBodyMs": 3212.5793
+    },
+    {
+      "engine": "engine-3",
+      "id": 6,
+      "resource": "b95900a7209af8f5e1f3d66c0650f999",
+      "startT": 1701.982,
+      "endT": 1743.542,
+      "range": "bytes=0-",
+      "client": "WMF",
+      "flight": 2,
+      "status": 206,
+      "acceptedBodyBytes": 59440792,
+      "outcome": "completed",
+      "cache": "MISS",
+      "firstBodyMs": 0.711
+    }
+  ],
+  "failureSummary": [
+    {
+      "engine": "engine-1",
+      "t": 111.156,
+      "flight": 1,
+      "resource": "28711962048bed664c98f27e1d9d5842",
+      "outcome": "timeout",
+      "downloadedBytes": 5862725,
+      "elapsedMs": 50014
+    },
+    {
+      "engine": "engine-1",
+      "t": 541.69,
+      "flight": 8,
+      "resource": "28711962048bed664c98f27e1d9d5842",
+      "outcome": "timeout",
+      "downloadedBytes": 1860312,
+      "elapsedMs": 30000
+    },
+    {
+      "engine": "engine-1",
+      "t": 562.108,
+      "flight": 9,
+      "resource": "8f26d29704140a431dea0c1374f2eeba",
+      "outcome": "timeout",
+      "downloadedBytes": 3909259,
+      "elapsedMs": 49218
+    },
+    {
+      "engine": "engine-1",
+      "t": 571.713,
+      "flight": 10,
+      "resource": "28711962048bed664c98f27e1d9d5842",
+      "outcome": "timeout",
+      "downloadedBytes": 687913,
+      "elapsedMs": 30002
+    },
+    {
+      "engine": "engine-1",
+      "t": 923.595,
+      "flight": 19,
+      "resource": "8f26d29704140a431dea0c1374f2eeba",
+      "outcome": "timeout",
+      "downloadedBytes": 196608,
+      "elapsedMs": 30000
+    },
+    {
+      "engine": "engine-1",
+      "t": 928.149,
+      "flight": 16,
+      "resource": "53d94ec04f90f47b81113b85785a0e77",
+      "outcome": "timeout",
+      "downloadedBytes": 51920887,
+      "elapsedMs": 161017
+    }
+  ],
+  "recovery": [
+    {
+      "stage": "zero-slow-cold",
+      "controlWriteT": 135.908,
+      "relayUnlimitedT": 136.096,
+      "firstGameVideoStartWindowT": [
+        136.009,
+        137.009
+      ],
+      "note": "Game event has one-second resolution; do not infer a subsecond recovery duration."
+    },
+    {
+      "stage": "zero-slow-dual",
+      "controlWriteT": 575.764,
+      "relayUnlimitedT": 575.896,
+      "firstGameVideoStartWindowT": [
+        576.009,
+        577.009
+      ],
+      "note": "Game event has one-second resolution; do not infer a subsecond recovery duration."
+    }
+  ],
+  "queueHandoffs": [
+    {
+      "song": 6254,
+      "resource": "53d94ec04f90f47b81113b85785a0e77",
+      "gameQueueRemovalT": 820.009,
+      "sourceHandoffT": 823.015,
+      "handoffLeaseEndT": 843.015,
+      "firstGETT": 821.375,
+      "firstGETFlight": 16,
+      "gameVideoStartT": 830.009,
+      "removalToGETSeconds": 1.366,
+      "removalToVideoStartSeconds": 10,
+      "reuses": [
+        {
+          "t": 932.817,
+          "bytes": 50331648,
+          "flight": 21
+        }
+      ]
+    },
+    {
+      "song": 3261,
+      "resource": "55640d00db89901e40f391a8e3aa9bcd",
+      "prefetchReadyT": 932.151,
+      "gameQueueRemovalT": 1032.009,
+      "sourceHandoffT": 1033.021,
+      "handoffLeaseEndT": 1053.021,
+      "firstGETT": 1033.119,
+      "firstGETFlight": 23,
+      "gameVideoStartT": 1042.009,
+      "removalToGETSeconds": 1.11,
+      "removalToVideoStartSeconds": 10,
+      "reuses": [
+        {
+          "t": 1033.119,
+          "bytes": 57658290,
+          "flight": 23
+        },
+        {
+          "t": 1033.518,
+          "bytes": 57658290,
+          "flight": 24
+        }
+      ]
+    }
+  ],
+  "deletion": {
+    "song": 8771,
+    "canceledT": 1018.015,
+    "discardedT": 1018.015,
+    "subsequentQueueStarts": 0,
+    "subsequentNetworkSessions": 0,
+    "observationEndT": 1074.573,
+    "observedUntilEngineRestartT": 1149.453
+  },
+  "rolling": {
+    "song": 8935,
+    "readyT": 1199.172,
+    "firstGETT": 1329.592,
+    "readyToFirstGETSeconds": 130.42,
+    "rollingTicksAfterReady": 13,
+    "blocks": 21,
+    "networkBlockStarts": 21,
+    "repeatedBlockExecutionsBeforeGET": 0,
+    "inventoryDuringHold": [
+      {
+        "t": 1199.817,
+        "budget": 0,
+        "tmpCount": 21,
+        "tmpBytes": 21996300,
+        "videos": []
+      }
+    ],
+    "fullTempReuseBytes": [
+      21996300,
+      21996300
+    ],
+    "holdSamples": 129,
+    "allHoldSamplesRetainedFullVideo": true,
+    "maximumSampleGapSeconds": 1.031
+  },
+  "reclamation": [
+    {
+      "cohort": "reclaim-cohort-before-1344",
+      "verifiedEmptyT": 323.192,
+      "firstObservedEmptyAfterLastGETT": 318.143,
+      "lastGETEndT": 255.981,
+      "emptyAfterLastGETSeconds": 62.162,
+      "tmpCount": 0,
+      "publishedVideoCount": 0
+    },
+    {
+      "cohort": "reclaim-after-queue",
+      "verifiedEmptyT": 1141.229,
+      "firstObservedEmptyAfterLastGETT": 1137.195,
+      "lastGETEndT": 1074.573,
+      "emptyAfterLastGETSeconds": 62.622,
+      "tmpCount": 0,
+      "publishedVideoCount": 0
+    }
+  ],
+  "positiveFileChecks": [
+    {
+      "name": "9e69ed83ef923dcd05946e8eca18b533.mp4",
+      "bytes": 40235633,
+      "md5": "9e69ed83ef923dcd05946e8eca18b533",
+      "sha256": "e52c8243bdd28d982762d7d7c8a4c19918a5eb4e3502fa048b17e57cb0c36c36",
+      "matchesName": true,
+      "role": "planned-10946-cold-warm"
+    },
+    {
+      "name": "b95900a7209af8f5e1f3d66c0650f999.mp4",
+      "bytes": 59440792,
+      "md5": "b95900a7209af8f5e1f3d66c0650f999",
+      "sha256": "248b380af1622cc1e5adc4e0a39bcf6c3f8dfc8bec0afe898e95b0abc8e181bb",
+      "matchesName": true,
+      "role": "unplanned-2365-no-specific-av-feedback"
+    }
+  ],
+  "directRecovery": {
+    "readyT": 1932.724,
+    "song": 3893,
+    "game": [
+      {
+        "t": 2061.009,
+        "event": "formal-request",
+        "sourceLine": 3447,
+        "song": "3893"
+      },
+      {
+        "t": 2061.009,
+        "event": "resolver-request",
+        "sourceLine": 3456,
+        "song": "3893"
+      },
+      {
+        "t": 2066.009,
+        "event": "video-loaded",
+        "sourceLine": 3495,
+        "loadSeconds": 5.44751,
+        "waitSeconds": 4.55249
+      },
+      {
+        "t": 2071.009,
+        "event": "delayed-ready",
+        "sourceLine": 3496
+      },
+      {
+        "t": 2071.009,
+        "event": "video-start",
+        "sourceLine": 3509,
+        "song": "3893"
+      }
+    ],
+    "localRequestsAfterGatewayStop": 0,
+    "feedback": [
+      {
+        "t": 2083.448,
+        "stage": "direct-restored",
+        "event": "feedback",
+        "feedback": "3893直连正式播放，用户反馈未见异常"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "t": 75.323,
+      "stage": "zero-slow-cold",
+      "event": "started",
+      "feedback": "1343，正式，预览与队列预取关闭，0GiB，合计125000B/s"
+    },
+    {
+      "t": 135.908,
+      "stage": "zero-slow-cold",
+      "event": "rate-change",
+      "bytesPerSecond": 0
+    },
+    {
+      "t": 135.965,
+      "stage": "zero-slow-cold",
+      "event": "deadline-observed",
+      "feedback": "need-by截止导致GET 2/4明确504，新GET 5/6自动接入flight2；恢复带宽"
+    },
+    {
+      "t": 172.346,
+      "stage": "zero-slow-cold",
+      "event": "feedback",
+      "feedback": "用户回复1343起播；回复到达在解除限速之后，不外推为慢网已起播"
+    },
+    {
+      "t": 299.079,
+      "stage": "zero-dual-seek",
+      "event": "feedback",
+      "feedback": "1343正式保持播放，同时同歌预览后向70%及前向20%拖动、关闭预览；用户未发现异常"
+    },
+    {
+      "t": 323.755,
+      "stage": "zero-dual-seek",
+      "event": "stopped",
+      "feedback": "用户已停止并清空"
+    },
+    {
+      "t": 323.824,
+      "stage": "zero-slow-dual",
+      "event": "rate-change",
+      "bytesPerSecond": 125000
+    },
+    {
+      "t": 477.196,
+      "stage": "zero-slow-dual",
+      "event": "instructed",
+      "feedback": "1344正式冷播放立即同歌预览并向70%拖动，合计1Mbps"
+    },
+    {
+      "t": 575.764,
+      "stage": "zero-slow-dual",
+      "event": "rate-change",
+      "bytesPerSecond": 0
+    },
+    {
+      "t": 575.823,
+      "stage": "zero-slow-dual",
+      "event": "deadline-observed",
+      "feedback": "同资源多个真实GET共用flight9，截止504后自动GET26-29共用flight11；旧1343占用带宽，恢复不限速"
+    },
+    {
+      "t": 619.446,
+      "stage": "zero-slow-dual",
+      "event": "feedback",
+      "feedback": "用户：等待很久。同时起播。预览在20%左右。拖动进度条正常。反馈与实际起播在恢复不限速之后，不外推慢网Seek通过"
+    },
+    {
+      "t": 643.412,
+      "stage": "instrumentation",
+      "event": "sampler-fixed",
+      "feedback": "原采样未匹配SWD-debug和relay-recovery名称，VRChat连续采样保留；现补入匹配并重启采样器"
+    },
+    {
+      "t": 750.883,
+      "stage": "zero-slow-dual",
+      "event": "stopped",
+      "feedback": "用户对仅关闭预览确认正式未受影响再停止清空的请求回复done"
+    },
+    {
+      "t": 750.936,
+      "stage": "zero-queue",
+      "event": "rate-change",
+      "bytesPerSecond": 524288
+    },
+    {
+      "t": 788.537,
+      "stage": "zero-queue",
+      "event": "enqueued",
+      "feedback": "6254、3261、8771按顺序入队，未正式播放无预览，用户done"
+    },
+    {
+      "t": 860.031,
+      "stage": "zero-slow-seek-queued",
+      "event": "rate-change",
+      "bytesPerSecond": 125000
+    },
+    {
+      "t": 875.19,
+      "stage": "zero-queue",
+      "event": "feedback",
+      "feedback": "6254正式起播未见异常，GET接入原预缓存flight16"
+    },
+    {
+      "t": 912.379,
+      "stage": "zero-slow-seek-queued",
+      "event": "feedback",
+      "feedback": "6254正式保持播放、同歌预览向约90%拖动；用户6254预览未见异常。需按实际块与Range判断冷/热"
+    },
+    {
+      "t": 928.471,
+      "stage": "zero-queue",
+      "event": "rate-change",
+      "bytesPerSecond": 0
+    },
+    {
+      "t": 928.529,
+      "stage": "zero-slow-seek-queued",
+      "event": "classification",
+      "feedback": "预览Seek实际Range从37797888开始，落在已下载块内；1Mbps下反馈正常，不外推为未缓存目标Seek"
+    },
+    {
+      "t": 1037.763,
+      "stage": "zero-queue",
+      "event": "deleted",
+      "feedback": "用户done确认删除队尾8771，保留3261等待自然切歌"
+    },
+    {
+      "t": 1058.232,
+      "stage": "zero-queue",
+      "event": "natural-handoff-feedback",
+      "feedback": "用户：3261自然播放未见异常；预缓存完成后自然接入正式GET，复用完整临时块"
+    },
+    {
+      "t": 1087.696,
+      "stage": "zero-queue",
+      "event": "stopped",
+      "feedback": "用户done确认停止3261并清空队列关闭预览"
+    },
+    {
+      "t": 1154.619,
+      "stage": "zero-rolling",
+      "event": "ready",
+      "feedback": "上一零缓存引擎同进程tmp/videos均归零后，全新零缓存存储与引擎启动，准备无GET队列静置样本"
+    },
+    {
+      "t": 1223.425,
+      "stage": "zero-rolling",
+      "event": "enqueued",
+      "feedback": "8935只入队未播放，用户done"
+    },
+    {
+      "t": 1223.483,
+      "stage": "non-owner",
+      "event": "unavailable",
+      "feedback": "用户：没有现成实例，本轮保留未测"
+    },
+    {
+      "t": 1356.343,
+      "stage": "zero-rolling",
+      "event": "feedback-stopped",
+      "feedback": "用户对8935正式播放确认正常后停止清空的请求回复done；保留原回复不补造首帧时间"
+    },
+    {
+      "t": 1372.841,
+      "stage": "positive-cold",
+      "event": "ready",
+      "feedback": "全新storage-positive、有限1GiB预算，不限速，预缓存关闭"
+    },
+    {
+      "t": 1445.217,
+      "stage": "positive-cold",
+      "event": "feedback",
+      "feedback": "用户对10946默认线路正式播放和刚才8935音画的合并确认回复未见异常"
+    },
+    {
+      "t": 1549.35,
+      "stage": "positive-warm",
+      "event": "instructed",
+      "feedback": "用户说明当前已经是CF；保持CF刷新/重新加载10946，不强行假定切线路"
+    },
+    {
+      "t": 1685.976,
+      "stage": "positive-warm",
+      "event": "feedback",
+      "feedback": "用户：刷新后未见异常"
+    },
+    {
+      "t": 1754.12,
+      "stage": "positive-extra",
+      "event": "observed",
+      "feedback": "热刷新后出现额外正式歌曲2365，未列入10946独立冷热对照，无该歌专属音画反馈"
+    },
+    {
+      "t": 1801.347,
+      "stage": "positive-warm",
+      "event": "stopped",
+      "feedback": "用户done确认停止当前正式播放、清空队列、关闭预览"
+    },
+    {
+      "t": 1932.724,
+      "stage": "direct-restored",
+      "event": "ready",
+      "feedback": "hosts SHA256 matches original; gateway stopped; awaiting direct song 3893"
+    },
+    {
+      "t": 2083.448,
+      "stage": "direct-restored",
+      "event": "feedback",
+      "feedback": "3893直连正式播放，用户反馈未见异常"
+    }
+  ],
+  "processSummary": [
+    {
+      "name": "VRChat",
+      "samples": 1045,
+      "firstT": 1.884,
+      "lastT": 2102.27,
+      "maxWorkingSetBytes": 4624146432,
+      "maxHandles": 4563,
+      "cpuCoreEquivalentP95": 2.4703557312252955,
+      "cpuCoreEquivalentMax": 3.019173306772851
+    },
+    {
+      "name": "relay-recovery",
+      "samples": 726,
+      "firstT": 643.655,
+      "lastT": 2102.27,
+      "maxWorkingSetBytes": 64385024,
+      "maxHandles": 563,
+      "cpuCoreEquivalentP95": 0.04641089108910933,
+      "cpuCoreEquivalentMax": 0.21669143140168343
+    },
+    {
+      "name": "SWD-debug",
+      "samples": 726,
+      "firstT": 643.655,
+      "lastT": 2102.27,
+      "maxWorkingSetBytes": 120971264,
+      "maxHandles": 486,
+      "cpuCoreEquivalentP95": 0.015470297029703109,
+      "cpuCoreEquivalentMax": 0.10130922693266856
+    }
+  ],
+  "limitations": [
+    "Inventory sampled approximately once per second. First/last observation are bounds, not exact creation/deletion times.",
+    "Multiple download sessions may reuse existing complete blocks with no new network work. Count block executions separately.",
+    "CPU data are sampled process counters, not frame-time measurements. Debug process name was added to sampler during the session; earlier Debug CPU coverage is missing."
+  ],
+  "fullTrace": "Complete allowlisted timelines and scheduler traces are in the locally verified versioned evidence archive; not published."
+}

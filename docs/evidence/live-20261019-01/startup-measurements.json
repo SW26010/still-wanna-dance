@@ -1,0 +1,671 @@
+{
+  "batch": "LIVE-20261019-01",
+  "status": "measurement-complete-with-limits",
+  "timeBasis": "Each firstWMF uses seconds from its fixture ready. Derived load/start intervals use first actual WMF GET. Game timestamps are rounded to one second, so a small negative interval is not causality evidence. Feedback is not a synchronized first-frame timestamp.",
+  "metric": "Bytes accepted by server Write, including bytes accepted before a failed Flush; not client application consumption. NSPlayer gate excludes separately logged resolver bodies. Ranges are half-open.",
+  "media": [
+    {
+      "song": "8935",
+      "md5": "721d1371b3aa9280fefe4ece94b3a71e",
+      "bytes": 21996300,
+      "sha256": "115a1fa2579bc1c53047bf87d9babc5dfa3f99af2057499dfe682cc64b805b86",
+      "boxes": [
+        {
+          "type": "ftyp",
+          "offset": 0,
+          "size": 32
+        },
+        {
+          "type": "moov",
+          "offset": 32,
+          "size": 45522
+        },
+        {
+          "type": "free",
+          "offset": 45554,
+          "size": 8
+        },
+        {
+          "type": "mdat",
+          "offset": 45562,
+          "size": 21950738
+        }
+      ]
+    },
+    {
+      "song": "2502",
+      "md5": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "bytes": 80602639,
+      "sha256": "4458ad2010ea40143239e1f3ee42f2f6093bf1d3b16aab0960949a0a00d2216c",
+      "boxes": [
+        {
+          "type": "ftyp",
+          "offset": 0,
+          "size": 32
+        },
+        {
+          "type": "moov",
+          "offset": 32,
+          "size": 133732
+        },
+        {
+          "type": "free",
+          "offset": 133764,
+          "size": 8
+        },
+        {
+          "type": "mdat",
+          "offset": 133772,
+          "size": 80468867
+        }
+      ]
+    },
+    {
+      "song": "4598",
+      "md5": "ba52593f9a238a486df91a1bf23b9248",
+      "bytes": 35169662,
+      "sha256": "ea726d97dab74e0d8b236237bc11cab79f32647d6192dabdf72d647730f99cb8",
+      "boxes": [
+        {
+          "type": "ftyp",
+          "offset": 0,
+          "size": 32
+        },
+        {
+          "type": "moov",
+          "offset": 32,
+          "size": 130853
+        },
+        {
+          "type": "free",
+          "offset": 130885,
+          "size": 8
+        },
+        {
+          "type": "mdat",
+          "offset": 130893,
+          "size": 35038769
+        }
+      ]
+    }
+  ],
+  "stages": [
+    {
+      "id": "baseline",
+      "mode": "formal",
+      "releaseAfterFirstWMFSeconds": null,
+      "requestCounts": {
+        "all": 2,
+        "WMF": 1,
+        "resolverOrOther": 1
+      },
+      "bodyTotalsBySong": [
+        {
+          "song": "8935",
+          "playerTotalBytes": 21996300,
+          "playerUniqueBytes": 21996300,
+          "intervals": [
+            [
+              0,
+              21996300
+            ]
+          ]
+        }
+      ],
+      "firstWMF": {
+        "id": 2,
+        "song": "8935",
+        "method": "GET",
+        "range": "bytes=0-",
+        "status": 206,
+        "acceptedBodyBytes": 21996300,
+        "intervals": [
+          [
+            0,
+            21996300
+          ]
+        ],
+        "firstWrite": 36.832,
+        "end": 52.137,
+        "canceled": false,
+        "writeOrFlushFailures": 0
+      },
+      "resolverAcceptedBodyBytes": 180224,
+      "loaded": {
+        "secondsAfterFirstWMF": 0.215,
+        "reportedLoadSeconds": 1.876251,
+        "worldWaitSeconds": 8.123749,
+        "WMFWriteUpperBoundAtLogSecond": 2392064
+      },
+      "videoStart": {
+        "secondsAfterFirstWMF": 8.215,
+        "WMFWriteUpperBoundAtLogSecond": 13385728,
+        "beforeRelease": null
+      }
+    },
+    {
+      "id": "preview-baseline",
+      "mode": "preview",
+      "releaseAfterFirstWMFSeconds": null,
+      "requestCounts": {
+        "all": 3,
+        "WMF": 2,
+        "resolverOrOther": 1
+      },
+      "bodyTotalsBySong": [
+        {
+          "song": "2502",
+          "playerTotalBytes": 61702144,
+          "playerUniqueBytes": 61702144,
+          "intervals": [
+            [
+              0,
+              3506176
+            ],
+            [
+              10534912,
+              68730880
+            ]
+          ]
+        }
+      ],
+      "firstWMF": {
+        "id": 2,
+        "song": "2502",
+        "method": "GET",
+        "range": "bytes=0-",
+        "status": 206,
+        "acceptedBodyBytes": 3506176,
+        "intervals": [
+          [
+            0,
+            3506176
+          ]
+        ],
+        "firstWrite": 75.646,
+        "end": 76.098,
+        "canceled": true,
+        "writeOrFlushFailures": 1
+      },
+      "firstNonzeroRange": {
+        "id": 3,
+        "song": "2502",
+        "method": "GET",
+        "range": "bytes=10534912-80602638",
+        "status": 206,
+        "acceptedBodyBytes": 58195968,
+        "intervals": [
+          [
+            10534912,
+            68730880
+          ]
+        ],
+        "firstWrite": 76.1,
+        "end": 105.631,
+        "canceled": true,
+        "writeOrFlushFailures": 1
+      },
+      "resolverAcceptedBodyBytes": 180224,
+      "videoStart": {
+        "secondsAfterFirstWMF": -0.324,
+        "WMFWriteUpperBoundAtLogSecond": 7372800,
+        "beforeRelease": null
+      }
+    },
+    {
+      "id": "formal-gate-256k",
+      "mode": "formal",
+      "limitedWMFBytes": 262144,
+      "releaseAfterFirstWMFSeconds": 45.276,
+      "requestCounts": {
+        "all": 4,
+        "WMF": 2,
+        "resolverOrOther": 2
+      },
+      "bodyTotalsBySong": [
+        {
+          "song": "4598",
+          "playerTotalBytes": 35431806,
+          "playerUniqueBytes": 35169662,
+          "intervals": [
+            [
+              0,
+              35169662
+            ]
+          ]
+        }
+      ],
+      "firstWMF": {
+        "id": 2,
+        "song": "4598",
+        "method": "GET",
+        "range": "bytes=0-",
+        "status": 206,
+        "acceptedBodyBytes": 262144,
+        "intervals": [
+          [
+            0,
+            262144
+          ]
+        ],
+        "firstWrite": 19.726,
+        "end": 34.874,
+        "canceled": true,
+        "writeOrFlushFailures": 0
+      },
+      "resolverAcceptedBodyBytes": 360448,
+      "loaded": {
+        "secondsAfterFirstWMF": 45.34,
+        "reportedLoadSeconds": 47.06641,
+        "WMFWriteUpperBoundAtLogSecond": 3244032
+      },
+      "videoStart": {
+        "secondsAfterFirstWMF": 45.34,
+        "WMFWriteUpperBoundAtLogSecond": 3244032,
+        "beforeRelease": false
+      },
+      "excludedFromThreshold": "Long pause triggered player timeout; cannot infer stable lower bound"
+    },
+    {
+      "id": "formal-gate-1m",
+      "mode": "formal",
+      "limitedWMFBytes": 1048576,
+      "releaseAfterFirstWMFSeconds": 12.032,
+      "requestCounts": {
+        "all": 2,
+        "WMF": 1,
+        "resolverOrOther": 1
+      },
+      "bodyTotalsBySong": [
+        {
+          "song": "4598",
+          "playerTotalBytes": 35169662,
+          "playerUniqueBytes": 35169662,
+          "intervals": [
+            [
+              0,
+              35169662
+            ]
+          ]
+        }
+      ],
+      "firstWMF": {
+        "id": 2,
+        "song": "4598",
+        "method": "GET",
+        "range": "bytes=0-",
+        "status": 206,
+        "acceptedBodyBytes": 35169662,
+        "intervals": [
+          [
+            0,
+            35169662
+          ]
+        ],
+        "firstWrite": 17.769,
+        "end": 44.062,
+        "canceled": false,
+        "writeOrFlushFailures": 0
+      },
+      "resolverAcceptedBodyBytes": 180224,
+      "loaded": {
+        "secondsAfterFirstWMF": -0.341,
+        "reportedLoadSeconds": 1.787292,
+        "worldWaitSeconds": 8.212708,
+        "WMFWriteUpperBoundAtLogSecond": 1048576
+      },
+      "videoStart": {
+        "secondsAfterFirstWMF": 8.659,
+        "WMFWriteUpperBoundAtLogSecond": 1048576,
+        "beforeRelease": true
+      }
+    },
+    {
+      "id": "formal-gate-512k",
+      "mode": "formal",
+      "limitedWMFBytes": 524288,
+      "releaseAfterFirstWMFSeconds": 12.103,
+      "requestCounts": {
+        "all": 2,
+        "WMF": 1,
+        "resolverOrOther": 1
+      },
+      "bodyTotalsBySong": [
+        {
+          "song": "4598",
+          "playerTotalBytes": 35169662,
+          "playerUniqueBytes": 35169662,
+          "intervals": [
+            [
+              0,
+              35169662
+            ]
+          ]
+        }
+      ],
+      "firstWMF": {
+        "id": 2,
+        "song": "4598",
+        "method": "GET",
+        "range": "bytes=0-",
+        "status": 206,
+        "acceptedBodyBytes": 35169662,
+        "intervals": [
+          [
+            0,
+            35169662
+          ]
+        ],
+        "firstWrite": 20.401,
+        "end": 46.833,
+        "canceled": false,
+        "writeOrFlushFailures": 0
+      },
+      "resolverAcceptedBodyBytes": 180224,
+      "loaded": {
+        "secondsAfterFirstWMF": 12.487,
+        "reportedLoadSeconds": 14.33502,
+        "WMFWriteUpperBoundAtLogSecond": 18055168
+      },
+      "videoStart": {
+        "secondsAfterFirstWMF": 12.487,
+        "WMFWriteUpperBoundAtLogSecond": 18055168,
+        "beforeRelease": false
+      }
+    },
+    {
+      "id": "formal-gate-768k",
+      "mode": "formal",
+      "limitedWMFBytes": 786432,
+      "releaseAfterFirstWMFSeconds": 12.11,
+      "requestCounts": {
+        "all": 4,
+        "WMF": 2,
+        "resolverOrOther": 2
+      },
+      "bodyTotalsBySong": [
+        {
+          "song": "4598",
+          "playerTotalBytes": 35169662,
+          "playerUniqueBytes": 35169662,
+          "intervals": [
+            [
+              0,
+              35169662
+            ]
+          ]
+        },
+        {
+          "song": "8935",
+          "playerTotalBytes": 11419648,
+          "playerUniqueBytes": 11419648,
+          "intervals": [
+            [
+              0,
+              11419648
+            ]
+          ]
+        }
+      ],
+      "firstWMF": {
+        "id": 2,
+        "song": "4598",
+        "method": "GET",
+        "range": "bytes=0-",
+        "status": 206,
+        "acceptedBodyBytes": 35169662,
+        "intervals": [
+          [
+            0,
+            35169662
+          ]
+        ],
+        "firstWrite": 18.091,
+        "end": 44.358,
+        "canceled": false,
+        "writeOrFlushFailures": 0
+      },
+      "resolverAcceptedBodyBytes": 360448,
+      "loaded": {
+        "secondsAfterFirstWMF": 12.158,
+        "reportedLoadSeconds": 13.74585,
+        "WMFWriteUpperBoundAtLogSecond": 17793024
+      },
+      "videoStart": {
+        "secondsAfterFirstWMF": 12.158,
+        "WMFWriteUpperBoundAtLogSecond": 17793024,
+        "beforeRelease": false
+      }
+    },
+    {
+      "id": "preview-gate-1m",
+      "mode": "preview",
+      "limitedWMFBytes": 1048576,
+      "releaseAfterFirstWMFSeconds": 12.132,
+      "requestCounts": {
+        "all": 4,
+        "WMF": 3,
+        "resolverOrOther": 1
+      },
+      "bodyTotalsBySong": [
+        {
+          "song": "2502",
+          "playerTotalBytes": 6209536,
+          "playerUniqueBytes": 6209536,
+          "intervals": [
+            [
+              0,
+              6209536
+            ]
+          ]
+        },
+        {
+          "song": "8935",
+          "playerTotalBytes": 16802572,
+          "playerUniqueBytes": 16802572,
+          "intervals": [
+            [
+              0,
+              3407872
+            ],
+            [
+              8601600,
+              21996300
+            ]
+          ]
+        }
+      ],
+      "firstWMF": {
+        "id": 1,
+        "song": "2502",
+        "method": "GET",
+        "range": "bytes=0-",
+        "status": 206,
+        "acceptedBodyBytes": 6209536,
+        "intervals": [
+          [
+            0,
+            6209536
+          ]
+        ],
+        "firstWrite": 22.969,
+        "end": 35.153,
+        "canceled": true,
+        "writeOrFlushFailures": 1
+      },
+      "firstNonzeroRange": {
+        "id": 4,
+        "song": "8935",
+        "method": "GET",
+        "range": "bytes=8601600-21996299",
+        "status": 206,
+        "acceptedBodyBytes": 13394700,
+        "intervals": [
+          [
+            8601600,
+            21996300
+          ]
+        ],
+        "firstWrite": 35.497,
+        "end": 44.749,
+        "canceled": false,
+        "writeOrFlushFailures": 0
+      },
+      "resolverAcceptedBodyBytes": 180224,
+      "excludedFromThreshold": "Old song 2502 consumed shared allowance before target 8935"
+    },
+    {
+      "id": "preview-gate-1m-clean",
+      "mode": "preview",
+      "limitedWMFBytes": 1048576,
+      "releaseAfterFirstWMFSeconds": 12.093,
+      "requestCounts": {
+        "all": 4,
+        "WMF": 3,
+        "resolverOrOther": 1
+      },
+      "bodyTotalsBySong": [
+        {
+          "song": "8935",
+          "playerTotalBytes": 20341516,
+          "playerUniqueBytes": 17605388,
+          "intervals": [
+            [
+              0,
+              4210688
+            ],
+            [
+              8601600,
+              21996300
+            ]
+          ]
+        }
+      ],
+      "firstWMF": {
+        "id": 1,
+        "song": "8935",
+        "method": "GET",
+        "range": "bytes=0-",
+        "status": 206,
+        "acceptedBodyBytes": 4210688,
+        "intervals": [
+          [
+            0,
+            4210688
+          ]
+        ],
+        "firstWrite": 71.217,
+        "end": 83.326,
+        "canceled": true,
+        "writeOrFlushFailures": 1
+      },
+      "firstNonzeroRange": {
+        "id": 4,
+        "song": "8935",
+        "method": "GET",
+        "range": "bytes=8601600-21996299",
+        "status": 206,
+        "acceptedBodyBytes": 13394700,
+        "intervals": [
+          [
+            8601600,
+            21996300
+          ]
+        ],
+        "firstWrite": 83.725,
+        "end": 93.06,
+        "canceled": false,
+        "writeOrFlushFailures": 0
+      },
+      "resolverAcceptedBodyBytes": 180224,
+      "videoStart": {
+        "secondsAfterFirstWMF": 11.569,
+        "WMFWriteUpperBoundAtLogSecond": 7979008,
+        "beforeRelease": false
+      },
+      "excludedFromThreshold": "Overlapping prior GET consumed allowance before the new preview GET; no isolated preview threshold"
+    }
+  ],
+  "feedback": [
+    {
+      "stage": "formal-baseline",
+      "event": "feedback",
+      "feedback": "8935播放未见异常；随后已停止并清空，所有预览关闭",
+      "t": 101.328
+    },
+    {
+      "stage": "preview-baseline",
+      "event": "feedback",
+      "feedback": "2502预览正常，从约20秒起播",
+      "t": 214.177
+    },
+    {
+      "stage": "preview-baseline",
+      "event": "stopped",
+      "feedback": "用户确认已停止并清空",
+      "t": 230.623
+    },
+    {
+      "stage": "formal-gate-256k",
+      "event": "feedback",
+      "feedback": "用户报告播放器错误；NSPlayer首请求放行262144字节后约15秒取消并出现新请求",
+      "t": 295.808
+    },
+    {
+      "stage": "formal-gate-256k",
+      "event": "feedback",
+      "feedback": "恢复不限量后用户确认自动恢复正常播放，随后已停止并清空",
+      "t": 360.243
+    },
+    {
+      "stage": "formal-gate-1m",
+      "event": "feedback",
+      "feedback": "4598未见异常；游戏video-start在12秒自动放行前，累计NSPlayer正文1MiB",
+      "t": 453.644
+    },
+    {
+      "stage": "formal-gate-1m",
+      "event": "stopped",
+      "feedback": "用户确认已停止并清空",
+      "t": 468.828
+    },
+    {
+      "stage": "formal-gate-512k",
+      "event": "feedback",
+      "feedback": "4598未见异常；游戏加载完成在自动解除限制后；用户随后已停止并清空",
+      "t": 548.48
+    },
+    {
+      "stage": "formal-gate-768k",
+      "event": "feedback",
+      "feedback": "4598未见异常；游戏加载完成在解除限制后；用户随后已停止并清空",
+      "t": 650.274
+    },
+    {
+      "stage": "preview-gate-1m",
+      "event": "feedback",
+      "feedback": "用户反馈8935从约1/3开始；检测旧2502占用额度，本样本排除阈值推断；用户随后done确认停止",
+      "t": 739.935
+    },
+    {
+      "stage": "preview-gate-1m-clean",
+      "event": "feedback",
+      "feedback": "8935预览未见异常",
+      "t": 831.096
+    },
+    {
+      "stage": "preview-gate-1m-clean",
+      "event": "stopped",
+      "feedback": "用户确认已停止并清空",
+      "t": 874.804
+    }
+  ],
+  "findings": [
+    "4598 formal: 512 and 768 KiB held until automatic release; loaded event followed release. At 1 MiB, loaded and video-start events preceded release; user reported normal playback. This is a repeated-load, event-correlated interval, not a universally proven first-frame minimum.",
+    "8935 formal unlimited baseline: loaded in 1.876251 seconds, world deliberately waited another 8.123749 seconds.",
+    "Preview reads include initial prefixes, overlapping GETs and nonzero offsets. Aggregate bytes and deduplicated intervals must be reported separately.",
+    "First-frame timing was not independently captured; computer-use did not approve VRChat capture. User audiovisual feedback remains the visual evidence."
+  ],
+  "scope": "Isolated HTTP fixture, not production downloader acceptance",
+  "fullTrace": "Detailed allowlisted trace preserved locally for a versioned evidence archive; not yet published."
+}

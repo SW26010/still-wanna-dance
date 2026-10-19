@@ -1,0 +1,27 @@
+{
+  "batch": "LIVE-20261019-01",
+  "result": "passed",
+  "rules": [
+    "private-user-path",
+    "runtime-identity",
+    "signed-url",
+    "capture-calendar-time"
+  ],
+  "allowlistExport": true,
+  "newEvidenceAndToolFiles": 26,
+  "unreviewedMatches": 0,
+  "reviewedNonPrivateMatches": [
+    {
+      "path": "experiments/live-get-probe/get-lifetimes.mjs",
+      "reason": "Historical privacy rejection regex names the string to reject, not a private runtime value."
+    },
+    {
+      "path": "source-snapshot/docs/issue-30-license-audit.md",
+      "reason": "Existing public Git author attribution in the tracked license audit; no private path or game identity."
+    }
+  ],
+  "notes": [
+    "New runtime evidence uses relative clocks and aliases; raw logs, hosts, credentials, settings, media and executables are excluded.",
+    "All historical tracked source blobs are preserved except docs/evidence, including export-ignore experiment bases; source fixtures remain inside the source snapshot."
+  ]
+}

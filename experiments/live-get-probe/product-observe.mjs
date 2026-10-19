@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+import path from 'node:path';
+const root=path.resolve(process.argv[2]);
+const dir=path.join(root,'data/logs');
+const events=fs.readdirSync(dir).filter(n=>/^app\.log(?:\.\d+)?$/.test(n)).flatMap(name=>fs.readFileSync(path.join(dir,name),'utf8').split(/\r?\n/).filter(Boolean).flatMap(l=>{try{return [JSON.parse(l)]}catch{return []}})).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time));
+const ready=events.filter(e=>e.msg==='cache_engine_ready').at(-1);
+const current=events.filter(e=>e.service_id===ready?.service_id);
+const allowed=['request_id','flight_id','resource_key','key','method','range','status','bytes','size','total','outcome','cache','elapsed_ms','first_body_ms','block','task','reason','source','source_kind','result'];
+const selected=current.filter(e=>/request_(started|finished)|download_(started|first_byte|verified|published)|cache_task_(finished|canceled)|deadline|failed|reclaim/.test(e.msg)).slice(-28).map(e=>{const out={t:Math.round((Date.parse(e.time)-Date.parse(ready.time))/100)/10,event:e.msg};for(const k of allowed)if(e[k]!==undefined)out[k]=e[k];if(e.error)out.errorClass=/need.*ended|deadline|timeout/i.test(e.error)?'deadline':/cancel/i.test(e.error)?'canceled':'other';return out});
+const totals=current.reduce((o,e)=>(o[e.msg]=(o[e.msg]||0)+1,o),{});
+console.log(JSON.stringify({service:ready?.service_id,events:selected,eventCounts:totals},null,2));

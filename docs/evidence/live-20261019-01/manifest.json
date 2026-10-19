@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 2,
+  "batch": "LIVE-20261019-01",
+  "status": "closed-partial",
+  "source": "11fa828c3f656435c1162849b4f998cff6aecee6",
+  "workingTreeDirty": true,
+  "productCodeUnchanged": true,
+  "hashBasis": "git-blob",
+  "pathBasis": "repository-relative",
+  "builds": [
+    {
+      "name": "SWD.exe",
+      "bytes": 51551744,
+      "sha256": "fea626ddc965f26cbdb525c7c6432acd3b5c8861c3755588b17175f1850fdd03",
+      "goVersion": "go1.27.1",
+      "sourceRevision": "569122f20574034e70cf2017a7b0cd5fc65863f5",
+      "modified": true,
+      "tags": [
+        "no_easytier"
+      ],
+      "cgoEnabled": false
+    },
+    {
+      "name": "SWD-debug.exe",
+      "bytes": 51551744,
+      "sha256": "afc3b9d4979ef893a935525690394100466de20788c26355fd339c4e3514518e",
+      "goVersion": "go1.27.1",
+      "sourceRevision": "11fa828c3f656435c1162849b4f998cff6aecee6",
+      "modified": true,
+      "tags": [
+        "no_easytier"
+      ],
+      "cgoEnabled": false
+    },
+    {
+      "name": "live-get-probe.exe",
+      "bytes": 37860352,
+      "sha256": "c3b9e7c807d15443a5086562358639b499b5409b1b16892b4e2c0a8a52f7ac81",
+      "goVersion": "go1.27.1",
+      "sourceRevision": "11fa828c3f656435c1162849b4f998cff6aecee6",
+      "modified": true,
+      "tags": [
+        "no_easytier"
+      ],
+      "cgoEnabled": false
+    },
+    {
+      "name": "relay-recovery.exe",
+      "bytes": 37861888,
+      "sha256": "f76a0414b96d045c3f000532319964d8f8e3ff7bc6c409e871f55530f010e921",
+      "goVersion": "go1.27.1",
+      "sourceRevision": "11fa828c3f656435c1162849b4f998cff6aecee6",
+      "modified": true,
+      "tags": [
+        "no_easytier"
+      ],
+      "cgoEnabled": false
+    }
+  ],
+  "releasePackage": null,
+  "archive": {
+    "batch": "live-20261019-01",
+    "name": "live-20261019-01-v2.zip",
+    "bytes": 3722988,
+    "sha256": "63919b5f1f1748f2c5029a78302b39d4ccff302f18e84ca58f853c7abad3d950",
+    "status": "local-unpublished",
+    "url": null,
+    "sourceRevision": "11fa828c3f656435c1162849b4f998cff6aecee6",
+    "localVerified": true,
+    "backupVerified": true,
+    "members": 29,
+    "sourceSnapshot": {
+      "path": "_provenance/source-11fa828c3f65.zip",
+      "bytes": 3705360,
+      "sha256": "6c9b6522c6144ea5364843dce1d2fa3bf2b27a771ded05ab321a7d9a2bc0604b",
+      "files": 789,
+      "excludes": [
+        "docs/evidence/"
+      ]
+    }
+  },
+  "files": [
+    {
+      "id": "E-001",
+      "path": "docs/evidence/live-20261019-01/startup-measurements.json",
+      "bytes": 17260,
+      "sha256": "65e3a4a71e09e4b3c1343fffedc39dffe586c8c84b418548acd7c22a56539326",
+      "gitBlob": "1c159251c0d6e66002e19399b10604666bcce9f1",
+      "sourceAndSanitization": "Compact isolated-body request/Range/Write totals and event correlation, verified MP4 metadata, excluded interference and user feedback; per-stage relative clocks, no raw URLs or identities."
+    },
+    {
+      "id": "E-002",
+      "path": "docs/evidence/live-20261019-01/core-summary.json",
+      "bytes": 24626,
+      "sha256": "cfc503b4e231c72a90753d5e9408f4f97fc9ed1a92a698417aecb0c60103ffd9",
+      "gitBlob": "f4a3c5afba653bfe4bffec2f6de47731adc5154d",
+      "sourceAndSanitization": "Compact current-product requests, deadline/retry/recovery, queue/rolling/reclamation, positive MD5 checks and direct recovery; common relative clock and engine aliases; raw errors/URLs/identities omitted."
+    },
+    {
+      "id": "E-003",
+      "path": "docs/evidence/live-20261019-01/provenance.json",
+      "bytes": 6870,
+      "sha256": "4bc1a8b0787038acca2d22c6211881f2bc4de325147fdc84029690e6a6568e80",
+      "gitBlob": "b9e479f8edbe3b5ead99c3fdbccaf0434047ba39",
+      "sourceAndSanitization": "Actual binary and instrumentation hashes, source identity and isolated environment; no machine paths, credentials or exact runtime clocks."
+    },
+    {
+      "id": "E-004",
+      "path": "docs/evidence/live-20261019-01/checks.json",
+      "bytes": 2162,
+      "sha256": "d8c63c17049dba4f5654c1ef76bf84900b5851f94f183b079599726e3fd83211",
+      "gitBlob": "be5f6c248fca6ad4d5887e9fee8795f917bf5ea7",
+      "sourceAndSanitization": "Targeted test results, real direct playback and cleanup verification; hosts represented only by hashes, no private host contents."
+    },
+    {
+      "id": "E-005",
+      "path": "docs/evidence/live-20261019-01/privacy-review.json",
+      "bytes": 1002,
+      "sha256": "e855cddc35c8d703196a65c8d6c14bdd01c4dbf268bd62f796f435711a48ca3a",
+      "gitBlob": "349319d3b61aee34273eefb36aa57223fcdb1c5f",
+      "sourceAndSanitization": "Allowlist export and privacy scan results, including reviewed historical source matches; no private runtime data."
+    },
+    {
+      "id": "E-006",
+      "path": "docs/evidence/live-20261019-01/probe-review.json",
+      "bytes": 6331,
+      "sha256": "d6cb885e285d437109e41a2ae181f4fd90ef25e21659a932e891f00947960ec7",
+      "gitBlob": "408abb83c1a17de38d0e7382ccc006fcbceac8e5",
+      "sourceAndSanitization": "Post-session fixture corrections, failing/passing targeted regressions and comparison of all eight raw stages with frozen versus corrected summarizers; hashes and relative delays only, no raw private logs."
+    }
+  ],
+  "archivedFiles": [
+    {
+      "path": "docs/evidence/live-20261019-01/core-storage-scheduler.json",
+      "bytes": 443759,
+      "sha256": "bd646553adc15e425f1511940743be4b5f06ea1d2126de361b0c8ba70ce3ab4c",
+      "hashBasis": "archive-member-bytes",
+      "sourceAndSanitization": "Complete allowlisted evidence derived from private runtime logs; relative clocks and stable engine/trace/temp aliases, no private URLs, identities or paths."
+    },
+    {
+      "path": "docs/evidence/live-20261019-01/core-timeline.json",
+      "bytes": 175534,
+      "sha256": "64497a0bbc86f5f6eb997609a7fa8b7ffa47dec7f7818f5123bdcb2cbaabc424",
+      "hashBasis": "archive-member-bytes",
+      "sourceAndSanitization": "Complete allowlisted evidence derived from private runtime logs; relative clocks and stable engine/trace/temp aliases, no private URLs, identities or paths."
+    },
+    {
+      "path": "docs/evidence/live-20261019-01/startup-measurements.json",
+      "bytes": 34376,
+      "sha256": "ee52f8c2769ade0cc5fb4d969ad9cc7379799da64f9378b224aa520ef49a3f8d",
+      "hashBasis": "archive-member-bytes",
+      "sourceAndSanitization": "Complete allowlisted evidence derived from private runtime logs; relative clocks and stable engine/trace/temp aliases, no private URLs, identities or paths."
+    }
+  ],
+  "archiveInventory": "_provenance/inventory.json",
+  "sourceReconstruction": "Source snapshot excludes only docs/evidence; archive contains the original body patch/untracked files, actual debug overlay and probe/relay sources frozen before post-session review.",
+  "privacy": "Private runtime logs, settings, hosts contents, media and executables remain in ignored local storage. Calendar runtime clocks and player/world identities are not included.",
+  "remaining": [
+    "Uncached-target slow Seek (LA-040)",
+    "Real leave-world event (LA-041)",
+    "Enable hookup during existing playback (LA-025)",
+    "Non-owner mid-song join (LA-011)",
+    "Isolated preview quota and synchronized first frame (#36)"
+  ],
+  "git": {
+    "commitSubject": "test(acceptance): record LIVE-20261019-01 results",
+    "pushed": false,
+    "published": false
+  },
+  "postSessionReview": "docs/evidence/live-20261019-01/probe-review.json"
+}

@@ -1,0 +1,67 @@
+{
+  "batch": "LIVE-20261019-01",
+  "checks": [
+    {
+      "name": "isolated-fixture-unit-tests",
+      "result": "passed",
+      "evidence": "Successful tool result during preparation; covers Range pause/resume, cancellation, HEAD, shared quota and refunds."
+    },
+    {
+      "name": "Windows-race",
+      "command": "go test -race -tags=no_easytier ./experiments/live-get-probe -count=1",
+      "result": "passed",
+      "output": "ok  \tstill-wanna-dance/experiments/live-get-probe\t4.108s",
+      "logSHA256": "5691dd4b88cb7fb6c1dc4940f2b8611748ebec4c42487f1e0be122b0b54355b7"
+    },
+    {
+      "name": "go-vet",
+      "command": "go vet -tags=no_easytier ./experiments/live-get-probe",
+      "result": "passed",
+      "evidence": "Successful tool result in this session."
+    },
+    {
+      "name": "production-source-diff",
+      "result": "passed"
+    },
+    {
+      "name": "positive-published-file-MD5",
+      "result": "passed",
+      "files": 2
+    }
+  ],
+  "directRecovery": {
+    "song": 3893,
+    "gatewayStopped": true,
+    "hostsRestoredBeforePlayback": true,
+    "localRequestsAfterStop": 0,
+    "gameVideoStart": true,
+    "feedback": "未见异常"
+  },
+  "cleanup": {
+    "hostsBeforeSHA256": "2d6bdfb341be3a6234b24742377f93aa7c7cfb0d9fd64efa9282c87852e57085",
+    "hostsAfterSHA256": "2d6bdfb341be3a6234b24742377f93aa7c7cfb0d9fd64efa9282c87852e57085",
+    "hostsExactMatch": true,
+    "remainingTestProcesses": [],
+    "remainingListeners": [],
+    "checkedPorts": [
+      80,
+      443,
+      18764,
+      19081
+    ],
+    "gameProcessLeftRunning": true,
+    "retained": "Private raw evidence, test configuration, frozen binaries and positive-budget verified MP4 retained in ignored lab; daily storage untouched"
+  },
+  "limitations": [
+    "No independent first-frame or frame-time capture.",
+    "Game event times have one-second resolution.",
+    "Preview threshold trials had old-request interference.",
+    "No uncached-target slow Seek or non-owner multiplayer validation."
+  ],
+  "gitAtInitialEvidenceFreeze": {
+    "committed": false,
+    "pushed": false,
+    "published": false
+  },
+  "postSessionReview": "probe-review.json"
+}

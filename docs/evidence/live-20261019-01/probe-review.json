@@ -1,0 +1,177 @@
+{
+  "batch": "LIVE-20261019-01",
+  "scope": "Post-session review of the independent fixture and summarizer; no new game session or product change.",
+  "historicalArchive": "live-20261019-01-v2.zip",
+  "historicalBinariesUnchanged": true,
+  "originalSummaryToolSHA256": "b064f6101724eb1cebefcd798e273390b8fb6435ebc08f62262a25309a342262",
+  "historicalAudit": [
+    {
+      "stage": "baseline",
+      "rawInputSHA256": "581cd2aefac98c9e5b955a84313cd6248fba7282f1ce1e47b04c0890b1dfd7a9",
+      "responseStatuses": {
+        "200": 1,
+        "206": 1
+      },
+      "summaryUnchanged": true,
+      "requestsEnteringWithExhaustedQuota": []
+    },
+    {
+      "stage": "formal-gate-1m",
+      "rawInputSHA256": "f4fb473cd1900ba0bf0b0d1f60b9bab32458da5924cd823f2713a34f5cfdac7d",
+      "responseStatuses": {
+        "200": 1,
+        "206": 1
+      },
+      "summaryUnchanged": true,
+      "requestsEnteringWithExhaustedQuota": []
+    },
+    {
+      "stage": "formal-gate-256k",
+      "rawInputSHA256": "ab7f451d4f8d3ce2ced0d6e13ed5bdb3111d1f1f71e419fbd48c15d90711ddb0",
+      "responseStatuses": {
+        "200": 2,
+        "206": 2
+      },
+      "summaryUnchanged": true,
+      "requestsEnteringWithExhaustedQuota": [
+        {
+          "request": 4,
+          "song": "4598",
+          "limitBytes": 262144,
+          "deliveredAtHeaders": 262144,
+          "headersToFirstWriteSeconds": 22.896
+        }
+      ]
+    },
+    {
+      "stage": "formal-gate-512k",
+      "rawInputSHA256": "f28602422333e956e91220d0a4d3849d95bc2915aecc87dc013845e29e809a0a",
+      "responseStatuses": {
+        "200": 1,
+        "206": 1
+      },
+      "summaryUnchanged": true,
+      "requestsEnteringWithExhaustedQuota": []
+    },
+    {
+      "stage": "formal-gate-768k",
+      "rawInputSHA256": "6e2f439e2d79950cc606436f01d4dd228bb747dff459644db6e497d8507afd5b",
+      "responseStatuses": {
+        "200": 2,
+        "206": 2
+      },
+      "summaryUnchanged": true,
+      "requestsEnteringWithExhaustedQuota": []
+    },
+    {
+      "stage": "preview-baseline",
+      "rawInputSHA256": "c271bc297c2380262a25983a3ffd2eca3b1fc15def99651781f5cdd1c1b1863e",
+      "responseStatuses": {
+        "200": 1,
+        "206": 2
+      },
+      "summaryUnchanged": true,
+      "requestsEnteringWithExhaustedQuota": []
+    },
+    {
+      "stage": "preview-gate-1m-clean",
+      "rawInputSHA256": "4f4c7686d8b0d5bac789d6ecef382e9a0e6c118ab971a135ff02836b729b2f1e",
+      "responseStatuses": {
+        "200": 1,
+        "206": 3
+      },
+      "summaryUnchanged": true,
+      "requestsEnteringWithExhaustedQuota": [
+        {
+          "request": 3,
+          "song": "8935",
+          "limitBytes": 1048576,
+          "deliveredAtHeaders": 1048576,
+          "headersToFirstWriteSeconds": 10.832
+        }
+      ]
+    },
+    {
+      "stage": "preview-gate-1m",
+      "rawInputSHA256": "987fdb3defbd8409af808213941dd8385758c536a5d9cd3cd1cd78b2f36844f7",
+      "responseStatuses": {
+        "200": 1,
+        "206": 3
+      },
+      "summaryUnchanged": true,
+      "requestsEnteringWithExhaustedQuota": [
+        {
+          "request": 3,
+          "song": "8935",
+          "limitBytes": 1048576,
+          "deliveredAtHeaders": 1048576,
+          "headersToFirstWriteSeconds": 10.81
+        }
+      ]
+    }
+  ],
+  "correctedTools": [
+    {
+      "path": "experiments/live-get-probe/body.go",
+      "bytes": 7990,
+      "sha256": "c7061c6fce0267e514921c58f72173b430fd44b536efc8ed7e2dae0c5bba9087",
+      "gitBlob": "46a3d3b39df39de78f59c9d7f5cebf410aed6232"
+    },
+    {
+      "path": "experiments/live-get-probe/body_test.go",
+      "bytes": 6332,
+      "sha256": "b37c325356a47df1a5b54415de8f2cc1d6b556b9f5338dc75f74f0b7c7258071",
+      "gitBlob": "2063074f314f21f57c808cf8d48177943da00229"
+    },
+    {
+      "path": "experiments/live-get-probe/body-summary.mjs",
+      "bytes": 2173,
+      "sha256": "a4ae43e779f43ab4c3f61c5d94f7a9369fe0ad7fb424fde0f52c10d552d75b91",
+      "gitBlob": "2f5e398d31af2e339fa2c309493065d64d10c612"
+    },
+    {
+      "path": "experiments/live-get-probe/body-summary.test.mjs",
+      "bytes": 1731,
+      "sha256": "63d23eaf803174c6034cafd768644ddfd7b1a96522191d30d945f929c5290dbf",
+      "gitBlob": "d8c27a4ea224d7425a1a6467b58a9b76e0b25e1a"
+    },
+    {
+      "path": "experiments/live-get-probe/README.md",
+      "bytes": 7303,
+      "sha256": "e0997b30b6da74b56cac37cf54b15cf2cc9830fdbc19db1da20431f978e89442",
+      "gitBlob": "10b97bade9266112efdb1f38479c98a232449dae"
+    }
+  ],
+  "hashBasis": "git-blob",
+  "fixes": [
+    "Only GET 200/206 contribute video intervals and song totals; every response keeps its raw accepted Write bytes for diagnostics.",
+    "Flush initial response headers before waiting for gated successful GET body bytes; do not release body quota early."
+  ],
+  "regression": {
+    "beforeFix": {
+      "summary416": "failed: 416 error text produced video interval [0,16)",
+      "zeroQuotaHeaders": "failed: HTTP response-header timeout",
+      "exhaustedQuotaNewGETHeaders": "failed: HTTP response-header timeout"
+    },
+    "afterFix": {
+      "nodeSummaryTest": "passed: 1 test",
+      "goPackageTests": "passed: 3.289s",
+      "goVet": "passed",
+      "windowsRace": "ok  \tstill-wanna-dance/experiments/live-get-probe\t4.218s"
+    },
+    "commands": [
+      "node --test experiments/live-get-probe/body-summary.test.mjs",
+      "go test -tags=no_easytier ./experiments/live-get-probe -count=1",
+      "go vet -tags=no_easytier ./experiments/live-get-probe",
+      "go test -race -tags=no_easytier ./experiments/live-get-probe -count=1"
+    ],
+    "windowsWrapper": "scripts/with-test-temp.ps1",
+    "raceOutputSHA256": "5f85cd6622afad0c055f96a267a132ead3d6b662b54bbec6f0e31c61891eaa87"
+  },
+  "interpretation": [
+    "No 416 occurred in the eight original stages; old and corrected summaries are deeply equal.",
+    "The three requests entering with exhausted quota belong to the already-excluded 256 KiB retry and two preview samples. Header-to-first-Write intervals are not independent wire-level header timestamps.",
+    "Formal 512/768 KiB and 1 MiB comparisons had no request entering with exhausted quota; their limited event-correlated finding remains unchanged.",
+    "Original binaries and v2 archive are preserved. Corrected tools were tested locally only, with no new VRChat claim."
+  ]
+}

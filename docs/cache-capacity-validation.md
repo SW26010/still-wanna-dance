@@ -76,3 +76,13 @@
 日志与截图留在忽略目录：`artifacts/video-storage-mode-{browser,go}.log` 为沙箱尝试；`artifacts/video-storage-mode-browser-normal.log`、`artifacts/video-storage-mode-browser-normal/` 为通过的浏览器日志和截图；`artifacts/video-storage-mode-go-normal.log` 保留旧 golden 样例失败。
 
 本轮未运行公网验收、真实进程 UI 重启或 VRC 游戏；浏览器结果限于内存 API，Go 文件/引擎检查使用隔离目录。没有新增游戏专属风险，不追加 VRC 待验项。
+
+## 2026-10-20 本地存储目录的收起与禁用
+
+设置和引导复用同一目录区域组件，以 `videoStorageMode` 控制默认展开和可编辑状态，交互规则见[Web UI 内容约定](webui-content.md)。视频存储预算先于目录展示；选择「不保留」时目录默认收起，可展开查看灰显的路径和修改控件；切回「限制为」或「不限制」时恢复编辑，保留原路径及自定义位置选择。目录检查错误保持可见，选择文件夹期间暂时禁用预算选项。沿用现有配置格式及保存流程，不增加旧配置迁移或兼容逻辑。
+
+- `pnpm --dir webui build`、`pnpm --dir webui check` 和 `git diff --check` 通过，嵌入资源及构建清单已更新；修改的预算浏览器测试及 API 夹具单独通过 TypeScript 严格检查。
+- 经 `scripts/with-test-temp.ps1` 在普通权限环境运行 Edge 的预算、设置、引导、恢复及文案回归，29 项通过。新增检查覆盖键盘展开、灰显禁用、默认目录直接继续、三组选项切换保留自定义路径、保存重载和引导提交；原有预算校验、恢复默认、导航、320px 强制颜色及 390px 布局继续通过。
+- 已查看深色设置目录、390px 引导目录展开禁用及默认收起截图，路径与操作状态清晰，无横向溢出。日志为忽略目录 `artifacts/storage-directory-browser.log`，截图在 `artifacts/storage-directory-browser/`。
+
+本次只调整前端交互，浏览器测试使用内存 API；真实配置持久化与运行预算映射复用上一节验证，不据此宣称新增实际文件选择器或进程重启验收。未启动游戏或修改 hosts，无新增 VRC 待验项。

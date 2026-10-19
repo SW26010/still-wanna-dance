@@ -8,6 +8,7 @@ import { draftFrom, fingerprint, NetworkFields, releaseImport, type Draft } from
 import { Brand, Details, Feedback, Panel, NavigationLayout } from './ui';
 import { Diagnostics } from './diagnostics';
 import { CacheCapacityFields, capacityPayload } from './cache-capacity';
+import { StorageDirectoryFields } from './storage-directory';
 
 const steps = ['welcome','storage','proxy','finish'] as const;
 type Step = typeof steps[number];
@@ -186,12 +187,16 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
         <div className="actions"><span>阅读并同意</span><Button onClick={()=>{setTermsOpen(true);void loadTerms();}}>完整条款</Button><Badge color={terms?.accepted?'success':'informative'}>{terms?.accepted?'已保存。':terms?'点击同意后立即保存。':'尚未读到确认记录'}</Badge></div>
         {accepted&&!s&&<Spinner label="正在连接设置…"/>}<Details title="修复已有安装"><p>移除本程序的 hosts 映射，需要管理员确认，立即生效。</p><Button disabled={app.busy||app.stopped} onClick={()=>void app.action('hosts/disable')}>恢复游戏直连</Button></Details>
       </>}
-      {step==='storage'&&draft&&s&&<div className="form-grid"><Checkbox checked={custom} disabled={locked} label="指定其他位置（程序文件夹外）" onChange={(_,v)=>{setCustom(!!v.checked);if(!v.checked){update({storageDir:s.defaultStorageDir});void checkStorage(s.defaultStorageDir);}}}/>
-        <Field label="本地存储目录："><Button className="path-button" disabled={locked||folderBusy||!custom} onClick={()=>void chooseFolder('storage')}>{draft.storageDir || '选择存储文件夹'}</Button></Field>
-        <div className="actions"><Button disabled={locked||folderBusy} onClick={()=>{setCustom(false);update({storageDir:s.defaultStorageDir});void checkStorage(s.defaultStorageDir);}}>默认位置</Button><Button disabled={locked||storageBusy} onClick={()=>void checkStorage(draft.storageDir)}>重新检查</Button></div>
-        <p role="status">{storageBusy?'正在检查目录…':storage?.space.state==='ok'?`可用 ${gib(storage.freeBytes)} / ${gib(storage.totalBytes)}`:storage?.space.message || '容量待确认'}</p><Feedback error>{storageMessage}</Feedback>
+      {step==='storage'&&draft&&s&&<div className="form-grid">
+        <CacheCapacityFields mode={draft.videoStorageMode} value={draft.maxCacheGiB} disabled={locked||folderBusy} onChange={update} />
+        <StorageDirectoryFields mode={draft.videoStorageMode} disabled={locked||folderBusy}>{directoryDisabled => <>
+          <Checkbox checked={custom} disabled={directoryDisabled} label="指定其他位置（程序文件夹外）" onChange={(_,v)=>{setCustom(!!v.checked);if(!v.checked){update({storageDir:s.defaultStorageDir});void checkStorage(s.defaultStorageDir);}}}/>
+          <Field label="本地存储目录："><Button className="path-button" disabled={directoryDisabled||!custom} onClick={()=>void chooseFolder('storage')}>{draft.storageDir || '选择存储文件夹'}</Button></Field>
+          <div className="actions"><Button disabled={directoryDisabled} onClick={()=>{setCustom(false);update({storageDir:s.defaultStorageDir});void checkStorage(s.defaultStorageDir);}}>默认位置</Button><Button disabled={locked||storageBusy} onClick={()=>void checkStorage(draft.storageDir)}>重新检查</Button></div>
+          <p role="status">{storageBusy?'正在检查目录…':storage?.space.state==='ok'?`可用 ${gib(storage.freeBytes)} / ${gib(storage.totalBytes)}`:storage?.space.message || '容量待确认'}</p>
+        </>}</StorageDirectoryFields>
+        <Feedback error>{storageMessage}</Feedback>
         {pathKey(draft.storageDir)!==pathKey(s.settings.storageDir)&&<Feedback>更换目录不会搬迁已有数据。</Feedback>}
-        <CacheCapacityFields mode={draft.videoStorageMode} value={draft.maxCacheGiB} disabled={locked} onChange={update} />
         <p>完整数据约 430 GiB。空间不足时，建议将视频存储预算设为 40 GiB 以内，以获得最佳空间收益。</p><Checkbox label="导入已有视频" checked={importEnabled} disabled={locked} onChange={(_,v)=>{setImportEnabled(!!v.checked);if(!v.checked){folder.current?.abort();setSource('');}}}/>
         {importEnabled&&<><Field label="导入视频文件夹"><Button className="path-button" disabled={locked||folderBusy} onClick={()=>void chooseFolder('import')}>{source||'点击选择文件夹'}</Button></Field><p>可选择存有 WannaDance 视频或旧版保存的视频的文件夹，包含子文件夹，无需特定目录结构。</p><p>请放心，我们不会修改来源文件，并且会尽量使用硬链接来避免双份空间占用。导入后请勿修改源视频。</p></>}
       </div>}

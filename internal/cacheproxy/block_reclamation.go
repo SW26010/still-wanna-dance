@@ -54,10 +54,7 @@ func (s *Server) reclaimLocalBlocks() {
 	if changed {
 		// Availability changed even when an I/O pin delays physical removal.
 		// Wake both live sessions and continuing usage after session completion.
-		s.mu.Lock()
-		close(s.capacityChanged)
-		s.capacityChanged = make(chan struct{})
-		s.mu.Unlock()
+		s.notifyResourceAvailability()
 	}
 	for _, c := range pending {
 		c.blocks.removeFiles(c.paths)

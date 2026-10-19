@@ -25,21 +25,28 @@ func (s *Server) loadSong(ctx context.Context, q url.Values) (video, func(), err
 		}
 		s.releaseVideo(local)
 	}
+	v, err := s.loadSongAddress(ctx, q, canonical)
+	return v, nil, err
+}
+
+// Resolve through the same cached-address and API policy when a formerly local
+// resource needs downloading again. The caller checks its expected identity.
+func (s *Server) loadSongAddress(ctx context.Context, q url.Values, canonical string) (video, error) {
 	if err := s.StorageError(); err != nil {
-		return video{}, nil, err
+		return video{}, err
 	}
 	check := s.startPlaybackCheck(q, video{songID: canonical})
 	node := s.cfg.PlaybackNode
+	id, _ := strconv.ParseInt(canonical, 10, 64)
 	urls, err := s.SongURLs(ctx, id, node)
 	if err != nil {
-		return video{}, nil, err
+		return video{}, err
 	}
 	candidates := &songCandidates{remaining: urls, tried: make(map[string]bool)}
 	if v, ok := s.nextSongCandidate(ctx, canonical, check, candidates); ok {
-		return v, nil, nil
+		return v, nil
 	}
-	v, err := s.waitSongQuery(ctx, check)
-	return v, nil, err
+	return s.waitSongQuery(ctx, check)
 }
 
 func (s *Server) waitSongQuery(ctx context.Context, check *playbackCheck) (video, error) {
@@ -118,6 +125,9 @@ func (s *Server) PrefetchPlayback(ctx context.Context, id int64) (string, error)
 			return "", err
 		}
 		defer releaseDemand()
+		s.mu.Lock()
+		s.startResourceUseLocked(v)
+		s.mu.Unlock()
 		preparationAdmitted(ctx)
 		return "HIT", nil
 	}

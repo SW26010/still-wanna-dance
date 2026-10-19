@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -268,8 +269,22 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 		}
 	}
 	stopCheck() // Waiting for a block's activation window has no execution timer.
+	if v.localOnly {
+		resolved, err := s.loadSongAddress(ctx, url.Values{"id": {v.songID}, "node": {"cf"}}, v.songID)
+		if err != nil {
+			return "", "", fmt.Errorf("%w: resolve evicted resource: %w", errUpstreamDownload, err)
+		}
+		if resolved.key != v.key || resolved.size != v.size {
+			return "", "", fmt.Errorf("%w: resolved address changed evicted resource identity", errUpstreamDownload)
+		}
+		v = resolved
+		flight.progress.setHost(v.host)
+	}
 	flight.log.Info("download_started", "key", v.key, "size", v.size)
 	if flight.ranges != nil {
+		// Refresh routing before any executor starts, including a local hit
+		// whose missing file required a new address lookup.
+		flight.ranges.video.host, flight.ranges.video.path, flight.ranges.video.query = v.host, v.path, v.query
 		retained := flight.ranges.bytes()
 		flight.progress.mu.Lock()
 		flight.progress.bytes = retained
@@ -355,11 +370,6 @@ func (s *Server) startFlightLocked(v video, background bool, log *slog.Logger) (
 	if err != nil {
 		return nil, err
 	}
-	if local != nil {
-		// Only a new flight refreshes routing, before any executor starts.
-		// Late readers may acquire the same resource without changing it.
-		local.video.host, local.video.path, local.video.query = v.host, v.path, v.query
-	}
 	f.ranges = local
 	workerCtx, cancel := context.WithCancelCause(s.ctx)
 	f.cancel, f.background = cancel, background
@@ -373,7 +383,7 @@ func (s *Server) startFlightLocked(v video, background bool, log *slog.Logger) (
 	s.flights[v.key] = f
 	if use := s.resourceUses[v.key]; use != nil {
 		use.video = resourceVideo(v)
-		use.video.songID = v.songID
+		use.video.songID, use.video.localOnly = v.songID, v.localOnly
 	}
 	if background {
 		s.background++

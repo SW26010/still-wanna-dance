@@ -90,6 +90,9 @@ func (s *Server) finishVideoRemoval(key string, removed bool) {
 	close(s.deletingVideos[key])
 	delete(s.deletingVideos, key)
 	s.retentionMu.Unlock()
+	if removed {
+		s.notifyResourceAvailability()
+	}
 }
 
 // Explicit reconciliation is used at startup and by the periodic worker.
@@ -160,6 +163,13 @@ func (s *Server) retainVideoLocked(key string, item *retainedVideo) {
 }
 
 func (s *Server) reconcileRetention() error {
+	// Directory reconciliation can also discover externally removed files.
+	changed := false
+	defer func() {
+		if changed {
+			s.notifyResourceAvailability()
+		}
+	}()
 	s.retentionMu.Lock()
 	s.retentionChanges = make(map[string]bool)
 	s.retentionMu.Unlock()
@@ -201,6 +211,12 @@ func (s *Server) reconcileRetention() error {
 		delete(found, key)
 		if item, ok := s.retained[key]; ok {
 			found[key] = item
+		}
+	}
+	for key := range s.retained {
+		if _, exists := found[key]; !exists {
+			changed = true
+			break
 		}
 	}
 	s.retained = found

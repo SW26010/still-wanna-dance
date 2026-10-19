@@ -10,30 +10,51 @@ import (
 
 // Keep only execution metadata, not a source, storage reference or download
 // slot. Availability and the current source-free usage projection decide when
-// another shared flight is needed after temporary preparation has completed.
+// another shared flight is needed after preparation has completed.
 type resourceUse struct {
 	video   video
 	refetch bool // The last flight permits another attempt; terminal failures do not.
 }
 
 func (s *Server) continueResourceUseLocked(v video, f *flight) {
-	refetch := (f.ranges == nil || !f.ranges.sequential) &&
+	refetch := f.err == nil || (f.ranges == nil || !f.ranges.sequential) &&
 		(errors.Is(f.err, ErrNotRetained) || errors.Is(f.err, errPreempted) || errors.Is(f.err, blocksched.ErrExpired))
 	if use := s.resourceUses[v.key]; use != nil {
 		use.refetch = refetch
 		return
 	}
-	if s.closed || !refetch || !errors.Is(f.err, ErrNotRetained) {
+	if !refetch || f.err != nil && !errors.Is(f.err, ErrNotRetained) {
+		return
+	}
+	s.startResourceUseLocked(v)
+}
+
+// Local hits and completed flights retain the same coordination, without
+// extending the source or keeping a file pinned. Caller holds mu.
+func (s *Server) startResourceUseLocked(v video) {
+	if s.closed || s.resourceUses[v.key] != nil {
 		return
 	}
 	if s.resourceUses == nil {
 		s.resourceUses = make(map[string]*resourceUse)
 	}
 	u := &resourceUse{video: resourceVideo(v), refetch: true}
-	u.video.songID = v.songID
+	u.video.songID, u.video.localOnly = v.songID, v.localOnly
 	s.resourceUses[v.key] = u
 	s.wg.Add(1)
 	go s.coordinateResourceUse(u)
+}
+
+// Availability notifications share the existing wakeup, but do not change usage
+// or protection. Call after releasing retentionMu to preserve lock ordering.
+func (s *Server) notifyResourceAvailability() {
+	s.mu.Lock()
+	// Offline cache deletion has no running coordinator to notify.
+	if s.capacityChanged != nil {
+		close(s.capacityChanged)
+		s.capacityChanged = make(chan struct{})
+	}
+	s.mu.Unlock()
 }
 
 func (s *Server) coordinateResourceUse(u *resourceUse) {

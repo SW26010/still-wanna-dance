@@ -630,3 +630,19 @@ Range 临时准备完成后，按资源保留一份轻量使用协调，直接�
 首轮定向检查的默认临时目录重命名被沙箱拒绝；改用工作区隔离目录后，完整检查仍遇到硬链接、目录联接、原子替换和子进程限制。沙箱内 race 还报告 ThreadSanitizer failed to restore address，未产生可定位的 DATA RACE 报告。上述失败分别保留在 directed.log、full-suite.log、race-full.log；随后在同一隔离目录以沙箱外权限完成整包及 race 检查，不将环境失败改写为通过。
 
 本次由受控 Range、时序与文件验证覆盖，不新增 VRC 待验条目，不外推真实播放器体验；未启动游戏或修改 hosts。
+
+## 63. 正式缓存命中及发布后继续协调缺块重取
+
+2026-10-19：第 62 项只在 Range TEMP 后创建使用协调。正预算下，队列准备成功发布或直接命中正式缓存后，同一成员移出保护窗口，文件可被较高优先级资源正常淘汰；成员重新入窗时仍有来源需求，却没有协调器主动补回。原始审查复现的两个分支均失败，保留在 artifacts/commit-review-outgoing-hit-20261019/result-workspace-temp.log。
+
+成功发布和本地 HIT 现在复用同一资源使用协调。正式文件删除及目录核对发现缺失后通知重算，不改变来源、保护窗口或控制台 prepared。只有需要重取且原资源缺少地址时，才在共享会话中复用既有缓存地址/API 解析，并要求 MD5 和大小仍匹配；身份变化或终止错误停止协调。地址更新仍在块执行器启动前完成，旧读者不回写地址。离线删除没有运行中的协调器，跳过通知。缓存保留文档删除“完整队列无条件保护”的旧约定，以 canonical 的块窗口规则为准。
+
+新增 retained_queue_test.go 覆盖成功发布/本地 HIT 后的正常淘汰、同一来源重排及仅时间推进的入窗、无需新 GET 自动补回且随后播放复用，以及地址身份变化时停止。来源身份保持不变，没有合成需求或额外保护。
+
+验证日志保存在忽略目录 artifacts/retained-queue-refetch-20261019/：
+
+- 修复后的定向回归通过（offline-fixed-directed.log，3.708 s），包含已有 TEMP 重入窗及离线删除测试。
+- cmd/internal 完整运行中其余包通过（full-suite.log，console 76.767 s）；cacheproxy 首次发现离线删除关闭空通知通道的问题，修复后以整包 Windows race 重新验证通过。cacheproxy / blocksched 的最终完整 race 为 66.904 s / 1.144 s（race-final.log），使用仓库已有 GCC 和工作区隔离临时目录，在沙箱外完成 Windows 文件测试。
+- cmd/internal 的 go vet、构建及 diff 检查通过（vet-final.log、build.log）。首轮新夹具因误按完整 URL 区分 HTTP/HTTPS 而返回错误正文，修正为按资源标识匹配；directed.log 和上述首次整包失败日志保留，未改写为通过。
+
+本次验证可由受控协议、时序及文件测试完成，不新增 VRC 台账条目，既有游戏体验风险仍按原场景积攒；未启动游戏或修改 hosts。

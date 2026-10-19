@@ -25,6 +25,22 @@
 
 开发包身份如实包含工作区改动，不能当作干净正式构建。原始日志、ZIP、真实浏览器记录保留在忽略目录 `artifacts/issue26/`；持久化集成结果位于 `artifacts/portable-upgrade/20f2f11a35734a53bec3c0f4f8344a68/`。实际 EXE SHA256 在 `persisted-data.log`，不提交合成 DPAPI 密文或本机路径材料。
 
+## 完整本地正式流程复验
+
+在独立本地克隆中，从干净提交 `a52af7a6037be7f4a0f6c6a04413b9867ebeaf49` 创建临时验证 tag `v0.0.0-issue26-validation.2`，完整运行正式打包并传入 `dev-issue26-c` 的 ZIP。该 tag 仅存在于忽略目录中的验证克隆；未在工作仓库创建发布 tag，也未推送或发布。后续 `6fbbc08` 及本记录只修改测试/文档，不改变该产物的应用和打包实现。
+
+- 干净检出的 Node 工具测试、Go 测试及 vet 通过。完整源码清单含 **61,805 个文件、548,659,746 字节、225 条模块记录**；实际 EXE 含 110 个第三方 Go 模块，许可声明和对应源码绑定校验通过。EXE 类型为 formal、dirty=false，目标 windows/amd64，工具链 go1.27.1。
+- 从最终源码附件独立重建通过：前端离线重建及嵌入资源一致性检查、全新 Go 缓存和仅包内 file GOPROXY 的 EXE 编译、模块身份比较均通过。不承诺二进制逐字节可复现；发行清单明确记录 `independentRebuild.verified=true`、`bitReproducible=false`。
+- 最终 ZIP 的单包冒烟通过；`dev-issue26-c` → 临时验证正式包的真实同目录覆盖及默认存储、外置库、自定义配置持久化 **3/3** 通过。嵌套 PowerShell 的条款中文比较也在完整入口中通过。
+- 输出目录 `artifacts/issue26/formal-output-2/` 包含 ZIP、对应源码、两个 SHA256、发行清单及说明；再次核对复制后的两个附件大小/哈希与清单一致。正式 EXE SHA256 为 `3d9551c941dd1a88d32bbe7752a10c9f32ba6d06a8f2e74289dd3d7892a8d71f`；独立重建 EXE 为 `e7c4b2bb748f8c78e24818835e7db5db70b47b8056f83f00dc624bdf6d005926`。
+
+| 本地产物 | 字节数 | SHA256 |
+| --- | ---: | --- |
+| Portable ZIP | 19,816,205 | `e72f8d3891d08ce4406fe38ee6830a8598c8642189b14002ad296508094b148c` |
+| 完整对应源码 tar.gz | 297,369,740 | `c4b6b9f9fed9717cc7f1774751b9ccf583fe0e7af452b80917b35af3bdd1476e` |
+
+完整日志为 `artifacts/issue26/formal-pipeline-2.log`；持久化结果保留于 `artifacts/issue26/formal-repo/artifacts/portable-upgrade/b7a7aa1959eb481392fb50c51b950a4d/persisted-data.log`。包装器临时目录已清理，本轮启动的测试 EXE 已退出，持久证据保留。产物中的 Release URL 是按验证 tag 生成的待发布地址，**未验证且未声称这些公共地址可下载**。
+
 ## 历史失败与边界
 
 - 首轮定向 Go 检查遇到 Windows 沙箱原子重命名 `The handle is invalid`；同入口在正常用户权限下通过，失败日志保留。首次编译遗漏仍被 panic 日志使用的 `runtime/debug` import，恢复后通过。

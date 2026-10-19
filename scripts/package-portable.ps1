@@ -9,7 +9,7 @@ Push-Location (Split-Path -Parent $PSScriptRoot)
 try {
     if ($ReleaseTag) {
         if ($PSBoundParameters.ContainsKey('Version')) { throw 'Use ReleaseTag alone for a formal package.' }
-        node scripts/release.mjs create --tag $ReleaseTag --output $OutputDir
+        & "$PSScriptRoot/with-test-temp.ps1" node scripts/release.mjs create --tag $ReleaseTag --output $OutputDir
         if ($LASTEXITCODE -ne 0) { throw 'Formal release checks failed.' }
         return
     }
@@ -21,9 +21,9 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read Git status.' }
     node scripts/check-webui.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Embedded Web UI is stale. Rebuild webui before packaging.' }
-    go test -tags=no_easytier ./cmd/... ./internal/...
+    & "$PSScriptRoot/with-test-temp.ps1" go test -tags=no_easytier ./cmd/... ./internal/...
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
-    go vet -tags=no_easytier ./cmd/... ./internal/...
+    & "$PSScriptRoot/with-test-temp.ps1" go vet -tags=no_easytier ./cmd/... ./internal/...
     if ($LASTEXITCODE -ne 0) { throw 'Go vet failed.' }
     $destination = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDir)
     $name = "still-wanna-dance-$Version-windows-amd64-portable"

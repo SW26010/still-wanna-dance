@@ -88,7 +88,8 @@ export function createRelease({ root, tag, outputDir }) {
     const zip = path.join(results, names.portable);
     run('pwsh', ['-NoProfile', '-File', path.join(checkout, 'scripts/archive-portable.ps1'), '-Folder', folder, '-Zip', zip], checkout);
     console.log('Checking actual Portable ZIP in an isolated consent-gated process...');
-    run('pwsh', ['-NoProfile', '-File', path.join(checkout, 'scripts/test-portable.ps1'), '-Zip', zip], checkout);
+    // Retain diagnostics in the original repository, outside both temporary roots.
+    run('pwsh', ['-NoProfile', '-File', path.join(checkout, 'scripts/test-portable.ps1'), '-Zip', zip, '-EvidenceDir', path.join(root, 'artifacts/portable-smoke')], checkout);
     const portableAsset = { kind: 'portable', name: names.portable, sha256: sha256(zip), bytes: fs.statSync(zip).size, url: assetURL(tag, names.portable) };
     fs.writeFileSync(zip + '.sha256', `${portableAsset.sha256}  ${names.portable}\n`);
     const manifest = { schemaVersion: 1, kind: 'formal', repository, tag, revision, target: source.manifest.target, toolchain: source.manifest.toolchain, executableSHA256: record.executableSHA256, modules: info.modules, acceptedRisks: [acceptedRisk], independentRebuild: { verified: true, executableSHA256: built.executableSHA256, bitReproducible: false }, assets: [portableAsset, sourceAsset] };

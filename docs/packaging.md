@@ -63,7 +63,9 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 自动验证解压真实 ZIP，从不同工作目录启动无托盘 EXE，检查固定路径、许可及模块覆盖、未用目录不生成、条款门禁、配置锁、JSON 日志、重复实例拒绝及强制停止后的重启。首次启动、重启、移动和自定义配置均断言身份 API 中的 SWD 协议、实际 EXE、配置、PID 及 OS 进程创建时间。随后覆盖解压，逐文件比较用户数据哈希；整目录移动后再启动，并验证同父目录的两个自定义配置并发启动且锁/日志/默认媒体隔离。另验证已知旧测试布局在创建 data 前被拒绝。Go 回归补充确认记录、通道密钥、快照的移动、外置绝对路径和旧存储标记保护。
 
-验证不主动接受条款、不启动播放网关、不下载歌曲、不改 hosts，不替代真实 VRChat、托盘及 UAC 联合验收；测试退出只终止自己创建的进程，保留隔离目录供检查。
+验证不主动接受条款、不启动播放网关、不下载歌曲、不改 hosts，不替代真实 VRChat、托盘及 UAC 联合验收；测试退出只终止自己创建的进程，成功或失败均保留隔离目录及其中的日志供检查。默认位置为仓库忽略目录 `artifacts/portable-smoke/Still Wanna Dance smoke <随机标识>`，退出时输出实际路径；可用 `test-portable.ps1 -EvidenceDir <目录>` 指定其他持久位置。正式发布显式使用原仓库的该目录，避免材料随 `TEMP` 包装器或临时检出一起被清理；自定义目录同样应放在这些临时目录之外。
+
+2026-10-19：发布与临时目录定向回归 7/7 通过。使用缺少 EXE 的 ZIP 验证默认位置，以及临时检出配合显式证据目录两种入口：冒烟失败退出后，包装器临时目录已删除，解压材料仍可读取。日志保存在本地忽略目录 `artifacts/windows-test-temp/release-smoke-retention-final.log`；本次未执行完整正式发布构建。
 
 Windows CI 在 tag 上运行正式流程，并上传 ZIP、源码、校验、发行清单及 Release notes；手动选择分支时生成明确的 ci 开发包。工作流只在手动选择 `check` → `Run workflow` 或推送 `v[0-9]*` tag 时运行，普通分支 push/PR 不自动运行。脚本和 CI 不发布 GitHub Release；首次正式发布仍须完成 #23、#24、#25、#26、#30 的适用验收，包括 LA-033、Mihomo 实际接入后的产物复验及公开下载验证。
 

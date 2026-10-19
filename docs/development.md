@@ -14,10 +14,10 @@ Still Wanna Dance 使用 Go，管理 UI 采用 React + TypeScript + Fluent UI Re
 pnpm --dir webui install --frozen-lockfile
 pnpm --dir webui build
 pnpm --dir webui check
-pnpm --dir webui test
+./scripts/with-test-temp.ps1 pnpm --dir webui test
 ```
 
-使用 `webui/package.json` 固定的 pnpm 版本。浏览器测试默认使用本机 Edge；CI 安装 Playwright Chromium，测试只调用内存夹具，不修改 hosts 或访问真实上游。截图保存在忽略目录 `artifacts/webui-tests`。工具测试仍用 `node --test scripts/*.test.mjs`。架构、浏览器覆盖和真实系统验收边界见[Fluent 迁移记录](fluent-ui-migration.md)。
+使用 `webui/package.json` 固定的 pnpm 版本。浏览器测试默认使用本机 Edge；CI 安装 Playwright Chromium，测试只调用内存夹具，不修改 hosts 或访问真实上游。截图保存在忽略目录 `artifacts/webui-tests`。Windows 工具测试用 `./scripts/with-test-temp.ps1 node --test scripts/*.test.mjs`。Linux/CI 可直接运行包装器后的原命令。架构、浏览器覆盖和真实系统验收边界见[Fluent 迁移记录](fluent-ui-migration.md)。
 
 ## Windows 环境
 
@@ -44,12 +44,18 @@ Go 自带构建、测试、格式化和静态检查工具。当前纯 Go 方案�
 
 ```powershell
 go fmt ./cmd/... ./internal/...
-go test -tags=no_easytier ./cmd/... ./internal/...
-go vet -tags=no_easytier ./cmd/... ./internal/...
+./scripts/with-test-temp.ps1 go test -tags=no_easytier ./cmd/... ./internal/...
+./scripts/with-test-temp.ps1 go vet -tags=no_easytier ./cmd/... ./internal/...
 go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
 ```
 
-Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的 C 工具链；本机已使用独立 w64devkit/GCC 完成下载与缓存整包检查，执行时显式设置 CGO_ENABLED=1 和 CC，工具及原始结果保存在忽略目录 artifacts/，不依赖全局 PATH。
+Windows 测试统一通过 `scripts/with-test-temp.ps1` 运行，定向检查也只需在原命令前加这个入口。它保持调用目录和参数，每次在忽略目录 `artifacts/tmp/<随机标识>` 创建独立临时目录，仅为本次命令及子进程设置 `TEMP`、`TMP`、`GOTMPDIR`；正常返回或命令报错后恢复环境并清理本次目录，原样返回命令退出码。无法清理时明确警告并保留路径，不影响测试失败的退出码。测试日志和需要保留的报告放在该临时目录之外。打包脚本的开发检查与正式发布准备也使用同一入口。
+
+此入口避开 Windows MXC 默认 `sandbox.{GUID}/AC/Temp` 的重命名权限缺陷（[Microsoft 已确认的问题](https://github.com/microsoft/mxc/issues/1204)），不修改产品文件操作、用户/系统环境变量、ACL 或沙箱设置。换到工作区后 `os.Root.Rename`、硬链接、目录联接、浏览器及子进程仍可能受其他沙箱限制；保留失败证据，按实际权限要求验证，不能把所有失败都归为临时目录问题。强制结束 PowerShell 进程时可能来不及清理，残留目录不复用，也不自动清扫其他调用的目录。
+
+2026-10-19 验证：同一 `TestPublicationAdmissionRanksFullCacheBeforeMerge` 在 MXC 默认临时目录报重命名拒绝，经入口运行通过。`TestAtomicWriteRetainsLastGoodFileAndBoundsWork` 在工作区内仍报 `renameat: The handle is invalid`，沙箱外经同一入口通过。工具回归在沙箱内为 28/29（已有 junction 夹具被拒绝），沙箱外 29/29 通过；新增入口回归覆盖原子替换、参数/工作目录/退出码传递、环境恢复、异常清理及嵌套隔离。原始成功与失败输出保留在忽略目录 `artifacts/windows-test-temp/`，未修改产品代码绕过失败。
+
+Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的 C 工具链；本机已使用独立 w64devkit/GCC 完成下载与缓存整包检查，执行时显式设置 CGO_ENABLED=1 和 CC，测试命令同样通过上述入口运行。工具及原始结果保存在忽略目录 artifacts/，不依赖全局 PATH。
 
 临时 Go 探测源码即使放在 Git 忽略的 `artifacts/` 中，仍会被 `go test ./...` 和 `go vet ./...` 发现。独立探测文件应在首行添加 `//go:build ignore` 并空一行；需要执行时用 `go run` 明确列出入口及其辅助源文件，避免多个 `main` 混入同一个包。也可放入独立的工具模块。
 
@@ -68,7 +74,7 @@ node --test scripts/acceptance-protocol.test.mjs scripts/acceptance-request.test
 
 验收前须由操作者在当前 Windows 用户下阅读并确认当前条款，第三个参数传入该 `terms.json`。脚本原样复制密文到独立配置，先启动关闭播放网关/队列自动启动的控制台，通过门禁验证凭据，并核对内嵌条款与当前源码一致；不会解密、伪造或自动点击同意。失效凭据返回 environment/blocked；缺少控制台程序也会阻塞全部验收，因为不能验证同意。验证成功后才启动服务链路；缺少服务程序仅阻塞服务链路，控制台 Auto 与本地降级仍继续。
 
-条款保护回归可运行 `go test ./internal/console -run Terms -count=1`。Windows 使用真实 DPAPI，包含独立子进程读取和同用户搬迁；Linux 测试进程使用临时认证加密替身，生产代码仍明确拒绝非 Windows 凭据保存。这不替代真实跨用户/跨机器测试，验证范围见 [#15 验收记录](issue-15-validation.md)。
+条款保护回归在 Windows 可运行 `./scripts/with-test-temp.ps1 go test ./internal/console -run Terms -count=1`。Windows 使用真实 DPAPI，包含独立子进程读取和同用户搬迁；Linux 测试进程使用临时认证加密替身，生产代码仍明确拒绝非 Windows 凭据保存。这不替代真实跨用户/跨机器测试，验证范围见 [#15 验收记录](issue-15-validation.md)。
 
 控制台以 `-no-tray -no-open` 启动，需本机 `127.0.0.1:80/443` 空闲；端口被占用时记录环境阻塞，不关闭已有服务。降级通过仅供本次测试的本地失败 SOCKS5 出口触发，断言 `X-SWD-Fallback: upstream-unavailable` 与缓存内容一致。脚本不改 hosts、不读取原版旧库、不运行原版程序；所有下载和配置均留在测试目录，结束时关闭本次进程与失败出口。
 

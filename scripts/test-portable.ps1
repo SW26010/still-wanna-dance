@@ -1,7 +1,13 @@
-param([Parameter(Mandatory = $true)][string]$Zip)
+param(
+    [Parameter(Mandatory = $true)][string]$Zip,
+    [string]$EvidenceDir = (Join-Path (Split-Path -Parent $PSScriptRoot) 'artifacts/portable-smoke')
+)
 $ErrorActionPreference = 'Stop'
 $zipPath = (Resolve-Path -LiteralPath $Zip).Path
-$root = Join-Path ([IO.Path]::GetTempPath()) ('Still Wanna Dance smoke ' + [guid]::NewGuid().ToString('N'))
+# Inspection material must outlive TEMP and any disposable release checkout.
+$evidencePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($EvidenceDir)
+New-Item -ItemType Directory -Path $evidencePath -Force | Out-Null
+$root = Join-Path $evidencePath ('Still Wanna Dance smoke ' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $root | Out-Null
 $process = $null
 $duplicate = $null

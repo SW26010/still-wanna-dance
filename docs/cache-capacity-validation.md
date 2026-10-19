@@ -86,3 +86,20 @@
 - 已查看深色设置目录、390px 引导目录展开禁用及默认收起截图，路径与操作状态清晰，无横向溢出。日志为忽略目录 `artifacts/storage-directory-browser.log`，截图在 `artifacts/storage-directory-browser/`。
 
 本次只调整前端交互，浏览器测试使用内存 API；真实配置持久化与运行预算映射复用上一节验证，不据此宣称新增实际文件选择器或进程重启验收。未启动游戏或修改 hosts，无新增 VRC 待验项。
+
+
+## 2026-10-20 激进的缓存回收策略
+
+本节取代此前固定“仅零预算积极回收”的现行约束；前文的历史测试和失败记录保留。设置与使用引导共用“激进的缓存回收策略”：自动（默认）／开启／关闭。显式保存 aggressiveCacheReclamation=auto/on/off；auto 根据有效视频存储预算计算，只有“不保留”开启，“限制为”（包括预算已满）和“不限制”关闭，记住的容量输入不改变结果。手动选择不随预算变化，恢复引导本页默认回到 auto。沿用正式术语与用户指定说明。
+
+配置格式升级为 5，版本 1～4 明确拒绝，不增加迁移兼容；前文版本 4 是当次历史格式。CLI 通过 -aggressive-cache-reclamation 使用同一策略。回收、防止无期限反复下载、有效需求缺块重取及完成判断共用策略，保护窗口与必要引用保持原规则。合并快照前正常回收导致块不完整时返回未保留并释放预留，不误报存储故障；关闭回收且不保留视频时，块仅在本次运行内复用，退出仍清理。
+
+验证结果：
+
+- 通过 scripts/with-test-temp.ps1 运行 internal/cacheproxy、internal/console、internal/apppaths 和 cmd/... 整包测试；覆盖三种策略与三种预算组合、GET/队列缺块重取、正预算和不限时激进回收不反复补齐、不误记存储故障，以及零预算关闭回收后的跨会话复用和退出清理。配置、设置 API、引导应用、保存/运行快照及重新构造应用的重启边界通过；旧格式拒绝且原文件不被改写。
+- 使用仓库已有独立 GCC 工具链执行 cacheproxy 的回收、重取与发布定向 go test -race 通过；相关 Go 包的 go vet、前端 build/check、浏览器测试源码严格类型检查、验收脚本语法检查及 git diff --check 通过。
+- Edge 内存夹具的 cache-reclamation、cache-capacity、setup 共 13 项通过。覆盖自动联动、手动选择保留、放弃草稿、保存重载、引导恢复默认与最终核对载荷。已查看 390px 深色设置和浅色引导截图，无横向溢出。
+- 首轮沙箱 Go 配置写入遇到已有 Windows 原子替换限制（The handle is invalid），Edge 在页面操作前失败且未正常结束，已中止；同一隔离入口在沙箱外通过。原始失败保留在 artifacts/cache-reclamation-{go-initial,webui-initial}.log，成功证据为同目录的 go、webui、race、vet 日志。
+- 独立新构建实际启动了隔离控制台，禁用网关和队列自动启动，仅复制既有条款凭据。凭据早于当前条款版本，/api/status 正确返回 428，未执行同意操作，因此真实浏览器保存与实际进程重启未验证。测试实例通过退出接口关闭，result.json 记录 cleanup=true；原配置未修改。失败证据在忽略目录 artifacts/cache-reclamation-real-browser.log 及 artifacts/cache-reclamation/runtime-*/。Go 的实际文件与服务集成结果不外推为此项浏览器通过。
+
+未启动 VRC、修改 hosts 或操作用户视频库；保护规则未改变，本次不新增 VRC 专属待验场景。当前缺口仅为使用有效的现行条款凭据补做上述隔离进程浏览器检查。

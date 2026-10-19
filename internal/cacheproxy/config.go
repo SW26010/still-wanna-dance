@@ -60,6 +60,9 @@ type Config struct {
 	CacheUnlimited bool
 	// MaxCacheBytes bounds retained videos; zero reclaims every unprotected video.
 	MaxCacheBytes int64
+	// AggressiveCacheReclamation controls unprotected block cache reclamation:
+	// auto follows the video budget; on and off explicitly override it.
+	AggressiveCacheReclamation string
 	// RequestRetentionDays bounds request details; zero keeps them indefinitely.
 	RequestRetentionDays int
 	// MaxLocalValidations bounds concurrent local file validations.
@@ -77,23 +80,27 @@ type Config struct {
 
 func DefaultConfig() Config {
 	return Config{
-		CacheUnlimited:       false,
-		MaxCacheBytes:        0,
-		RequestRetentionDays: 30,
-		OriginScheme:         "https",
-		StorageDir:           "still-wanna-dance-data",
-		Origins:              make(map[string]string),
-		DownloadTimeout:      10 * time.Minute,
-		PrepareAhead:         blocksched.DefaultPrepareAhead,
-		DownloadSoftLimit:    VideoRequestSoftLimit,
-		DownloadGrowInterval: DefaultDownloadGrowInterval,
-		MaxFileBytes:         2 << 30,
-		MaxLocalValidations:  3,
-		Logger:               slog.New(slog.NewJSONHandler(os.Stderr, nil)),
+		CacheUnlimited:             false,
+		MaxCacheBytes:              0,
+		AggressiveCacheReclamation: "auto",
+		RequestRetentionDays:       30,
+		OriginScheme:               "https",
+		StorageDir:                 "still-wanna-dance-data",
+		Origins:                    make(map[string]string),
+		DownloadTimeout:            10 * time.Minute,
+		PrepareAhead:               blocksched.DefaultPrepareAhead,
+		DownloadSoftLimit:          VideoRequestSoftLimit,
+		DownloadGrowInterval:       DefaultDownloadGrowInterval,
+		MaxFileBytes:               2 << 30,
+		MaxLocalValidations:        3,
+		Logger:                     slog.New(slog.NewJSONHandler(os.Stderr, nil)),
 	}
 }
 
 func (c Config) validate() error {
+	if c.AggressiveCacheReclamation != "auto" && c.AggressiveCacheReclamation != "on" && c.AggressiveCacheReclamation != "off" {
+		return errors.New("aggressive cache reclamation must be auto, on or off")
+	}
 	if c.DownloadSoftLimit < 1 || c.DownloadSoftLimit > MaxDownloadSoftLimit {
 		return errors.New("download soft limit must be between 1 and 64")
 	}

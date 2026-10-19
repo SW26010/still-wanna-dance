@@ -21,8 +21,8 @@ export function draftFrom(s: Settings): Draft {
     maxCacheGiB: String((maxCacheBytes || 0) / 1073741824), proxyImportID: '', proxyImportText: '' };
 }
 export function settingsPayload(d: Draft) {
-  const { videoStorageMode, maxCacheGiB, proxyImportText: _text, proxyReport: _report, socks5Password, ...values } = d;
-  return { ...values, ...Object.fromEntries(numeric.map(k => [k, Number(d[k])])), ...capacityPayload({videoStorageMode, maxCacheGiB}),
+  const { videoStorageMode, aggressiveCacheReclamation, maxCacheGiB, proxyImportText: _text, proxyReport: _report, socks5Password, ...values } = d;
+  return { ...values, ...Object.fromEntries(numeric.map(k => [k, Number(d[k])])), ...capacityPayload({videoStorageMode, aggressiveCacheReclamation, maxCacheGiB}),
     logDir: d.manualLogDir ? d.logDir : '', ...(socks5Password || !d.socks5Username ? {socks5Password: socks5Password || ''} : {}) };
 }
 export function fingerprint(d: Draft) {
@@ -108,7 +108,7 @@ export function SettingsPage() {
     <ImportPanel />
     <Panel id="preferences" title="偏好设置"><Feedback error>{s.actionErrors?.settings}</Feedback><form className="form-grid" onSubmit={async e => { e.preventDefault(); if (!dirty || disabled || d.proxyImportText.trim()) return; if (await app.action('settings', settingsPayload(d))) { setDraft(d); setAwaitingRevision(app.revision + 1); } }}>
       <fieldset disabled={disabled}><legend>本地存储</legend>
-      <CacheCapacityFields anchor="maxCacheGiB" mode={d.videoStorageMode} value={d.maxCacheGiB} disabled={disabled} onChange={update} />
+      <CacheCapacityFields anchor="maxCacheGiB" mode={d.videoStorageMode} reclamation={d.aggressiveCacheReclamation} value={d.maxCacheGiB} disabled={disabled} onChange={update} />
       <StorageDirectoryFields mode={d.videoStorageMode} disabled={disabled}>{directoryDisabled =>
         <Field label="本地存储目录" required hint="统一保存视频、歌曲资料和统计记录。下载中的文件也保存在此目录。"><Input required disabled={directoryDisabled} value={d.storageDir} onChange={(_, v) => update({storageDir:v.value})} /></Field>
       }</StorageDirectoryFields>

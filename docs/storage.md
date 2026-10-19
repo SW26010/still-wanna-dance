@@ -16,7 +16,7 @@ data/storage/
   .lock
 ```
 
-块存储不保留半块前缀、重试游标或重定向进度，不再有 32 个/512 MiB 的暂停检查点上限。读取按需打开块文件并持有短期引用，合并取得完整快照，旧清理不会删除后来替换的新文件；新会话使用调用方当前地址。块写入使用普通系统缓存，不对每块强制 Sync。仅有限视频存储预算为零时，完成写入、保护变化及保护到期触发逐块回收；保护判断与可用性移除在同一锁下完成，必要块 I/O 引用释放后删除，整份会话/reader 引用不扩大保护。正预算（即使已满）及不限模式不积极回收临时块。块收齐后先按视频存储预算、现有库存和共用资源评分取得预留，再合并校验；预算为零、单视频超预算或未进入保留集合时不合并、不校验，也不发布。未取得资格不会删除仍可复用的完整块。
+块存储不保留半块前缀、重试游标或重定向进度，不再有 32 个/512 MiB 的暂停检查点上限。读取按需打开块文件并持有短期引用，合并取得完整快照，旧清理不会删除后来替换的新文件；新会话使用调用方当前地址。块写入使用普通系统缓存，不对每块强制 Sync。「激进的缓存回收策略」开启时，完成写入、保护变化及保护到期触发逐块回收；保护判断与可用性移除在同一锁下完成，必要块 I/O 引用释放后删除，整份会话/reader 引用不扩大保护。策略显式保存 auto/on/off；auto 在「不保留」时开启，在「限制为」（即使已满）及「不限制」时关闭，on/off 不随预算变化。块收齐后先按视频存储预算、现有库存和共用资源评分取得预留，再合并校验；预算为零、单视频超预算或未进入保留集合时不合并、不校验，也不发布。未取得资格不改变块的回收策略；合并快照前正常回收造成的缺块按未保留处理，不记为存储故障。
 
 若保留块绑定旧地址的强 ETag，换地址时退出旧块注册并重新下载，防止旧实体条件阻塞新地址或混用未经确认的实体；旧读者引用继续有效。实体条件的适用边界以 canonical 文档第 7 项为准。
 
@@ -80,7 +80,7 @@ ID 播放命中本地时立即返回，同时后台对照上游 URL 的 MD5；�
 
 ## Portable 文件契约与生命周期
 
-本节是应用落盘位置和备份范围的统一清单。路径由 `internal/apppaths` 解析；软件版本变化不改变文件名。当前配置格式为 `schemaVersion=4`，媒体 SQLite 为上述版本 2。旧测试配置版本 1、2、3 不兼容、不迁移，不应手工改版本号继续使用。
+本节是应用落盘位置和备份范围的统一清单。路径由 `internal/apppaths` 解析；软件版本变化不改变文件名。当前配置格式为 `schemaVersion=5`，媒体 SQLite 为上述版本 2。旧测试配置版本 1、2、3、4 不兼容、不迁移，不应手工改版本号继续使用。
 
 ### 交付与按需生成
 
@@ -213,7 +213,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 | 文件 | 内部格式、缺失/失效语义 |
 | --- | --- |
-| config.json / 自定义配置 | schemaVersion=4；字段见 Settings：目录文本，manualLogDir/autoStartCDN/autoStartQueue 布尔（两个 autoStart 字段独立且默认 true），requestRetentionDays（0=不清明细）、videoStorageMode（none/limited/unlimited，默认 none，分别保存不保留/限制为/不限制的选择）、maxCacheBytes（默认 0，保存输入的字节预算；limited 要求正数，none 在运行时使用零预算，unlimited 不限制；不保留时仍保护使用中/队列/交接数据）、prepareAheadSeconds（缺失/0→500，100–16000 秒；建议 200–2000 秒）、downloadSoftLimit（缺失/null→16，整数 1–64）、downloadGrowIntervalMS（缺失/null→250，整数 0–2000 毫秒；0=关闭缓增）、throughputIntervalMinutes（缺失/0→20，1–1440）、downloadUpstream（空→auto，auto/cf/hkg，hkg 对应 API nya）、upstreamMode（空→direct，direct/proxy/auto；旧 socks5 读取后归一化为 proxy）、proxyBackend（空→external-socks5，external-socks5/mihomo）、外部 SOCKS5 地址与用户名。策略和后端独立，保存后重启生效；历史通道键仍沿用 socks5 前缀。缺失采用构造默认（保留期 30 天），显式 null 对标量沿用默认；false/合法 0 保留。未知字段以 RawMessage 保留数值精度；格式缺失/未来/旧版本、明文 socks5Password 均拒绝写入 |
+| config.json / 自定义配置 | schemaVersion=5；字段见 Settings：目录文本，manualLogDir/autoStartCDN/autoStartQueue 布尔（两个 autoStart 字段独立且默认 true），requestRetentionDays（0=不清明细）、videoStorageMode（none/limited/unlimited，默认 none，分别保存不保留/限制为/不限制的选择）、aggressiveCacheReclamation（auto/on/off，显式默认 auto；自动跟随 videoStorageMode，仅 none 开启，on/off 手动覆盖；不改变完整本地视频预算）、maxCacheBytes（默认 0，保存输入的字节预算；limited 要求正数，none 在运行时使用零预算，unlimited 不限制；不保留时仍保护使用中/队列/交接数据）、prepareAheadSeconds（缺失/0→500，100–16000 秒；建议 200–2000 秒）、downloadSoftLimit（缺失/null→16，整数 1–64）、downloadGrowIntervalMS（缺失/null→250，整数 0–2000 毫秒；0=关闭缓增）、throughputIntervalMinutes（缺失/0→20，1–1440）、downloadUpstream（空→auto，auto/cf/hkg，hkg 对应 API nya）、upstreamMode（空→direct，direct/proxy/auto；旧 socks5 读取后归一化为 proxy）、proxyBackend（空→external-socks5，external-socks5/mihomo）、外部 SOCKS5 地址与用户名。策略和后端独立，保存后重启生效；历史通道键仍沿用 socks5 前缀。缺失采用构造默认（保留期 30 天），显式 null 对标量沿用默认；false/合法 0 保留。未知字段以 RawMessage 保留数值精度；格式缺失/未来/旧版本、明文 socks5Password 均拒绝写入 |
 | config.proxySecret | 缺字段=无保存密码。封套 `{version:1, protection:"dpapi-current-user", ciphertext:"<base64>"}`；与整个配置一起原子替换，无第二份凭据文件/明文快照。未知格式、null、损坏或当前用户解密失败=不可用并保留原值；省略设置 API 密码保留密文，明确输入新密码替换，用户名/密码一起清空移除。状态仅返回可用标志和固定诊断，不返回密文/明文 |
 | config.proxyNodes | 可选节点快照，复用 version=1 / dpapi-current-user 封套；解密载荷为 `{version:2,nodes:[原生连接参数]}`。整份文档含服务器及凭据均加密，与 config 同一原子替换；无明文副本。坏/未知封套及旧节点载荷 version=1 保留并提示重新导入，不视为空库；旧载荷不静默改写，原始内容重新导入后采用新身份域并重测。输入限 2 MiB / 2048 条，保存数与运行活跃 K 无关。导入预览只存于本进程内存，草稿最多 8 份、2 小时有效；明确丢弃或替换时释放对应草稿，迟到且已放弃的结果同样释放，离线或页面关闭未送达的清理仍由过期机制兜底；设置或引导最终保存才替换，失败保留旧快照。展示名不入快照；状态仅含数量及固定诊断 |
 | terms.json | 封套 `{format:1, protection:"dpapi-current-user", ciphertext:"<base64>"}`；密文包含 purpose=`swd-terms-receipt-v1`、version（条款版本）、sha256（正文摘要）及 acceptedAt（非零有效时间）。封套版本独立于条款版本。每次启动由当前用户解密，缺失/旧明文/未知格式/损坏/解密失败/条款不符均不授予同意；不自动覆盖失效记录。只有明确勾选提交且保护及原子写成功后更新内存。记录上限 64 KiB；允许系统时钟回拨，不用本地时间证明身份 |

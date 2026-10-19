@@ -33,6 +33,7 @@ func TestSavedSettingsDoNotChangeRuntime(t *testing.T) {
 	active, engine, client := c.settings, c.service, c.client
 	next := active
 	next.PrepareAheadSeconds = 120
+	next.AggressiveCacheReclamation = "off"
 	next.DownloadSoftLimit, next.DownloadGrowIntervalMS = 64, 0
 	next.StorageDir = filepath.Join(t.TempDir(), "new-cache")
 	next.SOCKS5Address, next.UpstreamMode = "127.0.0.1:1080", "proxy"
@@ -59,6 +60,9 @@ func TestSavedSettingsDoNotChangeRuntime(t *testing.T) {
 	}
 	if status.Settings.DownloadSoftLimit != 64 || status.Settings.DownloadGrowIntervalMS != 0 || status.ActiveSettings.DownloadSoftLimit != 16 || status.ActiveSettings.DownloadGrowIntervalMS != 250 {
 		t.Fatalf("incorrect download settings snapshots: %s", w.Body.String())
+	}
+	if status.Settings.AggressiveCacheReclamation != "off" || status.ActiveSettings.AggressiveCacheReclamation != "auto" {
+		t.Fatalf("incorrect reclamation settings snapshots: %s", w.Body.String())
 	}
 	if err := c.stop(); err != nil {
 		t.Fatal(err)

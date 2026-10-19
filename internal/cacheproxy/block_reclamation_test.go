@@ -30,38 +30,42 @@ func reclamationResource(t *testing.T, s *Server, v video) *localResource {
 	return d
 }
 
-func TestBlockReclamationOnlyZeroBudgetAndUnprotectedBlocks(t *testing.T) {
-	for _, mode := range []string{"zero", "positive-full", "unlimited"} {
-		t.Run(mode, func(t *testing.T) {
-			w, s := testSession(t)
-			w.v.size = 3 * rangeBlockSize
-			d := reclamationResource(t, s, w.v)
-			now := time.Now()
-			s.protection = map[string]map[int64]blockProtection{w.v.key: {
-				0: {start: now}, 1: {until: now.Add(-time.Second)}, 2: {start: now.Add(time.Hour)},
-			}}
-			if mode == "positive-full" {
-				s.cfg.MaxCacheBytes = 1
-				s.retainedBytes = 1
-			}
-			s.cfg.CacheUnlimited = mode == "unlimited"
-			paths := []string{localBlockPath(t, d.storage, 0), localBlockPath(t, d.storage, 1), localBlockPath(t, d.storage, 2)}
-			s.reclaimLocalBlocks()
-			for block, path := range paths {
-				want := mode != "zero" || block == 0
-				_, err := os.Stat(path)
-				if d.has(int64(block)) != want || (err == nil) != want || err != nil && !os.IsNotExist(err) {
-					t.Fatalf("block %d: available=%v file=%v want=%v", block, d.has(int64(block)), err, want)
+func TestBlockReclamationPolicyAndUnprotectedBlocks(t *testing.T) {
+	for _, policy := range []string{"auto", "on", "off"} {
+		for _, mode := range []string{"zero", "positive-full", "unlimited"} {
+			t.Run(policy+"/"+mode, func(t *testing.T) {
+				w, s := testSession(t)
+				s.cfg.AggressiveCacheReclamation = policy
+				aggressive := policy == "on" || policy == "auto" && mode == "zero"
+				w.v.size = 3 * rangeBlockSize
+				d := reclamationResource(t, s, w.v)
+				now := time.Now()
+				s.protection = map[string]map[int64]blockProtection{w.v.key: {
+					0: {start: now}, 1: {until: now.Add(-time.Second)}, 2: {start: now.Add(time.Hour)},
+				}}
+				if mode == "positive-full" {
+					s.cfg.MaxCacheBytes = 1
+					s.retainedBytes = 1
 				}
-			}
-			if mode == "zero" {
-				clear(s.protection)
+				s.cfg.CacheUnlimited = mode == "unlimited"
+				paths := []string{localBlockPath(t, d.storage, 0), localBlockPath(t, d.storage, 1), localBlockPath(t, d.storage, 2)}
 				s.reclaimLocalBlocks()
-				if len(s.localResources) != 0 {
-					t.Fatal("empty resource without execution/read references survived")
+				for block, path := range paths {
+					want := !aggressive || block == 0
+					_, err := os.Stat(path)
+					if d.has(int64(block)) != want || (err == nil) != want || err != nil && !os.IsNotExist(err) {
+						t.Fatalf("block %d: available=%v file=%v want=%v", block, d.has(int64(block)), err, want)
+					}
 				}
-			}
-		})
+				if aggressive {
+					clear(s.protection)
+					s.reclaimLocalBlocks()
+					if len(s.localResources) != 0 {
+						t.Fatal("empty resource without execution/read references survived")
+					}
+				}
+			})
+		}
 	}
 }
 
@@ -138,9 +142,22 @@ func TestBlockReclamationFollowsGETConsumptionWithReaderStillOpen(t *testing.T) 
 	})
 }
 
-func TestZeroBudgetRangePreparationDoesNotRefillReclaimedBlocks(t *testing.T) {
+func TestAggressiveRangePreparationDoesNotRefillReclaimedBlocks(t *testing.T) {
+	for _, mode := range []string{"zero-auto", "positive-on", "unlimited-on"} {
+		t.Run(mode, func(t *testing.T) { testAggressiveRangePreparation(t, mode) })
+	}
+}
+
+func testAggressiveRangePreparation(t *testing.T, mode string) {
 	s, cfg := setup(t, nil)
 	setRetentionLimit(t, s, 0)
+	if mode != "zero-auto" {
+		s.retentionMu.Lock()
+		s.cfg.AggressiveCacheReclamation = "on"
+		s.cfg.MaxCacheBytes = 8 * rangeBlockSize
+		s.cfg.CacheUnlimited = mode == "unlimited-on"
+		s.retentionMu.Unlock()
+	}
 	s.scheduler.Close()
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
 	body := bytes.Repeat([]byte("x"), int(4*rangeBlockSize))
@@ -183,6 +200,9 @@ func TestZeroBudgetRangePreparationDoesNotRefillReclaimedBlocks(t *testing.T) {
 	if !reclaimed.Load() {
 		t.Fatal("fixture never reclaimed while download was active")
 	}
+	if err := s.StorageError(); err != nil {
+		t.Fatal("normal reclamation became a persistent storage failure", err)
+	}
 	s.wg.Wait()
 	s.runRetention(false)
 	assertNoPartial(t, cfg.tempDir())
@@ -210,48 +230,85 @@ func TestUnprotectedReclaimedBlockOnlyRestartsForActualRead(t *testing.T) {
 }
 
 func TestReclaimedBlockReentersPlanForCurrentUsage(t *testing.T) {
-	for _, source := range []string{"GET", "queue"} {
-		t.Run(source, func(t *testing.T) {
-			synctest.Test(t, func(t *testing.T) {
-				w, s := testSession(t)
-				w.v.size = 2 * rangeBlockSize
-				local := reclamationResource(t, s, w.v)
-				w.f.ranges = local
-				w.finished = map[int64]bool{0: true}
-				ctx := context.WithValue(context.Background(), httpGETKey{}, true)
-				oldCtx := context.WithValue(ctx, playbackClockKey{}, &playbackClock{
-					at: time.Now(), limit: w.v.size, media: estimateMediaTiming(w.v.size, 120),
+	for _, policy := range []string{"auto", "on"} {
+		for _, source := range []string{"GET", "queue"} {
+			t.Run(policy+"/"+source, func(t *testing.T) {
+				synctest.Test(t, func(t *testing.T) {
+					w, s := testSession(t)
+					s.cfg.AggressiveCacheReclamation = policy
+					if policy == "on" {
+						s.cfg.MaxCacheBytes = 10 * rangeBlockSize
+					}
+					w.v.size = 2 * rangeBlockSize
+					local := reclamationResource(t, s, w.v)
+					w.f.ranges = local
+					w.finished = map[int64]bool{0: true}
+					ctx := context.WithValue(context.Background(), httpGETKey{}, true)
+					oldCtx := context.WithValue(ctx, playbackClockKey{}, &playbackClock{
+						at: time.Now(), limit: w.v.size, media: estimateMediaTiming(w.v.size, 120),
+					})
+					old, release := addTestDemand(t, s, oldCtx, w.v, true)
+					defer release()
+					g := &getConsumption{s: s, demand: old, size: w.v.size}
+					g.start(http.StatusOK, nil)
+					g.accept(rangeBlockSize)
+					time.Sleep(localProtectionGrace)
+					s.reclaimLocalBlocks()
+					if local.has(0) || !local.has(1) {
+						t.Fatal("consumed block was not reclaimed independently")
+					}
+					if source == "GET" {
+						_, closeGET := addTestDemand(t, s, ctx, w.v, true)
+						defer closeGET()
+					} else {
+						s.UpdatePrefetchQueue([]int64{1}, false)
+						v := w.v
+						v.songID = "1"
+						_, closeQueue := addTestDemand(t, s, s.queueDemandContext(ctx, "1"), v, false)
+						defer closeQueue()
+					}
+					plan, _, _ := w.plan(time.Now(), true)
+					if use, ok := plan[0]; !ok || use.need.ReadyBy.IsZero() {
+						t.Fatal("old completion suppressed the new finite usage", plan)
+					}
+					if _, ok := plan[1]; ok || len(w.reads.Requested()) != 0 {
+						t.Fatal("planning redownloaded available data or synthesized a read")
+					}
 				})
-				old, release := addTestDemand(t, s, oldCtx, w.v, true)
-				defer release()
-				g := &getConsumption{s: s, demand: old, size: w.v.size}
-				g.start(http.StatusOK, nil)
-				g.accept(rangeBlockSize)
-				time.Sleep(localProtectionGrace)
-				s.reclaimLocalBlocks()
-				if local.has(0) || !local.has(1) {
-					t.Fatal("consumed block was not reclaimed independently")
-				}
-				if source == "GET" {
-					_, closeGET := addTestDemand(t, s, ctx, w.v, true)
-					defer closeGET()
-				} else {
-					s.UpdatePrefetchQueue([]int64{1}, false)
-					v := w.v
-					v.songID = "1"
-					_, closeQueue := addTestDemand(t, s, s.queueDemandContext(ctx, "1"), v, false)
-					defer closeQueue()
-				}
-				plan, _, _ := w.plan(time.Now(), true)
-				if use, ok := plan[0]; !ok || use.need.ReadyBy.IsZero() {
-					t.Fatal("old completion suppressed the new finite usage", plan)
-				}
-				if _, ok := plan[1]; ok || len(w.reads.Requested()) != 0 {
-					t.Fatal("planning redownloaded available data or synthesized a read")
-				}
 			})
-		})
+		}
 	}
+}
+
+func TestReclamationOffRetainsZeroBudgetBlocksUntilShutdown(t *testing.T) {
+	var calls atomic.Int32
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		io.WriteString(w, payload)
+	})
+	setRetentionLimit(t, s, 0)
+	s.retentionMu.Lock()
+	s.cfg.AggressiveCacheReclamation = "off"
+	s.retentionMu.Unlock()
+	for range 2 {
+		if _, err := s.Prefetch(context.Background(), videoURL(payload)); !errors.Is(err, ErrNotRetained) {
+			t.Fatal("zero video budget allowed publication", err)
+		}
+		s.wg.Wait()
+		s.runRetention(false)
+	}
+	if calls.Load() != 1 || s.StorageError() != nil {
+		t.Fatal("unprotected blocks were not reused", calls.Load(), s.StorageError())
+	}
+	expectRetained(t, cfg.videoFile(videoKey(payload)), false)
+	files, err := os.ReadDir(cfg.tempDir())
+	if err != nil || len(files) == 0 {
+		t.Fatal("block cache was not retained during this run", err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	assertNoPartial(t, cfg.tempDir())
 }
 
 func TestReclaimedBlockFollowsProtectionWindowAndWithdrawal(t *testing.T) {

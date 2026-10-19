@@ -2,17 +2,22 @@ package cacheproxy
 
 import "time"
 
-func (s *Server) zeroVideoBudget() bool {
+func (c Config) aggressiveBlockReclamation() bool {
+	return c.AggressiveCacheReclamation == "on" ||
+		c.AggressiveCacheReclamation == "auto" && !c.CacheUnlimited && c.MaxCacheBytes == 0
+}
+
+func (s *Server) aggressiveBlockReclamation() bool {
 	s.retentionMu.Lock()
 	defer s.retentionMu.Unlock()
-	return !s.cfg.CacheUnlimited && s.cfg.MaxCacheBytes == 0
+	return s.cfg.aggressiveBlockReclamation()
 }
 
 // A completed write can create an unprotected block (for example, when the
 // download window starts before the independent local protection window).
 func (s *Server) requestBlockReclamation() {
 	s.retentionMu.Lock()
-	if !s.cfg.CacheUnlimited && s.cfg.MaxCacheBytes == 0 {
+	if s.cfg.aggressiveBlockReclamation() {
 		s.requestRetentionLocked()
 	}
 	s.retentionMu.Unlock()
@@ -30,7 +35,7 @@ func (s *Server) reclaimLocalBlocks() {
 	var pending []cleanup
 	changed := false
 	s.retentionMu.Lock()
-	if s.cfg.CacheUnlimited || s.cfg.MaxCacheBytes != 0 {
+	if !s.cfg.aggressiveBlockReclamation() {
 		s.retentionMu.Unlock()
 		return
 	}

@@ -35,30 +35,31 @@ import (
 var assets embed.FS
 
 type Settings struct {
-	nodeSnapshot              string
-	nodeSecret                string
-	nodeSecretError           string
-	nodeImportID              string // transient request only; cleared before publish
-	proxySecret               string
-	proxySecretError          string
-	ThroughputIntervalMinutes int    `json:"throughputIntervalMinutes"`
-	AutoStartQueue            bool   `json:"autoStartQueue"`
-	RequestRetentionDays      int    `json:"requestRetentionDays"`
-	AutoStartCDN              bool   `json:"autoStartCDN"`
-	PrepareAheadSeconds       int    `json:"prepareAheadSeconds"`
-	DownloadSoftLimit         int    `json:"downloadSoftLimit"`
-	DownloadGrowIntervalMS    int    `json:"downloadGrowIntervalMS"`
-	DownloadUpstream          string `json:"downloadUpstream"`
-	UpstreamMode              string `json:"upstreamMode"`
-	ProxyBackend              string `json:"proxyBackend"`
-	SOCKS5Address             string `json:"socks5Address"`
-	SOCKS5Username            string `json:"socks5Username"`
-	SOCKS5Password            string `json:"socks5Password,omitempty"`
-	MaxCacheBytes             int64  `json:"maxCacheBytes"`
-	VideoStorageMode          string `json:"videoStorageMode"`
-	StorageDir                string `json:"storageDir"`
-	LogDir                    string `json:"logDir"`
-	ManualLogDir              bool   `json:"manualLogDir"`
+	nodeSnapshot               string
+	nodeSecret                 string
+	nodeSecretError            string
+	nodeImportID               string // transient request only; cleared before publish
+	proxySecret                string
+	proxySecretError           string
+	ThroughputIntervalMinutes  int    `json:"throughputIntervalMinutes"`
+	AutoStartQueue             bool   `json:"autoStartQueue"`
+	RequestRetentionDays       int    `json:"requestRetentionDays"`
+	AutoStartCDN               bool   `json:"autoStartCDN"`
+	PrepareAheadSeconds        int    `json:"prepareAheadSeconds"`
+	DownloadSoftLimit          int    `json:"downloadSoftLimit"`
+	DownloadGrowIntervalMS     int    `json:"downloadGrowIntervalMS"`
+	DownloadUpstream           string `json:"downloadUpstream"`
+	UpstreamMode               string `json:"upstreamMode"`
+	ProxyBackend               string `json:"proxyBackend"`
+	SOCKS5Address              string `json:"socks5Address"`
+	SOCKS5Username             string `json:"socks5Username"`
+	SOCKS5Password             string `json:"socks5Password,omitempty"`
+	MaxCacheBytes              int64  `json:"maxCacheBytes"`
+	VideoStorageMode           string `json:"videoStorageMode"`
+	AggressiveCacheReclamation string `json:"aggressiveCacheReclamation"`
+	StorageDir                 string `json:"storageDir"`
+	LogDir                     string `json:"logDir"`
+	ManualLogDir               bool   `json:"manualLogDir"`
 }
 
 type Console struct {
@@ -155,7 +156,8 @@ func New(configPath, address string) (*Console, error) {
 		StorageDir: apppaths.ForConfig(configPath).DefaultStorage, RequestRetentionDays: 30,
 		AutoStartCDN: true, AutoStartQueue: true,
 		VideoStorageMode: "none", MaxCacheBytes: 0,
-		DownloadSoftLimit: cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),
+		AggressiveCacheReclamation: "auto",
+		DownloadSoftLimit:          cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),
 	}
 	c.exitRequested = make(chan struct{})
 	c.restartRequested = make(chan struct{})
@@ -285,6 +287,9 @@ func absoluteSettings(s Settings) (Settings, error) {
 	}
 	if s.VideoStorageMode == "limited" && s.MaxCacheBytes == 0 {
 		return s, errors.New("选择「限制为」时，视频存储预算必须大于 0")
+	}
+	if s.AggressiveCacheReclamation != "auto" && s.AggressiveCacheReclamation != "on" && s.AggressiveCacheReclamation != "off" {
+		return s, errors.New("激进的缓存回收策略必须为 auto、on 或 off")
 	}
 	if !s.ManualLogDir {
 		s.LogDir = defaultLogDir()
@@ -416,6 +421,7 @@ func (c *Console) ensureEngine() error {
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
 	cfg.CacheUnlimited = c.settings.VideoStorageMode == "unlimited"
+	cfg.AggressiveCacheReclamation = c.settings.AggressiveCacheReclamation
 	if c.settings.VideoStorageMode == "none" {
 		cfg.MaxCacheBytes = 0
 	}

@@ -127,7 +127,7 @@ function rangeVideo(res, file) {
 async function consoleService(name, storageDir, extra = {}) {
   const port = await freePort();
   const config = path.join(lab, `${name}.json`);
-  fs.writeFileSync(config, JSON.stringify({ schemaVersion: 4, storageDir, logDir: path.join(lab, 'game-logs'),
+  fs.writeFileSync(config, JSON.stringify({ schemaVersion: 5, storageDir, logDir: path.join(lab, 'game-logs'),
     downloadUpstream: 'auto', autoStartCDN: true, autoStartQueue: false, videoStorageMode: 'unlimited', ...extra }));
   // Reuse the operator's existing acceptance; never manufacture a receipt.
   fs.mkdirSync(config + '.d', { recursive: true });
@@ -175,7 +175,7 @@ try {
   receipt = fs.readFileSync(receiptPath);
   requireBinary('console', consoleBinary);
   const consentConfig = path.join(lab, 'consent-check.json');
-  fs.writeFileSync(consentConfig, JSON.stringify({ schemaVersion: 4, autoStartCDN: false, autoStartQueue: false }));
+  fs.writeFileSync(consentConfig, JSON.stringify({ schemaVersion: 5, autoStartCDN: false, autoStartQueue: false }));
   fs.mkdirSync(consentConfig + '.d');
   fs.writeFileSync(path.join(consentConfig + '.d', 'terms.json'), receipt);
   const consentPort = await freePort();

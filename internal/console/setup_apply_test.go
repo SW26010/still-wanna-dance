@@ -18,7 +18,7 @@ func setupTestPlan(c *Console) setupPlan {
 	s := c.savedSettings
 	version, _ := c.setupSettingsVersion(s)
 	return setupPlan{ID: "test-application", BaseVersion: version, StorageDir: s.StorageDir,
-		VideoStorageMode: s.VideoStorageMode, MaxCacheBytes: s.MaxCacheBytes, UpstreamMode: s.UpstreamMode, SOCKS5Address: s.SOCKS5Address, SOCKS5User: s.SOCKS5Username}
+		VideoStorageMode: s.VideoStorageMode, AggressiveCacheReclamation: s.AggressiveCacheReclamation, MaxCacheBytes: s.MaxCacheBytes, UpstreamMode: s.UpstreamMode, SOCKS5Address: s.SOCKS5Address, SOCKS5User: s.SOCKS5Username}
 }
 
 func TestSetupVideoStorageModes(t *testing.T) {

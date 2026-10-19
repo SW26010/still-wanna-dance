@@ -34,7 +34,7 @@ type downloadSession struct {
 	initOnce    sync.Once
 	reads       *blocksched.ReadRequests
 	jobs        map[int64]*scheduledBlock // resource coordinator only
-	finished    map[int64]bool            // Completed work in this session; independent of later zero-budget reclamation.
+	finished    map[int64]bool            // Completed work in this session; independent of later aggressive reclamation.
 	capacity    <-chan struct{}
 	refetchAt   time.Time // Earliest protection entry of missing completed work; recomputed by plan.
 }
@@ -189,7 +189,7 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]block
 		local = w.s.localResources[w.v.key]
 		w.s.retentionMu.Unlock()
 	}
-	zeroBudget := w.s.zeroVideoBudget()
+	aggressiveReclamation := w.s.aggressiveBlockReclamation()
 	for b, use := range plan {
 		// A completed write can precede Done. Keep an existing execution's
 		// demand through that final cleanup; availability prevents new work,
@@ -204,7 +204,7 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]block
 			}
 			continue
 		}
-		if zeroBudget && w.finished[b] && !requested[b] {
+		if aggressiveReclamation && w.finished[b] && !requested[b] {
 			// Completion prevents an unprotected refill/evict loop, not a new
 			// finite use of missing data. Protection comes from the same usage
 			// summary; its tail alone cannot create download qualification.
@@ -375,7 +375,7 @@ func (w *downloadSession) reapCompleted(initialized *bool) (bool, error) {
 			if !*initialized && !j.retiring {
 				return true, nil
 			} // sequential 200, ready for independent local publication
-			if j.task.Err() == nil && !w.f.discard && w.s.zeroVideoBudget() {
+			if j.task.Err() == nil && !w.f.discard && w.s.aggressiveBlockReclamation() {
 				if w.finished == nil {
 					w.finished = make(map[int64]bool)
 				}
@@ -443,7 +443,7 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 		complete := false
 		if initialized {
 			complete = f.ranges.complete()
-			if !complete && !f.discard && s.zeroVideoBudget() {
+			if !complete && !f.discard && s.aggressiveBlockReclamation() {
 				complete = len(plan) == 0 && w.refetchAt.IsZero() && w.allFetched()
 				if complete && len(w.jobs) == 0 && !s.preemptFlight(f, changed) {
 					continue // A new source invalidated completion based on old work.

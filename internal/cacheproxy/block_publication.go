@@ -31,6 +31,12 @@ func (s *Server) publishBlocks(ctx context.Context, path string, v video, flight
 		return ctx.Err()
 	}
 	snapshot, err := flight.ranges.storage.snapshot()
+	if errors.Is(err, errBlockUnavailable) {
+		// Aggressive reclamation may remove completed blocks before the merge
+		// snapshot is pinned, even with a positive or unlimited video budget.
+		// This is a retention outcome, not a disk fault or a reason to refill.
+		return ErrNotRetained
+	}
 	if err != nil {
 		return err
 	}

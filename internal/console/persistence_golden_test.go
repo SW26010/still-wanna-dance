@@ -10,7 +10,7 @@ import (
 
 func TestConfigurationAndInventoryGolden(t *testing.T) {
 	root := t.TempDir()
-	b, err := os.ReadFile("testdata/config-v4.json")
+	b, err := os.ReadFile("testdata/config-v5.json")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -19,20 +19,21 @@ import (
 
 // Only fields exposed by the wizard may change. Advanced settings stay intact.
 type setupPlan struct {
-	ID               string  `json:"id"`
-	BaseVersion      string  `json:"baseVersion"`
-	Page             string  `json:"page"`
-	StorageDir       string  `json:"storageDir"`
-	CustomStorage    bool    `json:"customStorage"`
-	MaxCacheBytes    int64   `json:"maxCacheBytes"`
-	VideoStorageMode string  `json:"videoStorageMode"`
-	UpstreamMode     string  `json:"upstreamMode"`
-	ProxyBackend     string  `json:"proxyBackend"`
-	SOCKS5Address    string  `json:"socks5Address"`
-	SOCKS5User       string  `json:"socks5Username"`
-	Password         *string `json:"socks5Password"`
-	ImportSource     string  `json:"importSource"`
-	ProxyImportID    string  `json:"proxyImportID"`
+	ID                         string  `json:"id"`
+	BaseVersion                string  `json:"baseVersion"`
+	Page                       string  `json:"page"`
+	StorageDir                 string  `json:"storageDir"`
+	CustomStorage              bool    `json:"customStorage"`
+	MaxCacheBytes              int64   `json:"maxCacheBytes"`
+	VideoStorageMode           string  `json:"videoStorageMode"`
+	AggressiveCacheReclamation string  `json:"aggressiveCacheReclamation"`
+	UpstreamMode               string  `json:"upstreamMode"`
+	ProxyBackend               string  `json:"proxyBackend"`
+	SOCKS5Address              string  `json:"socks5Address"`
+	SOCKS5User                 string  `json:"socks5Username"`
+	Password                   *string `json:"socks5Password"`
+	ImportSource               string  `json:"importSource"`
+	ProxyImportID              string  `json:"proxyImportID"`
 }
 
 // The approved continuation contains no credentials. A restart can start its
@@ -110,6 +111,7 @@ func (c *Console) validateSetupPlanSnapshot(p setupPlan) (Settings, error) {
 	if p.Page == "" || p.Page == "storage" {
 		s.StorageDir, s.MaxCacheBytes = p.StorageDir, p.MaxCacheBytes
 		s.VideoStorageMode = p.VideoStorageMode
+		s.AggressiveCacheReclamation = p.AggressiveCacheReclamation
 		if err := c.validateStorageSelection(s.StorageDir, p.CustomStorage); err != nil {
 			return s, err
 		}

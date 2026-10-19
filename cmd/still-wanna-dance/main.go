@@ -48,6 +48,7 @@ func run() (resultErr error) {
 	flag.IntVar(&cfg.MaxLocalValidations, "max-downloads", cfg.MaxLocalValidations, "maximum concurrent local file validations (does not limit upstream downloads)")
 	flag.Int64Var(&cfg.MaxCacheBytes, "max-cache-bytes", cfg.MaxCacheBytes, "local persistent video storage budget in bytes; 0 disables retention; excludes block cache, temporary files and database")
 	flag.BoolVar(&cfg.CacheUnlimited, "cache-unlimited", cfg.CacheUnlimited, "retain local videos without a storage budget limit (mutually exclusive with -max-cache-bytes when true)")
+	flag.StringVar(&cfg.AggressiveCacheReclamation, "aggressive-cache-reclamation", cfg.AggressiveCacheReclamation, "block cache reclamation: auto (on only with zero video budget), on, off")
 	flag.IntVar(&cfg.RequestRetentionDays, "request-retention-days", cfg.RequestRetentionDays, "request detail retention in days; 0 is unlimited (summaries are always retained)")
 	flag.Parse()
 	limitSet, unlimitedSet := false, false

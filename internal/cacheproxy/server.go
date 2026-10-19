@@ -207,7 +207,8 @@ func New(cfg Config) (*Server, error) {
 	s.scheduler = newDownloadScheduler(cfg)
 	cfg.Logger.Info("cache_engine_ready", "removed_partials", cleaned, "max_local_validations", cfg.MaxLocalValidations,
 		"video_request_soft_limit", cfg.DownloadSoftLimit, "download_grow_interval_ms", cfg.DownloadGrowInterval.Milliseconds(),
-		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "max_cache_bytes", cfg.MaxCacheBytes, "cache_unlimited", cfg.CacheUnlimited)
+		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "max_cache_bytes", cfg.MaxCacheBytes, "cache_unlimited", cfg.CacheUnlimited,
+		"aggressive_cache_reclamation", cfg.AggressiveCacheReclamation)
 	return s, nil
 }
 

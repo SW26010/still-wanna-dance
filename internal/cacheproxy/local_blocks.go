@@ -254,7 +254,7 @@ func (f *blockFiles) snapshot() (*blockSnapshot, error) {
 		return nil, os.ErrClosed
 	}
 	if int64(len(f.files)) != blockCount(f.size) {
-		return nil, os.ErrNotExist
+		return nil, errBlockUnavailable
 	}
 	s := &blockSnapshot{owner: f, blocks: make([]*localBlockFile, blockCount(f.size))}
 	for block := range s.blocks {

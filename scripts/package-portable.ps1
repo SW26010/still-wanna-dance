@@ -35,7 +35,7 @@ try {
     }
     $licenses = Join-Path $folder 'licenses'
     New-Item -ItemType Directory -Path $licenses -Force | Out-Null
-    & "$PSScriptRoot/build-desktop.ps1" -Output (Join-Path $folder 'SWD.exe')
+    & "$PSScriptRoot/build-desktop.ps1" -Output (Join-Path $folder 'SWD.exe') -Version $Version
     Copy-Item -LiteralPath 'docs/portable-readme.txt' -Destination (Join-Path $folder 'README.txt')
     Copy-Item -LiteralPath 'LICENSE' -Destination (Join-Path $licenses 'LICENSE')
     Copy-Item -LiteralPath 'LICENSE-MIT' -Destination (Join-Path $licenses 'LICENSE-MIT')

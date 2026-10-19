@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { pathToFileURL } from 'node:url';
-import { withTemp, run, jsonStream, safePath, cleanRevision, createSource, extractSource, verifyBundle, readJSON, writeJSON, rebuild, checkExecutable, supplementalInputs } from './release-source.mjs';
+import { withTemp, run, jsonStream, safePath, cleanRevision, createSource, extractSource, verifyBundle, readJSON, writeJSON, rebuild, checkExecutable, supplementalInputs, desktopBuildFlags, goEnv } from './release-source.mjs';
+import { checkBuildMetadata } from './build-info.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 function fixture(temp) {
@@ -13,7 +14,10 @@ function fixture(temp) {
     const dest = path.join(root, name); fs.mkdirSync(path.dirname(dest), { recursive: true }); fs.writeFileSync(dest, text);
   }
   fs.copyFileSync(path.join(here, 'release-source.mjs'), path.join(root, 'scripts/release-source.mjs'));
-  for(const name of ['webui-source.mjs','check-webui.mjs'])fs.copyFileSync(path.join(here,name),path.join(root,'scripts',name));
+  for(const name of ['webui-source.mjs','check-webui.mjs','build-info.mjs','build-desktop.mjs'])fs.copyFileSync(path.join(here,name),path.join(root,'scripts',name));
+  fs.mkdirSync(path.join(root, 'internal/buildinfo'), {recursive:true});
+  fs.copyFileSync(path.join(here, '../internal/buildinfo/buildinfo.go'), path.join(root, 'internal/buildinfo/buildinfo.go'));
+  fs.writeFileSync(path.join(root, 'cmd/still-wanna-dance-console/main.go'), 'package main\nimport ("encoding/json"; "os"; "still-wanna-dance/internal/buildinfo")\nfunc main() { json.NewEncoder(os.Stdout).Encode(buildinfo.Current()) }\n');
   fs.copyFileSync(path.join(here, '../.gitattributes'), path.join(root, '.gitattributes'));
   run('git', ['init', '--quiet'], root);
   run('git', ['config', 'core.autocrlf', 'false'], root);
@@ -47,6 +51,11 @@ test('formal source requires clean worktree and tag at HEAD', () => withTemp(tem
 test('complete source archive rebuilds without Git metadata or populated Go caches', { timeout: 180000 }, () => withTemp(temp => {
   const root = fixture(temp);
   const result = createSource({ root, tag: 'v0.0.0-test', outputDir: path.join(temp, 'out') });
+  if (process.platform === 'win32') {
+    const original = path.join(temp, 'formal.exe');
+    run('go', ['build', ...desktopBuildFlags({kind:'formal',version:'v0.0.0-test'}), '-buildvcs=true', '-o', original, './cmd/still-wanna-dance-console'], root, goEnv());
+    checkBuildMetadata(JSON.parse(run(original, ['-build-info'])), {kind:'formal',version:'v0.0.0-test',revision:result.manifest.revision,dirty:false,target:'windows/amd64',toolchain:result.manifest.toolchain});
+  }
   const bundle = extractSource(result.archive, path.join(temp, 'extracted'));
   assert.equal(fs.existsSync(path.join(bundle, 'source/.git')), false);
   for (const omitted of ['docs/evidence/old.json', 'experiments/probe.go']) {
@@ -57,6 +66,7 @@ test('complete source archive rebuilds without Git metadata or populated Go cach
   const output = path.join(temp, 'rebuilt.exe');
   assert.equal(rebuild({ bundle, output }).manifest.revision, result.manifest.revision);
   assert.ok(fs.statSync(output).size > 0);
+  if (process.platform === 'win32') checkBuildMetadata(JSON.parse(run(output, ['-build-info'])), {kind:'rebuild',version:'v0.0.0-test',revision:result.manifest.revision,dirty:false,target:'windows/amd64',toolchain:result.manifest.toolchain});
   assert.throws(() => createSource({ root, tag: 'v0.0.0-test', outputDir: path.join(temp, 'out') }), /already exists/);
   const manifestFile = path.join(bundle, 'source-manifest.json');
   const original = readJSON(manifestFile);

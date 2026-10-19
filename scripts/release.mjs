@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { run, goEnv, sha256, readJSON, writeJSON, filesUnder, withTemp, cleanRevision, createSource, extractSource, extractArchive, executableInfo, checkExecutable, rebuild, repository, desktopEntry, productionFlags, buildTags } from './release-source.mjs';
+import { run, goEnv, sha256, readJSON, writeJSON, filesUnder, withTemp, cleanRevision, createSource, extractSource, extractArchive, executableInfo, checkExecutable, rebuild, repository, desktopEntry, desktopBuildFlags, buildTags } from './release-source.mjs';
 import { validateNotices } from './release-notices.mjs';
 
 export const assetURL = (tag, name) => `https://github.com/${repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(name)}`;
@@ -72,7 +72,7 @@ export function createRelease({ root, tag, outputDir }) {
     const folder = path.join(temp, 'portable/SWD'), licenses = path.join(folder, 'licenses'); fs.mkdirSync(licenses, { recursive: true });
     const env = goEnv({ GOPROXY: pathToFileURL(path.join(bundle, 'proxy')).href, GOSUMDB: 'off', GONOPROXY: 'none', GONOSUMDB: 'none', GOPRIVATE: '', GOMODCACHE: path.join(temp, 'modules'), GOCACHE: path.join(temp, 'build') });
     console.log('Building pinned desktop executable...');
-    run('go', ['build', ...productionFlags, '-buildvcs=true', '-o', path.join(folder, 'SWD.exe'), desktopEntry], checkout, env);
+    run('go', ['build', ...desktopBuildFlags({ kind: 'formal', version: tag }), '-buildvcs=true', '-o', path.join(folder, 'SWD.exe'), desktopEntry], checkout, env);
     for (const name of ['LICENSE', 'LICENSE-MIT', 'LICENSING.md']) fs.copyFileSync(path.join(checkout, name), path.join(licenses, name));
     fs.copyFileSync(path.join(checkout, 'internal/legal/TERMS.txt'), path.join(licenses, 'TERMS.txt'));
     fs.copyFileSync(path.join(checkout, 'docs/portable-readme.txt'), path.join(folder, 'README.txt'));

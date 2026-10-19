@@ -61,6 +61,8 @@ Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的
 
 入口位于 `cmd/still-wanna-dance`，协议、缓存和下载管理位于 `internal/cacheproxy`。运行方法见 [命令行服务手册](service.md)。默认缓存、构建产物及测试覆盖率文件已忽略；测试使用 Go 的独立临时目录，不写入原版缓存或证据目录。安装环境不会启动播放网关或修改 hosts。
 
+桌面构建使用 `scripts/build-desktop.ps1 -Version dev-名称`，版本与 UTC 构建时间写入 EXE，源码提交和 dirty 状态取 Go VCS 标记。`& ./bin/SWD.exe -build-info | Out-String` 输出机器可读 JSON 并立即退出，不读取配置、创建数据目录或争用桌面实例；启动日志复用同一身份。正式标签只经发布流程注入，缺失/dirty 的 VCS 不显示为正式发行；无 Git 的对应源码重建独立标为 rebuild。直接 `go build` 仍是开发构建，未注入的时间明确留空。
+
 可选实网验收脚本 `scripts/acceptance.mjs` 使用 Node.js 标准库，不增加 Go 服务依赖：
 
 ```powershell

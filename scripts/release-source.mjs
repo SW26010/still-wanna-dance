@@ -7,11 +7,13 @@ import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { collectFrontend, rebuildFrontend } from './webui-source.mjs';
+import { identityFlags } from './build-info.mjs';
 
 export const desktopEntry = './cmd/still-wanna-dance-console';
 export const repository = 'SW26010/still-wanna-dance';
 export const buildTags = 'no_easytier';
 export const productionFlags = ['-tags=' + buildTags, '-trimpath', '-mod=readonly', '-ldflags', '-s -w -H=windowsgui'];
+export const desktopBuildFlags = identity => [...productionFlags.slice(0, -1), productionFlags.at(-1) + ' ' + identityFlags(identity)];
 export function run(command, args, cwd, env = {}) {
   return execFileSync(command, args, { cwd, env: { ...process.env, ...env }, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true });
 }
@@ -181,7 +183,7 @@ export function verifyBundle(bundle) {
     if (seen.has(f.path) || !fs.lstatSync(full).isFile() || fs.statSync(full).size !== f.bytes || sha256(full) !== f.sha256) throw Error(`Source hash or entry mismatch: ${f.path}`);
     seen.add(f.path);
   }
-  for (const name of ['go.mod', 'go.sum', 'LICENSE', 'LICENSE-MIT', 'LICENSING.md', 'THIRD-PARTY-NOTICES.txt', 'scripts/build-desktop.ps1', 'scripts/release-source.mjs']) if (!seen.has('source/' + name)) throw Error(`Missing source input: ${name}`);
+  for (const name of ['go.mod', 'go.sum', 'LICENSE', 'LICENSE-MIT', 'LICENSING.md', 'THIRD-PARTY-NOTICES.txt', 'scripts/build-desktop.ps1', 'scripts/build-desktop.mjs', 'scripts/build-info.mjs', 'scripts/release-source.mjs']) if (!seen.has('source/' + name)) throw Error(`Missing source input: ${name}`);
   if (!seen.has('BUILD.txt')) throw Error('Missing build instructions');
   if(seen.has('source/webui/package.json')) {
     const pkg=readJSON(path.join(bundle,'source/webui/package.json'));
@@ -261,7 +263,7 @@ export function rebuild({ bundle, output }) {
     const source = path.join(bundle, 'source');
     rebuildFrontend(source,bundle,temp);
     if (run('go', ['env', 'GOVERSION'], source, env).trim() !== manifest.toolchain) throw Error(`Install recorded toolchain ${manifest.toolchain} for independent verification`);
-    run('go', ['build', ...productionFlags, '-buildvcs=false', '-o', output, desktopEntry], source, env);
+    run('go', ['build', ...desktopBuildFlags({ kind: 'rebuild', version: manifest.tag, revision: manifest.revision }), '-buildvcs=false', '-o', output, desktopEntry], source, env);
     const info = executableInfo(output); checkExecutable(info, manifest, false);
     verifyBundle(bundle); // readonly build must not revise supplied inputs
     return { manifest, info, executableSHA256: sha256(output) };

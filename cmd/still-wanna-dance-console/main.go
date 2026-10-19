@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -20,6 +21,7 @@ import (
 
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/apppaths"
+	"still-wanna-dance/internal/buildinfo"
 	"still-wanna-dance/internal/console"
 	"still-wanna-dance/internal/desktop"
 	"still-wanna-dance/internal/legal"
@@ -61,8 +63,13 @@ func run() (runErr error) {
 	noTray := flag.Bool("no-tray", runtime.GOOS != "windows", "run without the Windows tray")
 	noOpen := flag.Bool("no-open", false, "do not open the browser on launch")
 	showTerms := flag.Bool("show-terms", false, "print usage terms and exit")
+	showBuild := flag.Bool("build-info", false, "print executable build identity as JSON and exit")
 	acceptTerms := flag.String("accept-terms", "", "terms version for the internal hosts helper")
 	flag.Parse()
+	if *showBuild {
+		visibleErrors = false
+		return json.NewEncoder(os.Stdout).Encode(buildinfo.Current())
+	}
 	if *showTerms {
 		fmt.Print(legal.Text)
 		return nil
@@ -157,15 +164,9 @@ func run() (runErr error) {
 	if err := configLease.CleanWorkFiles(); err != nil {
 		return err
 	}
-	if build, ok := debug.ReadBuildInfo(); ok {
-		fields := []any{"version", build.Main.Version}
-		for _, setting := range build.Settings {
-			if setting.Key == "vcs.revision" || setting.Key == "vcs.modified" || setting.Key == "vcs.time" {
-				fields = append(fields, setting.Key, setting.Value)
-			}
-		}
-		slog.Info("application_build", fields...)
-	}
+	build := buildinfo.Current()
+	slog.Info("application_build", "kind", build.Kind, "version", build.Version, "vcs.revision", build.Revision,
+		"vcs.modified", build.Dirty, "builtAtUtc", build.BuiltAtUTC, "toolchain", build.Toolchain, "target", build.Target)
 	l, err := net.Listen("tcp4", *address)
 	if err != nil {
 		return desktop.PortError(*address, err)

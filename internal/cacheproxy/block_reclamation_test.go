@@ -188,7 +188,7 @@ func TestZeroBudgetRangePreparationDoesNotRefillReclaimedBlocks(t *testing.T) {
 	assertNoPartial(t, cfg.tempDir())
 }
 
-func TestReclaimedCompletedBlockOnlyRestartsForActualRead(t *testing.T) {
+func TestUnprotectedReclaimedBlockOnlyRestartsForActualRead(t *testing.T) {
 	w, s := testSession(t)
 	w.finished = map[int64]bool{0: true}
 	_, release := addTestDemand(t, s, context.Background(), w.v, false)
@@ -206,6 +206,176 @@ func TestReclaimedCompletedBlockOnlyRestartsForActualRead(t *testing.T) {
 	plan, _, _ = w.plan(time.Now(), true)
 	if _, ok := plan[0]; ok {
 		t.Fatal("ended Read left a synthetic refill request")
+	}
+}
+
+func TestReclaimedBlockReentersPlanForCurrentUsage(t *testing.T) {
+	for _, source := range []string{"GET", "queue"} {
+		t.Run(source, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				w, s := testSession(t)
+				w.v.size = 2 * rangeBlockSize
+				local := reclamationResource(t, s, w.v)
+				w.f.ranges = local
+				w.finished = map[int64]bool{0: true}
+				ctx := context.WithValue(context.Background(), httpGETKey{}, true)
+				oldCtx := context.WithValue(ctx, playbackClockKey{}, &playbackClock{
+					at: time.Now(), limit: w.v.size, media: estimateMediaTiming(w.v.size, 120),
+				})
+				old, release := addTestDemand(t, s, oldCtx, w.v, true)
+				defer release()
+				g := &getConsumption{s: s, demand: old, size: w.v.size}
+				g.start(http.StatusOK, nil)
+				g.accept(rangeBlockSize)
+				time.Sleep(localProtectionGrace)
+				s.reclaimLocalBlocks()
+				if local.has(0) || !local.has(1) {
+					t.Fatal("consumed block was not reclaimed independently")
+				}
+				if source == "GET" {
+					_, closeGET := addTestDemand(t, s, ctx, w.v, true)
+					defer closeGET()
+				} else {
+					s.UpdatePrefetchQueue([]int64{1}, false)
+					v := w.v
+					v.songID = "1"
+					_, closeQueue := addTestDemand(t, s, s.queueDemandContext(ctx, "1"), v, false)
+					defer closeQueue()
+				}
+				plan, _, _ := w.plan(time.Now(), true)
+				if use, ok := plan[0]; !ok || use.need.ReadyBy.IsZero() {
+					t.Fatal("old completion suppressed the new finite usage", plan)
+				}
+				if _, ok := plan[1]; ok || len(w.reads.Requested()) != 0 {
+					t.Fatal("planning redownloaded available data or synthesized a read")
+				}
+			})
+		})
+	}
+}
+
+func TestReclaimedBlockFollowsProtectionWindowAndWithdrawal(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		w.finished = map[int64]bool{0: true}
+		_, releaseManual := addTestDemand(t, s, context.Background(), w.v, false)
+		defer releaseManual()
+		ctx := context.WithValue(context.Background(), httpGETKey{}, true)
+		ctx = context.WithValue(ctx, playbackClockKey{}, &playbackClock{
+			at: time.Now().Add(s.protectionAhead() + time.Second), limit: rangeBlockSize,
+			media: estimateMediaTiming(w.v.size, 0),
+		})
+		_, releaseGET := addTestDemand(t, s, ctx, w.v, true)
+		defer releaseGET()
+		plan, _, _ := w.plan(time.Now(), true)
+		if _, ok := plan[0]; ok {
+			t.Fatal("future use allowed an unprotected refill")
+		}
+		time.Sleep(time.Second)
+		plan, _, _ = w.plan(time.Now(), true)
+		if _, ok := plan[0]; !ok {
+			t.Fatal("entering the window did not requalify the missing block")
+		}
+		w.jobs[0] = &scheduledBlock{} // A refetch already in progress must also lose qualification.
+		releaseGET()
+		plan, _, _ = w.plan(time.Now(), true)
+		if _, ok := plan[0]; ok {
+			t.Fatal("withdrawn finite usage kept refilling for the untimed source")
+		}
+	})
+}
+
+func TestZeroBudgetRefetchBeforeReadKeepsSharedSession(t *testing.T) {
+	for _, delay := range []time.Duration{0, 200 * time.Millisecond} {
+		t.Run(delay.String(), func(t *testing.T) {
+			s, _ := setup(t, nil)
+			setRetentionLimit(t, s, 0)
+			s.cfg.PrepareAhead = 2 * time.Minute
+			started := make(chan blocksched.Event, 8)
+			s.scheduler.Close()
+			s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1, PrepareAhead: s.cfg.PrepareAhead, Observe: func(e blocksched.Event) {
+				if e.Kind == "started" {
+					started <- e
+				}
+			}})
+			body := bytes.Repeat([]byte("r"), int(2*rangeBlockSize))
+			gate, second := make(chan struct{}), make(chan struct{})
+			unblock := sync.OnceFunc(func() { close(gate) })
+			defer unblock()
+			var calls [2]atomic.Int32
+			s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+				return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+					var start, end int64
+					if _, err := fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end); err != nil {
+						return nil, err
+					}
+					block := start / rangeBlockSize
+					calls[block].Add(1)
+					var reader io.Reader = bytes.NewReader(body[start : end+1])
+					if block == 1 {
+						close(second)
+						reader = &gatedFirstRange{ctx: r.Context(), gate: gate, Reader: reader}
+					}
+					return &http.Response{StatusCode: 206, Request: r, ContentLength: end - start + 1,
+						Header: http.Header{"Content-Range": {fmt.Sprintf("bytes %d-%d/%d", start, end, len(body))}},
+						Body:   io.NopCloser(reader)}, nil
+				})}
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			r, _ := http.NewRequest(http.MethodGet, videoURL(string(body)), nil)
+			v, _ := s.parseResolved(r)
+			old, _, err := s.obtainMode(ctx, v, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			receiveDemandEvent(t, second) // First block was reaped; last block is still in flight.
+			receiveDemandEvent(t, started)
+			receiveDemandEvent(t, started)
+			s.reclaimLocalBlocks()
+			if old.ranges.has(0) {
+				t.Fatal("fixture did not reclaim the completed block")
+			}
+			at := time.Now()
+			if delay > 0 {
+				at = at.Add(s.cfg.PrepareAhead + delay)
+			}
+			getCtx := context.WithValue(ctx, httpGETKey{}, true)
+			getCtx = context.WithValue(getCtx, playbackClockKey{}, &playbackClock{
+				at: at, limit: rangeBlockSize, media: estimateMediaTiming(v.size, 0),
+			})
+			current, reader, err := s.obtain(getCtx, v)
+			if err != nil || reader == nil || current != old {
+				t.Fatal("new GET did not attach to the existing session", err)
+			}
+			defer reader.Close()
+			unblock()
+			// No Read yet: the new use must refetch proactively. In the future
+			// case all original work completes before the new window opens.
+			var e blocksched.Event
+			select {
+			case e = <-started:
+			case <-old.done:
+				select {
+				case e = <-started: // A fast refetch may already have completed.
+				default:
+					t.Fatal("historical completion ended the session before refetch", old.err)
+				}
+			case <-ctx.Done():
+				t.Fatal("new usage waited for Blocking instead of refetching")
+			}
+			if e.Blocking || time.Now().Before(at.Add(-s.cfg.PrepareAhead)) {
+				t.Fatal("refetch bypassed the ordinary window", e)
+			}
+			got := make([]byte, rangeBlockSize)
+			if _, err := io.ReadFull(reader, got); err != nil || !bytes.Equal(got, body[:rangeBlockSize]) {
+				t.Fatal("refetched data was not readable", err)
+			}
+			receiveDemandEvent(t, old.done)
+			if !errors.Is(old.err, ErrNotRetained) || calls[0].Load() != 2 || calls[1].Load() != 1 {
+				t.Fatal("refetch repeated work or changed zero-budget completion", old.err, calls[0].Load(), calls[1].Load())
+			}
+		})
 	}
 }
 

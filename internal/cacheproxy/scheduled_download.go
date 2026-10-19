@@ -36,6 +36,7 @@ type downloadSession struct {
 	jobs        map[int64]*scheduledBlock // resource coordinator only
 	finished    map[int64]bool            // Completed work in this session; independent of later zero-budget reclamation.
 	capacity    <-chan struct{}
+	refetchAt   time.Time // Earliest protection entry of missing completed work; recomputed by plan.
 }
 
 func newDownloadSession(s *Server, ctx context.Context, v video, f *flight) *downloadSession {
@@ -158,6 +159,7 @@ func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Ne
 }
 
 func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]blockUse, <-chan struct{}, bool) {
+	w.refetchAt = time.Time{}
 	blocks := blockCount(w.v.size)
 	w.s.mu.Lock()
 	plan, active := w.s.usePlanLocked(w.v.key, now)
@@ -188,15 +190,31 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]block
 		w.s.retentionMu.Unlock()
 	}
 	zeroBudget := w.s.zeroVideoBudget()
-	for b := range plan {
-		if zeroBudget && w.finished[b] && !requested[b] {
-			delete(plan, b)
-			continue
-		}
+	for b, use := range plan {
 		// A completed write can precede Done. Keep an existing execution's
 		// demand through that final cleanup; availability prevents new work,
 		// rather than canceling a successful task before its result is observed.
-		if b < 0 || b >= blocks || local != nil && local.has(b) && w.jobs[b] == nil {
+		if b < 0 || b >= blocks {
+			delete(plan, b)
+			continue
+		}
+		if local != nil && local.has(b) {
+			if w.jobs[b] == nil {
+				delete(plan, b)
+			}
+			continue
+		}
+		if zeroBudget && w.finished[b] && !requested[b] {
+			// Completion prevents an unprotected refill/evict loop, not a new
+			// finite use of missing data. Protection comes from the same usage
+			// summary; its tail alone cannot create download qualification.
+			if !use.need.ReadyBy.IsZero() {
+				at := use.protectReady.Add(-w.s.protectionAhead())
+				if !at.After(now) {
+					continue // Normal scheduler window, deadline and quota still apply.
+				}
+				w.refetchAt = earlier(w.refetchAt, at)
+			}
 			delete(plan, b)
 		}
 	}
@@ -427,7 +445,10 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 		if initialized {
 			complete = f.ranges.complete()
 			if !complete && !f.discard && s.zeroVideoBudget() {
-				complete = len(plan) == 0 && w.allFetched()
+				complete = len(plan) == 0 && w.refetchAt.IsZero() && w.allFetched()
+				if complete && len(w.jobs) == 0 && !s.preemptFlight(f, changed) {
+					continue // A new source invalidated completion based on old work.
+				}
 			}
 			if complete && len(w.jobs) == 0 {
 				break
@@ -459,6 +480,9 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 			return errPreempted
 		}
 		wait := sourceLease / 3
+		if w.refetchAt.After(now) {
+			wait = min(wait, w.refetchAt.Sub(now))
+		}
 		if !active && len(plan) == 0 {
 			wait = min(wait, until.Sub(now))
 		}
@@ -491,9 +515,8 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 	return s.publishBlocks(ctx, path, v, f)
 }
 
-// Reclaiming an unprotected block does not request another download. A genuine
-// missing Read can still request it from the scheduler. Keep this session's
-// completion fact so a wider download window cannot create a refill/evict loop.
+// Historical completion only permits exit when plan has no remaining downloads
+// or future refetch window. It never establishes current local availability.
 func (w *downloadSession) allFetched() bool {
 	for block := int64(0); block < blockCount(w.v.size); block++ {
 		if !w.finished[block] && !w.f.ranges.has(block) {

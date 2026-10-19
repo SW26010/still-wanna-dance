@@ -56,7 +56,11 @@ func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, res
 	if err != nil {
 		return "", err
 	}
-	defer func() { finishBudget(resultErr == nil || ctx.Err() != nil) }()
+	// Demand cleanup cancels its derived context even after an ordinary failure.
+	// Only caller cancellation should keep an unsuccessful reservation charged.
+	defer func(callerCtx context.Context) {
+		finishBudget(resultErr == nil || callerCtx.Err() != nil)
+	}(ctx)
 	log := s.cfg.Logger.With("trace_id", applog.TraceID(ctx), "song_id", id, "resource_key", v.key)
 	log.Info("prefetch_started")
 	demand, releaseDemand, err := s.addPreparation(ctx, v)

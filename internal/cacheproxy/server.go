@@ -71,7 +71,7 @@ type Server struct {
 	demands          map[*downloadDemand]bool // protected by mu, separate from file pins
 	useBlocks        map[useBlockID]int       // protected by mu; includes readable blocks
 	useHandoffs      useHandoffHeap
-	useExpiry        *time.Timer
+	useTimer         *time.Timer // Handoff expiry and idle queue clock refresh.
 	prefetchSources  map[string]*queueSource
 	prefetchOrder    []int64
 	queueStart       time.Time
@@ -230,8 +230,8 @@ func (s *Server) Close() error {
 	s.once.Do(func() {
 		s.mu.Lock()
 		s.closed = true
-		if s.useExpiry != nil {
-			s.useExpiry.Stop()
+		if s.useTimer != nil {
+			s.useTimer.Stop()
 		}
 		s.notifyCapacityLocked()
 		s.cancel()

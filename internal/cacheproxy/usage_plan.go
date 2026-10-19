@@ -12,7 +12,7 @@ import (
 func (s *Server) projectUseLocked(key string, now time.Time) (map[useBlockID]map[blockSource]plannedNeed, bool) {
 	plan := make(map[useBlockID]map[blockSource]plannedNeed)
 	active := false
-	add := func(span useSpan, source blockSource, clock *playbackClock, until time.Time, origin demandSource) {
+	add := func(span useSpan, source blockSource, clock *playbackClock, until time.Time, origin demandSource, idleBase time.Time) {
 		if key != "" && span.key != key {
 			return
 		}
@@ -26,7 +26,21 @@ func (s *Server) projectUseLocked(key string, now time.Time) (map[useBlockID]map
 			if clock != nil {
 				ready = clock.ready(block * rangeBlockSize)
 			}
-			plan[id][source] = plannedNeed{need: blocksched.Need{Owner: span.key, ReadyBy: ready, LeaseUntil: until}, source: origin}
+			p := plannedNeed{need: blocksched.Need{Owner: span.key, ReadyBy: ready, LeaseUntil: until}, source: origin}
+			if !idleBase.IsZero() {
+				// No GET consumes this queue. A future estimate still supplies
+				// absolute entry times, but once reached, only distance from the
+				// head determines eligibility. Gate both snapshots now so they
+				// cannot enter by wall time between source refreshes.
+				distance := ready.Sub(idleBase)
+				ahead := s.cfg.PrepareAhead
+				if ahead <= 0 {
+					ahead = blocksched.DefaultPrepareAhead
+				}
+				p.need.WindowClosed = distance > ahead
+				p.protectionClosed = distance > s.protectionAhead()
+			}
+			plan[id][source] = p
 		}
 	}
 	for d := range s.demands {
@@ -37,14 +51,18 @@ func (s *Server) projectUseLocked(key string, now time.Time) (map[useBlockID]map
 		if d.playback {
 			kind, origin = "get", sourceGET
 		}
-		add(d.useSpan(), blockSource{kind, d}, d.clock, now.Add(sourceLease), origin)
+		add(d.useSpan(), blockSource{kind, d}, d.clock, now.Add(sourceLease), origin, time.Time{})
+	}
+	var idleBase time.Time
+	if s.queuePlaybackEndLocked().IsZero() {
+		idleBase = s.queueStart
 	}
 	for _, q := range s.prefetchSources {
 		clock := playbackClock{at: q.startAt, media: q.timing}
-		add(q.use, blockSource{"queue", q}, &clock, now.Add(sourceLease), q.origin())
+		add(q.use, blockSource{"queue", q}, &clock, now.Add(sourceLease), q.origin(), idleBase)
 	}
 	for _, h := range s.useHandoffs {
-		add(h.span, blockSource{"handoff", h}, &h.clock, h.until, sourceHandoff)
+		add(h.span, blockSource{"handoff", h}, &h.clock, h.until, sourceHandoff, time.Time{})
 	}
 	return plan, active
 }
@@ -58,6 +76,12 @@ func (s *Server) refreshUseSourcesLocked(now time.Time) {
 	for d := range s.demands {
 		if !d.exit.active(d.ctx) {
 			s.removeDemandLocked(d)
+		}
+	}
+	// A delayed timer must not leave snapshots using an obsolete idle clock.
+	if next := s.nextQueueRetimeLocked(); !next.IsZero() && !next.After(now) {
+		if s.retimeQueueLocked(now) {
+			s.notifyCapacityLocked()
 		}
 	}
 }

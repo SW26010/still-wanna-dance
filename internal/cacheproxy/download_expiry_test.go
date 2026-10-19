@@ -86,7 +86,7 @@ func TestDownloadExpiryRetimesQueueAfterAllSharedGETsEnd(t *testing.T) {
 func TestExpiredQueuePreparationRequiresActualSourceChange(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)
-		s.queueStart = time.Now().Add(-time.Minute)
+		releaseClock := holdQueuePlaybackUntil(t, s, time.Now().Add(-time.Minute))
 		s.UpdatePrefetchQueue([]int64{1}, false)
 		v := w.v
 		v.songID = "1"
@@ -94,7 +94,7 @@ func TestExpiredQueuePreparationRequiresActualSourceChange(t *testing.T) {
 		d, release := addTestDemand(t, s, ctx, v, false)
 		defer release()
 		s.expireDownload(w.f, v.key, 0)
-		if !errors.Is(context.Cause(d.ctx), blocksched.ErrExpired) || useCount(s) != 0 || !d.queueSource.expired {
+		if !errors.Is(context.Cause(d.ctx), blocksched.ErrExpired) || useCount(s) != 1 || !d.queueSource.expired {
 			t.Fatal("expired predictive preparation retained usage")
 		}
 		s.UpdatePrefetchQueue([]int64{1}, false)
@@ -103,6 +103,7 @@ func TestExpiredQueuePreparationRequiresActualSourceChange(t *testing.T) {
 		}
 		// A genuine new playback changes the queue's remaining clock. Its next
 		// preparation is allowed, still subject to the normal download window.
+		releaseClock()
 		_, releaseGET := addTestDemand(t, s, context.Background(), video{key: "playing", size: 1}, true)
 		defer releaseGET()
 		_, releaseNext := addTestDemand(t, s, ctx, v, false)

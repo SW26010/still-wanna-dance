@@ -52,6 +52,28 @@ func TestSourceFilteringKeepsIndependentLeases(t *testing.T) {
 	}
 }
 
+func TestClosedQueueWindowDoesNotOverrideIndependentSources(t *testing.T) {
+	now := time.Now()
+	for _, source := range []demandSource{sourceGET, sourceBatch, sourceHandoff} {
+		closed := plannedNeed{source: sourceQueue, protectionClosed: true,
+			need: blocksched.Need{Owner: "shared", ReadyBy: now.Add(125 * time.Second), LeaseUntil: now.Add(sourceLease), WindowClosed: true}}
+		independent := plannedNeed{source: source,
+			need: blocksched.Need{Owner: "shared", ReadyBy: now.Add(145 * time.Second), LeaseUntil: now.Add(20 * time.Second)}}
+		if source == sourceBatch {
+			independent.need.ReadyBy = time.Time{}
+		}
+		for range 20 { // Map iteration must not change which source qualifies.
+			use := aggregateUse(map[blockSource]plannedNeed{{"queue", 1}: closed, {"other", 2}: independent}, now)
+			if use.need.WindowClosed || use.need.ReadyBy != independent.need.ReadyBy || use.protectReady != independent.need.ReadyBy {
+				t.Fatal("closed queue changed independent source timing", source, use)
+			}
+			if use.need.Opportunistic != (source == sourceBatch) {
+				t.Fatal("closed queue changed independent opportunistic qualification", source, use)
+			}
+		}
+	}
+}
+
 func TestQueuePromotionDemotionDoesNotCreateHandoff(t *testing.T) {
 	w, s := testSession(t)
 	task, registered, _ := s.scheduler.Schedule("test", 1, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {

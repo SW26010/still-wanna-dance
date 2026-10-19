@@ -254,6 +254,9 @@ func (s *Server) notifyCapacityLocked() {
 	if s.expireUseLocked(time.Now()) {
 		s.refreshUseProtectionLocked()
 	}
+	// Source mutations publish their final clock/expiry and arm the shared timer
+	// together. Timer callbacks use this same path when they change sources.
+	s.armUseTimerLocked()
 	close(s.capacityChanged)
 	s.capacityChanged = make(chan struct{})
 }

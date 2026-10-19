@@ -7,6 +7,72 @@ import (
 	"time"
 )
 
+func TestClosedWindowNeedsSourceUpdateAndKeepsRunningLifecycle(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		s := New(Config{SoftLimit: 1, PrepareAhead: 120 * time.Second})
+		defer s.Close()
+		base := time.Now()
+		started := make(chan time.Time, 1)
+		closed := Need{Owner: "queue", ReadyBy: base.Add(125 * time.Second), LeaseUntil: base.Add(time.Hour), WindowClosed: true}
+		task, _, err := s.Schedule("shared", 1, func(ctx context.Context, _ *Progress) Result {
+			started <- time.Now()
+			<-ctx.Done()
+			return Result{Err: context.Cause(ctx)}
+		}, closed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(15 * time.Second)
+		synctest.Wait()
+		if len(started) != 0 {
+			t.Fatal("closed window admitted by wall time")
+		}
+		// An independent source retains its own entry time, even though the
+		// closed contribution has an earlier ReadyBy.
+		open := task.Add(Need{Owner: "independent", ReadyBy: base.Add(145 * time.Second), LeaseUntil: base.Add(time.Hour)})
+		if at := <-started; at != base.Add(25*time.Second) {
+			t.Fatal("closed contribution altered independent admission", at.Sub(base))
+		}
+		open.Close()
+		time.Sleep(5 * time.Second)
+		synctest.Wait()
+		select {
+		case <-task.Done():
+			t.Fatal("closing admission canceled an existing execution", task.Err())
+		default:
+		}
+		if err := task.Err(); err != ErrExpired || time.Now() != Deadline(closed.ReadyBy) {
+			t.Fatal("closed window lost the finite execution deadline", err, time.Now())
+		}
+	})
+}
+
+func TestClosedWindowAllowsIndependentUntimedUseAndReads(t *testing.T) {
+	for _, read := range []bool{false, true} {
+		synctest.Test(t, func(t *testing.T) {
+			s := New(Config{SoftLimit: 1})
+			defer s.Close()
+			started := make(chan struct{}, 1)
+			task, _, err := s.Schedule("shared", 1, func(context.Context, *Progress) Result {
+				started <- struct{}{}
+				return Result{}
+			}, Need{Owner: "queue", ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(time.Hour), WindowClosed: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if read {
+				waitForKey(t, s, "shared")
+			} else {
+				task.Add(Need{Owner: "manual", LeaseUntil: time.Now().Add(time.Hour)})
+			}
+			<-started
+			if err := task.Err(); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func TestWindowBoundaryAndDeadlineDiagnostics(t *testing.T) {
 	for _, tc := range []struct {
 		name    string

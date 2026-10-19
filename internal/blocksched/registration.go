@@ -94,7 +94,7 @@ func (s *state) registrationBefore(a, b priority, now time.Time) bool {
 		return a.Blocking
 	}
 	eligible := func(n priority) bool {
-		return n.Blocking || n.Opportunistic || n.ReadyBy.IsZero() || !n.ReadyBy.Add(-s.cfg.PrepareAhead).After(now)
+		return n.Blocking || !n.WindowClosed && (n.Opportunistic || n.ReadyBy.IsZero() || !n.ReadyBy.Add(-s.cfg.PrepareAhead).After(now))
 	}
 	if eligible(a) != eligible(b) {
 		return eligible(a)

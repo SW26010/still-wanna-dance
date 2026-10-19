@@ -145,9 +145,7 @@ func TestCompletedQueueRefetchWindowAndWithdrawal(t *testing.T) {
 		t.Run(action, func(t *testing.T) {
 			s, v, _, calls := completedQueueFixture(t, payload, nil)
 			entry := time.Now().Add(300 * time.Millisecond)
-			s.mu.Lock()
-			s.queueStart = entry.Add(s.protectionAhead() - typicalDuration)
-			s.mu.Unlock()
+			holdQueuePlaybackUntil(t, s, entry.Add(s.protectionAhead()-typicalDuration))
 			moveCompletedQueueOut(t, s, v)
 			if action == "enter by time" {
 				waitQueueRefetch(t, s, v, calls, 2)
@@ -262,9 +260,7 @@ func TestCompletedQueueRefetchExpiryRearmsPreparation(t *testing.T) {
 		t.Fatal("completed preparation still has valid queue usage")
 	}
 	moveCompletedQueueOut(t, s, v)
-	s.mu.Lock()
-	s.queueStart = time.Now().Add(-blocksched.DownloadGrace - time.Second)
-	s.mu.Unlock()
+	releaseClock := holdQueuePlaybackUntil(t, s, time.Now().Add(-blocksched.DownloadGrace-time.Second))
 	if err := s.UpdatePrefetchQueue([]int64{42, 1}, false); err != nil {
 		t.Fatal(err)
 	}
@@ -288,6 +284,7 @@ func TestCompletedQueueRefetchExpiryRearmsPreparation(t *testing.T) {
 		t.Fatal("unchanged expired member was retried", calls.Load())
 	}
 	// An actual GET changes the queue's playback anchor and rearms preparation.
+	releaseClock()
 	ctx := context.WithValue(t.Context(), playbackClockKey{}, &playbackClock{
 		at: time.Now(), limit: 1, media: estimateMediaTiming(1, 1),
 	})

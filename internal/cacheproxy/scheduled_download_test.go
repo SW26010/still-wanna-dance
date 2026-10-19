@@ -29,8 +29,8 @@ func testSessionServer(t *testing.T, cfg blocksched.Config) *Server {
 	t.Cleanup(func() {
 		s.mu.Lock()
 		s.closed = true
-		if s.useExpiry != nil {
-			s.useExpiry.Stop()
+		if s.useTimer != nil {
+			s.useTimer.Stop()
 		}
 		s.mu.Unlock()
 	})

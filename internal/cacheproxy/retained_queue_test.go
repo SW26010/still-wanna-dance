@@ -152,10 +152,11 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 			s.mu.Lock()
 			original := s.prefetchSources["42"]
 			entry := time.Now().Add(500 * time.Millisecond)
-			if tc.timed {
-				s.queueStart = entry.Add(s.protectionAhead() - typicalDuration)
-			}
 			s.mu.Unlock()
+			var releaseClock func()
+			if tc.timed {
+				releaseClock = holdQueuePlaybackUntil(t, s, entry.Add(s.protectionAhead()-typicalDuration))
+			}
 			if err := s.UpdatePrefetchQueue([]int64{1, 42}, false); err != nil {
 				t.Fatal(err)
 			}
@@ -206,6 +207,9 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 			waitQueueRefetch(t, s, v, &calls, 3)
 			if tc.timed && time.Now().Before(entry) {
 				t.Fatal("downloaded before protection entry")
+			}
+			if releaseClock != nil {
+				releaseClock()
 			}
 			s.mu.Lock()
 			valid := s.prefetchSources["42"] == original && original.use.contains(v.key, 0) && !original.expired && len(s.demands) == 0

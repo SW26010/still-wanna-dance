@@ -68,10 +68,10 @@ func (s *Server) QueueNeedsPreparation(id int64) bool {
 	return q != nil && !q.expired && q.use.first == q.use.last
 }
 
-// Call under Server.mu. Request completion does not mean playback completion:
-// when the last GET leaves, retain the last calculated queue start. This is a
-// single scheduling anchor, not a registry of historical requests or demands.
-func (s *Server) retimeQueueLocked(now time.Time) {
+// Reuse the source lease renewal cadence, comfortably before download expiry.
+const queueRetimeInterval = sourceLease / 3
+
+func (s *Server) queuePlaybackEndLocked() time.Time {
 	var earliest time.Time
 	for d := range s.demands {
 		if d.clock == nil || !d.exit.active(d.ctx) {
@@ -82,15 +82,22 @@ func (s *Server) retimeQueueLocked(now time.Time) {
 			earliest = end
 		}
 	}
+	return earliest
+}
+
+// Call under Server.mu. A queued head has not started merely because time has
+// passed. Without a live GET, retain a future playback estimate but roll a past
+// one forward. Request completion alone still does not mean playback completion.
+// This refresh maintains finite deadlines; projectUseLocked separately gates
+// windows by distance from the head, including between these refreshes.
+func (s *Server) retimeQueueLocked(now time.Time) bool {
+	earliest := s.queuePlaybackEndLocked()
 	if !earliest.IsZero() {
 		s.queueStart = earliest
-	}
-	if s.queueStart.IsZero() {
-		if len(s.prefetchOrder) == 0 {
-			return
-		}
+	} else if len(s.prefetchOrder) > 0 && s.queueStart.Before(now) {
 		s.queueStart = now
 	}
+	changed := false
 	start := s.queueStart
 	for i, id := range s.prefetchOrder {
 		duration := typicalDuration
@@ -98,6 +105,7 @@ func (s *Server) retimeQueueLocked(now time.Time) {
 			duration = q.timing.duration
 			if q.position == i {
 				if q.startAt != start {
+					changed = true
 					q.expired = false // Only an actual source clock change permits another preparation.
 				}
 				if q.startAt != start && s.cfg.Logger != nil {
@@ -108,6 +116,16 @@ func (s *Server) retimeQueueLocked(now time.Time) {
 		}
 		start = start.Add(duration)
 	}
+	return changed
+}
+
+// The shared source timer also runs when no download or queue update is active.
+// Its absolute due time cannot be postponed by unrelated source notifications.
+func (s *Server) nextQueueRetimeLocked() time.Time {
+	if len(s.prefetchSources) == 0 || !s.queuePlaybackEndLocked().IsZero() {
+		return time.Time{}
+	}
+	return s.queueStart.Add(queueRetimeInterval)
 }
 
 // URL resolution can fill a previously unknown size before the next log

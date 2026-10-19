@@ -64,7 +64,8 @@ func reconcileSession(t *testing.T, w *downloadSession) {
 func TestQueueReorderUsesOneTimeBase(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := demandLifecycleSession(t)
-		base := time.Now()
+		base := time.Now().Add(2 * time.Minute)
+		holdQueuePlaybackUntil(t, s, base)
 		s.UpdatePrefetchQueue([]int64{1, 2, 3}, false)
 		registerQueueResource(t, s, "2", w.v.key)
 		registerQueueResource(t, s, "3", w.v.key)

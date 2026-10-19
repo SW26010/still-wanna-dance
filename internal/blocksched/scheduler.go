@@ -27,6 +27,11 @@ type Need struct {
 	// Opportunistic preserves an independent ordinary demand that can use
 	// capacity before ReadyBy. It bypasses only the window, never the quota.
 	Opportunistic bool
+	// WindowClosed keeps a valid source without admitting new work from it.
+	// Only a source update can reopen it; elapsed time cannot. Independent
+	// open contributions and actual reads still qualify, and running work
+	// keeps its normal lease/deadline lifecycle.
+	WindowClosed bool
 }
 
 // priority is scheduler-owned. Callers can publish ordinary usage only;
@@ -316,9 +321,11 @@ func (s *state) refresh(j *job) {
 		if !v.need.LeaseUntil.After(time.Now()) {
 			continue
 		}
-		opportunistic = opportunistic || v.need.Opportunistic || v.need.ReadyBy.IsZero()
-		if !v.need.ReadyBy.IsZero() && (earliest.IsZero() || v.need.ReadyBy.Before(earliest)) {
+		opportunistic = opportunistic || !v.need.WindowClosed && (v.need.Opportunistic || v.need.ReadyBy.IsZero())
+		if n.Owner == "" || n.WindowClosed && !v.need.WindowClosed {
 			earliest = v.need.ReadyBy
+		} else if n.WindowClosed == v.need.WindowClosed {
+			earliest = earlier(earliest, v.need.ReadyBy)
 		}
 		if n.Owner == "" || needBefore(priority{Need: v.need}, priority{Need: n}) || !needBefore(priority{Need: n}, priority{Need: v.need}) && v.need.Owner < n.Owner {
 			n = v.need
@@ -334,7 +341,7 @@ func (s *state) refresh(j *job) {
 	}
 	j.need = p
 	s.updateDeadline(j)
-	if previous.Blocking != p.Blocking || previous.ReadyBy != p.ReadyBy || previous.Opportunistic != p.Opportunistic {
+	if previous.Blocking != p.Blocking || previous.ReadyBy != p.ReadyBy || previous.Opportunistic != p.Opportunistic || previous.WindowClosed != p.WindowClosed {
 		s.capacityAvailable()
 	}
 	if p.Owner != "" {
@@ -360,7 +367,7 @@ func (s *state) refresh(j *job) {
 		return
 	}
 	wasQueued := j.index[0] >= 0 || j.index[1] >= 0
-	s.ready.set(j, p.Blocking || !p.ReadyBy.IsZero())
+	s.ready.set(j, p.Blocking || !p.WindowClosed && !p.ReadyBy.IsZero())
 	s.untimed.set(j, !p.Blocking && p.Opportunistic)
 	if !wasQueued {
 		s.emit("queued", "demand", j)
@@ -387,6 +394,9 @@ func needBefore(a, b priority) bool {
 	}
 	if a.Blocking {
 		return false
+	}
+	if a.WindowClosed != b.WindowClosed {
+		return !a.WindowClosed
 	}
 	if a.ReadyBy.IsZero() != b.ReadyBy.IsZero() {
 		return !a.ReadyBy.IsZero()

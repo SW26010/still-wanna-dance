@@ -81,8 +81,8 @@ func (d *DiscardLoader) Close() {
 	s.once.Do(func() {
 		s.mu.Lock()
 		s.closed = true
-		if s.useExpiry != nil {
-			s.useExpiry.Stop()
+		if s.useTimer != nil {
+			s.useTimer.Stop()
 		}
 		s.cancel()
 		s.mu.Unlock()

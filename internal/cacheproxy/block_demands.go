@@ -38,7 +38,7 @@ type blockUse struct {
 // Completed work becomes eligible for automatic refetch only with a current
 // finite download need entering protection. Local grace alone is insufficient.
 func (u blockUse) refetchAt(ahead time.Duration) time.Time {
-	if u.need.ReadyBy.IsZero() {
+	if u.need.WindowClosed || u.need.ReadyBy.IsZero() || u.protectReady.IsZero() {
 		return time.Time{}
 	}
 	return u.protectReady.Add(-ahead)
@@ -49,8 +49,9 @@ type blockSource struct {
 	id   any
 }
 type plannedNeed struct {
-	need   blocksched.Need
-	source demandSource
+	need             blocksched.Need
+	source           demandSource
+	protectionClosed bool
 }
 
 func earlier(a, b time.Time) time.Time {
@@ -62,9 +63,16 @@ func earlier(a, b time.Time) time.Time {
 
 func mergeUse(a, b blockUse) blockUse {
 	if b.need.Owner != "" {
+		// A closed contribution cannot move an independent source's admission
+		// time. Keep its finite clock only when no open source contributes.
+		if a.need.Owner == "" || a.need.WindowClosed && !b.need.WindowClosed {
+			a.need.ReadyBy = b.need.ReadyBy
+		} else if a.need.WindowClosed == b.need.WindowClosed {
+			a.need.ReadyBy = earlier(a.need.ReadyBy, b.need.ReadyBy)
+		}
+		a.need.WindowClosed = (a.need.Owner == "" || a.need.WindowClosed) && b.need.WindowClosed
 		a.need.Owner = b.need.Owner
 	}
-	a.need.ReadyBy = earlier(a.need.ReadyBy, b.need.ReadyBy)
 	a.need.LeaseUntil = maxTime(a.need.LeaseUntil, b.need.LeaseUntil)
 	a.need.Opportunistic = a.need.Opportunistic || b.need.Opportunistic
 	a.nextExpiry = earlier(a.nextExpiry, b.nextExpiry)
@@ -85,7 +93,9 @@ func aggregateUse(plan map[blockSource]plannedNeed, now time.Time) blockUse {
 	for _, p := range plan {
 		// The registry still owns a handoff until its fixed expiry is processed.
 		// Preserve its protection clock even when delivery of that event is late.
-		result.protectReady = earlier(result.protectReady, p.need.ReadyBy)
+		if !p.protectionClosed {
+			result.protectReady = earlier(result.protectReady, p.need.ReadyBy)
+		}
 		if !p.need.LeaseUntil.After(now) {
 			continue
 		}
@@ -109,7 +119,7 @@ func (w *downloadSession) logDemand(block int64, j *scheduledBlock) {
 		return
 	}
 	w.f.log.Debug("block_demand", "block", block,
-		"opportunistic", j.published.Opportunistic, "ready_by", j.published.ReadyBy,
+		"opportunistic", j.published.Opportunistic, "window_closed", j.published.WindowClosed, "ready_by", j.published.ReadyBy,
 		"lease_until", j.published.LeaseUntil, "next_expiry", j.nextExpiry)
 }
 

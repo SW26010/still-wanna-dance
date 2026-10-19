@@ -118,30 +118,33 @@ func (s *Server) endUseLocked(span useSpan, at time.Time, grace time.Duration, c
 				"from", origin.String(), "reason", "source_gone", "withdrawn_at", at,
 				"first_ready_by", clock.ready(span.first*rangeBlockSize), "lease_until", at.Add(grace))
 		}
-		s.armUseExpiryLocked()
 	} else {
 		s.releaseUseLocked(span, at)
 	}
 }
 
-func (s *Server) armUseExpiryLocked() {
-	if s.useExpiry != nil {
-		s.useExpiry.Stop()
-		s.useExpiry = nil
+func (s *Server) armUseTimerLocked() {
+	if s.useTimer != nil {
+		s.useTimer.Stop()
+		s.useTimer = nil
 	}
-	if s.closed || len(s.useHandoffs) == 0 {
+	if s.closed {
 		return
 	}
-	s.useExpiry = time.AfterFunc(max(0, time.Until(s.useHandoffs[0].until)), func() {
+	next := s.nextQueueRetimeLocked()
+	if len(s.useHandoffs) > 0 {
+		next = earlier(next, s.useHandoffs[0].until)
+	}
+	if next.IsZero() {
+		return
+	}
+	s.useTimer = time.AfterFunc(max(0, time.Until(next)), func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if s.closed {
 			return
 		}
-		if s.expireUseLocked(time.Now()) {
-			s.notifyCapacityLocked()
-		}
-		s.armUseExpiryLocked()
+		s.refreshUseSourcesLocked(time.Now())
 	})
 }
 

@@ -2,10 +2,154 @@ package cacheproxy
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
 )
+
+func holdQueuePlaybackUntil(t *testing.T, s *Server, end time.Time) func() {
+	t.Helper()
+	clock := &playbackClock{at: end.Add(-time.Second), limit: 1, media: mediaTiming{1, time.Second}}
+	ctx := context.WithValue(context.Background(), playbackClockKey{}, clock)
+	_, release := addTestDemand(t, s, ctx, video{key: "queue-clock", size: 1}, true)
+	t.Cleanup(release)
+	return release
+}
+
+func TestIdleQueueRetimesWithoutUpdatesOrDownloads(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		s.UpdatePrefetchQueue([]int64{1, 2}, false)
+		registerQueueResource(t, s, "1", w.v.key)
+		q := s.prefetchSources["1"]
+		base := time.Now()
+		changed := s.DemandCapacityChanged()
+		time.Sleep(75 * time.Second)
+		synctest.Wait()
+		want := base.Add(70 * time.Second)
+		s.mu.Lock()
+		valid := q == s.prefetchSources["1"] && !q.expired && q.readyBy(0) == want && s.prefetchSources["2"].startAt == want.Add(typicalDuration)
+		s.mu.Unlock()
+		if !valid {
+			t.Fatal("idle queue did not keep its source and roll the shared clock")
+		}
+		select {
+		case <-changed:
+		default:
+			t.Fatal("clock change did not notify downstream consumers")
+		}
+		if p := protectionFor(s, w.v.key, 0); p.start != want.Add(-s.protectionAhead()) || !p.until.IsZero() {
+			t.Fatal("download and protection clocks diverged or created a grace tail", p)
+		}
+		// Removal freezes handoff timing, even while the next head keeps rolling.
+		s.UpdatePrefetchQueue([]int64{2}, false)
+		removed := q.startAt
+		time.Sleep(25 * time.Second)
+		synctest.Wait()
+		s.mu.Lock()
+		valid = q.startAt == removed && len(s.useHandoffs) == 0 && len(s.useBlocks) == 0
+		s.mu.Unlock()
+		if !valid {
+			t.Fatal("idle clock renewed a removed source or its fixed handoff")
+		}
+		for _, ids := range [][]int64{nil, {-1}} {
+			s.UpdatePrefetchQueue(ids, true)
+			s.mu.Lock()
+			stopped := s.useTimer == nil
+			s.mu.Unlock()
+			if !stopped {
+				t.Fatal("queue without usable members left an idle clock timer", ids)
+			}
+		}
+	})
+}
+
+func TestIdleQueuePreservesFutureGETEstimateAndLiveGETClock(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		_, s := testSession(t)
+		base := time.Now()
+		check := func(want time.Time, stopped bool) {
+			t.Helper()
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			if got := s.prefetchSources["1"].startAt; got != want || (s.useTimer == nil) != stopped {
+				t.Fatalf("queue start=%v want=%v, timer stopped=%v want=%v", got, want, s.useTimer == nil, stopped)
+			}
+		}
+		release := holdQueuePlaybackUntil(t, s, base.Add(time.Minute))
+		s.UpdatePrefetchQueue([]int64{1}, false)
+		release() // Transmission ended; buffered playback can still be running.
+		time.Sleep(50 * time.Second)
+		synctest.Wait()
+		check(base.Add(time.Minute), false)
+		time.Sleep(25 * time.Second)
+		synctest.Wait()
+		check(base.Add(70*time.Second), false)
+		// A live GET remains authoritative even when its estimated end is past.
+		holdQueuePlaybackUntil(t, s, base.Add(time.Minute))
+		time.Sleep(time.Minute)
+		synctest.Wait()
+		check(base.Add(time.Minute), true)
+	})
+}
+
+func TestIdleQueueDownloadSurvivesOriginalDeadline(t *testing.T) {
+	for _, status := range []int{http.StatusPartialContent, http.StatusOK} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				cfg := fixtureConfig()
+				cfg.StorageDir = t.TempDir()
+				cfg.Logger = slog.New(slog.NewTextHandler(testLogWriter{t}, nil))
+				calls := 0
+				cfg.ResourceTransports = func(string) []http.RoundTripper {
+					return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+						calls++
+						first := true
+						body := strings.NewReader(payload)
+						header := make(http.Header)
+						if status == http.StatusPartialContent {
+							header.Set("Content-Range", fmt.Sprintf("bytes 0-%d/%d", len(payload)-1, len(payload)))
+						}
+						return &http.Response{StatusCode: status, Request: r, ContentLength: int64(len(payload)), Header: header,
+							Body: io.NopCloser(publishReaderFunc(func(p []byte) (int, error) {
+								if first {
+									first = false
+									select {
+									case <-time.After(75 * time.Second):
+									case <-r.Context().Done():
+										return 0, r.Context().Err()
+									}
+								}
+								return body.Read(p)
+							}))}, nil
+					})}
+				}
+				s, err := New(cfg)
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() {
+					if err := s.Close(); err != nil {
+						t.Error(err)
+					}
+				})
+				s.UpdatePrefetchQueue([]int64{1}, false)
+				ctx := s.queueDemandContext(t.Context(), "1")
+				if _, err := s.PrefetchSong(ctx, "1", videoURL(payload)); err != nil {
+					t.Fatal("idle queue download expired instead of continuing", err)
+				}
+				if calls != 1 {
+					t.Fatal("clock refresh restarted the download", calls)
+				}
+			})
+		})
+	}
+}
 
 func TestQueueUsesEarliestGETEndAndKeepsLastAnchor(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
@@ -53,6 +197,7 @@ func TestQueueUsesEarliestGETEndAndKeepsLastAnchor(t *testing.T) {
 
 func TestQueueUsesCatalogDurationAndRefreshesUnknownSize(t *testing.T) {
 	s, _ := setup(t, nil)
+	holdQueuePlaybackUntil(t, s, time.Now().Add(time.Hour))
 	ctx := context.Background()
 	key := "0123456789abcdef0123456789abcdef"
 	if _, err := s.usage.db.Exec(`INSERT INTO media(md5) VALUES (?)`, key); err != nil {

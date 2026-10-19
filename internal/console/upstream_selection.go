@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
-	"strings"
 	"time"
 
 	"still-wanna-dance/internal/upstreamrequest"
@@ -110,23 +109,4 @@ func (c *Console) operationClients(op upstreamstate.Operation, q upstreamstate.C
 		clients = append(clients, &client)
 	}
 	return clients
-}
-
-func (c *Console) playbackRoutes(preferred, mode string) []string {
-	if mode == "cf" || mode == "hkg" {
-		return []string{mode}
-	}
-	routes := []string{"hkg", "cf"}
-	if preferred == "cf" {
-		routes = []string{"cf", "hkg"}
-	}
-	for _, s := range c.operationSelections(upstreamstate.PlaybackURL, upstreamstate.Constraints{}) {
-		if strings.HasPrefix(s.Result.Entry, c.apiBase+"/Api/Songs/play?") {
-			if s.Result.Route != routes[0] && s.Result.Route == routes[1] {
-				routes[0], routes[1] = routes[1], routes[0]
-			}
-			break
-		}
-	}
-	return routes
 }

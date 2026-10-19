@@ -26,7 +26,7 @@ func TestPlaybackSlowAutoIntegration(t *testing.T) {
 		delay                    time.Duration
 	}{
 		{"cold both slow", false, false, 3500 * time.Millisecond},
-		{"cold alternate slow", false, true, 3500 * time.Millisecond},
+		{"cold CF stalled", false, true, 3500 * time.Millisecond},
 		{"cached background refresh", true, false, 6500 * time.Millisecond},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -45,7 +45,7 @@ func TestPlaybackSlowAutoIntegration(t *testing.T) {
 				}
 				node := r.URL.Query().Get("node")
 				nodes.Store(node, true)
-				if tc.stalledPreferred && node == "nya" {
+				if tc.stalledPreferred && node == "cf" {
 					<-r.Context().Done()
 					return
 				}
@@ -95,7 +95,7 @@ func TestPlaybackSlowAutoIntegration(t *testing.T) {
 				ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 				defer cancel()
 				w := httptest.NewRecorder()
-				engine.ServeHTTP(w, httptest.NewRequest("GET", "http://api.udon.dance/Api/Songs/play?id=42", nil).WithContext(ctx))
+				engine.ServeHTTP(w, httptest.NewRequest("GET", "http://api.udon.dance/Api/Songs/play?id=42&node=nya", nil).WithContext(ctx))
 				return w
 			}
 			started := time.Now()
@@ -118,9 +118,9 @@ func TestPlaybackSlowAutoIntegration(t *testing.T) {
 					t.Fatalf("local content replaced: %d %q", w.Code, w.Body.String())
 				}
 			}
-			wantNodes := []string{"nya"}
+			wantNodes := []string{"cf"}
 			if tc.stalledPreferred {
-				wantNodes = append(wantNodes, "cf")
+				wantNodes = append(wantNodes, "nya")
 			}
 			for _, node := range wantNodes {
 				if _, ok := nodes.Load(node); !ok {
@@ -146,9 +146,9 @@ func TestPlaybackResolutionInvalidVideoFallback(t *testing.T) {
 		valid + "&s=1",
 		valid + "&token=%zz",
 	} {
-		for _, preferred := range []string{"nya", "cf"} {
+		for _, failedNode := range []string{"nya", "cf"} {
 			for _, mode := range []string{"auto", "fixed", "both invalid"} {
-				t.Run(preferred+"/"+mode+"/"+invalid, func(t *testing.T) {
+				t.Run(failedNode+"/"+mode+"/"+invalid, func(t *testing.T) {
 					c := testConsole(t)
 					var mu sync.Mutex
 					var nodes []string
@@ -162,7 +162,7 @@ func TestPlaybackResolutionInvalidVideoFallback(t *testing.T) {
 							host = "play.udon.dance"
 						}
 						path := valid
-						if node == preferred || mode == "both invalid" {
+						if node == failedNode || mode == "both invalid" {
 							path = invalid
 						}
 						w.Header().Set("Location", "https://"+host+path)
@@ -172,19 +172,22 @@ func TestPlaybackResolutionInvalidVideoFallback(t *testing.T) {
 					c.apiBase = api.URL
 					c.client.Transport = http.DefaultTransport
 					policy := "auto"
-					alternate, host := "cf", "play.udon.dance"
-					if preferred == "cf" {
-						alternate, host = "nya", "nya.xin.moe"
+					host := "play.udon.dance"
+					if failedNode == "cf" {
+						host = "nya.xin.moe"
 					}
-					wantNodes := preferred + "," + alternate
+					wantNodes := "cf"
+					if failedNode == "cf" || mode == "both invalid" {
+						wantNodes += ",nya"
+					}
 					if mode == "fixed" {
 						policy = "hkg"
-						if preferred == "cf" {
+						if failedNode == "cf" {
 							policy = "cf"
 						}
-						wantNodes = preferred
+						wantNodes = failedNode
 					}
-					target, err := c.resolvePlayback(context.Background(), "42", preferred, policy)
+					target, err := c.resolvePlayback(context.Background(), "42", "nya", policy)
 					if mode == "auto" {
 						if err != nil || target != "https://"+host+valid {
 							t.Fatalf("target=%q err=%v; want valid alternate", target, err)
@@ -215,13 +218,13 @@ func TestPlaybackResolutionPolicyAndFallback(t *testing.T) {
 		{"fixed HKG overrides CF", "hkg", "cf", "cf", "nya.xin.moe", "nya"},
 		{"fixed CF fails without fallback", "cf", "nya", "cf", "", "cf"},
 		{"fixed HKG fails without fallback", "hkg", "cf", "nya", "", "nya"},
-		{"auto default", "auto", "", "", "nya.xin.moe", "nya"},
-		{"auto prefers HKG", "auto", "nya", "", "nya.xin.moe", "nya"},
-		{"auto prefers CF", "auto", "cf", "", "play.udon.dance", "cf"},
-		{"auto default fallback", "auto", "", "nya", "play.udon.dance", "nya,cf"},
-		{"auto HKG fallback", "auto", "nya", "nya", "play.udon.dance", "nya,cf"},
+		{"auto default prefers CF", "auto", "", "", "play.udon.dance", "cf"},
+		{"auto ignores game HKG", "auto", "nya", "", "play.udon.dance", "cf"},
+		{"auto game CF", "auto", "cf", "", "play.udon.dance", "cf"},
+		{"auto default fallback", "auto", "", "cf", "nya.xin.moe", "cf,nya"},
+		{"auto game HKG fallback", "auto", "nya", "cf", "nya.xin.moe", "cf,nya"},
 		{"auto CF fallback", "auto", "cf", "cf", "nya.xin.moe", "cf,nya"},
-		{"auto both fail", "auto", "", "both", "", "nya,cf"},
+		{"auto both fail", "auto", "", "both", "", "cf,nya"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := testConsole(t)
@@ -277,10 +280,7 @@ func TestPlaybackResolutionDoesNotWaitForUnusedRoute(t *testing.T) {
 	for _, node := range []string{"", "nya", "cf"} {
 		t.Run("node="+node, func(t *testing.T) {
 			c := testConsole(t)
-			preferred, host := "nya", "nya.xin.moe"
-			if node == "cf" {
-				preferred, host = "cf", "play.udon.dance"
-			}
+			const preferred, host = "cf", "play.udon.dance"
 			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Query().Get("node") != preferred {
 					<-r.Context().Done()
@@ -315,27 +315,27 @@ func TestPlaybackResolutionStalledPreferredRoute(t *testing.T) {
 				mu.Lock()
 				nodes = append(nodes, node)
 				mu.Unlock()
-				if node == "nya" {
+				if node == "cf" {
 					if cancelRequest {
 						cancel()
 					}
 					<-r.Context().Done()
 					return
 				}
-				w.Header().Set("Location", "https://play.udon.dance/files/1/2-video.mp4?e=00000000000000000000000000000000&s=1")
+				w.Header().Set("Location", "https://nya.xin.moe/files/1/2-video.mp4?e=00000000000000000000000000000000&s=1")
 				w.WriteHeader(http.StatusFound)
 			}))
 			defer api.Close()
 			c.apiBase = api.URL
 			c.client.Transport = http.DefaultTransport
 			target, err := c.resolvePlayback(ctx, "42", "nya", "auto")
-			wantNodes := "nya,cf"
+			wantNodes := "cf,nya"
 			if cancelRequest {
-				wantNodes = "nya"
+				wantNodes = "cf"
 				if !errors.Is(err, context.Canceled) || target != "" {
 					t.Fatalf("target=%q err=%v; want cancellation", target, err)
 				}
-			} else if err != nil || target != "https://play.udon.dance/files/1/2-video.mp4?e=00000000000000000000000000000000&s=1" {
+			} else if err != nil || target != "https://nya.xin.moe/files/1/2-video.mp4?e=00000000000000000000000000000000&s=1" {
 				t.Fatalf("target=%q err=%v; want timeout fallback", target, err)
 			}
 			mu.Lock()

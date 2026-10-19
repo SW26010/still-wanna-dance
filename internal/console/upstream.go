@@ -34,14 +34,23 @@ func preserveBudgetFailure(previous, err error) error {
 	return err
 }
 
-// Resolve Auto routes in monitor order, with bounded sequential fallback.
-func (c *Console) resolvePlayback(ctx context.Context, id, node, mode string) (string, error) {
+// Auto always queries CF before HKG. Only the SWD setting constrains the API
+// route; Monitor still chooses connection channels within each route.
+func playbackRoutes(mode string) []string {
+	if mode == "cf" || mode == "hkg" {
+		return []string{mode}
+	}
+	return []string{"cf", "hkg"}
+}
+
+// Ignore the game's node preference and apply SWD's bounded sequential policy.
+func (c *Console) resolvePlayback(ctx context.Context, id, _, mode string) (string, error) {
 	songID, err := strconv.ParseInt(id, 10, 64)
 	if err != nil || songID <= 0 {
 		return "", fmt.Errorf("invalid song ID: %s", id)
 	}
 	var failures []error
-	routes := c.playbackRoutes(node, mode)
+	routes := playbackRoutes(mode)
 	for i, route := range routes {
 		if err := ctx.Err(); err != nil {
 			return "", err
@@ -72,7 +81,7 @@ func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, i
 	c.mu.Lock()
 	mode := c.settings.DownloadUpstream
 	c.mu.Unlock()
-	routes := c.playbackRoutes("cf", mode)
+	routes := playbackRoutes(mode)
 	var failures []error
 	attemptedURLs := make(map[string]bool)
 	for attempt, route := range routes {

@@ -198,7 +198,7 @@ func TestBusinessResolutionReservesFallbackDeadline(t *testing.T) {
 	}
 }
 
-func TestBusinessResolutionUsesMeasuredTransport(t *testing.T) {
+func TestBusinessResolutionKeepsCFPriorityAndMeasuredTransport(t *testing.T) {
 	c := testConsole(t)
 	cfg := fixtureCacheConfig()
 	cfg.StorageDir = c.settings.StorageDir
@@ -208,10 +208,20 @@ func TestBusinessResolutionUsesMeasuredTransport(t *testing.T) {
 	}
 	c.service = engine
 	const target = "https://play.udon.dance/files/1/42-video.mp4?e=0123456789abcdef0123456789abcdef&s=12"
+	var business atomic.Bool
+	var cfCalls atomic.Int32
 	measured := catalogTransport(func(r *http.Request) (*http.Response, error) {
-		time.Sleep(time.Millisecond)
 		resp := &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":42}]}]}}`))}
 		if r.URL.Path == "/Api/Songs/play" {
+			if r.URL.Query().Get("node") == "cf" {
+				// Make HKG the measured recommendation before business starts.
+				time.Sleep(50 * time.Millisecond)
+				if business.Load() {
+					cfCalls.Add(1)
+				}
+			} else if business.Load() {
+				t.Error("healthy CF was bypassed by the game or Monitor preference")
+			}
 			resp.StatusCode = 302
 			resp.Header.Set("Location", target)
 		}
@@ -229,13 +239,22 @@ func TestBusinessResolutionUsesMeasuredTransport(t *testing.T) {
 	if len(m.Selections(upstreamstate.PlaybackURL, upstreamstate.Constraints{Route: "cf"})) == 0 {
 		t.Fatal("fixture has no measured playback channel")
 	}
+	if selections := m.Selections(upstreamstate.PlaybackURL, upstreamstate.Constraints{}); len(selections) == 0 || selections[0].Result.Route != "hkg" {
+		t.Fatalf("fixture must recommend HKG: %+v", selections)
+	}
 	c.client.Transport = catalogTransport(func(*http.Request) (*http.Response, error) {
 		t.Error("business request reselected an unmeasured transport")
 		return nil, errors.New("unmeasured transport")
 	})
-	got, err := c.resolvePlayback(context.Background(), "42", "cf", "cf")
-	if err != nil || got != target {
-		t.Fatalf("target=%q err=%v", got, err)
+	business.Store(true)
+	for _, mode := range []string{"auto", "cf"} {
+		got, err := c.resolvePlayback(context.Background(), "42", "nya", mode)
+		if err != nil || got != target {
+			t.Fatalf("mode=%s target=%q err=%v", mode, got, err)
+		}
+	}
+	if cfCalls.Load() != 2 {
+		t.Fatalf("want two CF resolutions, got %d", cfCalls.Load())
 	}
 	urls, err := engine.SongURLs(context.Background(), 42, "cf")
 	if err != nil || len(urls) != 1 || urls[0].URL != target || urls[0].API != c.apiBase+"/Api/Songs/play" {

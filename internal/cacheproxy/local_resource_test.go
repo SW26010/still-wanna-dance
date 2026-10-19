@@ -140,3 +140,66 @@ func TestLateLocalReaderPreservesNewFlightAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestChangedAddressDoesNotReuseStrongValidator(t *testing.T) {
+	for _, status := range []int{http.StatusPartialContent, http.StatusOK} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			body := bytes.Repeat([]byte("x"), int(2*rangeBlockSize))
+			oldURL := videoURL(string(body))
+			currentURL := strings.Replace(oldURL, "play.udon.dance", "nya.xin.moe", 1)
+			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
+				if tag := r.Header.Get("If-Match"); tag != "" && tag != `"current-endpoint"` {
+					w.WriteHeader(http.StatusPreconditionFailed)
+					return
+				}
+				w.Header().Set("ETag", `"current-endpoint"`)
+				if status == http.StatusOK {
+					w.Write(body)
+					return
+				}
+				var start, end int64
+				if _, err := fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end); err != nil {
+					t.Error(err)
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				if start > 0 && r.Header.Get("If-Match") != `"current-endpoint"` {
+					t.Error("new ranges lost the current endpoint's entity condition")
+				}
+				w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(body)))
+				w.WriteHeader(http.StatusPartialContent)
+				w.Write(body[start : end+1])
+			})
+			v := parsedVideo(t, s, string(body))
+			local, err := s.newLocalResource(v, &http.Response{StatusCode: http.StatusPartialContent, Header: http.Header{"Etag": {`"old-endpoint"`}}}, s.cfg.Logger)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := local.storage.store(0, body[:rangeBlockSize]); err != nil {
+				t.Fatal(err)
+			}
+			oldPath := localBlockPath(t, local.storage, 0)
+			sp := local.makeSpool(nil)
+			reader := sp.reader(t.Context(), v.size)
+			sp.release()
+			local.storage.release() // The old execution has ended; only registry/reader remain.
+			defer reader.Close()
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			if _, err := s.Prefetch(ctx, currentURL); err != nil {
+				t.Fatal("same content at the current address failed", err)
+			}
+			if got, err := os.ReadFile(cfg.videoFile(v.key)); err != nil || !bytes.Equal(got, body) {
+				t.Fatal("new entity did not validate and publish", err)
+			}
+			got := make([]byte, rangeBlockSize)
+			if _, err := io.ReadFull(reader, got); err != nil || !bytes.Equal(got, body[:rangeBlockSize]) {
+				t.Fatal("changing the download entity broke an old reader", err)
+			}
+			reader.Close()
+			if _, err := os.Stat(oldPath); !os.IsNotExist(err) {
+				t.Fatal("old entity survived its last reader", err)
+			}
+		})
+	}
+}

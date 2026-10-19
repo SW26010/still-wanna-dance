@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"still-wanna-dance/internal/applog"
@@ -281,6 +282,14 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 		flight.progress.setHost(v.host)
 	}
 	flight.log.Info("download_started", "key", v.key, "size", v.size)
+	if local := flight.ranges; local != nil && local.etag != "" && !strings.HasPrefix(local.etag, "W/") && videoAddress(local.video) != videoAddress(v) {
+		// A strong validator belongs to its old address. Start a fresh entity
+		// when routing changes, rather than imposing that validator on the new
+		// endpoint or mixing unvalidated entities. Old readers keep their refs.
+		s.forgetLocalResource(v.key, local)
+		local.storage.release()
+		flight.ranges = nil
+	}
 	if flight.ranges != nil {
 		// Refresh routing before any executor starts, including a local hit
 		// whose missing file required a new address lookup.

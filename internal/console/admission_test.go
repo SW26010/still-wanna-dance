@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -101,5 +103,56 @@ func TestOrderedPreparationStopsResolutionAtUsageCapacity(t *testing.T) {
 				take("100004")
 			}
 		})
+	}
+}
+
+func TestQueueRepreparesRearmedMemberAfterPreviousSuccess(t *testing.T) {
+	c := testConsole(t)
+	const body = "rearmed queue fixture"
+	target := fmt.Sprintf("https://play.udon.dance/files/2403/42-abc.mp4?e=%x&s=%d", md5.Sum([]byte(body)), len(body))
+	cfg := fixtureCacheConfig()
+	cfg.StorageDir = c.settings.StorageDir
+	cfg.CacheUnlimited, cfg.MaxCacheBytes = false, 0
+	cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return target, nil }
+	var calls atomic.Int32
+	cfg.ResourceTransports = func(string) []http.RoundTripper {
+		return []http.RoundTripper{catalogTransport(func(r *http.Request) (*http.Response, error) {
+			calls.Add(1)
+			return &http.Response{StatusCode: http.StatusPartialContent, Request: r, ContentLength: int64(len(body)),
+				Header: http.Header{"Content-Range": {fmt.Sprintf("bytes 0-%d/%d", len(body)-1, len(body))}},
+				Body:   io.NopCloser(strings.NewReader(body))}, nil
+		})}
+	}
+	engine, err := cacheproxy.New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer engine.Close()
+	// After completed usage expires and a real clock change rearms the member,
+	// the console still remembers success but the engine needs admission again.
+	c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 42}}, prepared: map[int64]bool{42: true}}
+	ctx, cancel := context.WithCancel(t.Context())
+	done, wake := make(chan struct{}), make(chan struct{}, 1)
+	go func() { defer close(done); c.queueWorker(ctx, engine, wake) }()
+	defer func() { cancel(); <-done }()
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		c.mu.Lock()
+		ready := c.queue.Completed == 1 && c.queue.prepared[42]
+		c.mu.Unlock()
+		if ready {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("previous success blocked rearmed preparation", calls.Load())
+		}
+		time.Sleep(time.Millisecond)
+	}
+	for range 3 {
+		wake <- struct{}{}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if engine.QueueNeedsPreparation(42) || calls.Load() != 1 {
+		t.Fatal("valid completed usage was prepared repeatedly", calls.Load())
 	}
 }

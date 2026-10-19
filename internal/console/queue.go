@@ -382,6 +382,13 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 			generation = c.queue.Generation
 			retry = map[int64]time.Time{}
 		}
+		// A successful preparation can later lose its usage on refetch expiry.
+		// Reuse the normal ordered admission once the engine rearms the member.
+		for id := range c.queue.prepared {
+			if engine.QueueNeedsPreparation(id) {
+				delete(c.queue.prepared, id)
+			}
+		}
 		// Only the unresolved/unadmitted next source waits here. Already
 		// admitted resources keep downloading and reporting independently.
 		if admission != nil {

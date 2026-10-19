@@ -58,6 +58,16 @@ func (s *Server) QueueTitles() map[string]string {
 	return titles
 }
 
+// QueueNeedsPreparation also covers a completed member whose automatic refetch
+// expired. Only a real clock/metadata change rearms that member; readable blocks
+// and successful preparation alone do not end its registered usage.
+func (s *Server) QueueNeedsPreparation(id int64) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	q := s.prefetchSources[strconv.FormatInt(id, 10)]
+	return q != nil && !q.expired && q.use.first == q.use.last
+}
+
 // Call under Server.mu. Request completion does not mean playback completion:
 // when the last GET leaves, retain the last calculated queue start. This is a
 // single scheduling anchor, not a registry of historical requests or demands.

@@ -12,6 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/blocksched"
 )
 
 func completedQueueFixture(t *testing.T, body string, before func(*http.Request) error) (*Server, video, *queueSource, *atomic.Int32) {
@@ -251,5 +253,54 @@ func TestCompletedQueueRefetchFailureDoesNotLoop(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	if calls.Load() != before {
 		t.Fatal("unchanged usage retried a terminal failure indefinitely", calls.Load())
+	}
+}
+
+func TestCompletedQueueRefetchExpiryRearmsPreparation(t *testing.T) {
+	s, v, q, calls := completedQueueFixture(t, payload, nil)
+	if s.QueueNeedsPreparation(42) {
+		t.Fatal("completed preparation still has valid queue usage")
+	}
+	moveCompletedQueueOut(t, s, v)
+	s.mu.Lock()
+	s.queueStart = time.Now().Add(-blocksched.DownloadGrace - time.Second)
+	s.mu.Unlock()
+	if err := s.UpdatePrefetchQueue([]int64{42, 1}, false); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		s.mu.Lock()
+		expired := q.expired && q.use == (useSpan{}) && s.flights[v.key] == nil && s.resourceUses[v.key] == nil
+		s.mu.Unlock()
+		if expired {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("automatic refetch did not withdraw its expired queue usage")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if err := s.UpdatePrefetchQueue([]int64{42, 1}, false); err != nil {
+		t.Fatal(err)
+	}
+	if s.QueueNeedsPreparation(42) || calls.Load() != 1 {
+		t.Fatal("unchanged expired member was retried", calls.Load())
+	}
+	// An actual GET changes the queue's playback anchor and rearms preparation.
+	ctx := context.WithValue(t.Context(), playbackClockKey{}, &playbackClock{
+		at: time.Now(), limit: 1, media: estimateMediaTiming(1, 1),
+	})
+	_, release := addTestDemand(t, s, ctx, video{key: "playing", size: 1}, true)
+	defer release()
+	if !s.QueueNeedsPreparation(42) {
+		t.Fatal("clock change did not expose the missing preparation")
+	}
+	if source, err := s.PrefetchQueuePlayback(t.Context(), 42); err != nil || source != "TEMP" {
+		t.Fatal("rearmed member could not prepare", source, err)
+	}
+	waitQueueRefetch(t, s, v, calls, 2)
+	if s.QueueNeedsPreparation(42) {
+		t.Fatal("restored usage requested another preparation")
 	}
 }

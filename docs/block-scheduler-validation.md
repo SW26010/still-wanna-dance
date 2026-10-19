@@ -656,3 +656,17 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 新增 TestUnlimitedRestartQueueHitDoesNotRefetch，覆盖真实引擎重启、已有视频及歌曲映射、队列 HIT、无额外会话/上游请求和退出后文件仍保留；已有外部新增、删除和大小变化的库存核对测试扩展为有限/不限两种模式。定向回归通过（directed.log，1.005 s），cacheproxy 整包 Windows race 通过（cache-race.log，57.076 s），同包 go vet 与 diff 检查通过。日志位于忽略目录 artifacts/unlimited-inventory-fix-20261019/；测试使用工作区隔离临时目录，完整 Windows 文件及竞态测试在沙箱外执行。
 
 本次修复不改变下载窗口、保护或预算语义，不新增 VRC 台账项目；未启动游戏、修改 hosts、提交或推送。
+
+## 65. 换地址实体条件与已完成队列的截止恢复
+
+2026-10-19：outgoing 审查发现，保留块的强 ETag 随新地址继续用于 If-Match，即使新地址提供同 MD5 内容，也会因不同实体标签持续失败。原始复现及冷下载对照保留在 artifacts/commit-review-outgoing-20261019-etag/。新会话发现强 ETag 绑定的地址改变时，退出旧块注册并重新取得实体；旧读者独立持有引用，最后读者关闭后删除旧块。同地址的实体检查继续保留。新增回归覆盖新地址 206/200、后续 Range 使用新 ETag、完整校验发布和旧读者读取/释放。
+
+已完成队列的自动重取在截止失败后会撤销使用；真实时钟变化虽重新赋予准备资格，控制台的旧 prepared 标记却阻止再次准入。现在通过 QueueNeedsPreparation 读取已有来源状态，在既有 worker 唤醒循环中恢复有序准备，不新增重试状态或计时器。引擎回归覆盖 TEMP 完成、回收、自动重取截止、重复快照不重试及实际 GET 时钟变化后的恢复；控制台回归覆盖旧成功标记不阻塞新准备、有效使用不重复准备。存储文档改为引用 canonical 保护规则，并标明历史歌曲级队列保护已经被替代。
+
+验证日志位于本地忽略目录 artifacts/review-fixes-20261019/：
+
+- cacheproxy、console、blocksched 整包 Windows race 全部通过（affected-race.log，80.442 s / 108.553 s / 1.141 s），包含本次新增回归；使用已有 GCC、工作区隔离临时目录及沙箱外权限。
+- cmd/internal 范围的 go vet、构建及 diff 检查通过（vet.log、build.log）。
+- 首轮新增测试的复合字面量语法错误已修正，保留 directed.log；修正后缓存定向检查通过，控制台配置原子替换被 Windows 沙箱拦截，保留 directed-fixed.log。后续以上述完整 race 验证最终代码，不将前两次失败改写为通过。
+
+本次问题由受控协议、时序与文件生命周期测试验证，不新增 VRC 台账条目；未验证实际游戏体验，未启动游戏或修改 hosts。

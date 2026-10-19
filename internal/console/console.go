@@ -46,6 +46,8 @@ type Settings struct {
 	RequestRetentionDays      int    `json:"requestRetentionDays"`
 	AutoStartCDN              bool   `json:"autoStartCDN"`
 	PrepareAheadSeconds       int    `json:"prepareAheadSeconds"`
+	DownloadSoftLimit         int    `json:"downloadSoftLimit"`
+	DownloadGrowIntervalMS    int    `json:"downloadGrowIntervalMS"`
 	DownloadUpstream          string `json:"downloadUpstream"`
 	UpstreamMode              string `json:"upstreamMode"`
 	ProxyBackend              string `json:"proxyBackend"`
@@ -153,6 +155,7 @@ func New(configPath, address string) (*Console, error) {
 		StorageDir: apppaths.ForConfig(configPath).DefaultStorage, RequestRetentionDays: 30,
 		AutoStartCDN: true, AutoStartQueue: true,
 		CacheUnlimited: false, MaxCacheBytes: 0,
+		DownloadSoftLimit: cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),
 	}
 	c.exitRequested = make(chan struct{})
 	c.restartRequested = make(chan struct{})
@@ -258,6 +261,12 @@ func absoluteSettings(s Settings) (Settings, error) {
 	}
 	if s.PrepareAheadSeconds < int(blocksched.MinPrepareAhead/time.Second) || s.PrepareAheadSeconds > int(blocksched.MaxPrepareAhead/time.Second) {
 		return s, errors.New("提前准备时间 M 必须为 100～16000 秒")
+	}
+	if s.DownloadSoftLimit < 1 || s.DownloadSoftLimit > cacheproxy.MaxDownloadSoftLimit {
+		return s, errors.New("下载并发上限（软）必须为 1～64")
+	}
+	if s.DownloadGrowIntervalMS < 0 || s.DownloadGrowIntervalMS > int(cacheproxy.MaxDownloadGrowInterval/time.Millisecond) {
+		return s, errors.New("并发增长间隔必须为 0～2000 毫秒")
 	}
 	if s.DownloadUpstream == "" {
 		s.DownloadUpstream = "auto"
@@ -403,6 +412,8 @@ func (c *Console) ensureEngine() error {
 	cfg.CacheUnlimited = c.settings.CacheUnlimited
 	cfg.RequestRetentionDays = c.settings.RequestRetentionDays
 	cfg.PrepareAhead = time.Duration(c.settings.PrepareAheadSeconds) * time.Second
+	cfg.DownloadSoftLimit = c.settings.DownloadSoftLimit
+	cfg.DownloadGrowInterval = time.Duration(c.settings.DownloadGrowIntervalMS) * time.Millisecond
 	cfg.DialContext = c.upstreamDial
 	mode := c.settings.DownloadUpstream
 	if mode == "cf" {
@@ -1103,6 +1114,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ProxyImportID string  `json:"proxyImportID"`
 			Password      *string `json:"socks5Password"`
 		}
+		input.DownloadSoftLimit = cacheproxy.VideoRequestSoftLimit
+		input.DownloadGrowIntervalMS = int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond)
 		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
 			if input.CustomStorage {
 				if err = c.validateStorageSelection(input.StorageDir, true); err != nil {

@@ -7,7 +7,7 @@ import { Details, Feedback, Panel, Progress } from './ui';
 import { type Settings, type Status } from './types';
 import { CacheCapacityFields } from './cache-capacity';
 
-const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds'] as const;
+const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadSoftLimit','downloadGrowIntervalMS'] as const;
 type NumberField = typeof numeric[number];
 export interface ProxyReport { id?: string; accepted: number; skipped: number; failed: number; items: {index: number; protocol?: string; status: string; reason?: string}[] }
 export type Draft = Omit<Settings, NumberField | 'maxCacheBytes'> & Record<NumberField, string> & { maxCacheGiB: string; proxyImportID: string; proxyImportText: string; proxyReport?: ProxyReport };
@@ -15,6 +15,7 @@ export function draftFrom(s: Settings): Draft {
   return { ...s, socks5Password: '', upstreamMode: s.upstreamMode === 'socks5' ? 'proxy' : s.upstreamMode || 'direct', proxyBackend: s.proxyBackend || 'external-socks5',
     requestRetentionDays: String(s.requestRetentionDays ?? 30), throughputIntervalMinutes: String(s.throughputIntervalMinutes ?? 20),
     prepareAheadSeconds: String(s.prepareAheadSeconds ?? 500),
+    downloadSoftLimit: String(s.downloadSoftLimit ?? 16), downloadGrowIntervalMS: String(s.downloadGrowIntervalMS ?? 250),
     maxCacheGiB: String((s.maxCacheBytes || 0) / 1073741824), proxyImportID: '', proxyImportText: '' };
 }
 export function settingsPayload(d: Draft) {
@@ -111,6 +112,11 @@ export function SettingsPage() {
       <fieldset><legend>网络连接</legend><NetworkFields draft={d} update={update} disabled={app.unavailable || syncing} status={s} onPending={setPending} />
       <Field label="播放地址接口选择" hint="忽略游戏内 CDN 选择。自动模式优先 CF，失败后尝试 HKG；固定模式只使用指定接口，视频来源由接口决定。"><Select disabled={disabled} value={d.downloadUpstream} onChange={(_, v) => update({downloadUpstream:v.value})}><option value="auto">自动（CF 优先）</option><option value="cf">node=cf（播放地址接口）</option><option value="hkg">node=nya（播放地址接口）</option></Select></Field>
       {numberField('throughputIntervalMinutes','自动测速间隔（分钟）',1,1440,'默认 20 分钟，按上次测速时间安排下一次检测。')}</fieldset>
+      <fieldset disabled={disabled}><legend>高级下载设置</legend>
+      <p><strong>为减小 CPU 占用，强烈不建议增加并发数或减小增长间隔。</strong>建议保留默认的 16 路和 250 毫秒。保存并重启应用后生效。</p>
+      {numberField('downloadSoftLimit','下载并发上限（软）',1,64,'默认 16 路，可设为 1～64 的整数。按需开放下载额度；播放正在等待的缺块可临时突破此上限。')}
+      {numberField('downloadGrowIntervalMS','并发增长间隔（毫秒）',0,2000,'默认 250 毫秒，可设为 0～2000 的整数。有可下载任务积压且额度占满时，每隔此时间增加一路；0 表示关闭缓增，按需直接使用上限额度。')}
+      </fieldset>
       <fieldset disabled={disabled}><legend>房间队列与游戏日志</legend><Caption1 as="p" className="hint">下载补齐期间，房间队列预缓存会临时暂停。</Caption1>
       {numberField('prepareAheadSeconds','提前准备时间 M（秒）',100,16000,`默认 500 秒，建议 200～2000 秒${prepareAheadEstimate}。数值越大，越早下载预计播放的内容，也会更早占用带宽和缓存空间。保存并重启应用后生效。`)}
       <Checkbox label="手动指定 VRChat 日志目录" checked={d.manualLogDir} onChange={(_, v) => update({manualLogDir:!!v.checked})} />

@@ -46,6 +46,10 @@ type Config struct {
 	DownloadTimeout time.Duration
 	// PrepareAhead is the full lead M for scheduled downloads; zero uses the default.
 	PrepareAhead time.Duration
+	// DownloadSoftLimit bounds ordinary block execution; blocked reads may exceed it.
+	DownloadSoftLimit int
+	// DownloadGrowInterval paces ordinary capacity growth; zero disables pacing.
+	DownloadGrowInterval time.Duration
 	// LocalProtectAhead independently controls protection of finite usage.
 	// Zero follows PrepareAhead; it does not grant untimed demands protection.
 	// Normal configurations should cover the effective PrepareAhead; this design
@@ -81,6 +85,8 @@ func DefaultConfig() Config {
 		Origins:              make(map[string]string),
 		DownloadTimeout:      10 * time.Minute,
 		PrepareAhead:         blocksched.DefaultPrepareAhead,
+		DownloadSoftLimit:    VideoRequestSoftLimit,
+		DownloadGrowInterval: DefaultDownloadGrowInterval,
 		MaxFileBytes:         2 << 30,
 		MaxLocalValidations:  3,
 		Logger:               slog.New(slog.NewJSONHandler(os.Stderr, nil)),
@@ -88,6 +94,12 @@ func DefaultConfig() Config {
 }
 
 func (c Config) validate() error {
+	if c.DownloadSoftLimit < 1 || c.DownloadSoftLimit > MaxDownloadSoftLimit {
+		return errors.New("download soft limit must be between 1 and 64")
+	}
+	if c.DownloadGrowInterval < 0 || c.DownloadGrowInterval > MaxDownloadGrowInterval {
+		return errors.New("download growth interval must be between 0 and 2000 milliseconds")
+	}
 	if c.LocalProtectAhead < 0 || c.LocalProtectAhead > 24*time.Hour {
 		return errors.New("local protection lead must be between 0 and 86400 seconds")
 	}

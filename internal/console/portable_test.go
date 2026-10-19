@@ -21,7 +21,9 @@ func TestPortableSettingsMove(t *testing.T) {
 	if c.settings.StorageDir != filepath.Join(original, "settings.json.d", "storage") {
 		t.Fatal(c.settings)
 	}
-	if err := c.save(Settings{StorageDir: "data", LogDir: external, ManualLogDir: true}); err != nil {
+	next := c.settings
+	next.StorageDir, next.LogDir, next.ManualLogDir = "data", external, true
+	if err := c.save(next); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(c.configPath)

@@ -1,6 +1,6 @@
 export interface Settings {
   storageDir: string; maxCacheBytes: number; cacheUnlimited: boolean; requestRetentionDays: number; throughputIntervalMinutes: number;
-  prepareAheadSeconds: number; downloadUpstream: string; upstreamMode: string;
+  prepareAheadSeconds: number; downloadSoftLimit: number; downloadGrowIntervalMS: number; downloadUpstream: string; upstreamMode: string;
   proxyBackend: string; socks5Address: string; socks5Username: string; socks5Password?: string;
   autoStartCDN: boolean; autoStartQueue: boolean; manualLogDir: boolean; logDir: string;
 }

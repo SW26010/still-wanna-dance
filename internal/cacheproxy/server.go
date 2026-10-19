@@ -188,7 +188,7 @@ func New(cfg Config) (*Server, error) {
 
 	s := &Server{cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
 		requests:     new(requestActivity),
-		rangeBuffers: make(chan []byte, videoRequestSoftLimit),
+		rangeBuffers: make(chan []byte, cfg.DownloadSoftLimit),
 		versionPins:  make(map[string]int),
 		usage:        usage,
 		flights:      make(map[string]*flight), localChecks: make(chan struct{}, cfg.MaxLocalValidations), capacityChanged: make(chan struct{}),
@@ -206,14 +206,14 @@ func New(cfg Config) (*Server, error) {
 	go s.retentionLoop()
 	s.scheduler = newDownloadScheduler(cfg)
 	cfg.Logger.Info("cache_engine_ready", "removed_partials", cleaned, "max_local_validations", cfg.MaxLocalValidations,
-		"video_request_soft_limit", videoRequestSoftLimit,
+		"video_request_soft_limit", cfg.DownloadSoftLimit, "download_grow_interval_ms", cfg.DownloadGrowInterval.Milliseconds(),
 		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "max_cache_bytes", cfg.MaxCacheBytes, "cache_unlimited", cfg.CacheUnlimited)
 	return s, nil
 }
 
 func newDownloadScheduler(cfg Config) *blocksched.Scheduler {
-	return blocksched.New(blocksched.Config{SoftLimit: videoRequestSoftLimit,
-		GrowInterval: 250 * time.Millisecond,
+	return blocksched.New(blocksched.Config{SoftLimit: cfg.DownloadSoftLimit,
+		GrowInterval: cfg.DownloadGrowInterval,
 		PrepareAhead: cfg.PrepareAhead,
 		Observe: func(e blocksched.Event) {
 			if cfg.ObserveBlockSchedule != nil {

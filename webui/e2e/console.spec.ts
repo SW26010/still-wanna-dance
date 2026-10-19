@@ -4,18 +4,30 @@ import { mockAPI } from './api';
 
 test('drafts survive polling and navigation; save preserves active config and blocks dirty restart', async ({page}) => {
   const api=await mockAPI(page); await page.goto('/#/settings');
-  const m=page.getByRole('spinbutton',{name:/提前准备时间 M/}); await m.fill('120');
+  const m=page.getByRole('spinbutton',{name:/提前准备时间 M/});
+  await expect(m).toHaveAccessibleDescription(/当前值约占 125 MB 临时缓存，按 2 Mbps 估算/);
+  await m.fill(''); await expect(m).not.toHaveAccessibleDescription(/当前值约占/);
+  await m.fill('100'); await expect(m).toHaveAccessibleDescription(/当前值约占 25 MB 临时缓存/);
   await navigate(page,'开始使用');
   await page.getByRole('button',{name:'启动播放网关',exact:true}).click();
   await expect(page.getByText('操作已完成。',{exact:true})).toBeVisible();
-  await navigate(page,'设置'); await expect(m).toHaveValue('120');
+  await navigate(page,'设置'); await expect(m).toHaveValue('100');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeEnabled();
-  expect(api.state.settings.prepareAheadSeconds).toBe(120); expect(api.state.activeSettings.prepareAheadSeconds).toBe(500);
+  expect(api.state.settings.prepareAheadSeconds).toBe(100); expect(api.state.activeSettings.prepareAheadSeconds).toBe(500);
   await m.fill('145'); await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeDisabled();
-  await page.getByRole('button',{name:'放弃更改',exact:true}).click(); await expect(m).toHaveValue('120');
-  await m.fill('-1'); await page.getByRole('button',{name:'保存设置',exact:true}).click();
-  expect(api.calls.filter(c=>c.path==='settings')).toHaveLength(1);
+  await expect(m).toHaveAccessibleDescription(/当前值约占 36\.25 MB 临时缓存/);
+  await page.getByRole('button',{name:'放弃更改',exact:true}).click(); await expect(m).toHaveValue('100');
+  await expect(m).toHaveAccessibleDescription(/当前值约占 25 MB 临时缓存/);
+  await m.fill('16000'); await page.getByRole('button',{name:'保存设置',exact:true}).click();
+  await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeEnabled();
+  expect(api.state.settings.prepareAheadSeconds).toBe(16000); expect(api.state.activeSettings.prepareAheadSeconds).toBe(500);
+  await expect(m).toHaveAccessibleDescription(/当前值约占 4000 MB 临时缓存/);
+  for (const value of ['99','16001']) {
+    await m.fill(value); await page.getByRole('button',{name:'保存设置',exact:true}).click();
+    await expect(m).not.toHaveAccessibleDescription(/当前值约占/);
+    expect(api.calls.filter(c=>c.path==='settings')).toHaveLength(2);
+  }
   expect(api.calls.every(c=>c.token==='browser-fixture-token')).toBe(true);
 });
 test('cache renders Unix millisecond request times and zero as no record', async ({page}) => {

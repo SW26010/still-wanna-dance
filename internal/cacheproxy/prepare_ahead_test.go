@@ -16,7 +16,8 @@ func TestConfiguredPrepareAheadControlsEngineWindow(t *testing.T) {
 	}{
 		{"default", DefaultConfig().PrepareAhead, false},
 		{"zero_default", 0, false},
-		{"custom_short_window", 120 * time.Second, true},
+		{"custom_short_window", 100 * time.Second, true},
+		{"maximum_window", 16000 * time.Second, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := fixtureConfig()
@@ -55,5 +56,15 @@ func TestConfiguredPrepareAheadControlsEngineWindow(t *testing.T) {
 				t.Fatal("eligible task did not start")
 			}
 		})
+	}
+}
+
+func TestPrepareAheadRejectsOutOfRange(t *testing.T) {
+	for _, lead := range []time.Duration{-time.Second, 100*time.Second - time.Nanosecond, 16000*time.Second + time.Nanosecond, 24 * time.Hour} {
+		cfg := fixtureConfig()
+		cfg.PrepareAhead = lead
+		if err := cfg.validate(); err == nil {
+			t.Errorf("accepted out-of-range lead %v", lead)
+		}
 	}
 }

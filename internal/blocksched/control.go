@@ -7,7 +7,10 @@ const DefaultPrepareAhead = 500 * time.Second
 
 // MinPrepareAhead leaves room beyond the roughly 67 s transfer baseline.
 // It is an input bound, not a guarantee that a cold download finishes in time.
-const MinPrepareAhead = 120 * time.Second
+const MinPrepareAhead = 100 * time.Second
+
+// MaxPrepareAhead is the largest supported download lead.
+const MaxPrepareAhead = 16000 * time.Second
 
 type controller struct {
 	open     int

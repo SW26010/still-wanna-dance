@@ -221,7 +221,7 @@ func TestLocalProtectionConfiguration(t *testing.T) {
 		{name: "longer", prepare: 2 * time.Minute, protect: 3 * time.Minute, want: 3 * time.Minute},
 		{name: "shorter", prepare: 3 * time.Minute, protect: 2 * time.Minute, want: 2 * time.Minute},
 		{name: "negative", protect: -time.Second},
-		{name: "upper bound", prepare: 24 * time.Hour, protect: 24 * time.Hour, want: 24 * time.Hour},
+		{name: "upper bound", prepare: 16000 * time.Second, protect: 24 * time.Hour, want: 24 * time.Hour},
 		{name: "above upper bound", protect: 24*time.Hour + time.Second},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

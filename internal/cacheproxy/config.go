@@ -100,8 +100,8 @@ func (c Config) validate() error {
 	if c.MaxCacheBytes < 0 {
 		return errors.New("cache limit cannot be negative")
 	}
-	if c.PrepareAhead != 0 && (c.PrepareAhead < blocksched.MinPrepareAhead || c.PrepareAhead > 24*time.Hour) {
-		return errors.New("download preparation lead must be between 120 and 86400 seconds")
+	if c.PrepareAhead != 0 && (c.PrepareAhead < blocksched.MinPrepareAhead || c.PrepareAhead > blocksched.MaxPrepareAhead) {
+		return errors.New("download preparation lead must be between 100 and 16000 seconds")
 	}
 	if c.StorageDir == "" || c.DownloadTimeout <= 0 || c.MaxFileBytes <= 0 || c.MaxFileBytes == int64(^uint64(0)>>1) || c.MaxLocalValidations < 1 {
 		return errors.New("storage directory is required; timeout, file limit and download limit must be positive")

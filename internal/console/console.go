@@ -256,8 +256,8 @@ func absoluteSettings(s Settings) (Settings, error) {
 	if s.PrepareAheadSeconds == 0 {
 		s.PrepareAheadSeconds = int(blocksched.DefaultPrepareAhead / time.Second)
 	}
-	if s.PrepareAheadSeconds < int(blocksched.MinPrepareAhead/time.Second) || s.PrepareAheadSeconds > 86400 {
-		return s, errors.New("提前准备时间 M 必须为 120～86400 秒")
+	if s.PrepareAheadSeconds < int(blocksched.MinPrepareAhead/time.Second) || s.PrepareAheadSeconds > int(blocksched.MaxPrepareAhead/time.Second) {
+		return s, errors.New("提前准备时间 M 必须为 100～16000 秒")
 	}
 	if s.DownloadUpstream == "" {
 		s.DownloadUpstream = "auto"

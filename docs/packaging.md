@@ -64,7 +64,7 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 2026-10-19：发布与临时目录定向回归 7/7 通过。使用缺少 EXE 的 ZIP 验证默认位置，以及临时检出配合显式证据目录两种入口：冒烟失败退出后，包装器临时目录已删除，解压材料仍可读取。日志保存在本地忽略目录 `artifacts/windows-test-temp/release-smoke-retention-final.log`；本次未执行完整正式发布构建。
 
-`-PreviousZip <前一版本ZIP>` 可在同一安装目录验证两个不同版本；两包都需匹配的 SHA256 和当前精确白名单，版本和 EXE 字节必须不同。未指定时仍为同包覆盖冒烟，不代表跨版本验收。此脚本保持条款门禁，不生成有效同意或初始化媒体库；数据库、凭据及实际缓存的跨版本语义仍需使用真实样本补验，不能用空配置哈希代替。
+`-PreviousZip <前一版本ZIP>` 可在同一安装目录验证两个不同版本；两包都需匹配的 SHA256 和当前精确白名单，版本和 EXE 字节必须不同。未指定时仍为同包覆盖冒烟，不代表跨版本验收。此脚本保持条款门禁，不生成有效同意或初始化媒体库；持久化数据另由下面的集成检查覆盖，不能用空配置哈希代替。
 
 Windows CI 在 tag 上运行正式流程，并上传 ZIP、源码、校验、发行清单及 Release notes；手动选择分支时生成明确的 ci 开发包。工作流只在手动选择 `check` → `Run workflow` 或推送 `v[0-9]*` tag 时运行，普通分支 push/PR 不自动运行。脚本和 CI 不发布 GitHub Release；首次正式发布仍须完成 #23、#24、#25、#26、#30 的适用验收，包括 LA-033、Mihomo 实际接入后的产物复验及公开下载验证。
 
@@ -80,8 +80,12 @@ Windows CI 在 tag 上运行正式流程，并上传 ZIP、源码、校验、发
 跨版本入口：
 
 ```powershell
-./scripts/test-portable.ps1 -PreviousZip artifacts/previous-portable.zip -Zip artifacts/current-portable.zip
+./scripts/test-portable-upgrade.ps1 -PreviousZip artifacts/previous-portable.zip -Zip artifacts/current-portable.zip
 ```
+
+`test-portable-upgrade.ps1` 先验证两个真实 ZIP 的门禁、精确白名单、SHA256 和覆盖启动，再在默认目录、外置媒体、自定义配置三种布局上运行两个实际 EXE。集成测试隔离生成当前格式的配置、同用户 DPAPI 测试凭据/条款回执、通道密钥、任务快照、真实 SQLite 和通过导入入口发布的合成媒体；检查两个进程读取成功、持久文件哈希保持以及日志追加。它不读取个人数据、不接入游戏或修改 hosts。合成回执仅用于集成测试，不证明用户已阅读条款，也不替代跨用户环境或真实视频播放验收。
+
+开发包与正式包均可加 `-PreviousZip` 在输出前执行此检查；正式流程在独立干净检出中执行，证据输出至原仓库的 `artifacts/portable-upgrade/`。无前一包时只完成单包验证，不能宣称连续版本已验收。首发前可使用当前布局的两个候选版本，不增加旧配置迁移。最新范围及尚未满足的正式发布门槛见 [#26 验证记录](issue-26-validation.md)。
 
 ## 2026-10-11 #23 / #27 本地验收
 

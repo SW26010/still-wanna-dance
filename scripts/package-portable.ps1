@@ -2,14 +2,17 @@ param(
     [ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9._-]*$')]
     [string]$Version = ('dev-' + (Get-Date -Format 'yyyyMMdd-HHmmss')),
     [string]$OutputDir = 'artifacts',
-    [string]$ReleaseTag
+    [string]$ReleaseTag,
+    [string]$PreviousZip
 )
 $ErrorActionPreference = 'Stop'
 Push-Location (Split-Path -Parent $PSScriptRoot)
 try {
     if ($ReleaseTag) {
         if ($PSBoundParameters.ContainsKey('Version')) { throw 'Use ReleaseTag alone for a formal package.' }
-        & "$PSScriptRoot/with-test-temp.ps1" node scripts/release.mjs create --tag $ReleaseTag --output $OutputDir
+        $releaseArgs = @('scripts/release.mjs', 'create', '--tag', $ReleaseTag, '--output', $OutputDir)
+        if ($PreviousZip) { $releaseArgs += @('--previous-portable', (Resolve-Path -LiteralPath $PreviousZip).Path) }
+        & "$PSScriptRoot/with-test-temp.ps1" node @releaseArgs
         if ($LASTEXITCODE -ne 0) { throw 'Formal release checks failed.' }
         return
     }
@@ -49,6 +52,7 @@ try {
     Compress-Archive -LiteralPath $folder -DestinationPath $zip
     $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
     "$hash  $name.zip" | Set-Content -LiteralPath "$zip.sha256" -Encoding ASCII
+    if ($PreviousZip) { & "$PSScriptRoot/test-portable-upgrade.ps1" -PreviousZip $PreviousZip -Zip $zip }
     Write-Host "Portable folder: $folder"
     Write-Host "Distribution ZIP: $zip"
     Write-Host "SHA256: $hash"

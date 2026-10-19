@@ -54,9 +54,10 @@ function compareRebuild(original, built) {
   if (moduleIdentity(original.modules) !== moduleIdentity(built.info.modules)) throw Error('Independent rebuild has different binary dependencies');
 }
 
-export function createRelease({ root, tag, outputDir }) {
+export function createRelease({ root, tag, outputDir, previousZip }) {
   if (process.platform !== 'win32') throw Error('Formal Portable packaging requires Windows');
   root = path.resolve(root); outputDir = path.resolve(outputDir);
+  if (previousZip) previousZip = path.resolve(previousZip);
   const revision = cleanRevision(root, tag), names = releaseNames(tag);
   const outputs = [names.portable, names.portable + '.sha256', names.source, names.source + '.sha256', names.notes, names.manifest];
   for (const name of outputs) if (fs.existsSync(path.join(outputDir, name))) throw Error(`Output already exists: ${name}`);
@@ -93,6 +94,7 @@ export function createRelease({ root, tag, outputDir }) {
     console.log('Checking actual Portable ZIP in an isolated consent-gated process...');
     // Retain diagnostics in the original repository, outside both temporary roots.
     run('pwsh', ['-NoProfile', '-File', path.join(checkout, 'scripts/test-portable.ps1'), '-Zip', zip, '-EvidenceDir', path.join(root, 'artifacts/portable-smoke')], checkout);
+    if (previousZip) run('pwsh', ['-NoProfile', '-File', path.join(checkout, 'scripts/test-portable-upgrade.ps1'), '-PreviousZip', previousZip, '-Zip', zip, '-EvidenceDir', path.join(root, 'artifacts/portable-upgrade')], checkout);
     const portableAsset = { kind: 'portable', name: names.portable, sha256: sha256(zip), bytes: fs.statSync(zip).size, url: assetURL(tag, names.portable) };
     fs.writeFileSync(zip + '.sha256', `${portableAsset.sha256}  ${names.portable}\n`);
     const manifest = { schemaVersion: 1, kind: 'formal', repository, tag, revision, target: source.manifest.target, toolchain: source.manifest.toolchain, executableSHA256: record.executableSHA256, modules: info.modules, acceptedRisks: [acceptedRisk], independentRebuild: { verified: true, executableSHA256: built.executableSHA256, bitReproducible: false }, assets: [portableAsset, sourceAsset] };
@@ -141,7 +143,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   try {
     const [command, ...rest] = process.argv.slice(2); const a = {};
     for (let i = 0; i < rest.length; i += 2) { if (!rest[i].startsWith('--') || !rest[i + 1]) throw Error('Expected --name value pairs'); a[rest[i].slice(2)] = rest[i + 1]; }
-    if (command === 'create') console.log(JSON.stringify(createRelease({ root: a.root ?? '.', tag: a.tag, outputDir: a.output ?? 'artifacts' })));
+    if (command === 'create') console.log(JSON.stringify(createRelease({ root: a.root ?? '.', tag: a.tag, outputDir: a.output ?? 'artifacts', previousZip: a['previous-portable'] })));
     else if (command === 'verify') console.log(JSON.stringify(verifyRelease({ manifest: readJSON(a.manifest), directory: a.directory ?? path.dirname(path.resolve(a.manifest)) })));
     else if (command === 'verify-published') await withTemp(async temp => { const manifest = readJSON(a.manifest); await downloadAssets(manifest, temp); console.log(JSON.stringify(verifyRelease({ manifest, directory: temp }))); });
     else throw Error('Use create --tag vX.Y.Z [--output artifacts], verify --manifest FILE [--directory DIR], or verify-published --manifest FILE');

@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 )
@@ -135,6 +136,9 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 			return n, err
 		}
 		if failure != nil {
+			if errors.Is(failure, ErrNotRetained) {
+				failure = fmt.Errorf("requested block %d is unavailable after download completion: %w", r.offset/rangeBlockSize, failure)
+			}
 			r.err = failure
 			return 0, failure
 		}

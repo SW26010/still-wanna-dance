@@ -48,6 +48,8 @@ type Config struct {
 	PrepareAhead time.Duration
 	// LocalProtectAhead independently controls protection of finite usage.
 	// Zero follows PrepareAhead; it does not grant untimed demands protection.
+	// Normal configurations should cover the effective PrepareAhead; this design
+	// convention is not enforced by validation.
 	LocalProtectAhead time.Duration
 	MaxFileBytes      int64
 	// CacheUnlimited disables the retained-video budget independently of its value.

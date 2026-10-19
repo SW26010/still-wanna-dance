@@ -32,9 +32,10 @@ func protectionFor(s *Server, key string, block int64) blockProtection {
 func TestLocalProtectionWindowAndFixedTail(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)
-		s.cfg.LocalProtectAhead = time.Minute
+		s.cfg.PrepareAhead = 2 * time.Minute
+		s.cfg.LocalProtectAhead = 3 * time.Minute
 		start := time.Now()
-		clock := &playbackClock{at: start.Add(2 * time.Minute), limit: w.v.size, media: mediaTiming{w.v.size, time.Minute}}
+		clock := &playbackClock{at: start.Add(4 * time.Minute), limit: w.v.size, media: mediaTiming{w.v.size, time.Minute}}
 		ctx := context.WithValue(context.Background(), playbackClockKey{}, clock)
 		ctx = context.WithValue(ctx, httpGETKey{}, true)
 		_, release := addTestDemand(t, s, ctx, w.v, true)
@@ -42,7 +43,7 @@ func TestLocalProtectionWindowAndFixedTail(t *testing.T) {
 		if p.active(start) || !p.active(start.Add(time.Minute)) {
 			t.Fatal("independent protection window", p)
 		}
-		time.Sleep(3 * time.Minute)
+		time.Sleep(5 * time.Minute)
 		if !protectionFor(s, w.v.key, 0).active(time.Now()) {
 			t.Fatal("need-by ended live protection")
 		}
@@ -201,19 +202,40 @@ func TestLocalProtectionQueueHandoffThenSixtySeconds(t *testing.T) {
 }
 
 func TestLocalProtectionConfiguration(t *testing.T) {
-	for _, lead := range []time.Duration{-time.Second, 0, time.Second, 24 * time.Hour, 24*time.Hour + time.Second} {
-		cfg := fixtureConfig()
-		cfg.LocalProtectAhead = lead
-		if err := cfg.validate(); (err == nil) != (lead >= 0 && lead <= 24*time.Hour) {
-			t.Fatal(lead, err)
-		}
+	defaults := DefaultConfig()
+	if (&Server{cfg: defaults}).protectionAhead() < defaults.PrepareAhead {
+		t.Fatal("default protection window violates the design convention")
 	}
-	s := &Server{cfg: Config{PrepareAhead: 10 * time.Minute}}
-	if s.protectionAhead() != 10*time.Minute {
-		t.Fatal("default local window did not follow download lead")
-	}
-	s.cfg.LocalProtectAhead = time.Minute
-	if s.protectionAhead() != time.Minute {
-		t.Fatal("local and download windows cannot differ")
+	// Shorter windows are accepted and used as supplied, even though normal
+	// configurations and acceptance fixtures must follow the design convention.
+	for _, tc := range []struct {
+		name             string
+		prepare, protect time.Duration
+		want             time.Duration // Zero marks an invalid configuration.
+	}{
+		{name: "follow default", want: 500 * time.Second},
+		{name: "follow explicit", prepare: 10 * time.Minute, want: 10 * time.Minute},
+		{name: "equal default", protect: 500 * time.Second, want: 500 * time.Second},
+		{name: "below default", protect: 499 * time.Second, want: 499 * time.Second},
+		{name: "equal explicit", prepare: 2 * time.Minute, protect: 2 * time.Minute, want: 2 * time.Minute},
+		{name: "longer", prepare: 2 * time.Minute, protect: 3 * time.Minute, want: 3 * time.Minute},
+		{name: "shorter", prepare: 3 * time.Minute, protect: 2 * time.Minute, want: 2 * time.Minute},
+		{name: "negative", protect: -time.Second},
+		{name: "upper bound", prepare: 24 * time.Hour, protect: 24 * time.Hour, want: 24 * time.Hour},
+		{name: "above upper bound", protect: 24*time.Hour + time.Second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := fixtureConfig()
+			cfg.PrepareAhead, cfg.LocalProtectAhead = tc.prepare, tc.protect
+			if err := cfg.validate(); (err == nil) != (tc.want != 0) {
+				t.Fatal("unexpected configuration result", err)
+			}
+			if tc.want != 0 {
+				s := &Server{cfg: cfg}
+				if got := s.protectionAhead(); got != tc.want {
+					t.Fatalf("protection lead = %v, want %v", got, tc.want)
+				}
+			}
+		})
 	}
 }

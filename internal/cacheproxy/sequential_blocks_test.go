@@ -3,12 +3,86 @@ package cacheproxy
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
+
+func TestSequentialResponseZeroBudgetProtectionBoundary(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		protect time.Duration
+		missing bool
+	}{
+		{name: "outside window reclaimed", protect: 2 * time.Minute, missing: true},
+		{name: "all blocks protected", protect: 4 * time.Minute},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := bytes.Repeat([]byte("x"), int(4*rangeBlockSize))
+			var calls atomic.Int32
+			cfg := fixtureConfig()
+			cfg.StorageDir = t.TempDir()
+			cfg.CacheUnlimited = false
+			cfg.PrepareAhead, cfg.LocalProtectAhead = 2*time.Minute, tc.protect
+			cfg.ResourceTransports = func(string) []http.RoundTripper {
+				return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+					calls.Add(1)
+					return &http.Response{StatusCode: http.StatusOK, Request: r,
+						ContentLength: int64(len(body)), Header: make(http.Header),
+						Body: io.NopCloser(bytes.NewReader(body))}, nil
+				})}
+			}
+			s, err := New(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() {
+				if err := s.Close(); err != nil {
+					t.Error(err)
+				}
+			})
+			r, _ := http.NewRequest(http.MethodGet, videoURL(string(body)), nil)
+			v, err := s.parseResolved(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			ctx = context.WithValue(ctx, httpGETKey{}, true)
+			ctx = context.WithValue(ctx, playbackClockKey{}, &playbackClock{
+				at: time.Now(), limit: v.size, media: mediaTiming{v.size, 4 * time.Minute},
+			})
+			f, reader, err := s.obtain(ctx, v)
+			if err != nil || reader == nil {
+				t.Fatalf("obtain: reader=%v err=%v", reader != nil, err)
+			}
+			defer reader.Close()
+			receiveDemandEvent(t, f.done)
+			// Let the sequential body run ahead of the consumer. Zero-budget
+			// reclamation must keep its normal window even for an active GET.
+			s.reclaimLocalBlocks()
+			got, err := io.ReadAll(reader)
+			if tc.missing {
+				if !errors.Is(err, ErrNotRetained) || !strings.Contains(err.Error(), "requested block 3 is unavailable") {
+					t.Fatal("missing block did not fail explicitly", err)
+				}
+				if !bytes.Equal(got, body[:3*rangeBlockSize]) {
+					t.Fatal("unexpected readable prefix", len(got))
+				}
+			} else if err != nil || !bytes.Equal(got, body) {
+				t.Fatal("protected sequential response failed", len(got), err)
+			}
+			if calls.Load() != 1 {
+				t.Fatal("unexpected automatic whole-body retry", calls.Load())
+			}
+		})
+	}
+}
 
 func TestStoppedSequentialResponseReusesBlocksWithFreshExecution(t *testing.T) {
 	for _, ranged := range []bool{false, true} {

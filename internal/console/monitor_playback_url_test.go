@@ -63,13 +63,16 @@ func TestMonitorPlaybackURLPersistsMetadataWithoutDownload(t *testing.T) {
 	if err := db.QueryRow("SELECT byte_size,source_path FROM media WHERE md5='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'").Scan(&size, &path); err != nil || !size.Valid || size.Int64 != 5678 || path != "/files/1/42-new.mp4" {
 		t.Fatalf("URL metadata not saved: %+v, %s, %v", size, path, err)
 	}
+	if err := db.QueryRow("SELECT md5 FROM song_media WHERE song_id=2").Scan(&mapped); err != nil || mapped != "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" {
+		t.Fatalf("URL did not fill the missing mapping: %s, %v", mapped, err)
+	}
 	for _, id := range []int64{1, 2} {
 		urls, err := c.service.SongURLs(ctx, id, "cf")
 		if err != nil || len(urls) != 1 || urls[0].URL != newer.URL || !urls[0].QueryStartedAt.Equal(newer.QueryStartedAt) || !urls[0].ObservedAt.Equal(newer.ObservedAt) {
 			t.Fatalf("wrong persisted observation for %d: %+v, %v", id, urls, err)
 		}
 	}
-	for table, want := range map[string]int{"songs": 1, "song_media": 1, "song_urls": 2, "media": 2, "song_usage": 0, "request_events": 0} {
+	for table, want := range map[string]int{"songs": 2, "song_media": 2, "song_urls": 2, "media": 2, "song_usage": 0, "request_events": 0} {
 		var count int
 		if err := db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != want {
 			t.Fatalf("%s count=%d, want %d: %v", table, count, want, err)

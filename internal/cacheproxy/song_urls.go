@@ -18,8 +18,8 @@ type SongURL struct {
 	QueryStartedAt, ObservedAt time.Time
 }
 
-// ObserveSongURL atomically records the complete URL and its resource metadata
-// without downloading media or changing catalog mappings.
+// ObserveSongURL atomically records the URL, resource metadata and a missing
+// song mapping, without downloading media or overwriting existing mappings.
 // Each API/node has one latest observation, so signed URL churn is bounded.
 func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error) {
 	if !s.beginRequest() {
@@ -42,6 +42,8 @@ func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error
 	}
 	// Roll back/release the database transaction before retaining a storage fault.
 	defer func() { resultErr = s.songURLStorageError(ctx, resultErr) }()
+	s.mappingMu.Lock()
+	defer s.mappingMu.Unlock()
 	tx, err := s.usage.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -62,9 +64,15 @@ func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error
 		return err
 	}
 	if accepted == 0 {
-		return nil // A stale/tied observation must not update resource metadata either.
+		return nil // A stale/tied observation must not update metadata or mappings either.
 	}
 	if _, err := tx.ExecContext(ctx, upsertMediaSQL, v.key, v.size, v.path); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, "INSERT INTO songs(song_id) VALUES (?) ON CONFLICT DO NOTHING", o.SongID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, "INSERT INTO song_media(song_id,md5) VALUES (?,?) ON CONFLICT(song_id) DO NOTHING", o.SongID, v.key); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {

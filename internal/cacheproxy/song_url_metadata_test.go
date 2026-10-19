@@ -35,7 +35,7 @@ func TestResolvePlaybackRecordsSharedMediaWithoutDownload(t *testing.T) {
 		return transport.RoundTrip(r)
 	})
 	ctx := context.Background()
-	if err := s.SyncCatalog(ctx, testCandidate("20261015000000", CatalogSong{ID: 42, MD5: key}, CatalogSong{ID: 43, MD5: key})); err != nil {
+	if err := s.SyncCatalog(ctx, testCandidate("20261015000000", CatalogSong{ID: 42, MD5: key})); err != nil {
 		t.Fatal(err)
 	}
 	var size sql.NullInt64
@@ -78,9 +78,10 @@ func TestResolvePlaybackRecordsSharedMediaWithoutDownload(t *testing.T) {
 	if err := reopened.usage.db.QueryRow("SELECT byte_size,source_path FROM media WHERE md5=?", key).Scan(&size, &path); err != nil || !size.Valid || size.Int64 != 1234 || path != "/files/1/42-video.mp4" {
 		t.Fatalf("metadata did not survive restart: %+v %q %v", size, path, err)
 	}
+	assertSongResource(t, reopened, "43", key)
 }
 
-func TestSongURLMetadataIgnoresOlderAndTiedObservations(t *testing.T) {
+func TestSongURLMetadataPreservesOrderingAndMapping(t *testing.T) {
 	s, _ := setup(t, nil)
 	ctx := context.Background()
 	at := time.Now().Add(-time.Minute)
@@ -109,7 +110,8 @@ func TestSongURLMetadataIgnoresOlderAndTiedObservations(t *testing.T) {
 	if err := s.usage.db.QueryRow("SELECT byte_size,source_path FROM media WHERE md5=?", key).Scan(&size, &path); err != nil || size != 24 || path != "/files/1/42-new.mp4" {
 		t.Fatal(size, path, err)
 	}
-	for table, want := range map[string]int{"media": 1, "song_urls": 1, "songs": 0, "song_media": 0} {
+	assertSongResource(t, s, "42", key)
+	for table, want := range map[string]int{"media": 1, "song_urls": 1, "songs": 1, "song_media": 1, "song_usage": 0} {
 		var count int
 		if err := s.usage.db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != want {
 			t.Fatal(table, count, err)
@@ -119,10 +121,21 @@ func TestSongURLMetadataIgnoresOlderAndTiedObservations(t *testing.T) {
 	if err != nil || len(got) != 1 || got[0].URL != o.URL {
 		t.Fatal(got, err)
 	}
+	// A newer observation may replace the URL, but not the first mapping.
+	newer := tied
+	newer.QueryStartedAt = at.Add(time.Nanosecond)
+	if err := s.ObserveSongURL(ctx, newer); err != nil {
+		t.Fatal(err)
+	}
+	assertSongResource(t, s, "42", key)
+	got, err = s.SongURLs(ctx, 42, "cf")
+	if err != nil || len(got) != 1 || got[0].URL != newer.URL {
+		t.Fatal(got, err)
+	}
 }
 
 func TestSongURLMetadataAndObservationRollbackTogether(t *testing.T) {
-	for _, table := range []string{"media", "song_urls"} {
+	for _, table := range []string{"media", "song_urls", "songs", "song_media"} {
 		for _, existing := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/existing=%v", table, existing), func(t *testing.T) {
 				s, _ := setup(t, nil)
@@ -156,8 +169,9 @@ func TestSongURLMetadataAndObservationRollbackTogether(t *testing.T) {
 					if err != nil || len(got) != 1 || got[0].URL != o.URL || !got[0].QueryStartedAt.Equal(o.QueryStartedAt) {
 						t.Fatal(got, err)
 					}
+					assertSongResource(t, s, "42", key)
 				} else {
-					for _, name := range []string{"media", "song_urls"} {
+					for _, name := range []string{"media", "song_urls", "songs", "song_media"} {
 						var count int
 						if err := s.usage.db.QueryRow("SELECT COUNT(*) FROM " + name).Scan(&count); err != nil || count != 0 {
 							t.Fatal(name, count, err)
@@ -179,7 +193,7 @@ func TestSongURLInvalidMetadataDoesNotWrite(t *testing.T) {
 			if err == nil || s.StorageError() != nil {
 				t.Fatal("invalid URL must fail validation without a storage fault", err, s.StorageError())
 			}
-			for _, table := range []string{"media", "song_urls"} {
+			for _, table := range []string{"media", "song_urls", "songs", "song_media"} {
 				var count int
 				if err := s.usage.db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != 0 {
 					t.Fatal(table, count, err)

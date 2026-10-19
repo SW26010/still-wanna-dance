@@ -19,7 +19,14 @@ func TestPublicationAdmissionRanksFullCacheBeforeMerge(t *testing.T) {
 			f, v := completedRangeFlight(t, s, payload)
 			oldKey := videoKey(strings.Repeat("o", len(payload)))
 			seedPrioritySong(t, s, "9000001", oldKey)
-			seedPrioritySong(t, s, "9000002", v.key)
+			// API observation must make this song's priority available before
+			// publication, even when no catalog mapping existed for it.
+			now := time.Now()
+			if err := s.ObserveSongURL(context.Background(), SongURL{SongID: 9000002,
+				API: "https://api.udon.dance/Api/Songs/play", Node: "cf", URL: videoURL(payload),
+				QueryStartedAt: now, ObservedAt: now}); err != nil {
+				t.Fatal(err)
+			}
 			hot := "9000002"
 			if mode == "lower" {
 				hot = "9000001"

@@ -26,12 +26,12 @@ export function Home() {
     </Panel></div></>;
 }
 export function Library() {
-  const app = useApp(), s = app.status.data!, q = s.queue, b = s.batch, saved = s.lastBatch, count = s.activeSettings.queuePrefetchCount || 3;
+  const app = useApp(), s = app.status.data!, q = s.queue, b = s.batch, saved = s.lastBatch;
   const zeroBudget = !s.activeSettings.cacheUnlimited && s.activeSettings.maxCacheBytes === 0;
   const queuePhase = q.running ? q.current ? `正在准备歌曲 ${(q.active || [q.current]).join('、')}` : q.songs?.length ? '等待队列变化或重试' : '等待新的队列同步' : !q.desired ? '已关闭' : b.running && !b.scanOnly ? '下载补齐期间暂停，结束后自动恢复' : '预缓存未就绪，请检查日志目录';
-  return <><Panel id="queue" title="房间队列预缓存"><p>准备队列前 {count} 个位置中的有效曲目</p><p>日常跳舞建议开启：根据游戏日志，提前下载即将播放的视频。开启后等待房间同步新队列，不会回放旧队列。</p><Link href="#queuePrefetchCount">调整队列数量</Link><Details title="暂停与停止说明"><p>下载补齐期间暂停，结束后恢复原先开启的队列预缓存。关闭后已开始的共享下载可能继续完成。</p></Details>
+  return <><Panel id="queue" title="房间队列预缓存"><p>按预计播放时间提前准备队列中的有效曲目。</p><p>日常跳舞建议开启：根据游戏日志，提前下载即将播放的视频。开启后等待房间同步新队列，不会回放旧队列。</p><Link href="#prepareAheadSeconds">调整提前准备时间</Link><Details title="暂停与停止说明"><p>下载补齐期间暂停，结束后恢复原先开启的队列预缓存。关闭后已开始的共享下载可能继续完成。</p></Details>
     <div className="actions"><Button disabled={app.unavailable || q.running || (q.desired && b.running && !b.scanOnly)} onClick={() => void app.action('queue/start')}>开启队列预缓存</Button><Button disabled={app.unavailable || (!q.desired && !q.running)} onClick={() => void app.action('queue/stop')}>关闭队列预缓存</Button></div>
-    <p role="status">{queuePhase}</p><ol>{q.songs?.slice(0,count).map((song,i) => <li key={`${song.songId}:${i}`}>{q.titles?.[song.songId] || song.songId}</li>)}</ol>
+    <p role="status">{queuePhase}</p><ol>{q.songs?.map((song,i) => <li key={`${song.songId}:${i}`}>{q.titles?.[song.songId] || song.songId}</li>)}</ol>
     <Details title="日志与累计记录"><p>{q.file || '尚未发现日志'} · 本次开启后累计准备成功 {q.completed || 0} 次</p></Details>
     <Feedback error>{q.logError || q.error || s.actionErrors?.queue}</Feedback></Panel>
     <Panel id="batch" title="全曲库补齐"><p>适合想提前准备整个曲库时使用。补齐可能下载大量视频、占用较多流量和磁盘空间，建议先<Link href="#maxCacheGiB">设置缓存上限</Link>。</p>

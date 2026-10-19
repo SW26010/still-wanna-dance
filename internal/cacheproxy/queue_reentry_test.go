@@ -92,7 +92,7 @@ func waitQueueRefetch(t *testing.T, s *Server, v video, calls *atomic.Int32, wan
 
 func moveCompletedQueueOut(t *testing.T, s *Server, v video) {
 	t.Helper()
-	// The same member stays in the first three positions, but the ordinary
+	// The same member stays in the queue, but the ordinary
 	// predecessor's 210-second duration moves its need outside both windows.
 	if err := s.UpdatePrefetchQueue([]int64{1, 42}, false); err != nil {
 		t.Fatal(err)

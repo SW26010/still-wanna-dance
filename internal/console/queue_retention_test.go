@@ -74,7 +74,7 @@ func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) 
 	return c, engine, body, calls
 }
 
-func TestQueueMoveOutsidePrefetchWindowKeepsTemporaryBlocks(t *testing.T) {
+func TestQueueReorderKeepsInFlightPreparation(t *testing.T) {
 	started, finish := make(chan struct{}), make(chan struct{})
 	var downloads atomic.Int32
 	c, engine, body, _ := queueRetentionFixture(t, 0, func() {
@@ -109,11 +109,18 @@ func TestQueueMoveOutsidePrefetchWindowKeepsTemporaryBlocks(t *testing.T) {
 	c.setQueueSongsLocked([]vrclog.Song{{ID: -1}, {ID: -1}, {ID: -1}, {ID: 1}}, false)
 	c.mu.Unlock()
 	wake <- struct{}{}
-	wait(func() bool {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		return len(c.queue.waiters) == 0
-	})
+	c.mu.Lock()
+	waiter := c.queue.waiters[1]
+	c.mu.Unlock()
+	if waiter == nil || waiter.ctx.Err() != nil {
+		t.Fatal("reordering within the queue canceled preparation")
+	}
+	// Restore its time window before completing the body. A far-future queue
+	// position alone does not protect bytes under a zero retention budget.
+	c.mu.Lock()
+	c.setQueueSongsLocked([]vrclog.Song{{ID: 1}}, false)
+	c.mu.Unlock()
+	wake <- struct{}{}
 	release.Do(func() { close(finish) })
 	var path string
 	wait(func() bool {
@@ -132,17 +139,13 @@ func TestQueueMoveOutsidePrefetchWindowKeepsTemporaryBlocks(t *testing.T) {
 	if _, err := os.Stat(path); err != nil {
 		t.Fatal("queued download was evicted", err)
 	}
-	c.mu.Lock()
-	c.setQueueSongsLocked([]vrclog.Song{{ID: 1}}, false)
-	c.mu.Unlock()
-	wake <- struct{}{}
 	wait(func() bool {
 		c.mu.Lock()
 		defer c.mu.Unlock()
 		return c.queue.Completed == 1
 	})
 	if downloads.Load() != 1 {
-		t.Fatal("reentry redownloaded queued cache")
+		t.Fatal("reordering redownloaded queued cache")
 	}
 	c.mu.Lock()
 	c.setQueueSongsLocked(nil, true)
@@ -252,7 +255,7 @@ func TestQueueDepartureKeepsTemporaryBytesAvailable(t *testing.T) {
 		t.Fatal("unchanged queue redownloaded video", calls.Load())
 	}
 	c.mu.Lock()
-	c.setQueueSongsLocked([]vrclog.Song{{ID: -1}, {ID: -1}, {ID: -1}, {ID: 1}}, false)
+	c.setQueueSongsLocked(nil, false)
 	c.mu.Unlock()
 	wake <- struct{}{}
 	files, err := filepath.Glob(filepath.Join(c.settings.StorageDir, "tmp", "download-block-*.part"))
@@ -265,7 +268,7 @@ func TestQueueDepartureKeepsTemporaryBytesAvailable(t *testing.T) {
 	}
 	time.Sleep(100 * time.Millisecond)
 	if _, err := os.Stat(path); err != nil {
-		t.Fatal("queued cache outside prefetch window was evicted", err)
+		t.Fatal("departed queue head lost handoff protection", err)
 	}
 	c.mu.Lock()
 	c.setQueueSongsLocked(nil, false)
@@ -285,8 +288,12 @@ func TestQueueDepartureKeepsTemporaryBytesAvailable(t *testing.T) {
 func TestQueueCoalescedDepartureInvalidatesPreparedSong(t *testing.T) {
 	q := QueueStatus{Songs: []vrclog.Song{{ID: 1}}, prepared: map[int64]bool{1: true}}
 	q.setSongs([]vrclog.Song{{ID: 2}, {ID: 3}, {ID: 4}, {ID: 1}}, false)
+	if !q.prepared[1] {
+		t.Fatal("reordering a queued song discarded preparation")
+	}
+	q.setSongs([]vrclog.Song{{ID: 2}, {ID: 3}, {ID: 4}}, false)
 	q.setSongs([]vrclog.Song{{ID: 1}}, false)
 	if q.prepared[1] {
-		t.Fatal("song moved outside first three then returned before worker wake")
+		t.Fatal("song left the queue then returned before worker wake")
 	}
 }

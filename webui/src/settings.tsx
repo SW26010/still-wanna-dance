@@ -7,14 +7,14 @@ import { Details, Feedback, Panel, Progress } from './ui';
 import { type Settings, type Status } from './types';
 import { CacheCapacityFields } from './cache-capacity';
 
-const numeric = ['requestRetentionDays','throughputIntervalMinutes','queuePrefetchCount','prepareAheadSeconds'] as const;
+const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds'] as const;
 type NumberField = typeof numeric[number];
 export interface ProxyReport { id?: string; accepted: number; skipped: number; failed: number; items: {index: number; protocol?: string; status: string; reason?: string}[] }
 export type Draft = Omit<Settings, NumberField | 'maxCacheBytes'> & Record<NumberField, string> & { maxCacheGiB: string; proxyImportID: string; proxyImportText: string; proxyReport?: ProxyReport };
 export function draftFrom(s: Settings): Draft {
   return { ...s, socks5Password: '', upstreamMode: s.upstreamMode === 'socks5' ? 'proxy' : s.upstreamMode || 'direct', proxyBackend: s.proxyBackend || 'external-socks5',
     requestRetentionDays: String(s.requestRetentionDays ?? 30), throughputIntervalMinutes: String(s.throughputIntervalMinutes ?? 20),
-    queuePrefetchCount: String(s.queuePrefetchCount || 3), prepareAheadSeconds: String(s.prepareAheadSeconds ?? 500),
+    prepareAheadSeconds: String(s.prepareAheadSeconds ?? 500),
     maxCacheGiB: String((s.maxCacheBytes || 0) / 1073741824), proxyImportID: '', proxyImportText: '' };
 }
 export function settingsPayload(d: Draft) {
@@ -109,7 +109,6 @@ export function SettingsPage() {
       <Field label="播放地址接口选择" hint="默认自动选择。固定线路只使用指定播放地址接口，视频来源由接口决定。"><Select disabled={disabled} value={d.downloadUpstream} onChange={(_, v) => update({downloadUpstream:v.value})}><option value="auto">自动（推荐）</option><option value="cf">node=cf（播放地址接口）</option><option value="hkg">node=nya（播放地址接口）</option></Select></Field>
       {numberField('throughputIntervalMinutes','自动测速间隔（分钟）',1,1440,'默认 20 分钟，按上次测速时间安排下一次检测。')}</fieldset>
       <fieldset disabled={disabled}><legend>房间队列与游戏日志</legend><Caption1 as="p" className="hint">下载补齐期间，房间队列预缓存会临时暂停。</Caption1>
-      {numberField('queuePrefetchCount','队列预缓存数量',1,100,'默认 3，范围 1～100。准备队列前 N 个位置中的有效曲目。')}
       {numberField('prepareAheadSeconds','提前准备时间 M（秒）',120,86400,'默认 500 秒，范围 120～86400。数值越大，越早下载预计播放的内容，也会更早占用带宽和缓存空间。保存并重启应用后生效。')}
       <Checkbox label="手动指定 VRChat 日志目录" checked={d.manualLogDir} onChange={(_, v) => update({manualLogDir:!!v.checked})} />
       <Field label="VRChat 日志目录" hint="默认自动识别。仅在无法找到游戏日志时手动指定，取消勾选可恢复自动。"><Input required={d.manualLogDir} disabled={!d.manualLogDir || disabled} value={d.manualLogDir ? d.logDir : s.defaultLogDir} onChange={(_, v) => update({logDir:v.value})} /></Field></fieldset>

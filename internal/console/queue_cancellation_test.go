@@ -18,7 +18,7 @@ import (
 )
 
 func TestQueueInvalidationReplacesSourcesDuringHandoff(t *testing.T) {
-	for _, change := range []string{"remove", "room", "outside top three", "reorder"} {
+	for _, change := range []string{"remove", "room", "reorder"} {
 		t.Run(change, func(t *testing.T) {
 			c := testConsole(t)
 			body := "queue cancellation video"
@@ -118,9 +118,6 @@ func TestQueueInvalidationReplacesSourcesDuringHandoff(t *testing.T) {
 			c.mu.Lock()
 			old := c.queue.waiters[3]
 			songs := []vrclog.Song{{ID: 4}}
-			if change == "outside top three" {
-				songs = []vrclog.Song{{ID: 4}, {ID: -1}, {ID: -1}, {ID: 3}}
-			}
 			c.setQueueSongsLocked(songs, change == "room")
 			c.mu.Unlock()
 			if old == nil || old.ctx.Err() != context.Canceled {

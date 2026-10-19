@@ -75,7 +75,7 @@ func TestSettingsSaveFailureAndRevert(t *testing.T) {
 	c := testConsole(t)
 	active := c.settings
 	next := active
-	next.QueuePrefetchCount++
+	next.PrepareAheadSeconds++
 	if err := c.save(next); err != nil {
 		t.Fatal(err)
 	}

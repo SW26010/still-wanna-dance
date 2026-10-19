@@ -6,19 +6,19 @@ test('saved settings stay locked until a fresh status arrives, including failed 
   const waiting=new Promise<void>(resolve=>{release=resolve;});
   await page.route('**/api/status',async r=>{if(hold)await waiting;if(fail)return r.fulfill({status:503,json:{error:'temporarily offline'}});await r.fulfill({json:api.state});});
   await page.clock.install();await page.goto('/#/settings');
-  const ahead=page.getByRole('spinbutton',{name:/提前准备时间 M/}),queue=page.getByRole('spinbutton',{name:/队列预缓存数量/});
+  const ahead=page.getByRole('spinbutton',{name:/提前准备时间 M/}),retention=page.getByRole('spinbutton',{name:/请求明细保留天数/});
   await ahead.fill('120');hold=true;
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(page.getByText('正在核对已保存的设置…',{exact:true})).toBeVisible();
-  await expect(ahead).toHaveValue('120');await expect(queue).toBeDisabled();
+  await expect(ahead).toHaveValue('120');await expect(retention).toBeDisabled();
   await expect(page.getByRole('combobox',{name:'上游连接',exact:true})).toBeDisabled();
   fail=true;release();await expect(page.getByText('无法连接控制台，请检查程序是否仍在运行。')).toBeVisible();
-  await expect(queue).toBeDisabled();await expect(ahead).toHaveValue('120');
-  fail=false;await page.clock.fastForward(5100);await expect(queue).toBeEnabled();
-  await expect(ahead).toHaveValue('120');await queue.fill('4');
+  await expect(retention).toBeDisabled();await expect(ahead).toHaveValue('120');
+  fail=false;await page.clock.fastForward(5100);await expect(retention).toBeEnabled();
+  await expect(ahead).toHaveValue('120');await retention.fill('4');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect.poll(()=>api.calls.filter(c=>c.path==='settings').length).toBe(2);
-  expect(api.calls.filter(c=>c.path==='settings').at(-1)?.body).toMatchObject({prepareAheadSeconds:120,queuePrefetchCount:4});
+  expect(api.calls.filter(c=>c.path==='settings').at(-1)?.body).toMatchObject({prepareAheadSeconds:120,requestRetentionDays:4});
 });
 
 test('terms hosts recovery waits for UAC and reports a timed out result as unconfirmed',async({page})=>{

@@ -60,7 +60,7 @@ func TestProtectedProxySecretMoveTamperAndRecovery(t *testing.T) {
 		t.Fatal("invalid credential dialed")
 	}
 	next := broken.savedSettings
-	next.QueuePrefetchCount++
+	next.PrepareAheadSeconds++
 	if err := broken.saveSettings(next, true); err != nil {
 		t.Fatal(err)
 	}

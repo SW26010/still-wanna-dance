@@ -45,7 +45,6 @@ type Settings struct {
 	AutoStartQueue            bool   `json:"autoStartQueue"`
 	RequestRetentionDays      int    `json:"requestRetentionDays"`
 	AutoStartCDN              bool   `json:"autoStartCDN"`
-	QueuePrefetchCount        int    `json:"queuePrefetchCount"`
 	PrepareAheadSeconds       int    `json:"prepareAheadSeconds"`
 	DownloadUpstream          string `json:"downloadUpstream"`
 	UpstreamMode              string `json:"upstreamMode"`
@@ -253,12 +252,6 @@ func absoluteSettings(s Settings) (Settings, error) {
 		if err := validateSOCKS5Credentials(s.SOCKS5Username, s.SOCKS5Password); err != nil && s.proxySecretError == "" {
 			return s, err
 		}
-	}
-	if s.QueuePrefetchCount == 0 {
-		s.QueuePrefetchCount = 3
-	}
-	if s.QueuePrefetchCount < 1 || s.QueuePrefetchCount > 100 {
-		return s, errors.New("队列预缓存数量必须为 1～100")
 	}
 	if s.PrepareAheadSeconds == 0 {
 		s.PrepareAheadSeconds = int(blocksched.DefaultPrepareAhead / time.Second)

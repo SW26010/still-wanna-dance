@@ -18,30 +18,22 @@ import (
 )
 
 type QueueStatus struct {
-	Desired       bool              `json:"desired"` // populated from Console user intent in status responses
-	Running       bool              `json:"running"`
-	File          string            `json:"file"`
-	Songs         []vrclog.Song     `json:"songs"`
-	Titles        map[string]string `json:"titles,omitempty"` // local catalog, filled for the status response
-	Current       int64             `json:"current"`
-	Active        []int64           `json:"active"`
-	Completed     int               `json:"completed"`
-	Error         string            `json:"error"`
-	Failures      []Failure         `json:"failures"`
-	LogError      string            `json:"logError"`
-	Updated       time.Time         `json:"updated"`
-	Generation    uint64            `json:"-"`
-	waiters       map[int64]*queueWaiter
-	prepared      map[int64]bool
-	protect       func([]int64, bool)
-	prefetchCount int
-}
-
-func (q *QueueStatus) windowSize() int {
-	if q.prefetchCount == 0 {
-		return 3
-	}
-	return q.prefetchCount
+	Desired    bool              `json:"desired"` // populated from Console user intent in status responses
+	Running    bool              `json:"running"`
+	File       string            `json:"file"`
+	Songs      []vrclog.Song     `json:"songs"`
+	Titles     map[string]string `json:"titles,omitempty"` // local catalog, filled for the status response
+	Current    int64             `json:"current"`
+	Active     []int64           `json:"active"`
+	Completed  int               `json:"completed"`
+	Error      string            `json:"error"`
+	Failures   []Failure         `json:"failures"`
+	LogError   string            `json:"logError"`
+	Updated    time.Time         `json:"updated"`
+	Generation uint64            `json:"-"`
+	waiters    map[int64]*queueWaiter
+	prepared   map[int64]bool
+	protect    func([]int64, bool)
 }
 
 type queueWaiter struct {
@@ -54,10 +46,7 @@ func (q *QueueStatus) wants(id int64, generation uint64) bool {
 	if generation != q.Generation {
 		return false
 	}
-	for i, song := range q.Songs {
-		if i >= q.windowSize() {
-			break
-		}
+	for _, song := range q.Songs {
 		if song.ID == id {
 			return true
 		}
@@ -73,7 +62,7 @@ func (q *QueueStatus) setSongs(songs []vrclog.Song, reset bool) {
 		q.Failures = nil
 		q.prepared = nil
 	}
-	// Remember success only while a song stays in the prefetch window. Do
+	// Remember success only while a song stays in the queue. Do
 	// this on every snapshot, including snapshots coalesced before a wake.
 	// Reentry checks the current version again; the engine manages protection
 	// from registered usage and its local protection window.
@@ -329,16 +318,14 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wake <-chan struct{}) {
 	c.queueUpdateMu.Lock()
 	c.mu.Lock()
-	c.queue.prefetchCount = c.settings.QueuePrefetchCount
-	window := c.queue.windowSize()
 	c.queue.protect = func(ids []int64, reset bool) {
-		if err := engine.UpdatePrefetchQueue(ids[:min(len(ids), window)], reset); err != nil {
+		if err := engine.UpdatePrefetchQueue(ids, reset); err != nil {
 			slog.Warn("queue_timing_failed", "error", err)
 		}
 	}
 	ids := queueSongIDs(c.queue.Songs)
 	c.mu.Unlock()
-	if err := engine.UpdatePrefetchQueue(ids[:min(len(ids), window)], false); err != nil {
+	if err := engine.UpdatePrefetchQueue(ids, false); err != nil {
 		slog.Warn("queue_timing_failed", "error", err)
 	}
 	c.queueUpdateMu.Unlock()
@@ -402,8 +389,8 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 				default:
 					// An earlier newly inserted source takes the pending place;
 					// already admitted sources need no caller replacement.
-					for i, song := range c.queue.Songs {
-						if i >= c.queue.windowSize() || song.ID == admitting {
+					for _, song := range c.queue.Songs {
+						if song.ID == admitting {
 							break
 						}
 						if song.ID > 0 && !active[song.ID] && !c.queue.prepared[song.ID] && !time.Now().Before(retry[song.ID]) {
@@ -415,8 +402,8 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 				}
 			}
 		}
-		for i, song := range c.queue.Songs {
-			if i >= c.queue.windowSize() || admission != nil {
+		for _, song := range c.queue.Songs {
+			if admission != nil {
 				break
 			}
 			id := song.ID

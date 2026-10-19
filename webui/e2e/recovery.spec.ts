@@ -2,20 +2,27 @@ import {navigate,navigateStep} from './navigation';
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 
-test('legacy anchors focus after initial reads and within the same page',async({page})=>{
-  await mockAPI(page);await page.goto('/#queuePrefetchCount');
-  await expect(page.getByRole('spinbutton',{name:/队列预缓存数量/})).toBeFocused();
+test('settings anchors focus after initial reads and within the same page',async({page})=>{
+  await mockAPI(page);await page.goto('/#prepareAheadSeconds');
+  await expect(page.getByRole('spinbutton',{name:/提前准备时间 M/})).toBeFocused();
   await page.evaluate(()=>{location.hash='maxCacheGiB';});
   await expect(page.locator('#maxCacheGiB')).toBeFocused();
   await page.evaluate(()=>{location.hash='recent';});await expect(page.locator('#recent')).toBeFocused();
 });
 
 test('gateway and queue actions remain independent; hosts errors are visible',async({page})=>{
-  const api=await mockAPI(page);await page.goto('/#/home');
+  const api=await mockAPI(page);
+  api.state.queue.songs=[{songId:-1},{songId:1},{songId:-1},{songId:2},{songId:3},{songId:4}];
+  await page.goto('/#/home');
   await page.getByRole('button',{name:'启动播放网关',exact:true}).click();
   await expect(page.getByRole('button',{name:'停止播放网关',exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'停止播放网关',exact:true}).click();
   await expect(page.getByRole('button',{name:'启动播放网关',exact:true})).toBeEnabled();
+  await navigate(page,'准备歌曲');
+  await expect(page.locator('#queue ol li')).toHaveCount(6);
+  await expect(page.locator('#queue ol li').last()).toHaveText('4');
+  await page.getByRole('link',{name:'调整提前准备时间',exact:true}).click();
+  await expect(page.getByRole('spinbutton',{name:/提前准备时间 M/})).toBeFocused();
   await navigate(page,'准备歌曲');
   await page.getByRole('button',{name:'开启队列预缓存'}).click();
   await expect(page.getByText('操作已完成。',{exact:true})).toBeVisible();

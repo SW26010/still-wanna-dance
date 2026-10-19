@@ -78,7 +78,7 @@ func TestSetupApplyRestartsBeforeImportAndResumesOnce(t *testing.T) {
 	if err != nil || a.Phase != "restart" || !a.ConfigSaved || c.settings != old || c.service != nil {
 		t.Fatalf("apply: %+v %v", a, err)
 	}
-	if c.savedSettings.StorageDir != p.StorageDir || c.savedSettings.QueuePrefetchCount != old.QueuePrefetchCount {
+	if c.savedSettings.StorageDir != p.StorageDir || c.savedSettings.PrepareAheadSeconds != old.PrepareAheadSeconds {
 		t.Fatal("incorrect core/advanced settings")
 	}
 	// Repeating the same approval, even with its stale base, returns its receipt.

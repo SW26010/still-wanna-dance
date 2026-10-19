@@ -58,6 +58,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	c.apiBase = api.URL
 	c.client.Transport = http.DefaultTransport
 	cfg := fixtureCacheConfig()
+	cfg.PrepareAhead = 120 * time.Second
 	cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
 		return c.resolvePlayback(ctx, id, node, "auto")
 	}
@@ -81,7 +82,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 		t.Fatal("worker not started")
 	}
 	// Delete the resolving song, reorder the queue, and retain an unsupported
-	// entry. Only song 4 should be cached; song 5 fails once then backs off.
+	// entry. Songs 4 and 2 register beyond it; song 5 fails then backs off.
 	c.mu.Lock()
 	// The failure precedes success: song 4 must not hide song 5's retry error.
 	c.setQueueSongsLocked([]vrclog.Song{{ID: -1}, {ID: 5}, {ID: 4}, {ID: 2}}, false)
@@ -90,7 +91,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	deadline := time.Now().Add(3 * time.Second)
 	for {
 		c.mu.Lock()
-		waiting := slices.Contains(c.queue.Active, 4) && c.queue.Error != ""
+		waiting := slices.Contains(c.queue.Active, 4) && slices.Contains(c.queue.Active, 2) && c.queue.Error != ""
 		completed := c.queue.Completed
 		c.mu.Unlock()
 		if waiting {
@@ -135,7 +136,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if requests["1"] != 1 || requests["4"] != 1 || requests["5"] != 2 || len(requests) != 3 {
+	if requests["1"] != 1 || requests["2"] != 1 || requests["4"] != 1 || requests["5"] != 2 || len(requests) != 4 {
 		t.Fatal(requests)
 	}
 	if _, err = os.Stat(fixtureVideoPath(c.settings.StorageDir, "1", body+"1")); !os.IsNotExist(err) {
@@ -143,6 +144,9 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	}
 	if _, err = os.Stat(fixtureVideoPath(c.settings.StorageDir, "4", body+"4")); err != nil {
 		t.Fatal(err)
+	}
+	if _, err = os.Stat(fixtureVideoPath(c.settings.StorageDir, "2", body+"2")); !os.IsNotExist(err) {
+		t.Fatal("fourth queue entry downloaded outside its activation window", err)
 	}
 }
 

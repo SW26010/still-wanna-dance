@@ -13,7 +13,7 @@ import { request } from './api';
 const pages = {home:'开始使用',library:'准备歌曲',cache:'本地缓存',monitor:'运行状态',settings:'设置',setup:'使用引导'};
 type Page = keyof typeof pages;
 const descriptions:Record<Page,string>={home:'为 VRChat WannaDance 复用已下载视频，也可提前准备房间队列。',monitor:'查看下载进度、最近请求和网络连接。',cache:'查找已下载的视频，清理磁盘空间。',library:'按房间队列提前准备，或批量下载缺失视频。',settings:'调整存储、网络和启动偏好。',setup:'设置、导入、检测和接入；可随时返回或离开。'};
-const legacy: Record<string,Page> = {activation:'home',service:'home',queue:'library',overview:'cache',cache:'cache',downloads:'monitor',recent:'monitor',network:'monitor',batch:'library',preferences:'settings',queuePrefetchCount:'settings',maxCacheGiB:'settings'};
+const legacy: Record<string,Page> = {activation:'home',service:'home',queue:'library',overview:'cache',cache:'cache',downloads:'monitor',recent:'monitor',network:'monitor',batch:'library',preferences:'settings',prepareAheadSeconds:'settings',maxCacheGiB:'settings'};
 export function route(hash: string): Page {
   if (hash === '#/upstream') return 'monitor';
   const key = hash.replace(/^#\/?/,'');

@@ -34,7 +34,7 @@ func TestQueueAndCDNAreIndependent(t *testing.T) {
 		t.Fatal("CDN failure stopped queue")
 	}
 	next := c.settings
-	next.QueuePrefetchCount++
+	next.PrepareAheadSeconds++
 	if err := c.save(next); err != nil {
 		t.Fatal(err)
 	}

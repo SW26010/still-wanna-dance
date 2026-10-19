@@ -8,28 +8,28 @@
     "webui/pnpm-lock.yaml": "950824f10bd7685719f68b51d031519a3064feae8f98a8cdfb2409dedc9c276c",
     "webui/pnpm-workspace.yaml": "f8374fb59aaf2874eb09ae9b7da311a1f2025595b5279341c1a819c4b85c4611",
     "webui/src/api.ts": "07a864e0c5ee077804132cc3ca45b46c8880070cc15d9f8bfae3c14f3aa2faf0",
-    "webui/src/app.tsx": "45818a49d3da87a0d57f4d7f1de77197b0a7847b5e0659670efea8d79d5f574d",
+    "webui/src/app.tsx": "0ec95ca391fcaced97c5b2b340447c9bdfbd3c9a6a632842fba8589ce94198f8",
     "webui/src/bootstrap.ts": "89fc603e0cc151cfd1b0972217a6e49c58c7e93c6010f77237e12adde9c5cd91",
     "webui/src/cache-capacity.tsx": "2b8326d94fa20ac51f694566a971b544b0042f8c0fe137a3b05e45297492e9dd",
     "webui/src/cache.tsx": "b836ee3f99050d0119b4cbbcf0efbdffe52b6de30b5c5ec8e91e94553e6e338a",
     "webui/src/diagnostics.tsx": "4a9473fea305d92bb0d1139cd825b4aaab62908a24d3e6b0fbb062f9498ba18e",
     "webui/src/documents.tsx": "0c9e10493fc6c51bbb3bebadbdc888d5050171cb49f357bc8b71e18db56481c6",
     "webui/src/help-content.tsx": "14f850be2fb7ba676d0d8bbf4d6f772809270da775d3cb05cbe6969b26fd3e62",
-    "webui/src/home-library.tsx": "68a2ba64a61212ebb3d32b414bca3ae3ec2dda0c31437731bcec6cee9735bfcf",
+    "webui/src/home-library.tsx": "b707612d0039516711e90234b67dcc59fd156e45d5e42da6b1e51ab184be2849",
     "webui/src/hooks.tsx": "03e073c25ff5a5457dbcf53dc6248a241911d2570b9904a868ff8a8de7c6a6b3",
     "webui/src/main.tsx": "ab29472305f0722f0c9ec412d77d61c7f7c92329627183493c03646cebf2fb8a",
     "webui/src/monitor.tsx": "fe4dc59098384d5338ddf6d3e448adf842b7dc70231f75279b5d163dc2b63bf4",
     "webui/src/requests.ts": "a36d9ef191f9d132b3d2966a4a9456976f2dc0bee2114099d5c8b20781d01ec8",
-    "webui/src/settings.tsx": "b7d14fa5179861c4a00044c80fa9f2e24e21fdbb1fc41b1a10ae53c4e6908570",
-    "webui/src/setup.tsx": "107e76c87edf28b2c4971922e3b4d31a595fa9151ba5f113d7145d83c72d35fd",
+    "webui/src/settings.tsx": "d2a7688d944ef70c13a1cd7b9027d56ae92756542a73d29e0c98ef2de9aa1b72",
+    "webui/src/setup.tsx": "a6b6147b61e24c3e6344cca7c8652baeec9acd6ffa3c39631de6cee9fe2605b1",
     "webui/src/styles.css": "70d85c5e4949e9c4c25cd50ecd855d1a542b44e647d2238e1bff1779101f0c65",
-    "webui/src/types.ts": "06498378be65e7f56d40fd6f4661c883755c9dea0671aea4cd794b4c797b5952",
+    "webui/src/types.ts": "0565468036278a25cf9c06b72ffc97a4bc204a784b595cc0fb9cb2a943e8a028",
     "webui/src/ui.tsx": "ce54953eff27177fca87e7d709ca52440f273dd64969a685cff56f3fd0d8e147",
     "webui/tsconfig.json": "8b7f2c63c61fc1e6c52d979af1d994b8f7cc2aa9562c2564fd5525385f028a6a"
   },
   "outputs": {
     "docs/licenses/WEBUI-NOTICES.txt": "65377ac28669c1ed34c21c6c3dcfdb74bae0868b334d8d8dd292e356171387ae",
     "internal/console/assets/webui/app.css": "ce8eea093dc0ab18d83cae6fff55fef96f71425d95d05a6446c26e04b42bc5ed",
-    "internal/console/assets/webui/app.js": "e68ab8f65cad60f628f1e0c5eedd8029c1dd1d5adacc57250c7f5ff79e5ab974"
+    "internal/console/assets/webui/app.js": "682617c31e1b4c2064308a36821c9d17e60141af1875441f64f132fcde057f4c"
   }
 }

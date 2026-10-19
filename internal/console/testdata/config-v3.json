@@ -1,1 +1,1 @@
-{"schemaVersion":3,"storageDir":"storage","requestRetentionDays":0,"autoStartCDN":false,"autoStartQueue":false,"queuePrefetchCount":3,"upstreamMode":"direct","futurePreference":{"large":9007199254740993}}
+{"schemaVersion":3,"storageDir":"storage","requestRetentionDays":0,"autoStartCDN":false,"autoStartQueue":false,"upstreamMode":"direct","futurePreference":{"large":9007199254740993}}

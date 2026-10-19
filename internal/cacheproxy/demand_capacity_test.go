@@ -137,6 +137,26 @@ func TestUsageReplacementIsAtomicAndNonGrowingChangesRemainAllowed(t *testing.T)
 	if useCount(s) != maxUseBlocks-1 || s.useBlocks[useBlockID{"same", 0}] != 1 {
 		t.Fatal("refused replacement damaged old usage")
 	}
+	for _, replacement := range []useSpan{{"equal", 0, old.last}, {"smaller", 0, old.last - 1}} {
+		if err := s.replaceUseLocked(old, replacement, false); err != nil {
+			t.Fatal("non-growing resource replacement blocked above background threshold", err)
+		}
+		if useCount(s) != int(replacement.last) || s.useBlocks[useBlockID{old.key, 0}] != 0 || s.useBlocks[useBlockID{replacement.key, 0}] != 1 {
+			t.Fatal("replacement did not transfer unique usage")
+		}
+		old = replacement
+	}
+	// Another source keeps the old blocks in use, so this same-size resource
+	// replacement would now increase unique usage and must remain blocked.
+	if err := s.reserveUseLocked(old, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.replaceUseLocked(old, useSpan{"shared", 0, old.last}, false); !errors.Is(err, ErrDemandCapacity) {
+		t.Fatal("replacement ignored the remaining source's usage", err)
+	}
+	if useCount(s) != int(old.last) || s.useBlocks[useBlockID{old.key, 0}] != 2 {
+		t.Fatal("refused shared replacement damaged existing usage")
+	}
 }
 
 func useCount(s *Server) int {

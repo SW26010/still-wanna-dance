@@ -74,7 +74,7 @@ func (s *Server) replaceUseLocked(old, span useSpan, playback bool) error {
 	if playback {
 		limit = maxUseBlocks
 	}
-	if added > 0 && len(s.useBlocks)-removed+added > limit {
+	if added > removed && len(s.useBlocks)-removed+added > limit {
 		return ErrDemandCapacity
 	}
 	if s.useBlocks == nil {

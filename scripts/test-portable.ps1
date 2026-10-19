@@ -133,8 +133,13 @@ try {
     $gate = Invoke-WebRequest "$url/api/status" -SkipHttpErrorCheck
     if ([int]$gate.StatusCode -ne 428) { throw 'API was accessible before consent.' }
     $servedTerms = Invoke-WebRequest "$url/terms.txt" -UseBasicParsing
-    # An explicit pipeline waits for a GUI-subsystem EXE and captures its UTF-8 stdout.
-    $exportedTerms = (& $exe[0].FullName -show-terms | Out-String).TrimEnd().Replace("`r`n", "`n")
+    # Go emits UTF-8. A nested pwsh can default to the system code page instead.
+    # The explicit pipeline also waits for this GUI-subsystem EXE to finish.
+    $previousEncoding = [Console]::OutputEncoding
+    try {
+        [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+        $exportedTerms = (& $exe[0].FullName -show-terms | Out-String).TrimEnd().Replace("`r`n", "`n")
+    } finally { [Console]::OutputEncoding = $previousEncoding }
     if ($LASTEXITCODE -ne 0 -or $servedTerms.Content.TrimEnd().Replace("`r`n", "`n") -cne $exportedTerms) { throw 'Offline terms export and HTTP terms differ.' }
     foreach ($route in @('help', 'about')) {
         $document = Invoke-WebRequest "$url/$route"

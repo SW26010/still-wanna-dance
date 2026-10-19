@@ -187,7 +187,7 @@ func TestParallelRangeCleanupPreservesBlockWriteFailure(t *testing.T) {
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 2})
 	f, v := completedRangeFlight(t, s, strings.Repeat("x", int(2*rangeBlockSize)))
 	f.spool = f.ranges.makeSpool(nil)
-	w := &downloadSession{s: s, f: f, jobs: make(map[int64]*scheduledBlock)}
+	w := newDownloadSession(s, context.Background(), video{}, f)
 	started := make(chan struct{}, 2)
 	upstream := fmt.Errorf("%w: controlled failed peer", errUpstreamDownload)
 	// Invalid temporary destination forces an actual filesystem write failure.

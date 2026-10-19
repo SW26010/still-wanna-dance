@@ -28,7 +28,7 @@ const (
 
 // blockUse is the source-free contract between demand collection and resource
 // use. Protection includes all finite usage; download urgency alone filters an
-// old handoff while a live GET exists. Blocking is supplied separately by reads.
+// old handoff while a live GET exists. Actual reads are outside this contract.
 type blockUse struct {
 	need         blocksched.Need
 	nextExpiry   time.Time
@@ -57,7 +57,6 @@ func mergeUse(a, b blockUse) blockUse {
 	}
 	a.need.ReadyBy = earlier(a.need.ReadyBy, b.need.ReadyBy)
 	a.need.LeaseUntil = maxTime(a.need.LeaseUntil, b.need.LeaseUntil)
-	a.need.Blocking = a.need.Blocking || b.need.Blocking
 	a.need.Opportunistic = a.need.Opportunistic || b.need.Opportunistic
 	a.nextExpiry = earlier(a.nextExpiry, b.nextExpiry)
 	a.protectReady = earlier(a.protectReady, b.protectReady)
@@ -87,7 +86,6 @@ func aggregateUse(plan map[blockSource]plannedNeed, now time.Time) blockUse {
 		n := p.need
 		if p.source == sourceHandoff && get {
 			n.ReadyBy = time.Time{}
-			n.Blocking = false
 			n.Opportunistic = false
 		} else {
 			n.Opportunistic = n.Opportunistic || n.ReadyBy.IsZero()
@@ -101,7 +99,7 @@ func (w *downloadSession) logDemand(block int64, j *scheduledBlock) {
 	if w.f.log == nil || !w.f.log.Enabled(w.ctx, slog.LevelDebug) {
 		return
 	}
-	w.f.log.Debug("block_demand", "block", block, "blocking", j.published.Blocking,
+	w.f.log.Debug("block_demand", "block", block,
 		"opportunistic", j.published.Opportunistic, "ready_by", j.published.ReadyBy,
 		"lease_until", j.published.LeaseUntil, "next_expiry", j.nextExpiry)
 }

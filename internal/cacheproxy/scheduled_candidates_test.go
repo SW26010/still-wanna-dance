@@ -51,7 +51,7 @@ func TestResourceDemandsExposeAllMissingBlocks(t *testing.T) {
 				if needs.need.Owner == "" {
 					t.Fatal("missing or duplicated source", block, needs)
 				}
-				if need := needs.need; need.Blocking || need.ReadyBy.IsZero() != (kind == "batch") {
+				if need := needs.need; need.ReadyBy.IsZero() != (kind == "batch") {
 					t.Fatal("expanding candidates changed demand semantics", block, need)
 				}
 			}
@@ -62,10 +62,7 @@ func TestResourceDemandsExposeAllMissingBlocks(t *testing.T) {
 func TestResourceDeadlinesRemainVisibleBeyondEightBlocks(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)
-		other, _ := testSession(t)
-		other.s, other.v.key, other.v.size = s, "later", rangeBlockSize
-		s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
-		defer s.scheduler.Close()
+		other := testResourceSession(t, s, video{key: "later", size: rangeBlockSize})
 		started, release := make(chan string, 1), make(chan struct{})
 		run := func(key string) blocksched.Run {
 			return func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
@@ -188,9 +185,8 @@ func TestSingleVideoReachesGlobalSoftLimit(t *testing.T) {
 }
 
 func TestExpandedResourceRetainsGlobalMetadataCapacity(t *testing.T) {
-	w, s := testSession(t)
-	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 16, MaxTasks: 16})
-	defer s.scheduler.Close()
+	s := testSessionServer(t, blocksched.Config{SoftLimit: 16, MaxTasks: 16})
+	w := testResourceSession(t, s, video{key: "content", size: 20 * rangeBlockSize})
 	ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: time.Now().Add(time.Hour), limit: w.v.size, media: mediaTiming{w.v.size, time.Hour}})
 	_, release := addTestDemand(t, s, ctx, w.v, true)
 	defer release()
@@ -220,18 +216,10 @@ func TestExpandedResourceRetainsGlobalMetadataCapacity(t *testing.T) {
 }
 
 func TestTwoLargeFutureVideosFillUsageCapacity(t *testing.T) {
-	w, s := testSession(t)
-	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
-	defer s.scheduler.Close()
+	s := testSessionServer(t, blocksched.Config{SoftLimit: 1})
 	var sessions []*downloadSession
 	for i := range 3 {
-		session := w
-		if i > 0 {
-			session, _ = testSession(t)
-			session.s = s
-		}
-		session.v.key = fmt.Sprintf("video-%d", i)
-		session.v.size = 2 << 30
+		session := testResourceSession(t, s, video{key: fmt.Sprintf("video-%d", i), size: 2 << 30})
 		session.f.ranges.done[0] = true
 		ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: time.Now().Add(time.Duration(i+1) * time.Hour), limit: session.v.size, media: mediaTiming{session.v.size, time.Hour}})
 		_, release, err := s.addDemand(ctx, session.v, true)
@@ -255,10 +243,12 @@ func TestTwoLargeFutureVideosFillUsageCapacity(t *testing.T) {
 		t.Fatal("completed blocks must retain usage without a download task", len(sessions[0].jobs), len(sessions[1].jobs), len(s.useBlocks))
 	}
 	started := make(chan struct{})
-	task, _, err := s.scheduler.Schedule("foreground", 1, func(context.Context, *blocksched.Progress) blocksched.Result {
+	foreground := testResourceSession(t, s, video{key: "foreground", size: 1})
+	defer foreground.reads.Wait(0)()
+	task, _, err := s.scheduler.Schedule(foreground.reads.Key(0), 1, func(context.Context, *blocksched.Progress) blocksched.Result {
 		close(started)
 		return blocksched.Result{}
-	}, blocksched.Need{Owner: "foreground", Blocking: true, LeaseUntil: time.Now().Add(time.Minute)})
+	}, blocksched.Need{Owner: "foreground", LeaseUntil: time.Now().Add(time.Minute)})
 	if err != nil {
 		t.Fatal(err)
 	}

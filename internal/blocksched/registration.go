@@ -18,6 +18,8 @@ func (s *state) capacityAvailable() {
 // Schedule registers a task and its first demand atomically. At capacity only
 // an idle, lower priority task may be displaced; its owner gets ErrDeferred and
 // retains responsibility for registering it again. Executions are never evicted.
+// An empty Need attaches previously registered local reads without creating an
+// ordinary lease; the returned Demand is nil in that case.
 func (s *Scheduler) Schedule(key string, remaining int64, run Run, n Need) (*Task, *Demand, error) {
 	var task *Task
 	var demand *Demand
@@ -28,11 +30,16 @@ func (s *Scheduler) Schedule(key string, remaining int64, run Run, n Need) (*Tas
 			return
 		}
 		now := time.Now()
-		if n.Owner == "" || !n.LeaseUntil.After(now) {
+		if n.Owner != "" && !n.LeaseUntil.After(now) {
 			err = ErrCapacity
 			return
 		}
-		if Expired(n.ReadyBy, now) {
+		p := st.withReads(key, n)
+		if p.Owner == "" {
+			err = ErrCapacity
+			return
+		}
+		if Expired(p.ReadyBy, now) {
 			err = ErrExpired
 			return
 		}
@@ -41,13 +48,13 @@ func (s *Scheduler) Schedule(key string, remaining int64, run Run, n Need) (*Tas
 			err = ErrCapacity
 			return
 		}
-		if j == nil && len(st.jobs) >= st.cfg.MaxTasks || st.demandCount >= st.cfg.MaxDemands {
+		if j == nil && len(st.jobs) >= st.cfg.MaxTasks || n.Owner != "" && st.demandCount >= st.cfg.MaxDemands {
 			var victim *job
 			for _, candidate := range st.jobs {
 				if st.demandCount >= st.cfg.MaxDemands && len(candidate.needs) == 0 {
 					continue
 				}
-				if candidate == j || candidate.cancel != nil || candidate.retiring || !st.registrationBefore(n, candidate.need, now) {
+				if candidate == j || candidate.cancel != nil || candidate.retiring || !st.registrationBefore(p, candidate.need, now) {
 					continue
 				}
 				if victim == nil || st.registrationBefore(victim.need, candidate.need, now) {
@@ -68,21 +75,25 @@ func (s *Scheduler) Schedule(key string, remaining int64, run Run, n Need) (*Tas
 		}
 		task = j.task
 		// Reuse the ordinary lease path while still in the scheduler command.
-		demand = st.add(task, n)
+		if n.Owner != "" {
+			demand = st.add(task, n)
+		} else {
+			st.refresh(j)
+		}
 	}) {
 		return nil, nil, ErrClosed
 	}
 	return task, demand, err
 }
 
-func (s *state) registrationBefore(a, b Need, now time.Time) bool {
+func (s *state) registrationBefore(a, b priority, now time.Time) bool {
 	if b.Owner == "" {
 		return a.Owner != ""
 	}
 	if a.Blocking != b.Blocking {
 		return a.Blocking
 	}
-	eligible := func(n Need) bool {
+	eligible := func(n priority) bool {
 		return n.Blocking || n.Opportunistic || n.ReadyBy.IsZero() || !n.ReadyBy.Add(-s.cfg.PrepareAhead).After(now)
 	}
 	if eligible(a) != eligible(b) {

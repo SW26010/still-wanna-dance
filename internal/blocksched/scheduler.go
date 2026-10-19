@@ -24,10 +24,16 @@ var (
 type Need struct {
 	Owner               string
 	ReadyBy, LeaseUntil time.Time
-	Blocking            bool
 	// Opportunistic preserves an independent ordinary demand that can use
 	// capacity before ReadyBy. It bypasses only the window, never the quota.
 	Opportunistic bool
+}
+
+// priority is scheduler-owned. Callers can publish ordinary usage only;
+// actual local read waits supply Blocking independently of those leases.
+type priority struct {
+	Need
+	Blocking bool
 }
 
 type Result struct {
@@ -180,7 +186,7 @@ type job struct {
 	run            Run
 	remaining      int64
 	needs          map[uint64]*lease
-	need           Need
+	need           priority
 	index          [2]int // one membership per deadline/opportunistic heap
 	sequence, fair uint64
 	cancel         context.CancelCauseFunc
@@ -203,6 +209,7 @@ type state struct {
 	s                   *Scheduler
 	cfg                 Config
 	jobs                map[string]*job
+	reads               map[string]map[*readWait]bool
 	ready               readyHeap
 	untimed             readyHeap
 	expiry              leaseHeap
@@ -228,7 +235,7 @@ func New(cfg Config) *Scheduler {
 		cfg.MaxDemands = 32768
 	}
 	s := &Scheduler{commands: make(chan func(*state), 64), finished: make(chan completion, cfg.SoftLimit), done: make(chan struct{})}
-	st := &state{s: s, cfg: cfg, jobs: make(map[string]*job), owners: make(map[string]uint64), groups: make(map[string]map[*job]bool), capacityChanged: make(chan struct{})}
+	st := &state{s: s, cfg: cfg, jobs: make(map[string]*job), reads: make(map[string]map[*readWait]bool), owners: make(map[string]uint64), groups: make(map[string]map[*job]bool), capacityChanged: make(chan struct{})}
 	st.untimed.slot = 1
 	st.control.open = cfg.SoftLimit
 	if cfg.GrowInterval > 0 {
@@ -313,26 +320,30 @@ func (s *state) refresh(j *job) {
 		if !v.need.ReadyBy.IsZero() && (earliest.IsZero() || v.need.ReadyBy.Before(earliest)) {
 			earliest = v.need.ReadyBy
 		}
-		if n.Owner == "" || needBefore(v.need, n) || !needBefore(n, v.need) && v.need.Owner < n.Owner {
+		if n.Owner == "" || needBefore(priority{Need: v.need}, priority{Need: n}) || !needBefore(priority{Need: n}, priority{Need: v.need}) && v.need.Owner < n.Owner {
 			n = v.need
 		}
 	}
 	n.ReadyBy, n.Opportunistic = earliest, opportunistic
-	if j.need.Owner != n.Owner {
+	p := priority{Need: n}
+	if !j.retiring {
+		p = s.withReads(j.task.key, n)
+	}
+	if j.need.Owner != p.Owner {
 		s.ungroup(j)
 	}
-	j.need = n
+	j.need = p
 	s.updateDeadline(j)
-	if previous.Blocking != n.Blocking || previous.ReadyBy != n.ReadyBy || previous.Opportunistic != n.Opportunistic {
+	if previous.Blocking != p.Blocking || previous.ReadyBy != p.ReadyBy || previous.Opportunistic != p.Opportunistic {
 		s.capacityAvailable()
 	}
-	if n.Owner != "" {
-		if s.groups[n.Owner] == nil {
-			s.groups[n.Owner] = make(map[*job]bool)
+	if p.Owner != "" {
+		if s.groups[p.Owner] == nil {
+			s.groups[p.Owner] = make(map[*job]bool)
 		}
-		s.groups[n.Owner][j] = true
+		s.groups[p.Owner][j] = true
 	}
-	j.fair = s.owners[n.Owner]
+	j.fair = s.owners[p.Owner]
 	if j.retiring {
 		s.unqueue(j)
 		if j.cancel != nil {
@@ -340,7 +351,7 @@ func (s *state) refresh(j *job) {
 		}
 		return
 	}
-	if n.Owner == "" {
+	if p.Owner == "" {
 		s.emit("retired", "no_demand", j)
 		s.retire(j, context.Canceled)
 		return
@@ -349,8 +360,8 @@ func (s *state) refresh(j *job) {
 		return
 	}
 	wasQueued := j.index[0] >= 0 || j.index[1] >= 0
-	s.ready.set(j, n.Blocking || !n.ReadyBy.IsZero())
-	s.untimed.set(j, !n.Blocking && n.Opportunistic)
+	s.ready.set(j, p.Blocking || !p.ReadyBy.IsZero())
+	s.untimed.set(j, !p.Blocking && p.Opportunistic)
 	if !wasQueued {
 		s.emit("queued", "demand", j)
 	}
@@ -370,7 +381,7 @@ func (s *state) unqueue(j *job) {
 	s.ready.set(j, false)
 	s.untimed.set(j, false)
 }
-func needBefore(a, b Need) bool {
+func needBefore(a, b priority) bool {
 	if a.Blocking != b.Blocking {
 		return a.Blocking
 	}

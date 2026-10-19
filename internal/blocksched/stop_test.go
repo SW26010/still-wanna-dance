@@ -26,7 +26,7 @@ func TestLastDemandExitEndsTaskWithoutReattachmentPeriod(t *testing.T) {
 					started <- struct{}{}
 					<-ctx.Done()
 					return Result{Err: context.Cause(ctx)}
-				}, need("owner", false, ready, lease))
+				}, need("owner", ready, lease))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -54,10 +54,10 @@ func TestLastDemandExitEndsTaskWithoutReattachmentPeriod(t *testing.T) {
 						t.Error("stopped task retained capacity, queue membership or timer")
 					}
 				})
-				if task.Add(need("late", true, 0, time.Hour)).Accepted() || d.Update(need("late", true, 0, time.Hour)) {
+				if task.Add(need("late", 0, time.Hour)).Accepted() || d.Update(need("late", 0, time.Hour)) {
 					t.Fatal("late demand revived stopped task")
 				}
-				replacement, _, err := s.Schedule("old", 100, nil, need("new", false, time.Hour, 2*time.Hour))
+				replacement, _, err := s.Schedule("old", 100, nil, need("new", time.Hour, 2*time.Hour))
 				if err != nil || replacement == task {
 					t.Fatal("new task did not get a fresh identity", err)
 				}
@@ -83,7 +83,7 @@ func TestStoppedTaskHoldsCapacityUntilCleanupAndPreservesErrors(t *testing.T) {
 				<-ctx.Done()
 				<-cleanup
 				return Result{Err: cleanupErr}
-			}, need("owner", true, 0, time.Hour))
+			}, need("owner", 0, time.Hour))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -95,11 +95,11 @@ func TestStoppedTaskHoldsCapacityUntilCleanupAndPreservesErrors(t *testing.T) {
 				t.Error("Done closed before cleanup")
 			default:
 			}
-			if task.Add(need("late", true, 0, time.Hour)).Accepted() {
+			if task.Add(need("late", 0, time.Hour)).Accepted() {
 				t.Error("stopping task accepted new demand")
 			}
 			for _, key := range []string{"old", "new"} {
-				if _, _, err := s.Schedule(key, 1, nil, need("new", false, time.Hour, 2*time.Hour)); !errors.Is(err, ErrCapacity) {
+				if _, _, err := s.Schedule(key, 1, nil, need("new", time.Hour, 2*time.Hour)); !errors.Is(err, ErrCapacity) {
 					t.Error("cleanup released identity or task capacity", key, err)
 				}
 			}
@@ -116,7 +116,7 @@ func TestStoppedTaskHoldsCapacityUntilCleanupAndPreservesErrors(t *testing.T) {
 			if !errors.Is(task.Err(), want) {
 				t.Fatal("cleanup error was hidden", task.Err(), want)
 			}
-			if _, _, err := s.Schedule("new", 1, nil, need("new", false, time.Hour, 2*time.Hour)); err != nil {
+			if _, _, err := s.Schedule("new", 1, nil, need("new", time.Hour, 2*time.Hour)); err != nil {
 				t.Fatal("cleanup completion leaked capacity", err)
 			}
 		})

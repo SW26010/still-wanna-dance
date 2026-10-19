@@ -10,8 +10,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"still-wanna-dance/internal/blocksched"
 )
 
 func TestGETPlanOnlyIncludesRequestedBlocks(t *testing.T) {
@@ -44,7 +42,7 @@ func TestGETPlanOnlyIncludesRequestedBlocks(t *testing.T) {
 			var got []int64
 			for block, needs := range plan {
 				got = append(got, block)
-				if needs.need.Owner == "" || needs.need.Blocking {
+				if needs.need.Owner == "" {
 					t.Fatal("GET created an extra source or synthetic Blocking", block, needs)
 				}
 			}
@@ -64,14 +62,12 @@ func TestGETPlanOnlyIncludesRequestedBlocks(t *testing.T) {
 			}
 			closeBatch()
 			// Independent blocked readers still share just their current block.
-			one, two := w.demand(span.start), w.demand(span.start)
-			plan, _, _ = w.plan(time.Now(), true)
-			if !plan[tc.want[0]].need.Blocking {
+			one, two := w.reads.Wait(tc.want[0]), w.reads.Wait(tc.want[0])
+			if !w.reads.Requested()[tc.want[0]] {
 				t.Fatal("lost independent waits")
 			}
 			one()
-			plan, _, _ = w.plan(time.Now(), true)
-			if !plan[tc.want[0]].need.Blocking {
+			if !w.reads.Requested()[tc.want[0]] {
 				t.Fatal("one reader removed another")
 			}
 			two()
@@ -81,8 +77,6 @@ func TestGETPlanOnlyIncludesRequestedBlocks(t *testing.T) {
 
 func TestCompletedGETSpanKeepsReaderWithoutDownloadingOtherBlocks(t *testing.T) {
 	w, s := testSession(t)
-	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
-	defer s.scheduler.Close()
 	p := &playbackClock{at: time.Now(), offset: 14 * rangeBlockSize, limit: 15 * rangeBlockSize, media: mediaTiming{w.v.size, time.Minute}}
 	_, release := addTestDemand(t, s, context.WithValue(context.Background(), playbackClockKey{}, p), w.v, true)
 	defer release()

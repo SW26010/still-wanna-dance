@@ -17,10 +17,6 @@ const sourceLease = 30 * time.Second
 const getHandoff = 2 * time.Second
 const queueHandoff = 20 * time.Second
 
-type scheduledWait struct {
-	block int64
-	at    time.Time
-}
 type scheduledBlock struct {
 	task       *blocksched.Task
 	merged     *blocksched.Demand
@@ -36,32 +32,21 @@ type downloadSession struct {
 	wake        chan struct{}
 	initialized chan struct{}
 	initOnce    sync.Once
-	mu          sync.Mutex
-	waits       map[*scheduledWait]bool
+	reads       *blocksched.ReadRequests
 	jobs        map[int64]*scheduledBlock // resource coordinator only
 	finished    map[int64]bool            // Completed work in this session; independent of later zero-budget reclamation.
 	capacity    <-chan struct{}
 }
 
-func (w *downloadSession) signal() {
-	select {
-	case w.wake <- struct{}{}:
-	default:
-	}
+func newDownloadSession(s *Server, ctx context.Context, v video, f *flight) *downloadSession {
+	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, wake: make(chan struct{}, 1), initialized: make(chan struct{}), jobs: make(map[int64]*scheduledBlock)}
+	w.reads = s.scheduler.NewReadRequests(v.key, func(block int64) string { return fmt.Sprintf("%s/%d/%d", w.v.key, w.v.size, block) }, w.wake)
+	return w
 }
-func (w *downloadSession) demand(offset int64) func() {
-	d := &scheduledWait{block: offset / rangeBlockSize, at: time.Now()}
-	w.mu.Lock()
-	w.waits[d] = true
-	w.mu.Unlock()
-	w.signal()
-	return sync.OnceFunc(func() { w.mu.Lock(); delete(w.waits, d); w.mu.Unlock(); w.signal() })
-}
-
 func (w *downloadSession) initialize(d *localResource) {
 	w.f.ranges = d
 	if !w.f.discard {
-		w.f.spool = d.makeSpool(w.demand)
+		w.f.spool = d.makeSpool(func(offset int64) func() { return w.reads.Wait(offset / rangeBlockSize) })
 	}
 	w.f.progress.setStage("range_download")
 	close(w.f.streaming)
@@ -107,7 +92,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 			w.s.mu.Lock()
 			w.f.sequentialCtx = ctx
 			w.s.mu.Unlock()
-			w.f.sequentialDemand = func(int64) func() { return w.demand(block * rangeBlockSize) }
+			w.f.sequentialDemand = func(int64) func() { return w.reads.Wait(block) }
 			w.f.log.Info("range_unavailable", "host", host, "fallback", "sequential")
 			stopBody := context.AfterFunc(ctx, func() { resp.Body.Close() })
 			defer stopBody()
@@ -156,7 +141,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 }
 
 func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Need) error {
-	key := fmt.Sprintf("%s/%d/%d", w.v.key, w.v.size, block)
+	key := w.reads.Key(block)
 	remaining := min(rangeBlockSize, w.v.size-block*rangeBlockSize)
 	t, d, err := w.s.scheduler.Schedule(key, remaining, func(ctx context.Context, p *blocksched.Progress) blocksched.Result { return w.run(ctx, p, block) }, n)
 	if err != nil {
@@ -186,11 +171,12 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]block
 	}
 	changed := w.s.capacityChanged
 	w.s.mu.Unlock()
-	w.mu.Lock()
-	for d := range w.waits {
-		plan[d.block] = mergeUse(plan[d.block], blockUse{need: blocksched.Need{Owner: w.v.key, ReadyBy: d.at, LeaseUntil: now.Add(sourceLease), Blocking: true}, nextExpiry: now.Add(sourceLease)})
+	requested := w.reads.Requested()
+	for block := range requested {
+		if _, ok := plan[block]; !ok {
+			plan[block] = blockUse{} // The scheduler owns the independent read request.
+		}
 	}
-	w.mu.Unlock()
 	var local *localResource
 	if initialized {
 		local = w.f.ranges // Initialization publishes the executor's resource view.
@@ -203,7 +189,7 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]block
 	}
 	zeroBudget := w.s.zeroVideoBudget()
 	for b := range plan {
-		if zeroBudget && w.finished[b] && !plan[b].need.Blocking {
+		if zeroBudget && w.finished[b] && !requested[b] {
 			delete(plan, b)
 			continue
 		}
@@ -242,17 +228,13 @@ func (w *downloadSession) reconcile(plan map[int64]blockUse, now time.Time, chan
 	for block := range plan {
 		order = append(order, block)
 	}
-	// Register actual blocked reads before ordinary blocks of this resource.
-	sort.Slice(order, func(i, j int) bool {
-		if a, b := plan[order[i]].need.Blocking, plan[order[j]].need.Blocking; a != b {
-			return a
-		}
-		return order[i] < order[j]
-	})
+	w.reads.OrderRegistration(order)
 	for _, block := range order {
 		j := w.jobs[block]
 		if j == nil {
 			j = &scheduledBlock{}
+		}
+		if j.task == nil {
 			j.nextExpiry = plan[block].nextExpiry
 			if err := w.submit(block, j, plan[block].need); err != nil {
 				if errors.Is(err, blocksched.ErrCapacity) {
@@ -292,23 +274,21 @@ func (w *downloadSession) reconcile(plan map[int64]blockUse, now time.Time, chan
 			continue
 		}
 		j := w.jobs[block]
-		if !n.LeaseUntil.After(now) {
-			j.retiring = true
-			if j.task != nil {
-				j.task.Close()
-			} else {
+		if n.Owner == "" || !n.LeaseUntil.After(now) {
+			if j.merged != nil {
+				j.merged.Close()
+				j.merged = nil
+			}
+			j.published = blocksched.Need{}
+			// The scheduler decides whether independent local reads still need
+			// this execution. Withdrawing ordinary usage cannot cancel them.
+			if j.task == nil {
 				delete(w.jobs, block)
 			}
 			continue
 		}
 		if j.task == nil {
-			if err := w.submit(block, j, n); err != nil {
-				if errors.Is(err, blocksched.ErrCapacity) {
-					w.capacity = capacity
-					continue
-				}
-				return until, false, err
-			}
+			continue // Registration above is waiting for scheduler capacity.
 		}
 		if j.merged != nil && j.published == n {
 			continue
@@ -316,12 +296,11 @@ func (w *downloadSession) reconcile(plan map[int64]blockUse, now time.Time, chan
 		if j.merged == nil || !j.merged.Update(n) {
 			j.merged = j.task.Add(n)
 			if !j.merged.Accepted() {
-				// A lease can end while its response is still closing. This
-				// coordinator owns the task's single merged contribution; an
-				// invalidated handle cannot revive it. Drain the old execution
-				// before submitting current usage as a fresh task.
-				j.retiring = true
-				j.task.Close()
+				// A retired task will report Done after cleanup. A task kept
+				// alive by local reads can instead be waiting for ordinary
+				// demand capacity; failed registration must not cancel it.
+				j.merged = nil
+				w.capacity = capacity
 				continue
 			}
 		}
@@ -392,6 +371,7 @@ func (w *downloadSession) reapCompleted(initialized *bool) (bool, error) {
 }
 
 func (w *downloadSession) close(result error) error {
+	w.reads.Close()
 	if errors.Is(result, errPreempted) {
 		w.s.preemptFlight(w.f, nil)
 	}
@@ -409,7 +389,7 @@ func (w *downloadSession) close(result error) error {
 }
 
 func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *flight) (result error) {
-	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, wake: make(chan struct{}, 1), initialized: make(chan struct{}), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
+	w := newDownloadSession(s, ctx, v, f)
 	defer func() { result = w.close(result) }()
 	initialized := f.ranges != nil && (!f.ranges.sequential || f.ranges.complete())
 	if initialized {
@@ -512,7 +492,7 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 }
 
 // Reclaiming an unprotected block does not request another download. A genuine
-// missing Read can still re-request it through Blocking. Keep this session's
+// missing Read can still request it from the scheduler. Keep this session's
 // completion fact so a wider download window cannot create a refill/evict loop.
 func (w *downloadSession) allFetched() bool {
 	for block := int64(0); block < blockCount(w.v.size); block++ {

@@ -24,7 +24,7 @@ func TestAggregatePreservesIndependentUntimedDemand(t *testing.T) {
 	}
 	summary := aggregateUse(sources, now)
 	n := summary.need
-	if !n.Opportunistic || n.Blocking || n.ReadyBy != ready || summary.nextExpiry != now.Add(time.Second) {
+	if !n.Opportunistic || n.ReadyBy != ready || summary.nextExpiry != now.Add(time.Second) {
 		t.Fatal("mixed summary", n, summary.nextExpiry)
 	}
 	if n = aggregateUse(sources, now.Add(time.Second)).need; n.Opportunistic || n.ReadyBy != ready {

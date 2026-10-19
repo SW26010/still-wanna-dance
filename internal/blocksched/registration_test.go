@@ -14,11 +14,11 @@ func TestRegistrationUsesFixedWindowBoundary(t *testing.T) {
 	s := state{cfg: Config{PrepareAhead: 500 * time.Second}}
 	background := Need{Owner: "background"}
 	finite := Need{Owner: "finite", ReadyBy: now.Add(500*time.Second + time.Nanosecond)}
-	if s.registrationBefore(finite, background, now) {
+	if s.registrationBefore(priority{Need: finite}, priority{Need: background}, now) {
 		t.Fatal("future deadline displaced eligible background work")
 	}
 	finite.ReadyBy = now.Add(500 * time.Second)
-	if !s.registrationBefore(finite, background, now) {
+	if !s.registrationBefore(priority{Need: finite}, priority{Need: background}, now) {
 		t.Fatal("deadline at the fixed window boundary did not take priority")
 	}
 }
@@ -40,12 +40,13 @@ func TestScheduleCapacityDefersFutureBlocksForUrgentWork(t *testing.T) {
 			t.Fatal(err)
 		}
 		changed := s.CapacityChanged()
+		waitForKey(t, s, "get")
 		started := make(chan struct{})
 		task, _, err := s.Schedule("get", 1, func(ctx context.Context, _ *Progress) Result {
 			close(started)
 			<-ctx.Done()
 			return Result{Err: ctx.Err()}
-		}, Need{Owner: "get", Blocking: true, LeaseUntil: future.LeaseUntil})
+		}, Need{Owner: "get", LeaseUntil: future.LeaseUntil})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -80,7 +81,7 @@ func TestScheduleWaitsWhenAllMetadataIsExecuting(t *testing.T) {
 		s := New(Config{SoftLimit: 1, MaxTasks: 1})
 		defer s.Close()
 		started := make(chan struct{})
-		n := Need{Owner: "get", Blocking: true, LeaseUntil: time.Now().Add(time.Hour)}
+		n := Need{Owner: "get", LeaseUntil: time.Now().Add(time.Hour)}
 		task, _, err := s.Schedule("active", 1, func(ctx context.Context, _ *Progress) Result {
 			close(started)
 			<-ctx.Done()

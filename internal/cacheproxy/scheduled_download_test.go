@@ -18,7 +18,14 @@ func fixedBlockScheduler(s *Server) {
 
 func testSession(t *testing.T) (*downloadSession, *Server) {
 	t.Helper()
-	s := &Server{capacityChanged: make(chan struct{})}
+	s := testSessionServer(t, blocksched.Config{SoftLimit: 1})
+	return testResourceSession(t, s, video{key: "content", size: 20 * rangeBlockSize}), s
+}
+
+func testSessionServer(t *testing.T, cfg blocksched.Config) *Server {
+	t.Helper()
+	s := &Server{capacityChanged: make(chan struct{}), scheduler: blocksched.New(cfg)}
+	t.Cleanup(s.scheduler.Close)
 	t.Cleanup(func() {
 		s.mu.Lock()
 		s.closed = true
@@ -27,12 +34,16 @@ func testSession(t *testing.T) (*downloadSession, *Server) {
 		}
 		s.mu.Unlock()
 	})
-	v := video{key: "content", size: 20 * rangeBlockSize}
+	return s
+}
+
+func testResourceSession(t *testing.T, s *Server, v video) *downloadSession {
+	t.Helper()
 	f := &flight{ranges: &localResource{done: make(map[int64]bool)}}
-	w := &downloadSession{s: s, ctx: context.Background(), v: v, f: f, wake: make(chan struct{}, 1), waits: make(map[*scheduledWait]bool), jobs: make(map[int64]*scheduledBlock)}
-	w.initialized = make(chan struct{})
+	w := newDownloadSession(s, context.Background(), v, f)
+	t.Cleanup(w.reads.Close)
 	close(w.initialized)
-	return w, s
+	return w
 }
 
 func addTestDemand(t *testing.T, s *Server, ctx context.Context, v video, playback bool) (*downloadDemand, func()) {
@@ -51,23 +62,20 @@ func TestBlockDemandFollowsActualWaitAndIndependentReaders(t *testing.T) {
 	_, release := addTestDemand(t, s, ctx, w.v, true)
 	defer release()
 	plan, _, _ := w.plan(time.Now(), true)
-	for _, p := range plan {
-		if p.need.Blocking {
-			t.Fatal("GET created synthetic Blocking")
-		}
+	if len(w.reads.Requested()) != 0 {
+		t.Fatal("GET created a synthetic read request")
 	}
-	one, two := w.demand(12*rangeBlockSize), w.demand(12*rangeBlockSize)
-	blocking := func() bool { plan, _, _ := w.plan(time.Now(), true); return plan[12].need.Blocking }
-	if !blocking() {
+	one, two := w.reads.Wait(12), w.reads.Wait(12)
+	if !w.reads.Requested()[12] {
 		t.Fatal("independent demands merged destructively")
 	}
 	one()
 	one()
-	if !blocking() {
+	if !w.reads.Requested()[12] {
 		t.Fatal("one reader removed another")
 	}
 	two()
-	if blocking() {
+	if w.reads.Requested()[12] {
 		t.Fatal("completed wait stayed blocking")
 	}
 	cancel()
@@ -82,10 +90,7 @@ func TestBlockDemandFollowsActualWaitAndIndependentReaders(t *testing.T) {
 func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)
-		s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
-		defer s.scheduler.Close()
 		// A blocked synthetic executor allows inspecting leases without network.
-		w.s.scheduler = s.scheduler
 		s.UpdatePrefetchQueue([]int64{1, 2}, false)
 		_, release := addTestDemand(t, s, s.queueDemandContext(context.Background(), "2"), video{key: w.v.key, songID: "2", size: w.v.size}, false)
 		defer release()
@@ -133,8 +138,6 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 
 func TestBlockLeaseRemovalDoesNotDropOtherOwner(t *testing.T) {
 	w, s := testSession(t)
-	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
-	defer s.scheduler.Close()
 	job, registered, _ := s.scheduler.Schedule("test", 1, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
 		<-ctx.Done()
 		return blocksched.Result{Err: context.Canceled}
@@ -162,8 +165,6 @@ func TestCompletionRechecksRangeInitialization(t *testing.T) {
 		t.Run(map[bool]string{false: "sequential_published", true: "first_range_only"}[ranged], func(t *testing.T) {
 			w, s := testSession(t)
 			w.initialized = make(chan struct{})
-			s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
-			defer s.scheduler.Close()
 			// Coordinator snapshots before the worker has received response headers.
 			initialized := false
 			task, _, err := s.scheduler.Schedule("first", rangeBlockSize, func(context.Context, *blocksched.Progress) blocksched.Result {

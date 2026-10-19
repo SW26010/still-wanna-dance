@@ -25,20 +25,21 @@ func TestBlockingBypassesSoftLimitAndRamp(t *testing.T) {
 		}
 		now := time.Now()
 		ordinaryRelease, blockingRelease := make(chan struct{}), make(chan struct{})
-		_, _, _ = s.Schedule("ordinary", 1, run("ordinary", ordinaryRelease), need("ordinary", false, time.Second, 24*time.Hour))
+		_, _, _ = s.Schedule("ordinary", 1, run("ordinary", ordinaryRelease), need("ordinary", time.Second, 24*time.Hour))
 
 		<-started
 		var blocked []*Task
 		for i := range 20 {
 			key := fmt.Sprint(i)
-			j, _, _ := s.Schedule(key, 1, run(key, blockingRelease), need(key, true, 0, 24*time.Hour))
+			waitForKey(t, s, key)
+			j, _, _ := s.Schedule(key, 1, run(key, blockingRelease), need(key, 0, 24*time.Hour))
 
 			blocked = append(blocked, j)
 		}
 		// More readers of an already blocked block still share its execution.
-		duplicate, _, _ := s.Schedule("0", 1, nil, need("another-reader", true, 0, 24*time.Hour))
+		duplicate, _, _ := s.Schedule("0", 1, nil, need("another-reader", 0, 24*time.Hour))
 
-		_, _, _ = s.Schedule("queued", 1, run("queued", nil), need("queued", false, time.Second, 24*time.Hour))
+		_, _, _ = s.Schedule("queued", 1, run("queued", nil), need("queued", time.Second, 24*time.Hour))
 
 		synctest.Wait()
 		if len(started) != 20 || !time.Now().Equal(now) || duplicate != blocked[0] {
@@ -82,7 +83,7 @@ func TestOrdinaryRequestsRampToFullSoftLimit(t *testing.T) {
 				case <-ctx.Done():
 				}
 				return Result{}
-			}, need("same", false, time.Second, time.Hour))
+			}, need("same", time.Second, time.Hour))
 
 		}
 		time.Sleep(15 * 250 * time.Millisecond)

@@ -20,7 +20,7 @@
 | 翻译机（共用工具） | 提供可复用的视频字节段与视频块转换能力；来源向需求集合管理声明需求，或向本地资源管理请求数据时，均可按需使用。它不是流程中的独立必经阶段。 |
 | 需求集合管理 | 根据上游使用需求的发布、更新与撤销进行整合，动态维护它对块资源使用管理的需求；不根据块是否已下载、本地是否存在来决定使用需求是否结束。 |
 | 块资源使用管理 | 根据整合后的需求及本地保护提前窗口协调本地保护；缺失块交给块下载调度器，按下载窗口安排执行；窗口内已有及下载后形成的本地块都应受到相应保护。 |
-| 块下载调度器 | 根据缺失块的下载需求安排执行。下载任务的生命周期与使用需求的生命周期分开。 |
+| 块下载调度器 | 根据缺失块的普通下载需求与本地读取等待安排执行，独立维护 Blocking。下载任务的生命周期与使用需求的生命周期分开。 |
 | 本地资源管理 | 对外提供按块使用视频的能力，统一负责文件组织、缓存读写、可用性、读取等待、保护、持久化预算与预留、保留取舍、回收、合并、校验和发布。其他模块通过接口使用这些能力，不另行维护文件或存储预算。接口实现见第二部分。 |
 
 上游来源身份及各自的需求贡献由需求集合管理维护。上游需求变化时，需求集合管理重新整合，向块资源使用管理新增、更新或撤销相应的块需求。块资源使用管理只关心整合后的块需求，不关心原始来源是谁，也不承担来源之间的整合。
@@ -43,14 +43,14 @@ flowchart LR
     Use -->|按本地保护窗口申请保护| Local
     Scheduler -->|保存数据| Local
     Get -->|请求数据并等待读取| Local
-    Local -.->|缺块等待：Blocking| Scheduler
+    Local -.->|读取等待开始／结束| Scheduler
 
     Translate["共用工具：翻译机<br/>字节段与块转换"]
     Translate -.->|声明需求时按需使用| Demand
     Translate -.->|请求数据时按需使用| Local
 ```
 
-转换工具的虚线表示按需复用，不是必经的调度阶段。字节/块计算复用 ranges.go 的范围工具；Blocking 采用 spoolReader 的缺块等待回调，由下载协调器合入既有块任务，不另建下载通道或绕过共享机制。
+转换工具的虚线表示按需复用，不是必经的调度阶段。字节/块计算复用 ranges.go 的范围工具；本地读取向块下载调度器成对报告缺块等待的开始与结束，由调度器维护 Blocking 并作用于既有共享块任务，不另建下载通道。
 
 ### 2. 使用需求独立于下载完成
 
@@ -60,13 +60,19 @@ flowchart LR
 
 下载完成表示资源可用性发生变化；它可以结束相应下载工作，但不能自动抹掉仍有效的使用需求和本地保护依据。需求来源退出时，也必须区分该来源的贡献与其他来源仍保留的需求。
 
-完整使用范围现由来源集合投影并生成无来源身份的 blockUse 摘要，下载协调器在此之后过滤已有块、叠加实际读取等待；本地保护复用同一投影和整合函数。摘要分别提供下载的最早有限 need-by、机会下载权限、最晚有效期和最早重算时刻，以及全部有限使用需求的最早本地保护 need-by。GET 过滤交接紧迫度只影响下载排序，不抹掉仍有效的交接使用与保护依据。来源登记、退出和交接转移在同一把锁下更新；唯一块引用归零时立即以真实事件时刻处理本地延续，再合并唤醒下游。无需另设常驻服务或来源保护记录。
+完整使用范围现由来源集合投影并生成无来源身份的 blockUse 摘要，下载协调器在此之后过滤已有块并提供缺块执行器，实际读取等待由调度器独立处理；本地保护复用同一投影和整合函数。摘要分别提供下载的最早有限 need-by、机会下载权限、最晚有效期和最早重算时刻，以及全部有限使用需求的最早本地保护 need-by。GET 过滤交接紧迫度只影响下载排序，不抹掉仍有效的交接使用与保护依据。来源登记、退出和交接转移在同一把锁下更新；唯一块引用归零时立即以真实事件时刻处理本地延续，再合并唤醒下游。无需另设常驻服务或来源保护记录。
 
 ### 3. GET 读取与急需信息
 
 GET 收到请求后，一方面声明所需范围，另一方面向本地资源管理请求数据。正常缺块等待表现为读取返回较慢，GET 无需自己判断或操纵 Blocking；本地资源管理感知正在等待的缺块，并将急需信息传达给下载调度。
 
-这里的急需信息对应当前实现的 `Blocking`：[`spoolReader.Read`](../internal/cacheproxy/stream.go) 在确实等待缺失数据时登记独立等待，由 [`downloadSession`](../internal/cacheproxy/scheduled_download.go) 汇入对应块的 Blocking 贡献；本次 Read 返回时撤销自己的等待。GET 到达或普通本地校验等待本身不产生该标记，多个读取者的等待独立登记和撤销。
+**Blocking 仅由块下载调度器解释和维护。** 需求集合管理、交接需求和块资源使用管理不保存、接收、整合或清除 Blocking；它不属于使用需求接口。需求集合仅按来源范围、时钟、退出原因和真实退出时刻生成交接，交接不继承读取等待的紧迫性，平移的 need-by 始终来自原来源时钟。
+
+本地资源管理只报告“某块开始被读取等待／该等待结束”的事实。[`spoolReader.Read`](../internal/cacheproxy/stream.go) 在确实等待缺失数据时登记独立等待，本次 Read 正常返回或出错时撤销。GET 的读取被取消，无论客户端断开、服务端取消还是主动关闭 Reader，本地读取都必须通过同一清理路径及时撤销自己的等待；清理可重复调用，不影响其他读取者。GET 到达、已有本地数据及普通本地校验等待不产生等待登记。
+
+调度器按块汇总实际等待：仍有任一读者等待就保持 Blocking，最后一个等待结束才解除。解除 Blocking 本身不取消仍有普通或交接需求的下载，也不暂停在途执行；需求截止、取消及清理规则继续独立适用。等待可以早于任务登记，或发生在旧任务收尾期间；不得丢失等待、复活已终止任务或建立同块并行执行。
+
+协调器仍负责为缺块提供执行器。调度器向它提供当前需要取回的块号及注册顺序，以接入尚未登记的任务及零预算回收后的重取；实际读取所需块优先注册，避免普通任务先占满元数据容量。该接口不暴露等待时刻、读者身份或紧迫属性。任务提交和普通需求更新均不携带 Blocking，真实等待与普通需求的调度合并只在调度器内部完成。
 
 “持续等待并读完”描述正常读取路径，不表示忽略客户端取消或隐藏读取错误。
 
@@ -277,9 +283,11 @@ need-by 的调整必须来自需求集合的实际变化，不能为了保留执
 
 ### 1. 实时块需求的整合与动态维护
 
-[usage_plan.go](../internal/cacheproxy/usage_plan.go) 持有包含本地已有块的完整来源投影，[block_demands.go](../internal/cacheproxy/block_demands.go) 生成不含来源身份的 blockUse。摘要分别携带下载时刻、机会权限、最晚有效期、最早重算时刻和本地保护时刻；下载协调器只在此后过滤可用块并加入实际读取等待。GET 对交接的下载过滤、交接下载截止均不抹掉使用/保护依据。
+[usage_plan.go](../internal/cacheproxy/usage_plan.go) 持有包含本地已有块的完整来源投影，[block_demands.go](../internal/cacheproxy/block_demands.go) 生成不含来源身份的 blockUse。摘要分别携带下载时刻、机会权限、最晚有效期、最早重算时刻和本地保护时刻；下载协调器只在此后过滤可用块并提供缺块执行器，普通需求不携带 Blocking。GET 对交接的下载过滤、交接下载截止均不抹掉使用/保护依据。
 
 来源范围保持为连续区间，唯一块引用索引负责容量和最后引用结束事件。保护与下载消费同一个投影，来源变更后在 Server.mu 下更新并合并唤醒；不通过下载完成通知重建来源生命周期，也不另设逐来源保护副本。
+
+[reads.go](../internal/blocksched/reads.go) 的 ReadRequests 持有每个本地 Read 的等待登记，按相同任务键在调度器内部合入实际等待时刻和 Blocking；Requested 只向协调器提供待取块号，OrderRegistration 提供注册顺序。它独立于普通 Need 租约，允许等待先于任务登记、在旧任务清理后接入新任务；会话关闭撤销全部等待并拒绝旧读者重新登记。普通需求撤销只关闭自己的 Demand，不关闭仍有读取等待的 Task；普通租约容量不足时等待容量恢复，也不取消读取持有的执行。零预算已完成块的防反复补下载规则保留，真实缺块读取可以重取。
 
 ### 2. 消费完成、来源退出与截止反馈
 
@@ -317,7 +325,7 @@ need-by 的调整必须来自需求集合的实际变化，不能为了保留执
 | --- | --- |
 | 资源与块身份 | [local_resource.go](../internal/cacheproxy/local_resource.go) 的运行期注册表持有资源，资源键及块号决定共享；新会话使用当前地址，不持有旧候选或重定向游标。完整视频继续使用既有 MD5 身份。 |
 | 完整块写入与可用性 | [local_blocks.go](../internal/cacheproxy/local_blocks.go) 的 store/has/available/ReadAt 统一维护完整块；普通写入关闭后可读，未完成块只在执行缓冲中存在。 |
-| 跨块读取与等待 | [stream.go](../internal/cacheproxy/stream.go) 提供独立偏移、Read/Seek/Close；缺块回调在 Read 期间贡献 Blocking，结束撤销。终止错误及上下文原因明确返回，已有可读字节不受独立发布结果门控。 |
+| 跨块读取与等待 | [stream.go](../internal/cacheproxy/stream.go) 提供独立偏移、Read/Seek/Close；缺块回调向调度器登记独立读取等待，返回、出错或取消共用一次性撤销；不持有 Blocking 属性。终止错误及上下文原因明确返回，已有可读字节不受独立发布结果门控。 |
 | 引用与回收 | 引擎、会话和 spool 持有存储引用，实际块 I/O 与合并 snapshot 持有文件引用；退休块先从可用集合移除，最后 I/O 引用释放后删除。替换块使用独立路径，旧删除不误伤新块。仅零预算积极逐块回收。 |
 | 持久化准入 | [publication_admission.go](../internal/cacheproxy/publication_admission.go) 复用库存、资源评分和全部同分排序，按完整大小预留；较高分候选可撤销低分预留。预算为零、超预算或不应保留时不进入合并/MD5。 |
 | 合并、校验与发布 | [block_publication.go](../internal/cacheproxy/block_publication.go) 的 publishBlocks 在预留后取得完整 snapshot，顺序合并、长度/MD5 检查，再同步关闭并原子发布。发布前重新核对保护及保留集合，与实际回收串行；成功转正式库存，放弃释放预留。 |
@@ -336,6 +344,7 @@ need-by 的调整必须来自需求集合的实际变化，不能为了保留执
 
 | 已实现规则 | 主要自动证据入口 |
 | --- | --- |
+| 读取等待独立、取消与多读者撤销、交接时钟隔离 | [reads_test.go](../internal/blocksched/reads_test.go)、[stream_wait_test.go](../internal/cacheproxy/stream_wait_test.go) |
 | GET 实际交付、冷热范围、取消及发布独立 | [get_consumption_test.go](../internal/cacheproxy/get_consumption_test.go)、[get_range_demand_test.go](../internal/cacheproxy/get_range_demand_test.go) |
 | 全使用投影、来源共享、固定交接及 4096/2867 容量 | [usage_plan_test.go](../internal/cacheproxy/usage_plan_test.go)、[demand_capacity_test.go](../internal/cacheproxy/demand_capacity_test.go)、[preparation_test.go](../internal/cacheproxy/preparation_test.go) |
 | 固定 M、独立尝试超时、截止与重新准入 | [window_test.go](../internal/blocksched/window_test.go)、[attempt_timeout_test.go](../internal/cacheproxy/attempt_timeout_test.go)、[deadline_test.go](../internal/blocksched/deadline_test.go)、[download_expiry_test.go](../internal/cacheproxy/download_expiry_test.go) |

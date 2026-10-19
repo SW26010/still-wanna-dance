@@ -31,7 +31,7 @@ func TestUsageHandoffIncludesReadableRemainderWithoutDownloadPlanning(t *testing
 			}
 			for block, sources := range usage {
 				for _, p := range sources {
-					if p.source != sourceHandoff || p.need.Blocking || p.need.Opportunistic || p.need.ReadyBy != clock.ready(block*rangeBlockSize).Add(2*time.Second) || p.need.LeaseUntil != now.Add(getHandoff) {
+					if p.source != sourceHandoff || p.need.Opportunistic || p.need.ReadyBy != clock.ready(block*rangeBlockSize).Add(2*time.Second) || p.need.LeaseUntil != now.Add(getHandoff) {
 						t.Fatal("handoff lost original clock, fixed expiry or source semantics", p)
 					}
 				}

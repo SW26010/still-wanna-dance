@@ -13,8 +13,12 @@ func TestBlockingCountsTowardOrdinaryAdmissionWithoutPreemption(t *testing.T) {
 		defer s.Close()
 		started, canceled := make(chan string, 16), make(chan string, 16)
 		cleanup := make(chan struct{})
+		endReads := make(map[string]func())
 		submit := func(key string, blocking bool, ready time.Duration) (*Task, *Demand, chan struct{}) {
 			release := make(chan struct{})
+			if blocking {
+				endReads[key] = waitForKey(t, s, key)
+			}
 			j, demand, _ := s.Schedule(key, 1<<20, func(ctx context.Context, _ *Progress) Result {
 				started <- key
 				select {
@@ -30,7 +34,7 @@ func TestBlockingCountsTowardOrdinaryAdmissionWithoutPreemption(t *testing.T) {
 					canceled <- key
 				}
 				return Result{}
-			}, need(key, blocking, ready, time.Hour))
+			}, need(key, ready, time.Hour))
 			return j, demand, release
 		}
 		var ordinary []*Task
@@ -57,12 +61,13 @@ func TestBlockingCountsTowardOrdinaryAdmissionWithoutPreemption(t *testing.T) {
 		for range 2 {
 			<-started
 		}
-		duplicate, _, _ := s.Schedule("blocking-one", 1, nil, need("blocking-one", false, time.Minute, time.Hour))
+		duplicate, _, _ := s.Schedule("blocking-one", 1, nil, need("blocking-one", time.Minute, time.Hour))
 		if duplicate != one {
 			t.Fatal("running block was duplicated")
 		}
 		// Losing Blocking while an ordinary contribution remains must not restart.
-		oneDemand.Update(need("blocking-one", false, time.Minute, time.Hour))
+		endReads["blocking-one"]()
+		oneDemand.Update(need("blocking-one", time.Minute, time.Hour))
 		submit("later", false, 2*time.Second)
 		submit("earlier", false, time.Second)
 		time.Sleep(time.Second)
@@ -112,24 +117,27 @@ func TestQueuedPromotionBypassesQuotaAndKeepsSharedExecution(t *testing.T) {
 				return Result{Err: context.Canceled}
 			}
 		}
-		_, _, _ = s.Schedule("old", 1, run("old"), need("old", false, time.Second, 24*time.Hour))
+		_, _, _ = s.Schedule("old", 1, run("old"), need("old", time.Second, 24*time.Hour))
 
 		<-started
-		_, d, _ := s.Schedule("next", 1, run("next"), need("next", false, time.Minute, 24*time.Hour))
+		_, d, _ := s.Schedule("next", 1, run("next"), need("next", time.Minute, 24*time.Hour))
 
 		synctest.Wait()
 		if len(started) != 0 {
 			t.Fatal("ordinary task bypassed capacity")
 		}
 		now := time.Now()
-		if !d.Update(need("next", true, 0, 24*time.Hour)) {
+		endRead := waitForKey(t, s, "next")
+		if !d.Update(need("next", 0, 24*time.Hour)) {
 			t.Fatal("promotion failed")
 		}
 		if got := <-started; got != "next" || !time.Now().Equal(now) {
 			t.Fatal("Blocking promotion waited", got)
 		}
-		d.Update(need("next", false, time.Minute, 24*time.Hour))
-		d.Update(need("next", true, 0, 24*time.Hour))
+		endRead()
+		d.Update(need("next", time.Minute, 24*time.Hour))
+		waitForKey(t, s, "next")
+		d.Update(need("next", 0, 24*time.Hour))
 		time.Sleep(time.Second)
 		synctest.Wait()
 		if len(started) != 0 {
@@ -152,7 +160,7 @@ func TestUrgentOrdinaryDeadlineWaitsForNaturalCompletion(t *testing.T) {
 				t.Error("urgent ordinary task canceled in-flight work")
 			}
 			return Result{}
-		}, need("old", false, time.Second, time.Hour))
+		}, need("old", time.Second, time.Hour))
 
 		<-started
 		for _, key := range []string{"later", "due"} {
@@ -160,7 +168,7 @@ func TestUrgentOrdinaryDeadlineWaitsForNaturalCompletion(t *testing.T) {
 			if key == "due" {
 				ready = time.Second
 			}
-			_, _, _ = s.Schedule(key, 25, func(context.Context, *Progress) Result { started <- key; return Result{} }, need(key, false, ready, time.Hour))
+			_, _, _ = s.Schedule(key, 25, func(context.Context, *Progress) Result { started <- key; return Result{} }, need(key, ready, time.Hour))
 
 		}
 		time.Sleep(3 * time.Second)

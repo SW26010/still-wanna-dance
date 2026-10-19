@@ -27,7 +27,7 @@ func TestStoppedInitialRequestStartsWithFreshCandidates(t *testing.T) {
 			f := &flight{streaming: make(chan struct{}), log: s.cfg.Logger}
 			f.progress = startProgress(f.log, v.size, time.Minute)
 			defer f.progress.finish(nil)
-			w := &downloadSession{s: s, ctx: ctx, v: v, f: f, initialized: make(chan struct{}), wake: make(chan struct{}, 1)}
+			w := newDownloadSession(s, ctx, v, f)
 			defer func() {
 				if f.spool != nil {
 					f.spool.release()

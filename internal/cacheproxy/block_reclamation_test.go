@@ -197,9 +197,9 @@ func TestReclaimedCompletedBlockOnlyRestartsForActualRead(t *testing.T) {
 	if _, ok := plan[0]; ok {
 		t.Fatal("unprotected reclaimed block was scheduled again")
 	}
-	endRead := w.demand(0)
+	endRead := w.reads.Wait(0)
 	plan, _, _ = w.plan(time.Now(), true)
-	if !plan[0].need.Blocking {
+	if _, ok := plan[0]; !ok {
 		t.Fatal("real read could not request its missing data")
 	}
 	endRead()

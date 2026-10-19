@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-func need(owner string, blocking bool, ready, lease time.Duration) Need {
-	n := Need{Owner: owner, Blocking: blocking, LeaseUntil: time.Now().Add(lease)}
+func need(owner string, ready, lease time.Duration) Need {
+	n := Need{Owner: owner, LeaseUntil: time.Now().Add(lease)}
 	if ready != 0 {
 		n.ReadyBy = time.Now().Add(ready)
 	}
@@ -25,21 +25,21 @@ func TestIndependentLeasesAndLateUpdates(t *testing.T) {
 			started <- struct{}{}
 			<-ctx.Done()
 			return Result{Err: context.Canceled}
-		}, need("a", true, -time.Second, time.Second))
+		}, need("a", -time.Second, time.Second))
 
-		b := j.Add(need("b", false, time.Minute, 3*time.Second))
+		b := j.Add(need("b", time.Minute, 3*time.Second))
 		<-started
 		time.Sleep(2 * time.Second)
-		if a.Update(need("a", true, 0, time.Hour)) {
+		if a.Update(need("a", 0, time.Hour)) {
 			t.Fatal("expired demand revived")
 		}
-		var summary Need
+		var summary priority
 		s.call(func(s *state) { summary = s.jobs["shared"].need })
 		if summary.Blocking || summary.Owner != "b" {
 			t.Fatalf("stale urgency: %+v", summary)
 		}
 		b.Close()
-		if b.Update(need("b", true, 0, time.Hour)) {
+		if b.Update(need("b", 0, time.Hour)) {
 			t.Fatal("closed handle revived demand")
 		}
 		time.Sleep(2 * time.Second)
@@ -65,7 +65,7 @@ func TestSharedExecutionFairDeadlinesAndReleaseAfterCleanup(t *testing.T) {
 			<-ctx.Done()
 			<-cleanup
 			return Result{Err: context.Canceled}
-		}, need("held", false, 0, time.Hour))
+		}, need("held", 0, time.Hour))
 
 		<-started
 		for _, key := range []string{"a1", "a2", "b"} {
@@ -73,9 +73,9 @@ func TestSharedExecutionFairDeadlinesAndReleaseAfterCleanup(t *testing.T) {
 			if key == "b" {
 				owner = "b"
 			}
-			j, _, _ := s.Schedule(key, 1, func(ctx context.Context, p *Progress) Result { started <- key; <-gate; return Result{} }, need(owner, false, time.Minute, time.Hour))
+			j, _, _ := s.Schedule(key, 1, func(ctx context.Context, p *Progress) Result { started <- key; <-gate; return Result{} }, need(owner, time.Minute, time.Hour))
 
-			dup, _, _ := s.Schedule(key, 1, nil, need(owner, false, time.Minute, time.Hour))
+			dup, _, _ := s.Schedule(key, 1, nil, need(owner, time.Minute, time.Hour))
 			if dup != j {
 				t.Fatal("duplicate execution")
 			}
@@ -109,7 +109,7 @@ func TestDeadlineDoesNotCancelAndCloseDrains(t *testing.T) {
 		j, _, _ := s.Schedule("a", 100, func(ctx context.Context, p *Progress) Result {
 			<-ctx.Done()
 			return Result{Err: context.Canceled}
-		}, need("a", true, time.Second, time.Minute))
+		}, need("a", time.Second, time.Minute))
 
 		time.Sleep(2 * time.Second)
 		select {
@@ -117,14 +117,14 @@ func TestDeadlineDoesNotCancelAndCloseDrains(t *testing.T) {
 			t.Fatal("ReadyBy canceled task")
 		default:
 		}
-		if _, _, err := s.Schedule("b", 1, nil, need("b", false, time.Hour, 2*time.Hour)); !errors.Is(err, ErrCapacity) {
+		if _, _, err := s.Schedule("b", 1, nil, need("b", time.Hour, 2*time.Hour)); !errors.Is(err, ErrCapacity) {
 			t.Fatal(err)
 		}
 		s.Close()
 		if !errors.Is(j.Err(), ErrClosed) {
 			t.Fatal(j.Err())
 		}
-		if _, _, err := s.Schedule("c", 1, nil, need("c", false, time.Hour, 2*time.Hour)); !errors.Is(err, ErrClosed) {
+		if _, _, err := s.Schedule("c", 1, nil, need("c", time.Hour, 2*time.Hour)); !errors.Is(err, ErrClosed) {
 			t.Fatal(err)
 		}
 	})

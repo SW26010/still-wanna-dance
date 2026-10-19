@@ -22,7 +22,7 @@ func TestSourceFilteringKeepsIndependentLeases(t *testing.T) {
 	}
 	summary := aggregateUse(sources, now)
 	n := summary.need
-	if !n.ReadyBy.Equal(now.Add(5*time.Second)) || n.Blocking {
+	if !n.ReadyBy.Equal(now.Add(5 * time.Second)) {
 		t.Fatal("old handoff urgency survived a nonblocking GET", n)
 	}
 	if !n.LeaseUntil.Equal(now.Add(30*time.Second)) || !summary.nextExpiry.Equal(now.Add(10*time.Second)) {
@@ -54,8 +54,6 @@ func TestSourceFilteringKeepsIndependentLeases(t *testing.T) {
 
 func TestQueuePromotionDemotionDoesNotCreateHandoff(t *testing.T) {
 	w, s := testSession(t)
-	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
-	defer s.scheduler.Close()
 	task, registered, _ := s.scheduler.Schedule("test", 1, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
 		<-ctx.Done()
 		return blocksched.Result{Err: context.Canceled}

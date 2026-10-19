@@ -17,8 +17,6 @@ import (
 func TestLeaseStopCompletesBeforeCoordinatorRetirement(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)
-		s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
-		defer s.scheduler.Close()
 		task, _, err := s.scheduler.Schedule("old", 1, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
 			<-ctx.Done()
 			return blocksched.Result{Err: ctx.Err()}
@@ -51,7 +49,7 @@ func TestCanceledSessionCannotRestartTask(t *testing.T) {
 			defer cancel(nil)
 			f := &flight{streaming: make(chan struct{}), log: s.cfg.Logger}
 			f.progress = startProgress(f.log, v.size, time.Minute)
-			w := &downloadSession{s: s, ctx: ctx, v: v, f: f, initialized: make(chan struct{}), wake: make(chan struct{}, 1)}
+			w := newDownloadSession(s, ctx, v, f)
 			defer func() {
 				f.progress.finish(nil)
 				if f.spool != nil {

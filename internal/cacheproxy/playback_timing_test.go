@@ -124,7 +124,7 @@ func TestPlaybackDeadlinesStayAtRequestArrival(t *testing.T) {
 			if plan[block].need.Owner == "" {
 				t.Fatal("missing block", block)
 			}
-			if p := plan[block]; p.need.ReadyBy != want || p.need.Blocking {
+			if p := plan[block]; p.need.ReadyBy != want {
 				t.Fatal(block, p.need, want)
 			}
 		}

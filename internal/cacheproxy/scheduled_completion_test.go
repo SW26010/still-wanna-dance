@@ -123,8 +123,6 @@ func TestReadableBlockDrainsWithoutCancelingSuccessfulExecution(t *testing.T) {
 	w, s := testSession(t)
 	w.v.size = rangeBlockSize
 	w.f.ranges.video = resourceVideo(w.v)
-	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
-	defer s.scheduler.Close()
 	_, release := addTestDemand(t, s, context.Background(), w.v, false)
 	defer release()
 	ready, cleanup := make(chan struct{}), make(chan struct{})

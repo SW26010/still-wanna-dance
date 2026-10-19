@@ -24,16 +24,16 @@ func TestMixedDemandKeepsDeadlineAndOpportunisticAdmission(t *testing.T) {
 					return Result{}
 				}
 			}
-			_, _, _ = s.Schedule("hold", 1, run("hold"), need("hold", false, 0, time.Hour))
+			_, _, _ = s.Schedule("hold", 1, run("hold"), need("hold", 0, time.Hour))
 
 			<-started
-			shared, d, _ := s.Schedule("shared", 1, run("shared"), need("playback", false, 15*time.Minute, time.Hour))
+			shared, d, _ := s.Schedule("shared", 1, run("shared"), need("playback", 15*time.Minute, time.Hour))
 
-			shared.Add(need("batch", false, 0, time.Hour))
-			_, _, _ = s.Schedule("other", 1, run("other"), need("other", false, 2*time.Second, time.Hour))
+			shared.Add(need("batch", 0, time.Hour))
+			_, _, _ = s.Schedule("other", 1, run("other"), need("other", 2*time.Second, time.Hour))
 
 			if earlier {
-				d.Update(need("playback", false, time.Second, time.Hour))
+				d.Update(need("playback", time.Second, time.Hour))
 			}
 			synctest.Wait()
 			if len(started) != 0 {
@@ -81,12 +81,12 @@ func TestMixedDemandWithdrawalRemovesOnlyEarlyAdmission(t *testing.T) {
 				case <-ctx.Done():
 				}
 				return Result{}
-			}, need("hold", false, 0, time.Hour))
+			}, need("hold", 0, time.Hour))
 
 			started := make(chan struct{}, 1)
-			j, playback, _ := s.Schedule("mixed", 1, func(context.Context, *Progress) Result { started <- struct{}{}; return Result{} }, need("playback", false, 15*time.Minute, time.Hour))
+			j, playback, _ := s.Schedule("mixed", 1, func(context.Context, *Progress) Result { started <- struct{}{}; return Result{} }, need("playback", 15*time.Minute, time.Hour))
 
-			batch := j.Add(need("batch", false, 0, 100*time.Millisecond))
+			batch := j.Add(need("batch", 0, 100*time.Millisecond))
 			if expire {
 				time.Sleep(100 * time.Millisecond)
 			} else {
@@ -102,7 +102,7 @@ func TestMixedDemandWithdrawalRemovesOnlyEarlyAdmission(t *testing.T) {
 					t.Error("stale opportunistic membership")
 				}
 			})
-			playback.Update(need("playback", false, time.Second, time.Hour))
+			playback.Update(need("playback", time.Second, time.Hour))
 			<-started
 			<-j.Done()
 		})

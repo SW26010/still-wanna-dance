@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -9,11 +10,25 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
+func assertUsageWithdrawn(t *testing.T, j *scheduledBlock) {
+	t.Helper()
+	if j.merged != nil || !j.nextExpiry.IsZero() {
+		t.Fatal("expired source retained its ordinary contribution", j.nextExpiry)
+	}
+	synctest.Wait()
+	select {
+	case <-j.task.Done():
+		if !errors.Is(j.task.Err(), context.Canceled) {
+			t.Fatal("last contribution ended with an unexpected result", j.task.Err())
+		}
+	default:
+		t.Fatal("task survived without ordinary usage or local reads")
+	}
+}
+
 func demandLifecycleSession(t *testing.T) (*downloadSession, *Server) {
 	t.Helper()
 	w, s := testSession(t)
-	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1})
-	t.Cleanup(s.scheduler.Close)
 	task, registered, err := s.scheduler.Schedule("queue", rangeBlockSize, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
 		<-ctx.Done()
 		return blocksched.Result{Err: context.Canceled}
@@ -121,8 +136,8 @@ func TestCoalescedQueueChangesPreserveWithdrawalSource(t *testing.T) {
 					if !j.nextExpiry.Equal(removedAt.Add(queueHandoff)) {
 						t.Fatal("withdrawal was replayed or renewed")
 					}
-				} else if !j.retiring || !j.nextExpiry.IsZero() {
-					t.Fatal("ordinary/expired source was retained", j.nextExpiry)
+				} else {
+					assertUsageWithdrawn(t, j)
 				}
 			})
 		})

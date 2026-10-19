@@ -20,7 +20,7 @@ func TestSetSoftLimitPreservesGrowthAndRunningTasks(t *testing.T) {
 				started <- time.Now()
 				<-ctx.Done()
 				return Result{Err: ctx.Err()}
-			}, need("video", false, 0, time.Minute))
+			}, need("video", 0, time.Minute))
 			if err != nil {
 				t.Fatal(err)
 			}

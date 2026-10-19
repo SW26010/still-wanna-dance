@@ -1,5 +1,5 @@
 export interface Settings {
-  storageDir: string; maxCacheBytes: number; cacheUnlimited: boolean; requestRetentionDays: number; throughputIntervalMinutes: number;
+  storageDir: string; maxCacheBytes: number; videoStorageMode: 'none' | 'limited' | 'unlimited'; requestRetentionDays: number; throughputIntervalMinutes: number;
   prepareAheadSeconds: number; downloadSoftLimit: number; downloadGrowIntervalMS: number; downloadUpstream: string; upstreamMode: string;
   proxyBackend: string; socks5Address: string; socks5Username: string; socks5Password?: string;
   autoStartCDN: boolean; autoStartQueue: boolean; manualLogDir: boolean; logDir: string;

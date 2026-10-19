@@ -55,7 +55,7 @@ type Settings struct {
 	SOCKS5Username            string `json:"socks5Username"`
 	SOCKS5Password            string `json:"socks5Password,omitempty"`
 	MaxCacheBytes             int64  `json:"maxCacheBytes"`
-	CacheUnlimited            bool   `json:"cacheUnlimited"`
+	VideoStorageMode          string `json:"videoStorageMode"`
 	StorageDir                string `json:"storageDir"`
 	LogDir                    string `json:"logDir"`
 	ManualLogDir              bool   `json:"manualLogDir"`
@@ -154,7 +154,7 @@ func New(configPath, address string) (*Console, error) {
 	c.settings = Settings{
 		StorageDir: apppaths.ForConfig(configPath).DefaultStorage, RequestRetentionDays: 30,
 		AutoStartCDN: true, AutoStartQueue: true,
-		CacheUnlimited: false, MaxCacheBytes: 0,
+		VideoStorageMode: "none", MaxCacheBytes: 0,
 		DownloadSoftLimit: cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),
 	}
 	c.exitRequested = make(chan struct{})
@@ -279,6 +279,12 @@ func absoluteSettings(s Settings) (Settings, error) {
 	}
 	if s.MaxCacheBytes < 0 {
 		return s, errors.New("视频存储预算不能为负数")
+	}
+	if s.VideoStorageMode != "none" && s.VideoStorageMode != "limited" && s.VideoStorageMode != "unlimited" {
+		return s, errors.New("视频保留选项必须为 none、limited 或 unlimited")
+	}
+	if s.VideoStorageMode == "limited" && s.MaxCacheBytes == 0 {
+		return s, errors.New("选择「限制为」时，视频存储预算必须大于 0")
 	}
 	if !s.ManualLogDir {
 		s.LogDir = defaultLogDir()
@@ -409,7 +415,10 @@ func (c *Console) ensureEngine() error {
 	cfg.Logger = slog.Default().With("component", "cache")
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
-	cfg.CacheUnlimited = c.settings.CacheUnlimited
+	cfg.CacheUnlimited = c.settings.VideoStorageMode == "unlimited"
+	if c.settings.VideoStorageMode == "none" {
+		cfg.MaxCacheBytes = 0
+	}
 	cfg.RequestRetentionDays = c.settings.RequestRetentionDays
 	cfg.PrepareAhead = time.Duration(c.settings.PrepareAheadSeconds) * time.Second
 	cfg.DownloadSoftLimit = c.settings.DownloadSoftLimit

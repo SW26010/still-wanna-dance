@@ -90,7 +90,7 @@ func TestInventoryPersistsAndKeepsLastSuccessOnFailure(t *testing.T) {
 
 func TestScanOnlyPersistsSuccessAcrossFailureAndCancellation(t *testing.T) {
 	c := testConsole(t)
-	c.settings.CacheUnlimited = true // Preserve the videos underlying the saved scan result.
+	c.settings.VideoStorageMode = "unlimited" // Preserve the videos underlying the saved scan result.
 	if err := c.save(c.settings); err != nil {
 		t.Fatal(err)
 	}

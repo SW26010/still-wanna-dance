@@ -17,7 +17,7 @@ import (
 
 func TestCoverageRecomputesFromDatabaseWhenRemoteFails(t *testing.T) {
 	c := testConsole(t)
-	c.settings.CacheUnlimited = true // Keep the fixture videos while refreshing coverage.
+	c.settings.VideoStorageMode = "unlimited" // Keep the fixture videos while refreshing coverage.
 	if err := c.save(c.settings); err != nil {
 		t.Fatal(err)
 	}

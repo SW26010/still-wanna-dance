@@ -19,7 +19,7 @@ func TestDownloadSettingsDefaultsAndZero(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := testConsole(t)
-			if err := os.WriteFile(c.configPath, []byte(`{"schemaVersion":3`+tc.fields+`}`), 0600); err != nil {
+			if err := os.WriteFile(c.configPath, []byte(`{"schemaVersion":4`+tc.fields+`}`), 0600); err != nil {
 				t.Fatal(err)
 			}
 			c = restartTestConsole(t, c)

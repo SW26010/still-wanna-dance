@@ -67,7 +67,7 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 			}
 			t.Cleanup(func() { c.Close() })
 			s := c.settings
-			s.AutoStartCDN, s.AutoStartQueue, s.CacheUnlimited = false, false, true
+			s.AutoStartCDN, s.AutoStartQueue, s.VideoStorageMode = false, false, "unlimited"
 			s.UpstreamMode, s.SOCKS5Address = "socks5", "127.0.0.1:1"
 			s.SOCKS5Username, s.SOCKS5Password = "upgrade-test", "synthetic-upgrade-secret"
 			if layout == "external" {

@@ -10,7 +10,7 @@ import (
 
 func TestConfigurationAndInventoryGolden(t *testing.T) {
 	root := t.TempDir()
-	b, err := os.ReadFile("testdata/config-v3.json")
+	b, err := os.ReadFile("testdata/config-v4.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +23,7 @@ func TestConfigurationAndInventoryGolden(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	if c.settings.PrepareAheadSeconds != 500 || c.settings.RequestRetentionDays != 0 || c.settings.AutoStartCDN || c.settings.StorageDir != filepath.Join(root, "storage") {
+	if c.settings.PrepareAheadSeconds != 500 || c.settings.RequestRetentionDays != 0 || c.settings.AutoStartCDN || c.settings.StorageDir != filepath.Join(root, "storage") || c.settings.VideoStorageMode != "none" || c.settings.MaxCacheBytes != 0 {
 		t.Fatal("configuration defaults changed")
 	}
 	if err := c.save(c.settings); err != nil {

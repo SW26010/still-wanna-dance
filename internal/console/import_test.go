@@ -16,7 +16,7 @@ import (
 
 func TestImportCleanupRetainsOnlyFailedReceiptsForConfirmedRetry(t *testing.T) {
 	c := testConsole(t)
-	c.settings.CacheUnlimited = true // Source cleanup requires retained destination videos.
+	c.settings.VideoStorageMode = "unlimited" // Source cleanup requires retained destination videos.
 	defer c.Close()
 	c.mu.Lock()
 	err := c.ensureEngine()

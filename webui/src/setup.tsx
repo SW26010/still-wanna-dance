@@ -7,7 +7,7 @@ import { type Application, type Status, gib } from './types';
 import { draftFrom, fingerprint, NetworkFields, releaseImport, type Draft } from './settings';
 import { Brand, Details, Feedback, Panel, NavigationLayout } from './ui';
 import { Diagnostics } from './diagnostics';
-import { CacheCapacityFields } from './cache-capacity';
+import { CacheCapacityFields, capacityPayload } from './cache-capacity';
 
 const steps = ['welcome','storage','proxy','finish'] as const;
 type Step = typeof steps[number];
@@ -19,7 +19,7 @@ const pathKey=(value:string)=>value.replaceAll('/','\\').replace(/\\+$/,'').toLo
 const savedApplication=()=>{try{return sessionStorage.getItem('swd-setup-application') || '';}catch{return '';}};
 const rememberApplication=(id:string)=>{try{if(id)sessionStorage.setItem('swd-setup-application',id);else sessionStorage.removeItem('swd-setup-application');}catch{/* Optional recovery hint. */}};
 export function setupPlan(d:Draft, s:Status, baseVersion:string, source:string) {
-  return {baseVersion,storageDir:d.storageDir,customStorage:pathKey(d.storageDir)!==pathKey(s.defaultStorageDir),cacheUnlimited:d.cacheUnlimited,maxCacheBytes:Math.round(Number(d.maxCacheGiB)*1073741824),
+  return {baseVersion,storageDir:d.storageDir,customStorage:pathKey(d.storageDir)!==pathKey(s.defaultStorageDir),...capacityPayload(d),
     upstreamMode:d.upstreamMode,proxyBackend:d.proxyBackend,proxyImportID:d.proxyImportID,socks5Address:d.socks5Address,socks5Username:d.socks5Username,
     ...(d.socks5Password || !d.socks5Username ? {socks5Password:d.socks5Password || ''} : {}),importSource:source.trim()};
 }
@@ -28,7 +28,7 @@ function SetupReview({draft:d,status:s,source}:{draft:Draft;status:Status;source
   const current=s.activeSettings, p=setupPlan(d,s,'',source);
   const change=(before:string,after:string)=>before===after?after:`${before} → ${after}`;
   const storage=(path:string)=>pathKey(path)===pathKey(s.defaultStorageDir)?'默认':'自定义 · '+path;
-  const capacity=(settings:{cacheUnlimited:boolean;maxCacheBytes:number})=>settings.cacheUnlimited?'不限':settings.maxCacheBytes/1073741824+' GiB'+(settings.maxCacheBytes===0?'（不持久保留视频）':'');
+  const capacity=(settings:Pick<Draft,'videoStorageMode'> & {maxCacheBytes:number})=>settings.videoStorageMode==='unlimited'?'不限制':settings.videoStorageMode==='none'?'不保留（视频存储预算为 0）':settings.maxCacheBytes/1073741824+' GiB';
   const mode=(value:string)=>({direct:'直连',proxy:'强制代理',socks5:'强制代理',auto:'直连 + 代理'}[value] || '未选择');
   const rows:[string,string][]=[['本地存储目录',change(storage(current.storageDir),storage(p.storageDir))],['视频存储预算',change(capacity(current),capacity(p))],['导入',source || '不执行']];
   if(source)rows.push(['目标',p.storageDir+' · 保留源文件']);
@@ -43,7 +43,7 @@ function SetupReview({draft:d,status:s,source}:{draft:Draft;status:Status;source
   const labels={autoStartCDN:'自动启动播放网关',autoStartQueue:'自动启动队列',prepareAheadSeconds:'提前准备时间 M（秒）',downloadSoftLimit:'下载并发上限（软）',downloadGrowIntervalMS:'并发增长间隔（毫秒）',requestRetentionDays:'请求保留天数',throughputIntervalMinutes:'测速间隔（分钟）',downloadUpstream:'回源线路',manualLogDir:'手动日志位置',logDir:'日志目录'};
   let advancedChanged=false;
   for(const key of Object.keys(labels) as (keyof typeof labels)[]){if(current[key]!==s.settings[key]){advancedChanged=true;rows.push([labels[key],change(String(current[key]),String(s.settings[key]))+'（此前已保存）']);}}
-  const changed=advancedChanged||!!p.proxyImportID||(['storageDir','maxCacheBytes','cacheUnlimited','upstreamMode','proxyBackend','socks5Address','socks5Username'] as const).some(key=>key==='storageDir'?pathKey(current[key])!==pathKey(p[key]):key==='proxyBackend'?(current[key] || 'external-socks5')!==p[key]:(current[key] ?? '')!==(p[key] ?? ''))||(p.socks5Password===''&&s.socks5PasswordSet);
+  const changed=advancedChanged||!!p.proxyImportID||(['storageDir','maxCacheBytes','videoStorageMode','upstreamMode','proxyBackend','socks5Address','socks5Username'] as const).some(key=>key==='storageDir'?pathKey(current[key])!==pathKey(p[key]):key==='proxyBackend'?(current[key] || 'external-socks5')!==p[key]:(current[key] ?? '')!==(p[key] ?? ''))||(p.socks5Password===''&&s.socks5PasswordSet);
   const restart=changed?'将重启程序，正在进行的播放和任务会中断。':p.socks5Password||s.restartRequired?'如最终设置与当前运行配置不同，将重启程序并中断播放和任务。':'';
   return <><dl>{rows.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl><p>{restart}{source&&((changed?'重启后开始导入。':'确认后开始导入。')+'关闭网页不影响导入，重启程序会中止导入。')}</p></>;
 }
@@ -175,7 +175,7 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
   }
   function reset() {
     if(!draft||!s)return;folder.current?.abort();
-    if(step==='storage'){setCustom(false);setImportEnabled(false);setSource('');update({storageDir:s.defaultStorageDir,cacheUnlimited:false,maxCacheGiB:'0'});void checkStorage(s.defaultStorageDir);}
+    if(step==='storage'){setCustom(false);setImportEnabled(false);setSource('');update({storageDir:s.defaultStorageDir,videoStorageMode:'none',maxCacheGiB:'0'});void checkStorage(s.defaultStorageDir);}
     if(step==='proxy'){void releaseImport(draft.proxyImportID);update({upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',socks5Password:'',proxyImportID:'',proxyImportText:'',proxyReport:undefined});}
   }
   return <div className="wizard"><header><Brand /><div className="actions"><Link href="/help" target="_blank" rel="noopener">使用帮助（新窗口）</Link><Button disabled={busy||recovering||application?.phase==='importing'} onClick={async()=>{if(await leave(false))onExit();}}>{accepted?'放弃更改并退出引导':'退出'}</Button></div></header>
@@ -191,7 +191,7 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
         <div className="actions"><Button disabled={locked||folderBusy} onClick={()=>{setCustom(false);update({storageDir:s.defaultStorageDir});void checkStorage(s.defaultStorageDir);}}>默认位置</Button><Button disabled={locked||storageBusy} onClick={()=>void checkStorage(draft.storageDir)}>重新检查</Button></div>
         <p role="status">{storageBusy?'正在检查目录…':storage?.space.state==='ok'?`可用 ${gib(storage.freeBytes)} / ${gib(storage.totalBytes)}`:storage?.space.message || '容量待确认'}</p><Feedback error>{storageMessage}</Feedback>
         {pathKey(draft.storageDir)!==pathKey(s.settings.storageDir)&&<Feedback>更换目录不会搬迁已有数据。</Feedback>}
-        <CacheCapacityFields unlimited={draft.cacheUnlimited} value={draft.maxCacheGiB} disabled={locked} onChange={update} />
+        <CacheCapacityFields mode={draft.videoStorageMode} value={draft.maxCacheGiB} disabled={locked} onChange={update} />
         <p>完整数据约 430 GiB。空间不足时，建议将视频存储预算设为 40 GiB 以内，以获得最佳空间收益。</p><Checkbox label="导入已有视频" checked={importEnabled} disabled={locked} onChange={(_,v)=>{setImportEnabled(!!v.checked);if(!v.checked){folder.current?.abort();setSource('');}}}/>
         {importEnabled&&<><Field label="导入视频文件夹"><Button className="path-button" disabled={locked||folderBusy} onClick={()=>void chooseFolder('import')}>{source||'点击选择文件夹'}</Button></Field><p>可选择存有 WannaDance 视频或旧版保存的视频的文件夹，包含子文件夹，无需特定目录结构。</p><p>请放心，我们不会修改来源文件，并且会尽量使用硬链接来避免双份空间占用。导入后请勿修改源视频。</p></>}
       </div>}

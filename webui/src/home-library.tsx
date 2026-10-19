@@ -27,7 +27,7 @@ export function Home() {
 }
 export function Library() {
   const app = useApp(), s = app.status.data!, q = s.queue, b = s.batch, saved = s.lastBatch;
-  const zeroBudget = !s.activeSettings.cacheUnlimited && s.activeSettings.maxCacheBytes === 0;
+  const zeroBudget = s.activeSettings.videoStorageMode === 'none';
   const queuePhase = q.running ? q.current ? `正在准备歌曲 ${(q.active || [q.current]).join('、')}` : q.songs?.length ? '等待队列变化或重试' : '等待新的队列同步' : !q.desired ? '已关闭' : b.running && !b.scanOnly ? '下载补齐期间暂停，结束后自动恢复' : '预加载未就绪，请检查日志目录';
   return <><Panel id="queue" title="房间队列预加载"><p>按预计播放时间提前准备队列中的有效曲目。</p><p>日常跳舞建议开启：根据游戏日志，提前下载即将播放的视频。开启后等待房间同步新队列，不会回放旧队列。</p><Link href="#prepareAheadSeconds">调整提前准备时间</Link><Details title="暂停与停止说明"><p>下载补齐期间暂停，结束后恢复原先开启的队列预加载。关闭后已开始的共享下载可能继续完成。</p></Details>
     <div className="actions"><Button disabled={app.unavailable || q.running || (q.desired && b.running && !b.scanOnly)} onClick={() => void app.action('queue/start')}>开启队列预加载</Button><Button disabled={app.unavailable || (!q.desired && !q.running)} onClick={() => void app.action('queue/stop')}>关闭队列预加载</Button></div>
@@ -36,7 +36,7 @@ export function Library() {
     <Feedback error>{q.logError || q.error || s.actionErrors?.queue}</Feedback></Panel>
     <Panel id="batch" title="全曲库补齐"><p>适合想提前准备整个曲库时使用。补齐可能下载大量视频、占用较多流量和磁盘空间，建议先<Link href="#maxCacheGiB">设置视频存储预算</Link>。</p>
     <div className="actions"><Button disabled={app.unavailable || b.running} onClick={() => void app.action('batch/scan')}>{b.running&&b.scanOnly?'正在扫描…':'检查缺失视频'}</Button><Button disabled={app.unavailable || b.running || zeroBudget} onClick={() => void app.action('batch/switch')}>{b.running&&!b.scanOnly?'正在下载补齐…':q.running ? '暂停预加载并下载补齐' : '下载补齐'}</Button><Button disabled={app.unavailable || !b.running} onClick={() => void app.action('batch/cancel')}>停止批量任务</Button></div>
-    {zeroBudget && <Feedback>当前视频存储预算为 0 GiB，不持久保留视频，无法下载补齐。请在设置中选择正数容量或不限制，保存并重启应用后重试。</Feedback>}
+    {zeroBudget && <Feedback>当前视频存储预算为 0 GiB，不持久保留视频，无法下载补齐。请在设置中选择「限制为」并填写正数预算，或选择「不限制」，保存并重启应用后重试。</Feedback>}
     <Details title="检查与下载说明"><p>检查缺失视频会更新歌曲清单并检查本地文件，不下载或校验视频内容。补齐期间暂停房间队列预加载，结束后恢复原先开启的队列预加载。空间不足时停止；停止任务后，已开始的共享下载可能继续完成。</p></Details>
     <p>{dated(saved.updated) ? `上次成功${saved.scanOnly ? '扫描' : '下载补齐'} · ${date(saved.updated)} · 任务曲目总数 ${saved.total || 0} · 检查时本地已有 ${saved.hits || 0} · 该次任务下载完成 ${saved.downloaded || 0} · 缺失视频 ${saved.missing || 0}` : '暂无成功任务记录'}</p>
     {(b.running || !!b.total) && <Progress value={b.checked} max={b.total} label="批量任务进度" />}

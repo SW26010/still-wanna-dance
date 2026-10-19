@@ -18,23 +18,23 @@ func setupTestPlan(c *Console) setupPlan {
 	s := c.savedSettings
 	version, _ := c.setupSettingsVersion(s)
 	return setupPlan{ID: "test-application", BaseVersion: version, StorageDir: s.StorageDir,
-		CacheUnlimited: s.CacheUnlimited, MaxCacheBytes: s.MaxCacheBytes, UpstreamMode: s.UpstreamMode, SOCKS5Address: s.SOCKS5Address, SOCKS5User: s.SOCKS5Username}
+		VideoStorageMode: s.VideoStorageMode, MaxCacheBytes: s.MaxCacheBytes, UpstreamMode: s.UpstreamMode, SOCKS5Address: s.SOCKS5Address, SOCKS5User: s.SOCKS5Username}
 }
 
-func TestSetupCacheUnlimitedAndZero(t *testing.T) {
-	for _, unlimited := range []bool{false, true} {
+func TestSetupVideoStorageModes(t *testing.T) {
+	for _, mode := range []string{"none", "limited", "unlimited"} {
 		c := testConsole(t)
 		p := setupTestPlan(c)
-		p.CacheUnlimited, p.MaxCacheBytes = unlimited, 0
+		p.VideoStorageMode, p.MaxCacheBytes = mode, 5<<30
 		validated, err := c.validateSetupPlan(p)
-		if err != nil || validated.CacheUnlimited != unlimited || validated.MaxCacheBytes != 0 {
+		if err != nil || validated.VideoStorageMode != mode || validated.MaxCacheBytes != 5<<30 {
 			t.Fatalf("validate: %+v %v", validated, err)
 		}
 		a, err := c.applySetupPlan(p)
-		if err != nil || !a.ConfigSaved || c.savedSettings.CacheUnlimited != unlimited || c.savedSettings.MaxCacheBytes != 0 {
+		if err != nil || !a.ConfigSaved || c.savedSettings.VideoStorageMode != mode || c.savedSettings.MaxCacheBytes != 5<<30 {
 			t.Fatalf("apply: %+v %v", a, err)
 		}
-		if c.settings.CacheUnlimited || c.settings.MaxCacheBytes != 0 {
+		if c.settings.VideoStorageMode != "none" || c.settings.MaxCacheBytes != 0 {
 			t.Fatal("wizard changed active settings before restart")
 		}
 	}
@@ -47,7 +47,7 @@ func TestSetupValidationNeverSavesOrStarts(t *testing.T) {
 	p := setupTestPlan(c)
 	p.StorageDir = filepath.Join(t.TempDir(), "new-library")
 	p.MaxCacheBytes = 12 << 30
-	p.CacheUnlimited = false
+	p.VideoStorageMode = "limited"
 	if _, err := c.validateSetupPlan(p); err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestSetupValidationNeverSavesOrStarts(t *testing.T) {
 func TestSetupApplyRestartsBeforeImportAndResumesOnce(t *testing.T) {
 	c := testConsole(t)
 	p := setupTestPlan(c)
-	p.CacheUnlimited = false
+	p.VideoStorageMode = "limited"
 	p.StorageDir, p.ImportSource, p.MaxCacheBytes = filepath.Join(t.TempDir(), "new-library"), t.TempDir(), 25<<30
 	old := c.settings
 	a, err := c.applySetupPlan(p)

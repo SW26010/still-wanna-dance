@@ -5,22 +5,23 @@ import { decode, request } from './api';
 import { useApp } from './hooks';
 import { Details, Feedback, Panel, Progress } from './ui';
 import { type Settings, type Status } from './types';
-import { CacheCapacityFields } from './cache-capacity';
+import { CacheCapacityFields, capacityPayload, type CapacityDraft } from './cache-capacity';
 
 const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadSoftLimit','downloadGrowIntervalMS'] as const;
 type NumberField = typeof numeric[number];
 export interface ProxyReport { id?: string; accepted: number; skipped: number; failed: number; items: {index: number; protocol?: string; status: string; reason?: string}[] }
-export type Draft = Omit<Settings, NumberField | 'maxCacheBytes'> & Record<NumberField, string> & { maxCacheGiB: string; proxyImportID: string; proxyImportText: string; proxyReport?: ProxyReport };
+export type Draft = Omit<Settings, NumberField | 'maxCacheBytes'> & Record<NumberField, string> & CapacityDraft & { proxyImportID: string; proxyImportText: string; proxyReport?: ProxyReport };
 export function draftFrom(s: Settings): Draft {
-  return { ...s, socks5Password: '', upstreamMode: s.upstreamMode === 'socks5' ? 'proxy' : s.upstreamMode || 'direct', proxyBackend: s.proxyBackend || 'external-socks5',
+  const {maxCacheBytes, ...values} = s;
+  return { ...values, socks5Password: '', upstreamMode: s.upstreamMode === 'socks5' ? 'proxy' : s.upstreamMode || 'direct', proxyBackend: s.proxyBackend || 'external-socks5',
     requestRetentionDays: String(s.requestRetentionDays ?? 30), throughputIntervalMinutes: String(s.throughputIntervalMinutes ?? 20),
     prepareAheadSeconds: String(s.prepareAheadSeconds ?? 500),
     downloadSoftLimit: String(s.downloadSoftLimit ?? 16), downloadGrowIntervalMS: String(s.downloadGrowIntervalMS ?? 250),
-    maxCacheGiB: String((s.maxCacheBytes || 0) / 1073741824), proxyImportID: '', proxyImportText: '' };
+    maxCacheGiB: String((maxCacheBytes || 0) / 1073741824), proxyImportID: '', proxyImportText: '' };
 }
 export function settingsPayload(d: Draft) {
-  const { maxCacheGiB, proxyImportText: _text, proxyReport: _report, socks5Password, ...values } = d;
-  return { ...values, ...Object.fromEntries(numeric.map(k => [k, Number(d[k])])), maxCacheBytes: Math.round(Number(maxCacheGiB) * 1073741824),
+  const { videoStorageMode, maxCacheGiB, proxyImportText: _text, proxyReport: _report, socks5Password, ...values } = d;
+  return { ...values, ...Object.fromEntries(numeric.map(k => [k, Number(d[k])])), ...capacityPayload({videoStorageMode, maxCacheGiB}),
     logDir: d.manualLogDir ? d.logDir : '', ...(socks5Password || !d.socks5Username ? {socks5Password: socks5Password || ''} : {}) };
 }
 export function fingerprint(d: Draft) {
@@ -106,7 +107,7 @@ export function SettingsPage() {
     <ImportPanel />
     <Panel id="preferences" title="偏好设置"><Feedback error>{s.actionErrors?.settings}</Feedback><form className="form-grid" onSubmit={async e => { e.preventDefault(); if (!dirty || disabled || d.proxyImportText.trim()) return; if (await app.action('settings', settingsPayload(d))) { setDraft(d); setAwaitingRevision(app.revision + 1); } }}>
       <fieldset disabled={disabled}><legend>本地存储</legend><Field label="本地存储目录" required hint="统一保存视频、歌曲资料和统计记录。下载中的文件也保存在此目录。"><Input required value={d.storageDir} onChange={(_, v) => update({storageDir:v.value})} /></Field>
-      <CacheCapacityFields anchor="maxCacheGiB" unlimited={d.cacheUnlimited} value={d.maxCacheGiB} disabled={disabled} onChange={update} />
+      <CacheCapacityFields anchor="maxCacheGiB" mode={d.videoStorageMode} value={d.maxCacheGiB} disabled={disabled} onChange={update} />
       {numberField('requestRetentionDays','请求明细保留天数',0,36500,'默认 30 天，0 表示永久保留。只清理请求明细，累计统计保留。')}</fieldset>
       <fieldset disabled={disabled}><legend>控制台启动</legend><Checkbox label="运行控制台时自动启用播放网关" checked={d.autoStartCDN} onChange={(_, v) => update({autoStartCDN:!!v.checked})} /><Checkbox label="运行控制台时自动启用房间队列预加载" checked={d.autoStartQueue} onChange={(_, v) => update({autoStartQueue:!!v.checked})} /><p>两项默认启用，分别控制，互不跟随。保存后在下次启动控制台程序时生效，重新打开网页不会触发。</p><p>自动启用需已同意使用条款，不自动修改游戏接入（hosts）。手动启停不会改变这两项设置。</p></fieldset>
       <fieldset><legend>网络连接</legend><NetworkFields draft={d} update={update} disabled={app.unavailable || syncing} status={s} onPending={setPending} />

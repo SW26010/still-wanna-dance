@@ -1,10 +1,12 @@
 # 视频存储预算零值与独立不限选项：开发验证
 
+现行三选一行为及配置格式见[本地视频保留与存储预算](cache-retention.md)，2026-10-20 起替代下方旧二选一规则。
+
 2026-10-19 起按[术语与命名](download-resource-design.md#术语与命名)使用“视频存储预算”“本地视频”“房间队列预加载”。下方既有验证结果保留当时的名称和环境；本轮术语检查见末节。
 
 初次验证：2026-10-16；默认值于 2026-10-18 调整为零预算。实机状态：**待验收 LA-047**。
 
-## 行为与实现
+## 初版行为与实现（历史）
 
 - 设置页与首次引导共用 `webui/src/cache-capacity.tsx`，只提供「不限制／限制为」。限制值允许 0，最多两位小数；切换选项保留数值。全新配置与引导「恢复本页默认」均限制为 0 GiB，已保存的明确容量选择保留。
 - `cacheUnlimited` 独立表示不限；`maxCacheBytes` 表示字节预算。限制为 0 时复用现有引用、队列及交接保护，保护解除后回收正式视频；已有受管视频也按该预算处理。允许临时写盘，保留歌曲资料、统计及未知文件。不提供旧配置兼容或迁移逻辑。
@@ -55,3 +57,22 @@
 - 首轮沙箱内 Edge 在启动阶段因进程/命名管道限制失败，Go 配置原子替换报 `renameat ... The handle is invalid` 等错误；随后在普通权限环境用同一隔离入口通过，不修改产品逻辑绕过环境限制。浏览器首轮错误上下文保留于忽略目录 `artifacts/storage-terminology-browser-sandbox/`，成功日志为 `artifacts/storage-terminology-{browser,go,go-final,browser-final}.log`。
 
 本轮只验证术语与既有行为回归，未启动游戏、修改 hosts 或操作用户库；未新增 VRC 待验项。
+
+
+## 2026-10-20 三选一与显式保存
+
+设置与引导统一按「不保留 / 限制为 / 不限制」排列，默认和恢复默认均选择「不保留」。只有「限制为」启用正数容量输入，模式切换和保存重载保留有效容量；「不保留」界面显示运行时预算为 0。说明沿用“本地视频持久化存储预算”“本地视频”“视频块缓存”的术语边界。
+
+配置格式升级为版本 4，以 `videoStorageMode=none/limited/unlimited` 明确保存选择，`maxCacheBytes` 保留容量输入，移除原 `cacheUnlimited` 配置字段。保存、引导应用、状态快照和待重启比较均使用明确模式；创建引擎时才把 none 映射为有限零预算，其余模式沿用既有预算机制。版本 1～3 不兼容、不迁移；拒绝旧格式时不改写原文件。
+
+验证与边界：
+
+- `pnpm --dir webui build`、`pnpm --dir webui check` 通过，嵌入资源及构建清单已更新；相关 Go 包的 `go vet -tags=no_easytier` 通过，验收脚本的 Node/PowerShell 语法检查通过。
+- 经 `scripts/with-test-temp.ps1` 运行 Edge 内存夹具的预算、设置、引导、恢复和文案回归，27 项通过。覆盖三个选择保存/刷新、记住容量、不保留覆盖正数草稿、默认恢复、非法值、输入小数时不切换模式、active 设置待重启和补齐门禁。已查看设置控件及 390px 引导截图，三项顺序、标签和说明正常，无横向溢出。
+- 经相同隔离入口运行 `go test -tags=no_easytier ./internal/console ./internal/apppaths -count=1 -timeout=180s`；`apppaths` 通过，修正下述 golden 样例后 `console` 整包复跑通过（59.080 秒）。覆盖真实配置文件中的三项选择、容量保留、重新构造应用后的引擎回收、不保留覆盖正数预算、引导保存、非法模式/有限零预算拒绝，以及旧版本拒绝且不改写。最终成功日志为 `artifacts/video-storage-mode-go-final.log`。
+- 复核时为 E2E 夹具的 `settings` 显式标注 `Settings`，独立对 `e2e/api.ts` 与 `e2e/cache-capacity.spec.ts` 执行 TypeScript 严格检查通过；默认 `webui check` 仍仅检查 `src` 和嵌入产物。升级步骤改为引用统一存储契约，避免遗漏旧配置版本。
+- 沙箱内 Go 配置原子替换仍报 `The handle is invalid`，Edge 27 项在页面操作前失败且未正常结束，已中止并保留原输出；普通权限环境使用相同隔离入口完成浏览器验证。Go 首轮普通权限整包仅有旧版本 golden 配置样例失败，已将样例及读取入口更新为版本 4，保留失败日志。
+
+日志与截图留在忽略目录：`artifacts/video-storage-mode-{browser,go}.log` 为沙箱尝试；`artifacts/video-storage-mode-browser-normal.log`、`artifacts/video-storage-mode-browser-normal/` 为通过的浏览器日志和截图；`artifacts/video-storage-mode-go-normal.log` 保留旧 golden 样例失败。
+
+本轮未运行公网验收、真实进程 UI 重启或 VRC 游戏；浏览器结果限于内存 API，Go 文件/引擎检查使用隔离目录。没有新增游戏专属风险，不追加 VRC 待验项。

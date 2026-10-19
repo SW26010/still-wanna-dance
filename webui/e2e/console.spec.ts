@@ -34,13 +34,13 @@ test('cache renders Unix millisecond request times and zero as no record', async
   const api=await mockAPI(page), errors:string[]=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto('/#/cache');
-  const rows=page.getByRole('grid',{name:'缓存文件'}).getByRole('row');
+  const rows=page.getByRole('grid',{name:'本地视频文件'}).getByRole('row');
   const requested=await page.evaluate(at=>new Date(at).toLocaleString(),api.files[0].lastRequest);
   await expect(rows.first()).toContainText('最近请求：'+requested);
   await expect(rows.nth(1)).toContainText('最近请求：无记录');
   await page.getByRole('button',{name:'刷新文件列表'}).click();
   await expect(rows.first()).toContainText('最近请求：'+requested);
-  await navigate(page,'设置'); await navigate(page,'本地缓存');
+  await navigate(page,'设置'); await navigate(page,'本地视频');
   await expect(rows.first().getByRole('checkbox')).toBeEnabled();
   expect(errors).toEqual([]);
 });
@@ -49,9 +49,9 @@ test('cache protects in-use files and only deletes confirmed stamped selections'
   const api=await mockAPI(page); await page.goto('/#/cache');
   await expect(page.getByRole('checkbox',{name:/测试歌曲 2/})).toBeDisabled();
   await page.getByRole('button',{name:'选择本页可删除项'}).click();
-  await page.getByRole('button',{name:'删除选中缓存'}).click(); await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button',{name:'删除选中视频'}).click(); await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByRole('button',{name:'取消',exact:true}).click(); expect(api.calls.some(c=>c.path==='cache/delete')).toBe(false);
-  await page.getByRole('button',{name:'删除选中缓存'}).click(); await page.getByRole('button',{name:'确认删除',exact:true}).click();
+  await page.getByRole('button',{name:'删除选中视频'}).click(); await page.getByRole('button',{name:'确认删除',exact:true}).click();
   await expect(page.getByRole('checkbox',{name:/测试歌曲 1/})).toHaveCount(0);
   expect(api.calls.find(c=>c.path==='cache/delete')?.body).toEqual({storageID:'fixture',entries:[{key:'key1',stamp:'stamp1'}]});
 });
@@ -70,7 +70,7 @@ test('all console pages render at narrow width without runtime errors', async ({
   await mockAPI(page); await page.setViewportSize({width:390,height:844}); await page.emulateMedia({colorScheme:'dark'});
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('/');
-  for(const name of ['开始使用','准备歌曲','本地缓存','运行状态','设置']) {
+  for(const name of ['开始使用','准备歌曲','本地视频','运行状态','设置']) {
     await navigate(page,name);
     await expect(page.locator('#main')).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

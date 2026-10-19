@@ -44,7 +44,7 @@ test('wizard draft is independent of settings and failed apply never resubmits a
   await page.getByRole('link',{name:'重新打开使用引导'}).click();
   await page.getByRole('button',{name:'下一步',exact:true}).click();
   await page.getByRole('radio',{name:'限制为',exact:true}).check();
-  await page.getByRole('spinbutton',{name:/缓存容量/}).fill('20');
+  await page.getByRole('spinbutton',{name:/视频存储预算/}).fill('20');
   await page.getByRole('button',{name:'下一步',exact:true}).click();
   await page.getByRole('button',{name:'下一步',exact:true}).click();
   let applyCount=0;

@@ -252,7 +252,7 @@ func TestFailedCachedURLPreservesRefreshFailure(t *testing.T) {
 	refreshFailure := errors.New("API refresh unavailable")
 	s.cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return "", refreshFailure }
 	_, err := s.PrefetchPlayback(context.Background(), 42)
-	if !errors.Is(err, errUpstreamDownload) || !errors.Is(err, refreshFailure) || !strings.Contains(err.Error(), "cached URL refresh") {
+	if !errors.Is(err, errUpstreamDownload) || !errors.Is(err, refreshFailure) || !strings.Contains(err.Error(), "saved URL refresh") {
 		t.Fatalf("lost failure context: %v", err)
 	}
 }

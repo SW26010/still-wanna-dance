@@ -28,9 +28,9 @@ function SetupReview({draft:d,status:s,source}:{draft:Draft;status:Status;source
   const current=s.activeSettings, p=setupPlan(d,s,'',source);
   const change=(before:string,after:string)=>before===after?after:`${before} → ${after}`;
   const storage=(path:string)=>pathKey(path)===pathKey(s.defaultStorageDir)?'默认':'自定义 · '+path;
-  const capacity=(settings:{cacheUnlimited:boolean;maxCacheBytes:number})=>settings.cacheUnlimited?'不限':settings.maxCacheBytes/1073741824+' GiB'+(settings.maxCacheBytes===0?'（不持久保留缓存）':'');
+  const capacity=(settings:{cacheUnlimited:boolean;maxCacheBytes:number})=>settings.cacheUnlimited?'不限':settings.maxCacheBytes/1073741824+' GiB'+(settings.maxCacheBytes===0?'（不持久保留视频）':'');
   const mode=(value:string)=>({direct:'直连',proxy:'强制代理',socks5:'强制代理',auto:'直连 + 代理'}[value] || '未选择');
-  const rows:[string,string][]=[['存储',change(storage(current.storageDir),storage(p.storageDir))],['缓存空间上限',change(capacity(current),capacity(p))],['导入',source || '不执行']];
+  const rows:[string,string][]=[['本地存储目录',change(storage(current.storageDir),storage(p.storageDir))],['视频存储预算',change(capacity(current),capacity(p))],['导入',source || '不执行']];
   if(source)rows.push(['目标',p.storageDir+' · 保留源文件']);
   rows.push(['网络连接',change(mode(current.upstreamMode),mode(p.upstreamMode))]);
   if(p.upstreamMode!=='direct')rows.push(['代理后端',p.proxyBackend==='mihomo'?'内嵌 Mihomo':'外部 SOCKS5']);
@@ -182,25 +182,25 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
     <NavigationLayout label="引导步骤" selected={step} steps items={steps.map((name,i)=>({value:name,label:`${i+1}. ${names[name]}`,disabled:locked||(name!=='welcome'&&!canContinue),onClick:()=>void go(name)}))}>
     <Text as="h1" size={600} weight="semibold" ref={heading} tabIndex={-1}>{names[step]}</Text>
     <form ref={form} onSubmit={e=>{e.preventDefault();if(step==='finish')void apply();else void go(steps[steps.indexOf(step)+1]);}}>
-      {step==='welcome'&&<><Subtitle1 as="h2">Still Wanna Dance (SWD)</Subtitle1><p>Load failed? But I still wanna dance!</p><p>专为 VRChat WannaDance 设计的高性能视频加速器</p><ul><li>本地缓存</li><li>队列预加载</li><li>直连优化</li><li>自定义代理</li></ul><p>本工具自动后台运行，使用 WebUI 操作，可通过系统托盘图标管理。</p><p>技术原理：通过修改系统 hosts 劫持 HTTP 视频请求</p>
+      {step==='welcome'&&<><Subtitle1 as="h2">Still Wanna Dance (SWD)</Subtitle1><p>Load failed? But I still wanna dance!</p><p>专为 VRChat WannaDance 设计的高性能视频加速器</p><ul><li>本地视频</li><li>队列预加载</li><li>直连优化</li><li>自定义代理</li></ul><p>本工具自动后台运行，使用 WebUI 操作，可通过系统托盘图标管理。</p><p>技术原理：通过修改系统 hosts 劫持 HTTP 视频请求</p>
         <div className="actions"><span>阅读并同意</span><Button onClick={()=>{setTermsOpen(true);void loadTerms();}}>完整条款</Button><Badge color={terms?.accepted?'success':'informative'}>{terms?.accepted?'已保存。':terms?'点击同意后立即保存。':'尚未读到确认记录'}</Badge></div>
         {accepted&&!s&&<Spinner label="正在连接设置…"/>}<Details title="修复已有安装"><p>移除本程序的 hosts 映射，需要管理员确认，立即生效。</p><Button disabled={app.busy||app.stopped} onClick={()=>void app.action('hosts/disable')}>恢复游戏直连</Button></Details>
       </>}
       {step==='storage'&&draft&&s&&<div className="form-grid"><Checkbox checked={custom} disabled={locked} label="指定其他位置（程序文件夹外）" onChange={(_,v)=>{setCustom(!!v.checked);if(!v.checked){update({storageDir:s.defaultStorageDir});void checkStorage(s.defaultStorageDir);}}}/>
-        <Field label="视频缓存位置："><Button className="path-button" disabled={locked||folderBusy||!custom} onClick={()=>void chooseFolder('storage')}>{draft.storageDir || '选择存储文件夹'}</Button></Field>
+        <Field label="本地存储目录："><Button className="path-button" disabled={locked||folderBusy||!custom} onClick={()=>void chooseFolder('storage')}>{draft.storageDir || '选择存储文件夹'}</Button></Field>
         <div className="actions"><Button disabled={locked||folderBusy} onClick={()=>{setCustom(false);update({storageDir:s.defaultStorageDir});void checkStorage(s.defaultStorageDir);}}>默认位置</Button><Button disabled={locked||storageBusy} onClick={()=>void checkStorage(draft.storageDir)}>重新检查</Button></div>
         <p role="status">{storageBusy?'正在检查目录…':storage?.space.state==='ok'?`可用 ${gib(storage.freeBytes)} / ${gib(storage.totalBytes)}`:storage?.space.message || '容量待确认'}</p><Feedback error>{storageMessage}</Feedback>
         {pathKey(draft.storageDir)!==pathKey(s.settings.storageDir)&&<Feedback>更换目录不会搬迁已有数据。</Feedback>}
         <CacheCapacityFields unlimited={draft.cacheUnlimited} value={draft.maxCacheGiB} disabled={locked} onChange={update} />
-        <p>完整数据约 430 GiB。空间不足时，建议将缓存限制在 40 GiB 以内，以获得最佳空间收益。</p><Checkbox label="导入已有视频" checked={importEnabled} disabled={locked} onChange={(_,v)=>{setImportEnabled(!!v.checked);if(!v.checked){folder.current?.abort();setSource('');}}}/>
-        {importEnabled&&<><Field label="导入视频文件夹"><Button className="path-button" disabled={locked||folderBusy} onClick={()=>void chooseFolder('import')}>{source||'点击选择文件夹'}</Button></Field><p>可选择存有 WannaDance 视频或旧缓存视频的文件夹，包含子文件夹，无需特定目录结构。</p><p>请放心，我们不会修改来源文件，并且会尽量使用硬链接来避免双份空间占用。导入后请勿修改源视频。</p></>}
+        <p>完整数据约 430 GiB。空间不足时，建议将视频存储预算设为 40 GiB 以内，以获得最佳空间收益。</p><Checkbox label="导入已有视频" checked={importEnabled} disabled={locked} onChange={(_,v)=>{setImportEnabled(!!v.checked);if(!v.checked){folder.current?.abort();setSource('');}}}/>
+        {importEnabled&&<><Field label="导入视频文件夹"><Button className="path-button" disabled={locked||folderBusy} onClick={()=>void chooseFolder('import')}>{source||'点击选择文件夹'}</Button></Field><p>可选择存有 WannaDance 视频或旧版保存的视频的文件夹，包含子文件夹，无需特定目录结构。</p><p>请放心，我们不会修改来源文件，并且会尽量使用硬链接来避免双份空间占用。导入后请勿修改源视频。</p></>}
       </div>}
       {step==='proxy'&&draft&&s&&<><Subtitle1 as="h2">网络环境检测</Subtitle1><Diagnostics visible={true} proxy={{...plan,page:'proxy',upstreamMode:'proxy'}} upstream={diagnosticUpstream} onUpstreamChange={setDiagnosticUpstream}/><Subtitle1 as="h2">连接方式</Subtitle1><NetworkFields wizard draft={draft} update={update} disabled={locked} status={s} onPending={setProxyPending}/></>}
       {step==='finish'&&draft&&s&&<><Panel title="接入检查"><p>hosts 状态：{s.hosts.ready?'已接入':s.hosts.conflict?s.hosts.message:'未接入'}</p><div className="actions"><Tooltip relationship="description" content="修改系统 hosts，需要管理员确认；立即生效，退出程序后仍保留。可点击恢复撤销。"><Button disabled={app.unavailable||s.hosts.ready} onClick={()=>void app.action('hosts/enable')}>接入</Button></Tooltip><Tooltip relationship="description" content="请求管理员权限，移除本程序的 hosts 映射，立即恢复游戏直连。"><Button disabled={app.unavailable} onClick={()=>void app.action('hosts/disable')}>恢复</Button></Tooltip><Button disabled={logsBusy||app.unavailable} onClick={()=>void checkLogs()}>刷新接入检查</Button></div>
         <p>80 (HTTP) 端口状态：{s.portOK?'ready':s.portOwner?`被 ${s.portOwner.name}（PID ${s.portOwner.pid}）占用`:'被占用或不可用'}</p><p>443 (HTTPS) 端口状态：{s.httpsPortOK?'ready':s.httpsPortOwner?`被 ${s.httpsPortOwner.name}（PID ${s.httpsPortOwner.pid}）占用`:'被占用或不可用'}</p>
         <p>VRChat 日志：{logsBusy?'正在检测 VRC 日志…':logs?.path||logs?.directory||'未定位'}</p><p>{logs?.message}</p><Feedback error>{s.actionErrors?.hosts}</Feedback>
         {(!s.portOK||!s.httpsPortOK)&&<Feedback error>接入检查未通过：端口被占用，请关闭占用程序后重试。</Feedback>}
-      {s.portOK&&s.httpsPortOK&&logs?.state!=='ok'&&<p>视频接入条件已就绪；日志尚未确认，不影响视频缓存。</p>}</Panel><Panel title="应用配置"><SetupReview draft={draft} status={s} source={importEnabled?source:''} /><Feedback error>{application?.error || restartError || s.setupSettingsError}</Feedback><p role="status">{application?.configSaved&&'配置已保存。'}{recovering?'正在重启并等待新进程…':application?.phase==='importing'?'正在启动导入…':''}</p></Panel></>}
+      {s.portOK&&s.httpsPortOK&&logs?.state!=='ok'&&<p>视频接入条件已就绪；日志尚未确认，不影响本地视频读取和按需下载。</p>}</Panel><Panel title="应用配置"><SetupReview draft={draft} status={s} source={importEnabled?source:''} /><Feedback error>{application?.error || restartError || s.setupSettingsError}</Feedback><p role="status">{application?.configSaved&&'配置已保存。'}{recovering?'正在重启并等待新进程…':application?.phase==='importing'?'正在启动导入…':''}</p></Panel></>}
       <Feedback error>{message}</Feedback>
       <Divider className="wizard-divider" /><div className="wizard-footer"><div className="actions">{['storage','proxy'].includes(step)&&!application&&<Button disabled={locked} onClick={reset}>恢复本页默认</Button>}</div><div className="actions">
         {!application&&<Button disabled={locked||step==='welcome'} onClick={()=>void go(steps[Math.max(0,steps.indexOf(step)-1)])}>上一步</Button>}

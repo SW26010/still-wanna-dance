@@ -15,7 +15,7 @@ export function Provider({ children }: PropsWithChildren) {
 export function Brand() {
   return <div className="brand"><Image src="/assets/logo.svg" className="brand-logo" width="32" height="32" shape="rounded" alt="" /><Subtitle1>Still Wanna Dance</Subtitle1></div>;
 }
-export const consolePages=[['home','开始使用'],['monitor','运行状态'],['cache','本地缓存'],['library','准备歌曲'],['settings','设置']] as const;
+export const consolePages=[['home','开始使用'],['monitor','运行状态'],['cache','本地视频'],['library','准备歌曲'],['settings','设置']] as const;
 type NavigationEntry={value:string;label:string;href?:string;disabled?:boolean;onClick?:()=>void};
 export function NavigationLayout({children,items,selected,label='控制台页面',steps=false,hidden=false}:PropsWithChildren<{items:NavigationEntry[];selected:string;label?:string;steps?:boolean;hidden?:boolean}>) {
   const [narrow,setNarrow]=useState(()=>matchMedia('(max-width: 640px)').matches), [open,setOpen]=useState(false);

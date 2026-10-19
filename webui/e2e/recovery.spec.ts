@@ -24,7 +24,7 @@ test('gateway and queue actions remain independent; hosts errors are visible',as
   await page.getByRole('link',{name:'调整提前准备时间',exact:true}).click();
   await expect(page.getByRole('spinbutton',{name:/提前准备时间 M/})).toBeFocused();
   await navigate(page,'准备歌曲');
-  await page.getByRole('button',{name:'开启队列预缓存'}).click();
+  await page.getByRole('button',{name:'开启队列预加载'}).click();
   await expect(page.getByText('操作已完成。',{exact:true})).toBeVisible();
   expect(api.calls.filter(c=>['start','stop','queue/start','queue/stop','activation/enable','hosts/enable'].includes(c.path)).map(c=>c.path)).toEqual(['start','stop','queue/start']);
   await navigate(page,'开始使用');
@@ -67,10 +67,10 @@ test('failed consent persistence keeps business APIs gated, retry succeeds',asyn
 
 test('setup validation failure keeps the draft and does not apply',async({page})=>{
   const api=await mockAPI(page);await page.goto('/#/setup');await navigateStep(page,'2. 存储');
-  await page.getByRole('radio',{name:'限制为',exact:true}).check();await page.getByRole('spinbutton',{name:/缓存容量/}).fill('18');
+  await page.getByRole('radio',{name:'限制为',exact:true}).check();await page.getByRole('spinbutton',{name:/视频存储预算/}).fill('18');
   await page.route('**/api/setup/validate',r=>r.fulfill({status:409,json:{error:'设置版本已变化，请重新进入引导'}}));
   await page.getByRole('button',{name:'下一步',exact:true}).click();await expect(page.getByText(/本页尚未通过检查/)).toBeVisible();
-  await expect(page.getByRole('spinbutton',{name:/缓存容量/})).toHaveValue('18');expect(api.calls.some(c=>c.path==='setup/apply')).toBe(false);
+  await expect(page.getByRole('spinbutton',{name:/视频存储预算/})).toHaveValue('18');expect(api.calls.some(c=>c.path==='setup/apply')).toBe(false);
   await page.getByRole('button',{name:'放弃更改并退出引导'}).click();await expect(page.getByRole('link',{name:'开始使用',exact:true})).toBeVisible();
 });
 
@@ -89,7 +89,7 @@ test('monitor groups ranges, clears failed reads, and recovers focus after a row
   await page.route('**/api/requests?*',r=>failed?r.fulfill({status:500,json:{error:'unavailable'}}):r.fulfill({json:{storageID:'fixture',requests:rows,hasMore:false}}));
   await page.clock.install();await page.goto('/#/monitor');
   const group=page.getByRole('button',{name:'分段歌曲 · 请求 ×2',exact:true});await group.click();
-  await expect(page.getByText(/缓存命中 · 请求处理完成/)).toHaveCount(2);
+  await expect(page.getByText(/本地视频命中 · 请求处理完成/)).toHaveCount(2);
   failed=true;await page.clock.fastForward(5100);
   await expect(page.getByText('最近请求读取失败，将自动重试。')).toBeVisible();await expect(group).toHaveCount(0);await expect(page.locator('#recent')).toBeFocused();
 });
@@ -120,14 +120,14 @@ test('rejected cancellation stays running and stale SSE events cannot replace ne
 test('cache failures remove stale selectable rows and retry reads no unrelated services',async({page})=>{
   const api=await mockAPI(page);await page.goto('/#/cache');await expect(page.getByRole('checkbox',{name:/测试歌曲 1/})).toBeEnabled();
   await page.route('**/api/cache?*',r=>r.fulfill({status:503,json:{error:'busy'}}));
-  await page.getByRole('button',{name:'刷新文件列表'}).click();await expect(page.getByText(/缓存明细读取失败/)).toBeVisible();
+  await page.getByRole('button',{name:'刷新文件列表'}).click();await expect(page.getByText(/本地视频明细读取失败/)).toBeVisible();
   await expect(page.getByRole('checkbox',{name:/测试歌曲 1/})).toHaveCount(0);
   expect(api.calls.some(c=>c.path==='cache/delete'||c.path==='inventory/scan'||c.path==='start')).toBe(false);
 });
 
 test('320px forced-colors layout keeps every console page usable',async({page})=>{
   await mockAPI(page);await page.setViewportSize({width:320,height:800});await page.emulateMedia({forcedColors:'active',reducedMotion:'reduce'});await page.goto('/');
-  for(const name of ['开始使用','准备歌曲','本地缓存','运行状态','设置']){
+  for(const name of ['开始使用','准备歌曲','本地视频','运行状态','设置']){
     await navigate(page,name);
     await page.getByRole('button',{name:'展开控制台页面',exact:true}).click();
     await expect(page.getByRole('navigation',{name:'控制台页面',exact:true}).getByRole('link',{name,exact:true})).toHaveAttribute('aria-current','page');

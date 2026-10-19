@@ -4,7 +4,7 @@
 
 **Load failed? But I still wanna dance!**
 
-Still Wanna Dance is an open-source playback tool for **VRChat WannaDance players on Windows**. Its local playback gateway handles WannaDance HTTP playback requests using upstream routing and local video caching. Keep videos on your computer, prepare upcoming songs in the room queue, and manage downloads and cached files through a simple local web console.
+Still Wanna Dance is an open-source playback tool for **VRChat WannaDance players on Windows**. Its local playback gateway handles WannaDance HTTP playback requests using upstream routing and local video storage and block caching. Keep videos on your computer, prepare upcoming songs in the room queue, and manage downloads and local video files through a simple local web console.
 
 Just extract and run. The app lives in the Windows system tray and requires no Go, Node.js, or database installation.
 
@@ -12,10 +12,10 @@ Just extract and run. The app lives in the Windows system tray and requires no G
 
 ## Get your videos ready to dance
 
-- **Put your cache to work**: read complete cached videos locally to avoid repeat downloads. On the first play, stream while downloading and save the video for later.
+- **Reuse local videos**: read complete local videos locally to avoid repeat downloads. On the first play, stream while downloading and retain the complete video when the storage budget allows.
 - **Prepare upcoming songs**: read the room queue from VRChat logs and prepare videos for upcoming songs, scheduling downloads around their estimated playback times.
 - **See what is happening**: check active downloads, upstream speed, recent requests, and queue readiness in the console.
-- **Manage your disk space**: choose a storage folder, find and delete cached videos, and check file integrity. Set a video cache limit to automatically remove lower-priority videos first.
+- **Manage your disk space**: choose a storage folder, find and delete local videos, and check file integrity. Set a video storage budget to automatically remove lower-priority videos first.
 - **Choose your connection**: select playback API parameters (Auto, node=cf, or node=nya); resource domains come from valid API responses. Application requests can use built-in encrypted DNS directly, external SOCKS5, or imported embedded Mihomo nodes. Game HTTPS passthrough always connects directly.
 - **Prepare more of your library**: scan local files, verify existing videos, or download missing videos ahead of time.
 
@@ -27,9 +27,9 @@ The desktop app targets Windows x64. Choose a writable folder for the app and al
 2. The app opens a welcome page, followed by the terms for your explicit acceptance. The guide covers storage, optional import, network checks, upstream settings and local access, then lets you review and apply your changes. Keep the defaults with Next where no changes are needed. Reopen the guide from Settings or Help (使用帮助).
 3. Open Settings (设置) and choose your storage folder, save, then click Restart and apply (立即重启并应用). The VRChat log folder is detected automatically by default.
 4. On Get started (开始使用), click Enable game acceleration (启用游戏加速) and follow the prompts to configure the hosts entries. Windows will ask for permission when the app needs to modify the hosts file.
-5. Enter WannaDance and request a song. Check the connection and request status on Get started, then use Activity (运行状态) and Local cache (本地缓存) to follow downloads and inspect cached files.
+5. Enter WannaDance and request a song. Check the connection and request status on Get started, then use Activity (运行状态) and Local videos (本地视频) to follow downloads and inspect local video files.
 
-Settings → Console startup (设置 → 控制台启动) provides separate automatic startup options for the playback gateway and room queue prefetch. Both default to enabled; existing saved off settings are preserved. Changes apply the next time the app starts, and require accepted terms. Their start/stop controls are independent, and both share the local cache. If queue prefetch is stopped, enable it in Prepare songs (准备歌曲) before requesting songs. To play cached videos in the game, start the gateway and enable game access. First-time downloads still depend on the upstream server and your network. “Request received” (收到请求) means a request reached the local playback gateway; check playback in the game itself. If no requests arrive after setup, try rejoining the world or restarting the game to refresh DNS.
+Settings → Console startup (设置 → 控制台启动) provides separate automatic startup options for the playback gateway and room queue prefetch. Both default to enabled; existing saved off settings are preserved. Changes apply the next time the app starts, and require accepted terms. Their start/stop controls are independent, and both share local videos and the block cache. If queue prefetch is stopped, enable it in Prepare songs (准备歌曲) before requesting songs. To play local videos in the game, start the gateway and enable game access. First-time downloads still depend on the upstream server and your network. “Request received” (收到请求) means a request reached the local playback gateway; check playback in the game itself. If no requests arrive after setup, try rejoining the world or restarting the game to refresh DNS.
 
 After accepting the terms, closing the web page leaves the app running in the system tray. Before acceptance, closing the terms page attempts to exit the app after 60 seconds; reopening it cancels the countdown. Use the tray menu to reopen the console. Quit from the page footer or the tray menu to stop all services and background tasks; hosts mappings remain in place.
 
@@ -43,19 +43,19 @@ For detailed instructions, see the [console guide](docs/console.md) and [portabl
 | --- | --- |
 | Get started and check game requests | Get started (开始使用) → Enable game acceleration (启用游戏加速) |
 | View speed, download progress, and recent requests | Activity (运行状态) |
-| Find cached videos, free space, and view request statistics | Local cache (本地缓存) |
+| Find local videos, free space, and view request statistics | Local videos (本地视频) |
 | Check missing videos and download them | Prepare songs (准备歌曲) |
-| Change folders, cache limits, upstream selection, or proxy settings | Settings (设置) |
+| Change folders, video storage budgets, upstream selection, or proxy settings | Settings (设置) |
 | Adjust how early to prepare videos | Settings (设置) → Preparation lead M in seconds (提前准备时间 M（秒）), then save and restart |
-| Start or stop queue prefetch independently | Prepare songs (准备歌曲) → Room queue prefetch (房间队列预缓存) |
+| Start or stop queue prefetch independently | Prepare songs (准备歌曲) → Room queue prefetch (房间队列预加载) |
 
-Playback Gateway (播放网关) runs on your computer and handles playback requests, cache reads, upstream downloads, video delivery, and HTTPS forwarding for connections affected by game access. Local Cache (本地缓存) covers video storage, indexing, verification, and cleanup. Upstream channels (上游通道) are direct or proxy connections and their evaluation and selection. Game access (游戏接入) uses hosts mappings to direct requests to the local playback gateway. Everyday use is handled through the web console and system tray. A [standalone command-line service](docs/service.md) is also available for custom setups.
+Playback Gateway (播放网关) runs on your computer and handles playback requests, local video and block cache reads, upstream downloads, video delivery, and HTTPS forwarding for connections affected by game access. Local videos (本地视频) manages complete videos retained across runs. “Cache” refers to video blocks reused within one engine run; their location is managed by the app. Upstream channels (上游通道) are direct or proxy connections and their evaluation and selection. Game access (游戏接入) uses hosts mappings to direct requests to the local playback gateway. Everyday use is handled through the web console and system tray. A [standalone command-line service](docs/service.md) is also available for custom setups.
 
 ## Things to know
 
-- **Caching serves the game's HTTP playback path.** Website playback over HTTPS is forwarded with the original encrypted connection intact and does not read from or add to the local video cache. The node=cf and node=nya playback APIs are supported; SHA is not currently supported. Resource domains are discovered from API responses, without a fixed list or node-to-domain mapping.
-- **Cached videos can help with some upstream failures.** If playback URL resolution fails, the app can use the song's last confirmed local video after it passes integrity checks. This is not a full offline mode and does not cover failures during a subsequent download. See [fallback behavior](docs/service.md#本地降级边界).
-- **You control cache capacity.** Video storage is unlimited by default. Downloading the full library can take substantial space, so consider setting a limit first. Files being played or downloaded can temporarily push actual disk usage above that limit.
+- **Local videos and the block cache serve the game's HTTP playback path.** Website playback over HTTPS is forwarded with the original encrypted connection intact and does not read local videos or populate the block cache. The node=cf and node=nya playback APIs are supported; SHA is not currently supported. Resource domains are discovered from API responses, without a fixed list or node-to-domain mapping.
+- **Local videos can help with some upstream failures.** If playback URL resolution fails, the app can use the song's last confirmed local video after it passes integrity checks. This is not a full offline mode and does not cover failures during a subsequent download. See [fallback behavior](docs/service.md#本地降级边界).
+- **You control the video storage budget.** This is the local persistent video storage budget (本地视频持久化存储预算), shown as 视频存储预算 in the UI. It defaults to 0: complete videos are not retained across runs, while the runtime video block cache remains available. Choose a positive budget or unlimited storage to retain videos. Protected videos and temporary files can push actual disk usage above the budget.
 - **The project is still evolving.** Automated tests and historical tests with the game are documented. Recent storage and playback API changes still need complete end-to-end validation with VRChat. Feedback from different networks and player environments is welcome. See [supported functionality and limitations](docs/scope.md).
 
 ## Core design: schedule data by when it is needed
@@ -94,8 +94,8 @@ The detailed guides below are currently in Chinese.
 | [Local console](docs/console.md) | Web controls, system tray, game setup, and network settings |
 | [Queue prefetching](docs/queue-prefetch.md) | How upcoming songs are prepared and how to configure it |
 | [Global block scheduler design](docs/block-scheduler-design.md) / [Runtime rules](docs/download-concurrency.md) | Independent demands, playback deadlines, activation windows, and gradual concurrency growth |
-| [Cache capacity management](docs/cache-retention.md) | Retention priority, capacity limits, and automatic cleanup |
-| [Command-line service](docs/service.md) | Standalone startup, options, and cache behavior |
+| [Video storage budget management](docs/cache-retention.md) | Retention priority, storage budgets, and automatic cleanup |
+| [Command-line service](docs/service.md) | Standalone startup, options, and local storage behavior |
 | [Unified storage](docs/storage.md) | Where videos, song metadata, and statistics are stored |
 | [Scope and limitations](docs/scope.md) | Supported features, compatibility, and validation status |
 | [Tests and validation](docs/test-results.md) | Test records and results |

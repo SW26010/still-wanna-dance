@@ -141,7 +141,7 @@ func (c *Console) startBatchModeLocked(scanOnly bool) error {
 		return errors.New("已有批量任务正在运行")
 	}
 	if c.queue.Running && !scanOnly {
-		return errors.New("请先停止队列预缓存")
+		return errors.New("请先停止队列预加载")
 	}
 	if scanOnly {
 		c.mu.Unlock()
@@ -234,7 +234,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	if refreshErr != nil {
 		c.batch.CatalogWarning = "远端检查失败，使用本地清单：" + refreshErr.Error()
 	}
-	c.batch.Phase = "正在检查本地清单与缓存文件"
+	c.batch.Phase = "正在检查本地清单与本地视频文件"
 	c.mu.Unlock()
 	songs := local.Songs
 	titles := map[string]string{}
@@ -395,7 +395,7 @@ dispatch:
 	case <-budgetStop:
 		c.mu.Lock()
 		c.batch.BudgetReached = true
-		c.batch.Phase = "容量预算不足，下载补齐已自动停止。请前往「设置」调大「视频缓存上限（GiB）」后再次下载补齐。"
+		c.batch.Phase = "视频存储预算不足，下载补齐已自动停止。请前往「设置」调大「视频存储预算（GiB）」后再次下载补齐。"
 		c.mu.Unlock()
 		return
 	default:

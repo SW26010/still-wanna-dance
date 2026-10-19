@@ -131,7 +131,7 @@ func New(cfg Config) (*Server, error) {
 	}
 	unlock, err := lockDirectory(filepath.Join(cfg.StorageDir, ".lock"))
 	if err != nil {
-		return nil, fmt.Errorf("lock cache directory (another process may own it): %w", err)
+		return nil, fmt.Errorf("lock local storage directory (another process may own it): %w", err)
 	}
 	if err := checkStorageLayout(root); err != nil {
 		unlock()
@@ -451,7 +451,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	retry := func(cause error) error {
 		replacement, fallbackErr := s.retrySongURL(r.Context(), v)
 		if fallbackErr != nil {
-			return errors.Join(cause, fmt.Errorf("cached URL refresh: %w", fallbackErr))
+			return errors.Join(cause, fmt.Errorf("saved URL refresh: %w", fallbackErr))
 		}
 		if r.Method == http.MethodGet {
 			ctx, err := s.playbackContext(r, replacement, start)

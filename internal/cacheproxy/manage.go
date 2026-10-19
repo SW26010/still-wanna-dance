@@ -63,13 +63,13 @@ func CacheDirectory(root string) (string, error) {
 	for path := dir; ; path = filepath.Dir(path) {
 		info, err := os.Lstat(path)
 		if err != nil {
-			return "", fmt.Errorf("inspect cache directory: %w", err)
+			return "", fmt.Errorf("inspect video directory: %w", err)
 		}
 		if info.Mode()&os.ModeSymlink != 0 {
-			return "", errors.New("缓存目录包含符号链接或目录重定向")
+			return "", errors.New("视频目录包含符号链接或目录重定向")
 		}
 		if !info.IsDir() {
-			return "", errors.New("不是普通缓存目录")
+			return "", errors.New("不是普通视频目录")
 		}
 		if filepath.Dir(path) == path {
 			break
@@ -97,7 +97,7 @@ func readCacheEntry(ctx context.Context, root, key string, db *sql.DB) (CacheEnt
 		return e, err
 	}
 	if !info.Mode().IsRegular() {
-		return e, errors.New("不是普通缓存文件")
+		return e, errors.New("不是普通本地视频文件")
 	}
 	e.Bytes = info.Size()
 	var expected int64
@@ -115,7 +115,7 @@ func readCacheEntry(ctx context.Context, root, key string, db *sql.DB) (CacheEnt
    FROM song_media sv WHERE sv.md5=v.md5 ORDER BY sv.song_id))
  FROM media v WHERE md5=?`, key).Scan(&expected, &e.LastRequest, &e.SongCount, &songs, &associations)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return e, fmt.Errorf("read cache metadata: %w", err)
+			return e, fmt.Errorf("read local video metadata: %w", err)
 		}
 		if err == nil {
 			e.Known = true
@@ -152,7 +152,7 @@ func readCacheEntry(ctx context.Context, root, key string, db *sql.DB) (CacheEnt
 	}
 	identity, err := fileIdentity(f)
 	if err != nil {
-		return e, fmt.Errorf("read cache identity: %w", err)
+		return e, fmt.Errorf("read local video identity: %w", err)
 	}
 	if identity == "" {
 		return e, errors.New("平台无法识别文件身份")
@@ -211,7 +211,7 @@ func ReadCachePage(ctx context.Context, root, query, order string, offset int) (
 			return result, err
 		}
 		if !info.Mode().IsRegular() {
-			return result, errors.New("不是普通缓存文件")
+			return result, errors.New("不是普通本地视频文件")
 		}
 		key := strings.TrimSuffix(f.Name(), ".mp4")
 		// Space usage describes all video files, independent of search/pagination.
@@ -266,7 +266,7 @@ func (s *Server) DeleteCache(ctx context.Context, selected []CacheSelection) ([]
 // store lock, but starts no service, cleanup worker, network or usage pruning.
 func DeleteCacheOffline(ctx context.Context, root string, selected []CacheSelection) ([]CacheRemoval, error) {
 	if len(selected) < 1 || len(selected) > 50 {
-		return nil, errors.New("每次请选择 1～50 个缓存")
+		return nil, errors.New("每次请选择 1～50 个本地视频")
 	}
 	root, err := filepath.Abs(root)
 	if err != nil {
@@ -281,12 +281,12 @@ func DeleteCacheOffline(ctx context.Context, root string, selected []CacheSelect
 			return nil, err
 		}
 		if err == nil && !info.Mode().IsRegular() {
-			return nil, errors.New("缓存管理文件不是普通文件")
+			return nil, errors.New("本地存储锁文件不是普通文件")
 		}
 	}
 	unlock, err := lockDirectory(filepath.Join(root, ".lock"))
 	if err != nil {
-		return nil, errors.New("缓存目录正由其他进程使用")
+		return nil, errors.New("本地存储目录正由其他进程使用")
 	}
 	defer unlock()
 	if err := checkStorageLayout(root); err != nil {
@@ -298,7 +298,7 @@ func DeleteCacheOffline(ctx context.Context, root string, selected []CacheSelect
 
 func (s *Server) deleteCache(ctx context.Context, selected []CacheSelection) ([]CacheRemoval, error) {
 	if len(selected) < 1 || len(selected) > 50 {
-		return nil, errors.New("每次请选择 1～50 个缓存")
+		return nil, errors.New("每次请选择 1～50 个本地视频")
 	}
 	if _, err := CacheDirectory(s.cfg.StorageDir); err != nil {
 		return nil, err
@@ -373,7 +373,7 @@ func CacheFile(ctx context.Context, root string, item CacheSelection) (string, e
 		return "", err
 	}
 	if !e.Known || e.Stamp != item.Stamp {
-		return "", errors.New("缓存条目已变化，请刷新")
+		return "", errors.New("本地视频条目已变化，请刷新")
 	}
 	return filepath.Join(root, "videos", item.Key+".mp4"), nil
 }

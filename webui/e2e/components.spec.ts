@@ -5,7 +5,7 @@ import { mockAPI } from './api';
 test('cache list keeps selection and secondary actions reachable by keyboard', async ({page}) => {
   const api = await mockAPI(page);
   await page.goto('/#/cache');
-  const list = page.getByRole('grid', {name:'缓存文件'});
+  const list = page.getByRole('grid', {name:'本地视频文件'});
   await expect(list.getByRole('row')).toHaveCount(2);
   const first = list.getByRole('row').first(), second = list.getByRole('row').nth(1);
   const checkbox = first.getByRole('checkbox');
@@ -25,7 +25,7 @@ test('cache list keeps selection and secondary actions reachable by keyboard', a
   await expect(second.getByRole('checkbox')).toBeDisabled();
   await page.keyboard.press('Escape'); await expect(second).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', {name:'缓存效果统计'})).toBeFocused();
+  await expect(page.getByRole('button', {name:'本地视频复用统计'})).toBeFocused();
   await first.getByRole('button', {name:'定位文件'}).focus();
   await page.keyboard.press('Enter');
   await expect.poll(() => api.calls.find(c=>c.path==='cache/open')?.body).toEqual({storageID:'fixture',entries:[{key:'key1',stamp:'stamp1'}]});

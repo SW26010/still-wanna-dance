@@ -141,7 +141,7 @@ func (s *Server) PrefetchPlayback(ctx context.Context, id int64) (string, error)
 		}
 		fresh, fallbackErr := s.retrySongURL(ctx, v)
 		if fallbackErr != nil {
-			return source, errors.Join(err, fmt.Errorf("cached URL refresh: %w", fallbackErr))
+			return source, errors.Join(err, fmt.Errorf("saved URL refresh: %w", fallbackErr))
 		}
 		v = fresh
 	}

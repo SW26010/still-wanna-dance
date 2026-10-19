@@ -68,13 +68,13 @@ func (c *Console) cacheAPI(w http.ResponseWriter, r *http.Request) {
 		decoder.DisallowUnknownFields()
 		err = decoder.Decode(&input)
 		if err == nil && input.StorageID != cacheproxy.CacheStorageID(root) {
-			err = errors.New("存储目录已切换，请刷新缓存明细")
+			err = errors.New("存储目录已切换，请刷新本地视频明细")
 		}
 		if err == nil {
 			switch r.URL.Path {
 			case "/api/cache/delete":
 				if scanning {
-					err = errors.New("扫描校验正在运行，缓存受保护；请等待完成或停止扫描")
+					err = errors.New("扫描校验正在运行，本地视频受保护；请等待完成或停止扫描")
 				} else if service != nil {
 					result, err = service.DeleteCache(ctx, input.Entries)
 				} else {

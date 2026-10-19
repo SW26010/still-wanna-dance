@@ -9,7 +9,7 @@ import (
 )
 
 // ErrLocalStorage stops upstream fallback. Restart the engine after repairing storage.
-var ErrLocalStorage = errors.New("local cache storage unavailable")
+var ErrLocalStorage = errors.New("local storage unavailable")
 
 func isLocalStorageError(err error) bool {
 	return err != nil && (errors.Is(err, ErrLocalStorage) ||

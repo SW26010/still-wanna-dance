@@ -278,7 +278,7 @@ func absoluteSettings(s Settings) (Settings, error) {
 		return s, errors.New("请求明细保留天数必须为 0～36500")
 	}
 	if s.MaxCacheBytes < 0 {
-		return s, errors.New("缓存上限不能为负数")
+		return s, errors.New("视频存储预算不能为负数")
 	}
 	if !s.ManualLogDir {
 		s.LogDir = defaultLogDir()

@@ -10,11 +10,11 @@ export function Documents() {
 }
 function About() {
   const build = bootstrap.build;
-  return <><p>关于 Still Wanna Dance</p><Title2 as="h1">Load failed? But I still wanna dance!</Title2><p>Still Wanna Dance 是面向 VRChat WannaDance 的本地视频缓存工具，帮助你管理缓存、提前准备歌曲。</p>
+  return <><p>关于 Still Wanna Dance</p><Title2 as="h1">Load failed? But I still wanna dance!</Title2><p>Still Wanna Dance 是面向 VRChat WannaDance 的本地视频存储与预加载工具，帮助你管理本地视频、提前准备歌曲。</p>
     <Panel title="从准备到开跳"><p>把视频准备交给 Still Wanna Dance，把时间留给跳舞。</p><dl>
-      <dt>提前准备</dt><dd>根据房间队列预缓存即将播放的歌曲，也可以在「准备歌曲」中使用「下载补齐」。</dd>
-      <dt>重复利用</dt><dd>已缓存的视频可在后续播放时复用，减少重复下载。</dd>
-      <dt>轻松管理</dt><dd>查看下载进度与缓存占用，设置容量上限，让本地空间保持有序。</dd>
+      <dt>提前准备</dt><dd>根据房间队列预加载即将播放的歌曲，也可以在「准备歌曲」中使用「下载补齐」。</dd>
+      <dt>重复利用</dt><dd>已保存的本地视频可在后续播放时复用，减少重复下载。</dd>
+      <dt>轻松管理</dt><dd>查看下载进度与本地视频占用，设置视频存储预算，让本地空间保持有序。</dd>
     </dl></Panel>
     {build && <Panel title="版本与构建"><dl>
       <dt>版本</dt><dd>{build.version}</dd>

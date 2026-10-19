@@ -64,7 +64,7 @@ func validateLocalFile(ctx context.Context, root string, f *verifiedFile, v vide
 		return false, err
 	}
 	if !sameVerifiedFile(before, after) {
-		return false, fmt.Errorf("%w: cached file changed during validation", errInvalidCache)
+		return false, fmt.Errorf("%w: local video changed during validation", errInvalidCache)
 	}
 	f.info = after
 	return false, nil

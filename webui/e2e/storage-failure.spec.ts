@@ -7,7 +7,7 @@ test('storage fault stays visible across polling, pages, gateway actions and con
   await page.clock.install();await page.goto('/#/home');
   const heading=page.getByText('本地存储故障，已停止新的下载。',{exact:true});
   await expect(heading).toHaveCount(0);
-  const cause='local cache storage unavailable: open C:\\'+('long-storage-path-'.repeat(15))+'\\tmp\\download.part: Access is denied. <script>unsafe()</script>';
+  const cause='local storage unavailable: open C:\\'+('long-storage-path-'.repeat(15))+'\\tmp\\download.part: Access is denied. <script>unsafe()</script>';
   api.state.storageError=cause;
   await page.clock.fastForward(5100);await expect(heading).toBeVisible();
   const reason=page.getByText('首个错误：'+cause,{exact:true});
@@ -17,7 +17,7 @@ test('storage fault stays visible across polling, pages, gateway actions and con
   await page.getByRole('button',{name:'停止播放网关',exact:true}).click();
   await expect(reason).toBeVisible();
   await page.setViewportSize({width:320,height:800});
-  for(const name of ['运行状态','本地缓存','准备歌曲','设置']){
+  for(const name of ['运行状态','本地视频','准备歌曲','设置']){
     await navigate(page,name);await expect(reason).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   }

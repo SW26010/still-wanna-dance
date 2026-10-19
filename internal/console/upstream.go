@@ -12,12 +12,12 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 )
 
-var errSongRemoved = errors.New("歌曲已离开待预缓存队列")
+var errSongRemoved = errors.New("歌曲已离开待预加载队列")
 
 type batchFallbackBudgetError struct{ cause error }
 
 func (e *batchFallbackBudgetError) Error() string {
-	return e.cause.Error() + "；回退受容量预算限制"
+	return e.cause.Error() + "；回退受视频存储预算限制"
 }
 func (e *batchFallbackBudgetError) Unwrap() []error {
 	return []error{e.cause, cacheproxy.ErrBatchBudget}

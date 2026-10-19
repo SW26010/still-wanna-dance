@@ -39,7 +39,7 @@ export function requestOutcome(r: RequestRecord) {
   if (r.outcome === 'completed') return [200,206].includes(r.status) ? r.method === 'HEAD' ? '响应头处理完成' : '请求处理完成' : 'HTTP 响应结束';
   return '结果未知';
 }
-export const requestCache = (r: RequestRecord) => ({HIT:'缓存命中',MISS:'回源',WAIT:'等待共享下载',UNKNOWN:'缓存状态未知'}[r.cache] || '缓存状态未知');
+export const requestCache = (r: RequestRecord) => ({HIT:'本地视频命中',MISS:'回源',WAIT:'等待共享下载',UNKNOWN:'来源未知'}[r.cache] || '来源未知');
 
 export function requestTitle(r: Pick<RequestRecord,'resource'|'songs'|'moreSongs'>) {
   const songs=r.songs || [];

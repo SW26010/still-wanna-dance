@@ -18,7 +18,7 @@ import (
 )
 
 var errBusy = errors.New("download capacity reached")
-var errInvalidCache = errors.New("invalid cached video")
+var errInvalidCache = errors.New("invalid local video")
 var errUpstreamDownload = errors.New("upstream download failed")
 
 // Commit the admission cutoff under the same lock used to register/attach GETs.
@@ -228,14 +228,14 @@ func checkOpenFile(ctx context.Context, f *os.File, v video) error {
 		return err
 	}
 	if !info.Mode().IsRegular() || info.Size() != v.size {
-		return fmt.Errorf("%w: cached size mismatch", errInvalidCache)
+		return fmt.Errorf("%w: local video size mismatch", errInvalidCache)
 	}
 	h := md5.New()
 	if _, err := io.Copy(h, contextReader{ctx, f}); err != nil {
 		return err
 	}
 	if hex.EncodeToString(h.Sum(nil)) != v.key {
-		return fmt.Errorf("%w: cached checksum mismatch", errInvalidCache)
+		return fmt.Errorf("%w: local video checksum mismatch", errInvalidCache)
 	}
 	return nil
 }

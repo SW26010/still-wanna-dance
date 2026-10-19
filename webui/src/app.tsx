@@ -10,7 +10,7 @@ import { Setup } from './setup';
 import { bootstrap } from './bootstrap';
 import { request } from './api';
 
-const pages = {home:'开始使用',library:'准备歌曲',cache:'本地缓存',monitor:'运行状态',settings:'设置',setup:'使用引导'};
+const pages = {home:'开始使用',library:'准备歌曲',cache:'本地视频',monitor:'运行状态',settings:'设置',setup:'使用引导'};
 type Page = keyof typeof pages;
 const descriptions:Record<Page,string>={home:'为 VRChat WannaDance 复用已下载视频，也可提前准备房间队列。',monitor:'查看下载进度、最近请求和网络连接。',cache:'查找已下载的视频，清理磁盘空间。',library:'按房间队列提前准备，或批量下载缺失视频。',settings:'调整存储、网络和启动偏好。',setup:'设置、导入、检测和接入；可随时返回或离开。'};
 const legacy: Record<string,Page> = {activation:'home',service:'home',queue:'library',overview:'cache',cache:'cache',downloads:'monitor',recent:'monitor',network:'monitor',batch:'library',preferences:'settings',prepareAheadSeconds:'settings',maxCacheGiB:'settings'};
@@ -63,7 +63,7 @@ export function App() {
     <NavigationLayout items={pageLinks()} selected={page} hidden={page==='setup'}>
     <main ref={main} id="main" tabIndex={-1}><div className="page-heading" hidden={page==='setup'}><Title2 as="h1">{page === 'home' ? 'Load failed? But I still wanna dance!' : pages[page]}</Title2>{s && <Badge color={s.running && s.hosts.ready ? 'success' : 'informative'}>{s.running && s.hosts.ready ? '游戏接入：已完成' : s.running ? '游戏接入：等待配置' : '游戏接入：未启用'}</Badge>}</div><p hidden={page==='setup'}>{descriptions[page]}</p>
       <Feedback error={!!model.status.error}>{model.status.error ? '无法连接控制台，请检查程序是否仍在运行。' : ''}</Feedback><Feedback>{model.message}</Feedback>
-      {s?.storageError && <Feedback error><p><strong>本地存储故障，已停止新的下载。</strong>已完成缓存仍可读取。</p><p>请检查磁盘空间和目录权限，修复后退出并重新打开整个应用。仅重新启停播放网关或队列无法恢复下载。</p><p>首个错误：{s.storageError}</p></Feedback>}
+      {s?.storageError && <Feedback error><p><strong>本地存储故障，已停止新的下载。</strong>已保存的本地视频仍可读取。</p><p>请检查磁盘空间和目录权限，修复后退出并重新打开整个应用。仅重新启停播放网关或队列无法恢复下载。</p><p>首个错误：{s.storageError}</p></Feedback>}
       {!s && accepted && page!=='setup' && !model.status.error && <Spinner label="正在读取控制台状态" />}
       {s && <><div hidden={page !== 'home'}><Home /></div><div hidden={page !== 'library'}><Library /></div><div hidden={page !== 'cache'}><Cache visible={page === 'cache'} /></div><div hidden={page !== 'monitor'}><Monitor visible={page === 'monitor'} /></div><div hidden={page !== 'settings'}><SettingsPage /></div>
       </>}

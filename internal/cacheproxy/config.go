@@ -110,7 +110,7 @@ func (c Config) validate() error {
 		return errors.New("request retention must be between 0 and 36500 days")
 	}
 	if c.MaxCacheBytes < 0 {
-		return errors.New("cache limit cannot be negative")
+		return errors.New("video storage budget cannot be negative")
 	}
 	if c.PrepareAhead != 0 && (c.PrepareAhead < blocksched.MinPrepareAhead || c.PrepareAhead > blocksched.MaxPrepareAhead) {
 		return errors.New("download preparation lead must be between 100 and 16000 seconds")

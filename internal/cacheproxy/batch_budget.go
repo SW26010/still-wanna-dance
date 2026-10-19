@@ -7,7 +7,7 @@ import (
 )
 
 // ErrBatchBudget is a normal batch stop, not a failed download.
-var ErrBatchBudget = errors.New("下载补齐容量预算不足")
+var ErrBatchBudget = errors.New("下载补齐视频存储预算不足")
 
 type batchBudgetKey struct{}
 type batchSongBudgetKey struct{}

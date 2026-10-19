@@ -46,8 +46,8 @@ func run() (resultErr error) {
 	flag.DurationVar(&cfg.DownloadTimeout, "download-timeout", cfg.DownloadTimeout, "timeout per upstream attempt (headers and body) or local validation/publication phase; excludes retries, scheduling waits and client response transfer")
 	flag.Int64Var(&cfg.MaxFileBytes, "max-file-bytes", cfg.MaxFileBytes, "maximum video size in bytes (s URL parameter)")
 	flag.IntVar(&cfg.MaxLocalValidations, "max-downloads", cfg.MaxLocalValidations, "maximum concurrent local file validations (does not limit upstream downloads)")
-	flag.Int64Var(&cfg.MaxCacheBytes, "max-cache-bytes", cfg.MaxCacheBytes, "retained video limit in bytes; 0 keeps only protected videos; excludes temporary files and database")
-	flag.BoolVar(&cfg.CacheUnlimited, "cache-unlimited", cfg.CacheUnlimited, "retain videos without a capacity limit (mutually exclusive with -max-cache-bytes when true)")
+	flag.Int64Var(&cfg.MaxCacheBytes, "max-cache-bytes", cfg.MaxCacheBytes, "local persistent video storage budget in bytes; 0 disables retention; excludes block cache, temporary files and database")
+	flag.BoolVar(&cfg.CacheUnlimited, "cache-unlimited", cfg.CacheUnlimited, "retain local videos without a storage budget limit (mutually exclusive with -max-cache-bytes when true)")
 	flag.IntVar(&cfg.RequestRetentionDays, "request-retention-days", cfg.RequestRetentionDays, "request detail retention in days; 0 is unlimited (summaries are always retained)")
 	flag.Parse()
 	limitSet, unlimitedSet := false, false

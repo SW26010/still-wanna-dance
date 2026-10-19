@@ -55,11 +55,11 @@ Windows 测试统一通过 `scripts/with-test-temp.ps1` 运行，定向检查也
 
 2026-10-19 验证：同一 `TestPublicationAdmissionRanksFullCacheBeforeMerge` 在 MXC 默认临时目录报重命名拒绝，经入口运行通过。`TestAtomicWriteRetainsLastGoodFileAndBoundsWork` 在工作区内仍报 `renameat: The handle is invalid`，沙箱外经同一入口通过。工具回归在沙箱内为 28/29（已有 junction 夹具被拒绝），沙箱外 29/29 通过；新增入口回归覆盖原子替换、参数/工作目录/退出码传递、环境恢复、异常清理及嵌套隔离。原始成功与失败输出保留在忽略目录 `artifacts/windows-test-temp/`，未修改产品代码绕过失败。
 
-Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的 C 工具链；本机已使用独立 w64devkit/GCC 完成下载与缓存整包检查，执行时显式设置 CGO_ENABLED=1 和 CC，测试命令同样通过上述入口运行。工具及原始结果保存在忽略目录 artifacts/，不依赖全局 PATH。
+Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的 C 工具链；本机已使用独立 w64devkit/GCC 完成下载与本地资源整包检查，执行时显式设置 CGO_ENABLED=1 和 CC，测试命令同样通过上述入口运行。工具及原始结果保存在忽略目录 artifacts/，不依赖全局 PATH。
 
 临时 Go 探测源码即使放在 Git 忽略的 `artifacts/` 中，仍会被 `go test ./...` 和 `go vet ./...` 发现。独立探测文件应在首行添加 `//go:build ignore` 并空一行；需要执行时用 `go run` 明确列出入口及其辅助源文件，避免多个 `main` 混入同一个包。也可放入独立的工具模块。
 
-入口位于 `cmd/still-wanna-dance`，协议、缓存和下载管理位于 `internal/cacheproxy`。运行方法见 [命令行服务手册](service.md)。默认缓存、构建产物及测试覆盖率文件已忽略；测试使用 Go 的独立临时目录，不写入原版缓存或证据目录。安装环境不会启动播放网关或修改 hosts。
+入口位于 `cmd/still-wanna-dance`，协议、本地资源和下载管理位于 `internal/cacheproxy`。运行方法见 [命令行服务手册](service.md)。默认本地存储、构建产物及测试覆盖率文件已忽略；测试使用 Go 的独立临时目录，不写入原版本地视频或证据目录。安装环境不会启动播放网关或修改 hosts。
 
 桌面构建使用 `scripts/build-desktop.ps1 -Version dev-名称`，版本与 UTC 构建时间写入 EXE，源码提交和 dirty 状态取 Go VCS 标记。`& ./bin/SWD.exe -build-info | Out-String` 输出机器可读 JSON 并立即退出，不读取配置、创建数据目录或争用桌面实例；启动日志复用同一身份。正式标签只经发布流程注入，缺失/dirty 的 VCS 不显示为正式发行；无 Git 的对应源码重建独立标为 rebuild。直接 `go build` 仍是开发构建，未注入的时间明确留空。
 
@@ -72,13 +72,13 @@ node scripts/acceptance.mjs bin/still-wanna-dance.exe bin/SWD.exe bin/data/terms
 node --test scripts/acceptance-protocol.test.mjs scripts/acceptance-request.test.mjs
 ```
 
-两个可执行文件参数分别默认上述路径。脚本在 `test-runs/acceptance-*` 中建立独立服务库和控制台库，记录两个程序的 SHA256、响应状态/头、字节数、哈希、耗时和进程日志。下载 1343/1344 及控制台独立的 1343 样本（当前合计约 106 MB）。覆盖直接视频冷下载、跨 Host Range 内容命中、重启 HEAD 复用、播放 API 接管后直接返回视频、控制台 Auto 冷/热播放，以及重启后上游不可用时的本地 GET/HEAD/Range 降级和无缓存歌曲的 502。Auto 使用真实选路，不能据此保证每种线路故障或测速组合均已覆盖；故障分支另由 Go 测试覆盖。
+两个可执行文件参数分别默认上述路径。脚本在 `test-runs/acceptance-*` 中建立独立服务库和控制台库，记录两个程序的 SHA256、响应状态/头、字节数、哈希、耗时和进程日志。下载 1343/1344 及控制台独立的 1343 样本（当前合计约 106 MB）。覆盖直接视频冷下载、跨 Host Range 内容命中、重启 HEAD 复用、播放 API 接管后直接返回视频、控制台 Auto 冷/热播放，以及重启后上游不可用时的本地 GET/HEAD/Range 降级和无本地视频的歌曲的 502。Auto 使用真实选路，不能据此保证每种线路故障或测速组合均已覆盖；故障分支另由 Go 测试覆盖。
 
 验收前须由操作者在当前 Windows 用户下阅读并确认当前条款，第三个参数传入该 `terms.json`。脚本原样复制密文到独立配置，先启动关闭播放网关/队列自动启动的控制台，通过门禁验证凭据，并核对内嵌条款与当前源码一致；不会解密、伪造或自动点击同意。失效凭据返回 environment/blocked；缺少控制台程序也会阻塞全部验收，因为不能验证同意。验证成功后才启动服务链路；缺少服务程序仅阻塞服务链路，控制台 Auto 与本地降级仍继续。
 
 条款保护回归在 Windows 可运行 `./scripts/with-test-temp.ps1 go test ./internal/console -run Terms -count=1`。Windows 使用真实 DPAPI，包含独立子进程读取和同用户搬迁；Linux 测试进程使用临时认证加密替身，生产代码仍明确拒绝非 Windows 凭据保存。这不替代真实跨用户/跨机器测试，验证范围见 [#15 验收记录](issue-15-validation.md)。
 
-控制台以 `-no-tray -no-open` 启动，需本机 `127.0.0.1:80/443` 空闲；端口被占用时记录环境阻塞，不关闭已有服务。降级通过仅供本次测试的本地失败 SOCKS5 出口触发，断言 `X-SWD-Fallback: upstream-unavailable` 与缓存内容一致。脚本不改 hosts、不读取原版旧库、不运行原版程序；所有下载和配置均留在测试目录，结束时关闭本次进程与失败出口。
+控制台以 `-no-tray -no-open` 启动，需本机 `127.0.0.1:80/443` 空闲；端口被占用时记录环境阻塞，不关闭已有服务。降级通过仅供本次测试的本地失败 SOCKS5 出口触发，断言 `X-SWD-Fallback: upstream-unavailable` 与本地视频内容一致。脚本不改 hosts、不读取原版旧库、不运行原版程序；所有下载和配置均留在测试目录，结束时关闭本次进程与失败出口。
 
 上游预检使用 Node.js `Resolver.resolve4` 直接向配置的 DNS 服务器查询 IPv4，绕过系统 hosts；解析失败不回退系统解析，并过滤回环、内网及本机网卡地址。此查询仍可能受系统 DNS/代理影响，不等同于服务内置 DoH。HTTP/HTTPS 均保留原 Host 与正常 TLS 域名校验，报告记录实际 `remoteAddress`；显式端口的本地请求仍走回环。
 

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -125,80 +126,11 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		return nil, nil, errors.New("shared resource size mismatch")
 	}
 	if f == nil {
-		f = &flight{size: v.size, done: make(chan struct{}), streaming: make(chan struct{}), id: s.flightSequence.Add(1)}
-		local, err := s.acquireLocalResource(v)
+		f, err = s.startFlightLocked(v, background, log)
 		if err != nil {
 			s.mu.Unlock()
 			return nil, nil, err
 		}
-		if local != nil {
-			// Only a new flight refreshes routing, before any executor starts.
-			// Late readers may acquire the same resource without changing it.
-			local.video.host, local.video.path, local.video.query = v.host, v.path, v.query
-		}
-		f.ranges = local
-		workerCtx, cancel := context.WithCancelCause(s.ctx)
-		f.cancel, f.background = cancel, background
-		f.log = log.With("flight_id", f.id, "host", v.host)
-		f.progress = startProgress(f.log, v.size, 15*time.Second)
-		f.progress.observeBytes = s.cfg.ObserveDownloadBytes
-		f.monitorSongs = make(map[string]bool)
-		s.flights[v.key] = f
-		if background {
-			s.background++
-		}
-		close(s.capacityChanged)
-		s.capacityChanged = make(chan struct{})
-		s.wg.Add(1)
-		s.pinVideo(v)
-		go func() {
-			defer s.wg.Done()
-			defer s.releaseVideo(v)
-			defer cancel(nil)
-			f.path, f.source, f.err = s.prepare(workerCtx, v, f)
-			if f.err == nil || errors.Is(f.err, ErrNotRetained) {
-				s.mu.Lock()
-				f.completed = true
-				s.mu.Unlock()
-			}
-			if errors.Is(context.Cause(workerCtx), errPreempted) && errors.Is(f.err, context.Canceled) {
-				f.err = errPreempted
-			}
-			if errors.Is(f.err, errPreempted) {
-				s.preemptFlight(f, nil)
-			}
-			f.progress.finish(f.err)
-			if errors.Is(f.err, errPreempted) {
-				f.log.Info("cache_task_canceled", "reason", "preempted")
-			} else if errors.Is(f.err, ErrNotRetained) {
-				f.log.Info("cache_not_retained")
-			} else if f.err != nil {
-				f.log.Error("cache_task_failed", "key", v.key, "error", applog.SafeError(f.err))
-			}
-			if f.spool != nil {
-				f.spool.finish(f.err)
-				f.spool.release()
-			}
-			if local := f.ranges; local != nil {
-				if f.err == nil || errors.Is(f.err, errInvalidCache) || local.bytes() == 0 {
-					s.forgetLocalResource(v.key, local)
-				}
-				local.storage.release()
-			}
-			s.mu.Lock()
-			delete(s.flights, v.key)
-			if background {
-				s.background--
-			}
-			close(s.capacityChanged)
-			s.capacityChanged = make(chan struct{})
-			close(f.done)
-			releases := f.releases
-			s.mu.Unlock()
-			for _, release := range releases {
-				release()
-			}
-		}()
 	}
 	if v.songID != "" {
 		f.monitorSongs[v.songID] = true
@@ -413,4 +345,91 @@ func (r upstreamReader) Read(p []byte) (int, error) {
 		err = fmt.Errorf("%w: %w", errUpstreamDownload, err)
 	}
 	return n, err
+}
+
+// startFlightLocked shares one execution for current usage without creating a source.
+// The caller holds mu and has checked shutdown, storage failure and existing flights.
+func (s *Server) startFlightLocked(v video, background bool, log *slog.Logger) (*flight, error) {
+	f := &flight{size: v.size, done: make(chan struct{}), streaming: make(chan struct{}), id: s.flightSequence.Add(1)}
+	local, err := s.acquireLocalResource(v)
+	if err != nil {
+		return nil, err
+	}
+	if local != nil {
+		// Only a new flight refreshes routing, before any executor starts.
+		// Late readers may acquire the same resource without changing it.
+		local.video.host, local.video.path, local.video.query = v.host, v.path, v.query
+	}
+	f.ranges = local
+	workerCtx, cancel := context.WithCancelCause(s.ctx)
+	f.cancel, f.background = cancel, background
+	f.log = log.With("flight_id", f.id, "host", v.host)
+	f.progress = startProgress(f.log, v.size, 15*time.Second)
+	f.progress.observeBytes = s.cfg.ObserveDownloadBytes
+	f.monitorSongs = make(map[string]bool)
+	if v.songID != "" {
+		f.monitorSongs[v.songID] = true
+	}
+	s.flights[v.key] = f
+	if use := s.resourceUses[v.key]; use != nil {
+		use.video = resourceVideo(v)
+		use.video.songID = v.songID
+	}
+	if background {
+		s.background++
+	}
+	close(s.capacityChanged)
+	s.capacityChanged = make(chan struct{})
+	s.wg.Add(1)
+	s.pinVideo(v)
+	go func() {
+		defer s.wg.Done()
+		defer s.releaseVideo(v)
+		defer cancel(nil)
+		f.path, f.source, f.err = s.prepare(workerCtx, v, f)
+		if f.err == nil || errors.Is(f.err, ErrNotRetained) {
+			s.mu.Lock()
+			f.completed = true
+			s.mu.Unlock()
+		}
+		if errors.Is(context.Cause(workerCtx), errPreempted) && errors.Is(f.err, context.Canceled) {
+			f.err = errPreempted
+		}
+		if errors.Is(f.err, errPreempted) {
+			s.preemptFlight(f, nil)
+		}
+		f.progress.finish(f.err)
+		if errors.Is(f.err, errPreempted) {
+			f.log.Info("cache_task_canceled", "reason", "preempted")
+		} else if errors.Is(f.err, ErrNotRetained) {
+			f.log.Info("cache_not_retained")
+		} else if f.err != nil {
+			f.log.Error("cache_task_failed", "key", v.key, "error", applog.SafeError(f.err))
+		}
+		if f.spool != nil {
+			f.spool.finish(f.err)
+			f.spool.release()
+		}
+		if local := f.ranges; local != nil {
+			if f.err == nil || errors.Is(f.err, errInvalidCache) || local.bytes() == 0 {
+				s.forgetLocalResource(v.key, local)
+			}
+			local.storage.release()
+		}
+		s.mu.Lock()
+		delete(s.flights, v.key)
+		s.continueResourceUseLocked(v, f)
+		if background {
+			s.background--
+		}
+		close(s.capacityChanged)
+		s.capacityChanged = make(chan struct{})
+		close(f.done)
+		releases := f.releases
+		s.mu.Unlock()
+		for _, release := range releases {
+			release()
+		}
+	}()
+	return f, nil
 }

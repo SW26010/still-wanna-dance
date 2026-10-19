@@ -28,6 +28,7 @@ func (s *Server) reclaimLocalBlocks() {
 		release bool
 	}
 	var pending []cleanup
+	changed := false
 	s.retentionMu.Lock()
 	if s.cfg.CacheUnlimited || s.cfg.MaxCacheBytes != 0 {
 		s.retentionMu.Unlock()
@@ -36,7 +37,11 @@ func (s *Server) reclaimLocalBlocks() {
 	now := time.Now()
 	for key, local := range s.localResources {
 		blocks := local.storage
-		paths := blocks.retire(func(block int64) bool { return !s.blockProtectedLocked(key, block, now) })
+		paths := blocks.retire(func(block int64) bool {
+			remove := !s.blockProtectedLocked(key, block, now)
+			changed = changed || remove
+			return remove
+		})
 		blocks.mu.Lock()
 		empty := len(blocks.files) == 0 && blocks.refs == 1
 		blocks.mu.Unlock()
@@ -46,6 +51,14 @@ func (s *Server) reclaimLocalBlocks() {
 		pending = append(pending, cleanup{blocks, paths, empty})
 	}
 	s.retentionMu.Unlock()
+	if changed {
+		// Availability changed even when an I/O pin delays physical removal.
+		// Wake both live sessions and continuing usage after session completion.
+		s.mu.Lock()
+		close(s.capacityChanged)
+		s.capacityChanged = make(chan struct{})
+		s.mu.Unlock()
+	}
 	for _, c := range pending {
 		c.blocks.removeFiles(c.paths)
 		if c.release {

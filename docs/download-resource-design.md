@@ -277,6 +277,8 @@ need-by 的调整必须来自需求集合的实际变化，不能为了保留执
 
 **会话中的已完成记录只表示过去下载过，不表示块当前仍在本地，也不能阻止当前有效需求的缺块重取。** 先检查本地可用性：已有完整块直接复用；块被回收后，当前整合需求仍有有限 need-by 且已进入本地保护窗口时，重新交给正常调度，继续遵守下载提前窗口、截止及执行额度，无须等到真实 Read 产生 Blocking。该规则同样适用于已经登记、随后才入窗的需求；会话须保留这类待入窗工作，复用现有计时器到点重算，不能因各块过去都下载过而提前结束。
 
+**Range 准备返回 TEMP、执行会话结束后，仍有效的使用需求继续驱动缺块重取。** 引擎按资源保留轻量使用协调，观察同一份整合需求、块回收通知和未来保护入窗时刻；满足重取条件时通过共用入口创建或共享下载会话。队列同一成员重排不需要撤销 prepared 或重新登记来源。协调本身不持有文件引用、执行额度或额外使用需求，来源全部结束或引擎关闭时退出；已有完整块照常复用。普通执行耗尽重试后的终止错误沿用失败日志并停止该协调，避免无限重试；顺序 200 仍遵循第 7 项边界。
+
 防反复下载仅阻止已完成块因无期限准备或尚未进入保护窗口的需求而在回收后立即重取；仅剩保护尾期也不产生下载资格。需求撤销后重新整合，不为保留重取资格续期。仍在运行的下载会话可响应真实缺块 Read 重新请求，不保证已结束会话中的旧 reader 自动建立新会话。后续新会话仍按当前可用块和需求重新准备。以上使用同一份需求投影，不保存逐来源下载历史，不改变既定保护窗口及最后一份需求结束后的固定 60 秒延续。顺序 200 的窗口外数据仍可回收，按第 7 项的尽力兼容边界处理。
 
 **缓存容量上限仍指持久化完整视频的容量，不是整个存储目录的硬性占用上限。** 临时块和合并期间的副本不计为已经持久化的库存；受保护的数据仍可能使实际占用超过该预算，不将所有临时数据强行合并为持久化库存统计。
@@ -312,6 +314,8 @@ need-by 的调整必须来自需求集合的实际变化，不能为了保留执
 ### 1. 实时块需求的整合与动态维护
 
 [usage_plan.go](../internal/cacheproxy/usage_plan.go) 持有包含本地已有块的完整来源投影，[block_demands.go](../internal/cacheproxy/block_demands.go) 生成不含来源身份的 blockUse。摘要分别携带下载时刻、机会权限、最晚有效期、最早重算时刻和本地保护时刻；下载协调器只在此后过滤可用块并提供缺块执行器，普通需求不携带 Blocking。GET 对交接的下载过滤、交接下载截止均不抹掉使用/保护依据。
+
+[resource_use.go](../internal/cacheproxy/resource_use.go) 在 Range 临时准备结束后延续资源使用协调，复用 blockUse 的缺块重取资格和 [cache.go](../internal/cacheproxy/cache.go) 的共享会话入口，不保留旧执行器、候选游标或文件引用。来源变化和块可用性变化唤醒重算，未来入窗使用一次性计时器；同资源只保留一份协调，所有执行继续由块调度器管理。
 
 来源范围保持为连续区间，唯一块引用索引负责容量和最后引用结束事件。保护与下载消费同一个投影，来源变更后在 Server.mu 下更新并合并唤醒；不通过下载完成通知重建来源生命周期，也不另设逐来源保护副本。
 
@@ -376,7 +380,7 @@ need-by 的调整必须来自需求集合的实际变化，不能为了保留执
 | GET 实际交付、冷热范围、取消及发布独立 | [get_consumption_test.go](../internal/cacheproxy/get_consumption_test.go)、[get_range_demand_test.go](../internal/cacheproxy/get_range_demand_test.go) |
 | 全使用投影、来源共享、固定交接及 4096/2867 容量 | [usage_plan_test.go](../internal/cacheproxy/usage_plan_test.go)、[demand_capacity_test.go](../internal/cacheproxy/demand_capacity_test.go)、[preparation_test.go](../internal/cacheproxy/preparation_test.go) |
 | 固定 M、独立尝试超时、截止与重新准入 | [window_test.go](../internal/blocksched/window_test.go)、[attempt_timeout_test.go](../internal/cacheproxy/attempt_timeout_test.go)、[deadline_test.go](../internal/blocksched/deadline_test.go)、[download_expiry_test.go](../internal/cacheproxy/download_expiry_test.go) |
-| 独立保护窗口、实际结束后 60 秒、零预算回收及当前需求入窗后的缺块重取 | [local_protection_test.go](../internal/cacheproxy/local_protection_test.go)、[block_reclamation_test.go](../internal/cacheproxy/block_reclamation_test.go) |
+| 独立保护窗口、实际结束后 60 秒、零预算回收及当前需求入窗后的缺块重取 | [local_protection_test.go](../internal/cacheproxy/local_protection_test.go)、[block_reclamation_test.go](../internal/cacheproxy/block_reclamation_test.go)、[queue_reentry_test.go](../internal/cacheproxy/queue_reentry_test.go)（含 TEMP 后会话已结束） |
 | 默认保护窗口符合约定、较短值不被程序拒绝或抬高、顺序 200 尽力兼容 | [local_protection_test.go](../internal/cacheproxy/local_protection_test.go)、[sequential_blocks_test.go](../internal/cacheproxy/sequential_blocks_test.go) |
 | 完整块复用、停止不恢复半块、读取与清理并发 | [local_blocks_test.go](../internal/cacheproxy/local_blocks_test.go)、[stopped_resource_test.go](../internal/cacheproxy/stopped_resource_test.go)、[stop_test.go](../internal/blocksched/stop_test.go) |
 | 持久化预留/替换、零预算不校验、合并及结果区分 | [publication_admission_test.go](../internal/cacheproxy/publication_admission_test.go)、[execution_timeout_test.go](../internal/cacheproxy/execution_timeout_test.go)、[storage_test.go](../internal/cacheproxy/storage_test.go) |

@@ -14,6 +14,7 @@ import (
 
 // Prefetch uses exactly the same validation, shared downloads and publication as playback.
 // Canceling the waiter leaves an already shared download running for other clients.
+// A queue TEMP result ends preparation, while the engine coordinates surviving usage.
 func (s *Server) Prefetch(ctx context.Context, target string) (source string, resultErr error) {
 	return s.prefetch(ctx, "", target)
 }

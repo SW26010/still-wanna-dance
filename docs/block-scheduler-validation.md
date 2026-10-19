@@ -610,3 +610,23 @@ spoolReader 对返回、错误和上下文取消使用一次性清理；客户�
 新增回归覆盖实际消费后回收、新 GET/队列重新具备下载资格、本地完整块复用、入窗与撤销，以及受控 Range 执行在尚未 Read 时主动重取、等待入窗期间保持原会话。用 Go overlay 仅替换为修复前的 scheduled_download.go，对照确定性复现三项新测试失败（含 GET/队列、立即/延后入窗分支）；失败证据保留。修复后定向检查通过（directed.log，1.162 s），缓存/调度整包通过（full-suite.log，37.019 s / 0.562 s），两包完整 Windows race 通过（race-full.log，48.604 s / 1.157 s），相关 go vet（vet.log）与 diff 检查通过。
 
 原始日志和对照文件保存在本地忽略目录 artifacts/download-resource/refetch-current-use-20261019/。测试使用工作区隔离临时目录；完整 Windows 文件测试在沙箱外执行。本次可由受控协议与时序验证，不新增 VRC 台账条目；未启动游戏、修改 hosts、提交或 push。
+
+## 62. TEMP 后继续协调队列缺块重取
+
+2026-10-19：第 61 项只覆盖仍在运行的下载会话。正常 206、零预算、下载及保护提前量均为 120 秒时，队列准备返回 TEMP 后会话已结束，同一成员移到第二位可合法回收，再移回队首虽然仍有使用需求，却不会主动补回；原始失败保留在 artifacts/review-demand-repro/output.txt，本轮也先复现了同样结果。
+
+Range 临时准备完成后，按资源保留一份轻量使用协调，直接读取既有的无来源身份 blockUse 摘要。来源变化、实际块回收和未来保护入窗触发重算；已有块继续复用，缺块通过提取出的共用 startFlightLocked 入口重新下载，同资源 GET 继续共享。协调不创建使用来源、不保留旧执行器、候选游标、文件引用或网络额度，所有来源结束及引擎关闭时退出。与运行会话共用重取资格判断，不延长保护，不调整控制台 prepared，不改变普通下载窗口、截止、配额与顺序 200 的兼容边界。执行耗尽原有尝试后停止协调并保留正常失败日志，避免反复失败的忙循环。
+
+新增 queue_reentry_test.go 覆盖：TEMP 后同一来源连续两次回收／重入窗、重复快照不重复下载、无需新的 GET 即补回且随后播放不访问上游、仅时间推进的入窗、普通删除和重置取消待入窗协调、保留另一 GET 需要的块并与重取共享会话，以及重取终止失败后的有限尝试。
+
+验证日志保存在本地忽略目录 artifacts/queue-refetch-20261019/：
+
+- 新回归连续运行三遍通过（queue-directed.log，5.201 s）。
+- `go test -tags=no_easytier ./cmd/... ./internal/... -count=1 -timeout=3m` 全部通过（full-suite-unrestricted.log；cacheproxy 46.088 s、console 77.413 s）。
+- cacheproxy、blocksched 两包完整 Windows race 通过（race-full-unrestricted.log；51.666 s / 1.173 s）；使用仓库已有 GCC 工具链。
+- 最终资源元数据裁剪后，队列重取与旧读者不回写新会话地址的定向 race 通过（final-directed-race.log，3.504 s）。
+- 相同 cmd/internal 范围的 go vet、构建及 diff 检查通过（vet.log、build.log）。
+
+首轮定向检查的默认临时目录重命名被沙箱拒绝；改用工作区隔离目录后，完整检查仍遇到硬链接、目录联接、原子替换和子进程限制。沙箱内 race 还报告 ThreadSanitizer failed to restore address，未产生可定位的 DATA RACE 报告。上述失败分别保留在 directed.log、full-suite.log、race-full.log；随后在同一隔离目录以沙箱外权限完成整包及 race 检查，不将环境失败改写为通过。
+
+本次由受控 Range、时序与文件验证覆盖，不新增 VRC 待验条目，不外推真实播放器体验；未启动游戏或修改 hosts。

@@ -67,6 +67,7 @@ type Server struct {
 	mu               sync.Mutex
 	storageFailure   error // protected by mu; prevents new downloads until restart
 	flights          map[string]*flight
+	resourceUses     map[string]*resourceUse  // protected by mu; completed Range work with continuing usage
 	demands          map[*downloadDemand]bool // protected by mu, separate from file pins
 	useBlocks        map[useBlockID]int       // protected by mu; includes readable blocks
 	useHandoffs      useHandoffHeap

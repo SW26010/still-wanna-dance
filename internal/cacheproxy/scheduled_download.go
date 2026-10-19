@@ -208,8 +208,7 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]block
 			// Completion prevents an unprotected refill/evict loop, not a new
 			// finite use of missing data. Protection comes from the same usage
 			// summary; its tail alone cannot create download qualification.
-			if !use.need.ReadyBy.IsZero() {
-				at := use.protectReady.Add(-w.s.protectionAhead())
+			if at := use.refetchAt(w.s.protectionAhead()); !at.IsZero() {
 				if !at.After(now) {
 					continue // Normal scheduler window, deadline and quota still apply.
 				}

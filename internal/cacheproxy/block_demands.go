@@ -35,6 +35,15 @@ type blockUse struct {
 	protectReady time.Time
 }
 
+// Completed work becomes eligible for automatic refetch only with a current
+// finite download need entering protection. Local grace alone is insufficient.
+func (u blockUse) refetchAt(ahead time.Duration) time.Time {
+	if u.need.ReadyBy.IsZero() {
+		return time.Time{}
+	}
+	return u.protectReady.Add(-ahead)
+}
+
 type blockSource struct {
 	kind string
 	id   any

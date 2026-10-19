@@ -6,6 +6,8 @@ import (
 	"html/template"
 	"net/http"
 	"strings"
+
+	"still-wanna-dance/internal/buildinfo"
 )
 
 //go:embed webui.html
@@ -21,6 +23,9 @@ func (c *Console) serveWebUI(w http.ResponseWriter, page, title string, data map
 		data = make(map[string]any)
 	}
 	data["page"], data["token"] = page, c.token
+	if page == "about" {
+		data["build"] = buildinfo.Current()
+	}
 	// Marshal escapes HTML metacharacters including </script> in paths/text.
 	encoded, err := json.Marshal(data)
 	if err != nil {

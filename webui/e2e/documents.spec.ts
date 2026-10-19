@@ -16,6 +16,10 @@ for (const colorScheme of ['light', 'dark'] as const) for (const width of [390, 
         await expect(page.getByText('<script>alert("path")</script>', { exact: true })).toBeVisible();
         await expect(page.getByRole('link', { name: '容量收益图' })).toHaveAttribute('href', '/assets/storage-benefit.svg');
       }
+      if (route === '/about') {
+        await expect(page.getByText('dev-browser', {exact:true})).toBeVisible();
+        await expect(page.getByText('a'.repeat(40), {exact:true})).toBeVisible();
+      }
       await page.screenshot({ path: testInfo.outputPath(`${route.slice(1)}.png`), fullPage: true });
     }
     expect(errors).toEqual([]);

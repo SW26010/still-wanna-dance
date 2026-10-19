@@ -8,6 +8,7 @@ import (
 
 func TestHelpEscapesPathsAndOffersReentry(t *testing.T) {
 	c := testConsole(t)
+	c.terms = termsReceipt{} // Help replaces the README, including before first consent.
 	c.settings.StorageDir = `<script>alert("path")</script>`
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/help", nil))
@@ -19,5 +20,10 @@ func TestHelpEscapesPathsAndOffersReentry(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Fatalf("help missing %q", want)
 		}
+	}
+	w = httptest.NewRecorder()
+	c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/api/status", nil))
+	if w.Code != 428 || c.termsAccepted() {
+		t.Fatal("reading help must not unlock business APIs or accept terms")
 	}
 }

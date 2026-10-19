@@ -1,9 +1,11 @@
 param(
     [Parameter(Mandatory = $true)][string]$Zip,
+    [string]$PreviousZip,
     [string]$EvidenceDir = (Join-Path (Split-Path -Parent $PSScriptRoot) 'artifacts/portable-smoke')
 )
 $ErrorActionPreference = 'Stop'
 $zipPath = (Resolve-Path -LiteralPath $Zip).Path
+$previousZipPath = if ($PreviousZip) { (Resolve-Path -LiteralPath $PreviousZip).Path } else { $zipPath }
 # Inspection material must outlive TEMP and any disposable release checkout.
 $evidencePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($EvidenceDir)
 New-Item -ItemType Directory -Path $evidencePath -Force | Out-Null
@@ -12,6 +14,35 @@ New-Item -ItemType Directory -Path $root | Out-Null
 $process = $null
 $duplicate = $null
 $customProcesses = @()
+
+function Expand-Portable($archivePath, $destination) {
+    $checksum = [IO.File]::ReadAllText("$archivePath.sha256").Trim()
+    $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($checksum -cne "$hash  $([IO.Path]::GetFileName($archivePath))") { throw 'Portable ZIP checksum mismatch.' }
+    $expected = @(Get-Content -LiteralPath "$PSScriptRoot/portable-files.json" -Raw | ConvertFrom-Json | ForEach-Object { "SWD/$_" } | Sort-Object)
+    $archive = [IO.Compression.ZipFile]::OpenRead($archivePath)
+    try {
+        $files = @()
+        foreach ($entry in $archive.Entries) {
+            if ($entry.FullName -cin @('SWD/', 'SWD/licenses/')) { continue }
+            if ($entry.Length -eq 0) { throw "Empty or unknown ZIP entry: $($entry.FullName)" }
+            $files += $entry.FullName
+        }
+        if ((($files | Sort-Object) -join '|') -cne ($expected -join '|')) { throw 'Unexpected Portable ZIP layout or bundled user data.' }
+    } finally { $archive.Dispose() }
+    Expand-Archive -LiteralPath $archivePath -DestinationPath $destination -Force
+}
+
+function Read-Build($executable) {
+    try { $value = & $executable -build-info | ConvertFrom-Json }
+    catch { throw "Cannot read executable build identity: $_" }
+    if ($LASTEXITCODE -ne 0 -or !$value.version -or $value.revision -cnotmatch '^[a-f0-9]{40}$' -or !$value.builtAtUtc -or $value.target -cne 'windows/amd64' -or $value.toolchain -notmatch '^go\d') { throw 'Incomplete executable build identity.' }
+    $source = Get-Content -LiteralPath (Join-Path (Split-Path -Parent $executable) 'licenses/SOURCE.json') -Raw | ConvertFrom-Json
+    $sourceVersion = if ($source.kind -ceq 'formal') { $source.tag } else { $source.version }
+    if ($value.version -cne $sourceVersion -or $value.revision -cne $source.revision -or $value.kind -cne $source.kind -or $value.kind -cnotin @('development', 'formal')) { throw 'Executable/source identity mismatch.' }
+    if (($value.kind -ceq 'formal' -and $value.dirty) -or ($value.kind -ceq 'development' -and $value.dirty -ne $source.dirty)) { throw 'Executable source cleanliness mismatch.' }
+    return $value
+}
 
 function Free-Port {
     $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
@@ -54,14 +85,17 @@ function Assert-Identity($child, $port, $executable, $config) {
     }
 }
 try {
-    Expand-Archive -LiteralPath $zipPath -DestinationPath $root
-    $exe = @(Get-ChildItem -LiteralPath $root -Recurse -Filter SWD.exe)
+    Expand-Portable $previousZipPath $root
+    $exe = @(Get-Item -LiteralPath (Join-Path $root 'SWD/SWD.exe'))
     if ($exe.Count -ne 1) { throw 'Expected exactly one desktop executable.' }
     $folder = $exe[0].DirectoryName
     if ((Split-Path -Leaf $folder) -cne 'SWD') { throw 'ZIP installation directory must be stable: SWD.' }
     $shipped = @(Get-ChildItem -LiteralPath $folder | ForEach-Object Name | Sort-Object)
-    if (($shipped -join '|') -cne 'build-info.json|licenses|README.txt|SWD.exe') { throw 'Unexpected delivered files or bundled user data.' }
-    foreach ($name in @('LICENSE', 'LICENSE-MIT', 'LICENSING.md', 'THIRD-PARTY-NOTICES.txt', 'TERMS.txt', 'SOURCE.txt', 'SOURCE.json')) {
+    if (($shipped -join '|') -cne 'licenses|SWD.exe') { throw 'Unexpected delivered files or bundled user data.' }
+    $initialBuild = Read-Build $exe[0].FullName
+    $initialExeHash = (Get-FileHash -LiteralPath $exe[0].FullName).Hash
+    if (Test-Path -LiteralPath (Join-Path $folder 'data')) { throw 'Build diagnostic created runtime data.' }
+    foreach ($name in @('LICENSE', 'LICENSE-MIT', 'LICENSING.md', 'THIRD-PARTY-NOTICES.txt', 'SOURCE.txt', 'SOURCE.json')) {
         $file = Join-Path (Join-Path $folder 'licenses') $name
         if (!(Test-Path -LiteralPath $file -PathType Leaf) -or (Get-Item -LiteralPath $file).Length -eq 0) {
             throw "Missing or empty license file: $name"
@@ -99,7 +133,14 @@ try {
     $gate = Invoke-WebRequest "$url/api/status" -SkipHttpErrorCheck
     if ([int]$gate.StatusCode -ne 428) { throw 'API was accessible before consent.' }
     $servedTerms = Invoke-WebRequest "$url/terms.txt" -UseBasicParsing
-    if ($servedTerms.Content -cne [IO.File]::ReadAllText((Join-Path $folder 'licenses/TERMS.txt'))) { throw 'Packaged and embedded terms differ.' }
+    # An explicit pipeline waits for a GUI-subsystem EXE and captures its UTF-8 stdout.
+    $exportedTerms = (& $exe[0].FullName -show-terms | Out-String).TrimEnd().Replace("`r`n", "`n")
+    if ($LASTEXITCODE -ne 0 -or $servedTerms.Content.TrimEnd().Replace("`r`n", "`n") -cne $exportedTerms) { throw 'Offline terms export and HTTP terms differ.' }
+    foreach ($route in @('help', 'about')) {
+        $document = Invoke-WebRequest "$url/$route"
+        if ($document.Content -notmatch ('"page":"' + $route + '"')) { throw "Offline document unavailable before consent: $route" }
+        if ($route -ceq 'about' -and !$document.Content.Contains('"version":"' + $initialBuild.version + '"')) { throw 'About page did not expose executable identity.' }
+    }
     if (!(Test-Path -LiteralPath (Join-Path $folder 'data/config.lock'))) { throw 'Config lock missing under data.' }
     $configPath = Join-Path $folder 'data/config.json'
     Assert-Identity $process $port $exe[0].FullName $configPath
@@ -111,7 +152,7 @@ try {
     if (Test-Path -LiteralPath (Join-Path $folder 'data/storage')) { throw 'Consent-gated startup created media storage.' }
     $generated = @(Get-ChildItem -LiteralPath (Join-Path $folder 'data') | ForEach-Object Name | Sort-Object)
     if (($generated -join '|') -cne 'config.json|config.lock|logs') { throw 'Unused feature created state or credentials.' }
-    if ((Get-ChildItem -LiteralPath $folder | Measure-Object).Count -ne 5) { throw 'Startup scattered files beside SWD.exe.' }
+    if ((Get-ChildItem -LiteralPath $folder | Measure-Object).Count -ne 3) { throw 'Startup scattered files beside SWD.exe.' }
     $page = Invoke-WebRequest $url -UseBasicParsing
     if ($page.Content -notmatch 'Still Wanna Dance') { throw 'Embedded UI missing.' }
     $logPath = Join-Path $folder 'data/logs/app.log'
@@ -158,13 +199,26 @@ try {
     $process.Kill()
     $process.WaitForExit()
     [IO.File]::WriteAllText((Join-Path $folder 'data/user-note.txt'), 'Keep this user-owned file.')
+    [IO.File]::WriteAllText((Join-Path $folder 'user-note.txt'), 'Keep unknown files beside the program too.')
     $before = Data-Hashes (Join-Path $folder 'data')
-    Expand-Archive -LiteralPath $zipPath -DestinationPath $root -Force
+    Expand-Portable $zipPath $root
+    $updatedBuild = Read-Build $exe[0].FullName
+    if ($PreviousZip -and ($updatedBuild.version -ceq $initialBuild.version -or (Get-FileHash -LiteralPath $exe[0].FullName).Hash -ceq $initialExeHash)) { throw 'Cross-version verification requires different executable versions and bytes.' }
+    if ([IO.File]::ReadAllText((Join-Path $folder 'user-note.txt')) -cne 'Keep unknown files beside the program too.') { throw 'Upgrade changed an unknown installation file.' }
     $after = Data-Hashes (Join-Path $folder 'data')
     if ($before.Count -ne $after.Count) { throw 'Upgrade added or removed user data.' }
     foreach ($key in $before.Keys) {
         if ($before[$key] -cne $after[$key]) { throw "Upgrade changed user data: $key" }
     }
+    # Start the replacement at the original path before testing a whole-directory move.
+    $process = Start-Process -FilePath $exe[0].FullName -ArgumentList @('-no-tray', '-no-open', '-listen', "127.0.0.1:$port") -WorkingDirectory $root -WindowStyle Hidden -PassThru
+    Wait-ConsentGate $process $port
+    Assert-Identity $process $port $exe[0].FullName $configPath
+    if ([IO.File]::ReadAllText($configPath) -cne $configBefore) { throw 'Replacement startup rewrote configuration.' }
+    $about = Invoke-WebRequest "$url/about"
+    if (!$about.Content.Contains('"version":"' + $updatedBuild.version + '"')) { throw 'Replacement did not serve its own build identity.' }
+    $process.Kill()
+    $process.WaitForExit()
 
     # Both paths are generated descendants of this smoke directory, never a real installation.
     $moved = [IO.Path]::GetFullPath((Join-Path $root 'moved SWD'))

@@ -7,6 +7,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { run, goEnv, sha256, readJSON, writeJSON, filesUnder, withTemp, cleanRevision, createSource, extractSource, extractArchive, executableInfo, checkExecutable, rebuild, repository, desktopEntry, desktopBuildFlags, buildTags } from './release-source.mjs';
 import { validateNotices } from './release-notices.mjs';
+import { checkBuildMetadata } from './build-info.mjs';
 
 export const assetURL = (tag, name) => `https://github.com/${repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(name)}`;
 export const releaseNames = tag => ({ portable: `still-wanna-dance-${tag}-windows-amd64-portable.zip`, source: `still-wanna-dance-${tag}-corresponding-source.tar.gz`, manifest: `still-wanna-dance-${tag}-release.json`, notes: `still-wanna-dance-${tag}-release-notes.md` });
@@ -29,13 +30,17 @@ export function checkDelivery(folder, manifest, sourceAsset, sourceRoot) {
   const info = executableInfo(path.join(folder, 'SWD.exe'));
   checkExecutable(info, manifest);
   validateNotices(sourceRoot, info.modules);
-  const expected = ['README.txt', 'SWD.exe', 'build-info.json', 'licenses/LICENSE', 'licenses/LICENSE-MIT', 'licenses/LICENSING.md', 'licenses/SOURCE.json', 'licenses/SOURCE.txt', 'licenses/TERMS.txt', 'licenses/THIRD-PARTY-NOTICES.txt'].sort();
+  const expected = readJSON(fileURLToPath(new URL('./portable-files.json', import.meta.url))).sort();
   if (JSON.stringify(filesUnder(folder)) !== JSON.stringify(expected)) throw Error('Unexpected Portable layout or missing legal/source files');
   const record = readJSON(path.join(folder, 'licenses/SOURCE.json'));
   if (record.kind !== 'formal' || record.tag !== manifest.tag || record.revision !== manifest.revision || record.sourceSHA256 !== sourceAsset.sha256 || record.sourceURL !== assetURL(manifest.tag, sourceAsset.name) || record.executableSHA256 !== sha256(path.join(folder, 'SWD.exe')) || JSON.stringify(record.acceptedRisks) !== JSON.stringify([acceptedRisk])) throw Error('Portable/source identity mismatch');
-  const metadata = readJSON(path.join(folder, 'build-info.json'));
-  if (metadata.kind !== 'formal' || metadata.version !== manifest.tag || metadata.revision !== manifest.revision || metadata.dirty !== false || metadata.toolchain !== manifest.toolchain || metadata.target !== manifest.target) throw Error('Portable build metadata mismatch');
-  for (const [shipped, original] of [['LICENSE', 'LICENSE'], ['LICENSE-MIT', 'LICENSE-MIT'], ['LICENSING.md', 'LICENSING.md'], ['TERMS.txt', 'internal/legal/TERMS.txt']]) if (sha256(path.join(folder, 'licenses', shipped)) !== sha256(path.join(sourceRoot, original))) throw Error(`Delivered license differs from source: ${shipped}`);
+  // Windows packaging/verification also exercises the runtime diagnostic, before any app startup.
+  // Other hosts still inspect real EXE VCS/module settings above, without executing foreign code.
+  if (process.platform === 'win32') {
+    checkBuildMetadata(JSON.parse(run(path.join(folder, 'SWD.exe'), ['-build-info'])), { kind: 'formal', version: manifest.tag, revision: manifest.revision, dirty: false, toolchain: manifest.toolchain, target: manifest.target });
+    if (run(path.join(folder, 'SWD.exe'), ['-show-terms']) !== fs.readFileSync(path.join(sourceRoot, 'internal/legal/TERMS.txt'), 'utf8')) throw Error('Embedded terms differ from corresponding source');
+  }
+  for (const name of ['LICENSE', 'LICENSE-MIT', 'LICENSING.md']) if (sha256(path.join(folder, 'licenses', name)) !== sha256(path.join(sourceRoot, name))) throw Error(`Delivered license differs from source: ${name}`);
   const notices = fs.readFileSync(path.join(folder, 'licenses/THIRD-PARTY-NOTICES.txt'), 'utf8');
   if (!notices.startsWith(fs.readFileSync(path.join(sourceRoot, 'THIRD-PARTY-NOTICES.txt'), 'utf8').trimEnd()) || !notices.includes(`Go runtime and standard library: ${manifest.toolchain}`)) throw Error('Incomplete packaged notices');
   const webuiNotices=path.join(sourceRoot,'docs/licenses/WEBUI-NOTICES.txt');
@@ -74,19 +79,17 @@ export function createRelease({ root, tag, outputDir }) {
     console.log('Building pinned desktop executable...');
     run('go', ['build', ...desktopBuildFlags({ kind: 'formal', version: tag }), '-buildvcs=true', '-o', path.join(folder, 'SWD.exe'), desktopEntry], checkout, env);
     for (const name of ['LICENSE', 'LICENSE-MIT', 'LICENSING.md']) fs.copyFileSync(path.join(checkout, name), path.join(licenses, name));
-    fs.copyFileSync(path.join(checkout, 'internal/legal/TERMS.txt'), path.join(licenses, 'TERMS.txt'));
-    fs.copyFileSync(path.join(checkout, 'docs/portable-readme.txt'), path.join(folder, 'README.txt'));
     run('pwsh', ['-NoProfile', '-File', path.join(checkout, 'scripts/package-notices.ps1'), '-Executable', path.join(folder, 'SWD.exe'), '-Output', path.join(licenses, 'THIRD-PARTY-NOTICES.txt')], checkout, goEnv());
     const sourceAsset = { kind: 'source', name: names.source, sha256: source.sha256, bytes: fs.statSync(source.archive).size, url: assetURL(tag, names.source) };
     const record = { schemaVersion: 1, kind: 'formal', tag, revision, sourceURL: sourceAsset.url, sourceSHA256: source.sha256, executableSHA256: sha256(path.join(folder, 'SWD.exe')), acceptedRisks: [acceptedRisk] };
     writeJSON(path.join(licenses, 'SOURCE.json'), record);
     fs.writeFileSync(path.join(licenses, 'SOURCE.txt'), `Complete Corresponding Source / 完整对应源码\nVersion: ${tag}\nCommit: ${revision}\nDownload: ${sourceAsset.url}\nSHA256: ${source.sha256}\n\nDownload the source asset from the same official GitHub Release as this ZIP.\nThe automatic GitHub Source code ZIP/TAR is not a substitute. Extract the\nsource asset and follow BUILD.txt (recorded Go toolchain, Node.js 22+, pinned pnpm, tar).\nMirrors must retain notices and provide this matching source with equivalent\naccess. For offline redistribution supply the matching source archive too;\na network-only link is not an offline source-delivery plan. See LICENSING.md.\n`);
-    writeJSON(path.join(folder, 'build-info.json'), { kind: 'formal', version: tag, revision, dirty: false, builtAtUtc: new Date().toISOString(), toolchain: source.manifest.toolchain, target: source.manifest.target });
     const info = checkDelivery(folder, source.manifest, sourceAsset, path.join(bundle, 'source'));
     console.log('Rebuilding independently from delivered source with fresh caches...');
     const built = rebuild({ bundle, output: path.join(temp, 'rebuilt.exe') }); compareRebuild(info, built);
     const zip = path.join(results, names.portable);
     run('pwsh', ['-NoProfile', '-File', path.join(checkout, 'scripts/archive-portable.ps1'), '-Folder', folder, '-Zip', zip], checkout);
+    fs.writeFileSync(zip + '.sha256', `${sha256(zip)}  ${names.portable}\n`);
     console.log('Checking actual Portable ZIP in an isolated consent-gated process...');
     // Retain diagnostics in the original repository, outside both temporary roots.
     run('pwsh', ['-NoProfile', '-File', path.join(checkout, 'scripts/test-portable.ps1'), '-Zip', zip, '-EvidenceDir', path.join(root, 'artifacts/portable-smoke')], checkout);

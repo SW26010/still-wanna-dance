@@ -17,23 +17,20 @@ ZIP 名允许带版本；ZIP 内固定为：
 ```text
 SWD/
   SWD.exe
-  README.txt
-  build-info.json
   licenses/
     LICENSE
     LICENSE-MIT
     LICENSING.md
-    TERMS.txt
     THIRD-PARTY-NOTICES.txt
     SOURCE.txt
     SOURCE.json
 ```
 
-不交付 data、空媒体目录、本机配置、hosts、日志或缓存。README 暂时保留，按 #23/#26 的分工，等 #16 内置帮助可用后由 #26 取消；构建信息的交付简化也留给 #26。应用数据位置已经固定，完整树、生命周期及备份范围以[统一存储](storage.md)为准。
+不交付 data、空媒体目录、本机配置、hosts、日志或缓存。精确交付白名单统一维护于 `scripts/portable-files.json`。使用说明在内置「使用帮助」中；完整条款由 `internal/legal/TERMS.txt` 嵌入，在应用内查看、保存纯文本，也可用 `SWD.exe -show-terms` 导出。ZIP 不再交付 README、条款副本或构建信息 JSON。应用数据位置已经固定，完整树、生命周期及备份范围以[统一存储](storage.md)为准。
 
 产物暂存于 `artifacts/still-wanna-dance-<版本>-windows-amd64-portable/SWD/`，ZIP 和 SHA-256 文件位于 artifacts 根。不指定版本时采用 `dev-日期-时间`；`-OutputDir` 可指定输出目录。遇到同名产物报错，不覆盖已有包。
 
-`build-info.json` 记录包类型、版本、提交 SHA、dirty 状态、UTC 构建时间、Go 版本及目标平台。`-Version dev-* / ci-*` 允许本地未提交代码，类型明确为 development，不声称存在正式源码下载。形如 `1.2.3`/`v1.2.3` 的版本必须改用 `-ReleaseTag`，禁止把 dirty 开发包冒充正式版本。
+「关于」、启动日志和 `SWD.exe -build-info` 的 JSON 输出共用 EXE 内的包类型、版本、提交 SHA、dirty 状态、UTC 构建时间、Go 版本及目标平台。机器出口在读取配置、选举实例、创建数据目录或启动服务之前返回；GUI 子系统 EXE 在 PowerShell 中可用 `& ./SWD.exe -build-info | Out-String` 读取。开发/正式构建共用 `scripts/build-info.mjs` 注入版本与时间，revision/dirty 来自实际 Go VCS 标记；缺失或 dirty 不显示为正式发行。对应源码重建独立标为 rebuild 并记录源码清单的提交，不冒充官方发行。`-Version dev-* / ci-*` 允许本地未提交代码，类型明确为 development，不声称存在正式源码下载。形如 `1.2.3`/`v1.2.3` 的版本必须改用 `-ReleaseTag`，禁止把 dirty 开发包冒充正式版本。
 
 正式包同时生成独立的 `*-corresponding-source.tar.gz` 及 SHA256、`*-release.json` 和可用作 Release 正文的 `*-release-notes.md`。完整源码不放进 Portable。`licenses/SOURCE.txt` 给出该 tag 的准确源码附件 URL、提交、校验及构建入口；`SOURCE.json` 将 EXE 哈希与源码哈希绑定，发行清单再绑定 ZIP/源码资产哈希和实际 EXE 模块。详见[完整对应源码](corresponding-source.md)。
 
@@ -59,15 +56,32 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 默认配置为 EXE 旁的 `data/config.json`，首次成功打开即保存 schemaVersion=3。程序日志为 `data/logs/app.log`，默认媒体为 `data/storage`，未使用时不预建。自定义 `-config`、多实例隔离、相对路径及外置库约定见[统一存储](storage.md)。无版本和版本 1、2 测试配置及旧库不迁移。
 
-覆盖升级先退出并备份，然后只将 ZIP 的 SWD/ 内交付文件覆盖到原安装目录；不覆盖 data、外置库或未知文件。ZIP 内层路径不随版本变化，不能将新解压的另一目录当作原实例启动。详见[交付说明](portable-readme.txt)。
+覆盖升级先退出并备份，然后只将 ZIP 的 SWD/ 内交付文件覆盖到原安装目录；不覆盖 data、外置库或未知文件。ZIP 内层路径不随版本变化，不能将新解压的另一目录当作原实例启动。详见下方[覆盖升级与备份](#覆盖升级与备份)。
 
-自动验证解压真实 ZIP，从不同工作目录启动无托盘 EXE，检查固定路径、许可及模块覆盖、未用目录不生成、条款门禁、配置锁、JSON 日志、重复实例拒绝及强制停止后的重启。首次启动、重启、移动和自定义配置均断言身份 API 中的 SWD 协议、实际 EXE、配置、PID 及 OS 进程创建时间。随后覆盖解压，逐文件比较用户数据哈希；整目录移动后再启动，并验证同父目录的两个自定义配置并发启动且锁/日志/默认媒体隔离。另验证已知旧测试布局在创建 data 前被拒绝。Go 回归补充确认记录、通道密钥、快照的移动、外置绝对路径和旧存储标记保护。
+自动验证解压真实 ZIP，从不同工作目录启动无托盘 EXE，检查固定路径、许可及模块覆盖、未用目录不生成、条款门禁、配置锁、JSON 日志、重复实例拒绝及强制停止后的重启。首次启动、重启、移动和自定义配置均断言身份 API 中的 SWD 协议、实际 EXE、配置、PID 及 OS 进程创建时间。随后覆盖解压并在原位置启动替换后的 EXE，逐文件比较覆盖前后的用户数据哈希；整目录移动后再启动，并验证同父目录的两个自定义配置并发启动且锁/日志/默认媒体隔离。另验证已知旧测试布局在创建 data 前被拒绝。Go 回归补充确认记录、通道密钥、快照的移动、外置绝对路径和旧存储标记保护。
 
 验证不主动接受条款、不启动播放网关、不下载歌曲、不改 hosts，不替代真实 VRChat、托盘及 UAC 联合验收；测试退出只终止自己创建的进程，成功或失败均保留隔离目录及其中的日志供检查。默认位置为仓库忽略目录 `artifacts/portable-smoke/Still Wanna Dance smoke <随机标识>`，退出时输出实际路径；可用 `test-portable.ps1 -EvidenceDir <目录>` 指定其他持久位置。正式发布显式使用原仓库的该目录，避免材料随 `TEMP` 包装器或临时检出一起被清理；自定义目录同样应放在这些临时目录之外。
 
 2026-10-19：发布与临时目录定向回归 7/7 通过。使用缺少 EXE 的 ZIP 验证默认位置，以及临时检出配合显式证据目录两种入口：冒烟失败退出后，包装器临时目录已删除，解压材料仍可读取。日志保存在本地忽略目录 `artifacts/windows-test-temp/release-smoke-retention-final.log`；本次未执行完整正式发布构建。
 
+`-PreviousZip <前一版本ZIP>` 可在同一安装目录验证两个不同版本；两包都需匹配的 SHA256 和当前精确白名单，版本和 EXE 字节必须不同。未指定时仍为同包覆盖冒烟，不代表跨版本验收。此脚本保持条款门禁，不生成有效同意或初始化媒体库；数据库、凭据及实际缓存的跨版本语义仍需使用真实样本补验，不能用空配置哈希代替。
+
 Windows CI 在 tag 上运行正式流程，并上传 ZIP、源码、校验、发行清单及 Release notes；手动选择分支时生成明确的 ci 开发包。工作流只在手动选择 `check` → `Run workflow` 或推送 `v[0-9]*` tag 时运行，普通分支 push/PR 不自动运行。脚本和 CI 不发布 GitHub Release；首次正式发布仍须完成 #23、#24、#25、#26、#30 的适用验收，包括 LA-033、Mihomo 实际接入后的产物复验及公开下载验证。
+
+## 覆盖升级与备份
+
+1. 退出整个应用。默认备份完整 `data/`；自定义 `-config` 备份主配置及对应实例数据根，外置媒体另外备份整个存储库，不在运行中单独复制 SQLite 主文件或 videos。
+2. 校验新版 ZIP 的 SHA256，解压到临时位置，将 `SWD/` 内的 `SWD.exe` 和整个 `licenses/` 覆盖到原安装目录，保留原数据、外置库与未知文件。从原目录启动，避免误用新目录的空配置。
+3. 核对「关于」版本及「使用帮助」中的当前路径。条款不变时，同用户有效确认和凭据应保留；条款变化要求重确认。跨用户/普通跨机器无法解密时保留原密文和其它数据，重新确认或配置，不隐式切换直连。
+4. 遇到损坏或未来格式停止并按诊断处理，不手改版本号或删除数据库。无版本及 v1/v2 测试配置、旧布局不迁移；首发前未公开构建不承诺跨全部历史布局升级，也不自动扫描删除旧文件。
+
+新增或移除交付文件须同步白名单、两条打包入口、验证脚本和说明；未来正式版之间若废弃文件需要清理，单独明确其所有权及安全处理，不按新白名单删除未知文件。停用或卸载前先恢复游戏直连、核对 hosts，再退出并备份所需数据；删除 Portable 不会自动恢复系统 hosts 或删除外置媒体。
+
+跨版本入口：
+
+```powershell
+./scripts/test-portable.ps1 -PreviousZip artifacts/previous-portable.zip -Zip artifacts/current-portable.zip
+```
 
 ## 2026-10-11 #23 / #27 本地验收
 

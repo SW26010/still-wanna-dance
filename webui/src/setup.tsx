@@ -178,7 +178,7 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
     if(step==='storage'){setCustom(false);setImportEnabled(false);setSource('');update({storageDir:s.defaultStorageDir,cacheUnlimited:false,maxCacheGiB:'0'});void checkStorage(s.defaultStorageDir);}
     if(step==='proxy'){void releaseImport(draft.proxyImportID);update({upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',socks5Password:'',proxyImportID:'',proxyImportText:'',proxyReport:undefined});}
   }
-  return <div className="wizard"><header><Brand /><Button disabled={busy||recovering||application?.phase==='importing'} onClick={async()=>{if(await leave(false))onExit();}}>{accepted?'放弃更改并退出引导':'退出'}</Button></header>
+  return <div className="wizard"><header><Brand /><div className="actions"><Link href="/help" target="_blank" rel="noopener">使用帮助（新窗口）</Link><Button disabled={busy||recovering||application?.phase==='importing'} onClick={async()=>{if(await leave(false))onExit();}}>{accepted?'放弃更改并退出引导':'退出'}</Button></div></header>
     <NavigationLayout label="引导步骤" selected={step} steps items={steps.map((name,i)=>({value:name,label:`${i+1}. ${names[name]}`,disabled:locked||(name!=='welcome'&&!canContinue),onClick:()=>void go(name)}))}>
     <Text as="h1" size={600} weight="semibold" ref={heading} tabIndex={-1}>{names[step]}</Text>
     <form ref={form} onSubmit={e=>{e.preventDefault();if(step==='finish')void apply();else void go(steps[steps.indexOf(step)+1]);}}>

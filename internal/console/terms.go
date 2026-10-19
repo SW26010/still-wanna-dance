@@ -248,7 +248,7 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 		writeJSON(w, map[string]bool{"ok": true})
 		return true
 	}
-	if !c.termsAccepted() && r.URL.Path != "/api/identity" && r.URL.Path != "/api/stop" && r.URL.Path != "/api/queue/stop" && r.URL.Path != "/api/exit" && r.URL.Path != "/api/restart" && r.URL.Path != "/api/hosts/disable" && !strings.HasPrefix(r.URL.Path, "/assets/") && r.URL.Path != "/about" {
+	if !c.termsAccepted() && r.URL.Path != "/api/identity" && r.URL.Path != "/api/stop" && r.URL.Path != "/api/queue/stop" && r.URL.Path != "/api/exit" && r.URL.Path != "/api/restart" && r.URL.Path != "/api/hosts/disable" && !strings.HasPrefix(r.URL.Path, "/assets/") && r.URL.Path != "/about" && r.URL.Path != "/help" {
 		http.Error(w, "请先打开控制台阅读并同意使用条款", http.StatusPreconditionRequired)
 		return true
 	}

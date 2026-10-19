@@ -7,6 +7,12 @@ test('first entry gates business reads, persists explicit consent, and applies o
   await page.goto('/?gate=1#/settings');
   await expect(page.getByRole('button',{name:'下一步',exact:true})).toBeDisabled();
   expect(api.calls.some(c=>c.path==='status')).toBe(false);
+  const helpOpened = page.waitForEvent('popup');
+  await page.getByRole('link',{name:'使用帮助（新窗口）'}).click();
+  const help = await helpOpened;
+  await expect(help.getByRole('heading',{name:'使用帮助',exact:true})).toBeVisible();
+  await help.close();
+  expect(api.calls.some(c=>c.path==='terms/accept'||c.path==='status')).toBe(false);
   await page.getByRole('button',{name:'完整条款',exact:true}).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByRole('button',{name:'同意完整条款'}).click();

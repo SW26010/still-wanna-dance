@@ -104,15 +104,21 @@ test('failed portable smoke retains extracted evidence after wrapper and checkou
       Write-Output "Command temporary: $env:TEMP"
       $source = ${quote(path.join(scripts, 'test-portable.ps1'))}
       $smokeInput = Join-Path $env:TEMP 'input'
-      New-Item -ItemType Directory -Path $smokeInput | Out-Null
-      [IO.File]::WriteAllText((Join-Path $smokeInput 'evidence.txt'), 'smoke fixture')
+      New-Item -ItemType Directory -Path (Join-Path $smokeInput 'SWD/licenses') -Force | Out-Null
+      $inventory = ${quote(path.join(scripts, 'portable-files.json'))}
+      foreach ($name in (Get-Content -LiteralPath $inventory -Raw | ConvertFrom-Json)) {
+        [IO.File]::WriteAllText((Join-Path $smokeInput "SWD/$name"), 'smoke fixture')
+      }
       $zip = Join-Path $env:TEMP 'invalid-portable.zip'
       [IO.Compression.ZipFile]::CreateFromDirectory($smokeInput, $zip)
+      $hash = (Get-FileHash -LiteralPath $zip).Hash.ToLowerInvariant()
+      [IO.File]::WriteAllText("$zip.sha256", "$hash  invalid-portable.zip")
       ${checkout ? `
         $checkout = Join-Path $env:TEMP 'checkout/scripts'
         New-Item -ItemType Directory -Path $checkout -Force | Out-Null
         $copy = Join-Path $checkout 'test-portable.ps1'
         Copy-Item -LiteralPath $source -Destination $copy
+        Copy-Item -LiteralPath $inventory -Destination (Join-Path $checkout 'portable-files.json')
         & $copy -Zip $zip -EvidenceDir ${quote(evidenceRoot)}
       ` : '& $source -Zip $zip'}
     `;
@@ -122,7 +128,7 @@ test('failed portable smoke retains extracted evidence after wrapper and checkou
       @{ code = $code; output = ($output | Out-String) } | ConvertTo-Json -Compress
     `);
     assert.notEqual(result.code, 0);
-    assert.match(result.output, /Expected exactly one desktop executable/);
+    assert.match(result.output, /Cannot read executable build identity/);
     const temporary = result.output.match(/Command temporary: ([^\r\n]+)/)?.[1].trim();
     const evidence = result.output.match(/Smoke test files: ([^\r\n]+)/)?.[1].trim();
     assert.ok(temporary, result.output);
@@ -131,7 +137,7 @@ test('failed portable smoke retains extracted evidence after wrapper and checkou
     assert.match(path.basename(evidence), /^Still Wanna Dance smoke [a-f0-9]{32}$/);
     try {
       assert.equal(existsSync(temporary), false);
-      assert.equal(readFileSync(path.join(evidence, 'evidence.txt'), 'utf8'), 'smoke fixture');
+      assert.equal(readFileSync(path.join(evidence, 'SWD/licenses/SOURCE.txt'), 'utf8'), 'smoke fixture');
     } finally {
       // The checks above bound cleanup to this fixture's unique evidence directory.
       rmSync(evidence, { recursive: true, force: true });

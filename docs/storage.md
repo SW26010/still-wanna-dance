@@ -87,11 +87,8 @@ ID 播放命中本地时立即返回，同时后台对照上游 URL 的 MD5；�
 ```text
 SWD/                              # ZIP 内固定目录，不含版本号
   SWD.exe                         # 产品显示名仍为 Still Wanna Dance
-  README.txt                      # 暂保留，取消依赖 #16 内置帮助及 #26
-  build-info.json                 # 构建溯源，交付简化由 #26 决定
   licenses/
     LICENSE
-    TERMS.txt
     THIRD-PARTY-NOTICES.txt
   data/                           # 不随 ZIP 交付
     config.json                   # 首次成功打开控制台时写入
@@ -168,7 +165,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 命令行服务是独立开发/部署入口：`-storage-dir` 决定 S，相对路径基于 CLI 工作目录，默认值见[服务手册](service.md)。它不创建桌面配置实例。便携包只交付 SWD.exe 桌面入口。非 Windows hosts 路径为 `/etc/hosts`，不纳入 Windows Portable 验收。
 
-完整备份单位是 C + R + 整个 S（默认退出后直接复制 data）；外置存储单独备份。整体移动前先退出，升级仅覆盖交付文件，不覆盖 data。修改存储路径只选择另一套库，不搬运任何数据。操作步骤见[便携交付说明](portable-readme.txt)。
+完整备份单位是 C + R + 整个 S（默认退出后直接复制 data）；外置存储单独备份。整体移动前先退出，升级仅覆盖交付文件，不覆盖 data。修改存储路径只选择另一套库，不搬运任何数据。操作步骤见[便携交付说明](packaging.md#覆盖升级与备份)。
 
 ## 清单内容摘要 v1
 

@@ -4,7 +4,7 @@ import {mockAPI} from './api';
 
 test('settings anchors focus after initial reads and within the same page',async({page})=>{
   await mockAPI(page);await page.goto('/#prepareAheadSeconds');
-  await expect(page.getByRole('spinbutton',{name:/提前准备时间 M/})).toBeFocused();
+  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeFocused();
   await page.evaluate(()=>{location.hash='maxCacheGiB';});
   await expect(page.locator('#maxCacheGiB')).toBeFocused();
   await page.evaluate(()=>{location.hash='recent';});await expect(page.locator('#recent')).toBeFocused();
@@ -23,7 +23,7 @@ test('gateway and queue actions remain independent; hosts errors are visible',as
   await expect(page.locator('#queue ol li')).toHaveCount(6);
   await expect(page.locator('#queue ol li').last()).toHaveText('4');
   await page.getByRole('link',{name:'调整提前准备时间',exact:true}).click();
-  await expect(page.getByRole('spinbutton',{name:/提前准备时间 M/})).toBeFocused();
+  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeFocused();
   await navigate(page,'准备歌曲');
   await page.getByRole('button',{name:'开启队列预加载'}).click();
   await expect(page.getByText('队列预加载已开启，等待新的房间队列。',{exact:true})).toBeVisible();

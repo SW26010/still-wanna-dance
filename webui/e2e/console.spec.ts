@@ -4,7 +4,7 @@ import { mockAPI } from './api';
 
 test('drafts survive polling and navigation; save preserves active config and blocks dirty restart', async ({page}) => {
   const api=await mockAPI(page); await page.goto('/#/settings');
-  const m=page.getByRole('spinbutton',{name:/提前准备时间 M/});
+  const m=page.getByRole('spinbutton',{name:/提前准备时间/});
   await expect(m).toHaveAccessibleDescription(/当前值约占 125 MB 临时缓存，按 2 Mbps 估算/);
   await m.fill(''); await expect(m).not.toHaveAccessibleDescription(/当前值约占/);
   await m.fill('100'); await expect(m).toHaveAccessibleDescription(/当前值约占 25 MB 临时缓存/);

@@ -5,8 +5,8 @@ test('saved settings stay locked until a fresh status arrives, including failed 
   const api=await mockAPI(page);let hold=false,fail=false,release=()=>{};
   const waiting=new Promise<void>(resolve=>{release=resolve;});
   await page.route('**/api/status',async r=>{if(hold)await waiting;if(fail)return r.fulfill({status:503,json:{error:'temporarily offline'}});await r.fulfill({json:api.state});});
-  await page.clock.install();await page.goto('/#/settings');
-  const ahead=page.getByRole('spinbutton',{name:/提前准备时间 M/}),retention=page.getByRole('spinbutton',{name:/请求明细保留天数/});
+  await page.clock.install();await page.goto('/#/settings');await page.getByRole('button',{name:'高级存储设置',exact:true}).click();
+  const ahead=page.getByRole('spinbutton',{name:/提前准备时间/}),retention=page.getByRole('spinbutton',{name:/请求明细保留天数/});
   await ahead.fill('120');hold=true;
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(page.getByText('正在核对已保存的设置…',{exact:true})).toBeVisible();
@@ -33,7 +33,7 @@ test('terms hosts recovery waits for UAC and reports a timed out result as uncon
   const button=page.getByRole('button',{name:'恢复游戏直连'});
   await button.click();await expect.poll(()=>calls).toBe(1);await page.clock.fastForward(20000);
   await expect(button).toBeDisabled();await expect(page.getByText(/最多等待 120 秒/)).toBeVisible();
-  release();await expect(page.getByText('hosts 恢复操作已完成。')).toBeVisible();
+  release();await expect(page.getByText('已恢复游戏直连，播放网关、队列预加载和下载补齐已停止。')).toBeVisible();
   await page.route('**/api/hosts/disable',()=>{});
   await button.click();await page.clock.fastForward(119000);await expect(button).toBeDisabled();
   await page.clock.fastForward(1001);

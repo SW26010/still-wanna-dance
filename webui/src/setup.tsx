@@ -43,7 +43,7 @@ function SetupReview({draft:d,status:s,source,effects}:{draft:Draft;status:Statu
     if(p.socks5Password)rows.push(['代理密码','将更新']);
     else if(p.socks5Password===''&&s.socks5PasswordSet)rows.push(['代理密码','将清除']);
   }
-  const labels={autoStartCDN:'自动启动播放网关',autoStartQueue:'自动启动队列',prepareAheadSeconds:'提前准备时间 M（秒）',downloadSoftLimit:'下载并发上限（软）',downloadGrowIntervalMS:'并发增长间隔（毫秒）',localProtectionGraceSeconds:'本地延续保护时长（秒）',requestRetentionDays:'请求保留天数',throughputIntervalMinutes:'测速间隔（分钟）',downloadUpstream:'回源线路',manualLogDir:'手动日志位置',logDir:'日志目录'};
+  const labels={autoStartCDN:'自动启动播放网关',autoStartQueue:'自动启动队列',prepareAheadSeconds:'提前准备时间（秒）',downloadSoftLimit:'同时下载数量',downloadGrowIntervalMS:'并发增长间隔（毫秒）',localProtectionGraceSeconds:'本地延续保护时长（秒）',requestRetentionDays:'请求保留天数',throughputIntervalMinutes:'测速间隔（分钟）',downloadUpstream:'回源线路',manualLogDir:'手动日志位置',logDir:'日志目录'};
   for(const key of Object.keys(labels) as (keyof typeof labels)[]){if(current[key]!==s.settings[key])rows.push([labels[key],change(String(current[key]),String(s.settings[key]))+'（此前已保存）']);}
   if(current.aggressiveCacheReclamation!==p.aggressiveCacheReclamation)rows.push(['激进的缓存回收策略',change(reclamationLabel(current),reclamationLabel(p))+'（此前已保存）']);
   return <><dl>{rows.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
@@ -234,7 +234,7 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
         {importEnabled&&<><Field label="导入视频文件夹"><Button className="path-button" disabled={locked||folderBusy} onClick={()=>void chooseFolder('import')}>{source||'点击选择文件夹'}</Button></Field><p>可选择存有 WannaDance 视频或旧版保存的视频的文件夹，包含子文件夹，无需特定目录结构。</p><p>请放心，我们不会修改来源文件，并且会尽量使用硬链接来避免双份空间占用。导入后请勿修改源视频。</p></>}
         <VRCXOption model={history}/>
       </div>}
-      {step==='proxy'&&draft&&s&&<><Subtitle1 as="h2">网络环境检测</Subtitle1><Diagnostics visible={true} proxy={{...plan,page:'proxy',upstreamMode:'proxy'}} upstream={diagnosticUpstream} onUpstreamChange={setDiagnosticUpstream}/><Subtitle1 as="h2">连接方式</Subtitle1><NetworkFields wizard draft={draft} update={update} disabled={locked} status={s} onPending={setProxyPending}/></>}
+      {step==='proxy'&&draft&&s&&<><Subtitle1 as="h2">连接方式</Subtitle1><NetworkFields wizard draft={draft} update={update} disabled={locked} status={s} onPending={setProxyPending}/><Details title="检测网络连接与下载速度" open><Diagnostics visible={true} proxy={{...plan,page:'proxy',upstreamMode:'proxy'}} upstream={diagnosticUpstream} onUpstreamChange={setDiagnosticUpstream}/></Details></>}
       {step==='finish'&&draft&&s&&<><Panel title="接入检查"><p>游戏连接：{s.hosts.ready?'已配置':s.hosts.conflict?s.hosts.message:'未配置'}</p><p>下面的连接操作会立即修改 hosts，可能需要管理员权限。放弃引导草稿不会撤销；需要撤销时点击「恢复直连」。</p><div className="actions"><Button disabled={app.unavailable||s.hosts.ready} onClick={()=>void app.action('hosts/enable')}>配置游戏连接</Button><Button disabled={app.unavailable} onClick={()=>void app.action('hosts/disable')}>恢复直连</Button><Button disabled={logsBusy||locked||app.unavailable} onClick={()=>void checkAccess()}>刷新接入检查</Button></div>
         <Details title="端口与日志检查"><p>80 (HTTP) 端口：{s.portOK?'可用':s.portOwner?`被 ${s.portOwner.name}（PID ${s.portOwner.pid}）占用`:'被占用或不可用'}</p><p>443 (HTTPS) 端口：{s.httpsPortOK?'可用':s.httpsPortOwner?`被 ${s.httpsPortOwner.name}（PID ${s.httpsPortOwner.pid}）占用`:'被占用或不可用'}</p>
         <p>VRChat 日志：{logsBusy?'正在检测…':logs?.path||logs?.directory||'未定位'}</p><p>{logs?.message}</p></Details><Feedback error>{s.actionErrors?.hosts}</Feedback>

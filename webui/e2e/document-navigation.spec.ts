@@ -8,7 +8,7 @@ for(const width of [390,1280])test(`all navigation stays in one document and pre
   page.on('request',request=>{if(['document','script','stylesheet'].includes(request.resourceType()))requests.push(request.url());});
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto('/#/settings');
-  const draft=page.getByRole('spinbutton',{name:/提前准备时间 M/});
+  const draft=page.getByRole('spinbutton',{name:/提前准备时间/});
   await draft.fill('777');
   const originalDocument=await page.evaluate(()=>performance.timeOrigin),initialRequests=requests.length;
   for(const name of ['开始使用','运行状态','本地视频','准备歌曲','使用帮助','关于','使用条款','设置']){
@@ -30,7 +30,7 @@ for(const width of [390,1280])test(`all navigation stays in one document and pre
 test('document body and footer links share navigation, and terms actions refresh console state',async({page})=>{
   const api=await mockAPI(page);api.state.running=true;
   await page.goto('/#/settings');
-  await page.getByRole('spinbutton',{name:/提前准备时间 M/}).fill('888');
+  await page.getByRole('spinbutton',{name:/提前准备时间/}).fill('888');
   const originalDocument=await page.evaluate(()=>performance.timeOrigin);
   await page.locator('footer').getByRole('link',{name:'关于',exact:true}).click();
   await expect(page.getByRole('heading',{level:1})).toHaveText('Load failed? But I still wanna dance!');
@@ -44,7 +44,7 @@ test('document body and footer links share navigation, and terms actions refresh
   await navigate(page,'使用帮助');
   await page.getByRole('link',{name:'返回控制台',exact:true}).click();
   await navigate(page,'设置');
-  await expect(page.getByRole('spinbutton',{name:/提前准备时间 M/})).toHaveValue('888');
+  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('888');
   expect(await page.evaluate(()=>performance.timeOrigin)).toBe(originalDocument);
 });
 
@@ -74,7 +74,7 @@ test('help shows active storage instead of a saved or unsaved storage change',as
   const api=await mockAPI(page);
   api.state.settings.storageDir='D:\\PendingStorage';
   await page.goto('/#/settings');
-  await expect(page.getByRole('spinbutton',{name:/提前准备时间 M/})).toBeVisible();
+  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeVisible();
   await navigate(page,'使用帮助');
   await expect(page.getByText(api.state.activeSettings.storageDir,{exact:true})).toBeVisible();
   await expect(page.getByText('D:\\PendingStorage',{exact:true})).not.toBeVisible();
@@ -98,7 +98,7 @@ for(const width of [390,1280])test(`ordinary navigation resets scrolling; explic
   await mockAPI(page);
   await page.setViewportSize({width,height:720});
   await page.goto('/#/settings');
-  await page.getByRole('spinbutton',{name:/提前准备时间 M/}).fill('777');
+  await page.getByRole('spinbutton',{name:/提前准备时间/}).fill('777');
   expect(await page.evaluate(()=>scrollY)).toBeGreaterThan(500);
   for(const name of ['使用帮助','关于','设置']){
     await navigate(page,name);
@@ -107,13 +107,13 @@ for(const width of [390,1280])test(`ordinary navigation resets scrolling; explic
   }
   await navigate(page,'准备歌曲');
   await page.getByRole('link',{name:'调整提前准备时间',exact:true}).click();
-  await expect(page.getByRole('spinbutton',{name:/提前准备时间 M/})).toBeFocused();
-  await expect(page.getByRole('spinbutton',{name:/提前准备时间 M/})).toHaveValue('777');
+  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeFocused();
+  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('777');
   expect(await page.evaluate(()=>scrollY)).toBeGreaterThan(500);
   await page.goBack();
   await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(0);
   await page.goForward();
-  await expect(page.getByRole('spinbutton',{name:/提前准备时间 M/})).toBeFocused();
+  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeFocused();
 });
 
 test('action feedback names the operation and does not follow navigation or late responses',async({page})=>{

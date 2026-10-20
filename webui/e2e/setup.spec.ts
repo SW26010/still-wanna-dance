@@ -40,7 +40,7 @@ test('first entry gates business reads, persists explicit consent, and applies o
 });
 test('wizard draft is independent of settings and failed apply never resubmits automatically',async({page})=>{
   const api=await mockAPI(page);await page.goto('/#/settings');
-  await page.getByRole('spinbutton',{name:/提前准备时间 M/}).fill('140');
+  await page.getByRole('spinbutton',{name:/提前准备时间/}).fill('140');
   await page.getByRole('link',{name:'重新打开使用引导'}).click();
   await page.getByRole('button',{name:'下一步',exact:true}).click();
   await page.getByRole('radio',{name:'限制为',exact:true}).check();
@@ -54,7 +54,7 @@ test('wizard draft is independent of settings and failed apply never resubmits a
   await page.getByRole('button',{name:'核对应用结果'}).click();expect(applyCount).toBe(1);
   await page.getByRole('button',{name:'放弃草稿并退出引导'}).click();
   await navigate(page,'设置');
-  await expect(page.getByRole('spinbutton',{name:/提前准备时间 M/})).toHaveValue('140');
+  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('140');
   expect(api.calls.some(c=>c.path==='settings')).toBe(false);
 });
 test('manual SSE diagnostics restore saved results when cancellation is confirmed but response is lost',async({page})=>{

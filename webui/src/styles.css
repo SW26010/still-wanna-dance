@@ -28,6 +28,10 @@ p { margin: var(--spacingVerticalS) 0; }
 fieldset { border: 0; margin: 0; padding: 0; }
 legend { font-size: var(--fontSizeBase300); line-height: var(--lineHeightBase300); font-weight: var(--fontWeightSemibold); padding: 0; margin-bottom: var(--spacingVerticalL); }
 .settings-form { gap: var(--spacingVerticalXXXL); }
+.panel:has(.settings-form) { overflow: visible; }
+.settings-actions { position: sticky; top: 8px; z-index: 2; padding: var(--spacingVerticalM) var(--spacingHorizontalM); background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke2); border-radius: var(--borderRadiusMedium); }
+.settings-actions .actions { margin: 0; }
+.settings-form :is(input, select, textarea, [tabindex="-1"]) { scroll-margin-top: 12rem; }
 .form-grid .fui-Field { max-width: 680px; }
 .hint { color: var(--colorNeutralForeground2); }
 .records { margin: var(--spacingVerticalS) 0; overflow-wrap: anywhere; }

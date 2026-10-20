@@ -17,7 +17,9 @@ for (const colorScheme of ['light', 'dark'] as const) for (const width of [390, 
       await page.keyboard.press('Enter'); await expect(page.locator('#main')).toBeFocused();
       if (route === '/help') {
         await expect(page.getByText('<script>alert("path")</script>', { exact: true })).toBeVisible();
+        await page.getByRole('button',{name:'存储、导入与搬迁说明',exact:true}).click();
         await expect(page.getByRole('link', { name: '容量收益图' })).toHaveAttribute('href', '/assets/storage-benefit.svg');
+        await page.getByRole('button',{name:'备份与覆盖升级',exact:true}).click();
         await expect(page.getByText(/把 SWD.exe 和整个 licenses\/ 覆盖到原安装目录/)).toBeVisible();
         await expect(page.getByText(/build-info\.json|README\.txt|licenses\/TERMS\.txt/)).toHaveCount(0);
       }
@@ -36,10 +38,10 @@ test('readonly terms authenticates actions and displays server failures', async 
   const req = page.waitForRequest('**/api/hosts/disable');
   await page.getByRole('button', { name: '恢复游戏直连' }).click();
   expect((await req).headers()['x-swd-token']).toBe('browser-fixture-token');
-  await expect(page.getByText('hosts 恢复操作已完成。')).toBeVisible();
-  await page.route('**/api/stop', route => route.fulfill({status: 500, body: '测试：无法停止'}));
-  await page.getByRole('button', { name: '停止播放网关' }).click();
+  await expect(page.getByText('已恢复游戏直连，播放网关、队列预加载和下载补齐已停止。')).toBeVisible();
+  await page.route('**/api/hosts/disable', route => route.fulfill({status: 500, body: '测试：无法停止'}));
+  await page.getByRole('button', { name: '恢复游戏直连' }).click();
   await expect(page.getByText(/测试：无法停止/)).toBeVisible();
-  await expect(page.getByRole('button', { name: '停止播放网关' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: '恢复游戏直连' })).toBeEnabled();
   await expect(page.getByRole('button', { name: /同意/ })).toHaveCount(0);
 });

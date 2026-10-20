@@ -4,7 +4,7 @@ import {navigate, navigateStep} from './navigation';
 
 test('reclamation strategy follows storage only in auto and survives save, discard and navigation', async ({page}, info) => {
   const api = await mockAPI(page);
-  await page.goto('/#/settings');
+  await page.goto('/#/settings');await page.getByRole('button',{name:'高级存储设置',exact:true}).click();
   const group = page.getByRole('radiogroup', {name:'激进的缓存回收策略', exact:true});
   const auto = group.getByRole('radio', {name:'自动（默认）', exact:true});
   const on = group.getByRole('radio', {name:'开启', exact:true});
@@ -29,7 +29,7 @@ test('reclamation strategy follows storage only in auto and survives save, disca
   await expect(save).toBeDisabled();
   expect(api.state.settings.aggressiveCacheReclamation).toBe('on');
   expect(api.state.activeSettings.aggressiveCacheReclamation).toBe('auto');
-  await page.reload();
+  await page.reload();await page.getByRole('button',{name:'高级存储设置',exact:true}).click();
   await expect(on).toBeChecked();
   await off.check();
   await page.getByRole('button', {name:'放弃更改', exact:true}).click();
@@ -37,14 +37,14 @@ test('reclamation strategy follows storage only in auto and survives save, disca
   await off.check();
   await save.click();
   await expect(save).toBeDisabled();
-  await page.reload();
+  await page.reload();await page.getByRole('button',{name:'高级存储设置',exact:true}).click();
   await expect(off).toBeChecked();
   await auto.check();
   await page.getByRole('radio', {name:'不保留', exact:true}).check();
   await save.click();
   await expect(save).toBeDisabled();
   expect(api.state.settings.aggressiveCacheReclamation).toBe('auto');
-  await page.reload();
+  await page.reload();await page.getByRole('button',{name:'高级存储设置',exact:true}).click();
   await expect(auto).toBeChecked();
   await expect(page.getByText(/^自动（当前开启）：/)).toBeVisible();
   await page.setViewportSize({width:390,height:844});

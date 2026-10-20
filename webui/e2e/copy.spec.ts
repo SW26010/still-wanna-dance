@@ -21,6 +21,7 @@ test('connection and service controls explain their independent effects',async({
 
 test('settings retain storage, restart and credential consequences in the appropriate details',async({page})=>{
   await mockAPI(page);await page.goto('/#/settings');
+  await expect(page.getByRole('region',{name:'设置操作',exact:true})).toBeVisible();
   let text=await textWithDetails(page);
   for(const consequence of ['保存并重启应用后生效','批量任务需手动重新开始','请勿修改源视频'])expect(text).toContain(consequence);
   await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');

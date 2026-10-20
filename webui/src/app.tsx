@@ -15,11 +15,11 @@ import { accelerationLabel } from './types';
 const pages = {home:'开始使用',library:'准备歌曲',cache:'本地视频',monitor:'运行状态',settings:'设置',setup:'使用引导',...documentPages};
 type Page = keyof typeof pages;
 const descriptions:Partial<Record<Page,string>>={home:'为 VRChat WannaDance 复用已下载视频，也可提前准备房间队列。',monitor:'查看下载进度、最近请求和网络连接。',cache:'查找已下载的视频，清理磁盘空间。',library:'按房间队列提前准备，或批量下载缺失视频。',settings:'调整存储、网络和启动偏好。',setup:'设置、导入、检测和接入；可随时返回或离开。'};
-const legacy: Record<string,Page> = {activation:'home',service:'home',queue:'library',overview:'cache',cache:'cache',downloads:'monitor',recent:'monitor',network:'monitor',batch:'library',preferences:'settings',prepareAheadSeconds:'settings',maxCacheGiB:'settings'};
+const anchors: Record<string,Page> = {activation:'home',service:'home',queue:'library',overview:'cache',cache:'cache',downloads:'monitor',recent:'monitor',network:'monitor',batch:'library',preferences:'settings',prepareAheadSeconds:'settings',maxCacheGiB:'settings','help-start':'help','help-playback':'help','help-storage':'help','help-stop':'help','help-paths':'help'};
 export function route(hash: string): Page {
   if (hash === '#/upstream') return 'monitor';
   const key = hash.replace(/^#\/?/,'');
-  return Object.hasOwn(pages,key) ? key as Page : legacy[key] || 'home';
+  return Object.hasOwn(pages,key) ? key as Page : anchors[key] || 'home';
 }
 export function App() {
   const [accepted,setAccepted]=useState(!bootstrap.termsGate);
@@ -54,14 +54,14 @@ export function App() {
     document.title = pages[page]+' · Still Wanna Dance';
     if (!initial.current) main.current?.focus({preventScroll:true});
     initial.current = false;
-    if (!Object.hasOwn(legacy,anchor)) window.scrollTo({top:0,left:0,behavior:'instant'});
+    if (!Object.hasOwn(anchors,anchor)) window.scrollTo({top:0,left:0,behavior:'instant'});
   }, [page,anchor]);
   const s = model.status.data;
   useLayoutEffect(()=>{
-    if(s && page!=='setup' && Object.hasOwn(legacy,anchor)){
+    if((s || documentPage) && page!=='setup' && Object.hasOwn(anchors,anchor)){
       const target=document.getElementById(anchor);target?.focus();target?.scrollIntoView();
     }
-  },[page,!!s,anchor]);
+  },[page,!!s,anchor,documentPage]);
   return <ConsoleContext.Provider value={model}><div className="shell">
     <Link className="skip-link" href="#main" onClick={e => { e.preventDefault(); main.current?.focus(); }}>跳到主要内容</Link>
     <header hidden={page==='setup'}><Brand /><span role="status">{documentPage ? 'WannaDance 本地控制台' : model.stopped ? '应用正在退出或重启' : model.status.error ? '控制台连接中断，下方保留最后状态' : s ? '控制台已连接' : '正在连接…'}</span></header>

@@ -48,7 +48,7 @@ for(const wizard of [false,true])test(`desktop sidebar toggles by keyboard witho
   await page.goto(wizard?'/#/setup':'/#/settings');
   const label=wizard?'引导步骤':'控制台页面',nav=page.getByRole('navigation',{name:label,exact:true});
   const collapse=page.getByRole('button',{name:'收起'+label,exact:true}),expand=page.getByRole('button',{name:'展开'+label,exact:true});
-  const heading=page.getByRole('heading',{level:1}).first(),draft=page.getByRole('spinbutton',{name:/提前准备时间 M/});
+  const heading=page.getByRole('heading',{level:1}).first(),draft=page.getByRole('spinbutton',{name:/提前准备时间/});
   await expect(nav).toBeVisible();const expandedX=(await heading.boundingBox())!.x;
   if(!wizard)await draft.fill('777');
   await collapse.focus();await page.keyboard.press('Space');

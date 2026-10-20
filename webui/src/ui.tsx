@@ -53,7 +53,14 @@ export function Feedback({ children, error = false }: PropsWithChildren<{ error?
   return children ? <MessageBar intent={error ? 'error' : 'info'}><MessageBarBody>{children}</MessageBarBody></MessageBar> : null;
 }
 export function Details({ title, children, open = false }: PropsWithChildren<{ title: string; open?: boolean }>) {
-  return <Accordion collapsible defaultOpenItems={open ? ['detail'] : []}><AccordionItem value="detail"><AccordionHeader>{title}</AccordionHeader><AccordionPanel><div className="content-stack">{children}</div></AccordionPanel></AccordionItem></Accordion>;
+  const [expanded,setExpanded]=useState(open);
+  return <Accordion collapsible openItems={expanded?['detail']:[]} onToggle={(_,data)=>setExpanded(data.openItems.includes('detail'))} onInvalidCapture={event=>{
+    if(expanded)return;
+    // Native form validation must reveal a collapsed field before focusing it.
+    event.preventDefault();setExpanded(true);
+    const field=event.target as HTMLInputElement;
+    requestAnimationFrame(()=>{if(field.isConnected)field.reportValidity();});
+  }}><AccordionItem value="detail"><AccordionHeader>{title}</AccordionHeader><AccordionPanel><div className="content-stack">{children}</div></AccordionPanel></AccordionItem></Accordion>;
 }
 export function Progress({ value, max, label }: { value?: number; max?: number; label: string }) {
   return <ProgressBar aria-label={label} value={max ? Math.min(1, Math.max(0, (value || 0) / max)) : undefined} />;

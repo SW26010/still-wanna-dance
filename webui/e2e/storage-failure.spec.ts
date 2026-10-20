@@ -13,6 +13,7 @@ test('storage fault stays visible across polling, pages, gateway actions and con
   const reason=page.getByText('首个错误：'+cause,{exact:true});
   await expect(reason).toBeVisible();
   await expect(page.getByText(/修复后退出并重新打开整个应用/)).toBeVisible();
+  await page.getByRole('button',{name:'高级接入设置',exact:true}).click();
   await page.getByRole('button',{name:'启动播放网关',exact:true}).click();
   await page.getByRole('button',{name:'停止播放网关',exact:true}).click();
   await expect(reason).toBeVisible();

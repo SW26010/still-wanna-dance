@@ -36,11 +36,11 @@ test('document body and footer links share navigation, and terms actions refresh
   await expect(page.getByRole('heading',{level:1})).toHaveText('Load failed? But I still wanna dance!');
   await page.getByRole('link',{name:'使用条款与内容权利声明',exact:true}).click();
   const calls=api.calls.length;
-  await page.getByRole('button',{name:'停止播放网关',exact:true}).click();
-  await expect(page.getByText('播放网关已停止。',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'恢复游戏直连',exact:true}).click();
+  await expect(page.getByText('hosts 恢复操作已完成。',{exact:true})).toBeVisible();
   await expect.poll(()=>api.calls.slice(calls).some(call=>call.path==='status')).toBe(true);
   await page.getByRole('link',{name:'返回控制台',exact:true}).click();
-  await expect(page.getByRole('button',{name:'启动播放网关',exact:true})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
   await navigate(page,'使用帮助');
   await page.getByRole('link',{name:'返回控制台',exact:true}).click();
   await navigate(page,'设置');

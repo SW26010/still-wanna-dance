@@ -9,8 +9,9 @@ test('drafts survive polling and navigation; save preserves active config and bl
   await m.fill(''); await expect(m).not.toHaveAccessibleDescription(/当前值约占/);
   await m.fill('100'); await expect(m).toHaveAccessibleDescription(/当前值约占 25 MB 临时缓存/);
   await navigate(page,'开始使用');
+  await page.getByRole('button',{name:'高级接入设置',exact:true}).click();
   await page.getByRole('button',{name:'启动播放网关',exact:true}).click();
-  await expect(page.getByText('操作已完成。',{exact:true})).toBeVisible();
+  await expect(page.getByText('播放网关已启动。',{exact:true})).toBeVisible();
   await navigate(page,'设置'); await expect(m).toHaveValue('100');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeEnabled();
@@ -60,9 +61,9 @@ test('pause only freezes monitor display; native dialogs replaced by Fluent conf
   await page.getByRole('checkbox',{name:'暂停下载与请求刷新'}).check();
   const reads=api.calls.filter(c=>c.path==='downloads'||c.path==='requests').length;
   await page.getByRole('button',{name:'立即检测',exact:true}).click();
-  await expect(page.getByText('操作已完成。',{exact:true})).toBeVisible();
+  await expect(page.getByText('网络检测已开始，请查看检测结果。',{exact:true})).toBeVisible();
   expect(api.calls.filter(c=>c.path==='downloads'||c.path==='requests')).toHaveLength(reads);
-  await page.getByRole('button',{name:'退出整个应用'}).click(); await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button',{name:'退出整个应用',exact:true}).click(); await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(api.calls.some(c=>c.path==='exit')).toBe(false);
 });

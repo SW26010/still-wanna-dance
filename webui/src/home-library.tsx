@@ -5,25 +5,28 @@ import { active, date, dated } from './types';
 
 export function Home() {
   const app = useApp(), s = app.status.data!, a = s.activation || {}, received = dated(a.firstRequest);
-  const progress:Record<string,string>={checking:'正在检查接入配置…',starting:'正在启动播放网关并检查端口…',hosts:'播放网关已运行，正在检查 / 修改 hosts；如出现 UAC 提示，请允许管理员权限…',migration_required:s.hosts.needsMigration?'播放网关已自动启动，但 hosts 迁移未完成：'+a.error:'hosts 状态已更新，请重新检测视频请求。',failed:'启用未完成：'+a.error,stopped:s.cdnError?'播放网关已停止：'+s.cdnError:'本次检测已结束。',waiting:'启用步骤已完成，请核对下方实时状态。'};
-  const next=active(s)?'请等待当前操作完成，勿重复提交。':!s.running?s.cdnError?'播放网关启动失败，请根据错误提示处理后重试。':'':s.hosts.needsMigration?'下一步：点击「启用游戏加速」清理本程序旧版 hosts 条目，完成接入迁移。':!s.hosts.ready?'下一步：检查 hosts 冲突或管理员权限后重试。播放网关已运行，接入尚未完成。':a.phase!=='waiting'?'下一步：点击「重新检测视频请求」，然后在游戏中点歌。':received?'已收到请求，请在游戏中确认播放。无法播放时，可到「运行状态」查看网络检测。':'下一步：在游戏中请求一首歌曲。如一直没有请求，请重新进入世界或重启游戏后重试。';
-  return <><Panel id="activation" title="启用游戏加速" action={<Link href="#service">高级接入设置</Link>}><p>启用后，在游戏中请求一首歌曲以检查接入。首次接入可能需要管理员权限。</p>
-    <p>接入会修改本机 hosts，让游戏播放复用本地视频和视频块缓存；网页 HTTPS 视频仅转发。退出应用不会恢复接入，停用前请在下方恢复游戏直连。</p>
-    <Button appearance="primary" disabled={app.unavailable} onClick={() => void app.action('activation/enable')}>{active(s) ? '正在启用…' : s.running && s.hosts.ready ? '重新检测视频请求' : a.phase==='failed'?'重试启用游戏加速':'启用游戏加速'}</Button>
-    <Feedback error>{a.error || s.cdnError}</Feedback>
-    <ul><li>播放网关：{s.running ? '运行中' : '未运行'}</li><li>游戏接入：{s.hosts.ready?'已完成':s.hosts.needsMigration?s.hosts.message:'尚未完成，请点击「启用游戏加速」'}</li><li>视频请求：{received ? '本次已收到视频请求（不代表播放成功）' : a.phase === 'waiting' ? '等待本次视频请求' : a.phase==='stopped'?'检测已结束':'尚未检测'}</li></ul>
+  const ready=s.running && s.hosts.ready;
+  const progress:Record<string,string>={checking:'正在检查游戏连接…',starting:'正在启动本地服务…',hosts:'正在配置游戏连接，请留意管理员权限提示…'};
+  const next=ready?'请在游戏中点歌确认播放。遇到问题可打开「运行状态」检查网络。':s.hosts.ready?'游戏连接已配置，开始加速后即可使用本地服务。':'点击「开始加速」，然后在游戏中点歌。';
+  return <><Panel id="activation" title="游戏加速"><p>开始加速会配置游戏连接并启动本地服务。配置连接可能需要管理员权限。</p>
+    <div className="actions"><Button appearance="primary" disabled={app.unavailable || ready} onClick={() => void app.action('activation/enable')}>{active(s) ? '正在处理…' : ready ? '加速运行中' : '开始加速'}</Button>
+    <Link href="#service">停止服务或恢复直连</Link></div>
+    <Feedback error>{a.error || s.cdnError || s.actionErrors?.activation}</Feedback>
+    <ul><li>游戏连接：{s.hosts.ready?'已配置':s.hosts.conflict?'配置冲突，请查看高级接入设置':'未配置'}</li><li>本地服务：{s.running ? '运行中' : '未启动'}</li><li>房间队列预加载：{s.queue.running?'已开启':s.queue.desired?s.batch.running&&!s.batch.scanOnly?'下载补齐期间暂停':'尚未就绪，请检查游戏日志':'已关闭'}</li><li>播放验证：{received ? '已收到游戏请求，请在游戏中确认播放' : '尚未验证播放'}</li></ul>
+    <Feedback error>{s.queue.logError || s.queue.error || s.actionErrors?.queue}</Feedback>
     <p role="status">{progress[a.phase || '']}</p><p>{next}</p>
-    {dated(a.started) && <p>本次向导开始：{date(a.started)}{dated(a.readyAt)&&` · 检测起点：${date(a.readyAt)}`}{received&&` · 首个请求到达：${date(a.firstRequest)}`}</p>}
-    <Details title="接入与检测说明"><p>游戏 HTTP 视频可复用本地视频和视频块缓存，网页 HTTPS 播放仅转发。收到请求不代表游戏已播放成功。停用或卸载前，请在「高级接入设置」中恢复游戏直连；退出应用不会自动恢复。</p></Details>
-    </Panel><div id="service" tabIndex={-1}><Panel title="高级接入设置"><Caption1 as="p" className="hint">可分别控制本地播放网关和游戏接入。</Caption1>
+    <Caption1 as="p" className="hint">队列预加载单独控制；停止播放网关或退出应用不会恢复游戏连接。</Caption1>
+    </Panel><div id="service" tabIndex={-1}><Details title="高级接入设置"><Caption1 as="p" className="hint">以下操作分别控制播放网关和 hosts。停止网关或退出应用会保留连接配置。</Caption1>
     <div className="actions"><Button disabled={app.unavailable || s.running} onClick={() => void app.action('start')}>启动播放网关</Button><Button disabled={app.unavailable || !s.running} onClick={() => void app.action('stop')}>停止播放网关</Button></div>
     <Feedback error>{s.cdnError}</Feedback>
     <p>HTTP 播放 · 80：{s.running ? 'Still Wanna Dance 正在监听' : s.portOK ? '端口可用，可以启动' : s.portOwner ? `被 ${s.portOwner.name}（PID ${s.portOwner.pid}）占用，请先关闭该服务` : '端口不可用或被系统保留，请检查其他服务和端口设置'}</p>
     <p>HTTPS 转发 · 443：{s.running ? 'HTTPS 转发已就绪' : s.httpsPortOK ? '端口可用，随播放网关启动' : s.httpsPortOwner ? `被 ${s.httpsPortOwner.name}（PID ${s.httpsPortOwner.pid}）占用，请先关闭该服务` : '端口不可用或被系统保留，请检查其他服务和端口设置'}</p>
     <Caption1 as="p" className="hint">游戏 HTTP 播放可复用本地视频和视频块缓存；网页 HTTPS 播放保持加密并转发到原线路，不使用本地视频和视频块缓存。</Caption1><p>游戏接入 · hosts：{s.hosts.message}</p><Feedback error>{s.actionErrors?.hosts}</Feedback>
     <div className="actions"><Button disabled={app.unavailable} onClick={() => void app.action('hosts/enable')}>修改 hosts</Button><Button disabled={app.unavailable} onClick={() => void app.action('hosts/disable')}>恢复游戏直连</Button></div>
-    <Caption1 as="p" className="hint">仅在实际修改时请求管理员权限。映射长期保留，停止播放网关或退出控制台不会恢复。「恢复游戏直连」仅移除 Still Wanna Dance 添加的映射；如有其他映射，仍需根据接入状态检查。</Caption1>
-    </Panel></div></>;
+    <Caption1 as="p" className="hint">仅移除本程序添加的 hosts 映射，不覆盖其他程序的配置。收到请求不代表游戏已播放成功。</Caption1>
+    <Button disabled={app.unavailable || !ready} onClick={() => void app.action('activation/enable')}>重新检测视频请求</Button>
+    {dated(a.started) && <p>检测开始：{date(a.started)}{received&&` · 首个请求：${date(a.firstRequest)}`}</p>}
+    </Details></div></>;
 }
 export function Library() {
   const app = useApp(), s = app.status.data!, q = s.queue, b = s.batch, saved = s.lastBatch;

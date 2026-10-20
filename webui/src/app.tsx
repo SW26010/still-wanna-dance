@@ -10,6 +10,7 @@ import { Monitor } from './monitor';
 import { Setup } from './setup';
 import { bootstrap } from './bootstrap';
 import { request } from './api';
+import { accelerationLabel } from './types';
 
 const pages = {home:'开始使用',library:'准备歌曲',cache:'本地视频',monitor:'运行状态',settings:'设置',setup:'使用引导',...documentPages};
 type Page = keyof typeof pages;
@@ -65,7 +66,7 @@ export function App() {
     <Link className="skip-link" href="#main" onClick={e => { e.preventDefault(); main.current?.focus(); }}>跳到主要内容</Link>
     <header hidden={page==='setup'}><Brand /><span role="status">{documentPage ? 'WannaDance 本地控制台' : model.stopped ? '应用正在退出或重启' : model.status.error ? '控制台连接中断，下方保留最后状态' : s ? '控制台已连接' : '正在连接…'}</span></header>
     <NavigationLayout items={pageLinks()} selected={page} hidden={page==='setup'}>
-    <main ref={main} id="main" tabIndex={-1}><div className="page-heading" hidden={page==='setup'||documentPage}><Title2 as="h1">{page === 'home' ? 'Load failed? But I still wanna dance!' : pages[page]}</Title2>{s && <Badge color={s.running && s.hosts.ready ? 'success' : 'informative'}>{s.running && s.hosts.ready ? '游戏接入：已完成' : s.running ? '游戏接入：等待配置' : '游戏接入：未启用'}</Badge>}</div><p className="page-description" hidden={page==='setup'||documentPage}>{descriptions[page]}</p>
+    <main ref={main} id="main" tabIndex={-1}><div className="page-heading" hidden={page==='setup'||documentPage}><Title2 as="h1">{page === 'home' ? 'Load failed? But I still wanna dance!' : pages[page]}</Title2>{s && <Badge color={s.running && s.hosts.ready ? 'success' : 'informative'}>{accelerationLabel(s)}</Badge>}</div><p className="page-description" hidden={page==='setup'||documentPage}>{descriptions[page]}</p>
       <div hidden={documentPage}>
       <Feedback error={!!model.status.error}>{model.status.error ? '无法连接控制台，请检查程序是否仍在运行。' : ''}</Feedback><Feedback>{model.message}</Feedback>
       {s?.storageError && <Feedback error><p><strong>本地存储故障，已停止新的下载。</strong>已保存的本地视频仍可读取。</p><p>请检查磁盘空间和目录权限，修复后退出并重新打开整个应用。仅重新启停播放网关或队列无法恢复下载。</p><p>首个错误：{s.storageError}</p></Feedback>}
@@ -75,7 +76,7 @@ export function App() {
       </>}
       {isDocumentPage(page)&&<DocumentContent page={page} paths={s?{...bootstrap.paths,Storage:s.activeSettings.storageDir}:bootstrap.paths} onAction={model.refresh}/>}
       {page==='setup'&&<Setup accepted={accepted} onAccepted={()=>setAccepted(true)} onExit={exitSetup} guard={guard}/>}
-    </main><footer hidden={page==='setup'||documentPage}><div className="actions">{pageLinks().filter(item=>isDocumentPage(item.value)).map(item=><Link key={item.value} href={item.href}>{item.label}</Link>)}</div><p>关闭网页后程序仍在运行。退出前如需停用游戏接入，请先<Link href="#service">恢复游戏直连</Link>。</p><Button disabled={model.unavailable} onClick={() => void model.action('exit')}>退出整个应用</Button></footer>
+    </main><footer hidden={page==='setup'||documentPage}><div className="actions">{pageLinks().filter(item=>isDocumentPage(item.value)).map(item=><Link key={item.value} href={item.href}>{item.label}</Link>)}</div><p>关闭网页后程序仍在后台运行。退出不会恢复 hosts，停用接入请先<Link href="#service">恢复游戏直连</Link>。</p><Button disabled={model.unavailable} onClick={() => void model.action('exit')}>退出整个应用</Button></footer>
     <DocumentFooter page={page}/>
     </NavigationLayout>{model.dialog}
   </div></ConsoleContext.Provider>;

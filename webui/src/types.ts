@@ -65,3 +65,4 @@ export const date = (value?: string | number) => typeof value === 'number' || da
 export const gib = (value = 0) => (value / 1073741824).toFixed(3) + ' GiB';
 export const mb = (value = 0) => (value / 1e6).toFixed(3) + ' MB';
 export const active = (s?: Status) => ['checking', 'starting', 'hosts'].includes(s?.activation?.phase || '');
+export const accelerationLabel = (s: Status) => s.running && s.hosts.ready ? '加速运行中' : s.running ? '加速未就绪' : '加速未运行';

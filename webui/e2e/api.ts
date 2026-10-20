@@ -44,6 +44,7 @@ export async function mockAPI(page: Page) {
     if (path==='settings') {state.settings={...state.settings,...body}; state.restartRequired=JSON.stringify(state.settings)!==JSON.stringify(state.activeSettings);}
     if (path==='start') state.running=true;
     if (path==='stop') state.running=false;
+    if (path==='activation/enable') {state.running=true;state.hosts.ready=true;state.activation={phase:'waiting',readyAt:new Date().toISOString()};}
     await route.fulfill({json:data,headers:{'Set-Cookie':`fixture-gate=${terms.accepted?'0':'1'}; Path=/`}});
   });
   return {state,calls,files,terms,diagnostics,emit,fixtureID};

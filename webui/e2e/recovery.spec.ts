@@ -14,6 +14,7 @@ test('gateway and queue actions remain independent; hosts errors are visible',as
   const api=await mockAPI(page);
   api.state.queue.songs=[{songId:-1},{songId:1},{songId:-1},{songId:2},{songId:3},{songId:4}];
   await page.goto('/#/home');
+  await page.getByRole('button',{name:'高级接入设置',exact:true}).click();
   await page.getByRole('button',{name:'启动播放网关',exact:true}).click();
   await expect(page.getByRole('button',{name:'停止播放网关',exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'停止播放网关',exact:true}).click();
@@ -25,7 +26,7 @@ test('gateway and queue actions remain independent; hosts errors are visible',as
   await expect(page.getByRole('spinbutton',{name:/提前准备时间 M/})).toBeFocused();
   await navigate(page,'准备歌曲');
   await page.getByRole('button',{name:'开启队列预加载'}).click();
-  await expect(page.getByText('操作已完成。',{exact:true})).toBeVisible();
+  await expect(page.getByText('队列预加载已开启，等待新的房间队列。',{exact:true})).toBeVisible();
   expect(api.calls.filter(c=>['start','stop','queue/start','queue/stop','activation/enable','hosts/enable'].includes(c.path)).map(c=>c.path)).toEqual(['start','stop','queue/start']);
   await navigate(page,'开始使用');
   await page.route('**/api/hosts/enable',r=>r.fulfill({status:409,json:{error:'管理员取消，hosts 未改变'}}));

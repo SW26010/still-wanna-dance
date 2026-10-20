@@ -12,6 +12,24 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 )
 
+func TestActivationPreservesQueueChoice(t *testing.T) {
+	for _, desired := range []bool{false, true} {
+		t.Run(map[bool]string{false: "disabled", true: "waiting"}[desired], func(t *testing.T) {
+			c := testConsole(t)
+			c.queueDesired = desired
+			if err := c.enableAcceleration(func() HostsStatus { return HostsStatus{Ready: true} }, func(string) error {
+				t.Fatal("already configured hosts should not change")
+				return nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if c.queueDesired != desired || c.queueCancel != nil {
+				t.Fatal("enabling the playback service changed the independent queue")
+			}
+		})
+	}
+}
+
 func TestActivationRecordsPlaybackArrivalOnResolutionFailure(t *testing.T) {
 	c := testConsole(t)
 	cfg := fixtureCacheConfig()

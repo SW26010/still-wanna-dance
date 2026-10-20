@@ -152,6 +152,13 @@
       "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json."
     },
     {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1188558,
+      "sha256": "b1f7bda32a07040a6b9f49325022e303820b9cdbed46449f8796b066eda19636",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json."
+    },
+    {
       "path": "internal/cacheproxy/testdata/storage-v2.sqlite",
       "kind": "binary-fixture",
       "bytes": 106496,

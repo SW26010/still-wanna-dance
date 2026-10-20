@@ -9,7 +9,7 @@
 | 范围 | 当前实现 |
 | --- | --- |
 | 页面与主题 | FluentProvider、Card/CardHeader、Text、Image、Divider；系统深浅主题、窄屏换行和 reduced-motion |
-| 导航 | NavDrawer/NavItem；桌面左侧 inline，≤640px 左侧 overlay；页面保留真实链接，引导步骤校验后切换 |
+| 导航 | NavDrawer/NavItem/Hamburger；桌面左侧 inline 可展开／收起，≤640px 左侧 overlay；页面保留真实链接，引导步骤校验后切换 |
 | 字段与操作 | Field/Input/Select/Textarea/Checkbox/RadioGroup、Button、Dialog、Accordion、MessageBar、ProgressBar |
 | 记录列表 | List/ListItem 的官方 composite 键盘导航；业务负责受保护项、请求分组身份及移除行后的焦点回退 |
 | 测速 | `@fluentui/react-charts` v9 GaugeChart；实际倍率与 1×/2× 阈值，线性范围至少 0–3，随更高样本扩展；没有自绘指针或分段刻度 |
@@ -22,6 +22,8 @@
 ## 页面排版
 
 通用界面优先使用 Fluent 默认组件、官方字阶和主题 tokens。页面背景使用 `colorNeutralBackground2`，桌面 inline 导航与窄屏 overlay 均保留标准抽屉外观；Card 保留标准边框、阴影和圆角。页面标题与卡片标题分别使用 Title2、Subtitle2，说明使用次级文字色，语义表单分组保留 fieldset/legend，以标题和留白分隔。
+
+控制台页面和引导步骤共用侧栏展开／收起按钮。桌面默认展开，收起后保留按钮并释放正文宽度；按钮保持挂载，键盘操作不会丢失焦点。应用内切换页面时保留展开状态，刷新后默认展开，不写入配置；窄屏抽屉仍由 Fluent 管理焦点、Escape 和遮罩关闭，独立于桌面展开状态。
 
 卡片和展开详情共用正文纵向间距，直接子段落、列表与操作区不再叠加外边距；空状态播报节点保留在 DOM 中，但不占布局行。单独的按钮按内容宽度排列，搜索表单内操作与字段底部对齐。设置页先展示偏好设置，再展示外部导入和使用引导；保存状态、按钮及重启说明保持在同一组。上述规则只统一排版，不删改正文或业务行为。
 
@@ -55,6 +57,8 @@
 37 项相关 Edge 内存接口回归通过，覆盖 390px/1280px 导航无整页重载、草稿保留、前进后退、旧地址直达与刷新、状态接口不可用时文档仍可读、条款操作后刷新控制台，以及既有引导、连接恢复、正文、键盘和存储故障场景。已检查桌面、窄屏及深色文档截图。Go 定向检查通过，覆盖真实 HTTP handler 的四个入口及同意前后启动数据、路径转义、资源响应、门禁、同意持久化和 Windows DPAPI；类型检查及嵌入资源一致性检查通过。这些检查不涉及用户安装环境或游戏行为。
 
 结果保存在忽略目录 `artifacts/document-navigation/`：`browser-verified.txt`、`browser-verified/` 和 `backend-verified.txt`。首轮浏览器 36/37，失败暴露内存夹具未向引导新开的帮助窗口传递未同意状态；现以测试会话 cookie 同步该状态，产品门禁没有为夹具改变。`browser-first.txt` 保留该次失败；`backend-first.txt` 保留 Windows 沙箱内文件替换的 `The handle is invalid` 错误，同批检查在沙箱外经独立测试临时目录通过。
+
+同日加入桌面侧栏展开／收起：20 项相关 Edge 内存场景通过，覆盖控制台与引导的键盘切换、焦点保留、正文宽度释放、草稿与页面往返、桌面状态和窄屏抽屉相互独立，以及既有文档、引导和标准组件行为。截图调整为顶部视口后，侧栏 4 项再次通过，已查看桌面深浅主题及窄屏截图。类型、构建和内嵌资源一致性检查通过；Canvas 源码及专用样式没有变更。证据位于 `artifacts/sidebar-collapse/` 和 `artifacts/sidebar-collapse-*.txt`；不新增 VRC 待验项。
 
 ### 块需求时间轴验证（2026-10-20）
 

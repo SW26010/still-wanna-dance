@@ -41,3 +41,36 @@ test('narrow left drawer traps focus, restores trigger on Escape, and follows se
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:info.outputPath('drawer-forced-colors.png'),animations:'disabled'});
 });
+
+for(const wizard of [false,true])test(`desktop sidebar toggles by keyboard without losing focus or content (${wizard?'wizard':'console'})`,async({page},info)=>{
+  await mockAPI(page);await page.setViewportSize({width:1280,height:900});
+  await page.emulateMedia({colorScheme:wizard?'dark':'light'});
+  await page.goto(wizard?'/#/setup':'/#/settings');
+  const label=wizard?'引导步骤':'控制台页面',nav=page.getByRole('navigation',{name:label,exact:true});
+  const collapse=page.getByRole('button',{name:'收起'+label,exact:true}),expand=page.getByRole('button',{name:'展开'+label,exact:true});
+  const heading=page.getByRole('heading',{level:1}).first(),draft=page.getByRole('spinbutton',{name:/提前准备时间 M/});
+  await expect(nav).toBeVisible();const expandedX=(await heading.boundingBox())!.x;
+  if(!wizard)await draft.fill('777');
+  await collapse.focus();await page.keyboard.press('Space');
+  await expect(nav).toHaveCount(0);await expect(expand).toBeFocused();await expect(expand).toHaveAttribute('aria-expanded','false');
+  expect((await heading.boundingBox())!.x).toBeLessThan(expandedX-100);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.evaluate(()=>window.scrollTo(0,0));
+  await page.screenshot({path:info.outputPath('collapsed.png'),animations:'disabled'});
+  if(!wizard){
+    await page.locator('footer').getByRole('link',{name:'关于',exact:true}).click();
+    await expect(page.getByRole('heading',{level:1})).toHaveText('Load failed? But I still wanna dance!');
+    await expect(nav).toHaveCount(0);
+    await page.goBack();await expect(draft).toHaveValue('777');await expect(nav).toHaveCount(0);
+    await page.setViewportSize({width:390,height:844});await expand.click();await expect(nav).toBeVisible();
+    await page.setViewportSize({width:1280,height:900});await expect(nav).toHaveCount(0);await expect(expand).toBeVisible();
+  }
+  await expand.focus();await page.keyboard.press('Enter');
+  await expect(nav).toBeVisible();await expect(collapse).toBeFocused();await expect(collapse).toHaveAttribute('aria-expanded','true');
+  await expect.poll(async()=>(await heading.boundingBox())!.x).toBeCloseTo(expandedX,1);
+  await page.keyboard.press('Tab');
+  expect(await nav.evaluate(el=>el.contains(document.activeElement))).toBe(true);
+  if(!wizard)await expect(draft).toHaveValue('777');
+  await page.evaluate(()=>window.scrollTo(0,0));
+  await page.screenshot({path:info.outputPath('expanded.png'),animations:'disabled'});
+});

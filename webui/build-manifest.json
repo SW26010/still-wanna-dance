@@ -28,14 +28,14 @@
     "webui/src/settings.tsx": "8d42dc8e1da08615b2e1ff43ed68bd281200c7c9a458138e4fdfbd2636e2ddf3",
     "webui/src/setup.tsx": "39b26f2c02f8d560db8548e2275f4d1f21a66ce8372195781ab922d4e96e8595",
     "webui/src/storage-directory.tsx": "f2922a3fd98676f1382fc4a34678038c26c8fbc3b147d0a173840ebd07474661",
-    "webui/src/styles.css": "b4546230e74f07e8b4e23fe13c6f7cfcd2a7a4b38fcc8d5c25f06909affd1bea",
+    "webui/src/styles.css": "15a4ff13fa69c12c6d1b9d0589d46358cf8949ec6c745fe746b49f13a7601a2b",
     "webui/src/types.ts": "4daa6c8f21b71e477a417553b5e49d94eeec23dbd5ce8560d5bdb225cc91d16d",
-    "webui/src/ui.tsx": "64a41222a94c27b1a999855c9c2deb0a4d982c75203f5c4bef0d2f997843c495",
+    "webui/src/ui.tsx": "04f06562f2e3014de2f30bee4c5685a08e65c913d94f83e7e2124056f5b418ff",
     "webui/tsconfig.json": "8b7f2c63c61fc1e6c52d979af1d994b8f7cc2aa9562c2564fd5525385f028a6a"
   },
   "outputs": {
     "docs/licenses/WEBUI-NOTICES.txt": "a28029ddafdf0383e010bd072935c42ed1146bcf435dfd31335178a88a1cef48",
-    "internal/console/assets/webui/app.css": "bbb2262a34e16d7a3272513030254f831a6bad63049e1c1bf4a3346b7efe4e5f",
-    "internal/console/assets/webui/app.js": "4cf6348e8794d3d6d01cd17bb3125b6d2c821fef576be0e5d4ae84a3c3227ee5"
+    "internal/console/assets/webui/app.css": "89f77b8c2fd4c724f017b485f478fa1b1611e103482d8b715901362b592e9f11",
+    "internal/console/assets/webui/app.js": "cb72a257ff7aca680404b664979615e1f27343b6d561dc22a59cae266b79aa5e"
   }
 }

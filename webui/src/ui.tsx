@@ -24,7 +24,7 @@ export function pageHref(page:typeof consolePages[number][0]|DocumentPage|'setup
 }
 type NavigationEntry={value:string;label:string;href?:string;disabled?:boolean;onClick?:()=>void};
 export function NavigationLayout({children,items,selected,label='控制台页面',steps=false,hidden=false}:PropsWithChildren<{items:NavigationEntry[];selected:string;label?:string;steps?:boolean;hidden?:boolean}>) {
-  const [narrow,setNarrow]=useState(()=>matchMedia('(max-width: 640px)').matches), [open,setOpen]=useState(false);
+  const [narrow,setNarrow]=useState(()=>matchMedia('(max-width: 640px)').matches), [open,setOpen]=useState(false), [expanded,setExpanded]=useState(true);
   const restoreFocusTarget=useRestoreFocusTarget();
   useEffect(()=>{
     const media=matchMedia('(max-width: 640px)');
@@ -33,11 +33,13 @@ export function NavigationLayout({children,items,selected,label='控制台页面
   },[]);
   useEffect(()=>{setOpen(false);},[hidden]);
   return <div className="navigation-layout">
-    <div className="navigation-toggle" hidden={hidden||!narrow}><Hamburger {...restoreFocusTarget} aria-label={'展开'+label} aria-expanded={open} onClick={()=>setOpen(true)}/></div>
-    <NavDrawer className={narrow?undefined:'inline-navigation'} type={narrow?'overlay':'inline'} position="start" open={!hidden&&(!narrow||open)} selectedValue={selected} onOpenChange={(_,data)=>setOpen(data.open)} onNavItemSelect={()=>setOpen(false)} aria-label={label}>
-      {narrow&&<NavDrawerHeader><Hamburger aria-label={'收起'+label} onClick={()=>setOpen(false)}/></NavDrawerHeader>}
-      <NavDrawerBody>{items.map(item=><NavItem key={item.value} value={item.value} href={item.href} disabled={item.disabled} aria-current={selected===item.value?steps?'step':'page':undefined} onClick={item.onClick}>{item.label}</NavItem>)}</NavDrawerBody>
-    </NavDrawer>
+    <div className="navigation-sidebar" hidden={hidden}>
+      <div className="navigation-toggle"><Hamburger {...restoreFocusTarget} aria-label={(!narrow&&expanded?'收起':'展开')+label} aria-expanded={narrow?open:expanded} onClick={()=>narrow?setOpen(true):setExpanded(value=>!value)}/></div>
+      <NavDrawer className={narrow?undefined:'inline-navigation'} type={narrow?'overlay':'inline'} position="start" open={!hidden&&(narrow?open:expanded)} selectedValue={selected} onOpenChange={(_,data)=>setOpen(data.open)} onNavItemSelect={()=>setOpen(false)} aria-label={label}>
+        {narrow&&<NavDrawerHeader><Hamburger aria-label={'收起'+label} onClick={()=>setOpen(false)}/></NavDrawerHeader>}
+        <NavDrawerBody>{items.map(item=><NavItem key={item.value} value={item.value} href={item.href} disabled={item.disabled} aria-current={selected===item.value?steps?'step':'page':undefined} onClick={item.onClick}>{item.label}</NavItem>)}</NavDrawerBody>
+      </NavDrawer>
+    </div>
     <div className="page-content">{children}</div>
   </div>;
 }

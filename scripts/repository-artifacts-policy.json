@@ -5,6 +5,13 @@
   "maxBytes": 1048576,
   "exceptions": [
     {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1188688,
+      "sha256": "fd5825b9af08654017d1f963714489875bede494b49eba9f420e9c841fd4fe4f",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Stable wizard footer layout."
+    },
+    {
       "path": "internal/branding/logo.ico",
       "kind": "product-icon",
       "bytes": 56913,

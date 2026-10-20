@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Badge, Button, Checkbox, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Field, Input, Link, Spinner, Text, Subtitle1, Divider, Card, useRestoreFocusTarget } from '@fluentui/react-components';
+import { Badge, Button, Checkbox, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Field, Input, Link, Spinner, Text, Subtitle1, Card, useRestoreFocusTarget } from '@fluentui/react-components';
 import { bootstrap } from './bootstrap';
 import { APIError, request } from './api';
 import { reconnect, useApp } from './hooks';
@@ -57,7 +57,7 @@ function SetupReview({draft:d,status:s,source,effects}:{draft:Draft;status:Statu
     <p>存储、网络和导入选择在点击「确认并应用」后生效。条款确认和上方游戏连接操作已即时生效，放弃草稿不会撤销。</p></>;
 }
 
-export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAccepted:()=>void;onExit:()=>void;guard: React.RefObject<(() => Promise<boolean>) | undefined>}) {
+export function Setup({accepted,onAccepted,onExit,guard,feedback}: {accepted:boolean;onAccepted:()=>void;onExit:()=>void;guard: React.RefObject<(() => Promise<boolean>) | undefined>;feedback:React.ReactNode}) {
   const app=useApp(), s=app.status.data;
   const [step,setStep]=useState<Step>('welcome'), [terms,setTerms]=useState<Terms>(), [termsOpen,setTermsOpen]=useState(bootstrap.termsGate?.step==='terms'), [termsLoading,setTermsLoading]=useState(false);
   const [draft,setDraft]=useState<Draft>(), [busy,setBusy]=useState(false), [proxyPending,setProxyPending]=useState(false), [message,setMessage]=useState('');
@@ -167,7 +167,7 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
     if(step==='proxy'&&!draft?.upstreamMode){setMessage('请至少选择一种连接方式。');return;}
     if(step==='proxy'&&draft?.proxyImportText.trim()){setMessage('请先检查节点内容，或清除本次导入草稿。');return;}
     sequence.current++;setBusy(true);setMessage('');folder.current?.abort();
-    try{if(step==='storage'||step==='proxy')await request('setup/validate',{...plan,page:step});setStep(next);if(next==='welcome')await loadTerms();void persist('active',next);heading.current?.focus();}
+    try{if(step==='storage'||step==='proxy')await request('setup/validate',{...plan,page:step});setStep(next);if(next==='welcome')await loadTerms();void persist('active',next);heading.current?.focus({preventScroll:true});}
     catch(e){setMessage('本页尚未通过检查：'+String(e));}
     finally{setBusy(false);}
   }
@@ -212,10 +212,11 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
     if(step==='storage'){setCustom(false);setImportEnabled(false);setSource('');history.reset();update({storageDir:s.defaultStorageDir,videoStorageMode:'none',maxCacheGiB:'0'});void checkStorage(s.defaultStorageDir);}
     if(step==='proxy'){void releaseImport(draft.proxyImportID);update({upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',socks5Password:'',proxyImportID:'',proxyImportText:'',proxyReport:undefined});}
   }
-  return <div className="wizard"><header><Brand /><div className="actions"><Link href="/help" target="_blank" rel="noopener">使用帮助（新窗口）</Link><Button disabled={busy||recovering||application?.phase==='importing'} onClick={async()=>{if(await leave(false))onExit();}}>{accepted?'放弃草稿并退出引导':'退出'}</Button></div></header>
+  return <div className="wizard">{feedback}<header><Brand /><div className="actions"><Link href="/help" target="_blank" rel="noopener">使用帮助（新窗口）</Link><Button disabled={busy||recovering||application?.phase==='importing'} onClick={async()=>{if(await leave(false))onExit();}}>{accepted?'放弃草稿并退出引导':'退出'}</Button></div></header>
     <NavigationLayout label="引导步骤" selected={step} steps items={steps.map((name,i)=>({value:name,label:`${i+1}. ${names[name]}`,disabled:locked||(name!=='welcome'&&!canContinue),onClick:()=>void go(name)}))}>
     <Text as="h1" size={600} weight="semibold" ref={heading} tabIndex={-1}>{names[step]}</Text>
-    <form ref={form} onSubmit={e=>{e.preventDefault();if(step==='finish')void apply();else void go(steps[steps.indexOf(step)+1]);}}>
+    <form className="wizard-form" ref={form} onSubmit={e=>{e.preventDefault();if(step==='finish')void apply();else void go(steps[steps.indexOf(step)+1]);}}>
+      <div className="wizard-content" key={step}>
       {step==='welcome'&&<><Subtitle1 as="h2">Still Wanna Dance (SWD)</Subtitle1><p>Load failed? But I still wanna dance!</p><p>专为 VRChat WannaDance 设计的高性能视频加速器</p><ul><li>本地视频</li><li>队列预加载</li><li>直连优化</li><li>自定义代理</li></ul><p>本工具自动后台运行，使用 WebUI 操作，可通过系统托盘图标管理。</p><p>技术原理：通过修改系统 hosts 劫持 HTTP 视频请求</p>
         <div className="actions"><Button onClick={()=>{setTermsOpen(true);void loadTerms();}}>{terms?.accepted?'查看完整条款':'阅读并同意条款'}</Button><Badge color={terms?.accepted?'success':'informative'}>{terms?.accepted?'条款已确认':'尚未确认条款'}</Badge></div><p>在弹窗中同意后立即保存；退出引导不会撤销条款确认。</p>
         {accepted&&!s&&<Spinner label="正在连接设置…"/>}<Details title="修复已有安装"><p>移除本程序的 hosts 映射，需要管理员确认，立即生效。</p><Button disabled={app.busy||app.stopped} onClick={()=>void app.action('hosts/disable')}>恢复游戏直连</Button></Details>
@@ -241,8 +242,9 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
         <VRCXCheck model={history}/>
         {(!s.portOK||!s.httpsPortOK)&&<Feedback error>接入检查未通过：端口被占用，请关闭占用程序后重试。</Feedback>}
       {s.portOK&&s.httpsPortOK&&logs?.state!=='ok'&&<p>视频接入条件已就绪；日志尚未确认，不影响本地视频读取和按需下载。</p>}</Panel><Panel title="应用配置"><SetupReview draft={draft} status={s} source={importEnabled?source:''} effects={effects}/>{!effects&&!reviewError&&<p role="status">正在核对完成后的动作…</p>}<Feedback error>{reviewError || application?.error || restartError || s.setupSettingsError}</Feedback><p role="status">{application?.configSaved&&'配置已保存。'}{recovering?'正在重启并等待新进程…':application?.phase==='importing'?'正在启动导入…':''}</p></Panel></>}
+      </div>
       <Feedback error>{message}</Feedback>
-      <Divider className="wizard-divider" /><div className="wizard-footer"><div className="actions">{['storage','proxy'].includes(step)&&!application&&<Button disabled={locked} onClick={reset}>恢复本页默认</Button>}</div><div className="actions">
+      <div className="wizard-footer"><div className="actions">{['storage','proxy'].includes(step)&&!application&&<Button disabled={locked} onClick={reset}>恢复本页默认</Button>}</div><div className="actions">
         {!application&&<Button disabled={locked||step==='welcome'} onClick={()=>void go(steps[Math.max(0,steps.indexOf(step)-1)])}>上一步</Button>}
         {application ? application.phase==='uncertain'?<Button disabled={busy} onClick={()=>void reconcile()}>核对应用结果</Button>:restartError?<Button disabled={recovering} onClick={()=>void recoverRestart()}>重新连接并核对</Button>:['failed','missing'].includes(application.phase)?<Button onClick={async()=>{if(await leave(false))onExit();}}>返回控制台</Button>:<Spinner size="tiny" label="正在应用…"/> : <Button {...restoreFocusTarget} type="submit" appearance="primary" disabled={locked||!canContinue||(step==='finish'&&(app.unavailable||!effects))}>{step==='finish'?'确认并应用':'下一步'}</Button>}
       </div></div>

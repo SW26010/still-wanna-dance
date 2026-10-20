@@ -124,6 +124,13 @@ test('wizard mobile layout and terms focus trap',async({page},info)=>{
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.screenshot({path:info.outputPath(label+'.png'),fullPage:true,animations:'disabled'});
   }
+  const primary=page.getByRole('button',{name:'确认并应用',exact:true});
+  const before=await primary.boundingBox();
+  await page.getByRole('button',{name:'配置游戏连接',exact:true}).click();
+  await expect(page.getByText('游戏连接配置已更新。',{exact:true})).toBeInViewport();
+  expect(await primary.boundingBox()).toEqual(before);
+  await expect(primary).toBeInViewport({ratio:1});
+  await page.screenshot({path:info.outputPath('global-feedback.png'),animations:'disabled'});
   await navigateStep(page,'1. 开始');await page.getByRole('button',{name:'查看完整条款',exact:true}).click();
   for(let i=0;i<8;i++){await page.keyboard.press('Tab');expect(await page.getByRole('dialog').evaluate(el=>el.contains(document.activeElement))).toBe(true);}
   await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);

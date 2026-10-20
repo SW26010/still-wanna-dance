@@ -60,20 +60,21 @@ export function App() {
       const target=document.getElementById(anchor);target?.focus();target?.scrollIntoView();
     }
   },[page,!!s,anchor,documentPage]);
+  const feedback=<div className="app-feedback" hidden={documentPage}>
+    <Feedback error={!!model.status.error}>{model.status.error ? '无法连接控制台，请检查程序是否仍在运行。' : ''}</Feedback><Feedback>{model.message}</Feedback>
+    {s?.storageError && <Feedback error><p><strong>本地存储故障，已停止新的下载。</strong>已保存的本地视频仍可读取。</p><p>请检查磁盘空间和目录权限，修复后退出并重新打开整个应用。仅重新启停播放网关或队列无法恢复下载。</p><p>首个错误：{s.storageError}</p></Feedback>}
+    {!s && accepted && page!=='setup' && !documentPage && !model.status.error && <Spinner label="正在读取控制台状态" />}
+  </div>;
   return <ConsoleContext.Provider value={model}><div className="shell">
     <Link className="skip-link" href="#main" onClick={e => { e.preventDefault(); main.current?.focus(); }}>跳到主要内容</Link>
     <header hidden={page==='setup'}><Brand /><span role="status">{documentPage ? 'WannaDance 本地控制台' : model.stopped ? '应用正在退出或重启' : model.status.error ? '控制台连接中断，下方保留最后状态' : s ? '控制台已连接' : '正在连接…'}</span></header>
     <NavigationLayout items={pageLinks()} selected={page==='about'||page==='terms'?'help':page} hidden={page==='setup'}>
     <main ref={main} id="main" tabIndex={-1}><div className="page-heading" hidden={page==='setup'||documentPage}><Title2 as="h1">{pages[page]}</Title2>{s && <Badge color={s.running && s.hosts.ready ? 'success' : 'informative'}>{accelerationLabel(s)}</Badge>}</div><p className="page-description" hidden={page==='setup'||documentPage}>{descriptions[page]}</p>
-      <div hidden={documentPage}>
-      <Feedback error={!!model.status.error}>{model.status.error ? '无法连接控制台，请检查程序是否仍在运行。' : ''}</Feedback><Feedback>{model.message}</Feedback>
-      {s?.storageError && <Feedback error><p><strong>本地存储故障，已停止新的下载。</strong>已保存的本地视频仍可读取。</p><p>请检查磁盘空间和目录权限，修复后退出并重新打开整个应用。仅重新启停播放网关或队列无法恢复下载。</p><p>首个错误：{s.storageError}</p></Feedback>}
-      {!s && accepted && page!=='setup' && !documentPage && !model.status.error && <Spinner label="正在读取控制台状态" />}
-      </div>
+      {page!=='setup'&&feedback}
       {s && <><div hidden={page !== 'home'}><Home visible={page==='home'}/></div><div hidden={page !== 'library'}><DownloadsPage visible={page==='library'} anchor={anchor}/></div><div hidden={page !== 'cache'}><Cache visible={page === 'cache'} section={anchor} /></div><div hidden={page !== 'network'}><Network visible={page==='network'} anchor={anchor}/></div><div hidden={page !== 'settings'}><div className="actions"><Link href="#storage-settings">视频存储</Link><Link href="#network-proxy">网络与代理</Link><Link href="#prepareAheadSeconds">预加载与下载设置</Link></div><SettingsPage /></div>
       </>}
       {isDocumentPage(page)&&<DocumentContent page={page} paths={s?{...bootstrap.paths,Storage:s.activeSettings.storageDir}:bootstrap.paths} onAction={model.refresh}/>}
-      {page==='setup'&&<Setup accepted={accepted} onAccepted={()=>setAccepted(true)} onExit={exitSetup} guard={guard}/>}
+      {page==='setup'&&<Setup accepted={accepted} onAccepted={()=>setAccepted(true)} onExit={exitSetup} guard={guard} feedback={feedback}/>}
     </main><footer hidden={page==='setup'||documentPage}><p>关闭网页后程序仍在后台运行。退出不会恢复 hosts，停用接入请先<Link href="#service">恢复游戏直连</Link>。</p><Button disabled={model.unavailable} onClick={() => void model.action('exit')}>退出整个应用</Button></footer>
     <DocumentFooter page={page}/>
     </NavigationLayout>{model.dialog}

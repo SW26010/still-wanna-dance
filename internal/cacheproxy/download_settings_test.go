@@ -32,7 +32,7 @@ func TestConfiguredDownloadSchedulerAdmission(t *testing.T) {
 		limit    int
 		interval time.Duration
 	}{
-		{16, 250 * time.Millisecond}, {1, 0}, {64, 0}, {64, time.Millisecond}, {64, 2 * time.Second},
+		{16, 250 * time.Millisecond}, {16, time.Second}, {1, 0}, {64, 0}, {64, time.Millisecond}, {64, 2 * time.Second},
 	} {
 		t.Run(fmt.Sprintf("%d/%s", tc.limit, tc.interval), func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {

@@ -1,0 +1,69 @@
+{
+  "batch": "LIVE-20261020-01",
+  "sourceSHA": "8035356541e04765d16d48c4ef1e2cce3bf49d82",
+  "workspaceCleanAtBuild": true,
+  "exeSHA256": "2f3f646c2fc842de066688b615243d312b855f8b536bddd0b93fe9f4186b8f77",
+  "build": {
+    "kind": "development",
+    "version": "dev-timing-8035356",
+    "revision": "8035356541e04765d16d48c4ef1e2cce3bf49d82",
+    "dirty": false,
+    "builtAtUtc": "2026-10-20T14:23:52.015Z",
+    "toolchain": "go1.27.1",
+    "target": "windows/amd64"
+  },
+  "sourceArchiveSHA256": "663eacaa7b4f32bb0cd75cb199579906adf7f98149a0082b854070f938b5307f",
+  "sourceArchiveScope": "git archive HEAD, respecting export-ignore; application build inputs retained, not the complete historical evidence tree",
+  "productPatch": false,
+  "sourcePatchSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "platform": {
+    "windowsVersion": "10.0.26300",
+    "gameVersion": "2026.4.1-1933-204f027ae8-Release",
+    "world": "WannaDance",
+    "role": "owner",
+    "worldExactVersion": "not recorded"
+  },
+  "configuration": {
+    "upstreamMode": "direct",
+    "downloadUpstream": "auto",
+    "prepareAheadSeconds": 500,
+    "videoStorageMode": "limited",
+    "maxCacheBytes": 2147483648,
+    "isolatedStorage": true,
+    "artificialBandwidthLimit": false
+  },
+  "rawFiles": [
+    {
+      "alias": "game.initial.raw.log",
+      "bytes": 112014,
+      "sha256": "4be19b320fede7362d748a9b55d0daa6b4675195b20b641f0bab7b3c5c42c9d2"
+    },
+    {
+      "alias": "game.append.raw.log",
+      "bytes": 371954,
+      "sha256": "c01cfaa2b60796ce9e93a441210a07f37f2c327c2b973a5195204dd06e5670c1"
+    },
+    {
+      "alias": "signals.private.jsonl",
+      "bytes": 26207,
+      "sha256": "d842aa1004bfa6987d1b4601ccd8bd0bc75e64cfc2ac9a3f7a58a163bac7fd0d"
+    },
+    {
+      "alias": "polls.private.jsonl",
+      "bytes": 691413,
+      "sha256": "4bf528b3cbecc776d361828b2088e1414a9743abd7a7b170a3059a89487e2b0c"
+    },
+    {
+      "alias": "operations.private.jsonl",
+      "bytes": 1355,
+      "sha256": "18ccf5dd91aec9191e8762994aadf633800507efe3dcc2c033a6ce84b42ccbc6"
+    },
+    {
+      "alias": "data/logs/app.log",
+      "bytes": 116463,
+      "sha256": "4b7a7245dd76fe4fc6d957bfeb87c5cf98a205f8391dd16950cb8e36c871af4b"
+    }
+  ],
+  "rawLocation": "artifacts/acceptance-evidence/LIVE-20261020-01/ (ignored, private, not published)",
+  "privacy": "Whitelist event types, song IDs, content MD5, sizes, request IDs, source line numbers, build hashes and relative times only. Player/room identities, URLs, real log filenames, private paths, credentials and hosts contents omitted."
+}

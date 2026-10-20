@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261020-01",
+  "hashBasis": "git-blob",
+  "sourceSHA": "8035356541e04765d16d48c4ef1e2cce3bf49d82",
+  "exeSHA256": "2f3f646c2fc842de066688b615243d312b855f8b536bddd0b93fe9f4186b8f77",
+  "files": [
+    {
+      "path": "docs/live-acceptance-20261020-01.md",
+      "bytes": 7175,
+      "sha256": "2ea59bdc9cbe65c1218baa47e8b0592c8e5de368669131dcfc142a544f3c102e",
+      "source": "Report and interpretation",
+      "sanitization": "Relative session time and allowlisted fields; no private source content"
+    },
+    {
+      "path": "docs/evidence/live-20261020-01/measurements.json",
+      "bytes": 34791,
+      "sha256": "d420d0b8d456517f2f0d7291b67c6dfa258c978f0fd3a3779d518bee491726bc",
+      "source": "Whitelisted events and derived timing; relative time only",
+      "sanitization": "Relative session time and allowlisted fields; no private source content"
+    },
+    {
+      "path": "docs/evidence/live-20261020-01/provenance.json",
+      "bytes": 2601,
+      "sha256": "3e2fa346078f8641efdd7fe2bd4843ac068e70578e9ce3d182947ff8d3ae3a63",
+      "source": "Build identity and private source fingerprints",
+      "sanitization": "Relative session time and allowlisted fields; no private source content"
+    },
+    {
+      "path": "docs/evidence/live-20261020-01/checks.json",
+      "bytes": 2530,
+      "sha256": "5e85b2bbb3b1d5230275da9e2503bf87f29bef712fd26375a85cd3ed43161857",
+      "source": "Independent source correlation and cleanup verification",
+      "sanitization": "Relative session time and allowlisted fields; no private source content"
+    }
+  ],
+  "privacy": "No full game logs, player/room identities, URLs, credentials, host file contents, machine paths or private raw files are included.",
+  "rawEvidence": "Preserved locally under ignored artifacts/acceptance-evidence/LIVE-20261020-01; fingerprints in provenance.json.",
+  "manifestExcludesOwnHash": true
+}

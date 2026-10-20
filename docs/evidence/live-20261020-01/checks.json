@@ -1,0 +1,67 @@
+{
+  "batch": "LIVE-20261020-01",
+  "checks": [
+    {
+      "name": "three groups of three matching target songs",
+      "passed": true
+    },
+    {
+      "name": "queue removal independently reparsed from original log lines",
+      "passed": true
+    },
+    {
+      "name": "manual button versus natural end independently matched",
+      "passed": true
+    },
+    {
+      "name": "18 target requests matched by ID, trace, resource, duration and response",
+      "passed": true
+    },
+    {
+      "name": "initial 206 versus two comparable 304 groups verified",
+      "passed": true
+    },
+    {
+      "name": "visibility interval arithmetic independently recomputed",
+      "passed": true
+    },
+    {
+      "name": "captured raw game bytes equal the same prefix of live source",
+      "passed": true,
+      "bytes": 483968,
+      "sha256": "2bfa3c56a07fac524d8ad60a24bb4666461b007324f1f56b9f2ed1e1a4fae566"
+    },
+    {
+      "name": "collector stopped normally without logged errors",
+      "passed": true
+    }
+  ],
+  "cleanup": {
+    "hostsBeforeSHA256": "64c3b498a56baff562ccd067efa7f447a79a5e5b8a3b18c0e11590273df88cc1",
+    "hostsAfterSHA256": "2d6bdfb341be3a6234b24742377f93aa7c7cfb0d9fd64efa9282c87852e57085",
+    "hostsRestored": false,
+    "remainingExperimentalProcesses": [],
+    "remainingExperimentListeners": [],
+    "gameStillRunning": true,
+    "removedDailyData": false,
+    "temporaryMountsCreated": false,
+    "isolatedDataRetained": true,
+    "hostsRestoredByteForByte": false,
+    "onlyHostsDifference": "Removed the pre-existing exact SWD managed api.udon.dance loopback mapping and its surrounding CRLF",
+    "finalHostsChoice": "User explicitly selected keeping direct access after seeing the baseline mismatch",
+    "applicationStoppedEventPresent": true,
+    "captureStoppedEventPresent": true,
+    "nonTargetShutdownCancellation": "A world-selected random video began after the target queue finished; its in-progress request was canceled on shutdown and remains in the private log, excluded from timing samples"
+  },
+  "limitations": [
+    "Nine samples, three per group; no population or worst-case bound.",
+    "Visibility intervals exclude unknown game-internal log buffering.",
+    "Submillisecond request-log overhead is not independently calibrated.",
+    "No first-frame or first-audio timestamp is claimed."
+  ],
+  "validation": "No product changes. Targeted log/data checks and git diff --check; no unrelated product test rerun.",
+  "git": {
+    "committed": false,
+    "pushed": false
+  }
+}

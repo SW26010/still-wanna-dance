@@ -1,0 +1,1560 @@
+{
+  "batch": "LIVE-20261020-01",
+  "timeBasis": "Seconds relative to first included queue log timestamp; shared across this file. Game log stamps represent one-second bins.",
+  "swdPollIntervalSeconds": 3,
+  "collectorRequestedIntervalMs": 100,
+  "collectorActualPollGapMs": {
+    "n": 7260,
+    "min": 104.823,
+    "median": 108.913,
+    "p95": 110.762,
+    "max": 113.958
+  },
+  "arrivalMethod": "request_finished timestamp minus elapsed nanoseconds, preserving fractional timestamp; log-call overhead remains, approximately millisecond resolution. request_started itself is after resolution.",
+  "intervalMethod": "Visibility is bounded by preceding poll start and first complete-line observation. These bounds describe file visibility, not event creation; game buffering is unknown. Game stamp-to-GET bounds are [GET-stamp-1, GET-stamp]; two game events have delta +/- 1 s. Endpoint openness is suppressed by millisecond rounding.",
+  "measurements": [
+    {
+      "group": "manual",
+      "song": 11255,
+      "trigger": {
+        "event": "manual-button",
+        "t": 0,
+        "sourceLine": 1227
+      },
+      "queue": {
+        "stampT": 0,
+        "visibleBoundsT": [
+          0.025,
+          0.139
+        ],
+        "swdObservedT": 1.034,
+        "sourceLine": 1289,
+        "previousSourceLine": 1185
+      },
+      "resolverGET": {
+        "id": 3,
+        "resource": "808e565f224c3b4d497afcb546ea7cf5",
+        "client": "resolver-candidate",
+        "range": "",
+        "arrivalT": 0.9,
+        "resolvedLogT": 0.9,
+        "finishedLogT": 0.909,
+        "elapsedNs": 8835200,
+        "firstBodyMs": 0.6103,
+        "cache": "HIT",
+        "status": 200,
+        "bytes": 393216,
+        "sourceStartLine": 84,
+        "sourceEndLine": 87
+      },
+      "playerGET": {
+        "id": 4,
+        "resource": "808e565f224c3b4d497afcb546ea7cf5",
+        "client": "player",
+        "range": "bytes=0-",
+        "arrivalT": 1.302,
+        "resolvedLogT": 1.302,
+        "finishedLogT": 5.56,
+        "elapsedNs": 4258363400,
+        "firstBodyMs": 0.5032,
+        "cache": "HIT",
+        "status": 206,
+        "bytes": 6177046,
+        "sourceStartLine": 89,
+        "sourceEndLine": 92
+      },
+      "queueStampToGETBoundsSeconds": [
+        -0.1,
+        0.9
+      ],
+      "queueStampToPlayerGETBoundsSeconds": [
+        0.302,
+        1.302
+      ],
+      "queueVisibleToGETBoundsSeconds": [
+        0.761,
+        0.875
+      ],
+      "queueVisibleToPlayerGETBoundsSeconds": [
+        1.163,
+        1.277
+      ],
+      "swdDetectionFromQueueStampBoundsSeconds": [
+        0.034,
+        1.034
+      ],
+      "swdDetectionToGETSeconds": -0.134,
+      "loaded": {
+        "stampDifferenceSeconds": 1,
+        "eventDeltaBoundsSeconds": [
+          0,
+          2
+        ],
+        "loadSeconds": 1.619324,
+        "plannedWaitSeconds": 8.380676,
+        "sourceLine": 1299
+      },
+      "videoStart": {
+        "stampDifferenceSeconds": 4,
+        "eventDeltaBoundsSeconds": [
+          3,
+          5
+        ],
+        "sourceLine": 1308
+      },
+      "delayedReady": {
+        "stampDifferenceSeconds": 10,
+        "eventDeltaBoundsSeconds": [
+          9,
+          11
+        ],
+        "sourceLine": 1323
+      },
+      "errors": []
+    },
+    {
+      "group": "manual",
+      "song": 8928,
+      "trigger": {
+        "event": "manual-button",
+        "t": 16,
+        "sourceLine": 1331
+      },
+      "queue": {
+        "stampT": 16,
+        "visibleBoundsT": [
+          16.593,
+          16.708
+        ],
+        "swdObservedT": 19.034,
+        "sourceLine": 1392,
+        "previousSourceLine": 1316
+      },
+      "resolverGET": {
+        "id": 5,
+        "resource": "aa1c81435b6992b1fe35f05aaa2214ef",
+        "client": "resolver-candidate",
+        "range": "",
+        "arrivalT": 17.5,
+        "resolvedLogT": 17.5,
+        "finishedLogT": 17.509,
+        "elapsedNs": 9585700,
+        "firstBodyMs": 0,
+        "cache": "HIT",
+        "status": 200,
+        "bytes": 393216,
+        "sourceStartLine": 94,
+        "sourceEndLine": 97
+      },
+      "playerGET": {
+        "id": 6,
+        "resource": "aa1c81435b6992b1fe35f05aaa2214ef",
+        "client": "player",
+        "range": "bytes=0-",
+        "arrivalT": 17.855,
+        "resolvedLogT": 17.855,
+        "finishedLogT": 22.892,
+        "elapsedNs": 5036843300,
+        "firstBodyMs": 0.503,
+        "cache": "HIT",
+        "status": 206,
+        "bytes": 9508224,
+        "sourceStartLine": 98,
+        "sourceEndLine": 102
+      },
+      "queueStampToGETBoundsSeconds": [
+        0.5,
+        1.5
+      ],
+      "queueStampToPlayerGETBoundsSeconds": [
+        0.855,
+        1.855
+      ],
+      "queueVisibleToGETBoundsSeconds": [
+        0.792,
+        0.907
+      ],
+      "queueVisibleToPlayerGETBoundsSeconds": [
+        1.147,
+        1.262
+      ],
+      "swdDetectionFromQueueStampBoundsSeconds": [
+        2.034,
+        3.034
+      ],
+      "swdDetectionToGETSeconds": -1.534,
+      "loaded": {
+        "stampDifferenceSeconds": 2,
+        "eventDeltaBoundsSeconds": [
+          1,
+          3
+        ],
+        "loadSeconds": 1.694702,
+        "plannedWaitSeconds": 8.305298,
+        "sourceLine": 1400
+      },
+      "videoStart": {
+        "stampDifferenceSeconds": 10,
+        "eventDeltaBoundsSeconds": [
+          9,
+          11
+        ],
+        "sourceLine": 1414
+      },
+      "delayedReady": {
+        "stampDifferenceSeconds": 10,
+        "eventDeltaBoundsSeconds": [
+          9,
+          11
+        ],
+        "sourceLine": 1401
+      },
+      "errors": []
+    },
+    {
+      "group": "manual",
+      "song": 10549,
+      "trigger": {
+        "event": "manual-button",
+        "t": 36,
+        "sourceLine": 1421
+      },
+      "queue": {
+        "stampT": 36,
+        "visibleBoundsT": [
+          36.463,
+          36.578
+        ],
+        "swdObservedT": 37.033,
+        "sourceLine": 1482,
+        "previousSourceLine": 1392
+      },
+      "resolverGET": {
+        "id": 7,
+        "resource": "4dd00358d3cc47a4a50bbe60efee5700",
+        "client": "resolver-candidate",
+        "range": "",
+        "arrivalT": 37.361,
+        "resolvedLogT": 37.361,
+        "finishedLogT": 37.369,
+        "elapsedNs": 8970200,
+        "firstBodyMs": 0.5073,
+        "cache": "HIT",
+        "status": 200,
+        "bytes": 393216,
+        "sourceStartLine": 104,
+        "sourceEndLine": 107
+      },
+      "playerGET": {
+        "id": 8,
+        "resource": "4dd00358d3cc47a4a50bbe60efee5700",
+        "client": "player",
+        "range": "bytes=0-",
+        "arrivalT": 37.764,
+        "resolvedLogT": 37.764,
+        "finishedLogT": 43.806,
+        "elapsedNs": 6042522300,
+        "firstBodyMs": 0.6081,
+        "cache": "HIT",
+        "status": 206,
+        "bytes": 8280519,
+        "sourceStartLine": 108,
+        "sourceEndLine": 112
+      },
+      "queueStampToGETBoundsSeconds": [
+        0.361,
+        1.361
+      ],
+      "queueStampToPlayerGETBoundsSeconds": [
+        0.764,
+        1.764
+      ],
+      "queueVisibleToGETBoundsSeconds": [
+        0.783,
+        0.898
+      ],
+      "queueVisibleToPlayerGETBoundsSeconds": [
+        1.186,
+        1.301
+      ],
+      "swdDetectionFromQueueStampBoundsSeconds": [
+        0.033,
+        1.033
+      ],
+      "swdDetectionToGETSeconds": 0.327,
+      "loaded": {
+        "stampDifferenceSeconds": 2,
+        "eventDeltaBoundsSeconds": [
+          1,
+          3
+        ],
+        "loadSeconds": 1.641113,
+        "plannedWaitSeconds": 8.358887,
+        "sourceLine": 1490
+      },
+      "videoStart": {
+        "stampDifferenceSeconds": 5,
+        "eventDeltaBoundsSeconds": [
+          4,
+          6
+        ],
+        "sourceLine": 1499
+      },
+      "delayedReady": {
+        "stampDifferenceSeconds": 10,
+        "eventDeltaBoundsSeconds": [
+          9,
+          11
+        ],
+        "sourceLine": 1511
+      },
+      "errors": []
+    },
+    {
+      "group": "natural",
+      "song": 11255,
+      "trigger": {
+        "event": "natural-end",
+        "t": 123,
+        "sourceLine": 1786
+      },
+      "queue": {
+        "stampT": 123,
+        "visibleBoundsT": [
+          123.062,
+          123.178
+        ],
+        "swdObservedT": 124.034,
+        "sourceLine": 1846,
+        "previousSourceLine": 1761
+      },
+      "resolverGET": {
+        "id": 13,
+        "resource": "808e565f224c3b4d497afcb546ea7cf5",
+        "client": "resolver-candidate",
+        "range": "",
+        "arrivalT": 123.921,
+        "resolvedLogT": 123.921,
+        "finishedLogT": 123.929,
+        "elapsedNs": 8431200,
+        "firstBodyMs": 0.6408,
+        "cache": "HIT",
+        "status": 200,
+        "bytes": 393216,
+        "sourceStartLine": 167,
+        "sourceEndLine": 170
+      },
+      "playerGET": {
+        "id": 14,
+        "resource": "808e565f224c3b4d497afcb546ea7cf5",
+        "client": "player",
+        "range": "",
+        "arrivalT": 124.377,
+        "resolvedLogT": 124.377,
+        "finishedLogT": 124.377,
+        "elapsedNs": 510900,
+        "firstBodyMs": null,
+        "cache": "HIT",
+        "status": 304,
+        "bytes": 0,
+        "sourceStartLine": 172,
+        "sourceEndLine": 175
+      },
+      "queueStampToGETBoundsSeconds": [
+        -0.08,
+        0.921
+      ],
+      "queueStampToPlayerGETBoundsSeconds": [
+        0.377,
+        1.377
+      ],
+      "queueVisibleToGETBoundsSeconds": [
+        0.743,
+        0.859
+      ],
+      "queueVisibleToPlayerGETBoundsSeconds": [
+        1.199,
+        1.315
+      ],
+      "swdDetectionFromQueueStampBoundsSeconds": [
+        0.034,
+        1.034
+      ],
+      "swdDetectionToGETSeconds": -0.113,
+      "loaded": {
+        "stampDifferenceSeconds": 1,
+        "eventDeltaBoundsSeconds": [
+          0,
+          2
+        ],
+        "loadSeconds": 1.644226,
+        "plannedWaitSeconds": 8.355774,
+        "sourceLine": 1856
+      },
+      "videoStart": {
+        "stampDifferenceSeconds": 10,
+        "eventDeltaBoundsSeconds": [
+          9,
+          11
+        ],
+        "sourceLine": 1870
+      },
+      "delayedReady": {
+        "stampDifferenceSeconds": 10,
+        "eventDeltaBoundsSeconds": [
+          9,
+          11
+        ],
+        "sourceLine": 1857
+      },
+      "errors": []
+    },
+    {
+      "group": "natural",
+      "song": 8928,
+      "trigger": {
+        "event": "natural-end",
+        "t": 158,
+        "sourceLine": 1882
+      },
+      "queue": {
+        "stampT": 158,
+        "visibleBoundsT": [
+          158.037,
+          158.149
+        ],
+        "swdObservedT": 160.034,
+        "sourceLine": 1941,
+        "previousSourceLine": 1846
+      },
+      "resolverGET": {
+        "id": 15,
+        "resource": "aa1c81435b6992b1fe35f05aaa2214ef",
+        "client": "resolver-candidate",
+        "range": "",
+        "arrivalT": 158.91,
+        "resolvedLogT": 158.91,
+        "finishedLogT": 158.919,
+        "elapsedNs": 9262100,
+        "firstBodyMs": 1.0198,
+        "cache": "HIT",
+        "status": 200,
+        "bytes": 262144,
+        "sourceStartLine": 176,
+        "sourceEndLine": 179
+      },
+      "playerGET": {
+        "id": 16,
+        "resource": "aa1c81435b6992b1fe35f05aaa2214ef",
+        "client": "player",
+        "range": "",
+        "arrivalT": 159.376,
+        "resolvedLogT": 159.377,
+        "finishedLogT": 159.377,
+        "elapsedNs": 503100,
+        "firstBodyMs": null,
+        "cache": "HIT",
+        "status": 304,
+        "bytes": 0,
+        "sourceStartLine": 180,
+        "sourceEndLine": 183
+      },
+      "queueStampToGETBoundsSeconds": [
+        -0.09,
+        0.91
+      ],
+      "queueStampToPlayerGETBoundsSeconds": [
+        0.376,
+        1.376
+      ],
+      "queueVisibleToGETBoundsSeconds": [
+        0.761,
+        0.873
+      ],
+      "queueVisibleToPlayerGETBoundsSeconds": [
+        1.227,
+        1.339
+      ],
+      "swdDetectionFromQueueStampBoundsSeconds": [
+        1.034,
+        2.034
+      ],
+      "swdDetectionToGETSeconds": -1.125,
+      "loaded": {
+        "stampDifferenceSeconds": 1,
+        "eventDeltaBoundsSeconds": [
+          0,
+          2
+        ],
+        "loadSeconds": 1.69397,
+        "plannedWaitSeconds": 8.30603,
+        "sourceLine": 1949
+      },
+      "videoStart": {
+        "stampDifferenceSeconds": 10,
+        "eventDeltaBoundsSeconds": [
+          9,
+          11
+        ],
+        "sourceLine": 1963
+      },
+      "delayedReady": {
+        "stampDifferenceSeconds": 10,
+        "eventDeltaBoundsSeconds": [
+          9,
+          11
+        ],
+        "sourceLine": 1950
+      },
+      "errors": []
+    },
+    {
+      "group": "natural",
+      "song": 10549,
+      "trigger": {
+        "event": "natural-end",
+        "t": 195,
+        "sourceLine": 1975
+      },
+      "queue": {
+        "stampT": 195,
+        "visibleBoundsT": [
+          195.053,
+          195.162
+        ],
+        "swdObservedT": 196.034,
+        "sourceLine": 2034,
+        "previousSourceLine": 1941
+      },
+      "resolverGET": {
+        "id": 17,
+        "resource": "4dd00358d3cc47a4a50bbe60efee5700",
+        "client": "resolver-candidate",
+        "range": "",
+        "arrivalT": 195.91,
+        "resolvedLogT": 195.911,
+        "finishedLogT": 195.92,
+        "elapsedNs": 9954100,
+        "firstBodyMs": 2.0583,
+        "cache": "HIT",
+        "status": 200,
+        "bytes": 393216,
+        "sourceStartLine": 185,
+        "sourceEndLine": 188
+      },
+      "playerGET": {
+        "id": 18,
+        "resource": "4dd00358d3cc47a4a50bbe60efee5700",
+        "client": "player",
+        "range": "",
+        "arrivalT": 196.364,
+        "resolvedLogT": 196.364,
+        "finishedLogT": 196.364,
+        "elapsedNs": 504000,
+        "firstBodyMs": null,
+        "cache": "HIT",
+        "status": 304,
+        "bytes": 0,
+        "sourceStartLine": 190,
+        "sourceEndLine": 193
+      },
+      "queueStampToGETBoundsSeconds": [
+        -0.09,
+        0.91
+      ],
+      "queueStampToPlayerGETBoundsSeconds": [
+        0.364,
+        1.364
+      ],
+      "queueVisibleToGETBoundsSeconds": [
+        0.748,
+        0.857
+      ],
+      "queueVisibleToPlayerGETBoundsSeconds": [
+        1.202,
+        1.311
+      ],
+      "swdDetectionFromQueueStampBoundsSeconds": [
+        0.034,
+        1.034
+      ],
+      "swdDetectionToGETSeconds": -0.124,
+      "loaded": {
+        "stampDifferenceSeconds": 1,
+        "eventDeltaBoundsSeconds": [
+          0,
+          2
+        ],
+        "loadSeconds": 1.644958,
+        "plannedWaitSeconds": 8.355042,
+        "sourceLine": 2042
+      },
+      "videoStart": {
+        "stampDifferenceSeconds": 10,
+        "eventDeltaBoundsSeconds": [
+          9,
+          11
+        ],
+        "sourceLine": 2056
+      },
+      "delayedReady": {
+        "stampDifferenceSeconds": 10,
+        "eventDeltaBoundsSeconds": [
+          9,
+          11
+        ],
+        "sourceLine": 2043
+      },
+      "errors": []
+    },
+    {
+      "group": "manual-warm",
+      "song": 11255,
+      "trigger": {
+        "event": "manual-button",
+        "t": 429,
+        "sourceLine": 2323
+      },
+      "queue": {
+        "stampT": 429,
+        "visibleBoundsT": [
+          429.701,
+          429.817
+        ],
+        "swdObservedT": 430.034,
+        "sourceLine": 2385,
+        "previousSourceLine": 2282
+      },
+      "resolverGET": {
+        "id": 23,
+        "resource": "808e565f224c3b4d497afcb546ea7cf5",
+        "client": "resolver-candidate",
+        "range": "",
+        "arrivalT": 430.574,
+        "resolvedLogT": 430.574,
+        "finishedLogT": 430.583,
+        "elapsedNs": 8680300,
+        "firstBodyMs": 0.5034,
+        "cache": "HIT",
+        "status": 200,
+        "bytes": 393216,
+        "sourceStartLine": 235,
+        "sourceEndLine": 238
+      },
+      "playerGET": {
+        "id": 24,
+        "resource": "808e565f224c3b4d497afcb546ea7cf5",
+        "client": "player",
+        "range": "",
+        "arrivalT": 431.025,
+        "resolvedLogT": 431.025,
+        "finishedLogT": 431.025,
+        "elapsedNs": 699100,
+        "firstBodyMs": null,
+        "cache": "HIT",
+        "status": 304,
+        "bytes": 0,
+        "sourceStartLine": 239,
+        "sourceEndLine": 242
+      },
+      "queueStampToGETBoundsSeconds": [
+        0.574,
+        1.574
+      ],
+      "queueStampToPlayerGETBoundsSeconds": [
+        1.025,
+        2.025
+      ],
+      "queueVisibleToGETBoundsSeconds": [
+        0.757,
+        0.873
+      ],
+      "queueVisibleToPlayerGETBoundsSeconds": [
+        1.208,
+        1.324
+      ],
+      "swdDetectionFromQueueStampBoundsSeconds": [
+        0.034,
+        1.034
+      ],
+      "swdDetectionToGETSeconds": 0.54,
+      "loaded": {
+        "stampDifferenceSeconds": 2,
+        "eventDeltaBoundsSeconds": [
+          1,
+          3
+        ],
+        "loadSeconds": 1.608337,
+        "plannedWaitSeconds": 8.391663,
+        "sourceLine": 2395
+      },
+      "videoStart": {
+        "stampDifferenceSeconds": 9,
+        "eventDeltaBoundsSeconds": [
+          8,
+          10
+        ],
+        "sourceLine": 2404
+      },
+      "delayedReady": {
+        "stampDifferenceSeconds": 10,
+        "eventDeltaBoundsSeconds": [
+          9,
+          11
+        ],
+        "sourceLine": 2419
+      },
+      "errors": []
+    },
+    {
+      "group": "manual-warm",
+      "song": 8928,
+      "trigger": {
+        "event": "manual-button",
+        "t": 448,
+        "sourceLine": 2427
+      },
+      "queue": {
+        "stampT": 448,
+        "visibleBoundsT": [
+          448.855,
+          448.969
+        ],
+        "swdObservedT": 451.035,
+        "sourceLine": 2488,
+        "previousSourceLine": 2412
+      },
+      "resolverGET": {
+        "id": 25,
+        "resource": "aa1c81435b6992b1fe35f05aaa2214ef",
+        "client": "resolver-candidate",
+        "range": "",
+        "arrivalT": 449.705,
+        "resolvedLogT": 449.705,
+        "finishedLogT": 449.714,
+        "elapsedNs": 9345400,
+        "firstBodyMs": 0.552,
+        "cache": "HIT",
+        "status": 200,
+        "bytes": 393216,
+        "sourceStartLine": 244,
+        "sourceEndLine": 247
+      },
+      "playerGET": {
+        "id": 26,
+        "resource": "aa1c81435b6992b1fe35f05aaa2214ef",
+        "client": "player",
+        "range": "",
+        "arrivalT": 450.16,
+        "resolvedLogT": 450.16,
+        "finishedLogT": 450.16,
+        "elapsedNs": 505100,
+        "firstBodyMs": null,
+        "cache": "HIT",
+        "status": 304,
+        "bytes": 0,
+        "sourceStartLine": 248,
+        "sourceEndLine": 251
+      },
+      "queueStampToGETBoundsSeconds": [
+        0.705,
+        1.705
+      ],
+      "queueStampToPlayerGETBoundsSeconds": [
+        1.16,
+        2.16
+      ],
+      "queueVisibleToGETBoundsSeconds": [
+        0.736,
+        0.85
+      ],
+      "queueVisibleToPlayerGETBoundsSeconds": [
+        1.191,
+        1.305
+      ],
+      "swdDetectionFromQueueStampBoundsSeconds": [
+        2.035,
+        3.035
+      ],
+      "swdDetectionToGETSeconds": -1.33,
+      "loaded": {
+        "stampDifferenceSeconds": 2,
+        "eventDeltaBoundsSeconds": [
+          1,
+          3
+        ],
+        "loadSeconds": 1.625122,
+        "plannedWaitSeconds": 8.374878,
+        "sourceLine": 2496
+      },
+      "videoStart": {
+        "stampDifferenceSeconds": 10,
+        "eventDeltaBoundsSeconds": [
+          9,
+          11
+        ],
+        "sourceLine": 2510
+      },
+      "delayedReady": {
+        "stampDifferenceSeconds": 10,
+        "eventDeltaBoundsSeconds": [
+          9,
+          11
+        ],
+        "sourceLine": 2497
+      },
+      "errors": []
+    },
+    {
+      "group": "manual-warm",
+      "song": 10549,
+      "trigger": {
+        "event": "manual-button",
+        "t": 465,
+        "sourceLine": 2517
+      },
+      "queue": {
+        "stampT": 465,
+        "visibleBoundsT": [
+          465.83,
+          465.944
+        ],
+        "swdObservedT": 466.034,
+        "sourceLine": 2578,
+        "previousSourceLine": 2488
+      },
+      "resolverGET": {
+        "id": 27,
+        "resource": "4dd00358d3cc47a4a50bbe60efee5700",
+        "client": "resolver-candidate",
+        "range": "",
+        "arrivalT": 466.724,
+        "resolvedLogT": 466.724,
+        "finishedLogT": 466.733,
+        "elapsedNs": 8777800,
+        "firstBodyMs": 0.5038,
+        "cache": "HIT",
+        "status": 200,
+        "bytes": 393216,
+        "sourceStartLine": 254,
+        "sourceEndLine": 257
+      },
+      "playerGET": {
+        "id": 28,
+        "resource": "4dd00358d3cc47a4a50bbe60efee5700",
+        "client": "player",
+        "range": "",
+        "arrivalT": 467.177,
+        "resolvedLogT": 467.179,
+        "finishedLogT": 467.179,
+        "elapsedNs": 1503500,
+        "firstBodyMs": null,
+        "cache": "HIT",
+        "status": 304,
+        "bytes": 0,
+        "sourceStartLine": 258,
+        "sourceEndLine": 261
+      },
+      "queueStampToGETBoundsSeconds": [
+        0.724,
+        1.724
+      ],
+      "queueStampToPlayerGETBoundsSeconds": [
+        1.177,
+        2.177
+      ],
+      "queueVisibleToGETBoundsSeconds": [
+        0.78,
+        0.894
+      ],
+      "queueVisibleToPlayerGETBoundsSeconds": [
+        1.233,
+        1.347
+      ],
+      "swdDetectionFromQueueStampBoundsSeconds": [
+        0.034,
+        1.034
+      ],
+      "swdDetectionToGETSeconds": 0.69,
+      "loaded": {
+        "stampDifferenceSeconds": 2,
+        "eventDeltaBoundsSeconds": [
+          1,
+          3
+        ],
+        "loadSeconds": 1.692261,
+        "plannedWaitSeconds": 8.307739,
+        "sourceLine": 2586
+      },
+      "videoStart": {
+        "stampDifferenceSeconds": 8,
+        "eventDeltaBoundsSeconds": [
+          7,
+          9
+        ],
+        "sourceLine": 2595
+      },
+      "delayedReady": {
+        "stampDifferenceSeconds": 10,
+        "eventDeltaBoundsSeconds": [
+          9,
+          11
+        ],
+        "sourceLine": 2607
+      },
+      "errors": []
+    }
+  ],
+  "groups": {
+    "manual": {
+      "count": 3,
+      "songs": [
+        11255,
+        8928,
+        10549
+      ],
+      "resolverFromVisibleSeconds": {
+        "lowerEndpoint": {
+          "count": 3,
+          "min": 0.761,
+          "median": 0.783,
+          "max": 0.792
+        },
+        "upperEndpoint": {
+          "count": 3,
+          "min": 0.875,
+          "median": 0.898,
+          "max": 0.907
+        },
+        "midpoint": {
+          "count": 3,
+          "min": 0.818,
+          "median": 0.841,
+          "max": 0.85
+        }
+      },
+      "playerFromVisibleSeconds": {
+        "lowerEndpoint": {
+          "count": 3,
+          "min": 1.147,
+          "median": 1.163,
+          "max": 1.186
+        },
+        "upperEndpoint": {
+          "count": 3,
+          "min": 1.262,
+          "median": 1.277,
+          "max": 1.301
+        },
+        "midpoint": {
+          "count": 3,
+          "min": 1.205,
+          "median": 1.22,
+          "max": 1.244
+        }
+      },
+      "swdDetectionToGETSeconds": {
+        "count": 3,
+        "min": -1.534,
+        "median": -0.134,
+        "max": 0.327
+      },
+      "videoStartStampDeltaSeconds": {
+        "count": 3,
+        "min": 4,
+        "median": 5,
+        "max": 10
+      },
+      "delayedReadyStampDeltaSeconds": {
+        "count": 3,
+        "min": 10,
+        "median": 10,
+        "max": 10
+      },
+      "playerStatuses": [
+        206,
+        206,
+        206
+      ]
+    },
+    "natural": {
+      "count": 3,
+      "songs": [
+        11255,
+        8928,
+        10549
+      ],
+      "resolverFromVisibleSeconds": {
+        "lowerEndpoint": {
+          "count": 3,
+          "min": 0.743,
+          "median": 0.748,
+          "max": 0.761
+        },
+        "upperEndpoint": {
+          "count": 3,
+          "min": 0.857,
+          "median": 0.859,
+          "max": 0.873
+        },
+        "midpoint": {
+          "count": 3,
+          "min": 0.801,
+          "median": 0.803,
+          "max": 0.817
+        }
+      },
+      "playerFromVisibleSeconds": {
+        "lowerEndpoint": {
+          "count": 3,
+          "min": 1.199,
+          "median": 1.202,
+          "max": 1.227
+        },
+        "upperEndpoint": {
+          "count": 3,
+          "min": 1.311,
+          "median": 1.315,
+          "max": 1.339
+        },
+        "midpoint": {
+          "count": 3,
+          "min": 1.257,
+          "median": 1.257,
+          "max": 1.283
+        }
+      },
+      "swdDetectionToGETSeconds": {
+        "count": 3,
+        "min": -1.125,
+        "median": -0.124,
+        "max": -0.113
+      },
+      "videoStartStampDeltaSeconds": {
+        "count": 3,
+        "min": 10,
+        "median": 10,
+        "max": 10
+      },
+      "delayedReadyStampDeltaSeconds": {
+        "count": 3,
+        "min": 10,
+        "median": 10,
+        "max": 10
+      },
+      "playerStatuses": [
+        304,
+        304,
+        304
+      ]
+    },
+    "manual-warm": {
+      "count": 3,
+      "songs": [
+        11255,
+        8928,
+        10549
+      ],
+      "resolverFromVisibleSeconds": {
+        "lowerEndpoint": {
+          "count": 3,
+          "min": 0.736,
+          "median": 0.757,
+          "max": 0.78
+        },
+        "upperEndpoint": {
+          "count": 3,
+          "min": 0.85,
+          "median": 0.873,
+          "max": 0.894
+        },
+        "midpoint": {
+          "count": 3,
+          "min": 0.793,
+          "median": 0.815,
+          "max": 0.837
+        }
+      },
+      "playerFromVisibleSeconds": {
+        "lowerEndpoint": {
+          "count": 3,
+          "min": 1.191,
+          "median": 1.208,
+          "max": 1.233
+        },
+        "upperEndpoint": {
+          "count": 3,
+          "min": 1.305,
+          "median": 1.324,
+          "max": 1.347
+        },
+        "midpoint": {
+          "count": 3,
+          "min": 1.248,
+          "median": 1.266,
+          "max": 1.29
+        }
+      },
+      "swdDetectionToGETSeconds": {
+        "count": 3,
+        "min": -1.33,
+        "median": 0.54,
+        "max": 0.69
+      },
+      "videoStartStampDeltaSeconds": {
+        "count": 3,
+        "min": 8,
+        "median": 9,
+        "max": 10
+      },
+      "delayedReadyStampDeltaSeconds": {
+        "count": 3,
+        "min": 10,
+        "median": 10,
+        "max": 10
+      },
+      "playerStatuses": [
+        304,
+        304,
+        304
+      ]
+    }
+  },
+  "signals": [
+    {
+      "event": "queue",
+      "t": 0,
+      "visibleBoundsT": [
+        0.025,
+        0.139
+      ],
+      "sourceLine": 1289,
+      "song": 8928,
+      "ids": [
+        8928,
+        10549
+      ]
+    },
+    {
+      "event": "video-loaded",
+      "t": 1,
+      "visibleBoundsT": [
+        1.554,
+        1.668
+      ],
+      "sourceLine": 1299,
+      "song": 11255,
+      "loadSeconds": 1.619324,
+      "plannedWaitSeconds": 8.380676
+    },
+    {
+      "event": "video-start",
+      "t": 4,
+      "visibleBoundsT": [
+        4.822,
+        4.937
+      ],
+      "sourceLine": 1308,
+      "song": 11255
+    },
+    {
+      "event": "delayed-ready",
+      "t": 10,
+      "visibleBoundsT": [
+        9.946,
+        10.055
+      ],
+      "sourceLine": 1323,
+      "song": 11255
+    },
+    {
+      "event": "queue",
+      "t": 16,
+      "visibleBoundsT": [
+        16.593,
+        16.708
+      ],
+      "sourceLine": 1392,
+      "song": 10549,
+      "ids": [
+        10549
+      ]
+    },
+    {
+      "event": "video-loaded",
+      "t": 18,
+      "visibleBoundsT": [
+        18.232,
+        18.346
+      ],
+      "sourceLine": 1400,
+      "song": 8928,
+      "loadSeconds": 1.694702,
+      "plannedWaitSeconds": 8.305298
+    },
+    {
+      "event": "delayed-ready",
+      "t": 26,
+      "visibleBoundsT": [
+        26.533,
+        26.647
+      ],
+      "sourceLine": 1401,
+      "song": 8928
+    },
+    {
+      "event": "video-start",
+      "t": 26,
+      "visibleBoundsT": [
+        26.533,
+        26.648
+      ],
+      "sourceLine": 1414,
+      "song": 8928
+    },
+    {
+      "event": "queue",
+      "t": 36,
+      "visibleBoundsT": [
+        36.463,
+        36.578
+      ],
+      "sourceLine": 1482,
+      "ids": []
+    },
+    {
+      "event": "video-loaded",
+      "t": 38,
+      "visibleBoundsT": [
+        38.093,
+        38.209
+      ],
+      "sourceLine": 1490,
+      "song": 10549,
+      "loadSeconds": 1.641113,
+      "plannedWaitSeconds": 8.358887
+    },
+    {
+      "event": "video-start",
+      "t": 41,
+      "visibleBoundsT": [
+        41.58,
+        41.694
+      ],
+      "sourceLine": 1499,
+      "song": 10549
+    },
+    {
+      "event": "delayed-ready",
+      "t": 46,
+      "visibleBoundsT": [
+        46.383,
+        46.497
+      ],
+      "sourceLine": 1511,
+      "song": 10549
+    },
+    {
+      "event": "queue",
+      "t": 123,
+      "visibleBoundsT": [
+        123.062,
+        123.178
+      ],
+      "sourceLine": 1846,
+      "song": 8928,
+      "ids": [
+        8928,
+        10549
+      ]
+    },
+    {
+      "event": "video-loaded",
+      "t": 124,
+      "visibleBoundsT": [
+        124.697,
+        124.81
+      ],
+      "sourceLine": 1856,
+      "song": 11255,
+      "loadSeconds": 1.644226,
+      "plannedWaitSeconds": 8.355774
+    },
+    {
+      "event": "delayed-ready",
+      "t": 133,
+      "visibleBoundsT": [
+        132.99,
+        133.105
+      ],
+      "sourceLine": 1857,
+      "song": 11255
+    },
+    {
+      "event": "video-start",
+      "t": 133,
+      "visibleBoundsT": [
+        132.99,
+        133.105
+      ],
+      "sourceLine": 1870,
+      "song": 11255
+    },
+    {
+      "event": "queue",
+      "t": 158,
+      "visibleBoundsT": [
+        158.037,
+        158.149
+      ],
+      "sourceLine": 1941,
+      "song": 10549,
+      "ids": [
+        10549
+      ]
+    },
+    {
+      "event": "video-loaded",
+      "t": 159,
+      "visibleBoundsT": [
+        159.669,
+        159.781
+      ],
+      "sourceLine": 1949,
+      "song": 8928,
+      "loadSeconds": 1.69397,
+      "plannedWaitSeconds": 8.30603
+    },
+    {
+      "event": "delayed-ready",
+      "t": 168,
+      "visibleBoundsT": [
+        167.939,
+        168.054
+      ],
+      "sourceLine": 1950,
+      "song": 8928
+    },
+    {
+      "event": "video-start",
+      "t": 168,
+      "visibleBoundsT": [
+        167.939,
+        168.054
+      ],
+      "sourceLine": 1963,
+      "song": 8928
+    },
+    {
+      "event": "queue",
+      "t": 195,
+      "visibleBoundsT": [
+        195.053,
+        195.162
+      ],
+      "sourceLine": 2034,
+      "ids": []
+    },
+    {
+      "event": "video-loaded",
+      "t": 196,
+      "visibleBoundsT": [
+        196.574,
+        196.689
+      ],
+      "sourceLine": 2042,
+      "song": 10549,
+      "loadSeconds": 1.644958,
+      "plannedWaitSeconds": 8.355042
+    },
+    {
+      "event": "delayed-ready",
+      "t": 205,
+      "visibleBoundsT": [
+        204.956,
+        205.066
+      ],
+      "sourceLine": 2043,
+      "song": 10549
+    },
+    {
+      "event": "video-start",
+      "t": 205,
+      "visibleBoundsT": [
+        204.956,
+        205.067
+      ],
+      "sourceLine": 2056,
+      "song": 10549
+    },
+    {
+      "event": "queue",
+      "t": 429,
+      "visibleBoundsT": [
+        429.701,
+        429.817
+      ],
+      "sourceLine": 2385,
+      "song": 8928,
+      "ids": [
+        8928,
+        10549
+      ]
+    },
+    {
+      "event": "video-loaded",
+      "t": 431,
+      "visibleBoundsT": [
+        431.329,
+        431.442
+      ],
+      "sourceLine": 2395,
+      "song": 11255,
+      "loadSeconds": 1.608337,
+      "plannedWaitSeconds": 8.391663
+    },
+    {
+      "event": "video-start",
+      "t": 438,
+      "visibleBoundsT": [
+        438.493,
+        438.608
+      ],
+      "sourceLine": 2404,
+      "song": 11255
+    },
+    {
+      "event": "delayed-ready",
+      "t": 439,
+      "visibleBoundsT": [
+        439.693,
+        439.807
+      ],
+      "sourceLine": 2419,
+      "song": 11255
+    },
+    {
+      "event": "queue",
+      "t": 448,
+      "visibleBoundsT": [
+        448.855,
+        448.969
+      ],
+      "sourceLine": 2488,
+      "song": 10549,
+      "ids": [
+        10549
+      ]
+    },
+    {
+      "event": "video-loaded",
+      "t": 450,
+      "visibleBoundsT": [
+        450.373,
+        450.486
+      ],
+      "sourceLine": 2496,
+      "song": 8928,
+      "loadSeconds": 1.625122,
+      "plannedWaitSeconds": 8.374878
+    },
+    {
+      "event": "delayed-ready",
+      "t": 458,
+      "visibleBoundsT": [
+        458.749,
+        458.863
+      ],
+      "sourceLine": 2497,
+      "song": 8928
+    },
+    {
+      "event": "video-start",
+      "t": 458,
+      "visibleBoundsT": [
+        458.749,
+        458.863
+      ],
+      "sourceLine": 2510,
+      "song": 8928
+    },
+    {
+      "event": "queue",
+      "t": 465,
+      "visibleBoundsT": [
+        465.83,
+        465.944
+      ],
+      "sourceLine": 2578,
+      "ids": []
+    },
+    {
+      "event": "video-loaded",
+      "t": 467,
+      "visibleBoundsT": [
+        467.468,
+        467.582
+      ],
+      "sourceLine": 2586,
+      "song": 10549,
+      "loadSeconds": 1.692261,
+      "plannedWaitSeconds": 8.307739
+    },
+    {
+      "event": "video-start",
+      "t": 473,
+      "visibleBoundsT": [
+        473.791,
+        473.905
+      ],
+      "sourceLine": 2595,
+      "song": 10549
+    },
+    {
+      "event": "delayed-ready",
+      "t": 475,
+      "visibleBoundsT": [
+        475.757,
+        475.871
+      ],
+      "sourceLine": 2607,
+      "song": 10549
+    }
+  ],
+  "observations": {
+    "userAudiovisualFeedback": "Initial manual and natural groups were normal; user did not estimate exact audible/visible onset. Additional group feedback is in the report.",
+    "firstWrongID": {
+      "plannedSeed": 11139,
+      "actualSeed": 11193,
+      "excludedFromComparison": true,
+      "reason": "Only the three same target songs are compared; initial seed playback is excluded."
+    },
+    "loadingFailure": {
+      "reported": true,
+      "laterUserReportedRecovery": true,
+      "causalAttribution": "Not established; no target GET existed at the initial report."
+    },
+    "exclusions": [
+      {
+        "song": 11193,
+        "group": "manual",
+        "queueStampT": -21,
+        "reason": "Initial seed, not a target transition"
+      },
+      {
+        "song": 11139,
+        "group": "natural",
+        "queueStampT": 98,
+        "reason": "Initial seed, not a target transition"
+      },
+      {
+        "song": 11139,
+        "group": "manual-warm",
+        "queueStampT": 413,
+        "reason": "Initial seed, not a target transition"
+      }
+    ],
+    "playerCacheConfound": "Initial manual targets returned 206/full media; natural targets returned 304/no media. Compare natural against manual-warm when available.",
+    "onsetLimit": "OnVideoStart and DelayedVideoReady are distinct world/player callbacks; neither was independently synchronized to a captured audible sample or video frame."
+  }
+}

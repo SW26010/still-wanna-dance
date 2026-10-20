@@ -59,7 +59,10 @@ createServer(async (req, res) => {
       res.setHeader('Content-Type', p.endsWith('.js') ? 'text/javascript' : p.endsWith('.css') ? 'text/css' : 'image/svg+xml');
       return res.end(await readFile(file));
     }
-    if (p === '/favicon.ico') { res.setHeader('Content-Type', 'image/x-icon'); return res.end(await readFile(new URL('../branding/logo.ico', root))); }
+    if (p === '/favicon.ico' || p === '/favicon-light.ico') {
+      res.setHeader('Content-Type', 'image/x-icon');
+      return res.end(await readFile(new URL(p === '/favicon-light.ico' ? '../branding/logo-light.ico' : '../branding/logo.ico', root)));
+    }
     if (p.startsWith('/api/')) {
       if (req.headers['x-swd-token'] !== token) { res.writeHead(403); return res.end('invalid token'); }
       res.setHeader('Content-Type', 'application/json'); return res.end('{"ok":true}');

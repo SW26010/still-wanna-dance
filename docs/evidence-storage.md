@@ -1,6 +1,6 @@
 # 证据与大文件存储约定
 
-Git 保存源码、报告、精简统计、纯矢量 SVG 和清单。完整实验轨迹、逐请求记录、图片、压缩文件及构建产物使用版本化附件。必要的二进制测试样本单独登记，当前为固定的 `internal/cacheproxy/testdata/storage-v2.sqlite`。产品运行所需的 `internal/branding/logo.ico` 另按精确路径、字节数与 SHA256 登记，保证普通离线构建不依赖附件下载。
+Git 保存源码、报告、精简统计、纯矢量 SVG 和清单。完整实验轨迹、逐请求记录、图片、压缩文件及构建产物使用版本化附件。必要的二进制测试样本单独登记，当前为固定的 `internal/cacheproxy/testdata/storage-v2.sqlite`。产品运行所需的 `internal/branding/logo.ico`、`logo-light.ico` 另按精确路径、字节数与 SHA256 登记，保证普通离线构建不依赖附件下载。
 
 ## 文件归属
 
@@ -61,6 +61,6 @@ node scripts/check-repository-artifacts.mjs --base origin/main --head HEAD
 
 新增二进制默认拒绝；固定样本必须匹配登记路径与 SHA256。超过 256 KiB 提醒，超过 1 MiB 必须登记精确例外。例外文件为 `scripts/repository-artifacts-policy.json`，需说明用途；已发布研究输入和完整许可声明已登记。新增或修改例外需审查，不用修改后缀、Base64 或压缩规避检查。`.gitignore` 只减少误加文件，不能代替历史检查。
 
-产品图标例外仅允许 `internal/branding/logo.ico`，仍拒绝其他图片、证据、压缩包和程序文件。原始矢量稿保存为同目录 `logo.svg`；安装开发依赖 `sharp@0.35.5` 后运行 `node scripts/generate-logo.mjs`，生成 16–256 像素的九档 ICO 并输出字节数及 SHA256，更新例外记录后审查图案与哈希。正常 Go 构建直接嵌入已登记文件，无需运行生成器。重新生成可能受 SVG 渲染库版本影响，不能只改策略哈希而跳过图案核对。
+产品图标例外仅允许 `internal/branding/logo.ico`、`internal/branding/logo-light.ico`，仍拒绝其他图片、证据、压缩包和程序文件。同目录 `logo.svg` 是两种主题共用的矢量源，默认浅色、带独立的深色 media 样式；配色与主题选择规则见 [Fluent UI](fluent-ui-migration.md#页面排版)。安装开发依赖 `sharp@0.35.5` 后运行 `node scripts/generate-logo.mjs`，生成深／浅两套 16–256 像素的九档 ICO 并输出字节数及 SHA256；生成器明确选择 media 样式，不依赖构建机器主题。`--check` 只校验重建结果，不写文件。更新例外记录后审查图案与哈希。正常 Go 构建直接嵌入已登记文件，无需运行生成器。重新生成可能受 SVG 渲染库版本影响，不能只改策略哈希而跳过图案核对。
 
 验证范围按[现行机制](live-acceptance-process.md)判断；文件归类本身不产生新的实机验收要求。

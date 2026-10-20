@@ -1,6 +1,7 @@
 package console
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"still-wanna-dance/internal/branding"
 	"still-wanna-dance/internal/legal"
 )
 
@@ -93,12 +95,12 @@ func TestPageLoadsEmbeddedAssets(t *testing.T) {
 	var refs [][]string
 	for _, pagePath := range []string{"/", "/help", "/about", "/terms"} {
 		page := request(pagePath, c.address)
-		if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `rel="icon" href="/assets/logo.svg"`) {
+		if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `rel="icon" href="/favicon.ico"`) {
 			t.Fatalf("page %s lacks application branding: %d", pagePath, page.Code)
 		}
 		refs = append(refs, assetRefs.FindAllStringSubmatch(page.Body.String(), -1)...)
 	}
-	refs = append(refs, []string{"", "/assets/storage-benefit.svg"})
+	refs = append(refs, []string{"", "/assets/storage-benefit.svg"}, []string{"", "/assets/logo.svg"}, []string{"", "/favicon-light.ico"})
 	seen := make(map[string]bool)
 	for _, ref := range refs {
 		path := ref[1]
@@ -129,6 +131,10 @@ func TestPageLoadsEmbeddedAssets(t *testing.T) {
 			}
 			if strings.Contains(w.Body.String(), c.token) {
 				t.Fatal("static asset contains the session token")
+			}
+			if path == "/favicon.ico" && !bytes.Equal(w.Body.Bytes(), branding.ICO) ||
+				path == "/favicon-light.ico" && !bytes.Equal(w.Body.Bytes(), branding.LightICO) {
+				t.Fatal("favicon does not match its theme")
 			}
 			if w := request(path, "external.example"); w.Code != http.StatusForbidden {
 				t.Fatal("asset bypassed host validation", w.Code)

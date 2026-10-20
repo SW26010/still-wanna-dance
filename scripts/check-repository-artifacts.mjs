@@ -12,7 +12,7 @@ export function classify(file, bytes, policy) {
   let binary = bytes.subarray(0, 8000).includes(0);
   try { new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { binary = true; }
   const exception = policy.exceptions.find(e => e.path === file && e.sha256 === sha256(bytes));
-  const productIcon = exception?.kind === 'product-icon' && file === 'internal/branding/logo.ico' && exception.bytes === bytes.length && bytes.length <= policy.maxBytes;
+  const productIcon = exception?.kind === 'product-icon' && /^internal\/branding\/logo(?:-light)?\.ico$/.test(file) && exception.bytes === bytes.length && bytes.length <= policy.maxBytes;
   if (binary && exception?.kind !== 'binary-fixture' && !productIcon) return { error: 'binary content requires an exact fixture or product icon exception' };
   if (/\.(?:png|jpe?g|webp|gif|ico|zip|gz|7z|exe|dll|mp4|etl|pdf)$/i.test(file) && !productIcon) return { error: 'generated/binary artifact belongs in an evidence or release archive' };
   if (file.endsWith('.svg') && /<(?:image|script)\b|data\s*:/i.test(bytes.toString())) return { error: 'SVG must be vector-only, without embedded raster or scripts' };

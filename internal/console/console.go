@@ -731,9 +731,13 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Write(branding.SVG)
 		return
 	}
-	if r.Method == http.MethodGet && r.URL.Path == "/favicon.ico" {
+	if r.Method == http.MethodGet && (r.URL.Path == "/favicon.ico" || r.URL.Path == "/favicon-light.ico") {
 		w.Header().Set("Content-Type", "image/x-icon")
-		w.Write(branding.ICO)
+		if r.URL.Path == "/favicon-light.ico" {
+			w.Write(branding.LightICO)
+		} else {
+			w.Write(branding.ICO)
+		}
 		return
 	}
 	if serveWebUIAsset(w, r) {

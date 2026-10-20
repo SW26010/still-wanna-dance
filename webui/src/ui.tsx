@@ -10,6 +10,11 @@ export function Provider({ children }: PropsWithChildren) {
     media.addEventListener('change', change);
     return () => media.removeEventListener('change', change);
   }, []);
+  useEffect(() => {
+    // Favicon rasterization/caching does not reliably follow media queries inside SVGs.
+    const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (icon) icon.href = dark ? '/favicon.ico' : '/favicon-light.ico';
+  }, [dark]);
   return <FluentProvider className="app-provider" theme={{ ...(dark ? webDarkTheme : webLightTheme), fontFamilyBase: '"Segoe UI", "Microsoft YaHei", sans-serif' }}>{children}</FluentProvider>;
 }
 export function Brand() {

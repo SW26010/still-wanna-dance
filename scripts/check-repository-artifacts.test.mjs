@@ -18,16 +18,18 @@ test('content, path and hash jointly enforce fixture exceptions', () => {
   assert.ok(classify('a.json', Buffer.alloc(2048, 65), policy).error);
 });
 
-test('product icon exception is limited to the exact runtime asset', () => {
+test('product icon exceptions are limited to the exact runtime assets', () => {
   const bytes = Buffer.from([0, 0, 1, 0, 1, 0]);
-  const iconPath = 'internal/branding/logo.ico';
-  const exception = { path: iconPath, kind: 'product-icon', bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
-  const allowed = { ...policy, exceptions: [exception] };
-  assert.deepEqual(classify(iconPath, bytes, allowed), {});
-  assert.ok(classify('docs/evidence/logo.ico', bytes, allowed).error);
-  assert.ok(classify(iconPath, Buffer.concat([bytes, Buffer.from('changed')]), allowed).error);
-  assert.ok(classify(iconPath, bytes, { ...allowed, exceptions: [{ ...exception, bytes: 999 }] }).error);
-  assert.ok(classify('application.exe', bytes, { ...allowed, exceptions: [{ ...exception, path: 'application.exe' }] }).error);
+  for (const iconPath of ['internal/branding/logo.ico', 'internal/branding/logo-light.ico']) {
+    const exception = { path: iconPath, kind: 'product-icon', bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
+    const allowed = { ...policy, exceptions: [exception] };
+    assert.deepEqual(classify(iconPath, bytes, allowed), {});
+    assert.ok(classify('docs/evidence/logo.ico', bytes, allowed).error);
+    assert.ok(classify(iconPath, Buffer.concat([bytes, Buffer.from('changed')]), allowed).error);
+    assert.ok(classify(iconPath, bytes, { ...allowed, exceptions: [{ ...exception, bytes: 999 }] }).error);
+    assert.ok(classify('application.exe', bytes, { ...allowed, exceptions: [{ ...exception, path: 'application.exe' }] }).error);
+    assert.ok(classify('internal/branding/other.ico', bytes, { ...allowed, exceptions: [{ ...exception, path: 'internal/branding/other.ico' }] }).error);
+  }
 });
 
 test('rejects a binary introduced then deleted before HEAD', () => {

@@ -10,6 +10,8 @@ import (
 	"time"
 	"unsafe"
 
+	"golang.org/x/sys/windows/registry"
+
 	"still-wanna-dance/internal/branding"
 )
 
@@ -62,23 +64,26 @@ type notifyIcon struct {
 }
 
 const (
-	wmClose    = 0x10
-	wmCommand  = 0x111
-	wmTimer    = 0x113
-	wmTray     = 0x8001
-	wmFinished = 0x8002
+	wmClose         = 0x10
+	wmCommand       = 0x111
+	wmTimer         = 0x113
+	wmTray          = 0x8001
+	wmFinished      = 0x8002
+	wmSettingChange = 0x1a
+	wmThemeChanged  = 0x31a
 )
 
 type tray struct {
-	options      Options
-	hwnd, icon   uintptr
-	added        bool
-	closing      bool // accessed only by the window's OS thread
-	busy         atomic.Bool
-	taskbar      uint32
-	tip          string
-	finished     chan struct{}
-	shutdownDone chan struct{}
+	options             Options
+	hwnd, icon          uintptr
+	darkIcon, lightIcon uintptr
+	added               bool
+	closing             bool // accessed only by the window's OS thread
+	busy                atomic.Bool
+	taskbar             uint32
+	tip                 string
+	finished            chan struct{}
+	shutdownDone        chan struct{}
 }
 
 // Run keeps all window and icon operations on one OS thread. Slow service
@@ -113,11 +118,16 @@ func Run(ctx context.Context, o Options) error {
 	}
 	t.hwnd = hwnd
 	defer user32.NewProc("DestroyWindow").Call(hwnd)
-	t.icon, err = makeIcon()
+	t.darkIcon, err = makeIcon(false)
 	if err != nil {
 		return err
 	}
-	defer user32.NewProc("DestroyIcon").Call(t.icon)
+	defer user32.NewProc("DestroyIcon").Call(t.darkIcon)
+	t.lightIcon, err = makeIcon(true)
+	if err != nil {
+		return err
+	}
+	defer user32.NewProc("DestroyIcon").Call(t.lightIcon)
 	taskbar, _, _ := user32.NewProc("RegisterWindowMessageW").Call(uintptr(unsafe.Pointer(wide("TaskbarCreated"))))
 	t.taskbar = uint32(taskbar)
 	if err = t.addIcon(); err != nil {
@@ -161,6 +171,9 @@ func (t *tray) iconData() notifyIcon {
 	return n
 }
 func (t *tray) addIcon() error {
+	if err := t.updateIcon(taskbarUsesLightTheme()); err != nil {
+		return err
+	}
 	t.tip = t.tooltip()
 	n := t.iconData()
 	if r, _, err := shell32.NewProc("Shell_NotifyIconW").Call(0, uintptr(unsafe.Pointer(&n))); r == 0 {
@@ -205,6 +218,38 @@ func (t *tray) updateTip() {
 	shell32.NewProc("Shell_NotifyIconW").Call(1, uintptr(unsafe.Pointer(&n)))
 }
 
+// The taskbar follows Windows mode, which can differ from application mode.
+// If the preference is unavailable, retain the original dark artwork.
+func taskbarUsesLightTheme() bool {
+	key, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Themes\Personalize`, registry.QUERY_VALUE)
+	if err != nil {
+		return false
+	}
+	defer key.Close()
+	value, _, err := key.GetIntegerValue("SystemUsesLightTheme")
+	return err == nil && value == 1
+}
+
+// Both handles live for the tray's lifetime; switching themes allocates nothing.
+func (t *tray) updateIcon(light bool) error {
+	next := t.darkIcon
+	if light {
+		next = t.lightIcon
+	}
+	if next == t.icon {
+		return nil
+	}
+	if t.added {
+		n := t.iconData()
+		n.Flags, n.Icon = 2, next // NIF_ICON; leave tooltip and callback unchanged.
+		if r, _, err := shell32.NewProc("Shell_NotifyIconW").Call(1, uintptr(unsafe.Pointer(&n))); r == 0 {
+			return fmt.Errorf("更新托盘图标：%w", err)
+		}
+	}
+	t.icon = next
+	return nil
+}
+
 func (t *tray) quit() {
 	if t.closing {
 		return
@@ -227,6 +272,13 @@ func (t *tray) dispatch(hwnd uintptr, msg uint32, w, l uintptr) uintptr {
 		return 0
 	}
 	switch msg {
+	case wmSettingChange, wmThemeChanged:
+		if !t.closing && t.lightIcon != 0 {
+			if err := t.updateIcon(taskbarUsesLightTheme()); err != nil {
+				ShowError(err)
+			}
+		}
+		return 0
 	case 0x11:
 		return 1 // WM_QUERYENDSESSION: do not shut down if logoff is later canceled.
 	case 0x16: // WM_ENDSESSION: bound the OS callback while normal cleanup runs.
@@ -330,16 +382,16 @@ func (t *tray) showMenu() {
 	}
 }
 
-func makeIcon() (uintptr, error) {
+func makeIcon(light bool) (uintptr, error) {
 	size, _, _ := user32.NewProc("GetSystemMetrics").Call(49) // SM_CXSMICON, after DPI awareness is set.
 	if size == 0 {
 		size = 32
 	}
-	return makeIconAtSize(int(size))
+	return makeIconAtSize(int(size), light)
 }
 
-func makeIconAtSize(size int) (uintptr, error) {
-	data, err := branding.IconResource(size)
+func makeIconAtSize(size int, light bool) (uintptr, error) {
+	data, err := branding.IconResource(size, light)
 	if err != nil {
 		return 0, err
 	}

@@ -12,10 +12,17 @@
       "reason": "Runtime tray and browser icon, generated from the user-supplied internal/branding/logo.svg by scripts/generate-logo.mjs; required by ordinary offline Go builds."
     },
     {
+      "path": "internal/branding/logo-light.ico",
+      "kind": "product-icon",
+      "bytes": 55524,
+      "sha256": "c928971e92220abb9cc6e060aebc39f523bf0fed8fd1870ea23bf6f0b43d3161",
+      "reason": "Light-theme runtime tray and browser icon, generated from internal/branding/logo.svg by scripts/generate-logo.mjs; required by ordinary offline Go builds."
+    },
+    {
       "path": "internal/console/assets/webui/app.js",
       "kind": "large-text",
-      "bytes": 1126758,
-      "sha256": "09d2886d3defd7e312998d1be4eeea7e0d0e304b209be61370df5039aeb0d3e9",
+      "bytes": 1189094,
+      "sha256": "a20205844dc9e7574fc4762546811966477c8be5d23c9adbf5b581bfe635f23e",
       "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json."
     },
     {

@@ -154,3 +154,23 @@ Go 的页面启动数据、内嵌资源与搜索约束专项通过（`go-assets.
 恢复原有边界：开始加速复用既有网关与 hosts 接入，不更改独立队列的开关；托盘只启停网关，停止网关不恢复 hosts；网页、托盘和引导退出均使用原退出流程，不恢复 hosts。恢复直连仍是独立操作。旧的联动接口、调用、确认提示和依赖断言均已清理，文档与帮助同步说明独立操作。
 
 控制台与托盘 Go 整包回归通过，新增启用测试覆盖队列关闭及等待两种意图均不改变（`artifacts/ui-scope-rewrite/go.txt`）。Edge 整套首次为 **125 项通过、1 项失败**：恢复退出前的直连链接后，原键盘断言跳过了该链接；改为依次断言链接和退出按钮可达，定向复测 **1 项通过**（`browser.txt`、`browser/`、`keyboard-retry.txt`、`keyboard-retry/`）。其余 125 项结果继续适用，包含独立操作、条款恢复、六入口、VRCX、引导、时间轴及主题图标。类型、内嵌资源一致性与 Git 空白检查通过。测试只使用临时目录、内存 API 和 hosts 替身，未修改系统 hosts、未启动游戏，不新增实机待验项。
+
+## 2026-10-21 Logo 明暗主题
+
+在独立工作树中接入已确认的浅色第四版；现行配色、浏览器和托盘的主题来源见 [Fluent UI 约定](../fluent-ui-migration.md#页面排版)。SVG 共用图形，通过 media 样式切换；生成器明确选择两套样式，原深色 ICO 的字节数和 SHA256 完全不变。未修改主工作区正在进行的 UI／业务改动。
+
+- Edge 的 `branding.spec.ts` 与 `documents.spec.ts` 共 **6 项通过**。对真实浏览器中的 SVG 图像采样，核对浅→深→浅切换时背景、圆环、人物三处实际像素；同时确认页面 Logo 和标签页引用同一 SVG，覆盖 390/1280px 的浅／深文档页。已查看两种主题的页面截图；测试使用内存 API 夹具，页面内截图不等于浏览器标签栏截图。
+- Windows 原生图标解码通过深／浅两组各 10 种尺寸（含非原生 36px 和 PNG 大帧）。主题选择测试覆盖重复切换及 Shell 更新失败时保留原图标。以 `SWD_TEST_TRAY=1` 执行可选的真实 Shell 检查：创建临时托盘图标，调用实际 `NIM_MODIFY` 切换两套图标，向处理函数送入设置／主题通知，移除并模拟 `TaskbarCreated` 后验证按当前任务栏主题重建；结束后图标和窗口均清理。
+- 控制台启动数据、内嵌资源／访问保护专项、资源策略的 3 项 Node 回归、前端类型和重建一致性、两套 ICO 的 `--check`、相关 Go vet 及 `no_easytier` 桌面入口构建通过。前端业务源码和编译产物未发生变化。
+
+原始输出与截图保留在工作树的 `artifacts/theme-logo/`。首轮沙箱内托盘创建被拒绝，控制台临时配置重命名报 `The handle is invalid`；同一测试在沙箱外通过，失败日志 `tray-shell-first.txt`、`go-first.txt` 与通过日志 `go-final.txt` 均保留。pnpm 首次离线安装也遇沙箱 junction 权限限制，沙箱外使用同一锁文件离线安装通过。未修改 Windows 主题设置、未重启用户的 Explorer，故真实系统设置操作及所有浏览器标签栏的即时刷新尚未逐一实测；本轮已覆盖资源、浏览器 SVG 重绘和真实 Shell 更新接口，不新增 VRC 待验项。
+
+### 标签页图标固定深色的修复（2026-10-21）
+
+用户反馈标签页始终显示深色后，在主工作区补查浏览器的实际选择。使用独立 Edge 155.0.4283.62 配置复现旧 HTML：浅色偏好下同时声明 ICO 和自适应 SVG，浏览器最终在 `Favicons` 数据库记录的却是固定深色 `/favicon.ico`。上一轮页面内 SVG 的像素检查不能证明标签页选用了 SVG。现行实现只保留一个 favicon 链接，由已有页面主题状态切换 `/favicon-light.ico` 和 `/favicon.ico`，复用托盘的两份 ICO；页面 Logo 继续使用自适应 SVG，未改配色和托盘逻辑。
+
+- 图标浏览器回归通过：无 API 拦截的公共帮助页共用主题 Provider，检查浅→深→浅的唯一 favicon 地址、实际加载的 ICO 和页面 SVG 三处配色，以及刷新后的浅色图标。文档页的 5 项回归也通过。前端类型、重建一致性、离线资源哈希和 Git 空白检查通过。
+- 独立浏览器检查覆盖浅色冷启动、浅→深、深→浅，分别刷新后关闭专用配置，再读取浏览器实际保存的 favicon 映射及 32px PNG。三组地址和背景／圆环／人物配色均符合预期；32px 圆环存在抗锯齿，通道容差为 3，背景和人物与目标色完全一致。这比检查页面中的 `<img>` 多覆盖了浏览器的选择和栅格化；未逐一验证其他浏览器或真实系统主题设置操作。
+- Go 的页面启动数据、静态资源内容／响应头／Host 校验、条款前访问及条款专项通过，默认桌面入口构建通过（`artifacts/favicon-theme-fix/SWD.exe`）。两套 ICO 的字节未变化，生成资源仍以原 SVG 为唯一来源。
+
+证据位于忽略目录 `artifacts/favicon-theme-fix/`：`probe-before.txt` 记录旧实现的真实选择；`browser-verified.txt`、`browser-verified/` 和 `go-final.txt` 为通过结果；`verify-native.mjs`、`native-verified.txt`、`native-results.json` 与 `native-selected-*.png` 保存独立原生检查及位图。早期失败保留：`browser-first.txt` 为沙箱浏览器启动失败，`go-first.txt` 为临时配置重命名句柄无效；`browser-final.txt`、`browser-retry.txt` 含测试工具干扰及原生缓存检查超时。排查锁定版本的 Playwright 后确认，请求拦截会主动中止 `/favicon.ico`，故图标回归使用无需 API 拦截的公共文档；原生数据库核对改由独立脚本完成。`native-final.txt` 保留首次严格像素相等断言遇到 32px 抗锯齿的结果，复测采用上述明确容差。仅创建隔离测试配置和服务，结束后关闭；未改用户浏览器、系统主题或 hosts，不新增 VRC 待验项。

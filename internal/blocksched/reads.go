@@ -45,6 +45,7 @@ func (r *ReadRequests) Wait(block int64) func() {
 			s.reads[key] = make(map[*readWait]bool)
 		}
 		s.reads[key][w] = true
+		s.observationChanged()
 		if j := s.jobs[key]; j != nil && !j.retiring {
 			s.refresh(j)
 		}
@@ -95,6 +96,7 @@ func (s *state) endRead(w *readWait) {
 	key := r.Key(w.block)
 	delete(r.waits, w)
 	delete(s.reads[key], w)
+	s.observationChanged()
 	if len(s.reads[key]) == 0 {
 		delete(s.reads, key)
 	}

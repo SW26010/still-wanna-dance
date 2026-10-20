@@ -148,6 +148,7 @@ func (s *Server) retentionLoop() {
 // Called under retentionMu for every successful publication/removal, including
 // superseded and invalid files. Changes made during a scan override its results.
 func (s *Server) retainVideoLocked(key string, item *retainedVideo) {
+	s.notifyBlockObservation()
 	if s.retained == nil {
 		s.retained = make(map[string]retainedVideo)
 	}

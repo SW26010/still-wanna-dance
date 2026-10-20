@@ -11,6 +11,7 @@ func (s *Scheduler) CapacityChanged() <-chan struct{} {
 }
 
 func (s *state) capacityAvailable() {
+	s.observationChanged()
 	close(s.capacityChanged)
 	s.capacityChanged = make(chan struct{})
 }

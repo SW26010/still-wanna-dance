@@ -45,9 +45,17 @@ func (s *Server) startResourceUseLocked(v video) {
 	go s.coordinateResourceUse(u)
 }
 
+// Both Range and sequential downloads call this after a successful complete
+// block write. Observation is notified regardless of the reclamation policy.
+func (s *Server) notifyBlockStored() {
+	s.notifyBlockObservation()
+	s.requestBlockReclamation()
+}
+
 // Availability notifications share the existing wakeup, but do not change usage
 // or protection. Call after releasing retentionMu to preserve lock ordering.
 func (s *Server) notifyResourceAvailability() {
+	s.notifyBlockObservation()
 	s.mu.Lock()
 	// Offline cache deletion has no running coordinator to notify.
 	if s.capacityChanged != nil {

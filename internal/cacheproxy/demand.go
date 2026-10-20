@@ -259,6 +259,7 @@ func (s *Server) notifyCapacityLocked() {
 	s.armUseTimerLocked()
 	close(s.capacityChanged)
 	s.capacityChanged = make(chan struct{})
+	s.notifyBlockObservation()
 }
 
 func (s *Server) queueDemandContext(ctx context.Context, song string) context.Context {

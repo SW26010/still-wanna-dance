@@ -41,7 +41,7 @@ type downloadSession struct {
 
 func newDownloadSession(s *Server, ctx context.Context, v video, f *flight) *downloadSession {
 	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, wake: make(chan struct{}, 1), initialized: make(chan struct{}), jobs: make(map[int64]*scheduledBlock)}
-	w.reads = s.scheduler.NewReadRequests(v.key, func(block int64) string { return fmt.Sprintf("%s/%d/%d", w.v.key, w.v.size, block) }, w.wake)
+	w.reads = s.scheduler.NewReadRequests(v.key, func(block int64) string { return downloadTaskKey(w.v.key, w.v.size, block) }, w.wake)
 	return w
 }
 func (w *downloadSession) initialize(d *localResource) {

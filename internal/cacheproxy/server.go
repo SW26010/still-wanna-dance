@@ -79,6 +79,7 @@ type Server struct {
 	localChecks      chan struct{}
 	requests         *requestActivity
 	scheduler        *blocksched.Scheduler
+	blockObserver    atomic.Pointer[blockObserver] // allocated only while a visualization is subscribed
 	rangeBuffers     chan []byte
 	verifyMu         sync.Mutex
 	verified         map[string]*verifiedFile

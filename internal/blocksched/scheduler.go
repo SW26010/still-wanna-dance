@@ -226,6 +226,7 @@ type state struct {
 	closing             bool
 	control             controller
 	capacityChanged     chan struct{}
+	observers           map[chan<- struct{}]bool
 }
 
 func New(cfg Config) *Scheduler {
@@ -408,6 +409,7 @@ func (s *state) retire(j *job, err error) {
 		return
 	}
 	j.retiring, j.terminal = true, err
+	s.observationChanged()
 	for _, v := range j.needs {
 		s.removeLease(v)
 	}
@@ -433,6 +435,7 @@ func (s *state) finish(j *job, err error) {
 	notify(j.task.wake)
 }
 func (s *state) emit(kind, reason string, j *job) {
+	s.observationChanged()
 	if s.cfg.Observe == nil {
 		return
 	}

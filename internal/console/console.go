@@ -102,6 +102,7 @@ type Console struct {
 	httpsAddress        string
 	https               *httpsRelay
 	service             *cacheproxy.Server
+	blockEngineWaiters  map[chan struct{}]bool // lazy, only while a visible timeline awaits engine creation; mu
 	httpServer          *http.Server
 	videoListener       net.Listener
 	cdnError            string
@@ -452,6 +453,7 @@ func (c *Console) ensureEngine() error {
 	}
 	c.mu.Lock()
 	c.service = s
+	c.notifyBlockEngineLocked()
 	c.mu.Unlock()
 	return nil
 }
@@ -620,6 +622,7 @@ func (c *Console) BeginShutdown() {
 	c.lifecycleMu.Lock()
 	c.mu.Lock()
 	c.closing = true
+	c.notifyBlockEngineLocked()
 	if c.setupFolderCancel != nil {
 		c.setupFolderCancel()
 	}
@@ -925,6 +928,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, result)
+		return
+	}
+	if r.Method == "GET" && r.URL.Path == "/api/block-demands/events" {
+		c.serveBlockEvents(w, r)
 		return
 	}
 	if r.Method == "GET" && r.URL.Path == "/api/setup/network/calibration/events" {

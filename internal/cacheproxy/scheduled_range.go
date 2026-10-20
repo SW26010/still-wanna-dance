@@ -129,7 +129,7 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 			if _, err := sp.WriteAt((*buffer)[:end-start], start); err != nil {
 				return err
 			}
-			s.requestBlockReclamation()
+			s.notifyBlockStored()
 		}
 		download.finish(block)
 		progress.Ready()

@@ -354,7 +354,7 @@ func (s *Server) readSequential(ctx context.Context, src io.Reader, v video, fli
 		if _, err := sp.WriteAt(buffer[:size], block*rangeBlockSize); err != nil {
 			return err
 		}
-		s.requestBlockReclamation()
+		s.notifyBlockStored()
 	}
 	return nil
 }

@@ -21,23 +21,30 @@ func serveSetupEvents(w http.ResponseWriter, r *http.Request, event string, snap
 	controller := http.NewResponseController(w)
 	for {
 		s := snapshot()
-		body, err := json.Marshal(s.state)
-		if err != nil {
+		if err := writeServerEvent(w, controller, event, s.revision, s.state); err != nil || s.closed {
 			return
 		}
-		// A slow/disconnected browser must never hold shutdown or measurement.
-		_ = controller.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		if _, err = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", s.revision, event, body); err != nil {
-			return
-		}
-		if err = controller.Flush(); err != nil || s.closed {
-			return
-		}
-		_ = controller.SetWriteDeadline(time.Time{})
 		select {
 		case <-r.Context().Done():
 			return
 		case <-s.changed:
 		}
 	}
+}
+
+// Event serialization and socket writes are always outside producer locks.
+func writeServerEvent(w http.ResponseWriter, controller *http.ResponseController, event string, revision uint64, state any) error {
+	body, err := json.Marshal(state)
+	if err != nil {
+		return err
+	}
+	_ = controller.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	if _, err = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", revision, event, body); err != nil {
+		return err
+	}
+	if err = controller.Flush(); err != nil {
+		return err
+	}
+	_ = controller.SetWriteDeadline(time.Time{})
+	return nil
 }

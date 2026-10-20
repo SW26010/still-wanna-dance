@@ -217,23 +217,23 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	refreshErr := c.refreshLocalCatalog(ctx, s)
 	local, release, err := s.ReadLocalCatalog(ctx)
 	defer release()
+	c.mu.Lock()
+	if refreshErr != nil {
+		c.batch.CatalogWarning = refreshErr.Error()
+	}
+	if err == nil && local.Status.Revision != "" && len(local.Songs) > 0 {
+		c.batch.Catalog = local.Status
+	}
+	c.mu.Unlock()
 	if err != nil {
 		fail("读取本地清单失败：" + err.Error())
 		return
 	}
 	if local.Status.Revision == "" || len(local.Songs) == 0 {
-		message := "本地尚无有效 MD5 清单，无法开始处理"
-		if refreshErr != nil {
-			message += "：" + refreshErr.Error()
-		}
-		fail(message)
+		fail("暂无可用的歌曲清单，未开始本地检查。请重试在线更新。")
 		return
 	}
 	c.mu.Lock()
-	c.batch.Catalog = local.Status
-	if refreshErr != nil {
-		c.batch.CatalogWarning = "远端检查失败，使用本地清单：" + refreshErr.Error()
-	}
 	c.batch.Phase = "正在检查本地清单与本地视频文件"
 	c.mu.Unlock()
 	songs := local.Songs
@@ -410,7 +410,7 @@ dispatch:
 	if c.batch.Failed > 0 {
 		c.batch.Phase = "检查完成，部分歌曲失败；再次检查可重试"
 	} else if scanOnly {
-		c.batch.Phase = "MD5 文件检查完成；可通过下载补齐获取缺失资源"
+		c.batch.Phase = "本地检查完成；可通过下载补齐获取缺失视频"
 	} else {
 		c.batch.Phase = "所有已知歌曲已处理完成；同 MD5 共用一份视频"
 	}

@@ -71,7 +71,7 @@ test('diagnostic gauge preserves thresholds and stays readable in narrow theme v
   for (const [ratio,label] of [[0,'不可用'],[1,'不可用'],[2,'不稳定'],[2.01,'可用'],[256,'可用'],[512,'可用']] as const) {
     Object.assign(api.diagnostics.calibration, {revision:++api.diagnostics.calibration.revision,run:1,phase:'completed',singleSpeedBPS:500000,fullSpeedBPS:ratio*2000000/8,fullConcurrency:8});
     await api.emit('calibration');
-    const gauge=page.getByRole('group', {name:`满路 ${ratio.toFixed(2)} 倍，${label}`,exact:true});
+    const gauge=page.getByRole('group', {name:`多连接 ${ratio.toFixed(2)} 倍，${label}`,exact:true});
     await expect(gauge).toBeVisible();
     await expect(gauge.locator('.fui-gc__root')).toBeVisible();
     await expect(gauge.getByRole('option',{name:'≤1 倍不可用',exact:true})).toBeVisible();
@@ -82,7 +82,7 @@ test('diagnostic gauge preserves thresholds and stays readable in narrow theme v
   }
   for (const theme of ['light','dark','forced'] as const) {
     await page.emulateMedia({colorScheme:theme==='dark'?'dark':'light',forcedColors:theme==='forced'?'active':'none',reducedMotion:'reduce'});
-    await expect(page.getByRole('button', {name:'开始CF 并发测速'})).toBeEnabled();
+    await expect(page.getByRole('button', {name:'开始下载速度测试'})).toBeEnabled();
     await page.screenshot({path:info.outputPath(`diagnostics-${theme}.png`),fullPage:true,animations:'disabled'});
   }
   expect(api.calls.some(c=>c.path.endsWith('/start'))).toBe(false);
@@ -106,7 +106,7 @@ test('standard gauge distinguishes live samples, missing samples and restored re
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:info.outputPath('gauge-live.png'),fullPage:true,animations:'disabled'});
   Object.assign(api.diagnostics.calibration,{revision:3,running:false,phase:'canceled'});await api.emit('calibration');
-  await expect(page.getByRole('group',{name:'满路 8.00 倍，可用',exact:true})).toBeVisible();
+  await expect(page.getByRole('group',{name:'多连接 8.00 倍，可用',exact:true})).toBeVisible();
   await expect(page.getByText('已恢复上次结果',{exact:true})).toBeVisible();
   expect(api.calls.some(c=>c.path.endsWith('/start'))).toBe(false);
 });

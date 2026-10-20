@@ -138,6 +138,6 @@ test('320px forced-colors layout keeps every console page usable',async({page})=
   }
   await page.getByRole('link',{name:'重新打开使用引导'}).click();
   await navigateStep(page,'3. 网络');
-  await expect(page.getByRole('button',{name:'开始CF 并发测速'})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'开始下载速度测试'})).toBeEnabled();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });

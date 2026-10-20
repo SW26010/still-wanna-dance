@@ -8,7 +8,7 @@ export interface Settings {
 export interface Job {
   running?: boolean; scanOnly?: boolean; phase?: string; error?: string; total?: number; checked?: number;
   hits?: number; downloaded?: number; missing?: number; reused?: number; failed?: number; current?: string;
-  updated?: string; budgetReached?: boolean; catalogWarning?: string; failures?: { id: number; name: string; error: string }[];
+  updated?: string; budgetReached?: boolean; catalogWarning?: string; catalog?: {revision?:string}; failures?: { id: number; name: string; error: string }[];
 }
 export interface ImportJob extends Job {
   id?: number; imported?: number; skipped?: number; deleted?: number; cleanupAvailable?: boolean;

@@ -224,7 +224,7 @@ func TestMD5CatalogInvalidChecksumDoesNotChangeMappings(t *testing.T) {
 	done := c.batchDone
 	c.mu.Unlock()
 	<-done
-	if !strings.Contains(c.batch.Phase, "无效") || c.batch.Total != 0 {
+	if !strings.Contains(c.batch.CatalogWarning, "无效") || c.batch.Total != 0 {
 		t.Fatal(c.batch)
 	}
 }
@@ -285,18 +285,57 @@ func TestCatalogFailureUsesOnlyLocalFallback(t *testing.T) {
 					case <-time.After(5 * time.Second):
 						t.Fatal("batch stalled")
 					}
+					if c.batch.CatalogWarning == "" || strings.Contains(c.batch.Phase, c.batch.CatalogWarning) {
+						t.Fatal("catalog errors must remain separate from local task phase", c.batch)
+					}
 					if forbidden.Load() != 0 {
 						t.Fatal("queried Udon or resolved a cached resource", forbidden.Load())
 					}
 					if cached {
-						if c.batch.Total != 2 || c.batch.Hits != 2 || c.batch.Failed != 0 || c.batch.CatalogWarning == "" {
+						if c.batch.Total != 2 || c.batch.Hits != 2 || c.batch.Failed != 0 || c.batch.CatalogWarning == "" || c.batch.Catalog.Revision == "" || c.lastBatch.Updated.IsZero() {
 							t.Fatal(c.batch)
 						}
-					} else if c.batch.Total != 0 || !strings.Contains(c.batch.Phase, "本地尚无有效 MD5 清单") {
+					} else if c.batch.Total != 0 || !strings.Contains(c.batch.Phase, "暂无可用的歌曲清单") {
 						t.Fatal(c.batch)
 					}
 				})
 			}
 		}
+	}
+}
+
+func TestCatalogRetryReplacesFallbackWarning(t *testing.T) {
+	c := testConsole(t)
+	defer c.Close()
+	var online atomic.Bool
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !online.Load() {
+			http.Error(w, "offline", http.StatusServiceUnavailable)
+			return
+		}
+		writeTestMD5Catalog(w, map[int]string{1: "old song", 2: "new song"})
+	}))
+	defer api.Close()
+	c.checksumURL, c.client.Transport = api.URL, http.DefaultTransport
+	cfg := fixtureCacheConfig()
+	cfg.StorageDir = c.settings.StorageDir
+	engine, err := cacheproxy.New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.service = engine
+	if err := syncTestCatalog(c, engine, context.Background(), map[string]string{"1": strings.Repeat("a", 32)}); err != nil {
+		t.Fatal(err)
+	}
+	waitMD5Batch(t, c, true)
+	if c.batch.CatalogWarning == "" || c.lastBatch.Total != 1 {
+		t.Fatal("expected completed local check using existing catalog", c.batch)
+	}
+	previous := c.lastBatch.Updated
+	online.Store(true)
+	waitMD5Batch(t, c, true)
+	if c.batch.CatalogWarning != "" || c.batch.Total != 2 || c.batch.Missing != 2 ||
+		c.lastBatch.CatalogWarning != "" || !c.lastBatch.Updated.After(previous) || c.batch.Downloaded != 0 {
+		t.Fatal("retry did not replace fallback result with fresh catalog check", c.batch)
 	}
 }

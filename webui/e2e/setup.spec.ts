@@ -62,20 +62,21 @@ test('manual SSE diagnostics restore saved results when cancellation is confirme
   Object.assign(api.diagnostics.calibration,{lastValid:{direct:{singleSpeedBPS:500000,fullSpeedBPS:2000000,fullConcurrency:8,fullCPUPercent:3,cpuP95Percent:5,cpuP99Percent:16.58,referenceBitrateBPS:2000000}}});
   await api.emit('calibration');
   await page.goto('/#/setup');await navigateStep(page,'3. 网络');
-  await expect(page.getByRole('button',{name:'开始CF 并发测速'})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'开始下载速度测试'})).toBeEnabled();
   await expect(page.getByText('16.00 Mbps',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'测速技术详情',exact:true}).click();
   const cpu=page.getByText('CPU 使用率：',{exact:false});
   await expect(cpu).toHaveText('CPU 使用率：平均 3.00% · p95 5.00%');
   await expect(page.getByLabel('正式下载全程的 CPU P95，不含视频准备')).toBeVisible();
-  await page.getByRole('button',{name:'开始CF 并发测速'}).click();
-  await expect(page.getByRole('button',{name:'停止并放弃CF 并发测速'})).toBeEnabled();
+  await page.getByRole('button',{name:'开始下载速度测试'}).click();
+  await expect(page.getByRole('button',{name:'停止并放弃下载速度测试'})).toBeEnabled();
   Object.assign(api.diagnostics.calibration,{revision:3,fullCPUPercent:2,cpuP95Percent:4.89,cpuP99Percent:16.58});await api.emit('calibration');
   await expect(cpu).toHaveText('CPU 使用率：平均 2.00% · p95 4.89%');
   await page.route('**/api/setup/network/calibration/cancel',async r=>{Object.assign(api.diagnostics.calibration,{revision:10,running:false,phase:'canceled'});await api.emit('calibration');await r.abort();});
-  await page.getByRole('button',{name:'停止并放弃CF 并发测速'}).click();
+  await page.getByRole('button',{name:'停止并放弃下载速度测试'}).click();
   await expect(page.getByText('16.00 Mbps',{exact:true})).toBeVisible();
   await expect(cpu).toHaveText('CPU 使用率：平均 3.00% · p95 5.00%');
-  await expect(page.getByRole('button',{name:'开始CF 并发测速'})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'开始下载速度测试'})).toBeEnabled();
   expect(api.calls.filter(c=>c.path==='setup/network/calibration/start')).toHaveLength(1);
 });
 test('diagnostic upstream and completed results survive wizard step changes',async({page})=>{
@@ -91,8 +92,8 @@ test('diagnostic upstream and completed results survive wizard step changes',asy
   await expect(page.getByRole('button',{name:'停止并放弃连通性检测'})).toBeEnabled();
   Object.assign(api.diagnostics.connectivity,{revision:3,running:false,phase:'completed',results:proxyConnection,lastValid:{direct:directConnection,proxy:proxyConnection}});
   await api.emit('connectivity');
-  await page.getByRole('button',{name:'开始CF 并发测速'}).click();
-  await expect(page.getByRole('button',{name:'停止并放弃CF 并发测速'})).toBeEnabled();
+  await page.getByRole('button',{name:'开始下载速度测试'}).click();
+  await expect(page.getByRole('button',{name:'停止并放弃下载速度测试'})).toBeEnabled();
   Object.assign(api.diagnostics.calibration,{revision:3,running:false,phase:'completed',...proxySpeed,lastValid:{direct:directSpeed,proxy:proxySpeed}});
   await api.emit('calibration');await expect(upstream).toBeEnabled();
   await expect(page.getByText('16.00 Mbps',{exact:true})).toBeVisible();

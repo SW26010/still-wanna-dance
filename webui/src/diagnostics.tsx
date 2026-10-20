@@ -3,7 +3,7 @@ import { Button, Field, Select, Spinner, Tooltip, Text, Caption1, tokens } from 
 import { GaugeChart } from '@fluentui/react-charts';
 import { Play20Filled, Stop20Filled } from '@fluentui/react-icons';
 import { request } from './api';
-import { Feedback, Panel } from './ui';
+import { Details, Feedback, Panel } from './ui';
 
 interface EventState { revision: number; run: number; upstream: string; running: boolean; closed?: boolean; phase: string }
 interface ConnectionResult {operation:string;state:string;latencyMS?:number | null}
@@ -70,12 +70,13 @@ function Speed({state:s,upstream,discard}: {state?:Calibration;upstream:string;d
   const ratio=valid(speed) && (result.referenceBitrateBPS || 0)>0 ? speed*8/result.referenceBitrateBPS! : undefined;
   const usable=valid(ratio) && (result!==s || ['running','completed'].includes(s?.phase || ''));
   const advice=usable?(ratio>2?'可用':ratio>1?'不稳定':'不可用'):'', maximum=Math.max(3,Math.ceil(ratio || 0));
-  const stages:Record<string,string>={single_warmup:'单路预热…',single:'单路测速…',ramping:'逐渐增加并发…',full_warmup:'满路预热…',full:'满路测速…',complete:'正在结束…'};
-  const label = !matches ? previous?'上次有效结果':'尚未测速' : canceled ? s?.running?'正在停止…':s?.phase==='failed'?previous?'未完成，保留上次结果':'测速未完成':previous?'已恢复上次结果':'已放弃检测' : s?.phase==='preparing'?'准备视频…'+(s.preparationProgress?` ${s.preparationProgress}%`:''): s?.running?stages[s.measurementStage || ''] || '测速中…':complete?'测速完成':s?.phase==='completed'?'样本不足':previous?'上次有效结果':'尚未测速';
-  return <><p role="status">{label}{s?.reason==='preparation_insufficient' && ' · 视频准备不足，请重试'}</p>
-    <div className="metrics"><div>单路速度 <output><Text block size={600} font="numeric">{metric(single,8/1e6)} Mbps</Text></output></div><div>满路速度（{(live?s.open:result.fullConcurrency) || '—'} 并发）<output><Text block size={600} font="numeric">{metric(full,8/1e6)} Mbps</Text></output></div></div>
-    <p>CPU 使用率：<span aria-label="满路稳定采样阶段的平均 CPU 使用率">平均</span> <output>{metric(result.fullCPUPercent)}%</output> · <span aria-label="正式下载全程的 CPU P95，不含视频准备">p95</span> <output>{metric(result.cpuP95Percent)}%</output></p>
-    {usable ? <div role="group" aria-label={`${live?'当前':'满路'} ${metric(ratio)} 倍，${advice}${live?'（测量中）':''}`}>
+  const stages:Record<string,string>={single_warmup:'单连接预热…',single:'单连接测速…',ramping:'逐渐增加连接…',full_warmup:'多连接预热…',full:'多连接测速…',complete:'正在结束…'};
+  const label = !matches ? previous?'上次有效结果':'尚未测速' : canceled ? s?.running?'正在停止…':s?.phase==='failed'?previous?'未完成，保留上次结果':'测速未完成':previous?'已恢复上次结果':'已放弃检测' : s?.phase==='preparing'?'准备在线测速样本…'+(s.preparationProgress?` ${s.preparationProgress}%`:''): s?.running?stages[s.measurementStage || ''] || '测速中…':complete?'测速完成':s?.phase==='completed'?'样本不足':previous?'上次有效结果':'尚未测速';
+  return <><p role="status">{label}</p>
+    {matches && s?.phase==='failed' && s.reason==='preparation_insufficient' && <Feedback error>未能取得足够的在线测速样本。请先运行连通性检测，检查歌曲列表、播放地址和视频下载；连接正常后可重试测速。无需导入本地视频或修改存储预算。<Details title="测速样本说明"><p>测速从在线曲库解析可下载的视频地址，样本数量与总大小都需达到要求。网络请求失败、有效曲目不足或准备超时都可能导致本次未完成；连通性检测通过也不保证样本足够。</p></Details></Feedback>}
+    <div className="metrics"><div>单连接速度 <output><Text block size={600} font="numeric">{metric(single,8/1e6)} Mbps</Text></output></div><div>多连接速度<output><Text block size={600} font="numeric">{metric(full,8/1e6)} Mbps</Text></output></div></div>
+    <Details title="测速技术详情"><p>使用 CF 播放地址接口解析视频，分别测量单连接与多连接下载速度。并发连接数：{(live?s.open:result.fullConcurrency) || '—'}。</p><p>CPU 使用率：<span aria-label="多连接稳定采样阶段的平均 CPU 使用率">平均</span> <output>{metric(result.fullCPUPercent)}%</output> · <span aria-label="正式下载全程的 CPU P95，不含视频准备">p95</span> <output>{metric(result.cpuP95Percent)}%</output></p></Details>
+    {usable ? <div role="group" aria-label={`${live?'当前':'多连接'} ${metric(ratio)} 倍，${advice}${live?'（测量中）':''}`}>
       <GaugeChart chartValue={ratio} maxValue={maximum} chartValueFormat={()=>metric(ratio)+'×'} sublabel={advice}
         segments={[
           {legend:'不可用',size:1,color:tokens.colorPaletteRedBackground3,accessibilityData:{ariaLabel:'≤1 倍不可用'}},
@@ -102,5 +103,5 @@ export function Diagnostics({visible,proxy,upstream,onUpstreamChange}: {visible:
     <Panel title="连通性检测" action={button('connectivity','连通性检测')}><div><span role="status">{connectivity.intent==='start'?'正在启动…':discard?c?.running?'正在停止…':'已恢复上次结果':''}</span></div>
       <div className="diagnostic-rows">{[['catalog','歌曲列表'],['playback_url','播放地址'],['resource','视频下载']].map(([op,label])=>{const row=rows.find(r=>r.operation===op);return <p key={op}>{row?.state==='checking'&&<Spinner size="tiny"/>}{label}：{({available:'可连接',failed:'连接失败',skipped:'未检测（前项未通过）',checking:'检测中'}[row?.state || ''] || (c?.running&&matching&&!discard?'等待检测':'尚未检测'))}{valid(row?.latencyMS)&&` · 估计响应时间 ${Math.round(row.latencyMS)} ms`}</p>;})}</div>
       <Caption1 as="p">估计响应时间包含历史成功样本，表示首字节响应的平均耗时，不代表本轮检测用时。</Caption1><Feedback>{connectivity.message}</Feedback>
-    </Panel><Panel title="CF 并发测速" action={button('calibration','CF 并发测速')}><Speed state={calibration.state} upstream={upstream} discard={calibration.intent==='cancel'} /><Feedback>{calibration.message}</Feedback></Panel></>;
+    </Panel><Panel title="下载速度测试" action={button('calibration','下载速度测试')}><Speed state={calibration.state} upstream={upstream} discard={calibration.intent==='cancel'} /><Feedback>{calibration.message}</Feedback></Panel></>;
 }

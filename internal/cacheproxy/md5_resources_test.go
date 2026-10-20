@@ -113,21 +113,22 @@ func TestMD5ReferenceSnapshotCatalogUpdatesAndMissing(t *testing.T) {
 
 func TestMD5PlaybackImmediatelyReturnsAndMismatchOnlyLogs(t *testing.T) {
 	var downloads atomic.Int32
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); io.WriteString(w, payload) })
+	started, finish := make(chan struct{}), make(chan struct{})
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); io.WriteString(w, payload) }, func(cfg *Config) {
+		cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
+			close(started)
+			select {
+			case <-finish:
+				return videoURL("new different data"), nil
+			case <-ctx.Done():
+				return "", ctx.Err()
+			}
+		}
+	})
 	ctx := context.Background()
 	key := parsedVideo(t, s, payload).key
 	if _, err := s.PrefetchSong(ctx, "42", videoURL(payload)); err != nil {
 		t.Fatal(err)
-	}
-	started, finish := make(chan struct{}), make(chan struct{})
-	s.cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
-		close(started)
-		select {
-		case <-finish:
-			return videoURL("new different data"), nil
-		case <-ctx.Done():
-			return "", ctx.Err()
-		}
 	}
 	done := make(chan struct{})
 	go func() {

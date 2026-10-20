@@ -26,7 +26,7 @@ func videoURL(body string) string {
 	return fmt.Sprintf("http://play.udon.dance/files/2403/1344-660524b4ebadb.mp4?e=%x&s=%d", md5.Sum([]byte(body)), len(body))
 }
 
-func setup(t *testing.T, handler http.HandlerFunc) (*Server, Config) {
+func setup(t *testing.T, handler http.HandlerFunc, configure ...func(*Config)) (*Server, Config) {
 	t.Helper()
 	upstream := httptest.NewServer(handler)
 	t.Cleanup(upstream.Close)
@@ -36,6 +36,9 @@ func setup(t *testing.T, handler http.HandlerFunc) (*Server, Config) {
 	cfg.Logger = slog.New(slog.NewTextHandler(testLogWriter{t}, nil))
 	for h := range cfg.Origins {
 		cfg.Origins[h] = strings.TrimPrefix(upstream.URL, "http://")
+	}
+	for _, apply := range configure {
+		apply(&cfg)
 	}
 	s, err := New(cfg)
 	if err != nil {

@@ -221,15 +221,16 @@ func TestSongLoadingFailedCacheReusesPendingQuery(t *testing.T) {
 }
 
 func TestQueueLocalHitDoesNotWaitForAPI(t *testing.T) {
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+	started := make(chan struct{})
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) }, func(cfg *Config) {
+		cfg.ResolvePlayback = func(ctx context.Context, _, _ string) (string, error) {
+			close(started)
+			<-ctx.Done()
+			return "", ctx.Err()
+		}
+	})
 	if _, err := s.PrefetchSong(context.Background(), "42", videoURL(payload)); err != nil {
 		t.Fatal(err)
-	}
-	started := make(chan struct{})
-	s.cfg.ResolvePlayback = func(ctx context.Context, _, _ string) (string, error) {
-		close(started)
-		<-ctx.Done()
-		return "", ctx.Err()
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()

@@ -139,13 +139,18 @@ func TestUpstreamDialFailureNeverFallsBack(t *testing.T) {
 
 func TestPlaybackAPIStreamsAndReusesVideoCache(t *testing.T) {
 	var downloads atomic.Int32
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); io.WriteString(w, payload) })
-	s.cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
-		if id != "42" || node != "cf" {
-			t.Errorf("id=%s node=%s", id, node)
+	var invalidRedirect atomic.Bool
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); io.WriteString(w, payload) }, func(cfg *Config) {
+		cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
+			if invalidRedirect.Load() {
+				return "https://evil.invalid/video", nil
+			}
+			if id != "42" || node != "cf" {
+				t.Errorf("id=%s node=%s", id, node)
+			}
+			return strings.Replace(videoURL(payload), "http:", "https:", 1), nil
 		}
-		return strings.Replace(videoURL(payload), "http:", "https:", 1), nil
-	}
+	})
 	target := "http://api.udon.dance/Api/Songs/play?id=42&node=cf"
 	assertResponse(t, request(s, "GET", target, nil), 200, payload)
 	assertResponse(t, request(s, "GET", target, map[string]string{"Range": "bytes=2-5"}), 206, payload[2:6])
@@ -159,7 +164,7 @@ func TestPlaybackAPIStreamsAndReusesVideoCache(t *testing.T) {
 			t.Errorf("%s: %d", query, w.Code)
 		}
 	}
-	s.cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return "https://evil.invalid/video", nil }
+	invalidRedirect.Store(true)
 	assertResponse(t, request(s, "GET", target, nil), 200, payload)
 	if w := request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=43", nil); w.Code != 502 {
 		t.Fatal("unknown song accepted invalid redirect", w.Code)

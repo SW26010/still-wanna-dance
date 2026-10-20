@@ -1,0 +1,221 @@
+package console
+
+import (
+	"bufio"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"os"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"still-wanna-dance/internal/legal"
+)
+
+const hostsReplyTimeout = 10 * time.Second
+
+// The protocol has no paths, file contents or executable commands. Both modes
+// use the same session; only the cleanup policy differs.
+type hostsRequest struct {
+	Action        string `json:"action"`
+	RestoreOnExit bool   `json:"restoreOnExit"`
+	TermsVersion  string `json:"termsVersion,omitempty"`
+}
+
+type hostsReply struct {
+	Error string `json:"error,omitempty"`
+}
+
+type hostsConnection interface {
+	request(hostsRequest) error
+	close() error
+}
+
+// Serialized by Console.lifecycleMu, independently of ordinary status reads.
+type hostsController struct {
+	path     string
+	launch   func(context.Context) (hostsConnection, error)
+	session  hostsConnection
+	ctx      context.Context
+	cancel   context.CancelFunc
+	closed   bool
+	err      error
+	prepared atomic.Bool // published only after the helper acknowledges enable
+}
+
+func newHostsController(path string, launch func(context.Context) (hostsConnection, error)) *hostsController {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &hostsController{path: path, launch: launch, ctx: ctx, cancel: cancel}
+}
+
+func (h *hostsController) change(action string, restore bool) error {
+	if h.closed || h.ctx.Err() != nil {
+		return errors.New("控制台正在退出")
+	}
+	data, err := os.ReadFile(h.path)
+	if err != nil {
+		return err
+	}
+	next, err := transformHosts(string(data), action)
+	if err != nil {
+		return err
+	}
+	// An existing owned mapping still needs an authorized cleanup session in
+	// default mode. User/other-tool mappings are never adopted or removed.
+	needsRestore := action == "enable" && restore && hasManagedHosts(string(data))
+	if next == string(data) && !needsRestore {
+		return nil
+	}
+	if h.session == nil {
+		h.session, err = h.launch(h.ctx)
+		if err != nil {
+			return err
+		}
+	}
+	err = h.session.request(hostsRequest{Action: action, RestoreOnExit: restore, TermsVersion: legal.Version})
+	h.prepared.Store(err == nil && action == "enable" && restore)
+	return err
+}
+
+func (h *hostsController) close() error {
+	if h.closed {
+		return h.err
+	}
+	h.closed = true
+	h.cancel()
+	if h.session != nil {
+		// Never launch, reconnect, or retry elevation from this path.
+		h.err = errors.Join(h.session.request(hostsRequest{Action: "close"}), h.session.close())
+	}
+	return h.err
+}
+
+func hasManagedHosts(data string) bool {
+	for _, m := range managedMarkers {
+		// Also recognize edited owned entries so failure is reported rather
+		// than silently treating them as restored.
+		if strings.Contains(data, m) {
+			return true
+		}
+	}
+	return false
+}
+
+type hostsClient struct {
+	conn   net.Conn
+	scan   *bufio.Scanner
+	wait   func() error
+	once   sync.Once
+	err    error
+	failed error // an uncertain exchange permanently retires this stream
+}
+
+func newHostsClient(conn net.Conn, wait func() error) *hostsClient {
+	return &hostsClient{conn: conn, scan: hostsScanner(conn), wait: wait}
+}
+
+func hostsScanner(r io.Reader) *bufio.Scanner {
+	s := bufio.NewScanner(r)
+	s.Buffer(make([]byte, 4096), 4096)
+	return s
+}
+
+func (c *hostsClient) request(request hostsRequest) error {
+	if c.failed != nil {
+		return c.failed
+	}
+	fail := func(err error) error {
+		c.failed = err
+		_ = c.conn.Close() // Also releases the helper's crash-cleanup path.
+		return err
+	}
+	_ = c.conn.SetDeadline(time.Now().Add(hostsReplyTimeout))
+	if err := json.NewEncoder(c.conn).Encode(request); err != nil {
+		return fail(fmt.Errorf("hosts 助手连接已中断，请重新打开应用后修复游戏连接：%w", err))
+	}
+	if !c.scan.Scan() {
+		return fail(fmt.Errorf("hosts 助手未确认操作结果，请重新打开应用后检查游戏连接：%w", errors.Join(io.ErrUnexpectedEOF, c.scan.Err())))
+	}
+	var reply hostsReply
+	if err := json.Unmarshal(c.scan.Bytes(), &reply); err != nil {
+		return fail(err)
+	}
+	if reply.Error != "" {
+		return errors.New(reply.Error)
+	}
+	return nil
+}
+
+func (c *hostsClient) close() error {
+	c.once.Do(func() {
+		_ = c.conn.Close()
+		if c.wait != nil {
+			c.err = c.wait()
+		}
+	})
+	return c.err
+}
+
+// Only the internal helper entry point supplies the real system path. Tests
+// exercise this same loop with private files and unprivileged child processes.
+// EOF also runs cleanup, covering a main-process crash while the helper lives.
+func serveHostsSession(conn net.Conn, path string, flush func()) (result error) {
+	defer conn.Close()
+	restore := false
+	apply := func(action string) error {
+		err := applyHosts(path, action)
+		if err == nil {
+			flush()
+		}
+		return err
+	}
+	defer func() {
+		if restore {
+			result = errors.Join(result, apply("disable"))
+		}
+	}()
+	scan := hostsScanner(conn)
+	for scan.Scan() {
+		var request hostsRequest
+		if err := json.Unmarshal(scan.Bytes(), &request); err != nil {
+			return err
+		}
+		var err error
+		switch request.Action {
+		case "enable":
+			if err = legal.CheckAcceptance(request.TermsVersion); err == nil {
+				restore = request.RestoreOnExit
+				err = apply("enable")
+			}
+		case "disable":
+			err = apply("disable")
+			if err == nil {
+				restore = false
+			}
+		case "close":
+			if restore {
+				err = apply("disable")
+			}
+			restore = false // Report this result; do not silently retry after ack.
+		default:
+			err = errors.New("不支持的 hosts 助手操作")
+		}
+		reply := hostsReply{}
+		if err != nil {
+			reply.Error = err.Error()
+		}
+		_ = conn.SetWriteDeadline(time.Now().Add(hostsReplyTimeout))
+		if writeErr := json.NewEncoder(conn).Encode(reply); writeErr != nil {
+			return errors.Join(err, writeErr)
+		}
+		if request.Action == "close" {
+			return err
+		}
+	}
+	return scan.Err()
+}

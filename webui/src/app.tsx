@@ -9,7 +9,7 @@ import { Cache } from './cache';
 import { Network } from './network';
 import { Setup } from './setup';
 import { bootstrap } from './bootstrap';
-import { accelerationLabel } from './types';
+import { accelerationLabel, exitConnectionMessage } from './types';
 
 const pages = {home:'游戏加速',library:'下载管理',cache:'本地视频',network:'网络与代理',settings:'设置',setup:'使用引导',...documentPages};
 type Page = keyof typeof pages;
@@ -75,7 +75,7 @@ export function App() {
       </>}
       {isDocumentPage(page)&&<DocumentContent page={page} paths={s?{...bootstrap.paths,Storage:s.activeSettings.storageDir}:bootstrap.paths} onAction={model.refresh}/>}
       {page==='setup'&&<Setup accepted={accepted} onAccepted={()=>setAccepted(true)} onExit={exitSetup} guard={guard} feedback={feedback}/>}
-    </main><footer hidden={page==='setup'||documentPage}><p>关闭网页后程序仍在后台运行。退出不会恢复 hosts，停用接入请先<Link href="#service">恢复游戏直连</Link>。</p><Button disabled={model.unavailable} onClick={() => void model.action('exit')}>退出整个应用</Button></footer>
+    </main><footer hidden={page==='setup'||documentPage}><p>关闭网页后程序仍在后台运行。{exitConnectionMessage(s)} <Link href="#service">管理游戏接入</Link></p><Button disabled={model.unavailable} onClick={() => void model.action('exit')}>退出整个应用</Button></footer>
     <DocumentFooter page={page}/>
     </NavigationLayout>{model.dialog}
   </div></ConsoleContext.Provider>;

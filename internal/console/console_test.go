@@ -27,6 +27,7 @@ func testConsole(t *testing.T) *Console {
 	if err != nil {
 		t.Fatal(err)
 	}
+	c.hosts, _ = fixtureHostsController(t, hostsBaseline)
 	c.checksumURL = ""
 	if err := c.acceptTerms(); err != nil {
 		t.Fatal(err)

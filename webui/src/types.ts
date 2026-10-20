@@ -3,7 +3,7 @@ export interface Settings {
   storageDir: string; maxCacheBytes: number; videoStorageMode: 'none' | 'limited' | 'unlimited'; requestRetentionDays: number; throughputIntervalMinutes: number;
   prepareAheadSeconds: number; downloadSoftLimit: number; downloadGrowIntervalMS: number; localProtectionGraceSeconds: number; downloadUpstream: string; upstreamMode: string;
   proxyBackend: string; socks5Address: string; socks5Username: string; socks5Password?: string;
-  autoStartCDN: boolean; autoStartQueue: boolean; manualLogDir: boolean; logDir: string;
+  autoStartCDN: boolean; autoStartQueue: boolean; restoreHostsOnExit: boolean; manualLogDir: boolean; logDir: string;
 }
 export interface Job {
   running?: boolean; scanOnly?: boolean; phase?: string; error?: string; total?: number; checked?: number;
@@ -32,7 +32,7 @@ export interface Health {
 }
 export interface Status {
   running: boolean; settings: Settings; activeSettings: Settings; restartRequired: boolean;
-  hosts: {ready: boolean; needsMigration?: boolean; conflict?: boolean; message: string}; portOK: boolean; httpsPortOK: boolean;
+  hosts: {ready: boolean; managed?: boolean; exitRestorePrepared?: boolean; needsMigration?: boolean; conflict?: boolean; message: string}; portOK: boolean; httpsPortOK: boolean;
   portOwner?: {name: string; pid: number}; httpsPortOwner?: {name: string; pid: number}; cdnError?: string;
   storageError?: string; actionErrors?: Record<string,string>; batch: Job; lastBatch: Job; import: ImportJob;
   queue: {running?: boolean; desired?: boolean; current?: number; active?: number[]; songs?: {songId: number}[]; titles?: Record<string,string>; file?: string; completed?: number; logError?: string; error?: string};
@@ -66,3 +66,11 @@ export const gib = (value = 0) => (value / 1073741824).toFixed(3) + ' GiB';
 export const mb = (value = 0) => (value / 1e6).toFixed(3) + ' MB';
 export const active = (s?: Status) => ['checking', 'starting', 'hosts'].includes(s?.activation?.phase || '');
 export const accelerationLabel = (s: Status) => s.running && s.hosts.ready ? '加速运行中' : s.running ? '加速未就绪' : '加速未运行';
+
+// Describe the current runtime policy, never a saved but unapplied choice.
+export function exitConnectionMessage(s?: Status): string {
+  if (!s) return '退出按当前设置处理游戏连接，不再请求管理员权限。';
+  if (!s.activeSettings.restoreHostsOnExit) return '退出后保留游戏接入。下次玩游戏前请启动 SWD，不再使用时请恢复游戏直连。';
+  if (s.hosts.managed && !s.hosts.exitRestorePrepared) return '已有游戏接入尚未准备自动恢复，请先点击「开始加速」完成授权；直接退出会保留接入。';
+  return '退出时自动恢复本程序的游戏接入，不再请求管理员权限。';
+}

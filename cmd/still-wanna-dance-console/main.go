@@ -60,6 +60,8 @@ func run() (runErr error) {
 	}
 	config := flag.String("config", defaultConfig, "settings file (relative directories are based on this file)")
 	action := flag.String("hosts-action", "", "internal elevated helper: enable or disable")
+	hostsSession := flag.String("hosts-session", "", "internal hosts helper pipe")
+	hostsParent := flag.Uint("hosts-parent", 0, "internal hosts helper parent PID")
 	noTray := flag.Bool("no-tray", runtime.GOOS != "windows", "run without the Windows tray")
 	noOpen := flag.Bool("no-open", false, "do not open the browser on launch")
 	showTerms := flag.Bool("show-terms", false, "print usage terms and exit")
@@ -74,7 +76,10 @@ func run() (runErr error) {
 		fmt.Print(legal.Text)
 		return nil
 	}
-	visibleErrors = runtime.GOOS == "windows" && !*noTray && *action == ""
+	visibleErrors = runtime.GOOS == "windows" && !*noTray && *action == "" && *hostsSession == ""
+	if *hostsSession != "" {
+		return console.RunHostsSession(*hostsSession, uint32(*hostsParent))
+	}
 	// The short-lived elevated helper bypasses desktop election.
 	if *action != "" {
 		if *action == "enable" {
@@ -221,7 +226,7 @@ func run() (runErr error) {
 	go func() { done <- h.Serve(l); stop() }()
 	url := "http://" + l.Addr().String()
 	slog.Info("console_ready", "url", url)
-	fmt.Printf("Still Wanna Dance 控制台：%s\n同意条款后关闭浏览器不会退出程序；未同意时关闭条款页会尝试在 60 秒后退出。退出不会恢复 hosts。\n", url)
+	fmt.Printf("Still Wanna Dance 控制台：%s\n同意条款后关闭浏览器不会退出程序；未同意时关闭条款页会尝试在 60 秒后退出。退出按当前设置处理游戏连接，不再请求管理员权限。\n", url)
 	if !*noTray {
 		err = desktop.Run(ctx, desktop.Options{URL: url, Open: !*noOpen, State: c.DesktopState, Command: c.DesktopCommand, Shutdown: shutdown, EndSession: endSession})
 	} else {

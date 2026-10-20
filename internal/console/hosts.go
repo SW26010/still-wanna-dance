@@ -38,13 +38,16 @@ func hostsPath() string {
 }
 
 type HostsStatus struct {
-	NeedsMigration bool   `json:"needsMigration"`
-	Ready          bool   `json:"ready"`
-	Conflict       bool   `json:"conflict"`
-	Message        string `json:"message"`
+	Managed             bool   `json:"managed"`
+	ExitRestorePrepared bool   `json:"exitRestorePrepared"`
+	NeedsMigration      bool   `json:"needsMigration"`
+	Ready               bool   `json:"ready"`
+	Conflict            bool   `json:"conflict"`
+	Message             string `json:"message"`
 }
 
-func inspectHosts(data string) HostsStatus {
+func inspectHosts(data string) (result HostsStatus) {
+	defer func() { result.Managed = hasManagedHosts(data) }()
 	found := map[string]bool{}
 	conflict := false
 	needsMigration := false
@@ -87,12 +90,14 @@ func inspectHosts(data string) HostsStatus {
 	return HostsStatus{Message: "尚未接入游戏，请点击「修改 hosts」。"}
 }
 
-func readHostsStatus() HostsStatus {
-	b, err := os.ReadFile(hostsPath())
+func (h *hostsController) status() HostsStatus {
+	b, err := os.ReadFile(h.path)
 	if err != nil {
 		return HostsStatus{Message: err.Error()}
 	}
-	return inspectHosts(string(b))
+	s := inspectHosts(string(b))
+	s.ExitRestorePrepared = h.prepared.Load()
+	return s
 }
 
 func transformHosts(data, action string) (string, error) {

@@ -14,14 +14,14 @@ test('acceleration status distinguishes connection from service without enabling
   expect(api.calls.filter(c=>/^(activation\/|hosts\/|queue\/|start$|stop$|exit$)/.test(c.path)).map(c=>c.path)).toEqual(['activation/enable']);
 });
 
-test('exit retains hosts and does not invoke connection or queue operations',async({page})=>{
-  const api=await mockAPI(page);api.state.running=true;api.state.hosts.ready=true;api.state.queue={running:true,desired:true};
+for(const restore of [true,false])test(`exit uses the active restore policy (${restore}) without a separate hosts request`,async({page})=>{
+  const api=await mockAPI(page);api.state.running=true;api.state.hosts.ready=true;api.state.queue={running:true,desired:true};api.state.activeSettings.restoreHostsOnExit=restore;api.state.settings.restoreHostsOnExit=!restore;
   await page.goto('/');
   await page.getByRole('button',{name:'退出整个应用',exact:true}).click();
   const dialog=page.getByRole('dialog');
-  await expect(dialog).toContainText('hosts 映射会保留');
+  await expect(dialog).toContainText(restore?'退出时自动恢复本程序的游戏接入':'退出后保留游戏接入');
   await dialog.getByRole('button',{name:'确认',exact:true}).click();
-  await expect(page.getByText('退出请求已接受。正在停止服务和后台任务，hosts 映射仍保留。',{exact:true})).toBeVisible();
+  await expect(page.getByText('退出请求已接受，正在处理游戏连接并停止服务和后台任务。若恢复失败，程序会显示错误。',{exact:true})).toBeVisible();
   expect(api.calls.filter(c=>/^(activation\/|hosts\/|queue\/|start$|stop$|exit$)/.test(c.path)).map(c=>c.path)).toEqual(['exit']);
 });
 
@@ -47,4 +47,13 @@ test('request observation reports a request received in the active detection win
   await page.goto('/');
   await expect(page.getByText('已收到游戏请求，请在游戏中确认播放',{exact:true})).toBeVisible();
   await expect(page.getByText(/尚未收到游戏请求/)).toHaveCount(0);
+});
+
+test('existing managed connection can prepare exit cleanup despite automatic gateway startup',async({page})=>{
+  const api=await mockAPI(page);api.state.running=true;api.state.hosts={ready:true,managed:true,exitRestorePrepared:false,message:'已配置'};
+  await page.goto('/');
+  await expect(page.getByText(/已有游戏接入尚未准备自动恢复/).first()).toBeVisible();
+  await page.getByRole('button',{name:'开始加速',exact:true}).click();
+  await expect(page.getByRole('button',{name:'加速运行中',exact:true})).toBeDisabled();
+  expect(api.calls.filter(c=>c.path==='activation/enable')).toHaveLength(1);
 });

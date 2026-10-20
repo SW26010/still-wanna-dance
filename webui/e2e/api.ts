@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import type { CacheEntry, Settings, Status } from '../src/types';
 export function statusFixture(): Status {
-  const settings: Settings = {storageDir:'C:\\UI-Test\\storage',maxCacheBytes:40*1073741824,videoStorageMode:'unlimited',aggressiveCacheReclamation:'auto',requestRetentionDays:30,throughputIntervalMinutes:20,prepareAheadSeconds:500,downloadSoftLimit:16,downloadGrowIntervalMS:250,localProtectionGraceSeconds:300,downloadUpstream:'auto',upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',autoStartCDN:true,autoStartQueue:true,manualLogDir:false,logDir:'C:\\UI-Test\\logs'};
+  const settings: Settings = {storageDir:'C:\\UI-Test\\storage',maxCacheBytes:40*1073741824,videoStorageMode:'unlimited',aggressiveCacheReclamation:'auto',requestRetentionDays:30,throughputIntervalMinutes:20,prepareAheadSeconds:500,downloadSoftLimit:16,downloadGrowIntervalMS:250,localProtectionGraceSeconds:300,downloadUpstream:'auto',upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',autoStartCDN:true,autoStartQueue:true,restoreHostsOnExit:true,manualLogDir:false,logDir:'C:\\UI-Test\\logs'};
   return {running:false,settings:{...settings},activeSettings:{...settings},restartRequired:false,hosts:{ready:false,message:'尚未接入'},portOK:true,httpsPortOK:true,batch:{},lastBatch:{},import:{},queue:{},defaultLogDir:settings.logDir,defaultStorageDir:settings.storageDir,portableDir:'C:\\UI-Test',setupSettingsVersion:'1',activation:{},upstreamMonitor:{results:[]}};
 }
 export async function mockAPI(page: Page) {
@@ -49,7 +49,7 @@ export async function mockAPI(page: Page) {
     if (path==='settings') {state.settings={...state.settings,...body}; state.restartRequired=JSON.stringify(state.settings)!==JSON.stringify(state.activeSettings);}
     if (path==='start') state.running=true;
     if (path==='stop') state.running=false;
-    if (path==='activation/enable') {state.running=true;state.hosts.ready=true;state.activation={phase:'waiting',readyAt:new Date().toISOString()};}
+    if (path==='activation/enable') {state.running=true;state.hosts.ready=true;state.hosts.exitRestorePrepared=state.activeSettings.restoreHostsOnExit;state.activation={phase:'waiting',readyAt:new Date().toISOString()};}
     await route.fulfill({json:data,headers:{'Set-Cookie':`fixture-gate=${terms.accepted?'0':'1'}; Path=/`}});
   });
   return {state,calls,files,terms,diagnostics,emit,fixtureID,setupEffects};

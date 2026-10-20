@@ -26,7 +26,7 @@ func (c *Console) DesktopCommand(id int) (err error) {
 		if c.DesktopState().CDN {
 			return c.stop()
 		}
-		return c.start()
+		return c.startForUser()
 	case desktop.CancelBatch:
 		c.mu.Lock()
 		if c.batchCancel != nil {

@@ -3,6 +3,7 @@ package console
 import (
 	"errors"
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -51,10 +52,10 @@ func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(str
 		return err
 	}
 	c.activationPhase("hosts")
-	if !hosts.Ready {
-		if err = change("enable"); err != nil {
-			return fmt.Errorf("播放网关已运行，但 hosts 接入未完成：%w；处理后可重试，也可在「高级接入设置」中停止播放网关", err)
-		}
+	// The shared hosts controller checks both the mapping and the ability to
+	// restore it before deciding whether authorization is necessary.
+	if err = change("enable"); err != nil {
+		return fmt.Errorf("播放网关已运行，但游戏接入未完成：%w；处理后可重试，也可在「高级接入设置」中停止播放网关", err)
 	}
 	if hosts = inspect(); !hosts.Ready {
 		return fmt.Errorf("播放网关已运行，但 hosts 检查未通过：%s", hosts.Message)
@@ -86,8 +87,8 @@ func (c *Console) changeHosts(action string) error {
 	}
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
-	err := changeHosts(action)
-	if action == "disable" {
+	err := c.changeHostsLocked(action)
+	if action == "disable" && err == nil {
 		c.mu.Lock()
 		c.activation.FirstRequest = time.Time{}
 		if !c.activation.Started.IsZero() {
@@ -96,4 +97,35 @@ func (c *Console) changeHosts(action string) error {
 		c.mu.Unlock()
 	}
 	return err
+}
+
+// Caller owns lifecycleMu. All explicit connection operations share this
+// preflight and helper, regardless of the configured exit policy.
+func (c *Console) changeHostsLocked(action string) error {
+	c.mu.Lock()
+	closing, restore := c.closing, c.settings.RestoreHostsOnExit
+	c.mu.Unlock()
+	if closing {
+		return errors.New("控制台正在退出")
+	}
+	return c.hosts.change(action, restore)
+}
+
+// Starting the gateway explicitly may reuse an existing managed connection.
+// Prepare its exit cleanup here, while this user operation can request UAC.
+// Automatic startup keeps its existing no-elevation behavior.
+func (c *Console) startForUser() error {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
+	if err := c.startLocked(); err != nil {
+		return err
+	}
+	data, err := os.ReadFile(c.hosts.path)
+	if err != nil {
+		return err
+	}
+	if status := inspectHosts(string(data)); status.Ready && status.Managed {
+		return c.changeHostsLocked("enable")
+	}
+	return nil
 }

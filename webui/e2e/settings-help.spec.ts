@@ -53,3 +53,18 @@ test('help contents locate questions without requiring a status connection',asyn
   await navigate(page,'关于');
   await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(0);
 });
+
+test('exit restoration defaults on and remains active until restart',async({page},info)=>{
+  const api=await mockAPI(page);await page.setViewportSize({width:390,height:850});await page.goto('/#/settings');
+  const advanced=page.getByRole('button',{name:'高级游戏接入设置',exact:true});
+  await expect(advanced).toHaveAttribute('aria-expanded','false');await advanced.click();
+  const restore=page.getByRole('checkbox',{name:'退出时恢复游戏直连',exact:true});
+  await expect(restore).toBeChecked();await restore.uncheck();
+  await page.getByRole('button',{name:'保存设置',exact:true}).click();
+  await expect(page.getByRole('button',{name:'立即重启并应用',exact:true})).toBeEnabled();
+  expect(api.state.settings.restoreHostsOnExit).toBe(false);expect(api.state.activeSettings.restoreHostsOnExit).toBe(true);
+  await page.screenshot({path:info.outputPath('exit-policy.png'),fullPage:true});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.getByRole('button',{name:'退出整个应用',exact:true}).click();
+  await expect(page.getByRole('dialog')).toContainText('退出时自动恢复');
+});

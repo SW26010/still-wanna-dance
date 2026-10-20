@@ -43,7 +43,7 @@ function SetupReview({draft:d,status:s,source,effects}:{draft:Draft;status:Statu
     if(p.socks5Password)rows.push(['代理密码','将更新']);
     else if(p.socks5Password===''&&s.socks5PasswordSet)rows.push(['代理密码','将清除']);
   }
-  const labels={autoStartCDN:'自动启动播放网关',autoStartQueue:'自动启动队列',prepareAheadSeconds:'提前准备时间（秒）',downloadSoftLimit:'同时下载数量',downloadGrowIntervalMS:'并发增长间隔（毫秒）',localProtectionGraceSeconds:'本地延续保护时长（秒）',requestRetentionDays:'请求保留天数',throughputIntervalMinutes:'测速间隔（分钟）',downloadUpstream:'回源线路',manualLogDir:'手动日志位置',logDir:'日志目录'};
+  const labels={autoStartCDN:'自动启动播放网关',autoStartQueue:'自动启动队列',restoreHostsOnExit:'退出时恢复游戏直连',prepareAheadSeconds:'提前准备时间（秒）',downloadSoftLimit:'同时下载数量',downloadGrowIntervalMS:'并发增长间隔（毫秒）',localProtectionGraceSeconds:'本地延续保护时长（秒）',requestRetentionDays:'请求保留天数',throughputIntervalMinutes:'测速间隔（分钟）',downloadUpstream:'回源线路',manualLogDir:'手动日志位置',logDir:'日志目录'};
   for(const key of Object.keys(labels) as (keyof typeof labels)[]){if(current[key]!==s.settings[key])rows.push([labels[key],change(String(current[key]),String(s.settings[key]))+'（此前已保存）']);}
   if(current.aggressiveCacheReclamation!==p.aggressiveCacheReclamation)rows.push(['激进的缓存回收策略',change(reclamationLabel(current),reclamationLabel(p))+'（此前已保存）']);
   return <><dl>{rows.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
@@ -51,7 +51,7 @@ function SetupReview({draft:d,status:s,source,effects}:{draft:Draft;status:Statu
       <li>应用配置：{effects.restartRequired?'保存并重启应用，当前播放和任务会中断':'保存配置，无需重启'}</li>
       <li>本地服务：{effects.applyStartup?s.settings.autoStartCDN?'将启动':'不启动（启动设置已关闭）':s.running?'保持运行':'保持关闭'}</li>
       <li>房间队列预加载：{effects.applyStartup?s.settings.autoStartQueue?'将开启':'不开启（启动设置已关闭）':s.queue.desired?'保持开启':'保持关闭'}</li>
-      <li>游戏连接：{s.hosts.ready?'已配置，本次确认不再修改':'未配置，完成后请在首页点击「开始加速」'}</li>
+      <li>游戏连接：{effects?.restartRequired&&s.activeSettings.restoreHostsOnExit&&s.hosts.exitRestorePrepared?'重启时恢复直连，完成后请点击「开始加速」重新接入':s.hosts.ready?'已配置，本次确认不再修改':'未配置，完成后请在首页点击「开始加速」'}</li>
     </ul><p>{effects.applyStartup?'按已保存的启动设置执行；启动失败时会在首页显示原因。':'沿用当前服务状态，不会重新开启已手动关闭的功能。'}</p></>}
     {source&&<p>{effects?.restartRequired?'重启后开始导入。':'确认后开始导入。'}关闭网页不影响导入，重启程序会中止导入。</p>}
     <p>存储、网络和导入选择在点击「确认并应用」后生效。条款确认和上方游戏连接操作已即时生效，放弃草稿不会撤销。</p></>;
@@ -236,7 +236,7 @@ export function Setup({accepted,onAccepted,onExit,guard,feedback}: {accepted:boo
         <VRCXOption model={history}/>
       </div>}
       {step==='proxy'&&draft&&s&&<><Subtitle1 as="h2">连接方式</Subtitle1><NetworkFields wizard draft={draft} update={update} disabled={locked} status={s} onPending={setProxyPending}/><Details title="检测网络连接与下载速度" open><Diagnostics visible={true} proxy={{...plan,page:'proxy',upstreamMode:'proxy'}} upstream={diagnosticUpstream} onUpstreamChange={setDiagnosticUpstream}/></Details></>}
-      {step==='finish'&&draft&&s&&<><Panel title="接入检查"><p>游戏连接：{s.hosts.ready?'已配置':s.hosts.conflict?s.hosts.message:'未配置'}</p><p>下面的连接操作会立即修改 hosts，可能需要管理员权限。放弃引导草稿不会撤销；需要撤销时点击「恢复直连」。</p><div className="actions"><Button disabled={app.unavailable||s.hosts.ready} onClick={()=>void app.action('hosts/enable')}>配置游戏连接</Button><Button disabled={app.unavailable} onClick={()=>void app.action('hosts/disable')}>恢复直连</Button><Button disabled={logsBusy||locked||app.unavailable} onClick={()=>void checkAccess()}>刷新接入检查</Button></div>
+      {step==='finish'&&draft&&s&&<><Panel title="接入检查"><p>游戏连接：{s.hosts.ready?'已配置':s.hosts.conflict?s.hosts.message:'未配置'}</p><p>下面的连接操作会立即修改 hosts，可能需要管理员权限。放弃引导草稿不会撤销；需要撤销时点击「恢复直连」。</p><div className="actions"><Button disabled={app.unavailable||(s.hosts.ready&&(!s.activeSettings.restoreHostsOnExit||!s.hosts.managed||s.hosts.exitRestorePrepared))} onClick={()=>void app.action('hosts/enable')}>配置游戏连接</Button><Button disabled={app.unavailable} onClick={()=>void app.action('hosts/disable')}>恢复直连</Button><Button disabled={logsBusy||locked||app.unavailable} onClick={()=>void checkAccess()}>刷新接入检查</Button></div>
         <Details title="端口与日志检查"><p>80 (HTTP) 端口：{s.portOK?'可用':s.portOwner?`被 ${s.portOwner.name}（PID ${s.portOwner.pid}）占用`:'被占用或不可用'}</p><p>443 (HTTPS) 端口：{s.httpsPortOK?'可用':s.httpsPortOwner?`被 ${s.httpsPortOwner.name}（PID ${s.httpsPortOwner.pid}）占用`:'被占用或不可用'}</p>
         <p>VRChat 日志：{logsBusy?'正在检测…':logs?.path||logs?.directory||'未定位'}</p><p>{logs?.message}</p></Details><Feedback error>{s.actionErrors?.hosts}</Feedback>
         <VRCXCheck model={history}/>

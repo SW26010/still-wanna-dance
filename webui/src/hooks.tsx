@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, createContex
 import { Button, Dialog, DialogSurface, DialogBody, DialogTitle, DialogContent, DialogActions } from '@fluentui/react-components';
 import { APIError, request, hostsActionTimeout, hostsActionPending, unconfirmedAction } from './api';
 import { bootstrap } from './bootstrap';
-import { active, type Status } from './types';
+import { active, exitConnectionMessage, type Status } from './types';
 
 // When an update removes the focused row, return focus to its labelled region.
 export function useFocusRecovery() {
@@ -109,15 +109,15 @@ export function useConsole(enabled: boolean, page: string) {
   const confirmation = useConfirmation();
   async function action(path: string, body: unknown = {}): Promise<boolean> {
     if (lock.current || stopped) return false;
-    if (path === 'exit' && !await confirmation.confirm('退出整个应用？', '确定退出整个应用？所有服务和后台任务将停止，hosts 映射会保留。需要恢复游戏直连 时，请取消并先恢复。')) return false;
+    if (path === 'exit' && !await confirmation.confirm('退出整个应用？', '所有服务和后台任务将停止。'+exitConnectionMessage(status.data))) return false;
     if (path === 'restart' && status.data?.import.running && !await confirmation.confirm('导入仍在运行', '导入仍在运行。现在重启会中断导入且不会自动续传。建议等导入结束再重启；确定现在中断并重启吗？')) return false;
     if (lock.current || stopped) return false;
     lock.current = true; setBusy(true);
-    const hosts = path.startsWith('hosts/') || path === 'activation/enable';
+    const hosts = path.startsWith('hosts/') || path === 'activation/enable' || path === 'start';
     setMessage(hosts ? hostsActionPending : '正在处理…');
     try {
       await request(path, body, AbortSignal.timeout(hosts ? hostsActionTimeout : 30000));
-      if (path === 'exit') { setStopped(true); setMessage('退出请求已接受。正在停止服务和后台任务，hosts 映射仍保留。'); return true; }
+      if (path === 'exit') { setStopped(true); setMessage('退出请求已接受，正在处理游戏连接并停止服务和后台任务。若恢复失败，程序会显示错误。'); return true; }
       if (path === 'restart') { setStopped(true); setMessage('正在重启应用，连接恢复后自动刷新。'); await reconnect(); return true; }
       setMessage(actionMessages[path] || (path.startsWith('upstream/check') ? '网络检测已开始，请查看检测结果。' : '请求已接受，请查看当前任务状态。')); return true;
     } catch (e) {

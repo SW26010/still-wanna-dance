@@ -1,0 +1,180 @@
+package console
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"net"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
+	"syscall"
+	"time"
+
+	winio "github.com/tailscale/go-winio"
+	"golang.org/x/sys/windows"
+)
+
+const hostsPipePrefix = `\\.\pipe\SWD-hosts-`
+
+func launchHostsSession(ctx context.Context) (hostsConnection, error) {
+	return connectHostsSession(ctx, elevateHostsHelper)
+}
+
+// The listener belongs to the ordinary application. The elevated client uses
+// anonymous impersonation level (go-winio's default), so the server cannot
+// impersonate it. Both ends verify the kernel-reported peer PID.
+func connectHostsSession(ctx context.Context, launch func(context.Context, string) (uint32, error)) (hostsConnection, error) {
+	user, err := windows.GetCurrentProcessToken().GetTokenUser()
+	if err != nil {
+		return nil, err
+	}
+	var nonce [16]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		return nil, err
+	}
+	pipe := hostsPipePrefix + hex.EncodeToString(nonce[:])
+	listener, err := winio.ListenPipe(pipe, &winio.PipeConfig{
+		SecurityDescriptor: "D:P(A;;GA;;;BA)(A;;GA;;;" + user.User.Sid.String() + ")",
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer listener.Close()
+	// UAC is allowed only here, from an explicit operation after preflight.
+	pid, err := launch(ctx, pipe)
+	if err != nil {
+		return nil, err
+	}
+	process, err := windows.OpenProcess(windows.SYNCHRONIZE, false, pid)
+	if err != nil {
+		return nil, err
+	}
+	wait := func() error {
+		defer windows.CloseHandle(process)
+		status, err := windows.WaitForSingleObject(process, uint32(hostsReplyTimeout/time.Millisecond))
+		if err != nil {
+			return err
+		}
+		if status != windows.WAIT_OBJECT_0 {
+			return errors.New("hosts 助手尚未结束，请检查游戏连接")
+		}
+		return nil
+	}
+	type accepted struct {
+		conn net.Conn
+		err  error
+	}
+	ready := make(chan accepted)
+	acceptCtx, cancel := context.WithTimeout(ctx, hostsReplyTimeout)
+	defer cancel()
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err == nil {
+				err = verifyHostsPeer(conn, pid, false)
+				if err != nil {
+					conn.Close()
+					continue
+				}
+			}
+			select {
+			case ready <- accepted{conn, err}:
+			case <-acceptCtx.Done():
+				if conn != nil {
+					conn.Close()
+				}
+			}
+			return
+		}
+	}()
+	select {
+	case r := <-ready:
+		if r.err == nil {
+			return newHostsClient(r.conn, wait), nil
+		}
+		err = r.err
+	case <-acceptCtx.Done():
+		err = acceptCtx.Err()
+	}
+	listener.Close()
+	_ = wait()
+	return nil, fmt.Errorf("无法连接 hosts 助手：%w", err)
+}
+
+func elevateHostsHelper(ctx context.Context, pipe string) (uint32, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return 0, err
+	}
+	// Pipe names contain only a fixed prefix and a generated hexadecimal nonce.
+	script := "$ErrorActionPreference = 'Stop'; $p = Start-Process -FilePath '" + strings.ReplaceAll(exe, "'", "''") +
+		"' -ArgumentList '-hosts-session', '" + pipe + "', '-hosts-parent', '" + strconv.Itoa(os.Getpid()) +
+		"' -Verb RunAs -WindowStyle Hidden -PassThru; $p.Id"
+	cmd := exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return 0, fmt.Errorf("hosts 授权未完成（可能取消了 UAC）：%s %w", out, err)
+	}
+	pid, err := strconv.ParseUint(strings.TrimSpace(string(out)), 10, 32)
+	if err != nil || pid == 0 {
+		return 0, errors.New("无法确认 hosts 助手进程")
+	}
+	return uint32(pid), nil
+}
+
+func verifyHostsPeer(conn net.Conn, expected uint32, server bool) error {
+	file, ok := conn.(interface{ Fd() uintptr })
+	if !ok {
+		return errors.New("无法验证 hosts 助手连接")
+	}
+	var pid uint32
+	var err error
+	if server {
+		err = windows.GetNamedPipeServerProcessId(windows.Handle(file.Fd()), &pid)
+	} else {
+		err = windows.GetNamedPipeClientProcessId(windows.Handle(file.Fd()), &pid)
+	}
+	if err != nil {
+		return err
+	}
+	if pid != expected {
+		return errors.New("hosts 助手连接的进程身份不匹配")
+	}
+	return nil
+}
+
+func dialHostsParent(pipe string, parent uint32) (net.Conn, error) {
+	if parent == 0 || !strings.HasPrefix(pipe, hostsPipePrefix) {
+		return nil, errors.New("无效的 hosts 助手参数")
+	}
+	nonce, err := hex.DecodeString(strings.TrimPrefix(pipe, hostsPipePrefix))
+	if err != nil || len(nonce) != 16 {
+		return nil, errors.New("无效的 hosts 会话")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), hostsReplyTimeout)
+	defer cancel()
+	conn, err := winio.DialPipeContext(ctx, pipe)
+	if err != nil {
+		return nil, err
+	}
+	if err = verifyHostsPeer(conn, parent, true); err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return conn, nil
+}
+
+// RunHostsSession runs before configuration, logging, tray and service startup.
+// No caller-supplied path or arbitrary command crosses this elevated boundary.
+func RunHostsSession(pipe string, parent uint32) error {
+	conn, err := dialHostsParent(pipe, parent)
+	if err != nil {
+		return err
+	}
+	return serveHostsSession(conn, hostsPath(), FlushDNS)
+}

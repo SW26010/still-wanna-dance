@@ -18,7 +18,7 @@ func TestActivationPreservesQueueChoice(t *testing.T) {
 			c := testConsole(t)
 			c.queueDesired = desired
 			if err := c.enableAcceleration(func() HostsStatus { return HostsStatus{Ready: true} }, func(string) error {
-				t.Fatal("already configured hosts should not change")
+				// The shared controller performs no-op and authorization checks.
 				return nil
 			}); err != nil {
 				t.Fatal(err)
@@ -50,7 +50,7 @@ func TestActivationRecordsPlaybackArrivalOnResolutionFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = c.enableAcceleration(func() HostsStatus { return HostsStatus{Ready: true} },
-		func(string) error { t.Fatal("unnecessary hosts change"); return nil }); err != nil {
+		func(string) error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	w := httptest.NewRecorder()
@@ -78,7 +78,7 @@ func TestActivationFailuresAndRetry(t *testing.T) {
 		t.Fatal("helper success without ready hosts must fail")
 	}
 	hosts.Ready = true
-	if err := c.enableAcceleration(inspect, change); err != nil || calls != 1 || c.httpServer != server {
+	if err := c.enableAcceleration(inspect, func(string) error { return nil }); err != nil || calls != 1 || c.httpServer != server {
 		t.Fatal("retry must reuse running service and avoid unnecessary elevation", err)
 	}
 	old := c.activation.ReadyAt.Add(-time.Nanosecond)
@@ -93,7 +93,7 @@ func TestActivationFailuresAndRetry(t *testing.T) {
 		t.Fatal("first arrival not retained")
 	}
 	late := c.beginVideoRequest(time.Now())
-	if err := c.enableAcceleration(inspect, change); err != nil {
+	if err := c.enableAcceleration(inspect, func(string) error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	late()
@@ -189,7 +189,14 @@ func TestOwnedLegacyHostsRequireActivationMigration(t *testing.T) {
 				t.Fatal(status)
 			}
 			changes := 0
-			change := func(action string) (err error) { changes++; data, err = transformHosts(data, action); return }
+			change := func(action string) (err error) {
+				before := data
+				data, err = transformHosts(data, action)
+				if data != before {
+					changes++
+				}
+				return
+			}
 			if err := c.enableAcceleration(inspect, change); err != nil {
 				t.Fatal(err)
 			}

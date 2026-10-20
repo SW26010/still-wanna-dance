@@ -420,7 +420,7 @@ func (c *Console) resumeSetupApplicationLocked(startImport func(string) error) {
 			// No restart was needed: finish the startup skipped by the terms
 			// gate, only after the approved application has a success receipt.
 			// A restarted process already applied its startup preferences.
-			c.autoStart(readHostsStatus)
+			c.autoStart(c.hosts.status)
 		}
 	}
 }

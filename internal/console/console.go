@@ -45,6 +45,7 @@ type Settings struct {
 	AutoStartQueue              bool   `json:"autoStartQueue"`
 	RequestRetentionDays        int    `json:"requestRetentionDays"`
 	AutoStartCDN                bool   `json:"autoStartCDN"`
+	RestoreHostsOnExit          bool   `json:"restoreHostsOnExit"`
 	PrepareAheadSeconds         int    `json:"prepareAheadSeconds"`
 	DownloadSoftLimit           int    `json:"downloadSoftLimit"`
 	DownloadGrowIntervalMS      int    `json:"downloadGrowIntervalMS"`
@@ -82,7 +83,8 @@ type Console struct {
 	activationGeneration   uint64     // protected by mu; distinguishes same-clock-tick retries
 	// Acquire lifecycleMu before mu; state readers never wait on lifecycleMu.
 	lifecycleMu         sync.Mutex
-	queueUpdateMu       sync.Mutex // acquire before mu; serializes engine queue protection
+	hosts               *hostsController // operations are serialized by lifecycleMu
+	queueUpdateMu       sync.Mutex       // acquire before mu; serializes engine queue protection
 	taskMu              sync.Mutex
 	inventoryMu         sync.Mutex
 	inventory           Inventory
@@ -156,9 +158,10 @@ func New(configPath, address string) (*Console, error) {
 	}
 	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: "https://x.kiva.moe/api/v2/wanna/songs"}
 	c.identity = identity
+	c.hosts = newHostsController(hostsPath(), launchHostsSession)
 	c.settings = Settings{
 		StorageDir: apppaths.ForConfig(configPath).DefaultStorage, RequestRetentionDays: 30,
-		AutoStartCDN: true, AutoStartQueue: true,
+		AutoStartCDN: true, AutoStartQueue: true, RestoreHostsOnExit: true,
 		VideoStorageMode: "none", MaxCacheBytes: 0,
 		AggressiveCacheReclamation: "auto",
 		DownloadSoftLimit:          cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),
@@ -468,7 +471,7 @@ func (c *Console) ensureEngine() error {
 
 // AutoStart applies independent startup preferences after consent.
 func (c *Console) AutoStart() {
-	c.autoStart(readHostsStatus)
+	c.autoStart(c.hosts.status)
 	c.resumeSetupApplication(c.startImport)
 }
 
@@ -627,6 +630,9 @@ func (c *Console) RestartRequested() <-chan struct{} { return c.restartRequested
 // after closing HTTP connections to wait for tasks and flush the cache engine.
 // It is safe to call repeatedly.
 func (c *Console) BeginShutdown() {
+	// Cancel a pending authorization before waiting for lifecycleMu. Existing
+	// helper connections remain usable for cleanup without a new UAC request.
+	c.hosts.cancel()
 	c.lifecycleMu.Lock()
 	c.mu.Lock()
 	c.closing = true
@@ -668,6 +674,13 @@ func (c *Console) BeginShutdown() {
 
 func (c *Console) Close() error {
 	c.BeginShutdown()
+	c.lifecycleMu.Lock()
+	hostsErr := c.hosts.close()
+	c.lifecycleMu.Unlock()
+	if hostsErr != nil {
+		hostsErr = fmt.Errorf("退出时未能确认游戏连接已清理，下次启动后请恢复游戏直连：%w", hostsErr)
+		slog.Error("hosts_cleanup_failed", "error", hostsErr)
+	}
 	c.mu.Lock()
 	monitor := c.monitor
 	setupNetwork := c.setupNetwork
@@ -713,7 +726,7 @@ func (c *Console) Close() error {
 	if c.dns != nil {
 		c.dns.close()
 	}
-	return err
+	return errors.Join(err, hostsErr)
 }
 
 func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -847,7 +860,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if versionErr != nil {
 			result.SetupSettingsError = versionErr.Error()
 		}
-		result.Hosts = readHostsStatus()
+		result.Hosts = c.hosts.status()
 		if service != nil {
 			if err := service.StorageError(); err != nil {
 				result.StorageError = applog.SafeError(err).Error()
@@ -1141,9 +1154,9 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/api/batch/switch":
 		err = c.switchTask()
 	case "/api/start":
-		err = c.start()
+		err = c.startForUser()
 	case "/api/activation/enable":
-		err = c.enableAcceleration(readHostsStatus, changeHosts)
+		err = c.enableAcceleration(c.hosts.status, c.changeHostsLocked)
 	case "/api/stop":
 		err = c.stop()
 	case "/api/queue/start":
@@ -1158,6 +1171,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Password      *string `json:"socks5Password"`
 		}
 		input.DownloadSoftLimit = cacheproxy.VideoRequestSoftLimit
+		input.RestoreHostsOnExit = true
 		input.DownloadGrowIntervalMS = int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond)
 		input.LocalProtectionGraceSeconds = int(cacheproxy.DefaultLocalProtectionGrace / time.Second)
 		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {

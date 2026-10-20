@@ -34,11 +34,11 @@ func TestGETWithdrawalTimeSurvivesDelayedReconciliation(t *testing.T) {
 					synctest.Wait()
 					reconcileSession(t, w)
 					j := w.jobs[0]
-					if delay >= getHandoff {
+					if delay >= handoffGrace {
 						assertUsageWithdrawn(t, j)
 						return
 					}
-					until := removedAt.Add(getHandoff)
+					until := removedAt.Add(handoffGrace)
 					if j.retiring || !j.nextExpiry.Equal(until) {
 						t.Fatalf("GET handoff slid with processing: retiring=%v expiry=%v want=%v", j.retiring, j.nextExpiry, until)
 					}

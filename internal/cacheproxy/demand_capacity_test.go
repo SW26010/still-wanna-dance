@@ -65,7 +65,7 @@ func TestReadableBlocksRetainUseUntilConsumptionOrSourceExit(t *testing.T) {
 		if useCount(s) != 18 {
 			t.Fatal("handoff lost readable but unconsumed usage")
 		}
-		time.Sleep(getHandoff)
+		time.Sleep(handoffGrace)
 		synctest.Wait()
 		if useCount(s) != 0 {
 			t.Fatal("fixed handoff expiry retained capacity")
@@ -87,7 +87,7 @@ func TestQueueUseOutlivesPreparationAndSharesWithGET(t *testing.T) {
 		ctx := context.WithValue(context.Background(), httpGETKey{}, true)
 		_, closeGET := addTestDemand(t, s, ctx, v, true)
 		s.UpdatePrefetchQueue([]int64{2}, false)
-		time.Sleep(queueHandoff)
+		time.Sleep(handoffGrace)
 		synctest.Wait()
 		if useCount(s) != 20 {
 			t.Fatal("queue expiry removed independent GET usage")

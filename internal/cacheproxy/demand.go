@@ -11,6 +11,9 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
+// GET and queue-head handoffs share a fixed lifetime and source-clock shift.
+const handoffGrace = 2 * time.Second
+
 // Resource ownership feeds the block-demand adapter. It carries no scheduling rank.
 var errPreempted = errors.Join(context.Canceled, errors.New("download stopped without active demand"))
 
@@ -138,9 +141,9 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 			source.removedAt = now
 			grace := time.Duration(0)
 			if source.position == 0 {
-				grace = queueHandoff
+				grace = handoffGrace
 			}
-			s.endUseLocked(source.use, now, grace, playbackClock{at: source.startAt.Add(5 * time.Second), media: source.timing}, source.origin())
+			s.endUseLocked(source.use, now, grace, playbackClock{at: source.startAt.Add(handoffGrace), media: source.timing}, source.origin())
 			source.use = useSpan{}
 			changed = true
 		}
@@ -237,9 +240,9 @@ func (s *Server) removeDemandLocked(d *downloadDemand) {
 		grace := time.Duration(0)
 		var clock playbackClock
 		if d.playback && d.clock != nil && d.exit.at.Load().reason == withdrawalSourceGone {
-			grace = getHandoff
+			grace = handoffGrace
 			clock = *d.clock
-			clock.at = clock.at.Add(2 * time.Second)
+			clock.at = clock.at.Add(handoffGrace)
 		}
 		s.endUseLocked(d.useSpan(), d.exit.when(), grace, clock, sourceGET)
 	}

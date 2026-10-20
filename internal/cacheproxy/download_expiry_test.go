@@ -116,7 +116,7 @@ func TestExpiredQueuePreparationRequiresActualSourceChange(t *testing.T) {
 
 func TestExpiredHandoffKeepsUsageWithoutDownloadQualification(t *testing.T) {
 	now := time.Now()
-	old := blocksched.Need{Owner: "video", ReadyBy: now.Add(-time.Minute), LeaseUntil: now.Add(queueHandoff)}
+	old := blocksched.Need{Owner: "video", ReadyBy: now.Add(-time.Minute), LeaseUntil: now.Add(handoffGrace)}
 	plan := map[blockSource]plannedNeed{{"handoff", 1}: {need: old, source: sourceHandoff}}
 	use := aggregateUse(plan, now)
 	if use.need.Owner != "" || use.protectReady != old.ReadyBy {

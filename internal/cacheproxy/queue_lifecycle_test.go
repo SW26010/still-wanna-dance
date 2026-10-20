@@ -106,9 +106,10 @@ func TestCoalescedQueueChangesPreserveWithdrawalSource(t *testing.T) {
 		delay          time.Duration
 		handoff        bool
 	}{
-		{"promoted_then_removed", []int64{1, 2}, []int64{2, 1}, 5 * time.Second, true},
-		{"demoted_then_removed", []int64{2, 1}, []int64{1, 2}, 5 * time.Second, false},
-		{"expired_before_observation", []int64{1, 2}, []int64{2, 1}, 21 * time.Second, false},
+		{"promoted_then_removed", []int64{1, 2}, []int64{2, 1}, time.Second, true},
+		{"demoted_then_removed", []int64{2, 1}, []int64{1, 2}, time.Second, false},
+		{"expires_at_observation", []int64{1, 2}, []int64{2, 1}, 2 * time.Second, false},
+		{"expired_before_observation", []int64{1, 2}, []int64{2, 1}, 3 * time.Second, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -126,15 +127,15 @@ func TestCoalescedQueueChangesPreserveWithdrawalSource(t *testing.T) {
 				reconcileSession(t, w)
 				j := w.jobs[0]
 				if tc.handoff {
-					if j.retiring || !j.nextExpiry.Equal(removedAt.Add(queueHandoff)) {
+					if j.retiring || !j.nextExpiry.Equal(removedAt.Add(2*time.Second)) {
 						t.Fatalf("missing/freshened handoff: retiring=%v expiry=%v", j.retiring, j.nextExpiry)
 					}
 					// Preserve the removed head's actual deadline, even if past.
-					if !j.published.ReadyBy.Equal(source.readyBy(0).Add(5 * time.Second)) {
+					if !j.published.ReadyBy.Equal(source.readyBy(0).Add(2 * time.Second)) {
 						t.Fatal("handoff used the stale ordinary-queue deadline", j.published.ReadyBy)
 					}
 					reconcileSession(t, w)
-					if !j.nextExpiry.Equal(removedAt.Add(queueHandoff)) {
+					if !j.nextExpiry.Equal(removedAt.Add(2 * time.Second)) {
 						t.Fatal("withdrawal was replayed or renewed")
 					}
 				} else {

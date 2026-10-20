@@ -14,8 +14,6 @@ import (
 )
 
 const sourceLease = 30 * time.Second
-const getHandoff = 2 * time.Second
-const queueHandoff = 20 * time.Second
 
 type scheduledBlock struct {
 	task       *blocksched.Task

@@ -81,7 +81,7 @@ func TestBlockDemandFollowsActualWaitAndIndependentReaders(t *testing.T) {
 	cancel()
 	plan, _, _ = w.plan(time.Now(), true)
 	for _, p := range plan {
-		if p.need.LeaseUntil.After(time.Now().Add(getHandoff)) {
+		if p.need.LeaseUntil.After(time.Now().Add(handoffGrace)) {
 			t.Fatal("canceled context renewed itself", p)
 		}
 	}
@@ -117,13 +117,16 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 		s.UpdatePrefetchQueue(nil, true)
 		plan, _, _ = w.plan(now, false)
 		until, _, err := w.reconcile(plan, now, nil, false)
-		if err != nil || !until.Equal(now.Add(queueHandoff)) {
+		if err != nil || !until.Equal(now.Add(handoffGrace)) {
 			t.Fatal(until, err)
 		}
 		w.jobs[0].task.Watch(w.wake)
 		// Handoff must defer the original queue deadline, not make it more urgent.
 		// (The plan was obtained at the same now for both queue orders.)
-		if handoff := w.jobs[0].published.LeaseUntil; !handoff.Equal(now.Add(queueHandoff)) {
+		if ready := w.jobs[0].published.ReadyBy; !ready.Equal(after.need.ReadyBy.Add(2 * time.Second)) {
+			t.Fatal("handoff changed the original queue clock", ready)
+		}
+		if handoff := w.jobs[0].published.LeaseUntil; !handoff.Equal(now.Add(handoffGrace)) {
 			t.Fatal(handoff)
 		}
 		// An unrelated later event must not slide the abandoned queue's lease.

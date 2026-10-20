@@ -31,7 +31,7 @@ func TestUsageHandoffIncludesReadableRemainderWithoutDownloadPlanning(t *testing
 			}
 			for block, sources := range usage {
 				for _, p := range sources {
-					if p.source != sourceHandoff || p.need.Opportunistic || p.need.ReadyBy != clock.ready(block*rangeBlockSize).Add(2*time.Second) || p.need.LeaseUntil != now.Add(getHandoff) {
+					if p.source != sourceHandoff || p.need.Opportunistic || p.need.ReadyBy != clock.ready(block*rangeBlockSize).Add(2*time.Second) || p.need.LeaseUntil != now.Add(handoffGrace) {
 						t.Fatal("handoff lost original clock, fixed expiry or source semantics", p)
 					}
 				}
@@ -46,7 +46,7 @@ func TestUsageHandoffIncludesReadableRemainderWithoutDownloadPlanning(t *testing
 				t.Error("cancellation callback replayed source transfer")
 			}
 			s.mu.Unlock()
-			time.Sleep(getHandoff)
+			time.Sleep(handoffGrace)
 			synctest.Wait()
 			s.mu.Lock()
 			usage, _ = testSourcePlan(s, w.v.key, time.Now())

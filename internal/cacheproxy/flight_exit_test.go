@@ -95,7 +95,7 @@ func testNewGETDuringCleanup(t *testing.T, stopBlock bool) {
 						// expiry must cancel the body before the coordinator can
 						// retire the flight, independent of timer/goroutine order.
 						r.Attrs(func(a slog.Attr) bool {
-							if a.Key == "lease_until" && !a.Value.Time().IsZero() && time.Until(a.Value.Time()) <= getHandoff {
+							if a.Key == "lease_until" && !a.Value.Time().IsZero() && time.Until(a.Value.Time()) <= handoffGrace {
 								<-coordinatorGate
 							}
 							return true

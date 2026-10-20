@@ -150,7 +150,7 @@ func TestLocalProtectionHandoffUsesRealExpiryDespiteDelayedCallback(t *testing.T
 		s.mu.Unlock()
 		synctest.Wait()
 		p := protectionFor(s, w.v.key, 0)
-		if !p.start.IsZero() || p.until != ended.Add(getHandoff+s.cfg.LocalProtectionGrace) {
+		if !p.start.IsZero() || p.until != ended.Add(handoffGrace+s.cfg.LocalProtectionGrace) {
 			t.Fatal("delayed callback extended handoff protection", p)
 		}
 	})
@@ -185,13 +185,13 @@ func TestLocalProtectionQueueHandoffThenConfiguredTail(t *testing.T) {
 		release() // Completion of preparation does not end queue usage.
 		ended := time.Now()
 		s.UpdatePrefetchQueue(nil, false)
-		time.Sleep(queueHandoff - time.Second)
+		time.Sleep(handoffGrace - time.Second)
 		if p := protectionFor(s, v.key, 0); !p.active(time.Now()) || !p.until.IsZero() {
 			t.Fatal("queue handoff lost live protection", p)
 		}
 		time.Sleep(time.Second)
 		synctest.Wait()
-		if p := protectionFor(s, v.key, 0); !p.start.IsZero() || p.until != ended.Add(queueHandoff+s.cfg.LocalProtectionGrace) {
+		if p := protectionFor(s, v.key, 0); !p.start.IsZero() || p.until != ended.Add(handoffGrace+s.cfg.LocalProtectionGrace) {
 			t.Fatal("queue protection did not start at handoff end", p)
 		}
 		time.Sleep(s.cfg.LocalProtectionGrace)

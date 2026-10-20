@@ -123,7 +123,7 @@ func TestReadWaitDoesNotChangeUsageOrHandoffClock(t *testing.T) {
 		cancel()
 		synctest.Wait()
 		handoff, _, _ := w.plan(now, true)
-		if handoff[0].need.ReadyBy != clock.at.Add(getHandoff) || handoff[0].need.LeaseUntil != now.Add(getHandoff) {
+		if handoff[0].need.ReadyBy != clock.at.Add(handoffGrace) || handoff[0].need.LeaseUntil != now.Add(handoffGrace) {
 			t.Fatal("handoff inherited actual read time instead of the source clock")
 		}
 		end()

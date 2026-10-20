@@ -39,6 +39,7 @@ export async function mockAPI(page: Page) {
     if(command){const kind=command[1] as keyof typeof diagnostics,diag=diagnostics[kind];diag.revision++;diag.running=command[2]==='start';diag.phase=diag.running?'running':'canceled';if(diag.running){diag.run++;diag.upstream=body.upstream as string;}await emit(kind);}
     if (path==='inventory') data={totalSongs:2,coveredSongs:1,coverageKnown:true,updated:'2026-10-16T00:00:00Z'};
     if (path==='downloads') data={tasks:[],bytesPerSecond:0};
+    if (path==='songs') data={storageID:'fixture',entries:[],total:0};
     if (path==='requests') data={storageID:'fixture',requests:[],hasMore:false};
     if (path==='cache') data={storageID:'fixture',entries:files,total:files.length,fileCount:files.length,totalBytes:files.length*1073741824};
     if (path==='cache/delete') {

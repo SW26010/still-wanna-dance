@@ -1,0 +1,59 @@
+import { chromium, expect } from '@playwright/test';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
+const [baseURL,output]=process.argv.slice(2);
+await mkdir(output,{recursive:true});
+const browser=await chromium.launch({channel:process.env.CI?'chromium':'msedge'});
+try {
+  const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto(baseURL+'/#song-preferences');
+  const panel=page.locator('#song-preferences');
+  await expect(panel).toBeVisible();
+  await expect(panel.getByText('收藏只做标记，不开始下载；',{exact:false})).toBeVisible();
+  const preference=id=>panel.getByRole('combobox',{name:`歌曲 ${id} 的偏好`,exact:true});
+  await preference(1).selectOption('favorite');
+  await expect(panel.getByText('歌曲 1 已设为收藏。',{exact:true})).toBeVisible();
+  await expect(preference(1)).toHaveValue('favorite');
+  await expect(panel.getByRole('row').filter({hasText:'未下载的收藏测试'})).toContainText('未保存完整视频');
+  await expect(panel.getByRole('row').filter({hasText:'已保存的收藏测试'})).toContainText('文件存在');
+  await preference(2).selectOption('blocked');
+  await expect(panel.getByText('歌曲 2 已设为屏蔽。',{exact:true})).toBeVisible();
+  await expect(preference(2)).toHaveValue('blocked');
+  expect(await (await page.request.get(baseURL+'/__preferences/probe')).json()).toEqual({status:403,resolutions:0});
+  await panel.getByRole('combobox',{name:'偏好筛选',exact:true}).selectOption('favorite');
+  await panel.getByRole('button',{name:'查找歌曲',exact:true}).click();
+  await expect(panel.getByRole('row')).toHaveCount(2);
+  await preference(1).focus();
+  await preference(1).selectOption('normal');
+  await expect(panel.getByRole('row')).toHaveCount(1);
+  await expect(panel).toBeFocused();
+  await panel.getByRole('combobox',{name:'偏好筛选',exact:true}).selectOption('');
+  await panel.getByRole('button',{name:'查找歌曲',exact:true}).click();
+  await preference(1).selectOption('favorite');
+  await expect(preference(1)).toHaveValue('favorite');
+  await panel.getByRole('button',{name:'按歌曲 ID 设置',exact:true}).click();
+  await panel.getByRole('textbox',{name:'歌曲 ID',exact:true}).fill('314');
+  await panel.getByRole('combobox',{name:'歌曲偏好',exact:true}).selectOption('blocked');
+  await panel.getByRole('button',{name:'保存标记',exact:true}).click();
+  await expect(panel.getByText('歌曲 314 已设为屏蔽。',{exact:true})).toBeVisible();
+  await expect(preference(314)).toHaveValue('blocked');
+  expect((await page.request.post(baseURL+'/__preferences/reopen')).ok()).toBe(true);
+  await page.reload();
+  await expect(preference(1)).toHaveValue('favorite');
+  await expect(preference(2)).toHaveValue('blocked');
+  await expect(preference(314)).toHaveValue('blocked');
+  await expect(panel.getByRole('row').filter({hasText:'未下载的收藏测试'})).toContainText('未保存完整视频');
+  for(const [width,theme] of [[1280,'light'],[390,'dark']]) {
+    await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:theme});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.screenshot({path:join(output,`preferences-${width}-${theme}.png`),fullPage:true,animations:'disabled'});
+  }
+  await page.goto(baseURL+'/#batch');
+  await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();
+  await expect(page.getByText('当前选择「不保留」，下载补齐仍可处理收藏歌曲；',{exact:false})).toBeVisible();
+  expect(errors).toEqual([]);
+  await writeFile(join(output,'browser.json'),JSON.stringify({passed:true,errors,checks:['preference changes','file state separate','filter and focus','manual ID','engine reopen persistence','blocked GET 403','zero network resolutions','zero-budget manual action','desktop and narrow themes']},null,2));
+  console.log('Real Console song preference, file state, reopen and blocked GET checks passed.');
+} finally {await browser.close();}

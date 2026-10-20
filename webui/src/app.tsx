@@ -14,7 +14,7 @@ import { accelerationLabel, exitConnectionMessage } from './types';
 const pages = {home:'游戏加速',library:'下载管理',cache:'本地视频',network:'网络与代理',settings:'设置',setup:'使用引导',...documentPages};
 type Page = keyof typeof pages;
 const descriptions:Partial<Record<Page,string>>={home:'为 VRChat WannaDance 复用已下载视频，也可提前准备房间队列。',network:'检查连接，配置代理和修复游戏接入。',cache:'查找已下载的视频，清理磁盘空间。',library:'按房间队列提前准备，或批量下载缺失视频。',settings:'调整应用启动、后台行为和记录保留。',setup:'设置、导入、检测和接入；可随时返回或离开。'};
-const anchors: Record<string,Page> = {activation:'home',service:'network',queue:'library',overview:'cache',cache:'cache',downloads:'library','download-settings':'library',recent:'network',network:'network','network-proxy':'network','network-access':'network',batch:'library',preferences:'settings',prepareAheadSeconds:'library',maxCacheGiB:'cache','storage-settings':'cache','video-import':'cache','help-start':'help','help-playback':'help','help-storage':'help','help-stop':'help','help-paths':'help'};
+const anchors: Record<string,Page> = {activation:'home',service:'network',queue:'library',overview:'cache',cache:'cache',downloads:'library','download-settings':'library',recent:'network',network:'network','network-proxy':'network','network-access':'network',batch:'library',preferences:'settings',prepareAheadSeconds:'library',maxCacheGiB:'cache','storage-settings':'cache','video-import':'cache','song-preferences':'cache','help-start':'help','help-playback':'help','help-storage':'help','help-stop':'help','help-paths':'help'};
 export function route(hash: string): Page {
   if (hash === '#/upstream' || hash === '#/monitor') return 'network';
   const key = hash.replace(/^#\/?/,'');

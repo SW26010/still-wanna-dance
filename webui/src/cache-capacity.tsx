@@ -22,12 +22,12 @@ export function CacheCapacityFields({ mode, value, disabled, onChange, anchor }:
       }}>
       <Radio value="none" label="不保留" /><Radio value="limited" label="限制为" /><Radio value="unlimited" label="不限制" />
     </RadioGroup></Field>
-    <p>{mode==='none'?'适合边播边下载，不能提前保存曲库。仍可自动准备房间队列。':'保留下载完成的视频，供以后播放；空间不足时优先保留常用歌曲。'}</p>
+    <p>{mode==='none'?'适合边播边下载，普通视频不长期保留；收藏的完整视频仍可保存。房间队列准备不受影响。':'保留下载完成的视频，供以后播放；空间不足时优先保留常用歌曲。'}</p>
     <Field label="视频存储预算（GiB）" required={limited} hint="最多为下载完成的视频保留多少空间。1 GiB 约为 1.07 GB。">
       <Input type="number" min="0.01" max="8388607" step="0.01" required={limited} disabled={disabled || !limited}
         value={mode === 'none' ? '0' : value} onChange={(_, v) => onChange({maxCacheGiB: v.value})} />
     </Field>
-    <Details title="空间占用与回收说明"><p>选择「不保留」时预算为 0，视频块缓存可在本次运行内复用；已有本地视频在播放和队列保护结束后回收。使用中的视频及临时文件可能使实际磁盘占用超过预算。</p></Details>
+    <Details title="空间占用与回收说明"><p>选择「不保留」时预算为 0，视频块缓存可在本次运行内复用；已有普通视频在播放和队列保护结束后回收。收藏视频计入实际占用，但可突破预算保留；使用中的视频及临时文件也可能使磁盘占用超过预算。</p></Details>
   </div>;
 }
 export function CacheReclamationFields({ mode, reclamation, disabled, onChange }: {

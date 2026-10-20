@@ -8,19 +8,19 @@
     "webui/pnpm-lock.yaml": "6765eaefe1069a5ca877321c9546c50735d864788f0664fa6ed63a644e1a26d7",
     "webui/pnpm-workspace.yaml": "f8374fb59aaf2874eb09ae9b7da311a1f2025595b5279341c1a819c4b85c4611",
     "webui/src/api.ts": "07a864e0c5ee077804132cc3ca45b46c8880070cc15d9f8bfae3c14f3aa2faf0",
-    "webui/src/app.tsx": "77a980582d0f2c0c34f80a6eed402d88b4ebdb83cccd70bfdeca0cab4e3a387b",
+    "webui/src/app.tsx": "85b541ab0a2fe88a9d5e8ca854ee2072912f892f8e957bf2a823b0931012706d",
     "webui/src/block-demand-view.tsx": "fb8728b7f17a8d060c8383086fabd3a9f317c91e48ab0f109e7d7f43e2443fef",
     "webui/src/block-timeline-canvas.ts": "e8ce43115b74527c5edd30cc6a26ce041cd4b25f07aefef3c1aed0c95a704670",
     "webui/src/block-timeline-model.ts": "d304818968013214f00acfe088c05225a0310875618b6a4596a2b9fe3515d551",
     "webui/src/block-timeline-stream.ts": "63273debb94a1336266244fc3bd50534aff66af24a76a2da3ab387ab19ee73f8",
     "webui/src/block-timeline.tsx": "971b28f1c4f5c48ce90bb6e977818bb1e50419551b66abbe3ee8c7ef32ac5749",
     "webui/src/bootstrap.ts": "89fc603e0cc151cfd1b0972217a6e49c58c7e93c6010f77237e12adde9c5cd91",
-    "webui/src/cache-capacity.tsx": "575779e9d113c1803aaf42fdb35d7fc31216e948aa75abeddcf36f77bd97069f",
-    "webui/src/cache.tsx": "f3c5a0c92a65c9ab1275b018c14d788ea17ef230d2b77e6c454221a1e349067b",
+    "webui/src/cache-capacity.tsx": "4190782373ee3737777f4d350be4dd089b5a0272ae3895d834824a829ed17b01",
+    "webui/src/cache.tsx": "e430047beae60481ceae50c9d478f51942c2ed7fedcf117126609d2a7d50af91",
     "webui/src/diagnostics.tsx": "9554be089be40c13dc29bebb4d705e0f33bc4c2c98bc9f38d05d300023133569",
     "webui/src/documents.tsx": "eb64d6494a1db468d1d1c8d291d7b594d896c2e18d7d046d5536134ed6a3422c",
-    "webui/src/help-content.tsx": "c268a2315c23aedc5e8847712b0618e965fe041bb18b6e994596454ca1dc34e7",
-    "webui/src/home-library.tsx": "cbdccb685a12fe60d9f3a362b067d80d9205e62bee936fd09cf8e66448100dfe",
+    "webui/src/help-content.tsx": "f15d162764ff7e68ddcc6de02c7e470ad3c3877bf5196713ee0c81bdd074374e",
+    "webui/src/home-library.tsx": "1e6deb3900407996bf8a2dad0019377442d8b4c73006b25a28e9391b5f966988",
     "webui/src/hooks.tsx": "1dd08a6fc2016c31b54083a5fa53a17a170d957e8a82ca54737f150a4e99ad75",
     "webui/src/main.tsx": "ab29472305f0722f0c9ec412d77d61c7f7c92329627183493c03646cebf2fb8a",
     "webui/src/monitor.tsx": "7a27165cf52a116f848b5c693a0e4741600cb8af8f4780cd8edb69141841ec78",
@@ -28,9 +28,10 @@
     "webui/src/requests.ts": "03fc565506bcb2d488f024a71a2f3fefcba42a474f397036ccbfd6eb7c81c2a0",
     "webui/src/settings.tsx": "9d87cef1e405596de66d2fc1d2899ac5c5c118aace939d73923118a46d5987d9",
     "webui/src/setup.tsx": "030f9091a35494567833eb19ec556de619f4792915d756340afa75d34fd71cb8",
+    "webui/src/song-preferences.tsx": "c8ae3cdd52a2ffd30573ed9e9a9e4529d5ad0b15d09af60bff0ad6d6cc8ccd36",
     "webui/src/storage-directory.tsx": "f2922a3fd98676f1382fc4a34678038c26c8fbc3b147d0a173840ebd07474661",
     "webui/src/styles.css": "66312d9c0e3ded359e17019d576736cd65b05deea9a5476bd20e35f9fbb93d36",
-    "webui/src/types.ts": "47fb6aec856e2bf7525bf4b6d39c0f6ab474893794ed4bf3bb35dd5ea209a12d",
+    "webui/src/types.ts": "087079df527bc7fd4dfe8db2cdcbf5c281f9ff4687b71d1048b82a9d12f37eba",
     "webui/src/ui.tsx": "a691c2c3a95e96db4b940b38d4eb31e39c7b7ca7120874c445038c192afa4952",
     "webui/src/vrcx.tsx": "55669fcacbe940aad05106672ddf7657ad61de5c15944f82184c3fd51cd8b5cf",
     "webui/tsconfig.json": "8b7f2c63c61fc1e6c52d979af1d994b8f7cc2aa9562c2564fd5525385f028a6a"
@@ -38,6 +39,6 @@
   "outputs": {
     "docs/licenses/WEBUI-NOTICES.txt": "fa512d9658e45879deac45f9109f8a4c34974c66ada3107914e9e172f8267fa4",
     "internal/console/assets/webui/app.css": "618eb735cf989b7240ae1553ea200b370b44f3b1caf2b8a6f826881b705b61d2",
-    "internal/console/assets/webui/app.js": "3384f2865115234cab6f6a435e40bef7be8b9aadec18c9bd0f8b861b5e8471d3"
+    "internal/console/assets/webui/app.js": "c83441dd0f8e397a2ad59ab0c8f3ac327cf1f03d163ae145d5193563b69ad940"
   }
 }

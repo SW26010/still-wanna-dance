@@ -7,7 +7,7 @@ export interface Settings {
 }
 export interface Job {
   running?: boolean; scanOnly?: boolean; phase?: string; error?: string; total?: number; checked?: number;
-  hits?: number; downloaded?: number; missing?: number; reused?: number; failed?: number; current?: string;
+  hits?: number; downloaded?: number; missing?: number; reused?: number; failed?: number; skipped?: number; current?: string;
   updated?: string; budgetReached?: boolean; catalogWarning?: string; catalog?: {revision?:string}; failures?: { id: number; name: string; error: string }[];
 }
 export interface ImportJob extends Job {
@@ -35,7 +35,7 @@ export interface Status {
   hosts: {ready: boolean; managed?: boolean; exitRestorePrepared?: boolean; needsMigration?: boolean; conflict?: boolean; message: string}; portOK: boolean; httpsPortOK: boolean;
   portOwner?: {name: string; pid: number}; httpsPortOwner?: {name: string; pid: number}; cdnError?: string;
   storageError?: string; actionErrors?: Record<string,string>; batch: Job; lastBatch: Job; import: ImportJob;
-  queue: {running?: boolean; desired?: boolean; current?: number; active?: number[]; songs?: {songId: number}[]; titles?: Record<string,string>; file?: string; completed?: number; logError?: string; error?: string};
+  queue: {running?: boolean; desired?: boolean; current?: number; active?: number[]; blocked?: number[]; songs?: {songId: number}[]; titles?: Record<string,string>; file?: string; completed?: number; logError?: string; error?: string};
   traffic?: {hits?: number; hitRate?: number; savedBytes?: number; playbackTransfers?: number; requests?: number; misses?: number; coldBodyMS?: number; coldBodySamples?: number; localBodyMS?: number; localBodySamples?: number; error?: string};
   socks5PasswordSet?: boolean; socks5CredentialError?: string;
   proxyNodes?: {saved?: number; loaded?: number; active?: number; error?: string; activeError?: string};
@@ -49,6 +49,8 @@ export interface Inventory {
   catalogRevision?: string; catalog?: {checkedAt?: string; revision?: string; error?: string; message?: string};
 }
 export interface Song { id: string; title?: string; current?: boolean }
+export type SongPolicy = 'normal' | 'blocked' | 'favorite';
+export interface SongPage {storageID:string;entries:{id:string;title:string;policy:SongPolicy;saved:boolean}[];total:number}
 export interface CacheEntry {
   key: string; stamp: string; bytes: number; songs: Song[]; songCount: number; known: boolean; protected: boolean; state: string; lastRequest: number;
 }

@@ -186,13 +186,13 @@ test('wizard defaults to no retention and applies that choice with the remembere
   expect(api.calls.find(c=>c.path==='setup/apply')?.body).not.toHaveProperty('cacheUnlimited');
 });
 
-test('no retention overrides the remembered budget and only blocks filling the library', async ({page}) => {
+test('no retention overrides the remembered budget while favorites can still be filled', async ({page}) => {
   const api = await mockAPI(page);
   api.state.activeSettings.videoStorageMode = 'none';
   await page.goto('/#/cache');
-  await expect(page.getByText(/当前视频存储预算：0 GiB（不保留持久化视频文件）/)).toBeVisible();
+  await expect(page.getByText(/当前视频存储预算：0 GiB（仅收藏可突破预算保留）/)).toBeVisible();
   await navigate(page,'下载管理');
-  await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();
   await expect(page.getByRole('button',{name:'检查缺失视频',exact:true})).toBeEnabled();
   await expect(page.getByRole('button',{name:'开启队列预加载',exact:true})).toBeEnabled();
 });
@@ -205,10 +205,10 @@ test('empty storage links explain queue preparation and persistent library prere
   await expect(page.locator('#queue')).toBeFocused();
   await expect(page.getByRole('button',{name:'开启队列预加载',exact:true})).toBeEnabled();
   await expect(page.getByRole('heading',{name:'下载缺失视频',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();
   await page.getByRole('link',{name:'设置视频保留空间',exact:true}).click();
   await expect(page.locator('#maxCacheGiB')).toBeFocused();
-  await expect(page.getByText('适合边播边下载，不能提前保存曲库。仍可自动准备房间队列。',{exact:true})).toBeVisible();
+  await expect(page.getByText('适合边播边下载，普通视频不长期保留；收藏的完整视频仍可保存。房间队列准备不受影响。',{exact:true})).toBeVisible();
 });
 
 test('settings reject invalid budgets and inactive choices recover from an invalid draft', async ({page}) => {

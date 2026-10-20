@@ -13,7 +13,7 @@ test('first entry gates business reads, persists explicit consent, and applies o
   await expect(help.getByRole('heading',{name:'使用帮助',exact:true})).toBeVisible();
   await help.close();
   expect(api.calls.some(c=>c.path==='terms/accept'||c.path==='status')).toBe(false);
-  await page.getByRole('button',{name:'完整条款',exact:true}).click();
+  await page.getByRole('button',{name:'阅读并同意条款',exact:true}).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByRole('button',{name:'同意完整条款'}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -52,7 +52,7 @@ test('wizard draft is independent of settings and failed apply never resubmits a
   await page.getByRole('button',{name:'确认并应用',exact:true}).click();
   await expect(page.getByRole('button',{name:'核对应用结果'})).toBeVisible();
   await page.getByRole('button',{name:'核对应用结果'}).click();expect(applyCount).toBe(1);
-  await page.getByRole('button',{name:'放弃更改并退出引导'}).click();
+  await page.getByRole('button',{name:'放弃草稿并退出引导'}).click();
   await navigate(page,'设置');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间 M/})).toHaveValue('140');
   expect(api.calls.some(c=>c.path==='settings')).toBe(false);
@@ -123,7 +123,33 @@ test('wizard mobile layout and terms focus trap',async({page},info)=>{
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.screenshot({path:info.outputPath(label+'.png'),fullPage:true,animations:'disabled'});
   }
-  await navigateStep(page,'1. 开始');await page.getByRole('button',{name:'完整条款',exact:true}).click();
+  await navigateStep(page,'1. 开始');await page.getByRole('button',{name:'查看完整条款',exact:true}).click();
   for(let i=0;i<8;i++){await page.keyboard.press('Tab');expect(await page.getByRole('dialog').evaluate(el=>el.contains(document.activeElement))).toBe(true);}
   await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+for(const startup of [false,true])test(`confirmation explains service and queue actions before application (startup=${startup})`,async({page})=>{
+  const api=await mockAPI(page);
+  api.setupEffects.restartRequired=startup;api.setupEffects.applyStartup=startup;
+  api.state.queue={running:false,desired:false};
+  api.state.hosts.ready=true;
+  await page.goto('/#/setup');await navigateStep(page,'4. 启用');
+  await expect(page.getByText('本地服务：'+(startup?'将启动':'保持关闭'),{exact:true})).toBeVisible();
+  await expect(page.getByText('房间队列预加载：'+(startup?'将开启':'保持关闭'),{exact:true})).toBeVisible();
+  await expect(page.getByText(/下面的连接操作会立即修改 hosts/)).toBeVisible();
+  await expect(page.getByText(/条款确认和上方游戏连接操作已即时生效/)).toBeVisible();
+  expect(api.calls.some(call=>call.path==='setup/apply')).toBe(false);
+  await page.getByRole('button',{name:'确认并应用',exact:true}).click();
+  await expect(page.getByText(startup?'配置已应用。加速运行中；房间队列预加载已开启。':'配置已应用。加速未运行；房间队列预加载已关闭。',{exact:true})).toBeVisible();
+});
+
+test('failed review blocks confirmation until the effects have been checked',async({page})=>{
+  const api=await mockAPI(page);let fail=true;
+  await page.route('**/api/setup/validate',r=>fail?r.fulfill({status:400,json:{error:'配置版本已改变'}}):r.fulfill({json:api.setupEffects}));
+  await page.goto('/#/setup');await navigateStep(page,'4. 启用');
+  await expect(page.getByText(/无法核对完成后的动作/)).toBeVisible();
+  await expect(page.getByRole('button',{name:'确认并应用',exact:true})).toBeDisabled();
+  fail=false;await page.getByRole('button',{name:'刷新接入检查',exact:true}).click();
+  await expect(page.getByRole('button',{name:'确认并应用',exact:true})).toBeEnabled();
+  expect(api.calls.some(call=>call.path==='setup/apply')).toBe(false);
 });

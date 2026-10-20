@@ -9,6 +9,7 @@ export async function mockAPI(page: Page) {
   await page.context().addCookies([{name:'fixture-id',value:fixtureID,url:'http://127.0.0.1:18473'}]);
   const state = statusFixture(), calls: {path:string;body:Record<string,unknown>;token?:string}[] = [];
   const terms={text:'测试完整条款。软件许可不等于内容授权。',version:'fixture',sha256:'fixture-hash',accepted:true,needsConfirmation:false};
+  const setupEffects={restartRequired:false,applyStartup:false};
   const diagnostics={connectivity:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,results:[],lastValid:{}},calibration:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,lastValid:{},referenceBitrateBPS:2000000}};
   const emit=async(kind:keyof typeof diagnostics)=>{await page.request.post('/__fixture/events',{data:{id:fixtureID,kind,state:diagnostics[kind]}});};
   const files: CacheEntry[] = [1,2].map(id => ({key:'key'+id,stamp:'stamp'+id,bytes:1073741824,lastRequest:id===1?Date.UTC(2026,9,16,8,30):0,songs:[{id:String(id),title:'测试歌曲 '+id,current:true}],songCount:1,known:true,protected:id===2,state:'文件存在 · 按 MD5 复用'}));
@@ -26,9 +27,13 @@ export async function mockAPI(page: Page) {
     if(path==='setup/storage')data={space:{state:'ok'},writable:{state:'ok'},library:{state:'ok'},freeBytes:100*2**30,totalBytes:200*2**30};
     if(path==='setup/logs')data={state:'ok',directory:state.defaultLogDir,message:'日志可读取'};
     if(path==='setup/folder')data={path:body.kind==='storage'?'D:\\UI-Test\\cache':'D:\\UI-Test\\videos',canceled:false};
+    if(path==='setup/validate')data=setupEffects;
     if(path==='vrcx/detect')data={path:'C:\\VRCX\\VRCX.sqlite3',found:false,existingSongs:0};
     if(path==='vrcx/preview')return route.fulfill({status:400,body:'未找到默认位置的 VRCX 数据库'});
-    if(path==='setup/apply'){state.setupApplication={id:body.id as string,phase:'completed',configSaved:true,importStarted:!!body.importSource};data=state.setupApplication;}
+    if(path==='setup/apply'){
+      if(setupEffects.applyStartup){state.running=state.settings.autoStartCDN;state.queue={desired:state.settings.autoStartQueue,running:state.settings.autoStartQueue};}
+      state.setupApplication={id:body.id as string,phase:'completed',configSaved:true,importStarted:!!body.importSource};data=state.setupApplication;
+    }
     if(path==='setup/receipt')data=state.setupApplication || {id:body.id,phase:'missing',error:'未找到原回执'};
     const command=path.match(/^setup\/network\/(connectivity|calibration)\/(start|cancel)$/);
     if(command){const kind=command[1] as keyof typeof diagnostics,diag=diagnostics[kind];diag.revision++;diag.running=command[2]==='start';diag.phase=diag.running?'running':'canceled';if(diag.running){diag.run++;diag.upstream=body.upstream as string;}await emit(kind);}
@@ -47,5 +52,5 @@ export async function mockAPI(page: Page) {
     if (path==='activation/enable') {state.running=true;state.hosts.ready=true;state.activation={phase:'waiting',readyAt:new Date().toISOString()};}
     await route.fulfill({json:data,headers:{'Set-Cookie':`fixture-gate=${terms.accepted?'0':'1'}; Path=/`}});
   });
-  return {state,calls,files,terms,diagnostics,emit,fixtureID};
+  return {state,calls,files,terms,diagnostics,emit,fixtureID,setupEffects};
 }

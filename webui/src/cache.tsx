@@ -49,7 +49,9 @@ export function Cache({ visible }: {visible: boolean}) {
       <Button type="submit" disabled={disabled}>查找</Button><Button disabled={disabled} onClick={page.refresh}>刷新文件列表</Button><Button disabled={disabled || !page.data} onClick={() => void operate('open',[])}>打开视频目录</Button>
     </form><Feedback error>{page.error && '本地视频明细读取失败，请重试；未启动服务或联网扫描。'}</Feedback>
     <p role="status">{page.loading ? '正在读取本地视频明细…' : page.data?.total ? `共 ${page.data.total} 个文件 · 第 ${offset / 50 + 1} 页 · 显示 ${entries.length} 项（手动刷新）` : query.q ? '没有匹配的本地视频文件。' : '暂无本地视频。'}</p>
-    {!page.data?.total && !query.q && <Link href="#/library">前往准备歌曲</Link>}
+    {page.data?.total===0 && !query.q && (s.activeSettings.videoStorageMode==='none'
+      ? <><p>当前选择「不保留」：适合边播边下载，本页不会积累已保存的视频。房间队列仍可自动提前准备。</p><div className="actions"><Link href="#queue">自动准备房间队列</Link><Link href="#maxCacheGiB">设置视频保留空间</Link></div></>
+      : <Link href="#batch">保存视频供以后使用</Link>)}
     {!!entries.length && <div className="actions"><Button disabled={disabled || !eligible.length} onClick={() => setSelected(eligible.every(e => selected.includes(e.key)) ? [] : eligible.map(e => e.key))}>选择本页可删除项</Button><Button disabled={disabled || !chosen.length} onClick={() => void operate('delete', chosen)}>删除选中视频</Button><span role="status">已选择 {chosen.length} 个文件</span></div>}
     <Feedback>{result}</Feedback>
     <List navigationMode="composite" className="records" aria-label="本地视频文件">{entries.map((e,i) => <ListItem key={e.key}><div role="gridcell" className="record-content">

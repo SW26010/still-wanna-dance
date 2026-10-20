@@ -77,7 +77,7 @@ test('wizard automatically checks default VRCX and imports only with final setti
   const {calls,api}=await fixture(page);await page.goto('/#/setup');
   await page.getByRole('button',{name:'下一步',exact:true}).click();
   await expect(page.getByRole('checkbox',{name:'从 VRCX 导入历史偏好',exact:true})).toBeChecked();
-  await expect(page.getByText('将VRCX可识别的 WannaDance 历史需求用于补齐排序和容量淘汰',{exact:true})).toBeVisible();
+  await expect(page.getByText('根据 VRCX 历史，优先下载和保留你常用的歌曲。',{exact:true})).toBeVisible();
   await expect(page.getByLabel('VRCX 数据库路径')).toHaveCount(0);
   await expect(page.getByRole('button',{name:'选择数据库',exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'读取并预览',exact:true})).toHaveCount(0);

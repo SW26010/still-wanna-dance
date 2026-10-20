@@ -92,7 +92,7 @@ type VRCXModel = ReturnType<typeof useVRCX>;
 export function VRCXOption({model:m}: {model:VRCXModel}) {
   return <div className="content-stack">
     <Checkbox label="从 VRCX 导入历史偏好" checked={m.enabled} disabled={m.locked} onChange={(_, data) => m.toggle(!!data.checked)} />
-    <Caption1 as="p" className="hint">将VRCX可识别的 WannaDance 历史需求用于补齐排序和容量淘汰</Caption1>
+    <Caption1 as="p" className="hint">根据 VRCX 历史，优先下载和保留你常用的歌曲。</Caption1>
   </div>;
 }
 

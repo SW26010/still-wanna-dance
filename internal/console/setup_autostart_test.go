@@ -71,6 +71,48 @@ func applyStartupSetup(t *testing.T, c *Console, p setupPlan) SetupApplication {
 	return a
 }
 
+func TestSetupReviewUsesActualRestartAndDeferredStartup(t *testing.T) {
+	for _, deferred := range []bool{false, true} {
+		for _, restart := range []bool{false, true} {
+			t.Run(fmt.Sprintf("deferred=%v/restart=%v", deferred, restart), func(t *testing.T) {
+				c := setupStartupConsole(t, true, true)
+				if !deferred {
+					c.AutoStart()
+					postTaskAction(t, c, "stop")
+					postTaskAction(t, c, "queue/stop")
+				}
+				p := setupTestPlan(c)
+				if restart {
+					p.VideoStorageMode, p.MaxCacheBytes = "limited", 1<<30
+				}
+				effects, err := c.reviewSetupPlan(p)
+				if err != nil || effects.RestartRequired != restart || effects.ApplyStartup != (restart || deferred) {
+					t.Fatal(effects, err)
+				}
+				assertSetupServices(t, c, false, false)
+			})
+		}
+	}
+}
+
+func TestSetupReviewDoesNotGuessCredentialChanges(t *testing.T) {
+	c := setupStartupConsole(t, false, false)
+	c.settings.SOCKS5Username, c.settings.SOCKS5Password = "user", "private-password"
+	c.savedSettings = c.settings
+	for _, password := range []string{"private-password", "different-password"} {
+		p := setupTestPlan(c)
+		p.Password = &password
+		effects, err := c.reviewSetupPlan(p)
+		if err != nil || effects.RestartRequired != (password != c.settings.SOCKS5Password) {
+			t.Fatal("credential review", effects, err)
+		}
+		data, err := json.Marshal(effects)
+		if err != nil || bytes.Contains(data, []byte("password")) {
+			t.Fatal("review leaked a credential", string(data), err)
+		}
+	}
+}
+
 func TestSetupDeferredAutoStartHonorsPreferencesOnce(t *testing.T) {
 	for _, restart := range []bool{false, true} {
 		for _, gateway := range []bool{false, true} {

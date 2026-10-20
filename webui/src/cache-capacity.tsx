@@ -1,5 +1,6 @@
 import { Field, Input, Radio, RadioGroup } from '@fluentui/react-components';
 import type { Settings } from './types';
+import { Details } from './ui';
 
 export type CapacityDraft = Pick<Settings, 'videoStorageMode' | 'aggressiveCacheReclamation'> & { maxCacheGiB: string };
 export function capacityPayload(d: CapacityDraft) {
@@ -13,7 +14,7 @@ export function CacheCapacityFields({ mode, value, disabled, onChange, anchor }:
 }) {
   const limited = mode === 'limited';
   return <div id={anchor} tabIndex={-1} className="form-grid">
-    <Field label="视频存储预算"><RadioGroup value={mode} disabled={disabled}
+    <Field label="是否保留下载的视频"><RadioGroup value={mode} disabled={disabled}
       onChange={(_, v) => {
         if (v.value !== 'none' && v.value !== 'limited' && v.value !== 'unlimited') return;
         onChange({videoStorageMode: v.value,
@@ -21,10 +22,12 @@ export function CacheCapacityFields({ mode, value, disabled, onChange, anchor }:
       }}>
       <Radio value="none" label="不保留" /><Radio value="limited" label="限制为" /><Radio value="unlimited" label="不限制" />
     </RadioGroup></Field>
-    <Field label="视频存储预算（GiB）" required={limited} hint="本地视频持久化存储预算，用于跨运行保留完整视频。选择「不保留」时预算为 0，不保留持久化视频文件，仍可使用视频块缓存。已有本地视频在保护结束后回收。实际磁盘占用可能超过预算。">
+    <p>{mode==='none'?'适合边播边下载，不能提前保存曲库。仍可自动准备房间队列。':'保留下载完成的视频，供以后播放；空间不足时优先保留常用歌曲。'}</p>
+    <Field label="视频存储预算（GiB）" required={limited} hint="最多为下载完成的视频保留多少空间。1 GiB 约为 1.07 GB。">
       <Input type="number" min="0.01" max="8388607" step="0.01" required={limited} disabled={disabled || !limited}
         value={mode === 'none' ? '0' : value} onChange={(_, v) => onChange({maxCacheGiB: v.value})} />
     </Field>
+    <Details title="空间占用与回收说明"><p>选择「不保留」时预算为 0，视频块缓存可在本次运行内复用；已有本地视频在播放和队列保护结束后回收。使用中的视频及临时文件可能使实际磁盘占用超过预算。</p></Details>
   </div>;
 }
 export function CacheReclamationFields({ mode, reclamation, disabled, onChange }: {

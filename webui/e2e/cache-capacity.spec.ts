@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { mockAPI } from './api';
 import { navigate, navigateStep } from './navigation';
 
-const description = '本地视频持久化存储预算，用于跨运行保留完整视频。选择「不保留」时预算为 0，不保留持久化视频文件，仍可使用视频块缓存。已有本地视频在保护结束后回收。实际磁盘占用可能超过预算。';
+const description = '最多为下载完成的视频保留多少空间。1 GiB 约为 1.07 GB。';
 
 test('settings collapse and disable the directory without losing its saved or draft path', async ({page}, info) => {
   const api = await mockAPI(page);
@@ -95,7 +95,7 @@ test('settings preserve all three storage choices and the entered budget across 
   const none = page.getByRole('radio', {name:'不保留', exact:true});
   const limited = page.getByRole('radio', {name:'限制为', exact:true});
   const unlimited = page.getByRole('radio', {name:'不限制', exact:true});
-  await expect(page.getByRole('radiogroup', {name:'视频存储预算',exact:true}).getByRole('radio')).toHaveCount(3);
+  await expect(page.getByRole('radiogroup', {name:'是否保留下载的视频',exact:true}).getByRole('radio')).toHaveCount(3);
   await expect(input).toHaveAccessibleDescription(description);
   await expect(unlimited).toBeChecked();
   await expect(input).toBeDisabled();
@@ -195,6 +195,20 @@ test('no retention overrides the remembered budget and only blocks filling the l
   await expect(page.getByRole('button',{name:'下载补齐',exact:true})).toBeDisabled();
   await expect(page.getByRole('button',{name:'检查缺失视频',exact:true})).toBeEnabled();
   await expect(page.getByRole('button',{name:'开启队列预加载',exact:true})).toBeEnabled();
+});
+
+test('empty storage links explain queue preparation and persistent library prerequisites',async({page})=>{
+  const api=await mockAPI(page);api.files.splice(0);api.state.activeSettings.videoStorageMode='none';api.state.settings.videoStorageMode='none';
+  await page.goto('/#/cache');
+  await expect(page.getByText(/当前选择「不保留」：适合边播边下载/)).toBeVisible();
+  await page.getByRole('link',{name:'自动准备房间队列',exact:true}).click();
+  await expect(page.locator('#queue')).toBeFocused();
+  await expect(page.getByRole('button',{name:'开启队列预加载',exact:true})).toBeEnabled();
+  await expect(page.getByRole('heading',{name:'保存视频供以后使用',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'下载补齐',exact:true})).toBeDisabled();
+  await page.getByRole('link',{name:'设置视频保留空间',exact:true}).click();
+  await expect(page.locator('#maxCacheGiB')).toBeFocused();
+  await expect(page.getByText('适合边播边下载，不能提前保存曲库。仍可自动准备房间队列。',{exact:true})).toBeVisible();
 });
 
 test('settings reject invalid budgets and inactive choices recover from an invalid draft', async ({page}) => {

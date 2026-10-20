@@ -53,6 +53,25 @@ type SetupApplication struct {
 	VRCX          *setupCheck `json:"vrcx,omitempty"`
 }
 
+// Advisory effects use the same normalized settings as application, including
+// credentials that are intentionally never exposed to the browser.
+type setupEffects struct {
+	RestartRequired bool `json:"restartRequired"`
+	ApplyStartup    bool `json:"applyStartup"`
+}
+
+func (c *Console) reviewSetupPlan(p setupPlan) (setupEffects, error) {
+	s, err := c.validateSetupPlan(p)
+	if err != nil {
+		return setupEffects{}, err
+	}
+	s.nodeImportID = ""
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	restart := s != c.settings
+	return setupEffects{RestartRequired: restart, ApplyStartup: restart || c.autoStartPending}, nil
+}
+
 func (c *Console) setupSettingsVersion(s Settings) (string, error) {
 	c.setupVersionMu.Lock()
 	defer c.setupVersionMu.Unlock()

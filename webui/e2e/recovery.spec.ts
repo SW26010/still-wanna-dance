@@ -55,7 +55,7 @@ test('Mihomo preview stays a draft and clearing it releases only that preview',a
 test('failed consent persistence keeps business APIs gated, retry succeeds',async({page})=>{
   const api=await mockAPI(page);api.terms.accepted=false;let fail=true;
   await page.route('**/api/terms/accept',async r=>{if(fail)return r.fulfill({status:500,json:{error:'凭据无法保存'}});api.terms.accepted=true;await r.fulfill({json:{ok:true}});});
-  await page.goto('/?gate=1');await page.getByRole('button',{name:'完整条款',exact:true}).click();
+  await page.goto('/?gate=1');await page.getByRole('button',{name:'阅读并同意条款',exact:true}).click();
   await page.getByRole('button',{name:'同意完整条款'}).click();
   await expect(page.getByRole('dialog').getByText(/凭据无法保存/)).toBeVisible();
   expect(api.calls.some(c=>c.path==='status')).toBe(false);fail=false;
@@ -72,7 +72,7 @@ test('setup validation failure keeps the draft and does not apply',async({page})
   await page.route('**/api/setup/validate',r=>r.fulfill({status:409,json:{error:'设置版本已变化，请重新进入引导'}}));
   await page.getByRole('button',{name:'下一步',exact:true}).click();await expect(page.getByText(/本页尚未通过检查/)).toBeVisible();
   await expect(page.getByRole('spinbutton',{name:/视频存储预算/})).toHaveValue('18');expect(api.calls.some(c=>c.path==='setup/apply')).toBe(false);
-  await page.getByRole('button',{name:'放弃更改并退出引导'}).click();await expect(page.getByRole('link',{name:'开始使用',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'放弃草稿并退出引导'}).click();await expect(page.getByRole('link',{name:'开始使用',exact:true})).toBeVisible();
 });
 
 test('reload reconciles the original application ID without submitting again',async({page})=>{

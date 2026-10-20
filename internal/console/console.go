@@ -1031,7 +1031,12 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var input setupPlan
 		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
 			if r.URL.Path == "/api/setup/validate" {
-				_, err = c.validateSetupPlan(input)
+				var effects setupEffects
+				effects, err = c.reviewSetupPlan(input)
+				if err == nil {
+					writeJSON(w, effects)
+					return
+				}
 			} else {
 				var result SetupApplication
 				result, err = c.applySetupPlan(input)

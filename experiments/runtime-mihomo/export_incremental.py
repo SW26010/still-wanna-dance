@@ -53,7 +53,7 @@ def main():
     files=sorted(p for p in DEST.glob("*.json") if p.name!="manifest.json")
     source=sorted(p for p in (ROOT/"experiments/runtime-mihomo").rglob("*") if p.is_file() and "__pycache__" not in p.parts)
     source+=[ROOT/"experiments/managed-mihomo/run.py",ROOT/"internal/proxyengine/mihomo/testfixture/main.go",
-             ROOT/"internal/proxyengine/mihomo/testfixture/counts.go",ROOT/"docs/issue-14-incremental-evaluation.md"]
+             ROOT/"internal/proxyengine/mihomo/testfixture/counts.go",ROOT/"docs/validation/issue-14-incremental-evaluation.md"]
     def entry(path):
         data=path.read_text(encoding="utf-8").replace("\r\n","\n").encode()
         return {"path":path.relative_to(ROOT).as_posix(),"bytes":len(data),"sha256":digest(data)}

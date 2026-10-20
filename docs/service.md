@@ -1,14 +1,14 @@
 # 命令行服务使用手册
 
-命令行入口提供播放网关的 HTTP 播放、本地资源复用与回源能力，使用 Go 实现；SQLite 请求统计使用纯 Go 驱动，无需安装数据库服务。此入口不包含桌面控制台的 HTTPS 透传和 Monitor 通道推荐，能力范围见下方「游戏接入」。当前统一存储通过可控上游测试；真实 CF/HKG 下载与原版回读记录来自旧存储版本。VRChat 联合验收及发现的问题见[验收记录](acceptance.md)。
+命令行入口提供播放网关的 HTTP 播放、本地资源复用与回源能力，使用 Go 实现；SQLite 请求统计使用纯 Go 驱动，无需安装数据库服务。此入口不包含桌面控制台的 HTTPS 透传和 Monitor 通道推荐，能力范围见下方「游戏接入」。各阶段开发与实机结果见[证据索引](evidence/README.md)，其中原版回读仅属于旧存储版本；不能将桌面验收直接外推为 CLI 的全部兼容性。
 
 ## 启动
 
 需要 Go 1.25 或更高版本。Windows PowerShell：
 
 ```powershell
-go test ./internal/... ./cmd/...
-go vet ./internal/... ./cmd/...
+./scripts/with-test-temp.ps1 go test -tags=no_easytier ./internal/... ./cmd/...
+./scripts/with-test-temp.ps1 go vet -tags=no_easytier ./internal/... ./cmd/...
 go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
 .\bin\still-wanna-dance.exe -show-terms
 # 阅读全文并同意后再执行；软件许可不授予第三方视频内容权利。
@@ -29,7 +29,7 @@ go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
 
 本页 `still-wanna-dance.exe` 命令行入口支持 HTTP 视频请求及 `api.udon.dance/Api/Songs/play?id=…` 的 GET/HEAD，接受省略 node、`node=cf` 或 `node=nya`。它通过 HTTPS 获取上游视频地址，按资源指纹命中本地视频或边下边播，直接以 HTTP 返回视频，支持单段 Range。游戏入口须使用 HTTP，播放器须接受 API 地址直接返回视频；游戏内兼容性仍待实测。其他 API 路径的 GET/HEAD 返回 307，指向原站 HTTPS。
 
-CLI 不监听 443，也不支持 `/v/` 或 SHA。hosts 同时影响 HTTP/HTTPS，因此映射后的域名若被客户端通过 HTTPS 访问（包括上述 307），CLI 单独运行无法承接该连接。需要同时兼容网页 HTTPS 播放时，使用 `SWD.exe`：其播放网关同时启动 HTTP 播放和 HTTPS 透传，详见[本地控制台](console.md#网页-https-播放)。透传不使用本地视频。更详细的原版接入记录见[复现手册](testing-runbook.md)，其中原版命令不能直接当作 Still Wanna Dance 命令使用。
+CLI 不监听 443，也不支持 `/v/` 或 SHA。hosts 同时影响 HTTP/HTTPS，因此映射后的域名若被客户端通过 HTTPS 访问（包括上述 307），CLI 单独运行无法承接该连接。需要同时兼容网页 HTTPS 播放时，使用 `SWD.exe`：其播放网关同时启动 HTTP 播放和 HTTPS 透传，详见[本地控制台](console.md#网页-https-播放)。透传不使用本地视频。更详细的原版接入记录见[复现手册](history/original-testing-runbook.md)，其中原版命令不能直接当作 Still Wanna Dance 命令使用。
 
 <a id="缓存和下载规则"></a>
 
@@ -37,8 +37,8 @@ CLI 不监听 443，也不支持 `/v/` 或 SHA。hosts 同时影响 HTTP/HTTPS�
 
 - 接收有效 API 响应已确认的资源 Host（允许附带端口），或显式配置的域名覆盖项的 GET/HEAD；路径限定为 `/files/<数字目录>/<正整数ID>-<字母数字版本>.mp4`。e 必须为 MD5，s 为正数且不超过上限。重复 e/s、错误转义、其他 Host 和路径返回 400，其他方法返回 405。
 - 本地仅以 MD5 定位 `videos/{md5}.mp4`；同内容跨歌曲、资源版本、目录和线路共用一份文件。歌曲 ID 到 MD5 的关联以批量清单为准，新增和更新但不删除旧 ID。纯视频 URL 不推断曲目关系。
-- 下载完整后校验一次 MD5。之后按不可变文件使用，普通命中和扫描不再读取正文校验；活动响应共享文件句柄和独立读取位置。扫描由独立函数一次枚举目录，仅检查被引用的 MD5 文件是否存在，忽略孤儿。见[存储设计](md5-resource-design.md)。
-- 未命中时同内容共享一个下载会话，支持 Range 的上游按 1 MiB 内容块接入全局调度，各块共享执行。客户端独立按自己的 Range 读取已完整可读的块，缺块时等待；上游不支持 Range 时回退顺序整文件下载。原理见[全局块调度设计](block-scheduler-design.md)。默认连接 API 返回的实际资源域名及 443 端口，不把节点名称或 IP 地理位置当作域名身份，也不预设这两个历史域名继续存在。详见[资源域名规则](resource-domains.md)。通过内置 DoH 解析并建立 HTTPS 连接，保留原视频 Host、TLS SNI 和证书校验，不使用系统代理环境变量，不回退系统 DNS/hosts 或明文 HTTP。独立 DNS 绕过本机 hosts 接管，无需额外的回源别名，也不会在失败时静默改用历史 `ud-*` 地址。域名依据见[播放域名实测](playback-domain-observation-20260926.md)。
+- 下载完整后校验一次 MD5。之后按不可变文件使用，普通命中和扫描不再读取正文校验；活动响应共享文件句柄和独立读取位置。扫描由独立函数一次枚举目录，仅检查被引用的 MD5 文件是否存在，忽略孤儿。见[存储契约](storage.md)。
+- 未命中时同内容共享一个下载会话，支持 Range 的上游按 1 MiB 内容块接入全局调度，各块共享执行。客户端独立按自己的 Range 读取已完整可读的块，缺块时等待；上游不支持 Range 时回退顺序整文件下载。原理见[全局块调度设计](block-scheduler-design.md)。默认连接 API 返回的实际资源域名及 443 端口，不把节点名称或 IP 地理位置当作域名身份，也不预设这两个历史域名继续存在。详见[资源域名规则](resource-domains.md)。通过内置 DoH 解析并建立 HTTPS 连接，保留原视频 Host、TLS SNI 和证书校验，不使用系统代理环境变量，不回退系统 DNS/hosts 或明文 HTTP。独立 DNS 绕过本机 hosts 接管，无需额外的回源别名，也不会在失败时静默改用历史 `ud-*` 地址。域名依据见[播放域名实测](history/playback-domain-observation-20260926.md)。
 - 使用 `-socks5-proxy` 时，上述内置 DoH 直连改为通过 SOCKS5 建连，目标域名解析交给代理，失败不回退直连；不改变 HTTPS 证书校验或本地视频逻辑。
 - 视频回源最多跟随五次重定向，仅接受当前已确认的视频域名、合法视频路径且 MD5/大小与原资源一致的目标。HTTP Location 升级为 HTTPS 后访问，每次连接继续使用所选的直连／SOCKS5 出口；不接受任意域名跳转。播放 API 的重定向作为视频地址解析，再进入同一视频资源处理链路。
 - Range 与顺序 200 将完整块保存到 `tmp/download-block-*.part`，写入关闭后提供读取；半块不保存。收齐后先按预算和共用资源保留优先级取得预留，再按块顺序合并到发布文件，合并时计算 MD5 并核对长度，同步关闭后重命名到 `videos`。旧读者继续使用块文件，最后引用释放后清理。上游错误、截断、超长、非预期压缩和校验失败不发布正式视频。MD5 仅用于协议完整性检查；零预算不进行整视频合并/校验；队列可报告临时可读，手动补齐只有校验发布成功才算完成。
@@ -113,11 +113,11 @@ FROM song_usage ORDER BY last_demand_at DESC;
 
 `go test ./internal/... ./cmd/...` 使用独立临时目录、随机端口和可控上游，覆盖：不同 API 返回域名的本地未命中、跨 Host 命中、Range/HEAD/条件请求、非法输入、错误上游/跳转/截断/超长/校验失败、同资源并发、调用方取消、版本隔离、同长度损坏、单份正式视频、数据库资料保留、下载失败保留旧版本、活动读取期间的版本隔离、本地存储独占、容量和超时、关闭及重启清理。
 
-CI 配置 Windows/Linux 的测试、vet、构建，以及 Linux race 检测。本地 Windows 未配置 C 工具链时不能运行 `go test -race`。CI 尚未在远程执行。
+CI 配置 Windows/Linux 的测试、vet、构建，以及 Linux race 检测；实际是否执行以对应流水线结果为准。本地 Windows race 需要 C 工具链，命令及临时目录约定见[开发环境](development.md)。
 
 旧存储版本的历史验证（不代表当前重构的实机验证）：`go test ./internal/... ./cmd/...`、`go vet ./internal/... ./cmd/...`、Windows 构建通过，核心包语句覆盖率 82.6%；Linux 服务和测试程序交叉编译通过（未在 Linux 本机执行）。真实 CDN、原版回读和 VRChat 样本见验收记录。测试进程已退出，临时 hosts 修改已恢复，原版歌曲库样本前后哈希不变。
 
-初版在真实游戏中因完整下载等待触发 20 秒客户端超时和自动重试，已据此加入共享渐进读取及断流回归测试。历史实机结果见[早期服务验收记录](acceptance.md)及 [`c69e844` 联合验收](release-acceptance-20260925.md)，均不能替代当前构建的实机验证。
+初版在真实游戏中因完整下载等待触发 20 秒客户端超时和自动重试，已据此加入共享渐进读取及断流回归测试。历史实机结果见[早期服务验收记录](acceptance/early-service-20260925.md)及 [`c69e844` 联合验收](acceptance/release-acceptance-20260925.md)，均不能替代当前构建的实机验证。
 
 ### 后台下载并发
 

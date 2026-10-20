@@ -35,7 +35,7 @@ After accepting the terms, closing the web page leaves the app running in the sy
 
 **Before disabling or uninstalling the app, click Restore hosts (恢复 hosts) in the console.** Stopping the service or quitting does not automatically restore hosts entries, and leaving them in place may affect direct playback afterward.
 
-For detailed instructions, see the [console guide](docs/console.md) and [portable app guide](docs/portable-readme.txt), both in Chinese.
+For detailed instructions, see the [console guide](docs/console.md) and [portable app guide](docs/packaging.md#覆盖升级与备份), both in Chinese.
 
 ## Find your way around
 
@@ -54,13 +54,13 @@ Playback Gateway (播放网关) runs on your computer and handles playback reque
 ## Things to know
 
 - **Local videos and the block cache serve the game's HTTP playback path.** Website playback over HTTPS is forwarded with the original encrypted connection intact and does not read local videos or populate the block cache. The node=cf and node=nya playback APIs are supported; SHA is not currently supported. Resource domains are discovered from API responses, without a fixed list or node-to-domain mapping.
-- **Local videos can help with some upstream failures.** If playback URL resolution fails, the app can use the song's last confirmed local video after it passes integrity checks. This is not a full offline mode and does not cover failures during a subsequent download. See [fallback behavior](docs/service.md#本地降级边界).
+- **Local videos can help with some upstream failures.** When a song has a known mapping and an available local file, the app serves it without waiting for the background URL query. A failed query does not interrupt that local response. This is not a full offline mode; missing videos still require an upstream connection. See [local playback behavior](docs/service.md#id-播放与本地命中).
 - **You control the video storage budget.** This is the local persistent video storage budget (本地视频持久化存储预算), shown as 视频存储预算 in the UI. It defaults to 0: complete videos are not retained across runs, while the runtime video block cache remains available. Choose a positive budget or unlimited storage to retain videos. Protected videos and temporary files can push actual disk usage above the budget.
-- **The project is still evolving.** Automated tests and historical tests with the game are documented. Recent storage and playback API changes still need complete end-to-end validation with VRChat. Feedback from different networks and player environments is welcome. See [supported functionality and limitations](docs/scope.md).
+- **The project is still evolving.** Automated and live game tests are documented. Remaining scenarios, including enabling access during playback, slow-network seeking to uncached data, queue handoff and multiplayer synchronization, are tracked in the [VRC backlog](docs/live-acceptance-backlog.md). Feedback from different networks and player environments is welcome. See [supported functionality and limitations](docs/scope.md).
 
 ## Core design: schedule data by when it is needed
 
-The current source uses **global block scheduling driven by expected completion times**. Playback, read-ahead, queue preparation, and library downloads contribute independent demands for content blocks. Demands share one download per block and can be withdrawn independently. HTTP request positions and local media metadata estimate when each block is needed; a shared block-time estimate and preparation margin define its activation window. Eligible backlog includes blocks inside the activation window and blocks with an independent untimed demand allowing early execution. Either kind can drive gradual concurrency growth; a block actually holding up a read is admitted immediately.
+The current source uses **global block scheduling driven by expected completion times**. Playback, queue preparation, and library downloads contribute independent demands for content blocks. Demands share one download per block and can be withdrawn independently. HTTP request positions and local media metadata estimate when each block is needed; a fixed preparation lead M defines its activation window. Eligible backlog includes blocks inside the activation window and blocks with an independent untimed demand allowing early execution. Either kind can drive gradual concurrency growth; a block actually holding up a read is admitted immediately.
 
 See the [design, formulas, and worked example (Chinese)](docs/block-scheduler-design.md). Developers verify throughput, CPU usage, and scheduling boundaries with controlled workloads. Slow-network seeking, in-game stutter, and queue handoff with the actual VRChat player remain grouped under LA-040 / LA-041 for live acceptance.
 
@@ -87,7 +87,7 @@ When [opening an issue](https://github.com/SW26010/still-wanna-dance/issues), pl
 
 ## More documentation
 
-The detailed guides below are currently in Chinese.
+The detailed guides below are currently in Chinese. The [documentation index](docs/README.md) separates current rules, development validation, acceptance reports and historical material.
 
 | Guide | Covers |
 | --- | --- |
@@ -98,14 +98,14 @@ The detailed guides below are currently in Chinese.
 | [Command-line service](docs/service.md) | Standalone startup, options, and local storage behavior |
 | [Unified storage](docs/storage.md) | Where videos, song metadata, and statistics are stored |
 | [Scope and limitations](docs/scope.md) | Supported features, compatibility, and validation status |
-| [Tests and validation](docs/test-results.md) | Test records and results |
+| [Validation process and VRC backlog](docs/live-acceptance-process.md) | Verification responsibilities, reports and remaining scenarios |
 | [Development guide](docs/development.md) | Development setup, code entry points, and test commands |
 
 ## Upgrading and backing up
 
 Quit the app and back up the complete `data/` directory. For custom configurations, back up the main JSON and its instance data directory; back up any external media storage in full. Replace `SWD.exe`, `licenses/`, `README.txt` and `build-info.json` in the original app directory, preserve data and external storage, and launch the executable there. Launching from a new extraction directory selects a separate default configuration.
 
-The current configuration format is version 3. Unversioned and version 1/2 test configurations and earlier databases are not supported or migrated; keep test data backed up and use separate new configuration and storage directories. If the app reports a newer file format, update the app instead of deleting data or editing version numbers. See the [portable upgrade guide](docs/portable-readme.txt) for the complete backup scope and steps.
+The current configuration format is version 5. Unversioned and version 1–4 test configurations and earlier databases are not supported or migrated; keep test data backed up and use separate new configuration and storage directories. If the app reports a newer file format, update the app instead of deleting data or editing version numbers. See the [portable upgrade guide](docs/packaging.md#覆盖升级与备份) for the complete backup scope and steps.
 
 ## License and content use
 

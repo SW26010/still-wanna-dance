@@ -53,6 +53,6 @@ cancellation, wrong credentials and retirement. Admission tests cover uncooperat
 native calls and blocking Close. Run go test -tags=no_easytier on this package.
 Set SWD_B2_SOAK=1 to enable TestRuntimeSoak, a 60-second paced workload.
 
-See [B2 development validation](../../../docs/issue-14-b2-integration.md) for exact
+See [B2 development validation](../../../docs/validation/issue-14-b2-integration.md) for exact
 tested revisions and limitations, and [license/source review](../../../docs/licenses/README.md)
 for distribution inputs. Loopback checks do not replace real-game acceptance.

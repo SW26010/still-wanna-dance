@@ -39,7 +39,7 @@
 
 | 交付物 | 最小内容 |
 | --- | --- |
-| `docs/live-acceptance-YYYYMMDD-NN.md` | 构建、范围、操作与实际结果、证据引用、未解决问题、实际清理回执；共用步骤写一次 |
+| `docs/acceptance/live-acceptance-YYYYMMDD-NN.md` | 构建、范围、操作与实际结果、证据引用、未解决问题、实际清理回执；共用步骤写一次 |
 | `docs/evidence/live-YYYYMMDD-NN/` | 支持结论的脱敏日志片段、操作/音画反馈记录；只有确有必要时另附截图或录像，不为每条代码断言另造证据 |
 | 证据目录内 `manifest.json` | 批次、源码/实际构建哈希、证据路径/字节数/SHA256/来源/脱敏说明；清单不含自身哈希 |
 | 台账与证据索引 | 对应场景结果、报告链接和剩余动作；在 `docs/evidence/README.md` 增加入口 |

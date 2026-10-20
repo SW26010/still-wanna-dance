@@ -10,7 +10,7 @@
 
 独立样本前按下文取得停止、清空正式队列及关闭预览的反馈，再重启夹具重置累计额度。`Cache-Control: no-store` 不能证明客户端没有旧媒体缓存，必须核对真实 GET；正式和预览由实际操作标记，不能只靠 UA/Range 推断。长暂停导致超时或新 GET 时保留为实验干扰，再用短暂停对照。`body-summary.mjs <日志>` 输出白名单请求和正文区间摘要；`writeBytes` 保留各响应的实际 Write 字节（含错误文本），视频区间及歌曲累计量仅包含 GET 200/206。原始逐次写入轨迹与游戏日志留在忽略目录，公开前按统一时间原点脱敏。
 
-当前夹具在首次等待正文额度前 Flush 响应头，零额度和共享额度已耗尽的新 GET 也可立即收到状态与 Content-Length。LIVE-20261019-01 的历史二进制尚无此修复；历史请求/测量保持原样，影响评估见[本轮报告](../../docs/live-acceptance-20261019-01.md)。针对性回归：`node --test experiments/live-get-probe/body-summary.test.mjs`，以及下文 Go 测试中的响应头先行、正文暂停/恢复检查；Windows 命令使用 `scripts/with-test-temp.ps1` 包装。
+当前夹具在首次等待正文额度前 Flush 响应头，零额度和共享额度已耗尽的新 GET 也可立即收到状态与 Content-Length。LIVE-20261019-01 的历史二进制尚无此修复；历史请求/测量保持原样，影响评估见[本轮报告](../../docs/acceptance/live-acceptance-20261019-01.md)。针对性回归：`node --test experiments/live-get-probe/body-summary.test.mjs`，以及下文 Go 测试中的响应头先行、正文暂停/恢复检查；Windows 命令使用 `scripts/with-test-temp.ps1` 包装。
 
 ## 上游 SOCKS 限速实验
 

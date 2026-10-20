@@ -215,9 +215,9 @@ func (s *Server) resolvePlaybackVideo(ctx context.Context, q url.Values) (video,
 	return v, nil
 }
 
-// Only a previously confirmed song association may supply an offline version.
-// Re-parse stored metadata to apply the same limits as online playback. The
-// handler pins and verifies the file, and must never download or promote it.
+// Only a confirmed song association may select a local file. loadSong pins and
+// verifies it before returning a local-only video; this lookup does not resolve
+// an upstream URL or download missing content.
 func (s *Server) localPlaybackVideo(ctx context.Context, id string) (video, error) {
 	var key string
 	if err := s.usage.db.QueryRowContext(ctx, "SELECT md5 FROM song_media WHERE song_id=?", id).Scan(&key); err != nil || !validMD5(key) {

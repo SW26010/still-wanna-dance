@@ -206,7 +206,7 @@ hosts 同时影响 HTTP 和 HTTPS。控制台启动播放网关时提供 TLS SNI
 
 历史 Chrome 实测（2026-09-26，切换公开域名前）：通过上述辅助服务从原站点击歌曲 6228，播放器 `readyState=4`、`error=null`，播放时间推进到 13 秒；重新打开当时 node=nya 返回的地址后，重定向到 play.udon.dance，继续播放至 37 秒。当时服务连接的是 `ud-nya.kiva.moe:443` 和 `ud-play.kiva.moe:443`，不代表当前默认目标。没有改写网页、视频 URL、系统证书或 hosts；这是该歌曲当时的连通与播放验证，不代表全曲库或持续吞吐测试。
 
-当前公开域名回源的实网验收见[调查后的实现与验证](playback-domain-observation-20260926.md#调查后的实现与验证)。`SWD_LIVE_UPSTREAM=1` 启用的 `TestLiveHTTPSUpstreams` 会让测试客户端连接临时本地 TLS 透传端口，模拟 hosts 接管，再通过生产 DoH 连接公开域名；验证 API 实际返回地址的视频片段及原站证书，不修改系统 hosts。
+当前公开域名回源的实网验收见[调查后的实现与验证](history/playback-domain-observation-20260926.md#调查后的实现与验证)。`SWD_LIVE_UPSTREAM=1` 启用的 `TestLiveHTTPSUpstreams` 会让测试客户端连接临时本地 TLS 透传端口，模拟 hosts 接管，再通过生产 DoH 连接公开域名；验证 API 实际返回地址的视频片段及原站证书，不修改系统 hosts。
 
 ### 解析与连接
 
@@ -294,7 +294,7 @@ go test ./internal/console -run TestLiveIndependentDNS -v -count=1
 Remove-Item Env:SWD_LIVE_CHECK
 ```
 
-2026-09-25 获取 10,398 个去重 ID；视频域名有本机 hosts 映射时，独立解析的 API 和视频片段请求成功。数量为当时样本。随后对 `c69e844` 完成了真实 UAC 修改/恢复、托盘退出、重启及容量设置的[联合实机验收](release-acceptance-20260925.md)。
+2026-09-25 获取 10,398 个去重 ID；视频域名有本机 hosts 映射时，独立解析的 API 和视频片段请求成功。数量为当时样本。随后对 `c69e844` 完成了真实 UAC 修改/恢复、托盘退出、重启及容量设置的[联合实机验收](acceptance/release-acceptance-20260925.md)。
 
 ### 统一回源选路
 
@@ -324,7 +324,7 @@ Remove-Item Env:SWD_LIVE_CHECK
 
 游戏入口必须仍使用 HTTP，并且播放器需接受 API 地址直接返回视频；当前 HTTP 播放 API 接管的实际游戏兼容性需要实机确认。仅接管 API 的前提是解析器和播放器能通过这个直接返回视频的本地入口完成后续读取。历史上正常解析后请求资源 URL 有证据；“新的播放绕过 API、复用旧资源 URL”则尚无发生证据、频率统计或稳定复现步骤。假设、条件性担忧及实机验证要求见[仅接管 API 的假设与待验证边界](resource-domains.md#仅接管-api-的假设与待验证边界)。服务端改用 HTTPS 回源不改变当前统一存储的资源指纹；此说明不表示兼容旧存储格式。下载和测速最多跟随五次视频重定向，仅接受当前 API 确认的视频域名且 MD5/大小一致的地址；HTTP Location 会升级为 HTTPS 后再访问。其他重定向明确拒绝。
 
-HTTP 播放 API 优先使用受保护且校验通过的本地文件，不等待后台 API。已保存 URL 下载失败时，尚未输出正文可等待本次已有查询再尝试；旧下载与刷新都失败时保留两个阶段的错误。正文输出后仍中止响应，不切换内容。HTTPS 透传不适用；加载边界见[歌曲加载设计](song-loading-design.md)。
+HTTP 播放 API 优先使用受保护且校验通过的本地文件，不等待后台 API。已保存 URL 下载失败时，尚未输出正文可等待本次已有查询再尝试；旧下载与刷新都失败时保留两个阶段的错误。正文输出后仍中止响应，不切换内容。HTTPS 透传不适用；地址记录见[曲库设计](song-catalog-design.md)，当前下载与资源边界见[下载需求与资源管理设计](download-resource-design.md)。
 
 可选实网验收：设置 `SWD_LIVE_UPSTREAM=1`，运行 `go test ./internal/console -run '^TestLiveHTTPSUpstreams$' -v -count=1`。仅解析播放 API 并读取每路 1 KiB 视频 Range，不修改 hosts。
 

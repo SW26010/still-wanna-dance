@@ -1,6 +1,6 @@
 # 完整运行时 B/C 有限对照
 
-后续定向验证见[报告](../../docs/issue-14-directed-validation.md)。Hysteria2 使用上游服务端响应门闩及流额度限制，区分非等待式热 OpenStream 与延迟协议响应。仅回环，不使用私人订阅。固定 Go 1.25.0，在本目录用 `CGO_ENABLED=0`、`GOTOOLCHAIN=local` 执行：
+后续定向验证见[报告](../../docs/validation/issue-14-directed-validation.md)。Hysteria2 使用上游服务端响应门闩及流额度限制，区分非等待式热 OpenStream 与延迟协议响应。仅回环，不使用私人订阅。固定 Go 1.25.0，在本目录用 `CGO_ENABLED=0`、`GOTOOLCHAIN=local` 执行：
 
 ```powershell
 go test -mod=readonly -tags=no_easytier ./probe -count=1
@@ -22,11 +22,11 @@ go test -mod=readonly -tags=no_easytier ./internal/console ./internal/upstreamst
 
 收尾复核新增 TLS 握手计数，并修复活跃代次排空观察的 WaitGroup 复用问题；最新证据使用 `--label hot-session` / `--label retry-final` 及其实际提交校验，原 `hot` / `retry` 清单分别固定在 `7e669f6` / `90ca63b`，不覆盖历史失败。
 
-2026-10-13 后续中立增量评估见[新报告](../../docs/issue-14-incremental-evaluation.md)。`incremental.ps1 -Phase build` 构建 B1/B2/D 共用驱动与 C/核心/夹具；`-Phase lifecycle` 执行 B2 新增门槛，`-Phase compare` 执行必要本地对照，`-Phase real -PrivateSubscription <文件>` 在明确授权后单独做有限公网补测。参数 `-GoExe`、`-PythonExe` 与下述一致，输出另存 `artifacts/issue14/incremental/`，不覆盖历史实验结果。B2/D 性能阶段拨号预算 5 秒，生命周期 3 秒；D 只做入口诊断，不是新增正式后端。
+2026-10-13 后续中立增量评估见[新报告](../../docs/validation/issue-14-incremental-evaluation.md)。`incremental.ps1 -Phase build` 构建 B1/B2/D 共用驱动与 C/核心/夹具；`-Phase lifecycle` 执行 B2 新增门槛，`-Phase compare` 执行必要本地对照，`-Phase real -PrivateSubscription <文件>` 在明确授权后单独做有限公网补测。参数 `-GoExe`、`-PythonExe` 与下述一致，输出另存 `artifacts/issue14/incremental/`，不覆盖历史实验结果。B2/D 性能阶段拨号预算 5 秒，生命周期 3 秒；D 只做入口诊断，不是新增正式后端。
 
 `-Phase attribution` 执行受控 DNS 延迟和热会话取消竞争。本轮 Hysteria2 热建流快于 1 ms 定时器，未触发所需取消场景，因此该命令返回非零；不可据其他通过项将其标为通过。`export_incremental.py` 只导出脱敏 JSON、拒绝覆盖旧证据；`summarize_incremental.py` 生成含样本数/失败数的描述性统计；`verify_incremental.py --staged --bin <输出目录>` 核对 Git 暂存字节、二进制哈希、101 个共同链接模块和已评估 Go 源码。
 
-对应 [issue #14 当前要求](https://github.com/SW26010/still-wanna-dance/issues/14)，比较 **B：完整 executor + 原生内存入口** 和 **C：同版本完整核心进程 + 固定 SOCKS5**。不调用旧 `Node.New`，不扩展旧协议白名单，不接入产品。结论、失败历史和生产设计见[评估报告](../../docs/mihomo-runtime-evaluation-20261013.md)。
+对应 [issue #14 当前要求](https://github.com/SW26010/still-wanna-dance/issues/14)，比较 **B：完整 executor + 原生内存入口** 和 **C：同版本完整核心进程 + 固定 SOCKS5**。不调用旧 `Node.New`，不扩展旧协议白名单，不接入产品。结论、失败历史和生产设计见[评估报告](../../docs/validation/mihomo-runtime-evaluation-20261013.md)。
 
 ## 复跑
 

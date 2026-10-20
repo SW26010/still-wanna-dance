@@ -43,7 +43,7 @@ func TestVRCXBrowser(t *testing.T) {
 	defer ui.Close()
 	ctx, cancel := context.WithTimeout(t.Context(), 45*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "vrcx-live.mjs"), ui.URL, source, evidence)
+	cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "vrcx-live.mjs"), ui.URL, source, evidence)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("browser: %v\n%s", err, output)
 	} else {

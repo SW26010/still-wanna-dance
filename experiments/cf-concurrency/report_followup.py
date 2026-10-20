@@ -84,6 +84,7 @@ def main():
     assert checks["allPassed"] and len(checks["checks"])==42
     verification=f'42 组独立 xperf CPU 总量校核全部通过，最大绝对差为 {max(r["absoluteDifferenceUS"] for r in checks["checks"])} 微秒。WPT 导出仍对部分其他内核事件报告 Invalid Event；零丢失只指 Events Lost/Buffers Lost，不表示所有事件类型都能解码。用于本报告的调度区间经过上述独立校核，导出警告次数保存在 checks.json。\n\n'
     text=text.replace('预实验四组与 race 三组通过',verification+'预实验四组与 race 三组通过')
-    (REPO/"docs/issue-20-cf-cpu-followup-20261014.md").write_text(text,encoding="utf-8")
+    text=text.replace("](evidence/", "](../evidence/").replace("](../experiments/", "](../../experiments/")
+    (REPO/"docs/validation/issue-20-cf-cpu-followup-20261014.md").write_text(text,encoding="utf-8")
 
 if __name__=="__main__":main()

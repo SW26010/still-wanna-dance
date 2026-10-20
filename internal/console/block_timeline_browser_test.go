@@ -104,7 +104,7 @@ func TestBlockTimelineBrowser(t *testing.T) {
 		}
 		download <- err
 	}()
-	command := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "block-timeline-live.mjs"), ui.URL, evidence)
+	command := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "block-timeline-live.mjs"), ui.URL, evidence)
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("browser: %v\n%s", err, output)
 	} else {

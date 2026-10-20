@@ -108,7 +108,7 @@
 
 ## 与产品实现的关系
 
-资源大小应存放在现有 `media.byte_size`：未知为 NULL，同一 MD5 被多首歌曲引用时共用。后续实现已在提交 `41450dd`（`feat(cache): persist media metadata during URL resolution`）中落地：接受新的有效 URL 观察时，将 `s` 与来源路径立即写入资源表，和 `song_urls` 同一事务提交，不等待视频下载。参见[存储约定](../storage.md)与[开发验证记录](../song-url-metadata-validation.md)。该功能待实机验收 **LA-042**。
+资源大小应存放在现有 `media.byte_size`：未知为 NULL，同一 MD5 被多首歌曲引用时共用。后续实现已在提交 `41450dd`（`feat(cache): persist media metadata during URL resolution`）中落地：接受新的有效 URL 观察时，将 `s` 与来源路径立即写入资源表，和 `song_urls` 同一事务提交，不等待视频下载。参见[存储约定](../storage.md)与[开发验证记录](../validation/song-url-metadata-validation.md)。该功能待实机验收 **LA-042**。
 
 本文的时长/码率兜底值与 Range 探测仍为研究建议，尚未写入产品逻辑；不应把 45 MiB 等估计值填入表示实际资源字节数的 `media.byte_size`。本次整理只提交研究工具、脱敏数据和文档，不改变产品运行行为，因此不新增实机验收项，也不改变 LA-042 等既有台账状态。
 
@@ -121,7 +121,7 @@
 - [`http-probes.json`](video-metadata-20261015/http-probes.json)、[`http-probes-default-ua.json`](video-metadata-20261015/http-probes-default-ua.json)：成功抽样及初次 403；不包含完整资源 URL。
 - [`independent-validation.json`](video-metadata-20261015/independent-validation.json)、[`fallback-analysis.json`](video-metadata-20261015/fallback-analysis.json)、[`histogram-bins.json`](video-metadata-20261015/histogram-bins.json)：独立复核、兜底误差和直方图箱计数。
 - [`checks.json`](video-metadata-20261015/checks.json)、[`manifest.json`](video-metadata-20261015/manifest.json)：离线数据校验及交付文件的字节数、SHA-256。哈希按 LF 归一化 UTF-8 字节计算，与本仓库 Git blob 内容一致；清单不包含自身。
-- 脚本统一放在 [`scripts/video-metadata-study/`](../../scripts/video-metadata-study/)：[`analyze.py`](../../scripts/video-metadata-study/analyze.py) 读取离线数据库快照和视频元数据；[`probe.py`](../../scripts/video-metadata-study/probe.py) 比对冻结清单并可选探测 HTTP；[`plot.py`](../../scripts/video-metadata-study/plot.py) 生成直方图及兜底误差；[`verify.py`](../../scripts/video-metadata-study/verify.py) 只用已发布数据离线重算和校验。
+- 脚本统一放在 [`scripts/video-metadata-study/`](../../scripts/video-metadata-study)：[`analyze.py`](../../scripts/video-metadata-study/analyze.py) 读取离线数据库快照和视频元数据；[`probe.py`](../../scripts/video-metadata-study/probe.py) 比对冻结清单并可选探测 HTTP；[`plot.py`](../../scripts/video-metadata-study/plot.py) 生成直方图及兜底误差；[`verify.py`](../../scripts/video-metadata-study/verify.py) 只用已发布数据离线重算和校验。
 
 所有统计使用 NumPy 默认线性插值分位数，标准差按总体计算（`ddof=0`）。CSV 中的布尔值用 `True/False`，秒、Mbps 与 MiB 均保留计算精度；正文和图中再四舍五入。整数歌曲 ID 为公开曲库编号，资源 MD5、歌曲标题、完整 URL、个人路径和原始数据库不随研究提交。
 

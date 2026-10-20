@@ -4,13 +4,13 @@
 
 实际开展 VRC 验收时，由 agent 按[实机验收机制](../live-acceptance-process.md)准备简明报告及 `live-YYYYMMDD-NN/` 必要脱敏证据（含 `manifest.json`），在本索引增加入口并更新[台账](../live-acceptance-backlog.md)。同一证据可支持多个场景，不要求逐旧编号重复采集；普通开发检查不套用整轮 LIVE 交付。历史证据保持原样，不补造缺失数据或将历史通过外推到当前构建。下方旧记录中的待验编号按[2026-10-16 分流](../live-acceptance-backlog.md#旧编号去向2026-10-16)解释，不自动恢复为当前游戏要求。
 
-这里保存精简、脱敏后的测试证据，使新仓库不依赖旧对话即可理解已验证的结论。它们不是完整网络抓包。索引中标明 StepStash 的文件属于历史构建验收，其余为原版调查结果。两者均不能替代当前 StepStash 构建的测试；证据文件名和内容保留采集时的名称与记录。
+这里保存精简、脱敏后的测试证据，使仓库不依赖旧对话即可理解已验证的结论。它们不是完整网络抓包，包含原版调查、StepStash 历史构建和 SWD 各阶段的验证；每项只证明索引所列的构建、范围与条件。证据文件名和观测内容保留采集时的名称与记录。
 
-Fluent UI 迁移已替代旧引导布局；逐轮 UI 开发记录按本次清理要求移除，当前浏览器覆盖见[UI 验证](../fluent-ui-migration.md#验证与待验收)。真实游戏报告和仍在使用的实验/失败证据保留。
+Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](../fluent-ui-migration.md#验证与待验收)。游戏报告归入 `docs/acceptance/`，开发报告归入 `docs/validation/`；历史证据清单中的源码路径仍指采样时快照。直接收录报告正文的清单随报告移动更新路径与 Git blob 哈希，测量数据、构建身份与结论不变。
 
 ## 文件索引
 
-#14 B2 后续定向验证：[热流取消/排空/恢复清单](issue14-directed-20261013/hot/manifest.json)，24 项真实回环检查及有界但不保证恢复的通用模型，见[报告](../issue-14-directed-validation.md)。仅开发测试，不代表实机通过。
+#14 B2 后续定向验证：[热流取消/排空/恢复清单](issue14-directed-20261013/hot/manifest.json)，24 项真实回环检查及有界但不保证恢复的通用模型，见[报告](../validation/issue-14-directed-validation.md)。仅开发测试，不代表实机通过。
 
 同轮[重试/失败反馈清单](issue14-directed-20261013/retry/manifest.json)：19 项受控入口检查、3 包定向回归、初轮反例与沙箱失败；明确本地容量/退役分类仍有接入缺口，不提前决定 B2/C。
 
@@ -18,25 +18,25 @@ Fluent UI 迁移已替代旧引导布局；逐轮 UI 开发记录按本次清理
 
 | 文件 | 来源与用途 |
 | --- | --- |
-| [live-20261020-01/manifest.json](live-20261020-01/manifest.json) | 手动下一首、自然结束及手动热缓存对照共 9 笔：队首日志首次可读→首 GET 约 0.8 秒，3 秒轮询发现→GET 可为负；保留实际采样边界、播放器缓存条件和原始来源指纹。实验进程已退出，用户选择保留直连，见[报告](../live-acceptance-20261020-01.md) |
-| [live-20261019-01/manifest.json](live-20261019-01/manifest.json) | #36 独立正文额度与本轮核心实测：正式事件关联供数区间 >768 KiB、≤1 MiB；1 Mbps 截止后真实重试/恢复、零缓存共享/回收、队列滚动与交接、正预算发布及直连恢复。保留预览干扰、冷 Seek 缺口和历史失败；hosts/进程/监听已恢复。完整脱敏附件本地与备份已验证，未发布，见[报告](../live-acceptance-20261019-01.md) |
-| [live-20261015-02/manifest.json](live-20261015-02/manifest.json) | 新构建日常运行回溯：43 条正式请求/记录一致、37 完成/6 待复查、38 缓存 MD5 正常、37 个队首交接样本；用户整体正常，保留取消、外围游戏错误和退出标记缺口。十项未整项结项；完整逐请求/事件轨迹已归入版本化 ZIP，Git 留摘要和清单，本地/备份及公开下载回验通过，[版本化附件已发布](https://github.com/SW26010/still-wanna-dance/releases/tag/evidence-20261015-live-02-v1)，见[报告](../live-acceptance-20261015-02.md) |
-| [live-20261015-01/manifest.json](live-20261015-01/manifest.json) | 本轮联合实机已收尾：CF 冷热/队列/续传、两档每连接限速完整播放、存储故障抑制与恢复；保留卡顿/Seek 长等待及错误提示缺口，十项均未整项结项；hosts/权限和进程清理已验证，见[报告](../live-acceptance-20261015-01.md) |
-| [live-20261014-02/manifest.json](live-20261014-02/manifest.json) | 正式刷新/切节点、预览拖动、同视频双播放器及预览拖动的 1 Mbps/不限速/缓存十二场景；保留旧请求干扰、实际热缓存重分类和反馈缺口。不限速/缓存主要交互正常，限速未恢复；hosts/进程/监听已恢复。[报告](../live-acceptance-20261014-02.md)，LA-008/020/037 仍未结 |
-| [live-20261014-01/manifest.json](live-20261014-01/manifest.json) | 真实 VRChat GET 限速观测：前四档顺序播放、128 KiB/s 混合探索、256/64 KiB/s 独立正式播放；保留模式不明和切档重连干扰，hosts/进程/监听已恢复。[报告](../live-acceptance-20261014-01.md)，LA-008/037 未结项 |
-| [cf-cpu-followup-20261014/manifest.json](cf-cpu-followup-20261014/manifest.json) | #20 无 VRC 的等速 CPU 与完整缓存竞争补测：独立本地 TLS 上游、五轮 105 组、零公网流量；含冷/热连接、首读/Seek、内存、取消后关闭、ETW 和 42 组独立 xperf 校核。一次 UAC 的受限助手已退出；见[报告](../issue-20-cf-cpu-followup-20261014.md)。仅实验，默认值未改，LA-037 待验收 |
-| [cf-cpu-20261014/manifest.json](cf-cpu-20261014/manifest.json) | #20 单 IP、最高 32 路的 CPU 调度实验：同时启动、每 250 ms 加一路、逐档增加，三轮共 45 组、13,406 个校验通过的请求；包含逐线程/逻辑处理器证据、峰值及独立 xperf 校核，保留流量上限失败和干扰重测历史。见[报告](../issue-20-cf-cpu-20261014.md)；未运行游戏，LA-037 待验收 |
-| [cf-high-concurrency-20261014/manifest.json](cf-high-concurrency-20261014/manifest.json) | #20 固定单 IP、新资源 96 MiB 区间的 8/12/16/24/32 路五轮位置平衡对照；26 组、2,401 请求、2,496 MiB，全部保留，见[报告](../issue-20-cf-high-concurrency-20261014.md)。32 路仍有收益，不代表最优默认值；LA-037 待验收 |
-| [cf-multi-ip-20261014/manifest.json](cf-multi-ip-20261014/manifest.json) | #20 三个 DNS IPv4 单独及合用的 4/6/8/12 路同总并发对照；三轮共 54 组、1,446 请求、1,620 MiB，全部保留，见[报告](../issue-20-cf-multi-ip-20261014.md)。仅开发实验，默认设置及 LA-037 待验收状态不变 |
-| [cf-concurrency-20261014/manifest.json](cf-concurrency-20261014/manifest.json) | #20 固定 CF 资源/直连地址、30 MiB 区间的 1/2/3/4 路及长 Range 对照；保存全部 27 组、607 请求、首轮干扰排除和补测，主分析四个配对。仅上游吞吐开发实验，不改默认、不替代 LA-037，见[报告](../issue-20-cf-concurrency-20261014.md) |
-| [issue20-development/development-checks.json](issue20-development/development-checks.json) | #20 最终源码身份、Windows race、构建检查及[同一回环内容的 Range 并发 A/B](issue20-development/benchmark-final.txt)，保留[旧版基线](issue20-development/benchmark-baseline.txt)和[初版等待退化](issue20-development/benchmark-initial-parallel.txt)；边界见[验证记录](../issue-20-validation.md)，真实线路与游戏仍待 LA-037 |
-| [issue14-windows-final/manifest.json](issue14-windows-final/manifest.json) | #14 `2ec1b06` 本地 Windows 发行与 race 收尾：全仓 race、五协议 60 秒负载、SQLite 取消泄漏的初轮失败及上游修复回归、实际发行包/完整源码/离线重建；保留修复前证据，仅开发验证，LA-034/035/036、LA-018/012 仍待实机，见[集成记录](../issue-14-b2-integration.md#windows-发行与-race-收尾) |
-| [runtime-mihomo-20261013/manifest.json](runtime-mihomo-20261013/manifest.json) | #14 最新要求的完整内嵌 B / 独立进程 C 对照：69 项开发检查、同一 VMess/WS 节点和视频 Range 三轮取样、各 60 秒连续负载、全局状态/故障边界、失败历史及构建身份；无生产切换或实机通过，见[评估与实施设计](../mihomo-runtime-evaluation-20261013.md) |
-| [managed-mihomo-20261013/manifest.json](managed-mihomo-20261013/manifest.json) | 完整 Mihomo 独立进程的 31 项开发检查、30 条原生 VMess/WS 加载、前两节点真实 Monitor/播放/视频取样、固定出口与 Windows 进程边界、3 轮性能比较及失败历史；不是生产切换或实机通过，见[报告](../managed-mihomo-validation-20261013.md) |
-| [issue14-development/release-validation.json](issue14-development/release-validation.json) | #14 桌面接入后的本地正式构建、实际附件哈希、96 个依赖及完整源码、独立重建和符号证据；仅开发验证，非发布或实机验收，详见[记录](../issue-14-validation.md) |
-| [issue14-development/release-validation-final.json](issue14-development/release-validation-final.json) | #14 评审修复后 `acbb673` 的生产 EXE、完整对应源码、全新缓存离线重建及 Portable 隔离验证；最终附件与源码文件哈希复核，仅开发验证，LA-034/035/036 仍待实机，详见[记录](../issue-14-validation.md#最终产品代码的发行链复验) |
+| [live-20261020-01/manifest.json](live-20261020-01/manifest.json) | 手动下一首、自然结束及手动热缓存对照共 9 笔：队首日志首次可读→首 GET 约 0.8 秒，3 秒轮询发现→GET 可为负；保留实际采样边界、播放器缓存条件和原始来源指纹。实验进程已退出，用户选择保留直连，见[报告](../acceptance/live-acceptance-20261020-01.md) |
+| [live-20261019-01/manifest.json](live-20261019-01/manifest.json) | #36 独立正文额度与本轮核心实测：正式事件关联供数区间 >768 KiB、≤1 MiB；1 Mbps 截止后真实重试/恢复、零缓存共享/回收、队列滚动与交接、正预算发布及直连恢复。保留预览干扰、冷 Seek 缺口和历史失败；hosts/进程/监听已恢复。完整脱敏附件本地与备份已验证，未发布，见[报告](../acceptance/live-acceptance-20261019-01.md) |
+| [live-20261015-02/manifest.json](live-20261015-02/manifest.json) | 新构建日常运行回溯：43 条正式请求/记录一致、37 完成/6 待复查、38 缓存 MD5 正常、37 个队首交接样本；用户整体正常，保留取消、外围游戏错误和退出标记缺口。十项未整项结项；完整逐请求/事件轨迹已归入版本化 ZIP，Git 留摘要和清单，本地/备份及公开下载回验通过，[版本化附件已发布](https://github.com/SW26010/still-wanna-dance/releases/tag/evidence-20261015-live-02-v1)，见[报告](../acceptance/live-acceptance-20261015-02.md) |
+| [live-20261015-01/manifest.json](live-20261015-01/manifest.json) | 本轮联合实机已收尾：CF 冷热/队列/续传、两档每连接限速完整播放、存储故障抑制与恢复；保留卡顿/Seek 长等待及错误提示缺口，十项均未整项结项；hosts/权限和进程清理已验证，见[报告](../acceptance/live-acceptance-20261015-01.md) |
+| [live-20261014-02/manifest.json](live-20261014-02/manifest.json) | 正式刷新/切节点、预览拖动、同视频双播放器及预览拖动的 1 Mbps/不限速/缓存十二场景；保留旧请求干扰、实际热缓存重分类和反馈缺口。不限速/缓存主要交互正常，限速未恢复；hosts/进程/监听已恢复。[报告](../acceptance/live-acceptance-20261014-02.md)，LA-008/020/037 仍未结 |
+| [live-20261014-01/manifest.json](live-20261014-01/manifest.json) | 真实 VRChat GET 限速观测：前四档顺序播放、128 KiB/s 混合探索、256/64 KiB/s 独立正式播放；保留模式不明和切档重连干扰，hosts/进程/监听已恢复。[报告](../acceptance/live-acceptance-20261014-01.md)，LA-008/037 未结项 |
+| [cf-cpu-followup-20261014/manifest.json](cf-cpu-followup-20261014/manifest.json) | #20 无 VRC 的等速 CPU 与完整缓存竞争补测：独立本地 TLS 上游、五轮 105 组、零公网流量；含冷/热连接、首读/Seek、内存、取消后关闭、ETW 和 42 组独立 xperf 校核。一次 UAC 的受限助手已退出；见[报告](../validation/issue-20-cf-cpu-followup-20261014.md)。仅实验，默认值未改，LA-037 待验收 |
+| [cf-cpu-20261014/manifest.json](cf-cpu-20261014/manifest.json) | #20 单 IP、最高 32 路的 CPU 调度实验：同时启动、每 250 ms 加一路、逐档增加，三轮共 45 组、13,406 个校验通过的请求；包含逐线程/逻辑处理器证据、峰值及独立 xperf 校核，保留流量上限失败和干扰重测历史。见[报告](../validation/issue-20-cf-cpu-20261014.md)；未运行游戏，LA-037 待验收 |
+| [cf-high-concurrency-20261014/manifest.json](cf-high-concurrency-20261014/manifest.json) | #20 固定单 IP、新资源 96 MiB 区间的 8/12/16/24/32 路五轮位置平衡对照；26 组、2,401 请求、2,496 MiB，全部保留，见[报告](../validation/issue-20-cf-high-concurrency-20261014.md)。32 路仍有收益，不代表最优默认值；LA-037 待验收 |
+| [cf-multi-ip-20261014/manifest.json](cf-multi-ip-20261014/manifest.json) | #20 三个 DNS IPv4 单独及合用的 4/6/8/12 路同总并发对照；三轮共 54 组、1,446 请求、1,620 MiB，全部保留，见[报告](../validation/issue-20-cf-multi-ip-20261014.md)。仅开发实验，默认设置及 LA-037 待验收状态不变 |
+| [cf-concurrency-20261014/manifest.json](cf-concurrency-20261014/manifest.json) | #20 固定 CF 资源/直连地址、30 MiB 区间的 1/2/3/4 路及长 Range 对照；保存全部 27 组、607 请求、首轮干扰排除和补测，主分析四个配对。仅上游吞吐开发实验，不改默认、不替代 LA-037，见[报告](../validation/issue-20-cf-concurrency-20261014.md) |
+| [issue20-development/development-checks.json](issue20-development/development-checks.json) | #20 最终源码身份、Windows race、构建检查及[同一回环内容的 Range 并发 A/B](issue20-development/benchmark-final.txt)，保留[旧版基线](issue20-development/benchmark-baseline.txt)和[初版等待退化](issue20-development/benchmark-initial-parallel.txt)；边界见[验证记录](../validation/issue-20-validation.md)，真实线路与游戏仍待 LA-037 |
+| [issue14-windows-final/manifest.json](issue14-windows-final/manifest.json) | #14 `2ec1b06` 本地 Windows 发行与 race 收尾：全仓 race、五协议 60 秒负载、SQLite 取消泄漏的初轮失败及上游修复回归、实际发行包/完整源码/离线重建；保留修复前证据，仅开发验证，LA-034/035/036、LA-018/012 仍待实机，见[集成记录](../validation/issue-14-b2-integration.md#windows-发行与-race-收尾) |
+| [runtime-mihomo-20261013/manifest.json](runtime-mihomo-20261013/manifest.json) | #14 最新要求的完整内嵌 B / 独立进程 C 对照：69 项开发检查、同一 VMess/WS 节点和视频 Range 三轮取样、各 60 秒连续负载、全局状态/故障边界、失败历史及构建身份；无生产切换或实机通过，见[评估与实施设计](../validation/mihomo-runtime-evaluation-20261013.md) |
+| [managed-mihomo-20261013/manifest.json](managed-mihomo-20261013/manifest.json) | 完整 Mihomo 独立进程的 31 项开发检查、30 条原生 VMess/WS 加载、前两节点真实 Monitor/播放/视频取样、固定出口与 Windows 进程边界、3 轮性能比较及失败历史；不是生产切换或实机通过，见[报告](../validation/managed-mihomo-validation-20261013.md) |
+| [issue14-development/release-validation.json](issue14-development/release-validation.json) | #14 桌面接入后的本地正式构建、实际附件哈希、96 个依赖及完整源码、独立重建和符号证据；仅开发验证，非发布或实机验收，详见[记录](../validation/issue-14-validation.md) |
+| [issue14-development/release-validation-final.json](issue14-development/release-validation-final.json) | #14 评审修复后 `acbb673` 的生产 EXE、完整对应源码、全新缓存离线重建及 Portable 隔离验证；最终附件与源码文件哈希复核，仅开发验证，LA-034/035/036 仍待实机，详见[记录](../validation/issue-14-validation.md#最终产品代码的发行链复验) |
 | [issue14-development/subscription-import-check.json](issue14-development/subscription-import-check.json) | 用户提供订阅在 `08ae90f` 的导入兼容检查：30 条 VMess/WS 全部超出当前支持范围；未执行节点连接或游戏验证，不包含私人链接或节点参数 |
-| [live-acceptance-20261007.json](live-acceptance-20261007.json) | `8b522c5` 联合实机验收：播放、预缓存途中点播/预览、双连接共享下载、故障与桌面生命周期；相对时间及清理前文件校验，结论见[验收报告](../live-acceptance-20261007.md) |
+| [live-acceptance-20261007.json](live-acceptance-20261007.json) | `8b522c5` 联合实机验收：播放、预缓存途中点播/预览、双连接共享下载、故障与桌面生命周期；相对时间及清理前文件校验，结论见[验收报告](../acceptance/live-acceptance-20261007.md) |
 | [current-release-live-20260925.json](current-release-live-20260925.json) | 历史构建 `c69e844` portable 联合实机验收：播放、队列、统计、容量淘汰、桌面退出/重启及真实 hosts UAC 操作 |
 | [auto-sha-live-20260925.json](auto-sha-live-20260925.json) | 第二次 StepStash 联合测试的阶段性记录：10271 Auto 本地命中、SHA 解析超时与独立 TCP 连接失败 |
 | [mvp-acceptance-20260925.json](mvp-acceptance-20260925.json) | StepStash 实网验收：旧库读取、CF/HKG 冷下载、重启、原版回读；不是原版调查阶段数据 |
@@ -83,7 +83,7 @@ Fluent UI 迁移已替代旧引导布局；逐轮 UI 开发记录按本次清理
 
 ## Issue #14 中立增量评估（2026-10-13，开发检查）
 
-[评估报告](../issue-14-incremental-evaluation.md)、[脱敏证据与校验清单](issue14-incremental-20261013/manifest.json)。保留 B2 生命周期、夹具容量失败及对照，不作最终选型；不是 LIVE 实机批次。
+[评估报告](../validation/issue-14-incremental-evaluation.md)、[脱敏证据与校验清单](issue14-incremental-20261013/manifest.json)。保留 B2 生命周期、夹具容量失败及对照，不作最终选型；不是 LIVE 实机批次。
 
 ## Privacy normalization
 

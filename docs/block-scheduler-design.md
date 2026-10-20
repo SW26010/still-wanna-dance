@@ -6,7 +6,7 @@
 
 这使三个问题各有明确的答案：`ReadyBy` 决定先准备哪些块；固定提前量 `M` 决定何时允许启动；可启动积压驱动并发逐路增长，包括已入窗任务与允许提前执行的独立补齐需求。并发量由运行中的需求形成，无需预先反推一个目标并发数。同一块无论被多少来源需要，都共享一次执行，各来源仍能独立退出。
 
-本文说明当前设计及其理由；具体参数、协议和资源边界见[下载并发规则](download-concurrency.md)，逐次实现与自动检查见[开发记录](block-scheduler-validation.md)。
+本文说明当前设计及其理由；具体参数、协议和资源边界见[下载并发规则](download-concurrency.md)，逐次实现与自动检查见[开发记录](validation/block-scheduler-validation.md)。
 
 ## 为什么从整视频调度改成块需求
 
@@ -78,7 +78,7 @@ flowchart TD
 
 VRC 队列日志只提供歌曲 ID 的顺序和变化；标题、时长和媒体大小来自本地资料。大小 `S` 优先取同一 MD5 的 `media.byte_size`，来源是已验证资源 URL 的 `s`；新 URL 尚未入库时可直接使用其已验证大小。时长 `D` 取匹配资源的歌曲清单 `end`，作为完整媒体时长近似，不减 `start`。该选择的样本依据见[视频元数据研究](research/video-metadata-20261015.md)。
 
-地址解析成功即可将 URL 观察与对应资源大小一起保存，无需等待视频正文下载，也不覆盖清单已有的歌曲映射。这样本地尚无的视频也能利用已知大小细化期限；解析失败、旧结果及事务边界见[资源元数据验证](song-url-metadata-validation.md)。
+地址解析成功即可将 URL 观察与对应资源大小一起保存，无需等待视频正文下载，也不覆盖清单已有的歌曲映射。这样本地尚无的视频也能利用已知大小细化期限；解析失败、旧结果及事务边界见[资源元数据验证](validation/song-url-metadata-validation.md)。
 
 设 `t₀` 是 GET 刚到达的时刻，`a` 是按实际响应语义解释的 Range 起始字节，`b` 是块起点，均在媒体范围内：
 
@@ -142,7 +142,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 
 ## 实现依据与验证状态
 
-2026-10-15 核对范围：远端 `origin/main` 为 `5c26d2cd7b4896e6bf5e1108ba89b07e2424163a`，本地实现为 `5f3614b0d989204c58c46a990752c0c49a80fe78`，其间 38 个提交。本文将讨论「全局调度器设计 (4)」（`01a13e93-907a-70a0-a5ee-a017d2026373`）的最终模型与现有代码对应，读者无需访问聊天记录即可理解约定。
+下表列出当前实现和回归入口；各阶段源码身份、失败与修复结果保留在[开发记录](validation/block-scheduler-validation.md)中。
 
 | 设计约定 | 实现与回归入口 |
 | --- | --- |
@@ -153,9 +153,9 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 | 窗口、缓增、采样与准入例外 | [control.go](../internal/blocksched/control.go)、[duration.go](../internal/blocksched/duration.go)、[window_test.go](../internal/blocksched/window_test.go)、[opportunistic_test.go](../internal/blocksched/opportunistic_test.go) |
 | 真实 Range、可读采样、超时及混合需求 | [scheduled_range.go](../internal/cacheproxy/scheduled_range.go)、[block_duration_test.go](../internal/cacheproxy/block_duration_test.go)、[execution_timeout_test.go](../internal/cacheproxy/execution_timeout_test.go)、[opportunistic_demand_test.go](../internal/cacheproxy/opportunistic_demand_test.go) |
 
-早期实现中的“剩余字节→所需吞吐→目标并发”、两秒追赶、500 ms 采样、无收益回退、竞争暂停和恢复冷却均已被后续实现取代。[开发记录](block-scheduler-validation.md)保留这些过程及失败证据，不作为当前运行规则；参数以固定 M 默认 500 秒为准，动态 T 已移除。
+早期实现中的“剩余字节→所需吞吐→目标并发”、两秒追赶、500 ms 采样、无收益回退、竞争暂停和恢复冷却均已被后续实现取代。[开发记录](validation/block-scheduler-validation.md)保留这些过程及失败证据，不作为当前运行规则；参数以固定 M 默认 500 秒为准，动态 T 已移除。
 
-**开发实现已有自动回归记录；当前模型的实机效果仍待 LA-040，开播时间近似及交接观测联动 LA-041，地址解析补齐大小联动 LA-042。** 关联的 LA-008/018/037/038/039 继续保留。旧固定 worker 的吞吐/CPU 实验和历史游戏报告不能证明新模型已降低卡顿、CPU 峰值或在所有网络下提速。
+开发实现已有自动回归记录，剩余慢网和真实交接场景由[台账中的 LA-040 / LA-041](live-acceptance-backlog.md)统一维护；旧编号的合并及非游戏分流也以台账为准。旧固定 worker 的吞吐/CPU 实验和历史游戏报告不能证明新模型已降低卡顿、CPU 峰值或在所有网络下提速。
 
 本次文档核对不改变产品行为，不新增实机项，也不更改已有验收状态；下一轮操作与证据要求以[待验收台账](live-acceptance-backlog.md)为准。
 
@@ -177,9 +177,9 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 
 显示集合包含有效使用块及本地仍可用的延续保护块，因此总显示量可能超过 4096；容量计数仍只针对有效使用。保护期块在本次观察期间有已知有限 need-by 时沿用最后显示位置；此前已经退出的块以真实需求结束时间（保护截止减当前生效的延续时长）定位并明确标注，不为 UI 关闭期间维护历史。当前界面保留视频配色并以半透明显示保护期块，初版灰色仅属历史外观。无有限时间的块保持无期限语义。块可读不代表完整视频已通过 MD5 校验并发布。
 
-后端验证入口为 `blocksched/observation_test.go`、`cacheproxy/block_observation_test.go`、`console/block_events_test.go`；覆盖共享订阅与清理、无事件时不采样、真实读取等待、受控 Range 下载、来源共享、保护结束、SSE 增量与断连。2026-10-20 初版三包完整回归通过；同日补入需求视图分组后，来源成员与块号排序、队列换位／撤销、仅需求变化的增量及生命周期定向检查通过，相关路径 race 通过。当时本机单一来源的 4096 块快照基准约 5.36 ms、8.43 MB 分配，未订阅通知检查仍为 0 B／0 次分配（`artifacts/block-demand-layout/backend-final.txt`）；这是开发环境的局部测量，不包含 SSE 编码与网络，也不证明游戏帧时间。初版约 3.9 ms／8 MB 的结果作为历史样本保留；补入交接资料与块总数后的结果见 [Fluent UI 验证](fluent-ui-migration.md#块需求时间轴验证2026-10-20)。
+后端验证入口为 `blocksched/observation_test.go`、`cacheproxy/block_observation_test.go`、`console/block_events_test.go`；覆盖共享订阅与清理、无事件时不采样、真实读取等待、受控 Range 下载、来源共享、保护结束、SSE 增量与断连。2026-10-20 初版三包完整回归通过；同日补入需求视图分组后，来源成员与块号排序、队列换位／撤销、仅需求变化的增量及生命周期定向检查通过，相关路径 race 通过。当时本机单一来源的 4096 块快照基准约 5.36 ms、8.43 MB 分配，未订阅通知检查仍为 0 B／0 次分配（`artifacts/block-demand-layout/backend-final.txt`）；这是开发环境的局部测量，不包含 SSE 编码与网络，也不证明游戏帧时间。初版约 3.9 ms／8 MB 的结果作为历史样本保留；补入交接资料与块总数后的结果见 [Fluent UI 验证](validation/webui-validation.md#块需求时间轴验证2026-10-20)。
 
-同日 race 检测发现三个既有测试在运行中替换 `Config.ResolvePlayback`，与后台回收读取配置竞争；夹具改为创建引擎前配置回调，场景切换通过原子标志完成。修正后 cacheproxy 整包 race 通过；blocksched、console 整包 race 及后来新增的引擎启动等待路径 race 均通过。原始失败与修正结果保留在忽略目录 `artifacts/block-timeline/backend-race.txt`、`cache-race-final.txt`、`engine-start-race.txt`，没有修改产品锁或降低断言绕过失败。前端与跨层联调边界见 [Fluent UI 验证](fluent-ui-migration.md#块需求时间轴验证2026-10-20)。
+同日 race 检测发现三个既有测试在运行中替换 `Config.ResolvePlayback`，与后台回收读取配置竞争；夹具改为创建引擎前配置回调，场景切换通过原子标志完成。修正后 cacheproxy 整包 race 通过；blocksched、console 整包 race 及后来新增的引擎启动等待路径 race 均通过。原始失败与修正结果保留在忽略目录 `artifacts/block-timeline/backend-race.txt`、`cache-race-final.txt`、`engine-start-race.txt`，没有修改产品锁或降低断言绕过失败。前端与跨层联调边界见 [Fluent UI 验证](validation/webui-validation.md#块需求时间轴验证2026-10-20)。
 
 同日缩短观测持锁时间后，三包观测／SSE 定向测试与对应 race 检查通过；新增检查确认每块来源时刻独立、歌曲标题优先级及来源身份不变、已发布快照不受后续来源变更影响。虚拟时钟验证相邻保护边界与期间的变更通知合为一次更新，结束后不继续采样。未订阅通知仍为 0 B／0 次分配。
 
@@ -190,13 +190,13 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 | 4096 块、每块 1 个来源 | 6.04 → 5.53 ms | 3.91 → 1.89 ms |
 | 4096 块、每块 3 个来源 | 10.81 → 9.75 ms | 5.45 → 2.55 ms |
 
-当前仍是按事件重建快照，未引入长期增量索引。这些合成测量不含网络／SSE、数据库、本地文件或真实下载锁竞争，不能外推游戏性能；原始测量与脚本在 `artifacts/block-observation-performance/before/`、`after/`，功能、race 和关闭成本结果分别为同目录下的 `backend-final.txt`、`backend-race.txt`、`disabled.txt`。前端及真实后端浏览器联调结果见 [Fluent UI 验证](fluent-ui-migration.md#块需求时间轴验证2026-10-20)。
+当前仍是按事件重建快照，未引入长期增量索引。这些合成测量不含网络／SSE、数据库、本地文件或真实下载锁竞争，不能外推游戏性能；原始测量与脚本在 `artifacts/block-observation-performance/before/`、`after/`，功能、race 和关闭成本结果分别为同目录下的 `backend-final.txt`、`backend-race.txt`、`disabled.txt`。前端及真实后端浏览器联调结果见 [Fluent UI 验证](validation/webui-validation.md#块需求时间轴验证2026-10-20)。
 
 同日整理任务标识及写入通知边界后，复用已有三包定向回归验证任务共享、读取等待、Range／顺序下载、块回收和观测；相关 race 检查通过。真实控制台／调度器／回环 Range 上游的浏览器联调通过，下载与来源详情、4 块延续保护及收起后零 SSE 均正常。此次保持任务标识格式、通知顺序、回收策略及调度行为，未添加观测后台状态。结果保留在 `artifacts/block-observation-boundaries/backend.txt`、`race.txt` 和 `real-browser/result.json`。
 
 同日修复共享资源的展示身份和标题缓存：修复前已复现遍历切换 ID 后清空已有标题；新增九组标签场景及真实 SQLite 目录回归覆盖缓存身份优先、首次稳定选择、标题更新／缺失、无身份交接，以及不同来源各自的标识和标题。目录回归先修改已缓存歌曲的目录标题，再连续生成共享资源快照，确认没有重复查库；原展示标识退出后，剩余标识正常查得自己的标题，已发布快照保持不变。三包观测定向与 race 检查通过，结果在 `artifacts/block-observation-shared-labels/`。`before.txt` 保留修复前失败，`after.txt` 的后端检查通过，但首次浏览器联调在保护期转换时详情浮层消失；`real-browser/` 保留该失败，未据此断言原因。单独复验未再出现，真实下载、保护与订阅释放通过，记录在 `real-browser-recheck.txt` 和 `real-browser-recheck/result.json`；本次未修改浏览器交互。
 
-后续已复现并修复上述浮层问题：截图期间短暂离屏清空了前端固定选择，发生在下载完成前；未发现由共享资源标签或保护期转换引起的块移除。修复只调整前端选择及订阅恢复顺序，关闭观测后的后台与历史释放规则不变，验证和原始失败证据见 [Fluent UI 验证](fluent-ui-migration.md#块需求时间轴验证2026-10-20)。
+后续已复现并修复上述浮层问题：截图期间短暂离屏清空了前端固定选择，发生在下载完成前；未发现由共享资源标签或保护期转换引起的块移除。修复只调整前端选择及订阅恢复顺序，关闭观测后的后台与历史释放规则不变，验证和原始失败证据见 [Fluent UI 验证](validation/webui-validation.md#块需求时间轴验证2026-10-20)。
 
 同日审查补充同一块由多个歌曲来源共享的场景：旧的每块组装会混配首个来源的 ID 与后续来源的标题，并丢失缓存身份的优先级。现复用资源级标签选择规则，ID 与标题始终成对处理；新增三组回归同时检查块、来源详情和需求行。修复前失败保留在 `artifacts/block-review-followup/backend-before.txt`；修复后观测测试、三包观测／SSE race 与隔离真实控制台浏览器联调通过，结果分别在 `backend-after.txt`、`race.txt` 和 `real-browser/result.json`。未增加核心字段、目录查询或 UI 关闭期间的工作。
 

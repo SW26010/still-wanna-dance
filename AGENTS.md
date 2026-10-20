@@ -17,6 +17,7 @@
 
 ## 文档入口
 
+- 文件归属与分类入口：[文档导航](docs/README.md)。
 - 开发环境、构建与测试：[开发说明](docs/development.md)。
 - 下载架构的 canonical 文档：[下载需求与资源管理设计](docs/download-resource-design.md)（现行规则、接口及验证边界）；当前实现：[全局块调度设计](docs/block-scheduler-design.md)、[运行规则](docs/download-concurrency.md)。
 - 配置、运行与存储契约：[配置生命周期](docs/settings-lifecycle.md)、[存储约定](docs/storage.md)。

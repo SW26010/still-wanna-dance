@@ -6,7 +6,7 @@ Git 保存源码、报告、精简统计、纯矢量 SVG 和清单。完整实�
 
 | 内容 | 位置 |
 | --- | --- |
-| 报告、成功与失败结论、实验边界、关键统计 | `docs/` 与 `docs/evidence/<batch>/` |
+| 开发验证、实机报告与关键统计 | `docs/validation/`、`docs/acceptance/` 与 `docs/evidence/<batch>/`；历史设计和调查归入 `docs/history/` |
 | 绘图输入和真实矢量 SVG | 同一证据目录；禁止将图片用 Base64 包装成文本或 SVG |
 | 完整脱敏请求、调度轨迹、原图及原始证据清单 | 同仓库 `evidence-*` Release 的版本化 ZIP 附件 |
 | 被测源码身份和对应源码快照 | 附件中的 `_provenance/`；保留实际测量时的提交和文件哈希 |
@@ -48,7 +48,7 @@ Release 使用 `evidence-YYYYMMDD-<topic>-vN` 标签，明确标注开发证据�
 
 ## Git 历史和防回归
 
-只整理尚未推送的提交。已发布历史保持不变；外部 Git bundle 备份保留原始提交。被测 EXE 的提交 SHA 和文件哈希是历史事实，不能机械替换成整理后的提交；[提交映射](evidence/history-rewrite-20261014.json)记录对应关系及源代码子树相等的校验。存档中的源码快照保证原身份仍可追溯。
+仓库文件整理不要求改写 Git 历史。若另行获准整理尚未推送的提交，已发布历史仍保持不变，并在仓库外保留原始 Git bundle。被测 EXE 的提交 SHA 和文件哈希是历史事实，不能机械替换成整理后的提交。2026-10-14 曾进行的历史整理及源代码子树相等校验见[提交映射](evidence/history-rewrite-20261014.json)；存档中的源码快照保证原身份仍可追溯。
 
 运行检查：
 
@@ -63,4 +63,4 @@ node scripts/check-repository-artifacts.mjs --base origin/main --head HEAD
 
 产品图标例外仅允许 `internal/branding/logo.ico`，仍拒绝其他图片、证据、压缩包和程序文件。原始矢量稿保存为同目录 `logo.svg`；安装开发依赖 `sharp@0.35.5` 后运行 `node scripts/generate-logo.mjs`，生成 16–256 像素的九档 ICO 并输出字节数及 SHA256，更新例外记录后审查图案与哈希。正常 Go 构建直接嵌入已登记文件，无需运行生成器。重新生成可能受 SVG 渲染库版本影响，不能只改策略哈希而跳过图案核对。
 
-本次整理只改变文档、实验资料和维护工具，不改变产品行为；不新增实机编号，LA-037 等既有待验项保持原状态。
+验证范围按[现行机制](live-acceptance-process.md)判断；文件归类本身不产生新的实机验收要求。

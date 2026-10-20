@@ -6,9 +6,9 @@
   "exeSHA256": "2f3f646c2fc842de066688b615243d312b855f8b536bddd0b93fe9f4186b8f77",
   "files": [
     {
-      "path": "docs/live-acceptance-20261020-01.md",
-      "bytes": 7175,
-      "sha256": "2ea59bdc9cbe65c1218baa47e8b0592c8e5de368669131dcfc142a544f3c102e",
+      "path": "docs/acceptance/live-acceptance-20261020-01.md",
+      "bytes": 7187,
+      "sha256": "ae0d62b1032bd84cc4d42bd9479da815711f75702b7c9868ed20801e991069bb",
       "source": "Report and interpretation",
       "sanitization": "Relative session time and allowlisted fields; no private source content"
     },

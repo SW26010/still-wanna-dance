@@ -63,7 +63,7 @@ def main():
     write(dest/"build-identity.json",{"binaries":identities,"mihomoSourceFilesMatchingModuleZip":matched,"moduleZipSHA256":sha(archive.read_bytes()),"sharedLinkedModuleVersionsMatched":len(shared),"sharedLinkedModuleVersionMismatches":mismatch,"goModVerify":"not-passed: local replaced still-wanna-dance v0.0.0 missing ziphash; not a claim of all-module cache verification"})
     files=[p for p in dest.iterdir() if p.is_file() and p.name!="manifest.json"]
     source=[p for p in (ROOT/"experiments/runtime-mihomo").rglob("*") if p.is_file() and "__pycache__" not in p.parts]
-    source += [ROOT/"experiments/managed-mihomo/run.py",ROOT/"docs/mihomo-runtime-evaluation-20261013.md"]
+    source += [ROOT/"experiments/managed-mihomo/run.py",ROOT/"docs/validation/mihomo-runtime-evaluation-20261013.md"]
     def entry(p):
         data=p.read_text(encoding="utf-8").replace("\r\n","\n").encode()
         return {"path":p.relative_to(ROOT).as_posix(),"bytes":len(data),"sha256":sha(data)}

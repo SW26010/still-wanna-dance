@@ -2,6 +2,8 @@
 
 > 仅在实际开展游戏验收时使用，由 agent 填写、采集及整理。只保留本轮相关内容，共用步骤/证据写一次；没有执行的选中场景明确写未测，不要求抄入全台账。
 
+报告保存为 `docs/acceptance/live-acceptance-YYYYMMDD-NN.md`，证据放在 `docs/evidence/live-YYYYMMDD-NN/`；报告中的相对链接按其实际目录填写。
+
 ## 结论与版本
 
 - 结论及适用范围：待填写。

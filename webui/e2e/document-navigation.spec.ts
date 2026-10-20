@@ -93,3 +93,46 @@ test('public help/about stay readable before consent and terms still open the ga
   await expect(page.getByRole('button',{name:'同意完整条款',exact:true})).toBeVisible();
   expect(api.calls.some(call=>call.path==='status')).toBe(false);
 });
+
+for(const width of [390,1280])test(`ordinary navigation resets scrolling; explicit links locate fields (${width})`,async({page})=>{
+  await mockAPI(page);
+  await page.setViewportSize({width,height:720});
+  await page.goto('/#/settings');
+  await page.getByRole('spinbutton',{name:/提前准备时间 M/}).fill('777');
+  expect(await page.evaluate(()=>scrollY)).toBeGreaterThan(500);
+  for(const name of ['使用帮助','关于','设置']){
+    await navigate(page,name);
+    await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(0);
+    await page.evaluate(()=>scrollTo(0,document.body.scrollHeight));
+  }
+  await navigate(page,'准备歌曲');
+  await page.getByRole('link',{name:'调整提前准备时间',exact:true}).click();
+  await expect(page.getByRole('spinbutton',{name:/提前准备时间 M/})).toBeFocused();
+  await expect(page.getByRole('spinbutton',{name:/提前准备时间 M/})).toHaveValue('777');
+  expect(await page.evaluate(()=>scrollY)).toBeGreaterThan(500);
+  await page.goBack();
+  await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(0);
+  await page.goForward();
+  await expect(page.getByRole('spinbutton',{name:/提前准备时间 M/})).toBeFocused();
+});
+
+test('action feedback names the operation and does not follow navigation or late responses',async({page})=>{
+  await mockAPI(page);
+  await page.goto('/#/library');
+  await page.getByRole('button',{name:'检查缺失视频',exact:true}).click();
+  await expect(page.getByText('已开始检查缺失视频。',{exact:true})).toBeVisible();
+  await navigate(page,'设置');
+  await expect(page.getByText('已开始检查缺失视频。',{exact:true})).not.toBeVisible();
+  await navigate(page,'准备歌曲');
+  await expect(page.getByText('已开始检查缺失视频。',{exact:true})).not.toBeVisible();
+  let finish!:()=>void;
+  const pending=new Promise<void>(resolve=>{finish=resolve;});
+  await page.route('**/api/batch/scan',async route=>{await pending;await route.fulfill({json:{ok:true}});});
+  await page.getByRole('button',{name:'检查缺失视频',exact:true}).click();
+  await expect(page.getByText('正在处理…',{exact:true})).toBeVisible();
+  await navigate(page,'设置');
+  finish();
+  await expect(page.getByText('已开始检查缺失视频。',{exact:true})).not.toBeVisible();
+  await navigate(page,'准备歌曲');
+  await expect(page.getByText('已开始检查缺失视频。',{exact:true})).not.toBeVisible();
+});

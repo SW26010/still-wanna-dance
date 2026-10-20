@@ -99,7 +99,7 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
   },[s?.setupApplication]);
   useEffect(()=>{
     if(application?.configSaved && !consumed.current) {consumed.current=true;app.discardSettings();}
-    if(application?.phase==='completed' && !busy && !recovering) {rememberApplication('');void persist('completed','finish');if(application.vrcx)app.setMessage('配置已应用。VRCX 歌曲偏好：'+application.vrcx.message);onExit();}
+    if(application?.phase==='completed' && !busy && !recovering) {rememberApplication('');void persist('completed','finish');if(application.vrcx)app.setMessage('配置已应用。VRCX 歌曲偏好：'+application.vrcx.message,'home');onExit();}
     if(application?.phase==='restart' && !recovering && !restartError)void recoverRestart();
   },[application,busy,recovering,restartError]);
   async function leave(confirm=true) {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Badge, Button, Link, Spinner, Title2 } from '@fluentui/react-components';
 import { ConsoleContext, useConsole } from './hooks';
 import { Brand, Feedback, NavigationLayout, pageLinks, documentPages, isDocumentPage, DocumentFooter } from './ui';
@@ -25,7 +25,7 @@ export function App() {
   const [anchor,setAnchor]=useState(location.hash.slice(1));
   const [page, setPage] = useState<Page>(() => bootstrap.termsGate || new URLSearchParams(location.search).get('setup')==='1' ? 'setup' : route(location.hash&&location.hash!=='#main'?location.hash:'#'+location.pathname));
   const documentPage=isDocumentPage(page);
-  const model = useConsole(accepted), main = useRef<HTMLElement>(null), initial = useRef(true), guard=useRef<(() => Promise<boolean>) | undefined>(undefined);
+  const model = useConsole(accepted, page), main = useRef<HTMLElement>(null), initial = useRef(true), guard=useRef<(() => Promise<boolean>) | undefined>(undefined);
   const currentPage=useRef(page), currentAccepted=useRef(accepted), navigation=useRef(0);currentPage.current=page;currentAccepted.current=accepted;
   const exitSetup=()=>{guard.current=undefined;location.hash='/home';setPage('home');};
   useEffect(() => {
@@ -49,13 +49,14 @@ export function App() {
     const leave=()=>presence('leave'), back=(e:PageTransitionEvent)=>{if(e.persisted)presence('return');};
     addEventListener('pagehide',leave);addEventListener('pageshow',back);return()=>{removeEventListener('pagehide',leave);removeEventListener('pageshow',back);};
   },[accepted]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.title = pages[page]+' · Still Wanna Dance';
-    if (!initial.current) main.current?.focus();
+    if (!initial.current) main.current?.focus({preventScroll:true});
     initial.current = false;
-  }, [page]);
+    if (!Object.hasOwn(legacy,anchor)) window.scrollTo({top:0,left:0,behavior:'instant'});
+  }, [page,anchor]);
   const s = model.status.data;
-  useEffect(()=>{
+  useLayoutEffect(()=>{
     if(s && page!=='setup' && Object.hasOwn(legacy,anchor)){
       const target=document.getElementById(anchor);target?.focus();target?.scrollIntoView();
     }

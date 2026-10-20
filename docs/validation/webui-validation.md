@@ -79,3 +79,9 @@ Remove-Item Env:SWD_TIMELINE_BROWSER_EVIDENCE
 ```
 
 本次不新增 VRC 待验项；既有调度器游戏体验边界仍在原场景中。系统 DPI、浏览器大倍率缩放及 Narrator/NVDA 的既有平台验证缺口仍适用，不能从 Canvas 键盘与截图检查推断已完成辅助技术验收。
+
+## 2026-10-21 导航与操作反馈
+
+普通切页回顶，明确的选项链接保留定位和焦点；390/1280px 浏览器场景覆盖设置页滚动后进入帮助／关于、历史前进后退、草稿保留。操作回执改为具体任务文案，切页清除，迟到响应不跨页展示；全局存储故障仍持续显示。
+
+前端构建、类型和内嵌产物一致性检查通过；Edge 导航与存储故障专项 10 项通过。沙箱内首次启动 Edge 因 Crashpad 管道关闭而退出，未执行页面断言；经同一临时目录入口在沙箱外运行通过。证据保留在 `artifacts/ux-navigation/sandbox-failure/` 和 `artifacts/ux-navigation/browser.txt`。测试仅访问内存夹具，不修改 hosts，不启动游戏。

@@ -74,8 +74,28 @@ export async function reconnect() {
   throw new Error('60 秒内未连接到新进程。请刷新页面并核对日志，勿重复提交原操作。');
 }
 
-export function useConsole(enabled: boolean) {
-  const [revision, setRevision] = useState(0), [busy, setBusy] = useState(false), [stopped, setStopped] = useState(false), [message, setMessage] = useState('');
+const actionMessages: Record<string,string> = {
+  settings:'设置已保存，重启应用后生效。', start:'播放网关已启动。', stop:'播放网关已停止。',
+  'activation/enable':'加速启用步骤已完成，请在游戏中点歌确认播放。',
+  'hosts/enable':'游戏连接配置已更新。', 'hosts/disable':'本程序的游戏连接配置已移除。',
+  'queue/start':'队列预加载已开启，等待新的房间队列。', 'queue/stop':'队列预加载已关闭。',
+  'batch/scan':'已开始检查缺失视频。', 'batch/switch':'已开始下载补齐。', 'batch/start':'已开始下载补齐。',
+  'batch/cancel':'已请求停止批量任务。', 'inventory/scan':'已开始更新清单并统计覆盖率。',
+  'import/start':'已开始扫描并导入视频。', 'import/cleanup':'已处理源文件清理，请查看导入结果。',
+};
+export function useConsole(enabled: boolean, page: string) {
+  const [revision, setRevision] = useState(0), [busy, setBusy] = useState(false), [stopped, setStopped] = useState(false);
+  const [feedback, setFeedback] = useState<{page:string;text:string}>();
+  const currentPage = useRef(page);
+  useLayoutEffect(() => {
+    currentPage.current = page;
+    setFeedback(value => value?.page === page ? value : undefined);
+  }, [page]);
+  const setMessage = (text:string, destination=page) => {
+    // A response from a page already left must not appear on the new page.
+    if (destination !== page || currentPage.current === page) setFeedback({page:destination,text});
+  };
+  const message = feedback && (feedback.page === page || stopped) ? feedback.text : '';
   const [settingsEpoch, setSettingsEpoch] = useState(0);
   const discardSettings = useCallback(() => setSettingsEpoch(v => v + 1), []);
   const lock = useRef(false);
@@ -94,7 +114,7 @@ export function useConsole(enabled: boolean) {
       await request(path, body, AbortSignal.timeout(hosts ? hostsActionTimeout : 30000));
       if (path === 'exit') { setStopped(true); setMessage('退出请求已接受。正在停止服务和后台任务，hosts 映射仍保留。'); return true; }
       if (path === 'restart') { setStopped(true); setMessage('正在重启应用，连接恢复后自动刷新。'); await reconnect(); return true; }
-      setMessage(path === 'settings' ? '设置已保存，重启应用后生效。' : '操作已完成。'); return true;
+      setMessage(actionMessages[path] || (path.startsWith('upstream/check') ? '网络检测已开始，请查看检测结果。' : '请求已接受，请查看当前任务状态。')); return true;
     } catch (e) {
       if (path === 'restart' && !(e instanceof APIError)) {
         setStopped(true); setMessage('重启响应未确认，正在等待新进程…');

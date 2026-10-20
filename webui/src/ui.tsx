@@ -16,6 +16,12 @@ export function Brand() {
   return <div className="brand"><Image src="/assets/logo.svg" className="brand-logo" width="32" height="32" shape="rounded" alt="" /><Subtitle1>Still Wanna Dance</Subtitle1></div>;
 }
 export const consolePages=[['home','开始使用'],['monitor','运行状态'],['cache','本地视频'],['library','准备歌曲'],['settings','设置']] as const;
+export const documentPages={help:'使用帮助',about:'关于',terms:'使用条款'} as const;
+export type DocumentPage=keyof typeof documentPages;
+export const isDocumentPage=(page:string):page is DocumentPage=>Object.hasOwn(documentPages,page);
+export function pageHref(page:typeof consolePages[number][0]|DocumentPage|'setup') {
+  return bootstrap.page==='console'?'#/'+page:isDocumentPage(page)?'/'+page:'/#/'+page;
+}
 type NavigationEntry={value:string;label:string;href?:string;disabled?:boolean;onClick?:()=>void};
 export function NavigationLayout({children,items,selected,label='控制台页面',steps=false,hidden=false}:PropsWithChildren<{items:NavigationEntry[];selected:string;label?:string;steps?:boolean;hidden?:boolean}>) {
   const [narrow,setNarrow]=useState(()=>matchMedia('(max-width: 640px)').matches), [open,setOpen]=useState(false);
@@ -35,8 +41,8 @@ export function NavigationLayout({children,items,selected,label='控制台页面
     <div className="page-content">{children}</div>
   </div>;
 }
-export function pageLinks(document=false) {
-  return [...consolePages.map(([value,label])=>({value,label,href:(document?'/':'')+'#/'+value})),{value:'help',label:'使用帮助',href:'/help'},{value:'about',label:'关于',href:'/about'},{value:'terms',label:'使用条款',href:'/terms'}];
+export function pageLinks() {
+  return [...consolePages.map(([value,label])=>({value,label,href:pageHref(value)})),...Object.entries(documentPages).map(([value,label])=>({value,label,href:pageHref(value as DocumentPage)}))];
 }
 export function Panel({ title, children, id, ref, onFocusCapture, action }: PropsWithChildren<{ title: string; id?: string; ref?:Ref<HTMLDivElement>; onFocusCapture?:FocusEventHandler<HTMLDivElement>; action?:ReactNode }>) {
   return <Card size="large" className="panel" id={id} ref={ref} onFocusCapture={onFocusCapture} tabIndex={id ? -1 : undefined}><CardHeader header={<Subtitle1 as="h2">{title}</Subtitle1>} action={action ? { children: action } : undefined} />{children}</Card>;
@@ -53,9 +59,12 @@ export function Progress({ value, max, label }: { value?: number; max?: number; 
 export function DocumentLayout({ children }: PropsWithChildren) {
   return <div className="shell"><Link className="skip-link" href="#main">跳到主要内容</Link>
     <header><Brand /><span>WannaDance 本地控制台</span></header>
-    <NavigationLayout items={pageLinks(true)} selected={bootstrap.page}>
+    <NavigationLayout items={pageLinks()} selected={bootstrap.page}>
     <main id="main" tabIndex={-1}>{children}</main>
-    {bootstrap.page==='help'&&<footer><Link href="/#/home">返回控制台</Link> · <Link href="/?setup=1#/setup">重新进入引导</Link></footer>}
+    <DocumentFooter page={bootstrap.page}/>
     </NavigationLayout>
   </div>;
+}
+export function DocumentFooter({page}:{page:string}) {
+  return page==='help'?<footer><Link href={pageHref('home')}>返回控制台</Link> · <Link href={pageHref('setup')}>重新进入引导</Link></footer>:null;
 }

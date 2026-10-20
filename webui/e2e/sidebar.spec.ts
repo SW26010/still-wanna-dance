@@ -14,7 +14,7 @@ test('desktop pages and wizard use a left navigation with native links and arrow
     expect(left!.width).toBeCloseTo(260,1);
     const items=nav.getByRole(wizard?'button':'link');
     await items.first().focus();await page.keyboard.press('ArrowDown');await expect(items.nth(1)).toBeFocused();
-    if(!wizard){await expect(nav.getByRole('link',{name:'设置',exact:true})).toHaveAttribute('href',route.startsWith('/#')?'#/settings':'/#/settings');}
+    if(!wizard){await expect(nav.getByRole('link',{name:'设置',exact:true})).toHaveAttribute('href','#/settings');}
     await page.screenshot({path:info.outputPath(wizard?'wizard.png':route.includes('/#')?'console.png':route.slice(1)+'.png'),fullPage:true,animations:'disabled'});
   }
   await navigateStep(page,'3. 网络');await expect(page.getByRole('button',{name:'3. 网络',exact:true})).toHaveAttribute('aria-current','step');

@@ -1,12 +1,73 @@
 package console
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"strings"
 	"testing"
+
+	"still-wanna-dance/internal/legal"
 )
+
+func TestWebUIDocumentNavigationBootstrap(t *testing.T) {
+	for _, accepted := range []bool{true, false} {
+		t.Run(map[bool]string{true: "accepted", false: "before-consent"}[accepted], func(t *testing.T) {
+			c := testConsole(t)
+			if !accepted {
+				c.terms = termsReceipt{}
+			}
+			c.settings.StorageDir = `<script>alert("path")</script>`
+			c.savedSettings.StorageDir = "pending-storage"
+			for _, path := range []string{"/", "/help", "/about", "/terms"} {
+				w := httptest.NewRecorder()
+				c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+path, nil))
+				match := regexp.MustCompile(`<script id="swd-bootstrap" type="application/json">(.*?)</script>`).FindStringSubmatch(w.Body.String())
+				if w.Code != http.StatusOK || len(match) != 2 {
+					t.Fatalf("%s: missing bootstrap, status %d", path, w.Code)
+				}
+				var data struct {
+					Page, Token string
+					Paths       map[string]string
+					Build       json.RawMessage
+					Terms       struct{ Text, Version string }
+					TermsGate   *termsEntry
+				}
+				if err := json.Unmarshal([]byte(match[1]), &data); err != nil {
+					t.Fatal(err)
+				}
+				wantPage := "console"
+				if !accepted && (path == "/help" || path == "/about") {
+					wantPage = path[1:]
+				}
+				if data.Page != wantPage || data.Token != c.token {
+					t.Fatalf("%s: wrong page or token", path)
+				}
+				if data.Page == "console" || data.Page == "help" {
+					if data.Paths["Storage"] != c.settings.StorageDir || data.Paths["Config"] != c.files().Config || strings.Contains(w.Body.String(), c.settings.StorageDir) {
+						t.Fatalf("%s: missing, stale or unescaped paths", path)
+					}
+				}
+				if data.Page == "console" {
+					if len(data.Build) == 0 || data.Terms.Text != legal.Text || data.Terms.Version != legal.Version {
+						t.Fatalf("%s: document content unavailable at app startup", path)
+					}
+				}
+				wantGate := !accepted && (path == "/" || path == "/terms")
+				if (data.TermsGate != nil) != wantGate {
+					t.Fatalf("%s: consent gate changed", path)
+				}
+				if wantGate && path == "/terms" && data.TermsGate.Step != "terms" {
+					t.Fatal("direct terms entry did not select consent")
+				}
+			}
+			if c.termsAccepted() != accepted {
+				t.Fatal("reading documents changed consent")
+			}
+		})
+	}
+}
 
 func TestPageLoadsEmbeddedAssets(t *testing.T) {
 	c := testConsole(t)

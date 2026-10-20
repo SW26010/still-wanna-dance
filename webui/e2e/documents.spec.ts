@@ -1,7 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { mockAPI } from './api';
 
 for (const colorScheme of ['light', 'dark'] as const) for (const width of [390, 1280]) {
   test(`documents ${colorScheme} ${width}`, async ({ page }, testInfo) => {
+    const api=await mockAPI(page);
+    api.state.activeSettings.storageDir='<script>alert("path")</script>';
     await page.emulateMedia({ colorScheme }); await page.setViewportSize({ width, height: 900 });
     const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
     for (const route of ['/about', '/help', '/terms']) {
@@ -28,6 +31,7 @@ for (const colorScheme of ['light', 'dark'] as const) for (const width of [390, 
   });
 }
 test('readonly terms authenticates actions and displays server failures', async ({ page }) => {
+  await mockAPI(page);
   await page.goto('/terms');
   const req = page.waitForRequest('**/api/hosts/disable');
   await page.getByRole('button', { name: '恢复游戏直连' }).click();

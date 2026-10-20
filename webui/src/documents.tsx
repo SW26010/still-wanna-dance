@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { Button, Link, Title2, Card } from '@fluentui/react-components';
 import { bootstrap } from './bootstrap';
 import { APIError, request, hostsActionTimeout, hostsActionPending, unconfirmedAction } from './api';
-import { DocumentLayout, Feedback, Panel } from './ui';
+import { DocumentLayout, Feedback, Panel, isDocumentPage, pageHref, type DocumentPage } from './ui';
 import { HelpContent } from './help-content';
 
 export function Documents() {
-  return <DocumentLayout>{bootstrap.page === 'about' ? <About /> : bootstrap.page === 'help' ? <HelpContent paths={bootstrap.paths || {}} /> : <Terms />}</DocumentLayout>;
+  return <DocumentLayout>{isDocumentPage(bootstrap.page)&&<DocumentContent page={bootstrap.page}/>}</DocumentLayout>;
+}
+export function DocumentContent({page,paths=bootstrap.paths || {},onAction}:{page:DocumentPage;paths?:Record<string,string>;onAction?:()=>void}) {
+  return page==='about'?<About/>:page==='help'?<HelpContent paths={paths}/>:<Terms onAction={onAction}/>;
 }
 function About() {
   const build = bootstrap.build;
@@ -24,10 +27,10 @@ function About() {
       <dt>目标平台</dt><dd>{build.target}</dd><dt>Go 工具链</dt><dd>{build.toolchain}</dd>
     </dl></Panel>}
     <Panel title="特别感谢"><ul><li>华年忆梦</li><li>逻辑XR</li><li>小新喵</li></ul></Panel>
-    <p><Link href="/terms">使用条款与内容权利声明</Link> · 当前软件发行采用 GNU GPLv3（自有新贡献 GPL-3.0-only），历史 MIT 授权仍有效，第三方视频、音乐等内容不在授权范围内。</p>
+    <p><Link href={pageHref('terms')}>使用条款与内容权利声明</Link> · 当前软件发行采用 GNU GPLv3（自有新贡献 GPL-3.0-only），历史 MIT 授权仍有效，第三方视频、音乐等内容不在授权范围内。</p>
     <small>© 2026 Still Wanna Dance contributors. GNU GPLv3.</small></>;
 }
-function Terms() {
+function Terms({onAction}:{onAction?:()=>void}) {
   const [message, setMessage] = useState(''), [error, setError] = useState(false), [busy, setBusy] = useState(false);
   async function act(path: string, success: string) {
     if (busy) return;
@@ -35,9 +38,9 @@ function Terms() {
     setBusy(true); setError(false); setMessage(hosts ? hostsActionPending : '正在处理…');
     try { await request(path, {}, AbortSignal.timeout(hosts ? hostsActionTimeout : 30000)); setMessage(success); }
     catch (e) { setMessage(e instanceof APIError ? e.message : unconfirmedAction); setError(true); }
-    finally { setBusy(false); }
+    finally { setBusy(false); onAction?.(); }
   }
-  return <><Title2 as="h1">使用条款与内容权利声明</Title2><p>本机已确认当前条款。<Link href="/">返回控制台</Link></p><p>软件许可不等于内容授权。</p>
+  return <><Title2 as="h1">使用条款与内容权利声明</Title2><p>本机已确认当前条款。<Link href={pageHref('home')}>返回控制台</Link></p><p>软件许可不等于内容授权。</p>
     <p>条款版本：{bootstrap.terms?.version} · <Link href="/terms.txt" target="_blank" rel="noopener">查看／保存纯文本</Link></p>
     <Card role="article" appearance="outline" size="large" className="terms-text" tabIndex={0} aria-label="完整使用条款">{bootstrap.terms?.text}</Card>
     <div className="actions"><Button disabled={busy} onClick={() => void act('hosts/disable', 'hosts 恢复操作已完成。')}>恢复游戏直连</Button><Button disabled={busy} onClick={() => void act('stop', '播放网关已停止。')}>停止播放网关</Button></div>

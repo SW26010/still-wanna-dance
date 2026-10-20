@@ -185,8 +185,7 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if r.Method == "GET" && (r.URL.Path == "/terms" || (r.URL.Path == "/" && !c.termsAccepted())) {
 		if c.termsAccepted() {
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			c.serveWebUI(w, "terms", "使用条款", map[string]any{"terms": map[string]string{"text": legal.Text, "version": legal.Version}})
+			c.serveWebUI(w, "terms", "使用条款", nil)
 			return true
 		}
 		c.mu.Lock()

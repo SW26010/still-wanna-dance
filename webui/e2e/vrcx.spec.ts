@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { mockAPI } from './api';
-import { navigateStep } from './navigation';
+import { navigate, navigateStep } from './navigation';
 
 async function fixture(page: Page, existing = 0) {
   const api = await mockAPI(page);
@@ -21,6 +21,30 @@ async function fixture(page: Page, existing = 0) {
 }
 async function enable(page: Page) { await page.getByRole('checkbox',{name:'从 VRCX 导入历史偏好',exact:true}).check(); }
 async function inspect(page: Page) { await page.getByRole('button',{name:'读取并预览',exact:true}).click(); }
+
+test('VRCX keeps the selected database and preview across folding and page navigation',async({page})=>{
+  const {calls}=await fixture(page,3);
+  await page.goto('/#/library');
+  const history=page.getByRole('button',{name:'根据历史选择下载歌曲',exact:true});
+  await expect(history).toBeVisible();
+  expect(calls).toHaveLength(0);
+  await history.click();await enable(page);
+  await page.getByRole('button',{name:'选择数据库',exact:true}).click();
+  const path=page.getByLabel('VRCX 数据库路径'), preview=page.getByText('4 次 / 2 首',{exact:true});
+  await expect(path).toHaveValue('D:\\custom\\VRCX.sqlite3');
+  await inspect(page);await expect(preview).toBeVisible();
+  await history.click();await expect(preview).toBeHidden();
+  await history.click();await expect(preview).toBeVisible();
+  await navigate(page,'本地视频');await navigate(page,'下载管理');
+  await expect(page.getByRole('checkbox',{name:'从 VRCX 导入历史偏好',exact:true})).toBeChecked();
+  await expect(path).toHaveValue('D:\\custom\\VRCX.sqlite3');
+  await expect(preview).toBeVisible();
+  expect(calls.map(c=>c.path)).toEqual(['detect','select','preview']);
+  await page.getByRole('button',{name:'导入并覆盖…',exact:true}).click();
+  await page.getByRole('button',{name:'强制导入并覆盖',exact:true}).click();
+  await expect(page.getByText(/已导入 4 次历史需求/)).toBeVisible();
+  expect(calls.filter(c=>c.path==='apply')).toEqual([{path:'apply',body:{id:'preview-1',overwrite:true}}]);
+});
 
 test('VRCX reads only on explicit preview and empty usage imports without overwrite',async({page})=>{
   const {calls}=await fixture(page);await page.goto('/#/library');await page.getByRole('button',{name:'根据历史选择下载歌曲',exact:true}).click();

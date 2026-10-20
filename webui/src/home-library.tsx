@@ -45,11 +45,11 @@ export function AccessSettings() {
     </Panel></div></>;
 }
 export function DownloadsPage({visible,anchor}: {visible:boolean;anchor:string}) {
-  const [paused,setPaused]=useState(false), [diagnosticsOpen,setDiagnosticsOpen]=useState(false), [settingsOpen,setSettingsOpen]=useState(false);
+  const [paused,setPaused]=useState(false), [diagnosticsOpen,setDiagnosticsOpen]=useState(false), [settingsOpen,setSettingsOpen]=useState(false), [historyOpened,setHistoryOpened]=useState(false);
   useLayoutEffect(()=>{if(visible&&['prepareAheadSeconds','download-settings'].includes(anchor)){
     setSettingsOpen(true);requestAnimationFrame(()=>{const target=document.getElementById(anchor);target?.focus();target?.scrollIntoView();});
   }},[visible,anchor]);
-  return <><CurrentDownloads visible={visible} paused={paused}/><Library/><Details title="预加载与下载设置" keepMounted expanded={settingsOpen} onToggle={setSettingsOpen}><SettingsPage section="downloads"/></Details><Details title="下载诊断" keepMounted expanded={diagnosticsOpen} onToggle={setDiagnosticsOpen}><Checkbox label="暂停下载展示" checked={paused} onChange={(_,v)=>setPaused(!!v.checked)}/><p>暂停仅冻结展示，后台任务继续运行。</p><BlockTimeline visible={visible&&diagnosticsOpen} paused={paused}/></Details><Details title="根据历史选择下载歌曲">{visible&&<VRCXImport/>}</Details></>;
+  return <><CurrentDownloads visible={visible} paused={paused}/><Library/><Details title="预加载与下载设置" keepMounted expanded={settingsOpen} onToggle={setSettingsOpen}><SettingsPage section="downloads"/></Details><Details title="下载诊断" keepMounted expanded={diagnosticsOpen} onToggle={setDiagnosticsOpen}><Checkbox label="暂停下载展示" checked={paused} onChange={(_,v)=>setPaused(!!v.checked)}/><p>暂停仅冻结展示，后台任务继续运行。</p><BlockTimeline visible={visible&&diagnosticsOpen} paused={paused}/></Details><Details title="根据历史选择下载歌曲" keepMounted onToggle={open=>{if(open)setHistoryOpened(true);}}>{historyOpened&&<VRCXImport/>}</Details></>;
 }
 export function Library() {
   const app = useApp(), s = app.status.data!, q = s.queue, b = s.batch, saved = s.lastBatch;

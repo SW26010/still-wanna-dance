@@ -5,7 +5,7 @@ import { decode, request } from './api';
 import { useApp } from './hooks';
 import { Details, Feedback, Panel, Progress } from './ui';
 import { type Settings, type Status } from './types';
-import { CacheCapacityFields, capacityPayload, type CapacityDraft } from './cache-capacity';
+import { CacheCapacityFields, CacheReclamationFields, capacityPayload, type CapacityDraft } from './cache-capacity';
 import { StorageDirectoryFields } from './storage-directory';
 
 const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadSoftLimit','downloadGrowIntervalMS'] as const;
@@ -108,7 +108,8 @@ export function SettingsPage() {
     <ImportPanel />
     <Panel id="preferences" title="偏好设置"><Feedback error>{s.actionErrors?.settings}</Feedback><form className="form-grid" onSubmit={async e => { e.preventDefault(); if (!dirty || disabled || d.proxyImportText.trim()) return; if (await app.action('settings', settingsPayload(d))) { setDraft(d); setAwaitingRevision(app.revision + 1); } }}>
       <fieldset disabled={disabled}><legend>本地存储</legend>
-      <CacheCapacityFields anchor="maxCacheGiB" mode={d.videoStorageMode} reclamation={d.aggressiveCacheReclamation} value={d.maxCacheGiB} disabled={disabled} onChange={update} />
+      <CacheCapacityFields anchor="maxCacheGiB" mode={d.videoStorageMode} value={d.maxCacheGiB} disabled={disabled} onChange={update} />
+      <CacheReclamationFields mode={d.videoStorageMode} reclamation={d.aggressiveCacheReclamation} disabled={disabled} onChange={update} />
       <StorageDirectoryFields mode={d.videoStorageMode} disabled={disabled}>{directoryDisabled =>
         <Field label="本地存储目录" required hint="统一保存视频、歌曲资料和统计记录。下载中的文件也保存在此目录。"><Input required disabled={directoryDisabled} value={d.storageDir} onChange={(_, v) => update({storageDir:v.value})} /></Field>
       }</StorageDirectoryFields>

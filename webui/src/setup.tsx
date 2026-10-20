@@ -31,7 +31,7 @@ function SetupReview({draft:d,status:s,source}:{draft:Draft;status:Status;source
   const storage=(path:string)=>pathKey(path)===pathKey(s.defaultStorageDir)?'默认':'自定义 · '+path;
   const capacity=(settings:Pick<Draft,'videoStorageMode'> & {maxCacheBytes:number})=>settings.videoStorageMode==='unlimited'?'不限制':settings.videoStorageMode==='none'?'不保留（视频存储预算为 0）':settings.maxCacheBytes/1073741824+' GiB';
   const mode=(value:string)=>({direct:'直连',proxy:'强制代理',socks5:'强制代理',auto:'直连 + 代理'}[value] || '未选择');
-  const rows:[string,string][]=[['本地存储目录',change(storage(current.storageDir),storage(p.storageDir))],['视频存储预算',change(capacity(current),capacity(p))],['激进的缓存回收策略',change(reclamationLabel(current),reclamationLabel(p))],['导入',source || '不执行']];
+  const rows:[string,string][]=[['本地存储目录',change(storage(current.storageDir),storage(p.storageDir))],['视频存储预算',change(capacity(current),capacity(p))],['导入',source || '不执行']];
   if(source)rows.push(['目标',p.storageDir+' · 保留源文件']);
   rows.push(['网络连接',change(mode(current.upstreamMode),mode(p.upstreamMode))]);
   if(p.upstreamMode!=='direct')rows.push(['代理后端',p.proxyBackend==='mihomo'?'内嵌 Mihomo':'外部 SOCKS5']);
@@ -44,6 +44,7 @@ function SetupReview({draft:d,status:s,source}:{draft:Draft;status:Status;source
   const labels={autoStartCDN:'自动启动播放网关',autoStartQueue:'自动启动队列',prepareAheadSeconds:'提前准备时间 M（秒）',downloadSoftLimit:'下载并发上限（软）',downloadGrowIntervalMS:'并发增长间隔（毫秒）',requestRetentionDays:'请求保留天数',throughputIntervalMinutes:'测速间隔（分钟）',downloadUpstream:'回源线路',manualLogDir:'手动日志位置',logDir:'日志目录'};
   let advancedChanged=false;
   for(const key of Object.keys(labels) as (keyof typeof labels)[]){if(current[key]!==s.settings[key]){advancedChanged=true;rows.push([labels[key],change(String(current[key]),String(s.settings[key]))+'（此前已保存）']);}}
+  if(current.aggressiveCacheReclamation!==p.aggressiveCacheReclamation)rows.push(['激进的缓存回收策略',change(reclamationLabel(current),reclamationLabel(p))+'（此前已保存）']);
   const changed=advancedChanged||!!p.proxyImportID||(['storageDir','maxCacheBytes','videoStorageMode','aggressiveCacheReclamation','upstreamMode','proxyBackend','socks5Address','socks5Username'] as const).some(key=>key==='storageDir'?pathKey(current[key])!==pathKey(p[key]):key==='proxyBackend'?(current[key] || 'external-socks5')!==p[key]:(current[key] ?? '')!==(p[key] ?? ''))||(p.socks5Password===''&&s.socks5PasswordSet);
   const restart=changed?'将重启程序，正在进行的播放和任务会中断。':p.socks5Password||s.restartRequired?'如最终设置与当前运行配置不同，将重启程序并中断播放和任务。':'';
   return <><dl>{rows.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl><p>{restart}{source&&((changed?'重启后开始导入。':'确认后开始导入。')+'关闭网页不影响导入，重启程序会中止导入。')}</p></>;
@@ -176,7 +177,7 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
   }
   function reset() {
     if(!draft||!s)return;folder.current?.abort();
-    if(step==='storage'){setCustom(false);setImportEnabled(false);setSource('');update({storageDir:s.defaultStorageDir,videoStorageMode:'none',aggressiveCacheReclamation:'auto',maxCacheGiB:'0'});void checkStorage(s.defaultStorageDir);}
+    if(step==='storage'){setCustom(false);setImportEnabled(false);setSource('');update({storageDir:s.defaultStorageDir,videoStorageMode:'none',maxCacheGiB:'0'});void checkStorage(s.defaultStorageDir);}
     if(step==='proxy'){void releaseImport(draft.proxyImportID);update({upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',socks5Password:'',proxyImportID:'',proxyImportText:'',proxyReport:undefined});}
   }
   return <div className="wizard"><header><Brand /><div className="actions"><Link href="/help" target="_blank" rel="noopener">使用帮助（新窗口）</Link><Button disabled={busy||recovering||application?.phase==='importing'} onClick={async()=>{if(await leave(false))onExit();}}>{accepted?'放弃更改并退出引导':'退出'}</Button></div></header>
@@ -188,7 +189,7 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
         {accepted&&!s&&<Spinner label="正在连接设置…"/>}<Details title="修复已有安装"><p>移除本程序的 hosts 映射，需要管理员确认，立即生效。</p><Button disabled={app.busy||app.stopped} onClick={()=>void app.action('hosts/disable')}>恢复游戏直连</Button></Details>
       </>}
       {step==='storage'&&draft&&s&&<div className="form-grid">
-        <CacheCapacityFields mode={draft.videoStorageMode} reclamation={draft.aggressiveCacheReclamation} value={draft.maxCacheGiB} disabled={locked||folderBusy} onChange={update} />
+        <CacheCapacityFields mode={draft.videoStorageMode} value={draft.maxCacheGiB} disabled={locked||folderBusy} onChange={update} />
         <StorageDirectoryFields mode={draft.videoStorageMode} disabled={locked||folderBusy}>{directoryDisabled => <>
           <Checkbox checked={custom} disabled={directoryDisabled} label="指定其他位置（程序文件夹外）" onChange={(_,v)=>{setCustom(!!v.checked);if(!v.checked){update({storageDir:s.defaultStorageDir});void checkStorage(s.defaultStorageDir);}}}/>
           <Field label="本地存储目录："><Button className="path-button" disabled={directoryDisabled||!custom} onClick={()=>void chooseFolder('storage')}>{draft.storageDir || '选择存储文件夹'}</Button></Field>

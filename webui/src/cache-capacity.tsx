@@ -8,8 +8,8 @@ export function capacityPayload(d: CapacityDraft) {
 export function reclamationLabel(s: Pick<Settings, 'videoStorageMode' | 'aggressiveCacheReclamation'>) {
   return s.aggressiveCacheReclamation === 'auto' ? `自动（当前${s.videoStorageMode === 'none' ? '开启' : '关闭'}）` : s.aggressiveCacheReclamation === 'on' ? '开启' : '关闭';
 }
-export function CacheCapacityFields({ mode, reclamation, value, disabled, onChange, anchor }: {
-  mode: CapacityDraft['videoStorageMode']; reclamation: CapacityDraft['aggressiveCacheReclamation']; value: string; disabled: boolean; onChange: (patch: Partial<CapacityDraft>) => void; anchor?: string;
+export function CacheCapacityFields({ mode, value, disabled, onChange, anchor }: {
+  mode: CapacityDraft['videoStorageMode']; value: string; disabled: boolean; onChange: (patch: Partial<CapacityDraft>) => void; anchor?: string;
 }) {
   const limited = mode === 'limited';
   return <div id={anchor} tabIndex={-1} className="form-grid">
@@ -25,6 +25,12 @@ export function CacheCapacityFields({ mode, reclamation, value, disabled, onChan
       <Input type="number" min="0.01" max="8388607" step="0.01" required={limited} disabled={disabled || !limited}
         value={mode === 'none' ? '0' : value} onChange={(_, v) => onChange({maxCacheGiB: v.value})} />
     </Field>
+  </div>;
+}
+export function CacheReclamationFields({ mode, reclamation, disabled, onChange }: {
+  mode: CapacityDraft['videoStorageMode']; reclamation: CapacityDraft['aggressiveCacheReclamation']; disabled: boolean; onChange: (patch: Partial<CapacityDraft>) => void;
+}) {
+  return <div className="form-grid">
     <Field label="激进的缓存回收策略" hint="通常可以最小化硬盘和内存占用，但可能增加反复下载消耗的流量，若希望边下边存，请关闭此选项。">
       <RadioGroup value={reclamation} disabled={disabled} onChange={(_, v) => {
         if (v.value === 'auto' || v.value === 'on' || v.value === 'off') onChange({aggressiveCacheReclamation: v.value});

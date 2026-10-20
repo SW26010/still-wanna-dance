@@ -13,11 +13,17 @@
     "@fluentui/react-charts": "9.3.27",
     "@fluentui/react-components": "9.74.9",
     "@fluentui/react-icons": "2.0.344",
+    "d3-scale": "4.0.2",
+    "d3-selection": "3.0.0",
+    "d3-zoom": "3.0.0",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",
+    "@types/d3-scale": "4.0.9",
+    "@types/d3-selection": "3.0.12",
+    "@types/d3-zoom": "3.0.8",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "esbuild": "0.25.12",

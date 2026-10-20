@@ -16,7 +16,7 @@ export async function mockAPI(page: Page) {
     const req = route.request(), url = new URL(req.url()), path = url.pathname.slice(5), body = req.method()==='POST' ? path==='proxy/import'?{text:req.postData()}:req.postDataJSON() : {};
     calls.push({path,body,token:req.headers()['x-swd-token']});
     const event=path.match(/^setup\/network\/(connectivity|calibration)\/events$/);
-    if(event)return route.continue();
+    if(event||path==='block-demands/events')return route.continue();
     if (req.headers()['x-swd-token'] !== 'browser-fixture-token') return route.fulfill({status:403,body:'invalid token'});
     let data: unknown = {ok:true};
     if (path==='status') data = state;
@@ -44,5 +44,5 @@ export async function mockAPI(page: Page) {
     if (path==='stop') state.running=false;
     await route.fulfill({json:data});
   });
-  return {state,calls,files,terms,diagnostics,emit};
+  return {state,calls,files,terms,diagnostics,emit,fixtureID};
 }

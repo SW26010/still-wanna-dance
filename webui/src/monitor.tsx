@@ -4,6 +4,7 @@ import { useApp, useResource, useFocusRecovery } from './hooks';
 import { Details, Feedback, Panel, Progress } from './ui';
 import { type Download, type RequestRecord, type HealthResult, type Health, date, mb, dated } from './types';
 import { reconcileRequestGroups, type RequestGroup, requestOutcome, requestCache, requestTitle } from './requests';
+import { BlockTimeline } from './block-timeline';
 
 type RequestPage = {storageID:string; requests:RequestRecord[]; hasMore:boolean};
 function useRequestGroups(data?: RequestPage) {
@@ -78,7 +79,8 @@ export function Monitor({visible}: {visible: boolean}) {
   const groups = useRequestGroups(requests.data);
   const downloads = useResource<{tasks:Download[];bytesPerSecond:number}>('downloads',visible && !paused && !app.stopped,app.revision);
   useEffect(() => setLimit(50), [app.status.data!.activeSettings.storageDir]);
-  return <><Checkbox label="暂停下载与请求刷新" checked={paused} onChange={(_, v) => setPaused(!!v.checked)} /><Caption1 as="p" className="hint">{paused ? '展示更新已暂停' : '每 5 秒刷新'}；仅暂停下载和最近请求的展示更新，网络检测仍刷新，后台任务继续运行。</Caption1>
+  return <><Checkbox label="暂停下载与请求刷新" checked={paused} onChange={(_, v) => setPaused(!!v.checked)} /><Caption1 as="p" className="hint">{paused ? '展示更新已暂停' : '下载和最近请求每 5 秒刷新，块需求时间轴随事件更新'}；暂停同时冻结时间轴，网络检测仍刷新，后台任务继续运行。</Caption1>
+    <BlockTimeline visible={visible} paused={paused} />
     <Panel id="downloads" {...downloadFocus} title="当前下载"><Feedback error>{downloads.error && '活动下载读取失败，将自动重试。'}</Feedback><p role="status">{downloads.data?.tasks.length ? `${downloads.data.tasks.length} 个活动任务` : '暂无活动下载任务'} · 总下载速度 {mb(downloads.data?.bytesPerSecond)}/s</p>
       <List navigationMode="composite" className="records" aria-label="下载任务">{downloads.data?.tasks.map((task,i) => <ListItem key={task.resource+':'+task.id}><div role="gridcell" className="record-content">{i > 0 && <Divider className="record-divider" />}<strong>{task.songs?.[0]?.title || '未知歌名'}</strong><p>{(task.songs?.length || 0)>1 || task.moreSongs ? `等 ${task.moreSongs?'至少 ':''}${task.songs?.length || 0} 首关联曲目 · 播放歌曲未确定` : '资源关联曲目'}</p>
         <p>{({cache_check:'检查本地视频',upstream_headers:'等待上游',download:'下载中',range_download:'分段下载中',hash:'校验完整文件',publish:'发布文件',index:'更新索引'}[task.stage] || '阶段未知')} · {task.host || '域名待定'}</p>

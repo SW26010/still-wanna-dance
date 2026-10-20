@@ -14,8 +14,36 @@ createServer(async (req, res) => {
     if(p==='/__fixture/events'&&req.method==='POST'){
       let raw='';for await(const chunk of req)raw+=chunk;
       const {id,kind,state}=JSON.parse(raw), key=id+':'+kind;
-      states.set(key,state);for(const stream of streams.get(key)||[])stream.write(`event: ${kind}\ndata: ${JSON.stringify(state)}\n\n`);
+      if(kind==='blocks'){
+        const blocks=new Map((state.reset?[]:states.get(key)?.blocks||[]).map(b=>[b.id,b]));
+        for(const block of state.blocks)blocks.set(block.id,block);
+        for(const removed of state.removed)blocks.delete(removed);
+        const demands=new Map((state.reset?[]:states.get(key)?.demands||[]).map(d=>[d.id,d]));
+        for(const demand of state.demands||[])demands.set(demand.id,demand);
+        for(const removed of state.removedDemands||[])demands.delete(removed);
+        states.set(key,{...state,reset:true,blocks:[...blocks.values()],removed:[],demands:[...demands.values()],removedDemands:[]});
+      }else states.set(key,state);
+      const eventName=kind.startsWith('block-detail:')?'block-detail':kind;
+      for(const stream of streams.get(key)||[])stream.write(`event: ${eventName}\ndata: ${JSON.stringify(state)}\n\n`);
       res.setHeader('Content-Type','application/json');return res.end('{"ok":true}');
+    }
+    if(p==='/__fixture/streams'){
+      res.setHeader('Content-Type','application/json');
+      return res.end(JSON.stringify(Object.fromEntries([...streams].filter(([key])=>key.startsWith(url.searchParams.get('id')+':')).map(([key,value])=>[key.slice(key.indexOf(':')+1),value.size]))));
+    }
+    if(p==='/__fixture/disconnect'&&req.method==='POST'){
+      let raw='';for await(const chunk of req)raw+=chunk;
+      const {id,kind}=JSON.parse(raw);for(const stream of streams.get(id+':'+kind)||[])stream.end();
+      return res.end('{}');
+    }
+    if(p==='/api/block-demands/events'){
+      const id=req.headers.cookie?.match(/(?:^|;\s*)fixture-id=([^;]+)/)?.[1]||'default';
+      const block=url.searchParams.get('block'),kind=block?'block-detail:'+block:'blocks',key=id+':'+kind;
+      const fallback=block?null:{at:Date.now(),running:false,reset:true,capacity:4096,used:0,active:0,open:0,prepareAheadMS:500000,downloadGraceMS:30000,blocks:[],removed:[],demands:[],removedDemands:[]};
+      res.writeHead(200,{'Content-Type':'text/event-stream','Connection':'keep-alive'});
+      res.write(`event: ${block?'block-detail':'blocks'}\ndata: ${JSON.stringify(states.get(key)??fallback)}\n\n`);
+      if(!streams.has(key))streams.set(key,new Set());streams.get(key).add(res);
+      res.on('close',()=>streams.get(key)?.delete(res));return;
     }
     const event=p.match(/^\/api\/setup\/network\/(connectivity|calibration)\/events$/);
     if(event){

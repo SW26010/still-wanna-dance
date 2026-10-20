@@ -4,7 +4,7 @@ import { APIError, request, hostsActionTimeout, hostsActionPending, unconfirmedA
 import { bootstrap } from './bootstrap';
 import { active, type Status } from './types';
 
-// When polling removes the focused row, return focus to its labelled region.
+// When an update removes the focused row, return focus to its labelled region.
 export function useFocusRecovery() {
   const ref=useRef<HTMLDivElement>(null), focused=useRef<HTMLElement>(null);
   useLayoutEffect(()=>{

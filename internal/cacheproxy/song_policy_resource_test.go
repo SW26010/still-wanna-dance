@@ -7,10 +7,64 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 )
+
+func TestBlockingDoesNotCancelAdmittedPlayback(t *testing.T) {
+	started, release := make(chan struct{}, 1), make(chan struct{})
+	var calls atomic.Int32
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		select {
+		case started <- struct{}{}:
+		default:
+		}
+		select {
+		case <-release:
+		case <-r.Context().Done():
+			return
+		}
+		http.ServeContent(w, r, "video.mp4", time.Time{}, strings.NewReader(payload))
+	}, func(c *Config) {
+		c.ResolvePlayback = func(context.Context, string, string) (string, error) { return videoURL(payload), nil }
+		c.AggressiveCacheReclamation = "off"
+	})
+	seedPrioritySong(t, s, "1", videoKey(payload))
+	// Unblock the handler even when an assertion fails, before engine cleanup.
+	defer func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	}()
+	done := make(chan *responseRecorder, 1)
+	go func() { done <- request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=1", nil) }()
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("playback did not reach upstream")
+	}
+	if err := s.SetSongPolicy(context.Background(), 1, SongBlocked); err != nil {
+		t.Fatal(err)
+	}
+	w := request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=1", nil)
+	if w.Code != http.StatusForbidden || calls.Load() != 1 {
+		t.Fatal("new playback passed admission", w.Code, calls.Load())
+	}
+	close(release)
+	select {
+	case w := <-done:
+		assertResponse(t, w, http.StatusOK, payload)
+	case <-time.After(5 * time.Second):
+		t.Fatal("admitted playback did not finish")
+	}
+	s.wg.Wait()
+	expectRetained(t, cfg.videoFile(videoKey(payload)), false)
+}
 
 func TestBlockedSongEntrancesPreserveQueueClockWithoutDemand(t *testing.T) {
 	var calls atomic.Int32

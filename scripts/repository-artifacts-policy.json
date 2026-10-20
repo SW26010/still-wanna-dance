@@ -199,6 +199,13 @@
       "bytes": 289569,
       "sha256": "8dbee2516b7d7eaeb7d5f98406aa929ff5a5967b2d393cc3c44c565479c117b2",
       "reason": "Published historical acceptance evidence; retain unchanged."
+    },
+    {
+      "path": "internal/cacheproxy/testdata/storage-v3.sqlite",
+      "kind": "binary-fixture",
+      "bytes": 110592,
+      "sha256": "4e2d207578cee63c86ab82a93175a953a1fcf3d74d9ed43a4bed2551a02221a1",
+      "reason": "Frozen schema v3 fixture with independent song preferences; preserve v2 separately for rejection and unchanged-bytes regression."
     }
   ]
 }

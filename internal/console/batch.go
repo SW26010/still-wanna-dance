@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"sync"
@@ -41,6 +42,7 @@ type Batch struct {
 	Hits           int                      `json:"hits"`
 	Downloaded     int                      `json:"downloaded"`
 	Failed         int                      `json:"failed"`
+	Skipped        int                      `json:"skipped"`
 	Current        string                   `json:"current"`
 	Failures       []Failure                `json:"failures"`
 }
@@ -298,21 +300,48 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		if ctx.Err() != nil {
 			return
 		}
-		select {
-		case <-budgetStop:
-			return
-		default:
+		var err error
+		ids := append([]string(nil), job.ids...)
+		skip := func(id string) {
+			ids = slices.DeleteFunc(ids, func(candidate string) bool { return candidate == id })
+			c.mu.Lock()
+			c.batch.Checked++
+			c.batch.Skipped++
+			c.mu.Unlock()
+		}
+		if !scanOnly {
+			var policies map[int64]cacheproxy.SongPolicy
+			policies, err = s.SongPolicies(ctx)
+			favorite := false
+			if err == nil {
+				for _, id := range job.ids {
+					n, _ := strconv.ParseInt(id, 10, 64)
+					if policies[n] == cacheproxy.SongBlocked {
+						skip(id)
+					}
+					favorite = favorite || policies[n] == cacheproxy.SongFavorite
+				}
+			}
+			if len(ids) == 0 {
+				return
+			}
+			select {
+			case <-budgetStop:
+				if !favorite && err == nil {
+					return
+				}
+			default:
+			}
 		}
 		hit := check.Present[job.md5]
-		var err error
 		source := "HIT"
-		if !hit && !scanOnly {
+		if err == nil && !hit && !scanOnly {
 			songCtx, finish := cacheproxy.WithBatchSongBudget(ctx)
 			defer finish()
 			songCtx = cacheproxy.WithExpectedMD5(songCtx, job.md5)
 			// Keep resource scheduling independent of which ID resolves it.
 			// Prefer IDs still in the catalog, then try retained associations.
-			candidates := append([]string(nil), job.ids...)
+			candidates := append([]string(nil), ids...)
 			sort.SliceStable(candidates, func(i, j int) bool {
 				currentI := local.Current[candidates[i]]
 				currentJ := local.Current[candidates[j]]
@@ -323,10 +352,18 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 				c.mu.Lock()
 				c.batch.Current = id + " · " + titles[id]
 				c.mu.Unlock()
-				source, err = c.prefetchSong(songCtx, s, n)
+				result, attemptErr := c.prefetchSong(songCtx, s, n)
+				if errors.Is(attemptErr, cacheproxy.ErrSongBlocked) {
+					skip(id)
+					continue
+				}
+				source, err = result, attemptErr
 				if err == nil || songCtx.Err() != nil || errors.Is(err, cacheproxy.ErrBatchBudget) || errors.Is(err, cacheproxy.ErrLocalStorage) {
 					break
 				}
+			}
+			if len(ids) == 0 {
+				return
 			}
 			if errors.Is(err, cacheproxy.ErrBatchBudget) {
 				stopBudget.Do(func() { close(budgetStop) })
@@ -341,24 +378,24 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		}
 		c.mu.Lock()
 		defer c.mu.Unlock()
-		c.batch.Checked += len(job.ids)
+		c.batch.Checked += len(ids)
 		switch {
 		case err != nil:
-			c.batch.Failed += len(job.ids)
-			for _, id := range job.ids {
+			c.batch.Failed += len(ids)
+			for _, id := range ids {
 				n, _ := strconv.ParseInt(id, 10, 64)
 				c.batch.Failures = append(c.batch.Failures, Failure{ID: n, Name: titles[id], Error: err.Error()})
 			}
 		case hit:
-			c.batch.Hits += len(job.ids)
-			c.batch.Reused += len(job.ids)
-			c.batch.CatalogHits += len(job.ids)
+			c.batch.Hits += len(ids)
+			c.batch.Reused += len(ids)
+			c.batch.CatalogHits += len(ids)
 		case scanOnly:
-			c.batch.Missing += len(job.ids)
+			c.batch.Missing += len(ids)
 		case source == "HIT":
-			c.batch.Hits += len(job.ids)
+			c.batch.Hits += len(ids)
 		default:
-			c.batch.Downloaded += len(job.ids)
+			c.batch.Downloaded += len(ids)
 		}
 	}
 	var wg sync.WaitGroup
@@ -366,8 +403,6 @@ dispatch:
 	for _, job := range jobs {
 		select {
 		case <-ctx.Done():
-			break dispatch
-		case <-budgetStop:
 			break dispatch
 		default:
 		}
@@ -386,8 +421,6 @@ dispatch:
 		case <-finished:
 		case <-ctx.Done():
 			break dispatch
-		case <-budgetStop:
-			break dispatch
 		}
 	}
 	wg.Wait()
@@ -395,7 +428,8 @@ dispatch:
 	case <-budgetStop:
 		c.mu.Lock()
 		c.batch.BudgetReached = true
-		c.batch.Phase = "视频存储预算不足，下载补齐已自动停止。请前往「设置」调大「视频存储预算（GiB）」后再次下载补齐。"
+		c.batch.Current = ""
+		c.batch.Phase = "普通视频的存储预算不足，已停止普通补齐；本轮可处理的收藏已继续处理。可在「本地视频 → 存储设置」调整视频保留空间后再次补齐。"
 		c.mu.Unlock()
 		return
 	default:

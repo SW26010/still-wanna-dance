@@ -57,8 +57,14 @@ func TestResolveLogsMalformedLocationIsRedacted(t *testing.T) {
 	}))
 	defer api.Close()
 	c.apiBase, c.client.Transport = api.URL, http.DefaultTransport
-	// Resolution fails before an engine is needed, including the Auto fallback.
-	if _, err := c.prefetchSong(context.Background(), nil, 1343); err == nil {
+	// The engine performs song admission before resolution and Auto fallback.
+	c.mu.Lock()
+	err := c.ensureEngine()
+	c.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.prefetchSong(context.Background(), c.service, 1343); err == nil {
 		t.Fatal("expected resolution failure")
 	}
 	if strings.Contains(output.String(), "secret") || strings.Contains(output.String(), "token") {

@@ -30,6 +30,30 @@ func readSongPolicy(ctx context.Context, db *sql.DB, id int64) (SongPolicy, erro
 	return policy, err
 }
 
+// SongPolicies is a sparse snapshot for source selection and display. Entry
+// points still check admission when creating work; this snapshot owns no demand.
+func (s *Server) SongPolicies(ctx context.Context) (map[int64]SongPolicy, error) {
+	if !s.beginRequest() {
+		return nil, context.Canceled
+	}
+	defer s.wg.Done()
+	rows, err := s.usage.db.QueryContext(ctx, "SELECT song_id,policy FROM song_preferences")
+	if err != nil {
+		return nil, s.storageError(err)
+	}
+	defer rows.Close()
+	result := make(map[int64]SongPolicy)
+	for rows.Next() {
+		var id int64
+		var policy SongPolicy
+		if err := rows.Scan(&id, &policy); err != nil {
+			return nil, err
+		}
+		result[id] = policy
+	}
+	return result, rows.Err()
+}
+
 // CheckSongAllowed runs at song entry points, before creating a usage demand.
 // Existing demands are unaffected by later policy changes.
 func (s *Server) CheckSongAllowed(ctx context.Context, id int64) error {

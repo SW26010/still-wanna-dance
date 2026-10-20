@@ -88,6 +88,9 @@ func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, i
 		if err := ctx.Err(); err != nil {
 			return "", err
 		}
+		if err := engine.CheckSongAllowed(ctx, id); err != nil {
+			return "", err
+		}
 		log.Info("prefetch_upstream", "upstream", route, "fallback", attempt > 0)
 		started := time.Now()
 		target, err := c.resolveNode(ctx, id, route)
@@ -104,6 +107,9 @@ func (c *Console) prefetchSong(ctx context.Context, engine *cacheproxy.Server, i
 			attemptedURLs[target] = true
 			var source string
 			source, err = engine.PrefetchSong(ctx, strconv.FormatInt(id, 10), target)
+			if errors.Is(err, cacheproxy.ErrSongBlocked) {
+				return "", err
+			}
 			if errors.Is(err, cacheproxy.ErrBatchBudget) {
 				return "", preserveBudgetFailure(errors.Join(failures...), err)
 			}

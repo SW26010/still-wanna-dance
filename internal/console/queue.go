@@ -25,6 +25,7 @@ type QueueStatus struct {
 	Titles     map[string]string `json:"titles,omitempty"` // local catalog, filled for the status response
 	Current    int64             `json:"current"`
 	Active     []int64           `json:"active"`
+	Blocked    []int64           `json:"blocked"`
 	Completed  int               `json:"completed"`
 	Error      string            `json:"error"`
 	Failures   []Failure         `json:"failures"`
@@ -57,6 +58,7 @@ func (q *QueueStatus) wants(id int64, generation uint64) bool {
 // Call with c.mu held. Reset errors even when the next room has the same IDs.
 func (q *QueueStatus) setSongs(songs []vrclog.Song, reset bool) {
 	q.Songs = songs
+	q.Blocked = nil
 	if reset {
 		q.Generation++
 		q.Failures = nil
@@ -361,10 +363,22 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		if ctx.Err() != nil {
 			return
 		}
+		policies, policyErr := engine.SongPolicies(ctx)
+		if policyErr != nil && ctx.Err() == nil {
+			slog.Warn("queue_song_preferences_failed", "error", policyErr)
+		}
 		// The visible snapshot can precede the engine's metadata/source update.
 		// Dispatch only after that same serialized update has finished.
 		c.queueUpdateMu.Lock()
 		c.mu.Lock()
+		c.queue.Blocked = nil
+		for _, song := range c.queue.Songs {
+			if policies[song.ID] == cacheproxy.SongBlocked {
+				c.queue.Blocked = append(c.queue.Blocked, song.ID)
+				c.queue.songResult(song.ID, nil)
+				delete(retry, song.ID)
+			}
+		}
 		if c.queue.Generation != generation {
 			generation = c.queue.Generation
 			retry = map[int64]time.Time{}
@@ -393,7 +407,7 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 						if song.ID == admitting {
 							break
 						}
-						if song.ID > 0 && !active[song.ID] && !c.queue.prepared[song.ID] && !time.Now().Before(retry[song.ID]) {
+						if song.ID > 0 && policies[song.ID] != cacheproxy.SongBlocked && !active[song.ID] && !c.queue.prepared[song.ID] && !time.Now().Before(retry[song.ID]) {
 							waiter.cancel()
 							admission, admitting = nil, 0
 							break
@@ -407,7 +421,7 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 				break
 			}
 			id := song.ID
-			if id <= 0 || active[id] || c.queue.prepared[id] || time.Now().Before(retry[id]) {
+			if id <= 0 || policies[id] == cacheproxy.SongBlocked || active[id] || c.queue.prepared[id] || time.Now().Before(retry[id]) {
 				continue
 			}
 			active[id] = true
@@ -470,7 +484,10 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 			waiter.cancel()
 			delete(c.queue.waiters, r.id)
 			if valid && r.wanted && c.queue.wants(r.id, r.generation) && ctx.Err() == nil {
-				if r.err != nil {
+				if errors.Is(r.err, cacheproxy.ErrSongBlocked) {
+					delete(retry, r.id)
+					r.err = nil
+				} else if r.err != nil {
 					retry[r.id] = time.Now().Add(time.Minute)
 					slog.Warn("queue_song_failed", "trace_id", applog.TraceID(waiter.ctx), "generation", r.generation, "song_id", r.id, "error", r.err, "retry_seconds", 60)
 				} else {

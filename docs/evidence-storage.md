@@ -1,6 +1,6 @@
 # 证据与大文件存储约定
 
-Git 保存源码、报告、精简统计、纯矢量 SVG 和清单。完整实验轨迹、逐请求记录、图片、压缩文件及构建产物使用版本化附件。必要的二进制测试样本单独登记，当前为固定的 `internal/cacheproxy/testdata/storage-v2.sqlite`。产品运行所需的 `internal/branding/logo.ico`、`logo-light.ico` 另按精确路径、字节数与 SHA256 登记，保证普通离线构建不依赖附件下载。
+Git 保存源码、报告、精简统计、纯矢量 SVG 和清单。完整实验轨迹、逐请求记录、图片、压缩文件及构建产物使用版本化附件。必要的二进制测试样本单独登记，当前为固定的 `internal/cacheproxy/testdata/storage-v2.sqlite` 和 `storage-v3.sqlite`，分别覆盖旧格式拒绝和当前格式。产品运行所需的 `internal/branding/logo.ico`、`logo-light.ico` 另按精确路径、字节数与 SHA256 登记，保证普通离线构建不依赖附件下载。
 
 ## 文件归属
 

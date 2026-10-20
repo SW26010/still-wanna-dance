@@ -70,10 +70,15 @@ func (s *Server) reserveBatchVideo(ctx context.Context, v video) (func(bool), er
 	if b == nil {
 		return func(bool) {}, nil
 	}
+	policies, err := s.resourcePolicies(ctx)
+	if err != nil {
+		return nil, s.storageError(err)
+	}
+	favorite := policies[v.key].favorite
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	song, _ := ctx.Value(batchSongBudgetKey{}).(*batchSongBudget)
-	if b.stopped && (song == nil || !song.admitted) {
+	if !favorite && b.stopped && (song == nil || !song.admitted) {
 		return nil, ErrBatchBudget
 	}
 	// A different fallback version replaces this song's failed reservation.
@@ -114,7 +119,7 @@ func (s *Server) reserveBatchVideo(ctx context.Context, v video) (func(bool), er
 	if extra < 0 {
 		extra = 0
 	}
-	if extra > 0 && (used >= s.cfg.MaxCacheBytes || extra > s.cfg.MaxCacheBytes-used) {
+	if !favorite && extra > 0 && (used >= s.cfg.MaxCacheBytes || extra > s.cfg.MaxCacheBytes-used) {
 		b.stopped = true
 		return nil, ErrBatchBudget
 	}

@@ -229,7 +229,11 @@ func (s *Server) reconcileRetention() error {
 }
 
 func (s *Server) trimCachePass(reconcile bool) error {
-	s.reclaimLocalBlocks()
+	policies, err := s.resourcePolicies(context.Background())
+	if err != nil {
+		return err
+	}
+	s.reclaimBlocksWithPolicies(policies)
 	s.retentionMu.Lock()
 	limit := s.cfg.MaxCacheBytes
 	unlimited := s.cfg.CacheUnlimited
@@ -240,6 +244,19 @@ func (s *Server) trimCachePass(reconcile bool) error {
 		if err := s.reconcileRetention(); err != nil {
 			return err
 		}
+	}
+	// Blocking is a resource removal policy, independent of capacity. Reuse
+	// existing protection and deletion reservations, including active readers.
+	s.retentionMu.Lock()
+	var blocked []retainedVideo
+	for key, item := range s.retained {
+		if policies[key].blocked && !s.videoProtectedLocked(key) && s.beginVideoRemovalLocked(key) {
+			blocked = append(blocked, item)
+		}
+	}
+	s.retentionMu.Unlock()
+	for _, item := range blocked {
+		s.evictRetainedVideo(item)
 	}
 	if unlimited {
 		return nil
@@ -271,7 +288,7 @@ func (s *Server) trimCachePass(reconcile bool) error {
 		s.retentionMu.Lock()
 		// Active block protection outranks historical scores and does not count as
 		// planned reclamation. Ordinary in-flight pins still defer eviction.
-		if s.videoProtectedLocked(item.key) {
+		if policies[item.key].favorite || s.videoProtectedLocked(item.key) {
 			s.retentionMu.Unlock()
 			continue
 		}

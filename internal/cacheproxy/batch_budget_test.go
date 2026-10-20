@@ -5,14 +5,26 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 )
 
+func batchBudgetServer(t *testing.T, cfg Config) *Server {
+	t.Helper()
+	db, err := openStorageDatabase(filepath.Join(t.TempDir(), storageDatabaseName), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	return &Server{cfg: cfg, usage: &usageStore{db: db}}
+}
+
 func TestBatchBudgetConcurrentReservations(t *testing.T) {
-	s := &Server{cfg: Config{MaxCacheBytes: 20}, retained: map[string]retainedVideo{"existing": {size: 10}}}
+	s := batchBudgetServer(t, Config{MaxCacheBytes: 20})
+	s.retained = map[string]retainedVideo{"existing": {size: 10}}
 	ctx := s.WithBatchBudget(context.Background())
 	var admitted atomic.Int32
 	var wg sync.WaitGroup
@@ -36,7 +48,8 @@ func TestBatchBudgetConcurrentReservations(t *testing.T) {
 }
 
 func TestBatchBudgetReuseFailureAndEviction(t *testing.T) {
-	s := &Server{cfg: Config{MaxCacheBytes: 20}, retained: map[string]retainedVideo{"existing": {size: 10}}}
+	s := batchBudgetServer(t, Config{MaxCacheBytes: 20})
+	s.retained = map[string]retainedVideo{"existing": {size: 10}}
 	ctx := s.WithBatchBudget(context.Background())
 	reserve := func(key string, size int64, success bool) {
 		t.Helper()
@@ -58,7 +71,7 @@ func TestBatchBudgetReuseFailureAndEviction(t *testing.T) {
 
 func TestBatchBudgetUnlimitedAndOrdinaryPrefetch(t *testing.T) {
 	for _, limit := range []int64{0, 1} {
-		s := &Server{cfg: Config{MaxCacheBytes: limit, CacheUnlimited: limit == 0}}
+		s := batchBudgetServer(t, Config{MaxCacheBytes: limit, CacheUnlimited: limit == 0})
 		ctx := context.Background()
 		if limit == 0 {
 			ctx = s.WithBatchBudget(ctx)
@@ -72,7 +85,7 @@ func TestBatchBudgetUnlimitedAndOrdinaryPrefetch(t *testing.T) {
 }
 
 func TestBatchBudgetAdmittedSongRetryAfterStop(t *testing.T) {
-	s := &Server{cfg: Config{MaxCacheBytes: 10}}
+	s := batchBudgetServer(t, Config{MaxCacheBytes: 10})
 	ctx := s.WithBatchBudget(context.Background())
 	songCtx, release := WithBatchSongBudget(ctx)
 	finish, err := s.reserveBatchVideo(songCtx, video{key: "original", size: 10})
@@ -106,7 +119,7 @@ func TestBatchBudgetAdmittedSongRetryAfterStop(t *testing.T) {
 }
 
 func TestBatchBudgetFallbackReplacesFailedVersion(t *testing.T) {
-	s := &Server{cfg: Config{MaxCacheBytes: 20}}
+	s := batchBudgetServer(t, Config{MaxCacheBytes: 20})
 	ctx := s.WithBatchBudget(context.Background())
 	songCtx, release := WithBatchSongBudget(ctx)
 	defer release()
@@ -185,7 +198,7 @@ func TestBatchBudgetCanceledPrefetchKeepsReservation(t *testing.T) {
 		t.Fatalf("expected caller cancellation, got err=%v caller=%v", err, callerCtx.Err())
 	}
 	// Caller cancellation keeps the charge because shared work may still finish.
-	if _, err := s.reserveBatchVideo(ctx, video{key: "another", size: int64(len(payload))}); !errors.Is(err, ErrBatchBudget) {
+	if _, err := s.reserveBatchVideo(context.WithoutCancel(ctx), video{key: "another", size: int64(len(payload))}); !errors.Is(err, ErrBatchBudget) {
 		t.Fatalf("canceled prefetch released the budget: %v", err)
 	}
 }

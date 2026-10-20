@@ -16,6 +16,9 @@ func (s *Server) loadSong(ctx context.Context, q url.Values) (video, func(), err
 	if err != nil || id <= 0 {
 		return video{}, nil, errors.New("invalid song ID")
 	}
+	if err := s.CheckSongAllowed(ctx, id); err != nil {
+		return video{}, nil, err
+	}
 	canonical := strconv.FormatInt(id, 10)
 	if local, err := s.localPlaybackVideo(ctx, canonical); err == nil {
 		s.pinVideo(local)

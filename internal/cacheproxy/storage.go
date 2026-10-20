@@ -29,6 +29,8 @@ func (s *Server) recordSongVideo(ctx context.Context, id string, v video) (resul
 	// including callers that do not already own a request/worker pin.
 	s.pinVideo(v)
 	defer s.releaseVideo(v)
+	s.retentionRunMu.Lock()
+	defer s.retentionRunMu.Unlock()
 	s.mappingMu.Lock()
 	defer s.mappingMu.Unlock()
 	var current string

@@ -373,6 +373,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		defer release()
 	}
 	if err != nil {
+		if errors.Is(err, ErrSongBlocked) {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		if errors.Is(err, errPlaybackUpstream) || errors.Is(err, ErrLocalStorage) {
 			http.Error(w, "playback resolution failed", cacheErrorStatus(err))
 			return

@@ -30,6 +30,8 @@ func (s *Server) SyncCatalog(ctx context.Context, c Catalog) error {
 		return context.Canceled
 	}
 	defer s.wg.Done()
+	s.retentionRunMu.Lock()
+	defer s.retentionRunMu.Unlock()
 	s.mappingMu.Lock()
 	defer s.mappingMu.Unlock()
 	tx, err := s.usage.db.BeginTx(ctx, nil)
@@ -100,6 +102,9 @@ func (s *Server) SyncCatalog(ctx context.Context, c Catalog) error {
 	if err = commitCatalogCheck(ctx, tx, "已更新本地清单"); err != nil {
 		return err
 	}
+	s.retentionMu.Lock()
+	s.requestRetentionLocked()
+	s.retentionMu.Unlock()
 	return nil
 }
 

@@ -61,7 +61,8 @@ type Config struct {
 	MaxFileBytes         int64
 	// CacheUnlimited disables the retained-video budget independently of its value.
 	CacheUnlimited bool
-	// MaxCacheBytes bounds retained videos; zero reclaims every unprotected video.
+	// MaxCacheBytes bounds ordinary retained videos. Favorites count toward usage
+	// but can exceed this budget; zero reclaims unprotected ordinary videos.
 	MaxCacheBytes int64
 	// AggressiveCacheReclamation controls unprotected block cache reclamation:
 	// auto follows the video budget; on and off explicitly override it.

@@ -49,6 +49,8 @@ func TestHTTPDateRangeUsesActualPlaybackOffset(t *testing.T) {
 	if w := request(s, "GET", target, nil); w.Code != 200 {
 		t.Fatal(w.Code)
 	}
+	// Body delivery finishes independently of background publication/indexing.
+	s.wg.Wait()
 	if _, err := s.usage.db.Exec("INSERT INTO songs(song_id,end) VALUES (1,120)"); err != nil {
 		t.Fatal(err)
 	}

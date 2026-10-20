@@ -128,6 +128,15 @@ func (s *Server) ImportVideo(ctx context.Context, source string, allowed map[str
 	if err = ctx.Err(); err != nil {
 		return nil, err
 	}
+	s.retentionRunMu.Lock()
+	defer s.retentionRunMu.Unlock()
+	policies, err := s.resourcePolicies(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if policies[key].blocked {
+		return nil, nil
+	}
 	if err = os.Link(stage, dest); err != nil {
 		if os.IsExist(err) {
 			return nil, nil

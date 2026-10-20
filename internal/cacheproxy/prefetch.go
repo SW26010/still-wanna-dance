@@ -49,6 +49,12 @@ func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, res
 	start := time.Now()
 	ctx = applog.WithTrace(ctx)
 	id := v.songID
+	if id != "" {
+		n, _ := strconv.ParseInt(id, 10, 64)
+		if err := s.CheckSongAllowed(ctx, n); err != nil {
+			return "", err
+		}
+	}
 	if expected, _ := ctx.Value(expectedMD5Key{}).(string); expected != "" && expected != v.key {
 		s.cfg.Logger.Warn("song_md5_mismatch", "song_id", id, "mapped_md5", expected, "url_md5", v.key)
 		return "", fmt.Errorf("上游 MD5 与清单不一致：期望 %s，收到 %s", expected, v.key)

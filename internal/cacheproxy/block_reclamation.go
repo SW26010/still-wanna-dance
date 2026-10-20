@@ -27,6 +27,10 @@ func (s *Server) requestBlockReclamation() {
 // I/O references keep the exact detached files alive; a later store uses a new
 // path and cannot be affected by this pass's unlocked filesystem cleanup.
 func (s *Server) reclaimLocalBlocks() {
+	s.reclaimBlocksWithPolicies(nil)
+}
+
+func (s *Server) reclaimBlocksWithPolicies(policies map[string]resourcePolicy) {
 	type cleanup struct {
 		blocks  *blockFiles
 		paths   []string
@@ -35,12 +39,13 @@ func (s *Server) reclaimLocalBlocks() {
 	var pending []cleanup
 	changed := false
 	s.retentionMu.Lock()
-	if !s.cfg.aggressiveBlockReclamation() {
-		s.retentionMu.Unlock()
-		return
-	}
+	aggressive := s.cfg.aggressiveBlockReclamation()
 	now := time.Now()
 	for key, local := range s.localResources {
+		// A policy change does not interrupt work already using this resource.
+		if !aggressive && (!policies[key].blocked || s.versionPins[key] > 0) {
+			continue
+		}
 		blocks := local.storage
 		paths := blocks.retire(func(block int64) bool {
 			remove := !s.blockProtectedLocked(key, block, now)

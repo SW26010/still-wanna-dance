@@ -42,6 +42,8 @@ func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error
 	}
 	// Roll back/release the database transaction before retaining a storage fault.
 	defer func() { resultErr = s.songURLStorageError(ctx, resultErr) }()
+	s.retentionRunMu.Lock()
+	defer s.retentionRunMu.Unlock()
 	s.mappingMu.Lock()
 	defer s.mappingMu.Unlock()
 	tx, err := s.usage.db.BeginTx(ctx, nil)
@@ -78,6 +80,9 @@ func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+	s.retentionMu.Lock()
+	s.requestRetentionLocked()
+	s.retentionMu.Unlock()
 	var mapped string
 	if err := s.usage.db.QueryRowContext(ctx, "SELECT md5 FROM song_media WHERE song_id=?", o.SongID).Scan(&mapped); err == nil && mapped != v.key {
 		s.cfg.Logger.Warn("song_md5_mismatch", "song_id", o.SongID, "mapped_md5", mapped, "url_md5", v.key, "node", o.Node)

@@ -225,12 +225,15 @@ func TestReleaseOnlyCleansAfterLastReference(t *testing.T) {
 	expectRetained(t, hot, true)
 }
 
-func TestRetentionWithinLimitSkipsUsageDatabase(t *testing.T) {
+func TestRetentionWithinLimitSkipsUsageStatistics(t *testing.T) {
 	s, cfg := setup(t, nil)
 	p := retainedPath(t, s, cfg, "1")
 	putRetained(t, p, 10)
-	// A closed store makes any unnecessary statistics query fail deterministically.
-	s.usage.close()
+	// Policies are still needed below budget, but scoring is not.
+	s.usage.flush()
+	if _, err := s.usage.db.Exec("DROP TABLE song_usage"); err != nil {
+		t.Fatal(err)
+	}
 	for _, limit := range []int64{11, 10} {
 		setRetentionLimit(t, s, limit)
 		if err := s.trimCachePass(true); err != nil {

@@ -26,6 +26,8 @@ export async function mockAPI(page: Page) {
     if(path==='setup/storage')data={space:{state:'ok'},writable:{state:'ok'},library:{state:'ok'},freeBytes:100*2**30,totalBytes:200*2**30};
     if(path==='setup/logs')data={state:'ok',directory:state.defaultLogDir,message:'日志可读取'};
     if(path==='setup/folder')data={path:body.kind==='storage'?'D:\\UI-Test\\cache':'D:\\UI-Test\\videos',canceled:false};
+    if(path==='vrcx/detect')data={path:'C:\\VRCX\\VRCX.sqlite3',found:false,existingSongs:0};
+    if(path==='vrcx/preview')return route.fulfill({status:400,body:'未找到默认位置的 VRCX 数据库'});
     if(path==='setup/apply'){state.setupApplication={id:body.id as string,phase:'completed',configSaved:true,importStarted:!!body.importSource};data=state.setupApplication;}
     if(path==='setup/receipt')data=state.setupApplication || {id:body.id,phase:'missing',error:'未找到原回执'};
     const command=path.match(/^setup\/network\/(connectivity|calibration)\/(start|cancel)$/);

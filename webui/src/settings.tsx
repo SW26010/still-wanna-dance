@@ -7,6 +7,7 @@ import { Details, Feedback, Panel, Progress } from './ui';
 import { type Settings, type Status } from './types';
 import { CacheCapacityFields, CacheReclamationFields, capacityPayload, type CapacityDraft } from './cache-capacity';
 import { StorageDirectoryFields } from './storage-directory';
+import { VRCXImport } from './vrcx';
 
 const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadSoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
 type NumberField = typeof numeric[number];
@@ -83,7 +84,7 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending, w
   </div>;
 }
 
-export function SettingsPage() {
+export function SettingsPage({visible}: {visible:boolean}) {
   const app = useApp(), s = app.status.data!;
   const [draft, setDraft] = useState<Draft>(), [pending, setPending] = useState(false);
   const [awaitingRevision, setAwaitingRevision] = useState<number>();
@@ -133,6 +134,7 @@ export function SettingsPage() {
       <Caption1 as="p" className="hint">重启会停止当前服务和任务，按已保存的自动启动设置重新启动。批量任务需手动重新开始，hosts 映射保留。</Caption1></div>
     </form></Panel>
     <ImportPanel />
+    {visible&&<VRCXImport />}
     <Panel title="使用引导"><p>整理存储、网络与导入清单，最后核对并应用。</p><Link href="#/setup">重新打开使用引导</Link></Panel></>;
 }
 

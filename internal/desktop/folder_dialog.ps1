@@ -96,7 +96,7 @@ public static class SWDFolderDialog {
     }
   }
 
-  public static string Select(string title, string initial) {
+  public static string Select(string title, string initial, bool file = false) {
     // Capture the browser before the helper creates its own windows.
     IntPtr foreground = GetForegroundWindow();
     using (var dpi = new DpiScope())
@@ -109,17 +109,21 @@ public static class SWDFolderDialog {
         owner.Show(new WindowHandle(foreground));
       else owner.Show();
       owner.Hide();
-      return SelectOwned(title, initial, owner.Handle);
+      return SelectOwned(title, initial, owner.Handle, file);
     }
   }
 
-  static string SelectOwned(string title, string initial, IntPtr owner) {
+  static string SelectOwned(string title, string initial, IntPtr owner, bool file) {
     var dialog = (IFileDialog)new FileOpenDialog();
     try {
       uint options; dialog.GetOptions(out options);
-      // PICKFOLDERS | FORCEFILESYSTEM | PATHMUSTEXIST | NOCHANGEDIR | DONTADDTORECENT
-      dialog.SetOptions(options | 0x20u | 0x40u | 0x800u | 0x8u | 0x02000000u);
+      // PICKFOLDERS or FILEMUSTEXIST, plus filesystem/path/no-recent options.
+      dialog.SetOptions(options | (file ? 0x1000u : 0x20u) | 0x40u | 0x800u | 0x8u | 0x02000000u);
       dialog.SetTitle(title);
+      if (file && File.Exists(initial)) {
+        dialog.SetFileName(Path.GetFileName(initial));
+        initial = Path.GetDirectoryName(initial);
+      }
       if (Directory.Exists(initial)) {
         var iid = typeof(IShellItem).GUID;
         IShellItem folder; SHCreateItemFromParsingName(initial, IntPtr.Zero, ref iid, out folder);
@@ -137,5 +141,5 @@ public static class SWDFolderDialog {
   }
 }
 '@
-$selected = [SWDFolderDialog]::Select($request.title, $request.initial)
+$selected = [SWDFolderDialog]::Select($request.title, $request.initial, [bool]$request.file)
 [Console]::Out.Write((@{path=$selected} | ConvertTo-Json -Compress))

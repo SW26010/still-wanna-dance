@@ -70,7 +70,7 @@ export function App() {
       {s?.storageError && <Feedback error><p><strong>本地存储故障，已停止新的下载。</strong>已保存的本地视频仍可读取。</p><p>请检查磁盘空间和目录权限，修复后退出并重新打开整个应用。仅重新启停播放网关或队列无法恢复下载。</p><p>首个错误：{s.storageError}</p></Feedback>}
       {!s && accepted && page!=='setup' && !documentPage && !model.status.error && <Spinner label="正在读取控制台状态" />}
       </div>
-      {s && <><div hidden={page !== 'home'}><Home /></div><div hidden={page !== 'library'}><Library /></div><div hidden={page !== 'cache'}><Cache visible={page === 'cache'} /></div><div hidden={page !== 'monitor'}><Monitor visible={page === 'monitor'} /></div><div hidden={page !== 'settings'}><SettingsPage /></div>
+      {s && <><div hidden={page !== 'home'}><Home /></div><div hidden={page !== 'library'}><Library /></div><div hidden={page !== 'cache'}><Cache visible={page === 'cache'} /></div><div hidden={page !== 'monitor'}><Monitor visible={page === 'monitor'} /></div><div hidden={page !== 'settings'}><SettingsPage visible={page === 'settings'} /></div>
       </>}
       {isDocumentPage(page)&&<DocumentContent page={page} paths={s?{...bootstrap.paths,Storage:s.activeSettings.storageDir}:bootstrap.paths} onAction={model.refresh}/>}
       {page==='setup'&&<Setup accepted={accepted} onAccepted={()=>setAccepted(true)} onExit={exitSetup} guard={guard}/>}

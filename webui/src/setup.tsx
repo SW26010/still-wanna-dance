@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Badge, Button, Checkbox, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Field, Input, Link, Spinner, Tooltip, Text, Subtitle1, Divider, Card } from '@fluentui/react-components';
+import { Badge, Button, Checkbox, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Field, Input, Link, Spinner, Tooltip, Text, Subtitle1, Divider, Card, useRestoreFocusTarget } from '@fluentui/react-components';
 import { bootstrap } from './bootstrap';
 import { APIError, request } from './api';
 import { reconnect, useApp } from './hooks';
@@ -9,6 +9,7 @@ import { Brand, Details, Feedback, Panel, NavigationLayout } from './ui';
 import { Diagnostics } from './diagnostics';
 import { CacheCapacityFields, capacityPayload, reclamationLabel } from './cache-capacity';
 import { StorageDirectoryFields } from './storage-directory';
+import { useVRCX, VRCXOption, VRCXCheck } from './vrcx';
 
 const steps = ['welcome','storage','proxy','finish'] as const;
 type Step = typeof steps[number];
@@ -31,7 +32,7 @@ function SetupReview({draft:d,status:s,source}:{draft:Draft;status:Status;source
   const storage=(path:string)=>pathKey(path)===pathKey(s.defaultStorageDir)?'默认':'自定义 · '+path;
   const capacity=(settings:Pick<Draft,'videoStorageMode'> & {maxCacheBytes:number})=>settings.videoStorageMode==='unlimited'?'不限制':settings.videoStorageMode==='none'?'不保留（视频存储预算为 0）':settings.maxCacheBytes/1073741824+' GiB';
   const mode=(value:string)=>({direct:'直连',proxy:'强制代理',socks5:'强制代理',auto:'直连 + 代理'}[value] || '未选择');
-  const rows:[string,string][]=[['本地存储目录',change(storage(current.storageDir),storage(p.storageDir))],['视频存储预算',change(capacity(current),capacity(p))],['导入',source || '不执行']];
+  const rows:[string,string][]=[['本地存储目录',change(storage(current.storageDir),storage(p.storageDir))],['视频存储预算',change(capacity(current),capacity(p))],['视频导入',source || '不执行']];
   if(source)rows.push(['目标',p.storageDir+' · 保留源文件']);
   rows.push(['网络连接',change(mode(current.upstreamMode),mode(p.upstreamMode))]);
   if(p.upstreamMode!=='direct')rows.push(['代理后端',p.proxyBackend==='mihomo'?'内嵌 Mihomo':'外部 SOCKS5']);
@@ -64,8 +65,10 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
   useEffect(()=>()=>{mounted.current=false;sequence.current++;storageSequence.current++;folder.current?.abort();if(!consumed.current)void releaseImport(draftRef.current?.proxyImportID || '');},[]);
   const update=(patch:Partial<Draft>)=>setDraft(d=>d?{...d,...patch}:d);
   const plan=draft&&s?setupPlan(draft,s,base.current,importEnabled?source:''):undefined;
-  const locked=busy || proxyPending || !!application || recovering;
-  const dirty=!!draft && (fingerprint(draft)!==baseline.current || importEnabled || !!source);
+  const history=useVRCX(draft?.storageDir || '',accepted&&!!draft,busy||proxyPending||!!application||recovering,true);
+  const restoreFocusTarget=useRestoreFocusTarget();
+  const locked=busy || proxyPending || history.pending || history.targetPending&&!!draft || !!application || recovering;
+  const dirty=!!draft && (fingerprint(draft)!==baseline.current || importEnabled || !!source || history.changed);
   const canContinue=accepted && !!terms?.accepted && !!s && !!draft;
   const persist=(state='active', next:Step=step)=>{
     if(!accepted)return Promise.resolve();
@@ -96,7 +99,7 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
   },[s?.setupApplication]);
   useEffect(()=>{
     if(application?.configSaved && !consumed.current) {consumed.current=true;app.discardSettings();}
-    if(application?.phase==='completed' && !busy && !recovering) {rememberApplication('');void persist('completed','finish');onExit();}
+    if(application?.phase==='completed' && !busy && !recovering) {rememberApplication('');void persist('completed','finish');if(application.vrcx)app.setMessage('配置已应用。VRCX 歌曲偏好：'+application.vrcx.message);onExit();}
     if(application?.phase==='restart' && !recovering && !restartError)void recoverRestart();
   },[application,busy,recovering,restartError]);
   async function leave(confirm=true) {
@@ -114,8 +117,8 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
   useEffect(()=>{
     folder.current?.abort();folder.current=undefined;setFolderBusy(false);
     if(step==='storage'&&draft)void checkStorage(draft.storageDir);
-    if(step==='finish'&&canContinue&&!application)void checkLogs();
-  },[step,!!draft]);
+    if(step==='finish'&&canContinue&&!application&&!history.targetPending)void checkAccess();
+  },[step,!!draft,history.targetPending]);
   async function checkStorage(path:string) {
     const revision=++storageSequence.current;setStorage(undefined);setStorageBusy(true);setStorageMessage('');
     try{const next=await request<Storage>('setup/storage',{path});if(mounted.current&&revision===storageSequence.current){setStorage(next);setStorageMessage([next.writable,next.library].filter(x=>x.state!=='ok').map(x=>x.message).join('；'));}}
@@ -138,6 +141,7 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
     catch(e){if(mounted.current)setLogs({state:'unknown',message:String(e),directory:''});}
     finally{if(mounted.current)setLogsBusy(false);}
   }
+  async function checkAccess() { await Promise.all([checkLogs(),history.inspect()]); }
   async function go(next:Step) {
     if(locked || !canContinue || !form.current?.reportValidity())return;
     if(step==='storage'&&importEnabled&&!source){setMessage('请选择导入文件夹，或取消勾选。');return;}
@@ -169,15 +173,24 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
   }
   async function apply() {
     if(locked||busyLock.current||!canContinue||!plan||app.unavailable)return;
-    busyLock.current=true;setBusy(true);setMessage('');
-    const id=applicationID.current ||= crypto.randomUUID();rememberApplication(id);
-    try{await progressWrites.current;const result=await request<Application>('setup/apply',{...plan,id},AbortSignal.timeout(30000));setApplication(result);app.refresh();}
-    catch(e){if(e instanceof APIError){applicationID.current='';rememberApplication('');setMessage('尚未应用：'+e.message);}else{setApplication({id,phase:'uncertain',error:'结果尚未确认。请核对应用结果，不会自动重复创建清单。'});app.refresh();}}
+    busyLock.current=true;setMessage('');
+    try{
+      if(history.enabled&&!await history.confirmOverwrite())return;
+      if(!mounted.current)return;
+      setBusy(true);
+      const id=applicationID.current ||= crypto.randomUUID();rememberApplication(id);
+      await progressWrites.current;
+      const historyPreview=history.enabled&&history.preview?.id&&history.preview.events>0?history.preview:undefined;
+      const result=await request<Application>('setup/apply',{...plan,id,vrcxEnabled:history.enabled,
+        vrcxPreviewID:historyPreview?.id || '',vrcxOverwrite:!!historyPreview?.existingSongs},AbortSignal.timeout(45000));
+      setApplication(result);app.refresh();
+    }
+    catch(e){if(e instanceof APIError){applicationID.current='';rememberApplication('');setMessage('尚未应用：'+e.message);}else{setApplication({id:applicationID.current,phase:'uncertain',error:'结果尚未确认。请核对应用结果，不会自动重复创建清单。'});app.refresh();}}
     finally{busyLock.current=false;setBusy(false);}
   }
   function reset() {
     if(!draft||!s)return;folder.current?.abort();
-    if(step==='storage'){setCustom(false);setImportEnabled(false);setSource('');update({storageDir:s.defaultStorageDir,videoStorageMode:'none',maxCacheGiB:'0'});void checkStorage(s.defaultStorageDir);}
+    if(step==='storage'){setCustom(false);setImportEnabled(false);setSource('');history.reset();update({storageDir:s.defaultStorageDir,videoStorageMode:'none',maxCacheGiB:'0'});void checkStorage(s.defaultStorageDir);}
     if(step==='proxy'){void releaseImport(draft.proxyImportID);update({upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',socks5Password:'',proxyImportID:'',proxyImportText:'',proxyReport:undefined});}
   }
   return <div className="wizard"><header><Brand /><div className="actions"><Link href="/help" target="_blank" rel="noopener">使用帮助（新窗口）</Link><Button disabled={busy||recovering||application?.phase==='importing'} onClick={async()=>{if(await leave(false))onExit();}}>{accepted?'放弃更改并退出引导':'退出'}</Button></div></header>
@@ -200,17 +213,19 @@ export function Setup({accepted,onAccepted,onExit,guard}: {accepted:boolean;onAc
         {pathKey(draft.storageDir)!==pathKey(s.settings.storageDir)&&<Feedback>更换目录不会搬迁已有数据。</Feedback>}
         <p>完整数据约 430 GiB。空间不足时，建议将视频存储预算设为 40 GiB 以内，以获得最佳空间收益。</p><Checkbox label="导入已有视频" checked={importEnabled} disabled={locked} onChange={(_,v)=>{setImportEnabled(!!v.checked);if(!v.checked){folder.current?.abort();setSource('');}}}/>
         {importEnabled&&<><Field label="导入视频文件夹"><Button className="path-button" disabled={locked||folderBusy} onClick={()=>void chooseFolder('import')}>{source||'点击选择文件夹'}</Button></Field><p>可选择存有 WannaDance 视频或旧版保存的视频的文件夹，包含子文件夹，无需特定目录结构。</p><p>请放心，我们不会修改来源文件，并且会尽量使用硬链接来避免双份空间占用。导入后请勿修改源视频。</p></>}
+        <VRCXOption model={history}/>
       </div>}
       {step==='proxy'&&draft&&s&&<><Subtitle1 as="h2">网络环境检测</Subtitle1><Diagnostics visible={true} proxy={{...plan,page:'proxy',upstreamMode:'proxy'}} upstream={diagnosticUpstream} onUpstreamChange={setDiagnosticUpstream}/><Subtitle1 as="h2">连接方式</Subtitle1><NetworkFields wizard draft={draft} update={update} disabled={locked} status={s} onPending={setProxyPending}/></>}
-      {step==='finish'&&draft&&s&&<><Panel title="接入检查"><p>hosts 状态：{s.hosts.ready?'已接入':s.hosts.conflict?s.hosts.message:'未接入'}</p><div className="actions"><Tooltip relationship="description" content="修改系统 hosts，需要管理员确认；立即生效，退出程序后仍保留。可点击恢复撤销。"><Button disabled={app.unavailable||s.hosts.ready} onClick={()=>void app.action('hosts/enable')}>接入</Button></Tooltip><Tooltip relationship="description" content="请求管理员权限，移除本程序的 hosts 映射，立即恢复游戏直连。"><Button disabled={app.unavailable} onClick={()=>void app.action('hosts/disable')}>恢复</Button></Tooltip><Button disabled={logsBusy||app.unavailable} onClick={()=>void checkLogs()}>刷新接入检查</Button></div>
+      {step==='finish'&&draft&&s&&<><Panel title="接入检查"><p>hosts 状态：{s.hosts.ready?'已接入':s.hosts.conflict?s.hosts.message:'未接入'}</p><div className="actions"><Tooltip relationship="description" content="修改系统 hosts，需要管理员确认；立即生效，退出程序后仍保留。可点击恢复撤销。"><Button disabled={app.unavailable||s.hosts.ready} onClick={()=>void app.action('hosts/enable')}>接入</Button></Tooltip><Tooltip relationship="description" content="请求管理员权限，移除本程序的 hosts 映射，立即恢复游戏直连。"><Button disabled={app.unavailable} onClick={()=>void app.action('hosts/disable')}>恢复</Button></Tooltip><Button disabled={logsBusy||locked||app.unavailable} onClick={()=>void checkAccess()}>刷新接入检查</Button></div>
         <p>80 (HTTP) 端口状态：{s.portOK?'ready':s.portOwner?`被 ${s.portOwner.name}（PID ${s.portOwner.pid}）占用`:'被占用或不可用'}</p><p>443 (HTTPS) 端口状态：{s.httpsPortOK?'ready':s.httpsPortOwner?`被 ${s.httpsPortOwner.name}（PID ${s.httpsPortOwner.pid}）占用`:'被占用或不可用'}</p>
         <p>VRChat 日志：{logsBusy?'正在检测 VRC 日志…':logs?.path||logs?.directory||'未定位'}</p><p>{logs?.message}</p><Feedback error>{s.actionErrors?.hosts}</Feedback>
+        <VRCXCheck model={history}/>
         {(!s.portOK||!s.httpsPortOK)&&<Feedback error>接入检查未通过：端口被占用，请关闭占用程序后重试。</Feedback>}
       {s.portOK&&s.httpsPortOK&&logs?.state!=='ok'&&<p>视频接入条件已就绪；日志尚未确认，不影响本地视频读取和按需下载。</p>}</Panel><Panel title="应用配置"><SetupReview draft={draft} status={s} source={importEnabled?source:''} /><Feedback error>{application?.error || restartError || s.setupSettingsError}</Feedback><p role="status">{application?.configSaved&&'配置已保存。'}{recovering?'正在重启并等待新进程…':application?.phase==='importing'?'正在启动导入…':''}</p></Panel></>}
       <Feedback error>{message}</Feedback>
       <Divider className="wizard-divider" /><div className="wizard-footer"><div className="actions">{['storage','proxy'].includes(step)&&!application&&<Button disabled={locked} onClick={reset}>恢复本页默认</Button>}</div><div className="actions">
         {!application&&<Button disabled={locked||step==='welcome'} onClick={()=>void go(steps[Math.max(0,steps.indexOf(step)-1)])}>上一步</Button>}
-        {application ? application.phase==='uncertain'?<Button disabled={busy} onClick={()=>void reconcile()}>核对应用结果</Button>:restartError?<Button disabled={recovering} onClick={()=>void recoverRestart()}>重新连接并核对</Button>:['failed','missing'].includes(application.phase)?<Button onClick={async()=>{if(await leave(false))onExit();}}>返回控制台</Button>:<Spinner size="tiny" label="正在应用…"/> : <Button type="submit" appearance="primary" disabled={locked||!canContinue||(step==='finish'&&app.unavailable)}>{step==='finish'?'确认并应用':'下一步'}</Button>}
+        {application ? application.phase==='uncertain'?<Button disabled={busy} onClick={()=>void reconcile()}>核对应用结果</Button>:restartError?<Button disabled={recovering} onClick={()=>void recoverRestart()}>重新连接并核对</Button>:['failed','missing'].includes(application.phase)?<Button onClick={async()=>{if(await leave(false))onExit();}}>返回控制台</Button>:<Spinner size="tiny" label="正在应用…"/> : <Button {...restoreFocusTarget} type="submit" appearance="primary" disabled={locked||!canContinue||(step==='finish'&&app.unavailable)}>{step==='finish'?'确认并应用':'下一步'}</Button>}
       </div></div>
     </form></NavigationLayout>
     <Dialog open={termsOpen} onOpenChange={(_,v)=>setTermsOpen(v.open)}><DialogSurface><DialogBody><DialogTitle>完整条款</DialogTitle><DialogContent>

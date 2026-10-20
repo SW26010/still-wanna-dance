@@ -48,6 +48,7 @@ legend { font-size: var(--fontSizeBase300); line-height: var(--lineHeightBase300
 footer { margin-top: var(--spacingVerticalXXXL); padding: var(--spacingVerticalL) 0; border-top: 1px solid var(--colorNeutralStroke2); color: var(--colorNeutralForeground2); }
 dt { font-weight: var(--fontWeightSemibold); margin-top: 12px; }
 dd { margin: 4px 0 12px; overflow-wrap: anywhere; }
+.wrap { overflow-wrap: anywhere; }
 li { margin-bottom: 6px; }
 .terms-text { white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: 16px; }
 .skip-link { position: absolute; left: 16px; top: -100px; }

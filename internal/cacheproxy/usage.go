@@ -12,8 +12,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// Counts describe observed GET demand, not confirmed playback. Deduplication is
-// per song across hosts, anchored at the previous counted demand.
+// Counts describe GET demand or explicitly imported historical observations,
+// not confirmed playback. Deduplication is anchored at the last counted demand.
 const demandWindow = 30 * time.Second
 
 const requestCleanupBatch = 500
@@ -220,13 +220,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		if err != nil && err != sql.ErrNoRows {
 			return err
 		}
-		if err == nil && e.at-last < demandWindow.Milliseconds() {
+		score, counted := countedDemand(score, last, e.at, err == nil)
+		if !counted {
 			continue
-		}
-		if err == sql.ErrNoRows {
-			score = 1
-		} else {
-			score = retentionScore(score, last, e.at) + 1
 		}
 		_, err = tx.ExecContext(ctx, `INSERT INTO song_usage(song_id,demand_count,demand_score,last_demand_at)
           VALUES (?,1,?,?) ON CONFLICT(song_id) DO UPDATE SET demand_count=demand_count+1,

@@ -19,11 +19,19 @@ import (
 // Path/title are JSON on stdin, never executable PowerShell source. The helper
 // process owns the dialog so request cancellation also closes its native UI.
 func SelectFolder(ctx context.Context, title, initial string) (string, error) {
+	return selectPath(ctx, title, initial, false)
+}
+
+func SelectDatabase(ctx context.Context, title, initial string) (string, error) {
+	return selectPath(ctx, title, initial, true)
+}
+
+func selectPath(ctx context.Context, title, initial string, file bool) (string, error) {
 	system, err := windows.GetSystemDirectory()
 	if err != nil {
 		return "", err
 	}
-	input, err := json.Marshal(map[string]string{"title": title, "initial": initial})
+	input, err := json.Marshal(map[string]any{"title": title, "initial": initial, "file": file})
 	if err != nil {
 		return "", err
 	}
@@ -35,11 +43,11 @@ func SelectFolder(ctx context.Context, title, initial string) (string, error) {
 		return "", ctx.Err()
 	}
 	if err != nil {
-		return "", fmt.Errorf("无法打开 Windows 文件夹选择器：%w", err)
+		return "", fmt.Errorf("无法打开 Windows 路径选择器：%w", err)
 	}
 	var result struct{ Path string }
 	if err = json.Unmarshal(output, &result); err != nil {
-		return "", fmt.Errorf("无法读取所选文件夹：%w", err)
+		return "", fmt.Errorf("无法读取所选路径：%w", err)
 	}
 	return result.Path, nil // Empty means the user canceled; preserve the draft.
 }

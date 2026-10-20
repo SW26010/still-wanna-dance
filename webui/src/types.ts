@@ -15,6 +15,7 @@ export interface ImportJob extends Job {
 }
 export interface Application {
   id: string; phase: string; error?: string; configSaved?: boolean; importStarted?: boolean; importSource?: string;
+  vrcx?: {state:string;message:string};
 }
 export interface HealthResult {
   operation: string; route: string; mode: string; entry: string; state: string; channelID?: string; ip?: string;

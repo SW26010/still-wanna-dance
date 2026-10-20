@@ -11,7 +11,7 @@ import (
 )
 
 func (c *Console) selectSetupFolder(ctx context.Context, kind, initial string) (string, error) {
-	title := map[string]string{"storage": "选择本地存储目录", "import": "选择已有视频文件夹"}[kind]
+	title := map[string]string{"storage": "选择本地存储目录", "import": "选择已有视频文件夹", "vrcx": "选择 VRCX SQLite 数据库"}[kind]
 	if title == "" || len(initial) > 4096 || strings.ContainsRune(initial, 0) || (initial != "" && !filepath.IsAbs(initial)) {
 		return "", errors.New("无效的文件夹选择请求")
 	}
@@ -32,6 +32,9 @@ func (c *Console) selectSetupFolder(ctx context.Context, kind, initial string) (
 	}()
 	if picker == nil {
 		picker = desktop.SelectFolder
+		if kind == "vrcx" {
+			picker = desktop.SelectDatabase
+		}
 	}
 	path, err := picker(ctx, title, initial)
 	if ctx.Err() != nil {

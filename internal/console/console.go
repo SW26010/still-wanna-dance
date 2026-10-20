@@ -64,6 +64,8 @@ type Settings struct {
 }
 
 type Console struct {
+	vrcxMu                 sync.Mutex // preview/apply/discard; acquire before lifecycleMu
+	vrcxPreview            *vrcxPreview
 	proxyImports           map[string]proxyImportDraft // protected by mu
 	identity               desktop.Identity
 	exitRequested          chan struct{}
@@ -974,6 +976,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+	if strings.HasPrefix(r.URL.Path, "/api/vrcx/") {
+		c.serveVRCX(w, r)
+		return
+	}
 	var err error
 	switch r.URL.Path {
 	case "/api/proxy/import/discard":

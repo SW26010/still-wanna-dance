@@ -35,7 +35,7 @@ ID 播放命中本地时立即返回，同时后台对照上游 URL 的 MD5；�
 | songs | 正整数歌曲 ID、可空标量资料及三个 JSON 数组列 |
 | song_media | 歌曲 ID → 唯一当前 MD5，外键关联歌曲和资源 |
 | media | MD5、可空字节数和来源路径，不作为本地文件存在性依据 |
-| song_usage | 明确歌曲 ID 的累计有效需求、指数分数及最后计分时间 |
+| song_usage | 明确歌曲 ID GET 或显式 VRCX 历史初始化的累计有效需求、指数分数及最后计分时间 |
 | catalog_state | 已接受的上游版本、规范化摘要、来源及接受时间 |
 | request_events | 请求结果、耗时和字节数 |
 | media_access | 最近 GET 时间，独立于歌曲热度和请求明细保留期 |
@@ -115,7 +115,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 ### 配置实例与路径解析
 
-库存扫描与批量扫描共用使用证据判断。遇到缺失的媒体根时，先检查当前引擎、恢复的库存（视频数、字节数或已知清单覆盖）、成功批量结果及已结束的尝试记录。有使用证据就诊断为失联库，在启动引擎前拒绝，不创建空库、不更新任务或库存快照；只有没有这些证据的新路径才允许初始化。单纯对未初始化路径做过零库存扫描，不视为已经建立媒体库。
+库存扫描、批量扫描、引导及 VRCX 导入共用使用证据判断。遇到缺失的媒体根时，先检查当前引擎、恢复的库存（视频数、字节数或已知清单覆盖）、成功批量结果及已结束的尝试记录。有使用证据就诊断为失联库，在启动引擎或导入前拒绝，不创建空库、不更新任务或库存快照；只有没有这些证据的新路径才允许初始化。VRCX 在预览与提交时分别检查，具体边界见[历史初始化](song-catalog-design.md#vrcx-历史初始化)。单纯对未初始化路径做过零库存扫描，不视为已经建立媒体库。
 
 令 `C` 为主配置的绝对路径，`B` 为其父目录，`R` 为实例数据根，`S` 为媒体根：
 
@@ -160,7 +160,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | --- | --- | --- |
 | Windows `%LOCALAPPDATA%/SWD/console-session-<id>.json` | 托盘单实例发现；包含回环地址、SWD 协议身份、实际 EXE、配置、PID 和进程创建时间；激活前校验进程/端口归属，退出删除本会话记录，异常退出后由新锁持有者清理；无托盘模式不创建 | 不备份，可重新发现，不是用户配置 |
 | Windows `%SystemRoot%/System32/drivers/etc/hosts` 及 `hosts.swd-backup`（已有 `hosts.stepstash-backup` 原样保留） | 仅用户显式接入修改 hosts；首次备份保留。恢复精确移除托管映射，不覆盖整个 hosts；退出不恢复 | 系统管理员管理，不自动删备份或覆盖其他映射 |
-| VRChat 日志目录、用户选取的导入源 | 只读输入，不归 SWD 所有 | SWD 不创建、修改或清理 |
+| VRChat 日志目录、用户选取的导入源、VRCX SQLite 历史源库 | 只读输入，不归 SWD 所有；VRCX 沿用 SQLite 正常只读 WAL 快照和锁协议 | SWD 不修改或清理源数据，不复制单独 SQLite 主文件冒充一致快照 |
 | 用户选择的外部 S | 仍由媒体目录锁保护，路径留作绝对引用 | 必须另行完整备份；移动 Portable 不自动搬外置库 |
 
 命令行服务是独立开发/部署入口：`-storage-dir` 决定 S，相对路径基于 CLI 工作目录，默认值见[服务手册](service.md)。它不创建桌面配置实例。便携包只交付 SWD.exe 桌面入口。非 Windows hosts 路径为 `/etc/hosts`，不纳入 Windows Portable 验收。
@@ -189,7 +189,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | `media` / `md5` | 小写 32 位十六进制非空键；byte_size 可空非负字节数；source_path 可空来源路径 | 资源索引，不是文件存在/完整性的证明；与 MD5 文件相互独立 |
 | `song_media` / `song_id` | 歌曲外键 → 非空 media.md5 外键；md5 索引 | 每首歌一条当前关联，多首歌可共享同一媒体；清单权威，API URL 观察及显式 ID 加载仅补缺失关系 |
 | `song_urls` / `(song_id,api,node)` | 歌曲正整数（无外键）、API/节点/完整 URL 文本、MD5、正字节数；query_started_at、observed_at、failed_at 为 Unix **纳秒**，failed_at 默认 0=未失败 | API 证据缓存，写入时在同一事务补缺失歌曲关联，不覆盖已有映射；node 为 API 选择（cf/nya），URL 可带签名参数；不属于代理密码。24 小时内未失败且不在未来的记录才可使用 |
-| `song_usage` / `song_id` 外键 | demand_count 非负累计次数；demand_score 非负 REAL；last_demand_at 为 Unix 毫秒 | 按歌曲跨域 GET 需求、30 秒去重；60 天半衰期指数累计分数。明细清理后不能无损重算 |
+| `song_usage` / `song_id` 外键 | demand_count 非负累计次数；demand_score 非负 REAL；last_demand_at 为 Unix 毫秒 | 按歌曲跨域 GET 或用户显式 VRCX 历史初始化，30 秒去重、60 天半衰期指数累计；历史按原时间计算。明细清理后不能无损重算 |
 | `song_playback` / `song_id` 外键 | transfer_count 累计次数、last_transfer_at Unix 毫秒 | HTTP GET、200/206、completed、正字节完成证据，按完成时刻 30 秒去重；不是游戏首帧或完整播放确认 |
 | `playback_latency` / `cache_result` | HIT/MISS 等本地读取来源分类文本；samples 次数；first_body_ns 为首字节耗时**纳秒累计和** | 与播放完成关联的测量事实，每次符合条件的传输累加；展示转换为平均毫秒，不是绝对时刻 |
 | `catalog_state` / `catalog_key` | 当前键 songs；revision 原始民用水位；digest 为 sha256-v1；source 溯源文本；accepted_at Unix 毫秒 | 接受清单的事务水位，身份/摘要不可随展示更名修改 |
@@ -200,6 +200,8 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | `traffic_totals` / `id=1` | saved_bytes 非负累计命中字节；hits/misses 累计次数，初始化为零 | HTTP GET 成功完成 200/206 的 HIT/MISS 事实；requests、命中率由二者推导。删除试验期无读写用途的 local_samples/local_ns/upstream_samples/upstream_ns；首字节统计唯一来源为 playback_latency |
 
 `request_events` 的 source 由业务写入（http 或 prefetch），method 是 HTTP 方法，cache_result 是 HIT/MISS 等响应分类，outcome 为 completed/failed/canceled/timeout 等结果；这些诊断文本不是可扩展行为开关，未知值不得当成成功。累计计数不因删除视频或清理明细而重置。评分固定 `oldScore * 2^(-elapsed/(60 days)) + 1`；回拨或 30 秒内重复需求不计分、不降低 last_demand_at。未来改评分必须保持旧含义或随数据库版本明确重置/重算策略，不假设请求历史完整。
+
+用户显式导入 VRCX 时可按[历史初始化契约](song-catalog-design.md#vrcx-历史初始化)整体替换 `song_usage`，非空统计需二次确认；提交点复查并与需求写入串行，失败回滚。只补必要占位歌曲，不修改媒体、映射、请求明细或配置；不增加表、格式版本、原始历史文件或持续同步状态。源 SQLite 只读并使用正常 WAL 快照，预览聚合及完成回执只在内存保留至过期。
 
 ### 时间与排序
 

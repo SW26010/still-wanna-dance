@@ -1,6 +1,7 @@
 package console
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -11,8 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
-	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/desktop"
 	"still-wanna-dance/internal/workfiles"
 )
@@ -34,18 +35,22 @@ type setupPlan struct {
 	Password                   *string `json:"socks5Password"`
 	ImportSource               string  `json:"importSource"`
 	ProxyImportID              string  `json:"proxyImportID"`
+	VRCXEnabled                bool    `json:"vrcxEnabled"`
+	VRCXPreviewID              string  `json:"vrcxPreviewID"`
+	VRCXOverwrite              bool    `json:"vrcxOverwrite"`
 }
 
 // The approved continuation contains no credentials. A restart can start its
 // import once, and only with the exact configuration that was confirmed.
 type SetupApplication struct {
-	ID            string `json:"id"`
-	Phase         string `json:"phase"`
-	Error         string `json:"error,omitempty"`
-	ConfigSaved   bool   `json:"configSaved"`
-	ImportStarted bool   `json:"importStarted"`
-	ImportSource  string `json:"importSource,omitempty"`
-	TargetVersion string `json:"targetVersion,omitempty"`
+	ID            string      `json:"id"`
+	Phase         string      `json:"phase"`
+	Error         string      `json:"error,omitempty"`
+	ConfigSaved   bool        `json:"configSaved"`
+	ImportStarted bool        `json:"importStarted"`
+	ImportSource  string      `json:"importSource,omitempty"`
+	TargetVersion string      `json:"targetVersion,omitempty"`
+	VRCX          *setupCheck `json:"vrcx,omitempty"`
 }
 
 func (c *Console) setupSettingsVersion(s Settings) (string, error) {
@@ -144,13 +149,8 @@ func (c *Console) validateSetupPlanSnapshot(p setupPlan) (Settings, error) {
 		if err = writableDir(s.StorageDir); err != nil {
 			return s, fmt.Errorf("存储目录不可写：%w", err)
 		}
-		if _, err = cacheproxy.InspectStorage(s.StorageDir); err != nil {
+		if _, err = c.inspectStorage(s.StorageDir); err != nil {
 			return s, err
-		}
-		if s.StorageDir == c.settings.StorageDir && c.storageUsageKnown() {
-			if exists, _ := cacheproxy.InspectStorage(s.StorageDir); !exists {
-				return s, errors.New("当前已使用的存储库失联，请先恢复原目录与数据库")
-			}
 		}
 	}
 	if (p.Page == "" || p.Page == "import" || p.Page == "storage") && strings.TrimSpace(p.ImportSource) != "" {
@@ -251,6 +251,8 @@ func (c *Console) loadSetupApplication() {
 func (c *Console) applySetupPlan(p setupPlan) (SetupApplication, error) {
 	c.setupApplyMu.Lock()
 	defer c.setupApplyMu.Unlock()
+	c.vrcxMu.Lock()
+	defer c.vrcxMu.Unlock()
 	c.lifecycleMu.Lock()
 	c.mu.Lock()
 	previous, active := c.setupApplication, c.settings
@@ -310,8 +312,13 @@ func (c *Console) applySetupPlan(p setupPlan) (SetupApplication, error) {
 			saved := c.savedSettings
 			c.mu.Unlock()
 			a.TargetVersion, err = c.setupSettingsVersion(saved)
-			a.Phase = "restart"
 			if err == nil {
+				// The durable preparing receipt already claims this application.
+				// Import before restart; never persist private history or replay it
+				// from a continuation after a crash or lost acknowledgement.
+				result := c.applySetupVRCX(p, saved.StorageDir)
+				a.VRCX = &result
+				a.Phase = "restart"
 				err = c.writeSetupApplication(a)
 			}
 		}
@@ -329,6 +336,23 @@ func (c *Console) applySetupPlan(p setupPlan) (SetupApplication, error) {
 		c.mu.Unlock()
 	}
 	return a, nil
+}
+
+// Called only by final application, with vrcxMu and lifecycleMu held.
+func (c *Console) applySetupVRCX(p setupPlan, root string) setupCheck {
+	if !p.VRCXEnabled {
+		return setupCheck{"skipped", "未选择导入"}
+	}
+	preview := c.vrcxPreview
+	if p.VRCXPreviewID == "" || preview == nil || preview.ID != p.VRCXPreviewID || preview.StorageDir != root {
+		return setupCheck{"skipped", "检查未通过或目标已改变，已跳过导入"}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := c.importVRCXPreview(ctx, preview, p.VRCXOverwrite); err != nil {
+		return setupCheck{"skipped", "已跳过导入：" + err.Error()}
+	}
+	return setupCheck{"ok", fmt.Sprintf("已导入 %d 次历史需求、%d 首歌曲，跳过 %d 条记录", preview.Events, preview.Songs, preview.Skipped)}
 }
 
 func (c *Console) resumeSetupApplication(startImport func(string) error) {

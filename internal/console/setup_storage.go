@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/desktop"
 )
 
@@ -87,15 +86,11 @@ func (c *Console) inspectSetupStorage(path string) (setupStorage, error) {
 	} else if err := writableDir(path); err != nil {
 		result.Writable = setupCheck{"failed", err.Error()}
 	}
-	existing, err := cacheproxy.InspectStorage(path)
+	existing, err := c.inspectStorage(path)
 	if err != nil {
 		result.Library = setupCheck{"failed", err.Error()}
 	} else if existing {
 		result.Library.Message = "已有当前格式存储库，将复用其视频与统计"
-	}
-	// Lost active stores must not be advertised as safe empty targets.
-	if path == c.settings.StorageDir && !existing && err == nil && c.storageUsageKnown() {
-		result.Library = setupCheck{"failed", "当前已使用的存储库失联或数据库缺失，请恢复原目录与数据库"}
 	}
 	ancestor := path
 	for {

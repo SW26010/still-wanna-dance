@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Checkbox, Link, Subtitle2, List, ListItem, Divider, Caption1 } from '@fluentui/react-components';
+import { Button, Checkbox, Link, Subtitle2, List, ListItem, Divider, Field } from '@fluentui/react-components';
 import { useApp, useResource, useFocusRecovery } from './hooks';
 import { Details, Feedback, Panel, Progress } from './ui';
 import { type Download, type RequestRecord, type HealthResult, type Health, date, mb, dated } from './types';
@@ -79,7 +79,7 @@ export function Monitor({visible}: {visible: boolean}) {
   const groups = useRequestGroups(requests.data);
   const downloads = useResource<{tasks:Download[];bytesPerSecond:number}>('downloads',visible && !paused && !app.stopped,app.revision);
   useEffect(() => setLimit(50), [app.status.data!.activeSettings.storageDir]);
-  return <><Checkbox label="暂停下载与请求刷新" checked={paused} onChange={(_, v) => setPaused(!!v.checked)} /><Caption1 as="p" className="hint">{paused ? '展示更新已暂停' : '下载和最近请求每 5 秒刷新，块需求时间轴随事件更新'}；暂停同时冻结时间轴，网络检测仍刷新，后台任务继续运行。</Caption1>
+  return <><Field hint={`${paused ? '展示更新已暂停' : '下载和最近请求每 5 秒刷新，块需求时间轴随事件更新'}；暂停同时冻结时间轴，网络检测仍刷新，后台任务继续运行。`}><Checkbox label="暂停下载与请求刷新" checked={paused} onChange={(_, v) => setPaused(!!v.checked)} /></Field>
     <BlockTimeline visible={visible} paused={paused} />
     <Panel id="downloads" {...downloadFocus} title="当前下载"><Feedback error>{downloads.error && '活动下载读取失败，将自动重试。'}</Feedback><p role="status">{downloads.data?.tasks.length ? `${downloads.data.tasks.length} 个活动任务` : '暂无活动下载任务'} · 总下载速度 {mb(downloads.data?.bytesPerSecond)}/s</p>
       <List navigationMode="composite" className="records" aria-label="下载任务">{downloads.data?.tasks.map((task,i) => <ListItem key={task.resource+':'+task.id}><div role="gridcell" className="record-content">{i > 0 && <Divider className="record-divider" />}<strong>{task.songs?.[0]?.title || '未知歌名'}</strong><p>{(task.songs?.length || 0)>1 || task.moreSongs ? `等 ${task.moreSongs?'至少 ':''}${task.songs?.length || 0} 首关联曲目 · 播放歌曲未确定` : '资源关联曲目'}</p>

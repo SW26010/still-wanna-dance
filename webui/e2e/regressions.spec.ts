@@ -22,6 +22,8 @@ test('saved settings stay locked until a fresh status arrives, including failed 
 });
 
 test('terms hosts recovery waits for UAC and reports a timed out result as unconfirmed',async({page})=>{
+  // Terms shares the console shell and needs its status fixture as well.
+  await mockAPI(page);
   // Route AbortSignal timeout through the browser clock; no real two-minute wait.
   await page.addInitScript(()=>{AbortSignal.timeout=(ms:number)=>{const c=new AbortController();setTimeout(()=>c.abort(new DOMException('Timed out','TimeoutError')),ms);return c.signal;};});
   let release=()=>{};const waiting=new Promise<void>(resolve=>{release=resolve;});

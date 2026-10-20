@@ -64,7 +64,7 @@ export function App() {
     <Link className="skip-link" href="#main" onClick={e => { e.preventDefault(); main.current?.focus(); }}>跳到主要内容</Link>
     <header hidden={page==='setup'}><Brand /><span role="status">{documentPage ? 'WannaDance 本地控制台' : model.stopped ? '应用正在退出或重启' : model.status.error ? '控制台连接中断，下方保留最后状态' : s ? '控制台已连接' : '正在连接…'}</span></header>
     <NavigationLayout items={pageLinks()} selected={page} hidden={page==='setup'}>
-    <main ref={main} id="main" tabIndex={-1}><div className="page-heading" hidden={page==='setup'||documentPage}><Title2 as="h1">{page === 'home' ? 'Load failed? But I still wanna dance!' : pages[page]}</Title2>{s && <Badge color={s.running && s.hosts.ready ? 'success' : 'informative'}>{s.running && s.hosts.ready ? '游戏接入：已完成' : s.running ? '游戏接入：等待配置' : '游戏接入：未启用'}</Badge>}</div><p hidden={page==='setup'||documentPage}>{descriptions[page]}</p>
+    <main ref={main} id="main" tabIndex={-1}><div className="page-heading" hidden={page==='setup'||documentPage}><Title2 as="h1">{page === 'home' ? 'Load failed? But I still wanna dance!' : pages[page]}</Title2>{s && <Badge color={s.running && s.hosts.ready ? 'success' : 'informative'}>{s.running && s.hosts.ready ? '游戏接入：已完成' : s.running ? '游戏接入：等待配置' : '游戏接入：未启用'}</Badge>}</div><p className="page-description" hidden={page==='setup'||documentPage}>{descriptions[page]}</p>
       <div hidden={documentPage}>
       <Feedback error={!!model.status.error}>{model.status.error ? '无法连接控制台，请检查程序是否仍在运行。' : ''}</Feedback><Feedback>{model.message}</Feedback>
       {s?.storageError && <Feedback error><p><strong>本地存储故障，已停止新的下载。</strong>已保存的本地视频仍可读取。</p><p>请检查磁盘空间和目录权限，修复后退出并重新打开整个应用。仅重新启停播放网关或队列无法恢复下载。</p><p>首个错误：{s.storageError}</p></Feedback>}

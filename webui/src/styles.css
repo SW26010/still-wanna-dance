@@ -1,49 +1,60 @@
 * { box-sizing: border-box; }
 body { margin: 0; }
-#root > .fui-FluentProvider { min-height: 100vh; }
-.shell { max-width: 1160px; margin: auto; padding: 24px; }
-.shell > header, .wizard > header, .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
-.shell > header, .wizard > header { justify-content: space-between; padding-bottom: 16px; }
-.navigation-layout { display: flex; align-items: flex-start; gap: 24px; }
-.navigation-layout > .fui-NavDrawer { position: sticky; top: 24px; height: calc(100dvh - 48px); flex-shrink: 0; }
+#root > .app-provider { min-height: 100vh; background: var(--colorNeutralBackground2); }
+.shell { max-width: 1160px; margin: auto; padding: var(--spacingHorizontalXXL); }
+.shell > header, .wizard > header, .actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacingHorizontalM); }
+.shell > header, .wizard > header { justify-content: space-between; padding-bottom: var(--spacingVerticalXXL); }
+.shell > header > span { color: var(--colorNeutralForeground2); font-size: var(--fontSizeBase200); }
+.navigation-layout { display: flex; align-items: flex-start; gap: var(--spacingHorizontalXXL); }
+.navigation-layout > .inline-navigation { position: sticky; top: var(--spacingVerticalXXL); height: calc(100dvh - 48px); flex-shrink: 0; }
 .page-content { flex: 1; min-width: 0; }
-.brand { display: flex; align-items: center; gap: 10px; }
+.brand { display: flex; align-items: center; gap: var(--spacingHorizontalM); }
 .brand-logo { flex-shrink: 0; }
 main { outline: none; }
-main h1, .wizard h1 { margin: 16px 0; }
+main h1, .wizard h1 { margin: 0 0 var(--spacingVerticalM); }
 h2 { margin: 0; }
-h3 { margin: 16px 0; }
-p { margin: 8px 0; }
-.shell .panel { margin: 16px 0; }
-.form-grid, fieldset { display: grid; gap: 14px; }
-fieldset { border: 1px solid var(--colorNeutralStroke2); border-radius: var(--borderRadiusMedium); padding: 16px; min-width: 0; }
-legend { font-weight: var(--fontWeightSemibold); padding: 0 8px; }
+h3 { margin: var(--spacingVerticalL) 0; }
+p { margin: var(--spacingVerticalS) 0; }
+.shell .panel { margin: var(--spacingVerticalXL) 0; }
+.content-stack { display: flex; flex-direction: column; gap: var(--spacingVerticalM); min-width: 0; }
+.content-stack > :is(p, ul, ol, dl, h3, .actions), .form-grid > p, fieldset > p { margin-block: 0; }
+.content-stack > :is(ul, ol) { padding-inline-start: var(--spacingHorizontalXXL); }
+.content-stack > :is(button, a), .form-grid > button { align-self: flex-start; justify-self: start; max-width: 100%; }
+/* Keep empty live regions mounted without creating a blank layout row. */
+.content-stack > p:empty { position: absolute; }
+.content-stack > :is(ul, ol):empty { display: none; }
+.form-grid, fieldset { display: grid; gap: var(--spacingVerticalL); min-width: 0; }
+fieldset { border: 0; margin: 0; padding: 0; }
+legend { font-size: var(--fontSizeBase300); line-height: var(--lineHeightBase300); font-weight: var(--fontWeightSemibold); padding: 0; margin-bottom: var(--spacingVerticalL); }
+.settings-form { gap: var(--spacingVerticalXXXL); }
 .form-grid .fui-Field { max-width: 680px; }
-.form-grid > .fui-Button { justify-self: start; }
 .hint { color: var(--colorNeutralForeground2); }
-.records { margin: 8px 0; overflow-wrap: anywhere; }
-.record-divider { margin: 16px 0; }
-.page-heading { display: flex; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.records { margin: var(--spacingVerticalS) 0; overflow-wrap: anywhere; }
+.record-divider { margin: var(--spacingVerticalL) 0; }
+.page-heading { display: flex; gap: var(--spacingHorizontalM); justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: var(--spacingVerticalS); }
+.page-heading h1 { margin: 0; }
+.page-description { margin: 0 0 var(--spacingVerticalXXL); color: var(--colorNeutralForeground2); }
 .fui-DialogSurface { max-height: calc(100dvh - 32px); overflow-y: auto; }
 .fui-DialogContent { overflow-wrap: anywhere; }
 .fui-MessageBarBody { min-width: 0; overflow-wrap: anywhere; }
 .wizard { min-height: calc(100dvh - 48px); }
-.wizard-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding-top: 16px; }
-.wizard-divider { margin-top: 28px; }
+.wizard-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--spacingHorizontalM); padding-top: var(--spacingVerticalL); }
+.wizard-divider { margin-top: var(--spacingVerticalXXXL); }
 .wizard h1 { outline: none; }
 .wizard .path-button { justify-content: flex-start; text-align: left; overflow-wrap: anywhere; }
-.metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--spacingHorizontalL); }
 .diagnostic-rows p { display: flex; align-items: center; gap: 4px; }
-footer { margin-top: 32px; padding: 16px 0; color: var(--colorNeutralForeground2); }
+footer { margin-top: var(--spacingVerticalXXXL); padding: var(--spacingVerticalL) 0; border-top: 1px solid var(--colorNeutralStroke2); color: var(--colorNeutralForeground2); }
 dt { font-weight: var(--fontWeightSemibold); margin-top: 12px; }
 dd { margin: 4px 0 12px; overflow-wrap: anywhere; }
 li { margin-bottom: 6px; }
 .terms-text { white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: 16px; }
 .skip-link { position: absolute; left: 16px; top: -100px; }
 .skip-link:focus { top: 8px; padding: 12px; background: var(--colorNeutralBackground1); z-index: 10; }
-.actions { margin: 12px 0; }
+.actions { margin: var(--spacingVerticalM) 0; }
+form.actions { align-items: flex-end; }
 [hidden] { display: none !important; }
-@media (max-width: 640px) { .shell { padding: 16px; } fieldset { padding: 12px; } .navigation-layout { flex-direction: column; gap: 8px; } .page-content { width: 100%; } }
+@media (max-width: 640px) { .shell { padding: var(--spacingHorizontalL); } .navigation-layout { flex-direction: column; gap: var(--spacingVerticalS); } .page-content { width: 100%; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
 @media (forced-colors: active) { .panel { border: 1px solid CanvasText; } }
 

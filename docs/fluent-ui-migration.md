@@ -19,6 +19,14 @@
 
 五页及四步引导的内容分工见[内容分类](webui-content.md)，平台辅助技术边界见[可访问性约定](webui-accessibility.md)。组件契约以锁定依赖的类型和实现为准；参考 [Fluent 官方接入](https://fluent2.microsoft.design/get-started/develop)与 [GaugeChart](https://microsoft.github.io/fluentui-charting-contrib/docs/Charting-Concepts/GaugeChart)。
 
+## 页面排版
+
+通用界面优先使用 Fluent 默认组件、官方字阶和主题 tokens。页面背景使用 `colorNeutralBackground2`，桌面 inline 导航与窄屏 overlay 均保留标准抽屉外观；Card 保留标准边框、阴影和圆角。页面标题与卡片标题分别使用 Title2、Subtitle2，说明使用次级文字色，语义表单分组保留 fieldset/legend，以标题和留白分隔。
+
+卡片和展开详情共用正文纵向间距，直接子段落、列表与操作区不再叠加外边距；空状态播报节点保留在 DOM 中，但不占布局行。单独的按钮按内容宽度排列，搜索表单内操作与字段底部对齐。设置页先展示偏好设置，再展示外部导入和使用引导；保存状态、按钮及重启说明保持在同一组。上述规则只统一排版，不删改正文或业务行为。
+
+时间轴与需求视图的 Canvas 绘制、视频配色、尺寸和交互保持独立业务规则，本轮排版调整不修改其实现或专用样式。
+
 ## 开发与交付
 
 - 源码和锁文件：`webui/src`、`webui/pnpm-lock.yaml`；安装使用 `pnpm --dir webui install --frozen-lockfile`。
@@ -33,6 +41,12 @@
 2026-10-16，当前实现的 **39 项 Edge 内存场景通过**；类型、资源一致性、Node 工具测试及 Go 页面入口/条款/帮助筛选通过。覆盖基准正文、左侧导航、表单校验/保存同步、缓存毫秒时间戳/零值显示与保护/确认、暂停与请求分组、引导与回执恢复、切步保留检测上游及结果、检测与取消、测速阈值、320/390px、深浅主题及强制颜色。截图已检查；大倍率按 GaugeChart 默认截断与提示显示，完整值保留在可访问名称和 Mbps 指标中。
 
 不将中间版本的测试次数、旧包哈希、已移除脚本或废弃控件布局作为当前证据。缓存时间显示、保存/重启、实际出口/测速由 agent 用浏览器及隔离真实服务验证；UAC/hosts、目录窗口、托盘、系统 DPI 和 Narrator/NVDA 按[非 VRC 分流](validation-followups.md)记录具体环境覆盖与缺口。原 LA-023、LA-030/045 不再单列游戏验收；只有真实播放器和游戏事件的剩余风险进入[台账](live-acceptance-backlog.md)。已有自动/浏览器结果按其覆盖范围复用，未覆盖部分不冒称通过。
+
+### 通用排版收敛（2026-10-20）
+
+本轮 Edge 内存夹具整套 83 项通过，覆盖正文保留、设置草稿与保存、导航和焦点、深浅主题、320/390px、forced-colors，以及时间轴现有专项。随后将暂停展示的说明改为 Fluent Field hint，相关暂停、固定详情、窄屏、正文与抽屉 8 项定向复验通过。另查看了五个控制台页面的桌面深浅主题截图，均无横向溢出或页面错误；导航保留 Fluent 默认背景。类型、前端构建和内嵌产物一致性检查通过。Canvas 源码及其专用 CSS 与本轮修改前一致；不新增 VRC 验收项，系统 DPI 和屏幕阅读器的既有验证边界继续适用。
+
+证据在忽略目录 `artifacts/fluent-layout/` 与 `artifacts/fluent-layout-browser*.txt`。首轮沙箱内浏览器启动即退出，未执行页面断言；沙箱外首轮为 82 项通过，另一个旧条款超时测试因没有配置控制台状态夹具而收到 `{ok:true}`，读取 `storageDir` 时导致页面退出。已在该测试补用共用 `mockAPI`，保留原成功、等待和超时断言；失败输出及独立错误记录保留，最终整套结果为 `fluent-layout-browser-final.txt`，Field 定向结果为 `fluent-layout-browser-field.txt`，最终桌面截图及尺寸检查见 `fluent-layout/gallery.json`。
 
 ### 页面导航验证（2026-10-20）
 

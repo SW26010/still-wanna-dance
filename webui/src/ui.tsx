@@ -1,5 +1,5 @@
 import { useEffect, useState, type PropsWithChildren, type Ref, type FocusEventHandler, type ReactNode } from 'react';
-import { FluentProvider, webLightTheme, webDarkTheme, Card, CardHeader, Image, Subtitle1, Link, MessageBar, MessageBarBody, Accordion, AccordionItem, AccordionHeader, AccordionPanel, ProgressBar, NavDrawer, NavDrawerHeader, NavDrawerBody, NavItem, Hamburger, useRestoreFocusTarget } from '@fluentui/react-components';
+import { FluentProvider, webLightTheme, webDarkTheme, Card, CardHeader, Image, Subtitle1, Subtitle2, Link, MessageBar, MessageBarBody, Accordion, AccordionItem, AccordionHeader, AccordionPanel, ProgressBar, NavDrawer, NavDrawerHeader, NavDrawerBody, NavItem, Hamburger, useRestoreFocusTarget } from '@fluentui/react-components';
 import { bootstrap } from './bootstrap';
 
 export function Provider({ children }: PropsWithChildren) {
@@ -10,7 +10,7 @@ export function Provider({ children }: PropsWithChildren) {
     media.addEventListener('change', change);
     return () => media.removeEventListener('change', change);
   }, []);
-  return <FluentProvider theme={{ ...(dark ? webDarkTheme : webLightTheme), fontFamilyBase: '"Segoe UI", "Microsoft YaHei", sans-serif' }}>{children}</FluentProvider>;
+  return <FluentProvider className="app-provider" theme={{ ...(dark ? webDarkTheme : webLightTheme), fontFamilyBase: '"Segoe UI", "Microsoft YaHei", sans-serif' }}>{children}</FluentProvider>;
 }
 export function Brand() {
   return <div className="brand"><Image src="/assets/logo.svg" className="brand-logo" width="32" height="32" shape="rounded" alt="" /><Subtitle1>Still Wanna Dance</Subtitle1></div>;
@@ -34,7 +34,7 @@ export function NavigationLayout({children,items,selected,label='控制台页面
   useEffect(()=>{setOpen(false);},[hidden]);
   return <div className="navigation-layout">
     <div className="navigation-toggle" hidden={hidden||!narrow}><Hamburger {...restoreFocusTarget} aria-label={'展开'+label} aria-expanded={open} onClick={()=>setOpen(true)}/></div>
-    <NavDrawer type={narrow?'overlay':'inline'} position="start" open={!hidden&&(!narrow||open)} selectedValue={selected} onOpenChange={(_,data)=>setOpen(data.open)} onNavItemSelect={()=>setOpen(false)} aria-label={label}>
+    <NavDrawer className={narrow?undefined:'inline-navigation'} type={narrow?'overlay':'inline'} position="start" open={!hidden&&(!narrow||open)} selectedValue={selected} onOpenChange={(_,data)=>setOpen(data.open)} onNavItemSelect={()=>setOpen(false)} aria-label={label}>
       {narrow&&<NavDrawerHeader><Hamburger aria-label={'收起'+label} onClick={()=>setOpen(false)}/></NavDrawerHeader>}
       <NavDrawerBody>{items.map(item=><NavItem key={item.value} value={item.value} href={item.href} disabled={item.disabled} aria-current={selected===item.value?steps?'step':'page':undefined} onClick={item.onClick}>{item.label}</NavItem>)}</NavDrawerBody>
     </NavDrawer>
@@ -45,13 +45,13 @@ export function pageLinks() {
   return [...consolePages.map(([value,label])=>({value,label,href:pageHref(value)})),...Object.entries(documentPages).map(([value,label])=>({value,label,href:pageHref(value as DocumentPage)}))];
 }
 export function Panel({ title, children, id, ref, onFocusCapture, action }: PropsWithChildren<{ title: string; id?: string; ref?:Ref<HTMLDivElement>; onFocusCapture?:FocusEventHandler<HTMLDivElement>; action?:ReactNode }>) {
-  return <Card size="large" className="panel" id={id} ref={ref} onFocusCapture={onFocusCapture} tabIndex={id ? -1 : undefined}><CardHeader header={<Subtitle1 as="h2">{title}</Subtitle1>} action={action ? { children: action } : undefined} />{children}</Card>;
+  return <Card size="large" className="panel" id={id} ref={ref} onFocusCapture={onFocusCapture} tabIndex={id ? -1 : undefined}><CardHeader header={<Subtitle2 as="h2">{title}</Subtitle2>} action={action ? { children: action } : undefined} /><div className="content-stack">{children}</div></Card>;
 }
 export function Feedback({ children, error = false }: PropsWithChildren<{ error?: boolean }>) {
   return children ? <MessageBar intent={error ? 'error' : 'info'}><MessageBarBody>{children}</MessageBarBody></MessageBar> : null;
 }
 export function Details({ title, children, open = false }: PropsWithChildren<{ title: string; open?: boolean }>) {
-  return <Accordion collapsible defaultOpenItems={open ? ['detail'] : []}><AccordionItem value="detail"><AccordionHeader>{title}</AccordionHeader><AccordionPanel>{children}</AccordionPanel></AccordionItem></Accordion>;
+  return <Accordion collapsible defaultOpenItems={open ? ['detail'] : []}><AccordionItem value="detail"><AccordionHeader>{title}</AccordionHeader><AccordionPanel><div className="content-stack">{children}</div></AccordionPanel></AccordionItem></Accordion>;
 }
 export function Progress({ value, max, label }: { value?: number; max?: number; label: string }) {
   return <ProgressBar aria-label={label} value={max ? Math.min(1, Math.max(0, (value || 0) / max)) : undefined} />;

@@ -105,9 +105,7 @@ export function SettingsPage() {
     addEventListener('beforeunload', warn); return () => removeEventListener('beforeunload', warn);
   }, [dirty, app.stopped]);
   const numberField = (key: NumberField | 'maxCacheGiB', label: string, min: number, max: number, hint: string, step = '1') => <Field label={label} hint={hint} required><Input id={key} type="number" required min={min} max={max} step={step} disabled={disabled} value={d[key]} onChange={(_, v) => update({[key]:v.value})} /></Field>;
-  return <><Panel title="使用引导"><p>整理存储、网络与导入清单，最后核对并应用。</p><Link href="#/setup">重新打开使用引导</Link></Panel>
-    <ImportPanel />
-    <Panel id="preferences" title="偏好设置"><Feedback error>{s.actionErrors?.settings}</Feedback><form className="form-grid" onSubmit={async e => { e.preventDefault(); if (!dirty || disabled || d.proxyImportText.trim()) return; if (await app.action('settings', settingsPayload(d))) { setDraft(d); setAwaitingRevision(app.revision + 1); } }}>
+  return <><Panel id="preferences" title="偏好设置"><Feedback error>{s.actionErrors?.settings}</Feedback><form className="form-grid settings-form" onSubmit={async e => { e.preventDefault(); if (!dirty || disabled || d.proxyImportText.trim()) return; if (await app.action('settings', settingsPayload(d))) { setDraft(d); setAwaitingRevision(app.revision + 1); } }}>
       <fieldset disabled={disabled}><legend>本地存储</legend>
       <CacheCapacityFields anchor="maxCacheGiB" mode={d.videoStorageMode} value={d.maxCacheGiB} disabled={disabled} onChange={update} />
       <CacheReclamationFields mode={d.videoStorageMode} reclamation={d.aggressiveCacheReclamation} disabled={disabled} onChange={update} />
@@ -129,11 +127,13 @@ export function SettingsPage() {
       {numberField('prepareAheadSeconds','提前准备时间 M（秒）',100,16000,`默认 500 秒，建议 200～2000 秒${prepareAheadEstimate}。数值越大，越早下载预计播放的内容，也会更早占用带宽和缓存空间。保存并重启应用后生效。`)}
       <Checkbox label="手动指定 VRChat 日志目录" checked={d.manualLogDir} onChange={(_, v) => update({manualLogDir:!!v.checked})} />
       <Field label="VRChat 日志目录" hint="默认自动识别。仅在无法找到游戏日志时手动指定，取消勾选可恢复自动。"><Input required={d.manualLogDir} disabled={!d.manualLogDir || disabled} value={d.manualLogDir ? d.logDir : s.defaultLogDir} onChange={(_, v) => update({logDir:v.value})} /></Field></fieldset>
-      <p role="status">{syncing ? '正在核对已保存的设置…' : dirty ? '有未保存的更改。保存并重启应用后生效。' : s.restartRequired ? '设置已保存，重启应用后生效。' : '配置与当前运行一致。更改后需保存并重启应用。'}</p>
+      <div className="content-stack"><p role="status">{syncing ? '正在核对已保存的设置…' : dirty ? '有未保存的更改。保存并重启应用后生效。' : s.restartRequired ? '设置已保存，重启应用后生效。' : '配置与当前运行一致。更改后需保存并重启应用。'}</p>
       <div className="actions"><Button type="submit" appearance="primary" disabled={disabled || !dirty || !!d.proxyImportText.trim()}>保存设置</Button><Button disabled={disabled || !dirty} onClick={() => { void releaseImport(d.proxyImportID); setDraft(undefined); }}>放弃更改</Button>
       {s.restartRequired && <Button disabled={disabled || dirty} onClick={() => void app.action('restart')}>立即重启并应用</Button>}</div>
-      <Caption1 as="p" className="hint">重启会停止当前服务和任务，按已保存的自动启动设置重新启动。批量任务需手动重新开始，hosts 映射保留。</Caption1>
-    </form></Panel></>;
+      <Caption1 as="p" className="hint">重启会停止当前服务和任务，按已保存的自动启动设置重新启动。批量任务需手动重新开始，hosts 映射保留。</Caption1></div>
+    </form></Panel>
+    <ImportPanel />
+    <Panel title="使用引导"><p>整理存储、网络与导入清单，最后核对并应用。</p><Link href="#/setup">重新打开使用引导</Link></Panel></>;
 }
 
 function ImportPanel() {

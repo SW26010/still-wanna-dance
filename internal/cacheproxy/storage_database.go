@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-const storageSchemaVersion = 2
+const storageSchemaVersion = 3
 const storageApplicationID = 0x53574443 // SWDC
 const storageDatabaseName = "storage.sqlite"
 

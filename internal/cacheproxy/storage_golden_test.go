@@ -8,10 +8,10 @@ import (
 	"time"
 )
 
-// This binary was created for schema v2. Never regenerate it to make a changed
+// This binary was created for schema v3. Never regenerate it to make a changed
 // schema pass: add a new version and retain the prior release's fixture.
-func TestStorageV2Golden(t *testing.T) {
-	b, err := os.ReadFile("testdata/storage-v2.sqlite")
+func TestStorageV3Golden(t *testing.T) {
+	b, err := os.ReadFile("testdata/storage-v3.sqlite")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,6 +39,10 @@ func TestStorageV2Golden(t *testing.T) {
 			t.Fatal(err)
 		}
 		var digest string
+		var policy string
+		if err := db.QueryRow("SELECT policy FROM song_preferences WHERE song_id=42").Scan(&policy); err != nil || policy != "favorite" {
+			t.Fatal("golden preference changed", policy, err)
+		}
 		if err := db.QueryRow(`SELECT digest FROM catalog_state WHERE catalog_key='songs'`).Scan(&digest); err != nil {
 			t.Fatal(err)
 		}
@@ -58,5 +62,29 @@ func TestStorageV2Golden(t *testing.T) {
 	after, err := os.ReadFile(path)
 	if err != nil || !bytes.Equal(b, after) {
 		t.Fatal("reopening rewrote golden", err)
+	}
+}
+
+func TestStorageV2GoldenRejectedUnchanged(t *testing.T) {
+	b, err := os.ReadFile("testdata/storage-v2.sqlite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), storageDatabaseName)
+	if err := os.WriteFile(path, b, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, writable := range []bool{false, true} {
+		db, err := openStorageDatabase(path, writable)
+		if db != nil {
+			db.Close()
+		}
+		if err == nil {
+			t.Fatal("v2 must require a new storage directory")
+		}
+	}
+	after, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(b, after) {
+		t.Fatal("v2 fixture changed", err)
 	}
 }

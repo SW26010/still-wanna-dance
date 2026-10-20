@@ -26,6 +26,132 @@
       "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json."
     },
     {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1126758,
+      "sha256": "09d2886d3defd7e312998d1be4eeea7e0d0e304b209be61370df5039aeb0d3e9",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at 73054b5f34fc68d565c584cc9ca7b3978f00dcf9; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1126964,
+      "sha256": "6e5c26a7f70887c87bf7aab8d90615ea58adcd47dca2dd8747cee70398578405",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at 9858b3ca53abdd7970a418e47a43bcecfe0e5fa9; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1127624,
+      "sha256": "77f3ff41e3066ecec18b52c0a0fbe7f85e3aa675c8ac9441eeee0b21d485481b",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at 738a522c9e7bb2f5238343e38b06c06d78f34267; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1128185,
+      "sha256": "5dcdd54f7eb201f44c04c485daa94ec5d8b0f6068288f7188d9a5504eb3fc528",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at 399b253b0a828a3469d5e16b28f08b6fc699c38b; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1128439,
+      "sha256": "4cf6348e8794d3d6d01cd17bb3125b6d2c821fef576be0e5d4ae84a3c3227ee5",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at a70f329aef31658f7228ee3df7f861f6635ba505; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1128562,
+      "sha256": "cb72a257ff7aca680404b664979615e1f27343b6d561dc22a59cae266b79aa5e",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at 8035356541e04765d16d48c4ef1e2cce3bf49d82; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1138503,
+      "sha256": "ddd335a5102d25f3bd2414aeae9dbc00be919c4ac2d83a6398969168cfc58ee3",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at 40ecc7459fedc0d581a75e2f42cdf5fddf8eb971; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1140242,
+      "sha256": "08784802cf87f4cb4a3387a1e846d5287c51df540e3ca3ab61aa25581471aa83",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at 4b2ab617ce9b8d9d6979f0a69534a0bb731dde90; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1138057,
+      "sha256": "ebd90972946d72afec80bdebd55c1212a88f17bb066fe48214d8036ca5cf215a",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at e4c661dddce7e518cb316f81159be4c80c10cbb8; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1141507,
+      "sha256": "8a321d3db296538acc92f070958fb79b24a7c66b0f4c0ec7968f87561047d111",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at 78fa68b25d8824ff49a9be2632e146f9eeea1b95; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1147390,
+      "sha256": "b88162439799ffff4cdc17053b7be48f5da1379670e25ccef490b8e36ac6dc86",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at 56a2db7e1d5d10d1eb4b5212f8b76ab392c2a371; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1149632,
+      "sha256": "3dea7b25e424b7fcc355bf9f338770df4dd8cceac1dc32a9f4619cf39c635463",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at 88aeb59eed46b1baaa2ad87598c475a599b818b8; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1150504,
+      "sha256": "134e814126aee32011665aadd214d0a4fc8cf28410fcb7184aafe2236d84c0f3",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at 5a4f743875aaea97350ca81645a1331012b3d38d; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1184031,
+      "sha256": "d1ff1ee787ba95cb33c7bad779c29fa4b2a95ee0be6c704f4787da2ab3f641c3",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at 1a194a41f00cba511d5a6d7ff3e5b99f53e1497a; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1187781,
+      "sha256": "201c9c2d1a763240ee7284c7132f25cb3380abb9b283129bb991d42d52acb1b3",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at f6e0b2eca47116144e4b1358e1ad31272005264d; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1187857,
+      "sha256": "84b41301e9b2890a382f30a5785a92546e8dfa5ef577adb16e928982d630b782",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at 8270427972a6ca9335d33692bed1a9883e159647; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1187984,
+      "sha256": "6966fb7daec95bea719cce7d6e3dc26a36ae04d4ce69cb53287a14cb6723dd07",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Historical build at 6a3a97bb3aa2493f746a32a0c76aa0aed20df610; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1187990,
+      "sha256": "3d166a04b881595549c6bb93a214affd1be8e81e542445b7a054f967cafb0638",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json."
+    },
+    {
       "path": "internal/cacheproxy/testdata/storage-v2.sqlite",
       "kind": "binary-fixture",
       "bytes": 106496,

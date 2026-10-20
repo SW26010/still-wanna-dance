@@ -6,7 +6,7 @@ for(const width of [320,390,1280])test(`settings actions stay visible while edit
   const api=await mockAPI(page);
   await page.setViewportSize({width,height:800});
   await page.emulateMedia({colorScheme:width===390?'dark':'light'});
-  await page.goto('/#/settings');
+  await page.goto('/#prepareAheadSeconds');
   const actions=page.getByRole('region',{name:'设置操作',exact:true});
   await page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true}).fill('777');
   await expect(actions).toBeInViewport();
@@ -24,7 +24,7 @@ for(const width of [320,390,1280])test(`settings actions stay visible while edit
 });
 
 test('invalid advanced fields reopen for native validation instead of silently blocking save',async({page})=>{
-  const api=await mockAPI(page);await page.goto('/#/settings');
+  const api=await mockAPI(page);await page.goto('/#prepareAheadSeconds');
   const section=page.getByRole('button',{name:'高级下载设置',exact:true});
   await expect(section).toHaveAttribute('aria-expanded','false');
   await section.click();

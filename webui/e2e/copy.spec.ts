@@ -15,15 +15,18 @@ async function textWithDetails(page:Page) {
 test('connection and service controls explain their independent effects',async({page})=>{
   await mockAPI(page);await page.goto('/');
   await expect(page.getByText(/停止播放网关或退出应用不会恢复游戏连接/)).toBeVisible();
+  await page.evaluate(()=>{location.hash='network-access';});await expect(page.getByRole('tab',{name:'高级接入',exact:true})).toHaveAttribute('aria-selected','true');
   const text=await textWithDetails(page);
   for(const consequence of ['停止网关或退出应用会保留连接配置','不覆盖其他程序的配置','收到请求不代表游戏已播放成功'])expect(text).toContain(consequence);
 });
 
 test('settings retain storage, restart and credential consequences in the appropriate details',async({page})=>{
-  await mockAPI(page);await page.goto('/#/settings');
+  await mockAPI(page);await page.goto('/#storage-settings');
   await expect(page.getByRole('region',{name:'设置操作',exact:true})).toBeVisible();
   let text=await textWithDetails(page);
-  for(const consequence of ['保存并重启应用后生效','批量任务需手动重新开始','请勿修改源视频'])expect(text).toContain(consequence);
+  for(const consequence of ['更改后需保存并重启应用','批量任务需手动重新开始'])expect(text).toContain(consequence);
+  await page.evaluate(()=>{location.hash='video-import';});await expect(page.getByText(/请勿修改源视频/)).toBeVisible();
+  await page.evaluate(()=>{location.hash='network-proxy';});
   await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');
   text=await textWithDetails(page);
   expect(text).toContain('已有密码留空');
@@ -35,7 +38,7 @@ test('settings retain storage, restart and credential consequences in the approp
 test('license attribution and explicit consent remain available',async({page})=>{
   await mockAPI(page);await page.goto('/about');
   const text=await textWithDetails(page);
-  for(const paragraph of baseline.paragraphs['about.html'])expect(text).toContain(compact(paragraph));
+  for(const paragraph of baseline.paragraphs['about.html'].filter(p=>!p.includes('准备歌曲')&&!p.includes('下载管理')))expect(text).toContain(compact(paragraph));
   await navigate(page,'使用条款');
   await expect(page.getByRole('article',{name:'完整使用条款'})).toContainText('浏览器测试条款');
   await page.goto('/#/setup');await navigateStep(page,'3. 网络');

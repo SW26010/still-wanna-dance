@@ -261,6 +261,8 @@ function TimelineViewport({ data, active }: { data: TimelineData; active: boolea
   const rangeMin = Math.min(baseNow - Math.max(data.downloadGraceMS * 2, view.span / 2), timed[0]?.at ?? baseNow);
   const rangeMax = Math.max(baseNow + Math.max(data.prepareAheadMS, view.span / 2), timed.at(-1)?.at ?? baseNow);
   const center = view.follow ? baseNow + view.offset : view.center;
+  // The anchor is a viewport point; fixed positioning prevents source-detail
+  // height changes from scrolling the document while a popup control has focus.
   const virtualTarget = useMemo(() => ({ getBoundingClientRect: () => new DOMRect(selection?.x || 0, selection?.y || 0, 1, 1) }), [selection?.x, selection?.y]);
   const summary = useMemo(() => {
     const counts = { waiting: 0, downloading: 0, available: 0, protected: 0, stopping: 0 };
@@ -294,7 +296,7 @@ function TimelineViewport({ data, active }: { data: TimelineData; active: boolea
       // A pinned selection survives toolbar clicks (including pause). Escape
       // and the close button still dismiss it explicitly.
       if (!value.open && (!selection?.pinned || event.type === 'keydown' && 'key' in event && event.key === 'Escape')) closeSelection();
-    }} positioning={{ target: virtualTarget, position: 'above', align: 'center', offset: 16 }} withArrow unstable_disableAutoFocus>
+    }} positioning={{ target: virtualTarget, strategy: 'fixed', autoSize: 'height', shiftToCoverTarget: true, overflowBoundaryPadding: 12, position: 'above', align: 'center', offset: 16 }} withArrow unstable_disableAutoFocus>
       <PopoverSurface ref={surface} className="timeline-popover" aria-label="块需求详情" onPointerEnter={clearHoverTimers} onPointerLeave={scheduleClose}>
         {selection && selectedID && <><div className="timeline-detail-toolbar"><Text weight="semibold">块 {selectedBlock ? blockNumber(selectedBlock) : '已退出'}</Text><div>
           {!selection.pinned && <Button size="small" appearance="subtle" icon={<Pin20Regular />} aria-label="固定块详情" onClick={() => setSelection({ ...selection, pinned: true })} />}

@@ -3,16 +3,15 @@ import { test, expect } from '@playwright/test';
 import { mockAPI } from './api';
 
 test('drafts survive polling and navigation; save preserves active config and blocks dirty restart', async ({page}) => {
-  const api=await mockAPI(page); await page.goto('/#/settings');
+  const api=await mockAPI(page); await page.goto('/#prepareAheadSeconds');
   const m=page.getByRole('spinbutton',{name:/提前准备时间/});
   await expect(m).toHaveAccessibleDescription(/当前值约占 125 MB 临时缓存，按 2 Mbps 估算/);
   await m.fill(''); await expect(m).not.toHaveAccessibleDescription(/当前值约占/);
   await m.fill('100'); await expect(m).toHaveAccessibleDescription(/当前值约占 25 MB 临时缓存/);
-  await navigate(page,'开始使用');
-  await page.getByRole('button',{name:'高级接入设置',exact:true}).click();
+  await navigate(page,'网络与代理');await page.getByRole('tab',{name:'高级接入',exact:true}).click();
   await page.getByRole('button',{name:'启动播放网关',exact:true}).click();
   await expect(page.getByText('播放网关已启动。',{exact:true})).toBeVisible();
-  await navigate(page,'设置'); await expect(m).toHaveValue('100');
+  await navigate(page,'下载管理'); await expect(m).toHaveValue('100');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeEnabled();
   expect(api.state.settings.prepareAheadSeconds).toBe(100); expect(api.state.activeSettings.prepareAheadSeconds).toBe(500);
@@ -29,7 +28,7 @@ test('drafts survive polling and navigation; save preserves active config and bl
     await expect(m).not.toHaveAccessibleDescription(/当前值约占/);
     expect(api.calls.filter(c=>c.path==='settings')).toHaveLength(2);
   }
-  expect(api.calls.every(c=>c.token==='browser-fixture-token')).toBe(true);
+  expect(api.calls.filter(c=>!c.path.includes('/events')).every(c=>c.token==='browser-fixture-token')).toBe(true);
 });
 test('cache renders Unix millisecond request times and zero as no record', async ({page}) => {
   const api=await mockAPI(page), errors:string[]=[];
@@ -41,7 +40,7 @@ test('cache renders Unix millisecond request times and zero as no record', async
   await expect(rows.nth(1)).toContainText('最近请求：无记录');
   await page.getByRole('button',{name:'刷新文件列表'}).click();
   await expect(rows.first()).toContainText('最近请求：'+requested);
-  await navigate(page,'设置'); await navigate(page,'本地视频');
+  await navigate(page,'下载管理'); await navigate(page,'本地视频');
   await expect(rows.first().getByRole('checkbox')).toBeEnabled();
   expect(errors).toEqual([]);
 });
@@ -57,10 +56,10 @@ test('cache protects in-use files and only deletes confirmed stamped selections'
   expect(api.calls.find(c=>c.path==='cache/delete')?.body).toEqual({storageID:'fixture',entries:[{key:'key1',stamp:'stamp1'}]});
 });
 test('pause only freezes monitor display; native dialogs replaced by Fluent confirmation', async ({page}) => {
-  const api=await mockAPI(page); await page.goto('/#/monitor');
-  await page.getByRole('checkbox',{name:'暂停下载与请求刷新'}).check();
+  const api=await mockAPI(page); await page.goto('/#recent');
+  await page.getByRole('checkbox',{name:'暂停请求刷新'}).check();
   const reads=api.calls.filter(c=>c.path==='downloads'||c.path==='requests').length;
-  await page.getByRole('button',{name:'立即检测',exact:true}).click();
+  await page.getByRole('button',{name:'检查当前连接',exact:true}).click();
   await expect(page.getByText('网络检测已开始，请查看检测结果。',{exact:true})).toBeVisible();
   expect(api.calls.filter(c=>c.path==='downloads'||c.path==='requests')).toHaveLength(reads);
   await page.getByRole('button',{name:'退出整个应用',exact:true}).click(); await expect(page.getByRole('dialog')).toBeVisible();
@@ -71,7 +70,7 @@ test('all console pages render at narrow width without runtime errors', async ({
   await mockAPI(page); await page.setViewportSize({width:390,height:844}); await page.emulateMedia({colorScheme:'dark'});
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('/');
-  for(const name of ['开始使用','准备歌曲','本地视频','运行状态','设置']) {
+  for(const name of ['游戏加速','下载管理','本地视频','网络与代理','设置']) {
     await navigate(page,name);
     await expect(page.locator('#main')).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

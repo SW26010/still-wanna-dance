@@ -10,7 +10,7 @@ test('settings collapse and disable the directory without losing its saved or dr
   api.state.settings.storageDir = savedPath;
   api.state.settings.videoStorageMode = 'none';
   await page.emulateMedia({colorScheme:'dark'});
-  await page.goto('/#/settings');
+  await page.goto('/#storage-settings');
   const section = page.getByRole('button', {name:'本地存储目录', exact:true});
   const path = page.getByRole('textbox', {name:'本地存储目录', exact:true});
   await expect(section).toHaveAttribute('aria-expanded', 'false');
@@ -90,7 +90,7 @@ test('wizard keeps the default and selected directories while no retention disab
 
 test('settings preserve all three storage choices and the entered budget across saves', async ({page}, info) => {
   const api = await mockAPI(page);
-  await page.goto('/#/settings');
+  await page.goto('/#storage-settings');
   const input = page.getByRole('spinbutton', {name:'视频存储预算（GiB）', exact:true});
   const none = page.getByRole('radio', {name:'不保留', exact:true});
   const limited = page.getByRole('radio', {name:'限制为', exact:true});
@@ -125,7 +125,7 @@ test('settings preserve all three storage choices and the entered budget across 
   await limited.check();
   await expect(input).toHaveValue('12.5');
   await navigate(page,'本地视频');
-  await navigate(page,'设置');
+  await navigate(page,'本地视频');await page.getByRole('link',{name:'存储设置',exact:true}).click();
   await expect(limited).toBeChecked();
   await expect(input).toHaveValue('12.5');
   await page.getByRole('button', {name:'保存设置', exact:true}).click();
@@ -191,8 +191,8 @@ test('no retention overrides the remembered budget and only blocks filling the l
   api.state.activeSettings.videoStorageMode = 'none';
   await page.goto('/#/cache');
   await expect(page.getByText(/当前视频存储预算：0 GiB（不保留持久化视频文件）/)).toBeVisible();
-  await navigate(page,'准备歌曲');
-  await expect(page.getByRole('button',{name:'下载补齐',exact:true})).toBeDisabled();
+  await navigate(page,'下载管理');
+  await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeDisabled();
   await expect(page.getByRole('button',{name:'检查缺失视频',exact:true})).toBeEnabled();
   await expect(page.getByRole('button',{name:'开启队列预加载',exact:true})).toBeEnabled();
 });
@@ -204,8 +204,8 @@ test('empty storage links explain queue preparation and persistent library prere
   await page.getByRole('link',{name:'自动准备房间队列',exact:true}).click();
   await expect(page.locator('#queue')).toBeFocused();
   await expect(page.getByRole('button',{name:'开启队列预加载',exact:true})).toBeEnabled();
-  await expect(page.getByRole('heading',{name:'保存视频供以后使用',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'下载补齐',exact:true})).toBeDisabled();
+  await expect(page.getByRole('heading',{name:'下载缺失视频',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeDisabled();
   await page.getByRole('link',{name:'设置视频保留空间',exact:true}).click();
   await expect(page.locator('#maxCacheGiB')).toBeFocused();
   await expect(page.getByText('适合边播边下载，不能提前保存曲库。仍可自动准备房间队列。',{exact:true})).toBeVisible();
@@ -213,7 +213,7 @@ test('empty storage links explain queue preparation and persistent library prere
 
 test('settings reject invalid budgets and inactive choices recover from an invalid draft', async ({page}) => {
   const api = await mockAPI(page);
-  await page.goto('/#/settings');
+  await page.goto('/#storage-settings');
   const limited = page.getByRole('radio',{name:'限制为',exact:true});
   await limited.check();
   const input = page.getByRole('spinbutton',{name:'视频存储预算（GiB）',exact:true});

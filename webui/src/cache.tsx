@@ -42,8 +42,8 @@ export function Cache({ visible, section }: {visible: boolean;section?:string}) 
     } catch (e) { setResult(e instanceof APIError ? e.message : '操作响应未确认，请刷新文件列表核对，勿直接重复删除。'); }
     finally { setPending(false); if (action === 'delete') { setSelected([]); page.refresh(); } }
   }
-  return <><div className="actions"><Link href="#video-import">导入视频</Link><Link href="#storage-settings">存储设置</Link></div><div hidden={section!=='video-import'}><ImportPanel/></div><div hidden={!['storage-settings','maxCacheGiB'].includes(section || '')}><SettingsPage section="storage"/></div><InventoryPanel visible={visible}/><Panel id="cache" {...focus} title="本地文件"><p>按文件管理 · 每页 50 项</p><p>按歌曲查找并清理本地视频。正在使用或准备播放的文件不可删除。</p><p>刷新文件列表只读取本机文件；上方的覆盖率统计会联网更新歌曲清单。</p>
-    <p>{page.data ? `${page.data.fileCount} 个视频文件 · 占用 ${gib(page.data.totalBytes)} · 当前视频存储预算：${s.activeSettings.videoStorageMode === 'unlimited' ? '不限制' : s.activeSettings.videoStorageMode === 'none' ? '0 GiB（不保留持久化视频文件）' : gib(s.activeSettings.maxCacheBytes)}` : '视频占用待读取'}</p>
+  return <><div className="actions"><Link href="#video-import">导入视频</Link><Link href="#storage-settings">存储设置</Link></div>{s.import.phase&&section!=='video-import'&&<p role="status">视频导入：{s.import.phase} · {s.import.checked || 0} / {s.import.total || 0} · 已导入 {s.import.imported || 0}</p>}<div hidden={section!=='video-import'}><ImportPanel/></div><div hidden={!['storage-settings','maxCacheGiB'].includes(section || '')}><SettingsPage section="storage"/></div><InventoryPanel visible={visible} files={page.data}/><Panel id="cache" {...focus} title="视频列表"><Details title="文件管理说明"><p>按文件管理 · 每页 50 项。正在使用或准备播放的文件不可删除。</p><p>刷新文件列表只读取本机文件；覆盖率统计会联网更新歌曲清单。</p></Details>
+
     <form className="actions" onSubmit={e => { e.preventDefault(); setOffset(0); setQuery({q:search,sort}); page.refresh(); }}>
       <Field label="歌名或歌曲 ID"><Input type="search" maxLength={300} value={search} onChange={(_, v) => setSearch(v.value)} /></Field>
       <Field label="排序"><Select value={sort} onChange={(_, v) => setSort(v.value)}><option value="recent">最近请求优先</option><option value="size">占用从大到小</option><option value="title">歌名顺序</option></Select></Field>
@@ -66,11 +66,11 @@ export function Cache({ visible, section }: {visible: boolean;section?:string}) 
     {(page.data?.total || 0) > 50 && <div className="actions"><Button disabled={disabled || offset === 0} onClick={() => setOffset(Math.max(0,offset-50))}>上一页</Button><Button disabled={disabled || offset+50 >= (page.data?.total || 0)} onClick={() => setOffset(offset+50)}>下一页</Button></div>}
     </Panel></>;
 }
-function InventoryPanel({visible}: {visible:boolean}) {
-  const app = useApp(), t = app.status.data!.traffic || {};
+function InventoryPanel({visible,files}: {visible:boolean;files?:CachePage}) {
+  const app = useApp(), s=app.status.data!, t = s.traffic || {};
   const inventory = useResource<Inventory>('inventory',visible && !app.stopped,app.revision), v = inventory.data;
   const known = v && dated(v.updated) && v.coverageKnown && v.totalSongs > 0;
-  return <Panel id="overview" title="曲库覆盖率"><Subtitle2 as="h3">歌曲本地视频覆盖率</Subtitle2><p>{known ? `${(100*v.coveredSongs/v.totalSongs).toFixed(1)}% · ${v.coveredSongs} / ${v.totalSongs} 首曲目已覆盖` : '覆盖率待刷新'}</p>
+  return <Panel id="overview" title="存储概览">    <p>{files ? `${files.fileCount} 个视频文件 · 占用 ${gib(files.totalBytes)} · 当前视频存储预算：${s.activeSettings.videoStorageMode === 'unlimited' ? '不限制' : s.activeSettings.videoStorageMode === 'none' ? '0 GiB（不保留持久化视频文件）' : gib(s.activeSettings.maxCacheBytes)}` : '视频占用待读取'}</p><Subtitle2 as="h3">曲库覆盖率</Subtitle2><p>{known ? `${(100*v.coveredSongs/v.totalSongs).toFixed(1)}% · ${v.coveredSongs} / ${v.totalSongs} 首曲目已覆盖` : '覆盖率待刷新'}</p>
 <Details title="覆盖率与复用详情"><Details title="本地视频复用统计"><Subtitle2 as="h3">请求统计</Subtitle2><p>当前存储目录累计</p><p>已命中次数 {t.hits || 0} · 请求命中率 {t.hitRate == null ? '—' : t.hitRate.toFixed(1)+'%'} · 本地视频命中节省流量 {gib(t.savedBytes)} · 播放传输次数（30 秒去重） {t.playbackTransfers || 0}</p>
     <p>成功请求 {t.requests || 0} 次 · 未命中 {t.misses || 0} 次 · 未命中播放首正文 {t.coldBodyMS?.toFixed(1) || '—'} ms（{t.coldBodySamples || 0} 个样本）· 本地命中播放首正文 {t.localBodyMS?.toFixed(1) || '—'} ms（{t.localBodySamples || 0} 个样本）</p>
     <Details title="统计口径与计算方式"><p>仅统计成功返回视频内容的请求，预下载不计入。节省流量是本地视频命中返回的数据量，未扣除提前下载的流量。播放传输按同一歌曲 30 秒去重，不代表游戏实际播放次数。</p></Details><Feedback error>{t.error}</Feedback></Details>

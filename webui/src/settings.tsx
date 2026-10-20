@@ -109,7 +109,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
     addEventListener('beforeunload', warn); return () => removeEventListener('beforeunload', warn);
   }, [dirty, app.stopped]);
   const numberField = (key: NumberField | 'maxCacheGiB', label: string, min: number, max: number, hint: string, step = '1') => <Field label={label} hint={hint} required><Input id={key} type="number" required min={min} max={max} step={step} disabled={disabled} value={d[key]} onChange={(_, v) => update({[key]:v.value})} /></Field>;
-  const form = <Panel id={section==='storage'?'storage-settings':section==='downloads'?'download-settings':'preferences'} title={{application:'应用设置',storage:'视频存储',downloads:'预加载与下载设置',network:'代理设置'}[section]}><Feedback error>{s.actionErrors?.settings}</Feedback><form className="form-grid settings-form" onSubmit={async e => { e.preventDefault(); if (!dirty || disabled || d.proxyImportText.trim()) return; if (await app.action('settings', settingsPayload(d))) { setAwaitingRevision(app.revision + 1); } }}>
+  const form = <Panel id={section==='storage'?'storage-settings':section==='downloads'?'download-settings':section==='network'?'proxy-settings':'preferences'} title={{application:'应用设置',storage:'视频存储',downloads:'预加载与下载设置',network:'代理设置'}[section]}><Feedback error>{s.actionErrors?.settings}</Feedback><form className="form-grid settings-form" onSubmit={async e => { e.preventDefault(); if (!dirty || disabled || d.proxyImportText.trim()) return; if (await app.action('settings', settingsPayload(d))) { setAwaitingRevision(app.revision + 1); } }}>
       <div className="content-stack settings-actions" role="region" aria-label="设置操作"><p role="status">{syncing ? '正在核对已保存的设置…' : dirty ? '有未保存的更改。保存并重启应用后生效。' : s.restartRequired ? '设置已保存，重启应用后生效。' : '配置与当前运行一致。更改后需保存并重启应用。'}</p>
       <div className="actions"><Button type="submit" appearance="primary" disabled={disabled || !dirty || !!d.proxyImportText.trim()}>保存设置</Button><Button disabled={disabled || !dirty} onClick={() => { void releaseImport(d.proxyImportID); setDraft(undefined); }}>放弃更改</Button>
       {s.restartRequired && <Button disabled={disabled || dirty || app.dirtySettings.size>0} onClick={() => void app.action('restart')}>立即重启并应用</Button>}</div>
@@ -133,7 +133,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
       {numberField('downloadSoftLimit','同时下载数量',1,64,'默认 16 路，可设为 1～64 的整数。按需开放下载额度；播放正在等待的缺块可临时突破此上限。')}
       {numberField('downloadGrowIntervalMS','并发增长间隔（毫秒）',0,2000,'默认 250 毫秒，可设为 0～2000 的整数。有可下载任务积压且额度占满时，每隔此时间增加一路；0 表示关闭缓增，按需直接使用上限额度。')}
       </fieldset></Details>
-      <fieldset disabled={disabled}><legend>房间队列与游戏日志</legend><Caption1 as="p" className="hint">下载补齐期间，房间队列预加载会临时暂停。</Caption1>
+      <fieldset disabled={disabled}><legend>房间队列与游戏日志</legend><Caption1 as="p" className="hint">下载缺失视频期间，房间队列预加载会临时暂停。</Caption1>
       {numberField('prepareAheadSeconds','提前准备时间（秒）',100,16000,`默认 500 秒，建议 200～2000 秒${prepareAheadEstimate}。数值越大，越早下载预计播放的内容，也会更早占用带宽和缓存空间。保存并重启应用后生效。`)}
       <Checkbox label="手动指定 VRChat 日志目录" checked={d.manualLogDir} onChange={(_, v) => update({manualLogDir:!!v.checked})} />
       <Field label="VRChat 日志目录" hint="默认自动识别。仅在无法找到游戏日志时手动指定，取消勾选可恢复自动。"><Input required={d.manualLogDir} disabled={!d.manualLogDir || disabled} value={d.manualLogDir ? d.logDir : s.defaultLogDir} onChange={(_, v) => update({logDir:v.value})} /></Field></fieldset></>}

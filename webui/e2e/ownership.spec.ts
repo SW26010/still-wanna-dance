@@ -28,8 +28,11 @@ test('video import, storage and coverage are found from local videos',async({pag
 });
 
 test('separate settings locations save only their own draft and preserve the others',async({page})=>{
-  const api=await mockAPI(page);await page.goto('/#/library');
+  const api=await mockAPI(page);await page.goto('/#prepareAheadSeconds');
   await page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true}).fill('777');
+  const downloadSettings=page.getByRole('button',{name:'预加载与下载设置',exact:true});
+  await downloadSettings.click();await downloadSettings.click();
+  await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveValue('777');
   await navigate(page,'本地视频');
   await page.getByRole('link',{name:'存储设置',exact:true}).click();
   await page.getByRole('radio',{name:'限制为',exact:true}).check();
@@ -66,7 +69,7 @@ test('proxy configuration and checks share the same unsaved draft without saving
   await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');
   await page.getByRole('textbox',{name:'SOCKS5 地址',exact:true}).fill('127.0.0.1:7891');
   await page.getByRole('button',{name:'检测此连接配置',exact:true}).click();
-  await page.getByRole('combobox',{name:'检测上游',exact:true}).selectOption('proxy');
+  await expect(page.getByRole('combobox',{name:'检测上游',exact:true})).toHaveValue('proxy');
   await page.getByRole('button',{name:'开始连通性检测',exact:true}).click();
   const call=api.calls.find(c=>c.path==='setup/network/connectivity/start');
   expect(call?.body.proxy).toMatchObject({socks5Address:'127.0.0.1:7891',upstreamMode:'proxy'});
@@ -85,4 +88,20 @@ test('normal startup stays on acceleration even after a manual wizard was left a
   await page.goto('/');
   await expect(page.getByRole('heading',{level:1,name:'游戏加速',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'下一步',exact:true})).toHaveCount(0);
+});
+
+test('acceleration summarizes recent failures and links to their owning page',async({page},info)=>{
+  const api=await mockAPI(page);api.state.running=true;api.state.hosts.ready=true;
+  api.state.activation={phase:'waiting',firstRequest:new Date().toISOString()};
+  await page.route('**/api/requests?*',r=>r.fulfill({json:{requests:[{id:1,at:Date.now(),status:502,outcome:'failed',method:'GET',bytes:0,elapsedMS:100,resource:'song',cache:'MISS'}]}}));
+  await page.setViewportSize({width:390,height:844});await page.goto('/');
+  await expect(page.getByText(/最近一次已结束请求：请求失败 · HTTP 502/)).toBeVisible();
+  await expect(page.getByRole('link',{name:'检查连接',exact:true})).toBeVisible();
+  await page.screenshot({path:info.outputPath('acceleration.png'),fullPage:true,animations:'disabled'});
+  await page.getByRole('link',{name:'检查连接',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'网络与代理',level:1,exact:true})).toBeVisible();
+  await navigate(page,'下载管理');
+  await page.screenshot({path:info.outputPath('downloads.png'),fullPage:true,animations:'disabled'});
+  await navigate(page,'本地视频');
+  await page.screenshot({path:info.outputPath('videos.png'),fullPage:true,animations:'disabled'});
 });

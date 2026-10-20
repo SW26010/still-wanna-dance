@@ -79,7 +79,7 @@ const actionMessages: Record<string,string> = {
   'activation/enable':'加速启用步骤已完成，请在游戏中点歌确认播放。',
   'hosts/enable':'游戏连接配置已更新。', 'hosts/disable':'本程序的游戏连接配置已移除。',
   'queue/start':'队列预加载已开启，等待新的房间队列。', 'queue/stop':'队列预加载已关闭。',
-  'batch/scan':'已开始检查缺失视频。', 'batch/switch':'已开始下载补齐。', 'batch/start':'已开始下载补齐。',
+  'batch/scan':'已开始检查缺失视频。', 'batch/switch':'已开始下载缺失视频。', 'batch/start':'已开始下载缺失视频。',
   'batch/cancel':'已请求停止批量任务。', 'inventory/scan':'已开始更新清单并统计覆盖率。',
   'import/start':'已开始扫描并导入视频。', 'import/cleanup':'已处理源文件清理，请查看导入结果。',
 };

@@ -13,8 +13,8 @@ export function Network({visible,anchor}:{visible:boolean;anchor:string}) {
   useLayoutEffect(()=>{
     if(!visible)return;
     const next=anchor==='network-proxy'?'proxy':anchor==='network-access'||anchor==='service'?'access':'check';
-    setTab(next);
-    if(['network-proxy','network-access','service'].includes(anchor))requestAnimationFrame(()=>{
+    setTab(next);if(anchor==='recent')setRequestsOpen(true);
+    if(['network-proxy','network-access','service','recent'].includes(anchor))requestAnimationFrame(()=>{
       const target=document.getElementById(anchor);target?.focus();target?.scrollIntoView();
     });
   },[visible,anchor]);
@@ -25,11 +25,11 @@ export function Network({visible,anchor}:{visible:boolean;anchor:string}) {
     <div role="tabpanel" aria-labelledby="tab-check" hidden={tab!=='check'}>
       <NetworkMonitor/>
       <p>修改代理后，可在此检测外部 SOCKS5 草稿。节点配置需保存并重启，再检查当前连接。</p>
-        <Diagnostics visible={visible&&tab==='check'} proxy={{...settingsPayload(draft),page:'proxy',upstreamMode:'proxy'}} upstream={upstream} onUpstreamChange={setUpstream}/>
-      <Details title="请求与线路诊断" onToggle={setRequestsOpen}><RecentRequests visible={visible&&tab==='check'&&requestsOpen}/><LegacyNetworkDetails/></Details>
+        {visible&&tab==='check'&&<Diagnostics visible={visible&&tab==='check'} proxy={{...settingsPayload(draft),page:'proxy',upstreamMode:'proxy'}} upstream={upstream} onUpstreamChange={setUpstream}/>}
+      <Details keepMounted title="请求与线路诊断" expanded={requestsOpen} onToggle={setRequestsOpen}><RecentRequests visible={visible&&tab==='check'&&requestsOpen}/><LegacyNetworkDetails/></Details>
     </div>
     <div id="network-proxy" tabIndex={-1} role="tabpanel" aria-labelledby="tab-proxy" hidden={tab!=='proxy'}>
-      {form}<Button onClick={()=>setTab('check')}>检测此连接配置</Button>
+      {form}<Button onClick={()=>{setUpstream(draft.upstreamMode==='direct'?'direct':'proxy');setTab('check');}}>检测此连接配置</Button>
       {app.status.data!.restartRequired&&<p>当前连接仍使用重启前的配置；保存的更改会在重启后生效。</p>}
     </div>
     <div id="network-access" tabIndex={-1} role="tabpanel" aria-labelledby="tab-access" hidden={tab!=='access'}><AccessSettings/></div>

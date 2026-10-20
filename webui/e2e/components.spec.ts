@@ -25,7 +25,7 @@ test('cache list keeps selection and secondary actions reachable by keyboard', a
   await expect(second.getByRole('checkbox')).toBeDisabled();
   await page.keyboard.press('Escape'); await expect(second).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', {name:'本地视频复用统计'})).toBeFocused();
+  await expect(page.getByRole('button', {name:'恢复直连并退出'})).toBeFocused();
   await first.getByRole('button', {name:'定位文件'}).focus();
   await page.keyboard.press('Enter');
   await expect.poll(() => api.calls.find(c=>c.path==='cache/open')?.body).toEqual({storageID:'fixture',entries:[{key:'key1',stamp:'stamp1'}]});
@@ -34,7 +34,7 @@ test('cache list keeps selection and secondary actions reachable by keyboard', a
 
 test('native node file picker rejects oversize files and can reread the same file', async ({page}) => {
   const api = await mockAPI(page);
-  await page.goto('/#/settings');
+  await page.goto('/#network-proxy');
   await page.getByRole('combobox', {name:'上游连接',exact:true}).selectOption('proxy');
   await page.getByRole('combobox', {name:'代理后端',exact:true}).selectOption('mihomo');
   const picker = page.getByLabel('或选择节点文件'), draft = page.getByRole('textbox', {name:'粘贴节点内容',exact:true});
@@ -53,7 +53,7 @@ test('download list releases focus to its panel when polling removes the active 
   await mockAPI(page);
   let present = true;
   await page.route('**/api/downloads', r=>r.fulfill({json:{bytesPerSecond:1024,tasks:present?[{id:'task',resource:'fixture-resource',songs:[{id:'1',title:'下载中的歌曲'}],stage:'download',bytes:1024,size:2048,bytesPerSecond:1024,idleMS:0}]:[]}}));
-  await page.clock.install(); await page.goto('/#/monitor');
+  await page.clock.install(); await page.goto('/#/library');
   const row = page.getByRole('grid', {name:'下载任务'}).getByRole('row');
   await row.focus(); await page.keyboard.press('ArrowRight');
   const details = row.getByRole('button', {name:'下载详情'});

@@ -4,7 +4,7 @@ import {navigate, navigateStep} from './navigation';
 
 test('reclamation strategy follows storage only in auto and survives save, discard and navigation', async ({page}, info) => {
   const api = await mockAPI(page);
-  await page.goto('/#/settings');await page.getByRole('button',{name:'高级存储设置',exact:true}).click();
+  await page.goto('/#storage-settings');await page.getByRole('button',{name:'高级存储设置',exact:true}).click();
   const group = page.getByRole('radiogroup', {name:'激进的缓存回收策略', exact:true});
   const auto = group.getByRole('radio', {name:'自动（默认）', exact:true});
   const on = group.getByRole('radio', {name:'开启', exact:true});
@@ -23,7 +23,7 @@ test('reclamation strategy follows storage only in auto and survives save, disca
   await page.getByRole('radio', {name:'不限制', exact:true}).check();
   await expect(on).toBeChecked();
   await navigate(page, '本地视频');
-  await navigate(page, '设置');
+  await navigate(page, '本地视频');await page.getByRole('link',{name:'存储设置',exact:true}).click();
   await expect(on).toBeChecked();
   await save.click();
   await expect(save).toBeDisabled();

@@ -3,7 +3,7 @@ import {mockAPI} from './api';
 import {navigate} from './navigation';
 
 test('download settings validate bounds, preserve zero and explain CPU cost',async({page},testInfo)=>{
-  const api=await mockAPI(page);await page.goto('/#/settings');await page.getByRole('button',{name:'高级下载设置',exact:true}).click();
+  const api=await mockAPI(page);await page.goto('/#prepareAheadSeconds');await page.getByRole('button',{name:'高级下载设置',exact:true}).click();
   const limit=page.getByRole('spinbutton',{name:'同时下载数量'});
   const interval=page.getByRole('spinbutton',{name:'并发增长间隔（毫秒）'});
   const save=page.getByRole('button',{name:'保存设置',exact:true});
@@ -19,12 +19,12 @@ test('download settings validate bounds, preserve zero and explain CPU cost',asy
     await input.fill(reset);
   }
   await limit.fill('64');await interval.fill('0');
-  await navigate(page,'运行状态');await navigate(page,'设置');
+  await navigate(page,'网络与代理');await navigate(page,'下载管理');
   await expect(limit).toHaveValue('64');await expect(interval).toHaveValue('0');
   await save.click();await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeEnabled();
   expect(api.state.settings).toMatchObject({downloadSoftLimit:64,downloadGrowIntervalMS:0});
   expect(api.state.activeSettings).toMatchObject({downloadSoftLimit:16,downloadGrowIntervalMS:250});
-  await page.reload();await page.getByRole('button',{name:'高级下载设置',exact:true}).click();
+  await page.reload();await page.getByRole('link',{name:'调整提前准备时间',exact:true}).click();await page.getByRole('button',{name:'高级下载设置',exact:true}).click();
   await expect(limit).toHaveValue('64');await expect(interval).toHaveValue('0');
   await limit.fill('1');await interval.fill('2000');await save.click();
   await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeEnabled();
@@ -36,7 +36,7 @@ test('download settings validate bounds, preserve zero and explain CPU cost',asy
 });
 
 test('local protection grace preserves zero, validates bounds and waits for restart',async({page},testInfo)=>{
-  const api=await mockAPI(page);await page.goto('/#/settings');await page.getByRole('button',{name:'高级存储设置',exact:true}).click();
+  const api=await mockAPI(page);await page.goto('/#storage-settings');await page.getByRole('button',{name:'高级存储设置',exact:true}).click();
   const grace=page.getByRole('spinbutton',{name:'本地延续保护时长（秒）'});
   const save=page.getByRole('button',{name:'保存设置',exact:true});
   await expect(grace).toHaveValue('300');
@@ -46,7 +46,7 @@ test('local protection grace preserves zero, validates bounds and waits for rest
     expect(api.calls.filter(c=>c.path==='settings')).toHaveLength(0);
   }
   await grace.fill('0');
-  await navigate(page,'运行状态');await navigate(page,'设置');
+  await navigate(page,'网络与代理');await navigate(page,'本地视频');await page.getByRole('link',{name:'存储设置',exact:true}).click();
   await expect(grace).toHaveValue('0');
   await save.click();await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeEnabled();
   expect(api.state.settings.localProtectionGraceSeconds).toBe(0);

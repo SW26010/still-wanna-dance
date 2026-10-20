@@ -27,9 +27,10 @@ async function setup(page: Page, count = 48) {
   for (const b of blocks.slice(0, 48)) await detail(b, b.inUse ? undefined : []);
   const streams = async () => (await page.request.get('/__fixture/streams?id=' + api.fixtureID)).json() as Promise<Record<string, number>>;
   const totalStreams = async () => Object.values(await streams()).reduce((sum, n) => sum + n, 0);
-  await page.goto('/#/monitor');
+  await page.goto('/#/library');
+  await page.getByRole('button',{name:'下载诊断',exact:true}).click();
   const panel = page.locator('#block-demands'), canvas = panel.locator('.timeline-canvas'), viewport = panel.locator('.block-timeline');
-  const open = async () => { await panel.getByRole('button', { name: '展开时间轴' }).click(); await expect(panel.getByText('事件已连接', { exact: true })).toBeVisible(); await expect(canvas).toBeVisible(); };
+  const open = async () => { await panel.getByRole('button', { name: '展开时间轴' }).click(); await expect(panel.getByText('事件已连接', { exact: true })).toBeVisible(); await expect(canvas).toBeVisible(); await canvas.scrollIntoViewIfNeeded(); await expect(canvas).toBeInViewport(); };
   return { ...api, at, blocks, emit, detail, streams, totalStreams, panel, canvas, viewport, open };
 }
 
@@ -41,12 +42,12 @@ test('timeline subscribes only while visible and restores a fresh snapshot', asy
   await expect(page.getByRole('group', { name: '块需求详情' })).toBeVisible();
   await expect.poll(f.totalStreams).toBe(2);
   await page.getByRole('button', { name: '关闭块详情' }).click();
-  await page.getByRole('checkbox', { name: '暂停下载与请求刷新' }).check();
+  await page.getByRole('checkbox', { name: '暂停下载展示' }).check();
   await expect.poll(f.totalStreams).toBe(0);
   const frozen = await f.canvas.evaluate(c => (c as HTMLCanvasElement).toDataURL());
   await f.emit({ reset: true, blocks: [block(100, f.at)], used: 1 });
   expect(await f.canvas.evaluate(c => (c as HTMLCanvasElement).toDataURL())).toBe(frozen);
-  await page.getByRole('checkbox', { name: '暂停下载与请求刷新' }).uncheck();
+  await page.getByRole('checkbox', { name: '暂停下载展示' }).uncheck();
   await expect(f.canvas).toHaveAccessibleName(/1 个块/);
   await expect.poll(f.totalStreams).toBe(1);
   await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, value: true }); document.dispatchEvent(new Event('visibilitychange')); });
@@ -54,8 +55,8 @@ test('timeline subscribes only while visible and restores a fresh snapshot', asy
   await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, value: false }); document.dispatchEvent(new Event('visibilitychange')); });
   await expect.poll(f.totalStreams).toBe(1);
   await navigate(page, '本地视频'); await expect.poll(f.totalStreams).toBe(0);
-  await navigate(page, '运行状态'); await expect.poll(f.totalStreams).toBe(1);
-  await page.locator('footer').scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(0);
+  await navigate(page, '下载管理'); await f.panel.scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(1);
+  await page.locator('#downloads').scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(0);
   await f.panel.scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(1);
   await f.panel.getByRole('button', { name: '收起时间轴' }).click(); await expect.poll(f.totalStreams).toBe(0);
 });
@@ -81,7 +82,7 @@ for (const view of ['timeline', 'demand'] as const) test(`pinned ${view} details
 
   // A real visibility transition reproduces the intermittent screenshot
   // transition without relying on screenshot timing or synthetic observers.
-  await page.locator('footer').scrollIntoViewIfNeeded();
+  await page.locator('#downloads').scrollIntoViewIfNeeded();
   await expect.poll(f.totalStreams).toBe(0);
   await expect(popup).toHaveCount(0);
   const protectedBlocks = blocks.map(b => ({ ...b, state: 'protected' as const, inUse: false, sources: 0, needBy: 0, timeBasis: 'last-need-by' as const, protected: true, protectionUntil: f.at + 60000 }));
@@ -97,7 +98,7 @@ for (const view of ['timeline', 'demand'] as const) test(`pinned ${view} details
   await expect.poll(f.totalStreams).toBe(1);
 
   await f.canvas.press('Home'); await expect(popup).toContainText('块 1/4');
-  await page.locator('footer').scrollIntoViewIfNeeded();
+  await page.locator('#downloads').scrollIntoViewIfNeeded();
   await expect.poll(f.totalStreams).toBe(0);
   await f.emit({ removed: [blocks[0].id] });
   const beforeResume = detailRequests.length;
@@ -114,7 +115,7 @@ test('clicking pause preserves pinned details until an explicit close', async ({
   await f.canvas.focus(); await f.canvas.press('Home');
   const popup = page.getByRole('group', { name: '块需求详情' });
   await expect(popup).toContainText('块 1/?');
-  const pause = page.getByRole('checkbox', { name: '暂停下载与请求刷新' });
+  const pause = page.getByRole('checkbox', { name: '暂停下载展示' });
   await pause.check();
   await expect.poll(f.totalStreams).toBe(0); await expect(popup).toHaveCount(0);
   await pause.uncheck();
@@ -123,7 +124,7 @@ test('clicking pause preserves pinned details until an explicit close', async ({
   await expect(popup).toContainText('块 1/?');
   await popup.getByRole('button', { name: '关闭块详情' }).focus();
   await page.keyboard.press('Escape');
-  await expect(popup).toHaveCount(0); await expect.poll(f.totalStreams).toBe(1);
+  await expect(popup).toHaveCount(0); await f.canvas.scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(1);
 });
 
 test('removed demand rows restore focus to their region without stealing outside focus', async ({ page }) => {
@@ -235,13 +236,13 @@ test('horizontal wheel pans without zooming or changing mode and releases its li
   await expect(f.viewport).toHaveAttribute('data-follow', 'false');
   await expect(f.viewport).toHaveAttribute('data-span', span!);
   const pausedCenter = await center();
-  await page.getByRole('checkbox', { name: '暂停下载与请求刷新' }).check();
+  await page.getByRole('checkbox', { name: '暂停下载展示' }).check();
   await expect.poll(f.totalStreams).toBe(0);
   await f.canvas.dispatchEvent('wheel', { deltaX: 120 });
   await f.canvas.dispatchEvent('wheel', { deltaY: -120 });
   expect(await center()).toBe(pausedCenter);
   await expect(f.viewport).toHaveAttribute('data-span', span!);
-  await page.getByRole('checkbox', { name: '暂停下载与请求刷新' }).uncheck();
+  await page.getByRole('checkbox', { name: '暂停下载展示' }).uncheck();
   await expect(f.panel.getByText('事件已连接', { exact: true })).toBeVisible();
   await f.panel.getByRole('button', { name: '回到现在' }).click();
   await f.panel.getByRole('switch', { name: '按状态分三层' }).check();
@@ -496,12 +497,14 @@ test('handoff follows GET and fitted demand blocks keep earlier positions on top
     return { early: at(firstX - 3), overlap: at(secondX), late: at(secondX + 7), x: secondX };
   });
   const timeline = await timelinePixels();
+  const scrollBeforeDetails=await page.evaluate(()=>scrollY);
   expect(timeline.overlap).toEqual(timeline.early); expect(timeline.overlap).not.toEqual(timeline.late);
   await f.canvas.click({ position: { x: timeline.x, y: 133 } });
   await expect(popup).toContainText('块 1/64');
   await popup.getByRole('button', { name: '下一个重叠块' }).click();
   await expect(popup).toContainText('块 2/64');
   expect((await timelinePixels()).overlap).toEqual(timeline.overlap);
+  await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(scrollBeforeDetails);
   await popup.getByRole('button', { name: '关闭块详情' }).click();
   const strip = f.panel.locator('.demand-block-canvas').first();
   await expect.poll(() => strip.evaluate(c => {

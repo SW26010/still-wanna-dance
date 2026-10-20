@@ -33,8 +33,8 @@ test('narrow left drawer traps focus, restores trigger on Escape, and follows se
   for(let i=0;i<12;i++){await page.keyboard.press('Tab');expect(await nav.evaluate(el=>el.contains(document.activeElement))).toBe(true);}
   await page.screenshot({path:info.outputPath('drawer-dark.png'),animations:'disabled'});
   await page.keyboard.press('Escape');await expect(nav).toHaveCount(0);await expect(toggle).toBeFocused();
-  await navigate(page,'运行状态');await expect(page.locator('#main')).toBeFocused();
-  await toggle.click();await expect(nav.getByRole('link',{name:'运行状态',exact:true})).toHaveAttribute('aria-current','page');
+  await navigate(page,'网络与代理');await expect(page.locator('#main')).toBeFocused();
+  await toggle.click();await expect(nav.getByRole('link',{name:'网络与代理',exact:true})).toHaveAttribute('aria-current','page');
   await page.setViewportSize({width:1280,height:900});await expect(toggle).toHaveCount(0);await expect(nav).toBeVisible();
   await page.setViewportSize({width:320,height:800});await expect(nav).toHaveCount(0);await expect(toggle).toBeVisible();
   await page.emulateMedia({forcedColors:'active',reducedMotion:'reduce'});await toggle.click();
@@ -45,7 +45,7 @@ test('narrow left drawer traps focus, restores trigger on Escape, and follows se
 for(const wizard of [false,true])test(`desktop sidebar toggles by keyboard without losing focus or content (${wizard?'wizard':'console'})`,async({page},info)=>{
   await mockAPI(page);await page.setViewportSize({width:1280,height:900});
   await page.emulateMedia({colorScheme:wizard?'dark':'light'});
-  await page.goto(wizard?'/#/setup':'/#/settings');
+  await page.goto(wizard?'/#/setup':'/#prepareAheadSeconds');
   const label=wizard?'引导步骤':'控制台页面',nav=page.getByRole('navigation',{name:label,exact:true});
   const collapse=page.getByRole('button',{name:'收起'+label,exact:true}),expand=page.getByRole('button',{name:'展开'+label,exact:true});
   const heading=page.getByRole('heading',{level:1}).first(),draft=page.getByRole('spinbutton',{name:/提前准备时间/});
@@ -58,10 +58,11 @@ for(const wizard of [false,true])test(`desktop sidebar toggles by keyboard witho
   await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:info.outputPath('collapsed.png'),animations:'disabled'});
   if(!wizard){
-    await page.locator('footer').getByRole('link',{name:'关于',exact:true}).click();
+    await page.evaluate(()=>{location.hash='/help';});
+    await page.getByRole('link',{name:'关于',exact:true}).click();
     await expect(page.getByRole('heading',{level:1})).toHaveText('Load failed? But I still wanna dance!');
     await expect(nav).toHaveCount(0);
-    await page.goBack();await expect(draft).toHaveValue('777');await expect(nav).toHaveCount(0);
+    await page.goBack();await page.goBack();await expect(draft).toHaveValue('777');await expect(nav).toHaveCount(0);
     await page.setViewportSize({width:390,height:844});await expand.click();await expect(nav).toBeVisible();
     await page.setViewportSize({width:1280,height:900});await expect(nav).toHaveCount(0);await expect(expand).toBeVisible();
   }

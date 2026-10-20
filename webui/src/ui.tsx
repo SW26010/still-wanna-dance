@@ -53,15 +53,16 @@ export function Panel({ title, children, id, ref, onFocusCapture, action }: Prop
 export function Feedback({ children, error = false }: PropsWithChildren<{ error?: boolean }>) {
   return children ? <MessageBar intent={error ? 'error' : 'info'}><MessageBarBody>{children}</MessageBarBody></MessageBar> : null;
 }
-export function Details({ title, children, open = false, onToggle }: PropsWithChildren<{ title: string; open?: boolean; onToggle?:(expanded:boolean)=>void }>) {
-  const [expanded,setExpanded]=useState(open);
+export function Details({ title, children, open = false, expanded:controlled, onToggle, keepMounted = false }: PropsWithChildren<{ title: string; open?: boolean; expanded?:boolean; onToggle?:(expanded:boolean)=>void; keepMounted?:boolean }>) {
+  // Forms retain drafts while collapsed; anchor focus needs the final layout immediately.
+  const [localExpanded,setExpanded]=useState(open), expanded=controlled??localExpanded;
   return <Accordion collapsible openItems={expanded?['detail']:[]} onToggle={(_,data)=>{const value=data.openItems.includes('detail');setExpanded(value);onToggle?.(value);}} onInvalidCapture={event=>{
     if(expanded)return;
     // Native form validation must reveal a collapsed field before focusing it.
-    event.preventDefault();setExpanded(true);
+    event.preventDefault();setExpanded(true);onToggle?.(true);
     const field=event.target as HTMLInputElement;
     requestAnimationFrame(()=>{if(field.isConnected)field.reportValidity();});
-  }}><AccordionItem value="detail"><AccordionHeader>{title}</AccordionHeader><AccordionPanel><div className="content-stack">{children}</div></AccordionPanel></AccordionItem></Accordion>;
+  }}><AccordionItem value="detail"><AccordionHeader>{title}</AccordionHeader><AccordionPanel collapseMotion={keepMounted?{children:(_,props)=>props.children}:undefined} hidden={keepMounted&&!expanded}><div className="content-stack">{children}</div></AccordionPanel></AccordionItem></Accordion>;
 }
 export function Progress({ value, max, label }: { value?: number; max?: number; label: string }) {
   return <ProgressBar aria-label={label} value={max ? Math.min(1, Math.max(0, (value || 0) / max)) : undefined} />;

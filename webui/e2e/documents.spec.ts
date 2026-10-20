@@ -38,7 +38,7 @@ test('readonly terms authenticates actions and displays server failures', async 
   const req = page.waitForRequest('**/api/hosts/disable');
   await page.getByRole('button', { name: '恢复游戏直连' }).click();
   expect((await req).headers()['x-swd-token']).toBe('browser-fixture-token');
-  await expect(page.getByText('已恢复游戏直连，播放网关、队列预加载和下载补齐已停止。')).toBeVisible();
+  await expect(page.getByText('hosts 恢复操作已完成。')).toBeVisible();
   await page.route('**/api/hosts/disable', route => route.fulfill({status: 500, body: '测试：无法停止'}));
   await page.getByRole('button', { name: '恢复游戏直连' }).click();
   await expect(page.getByText(/测试：无法停止/)).toBeVisible();

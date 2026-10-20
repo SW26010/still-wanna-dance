@@ -7,11 +7,11 @@ for(const width of [390,1280])test(`all navigation stays in one document and pre
   await page.setViewportSize({width,height:900});
   page.on('request',request=>{if(['document','script','stylesheet'].includes(request.resourceType()))requests.push(request.url());});
   page.on('pageerror',error=>errors.push(error.message));
-  await page.goto('/#/settings');
+  await page.goto('/#prepareAheadSeconds');
   const draft=page.getByRole('spinbutton',{name:/提前准备时间/});
   await draft.fill('777');
   const originalDocument=await page.evaluate(()=>performance.timeOrigin),initialRequests=requests.length;
-  for(const name of ['开始使用','运行状态','本地视频','准备歌曲','使用帮助','关于','使用条款','设置']){
+  for(const name of ['游戏加速','网络与代理','本地视频','下载管理','帮助','关于','使用条款','下载管理']){
     await navigate(page,name);
     await expect(page.getByText('正在读取控制台状态',{exact:true})).not.toBeVisible();
     if(width>640)await expect(page.locator('#main')).toBeFocused();
@@ -29,10 +29,10 @@ for(const width of [390,1280])test(`all navigation stays in one document and pre
 
 test('document body and footer links share navigation, and terms actions refresh console state',async({page})=>{
   const api=await mockAPI(page);api.state.running=true;
-  await page.goto('/#/settings');
+  await page.goto('/#prepareAheadSeconds');
   await page.getByRole('spinbutton',{name:/提前准备时间/}).fill('888');
   const originalDocument=await page.evaluate(()=>performance.timeOrigin);
-  await page.locator('footer').getByRole('link',{name:'关于',exact:true}).click();
+  await navigate(page,'关于');
   await expect(page.getByRole('heading',{level:1})).toHaveText('Load failed? But I still wanna dance!');
   await page.getByRole('link',{name:'使用条款与内容权利声明',exact:true}).click();
   const calls=api.calls.length;
@@ -41,9 +41,9 @@ test('document body and footer links share navigation, and terms actions refresh
   await expect.poll(()=>api.calls.slice(calls).some(call=>call.path==='status')).toBe(true);
   await page.getByRole('link',{name:'返回控制台',exact:true}).click();
   await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
-  await navigate(page,'使用帮助');
+  await navigate(page,'帮助');
   await page.getByRole('link',{name:'返回控制台',exact:true}).click();
-  await navigate(page,'设置');
+  await navigate(page,'下载管理');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('888');
   expect(await page.evaluate(()=>performance.timeOrigin)).toBe(originalDocument);
 });
@@ -54,7 +54,7 @@ test('direct document URLs load content before status, normalize once, and survi
   await page.route('**/api/status',route=>route.fulfill({status:503,body:'status unavailable'}));
   const documents:string[]=[];
   page.on('request',request=>{if(request.resourceType()==='document')documents.push(request.url());});
-  for(const [path,title] of [['help','使用帮助'],['about','Load failed? But I still wanna dance!'],['terms','使用条款与内容权利声明']]){
+  for(const [path,title] of [['help','帮助'],['about','Load failed? But I still wanna dance!'],['terms','使用条款与内容权利声明']]){
     const count=documents.length;
     await page.goto('/'+path);
     await expect(page.getByRole('heading',{level:1,name:title,exact:true})).toBeVisible();
@@ -73,16 +73,16 @@ test('direct document URLs load content before status, normalize once, and survi
 test('help shows active storage instead of a saved or unsaved storage change',async({page})=>{
   const api=await mockAPI(page);
   api.state.settings.storageDir='D:\\PendingStorage';
-  await page.goto('/#/settings');
+  await page.goto('/#prepareAheadSeconds');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeVisible();
-  await navigate(page,'使用帮助');
+  await navigate(page,'帮助');
   await expect(page.getByText(api.state.activeSettings.storageDir,{exact:true})).toBeVisible();
   await expect(page.getByText('D:\\PendingStorage',{exact:true})).not.toBeVisible();
 });
 
 test('public help/about stay readable before consent and terms still open the gate',async({page})=>{
   const api=await mockAPI(page);api.terms.accepted=false;
-  for(const [path,title] of [['help','使用帮助'],['about','Load failed? But I still wanna dance!']]){
+  for(const [path,title] of [['help','帮助'],['about','Load failed? But I still wanna dance!']]){
     await page.goto('/'+path+'?gate=1');
     await expect(page.getByRole('heading',{level:1,name:title,exact:true})).toBeVisible();
     await expect(page.getByRole('navigation').getByRole('link',{name:'设置',exact:true})).toHaveAttribute('href','/#/settings');
@@ -97,15 +97,15 @@ test('public help/about stay readable before consent and terms still open the ga
 for(const width of [390,1280])test(`ordinary navigation resets scrolling; explicit links locate fields (${width})`,async({page})=>{
   await mockAPI(page);
   await page.setViewportSize({width,height:720});
-  await page.goto('/#/settings');
+  await page.goto('/#prepareAheadSeconds');
   await page.getByRole('spinbutton',{name:/提前准备时间/}).fill('777');
   expect(await page.evaluate(()=>scrollY)).toBeGreaterThan(500);
-  for(const name of ['使用帮助','关于','设置']){
+  for(const name of ['帮助','关于','游戏加速']){
     await navigate(page,name);
     await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(0);
     await page.evaluate(()=>scrollTo(0,document.body.scrollHeight));
   }
-  await navigate(page,'准备歌曲');
+  await navigate(page,'下载管理');
   await page.getByRole('link',{name:'调整提前准备时间',exact:true}).click();
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeFocused();
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('777');
@@ -123,7 +123,7 @@ test('action feedback names the operation and does not follow navigation or late
   await expect(page.getByText('已开始检查缺失视频。',{exact:true})).toBeVisible();
   await navigate(page,'设置');
   await expect(page.getByText('已开始检查缺失视频。',{exact:true})).not.toBeVisible();
-  await navigate(page,'准备歌曲');
+  await navigate(page,'下载管理');
   await expect(page.getByText('已开始检查缺失视频。',{exact:true})).not.toBeVisible();
   let finish!:()=>void;
   const pending=new Promise<void>(resolve=>{finish=resolve;});
@@ -133,6 +133,6 @@ test('action feedback names the operation and does not follow navigation or late
   await navigate(page,'设置');
   finish();
   await expect(page.getByText('已开始检查缺失视频。',{exact:true})).not.toBeVisible();
-  await navigate(page,'准备歌曲');
+  await navigate(page,'下载管理');
   await expect(page.getByText('已开始检查缺失视频。',{exact:true})).not.toBeVisible();
 });

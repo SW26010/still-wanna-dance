@@ -8,9 +8,9 @@ test('first entry gates business reads, persists explicit consent, and applies o
   await expect(page.getByRole('button',{name:'下一步',exact:true})).toBeDisabled();
   expect(api.calls.some(c=>c.path==='status')).toBe(false);
   const helpOpened = page.waitForEvent('popup');
-  await page.getByRole('link',{name:'使用帮助（新窗口）'}).click();
+  await page.getByRole('link',{name:'帮助（新窗口）'}).click();
   const help = await helpOpened;
-  await expect(help.getByRole('heading',{name:'使用帮助',exact:true})).toBeVisible();
+  await expect(help.getByRole('heading',{name:'帮助',exact:true})).toBeVisible();
   await help.close();
   expect(api.calls.some(c=>c.path==='terms/accept'||c.path==='status')).toBe(false);
   await page.getByRole('button',{name:'阅读并同意条款',exact:true}).click();
@@ -32,16 +32,16 @@ test('first entry gates business reads, persists explicit consent, and applies o
   await expect(page.getByRole('heading',{name:'应用配置',exact:true})).toBeVisible();
   expect(api.calls.some(c=>c.path==='setup/apply'||c.path==='hosts/enable')).toBe(false);
   await page.getByRole('button',{name:'确认并应用',exact:true}).click();
-  await expect(page.getByRole('link',{name:'开始使用',exact:true})).toBeVisible();
+  await expect(page.getByRole('link',{name:'游戏加速',exact:true})).toBeVisible();
   const apply=api.calls.filter(c=>c.path==='setup/apply');expect(apply).toHaveLength(1);
   expect(apply[0].body).toMatchObject({baseVersion:'1',storageDir:'D:\\UI-Test\\cache',importSource:'D:\\UI-Test\\videos',customStorage:true});
   expect(apply[0].body.id).toMatch(/^[0-9a-f-]{36}$/);
   expect(api.calls.filter(c=>c.path==='terms/accept')[0].body).toEqual({version:'fixture',sha256:'fixture-hash',agree:true,contentRights:true});
 });
 test('wizard draft is independent of settings and failed apply never resubmits automatically',async({page})=>{
-  const api=await mockAPI(page);await page.goto('/#/settings');
+  const api=await mockAPI(page);await page.goto('/#prepareAheadSeconds');
   await page.getByRole('spinbutton',{name:/提前准备时间/}).fill('140');
-  await page.getByRole('link',{name:'重新打开使用引导'}).click();
+  await navigate(page,'帮助');await page.getByRole('link',{name:'重新进入使用引导',exact:true}).click();
   await page.getByRole('button',{name:'下一步',exact:true}).click();
   await page.getByRole('radio',{name:'限制为',exact:true}).check();
   await page.getByRole('spinbutton',{name:/视频存储预算/}).fill('20');
@@ -53,7 +53,7 @@ test('wizard draft is independent of settings and failed apply never resubmits a
   await expect(page.getByRole('button',{name:'核对应用结果'})).toBeVisible();
   await page.getByRole('button',{name:'核对应用结果'}).click();expect(applyCount).toBe(1);
   await page.getByRole('button',{name:'放弃草稿并退出引导'}).click();
-  await navigate(page,'设置');
+  await navigate(page,'下载管理');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('140');
   expect(api.calls.some(c=>c.path==='settings')).toBe(false);
 });

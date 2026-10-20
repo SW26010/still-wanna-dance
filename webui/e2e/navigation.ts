@@ -1,6 +1,10 @@
 import {expect,type Page} from '@playwright/test';
 
 export async function navigate(page:Page,name:string) {
+  if(name==='关于'||name==='使用条款'){
+    await navigate(page,'帮助');await page.getByRole('link',{name,exact:true}).click();
+    await expect(page.getByRole('heading',{level:1,name:name==='关于'?'Load failed? But I still wanna dance!':'使用条款与内容权利声明',exact:true})).toBeVisible();return;
+  }
   const toggle=page.getByRole('button',{name:'展开控制台页面',exact:true});
   if(page.viewportSize()!.width<=640)await toggle.click();
   await page.getByRole('navigation',{name:'控制台页面',exact:true}).getByRole('link',{name,exact:true}).click();

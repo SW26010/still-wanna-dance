@@ -297,7 +297,7 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 			name := blockViewID(id)
 			b, exists := result.Blocks[name]
 			if !exists && p.until.After(now) {
-				b = BlockView{ID: name, Resource: key, Block: block, State: "protected", TimeBasis: "ended", At: timeMS(p.until.Add(-localProtectionGrace))}
+				b = BlockView{ID: name, Resource: key, Block: block, State: "protected", TimeBasis: "ended", At: timeMS(p.until.Add(-s.cfg.LocalProtectionGrace))}
 				if previous != nil {
 					if old, ok := previous.Blocks[name]; ok {
 						b.Title, b.SongID = old.Title, old.SongID

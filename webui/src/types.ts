@@ -1,7 +1,7 @@
 export interface Settings {
   aggressiveCacheReclamation: 'auto' | 'on' | 'off';
   storageDir: string; maxCacheBytes: number; videoStorageMode: 'none' | 'limited' | 'unlimited'; requestRetentionDays: number; throughputIntervalMinutes: number;
-  prepareAheadSeconds: number; downloadSoftLimit: number; downloadGrowIntervalMS: number; downloadUpstream: string; upstreamMode: string;
+  prepareAheadSeconds: number; downloadSoftLimit: number; downloadGrowIntervalMS: number; localProtectionGraceSeconds: number; downloadUpstream: string; upstreamMode: string;
   proxyBackend: string; socks5Address: string; socks5Username: string; socks5Password?: string;
   autoStartCDN: boolean; autoStartQueue: boolean; manualLogDir: boolean; logDir: string;
 }

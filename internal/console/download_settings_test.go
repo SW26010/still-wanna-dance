@@ -10,12 +10,12 @@ import (
 
 func TestDownloadSettingsDefaultsAndZero(t *testing.T) {
 	for _, tc := range []struct {
-		name, fields    string
-		limit, interval int
+		name, fields           string
+		limit, interval, grace int
 	}{
-		{"missing", ``, 16, 250},
-		{"null", `,"downloadSoftLimit":null,"downloadGrowIntervalMS":null`, 16, 250},
-		{"zero_interval", `,"downloadSoftLimit":64,"downloadGrowIntervalMS":0`, 64, 0},
+		{"missing", ``, 16, 250, 300},
+		{"null", `,"downloadSoftLimit":null,"downloadGrowIntervalMS":null,"localProtectionGraceSeconds":null`, 16, 250, 300},
+		{"zero_interval_and_grace", `,"downloadSoftLimit":64,"downloadGrowIntervalMS":0,"localProtectionGraceSeconds":0`, 64, 0, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := testConsole(t)
@@ -23,14 +23,14 @@ func TestDownloadSettingsDefaultsAndZero(t *testing.T) {
 				t.Fatal(err)
 			}
 			c = restartTestConsole(t, c)
-			if c.settings.DownloadSoftLimit != tc.limit || c.settings.DownloadGrowIntervalMS != tc.interval {
+			if c.settings.DownloadSoftLimit != tc.limit || c.settings.DownloadGrowIntervalMS != tc.interval || c.settings.LocalProtectionGraceSeconds != tc.grace {
 				t.Fatal("incorrect loaded download settings", c.settings)
 			}
 			if err := c.save(c.settings); err != nil {
 				t.Fatal(err)
 			}
 			c = restartTestConsole(t, c)
-			if c.settings.DownloadSoftLimit != tc.limit || c.settings.DownloadGrowIntervalMS != tc.interval {
+			if c.settings.DownloadSoftLimit != tc.limit || c.settings.DownloadGrowIntervalMS != tc.interval || c.settings.LocalProtectionGraceSeconds != tc.grace {
 				t.Fatal("save/restart lost download settings", c.settings)
 			}
 		})
@@ -46,9 +46,10 @@ func TestDownloadSettingsValidationAndPersistence(t *testing.T) {
 		c.ServeHTTP(w, r)
 		return w
 	}
-	for _, values := range [][2]int{{1, 0}, {64, 2000}, {64, 1}, {16, 250}} {
+	for _, values := range [][3]int{{1, 0, 0}, {64, 2000, 10000}, {64, 1, 1}, {16, 250, 300}} {
 		next := c.settings
 		next.DownloadSoftLimit, next.DownloadGrowIntervalMS = values[0], values[1]
+		next.LocalProtectionGraceSeconds = values[2]
 		body, err := json.Marshal(next)
 		if err != nil {
 			t.Fatal(err)
@@ -56,7 +57,7 @@ func TestDownloadSettingsValidationAndPersistence(t *testing.T) {
 		if w := post(body); w.Code != 200 {
 			t.Fatal(w.Code, w.Body.String())
 		}
-		if c.settings.DownloadSoftLimit != 16 || c.settings.DownloadGrowIntervalMS != 250 || c.savedSettings != next {
+		if c.settings.DownloadSoftLimit != 16 || c.settings.DownloadGrowIntervalMS != 250 || c.settings.LocalProtectionGraceSeconds != 300 || c.savedSettings != next {
 			t.Fatal("save changed runtime or lost download settings")
 		}
 		loaded, err := New(c.configPath, c.address)
@@ -74,8 +75,9 @@ func TestDownloadSettingsValidationAndPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	for key, invalid := range map[string][]string{
-		"downloadSoftLimit":      {"-1", "0", "65", "1.5", `"16"`},
-		"downloadGrowIntervalMS": {"-1", "2001", "0.5", `"250"`},
+		"downloadSoftLimit":           {"-1", "0", "65", "1.5", `"16"`},
+		"downloadGrowIntervalMS":      {"-1", "2001", "0.5", `"250"`},
+		"localProtectionGraceSeconds": {"-1", "10001", "0.5", `"300"`, "true"},
 	} {
 		for _, value := range invalid {
 			body, _ := json.Marshal(c.savedSettings)

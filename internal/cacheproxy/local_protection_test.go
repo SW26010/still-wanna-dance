@@ -49,7 +49,7 @@ func TestLocalProtectionWindowAndFixedTail(t *testing.T) {
 		}
 		ended := time.Now()
 		release()
-		if got := protectionFor(s, w.v.key, 0); !got.start.IsZero() || got.until != ended.Add(time.Minute) {
+		if got := protectionFor(s, w.v.key, 0); !got.start.IsZero() || got.until != ended.Add(s.cfg.LocalProtectionGrace) {
 			t.Fatal("wrong final-source grace", got)
 		}
 		time.Sleep(30 * time.Second)
@@ -57,10 +57,10 @@ func TestLocalProtectionWindowAndFixedTail(t *testing.T) {
 		s.mu.Lock()
 		s.notifyCapacityLocked()
 		s.mu.Unlock()
-		if protectionFor(s, w.v.key, 0).until != ended.Add(time.Minute) {
+		if protectionFor(s, w.v.key, 0).until != ended.Add(s.cfg.LocalProtectionGrace) {
 			t.Fatal("duplicate event refreshed grace")
 		}
-		time.Sleep(30 * time.Second)
+		time.Sleep(s.cfg.LocalProtectionGrace - 30*time.Second)
 		if protectionFor(s, w.v.key, 0).active(time.Now()) {
 			t.Fatal("grace did not expire")
 		}
@@ -83,7 +83,7 @@ func TestLocalProtectionConsumptionAndSharing(t *testing.T) {
 		time.Sleep(10 * time.Second)
 		ended := time.Now()
 		other()
-		if protectionFor(s, w.v.key, 0).until != ended.Add(time.Minute) {
+		if protectionFor(s, w.v.key, 0).until != ended.Add(s.cfg.LocalProtectionGrace) {
 			t.Fatal("consumed block did not enter grace")
 		}
 		if !protectionFor(s, w.v.key, 1).until.IsZero() {
@@ -108,7 +108,7 @@ func TestLocalProtectionFarFutureAndUntimedDoNotExtendTail(t *testing.T) {
 				if protectionFor(s, w.v.key, 0).until != until {
 					t.Fatal("new source renewed old tail")
 				}
-				time.Sleep(time.Minute)
+				time.Sleep(s.cfg.LocalProtectionGrace)
 				if protectionFor(s, w.v.key, 0).active(time.Now()) {
 					t.Fatal("future/untimed source provided immediate protection")
 				}
@@ -150,7 +150,7 @@ func TestLocalProtectionHandoffUsesRealExpiryDespiteDelayedCallback(t *testing.T
 		s.mu.Unlock()
 		synctest.Wait()
 		p := protectionFor(s, w.v.key, 0)
-		if !p.start.IsZero() || p.until != ended.Add(getHandoff+time.Minute) {
+		if !p.start.IsZero() || p.until != ended.Add(getHandoff+s.cfg.LocalProtectionGrace) {
 			t.Fatal("delayed callback extended handoff protection", p)
 		}
 	})
@@ -165,7 +165,7 @@ func TestLocalProtectionNewInWindowSourceSurvivesOldExpiry(t *testing.T) {
 		time.Sleep(30 * time.Second)
 		_, release = addTestDemand(t, s, ctx, w.v, true)
 		defer release()
-		time.Sleep(time.Minute)
+		time.Sleep(s.cfg.LocalProtectionGrace)
 		s.retentionMu.Lock()
 		s.nextProtectionExpiryLocked(time.Now())
 		s.retentionMu.Unlock()
@@ -175,7 +175,7 @@ func TestLocalProtectionNewInWindowSourceSurvivesOldExpiry(t *testing.T) {
 	})
 }
 
-func TestLocalProtectionQueueHandoffThenSixtySeconds(t *testing.T) {
+func TestLocalProtectionQueueHandoffThenConfiguredTail(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)
 		s.UpdatePrefetchQueue([]int64{1}, false)
@@ -191,10 +191,10 @@ func TestLocalProtectionQueueHandoffThenSixtySeconds(t *testing.T) {
 		}
 		time.Sleep(time.Second)
 		synctest.Wait()
-		if p := protectionFor(s, v.key, 0); !p.start.IsZero() || p.until != ended.Add(queueHandoff+time.Minute) {
+		if p := protectionFor(s, v.key, 0); !p.start.IsZero() || p.until != ended.Add(queueHandoff+s.cfg.LocalProtectionGrace) {
 			t.Fatal("queue protection did not start at handoff end", p)
 		}
-		time.Sleep(time.Minute)
+		time.Sleep(s.cfg.LocalProtectionGrace)
 		if protectionFor(s, v.key, 0).active(time.Now()) {
 			t.Fatal("queue-only grace survived unified expiry")
 		}
@@ -236,6 +236,59 @@ func TestLocalProtectionConfiguration(t *testing.T) {
 					t.Fatalf("protection lead = %v, want %v", got, tc.want)
 				}
 			}
+		})
+	}
+}
+
+func TestLocalProtectionGraceConfiguration(t *testing.T) {
+	if got := DefaultConfig().LocalProtectionGrace; got != 300*time.Second {
+		t.Fatal("incorrect default local protection grace", got)
+	}
+	for _, seconds := range []int{-1, 0, 1, 300, 10000, 10001} {
+		cfg := DefaultConfig()
+		cfg.LocalProtectionGrace = time.Duration(seconds) * time.Second
+		if err := cfg.validate(); (err == nil) != (seconds >= 0 && seconds <= 10000) {
+			t.Fatalf("grace=%d: %v", seconds, err)
+		}
+	}
+}
+
+func TestLocalProtectionConfiguredGraceReclaimsFromRealEnd(t *testing.T) {
+	for _, grace := range []time.Duration{0, time.Second, 300 * time.Second, 10000 * time.Second} {
+		t.Run(grace.String(), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				w, s := testSession(t)
+				s.cfg.LocalProtectionGrace = grace
+				w.v.size = rangeBlockSize
+				local := reclamationResource(t, s, w.v)
+				// Early delivery/cancellation must not retain through need-by.
+				clock := &playbackClock{at: time.Now().Add(240 * time.Second), limit: w.v.size}
+				ctx := context.WithValue(context.Background(), playbackClockKey{}, clock)
+				ctx = context.WithValue(ctx, httpGETKey{}, true)
+				_, release := addTestDemand(t, s, ctx, w.v, true)
+				s.reclaimLocalBlocks()
+				if !local.has(0) || !protectionFor(s, w.v.key, 0).active(time.Now()) {
+					t.Fatal("configured grace changed live protection")
+				}
+				ended := time.Now()
+				release()
+				if got := protectionFor(s, w.v.key, 0); got.until != ended.Add(grace) || !got.start.IsZero() {
+					t.Fatal("tail did not use actual end plus configured grace", got)
+				}
+				if grace > 0 {
+					time.Sleep(grace - time.Nanosecond)
+					s.reclaimLocalBlocks()
+					if !local.has(0) {
+						t.Fatal("block reclaimed before configured expiry")
+					}
+					release()
+					time.Sleep(time.Nanosecond)
+				}
+				s.reclaimLocalBlocks()
+				if local.has(0) || protectionFor(s, w.v.key, 0).active(time.Now()) {
+					t.Fatal("block protected after expiry or duplicate release renewed tail")
+				}
+			})
 		})
 	}
 }

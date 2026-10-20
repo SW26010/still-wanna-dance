@@ -6,7 +6,10 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
-const localProtectionGrace = time.Minute
+const (
+	DefaultLocalProtectionGrace = 300 * time.Second
+	MaxLocalProtectionGrace     = 10000 * time.Second
+)
 
 // Local protection is independent of download execution and file availability.
 // start is derived from current finite usage; until is an already established
@@ -85,7 +88,7 @@ func (s *Server) endLocalUseLocked(id useBlockID, at time.Time) {
 		return
 	}
 	if !p.start.IsZero() && !at.Before(p.start) {
-		p.until = maxTime(p.until, at.Add(localProtectionGrace))
+		p.until = maxTime(p.until, at.Add(s.cfg.LocalProtectionGrace))
 	}
 	p.start = time.Time{}
 	blocks[id.block] = p

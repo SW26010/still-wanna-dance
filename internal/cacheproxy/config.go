@@ -55,7 +55,10 @@ type Config struct {
 	// Normal configurations should cover the effective PrepareAhead; this design
 	// convention is not enforced by validation.
 	LocalProtectAhead time.Duration
-	MaxFileBytes      int64
+	// LocalProtectionGrace retains already protected blocks after their final
+	// usage ends; zero disables this tail without changing live protection.
+	LocalProtectionGrace time.Duration
+	MaxFileBytes         int64
 	// CacheUnlimited disables the retained-video budget independently of its value.
 	CacheUnlimited bool
 	// MaxCacheBytes bounds retained videos; zero reclaims every unprotected video.
@@ -91,6 +94,7 @@ func DefaultConfig() Config {
 		PrepareAhead:               blocksched.DefaultPrepareAhead,
 		DownloadSoftLimit:          VideoRequestSoftLimit,
 		DownloadGrowInterval:       DefaultDownloadGrowInterval,
+		LocalProtectionGrace:       DefaultLocalProtectionGrace,
 		MaxFileBytes:               2 << 30,
 		MaxLocalValidations:        3,
 		Logger:                     slog.New(slog.NewJSONHandler(os.Stderr, nil)),
@@ -109,6 +113,9 @@ func (c Config) validate() error {
 	}
 	if c.LocalProtectAhead < 0 || c.LocalProtectAhead > 24*time.Hour {
 		return errors.New("local protection lead must be between 0 and 86400 seconds")
+	}
+	if c.LocalProtectionGrace < 0 || c.LocalProtectionGrace > MaxLocalProtectionGrace {
+		return errors.New("local protection grace must be between 0 and 10000 seconds")
 	}
 	if c.OriginScheme != "https" && c.OriginScheme != "http" {
 		return errors.New("invalid origin scheme")

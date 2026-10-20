@@ -34,3 +34,30 @@ test('download settings validate bounds, preserve zero and explain CPU cost',asy
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:testInfo.outputPath('download-settings-narrow.png')});
 });
+
+test('local protection grace preserves zero, validates bounds and waits for restart',async({page},testInfo)=>{
+  const api=await mockAPI(page);await page.goto('/#/settings');
+  const grace=page.getByRole('spinbutton',{name:'本地延续保护时长（秒）'});
+  const save=page.getByRole('button',{name:'保存设置',exact:true});
+  await expect(grace).toHaveValue('300');
+  await expect(grace).toHaveAccessibleDescription(/最后一份需求结束后.*0 表示不延续保护/);
+  for(const value of ['','-1','10001','0.5']){
+    await grace.fill(value);await save.click();
+    expect(api.calls.filter(c=>c.path==='settings')).toHaveLength(0);
+  }
+  await grace.fill('0');
+  await navigate(page,'运行状态');await navigate(page,'设置');
+  await expect(grace).toHaveValue('0');
+  await save.click();await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeEnabled();
+  expect(api.state.settings.localProtectionGraceSeconds).toBe(0);
+  expect(api.state.activeSettings.localProtectionGraceSeconds).toBe(300);
+  await page.reload();await expect(grace).toHaveValue('0');
+  await grace.fill('10000');await save.click();
+  await expect(save).toBeDisabled();
+  expect(api.state.settings.localProtectionGraceSeconds).toBe(10000);
+  expect(api.state.activeSettings.localProtectionGraceSeconds).toBe(300);
+  await page.setViewportSize({width:390,height:844});
+  await grace.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:testInfo.outputPath('local-protection-settings-narrow.png')});
+});

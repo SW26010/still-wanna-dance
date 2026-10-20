@@ -88,7 +88,7 @@ func TestBlockObservationLifecycleSourcesAndGrace(t *testing.T) {
 		if s.blockObserver.Load() == nil {
 			t.Fatal("one viewer closed another")
 		}
-		time.Sleep(time.Minute)
+		time.Sleep(s.cfg.LocalProtectionGrace)
 		synctest.Wait()
 		if len(observedSnapshot(t, sub).Blocks) != 0 {
 			t.Fatal("expired protection remained without reclamation")
@@ -149,6 +149,7 @@ func TestBlockObservationReopensWithoutInventingHistory(t *testing.T) {
 		s.ctx = context.Background()
 		v := video{key: "resource", size: rangeBlockSize}
 		s.localResources = map[string]*localResource{v.key: {video: v, done: map[int64]bool{0: true}}}
+		s.cfg.LocalProtectionGrace = 123 * time.Second
 		until := time.Now().Add(20 * time.Second)
 		s.protection = map[string]map[int64]blockProtection{v.key: {0: {until: until}}}
 		sub, err := s.ObserveBlocks()
@@ -157,7 +158,7 @@ func TestBlockObservationReopensWithoutInventingHistory(t *testing.T) {
 		}
 		defer sub.Close()
 		b := observedSnapshot(t, sub).Blocks["resource/0"]
-		if b.TimeBasis != "ended" || b.At != until.Add(-time.Minute).UnixMilli() || b.NeedBy != 0 || b.InUse {
+		if b.TimeBasis != "ended" || b.At != until.Add(-123*time.Second).UnixMilli() || b.NeedBy != 0 || b.InUse {
 			t.Fatal(b)
 		}
 	})

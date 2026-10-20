@@ -742,3 +742,19 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 60 次额度增长均只增加一路，时间间隔不短于对应配置；530 次普通启动均满足 active≤open。1500 ms 段每次增路的实测间隔为 1500.089～1500.817 ms。14:13:13.881 的 finished 将 active 降至 11，紧随其后的 started 恢复至 12，open 始终为 12，属于已有额度复用。最后一段的 6 次 Blocking 启动均为 active=17、open=16，符合实际读取的既有例外。没有发现本次运行违反缓增或普通额度的证据。用户对异常是否重现表示不确定；这些数据不能追溯证明此前无逐块日志的那次情况，也不等同于游戏体验或 UI 每帧显示验收。
 
 原始私密日志及分析工具保留在忽略目录 `artifacts/block-growth-investigation/live-05mbps-20261020/`，脱敏摘要为 `summary.json`、`timing-evidence.json`；原始快照 SHA256 为 `da32df7e3dedf1f93ad3f61726827d66fb08c2ced2a3a02799f45586988f071c`。本次只读取已有运行结果并补充验证记录，未调整用户配置、启动游戏或修改 hosts；不新增实机台账项。
+
+## 71. 可配置的本地延续保护时长
+
+2026-10-20：设置页「本地存储」新增「本地延续保护时长（秒）」，默认 300，接受 0～10000 的整数。字段 `localProtectionGraceSeconds` 经 `Config.LocalProtectionGrace` 进入现有块保护机制；缺失/null 使用默认，显式 0 不延续保护。保存不改变当前引擎，应用重新启动后生效；引导保留此前已保存的值，并在最终核对中显示尚未生效的差异。
+
+截止仍为最后一份块需求（含交接）真实结束的 E 加配置时长 G，不采用 `max(E, need-by)+G`；尚未生效的保护、无期限准备和仅剩远期来源均沿用原边界。0 不解除有效需求或必要 I/O 引用的保护，也不要求立即删除文件。未连续观察的保护块以截止减运行配置 G 定位真实结束时间，连续观察时仍沿用已有 need-by 位置。现行 canonical、存储、队列、MD5 和时间轴文档已同步；早期固定 60 秒的开发记录及实机证据只适用于当时的配置，本项替代其固定时长要求。
+
+验证及原始日志位于忽略目录 `artifacts/local-protection-settings/`：
+
+- 虚拟时间覆盖 0、1、300、10000 秒的实际块回收边界、提前结束不等到 need-by、重复撤销不续期，以及现有共享、交接延迟通知、远期/无期限需求和读取引用规则。观测回归使用 123 秒检查结束时间定位。首轮定向检查通过，见 `backend-focused.txt`。
+- 设置回归覆盖缺失/null 默认、显式 0 的保存/重载、合法边界、非法类型及越界拒绝、失败不改文件、保存/运行快照分离和仅启停网关不应用。受影响 `cacheproxy`、`console` 与 `cmd/...` 整包通过，见 `backend-suite.txt`；保护/回收/观测及设置/引擎定向 Windows race 通过，见 `backend-race.txt`、`console-race.txt`。
+- `TestLocalProtectionSettingsControlEngineAfterRestart` 使用生产设置到引擎路径、实际文件导入和本地 HTTP GET，确认保存后仍使用旧值，关闭/重载后应用 123 秒与 0 秒，保护截止和观测结束时间准确。最终通过见 `engine-integration-verified.txt`。前两次夹具未在 Console 初始化后登记资源域名，GET 被正规准入校验拒绝；失败保留在 `engine-integration.txt`、`engine-integration-final.txt`，只修正测试登记顺序，没有放宽产品校验。
+- 两项 Edge 设置场景通过，包含数值校验、零值、草稿切页、保存/刷新与待重启状态、390px 无横向溢出；已查看新字段截图，见 `browser.txt`、`browser/`。类型、构建及嵌入产物一致性检查通过，见 `frontend-build.txt`、`frontend-check.txt`。真实控制台/调度器/回环 Range 上游/Edge 的时间轴联调通过，默认 300 秒下的下载、保护块及零残留 SSE 均正常，见 `real-browser.txt`、`real-browser/`。
+- 独立 EXE 的实际进程替换检查因既有加密条款回执不适用于当前条款而停止，未自动同意，测试进程已退出；保留 `real-service.txt` 及独立目录日志。上述配置重载与真实引擎测试、真实浏览器联调使用仓库既有隔离测试夹具，不将其表述为用户安装环境的进程替换通过。
+
+相关 go vet、diff 检查通过。未修改用户运行配置、启动游戏或修改 hosts；本次无需新增 VRC 台账项。

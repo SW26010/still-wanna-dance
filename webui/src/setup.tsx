@@ -41,7 +41,7 @@ function SetupReview({draft:d,status:s,source}:{draft:Draft;status:Status;source
     if(p.socks5Password)rows.push(['代理密码','将更新']);
     else if(p.socks5Password===''&&s.socks5PasswordSet)rows.push(['代理密码','将清除']);
   }
-  const labels={autoStartCDN:'自动启动播放网关',autoStartQueue:'自动启动队列',prepareAheadSeconds:'提前准备时间 M（秒）',downloadSoftLimit:'下载并发上限（软）',downloadGrowIntervalMS:'并发增长间隔（毫秒）',requestRetentionDays:'请求保留天数',throughputIntervalMinutes:'测速间隔（分钟）',downloadUpstream:'回源线路',manualLogDir:'手动日志位置',logDir:'日志目录'};
+  const labels={autoStartCDN:'自动启动播放网关',autoStartQueue:'自动启动队列',prepareAheadSeconds:'提前准备时间 M（秒）',downloadSoftLimit:'下载并发上限（软）',downloadGrowIntervalMS:'并发增长间隔（毫秒）',localProtectionGraceSeconds:'本地延续保护时长（秒）',requestRetentionDays:'请求保留天数',throughputIntervalMinutes:'测速间隔（分钟）',downloadUpstream:'回源线路',manualLogDir:'手动日志位置',logDir:'日志目录'};
   let advancedChanged=false;
   for(const key of Object.keys(labels) as (keyof typeof labels)[]){if(current[key]!==s.settings[key]){advancedChanged=true;rows.push([labels[key],change(String(current[key]),String(s.settings[key]))+'（此前已保存）']);}}
   if(current.aggressiveCacheReclamation!==p.aggressiveCacheReclamation)rows.push(['激进的缓存回收策略',change(reclamationLabel(current),reclamationLabel(p))+'（此前已保存）']);

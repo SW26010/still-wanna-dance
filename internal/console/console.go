@@ -35,31 +35,32 @@ import (
 var assets embed.FS
 
 type Settings struct {
-	nodeSnapshot               string
-	nodeSecret                 string
-	nodeSecretError            string
-	nodeImportID               string // transient request only; cleared before publish
-	proxySecret                string
-	proxySecretError           string
-	ThroughputIntervalMinutes  int    `json:"throughputIntervalMinutes"`
-	AutoStartQueue             bool   `json:"autoStartQueue"`
-	RequestRetentionDays       int    `json:"requestRetentionDays"`
-	AutoStartCDN               bool   `json:"autoStartCDN"`
-	PrepareAheadSeconds        int    `json:"prepareAheadSeconds"`
-	DownloadSoftLimit          int    `json:"downloadSoftLimit"`
-	DownloadGrowIntervalMS     int    `json:"downloadGrowIntervalMS"`
-	DownloadUpstream           string `json:"downloadUpstream"`
-	UpstreamMode               string `json:"upstreamMode"`
-	ProxyBackend               string `json:"proxyBackend"`
-	SOCKS5Address              string `json:"socks5Address"`
-	SOCKS5Username             string `json:"socks5Username"`
-	SOCKS5Password             string `json:"socks5Password,omitempty"`
-	MaxCacheBytes              int64  `json:"maxCacheBytes"`
-	VideoStorageMode           string `json:"videoStorageMode"`
-	AggressiveCacheReclamation string `json:"aggressiveCacheReclamation"`
-	StorageDir                 string `json:"storageDir"`
-	LogDir                     string `json:"logDir"`
-	ManualLogDir               bool   `json:"manualLogDir"`
+	nodeSnapshot                string
+	nodeSecret                  string
+	nodeSecretError             string
+	nodeImportID                string // transient request only; cleared before publish
+	proxySecret                 string
+	proxySecretError            string
+	ThroughputIntervalMinutes   int    `json:"throughputIntervalMinutes"`
+	AutoStartQueue              bool   `json:"autoStartQueue"`
+	RequestRetentionDays        int    `json:"requestRetentionDays"`
+	AutoStartCDN                bool   `json:"autoStartCDN"`
+	PrepareAheadSeconds         int    `json:"prepareAheadSeconds"`
+	DownloadSoftLimit           int    `json:"downloadSoftLimit"`
+	DownloadGrowIntervalMS      int    `json:"downloadGrowIntervalMS"`
+	LocalProtectionGraceSeconds int    `json:"localProtectionGraceSeconds"`
+	DownloadUpstream            string `json:"downloadUpstream"`
+	UpstreamMode                string `json:"upstreamMode"`
+	ProxyBackend                string `json:"proxyBackend"`
+	SOCKS5Address               string `json:"socks5Address"`
+	SOCKS5Username              string `json:"socks5Username"`
+	SOCKS5Password              string `json:"socks5Password,omitempty"`
+	MaxCacheBytes               int64  `json:"maxCacheBytes"`
+	VideoStorageMode            string `json:"videoStorageMode"`
+	AggressiveCacheReclamation  string `json:"aggressiveCacheReclamation"`
+	StorageDir                  string `json:"storageDir"`
+	LogDir                      string `json:"logDir"`
+	ManualLogDir                bool   `json:"manualLogDir"`
 }
 
 type Console struct {
@@ -159,6 +160,7 @@ func New(configPath, address string) (*Console, error) {
 		VideoStorageMode: "none", MaxCacheBytes: 0,
 		AggressiveCacheReclamation: "auto",
 		DownloadSoftLimit:          cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),
+		LocalProtectionGraceSeconds: int(cacheproxy.DefaultLocalProtectionGrace / time.Second),
 	}
 	c.exitRequested = make(chan struct{})
 	c.restartRequested = make(chan struct{})
@@ -270,6 +272,9 @@ func absoluteSettings(s Settings) (Settings, error) {
 	}
 	if s.DownloadGrowIntervalMS < 0 || s.DownloadGrowIntervalMS > int(cacheproxy.MaxDownloadGrowInterval/time.Millisecond) {
 		return s, errors.New("并发增长间隔必须为 0～2000 毫秒")
+	}
+	if s.LocalProtectionGraceSeconds < 0 || s.LocalProtectionGraceSeconds > int(cacheproxy.MaxLocalProtectionGrace/time.Second) {
+		return s, errors.New("本地延续保护时长必须为 0～10000 秒")
 	}
 	if s.DownloadUpstream == "" {
 		s.DownloadUpstream = "auto"
@@ -430,6 +435,7 @@ func (c *Console) ensureEngine() error {
 	cfg.PrepareAhead = time.Duration(c.settings.PrepareAheadSeconds) * time.Second
 	cfg.DownloadSoftLimit = c.settings.DownloadSoftLimit
 	cfg.DownloadGrowInterval = time.Duration(c.settings.DownloadGrowIntervalMS) * time.Millisecond
+	cfg.LocalProtectionGrace = time.Duration(c.settings.LocalProtectionGraceSeconds) * time.Second
 	cfg.DialContext = c.upstreamDial
 	mode := c.settings.DownloadUpstream
 	if mode == "cf" {
@@ -1138,6 +1144,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		input.DownloadSoftLimit = cacheproxy.VideoRequestSoftLimit
 		input.DownloadGrowIntervalMS = int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond)
+		input.LocalProtectionGraceSeconds = int(cacheproxy.DefaultLocalProtectionGrace / time.Second)
 		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
 			if input.CustomStorage {
 				if err = c.validateStorageSelection(input.StorageDir, true); err != nil {

@@ -29,13 +29,13 @@ func TestDownloadExpiryEndsGETWithoutClientHandoff(t *testing.T) {
 		if !errors.Is(context.Cause(d.ctx), blocksched.ErrExpired) || ctx.Err() != nil || useCount(s) != 0 || len(s.useHandoffs) != 0 {
 			t.Fatal("service expiry lost its cause, canceled the client context or created a handoff")
 		}
-		if d.exit.at.Load().reason != withdrawalNeedEnded || s.protection[w.v.key][0].until != now.Add(localProtectionGrace) {
+		if d.exit.at.Load().reason != withdrawalNeedEnded || s.protection[w.v.key][0].until != now.Add(s.cfg.LocalProtectionGrace) {
 			t.Fatal("withdrawal did not establish protection at the real source exit")
 		}
 		time.Sleep(time.Second)
 		s.expireDownload(w.f, w.v.key, 0)
 		release()
-		if s.protection[w.v.key][0].until != now.Add(localProtectionGrace) {
+		if s.protection[w.v.key][0].until != now.Add(s.cfg.LocalProtectionGrace) {
 			t.Fatal("replayed failure extended the protection tail")
 		}
 	})

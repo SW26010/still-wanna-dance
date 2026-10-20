@@ -124,9 +124,9 @@ func TestBlockReclamationFollowsGETConsumptionWithReaderStillOpen(t *testing.T) 
 		g.start(http.StatusOK, nil)
 		g.accept(rangeBlockSize)
 		ended := time.Now()
-		time.Sleep(59 * time.Second)
+		time.Sleep(s.cfg.LocalProtectionGrace - time.Second)
 		s.reclaimLocalBlocks()
-		if !local.has(0) || protectionFor(s, w.v.key, 0).until != ended.Add(time.Minute) {
+		if !local.has(0) || protectionFor(s, w.v.key, 0).until != ended.Add(s.cfg.LocalProtectionGrace) {
 			t.Fatal("consumed block did not keep its fixed tail")
 		}
 		time.Sleep(time.Second)
@@ -252,7 +252,7 @@ func TestReclaimedBlockReentersPlanForCurrentUsage(t *testing.T) {
 					g := &getConsumption{s: s, demand: old, size: w.v.size}
 					g.start(http.StatusOK, nil)
 					g.accept(rangeBlockSize)
-					time.Sleep(localProtectionGrace)
+					time.Sleep(s.cfg.LocalProtectionGrace)
 					s.reclaimLocalBlocks()
 					if local.has(0) || !local.has(1) {
 						t.Fatal("consumed block was not reclaimed independently")

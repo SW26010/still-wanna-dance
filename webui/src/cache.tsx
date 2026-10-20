@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Checkbox, Field, Input, Link, Select, Subtitle2, List, ListItem, Divider, Caption1 } from '@fluentui/react-components';
+import { SettingsPage, ImportPanel } from './settings';
 import { request, APIError } from './api';
 import { useApp, useResource, useFocusRecovery } from './hooks';
 import { Details, Feedback, Panel } from './ui';
@@ -7,7 +8,7 @@ import { type CacheEntry, type CachePage, type Inventory, date, dated, gib } fro
 
 export const cacheLabel = (entry: CacheEntry) => entry.songs.length ? entry.songs.map(s => `${s.title || '未知歌名'}（ID ${s.id}）`).join(' / ') : '未知歌名 · 未关联歌曲';
 const resultNames: Record<string,string> = {deleted:'已删除',protected:'受保护，已跳过',missing:'文件已不存在',unknown:'未知文件，未删除',changed:'文件或歌曲关联已变化，请刷新后重选',unsafe:'目录不安全，未删除',failed:'操作失败，未删除'};
-export function Cache({ visible }: {visible: boolean}) {
+export function Cache({ visible, section }: {visible: boolean;section?:string}) {
   const app = useApp(), s = app.status.data!, focus = useFocusRecovery();
   const [search, setSearch] = useState(''), [sort, setSort] = useState('recent'), [offset, setOffset] = useState(0);
   const [query, setQuery] = useState({q:'',sort:'recent'}), [selected, setSelected] = useState<string[]>([]), [pending, setPending] = useState(false), [result, setResult] = useState('');
@@ -41,7 +42,7 @@ export function Cache({ visible }: {visible: boolean}) {
     } catch (e) { setResult(e instanceof APIError ? e.message : '操作响应未确认，请刷新文件列表核对，勿直接重复删除。'); }
     finally { setPending(false); if (action === 'delete') { setSelected([]); page.refresh(); } }
   }
-  return <><Panel id="cache" {...focus} title="本地文件"><p>按文件管理 · 每页 50 项</p><p>按歌曲查找并清理本地视频。正在使用或准备播放的文件不可删除。</p><p>刷新文件列表只读取本机文件；下方的覆盖率统计会联网更新歌曲清单。</p>
+  return <><div className="actions"><Link href="#video-import">导入视频</Link><Link href="#storage-settings">存储设置</Link></div><div hidden={section!=='video-import'}><ImportPanel/></div><div hidden={!['storage-settings','maxCacheGiB'].includes(section || '')}><SettingsPage section="storage"/></div><InventoryPanel visible={visible}/><Panel id="cache" {...focus} title="本地文件"><p>按文件管理 · 每页 50 项</p><p>按歌曲查找并清理本地视频。正在使用或准备播放的文件不可删除。</p><p>刷新文件列表只读取本机文件；上方的覆盖率统计会联网更新歌曲清单。</p>
     <p>{page.data ? `${page.data.fileCount} 个视频文件 · 占用 ${gib(page.data.totalBytes)} · 当前视频存储预算：${s.activeSettings.videoStorageMode === 'unlimited' ? '不限制' : s.activeSettings.videoStorageMode === 'none' ? '0 GiB（不保留持久化视频文件）' : gib(s.activeSettings.maxCacheBytes)}` : '视频占用待读取'}</p>
     <form className="actions" onSubmit={e => { e.preventDefault(); setOffset(0); setQuery({q:search,sort}); page.refresh(); }}>
       <Field label="歌名或歌曲 ID"><Input type="search" maxLength={300} value={search} onChange={(_, v) => setSearch(v.value)} /></Field>
@@ -63,20 +64,20 @@ export function Cache({ visible }: {visible: boolean}) {
       <Button disabled={disabled || !e.known} onClick={() => void operate('open',[e])}>定位文件</Button>
     </div></ListItem>)}</List>
     {(page.data?.total || 0) > 50 && <div className="actions"><Button disabled={disabled || offset === 0} onClick={() => setOffset(Math.max(0,offset-50))}>上一页</Button><Button disabled={disabled || offset+50 >= (page.data?.total || 0)} onClick={() => setOffset(offset+50)}>下一页</Button></div>}
-    </Panel><InventoryPanel visible={visible} /></>;
+    </Panel></>;
 }
 function InventoryPanel({visible}: {visible:boolean}) {
   const app = useApp(), t = app.status.data!.traffic || {};
   const inventory = useResource<Inventory>('inventory',visible && !app.stopped,app.revision), v = inventory.data;
   const known = v && dated(v.updated) && v.coverageKnown && v.totalSongs > 0;
-  return <Panel id="overview" title="本地视频统计"><Details title="本地视频复用统计"><Subtitle2 as="h3">请求统计</Subtitle2><p>当前存储目录累计</p><p>已命中次数 {t.hits || 0} · 请求命中率 {t.hitRate == null ? '—' : t.hitRate.toFixed(1)+'%'} · 本地视频命中节省流量 {gib(t.savedBytes)} · 播放传输次数（30 秒去重） {t.playbackTransfers || 0}</p>
+  return <Panel id="overview" title="曲库覆盖率"><Subtitle2 as="h3">歌曲本地视频覆盖率</Subtitle2><p>{known ? `${(100*v.coveredSongs/v.totalSongs).toFixed(1)}% · ${v.coveredSongs} / ${v.totalSongs} 首曲目已覆盖` : '覆盖率待刷新'}</p>
+<Details title="覆盖率与复用详情"><Details title="本地视频复用统计"><Subtitle2 as="h3">请求统计</Subtitle2><p>当前存储目录累计</p><p>已命中次数 {t.hits || 0} · 请求命中率 {t.hitRate == null ? '—' : t.hitRate.toFixed(1)+'%'} · 本地视频命中节省流量 {gib(t.savedBytes)} · 播放传输次数（30 秒去重） {t.playbackTransfers || 0}</p>
     <p>成功请求 {t.requests || 0} 次 · 未命中 {t.misses || 0} 次 · 未命中播放首正文 {t.coldBodyMS?.toFixed(1) || '—'} ms（{t.coldBodySamples || 0} 个样本）· 本地命中播放首正文 {t.localBodyMS?.toFixed(1) || '—'} ms（{t.localBodySamples || 0} 个样本）</p>
     <Details title="统计口径与计算方式"><p>仅统计成功返回视频内容的请求，预下载不计入。节省流量是本地视频命中返回的数据量，未扣除提前下载的流量。播放传输按同一歌曲 30 秒去重，不代表游戏实际播放次数。</p></Details><Feedback error>{t.error}</Feedback></Details>
-    <Subtitle2 as="h3">歌曲本地视频覆盖率</Subtitle2><p>{known ? `${(100*v.coveredSongs/v.totalSongs).toFixed(1)}% · ${v.coveredSongs} / ${v.totalSongs} 首曲目已覆盖` : '覆盖率待刷新'}</p>
-    <p role="status">{inventory.error ? '统计暂不可用' : v?.scanning ? '正在扫描，保留上次结果' : `上次成功刷新：${date(v?.updated)}`}</p>
+        <p role="status">{inventory.error ? '统计暂不可用' : v?.scanning ? '正在扫描，保留上次结果' : `上次成功刷新：${date(v?.updated)}`}</p>
     <p>歌曲清单检查时间：{date(v?.catalog?.checkedAt)}</p>
     <Details title="歌曲清单详情"><p>歌曲清单版本：{v?.catalog?.revision || '尚无有效清单'} {v?.catalogRevision && v.catalogRevision !== v.catalog?.revision && `· 覆盖率基于 ${v.catalogRevision}，请刷新`}</p><p>{v?.catalog?.message}</p><Feedback error>{v?.catalog?.error}</Feedback></Details>
     <Details title="覆盖率说明"><p>按本地歌曲清单检查视频文件是否存在，不检查文件内容。刷新时会联网更新清单，失败则使用本地清单。共用一个视频的歌曲分别计入覆盖率。</p></Details>
     <Button disabled={app.unavailable || !v || v.scanning} onClick={() => void app.action('inventory/scan')}>更新清单并统计覆盖率</Button>
-    <Feedback error>{v?.error || app.status.data!.actionErrors?.inventory}</Feedback></Panel>;
+    <Feedback error>{v?.error || app.status.data!.actionErrors?.inventory}</Feedback></Details></Panel>;
 }

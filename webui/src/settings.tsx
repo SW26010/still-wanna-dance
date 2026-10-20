@@ -7,7 +7,6 @@ import { Details, Feedback, Panel, Progress } from './ui';
 import { type Settings, type Status } from './types';
 import { CacheCapacityFields, CacheReclamationFields, capacityPayload, type CapacityDraft } from './cache-capacity';
 import { StorageDirectoryFields } from './storage-directory';
-import { VRCXImport } from './vrcx';
 
 const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadSoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
 type NumberField = typeof numeric[number];
@@ -86,9 +85,10 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending, w
   </div>;
 }
 
-export function SettingsPage({visible}: {visible:boolean}) {
+export type SettingsSection = 'application' | 'storage' | 'downloads';
+export function SettingsPage({section='application'}: {section?:SettingsSection}) {
   const app = useApp(), s = app.status.data!;
-  const [draft, setDraft] = useState<Draft>(), [pending, setPending] = useState(false);
+  const [draft, setDraft] = useState<Partial<Draft>>(), [pending, setPending] = useState(false);
   const [awaitingRevision, setAwaitingRevision] = useState<number>();
   useEffect(() => { setDraft(undefined); setAwaitingRevision(undefined); }, [app.settingsEpoch]);
   useEffect(() => {
@@ -97,35 +97,36 @@ export function SettingsPage({visible}: {visible:boolean}) {
     }
   }, [awaitingRevision, app.status.loadedRevision]);
   const syncing = awaitingRevision !== undefined;
-  const d = draft || draftFrom(s.settings), dirty = !syncing && fingerprint(d) !== fingerprint(draftFrom(s.settings));
+  const d = {...draftFrom(s.settings),...draft}, dirty = !syncing && fingerprint(d) !== fingerprint(draftFrom(s.settings));
   const prepareAheadSeconds = Number(d.prepareAheadSeconds);
   const prepareAheadEstimate = Number.isInteger(prepareAheadSeconds) && prepareAheadSeconds >= 100 && prepareAheadSeconds <= 16000
     ? `（当前值约占 ${prepareAheadSeconds / 4} MB 临时缓存，按 2 Mbps 估算）` : '';
-  const update = (patch: Partial<Draft>) => setDraft({...d, ...patch});
-  const disabled = app.unavailable || pending || syncing;
+  const update = (patch: Partial<Draft>) => setDraft(value=>({...value, ...patch}));
+  const disabled = app.unavailable || pending || syncing || app.status.loadedRevision !== app.revision;
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (dirty && !app.stopped) event.preventDefault(); };
     addEventListener('beforeunload', warn); return () => removeEventListener('beforeunload', warn);
   }, [dirty, app.stopped]);
   const numberField = (key: NumberField | 'maxCacheGiB', label: string, min: number, max: number, hint: string, step = '1') => <Field label={label} hint={hint} required><Input id={key} type="number" required min={min} max={max} step={step} disabled={disabled} value={d[key]} onChange={(_, v) => update({[key]:v.value})} /></Field>;
-  return <><Panel id="preferences" title="偏好设置"><Feedback error>{s.actionErrors?.settings}</Feedback><form className="form-grid settings-form" onSubmit={async e => { e.preventDefault(); if (!dirty || disabled || d.proxyImportText.trim()) return; if (await app.action('settings', settingsPayload(d))) { setDraft(d); setAwaitingRevision(app.revision + 1); } }}>
+  return <Panel id={section==='storage'?'storage-settings':section==='downloads'?'download-settings':'preferences'} title={{application:'应用设置',storage:'视频存储',downloads:'预加载与下载设置'}[section]}><Feedback error>{s.actionErrors?.settings}</Feedback><form className="form-grid settings-form" onSubmit={async e => { e.preventDefault(); if (!dirty || disabled || d.proxyImportText.trim()) return; if (await app.action('settings', settingsPayload(d))) { setAwaitingRevision(app.revision + 1); } }}>
       <div className="content-stack settings-actions" role="region" aria-label="设置操作"><p role="status">{syncing ? '正在核对已保存的设置…' : dirty ? '有未保存的更改。保存并重启应用后生效。' : s.restartRequired ? '设置已保存，重启应用后生效。' : '配置与当前运行一致。更改后需保存并重启应用。'}</p>
       <div className="actions"><Button type="submit" appearance="primary" disabled={disabled || !dirty || !!d.proxyImportText.trim()}>保存设置</Button><Button disabled={disabled || !dirty} onClick={() => { void releaseImport(d.proxyImportID); setDraft(undefined); }}>放弃更改</Button>
       {s.restartRequired && <Button disabled={disabled || dirty} onClick={() => void app.action('restart')}>立即重启并应用</Button>}</div>
       </div>
-      <fieldset disabled={disabled}><legend>本地存储</legend>
+      {section==='storage'&&<fieldset disabled={disabled}><legend>本地存储</legend>
       <CacheCapacityFields anchor="maxCacheGiB" mode={d.videoStorageMode} value={d.maxCacheGiB} disabled={disabled} onChange={update} />
       <StorageDirectoryFields mode={d.videoStorageMode} disabled={disabled}>{directoryDisabled =>
         <Field label="本地存储目录" required hint="统一保存视频、歌曲资料和统计记录。下载中的文件也保存在此目录。"><Input required disabled={directoryDisabled} value={d.storageDir} onChange={(_, v) => update({storageDir:v.value})} /></Field>
       }</StorageDirectoryFields>
       <Details title="高级存储设置"><CacheReclamationFields mode={d.videoStorageMode} reclamation={d.aggressiveCacheReclamation} disabled={disabled} onChange={update} />
       {numberField('localProtectionGraceSeconds','本地延续保护时长（秒）',0,10000,'默认 300 秒，可设为 0～10000 的整数。最后一份需求结束后，继续保护本地缓存的时间。0 表示不延续保护；时间越长，占用空间可能越多。')}
-      {numberField('requestRetentionDays','请求明细保留天数',0,36500,'默认 30 天，0 表示永久保留。只清理请求明细，累计统计保留。')}</Details></fieldset>
-      <fieldset disabled={disabled}><legend>控制台启动</legend><Checkbox label="运行控制台时自动启用播放网关" checked={d.autoStartCDN} onChange={(_, v) => update({autoStartCDN:!!v.checked})} /><Checkbox label="运行控制台时自动启用房间队列预加载" checked={d.autoStartQueue} onChange={(_, v) => update({autoStartQueue:!!v.checked})} /><p>两项默认启用，分别控制，互不跟随。保存后在下次启动控制台程序时生效，重新打开网页不会触发。</p><p>自动启用需已同意使用条款，不自动修改游戏接入（hosts）。手动启停不会改变这两项设置。</p></fieldset>
+      </Details></fieldset>}
+      {section==='application'&&<><fieldset disabled={disabled}><legend>控制台启动</legend><Checkbox label="运行控制台时自动启用播放网关" checked={d.autoStartCDN} onChange={(_, v) => update({autoStartCDN:!!v.checked})} /><Checkbox label="运行控制台时自动启用房间队列预加载" checked={d.autoStartQueue} onChange={(_, v) => update({autoStartQueue:!!v.checked})} /><p>两项默认启用，分别控制，互不跟随。保存后在下次启动控制台程序时生效，重新打开网页不会触发。</p><p>自动启用需已同意使用条款，不自动修改游戏接入（hosts）。手动启停不会改变这两项设置。</p></fieldset>
       <fieldset><legend>网络连接</legend><NetworkFields draft={d} update={update} disabled={app.unavailable || syncing} status={s} onPending={setPending} />
       <Details title="高级线路与测速设置"><Field label="播放地址接口选择" hint="忽略游戏内 CDN 选择。自动模式优先 CF，失败后尝试 HKG；固定模式只使用指定接口，视频来源由接口决定。"><Select disabled={disabled} value={d.downloadUpstream} onChange={(_, v) => update({downloadUpstream:v.value})}><option value="auto">自动（CF 优先）</option><option value="cf">node=cf（播放地址接口）</option><option value="hkg">node=nya（播放地址接口）</option></Select></Field>
       {numberField('throughputIntervalMinutes','自动测速间隔（分钟）',1,1440,'默认 20 分钟，按上次测速时间安排下一次检测。')}</Details></fieldset>
-      <Details title="高级下载设置"><fieldset disabled={disabled}>
+      {numberField('requestRetentionDays','请求明细保留天数',0,36500,'默认 30 天，0 表示永久保留。只清理请求明细，累计统计保留。')}</>}
+      {section==='downloads'&&<><Details title="高级下载设置"><fieldset disabled={disabled}>
       <p><strong>为减小 CPU 占用，强烈不建议增加并发数或减小增长间隔。</strong>建议保留默认的 16 路和 250 毫秒。保存并重启应用后生效。</p>
       {numberField('downloadSoftLimit','同时下载数量',1,64,'默认 16 路，可设为 1～64 的整数。按需开放下载额度；播放正在等待的缺块可临时突破此上限。')}
       {numberField('downloadGrowIntervalMS','并发增长间隔（毫秒）',0,2000,'默认 250 毫秒，可设为 0～2000 的整数。有可下载任务积压且额度占满时，每隔此时间增加一路；0 表示关闭缓增，按需直接使用上限额度。')}
@@ -133,19 +134,16 @@ export function SettingsPage({visible}: {visible:boolean}) {
       <fieldset disabled={disabled}><legend>房间队列与游戏日志</legend><Caption1 as="p" className="hint">下载补齐期间，房间队列预加载会临时暂停。</Caption1>
       {numberField('prepareAheadSeconds','提前准备时间（秒）',100,16000,`默认 500 秒，建议 200～2000 秒${prepareAheadEstimate}。数值越大，越早下载预计播放的内容，也会更早占用带宽和缓存空间。保存并重启应用后生效。`)}
       <Checkbox label="手动指定 VRChat 日志目录" checked={d.manualLogDir} onChange={(_, v) => update({manualLogDir:!!v.checked})} />
-      <Field label="VRChat 日志目录" hint="默认自动识别。仅在无法找到游戏日志时手动指定，取消勾选可恢复自动。"><Input required={d.manualLogDir} disabled={!d.manualLogDir || disabled} value={d.manualLogDir ? d.logDir : s.defaultLogDir} onChange={(_, v) => update({logDir:v.value})} /></Field></fieldset>
+      <Field label="VRChat 日志目录" hint="默认自动识别。仅在无法找到游戏日志时手动指定，取消勾选可恢复自动。"><Input required={d.manualLogDir} disabled={!d.manualLogDir || disabled} value={d.manualLogDir ? d.logDir : s.defaultLogDir} onChange={(_, v) => update({logDir:v.value})} /></Field></fieldset></>}
       <Details title="保存与重启说明"><p>重启会停止当前服务和任务，按已保存的自动启动设置重新启动。批量任务需手动重新开始，hosts 映射保留。</p></Details>
-    </form></Panel>
-    <ImportPanel />
-    {visible&&<VRCXImport />}
-    <Panel title="使用引导"><p>整理存储、网络与导入清单，最后核对并应用。</p><Link href="#/setup">重新打开使用引导</Link></Panel></>;
+    </form></Panel>;
 }
 
-function ImportPanel() {
+export function ImportPanel() {
   const app = useApp(), s = app.status.data!, job = s.import;
   const [source, setSource] = useState(''), [cleanup, setCleanup] = useState(false);
   useEffect(() => setCleanup(false), [job.id]);
-  return <Panel title="从外部目录导入视频"><p>先更新歌曲清单，再递归扫描并逐个校验 MD5，仅导入本地缺少的匹配视频。开始扫描后固定文件列表，不追踪改名或移动的文件。同盘使用 NTFS 硬链接，异盘复制；硬链接的两处文件共享内容，请勿修改源视频。</p>
+  return <Panel id="video-import" title="导入视频"><p>先更新歌曲清单，再递归扫描并逐个校验 MD5，仅导入本地缺少的匹配视频。开始扫描后固定文件列表，不追踪改名或移动的文件。同盘使用 NTFS 硬链接，异盘复制；硬链接的两处文件共享内容，请勿修改源视频。</p>
     <p>导入到当前生效目录：{s.activeSettings.storageDir}（更改保存目录后需重启生效）</p>
     <form className="form-grid" onSubmit={async e => { e.preventDefault(); if (s.settings.storageDir !== s.activeSettings.storageDir && !await app.confirm('新存储目录尚未生效', <>已保存的新存储目录尚未生效。本次将导入到当前生效目录：{s.activeSettings.storageDir}。若要使用新目录，请取消并先重启应用。仍要导入当前目录吗？</>)) return; await app.action('import/start',{source:source.trim()}); }}>
       <Field label="外部目录" required><Input required disabled={app.unavailable || job.running} value={source} onChange={(_, v) => setSource(v.value)} /></Field><Button type="submit" disabled={app.unavailable || job.running || !source.trim()}>扫描并导入</Button>

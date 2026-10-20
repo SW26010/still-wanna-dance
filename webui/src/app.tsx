@@ -3,7 +3,7 @@ import { Badge, Button, Link, Spinner, Title2 } from '@fluentui/react-components
 import { ConsoleContext, useConsole } from './hooks';
 import { Brand, Feedback, NavigationLayout, pageLinks, documentPages, isDocumentPage, DocumentFooter } from './ui';
 import { DocumentContent } from './documents';
-import { Home, Library } from './home-library';
+import { Home, DownloadsPage } from './home-library';
 import { SettingsPage } from './settings';
 import { Cache } from './cache';
 import { Monitor } from './monitor';
@@ -12,10 +12,10 @@ import { bootstrap } from './bootstrap';
 import { request } from './api';
 import { accelerationLabel } from './types';
 
-const pages = {home:'开始使用',library:'准备歌曲',cache:'本地视频',monitor:'运行状态',settings:'设置',setup:'使用引导',...documentPages};
+const pages = {home:'开始使用',library:'下载管理',cache:'本地视频',monitor:'运行状态',settings:'设置',setup:'使用引导',...documentPages};
 type Page = keyof typeof pages;
 const descriptions:Partial<Record<Page,string>>={home:'为 VRChat WannaDance 复用已下载视频，也可提前准备房间队列。',monitor:'查看下载进度、最近请求和网络连接。',cache:'查找已下载的视频，清理磁盘空间。',library:'按房间队列提前准备，或批量下载缺失视频。',settings:'调整存储、网络和启动偏好。',setup:'设置、导入、检测和接入；可随时返回或离开。'};
-const anchors: Record<string,Page> = {activation:'home',service:'home',queue:'library',overview:'cache',cache:'cache',downloads:'monitor',recent:'monitor',network:'monitor',batch:'library',preferences:'settings',prepareAheadSeconds:'settings',maxCacheGiB:'settings','help-start':'help','help-playback':'help','help-storage':'help','help-stop':'help','help-paths':'help'};
+const anchors: Record<string,Page> = {activation:'home',service:'home',queue:'library',overview:'cache',cache:'cache',downloads:'library',recent:'monitor',network:'monitor',batch:'library',preferences:'settings',prepareAheadSeconds:'library',maxCacheGiB:'cache','storage-settings':'cache','video-import':'cache','help-start':'help','help-playback':'help','help-storage':'help','help-stop':'help','help-paths':'help'};
 export function route(hash: string): Page {
   if (hash === '#/upstream') return 'monitor';
   const key = hash.replace(/^#\/?/,'');
@@ -72,7 +72,7 @@ export function App() {
       {s?.storageError && <Feedback error><p><strong>本地存储故障，已停止新的下载。</strong>已保存的本地视频仍可读取。</p><p>请检查磁盘空间和目录权限，修复后退出并重新打开整个应用。仅重新启停播放网关或队列无法恢复下载。</p><p>首个错误：{s.storageError}</p></Feedback>}
       {!s && accepted && page!=='setup' && !documentPage && !model.status.error && <Spinner label="正在读取控制台状态" />}
       </div>
-      {s && <><div hidden={page !== 'home'}><Home /></div><div hidden={page !== 'library'}><Library /></div><div hidden={page !== 'cache'}><Cache visible={page === 'cache'} /></div><div hidden={page !== 'monitor'}><Monitor visible={page === 'monitor'} /></div><div hidden={page !== 'settings'}><SettingsPage visible={page === 'settings'} /></div>
+      {s && <><div hidden={page !== 'home'}><Home /></div><div hidden={page !== 'library'}><DownloadsPage visible={page==='library'}/></div><div hidden={page !== 'cache'}><Cache visible={page === 'cache'} section={anchor} /></div><div hidden={page !== 'monitor'}><Monitor visible={page === 'monitor'} /></div><div hidden={page !== 'settings'}><SettingsPage /></div>
       </>}
       {isDocumentPage(page)&&<DocumentContent page={page} paths={s?{...bootstrap.paths,Storage:s.activeSettings.storageDir}:bootstrap.paths} onAction={model.refresh}/>}
       {page==='setup'&&<Setup accepted={accepted} onAccepted={()=>setAccepted(true)} onExit={exitSetup} guard={guard}/>}

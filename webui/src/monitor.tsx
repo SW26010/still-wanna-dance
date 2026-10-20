@@ -4,7 +4,6 @@ import { useApp, useResource, useFocusRecovery } from './hooks';
 import { Details, Feedback, Panel, Progress } from './ui';
 import { type Download, type RequestRecord, type HealthResult, type Health, date, mb, dated } from './types';
 import { reconcileRequestGroups, type RequestGroup, requestOutcome, requestCache, requestTitle } from './requests';
-import { BlockTimeline } from './block-timeline';
 
 type RequestPage = {storageID:string; requests:RequestRecord[]; hasMore:boolean};
 function useRequestGroups(data?: RequestPage) {
@@ -72,22 +71,23 @@ export function NetworkMonitor() {
       {!results.some(r => r.operation === op) && <p>暂无检测结果</p>}
     </Details>)}</Panel>;
 }
-export function Monitor({visible}: {visible: boolean}) {
-  const app = useApp(), [paused,setPaused] = useState(false), [limit,setLimit] = useState(50);
-  const downloadFocus=useFocusRecovery(), requestFocus=useFocusRecovery();
-  const requests = useResource<RequestPage>('requests?limit='+limit,visible && !paused && !app.stopped,app.revision);
-  const groups = useRequestGroups(requests.data);
-  const downloads = useResource<{tasks:Download[];bytesPerSecond:number}>('downloads',visible && !paused && !app.stopped,app.revision);
-  useEffect(() => setLimit(50), [app.status.data!.activeSettings.storageDir]);
-  return <><Field hint={`${paused ? '展示更新已暂停' : '下载和最近请求每 5 秒刷新，块需求时间轴随事件更新'}；暂停同时冻结时间轴，网络检测仍刷新，后台任务继续运行。`}><Checkbox label="暂停下载与请求刷新" checked={paused} onChange={(_, v) => setPaused(!!v.checked)} /></Field>
-    <BlockTimeline visible={visible} paused={paused} />
-    <Panel id="downloads" {...downloadFocus} title="当前下载"><Feedback error>{downloads.error && '活动下载读取失败，将自动重试。'}</Feedback><p role="status">{downloads.data?.tasks.length ? `${downloads.data.tasks.length} 个活动任务` : '暂无活动下载任务'} · 总下载速度 {mb(downloads.data?.bytesPerSecond)}/s</p>
+export function CurrentDownloads({visible,paused=false}: {visible:boolean;paused?:boolean}) {
+  const app=useApp(), downloadFocus=useFocusRecovery();
+  const downloads=useResource<{tasks:Download[];bytesPerSecond:number}>('downloads',visible&&!paused&&!app.stopped,app.revision);
+  return <>    <Panel id="downloads" {...downloadFocus} title="当前下载"><Feedback error>{downloads.error && '活动下载读取失败，将自动重试。'}</Feedback><p role="status">{downloads.data?.tasks.length ? `${downloads.data.tasks.length} 个活动任务` : '暂无活动下载任务'} · 总下载速度 {mb(downloads.data?.bytesPerSecond)}/s</p>
       <List navigationMode="composite" className="records" aria-label="下载任务">{downloads.data?.tasks.map((task,i) => <ListItem key={task.resource+':'+task.id}><div role="gridcell" className="record-content">{i > 0 && <Divider className="record-divider" />}<strong>{task.songs?.[0]?.title || '未知歌名'}</strong><p>{(task.songs?.length || 0)>1 || task.moreSongs ? `等 ${task.moreSongs?'至少 ':''}${task.songs?.length || 0} 首关联曲目 · 播放歌曲未确定` : '资源关联曲目'}</p>
         <p>{({cache_check:'检查本地视频',upstream_headers:'等待上游',download:'下载中',range_download:'分段下载中',hash:'校验完整文件',publish:'发布文件',index:'更新索引'}[task.stage] || '阶段未知')} · {task.host || '域名待定'}</p>
         <p>进度 {task.size>0?Math.min(100,100*task.bytes/task.size).toFixed(1)+'%':'进度未知'} · 上游速度 {mb(task.bytesPerSecond)}/s</p><Progress value={task.bytes} max={task.size} label="已读取字节进度" /><p>{mb(task.bytes)} / {task.size ? mb(task.size) : '未知'} · {mb(task.bytesPerSecond)}/s</p>
         <Details title="下载详情"><p>实际上游域名：{task.host || '尚未确定'}</p><p>{requestTitle(task)}</p><p>资源：{task.resource}</p><p>距上次读取 {(task.idleMS/1000).toFixed(0)} 秒</p></Details></div></ListItem>)}</List>
       <Details title="下载统计说明"><p>速度是最近 5 秒从网络下载视频的估算值。完整视频持久化前需完成合并和校验；视频块缓存可在下载过程中使用。</p></Details></Panel>
-    <Panel id="recent" {...requestFocus} title="最近请求"><p>请求次数不是播放次数</p><Details title="请求分组与传输口径"><p>仅显示已结束的视频请求。请求次数不等于播放次数；同一视频的相邻分段请求会合并展示。传输量是发给客户端的数据量，分组耗时和速度为估算值。</p></Details><Feedback error>{requests.error && '最近请求读取失败，将自动重试。'}</Feedback>
+</>;
+}
+export function RecentRequests({visible}: {visible:boolean}) {
+  const app=useApp(), [paused,setPaused]=useState(false), [limit,setLimit]=useState(50), requestFocus=useFocusRecovery();
+  const requests=useResource<RequestPage>('requests?limit='+limit,visible&&!paused&&!app.stopped,app.revision);
+  const groups=useRequestGroups(requests.data);
+  useEffect(()=>setLimit(50),[app.status.data!.activeSettings.storageDir]);
+  return <><Checkbox label="暂停请求刷新" checked={paused} onChange={(_,v)=>setPaused(!!v.checked)}/>    <Panel id="recent" {...requestFocus} title="最近请求"><p>请求次数不是播放次数</p><Details title="请求分组与传输口径"><p>仅显示已结束的视频请求。请求次数不等于播放次数；同一视频的相邻分段请求会合并展示。传输量是发给客户端的数据量，分组耗时和速度为估算值。</p></Details><Feedback error>{requests.error && '最近请求读取失败，将自动重试。'}</Feedback>
       <p role="status">已显示 {requests.data?.requests.length || 0} 条 HTTP 请求 · 最近 {limit} 条 HTTP 请求窗口 {requests.data?.hasMore && '· 窗口外还有 HTTP 请求，分组可能不完整'}</p>
       {!groups.length&&<p>暂无请求记录</p>}{groups.map(g => { const first = g.requests[0], span = g.end-g.first; return <Details key={`${requests.data?.storageID}:${g.id}`} title={`${first.songs?.map(s => s.title || '未知歌名').join(' / ') || '未知歌名'} · 请求 ×${g.requests.length}`}>
         <p>{requestTitle(first)}</p><p>来源 / 结果：{[...new Set(g.requests.map(requestCache))].map(label=>`${label} ×${g.requests.filter(r=>requestCache(r)===label).length}`).join(' · ')} · {[...new Set(g.requests.map(requestOutcome))].map(label=>`${label} ×${g.requests.filter(r=>requestOutcome(r)===label).length}`).join(' · ')}</p><p>资源标识：{first.resource} · {date(g.last)} · 实际传输 {mb(g.bytes)} · {g.requests.length>1?'估算跨度':'耗时'} {(span/1000).toFixed(3)} 秒 · {g.requests.length>1?'估算平均速度':'平均速度'} {span ? mb(g.bytes/span*1000)+'/s' : '—'}</p>
@@ -96,5 +96,7 @@ export function Monitor({visible}: {visible: boolean}) {
       </Details>; })}
       {requests.data?.hasMore && limit < 500 && <Button disabled={paused || app.unavailable} onClick={() => setLimit(Math.min(500,limit+50))}>加载更早记录（增加 50 条）</Button>}
       {limit === 500 && requests.data?.hasMore && <p>已达 500 条上限。</p>}
-    </Panel><NetworkMonitor /><Panel title="向导直连诊断"><p role="status">{app.status.data?.setupNetwork?.running?'正在检测…':app.status.data?.setupNetwork?.error}</p><Details title="直连诊断详情"><List navigationMode="composite" aria-label="直连诊断结果">{app.status.data?.setupNetwork?.monitor?.results?.map((r,i)=><HealthRow key={`${r.operation}/${r.route}/${r.channelID}`} row={r} minutes={(app.status.data?.setupNetwork?.monitor?.policy?.throughputInterval || 20*60*1e9)/(60*1e9)} separator={i>0} context={`${operationNames[r.operation] || r.operation} · ${r.route}`} wait={app.status.data?.setupNetwork?.running?'正在测量':'等待重试'} />)}</List></Details><Link href="#/setup">返回使用引导</Link></Panel></>;
+    </Panel></>;
+}
+export function Monitor({visible}: {visible:boolean}) {const app=useApp();return <><RecentRequests visible={visible}/><NetworkMonitor /><Panel title="向导直连诊断"><p role="status">{app.status.data?.setupNetwork?.running?'正在检测…':app.status.data?.setupNetwork?.error}</p><Details title="直连诊断详情"><List navigationMode="composite" aria-label="直连诊断结果">{app.status.data?.setupNetwork?.monitor?.results?.map((r,i)=><HealthRow key={`${r.operation}/${r.route}/${r.channelID}`} row={r} minutes={(app.status.data?.setupNetwork?.monitor?.policy?.throughputInterval || 20*60*1e9)/(60*1e9)} separator={i>0} context={`${operationNames[r.operation] || r.operation} · ${r.route}`} wait={app.status.data?.setupNetwork?.running?'正在测量':'等待重试'} />)}</List></Details><Link href="#/setup">返回使用引导</Link></Panel></>;
 }

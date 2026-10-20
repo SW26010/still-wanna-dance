@@ -1,6 +1,11 @@
-import { Button, Link, Caption1, Table, TableHeader, TableHeaderCell, TableBody, TableRow, TableCell } from '@fluentui/react-components';
+import { Button, Link, Caption1, Checkbox, Table, TableHeader, TableHeaderCell, TableBody, TableRow, TableCell } from '@fluentui/react-components';
 import { useApp } from './hooks';
 import { Details, Feedback, Panel, Progress } from './ui';
+import { useState } from 'react';
+import { CurrentDownloads } from './monitor';
+import { BlockTimeline } from './block-timeline';
+import { SettingsPage } from './settings';
+import { VRCXImport } from './vrcx';
 import { active, date, dated } from './types';
 
 export function Home() {
@@ -28,20 +33,24 @@ export function Home() {
     {dated(a.started) && <p>检测开始：{date(a.started)}{received&&` · 首个请求：${date(a.firstRequest)}`}</p>}
     </Details></div></>;
 }
+export function DownloadsPage({visible}: {visible:boolean}) {
+  const [paused,setPaused]=useState(false);
+  return <><CurrentDownloads visible={visible} paused={paused}/><Library/><Details title="下载诊断"><Checkbox label="暂停下载展示" checked={paused} onChange={(_,v)=>setPaused(!!v.checked)}/><p>暂停仅冻结展示，后台任务继续运行。</p><BlockTimeline visible={visible} paused={paused}/></Details>{visible&&<VRCXImport/>}</>;
+}
 export function Library() {
   const app = useApp(), s = app.status.data!, q = s.queue, b = s.batch, saved = s.lastBatch;
   const zeroBudget = s.activeSettings.videoStorageMode === 'none';
   const queuePhase = q.running ? q.current ? `正在准备歌曲 ${(q.active || [q.current]).join('、')}` : q.songs?.length ? '等待队列变化或重试' : '等待新的队列同步' : !q.desired ? '已关闭' : b.running && !b.scanOnly ? '下载补齐期间暂停，结束后自动恢复' : '预加载未就绪，请检查日志目录';
-  return <><Panel id="queue" title="自动准备房间队列"><p>根据游戏日志提前下载即将播放的内容，选择「不保留」也能使用。开启后等待房间同步新队列。</p><Link href="#prepareAheadSeconds">调整提前准备时间</Link><Details title="暂停与停止说明"><p>按预计播放时间提前准备队列中的有效曲目，不会回放旧队列。下载补齐期间暂停，结束后恢复原先开启的队列预加载。关闭后已开始的共享下载可能继续完成。</p></Details>
+  return <><Panel id="queue" title="自动准备房间队列"><p>根据游戏日志提前下载即将播放的内容，选择「不保留」也能使用。开启后等待房间同步新队列。</p><Details title="暂停与停止说明"><p>按预计播放时间提前准备队列中的有效曲目，不会回放旧队列。下载补齐期间暂停，结束后恢复原先开启的队列预加载。关闭后已开始的共享下载可能继续完成。</p></Details>
     <div className="actions"><Button disabled={app.unavailable || q.running || (q.desired && b.running && !b.scanOnly)} onClick={() => void app.action('queue/start')}>开启队列预加载</Button><Button disabled={app.unavailable || (!q.desired && !q.running)} onClick={() => void app.action('queue/stop')}>关闭队列预加载</Button></div>
     <p role="status">{queuePhase}</p><ol>{q.songs?.map((song,i) => <li key={`${song.songId}:${i}`}>{q.titles?.[song.songId] || song.songId}</li>)}</ol>
     <Details title="日志与累计记录"><p>{q.file || '尚未发现日志'} · 本次开启后累计准备成功 {q.completed || 0} 次</p></Details>
     <Feedback error>{q.logError || q.error || s.actionErrors?.queue}</Feedback></Panel>
-    <Panel id="batch" title="保存视频供以后使用"><p>批量下载缺失视频，留待以后播放。可能占用较多流量和磁盘空间。</p>
+    <SettingsPage section="downloads"/><Panel id="batch" title="下载缺失视频"><p>检查范围为整个曲库；下载缺失视频，留待以后播放。可能占用较多流量和磁盘空间。</p>
     {zeroBudget && <Feedback>当前选择「不保留」，无法保存曲库；上方的房间队列准备仍可使用。若要保存视频，请先<Link href="#maxCacheGiB">设置视频保留空间</Link>，保存并重启应用。</Feedback>}
-    <div className="actions"><Button disabled={app.unavailable || b.running} onClick={() => void app.action('batch/scan')}>{b.running&&b.scanOnly?'正在扫描…':'检查缺失视频'}</Button><Button disabled={app.unavailable || b.running || zeroBudget} onClick={() => void app.action('batch/switch')}>{b.running&&!b.scanOnly?'正在下载补齐…':q.running ? '暂停预加载并下载补齐' : '下载补齐'}</Button><Button disabled={app.unavailable || !b.running} onClick={() => void app.action('batch/cancel')}>停止批量任务</Button></div>
+    <div className="actions"><Button disabled={app.unavailable || b.running} onClick={() => void app.action('batch/scan')}>{b.running&&b.scanOnly?'正在扫描…':'检查缺失视频'}</Button><Button disabled={app.unavailable || b.running || zeroBudget} onClick={() => void app.action('batch/switch')}>{b.running&&!b.scanOnly?'正在下载…':q.running ? '暂停预加载并下载缺失视频' : '下载缺失视频'}</Button><Button disabled={app.unavailable || !b.running} onClick={() => void app.action('batch/cancel')}>停止批量任务</Button></div>
     <Details title="检查与下载说明"><p>检查缺失视频会更新歌曲清单并检查本地文件，不下载或校验视频内容。补齐期间暂停房间队列预加载，结束后恢复原先开启的队列预加载。空间不足时停止；停止任务后，已开始的共享下载可能继续完成。</p></Details>
-    <p>{dated(saved.updated) ? `上次完成的${saved.scanOnly ? '本地检查' : '下载补齐'}${saved.catalogWarning ? '（使用已有清单）' : ''} · ${date(saved.updated)} · 任务曲目总数 ${saved.total || 0} · 检查时本地已有 ${saved.hits || 0} · 该次任务下载完成 ${saved.downloaded || 0} · 缺失视频 ${saved.missing || 0}` : '暂无完成的任务记录'}</p>
+    <Details title="上次完成的批量任务"><p>{dated(saved.updated) ? `上次完成的${saved.scanOnly ? '本地检查' : '下载补齐'}${saved.catalogWarning ? '（使用已有清单）' : ''} · ${date(saved.updated)} · 任务曲目总数 ${saved.total || 0} · 检查时本地已有 ${saved.hits || 0} · 该次任务下载完成 ${saved.downloaded || 0} · 缺失视频 ${saved.missing || 0}` : '暂无完成的任务记录'}</p></Details>
     {(b.running || !!b.total) && <Progress value={b.checked} max={b.total} label="批量任务进度" />}
     <p role="status">{b.phase || '等待开始'}</p>
     {b.catalogWarning && <Feedback error><div className="content-stack"><p>在线曲库更新失败，{b.catalog?.revision ? '本次使用已有清单。' : '本地没有可用清单，暂时无法检查视频。'}</p><Button disabled={app.unavailable || b.running} onClick={() => void app.action('batch/scan')}>重试更新</Button><Caption1 as="p">重新更新曲库并检查本地视频，不下载视频。</Caption1><Details title="在线更新错误详情"><p>{b.catalogWarning}</p></Details></div></Feedback>}<p>{b.current}{!!b.total&&` · 当前任务 ${b.checked || 0} / ${b.total} · 命中 ${b.hits || 0} · 缺失 ${b.missing || 0}${b.scanOnly?` · 本地检查失败 ${b.failed || 0}`:` · 下载完成 ${b.downloaded || 0} · 处理失败 ${b.failed || 0}`}`}</p>

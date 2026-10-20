@@ -176,3 +176,6 @@ form.actions { align-items: flex-end; }
   .timeline-legend { gap: 8px 12px; padding: 12px 10px 4px; }
   .block-timeline .timeline-help { padding-inline: 10px; }
 }
+
+.navigation-items { display:flex; flex-direction:column; }
+.navigation-divider { margin-top:auto; padding-top:var(--spacingVerticalXXL); padding-bottom:var(--spacingVerticalM); }

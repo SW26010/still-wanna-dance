@@ -96,6 +96,11 @@ export function useConsole(enabled: boolean, page: string) {
     if (destination !== page || currentPage.current === page) setFeedback({page:destination,text});
   };
   const message = feedback && (feedback.page === page || stopped) ? feedback.text : '';
+  const [dirtySettings,setDirtySettings]=useState<Set<string>>(()=>new Set());
+  const setSettingsDirty=useCallback((section:string,dirty:boolean)=>setDirtySettings(previous=>{
+    if(previous.has(section)===dirty)return previous;
+    const next=new Set(previous);if(dirty)next.add(section);else next.delete(section);return next;
+  }),[]);
   const [settingsEpoch, setSettingsEpoch] = useState(0);
   const discardSettings = useCallback(() => setSettingsEpoch(v => v + 1), []);
   const lock = useRef(false);
@@ -123,7 +128,7 @@ export function useConsole(enabled: boolean, page: string) {
       setMessage(e instanceof APIError ? e.message : unconfirmedAction); return false;
     } finally { lock.current = false; setBusy(false); refresh(); }
   }
-  return { status, revision, busy, stopped, settingsEpoch, discardSettings, message, setMessage, refresh, action, confirm: confirmation.confirm, dialog: confirmation.dialog,
+  return { status, revision, busy, stopped, settingsEpoch, dirtySettings, setSettingsDirty, discardSettings, message, setMessage, refresh, action, confirm: confirmation.confirm, dialog: confirmation.dialog,
     unavailable: busy || stopped || !status.data || !!status.error || active(status.data) };
 }
 type ConsoleModel = ReturnType<typeof useConsole>;

@@ -35,7 +35,8 @@ test('separate settings locations save only their own draft and preserve the oth
   await page.getByRole('radio',{name:'限制为',exact:true}).check();
   await page.getByRole('spinbutton',{name:/视频存储预算/}).fill('20');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
-  await expect(page.getByRole('button',{name:'立即重启并应用',exact:true})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'立即重启并应用',exact:true})).toBeDisabled();
+  await expect(page.getByRole('region',{name:'设置操作',exact:true}).getByText('其他页面仍有未保存配置，请保存或放弃后再重启。')).toBeVisible();
   expect(api.state.settings.prepareAheadSeconds).not.toBe(777);
   await navigate(page,'下载管理');
   await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveValue('777');
@@ -43,4 +44,45 @@ test('separate settings locations save only their own draft and preserve the oth
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
   expect(api.state.settings.maxCacheBytes).toBe(20*2**30);
   expect(api.state.settings.prepareAheadSeconds).toBe(777);
+});
+
+for(const width of [390,1280])test(`sidebar matches tasks and auxiliary pages (${width})`,async({page},info)=>{
+  await mockAPI(page);await page.setViewportSize({width,height:844});await page.goto('/');
+  await expect(page.getByRole('heading',{level:1,name:'游戏加速',exact:true})).toBeVisible();
+  for(const name of ['下载管理','本地视频','网络与代理','设置','帮助']){
+    await navigate(page,name);
+    await expect(page.getByRole('heading',{level:1,name,exact:true})).toBeVisible();
+  }
+  await page.getByRole('link',{name:'关于',exact:true}).click();
+  await expect(page.getByRole('heading',{level:1,name:'Load failed? But I still wanna dance!',exact:true})).toBeVisible();
+  await navigate(page,'帮助');
+  await expect(page.getByRole('link',{name:'重新进入使用引导',exact:true})).toBeVisible();
+  await page.screenshot({path:info.outputPath('navigation-help.png'),fullPage:true,animations:'disabled'});
+});
+
+test('proxy configuration and checks share the same unsaved draft without saving it',async({page})=>{
+  const api=await mockAPI(page);await page.goto('/#network-proxy');
+  await expect(page.getByRole('tab',{name:'代理设置',exact:true})).toHaveAttribute('aria-selected','true');
+  await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');
+  await page.getByRole('textbox',{name:'SOCKS5 地址',exact:true}).fill('127.0.0.1:7891');
+  await page.getByRole('button',{name:'检测此连接配置',exact:true}).click();
+  await page.getByRole('combobox',{name:'检测上游',exact:true}).selectOption('proxy');
+  await page.getByRole('button',{name:'开始连通性检测',exact:true}).click();
+  const call=api.calls.find(c=>c.path==='setup/network/connectivity/start');
+  expect(call?.body.proxy).toMatchObject({socks5Address:'127.0.0.1:7891',upstreamMode:'proxy'});
+  expect(api.calls.some(c=>c.path==='settings')).toBe(false);
+  await page.getByRole('tab',{name:'代理设置',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'SOCKS5 地址',exact:true})).toHaveValue('127.0.0.1:7891');
+  await page.getByRole('tab',{name:'高级接入',exact:true}).click();
+  await expect(page.getByRole('button',{name:'修改 hosts',exact:true})).toBeVisible();
+  await navigate(page,'游戏加速');
+  await expect(page.getByRole('button',{name:'修改 hosts',exact:true})).toHaveCount(0);
+});
+
+test('normal startup stays on acceleration even after a manual wizard was left active',async({page})=>{
+  await mockAPI(page);
+  await page.route('**/api/setup',r=>r.fulfill({json:{schemaVersion:1,state:'active',step:'proxy'}}));
+  await page.goto('/');
+  await expect(page.getByRole('heading',{level:1,name:'游戏加速',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'下一步',exact:true})).toHaveCount(0);
 });

@@ -21,7 +21,11 @@ export function Home() {
     <Feedback error>{s.queue.logError || s.queue.error || s.actionErrors?.queue}</Feedback>
     <p role="status">{progress[a.phase || '']}</p><p>{next}</p>
     <Caption1 as="p" className="hint">队列预加载单独控制；停止播放网关或退出应用不会恢复游戏连接。</Caption1>
-    </Panel><div id="service" tabIndex={-1}><Details title="高级接入设置"><Caption1 as="p" className="hint">以下操作分别控制播放网关和 hosts。停止网关或退出应用会保留连接配置。</Caption1>
+    </Panel></>;
+}
+export function AccessSettings() {
+  const app=useApp(), s=app.status.data!, a=s.activation || {}, received=dated(a.firstRequest), ready=s.running&&s.hosts.ready;
+  return <><div id="service" tabIndex={-1}><Panel title="高级接入"><Caption1 as="p" className="hint">以下操作分别控制播放网关和 hosts。停止网关或退出应用会保留连接配置。</Caption1>
     <div className="actions"><Button disabled={app.unavailable || s.running} onClick={() => void app.action('start')}>启动播放网关</Button><Button disabled={app.unavailable || !s.running} onClick={() => void app.action('stop')}>停止播放网关</Button></div>
     <Feedback error>{s.cdnError}</Feedback>
     <p>HTTP 播放 · 80：{s.running ? 'Still Wanna Dance 正在监听' : s.portOK ? '端口可用，可以启动' : s.portOwner ? `被 ${s.portOwner.name}（PID ${s.portOwner.pid}）占用，请先关闭该服务` : '端口不可用或被系统保留，请检查其他服务和端口设置'}</p>
@@ -31,7 +35,7 @@ export function Home() {
     <Caption1 as="p" className="hint">仅移除本程序添加的 hosts 映射，不覆盖其他程序的配置。收到请求不代表游戏已播放成功。</Caption1>
     <Button disabled={app.unavailable || !ready} onClick={() => void app.action('activation/enable')}>重新检测视频请求</Button>
     {dated(a.started) && <p>检测开始：{date(a.started)}{received&&` · 首个请求：${date(a.firstRequest)}`}</p>}
-    </Details></div></>;
+    </Panel></div></>;
 }
 export function DownloadsPage({visible}: {visible:boolean}) {
   const [paused,setPaused]=useState(false);

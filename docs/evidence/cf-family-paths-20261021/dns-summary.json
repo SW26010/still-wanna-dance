@@ -1,0 +1,1467 @@
+{
+  "schema": 1,
+  "sourceSHA256": "54632d24a24e383302fbf2b1db0baafdda14db61dc13753670b6a5f9844974d2",
+  "firstObservation": "2026-10-21T14:29:54.1973106+08:00",
+  "lastObservation": "2026-10-21T14:33:53.9554324+08:00",
+  "observations": 120,
+  "membershipCounts": {
+    "v4=3,v6=3": 120
+  },
+  "membershipChanges": [
+    {
+      "started": "2026-10-21T14:29:54.1973106+08:00",
+      "ips": [
+        "104.26.4.28",
+        "104.26.5.28",
+        "172.67.69.58",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::ac43:453a"
+      ]
+    }
+  ],
+  "missingFamilyOrErrorObservations": [],
+  "lookups": [
+    {
+      "Started": "2026-10-21T14:29:54.1973106+08:00",
+      "IPs": [
+        "104.26.4.28",
+        "2606:4700:20::ac43:453a",
+        "172.67.69.58",
+        "2606:4700:20::681a:41c",
+        "104.26.5.28",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 1000,
+      "ElapsedMS": 252.6566,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:56.4510972+08:00",
+      "IPs": [
+        "104.26.4.28",
+        "2606:4700:20::ac43:453a",
+        "172.67.69.58",
+        "2606:4700:20::681a:41c",
+        "104.26.5.28",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 1000,
+      "ElapsedMS": 281.7444,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:58.7338112+08:00",
+      "IPs": [
+        "172.67.69.58",
+        "2606:4700:20::681a:41c",
+        "104.26.4.28",
+        "2606:4700:20::ac43:453a",
+        "104.26.5.28",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 19000,
+      "ElapsedMS": 233.2022,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:18.9720754+08:00",
+      "IPs": [
+        "172.67.69.58",
+        "2606:4700:20::681a:51c",
+        "104.26.4.28",
+        "2606:4700:20::681a:41c",
+        "104.26.5.28",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 1000,
+      "ElapsedMS": 225.1118,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:21.1977982+08:00",
+      "IPs": [
+        "172.67.69.58",
+        "2606:4700:20::ac43:453a",
+        "104.26.4.28",
+        "2606:4700:20::681a:41c",
+        "104.26.5.28",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 238000,
+      "ElapsedMS": 223.6203,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:19.4219162+08:00",
+      "IPs": [
+        "104.26.4.28",
+        "2606:4700:20::681a:41c",
+        "104.26.5.28",
+        "2606:4700:20::681a:51c",
+        "172.67.69.58",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 1000,
+      "ElapsedMS": 228.344,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:21.4837988+08:00",
+      "IPs": [
+        "104.26.4.28",
+        "2606:4700:20::ac43:453a",
+        "104.26.5.28",
+        "2606:4700:20::681a:51c",
+        "172.67.69.58",
+        "2606:4700:20::681a:41c"
+      ],
+      "TTLMS": 1000,
+      "ElapsedMS": 223.0603,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:23.7081123+08:00",
+      "IPs": [
+        "104.26.5.28",
+        "2606:4700:20::681a:41c",
+        "104.26.4.28",
+        "2606:4700:20::681a:51c",
+        "172.67.69.58",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 56000,
+      "ElapsedMS": 232.6562,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:53.7081842+08:00",
+      "IPs": [
+        "172.67.69.58",
+        "2606:4700:20::ac43:453a",
+        "104.26.5.28",
+        "2606:4700:20::681a:41c",
+        "104.26.4.28",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 61000,
+      "ElapsedMS": 222.2349,
+      "Error": ""
+    }
+  ],
+  "lookupCount": 9,
+  "zeroTTLSuccessfulLookups": 0,
+  "oneSecondSuccessfulLookups": 5,
+  "answers": [
+    {
+      "Started": "2026-10-21T14:29:54.1973106+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 24000,
+      "ElapsedMS": 52.1557,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:54.1973106+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 1,
+      "IPs": [
+        "104.26.4.28",
+        "172.67.69.58",
+        "104.26.5.28"
+      ],
+      "TTLMS": 1000,
+      "ElapsedMS": 104.8127,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:54.1973106+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 1000,
+      "ElapsedMS": 107.936,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:54.1973106+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 1,
+      "IPs": [
+        "104.26.5.28",
+        "172.67.69.58",
+        "104.26.4.28"
+      ],
+      "TTLMS": 1000,
+      "ElapsedMS": 110.4438,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:54.1973106+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 252.6566,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:54.1973106+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 252.6566,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:54.1973106+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 252.6566,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:54.1978403+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 252.1269,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:54.1973106+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 252.6566,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:54.1973106+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 252.6566,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:54.1978403+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 252.1269,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:54.1978403+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 252.1269,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:56.4510972+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 297000,
+      "ElapsedMS": 81.2241,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:56.4510972+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 298000,
+      "ElapsedMS": 82.3969,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:56.4510972+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 1,
+      "IPs": [
+        "104.26.4.28",
+        "172.67.69.58",
+        "104.26.5.28"
+      ],
+      "TTLMS": 1000,
+      "ElapsedMS": 85.4998,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:56.4510972+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.4.28",
+        "104.26.5.28"
+      ],
+      "TTLMS": 1000,
+      "ElapsedMS": 91.1513,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:56.4510972+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "104.26.4.28",
+        "172.67.69.58",
+        "104.26.5.28"
+      ],
+      "TTLMS": 263000,
+      "ElapsedMS": 105.1483,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:56.4510972+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 281.7444,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:56.4510972+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 281.7444,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:56.4510972+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 281.7444,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:56.4510972+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 281.7444,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:56.4510972+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 281.7444,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:56.4510972+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 281.7444,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:56.4510972+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 281.7444,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:58.7338112+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.4.28",
+        "104.26.5.28"
+      ],
+      "TTLMS": 298000,
+      "ElapsedMS": 32.732,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:58.7338112+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.4.28",
+        "104.26.5.28"
+      ],
+      "TTLMS": 298000,
+      "ElapsedMS": 33.4111,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:58.7338112+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 19000,
+      "ElapsedMS": 34.2136,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:58.7338112+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:41c"
+      ],
+      "TTLMS": 295000,
+      "ElapsedMS": 36.0304,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:58.7338112+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 298000,
+      "ElapsedMS": 42.0219,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:58.7338112+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.5.28",
+        "104.26.4.28"
+      ],
+      "TTLMS": 261000,
+      "ElapsedMS": 69.3119,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:58.7338112+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.4.28",
+        "104.26.5.28"
+      ],
+      "TTLMS": 298000,
+      "ElapsedMS": 85.8838,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:58.7338112+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c"
+      ],
+      "TTLMS": 260000,
+      "ElapsedMS": 124.118,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:29:58.7338112+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 233.2022,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:58.7338112+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 233.2022,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:58.7338112+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 233.2022,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:29:58.7338112+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 233.2022,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:30:18.9720754+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.4.28",
+        "104.26.5.28"
+      ],
+      "TTLMS": 278000,
+      "ElapsedMS": 25.0572,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:18.9720754+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 1,
+      "IPs": [
+        "104.26.5.28",
+        "104.26.4.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 275000,
+      "ElapsedMS": 51.5512,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:18.9720754+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "104.26.5.28",
+        "104.26.4.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 241000,
+      "ElapsedMS": 56.0599,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:18.9720754+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 240000,
+      "ElapsedMS": 63.9288,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:18.9720754+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 1000,
+      "ElapsedMS": 83.019,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:18.9720754+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 1000,
+      "ElapsedMS": 90.0377,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:18.9720754+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.4.28",
+        "104.26.5.28"
+      ],
+      "TTLMS": 278000,
+      "ElapsedMS": 91.0378,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:18.9720754+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 225.1118,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:30:18.9720754+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 225.1118,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:30:18.9720754+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 225.1118,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:30:18.9720754+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 225.1118,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:30:18.9720754+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 225.1118,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:30:21.1977982+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.4.28",
+        "104.26.5.28"
+      ],
+      "TTLMS": 276000,
+      "ElapsedMS": 23.4203,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:21.1977982+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 298000,
+      "ElapsedMS": 29.3633,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:21.1977982+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 298000,
+      "ElapsedMS": 33.8525,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:21.1977982+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 276000,
+      "ElapsedMS": 35.9873,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:21.1977982+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 1,
+      "IPs": [
+        "104.26.4.28",
+        "172.67.69.58",
+        "104.26.5.28"
+      ],
+      "TTLMS": 276000,
+      "ElapsedMS": 37.8412,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:21.1977982+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "104.26.5.28",
+        "104.26.4.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 276000,
+      "ElapsedMS": 41.3517,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:21.1977982+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 238000,
+      "ElapsedMS": 62.6178,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:21.1977982+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "104.26.4.28",
+        "172.67.69.58",
+        "104.26.5.28"
+      ],
+      "TTLMS": 239000,
+      "ElapsedMS": 71.1438,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:30:21.1977982+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 223.6203,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:30:21.1977982+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 223.6203,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:30:21.1977982+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 223.6203,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:30:21.1977982+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 223.6203,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:19.4219162+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 95000,
+      "ElapsedMS": 28.069,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:19.4219162+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 96000,
+      "ElapsedMS": 36.6157,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:19.4219162+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 1,
+      "IPs": [
+        "104.26.4.28",
+        "104.26.5.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 98000,
+      "ElapsedMS": 36.6157,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:19.4219162+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c"
+      ],
+      "TTLMS": 300000,
+      "ElapsedMS": 67.4869,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:19.4219162+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 1,
+      "IPs": [
+        "104.26.4.28",
+        "104.26.5.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 1000,
+      "ElapsedMS": 87.9092,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:19.4219162+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 228.344,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:19.4219162+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 228.344,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:19.4219162+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 228.344,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:19.4219162+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 228.344,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:19.4219162+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 228.344,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:19.4219162+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 228.344,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:19.4219162+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 228.344,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:21.4837988+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 1,
+      "IPs": [
+        "104.26.4.28",
+        "104.26.5.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 96000,
+      "ElapsedMS": 22.9664,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:21.4837988+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c"
+      ],
+      "TTLMS": 118000,
+      "ElapsedMS": 26.2618,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:21.4837988+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 1,
+      "IPs": [
+        "104.26.5.28",
+        "104.26.4.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 97000,
+      "ElapsedMS": 31.7429,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:21.4837988+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "104.26.4.28",
+        "104.26.5.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 300000,
+      "ElapsedMS": 61.7111,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:21.4837988+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c"
+      ],
+      "TTLMS": 58000,
+      "ElapsedMS": 64.1189,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:21.4837988+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 1000,
+      "ElapsedMS": 82.1915,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:21.4837988+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.4.28",
+        "104.26.5.28"
+      ],
+      "TTLMS": 95000,
+      "ElapsedMS": 176.5086,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:21.4837988+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 223.0603,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:21.4837988+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 223.0603,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:21.4837988+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 223.0603,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:21.4837988+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 223.0603,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:21.4837988+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 223.0603,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:23.7081123+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 1,
+      "IPs": [
+        "104.26.5.28",
+        "104.26.4.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 296000,
+      "ElapsedMS": 32.5066,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:23.7081123+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 115000,
+      "ElapsedMS": 33.0315,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:23.7081123+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 1,
+      "IPs": [
+        "104.26.5.28",
+        "172.67.69.58",
+        "104.26.4.28"
+      ],
+      "TTLMS": 93000,
+      "ElapsedMS": 34.5503,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:23.7081123+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.4.28",
+        "104.26.5.28"
+      ],
+      "TTLMS": 93000,
+      "ElapsedMS": 38.8432,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:23.7081123+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 91000,
+      "ElapsedMS": 40.1124,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:23.7081123+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 93000,
+      "ElapsedMS": 40.6186,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:23.7081123+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 300000,
+      "ElapsedMS": 64.668,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:23.7081123+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.5.28",
+        "104.26.4.28"
+      ],
+      "TTLMS": 56000,
+      "ElapsedMS": 71.5362,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:23.7081123+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 232.6562,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:23.7081123+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 232.6562,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:23.7081123+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 232.6562,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:23.7081123+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 232.6562,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:53.7081842+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 86000,
+      "ElapsedMS": 21.7801,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:53.7081842+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 61000,
+      "ElapsedMS": 22.9651,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:53.7081842+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.5.28",
+        "104.26.4.28"
+      ],
+      "TTLMS": 64000,
+      "ElapsedMS": 27.1258,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:53.7081842+08:00",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.5.28",
+        "104.26.4.28"
+      ],
+      "TTLMS": 265000,
+      "ElapsedMS": 32.1185,
+      "Error": ""
+    },
+    {
+      "Started": "2026-10-21T14:33:53.7081842+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 222.2349,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:53.7081842+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 222.2349,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:53.7081842+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 222.2349,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:53.7081842+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 222.2349,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:53.7081842+08:00",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 222.2349,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:53.7081842+08:00",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 222.2349,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:53.7081842+08:00",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 222.2349,
+      "Error": "context canceled"
+    },
+    {
+      "Started": "2026-10-21T14:33:53.7081842+08:00",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 222.2349,
+      "Error": "context canceled"
+    }
+  ],
+  "answerCount": 108,
+  "answerOutcomes": {
+    "success": 56,
+    "context canceled": 52
+  },
+  "interpretation": "Collector cancellation is expected; missing-family and zero-TTL fixtures are mechanism evidence, not attribution of the earlier stopped download window."
+}

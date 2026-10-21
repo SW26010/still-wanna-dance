@@ -1,0 +1,1201 @@
+{
+  "schema": 1,
+  "windows": [
+    {
+      "window": "afternoon",
+      "sourceSHA256": "e390d374353f1ac06908f029caf4b408456f5bc9caf9ea1e1c3ac24d2b5d1f01",
+      "started": "2026-10-21T13:50:57.2787387+08:00",
+      "finished": "2026-10-21T13:57:36.6062927+08:00",
+      "outcome": "complete",
+      "error": "",
+      "dns": [
+        "104.26.4.28",
+        "104.26.5.28",
+        "172.67.69.58",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "selected": {
+        "dns": "104.26.4.28",
+        "extra": "104.24.0.1"
+      },
+      "plannedRuns": 30,
+      "completedRuns": 30,
+      "missingRuns": 0,
+      "bodyBytes": 1644059560,
+      "failedRuns": 0,
+      "failedPairs": [],
+      "medianGainPercent": 26.930747463980932,
+      "winCount": 12,
+      "pairs": [
+        {
+          "song": 1344,
+          "round": 1,
+          "throughputGainPercent": 76.61350082688692,
+          "timeSavedPercent": 43.379187020352404,
+          "prefix8ChangePercent": -31.42890446042014
+        },
+        {
+          "song": 1344,
+          "round": 2,
+          "throughputGainPercent": 47.66836930400995,
+          "timeSavedPercent": 32.2806905288386,
+          "prefix8ChangePercent": -16.31088194565702
+        },
+        {
+          "song": 1344,
+          "round": 3,
+          "throughputGainPercent": 4.426243954220399,
+          "timeSavedPercent": 4.238631771684553,
+          "prefix8ChangePercent": -29.294194451011613
+        },
+        {
+          "song": 1344,
+          "round": 4,
+          "throughputGainPercent": 35.889821146423,
+          "timeSavedPercent": 26.41097092014807,
+          "prefix8ChangePercent": -21.87542647625308
+        },
+        {
+          "song": 10552,
+          "round": 1,
+          "throughputGainPercent": 29.177467763700584,
+          "timeSavedPercent": 22.587118534537165,
+          "prefix8ChangePercent": -37.06526436044365
+        },
+        {
+          "song": 10552,
+          "round": 2,
+          "throughputGainPercent": 30.638130963106214,
+          "timeSavedPercent": 23.452670929407894,
+          "prefix8ChangePercent": 0.3684042065544624
+        },
+        {
+          "song": 10552,
+          "round": 3,
+          "throughputGainPercent": 39.05136497157877,
+          "timeSavedPercent": 28.084129184607875,
+          "prefix8ChangePercent": -7.215234840001939
+        },
+        {
+          "song": 10552,
+          "round": 4,
+          "throughputGainPercent": 24.68402716426128,
+          "timeSavedPercent": 19.797264914889247,
+          "prefix8ChangePercent": -18.841706677885394
+        },
+        {
+          "song": 10553,
+          "round": 1,
+          "throughputGainPercent": 18.43290701102469,
+          "timeSavedPercent": 15.564007906441757,
+          "prefix8ChangePercent": -27.43882970987679
+        },
+        {
+          "song": 10553,
+          "round": 2,
+          "throughputGainPercent": 14.776909735930953,
+          "timeSavedPercent": 12.874462093402261,
+          "prefix8ChangePercent": -6.2700714296176185
+        },
+        {
+          "song": 10553,
+          "round": 3,
+          "throughputGainPercent": 7.006009896130161,
+          "timeSavedPercent": 6.54730505597847,
+          "prefix8ChangePercent": -13.057071734240166
+        },
+        {
+          "song": 10553,
+          "round": 4,
+          "throughputGainPercent": 12.441046252324895,
+          "timeSavedPercent": 11.064505949550119,
+          "prefix8ChangePercent": -22.900953029965486
+        }
+      ],
+      "runs": [
+        {
+          "round": 0,
+          "song": 1344,
+          "arm": "dns",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T13:53:08.6679994+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 7216.6555,
+          "mibPerSecond": 5.358443413381065,
+          "cpuMSPerMiB": 10.101489387665273,
+          "firstBlockMS": 3908.2197,
+          "prefix8MS": 5379.885,
+          "blockP95MS": 2616.998,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 0,
+          "song": 1344,
+          "arm": "extra",
+          "ip": "104.24.0.1",
+          "started": "2026-10-21T13:53:17.8856831+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 6326.2486,
+          "mibPerSecond": 6.112633659482689,
+          "cpuMSPerMiB": 5.656834057092553,
+          "firstBlockMS": 1975.2969,
+          "prefix8MS": 4006.5835,
+          "blockP95MS": 1975.2969,
+          "peakActive": 15,
+          "peakOpen": 15,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT",
+            "MISS"
+          ]
+        },
+        {
+          "round": 0,
+          "song": 10552,
+          "arm": "dns",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T13:53:26.2126254+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 8089.7401,
+          "mibPerSecond": 12.156350345421949,
+          "cpuMSPerMiB": 4.448773347375912,
+          "firstBlockMS": 1731.3403,
+          "prefix8MS": 3952.1737,
+          "blockP95MS": 1913.5781000000002,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 0,
+          "song": 10552,
+          "arm": "extra",
+          "ip": "104.24.0.1",
+          "started": "2026-10-21T13:53:36.3036651+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 7645.5387,
+          "mibPerSecond": 12.862627306955988,
+          "cpuMSPerMiB": 3.018810485719369,
+          "firstBlockMS": 1699.6485,
+          "prefix8MS": 3501.6134,
+          "blockP95MS": 1699.6485,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 0,
+          "song": 10553,
+          "arm": "dns",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T13:53:45.9506494+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 5933.3597,
+          "mibPerSecond": 3.3333530599521874,
+          "cpuMSPerMiB": 7.900199038339785,
+          "firstBlockMS": 2097.4793,
+          "prefix8MS": 4304.4467,
+          "blockP95MS": 3120.1571,
+          "peakActive": 14,
+          "peakOpen": 14,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 0,
+          "song": 10553,
+          "arm": "extra",
+          "ip": "104.24.0.1",
+          "started": "2026-10-21T13:53:53.8857936+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 4705.193,
+          "mibPerSecond": 4.203437077244651,
+          "cpuMSPerMiB": 7.900199038339785,
+          "firstBlockMS": 2126.6191,
+          "prefix8MS": 3822.5394,
+          "blockP95MS": 2126.6191,
+          "peakActive": 12,
+          "peakOpen": 12,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 1,
+          "song": 1344,
+          "arm": "dns",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T13:54:00.5923763+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 10303.2936,
+          "mibPerSecond": 3.7531726874807516,
+          "cpuMSPerMiB": 6.869012783612385,
+          "firstBlockMS": 2813.7119,
+          "prefix8MS": 5155.2341,
+          "blockP95MS": 2885.7531,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 1,
+          "song": 1344,
+          "arm": "extra",
+          "ip": "104.24.0.1",
+          "started": "2026-10-21T13:54:12.8974047+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 5833.8086,
+          "mibPerSecond": 6.6286096754383115,
+          "cpuMSPerMiB": 4.44465533057272,
+          "firstBlockMS": 1849.8121,
+          "prefix8MS": 3535.0005,
+          "blockP95MS": 2013.6680999999999,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 1,
+          "song": 10552,
+          "arm": "dns",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T13:54:20.7329054+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 10388.8599,
+          "mibPerSecond": 9.46607383347318,
+          "cpuMSPerMiB": 5.084312397001042,
+          "firstBlockMS": 2269.4004,
+          "prefix8MS": 5744.2898,
+          "blockP95MS": 2269.4004,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 1,
+          "song": 10552,
+          "arm": "extra",
+          "ip": "104.24.0.1",
+          "started": "2026-10-21T13:54:33.1240357+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 8042.3158,
+          "mibPerSecond": 12.228034474722913,
+          "cpuMSPerMiB": 3.4954647729382167,
+          "firstBlockMS": 1970.6399,
+          "prefix8MS": 3615.1536,
+          "blockP95MS": 1623.3100999999997,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 1,
+          "song": 10553,
+          "arm": "dns",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T13:54:43.1692469+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 6137.1223,
+          "mibPerSecond": 3.2226802310574767,
+          "cpuMSPerMiB": 4.740119423003871,
+          "firstBlockMS": 2240.2065,
+          "prefix8MS": 5342.7162,
+          "blockP95MS": 3433.8617,
+          "peakActive": 14,
+          "peakOpen": 14,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 1,
+          "song": 10553,
+          "arm": "extra",
+          "ip": "104.24.0.1",
+          "started": "2026-10-21T13:54:51.3088473+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 5181.9401,
+          "mibPerSecond": 3.8167138813109776,
+          "cpuMSPerMiB": 3.1600796153359143,
+          "firstBlockMS": 2326.3849,
+          "prefix8MS": 3876.7374,
+          "blockP95MS": 2326.3849,
+          "peakActive": 13,
+          "peakOpen": 13,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 2,
+          "song": 10552,
+          "arm": "extra",
+          "ip": "104.24.0.1",
+          "started": "2026-10-21T13:54:58.4929201+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 8081.5997,
+          "mibPerSecond": 12.168595143237395,
+          "cpuMSPerMiB": 5.243197159407325,
+          "firstBlockMS": 1889.2852,
+          "prefix8MS": 3857.6281,
+          "blockP95MS": 1633.0331999999999,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 2,
+          "song": 10552,
+          "arm": "dns",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T13:55:08.8118384+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 10557.6508,
+          "mibPerSecond": 9.314734567562018,
+          "cpuMSPerMiB": 3.1776952481256515,
+          "firstBlockMS": 1815.8152,
+          "prefix8MS": 3843.4686,
+          "blockP95MS": 1929.016,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 2,
+          "song": 10553,
+          "arm": "extra",
+          "ip": "104.24.0.1",
+          "started": "2026-10-21T13:55:21.3728746+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 4540.1421,
+          "mibPerSecond": 4.356247508594938,
+          "cpuMSPerMiB": 4.740119423003871,
+          "firstBlockMS": 1940.6405,
+          "prefix8MS": 3711.6883,
+          "blockP95MS": 1940.6405,
+          "peakActive": 12,
+          "peakOpen": 12,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 2,
+          "song": 10553,
+          "arm": "dns",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T13:55:27.9159916+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 5211.0348,
+          "mibPerSecond": 3.795404074406103,
+          "cpuMSPerMiB": 4.740119423003871,
+          "firstBlockMS": 1926.91,
+          "prefix8MS": 3959.982,
+          "blockP95MS": 2709.7207,
+          "peakActive": 12,
+          "peakOpen": 12,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 2,
+          "song": 1344,
+          "arm": "extra",
+          "ip": "104.24.0.1",
+          "started": "2026-10-21T13:55:35.129866+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 5319.2772,
+          "mibPerSecond": 7.269792243693416,
+          "cpuMSPerMiB": 10.101489387665273,
+          "firstBlockMS": 1764.7826,
+          "prefix8MS": 3746.5818,
+          "blockP95MS": 1918.6773000000003,
+          "peakActive": 15,
+          "peakOpen": 15,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 2,
+          "song": 1344,
+          "arm": "dns",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T13:55:42.6746655+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 7854.8899,
+          "mibPerSecond": 4.923053107417233,
+          "cpuMSPerMiB": 2.8284170285462764,
+          "firstBlockMS": 2736.5299,
+          "prefix8MS": 4476.7849,
+          "blockP95MS": 2736.5299,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 3,
+          "song": 10553,
+          "arm": "dns",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T13:55:52.5320686+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 5125.8189,
+          "mibPerSecond": 3.858502045749605,
+          "cpuMSPerMiB": 3.9500995191698927,
+          "firstBlockMS": 1861.8974,
+          "prefix8MS": 3716.7453,
+          "blockP95MS": 2193.1005999999998,
+          "peakActive": 12,
+          "peakOpen": 12,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 3,
+          "song": 10553,
+          "arm": "extra",
+          "ip": "104.24.0.1",
+          "started": "2026-10-21T13:55:59.6610011+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 4790.2159,
+          "mibPerSecond": 4.128829080917208,
+          "cpuMSPerMiB": 3.1600796153359143,
+          "firstBlockMS": 1541.2668,
+          "prefix8MS": 3231.4472,
+          "blockP95MS": 1810.2296999999999,
+          "peakActive": 11,
+          "peakOpen": 11,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 3,
+          "song": 1344,
+          "arm": "dns",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T13:56:06.6896371+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 6004.5768,
+          "mibPerSecond": 6.4400941845918664,
+          "cpuMSPerMiB": 3.636536179559498,
+          "firstBlockMS": 1767.464,
+          "prefix8MS": 4937.8586,
+          "blockP95MS": 2465.1612999999998,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 3,
+          "song": 1344,
+          "arm": "extra",
+          "ip": "104.24.0.1",
+          "started": "2026-10-21T13:56:14.6975722+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 5750.0649,
+          "mibPerSecond": 6.725148464083464,
+          "cpuMSPerMiB": 5.252774481585941,
+          "firstBlockMS": 1533.217,
+          "prefix8MS": 3491.3527,
+          "blockP95MS": 1832.2359999999999,
+          "peakActive": 15,
+          "peakOpen": 15,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 3,
+          "song": 10552,
+          "arm": "dns",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T13:56:22.4499171+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 10052.9252,
+          "mibPerSecond": 9.78239794910727,
+          "cpuMSPerMiB": 2.701040960906804,
+          "firstBlockMS": 1808.8521,
+          "prefix8MS": 3993.6829,
+          "blockP95MS": 2170.2947999999997,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 3,
+          "song": 10552,
+          "arm": "extra",
+          "ip": "104.24.0.1",
+          "started": "2026-10-21T13:56:34.5067797+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 7229.6487,
+          "mibPerSecond": 13.602557875185388,
+          "cpuMSPerMiB": 2.8599257233130864,
+          "firstBlockMS": 1484.3903,
+          "prefix8MS": 3705.5293,
+          "blockP95MS": 1644.8437999999999,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 4,
+          "song": 1344,
+          "arm": "extra",
+          "ip": "104.24.0.1",
+          "started": "2026-10-21T13:56:43.7401243+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 5385.97,
+          "mibPerSecond": 7.17977265573615,
+          "cpuMSPerMiB": 4.44465533057272,
+          "firstBlockMS": 2282.7387,
+          "prefix8MS": 3730.7019,
+          "blockP95MS": 1876.8413,
+          "peakActive": 15,
+          "peakOpen": 15,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "LAX"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 4,
+          "song": 1344,
+          "arm": "dns",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T13:56:51.3611857+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 7318.985,
+          "mibPerSecond": 5.283524987496932,
+          "cpuMSPerMiB": 4.848714906079331,
+          "firstBlockMS": 1671.6898,
+          "prefix8MS": 4775.3245,
+          "blockP95MS": 3049.7209,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 4,
+          "song": 10552,
+          "arm": "extra",
+          "ip": "104.24.0.1",
+          "started": "2026-10-21T13:57:00.6835411+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 7711.6914,
+          "mibPerSecond": 12.752288668995337,
+          "cpuMSPerMiB": 5.084312397001042,
+          "firstBlockMS": 1500.5741,
+          "prefix8MS": 3424.562,
+          "blockP95MS": 1641.2986999999998,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 4,
+          "song": 10552,
+          "arm": "dns",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T13:57:10.3986783+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 9615.2474,
+          "mibPerSecond": 10.227684298482927,
+          "cpuMSPerMiB": 3.336580010531934,
+          "firstBlockMS": 2555.5753,
+          "prefix8MS": 4219.6082,
+          "blockP95MS": 2282.8759999999997,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 4,
+          "song": 10553,
+          "arm": "extra",
+          "ip": "104.24.0.1",
+          "started": "2026-10-21T13:57:22.0177134+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 4979.9421,
+          "mibPerSecond": 3.9715286472491296,
+          "cpuMSPerMiB": 11.0602786536757,
+          "firstBlockMS": 1989.2497,
+          "prefix8MS": 3819.7453,
+          "blockP95MS": 1989.2497,
+          "peakActive": 11,
+          "peakOpen": 11,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        },
+        {
+          "round": 4,
+          "song": 10553,
+          "arm": "dns",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T13:57:29.0019111+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 5599.499,
+          "mibPerSecond": 3.5320986237861627,
+          "cpuMSPerMiB": 3.1600796153359143,
+          "firstBlockMS": 1945.8638,
+          "prefix8MS": 4954.3353,
+          "blockP95MS": 3552.8724999999995,
+          "peakActive": 14,
+          "peakOpen": 14,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ]
+        }
+      ],
+      "training": [
+        {
+          "name": "monitor-dns-1",
+          "sourceSHA256": "4c062ef1317bfa4f14b4019573f547c0292108d16357ddc7c892462dfe20ef02",
+          "results": [
+            {
+              "ip": "104.26.4.28",
+              "state": "available",
+              "speedBPS": 4067635.4598707403,
+              "observedAt": "2026-10-21T13:51:12.0700444+08:00"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "available",
+              "speedBPS": 2922700.4474735735,
+              "observedAt": "2026-10-21T13:51:15.8894857+08:00"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "available",
+              "speedBPS": 3221494.172986298,
+              "observedAt": "2026-10-21T13:51:19.7841979+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "available",
+              "speedBPS": 2789731.6565881153,
+              "observedAt": "2026-10-21T13:51:23.4649354+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "available",
+              "speedBPS": 3964555.146497111,
+              "observedAt": "2026-10-21T13:51:27.3906062+08:00"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "available",
+              "speedBPS": 1496044.5293500638,
+              "observedAt": "2026-10-21T13:51:31.0572577+08:00"
+            }
+          ]
+        },
+        {
+          "name": "monitor-dns-2",
+          "sourceSHA256": "db3add9acf5e53735af7c1af8f4e678d5886066d017a8c652f460645f190c8b9",
+          "results": [
+            {
+              "ip": "104.26.4.28",
+              "state": "available",
+              "speedBPS": 4058295.330453253,
+              "observedAt": "2026-10-21T13:52:12.6421393+08:00"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "available",
+              "speedBPS": 1681635.4457275143,
+              "observedAt": "2026-10-21T13:52:16.295711+08:00"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "available",
+              "speedBPS": 3981417.264645989,
+              "observedAt": "2026-10-21T13:52:19.8688859+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "available",
+              "speedBPS": 1654458.14928908,
+              "observedAt": "2026-10-21T13:52:23.528749+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "available",
+              "speedBPS": 1692455.0553343934,
+              "observedAt": "2026-10-21T13:52:27.0918496+08:00"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "available",
+              "speedBPS": 1752731.6670079879,
+              "observedAt": "2026-10-21T13:52:30.7593169+08:00"
+            }
+          ]
+        },
+        {
+          "name": "monitor-dns-3",
+          "sourceSHA256": "be60a5421109018bdd4e770fc8cd4b9f0a9cb27f3279b3b433c04fcc1e50ac44",
+          "results": [
+            {
+              "ip": "104.26.4.28",
+              "state": "available",
+              "speedBPS": 1513711.4328459322,
+              "observedAt": "2026-10-21T13:52:35.8968852+08:00"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "available",
+              "speedBPS": 2680765.5202635266,
+              "observedAt": "2026-10-21T13:52:39.5443111+08:00"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "available",
+              "speedBPS": 372580.89088400855,
+              "observedAt": "2026-10-21T13:52:43.4393765+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "available",
+              "speedBPS": 3314684.555787832,
+              "observedAt": "2026-10-21T13:52:47.0016838+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "available",
+              "speedBPS": 1425094.6618857966,
+              "observedAt": "2026-10-21T13:52:50.6412271+08:00"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "available",
+              "speedBPS": 2031178.9161280338,
+              "observedAt": "2026-10-21T13:52:54.2934611+08:00"
+            }
+          ]
+        },
+        {
+          "name": "monitor-extra-1",
+          "sourceSHA256": "6711f4f38885b730174d4d5aec1ec036ee423feff56492bbf4b2a7506c2398ca",
+          "results": [
+            {
+              "ip": "103.21.244.1",
+              "state": "available",
+              "speedBPS": 3745587.05914373,
+              "observedAt": "2026-10-21T13:51:38.8727011+08:00"
+            },
+            {
+              "ip": "104.16.0.1",
+              "state": "available",
+              "speedBPS": 4210299.231009363,
+              "observedAt": "2026-10-21T13:51:42.4740437+08:00"
+            },
+            {
+              "ip": "104.24.0.1",
+              "state": "available",
+              "speedBPS": 5132825.293806794,
+              "observedAt": "2026-10-21T13:51:46.1289329+08:00"
+            },
+            {
+              "ip": "162.158.0.1",
+              "state": "unavailable",
+              "speedBPS": null,
+              "observedAt": "0001-01-01T00:00:00Z"
+            }
+          ]
+        },
+        {
+          "name": "monitor-extra-2",
+          "sourceSHA256": "edd936dbf48df832c0c5406390ce5a42294f250828bd227b80c93e28c61891a6",
+          "results": [
+            {
+              "ip": "103.21.244.1",
+              "state": "available",
+              "speedBPS": 4707101.619336932,
+              "observedAt": "2026-10-21T13:51:55.8466428+08:00"
+            },
+            {
+              "ip": "104.16.0.1",
+              "state": "available",
+              "speedBPS": 6146420.077876123,
+              "observedAt": "2026-10-21T13:51:59.2037697+08:00"
+            },
+            {
+              "ip": "104.24.0.1",
+              "state": "available",
+              "speedBPS": 5667264.226501187,
+              "observedAt": "2026-10-21T13:52:03.0319608+08:00"
+            },
+            {
+              "ip": "162.158.0.1",
+              "state": "unavailable",
+              "speedBPS": null,
+              "observedAt": "0001-01-01T00:00:00Z"
+            }
+          ]
+        },
+        {
+          "name": "monitor-extra-3",
+          "sourceSHA256": "29e765810a54706f1505853bccc86fe2e206eeebcdb048fb1bb46d939273590e",
+          "results": [
+            {
+              "ip": "103.21.244.1",
+              "state": "available",
+              "speedBPS": 5891664.373230253,
+              "observedAt": "2026-10-21T13:52:58.8265695+08:00"
+            },
+            {
+              "ip": "104.16.0.1",
+              "state": "available",
+              "speedBPS": 8979048.211735616,
+              "observedAt": "2026-10-21T13:53:00.9275084+08:00"
+            },
+            {
+              "ip": "104.24.0.1",
+              "state": "available",
+              "speedBPS": 9364199.836160706,
+              "observedAt": "2026-10-21T13:53:02.9257169+08:00"
+            },
+            {
+              "ip": "162.158.0.1",
+              "state": "unavailable",
+              "speedBPS": null,
+              "observedAt": "0001-01-01T00:00:00Z"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "completeWindowCount": 1,
+  "successfulPairs": 12,
+  "medianGainPercent": 26.930747463980932,
+  "winFraction": 1.0,
+  "medianPrefix8ChangePercent": -20.358566577069237,
+  "bySong": {
+    "1344": {
+      "pairs": 4,
+      "medianGainPercent": 41.77909522521648
+    },
+    "10552": {
+      "pairs": 4,
+      "medianGainPercent": 29.9077993634034
+    },
+    "10553": {
+      "pairs": 4,
+      "medianGainPercent": 13.608977994127924
+    }
+  },
+  "resourceWindowStrata": [
+    {
+      "window": "afternoon",
+      "song": 1344,
+      "medianGainPercent": 41.77909522521648
+    },
+    {
+      "window": "afternoon",
+      "song": 10552,
+      "medianGainPercent": 29.9077993634034
+    },
+    {
+      "window": "afternoon",
+      "song": 10553,
+      "medianGainPercent": 13.608977994127924
+    }
+  ],
+  "decision": "pending_cross_time_evidence"
+}

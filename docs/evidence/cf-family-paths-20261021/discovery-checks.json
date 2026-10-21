@@ -1,0 +1,28 @@
+{
+  "productHead": "c5d871bcf7cb65bb6c8d0a0f3298ef2e08bd80e9",
+  "binarySHA256": "94c7da1a5526049e44dae8b18c6baeb441ca8f4d839dbf381d043f5a81d50cea",
+  "recorderSHA256": "9baf15288e527111fb4904745e4ae22eab6aac19aa7ad464a2456f9725b32584",
+  "discoveryHarnessSHA256": "c90ecd54068e24ae576ea67aca14520618f8a1be9eaf0ca18743496c82621681",
+  "checksBeforeLive": [
+    "FamilyDNS and Discovery harness passed",
+    "Windows race passed",
+    "tagged console vet passed",
+    "build passed"
+  ],
+  "productionChanges": false,
+  "outcome": "complete",
+  "sourceSHA256": "515a5739b8637c4c82c73478bc769df2be92e951dc6440db784bc5e14dfe1aae",
+  "started": "2026-10-21T14:52:42.8907763+08:00",
+  "finished": "2026-10-21T14:59:11.6117043+08:00",
+  "leaseFixtureSourceSHA256": "8f071c67af934a7e6369560f63e2a08615b81b37f94f8a5ff3e377a737bf2dd5",
+  "leaseFixtureLogSHA256": "b0bf6bed0bb7ef0797cee05a566958dc0fd0fd529b4f39d3269bc50a8e76127d",
+  "analysisSHA256": "d49b5662b492f1bd252f35efe1ab502ddc9ed4ce7ab915e73dd90fa91f2bc1f5",
+  "checksAfterLive": [
+    "Discovery, FamilyDNS and lease shortening fixtures passed with Windows race",
+    "6 Python analysis tests passed",
+    "78 HTTP response peers/statuses verified",
+    "4 TLS checks linked to their empty events",
+    "Frozen prior binaries unchanged"
+  ],
+  "scope": "Current implementation observations and synthetic lease reproduction; no production fix, no attribution of earlier interrupted window."
+}

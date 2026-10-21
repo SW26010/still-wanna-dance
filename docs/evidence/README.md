@@ -18,6 +18,9 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [cf-family-paths-20261021/summary.json](cf-family-paths-20261021/summary.json) | 自动推荐、DNS IPv4/IPv6 分块训练赢家及额外候选四组对照；下午完成 27 次训练、29 次预热/正式加载后因候选消失停止，31 次缺测保留；IPv6 已通过完整资源与 16 路并发，速度和 DNS 边界见[报告](../validation/cf-family-paths-20261021.md) |
+| [cf-family-paths-20261021/discovery-summary.json](cf-family-paths-20261021/discovery-summary.json) | 双域名候选失效定位：157 次主动发现及 78 次 HTTP 响应成功；同一视频 DNS 租约过期空档的两次只读空列表与邻近 IPv4/IPv6 TLS 成功；另由夹具复现新短 TTL 提前覆盖旧有效租约。未锁定先前窗口根因，未修改生产逻辑 |
+| [cf-block-paths-20261021/summary.json](cf-block-paths-20261021/summary.json) | 当前产品双栈 Monitor 与额外候选的初步两组分块对照；3 资源、12 对正式下载，吞吐中位增益 +26.9%；保留迟滞未选中当轮最快 IPv6 的限制，后续改为独立四组协议，见[报告](../validation/cf-block-paths-20261021.md) |
 | [cf-ip-library-20261021/summary.json](cf-ip-library-20261021/summary.json) | cf-speedtester v1.1.2 的回环缺陷复现、18 IP 初筛及独立三轮复测：优选地址相对预检基线约 +26%，保留首次外层限时中断；仅当前网络单资源单连接，见[报告](../validation/cf-ip-library-20261021.md) |
 | [live-20261020-01/manifest.json](live-20261020-01/manifest.json) | 手动下一首、自然结束及手动热缓存对照共 9 笔：队首日志首次可读→首 GET 约 0.8 秒，3 秒轮询发现→GET 可为负；保留实际采样边界、播放器缓存条件和原始来源指纹。实验进程已退出，用户选择保留直连，见[报告](../acceptance/live-acceptance-20261020-01.md) |
 | [live-20261019-01/manifest.json](live-20261019-01/manifest.json) | #36 独立正文额度与本轮核心实测：正式事件关联供数区间 >768 KiB、≤1 MiB；1 Mbps 截止后真实重试/恢复、零缓存共享/回收、队列滚动与交接、正预算发布及直连恢复。保留预览干扰、冷 Seek 缺口和历史失败；hosts/进程/监听已恢复。完整脱敏附件本地与备份已验证，未发布，见[报告](../acceptance/live-acceptance-20261019-01.md) |

@@ -76,8 +76,8 @@ func cfFamilyPick(candidates []cfFamilyCandidate) (map[string]string, error) {
 	return out, nil
 }
 
-func cfFamilyTransport(ctx context.Context, dns upstreamrequest.DNSPool, target, ip string) (http.RoundTripper, func(), error) {
-	pool, err := upstreamrequest.NewPool("direct", dns, nil)
+func cfFamilyTransport(ctx context.Context, network *cfNetwork, dns upstreamrequest.DNSPool, target, ip string) (http.RoundTripper, func(), error) {
+	pool, err := network.pool(dns)
 	if err != nil {
 		return nil, func() {}, err
 	}
@@ -134,7 +134,8 @@ func TestCFFamilyExperiment(t *testing.T) {
 	fail := func(reason string) { window.Error = reason; t.Fatal(reason) }
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Minute)
 	defer cancel()
-	dns := &directDNS{}
+	network := cfexpStartNetwork(t, ctx, cancel, dir)
+	dns := &directDNS{dialer: network}
 	defer dns.close()
 	ordinary := &http.Transport{DialContext: dns.DialContext, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 20 * time.Second}
 	defer ordinary.CloseIdleConnections()
@@ -162,13 +163,13 @@ func TestCFFamilyExperiment(t *testing.T) {
 	if err != nil {
 		fail("dns_discovery")
 	}
-	baseline, err := upstreamrequest.NewPool("direct", dns, nil)
+	baseline, err := network.pool(dns)
 	if err != nil {
 		fail("dns_pool")
 	}
 	defer baseline.Close()
 	explicit := cfexpStatic{ips: cfexpExtras, until: time.Now().Add(45 * time.Minute)}
-	extra, err := upstreamrequest.NewPool("direct", explicit, nil)
+	extra, err := network.pool(explicit)
 	if err != nil {
 		fail("extra_pool")
 	}
@@ -230,7 +231,7 @@ func TestCFFamilyExperiment(t *testing.T) {
 			if candidate.Arm == "extra" {
 				source = explicit
 			}
-			tr, closePool, err := cfFamilyTransport(ctx, source, targets[1343].URL, candidate.IP)
+			tr, closePool, err := cfFamilyTransport(ctx, network, source, targets[1343].URL, candidate.IP)
 			if err != nil {
 				fail("training_candidate_removed")
 			}
@@ -301,7 +302,7 @@ func TestCFFamilyExperiment(t *testing.T) {
 		if p.Arm == "extra" {
 			source = explicit
 		}
-		tr, closePool, err := cfFamilyTransport(ctx, source, target.URL, ip)
+		tr, closePool, err := cfFamilyTransport(ctx, network, source, target.URL, ip)
 		if err != nil {
 			fail("test_candidate_removed")
 		}
@@ -331,6 +332,9 @@ func TestCFFamilyExperiment(t *testing.T) {
 		if err := cfexpPause(ctx, 2*time.Second); err != nil {
 			fail("window_stopped")
 		}
+	}
+	if err := network.err(); err != nil {
+		fail("network_binding_failed")
 	}
 	window.Outcome = "complete"
 }

@@ -133,12 +133,17 @@ func (p *cfDiscoveryProvider) Current(target string) []upstreamrequest.Candidate
 	return p.wrap(cs)
 }
 
-func cfDiscoveryCheckTLS(ctx context.Context, host, ip string, event int) cfDiscoveryTLS {
+func cfDiscoveryCheckTLS(ctx context.Context, network *cfNetwork, host, ip string, event int) cfDiscoveryTLS {
 	row := cfDiscoveryTLS{Started: time.Now(), Host: host, IP: ip, Event: event}
-	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	// Preserve the former tls.Dialer's three-second dial/handshake budget.
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	dialer := tls.Dialer{NetDialer: &net.Dialer{Timeout: 3 * time.Second}, Config: &tls.Config{ServerName: host}}
-	c, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(ip, "443"))
+	c, err := network.DialContext(ctx, "tcp", net.JoinHostPort(ip, "443"))
+	if err == nil {
+		secured := tls.Client(c, &tls.Config{ServerName: host})
+		err = secured.HandshakeContext(ctx)
+		defer secured.Close()
+	}
 	if err == nil {
 		row.Remote, _, _ = net.SplitHostPort(c.RemoteAddr().String())
 		row.OK = row.Remote == ip
@@ -164,9 +169,12 @@ func TestCFDiscoveryExperiment(t *testing.T) {
 	if err := os.Mkdir(dir, 0700); err != nil {
 		t.Fatal("output must be new:", err)
 	}
-	r := &cfDNSRecorder{d: &directDNS{}}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	network := cfexpStartNetwork(t, ctx, cancel, dir)
+	r := &cfDNSRecorder{d: &directDNS{dialer: network}}
 	defer r.d.close()
-	pool, err := upstreamrequest.NewPool("direct", r, nil)
+	pool, err := network.pool(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,8 +189,6 @@ func TestCFDiscoveryExperiment(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer m.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
 	var checks []cfDiscoveryTLS
 	started := time.Now()
 	outcome := "running"
@@ -254,7 +260,7 @@ func TestCFDiscoveryExperiment(t *testing.T) {
 			probed[e.Host]++
 			t.Logf("empty host=%s operation=%s error=%s cache_remaining=%.0fms", e.Host, e.Operation, e.Error, e.After.CacheUntil.Sub(e.After.At).Seconds()*1000)
 			for _, ip := range known[e.Host] {
-				result := cfDiscoveryCheckTLS(ctx, e.Host, ip, first+i)
+				result := cfDiscoveryCheckTLS(ctx, network, e.Host, ip, first+i)
 				checks = append(checks, result)
 				t.Logf("tls host=%s ip=%s ok=%v", e.Host, ip, result.OK)
 			}

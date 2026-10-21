@@ -55,6 +55,8 @@ Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的
 
 临时 Go 探测源码即使放在 Git 忽略的 `artifacts/` 中，仍会被 `go test ./...` 和 `go vet ./...` 发现。独立探测文件应在首行添加 `//go:build ignore` 并空一行；需要执行时用 `go run` 明确列出入口及其辅助源文件，避免多个 `main` 混入同一个包。也可放入独立的工具模块。
 
+CF 专用实验的新构建要求显式指定本地网卡配置，统一绑定 API、媒体、Monitor 与 DoH 出站；配置错误或绑定失效不回退其他网卡。实现仅在实验测试文件中，正式 EXE 不读取此配置。配置、原始地址和个人运行偏好放入已忽略的 `local/`、`artifacts/`，仓库只保留通用实现和规则，详见[实验网卡绑定](../experiments/cf-block-paths/network.md)。
+
 入口位于 `cmd/still-wanna-dance`，协议、本地资源和下载管理位于 `internal/cacheproxy`。运行方法见 [命令行服务手册](service.md)。默认本地存储、构建产物及测试覆盖率文件已忽略；测试使用 Go 的独立临时目录，不写入原版本地视频或证据目录。安装环境不会启动播放网关或修改 hosts。
 
 桌面构建使用 `scripts/build-desktop.ps1 -Version dev-名称`，版本与 UTC 构建时间写入 EXE，源码提交和 dirty 状态取 Go VCS 标记。`& ./bin/SWD.exe -build-info | Out-String` 输出机器可读 JSON 并立即退出，不读取配置、创建数据目录或争用桌面实例；启动日志复用同一身份。正式标签只经发布流程注入，缺失/dirty 的 VCS 不显示为正式发行；无 Git 的对应源码重建独立标为 rebuild。直接 `go build` 仍是开发构建，未注入的时间明确留空。

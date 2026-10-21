@@ -21,14 +21,14 @@ var dohProviders = []dohProvider{
 
 func (d *directDNS) queryProvider(ctx context.Context, provider dohProvider, host string, kind uint16) ([]string, time.Duration, error) {
 	if provider.ip != "" {
-		return queryDNS(ctx, provider.host, provider.ip, "/dns-query", host, kind)
+		return d.queryDNS(ctx, provider.host, provider.ip, "/dns-query", host, kind)
 	}
 	ips, err := d.bootstrapProvider(ctx, provider.host)
 	if err != nil {
 		return nil, 0, err
 	}
 	return d.queryProviderIPs(ctx, provider.host, ips, func(ctx context.Context, ip string) ([]string, time.Duration, error) {
-		return queryDNS(ctx, provider.host, ip, "/dns-query", host, kind)
+		return d.queryDNS(ctx, provider.host, ip, "/dns-query", host, kind)
 	})
 }
 
@@ -88,7 +88,7 @@ func (d *directDNS) bootstrapProvider(ctx context.Context, host string) ([]strin
 				continue
 			}
 			queries = append(queries, func(ctx context.Context) ([]string, time.Duration, error) {
-				return queryDNS(ctx, p.host, p.ip, "/dns-query", host, dnsTypeA)
+				return d.queryDNS(ctx, p.host, p.ip, "/dns-query", host, dnsTypeA)
 			})
 		}
 		ips, ttl, err := collectDNS(ctx, queries)

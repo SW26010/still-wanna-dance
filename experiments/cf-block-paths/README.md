@@ -1,5 +1,7 @@
 # CF 候选路径分块下载对照
 
+当前实验构建的出站要求见[网卡绑定规则](network.md)；下文原始网络假设、命令和冻结批次保留为历史。
+
 本实验复用产品 `directDNS`、`upstreamstate.Monitor`、固定候选 Transport 和 `cacheproxy.DiscardLoader`。入口在 `internal/console/cf_block_experiment_test.go`，仅以 `windows && cf_block_experiment` 标签编译；普通构建和测试不包含它。放在 console 测试包是为了访问实际 DNS 实现，避免为实验添加生产 API。
 
 > 首个下午两组窗口完成后，用户要求澄清 IPv4/IPv6 限制，后续执行改用独立[四组协议](FAMILY.md)。本文件作为原始预先方法保留，两种协议不混算。

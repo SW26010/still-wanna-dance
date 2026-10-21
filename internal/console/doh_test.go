@@ -41,7 +41,7 @@ func TestDoHValidatesTLSAndWireResponse(t *testing.T) {
 				w.Write(q)
 			}))
 			defer server.Close()
-			transport := newDoHTransport(server.Listener.Addr().String())
+			transport := (&directDNS{}).newDoHTransport(server.Listener.Addr().String())
 			defer transport.CloseIdleConnections()
 			if mode != "untrusted" {
 				roots := x509.NewCertPool()

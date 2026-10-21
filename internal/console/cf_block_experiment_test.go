@@ -428,7 +428,8 @@ func TestCFBlockExperiment(t *testing.T) {
 	fail := func(reason string) { window.Error = reason; t.Fatal(reason) }
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	dns := &directDNS{}
+	network := cfexpStartNetwork(t, ctx, cancel, dir)
+	dns := &directDNS{dialer: network}
 	defer dns.close()
 	ordinary := &http.Transport{DialContext: dns.DialContext, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 20 * time.Second}
 	defer ordinary.CloseIdleConnections()
@@ -455,13 +456,13 @@ func TestCFBlockExperiment(t *testing.T) {
 		fail("dns_discovery")
 	}
 	save()
-	baseline, err := upstreamrequest.NewPool("direct", dns, nil)
+	baseline, err := network.pool(dns)
 	if err != nil {
 		fail("baseline_pool")
 	}
 	defer baseline.Close()
 	explicit := cfexpStatic{ips: cfexpExtras, until: time.Now().Add(35 * time.Minute)}
-	extra, err := upstreamrequest.NewPool("direct", explicit, nil)
+	extra, err := network.pool(explicit)
 	if err != nil {
 		fail("extra_pool")
 	}
@@ -512,7 +513,7 @@ func TestCFBlockExperiment(t *testing.T) {
 		if p.Arm == "extra" {
 			source = explicit
 		}
-		pool, err := upstreamrequest.NewPool("direct", source, nil)
+		pool, err := network.pool(source)
 		if err != nil {
 			fail("run_pool")
 		}
@@ -558,6 +559,9 @@ func TestCFBlockExperiment(t *testing.T) {
 		if err := cfexpPause(ctx, 2*time.Second); err != nil {
 			fail("window_stopped")
 		}
+	}
+	if err := network.err(); err != nil {
+		fail("network_binding_failed")
 	}
 	window.Outcome = "complete"
 }

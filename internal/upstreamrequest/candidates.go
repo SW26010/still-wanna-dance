@@ -68,11 +68,26 @@ type Pool struct {
 	mode       string
 	dns        DNSPool
 	proxies    []Proxy
+	directDial DialFunc
 	transports map[string]*http.Transport
 	closed     bool
 }
 
 var poolSequence atomic.Uint64
+
+// NewDirectPool uses the supplied dialer for every pinned direct connection.
+// The pool still owns candidate membership, host checks and connection reuse;
+// the dialer receives an IP:port and must not resolve or substitute that IP.
+func NewDirectPool(dns DNSPool, dial DialFunc) (*Pool, error) {
+	if dial == nil {
+		return nil, errors.New("missing direct dialer")
+	}
+	p, err := newPool("direct", dns, nil)
+	if err == nil {
+		p.directDial = dial
+	}
+	return p, err
+}
 
 func NewPool(mode string, dns DNSPool, proxy DialFunc, persistentProxyID ...string) (*Pool, error) {
 	if mode != "direct" && mode != "socks5" && mode != "auto" {
@@ -219,6 +234,9 @@ func (p *Pool) Current(target string) []Candidate {
 				}
 				if c.Mode == "socks5" {
 					return proxyDial(ctx, network, address)
+				}
+				if p.directDial != nil {
+					return p.directDial(ctx, network, net.JoinHostPort(c.IP, port))
 				}
 				return (&net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}).DialContext(ctx, network, net.JoinHostPort(c.IP, port))
 			}, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 20 * time.Second, IdleConnTimeout: 90 * time.Second}

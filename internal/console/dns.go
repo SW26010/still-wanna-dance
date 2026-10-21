@@ -20,6 +20,9 @@ import (
 
 // Certificate-verified DoH never consults OS hosts or plaintext DNS.
 type directDNS struct {
+	// Optional transport dependency, set before the resolver is used. DNS,
+	// including provider bootstrap, and resolved TCP connections share it.
+	dialer        transport.StreamDialer
 	mu            sync.Mutex
 	cache         map[string]dnsEntry
 	lookups       map[string]*dnsLookup
@@ -203,10 +206,10 @@ func collectDNS(ctx context.Context, queries []dnsQuery) ([]string, time.Duratio
 	return pool(), ttl, nil
 }
 
-func queryDNS(ctx context.Context, provider, ip, path, host string, kind uint16) ([]string, time.Duration, error) {
+func (d *directDNS) queryDNS(ctx context.Context, provider, ip, path, host string, kind uint16) ([]string, time.Duration, error) {
 	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
-	t := newDoHTransport(net.JoinHostPort(ip, "443"))
+	t := d.newDoHTransport(net.JoinHostPort(ip, "443"))
 	defer t.CloseIdleConnections()
 	client := &http.Client{Transport: t, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	return exchangeDoH(ctx, client, "https://"+provider+path, host, kind)
@@ -214,8 +217,11 @@ func queryDNS(ctx context.Context, provider, ip, path, host string, kind uint16)
 
 // Dial only the supplied IP; URL hostname still supplies TLS SNI and certificate
 // verification. No proxy, system DNS, custom trust roots or insecure TLS flags.
-func newDoHTransport(address string) *http.Transport {
+func (d *directDNS) newDoHTransport(address string) *http.Transport {
 	return &http.Transport{DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+		if d.dialer != nil {
+			return d.dialer.DialStream(ctx, address)
+		}
 		return (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, "tcp", address)
 	}}
 }
@@ -297,6 +303,9 @@ func (d *directDNS) DialContext(ctx context.Context, network, address string) (n
 	if err != nil {
 		return nil, err
 	}
-	dialer := &transport.TCPDialer{Dialer: net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}}
+	dialer := d.dialer
+	if dialer == nil {
+		dialer = &transport.TCPDialer{Dialer: net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}}
+	}
 	return dialResolvedIPs(ctx, network, address, ips, dialer)
 }

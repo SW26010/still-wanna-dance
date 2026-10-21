@@ -110,15 +110,16 @@ func TestCFFamilyDNSExperiment(t *testing.T) {
 	if err := os.Mkdir(dir, 0700); err != nil {
 		t.Fatal("output must be new:", err)
 	}
-	r := &cfDNSRecorder{d: &directDNS{}}
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+	defer cancel()
+	network := cfexpStartNetwork(t, ctx, cancel, dir)
+	r := &cfDNSRecorder{d: &directDNS{dialer: network}}
 	defer r.d.close()
-	pool, err := upstreamrequest.NewPool("direct", r, nil)
+	pool, err := network.pool(r)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer pool.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
-	defer cancel()
 	var observations []cfDNSObservation
 	save := func() {
 		r.mu.Lock()

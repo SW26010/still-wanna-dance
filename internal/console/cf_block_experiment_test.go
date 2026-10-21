@@ -55,6 +55,7 @@ type cfexpRequest struct {
 	StartMS, HeadersMS, EndMS                  float64
 	Status                                     int
 	Remote, Protocol, Cache, Colo, Hash, Error string
+	Age, ErrorDetail                           string
 	Reused                                     bool
 }
 type cfexpRun struct {
@@ -219,6 +220,7 @@ type cfexpCapture struct {
 	completed     map[int64]bool
 	first, prefix float64
 	total         *atomic.Int64
+	byteLimit     int64
 	cancel        context.CancelFunc
 }
 
@@ -261,6 +263,10 @@ func (c *cfexpCapture) RoundTrip(r *http.Request) (*http.Response, error) {
 	row.HeadersMS = cfexpMS(time.Since(c.started))
 	if err != nil {
 		row.EndMS = row.HeadersMS
+		// A nested DNS request can emit GotConn before the media request fails.
+		// Without an HTTP response it is not evidence of a media connection.
+		row.Remote = ""
+		row.ErrorDetail = err.Error()
 		row.Error = "transport"
 		if r.Context().Err() != nil {
 			row.Error = "context"
@@ -269,6 +275,7 @@ func (c *cfexpCapture) RoundTrip(r *http.Request) (*http.Response, error) {
 		return nil, errors.New(row.Error)
 	}
 	row.Status, row.Protocol, row.Cache = resp.StatusCode, resp.Proto, resp.Header.Get("CF-Cache-Status")
+	row.Age = resp.Header.Get("Age")
 	ray := resp.Header.Get("CF-Ray")
 	if i := strings.LastIndexByte(ray, '-'); i >= 0 {
 		row.Colo = ray[i+1:]
@@ -306,12 +313,17 @@ func (b *cfexpBody) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
 	b.row.Bytes += int64(n)
 	b.h.Write(p[:n])
-	if b.c.total.Add(int64(n)) > 6<<30 {
+	limit := b.c.byteLimit
+	if limit == 0 {
+		limit = 6 << 30
+	}
+	if b.c.total.Add(int64(n)) > limit {
 		b.row.Error = "byte_budget"
 		b.c.cancel()
 	}
 	if err != nil && err != io.EOF {
 		b.row.Error = "body_read"
+		b.row.ErrorDetail = err.Error()
 	}
 	return n, err
 }
@@ -335,8 +347,12 @@ func (b *cfexpBody) Close() error {
 }
 
 func cfexpLoad(ctx context.Context, target cfexpTarget, arm, ip string, round int, tr http.RoundTripper, reference map[int64]string, total *atomic.Int64, stop context.CancelFunc) cfexpRun {
+	return cfexpLoadBudget(ctx, target, arm, ip, round, tr, reference, total, stop, 6<<30)
+}
+
+func cfexpLoadBudget(ctx context.Context, target cfexpTarget, arm, ip string, round int, tr http.RoundTripper, reference map[int64]string, total *atomic.Int64, stop context.CancelFunc, byteLimit int64) cfexpRun {
 	r := cfexpRun{Round: round, Song: target.Song, Arm: arm, IP: ip, Size: target.Size, Started: time.Now()}
-	capture := &cfexpCapture{tr: tr, target: target, ip: ip, reference: reference, completed: map[int64]bool{}, total: total, cancel: stop}
+	capture := &cfexpCapture{tr: tr, target: target, ip: ip, reference: reference, completed: map[int64]bool{}, total: total, cancel: stop, byteLimit: byteLimit}
 	var mu sync.Mutex
 	loader, err := cacheproxy.NewDiscardLoader(cacheproxy.DiscardConfig{Transport: capture, Observe: func(e blocksched.Event) {
 		mu.Lock()

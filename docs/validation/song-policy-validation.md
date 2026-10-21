@@ -68,3 +68,17 @@
 - 定向 Windows race 通过（缓存 2.492 秒、控制台 3.792 秒），两包 `go vet` 通过；原始输出见 `artifacts/song-policy-offline-{race,vet}.log`。复用前轮不受影响的全量回归结果，不重新执行游戏验证。
 
 本修复未修改需求集合、块资源使用管理或块下载调度器，没有新增后台任务、配置或数据库版本。
+
+## 审查修复：容量等待后的歌曲准入复查（2026-10-21）
+
+审查指出，后台候选通过入口检查后可能在 `addPreparation` 等待使用容量；等待期间屏蔽歌曲，原循环醒来后直接登记需求。此前入口测试没有覆盖偏好在容量等待期间变化的情况。
+
+现在由共用的来源层 `addPreparation` 在每次尝试登记前检查当前歌曲偏好，覆盖首次接入和容量唤醒后的重试。入口的早期检查继续避免不必要的解析或预算准备；已登记来源不再经过这个循环，保持原来的使用、交接和退出规则。
+
+- `TestPreparationRechecksBlockedSongAfterCapacityWait` 用 `synctest` 精确停在容量等待，覆盖手动补齐、冷队列及本地命中队列。修复前三项均失败：前两项实际请求视频，后者错误登记使用需求。失败证据保存在 `artifacts/song-policy-capacity-before.log`。
+- 修复后三项均返回 `ErrSongBlocked`，不发送准入成功通知，不新增需求、块使用或资源会话，不请求视频；手动补齐释放本轮预算预留。真实 SQLite、文件和受控 HTTP transport 参与验证，无公网依赖。
+- `TestBlockingDoesNotCancelAdmittedPreparation` 覆盖已登记的手动及队列来源：屏蔽后需求和使用仍然有效，按原释放及队首交接期限结束；既有已接纳 GET 完整交付回归继续通过。
+- 准入、等待/取消、歌曲偏好、队列跳过和补齐预算定向回归通过：缓存 5.507 秒、控制台 2.624 秒；命令为 `./scripts/with-test-temp.ps1 go test -tags=no_easytier ./internal/cacheproxy ./internal/console -run 'Preparation|BlockingDoesNotCancel|BlockedSong|SongPolic|QueueSkipsBlocked|Batch' -count=1 -timeout=120s`，输出见 `artifacts/song-policy-capacity-verified.log`。
+- 同一范围 Windows race 通过（缓存 10.662 秒、控制台 4.315 秒），两包 `go vet` 通过；输出见 `artifacts/song-policy-capacity-{race,vet}.log`。
+
+生产修改仅位于来源层 `preparation.go`，核心需求集合、块资源使用管理及块下载调度器保持不变；没有新增轮询或偏好变更撤销机制。沿用前轮未受影响的验证证据，本项无需新增 VRC 实机场景。

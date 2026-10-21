@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"errors"
+	"strconv"
 	"sync"
 )
 
@@ -34,6 +35,14 @@ func preparationAdmitted(ctx context.Context) {
 func (s *Server) addPreparation(ctx context.Context, v video) (*downloadDemand, func(), error) {
 	for {
 		changed := s.DemandCapacityChanged()
+		// A capacity waiter has no registered source yet. Recheck admission
+		// on every attempt; policy changes never revoke an admitted source.
+		if v.songID != "" {
+			id, _ := strconv.ParseInt(v.songID, 10, 64)
+			if err := s.CheckSongAllowed(ctx, id); err != nil {
+				return nil, nil, err
+			}
+		}
 		d, release, err := s.addDemand(ctx, v, false)
 		if !errors.Is(err, ErrDemandCapacity) {
 			return d, release, err

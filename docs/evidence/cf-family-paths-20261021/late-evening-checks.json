@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "window": "late-evening",
+  "started": "2026-10-21T22:39:59.0759436+08:00",
+  "finished": "2026-10-21T22:50:12.3380739+08:00",
+  "exitCode": 1,
+  "outcome": "failed",
+  "error": "test_candidate_removed",
+  "selected": {
+    "auto": "2606:4700:20::ac43:453a",
+    "extra": "104.24.0.1",
+    "v4": "104.26.5.28",
+    "v6": "2606:4700:20::ac43:453a"
+  },
+  "nextUnstarted": {
+    "Round": 0,
+    "Song": 1344,
+    "Arm": "v4"
+  },
+  "plannedLoads": 60,
+  "executedLoads": 1,
+  "cleanLoads": 1,
+  "completedAfterRetryLoads": 0,
+  "missingLoads": 59,
+  "formalLoads": 0,
+  "successfulFormalPairs": 0,
+  "requests": 39,
+  "good206Requests": 39,
+  "failedRequests": [],
+  "bodyBytes": 40548476,
+  "trainingLoads": 27,
+  "trainingRequests": 864,
+  "trainingBodyBytes": 887413779,
+  "setupToFirstWarmupSeconds": 593.745692,
+  "trainingLoadElapsedSeconds": 379.4451162,
+  "allExecutedLoadsHaveFullVerifiedBlockCoverage": true,
+  "goodResponseRemoteRangeLengthChecks": "passed",
+  "trainingCrossRunHashChecks": "passed",
+  "monitorTiming": [
+    {
+      "name": "monitor-dns-1",
+      "started": "2026-10-21T22:40:05.1761466+08:00",
+      "finished": "2026-10-21T22:40:55.6925017+08:00",
+      "sourceSHA256": "b02b4d110beaf0609964f28ef9846fdd4f21c85348a56f9b0b7dbd7e33470f7a"
+    },
+    {
+      "name": "monitor-dns-2",
+      "started": "2026-10-21T22:48:58.1394215+08:00",
+      "finished": "2026-10-21T22:49:26.2600841+08:00",
+      "sourceSHA256": "fbf32acbe150638d55cb345ea889cc083fa7223327cbb8394880f0a74f773139"
+    },
+    {
+      "name": "monitor-dns-3",
+      "started": "2026-10-21T22:49:26.2705105+08:00",
+      "finished": "2026-10-21T22:49:52.816384+08:00",
+      "sourceSHA256": "975f82973ea3834851f050f4e3b7a1487d63c03ac8c9eaf87f572dbda6a71a93"
+    },
+    {
+      "name": "monitor-extra-1",
+      "started": "2026-10-21T22:40:55.6940802+08:00",
+      "finished": "2026-10-21T22:41:43.7049356+08:00",
+      "sourceSHA256": "4bcaa939a53601f205d42b1b3e13006df770d0ed4420021b70f253dac385b89e"
+    }
+  ],
+  "sourceSHA256": {
+    "artifacts/cf-family-paths-20261021/late-evening/window.json": "da509979a15f00d77a2919fd78bc0b4dedd4dbe6bcd0a228125facba734d0b3a",
+    "artifacts/cf-family-paths-20261021/late-evening/training.json": "a1be69bcb2080f3dbe6c2ad4807ec5d43cce5c328c10933fc22e365e1079f5d4",
+    "artifacts/cf-family-paths-20261021/late-evening-run.log": "707f2c9a36611d19e3da91b6c81957e082f7cb7eb28876d048b7710856a6dfa6",
+    "artifacts/cf-family-paths-20261021/family-probe.exe": "9efc3a92861374058e24f2f82153608a78ef2d6a0786f7b100e652cffc9ebfb0",
+    "experiments/cf-block-paths/analyze.py": "61ec81cf9f87c8b5953017981bee9d68473f0163cf6f89b2e6a09138f154f8eb",
+    "experiments/cf-block-paths/analyze_family.py": "d5159ff3ca189f58c906de5c4e8ea5d90edf6079293de3d6eb6c926a8bce365b"
+  },
+  "limitations": [
+    "Explicit user-requested additional attempt after two failed windows; not part of the original fixed attempt count.",
+    "No formal held-out comparisons; training results are not held-out speed evidence.",
+    "Only the auto warmup ran; no cross-arm held-out content comparison exists.",
+    "No failure-point DNS, lease, or underlying error snapshot; cannot identify the cause of fixed IPv4 candidate acquisition failure.",
+    "Failure occurred before the v4 warmup issued any media requests."
+  ]
+}

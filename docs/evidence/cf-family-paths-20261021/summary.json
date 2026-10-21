@@ -1921,121 +1921,3559 @@
           "sameIPPairs": 4
         }
       }
+    },
+    {
+      "window": "evening",
+      "sourceSHA256": "375144cead5945189aba2f181480cd83b7f1fd36a8cdb6a21372e86cd6726265",
+      "started": "2026-10-21T18:46:33.2911607+08:00",
+      "finished": "2026-10-21T19:00:36.9940474+08:00",
+      "outcome": "failed",
+      "error": "test_candidate_removed",
+      "dns": [
+        "104.26.4.28",
+        "104.26.5.28",
+        "172.67.69.58",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "selected": {
+        "auto": "104.26.5.28",
+        "extra": "103.21.244.1",
+        "v4": "104.26.4.28",
+        "v6": "2606:4700:20::681a:41c"
+      },
+      "plannedRuns": 60,
+      "completedRuns": 42,
+      "missingRuns": 18,
+      "bodyBytes": 2136923296,
+      "failedRuns": 1,
+      "failedPairs": [
+        {
+          "song": 1344,
+          "round": 3,
+          "arms": {
+            "extra": ""
+          }
+        }
+      ],
+      "medianGainPercent": 28.257312740315776,
+      "winCount": 7,
+      "pairs": [
+        {
+          "song": 1344,
+          "round": 1,
+          "throughputGainPercent": 32.84647863375811,
+          "timeSavedPercent": 24.725140607085216,
+          "prefix8ChangePercent": -18.29285144374351
+        },
+        {
+          "song": 1344,
+          "round": 2,
+          "throughputGainPercent": 28.257312740315776,
+          "timeSavedPercent": 22.031736153344106,
+          "prefix8ChangePercent": -15.672462815415889
+        },
+        {
+          "song": 10552,
+          "round": 1,
+          "throughputGainPercent": 33.52082712794826,
+          "timeSavedPercent": 25.105317162113185,
+          "prefix8ChangePercent": -21.312809264431777
+        },
+        {
+          "song": 10552,
+          "round": 2,
+          "throughputGainPercent": 11.121608877826205,
+          "timeSavedPercent": 10.008502387734486,
+          "prefix8ChangePercent": -19.684535878868026
+        },
+        {
+          "song": 10553,
+          "round": 1,
+          "throughputGainPercent": 33.34801212343319,
+          "timeSavedPercent": 25.00825591053033,
+          "prefix8ChangePercent": -8.15241898158443
+        },
+        {
+          "song": 10553,
+          "round": 2,
+          "throughputGainPercent": 24.2931499986083,
+          "timeSavedPercent": 19.54504331001371,
+          "prefix8ChangePercent": 30.055023145396277
+        },
+        {
+          "song": 10553,
+          "round": 3,
+          "throughputGainPercent": 12.191434353667674,
+          "timeSavedPercent": 10.866635607167563,
+          "prefix8ChangePercent": -31.24142446544853
+        }
+      ],
+      "runs": [
+        {
+          "round": 0,
+          "song": 1344,
+          "arm": "auto",
+          "ip": "104.26.5.28",
+          "started": "2026-10-21T18:52:51.6799258+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 8455.9398,
+          "mibPerSecond": 4.573121503373905,
+          "cpuMSPerMiB": 3.2324766040528874,
+          "firstBlockMS": 2055.2841,
+          "prefix8MS": 5911.098,
+          "blockP95MS": 3582.6359999999995,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 0,
+          "song": 1344,
+          "arm": "v4",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T18:53:02.1393887+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 8367.9395,
+          "mibPerSecond": 4.621214114970027,
+          "cpuMSPerMiB": 5.656834057092553,
+          "firstBlockMS": 3638.4315,
+          "prefix8MS": 6685.0629,
+          "blockP95MS": 3638.4315,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 0,
+          "song": 1344,
+          "arm": "v6",
+          "ip": "2606:4700:20::681a:41c",
+          "started": "2026-10-21T18:53:12.5106809+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 9400.9557,
+          "mibPerSecond": 4.113415844584315,
+          "cpuMSPerMiB": 6.869012783612385,
+          "firstBlockMS": 3737.2999,
+          "prefix8MS": 6047.3389,
+          "blockP95MS": 4183.9934,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 0,
+          "song": 1344,
+          "arm": "extra",
+          "ip": "103.21.244.1",
+          "started": "2026-10-21T18:53:23.9159128+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 6674.9844,
+          "mibPerSecond": 5.793277978389767,
+          "cpuMSPerMiB": 3.636536179559498,
+          "firstBlockMS": 1969.2804,
+          "prefix8MS": 4908.7268,
+          "blockP95MS": 2446.9336,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 0,
+          "song": 10552,
+          "arm": "auto",
+          "ip": "104.26.5.28",
+          "started": "2026-10-21T18:53:32.5945937+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 12395.3896,
+          "mibPerSecond": 7.933733269586685,
+          "cpuMSPerMiB": 3.336580010531934,
+          "firstBlockMS": 2799.8976,
+          "prefix8MS": 5471.5938,
+          "blockP95MS": 2883.9404999999997,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 0,
+          "song": 10552,
+          "arm": "v4",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T18:53:46.9938281+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 12527.6451,
+          "mibPerSecond": 7.849976118736697,
+          "cpuMSPerMiB": 4.607658109782195,
+          "firstBlockMS": 2041.0865,
+          "prefix8MS": 5049.8731,
+          "blockP95MS": 3496.6233,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 0,
+          "song": 10552,
+          "arm": "v6",
+          "ip": "2606:4700:20::681a:41c",
+          "started": "2026-10-21T18:54:01.5258328+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 13891.1928,
+          "mibPerSecond": 7.079429122818652,
+          "cpuMSPerMiB": 3.6543495353444992,
+          "firstBlockMS": 2539.7478,
+          "prefix8MS": 5788.6823,
+          "blockP95MS": 3736.7323000000006,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 0,
+          "song": 10552,
+          "arm": "extra",
+          "ip": "103.21.244.1",
+          "started": "2026-10-21T18:54:17.4213209+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 8675.4141,
+          "mibPerSecond": 11.335679625830057,
+          "cpuMSPerMiB": 2.701040960906804,
+          "firstBlockMS": 2102.1026,
+          "prefix8MS": 5150.0965,
+          "blockP95MS": 2269.7138999999997,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 0,
+          "song": 10553,
+          "arm": "auto",
+          "ip": "104.26.5.28",
+          "started": "2026-10-21T18:54:28.10076+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 6966.128,
+          "mibPerSecond": 2.8391644126826256,
+          "cpuMSPerMiB": 7.900199038339785,
+          "firstBlockMS": 2314.1306,
+          "prefix8MS": 5026.5252,
+          "blockP95MS": 3548.6501999999996,
+          "peakActive": 15,
+          "peakOpen": 15,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 0,
+          "song": 10553,
+          "arm": "v4",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T18:54:37.0707229+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 7484.4266,
+          "mibPerSecond": 2.6425514964355443,
+          "cpuMSPerMiB": 3.1600796153359143,
+          "firstBlockMS": 2389.6273,
+          "prefix8MS": 7170.4299,
+          "blockP95MS": 5085.218699999999,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 0,
+          "song": 10553,
+          "arm": "v6",
+          "ip": "2606:4700:20::681a:41c",
+          "started": "2026-10-21T18:54:46.5592386+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 8633.3989,
+          "mibPerSecond": 2.2908686301743795,
+          "cpuMSPerMiB": 5.53013932683785,
+          "firstBlockMS": 3428.9092,
+          "prefix8MS": 6464.5538,
+          "blockP95MS": 5287.279699999999,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 0,
+          "song": 10553,
+          "arm": "extra",
+          "ip": "103.21.244.1",
+          "started": "2026-10-21T18:54:57.1972179+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 5689.0995,
+          "mibPerSecond": 3.476469819484084,
+          "cpuMSPerMiB": 11.850298557509678,
+          "firstBlockMS": 2319.5858,
+          "prefix8MS": 4794.6801,
+          "blockP95MS": 2416.8073999999997,
+          "peakActive": 13,
+          "peakOpen": 13,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 1,
+          "song": 1344,
+          "arm": "auto",
+          "ip": "104.26.5.28",
+          "started": "2026-10-21T18:55:04.8902578+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 9211.5735,
+          "mibPerSecond": 4.197984213078822,
+          "cpuMSPerMiB": 8.081191510132218,
+          "firstBlockMS": 1844.8309,
+          "prefix8MS": 5793.0061,
+          "blockP95MS": 3746.5149,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 1,
+          "song": 1344,
+          "arm": "v4",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T18:55:16.1062371+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 10526.1336,
+          "mibPerSecond": 3.6737173971091566,
+          "cpuMSPerMiB": 8.081191510132218,
+          "firstBlockMS": 4312.2778,
+          "prefix8MS": 6098.3916,
+          "blockP95MS": 4167.206099999999,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 1,
+          "song": 1344,
+          "arm": "extra",
+          "ip": "103.21.244.1",
+          "started": "2026-10-21T18:55:28.6370331+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 6933.999,
+          "mibPerSecond": 5.576874200676296,
+          "cpuMSPerMiB": 6.060893632599163,
+          "firstBlockMS": 1861.2745,
+          "prefix8MS": 4733.3001,
+          "blockP95MS": 2463.7173000000003,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 1,
+          "song": 1344,
+          "arm": "v6",
+          "ip": "2606:4700:20::681a:41c",
+          "started": "2026-10-21T18:55:37.8010865+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 7988.8687,
+          "mibPerSecond": 4.8404901348066005,
+          "cpuMSPerMiB": 5.656834057092553,
+          "firstBlockMS": 2660.8276,
+          "prefix8MS": 5462.5707,
+          "blockP95MS": 3339.7338,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 1,
+          "song": 10552,
+          "arm": "auto",
+          "ip": "104.26.5.28",
+          "started": "2026-10-21T18:55:47.7941406+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 13767.2481,
+          "mibPerSecond": 7.1431642797959585,
+          "cpuMSPerMiB": 5.243197159407325,
+          "firstBlockMS": 3695.8345,
+          "prefix8MS": 7038.273,
+          "blockP95MS": 3046.4071999999996,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 1,
+          "song": 10552,
+          "arm": "v4",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T18:56:03.566301+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 12251.1675,
+          "mibPerSecond": 8.027130055891309,
+          "cpuMSPerMiB": 2.542156198500521,
+          "firstBlockMS": 4013.2666,
+          "prefix8MS": 6436.0469,
+          "blockP95MS": 3078.7173999999995,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 1,
+          "song": 10552,
+          "arm": "extra",
+          "ip": "103.21.244.1",
+          "started": "2026-10-21T18:56:17.8231446+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 10310.9368,
+          "mibPerSecond": 9.537612029491713,
+          "cpuMSPerMiB": 4.2898885849696295,
+          "firstBlockMS": 1719.2256,
+          "prefix8MS": 5538.2193,
+          "blockP95MS": 2737.5068,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 1,
+          "song": 10552,
+          "arm": "v6",
+          "ip": "2606:4700:20::681a:41c",
+          "started": "2026-10-21T18:56:30.1384595+08:00",
+          "ok": false,
+          "error": "request_failed",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 14876.0878,
+          "mibPerSecond": null,
+          "cpuMSPerMiB": 2.224386673687956,
+          "firstBlockMS": 2591.8139,
+          "prefix8MS": 6348.6788,
+          "blockP95MS": 3578.7034000000003,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 102,
+          "failedRequests": 3,
+          "colos": [
+            "",
+            "SEA"
+          ],
+          "cacheStates": [
+            "",
+            "HIT"
+          ],
+          "protocols": [
+            "",
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": true
+        },
+        {
+          "round": 1,
+          "song": 10553,
+          "arm": "auto",
+          "ip": "104.26.5.28",
+          "started": "2026-10-21T18:56:47.0198505+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 7525.5176,
+          "mibPerSecond": 2.6281225774811814,
+          "cpuMSPerMiB": 2.3700597115019355,
+          "firstBlockMS": 4197.5241,
+          "prefix8MS": 5172.466,
+          "blockP95MS": 4197.5241,
+          "peakActive": 14,
+          "peakOpen": 14,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 1,
+          "song": 10553,
+          "arm": "v4",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T18:56:56.5503657+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 8613.6576,
+          "mibPerSecond": 2.2961189810693186,
+          "cpuMSPerMiB": 17.38043788434753,
+          "firstBlockMS": 3150.3201,
+          "prefix8MS": 5733.3746,
+          "blockP95MS": 5782.474200000001,
+          "peakActive": 15,
+          "peakOpen": 15,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 1,
+          "song": 10553,
+          "arm": "extra",
+          "ip": "103.21.244.1",
+          "started": "2026-10-21T18:57:07.1689993+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 5643.5169,
+          "mibPerSecond": 3.50454921323829,
+          "cpuMSPerMiB": 3.9500995191698927,
+          "firstBlockMS": 2303.0702,
+          "prefix8MS": 4750.7849,
+          "blockP95MS": 2447.7146999999995,
+          "peakActive": 14,
+          "peakOpen": 14,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 1,
+          "song": 10553,
+          "arm": "v6",
+          "ip": "2606:4700:20::681a:41c",
+          "started": "2026-10-21T18:57:14.8181017+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 6540.1567,
+          "mibPerSecond": 3.0240839201592817,
+          "cpuMSPerMiB": 4.740119423003871,
+          "firstBlockMS": 2115.9925,
+          "prefix8MS": 5968.6418,
+          "blockP95MS": 3852.6493000000005,
+          "peakActive": 15,
+          "peakOpen": 15,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 2,
+          "song": 10552,
+          "arm": "v4",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T18:57:23.3639869+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 15034.0286,
+          "mibPerSecond": 6.54127496198915,
+          "cpuMSPerMiB": 2.8599257233130864,
+          "firstBlockMS": 2667.952,
+          "prefix8MS": 5283.6806,
+          "blockP95MS": 3768.0065999999997,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 2,
+          "song": 10552,
+          "arm": "v6",
+          "ip": "2606:4700:20::681a:41c",
+          "started": "2026-10-21T18:57:40.4041439+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 12989.1129,
+          "mibPerSecond": 7.571087849964626,
+          "cpuMSPerMiB": 4.448773347375912,
+          "firstBlockMS": 2531.6321,
+          "prefix8MS": 5949.6742,
+          "blockP95MS": 3099.6492000000003,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 2,
+          "song": 10552,
+          "arm": "auto",
+          "ip": "104.26.5.28",
+          "started": "2026-10-21T18:57:55.4005559+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 11503.1216,
+          "mibPerSecond": 8.54913285964123,
+          "cpuMSPerMiB": 3.9721190601570644,
+          "firstBlockMS": 2680.7487,
+          "prefix8MS": 5811.7037,
+          "blockP95MS": 2720.4916000000003,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 2,
+          "song": 10552,
+          "arm": "extra",
+          "ip": "103.21.244.1",
+          "started": "2026-10-21T18:58:08.9081059+08:00",
+          "ok": true,
+          "error": "",
+          "size": 103118762,
+          "bytes": 103118762,
+          "elapsedMS": 10351.8314,
+          "mibPerSecond": 9.499933978736246,
+          "cpuMSPerMiB": 5.56096668421989,
+          "firstBlockMS": 2845.8561,
+          "prefix8MS": 4667.6968,
+          "blockP95MS": 2737.7244000000005,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 99,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 2,
+          "song": 10553,
+          "arm": "v4",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T18:58:21.2652594+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 7392.7836,
+          "mibPerSecond": 2.67530929916466,
+          "cpuMSPerMiB": 4.740119423003871,
+          "firstBlockMS": 2247.5561,
+          "prefix8MS": 5739.2918,
+          "blockP95MS": 4055.774,
+          "peakActive": 14,
+          "peakOpen": 14,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 2,
+          "song": 10553,
+          "arm": "v6",
+          "ip": "2606:4700:20::681a:41c",
+          "started": "2026-10-21T18:58:30.6637344+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 6673.5806,
+          "mibPerSecond": 2.963623862097656,
+          "cpuMSPerMiB": 3.1600796153359143,
+          "firstBlockMS": 2799.4755,
+          "prefix8MS": 4530.7693,
+          "blockP95MS": 3988.7586,
+          "peakActive": 14,
+          "peakOpen": 14,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 2,
+          "song": 10553,
+          "arm": "auto",
+          "ip": "104.26.5.28",
+          "started": "2026-10-21T18:58:39.3438054+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 7635.9708,
+          "mibPerSecond": 2.590107169057272,
+          "cpuMSPerMiB": 7.900199038339785,
+          "firstBlockMS": 2354.2241,
+          "prefix8MS": 4634.0317,
+          "blockP95MS": 4071.9455000000003,
+          "peakActive": 15,
+          "peakOpen": 15,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 2,
+          "song": 10553,
+          "arm": "extra",
+          "ip": "103.21.244.1",
+          "started": "2026-10-21T18:58:48.9869255+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 6143.517,
+          "mibPerSecond": 3.219325788761062,
+          "cpuMSPerMiB": 2.3700597115019355,
+          "firstBlockMS": 2793.2308,
+          "prefix8MS": 6026.791,
+          "blockP95MS": 2883.5874000000003,
+          "peakActive": 13,
+          "peakOpen": 13,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 2,
+          "song": 1344,
+          "arm": "v4",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T18:58:57.136177+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 7803.8335,
+          "mibPerSecond": 4.955262068394365,
+          "cpuMSPerMiB": 4.040595755066109,
+          "firstBlockMS": 2096.0304,
+          "prefix8MS": 4762.2792,
+          "blockP95MS": 3695.8410999999996,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 2,
+          "song": 1344,
+          "arm": "v6",
+          "ip": "2606:4700:20::681a:41c",
+          "started": "2026-10-21T18:59:06.9461921+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 11191.4203,
+          "mibPerSecond": 3.4553290908585783,
+          "cpuMSPerMiB": 7.677131934625607,
+          "firstBlockMS": 2858.2396,
+          "prefix8MS": 5381.1045,
+          "blockP95MS": 4260.7174,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 2,
+          "song": 1344,
+          "arm": "auto",
+          "ip": "104.26.5.28",
+          "started": "2026-10-21T18:59:20.1451747+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 8883.2568,
+          "mibPerSecond": 4.3531377062762875,
+          "cpuMSPerMiB": 4.040595755066109,
+          "firstBlockMS": 2598.9383,
+          "prefix8MS": 5903.8915,
+          "blockP95MS": 4049.1486,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 2,
+          "song": 1344,
+          "arm": "extra",
+          "ip": "103.21.244.1",
+          "started": "2026-10-21T18:59:31.0367869+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 6926.1211,
+          "mibPerSecond": 5.583217441955387,
+          "cpuMSPerMiB": 5.656834057092553,
+          "firstBlockMS": 1883.0012,
+          "prefix8MS": 4978.6063,
+          "blockP95MS": 2835.8784000000005,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 3,
+          "song": 10553,
+          "arm": "v6",
+          "ip": "2606:4700:20::681a:41c",
+          "started": "2026-10-21T18:59:39.9695426+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 8356.7219,
+          "mibPerSecond": 2.3667154356054367,
+          "cpuMSPerMiB": 9.480238846007742,
+          "firstBlockMS": 4218.6713,
+          "prefix8MS": 8356.7219,
+          "blockP95MS": 6675.107300000001,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 3,
+          "song": 10553,
+          "arm": "extra",
+          "ip": "103.21.244.1",
+          "started": "2026-10-21T18:59:50.3338905+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 5377.551,
+          "mibPerSecond": 3.677879152013991,
+          "cpuMSPerMiB": 3.1600796153359143,
+          "firstBlockMS": 2175.0022,
+          "prefix8MS": 4148.3091,
+          "blockP95MS": 2802.0277000000006,
+          "peakActive": 13,
+          "peakOpen": 13,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 3,
+          "song": 10553,
+          "arm": "v4",
+          "ip": "104.26.4.28",
+          "started": "2026-10-21T18:59:57.7179717+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 6760.5839,
+          "mibPerSecond": 2.9254843966646127,
+          "cpuMSPerMiB": 3.9500995191698927,
+          "firstBlockMS": 2357.7979,
+          "prefix8MS": 6337.7768,
+          "blockP95MS": 4240.408299999999,
+          "peakActive": 15,
+          "peakOpen": 15,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 3,
+          "song": 10553,
+          "arm": "auto",
+          "ip": "104.26.5.28",
+          "started": "2026-10-21T19:00:06.4848365+08:00",
+          "ok": true,
+          "error": "",
+          "size": 20738718,
+          "bytes": 20738718,
+          "elapsedMS": 6033.1516,
+          "mibPerSecond": 3.2782174264926462,
+          "cpuMSPerMiB": 3.9500995191698927,
+          "firstBlockMS": 2571.655,
+          "prefix8MS": 6033.1516,
+          "blockP95MS": 5187.2247,
+          "peakActive": 14,
+          "peakOpen": 14,
+          "requests": 20,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 3,
+          "song": 1344,
+          "arm": "v6",
+          "ip": "2606:4700:20::681a:41c",
+          "started": "2026-10-21T19:00:14.5251884+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 9939.8523,
+          "mibPerSecond": 3.890403897713373,
+          "cpuMSPerMiB": 4.848714906079331,
+          "firstBlockMS": 3303.506,
+          "prefix8MS": 6912.4062,
+          "blockP95MS": 4342.6155,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        },
+        {
+          "round": 3,
+          "song": 1344,
+          "arm": "extra",
+          "ip": "103.21.244.1",
+          "started": "2026-10-21T19:00:26.4720318+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 8286.146,
+          "mibPerSecond": 4.666830650897924,
+          "cpuMSPerMiB": 10.101489387665273,
+          "firstBlockMS": 3954.2538,
+          "prefix8MS": 5717.4863,
+          "blockP95MS": 2770.7537,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "LAX",
+            "SJC"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        }
+      ],
+      "training": [
+        {
+          "name": "monitor-dns-1",
+          "sourceSHA256": "a2670b056a0722850949d8770e0d7e0662a4005ae5dfc4bf09c9ed5a326a9b68",
+          "results": [
+            {
+              "ip": "104.26.4.28",
+              "state": "available",
+              "speedBPS": 971827.2105167536,
+              "observedAt": "2026-10-21T18:46:54.7464651+08:00"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "available",
+              "speedBPS": 2642954.6717956597,
+              "observedAt": "2026-10-21T18:46:58.3471401+08:00"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "available",
+              "speedBPS": 1807484.7987782694,
+              "observedAt": "2026-10-21T18:47:01.9988979+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "available",
+              "speedBPS": 415010.9786679217,
+              "observedAt": "2026-10-21T18:47:05.7683103+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "available",
+              "speedBPS": 343985.9734813214,
+              "observedAt": "2026-10-21T18:47:10.6473941+08:00"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "available",
+              "speedBPS": 1169270.9796854358,
+              "observedAt": "2026-10-21T18:47:15.4578944+08:00"
+            }
+          ],
+          "playbackURLResults": [
+            {
+              "ip": "104.26.4.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": null,
+              "state": "unknown",
+              "reason": "no_channel"
+            }
+          ]
+        },
+        {
+          "name": "monitor-dns-2",
+          "sourceSHA256": "f29e309f88097874d6c29f7f4e7ebf49a5058fb953b933991b2539a92062b30e",
+          "results": [
+            {
+              "ip": "104.26.4.28",
+              "state": "available",
+              "speedBPS": 1175272.4507558271,
+              "observedAt": "2026-10-21T18:52:08.0864865+08:00"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "available",
+              "speedBPS": 686241.4682790659,
+              "observedAt": "2026-10-21T18:52:11.7733755+08:00"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "available",
+              "speedBPS": 2200799.443843125,
+              "observedAt": "2026-10-21T18:52:15.3730211+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "available",
+              "speedBPS": 283611.5977888852,
+              "observedAt": "2026-10-21T18:52:19.0475045+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "available",
+              "speedBPS": 911817.0797163314,
+              "observedAt": "2026-10-21T18:52:22.7010855+08:00"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "available",
+              "speedBPS": 349186.8047713835,
+              "observedAt": "2026-10-21T18:52:26.3602069+08:00"
+            }
+          ],
+          "playbackURLResults": [
+            {
+              "ip": "104.26.4.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": null,
+              "state": "unknown",
+              "reason": "no_channel"
+            }
+          ]
+        },
+        {
+          "name": "monitor-dns-3",
+          "sourceSHA256": "28be877cd85ccd4a5f364ca920448b8742e380a15cef6196058a57d0e579a8ea",
+          "results": [
+            {
+              "ip": "104.26.4.28",
+              "state": "available",
+              "speedBPS": 1326896.4886532566,
+              "observedAt": "2026-10-21T18:52:32.7167723+08:00"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "available",
+              "speedBPS": 496889.0113550236,
+              "observedAt": "2026-10-21T18:52:36.3135377+08:00"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "available",
+              "speedBPS": 594772.8976749408,
+              "observedAt": "2026-10-21T18:52:39.9819175+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "available",
+              "speedBPS": 414640.6543080871,
+              "observedAt": "2026-10-21T18:52:43.6626891+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "available",
+              "speedBPS": 261814.70595754337,
+              "observedAt": "2026-10-21T18:52:47.3470267+08:00"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "available",
+              "speedBPS": 389828.53848105326,
+              "observedAt": "2026-10-21T18:52:50.9126953+08:00"
+            }
+          ],
+          "playbackURLResults": [
+            {
+              "ip": "104.26.4.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": null,
+              "state": "unknown",
+              "reason": "no_channel"
+            }
+          ]
+        },
+        {
+          "name": "monitor-extra-1",
+          "sourceSHA256": "5679178253588e515d503049a68e189d0b9bd32ac5c9addb15029fee8ed09b80",
+          "results": [
+            {
+              "ip": "103.21.244.1",
+              "state": "available",
+              "speedBPS": 4510567.46846541,
+              "observedAt": "2026-10-21T18:47:27.2909237+08:00"
+            },
+            {
+              "ip": "104.16.0.1",
+              "state": "available",
+              "speedBPS": 371276.57280723157,
+              "observedAt": "2026-10-21T18:47:30.8922308+08:00"
+            },
+            {
+              "ip": "104.24.0.1",
+              "state": "available",
+              "speedBPS": 2391883.969435727,
+              "observedAt": "2026-10-21T18:47:35.5137532+08:00"
+            },
+            {
+              "ip": "162.158.0.1",
+              "state": "unavailable",
+              "speedBPS": null,
+              "observedAt": "0001-01-01T00:00:00Z"
+            }
+          ],
+          "playbackURLResults": [
+            {
+              "ip": "104.26.4.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": null,
+              "state": "unknown",
+              "reason": "no_channel"
+            }
+          ]
+        }
+      ],
+      "blockTraining": {
+        "sourceSHA256": "fe54a7e2d68ff32ad192e2b9764615f1d103bb47d9d8bf0841201d020c68efbc",
+        "candidates": [
+          {
+            "IP": "103.21.244.1",
+            "Arm": "extra",
+            "DurationsMS": [
+              6570.2798,
+              6359.1193,
+              6933.6796
+            ],
+            "Failures": 0,
+            "MedianMS": 6570.2798
+          },
+          {
+            "IP": "104.16.0.1",
+            "Arm": "extra",
+            "DurationsMS": [
+              6809.7166,
+              5887.7056,
+              6579.4945
+            ],
+            "Failures": 0,
+            "MedianMS": 6579.4945
+          },
+          {
+            "IP": "104.24.0.1",
+            "Arm": "extra",
+            "DurationsMS": [
+              6044.8133,
+              6892.5488,
+              6806.6999
+            ],
+            "Failures": 0,
+            "MedianMS": 6806.6999
+          },
+          {
+            "IP": "104.26.4.28",
+            "Arm": "v4",
+            "DurationsMS": [
+              7514.7262,
+              9576.9666,
+              8465.0096
+            ],
+            "Failures": 0,
+            "MedianMS": 8465.0096
+          },
+          {
+            "IP": "104.26.5.28",
+            "Arm": "v4",
+            "DurationsMS": [
+              8705.4382,
+              9247.2298,
+              7815.666
+            ],
+            "Failures": 0,
+            "MedianMS": 8705.4382
+          },
+          {
+            "IP": "172.67.69.58",
+            "Arm": "v4",
+            "DurationsMS": [
+              8522.2169,
+              8240.7373,
+              8830.1071
+            ],
+            "Failures": 0,
+            "MedianMS": 8522.2169
+          },
+          {
+            "IP": "2606:4700:20::681a:41c",
+            "Arm": "v6",
+            "DurationsMS": [
+              7589.2754,
+              8225.403,
+              6716.7623
+            ],
+            "Failures": 0,
+            "MedianMS": 7589.2754
+          },
+          {
+            "IP": "2606:4700:20::681a:51c",
+            "Arm": "v6",
+            "DurationsMS": [
+              8152.8753,
+              8223.6064,
+              9089.1887
+            ],
+            "Failures": 0,
+            "MedianMS": 8223.6064
+          },
+          {
+            "IP": "2606:4700:20::ac43:453a",
+            "Arm": "v6",
+            "DurationsMS": [
+              8112.7371,
+              8395.8857,
+              7646.6973
+            ],
+            "Failures": 0,
+            "MedianMS": 8112.7371
+          }
+        ],
+        "runs": [
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "103.21.244.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 6570.2798,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "104.16.0.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 6809.7166,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "104.24.0.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 6044.8133,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "104.26.4.28",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 7514.7262,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "104.26.5.28",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 8705.4382,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "172.67.69.58",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 8522.2169,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::681a:41c",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 7589.2754,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::681a:51c",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 8152.8753,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::ac43:453a",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 8112.7371,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "104.24.0.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 6892.5488,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "104.16.0.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 5887.7056,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "103.21.244.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 6359.1193,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::ac43:453a",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 8395.8857,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::681a:51c",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 8223.6064,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::681a:41c",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 8225.403,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "172.67.69.58",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 8240.7373,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "104.26.5.28",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 9247.2298,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "104.26.4.28",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 9576.9666,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::681a:41c",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 6716.7623,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::681a:51c",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 9089.1887,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::ac43:453a",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 7646.6973,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "103.21.244.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 6933.6796,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "104.16.0.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 6579.4945,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "104.24.0.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 6806.6999,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "104.26.4.28",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 8465.0096,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "104.26.5.28",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 7815.666,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "172.67.69.58",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 8830.1071,
+            "PeakActive": 16
+          }
+        ],
+        "winners": {
+          "extra": "103.21.244.1",
+          "v4": "104.26.4.28",
+          "v6": "2606:4700:20::681a:41c"
+        },
+        "bodyBytes": 887413779
+      },
+      "comparisons": {
+        "extra_vs_auto": {
+          "pairs": [
+            {
+              "song": 1344,
+              "round": 1,
+              "sameIP": false,
+              "throughputGainPercent": 32.84647863375811,
+              "timeSavedPercent": 24.725140607085216,
+              "prefix8ChangePercent": -18.29285144374351
+            },
+            {
+              "song": 1344,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": 28.257312740315776,
+              "timeSavedPercent": 22.031736153344106,
+              "prefix8ChangePercent": -15.672462815415889
+            },
+            {
+              "song": 10552,
+              "round": 1,
+              "sameIP": false,
+              "throughputGainPercent": 33.52082712794826,
+              "timeSavedPercent": 25.105317162113185,
+              "prefix8ChangePercent": -21.312809264431777
+            },
+            {
+              "song": 10552,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": 11.121608877826205,
+              "timeSavedPercent": 10.008502387734486,
+              "prefix8ChangePercent": -19.684535878868026
+            },
+            {
+              "song": 10553,
+              "round": 1,
+              "sameIP": false,
+              "throughputGainPercent": 33.34801212343319,
+              "timeSavedPercent": 25.00825591053033,
+              "prefix8ChangePercent": -8.15241898158443
+            },
+            {
+              "song": 10553,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": 24.2931499986083,
+              "timeSavedPercent": 19.54504331001371,
+              "prefix8ChangePercent": 30.055023145396277
+            },
+            {
+              "song": 10553,
+              "round": 3,
+              "sameIP": false,
+              "throughputGainPercent": 12.191434353667674,
+              "timeSavedPercent": 10.866635607167563,
+              "prefix8ChangePercent": -31.24142446544853
+            }
+          ],
+          "failedPairs": [
+            {
+              "song": 1344,
+              "round": 3,
+              "arms": {
+                "extra": ""
+              }
+            }
+          ],
+          "medianGainPercent": 28.257312740315776,
+          "wins": 7,
+          "sameIPPairs": 0
+        },
+        "extra_vs_v4": {
+          "pairs": [
+            {
+              "song": 1344,
+              "round": 1,
+              "sameIP": false,
+              "throughputGainPercent": 51.80465990837322,
+              "timeSavedPercent": 34.12586935054671,
+              "prefix8ChangePercent": -22.384451336316282
+            },
+            {
+              "song": 1344,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": 12.672495720584486,
+              "timeSavedPercent": 11.247195368788931,
+              "prefix8ChangePercent": 4.542511913203251
+            },
+            {
+              "song": 10552,
+              "round": 1,
+              "sameIP": false,
+              "throughputGainPercent": 18.817210672845942,
+              "timeSavedPercent": 15.837108585773564,
+              "prefix8ChangePercent": -13.949985355140914
+            },
+            {
+              "song": 10552,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": 45.23061687422769,
+              "timeSavedPercent": 31.143995562174208,
+              "prefix8ChangePercent": -11.658233088502733
+            },
+            {
+              "song": 10553,
+              "round": 1,
+              "sameIP": false,
+              "throughputGainPercent": 52.62925145134236,
+              "timeSavedPercent": 34.4817595257095,
+              "prefix8ChangePercent": -17.138069087619012
+            },
+            {
+              "song": 10553,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": 20.33471381295111,
+              "timeSavedPercent": 16.89846027685702,
+              "prefix8ChangePercent": 5.009314912338136
+            },
+            {
+              "song": 10553,
+              "round": 3,
+              "sameIP": false,
+              "throughputGainPercent": 25.718638465725373,
+              "timeSavedPercent": 20.45729955366724,
+              "prefix8ChangePercent": -34.546304944030204
+            }
+          ],
+          "failedPairs": [
+            {
+              "song": 1344,
+              "round": 3,
+              "arms": {
+                "extra": ""
+              }
+            }
+          ],
+          "medianGainPercent": 25.718638465725373,
+          "wins": 7,
+          "sameIPPairs": 0
+        },
+        "extra_vs_v6": {
+          "pairs": [
+            {
+              "song": 1344,
+              "round": 1,
+              "sameIP": false,
+              "throughputGainPercent": 15.213006232045888,
+              "timeSavedPercent": 13.204243799876203,
+              "prefix8ChangePercent": -13.350318742785328
+            },
+            {
+              "song": 1344,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": 61.58279848730914,
+              "timeSavedPercent": 38.11222423663241,
+              "prefix8ChangePercent": -7.479843589731439
+            },
+            {
+              "song": 1344,
+              "round": 3,
+              "sameIP": false,
+              "throughputGainPercent": 19.957484456585718,
+              "timeSavedPercent": 16.63713151954984,
+              "prefix8ChangePercent": -17.286598406210572
+            },
+            {
+              "song": 10552,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": 25.47647269448381,
+              "timeSavedPercent": 20.303784564071357,
+              "prefix8ChangePercent": -21.547018490525083
+            },
+            {
+              "song": 10553,
+              "round": 1,
+              "sameIP": false,
+              "throughputGainPercent": 15.887961636120917,
+              "timeSavedPercent": 13.70976019580693,
+              "prefix8ChangePercent": -20.404255118811133
+            },
+            {
+              "song": 10553,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": 8.628015516193743,
+              "timeSavedPercent": 7.942716687950102,
+              "prefix8ChangePercent": 33.01915416439323
+            },
+            {
+              "song": 10553,
+              "round": 3,
+              "sameIP": false,
+              "throughputGainPercent": 55.400142183681744,
+              "timeSavedPercent": 35.649994527160224,
+              "prefix8ChangePercent": -50.35961290036468
+            }
+          ],
+          "failedPairs": [
+            {
+              "song": 10552,
+              "round": 1,
+              "arms": {
+                "extra": "",
+                "v6": "request_failed"
+              }
+            }
+          ],
+          "medianGainPercent": 19.957484456585718,
+          "wins": 7,
+          "sameIPPairs": 0
+        },
+        "v6_vs_v4": {
+          "pairs": [
+            {
+              "song": 1344,
+              "round": 1,
+              "sameIP": false,
+              "throughputGainPercent": 31.760002514498687,
+              "timeSavedPercent": 24.104433749539332,
+              "prefix8ChangePercent": -10.426042499468213
+            },
+            {
+              "song": 1344,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": -30.269498501454727,
+              "timeSavedPercent": -43.40926545908494,
+              "prefix8ChangePercent": 12.99430953145293
+            },
+            {
+              "song": 10552,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": 15.743305303012644,
+              "timeSavedPercent": 13.601914393058955,
+              "prefix8ChangePercent": 12.604728605283233
+            },
+            {
+              "song": 10553,
+              "round": 1,
+              "sameIP": false,
+              "throughputGainPercent": 31.704147088708147,
+              "timeSavedPercent": 24.072246614492787,
+              "prefix8ChangePercent": 4.103468138990962
+            },
+            {
+              "song": 10553,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": 10.776868417532848,
+              "timeSavedPercent": 9.728446535348334,
+              "prefix8ChangePercent": -21.056996962586915
+            },
+            {
+              "song": 10553,
+              "round": 3,
+              "sameIP": false,
+              "throughputGainPercent": -19.100049266926078,
+              "timeSavedPercent": -23.60946959034116,
+              "prefix8ChangePercent": 31.855730545764892
+            }
+          ],
+          "failedPairs": [
+            {
+              "song": 1344,
+              "round": 3,
+              "arms": {
+                "v6": ""
+              }
+            },
+            {
+              "song": 10552,
+              "round": 1,
+              "arms": {
+                "v4": "",
+                "v6": "request_failed"
+              }
+            }
+          ],
+          "medianGainPercent": 13.260086860272747,
+          "wins": 4,
+          "sameIPPairs": 0
+        },
+        "v4_vs_auto": {
+          "pairs": [
+            {
+              "song": 1344,
+              "round": 1,
+              "sameIP": false,
+              "throughputGainPercent": -12.488537101600139,
+              "timeSavedPercent": -14.270744297920412,
+              "prefix8ChangePercent": 5.27162400191501
+            },
+            {
+              "song": 1344,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": 13.831962201653836,
+              "timeSavedPercent": 12.151211253962623,
+              "prefix8ChangePercent": -19.336607049773857
+            },
+            {
+              "song": 10552,
+              "round": 1,
+              "sameIP": false,
+              "throughputGainPercent": 12.374988751072102,
+              "timeSavedPercent": 11.012226909748223,
+              "prefix8ChangePercent": -8.556447014771951
+            },
+            {
+              "song": 10552,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": -23.486100059700565,
+              "timeSavedPercent": -30.695207116649105,
+              "prefix8ChangePercent": -9.085513082850394
+            },
+            {
+              "song": 10553,
+              "round": 1,
+              "sameIP": false,
+              "throughputGainPercent": -12.632728749283007,
+              "timeSavedPercent": -14.45933765406382,
+              "prefix8ChangePercent": 10.84412347998034
+            },
+            {
+              "song": 10553,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": 3.289521419239172,
+              "timeSavedPercent": 3.184758118771225,
+              "prefix8ChangePercent": 23.850939560901164
+            },
+            {
+              "song": 10553,
+              "round": 3,
+              "sameIP": false,
+              "throughputGainPercent": -10.759903445618058,
+              "timeSavedPercent": -12.057252133362596,
+              "prefix8ChangePercent": 5.049188553458528
+            }
+          ],
+          "failedPairs": [],
+          "medianGainPercent": -10.759903445618058,
+          "wins": 3,
+          "sameIPPairs": 0
+        },
+        "v6_vs_auto": {
+          "pairs": [
+            {
+              "song": 1344,
+              "round": 1,
+              "sameIP": false,
+              "throughputGainPercent": 15.305105715406242,
+              "timeSavedPercent": 13.273571556477304,
+              "prefix8ChangePercent": -5.70404025640504
+            },
+            {
+              "song": 1344,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": -20.62440189115229,
+              "timeSavedPercent": -25.9833026553955,
+              "prefix8ChangePercent": -8.8549560912493
+            },
+            {
+              "song": 10552,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": -11.440283192857613,
+              "timeSavedPercent": -12.918156928811397,
+              "prefix8ChangePercent": 2.3740112559420545
+            },
+            {
+              "song": 10553,
+              "round": 1,
+              "sameIP": false,
+              "throughputGainPercent": 15.066319435434949,
+              "timeSavedPercent": 13.093596379337423,
+              "prefix8ChangePercent": 15.392576770925114
+            },
+            {
+              "song": 10553,
+              "round": 2,
+              "sameIP": false,
+              "throughputGainPercent": 14.420897231689978,
+              "timeSavedPercent": 12.603377163254736,
+              "prefix8ChangePercent": -2.2283490205731615
+            },
+            {
+              "song": 10553,
+              "round": 3,
+              "sameIP": false,
+              "throughputGainPercent": -27.804805853357408,
+              "timeSavedPercent": -38.51337499956075,
+              "prefix8ChangePercent": 38.51337499956075
+            }
+          ],
+          "failedPairs": [
+            {
+              "song": 1344,
+              "round": 3,
+              "arms": {
+                "v6": ""
+              }
+            },
+            {
+              "song": 10552,
+              "round": 1,
+              "arms": {
+                "auto": "",
+                "v6": "request_failed"
+              }
+            }
+          ],
+          "medianGainPercent": 1.490307019416182,
+          "wins": 3,
+          "sameIPPairs": 0
+        }
+      }
+    },
+    {
+      "window": "late-evening",
+      "sourceSHA256": "da509979a15f00d77a2919fd78bc0b4dedd4dbe6bcd0a228125facba734d0b3a",
+      "started": "2026-10-21T22:39:59.0759436+08:00",
+      "finished": "2026-10-21T22:50:12.3380739+08:00",
+      "outcome": "failed",
+      "error": "test_candidate_removed",
+      "dns": [
+        "104.26.4.28",
+        "104.26.5.28",
+        "172.67.69.58",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "selected": {
+        "auto": "2606:4700:20::ac43:453a",
+        "extra": "104.24.0.1",
+        "v4": "104.26.5.28",
+        "v6": "2606:4700:20::ac43:453a"
+      },
+      "plannedRuns": 60,
+      "completedRuns": 1,
+      "missingRuns": 59,
+      "bodyBytes": 40548476,
+      "failedRuns": 0,
+      "failedPairs": [],
+      "medianGainPercent": null,
+      "winCount": 0,
+      "pairs": [],
+      "runs": [
+        {
+          "round": 0,
+          "song": 1344,
+          "arm": "auto",
+          "ip": "2606:4700:20::ac43:453a",
+          "started": "2026-10-21T22:49:52.821635+08:00",
+          "ok": true,
+          "error": "",
+          "size": 40548476,
+          "bytes": 40548476,
+          "elapsedMS": 17281.8435,
+          "mibPerSecond": 2.237610827260138,
+          "cpuMSPerMiB": 8.48525108563883,
+          "firstBlockMS": 6926.1073,
+          "prefix8MS": 8005.7343,
+          "blockP95MS": 6938.8247999999985,
+          "peakActive": 16,
+          "peakOpen": 16,
+          "requests": 39,
+          "failedRequests": 0,
+          "colos": [
+            "SEA"
+          ],
+          "cacheStates": [
+            "HIT"
+          ],
+          "protocols": [
+            "HTTP/1.1"
+          ],
+          "loadCompletedAfterRetry": false
+        }
+      ],
+      "training": [
+        {
+          "name": "monitor-dns-1",
+          "sourceSHA256": "b02b4d110beaf0609964f28ef9846fdd4f21c85348a56f9b0b7dbd7e33470f7a",
+          "results": [
+            {
+              "ip": "104.26.4.28",
+              "state": "available",
+              "speedBPS": 376746.99615490634,
+              "observedAt": "2026-10-21T22:40:33.7166028+08:00"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "available",
+              "speedBPS": 349144.4591885914,
+              "observedAt": "2026-10-21T22:40:37.4120556+08:00"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "available",
+              "speedBPS": 414997.89580644073,
+              "observedAt": "2026-10-21T22:40:43.9920914+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "available",
+              "speedBPS": 190819.29832975825,
+              "observedAt": "2026-10-21T22:40:47.6025621+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "available",
+              "speedBPS": 196282.0433082999,
+              "observedAt": "2026-10-21T22:40:51.2492191+08:00"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "available",
+              "speedBPS": 709509.7075177417,
+              "observedAt": "2026-10-21T22:40:54.9266447+08:00"
+            }
+          ],
+          "playbackURLResults": [
+            {
+              "ip": "104.26.4.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": null,
+              "state": "unknown",
+              "reason": "no_channel"
+            }
+          ]
+        },
+        {
+          "name": "monitor-dns-2",
+          "sourceSHA256": "fbf32acbe150638d55cb345ea889cc083fa7223327cbb8394880f0a74f773139",
+          "results": [
+            {
+              "ip": "104.26.4.28",
+              "state": "available",
+              "speedBPS": 720500.6814743042,
+              "observedAt": "2026-10-21T22:49:03.8586729+08:00"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "available",
+              "speedBPS": 1153462.8512738103,
+              "observedAt": "2026-10-21T22:49:07.8889661+08:00"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "available",
+              "speedBPS": 218415.4236962938,
+              "observedAt": "2026-10-21T22:49:11.5633087+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "available",
+              "speedBPS": 240269.38583751261,
+              "observedAt": "2026-10-21T22:49:16.7953086+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "available",
+              "speedBPS": 443532.31255937484,
+              "observedAt": "2026-10-21T22:49:20.4615405+08:00"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "available",
+              "speedBPS": 283939.71043288027,
+              "observedAt": "2026-10-21T22:49:24.394145+08:00"
+            }
+          ],
+          "playbackURLResults": [
+            {
+              "ip": "104.26.4.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": null,
+              "state": "unknown",
+              "reason": "no_channel"
+            }
+          ]
+        },
+        {
+          "name": "monitor-dns-3",
+          "sourceSHA256": "975f82973ea3834851f050f4e3b7a1487d63c03ac8c9eaf87f572dbda6a71a93",
+          "results": [
+            {
+              "ip": "104.26.4.28",
+              "state": "available",
+              "speedBPS": 158069.12509751722,
+              "observedAt": "2026-10-21T22:49:30.3897166+08:00"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "available",
+              "speedBPS": 262101.49587408575,
+              "observedAt": "2026-10-21T22:49:34.0748356+08:00"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "available",
+              "speedBPS": 273035.4405134533,
+              "observedAt": "2026-10-21T22:49:39.0021901+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "available",
+              "speedBPS": 30122.90738150883,
+              "observedAt": "2026-10-21T22:49:43.4777534+08:00"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "available",
+              "speedBPS": 156689.208279039,
+              "observedAt": "2026-10-21T22:49:48.3653071+08:00"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "available",
+              "speedBPS": 125304.11893813305,
+              "observedAt": "2026-10-21T22:49:52.0427758+08:00"
+            }
+          ],
+          "playbackURLResults": [
+            {
+              "ip": "104.26.4.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": null,
+              "state": "unknown",
+              "reason": "no_channel"
+            }
+          ]
+        },
+        {
+          "name": "monitor-extra-1",
+          "sourceSHA256": "4bcaa939a53601f205d42b1b3e13006df770d0ed4420021b70f253dac385b89e",
+          "results": [
+            {
+              "ip": "103.21.244.1",
+              "state": "available",
+              "speedBPS": 289426.4030865412,
+              "observedAt": "2026-10-21T22:41:29.1733848+08:00"
+            },
+            {
+              "ip": "104.16.0.1",
+              "state": "available",
+              "speedBPS": 338281.33676621737,
+              "observedAt": "2026-10-21T22:41:33.6365982+08:00"
+            },
+            {
+              "ip": "104.24.0.1",
+              "state": "available",
+              "speedBPS": 808063.2672079386,
+              "observedAt": "2026-10-21T22:41:37.5145117+08:00"
+            },
+            {
+              "ip": "162.158.0.1",
+              "state": "unavailable",
+              "speedBPS": null,
+              "observedAt": "0001-01-01T00:00:00Z"
+            }
+          ],
+          "playbackURLResults": [
+            {
+              "ip": "104.26.4.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": null,
+              "state": "unknown",
+              "reason": "no_channel"
+            }
+          ]
+        }
+      ],
+      "blockTraining": {
+        "sourceSHA256": "a1be69bcb2080f3dbe6c2ad4807ec5d43cce5c328c10933fc22e365e1079f5d4",
+        "candidates": [
+          {
+            "IP": "103.21.244.1",
+            "Arm": "extra",
+            "DurationsMS": [
+              10999.8806,
+              13213.8978,
+              13423.4696
+            ],
+            "Failures": 0,
+            "MedianMS": 13213.8978
+          },
+          {
+            "IP": "104.16.0.1",
+            "Arm": "extra",
+            "DurationsMS": [
+              11632.795,
+              13864.7114,
+              13155.0586
+            ],
+            "Failures": 0,
+            "MedianMS": 13155.0586
+          },
+          {
+            "IP": "104.24.0.1",
+            "Arm": "extra",
+            "DurationsMS": [
+              12166.4763,
+              18077.2492,
+              11815.7703
+            ],
+            "Failures": 0,
+            "MedianMS": 12166.4763
+          },
+          {
+            "IP": "104.26.4.28",
+            "Arm": "v4",
+            "DurationsMS": [
+              17226.4796,
+              20248.2266,
+              14121.7681
+            ],
+            "Failures": 0,
+            "MedianMS": 17226.4796
+          },
+          {
+            "IP": "104.26.5.28",
+            "Arm": "v4",
+            "DurationsMS": [
+              13037.2185,
+              13253.5032,
+              13551.1362
+            ],
+            "Failures": 0,
+            "MedianMS": 13253.5032
+          },
+          {
+            "IP": "172.67.69.58",
+            "Arm": "v4",
+            "DurationsMS": [
+              12883.8838,
+              14667.2402,
+              13865.9227
+            ],
+            "Failures": 0,
+            "MedianMS": 13865.9227
+          },
+          {
+            "IP": "2606:4700:20::681a:41c",
+            "Arm": "v6",
+            "DurationsMS": [
+              15284.1407,
+              11875.712,
+              15331.1222
+            ],
+            "Failures": 0,
+            "MedianMS": 15284.1407
+          },
+          {
+            "IP": "2606:4700:20::681a:51c",
+            "Arm": "v6",
+            "DurationsMS": [
+              14768.161,
+              14567.4599,
+              13046.8902
+            ],
+            "Failures": 0,
+            "MedianMS": 14567.4599
+          },
+          {
+            "IP": "2606:4700:20::ac43:453a",
+            "Arm": "v6",
+            "DurationsMS": [
+              12225.0429,
+              16712.2599,
+              14429.6397
+            ],
+            "Failures": 0,
+            "MedianMS": 14429.6397
+          }
+        ],
+        "runs": [
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "103.21.244.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 10999.8806,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "104.16.0.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 11632.795,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "104.24.0.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 12166.4763,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "104.26.4.28",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 17226.4796,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "104.26.5.28",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 13037.2185,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "172.67.69.58",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 12883.8838,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::681a:41c",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 15284.1407,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::681a:51c",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 14768.161,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::ac43:453a",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 12225.0429,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "104.24.0.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 18077.2492,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "104.16.0.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 13864.7114,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "103.21.244.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 13213.8978,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::ac43:453a",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 16712.2599,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::681a:51c",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 14567.4599,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::681a:41c",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 11875.712,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "172.67.69.58",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 14667.2402,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "104.26.5.28",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 13253.5032,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "104.26.4.28",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 20248.2266,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::681a:41c",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 15331.1222,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::681a:51c",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 13046.8902,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::ac43:453a",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 14429.6397,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "103.21.244.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 13423.4696,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "104.16.0.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 13155.0586,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "104.24.0.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 11815.7703,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "104.26.4.28",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 14121.7681,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "104.26.5.28",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 13551.1362,
+            "PeakActive": 16
+          },
+          {
+            "Round": 3,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "172.67.69.58",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 13865.9227,
+            "PeakActive": 16
+          }
+        ],
+        "winners": {
+          "extra": "104.24.0.1",
+          "v4": "104.26.5.28",
+          "v6": "2606:4700:20::ac43:453a"
+        },
+        "bodyBytes": 887413779
+      },
+      "comparisons": {
+        "extra_vs_auto": {
+          "pairs": [],
+          "failedPairs": [],
+          "medianGainPercent": null,
+          "wins": 0,
+          "sameIPPairs": 0
+        },
+        "extra_vs_v4": {
+          "pairs": [],
+          "failedPairs": [],
+          "medianGainPercent": null,
+          "wins": 0,
+          "sameIPPairs": 0
+        },
+        "extra_vs_v6": {
+          "pairs": [],
+          "failedPairs": [],
+          "medianGainPercent": null,
+          "wins": 0,
+          "sameIPPairs": 0
+        },
+        "v6_vs_v4": {
+          "pairs": [],
+          "failedPairs": [],
+          "medianGainPercent": null,
+          "wins": 0,
+          "sameIPPairs": 0
+        },
+        "v4_vs_auto": {
+          "pairs": [],
+          "failedPairs": [],
+          "medianGainPercent": null,
+          "wins": 0,
+          "sameIPPairs": 0
+        },
+        "v6_vs_auto": {
+          "pairs": [],
+          "failedPairs": [],
+          "medianGainPercent": null,
+          "wins": 0,
+          "sameIPPairs": 0
+        }
+      }
     }
   ],
   "comparisons": {
     "extra_vs_auto": {
-      "successfulPairs": 4,
-      "medianGainPercent": 25.357859548629758,
+      "successfulPairs": 11,
+      "medianGainPercent": 28.257312740315776,
       "rangeGainPercent": [
-        14.371722563552392,
+        11.121608877826205,
         41.41936944451934
       ],
       "winFraction": 1.0,
-      "medianPrefix8ChangePercent": -19.611029270148613,
+      "medianPrefix8ChangePercent": -18.29285144374351,
       "sameIPPairs": 0,
       "bySong": {
         "1344": 29.861750897538375,
-        "10552": 31.136668822120242,
-        "10553": 14.371722563552392
+        "10552": 27.1873976638347,
+        "10553": 19.332436281080348
       },
       "byWindow": {
-        "afternoon": 25.357859548629758
+        "afternoon": 25.357859548629758,
+        "evening": 28.257312740315776,
+        "late-evening": null
       }
     },
     "extra_vs_v4": {
-      "successfulPairs": 4,
-      "medianGainPercent": 24.40496241204758,
+      "successfulPairs": 11,
+      "medianGainPercent": 25.718638465725373,
       "rangeGainPercent": [
-        16.993464025406556,
-        37.040561379057536
+        12.672495720584486,
+        52.62925145134236
       ],
       "winFraction": 1.0,
-      "medianPrefix8ChangePercent": -12.004104370246516,
+      "medianPrefix8ChangePercent": -13.949985355140914,
       "sameIPPairs": 0,
       "bySong": {
         "1344": 29.368521590597794,
         "10552": 28.240982306277452,
-        "10553": 16.993464025406556
+        "10553": 23.026676139338242
       },
       "byWindow": {
-        "afternoon": 24.40496241204758
+        "afternoon": 24.40496241204758,
+        "evening": 25.718638465725373,
+        "late-evening": null
       }
     },
     "extra_vs_v6": {
-      "successfulPairs": 4,
-      "medianGainPercent": 17.131087270387255,
+      "successfulPairs": 11,
+      "medianGainPercent": 17.5996068682305,
       "rangeGainPercent": [
-        10.315480723855552,
-        46.17579540906065
+        8.628015516193743,
+        61.58279848730914
       ],
       "winFraction": 1.0,
-      "medianPrefix8ChangePercent": -19.565256022029814,
+      "medianPrefix8ChangePercent": -17.286598406210572,
       "sameIPPairs": 0,
       "bySong": {
-        "1344": 17.5996068682305,
-        "10552": 31.41918154080233,
-        "10553": 10.315480723855552
+        "1344": 18.778545662408106,
+        "10552": 25.47647269448381,
+        "10553": 13.101721179988235
       },
       "byWindow": {
-        "afternoon": 17.131087270387255
+        "afternoon": 17.131087270387255,
+        "evening": 19.957484456585718,
+        "late-evening": null
       }
     },
     "v6_vs_v4": {
-      "successfulPairs": 4,
-      "medianGainPercent": 4.217737539948619,
+      "successfulPairs": 10,
+      "medianGainPercent": 8.030573170585464,
       "rangeGainPercent": [
-        -6.249484741600975,
-        10.007614001256204
+        -30.269498501454727,
+        31.760002514498687
       ],
-      "winFraction": 0.75,
+      "winFraction": 0.7,
       "medianPrefix8ChangePercent": 10.702890396929421,
       "sameIPPairs": 0,
       "bySong": {
         "1344": 10.007614001256204,
-        "10552": -1.9337710008092315,
-        "10553": 6.0535323399147245
+        "10552": 2.381942739982512,
+        "10553": 8.415200378723785
       },
       "byWindow": {
-        "afternoon": 4.217737539948619
+        "afternoon": 4.217737539948619,
+        "evening": 13.260086860272747,
+        "late-evening": null
       }
     },
     "v4_vs_auto": {
-      "successfulPairs": 4,
-      "medianGainPercent": 0.7819508884581827,
+      "successfulPairs": 11,
+      "medianGainPercent": 0.3812591354343864,
       "rangeGainPercent": [
-        -2.2409298533846655,
-        3.195264249793839
+        -23.486100059700565,
+        13.831962201653836
       ],
-      "winFraction": 0.75,
-      "medianPrefix8ChangePercent": -7.633036439566787,
+      "winFraction": 0.5454545454545454,
+      "medianPrefix8ChangePercent": -5.379454054541677,
       "sameIPPairs": 0,
       "bySong": {
         "1344": 0.3812591354343864,
         "10552": 2.188953445637909,
-        "10553": -2.2409298533846655
+        "10553": -6.5004166495013616
       },
       "byWindow": {
-        "afternoon": 0.7819508884581827
+        "afternoon": 0.7819508884581827,
+        "evening": -10.759903445618058,
+        "late-evening": null
       }
     },
     "v6_vs_auto": {
-      "successfulPairs": 4,
+      "successfulPairs": 10,
       "medianGainPercent": 3.634851162571917,
       "rangeGainPercent": [
-        -3.253908043551834,
-        10.427028079309398
+        -27.804805853357408,
+        15.305105715406242
       ],
-      "winFraction": 0.75,
-      "medianPrefix8ChangePercent": -0.184826978744435,
+      "winFraction": 0.6,
+      "medianPrefix8ChangePercent": 0.0728311176844465,
       "sameIPPairs": 4,
       "bySong": {
         "1344": 10.427028079309398,
-        "10552": 0.16942360422568248,
-        "10553": 3.676947073140635
+        "10552": -3.253908043551834,
+        "10553": 9.048922152415306
       },
       "byWindow": {
-        "afternoon": 3.634851162571917
+        "afternoon": 3.634851162571917,
+        "evening": 1.490307019416182,
+        "late-evening": null
       }
     }
   },

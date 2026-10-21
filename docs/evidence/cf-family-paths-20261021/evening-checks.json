@@ -1,0 +1,127 @@
+{
+  "schema": 1,
+  "window": "evening",
+  "started": "2026-10-21T18:46:33.2911607+08:00",
+  "finished": "2026-10-21T19:00:36.9940474+08:00",
+  "exitCode": 1,
+  "outcome": "failed",
+  "error": "test_candidate_removed",
+  "nextUnstarted": {
+    "Round": 3,
+    "Song": 1344,
+    "Arm": "v4"
+  },
+  "plannedLoads": 60,
+  "executedLoads": 42,
+  "cleanLoads": 41,
+  "completedAfterRetryLoads": 1,
+  "missingLoads": 18,
+  "formalLoads": 30,
+  "allFourArmsPresentSets": 7,
+  "allFourArmsCleanSets": 6,
+  "requests": 2057,
+  "good206Requests": 2054,
+  "failedRequests": [
+    {
+      "round": 1,
+      "song": 10552,
+      "arm": "v6",
+      "intendedIP": "2606:4700:20::681a:41c",
+      "Offset": 28311552,
+      "Length": 1048576,
+      "Status": 0,
+      "Bytes": 0,
+      "Remote": "120.53.53.53",
+      "Error": "transport",
+      "StartMS": 5837.4295,
+      "EndMS": 6059.688
+    },
+    {
+      "round": 1,
+      "song": 10552,
+      "arm": "v6",
+      "intendedIP": "2606:4700:20::681a:41c",
+      "Offset": 30408704,
+      "Length": 1048576,
+      "Status": 0,
+      "Bytes": 0,
+      "Remote": "",
+      "Error": "transport",
+      "StartMS": 5926.5468,
+      "EndMS": 6059.688
+    },
+    {
+      "round": 1,
+      "song": 10552,
+      "arm": "v6",
+      "intendedIP": "2606:4700:20::681a:41c",
+      "Offset": 29360128,
+      "Length": 1048576,
+      "Status": 0,
+      "Bytes": 0,
+      "Remote": "",
+      "Error": "transport",
+      "StartMS": 5897.4849,
+      "EndMS": 6059.688
+    }
+  ],
+  "recoveredLoads": [
+    {
+      "round": 1,
+      "song": 10552,
+      "arm": "v6",
+      "goodBlocks": 99,
+      "bodyBytes": 103118762,
+      "elapsedMS": 14876.0878
+    }
+  ],
+  "bodyBytes": 2136923296,
+  "trainingLoads": 27,
+  "trainingRequests": 864,
+  "trainingBodyBytes": 887413779,
+  "setupToFirstWarmupSeconds": 378.388765,
+  "trainingLoadElapsedSeconds": 207.9545863,
+  "allExecutedLoadsHaveFullVerifiedGoodBlockCoverage": true,
+  "goodResponseRemoteRangeLengthAndHashChecks": "passed",
+  "monitorTiming": [
+    {
+      "name": "monitor-dns-1",
+      "started": "2026-10-21T18:46:37.5326572+08:00",
+      "finished": "2026-10-21T18:47:16.2130358+08:00",
+      "sourceSHA256": "a2670b056a0722850949d8770e0d7e0662a4005ae5dfc4bf09c9ed5a326a9b68"
+    },
+    {
+      "name": "monitor-dns-2",
+      "started": "2026-10-21T18:52:03.5495407+08:00",
+      "finished": "2026-10-21T18:52:28.6751331+08:00",
+      "sourceSHA256": "f29e309f88097874d6c29f7f4e7ebf49a5058fb953b933991b2539a92062b30e"
+    },
+    {
+      "name": "monitor-dns-3",
+      "started": "2026-10-21T18:52:28.6769427+08:00",
+      "finished": "2026-10-21T18:52:51.674488+08:00",
+      "sourceSHA256": "28be877cd85ccd4a5f364ca920448b8742e380a15cef6196058a57d0e579a8ea"
+    },
+    {
+      "name": "monitor-extra-1",
+      "started": "2026-10-21T18:47:16.3644992+08:00",
+      "finished": "2026-10-21T18:47:41.2874955+08:00",
+      "sourceSHA256": "5679178253588e515d503049a68e189d0b9bd32ac5c9addb15029fee8ed09b80"
+    }
+  ],
+  "sourceSHA256": {
+    "artifacts/cf-family-paths-20261021/evening/window.json": "375144cead5945189aba2f181480cd83b7f1fd36a8cdb6a21372e86cd6726265",
+    "artifacts/cf-family-paths-20261021/evening/training.json": "fe54a7e2d68ff32ad192e2b9764615f1d103bb47d9d8bf0841201d020c68efbc",
+    "artifacts/cf-family-paths-20261021/evening-run.log": "787a2fe39db9b65fd2fbfb2455bde3e19650dd1fb9b79de9e09120c382dd5aa5",
+    "artifacts/cf-family-paths-20261021/family-probe.exe": "9efc3a92861374058e24f2f82153608a78ef2d6a0786f7b100e652cffc9ebfb0",
+    "experiments/cf-block-paths/analyze.py": "61ec81cf9f87c8b5953017981bee9d68473f0163cf6f89b2e6a09138f154f8eb",
+    "experiments/cf-block-paths/analyze_family.py": "d5159ff3ca189f58c906de5c4e8ea5d90edf6079293de3d6eb6c926a8bce365b"
+  },
+  "limitations": [
+    "No DNS or underlying error snapshot at the candidate removal point.",
+    "A failed request trace Remote without an HTTP response does not establish the media response peer.",
+    "Recovered request_failed load retained as non-clean; excluded only from clean speed pairs.",
+    "Started earlier than the original 20:00 window at explicit user request.",
+    "No identical-IP arm pair in this window."
+  ]
+}

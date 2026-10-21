@@ -1,0 +1,40 @@
+{
+  "baseCommit": "b9d88fd350e8304110812ed7ea3ae8288a0c379f",
+  "binarySHA256": "cc9198a7d4b358ffb1adbea2250a155b8530f7bb1eb0ea5cc1d48970bf7e05ff",
+  "method": "bound-interface-retained-dns-leases-v1",
+  "hashBasis": "git-blob (UTF-8 LF per .gitattributes)",
+  "sourceSHA256": {
+    "internal/console/dns_refresh.go": "cbed041d56a44c8347408fe7db9b201cc4e281f9029d60f09db515211435ca8a",
+    "internal/console/dns_lease_test.go": "720810953bd1fd761c4b6e21bb886d8619b0dbc3fdac9ffc49e81f5abe48b0e3",
+    "internal/console/cf_family_experiment_test.go": "8c6791c7c3f0ef036aa95e1c8a9ca2adadd566d4bcee7f45d888f0ba55a49a8e",
+    "internal/console/cf_family_failure_test.go": "6caf6f7d8f5989ed34b60c1d0ef8afbe987119fe9c3296eaabfaba30b855b2d6",
+    "internal/console/cf_block_experiment_test.go": "38293d14a06ba7e0d4eaf8c06af6ed294b4438451d9d52578e9837a16cb4cf8c",
+    "internal/console/cf_network_experiment_test.go": "3a457f067fcfb8eb9f07ccb06163bf36886245d42915fe4fb722eb02cda72fb1",
+    "experiments/cf-block-paths/FAMILY-WIFI.md": "e9cc5d2449f5b55c814ac06e882368aba48139266defa6dffd31508b8ed9dc39",
+    "experiments/cf-block-paths/analyze_family.py": "c00c2df2b355f68b76d7905ec0b79f95db4b7b83b43cccdc2ad92f32b1b13017",
+    "experiments/cf-block-paths/test_analyze_family.py": "bdbe30b2ae5d974f8bfdddb724d5d51bbf520d3f8209803d1a251edc00620b4b",
+    "experiments/cf-block-paths/evidence_time.py": "054530e99eeae24a35cf3360e25516aca7ecbad4a13bd79306dd7868afa6abdc",
+    "experiments/cf-block-paths/test_evidence_time.py": "a2ba31b8d7410fc7cf76476ff6fec61ff1e48a0bcdaebf2b27623afb754af147",
+    "docs/validation/cf-family-wifi-20261022.md": "84db6032eb65c6320393445fd13c632e11ba56be65dc164e44f3950e7bf239b8"
+  },
+  "deletedHistoricalDiagnostic": "internal/console/cf_discovery_lease_test.go",
+  "validation": {
+    "regression": "passed",
+    "race": "passed",
+    "vet": "passed",
+    "analysisTests": 9,
+    "liveSmoke": "passed",
+    "overnight": "failed_training_candidate_set_empty",
+    "timeRedaction": "passed: regenerated export and checked all non-time values and raw hashes unchanged"
+  },
+  "rawEvidence": "local ignored artifacts/cf-family-wifi-20261022",
+  "oldEvidencePreserved": true,
+  "binaryHashBasis": "actual-file-bytes",
+  "evidenceSHA256": {
+    "docs/evidence/cf-family-wifi-20261022/overnight-binding.json": "91af643913d424a000473f9c0d358449532dfa4d8c5c2b53018c771542b1d1aa",
+    "docs/evidence/cf-family-wifi-20261022/overnight-checks.json": "da0bc105aff639d5cdfe62122c1ae8bf36dfe068c024cea520516987fb05a2f1",
+    "docs/evidence/cf-family-wifi-20261022/smoke-checks.json": "13ff06d99b9a6314afbf575c63e65397087b666a3df4fe09870e6be6f3c909fe",
+    "docs/evidence/cf-family-wifi-20261022/summary.json": "7f6d628c178d37d7b3c71ca48abc6a23281ef22e46945d3481a32e84ca03ee22"
+  },
+  "redaction": "Capture timestamps use independent per-file T+seconds baselines; unset times are null. Absolute epochs remain only in ignored private artifacts. Counts, durations and private source-file hashes are preserved."
+}

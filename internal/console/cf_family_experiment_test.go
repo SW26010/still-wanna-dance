@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -21,6 +22,20 @@ import (
 )
 
 var cfFamilyArms = []string{"auto", "v4", "v6", "extra"}
+
+type cfFamilyWindow struct {
+	cfexpWindow
+	Method string
+}
+
+// Kept only in private evidence: causes can contain resolver endpoint details.
+type cfFamilyCandidateError struct {
+	Kind, IP, Cause string
+	Available       []string
+	Before, After   *cfDiscoverySnapshot
+}
+
+func (e *cfFamilyCandidateError) Error() string { return e.Kind }
 
 type cfFamilyCandidate struct {
 	IP, Arm     string
@@ -77,11 +92,34 @@ func cfFamilyPick(candidates []cfFamilyCandidate) (map[string]string, error) {
 }
 
 func cfFamilyTransport(ctx context.Context, network *cfNetwork, dns upstreamrequest.DNSPool, target, ip string) (http.RoundTripper, func(), error) {
+	detail := &cfFamilyCandidateError{IP: ip}
+	u, _ := url.Parse(target)
+	if d, ok := dns.(*directDNS); ok && u != nil {
+		s := cfDiscoveryState(d, u.Hostname())
+		detail.Before = &s
+		defer func() { s := cfDiscoveryState(d, u.Hostname()); detail.After = &s }()
+	}
+	fail := func(kind string, cause error) (http.RoundTripper, func(), error) {
+		detail.Kind = kind
+		if cause != nil {
+			detail.Cause = cause.Error()
+		}
+		return nil, func() {}, detail
+	}
+	if err := network.err(); err != nil {
+		return fail("network_binding_failed", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return fail("context", err)
+	}
 	pool, err := network.pool(dns)
 	if err != nil {
-		return nil, func() {}, err
+		return fail("pool_init", err)
 	}
 	candidates, err := pool.Candidates(ctx, target)
+	for _, c := range candidates {
+		detail.Available = append(detail.Available, c.IP)
+	}
 	if err == nil {
 		for _, c := range candidates {
 			if c.IP == ip {
@@ -90,7 +128,19 @@ func cfFamilyTransport(ctx context.Context, network *cfNetwork, dns upstreamrequ
 		}
 	}
 	pool.Close()
-	return nil, func() {}, errors.New("chosen_candidate_unavailable")
+	if bindErr := network.err(); bindErr != nil {
+		return fail("network_binding_failed", bindErr)
+	}
+	if ctx.Err() != nil {
+		return fail("context", ctx.Err())
+	}
+	if err != nil {
+		return fail("candidate_discovery_failed", err)
+	}
+	if len(candidates) == 0 {
+		return fail("candidate_set_empty", nil)
+	}
+	return fail("chosen_candidate_not_returned", nil)
 }
 
 func cfFamilyCritical(r cfexpRun) bool {
@@ -113,7 +163,7 @@ func TestCFFamilyExperiment(t *testing.T) {
 	if err = os.Mkdir(dir, 0700); err != nil {
 		t.Fatal("output must be new:", err)
 	}
-	window := cfexpWindow{Schema: 2, Started: time.Now(), Outcome: "running", Extras: cfexpExtras, Songs: cfexpSongs, Selected: map[string]string{}, Plan: cfFamilyPlan()}
+	window := cfFamilyWindow{cfexpWindow: cfexpWindow{Schema: 3, Started: time.Now(), Outcome: "running", Extras: cfexpExtras, Songs: cfexpSongs, Selected: map[string]string{}, Plan: cfFamilyPlan()}, Method: "bound-interface-retained-dns-leases-v1"}
 	training := cfFamilyTraining{Winners: map[string]string{}}
 	save := func() {
 		if err := cfexpSave(filepath.Join(dir, "window.json"), window); err != nil {
@@ -132,6 +182,18 @@ func TestCFFamilyExperiment(t *testing.T) {
 		save()
 	}()
 	fail := func(reason string) { window.Error = reason; t.Fatal(reason) }
+	failCandidate := func(phase, arm string, song, round int, cause error) {
+		var detail *cfFamilyCandidateError
+		errors.As(cause, &detail)
+		if err := cfexpSave(filepath.Join(dir, "candidate-failure-private.json"), struct {
+			Phase, Arm  string
+			Song, Round int
+			Detail      *cfFamilyCandidateError
+		}{phase, arm, song, round, detail}); err != nil {
+			fail("save_candidate_failure")
+		}
+		fail(phase + "_" + cause.Error())
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Minute)
 	defer cancel()
 	network := cfexpStartNetwork(t, ctx, cancel, dir)
@@ -233,7 +295,7 @@ func TestCFFamilyExperiment(t *testing.T) {
 			}
 			tr, closePool, err := cfFamilyTransport(ctx, network, source, targets[1343].URL, candidate.IP)
 			if err != nil {
-				fail("training_candidate_removed")
+				failCandidate("training", candidate.Arm, 1343, round, err)
 			}
 			// A bad training path may stop itself; only critical failures stop the batch.
 			attempt, stop := context.WithCancel(ctx)
@@ -304,7 +366,7 @@ func TestCFFamilyExperiment(t *testing.T) {
 		}
 		tr, closePool, err := cfFamilyTransport(ctx, network, source, target.URL, ip)
 		if err != nil {
-			fail("test_candidate_removed")
+			failCandidate("test", p.Arm, p.Song, p.Round, err)
 		}
 		run := cfexpLoad(ctx, target, p.Arm, ip, p.Round, tr, refs[p.Song], &total, cancel)
 		closePool()

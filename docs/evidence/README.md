@@ -18,6 +18,7 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [cf-family-wifi-20261022/summary.json](cf-family-wifi-20261022/summary.json) | 保留原 DNS 租约的修复、新错误分类和 Wi-Fi 绑定后独立批次；首窗 16 次训练成功，随后因旧租约到期且新合并 TTL 为零停止，0 正式配对、60 次缺测；[停止点证据](cf-family-wifi-20261022/overnight-checks.json)及[报告](../validation/cf-family-wifi-20261022.md)，不与旧方法混算 |
 | [vrchaturllogger-20261021/manifest.json](vrchaturllogger-20261021/manifest.json) | #21 v1427 原程序、原 DLL 定向调用与测试机抓包：104 候选通用测速、真实 HTTP 视频六组三轮、80/443 实际转发及 HTTPS 超时对照；保留未提权直连误启动与全部失败，hosts/设置按哈希恢复。仅机制调查，未接入产品，见[报告](../validation/issue-21-vrchaturllogger-20261021.md) |
 | [cf-family-paths-20261021/summary.json](cf-family-paths-20261021/summary.json) | 下午、18:46 及用户追加的 22:39 三个四组窗口均因固定候选获取失败停止，缺测 31/18/59 次；[18:46 复核](cf-family-paths-20261021/evening-checks.json)保留一次重试后完成，[22:39 复核](cf-family-paths-20261021/late-evening-checks.json)确认只执行 1 次预热、没有新正式配对。额外 IP 的既有干净配对有收益，完整窗口仍为 0，见[报告](../validation/cf-family-paths-20261021.md) |
 | [cf-family-paths-20261021/discovery-summary.json](cf-family-paths-20261021/discovery-summary.json) | 双域名候选失效定位：157 次主动发现及 78 次 HTTP 响应成功；同一视频 DNS 租约过期空档的两次只读空列表与邻近 IPv4/IPv6 TLS 成功；另由夹具复现新短 TTL 提前覆盖旧有效租约。未锁定先前窗口根因，未修改生产逻辑 |

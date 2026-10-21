@@ -1,0 +1,101 @@
+{
+  "method": "bound-interface-retained-dns-leases-v1",
+  "started": "T+0s",
+  "finished": "T+232.616029s",
+  "outcome": "failed",
+  "error": "training_candidate_set_empty",
+  "baseCommit": "b9d88fd350e8304110812ed7ea3ae8288a0c379f",
+  "binarySHA256": "cc9198a7d4b358ffb1adbea2250a155b8530f7bb1eb0ea5cc1d48970bf7e05ff",
+  "completedTrainingLoads": 16,
+  "plannedTrainingLoads": 27,
+  "missingTrainingLoads": 11,
+  "trainingBodyBytes": 525874832,
+  "trainingElapsedMS": 134807.9686,
+  "trainingRequests": 512,
+  "failedTrainingRequests": 0,
+  "warmupLoads": 0,
+  "formalLoads": 0,
+  "missingHeldoutLoads": 60,
+  "formalPairs": 0,
+  "failure": {
+    "phase": "training",
+    "arm": "v4",
+    "song": 1343,
+    "round": 2,
+    "ip": "104.26.5.28",
+    "kind": "candidate_set_empty",
+    "allOldLeasesExpired": true,
+    "sameSixAddressesReturned": true,
+    "effectiveMergedTTLMS": 0,
+    "dnsQueryError": false,
+    "mediaRequestStarted": false,
+    "oldLeaseExpiredBeforeDiscoveryMS": 1685.105,
+    "discoveryMS": 242.923,
+    "before": {
+      "At": "T+232.3720604s",
+      "Host": "play.udon.dance",
+      "CacheIPs": [
+        "172.67.69.58",
+        "2606:4700:20::681a:51c",
+        "104.26.4.28",
+        "2606:4700:20::681a:41c",
+        "104.26.5.28",
+        "2606:4700:20::ac43:453a"
+      ],
+      "CacheUntil": "T+230.6869559s",
+      "Leases": {
+        "104.26.4.28": "T+230.6869559s",
+        "104.26.5.28": "T+230.6869559s",
+        "172.67.69.58": "T+230.6869559s",
+        "2606:4700:20::681a:41c": "T+230.6869559s",
+        "2606:4700:20::681a:51c": "T+230.6869559s",
+        "2606:4700:20::ac43:453a": "T+230.6869559s"
+      },
+      "Attempted": "T+220.4523351s",
+      "Observed": "T+220.6869559s",
+      "Next": "T+250.4523351s",
+      "LookupPending": false,
+      "LastError": ""
+    },
+    "after": {
+      "At": "T+232.6149833s",
+      "Host": "play.udon.dance",
+      "CacheIPs": [
+        "172.67.69.58",
+        "2606:4700:20::ac43:453a",
+        "104.26.5.28",
+        "2606:4700:20::681a:51c",
+        "104.26.4.28",
+        "2606:4700:20::681a:41c"
+      ],
+      "CacheUntil": "T+232.6149833s",
+      "Leases": {
+        "104.26.4.28": "T+232.6149833s",
+        "104.26.5.28": "T+232.6149833s",
+        "172.67.69.58": "T+232.6149833s",
+        "2606:4700:20::681a:41c": "T+232.6149833s",
+        "2606:4700:20::681a:51c": "T+232.6149833s",
+        "2606:4700:20::ac43:453a": "T+232.6149833s"
+      },
+      "Attempted": "T+232.3720604s",
+      "Observed": "T+232.6149833s",
+      "Next": "T+262.3720604s",
+      "LookupPending": false,
+      "LastError": ""
+    }
+  },
+  "conclusion": "No held-out throughput evidence. Empty candidate set after all old leases expired and fresh merged TTL was zero. Does not identify the causes of historical failures.",
+  "hashBasis": "actual-file-bytes",
+  "files": {
+    "artifacts/cf-family-wifi-20261022/overnight/window.json": "096739a24c6dcadd8e0c71bcdf61140a38f94106d590eca4a820667cb6dc0e52",
+    "artifacts/cf-family-wifi-20261022/overnight/training.json": "cad78981778fe6503131b0cac90a8b58d5c00b939c36e9eca4218cf25981b58d",
+    "artifacts/cf-family-wifi-20261022/overnight/candidate-failure-private.json": "5dec60ac22442b520292692b181212911c7b5ac69b2647516cbf7d10d7752d95",
+    "artifacts/cf-family-wifi-20261022/lease-before.log": "6f69474f85d8e077602deac5bf01986cc09c7bf3518a02e2baa47064e61ccd27",
+    "artifacts/cf-family-wifi-20261022/regression.log": "b697aaae035100ea315a8658912458c694137525dad052f8d1fe4672e25ca6b4",
+    "artifacts/cf-family-wifi-20261022/regression-fixed.log": "74c3bb797101d7e5f6d35eaea1138852fadc949514b5956f6827040e0ee33617",
+    "artifacts/cf-family-wifi-20261022/race.log": "fbe75194eb8e55a32def75ddcb6f36490f8742b52824c68fd7d1b38f8cdacdb9",
+    "artifacts/cf-family-wifi-20261022/vet.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "artifacts/cf-family-wifi-20261022/analysis-tests.log": "7ce3dde14c6a0c6a0a29e664446016d4683ac0ee8c5580cab591459dac5a828d"
+  },
+  "timeBasis": "T+seconds relative to the earliest nonzero timestamp in this file; unset timestamps are null; baselines across files are independent"
+}

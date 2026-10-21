@@ -1,0 +1,592 @@
+{
+  "schema": 2,
+  "completeWindows": 0,
+  "method": "bound-interface-retained-dns-leases-v1",
+  "windows": [
+    {
+      "window": "overnight",
+      "sourceSHA256": "096739a24c6dcadd8e0c71bcdf61140a38f94106d590eca4a820667cb6dc0e52",
+      "started": "T+0s",
+      "finished": "T+232.616029s",
+      "outcome": "failed",
+      "error": "training_candidate_set_empty",
+      "dns": [
+        "104.26.4.28",
+        "104.26.5.28",
+        "172.67.69.58",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "selected": {},
+      "plannedRuns": 60,
+      "completedRuns": 0,
+      "missingRuns": 60,
+      "bodyBytes": 0,
+      "failedRuns": 0,
+      "failedPairs": [],
+      "medianGainPercent": null,
+      "winCount": 0,
+      "pairs": [],
+      "runs": [],
+      "training": [
+        {
+          "name": "monitor-dns-1",
+          "sourceSHA256": "ab5803fcb588830aa964f57c4cb62be3f3dbe4d758f2d978849805d0bd637bc8",
+          "results": [
+            {
+              "ip": "104.26.4.28",
+              "state": "available",
+              "speedBPS": 4394966.47326797,
+              "observedAt": "T+24.7980015s"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "available",
+              "speedBPS": 3145539.6979764425,
+              "observedAt": "T+28.4511237s"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "available",
+              "speedBPS": 6341839.057484136,
+              "observedAt": "T+31.7623444s"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "available",
+              "speedBPS": 5836094.980918577,
+              "observedAt": "T+35.3121905s"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "available",
+              "speedBPS": 1534400.2103145306,
+              "observedAt": "T+38.8776279s"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "available",
+              "speedBPS": 3899941.136787215,
+              "observedAt": "T+42.556305s"
+            }
+          ],
+          "playbackURLResults": [
+            {
+              "ip": "104.26.4.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": null,
+              "state": "unknown",
+              "reason": "no_channel"
+            }
+          ]
+        },
+        {
+          "name": "monitor-extra-1",
+          "sourceSHA256": "c05a9f83d913e9b6e59015a6b327ffa6eafe3597ecf9b27a2b214934cf1bccfd",
+          "results": [
+            {
+              "ip": "103.21.244.1",
+              "state": "available",
+              "speedBPS": 8941258.706449896,
+              "observedAt": "T+51.8521675s"
+            },
+            {
+              "ip": "104.16.0.1",
+              "state": "available",
+              "speedBPS": 191061.40869739227,
+              "observedAt": "T+55.7669021s"
+            },
+            {
+              "ip": "104.24.0.1",
+              "state": "available",
+              "speedBPS": 458395.05156101525,
+              "observedAt": "T+59.5567604s"
+            },
+            {
+              "ip": "162.158.0.1",
+              "state": "unavailable",
+              "speedBPS": null,
+              "observedAt": null
+            }
+          ],
+          "playbackURLResults": [
+            {
+              "ip": "104.26.4.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "104.26.5.28",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "172.67.69.58",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "state": "unknown",
+              "reason": "no_sample"
+            },
+            {
+              "ip": null,
+              "state": "unknown",
+              "reason": "no_channel"
+            }
+          ]
+        }
+      ],
+      "method": "bound-interface-retained-dns-leases-v1",
+      "blockTraining": {
+        "sourceSHA256": "cad78981778fe6503131b0cac90a8b58d5c00b939c36e9eca4218cf25981b58d",
+        "candidates": [
+          {
+            "IP": "103.21.244.1",
+            "Arm": "extra",
+            "DurationsMS": [
+              26165.5718,
+              7597.3652
+            ],
+            "Failures": 0,
+            "MedianMS": 0
+          },
+          {
+            "IP": "104.16.0.1",
+            "Arm": "extra",
+            "DurationsMS": [
+              22445.6999,
+              7626.0258
+            ],
+            "Failures": 0,
+            "MedianMS": 0
+          },
+          {
+            "IP": "104.24.0.1",
+            "Arm": "extra",
+            "DurationsMS": [
+              10547.8525,
+              7097.9396
+            ],
+            "Failures": 0,
+            "MedianMS": 0
+          },
+          {
+            "IP": "104.26.4.28",
+            "Arm": "v4",
+            "DurationsMS": [
+              5251.2666
+            ],
+            "Failures": 0,
+            "MedianMS": 0
+          },
+          {
+            "IP": "104.26.5.28",
+            "Arm": "v4",
+            "DurationsMS": [
+              4915.4103
+            ],
+            "Failures": 0,
+            "MedianMS": 0
+          },
+          {
+            "IP": "172.67.69.58",
+            "Arm": "v4",
+            "DurationsMS": [
+              5501.5093,
+              4899.2954
+            ],
+            "Failures": 0,
+            "MedianMS": 0
+          },
+          {
+            "IP": "2606:4700:20::681a:41c",
+            "Arm": "v6",
+            "DurationsMS": [
+              5228.6896,
+              5594.7225
+            ],
+            "Failures": 0,
+            "MedianMS": 0
+          },
+          {
+            "IP": "2606:4700:20::681a:51c",
+            "Arm": "v6",
+            "DurationsMS": [
+              5366.3487,
+              5524.2814
+            ],
+            "Failures": 0,
+            "MedianMS": 0
+          },
+          {
+            "IP": "2606:4700:20::ac43:453a",
+            "Arm": "v6",
+            "DurationsMS": [
+              5144.6947,
+              5901.2953
+            ],
+            "Failures": 0,
+            "MedianMS": 0
+          }
+        ],
+        "runs": [
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "103.21.244.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 26165.5718,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "104.16.0.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 22445.6999,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "104.24.0.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 10547.8525,
+            "PeakActive": 16
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "104.26.4.28",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 5251.2666,
+            "PeakActive": 14
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "104.26.5.28",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 4915.4103,
+            "PeakActive": 13
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "172.67.69.58",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 5501.5093,
+            "PeakActive": 15
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::681a:41c",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 5228.6896,
+            "PeakActive": 14
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::681a:51c",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 5366.3487,
+            "PeakActive": 14
+          },
+          {
+            "Round": 1,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::ac43:453a",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 5144.6947,
+            "PeakActive": 14
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "104.24.0.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 7097.9396,
+            "PeakActive": 14
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "104.16.0.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 7626.0258,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "extra",
+            "IP": "103.21.244.1",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 7597.3652,
+            "PeakActive": 16
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::ac43:453a",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 5901.2953,
+            "PeakActive": 13
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::681a:51c",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 5524.2814,
+            "PeakActive": 13
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "v6",
+            "IP": "2606:4700:20::681a:41c",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 5594.7225,
+            "PeakActive": 14
+          },
+          {
+            "Round": 2,
+            "Song": 1343,
+            "Arm": "v4",
+            "IP": "172.67.69.58",
+            "Size": 32867177,
+            "Bytes": 32867177,
+            "OK": true,
+            "Error": "",
+            "ElapsedMS": 4899.2954,
+            "PeakActive": 14
+          }
+        ],
+        "winners": {},
+        "bodyBytes": 525874832
+      },
+      "comparisons": {
+        "extra_vs_auto": {
+          "pairs": [],
+          "failedPairs": [],
+          "medianGainPercent": null,
+          "wins": 0,
+          "sameIPPairs": 0
+        },
+        "extra_vs_v4": {
+          "pairs": [],
+          "failedPairs": [],
+          "medianGainPercent": null,
+          "wins": 0,
+          "sameIPPairs": 0
+        },
+        "extra_vs_v6": {
+          "pairs": [],
+          "failedPairs": [],
+          "medianGainPercent": null,
+          "wins": 0,
+          "sameIPPairs": 0
+        },
+        "v6_vs_v4": {
+          "pairs": [],
+          "failedPairs": [],
+          "medianGainPercent": null,
+          "wins": 0,
+          "sameIPPairs": 0
+        },
+        "v4_vs_auto": {
+          "pairs": [],
+          "failedPairs": [],
+          "medianGainPercent": null,
+          "wins": 0,
+          "sameIPPairs": 0
+        },
+        "v6_vs_auto": {
+          "pairs": [],
+          "failedPairs": [],
+          "medianGainPercent": null,
+          "wins": 0,
+          "sameIPPairs": 0
+        }
+      }
+    }
+  ],
+  "comparisons": {
+    "extra_vs_auto": {
+      "successfulPairs": 0,
+      "medianGainPercent": null,
+      "rangeGainPercent": [],
+      "winFraction": null,
+      "medianPrefix8ChangePercent": null,
+      "sameIPPairs": 0,
+      "bySong": {},
+      "byWindow": {
+        "overnight": null
+      }
+    },
+    "extra_vs_v4": {
+      "successfulPairs": 0,
+      "medianGainPercent": null,
+      "rangeGainPercent": [],
+      "winFraction": null,
+      "medianPrefix8ChangePercent": null,
+      "sameIPPairs": 0,
+      "bySong": {},
+      "byWindow": {
+        "overnight": null
+      }
+    },
+    "extra_vs_v6": {
+      "successfulPairs": 0,
+      "medianGainPercent": null,
+      "rangeGainPercent": [],
+      "winFraction": null,
+      "medianPrefix8ChangePercent": null,
+      "sameIPPairs": 0,
+      "bySong": {},
+      "byWindow": {
+        "overnight": null
+      }
+    },
+    "v6_vs_v4": {
+      "successfulPairs": 0,
+      "medianGainPercent": null,
+      "rangeGainPercent": [],
+      "winFraction": null,
+      "medianPrefix8ChangePercent": null,
+      "sameIPPairs": 0,
+      "bySong": {},
+      "byWindow": {
+        "overnight": null
+      }
+    },
+    "v4_vs_auto": {
+      "successfulPairs": 0,
+      "medianGainPercent": null,
+      "rangeGainPercent": [],
+      "winFraction": null,
+      "medianPrefix8ChangePercent": null,
+      "sameIPPairs": 0,
+      "bySong": {},
+      "byWindow": {
+        "overnight": null
+      }
+    },
+    "v6_vs_auto": {
+      "successfulPairs": 0,
+      "medianGainPercent": null,
+      "rangeGainPercent": [],
+      "winFraction": null,
+      "medianPrefix8ChangePercent": null,
+      "sameIPPairs": 0,
+      "bySong": {},
+      "byWindow": {
+        "overnight": null
+      }
+    }
+  },
+  "decision": "pending_cross_time_evidence",
+  "timeBasis": "T+seconds relative to the earliest nonzero timestamp in this file; unset timestamps are null; baselines across files are independent"
+}

@@ -5,6 +5,7 @@ import json
 import statistics
 from pathlib import Path
 from analyze import comparison, summarize, median
+from evidence_time import relative_times
 
 COMPARISONS = [("auto", "extra"), ("v4", "extra"), ("v6", "extra"),
                ("v4", "v6"), ("auto", "v4"), ("auto", "v6")]
@@ -29,8 +30,9 @@ def pairs_for(runs, base, challenger):
 
 def family_window(path):
     raw = json.loads(path.read_bytes())
-    assert raw["Schema"] == 2, "Do not mix original two-arm data with family data"
+    assert raw["Schema"] in (2, 3), "Do not mix original two-arm data with family data"
     w = summarize(path, reference_arm="auto", pair_arms=("auto", "extra"))
+    w["method"] = "legacy-family-v2" if raw["Schema"] == 2 else raw["Method"]
     source = path.parent / "training.json"
     training_bytes = source.read_bytes()
     training = json.loads(training_bytes)
@@ -76,8 +78,10 @@ def family_window(path):
 
 
 def aggregate_family(windows):
+    methods = {w["method"] for w in windows}
+    assert len(methods) == 1, "Changed experiment methods must be analyzed separately"
     result = {"schema": 2, "completeWindows": sum(w["outcome"] == "complete" for w in windows),
-              "windows": windows, "comparisons": {}}
+              "method": next(iter(methods)), "windows": windows, "comparisons": {}}
     for base, challenger in COMPARISONS:
         key = f"{challenger}_vs_{base}"
         pairs = [p for w in windows for p in w["comparisons"][key]["pairs"]]
@@ -100,7 +104,7 @@ if __name__ == "__main__":
     p.add_argument("windows", nargs="+", type=Path)
     p.add_argument("--out", required=True, type=Path)
     args = p.parse_args()
-    result = aggregate_family([family_window(path) for path in args.windows])
+    result = relative_times(aggregate_family([family_window(path) for path in args.windows]))
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(result, indent=2, ensure_ascii=False)+"\n", encoding="utf-8")
+    args.out.write_text(json.dumps(result, indent=2, ensure_ascii=False)+"\n", encoding="utf-8", newline="\n")
     print(json.dumps({k: v for k, v in result.items() if k != "windows"}, indent=2))

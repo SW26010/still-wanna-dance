@@ -120,7 +120,11 @@ func (d *directDNS) queryLocked(parent context.Context, host string, s *dnsState
 				}
 			}
 			for _, ip := range ips {
-				d.leases[host][ip] = d.cache[host].until
+				// A shorter refresh does not revoke a still-valid old answer,
+				// just as omitting an IP does not revoke its original lease.
+				if until := d.cache[host].until; until.After(d.leases[host][ip]) {
+					d.leases[host][ip] = until
+				}
 			}
 			if changed {
 				d.changedLocked()

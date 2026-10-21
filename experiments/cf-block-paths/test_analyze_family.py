@@ -6,6 +6,11 @@ from analyze_family import pairs_for, aggregate_family, family_window
 
 
 class FamilyAnalysisTest(unittest.TestCase):
+    def test_changed_methods_are_not_pooled(self):
+        with self.assertRaisesRegex(AssertionError, "separately"):
+            aggregate_family([{"method": "legacy-family-v2"},
+                              {"method": "bound-interface-retained-dns-leases-v1"}])
+
     def test_same_ip_is_retained_as_control(self):
         runs = [{"round": 1, "song": 1, "arm": a, "ip": "same", "ok": True,
                  "error": "", "elapsedMS": ms, "prefix8MS": 50}
@@ -39,6 +44,11 @@ class FamilyAnalysisTest(unittest.TestCase):
             path.write_text(json.dumps(raw), encoding="utf-8")
             (path.parent / "training.json").write_text(json.dumps(training), encoding="utf-8")
             result = family_window(path)
+            raw["Schema"] = 3
+            raw["Method"] = "bound-interface-retained-dns-leases-v1"
+            path.write_text(json.dumps(raw), encoding="utf-8")
+            revised = family_window(path)
+            self.assertEqual(aggregate_family([revised])["method"], raw["Method"])
         self.assertEqual(len(result["blockTraining"]["runs"]), 3)
         self.assertEqual(result["missingRuns"], 1)
         self.assertEqual(aggregate_family([result])["completeWindows"], 0)

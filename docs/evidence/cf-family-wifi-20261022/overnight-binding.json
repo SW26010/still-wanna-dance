@@ -1,0 +1,28 @@
+{
+  "batch": "overnight",
+  "tcpAttempts": 528,
+  "counts": {
+    "v4Connected": 319,
+    "canceled": 77,
+    "v6Connected": 131,
+    "otherFailed": 1
+  },
+  "otherErrors": {
+    "timeout": 1
+  },
+  "allConnectedSourcesOnSelectedWifi": true,
+  "allConnectedPeersMatchTargets": true,
+  "allSelectedIndexesMatchAdapter": true,
+  "fatalBindingError": false,
+  "hashBasis": "actual-file-bytes",
+  "files": {
+    "candidate-failure-private.json": "5dec60ac22442b520292692b181212911c7b5ac69b2647516cbf7d10d7752d95",
+    "connections-private.jsonl": "9fc90b6de95cb8f9bfd2da3886fa3dec4bd69e11f46d3383f4990ad200e98964",
+    "monitor-dns-1-private.json": "ab5803fcb588830aa964f57c4cb62be3f3dbe4d758f2d978849805d0bd637bc8",
+    "monitor-extra-1-private.json": "c05a9f83d913e9b6e59015a6b327ffa6eafe3597ecf9b27a2b214934cf1bccfd",
+    "network-private.json": "6b45698b830ed2ac8706c9c7c232e89f0b8d24c07fe4f2961b2346c17b5a8940",
+    "targets-private.json": "a8dfbf653e85354ddbdbeedb9ee17ec12fb549bc38c781a89956d3fa3690dcbd",
+    "training.json": "cad78981778fe6503131b0cac90a8b58d5c00b939c36e9eca4218cf25981b58d",
+    "window.json": "096739a24c6dcadd8e0c71bcdf61140a38f94106d590eca4a820667cb6dc0e52"
+  }
+}

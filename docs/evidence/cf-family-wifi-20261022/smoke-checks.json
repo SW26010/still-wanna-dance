@@ -1,0 +1,21 @@
+{
+  "batch": "smoke",
+  "tcpAttempts": 52,
+  "counts": {
+    "v4Connected": 30,
+    "canceled": 16,
+    "v6Connected": 6
+  },
+  "otherErrors": {},
+  "allConnectedSourcesOnSelectedWifi": true,
+  "allConnectedPeersMatchTargets": true,
+  "allSelectedIndexesMatchAdapter": true,
+  "fatalBindingError": false,
+  "hashBasis": "actual-file-bytes",
+  "files": {
+    "connections-private.jsonl": "3a7fc9c114f032740a071917f8bff1a1ff8bd60913fab98b21d067554850da91",
+    "monitor-private.json": "594dd31e95a31ff06a35ac7cada3beb60b132bcbe4247f6c3ec07a8727467922",
+    "network-private.json": "6b45698b830ed2ac8706c9c7c232e89f0b8d24c07fe4f2961b2346c17b5a8940",
+    "smoke.json": "37ea8a330d337f5d52466346a11b36ab24ac51d81ef3fcbaca238ef2332a3e61"
+  }
+}

@@ -20,7 +20,7 @@ test('content, path and hash jointly enforce fixture exceptions', () => {
 
 test('product icon exceptions are limited to the exact runtime assets', () => {
   const bytes = Buffer.from([0, 0, 1, 0, 1, 0]);
-  for (const iconPath of ['internal/branding/logo.ico', 'internal/branding/logo-light.ico']) {
+  for (const iconPath of ['internal/branding/logo.ico', 'internal/branding/logo-light.ico', 'internal/branding/logo_windows_amd64.syso']) {
     const exception = { path: iconPath, kind: 'product-icon', bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
     const allowed = { ...policy, exceptions: [exception] };
     assert.deepEqual(classify(iconPath, bytes, allowed), {});
@@ -29,6 +29,7 @@ test('product icon exceptions are limited to the exact runtime assets', () => {
     assert.ok(classify(iconPath, bytes, { ...allowed, exceptions: [{ ...exception, bytes: 999 }] }).error);
     assert.ok(classify('application.exe', bytes, { ...allowed, exceptions: [{ ...exception, path: 'application.exe' }] }).error);
     assert.ok(classify('internal/branding/other.ico', bytes, { ...allowed, exceptions: [{ ...exception, path: 'internal/branding/other.ico' }] }).error);
+    assert.ok(classify('internal/branding/other.syso', bytes, { ...allowed, exceptions: [{ ...exception, path: 'internal/branding/other.syso' }] }).error);
   }
 });
 

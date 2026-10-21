@@ -5,6 +5,13 @@
   "maxBytes": 1048576,
   "exceptions": [
     {
+      "path": "internal/branding/logo_windows_amd64.syso",
+      "kind": "product-icon",
+      "bytes": 57630,
+      "sha256": "7ffbfb2584b222f2076c6fdd3be5214bb0c9ffaa762f12d775ed9d09a859d342",
+      "reason": "Windows amd64 EXE icon resource generated from internal/branding/logo.ico by the pinned rsrc v0.10.2 go:generate directive in branding.go; contains artwork only and is linked by ordinary offline Go builds."
+    },
+    {
       "path": "internal/console/assets/webui/app.js",
       "kind": "large-text",
       "bytes": 1188688,

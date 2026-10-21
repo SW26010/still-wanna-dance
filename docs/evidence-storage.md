@@ -1,6 +1,6 @@
 # 证据与大文件存储约定
 
-Git 保存源码、报告、精简统计、纯矢量 SVG 和清单。完整实验轨迹、逐请求记录、图片、压缩文件及构建产物使用版本化附件。必要的二进制测试样本单独登记，当前为固定的 `internal/cacheproxy/testdata/storage-v2.sqlite` 和 `storage-v3.sqlite`，分别覆盖旧格式拒绝和当前格式。产品运行所需的 `internal/branding/logo.ico`、`logo-light.ico` 另按精确路径、字节数与 SHA256 登记，保证普通离线构建不依赖附件下载。
+Git 保存源码、报告、精简统计、纯矢量 SVG 和清单。完整实验轨迹、逐请求记录、图片、压缩文件及构建产物使用版本化附件。必要的二进制测试样本单独登记，当前为固定的 `internal/cacheproxy/testdata/storage-v2.sqlite` 和 `storage-v3.sqlite`，分别覆盖旧格式拒绝和当前格式。产品运行所需的 `internal/branding/logo.ico`、`logo-light.ico` 及 EXE 图标资源 `logo_windows_amd64.syso` 另按精确路径、字节数与 SHA256 登记，保证普通离线构建不依赖附件下载。
 
 ## 文件归属
 
@@ -63,6 +63,6 @@ node scripts/check-repository-artifacts.mjs --base origin/main --head HEAD
 
 Web UI 的 `app.js` 是离线构建所需的生成产物。重建后按构建清单核对字节数和 SHA256，为新版本追加精确例外，保留历史版本的登记。历史改写后重新检查整个范围，不能只更新最终产物的哈希。
 
-产品图标例外仅允许 `internal/branding/logo.ico`、`internal/branding/logo-light.ico`，仍拒绝其他图片、证据、压缩包和程序文件。同目录 `logo.svg` 是两种主题共用的矢量源，默认浅色、带独立的深色 media 样式；配色与主题选择规则见 [Fluent UI](fluent-ui-migration.md#页面排版)。安装开发依赖 `sharp@0.35.5` 后运行 `node scripts/generate-logo.mjs`，生成深／浅两套 16–256 像素的九档 ICO 并输出字节数及 SHA256；生成器明确选择 media 样式，不依赖构建机器主题。`--check` 只校验重建结果，不写文件。更新例外记录后审查图案与哈希。正常 Go 构建直接嵌入已登记文件，无需运行生成器。重新生成可能受 SVG 渲染库版本影响，不能只改策略哈希而跳过图案核对。
+产品图标例外仅允许 `internal/branding/logo.ico`、`internal/branding/logo-light.ico` 和 `internal/branding/logo_windows_amd64.syso`，仍拒绝其他图片、证据、压缩包和程序文件。同目录 `logo.svg` 是两种主题共用的矢量源，默认浅色、带独立的深色 media 样式；配色与主题选择规则见 [Fluent UI](fluent-ui-migration.md#页面排版)。安装开发依赖 `sharp@0.35.5` 后运行 `node scripts/generate-logo.mjs`，生成深／浅两套 16–256 像素的九档 ICO 并输出字节数及 SHA256；生成器明确选择 media 样式，不依赖构建机器主题。`--check` 只校验 ICO 重建结果，不写文件。随后运行 `go generate ./internal/branding`，由固定版本 `github.com/akavel/rsrc@v0.10.2` 将 `logo.ico` 封装为 Windows amd64 图标资源，不附加 manifest 或执行代码。更新例外记录后审查图案与哈希。正常 Go 构建直接嵌入已登记文件，无需运行生成器。重新生成可能受 SVG 渲染库版本影响，不能只改策略哈希而跳过图案核对。
 
 验证范围按[现行机制](live-acceptance-process.md)判断；文件归类本身不产生新的实机验收要求。

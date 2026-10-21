@@ -1,5 +1,6 @@
 // Development-only: install sharp@0.35.5 locally (or provide it via NODE_PATH).
-// Normal Go builds use the checked-in ICO and do not need Node or sharp.
+// Then run go generate ./internal/branding to refresh the Windows EXE icon.
+// Normal Go builds use the checked-in ICO/SYSO and do not need Node or sharp.
 import { createRequire } from 'node:module';
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';

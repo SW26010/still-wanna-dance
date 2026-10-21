@@ -1,0 +1,294 @@
+{
+  "date": "2026-10-22",
+  "timezone": "Asia/Shanghai",
+  "browser": {
+    "name": "Google Chrome",
+    "installedVersion": "155.0.8059.85",
+    "userAgentMajor": 155,
+    "existingProfile": true,
+    "securitySettingsChanged": false
+  },
+  "environment": {
+    "bindAddress": "127.0.0.2",
+    "httpPort": 80,
+    "tlsPort": 443,
+    "tlsBehavior": "close connection after first ClientHello bytes",
+    "hostsChanged": false,
+    "certificatesInstalled": false,
+    "gameStarted": false
+  },
+  "runs": [
+    {
+      "id": "run1",
+      "suffix": "swd20261022.127.0.0.2.sslip.io",
+      "cases": [
+        {
+          "case": "click HTTP link",
+          "tlsAttempts": 2,
+          "httpResultRequests": 1,
+          "finalScheme": "http",
+          "browserWarning": false
+        },
+        {
+          "case": "302 to HTTP",
+          "tlsAttempts": 2,
+          "httpResultRequests": 1,
+          "finalScheme": "http",
+          "browserWarning": false,
+          "note": "TLS label incorrectly recorded as direct due to substring matching; use the Host and isolated time window."
+        },
+        {
+          "case": "explicit HTTPS link",
+          "tlsAttempts": 6,
+          "httpResultRequests": 0,
+          "error": "ERR_CONNECTION_CLOSED",
+          "finalScheme": "https"
+        },
+        {
+          "case": "repeat first HTTP link",
+          "tlsAttempts": 0,
+          "httpResultRequests": 1,
+          "finalScheme": "http"
+        }
+      ],
+      "startTime": "T+0.000s"
+    },
+    {
+      "id": "run2",
+      "suffix": "swd20261022b.127.0.0.2.sslip.io",
+      "cases": [
+        {
+          "case": "fresh 302 to HTTP, corrected label",
+          "tlsAttempts": 2,
+          "httpResultRequests": 1,
+          "finalScheme": "http",
+          "browserWarning": false,
+          "observedIntervalMs": 51,
+          "firstTlsClosedTime": "T+294.602s",
+          "httpReceivedTime": "T+294.653s"
+        }
+      ],
+      "startTime": "T+273.040s"
+    }
+  ],
+  "browserObservationMethod": "CUA visible page/accessibility state. Transcribed observations; no HAR/full browser network trace.",
+  "domainPolicies": {
+    "sourceVersion": "155.0.8059.85",
+    "preload": [
+      {
+        "host": "play.udon.dance",
+        "matches": []
+      },
+      {
+        "host": "api.udon.dance",
+        "matches": []
+      },
+      {
+        "host": "nya.xin.moe",
+        "matches": [
+          {
+            "name": "xin.moe",
+            "policy": "bulk-1-year",
+            "mode": "force-https",
+            "include_subdomains": true
+          }
+        ]
+      }
+    ],
+    "dns": {
+      "provider": "https://dns.google/resolve",
+      "type": 65,
+      "collectedDate": "2026-10-22 Asia/Shanghai",
+      "answers": [
+        {
+          "host": "play.udon.dance",
+          "status": 0,
+          "hasHttpsRecord": true,
+          "ttl": 300,
+          "alpn": "h3,h2"
+        },
+        {
+          "host": "api.udon.dance",
+          "status": 0,
+          "hasHttpsRecord": true,
+          "ttl": 300,
+          "alpn": "h3,h2"
+        },
+        {
+          "host": "nya.xin.moe",
+          "status": 0,
+          "hasHttpsRecord": false,
+          "ttl": null,
+          "alpn": null
+        }
+      ],
+      "limitation": "Public DoH snapshot, not the DNS answers actually used by the browser."
+    }
+  },
+  "limitations": [
+    "Synthetic entry was HTTP loopback, not an HTTPS API.",
+    "Returned HTML proves navigation, not complete media playback.",
+    "No rejection test against actual mapped resource domains.",
+    "Dynamic HSTS/HTTPS-First preferences and actual DNS resolver state not inspected.",
+    "No local Edge/Firefox/Safari or VRC run.",
+    "No valid local TLS certificate was installed to run a local successful-TLS control."
+  ],
+  "failures": [
+    "Run1 label matcher matched direct within redirect; retained, corrected and rerun on a fresh domain.",
+    "Second server first hit EADDRINUSE while run1 was active; stopped owned session then restarted.",
+    "CIM process query unavailable in this sandbox.",
+    "Internal HSTS page blocked by browser tool policy; no alternate access attempted.",
+    "Normal stdin was closed during cleanup; interrupted the owned session instead."
+  ],
+  "cleanup": {
+    "ownedResearchTabClosed": true,
+    "serverSessionsStopped": true,
+    "portReleaseVerifiedByBindAndClose": [
+      80,
+      443
+    ]
+  },
+  "evidence": {
+    "rawArtifacts": [
+      {
+        "path": "artifacts/browser-https-research/probe-events-run1.jsonl",
+        "bytes": 5360,
+        "sha256": "0e9b3520841f9fd5d84970d49ed6a650bab5e52d7692da28f33598cdcc23a86d",
+        "status": "local-only-ignored"
+      },
+      {
+        "path": "artifacts/browser-https-research/probe-events-run2.jsonl",
+        "bytes": 1674,
+        "sha256": "fc1b69f66d507b27e540aae785bfa87c44530033e043a19cd3adb8f64e100ebf",
+        "status": "local-only-ignored"
+      },
+      {
+        "path": "artifacts/browser-https-research/probe-server-run1.mjs",
+        "bytes": 2619,
+        "sha256": "2dc205aacd98395202666cdecc4dc156a612db58a60e3bb085ea5fa730ef117b",
+        "status": "local-only-ignored"
+      },
+      {
+        "path": "artifacts/browser-https-research/probe-server.mjs",
+        "bytes": 2740,
+        "sha256": "fcbce52ddd5354994ea1399b686ae01e59f9eb29d17470008edb05c2d5e93b7c",
+        "status": "local-only-ignored"
+      }
+    ],
+    "published": false,
+    "sources": [
+      {
+        "path": "chrome/browser/ssl/https_upgrades_interceptor.cc",
+        "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/chrome/browser/ssl/https_upgrades_interceptor.cc",
+        "bytes": 39016,
+        "sha256": "2d07482c9ce66f4433770bfc53e88f200a09ea2e3628f0238de25cdd66582836"
+      },
+      {
+        "path": "chrome/browser/ssl/https_upgrades_navigation_throttle.cc",
+        "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/chrome/browser/ssl/https_upgrades_navigation_throttle.cc",
+        "bytes": 14733,
+        "sha256": "cd2feeb88d493e57ac296765f7ec15ae9f54eb6360cc875366111c5958b362be"
+      },
+      {
+        "path": "chrome/browser/ssl/https_upgrades_util.cc",
+        "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/chrome/browser/ssl/https_upgrades_util.cc",
+        "bytes": 8675,
+        "sha256": "dacfc918b9a9ffeee3a9256bc5ffe08f18c02475e008a0a100fcf825e8bdeb78"
+      },
+      {
+        "path": "chrome/browser/ssl/https_upgrades_browsertest.cc",
+        "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/chrome/browser/ssl/https_upgrades_browsertest.cc",
+        "bytes": 236080,
+        "sha256": "2103908141131209c0a42325ef549cf9aa98655548609e1c491763c2488aca8a"
+      },
+      {
+        "path": "chrome/browser/ssl/https_first_mode_settings_tracker.cc",
+        "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/chrome/browser/ssl/https_first_mode_settings_tracker.cc",
+        "bytes": 35057,
+        "sha256": "49797ef364c586a39ebd024d9818855e99bdbbbf3de2d67c1f31903230cfc5f1"
+      },
+      {
+        "path": "components/security_interstitials/content/stateful_ssl_host_state_delegate.cc",
+        "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/components/security_interstitials/content/stateful_ssl_host_state_delegate.cc",
+        "bytes": 20143,
+        "sha256": "f4bae9397fd7b0d682ccac4c2b8fff2b5553f434fe5558d9d3108b422ee8a74f"
+      },
+      {
+        "path": "chrome/common/chrome_features.cc",
+        "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/chrome/common/chrome_features.cc",
+        "bytes": 97032,
+        "sha256": "2443a5e4b68f18ba16f7d9bf548a7f9bb98a98d74f569c459eaa553888ff3000"
+      },
+      {
+        "path": "net/http/transport_security_state_static.json",
+        "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/net/http/transport_security_state_static.json",
+        "bytes": 10534637,
+        "sha256": "22a2a6e72ea571ba80ec478fda90c65fcfad54b1d2b3f8015008bc3c8b88c9d6"
+      },
+      {
+        "path": "net/dns/host_resolver_dns_task.cc",
+        "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/net/dns/host_resolver_dns_task.cc",
+        "bytes": 46987,
+        "sha256": "54ea513ef15549c2de853f49177989fcf8ab550d373eaa57201f15b3c24ca7b8"
+      },
+      {
+        "path": "net/dns/host_resolver_manager.cc",
+        "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/net/dns/host_resolver_manager.cc",
+        "bytes": 75087,
+        "sha256": "420850f98d4d3c2a0b5beb4a8fb7cd75ec3e3a5da1dc2aa7b894dad1e59d461b"
+      },
+      {
+        "path": "net/url_request/url_request_http_job.cc",
+        "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/net/url_request/url_request_http_job.cc",
+        "bytes": 80339,
+        "sha256": "5bd545fa39a7ca3b46bfb1a3b65b8a2279bf8fdaa9d64396c6d73c470c745f21"
+      },
+      {
+        "path": "net/base/features.cc",
+        "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/net/base/features.cc",
+        "bytes": 41275,
+        "sha256": "c78d0384f19fb6e861a06e947eafb68a454a8c07629f80320cde0beacaaeb6c4"
+      },
+      {
+        "path": "net/dns/README.md",
+        "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/net/dns/README.md",
+        "bytes": 17167,
+        "sha256": "888df5c9f456efd0728505279aee7f46d87f4ca9fa5e6aac28793ab1198c4efc"
+      },
+      {
+        "path": "net/dns/host_resolver_manager_unittest.cc",
+        "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/net/dns/host_resolver_manager_unittest.cc",
+        "bytes": 703479,
+        "sha256": "9085612cd238e9abcbc12e22a7e9221e3f8a7162c74001606b21da2617080b5d"
+      },
+      {
+        "path": "net/url_request/url_request_unittest.cc",
+        "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/net/url_request/url_request_unittest.cc",
+        "bytes": 549501,
+        "sha256": "f39ecd72abb6ba8b5c9b13a028128bbf4453c553d5e2a4a5dff57dd6d20a6d61"
+      }
+    ]
+  },
+  "reproductionScript": {
+    "path": "experiments/browser-https-upgrades/probe-server.mjs",
+    "relationship": "Packaged after the observations; input validation and output path differ from the raw run2 script. Browser outcomes were measured with the raw scripts listed above."
+  },
+  "validation": {
+    "scriptSyntax": "passed",
+    "localReportLinks": {
+      "checked": 7,
+      "status": "passed"
+    },
+    "eventTotals": "passed",
+    "diffWhitespace": "passed",
+    "repositoryArtifacts": {
+      "status": "failed-existing-history-blob",
+      "head": "b10886464b075cfe0108515b1df894918454adbb",
+      "path": "internal/console/assets/webui/app.js",
+      "blob": "2a35943163822872ad59aa9ec70bd426d10794e2",
+      "bytes": 1191805,
+      "reason": "large file requires an exact documented exception"
+    }
+  },
+  "timeNormalization": "T+seconds relative to the earliest capture timestamp in this file. Not comparable to relative times in other files. Calendar dates remain for study identification."
+}

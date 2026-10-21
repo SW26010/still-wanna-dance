@@ -1,0 +1,52 @@
+{
+  "checkedAt": "T+0.000s",
+  "results": [
+    {
+      "label": "HTTPS API default headers",
+      "status": 302,
+      "location": "http://play.udon.dance/files/2502/1-67a5b0d356cce.mp4?[omitted]",
+      "hsts": null,
+      "csp": null,
+      "bytes": 0,
+      "remoteAddress": "104.26.5.28"
+    },
+    {
+      "label": "HTTPS API browser navigation headers",
+      "status": 302,
+      "location": "http://play.udon.dance/files/2502/1-67a5b0d356cce.mp4?[omitted]",
+      "hsts": null,
+      "csp": null,
+      "bytes": 0,
+      "remoteAddress": "104.26.5.28"
+    },
+    {
+      "label": "http: media Range",
+      "status": 206,
+      "hsts": null,
+      "csp": null,
+      "contentRange": "bytes 0-1023/40795378",
+      "bytes": 1024,
+      "remoteAddress": "104.26.4.28"
+    },
+    {
+      "label": "https: media Range",
+      "status": 206,
+      "hsts": null,
+      "csp": null,
+      "contentRange": "bytes 0-1023/40795378",
+      "bytes": 1024,
+      "remoteAddress": "104.26.4.28"
+    }
+  ],
+  "browserObservations": {
+    "observedAt": "T+51.116s",
+    "method": "Chrome browser tool: read existing homepage song link and existing media tab; independently opened API in a new tab. Manual transcription, not a HAR or complete browser network trace.",
+    "homepageSongHref": "https://api.udon.dance/Api/Songs/play?id=1",
+    "existingMediaURL": "https://play.udon.dance/files/2502/1-67a5b0d356cce.mp4?[omitted]",
+    "independentAPINavigationFinalURL": "https://play.udon.dance/files/2502/1-67a5b0d356cce.mp4?[omitted]",
+    "interpretation": "Browser-side HTTPS upgrade is indicated. The exact internal rule (automatic HTTPS upgrades, HSTS, cached redirect, extension) was not captured.",
+    "limitation": "Browser security policy blocks chrome://net-internals/#hsts; no policy/settings changes or bypass attempted."
+  },
+  "date": "2026-10-22",
+  "timeNormalization": "T+seconds relative to the earliest capture timestamp in this file. Not comparable to relative times in other files. Calendar dates remain for study identification."
+}

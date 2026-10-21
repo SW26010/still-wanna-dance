@@ -18,6 +18,7 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [cf-ip-library-20261021/summary.json](cf-ip-library-20261021/summary.json) | cf-speedtester v1.1.2 的回环缺陷复现、18 IP 初筛及独立三轮复测：优选地址相对预检基线约 +26%，保留首次外层限时中断；仅当前网络单资源单连接，见[报告](../validation/cf-ip-library-20261021.md) |
 | [live-20261020-01/manifest.json](live-20261020-01/manifest.json) | 手动下一首、自然结束及手动热缓存对照共 9 笔：队首日志首次可读→首 GET 约 0.8 秒，3 秒轮询发现→GET 可为负；保留实际采样边界、播放器缓存条件和原始来源指纹。实验进程已退出，用户选择保留直连，见[报告](../acceptance/live-acceptance-20261020-01.md) |
 | [live-20261019-01/manifest.json](live-20261019-01/manifest.json) | #36 独立正文额度与本轮核心实测：正式事件关联供数区间 >768 KiB、≤1 MiB；1 Mbps 截止后真实重试/恢复、零缓存共享/回收、队列滚动与交接、正预算发布及直连恢复。保留预览干扰、冷 Seek 缺口和历史失败；hosts/进程/监听已恢复。完整脱敏附件本地与备份已验证，未发布，见[报告](../acceptance/live-acceptance-20261019-01.md) |
 | [live-20261015-02/manifest.json](live-20261015-02/manifest.json) | 新构建日常运行回溯：43 条正式请求/记录一致、37 完成/6 待复查、38 缓存 MD5 正常、37 个队首交接样本；用户整体正常，保留取消、外围游戏错误和退出标记缺口。十项未整项结项；完整逐请求/事件轨迹已归入版本化 ZIP，Git 留摘要和清单，本地/备份及公开下载回验通过，[版本化附件已发布](https://github.com/SW26010/still-wanna-dance/releases/tag/evidence-20261015-live-02-v1)，见[报告](../acceptance/live-acceptance-20261015-02.md) |

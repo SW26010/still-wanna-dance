@@ -1,0 +1,212 @@
+{
+  "module": {
+    "path": "github.com/fireinrain/cf-speedtester",
+    "version": "v1.1.2",
+    "commit": "114a1ad76e29c14d9357ff153ce3650cc7044dc0",
+    "sum": "h1:a/bLRNk0bzcWBFwj41mh7CmeEtYkAAwPJ40ByBqEi1E="
+  },
+  "scope": {
+    "song": 1343,
+    "host": "play.udon.dance",
+    "resourceBytes": 32867177,
+    "bytesPerVerificationRequest": 16777216,
+    "baseline": "104.26.5.28",
+    "explicitProxy": false,
+    "tlsVerification": true,
+    "httpProtocol": "HTTP/1.1",
+    "candidateCount": 18,
+    "downloadCandidateCount": 7
+  },
+  "localChecks": {
+    "http503": {
+      "configuredBytesPerSecond": 1048576,
+      "reportedBytesPerSecond": 0,
+      "selectedCount": 1,
+      "serverWrittenBytes": 0,
+      "wallSeconds": 0.0092617
+    },
+    "paced": {
+      "configuredBytesPerSecond": 1048576,
+      "reportedBytesPerSecond": 1238418.7845371794,
+      "selectedCount": 1,
+      "serverWrittenBytes": 5177344,
+      "wallSeconds": 5.0008892
+    },
+    "repeat": {
+      "dbAfter": "cannot call Lookup on a closed database",
+      "dbBefore": "<nil>",
+      "firstResults": 1,
+      "secondWithoutCountryFilterResults": 1
+    },
+    "zeroLossLimitConfigured": 1
+  },
+  "libraryReportedResultsUncalibrated": {
+    "baseline": "104.26.5.28",
+    "results": [
+      {
+        "IPAddress": "103.21.244.1",
+        "Sent": 3,
+        "Received": 3,
+        "PacketLossRate": 0,
+        "AvgLatency": 2.574466,
+        "DownloadSpeed": 10310230.445549244
+      },
+      {
+        "IPAddress": "104.26.5.28",
+        "Sent": 3,
+        "Received": 3,
+        "PacketLossRate": 0,
+        "AvgLatency": 2.5972999999999997,
+        "DownloadSpeed": 7656669.005274988
+      },
+      {
+        "IPAddress": "172.67.69.58",
+        "Sent": 3,
+        "Received": 3,
+        "PacketLossRate": 0,
+        "AvgLatency": 3.0034660000000004,
+        "DownloadSpeed": 6029250.935663449
+      },
+      {
+        "IPAddress": "104.26.4.28",
+        "Sent": 3,
+        "Received": 3,
+        "PacketLossRate": 0,
+        "AvgLatency": 1.640466,
+        "DownloadSpeed": 126002.85839161997
+      }
+    ],
+    "seconds": 21.0261952
+  },
+  "independentVerification": [
+    {
+      "ip": "104.26.5.28",
+      "ratesMiBPerSecond": [
+        3.708000520974073,
+        3.1697792611288125,
+        3.7598925121928617
+      ],
+      "median": 3.708000520974073,
+      "min": 3.1697792611288125,
+      "max": 3.7598925121928617,
+      "pairedGains": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "medianPairedGain": 0.0,
+      "colos": [
+        "SEA",
+        "SEA",
+        "SEA"
+      ]
+    },
+    {
+      "ip": "103.21.244.1",
+      "ratesMiBPerSecond": [
+        4.684153391971127,
+        4.014640289108298,
+        4.729781102183255
+      ],
+      "median": 4.684153391971127,
+      "min": 4.014640289108298,
+      "max": 4.729781102183255,
+      "pairedGains": [
+        0.26325586133969137,
+        0.26653623434920704,
+        0.25795646733122446
+      ],
+      "medianPairedGain": 0.26325586133969137,
+      "colos": [
+        "SJC",
+        "SJC",
+        "LAX"
+      ]
+    },
+    {
+      "ip": "172.67.69.58",
+      "ratesMiBPerSecond": [
+        3.1338833350817787,
+        3.56722776261,
+        3.2843571365611477
+      ],
+      "median": 3.2843571365611477,
+      "min": 3.1338833350817787,
+      "max": 3.56722776261,
+      "pairedGains": [
+        -0.1548320132763834,
+        0.1253868073260247,
+        -0.12647578995665754
+      ],
+      "medianPairedGain": -0.12647578995665754,
+      "colos": [
+        "SEA",
+        "SEA",
+        "SEA"
+      ]
+    }
+  ],
+  "checks": {
+    "completeObservations": 12,
+    "sharedSHA256": "612bfce6f42ce8ba98edccbede5cd232ee1f3a0cd123f96b1c1e2530d3d56848",
+    "allStatus206": true,
+    "allCacheHit": true,
+    "allRemoteIPsMatch": true,
+    "contentLengthAndRangeAndETagValidatedByProbe": true,
+    "warmupsExcludedFromPerformanceStatistics": 3
+  },
+  "interruptedFirstAttempt": {
+    "status": {
+      "timedOut": true,
+      "exitCode": -1
+    },
+    "completedObservations": 10,
+    "reason": "Outer 60-second experiment watchdog expired; retained all data, excluded entire incomplete batch from primary statistics."
+  },
+  "localProvenance": [
+    {
+      "path": "probe.exe",
+      "sha256": "33ffca8467d434cab8749bf7a0b7902a74be706a085918991d38850da00c3636"
+    },
+    {
+      "path": "probe/main.go",
+      "sha256": "79d1bde152fa24b1f2697273b2cd61f4b0cf576cdce3bf490dadac6b694a14c6"
+    },
+    {
+      "path": "probe/live.go",
+      "sha256": "5c50f8edd8135eaf855869faf51b06d2e9127d9eb28bcfbfc9e99e12d896220a"
+    },
+    {
+      "path": "probe/go.mod",
+      "sha256": "d2643969ddd84e731b7f128ec57fdb8500706c25111c346d7df5f0698e228cee"
+    },
+    {
+      "path": "probe/go.sum",
+      "sha256": "cd012742061535a1d996cd3fcf1feb4c1e58897449e4d861658cbf71aacdd0d1"
+    },
+    {
+      "path": "clean-start/local-results.json",
+      "sha256": "df5fa6d2191ff752d2e0e4d12af16fd9f933a266eb64e73482e0632dea485b6b"
+    },
+    {
+      "path": "clean-start/live-results.json",
+      "sha256": "e1065a26e2a9c20386ce870c835faf3f4986d88d760fd1dcc749fee3c49c8858"
+    },
+    {
+      "path": "clean-start/verification.json",
+      "sha256": "fc7054714996037209132b4f35239e24ea9648cefac6c6905d9ca4ebbb9f4f35"
+    },
+    {
+      "path": "clean-start/verify-status.json",
+      "sha256": "01d104bfc4aefa54fd19968ef73c3c2b8b85004aebc220dd7a9f529a257162d6"
+    },
+    {
+      "path": "verify-retest/verification.json",
+      "sha256": "ff30888d80d2d66748259d7cc5c8b9eb6d394fad207284c9f28ecb46f696bb19"
+    },
+    {
+      "path": "verify-retest/verify-status.json",
+      "sha256": "0bfd264c633aca6c07c238176b627b7f523daa294b39277b48bf456ab20ee24c"
+    }
+  ]
+}

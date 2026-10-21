@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-18",
-  "noticesSHA256": "e0beaad3bca3248ca88627aa1914047c589f22e9a708faab6584b6f80537f429",
+  "reviewedAt": "2026-10-21",
+  "noticesSHA256": "3dde057cce11ecf7217cf7286ede25db7e46e7d1db89e870fa8cdf9f3579a5b5",
   "modules": [
     {
       "path": "github.com/andybalholm/brotli",
@@ -1095,6 +1095,17 @@
         {
           "path": "LICENSE",
           "sha256": "9bdaf6c691adeb560c86a43c26b9dd4f8a52c8d9965229e356e545e5894c3ab1"
+        }
+      ]
+    },
+    {
+      "path": "github.com/tailscale/go-winio",
+      "version": "v0.0.0-20231025203758-c4f33415bf55",
+      "sum": "h1:Gzfnfk2TWrk8Jj4P4c1a3CtQyMaTVCznlkLZI++hok4=",
+      "licenseFiles": [
+        {
+          "path": "LICENSE",
+          "sha256": "cf248820bf1178370bb4f1670a59f8748d46bc96d0f64080cd631511c6046409"
         }
       ]
     },

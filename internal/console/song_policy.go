@@ -64,13 +64,15 @@ func (c *Console) songPolicyAPI(w http.ResponseWriter, r *http.Request) {
 				err = errors.New("控制台正在退出")
 			} else if input.StorageID != cacheproxy.CacheStorageID(c.settings.StorageDir) {
 				err = errors.New("存储目录已切换，请刷新歌曲列表")
-			} else {
-				err = c.ensureEngine()
 			}
-			engine := c.service
+			engine, root := c.service, c.settings.StorageDir
 			c.mu.Unlock()
 			if err == nil {
-				err = engine.SetSongPolicy(ctx, id, input.Policy)
+				if engine != nil {
+					err = engine.SetSongPolicy(ctx, id, input.Policy)
+				} else if _, err = c.inspectStorage(root); err == nil {
+					err = cacheproxy.SetSongPolicyOffline(ctx, root, id, input.Policy)
+				}
 			}
 		}
 		result = map[string]bool{"ok": err == nil}

@@ -1,11 +1,44 @@
 package cacheproxy
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestOfflineSongPolicyRespectsStorageLockAndVersion(t *testing.T) {
+	t.Run("locked", func(t *testing.T) {
+		s, cfg := setup(t, nil)
+		if err := SetSongPolicyOffline(t.Context(), cfg.StorageDir, 42, SongFavorite); err == nil {
+			t.Fatal("offline write bypassed the engine's storage lock")
+		}
+		policy, err := readSongPolicy(t.Context(), s.usage.db, 42)
+		if err != nil || policy != SongNormal {
+			t.Fatal(policy, err)
+		}
+	})
+	t.Run("v2", func(t *testing.T) {
+		root := t.TempDir()
+		original, err := os.ReadFile(filepath.Join("testdata", "storage-v2.sqlite"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(storagePath(root), original, 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := SetSongPolicyOffline(t.Context(), root, 42, SongFavorite); err == nil {
+			t.Fatal("offline write accepted schema v2")
+		}
+		after, err := os.ReadFile(storagePath(root))
+		if err != nil || !bytes.Equal(original, after) {
+			t.Fatal("offline write changed old database", err)
+		}
+	})
+}
 
 func TestSongPoliciesPersistWithoutDownloadOrCatalogMutation(t *testing.T) {
 	s, cfg := setup(t, nil)

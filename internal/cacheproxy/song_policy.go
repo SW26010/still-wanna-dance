@@ -87,7 +87,7 @@ func (s *Server) SetSongPolicy(ctx context.Context, id int64, policy SongPolicy)
 	defer s.wg.Done()
 	s.retentionRunMu.Lock()
 	defer s.retentionRunMu.Unlock()
-	if err := s.writeSongPolicy(ctx, id, policy); err != nil {
+	if err := writeSongPolicy(ctx, s.usage.db, id, policy); err != nil {
 		return s.storageError(err)
 	}
 	s.retentionMu.Lock()
@@ -96,8 +96,22 @@ func (s *Server) SetSongPolicy(ctx context.Context, id int64, policy SongPolicy)
 	return nil
 }
 
-func (s *Server) writeSongPolicy(ctx context.Context, id int64, policy SongPolicy) error {
-	tx, err := s.usage.db.BeginTx(ctx, nil)
+// SetSongPolicyOffline writes an idle library without starting retention. In
+// particular, favoriting an existing video must precede startup budget cleanup.
+func SetSongPolicyOffline(ctx context.Context, root string, id int64, policy SongPolicy) error {
+	if id <= 0 || !policy.Valid() {
+		return errors.New("invalid song preference")
+	}
+	db, close, err := openOfflineStorage(root)
+	if err != nil {
+		return err
+	}
+	defer close()
+	return writeSongPolicy(ctx, db, id, policy)
+}
+
+func writeSongPolicy(ctx context.Context, db *sql.DB, id int64, policy SongPolicy) error {
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}

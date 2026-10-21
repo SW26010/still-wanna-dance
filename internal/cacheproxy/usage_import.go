@@ -4,11 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"os"
-	"path/filepath"
 	"time"
-
-	"still-wanna-dance/internal/workfiles"
 )
 
 var ErrSongUsageExists = errors.New("已有歌曲需求统计；请重新预览并明确确认整表覆盖")
@@ -123,31 +119,11 @@ func ImportSongUsage(ctx context.Context, root string, h *SongUsageImport, overw
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	if err := os.MkdirAll(root, 0700); err != nil {
-		return err
-	}
-	if err := workfiles.CheckDir(root); err != nil {
-		return err
-	}
-	unlock, err := lockDirectory(filepath.Join(root, ".lock"))
+	db, close, err := openOfflineStorage(root)
 	if err != nil {
 		return err
 	}
-	defer unlock()
-	existing, err := InspectStorage(root)
-	if err != nil {
-		return err
-	}
-	db, err := openStorageDatabase(storagePath(root), true)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-	if !existing {
-		if err := os.MkdirAll(filepath.Join(root, "videos"), 0700); err != nil {
-			return err
-		}
-	}
+	defer close()
 	return replaceSongUsage(ctx, db, h, overwrite)
 }
 

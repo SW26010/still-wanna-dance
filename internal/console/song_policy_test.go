@@ -68,8 +68,84 @@ func TestSongPolicyAPIReadAuthValidationAndPersistence(t *testing.T) {
 			t.Fatal(page)
 		}
 	}
-	if c.httpServer != nil || c.batch.Running || c.queue.Running {
+	if c.service != nil || c.httpServer != nil || c.batch.Running || c.queue.Running {
 		t.Fatal("marking started work")
+	}
+}
+
+func TestOfflineSongFavoritePrecedesStartupRetention(t *testing.T) {
+	c := testConsole(t) // no engine; the active storage budget is zero
+	cfg := fixtureCacheConfig()
+	cfg.StorageDir, cfg.CacheUnlimited = c.settings.StorageDir, true
+	engine, err := cacheproxy.New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { engine.Close() })
+	const body = "previously saved ordinary video"
+	key := fmt.Sprintf("%x", md5.Sum([]byte(body)))
+	if err := engine.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261021000000", Source: "test", Songs: []cacheproxy.CatalogSong{{ID: 42, MD5: key}}}); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(cfg.StorageDir, "videos", key+".mp4")
+	if err := os.WriteFile(file, []byte(body), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := engine.Close(); err != nil {
+		t.Fatal(err)
+	}
+	partial := filepath.Join(cfg.StorageDir, "tmp", "download-block-1234.part")
+	if err := os.WriteFile(partial, []byte("previous run"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	input := fmt.Sprintf(`{"storageID":%q,"id":"42","policy":"favorite"}`, cacheproxy.CacheStorageID(cfg.StorageDir))
+	r := httptest.NewRequest("POST", "http://"+c.address+"/api/songs", strings.NewReader(input))
+	r.Header.Set("X-SWD-Token", c.token)
+	w := httptest.NewRecorder()
+	c.ServeHTTP(w, r)
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if saved, err := os.ReadFile(file); err != nil || string(saved) != body {
+		t.Fatal("marking favorite deleted the existing video", err)
+	}
+	if c.service != nil {
+		t.Fatal("marking favorite started an engine")
+	}
+	if _, err := os.Stat(partial); err != nil {
+		t.Fatal("marking favorite ran startup cleanup", err)
+	}
+	page, err := cacheproxy.ReadSongPage(t.Context(), cfg.StorageDir, "42", cacheproxy.SongFavorite, 0)
+	if err != nil || page.Total != 1 || !page.Entries[0].Saved {
+		t.Fatal(page, err)
+	}
+	// Ordinary engine startup must now see the saved preference before eviction.
+	c.lifecycleMu.Lock()
+	c.mu.Lock()
+	err = c.ensureEngine()
+	c.mu.Unlock()
+	c.lifecycleMu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved, err := os.ReadFile(file); err != nil || string(saved) != body {
+		t.Fatal("startup ignored the offline favorite", err)
+	}
+}
+
+func TestOfflineSongPolicyRejectsMissingUsedLibrary(t *testing.T) {
+	c := testConsole(t)
+	c.inventory.CoverageKnown = true
+	input := fmt.Sprintf(`{"storageID":%q,"id":"42","policy":"favorite"}`, cacheproxy.CacheStorageID(c.settings.StorageDir))
+	r := httptest.NewRequest("POST", "http://"+c.address+"/api/songs", strings.NewReader(input))
+	r.Header.Set("X-SWD-Token", c.token)
+	w := httptest.NewRecorder()
+	c.ServeHTTP(w, r)
+	if w.Code != 400 || !strings.Contains(w.Body.String(), "失联") {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if _, err := os.Stat(c.settings.StorageDir); !os.IsNotExist(err) {
+		t.Fatal("missing used library was recreated", err)
 	}
 }
 

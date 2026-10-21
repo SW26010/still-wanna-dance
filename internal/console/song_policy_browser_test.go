@@ -35,11 +35,13 @@ func TestSongPreferencesBrowser(t *testing.T) {
 		resolutions.Add(1)
 		return "", fmt.Errorf("unexpected resolution")
 	}
-	engine, err := cacheproxy.New(cfg)
+	seedConfig := cfg
+	seedConfig.CacheUnlimited = true
+	engine, err := cacheproxy.New(seedConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.service = engine
+	t.Cleanup(func() { engine.Close() })
 	name1, name2, name3 := "未下载的收藏测试", "屏蔽测试", "已保存的收藏测试"
 	key := fmt.Sprintf("%x", md5.Sum([]byte("saved")))
 	if err := engine.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261021000000", Source: "test", Songs: []cacheproxy.CatalogSong{
@@ -49,10 +51,10 @@ func TestSongPreferencesBrowser(t *testing.T) {
 	}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := engine.SetSongPolicy(t.Context(), 3, cacheproxy.SongFavorite); err != nil {
+	if err := os.WriteFile(filepath.Join(cfg.StorageDir, "videos", key+".mp4"), []byte("saved"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(cfg.StorageDir, "videos", key+".mp4"), []byte("saved"), 0600); err != nil {
+	if err := engine.Close(); err != nil {
 		t.Fatal(err)
 	}
 	ui := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -63,9 +65,11 @@ func TestSongPreferencesBrowser(t *testing.T) {
 			c.mu.Lock()
 			old := c.service
 			c.mu.Unlock()
-			if err := old.Close(); err != nil {
-				http.Error(w, err.Error(), 500)
-				return
+			if old != nil {
+				if err := old.Close(); err != nil {
+					http.Error(w, err.Error(), 500)
+					return
+				}
 			}
 			fresh, err := cacheproxy.New(cfg)
 			if err != nil {
@@ -75,7 +79,7 @@ func TestSongPreferencesBrowser(t *testing.T) {
 			c.mu.Lock()
 			c.service = fresh
 			c.mu.Unlock()
-			writeJSON(w, map[string]bool{"ok": true})
+			writeJSON(w, map[string]bool{"ok": true, "wasRunning": old != nil})
 			return
 		case "/__preferences/probe":
 			c.mu.Lock()
@@ -104,7 +108,7 @@ func TestSongPreferencesBrowser(t *testing.T) {
 		t.Fatal("preferences started network or service activity", resolutions.Load())
 	}
 	policies, err := c.service.SongPolicies(t.Context())
-	if err != nil || policies[1] != cacheproxy.SongFavorite || policies[2] != cacheproxy.SongBlocked || policies[314] != cacheproxy.SongBlocked {
+	if err != nil || policies[1] != cacheproxy.SongFavorite || policies[2] != cacheproxy.SongBlocked || policies[3] != cacheproxy.SongFavorite || policies[314] != cacheproxy.SongBlocked {
 		t.Fatal(policies, err)
 	}
 }

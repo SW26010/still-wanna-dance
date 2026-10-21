@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"still-wanna-dance/internal/workfiles"
 )
 
 const storageSchemaVersion = 3
@@ -22,6 +24,40 @@ func readStorageDatabase(root string) (*sql.DB, error) {
 		return nil, nil
 	}
 	return openStorageDatabase(path, false)
+}
+
+// openOfflineStorage shares the directory lease and format checks with normal
+// storage access, without starting an engine, pruning usage or cleaning files.
+// New libraries get the standard videos directory for later storage checks.
+func openOfflineStorage(root string) (*sql.DB, func(), error) {
+	if err := os.MkdirAll(root, 0700); err != nil {
+		return nil, nil, err
+	}
+	if err := workfiles.CheckDir(root); err != nil {
+		return nil, nil, err
+	}
+	unlock, err := lockDirectory(filepath.Join(root, ".lock"))
+	if err != nil {
+		return nil, nil, err
+	}
+	existing, err := InspectStorage(root)
+	if err != nil {
+		unlock()
+		return nil, nil, err
+	}
+	db, err := openStorageDatabase(storagePath(root), true)
+	if err != nil {
+		unlock()
+		return nil, nil, err
+	}
+	close := func() { db.Close(); unlock() }
+	if !existing {
+		if err := os.MkdirAll(filepath.Join(root, "videos"), 0700); err != nil {
+			close()
+			return nil, nil, err
+		}
+	}
+	return db, close, nil
 }
 
 // Writable opens require the caller to hold the storage directory lock for the

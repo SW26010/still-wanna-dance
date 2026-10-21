@@ -1,0 +1,226 @@
+{
+  "hashBasis": "actual-local-file-bytes",
+  "privateFiles": [
+    {
+      "path": "VRChatUrlLogger_v1427.exe",
+      "bytes": 166040582,
+      "sha256": "a41475c46bcf01a398fd836d7f3739ad8e2e327f1abf8b6b58829597247a291f"
+    },
+    {
+      "path": "bundle/VRChatUrlLogger.dll",
+      "bytes": 773120,
+      "sha256": "13b610e14769a80d0aa0196e6810e2eddd753fadbf21d30f30114abad16ae4e7"
+    },
+    {
+      "path": "probe.exe",
+      "bytes": 10018304,
+      "sha256": "b1307c3598a08421fc2ed40707b39ccb4fa37e672a159c3c42299c309625ddaa"
+    },
+    {
+      "path": "probe-https.exe",
+      "bytes": 10022400,
+      "sha256": "58b5b687a83d4688079c5d690c6ed4afed7a4546093108d8e780d6936ce7cc3c"
+    },
+    {
+      "path": "probe.go",
+      "bytes": 6039,
+      "sha256": "89d9a90bb31dd0f10a476e24d90e9425178d5a56ccbe10180ee953b12def919d"
+    },
+    {
+      "path": "analyze_capture.py",
+      "bytes": 3014,
+      "sha256": "6314ba8f395a4622fdbd2bf397b90048a67ecd796521a70c82cb76d698f1e46c"
+    },
+    {
+      "path": "check-original.ps1",
+      "bytes": 1188,
+      "sha256": "bdfd3ac8e197aaf793b62da69ff809083fb8896c69aded3a06d1d32df1e169b8"
+    },
+    {
+      "path": "issue21-evidence/forward-elevated.pcapng",
+      "bytes": 11458636,
+      "sha256": "866aac8a0afea8fa8fe5a30ac60fa8a64961ba9e74870613e271c29f50596fb2"
+    },
+    {
+      "path": "issue21-evidence/forward.pcapng",
+      "bytes": 16146704,
+      "sha256": "ee30e1abc778b4240279f457bf3a91d4906f8d6cf8ad15d0fd074a30158b8b36"
+    },
+    {
+      "path": "issue21-evidence/speed.pcapng",
+      "bytes": 55962848,
+      "sha256": "93c298491c0df9b704330ff036b90f689552f1312a6098d84dfb56a16395f42f"
+    },
+    {
+      "path": "issue21-evidence/forward-elevated.etl",
+      "bytes": 11593764,
+      "sha256": "d4db455af58ff203eb87884c044120dc4f5ee384539f7d1bf97653130a96c23f"
+    },
+    {
+      "path": "issue21-evidence/forward.etl",
+      "bytes": 15407324,
+      "sha256": "75861b5a2c9f4591f09a3da2450245a5689fee913667101b397445f3899b25ab"
+    },
+    {
+      "path": "issue21-evidence/speed.etl",
+      "bytes": 52737529,
+      "sha256": "4877fbf7084ed54582981b7852788ce5e76dee458e196d8d78d14c7398777f9e"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/AppPaths.cs",
+      "bytes": 2540,
+      "sha256": "7a08ae0b3b5ba91155b9a1ad66fc8fa92638b6a102f72e4291666175b8e57410"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/AppSettings.cs",
+      "bytes": 6355,
+      "sha256": "a24e875abc4f44fc7a7e573ea68fbf900127b9f4d138ee2b12103c171098ae12"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/BundleService.cs",
+      "bytes": 8885,
+      "sha256": "addf83653796a5ef5100caf6aa089026e2fbde8b3932cb64f2d6215aba97dd11"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/CertManager.cs",
+      "bytes": 9001,
+      "sha256": "6c0cdbfbff9a8f0fd2f4c9d2b71dbffd4d6fb3c22bd3e3c5e6ea553d62637744"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/CfIpProbe.cs",
+      "bytes": 5484,
+      "sha256": "bf9db913cdacac3ef6583abdb364cbc865d5fe155b189cf6b9d9f6617724393d"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/HeadsetBatteryListener.cs",
+      "bytes": 8968,
+      "sha256": "ee697b85bd811f25cd6caa471ebabf5a573d3bbcb69195950c7e878db397a0eb"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/HostsManager.cs",
+      "bytes": 11740,
+      "sha256": "79a8452ff0823657332409010bd2bd56f025eb877382a21eadd7b0497c59ba70"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/IpSpeedResult.cs",
+      "bytes": 474,
+      "sha256": "0d372d30e9cfdb4069250164db098b62d243272c9d55e1d513df753ea299cb65"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/LighthouseController.cs",
+      "bytes": 17645,
+      "sha256": "a91cdb5e97c08142133dbb3b68c1f20220c0b87ef4221c53c8f6845c1530bb01"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/LivehimeController.cs",
+      "bytes": 7296,
+      "sha256": "dd59e5d55fbbf6832f464494ce1456311ea8f49ab02fd9a70f0bf90e8c97ab1c"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/Log.cs",
+      "bytes": 1996,
+      "sha256": "31178da8e3464a259746ac22e6dbf300bba77f3fb81d0383284fd1d50ff5e1ad"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/MainWindow.xaml.cs",
+      "bytes": 91125,
+      "sha256": "cfaa656fb81f614d3978c6646a832d2ce38e59f31868c00a471fc3916fd77a9e"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/MiBandHeartRateService.cs",
+      "bytes": 10965,
+      "sha256": "a67ef9afc234810ccbb509cfa290598e8f1aec9d808938bd0ce91794d4312f1a"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/Mp4Duration.cs",
+      "bytes": 3425,
+      "sha256": "fc0e683f607bffb4e1ef65d7408746b193e4ecc6c3388b0e1c7fb4dc9381387b"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/OscListener.cs",
+      "bytes": 3079,
+      "sha256": "cd4aa2cf218f90505b313aa813761e58b4eb91957840da01c906db38e5262efb"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/OscSender.cs",
+      "bytes": 2354,
+      "sha256": "59a890df2102b42d42b9557ac417c28fb599c9d3ffd3e3c379ebe9db1233c54d"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/PrependStream.cs",
+      "bytes": 2332,
+      "sha256": "01adb96a4f457bb2e2c5b5ce5166f33ae88ff62043498e089095f37b449bccdd"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/Program.cs",
+      "bytes": 2700,
+      "sha256": "7e86bb487ab0269ff887e996661da2c1fd7ab208694a28c6cc3e265971de875d"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/RecordingScanner.cs",
+      "bytes": 3161,
+      "sha256": "a03e1aa67a3279525cd9f87c70ed9e18ab7c7e6c2cd2c6aca6f83878d64e1def"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/RedirectProxy.cs",
+      "bytes": 41676,
+      "sha256": "220f9219a57e981fe5ee2d8e9495b4b3e8f13bff0e4337784a2f740b94d32d5f"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/SongInfo.cs",
+      "bytes": 812,
+      "sha256": "db9eba306896c7df6914b9f71e895e45fc10c54ce0840160cd8443ff36d72062"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/SongPlay.cs",
+      "bytes": 335,
+      "sha256": "0015b5876da7faed4bad0b431aaa79bb21ab3c7b7aab3c44a1613ef53031e224"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/SongRow.cs",
+      "bytes": 2769,
+      "sha256": "d7ee3b3a99254283386468bc114541b1a276b58ff024875521bd970563102da6"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/SteamVrOverlay.cs",
+      "bytes": 28979,
+      "sha256": "3651adc7e1e3b77a3c60a7ee6c0aa8384436aa92f2c6b1804b2220fbbf9d30c4"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/TimeUtil.cs",
+      "bytes": 571,
+      "sha256": "7c03e18fad9ae555952269488dc496d5fb5b204e53e91c1ddb9b40b23c1ac3bd"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/UdonSongInfo.cs",
+      "bytes": 312,
+      "sha256": "a95cb1c6bed3a5a82ca7052bd7a1833a29dab6fa4a9aa5caf8e49309626c9cad"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/UdonSongService.cs",
+      "bytes": 7968,
+      "sha256": "d08a8ce8687093c9983f91211cbe25d07cbb8411aaa9168cce5212c0e79d8977"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/UpdateChecker.cs",
+      "bytes": 6549,
+      "sha256": "687b642ccd09a93dac98d9482a2fe0823c72f6b746870dbae37f357014eafa93"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/UrlRecord.cs",
+      "bytes": 568,
+      "sha256": "190cf51237ea642128d2d8958a55cbaf4769bc026306f63560add47326c1affd"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/WindowInfo.cs",
+      "bytes": 271,
+      "sha256": "b50423e86f7db0be4f56e21c2af54a423d1f4ab02e8ab3d199fc533d806f1778"
+    },
+    {
+      "path": "decompiled/VRChatUrlLogger/WindowWatcher.cs",
+      "bytes": 2954,
+      "sha256": "ce43954ed954f9614e0e9918fe6afdf51360bbacbb68db10094d708010a84fa4"
+    }
+  ],
+  "sourceNote": "probe.go is the final tool source including the later HTTPS control branch; probe.exe is the first actually executed binary, probe-https.exe is the later executed binary. Original application and decompilation stay private."
+}

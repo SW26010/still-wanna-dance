@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "batch": "vrchaturllogger-20261021",
+  "hashBasis": "git-blob",
+  "files": [
+    {
+      "path": "docs/validation/issue-21-vrchaturllogger-20261021.md",
+      "bytes": 14575,
+      "sha256": "ac2be7b37bd8d87e405f61c506e37bea0e6adc2580379dc3d0677398880f3672"
+    },
+    {
+      "path": "docs/evidence/vrchaturllogger-20261021/cleanup.json",
+      "bytes": 331,
+      "sha256": "1feef68e9cf174ef44ede2759ec8a5c18e7ee522bcd3f0dd3e594c3d47cc0c94"
+    },
+    {
+      "path": "docs/evidence/vrchaturllogger-20261021/logs.json",
+      "bytes": 3555,
+      "sha256": "1f71620d4cb8804db4099bac501e0fd54cb075d161d5f2c1801779538b95a918"
+    },
+    {
+      "path": "docs/evidence/vrchaturllogger-20261021/provenance.json",
+      "bytes": 7904,
+      "sha256": "f852c2e74358d0c0e9917e2d4b34996bd572609f152df8e1cda85a43eddf2d67"
+    },
+    {
+      "path": "docs/evidence/vrchaturllogger-20261021/summary.json",
+      "bytes": 28834,
+      "sha256": "73ec952721949cafa3a348b74e0fe121f74e6c8f63a907f0e46cf25c07be0eb4"
+    }
+  ],
+  "privateArchive": {
+    "archive": "private-evidence-v1.zip",
+    "bytes": 241417462,
+    "sha256": "667bd90ac26b282953d428f4492a69ca9d6674c2e94a967ea1484384a6705397",
+    "members": 366,
+    "allMembersVerified": true,
+    "public": false
+  },
+  "archiveLocation": "Local ignored investigation directory and separate local backup; no public URL",
+  "privacy": "No complete signed resource URL, personal path, account, original executable, decompiled source or raw packet capture included in Git. Prefix hashes and ETag hashes are fingerprints, not download credentials.",
+  "verification": {
+    "remoteFilesVerified": 41,
+    "archiveMembersVerified": 366,
+    "successfulHttpProbeSamples": 24,
+    "formalHttpSamples": 18,
+    "httpsFollowupSamples": 6,
+    "httpsFollowupFailures": 4,
+    "initialForwardHttpsFailurePreserved": true,
+    "nonElevatedDirectSamplesPreserved": 2,
+    "hostsAndSettingsRestoredByHash": true,
+    "productSourceChanged": false,
+    "gameStarted": false,
+    "gitCommit": false,
+    "gitPush": false
+  }
+}

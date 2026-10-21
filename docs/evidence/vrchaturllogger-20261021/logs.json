@@ -1,0 +1,53 @@
+[
+  {
+    "source": "initial-session.log",
+    "timeBasis": "independent per-file first retained log line, second resolution",
+    "lines": [
+      "[T+0s] [INFO] [GUI] 测速前原转发 IP 已记录: 172.64.229.213（出问题可回退）",
+      "[T+0s] [INFO] [GUI] 开始 CF 节点测速（下载 2MB 为基准，约需 10-40 秒）...",
+      "[T+47s] [INFO] [GUI] 测速完成: 有效 63 / 全部 104 个节点",
+      "[T+47s] [INFO] [GUI] CF 节点测速排名（下载速度）:",
+      "[T+47s] [INFO] [GUI]   #1 172.64.144.1  4.0 MB/s  (2048KB/502ms)",
+      "[T+47s] [INFO] [GUI]   #2 104.17.160.1  3.6 MB/s  (2048KB/558ms)",
+      "[T+47s] [INFO] [GUI]   #3 104.17.96.1  3.3 MB/s  (2048KB/611ms)",
+      "[T+47s] [INFO] [GUI]   #4 104.19.32.1  2.7 MB/s  (2048KB/747ms)",
+      "[T+47s] [INFO] [GUI]   #5 104.21.32.1  1.1 MB/s  (2048KB/1881ms)",
+      "[T+90s] [INFO] [GUI] 已选择最快 CF 节点: 172.64.144.1 (4.0 MB/s)，下次启动监听时生效",
+      "[T+90s] [INFO] [GUI] 已保存缓存备选节点: 104.17.160.1, 104.17.96.1（主节点下载慢速时自动切换，仅影响视频缓存）",
+      "[T+600s] [ERROR] [GUI] 未以管理员身份运行，拒绝启动"
+    ]
+  },
+  {
+    "source": "final-app.log",
+    "timeBasis": "independent per-file first retained log line, second resolution",
+    "lines": [
+      "[T+0s] [INFO] [Main] 程序启动",
+      "[T+0s] [INFO] [Main] 日志文件: <user>\\Desktop\\data\\logs\\session-elevated.log",
+      "[T+0s] [INFO] [GUI] 本地缓存:开",
+      "[T+0s] [INFO] [GUI] 心率 OSC 发送方式: float",
+      "[T+0s] [DEBUG] [Main] 更新检查响应: version='1365' fileName='VRChatUrlLogger_v1365.zip' size=65533761",
+      "[T+0s] [INFO] [Main] 更新检查: 当前已是最新版本 v1427",
+      "[T+58s] [INFO] [GUI] HTTPS 解密已关闭：进房间验证请求将透明转发(不解密)，歌曲/视频走 HTTP 明文不受影响",
+      "[T+58s] [INFO] [Proxy] 指定转发 IP: 172.64.144.1",
+      "[T+58s] [INFO] [Proxy] 缓存下载备选节点: 104.17.160.1, 104.17.96.1（主节点慢速时自动切换）",
+      "[T+58s] [DEBUG] [SysProxy] 读取到用户自定义映射 0 个域名",
+      "[T+58s] [INFO] [Proxy] 域名 api.udon.dance 使用指定转发 IP: 172.64.144.1",
+      "[T+58s] [INFO] [Proxy] 域名 play.udon.dance 使用指定转发 IP: 172.64.144.1",
+      "[T+58s] [INFO] [Proxy] 域名 api.pypy.dance 使用指定转发 IP: 172.64.144.1",
+      "[T+58s] [INFO] [Proxy] 域名 cdn.pypy.dance 使用指定转发 IP: 172.64.144.1",
+      "[T+58s] [INFO] [SysProxy] 已备份原 hosts 到: <user>\\Desktop\\data\\hosts_backup.txt",
+      "[T+58s] [INFO] [SysProxy] hosts 重定向已写入文件开头，共 4 个域名: api.udon.dance, play.udon.dance, api.pypy.dance, cdn.pypy.dance",
+      "[T+58s] [INFO] [Proxy] 已监听 127.0.0.1:80",
+      "[T+58s] [INFO] [Proxy] 已监听 ::1:80",
+      "[T+58s] [INFO] [Proxy] 已监听 127.0.0.1:443",
+      "[T+58s] [INFO] [Proxy] 已监听 ::1:443",
+      "[T+58s] [INFO] [GUI] 启动完成，hosts 重定向 4 个域名，HTTPS 解密:关",
+      "[T+61s] [DEBUG] [Proxy] HTTPS 请求(透明转发): play.udon.dance",
+      "[T+195s] [DEBUG] [Proxy] HTTPS 请求(透明转发): play.udon.dance",
+      "[T+222s] [DEBUG] [Proxy] HTTPS 请求(透明转发): play.udon.dance",
+      "[T+328s] [INFO] [Proxy] 正在停止转发...",
+      "[T+328s] [INFO] [GUI] 转发已停止",
+      "[T+328s] [INFO] [SysProxy] hosts 已从备份整文件还原: <user>\\Desktop\\data\\hosts_backup.txt"
+    ]
+  }
+]

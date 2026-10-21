@@ -18,6 +18,7 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [vrchaturllogger-20261021/manifest.json](vrchaturllogger-20261021/manifest.json) | #21 v1427 原程序、原 DLL 定向调用与测试机抓包：104 候选通用测速、真实 HTTP 视频六组三轮、80/443 实际转发及 HTTPS 超时对照；保留未提权直连误启动与全部失败，hosts/设置按哈希恢复。仅机制调查，未接入产品，见[报告](../validation/issue-21-vrchaturllogger-20261021.md) |
 | [cf-family-paths-20261021/summary.json](cf-family-paths-20261021/summary.json) | 自动推荐、DNS IPv4/IPv6 分块训练赢家及额外候选四组对照；下午完成 27 次训练、29 次预热/正式加载后因候选消失停止，31 次缺测保留；IPv6 已通过完整资源与 16 路并发，速度和 DNS 边界见[报告](../validation/cf-family-paths-20261021.md) |
 | [cf-family-paths-20261021/discovery-summary.json](cf-family-paths-20261021/discovery-summary.json) | 双域名候选失效定位：157 次主动发现及 78 次 HTTP 响应成功；同一视频 DNS 租约过期空档的两次只读空列表与邻近 IPv4/IPv6 TLS 成功；另由夹具复现新短 TTL 提前覆盖旧有效租约。未锁定先前窗口根因，未修改生产逻辑 |
 | [cf-block-paths-20261021/summary.json](cf-block-paths-20261021/summary.json) | 当前产品双栈 Monitor 与额外候选的初步两组分块对照；3 资源、12 对正式下载，吞吐中位增益 +26.9%；保留迟滞未选中当轮最快 IPv6 的限制，后续改为独立四组协议，见[报告](../validation/cf-block-paths-20261021.md) |

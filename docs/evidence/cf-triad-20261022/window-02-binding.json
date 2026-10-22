@@ -1,0 +1,24 @@
+{
+  "batch": "window-02",
+  "tcpAttempts": 2431,
+  "counts": {
+    "v4Connected": 1420,
+    "canceled": 864,
+    "v6Connected": 54,
+    "otherFailed": 93
+  },
+  "otherErrors": {
+    "timeout": 93
+  },
+  "allConnectedSourcesOnSelectedWifi": true,
+  "allConnectedPeersMatchTargets": true,
+  "allSelectedIndexesMatchAdapter": true,
+  "fatalBindingError": false,
+  "hashBasis": "actual-file-bytes",
+  "files": {
+    "connections-private.jsonl": "f36844e2ff70a41283cab26d3f819d6f94c51800ad9f076d094c51cbeca011bf",
+    "network-private.json": "6b45698b830ed2ac8706c9c7c232e89f0b8d24c07fe4f2961b2346c17b5a8940",
+    "targets-private.json": "404bbdb1a2c5bbec398709b812e3eb0ac87ac06e33a96023598e7e855dbd337a",
+    "triad-private.json": "5fbcb14c68fe968b5125a5b5eda5bf2418a136a73d76b0325cd7d554b59b1b00"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "windows": {
+    "1": {
+      "rawSHA256": "334802b3e2cbb268720060c66ad145ea1073b930e2ab0cda5ffb8c429ac101b7",
+      "allConnectedSourcesOnSelectedWifi": true,
+      "tcpAttempts": 2356,
+      "bindingCounts": {
+        "v4Connected": 1369,
+        "canceled": 847,
+        "v6Connected": 50,
+        "otherFailed": 90
+      },
+      "recordedRows": 2011
+    },
+    "2": {
+      "rawSHA256": "5fbcb14c68fe968b5125a5b5eda5bf2418a136a73d76b0325cd7d554b59b1b00",
+      "allConnectedSourcesOnSelectedWifi": true,
+      "tcpAttempts": 2431,
+      "bindingCounts": {
+        "v4Connected": 1420,
+        "canceled": 864,
+        "v6Connected": 54,
+        "otherFailed": 93
+      },
+      "recordedRows": 2012
+    }
+  },
+  "independentContentMatches": {
+    "1": {
+      "1343:8388608": 41
+    },
+    "2": {
+      "1343:8388608": 41,
+      "1344:8388608": 1,
+      "1344:1024": 258,
+      "1344:2097152": 250
+    }
+  },
+  "w2ThreePoolOrderExactlyReversesW1": true,
+  "cDnsIsInsertedSeparately": true,
+  "w1PicksStillMatchRecordedRanks": true,
+  "allFrozenBuildSourceProtocolAndPredictionHashesMatch": true,
+  "w2ContentMatchesPriorIndependentVideoFile": true,
+  "limits": [
+    "W1 1343 8 MiB hashes independently match historical requests; shorter 1343 ranges use the recorded reference-slice checks.",
+    "Two windows on one selected Wi-Fi; no serial/parallel A/B or additional network sample."
+  ]
+}

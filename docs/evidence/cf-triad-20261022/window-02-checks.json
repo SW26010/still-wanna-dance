@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "window": 2,
+  "recorderVersion": 2,
+  "outcome": "complete",
+  "recordedRows": 2012,
+  "plannedRows": 2012,
+  "planPrefixMatches": true,
+  "completedPlan": true,
+  "responseAndProgressInvariants": true,
+  "serialMeasurementConfirmed": true,
+  "screeningAndAuditRuleConfirmed": true,
+  "auditedByPool": {
+    "B_stratified": 8,
+    "B_uniform": 8,
+    "A": 8
+  },
+  "pilotEachIPReversed": true,
+  "knownDeviation": "",
+  "rawSHA256": "5fbcb14c68fe968b5125a5b5eda5bf2418a136a73d76b0325cd7d554b59b1b00"
+}

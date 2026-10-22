@@ -1,0 +1,35 @@
+{
+  "baseHEAD": "9c8c46b5f5b2cc5140bc76ef4e16338f685681c5",
+  "baseSourceSHA256": "8a36d0710eff8fb4d7587a006a62352e139c7365b47e95877f763e9fc307b762",
+  "sourceOverlay": "Use source-v1.txt or source-v2.txt as internal/console/cf_triad_experiment_test.go over base-source.zip.",
+  "buildFlags": [
+    "CGO_ENABLED=0",
+    "-tags=no_easytier,cf_block_experiment"
+  ],
+  "builds": {
+    "1": {
+      "triad-v1.exe": "fef9fd4ab64618364e9643b3aef94cd5dd0724c2d2bc7de43afc447c92697280",
+      "source-v1.txt": "31a909a3b3f7a0b469a66b303708e6a620810231931f53cdd7caf8e3189d20a9",
+      "protocol-v1.md": "7aca23fb695f7a0c88d70fd70426b7ee9460557b76e6415553788c780ea2c205"
+    },
+    "2": {
+      "triad-v2.exe": "e9ac5894fe449eed410bae4fb96cad8db3c31c94da993e06297277b25c86d9f1",
+      "source-v2.txt": "d4ce36806a9787b71e35b0252bf985f7543d67f89ed1cd276f7ec6cac55fdd6d",
+      "protocol-v2.md": "27cad43b0ab77288f4eb726e6a94589f6cb3b59e1a63b52009a76c0ac8472d7b"
+    }
+  },
+  "originalFrozenPredictionsSHA256": "a3a080747f9633327bb083896fd14efa7b70b8a1215a9f8ef3c04794d914a7f9",
+  "publicProtocolSnapshots": {
+    "protocol-v1.md": {
+      "originalSHA256": "7aca23fb695f7a0c88d70fd70426b7ee9460557b76e6415553788c780ea2c205",
+      "publicSHA256": "adcc04e568ffe54d8bbdb9ac40c917f78d7ad5e718e534fba99fad662ea60fdb",
+      "redaction": "Internal task attribution removed; experiment method unchanged."
+    },
+    "protocol-v2.md": {
+      "originalSHA256": "27cad43b0ab77288f4eb726e6a94589f6cb3b59e1a63b52009a76c0ac8472d7b",
+      "publicSHA256": "46548391c7ed0a3a3c2b2e4047c82a162a83f8e7a196ddcc0d559ca13e481f78",
+      "redaction": "Internal task attribution removed; experiment method unchanged."
+    }
+  },
+  "buildsHashBasis": "Original private frozen files; public protocol copies have separate hashes."
+}

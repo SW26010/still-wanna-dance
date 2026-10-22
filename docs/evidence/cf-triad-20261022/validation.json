@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "samplerExitCodes": {
+    "W1": 0,
+    "W2": 0
+  },
+  "goTargetedRace": "passed",
+  "goVet": "passed",
+  "pythonAnalysisTests": {
+    "passed": 20,
+    "failed": 0
+  },
+  "workingFilesPolicyAndLF": "passed",
+  "privacyAndArchive": {
+    "publicationRevision": 2,
+    "allNonTimingExperimentMetricsUnchanged": true,
+    "originalFrozenFilesUnchanged": true,
+    "absoluteSamplingTimesAbsent": true,
+    "internalTaskAndTopologyReferencesAbsent": true,
+    "backupOperationDetailsAbsent": true,
+    "observedLocalIdentityAndResourceUrlsAbsent": true,
+    "zipMetadataTimesFixed": true,
+    "archiveAllMemberHashesVerified": true,
+    "archiveSHA256": "5a78c132b07500c614127a54f61931a444ef7dec44c183db0434f4e7818f8cd6"
+  },
+  "headArtifactPolicy": {
+    "status": "pre-existing failure",
+    "head": "9c8c46b5f5b2cc5140bc76ef4e16338f685681c5",
+    "errors": [
+      {
+        "path": "internal/console/assets/webui/app.js",
+        "blob": "2a35943163822872ad59aa9ec70bd426d10794e2",
+        "bytes": 1191805,
+        "reason": "large file requires an exact documented exception"
+      }
+    ],
+    "warningCount": 24
+  },
+  "sourceSHA256": {
+    "experiments/cf-block-paths/analyze_triad.py": "13961d727f0b37423ac4aabd5af4de2c65fedbf815abcf2eb3137537ca398916",
+    "experiments/cf-block-paths/export_triad.py": "4fa52d5868d1a2ee7b689e8a59f3d6c0f53521c7aeaee862cbc1b53745ebf5d4",
+    "experiments/cf-block-paths/plot_triad.py": "ce3caaf6948edbba9e7cde223d2b2c3cc9e59129de090b5506cc00ee1fa03daf",
+    "experiments/cf-block-paths/prepare_triad.py": "9b7fd6023ec7494d5c470a34586fe49d80ab9090a3b6928db1849311ecd55557",
+    "experiments/cf-block-paths/test_analyze_triad.py": "8fab2483ddab1f4df31d54be71808a53e943d03145e5a5ae24df94f698ccb212",
+    "experiments/cf-block-paths/test_prepare_triad.py": "033a289c812669e23071009c556a6b06471ad7dc9ff1e4f43356ebad967854cb",
+    "experiments/cf-block-paths/TRIAD.md": "b872128a59fd32c96b343653c51a4cb9dd64c584d817f6f3f9cf7bdcd5c2075f",
+    "experiments/cf-block-paths/verify_binding.py": "d95d457fe37f1ce76bad1ffbe6e5a49dd3b764c89f8658d29c734fe67d47831c",
+    "experiments/cf-block-paths/verify_triad.py": "7771f664ffa92090d9705dabea5e4f6d03dd52520507cc8d9e2f9a261107437a",
+    "internal/console/cf_triad_experiment_test.go": "d4ce36806a9787b71e35b0252bf985f7543d67f89ed1cd276f7ec6cac55fdd6d",
+    "internal/console/cf_triad_harness_test.go": "197224ee9e4e71a77ab0518c8e3d4ea37530617a19ea77810eb22c659395499f"
+  },
+  "scope": "Experiment and offline analysis only; no product integration, VRC run, independent second network, or serial/parallel A/B.",
+  "testEvidenceSHA256": {
+    "v2-race.log": "29358a7ba5a6a5a6e90df6eb216b2685066a4cd274664c10d89c149cbfa6efed",
+    "v2-vet.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build-v2.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "window-01-checks.log": "8aaf3de7e0b38b00ff9ec924e88863d3f808b779ac43d65be9b3768cdcdd7788",
+    "window-02-checks.log": "deb680c9c8a89e25fa3ed77acb84988329a8ae26c86c7ed1acdd7e661a785ab4",
+    "python-publication-v2.log": "4afd196ed173f706a8a2c02e5912f7a65d978e45996f6a3f4d6d2f0f3616d853"
+  },
+  "methodDeviations": [
+    "W1 pilot per-IP reversal defect retained; W2 corrected and verified.",
+    "V2 isolates late httptrace callbacks; no evidence W1 actually raced."
+  ]
+}

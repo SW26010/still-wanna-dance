@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "window": 1,
+  "recorderVersion": 1,
+  "outcome": "complete",
+  "recordedRows": 2011,
+  "plannedRows": 2011,
+  "planPrefixMatches": true,
+  "completedPlan": true,
+  "responseAndProgressInvariants": true,
+  "serialMeasurementConfirmed": true,
+  "screeningAndAuditRuleConfirmed": true,
+  "auditedByPool": {
+    "B_stratified": 8,
+    "B_uniform": 8,
+    "A": 8
+  },
+  "pilotEachIPReversed": false,
+  "knownDeviation": "W1 pilot order retained without per-IP reversal",
+  "rawSHA256": "334802b3e2cbb268720060c66ad145ea1073b930e2ab0cda5ffb8c429ac101b7"
+}

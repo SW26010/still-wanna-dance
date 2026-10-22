@@ -1,0 +1,24 @@
+{
+  "schema": 2,
+  "samplingDate": "2026-10-22",
+  "samplingPeriod": "afternoon",
+  "samplingTimezone": "Asia/Shanghai",
+  "w1RawSHA256": "334802b3e2cbb268720060c66ad145ea1073b930e2ab0cda5ffb8c429ac101b7",
+  "w1SelectionMatchesRecordedRanks": true,
+  "frozenBeforeW2": true,
+  "windowStartSeparationSeconds": 4396.129359,
+  "freezeAfterW1FinishedSeconds": 14.161,
+  "w2StartedAfterFreezeSeconds": 75.878,
+  "frozenBuildsMatch": true,
+  "originalFrozenFilesSHA256": {
+    "triad-v2.exe": "e9ac5894fe449eed410bae4fb96cad8db3c31c94da993e06297277b25c86d9f1",
+    "source-v2.txt": "d4ce36806a9787b71e35b0252bf985f7543d67f89ed1cd276f7ec6cac55fdd6d",
+    "protocol-v2.md": "27cad43b0ab77288f4eb726e6a94589f6cb3b59e1a63b52009a76c0ac8472d7b",
+    "predictions-w1.json": "a3a080747f9633327bb083896fd14efa7b70b8a1215a9f8ef3c04794d914a7f9"
+  },
+  "w2ReferenceMatchesHistorical": {
+    "1343": "7df514bc924f8c2b8fc5017f61cbea31907b2e00425cafad4e09b372d7bcadd5",
+    "1344": "4a6f425928e674ad6378a393957763445e0b63963c1cbc9f06797de6c5e1aa1d"
+  },
+  "scope": "Freeze and reference checks only; W2 full measurements were still running."
+}

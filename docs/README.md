@@ -23,7 +23,7 @@
 | [validation/](validation/) | 开发、浏览器、受控服务与性能验证记录；保留每轮失败、修复和环境限制，阅读现状时回到对应设计 |
 | [acceptance/](acceptance/) | 已实际开展的游戏/实网验收报告；新游戏批次使用[报告模板](live-acceptance-report-template.md) |
 | [history/](history/) | 原版调查、被替代的设计、阶段审计和旧台账快照；文件名中的 `original-` 指原版调查 |
-| [research/](research/) | [视频保留收益研究](research/cache-priority.md)、[媒体元数据研究](research/video-metadata-20261015.md)、[CF 候选收益与搜索成本](research/issue-21-cf-selection-20261022.md)、[浏览器 HTTPS 升级与本地 HTTP 服务](research/browser-https-upgrades-20261022.md)及复算数据 |
+| [research/](research/) | [视频保留收益研究](research/cache-priority.md)、[媒体元数据研究](research/video-metadata-20261015.md)、[CF 候选收益与搜索成本](research/issue-21-cf-selection-20261022.md)、[HTTP/HTTPS、104 地址与 Speedtest 对照](research/issue-21-cf-triad-20261022.md)、[浏览器 HTTPS 升级与本地 HTTP 服务](research/browser-https-upgrades-20261022.md)及复算数据 |
 | [evidence/](evidence/README.md) | 脱敏证据和清单；大附件的下载、校验及保留规则见[证据存储](evidence-storage.md) |
 
 ## 仓库文件归属

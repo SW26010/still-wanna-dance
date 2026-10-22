@@ -1,0 +1,1870 @@
+{
+  "schema": 1,
+  "method": "cf-triad-v1",
+  "window": 1,
+  "outcome": "complete",
+  "error": "",
+  "samplingDate": "2026-10-22",
+  "samplingPeriod": "afternoon",
+  "samplingTimezone": "Asia/Shanghai",
+  "bodyBytes": 1234686826,
+  "recordedRows": 2011,
+  "candidatesSHA256": "bbf702ea1ae56934e0bf04d18b5faa8202f3598381ecb2ebe523baccc3f64346",
+  "contentHashes": {
+    "1343:8388608": "7df514bc924f8c2b8fc5017f61cbea31907b2e00425cafad4e09b372d7bcadd5",
+    "1343:1024": "1b1219368992f9fe7b3ff0d97e328a10940bb323f102c9b790b2c7fb59ed6101",
+    "1343:2097152": "d863bbb4f3af49c34d9b1804d2141418c4662999df52a72e1a23ce619e5f6468"
+  },
+  "pools": {
+    "A": {
+      "plannedCandidates": 104,
+      "methods": {
+        "speed": {
+          "screenCount": 104,
+          "screenSuccess": 63,
+          "fullSuccess": 63,
+          "fullAttempted": 71,
+          "screenedOut": 33,
+          "missing": 0,
+          "fullSuccessFractionBounds": [
+            0.6057692307692307,
+            0.9230769230769231
+          ],
+          "errors": {
+            "transport": 8,
+            "screened_out": 33
+          },
+          "screenRequestTimeMS": 205411.4187,
+          "fullRequestTimeMS": 166756.8727,
+          "readBodyBytes": 132185088,
+          "timeoutRequests": 8,
+          "partialFailedBytes": 0,
+          "successMiBs": {
+            "n": 63,
+            "min": 0.6428511321990569,
+            "median": 0.9922446653081844,
+            "max": 3.9357713600215365
+          },
+          "firstByteMS": {
+            "n": 63,
+            "min": 191.4483,
+            "median": 637.2227,
+            "max": 694.5656
+          },
+          "bodyMS": {
+            "n": 63,
+            "min": 316.0754,
+            "median": 1366.452,
+            "max": 2509.1356
+          },
+          "cache": {
+            "": 63
+          },
+          "colos": {
+            "LAX": 44,
+            "HKG": 4,
+            "SJC": 12,
+            "SEA": 3
+          },
+          "top5": [
+            {
+              "ip": "104.17.96.1",
+              "miBs": 3.9357713600215365,
+              "colo": "HKG"
+            },
+            {
+              "ip": "104.17.160.1",
+              "miBs": 3.4727322797758142,
+              "colo": "HKG"
+            },
+            {
+              "ip": "172.64.144.1",
+              "miBs": 3.449445105013182,
+              "colo": "HKG"
+            },
+            {
+              "ip": "104.19.32.1",
+              "miBs": 2.6560541367578367,
+              "colo": "HKG"
+            },
+            {
+              "ip": "104.19.128.1",
+              "miBs": 1.2248920854761545,
+              "colo": "SJC"
+            }
+          ]
+        },
+        "http": {
+          "screenCount": 104,
+          "screenSuccess": 61,
+          "fullSuccess": 60,
+          "fullAttempted": 71,
+          "screenedOut": 33,
+          "missing": 0,
+          "fullSuccessFractionBounds": [
+            0.5769230769230769,
+            0.8942307692307693
+          ],
+          "errors": {
+            "transport": 10,
+            "screened_out": 33,
+            "body_read": 1
+          },
+          "screenRequestTimeMS": 196853.1002,
+          "fullRequestTimeMS": 172568.788,
+          "readBodyBytes": 127747714,
+          "timeoutRequests": 11,
+          "partialFailedBytes": 1856130,
+          "successMiBs": {
+            "n": 60,
+            "min": 0.28003888171849334,
+            "median": 1.1252137963535427,
+            "max": 4.823655592920128
+          },
+          "firstByteMS": {
+            "n": 60,
+            "min": 114.7859,
+            "median": 422.70820000000003,
+            "max": 662.668
+          },
+          "bodyMS": {
+            "n": 60,
+            "min": 299.3337,
+            "median": 1353.58045,
+            "max": 6478.6931
+          },
+          "cache": {
+            "HIT": 61
+          },
+          "colos": {
+            "LAX": 44,
+            "HKG": 4,
+            "SJC": 10,
+            "SEA": 3
+          },
+          "top5": [
+            {
+              "ip": "172.64.144.1",
+              "miBs": 4.823655592920128,
+              "colo": "HKG"
+            },
+            {
+              "ip": "104.17.160.1",
+              "miBs": 3.9738686346323844,
+              "colo": "HKG"
+            },
+            {
+              "ip": "104.17.96.1",
+              "miBs": 3.3346132690597745,
+              "colo": "HKG"
+            },
+            {
+              "ip": "104.21.96.1",
+              "miBs": 1.4237480751815867,
+              "colo": "LAX"
+            },
+            {
+              "ip": "104.18.96.1",
+              "miBs": 1.3261437774582212,
+              "colo": "SJC"
+            }
+          ]
+        },
+        "https": {
+          "screenCount": 104,
+          "screenSuccess": 63,
+          "fullSuccess": 59,
+          "fullAttempted": 71,
+          "screenedOut": 33,
+          "missing": 0,
+          "fullSuccessFractionBounds": [
+            0.5673076923076923,
+            0.8846153846153846
+          ],
+          "errors": {
+            "transport": 8,
+            "body_read": 4,
+            "screened_out": 33
+          },
+          "screenRequestTimeMS": 206443.3875,
+          "fullRequestTimeMS": 199929.9162,
+          "readBodyBytes": 127274945,
+          "timeoutRequests": 12,
+          "partialFailedBytes": 3478465,
+          "successMiBs": {
+            "n": 59,
+            "min": 0.6140096871080316,
+            "median": 1.0397709800439354,
+            "max": 1.1823736932258146
+          },
+          "firstByteMS": {
+            "n": 59,
+            "min": 568.1158,
+            "median": 631.288,
+            "max": 761.9991
+          },
+          "bodyMS": {
+            "n": 59,
+            "min": 1067.2743,
+            "median": 1252.4212,
+            "max": 2535.4342
+          },
+          "cache": {
+            "HIT": 63
+          },
+          "colos": {
+            "LAX": 41,
+            "HKG": 4,
+            "SJC": 15,
+            "SEA": 3
+          },
+          "top5": [
+            {
+              "ip": "104.21.64.1",
+              "miBs": 1.1823736932258146,
+              "colo": "SJC"
+            },
+            {
+              "ip": "104.21.96.1",
+              "miBs": 1.1799937023736105,
+              "colo": "LAX"
+            },
+            {
+              "ip": "104.18.32.1",
+              "miBs": 1.1792418760110894,
+              "colo": "SJC"
+            },
+            {
+              "ip": "104.17.128.1",
+              "miBs": 1.1534695238645059,
+              "colo": "SJC"
+            },
+            {
+              "ip": "104.19.224.1",
+              "miBs": 1.1461851405349064,
+              "colo": "LAX"
+            }
+          ]
+        }
+      },
+      "protocolPairs": {
+        "counts": {
+          "bothComplete": 57,
+          "bothFailed": 9,
+          "httpOnly": 3,
+          "screenedOut": 33,
+          "httpsOnly": 2
+        },
+        "httpRateOverHttpsRate": {
+          "n": 57,
+          "min": 0.4560821882753489,
+          "median": 1.1000712164178679,
+          "max": 1.5684354495795791
+        },
+        "httpsMinusHttpFirstByteMS": {
+          "n": 57,
+          "min": 57.91650000000004,
+          "median": 207.9676,
+          "max": 336.442
+        },
+        "httpsMinusHttpBodyMS": {
+          "n": 57,
+          "min": -3943.2589000000003,
+          "median": -66.45479999999998,
+          "max": 760.3578
+        },
+        "httpFasterPairs": 39,
+        "httpAtLeastTwicePairs": 0,
+        "perIPMedianRatio": {
+          "104.16.224.1": 1.0512207340671926,
+          "104.19.160.1": 1.4047265541196445,
+          "104.27.192.1": 0.8831450935190781,
+          "104.19.192.1": 0.8692154391737275,
+          "104.21.64.1": 1.107598804574863,
+          "104.25.32.1": 1.0473476758256932,
+          "104.27.96.1": 0.9714609183711709,
+          "104.25.160.1": 1.1668846509786763,
+          "104.16.160.1": 1.4379004918895082,
+          "104.20.32.1": 1.0885462400004633,
+          "104.25.192.1": 1.049379363092207,
+          "104.24.160.1": 1.181222266940764,
+          "104.20.0.1": 1.1779884707936406,
+          "104.24.32.1": 0.9696098840926195,
+          "104.25.224.1": 1.2116498893987875,
+          "104.16.192.1": 1.3400906178902945,
+          "104.18.160.1": 0.7869909089773605,
+          "104.17.192.1": 0.84296802765191,
+          "104.24.64.1": 1.1585559134613914,
+          "104.19.64.1": 1.1849045529592646,
+          "104.27.32.1": 0.950273423849905,
+          "104.18.64.1": 0.9549554745315421,
+          "104.21.96.1": 1.2065726048517489,
+          "104.18.128.1": 1.3688899308404643,
+          "104.17.224.1": 0.9047696476348891,
+          "104.21.224.1": 1.1548394578724588,
+          "104.26.0.1": 0.807046385731849,
+          "104.18.192.1": 1.2399387789406633,
+          "104.21.0.1": 1.0385615790999259,
+          "104.24.0.1": 0.9803775937883946,
+          "104.24.224.1": 0.8256290799218526,
+          "104.24.128.1": 1.5684354495795791,
+          "104.21.192.1": 1.483047502108558,
+          "104.17.64.1": 0.937529465336992,
+          "104.18.0.1": 0.4560821882753489,
+          "104.17.0.1": 0.9096351942812083,
+          "104.18.96.1": 1.4530507639218075,
+          "104.19.128.1": 0.8723565351331616,
+          "104.25.64.1": 1.2781043034575328,
+          "104.16.0.1": 1.0551463771501186,
+          "104.19.96.1": 1.2295194129037093,
+          "104.16.128.1": 1.3316263995824353,
+          "172.64.176.1": 0.9279314033730777,
+          "104.16.96.1": 1.125574750928618,
+          "104.17.128.1": 1.126127938810941,
+          "104.27.64.1": 1.0177223070152797,
+          "104.27.0.1": 1.1000712164178679,
+          "104.18.224.1": 1.1787380271042711,
+          "104.16.64.1": 1.3013112155813802,
+          "104.17.32.1": 1.1481738283707175,
+          "104.25.96.1": 1.0101473417710585,
+          "104.19.0.1": 0.9582568954990854,
+          "104.25.128.1": 1.1599084662671353,
+          "104.18.32.1": 1.052219139885306,
+          "104.25.0.1": 1.0188268014249353,
+          "104.16.32.1": 1.137307710223603,
+          "104.24.192.1": 1.3970888735798983
+        }
+      },
+      "measuredBodyBytes": 387016259,
+      "screenBodyBytes": 191488,
+      "requestTimeMS": 1147963.4833,
+      "screenAudit": {
+        "allThreeScreenFailed": 41,
+        "auditedIPs": 8,
+        "fullSuccessByMethod": {
+          "speed": 0,
+          "http": 0,
+          "https": 0
+        }
+      },
+      "prediction": {
+        "http": {
+          "measuredPairs": 71,
+          "bothComplete": 60,
+          "spearmanCompleteOnly": 0.2278966379549875,
+          "spearmanFailuresTiedLast": 0.416588491640485,
+          "speedSuccessVideoFailure": 3,
+          "speedSuccessVideoUnknown": 0,
+          "speedSuccessVideoBelowHalfBest": 57,
+          "speedSuccessCount": 63,
+          "topK": {
+            "1": {
+              "selected": [
+                "104.17.96.1"
+              ],
+              "hitsInActualTop5": 1,
+              "containsActualBest": false,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 0.6913041789206759
+            },
+            "3": {
+              "selected": [
+                "104.17.96.1",
+                "104.17.160.1",
+                "172.64.144.1"
+              ],
+              "hitsInActualTop5": 3,
+              "containsActualBest": true,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 1.0
+            },
+            "5": {
+              "selected": [
+                "104.17.96.1",
+                "104.17.160.1",
+                "172.64.144.1",
+                "104.19.32.1",
+                "104.19.128.1"
+              ],
+              "hitsInActualTop5": 3,
+              "containsActualBest": true,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 1.0
+            }
+          },
+          "selectedTop1RatioToActualBest": 0.6913041789206759,
+          "actualBestIP": "172.64.144.1"
+        },
+        "https": {
+          "measuredPairs": 71,
+          "bothComplete": 59,
+          "spearmanCompleteOnly": 0.2369959088252484,
+          "spearmanFailuresTiedLast": 0.27731938088593194,
+          "speedSuccessVideoFailure": 4,
+          "speedSuccessVideoUnknown": 0,
+          "speedSuccessVideoBelowHalfBest": 0,
+          "speedSuccessCount": 63,
+          "topK": {
+            "1": {
+              "selected": [
+                "104.17.96.1"
+              ],
+              "hitsInActualTop5": 0,
+              "containsActualBest": false,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 0.0
+            },
+            "3": {
+              "selected": [
+                "104.17.96.1",
+                "104.17.160.1",
+                "172.64.144.1"
+              ],
+              "hitsInActualTop5": 0,
+              "containsActualBest": false,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 0.0
+            },
+            "5": {
+              "selected": [
+                "104.17.96.1",
+                "104.17.160.1",
+                "172.64.144.1",
+                "104.19.32.1",
+                "104.19.128.1"
+              ],
+              "hitsInActualTop5": 0,
+              "containsActualBest": false,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 0.8710856860239191
+            }
+          },
+          "selectedTop1RatioToActualBest": 0.0,
+          "actualBestIP": "104.21.64.1"
+        }
+      }
+    },
+    "B_uniform": {
+      "plannedCandidates": 104,
+      "methods": {
+        "speed": {
+          "screenCount": 104,
+          "screenSuccess": 41,
+          "fullSuccess": 39,
+          "fullAttempted": 50,
+          "screenedOut": 54,
+          "missing": 0,
+          "fullSuccessFractionBounds": [
+            0.375,
+            0.8942307692307693
+          ],
+          "errors": {
+            "transport": 10,
+            "screened_out": 54,
+            "body_read": 1
+          },
+          "screenRequestTimeMS": 259325.8868,
+          "fullRequestTimeMS": 137994.2694,
+          "readBodyBytes": 83181802,
+          "timeoutRequests": 10,
+          "partialFailedBytes": 1350890,
+          "successMiBs": {
+            "n": 39,
+            "min": 0.4323276735948545,
+            "median": 0.9834442084724702,
+            "max": 3.9699088846362343
+          },
+          "firstByteMS": {
+            "n": 39,
+            "min": 193.9251,
+            "median": 628.9351,
+            "max": 1613.6214
+          },
+          "bodyMS": {
+            "n": 39,
+            "min": 290.7827,
+            "median": 1413.8172,
+            "max": 4051.6678
+          },
+          "cache": {
+            "": 40
+          },
+          "colos": {
+            "LAX": 17,
+            "FRA": 1,
+            "SJC": 10,
+            "SEA": 4,
+            "HKG": 6,
+            "LHR": 2
+          },
+          "top5": [
+            {
+              "ip": "104.19.35.65",
+              "miBs": 3.9699088846362343,
+              "colo": "HKG"
+            },
+            {
+              "ip": "104.17.177.80",
+              "miBs": 3.72344901592966,
+              "colo": "HKG"
+            },
+            {
+              "ip": "104.17.157.85",
+              "miBs": 3.4756991281903873,
+              "colo": "HKG"
+            },
+            {
+              "ip": "104.17.104.177",
+              "miBs": 3.1240505815029653,
+              "colo": "HKG"
+            },
+            {
+              "ip": "104.17.112.167",
+              "miBs": 1.5981646676956183,
+              "colo": "HKG"
+            }
+          ],
+          "screenWilson95": [
+            0.3056889709260554,
+            0.4903078540373479
+          ]
+        },
+        "http": {
+          "screenCount": 104,
+          "screenSuccess": 40,
+          "fullSuccess": 39,
+          "fullAttempted": 50,
+          "screenedOut": 54,
+          "missing": 0,
+          "fullSuccessFractionBounds": [
+            0.375,
+            0.8942307692307693
+          ],
+          "errors": {
+            "transport": 8,
+            "screened_out": 54,
+            "body_read": 3
+          },
+          "screenRequestTimeMS": 254495.8437,
+          "fullRequestTimeMS": 140347.2251,
+          "readBodyBytes": 84247256,
+          "timeoutRequests": 10,
+          "partialFailedBytes": 2417368,
+          "successMiBs": {
+            "n": 39,
+            "min": 0.23137170042987126,
+            "median": 1.085121957941975,
+            "max": 4.648669806378254
+          },
+          "firstByteMS": {
+            "n": 39,
+            "min": 120.1902,
+            "median": 421.9444,
+            "max": 594.1111
+          },
+          "bodyMS": {
+            "n": 39,
+            "min": 308.413,
+            "median": 1410.1413,
+            "max": 8200.5274
+          },
+          "cache": {
+            "HIT": 42
+          },
+          "colos": {
+            "LAX": 19,
+            "FRA": 1,
+            "SJC": 8,
+            "SEA": 4,
+            "HKG": 8,
+            "LHR": 2
+          },
+          "top5": [
+            {
+              "ip": "104.17.104.177",
+              "miBs": 4.648669806378254,
+              "colo": "HKG"
+            },
+            {
+              "ip": "104.17.177.80",
+              "miBs": 4.245167778582237,
+              "colo": "HKG"
+            },
+            {
+              "ip": "104.17.112.167",
+              "miBs": 3.978119546868315,
+              "colo": "HKG"
+            },
+            {
+              "ip": "104.17.157.85",
+              "miBs": 3.64201272919869,
+              "colo": "HKG"
+            },
+            {
+              "ip": "104.20.57.52",
+              "miBs": 1.5731364920078768,
+              "colo": "FRA"
+            }
+          ],
+          "screenWilson95": [
+            0.2968126300610473,
+            0.48063845171721087
+          ]
+        },
+        "https": {
+          "screenCount": 104,
+          "screenSuccess": 41,
+          "fullSuccess": 34,
+          "fullAttempted": 50,
+          "screenedOut": 54,
+          "missing": 0,
+          "fullSuccessFractionBounds": [
+            0.3269230769230769,
+            0.8461538461538461
+          ],
+          "errors": {
+            "transport": 9,
+            "screened_out": 54,
+            "body_read": 7
+          },
+          "screenRequestTimeMS": 262924.0742,
+          "fullRequestTimeMS": 183781.4089,
+          "readBodyBytes": 77061060,
+          "timeoutRequests": 15,
+          "partialFailedBytes": 5715908,
+          "successMiBs": {
+            "n": 34,
+            "min": 0.6049326266873348,
+            "median": 0.9672662989433627,
+            "max": 1.3940778596666856
+          },
+          "firstByteMS": {
+            "n": 34,
+            "min": 452.0003,
+            "median": 632.3824,
+            "max": 967.4374
+          },
+          "bodyMS": {
+            "n": 34,
+            "min": 982.1349,
+            "median": 1438.0911,
+            "max": 2337.3917
+          },
+          "cache": {
+            "HIT": 41
+          },
+          "colos": {
+            "SJC": 9,
+            "FRA": 1,
+            "LAX": 17,
+            "SEA": 4,
+            "HKG": 7,
+            "LHR": 3
+          },
+          "top5": [
+            {
+              "ip": "104.20.57.52",
+              "miBs": 1.3940778596666856,
+              "colo": "FRA"
+            },
+            {
+              "ip": "104.18.126.199",
+              "miBs": 1.1629853624917799,
+              "colo": "LHR"
+            },
+            {
+              "ip": "104.24.87.168",
+              "miBs": 1.162723976246247,
+              "colo": "SJC"
+            },
+            {
+              "ip": "188.114.96.11",
+              "miBs": 1.1408068196519034,
+              "colo": "SJC"
+            },
+            {
+              "ip": "104.16.130.118",
+              "miBs": 1.0934614884777316,
+              "colo": "LAX"
+            }
+          ],
+          "screenWilson95": [
+            0.3056889709260554,
+            0.4903078540373479
+          ]
+        }
+      },
+      "protocolPairs": {
+        "counts": {
+          "bothComplete": 34,
+          "bothFailed": 11,
+          "screenedOut": 54,
+          "httpOnly": 5
+        },
+        "httpRateOverHttpsRate": {
+          "n": 34,
+          "min": 0.9337614477549838,
+          "median": 1.122045161105069,
+          "max": 1.638084331937005
+        },
+        "httpsMinusHttpFirstByteMS": {
+          "n": 34,
+          "min": 97.62570000000005,
+          "median": 209.18935,
+          "max": 532.8669
+        },
+        "httpsMinusHttpBodyMS": {
+          "n": 34,
+          "min": -591.1579999999999,
+          "median": -3.6085500000000366,
+          "max": 882.2551999999998
+        },
+        "httpFasterPairs": 27,
+        "httpAtLeastTwicePairs": 0,
+        "perIPMedianRatio": {
+          "104.20.15.176": 0.9787510582921111,
+          "104.20.57.52": 1.1284423471039149,
+          "104.21.217.30": 1.0377980600210608,
+          "104.25.86.158": 1.5142833985744122,
+          "104.19.23.204": 1.032160064586972,
+          "162.159.231.144": 1.2950351852245408,
+          "172.67.190.71": 1.0089957113671295,
+          "104.26.5.97": 1.2941393065327815,
+          "104.19.183.34": 1.3834320582156843,
+          "104.21.230.206": 1.1156479751062232,
+          "172.67.80.217": 1.1031798413342737,
+          "188.114.96.11": 1.1309733493656333,
+          "104.16.130.118": 1.1949406957106878,
+          "104.24.249.40": 0.9972610754614778,
+          "104.24.241.129": 1.3065004995164466,
+          "172.67.106.99": 1.0530774515739258,
+          "104.27.203.66": 1.210114063679731,
+          "104.21.36.79": 0.9416683613295596,
+          "104.16.127.117": 1.3575744303854291,
+          "104.25.228.64": 0.9533960055128142,
+          "104.24.178.146": 1.01678706649549,
+          "162.159.248.230": 1.1957670231031639,
+          "104.21.49.159": 1.0296051442428824,
+          "172.67.205.49": 1.2192680868266976,
+          "104.19.103.19": 1.236716712564087,
+          "104.18.126.199": 0.9337614477549838,
+          "172.66.45.82": 0.9826563548212915,
+          "104.18.253.115": 1.2261520963357135,
+          "172.67.196.134": 1.1368354072335005,
+          "172.64.82.177": 0.9914133037169206,
+          "104.17.234.222": 1.638084331937005,
+          "104.24.141.237": 1.1079855087847816,
+          "104.24.87.168": 1.0814441002184643,
+          "172.67.151.129": 1.4003499106571686
+        }
+      },
+      "measuredBodyBytes": 244365190,
+      "screenBodyBytes": 124928,
+      "requestTimeMS": 1238868.7081,
+      "screenAudit": {
+        "allThreeScreenFailed": 62,
+        "auditedIPs": 8,
+        "fullSuccessByMethod": {
+          "speed": 0,
+          "http": 0,
+          "https": 0
+        }
+      },
+      "prediction": {
+        "http": {
+          "measuredPairs": 50,
+          "bothComplete": 39,
+          "spearmanCompleteOnly": 0.28643724696356276,
+          "spearmanFailuresTiedLast": 0.6578500363989322,
+          "speedSuccessVideoFailure": 0,
+          "speedSuccessVideoUnknown": 0,
+          "speedSuccessVideoBelowHalfBest": 35,
+          "speedSuccessCount": 39,
+          "topK": {
+            "1": {
+              "selected": [
+                "104.19.35.65"
+              ],
+              "hitsInActualTop5": 0,
+              "containsActualBest": false,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 0.04977159274948188
+            },
+            "3": {
+              "selected": [
+                "104.19.35.65",
+                "104.17.177.80",
+                "104.17.157.85"
+              ],
+              "hitsInActualTop5": 2,
+              "containsActualBest": false,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 0.9132005402400516
+            },
+            "5": {
+              "selected": [
+                "104.19.35.65",
+                "104.17.177.80",
+                "104.17.157.85",
+                "104.17.104.177",
+                "104.17.112.167"
+              ],
+              "hitsInActualTop5": 4,
+              "containsActualBest": true,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 1.0
+            }
+          },
+          "selectedTop1RatioToActualBest": 0.04977159274948188,
+          "actualBestIP": "104.17.104.177"
+        },
+        "https": {
+          "measuredPairs": 50,
+          "bothComplete": 34,
+          "spearmanCompleteOnly": 0.544385026737968,
+          "spearmanFailuresTiedLast": 0.4252050062089651,
+          "speedSuccessVideoFailure": 5,
+          "speedSuccessVideoUnknown": 0,
+          "speedSuccessVideoBelowHalfBest": 2,
+          "speedSuccessCount": 39,
+          "topK": {
+            "1": {
+              "selected": [
+                "104.19.35.65"
+              ],
+              "hitsInActualTop5": 0,
+              "containsActualBest": false,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 0.0
+            },
+            "3": {
+              "selected": [
+                "104.19.35.65",
+                "104.17.177.80",
+                "104.17.157.85"
+              ],
+              "hitsInActualTop5": 0,
+              "containsActualBest": false,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 0.0
+            },
+            "5": {
+              "selected": [
+                "104.19.35.65",
+                "104.17.177.80",
+                "104.17.157.85",
+                "104.17.104.177",
+                "104.17.112.167"
+              ],
+              "hitsInActualTop5": 0,
+              "containsActualBest": false,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 0.0
+            }
+          },
+          "selectedTop1RatioToActualBest": 0.0,
+          "actualBestIP": "104.20.57.52"
+        }
+      }
+    },
+    "B_stratified": {
+      "plannedCandidates": 104,
+      "methods": {
+        "speed": {
+          "screenCount": 104,
+          "screenSuccess": 25,
+          "fullSuccess": 25,
+          "fullAttempted": 33,
+          "screenedOut": 71,
+          "missing": 0,
+          "fullSuccessFractionBounds": [
+            0.2403846153846154,
+            0.9230769230769231
+          ],
+          "errors": {
+            "transport": 8,
+            "screened_out": 71
+          },
+          "screenRequestTimeMS": 328675.5202,
+          "fullRequestTimeMS": 93368.2546,
+          "readBodyBytes": 52454400,
+          "timeoutRequests": 8,
+          "partialFailedBytes": 0,
+          "successMiBs": {
+            "n": 25,
+            "min": 0.6986638159319872,
+            "median": 0.9516532095765433,
+            "max": 1.3463588163378757
+          },
+          "firstByteMS": {
+            "n": 25,
+            "min": 520.8295,
+            "median": 642.4353,
+            "max": 1646.184
+          },
+          "bodyMS": {
+            "n": 25,
+            "min": 963.6284,
+            "median": 1457.4422,
+            "max": 1906.1797
+          },
+          "cache": {
+            "": 25
+          },
+          "colos": {
+            "SJC": 5,
+            "LAX": 17,
+            "LHR": 1,
+            "DEN": 1,
+            "IAD": 1
+          },
+          "top5": [
+            {
+              "ip": "162.159.146.57",
+              "miBs": 1.3463588163378757,
+              "colo": "LHR"
+            },
+            {
+              "ip": "162.159.207.188",
+              "miBs": 1.0826066787088615,
+              "colo": "LAX"
+            },
+            {
+              "ip": "198.41.206.50",
+              "miBs": 1.0741326043553392,
+              "colo": "SJC"
+            },
+            {
+              "ip": "173.245.59.127",
+              "miBs": 1.0691717789115276,
+              "colo": "LAX"
+            },
+            {
+              "ip": "103.21.244.60",
+              "miBs": 1.0637132314225144,
+              "colo": "LAX"
+            }
+          ],
+          "screenStratified": {
+            "complete": true,
+            "addressWeightedEstimate": 0.2591384438261537,
+            "conditionalStratifiedBootstrap95": [
+              0.13546963446224694,
+              0.4022834116856951
+            ],
+            "strata": {
+              "131.0.72.0/22": {
+                "n": 7,
+                "success": 0
+              },
+              "104.16.0.0/13": {
+                "n": 7,
+                "success": 2
+              },
+              "103.21.244.0/22": {
+                "n": 7,
+                "success": 3
+              },
+              "141.101.64.0/18": {
+                "n": 7,
+                "success": 1
+              },
+              "108.162.192.0/18": {
+                "n": 7,
+                "success": 2
+              },
+              "103.22.200.0/22": {
+                "n": 7,
+                "success": 0
+              },
+              "198.41.128.0/17": {
+                "n": 7,
+                "success": 2
+              },
+              "162.158.0.0/15": {
+                "n": 7,
+                "success": 2
+              },
+              "188.114.96.0/20": {
+                "n": 7,
+                "success": 1
+              },
+              "173.245.48.0/20": {
+                "n": 7,
+                "success": 2
+              },
+              "197.234.240.0/22": {
+                "n": 6,
+                "success": 0
+              },
+              "172.64.0.0/13": {
+                "n": 7,
+                "success": 0
+              },
+              "103.31.4.0/22": {
+                "n": 7,
+                "success": 2
+              },
+              "190.93.240.0/20": {
+                "n": 7,
+                "success": 3
+              },
+              "104.24.0.0/14": {
+                "n": 7,
+                "success": 5
+              }
+            },
+            "limitation": "Conditional on one observed window and sampled strata; all-zero/all-one small strata can give overconfident bootstrap bounds."
+          }
+        },
+        "http": {
+          "screenCount": 104,
+          "screenSuccess": 20,
+          "fullSuccess": 20,
+          "fullAttempted": 33,
+          "screenedOut": 71,
+          "missing": 0,
+          "fullSuccessFractionBounds": [
+            0.19230769230769232,
+            0.875
+          ],
+          "errors": {
+            "transport": 8,
+            "status": 5,
+            "screened_out": 71
+          },
+          "screenRequestTimeMS": 323184.0271,
+          "fullRequestTimeMS": 77924.1064,
+          "readBodyBytes": 41963520,
+          "timeoutRequests": 8,
+          "partialFailedBytes": 0,
+          "successMiBs": {
+            "n": 20,
+            "min": 0.7717902334345164,
+            "median": 1.1292794018678447,
+            "max": 1.5886455057496656
+          },
+          "firstByteMS": {
+            "n": 20,
+            "min": 344.1985,
+            "median": 418.34515,
+            "max": 531.3408
+          },
+          "bodyMS": {
+            "n": 20,
+            "min": 913.4939,
+            "median": 1351.6219999999998,
+            "max": 2058.5454
+          },
+          "cache": {
+            "HIT": 20,
+            "": 5
+          },
+          "colos": {
+            "LAX": 16,
+            "SJC": 6,
+            "LHR": 1,
+            "IAD": 2
+          },
+          "top5": [
+            {
+              "ip": "162.159.146.57",
+              "miBs": 1.5886455057496656,
+              "colo": "LHR"
+            },
+            {
+              "ip": "104.24.74.222",
+              "miBs": 1.3335451892123928,
+              "colo": "SJC"
+            },
+            {
+              "ip": "173.245.49.140",
+              "miBs": 1.3316483542823814,
+              "colo": "LAX"
+            },
+            {
+              "ip": "104.27.14.185",
+              "miBs": 1.3168770235050038,
+              "colo": "SJC"
+            },
+            {
+              "ip": "141.101.120.13",
+              "miBs": 1.250314844906883,
+              "colo": "LAX"
+            }
+          ],
+          "screenStratified": {
+            "complete": true,
+            "addressWeightedEstimate": 0.24954427707953564,
+            "conditionalStratifiedBootstrap95": [
+              0.1262592343854936,
+              0.39460807828840067
+            ],
+            "strata": {
+              "131.0.72.0/22": {
+                "n": 7,
+                "success": 0
+              },
+              "104.16.0.0/13": {
+                "n": 7,
+                "success": 2
+              },
+              "103.21.244.0/22": {
+                "n": 7,
+                "success": 3
+              },
+              "141.101.64.0/18": {
+                "n": 7,
+                "success": 1
+              },
+              "108.162.192.0/18": {
+                "n": 7,
+                "success": 0
+              },
+              "103.22.200.0/22": {
+                "n": 7,
+                "success": 0
+              },
+              "198.41.128.0/17": {
+                "n": 7,
+                "success": 0
+              },
+              "162.158.0.0/15": {
+                "n": 7,
+                "success": 2
+              },
+              "188.114.96.0/20": {
+                "n": 7,
+                "success": 1
+              },
+              "173.245.48.0/20": {
+                "n": 7,
+                "success": 1
+              },
+              "197.234.240.0/22": {
+                "n": 6,
+                "success": 0
+              },
+              "172.64.0.0/13": {
+                "n": 7,
+                "success": 0
+              },
+              "103.31.4.0/22": {
+                "n": 7,
+                "success": 2
+              },
+              "190.93.240.0/20": {
+                "n": 7,
+                "success": 3
+              },
+              "104.24.0.0/14": {
+                "n": 7,
+                "success": 5
+              }
+            },
+            "limitation": "Conditional on one observed window and sampled strata; all-zero/all-one small strata can give overconfident bootstrap bounds."
+          }
+        },
+        "https": {
+          "screenCount": 104,
+          "screenSuccess": 20,
+          "fullSuccess": 20,
+          "fullAttempted": 33,
+          "screenedOut": 71,
+          "missing": 0,
+          "fullSuccessFractionBounds": [
+            0.19230769230769232,
+            0.875
+          ],
+          "errors": {
+            "transport": 8,
+            "status": 5,
+            "screened_out": 71
+          },
+          "screenRequestTimeMS": 328393.9578,
+          "fullRequestTimeMS": 83058.3193,
+          "readBodyBytes": 41963520,
+          "timeoutRequests": 8,
+          "partialFailedBytes": 0,
+          "successMiBs": {
+            "n": 20,
+            "min": 0.7547254397530417,
+            "median": 1.0411036348701233,
+            "max": 1.331140944198239
+          },
+          "firstByteMS": {
+            "n": 20,
+            "min": 539.7709,
+            "median": 634.2345,
+            "max": 811.2093
+          },
+          "bodyMS": {
+            "n": 20,
+            "min": 962.0056,
+            "median": 1302.53075,
+            "max": 1838.1707
+          },
+          "cache": {
+            "HIT": 20,
+            "": 5
+          },
+          "colos": {
+            "LAX": 15,
+            "SJC": 7,
+            "LHR": 1,
+            "IAD": 2
+          },
+          "top5": [
+            {
+              "ip": "162.159.146.57",
+              "miBs": 1.331140944198239,
+              "colo": "LHR"
+            },
+            {
+              "ip": "104.27.54.178",
+              "miBs": 1.1686940294168469,
+              "colo": "SJC"
+            },
+            {
+              "ip": "141.101.120.13",
+              "miBs": 1.128070459732143,
+              "colo": "SJC"
+            },
+            {
+              "ip": "104.25.103.47",
+              "miBs": 1.1223950473645097,
+              "colo": "LAX"
+            },
+            {
+              "ip": "104.24.74.222",
+              "miBs": 1.1186359264022576,
+              "colo": "SJC"
+            }
+          ],
+          "screenStratified": {
+            "complete": true,
+            "addressWeightedEstimate": 0.24954427707953564,
+            "conditionalStratifiedBootstrap95": [
+              0.1262592343854936,
+              0.39460807828840067
+            ],
+            "strata": {
+              "131.0.72.0/22": {
+                "n": 7,
+                "success": 0
+              },
+              "104.16.0.0/13": {
+                "n": 7,
+                "success": 2
+              },
+              "103.21.244.0/22": {
+                "n": 7,
+                "success": 3
+              },
+              "141.101.64.0/18": {
+                "n": 7,
+                "success": 1
+              },
+              "108.162.192.0/18": {
+                "n": 7,
+                "success": 0
+              },
+              "103.22.200.0/22": {
+                "n": 7,
+                "success": 0
+              },
+              "198.41.128.0/17": {
+                "n": 7,
+                "success": 0
+              },
+              "162.158.0.0/15": {
+                "n": 7,
+                "success": 2
+              },
+              "188.114.96.0/20": {
+                "n": 7,
+                "success": 1
+              },
+              "173.245.48.0/20": {
+                "n": 7,
+                "success": 1
+              },
+              "197.234.240.0/22": {
+                "n": 6,
+                "success": 0
+              },
+              "172.64.0.0/13": {
+                "n": 7,
+                "success": 0
+              },
+              "103.31.4.0/22": {
+                "n": 7,
+                "success": 2
+              },
+              "190.93.240.0/20": {
+                "n": 7,
+                "success": 3
+              },
+              "104.24.0.0/14": {
+                "n": 7,
+                "success": 5
+              }
+            },
+            "limitation": "Conditional on one observed window and sampled strata; all-zero/all-one small strata can give overconfident bootstrap bounds."
+          }
+        }
+      },
+      "protocolPairs": {
+        "counts": {
+          "bothFailed": 13,
+          "bothComplete": 20,
+          "screenedOut": 71
+        },
+        "httpRateOverHttpsRate": {
+          "n": 20,
+          "min": 0.8737303449365547,
+          "median": 1.1002378140657867,
+          "max": 1.6124714194971963
+        },
+        "httpsMinusHttpFirstByteMS": {
+          "n": 20,
+          "min": 166.52090000000004,
+          "median": 213.94745000000003,
+          "max": 283.5052
+        },
+        "httpsMinusHttpBodyMS": {
+          "n": 20,
+          "min": -454.6569000000002,
+          "median": -35.39700000000005,
+          "max": 636.1228000000001
+        },
+        "httpFasterPairs": 16,
+        "httpAtLeastTwicePairs": 0,
+        "perIPMedianRatio": {
+          "103.21.244.254": 1.0038538978641667,
+          "190.93.247.47": 0.977364345574019,
+          "141.101.120.13": 1.10836591289144,
+          "104.21.42.163": 1.0921097152401336,
+          "104.25.103.47": 0.9675376314811824,
+          "188.114.99.92": 1.049175038342829,
+          "190.93.246.123": 1.1237644950632464,
+          "103.21.244.170": 1.155835257999928,
+          "162.159.146.57": 1.1934465036732265,
+          "104.24.74.222": 1.192117254361143,
+          "104.25.196.123": 1.297632699952311,
+          "104.27.14.185": 1.436273917532025,
+          "104.27.54.178": 0.9235215797532752,
+          "162.159.207.188": 1.081059777406784,
+          "103.21.244.60": 0.8737303449365547,
+          "173.245.49.140": 1.6124714194971963,
+          "103.31.4.243": 1.0226105982157676,
+          "103.31.4.218": 1.0437994369506123,
+          "190.93.244.147": 1.147999758572861,
+          "104.16.177.164": 1.1598588846063174
+        }
+      },
+      "measuredBodyBytes": 136314880,
+      "screenBodyBytes": 66560,
+      "requestTimeMS": 1234604.1854,
+      "screenAudit": {
+        "allThreeScreenFailed": 79,
+        "auditedIPs": 8,
+        "fullSuccessByMethod": {
+          "speed": 0,
+          "http": 0,
+          "https": 0
+        }
+      },
+      "prediction": {
+        "http": {
+          "measuredPairs": 33,
+          "bothComplete": 20,
+          "spearmanCompleteOnly": 0.11127819548872181,
+          "spearmanFailuresTiedLast": 0.4640259731369597,
+          "speedSuccessVideoFailure": 5,
+          "speedSuccessVideoUnknown": 0,
+          "speedSuccessVideoBelowHalfBest": 1,
+          "speedSuccessCount": 25,
+          "topK": {
+            "1": {
+              "selected": [
+                "162.159.146.57"
+              ],
+              "hitsInActualTop5": 1,
+              "containsActualBest": true,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 1.0
+            },
+            "3": {
+              "selected": [
+                "162.159.146.57",
+                "162.159.207.188",
+                "198.41.206.50"
+              ],
+              "hitsInActualTop5": 1,
+              "containsActualBest": true,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 1.0
+            },
+            "5": {
+              "selected": [
+                "162.159.146.57",
+                "162.159.207.188",
+                "198.41.206.50",
+                "173.245.59.127",
+                "103.21.244.60"
+              ],
+              "hitsInActualTop5": 1,
+              "containsActualBest": true,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 1.0
+            }
+          },
+          "selectedTop1RatioToActualBest": 1.0,
+          "actualBestIP": "162.159.146.57"
+        },
+        "https": {
+          "measuredPairs": 33,
+          "bothComplete": 20,
+          "spearmanCompleteOnly": 0.2511278195488722,
+          "spearmanFailuresTiedLast": 0.49320125887311583,
+          "speedSuccessVideoFailure": 5,
+          "speedSuccessVideoUnknown": 0,
+          "speedSuccessVideoBelowHalfBest": 0,
+          "speedSuccessCount": 25,
+          "topK": {
+            "1": {
+              "selected": [
+                "162.159.146.57"
+              ],
+              "hitsInActualTop5": 1,
+              "containsActualBest": true,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 1.0
+            },
+            "3": {
+              "selected": [
+                "162.159.146.57",
+                "162.159.207.188",
+                "198.41.206.50"
+              ],
+              "hitsInActualTop5": 1,
+              "containsActualBest": true,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 1.0
+            },
+            "5": {
+              "selected": [
+                "162.159.146.57",
+                "162.159.207.188",
+                "198.41.206.50",
+                "173.245.59.127",
+                "103.21.244.60"
+              ],
+              "hitsInActualTop5": 1,
+              "containsActualBest": true,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 1.0
+            }
+          },
+          "selectedTop1RatioToActualBest": 1.0,
+          "actualBestIP": "162.159.146.57"
+        }
+      }
+    },
+    "C": {
+      "plannedCandidates": 7,
+      "methods": {
+        "speed": {
+          "screenCount": 7,
+          "screenSuccess": 7,
+          "fullSuccess": 7,
+          "fullAttempted": 7,
+          "screenedOut": 0,
+          "missing": 0,
+          "fullSuccessFractionBounds": [
+            1.0,
+            1.0
+          ],
+          "errors": {},
+          "screenRequestTimeMS": 4762.2476,
+          "fullRequestTimeMS": 21230.4251,
+          "readBodyBytes": 14687232,
+          "timeoutRequests": 0,
+          "partialFailedBytes": 0,
+          "successMiBs": {
+            "n": 7,
+            "min": 0.543203278970545,
+            "median": 0.6809913886255439,
+            "max": 0.8285904814176984
+          },
+          "firstByteMS": {
+            "n": 7,
+            "min": 573.4276,
+            "median": 687.0867,
+            "max": 1629.7749
+          },
+          "bodyMS": {
+            "n": 7,
+            "min": 1770.5576,
+            "median": 1878.7701,
+            "max": 3025.5639
+          },
+          "cache": {
+            "": 7
+          },
+          "colos": {
+            "LAX": 1,
+            "SEA": 6
+          },
+          "top5": [
+            {
+              "ip": "",
+              "miBs": 0.8285904814176984,
+              "colo": "LAX"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "miBs": 0.7828026094724987,
+              "colo": "SEA"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "miBs": 0.7716809154975444,
+              "colo": "SEA"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "miBs": 0.6809913886255439,
+              "colo": "SEA"
+            },
+            {
+              "ip": "104.26.4.28",
+              "miBs": 0.5795648001550452,
+              "colo": "SEA"
+            }
+          ]
+        },
+        "http": {
+          "screenCount": 7,
+          "screenSuccess": 7,
+          "fullSuccess": 7,
+          "fullAttempted": 7,
+          "screenedOut": 0,
+          "missing": 0,
+          "fullSuccessFractionBounds": [
+            1.0,
+            1.0
+          ],
+          "errors": {},
+          "screenRequestTimeMS": 2856.9201000000003,
+          "fullRequestTimeMS": 23445.8508,
+          "readBodyBytes": 14687232,
+          "timeoutRequests": 0,
+          "partialFailedBytes": 0,
+          "successMiBs": {
+            "n": 7,
+            "min": 0.3232939201943462,
+            "median": 0.726150995620184,
+            "max": 0.9651714038244338
+          },
+          "firstByteMS": {
+            "n": 7,
+            "min": 360.5051,
+            "median": 446.2578,
+            "max": 572.2166
+          },
+          "bodyMS": {
+            "n": 7,
+            "min": 1655.4843,
+            "median": 2306.2885,
+            "max": 5612.358
+          },
+          "cache": {
+            "HIT": 7
+          },
+          "colos": {
+            "SEA": 7
+          },
+          "top5": [
+            {
+              "ip": "",
+              "miBs": 0.9651714038244338,
+              "colo": "SEA"
+            },
+            {
+              "ip": "172.67.69.58",
+              "miBs": 0.8827133868031082,
+              "colo": "SEA"
+            },
+            {
+              "ip": "104.26.5.28",
+              "miBs": 0.7861799007605111,
+              "colo": "SEA"
+            },
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "miBs": 0.726150995620184,
+              "colo": "SEA"
+            },
+            {
+              "ip": "104.26.4.28",
+              "miBs": 0.5638774786714753,
+              "colo": "SEA"
+            }
+          ]
+        },
+        "https": {
+          "screenCount": 7,
+          "screenSuccess": 7,
+          "fullSuccess": 7,
+          "fullAttempted": 7,
+          "screenedOut": 0,
+          "missing": 0,
+          "fullSuccessFractionBounds": [
+            1.0,
+            1.0
+          ],
+          "errors": {},
+          "screenRequestTimeMS": 4562.9531,
+          "fullRequestTimeMS": 26242.7489,
+          "readBodyBytes": 14687232,
+          "timeoutRequests": 0,
+          "partialFailedBytes": 0,
+          "successMiBs": {
+            "n": 7,
+            "min": 0.32801879468969064,
+            "median": 0.684201637096099,
+            "max": 0.78110390915949
+          },
+          "firstByteMS": {
+            "n": 7,
+            "min": 570.4245,
+            "median": 689.8411,
+            "max": 944.5693
+          },
+          "bodyMS": {
+            "n": 7,
+            "min": 1752.224,
+            "median": 2244.5428,
+            "max": 5151.7333
+          },
+          "cache": {
+            "HIT": 7
+          },
+          "colos": {
+            "SEA": 7
+          },
+          "top5": [
+            {
+              "ip": "2606:4700:20::681a:51c",
+              "miBs": 0.78110390915949,
+              "colo": "SEA"
+            },
+            {
+              "ip": "2606:4700:20::ac43:453a",
+              "miBs": 0.7487338068999788,
+              "colo": "SEA"
+            },
+            {
+              "ip": "172.67.69.58",
+              "miBs": 0.6853521769543682,
+              "colo": "SEA"
+            },
+            {
+              "ip": "2606:4700:20::681a:41c",
+              "miBs": 0.684201637096099,
+              "colo": "SEA"
+            },
+            {
+              "ip": "",
+              "miBs": 0.4702710181282894,
+              "colo": "SEA"
+            }
+          ]
+        }
+      },
+      "protocolPairs": {
+        "counts": {
+          "bothComplete": 7
+        },
+        "httpRateOverHttpsRate": {
+          "n": 7,
+          "min": 0.47251263759975215,
+          "median": 1.2879705011309543,
+          "max": 2.3967526053019186
+        },
+        "httpsMinusHttpFirstByteMS": {
+          "n": 7,
+          "min": 117.62450000000001,
+          "median": 241.91990000000004,
+          "max": 522.1637000000001
+        },
+        "httpsMinusHttpBodyMS": {
+          "n": 7,
+          "min": -3379.9239000000002,
+          "median": 340.46230000000014,
+          "max": 3069.4775999999997
+        },
+        "httpFasterPairs": 4,
+        "httpAtLeastTwicePairs": 2,
+        "perIPMedianRatio": {
+          "": 2.052372709817164,
+          "104.26.4.28": 1.3588581120175316,
+          "104.26.5.28": 2.3967526053019186,
+          "172.67.69.58": 1.2879705011309543,
+          "2606:4700:20::681a:41c": 0.47251263759975215,
+          "2606:4700:20::681a:51c": 0.929647114942187,
+          "2606:4700:20::ac43:453a": 0.6552536825905043
+        }
+      },
+      "measuredBodyBytes": 44040192,
+      "screenBodyBytes": 21504,
+      "requestTimeMS": 83101.1456,
+      "screenAudit": {
+        "allThreeScreenFailed": 0,
+        "auditedIPs": 0,
+        "fullSuccessByMethod": {
+          "speed": 0,
+          "http": 0,
+          "https": 0
+        }
+      },
+      "prediction": {
+        "http": {
+          "measuredPairs": 7,
+          "bothComplete": 7,
+          "spearmanCompleteOnly": 0.03571428571428571,
+          "spearmanFailuresTiedLast": 0.03571428571428571,
+          "speedSuccessVideoFailure": 0,
+          "speedSuccessVideoUnknown": 0,
+          "speedSuccessVideoBelowHalfBest": 1,
+          "speedSuccessCount": 7,
+          "topK": {
+            "1": {
+              "selected": [
+                ""
+              ],
+              "hitsInActualTop5": 1,
+              "containsActualBest": true,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 1.0
+            },
+            "3": {
+              "selected": [
+                "",
+                "2606:4700:20::681a:51c",
+                "2606:4700:20::ac43:453a"
+              ],
+              "hitsInActualTop5": 2,
+              "containsActualBest": true,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 1.0
+            },
+            "5": {
+              "selected": [
+                "",
+                "2606:4700:20::681a:51c",
+                "2606:4700:20::ac43:453a",
+                "2606:4700:20::681a:41c",
+                "104.26.4.28"
+              ],
+              "hitsInActualTop5": 3,
+              "containsActualBest": true,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 1.0
+            }
+          },
+          "selectedTop1RatioToActualBest": 1.0,
+          "actualBestIP": ""
+        },
+        "https": {
+          "measuredPairs": 7,
+          "bothComplete": 7,
+          "spearmanCompleteOnly": 0.5,
+          "spearmanFailuresTiedLast": 0.5,
+          "speedSuccessVideoFailure": 0,
+          "speedSuccessVideoUnknown": 0,
+          "speedSuccessVideoBelowHalfBest": 1,
+          "speedSuccessCount": 7,
+          "topK": {
+            "1": {
+              "selected": [
+                ""
+              ],
+              "hitsInActualTop5": 1,
+              "containsActualBest": false,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 0.6020594860859504
+            },
+            "3": {
+              "selected": [
+                "",
+                "2606:4700:20::681a:51c",
+                "2606:4700:20::ac43:453a"
+              ],
+              "hitsInActualTop5": 3,
+              "containsActualBest": true,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 1.0
+            },
+            "5": {
+              "selected": [
+                "",
+                "2606:4700:20::681a:51c",
+                "2606:4700:20::ac43:453a",
+                "2606:4700:20::681a:41c",
+                "104.26.4.28"
+              ],
+              "hitsInActualTop5": 4,
+              "containsActualBest": true,
+              "unknown": 0,
+              "bestSelectedObservedRatioToActualBest": 1.0
+            }
+          },
+          "selectedTop1RatioToActualBest": 0.6020594860859504,
+          "actualBestIP": "2606:4700:20::681a:51c"
+        }
+      }
+    }
+  },
+  "pilot": {
+    "counts": {
+      "httpOnly": 8,
+      "bothComplete": 16,
+      "bothFailed": 8
+    },
+    "httpRateOverHttpsRate": {
+      "n": 16,
+      "min": 0.4552924156638581,
+      "median": 1.0998476883396733,
+      "max": 2.95973046024805
+    },
+    "httpsMinusHttpFirstByteMS": {
+      "n": 16,
+      "min": -797.0188,
+      "median": 222.77695000000003,
+      "max": 1216.2426999999998
+    },
+    "httpsMinusHttpBodyMS": {
+      "n": 16,
+      "min": -6473.9831,
+      "median": -67.21910000000003,
+      "max": 7753.9957
+    },
+    "httpFasterPairs": 11,
+    "httpAtLeastTwicePairs": 1,
+    "perIPMedianRatio": {
+      "104.16.0.1": 1.3037463459215024,
+      "104.26.4.28": 0.7466159171539013,
+      "104.26.5.28": 2.1250481140975213,
+      "172.67.69.58": 0.6952186968108222,
+      "2606:4700:20::681a:41c": 1.163497393897977,
+      "2606:4700:20::681a:51c": 1.0998476883396733,
+      "2606:4700:20::ac43:453a": 1.3772616464887193,
+      "": 1.090403114187712
+    }
+  },
+  "wallSeconds": 4306.090442,
+  "rawSHA256": "334802b3e2cbb268720060c66ad145ea1073b930e2ab0cda5ffb8c429ac101b7"
+}

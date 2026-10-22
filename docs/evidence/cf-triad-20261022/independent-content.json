@@ -1,0 +1,19 @@
+{
+  "song1343": {
+    "historicalSamples": 24,
+    "historicalBenchmarkSHA256": "35f4ad26cfd12bfeffc1c6845cfb922226a18b3b5076ab04523681977d16df4b",
+    "rangeBytes": 8388608,
+    "sha256": "7df514bc924f8c2b8fc5017f61cbea31907b2e00425cafad4e09b372d7bcadd5",
+    "newReferenceMatchesHistorical": true
+  },
+  "song1344": {
+    "source": "earlier completed noon ordinary prefetch file",
+    "bytes": 40548476,
+    "md5": "8f26d29704140a431dea0c1374f2eeba",
+    "prefixSHA256": {
+      "1024": "6dd13f02afee5d3319387243e2e249d180d71a5daffcb2c76fb4fb3f4d82daf3",
+      "2097152": "409e134e55b667c5fedc4a84349df28bc8b4470122042bdadecc87ae4bdc4f1d",
+      "8388608": "4a6f425928e674ad6378a393957763445e0b63963c1cbc9f06797de6c5e1aa1d"
+    }
+  }
+}

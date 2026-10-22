@@ -1,0 +1,272 @@
+{
+  "schema": 1,
+  "method": "cf-triad-v1",
+  "hashBasis": "actual-file-bytes (UTF-8/LF public JSON)",
+  "publicationRevision": 2,
+  "status": "local-verified-not-published",
+  "files": {
+    "candidates.json": {
+      "sha256": "bbf702ea1ae56934e0bf04d18b5faa8202f3598381ecb2ebe523baccc3f64346",
+      "bytes": 12799
+    },
+    "comparison.svg": {
+      "sha256": "f9045b903c7a93e7230dd84fe145ccdac6ad3fdc7f843c38fe6551798025428d",
+      "bytes": 41676
+    },
+    "final-verification.json": {
+      "sha256": "55e33f2251c99483e4974c379bd7e3a9891a4ada98ab1be516150e9906fe10f2",
+      "bytes": 1417
+    },
+    "freeze-validation.json": {
+      "sha256": "8fe25dfa44187fc3cc60b12e66d4deaaae5009929e2b0a98fbfc901bdfb378c0",
+      "bytes": 1123
+    },
+    "independent-content.json": {
+      "sha256": "1ab5a0ecae2420bb6f5aa94e1cf2b284ea1bad265a54156a442cf93d6bf33d3e",
+      "bytes": 738
+    },
+    "predictions-w1.json": {
+      "sha256": "0543e5944d0c4c6bcc1c6fe15ad61132610608258043fd02cc140403cc3cc7d8",
+      "bytes": 2035
+    },
+    "provenance.json": {
+      "sha256": "e106cd7a2ed2abd6c943cac608df83c2ed36891b57a8c3812e14a9b210200a21",
+      "bytes": 1800
+    },
+    "README.md": {
+      "sha256": "a2074b3f87f76bea647613af5a1aad1a9e872ab1999362b51a6f845584b91fd4",
+      "bytes": 3531
+    },
+    "retention.json": {
+      "sha256": "d4714de6b0b22f51448ce31c14c750414a1bdd039b8851c27addc6a6da23eb25",
+      "bytes": 367
+    },
+    "validation.json": {
+      "sha256": "d59fb6a0aededf9bd9b6da4376190f907c32157ff1c8a4310b2855e321b00922",
+      "bytes": 3371
+    },
+    "window-01-binding.json": {
+      "sha256": "1ccac55b5d3de039361e90a862a1d8ab576e31cd3b3621c6fbd28011cc82c936",
+      "bytes": 800
+    },
+    "window-01-checks.json": {
+      "sha256": "63aa2034c5a36b333ce86e98ffde08bb13876113de790b5d99cadb2936715d68",
+      "bytes": 570
+    },
+    "window-01-summary.json": {
+      "sha256": "92526f23ae059611a6f4e17ee4634837deb47f087a7662df7f13b6ba2669054d",
+      "bytes": 54173
+    },
+    "window-02-binding.json": {
+      "sha256": "9709dd81712542bd43dd0436758da9da06cfcfa1c397957f959052cf3f40da2c",
+      "bytes": 800
+    },
+    "window-02-checks.json": {
+      "sha256": "c86f2fd748c8dcc1776f2e8b42525830e9369f4e45a53bda37a92413950aab8f",
+      "bytes": 522
+    },
+    "window-02-summary.json": {
+      "sha256": "91fb47d949f862be4935848bafb93940550ce326becefb16ee87d837aa2d8610",
+      "bytes": 76815
+    }
+  },
+  "archive": {
+    "name": "cf-triad-20261022-v2.zip",
+    "bytes": 4243459,
+    "sha256": "5a78c132b07500c614127a54f61931a444ef7dec44c183db0434f4e7818f8cd6",
+    "members": {
+      "_provenance/base-source.zip": {
+        "sha256": "8a36d0710eff8fb4d7587a006a62352e139c7365b47e95877f763e9fc307b762",
+        "bytes": 3985262
+      },
+      "_provenance/cf_triad_harness_test.go": {
+        "sha256": "197224ee9e4e71a77ab0518c8e3d4ea37530617a19ea77810eb22c659395499f",
+        "bytes": 7308
+      },
+      "_provenance/provenance.json": {
+        "sha256": "e106cd7a2ed2abd6c943cac608df83c2ed36891b57a8c3812e14a9b210200a21",
+        "bytes": 1800
+      },
+      "analyze_triad.py": {
+        "sha256": "13961d727f0b37423ac4aabd5af4de2c65fedbf815abcf2eb3137537ca398916",
+        "bytes": 15895
+      },
+      "candidates.json": {
+        "sha256": "bbf702ea1ae56934e0bf04d18b5faa8202f3598381ecb2ebe523baccc3f64346",
+        "bytes": 12799
+      },
+      "export_triad.py": {
+        "sha256": "4fa52d5868d1a2ee7b689e8a59f3d6c0f53521c7aeaee862cbc1b53745ebf5d4",
+        "bytes": 10091
+      },
+      "final-verification.json": {
+        "sha256": "55e33f2251c99483e4974c379bd7e3a9891a4ada98ab1be516150e9906fe10f2",
+        "bytes": 1417
+      },
+      "freeze-validation.json": {
+        "sha256": "8fe25dfa44187fc3cc60b12e66d4deaaae5009929e2b0a98fbfc901bdfb378c0",
+        "bytes": 1123
+      },
+      "independent-content.json": {
+        "sha256": "1ab5a0ecae2420bb6f5aa94e1cf2b284ea1bad265a54156a442cf93d6bf33d3e",
+        "bytes": 738
+      },
+      "plot_triad.py": {
+        "sha256": "ce3caaf6948edbba9e7cde223d2b2c3cc9e59129de090b5506cc00ee1fa03daf",
+        "bytes": 3789
+      },
+      "predictions-w1.json": {
+        "sha256": "0543e5944d0c4c6bcc1c6fe15ad61132610608258043fd02cc140403cc3cc7d8",
+        "bytes": 2035
+      },
+      "prepare_triad.py": {
+        "sha256": "9b7fd6023ec7494d5c470a34586fe49d80ab9090a3b6928db1849311ecd55557",
+        "bytes": 3472
+      },
+      "protocol-v1.md": {
+        "sha256": "adcc04e568ffe54d8bbdb9ac40c917f78d7ad5e718e534fba99fad662ea60fdb",
+        "bytes": 6157
+      },
+      "protocol-v2.md": {
+        "sha256": "46548391c7ed0a3a3c2b2e4047c82a162a83f8e7a196ddcc0d559ca13e481f78",
+        "bytes": 7437
+      },
+      "source-v1.txt": {
+        "sha256": "31a909a3b3f7a0b469a66b303708e6a620810231931f53cdd7caf8e3189d20a9",
+        "bytes": 13567
+      },
+      "source-v2.txt": {
+        "sha256": "d4ce36806a9787b71e35b0252bf985f7543d67f89ed1cd276f7ec6cac55fdd6d",
+        "bytes": 14164
+      },
+      "test_analyze_triad.py": {
+        "sha256": "8fab2483ddab1f4df31d54be71808a53e943d03145e5a5ae24df94f698ccb212",
+        "bytes": 8945
+      },
+      "test_prepare_triad.py": {
+        "sha256": "033a289c812669e23071009c556a6b06471ad7dc9ff1e4f43356ebad967854cb",
+        "bytes": 1198
+      },
+      "verify_binding.py": {
+        "sha256": "d95d457fe37f1ce76bad1ffbe6e5a49dd3b764c89f8658d29c734fe67d47831c",
+        "bytes": 2445
+      },
+      "verify_triad.py": {
+        "sha256": "7771f664ffa92090d9705dabea5e4f6d03dd52520507cc8d9e2f9a261107437a",
+        "bytes": 6062
+      },
+      "window-01-binding.json": {
+        "sha256": "1ccac55b5d3de039361e90a862a1d8ab576e31cd3b3621c6fbd28011cc82c936",
+        "bytes": 800
+      },
+      "window-01-checks.json": {
+        "sha256": "63aa2034c5a36b333ce86e98ffde08bb13876113de790b5d99cadb2936715d68",
+        "bytes": 570
+      },
+      "window-01-rows.json": {
+        "sha256": "3103e2a087815d1aca282db0db5a60e462294a647b95bccbd041a4d872279fab",
+        "bytes": 2149028
+      },
+      "window-01-summary.json": {
+        "sha256": "92526f23ae059611a6f4e17ee4634837deb47f087a7662df7f13b6ba2669054d",
+        "bytes": 54173
+      },
+      "window-02-binding.json": {
+        "sha256": "9709dd81712542bd43dd0436758da9da06cfcfa1c397957f959052cf3f40da2c",
+        "bytes": 800
+      },
+      "window-02-checks.json": {
+        "sha256": "c86f2fd748c8dcc1776f2e8b42525830e9369f4e45a53bda37a92413950aab8f",
+        "bytes": 522
+      },
+      "window-02-rows.json": {
+        "sha256": "b9b040cda528f37b077e2e885007f2c2b6608b15bb1a301f269c086d263342f3",
+        "bytes": 2152306
+      },
+      "window-02-summary.json": {
+        "sha256": "91fb47d949f862be4935848bafb93940550ce326becefb16ee87d837aa2d8610",
+        "bytes": 76815
+      }
+    }
+  },
+  "privateEvidence": {
+    "frozen-v1.json": "81908b1a2897bc3da9f3163793f35f44e69d8a0c96f64a35835f91c16252d019",
+    "frozen-v2.json": "720ec8f6c7e093ec20171d4a82612f8d75852b38b0b2c0078b43b3ca6c32a194",
+    "triad-v1.exe": "fef9fd4ab64618364e9643b3aef94cd5dd0724c2d2bc7de43afc447c92697280",
+    "triad-v2.exe": "e9ac5894fe449eed410bae4fb96cad8db3c31c94da993e06297277b25c86d9f1",
+    "window-01/connections-private.jsonl": "e476a4ddedff7a983670b023ff16430ff1a22daed1d3cbb6a70eb377189c46ec",
+    "window-01/network-private.json": "6b45698b830ed2ac8706c9c7c232e89f0b8d24c07fe4f2961b2346c17b5a8940",
+    "window-01/targets-private.json": "852700657ea25cbfe6dca2388f19034488ea6a740c1c338941b7c4e19410fa68",
+    "window-01/triad-private.json": "334802b3e2cbb268720060c66ad145ea1073b930e2ab0cda5ffb8c429ac101b7",
+    "window-02/connections-private.jsonl": "f36844e2ff70a41283cab26d3f819d6f94c51800ad9f076d094c51cbeca011bf",
+    "window-02/network-private.json": "6b45698b830ed2ac8706c9c7c232e89f0b8d24c07fe4f2961b2346c17b5a8940",
+    "window-02/targets-private.json": "404bbdb1a2c5bbec398709b812e3eb0ac87ac06e33a96023598e7e855dbd337a",
+    "window-02/triad-private.json": "5fbcb14c68fe968b5125a5b5eda5bf2418a136a73d76b0325cd7d554b59b1b00"
+  },
+  "limitations": [
+    "One selected network; two windows are not a population of independent time samples.",
+    "W1 pilot per-IP order reversal defect retained; W2 pilot uses corrected v2.",
+    "V2 isolates late httptrace callbacks; ordinary DNS TCP timing is not connection-specific in either version.",
+    "Absolute sampling times, internal task attribution, local topology and backup operation details are excluded from public evidence.",
+    "Raw URLs, local addresses, GUID, Location, ETag and error details are excluded from public traces.",
+    "Archive publication status: unpublished."
+  ],
+  "sourceFiles": {
+    "docs/README.md": {
+      "sha256": "d3d50e8987cd1feb4034d6389f30444dee2dd5ff82979b215261a20d81ddfcb7",
+      "bytes": 4490
+    },
+    "docs/evidence/README.md": {
+      "sha256": "65d2bc84dffd302148ba3b1c7f5cb500b11504be4dc08c4e4f20412ae5d24b7e",
+      "bytes": 20348
+    },
+    "docs/research/issue-21-cf-triad-20261022.md": {
+      "sha256": "0d516954da751bd2a073c51d4c9e833fb660f107cf02be79b4ab8cd87dff7929",
+      "bytes": 20011
+    },
+    "experiments/cf-block-paths/TRIAD.md": {
+      "sha256": "b872128a59fd32c96b343653c51a4cb9dd64c584d817f6f3f9cf7bdcd5c2075f",
+      "bytes": 7730
+    },
+    "experiments/cf-block-paths/analyze_triad.py": {
+      "sha256": "13961d727f0b37423ac4aabd5af4de2c65fedbf815abcf2eb3137537ca398916",
+      "bytes": 15895
+    },
+    "experiments/cf-block-paths/export_triad.py": {
+      "sha256": "4fa52d5868d1a2ee7b689e8a59f3d6c0f53521c7aeaee862cbc1b53745ebf5d4",
+      "bytes": 10091
+    },
+    "experiments/cf-block-paths/plot_triad.py": {
+      "sha256": "ce3caaf6948edbba9e7cde223d2b2c3cc9e59129de090b5506cc00ee1fa03daf",
+      "bytes": 3789
+    },
+    "experiments/cf-block-paths/prepare_triad.py": {
+      "sha256": "9b7fd6023ec7494d5c470a34586fe49d80ab9090a3b6928db1849311ecd55557",
+      "bytes": 3472
+    },
+    "experiments/cf-block-paths/test_analyze_triad.py": {
+      "sha256": "8fab2483ddab1f4df31d54be71808a53e943d03145e5a5ae24df94f698ccb212",
+      "bytes": 8945
+    },
+    "experiments/cf-block-paths/test_prepare_triad.py": {
+      "sha256": "033a289c812669e23071009c556a6b06471ad7dc9ff1e4f43356ebad967854cb",
+      "bytes": 1198
+    },
+    "experiments/cf-block-paths/verify_triad.py": {
+      "sha256": "7771f664ffa92090d9705dabea5e4f6d03dd52520507cc8d9e2f9a261107437a",
+      "bytes": 6062
+    },
+    "internal/console/cf_triad_experiment_test.go": {
+      "sha256": "d4ce36806a9787b71e35b0252bf985f7543d67f89ed1cd276f7ec6cac55fdd6d",
+      "bytes": 14164
+    },
+    "internal/console/cf_triad_harness_test.go": {
+      "sha256": "197224ee9e4e71a77ab0518c8e3d4ea37530617a19ea77810eb22c659395499f",
+      "bytes": 7308
+    }
+  },
+  "retention": {
+    "backupVerified": true,
+    "manifestSHA256": "17eab522cb35e1769e677c144b8f48c51e67b52d5bde728f6ff610e0026dda62"
+  }
+}

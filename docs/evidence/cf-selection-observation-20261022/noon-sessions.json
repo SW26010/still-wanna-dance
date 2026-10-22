@@ -1,0 +1,940 @@
+{
+  "schema": 1,
+  "sourceSHA256": "fd60f7b8d6d27238dd2648fa7066ac38e219991332e94ead0bfce51ad2a76764",
+  "method": "actual-prefetch-cf-history-two-v2",
+  "outcome": "completed",
+  "bodyBytes": 1883879097,
+  "sessions": [
+    {
+      "round": 1,
+      "arm": "ordinary",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 0,
+      "setupBytes": 0,
+      "bodyBytes": 164405956,
+      "fullSessionWallMS": 16747.963,
+      "businessCompletionWallMS": 16580.2165,
+      "sumSetupAndTaskMS": 16386.0387
+    },
+    {
+      "round": 1,
+      "arm": "monitor",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 23234.5943,
+      "setupBytes": 117964614,
+      "bodyBytes": 282370570,
+      "fullSessionWallMS": 39588.508,
+      "businessCompletionWallMS": 39413.2129,
+      "sumSetupAndTaskMS": 39207.2053
+    },
+    {
+      "round": 1,
+      "arm": "history-two",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 7160.8437,
+      "setupBytes": 16777217,
+      "bodyBytes": 181183173,
+      "fullSessionWallMS": 24671.683,
+      "businessCompletionWallMS": 24494.7215,
+      "sumSetupAndTaskMS": 24292.223
+    },
+    {
+      "round": 2,
+      "arm": "monitor",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 22931.8192,
+      "setupBytes": 117964614,
+      "bodyBytes": 282370570,
+      "fullSessionWallMS": 40642.146,
+      "businessCompletionWallMS": 40479.4821,
+      "sumSetupAndTaskMS": 40224.397
+    },
+    {
+      "round": 2,
+      "arm": "history-two",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 7354.094,
+      "setupBytes": 16777217,
+      "bodyBytes": 181183173,
+      "fullSessionWallMS": 24262.685,
+      "businessCompletionWallMS": 24098.1173,
+      "sumSetupAndTaskMS": 23859.4129
+    },
+    {
+      "round": 2,
+      "arm": "ordinary",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 0,
+      "setupBytes": 0,
+      "bodyBytes": 164405956,
+      "fullSessionWallMS": 17851.525,
+      "businessCompletionWallMS": 17681.6329,
+      "sumSetupAndTaskMS": 17433.7968
+    },
+    {
+      "round": 3,
+      "arm": "history-two",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 6531.4202,
+      "setupBytes": 16777217,
+      "bodyBytes": 181183173,
+      "fullSessionWallMS": 23207.268,
+      "businessCompletionWallMS": 23037.1467,
+      "sumSetupAndTaskMS": 22930.834600000002
+    },
+    {
+      "round": 3,
+      "arm": "ordinary",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 0,
+      "setupBytes": 0,
+      "bodyBytes": 164405956,
+      "fullSessionWallMS": 18404.851,
+      "businessCompletionWallMS": 18239.1512,
+      "sumSetupAndTaskMS": 18128.2629
+    },
+    {
+      "round": 3,
+      "arm": "monitor",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 23561.6702,
+      "setupBytes": 117964614,
+      "bodyBytes": 282370570,
+      "fullSessionWallMS": 40858.774,
+      "businessCompletionWallMS": 40690.3224,
+      "sumSetupAndTaskMS": 40562.9721
+    }
+  ],
+  "pairs": [
+    {
+      "round": 1,
+      "arm": "monitor",
+      "comparable": true,
+      "baselineState": {
+        "round": 1,
+        "arm": "ordinary",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 0,
+        "setupBytes": 0,
+        "bodyBytes": 164405956,
+        "fullSessionWallMS": 16747.963,
+        "businessCompletionWallMS": 16580.2165,
+        "sumSetupAndTaskMS": 16386.0387
+      },
+      "candidateState": {
+        "round": 1,
+        "arm": "monitor",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 23234.5943,
+        "setupBytes": 117964614,
+        "bodyBytes": 282370570,
+        "fullSessionWallMS": 39588.508,
+        "businessCompletionWallMS": 39413.2129,
+        "sumSetupAndTaskMS": 39207.2053
+      },
+      "fullSessionSavedMS": -22840.545000000002,
+      "businessCompletionSavedMS": -22832.9964,
+      "sumSetupAndTaskSavedMS": -22821.1666,
+      "extraBodyBytes": 117964614,
+      "prefixes": [
+        {
+          "tasks": 1,
+          "throughSong": 1344,
+          "observedWallSavedMS": -21867.9235
+        },
+        {
+          "tasks": 2,
+          "throughSong": 10552,
+          "observedWallSavedMS": -22398.013
+        },
+        {
+          "tasks": 3,
+          "throughSong": 10553,
+          "observedWallSavedMS": -22832.9964
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "arm": "history-two",
+      "comparable": true,
+      "baselineState": {
+        "round": 1,
+        "arm": "ordinary",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 0,
+        "setupBytes": 0,
+        "bodyBytes": 164405956,
+        "fullSessionWallMS": 16747.963,
+        "businessCompletionWallMS": 16580.2165,
+        "sumSetupAndTaskMS": 16386.0387
+      },
+      "candidateState": {
+        "round": 1,
+        "arm": "history-two",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 7160.8437,
+        "setupBytes": 16777217,
+        "bodyBytes": 181183173,
+        "fullSessionWallMS": 24671.683,
+        "businessCompletionWallMS": 24494.7215,
+        "sumSetupAndTaskMS": 24292.223
+      },
+      "fullSessionSavedMS": -7923.720000000001,
+      "businessCompletionSavedMS": -7914.505000000001,
+      "sumSetupAndTaskSavedMS": -7906.184300000001,
+      "extraBodyBytes": 16777217,
+      "prefixes": [
+        {
+          "tasks": 1,
+          "throughSong": 1344,
+          "observedWallSavedMS": -6663.104200000001
+        },
+        {
+          "tasks": 2,
+          "throughSong": 10552,
+          "observedWallSavedMS": -7111.129400000002
+        },
+        {
+          "tasks": 3,
+          "throughSong": 10553,
+          "observedWallSavedMS": -7914.505000000001
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "arm": "monitor",
+      "comparable": true,
+      "baselineState": {
+        "round": 2,
+        "arm": "ordinary",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 0,
+        "setupBytes": 0,
+        "bodyBytes": 164405956,
+        "fullSessionWallMS": 17851.525,
+        "businessCompletionWallMS": 17681.6329,
+        "sumSetupAndTaskMS": 17433.7968
+      },
+      "candidateState": {
+        "round": 2,
+        "arm": "monitor",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 22931.8192,
+        "setupBytes": 117964614,
+        "bodyBytes": 282370570,
+        "fullSessionWallMS": 40642.146,
+        "businessCompletionWallMS": 40479.4821,
+        "sumSetupAndTaskMS": 40224.397
+      },
+      "fullSessionSavedMS": -22790.621,
+      "businessCompletionSavedMS": -22797.8492,
+      "sumSetupAndTaskSavedMS": -22790.600199999997,
+      "extraBodyBytes": 117964614,
+      "prefixes": [
+        {
+          "tasks": 1,
+          "throughSong": 10552,
+          "observedWallSavedMS": -23001.320099999997
+        },
+        {
+          "tasks": 2,
+          "throughSong": 10553,
+          "observedWallSavedMS": -23261.117
+        },
+        {
+          "tasks": 3,
+          "throughSong": 1344,
+          "observedWallSavedMS": -22797.8492
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "arm": "history-two",
+      "comparable": true,
+      "baselineState": {
+        "round": 2,
+        "arm": "ordinary",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 0,
+        "setupBytes": 0,
+        "bodyBytes": 164405956,
+        "fullSessionWallMS": 17851.525,
+        "businessCompletionWallMS": 17681.6329,
+        "sumSetupAndTaskMS": 17433.7968
+      },
+      "candidateState": {
+        "round": 2,
+        "arm": "history-two",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 7354.094,
+        "setupBytes": 16777217,
+        "bodyBytes": 181183173,
+        "fullSessionWallMS": 24262.685,
+        "businessCompletionWallMS": 24098.1173,
+        "sumSetupAndTaskMS": 23859.4129
+      },
+      "fullSessionSavedMS": -6411.16,
+      "businessCompletionSavedMS": -6416.484400000001,
+      "sumSetupAndTaskSavedMS": -6425.616099999999,
+      "extraBodyBytes": 16777217,
+      "prefixes": [
+        {
+          "tasks": 1,
+          "throughSong": 10552,
+          "observedWallSavedMS": -6667.607900000001
+        },
+        {
+          "tasks": 2,
+          "throughSong": 10553,
+          "observedWallSavedMS": -6770.9375
+        },
+        {
+          "tasks": 3,
+          "throughSong": 1344,
+          "observedWallSavedMS": -6416.484400000001
+        }
+      ]
+    },
+    {
+      "round": 3,
+      "arm": "monitor",
+      "comparable": true,
+      "baselineState": {
+        "round": 3,
+        "arm": "ordinary",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 0,
+        "setupBytes": 0,
+        "bodyBytes": 164405956,
+        "fullSessionWallMS": 18404.851,
+        "businessCompletionWallMS": 18239.1512,
+        "sumSetupAndTaskMS": 18128.2629
+      },
+      "candidateState": {
+        "round": 3,
+        "arm": "monitor",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 23561.6702,
+        "setupBytes": 117964614,
+        "bodyBytes": 282370570,
+        "fullSessionWallMS": 40858.774,
+        "businessCompletionWallMS": 40690.3224,
+        "sumSetupAndTaskMS": 40562.9721
+      },
+      "fullSessionSavedMS": -22453.923,
+      "businessCompletionSavedMS": -22451.171199999997,
+      "sumSetupAndTaskSavedMS": -22434.709199999998,
+      "extraBodyBytes": 117964614,
+      "prefixes": [
+        {
+          "tasks": 1,
+          "throughSong": 10553,
+          "observedWallSavedMS": -22190.672300000002
+        },
+        {
+          "tasks": 2,
+          "throughSong": 1344,
+          "observedWallSavedMS": -22566.583399999996
+        },
+        {
+          "tasks": 3,
+          "throughSong": 10552,
+          "observedWallSavedMS": -22451.171199999997
+        }
+      ]
+    },
+    {
+      "round": 3,
+      "arm": "history-two",
+      "comparable": true,
+      "baselineState": {
+        "round": 3,
+        "arm": "ordinary",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 0,
+        "setupBytes": 0,
+        "bodyBytes": 164405956,
+        "fullSessionWallMS": 18404.851,
+        "businessCompletionWallMS": 18239.1512,
+        "sumSetupAndTaskMS": 18128.2629
+      },
+      "candidateState": {
+        "round": 3,
+        "arm": "history-two",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 6531.4202,
+        "setupBytes": 16777217,
+        "bodyBytes": 181183173,
+        "fullSessionWallMS": 23207.268,
+        "businessCompletionWallMS": 23037.1467,
+        "sumSetupAndTaskMS": 22930.834600000002
+      },
+      "fullSessionSavedMS": -4802.417000000001,
+      "businessCompletionSavedMS": -4797.995500000001,
+      "sumSetupAndTaskSavedMS": -4802.5717,
+      "extraBodyBytes": 16777217,
+      "prefixes": [
+        {
+          "tasks": 1,
+          "throughSong": 10553,
+          "observedWallSavedMS": -5024.6527
+        },
+        {
+          "tasks": 2,
+          "throughSong": 1344,
+          "observedWallSavedMS": -5461.6595
+        },
+        {
+          "tasks": 3,
+          "throughSong": 10552,
+          "observedWallSavedMS": -4797.995500000001
+        }
+      ]
+    }
+  ],
+  "ordinaryPaths": [
+    {
+      "round": 1,
+      "song": 1344,
+      "ok": true,
+      "taskElapsedMS": 6581.7171,
+      "requestCount": 40,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 39
+      },
+      "mediaCache": {
+        "HIT": 39
+      },
+      "unattributedMediaResponses": 0,
+      "peers": [
+        {
+          "ip": "2606:4700:20::681a:41c",
+          "family": 6,
+          "responses": 12,
+          "bodyBytes": 12582912,
+          "reusedResponses": 10
+        },
+        {
+          "ip": "2606:4700:20::ac43:453a",
+          "family": 6,
+          "responses": 27,
+          "bodyBytes": 27965564,
+          "reusedResponses": 26
+        }
+      ],
+      "apiEnvelope": {
+        "startAfterTaskMS": 0.0001000000000015433,
+        "endAfterTaskMS": 1211.152,
+        "wallSpanMS": 1211.1519
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 1212.2031,
+        "endAfterTaskMS": 6416.3288,
+        "wallSpanMS": 5204.1257000000005
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 39,
+        "min": 186.60069999999996,
+        "median": 232.28089999999975,
+        "max": 960.4034000000001
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 39,
+        "min": 40.36880000000019,
+        "median": 200.65779999999995,
+        "max": 1105.0149999999999
+      },
+      "afterLastRecordedRequestMS": 165.38829999999962
+    },
+    {
+      "round": 1,
+      "song": 10552,
+      "ok": true,
+      "taskElapsedMS": 6481.5226,
+      "requestCount": 100,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 99
+      },
+      "mediaCache": {
+        "HIT": 99
+      },
+      "unattributedMediaResponses": 0,
+      "peers": [
+        {
+          "ip": "2606:4700:20::681a:41c",
+          "family": 6,
+          "responses": 5,
+          "bodyBytes": 5242880,
+          "reusedResponses": 5
+        },
+        {
+          "ip": "2606:4700:20::ac43:453a",
+          "family": 6,
+          "responses": 94,
+          "bodyBytes": 97875882,
+          "reusedResponses": 94
+        }
+      ],
+      "apiEnvelope": {
+        "startAfterTaskMS": 1.0010000000002037,
+        "endAfterTaskMS": 405.96019999999953,
+        "wallSpanMS": 404.9591999999993
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 407.0156999999999,
+        "endAfterTaskMS": 6056.517999999999,
+        "wallSpanMS": 5649.502299999999
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 99,
+        "min": 174.32290000000103,
+        "median": 214.98420000000078,
+        "max": 681.8863000000001
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 99,
+        "min": 15.581099999999424,
+        "median": 75.38470000000052,
+        "max": 1232.5290000000005
+      },
+      "afterLastRecordedRequestMS": 425.0046000000011
+    },
+    {
+      "round": 1,
+      "song": 10553,
+      "ok": true,
+      "taskElapsedMS": 3322.799,
+      "requestCount": 21,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 20
+      },
+      "mediaCache": {
+        "HIT": 20
+      },
+      "unattributedMediaResponses": 0,
+      "peers": [
+        {
+          "ip": "2606:4700:20::ac43:453a",
+          "family": 6,
+          "responses": 20,
+          "bodyBytes": 20738718,
+          "reusedResponses": 20
+        }
+      ],
+      "apiEnvelope": {
+        "startAfterTaskMS": -0.0005000000001018634,
+        "endAfterTaskMS": 504.1905000000006,
+        "wallSpanMS": 504.1910000000007
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 505.2345000000005,
+        "endAfterTaskMS": 3223.9292000000005,
+        "wallSpanMS": 2718.6947
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 20,
+        "min": 173.92989999999918,
+        "median": 200.8399500000005,
+        "max": 458.6387999999988
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 20,
+        "min": 51.333300000000236,
+        "median": 59.85764999999992,
+        "max": 1145.6311999999998
+      },
+      "afterLastRecordedRequestMS": 98.86979999999949
+    },
+    {
+      "round": 2,
+      "song": 10552,
+      "ok": true,
+      "taskElapsedMS": 8349.5577,
+      "requestCount": 100,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 99
+      },
+      "mediaCache": {
+        "HIT": 99
+      },
+      "unattributedMediaResponses": 0,
+      "peers": [
+        {
+          "ip": "2606:4700:20::681a:41c",
+          "family": 6,
+          "responses": 99,
+          "bodyBytes": 103118762,
+          "reusedResponses": 96
+        }
+      ],
+      "apiEnvelope": {
+        "startAfterTaskMS": -0.00020000000000131024,
+        "endAfterTaskMS": 1153.4749,
+        "wallSpanMS": 1153.4751
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 1154.5185,
+        "endAfterTaskMS": 7976.6515,
+        "wallSpanMS": 6822.133
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 99,
+        "min": 175.5691999999999,
+        "median": 219.5531000000001,
+        "max": 882.4536
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 99,
+        "min": 18.386500000000524,
+        "median": 196.58539999999994,
+        "max": 1391.2459000000003
+      },
+      "afterLastRecordedRequestMS": 372.90619999999944
+    },
+    {
+      "round": 2,
+      "song": 10553,
+      "ok": true,
+      "taskElapsedMS": 3465.7359,
+      "requestCount": 21,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 20
+      },
+      "mediaCache": {
+        "HIT": 20
+      },
+      "unattributedMediaResponses": 0,
+      "peers": [
+        {
+          "ip": "2606:4700:20::681a:41c",
+          "family": 6,
+          "responses": 20,
+          "bodyBytes": 20738718,
+          "reusedResponses": 20
+        }
+      ],
+      "apiEnvelope": {
+        "startAfterTaskMS": -0.00029999999969732016,
+        "endAfterTaskMS": 346.7052999999996,
+        "wallSpanMS": 346.7055999999993
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 347.2438999999995,
+        "endAfterTaskMS": 3369.7726000000002,
+        "wallSpanMS": 3022.5287000000008
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 20,
+        "min": 177.09100000000035,
+        "median": 218.8751999999995,
+        "max": 430.96820000000116
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 20,
+        "min": 46.60159999999996,
+        "median": 89.5997499999994,
+        "max": 1409.9069999999992
+      },
+      "afterLastRecordedRequestMS": 95.96329999999989
+    },
+    {
+      "round": 2,
+      "song": 1344,
+      "ok": true,
+      "taskElapsedMS": 5618.5032,
+      "requestCount": 40,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 39
+      },
+      "mediaCache": {
+        "HIT": 39
+      },
+      "unattributedMediaResponses": 0,
+      "peers": [
+        {
+          "ip": "2606:4700:20::681a:41c",
+          "family": 6,
+          "responses": 39,
+          "bodyBytes": 40548476,
+          "reusedResponses": 39
+        }
+      ],
+      "apiEnvelope": {
+        "startAfterTaskMS": -0.00029999999969732016,
+        "endAfterTaskMS": 355.2314000000006,
+        "wallSpanMS": 355.2317000000003
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 356.2612000000008,
+        "endAfterTaskMS": 5451.1676000000025,
+        "wallSpanMS": 5094.906400000002
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 39,
+        "min": 173.7536999999993,
+        "median": 218.060300000001,
+        "max": 419.7456000000002
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 39,
+        "min": 43.70849999999882,
+        "median": 165.89409999999953,
+        "max": 2167.363300000001
+      },
+      "afterLastRecordedRequestMS": 167.3355999999976
+    },
+    {
+      "round": 3,
+      "song": 10553,
+      "ok": true,
+      "taskElapsedMS": 6101.0521,
+      "requestCount": 21,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 20
+      },
+      "mediaCache": {
+        "HIT": 20
+      },
+      "unattributedMediaResponses": 0,
+      "peers": [
+        {
+          "ip": "2606:4700:20::681a:41c",
+          "family": 6,
+          "responses": 20,
+          "bodyBytes": 20738718,
+          "reusedResponses": 17
+        }
+      ],
+      "apiEnvelope": {
+        "startAfterTaskMS": 0.5234000000000005,
+        "endAfterTaskMS": 1234.462,
+        "wallSpanMS": 1233.9386
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 1236.0166,
+        "endAfterTaskMS": 6000.9571000000005,
+        "wallSpanMS": 4764.940500000001
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 20,
+        "min": 173.95550000000003,
+        "median": 279.6714999999999,
+        "max": 887.7574000000002
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 20,
+        "min": 59.51039999999921,
+        "median": 825.1059,
+        "max": 1246.5145000000002
+      },
+      "afterLastRecordedRequestMS": 100.09499999999935
+    },
+    {
+      "round": 3,
+      "song": 1344,
+      "ok": true,
+      "taskElapsedMS": 4774.6385,
+      "requestCount": 40,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 39
+      },
+      "mediaCache": {
+        "HIT": 39
+      },
+      "unattributedMediaResponses": 0,
+      "peers": [
+        {
+          "ip": "2606:4700:20::681a:41c",
+          "family": 6,
+          "responses": 39,
+          "bodyBytes": 40548476,
+          "reusedResponses": 39
+        }
+      ],
+      "apiEnvelope": {
+        "startAfterTaskMS": 0.0,
+        "endAfterTaskMS": 419.97289999999975,
+        "wallSpanMS": 419.97289999999975
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 421.53330000000005,
+        "endAfterTaskMS": 4605.9943,
+        "wallSpanMS": 4184.461
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 39,
+        "min": 171.67230000000018,
+        "median": 216.35510000000068,
+        "max": 527.3114999999998
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 39,
+        "min": 13.782400000000052,
+        "median": 267.40269999999964,
+        "max": 1303.2356000000009
+      },
+      "afterLastRecordedRequestMS": 168.64419999999973
+    },
+    {
+      "round": 3,
+      "song": 10552,
+      "ok": true,
+      "taskElapsedMS": 7252.5723,
+      "requestCount": 100,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 99
+      },
+      "mediaCache": {
+        "HIT": 99
+      },
+      "unattributedMediaResponses": 0,
+      "peers": [
+        {
+          "ip": "2606:4700:20::681a:41c",
+          "family": 6,
+          "responses": 99,
+          "bodyBytes": 103118762,
+          "reusedResponses": 99
+        }
+      ],
+      "apiEnvelope": {
+        "startAfterTaskMS": 0.0009000000009109499,
+        "endAfterTaskMS": 404.3896000000004,
+        "wallSpanMS": 404.3886999999995
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 405.4323999999997,
+        "endAfterTaskMS": 6849.004800000001,
+        "wallSpanMS": 6443.572400000001
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 99,
+        "min": 173.5643999999993,
+        "median": 224.98169999999845,
+        "max": 864.0457999999999
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 99,
+        "min": 43.356700000000274,
+        "median": 168.4340000000011,
+        "max": 1285.7265000000007
+      },
+      "afterLastRecordedRequestMS": 403.5674999999992
+    }
+  ],
+  "scope": {
+    "gain": "ordinary minus strategy, paired by round and identical ordered songs; positive means saved time",
+    "fullSession": "Started to Finished, includes setup, actual business, harness saves/file audits and deferred cleanup",
+    "businessCompletion": "session start to last prefetch return; includes preceding harness work but excludes last external file audit and cleanup",
+    "sum": "sensitivity only: setup plus sequential task stopwatches; never used as wall time for concurrent work",
+    "requests": "interval envelopes overlap; headers wait includes pool/DNS/TCP/TLS/server time, not first-byte or isolated connect time; body interval includes consumer and Close time",
+    "residual": "after final recorded request includes unseparated local work; not a pure MD5, disk or scheduler measurement",
+    "history": "v1 unpinned peers are not attributed; v2 uses hostname-verified TLS; unused candidates have no inferred quality",
+    "experience": "prefetch only; no Range delivered to a player, first frame, playback stall or concurrent Monitor result"
+  }
+}

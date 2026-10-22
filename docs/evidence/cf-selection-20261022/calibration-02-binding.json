@@ -1,0 +1,20 @@
+{
+  "batch": "calibration-02",
+  "tcpAttempts": 19,
+  "counts": {
+    "v4Connected": 8,
+    "canceled": 10,
+    "v6Connected": 1
+  },
+  "otherErrors": {},
+  "allConnectedSourcesOnSelectedWifi": true,
+  "allConnectedPeersMatchTargets": true,
+  "allSelectedIndexesMatchAdapter": true,
+  "fatalBindingError": false,
+  "hashBasis": "actual-file-bytes",
+  "files": {
+    "connections-private.jsonl": "c95af4f798aee290654a0573d3e2e7d041411894c004be0800af857aa92fc570",
+    "network-private.json": "6b45698b830ed2ac8706c9c7c232e89f0b8d24c07fe4f2961b2346c17b5a8940",
+    "selection.json": "41463e223134245f95dfac913549c43ba5d594f12c08ffd3afb9ea63cc36cbc2"
+  }
+}

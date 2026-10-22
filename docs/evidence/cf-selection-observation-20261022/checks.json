@@ -1,0 +1,222 @@
+{
+  "schema": 1,
+  "pythonAnalysisTests": 22,
+  "backgroundMechanismTests": [
+    "TestBusinessResourcePriorityAndOverlappingLoads",
+    "TestSelectedThroughputPreemptsPausedAutomaticBatch",
+    "TestAutomaticResourcePreemptionAndResume",
+    "TestManualResourceCheckBypassesBusyBusiness",
+    "TestCloseCancelsAutomaticProbeWaitingForBusiness",
+    "TestResourceProbesNeverOverlap",
+    "TestVideoRequestActivityHoldsResponseUntilCloseCompletes",
+    "TestVideoRequestActivityReleasesFailedAttempts",
+    "TestResourceLoadHookCoversDownloadAndReleasesOnFailure",
+    "TestHTTPSVideoActivityExcludesAPITunnel"
+  ],
+  "frozenPrefetchFixture": "passed",
+  "noonExitCode": 0,
+  "publishedFileRechecks": [
+    {
+      "round": 1,
+      "arm": "ordinary",
+      "md5": "8f26d29704140a431dea0c1374f2eeba",
+      "bytes": 40548476,
+      "valid": true
+    },
+    {
+      "round": 1,
+      "arm": "ordinary",
+      "md5": "bf49ffdbb8260a7e0487d260a29e8d70",
+      "bytes": 103118762,
+      "valid": true
+    },
+    {
+      "round": 1,
+      "arm": "ordinary",
+      "md5": "dda0a5895419c02f6f84fe5f87ea1de1",
+      "bytes": 20738718,
+      "valid": true
+    },
+    {
+      "round": 1,
+      "arm": "monitor",
+      "md5": "8f26d29704140a431dea0c1374f2eeba",
+      "bytes": 40548476,
+      "valid": true
+    },
+    {
+      "round": 1,
+      "arm": "monitor",
+      "md5": "bf49ffdbb8260a7e0487d260a29e8d70",
+      "bytes": 103118762,
+      "valid": true
+    },
+    {
+      "round": 1,
+      "arm": "monitor",
+      "md5": "dda0a5895419c02f6f84fe5f87ea1de1",
+      "bytes": 20738718,
+      "valid": true
+    },
+    {
+      "round": 1,
+      "arm": "history-two",
+      "md5": "8f26d29704140a431dea0c1374f2eeba",
+      "bytes": 40548476,
+      "valid": true
+    },
+    {
+      "round": 1,
+      "arm": "history-two",
+      "md5": "bf49ffdbb8260a7e0487d260a29e8d70",
+      "bytes": 103118762,
+      "valid": true
+    },
+    {
+      "round": 1,
+      "arm": "history-two",
+      "md5": "dda0a5895419c02f6f84fe5f87ea1de1",
+      "bytes": 20738718,
+      "valid": true
+    },
+    {
+      "round": 2,
+      "arm": "monitor",
+      "md5": "8f26d29704140a431dea0c1374f2eeba",
+      "bytes": 40548476,
+      "valid": true
+    },
+    {
+      "round": 2,
+      "arm": "monitor",
+      "md5": "bf49ffdbb8260a7e0487d260a29e8d70",
+      "bytes": 103118762,
+      "valid": true
+    },
+    {
+      "round": 2,
+      "arm": "monitor",
+      "md5": "dda0a5895419c02f6f84fe5f87ea1de1",
+      "bytes": 20738718,
+      "valid": true
+    },
+    {
+      "round": 2,
+      "arm": "history-two",
+      "md5": "8f26d29704140a431dea0c1374f2eeba",
+      "bytes": 40548476,
+      "valid": true
+    },
+    {
+      "round": 2,
+      "arm": "history-two",
+      "md5": "bf49ffdbb8260a7e0487d260a29e8d70",
+      "bytes": 103118762,
+      "valid": true
+    },
+    {
+      "round": 2,
+      "arm": "history-two",
+      "md5": "dda0a5895419c02f6f84fe5f87ea1de1",
+      "bytes": 20738718,
+      "valid": true
+    },
+    {
+      "round": 2,
+      "arm": "ordinary",
+      "md5": "8f26d29704140a431dea0c1374f2eeba",
+      "bytes": 40548476,
+      "valid": true
+    },
+    {
+      "round": 2,
+      "arm": "ordinary",
+      "md5": "bf49ffdbb8260a7e0487d260a29e8d70",
+      "bytes": 103118762,
+      "valid": true
+    },
+    {
+      "round": 2,
+      "arm": "ordinary",
+      "md5": "dda0a5895419c02f6f84fe5f87ea1de1",
+      "bytes": 20738718,
+      "valid": true
+    },
+    {
+      "round": 3,
+      "arm": "history-two",
+      "md5": "8f26d29704140a431dea0c1374f2eeba",
+      "bytes": 40548476,
+      "valid": true
+    },
+    {
+      "round": 3,
+      "arm": "history-two",
+      "md5": "bf49ffdbb8260a7e0487d260a29e8d70",
+      "bytes": 103118762,
+      "valid": true
+    },
+    {
+      "round": 3,
+      "arm": "history-two",
+      "md5": "dda0a5895419c02f6f84fe5f87ea1de1",
+      "bytes": 20738718,
+      "valid": true
+    },
+    {
+      "round": 3,
+      "arm": "ordinary",
+      "md5": "8f26d29704140a431dea0c1374f2eeba",
+      "bytes": 40548476,
+      "valid": true
+    },
+    {
+      "round": 3,
+      "arm": "ordinary",
+      "md5": "bf49ffdbb8260a7e0487d260a29e8d70",
+      "bytes": 103118762,
+      "valid": true
+    },
+    {
+      "round": 3,
+      "arm": "ordinary",
+      "md5": "dda0a5895419c02f6f84fe5f87ea1de1",
+      "bytes": 20738718,
+      "valid": true
+    },
+    {
+      "round": 3,
+      "arm": "monitor",
+      "md5": "8f26d29704140a431dea0c1374f2eeba",
+      "bytes": 40548476,
+      "valid": true
+    },
+    {
+      "round": 3,
+      "arm": "monitor",
+      "md5": "bf49ffdbb8260a7e0487d260a29e8d70",
+      "bytes": 103118762,
+      "valid": true
+    },
+    {
+      "round": 3,
+      "arm": "monitor",
+      "md5": "dda0a5895419c02f6f84fe5f87ea1de1",
+      "bytes": 20738718,
+      "valid": true
+    }
+  ],
+  "publicationCheckCount": 27,
+  "measurementBuildSHA256": "c96a037badff5247de8abf57a7c73ba8e96373d2fc4cc15debefdabbfd174089",
+  "historySHA256": "fb8a2221d52ae2e0f5318d15075dd94663d12da097e24f5303983fad8d3cb640",
+  "protocolSHA256": "62605ea9601eed00a402b1a6aabe90b734f7ef1ab94bbfad4c4f7a688644a8e7",
+  "measurementBuildNote": "frozen v2 from earlier build manifest; unchanged product baseline; does not include the later shared DNS trace fix",
+  "scope": "non-game only; no VRC, first-frame or public-network background-competition claim",
+  "environment": "WindowsApps python alias unavailable; bundled Python runtime used; no product workaround",
+  "logSHA256": {
+    "doc3-analysis-tests.log": "44f80f5271cc37db2300b73622dca7ea6188c8fa8938ea87b22f62cf3b357e34",
+    "doc3-background-checks.log": "042ad30fd5e0ff38aee0c5fe51cfa93bb9787e4698cfab1f7138769e8469472a",
+    "doc3-frozen-preflight.log": "84e5584c62ea42da39c119a5431f6ef78f854230a554e1f344369660396505a8",
+    "product-noon-01.log": "32e5771bd6840a80735e37c7109b669d79636e84ace91dc83bcac94f1b794db5"
+  }
+}

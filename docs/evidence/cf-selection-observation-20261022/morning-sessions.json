@@ -1,0 +1,854 @@
+{
+  "schema": 1,
+  "sourceSHA256": "b3ef5013454ab931245d0be78307f926c738400560ce25b3595c4dc3420fcc79",
+  "method": "actual-prefetch-cf-history-two-v1",
+  "outcome": "completed",
+  "bodyBytes": 1883879097,
+  "sessions": [
+    {
+      "round": 1,
+      "arm": "ordinary",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 0,
+      "setupBytes": 0,
+      "bodyBytes": 164405956,
+      "fullSessionWallMS": 17345.832,
+      "businessCompletionWallMS": 17185.6258,
+      "sumSetupAndTaskMS": 16989.7356
+    },
+    {
+      "round": 1,
+      "arm": "monitor",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 20329.3613,
+      "setupBytes": 117964614,
+      "bodyBytes": 282370570,
+      "fullSessionWallMS": 35619.23,
+      "businessCompletionWallMS": 35457.2757,
+      "sumSetupAndTaskMS": 35252.911
+    },
+    {
+      "round": 1,
+      "arm": "history-two",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 6111.7234,
+      "setupBytes": 16777217,
+      "bodyBytes": 181183173,
+      "fullSessionWallMS": 20946.537,
+      "businessCompletionWallMS": 20784.0124,
+      "sumSetupAndTaskMS": 20581.9158
+    },
+    {
+      "round": 2,
+      "arm": "monitor",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 20537.0415,
+      "setupBytes": 117964614,
+      "bodyBytes": 282370570,
+      "fullSessionWallMS": 35744.143,
+      "businessCompletionWallMS": 35581.2169,
+      "sumSetupAndTaskMS": 35335.4692
+    },
+    {
+      "round": 2,
+      "arm": "history-two",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 6306.7169,
+      "setupBytes": 16777217,
+      "bodyBytes": 181183173,
+      "fullSessionWallMS": 22715.008,
+      "businessCompletionWallMS": 22553.156,
+      "sumSetupAndTaskMS": 22310.39
+    },
+    {
+      "round": 2,
+      "arm": "ordinary",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 0,
+      "setupBytes": 0,
+      "bodyBytes": 164405956,
+      "fullSessionWallMS": 16470.215,
+      "businessCompletionWallMS": 16310.6627,
+      "sumSetupAndTaskMS": 16077.784599999999
+    },
+    {
+      "round": 3,
+      "arm": "history-two",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 6262.7911,
+      "setupBytes": 16777217,
+      "bodyBytes": 181183173,
+      "fullSessionWallMS": 22102.896,
+      "businessCompletionWallMS": 21935.207,
+      "sumSetupAndTaskMS": 21833.913200000003
+    },
+    {
+      "round": 3,
+      "arm": "ordinary",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 0,
+      "setupBytes": 0,
+      "bodyBytes": 164405956,
+      "fullSessionWallMS": 16398.759,
+      "businessCompletionWallMS": 16237.0235,
+      "sumSetupAndTaskMS": 16138.1229
+    },
+    {
+      "round": 3,
+      "arm": "monitor",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 19365.7821,
+      "setupBytes": 117964614,
+      "bodyBytes": 282370570,
+      "fullSessionWallMS": 34584.665,
+      "businessCompletionWallMS": 34416.1064,
+      "sumSetupAndTaskMS": 34306.796
+    }
+  ],
+  "pairs": [
+    {
+      "round": 1,
+      "arm": "monitor",
+      "comparable": true,
+      "baselineState": {
+        "round": 1,
+        "arm": "ordinary",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 0,
+        "setupBytes": 0,
+        "bodyBytes": 164405956,
+        "fullSessionWallMS": 17345.832,
+        "businessCompletionWallMS": 17185.6258,
+        "sumSetupAndTaskMS": 16989.7356
+      },
+      "candidateState": {
+        "round": 1,
+        "arm": "monitor",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 20329.3613,
+        "setupBytes": 117964614,
+        "bodyBytes": 282370570,
+        "fullSessionWallMS": 35619.23,
+        "businessCompletionWallMS": 35457.2757,
+        "sumSetupAndTaskMS": 35252.911
+      },
+      "fullSessionSavedMS": -18273.398000000005,
+      "businessCompletionSavedMS": -18271.649899999997,
+      "sumSetupAndTaskSavedMS": -18263.1754,
+      "extraBodyBytes": 117964614,
+      "prefixes": [
+        {
+          "tasks": 1,
+          "throughSong": 1344,
+          "observedWallSavedMS": -18995.3816
+        },
+        {
+          "tasks": 2,
+          "throughSong": 10552,
+          "observedWallSavedMS": -19119.365400000002
+        },
+        {
+          "tasks": 3,
+          "throughSong": 10553,
+          "observedWallSavedMS": -18271.649899999997
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "arm": "history-two",
+      "comparable": true,
+      "baselineState": {
+        "round": 1,
+        "arm": "ordinary",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 0,
+        "setupBytes": 0,
+        "bodyBytes": 164405956,
+        "fullSessionWallMS": 17345.832,
+        "businessCompletionWallMS": 17185.6258,
+        "sumSetupAndTaskMS": 16989.7356
+      },
+      "candidateState": {
+        "round": 1,
+        "arm": "history-two",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 6111.7234,
+        "setupBytes": 16777217,
+        "bodyBytes": 181183173,
+        "fullSessionWallMS": 20946.537,
+        "businessCompletionWallMS": 20784.0124,
+        "sumSetupAndTaskMS": 20581.9158
+      },
+      "fullSessionSavedMS": -3600.7050000000017,
+      "businessCompletionSavedMS": -3598.386599999998,
+      "sumSetupAndTaskSavedMS": -3592.180199999999,
+      "extraBodyBytes": 16777217,
+      "prefixes": [
+        {
+          "tasks": 1,
+          "throughSong": 1344,
+          "observedWallSavedMS": -4852.7971
+        },
+        {
+          "tasks": 2,
+          "throughSong": 10552,
+          "observedWallSavedMS": -4216.656199999999
+        },
+        {
+          "tasks": 3,
+          "throughSong": 10553,
+          "observedWallSavedMS": -3598.386599999998
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "arm": "monitor",
+      "comparable": true,
+      "baselineState": {
+        "round": 2,
+        "arm": "ordinary",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 0,
+        "setupBytes": 0,
+        "bodyBytes": 164405956,
+        "fullSessionWallMS": 16470.215,
+        "businessCompletionWallMS": 16310.6627,
+        "sumSetupAndTaskMS": 16077.784599999999
+      },
+      "candidateState": {
+        "round": 2,
+        "arm": "monitor",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 20537.0415,
+        "setupBytes": 117964614,
+        "bodyBytes": 282370570,
+        "fullSessionWallMS": 35744.143,
+        "businessCompletionWallMS": 35581.2169,
+        "sumSetupAndTaskMS": 35335.4692
+      },
+      "fullSessionSavedMS": -19273.927999999996,
+      "businessCompletionSavedMS": -19270.5542,
+      "sumSetupAndTaskSavedMS": -19257.6846,
+      "extraBodyBytes": 117964614,
+      "prefixes": [
+        {
+          "tasks": 1,
+          "throughSong": 10552,
+          "observedWallSavedMS": -19553.0837
+        },
+        {
+          "tasks": 2,
+          "throughSong": 10553,
+          "observedWallSavedMS": -19036.737699999998
+        },
+        {
+          "tasks": 3,
+          "throughSong": 1344,
+          "observedWallSavedMS": -19270.5542
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "arm": "history-two",
+      "comparable": true,
+      "baselineState": {
+        "round": 2,
+        "arm": "ordinary",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 0,
+        "setupBytes": 0,
+        "bodyBytes": 164405956,
+        "fullSessionWallMS": 16470.215,
+        "businessCompletionWallMS": 16310.6627,
+        "sumSetupAndTaskMS": 16077.784599999999
+      },
+      "candidateState": {
+        "round": 2,
+        "arm": "history-two",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 6306.7169,
+        "setupBytes": 16777217,
+        "bodyBytes": 181183173,
+        "fullSessionWallMS": 22715.008,
+        "businessCompletionWallMS": 22553.156,
+        "sumSetupAndTaskMS": 22310.39
+      },
+      "fullSessionSavedMS": -6244.7930000000015,
+      "businessCompletionSavedMS": -6242.493299999998,
+      "sumSetupAndTaskSavedMS": -6232.6054,
+      "extraBodyBytes": 16777217,
+      "prefixes": [
+        {
+          "tasks": 1,
+          "throughSong": 10552,
+          "observedWallSavedMS": -5680.7509
+        },
+        {
+          "tasks": 2,
+          "throughSong": 10553,
+          "observedWallSavedMS": -6000.323499999999
+        },
+        {
+          "tasks": 3,
+          "throughSong": 1344,
+          "observedWallSavedMS": -6242.493299999998
+        }
+      ]
+    },
+    {
+      "round": 3,
+      "arm": "monitor",
+      "comparable": true,
+      "baselineState": {
+        "round": 3,
+        "arm": "ordinary",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 0,
+        "setupBytes": 0,
+        "bodyBytes": 164405956,
+        "fullSessionWallMS": 16398.759,
+        "businessCompletionWallMS": 16237.0235,
+        "sumSetupAndTaskMS": 16138.1229
+      },
+      "candidateState": {
+        "round": 3,
+        "arm": "monitor",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 19365.7821,
+        "setupBytes": 117964614,
+        "bodyBytes": 282370570,
+        "fullSessionWallMS": 34584.665,
+        "businessCompletionWallMS": 34416.1064,
+        "sumSetupAndTaskMS": 34306.796
+      },
+      "fullSessionSavedMS": -18185.906000000003,
+      "businessCompletionSavedMS": -18179.082899999998,
+      "sumSetupAndTaskSavedMS": -18168.6731,
+      "extraBodyBytes": 117964614,
+      "prefixes": [
+        {
+          "tasks": 1,
+          "throughSong": 10553,
+          "observedWallSavedMS": -18163.924600000002
+        },
+        {
+          "tasks": 2,
+          "throughSong": 1344,
+          "observedWallSavedMS": -18074.0799
+        },
+        {
+          "tasks": 3,
+          "throughSong": 10552,
+          "observedWallSavedMS": -18179.082899999998
+        }
+      ]
+    },
+    {
+      "round": 3,
+      "arm": "history-two",
+      "comparable": true,
+      "baselineState": {
+        "round": 3,
+        "arm": "ordinary",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 0,
+        "setupBytes": 0,
+        "bodyBytes": 164405956,
+        "fullSessionWallMS": 16398.759,
+        "businessCompletionWallMS": 16237.0235,
+        "sumSetupAndTaskMS": 16138.1229
+      },
+      "candidateState": {
+        "round": 3,
+        "arm": "history-two",
+        "complete": true,
+        "error": "",
+        "setupError": "",
+        "executedTasks": 3,
+        "successfulTasks": 3,
+        "setupMS": 6262.7911,
+        "setupBytes": 16777217,
+        "bodyBytes": 181183173,
+        "fullSessionWallMS": 22102.896,
+        "businessCompletionWallMS": 21935.207,
+        "sumSetupAndTaskMS": 21833.913200000003
+      },
+      "fullSessionSavedMS": -5704.137000000002,
+      "businessCompletionSavedMS": -5698.183499999999,
+      "sumSetupAndTaskSavedMS": -5695.790300000002,
+      "extraBodyBytes": 16777217,
+      "prefixes": [
+        {
+          "tasks": 1,
+          "throughSong": 10553,
+          "observedWallSavedMS": -5335.9047
+        },
+        {
+          "tasks": 2,
+          "throughSong": 1344,
+          "observedWallSavedMS": -5501.680899999999
+        },
+        {
+          "tasks": 3,
+          "throughSong": 10552,
+          "observedWallSavedMS": -5698.183499999999
+        }
+      ]
+    }
+  ],
+  "ordinaryPaths": [
+    {
+      "round": 1,
+      "song": 1344,
+      "ok": true,
+      "taskElapsedMS": 6469.8501,
+      "requestCount": 40,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 39
+      },
+      "mediaCache": {
+        "HIT": 39
+      },
+      "unattributedMediaResponses": 39,
+      "peers": [],
+      "apiEnvelope": {
+        "startAfterTaskMS": 0.000700000000000145,
+        "endAfterTaskMS": 962.3779,
+        "wallSpanMS": 962.3771999999999
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 963.4235,
+        "endAfterTaskMS": 6305.612,
+        "wallSpanMS": 5342.1885
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 39,
+        "min": 183.09529999999995,
+        "median": 219.54669999999987,
+        "max": 879.9407
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 39,
+        "min": 57.269899999999325,
+        "median": 164.59839999999986,
+        "max": 1329.2395000000006
+      },
+      "afterLastRecordedRequestMS": 164.23809999999958
+    },
+    {
+      "round": 1,
+      "song": 10552,
+      "ok": true,
+      "taskElapsedMS": 6532.3562,
+      "requestCount": 100,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 99
+      },
+      "mediaCache": {
+        "HIT": 99
+      },
+      "unattributedMediaResponses": 99,
+      "peers": [],
+      "apiEnvelope": {
+        "startAfterTaskMS": 0.0007000000005064066,
+        "endAfterTaskMS": 341.1279999999997,
+        "wallSpanMS": 341.1272999999992
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 342.16619999999966,
+        "endAfterTaskMS": 6160.584400000001,
+        "wallSpanMS": 5818.418200000001
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 99,
+        "min": 175.248599999999,
+        "median": 216.44490000000042,
+        "max": 584.1922000000004
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 99,
+        "min": 20.63709999999992,
+        "median": 70.80149999999958,
+        "max": 1041.9771
+      },
+      "afterLastRecordedRequestMS": 371.77179999999953
+    },
+    {
+      "round": 1,
+      "song": 10553,
+      "ok": true,
+      "taskElapsedMS": 3987.5293,
+      "requestCount": 21,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 20
+      },
+      "mediaCache": {
+        "HIT": 20
+      },
+      "unattributedMediaResponses": 20,
+      "peers": [],
+      "apiEnvelope": {
+        "startAfterTaskMS": 0.5202000000008411,
+        "endAfterTaskMS": 493.34090000000106,
+        "wallSpanMS": 492.8207000000002
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 494.40710000000036,
+        "endAfterTaskMS": 3912.0573999999997,
+        "wallSpanMS": 3417.6502999999993
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 20,
+        "min": 169.5028999999995,
+        "median": 226.16665000000012,
+        "max": 674.6114999999991
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 20,
+        "min": 4.136400000001231,
+        "median": 250.7060500000007,
+        "max": 2008.5594999999994
+      },
+      "afterLastRecordedRequestMS": 75.47190000000046
+    },
+    {
+      "round": 2,
+      "song": 10552,
+      "ok": true,
+      "taskElapsedMS": 7930.1239,
+      "requestCount": 100,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 99
+      },
+      "mediaCache": {
+        "HIT": 99
+      },
+      "unattributedMediaResponses": 99,
+      "peers": [],
+      "apiEnvelope": {
+        "startAfterTaskMS": 0.5033999999999992,
+        "endAfterTaskMS": 1019.4743000000001,
+        "wallSpanMS": 1018.9709000000001
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 1020.5026,
+        "endAfterTaskMS": 7577.032800000001,
+        "wallSpanMS": 6556.5302
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 99,
+        "min": 171.89540000000034,
+        "median": 203.83929999999964,
+        "max": 1004.4395999999999
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 99,
+        "min": 36.2542999999996,
+        "median": 164.09559999999965,
+        "max": 1205.8531999999996
+      },
+      "afterLastRecordedRequestMS": 353.09109999999873
+    },
+    {
+      "round": 2,
+      "song": 10553,
+      "ok": true,
+      "taskElapsedMS": 3570.0849,
+      "requestCount": 21,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 20
+      },
+      "mediaCache": {
+        "HIT": 20
+      },
+      "unattributedMediaResponses": 20,
+      "peers": [],
+      "apiEnvelope": {
+        "startAfterTaskMS": 1.5041999999994005,
+        "endAfterTaskMS": 376.66979999999876,
+        "wallSpanMS": 375.16559999999936
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 377.7452000000003,
+        "endAfterTaskMS": 3483.8013999999994,
+        "wallSpanMS": 3106.056199999999
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 20,
+        "min": 170.9891000000007,
+        "median": 214.14289999999983,
+        "max": 399.9193000000014
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 20,
+        "min": 48.4932000000008,
+        "median": 114.50619999999981,
+        "max": 1039.2487999999994
+      },
+      "afterLastRecordedRequestMS": 86.28350000000046
+    },
+    {
+      "round": 2,
+      "song": 1344,
+      "ok": true,
+      "taskElapsedMS": 4577.5758,
+      "requestCount": 40,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 39
+      },
+      "mediaCache": {
+        "HIT": 39
+      },
+      "unattributedMediaResponses": 39,
+      "peers": [],
+      "apiEnvelope": {
+        "startAfterTaskMS": -9.999999929277692e-05,
+        "endAfterTaskMS": 382.65450000000055,
+        "wallSpanMS": 382.65459999999985
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 383.6928000000007,
+        "endAfterTaskMS": 4433.644100000001,
+        "wallSpanMS": 4049.9513000000006
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 39,
+        "min": 173.6206000000002,
+        "median": 211.42869999999857,
+        "max": 389.15170000000035
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 39,
+        "min": 54.83020000000033,
+        "median": 189.63910000000033,
+        "max": 1021.3222000000005
+      },
+      "afterLastRecordedRequestMS": 143.93169999999827
+    },
+    {
+      "round": 3,
+      "song": 10553,
+      "ok": true,
+      "taskElapsedMS": 5350.7952,
+      "requestCount": 21,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 20
+      },
+      "mediaCache": {
+        "HIT": 20
+      },
+      "unattributedMediaResponses": 20,
+      "peers": [],
+      "apiEnvelope": {
+        "startAfterTaskMS": -0.0003000000000010772,
+        "endAfterTaskMS": 1014.2271,
+        "wallSpanMS": 1014.2274
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 1015.2779999999999,
+        "endAfterTaskMS": 5266.670300000001,
+        "wallSpanMS": 4251.3923
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 20,
+        "min": 173.76740000000018,
+        "median": 262.95460000000026,
+        "max": 822.4336000000001
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 20,
+        "min": 54.97629999999981,
+        "median": 824.6326500000002,
+        "max": 1283.1831000000002
+      },
+      "afterLastRecordedRequestMS": 84.12489999999889
+    },
+    {
+      "round": 3,
+      "song": 1344,
+      "ok": true,
+      "taskElapsedMS": 4703.0843,
+      "requestCount": 40,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 39
+      },
+      "mediaCache": {
+        "HIT": 39
+      },
+      "unattributedMediaResponses": 39,
+      "peers": [],
+      "apiEnvelope": {
+        "startAfterTaskMS": -0.0003999999998995918,
+        "endAfterTaskMS": 385.47090000000026,
+        "wallSpanMS": 385.47130000000016
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 386.54529999999977,
+        "endAfterTaskMS": 4540.2672999999995,
+        "wallSpanMS": 4153.722
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 39,
+        "min": 170.22639999999956,
+        "median": 202.8766000000005,
+        "max": 457.52640000000065
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 39,
+        "min": 38.40220000000045,
+        "median": 67.57340000000113,
+        "max": 1043.0389999999998
+      },
+      "afterLastRecordedRequestMS": 162.81700000000092
+    },
+    {
+      "round": 3,
+      "song": 10552,
+      "ok": true,
+      "taskElapsedMS": 6084.2434,
+      "requestCount": 100,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 99
+      },
+      "mediaCache": {
+        "HIT": 99
+      },
+      "unattributedMediaResponses": 99,
+      "peers": [],
+      "apiEnvelope": {
+        "startAfterTaskMS": 9.999999929277692e-05,
+        "endAfterTaskMS": 376.1255999999994,
+        "wallSpanMS": 376.1255000000001
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 377.71309999999903,
+        "endAfterTaskMS": 5724.895999999999,
+        "wallSpanMS": 5347.1829
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 99,
+        "min": 169.8750999999993,
+        "median": 204.55009999999857,
+        "max": 374.27759999999944
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 99,
+        "min": 19.425700000001598,
+        "median": 67.06059999999889,
+        "max": 1035.5881000000008
+      },
+      "afterLastRecordedRequestMS": 359.34740000000147
+    }
+  ],
+  "scope": {
+    "gain": "ordinary minus strategy, paired by round and identical ordered songs; positive means saved time",
+    "fullSession": "Started to Finished, includes setup, actual business, harness saves/file audits and deferred cleanup",
+    "businessCompletion": "session start to last prefetch return; includes preceding harness work but excludes last external file audit and cleanup",
+    "sum": "sensitivity only: setup plus sequential task stopwatches; never used as wall time for concurrent work",
+    "requests": "interval envelopes overlap; headers wait includes pool/DNS/TCP/TLS/server time, not first-byte or isolated connect time; body interval includes consumer and Close time",
+    "residual": "after final recorded request includes unseparated local work; not a pure MD5, disk or scheduler measurement",
+    "history": "v1 unpinned peers are not attributed; v2 uses hostname-verified TLS; unused candidates have no inferred quality",
+    "experience": "prefetch only; no Range delivered to a player, first frame, playback stall or concurrent Monitor result"
+  }
+}

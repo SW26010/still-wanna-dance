@@ -18,6 +18,7 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [cf-selection-observation-20261022/manifest.json](cf-selection-observation-20261022/manifest.json) | 已完成午间复核及晨间/午间会话成本复算：午间 27/27 真实预取成功、27 文件 MD5 复核通过、1,422 个媒体块校验通过；ordinary 的 474 个响应均通过目标主机 TLS 验证，远端为两条 DNS IPv6。两个产品窗中，前置 Monitor 与历史复验的三任务会话总耗时均高于同轮 ordinary。10 项业务优先回归及 22 项分析回归通过；VRC 对照并入下次 LA-040，见[研究结果](../research/issue-21-cf-selection-20261022.md#doc3-会话核算与午间普通路径复核) |
 | [cf-family-wifi-20261022/summary.json](cf-family-wifi-20261022/summary.json) | 保留原 DNS 租约的修复、新错误分类和 Wi-Fi 绑定后独立批次；首窗 16 次训练成功，随后因旧租约到期且新合并 TTL 为零停止，0 正式配对、60 次缺测；[停止点证据](cf-family-wifi-20261022/overnight-checks.json)及[报告](../validation/cf-family-wifi-20261022.md)，不与旧方法混算 |
 | [vrchaturllogger-20261021/manifest.json](vrchaturllogger-20261021/manifest.json) | #21 v1427 原程序、原 DLL 定向调用与测试机抓包：104 候选通用测速、真实 HTTP 视频六组三轮、80/443 实际转发及 HTTPS 超时对照；保留未提权直连误启动与全部失败，hosts/设置按哈希恢复。仅机制调查，未接入产品，见[报告](../validation/issue-21-vrchaturllogger-20261021.md) |
 | [cf-family-paths-20261021/summary.json](cf-family-paths-20261021/summary.json) | 下午、18:46 及用户追加的 22:39 三个四组窗口均因固定候选获取失败停止，缺测 31/18/59 次；[18:46 复核](cf-family-paths-20261021/evening-checks.json)保留一次重试后完成，[22:39 复核](cf-family-paths-20261021/late-evening-checks.json)确认只执行 1 次预热、没有新正式配对。额外 IP 的既有干净配对有收益，完整窗口仍为 0，见[报告](../validation/cf-family-paths-20261021.md) |
@@ -90,6 +91,14 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 ## Issue #14 中立增量评估（2026-10-13，开发检查）
 
 [评估报告](../validation/issue-14-incremental-evaluation.md)、[脱敏证据与校验清单](issue14-incremental-20261013/manifest.json)。保留 B2 生命周期、夹具容量失败及对照，不作最终选型；不是 LIVE 实机批次。
+
+## Issue #21：有限候选校准（2026-10-22）
+
+Issue #21 的指定 Wi-Fi 有限候选校准见[研究报告](../research/issue-21-cf-selection-20261022.md)和[清单](cf-selection-20261022/manifest.json)。保留完整首窗、API 523 导致未进入测速的第二窗、失败 smoke、DNS 零 TTL 观察及逐连接绑定核对；与历史两组/四组数据分开解释。
+
+晨间校准、冻结历史预测、实际预取与 trace 修订见[晨间阶段证据清单](cf-selection-continuation-20261022/manifest.json)；该清单中的午间待执行状态保留晨间归档时点的含义。v1 普通直连远端未验证，v2 smoke 只用于诊断，不计入策略性能窗口。
+
+午间独立复核已完成，结果见[午间观测证据清单](cf-selection-observation-20261022/manifest.json)及[报告](../research/issue-21-cf-selection-20261022.md#doc3-会话核算与午间普通路径复核)。晨间与午间各完成 27/27 次实际预取；两个窗口中，两种前置策略的三任务会话总耗时均高于同轮 ordinary。真实播放和后台竞争的体验对照尚未执行，已并入 LA-040。
 
 ## Privacy normalization
 

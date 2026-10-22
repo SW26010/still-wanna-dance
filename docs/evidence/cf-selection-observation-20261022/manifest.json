@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "status": "non-game observation and cost audit; VRC deferred by user to existing LA-040",
+  "hashBasis": "Git blob UTF-8 LF for public evidence/source; actual file bytes for private artifacts",
+  "evidenceSHA256": {
+    "morning-sessions.json": "9d628d92f4486dbf70dd69ee378f48bee5247afd8fe1f0446465dfdbcdfb7650",
+    "trace-smoke-sessions.json": "a18ecccb8d9fadf8ddb6ae410b9b9a4de1343a3ecf38ba5560c2f047b3864945",
+    "noon-sessions.json": "acc8f9e2423b87b124ae7c76182c981c9713b182f95c0f0c737740a145b7f2cc",
+    "noon-product-summary.json": "adceeaa98b0b9eb92a18e510bfaa634b37f9fbc245bea7659019ab4086d1e93d",
+    "noon-binding.json": "a674b5ffff149fdd3d44aba95112b62222e8090969a3a4e79875c7a401aa4483",
+    "checks.json": "d35b9e7e41bb73d0f9bcde001306d62cf5aefeb203ca59dd9ae2276d91c2aee5"
+  },
+  "sourceSHA256": {
+    "experiments/cf-block-paths/analyze_sessions.py": "e5cbec4d766d62f0a28e36adbb9576087b32ab368ad24363ed04ace08722dbc3",
+    "experiments/cf-block-paths/test_analyze_sessions.py": "7d0e3b43161afa5d3a0e7f2ad419a9af201cadb91d55f520959a62eb80c4bce8",
+    "experiments/cf-block-paths/OBSERVATION.md": "62605ea9601eed00a402b1a6aabe90b734f7ef1ab94bbfad4c4f7a688644a8e7",
+    "experiments/cf-block-paths/analyze_product.py": "c2b50e30c972c74a0985cdd20b1d32bbb991de49eca79c4adc9bffa4cc195014",
+    "experiments/cf-block-paths/PRODUCT.md": "2139f88b86d647d848d7c1f3bc051d940bdfd95158eb847195ff4700cc49cfc4"
+  },
+  "privateSHA256": {
+    "artifacts/issue21-work/product-morning-01/product.json": "b3ef5013454ab931245d0be78307f926c738400560ce25b3595c4dc3420fcc79",
+    "artifacts/issue21-work/product-trace-smoke/product.json": "b02755ace4b478ab7afb79ecaa3bb0fdcf8dfb44f4828ff9d7db96856ae381fc",
+    "artifacts/issue21-work/product-noon-01/product.json": "fd60f7b8d6d27238dd2648fa7066ac38e219991332e94ead0bfce51ad2a76764",
+    "artifacts/issue21-work/doc3-noon-launch-private.json": "de034ed65661c1770522f5811d6d53205edb302c607f2651db1c3511f7e375cf",
+    "artifacts/issue21-work/product-v2-build.json": "aa54e1ae58311f493083c2d90c1c30761055a6e27885228757d983d76c6d697b",
+    "artifacts/issue21-work/product-v2-source.go": "97c6dd2208f9aa5aaed794dd8e88ac153747952e8c22f541148a48146cd8b0ff",
+    "artifacts/issue21-work/product-noon-01/1-monitor/monitor-private.json": "5b6f965d99d10b5b3342573e16132dc4bfc9ec8f99cd21efcccc1c78a16205a2",
+    "artifacts/issue21-work/product-noon-01/2-monitor/monitor-private.json": "dd13340c7f25838852ec96038fad036625238d07bb82fb3318490c9b25f1a920",
+    "artifacts/issue21-work/product-noon-01/3-monitor/monitor-private.json": "0c9d4e91b214d4b574879426cdaa71392eb69f146e40023c0d4399228f900dd2"
+  },
+  "limitations": [
+    "two product time windows on one network, not independent blocks",
+    "v1 ordinary peers not attributable; smoke diagnostic excluded from strategy sample size",
+    "headers/body-close intervals cannot isolate DNS, TCP, TLS, first byte or disk",
+    "no concurrent Monitor/player measurement or new selection strategy"
+  ]
+}

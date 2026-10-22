@@ -1,0 +1,11 @@
+{
+  "Started": "T+0s",
+  "Complete": false,
+  "Bootstrap": true,
+  "API": true,
+  "Media": {},
+  "Monitor": false,
+  "sourceSHA256": "950a122affe9469f1e07bb5042154e7c8646bc6e5116a2a761b24f0a72b500fd",
+  "interpretation": "Failed legacy smoke: bootstrap/API true; no fixed media candidates, Monitor not run. No failed-point DNS snapshot; not proven to be zero TTL.",
+  "timeBasis": "T+seconds relative to the earliest nonzero timestamp in this file; unset timestamps are null; baselines across files are independent"
+}

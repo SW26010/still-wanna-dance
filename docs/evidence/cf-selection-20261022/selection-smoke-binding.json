@@ -1,0 +1,20 @@
+{
+  "batch": "selection-smoke",
+  "tcpAttempts": 44,
+  "counts": {
+    "v4Connected": 26,
+    "canceled": 16,
+    "v6Connected": 2
+  },
+  "otherErrors": {},
+  "allConnectedSourcesOnSelectedWifi": true,
+  "allConnectedPeersMatchTargets": true,
+  "allSelectedIndexesMatchAdapter": true,
+  "fatalBindingError": false,
+  "hashBasis": "actual-file-bytes",
+  "files": {
+    "connections-private.jsonl": "a34bf91f81ace168efd20bda07003cc01af7ab3d1cd619b17c6ae8c77e690e98",
+    "network-private.json": "6b45698b830ed2ac8706c9c7c232e89f0b8d24c07fe4f2961b2346c17b5a8940",
+    "smoke.json": "950a122affe9469f1e07bb5042154e7c8646bc6e5116a2a761b24f0a72b500fd"
+  }
+}

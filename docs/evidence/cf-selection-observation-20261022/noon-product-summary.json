@@ -1,0 +1,1401 @@
+{
+  "schema": 1,
+  "method": "actual-prefetch-cf-history-two-v2",
+  "sourceSHA256": "fd60f7b8d6d27238dd2648fa7066ac38e219991332e94ead0bfce51ad2a76764",
+  "historySHA256": "fb8a2221d52ae2e0f5318d15075dd94663d12da097e24f5303983fad8d3cb640",
+  "started": "T+0s",
+  "finished": "T+246.2790189s",
+  "outcome": "completed",
+  "error": "",
+  "observedBodyBytes": 1883879097,
+  "plannedSessions": 9,
+  "executedSessions": 9,
+  "plannedTasks": 27,
+  "executedTasks": 27,
+  "successfulTasks": 27,
+  "missingTasks": 0,
+  "remoteAttribution": "hostname-filtered verified TLS GotConn",
+  "timingScope": "task includes actual API, transfer, product MD5 validation and publication; session wall also includes harness snapshots and post-task file audits; operation sums exclude those audits and engine initialization",
+  "sessions": [
+    {
+      "round": 1,
+      "arm": "ordinary",
+      "error": "",
+      "setupError": "",
+      "started": "T+0.011434s",
+      "finished": "T+16.7593974s",
+      "setupMS": 0,
+      "setupBytes": 0,
+      "selected": "",
+      "tasks": [
+        {
+          "song": 1344,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 6581.7171,
+          "observedSessionWallMS": 6591.2252,
+          "sumSetupAndTaskMS": 6581.7171,
+          "selections": [],
+          "requestCount": 40,
+          "mediaBodyBytes": 40548476,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 39
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 12,
+            "2606:4700:20::ac43:453a": 27
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 24,
+          "mediaCache": {
+            "HIT": 39
+          },
+          "reusedAttributedMediaConnections": 36,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 1
+        },
+        {
+          "song": 10552,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 6481.5226,
+          "observedSessionWallMS": 13117.4839,
+          "sumSetupAndTaskMS": 13063.2397,
+          "selections": [],
+          "requestCount": 100,
+          "mediaBodyBytes": 103118762,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 99
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 5,
+            "2606:4700:20::ac43:453a": 94
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 99
+          },
+          "reusedAttributedMediaConnections": 99,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 2
+        },
+        {
+          "song": 10553,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 3322.799,
+          "observedSessionWallMS": 16580.2165,
+          "sumSetupAndTaskMS": 16386.0387,
+          "selections": [],
+          "requestCount": 21,
+          "mediaBodyBytes": 20738718,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 20
+          },
+          "mediaRemotes": {
+            "2606:4700:20::ac43:453a": 20
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 20
+          },
+          "reusedAttributedMediaConnections": 20,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 3
+        }
+      ],
+      "missingTasks": 0,
+      "probes": [],
+      "setupStatusCounts": {},
+      "setupRequestErrors": {}
+    },
+    {
+      "round": 1,
+      "arm": "monitor",
+      "error": "",
+      "setupError": "",
+      "started": "T+16.7633991s",
+      "finished": "T+56.351907s",
+      "setupMS": 23234.5943,
+      "setupBytes": 117964614,
+      "selected": "",
+      "tasks": [
+        {
+          "song": 1344,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 5204.6321,
+          "observedSessionWallMS": 28459.1487,
+          "sumSetupAndTaskMS": 28439.2264,
+          "selections": [
+            "2606:4700:20::681a:41c",
+            "104.26.5.28",
+            "2606:4700:20::681a:51c",
+            "172.67.69.58",
+            "2606:4700:20::ac43:453a",
+            "104.26.4.28"
+          ],
+          "requestCount": 40,
+          "mediaBodyBytes": 40548476,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 39
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 39
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 39
+          },
+          "reusedAttributedMediaConnections": 39,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 1
+        },
+        {
+          "song": 10552,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 7011.2608,
+          "observedSessionWallMS": 35515.4969,
+          "sumSetupAndTaskMS": 35450.4872,
+          "selections": [
+            "2606:4700:20::681a:41c",
+            "104.26.5.28",
+            "2606:4700:20::681a:51c",
+            "172.67.69.58",
+            "2606:4700:20::ac43:453a",
+            "104.26.4.28"
+          ],
+          "requestCount": 100,
+          "mediaBodyBytes": 103118762,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 99
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 99
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 99
+          },
+          "reusedAttributedMediaConnections": 99,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 2
+        },
+        {
+          "song": 10553,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 3756.7181,
+          "observedSessionWallMS": 39413.2129,
+          "sumSetupAndTaskMS": 39207.2053,
+          "selections": [
+            "2606:4700:20::681a:41c",
+            "104.26.5.28",
+            "2606:4700:20::681a:51c",
+            "172.67.69.58",
+            "2606:4700:20::ac43:453a",
+            "104.26.4.28"
+          ],
+          "requestCount": 21,
+          "mediaBodyBytes": 20738718,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 20
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 20
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 20
+          },
+          "reusedAttributedMediaConnections": 20,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 3
+        }
+      ],
+      "missingTasks": 0,
+      "probes": [],
+      "setupStatusCounts": {
+        "200": 6,
+        "302": 6,
+        "206": 6
+      },
+      "setupRequestErrors": {}
+    },
+    {
+      "round": 1,
+      "arm": "history-two",
+      "error": "",
+      "setupError": "",
+      "started": "T+56.3544156s",
+      "finished": "T+81.0260994s",
+      "setupMS": 7160.8437,
+      "setupBytes": 16777217,
+      "selected": "104.16.0.1",
+      "tasks": [
+        {
+          "song": 1344,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 6079.8139,
+          "observedSessionWallMS": 13254.3294,
+          "sumSetupAndTaskMS": 13240.6576,
+          "selections": [
+            "104.16.0.1"
+          ],
+          "requestCount": 40,
+          "mediaBodyBytes": 40548476,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 39
+          },
+          "mediaRemotes": {
+            "104.16.0.1": 39
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 39
+          },
+          "reusedAttributedMediaConnections": 36,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 1
+        },
+        {
+          "song": 10552,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 6929.7576,
+          "observedSessionWallMS": 20228.6133,
+          "sumSetupAndTaskMS": 20170.4152,
+          "selections": [
+            "104.16.0.1"
+          ],
+          "requestCount": 100,
+          "mediaBodyBytes": 103118762,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 99
+          },
+          "mediaRemotes": {
+            "104.16.0.1": 99
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 99
+          },
+          "reusedAttributedMediaConnections": 99,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 2
+        },
+        {
+          "song": 10553,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 4121.8078,
+          "observedSessionWallMS": 24494.7215,
+          "sumSetupAndTaskMS": 24292.222999999998,
+          "selections": [
+            "104.16.0.1"
+          ],
+          "requestCount": 21,
+          "mediaBodyBytes": 20738718,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 20
+          },
+          "mediaRemotes": {
+            "104.16.0.1": 20
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 20
+          },
+          "reusedAttributedMediaConnections": 20,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 3
+        }
+      ],
+      "missingTasks": 0,
+      "probes": [
+        {
+          "IP": "2606:4700:20::681a:41c",
+          "Kind": "single-8388608",
+          "Error": "",
+          "Remote": "2606:4700:20::681a:41c",
+          "Cache": "HIT",
+          "Age": "324826",
+          "Colo": "SEA",
+          "Hash": "7df514bc924f8c2b8fc5017f61cbea31907b2e00425cafad4e09b372d7bcadd5",
+          "Bytes": 8388608,
+          "ElapsedMS": 2761.7446,
+          "TCPMS": 206.9495,
+          "TLSMS": 229.618,
+          "HeadersMS": 673.7276,
+          "Status": 206,
+          "TLSVerified": true
+        },
+        {
+          "IP": "104.16.0.1",
+          "Kind": "single-8388608",
+          "Error": "",
+          "Remote": "104.16.0.1",
+          "Cache": "HIT",
+          "Age": "143508",
+          "Colo": "LAX",
+          "Hash": "7df514bc924f8c2b8fc5017f61cbea31907b2e00425cafad4e09b372d7bcadd5",
+          "Bytes": 8388608,
+          "ElapsedMS": 2377.6343,
+          "TCPMS": 203.5294,
+          "TLSMS": 214.1393,
+          "HeadersMS": 665.8319,
+          "Status": 206,
+          "TLSVerified": true
+        }
+      ],
+      "setupStatusCounts": {
+        "302": 1,
+        "206": 1
+      },
+      "setupRequestErrors": {}
+    },
+    {
+      "round": 2,
+      "arm": "monitor",
+      "error": "",
+      "setupError": "",
+      "started": "T+81.0297454s",
+      "finished": "T+121.6718912s",
+      "setupMS": 22931.8192,
+      "setupBytes": 117964614,
+      "selected": "",
+      "tasks": [
+        {
+          "song": 10552,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 8409.1991,
+          "observedSessionWallMS": 31362.9986,
+          "sumSetupAndTaskMS": 31341.018300000003,
+          "selections": [
+            "2606:4700:20::681a:51c",
+            "172.67.69.58",
+            "2606:4700:20::681a:41c",
+            "104.26.5.28",
+            "2606:4700:20::ac43:453a",
+            "104.26.4.28"
+          ],
+          "requestCount": 100,
+          "mediaBodyBytes": 103118762,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 99
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:51c": 99
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 99
+          },
+          "reusedAttributedMediaConnections": 99,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 1
+        },
+        {
+          "song": 10553,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 3725.6201,
+          "observedSessionWallMS": 35190.2806,
+          "sumSetupAndTaskMS": 35066.6384,
+          "selections": [
+            "2606:4700:20::681a:51c",
+            "172.67.69.58",
+            "2606:4700:20::681a:41c",
+            "104.26.5.28",
+            "2606:4700:20::ac43:453a",
+            "104.26.4.28"
+          ],
+          "requestCount": 21,
+          "mediaBodyBytes": 20738718,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 20
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:51c": 20
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 20
+          },
+          "reusedAttributedMediaConnections": 20,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 2
+        },
+        {
+          "song": 1344,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 5157.7586,
+          "observedSessionWallMS": 40479.4821,
+          "sumSetupAndTaskMS": 40224.397000000004,
+          "selections": [
+            "2606:4700:20::681a:51c",
+            "172.67.69.58",
+            "2606:4700:20::681a:41c",
+            "104.26.5.28",
+            "2606:4700:20::ac43:453a",
+            "104.26.4.28"
+          ],
+          "requestCount": 40,
+          "mediaBodyBytes": 40548476,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 39
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:51c": 39
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 39
+          },
+          "reusedAttributedMediaConnections": 39,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 3
+        }
+      ],
+      "missingTasks": 0,
+      "probes": [],
+      "setupStatusCounts": {
+        "200": 6,
+        "302": 6,
+        "206": 6
+      },
+      "setupRequestErrors": {}
+    },
+    {
+      "round": 2,
+      "arm": "history-two",
+      "error": "",
+      "setupError": "",
+      "started": "T+121.6748946s",
+      "finished": "T+145.9375797s",
+      "setupMS": 7354.094,
+      "setupBytes": 16777217,
+      "selected": "104.16.0.1",
+      "tasks": [
+        {
+          "song": 10552,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 7662.5885,
+          "observedSessionWallMS": 15029.2864,
+          "sumSetupAndTaskMS": 15016.682499999999,
+          "selections": [
+            "104.16.0.1"
+          ],
+          "requestCount": 100,
+          "mediaBodyBytes": 103118762,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 99
+          },
+          "mediaRemotes": {
+            "104.16.0.1": 99
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 99
+          },
+          "reusedAttributedMediaConnections": 96,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 1
+        },
+        {
+          "song": 10553,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 3566.1086,
+          "observedSessionWallMS": 18700.1011,
+          "sumSetupAndTaskMS": 18582.7911,
+          "selections": [
+            "104.16.0.1"
+          ],
+          "requestCount": 21,
+          "mediaBodyBytes": 20738718,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 20
+          },
+          "mediaRemotes": {
+            "104.16.0.1": 20
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 20
+          },
+          "reusedAttributedMediaConnections": 20,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 2
+        },
+        {
+          "song": 1344,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 5276.6218,
+          "observedSessionWallMS": 24098.1173,
+          "sumSetupAndTaskMS": 23859.4129,
+          "selections": [
+            "104.16.0.1"
+          ],
+          "requestCount": 40,
+          "mediaBodyBytes": 40548476,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 39
+          },
+          "mediaRemotes": {
+            "104.16.0.1": 39
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 39
+          },
+          "reusedAttributedMediaConnections": 39,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 3
+        }
+      ],
+      "missingTasks": 0,
+      "probes": [
+        {
+          "IP": "104.16.0.1",
+          "Kind": "single-8388608",
+          "Error": "",
+          "Remote": "104.16.0.1",
+          "Cache": "HIT",
+          "Age": "143570",
+          "Colo": "LAX",
+          "Hash": "7df514bc924f8c2b8fc5017f61cbea31907b2e00425cafad4e09b372d7bcadd5",
+          "Bytes": 8388608,
+          "ElapsedMS": 2494.324,
+          "TCPMS": 195.6505,
+          "TLSMS": 207.0745,
+          "HeadersMS": 659.4409,
+          "Status": 206,
+          "TLSVerified": true
+        },
+        {
+          "IP": "2606:4700:20::681a:41c",
+          "Kind": "single-8388608",
+          "Error": "",
+          "Remote": "2606:4700:20::681a:41c",
+          "Cache": "HIT",
+          "Age": "324894",
+          "Colo": "SEA",
+          "Hash": "7df514bc924f8c2b8fc5017f61cbea31907b2e00425cafad4e09b372d7bcadd5",
+          "Bytes": 8388608,
+          "ElapsedMS": 2570.4142,
+          "TCPMS": 198.1866,
+          "TLSMS": 203.898,
+          "HeadersMS": 619.0633,
+          "Status": 206,
+          "TLSVerified": true
+        }
+      ],
+      "setupStatusCounts": {
+        "302": 1,
+        "206": 1
+      },
+      "setupRequestErrors": {}
+    },
+    {
+      "round": 2,
+      "arm": "ordinary",
+      "error": "",
+      "setupError": "",
+      "started": "T+145.941093s",
+      "finished": "T+163.7926177s",
+      "setupMS": 0,
+      "setupBytes": 0,
+      "selected": "",
+      "tasks": [
+        {
+          "song": 10552,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 8349.5577,
+          "observedSessionWallMS": 8361.6785,
+          "sumSetupAndTaskMS": 8349.5577,
+          "selections": [],
+          "requestCount": 100,
+          "mediaBodyBytes": 103118762,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 99
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 99
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 8,
+          "mediaCache": {
+            "HIT": 99
+          },
+          "reusedAttributedMediaConnections": 96,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 1
+        },
+        {
+          "song": 10553,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 3465.7359,
+          "observedSessionWallMS": 11929.1636,
+          "sumSetupAndTaskMS": 11815.293599999999,
+          "selections": [],
+          "requestCount": 21,
+          "mediaBodyBytes": 20738718,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 20
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 20
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 20
+          },
+          "reusedAttributedMediaConnections": 20,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 2
+        },
+        {
+          "song": 1344,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 5618.5032,
+          "observedSessionWallMS": 17681.6329,
+          "sumSetupAndTaskMS": 17433.7968,
+          "selections": [],
+          "requestCount": 40,
+          "mediaBodyBytes": 40548476,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 39
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 39
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 39
+          },
+          "reusedAttributedMediaConnections": 39,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 3
+        }
+      ],
+      "missingTasks": 0,
+      "probes": [],
+      "setupStatusCounts": {},
+      "setupRequestErrors": {}
+    },
+    {
+      "round": 3,
+      "arm": "history-two",
+      "error": "",
+      "setupError": "",
+      "started": "T+163.7966184s",
+      "finished": "T+187.0038859s",
+      "setupMS": 6531.4202,
+      "setupBytes": 16777217,
+      "selected": "2606:4700:20::681a:41c",
+      "tasks": [
+        {
+          "song": 10553,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 4592.5034,
+          "observedSessionWallMS": 11139.4141,
+          "sumSetupAndTaskMS": 11123.923599999998,
+          "selections": [
+            "2606:4700:20::681a:41c"
+          ],
+          "requestCount": 21,
+          "mediaBodyBytes": 20738718,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 20
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 20
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 20
+          },
+          "reusedAttributedMediaConnections": 16,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 1
+        },
+        {
+          "song": 1344,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 5214.1522,
+          "observedSessionWallMS": 16380.067,
+          "sumSetupAndTaskMS": 16338.075799999999,
+          "selections": [
+            "2606:4700:20::681a:41c"
+          ],
+          "requestCount": 40,
+          "mediaBodyBytes": 40548476,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 39
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 39
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 39
+          },
+          "reusedAttributedMediaConnections": 39,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 2
+        },
+        {
+          "song": 10552,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 6592.7588,
+          "observedSessionWallMS": 23037.1467,
+          "sumSetupAndTaskMS": 22930.8346,
+          "selections": [
+            "2606:4700:20::681a:41c"
+          ],
+          "requestCount": 100,
+          "mediaBodyBytes": 103118762,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 99
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 99
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 99
+          },
+          "reusedAttributedMediaConnections": 99,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 3
+        }
+      ],
+      "missingTasks": 0,
+      "probes": [
+        {
+          "IP": "2606:4700:20::681a:41c",
+          "Kind": "single-8388608",
+          "Error": "",
+          "Remote": "2606:4700:20::681a:41c",
+          "Cache": "HIT",
+          "Age": "324934",
+          "Colo": "SEA",
+          "Hash": "7df514bc924f8c2b8fc5017f61cbea31907b2e00425cafad4e09b372d7bcadd5",
+          "Bytes": 8388608,
+          "ElapsedMS": 2332.3137,
+          "TCPMS": 203.5234,
+          "TLSMS": 206.1469,
+          "HeadersMS": 632.4435,
+          "Status": 206,
+          "TLSVerified": true
+        },
+        {
+          "IP": "104.16.0.1",
+          "Kind": "single-8388608",
+          "Error": "",
+          "Remote": "104.16.0.1",
+          "Cache": "HIT",
+          "Age": "143614",
+          "Colo": "SJC",
+          "Hash": "7df514bc924f8c2b8fc5017f61cbea31907b2e00425cafad4e09b372d7bcadd5",
+          "Bytes": 8388608,
+          "ElapsedMS": 2345.8363,
+          "TCPMS": 193.0517,
+          "TLSMS": 206.0413,
+          "HeadersMS": 621.2221,
+          "Status": 206,
+          "TLSVerified": true
+        }
+      ],
+      "setupStatusCounts": {
+        "302": 1,
+        "206": 1
+      },
+      "setupRequestErrors": {}
+    },
+    {
+      "round": 3,
+      "arm": "ordinary",
+      "error": "",
+      "setupError": "",
+      "started": "T+187.0083955s",
+      "finished": "T+205.4132465s",
+      "setupMS": 0,
+      "setupBytes": 0,
+      "selected": "",
+      "tasks": [
+        {
+          "song": 10553,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 6101.0521,
+          "observedSessionWallMS": 6114.7614,
+          "sumSetupAndTaskMS": 6101.0521,
+          "selections": [],
+          "requestCount": 21,
+          "mediaBodyBytes": 20738718,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 20
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 20
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 8,
+          "mediaCache": {
+            "HIT": 20
+          },
+          "reusedAttributedMediaConnections": 17,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 1
+        },
+        {
+          "song": 1344,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 4774.6385,
+          "observedSessionWallMS": 10918.4075,
+          "sumSetupAndTaskMS": 10875.6906,
+          "selections": [],
+          "requestCount": 40,
+          "mediaBodyBytes": 40548476,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 39
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 39
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 39
+          },
+          "reusedAttributedMediaConnections": 39,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 2
+        },
+        {
+          "song": 10552,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 7252.5723,
+          "observedSessionWallMS": 18239.1512,
+          "sumSetupAndTaskMS": 18128.2629,
+          "selections": [],
+          "requestCount": 100,
+          "mediaBodyBytes": 103118762,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 99
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 99
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 99
+          },
+          "reusedAttributedMediaConnections": 99,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 3
+        }
+      ],
+      "missingTasks": 0,
+      "probes": [],
+      "setupStatusCounts": {},
+      "setupRequestErrors": {}
+    },
+    {
+      "round": 3,
+      "arm": "monitor",
+      "error": "",
+      "setupError": "",
+      "started": "T+205.4172462s",
+      "finished": "T+246.2760197s",
+      "setupMS": 23561.6702,
+      "setupBytes": 117964614,
+      "selected": "",
+      "tasks": [
+        {
+          "song": 10553,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 4717.3775,
+          "observedSessionWallMS": 28305.4337,
+          "sumSetupAndTaskMS": 28279.0477,
+          "selections": [
+            "2606:4700:20::681a:41c",
+            "104.26.5.28",
+            "104.26.4.28",
+            "172.67.69.58",
+            "2606:4700:20::681a:51c",
+            "2606:4700:20::ac43:453a"
+          ],
+          "requestCount": 21,
+          "mediaBodyBytes": 20738718,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 20
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 20
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 20
+          },
+          "reusedAttributedMediaConnections": 20,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 1
+        },
+        {
+          "song": 1344,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 5151.008,
+          "observedSessionWallMS": 33484.9909,
+          "sumSetupAndTaskMS": 33430.0557,
+          "selections": [
+            "2606:4700:20::681a:41c",
+            "104.26.5.28",
+            "104.26.4.28",
+            "172.67.69.58",
+            "2606:4700:20::681a:51c",
+            "2606:4700:20::ac43:453a"
+          ],
+          "requestCount": 40,
+          "mediaBodyBytes": 40548476,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 39
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 39
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 39
+          },
+          "reusedAttributedMediaConnections": 39,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 2
+        },
+        {
+          "song": 10552,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 7132.9164,
+          "observedSessionWallMS": 40690.3224,
+          "sumSetupAndTaskMS": 40562.9721,
+          "selections": [
+            "2606:4700:20::681a:41c",
+            "104.26.5.28",
+            "104.26.4.28",
+            "172.67.69.58",
+            "2606:4700:20::681a:51c",
+            "2606:4700:20::ac43:453a"
+          ],
+          "requestCount": 100,
+          "mediaBodyBytes": 103118762,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 99
+          },
+          "mediaRemotes": {
+            "2606:4700:20::681a:41c": 99
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 99
+          },
+          "reusedAttributedMediaConnections": 99,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 3
+        }
+      ],
+      "missingTasks": 0,
+      "probes": [],
+      "setupStatusCounts": {
+        "200": 6,
+        "302": 6,
+        "206": 6
+      },
+      "setupRequestErrors": {}
+    }
+  ],
+  "comparisons": {
+    "monitor": {
+      "pairs": [
+        {
+          "round": 1,
+          "song": 1344,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": 1377.085,
+          "taskSpeedGain": 0.26458834621567195,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -21857.509299999998,
+          "observedSessionWallSavedMS": -21867.9235
+        },
+        {
+          "round": 1,
+          "song": 10552,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": -529.7381999999998,
+          "taskSpeedGain": -0.07555534091671501,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -22387.247500000005,
+          "observedSessionWallSavedMS": -22398.013
+        },
+        {
+          "round": 1,
+          "song": 10553,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": -433.91910000000007,
+          "taskSpeedGain": -0.11550483386017174,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -22821.1666,
+          "observedSessionWallSavedMS": -22832.9964
+        },
+        {
+          "round": 2,
+          "song": 1344,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": 460.7446,
+          "taskSpeedGain": 0.08933039246931807,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -22790.600200000004,
+          "observedSessionWallSavedMS": -22797.8492
+        },
+        {
+          "round": 2,
+          "song": 10552,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": -59.64140000000043,
+          "taskSpeedGain": -0.007092399560381546,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -22991.460600000006,
+          "observedSessionWallSavedMS": -23001.320099999997
+        },
+        {
+          "round": 2,
+          "song": 10553,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": -259.88419999999996,
+          "taskSpeedGain": -0.06975595820948033,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -23251.344800000006,
+          "observedSessionWallSavedMS": -23261.117
+        },
+        {
+          "round": 3,
+          "song": 1344,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": -376.3694999999998,
+          "taskSpeedGain": -0.0730671550112133,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -22554.365099999995,
+          "observedSessionWallSavedMS": -22566.583399999996
+        },
+        {
+          "round": 3,
+          "song": 10552,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": 119.65589999999975,
+          "taskSpeedGain": 0.016775172074076083,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -22434.709199999998,
+          "observedSessionWallSavedMS": -22451.171199999997
+        },
+        {
+          "round": 3,
+          "song": 10553,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": 1383.6746000000003,
+          "taskSpeedGain": 0.2933143679936576,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -22177.9956,
+          "observedSessionWallSavedMS": -22190.672300000002
+        }
+      ],
+      "cleanPairs": 9,
+      "taskWins": 4,
+      "medianTaskSpeedGain": -0.007092399560381546,
+      "medianTaskTimeSavedMS": -59.64140000000043
+    },
+    "history-two": {
+      "pairs": [
+        {
+          "round": 1,
+          "song": 1344,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": 501.90319999999974,
+          "taskSpeedGain": 0.08255239523038682,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -6658.940500000001,
+          "observedSessionWallSavedMS": -6663.104200000001
+        },
+        {
+          "round": 1,
+          "song": 10552,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": -448.2349999999997,
+          "taskSpeedGain": -0.0646826376726366,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -7107.175499999999,
+          "observedSessionWallSavedMS": -7111.129400000002
+        },
+        {
+          "round": 1,
+          "song": 10553,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": -799.0087999999996,
+          "taskSpeedGain": -0.1938491163998476,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -7906.184299999997,
+          "observedSessionWallSavedMS": -7914.505000000001
+        },
+        {
+          "round": 2,
+          "song": 1344,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": 341.8814000000002,
+          "taskSpeedGain": 0.06479171958088803,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -6425.616099999999,
+          "observedSessionWallSavedMS": -6416.484400000001
+        },
+        {
+          "round": 2,
+          "song": 10552,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": 686.9691999999995,
+          "taskSpeedGain": 0.08965236747347194,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -6667.1248,
+          "observedSessionWallSavedMS": -6667.607900000001
+        },
+        {
+          "round": 2,
+          "song": 10553,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": -100.3726999999999,
+          "taskSpeedGain": -0.02814628247720774,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -6767.4974999999995,
+          "observedSessionWallSavedMS": -6770.9375
+        },
+        {
+          "round": 3,
+          "song": 1344,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": -439.5137000000004,
+          "taskSpeedGain": -0.08429245697891219,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -5462.385199999999,
+          "observedSessionWallSavedMS": -5461.6595
+        },
+        {
+          "round": 3,
+          "song": 10552,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": 659.8135000000002,
+          "taskSpeedGain": 0.10008154704522187,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -4802.571699999997,
+          "observedSessionWallSavedMS": -4797.995500000001
+        },
+        {
+          "round": 3,
+          "song": 10553,
+          "clean": true,
+          "candidateError": "",
+          "baselineError": "",
+          "taskTimeSavedMS": 1508.5487000000003,
+          "taskSpeedGain": 0.3284806931226225,
+          "cumulativeComparable": true,
+          "sumOperationTimeSavedMS": -5022.871499999998,
+          "observedSessionWallSavedMS": -5024.6527
+        }
+      ],
+      "cleanPairs": 9,
+      "taskWins": 5,
+      "medianTaskSpeedGain": 0.06479171958088803,
+      "medianTaskTimeSavedMS": 341.8814000000002
+    }
+  },
+  "timeBasis": "T+seconds relative to the earliest nonzero timestamp in this file; unset timestamps are null; baselines across files are independent"
+}

@@ -1,0 +1,21 @@
+{
+  "batch": "product-noon-01",
+  "tcpAttempts": 884,
+  "counts": {
+    "v4Connected": 332,
+    "canceled": 147,
+    "v6Connected": 405
+  },
+  "otherErrors": {},
+  "allConnectedSourcesOnSelectedWifi": true,
+  "allConnectedPeersMatchTargets": true,
+  "allSelectedIndexesMatchAdapter": true,
+  "fatalBindingError": false,
+  "hashBasis": "actual-file-bytes",
+  "files": {
+    "connections-private.jsonl": "38195871e074c69d5026669f9918e4402f83fd2bf5c856276ce0eaa505ece297",
+    "engine-private.jsonl": "4e4d718b7347703ddb8139e106436e49c63def53cf0d39def9a606ba5869f671",
+    "network-private.json": "6b45698b830ed2ac8706c9c7c232e89f0b8d24c07fe4f2961b2346c17b5a8940",
+    "product.json": "fd60f7b8d6d27238dd2648fa7066ac38e219991332e94ead0bfce51ad2a76764"
+  }
+}

@@ -1,0 +1,1142 @@
+{
+  "schema": 1,
+  "sourceSHA256": "699c032c9acd1468a9f4c9359ddf2686cd505a06e57e994127706e736d1be515",
+  "firstObservation": "T+0s",
+  "lastObservation": "T+238.9163022s",
+  "observations": 120,
+  "membershipCounts": {
+    "v4=3,v6=3": 120
+  },
+  "membershipChanges": [
+    {
+      "started": "T+0s",
+      "ips": [
+        "104.26.4.28",
+        "104.26.5.28",
+        "172.67.69.58",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::ac43:453a"
+      ]
+    }
+  ],
+  "missingFamilyOrErrorObservations": [],
+  "lookups": [
+    {
+      "ID": 1,
+      "Host": "play.udon.dance",
+      "Started": "T+0s",
+      "IPs": [
+        "104.26.5.28",
+        "2606:4700:20::ac43:453a",
+        "104.26.4.28",
+        "2606:4700:20::681a:51c",
+        "172.67.69.58",
+        "2606:4700:20::681a:41c"
+      ],
+      "TTLMS": 203000,
+      "ElapsedMS": 278.2706,
+      "Error": ""
+    },
+    {
+      "ID": 2,
+      "Host": "play.udon.dance",
+      "Started": "T+143.2787198s",
+      "IPs": [
+        "172.67.69.58",
+        "2606:4700:20::681a:41c",
+        "104.26.4.28",
+        "2606:4700:20::ac43:453a",
+        "104.26.5.28",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 60000,
+      "ElapsedMS": 263.0257,
+      "Error": ""
+    },
+    {
+      "ID": 3,
+      "Host": "play.udon.dance",
+      "Started": "T+173.2787545s",
+      "IPs": [
+        "172.67.69.58",
+        "2606:4700:20::ac43:453a",
+        "104.26.5.28",
+        "2606:4700:20::681a:51c",
+        "104.26.4.28",
+        "2606:4700:20::681a:41c"
+      ],
+      "TTLMS": 0,
+      "ElapsedMS": 248.5094,
+      "Error": ""
+    },
+    {
+      "ID": 4,
+      "Host": "play.udon.dance",
+      "Started": "T+174.3308738s",
+      "IPs": [
+        "104.26.4.28",
+        "2606:4700:20::681a:51c",
+        "172.67.69.58",
+        "2606:4700:20::681a:41c",
+        "104.26.5.28",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 30000,
+      "ElapsedMS": 247.7018,
+      "Error": ""
+    },
+    {
+      "ID": 5,
+      "Host": "play.udon.dance",
+      "Started": "T+204.3312869s",
+      "IPs": [
+        "104.26.5.28",
+        "2606:4700:20::681a:41c",
+        "104.26.4.28",
+        "2606:4700:20::681a:51c",
+        "172.67.69.58",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 5000,
+      "ElapsedMS": 241.5433,
+      "Error": ""
+    },
+    {
+      "ID": 6,
+      "Host": "play.udon.dance",
+      "Started": "T+210.5957977s",
+      "IPs": [
+        "104.26.5.28",
+        "2606:4700:20::681a:51c",
+        "104.26.4.28",
+        "2606:4700:20::681a:41c",
+        "172.67.69.58",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 133000,
+      "ElapsedMS": 256.8003,
+      "Error": ""
+    }
+  ],
+  "lookupCount": 6,
+  "zeroTTLSuccessfulLookups": 1,
+  "oneSecondSuccessfulLookups": 0,
+  "answers": [
+    {
+      "LookupID": 1,
+      "Host": "play.udon.dance",
+      "Started": "T+0s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 1,
+      "IPs": [
+        "104.26.5.28",
+        "104.26.4.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 203000,
+      "ElapsedMS": 77.8976,
+      "Error": ""
+    },
+    {
+      "LookupID": 1,
+      "Host": "play.udon.dance",
+      "Started": "T+0.0005217s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 1,
+      "IPs": [
+        "104.26.5.28",
+        "104.26.4.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 203000,
+      "ElapsedMS": 79.9896,
+      "Error": ""
+    },
+    {
+      "LookupID": 1,
+      "Host": "play.udon.dance",
+      "Started": "T+0s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c"
+      ],
+      "TTLMS": 203000,
+      "ElapsedMS": 81.0148,
+      "Error": ""
+    },
+    {
+      "LookupID": 1,
+      "Host": "play.udon.dance",
+      "Started": "T+0s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 203000,
+      "ElapsedMS": 81.0148,
+      "Error": ""
+    },
+    {
+      "LookupID": 1,
+      "Host": "play.udon.dance",
+      "Started": "T+0s",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 278.2706,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 1,
+      "Host": "play.udon.dance",
+      "Started": "T+0.0005217s",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 277.7489,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 1,
+      "Host": "play.udon.dance",
+      "Started": "T+0s",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 278.2706,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 1,
+      "Host": "play.udon.dance",
+      "Started": "T+0s",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 278.2706,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 1,
+      "Host": "play.udon.dance",
+      "Started": "T+0.0005217s",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 277.7489,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 1,
+      "Host": "play.udon.dance",
+      "Started": "T+0.0005217s",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 277.7489,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 1,
+      "Host": "play.udon.dance",
+      "Started": "T+0s",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 278.2706,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 1,
+      "Host": "play.udon.dance",
+      "Started": "T+0.0010455s",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 277.2251,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 2,
+      "Host": "play.udon.dance",
+      "Started": "T+143.2787198s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.4.28",
+        "104.26.5.28"
+      ],
+      "TTLMS": 240000,
+      "ElapsedMS": 62.5897,
+      "Error": ""
+    },
+    {
+      "LookupID": 2,
+      "Host": "play.udon.dance",
+      "Started": "T+143.2787198s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 61000,
+      "ElapsedMS": 62.5897,
+      "Error": ""
+    },
+    {
+      "LookupID": 2,
+      "Host": "play.udon.dance",
+      "Started": "T+143.2787198s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.5.28",
+        "104.26.4.28"
+      ],
+      "TTLMS": 241000,
+      "ElapsedMS": 62.5897,
+      "Error": ""
+    },
+    {
+      "LookupID": 2,
+      "Host": "play.udon.dance",
+      "Started": "T+143.2787198s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 60000,
+      "ElapsedMS": 65.7449,
+      "Error": ""
+    },
+    {
+      "LookupID": 2,
+      "Host": "play.udon.dance",
+      "Started": "T+143.2787198s",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 263.0257,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 2,
+      "Host": "play.udon.dance",
+      "Started": "T+143.2787198s",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 263.0257,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 2,
+      "Host": "play.udon.dance",
+      "Started": "T+143.2787198s",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 263.0257,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 2,
+      "Host": "play.udon.dance",
+      "Started": "T+143.2787198s",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 263.0257,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 2,
+      "Host": "play.udon.dance",
+      "Started": "T+143.2787198s",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 263.0257,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 2,
+      "Host": "play.udon.dance",
+      "Started": "T+143.2787198s",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 263.0257,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 2,
+      "Host": "play.udon.dance",
+      "Started": "T+143.2787198s",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 263.0257,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 2,
+      "Host": "play.udon.dance",
+      "Started": "T+143.2787198s",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 263.0257,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 3,
+      "Host": "play.udon.dance",
+      "Started": "T+173.2787545s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.5.28",
+        "104.26.4.28"
+      ],
+      "TTLMS": 31000,
+      "ElapsedMS": 48.121,
+      "Error": ""
+    },
+    {
+      "LookupID": 3,
+      "Host": "play.udon.dance",
+      "Started": "T+173.2787545s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c"
+      ],
+      "TTLMS": 30000,
+      "ElapsedMS": 55.5225,
+      "Error": ""
+    },
+    {
+      "LookupID": 3,
+      "Host": "play.udon.dance",
+      "Started": "T+173.2787545s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 31000,
+      "ElapsedMS": 64.2245,
+      "Error": ""
+    },
+    {
+      "LookupID": 3,
+      "Host": "play.udon.dance",
+      "Started": "T+173.2787545s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.5.28",
+        "104.26.4.28"
+      ],
+      "TTLMS": 30000,
+      "ElapsedMS": 66.6468,
+      "Error": ""
+    },
+    {
+      "LookupID": 3,
+      "Host": "play.udon.dance",
+      "Started": "T+173.2787545s",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 0,
+      "ElapsedMS": 134.6922,
+      "Error": ""
+    },
+    {
+      "LookupID": 3,
+      "Host": "play.udon.dance",
+      "Started": "T+173.2787545s",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "104.26.4.28",
+        "104.26.5.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 300000,
+      "ElapsedMS": 149.8998,
+      "Error": ""
+    },
+    {
+      "LookupID": 3,
+      "Host": "play.udon.dance",
+      "Started": "T+173.2787545s",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 248.5094,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 3,
+      "Host": "play.udon.dance",
+      "Started": "T+173.2787545s",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 248.5094,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 3,
+      "Host": "play.udon.dance",
+      "Started": "T+173.2787545s",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 248.5094,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 3,
+      "Host": "play.udon.dance",
+      "Started": "T+173.2787545s",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 248.5094,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 3,
+      "Host": "play.udon.dance",
+      "Started": "T+173.2787545s",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 248.5094,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 3,
+      "Host": "play.udon.dance",
+      "Started": "T+173.2787545s",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 248.5094,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 4,
+      "Host": "play.udon.dance",
+      "Started": "T+174.3308738s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 30000,
+      "ElapsedMS": 47.5339,
+      "Error": ""
+    },
+    {
+      "LookupID": 4,
+      "Host": "play.udon.dance",
+      "Started": "T+174.3308738s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 30000,
+      "ElapsedMS": 53.8475,
+      "Error": ""
+    },
+    {
+      "LookupID": 4,
+      "Host": "play.udon.dance",
+      "Started": "T+174.3308738s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 1,
+      "IPs": [
+        "104.26.4.28",
+        "172.67.69.58",
+        "104.26.5.28"
+      ],
+      "TTLMS": 30000,
+      "ElapsedMS": 53.8475,
+      "Error": ""
+    },
+    {
+      "LookupID": 4,
+      "Host": "play.udon.dance",
+      "Started": "T+174.3308738s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 1,
+      "IPs": [
+        "104.26.5.28",
+        "104.26.4.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 211000,
+      "ElapsedMS": 54.3509,
+      "Error": ""
+    },
+    {
+      "LookupID": 4,
+      "Host": "play.udon.dance",
+      "Started": "T+174.3308738s",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c"
+      ],
+      "TTLMS": 276000,
+      "ElapsedMS": 71.6485,
+      "Error": ""
+    },
+    {
+      "LookupID": 4,
+      "Host": "play.udon.dance",
+      "Started": "T+174.3308738s",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "104.26.5.28",
+        "104.26.4.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 299000,
+      "ElapsedMS": 114.3503,
+      "Error": ""
+    },
+    {
+      "LookupID": 4,
+      "Host": "play.udon.dance",
+      "Started": "T+174.3308738s",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 269000,
+      "ElapsedMS": 116.0365,
+      "Error": ""
+    },
+    {
+      "LookupID": 4,
+      "Host": "play.udon.dance",
+      "Started": "T+174.3308738s",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "104.26.5.28",
+        "172.67.69.58",
+        "104.26.4.28"
+      ],
+      "TTLMS": 299000,
+      "ElapsedMS": 119.6735,
+      "Error": ""
+    },
+    {
+      "LookupID": 4,
+      "Host": "play.udon.dance",
+      "Started": "T+174.3308738s",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 247.7018,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 4,
+      "Host": "play.udon.dance",
+      "Started": "T+174.3308738s",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 247.7018,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 4,
+      "Host": "play.udon.dance",
+      "Started": "T+174.3308738s",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 247.7018,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 4,
+      "Host": "play.udon.dance",
+      "Started": "T+174.3308738s",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 247.7018,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 5,
+      "Host": "play.udon.dance",
+      "Started": "T+204.3312869s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 1,
+      "IPs": [
+        "104.26.5.28",
+        "104.26.4.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 180000,
+      "ElapsedMS": 41.046,
+      "Error": ""
+    },
+    {
+      "LookupID": 5,
+      "Host": "play.udon.dance",
+      "Started": "T+204.3312869s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 1,
+      "IPs": [
+        "104.26.4.28",
+        "104.26.5.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 180000,
+      "ElapsedMS": 50.5832,
+      "Error": ""
+    },
+    {
+      "LookupID": 5,
+      "Host": "play.udon.dance",
+      "Started": "T+204.3312869s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 139000,
+      "ElapsedMS": 52.6729,
+      "Error": ""
+    },
+    {
+      "LookupID": 5,
+      "Host": "play.udon.dance",
+      "Started": "T+204.3312869s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c"
+      ],
+      "TTLMS": 5000,
+      "ElapsedMS": 54.9287,
+      "Error": ""
+    },
+    {
+      "LookupID": 5,
+      "Host": "play.udon.dance",
+      "Started": "T+204.3312869s",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 239000,
+      "ElapsedMS": 136.7057,
+      "Error": ""
+    },
+    {
+      "LookupID": 5,
+      "Host": "play.udon.dance",
+      "Started": "T+204.3312869s",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.4.28",
+        "104.26.5.28"
+      ],
+      "TTLMS": 269000,
+      "ElapsedMS": 142.971,
+      "Error": ""
+    },
+    {
+      "LookupID": 5,
+      "Host": "play.udon.dance",
+      "Started": "T+204.3312869s",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 241.5433,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 5,
+      "Host": "play.udon.dance",
+      "Started": "T+204.3312869s",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 241.5433,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 5,
+      "Host": "play.udon.dance",
+      "Started": "T+204.3312869s",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 241.5433,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 5,
+      "Host": "play.udon.dance",
+      "Started": "T+204.3312869s",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 241.5433,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 5,
+      "Host": "play.udon.dance",
+      "Started": "T+204.3312869s",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 241.5433,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 5,
+      "Host": "play.udon.dance",
+      "Started": "T+204.3312869s",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 241.5433,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 6,
+      "Host": "play.udon.dance",
+      "Started": "T+210.5957977s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 1,
+      "IPs": [
+        "104.26.5.28",
+        "104.26.4.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 174000,
+      "ElapsedMS": 56.3273,
+      "Error": ""
+    },
+    {
+      "LookupID": 6,
+      "Host": "play.udon.dance",
+      "Started": "T+210.5957977s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 1,
+      "IPs": [
+        "104.26.4.28",
+        "104.26.5.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 173000,
+      "ElapsedMS": 63.017,
+      "Error": ""
+    },
+    {
+      "LookupID": 6,
+      "Host": "play.udon.dance",
+      "Started": "T+210.5957977s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.5.5.5",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a"
+      ],
+      "TTLMS": 133000,
+      "ElapsedMS": 65.5253,
+      "Error": ""
+    },
+    {
+      "LookupID": 6,
+      "Host": "play.udon.dance",
+      "Started": "T+210.5957977s",
+      "Provider": "dns.alidns.com",
+      "Endpoint": "223.6.6.6",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 293000,
+      "ElapsedMS": 67.153,
+      "Error": ""
+    },
+    {
+      "LookupID": 6,
+      "Host": "play.udon.dance",
+      "Started": "T+210.5957977s",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "104.26.5.28",
+        "104.26.4.28",
+        "172.67.69.58"
+      ],
+      "TTLMS": 263000,
+      "ElapsedMS": 70.6228,
+      "Error": ""
+    },
+    {
+      "LookupID": 6,
+      "Host": "play.udon.dance",
+      "Started": "T+210.5957977s",
+      "Provider": "doh.pub",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c",
+        "2606:4700:20::681a:41c"
+      ],
+      "TTLMS": 240000,
+      "ElapsedMS": 74.1831,
+      "Error": ""
+    },
+    {
+      "LookupID": 6,
+      "Host": "play.udon.dance",
+      "Started": "T+210.5957977s",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 1,
+      "IPs": [
+        "172.67.69.58",
+        "104.26.4.28",
+        "104.26.5.28"
+      ],
+      "TTLMS": 263000,
+      "ElapsedMS": 103.7015,
+      "Error": ""
+    },
+    {
+      "LookupID": 6,
+      "Host": "play.udon.dance",
+      "Started": "T+210.5957977s",
+      "Provider": "doh.360.cn",
+      "Endpoint": "",
+      "Kind": 28,
+      "IPs": [
+        "2606:4700:20::681a:41c",
+        "2606:4700:20::ac43:453a",
+        "2606:4700:20::681a:51c"
+      ],
+      "TTLMS": 233000,
+      "ElapsedMS": 110.2663,
+      "Error": ""
+    },
+    {
+      "LookupID": 6,
+      "Host": "play.udon.dance",
+      "Started": "T+210.5957977s",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 256.8003,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 6,
+      "Host": "play.udon.dance",
+      "Started": "T+210.5957977s",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 256.8003,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 6,
+      "Host": "play.udon.dance",
+      "Started": "T+210.5957977s",
+      "Provider": "dns.google",
+      "Endpoint": "8.8.8.8",
+      "Kind": 28,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 256.8003,
+      "Error": "context canceled"
+    },
+    {
+      "LookupID": 6,
+      "Host": "play.udon.dance",
+      "Started": "T+210.5957977s",
+      "Provider": "cloudflare-dns.com",
+      "Endpoint": "1.1.1.1",
+      "Kind": 1,
+      "IPs": null,
+      "TTLMS": 0,
+      "ElapsedMS": 256.8003,
+      "Error": "context canceled"
+    }
+  ],
+  "answerCount": 72,
+  "answerOutcomes": {
+    "success": 36,
+    "context canceled": 36
+  },
+  "interpretation": "Collector cancellation is expected; missing-family and zero-TTL fixtures are mechanism evidence, not attribution of the earlier stopped download window.",
+  "timeBasis": "T+seconds relative to the earliest nonzero timestamp in this file; unset timestamps are null; baselines across files are independent"
+}

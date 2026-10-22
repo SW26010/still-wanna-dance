@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "goFixtureTests": 4,
+  "pythonAnalysisTests": 18,
+  "windowsRace": "passed",
+  "vet": {
+    "command": "go vet -tags cf_block_experiment ./internal/console",
+    "exitCode": 0
+  },
+  "liveDiagnosticTasks": 3,
+  "liveDiagnosticComparedStrategies": false,
+  "scope": "experimental harness and accounting; no VRC or player behavior claim",
+  "logsSHA256": {
+    "product-v2-fixture-frozen.log": "15ed8fc96781c4dc1d8bfe9e4467cd8706b984c60116dfa0dfc638e849f66628",
+    "product-v2-race.log": "4f9438dac8c639be08bdd97b701b8cd13f0b6d1dd51b327b3703fa700b4387d1",
+    "product-fixture-isolation-race.log": "6f0fb5c9e4da81d5777e15157c3dcfa35536f9c53ad0aad839a33c786004e1f1",
+    "continuation-analysis-tests-v2.log": "49ab92f393bcdefad26b279d66c93dfba5f809643733e0b20c8bb7315e2a35d5",
+    "product-trace-smoke.log": "f7b03d3d20778c1c4c8f680967ba0aa6981f6a3ffd7dc203a4ed93ac75af4ec5"
+  }
+}

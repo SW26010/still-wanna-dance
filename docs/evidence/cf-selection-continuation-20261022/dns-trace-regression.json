@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "scope": "shared resolver HTTP trace isolation, local HTTPS regression; no performance gain claim",
+  "before": {
+    "expectedFailure": true,
+    "connections": 2,
+    "tlsHandshakes": 2,
+    "firstResponseBytes": 2,
+    "nestedDNSConnectionObserved": true
+  },
+  "after": {
+    "passed": true,
+    "connections": 1,
+    "tlsHandshakes": 1,
+    "firstResponseBytes": 1,
+    "onlyTargetConnection": true
+  },
+  "checks": [
+    {
+      "command": "go test ./internal/console -run '^(TestDNS|TestDoH)' -count=1",
+      "exitCode": 0
+    },
+    {
+      "command": "go test -race ./internal/console -run '^(TestDNS|TestDoH)' -count=1",
+      "exitCode": 0,
+      "platform": "windows/amd64; explicit GCC"
+    },
+    {
+      "command": "go test ./internal/upstreamrequest ./internal/upstreamstate -count=1",
+      "exitCode": 1,
+      "upstreamrequest": "passed",
+      "upstreamstate": "sandbox renameat invalid handle; retained"
+    },
+    {
+      "command": "go test ./internal/upstreamstate -count=1",
+      "exitCode": 0,
+      "environment": "host; isolated test temporary directory"
+    },
+    {
+      "command": "go vet ./internal/console ./internal/upstreamrequest ./internal/upstreamstate",
+      "exitCode": 0,
+      "output": "No stdout/stderr; no Tee-Object log created. Exit code observed from command completion."
+    }
+  ],
+  "wrapper": "scripts/with-test-temp.ps1 for every check",
+  "sourceSHA256": {
+    "internal/console/dns.go": "fa6696557b6fa19a5fd3504abcaaa5a08f36173e4d0a8a4c03fa6f83b9bdcf6b",
+    "internal/console/dns_refresh.go": "d6ba12cabe9812193ae5cd25660a6424f054fe18524bf04138775d221938795e",
+    "internal/console/dns_trace_test.go": "8f771cf77562fe0e502062e44518ccfa40187dee67e2155c2e44456b70af2787"
+  },
+  "privateLogsSHA256": {
+    "dns-trace-before.log": "b15ea906d3e648e412c80d2d87b3d9a8573a34416b7ab2913a2b791683697f64",
+    "dns-trace-after.log": "b4744f8fc33cc8efdcf523bc818d33f18455353a4ae5d19f16b6466c91531057",
+    "dns-trace-race.log": "dc017e14c8695eb0d19675ecf8ce7db8a6e726934a3e11a4fcda83656cb18567",
+    "dns-trace-upstream.log": "24f1a8055088eae183dab67ed1b406c4385e7e16b19ede29921f398f660ee4d8",
+    "dns-trace-upstream-host.log": "4ec64e340f6c2cd912583a50577481e741c3a1321ebde5662db106b423f2e5ad"
+  },
+  "noonFrozenExecutableSHA256": "c96a037badff5247de8abf57a7c73ba8e96373d2fc4cc15debefdabbfd174089",
+  "noonIncludesProductDNSFix": false,
+  "limitations": [
+    "No reconstruction of historical first-byte latency or resulting recommendation changes.",
+    "Resource throughput uses separate body timing; this regression does not establish corrupted throughput scores."
+  ],
+  "hashBasis": "UTF-8 LF Git blob for source; actual bytes for private logs and executable"
+}

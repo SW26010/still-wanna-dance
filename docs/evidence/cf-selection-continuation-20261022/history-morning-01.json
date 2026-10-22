@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "previousSHA256": "fb8a2221d52ae2e0f5318d15075dd94663d12da097e24f5303983fad8d3cb640",
+  "currentSHA256": "92b695c084b8f9dc9b05bbf94e9a6124f977d209000a2f569f5cf4751119028c",
+  "scope": "same song 1343, later window, same Wi-Fi; no cross-network or cross-day claim",
+  "previousOutcome": "completed",
+  "currentOutcome": "completed",
+  "previousSelected": {
+    "dns-short": "104.26.5.28",
+    "union-block": "2606:4700:20::681a:41c",
+    "union-short": "104.26.5.28"
+  },
+  "currentSelected": {
+    "dns-short": "104.26.4.28",
+    "union-block": "2606:4700:20::681a:51c",
+    "union-short": "104.26.4.28"
+  },
+  "currentReferenceBestMS": 4313.9313999999995,
+  "currentReferenceCandidates": 11,
+  "predictors": [
+    {
+      "predictor": "prior-dns-short",
+      "ip": "104.26.5.28",
+      "priorMeanMS": 4882.35875,
+      "currentMeanMS": 4474.03155,
+      "measuredCleanTwice": true,
+      "fractionOfCurrentReferenceBest": 0.9642156859622503,
+      "currentRank": 3
+    },
+    {
+      "predictor": "prior-dns-full",
+      "ip": "2606:4700:20::681a:41c",
+      "priorMeanMS": 4173.726049999999,
+      "currentMeanMS": 4626.29195,
+      "measuredCleanTwice": true,
+      "fractionOfCurrentReferenceBest": 0.9324814444535866,
+      "currentRank": 8
+    },
+    {
+      "predictor": "prior-extra-full",
+      "ip": "104.16.0.1",
+      "priorMeanMS": 4510.439549999999,
+      "currentMeanMS": 5106.91185,
+      "measuredCleanTwice": true,
+      "fractionOfCurrentReferenceBest": 0.8447240772327016,
+      "currentRank": 10
+    }
+  ],
+  "commonCandidates": [
+    "103.21.244.1",
+    "103.21.244.157",
+    "104.16.0.1",
+    "104.24.0.1",
+    "104.26.4.28",
+    "104.26.5.28",
+    "172.67.69.58",
+    "2606:4700:20::681a:41c",
+    "2606:4700:20::681a:51c",
+    "2606:4700:20::ac43:453a"
+  ],
+  "concordantRankPairs": 13,
+  "discordantRankPairs": 32,
+  "tiedRankPairs": 0,
+  "newlyQualified": [
+    "172.64.144.1"
+  ],
+  "noLongerQualified": []
+}

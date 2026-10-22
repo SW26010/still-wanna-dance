@@ -1,0 +1,53 @@
+{
+  "base": "8399a9ad7a68036248ef8546aff653e501211694",
+  "binarySHA256": "7e7e4626909a2064fa9cc33c9063857dbe1be932476bf65678a22a3f09ff7ab9",
+  "sources": [
+    {
+      "path": "internal/console/cf_selection_experiment_test.go",
+      "sha256": "a0d5ae91d926157e1ff1eda88da63cc5cbe05abe99d345af50e0a5800819c4ed"
+    },
+    {
+      "path": "internal/console/cf_selection_harness_test.go",
+      "sha256": "07656c68e936800da388c26724595668213dc580fc98d0848c9bb280ae38e534"
+    },
+    {
+      "path": "internal/console/cf_block_experiment_test.go",
+      "sha256": "7d9d7f43fc8d2b1580a29b01c38c4400834edabd3701e01d6a64ed997a22738a"
+    },
+    {
+      "path": "internal/console/cf_family_experiment_test.go",
+      "sha256": "8c6791c7c3f0ef036aa95e1c8a9ca2adadd566d4bcee7f45d888f0ba55a49a8e"
+    },
+    {
+      "path": "internal/console/cf_network_experiment_test.go",
+      "sha256": "3a457f067fcfb8eb9f07ccb06163bf36886245d42915fe4fb722eb02cda72fb1"
+    },
+    {
+      "path": "internal/console/dns_pool.go",
+      "sha256": "8f81709059bb56fb5f61a2ba889acae1ddc8c637dd9884e5fe03e9c857a83baa"
+    },
+    {
+      "path": "internal/console/dns_refresh.go",
+      "sha256": "cbed041d56a44c8347408fe7db9b201cc4e281f9029d60f09db515211435ca8a"
+    },
+    {
+      "path": "internal/upstreamrequest/candidates.go",
+      "sha256": "a5dcbffaf2b9c9e78c1fdbd90b4cde7191d7ad50aeb25f5712511bf7120f1149"
+    },
+    {
+      "path": "experiments/cf-block-paths/SELECTION.md",
+      "sha256": "1eddc537368adaf0fcfab7f0d6081cc45996c384863816f6039a951226bb051e"
+    },
+    {
+      "path": "go.mod",
+      "sha256": "79fd25e0e26038970db9b31f90704d43f02775434c8c5f3ed417ad23c3b986c6"
+    },
+    {
+      "path": "go.sum",
+      "sha256": "a562f56ff991184850829b7d44e345150d65a1801c09ef3bbc62df15150146b8"
+    }
+  ],
+  "hashBasis": "actual-file-bytes at build",
+  "sourceNote": "Frozen source copies kept locally; later Go edits are gofmt only. Protocol second-window amendment was written after first measurement, before second attempt.",
+  "dnsBinarySHA256": "cc9198a7d4b358ffb1adbea2250a155b8530f7bb1eb0ea5cc1d48970bf7e05ff"
+}

@@ -1,0 +1,21 @@
+{
+  "batch": "product-trace-smoke",
+  "tcpAttempts": 110,
+  "counts": {
+    "v4Connected": 24,
+    "canceled": 18,
+    "v6Connected": 68
+  },
+  "otherErrors": {},
+  "allConnectedSourcesOnSelectedWifi": true,
+  "allConnectedPeersMatchTargets": true,
+  "allSelectedIndexesMatchAdapter": true,
+  "fatalBindingError": false,
+  "hashBasis": "actual-file-bytes",
+  "files": {
+    "connections-private.jsonl": "bcdb2d413aaacd287dc879ac600c445dbb6eed30abbf0b563a67fced39334143",
+    "engine-private.jsonl": "9c22a8e0035fab147832412bc417d8262a1e1ee7e786a2518e8ce6584ca472c8",
+    "network-private.json": "6b45698b830ed2ac8706c9c7c232e89f0b8d24c07fe4f2961b2346c17b5a8940",
+    "product.json": "b02755ace4b478ab7afb79ecaa3bb0fdcf8dfb44f4828ff9d7db96856ae381fc"
+  }
+}

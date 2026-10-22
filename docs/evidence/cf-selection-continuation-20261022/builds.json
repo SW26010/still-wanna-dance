@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "calibrationBinarySHA256": "7e7e4626909a2064fa9cc33c9063857dbe1be932476bf65678a22a3f09ff7ab9",
+  "productV1": {
+    "schema": 1,
+    "method": "actual-prefetch-cf-history-two-v1",
+    "head": "7213a8b6df31f6ed5b0743564e4cb51758216dd5",
+    "go": "go version go1.27.1 windows/amd64",
+    "binarySHA256": "ef4e35a8ba37e47b1ab90ffc069e89f7917458ecdbf99e67c72733a9858fb29f",
+    "files": {
+      "experiments/cf-block-paths/PRODUCT.md": "93387e20773d700f053106ecc786621e5b27cad0e76e7711aa166879d32bd8e4",
+      "experiments/cf-block-paths/CONTINUATION.md": "88c80d23ea38fce18f759277181659bd7d49063a90856c40ce8922b3309021de",
+      "artifacts/issue21-work/product-fixture-frozen.log": "6e4f271022cee95fefb440d337e067e8856a147e567103dd44025b0a02a0e303",
+      "internal/console/cf_product_experiment_test.go": "1b62f8ae2d1d9eeac2264d41216b6c7743eeccbfef0a9558e25fc28752347d99"
+    }
+  },
+  "productV2": {
+    "schema": 1,
+    "method": "actual-prefetch-cf-history-two-v2",
+    "head": "7213a8b6df31f6ed5b0743564e4cb51758216dd5",
+    "go": "go version go1.27.1 windows/amd64",
+    "binarySHA256": "c96a037badff5247de8abf57a7c73ba8e96373d2fc4cc15debefdabbfd174089",
+    "files": {
+      "artifacts/issue21-work/product-v2-fixture-frozen.log": "15ed8fc96781c4dc1d8bfe9e4467cd8706b984c60116dfa0dfc638e849f66628",
+      "experiments/cf-block-paths/PRODUCT.md": "2139f88b86d647d848d7c1f3bc051d940bdfd95158eb847195ff4700cc49cfc4",
+      "experiments/cf-block-paths/CONTINUATION.md": "88c80d23ea38fce18f759277181659bd7d49063a90856c40ce8922b3309021de",
+      "internal/console/cf_product_experiment_test.go": "97c6dd2208f9aa5aaed794dd8e88ac153747952e8c22f541148a48146cd8b0ff",
+      "artifacts/issue21-work/product-v2-race.log": "4f9438dac8c639be08bdd97b701b8cd13f0b6d1dd51b327b3703fa700b4387d1"
+    }
+  },
+  "v2SourceSnapshotSHA256": "97c6dd2208f9aa5aaed794dd8e88ac153747952e8c22f541148a48146cd8b0ff",
+  "v2SourceSnapshotNote": "after freezing the binary, only the offline integration fixture gained Default channel save/restore; live entry points unchanged",
+  "v1SourceSnapshotSHA256": "1b62f8ae2d1d9eeac2264d41216b6c7743eeccbfef0a9558e25fc28752347d99",
+  "v1ProtocolSnapshotSHA256": "93387e20773d700f053106ecc786621e5b27cad0e76e7711aa166879d32bd8e4",
+  "v1ProtocolSnapshotNote": "reconstructed from unchanged prefix after the appended amendment; equals the preregistered hash"
+}

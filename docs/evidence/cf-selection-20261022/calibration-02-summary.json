@@ -1,0 +1,216 @@
+{
+  "schema": 1,
+  "method": "equal-membership-cold-probes-v1",
+  "sourceSHA256": "41463e223134245f95dfac913549c43ba5d594f12c08ffd3afb9ea63cc36cbc2",
+  "started": "T+0s",
+  "finished": "T+4.1202971s",
+  "outcome": "failed",
+  "error": "prepare_1343_prepare_status_523",
+  "candidates": [],
+  "unqualified": [],
+  "selected": {},
+  "observedBodyBytes": 0,
+  "preparationMS": 0,
+  "screenWallMS": 0,
+  "fullReferenceWallMS": 0,
+  "plannedShortProbes": 0,
+  "executedShortProbes": 0,
+  "missingShortProbes": 0,
+  "plannedEvaluationLoads": 30,
+  "executedEvaluationLoads": 0,
+  "missingEvaluationLoads": 30,
+  "plannedFormalLoads": 18,
+  "executedFormalLoads": 0,
+  "probes": [],
+  "referenceMeanMS": {},
+  "screenRetention": [
+    {
+      "kind": "single-1048576",
+      "metric": "TCPMS",
+      "keep": 1,
+      "retained": [],
+      "fractionOfReferenceBest": null,
+      "retains90Percent": false
+    },
+    {
+      "kind": "single-1048576",
+      "metric": "TCPMS",
+      "keep": 2,
+      "retained": [],
+      "fractionOfReferenceBest": null,
+      "retains90Percent": false
+    },
+    {
+      "kind": "single-1048576",
+      "metric": "TCPMS",
+      "keep": 4,
+      "retained": [],
+      "fractionOfReferenceBest": null,
+      "retains90Percent": false
+    },
+    {
+      "kind": "single-1048576",
+      "metric": "HeadersMS",
+      "keep": 1,
+      "retained": [],
+      "fractionOfReferenceBest": null,
+      "retains90Percent": false
+    },
+    {
+      "kind": "single-1048576",
+      "metric": "HeadersMS",
+      "keep": 2,
+      "retained": [],
+      "fractionOfReferenceBest": null,
+      "retains90Percent": false
+    },
+    {
+      "kind": "single-1048576",
+      "metric": "HeadersMS",
+      "keep": 4,
+      "retained": [],
+      "fractionOfReferenceBest": null,
+      "retains90Percent": false
+    },
+    {
+      "kind": "single-1048576",
+      "metric": "ElapsedMS",
+      "keep": 1,
+      "retained": [],
+      "fractionOfReferenceBest": null,
+      "retains90Percent": false
+    },
+    {
+      "kind": "single-1048576",
+      "metric": "ElapsedMS",
+      "keep": 2,
+      "retained": [],
+      "fractionOfReferenceBest": null,
+      "retains90Percent": false
+    },
+    {
+      "kind": "single-1048576",
+      "metric": "ElapsedMS",
+      "keep": 4,
+      "retained": [],
+      "fractionOfReferenceBest": null,
+      "retains90Percent": false
+    },
+    {
+      "kind": "single-8388608",
+      "metric": "ElapsedMS",
+      "keep": 1,
+      "retained": [],
+      "fractionOfReferenceBest": null,
+      "retains90Percent": false
+    },
+    {
+      "kind": "single-8388608",
+      "metric": "ElapsedMS",
+      "keep": 2,
+      "retained": [],
+      "fractionOfReferenceBest": null,
+      "retains90Percent": false
+    },
+    {
+      "kind": "single-8388608",
+      "metric": "ElapsedMS",
+      "keep": 4,
+      "retained": [],
+      "fractionOfReferenceBest": null,
+      "retains90Percent": false
+    }
+  ],
+  "training": [],
+  "evaluation": [],
+  "requestCount": 0,
+  "requestFailures": {},
+  "cacheCounts": {},
+  "coloCounts": {},
+  "reusedConnections": 0,
+  "probeCosts": {
+    "single-1048576": {
+      "dns": {
+        "attempts": 0,
+        "failures": 0,
+        "bodyBytes": 0,
+        "sumElapsedMS": 0
+      },
+      "historical": {
+        "attempts": 0,
+        "failures": 0,
+        "bodyBytes": 0,
+        "sumElapsedMS": 0
+      },
+      "sampled": {
+        "attempts": 0,
+        "failures": 0,
+        "bodyBytes": 0,
+        "sumElapsedMS": 0
+      },
+      "all": {
+        "attempts": 0,
+        "failures": 0,
+        "bodyBytes": 0,
+        "sumElapsedMS": 0
+      }
+    },
+    "single-8388608": {
+      "dns": {
+        "attempts": 0,
+        "failures": 0,
+        "bodyBytes": 0,
+        "sumElapsedMS": 0
+      },
+      "historical": {
+        "attempts": 0,
+        "failures": 0,
+        "bodyBytes": 0,
+        "sumElapsedMS": 0
+      },
+      "sampled": {
+        "attempts": 0,
+        "failures": 0,
+        "bodyBytes": 0,
+        "sumElapsedMS": 0
+      },
+      "all": {
+        "attempts": 0,
+        "failures": 0,
+        "bodyBytes": 0,
+        "sumElapsedMS": 0
+      }
+    }
+  },
+  "comparisons": {
+    "union-short": {
+      "pairs": [],
+      "cleanPairs": 0,
+      "wins": 0,
+      "medianThroughputGain": null,
+      "medianTimeSavedMS": null,
+      "medianPrefix8Change": null
+    },
+    "union-block": {
+      "pairs": [],
+      "cleanPairs": 0,
+      "wins": 0,
+      "medianThroughputGain": null,
+      "medianTimeSavedMS": null,
+      "medianPrefix8Change": null
+    }
+  },
+  "costReplay": {
+    "kind": "offline-cost-replay-not-end-to-end-product-test",
+    "fullSearchMS": 0,
+    "extraSearchBeyondSameDNSMethodMS": 0,
+    "differentIPCleanPairs": 0,
+    "sameIPControlPairs": 0,
+    "medianHoldoutSavingPerTaskMS": null,
+    "tasksToAmortizeFullSearch": null,
+    "tasksToAmortizeExtraSearch": null,
+    "firstTaskNetChangeAgainstAlreadySelectedDNSMS": null,
+    "firstTaskNetChangeWhenBothSearchMS": null
+  },
+  "timeBasis": "T+seconds relative to the earliest nonzero timestamp in this file; unset timestamps are null; baselines across files are independent"
+}

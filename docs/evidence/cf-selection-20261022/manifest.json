@@ -1,0 +1,81 @@
+{
+  "baseCommit": "8399a9ad7a68036248ef8546aff653e501211694",
+  "method": "equal-membership-cold-probes-v1",
+  "hashBasis": "git-blob (UTF-8 LF per .gitattributes)",
+  "build": "build.json; binary/source snapshot fingerprints are actual-file-bytes at build",
+  "evidence": {
+    "docs/evidence/cf-selection-20261022/build.json": {
+      "bytes": 2104,
+      "sha256": "6bf1b5d04943b6eb2f604aac4d63d7d96bb8b3d070f8918912e9ca8369d411de"
+    },
+    "docs/evidence/cf-selection-20261022/calibration-01-binding.json": {
+      "bytes": 799,
+      "sha256": "47c076609b312dd15a926403506be81680b962dd8e0768f0c35d99908923d954"
+    },
+    "docs/evidence/cf-selection-20261022/calibration-01-summary.json": {
+      "bytes": 40522,
+      "sha256": "0cba5678ef8a37d47987218faac01cfaf5b945118e8e902e0f9bc0c885632e7d"
+    },
+    "docs/evidence/cf-selection-20261022/calibration-02-binding.json": {
+      "bytes": 654,
+      "sha256": "552a61ec39114fd4964623ab47fde3ae84e39c60d48fb9847e3f7158cead9827"
+    },
+    "docs/evidence/cf-selection-20261022/calibration-02-summary.json": {
+      "bytes": 5134,
+      "sha256": "6965250dfd54880807113f78464823dfa739ac357c277dd7ad97a1a823c7d8b8"
+    },
+    "docs/evidence/cf-selection-20261022/dns-initial-binding.json": {
+      "bytes": 624,
+      "sha256": "dc45fd6cd875360366f8cceb5f329715e27bb8eade047759f5825c780258d846"
+    },
+    "docs/evidence/cf-selection-20261022/dns-summary.json": {
+      "bytes": 26216,
+      "sha256": "56efc4d13f5aad2b3e43e34adeffcddb1c27a12bbf861c8ac007742b1533a238"
+    },
+    "docs/evidence/cf-selection-20261022/selection-smoke-binding.json": {
+      "bytes": 652,
+      "sha256": "f2269fc79505ace432745a8a16a85170d81c45d41c7322901e01362ffd617630"
+    },
+    "docs/evidence/cf-selection-20261022/smoke-summary.json": {
+      "bytes": 518,
+      "sha256": "389fb900faa307a28cef68d72edbf1b81c5bc56fae0b04964dd81d567b72d512"
+    }
+  },
+  "sourceSHA256": {
+    "internal/console/cf_block_experiment_test.go": "7d9d7f43fc8d2b1580a29b01c38c4400834edabd3701e01d6a64ed997a22738a",
+    "internal/console/cf_selection_experiment_test.go": "a0d5ae91d926157e1ff1eda88da63cc5cbe05abe99d345af50e0a5800819c4ed",
+    "internal/console/cf_selection_harness_test.go": "07656c68e936800da388c26724595668213dc580fc98d0848c9bb280ae38e534",
+    "experiments/cf-block-paths/SELECTION.md": "edaad7ff8dd076f4b2e0553195a7ff09dc9c3dab1621ac12532b9fa7674af542",
+    "experiments/cf-block-paths/analyze_selection.py": "2f5c506eb31c22a20982081060d68abdd5067605b632973966249ae4555f77df",
+    "experiments/cf-block-paths/test_analyze_selection.py": "308550104d922e0880ac4a71fdc2298d23521fc6cfde461d0dcae73e09b8a97e",
+    "experiments/cf-block-paths/verify_binding.py": "d95d457fe37f1ce76bad1ffbe6e5a49dd3b764c89f8658d29c734fe67d47831c",
+    "experiments/cf-block-paths/evidence_time.py": "054530e99eeae24a35cf3360e25516aca7ecbad4a13bd79306dd7868afa6abdc"
+  },
+  "privateLogSHA256": {
+    "harness-tests.log": "b2c8c7e371c179b7a222170c18ba935dc5cf0ac59f73dfa944ca5a0a60b8a431",
+    "harness-final.log": "4c75344a27cc3ac26cb73a2b7ae2d057c0f6ba3510f65fa4ddc70ef2a730fcb4",
+    "final-tests.log": "b5104ee39fb899ffefb8be16978ca27b7f7c4445d82f5443a56259690c120bcd",
+    "final-tests-host.log": "da9698bacbe6a5e38a2df66b944d45fc49f7f5585e7574fc616d276cb2c46d3d",
+    "final-vet.json": "96419e30bf7e39a07c3233deb56b4b56a83c3b3caefa1e9fcbdb3f46ab6e5b49",
+    "final-race.log": "9d68d9d11c852e9896c079599bcd3a613e4158c00a42287acc29ed5d65f9e360",
+    "analysis-final-tests.log": "22a3c0954cbd6c9c25617cbb7dfc182ec42d8b35de3bc2acff11b0d9c8df9acd",
+    "setup-failures.json": "8d8f4e9ceb4f81b87916376324cd1a0dc7b4336526ce6f0c45684afdec3ff358",
+    "calibration-01.log": "c0898d9b8c52b886cf5115147ccd76afe8550b67fcc0c1cb23fa637f21dbdc30",
+    "calibration-02.log": "6fd0bdedd40f5cd34321030b337270af2448490d005bb0c9980aa8549b4be385"
+  },
+  "validation": {
+    "goTargeted": "passed on host; earlier sandbox fixture failures preserved",
+    "race": "passed: selection/recording/block/DNS/lease fixtures",
+    "vet": "passed: console with experiment tags",
+    "pythonTests": 13,
+    "pythonResult": "passed",
+    "bindingBatchesVerified": 4,
+    "calibration01": "completed: 28 probes, 21 training/reference loads, 30 evaluation loads",
+    "calibration02": "failed before media: API HTTP 523; 30 evaluation loads not executed",
+    "legacySmoke": "failed: no fixed media candidates; Monitor not executed",
+    "dnsObservation": "120 observations; one zero-TTL successful merged lookup; both families retained",
+    "limits": "one valid performance window; no history/time/network transfer or product end-to-end gain claimed"
+  },
+  "redaction": "Public destination IPs retained. Local interface identity, source addresses, signed URLs, ETags and raw error details excluded. Capture timestamps normalized to independent per-file relative baselines.",
+  "rawEvidence": "local ignored artifacts/issue21-work; older protocol evidence unchanged"
+}

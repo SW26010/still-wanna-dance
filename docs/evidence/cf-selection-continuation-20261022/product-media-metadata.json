@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "method": "Post-hoc local metadata inspection; reuse movie_header, match newly published file per task, recheck actual length and MD5. No new network requests.",
+  "sourceProductSHA256": "b3ef5013454ab931245d0be78307f926c738400560ce25b3595c4dc3420fcc79",
+  "parser": "scripts/video-metadata-study/analyze.py:movie_header",
+  "parserSourceSHA256": "fd7acd15f4b7c20a514f104b376901b503faf6a02193c903200abf33c1af3a02",
+  "privateExtractionScriptSHA256": "d06f1c87350dfa154687c38328d39f769de3479681d62d3d84c7867e38fdb6e7",
+  "metadata": [
+    {
+      "song": 1344,
+      "bytes": 40548476,
+      "duration_seconds": 201.503,
+      "timescale": 1000,
+      "moov_offset": 32,
+      "moov_bytes": 148723,
+      "moov_before_mdat": true,
+      "mvhd_version": 0,
+      "averageTotalMbps": 1.6098410842518476
+    },
+    {
+      "song": 10552,
+      "bytes": 103118762,
+      "duration_seconds": 511.765,
+      "timescale": 1000,
+      "moov_offset": 32,
+      "moov_bytes": 654914,
+      "moov_before_mdat": true,
+      "mvhd_version": 0,
+      "averageTotalMbps": 1.6119705255341807
+    },
+    {
+      "song": 10553,
+      "bytes": 20738718,
+      "duration_seconds": 219.2,
+      "timescale": 1000,
+      "moov_offset": 32,
+      "moov_bytes": 281297,
+      "moov_before_mdat": true,
+      "mvhd_version": 0,
+      "averageTotalMbps": 0.7568875182481752
+    }
+  ],
+  "limits": "Container duration and average total bitrate, not instantaneous peak, playable-prefix length, player startup, or observed stall rate. No timing endpoint or candidate selection changes."
+}

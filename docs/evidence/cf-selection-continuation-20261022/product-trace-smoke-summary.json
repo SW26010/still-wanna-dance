@@ -1,0 +1,127 @@
+{
+  "schema": 1,
+  "method": "actual-prefetch-cf-history-two-v2",
+  "sourceSHA256": "b02755ace4b478ab7afb79ecaa3bb0fdcf8dfb44f4828ff9d7db96856ae381fc",
+  "historySHA256": "fb8a2221d52ae2e0f5318d15075dd94663d12da097e24f5303983fad8d3cb640",
+  "started": "T+0s",
+  "finished": "T+16.6097403s",
+  "outcome": "diagnostic-completed",
+  "error": "",
+  "observedBodyBytes": 164405956,
+  "plannedSessions": 1,
+  "executedSessions": 1,
+  "plannedTasks": 3,
+  "executedTasks": 3,
+  "successfulTasks": 3,
+  "missingTasks": 0,
+  "remoteAttribution": "hostname-filtered verified TLS GotConn",
+  "timingScope": "task includes actual API, transfer, product MD5 validation and publication; session wall also includes harness snapshots and post-task file audits; operation sums exclude those audits and engine initialization",
+  "sessions": [
+    {
+      "round": 1,
+      "arm": "ordinary",
+      "error": "",
+      "setupError": "",
+      "started": "T+0.0150986s",
+      "finished": "T+16.6057353s",
+      "setupMS": 0,
+      "setupBytes": 0,
+      "selected": "",
+      "tasks": [
+        {
+          "song": 1344,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 5897.5491,
+          "observedSessionWallMS": 5907.0473,
+          "sumSetupAndTaskMS": 5897.5491,
+          "selections": [],
+          "requestCount": 40,
+          "mediaBodyBytes": 40548476,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 39
+          },
+          "mediaRemotes": {
+            "2606:4700:20::ac43:453a": 39
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 16,
+          "mediaCache": {
+            "HIT": 39
+          },
+          "reusedAttributedMediaConnections": 37,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 1
+        },
+        {
+          "song": 10552,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 6610.3017,
+          "observedSessionWallMS": 12559.9931,
+          "sumSetupAndTaskMS": 12507.8508,
+          "selections": [],
+          "requestCount": 100,
+          "mediaBodyBytes": 103118762,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 99
+          },
+          "mediaRemotes": {
+            "2606:4700:20::ac43:453a": 99
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 99
+          },
+          "reusedAttributedMediaConnections": 99,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 2
+        },
+        {
+          "song": 10553,
+          "ok": true,
+          "error": "",
+          "source": "MISS",
+          "prefixOK": true,
+          "elapsedMS": 3726.8472,
+          "observedSessionWallMS": 16426.9683,
+          "sumSetupAndTaskMS": 16234.698,
+          "selections": [],
+          "requestCount": 21,
+          "mediaBodyBytes": 20738718,
+          "requestErrors": {},
+          "statusCounts": {
+            "302": 1,
+            "206": 20
+          },
+          "mediaRemotes": {
+            "2606:4700:20::ac43:453a": 20
+          },
+          "unverifiedTracePeers": {},
+          "ignoredTraceConnections": 0,
+          "mediaCache": {
+            "HIT": 20
+          },
+          "reusedAttributedMediaConnections": 20,
+          "allPublishedFilesValid": true,
+          "publishedFileCount": 3
+        }
+      ],
+      "missingTasks": 0,
+      "probes": [],
+      "setupStatusCounts": {},
+      "setupRequestErrors": {}
+    }
+  ],
+  "comparisons": {},
+  "timeBasis": "T+seconds relative to the earliest nonzero timestamp in this file; unset timestamps are null; baselines across files are independent"
+}

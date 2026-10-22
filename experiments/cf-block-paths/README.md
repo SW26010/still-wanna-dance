@@ -2,6 +2,10 @@
 
 当前实验构建的出站要求见[网卡绑定规则](network.md)；下文原始网络假设、命令和冻结批次保留为历史。
 
+2026-10-22 的有限候选筛选、成本及留出资源研究使用独立[SELECTION 协议](SELECTION.md)和 `analyze_selection.py`；[结论与证据](../../docs/research/issue-21-cf-selection-20261022.md)不与下列旧窗口合并。
+
+首轮后恢复研究的独立时段与历史预测见 [CONTINUATION](CONTINUATION.md)；完整预取、Monitor 与两地址历史复验见 [PRODUCT](PRODUCT.md)，分别由 `analyze_history.py` 和 `analyze_product.py` 复算。产品预取 v1 的普通直连远端 trace 存在嵌套 DNS 归因限制，v2 修订及诊断另行标明。
+
 本实验复用产品 `directDNS`、`upstreamstate.Monitor`、固定候选 Transport 和 `cacheproxy.DiscardLoader`。入口在 `internal/console/cf_block_experiment_test.go`，仅以 `windows && cf_block_experiment` 标签编译；普通构建和测试不包含它。放在 console 测试包是为了访问实际 DNS 实现，避免为实验添加生产 API。
 
 > 首个下午两组窗口完成后，用户要求澄清 IPv4/IPv6 限制，后续执行改用独立[四组协议](FAMILY.md)。本文件作为原始预先方法保留，两种协议不混算。

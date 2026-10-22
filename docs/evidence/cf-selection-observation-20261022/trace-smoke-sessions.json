@@ -1,0 +1,181 @@
+{
+  "schema": 1,
+  "sourceSHA256": "b02755ace4b478ab7afb79ecaa3bb0fdcf8dfb44f4828ff9d7db96856ae381fc",
+  "method": "actual-prefetch-cf-history-two-v2",
+  "outcome": "diagnostic-completed",
+  "bodyBytes": 164405956,
+  "sessions": [
+    {
+      "round": 1,
+      "arm": "ordinary",
+      "complete": true,
+      "error": "",
+      "setupError": "",
+      "executedTasks": 3,
+      "successfulTasks": 3,
+      "setupMS": 0,
+      "setupBytes": 0,
+      "bodyBytes": 164405956,
+      "fullSessionWallMS": 16590.636,
+      "businessCompletionWallMS": 16426.9683,
+      "sumSetupAndTaskMS": 16234.698
+    }
+  ],
+  "pairs": [],
+  "ordinaryPaths": [
+    {
+      "round": 1,
+      "song": 1344,
+      "ok": true,
+      "taskElapsedMS": 5897.5491,
+      "requestCount": 40,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 39
+      },
+      "mediaCache": {
+        "HIT": 39
+      },
+      "unattributedMediaResponses": 0,
+      "peers": [
+        {
+          "ip": "2606:4700:20::ac43:453a",
+          "family": 6,
+          "responses": 39,
+          "bodyBytes": 40548476,
+          "reusedResponses": 37
+        }
+      ],
+      "apiEnvelope": {
+        "startAfterTaskMS": 0.00020000000000131024,
+        "endAfterTaskMS": 962.9748,
+        "wallSpanMS": 962.9746
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 964.0399,
+        "endAfterTaskMS": 5734.501200000001,
+        "wallSpanMS": 4770.4613
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 39,
+        "min": 172.67249999999967,
+        "median": 211.04500000000007,
+        "max": 792.4650999999999
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 39,
+        "min": 55.64679999999953,
+        "median": 161.40869999999995,
+        "max": 1012.9405000000006
+      },
+      "afterLastRecordedRequestMS": 163.04789999999957
+    },
+    {
+      "round": 1,
+      "song": 10552,
+      "ok": true,
+      "taskElapsedMS": 6610.3017,
+      "requestCount": 100,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 99
+      },
+      "mediaCache": {
+        "HIT": 99
+      },
+      "unattributedMediaResponses": 0,
+      "peers": [
+        {
+          "ip": "2606:4700:20::ac43:453a",
+          "family": 6,
+          "responses": 99,
+          "bodyBytes": 103118762,
+          "reusedResponses": 99
+        }
+      ],
+      "apiEnvelope": {
+        "startAfterTaskMS": 0.0003999999998995918,
+        "endAfterTaskMS": 365.90180000000055,
+        "wallSpanMS": 365.90140000000065
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 366.95640000000003,
+        "endAfterTaskMS": 6247.8721,
+        "wallSpanMS": 5880.9157
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 99,
+        "min": 169.97279999999955,
+        "median": 214.1298999999999,
+        "max": 621.2667000000001
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 99,
+        "min": 47.13840000000164,
+        "median": 159.7600999999995,
+        "max": 1030.8001999999997
+      },
+      "afterLastRecordedRequestMS": 362.4296000000004
+    },
+    {
+      "round": 1,
+      "song": 10553,
+      "ok": true,
+      "taskElapsedMS": 3726.8472,
+      "requestCount": 21,
+      "requestErrors": {},
+      "statusCounts": {
+        "302": 1,
+        "206": 20
+      },
+      "mediaCache": {
+        "HIT": 20
+      },
+      "unattributedMediaResponses": 0,
+      "peers": [
+        {
+          "ip": "2606:4700:20::ac43:453a",
+          "family": 6,
+          "responses": 20,
+          "bodyBytes": 20738718,
+          "reusedResponses": 20
+        }
+      ],
+      "apiEnvelope": {
+        "startAfterTaskMS": 0.00010000000111176632,
+        "endAfterTaskMS": 348.7464,
+        "wallSpanMS": 348.7462999999989
+      },
+      "mediaEnvelope": {
+        "startAfterTaskMS": 349.78540000000066,
+        "endAfterTaskMS": 3643.8875000000007,
+        "wallSpanMS": 3294.1021
+      },
+      "mediaResponseHeadersWaitMS": {
+        "n": 20,
+        "min": 185.4893000000011,
+        "median": 221.76975000000039,
+        "max": 453.8595999999998
+      },
+      "mediaHeadersToBodyCloseMS": {
+        "n": 20,
+        "min": 51.16030000000137,
+        "median": 68.91315000000031,
+        "max": 1006.5694000000003
+      },
+      "afterLastRecordedRequestMS": 82.95969999999943
+    }
+  ],
+  "scope": {
+    "gain": "ordinary minus strategy, paired by round and identical ordered songs; positive means saved time",
+    "fullSession": "Started to Finished, includes setup, actual business, harness saves/file audits and deferred cleanup",
+    "businessCompletion": "session start to last prefetch return; includes preceding harness work but excludes last external file audit and cleanup",
+    "sum": "sensitivity only: setup plus sequential task stopwatches; never used as wall time for concurrent work",
+    "requests": "interval envelopes overlap; headers wait includes pool/DNS/TCP/TLS/server time, not first-byte or isolated connect time; body interval includes consumer and Close time",
+    "residual": "after final recorded request includes unseparated local work; not a pure MD5, disk or scheduler measurement",
+    "history": "v1 unpinned peers are not attributed; v2 uses hostname-verified TLS; unused candidates have no inferred quality",
+    "experience": "prefetch only; no Range delivered to a player, first frame, playback stall or concurrent Monitor result"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "status": "morning-evidence; noon independent product window pending",
+  "hashBasis": "Git blob UTF-8 LF for public evidence and source; actual bytes for private logs/builds",
+  "evidenceSHA256": {
+    "calibration-morning-01-summary.json": "ea6b133f1f1aa362dde93ee3e64a1617c121d4b46ae13a10900400004b30b844",
+    "calibration-morning-01-binding.json": "a1cc5b5f02dcec95b833d5d4efebba8c1f72502344194a7c214c9f567a18a2a4",
+    "history-morning-01.json": "36e57169eb610e9a2db11da505449379e4c9ca95b47ab8e820edc8efbec409dc",
+    "product-morning-01-summary.json": "60347a57c081d02990b6e4ba2e038a8b0628597fbd3d6d6ccae9abfc4f3beeac",
+    "product-morning-01-binding.json": "c868dff1e37a354b9353fffcb524f7cd80db735dbf05a36dcf6010aebc1fa14e",
+    "product-trace-smoke-summary.json": "fd0bd1ccd02a487ea36fd1d2e4a328849a8d3e1ad22970164cf0fb8474970d28",
+    "product-trace-smoke-binding.json": "48f1ffd11522961f3c5738f7934a0e3547bf3e598246042788594b6ac051efa0",
+    "builds.json": "4dcfe8f1303c1e0173b3ecd8e4a69fe782149f143da835cb6b2f52c2d4c0d779",
+    "checks.json": "bdb701a239f8f151aec02170b60dc6f98c6ba9c2c684fa966f77ab0b0c63d237",
+    "dns-trace-regression.json": "bdf67f68ea9bc333e031ae4ec757f843be96c536c74247d43592f46c376513dd",
+    "product-media-metadata.json": "f506dd2769844e27c6fab269702e3eaf9c0eacd6bf36e0016e41c88d397d247c"
+  },
+  "sourceSHA256": {
+    "internal/console/cf_product_experiment_test.go": "f304a8a6a6eb9efb38ef04d85772c7e175eff521420e9c8d7dbc7341f4017fef",
+    "experiments/cf-block-paths/CONTINUATION.md": "88c80d23ea38fce18f759277181659bd7d49063a90856c40ce8922b3309021de",
+    "experiments/cf-block-paths/PRODUCT.md": "2139f88b86d647d848d7c1f3bc051d940bdfd95158eb847195ff4700cc49cfc4",
+    "experiments/cf-block-paths/analyze_history.py": "287d0df0d5305c27b81bf368454bb43bcffe36a515e50f3f99f172870872fa86",
+    "experiments/cf-block-paths/analyze_product.py": "c2b50e30c972c74a0985cdd20b1d32bbb991de49eca79c4adc9bffa4cc195014",
+    "experiments/cf-block-paths/test_analyze_product.py": "7bb032c5c9038b61bd2b89430e5d8c5955c273cd4619b0e0917f516366b91f37"
+  },
+  "privateSHA256": {
+    "artifacts/issue21-work/calibration-morning-01/selection.json": "92b695c084b8f9dc9b05bbf94e9a6124f977d209000a2f569f5cf4751119028c",
+    "artifacts/issue21-work/product-morning-01/product.json": "b3ef5013454ab931245d0be78307f926c738400560ce25b3595c4dc3420fcc79",
+    "artifacts/issue21-work/product-trace-smoke/product.json": "b02755ace4b478ab7afb79ecaa3bb0fdcf8dfb44f4828ff9d7db96856ae381fc",
+    "artifacts/issue21-work/product-v1-source.go": "1b62f8ae2d1d9eeac2264d41216b6c7743eeccbfef0a9558e25fc28752347d99",
+    "artifacts/issue21-work/product-v1-protocol.md": "93387e20773d700f053106ecc786621e5b27cad0e76e7711aa166879d32bd8e4",
+    "artifacts/issue21-work/product-v2-source.go": "97c6dd2208f9aa5aaed794dd8e88ac153747952e8c22f541148a48146cd8b0ff",
+    "artifacts/issue21-work/product-morning-01/1-monitor/monitor-private.json": "477d8bfc64cc6dba421994c668e6b794e5a4ff8f75c9dbf7426c7bc4a21abe9c",
+    "artifacts/issue21-work/product-morning-01/2-monitor/monitor-private.json": "dd3081b4a603b20f6d32532c8dff0a7823f08c451f2cf74ffc3eedc8d4940753",
+    "artifacts/issue21-work/product-morning-01/3-monitor/monitor-private.json": "72a6e968fa3a576c067dcb6682b36cefdfd260505509b39ac130d07232f330c3"
+  },
+  "limitations": [
+    "two independent calibration windows, one product comparison window",
+    "v1 unpinned media peers ambiguous due to nested DNS trace",
+    "v2 diagnostic is not another strategy comparison window"
+  ],
+  "sourceCommit": "0c6948837641be145f7c4360ae57093195d2c21a"
+}

@@ -1,0 +1,19 @@
+{
+  "batch": "dns-initial",
+  "tcpAttempts": 88,
+  "counts": {
+    "v4Connected": 48,
+    "canceled": 40
+  },
+  "otherErrors": {},
+  "allConnectedSourcesOnSelectedWifi": true,
+  "allConnectedPeersMatchTargets": true,
+  "allSelectedIndexesMatchAdapter": true,
+  "fatalBindingError": false,
+  "hashBasis": "actual-file-bytes",
+  "files": {
+    "connections-private.jsonl": "b00d76a81f5087b19c3006898632a7918f4cb96af01ad0cda23855f00dfcf9ae",
+    "dns.json": "699c032c9acd1468a9f4c9359ddf2686cd505a06e57e994127706e736d1be515",
+    "network-private.json": "6b45698b830ed2ac8706c9c7c232e89f0b8d24c07fe4f2961b2346c17b5a8940"
+  }
+}

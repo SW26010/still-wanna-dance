@@ -70,7 +70,7 @@ func (d *directDNS) setPolicy(p DNSPolicy) error {
 }
 
 // queryLocked coalesces background refresh and foreground cache misses.
-func (d *directDNS) queryLocked(parent context.Context, host string, s *dnsState) *dnsLookup {
+func (d *directDNS) queryLocked(host string, s *dnsState) *dnsLookup {
 	if call := d.lookups[host]; call != nil {
 		return call
 	}
@@ -80,15 +80,16 @@ func (d *directDNS) queryLocked(parent context.Context, host string, s *dnsState
 	}
 	call := &dnsLookup{done: make(chan struct{})}
 	d.lookups[host] = call
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), d.policy.QueryTimeout)
-	stop := context.AfterFunc(d.ctx, cancel)
+	// Shared DNS work belongs to the resolver, not the first waiting request.
+	// Inheriting that request's values also forwards its HTTP trace into DoH,
+	// misattributing DNS connections and response timing to the target server.
+	ctx, cancel := context.WithTimeout(d.ctx, d.policy.QueryTimeout)
 	s.attempted = time.Now()
 	query := s.query
 	d.wg.Add(1)
 	go func() {
 		defer d.wg.Done()
 		defer cancel()
-		defer stop()
 		ips, ttl, err := query(ctx)
 		if ctx.Err() != nil {
 			err = ctx.Err()
@@ -178,7 +179,7 @@ func (d *directDNS) scheduleLocked(host string, s *dnsState) {
 			d.changedLocked()
 			return
 		}
-		d.queryLocked(d.ctx, host, s)
+		d.queryLocked(host, s)
 	})
 	s.timer = timer
 }

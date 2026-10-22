@@ -97,7 +97,7 @@ func (d *directDNS) lookupShared(ctx context.Context, host string, query dnsQuer
 		d.mu.Unlock()
 		return slices.Clone(entry.ips), nil
 	}
-	call := d.queryLocked(ctx, host, s)
+	call := d.queryLocked(host, s)
 	d.mu.Unlock()
 	select {
 	case <-ctx.Done():

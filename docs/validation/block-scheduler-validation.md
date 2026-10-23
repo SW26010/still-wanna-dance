@@ -780,3 +780,11 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 2026-10-23：会话的地址更新／强 ETag 换址退出和结束清理集中到 `local_resource.go`，由 `reuseLocalResource`、`finishLocalResource` 处理注册与执行引用；回收改用 `blockFiles.emptyAndUnshared` 判断空闲注册。沿用既有取得入口、引用模型、锁序、块保护、pin／snapshot 和发布规则，没有新增状态或通用句柄。三个既有生命周期测试改为通过会话结束入口准备场景，保留原有文件清理、跨会话复用和旧读者断言。
 
 `go vet -tags=no_easytier ./internal/cacheproxy`、差异检查及缓存整包 Windows race 通过，整包命令为 `go test -tags=no_easytier -race ./internal/cacheproxy -count=1 -timeout=180s -json`，使用仓库临时目录入口与已有 GCC，耗时 67.199 秒，754 个测试及子测试通过、8 项按条件跳过，无 race 报告。日志在忽略目录 `artifacts/local-lifecycle-refactor/cache-race-unrestricted.jsonl`。首轮沙箱内硬链接／目录联接被拒绝，随后 ThreadSanitizer 报 `failed to restore address` 中止，原失败保留在同目录 `cache-race.jsonl`；未修改产品代码或测试断言绕过失败。本轮未运行 VRC，不新增游戏专属待验项。
+
+## 74. 重定向预算覆盖同一次块执行
+
+2026-10-24：正文失败后不断重定向到新 URL，可在同一次块执行中反复取得新地址的候选预算。修复将累计跳转计数放入已有 `resourceAttempts`，超限经明确错误结束外层重试；规则见 [canonical 尝试与截止](../download-resource-design.md#单次尝试超时与下载延续截止)。保留最终地址剩余候选的正常回退，不新增配置或总超时。
+
+真实本地 HTTP 回归覆盖单线路、多线路和首次响应前已有跳转；修复前均到达测试的 40 次安全停止点，修复后分别在 12、12、8 次请求结束。加强既有后续块测试，确认不同块各自用满五次跳转后，短正文、错误 Range 和强 ETag 不匹配仍能换线路成功。原四组 HTTP 对照复跑通过，固定地址失败、连续跳转上限和正常跳转成功保持原行为。
+
+日志保留在忽略目录 `artifacts/redirect-budget-fix-20261024/`：`regression-before.txt` 保留修复前失败，`regression-after.txt` 与 `original-http-after.txt` 为通过结果。缓存包 go vet、差异检查及整包 Windows race 通过；race 使用仓库临时目录入口与已有 GCC，命令为 `go test -tags=no_easytier -race ./internal/cacheproxy -count=1 -timeout=180s -json`，758 个测试及子测试通过、8 项按条件跳过，耗时 65.058 秒，无 race 报告，见 `cache-race-unrestricted.jsonl`。首轮沙箱内硬链接／目录联接拒绝及 ThreadSanitizer 中止保留在 `cache-race.jsonl`，随后同一命令在正常权限下通过。未验证真实上游是否出现该模式，本次无需 VRC 验证。

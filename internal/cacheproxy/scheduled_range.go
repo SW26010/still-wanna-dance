@@ -123,6 +123,9 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 		}
 		if err != nil {
 			last = applog.SafeError(err)
+			if errors.Is(err, errTooManyVideoRedirects) {
+				break
+			}
 			continue
 		}
 		if !flight.discard {

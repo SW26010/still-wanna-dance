@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -173,13 +174,67 @@ func TestResourceBodyFallbackReachesLastCandidate(t *testing.T) {
 	}
 }
 
+func TestRangeRedirectBudgetSurvivesBodyFailures(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		channels         int
+		initialRedirects int
+	}{
+		{"single-channel", 1, 0},
+		{"multiple-channels", 6, 0},
+		{"initial-redirects", 6, 4},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			var calls atomic.Int32
+			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+				n := int(calls.Add(1))
+				if n >= 40 {
+					cancel() // Safety stop if changing URLs still bypasses the budget.
+					return
+				}
+				if n <= tc.initialRedirects || (n-tc.initialRedirects)%2 == 0 {
+					u := *r.URL
+					q := u.Query()
+					q.Set("hop", strconv.Itoa(n))
+					u.RawQuery = q.Encode()
+					w.Header().Set("Location", "http://"+r.Host+u.RequestURI())
+					w.WriteHeader(http.StatusTemporaryRedirect)
+					return
+				}
+				w.Header().Set("Content-Length", strconv.Itoa(len(payload)))
+				w.Header().Set("Content-Range", "bytes 0-35/36")
+				w.WriteHeader(http.StatusPartialContent)
+				io.WriteString(w, "short")
+			})
+			s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+				channels := make([]http.RoundTripper, tc.channels)
+				for i := range channels {
+					channels[i] = s.client.Transport
+				}
+				return channels
+			}
+			_, err := s.Prefetch(ctx, videoURL(payload))
+			// Follow five redirects, then reject the sixth. Initial redirects
+			// must still count after the first response reaches the block reader.
+			want := int32(12 - tc.initialRedirects)
+			if ctx.Err() != nil || !errors.Is(err, errTooManyVideoRedirects) || calls.Load() != want {
+				t.Fatalf("calls=%d want=%d caller_error=%v error=%v", calls.Load(), want, ctx.Err(), err)
+			}
+		})
+	}
+}
+
 func TestLaterRangeRedirectRetriesFinalEndpoint(t *testing.T) {
 	for _, failure := range []string{"short", "wrong-range", "changed-etag"} {
 		t.Run(failure, func(t *testing.T) {
 			s, _ := setup(t, nil)
 			body := bytes.Repeat([]byte("z"), int(2*rangeBlockSize+16))
 			original := videoURL(string(body))
-			final := original + "&endpoint=B"
+			// Each later block uses all five redirects and must still be able
+			// to retry the final endpoint on its backup channel.
+			final := original + "&hop=5"
 			var originalFirst, originalBackup, finalFirst, finalBackup atomic.Int32
 			s.cfg.ResourceTransports = func(target string) []http.RoundTripper {
 				var transports []http.RoundTripper
@@ -194,10 +249,14 @@ func TestLaterRangeRedirectRetriesFinalEndpoint(t *testing.T) {
 							}
 							originalFirst.Add(1)
 							if start > 0 {
-								return &http.Response{StatusCode: 307, Header: http.Header{"Location": {final}}, Body: http.NoBody, Request: r}, nil
+								return &http.Response{StatusCode: 307, Header: http.Header{"Location": {original + "&hop=1"}}, Body: http.NoBody, Request: r}, nil
 							}
 						} else if target != final {
-							t.Errorf("unexpected target %s", target)
+							hop, err := strconv.Atoi(r.URL.Query().Get("hop"))
+							if err != nil || hop < 1 || hop >= 5 {
+								t.Errorf("unexpected target %s", target)
+							}
+							return &http.Response{StatusCode: 307, Header: http.Header{"Location": {original + "&hop=" + strconv.Itoa(hop+1)}}, Body: http.NoBody, Request: r}, nil
 						}
 						resp := &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": {fmt.Sprintf("bytes %d-%d/%d", start, end, len(body))}, "Etag": {`"stable"`}}, ContentLength: end - start + 1, Body: io.NopCloser(bytes.NewReader(body[start : end+1])), Request: r}
 						if target == final {

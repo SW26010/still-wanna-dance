@@ -13,6 +13,8 @@ import (
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
+var errTooManyVideoRedirects = errors.New("too many video redirects")
+
 func (s *Server) routeRequest(ctx context.Context, v video) (*http.Request, error) {
 	u := &url.URL{Scheme: s.cfg.OriginScheme, Host: v.host, Path: v.path, RawQuery: v.query}
 	r, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
@@ -28,7 +30,7 @@ func (s *Server) routeRequest(ctx context.Context, v video) (*http.Request, erro
 // API requests retain the client's no-redirect policy so their Location can be
 // parsed separately.
 func (s *Server) videoResponse(r *http.Request, original video, attempts *resourceAttempts) (*http.Response, error) {
-	for redirects := 0; redirects <= 5; redirects++ {
+	for {
 		resp, err := s.resourceResponse(r, attempts)
 		if err != nil {
 			return nil, err
@@ -55,10 +57,13 @@ func (s *Server) videoResponse(r *http.Request, original video, attempts *resour
 		if err != nil {
 			return nil, err
 		}
+		if attempts.redirects >= 5 {
+			return nil, errTooManyVideoRedirects
+		}
+		attempts.redirects++
 		next.Header = r.Header.Clone()
 		r = next
 	}
-	return nil, errors.New("too many video redirects")
 }
 
 // Retry measured channels of the same address only. The loading caller owns
@@ -68,7 +73,8 @@ type resourceCandidates struct {
 	next       int
 }
 type resourceAttempts struct {
-	targets map[string]*resourceCandidates
+	targets   map[string]*resourceCandidates
+	redirects int // Shared across all retries of this block execution.
 }
 
 func (s *Server) candidates(r *http.Request, attempts *resourceAttempts) *resourceCandidates {

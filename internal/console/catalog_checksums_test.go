@@ -229,6 +229,69 @@ func TestMD5CatalogInvalidChecksumDoesNotChangeMappings(t *testing.T) {
 	}
 }
 
+func TestCatalogRedirectErrorPrivacy(t *testing.T) {
+	const secret = "synthetic-catalog-secret"
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", "https://example.invalid/%zz?token="+secret)
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer origin.Close()
+	client := origin.Client()
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	root := t.TempDir()
+	cfg := fixtureCacheConfig()
+	cfg.StorageDir = filepath.Join(root, "data")
+	engine, err := cacheproxy.New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer engine.Close()
+	c := &Console{
+		checksumURL: origin.URL + "/catalog", client: client,
+		configPath: filepath.Join(root, "config.json"),
+		settings:   Settings{UpstreamMode: "direct", StorageDir: cfg.StorageDir},
+		batch:      Batch{Running: true, ScanOnly: true},
+	}
+	err = c.refreshLocalCatalog(context.Background(), engine)
+	if err == nil {
+		t.Fatal("expected malformed redirect error")
+	}
+	c.runBatch(context.Background(), engine, make(chan struct{}))
+	if closeErr := engine.Close(); closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	status, readErr := cacheproxy.LoadCatalogStatus(context.Background(), cfg.StorageDir)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	saved, readErr := readSnapshot[Batch](c, "attempt")
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	for name, message := range map[string]string{
+		"returned": err.Error(), "database": status.Error,
+		"batch": c.batch.CatalogWarning, "snapshot": saved.CatalogWarning,
+	} {
+		if strings.Contains(message, secret) || strings.Contains(message, "token=") || strings.Contains(message, "example.invalid") {
+			t.Errorf("%s retained redirect URL details", name)
+		}
+		if !strings.Contains(message, "Location") {
+			t.Errorf("%s lost the diagnostic category", name)
+		}
+	}
+}
+
+func TestCatalogRequestConstructionErrorPrivacy(t *testing.T) {
+	c := &Console{checksumURL: "https://example.invalid/%zz?token=synthetic-catalog-secret"}
+	_, err := c.fetchCatalogWithClient(context.Background(), &http.Client{})
+	if err == nil {
+		t.Fatal("expected request construction error")
+	}
+	if strings.Contains(err.Error(), "token=") || strings.Contains(err.Error(), "synthetic-catalog-secret") || strings.Contains(err.Error(), "example.invalid") {
+		t.Fatal("request construction error retained URL details")
+	}
+}
+
 func TestCatalogFailureUsesOnlyLocalFallback(t *testing.T) {
 	for _, bad := range []string{"http500", "truncated", "mapping", "metadata"} {
 		for _, scan := range []bool{true, false} {

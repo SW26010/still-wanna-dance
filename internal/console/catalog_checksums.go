@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/upstreamstate"
 )
@@ -53,11 +54,11 @@ func (c *Console) fetchCatalogSnapshot(ctx context.Context) (cacheproxy.Catalog,
 func (c *Console) fetchCatalogWithClient(ctx context.Context, client *http.Client) (cacheproxy.Catalog, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", c.checksumURL, nil)
 	if err != nil {
-		return cacheproxy.Catalog{}, err
+		return cacheproxy.Catalog{}, applog.SafeError(err)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return cacheproxy.Catalog{}, err
+		return cacheproxy.Catalog{}, applog.SafeError(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {

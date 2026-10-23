@@ -421,6 +421,9 @@ func (c *Console) ensureEngine() error {
 	}
 	c.mu.Unlock()
 	defer c.mu.Lock()
+	if _, err := c.inspectStorage(c.settings.StorageDir); err != nil {
+		return err
+	}
 	if err := writableDir(c.settings.StorageDir); err != nil {
 		return fmt.Errorf("存储目录不可写：%w", err)
 	}

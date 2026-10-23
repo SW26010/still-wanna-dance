@@ -53,12 +53,14 @@ func scanInventory(ctx context.Context, s Settings, allowMissingRoot bool) Inven
 	dir := filepath.Join(s.StorageDir, "videos")
 	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
-		// A never-used root need not exist. An initialized root missing videos,
-		// or a missing root with previously observed media, is still an error.
-		if rootEntries, rootErr := os.ReadDir(s.StorageDir); (rootErr == nil && len(rootEntries) == 0) || (allowMissingRoot && os.IsNotExist(rootErr)) {
-			err = nil
-		} else if os.IsNotExist(rootErr) && !allowMissingRoot {
-			err = missingStorageRootError(s.StorageDir, rootErr)
+		// Only a never-used root may be missing or empty. Preserve inventory
+		// when an initialized library loses its directory or contents.
+		if rootEntries, rootErr := os.ReadDir(s.StorageDir); (rootErr == nil && len(rootEntries) == 0) || os.IsNotExist(rootErr) {
+			if allowMissingRoot {
+				err = nil
+			} else {
+				err = missingStorageRootError(s.StorageDir, err)
+			}
 		}
 	}
 	if err != nil {
@@ -110,10 +112,11 @@ func checkInventoryDirectory(root string, allowMissingRoot bool) error {
 	dir := filepath.Join(root, "videos")
 	f, err := os.Open(dir)
 	if os.IsNotExist(err) {
-		if entries, rootErr := os.ReadDir(root); (rootErr == nil && len(entries) == 0) || (allowMissingRoot && os.IsNotExist(rootErr)) {
-			return nil
-		} else if os.IsNotExist(rootErr) && !allowMissingRoot {
-			return missingStorageRootError(root, rootErr)
+		if entries, rootErr := os.ReadDir(root); (rootErr == nil && len(entries) == 0) || os.IsNotExist(rootErr) {
+			if allowMissingRoot {
+				return nil
+			}
+			return missingStorageRootError(root, err)
 		}
 	}
 	if err == nil {

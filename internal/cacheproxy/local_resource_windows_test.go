@@ -23,7 +23,7 @@ func TestBlockCleanupFailureIsLoggedAndRetriedAtStartup(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := localBlockPath(t, d.storage, 0)
-	d.storage.release() // Only the registry remains.
+	s.finishLocalResource(d, context.Canceled) // Only the registry remains.
 	// Windows denies deletion while this unrelated handle remains open.
 	held, err := os.Open(path)
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 )
 
@@ -82,6 +83,7 @@ func (s *Server) newLocalResource(v video, first *http.Response, log *slog.Logge
 	return d, nil
 }
 
+// acquireLocalResource retains a caller reference independently of the registry.
 func (s *Server) acquireLocalResource(v video) (*localResource, error) {
 	s.retentionMu.Lock()
 	defer s.retentionMu.Unlock()
@@ -94,6 +96,36 @@ func (s *Server) acquireLocalResource(v video) (*localResource, error) {
 	}
 	return d, nil
 }
+
+// reuseLocalResource refreshes routing before any executor starts. A strong
+// validator belongs to its old address: drop both registry and execution
+// references when it changes, while old readers keep their own references.
+func (s *Server) reuseLocalResource(v video, d *localResource) *localResource {
+	if d == nil {
+		return nil
+	}
+	if d.etag != "" && !strings.HasPrefix(d.etag, "W/") && videoAddress(d.video) != videoAddress(v) {
+		s.forgetLocalResource(v.key, d)
+		d.storage.release()
+		return nil
+	}
+	d.video.host, d.video.path, d.video.query = v.host, v.path, v.query
+	return d
+}
+
+// finishLocalResource releases the execution reference. Keep reusable blocks
+// registered after cancellation or declined publication; success, invalid data
+// and empty storage no longer need the registry reference. Spools are independent.
+func (s *Server) finishLocalResource(d *localResource, result error) {
+	if d == nil {
+		return
+	}
+	if result == nil || errors.Is(result, errInvalidCache) || d.bytes() == 0 {
+		s.forgetLocalResource(d.video.key, d)
+	}
+	d.storage.release()
+}
+
 func (s *Server) forgetLocalResource(key string, expected *localResource) {
 	s.retentionMu.Lock()
 	matched := s.localResources[key] == expected

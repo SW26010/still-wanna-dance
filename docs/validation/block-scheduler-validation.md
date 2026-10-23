@@ -774,3 +774,9 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 - 同一命令在沙箱外完整通过：缓存 59.706 秒、调度器 1.145 秒、控制台 82.710 秒，无 race 报告，见 `affected-race-unrestricted.log`。此前权限和检测器错误未再出现。
 
 九笔观测均来自正常网络、SWD 已预缓存条件，支持此次策略收敛但不证明所有接手均在 2 秒内；need-by 平移统一属于调度策略选择。历史报告与失败记录保留，缩短交接后的实际慢网接手影响合并到既有 LA-040/041 下一轮操作，不新增台账编号或重复正常网络样本。本次未启动游戏、修改 hosts 或运行配置。
+
+## 73. 本地块资源生命周期封装
+
+2026-10-23：会话的地址更新／强 ETag 换址退出和结束清理集中到 `local_resource.go`，由 `reuseLocalResource`、`finishLocalResource` 处理注册与执行引用；回收改用 `blockFiles.emptyAndUnshared` 判断空闲注册。沿用既有取得入口、引用模型、锁序、块保护、pin／snapshot 和发布规则，没有新增状态或通用句柄。三个既有生命周期测试改为通过会话结束入口准备场景，保留原有文件清理、跨会话复用和旧读者断言。
+
+`go vet -tags=no_easytier ./internal/cacheproxy`、差异检查及缓存整包 Windows race 通过，整包命令为 `go test -tags=no_easytier -race ./internal/cacheproxy -count=1 -timeout=180s -json`，使用仓库临时目录入口与已有 GCC，耗时 67.199 秒，754 个测试及子测试通过、8 项按条件跳过，无 race 报告。日志在忽略目录 `artifacts/local-lifecycle-refactor/cache-race-unrestricted.jsonl`。首轮沙箱内硬链接／目录联接被拒绝，随后 ThreadSanitizer 报 `failed to restore address` 中止，原失败保留在同目录 `cache-race.jsonl`；未修改产品代码或测试断言绕过失败。本轮未运行 VRC，不新增游戏专属待验项。

@@ -52,9 +52,7 @@ func (s *Server) reclaimBlocksWithPolicies(policies map[string]resourcePolicy) {
 			changed = changed || remove
 			return remove
 		})
-		blocks.mu.Lock()
-		empty := len(blocks.files) == 0 && blocks.refs == 1
-		blocks.mu.Unlock()
+		empty := blocks.emptyAndUnshared()
 		if empty {
 			delete(s.localResources, key)
 		}

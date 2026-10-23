@@ -59,6 +59,15 @@ func (f *blockFiles) release() {
 	f.removeFiles(remove)
 }
 
+// emptyAndUnshared allows the registry to drop its last resource reference.
+// The caller must prevent new registry acquisitions until it detaches the entry.
+// Retired files may still have I/O pins; those independently delay deletion.
+func (f *blockFiles) emptyAndUnshared() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.files) == 0 && f.refs == 1
+}
+
 // store never exposes a short write or partially received block. Ordinary
 // cached file I/O deliberately leaves cache residency/writeback to the OS.
 func (f *blockFiles) store(block int64, data []byte) error {

@@ -44,7 +44,7 @@ func TestLocalResourceLifetimePreservesCompleteBlocksAndReaders(t *testing.T) {
 			reader = sp.reader(context.Background(), v.size)
 			sp.release()
 		}
-		d.storage.release()
+		s.finishLocalResource(d, context.Canceled)
 	}
 	defer reader.Close()
 	if len(s.localResources) != 40 || s.localResources[first.video.key] == nil {
@@ -182,7 +182,7 @@ func TestChangedAddressDoesNotReuseStrongValidator(t *testing.T) {
 			sp := local.makeSpool(nil)
 			reader := sp.reader(t.Context(), v.size)
 			sp.release()
-			local.storage.release() // The old execution has ended; only registry/reader remain.
+			s.finishLocalResource(local, context.Canceled) // Registry/reader remain after execution ends.
 			defer reader.Close()
 			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			defer cancel()

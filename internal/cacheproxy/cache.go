@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	"still-wanna-dance/internal/applog"
@@ -282,18 +281,8 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 		flight.progress.setHost(v.host)
 	}
 	flight.log.Info("download_started", "key", v.key, "size", v.size)
-	if local := flight.ranges; local != nil && local.etag != "" && !strings.HasPrefix(local.etag, "W/") && videoAddress(local.video) != videoAddress(v) {
-		// A strong validator belongs to its old address. Start a fresh entity
-		// when routing changes, rather than imposing that validator on the new
-		// endpoint or mixing unvalidated entities. Old readers keep their refs.
-		s.forgetLocalResource(v.key, local)
-		local.storage.release()
-		flight.ranges = nil
-	}
+	flight.ranges = s.reuseLocalResource(v, flight.ranges)
 	if flight.ranges != nil {
-		// Refresh routing before any executor starts, including a local hit
-		// whose missing file required a new address lookup.
-		flight.ranges.video.host, flight.ranges.video.path, flight.ranges.video.query = v.host, v.path, v.query
 		retained := flight.ranges.bytes()
 		flight.progress.mu.Lock()
 		flight.progress.bytes = retained
@@ -429,12 +418,7 @@ func (s *Server) startFlightLocked(v video, background bool, log *slog.Logger) (
 			f.spool.finish(f.err)
 			f.spool.release()
 		}
-		if local := f.ranges; local != nil {
-			if f.err == nil || errors.Is(f.err, errInvalidCache) || local.bytes() == 0 {
-				s.forgetLocalResource(v.key, local)
-			}
-			local.storage.release()
-		}
+		s.finishLocalResource(f.ranges, f.err)
 		s.mu.Lock()
 		delete(s.flights, v.key)
 		s.continueResourceUseLocked(v, f)

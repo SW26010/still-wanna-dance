@@ -55,7 +55,7 @@ func TestLocalProtectionWindowAndFixedTail(t *testing.T) {
 		time.Sleep(30 * time.Second)
 		release()
 		s.mu.Lock()
-		s.notifyCapacityLocked()
+		s.notifyUseChangedLocked(w.v.key)
 		s.mu.Unlock()
 		if protectionFor(s, w.v.key, 0).until != ended.Add(s.cfg.LocalProtectionGrace) {
 			t.Fatal("duplicate event refreshed grace")

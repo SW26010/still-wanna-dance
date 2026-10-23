@@ -43,6 +43,12 @@ func (s *Server) storageError(err error) error {
 	s.mu.Lock()
 	if s.storageFailure == nil {
 		s.storageFailure = err
+		// A terminal storage failure affects every pending admission and
+		// continuing resource, including those with no active download.
+		s.notifyCapacityLocked()
+		for key := range s.resourceChanges {
+			s.notifyResourceChangedLocked(key)
+		}
 	}
 	s.mu.Unlock()
 	return err

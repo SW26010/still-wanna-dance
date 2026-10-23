@@ -37,7 +37,7 @@ func (s *Server) reclaimBlocksWithPolicies(policies map[string]resourcePolicy) {
 		release bool
 	}
 	var pending []cleanup
-	changed := false
+	var changed []string
 	s.retentionMu.Lock()
 	aggressive := s.cfg.aggressiveBlockReclamation()
 	now := time.Now()
@@ -47,11 +47,15 @@ func (s *Server) reclaimBlocksWithPolicies(policies map[string]resourcePolicy) {
 			continue
 		}
 		blocks := local.storage
+		removed := false
 		paths := blocks.retire(func(block int64) bool {
 			remove := !s.blockProtectedLocked(key, block, now)
-			changed = changed || remove
+			removed = removed || remove
 			return remove
 		})
+		if removed {
+			changed = append(changed, key)
+		}
 		empty := blocks.emptyAndUnshared()
 		if empty {
 			delete(s.localResources, key)
@@ -59,10 +63,10 @@ func (s *Server) reclaimBlocksWithPolicies(policies map[string]resourcePolicy) {
 		pending = append(pending, cleanup{blocks, paths, empty})
 	}
 	s.retentionMu.Unlock()
-	if changed {
+	if len(changed) > 0 {
 		// Availability changed even when an I/O pin delays physical removal.
 		// Wake both live sessions and continuing usage after session completion.
-		s.notifyResourceAvailability()
+		s.notifyResourceAvailability(changed...)
 	}
 	for _, c := range pending {
 		c.blocks.removeFiles(c.paths)

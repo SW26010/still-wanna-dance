@@ -52,15 +52,13 @@ func (s *Server) notifyBlockStored() {
 	s.requestBlockReclamation()
 }
 
-// Availability notifications share the existing wakeup, but do not change usage
+// Availability changes only wake affected resources, without changing usage
 // or protection. Call after releasing retentionMu to preserve lock ordering.
-func (s *Server) notifyResourceAvailability() {
+func (s *Server) notifyResourceAvailability(keys ...string) {
 	s.notifyBlockObservation()
 	s.mu.Lock()
-	// Offline cache deletion has no running coordinator to notify.
-	if s.capacityChanged != nil {
-		close(s.capacityChanged)
-		s.capacityChanged = make(chan struct{})
+	for _, key := range keys {
+		s.notifyResourceChangedLocked(key)
 	}
 	s.mu.Unlock()
 }
@@ -70,7 +68,9 @@ func (s *Server) coordinateResourceUse(u *resourceUse) {
 	timer := time.NewTimer(time.Hour)
 	defer timer.Stop()
 	s.mu.Lock()
+	changes := s.watchResourceLocked(u.video.key)
 	defer func() {
+		s.unwatchResourceLocked(u.video.key)
 		delete(s.resourceUses, u.video.key)
 		s.mu.Unlock()
 	}()
@@ -101,7 +101,7 @@ func (s *Server) coordinateResourceUse(u *resourceUse) {
 				done, next = f.done, time.Time{}
 			}
 		}
-		changed := s.capacityChanged
+		changed := changes.changed
 		timer.Stop()
 		var entered <-chan time.Time
 		if !next.IsZero() {

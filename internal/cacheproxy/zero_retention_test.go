@@ -42,8 +42,7 @@ func TestZeroRetentionReusesExistingQueueVideoUntilHandoffExpires(t *testing.T) 
 	expectRetained(t, path, true)
 	// The exact grace is tested with a virtual clock; exercise worker wakeup here.
 	s.mu.Lock()
-	s.expireUseLocked(time.Now().Add(handoffGrace))
-	s.refreshUseProtectionLocked()
+	s.notifyUseChangedLocked(s.expireUseLocked(time.Now().Add(handoffGrace))...)
 	s.mu.Unlock()
 	s.retentionMu.Lock()
 	for b, p := range s.protection[fmt.Sprintf("%x", md5.Sum([]byte(payload)))] {

@@ -28,7 +28,7 @@ func TestIdleQueueRetimesWithoutUpdatesOrDownloads(t *testing.T) {
 		registerQueueResource(t, s, "1", w.v.key)
 		q := s.prefetchSources["1"]
 		base := time.Now()
-		changed := s.DemandCapacityChanged()
+		_, changed, _ := w.plan(time.Now(), true)
 		preparationChanged := s.QueuePreparationChanged()
 		time.Sleep(75 * time.Second)
 		synctest.Wait()

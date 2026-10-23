@@ -70,18 +70,22 @@ func TestPreparationAdmissionIsIndependentOfSessionCountAndCompletion(t *testing
 	// All forty sources must also reach their resource session. Merely
 	// signalling before an old 32-session wait would not remove the gate.
 	deadline := time.After(5 * time.Second)
-	for {
+	for i := range 40 {
+		key := videoKey(fmt.Sprintf("resource %d", i))
 		s.mu.Lock()
-		n, changed := len(s.flights), s.capacityChanged
+		watch := s.watchResourceLocked(key)
+		for s.flights[key] == nil {
+			changed := watch.changed
+			s.mu.Unlock()
+			select {
+			case <-changed:
+			case <-deadline:
+				t.Fatal("admitted source blocked behind a resource-session gate", i)
+			}
+			s.mu.Lock()
+		}
+		s.unwatchResourceLocked(key)
 		s.mu.Unlock()
-		if n == 40 {
-			break
-		}
-		select {
-		case <-changed:
-		case <-deadline:
-			t.Fatal("admitted source blocked behind a resource-session gate", n)
-		}
 	}
 	// Admission belongs to the original source, not its obtain attachment.
 	s.mu.Lock()

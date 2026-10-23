@@ -56,8 +56,8 @@ func (r useSpan) contains(key string, block int64) bool {
 func (s *Server) replaceUseLocked(old, span useSpan, playback bool) error {
 	// Timer delivery may lag behind a registration at the expiry boundary.
 	// Admission uses the actual deadline, never the callback's scheduling time.
-	if s.expireUseLocked(time.Now()) {
-		s.notifyCapacityLocked()
+	if keys := s.expireUseLocked(time.Now()); len(keys) > 0 {
+		s.notifyUseChangedLocked(keys...)
 	}
 	added, removed := 0, 0
 	for b := span.first; b < span.last; b++ {
@@ -94,14 +94,19 @@ func (s *Server) replaceUseLocked(old, span useSpan, playback bool) error {
 }
 
 func (s *Server) releaseUseLocked(span useSpan, at time.Time) {
+	released := false
 	for b := span.first; b < span.last; b++ {
 		id := useBlockID{span.key, b}
 		if n := s.useBlocks[id]; n > 1 {
 			s.useBlocks[id] = n - 1
-		} else {
+		} else if n == 1 {
 			s.endLocalUseLocked(id, at)
 			delete(s.useBlocks, id)
+			released = true
 		}
+	}
+	if released {
+		s.notifyCapacityLocked()
 	}
 }
 
@@ -148,12 +153,12 @@ func (s *Server) armUseTimerLocked() {
 	})
 }
 
-func (s *Server) expireUseLocked(now time.Time) bool {
-	changed := false
+func (s *Server) expireUseLocked(now time.Time) []string {
+	var changed []string
 	for len(s.useHandoffs) > 0 && !s.useHandoffs[0].until.After(now) {
 		h := heap.Pop(&s.useHandoffs).(*useHandoff)
 		s.releaseUseLocked(h.span, h.until)
-		changed = true
+		changed = append(changed, h.span.key)
 	}
 	return changed
 }
@@ -163,7 +168,23 @@ func (s *Server) expireUseLocked(now time.Time) bool {
 func (s *Server) DemandCapacityChanged() <-chan struct{} {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.demandCapacityChangedLocked()
+}
+
+func (s *Server) demandCapacityChangedLocked() <-chan struct{} {
+	if s.capacityChanged == nil {
+		s.capacityChanged = make(chan struct{})
+	}
 	return s.capacityChanged
+}
+
+// Unique usage release and terminal engine events wake global admission waiters.
+// Lazily recreate the channel so a multi-block release coalesces its signal.
+func (s *Server) notifyCapacityLocked() {
+	if s.capacityChanged != nil {
+		close(s.capacityChanged)
+		s.capacityChanged = nil
+	}
 }
 
 func (d *downloadDemand) useSpan() useSpan {

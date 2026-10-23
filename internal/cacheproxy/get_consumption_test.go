@@ -49,6 +49,46 @@ type acceptedWriter struct {
 	err         error
 }
 
+// Exercise consumption with no unique capacity release. Only the unrelated
+// resource grows; its blocks must not be projected by this mutation.
+func BenchmarkGETConsumptionWithUnrelatedUsage(b *testing.B) {
+	for _, unrelated := range []int64{0, 128, 1024, 4000} {
+		b.Run(fmt.Sprint(unrelated), func(b *testing.B) {
+			s := &Server{cfg: Config{LocalProtectionGrace: DefaultLocalProtectionGrace}}
+			now := time.Now()
+			add := func(key string, blocks int64) *downloadDemand {
+				v := video{key: key, size: blocks * rangeBlockSize}
+				clock := &playbackClock{at: now, limit: v.size, media: estimateMediaTiming(v.size, 0)}
+				ctx := context.WithValue(context.Background(), playbackClockKey{}, clock)
+				ctx = context.WithValue(ctx, httpGETKey{}, true)
+				d, release, err := s.addDemand(ctx, v, true)
+				if err != nil {
+					b.Fatal(err)
+				}
+				b.Cleanup(release)
+				return d
+			}
+			d := add("consumed", 2)
+			add("consumed", 2)
+			if unrelated > 0 {
+				add("unrelated", unrelated)
+			}
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				g := &getConsumption{s: s, demand: d, size: 2 * rangeBlockSize}
+				g.start(http.StatusOK, nil)
+				g.accept(rangeBlockSize)
+				// Restore this contribution without another notification/projection.
+				s.mu.Lock()
+				s.useBlocks[useBlockID{"consumed", 0}]++
+				d.firstBlock = 0
+				s.mu.Unlock()
+			}
+		})
+	}
+}
+
 func (w *acceptedWriter) Write(p []byte) (int, error) {
 	n := min(len(p), w.acceptBytes)
 	w.ResponseRecorder.Write(p[:n])

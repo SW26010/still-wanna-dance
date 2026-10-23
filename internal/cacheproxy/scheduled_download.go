@@ -13,7 +13,10 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
-const sourceLease = 30 * time.Second
+const (
+	sourceLease         = 30 * time.Second
+	sourceRenewInterval = sourceLease / 3
+)
 
 type scheduledBlock struct {
 	task       *blocksched.Task
@@ -35,11 +38,16 @@ type downloadSession struct {
 	finished    map[int64]bool            // Completed work in this session; independent of later aggressive reclamation.
 	capacity    <-chan struct{}
 	refetchAt   time.Time // Earliest protection entry of missing completed work; recomputed by plan.
+	changes     *resourceChange
+	leaseUntil  time.Time // Stable between confirmations; unrelated events cannot renew it.
 }
 
 func newDownloadSession(s *Server, ctx context.Context, v video, f *flight) *downloadSession {
 	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, wake: make(chan struct{}, 1), initialized: make(chan struct{}), jobs: make(map[int64]*scheduledBlock)}
 	w.reads = s.scheduler.NewReadRequests(v.key, func(block int64) string { return downloadTaskKey(w.v.key, w.v.size, block) }, w.wake)
+	s.mu.Lock()
+	w.changes = s.watchResourceLocked(v.key)
+	s.mu.Unlock()
 	return w
 }
 func (w *downloadSession) initialize(d *localResource) {
@@ -158,18 +166,33 @@ func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Ne
 
 func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]blockUse, <-chan struct{}, bool) {
 	w.refetchAt = time.Time{}
+	if !w.nextRenewal().After(now) {
+		w.leaseUntil = now.Add(sourceLease)
+	}
 	blocks := blockCount(w.v.size)
 	w.s.mu.Lock()
 	plan, active := w.s.usePlanLocked(w.v.key, now)
+	// Projection still checks actual source exits/expiry at now. Cap live
+	// leases to this confirmation's fixed horizon; shorter handoffs retain
+	// their original deadlines and continue to contribute nextExpiry.
+	for block, use := range plan {
+		if use.need.LeaseUntil.After(w.leaseUntil) {
+			use.need.LeaseUntil = w.leaseUntil
+		}
+		if use.nextExpiry.After(w.leaseUntil) {
+			use.nextExpiry = w.leaseUntil
+		}
+		plan[block] = use
+	}
 	if !initialized {
 		// Malformed Range still needs response metadata before ServeContent rejects it.
 		for d := range w.s.demands {
 			if d.key == w.v.key && d.playback && d.clock == nil {
-				plan[0] = mergeUse(plan[0], blockUse{need: blocksched.Need{Owner: w.v.key, LeaseUntil: now.Add(sourceLease), Opportunistic: true}, nextExpiry: now.Add(sourceLease)})
+				plan[0] = mergeUse(plan[0], blockUse{need: blocksched.Need{Owner: w.v.key, LeaseUntil: w.leaseUntil, Opportunistic: true}, nextExpiry: w.leaseUntil})
 			}
 		}
 	}
-	changed := w.s.capacityChanged
+	changed := w.changes.changed
 	w.s.mu.Unlock()
 	requested := w.reads.Requested()
 	for block := range requested {
@@ -386,6 +409,7 @@ func (w *downloadSession) reapCompleted(initialized *bool) (bool, error) {
 }
 
 func (w *downloadSession) close(result error) error {
+	defer w.releaseResourceWatch()
 	w.reads.Close()
 	if errors.Is(result, errPreempted) {
 		w.s.preemptFlight(w.f, nil)
@@ -403,6 +427,15 @@ func (w *downloadSession) close(result error) error {
 	return result
 }
 
+func (w *downloadSession) releaseResourceWatch() {
+	w.s.mu.Lock()
+	defer w.s.mu.Unlock()
+	if w.changes != nil {
+		w.s.unwatchResourceLocked(w.v.key)
+		w.changes = nil
+	}
+}
+
 func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *flight) (result error) {
 	w := newDownloadSession(s, ctx, v, f)
 	defer func() { result = w.close(result) }()
@@ -410,7 +443,7 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 	if initialized {
 		w.initialize(f.ranges)
 	}
-	timer := time.NewTimer(sourceLease / 3)
+	timer := time.NewTimer(sourceRenewInterval)
 	defer timer.Stop()
 	for {
 		if ctx.Err() != nil {
@@ -476,7 +509,7 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 		if !active && len(plan) == 0 && !until.After(now) {
 			return errPreempted
 		}
-		wait := sourceLease / 3
+		wait := w.nextRenewal().Sub(now)
 		if w.refetchAt.After(now) {
 			wait = min(wait, w.refetchAt.Sub(now))
 		}
@@ -510,6 +543,10 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 	ctx, stopPublication := context.WithTimeout(ctx, s.cfg.DownloadTimeout)
 	defer stopPublication()
 	return s.publishBlocks(ctx, path, v, f)
+}
+
+func (w *downloadSession) nextRenewal() time.Time {
+	return w.leaseUntil.Add(sourceRenewInterval - sourceLease)
 }
 
 // Historical completion only permits exit when plan has no remaining downloads

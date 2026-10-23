@@ -36,9 +36,9 @@ func (s *Server) protectionAhead() time.Duration {
 // crosses into local protection; local state does not retain source identities.
 // Cancellation/expiry is transferred or removed before its notification, so
 // pending callbacks must not independently remove protection here.
-func (s *Server) refreshUseProtectionLocked() {
+func (s *Server) refreshUseProtectionLocked(key string) {
 	ready := make(map[useBlockID]time.Time)
-	projected, _ := s.aggregateUseProjectionLocked("", time.Now())
+	projected, _ := s.aggregateUseProjectionLocked(key, time.Now())
 	for id, use := range projected {
 		if s.useBlocks[id] > 0 {
 			if at := use.protectReady; !at.IsZero() {
@@ -52,7 +52,7 @@ func (s *Server) refreshUseProtectionLocked() {
 	if s.protection == nil {
 		s.protection = make(map[string]map[int64]blockProtection)
 	}
-	for key, blocks := range s.protection {
+	if blocks := s.protection[key]; blocks != nil {
 		for b, p := range blocks {
 			p.start = time.Time{}
 			blocks[b] = p

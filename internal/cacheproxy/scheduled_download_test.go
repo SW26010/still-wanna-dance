@@ -42,6 +42,7 @@ func testResourceSession(t *testing.T, s *Server, v video) *downloadSession {
 	f := &flight{ranges: &localResource{done: make(map[int64]bool)}}
 	w := newDownloadSession(s, context.Background(), v, f)
 	t.Cleanup(w.reads.Close)
+	t.Cleanup(w.releaseResourceWatch)
 	close(w.initialized)
 	return w
 }

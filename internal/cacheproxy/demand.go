@@ -105,6 +105,7 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	previous := s.prefetchSources
+	var changedKeys []string
 	next := make(map[string]*queueSource, len(ids))
 	changed := reset || len(ids) != len(s.prefetchOrder)
 	for i, id := range ids {
@@ -138,6 +139,7 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 	}
 	for song, source := range previous {
 		if next[song] != source {
+			changedKeys = append(changedKeys, source.use.key)
 			source.removedAt = now
 			grace := time.Duration(0)
 			if source.position == 0 {
@@ -156,8 +158,8 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 	if reset {
 		s.queueStart = time.Time{}
 	}
-	s.retimeQueueLocked(now)
-	s.notifyCapacityLocked()
+	changedKeys = append(changedKeys, s.retimeQueueLocked(now)...)
+	s.notifyUseChangedLocked(changedKeys...)
 	return nil
 }
 func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downloadDemand, func(), error) {
@@ -190,6 +192,7 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 		s.mu.Unlock()
 		return nil, nil, context.Canceled
 	}
+	var previousKey string
 	if queue {
 		if s.validQueueSourceLocked(d) && token.expired {
 			s.mu.Unlock()
@@ -200,6 +203,7 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 				s.mu.Unlock()
 				return nil, nil, err
 			}
+			previousKey = token.use.key
 			token.use = d.useSpan()
 		}
 	} else if err := s.reserveUseLocked(d.useSpan(), playback); err != nil {
@@ -211,8 +215,7 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 	}
 	d.ctx, d.cancel = context.WithCancelCause(ctx)
 	s.demands[d] = true
-	s.retimeQueueLocked(time.Now())
-	s.notifyCapacityLocked()
+	s.notifyUseChangedLocked(append(s.retimeQueueLocked(time.Now()), previousKey, d.key)...)
 	s.mu.Unlock()
 	release := sync.OnceFunc(func() {
 		reason := withdrawalSourceGone
@@ -247,22 +250,46 @@ func (s *Server) removeDemandLocked(d *downloadDemand) {
 		s.endUseLocked(d.useSpan(), d.exit.when(), grace, clock, sourceGET)
 	}
 	delete(s.demands, d)
-	s.retimeQueueLocked(time.Now())
-	s.notifyCapacityLocked()
+	s.notifyUseChangedLocked(append(s.retimeQueueLocked(time.Now()), d.key)...)
 }
-func (s *Server) notifyCapacityLocked() {
-	s.refreshUseProtectionLocked()
+func (s *Server) notifyUseChangedLocked(keys ...string) {
+	changed := make(map[string]bool, len(keys))
+	for _, key := range keys {
+		if key != "" && !changed[key] {
+			s.refreshUseProtectionLocked(key)
+			changed[key] = true
+		}
+	}
 	// Even a delayed source exit first establishes its frozen handoff clock,
 	// then ends it at the original deadline. No callback delay extends grace.
-	if s.expireUseLocked(time.Now()) {
-		s.refreshUseProtectionLocked()
+	expired := s.expireUseLocked(time.Now())
+	for _, key := range expired {
+		changed[key] = true
+	}
+	// Expiry may affect the same resource as the mutation. Rebuild it after
+	// establishing the handoff's frozen clock and ending its final references.
+	for _, key := range uniqueResourceKeys(expired) {
+		s.refreshUseProtectionLocked(key)
 	}
 	// Source mutations publish their final clock/expiry and arm the shared timer
 	// together. Timer callbacks use this same path when they change sources.
 	s.armUseTimerLocked()
-	close(s.capacityChanged)
-	s.capacityChanged = make(chan struct{})
+	for key := range changed {
+		s.notifyResourceChangedLocked(key)
+	}
 	s.notifyBlockObservation()
+}
+
+func uniqueResourceKeys(keys []string) []string {
+	seen := make(map[string]bool, len(keys))
+	result := keys[:0]
+	for _, key := range keys {
+		if key != "" && !seen[key] {
+			seen[key] = true
+			result = append(result, key)
+		}
+	}
+	return result
 }
 
 func (s *Server) queueDemandContext(ctx context.Context, song string) context.Context {

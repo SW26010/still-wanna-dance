@@ -25,8 +25,10 @@ var errUpstreamDownload = errors.New("upstream download failed")
 func (s *Server) preemptFlight(f *flight, changed <-chan struct{}) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if changed != nil && changed != s.capacityChanged {
+	select {
+	case <-changed:
 		return false
+	default:
 	}
 	f.preempted = true
 	return true
@@ -92,7 +94,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		if f == nil || !f.preempted {
 			break
 		}
-		changed := s.capacityChanged
+		done := f.done
 		s.mu.Unlock()
 		// A retiring resource session must still allow a verified local hit.
 		if f, err := s.localHit(ctx, v); f != nil || err != nil {
@@ -103,7 +105,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		}
 		s.mu.Lock()
 		// Recheck after disk I/O: the requested session may have finished cleanup.
-		if changed != s.capacityChanged {
+		if s.flights[v.key] != f {
 			continue
 		}
 		s.mu.Unlock()
@@ -116,7 +118,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			return nil, nil, context.Cause(ctx)
 		case <-s.ctx.Done():
 			return nil, nil, context.Canceled
-		case <-changed:
+		case <-done:
 		}
 		s.mu.Lock()
 	}
@@ -386,8 +388,7 @@ func (s *Server) startFlightLocked(v video, background bool, log *slog.Logger) (
 	if background {
 		s.background++
 	}
-	close(s.capacityChanged)
-	s.capacityChanged = make(chan struct{})
+	s.notifyResourceChangedLocked(v.key)
 	s.wg.Add(1)
 	s.pinVideo(v)
 	go func() {
@@ -425,8 +426,7 @@ func (s *Server) startFlightLocked(v video, background bool, log *slog.Logger) (
 		if background {
 			s.background--
 		}
-		close(s.capacityChanged)
-		s.capacityChanged = make(chan struct{})
+		s.notifyResourceChangedLocked(v.key)
 		close(f.done)
 		releases := f.releases
 		s.mu.Unlock()

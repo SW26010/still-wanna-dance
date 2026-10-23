@@ -43,6 +43,6 @@ func (s *Server) expireDownload(f *flight, key string, block int64) {
 				s.removeDemandLocked(d)
 			}
 		}
-		s.notifyCapacityLocked()
+		s.notifyUseChangedLocked(key)
 	}
 }

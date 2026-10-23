@@ -96,7 +96,7 @@ func (s *Server) rearmQueueSourceLocked(q *queueSource) {
 }
 
 // Reuse the source lease renewal cadence, comfortably before download expiry.
-const queueRetimeInterval = sourceLease / 3
+const queueRetimeInterval = sourceRenewInterval
 
 func (s *Server) queuePlaybackEndLocked() time.Time {
 	var earliest time.Time
@@ -117,22 +117,26 @@ func (s *Server) queuePlaybackEndLocked() time.Time {
 // one forward. Request completion alone still does not mean playback completion.
 // This refresh maintains finite deadlines; projectUseLocked separately gates
 // windows by distance from the head, including between these refreshes.
-func (s *Server) retimeQueueLocked(now time.Time) bool {
+func (s *Server) retimeQueueLocked(now time.Time) []string {
 	earliest := s.queuePlaybackEndLocked()
 	if !earliest.IsZero() {
 		s.queueStart = earliest
 	} else if len(s.prefetchOrder) > 0 && s.queueStart.Before(now) {
 		s.queueStart = now
 	}
-	changed := false
+	var changed []string
 	start := s.queueStart
 	for i, id := range s.prefetchOrder {
 		duration := typicalDuration
 		if q := s.prefetchSources[strconv.FormatInt(id, 10)]; q != nil {
+			// Eligibility also depends on whether a GET exists, even when its
+			// estimated end equals the previous queue clock.
+			if q.use.key != "" {
+				changed = append(changed, q.use.key)
+			}
 			duration = q.timing.duration
 			if q.position == i {
 				if q.startAt != start {
-					changed = true
 					s.rearmQueueSourceLocked(q)
 				}
 				if q.startAt != start && s.cfg.Logger != nil {
@@ -171,8 +175,7 @@ func (s *Server) refreshQueueResourceTiming(ctx context.Context, v video) error 
 	if ctx.Err() == nil && s.prefetchSources[q.song] == q && q.timing != timing {
 		s.rearmQueueSourceLocked(q)
 		q.timing = timing
-		s.retimeQueueLocked(time.Now())
-		s.notifyCapacityLocked()
+		s.notifyUseChangedLocked(s.retimeQueueLocked(time.Now())...)
 	}
 	return nil
 }

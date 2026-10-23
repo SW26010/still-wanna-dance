@@ -50,6 +50,7 @@ func TestCanceledSessionCannotRestartTask(t *testing.T) {
 			f := &flight{streaming: make(chan struct{}), log: s.cfg.Logger}
 			f.progress = startProgress(f.log, v.size, time.Minute)
 			w := newDownloadSession(s, ctx, v, f)
+			defer w.releaseResourceWatch()
 			defer func() {
 				f.progress.finish(nil)
 				if f.spool != nil {

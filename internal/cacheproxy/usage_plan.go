@@ -70,8 +70,8 @@ func (s *Server) projectUseLocked(key string, now time.Time) (map[useBlockID]map
 // Read snapshots first bring delayed exits up to date. Mutations recompute
 // protection from the same projection without recursively delivering exits.
 func (s *Server) refreshUseSourcesLocked(now time.Time) {
-	if s.expireUseLocked(now) {
-		s.notifyCapacityLocked()
+	if keys := s.expireUseLocked(now); len(keys) > 0 {
+		s.notifyUseChangedLocked(keys...)
 	}
 	for d := range s.demands {
 		if !d.exit.active(d.ctx) {
@@ -80,9 +80,7 @@ func (s *Server) refreshUseSourcesLocked(now time.Time) {
 	}
 	// A delayed timer must not leave snapshots using an obsolete idle clock.
 	if next := s.nextQueueRetimeLocked(); !next.IsZero() && !next.After(now) {
-		if s.retimeQueueLocked(now) {
-			s.notifyCapacityLocked()
-		}
+		s.notifyUseChangedLocked(s.retimeQueueLocked(now)...)
 	}
 }
 

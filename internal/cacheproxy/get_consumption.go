@@ -45,7 +45,7 @@ func (g *getConsumption) start(status int, header http.Header) {
 			return
 		}
 		d.firstBlock, d.lastBlock = g.nextBlock, last
-		g.s.notifyCapacityLocked()
+		g.s.notifyUseChangedLocked(d.key)
 	}
 	g.s.mu.Unlock()
 }
@@ -72,6 +72,6 @@ func (g *getConsumption) accept(n int64) {
 	}
 	g.s.releaseUseLocked(useSpan{g.demand.key, g.demand.firstBlock, next}, time.Now())
 	g.demand.firstBlock = next
-	g.s.notifyCapacityLocked()
+	g.s.notifyUseChangedLocked(g.demand.key)
 	g.s.mu.Unlock()
 }

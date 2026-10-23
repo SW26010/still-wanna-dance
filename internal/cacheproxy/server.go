@@ -85,6 +85,7 @@ type Server struct {
 	verified         map[string]*verifiedFile
 	background       int
 	capacityChanged  chan struct{}
+	resourceChanges  map[string]*resourceChange // protected by mu; only subscribed resources
 	wg               sync.WaitGroup
 	closed           bool
 	unlock           func() error

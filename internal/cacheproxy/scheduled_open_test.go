@@ -28,6 +28,7 @@ func TestStoppedInitialRequestStartsWithFreshCandidates(t *testing.T) {
 			f.progress = startProgress(f.log, v.size, time.Minute)
 			defer f.progress.finish(nil)
 			w := newDownloadSession(s, ctx, v, f)
+			defer w.releaseResourceWatch()
 			defer func() {
 				if f.spool != nil {
 					f.spool.release()

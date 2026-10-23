@@ -91,7 +91,7 @@ func (s *Server) finishVideoRemoval(key string, removed bool) {
 	delete(s.deletingVideos, key)
 	s.retentionMu.Unlock()
 	if removed {
-		s.notifyResourceAvailability()
+		s.notifyResourceAvailability(key)
 	}
 }
 
@@ -165,10 +165,10 @@ func (s *Server) retainVideoLocked(key string, item *retainedVideo) {
 
 func (s *Server) reconcileRetention() error {
 	// Directory reconciliation can also discover externally removed files.
-	changed := false
+	var changed []string
 	defer func() {
-		if changed {
-			s.notifyResourceAvailability()
+		if len(changed) > 0 {
+			s.notifyResourceAvailability(changed...)
 		}
 	}()
 	s.retentionMu.Lock()
@@ -216,8 +216,7 @@ func (s *Server) reconcileRetention() error {
 	}
 	for key := range s.retained {
 		if _, exists := found[key]; !exists {
-			changed = true
-			break
+			changed = append(changed, key)
 		}
 	}
 	s.retained = found

@@ -182,8 +182,7 @@ func TestIdleQueueFutureEstimateTransitionsWithoutWallClockEntry(t *testing.T) {
 		registerQueueResource(t, s, "1", w.v.key)
 		s.mu.Lock()
 		s.prefetchSources["1"].timing = mediaTiming{w.v.size, 2500 * time.Second} // block 1: 125 s
-		s.retimeQueueLocked(time.Now())
-		s.notifyCapacityLocked()
+		s.notifyUseChangedLocked(s.retimeQueueLocked(time.Now())...)
 		s.mu.Unlock()
 		release()
 		time.Sleep(59 * time.Second)

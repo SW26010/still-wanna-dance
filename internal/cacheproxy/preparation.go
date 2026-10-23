@@ -33,8 +33,18 @@ func preparationAdmitted(ctx context.Context) {
 // Keep just the resolved next item pending at the producer. Source release and
 // handoff expiry wake admission without re-querying metadata or polling.
 func (s *Server) addPreparation(ctx context.Context, v video) (*downloadDemand, func(), error) {
+	s.mu.Lock()
+	resource := s.watchResourceLocked(v.key)
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		s.unwatchResourceLocked(v.key)
+		s.mu.Unlock()
+	}()
 	for {
-		changed := s.DemandCapacityChanged()
+		s.mu.Lock()
+		capacity, changed := s.demandCapacityChangedLocked(), resource.changed
+		s.mu.Unlock()
 		// A capacity waiter has no registered source yet. Recheck admission
 		// on every attempt; policy changes never revoke an admitted source.
 		if v.songID != "" {
@@ -59,6 +69,7 @@ func (s *Server) addPreparation(ctx context.Context, v video) (*downloadDemand, 
 		case <-s.ctx.Done():
 			return nil, nil, context.Canceled
 		case <-changed:
+		case <-capacity:
 		}
 	}
 }

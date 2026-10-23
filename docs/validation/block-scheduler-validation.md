@@ -788,3 +788,17 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 真实本地 HTTP 回归覆盖单线路、多线路和首次响应前已有跳转；修复前均到达测试的 40 次安全停止点，修复后分别在 12、12、8 次请求结束。加强既有后续块测试，确认不同块各自用满五次跳转后，短正文、错误 Range 和强 ETag 不匹配仍能换线路成功。原四组 HTTP 对照复跑通过，固定地址失败、连续跳转上限和正常跳转成功保持原行为。
 
 日志保留在忽略目录 `artifacts/redirect-budget-fix-20261024/`：`regression-before.txt` 保留修复前失败，`regression-after.txt` 与 `original-http-after.txt` 为通过结果。缓存包 go vet、差异检查及整包 Windows race 通过；race 使用仓库临时目录入口与已有 GCC，命令为 `go test -tags=no_easytier -race ./internal/cacheproxy -count=1 -timeout=180s -json`，758 个测试及子测试通过、8 项按条件跳过，耗时 65.058 秒，无 race 报告，见 `cache-race-unrestricted.jsonl`。首轮沙箱内硬链接／目录联接拒绝及 ThreadSanitizer 中止保留在 `cache-race.jsonl`，随后同一命令在正常权限下通过。未验证真实上游是否出现该模式，本次无需 VRC 验证。
+
+## 75. 队列内部唤醒脱离日志轮询
+
+2026-10-24：队列原先在每次日志轮询后唤醒，包括没有新内容时；解除屏蔽、已准备成员重新取得资格和普通失败重试也依赖该循环。现在来源同步、偏好成功提交和恢复准备资格直接通知 worker，普通失败使用最近到期的一次性 timer。沿用既有准入、完成、取消及来源计时机制，同一批日志快照完成同步后才允许准备。现行规则见[容量接入与准备回补](../download-resource-design.md#5-容量接入准备回补与保留取舍)。
+
+修复前，无日志读取／手工 wake 的队列更新、60 秒重试以及去掉手工 wake 的解除屏蔽测试均失败，保留 `artifacts/queue-wakeup-before.log`；修复后同组三项通过，见 `queue-wakeup-after.log`。新增虚拟时钟回归覆盖准确重试期限、无关快照不推迟期限、多个失败的先后重试、离队与换房，以及真实日志读取入口的批次合并和 5 分钟失效清空。已有自动重取截止测试增加恢复资格通知断言；普通时钟续期不通知，偏好写入失败不通知，成功通知后可读到已提交状态。
+
+验证均通过仓库临时目录入口执行，输出位于忽略目录 `artifacts/`：
+
+- 两个受影响包 `go test -tags=no_easytier ./internal/cacheproxy ./internal/console -count=1 -timeout=180s` 通过，分别为 47.788 / 62.293 秒，见 `queue-wakeup-packages.log`。
+- 队列、偏好、准备与准入定向 Windows race 通过，分别为 17.290 / 9.704 秒，见 `queue-wakeup-race.log`；最终批次同步调整后，控制台定向 race 再次通过（9.859 秒），见 `queue-wakeup-final-race.log`。使用已有 GCC，无 race 报告。
+- 两包 `go vet` 与差异检查通过，最终静态检查见 `queue-wakeup-final-vet.log`。
+
+此次验证覆盖内部通知、时序与取消，不量化 CPU／数据库性能收益。未启动 VRC、修改 hosts 或用户运行配置；日志采集周期和游戏侧规则未变，不新增游戏专属待验项。

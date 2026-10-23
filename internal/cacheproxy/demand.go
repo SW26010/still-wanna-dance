@@ -129,7 +129,7 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 				}
 				changed = changed || source.timing != metadata.timing || source.title != metadata.title
 				if source.timing != metadata.timing {
-					source.expired = false
+					s.rearmQueueSourceLocked(source)
 				}
 				source.timing, source.title = metadata.timing, metadata.title
 				next[song] = source

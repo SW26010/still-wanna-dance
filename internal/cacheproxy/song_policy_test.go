@@ -86,6 +86,36 @@ func TestSongPoliciesPersistWithoutDownloadOrCatalogMutation(t *testing.T) {
 	}
 }
 
+func TestSongPolicyNotifiesQueueOnlyAfterCommit(t *testing.T) {
+	s, _ := setup(t, nil)
+	changed := s.QueuePreparationChanged()
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if err := s.SetSongPolicy(ctx, 42, SongBlocked); err == nil {
+		t.Fatal("canceled preference write succeeded")
+	}
+	select {
+	case <-changed:
+		t.Fatal("failed preference write notified the queue")
+	default:
+	}
+	for _, policy := range []SongPolicy{SongBlocked, SongNormal} {
+		changed = s.QueuePreparationChanged()
+		if err := s.SetSongPolicy(t.Context(), 42, policy); err != nil {
+			t.Fatal(err)
+		}
+		select {
+		case <-changed:
+		default:
+			t.Fatal("committed preference did not notify the queue", policy)
+		}
+		policies, err := s.SongPolicies(t.Context())
+		if err != nil || (policies[42] == SongBlocked) != (policy == SongBlocked) {
+			t.Fatal("notification preceded committed state", policies, err)
+		}
+	}
+}
+
 func TestResourcePoliciesFollowSharedCurrentAssociations(t *testing.T) {
 	s, _ := setup(t, nil)
 	ctx := context.Background()

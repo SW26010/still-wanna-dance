@@ -192,7 +192,6 @@ func TestQueueSkipsBlockedWithoutRetryAndResumesAfterUnblock(t *testing.T) {
 	if err := engine.SetSongPolicy(ctx, 1, cacheproxy.SongNormal); err != nil {
 		t.Fatal(err)
 	}
-	wake <- struct{}{}
 	wait(func() bool { return c.queue.Completed == 1 })
 	if calls.Load() != 1 {
 		t.Fatal("unblocked preparation was not admitted once", calls.Load())

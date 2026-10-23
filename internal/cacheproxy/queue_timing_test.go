@@ -29,6 +29,7 @@ func TestIdleQueueRetimesWithoutUpdatesOrDownloads(t *testing.T) {
 		q := s.prefetchSources["1"]
 		base := time.Now()
 		changed := s.DemandCapacityChanged()
+		preparationChanged := s.QueuePreparationChanged()
 		time.Sleep(75 * time.Second)
 		synctest.Wait()
 		want := base.Add(70 * time.Second)
@@ -42,6 +43,11 @@ func TestIdleQueueRetimesWithoutUpdatesOrDownloads(t *testing.T) {
 		case <-changed:
 		default:
 			t.Fatal("clock change did not notify downstream consumers")
+		}
+		select {
+		case <-preparationChanged:
+			t.Fatal("ordinary clock renewal woke queue preparation")
+		default:
 		}
 		if p := protectionFor(s, w.v.key, 0); p.start != want.Add(-s.protectionAhead()) || !p.until.IsZero() {
 			t.Fatal("download and protection clocks diverged or created a grace tail", p)

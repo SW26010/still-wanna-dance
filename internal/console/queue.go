@@ -34,7 +34,8 @@ type QueueStatus struct {
 	Generation uint64            `json:"-"`
 	waiters    map[int64]*queueWaiter
 	prepared   map[int64]bool
-	protect    func([]int64, bool)
+
+	updateSources func([]int64, bool)
 }
 
 type queueWaiter struct {
@@ -102,13 +103,19 @@ func (c *Console) setQueueSongsLocked(songs []vrclog.Song, reset bool) {
 	c.mu.Unlock()
 	c.queueUpdateMu.Lock()
 	c.mu.Lock()
-	c.queue.setSongs(songs, reset)
-	protect := c.queue.protect
-	c.mu.Unlock()
-	if protect != nil {
-		protect(queueSongIDs(songs), reset)
-	}
+	c.updateQueueSongsLocked(songs, reset)
 	c.queueUpdateMu.Unlock()
+}
+
+// Both locks are held on entry/return. The log reader keeps queueUpdateMu across
+// one batch of snapshots, so notifications cannot admit an intermediate queue.
+func (c *Console) updateQueueSongsLocked(songs []vrclog.Song, reset bool) {
+	c.queue.setSongs(songs, reset)
+	updateSources := c.queue.updateSources
+	c.mu.Unlock()
+	if updateSources != nil {
+		updateSources(queueSongIDs(songs), reset)
+	}
 	c.mu.Lock()
 }
 
@@ -282,15 +289,16 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 				lastActivity = now
 				stale = false
 			}
+			c.queueUpdateMu.Lock()
 			c.mu.Lock()
 			c.queue.File = logName(tail.Path)
 			c.queue.LogError = ""
 			if err != nil {
 				c.queue.LogError = "日志读取失败：" + err.Error()
-				c.setQueueSongsLocked(nil, true)
+				c.updateQueueSongsLocked(nil, true)
 			}
 			for _, e := range events {
-				c.setQueueSongsLocked(e.Songs, e.Reset)
+				c.updateQueueSongsLocked(e.Songs, e.Reset)
 				c.queue.Updated = now
 				ids := make([]int64, len(e.Songs))
 				for i, song := range e.Songs {
@@ -301,28 +309,29 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 			if now.Sub(lastActivity) >= 5*time.Minute {
 				if !stale {
 					slog.Warn("vrchat_log_stale")
-					c.setQueueSongsLocked(nil, true)
+					c.updateQueueSongsLocked(nil, true)
 					stale = true
 				}
 				c.queue.LogError = "日志 5 分钟未更新，已清空待处理队列，等待新的同步"
 			}
 			c.mu.Unlock()
-			select {
-			case wake <- struct{}{}:
-			default:
-			}
+			c.queueUpdateMu.Unlock()
 		}
 	}
 }
 
 // The coordinator admits sources in queue order. Each admitted preparation
 // reports its result independently; completion never holds a song-level slot.
-func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wake <-chan struct{}) {
+func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wake chan struct{}) {
 	c.queueUpdateMu.Lock()
 	c.mu.Lock()
-	c.queue.protect = func(ids []int64, reset bool) {
+	c.queue.updateSources = func(ids []int64, reset bool) {
 		if err := engine.UpdatePrefetchQueue(ids, reset); err != nil {
 			slog.Warn("queue_timing_failed", "error", err)
+		}
+		select {
+		case wake <- struct{}{}:
+		default:
 		}
 	}
 	ids := queueSongIDs(c.queue.Songs)
@@ -351,7 +360,7 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		c.queueUpdateMu.Lock()
 		c.mu.Lock()
 		c.queue.waiters = nil
-		c.queue.protect = nil
+		c.queue.updateSources = nil
 		c.mu.Unlock()
 		engine.UpdatePrefetchQueue(nil, true)
 		c.queueUpdateMu.Unlock()
@@ -359,10 +368,14 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 	var generation uint64
 	retry := map[int64]time.Time{}
 	active := map[int64]bool{}
+	retryTimer := time.NewTimer(time.Minute)
+	retryTimer.Stop()
+	defer retryTimer.Stop()
 	for {
 		if ctx.Err() != nil {
 			return
 		}
+		changed := engine.QueuePreparationChanged()
 		policies, policyErr := engine.SongPolicies(ctx)
 		if policyErr != nil && ctx.Err() == nil {
 			slog.Warn("queue_song_preferences_failed", "error", policyErr)
@@ -390,6 +403,7 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 				delete(c.queue.prepared, id)
 			}
 		}
+		now := time.Now()
 		// Only the unresolved/unadmitted next source waits here. Already
 		// admitted resources keep downloading and reporting independently.
 		if admission != nil {
@@ -407,7 +421,7 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 						if song.ID == admitting {
 							break
 						}
-						if song.ID > 0 && policies[song.ID] != cacheproxy.SongBlocked && !active[song.ID] && !c.queue.prepared[song.ID] && !time.Now().Before(retry[song.ID]) {
+						if song.ID > 0 && policies[song.ID] != cacheproxy.SongBlocked && !active[song.ID] && !c.queue.prepared[song.ID] && !now.Before(retry[song.ID]) {
 							waiter.cancel()
 							admission, admitting = nil, 0
 							break
@@ -421,10 +435,11 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 				break
 			}
 			id := song.ID
-			if id <= 0 || policies[id] == cacheproxy.SongBlocked || active[id] || c.queue.prepared[id] || time.Now().Before(retry[id]) {
+			if id <= 0 || policies[id] == cacheproxy.SongBlocked || active[id] || c.queue.prepared[id] || now.Before(retry[id]) {
 				continue
 			}
 			active[id] = true
+			delete(retry, id)
 			gen := generation
 			songCtx, cancel := context.WithCancel(applog.WithTrace(ctx))
 			songCtx, admission = cacheproxy.WithPreparationAdmission(songCtx)
@@ -465,12 +480,29 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		if len(ids) > 0 {
 			c.queue.Current = ids[0]
 		}
+		// Already-due entries held behind admission wait for that operation's
+		// signal, rather than repeatedly arming a zero-delay timer.
+		var nextRetry time.Time
+		for _, song := range c.queue.Songs {
+			id, due := song.ID, retry[song.ID]
+			if policies[id] != cacheproxy.SongBlocked && !active[id] && !c.queue.prepared[id] && due.After(now) && (nextRetry.IsZero() || due.Before(nextRetry)) {
+				nextRetry = due
+			}
+		}
 		c.mu.Unlock()
 		c.queueUpdateMu.Unlock()
+		retryTimer.Stop()
+		var retryDue <-chan time.Time
+		if !nextRetry.IsZero() {
+			retryTimer.Reset(time.Until(nextRetry))
+			retryDue = retryTimer.C
+		}
 		select {
 		case <-ctx.Done():
 			return
 		case <-wake:
+		case <-changed:
+		case <-retryDue:
 		case <-admission:
 			admission, admitting = nil, 0
 		case r := <-results:

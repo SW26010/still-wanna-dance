@@ -68,6 +68,33 @@ func (s *Server) QueueNeedsPreparation(id int64) bool {
 	return q != nil && !q.expired && q.use.first == q.use.last
 }
 
+// QueuePreparationChanged closes when song preferences change or an expired
+// member regains preparation eligibility. Subscribe before reading either state
+// so changes during reconciliation cannot be lost. Capacity waits use their own
+// existing notification; ordinary clock renewal needs no coordinator wakeup.
+func (s *Server) QueuePreparationChanged() <-chan struct{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.queuePreparationChanged == nil {
+		s.queuePreparationChanged = make(chan struct{})
+	}
+	return s.queuePreparationChanged
+}
+
+func (s *Server) notifyQueuePreparationLocked() {
+	if s.queuePreparationChanged != nil {
+		close(s.queuePreparationChanged)
+		s.queuePreparationChanged = nil
+	}
+}
+
+func (s *Server) rearmQueueSourceLocked(q *queueSource) {
+	if q.expired {
+		q.expired = false
+		s.notifyQueuePreparationLocked()
+	}
+}
+
 // Reuse the source lease renewal cadence, comfortably before download expiry.
 const queueRetimeInterval = sourceLease / 3
 
@@ -106,7 +133,7 @@ func (s *Server) retimeQueueLocked(now time.Time) bool {
 			if q.position == i {
 				if q.startAt != start {
 					changed = true
-					q.expired = false // Only an actual source clock change permits another preparation.
+					s.rearmQueueSourceLocked(q)
 				}
 				if q.startAt != start && s.cfg.Logger != nil {
 					s.cfg.Logger.Debug("queue_playback_timing", "song_id", q.song, "position", i, "starts_at", start, "media_bytes", q.timing.size, "duration_seconds", q.timing.duration.Seconds())
@@ -142,7 +169,7 @@ func (s *Server) refreshQueueResourceTiming(ctx context.Context, v video) error 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if ctx.Err() == nil && s.prefetchSources[q.song] == q && q.timing != timing {
-		q.expired = false
+		s.rearmQueueSourceLocked(q)
 		q.timing = timing
 		s.retimeQueueLocked(time.Now())
 		s.notifyCapacityLocked()

@@ -22,7 +22,7 @@ func TestQueueProtectionWaitReleasesStateLockAndPreservesResetOrder(t *testing.T
 		reset bool
 	}
 	calls := make(chan update, 2)
-	c.queue.protect = func(ids []int64, reset bool) {
+	c.queue.updateSources = func(ids []int64, reset bool) {
 		calls <- update{ids, reset}
 		if len(ids) > 0 && ids[0] == 1 {
 			close(entered)
@@ -85,7 +85,7 @@ func TestQueueProtectionWaitAllowsStopCancellation(t *testing.T) {
 	defer cancel()
 	c.queueCancel = cancel
 	entered, done := make(chan struct{}), make(chan struct{})
-	c.queue.protect = func([]int64, bool) { close(entered); <-ctx.Done() }
+	c.queue.updateSources = func([]int64, bool) { close(entered); <-ctx.Done() }
 	go func() { c.mu.Lock(); c.setQueueSongsLocked([]vrclog.Song{{ID: 1}}, false); c.mu.Unlock(); close(done) }()
 	<-entered
 	stopped := make(chan int, 1)

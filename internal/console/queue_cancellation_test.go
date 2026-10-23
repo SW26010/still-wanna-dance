@@ -84,16 +84,16 @@ func TestQueueInvalidationReplacesSourcesDuringHandoff(t *testing.T) {
 			if change == "reorder" {
 				next = []vrclog.Song{{ID: 3}, {ID: 1}, {ID: 2}}
 			}
-			protect := c.queue.protect
+			updateSources := c.queue.updateSources
 			updating, allowUpdate, updated := make(chan struct{}), make(chan struct{}), make(chan struct{})
 			finishUpdate := sync.OnceFunc(func() { close(allowUpdate) })
 			defer finishUpdate()
-			c.queue.protect = func(ids []int64, reset bool) {
+			c.queue.updateSources = func(ids []int64, reset bool) {
 				if len(ids) > 0 && ids[0] == 3 {
 					close(updating)
 					<-allowUpdate
 				}
-				protect(ids, reset)
+				updateSources(ids, reset)
 			}
 			c.mu.Unlock()
 			go func() { c.mu.Lock(); c.setQueueSongsLocked(next, false); c.mu.Unlock(); close(updated) }()

@@ -283,6 +283,7 @@ func TestCompletedQueueRefetchExpiryRearmsPreparation(t *testing.T) {
 	if s.QueueNeedsPreparation(42) || calls.Load() != 1 {
 		t.Fatal("unchanged expired member was retried", calls.Load())
 	}
+	changed := s.QueuePreparationChanged()
 	// An actual GET changes the queue's playback anchor and rearms preparation.
 	releaseClock()
 	ctx := context.WithValue(t.Context(), playbackClockKey{}, &playbackClock{
@@ -292,6 +293,11 @@ func TestCompletedQueueRefetchExpiryRearmsPreparation(t *testing.T) {
 	defer release()
 	if !s.QueueNeedsPreparation(42) {
 		t.Fatal("clock change did not expose the missing preparation")
+	}
+	select {
+	case <-changed:
+	default:
+		t.Fatal("rearmed preparation did not notify the queue coordinator")
 	}
 	if source, err := s.PrefetchQueuePlayback(t.Context(), 42); err != nil || source != "TEMP" {
 		t.Fatal("rearmed member could not prepare", source, err)

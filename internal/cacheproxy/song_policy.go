@@ -74,7 +74,7 @@ func (s *Server) CheckSongAllowed(ctx context.Context, id int64) error {
 	return nil
 }
 
-// SetSongPolicy commits the preference before waking ordinary retention.
+// SetSongPolicy commits the preference before waking retention and queue selection.
 // Serializing with publication/eviction prevents a newly favored file from being
 // deleted by a retention decision made before this call completed.
 func (s *Server) SetSongPolicy(ctx context.Context, id int64, policy SongPolicy) error {
@@ -93,6 +93,9 @@ func (s *Server) SetSongPolicy(ctx context.Context, id int64, policy SongPolicy)
 	s.retentionMu.Lock()
 	s.requestRetentionLocked()
 	s.retentionMu.Unlock()
+	s.mu.Lock()
+	s.notifyQueuePreparationLocked()
+	s.mu.Unlock()
 	return nil
 }
 

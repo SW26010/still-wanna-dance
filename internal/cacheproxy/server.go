@@ -104,6 +104,8 @@ type Server struct {
 	retentionChanges map[string]bool
 	versionPins      map[string]int
 	deletingVideos   map[string]chan struct{}
+
+	queuePreparationChanged chan struct{} // protected by mu; lazily subscribed
 }
 
 func New(cfg Config) (*Server, error) {

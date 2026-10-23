@@ -44,6 +44,10 @@ type Config struct {
 	// a sequential response, and each local validation/publication phase.
 	// Scheduling waits are governed by demand leases and caller cancellation.
 	DownloadTimeout time.Duration
+	// BlockSize is the download/storage block size in bytes; zero uses
+	// DefaultBlockSize. It is fixed at construction, including for old readers.
+	// The caller owns buffer sizing; user-facing tuning limits are not defined here.
+	BlockSize int64
 	// PrepareAhead is the full lead M for scheduled downloads; zero uses the default.
 	PrepareAhead time.Duration
 	// DownloadSoftLimit bounds ordinary block execution; blocked reads may exceed it.
@@ -92,6 +96,7 @@ func DefaultConfig() Config {
 		StorageDir:                 "still-wanna-dance-data",
 		Origins:                    make(map[string]string),
 		DownloadTimeout:            10 * time.Minute,
+		BlockSize:                  DefaultBlockSize,
 		PrepareAhead:               blocksched.DefaultPrepareAhead,
 		DownloadSoftLimit:          VideoRequestSoftLimit,
 		DownloadGrowInterval:       DefaultDownloadGrowInterval,
@@ -103,6 +108,11 @@ func DefaultConfig() Config {
 }
 
 func (c Config) validate() error {
+	// Each executing Range may allocate BlockSize+1 bytes (the extra byte
+	// detects oversized responses). Reject sizes that cannot fit a Go buffer.
+	if c.BlockSize < 0 || uint64(c.BlockSize) >= uint64(^uint(0)>>1) {
+		return errors.New("block size must be nonnegative and fit a buffer with one extra byte")
+	}
 	if c.AggressiveCacheReclamation != "auto" && c.AggressiveCacheReclamation != "on" && c.AggressiveCacheReclamation != "off" {
 		return errors.New("aggressive cache reclamation must be auto, on or off")
 	}

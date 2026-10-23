@@ -34,7 +34,7 @@ func TestIdleQueueRetimesWithoutUpdatesOrDownloads(t *testing.T) {
 		synctest.Wait()
 		want := base.Add(70 * time.Second)
 		s.mu.Lock()
-		valid := q == s.prefetchSources["1"] && !q.expired && q.readyBy(0) == want && s.prefetchSources["2"].startAt == want.Add(typicalDuration)
+		valid := q == s.prefetchSources["1"] && !q.expired && q.readyBy(0, rangeBlockSize) == want && s.prefetchSources["2"].startAt == want.Add(typicalDuration)
 		s.mu.Unlock()
 		if !valid {
 			t.Fatal("idle queue did not keep its source and roll the shared clock")
@@ -176,7 +176,7 @@ func TestQueueUsesEarliestGETEndAndKeepsLastAnchor(t *testing.T) {
 		check := func(want time.Time) {
 			t.Helper()
 			for i, id := range []string{"1", "2", "3"} {
-				if got := s.prefetchSources[id].readyBy(0); got != want.Add(time.Duration(i)*typicalDuration) {
+				if got := s.prefetchSources[id].readyBy(0, rangeBlockSize); got != want.Add(time.Duration(i)*typicalDuration) {
 					t.Fatal(id, got, want)
 				}
 			}
@@ -195,7 +195,7 @@ func TestQueueUsesEarliestGETEndAndKeepsLastAnchor(t *testing.T) {
 		old := s.prefetchSources["1"]
 		s.UpdatePrefetchQueue([]int64{2, 3}, false)
 		third()
-		if old.readyBy(0) != base.Add(80*time.Second) {
+		if old.readyBy(0, rangeBlockSize) != base.Add(80*time.Second) {
 			t.Fatal("removed source's deadline changed")
 		}
 	})
@@ -234,7 +234,7 @@ func TestQueueUsesCatalogDurationAndRefreshesUnknownSize(t *testing.T) {
 		t.Fatal("queue ignored catalog durations or unknown position")
 	}
 	q := s.prefetchSources["1"]
-	before := q.readyBy(1)
+	before := q.readyBy(1, rangeBlockSize)
 	queueCtx := s.queueDemandContext(ctx, "1")
 	if _, err := s.usage.db.Exec("UPDATE media SET byte_size=50000000 WHERE md5=?", key); err != nil {
 		t.Fatal(err)
@@ -242,7 +242,7 @@ func TestQueueUsesCatalogDurationAndRefreshesUnknownSize(t *testing.T) {
 	if err := s.refreshQueueResourceTiming(queueCtx, video{key: key, songID: "1"}); err != nil {
 		t.Fatal(err)
 	}
-	if q.startAt != base || !q.readyBy(1).Before(before) || q.timing != (mediaTiming{50_000_000, 100 * time.Second}) {
+	if q.startAt != base || !q.readyBy(1, rangeBlockSize).Before(before) || q.timing != (mediaTiming{50_000_000, 100 * time.Second}) {
 		t.Fatal("resolved size did not refine deadline", q)
 	}
 	// A repeated order refreshes newly available metadata for other members.

@@ -328,13 +328,13 @@ func (s *Server) readSequential(ctx context.Context, src io.Reader, v video, fli
 		default:
 		}
 	}()
-	for block := int64(0); block < blockCount(v.size); block++ {
-		size := blockBytes(v.size, block)
+	for block := int64(0); block < blockCount(v.size, s.cfg.BlockSize); block++ {
+		size := blockBytes(v.size, block, s.cfg.BlockSize)
 		if _, err := io.ReadFull(reader, buffer[:size]); err != nil {
 			return fmt.Errorf("%w: sequential block: %w", errUpstreamDownload, err)
 		}
 		// Require EOF before exposing the final block; an oversized response is invalid.
-		if block == blockCount(v.size)-1 {
+		if block == blockCount(v.size, s.cfg.BlockSize)-1 {
 			if _, err := io.ReadFull(reader, buffer[size:size+1]); err != io.EOF {
 				if err == nil {
 					err = errors.New("oversized sequential response")
@@ -342,7 +342,7 @@ func (s *Server) readSequential(ctx context.Context, src io.Reader, v video, fli
 				return fmt.Errorf("%w: %w", errUpstreamDownload, err)
 			}
 		}
-		if _, err := sp.WriteAt(buffer[:size], block*rangeBlockSize); err != nil {
+		if _, err := sp.WriteAt(buffer[:size], block*s.cfg.BlockSize); err != nil {
 			return err
 		}
 		s.notifyBlockStored()

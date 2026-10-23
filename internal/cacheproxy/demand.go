@@ -42,8 +42,8 @@ func (q *queueSource) origin() demandSource {
 	return sourceQueue
 }
 
-func (q *queueSource) readyBy(block int64) time.Time {
-	return q.startAt.Add(q.timing.at(block * rangeBlockSize))
+func (q *queueSource) readyBy(block, blockSize int64) time.Time {
+	return q.startAt.Add(q.timing.at(block * blockSize))
 }
 
 type downloadDemand struct {
@@ -175,7 +175,7 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 	token, queue := ctx.Value(queueDemandKey{}).(*queueSource)
 	d := &downloadDemand{ctx: ctx, key: v.key, song: v.songID, queue: queue, playback: playback, queueSource: token}
 	if !playback {
-		d.lastBlock = blockCount(v.size)
+		d.lastBlock = blockCount(v.size, s.cfg.BlockSize)
 	}
 	if playback {
 		var observed bool
@@ -184,7 +184,7 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 			d.clock = &playbackClock{at: time.Now(), limit: v.size, media: estimateMediaTiming(v.size, 0)}
 		}
 		if d.clock != nil {
-			d.firstBlock, d.lastBlock = blocksForRange(d.clock.offset, d.clock.limit)
+			d.firstBlock, d.lastBlock = blocksForRange(d.clock.offset, d.clock.limit, s.cfg.BlockSize)
 		}
 	}
 	s.mu.Lock()

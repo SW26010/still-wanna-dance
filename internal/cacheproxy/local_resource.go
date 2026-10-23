@@ -13,6 +13,7 @@ import (
 // The engine owns the registry reference. Flights and old spools retain their
 // own references, without retaining response cursors or half-block prefixes.
 type localResource struct {
+	blockSize  int64 // Immutable for both stored blocks and storage-free measurements.
 	mu         sync.Mutex
 	storage    *blockFiles
 	video      video // Identity is immutable; routing changes only before a new flight starts.
@@ -35,7 +36,7 @@ func (d *localResource) complete() bool {
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return int64(len(d.done)) == blockCount(d.video.size)
+	return int64(len(d.done)) == blockCount(d.video.size, d.blockSize)
 }
 func (d *localResource) finish(block int64) {
 	if d.storage != nil {
@@ -53,7 +54,7 @@ func (d *localResource) bytes() int64 {
 	defer d.mu.Unlock()
 	var size int64
 	for block := range d.done {
-		size += blockBytes(d.video.size, block)
+		size += blockBytes(d.video.size, block, d.blockSize)
 	}
 	return size
 }
@@ -76,7 +77,7 @@ func (s *Server) newLocalResource(v video, first *http.Response, log *slog.Logge
 		return nil, errors.New("local resource size mismatch")
 	}
 	if d == nil {
-		d = &localResource{storage: newBlockFiles(s.cfg.tempDir(), v.size, log), video: resourceVideo(v), etag: first.Header.Get("ETag"), sequential: first.StatusCode == http.StatusOK}
+		d = &localResource{blockSize: s.cfg.BlockSize, storage: newBlockFiles(s.cfg.tempDir(), v.size, s.cfg.BlockSize, log), video: resourceVideo(v), etag: first.Header.Get("ETag"), sequential: first.StatusCode == http.StatusOK}
 		s.localResources[v.key] = d
 	}
 	d.storage.retain() // Current execution; the initial reference belongs to the registry.

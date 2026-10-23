@@ -19,11 +19,11 @@ import (
 
 func reclamationResource(t *testing.T, s *Server, v video) *localResource {
 	t.Helper()
-	d := &localResource{video: v, storage: newBlockFiles(t.TempDir(), v.size, nil)}
+	d := &localResource{video: v, storage: newBlockFiles(t.TempDir(), v.size, rangeBlockSize, nil)}
 	s.localResources = map[string]*localResource{v.key: d}
 	t.Cleanup(s.closeLocalResources)
-	for block := int64(0); block < blockCount(v.size); block++ {
-		if err := d.storage.store(block, bytes.Repeat([]byte{byte(block)}, int(blockBytes(v.size, block)))); err != nil {
+	for block := int64(0); block < blockCount(v.size, rangeBlockSize); block++ {
+		if err := d.storage.store(block, bytes.Repeat([]byte{byte(block)}, int(blockBytes(v.size, block, rangeBlockSize)))); err != nil {
 			t.Fatal(err)
 		}
 	}

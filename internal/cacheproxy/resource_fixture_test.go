@@ -1,5 +1,8 @@
 package cacheproxy
 
+// Existing fixtures exercise the unchanged default block size.
+const rangeBlockSize = DefaultBlockSize
+
 // Explicit test-only resource origins; API nodes do not imply these names.
 func fixtureConfig() Config {
 	c := DefaultConfig()

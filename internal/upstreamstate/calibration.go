@@ -16,7 +16,8 @@ import (
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
-const calibrationBlock = 1 << 20
+// Isolated calibration keeps the default engine geometry as its baseline.
+const calibrationBlock = cacheproxy.DefaultBlockSize
 
 const (
 	calibrationMaxVideos      = 128

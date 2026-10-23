@@ -10,7 +10,7 @@ import (
 
 func TestBlockFilesCompleteBlocksAndIndependentLifetime(t *testing.T) {
 	body := bytes.Repeat([]byte("x"), int(rangeBlockSize+19))
-	f := newBlockFiles(t.TempDir(), int64(len(body)), nil)
+	f := newBlockFiles(t.TempDir(), int64(len(body)), rangeBlockSize, nil)
 	defer f.release() // Engine ownership.
 	f.retain()        // One execution/reader, independent of the engine.
 	if err := f.store(0, body[:42]); err == nil || f.has(0) {
@@ -39,7 +39,7 @@ func TestBlockFilesCompleteBlocksAndIndependentLifetime(t *testing.T) {
 }
 
 func TestBlockFilesReclamationCannotDeleteNewBlockOrPinnedSnapshot(t *testing.T) {
-	f := newBlockFiles(t.TempDir(), 8, nil)
+	f := newBlockFiles(t.TempDir(), 8, rangeBlockSize, nil)
 	defer f.release()
 	if err := f.store(0, []byte("original")); err != nil {
 		t.Fatal(err)
@@ -73,7 +73,7 @@ func TestBlockFilesReclamationCannotDeleteNewBlockOrPinnedSnapshot(t *testing.T)
 }
 
 func TestBlockFilesReclaimsOnlySelectedBlocksAndCleansOnExit(t *testing.T) {
-	f := newBlockFiles(t.TempDir(), rangeBlockSize+3, nil)
+	f := newBlockFiles(t.TempDir(), rangeBlockSize+3, rangeBlockSize, nil)
 	if err := f.store(0, make([]byte, rangeBlockSize)); err != nil {
 		t.Fatal(err)
 	}

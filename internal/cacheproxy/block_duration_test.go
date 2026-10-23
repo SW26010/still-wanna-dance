@@ -31,7 +31,7 @@ func TestBlockDurationSamplesOnlyCompleteRangeExecutions(t *testing.T) {
 			s, _ := setup(t, nil)
 			s.scheduler.Close()
 			samples := make(chan blocksched.Event, 8)
-			s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 4, Observe: func(e blocksched.Event) {
+			s.scheduler = blocksched.New(blocksched.Config{SampleBytes: s.cfg.BlockSize, SoftLimit: 4, Observe: func(e blocksched.Event) {
 				if e.Kind == "sample" {
 					samples <- e
 				}

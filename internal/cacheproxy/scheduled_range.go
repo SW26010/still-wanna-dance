@@ -33,7 +33,8 @@ func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *h
 		}
 	}()
 	buffer := &bytes
-	start, end := block*rangeBlockSize, min((block+1)*rangeBlockSize, v.size)
+	start := block * s.cfg.BlockSize
+	end := start + blockBytes(v.size, block, s.cfg.BlockSize)
 	// Redirect progress belongs to this block; other workers keep their
 	// own endpoint and candidate cursor.
 	blockVideo := v
@@ -146,6 +147,6 @@ func (s *Server) rangeBuffer() []byte {
 	case buffer := <-s.rangeBuffers:
 		return buffer
 	default:
-		return make([]byte, rangeBlockSize+1)
+		return make([]byte, s.cfg.BlockSize+1)
 	}
 }

@@ -6,7 +6,7 @@ import type { BlockView, BlockEvent, BlockSource, BlockDemand } from '../src/blo
 import { applyBlockEvent } from '../src/block-timeline-model';
 
 function block(index: number, at: number, patch: Partial<BlockView> = {}): BlockView {
-  return { id: `resource/${index}`, resource: 'fixture-resource', songID: '42', block: index, totalBlocks: 0, bytes: 1048576, title: '星河 · 测试歌曲', at, timeBasis: at ? 'need-by' : 'untimed', needBy: at, deadline: at ? at + 30000 : 0, protectionStart: 0, protectionUntil: 0, protected: false, inUse: true, sources: 2, readers: 0, state: 'waiting', windowClosed: false, opportunistic: false, eligible: true, ...patch };
+  return { id: `resource/${index}`, resource: 'fixture-resource', songID: '42', block: index, byteOffset: index * 1048576, totalBlocks: 0, bytes: 1048576, title: '星河 · 测试歌曲', at, timeBasis: at ? 'need-by' : 'untimed', needBy: at, deadline: at ? at + 30000 : 0, protectionStart: 0, protectionUntil: 0, protected: false, inUse: true, sources: 2, readers: 0, state: 'waiting', windowClosed: false, opportunistic: false, eligible: true, ...patch };
 }
 function demand(id: number, blocks: BlockView[], patch: Partial<BlockDemand> = {}): BlockDemand {
   return { id: `${id}/fixture-resource`, sourceID: id, kind: 'get', songID: '42', title: '星河 · 测试歌曲', position: 0, resource: 'fixture-resource', totalBlocks: Math.max(0, ...blocks.map(b => b.block + 1)), blocks: blocks.map(b => b.id), ...patch };
@@ -33,6 +33,17 @@ async function setup(page: Page, count = 48) {
   const open = async () => { await panel.getByRole('button', { name: '展开时间轴' }).click(); await expect(panel.getByText('事件已连接', { exact: true })).toBeVisible(); await expect(canvas).toBeVisible(); await canvas.scrollIntoViewIfNeeded(); await expect(canvas).toBeInViewport(); };
   return { ...api, at, blocks, emit, detail, streams, totalStreams, panel, canvas, viewport, open };
 }
+
+test('block details use engine byte offsets for custom sizes and tails', async ({ page }) => {
+  const f = await setup(page, 1);
+  const tail = block(2, f.at, { byteOffset: 1048576, bytes: 123, totalBlocks: 3 }); // 512 KiB blocks.
+  await f.emit({ reset: true, blocks: [tail], used: 1 });
+  await f.detail(tail);
+  await f.open(); await f.canvas.focus(); await f.canvas.press('Home');
+  const popup = page.getByRole('group', { name: '块需求详情' });
+  await expect(popup).toContainText('1,048,576 – 1,048,698');
+  await expect(popup).toContainText('块 3/3');
+});
 
 test('timeline subscribes only while visible and restores a fresh snapshot', async ({ page }) => {
   const f = await setup(page);

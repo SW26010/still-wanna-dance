@@ -131,7 +131,7 @@ func TestCoalescedQueueChangesPreserveWithdrawalSource(t *testing.T) {
 						t.Fatalf("missing/freshened handoff: retiring=%v expiry=%v", j.retiring, j.nextExpiry)
 					}
 					// Preserve the removed head's actual deadline, even if past.
-					if !j.published.ReadyBy.Equal(source.readyBy(0).Add(2 * time.Second)) {
+					if !j.published.ReadyBy.Equal(source.readyBy(0, rangeBlockSize).Add(2 * time.Second)) {
 						t.Fatal("handoff used the stale ordinary-queue deadline", j.published.ReadyBy)
 					}
 					reconcileSession(t, w)

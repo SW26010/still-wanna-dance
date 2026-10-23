@@ -18,13 +18,14 @@ var errBlockUnavailable = fmt.Errorf("block is no longer available: %w", os.ErrN
 // none of those references alone prevents reclaiming an unprotected block.
 // A pinned block/snapshot is a necessary I/O reference and prevents deletion.
 type blockFiles struct {
-	mu     sync.Mutex
-	dir    string
-	size   int64
-	log    *slog.Logger
-	files  map[int64]*localBlockFile
-	refs   int
-	closed bool
+	blockSize int64 // Retained with the files so readers/snapshots share their geometry.
+	mu        sync.Mutex
+	dir       string
+	size      int64
+	log       *slog.Logger
+	files     map[int64]*localBlockFile
+	refs      int
+	closed    bool
 }
 
 type localBlockFile struct {
@@ -34,8 +35,8 @@ type localBlockFile struct {
 	retired bool
 }
 
-func newBlockFiles(dir string, size int64, log *slog.Logger) *blockFiles {
-	return &blockFiles{dir: dir, size: size, log: log, files: make(map[int64]*localBlockFile), refs: 1}
+func newBlockFiles(dir string, size, blockSize int64, log *slog.Logger) *blockFiles {
+	return &blockFiles{blockSize: blockSize, dir: dir, size: size, log: log, files: make(map[int64]*localBlockFile), refs: 1}
 }
 
 func (f *blockFiles) retain() {
@@ -71,7 +72,7 @@ func (f *blockFiles) emptyAndUnshared() bool {
 // store never exposes a short write or partially received block. Ordinary
 // cached file I/O deliberately leaves cache residency/writeback to the OS.
 func (f *blockFiles) store(block int64, data []byte) error {
-	if size := blockBytes(f.size, block); size == 0 || int64(len(data)) != size {
+	if size := blockBytes(f.size, block, f.blockSize); size == 0 || int64(len(data)) != size {
 		return fmt.Errorf("invalid complete block %d length %d", block, len(data))
 	}
 	f.mu.Lock()
@@ -127,7 +128,7 @@ func (f *blockFiles) has(block int64) bool {
 func (f *blockFiles) complete() bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return int64(len(f.files)) == blockCount(f.size)
+	return int64(len(f.files)) == blockCount(f.size, f.blockSize)
 }
 
 func (f *blockFiles) bytes() int64 {
@@ -146,10 +147,10 @@ func (f *blockFiles) available(offset int64) int64 {
 	if offset < 0 || offset >= f.size {
 		return offset
 	}
-	block := offset / rangeBlockSize
+	block := offset / f.blockSize
 	end := offset
 	for f.files[block] != nil {
-		end = block*rangeBlockSize + f.files[block].size
+		end = block*f.blockSize + f.files[block].size
 		block++
 	}
 	return end
@@ -194,12 +195,12 @@ func (f *blockFiles) ReadAt(p []byte, offset int64) (int, error) {
 	}
 	n := 0
 	for len(p) > 0 && offset < f.size {
-		block := offset / rangeBlockSize
+		block := offset / f.blockSize
 		b, err := f.pin(block)
 		if err != nil {
 			return n, err
 		}
-		within := offset % rangeBlockSize
+		within := offset % f.blockSize
 		length := min(int64(len(p)), b.size-within)
 		read, err := readBlockFile(b, p[:length], within)
 		f.unpin(b)
@@ -262,10 +263,10 @@ func (f *blockFiles) snapshot() (*blockSnapshot, error) {
 	if f.closed {
 		return nil, os.ErrClosed
 	}
-	if int64(len(f.files)) != blockCount(f.size) {
+	if int64(len(f.files)) != blockCount(f.size, f.blockSize) {
 		return nil, errBlockUnavailable
 	}
-	s := &blockSnapshot{owner: f, blocks: make([]*localBlockFile, blockCount(f.size))}
+	s := &blockSnapshot{owner: f, blocks: make([]*localBlockFile, blockCount(f.size, f.blockSize))}
 	for block := range s.blocks {
 		b := f.files[int64(block)]
 		b.pins++
@@ -280,8 +281,8 @@ func (s *blockSnapshot) ReadAt(p []byte, offset int64) (int, error) {
 	}
 	n := 0
 	for len(p) > 0 && offset < s.owner.size {
-		b := s.blocks[offset/rangeBlockSize]
-		within := offset % rangeBlockSize
+		b := s.blocks[offset/s.owner.blockSize]
+		within := offset % s.owner.blockSize
 		length := min(int64(len(p)), b.size-within)
 		read, err := readBlockFile(b, p[:length], within)
 		n += read

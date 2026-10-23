@@ -30,7 +30,7 @@ func (s *Server) expireDownload(f *flight, key string, block int64) {
 	// queue against that updated clock before ending its own preparation.
 	now := time.Now()
 	for _, q := range s.prefetchSources {
-		if !q.use.contains(key, block) || !blocksched.Expired(q.readyBy(block), now) {
+		if !q.use.contains(key, block) || !blocksched.Expired(q.readyBy(block, s.cfg.BlockSize), now) {
 			continue
 		}
 		q.expired = true

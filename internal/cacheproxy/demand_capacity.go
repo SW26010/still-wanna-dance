@@ -121,7 +121,7 @@ func (s *Server) endUseLocked(span useSpan, at time.Time, grace time.Duration, c
 		if s.cfg.Logger != nil {
 			s.cfg.Logger.Debug("block_demand_handoff", "resource_key", span.key, "first_block", span.first, "last_block", span.last,
 				"from", origin.String(), "reason", "source_gone", "withdrawn_at", at,
-				"first_ready_by", clock.ready(span.first*rangeBlockSize), "lease_until", at.Add(grace))
+				"first_ready_by", clock.ready(span.first*s.cfg.BlockSize), "lease_until", at.Add(grace))
 		}
 	} else {
 		s.releaseUseLocked(span, at)

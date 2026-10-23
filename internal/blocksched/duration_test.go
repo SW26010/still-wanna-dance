@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const standardBlockSize = 1 << 20 // Fixture size; the scheduler has no built-in block size.
+
 func TestComparableCompletions(t *testing.T) {
 	now := time.Now()
 	for _, tc := range []struct {
@@ -22,7 +24,7 @@ func TestComparableCompletions(t *testing.T) {
 		if tc.readable {
 			p.ready = now
 		}
-		if p.comparable() != tc.want {
+		if p.comparable(standardBlockSize) != tc.want {
 			t.Fatalf("completion classification: %+v", tc)
 		}
 	}
@@ -31,7 +33,7 @@ func TestComparableCompletions(t *testing.T) {
 func TestDurationUsesAdmissionToReadableAndHoldsSlotThroughCleanup(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		var samples []Event
-		s := New(Config{SoftLimit: 1, Observe: func(e Event) {
+		s := New(Config{SampleBytes: standardBlockSize, SoftLimit: 1, Observe: func(e Event) {
 			if e.Kind == "sample" {
 				samples = append(samples, e)
 			}
@@ -69,7 +71,7 @@ func TestFailedAndCanceledExecutionsDoNotSample(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		for _, err := range []error{context.Canceled, context.DeadlineExceeded} {
 			var samples []Event
-			s := New(Config{SoftLimit: 1, Observe: func(e Event) {
+			s := New(Config{SampleBytes: standardBlockSize, SoftLimit: 1, Observe: func(e Event) {
 				if e.Kind == "sample" {
 					samples = append(samples, e)
 				}

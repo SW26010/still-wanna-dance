@@ -829,3 +829,18 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 - 三包 `go vet` 与差异检查通过，见 `final-vet.txt`。首轮沙箱内整包测试的原子替换句柄无效及硬链接／目录联接权限失败保留在 `packages.jsonl`，随后使用正常权限验证文件行为。
 
 本轮验证覆盖内部调度、容量、保护与并发边界，无需新增游戏专属待验项；未启动 VRC、修改 hosts 或用户运行配置，未提交或推送。
+
+## 2026-10-24：块大小配置的引擎准备
+
+为后续用户设置预留 `cacheproxy.Config.BlockSize`（字节，0 使用默认 1 MiB），创建后在同一引擎内固定。Range、顺序 200、需求投影/消费、期限与保护、缓冲、块文件/合并快照及观察均使用该尺寸；完整视频的 MD5 身份与存储不变。调度器由调用方指定 `SampleBytes`，不再内置 1 MiB 采样判定；隔离测速仍使用默认引擎尺寸。时间轴详情改读后端 `byteOffset`，消除块号乘固定 1 MiB 的假设。现行契约与未来设置范围的边界见 [canonical 文档](../download-resource-design.md)。
+
+新增集成覆盖默认值/0、512 KiB、2 MiB 及 384 KiB + 17 字节，多个引擎并行运行。验证非零位置冷 Range、同块跨会话复用、补齐合并后的完整字节、顺序 200 回退、完整块采样及尾块/顺序响应排除、更换尺寸后已有完整视频命中；另检查自定义尺寸的需求范围、播放期限、逐块消费、4096 块容量口径与观察字节偏移。浏览器新增 512 KiB 尾块范围断言。
+
+验证结果及原始输出保存在忽略目录 `artifacts/block-size-prep/`：
+
+- 定向块大小集成通过（`configured-second.txt`）。首版测试错误地把 `Prefetch` 的来源字符串当作路径对象，编译失败保留在 `configured-first.txt`；修正测试后按 MD5 路径核对实际文件。
+- 正常 Windows 权限下，`go test -tags=no_easytier -race ./internal/cacheproxy ./internal/blocksched ./internal/upstreamstate ./internal/console -count=1 -timeout=240s` 四包通过，无竞态报告（82.813 / 1.257 / 22.601 / 108.282 秒，`packages-race.txt`）。使用仓库临时目录入口及已有 w64devkit/GCC。此前沙箱整包测试的硬链接/目录联接限制、原子替换句柄错误及子进程失败保留在 `packages-first.txt`，没有修改产品文件操作绕过限制。
+- 全部命令及内部包 `go vet -tags=no_easytier ./cmd/... ./internal/...`、`go build -tags=no_easytier ./cmd/...` 通过（`vet.txt`、`build.txt`）；前端构建、类型及产物一致性检查通过（`webui-build.txt`、`webui-check.txt`）。
+- 正常权限下 Edge 时间轴套件 25/25 通过（`browser-final.txt`），覆盖实际偏移展示与原有订阅、选择、重连及窄屏交互。沙箱内 Edge 启动时命名管道关闭导致 24 项失败、1 项纯模型测试通过，保留在 `browser.txt`；首次正常权限尝试被本次残留夹具占用端口阻挡，见 `browser-unrestricted.txt`。按 PID 与命令行确认并结束本次夹具后重跑通过。
+
+这些结果证明参数传递和协议/存储一致性，不构成各尺寸的公网吞吐或 VRC 播放性能结论。用户设置与默认行为仍保持 1 MiB，未新增游戏专属待验项；开放设置并确定可选范围时再开展相应调优验证。

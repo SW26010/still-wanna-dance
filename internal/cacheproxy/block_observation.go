@@ -17,6 +17,7 @@ type BlockView struct {
 	ID              string `json:"id"`
 	Resource        string `json:"resource"`
 	Block           int64  `json:"block"`
+	ByteOffset      int64  `json:"byteOffset"`
 	TotalBlocks     int64  `json:"totalBlocks"` // complete video; zero if its size is unknown
 	Bytes           int64  `json:"bytes"`
 	Title           string `json:"title"`
@@ -250,7 +251,7 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 		sizes[key] = f.size
 		if f.sequentialCtx != nil && f.sequentialCtx.Err() == nil && f.progress != nil {
 			f.progress.mu.Lock()
-			sequential[key] = f.progress.bytes / rangeBlockSize
+			sequential[key] = f.progress.bytes / s.cfg.BlockSize
 			f.progress.mu.Unlock()
 		}
 	}
@@ -343,10 +344,9 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 		if current, ok := sequential[b.Resource]; ok && b.InUse && !available && current == b.Block {
 			b.State = "downloading"
 		}
-		b.Bytes = blockBytes(sizes[b.Resource], b.Block)
-		if size := sizes[b.Resource]; size > 0 {
-			b.TotalBlocks = (size-1)/rangeBlockSize + 1
-		}
+		b.ByteOffset = b.Block * s.cfg.BlockSize
+		b.Bytes = blockBytes(sizes[b.Resource], b.Block, s.cfg.BlockSize)
+		b.TotalBlocks = blockCount(sizes[b.Resource], s.cfg.BlockSize)
 		result.Blocks[name] = b
 	}
 	s.retentionMu.Unlock()

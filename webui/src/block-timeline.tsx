@@ -322,7 +322,7 @@ function BlockProperties({ id, block, active }: { id: string; block?: BlockView;
       <dt>下载资格</dt><dd>{!b.inUse ? '使用需求已结束' : b.readers ? '读取急需' : b.windowClosed ? '来源尚未开放窗口' : b.eligible ? '可参与调度' : '等待窗口或有效需求'}</dd>
       <dt>读取等待</dt><dd>{b.readers ? `${b.readers} 个读取者` : '无'}</dd>
       <dt>本地保护</dt><dd>{b.protected ? b.protectionUntil && !b.inUse ? `保护至 ${absoluteTime(b.protectionUntil)}` : '保护中' : b.protectionStart ? `开始于 ${absoluteTime(b.protectionStart)}` : '未保护'}</dd>
-      <dt>字节范围</dt><dd>{(b.block * 1048576).toLocaleString()} – {b.bytes ? (b.block * 1048576 + b.bytes - 1).toLocaleString() : '末端待定'}</dd>
+      <dt>字节范围</dt><dd>{b.byteOffset.toLocaleString()} – {b.bytes ? (b.byteOffset + b.bytes - 1).toLocaleString() : '末端待定'}</dd>
     </dl>
     {b.timeBasis === 'ended' && <Caption1 as="p">按需求结束时间定位；此前的 need-by 未记录。</Caption1>}
     {b.timeBasis === 'last-need-by' && <Caption1 as="p">沿用最后一次 need-by 的位置；当前已无需求。</Caption1>}

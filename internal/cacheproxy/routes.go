@@ -196,8 +196,8 @@ func (s *Server) openUpstream(ctx context.Context, v video, block int64, attempt
 	if err != nil {
 		return nil, "", err
 	}
-	start := block * rangeBlockSize
-	end := min(v.size, start+rangeBlockSize)
+	start := block * s.cfg.BlockSize
+	end := start + blockBytes(v.size, block, s.cfg.BlockSize)
 	r.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", start, end-1))
 	for {
 		resp, err := s.videoResponse(r, v, attempts)

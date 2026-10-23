@@ -7,30 +7,32 @@ import (
 	"net/http"
 )
 
-const rangeBlockSize int64 = 1 << 20
+// DefaultBlockSize is the engine's default download and storage granularity.
+// A running engine uses one fixed size for all resources and readers.
+const DefaultBlockSize int64 = 1 << 20
 
 // Shared geometry for source ranges, download admission and local storage.
 // Ranges use a nonnegative start and an exclusive end, matching HTTP adapters.
-func blocksForRange(start, end int64) (first, last int64) {
-	first = start / rangeBlockSize
+func blocksForRange(start, end, blockSize int64) (first, last int64) {
+	first = start / blockSize
 	if end <= start {
 		return first, first
 	}
-	return first, blockCount(end)
+	return first, blockCount(end, blockSize)
 }
 
-func blockCount(size int64) int64 {
+func blockCount(size, blockSize int64) int64 {
 	if size <= 0 {
 		return 0
 	}
-	return 1 + (size-1)/rangeBlockSize
+	return 1 + (size-1)/blockSize
 }
 
-func blockBytes(size, block int64) int64 {
-	if block < 0 || block >= blockCount(size) {
+func blockBytes(size, block, blockSize int64) int64 {
+	if block < 0 || block >= blockCount(size, blockSize) {
 		return 0
 	}
-	return min(rangeBlockSize, size-block*rangeBlockSize)
+	return min(blockSize, size-block*blockSize)
 }
 
 // readRangeBlock fills a worker-owned buffer, including one extra byte to detect

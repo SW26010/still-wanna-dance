@@ -30,7 +30,7 @@ func (g *getConsumption) start(status int, header http.Header) {
 	default:
 		return
 	}
-	first, last := blocksForRange(start, end)
+	first, last := blocksForRange(start, end, g.s.cfg.BlockSize)
 	g.position, g.limit, g.nextBlock, g.active = start, end, first, true
 	g.s.mu.Lock()
 	d := g.demand
@@ -55,9 +55,9 @@ func (g *getConsumption) accept(n int64) {
 		return
 	}
 	g.position += min(n, g.limit-g.position)
-	next := g.position / rangeBlockSize
+	next := g.position / g.s.cfg.BlockSize
 	if g.position == g.limit {
-		next = blockCount(g.limit)
+		next = blockCount(g.limit, g.s.cfg.BlockSize)
 	}
 	if next == g.nextBlock {
 		return

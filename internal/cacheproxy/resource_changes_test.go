@@ -254,7 +254,7 @@ func TestScheduledRenewalTimerSurvivesFrequentResourceEvents(t *testing.T) {
 		log := demandPublicationLog(&publications)
 		f := &flight{discard: true, log: log, streaming: make(chan struct{}),
 			progress: &downloadProgress{log: log},
-			ranges:   &localResource{video: w.v, done: make(map[int64]bool)}}
+			ranges:   &localResource{blockSize: s.cfg.BlockSize, video: w.v, done: make(map[int64]bool)}}
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		result := make(chan error, 1)

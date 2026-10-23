@@ -19,7 +19,7 @@ func TestLocalReadWithdrawsOnlyItsOwnWait(t *testing.T) {
 				reads := s.NewReadRequests("video", func(int64) string { return "block" }, nil)
 				defer reads.Close()
 				registered := make(chan struct{}, 2)
-				sp := &spool{blocks: newBlockFiles(t.TempDir(), 1, nil), changed: make(chan struct{}), refs: 1,
+				sp := &spool{blocks: newBlockFiles(t.TempDir(), 1, rangeBlockSize, nil), changed: make(chan struct{}), refs: 1,
 					demand: func(offset int64) func() {
 						end := reads.Wait(offset / rangeBlockSize)
 						registered <- struct{}{}
@@ -85,7 +85,7 @@ func TestReadCancellationDuringWaitRegistration(t *testing.T) {
 		reads := s.NewReadRequests("video", func(int64) string { return "block" }, nil)
 		defer reads.Close()
 		enter, proceed := make(chan struct{}), make(chan struct{})
-		sp := &spool{blocks: newBlockFiles(t.TempDir(), 1, nil), changed: make(chan struct{}), refs: 1,
+		sp := &spool{blocks: newBlockFiles(t.TempDir(), 1, rangeBlockSize, nil), changed: make(chan struct{}), refs: 1,
 			demand: func(int64) func() { close(enter); <-proceed; return reads.Wait(0) }}
 		defer sp.release()
 		ctx, cancel := context.WithCancel(context.Background())

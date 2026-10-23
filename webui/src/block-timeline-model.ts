@@ -1,6 +1,6 @@
 export type BlockState = 'waiting' | 'downloading' | 'available' | 'protected' | 'stopping';
 export interface BlockView {
-  id: string; resource: string; songID: string; colorKey?: string; block: number; totalBlocks: number; bytes: number; title: string;
+  id: string; resource: string; songID: string; colorKey?: string; block: number; byteOffset: number; totalBlocks: number; bytes: number; title: string;
   at: number; timeBasis: 'need-by' | 'last-need-by' | 'ended' | 'untimed';
   needBy: number; deadline: number; protectionStart: number; protectionUntil: number;
   protected: boolean; inUse: boolean; sources: number; readers: number; state: BlockState;

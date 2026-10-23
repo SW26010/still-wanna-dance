@@ -11,9 +11,9 @@
     "webui/src/app.tsx": "85b541ab0a2fe88a9d5e8ca854ee2072912f892f8e957bf2a823b0931012706d",
     "webui/src/block-demand-view.tsx": "fb8728b7f17a8d060c8383086fabd3a9f317c91e48ab0f109e7d7f43e2443fef",
     "webui/src/block-timeline-canvas.ts": "e8ce43115b74527c5edd30cc6a26ce041cd4b25f07aefef3c1aed0c95a704670",
-    "webui/src/block-timeline-model.ts": "d304818968013214f00acfe088c05225a0310875618b6a4596a2b9fe3515d551",
+    "webui/src/block-timeline-model.ts": "5389af7d6b185e05184d4ed3d1ac81b7ba6cdb2f97b46e220afc2836784d2eab",
     "webui/src/block-timeline-stream.ts": "63273debb94a1336266244fc3bd50534aff66af24a76a2da3ab387ab19ee73f8",
-    "webui/src/block-timeline.tsx": "971b28f1c4f5c48ce90bb6e977818bb1e50419551b66abbe3ee8c7ef32ac5749",
+    "webui/src/block-timeline.tsx": "3abd530d0ae76455e2cf80ce83d69e40be4c864d1f5709bb280a257b6ddd61d3",
     "webui/src/bootstrap.ts": "89fc603e0cc151cfd1b0972217a6e49c58c7e93c6010f77237e12adde9c5cd91",
     "webui/src/cache-capacity.tsx": "4190782373ee3737777f4d350be4dd089b5a0272ae3895d834824a829ed17b01",
     "webui/src/cache.tsx": "e430047beae60481ceae50c9d478f51942c2ed7fedcf117126609d2a7d50af91",
@@ -39,6 +39,6 @@
   "outputs": {
     "docs/licenses/WEBUI-NOTICES.txt": "fa512d9658e45879deac45f9109f8a4c34974c66ada3107914e9e172f8267fa4",
     "internal/console/assets/webui/app.css": "618eb735cf989b7240ae1553ea200b370b44f3b1caf2b8a6f826881b705b61d2",
-    "internal/console/assets/webui/app.js": "21730482436c0691bbd4fa3de008012a2afa1ff6fb4d68a934eb6a6aaec8cb53"
+    "internal/console/assets/webui/app.js": "6ddcee29bb5ab84ef36519083a4ccf5ccd17f5f44b15cccf09b79c4299697196"
   }
 }

@@ -21,9 +21,9 @@ func completedRangeFlight(t *testing.T, s *Server, body string) (*flight, video)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for block := int64(0); block < blockCount(v.size); block++ {
+	for block := int64(0); block < blockCount(v.size, rangeBlockSize); block++ {
 		start := block * rangeBlockSize
-		if err := d.storage.store(block, []byte(body[start:start+blockBytes(v.size, block)])); err != nil {
+		if err := d.storage.store(block, []byte(body[start:start+blockBytes(v.size, block, rangeBlockSize)])); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -57,7 +57,7 @@ func TestDownloadExpiryRetainsManualAndLaterQueueSources(t *testing.T) {
 		get.flight = w.f
 		s.expireDownload(w.f, w.v.key, 0)
 		plan, _, _ := w.plan(time.Now(), true)
-		if queue.ctx.Err() != nil || plan[0].need.ReadyBy != queue.queueSource.readyBy(0) || !plan[0].need.Opportunistic || len(s.useHandoffs) != 0 {
+		if queue.ctx.Err() != nil || plan[0].need.ReadyBy != queue.queueSource.readyBy(0, rangeBlockSize) || !plan[0].need.Opportunistic || len(s.useHandoffs) != 0 {
 			t.Fatal("old GET failure erased or bypassed remaining source timing", plan[0])
 		}
 	})
@@ -108,7 +108,7 @@ func TestExpiredQueuePreparationRequiresActualSourceChange(t *testing.T) {
 		defer releaseGET()
 		_, releaseNext := addTestDemand(t, s, ctx, v, false)
 		defer releaseNext()
-		if d.queueSource.expired || !d.queueSource.readyBy(0).After(time.Now()) {
+		if d.queueSource.expired || !d.queueSource.readyBy(0, rangeBlockSize).After(time.Now()) {
 			t.Fatal("real source change could not rearm preparation")
 		}
 	})

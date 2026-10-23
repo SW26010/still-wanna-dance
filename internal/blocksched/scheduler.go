@@ -65,6 +65,9 @@ func (p *Progress) Ready() {
 }
 
 type Config struct {
+	// SampleBytes selects comparable complete-work observations. Zero disables
+	// sampling; callers define their work size independently of scheduling.
+	SampleBytes int64
 	// SoftLimit bounds ordinary admission. Actual blocked reads bypass both
 	// this limit and growth pacing; metadata capacity still bounds total work.
 	SoftLimit, MaxTasks, MaxDemands int
@@ -530,7 +533,7 @@ func (s *state) loop() {
 			// Readable bytes alone do not extend response/write cleanup time.
 			s.expireDeadlines(time.Now())
 			j := c.job
-			if c.result.Err == nil && j.progress.comparable() {
+			if c.result.Err == nil && j.progress.comparable(s.cfg.SampleBytes) {
 				s.emit("sample", "readable_block", j)
 			}
 			j.cancel(nil)

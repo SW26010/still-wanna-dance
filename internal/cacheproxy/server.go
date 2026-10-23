@@ -110,6 +110,9 @@ type Server struct {
 }
 
 func New(cfg Config) (*Server, error) {
+	if cfg.BlockSize == 0 {
+		cfg.BlockSize = DefaultBlockSize
+	}
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
@@ -210,6 +213,7 @@ func New(cfg Config) (*Server, error) {
 	go s.retentionLoop()
 	s.scheduler = newDownloadScheduler(cfg)
 	cfg.Logger.Info("cache_engine_ready", "removed_partials", cleaned, "max_local_validations", cfg.MaxLocalValidations,
+		"block_size_bytes", cfg.BlockSize,
 		"video_request_soft_limit", cfg.DownloadSoftLimit, "download_grow_interval_ms", cfg.DownloadGrowInterval.Milliseconds(),
 		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "max_cache_bytes", cfg.MaxCacheBytes, "cache_unlimited", cfg.CacheUnlimited,
 		"aggressive_cache_reclamation", cfg.AggressiveCacheReclamation)
@@ -218,6 +222,7 @@ func New(cfg Config) (*Server, error) {
 
 func newDownloadScheduler(cfg Config) *blocksched.Scheduler {
 	return blocksched.New(blocksched.Config{SoftLimit: cfg.DownloadSoftLimit,
+		SampleBytes:  cfg.BlockSize,
 		GrowInterval: cfg.DownloadGrowInterval,
 		PrepareAhead: cfg.PrepareAhead,
 		Observe: func(e blocksched.Event) {

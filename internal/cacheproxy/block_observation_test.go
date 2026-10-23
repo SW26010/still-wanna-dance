@@ -594,7 +594,7 @@ func BenchmarkBlockObservationDisabled(b *testing.B) {
 }
 
 func BenchmarkBlockObservation4096(b *testing.B) {
-	s := &Server{ctx: context.Background(), useBlocks: make(map[useBlockID]int), demands: make(map[*downloadDemand]bool)}
+	s := &Server{cfg: DefaultConfig(), ctx: context.Background(), useBlocks: make(map[useBlockID]int), demands: make(map[*downloadDemand]bool)}
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 16})
 	defer s.scheduler.Close()
 	size := int64(maxUseBlocks) * rangeBlockSize

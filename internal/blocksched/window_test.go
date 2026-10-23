@@ -212,7 +212,7 @@ func TestSoftLimitWaitHasNoPastWindowWakeup(t *testing.T) {
 
 func TestCompletedSlowSampleDoesNotMoveWindowOrReorder(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		s := New(Config{SoftLimit: 1})
+		s := New(Config{SampleBytes: standardBlockSize, SoftLimit: 1})
 		defer s.Close()
 		started := make(chan string, 4)
 		now := time.Now()

@@ -27,7 +27,7 @@ func TestStreamResponseCompletesBeforeVerification(t *testing.T) {
 	for _, ifRange := range []string{`"different"`, `W/"current"`, "Wed, 21 Oct 2015 07:28:00 GMT", `"current"`} {
 		t.Run(ifRange, func(t *testing.T) {
 			const body = "complete bytes awaiting verification"
-			sp := &spool{blocks: newBlockFiles(t.TempDir(), int64(len(body)), nil), changed: make(chan struct{}), refs: 1, demand: func(int64) func() { return func() {} }}
+			sp := &spool{blocks: newBlockFiles(t.TempDir(), int64(len(body)), rangeBlockSize, nil), changed: make(chan struct{}), refs: 1, demand: func(int64) func() { return func() {} }}
 			defer sp.release()
 			if _, err := sp.WriteAt([]byte(body), 0); err != nil {
 				t.Fatal(err)

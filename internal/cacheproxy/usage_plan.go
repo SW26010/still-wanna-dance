@@ -24,7 +24,7 @@ func (s *Server) projectUseLocked(key string, now time.Time) (map[useBlockID]map
 			}
 			ready := time.Time{}
 			if clock != nil {
-				ready = clock.ready(block * rangeBlockSize)
+				ready = clock.ready(block * s.cfg.BlockSize)
 			}
 			p := plannedNeed{need: blocksched.Need{Owner: span.key, ReadyBy: ready, LeaseUntil: until}, source: origin}
 			if !idleBase.IsZero() {

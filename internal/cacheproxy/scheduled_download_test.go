@@ -24,7 +24,7 @@ func testSession(t *testing.T) (*downloadSession, *Server) {
 
 func testSessionServer(t *testing.T, cfg blocksched.Config) *Server {
 	t.Helper()
-	s := &Server{cfg: Config{AggressiveCacheReclamation: "auto", LocalProtectionGrace: DefaultLocalProtectionGrace}, capacityChanged: make(chan struct{}), scheduler: blocksched.New(cfg)}
+	s := &Server{cfg: Config{BlockSize: DefaultBlockSize, AggressiveCacheReclamation: "auto", LocalProtectionGrace: DefaultLocalProtectionGrace}, capacityChanged: make(chan struct{}), scheduler: blocksched.New(cfg)}
 	t.Cleanup(s.scheduler.Close)
 	t.Cleanup(func() {
 		s.mu.Lock()
@@ -39,7 +39,7 @@ func testSessionServer(t *testing.T, cfg blocksched.Config) *Server {
 
 func testResourceSession(t *testing.T, s *Server, v video) *downloadSession {
 	t.Helper()
-	f := &flight{ranges: &localResource{done: make(map[int64]bool)}}
+	f := &flight{ranges: &localResource{blockSize: s.cfg.BlockSize, done: make(map[int64]bool)}}
 	w := newDownloadSession(s, context.Background(), v, f)
 	t.Cleanup(w.reads.Close)
 	t.Cleanup(w.releaseResourceWatch)

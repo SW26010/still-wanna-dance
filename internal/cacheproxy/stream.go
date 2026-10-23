@@ -26,10 +26,10 @@ func (s *spool) hasAllBytes(size int64) bool { return s.blocks.complete() }
 
 // Only complete, validated blocks become visible to readers.
 func (s *spool) WriteAt(p []byte, offset int64) (int, error) {
-	if offset < 0 || offset%rangeBlockSize != 0 {
+	if offset < 0 || offset%s.blocks.blockSize != 0 {
 		return 0, errors.New("unaligned complete block write")
 	}
-	if err := s.blocks.store(offset/rangeBlockSize, p); err != nil {
+	if err := s.blocks.store(offset/s.blocks.blockSize, p); err != nil {
 		return 0, err
 	}
 	s.mu.Lock()
@@ -137,7 +137,7 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 		}
 		if failure != nil {
 			if errors.Is(failure, ErrNotRetained) {
-				failure = fmt.Errorf("requested block %d is unavailable after download completion: %w", r.offset/rangeBlockSize, failure)
+				failure = fmt.Errorf("requested block %d is unavailable after download completion: %w", r.offset/s.blocks.blockSize, failure)
 			}
 			r.err = failure
 			return 0, failure

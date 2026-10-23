@@ -53,7 +53,7 @@ func newDownloadSession(s *Server, ctx context.Context, v video, f *flight) *dow
 func (w *downloadSession) initialize(d *localResource) {
 	w.f.ranges = d
 	if !w.f.discard {
-		w.f.spool = d.makeSpool(func(offset int64) func() { return w.reads.Wait(offset / rangeBlockSize) })
+		w.f.spool = d.makeSpool(func(offset int64) func() { return w.reads.Wait(offset / w.s.cfg.BlockSize) })
 	}
 	w.f.progress.setStage("range_download")
 	close(w.f.streaming)
@@ -127,7 +127,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 		}
 		var d *localResource
 		if w.f.discard {
-			d = &localResource{video: resourceVideo(v), etag: resp.Header.Get("ETag"),
+			d = &localResource{blockSize: w.s.cfg.BlockSize, video: resourceVideo(v), etag: resp.Header.Get("ETag"),
 				done: make(map[int64]bool)}
 		} else if w.f.ranges != nil {
 			d = w.f.ranges
@@ -149,7 +149,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 
 func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Need) error {
 	key := w.reads.Key(block)
-	remaining := min(rangeBlockSize, w.v.size-block*rangeBlockSize)
+	remaining := blockBytes(w.v.size, block, w.s.cfg.BlockSize)
 	t, d, err := w.s.scheduler.Schedule(key, remaining, func(ctx context.Context, p *blocksched.Progress) blocksched.Result { return w.run(ctx, p, block) }, n)
 	if err != nil {
 		if errors.Is(err, blocksched.ErrExpired) {
@@ -169,7 +169,7 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]block
 	if !w.nextRenewal().After(now) {
 		w.leaseUntil = now.Add(sourceLease)
 	}
-	blocks := blockCount(w.v.size)
+	blocks := blockCount(w.v.size, w.s.cfg.BlockSize)
 	w.s.mu.Lock()
 	plan, active := w.s.usePlanLocked(w.v.key, now)
 	// Projection still checks actual source exits/expiry at now. Cap live
@@ -552,7 +552,7 @@ func (w *downloadSession) nextRenewal() time.Time {
 // Historical completion only permits exit when plan has no remaining downloads
 // or future refetch window. It never establishes current local availability.
 func (w *downloadSession) allFetched() bool {
-	for block := int64(0); block < blockCount(w.v.size); block++ {
+	for block := int64(0); block < blockCount(w.v.size, w.s.cfg.BlockSize); block++ {
 		if !w.finished[block] && !w.f.ranges.has(block) {
 			return false
 		}

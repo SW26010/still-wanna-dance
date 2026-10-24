@@ -27,7 +27,7 @@ async function setup(page: Page, count = 48) {
   for (const b of blocks.slice(0, 48)) await detail(b, b.inUse ? undefined : []);
   const streams = async () => (await page.request.get('/__fixture/streams?id=' + api.fixtureID)).json() as Promise<Record<string, number>>;
   const totalStreams = async () => Object.values(await streams()).reduce((sum, n) => sum + n, 0);
-  await page.goto('/#/library');
+  await page.goto('/#/home');
   await page.getByRole('button',{name:'下载诊断',exact:true}).click();
   const panel = page.locator('#block-demands'), canvas = panel.locator('.timeline-canvas'), viewport = panel.locator('.block-timeline');
   const open = async () => { await panel.getByRole('button', { name: '展开时间轴' }).click(); await expect(panel.getByText('事件已连接', { exact: true })).toBeVisible(); await expect(canvas).toBeVisible(); await canvas.scrollIntoViewIfNeeded(); await expect(canvas).toBeInViewport(); };
@@ -65,8 +65,8 @@ test('timeline subscribes only while visible and restores a fresh snapshot', asy
   await expect.poll(f.totalStreams).toBe(0);
   await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, value: false }); document.dispatchEvent(new Event('visibilitychange')); });
   await expect.poll(f.totalStreams).toBe(1);
-  await navigate(page, '本地视频'); await expect.poll(f.totalStreams).toBe(0);
-  await navigate(page, '下载管理'); await f.panel.scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(1);
+  await navigate(page, '曲库'); await expect.poll(f.totalStreams).toBe(0);
+  await navigate(page, '视频加速'); await f.panel.scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(1);
   await page.locator('#downloads').scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(0);
   await f.panel.scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(1);
   await f.panel.getByRole('button', { name: '收起时间轴' }).click(); await expect.poll(f.totalStreams).toBe(0);

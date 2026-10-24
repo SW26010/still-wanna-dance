@@ -34,6 +34,13 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 	if page.Resources[missing].Local != nil || page.Resources[missing].Duration != nil || page.Resources[hidden] != nil {
 		t.Fatal(page)
 	}
+	if _, err := s.usage.db.Exec("INSERT INTO media_access(md5,last_requested_at) VALUES (?,?), (?,?)", shared, 100, orphan, 200); err != nil {
+		t.Fatal(err)
+	}
+	recent, err := ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{View: "resources", Sort: "recent"})
+	if err != nil || len(recent.Keys) != 3 || recent.Keys[0] != orphan || recent.Keys[1] != shared || recent.Keys[2] != missing || recent.Resources[orphan].Local.LastRequest != 200 {
+		t.Fatal(recent, err)
+	}
 	songs, err := ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{Search: "Singer"})
 	if err != nil || songs.Total != 1 || songs.Songs[0].Artist != "Singer" || songs.Songs[0].Dancer != "Dancer" || songs.Songs[0].Group != "Group" || songs.Songs[0].Policy != SongFavorite {
 		t.Fatal(songs, err)

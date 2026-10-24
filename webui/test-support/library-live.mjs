@@ -21,7 +21,8 @@ try {
   await page.getByRole('tab',{name:'按资源'}).click();
   const resources=page.getByRole('grid',{name:'曲库资源'});
   await expect(resources.getByText('完整本地视频已保存',{exact:true})).toHaveCount(1);
-  await expect(resources.getByText('关联歌曲（2 首）：ID 1、ID 2',{exact:true})).toBeVisible();
+  await expect(resources.getByRole('link',{name:'共享视频（ID 1）',exact:true})).toHaveAttribute('href','#/library?song=1');
+  await expect(resources.getByRole('link',{name:'共享视频（ID 2）',exact:true})).toHaveAttribute('href','#/library?song=2');
   await page.setViewportSize({width:390,height:844});await page.emulateMedia({colorScheme:'dark'});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:join(output,'library-mobile.png'),fullPage:true});

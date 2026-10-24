@@ -1,4 +1,4 @@
-import {navigate,navigateStep} from './navigation';
+import {navigateSettings,navigate,navigateStep} from './navigation';
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 
@@ -32,7 +32,7 @@ test('first entry gates business reads, persists explicit consent, and applies o
   await expect(page.getByRole('heading',{name:'应用配置',exact:true})).toBeVisible();
   expect(api.calls.some(c=>c.path==='setup/apply'||c.path==='hosts/enable')).toBe(false);
   await page.getByRole('button',{name:'确认并应用',exact:true}).click();
-  await expect(page.getByRole('link',{name:'游戏加速',exact:true})).toBeVisible();
+  await expect(page.getByRole('link',{name:'视频加速',exact:true})).toBeVisible();
   const apply=api.calls.filter(c=>c.path==='setup/apply');expect(apply).toHaveLength(1);
   expect(apply[0].body).toMatchObject({baseVersion:'1',storageDir:'D:\\UI-Test\\cache',importSource:'D:\\UI-Test\\videos',customStorage:true});
   expect(apply[0].body.id).toMatch(/^[0-9a-f-]{36}$/);
@@ -53,7 +53,7 @@ test('wizard draft is independent of settings and failed apply never resubmits a
   await expect(page.getByRole('button',{name:'核对应用结果'})).toBeVisible();
   await page.getByRole('button',{name:'核对应用结果'}).click();expect(applyCount).toBe(1);
   await page.getByRole('button',{name:'放弃草稿并退出引导'}).click();
-  await navigate(page,'下载管理');
+  await navigateSettings(page,'预加载与下载');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('140');
   expect(api.calls.some(c=>c.path==='settings')).toBe(false);
 });

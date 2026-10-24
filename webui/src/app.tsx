@@ -32,7 +32,7 @@ export function App() {
     const params=new URLSearchParams(location.search), originalHash=location.hash;
     if(params.get('setup')==='1')params.delete('setup');
     if(bootstrap.termsGate||page==='setup')history.replaceState(null,'','/'+(params.size?'?'+params:'')+'#/setup');
-    else if(isDocumentPage(location.pathname.slice(1)))history.replaceState(null,'','/'+(params.size?'?'+params:'')+(originalHash&&originalHash!=='#main'?originalHash:'#/'+page));
+    else if(isDocumentPage(location.pathname.slice(1)))history.replaceState(null,'','/'+(params.size?'?'+params:'')+(originalHash&&originalHash!=='#main'?originalHash:'#/'+location.pathname.slice(1)));
     const change = async () => {
       if(location.hash==='#main')return;
       if(!currentAccepted.current){history.replaceState(null,'','#/setup');setPage('setup');return;}
@@ -76,7 +76,7 @@ export function App() {
       {page==='about'&&<AboutPage anchor={anchor} paths={s?{...bootstrap.paths,Storage:s.activeSettings.storageDir}:bootstrap.paths||{}}/>}
       {page==='setup'&&<Setup accepted={accepted} onAccepted={()=>setAccepted(true)} onExit={exitSetup} guard={guard} feedback={feedback}/>}
     </main><footer hidden={page==='setup'||documentPage}><p>关闭网页后程序仍在后台运行。{exitConnectionMessage(s)} <Link href="#preferences">查看退出设置</Link></p><Button disabled={model.unavailable} onClick={() => void model.action('exit')}>退出整个应用</Button></footer>
-    <DocumentFooter page={page}/>
+    <DocumentFooter page={page==='about'&&anchor.includes('help')?'help':page}/>
     </NavigationLayout>{model.dialog}
   </div></ConsoleContext.Provider>;
 }

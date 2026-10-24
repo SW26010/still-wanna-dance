@@ -11,7 +11,8 @@ const context = await browser.newContext({ viewport: { width: 1280, height: 900 
 const page = await context.newPage(), errors = [];
 page.on('pageerror', error => errors.push(error.message));
 try {
-  await page.goto(url + '/#/monitor');
+  await page.goto(url + '/#/home');
+  await page.getByRole('button',{name:'下载诊断',exact:true}).click();
   await page.getByRole('button', { name: '展开时间轴' }).click();
   const panel = page.locator('#block-demands'), canvas = panel.locator('.timeline-canvas');
   await expect(panel.getByText('事件已连接', { exact: true })).toBeVisible();
@@ -29,7 +30,7 @@ try {
   await page.screenshot({ path: path.join(evidence, 'real-download.png'), fullPage: true });
   // Keep the pin across an actual offscreen interval. Neither the overview nor
   // detail stream may remain subscribed; resume observation before completion.
-  await page.locator('footer').scrollIntoViewIfNeeded();
+  await page.locator('#activation').scrollIntoViewIfNeeded();
   await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(0);
   await expect(detail).toHaveCount(0);
   await canvas.scrollIntoViewIfNeeded();

@@ -1,6 +1,6 @@
+import {navigateSettings,navigate,navigateStep} from './navigation';
 import {test,expect,type Page} from '@playwright/test';
 import {mockAPI} from './api';
-import {navigate,navigateStep} from './navigation';
 
 const report=(id:string)=>({id,accepted:1,skipped:0,failed:0,items:[{index:1,status:'accepted',protocol:'ss'}]});
 const reports=(page:Page)=>page.getByText(/本次接受 1 个/);
@@ -17,7 +17,7 @@ async function applyUnchangedWizard(page:Page) {
   await page.getByRole('link',{name:'重新进入使用引导',exact:true}).click();
   await navigateStep(page,'4. 启用');
   await page.getByRole('button',{name:'确认并应用',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'游戏加速',level:1,exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'视频加速',level:1,exact:true})).toBeVisible();
   await page.evaluate(()=>{location.hash='network-proxy';});
   await expect(page.getByRole('combobox',{name:'上游连接',exact:true})).toHaveValue('direct');
 }
@@ -27,7 +27,7 @@ test('wizard reset releases the checked settings draft, ordinary navigation reta
   await page.route('**/api/proxy/import',r=>r.fulfill({json:report('settings-draft')}));
   await page.goto('/#network-proxy');await selectMihomo(page);await inspect(page);
   await expect(reports(page)).toBeVisible();
-  await navigate(page,'帮助');await navigate(page,'网络与代理');
+  await navigate(page,'帮助');await navigateSettings(page,'网络');
   await page.getByRole('tab',{name:'代理设置',exact:true}).click();
   await expect(reports(page)).toBeVisible();
   expect(api.calls.some(c=>c.path==='proxy/import/discard')).toBe(false);

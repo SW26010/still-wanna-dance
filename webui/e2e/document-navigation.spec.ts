@@ -1,6 +1,6 @@
+import {navigateSettings,navigate} from './navigation';
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
-import {navigate} from './navigation';
 
 for(const width of [390,1280])test(`all navigation stays in one document and preserves drafts (${width})`,async({page})=>{
   const api=await mockAPI(page),requests:string[]=[],errors:string[]=[];
@@ -11,15 +11,15 @@ for(const width of [390,1280])test(`all navigation stays in one document and pre
   const draft=page.getByRole('spinbutton',{name:/提前准备时间/});
   await draft.fill('777');
   const originalDocument=await page.evaluate(()=>performance.timeOrigin),initialRequests=requests.length;
-  for(const name of ['游戏加速','网络与代理','本地视频','下载管理','帮助','关于','使用条款','下载管理']){
+  for(const name of ['视频加速','曲库','帮助','关于','使用条款','设置']){
     await navigate(page,name);
     await expect(page.getByText('正在读取控制台状态',{exact:true})).not.toBeVisible();
     if(width>640)await expect(page.locator('#main')).toBeFocused();
     expect(await page.evaluate(()=>performance.timeOrigin)).toBe(originalDocument);
   }
-  await expect(draft).toHaveValue('777');
+  await navigateSettings(page,'预加载与下载');await expect(draft).toHaveValue('777');
   await page.goBack();
-  await expect(page.getByRole('heading',{name:'使用条款与内容权利声明',exact:true})).toBeVisible();
+  await expect(page.getByRole('tab',{name:'常规',exact:true})).toHaveAttribute('aria-selected','true');
   await page.goForward();
   await expect(draft).toHaveValue('777');
   expect(requests).toHaveLength(initialRequests);
@@ -33,14 +33,14 @@ test('document body and footer links preserve navigation and drafts',async({page
   await page.getByRole('spinbutton',{name:/提前准备时间/}).fill('888');
   const originalDocument=await page.evaluate(()=>performance.timeOrigin);
   await navigate(page,'关于');
-  await expect(page.getByRole('heading',{level:1})).toHaveText('Load failed? But I still wanna dance!');
+  await expect(page.getByRole('heading',{level:1})).toHaveText('关于');
   await page.getByRole('link',{name:'使用条款与内容权利声明',exact:true}).click();
   await expect(page.getByRole('button',{name:/恢复.*直连|停止播放网关/})).toHaveCount(0);
   await page.getByRole('link',{name:'返回控制台',exact:true}).click();
   await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
   await navigate(page,'帮助');
   await page.getByRole('link',{name:'返回控制台',exact:true}).click();
-  await navigate(page,'下载管理');
+  await navigateSettings(page,'预加载与下载');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('888');
   expect(await page.evaluate(()=>performance.timeOrigin)).toBe(originalDocument);
 });
@@ -54,7 +54,7 @@ test('direct document URLs load content before status, normalize once, and survi
   for(const [path,title] of [['help','帮助'],['about','Load failed? But I still wanna dance!'],['terms','使用条款与内容权利声明']]){
     const count=documents.length;
     await page.goto('/'+path);
-    await expect(page.getByRole('heading',{level:1,name:title,exact:true})).toBeVisible();
+    await expect(page.getByRole('heading',{level:1,name:'关于',exact:true})).toBeVisible();
     await expect(page).toHaveURL(new RegExp('/#/('+path+')$'));
     await expect(page.getByText('正在读取控制台状态',{exact:true})).not.toBeVisible();
     if(path==='help')await expect(page.getByText('<script>alert("path")</script>',{exact:true})).toBeVisible();
@@ -62,7 +62,8 @@ test('direct document URLs load content before status, normalize once, and survi
     if(path==='terms')await expect(page.getByRole('article',{name:'完整使用条款'})).toContainText('浏览器测试条款');
     expect(documents).toHaveLength(count+1);
     await page.reload();
-    await expect(page.getByRole('heading',{level:1,name:title,exact:true})).toBeVisible();
+    await expect(page.getByRole('heading',{level:1,name:'关于',exact:true})).toBeVisible();
+    await expect(page.getByRole('heading',{level:2,name:title,exact:true})).toBeVisible();
   }
   expect(api.calls.some(call=>call.path==='setup')).toBe(false);
 });
@@ -105,17 +106,17 @@ for(const width of [390,1280])test(`ordinary navigation resets scrolling; explic
   await page.setViewportSize({width,height:720});
   await page.goto('/#prepareAheadSeconds');
   await page.getByRole('spinbutton',{name:/提前准备时间/}).fill('777');
-  expect(await page.evaluate(()=>scrollY)).toBeGreaterThan(500);
-  for(const name of ['帮助','关于','游戏加速']){
+  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeInViewport();
+  for(const name of ['帮助','关于','视频加速']){
     await navigate(page,name);
     await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(0);
     await page.evaluate(()=>scrollTo(0,document.body.scrollHeight));
   }
-  await navigate(page,'下载管理');
+  await navigate(page,'视频加速');
   await page.getByRole('link',{name:'调整提前准备时间',exact:true}).click();
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeFocused();
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('777');
-  expect(await page.evaluate(()=>scrollY)).toBeGreaterThan(500);
+  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeInViewport();
   await page.goBack();
   await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(0);
   await page.goForward();
@@ -129,7 +130,7 @@ test('action feedback names the operation and does not follow navigation or late
   await expect(page.getByText('已开始检查缺失视频。',{exact:true})).toBeVisible();
   await navigate(page,'设置');
   await expect(page.getByText('已开始检查缺失视频。',{exact:true})).not.toBeVisible();
-  await navigate(page,'下载管理');
+  await navigate(page,'曲库');
   await expect(page.getByText('已开始检查缺失视频。',{exact:true})).not.toBeVisible();
   let finish!:()=>void;
   const pending=new Promise<void>(resolve=>{finish=resolve;});
@@ -139,6 +140,6 @@ test('action feedback names the operation and does not follow navigation or late
   await navigate(page,'设置');
   finish();
   await expect(page.getByText('已开始检查缺失视频。',{exact:true})).not.toBeVisible();
-  await navigate(page,'下载管理');
+  await navigate(page,'曲库');
   await expect(page.getByText('已开始检查缺失视频。',{exact:true})).not.toBeVisible();
 });

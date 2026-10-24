@@ -1,6 +1,6 @@
+import {navigateSettings,navigate} from './navigation';
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
-import {navigate} from './navigation';
 
 test('download settings validate bounds, preserve zero and explain CPU cost',async({page},testInfo)=>{
   const api=await mockAPI(page);await page.goto('/#prepareAheadSeconds');await page.getByRole('button',{name:'高级下载设置',exact:true}).click();
@@ -19,12 +19,12 @@ test('download settings validate bounds, preserve zero and explain CPU cost',asy
     await input.fill(reset);
   }
   await limit.fill('64');await interval.fill('0');
-  await navigate(page,'网络与代理');await navigate(page,'下载管理');
+  await navigateSettings(page,'网络');await navigateSettings(page,'预加载与下载');
   await expect(limit).toHaveValue('64');await expect(interval).toHaveValue('0');
   await save.click();await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeEnabled();
   expect(api.state.settings).toMatchObject({downloadSoftLimit:64,downloadGrowIntervalMS:0});
   expect(api.state.activeSettings).toMatchObject({downloadSoftLimit:16,downloadGrowIntervalMS:250});
-  await page.reload();await page.getByRole('link',{name:'调整提前准备时间',exact:true}).click();await page.getByRole('button',{name:'高级下载设置',exact:true}).click();
+  await page.reload();await page.getByRole('button',{name:'高级下载设置',exact:true}).click();
   await expect(limit).toHaveValue('64');await expect(interval).toHaveValue('0');
   await limit.fill('1');await interval.fill('2000');await save.click();
   await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeEnabled();
@@ -46,7 +46,7 @@ test('local protection grace preserves zero, validates bounds and waits for rest
     expect(api.calls.filter(c=>c.path==='settings')).toHaveLength(0);
   }
   await grace.fill('0');
-  await navigate(page,'网络与代理');await navigate(page,'本地视频');await page.getByRole('link',{name:'存储设置',exact:true}).click();
+  await navigateSettings(page,'网络');await navigate(page,'曲库');await page.getByRole('link',{name:'存储设置',exact:true}).click();
   await expect(grace).toHaveValue('0');
   await save.click();await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeEnabled();
   expect(api.state.settings.localProtectionGraceSeconds).toBe(0);

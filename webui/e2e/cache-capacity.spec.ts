@@ -124,8 +124,8 @@ test('settings preserve all three storage choices and the entered budget across 
   await unlimited.check();
   await limited.check();
   await expect(input).toHaveValue('12.5');
-  await navigate(page,'本地视频');
-  await navigate(page,'本地视频');await page.getByRole('link',{name:'存储设置',exact:true}).click();
+  await navigate(page,'曲库');
+  await navigate(page,'曲库');await page.getByRole('link',{name:'存储设置',exact:true}).click();
   await expect(limited).toBeChecked();
   await expect(input).toHaveValue('12.5');
   await page.getByRole('button', {name:'保存设置', exact:true}).click();
@@ -191,10 +191,10 @@ test('no retention overrides the remembered budget while favorites can still be 
   api.state.activeSettings.videoStorageMode = 'none';
   await page.goto('/#/cache');
   await expect(page.getByText(/当前视频存储预算：0 GiB（仅收藏可突破预算保留）/)).toBeVisible();
-  await navigate(page,'下载管理');
+  await navigate(page,'曲库');
   await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();
   await expect(page.getByRole('button',{name:'检查缺失视频',exact:true})).toBeEnabled();
-  await expect(page.getByRole('heading',{name:'自动准备房间队列',exact:true})).toBeVisible();
+  await navigate(page,'视频加速');await expect(page.getByRole('heading',{name:'自动准备房间队列',exact:true})).toBeVisible();
 });
 
 test('empty storage links explain queue preparation and persistent library prerequisites',async({page})=>{
@@ -204,7 +204,7 @@ test('empty storage links explain queue preparation and persistent library prere
   await page.getByRole('link',{name:'自动准备房间队列',exact:true}).click();
   await expect(page.locator('#queue')).toBeFocused();
   await expect(page.getByRole('heading',{name:'自动准备房间队列',exact:true})).toBeVisible();
-  await expect(page.getByRole('heading',{name:'下载缺失视频',exact:true})).toBeVisible();
+  await navigate(page,'曲库');await expect(page.getByRole('heading',{name:'下载缺失视频',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();
   await page.getByRole('link',{name:'设置视频保留空间',exact:true}).click();
   await expect(page.locator('#maxCacheGiB')).toBeFocused();

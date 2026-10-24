@@ -53,6 +53,7 @@ type libraryCandidate struct {
 	saved, match bool
 	title        string
 	score        float64
+	lastRequest  int64
 }
 
 // ReadLibraryPage reads current metadata and complete-file directory entries.
@@ -169,6 +170,18 @@ func readLibraryPage(ctx context.Context, root string, q LibraryQuery, now int64
 			return page, err
 		}
 	}
+	if q.Sort == "recent" {
+		entries := make([]cacheListCandidate, 0, len(resources))
+		for key := range resources {
+			entries = append(entries, cacheListCandidate{key: key})
+		}
+		if err := loadCacheListMetadata(ctx, db, entries, "", "recent"); err != nil {
+			return page, err
+		}
+		for _, entry := range entries {
+			resources[entry.key].lastRequest = entry.lastRequest
+		}
+	}
 	materialize := func(key string) error {
 		if key == "" || page.Resources[key] != nil {
 			return nil
@@ -215,6 +228,9 @@ func readLibraryPage(ctx context.Context, root string, q LibraryQuery, now int64
 		}
 		sort.Slice(candidates, func(i, j int) bool {
 			a, b := candidates[i], candidates[j]
+			if q.Sort == "recent" && a.lastRequest != b.lastRequest {
+				return a.lastRequest > b.lastRequest
+			}
 			if q.Sort == "score" && a.score != b.score {
 				return a.score > b.score
 			}

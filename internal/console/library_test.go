@@ -13,7 +13,7 @@ func TestLibraryAPIReadOnlyAndValidation(t *testing.T) {
 		want                int
 	}{
 		{"/api/library", c.token, "", 200},
-		{"/api/library?view=resources", c.token, "", 200},
+		{"/api/library?view=resources&sort=recent", c.token, "", 200},
 		{"/api/library", "", "", 403},
 		{"/api/library", c.token, "http://evil.example", 403},
 		{"/api/library?view=no", c.token, "", 400},

@@ -13,7 +13,7 @@ test('failed acceleration reports rollback failure and the resulting real state'
   await page.getByRole('button',{name:'开始加速',exact:true}).click();
   await expect(page.getByText(/未能撤销本次游戏接入/).first()).toBeVisible();
   await expect(page.getByText('游戏连接：已配置',{exact:true})).toBeVisible();
-  await expect(page.getByText('本地服务：未启动',{exact:true})).toBeVisible();
+  await expect(page.getByText('视频网关：未运行',{exact:true})).toBeVisible();
   await expect(page.getByText('视频加速已开启。',{exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
 });
@@ -23,10 +23,10 @@ test('acceleration status distinguishes connection from service without enabling
   await page.goto('/');
   await expect(page.getByText('加速未运行',{exact:true})).toBeVisible();
   await expect(page.getByText('游戏连接：已配置',{exact:true})).toBeVisible();
-  await expect(page.getByText('本地服务：未启动',{exact:true})).toBeVisible();
+  await expect(page.getByText('视频网关：未运行',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'开始加速',exact:true}).click();
   await expect(page.getByRole('button',{name:'加速运行中',exact:true})).toBeDisabled();
-  await expect(page.getByText('房间队列预加载：已关闭',{exact:true})).toBeVisible();
+  await expect(page.locator('#queue').getByText('已关闭',{exact:true})).toBeVisible();
   expect(api.calls.filter(c=>/^(activation\/|hosts\/|queue\/|start$|stop$|exit$)/.test(c.path)).map(c=>c.path)).toEqual(['activation/enable']);
 });
 
@@ -50,9 +50,9 @@ test('automatic gateway startup stays untested until request detection is starte
   await expect(page.getByText(/尚未收到游戏请求/)).toHaveCount(0);
   expect(api.calls.some(c=>c.path==='activation/enable')).toBe(false);
   await page.getByRole('link',{name:'重新检测视频请求',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'网络与代理',level:1,exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'设置',level:1,exact:true})).toBeVisible();
   await page.getByRole('button',{name:'重新检测视频请求',exact:true}).click();
-  await navigate(page,'游戏加速');
+  await navigate(page,'视频加速');
   await expect(page.getByText('检测已开始，尚未收到游戏请求；请在游戏中点歌。',{exact:true})).toBeVisible();
   expect(api.calls.filter(c=>/^(activation\/|hosts\/|queue\/|start$|stop$|exit$)/.test(c.path)).map(c=>c.path)).toEqual(['activation/enable']);
 });

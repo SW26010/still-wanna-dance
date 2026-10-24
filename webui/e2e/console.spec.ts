@@ -1,4 +1,4 @@
-import {navigate} from './navigation';
+import {navigateSettings,navigate} from './navigation';
 import { test, expect } from '@playwright/test';
 import { mockAPI } from './api';
 
@@ -8,10 +8,10 @@ test('drafts survive polling and navigation; save preserves active config and bl
   await expect(m).toHaveAccessibleDescription(/当前值约占 125 MB 临时缓存，按 2 Mbps 估算/);
   await m.fill(''); await expect(m).not.toHaveAccessibleDescription(/当前值约占/);
   await m.fill('100'); await expect(m).toHaveAccessibleDescription(/当前值约占 25 MB 临时缓存/);
-  await navigate(page,'网络与代理');await page.getByRole('tab',{name:'高级接入',exact:true}).click();
+  await navigateSettings(page,'网络');await page.getByRole('tab',{name:'高级接入',exact:true}).click();
   await page.getByRole('button',{name:'修复并开启加速',exact:true}).click();
   await expect(page.getByText('视频加速已开启。',{exact:true})).toBeVisible();
-  await navigate(page,'下载管理'); await expect(m).toHaveValue('100');
+  await navigateSettings(page,'预加载与下载'); await expect(m).toHaveValue('100');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeEnabled();
   expect(api.state.settings.prepareAheadSeconds).toBe(100); expect(api.state.activeSettings.prepareAheadSeconds).toBe(500);
@@ -34,13 +34,13 @@ test('cache renders Unix millisecond request times and zero as no record', async
   const api=await mockAPI(page), errors:string[]=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto('/#/cache');
-  const rows=page.getByRole('grid',{name:'本地视频文件'}).getByRole('row');
+  const rows=page.getByRole('grid',{name:'曲库资源'}).getByRole('row');
   const requested=await page.evaluate(at=>new Date(at).toLocaleString(),api.files[0].lastRequest);
   await expect(rows.first()).toContainText('最近请求：'+requested);
   await expect(rows.nth(1)).toContainText('最近请求：无记录');
-  await page.getByRole('button',{name:'刷新文件列表'}).click();
+  await page.getByRole('button',{name:'刷新曲库与本地占用'}).click();
   await expect(rows.first()).toContainText('最近请求：'+requested);
-  await navigate(page,'下载管理'); await navigate(page,'本地视频');
+  await navigateSettings(page,'预加载与下载'); await navigate(page,'曲库');
   await expect(rows.first().getByRole('checkbox')).toBeEnabled();
   expect(errors).toEqual([]);
 });
@@ -59,7 +59,7 @@ test('pause only freezes monitor display; native dialogs replaced by Fluent conf
   const api=await mockAPI(page); await page.goto('/#recent');
   await page.getByRole('checkbox',{name:'暂停请求刷新'}).check();
   const reads=api.calls.filter(c=>c.path==='downloads'||c.path==='requests').length;
-  await navigate(page,'网络与代理');await page.getByRole('button',{name:'检查当前连接',exact:true}).click();
+  await navigateSettings(page,'网络');await page.getByRole('button',{name:'检查当前连接',exact:true}).click();
   await expect(page.getByText('网络检测已开始，请查看检测结果。',{exact:true})).toBeVisible();
   expect(api.calls.filter(c=>c.path==='downloads'||c.path==='requests')).toHaveLength(reads);
   await page.getByRole('button',{name:'退出整个应用',exact:true}).click(); await expect(page.getByRole('dialog')).toBeVisible();
@@ -70,7 +70,7 @@ test('all console pages render at narrow width without runtime errors', async ({
   await mockAPI(page); await page.setViewportSize({width:390,height:844}); await page.emulateMedia({colorScheme:'dark'});
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('/');
-  for(const name of ['游戏加速','时间线','下载管理','本地视频','网络与代理','设置']) {
+  for(const name of ['视频加速','时间线','曲库','设置','关于']) {
     await navigate(page,name);
     await expect(page.locator('#main')).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

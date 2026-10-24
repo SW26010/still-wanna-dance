@@ -27,7 +27,7 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 		q.Offset, err = strconv.Atoi(raw)
 	}
 	valid := err == nil && q.Offset >= 0 && q.Offset <= 10000000 && utf8.ValidString(q.Search) && len(utf16.Encode([]rune(q.Search))) <= 300
-	valid = valid && (q.View == "" || q.View == "songs" || q.View == "resources") && (q.Sort == "" || q.Sort == "id" || q.Sort == "title" || q.Sort == "score" || q.Sort == "size")
+	valid = valid && (q.View == "" || q.View == "songs" || q.View == "resources") && (q.Sort == "" || q.Sort == "id" || q.Sort == "title" || q.Sort == "score" || q.Sort == "size" || q.Sort == "recent")
 	valid = valid && (q.Filter == "" || q.Filter == "saved" || q.Filter == "missing" || q.View != "resources" && (q.Filter == "normal" || q.Filter == "favorite" || q.Filter == "blocked"))
 	if q.SongID != "" {
 		id, e := strconv.ParseInt(q.SongID, 10, 64)

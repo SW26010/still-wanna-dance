@@ -1,6 +1,6 @@
+import {navigateSettings,navigate} from './navigation';
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
-import {navigate} from './navigation';
 
 test('storage fault stays visible across polling, pages, gateway actions and connection loss',async({page})=>{
   const api=await mockAPI(page);
@@ -13,12 +13,12 @@ test('storage fault stays visible across polling, pages, gateway actions and con
   const reason=page.getByText('首个错误：'+cause,{exact:true});
   await expect(reason).toBeVisible();
   await expect(page.getByText(/修复后退出并重新打开整个应用/)).toBeVisible();
-  await navigate(page,'网络与代理');await page.getByRole('tab',{name:'高级接入',exact:true}).click();
+  await navigateSettings(page,'网络');await page.getByRole('tab',{name:'高级接入',exact:true}).click();
   await page.getByRole('button',{name:'修复并开启加速',exact:true}).click();
   await page.getByRole('button',{name:'重新检测视频请求',exact:true}).click();
   await expect(reason).toBeVisible();
   await page.setViewportSize({width:320,height:800});
-  for(const name of ['网络与代理','本地视频','下载管理','设置']){
+  for(const name of ['时间线','曲库','设置']){
     await navigate(page,name);await expect(reason).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   }

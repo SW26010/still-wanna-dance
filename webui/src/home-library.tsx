@@ -8,6 +8,7 @@ import { requestOutcome } from './requests';
 import { active, exitConnectionMessage, date, dated, type RequestRecord } from './types';
 
 export function Home({visible}: {visible:boolean}) {
+  const [paused,setPaused]=useState(false);
   const app = useApp(), s = app.status.data!, a = s.activation || {}, received = dated(a.firstRequest);
   const requests=useResource<{requests:RequestRecord[]}>('requests?limit=1',visible&&!app.stopped,app.revision);
   const recent=requests.data?.requests[0], failed=!!recent&&(recent.status>=400||['failed','incomplete','aborted'].includes(recent.outcome));
@@ -32,7 +33,7 @@ export function Home({visible}: {visible:boolean}) {
     <Caption1 as="p" className="hint">队列按设置随网关启用。{exitConnectionMessage(s)}</Caption1>
     </Panel><Panel title="游戏请求"><p>{requestStatus}</p><p>{requests.error?'最近请求暂时无法读取，将自动重试。':recent?`最近一次已结束请求：${requestOutcome(recent)} · HTTP ${recent.status || '未返回'} · ${date(recent.at)}`:'尚无已结束的请求记录'}</p><Caption1 as="p">请求结果只表示本地服务的处理情况，音画仍需在游戏中确认。</Caption1><div className="actions"><Link href="#service">重新检测视频请求</Link><Link href="#recent">查看请求详情</Link></div></Panel>
     {(problem||failed)&&<Feedback error><div className="content-stack"><p>{problem || '最近一次请求未正常完成，请检查连接与请求详情。'}</p><Link href="#/network">检查连接</Link></div></Feedback>}
-    <CurrentDownloads visible={visible}/><QueuePanel/><DownloadDiagnostics visible={visible}/></>;
+    <CurrentDownloads visible={visible} paused={paused}/><QueuePanel/><DownloadDiagnostics visible={visible} paused={paused} setPaused={setPaused}/></>;
 
 }
 export function AccessSettings() {
@@ -47,8 +48,8 @@ export function AccessSettings() {
     {dated(a.started) && <p>检测开始：{date(a.started)}{received&&` · 首个请求：${date(a.firstRequest)}`}</p>}
     </Panel></div></>;
 }
-export function DownloadDiagnostics({visible}:{visible:boolean}) {
-  const [paused,setPaused]=useState(false),[open,setOpen]=useState(false);
+export function DownloadDiagnostics({visible,paused,setPaused}:{visible:boolean;paused:boolean;setPaused:(value:boolean)=>void}) {
+  const [open,setOpen]=useState(false);
   return <Details title="下载诊断" keepMounted expanded={open} onToggle={setOpen}><Checkbox label="暂停下载展示" checked={paused} onChange={(_,v)=>setPaused(!!v.checked)}/><p>暂停仅冻结展示，后台任务继续运行。</p><BlockTimeline visible={visible&&open} paused={paused}/></Details>;
 }
 export function QueuePanel() {

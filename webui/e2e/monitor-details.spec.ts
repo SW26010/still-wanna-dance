@@ -34,7 +34,7 @@ test('network details preserve sample evidence and distinguish failures from mis
   await expect(row('history.example')).toContainText('历史样本（已过期）');
   await expect(row('history.example')).toContainText('地址来源：api · node=cf · API 通道 source-1');
   expect((await row('history.example').innerText()).match(/API 通道 source-1/g)).toHaveLength(1);
-  await page.getByRole('button',{name:'请求与线路诊断',exact:true}).click();
+  await page.getByRole('button',{name:'线路诊断',exact:true}).click();
   await page.getByRole('button',{name:'直连诊断详情',exact:true}).click();
   const diagnostic=page.getByRole('grid',{name:'直连诊断结果'});
   await expect(diagnostic).toContainText('歌曲列表 · api');

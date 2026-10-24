@@ -17,7 +17,7 @@ test('acceleration owns connection actions and queue status links to settings',a
  await page.route('**/api/activation/enable',r=>r.fulfill({status:409,json:{error:'管理员取消，hosts 未改变'}}));
  await page.getByRole('button',{name:'修复并开启加速',exact:true}).click();
  await expect(page.getByText('管理员取消，hosts 未改变',{exact:true})).toBeVisible();
- await navigate(page,'下载管理');
+ await navigate(page,'视频加速');
  await expect(page.locator('#queue ol li')).toHaveCount(6);
  await expect(page.getByRole('button',{name:/开启队列预加载|关闭队列预加载/})).toHaveCount(0);
  await page.getByRole('link',{name:'调整提前准备时间',exact:true}).click();
@@ -64,13 +64,13 @@ test('setup validation failure keeps the draft and does not apply',async({page})
   await page.route('**/api/setup/validate',r=>r.fulfill({status:409,json:{error:'设置版本已变化，请重新进入引导'}}));
   await page.getByRole('button',{name:'下一步',exact:true}).click();await expect(page.getByText(/本页尚未通过检查/)).toBeVisible();
   await expect(page.getByRole('spinbutton',{name:/视频存储预算/})).toHaveValue('18');expect(api.calls.some(c=>c.path==='setup/apply')).toBe(false);
-  await page.getByRole('button',{name:'放弃草稿并退出引导'}).click();await expect(page.getByRole('link',{name:'游戏加速',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'放弃草稿并退出引导'}).click();await expect(page.getByRole('link',{name:'视频加速',exact:true})).toBeVisible();
 });
 
 test('reload reconciles the original application ID without submitting again',async({page})=>{
   const api=await mockAPI(page);api.state.setupApplication={id:'original-application',phase:'completed',configSaved:true};
   await page.addInitScript(()=>sessionStorage.setItem('swd-setup-application','original-application'));
-  await page.goto('/#/setup');await expect(page.getByRole('link',{name:'游戏加速',exact:true})).toBeVisible();
+  await page.goto('/#/setup');await expect(page.getByRole('link',{name:'视频加速',exact:true})).toBeVisible();
   expect(api.calls.find(c=>c.path==='setup/receipt')?.body).toEqual({id:'original-application'});
   expect(api.calls.some(c=>c.path==='setup/apply')).toBe(false);
   expect(await page.evaluate(()=>sessionStorage.getItem('swd-setup-application'))).toBeNull();
@@ -91,7 +91,7 @@ test('late monitor response cannot overwrite paused display',async({page})=>{
   await mockAPI(page);let count=0,release:()=>void=()=>{};
   const held=new Promise<void>(done=>{release=done;});
   await page.route('**/api/downloads',async r=>{count++;if(count===2)await held;await r.fulfill({json:{tasks:[],bytesPerSecond:count===1?1000000:9000000}}).catch(()=>{});});
-  await page.clock.install();await page.goto('/#/library');await page.getByRole('button',{name:'下载诊断',exact:true}).click();await expect(page.getByText(/总下载速度 1.000 MB/)).toBeVisible();
+  await page.clock.install();await page.goto('/#/home');await page.getByRole('button',{name:'下载诊断',exact:true}).click();await expect(page.getByText(/总下载速度 1.000 MB/)).toBeVisible();
   await page.clock.fastForward(5100);await expect.poll(()=>count).toBe(2);
   await page.getByRole('checkbox',{name:'暂停下载展示'}).check();release();
   await page.clock.fastForward(5100);await expect(page.getByText(/总下载速度 1.000 MB/)).toBeVisible();expect(count).toBe(2);
@@ -112,15 +112,15 @@ test('rejected cancellation stays running and stale SSE events cannot replace ne
 
 test('cache failures remove stale selectable rows and retry reads no unrelated services',async({page})=>{
   const api=await mockAPI(page);await page.goto('/#/cache');await expect(page.getByRole('checkbox',{name:/测试歌曲 1/})).toBeEnabled();
-  await page.route('**/api/cache?*',r=>r.fulfill({status:503,json:{error:'busy'}}));
-  await page.getByRole('button',{name:'刷新文件列表'}).click();await expect(page.getByText(/本地视频明细读取失败/)).toBeVisible();
+  await page.route('**/api/library?*',r=>r.fulfill({status:503,json:{error:'busy'}}));
+  await page.getByRole('button',{name:'刷新曲库与本地占用'}).click();await expect(page.getByText(/曲库读取失败/)).toBeVisible();
   await expect(page.getByRole('checkbox',{name:/测试歌曲 1/})).toHaveCount(0);
   expect(api.calls.some(c=>c.path==='cache/delete'||c.path==='inventory/scan'||c.path==='start')).toBe(false);
 });
 
 test('320px forced-colors layout keeps every console page usable',async({page})=>{
   await mockAPI(page);await page.setViewportSize({width:320,height:800});await page.emulateMedia({forcedColors:'active',reducedMotion:'reduce'});await page.goto('/');
-  for(const name of ['游戏加速','下载管理','本地视频','网络与代理','设置']){
+  for(const name of ['视频加速','时间线','曲库','设置','关于']){
     await navigate(page,name);
     await page.getByRole('button',{name:'展开控制台页面',exact:true}).click();
     await expect(page.getByRole('navigation',{name:'控制台页面',exact:true}).getByRole('link',{name,exact:true})).toHaveAttribute('aria-current','page');

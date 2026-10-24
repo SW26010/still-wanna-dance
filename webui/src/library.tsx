@@ -19,15 +19,21 @@ export function Library({visible,anchor}:{visible:boolean;anchor:string}) {
 function LibraryView({visible,anchor,song,resource}:{visible:boolean;anchor:string;song:string;resource:string}) {
   const app=useApp(),s=app.status.data!,focus=useFocusRecovery();
   const [view,setView]=useState(resource||anchor==='cache'||anchor==='/cache'?'resources':'songs'),[search,setSearch]=useState(''),[sort,setSort]=useState('score'),[filter,setFilter]=useState('');
-  const [query,setQuery]=useState({q:'',sort:'score',filter:''}),[offset,setOffset]=useState(0),[selected,setSelected]=useState<string[]>([]);
+  const [query,setQuery]=useState({q:'',sort:'score',filter:''}),[offset,setOffset]=useState(0),[selected,setSelected]=useState<Record<string,string>>({});
   const [pending,setPending]=useState(false),[message,setMessage]=useState(''),[failed,setFailed]=useState(false),[importOpen,setImportOpen]=useState(anchor==='video-import');
   const [historyOpen,setHistoryOpen]=useState(false);
   const page=useResource<LibraryPage>('library?'+new URLSearchParams({...query,view,song,resource,offset:String(offset)}),visible&&!app.stopped,app.revision,10000);
   const downloads=useResource<{tasks:Download[]}>('downloads',visible&&!app.stopped,app.revision);
   const actions=useCacheActions(page.data,page.refresh,page.loading||pending);
   const disabled=app.unavailable||pending||actions.pending||page.loading||!page.data;
-  const resources=page.data?.resources||{}, entries=Object.values(resources).flatMap(r=>r.local?[r.local]:[]), chosen=entries.filter(e=>selected.includes(e.key)), eligible=entries.filter(e=>e.known&&!e.protected);
-  useEffect(()=>{setSelected([]);if(page.data&&offset>=page.data.total&&offset>0)setOffset(0);},[page.data,offset]);
+  const resources=page.data?.resources||{}, entries=Object.values(resources).flatMap(r=>r.local?[r.local]:[]), chosen=entries.filter(e=>selected[e.key]===e.stamp), eligible=entries.filter(e=>e.known&&!e.protected);
+  useEffect(()=>{setSelected({});},[query,view,offset,page.data?.storageID]);
+  useEffect(()=>{
+    setSelected(previous=>Object.fromEntries(Object.values(page.data?.resources||{}).flatMap(r=>{
+      const e=r.local;return e?.known&&!e.protected&&previous[e.key]===e.stamp?[[e.key,e.stamp]]:[];
+    })));
+    if(page.data&&offset>=page.data.total&&offset>0)setOffset(0);
+  },[page.data,offset]);
   useEffect(()=>{if(visible)page.refresh();},[s.batch.running,s.import.running,visible,page.refresh]);
   useLayoutEffect(()=>{if(visible&&anchor==='video-import'){setImportOpen(true);const frame=requestAnimationFrame(()=>{const target=document.getElementById('video-import');target?.focus();target?.scrollIntoView();});return()=>cancelAnimationFrame(frame);}},[visible,anchor]);
   useLayoutEffect(()=>{if(visible&&['cache','/cache','song-preferences'].includes(anchor)){setView(anchor==='song-preferences'?'songs':'resources');setOffset(0);setFilter('');setQuery(q=>({...q,filter:''}));const frame=requestAnimationFrame(()=>focus.ref.current?.focus());return()=>cancelAnimationFrame(frame);}},[visible,anchor]);
@@ -59,12 +65,12 @@ function LibraryView({visible,anchor,song,resource}:{visible:boolean;anchor:stri
     {page.data?.total===0&&<p>{song||resource?'该对象不在当前曲库列表范围内；历史身份仍保留，未替换为其他对象。':'没有匹配项。可更新歌曲清单或调整搜索和筛选。'}</p>}
     <Details title="列表与需求分数说明"><p>每页最多 50 项，需求分数随时间衰减，与下载补齐排序和保留取舍共用规则；屏蔽由独立偏好决定。资源视图包括本地已有或当前已关联歌曲的资源。未知大小和时长不按零计算。</p><p>删除只移除本地视频，资料、偏好、统计与关联保留。共享视频只保存一份，删除会影响所有关联歌曲。正在使用或准备播放的文件受保护。</p></Details>
     {view==='songs'&&<SongPreferenceTools disabled={disabled} save={(id,p)=>void save(id,p)}/>}
-    {view==='resources'&&!!entries.length&&<div className="actions"><Button disabled={disabled||!eligible.length} onClick={()=>setSelected(eligible.every(e=>selected.includes(e.key))?[]:eligible.map(e=>e.key))}>选择本页可删除项</Button><Button disabled={disabled||!chosen.length} onClick={()=>void actions.operate('delete',chosen)}>删除选中视频</Button><span>已选择 {chosen.length} 个文件</span></div>}
+    {view==='resources'&&!!entries.length&&<div className="actions"><Button disabled={disabled||!eligible.length} onClick={()=>setSelected(eligible.every(e=>selected[e.key]===e.stamp)?{}:Object.fromEntries(eligible.map(e=>[e.key,e.stamp])))}>选择本页可删除项</Button><Button disabled={disabled||!chosen.length} onClick={()=>void actions.operate('delete',chosen)}>删除选中视频</Button><span>已选择 {chosen.length} 个文件</span></div>}
     <List navigationMode="composite" aria-label={view==='songs'?'曲库歌曲':'曲库资源'} className="records">{view==='songs'?page.data?.songs.map((song,i)=>{
       const r=resources[song.resource];return <ListItem key={song.id}><div role="gridcell" className="record-content">{i>0&&<Divider className="record-divider"/>}<p><strong>{song.title||'未知名称'}</strong> · ID {song.id}</p><p>歌手：{song.artist||'未知'} · 舞者／社团：{[song.dancer,song.group].filter(Boolean).join('／')||'未知'}</p><p>需求分数：{song.score.toLocaleString(undefined,{maximumFractionDigits:2})}</p><p className="wrap">资源：{song.resource?<Link href={resourceHref(song.resource)}>{song.resource}</Link>:'未知'}</p>{sharedState(r)}
       <div className="actions"><Field label={`歌曲 ${song.id} 的偏好`}><Select value={song.policy} disabled={disabled} onChange={(_,v)=>void save(song.id,v.value as SongPolicy)}>{Object.entries(policyLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select></Field><Button disabled={disabled||s.batch.running||!!r?.local||song.policy==='blocked'} onClick={()=>download({songID:song.id})}>下载歌曲</Button>{fileActions(r)}</div></div></ListItem>;
     }):page.data?.keys.map((key,i)=>{const r=resources[key],local=r.local;return <ListItem key={key}><div role="gridcell" className="record-content">{i>0&&<Divider className="record-divider"/>}<p className="wrap"><strong>资源 {key}</strong></p><p>大小：{r.size==null?'未知':r.size<1e6?r.size.toLocaleString()+' B':mb(r.size)} · 时长：{r.duration==null?'未知':`${r.duration} 秒`}</p><p>关联歌曲（{r.songCount} 首）：{r.songs.length?r.songs.map((song,i)=><span key={song.id}>{i>0?'、':''}<Link href={songHref(song.id)}>{song.title||'未知歌名'}（ID {song.id}）</Link></span>):'无当前关联'}</p>{r.songCount>r.songs.length&&<p>展示前 {r.songs.length} 首，另有 {r.songCount-r.songs.length} 首共享此资源；可按歌曲 ID 搜索。</p>}{sharedState(r)}
-      <div className="actions">{local&&<Checkbox aria-label={'选择 '+cacheLabel(local)} label="选择此本地视频" disabled={disabled||!local.known||local.protected} checked={selected.includes(key)} onChange={(_,v)=>setSelected(v.checked?[...selected,key]:selected.filter(k=>k!==key))}/>}<Button disabled={disabled||s.batch.running||!!local||r.songCount===0} onClick={()=>download({resource:key})}>下载资源</Button>{fileActions(r)}</div></div></ListItem>;})}</List>
+      <div className="actions">{local&&<Checkbox aria-label={'选择 '+cacheLabel(local)} label="选择此本地视频" disabled={disabled||!local.known||local.protected} checked={selected[key]===local.stamp} onChange={(_,v)=>setSelected(previous=>{const next={...previous};if(v.checked)next[key]=local.stamp;else delete next[key];return next;})}/>}<Button disabled={disabled||s.batch.running||!!local||r.songCount===0} onClick={()=>download({resource:key})}>下载资源</Button>{fileActions(r)}</div></div></ListItem>;})}</List>
     {(page.data?.total||0)>50&&<div className="actions"><Button disabled={disabled||offset===0} onClick={()=>{setOffset(Math.max(0,offset-50));focus.ref.current?.focus();}}>上一页曲库</Button><Button disabled={disabled||offset+50>=(page.data?.total||0)} onClick={()=>{setOffset(offset+50);focus.ref.current?.focus();}}>下一页曲库</Button></div>}
   </Panel><BatchPanel/><div><Details title="导入外部曲库" keepMounted expanded={importOpen} onToggle={setImportOpen}><ImportPanel/></Details></div><Details title="导入 VRCX 历史需求统计" keepMounted onToggle={open=>{if(open)setHistoryOpen(true);}}>{historyOpen&&<VRCXImport/>}</Details></>;
 }

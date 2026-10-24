@@ -94,3 +94,62 @@ for(const width of [320,390,1280])test(`library layout at ${width}px`,async({pag
   await expect(page.getByRole('grid',{name:'曲库资源'})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
+
+
+test('polling preserves valid selections and unchanged deletion confirmations',async({page})=>{
+  const {resources,calls,queries}=await libraryFixture(page);
+  await page.clock.install();
+  await page.goto('/#/library');
+  await page.getByRole('tab',{name:'按资源'}).click();
+  const checkbox=page.getByRole('checkbox',{name:/^选择 /});
+  await checkbox.check();
+  let count=queries.length;
+  resources[key].local!.lastRequest=Date.now();
+  await page.clock.fastForward(11000);
+  await expect.poll(()=>queries.length).toBeGreaterThan(count);
+  await expect(checkbox).toBeChecked();
+  await page.getByRole('button',{name:'删除选中视频',exact:true}).click();
+  await expect(page.getByRole('dialog')).toContainText('影响 2 首已知关联歌曲');
+  count=queries.length;
+  await page.clock.fastForward(11000);
+  await expect.poll(()=>queries.length).toBeGreaterThan(count);
+  await page.getByRole('button',{name:'确认删除',exact:true}).click();
+  await expect.poll(()=>calls.find(c=>c.path==='cache/delete')?.body).toEqual({storageID:'fixture',entries:[{key,stamp:resources[key].local!.stamp}]});
+});
+
+for(const change of ['stamp','protected','missing','title'] as const)test('deletion confirmation rejects refreshed '+change,async({page})=>{
+  const {resources,calls,queries}=await libraryFixture(page);
+  await page.clock.install();
+  await page.goto('/#/library');
+  await page.getByRole('tab',{name:'按资源'}).click();
+  await page.getByRole('checkbox',{name:/^选择 /}).check();
+  await page.getByRole('button',{name:'删除选中视频',exact:true}).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  if(change==='stamp')resources[key].local!.stamp='replacement-file';
+  if(change==='protected')resources[key].local!.protected=true;
+  if(change==='missing')resources[key].local=null;
+  if(change==='title')resources[key].local!.songs[0].title='更新后的歌曲';
+  const count=queries.length;
+  await page.clock.fastForward(11000);
+  await expect.poll(()=>queries.length).toBeGreaterThan(count);
+  await page.getByRole('button',{name:'确认删除',exact:true}).click();
+  await expect(page.getByText('文件或歌曲关联已变化，请刷新后重新选择并确认。',{exact:true})).toBeVisible();
+  expect(calls.some(c=>c.path==='cache/delete')).toBe(false);
+  if(change==='missing')await expect(page.getByRole('checkbox',{name:/^选择 /})).toHaveCount(0);
+  else if(change!=='title')await expect(page.getByText('已选择 0 个文件',{exact:true})).toBeVisible();
+});
+
+test('changing the library view or query clears its selection',async({page})=>{
+  await libraryFixture(page);
+  await page.goto('/#/library');
+  await page.getByRole('tab',{name:'按资源'}).click();
+  const checkbox=page.getByRole('checkbox',{name:/^选择 /});
+  await checkbox.check();
+  await page.getByLabel('排序').selectOption('recent');
+  await page.getByRole('button',{name:'查找',exact:true}).click();
+  await expect(checkbox).not.toBeChecked();
+  await checkbox.check();
+  await page.getByRole('tab',{name:'按歌曲'}).click();
+  await page.getByRole('tab',{name:'按资源'}).click();
+  await expect(checkbox).not.toBeChecked();
+});

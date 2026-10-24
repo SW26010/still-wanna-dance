@@ -339,6 +339,13 @@
       "bytes": 1208121,
       "sha256": "01ea8ef95fb12aa91675d4f8614c01fd8671febd75f6a5fd7e13ab97c2c5e318",
       "reason": "Fluent UI WebUI generated bundle; final five-page navigation and preserved library interactions."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1208602,
+      "sha256": "440bba03f3ecf4c37f7eb23961c7b30328bf39bd36c18fb666dd4ccec3ced3cd",
+      "reason": "Production WebUI bundle from pinned dependencies and webui/src, verified by build-manifest.json. Preserve valid library selection and deletion confirmation across polling."
     }
   ]
 }

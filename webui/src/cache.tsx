@@ -3,11 +3,11 @@ import { Button, Link, Subtitle2 } from '@fluentui/react-components';
 import { request, APIError } from './api';
 import { useApp, useResource } from './hooks';
 import { Details, Feedback, Panel } from './ui';
-import { type CacheEntry, type CachePage, type Inventory, date, dated, gib } from './types';
+import { type CacheEntry, type CachePage, type LibraryPage, type Inventory, date, dated, gib } from './types';
 
 export const cacheLabel = (entry: CacheEntry) => entry.songs.length ? entry.songs.map(s => `${s.title || '未知歌名'}（ID ${s.id}）`).join(' / ') : '未知歌名 · 未关联歌曲';
 const resultNames: Record<string,string> = {deleted:'已删除',protected:'受保护，已跳过',missing:'文件已不存在',unknown:'未知文件，未删除',changed:'文件或歌曲关联已变化，请刷新后重选',unsafe:'目录不安全，未删除',failed:'操作失败，未删除'};
-export function useCacheActions(snapshot: Pick<CachePage,'storageID'>|undefined, refresh:()=>void, disabled=false) {
+export function useCacheActions(snapshot: Pick<LibraryPage,'storageID'|'resources'>|undefined, refresh:()=>void, disabled=false) {
   const app=useApp(), [pending,setPending]=useState(false), [result,setResult]=useState('');
   const currentPage=useRef(snapshot); currentPage.current=snapshot;
   async function operate(action: 'delete' | 'open', picked: CacheEntry[]) {
@@ -15,7 +15,11 @@ export function useCacheActions(snapshot: Pick<CachePage,'storageID'>|undefined,
     if (!pickedPage || disabled || app.unavailable || pending) return;
     if (action === 'delete') {
       if (!await app.confirm('确认删除选中的本地视频文件？', <><p>删除无法撤销；共用该文件的歌曲需要重新下载。歌曲资料和统计保留，正在使用的文件会跳过。</p><ul>{picked.map(e => <li key={e.key}>{cacheLabel(e)} · {gib(e.bytes)} · 影响 {e.songCount} 首已知关联歌曲</li>)}</ul></>, '确认删除')) return;
-      if (currentPage.current !== pickedPage) { setResult('文件列表已刷新，请重新选择并确认。'); return; }
+      const current = currentPage.current;
+      if (!current || current.storageID !== pickedPage.storageID || picked.some(entry => {
+        const latest = current.resources[entry.key]?.local;
+        return !latest?.known || latest.protected || latest.stamp !== entry.stamp || latest.songCount !== entry.songCount || cacheLabel(latest) !== cacheLabel(entry);
+      })) { setResult('文件或歌曲关联已变化，请刷新后重新选择并确认。'); return; }
     }
     setPending(true);
     try {

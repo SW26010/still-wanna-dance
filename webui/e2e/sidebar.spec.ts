@@ -6,7 +6,7 @@ test('desktop pages and wizard use a left navigation with native links and arrow
   await mockAPI(page);await page.setViewportSize({width:1280,height:900});
   for(const route of ['/#/home','/help','/about','/terms','/#/setup']){
     await page.goto(route);
-    const wizard=route.endsWith('setup'),nav=page.getByRole('navigation',{name:wizard?'引导步骤':'控制台页面',exact:true});
+    const wizard=route.endsWith('setup'),nav=page.getByRole('navigation',{name:wizard?'引导步骤':'页面导航',exact:true});
     await expect(nav).toHaveCount(1);await expect(nav).toBeVisible();
     const heading=page.getByRole('heading',{level:1}).first();await expect(heading).toBeVisible();
     const left=await nav.boundingBox(),content=await heading.boundingBox();
@@ -26,7 +26,7 @@ test('desktop pages and wizard use a left navigation with native links and arrow
 
 test('narrow left drawer traps focus, restores trigger on Escape, and follows selected routes',async({page},info)=>{
   await mockAPI(page);await page.setViewportSize({width:390,height:844});await page.emulateMedia({colorScheme:'dark'});await page.goto('/#/settings');
-  const toggle=page.getByRole('button',{name:'展开控制台页面',exact:true}),nav=page.getByRole('navigation',{name:'控制台页面',exact:true});
+  const toggle=page.getByRole('button',{name:'展开页面导航',exact:true}),nav=page.getByRole('navigation',{name:'页面导航',exact:true});
   await toggle.click();await expect(nav).toBeVisible();
   await expect.poll(async()=>(await nav.boundingBox())?.x).toBeCloseTo(0,1);expect((await nav.boundingBox())!.width).toBeCloseTo(260,1);
   await expect(nav.getByRole('link',{name:'设置',exact:true})).toHaveAttribute('aria-current','page');
@@ -46,7 +46,7 @@ for(const wizard of [false,true])test(`desktop sidebar toggles by keyboard witho
   await mockAPI(page);await page.setViewportSize({width:1280,height:900});
   await page.emulateMedia({colorScheme:wizard?'dark':'light'});
   await page.goto(wizard?'/#/setup':'/#prepareAheadSeconds');
-  const label=wizard?'引导步骤':'控制台页面',nav=page.getByRole('navigation',{name:label,exact:true});
+  const label=wizard?'引导步骤':'页面导航',nav=page.getByRole('navigation',{name:label,exact:true});
   const collapse=page.getByRole('button',{name:'收起'+label,exact:true}),expand=page.getByRole('button',{name:'展开'+label,exact:true});
   const heading=page.getByRole('heading',{level:1}).first(),draft=page.getByRole('spinbutton',{name:/提前准备时间/});
   await expect(nav).toBeVisible();const expandedX=(await heading.boundingBox())!.x;

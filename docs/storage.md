@@ -115,7 +115,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
     LICENSE
     THIRD-PARTY-NOTICES.txt
   data/                           # 不随 ZIP 交付
-    config.json                   # 首次成功打开控制台时写入
+    config.json                   # 首次成功启动程序时写入
     config.lock                   # 启动获取，退出释放，文件可保留
     logs/app.log                  # 启动创建，最多另有 .1 / .2 / .3
     terms.json                    # 用户确认当前条款后才写入

@@ -3,7 +3,7 @@ import {mockAPI} from './api';
 
 test('five primary pages and legacy anchors reach their current owners',async({page})=>{
   await mockAPI(page);await page.goto('/#/settings');
-  await expect(page.getByRole('navigation',{name:'控制台页面'}).getByRole('link')).toHaveText(['视频加速','时间线','曲库','设置','关于']);
+  await expect(page.getByRole('navigation',{name:'页面导航'}).getByRole('link')).toHaveText(['视频加速','时间线','曲库','设置','关于']);
   for(const name of ['常规','存储','预加载与下载','网络'])await expect(page.getByRole('tablist',{name:'设置分类'}).getByRole('tab',{name,exact:true})).toBeVisible();
   for(const [hash,title,field] of [['#storage-settings','设置','优先保留收藏视频'],['#prepareAheadSeconds','设置','提前准备时间（秒）'],['#service','设置',''],['#cache','曲库',''],['#queue','视频加速',''],['#recent','时间线','']]){
     await page.evaluate(hash=>{location.hash=hash;},hash);
@@ -22,7 +22,7 @@ test('tab drafts survive and saves merge only the submitted section',async({page
   const {calls,state}=await mockAPI(page);await page.goto('/#prepareAheadSeconds');
   await page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true}).fill('900');
   await page.getByRole('tab',{name:'常规',exact:true}).click();
-  await page.getByLabel('启用控制台后自动打开 WebUI',{exact:true}).uncheck();
+  await page.getByLabel('启动程序时自动打开 WebUI',{exact:true}).uncheck();
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect.poll(()=>calls.filter(c=>c.path==='settings').length).toBe(1);
   expect(state.settings.autoOpenWebUI).toBe(false);expect(state.settings.prepareAheadSeconds).toBe(500);

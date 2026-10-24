@@ -131,7 +131,7 @@ func (c *Console) checkSetupNetwork(selected ...upstreamstate.CheckKind) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
-		return errors.New("控制台正在退出")
+		return errors.New("程序正在退出")
 	}
 	if !c.terms.valid() {
 		return errors.New("请先阅读并同意使用条款")

@@ -44,7 +44,7 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 	root, closing := c.settings.StorageDir, c.closing
 	c.mu.Unlock()
 	if closing {
-		http.Error(w, "控制台正在退出", 409)
+		http.Error(w, "程序正在退出", 409)
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
@@ -59,7 +59,7 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 	service, scanning, changed := c.service, c.batch.Running && c.batch.ScanOnly, c.closing || root != c.settings.StorageDir
 	c.mu.Unlock()
 	if changed {
-		http.Error(w, "控制台或存储目录已变化，请刷新", 409)
+		http.Error(w, "程序实例或存储目录已变化，请刷新", 409)
 		return
 	}
 	local := cacheproxy.CachePage{}

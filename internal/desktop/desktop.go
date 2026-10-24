@@ -49,7 +49,7 @@ func elect(ctx context.Context, acquire func() (Lease, error), ready func(contex
 		if isReady {
 			if open != nil {
 				if err = open(); err != nil {
-					return nil, fmt.Errorf("已有控制台运行，但打开浏览器失败：%w", err)
+					return nil, fmt.Errorf("已有 SWD 在运行，但打开浏览器失败：%w", err)
 				}
 			}
 			return nil, nil
@@ -186,7 +186,7 @@ func Menu(s State, busy bool) []Item {
 	} else if ready {
 		label = "加速运行中"
 	}
-	return []Item{{OpenConsole, "打开控制台", false}, {0, "", false}, {StartAcceleration, label, !s.TermsAccepted || busy || ready}, {0, "", false}, {Exit, "退出 Still Wanna Dance", false}}
+	return []Item{{OpenConsole, "打开 WebUI", false}, {0, "", false}, {StartAcceleration, label, !s.TermsAccepted || busy || ready}, {0, "", false}, {Exit, "退出 Still Wanna Dance", false}}
 }
 
 type Options struct {

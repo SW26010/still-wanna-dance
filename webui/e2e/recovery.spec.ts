@@ -122,10 +122,10 @@ test('320px forced-colors layout keeps every console page usable',async({page})=
   await mockAPI(page);await page.setViewportSize({width:320,height:800});await page.emulateMedia({forcedColors:'active',reducedMotion:'reduce'});await page.goto('/');
   for(const name of ['视频加速','时间线','曲库','设置','关于']){
     await navigate(page,name);
-    await page.getByRole('button',{name:'展开控制台页面',exact:true}).click();
-    await expect(page.getByRole('navigation',{name:'控制台页面',exact:true}).getByRole('link',{name,exact:true})).toHaveAttribute('aria-current','page');
+    await page.getByRole('button',{name:'展开页面导航',exact:true}).click();
+    await expect(page.getByRole('navigation',{name:'页面导航',exact:true}).getByRole('link',{name,exact:true})).toHaveAttribute('aria-current','page');
     await page.keyboard.press('Escape');
-    await expect(page.getByRole('button',{name:'展开控制台页面',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'展开页面导航',exact:true})).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   }
   await navigate(page,'帮助');await page.getByRole('link',{name:'重新进入使用引导'}).click();

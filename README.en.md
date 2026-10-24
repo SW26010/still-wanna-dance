@@ -4,7 +4,7 @@
 
 **Load failed? But I still wanna dance!**
 
-Still Wanna Dance is an open-source playback tool for **VRChat WannaDance players on Windows**. Its local playback gateway handles WannaDance HTTP playback requests using upstream routing and local video storage and block caching. Keep videos on your computer, prepare upcoming songs in the room queue, and manage downloads and local video files through a simple local web console.
+Still Wanna Dance is an open-source playback tool for **VRChat WannaDance players on Windows**. Its local playback gateway handles WannaDance HTTP playback requests using upstream routing and local video storage and block caching. Keep videos on your computer, prepare upcoming songs in the room queue, and manage downloads and local video files through a simple local WebUI.
 
 Just extract and run. The app lives in the Windows system tray and requires no Go, Node.js, or database installation.
 
@@ -14,7 +14,7 @@ Just extract and run. The app lives in the Windows system tray and requires no G
 
 - **Reuse local videos**: read complete local videos locally to avoid repeat downloads. On the first play, stream while downloading and retain the complete video when the storage budget allows.
 - **Prepare upcoming songs**: read the room queue from VRChat logs and prepare videos for upcoming songs, scheduling downloads around their estimated playback times.
-- **See what is happening**: check active downloads, upstream speed, recent requests, and queue readiness in the console.
+- **See what is happening**: check active downloads, upstream speed, recent requests, and queue readiness in the WebUI.
 - **Manage your disk space**: choose a storage folder, find and delete local videos, and check file integrity. Set a video storage budget to automatically remove lower-priority videos first.
 - **Choose your connection**: select playback API parameters (Auto, node=cf, or node=nya); resource domains come from valid API responses. Application requests can use built-in encrypted DNS directly, external SOCKS5, or imported embedded Mihomo nodes. Game HTTPS passthrough always connects directly.
 - **Prepare more of your library**: scan local files, verify existing videos, or download missing videos ahead of time.
@@ -26,30 +26,30 @@ The desktop app targets Windows x64. Choose a writable folder for the app and al
 1. Look for a Windows portable ZIP on the [releases page](https://github.com/SW26010/still-wanna-dance/releases). Extract the entire archive, then double-click `SWD.exe`. If no release package is available yet, you can [build from source](#build-from-source).
 2. The app opens a welcome page, followed by the terms for your explicit acceptance. The guide covers storage, optional import, network checks, upstream settings and local access, then lets you review and apply your changes. Keep the defaults with Next where no changes are needed. Reopen the guide from Settings or Help (使用帮助).
 3. Open Settings (设置) and choose your storage folder, save, then click Restart and apply (立即重启并应用). The VRChat log folder is detected automatically by default.
-4. On Get started (开始使用), click Enable game acceleration (启用游戏加速) and follow the prompts to configure the hosts entries. Windows will ask for permission when the app needs to modify the hosts file.
-5. Enter WannaDance and request a song. Check the connection and request status on Get started, then use Activity (运行状态) and Local videos (本地视频) to follow downloads and inspect local video files.
+4. On Video acceleration (视频加速), click Start acceleration (开始加速) and follow the prompts to configure game access. Windows will ask for permission when the app needs to modify the hosts file.
+5. Enter WannaDance and request a song. Check access, requests and downloads on Video acceleration (视频加速), request history on Timeline (时间线), and local videos in Library (曲库).
 
-Settings → Console startup (设置 → 控制台启动) provides separate automatic startup options for the playback gateway and room queue prefetch. Both default to enabled; existing saved off settings are preserved. Changes apply the next time the app starts, and require accepted terms. Their start/stop controls are independent, and both share local videos and the block cache. If queue prefetch is stopped, enable it in Prepare songs (准备歌曲) before requesting songs. To play local videos in the game, start the gateway and enable game access. First-time downloads still depend on the upstream server and your network. “Request received” (收到请求) means a request reached the local playback gateway; check playback in the game itself. If no requests arrive after setup, try rejoining the world or restarting the game to refresh DNS.
+Settings → General → App startup (设置 → 常规 → 程序启动) provides Open the WebUI when the app starts (启动程序时自动打开 WebUI) and Enable video acceleration when the app starts (启动程序时自动开启视频加速). Both default to enabled; saved changes apply on the next app launch. Automatic acceleration requires valid terms acceptance and completion of the initial guide; opening or refreshing the web page does not trigger it again. Queue prefetch follows the gateway by default, configured under Settings → Prefetch and downloads (设置 → 预加载与下载). First-time downloads still depend on the upstream server and your network. Connected to the background app (已连接后台程序) only means the WebUI can read app status; Request received (收到请求) only means a request reached the local playback gateway. Check playback in the game itself. If no requests arrive after setup, try rejoining the world or restarting the game to refresh DNS.
 
-After accepting the terms, closing the web page leaves the app running in the system tray. Before acceptance, closing the terms page attempts to exit the app after 60 seconds; reopening it cancels the countdown. Use the tray menu to reopen the console. Quit from the page footer or the tray menu to stop all services and background tasks; hosts mappings remain in place.
+After accepting the terms, closing the web page leaves the app running in the system tray. Before acceptance, closing the terms page attempts to exit the app after 60 seconds; reopening it cancels the countdown. Use Open WebUI (打开 WebUI) in the tray menu to reopen it. Quit from the page footer or the tray menu to stop all services and background tasks; by default, quitting restores the game access configured by this app.
 
-**Before disabling or uninstalling the app, click Restore hosts (恢复 hosts) in the console.** Stopping the service or quitting does not automatically restore hosts entries, and leaving them in place may affect direct playback afterward.
+**Before disabling or uninstalling the app, enable and save Restore direct game access on exit (退出时恢复游戏直连) under Settings → General → Advanced game access settings (设置 → 常规 → 高级游戏接入设置), then quit and check the result.** Disabling this option leaves the mappings in place on exit, which may affect direct playback afterward.
 
-For detailed instructions, see the [console guide](docs/console.md) and [portable app guide](docs/packaging.md#覆盖升级与备份), both in Chinese.
+For detailed instructions, see the [WebUI and desktop app guide](docs/console.md) and [portable app guide](docs/packaging.md#覆盖升级与备份), both in Chinese.
 
 ## Find your way around
 
 | What you want to do | Where to go |
 | --- | --- |
-| Get started and check game requests | Get started (开始使用) → Enable game acceleration (启用游戏加速) |
-| View speed, download progress, and recent requests | Activity (运行状态) |
-| Find local videos, free space, and view request statistics | Local videos (本地视频) |
-| Check missing videos and download them | Prepare songs (准备歌曲) |
+| Enable acceleration and check game requests | Video acceleration (视频加速) → Start acceleration (开始加速) |
+| View speed, download progress, and request records | Video acceleration (视频加速); history is on Timeline (时间线) |
+| Find local videos, free space, and view request statistics | Library (曲库) |
+| Check missing videos and download them | Library (曲库) |
 | Change folders, video storage budgets, upstream selection, or proxy settings | Settings (设置) |
-| Adjust how early to prepare videos | Settings (设置) → Preparation lead M in seconds (提前准备时间 M（秒）), then save and restart |
-| Start or stop queue prefetch independently | Prepare songs (准备歌曲) → Room queue prefetch (房间队列预加载) |
+| Adjust how early to prepare videos | Settings → Prefetch and downloads (设置 → 预加载与下载) → Preparation lead in seconds (提前准备时间（秒）), then save and restart |
+| Configure queue prefetch to follow the gateway | Settings → Prefetch and downloads (设置 → 预加载与下载) → Enable queue prefetch with the video gateway (随视频网关启用队列预加载) |
 
-Playback Gateway (播放网关) runs on your computer and handles playback requests, local video and block cache reads, upstream downloads, video delivery, and HTTPS forwarding for connections affected by game access. Local videos (本地视频) manages complete videos retained across runs. “Cache” refers to video blocks reused within one engine run; their location is managed by the app. Upstream channels (上游通道) are direct or proxy connections and their evaluation and selection. Game access (游戏接入) uses hosts mappings to direct requests to the local playback gateway. Everyday use is handled through the web console and system tray. A [standalone command-line service](docs/service.md) is also available for custom setups.
+Playback Gateway (播放网关) is a background capability of the desktop app. It handles playback requests, local video and block cache reads, upstream downloads, video delivery, and HTTPS forwarding for connections affected by game access. Library (曲库) manages complete videos retained across runs. “Cache” refers to video blocks reused within one engine run; their location is managed by the app. Upstream channels (上游通道) are direct or proxy connections and their evaluation and selection. Game access (游戏接入) uses hosts mappings to direct requests to the local playback gateway. Everyday use is handled through the WebUI and system tray. A [standalone command-line service](docs/service.md) is also available for custom setups.
 
 ## Things to know
 
@@ -91,7 +91,7 @@ The detailed guides below are currently in Chinese. The [documentation index](do
 
 | Guide | Covers |
 | --- | --- |
-| [Local console](docs/console.md) | Web controls, system tray, game setup, and network settings |
+| [WebUI and desktop app](docs/console.md) | Web controls, system tray, game setup, and network settings |
 | [Queue prefetching](docs/queue-prefetch.md) | How upcoming songs are prepared and how to configure it |
 | [Global block scheduler design](docs/block-scheduler-design.md) / [Runtime rules](docs/download-concurrency.md) | Independent demands, playback deadlines, activation windows, and gradual concurrency growth |
 | [Video storage budget management](docs/cache-retention.md) | Retention priority, storage budgets, and automatic cleanup |

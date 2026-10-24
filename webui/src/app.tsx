@@ -61,13 +61,13 @@ export function App() {
     }
   },[page,!!s,anchor,documentPage]);
   const feedback=<div className="app-feedback" hidden={documentPage}>
-    <Feedback error={!!model.status.error}>{model.status.error ? '无法连接控制台，请检查程序是否仍在运行。' : ''}</Feedback><Feedback>{model.message}</Feedback>
+    <Feedback error={!!model.status.error}>{model.status.error ? '无法读取程序状态，请检查 SWD 是否仍在运行。' : ''}</Feedback><Feedback>{model.message}</Feedback>
     {s?.storageError && <Feedback error><p><strong>本地存储故障，已停止新的下载。</strong>已保存的本地视频仍可读取。</p><p>请检查磁盘空间和目录权限，修复后退出并重新打开整个应用。仅重新启停播放网关或队列无法恢复下载。</p><p>首个错误：{s.storageError}</p></Feedback>}
-    {!s && accepted && page!=='setup' && !documentPage && !model.status.error && <Spinner label="正在读取控制台状态" />}
+    {!s && accepted && page!=='setup' && !documentPage && !model.status.error && <Spinner label="正在读取程序状态…" />}
   </div>;
   return <ConsoleContext.Provider value={model}><div className="shell">
     <Link className="skip-link" href="#main" onClick={e => { e.preventDefault(); main.current?.focus(); }}>跳到主要内容</Link>
-    <header hidden={page==='setup'}><Brand /><span role="status">{documentPage ? 'WannaDance 本地控制台' : model.stopped ? '应用正在退出或重启' : model.status.error ? '控制台连接中断，下方保留最后状态' : s ? '控制台已连接' : '正在连接…'}</span></header>
+    <header hidden={page==='setup'}><Brand /><span role="status">{documentPage ? 'SWD WebUI' : model.stopped ? '应用正在退出或重启' : model.status.error ? s ? '状态更新失败，下方显示上次获取的状态' : '状态读取失败' : s ? '已连接后台程序' : '正在读取程序状态…'}</span></header>
     <NavigationLayout items={pageLinks()} selected={page} hidden={page==='setup'}>
     <main ref={main} id="main" tabIndex={-1}><div className="page-heading" hidden={page==='setup'||documentPage}><Title2 as="h1">{pages[page]}</Title2>{s && <Badge color={s.running && s.hosts.ready ? 'success' : 'informative'}>{accelerationLabel(s)}</Badge>}</div><p className="page-description" hidden={page==='setup'||documentPage}>{descriptions[page]}</p>
       {page!=='setup'&&feedback}

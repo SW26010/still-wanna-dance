@@ -6,13 +6,13 @@
 
 | 内容 | 入口 |
 | --- | --- |
-| 使用、兼容范围与排障 | [本地控制台](console.md)、[命令行服务](service.md)、[功能范围](scope.md)、[日志](logging.md) |
+| 使用、兼容范围与排障 | [WebUI 与桌面程序](console.md)、[命令行服务](service.md)、[功能范围](scope.md)、[日志](logging.md) |
 | 下载架构与运行参数 | [下载需求与资源管理设计](download-resource-design.md)是规则、接口及验证边界的统一依据；[块调度设计](block-scheduler-design.md)解释实现，[运行规则](download-concurrency.md)汇总参数 |
 | 队列与视频保留 | [队列预加载](queue-prefetch.md)、[视频存储预算](cache-retention.md) |
 | 歌曲屏蔽与收藏 | [需求准入、队列计时与资源保留规则](download-resource-design.md#8-歌曲屏蔽与收藏)、[偏好表与版本边界](storage.md#歌曲偏好存储) |
 | 配置、存储与生命周期 | [配置生命周期](settings-lifecycle.md)、[存储契约](storage.md)、[运行文件生命周期](runtime-lifecycle.md)、[曲库与需求统计](song-catalog-design.md) |
 | 网络 | [资源域名规则](resource-domains.md)、[上游通道](upstream-channels.md) |
-| Web UI | [WebUI 目标设计](webui-design.md)为页面与交互的 canonical 文档；现有界面见[内容约定](webui-content.md)，组件与验收见 [Fluent UI](fluent-ui-migration.md)、[可访问性](webui-accessibility.md) |
+| WebUI | [WebUI 目标设计](webui-design.md)为页面与交互的 canonical 文档；现有界面见[内容约定](webui-content.md)，组件与验收见 [Fluent UI](fluent-ui-migration.md)、[可访问性](webui-accessibility.md) |
 | 开发与分发 | [开发环境](development.md)、[Portable 打包](packaging.md)、[对应源码](corresponding-source.md)、[许可资料](licenses/README.md) |
 
 ## 验证与历史资料
@@ -41,4 +41,4 @@
 
 许可审计 [issue-30-license-audit.md](issue-30-license-audit.md) 的路径已写入发行清单并参与严格校验，因此保留在原位置，由许可索引引用。
 
-生成的 Web UI、产品图标、研究图表运行副本和许可声明有明确构建或分发用途；以[资源策略](evidence-storage.md#git-历史和防回归)及生成工具为准，不能按同内容或“生成文件”一概删除。
+生成的 WebUI、产品图标、研究图表运行副本和许可声明有明确构建或分发用途；以[资源策略](evidence-storage.md#git-历史和防回归)及生成工具为准，不能按同内容或“生成文件”一概删除。

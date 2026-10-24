@@ -2,10 +2,14 @@ import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 
 test('saved settings stay locked until a fresh status arrives, including failed refreshes',async({page})=>{
-  const api=await mockAPI(page);let hold=false,fail=false,release=()=>{};
+  const api=await mockAPI(page);let hold=false,fail=true,release=()=>{};
   const waiting=new Promise<void>(resolve=>{release=resolve;});
   await page.route('**/api/status',async r=>{if(hold)await waiting;if(fail)return r.fulfill({status:503,json:{error:'temporarily offline'}});await r.fulfill({json:api.state});});
   await page.clock.install();await page.goto('/#prepareAheadSeconds');
+  const connection=page.locator('header [role="status"]');
+  await expect(connection).toHaveText('状态读取失败');
+  fail=false;await page.clock.fastForward(5100);
+  await expect(connection).toHaveText('已连接后台程序');
   await page.getByRole('button',{name:'高级下载设置',exact:true}).click();
   const ahead=page.getByRole('spinbutton',{name:/提前准备时间/}),retention=page.getByRole('spinbutton',{name:/并发增长间隔/});
   await ahead.fill('120');hold=true;
@@ -13,9 +17,11 @@ test('saved settings stay locked until a fresh status arrives, including failed 
   await expect(page.getByText('正在核对已保存的设置…',{exact:true})).toBeVisible();
   await expect(ahead).toHaveValue('120');await expect(retention).toBeDisabled();
   await expect(page.getByRole('checkbox',{name:'手动指定 VRChat 日志目录',exact:true})).toBeDisabled();
-  fail=true;release();await expect(page.getByText('无法连接控制台，请检查程序是否仍在运行。')).toBeVisible();
+  fail=true;release();await expect(page.getByText('无法读取程序状态，请检查 SWD 是否仍在运行。')).toBeVisible();
+  await expect(connection).toHaveText('状态更新失败，下方显示上次获取的状态');
   await expect(retention).toBeDisabled();await expect(ahead).toHaveValue('120');
   fail=false;await page.clock.fastForward(5100);await expect(retention).toBeEnabled();
+  await expect(connection).toHaveText('已连接后台程序');
   await expect(ahead).toHaveValue('120');await retention.fill('4');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect.poll(()=>api.calls.filter(c=>c.path==='settings').length).toBe(2);

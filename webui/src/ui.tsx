@@ -37,7 +37,7 @@ export function pageHref(page:typeof consolePages[number][0]|DocumentPage|'setup
 }
 export const sectionHref=(id:string)=>(bootstrap.page==='console'?'#':'/#')+id;
 type NavigationEntry={value:string;label:string;href?:string;disabled?:boolean;onClick?:()=>void};
-export function NavigationLayout({children,items,selected,label='控制台页面',steps=false,hidden=false}:PropsWithChildren<{items:NavigationEntry[];selected:string;label?:string;steps?:boolean;hidden?:boolean}>) {
+export function NavigationLayout({children,items,selected,label='页面导航',steps=false,hidden=false}:PropsWithChildren<{items:NavigationEntry[];selected:string;label?:string;steps?:boolean;hidden?:boolean}>) {
   const [narrow,setNarrow]=useState(()=>matchMedia('(max-width: 640px)').matches), [open,setOpen]=useState(false), [expanded,setExpanded]=useState(true);
   const restoreFocusTarget=useRestoreFocusTarget();
   useEffect(()=>{
@@ -82,7 +82,7 @@ export function Progress({ value, max, label }: { value?: number; max?: number; 
 }
 export function DocumentLayout({ children }: PropsWithChildren) {
   return <div className="shell"><Link className="skip-link" href="#main">跳到主要内容</Link>
-    <header><Brand /><span>WannaDance 本地控制台</span></header>
+    <header><Brand /><span>SWD WebUI</span></header>
     <NavigationLayout items={pageLinks()} selected={isDocumentPage(bootstrap.page)?'about':bootstrap.page}>
     <main id="main" tabIndex={-1}>{children}</main>
     <DocumentFooter page={bootstrap.page}/>
@@ -90,5 +90,5 @@ export function DocumentLayout({ children }: PropsWithChildren) {
   </div>;
 }
 export function DocumentFooter({page}:{page:string}) {
-  return page==='help'?<footer><Link href={pageHref('home')}>返回控制台</Link> · <Link href={pageHref('setup')}>重新进入引导</Link></footer>:null;
+  return page==='help'?<footer><Link href={pageHref('home')}>返回首页</Link> · <Link href={pageHref('setup')}>重新进入引导</Link></footer>:null;
 }

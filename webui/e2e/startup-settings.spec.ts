@@ -4,7 +4,7 @@ import {mockAPI} from './api';
 test('startup settings have one owner and saving does not trigger acceleration or queue actions',async({page})=>{
  const api=await mockAPI(page);
  await page.goto('/#/settings');
- const auto=page.getByRole('checkbox',{name:'启用控制台后自动一键加速',exact:true});
+ const auto=page.getByRole('checkbox',{name:'启动程序时自动开启视频加速',exact:true});
  await expect(auto).toBeChecked();
  await expect(page.getByRole('checkbox',{name:'随视频网关启用队列预加载',exact:true})).toHaveCount(0);
  await auto.uncheck();

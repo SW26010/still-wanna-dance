@@ -99,7 +99,7 @@ func (c *Console) acceptTerms() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
-		return fmt.Errorf("控制台正在退出")
+		return fmt.Errorf("程序正在退出")
 	}
 	receipt := termsReceipt{legal.Version, legal.Hash(), time.Now().UTC()}
 	plain, err := json.Marshal(protectedTerms{termsPurpose, receipt})
@@ -167,7 +167,7 @@ type termsEntry struct {
 }
 
 func (c *Console) serveConsolePage(w http.ResponseWriter, entry *termsEntry) {
-	c.serveWebUI(w, "console", "本地控制台", map[string]any{"termsGate": entry})
+	c.serveWebUI(w, "console", "WebUI", map[string]any{"termsGate": entry})
 }
 
 func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
@@ -248,7 +248,7 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	if !c.termsAccepted() && r.URL.Path != "/api/identity" && r.URL.Path != "/api/stop" && r.URL.Path != "/api/queue/stop" && r.URL.Path != "/api/exit" && r.URL.Path != "/api/restart" && r.URL.Path != "/api/hosts/disable" && !strings.HasPrefix(r.URL.Path, "/assets/") && r.URL.Path != "/about" && r.URL.Path != "/help" {
-		http.Error(w, "请先打开控制台阅读并同意使用条款", http.StatusPreconditionRequired)
+		http.Error(w, "请先打开 WebUI 阅读并同意使用条款", http.StatusPreconditionRequired)
 		return true
 	}
 	return false

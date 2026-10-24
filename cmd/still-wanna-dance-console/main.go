@@ -45,7 +45,7 @@ func main() {
 }
 
 func run() (runErr error) {
-	address := flag.String("listen", desktop.Address, "local console address (port 0 selects an available port)")
+	address := flag.String("listen", desktop.Address, "local WebUI address (port 0 selects an available port)")
 	exe, err := os.Executable()
 	if err != nil {
 		return err
@@ -98,7 +98,7 @@ func run() (runErr error) {
 	}
 	host, _, err := net.SplitHostPort(*address)
 	if err != nil || host != "127.0.0.1" {
-		return fmt.Errorf("控制台必须绑定 127.0.0.1")
+		return fmt.Errorf("WebUI 必须绑定 127.0.0.1")
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -217,7 +217,7 @@ func run() (runErr error) {
 	}()
 	if instance != nil {
 		if err := instance.Publish(l.Addr().String()); err != nil {
-			return fmt.Errorf("无法发布控制台地址：%w", err)
+			return fmt.Errorf("无法发布 WebUI 地址：%w", err)
 		}
 	}
 	done := make(chan error, 1)
@@ -230,7 +230,7 @@ func run() (runErr error) {
 	go func() { defer startup.Done(); c.AutoStart() }()
 	url := "http://" + l.Addr().String()
 	slog.Info("console_ready", "url", url)
-	fmt.Printf("Still Wanna Dance 控制台：%s\n同意条款后关闭浏览器不会退出程序；未同意时关闭条款页会尝试在 60 秒后退出。退出按当前设置处理游戏连接，不再请求管理员权限。\n", url)
+	fmt.Printf("Still Wanna Dance WebUI：%s\n同意条款后关闭浏览器不会退出程序；未同意时关闭条款页会尝试在 60 秒后退出。退出按当前设置处理游戏连接，不再请求管理员权限。\n", url)
 	if !*noTray {
 		err = desktop.Run(ctx, desktop.Options{URL: url, Open: !*noOpen && c.OpenWebUIOnLaunch(), State: c.DesktopState, Command: c.DesktopCommand, Shutdown: shutdown, EndSession: endSession})
 	} else {

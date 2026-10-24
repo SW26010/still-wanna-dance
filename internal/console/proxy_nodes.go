@@ -133,7 +133,7 @@ func (c *Console) importProxyNodes(data []byte) (proxyImportResult, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
-		return result, errors.New("控制台正在退出")
+		return result, errors.New("程序正在退出")
 	}
 	if c.proxyImports == nil {
 		c.proxyImports = make(map[string]proxyImportDraft)

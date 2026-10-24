@@ -1,6 +1,6 @@
 # Fluent UI React v9
 
-全部 Web UI 使用 React、TypeScript 和 Fluent UI React v9；Go 通过 embed 提供编译后的资源，运行时不依赖 Node、CDN 或外部网络。
+全部 WebUI 使用 React、TypeScript 和 Fluent UI React v9；Go 通过 embed 提供编译后的资源，运行时不依赖 Node、CDN 或外部网络。
 
 ## 实现边界
 
@@ -25,7 +25,7 @@
 
 图形和配色以 `internal/branding/logo.svg` 为唯一来源。页面 Logo 通过 SVG 的 `prefers-color-scheme` 跟随承载页面的 color-scheme；标签页图标复用同源生成的两套 ICO，由当前浏览器保存的主题选择（默认跟随系统）切换 `/favicon-light.ico` 和 `/favicon.ico`，避免浏览器选择固定深色后备图标或缓存 SVG 的旧配色。浅色使用已确认的第四版（背景 `#EAFFDF`、圆环 `#80DE50`、人物／闪电 `#20552A`，无描边），深色保持原图。Windows 托盘使用这两套 ICO，按 `SystemUsesLightTheme` 跟随任务栏主题，响应设置／主题变化并在 Explorer 重建托盘时重新选择；系统主题可以与浏览器／应用主题不同，不受 WebUI 的浏览器主题选择影响。资源生成和离线构建要求见[产品图标约定](evidence-storage.md#git-历史和防回归)。
 
-控制台页面和引导步骤共用侧栏展开／收起按钮。桌面默认展开，收起后保留按钮并释放正文宽度；按钮保持挂载，键盘操作不会丢失焦点。应用内切换页面时保留展开状态，刷新后默认展开，不写入配置；窄屏抽屉仍由 Fluent 管理焦点、Escape 和遮罩关闭，独立于桌面展开状态。
+常规页面和引导步骤共用侧栏展开／收起按钮。桌面默认展开，收起后保留按钮并释放正文宽度；按钮保持挂载，键盘操作不会丢失焦点。应用内切换页面时保留展开状态，刷新后默认展开，不写入配置；窄屏抽屉仍由 Fluent 管理焦点、Escape 和遮罩关闭，独立于桌面展开状态。
 
 卡片和展开详情共用正文纵向间距，直接子段落、列表与操作区不再叠加外边距；空状态播报节点保留在 DOM 中，但不占布局行。单独的按钮按内容宽度排列，搜索表单内操作与字段底部对齐。页面内容依功能归属组织，曲库、设置、关于及网络分类使用标准 TabList/Tab；业务入口与设置／关于通过 Divider 分组。保存状态与按钮在表单顶部固定展示，详细重启影响按需展开。2026-10-21 的信息分层修订收起高级字段与技术说明；折叠字段验证失败时自动展开，继续使用原生表单验证。承载草稿或定位目标的详情通过标准 motion slot 保持子项挂载并立即展开，避免折叠丢失草稿或动画干扰焦点与滚动；隐藏诊断仍停止订阅。
 
@@ -42,7 +42,7 @@
 
 ## 验证与待验收
 
-浏览器、类型、资源一致性及隔离真实控制台的结果按轮次保存在[Web UI 开发验证记录](validation/webui-validation.md)。用例位于 `webui/e2e/`，内存服务器及 Go 联调驱动位于 `webui/test-support/`；测试输出保存在忽略目录 `artifacts/`。
+浏览器、类型、资源一致性及隔离真实桌面程序的结果按轮次保存在[WebUI 开发验证记录](validation/webui-validation.md)。用例位于 `webui/e2e/`，内存服务器及 Go 联调驱动位于 `webui/test-support/`；测试输出保存在忽略目录 `artifacts/`。
 
 验证分工遵循[现行机制](live-acceptance-process.md)，UAC、目录窗口、托盘、系统 DPI 和辅助技术的环境缺口见[非 VRC 跟进](validation-followups.md)。这里只引用记录，不再维护另一份逐项实机清单。
 

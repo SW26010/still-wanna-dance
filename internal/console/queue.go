@@ -169,12 +169,12 @@ func (c *Console) startQueue() error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	if !c.termsAccepted() {
-		return errors.New("请先打开控制台阅读并同意使用条款")
+		return errors.New("请先打开 WebUI 阅读并同意使用条款")
 	}
 	c.mu.Lock()
 	if c.closing {
 		c.mu.Unlock()
-		return errors.New("控制台正在退出")
+		return errors.New("程序正在退出")
 	}
 	c.queueDesired = true
 	c.mu.Unlock()
@@ -219,7 +219,7 @@ func (c *Console) startQueueLocked() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
-		return errors.New("控制台正在退出")
+		return errors.New("程序正在退出")
 	}
 	if c.queue.Running {
 		return nil

@@ -61,7 +61,7 @@ func (c *Console) songPolicyAPI(w http.ResponseWriter, r *http.Request) {
 			defer c.lifecycleMu.Unlock()
 			c.mu.Lock()
 			if c.closing {
-				err = errors.New("控制台正在退出")
+				err = errors.New("程序正在退出")
 			} else if input.StorageID != cacheproxy.CacheStorageID(c.settings.StorageDir) {
 				err = errors.New("存储目录已切换，请刷新歌曲列表")
 			}

@@ -33,7 +33,7 @@ func (c *Console) cacheAPI(w http.ResponseWriter, r *http.Request) {
 	root, service, scanning, closing := c.settings.StorageDir, c.service, c.batch.Running && c.batch.ScanOnly, c.closing
 	c.mu.Unlock()
 	if closing {
-		http.Error(w, "控制台正在退出", 409)
+		http.Error(w, "程序正在退出", 409)
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
@@ -118,14 +118,14 @@ func (c *Console) cacheSnapshot(read func(string) (cacheproxy.CachePage, error))
 	root, closing := c.settings.StorageDir, c.closing
 	c.mu.Unlock()
 	if closing {
-		return cacheproxy.CachePage{}, errors.New("控制台正在退出")
+		return cacheproxy.CachePage{}, errors.New("程序正在退出")
 	}
 	page, err := read(root)
 	c.mu.Lock()
 	service, scanning, closing := c.service, c.batch.Running && c.batch.ScanOnly, c.closing
 	c.mu.Unlock()
 	if closing {
-		return cacheproxy.CachePage{}, errors.New("控制台正在退出")
+		return cacheproxy.CachePage{}, errors.New("程序正在退出")
 	}
 	if err != nil {
 		return cacheproxy.CachePage{}, err

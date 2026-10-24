@@ -135,7 +135,7 @@ func (c *Console) changeHostsLocked(action string) error {
 	closing, restore := c.closing, c.settings.RestoreHostsOnExit
 	c.mu.Unlock()
 	if closing {
-		return errors.New("控制台正在退出")
+		return errors.New("程序正在退出")
 	}
 	return c.hosts.change(action, restore)
 }

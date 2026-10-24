@@ -16,7 +16,7 @@ type setupCalibrationRequest struct {
 // Caller holds c.mu. Creating/subscribing never starts network measurement.
 func (c *Console) setupCalibrationLocked() (*upstreamstate.Calibration, error) {
 	if c.closing {
-		return nil, errors.New("控制台正在退出")
+		return nil, errors.New("程序正在退出")
 	}
 	if !c.terms.valid() {
 		return nil, errors.New("请先阅读并同意使用条款")

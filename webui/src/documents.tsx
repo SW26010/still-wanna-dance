@@ -37,7 +37,7 @@ function About({heading='h1'}:{heading?:'h1'|'h2'}={}) {
     <small>© 2026 Still Wanna Dance contributors. GNU GPLv3.</small></>;
 }
 function Terms({heading='h1'}:{heading?:'h1'|'h2'}={}) {
-  return <><Title2 as={heading}>使用条款与内容权利声明</Title2><p>本机已确认当前条款。<Link href={pageHref('home')}>返回控制台</Link></p><p>软件许可不等于内容授权。</p>
+  return <><Title2 as={heading}>使用条款与内容权利声明</Title2><p>本机已确认当前条款。<Link href={pageHref('home')}>返回首页</Link></p><p>软件许可不等于内容授权。</p>
     <p>条款版本：{bootstrap.terms?.version} · <Link href="/terms.txt" target="_blank" rel="noopener">查看／保存纯文本</Link></p>
     <Card role="article" appearance="outline" size="large" className="terms-text" tabIndex={0} aria-label="完整使用条款">{bootstrap.terms?.text}</Card>
     </>;

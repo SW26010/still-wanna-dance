@@ -43,7 +43,7 @@ function SetupReview({draft:d,status:s,source,effects}:{draft:Draft;status:Statu
     if(p.socks5Password)rows.push(['代理密码','将更新']);
     else if(p.socks5Password===''&&s.socks5PasswordSet)rows.push(['代理密码','将清除']);
   }
-  const labels={retainFavorites:'优先保留收藏视频',autoAccelerate:'自动一键加速',autoOpenWebUI:'自动打开 WebUI',queueWithGateway:'随网关启用队列预加载',restoreHostsOnExit:'退出时恢复游戏直连',prepareAheadSeconds:'提前准备时间（秒）',downloadSoftLimit:'同时下载数量',downloadGrowIntervalMS:'并发增长间隔（毫秒）',localProtectionGraceSeconds:'本地延续保护时长（秒）',requestRetentionDays:'请求保留天数',throughputIntervalMinutes:'测速间隔（分钟）',downloadUpstream:'回源线路',manualLogDir:'手动日志位置',logDir:'日志目录'};
+  const labels={retainFavorites:'优先保留收藏视频',autoAccelerate:'自动开启视频加速',autoOpenWebUI:'自动打开 WebUI',queueWithGateway:'随网关启用队列预加载',restoreHostsOnExit:'退出时恢复游戏直连',prepareAheadSeconds:'提前准备时间（秒）',downloadSoftLimit:'同时下载数量',downloadGrowIntervalMS:'并发增长间隔（毫秒）',localProtectionGraceSeconds:'本地延续保护时长（秒）',requestRetentionDays:'请求保留天数',throughputIntervalMinutes:'测速间隔（分钟）',downloadUpstream:'回源线路',manualLogDir:'手动日志位置',logDir:'日志目录'};
   for(const key of Object.keys(labels) as (keyof typeof labels)[]){if(current[key]!==s.settings[key])rows.push([labels[key],change(String(current[key]),String(s.settings[key]))+'（此前已保存）']);}
   if(current.aggressiveCacheReclamation!==p.aggressiveCacheReclamation)rows.push(['激进的缓存回收策略',change(reclamationLabel(current),reclamationLabel(p))+'（此前已保存）']);
   return <><dl>{rows.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
@@ -246,7 +246,7 @@ export function Setup({accepted,onAccepted,onExit,guard,feedback}: {accepted:boo
       <Feedback error>{message}</Feedback>
       <div className="wizard-footer"><div className="actions">{['storage','proxy'].includes(step)&&!application&&<Button disabled={locked} onClick={reset}>恢复本页默认</Button>}</div><div className="actions">
         {!application&&<Button disabled={locked||step==='welcome'} onClick={()=>void go(steps[Math.max(0,steps.indexOf(step)-1)])}>上一步</Button>}
-        {application ? application.phase==='uncertain'?<Button disabled={busy} onClick={()=>void reconcile()}>核对应用结果</Button>:restartError?<Button disabled={recovering} onClick={()=>void recoverRestart()}>重新连接并核对</Button>:['failed','missing'].includes(application.phase)?<Button onClick={async()=>{if(await leave(false))onExit();}}>返回控制台</Button>:<Spinner size="tiny" label="正在应用…"/> : <Button {...restoreFocusTarget} type="submit" appearance="primary" disabled={locked||!canContinue||(step==='finish'&&(app.unavailable||!effects))}>{step==='finish'?'确认并应用':'下一步'}</Button>}
+        {application ? application.phase==='uncertain'?<Button disabled={busy} onClick={()=>void reconcile()}>核对应用结果</Button>:restartError?<Button disabled={recovering} onClick={()=>void recoverRestart()}>重新连接并核对</Button>:['failed','missing'].includes(application.phase)?<Button onClick={async()=>{if(await leave(false))onExit();}}>返回首页</Button>:<Spinner size="tiny" label="正在应用…"/> : <Button {...restoreFocusTarget} type="submit" appearance="primary" disabled={locked||!canContinue||(step==='finish'&&(app.unavailable||!effects))}>{step==='finish'?'确认并应用':'下一步'}</Button>}
       </div></div>
     </form></NavigationLayout>
     <Dialog open={termsOpen} onOpenChange={(_,v)=>setTermsOpen(v.open)}><DialogSurface><DialogBody><DialogTitle>完整条款</DialogTitle><DialogContent>

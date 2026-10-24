@@ -13,7 +13,7 @@ for(const width of [390,1280])test(`all navigation stays in one document and pre
   const originalDocument=await page.evaluate(()=>performance.timeOrigin),initialRequests=requests.length;
   for(const name of ['视频加速','曲库','帮助','关于','使用条款','设置']){
     await navigate(page,name);
-    await expect(page.getByText('正在读取控制台状态',{exact:true})).not.toBeVisible();
+    await expect(page.getByText('正在读取程序状态…',{exact:true})).not.toBeVisible();
     if(width>640)await expect(page.locator('#main')).toBeFocused();
     expect(await page.evaluate(()=>performance.timeOrigin)).toBe(originalDocument);
   }
@@ -36,10 +36,10 @@ test('document body and footer links preserve navigation and drafts',async({page
   await expect(page.getByRole('heading',{level:1})).toHaveText('关于');
   await page.getByRole('link',{name:'使用条款与内容权利声明',exact:true}).click();
   await expect(page.getByRole('button',{name:/恢复.*直连|停止播放网关/})).toHaveCount(0);
-  await page.getByRole('link',{name:'返回控制台',exact:true}).click();
+  await page.getByRole('link',{name:'返回首页',exact:true}).click();
   await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
   await navigate(page,'帮助');
-  await page.getByRole('link',{name:'返回控制台',exact:true}).click();
+  await page.getByRole('link',{name:'返回首页',exact:true}).click();
   await navigateSettings(page,'预加载与下载');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('888');
   expect(await page.evaluate(()=>performance.timeOrigin)).toBe(originalDocument);
@@ -56,7 +56,7 @@ test('direct document URLs load content before status, normalize once, and survi
     await page.goto('/'+path);
     await expect(page.getByRole('heading',{level:1,name:'关于',exact:true})).toBeVisible();
     await expect(page).toHaveURL(new RegExp('/#/('+path+')$'));
-    await expect(page.getByText('正在读取控制台状态',{exact:true})).not.toBeVisible();
+    await expect(page.getByText('正在读取程序状态…',{exact:true})).not.toBeVisible();
     if(path==='help')await expect(page.getByText('<script>alert("path")</script>',{exact:true})).toBeVisible();
     if(path==='about')await expect(page.getByText('dev-browser',{exact:true})).toBeVisible();
     if(path==='terms')await expect(page.getByRole('article',{name:'完整使用条款'})).toContainText('浏览器测试条款');

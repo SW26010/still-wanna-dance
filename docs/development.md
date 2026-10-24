@@ -74,18 +74,18 @@ node scripts/acceptance.mjs bin/still-wanna-dance.exe bin/SWD.exe bin/data/terms
 node --test scripts/acceptance-protocol.test.mjs scripts/acceptance-request.test.mjs
 ```
 
-两个可执行文件参数分别默认上述路径。脚本在 `test-runs/acceptance-*` 中建立独立服务库和控制台库，记录两个程序的 SHA256、响应状态/头、字节数、哈希、耗时和进程日志。下载 1343/1344 及控制台独立的 1343 样本（当前合计约 106 MB）。覆盖直接视频冷下载、跨 Host Range 内容命中、重启 HEAD 复用、播放 API 接管后直接返回视频、控制台 Auto 冷/热播放，以及重启后上游不可用时的本地 GET/HEAD/Range 降级和无本地视频的歌曲的 502。Auto 使用真实选路，不能据此保证每种线路故障或测速组合均已覆盖；故障分支另由 Go 测试覆盖。
+两个可执行文件参数分别默认上述路径。脚本在 `test-runs/acceptance-*` 中建立独立命令行服务库和桌面程序库，记录两个程序的 SHA256、响应状态/头、字节数、哈希、耗时和进程日志。下载 1343/1344 及桌面程序独立的 1343 样本（当前合计约 106 MB）。覆盖直接视频冷下载、跨 Host Range 内容命中、重启 HEAD 复用、播放 API 接管后直接返回视频、桌面程序 Auto 冷/热播放，以及重启后上游不可用时的本地 GET/HEAD/Range 降级和无本地视频的歌曲的 502。Auto 使用真实选路，不能据此保证每种线路故障或测速组合均已覆盖；故障分支另由 Go 测试覆盖。
 
-验收前须由操作者在当前 Windows 用户下阅读并确认当前条款，第三个参数传入该 `terms.json`。脚本原样复制密文到独立配置，先启动关闭播放网关/队列自动启动的控制台，通过门禁验证凭据，并核对内嵌条款与当前源码一致；不会解密、伪造或自动点击同意。失效凭据返回 environment/blocked；缺少控制台程序也会阻塞全部验收，因为不能验证同意。验证成功后才启动服务链路；缺少服务程序仅阻塞服务链路，控制台 Auto 与本地降级仍继续。
+验收前须由操作者在当前 Windows 用户下阅读并确认当前条款，第三个参数传入该 `terms.json`。脚本原样复制密文到独立配置，先启动关闭自动加速的桌面程序，通过门禁验证凭据，并核对内嵌条款与当前源码一致；不会解密、伪造或自动点击同意。失效凭据返回 environment/blocked；缺少桌面程序也会阻塞全部验收，因为不能验证同意。验证成功后才启动服务链路；缺少服务程序仅阻塞服务链路，桌面程序 Auto 与本地降级仍继续。
 
 条款保护回归在 Windows 可运行 `./scripts/with-test-temp.ps1 go test ./internal/console -run Terms -count=1`。Windows 使用真实 DPAPI，包含独立子进程读取和同用户搬迁；Linux 测试进程使用临时认证加密替身，生产代码仍明确拒绝非 Windows 凭据保存。这不替代真实跨用户/跨机器测试，验证范围见 [#15 验收记录](validation/issue-15-validation.md)。
 
-控制台以 `-no-tray -no-open` 启动，需本机 `127.0.0.1:80/443` 空闲；端口被占用时记录环境阻塞，不关闭已有服务。仅供本次测试的失败 SOCKS5 出口模拟上游不可用：已有视频的 GET/HEAD/Range 仍为本地 HIT，正文与文件一致；无本地视频返回 502，并确认故障出口确实收到连接。现实现不发送 `X-SWD-Fallback`，脚本也检查该头缺省。脚本不改 hosts、不读取原版旧库、不运行原版程序；所有下载和配置均留在测试目录，结束时关闭本次进程与失败出口。
+桌面程序以 `-no-tray -no-open` 启动，需本机 `127.0.0.1:80/443` 空闲；端口被占用时记录环境阻塞，不关闭已有服务。仅供本次测试的失败 SOCKS5 出口模拟上游不可用：已有视频的 GET/HEAD/Range 仍为本地 HIT，正文与文件一致；无本地视频返回 502，并确认故障出口确实收到连接。现实现不发送 `X-SWD-Fallback`，脚本也检查该头缺省。脚本不改 hosts、不读取原版旧库、不运行原版程序；所有下载和配置均留在测试目录，结束时关闭本次进程与失败出口。
 
 上游预检使用 Node.js `Resolver.resolve4` 直接向配置的 DNS 服务器查询 IPv4，绕过系统 hosts；解析失败不回退系统解析，并过滤回环、内网及本机网卡地址。此查询仍可能受系统 DNS/代理影响，不等同于服务内置 DoH。HTTP/HTTPS 均保留原 Host 与正常 TLS 域名校验，报告记录实际 `remoteAddress`；显式端口的本地请求仍走回环。
 
 上游预检支持 301/302/307/308、HTTP/HTTPS 视频地址及 API 的 HTTPS 升级跳转，保留原始 Location。未知协议/视频格式记为 `upstream-protocol-change`，网络不可达、限流及上游 5xx 记为 `upstream-unavailable`，缺失构建或端口占用记为 `environment`。依赖不满足的链路标为 blocked，其他独立检查继续。`results.json` 的总体 `outcome` 为 passed/failed/blocked，退出码分别为 0/1/2；存在程序检查失败时优先返回 1。blocked 不表示完整验收通过；程序检查失败仍应结合同期上游证据和日志判断，例如下载期间断网或歌曲版本变化，不能只凭退出码归因。
 
-`scripts/game-hosts.ps1` 仅用于人工联合验收：先要求 1343 的 API 热缓存 Range 探测通过，再添加 `api.udon.dance` 映射；Disable 只清理该会话标记的映射，也识别旧版资源域名标记。它不会添加两个历史视频域名；旧版操作结果见[验收记录](acceptance/early-service-20260925.md)。日常接入使用控制台，开发检查不自动执行此脚本。
+`scripts/game-hosts.ps1` 仅用于人工联合验收：先要求 1343 的 API 热缓存 Range 探测通过，再添加 `api.udon.dance` 映射；Disable 只清理该会话标记的映射，也识别旧版资源域名标记。它不会添加两个历史视频域名；旧版操作结果见[验收记录](acceptance/early-service-20260925.md)。日常接入使用 WebUI 或托盘，开发检查不自动执行此脚本。
 
-Web UI 的设计约定、浏览器验收与平台验证边界见 [可访问性验收](webui-accessibility.md)。
+WebUI 的设计约定、浏览器验收与平台验证边界见 [可访问性验收](webui-accessibility.md)。

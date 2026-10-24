@@ -117,7 +117,7 @@ func TestMenuMatchesRuntime(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			items := Menu(tc.state, tc.busy)
 			if len(items) != 5 || items[2] != (Item{StartAcceleration, tc.label, tc.disabled}) ||
-				items[0] != (Item{OpenConsole, "打开控制台", false}) || items[4].ID != Exit || items[4].Disabled {
+				items[0] != (Item{OpenConsole, "打开 WebUI", false}) || items[4].ID != Exit || items[4].Disabled {
 				t.Fatal(items)
 			}
 		})

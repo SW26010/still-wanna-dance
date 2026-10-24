@@ -24,7 +24,7 @@ test('storage fault stays visible across polling, pages, gateway actions and con
   }
   await page.route('**/api/status',r=>r.fulfill({status:503,body:'offline'}));
   await page.clock.fastForward(5100);
-  await expect(page.getByText('无法连接控制台，请检查程序是否仍在运行。',{exact:true})).toBeVisible();
+  await expect(page.getByText('无法读取程序状态，请检查 SWD 是否仍在运行。',{exact:true})).toBeVisible();
   await expect(reason).toBeVisible();
   await page.unroute('**/api/status');
   delete api.state.storageError;

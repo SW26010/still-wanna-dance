@@ -165,7 +165,7 @@ func (c *Console) startBatchTargetLocked(scanOnly bool, target *cacheproxy.Downl
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
-		return errors.New("控制台正在退出")
+		return errors.New("程序正在退出")
 	}
 	if c.batch.Running {
 		return errors.New("已有批量任务正在运行")

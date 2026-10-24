@@ -54,7 +54,7 @@ func (c *Console) setupProgress() (SetupProgress, error) {
 		return p, fmt.Errorf("读取引导进度：%w", err)
 	}
 	if len(b) > 4096 || json.Unmarshal(b, &p) != nil || !p.valid() {
-		return SetupProgress{}, errors.New("引导进度格式不受支持；仍可使用控制台或重新开始引导")
+		return SetupProgress{}, errors.New("引导进度格式不受支持；仍可使用 WebUI 或重新开始引导")
 	}
 	return p, nil
 }
@@ -63,7 +63,7 @@ func (c *Console) saveSetupProgress(p SetupProgress) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
-		return errors.New("控制台正在退出")
+		return errors.New("程序正在退出")
 	}
 	if !c.terms.valid() {
 		return errors.New("请先阅读并同意使用条款")

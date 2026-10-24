@@ -183,7 +183,7 @@ func newConsole(configPath, address string, dns directResolver) (*Console, error
 	}
 	if data != nil {
 		if err := json.Unmarshal(data, &c.settings); err != nil {
-			return nil, fmt.Errorf("读取控制台配置：%w", err)
+			return nil, fmt.Errorf("读取程序配置：%w", err)
 		}
 		loadProxySecret(fields, &c.settings)
 		loadProxyNodes(fields, &c.settings)
@@ -371,7 +371,7 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool) error {
 	c.mu.Lock()
 	if c.closing {
 		c.mu.Unlock()
-		return errors.New("控制台正在退出")
+		return errors.New("程序正在退出")
 	}
 	oldSettings := c.savedSettings
 	c.mu.Unlock()
@@ -525,7 +525,7 @@ func (c *Console) start() (err error) {
 
 func (c *Console) startLocked() (err error) {
 	if !c.termsAccepted() {
-		return errors.New("请先打开控制台阅读并同意使用条款")
+		return errors.New("请先打开 WebUI 阅读并同意使用条款")
 	}
 	defer func() {
 		if err != nil {
@@ -539,7 +539,7 @@ func (c *Console) startLocked() (err error) {
 	closing, running := c.closing, c.httpServer != nil
 	c.mu.Unlock()
 	if closing {
-		return errors.New("控制台正在退出")
+		return errors.New("程序正在退出")
 	}
 	if running {
 		c.startGatewayQueueLocked()

@@ -18,7 +18,7 @@ test('incoming GETs use the download snapshot, retain unknown identity and stop 
   await page.getByRole('button',{name:'当前请求 9 的范围',exact:true}).click();
   requests.splice(0,1);await page.clock.fastForward(5100);
   await expect(list.getByRole('row')).toHaveCount(1);await expect(page.locator('#current-gets')).toBeFocused();
-  await page.getByRole('navigation',{name:'控制台页面'}).getByRole('link',{name:'设置',exact:true}).click();
+  await page.getByRole('navigation',{name:'页面导航'}).getByRole('link',{name:'设置',exact:true}).click();
   const hidden=reads;await page.clock.fastForward(12000);expect(reads).toBe(hidden);
 });
 

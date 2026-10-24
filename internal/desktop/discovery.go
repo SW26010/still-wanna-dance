@@ -57,7 +57,7 @@ func readInstanceRecord(path string) *instanceRecord {
 
 func (i *Instance) Publish(address string) error {
 	if !validAddress(address) || !i.identity.valid() {
-		return fmt.Errorf("无效的控制台地址：%s", address)
+		return fmt.Errorf("无效的 WebUI 地址：%s", address)
 	}
 	if err := os.MkdirAll(filepath.Dir(i.path), 0700); err != nil {
 		return err

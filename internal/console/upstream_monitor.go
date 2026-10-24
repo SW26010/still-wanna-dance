@@ -27,7 +27,7 @@ func (c *Console) StartUpstreamMonitor() error {
 }
 func (c *Console) startMonitorLocked() error {
 	if c.closing {
-		return errors.New("控制台正在退出")
+		return errors.New("程序正在退出")
 	}
 	if !c.monitorRequested || !c.terms.valid() {
 		return nil
@@ -68,7 +68,7 @@ func (c *Console) requestMonitorCheck(selected ...upstreamstate.CheckKind) error
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
-		return errors.New("控制台正在退出")
+		return errors.New("程序正在退出")
 	}
 	if c.monitor == nil {
 		return errors.New("上游监测尚未启动")

@@ -33,7 +33,7 @@ func readConfigFile(path string) ([]byte, map[string]json.RawMessage, error) {
 	}
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(data, &fields); err != nil {
-		return nil, nil, fmt.Errorf("读取控制台配置：%w", err)
+		return nil, nil, fmt.Errorf("读取程序配置：%w", err)
 	}
 	var version int
 	if err := json.Unmarshal(fields["schemaVersion"], &version); err != nil {

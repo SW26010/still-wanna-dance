@@ -23,7 +23,7 @@ func wide(s string) *uint16 { p, _ := syscall.UTF16PtrFromString(s); return p }
 func OpenBrowser(url string) error {
 	r, _, err := shell32.NewProc("ShellExecuteW").Call(0, uintptr(unsafe.Pointer(wide("open"))), uintptr(unsafe.Pointer(wide(url))), 0, 0, 1)
 	if r <= 32 {
-		return fmt.Errorf("打开控制台失败 (%d): %v", r, err)
+		return fmt.Errorf("打开 WebUI 失败 (%d): %v", r, err)
 	}
 	return nil
 }

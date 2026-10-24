@@ -25,7 +25,7 @@ test('cache list keeps selection and secondary actions reachable by keyboard', a
   await expect(second.getByRole('checkbox')).toBeDisabled();
   await page.keyboard.press('Escape'); await expect(second).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('link', {name:'管理游戏接入',exact:true})).toBeFocused();
+  await expect(page.getByRole('link', {name:'查看退出设置',exact:true})).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.getByRole('button', {name:'退出整个应用'})).toBeFocused();
   await first.getByRole('button', {name:'定位文件'}).focus();

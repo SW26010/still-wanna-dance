@@ -126,8 +126,8 @@ test('wizard mobile layout and terms focus trap',async({page},info)=>{
   }
   const primary=page.getByRole('button',{name:'确认并应用',exact:true});
   const before=await primary.boundingBox();
-  await page.getByRole('button',{name:'配置游戏连接',exact:true}).click();
-  await expect(page.getByText('游戏连接配置已更新。',{exact:true})).toBeInViewport();
+  await page.getByRole('button',{name:'刷新接入检查',exact:true}).click();
+  await expect(page.getByText('最终应用成功后按自动加速设置配置游戏连接；可能需要管理员授权。',{exact:true})).toBeVisible();
   expect(await primary.boundingBox()).toEqual(before);
   await expect(primary).toBeInViewport({ratio:1});
   await page.screenshot({path:info.outputPath('global-feedback.png'),animations:'disabled'});
@@ -144,8 +144,8 @@ for(const startup of [false,true])test(`confirmation explains service and queue 
   await page.goto('/#/setup');await navigateStep(page,'4. 启用');
   await expect(page.getByText('本地服务：'+(startup?'将启动':'保持关闭'),{exact:true})).toBeVisible();
   await expect(page.getByText('房间队列预加载：'+(startup?'随网关开启':'保持关闭'),{exact:true})).toBeVisible();
-  await expect(page.getByText(/下面的连接操作会立即修改 hosts/)).toBeVisible();
-  await expect(page.getByText(/条款确认和上方游戏连接操作已即时生效/)).toBeVisible();
+  await expect(page.getByText(/最终应用成功后按自动加速设置配置游戏连接/)).toBeVisible();
+  await expect(page.getByText(/条款确认已即时生效/)).toBeVisible();
   expect(api.calls.some(call=>call.path==='setup/apply')).toBe(false);
   await page.getByRole('button',{name:'确认并应用',exact:true}).click();
   await expect(page.getByText(startup?'配置已应用。加速运行中；房间队列预加载已开启。':'配置已应用。加速未运行；房间队列预加载已关闭。',{exact:true})).toBeVisible();

@@ -27,7 +27,7 @@ for(const width of [390,1280])test(`all navigation stays in one document and pre
   expect(errors).toEqual([]);
 });
 
-test('document body and footer links share navigation, and terms actions refresh console state',async({page})=>{
+test('document body and footer links preserve navigation and drafts',async({page})=>{
   const api=await mockAPI(page);api.state.running=true;
   await page.goto('/#prepareAheadSeconds');
   await page.getByRole('spinbutton',{name:/提前准备时间/}).fill('888');
@@ -35,10 +35,7 @@ test('document body and footer links share navigation, and terms actions refresh
   await navigate(page,'关于');
   await expect(page.getByRole('heading',{level:1})).toHaveText('Load failed? But I still wanna dance!');
   await page.getByRole('link',{name:'使用条款与内容权利声明',exact:true}).click();
-  const calls=api.calls.length;
-  await page.getByRole('button',{name:'恢复游戏直连',exact:true}).click();
-  await expect(page.getByText('hosts 恢复操作已完成。',{exact:true})).toBeVisible();
-  await expect.poll(()=>api.calls.slice(calls).some(call=>call.path==='status')).toBe(true);
+  await expect(page.getByRole('button',{name:/恢复.*直连|停止播放网关/})).toHaveCount(0);
   await page.getByRole('link',{name:'返回控制台',exact:true}).click();
   await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
   await navigate(page,'帮助');
@@ -88,9 +85,9 @@ test('public help/about stay readable before consent and terms still open the ga
     await expect(page.getByRole('navigation').getByRole('link',{name:'设置',exact:true})).toHaveAttribute('href','/#/settings');
   }
   expect(api.calls).toHaveLength(0);
-  for(const [name,target] of [['高级接入','service'],['下载管理','queue']]){
+  for(const [name,target] of [['存储设置','storage-settings'],['歌曲偏好','song-preferences']]){
     await page.goto('/help?gate=1');
-    const link=page.locator('#help-stop').getByRole('link',{name,exact:true});
+    const link=page.locator('#help-storage').getByRole('link',{name,exact:true});
     await expect(link).toHaveAttribute('href','/#'+target);
     await link.click();
     await expect(page).toHaveURL(new RegExp('/#'+target+'$'));

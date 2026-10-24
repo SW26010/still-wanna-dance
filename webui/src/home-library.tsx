@@ -27,27 +27,25 @@ export function Home({visible}: {visible:boolean}) {
   const next=ready?'请在游戏中点歌确认播放。遇到问题可打开「网络与代理」检查网络。':s.hosts.ready?'游戏连接已配置，开始加速后即可使用本地服务。':'点击「开始加速」，然后在游戏中点歌。';
   return <><Panel id="activation" title="加速状态"><p>开始加速会配置游戏连接并启动本地服务。配置连接可能需要管理员权限。</p>
     <div className="actions"><Button appearance="primary" disabled={app.unavailable || (ready && !needsExitPreparation)} onClick={() => void app.action('activation/enable')}>{active(s) ? '正在处理…' : ready && !needsExitPreparation ? '加速运行中' : '开始加速'}</Button>
-    <Link href="#service">停止服务或恢复直连</Link></div>
+    <Link href="#service">查看接入诊断</Link></div>
 
     <ul><li>游戏连接：{s.hosts.ready?'已配置':s.hosts.conflict?'配置冲突，请查看高级接入设置':'未配置'}</li><li>本地服务：{s.running ? '运行中' : '未启动'}</li></ul>
 
     <p role="status">{progress[a.phase || '']}</p><p>{next}</p>
-    <Caption1 as="p" className="hint">队列预加载单独控制；停止播放网关会保留游戏连接。{exitConnectionMessage(s)}</Caption1>
+    <Caption1 as="p" className="hint">队列按设置随网关启用。{exitConnectionMessage(s)}</Caption1>
     </Panel><Panel title="游戏请求"><p>{requestStatus}</p><p>{requests.error?'最近请求暂时无法读取，将自动重试。':recent?`最近一次已结束请求：${requestOutcome(recent)} · HTTP ${recent.status || '未返回'} · ${date(recent.at)}`:'尚无已结束的请求记录'}</p><Caption1 as="p">请求结果只表示本地服务的处理情况，音画仍需在游戏中确认。</Caption1><div className="actions"><Link href="#service">重新检测视频请求</Link><Link href="#recent">查看请求详情</Link></div></Panel>
     {(problem||failed)&&<Feedback error><div className="content-stack"><p>{problem || '最近一次请求未正常完成，请检查连接与请求详情。'}</p><Link href="#/network">检查连接</Link></div></Feedback>}
     <Panel title="下载与预加载"><p>{downloads.error?'下载摘要暂时无法读取':`当前下载 ${downloads.data?.tasks.length || 0} 项 · ${mb(downloads.data?.bytesPerSecond)}/s`}</p><p>房间队列预加载：{s.queue.running?'已开启':s.queue.desired?'尚未就绪，请检查游戏日志':'已关闭'}</p><Feedback error>{s.queue.logError || s.queue.error || s.actionErrors?.queue}</Feedback><p>{s.batch.running?`批量任务：${s.batch.checked || 0} / ${s.batch.total || 0}`:'暂无运行中的批量任务'}</p><div className="actions"><Link href="#downloads">查看下载进度</Link><Link href="#queue">管理自动预加载</Link></div></Panel></>;
 }
 export function AccessSettings() {
   const app=useApp(), s=app.status.data!, a=s.activation || {}, received=dated(a.firstRequest), ready=s.running&&s.hosts.ready;
-  return <><div id="service" tabIndex={-1}><Panel title="高级接入"><Caption1 as="p" className="hint">以下操作分别控制播放网关和 hosts。停止网关会保留连接配置。{exitConnectionMessage(s)}</Caption1>
-    <div className="actions"><Button disabled={app.unavailable || s.running} onClick={() => void app.action('start')}>启动播放网关</Button><Button disabled={app.unavailable || !s.running} onClick={() => void app.action('stop')}>停止播放网关</Button></div>
+  return <><div id="service" tabIndex={-1}><Panel title="高级接入"><Caption1 as="p" className="hint">接入诊断复用一键加速流程。{exitConnectionMessage(s)}</Caption1>
     <Feedback error>{s.cdnError}</Feedback>
     <p>HTTP 播放 · 80：{s.running ? 'Still Wanna Dance 正在监听' : s.portOK ? '端口可用，可以启动' : s.portOwner ? `被 ${s.portOwner.name}（PID ${s.portOwner.pid}）占用，请先关闭该服务` : '端口不可用或被系统保留，请检查其他服务和端口设置'}</p>
     <p>HTTPS 转发 · 443：{s.running ? 'HTTPS 转发已就绪' : s.httpsPortOK ? '端口可用，随播放网关启动' : s.httpsPortOwner ? `被 ${s.httpsPortOwner.name}（PID ${s.httpsPortOwner.pid}）占用，请先关闭该服务` : '端口不可用或被系统保留，请检查其他服务和端口设置'}</p>
     <Caption1 as="p" className="hint">游戏 HTTP 播放可复用本地视频和视频块缓存；网页 HTTPS 播放保持加密并转发到原线路，不使用本地视频和视频块缓存。</Caption1><p>游戏接入 · hosts：{s.hosts.message}</p><Feedback error>{s.actionErrors?.hosts}</Feedback>
-    <div className="actions"><Button disabled={app.unavailable} onClick={() => void app.action('hosts/enable')}>修改 hosts</Button><Button disabled={app.unavailable} onClick={() => void app.action('hosts/disable')}>恢复游戏直连</Button></div>
-    <Caption1 as="p" className="hint">仅移除本程序添加的 hosts 映射，不覆盖其他程序的配置。收到请求不代表游戏已播放成功。</Caption1>
-    <Button disabled={app.unavailable || !ready} onClick={() => void app.action('activation/enable')}>重新检测视频请求</Button>
+    <Caption1 as="p" className="hint">冲突不会覆盖其他程序的映射。收到请求不代表游戏已播放成功。</Caption1>
+    <Button disabled={app.unavailable} onClick={() => void app.action('activation/enable')}>{ready?'重新检测视频请求':'修复并开启加速'}</Button>
     {dated(a.started) && <p>检测开始：{date(a.started)}{received&&` · 首个请求：${date(a.firstRequest)}`}</p>}
     </Panel></div></>;
 }
@@ -62,8 +60,7 @@ export function Library() {
   const app = useApp(), s = app.status.data!, q = s.queue, b = s.batch, saved = s.lastBatch;
   const zeroBudget = s.activeSettings.videoStorageMode === 'none';
   const queuePhase = q.running ? q.current ? `正在准备歌曲 ${(q.active || [q.current]).join('、')}` : q.songs?.length ? '等待队列变化或重试' : '等待新的队列同步' : !q.desired ? '已关闭' : '预加载未就绪，请检查日志目录';
-  return <><Panel id="queue" title="自动准备房间队列"><p>根据游戏日志提前下载即将播放的内容，选择「不保留」也能使用。开启后等待房间同步新队列。</p><p>提前准备时间：{s.activeSettings.prepareAheadSeconds} 秒 · <Link href="#prepareAheadSeconds">调整提前准备时间</Link></p><Details title="预加载说明"><p>按预计播放时间提前准备队列中的有效曲目，不会回放旧队列。手动下载与队列预加载共同调度，互不暂停。关闭后已开始的共享下载可能继续完成。</p></Details>
-    <div className="actions"><Button disabled={app.unavailable || q.running} onClick={() => void app.action('queue/start')}>开启队列预加载</Button><Button disabled={app.unavailable || (!q.desired && !q.running)} onClick={() => void app.action('queue/stop')}>关闭队列预加载</Button></div>
+  return <><Panel id="queue" title="自动准备房间队列"><p>根据游戏日志提前下载即将播放的内容，选择「不保留」也能使用。开启后等待房间同步新队列。</p><p>提前准备时间：{s.activeSettings.prepareAheadSeconds} 秒 · <Link href="#prepareAheadSeconds">调整提前准备时间</Link></p><Details title="预加载说明"><p>按预计播放时间提前准备队列中的有效曲目，不会回放旧队列。手动下载与队列预加载共同调度，互不暂停。网关停止时撤销队列需求，其他来源的共享下载仍可继续。</p></Details>
     <p role="status">{queuePhase}</p><ol>{q.songs?.map((song,i) => <li key={`${song.songId}:${i}`}>{q.titles?.[song.songId] || song.songId}{q.blocked?.includes(song.songId)&&' · 已屏蔽，跳过新的准备'}</li>)}</ol>
     <Details title="日志与累计记录"><p>{q.file || '尚未发现日志'} · 本次开启后累计准备成功 {q.completed || 0} 次</p></Details>
     <Feedback error>{q.logError || q.error || s.actionErrors?.queue}</Feedback></Panel>

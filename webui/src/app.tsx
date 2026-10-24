@@ -73,9 +73,9 @@ export function App() {
       {page!=='setup'&&feedback}
       {s && <><div hidden={page !== 'home'}><Home visible={page==='home'}/></div><div hidden={page !== 'library'}><DownloadsPage visible={page==='library'} anchor={anchor}/></div><div hidden={page !== 'cache'}><Cache visible={page === 'cache'} section={anchor} /></div><div hidden={page !== 'network'}><Network visible={page==='network'} anchor={anchor}/></div><div hidden={page !== 'settings'}><div className="actions"><Link href="#storage-settings">视频存储</Link><Link href="#network-proxy">网络与代理</Link><Link href="#prepareAheadSeconds">预加载与下载设置</Link></div><SettingsPage /></div>
       </>}
-      {isDocumentPage(page)&&<DocumentContent page={page} paths={s?{...bootstrap.paths,Storage:s.activeSettings.storageDir}:bootstrap.paths} onAction={model.refresh}/>}
+      {isDocumentPage(page)&&<DocumentContent page={page} paths={s?{...bootstrap.paths,Storage:s.activeSettings.storageDir}:bootstrap.paths}/>}
       {page==='setup'&&<Setup accepted={accepted} onAccepted={()=>setAccepted(true)} onExit={exitSetup} guard={guard} feedback={feedback}/>}
-    </main><footer hidden={page==='setup'||documentPage}><p>关闭网页后程序仍在后台运行。{exitConnectionMessage(s)} <Link href="#service">管理游戏接入</Link></p><Button disabled={model.unavailable} onClick={() => void model.action('exit')}>退出整个应用</Button></footer>
+    </main><footer hidden={page==='setup'||documentPage}><p>关闭网页后程序仍在后台运行。{exitConnectionMessage(s)} <Link href="#preferences">查看退出设置</Link></p><Button disabled={model.unavailable} onClick={() => void model.action('exit')}>退出整个应用</Button></footer>
     <DocumentFooter page={page}/>
     </NavigationLayout>{model.dialog}
   </div></ConsoleContext.Provider>;

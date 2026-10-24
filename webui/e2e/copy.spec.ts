@@ -12,19 +12,19 @@ async function textWithDetails(page:Page) {
   return compact(await page.locator('body').innerText());
 }
 
-test('connection and service controls explain their independent effects',async({page})=>{
+test('connection diagnostics explain acceleration and exit effects',async({page})=>{
   await mockAPI(page);await page.goto('/');
-  await expect(page.getByText(/停止播放网关会保留游戏连接/)).toBeVisible();
+  await expect(page.getByText(/队列按设置随网关启用/)).toBeVisible();
   await page.evaluate(()=>{location.hash='network-access';});await expect(page.getByRole('tab',{name:'高级接入',exact:true})).toHaveAttribute('aria-selected','true');
   const text=await textWithDetails(page);
-  for(const consequence of ['停止网关会保留连接配置','不覆盖其他程序的配置','收到请求不代表游戏已播放成功'])expect(text).toContain(consequence);
+  for(const consequence of ['接入诊断复用一键加速流程','冲突不会覆盖其他程序的映射','收到请求不代表游戏已播放成功'])expect(text).toContain(consequence);
 });
 
 test('settings retain storage, restart and credential consequences in the appropriate details',async({page})=>{
   await mockAPI(page);await page.goto('/#storage-settings');
   await expect(page.getByRole('region',{name:'设置操作',exact:true})).toBeVisible();
   let text=await textWithDetails(page);
-  for(const consequence of ['更改后需保存并重启应用','批量任务需手动重新开始'])expect(text).toContain(consequence);
+  for(const consequence of ['保存并重启应用后生效','批量任务需手动重新开始'])expect(text).toContain(consequence);
   await page.evaluate(()=>{location.hash='video-import';});await expect(page.getByText(/请勿修改源视频/)).toBeVisible();
   await page.evaluate(()=>{location.hash='network-proxy';});
   await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');

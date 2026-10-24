@@ -9,9 +9,9 @@ const browser = await chromium.launch({channel:process.env.CI?'chromium':'msedge
 try {
   const page=await browser.newPage({viewport:{width:390,height:850}});
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
-  await page.goto(baseURL+'/#service');
-  await page.getByRole('button',{name:'修改 hosts',exact:true}).click();
-  await expect(page.getByText('游戏连接配置已更新。',{exact:true})).toBeVisible();
+  await page.goto(baseURL+'/');
+  await page.getByRole('button',{name:'开始加速',exact:true}).click();
+  await expect(page.getByText('视频加速已开启。',{exact:true})).toBeVisible();
   await page.goto(baseURL+'/#/settings');
   await page.getByRole('button',{name:'高级游戏接入设置',exact:true}).click();
   const restore=page.getByRole('checkbox',{name:'退出时恢复游戏直连',exact:true});

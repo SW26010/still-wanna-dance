@@ -19,6 +19,7 @@ func TestHostsPolicyBrowser(t *testing.T) {
 	for _, phase := range []string{"default", "persistent"} {
 		h, launches := fixtureHostsController(t, hostsBaseline)
 		c.hosts = h
+		c.videoAddress, c.httpsAddress, c.checksumURL = "127.0.0.1:0", "127.0.0.1:0", ""
 		ui := httptest.NewUnstartedServer(c)
 		c.address = ui.Listener.Addr().String()
 		ui.Start()

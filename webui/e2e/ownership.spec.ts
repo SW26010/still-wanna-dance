@@ -8,9 +8,8 @@ test('download controls and resulting progress share one page',async({page})=>{
   await page.goto('/#/library');
   await expect(page.getByRole('heading',{level:1,name:'下载管理',exact:true})).toBeVisible();
   await expect(page.getByText('正在准备的歌曲',{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'开启队列预加载',exact:true}).click();
   await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeVisible();
-  expect(api.calls.some(c=>c.path==='queue/start')).toBe(true);
+  expect(api.calls.some(c=>c.path==='queue/start')).toBe(false);
   await expect(page.getByRole('button',{name:'下载诊断',exact:true})).toHaveAttribute('aria-expanded','false');
 });
 
@@ -77,9 +76,9 @@ test('proxy configuration and checks share the same unsaved draft without saving
   await page.getByRole('tab',{name:'代理设置',exact:true}).click();
   await expect(page.getByRole('textbox',{name:'SOCKS5 地址',exact:true})).toHaveValue('127.0.0.1:7891');
   await page.getByRole('tab',{name:'高级接入',exact:true}).click();
-  await expect(page.getByRole('button',{name:'修改 hosts',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'修复并开启加速',exact:true})).toBeVisible();
   await navigate(page,'游戏加速');
-  await expect(page.getByRole('button',{name:'修改 hosts',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'修复并开启加速',exact:true})).toHaveCount(0);
 });
 
 test('normal startup stays on acceleration even after a manual wizard was left active',async({page})=>{

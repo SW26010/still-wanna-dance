@@ -73,7 +73,7 @@ export const accelerationLabel = (s: Status) => s.running && s.hosts.ready ? '�
 // Describe the current runtime policy, never a saved but unapplied choice.
 export function exitConnectionMessage(s?: Status): string {
   if (!s) return '退出按当前设置处理游戏连接，不再请求管理员权限。';
-  if (!s.activeSettings.restoreHostsOnExit) return '退出后保留游戏接入。下次玩游戏前请启动 SWD，不再使用时请恢复游戏直连。';
+  if (!s.activeSettings.restoreHostsOnExit) return '退出后保留游戏接入。下次玩游戏前请启动 SWD，不再使用时，请先保存「退出时恢复游戏直连」为开启，再退出。';
   if (s.hosts.managed && !s.hosts.exitRestorePrepared) return '已有游戏接入尚未准备自动恢复，请先点击「开始加速」完成授权；直接退出会保留接入。';
   return '退出时自动恢复本程序的游戏接入，不再请求管理员权限。';
 }

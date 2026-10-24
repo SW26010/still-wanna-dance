@@ -54,7 +54,7 @@ function SetupReview({draft:d,status:s,source,effects}:{draft:Draft;status:Statu
       <li>游戏连接：{effects.applyStartup&&s.settings.autoAccelerate?'自动配置并开启加速，可能需要管理员授权':s.hosts.ready?'保留当前接入':'未配置，可在首页手动开启加速'}</li>
     </ul><p>{effects.applyStartup?'按已保存的启动设置执行；启动失败时会在首页显示原因。':'沿用当前服务状态，不会重新开启已手动关闭的功能。'}</p></>}
     {source&&<p>{effects?.restartRequired?'重启后开始导入。':'确认后开始导入。'}关闭网页不影响导入，重启程序会中止导入。</p>}
-    <p>存储、网络和导入选择在点击「确认并应用」后生效。条款确认和上方游戏连接操作已即时生效，放弃草稿不会撤销。</p></>;
+    <p>存储、网络和导入选择在点击「确认并应用」后生效。条款确认已即时生效，放弃草稿不会撤销。</p></>;
 }
 
 export function Setup({accepted,onAccepted,onExit,guard,feedback}: {accepted:boolean;onAccepted:()=>void;onExit:()=>void;guard: React.RefObject<(() => Promise<boolean>) | undefined>;feedback:React.ReactNode}) {
@@ -219,7 +219,7 @@ export function Setup({accepted,onAccepted,onExit,guard,feedback}: {accepted:boo
       <div className="wizard-content" key={step}>
       {step==='welcome'&&<><Subtitle1 as="h2">Still Wanna Dance (SWD)</Subtitle1><p>Load failed? But I still wanna dance!</p><p>专为 VRChat WannaDance 设计的高性能视频加速器</p><ul><li>本地视频</li><li>队列预加载</li><li>直连优化</li><li>自定义代理</li></ul><p>本工具自动后台运行，使用 WebUI 操作，可通过系统托盘图标管理。</p><p>技术原理：通过修改系统 hosts 劫持 HTTP 视频请求</p>
         <div className="actions"><Button onClick={()=>{setTermsOpen(true);void loadTerms();}}>{terms?.accepted?'查看完整条款':'阅读并同意条款'}</Button><Badge color={terms?.accepted?'success':'informative'}>{terms?.accepted?'条款已确认':'尚未确认条款'}</Badge></div><p>在弹窗中同意后立即保存；退出引导不会撤销条款确认。</p>
-        {accepted&&!s&&<Spinner label="正在连接设置…"/>}<Details title="修复已有安装"><p>移除本程序的 hosts 映射，需要管理员确认，立即生效。</p><Button disabled={app.busy||app.stopped} onClick={()=>void app.action('hosts/disable')}>恢复游戏直连</Button></Details>
+        {accepted&&!s&&<Spinner label="正在连接设置…"/>}
       </>}
       {step==='storage'&&draft&&s&&<div className="form-grid">
         <CacheCapacityFields mode={draft.videoStorageMode} value={draft.maxCacheGiB} disabled={locked||folderBusy} onChange={update} />
@@ -236,7 +236,7 @@ export function Setup({accepted,onAccepted,onExit,guard,feedback}: {accepted:boo
         <VRCXOption model={history}/>
       </div>}
       {step==='proxy'&&draft&&s&&<><Subtitle1 as="h2">连接方式</Subtitle1><NetworkFields wizard draft={draft} update={update} disabled={locked} status={s} onPending={setProxyPending}/><Details title="检测网络连接与下载速度" open><Diagnostics visible={true} proxy={{...plan,page:'proxy',upstreamMode:'proxy'}} upstream={diagnosticUpstream} onUpstreamChange={setDiagnosticUpstream}/></Details></>}
-      {step==='finish'&&draft&&s&&<><Panel title="接入检查"><p>游戏连接：{s.hosts.ready?'已配置':s.hosts.conflict?s.hosts.message:'未配置'}</p><p>下面的连接操作会立即修改 hosts，可能需要管理员权限。放弃引导草稿不会撤销；需要撤销时点击「恢复直连」。</p><div className="actions"><Button disabled={app.unavailable||(s.hosts.ready&&(!s.activeSettings.restoreHostsOnExit||!s.hosts.managed||s.hosts.exitRestorePrepared))} onClick={()=>void app.action('hosts/enable')}>配置游戏连接</Button><Button disabled={app.unavailable} onClick={()=>void app.action('hosts/disable')}>恢复直连</Button><Button disabled={logsBusy||locked||app.unavailable} onClick={()=>void checkAccess()}>刷新接入检查</Button></div>
+      {step==='finish'&&draft&&s&&<><Panel title="接入检查"><p>游戏连接：{s.hosts.ready?'已配置':s.hosts.conflict?s.hosts.message:'未配置'}</p><p>最终应用成功后按自动加速设置配置游戏连接；可能需要管理员授权。</p><div className="actions"><Button disabled={logsBusy||locked||app.unavailable} onClick={()=>void checkAccess()}>刷新接入检查</Button></div>
         <Details title="端口与日志检查"><p>80 (HTTP) 端口：{s.portOK?'可用':s.portOwner?`被 ${s.portOwner.name}（PID ${s.portOwner.pid}）占用`:'被占用或不可用'}</p><p>443 (HTTPS) 端口：{s.httpsPortOK?'可用':s.httpsPortOwner?`被 ${s.httpsPortOwner.name}（PID ${s.httpsPortOwner.pid}）占用`:'被占用或不可用'}</p>
         <p>VRChat 日志：{logsBusy?'正在检测…':logs?.path||logs?.directory||'未定位'}</p><p>{logs?.message}</p></Details><Feedback error>{s.actionErrors?.hosts}</Feedback>
         <VRCXCheck model={history}/>

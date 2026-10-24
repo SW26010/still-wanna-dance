@@ -194,7 +194,7 @@ test('no retention overrides the remembered budget while favorites can still be 
   await navigate(page,'下载管理');
   await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();
   await expect(page.getByRole('button',{name:'检查缺失视频',exact:true})).toBeEnabled();
-  await expect(page.getByRole('button',{name:'开启队列预加载',exact:true})).toBeEnabled();
+  await expect(page.getByRole('heading',{name:'自动准备房间队列',exact:true})).toBeVisible();
 });
 
 test('empty storage links explain queue preparation and persistent library prerequisites',async({page})=>{
@@ -203,12 +203,12 @@ test('empty storage links explain queue preparation and persistent library prere
   await expect(page.getByText(/当前选择「不保留」：适合边播边下载/)).toBeVisible();
   await page.getByRole('link',{name:'自动准备房间队列',exact:true}).click();
   await expect(page.locator('#queue')).toBeFocused();
-  await expect(page.getByRole('button',{name:'开启队列预加载',exact:true})).toBeEnabled();
+  await expect(page.getByRole('heading',{name:'自动准备房间队列',exact:true})).toBeVisible();
   await expect(page.getByRole('heading',{name:'下载缺失视频',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();
   await page.getByRole('link',{name:'设置视频保留空间',exact:true}).click();
   await expect(page.locator('#maxCacheGiB')).toBeFocused();
-  await expect(page.getByText('适合边播边下载，普通视频不长期保留；收藏的完整视频仍可保存。房间队列准备不受影响。',{exact:true})).toBeVisible();
+  await expect(page.getByText('适合边播边下载，普通视频不长期保留；开启「优先保留收藏视频」时，收藏的完整视频仍可保存。房间队列准备不受影响。',{exact:true})).toBeVisible();
 });
 
 test('settings reject invalid budgets and inactive choices recover from an invalid draft', async ({page}) => {

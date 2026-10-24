@@ -22,20 +22,20 @@ test('saved settings stay locked until a fresh status arrives, including failed 
   expect(api.calls.filter(c=>c.path==='settings').at(-1)?.body).toMatchObject({prepareAheadSeconds:120,downloadGrowIntervalMS:4});
 });
 
-test('terms hosts recovery waits for UAC and reports a timed out result as unconfirmed',async({page})=>{
-  // Terms shares the console shell and needs its status fixture as well.
+test('acceleration waits for UAC and reports a timed out result as unconfirmed',async({page})=>{
+  // The single acceleration action owns authorization.
   await mockAPI(page);
   // Route AbortSignal timeout through the browser clock; no real two-minute wait.
   await page.addInitScript(()=>{AbortSignal.timeout=(ms:number)=>{const c=new AbortController();setTimeout(()=>c.abort(new DOMException('Timed out','TimeoutError')),ms);return c.signal;};});
   let release=()=>{};const waiting=new Promise<void>(resolve=>{release=resolve;});
   let calls=0;
-  await page.route('**/api/hosts/disable',async r=>{calls++;await waiting;await r.fulfill({json:{ok:true}}).catch(()=>{});});
-  await page.clock.install();await page.goto('/terms');
-  const button=page.getByRole('button',{name:'恢复游戏直连'});
+  await page.route('**/api/activation/enable',async r=>{calls++;await waiting;await r.fulfill({json:{ok:true}}).catch(()=>{});});
+  await page.clock.install();await page.goto('/');
+  const button=page.getByRole('button',{name:'开始加速'});
   await button.click();await expect.poll(()=>calls).toBe(1);await page.clock.fastForward(20000);
   await expect(button).toBeDisabled();await expect(page.getByText(/最多等待 120 秒/)).toBeVisible();
-  release();await expect(page.getByText('hosts 恢复操作已完成。')).toBeVisible();
-  await page.route('**/api/hosts/disable',()=>{});
+  release();await expect(page.getByText('视频加速已开启。')).toBeVisible();
+  await page.route('**/api/activation/enable',()=>{});
   await button.click();await page.clock.fastForward(119000);await expect(button).toBeDisabled();
   await page.clock.fastForward(1001);
   await expect(page.getByText(/操作结果尚未确认.*勿重复提交/)).toBeVisible();await expect(button).toBeEnabled();

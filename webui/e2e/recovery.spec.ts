@@ -10,26 +10,19 @@ test('settings anchors focus after initial reads and within the same page',async
   await page.evaluate(()=>{location.hash='recent';});await expect(page.locator('#recent')).toBeFocused();
 });
 
-test('gateway and queue actions remain independent; hosts errors are visible',async({page})=>{
-  const api=await mockAPI(page);
-  api.state.queue.songs=[{songId:-1},{songId:1},{songId:-1},{songId:2},{songId:3},{songId:4}];
-  await page.goto('/#network-access');
-  await page.getByRole('button',{name:'启动播放网关',exact:true}).click();
-  await expect(page.getByRole('button',{name:'停止播放网关',exact:true})).toBeEnabled();
-  await page.getByRole('button',{name:'停止播放网关',exact:true}).click();
-  await expect(page.getByRole('button',{name:'启动播放网关',exact:true})).toBeEnabled();
-  await navigate(page,'下载管理');
-  await expect(page.locator('#queue ol li')).toHaveCount(6);
-  await expect(page.locator('#queue ol li').last()).toHaveText('4');
-  await page.getByRole('link',{name:'调整提前准备时间',exact:true}).click();
-  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeFocused();
-  await navigate(page,'下载管理');
-  await page.getByRole('button',{name:'开启队列预加载'}).click();
-  await expect(page.getByText('队列预加载已开启，等待新的房间队列。',{exact:true})).toBeVisible();
-  expect(api.calls.filter(c=>['start','stop','queue/start','queue/stop','activation/enable','hosts/enable'].includes(c.path)).map(c=>c.path)).toEqual(['start','stop','queue/start']);
-  await navigate(page,'网络与代理');await page.getByRole('tab',{name:'高级接入',exact:true}).click();
-  await page.route('**/api/hosts/enable',r=>r.fulfill({status:409,json:{error:'管理员取消，hosts 未改变'}}));
-  await page.getByRole('button',{name:'修改 hosts'}).click();await expect(page.getByText('管理员取消，hosts 未改变',{exact:true})).toBeVisible();
+test('acceleration owns connection actions and queue status links to settings',async({page})=>{
+ const api=await mockAPI(page);
+ api.state.queue.songs=[{songId:-1},{songId:1},{songId:-1},{songId:2},{songId:3},{songId:4}];
+ await page.goto('/#network-access');
+ await page.route('**/api/activation/enable',r=>r.fulfill({status:409,json:{error:'管理员取消，hosts 未改变'}}));
+ await page.getByRole('button',{name:'修复并开启加速',exact:true}).click();
+ await expect(page.getByText('管理员取消，hosts 未改变',{exact:true})).toBeVisible();
+ await navigate(page,'下载管理');
+ await expect(page.locator('#queue ol li')).toHaveCount(6);
+ await expect(page.getByRole('button',{name:/开启队列预加载|关闭队列预加载/})).toHaveCount(0);
+ await page.getByRole('link',{name:'调整提前准备时间',exact:true}).click();
+ await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeFocused();
+ expect(api.calls.some(c=>['start','stop','queue/start','queue/stop','hosts/enable'].includes(c.path))).toBe(false);
 });
 
 test('Mihomo preview stays a draft and clearing it releases only that preview',async({page})=>{

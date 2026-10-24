@@ -14,8 +14,8 @@ test('storage fault stays visible across polling, pages, gateway actions and con
   await expect(reason).toBeVisible();
   await expect(page.getByText(/修复后退出并重新打开整个应用/)).toBeVisible();
   await navigate(page,'网络与代理');await page.getByRole('tab',{name:'高级接入',exact:true}).click();
-  await page.getByRole('button',{name:'启动播放网关',exact:true}).click();
-  await page.getByRole('button',{name:'停止播放网关',exact:true}).click();
+  await page.getByRole('button',{name:'修复并开启加速',exact:true}).click();
+  await page.getByRole('button',{name:'重新检测视频请求',exact:true}).click();
   await expect(reason).toBeVisible();
   await page.setViewportSize({width:320,height:800});
   for(const name of ['网络与代理','本地视频','下载管理','设置']){

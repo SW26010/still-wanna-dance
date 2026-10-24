@@ -78,6 +78,21 @@ type LocalCatalog struct {
 // pins those exact resources until release. Callers must not sync this partial
 // projection back as a remote catalog.
 func (s *Server) ReadLocalCatalog(ctx context.Context) (LocalCatalog, func(), error) {
+	return s.readLocalCatalog(ctx, nil)
+}
+
+// DownloadTarget identifies one current song or one currently associated resource.
+// A song without a known resource may be resolved by the normal download path.
+type DownloadTarget struct {
+	SongID   string `json:"songID,omitempty"`
+	Resource string `json:"resource,omitempty"`
+}
+
+func (s *Server) ReadDownloadTarget(ctx context.Context, target DownloadTarget) (LocalCatalog, func(), error) {
+	return s.readLocalCatalog(ctx, &target)
+}
+
+func (s *Server) readLocalCatalog(ctx context.Context, target *DownloadTarget) (LocalCatalog, func(), error) {
 	if !s.beginRequest() {
 		return LocalCatalog{}, func() {}, context.Canceled
 	}
@@ -89,8 +104,16 @@ func (s *Server) ReadLocalCatalog(ctx context.Context) (LocalCatalog, func(), er
 	status, err := s.catalogStatus(ctx)
 	result.Status = status
 	if err == nil {
-		rows, queryErr := s.usage.db.QueryContext(ctx, `SELECT s.song_id,s.name,m.md5,c.song_id IS NOT NULL FROM songs s
- JOIN song_media m ON m.song_id=s.song_id LEFT JOIN catalog_members c ON c.song_id=s.song_id ORDER BY s.song_id`)
+		query := `SELECT s.song_id,s.name,COALESCE(m.md5,''),c.song_id IS NOT NULL FROM songs s
+ LEFT JOIN song_media m ON m.song_id=s.song_id LEFT JOIN catalog_members c ON c.song_id=s.song_id`
+		var args []any
+		if target == nil {
+			query += " WHERE m.md5 IS NOT NULL"
+		} else {
+			query += " WHERE (?<>'' AND s.song_id=?) OR (?<>'' AND m.md5=?)"
+			args = []any{target.SongID, target.SongID, target.Resource, target.Resource}
+		}
+		rows, queryErr := s.usage.db.QueryContext(ctx, query+" ORDER BY s.song_id", args...)
 		err = queryErr
 		if err == nil {
 			for rows.Next() {
@@ -101,7 +124,9 @@ func (s *Server) ReadLocalCatalog(ctx context.Context) (LocalCatalog, func(), er
 				}
 				result.Songs = append(result.Songs, song)
 				result.Current[strconv.FormatInt(song.ID, 10)] = current
-				refs[strconv.FormatInt(song.ID, 10)] = song.MD5
+				if song.MD5 != "" {
+					refs[strconv.FormatInt(song.ID, 10)] = song.MD5
+				}
 			}
 			if err == nil {
 				err = rows.Err()
@@ -126,6 +151,15 @@ func (s *Server) ReadLocalCatalog(ctx context.Context) (LocalCatalog, func(), er
 	}
 	if err == nil {
 		result.Files, err = CheckReferencedFiles(ctx, s.cfg.StorageDir, refs)
+		// Unresolved songs still use the same job/resolve/download mechanism,
+		// but must not be presented to the complete-file checker as a fake MD5.
+		if err == nil && target != nil {
+			for _, song := range result.Songs {
+				if song.MD5 == "" {
+					result.Files.References[strconv.FormatInt(song.ID, 10)] = ""
+				}
+			}
+		}
 	}
 	if err != nil {
 		release()

@@ -26,25 +26,26 @@ type Failure struct {
 	Error string `json:"error"`
 }
 type Batch struct {
-	Catalog        cacheproxy.CatalogStatus `json:"catalog"`
-	CatalogWarning string                   `json:"catalogWarning"`
-	BudgetReached  bool                     `json:"budgetReached"`
-	CatalogHits    int                      `json:"catalogHits"`
-	Reused         int                      `json:"reused"`
-	ScanOnly       bool                     `json:"scanOnly"`
-	Missing        int                      `json:"missing"`
-	Updated        time.Time                `json:"updated"`
-	Finished       time.Time                `json:"finished"`
-	Running        bool                     `json:"running"`
-	Phase          string                   `json:"phase"`
-	Total          int                      `json:"total"`
-	Checked        int                      `json:"checked"`
-	Hits           int                      `json:"hits"`
-	Downloaded     int                      `json:"downloaded"`
-	Failed         int                      `json:"failed"`
-	Skipped        int                      `json:"skipped"`
-	Current        string                   `json:"current"`
-	Failures       []Failure                `json:"failures"`
+	Target         *cacheproxy.DownloadTarget `json:"target,omitempty"`
+	Catalog        cacheproxy.CatalogStatus   `json:"catalog"`
+	CatalogWarning string                     `json:"catalogWarning"`
+	BudgetReached  bool                       `json:"budgetReached"`
+	CatalogHits    int                        `json:"catalogHits"`
+	Reused         int                        `json:"reused"`
+	ScanOnly       bool                       `json:"scanOnly"`
+	Missing        int                        `json:"missing"`
+	Updated        time.Time                  `json:"updated"`
+	Finished       time.Time                  `json:"finished"`
+	Running        bool                       `json:"running"`
+	Phase          string                     `json:"phase"`
+	Total          int                        `json:"total"`
+	Checked        int                        `json:"checked"`
+	Hits           int                        `json:"hits"`
+	Downloaded     int                        `json:"downloaded"`
+	Failed         int                        `json:"failed"`
+	Skipped        int                        `json:"skipped"`
+	Current        string                     `json:"current"`
+	Failures       []Failure                  `json:"failures"`
 }
 
 func (c *Console) resolve(ctx context.Context, id int64) (string, error) {
@@ -130,6 +131,33 @@ func (c *Console) startBatchMode(scanOnly bool) error {
 }
 
 func (c *Console) startBatchModeLocked(scanOnly bool) error {
+	return c.startBatchTargetLocked(scanOnly, nil)
+}
+
+func (c *Console) startBatchTarget(storageID string, target cacheproxy.DownloadTarget) error {
+	if (target.SongID == "") == (target.Resource == "") {
+		return errors.New("请选择一首歌曲或一个资源")
+	}
+	if target.SongID != "" {
+		id, err := strconv.ParseInt(target.SongID, 10, 64)
+		if err != nil || id <= 0 || strconv.FormatInt(id, 10) != target.SongID {
+			return errors.New("无效歌曲 ID")
+		}
+	} else if !validLibraryResource(target.Resource) {
+		return errors.New("无效资源")
+	}
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
+	c.mu.Lock()
+	current := cacheproxy.CacheStorageID(c.settings.StorageDir)
+	c.mu.Unlock()
+	if storageID != current {
+		return errors.New("存储目录已切换，请刷新曲库")
+	}
+	return c.startBatchTargetLocked(false, &target)
+}
+
+func (c *Console) startBatchTargetLocked(scanOnly bool, target *cacheproxy.DownloadTarget) error {
 	allowMissingRoot := false
 	if scanOnly {
 		allowMissingRoot = !c.storageUsageKnown()
@@ -161,7 +189,10 @@ func (c *Console) startBatchModeLocked(scanOnly bool) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	c.batchCancel = cancel
 	c.batchDone = make(chan struct{})
-	c.batch = Batch{Running: true, ScanOnly: scanOnly, Phase: "正在检查远端并更新本地清单"}
+	c.batch = Batch{Running: true, ScanOnly: scanOnly, Target: target, Phase: "正在检查远端并更新本地清单"}
+	if target != nil {
+		c.batch.Phase = "正在读取选中歌曲或资源"
+	}
 	slog.Info("batch_started", "scan_only", scanOnly)
 	go c.runBatch(ctx, c.service, c.batchDone)
 	return nil
@@ -172,7 +203,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	started := time.Now()
 	completed := false
 	c.mu.Lock()
-	scanOnly, settings := c.batch.ScanOnly, c.settings
+	scanOnly, settings, target := c.batch.ScanOnly, c.settings, c.batch.Target
 	c.mu.Unlock()
 	if !scanOnly {
 		ctx = s.WithBatchBudget(ctx)
@@ -191,7 +222,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		if ctx.Err() != nil {
 			result.Phase = "任务已停止，上次成功结果保留。已开始的共享下载可能继续完成。"
 		}
-		if completed && ctx.Err() == nil && result.Total > 0 && result.Checked == result.Total && result.Failed == 0 {
+		if target == nil && completed && ctx.Err() == nil && result.Total > 0 && result.Checked == result.Total && result.Failed == 0 {
 			result.Updated = time.Now()
 			if err := c.writeSnapshot("batch", settings.StorageDir, result); err != nil {
 				result.Phase += "；保存失败，上次成功结果保留：" + err.Error()
@@ -212,8 +243,15 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	}()
 
 	fail := func(message string) { c.mu.Lock(); c.batch.Phase = message; c.mu.Unlock() }
-	refreshErr := c.refreshLocalCatalog(ctx, s)
-	local, release, err := s.ReadLocalCatalog(ctx)
+	var refreshErr, err error
+	var local cacheproxy.LocalCatalog
+	var release func()
+	if target == nil {
+		refreshErr = c.refreshLocalCatalog(ctx, s)
+		local, release, err = s.ReadLocalCatalog(ctx)
+	} else {
+		local, release, err = s.ReadDownloadTarget(ctx, *target)
+	}
 	defer release()
 	c.mu.Lock()
 	if refreshErr != nil {
@@ -227,7 +265,11 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		fail("读取本地清单失败：" + err.Error())
 		return
 	}
-	if local.Status.Revision == "" || len(local.Songs) == 0 {
+	if target != nil && len(local.Songs) == 0 {
+		fail("所选歌曲不存在，或资源已无当前歌曲关联。请刷新曲库。")
+		return
+	}
+	if target == nil && (local.Status.Revision == "" || len(local.Songs) == 0) {
 		fail("暂无可用的歌曲清单，未开始本地检查。请重试在线更新。")
 		return
 	}
@@ -445,6 +487,8 @@ dispatch:
 		c.batch.Phase = "检查完成，部分歌曲失败；再次检查可重试"
 	} else if scanOnly {
 		c.batch.Phase = "本地检查完成；可通过下载补齐获取缺失视频"
+	} else if target != nil {
+		c.batch.Phase = "所选歌曲或资源已处理完成；同 MD5 共用一份视频"
 	} else {
 		c.batch.Phase = "所有已知歌曲已处理完成；同 MD5 共用一份视频"
 	}

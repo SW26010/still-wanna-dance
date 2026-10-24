@@ -1219,6 +1219,16 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = c.changeHosts("disable")
 	case "/api/batch/start":
 		err = c.startBatch()
+	case "/api/batch/download":
+		var input struct {
+			StorageID string `json:"storageID"`
+			cacheproxy.DownloadTarget
+		}
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		if err = decoder.Decode(&input); err == nil {
+			err = c.startBatchTarget(input.StorageID, input.DownloadTarget)
+		}
 	case "/api/batch/cancel":
 		c.mu.Lock()
 		if c.batchCancel != nil {

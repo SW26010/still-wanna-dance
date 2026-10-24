@@ -319,3 +319,14 @@ Go 最终按开发文档范围执行 go test -tags=no_easytier ./cmd/... ./inter
 前端类型及逐字节重建检查通过；离线构建／产物策略的 5 个 Node 测试通过（build-check-tests.log）。Node 测试初次在 Windows 沙箱内创建临时 Git 配置与 junction 被拒绝，改用统一临时目录包装器在沙箱外通过。提交后仓库产物扫描 0 错误、24 条已有历史归档提示（final-committed-artifacts.log）；生成 bundle 仅登记本次精确大小与哈希例外。当前 GET 的 Windows race 和快照基准沿用上阶段已通过证据。
 
 没有启动 VRChat、修改系统 hosts 或执行真实 UAC／托盘操作；游戏播放兼容性沿用现有 [VRC 台账](../live-acceptance-backlog.md)，原生 Windows 与辅助技术边界沿用[非 VRC 跟进](../validation-followups.md)。本轮代码与浏览器完成不表示这些环境已验收，也不另建逐改动游戏清单。全部提交只保留本地，未 push。
+
+
+## WebUI 设计审查跟进（2026-10-24）
+
+核对三个 outgoing 审查的重复及独立发现后，分别修复并提交：曲库轮询按资源键与 stamp 保留仍有效的勾选，删除确认按存储身份、文件 stamp、关联提示和保护状态复核，不再因响应对象变化而失效；开启退出恢复的设置保存复用 120 秒授权等待及未确认结果提示；重新引导允许常驻队列继续运行，真正重启时复用旧队列停止与新实例按配置启动的流程，导入和批量任务仍受原有保护。同步存储文档的配置 v6、SQLite v4 请求字段、request_observation 与单次首正文统计，并清理过时的退出行为说明。
+
+新增 Edge 用例覆盖轮询中保留选择和确认、文件替换／消失／转为保护／关联标题变化时拒绝过期确认、切换查询或视图清空选择，授权超过 30 秒后成功与 120 秒超时保留草稿，以及队列运行中的引导应用。相关分组共 34 项通过：review-library-browser-verified.log（13）、review-settings-browser.log（12）、review-setup-browser.log（9）。曲库首轮的 1 项失败是最后一个文件消失后批量工具栏已隐藏，测试仍查找“已选择 0 个文件”；改为核对无可选文件后通过，原日志 review-library-browser.log 保留。没有修改此处原有空列表界面行为。
+
+完整 Edge 回归 **169 项通过**（review-final-browser.log）；Go 按开发范围执行 go test -tags=no_easytier ./cmd/... ./internal/... 通过（review-final-go.log），go vet 同范围通过（review-final-vet.log）。新增真实 Console 生命周期测试覆盖运行队列时无变化／预算变化／存储切换／无效配置、回执重放、旧队列退出与新实例启动；导入／批量阻塞回归通过，见 review-setup-go-verified.log。前端类型及逐字节重建、离线清单检查通过；存储文档表清单与冻结 DDL 的 14 张表一致；产物策略检查 0 错误、24 条已有历史提示（review-artifacts.log）。证据均位于忽略目录 artifacts/webui-design/。
+
+本轮授权等待使用浏览器时钟与延迟响应验证，Console 测试使用私有 hosts 和回环端口；未验证真实 Windows UAC，也未启动 VRChat 或修改系统 hosts。沿用已有原生与游戏验收边界，不新增重复台账。修复按独立目的保留本地提交，未 push。

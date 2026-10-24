@@ -98,7 +98,7 @@ CREATE TABLE song_preferences (
 
 偏好是用户维护的曲库数据，随存储库备份和切换，不进入 `config.json`。曲库刷新、歌曲—MD5 关联更新、VRCX 统计初始化及视频清理均不覆盖偏好；它也不进入清单 `sha256-v1` 摘要。资源的收藏资格通过当前关联及 retainFavorites 配置推导，全部屏蔽状态通过当前关联推导，不新增资源名单表、资源分数副本或下载/完整性状态列；标记不等于文件已保存。
 
-数据库格式已升为 v4，使用 `schema/storage-v4.sql` 和对应二进制样本，冻结的 v2、v3 DDL 与样本保留。继续不兼容、不迁移旧格式：旧库拒绝打开且不改写，请使用独立新存储目录。不能由业务读写自动补表或改版本号。请求字段允许未知值为 NULL；这不授权读取不支持的旧格式。本次不改配置格式或清单摘要版本。
+数据库格式已升为 v4，使用 `schema/storage-v4.sql` 和对应二进制样本，冻结的 v2、v3 DDL 与样本保留。继续不兼容、不迁移旧格式：旧库拒绝打开且不改写，请使用独立新存储目录。不能由业务读写自动补表或改版本号。请求字段允许未知值为 NULL；这不授权读取不支持的旧格式。当前配置格式为 v6；清单摘要仍为 v1。
 
 离线偏好写入与 VRCX 历史初始化共用独占目录锁、布局/版本检查及数据库打开流程，不启动引擎、统计清理或资源回收。新库只建立标准数据库及空 `videos` 目录；已有使用证据的失联库拒绝新建。在线与离线标记共用同一偏好事务；在线仍与发布/回收串行，离线在连接关闭后释放目录锁。
 
@@ -183,7 +183,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | 外部位置 | 所有权 / 生命周期 | 备份约定 |
 | --- | --- | --- |
 | Windows `%LOCALAPPDATA%/SWD/console-session-<id>.json` | 托盘单实例发现；包含回环地址、SWD 协议身份、实际 EXE、配置、PID 和进程创建时间；激活前校验进程/端口归属，退出删除本会话记录，异常退出后由新锁持有者清理；无托盘模式不创建 | 不备份，可重新发现，不是用户配置 |
-| Windows `%SystemRoot%/System32/drivers/etc/hosts` 及 `hosts.swd-backup`（已有 `hosts.stepstash-backup` 原样保留） | 仅用户显式接入修改 hosts；首次备份保留。恢复精确移除托管映射，不覆盖整个 hosts；退出不恢复 | 系统管理员管理，不自动删备份或覆盖其他映射 |
+| Windows `%SystemRoot%/System32/drivers/etc/hosts` 及 `hosts.swd-backup`（已有 `hosts.stepstash-backup` 原样保留） | 手动或已授权的自动一键加速修改 hosts；首次备份保留。恢复精确移除托管映射，不覆盖整个 hosts；退出按已保存的 restoreHostsOnExit 策略恢复或保留 | 系统管理员管理，不自动删备份或覆盖其他映射 |
 | VRChat 日志目录、用户选取的导入源、VRCX SQLite 历史源库 | 只读输入，不归 SWD 所有；VRCX 沿用 SQLite 正常只读 WAL 快照和锁协议 | SWD 不修改或清理源数据，不复制单独 SQLite 主文件冒充一致快照 |
 | 用户选择的外部 S | 仍由媒体目录锁保护，路径留作绝对引用 | 必须另行完整备份；移动 Portable 不自动搬外置库 |
 
@@ -216,15 +216,15 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | `song_preferences` / song_id | policy 仅允许 blocked / favorite，外键关联 songs | 无记录为普通；用户标记不写需求统计，不触发下载 |
 | `song_usage` / `song_id` 外键 | demand_count 非负累计次数；demand_score 非负 REAL；last_demand_at 为 Unix 毫秒 | 按歌曲跨域 GET 或用户显式 VRCX 历史初始化，30 秒去重、60 天半衰期指数累计；历史按原时间计算。明细清理后不能无损重算 |
 | `song_playback` / `song_id` 外键 | transfer_count 累计次数、last_transfer_at Unix 毫秒 | HTTP GET、200/206、completed、正字节完成证据，按完成时刻 30 秒去重；不是游戏首帧或完整播放确认 |
-| `playback_latency` / `cache_result` | HIT/MISS 等本地读取来源分类文本；samples 次数；first_body_ns 为首字节耗时**纳秒累计和** | 与播放完成关联的测量事实，每次符合条件的传输累加；展示转换为平均毫秒，不是绝对时刻 |
 | `catalog_state` / `catalog_key` | 当前键 songs；revision 原始民用水位；digest 为 sha256-v1；source 溯源文本；accepted_at Unix 毫秒 | 接受清单的事务水位，身份/摘要不可随展示更名修改 |
 | `catalog_checks` / `catalog_key` | checked_at Unix 毫秒，默认 0=从未成功验证；message/error 默认空串=无诊断 | 成功验证时间和最近错误；失败不把旧成功时间改成失败时间 |
 | `catalog_members` / `song_id` 外键 | 当前已接受完整清单的成员 ID | 与 song_media 一起推导覆盖，不复制另一份成员资料 |
 | `media_access` / `md5` | last_requested_at Unix 毫秒，按 max 更新 | 最近 GET 事实；独立于歌曲归属、明细保留期，允许未被 media 收录的资源 |
-| `request_events` / `event_id` INTEGER 主键 | resource_key 资源/需求 ID 文本，version_key 为 MD5，host/source/method/range_header/cache_result/outcome 为请求证据文本；requested_at Unix 毫秒；file_bytes/transferred_bytes 字节；elapsed_ms 持续毫秒；status HTTP 数值；counts_as_demand 0/1 | 有界原始请求日志，不存历史歌曲关联。按 resource_key+requested_at、requested_at 和 HTTP 部分索引（requested_at DESC,event_id DESC）查询；同毫秒按 event_id 排序，清理后不承诺 ID 全局永不复用 |
-| `traffic_totals` / `id=1` | saved_bytes 非负累计命中字节；hits/misses 累计次数，初始化为零 | HTTP GET 成功完成 200/206 的 HIT/MISS 事实；requests、命中率由二者推导。删除试验期无读写用途的 local_samples/local_ns/upstream_samples/upstream_ns；首字节统计唯一来源为 playback_latency |
+| `request_events` / `event_id` INTEGER 主键 | resource_key 资源/需求 ID 文本，version_key 为 MD5，host/source/method/range_header/cache_result/outcome 为请求证据文本；requested_at 为请求到达的 Unix 毫秒；file_bytes/transferred_bytes 字节，后者仅计实际写出的视频正文；elapsed_ms 持续毫秒；status HTTP 数值；counts_as_demand 0/1。可空字段：song_id 为请求处理时的明确歌曲 ID 文本，completed_at 为结束 Unix 毫秒，response_bytes 为本次有效响应长度（字节），first_body_ns 为单次首正文耗时（纳秒），first_body_blocking 为首正文前实际等块的 0/1 | 有界原始请求日志，歌曲及资源身份在处理时冻结，新增可空事实未知为 NULL，不靠当前关联回填；首正文样本仅在已实际写出视频正文时有效，不要求最终成功。按 resource_key+requested_at、requested_at 和 HTTP 部分索引（requested_at DESC,event_id DESC）查询；同毫秒按 event_id 排序，清理后不承诺 ID 全局永不复用 |
+| `request_observation` / `id=1` | started_at 为新口径开始采集的 Unix 毫秒；retained_since 为清理水位的 Unix 毫秒，初始 0=尚未清理，按 max 更新 | 与明细清理同事务推进水位，跨重启保留；与 72 小时窗口共同决定可用范围及不完整窗口提示，不表示持续在线时长 |
+| `traffic_totals` / `id=1` | saved_bytes 非负累计命中字节；hits/misses 累计次数，初始化为零 | HTTP GET 成功完成 200/206 的 HIT/MISS 事实；requests、命中率由二者推导。首正文统计直接来自 request_events 的单次有效样本，按到达时间最近 72 小时、实际等块／无需等块分组计算 P50/P95，不再保存 playback_latency 累计表 |
 
-`request_events` 的 source 由业务写入（http 或 prefetch），method 是 HTTP 方法，cache_result 是 HIT/MISS 等响应分类，outcome 为 completed/failed/canceled/timeout 等结果；这些诊断文本不是可扩展行为开关，未知值不得当成成功。累计计数不因删除视频或清理明细而重置。评分固定 `oldScore * 2^(-elapsed/(60 days)) + 1`；回拨或 30 秒内重复需求不计分、不降低 last_demand_at。未来改评分必须保持旧含义或随数据库版本明确重置/重算策略，不假设请求历史完整。
+`request_events` 的 source 由业务写入（http 或 prefetch），method 是 HTTP 方法，cache_result 是 HIT/MISS 等响应分类，HTTP outcome 为 completed/failed/canceled/incomplete/aborted 等结果，预下载还可记录 timeout/not_retained；这些诊断文本不是可扩展行为开关，未知值不得当成成功。累计计数不因删除视频或清理明细而重置。评分固定 `oldScore * 2^(-elapsed/(60 days)) + 1`；回拨或 30 秒内重复需求不计分、不降低 last_demand_at。未来改评分必须保持旧含义或随数据库版本明确重置/重算策略，不假设请求历史完整。
 
 用户显式导入 VRCX 时可按[历史初始化契约](song-catalog-design.md#vrcx-历史初始化)整体替换 `song_usage`，非空统计需二次确认；提交点复查并与需求写入串行，失败回滚。只补必要占位歌曲，不修改媒体、映射、请求明细或配置；不增加表、格式版本、原始历史文件或持续同步状态。源 SQLite 只读并使用正常 WAL 快照，预览聚合及完成回执只在内存保留至过期。
 
@@ -233,14 +233,14 @@ SWD/                              # ZIP 内固定目录，不含版本号
 - SQLite 真实时间点统一解释为 UTC Unix 毫秒，只有 song_urls 的三个字段明确使用纳秒，以区分同毫秒并发查询；纳秒范围必须可由 int64 无损表示。其新结果必须有严格更大的 query_started_at；同刻第一条获胜，较旧/回拨结果不覆盖新值。失败只能标记实际尝试的同一条查询。时钟回拨后未来观测不可复用，等待重新获取或时钟恢复。
 - JSON 持久化真实时刻用 RFC 3339、UTC `Z`，允许 0–9 位可变小数秒，不按文本字典序比较。Go 零时间 `0001-01-01T00:00:00Z` 表示尚未发生；SQL 明确指定的 0 哨兵表示未知/未失败，不能展示为 1970 年。一般 SQL 时间不以 0 自动表示 NULL。
 - `revision` 只接受 14 位 `YYYYMMDDhhmmss`，校验日历日期；不接受时区后缀/小数秒。用共同比较轴排序但不声称其真实 UTC 偏移；同水位同摘要等价，不同摘要冲突。该逻辑水位与机器时钟无关。
-- 持续时间不编码为日期：吞吐 `durationNs` 是纳秒整数，播放首字节累计也是纳秒，请求 elapsed_ms 是毫秒。UI 用毫秒/秒/Bps 展示；song_urls 的纪元纳秒不作为 JSON Number 暴露给 JS，时间对象编码为字符串。不要把 SQL int64 原样新增到 JS 数值接口。
+- 持续时间不编码为日期：吞吐 `durationNs` 是纳秒整数，请求 first_body_ns 是单次首正文耗时纳秒，请求 elapsed_ms 是毫秒。UI 用毫秒/秒/Bps 展示；song_urls 的纪元纳秒不作为 JSON Number 暴露给 JS，时间对象编码为字符串。不要把 SQL int64 原样新增到 JS 数值接口。
 - 文件 ModTime 是 OS 文件属性，用于句柄/删除身份核对，非数据库事件时间、不保证跨文件系统精度。运行中计时优先 Go 单调时钟，持久化后不保留单调部分。快照读入偏移可解析，但再次保存规范成 UTC。吞吐冷却遇到未来 lastAttempt 时失效重采样，避免长期卡住。
 
 ### JSON、凭据与二进制身份
 
 | 文件 | 内部格式、缺失/失效语义 |
 | --- | --- |
-| config.json / 自定义配置 | schemaVersion=6；字段见 Settings：目录文本，manualLogDir 布尔、autoAccelerate（默认 true，完成条款及最终引导后，每进程自动一键加速一次）、queueWithGateway（默认 true，队列随网关启停），requestRetentionDays（0=不清明细）、videoStorageMode（none/limited/unlimited，默认 none，分别保存不保留/限制为/不限制的选择）、retainFavorites（默认 true，收藏完整视频可突破预算保留；关闭后按普通规则取舍，不取消标记或触发下载）、aggressiveCacheReclamation（auto/on/off，显式默认 auto；自动跟随 videoStorageMode，仅 none 开启，on/off 手动覆盖；不改变完整本地视频预算）、maxCacheBytes（默认 0，保存输入的字节预算；limited 要求正数，none 在运行时使用零预算，unlimited 不限制；不保留时仍保护使用中/队列/交接数据）、prepareAheadSeconds（缺失/0→500，100–16000 秒；建议 200–2000 秒）、localProtectionGraceSeconds（缺失/null→300，整数 0–10000 秒；0=不延续保护）、downloadSoftLimit（缺失/null→16，整数 1–64）、downloadGrowIntervalMS（缺失/null→250，整数 0–2000 毫秒；0=关闭缓增）、throughputIntervalMinutes（缺失/0→20，1–1440）、downloadUpstream（空→auto，auto/cf/hkg，hkg 对应 API nya）、upstreamMode（空→direct，direct/proxy/auto；旧 socks5 读取后归一化为 proxy）、proxyBackend（空→external-socks5，external-socks5/mihomo）、外部 SOCKS5 地址与用户名。策略和后端独立，保存后重启生效；历史通道键仍沿用 socks5 前缀。缺失采用构造默认（保留期 30 天），显式 null 对标量沿用默认；false/合法 0 保留。未知字段以 RawMessage 保留数值精度；格式缺失/未来/旧版本、明文 socks5Password 均拒绝写入 |
+| config.json / 自定义配置 | schemaVersion=6；字段见 Settings：目录文本，manualLogDir 布尔、autoAccelerate（默认 true，完成条款及最终引导后，每进程自动一键加速一次）、autoOpenWebUI（默认 true，新进程启动桌面托盘时自动打开网页，显式 -no-open 优先）、restoreHostsOnExit（默认 true，保存即用于本次退出，开启前须准备恢复权限）、queueWithGateway（默认 true，队列随网关启停），requestRetentionDays（0=不清明细）、videoStorageMode（none/limited/unlimited，默认 none，分别保存不保留/限制为/不限制的选择）、retainFavorites（默认 true，收藏完整视频可突破预算保留；关闭后按普通规则取舍，不取消标记或触发下载）、aggressiveCacheReclamation（auto/on/off，显式默认 auto；自动跟随 videoStorageMode，仅 none 开启，on/off 手动覆盖；不改变完整本地视频预算）、maxCacheBytes（默认 0，保存输入的字节预算；limited 要求正数，none 在运行时使用零预算，unlimited 不限制；不保留时仍保护使用中/队列/交接数据）、prepareAheadSeconds（缺失/0→500，100–16000 秒；建议 200–2000 秒）、localProtectionGraceSeconds（缺失/null→300，整数 0–10000 秒；0=不延续保护）、downloadSoftLimit（缺失/null→16，整数 1–64）、downloadGrowIntervalMS（缺失/null→250，整数 0–2000 毫秒；0=关闭缓增）、throughputIntervalMinutes（缺失/0→20，1–1440）、downloadUpstream（空→auto，auto/cf/hkg，hkg 对应 API nya）、upstreamMode（空→direct，direct/proxy/auto；旧 socks5 读取后归一化为 proxy）、proxyBackend（空→external-socks5，external-socks5/mihomo）、外部 SOCKS5 地址与用户名。策略和后端独立，保存后重启生效；历史通道键仍沿用 socks5 前缀。缺失采用构造默认（保留期 30 天），显式 null 对标量沿用默认；false/合法 0 保留。未知字段以 RawMessage 保留数值精度；格式缺失/未来/旧版本、明文 socks5Password 均拒绝写入 |
 | config.proxySecret | 缺字段=无保存密码。封套 `{version:1, protection:"dpapi-current-user", ciphertext:"<base64>"}`；与整个配置一起原子替换，无第二份凭据文件/明文快照。未知格式、null、损坏或当前用户解密失败=不可用并保留原值；省略设置 API 密码保留密文，明确输入新密码替换，用户名/密码一起清空移除。状态仅返回可用标志和固定诊断，不返回密文/明文 |
 | config.proxyNodes | 可选节点快照，复用 version=1 / dpapi-current-user 封套；解密载荷为 `{version:2,nodes:[原生连接参数]}`。整份文档含服务器及凭据均加密，与 config 同一原子替换；无明文副本。坏/未知封套及旧节点载荷 version=1 保留并提示重新导入，不视为空库；旧载荷不静默改写，原始内容重新导入后采用新身份域并重测。输入限 2 MiB / 2048 条，保存数与运行活跃 K 无关。导入预览只存于本进程内存，草稿最多 8 份、2 小时有效；明确丢弃或替换时释放对应草稿，迟到且已放弃的结果同样释放，离线或页面关闭未送达的清理仍由过期机制兜底；设置或引导最终保存才替换，失败保留旧快照。展示名不入快照；状态仅含数量及固定诊断 |
 | terms.json | 封套 `{format:1, protection:"dpapi-current-user", ciphertext:"<base64>"}`；密文包含 purpose=`swd-terms-receipt-v1`、version（条款版本）、sha256（正文摘要）及 acceptedAt（非零有效时间）。封套版本独立于条款版本。每次启动由当前用户解密，缺失/旧明文/未知格式/损坏/解密失败/条款不符均不授予同意；不自动覆盖失效记录。只有明确勾选提交且保护及原子写成功后更新内存。记录上限 64 KiB；允许系统时钟回拨，不用本地时间证明身份 |

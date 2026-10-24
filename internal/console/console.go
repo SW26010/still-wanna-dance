@@ -932,14 +932,17 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.mu.Unlock()
 		result := struct {
 			cacheproxy.ActiveDownloads
-			Running bool `json:"running"`
-		}{cacheproxy.ActiveDownloads{Tasks: []cacheproxy.ActiveDownload{}}, running}
+			Running bool                   `json:"running"`
+			GETs    cacheproxy.CurrentGETs `json:"gets"`
+		}{cacheproxy.ActiveDownloads{Tasks: []cacheproxy.ActiveDownload{}}, running, cacheproxy.CurrentGETs{Requests: []cacheproxy.CurrentGET{}}}
 		if service != nil {
 			var err error
 			result.ActiveDownloads, err = service.ActiveDownloads(r.Context())
+			result.GETs = service.CurrentGETs()
 			c.mu.Lock()
 			if c.service != service {
 				result.ActiveDownloads = cacheproxy.ActiveDownloads{Tasks: []cacheproxy.ActiveDownload{}}
+				result.GETs = cacheproxy.CurrentGETs{Requests: []cacheproxy.CurrentGET{}}
 				err = nil // Never publish tasks from a replaced storage engine.
 			}
 			result.Running = c.httpServer != nil

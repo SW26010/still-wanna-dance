@@ -81,7 +81,7 @@ func (s *Server) waitPlaybackSong(ctx context.Context, f *flight, id string) err
 // The API song ID is authoritative; the resource ID in a video path is not.
 // A non-nil release transfers the verified local pin to the caller, which must
 // hold it until the response finishes, including early returns.
-func (s *Server) requestVideo(r *http.Request, observed func()) (video, func(), error) {
+func (s *Server) requestVideo(r *http.Request, observed func(), current *currentGET) (video, func(), error) {
 	host := strings.ToLower(r.Host)
 	if h, _, err := net.SplitHostPort(host); err == nil {
 		host = h
@@ -114,6 +114,7 @@ func (s *Server) requestVideo(r *http.Request, observed func()) (video, func(), 
 	if node != "" && node != "cf" && node != "nya" {
 		return video{}, nil, errors.New("unsupported playback node")
 	}
+	current.identify(strconv.FormatInt(n, 10), "")
 	// A valid playback request has reached us even if resolution stalls or
 	// fails. Observe it before contacting upstream or looking for old cache.
 	if observed != nil {

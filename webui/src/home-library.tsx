@@ -26,7 +26,7 @@ export function Home({visible}: {visible:boolean}) {
     <div className="actions"><Button appearance="primary" disabled={app.unavailable || (ready && !needsExitPreparation)} onClick={() => void app.action('activation/enable')}>{active(s) ? '正在处理…' : ready && !needsExitPreparation ? '加速运行中' : '开始加速'}</Button>
     <Link href="#service">查看接入诊断</Link></div>
 
-    <ul><li>游戏连接：{s.hosts.ready?'已配置':s.hosts.conflict?'配置冲突，请查看高级接入设置':'未配置'}</li><li>本地服务：{s.running ? '运行中' : '未启动'}</li></ul>
+    <ul><li>游戏连接：{s.hosts.ready?'已配置':s.hosts.conflict?'配置冲突，请查看高级接入设置':'未配置'}</li><li>视频网关：{s.running ? '运行中，HTTP 80 / HTTPS 443 已就绪' : '未运行'}</li>{!s.running&&<><li>HTTP 80：{s.portOK?'可用':s.portOwner?`被 ${s.portOwner.name} 占用`:'不可用'}</li><li>HTTPS 443：{s.httpsPortOK?'可用':s.httpsPortOwner?`被 ${s.httpsPortOwner.name} 占用`:'不可用'}</li></>}</ul>
 
     <p role="status">{progress[a.phase || '']}</p><p>{next}</p>
     <Caption1 as="p" className="hint">队列按设置随网关启用。{exitConnectionMessage(s)}</Caption1>
@@ -55,7 +55,7 @@ export function QueuePanel() {
   const app = useApp(), s = app.status.data!, q = s.queue;
   const queuePhase = q.running ? q.current ? `正在准备歌曲 ${(q.active || [q.current]).join('、')}` : q.songs?.length ? '等待队列变化或重试' : '等待新的队列同步' : !q.desired ? '已关闭' : '预加载未就绪，请检查日志目录';
   return <><Panel id="queue" title="自动准备房间队列"><p>根据游戏日志提前下载即将播放的内容，选择「不保留」也能使用。开启后等待房间同步新队列。</p><p>提前准备时间：{s.activeSettings.prepareAheadSeconds} 秒 · <Link href="#prepareAheadSeconds">调整提前准备时间</Link></p><Details title="预加载说明"><p>按预计播放时间提前准备队列中的有效曲目，不会回放旧队列。手动下载与队列预加载共同调度，互不暂停。网关停止时撤销队列需求，其他来源的共享下载仍可继续。</p></Details>
-    <p role="status">{queuePhase}</p><ol>{q.songs?.map((song,i) => <li key={`${song.songId}:${i}`}>{q.titles?.[song.songId] || song.songId}{q.blocked?.includes(song.songId)&&' · 已屏蔽，跳过新的准备'}</li>)}</ol>
+    <p role="status">{queuePhase}</p><p>游戏日志：{q.logError?'读取失败':!q.running?'当前未读取':q.file?'正在读取':'尚未发现可读取日志'}</p><ol>{q.songs?.map((song,i) => <li key={`${song.songId}:${i}`}>{q.titles?.[song.songId] || song.songId}{q.blocked?.includes(song.songId)&&' · 已屏蔽，跳过新的准备'}</li>)}</ol>
     <Details title="日志与累计记录"><p>{q.file || '尚未发现日志'} · 本次开启后累计准备成功 {q.completed || 0} 次</p></Details>
     <Feedback error>{q.logError || q.error || s.actionErrors?.queue}</Feedback></Panel>
     </>;

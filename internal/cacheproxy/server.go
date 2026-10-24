@@ -57,6 +57,8 @@ type flight struct {
 }
 
 type Server struct {
+	getMu            sync.Mutex // Current incoming GET observations; independent of worker locks.
+	currentGETs      map[uint64]*currentGET
 	resourceHosts    sync.Map // validated API/programmatic URLs, host -> expiry
 	mappingMu        sync.Mutex
 	stats            trafficStats
@@ -378,6 +380,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	event := usageEvent{at: start.UnixMilli(), source: "http", method: r.Method, rangeHeader: r.Header.Get("Range")}
+	if r.Method == http.MethodGet {
+		var finish func()
+		response.current, finish = s.beginGET(id, start, r.Header.Get("Range"))
+		defer finish()
+	}
 	defer func() {
 		panicked := recover()
 		event.status, event.bytes = response.status, response.videoBytes
@@ -399,7 +406,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			panic(panicked)
 		}
 	}()
-	v, release, err := s.requestVideo(r, observed)
+	v, release, err := s.requestVideo(r, observed, response.current)
+	response.current.identify(v.songID, v.key)
 	event.id, event.key, event.host, event.size, event.songID = v.key, v.key, v.host, v.size, v.songID
 	if release != nil {
 		defer release()
@@ -488,6 +496,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.releaseVideo(v)
 		v = replacement
 		event.id, event.key, event.host, event.size = v.key, v.key, v.host, v.size
+		response.current.identify(v.songID, v.key)
 		return nil
 	}
 	var f *flight
@@ -583,6 +592,7 @@ loadVideo:
 
 type responseWriter struct {
 	http.ResponseWriter
+	current                           *currentGET
 	started                           time.Time
 	headerLatency                     time.Duration
 	firstBodyLatency                  time.Duration
@@ -608,6 +618,9 @@ func (w *responseWriter) WriteHeader(status int) {
 		}
 	}
 	w.headerLatency = time.Since(w.started)
+	if w.current != nil {
+		w.current.response.Store(&getResponse{status: status, expected: w.expectedBytes})
+	}
 	w.ResponseWriter.WriteHeader(status)
 }
 
@@ -631,6 +644,9 @@ func (w *responseWriter) Write(p []byte) (int, error) {
 			w.firstBodyBlocking = w.waitedForBlock
 		}
 		w.videoBytes += int64(n)
+		if w.current != nil {
+			w.current.bytes.Add(int64(n))
+		}
 	}
 	if n > 0 && w.bytes == 0 {
 		w.firstBodyLatency = time.Since(w.started)

@@ -1,7 +1,7 @@
 import { Button, Link, Subtitle2, List, ListItem, Divider } from '@fluentui/react-components';
 import { useApp, useResource, useFocusRecovery } from './hooks';
 import { Details, Feedback, Panel, Progress } from './ui';
-import { type Download, type HealthResult, type Health, date, mb, dated } from './types';
+import { type Download, type RequestRecord, type HealthResult, type Health, date, mb, dated } from './types';
 import { requestTitle } from './requests';
 
 const reasons: Record<string,string> = {no_channel:'没有有效候选',no_sample:'等待有效歌曲及资源样本',expired:'观测已过期',timeout:'请求超时',origin_timeout:'源站响应超时（Cloudflare 524）',network_error:'网络请求失败',resolution_unavailable:'无可用资源地址',invalid:'响应校验失败',restricted:'访问受限',upstream_error:'上游错误',http_error:'HTTP 响应异常'};
@@ -62,9 +62,12 @@ export function NetworkMonitor() {
     </Details>)}</Panel>;
 }
 export function CurrentDownloads({visible,paused=false}: {visible:boolean;paused?:boolean}) {
-  const app=useApp(), downloadFocus=useFocusRecovery();
-  const downloads=useResource<{tasks:Download[];bytesPerSecond:number}>('downloads',visible&&!paused&&!app.stopped,app.revision);
-  return <>    <Panel id="downloads" {...downloadFocus} title="当前下载"><Feedback error>{downloads.error && '活动下载读取失败，将自动重试。'}</Feedback><p role="status">{downloads.data?.tasks.length ? `${downloads.data.tasks.length} 个活动任务` : '暂无活动下载任务'} · 总下载速度 {mb(downloads.data?.bytesPerSecond)}/s</p>
+  const app=useApp(), downloadFocus=useFocusRecovery(), requestFocus=useFocusRecovery();
+  const downloads=useResource<{tasks:Download[];bytesPerSecond:number;gets?:{total:number;requests:Pick<RequestRecord,'id'|'at'|'songID'|'resource'|'range'|'status'|'bytes'|'responseBytes'>[]}}>('downloads',visible&&!paused&&!app.stopped,app.revision);
+  return <><Panel id="current-gets" {...requestFocus} title="当前 GET 请求"><Feedback error>{downloads.error&&'当前请求读取失败，将自动重试。'}</Feedback><p role="status">{downloads.loading&&!downloads.data?'正在读取当前请求…':downloads.error?'状态未知':downloads.data?.gets?.total?`正在处理 ${downloads.data.gets.total} 个请求`:'暂无当前 GET 请求'}</p>
+    <List navigationMode="composite" className="records" aria-label="当前 GET 请求列表">{downloads.data?.gets?.requests.map((r,i)=><ListItem key={r.id}><div role="gridcell" className="record-content">{i>0&&<Divider className="record-divider"/>}<p>收到：{date(r.at)} · {r.status?'HTTP '+r.status:'正在解析或准备响应'}</p><p>请求歌曲：{r.songID?<Link href={'#/library?song='+encodeURIComponent(r.songID)}>ID {r.songID}</Link>:'未知'}</p><p className="wrap">资源：{r.resource?<Link href={'#/library?resource='+encodeURIComponent(r.resource)}>{r.resource}</Link>:'尚未确定'}</p><p>已写出视频正文：{r.bytes.toLocaleString()} B · 本次交付：{r.responseBytes!=null&&r.responseBytes>0?(100*r.bytes/r.responseBytes).toLocaleString(undefined,{maximumFractionDigits:1})+'%':'范围尚未确定'}</p><Details title={`当前请求 ${r.id} 的范围`}><p>{r.range||'完整请求'}</p><p>服务端实际写出的字节，不代表客户端已收到或播放。</p></Details></div></ListItem>)}</List>
+    {(downloads.data?.gets?.total||0)>50&&<p>仅展示最早的 50 个活动请求；结束后可在时间线查看。</p>}<Link href="#recent">查看请求时间线</Link></Panel>
+    <Panel id="downloads" {...downloadFocus} title="当前下载"><Feedback error>{downloads.error && '活动下载读取失败，将自动重试。'}</Feedback><p role="status">{downloads.data?.tasks.length ? `${downloads.data.tasks.length} 个活动任务` : '暂无活动下载任务'} · 总下载速度 {downloads.data?mb(downloads.data.bytesPerSecond)+'/s':'未知'}</p>
       <List navigationMode="composite" className="records" aria-label="下载任务">{downloads.data?.tasks.map((task,i) => <ListItem key={task.resource+':'+task.id}><div role="gridcell" className="record-content">{i > 0 && <Divider className="record-divider" />}<strong>{task.songs?.[0]?.title || '未知歌名'}</strong><p>{(task.songs?.length || 0)>1 || task.moreSongs ? `等 ${task.moreSongs?'至少 ':''}${task.songs?.length || 0} 首关联曲目 · 播放歌曲未确定` : '资源关联曲目'}</p>
         <p>{({cache_check:'检查本地视频',upstream_headers:'等待上游',download:'下载中',range_download:'分段下载中',hash:'校验完整文件',publish:'发布文件',index:'更新索引'}[task.stage] || '阶段未知')} · {task.host || '域名待定'}</p>
         <p>进度 {task.size>0?Math.min(100,100*task.bytes/task.size).toFixed(1)+'%':'进度未知'} · 上游速度 {mb(task.bytesPerSecond)}/s</p><Progress value={task.bytes} max={task.size} label="已读取字节进度" /><p>{mb(task.bytes)} / {task.size ? mb(task.size) : '未知'} · {mb(task.bytesPerSecond)}/s</p>

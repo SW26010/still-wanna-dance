@@ -38,7 +38,7 @@ export async function mockAPI(page: Page) {
     const command=path.match(/^setup\/network\/(connectivity|calibration)\/(start|cancel)$/);
     if(command){const kind=command[1] as keyof typeof diagnostics,diag=diagnostics[kind];diag.revision++;diag.running=command[2]==='start';diag.phase=diag.running?'running':'canceled';if(diag.running){diag.run++;diag.upstream=body.upstream as string;}await emit(kind);}
     if (path==='inventory') data={totalSongs:2,coveredSongs:1,coverageKnown:true,updated:'2026-10-16T00:00:00Z'};
-    if (path==='downloads') data={tasks:[],bytesPerSecond:0};
+    if (path==='downloads') data={tasks:[],bytesPerSecond:0,gets:{requests:[],total:0}};
     if (path==='songs') data={storageID:'fixture',entries:[],total:0};
     if(path==='history')data={storageID:'fixture',requests:[],hasMore:false,nextCursor:''};
     if(path==='latency')data={from:Date.now()-72*3600000,to:Date.now(),availableFrom:null,partial:true,blocking:{samples:0,p50MS:null,p95MS:null},ready:{samples:0,p50MS:null,p95MS:null}};

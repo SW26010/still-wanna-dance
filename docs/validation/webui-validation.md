@@ -341,3 +341,9 @@ Go 最终按开发文档范围执行 go test -tags=no_easytier ./cmd/... ./inter
 Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范围通过（resource-key-final-go.log、resource-key-vet.log）。真实 Console＋SQLite＋Edge 的 TestRequestHistoryBrowser 和 TestLibraryBrowser 通过（resource-key-browser.log）：新库处理 601 次 GET，映射变化并关闭重开后完整查看 13 页历史，首正文两组共 601 个样本；两首共享歌曲只下载一份文件，收藏持久化与实际删除正常。已检查桌面历史截图，原始结果与截图位于 artifacts/webui-design/resource-key-{history,library}-live/，全部为私有夹具与回环服务，不启动游戏或操作系统 hosts。
 
 前端源码和产物未变，离线清单检查通过；v5 固定 SQLite 样本按精确路径、大小与 SHA256 登记。此次持久化字段精简可由隔离数据库、协议和浏览器验证，不另增 VRC 待验场景。全部更改保留本地，未 push。
+
+## 页面操作反馈生命周期（2026-10-24）
+
+公共操作、曲库文件操作及歌曲偏好共用 usePageFeedback。反馈只属于当前页面访问，离开、存储身份变化或卸载后，旧响应不能恢复反馈，包括返回同一页面的情况。请求、确认、文案、操作锁及完成后的数据刷新仍归业务所有；页面离开不提前解锁。引导完成时显式将反馈交给首页的行为保留。
+
+新增 18 项 Edge 回归覆盖三类操作的成功／失败、完成后切页、离页期间完成及返回后才完成。修复前 14 项失败、4 项既有公共路径通过，修复后全部通过；导航、曲库、引导及恢复共 60 项通过。前端构建、类型和逐字节产物校验通过。原始失败及成功日志保留在 artifacts/optimization-audit/feedback-before.log、feedback-after.log。浏览器使用内存 API，只验证前端生命周期；未操作游戏、系统 hosts 或用户文件。

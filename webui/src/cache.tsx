@@ -2,13 +2,15 @@ import { useRef, useState } from 'react';
 import { Button, Link, Subtitle2 } from '@fluentui/react-components';
 import { request, APIError } from './api';
 import { useApp, useResource } from './hooks';
+import { usePageFeedback } from './page-feedback';
 import { Details, Feedback, Panel } from './ui';
 import { type CacheEntry, type CachePage, type LibraryPage, type Inventory, date, dated, gib } from './types';
 
 export const cacheLabel = (entry: CacheEntry) => entry.songs.length ? entry.songs.map(s => `${s.title || '未知歌名'}（ID ${s.id}）`).join(' / ') : '未知歌名 · 未关联歌曲';
 const resultNames: Record<string,string> = {deleted:'已删除',protected:'受保护，已跳过',missing:'文件已不存在',unknown:'未知文件，未删除',changed:'文件或歌曲关联已变化，请刷新后重选',unsafe:'目录不安全，未删除',failed:'操作失败，未删除'};
-export function useCacheActions(snapshot: Pick<LibraryPage,'storageID'|'resources'>|undefined, refresh:()=>void, disabled=false) {
-  const app=useApp(), [pending,setPending]=useState(false), [result,setResult]=useState('');
+export function useCacheActions(snapshot: Pick<LibraryPage,'storageID'|'resources'>|undefined, refresh:()=>void, visible:boolean, disabled=false) {
+  const app=useApp(), [pending,setPending]=useState(false);
+  const feedback=usePageFeedback<string>(visible?snapshot?.storageID:undefined),setResult=feedback.setValue;
   const currentPage=useRef(snapshot); currentPage.current=snapshot;
   async function operate(action: 'delete' | 'open', picked: CacheEntry[]) {
     const pickedPage = snapshot;
@@ -21,7 +23,7 @@ export function useCacheActions(snapshot: Pick<LibraryPage,'storageID'|'resource
         return !latest?.known || latest.protected || latest.stamp !== entry.stamp || latest.songCount !== entry.songCount || cacheLabel(latest) !== cacheLabel(entry);
       })) { setResult('文件或歌曲关联已变化，请刷新后重新选择并确认。'); return; }
     }
-    setPending(true);
+    setPending(true);setResult(undefined);
     try {
       const response = await request<{key:string;result:string}[]>('cache/' + action,{storageID:pickedPage.storageID,entries:picked.map(e => ({key:e.key,stamp:e.stamp}))},AbortSignal.timeout(35000));
       setResult(action === 'open' ? '已请求系统打开视频位置。' : response.map(r => `${cacheLabel(picked.find(e => e.key === r.key)!)}：${resultNames[r.result] || '结果未知'}`).join('；'));
@@ -29,7 +31,7 @@ export function useCacheActions(snapshot: Pick<LibraryPage,'storageID'|'resource
     finally { setPending(false); if (action === 'delete') { refresh(); } }
   }
 
-  return {operate,pending,result};
+  return {operate,pending,result:feedback.value};
 }
 export function InventoryPanel({visible,files,refresh,loading}: {visible:boolean;files?:Pick<CachePage,'fileCount'|'totalBytes'>;refresh:()=>void;loading:boolean}) {
   const app = useApp(), s=app.status.data!, t = s.traffic || {};

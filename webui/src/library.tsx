@@ -1,6 +1,7 @@
 import {useEffect,useLayoutEffect,useState} from 'react';
 import {Badge,Button,Checkbox,Divider,Field,Input,Link,List,ListItem,Select,Tab,TabList} from '@fluentui/react-components';
 import {useApp,useFocusRecovery,useResource} from './hooks';
+import {usePageFeedback} from './page-feedback';
 import {APIError,request} from './api';
 import {Details,Feedback,Panel,Progress} from './ui';
 import {InventoryPanel,useCacheActions,cacheLabel} from './cache';
@@ -20,11 +21,12 @@ function LibraryView({visible,anchor,song,resource}:{visible:boolean;anchor:stri
   const app=useApp(),s=app.status.data!,focus=useFocusRecovery();
   const [view,setView]=useState(resource||anchor==='cache'||anchor==='/cache'?'resources':'songs'),[search,setSearch]=useState(''),[sort,setSort]=useState('score'),[filter,setFilter]=useState('');
   const [query,setQuery]=useState({q:'',sort:'score',filter:''}),[offset,setOffset]=useState(0),[selected,setSelected]=useState<Record<string,string>>({});
-  const [pending,setPending]=useState(false),[message,setMessage]=useState(''),[failed,setFailed]=useState(false),[importOpen,setImportOpen]=useState(anchor==='video-import');
+  const [pending,setPending]=useState(false),[importOpen,setImportOpen]=useState(anchor==='video-import');
   const [historyOpen,setHistoryOpen]=useState(false);
   const page=useResource<LibraryPage>('library?'+new URLSearchParams({...query,view,song,resource,offset:String(offset)}),visible&&!app.stopped,app.revision,10000);
   const downloads=useResource<{tasks:Download[]}>('downloads',visible&&!app.stopped,app.revision);
-  const actions=useCacheActions(page.data,page.refresh,page.loading||pending);
+  const feedback=usePageFeedback<{text:string;failed:boolean}>(visible?page.data?.storageID:undefined);
+  const actions=useCacheActions(page.data,page.refresh,visible,page.loading||pending);
   const disabled=app.unavailable||pending||actions.pending||page.loading||!page.data;
   const resources=page.data?.resources||{}, entries=Object.values(resources).flatMap(r=>r.local?[r.local]:[]), chosen=entries.filter(e=>selected[e.key]===e.stamp), eligible=entries.filter(e=>e.known&&!e.protected);
   useEffect(()=>{setSelected({});},[query,view,offset,page.data?.storageID]);
@@ -39,9 +41,9 @@ function LibraryView({visible,anchor,song,resource}:{visible:boolean;anchor:stri
   useLayoutEffect(()=>{if(visible&&['cache','/cache','song-preferences'].includes(anchor)){setView(anchor==='song-preferences'?'songs':'resources');setOffset(0);setFilter('');setQuery(q=>({...q,filter:''}));const frame=requestAnimationFrame(()=>focus.ref.current?.focus());return()=>cancelAnimationFrame(frame);}},[visible,anchor]);
   async function save(id:string,policy:SongPolicy) {
     if(disabled||!page.data)return;
-    setPending(true);setMessage('');
-    try {await request('songs',{storageID:page.data.storageID,id,policy},AbortSignal.timeout(35000));setFailed(false);setMessage(`歌曲 ${id} 已设为${policyLabels[policy]}。`);app.refresh();}
-    catch(e){setFailed(true);setMessage(e instanceof APIError?e.message:'保存结果未确认，请刷新曲库核对。');}
+    setPending(true);feedback.setValue(undefined);
+    try {await request('songs',{storageID:page.data.storageID,id,policy},AbortSignal.timeout(35000));feedback.setValue({failed:false,text:`歌曲 ${id} 已设为${policyLabels[policy]}。`});app.refresh();}
+    catch(e){feedback.setValue({failed:true,text:e instanceof APIError?e.message:'保存结果未确认，请刷新曲库核对。'});}
     finally{setPending(false);page.refresh();}
   }
   const download=(target:{songID?:string;resource?:string})=>void app.action('batch/download',{storageID:page.data?.storageID,...target});
@@ -60,7 +62,7 @@ function LibraryView({visible,anchor,song,resource}:{visible:boolean;anchor:stri
       <Field label="排序"><Select value={sort} onChange={(_,v)=>setSort(v.value)}><option value="score">需求分数优先</option><option value="title">名称顺序</option>{view==='songs'?<option value="id">歌曲 ID 从新到旧</option>:<><option value="size">大小从大到小</option><option value="recent">最近请求优先</option></>}</Select></Field>
       <Field label="筛选"><Select value={filter} onChange={(_,v)=>setFilter(v.value)}><option value="">全部</option><option value="saved">已保存完整视频</option><option value="missing">缺失完整视频</option>{view==='songs'&&Object.entries(policyLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</Select></Field>
       <Button type="submit" disabled={disabled}>查找</Button><Button disabled={disabled} onClick={()=>void actions.operate('open',[])}>打开视频目录</Button>
-    </form><Feedback error>{page.error&&'曲库读取失败，请重试。'}</Feedback><Feedback error>{downloads.error&&'下载进度暂时无法读取；未将缺失进度显示为零。'}</Feedback><Feedback error={failed}>{message}</Feedback><Feedback>{actions.result}</Feedback>
+    </form><Feedback error>{page.error&&'曲库读取失败，请重试。'}</Feedback><Feedback error>{downloads.error&&'下载进度暂时无法读取；未将缺失进度显示为零。'}</Feedback><Feedback error={feedback.value?.failed}>{feedback.value?.text}</Feedback><Feedback>{actions.result}</Feedback>
     <p role="status">{page.loading&&!page.data?'正在读取曲库…':`共 ${page.data?.total||0} ${view==='songs'?'首歌曲':'个资源'} · 第 ${offset/50+1} 页`}</p>
     {page.data?.total===0&&<p>{song||resource?'该对象不在当前曲库列表范围内；历史身份仍保留，未替换为其他对象。':'没有匹配项。可更新歌曲清单或调整搜索和筛选。'}</p>}
     <Details title="列表与需求分数说明"><p>每页最多 50 项，需求分数随时间衰减，与下载补齐排序和保留取舍共用规则；屏蔽由独立偏好决定。资源视图包括本地已有或当前已关联歌曲的资源。未知大小和时长不按零计算。</p><p>删除只移除本地视频，资料、偏好、统计与关联保留。共享视频只保存一份，删除会影响所有关联歌曲。正在使用或准备播放的文件受保护。</p></Details>

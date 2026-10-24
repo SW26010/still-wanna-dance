@@ -3,6 +3,7 @@ import { Button, Dialog, DialogSurface, DialogBody, DialogTitle, DialogContent, 
 import { APIError, request, hostsActionTimeout, hostsActionPending, unconfirmedAction } from './api';
 import { bootstrap } from './bootstrap';
 import { active, exitConnectionMessage, type Status } from './types';
+import { usePageFeedback } from './page-feedback';
 
 // When an update removes the focused row, return focus to its labelled region.
 export function useFocusRecovery() {
@@ -83,17 +84,9 @@ const actionMessages: Record<string,string> = {
 };
 export function useConsole(enabled: boolean, page: string) {
   const [revision, setRevision] = useState(0), [busy, setBusy] = useState(false), [stopped, setStopped] = useState(false);
-  const [feedback, setFeedback] = useState<{page:string;text:string}>();
-  const currentPage = useRef(page);
-  useLayoutEffect(() => {
-    currentPage.current = page;
-    setFeedback(value => value?.page === page ? value : undefined);
-  }, [page]);
-  const setMessage = (text:string, destination=page) => {
-    // A response from a page already left must not appear on the new page.
-    if (destination !== page || currentPage.current === page) setFeedback({page:destination,text});
-  };
-  const message = feedback && (feedback.page === page || stopped) ? feedback.text : '';
+  const feedback = usePageFeedback<string>(page);
+  const setMessage = feedback.setValue;
+  const message = feedback.value || '';
   const [dirtySettings,setDirtySettings]=useState<Set<string>>(()=>new Set());
   const setSettingsDirty=useCallback((section:string,dirty:boolean)=>setDirtySettings(previous=>{
     if(previous.has(section)===dirty)return previous;

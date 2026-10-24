@@ -168,7 +168,7 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 			hotter := parsedVideo(t, s, other)
 			seedPrioritySong(t, s, "43", hotter.key)
-			if err := s.usage.write([]usageEvent{{id: "43", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
+			if err := s.usage.write([]usageEvent{{songID: "43", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
 				t.Fatal(err)
 			}
 			if _, err := s.PrefetchSong(ctx, "43", videoURL(other)); err != nil {

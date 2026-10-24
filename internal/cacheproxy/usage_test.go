@@ -17,8 +17,8 @@ import (
 )
 
 func recordDemand(u *usageStore, id string, at time.Time) {
-	u.record(usageEvent{id: id, at: at.UnixMilli(), summaryOnly: true})
-	u.record(usageEvent{id: id, at: at.UnixMilli(), source: "http", method: "GET", demand: true})
+	u.record(usageEvent{songID: id, at: at.UnixMilli(), summaryOnly: true})
+	u.record(usageEvent{songID: id, at: at.UnixMilli(), source: "http", method: "GET", demand: true})
 }
 
 func TestSongDemandReverseCompletion(t *testing.T) {
@@ -209,9 +209,9 @@ func TestRequestDetailsPruneWithoutLosingSongDemand(t *testing.T) {
 	cutoff := now.Add(-30 * 24 * time.Hour)
 	events := make([]usageEvent, requestCleanupBatch+3)
 	for i := range events {
-		events[i] = usageEvent{id: "old", at: cutoff.Add(-time.Millisecond).UnixMilli()}
+		events[i] = usageEvent{key: "old", at: cutoff.Add(-time.Millisecond).UnixMilli()}
 	}
-	events = append(events, usageEvent{id: "boundary", at: cutoff.UnixMilli()}, usageEvent{id: "1", at: cutoff.Add(-time.Hour).UnixMilli(), summaryOnly: true})
+	events = append(events, usageEvent{key: "boundary", at: cutoff.UnixMilli()}, usageEvent{songID: "1", at: cutoff.Add(-time.Hour).UnixMilli(), summaryOnly: true})
 	if err := u.write(events); err != nil {
 		t.Fatal(err)
 	}
@@ -274,7 +274,7 @@ func TestRequestRetentionCleansIdleRestart(t *testing.T) {
 	}
 	events := make([]usageEvent, requestCleanupBatch+1)
 	for i := range events {
-		events[i] = usageEvent{id: "old", at: time.Now().Add(-31 * 24 * time.Hour).UnixMilli()}
+		events[i] = usageEvent{key: "old", at: time.Now().Add(-31 * 24 * time.Hour).UnixMilli()}
 	}
 	if err := u.write(events); err != nil {
 		t.Fatal(err)

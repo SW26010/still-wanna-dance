@@ -26,7 +26,7 @@ func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 	}
 	for _, i := range []int{1, 256, 257, 270} {
 		key := fmt.Sprintf("%032x", i)
-		if _, err := u.db.Exec(`INSERT INTO request_events(resource_key,requested_at,version_key,host,source,method,range_header,cache_result,outcome,file_bytes,transferred_bytes,elapsed_ms,status,counts_as_demand) VALUES (?,100,?,'local','http','GET','','HIT','completed',1,1,1,200,0)`, key, key); err != nil {
+		if _, err := u.db.Exec(`INSERT INTO request_events(resource_key,requested_at,host,source,method,range_header,cache_result,outcome,file_bytes,transferred_bytes,elapsed_ms,status,counts_as_demand) VALUES (?,100,'local','http','GET','','HIT','completed',1,1,1,200,0)`, key); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -39,9 +39,9 @@ func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 	}{{257, "http", 200}, {258, "prefetch", 999}, {259, "http", 300}} {
 		key := fmt.Sprintf("%032x", event.i)
 		if _, err := u.db.Exec(`INSERT INTO request_events
- (resource_key,requested_at,version_key,host,source,method,range_header,cache_result,outcome,
+ (resource_key,requested_at,host,source,method,range_header,cache_result,outcome,
  file_bytes,transferred_bytes,elapsed_ms,status,counts_as_demand)
- VALUES (?,?,?,'local',?,'GET','','HIT','completed',1,1,1,200,1)`, key, event.at, key, event.source); err != nil {
+ VALUES (?,?,'local',?,'GET','','HIT','completed',1,1,1,200,1)`, key, event.at, event.source); err != nil {
 			t.Fatal(err)
 		}
 	}

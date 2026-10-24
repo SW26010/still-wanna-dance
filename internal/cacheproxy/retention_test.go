@@ -49,7 +49,7 @@ func TestRetentionPriorityAndVersions(t *testing.T) {
 	for _, id := range []string{"4", "1", "2"} {
 		seedPrioritySong(t, s, id, strings.Repeat(id, 32))
 	}
-	for _, e := range []usageEvent{{id: "1", at: now, summaryOnly: true}, {id: "2", at: now - (100 * 24 * time.Hour).Milliseconds(), summaryOnly: true}} {
+	for _, e := range []usageEvent{{songID: "1", at: now, summaryOnly: true}, {songID: "2", at: now - (100 * 24 * time.Hour).Milliseconds(), summaryOnly: true}} {
 		if err := s.usage.write([]usageEvent{e}); err != nil {
 			t.Fatal(err)
 		}
@@ -59,7 +59,7 @@ func TestRetentionPriorityAndVersions(t *testing.T) {
 	prefetch := retainedPath(t, s, cfg, "3")
 	metadata := filepath.Join(cfg.StorageDir, "notes.json")
 	copyPath := cfg.videoFile(strings.Repeat("4", 32))
-	s.usage.write([]usageEvent{{id: "4", at: now - 1, summaryOnly: true}})
+	s.usage.write([]usageEvent{{songID: "4", at: now - 1, summaryOnly: true}})
 	for _, p := range []string{hot, cold, prefetch, copyPath, metadata} {
 		putRetained(t, p, 10)
 	}
@@ -258,7 +258,7 @@ func TestRetentionUsesResourceFingerprint(t *testing.T) {
 	putRetained(t, cold, 10)
 	now := time.Now().UnixMilli()
 	if err := s.usage.write([]usageEvent{
-		{id: "1", at: now, summaryOnly: true},
+		{songID: "1", at: now, summaryOnly: true},
 	}); err != nil {
 		t.Fatal(err)
 	}

@@ -83,7 +83,7 @@ func readRequestPage(ctx context.Context, root string, query RequestQuery, getOn
  cache_result, outcome, transferred_bytes, elapsed_ms, status, COALESCE(song_id,''), completed_at, response_bytes, first_body_ns, first_body_blocking,
  (SELECT json_group_array(json_object('id',song_id,'title',title)) FROM
    (SELECT CAST(s.song_id AS TEXT) song_id, COALESCE(substr(s.name,1,300),'') AS title FROM song_media sv
-    JOIN songs s ON s.song_id=sv.song_id WHERE sv.md5=e.version_key
+    JOIN songs s ON s.song_id=sv.song_id WHERE sv.md5=e.resource_key
     ORDER BY sv.rowid LIMIT 21))
  FROM (`+window+`) e
  ORDER BY requested_at DESC, event_id DESC`, args...)

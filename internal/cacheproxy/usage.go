@@ -25,7 +25,6 @@ type usageEvent struct {
 	firstBodyBlocking                                      *bool
 	completedAt                                            int64
 	barrier                                                chan struct{}
-	id                                                     string
 	at                                                     int64
 	key, host, source, method, rangeHeader, cache, outcome string
 	size, bytes, elapsedMS                                 int64
@@ -69,7 +68,7 @@ func (u *usageStore) startGET(id, key string) int64 {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	at := u.now().UnixMilli()
-	u.enqueueLocked(usageEvent{id: id, key: key, at: at, summaryOnly: true})
+	u.enqueueLocked(usageEvent{songID: id, key: key, at: at, summaryOnly: true})
 	return at
 }
 
@@ -108,7 +107,7 @@ func (u *usageStore) enqueueLocked(e usageEvent) {
 	select {
 	case u.events <- e:
 	default:
-		u.log.Warn("usage_dropped", "resource_key", e.id)
+		u.log.Warn("usage_dropped", "resource_key", e.key, "song_id", e.songID)
 	}
 }
 
@@ -192,10 +191,10 @@ func (u *usageStore) write(batch []usageEvent) error {
 				return err
 			}
 			_, err = tx.ExecContext(ctx, `INSERT INTO request_events
-(resource_key, requested_at, version_key, host, source, method, range_header, cache_result, outcome,
+(resource_key, requested_at, host, source, method, range_header, cache_result, outcome,
  file_bytes, transferred_bytes, elapsed_ms, status, counts_as_demand, song_id, completed_at, response_bytes, first_body_ns, first_body_blocking)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-				e.id, e.at, e.key, e.host, e.source, e.method, e.rangeHeader, e.cache, e.outcome,
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				e.key, e.at, e.host, e.source, e.method, e.rangeHeader, e.cache, e.outcome,
 				e.size, e.bytes, e.elapsedMS, e.status, e.demand, nullString(e.songID), nullPositive(e.completedAt), e.responseBytes, nullFirstBody(e), e.firstBodyBlocking)
 			if err != nil {
 				return err
@@ -210,12 +209,12 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				return err
 			}
 		}
-		if e.id == "" {
+		if e.songID == "" {
 			continue
 		}
-		id, parseErr := strconv.ParseInt(e.id, 10, 64)
+		id, parseErr := strconv.ParseInt(e.songID, 10, 64)
 		if parseErr != nil || id <= 0 {
-			return fmt.Errorf("invalid demand song ID: %q", e.id)
+			return fmt.Errorf("invalid demand song ID: %q", e.songID)
 		}
 		if _, err = tx.ExecContext(ctx, "INSERT INTO songs(song_id) VALUES (?) ON CONFLICT DO NOTHING", id); err != nil {
 			return err

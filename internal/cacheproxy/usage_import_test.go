@@ -35,7 +35,7 @@ func TestHistoricalUsageMatchesNativeDemand(t *testing.T) {
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
 	for _, gap := range []int64{0, 29999, 30000, 45000, 60000, demandHalfLife.Milliseconds()} {
 		h.Observe(1, start+gap)
-		if err = u.write([]usageEvent{{id: "1", at: start + gap, summaryOnly: true}}); err != nil {
+		if err = u.write([]usageEvent{{songID: "1", at: start + gap, summaryOnly: true}}); err != nil {
 			t.Fatal(err)
 		}
 	}

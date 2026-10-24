@@ -16,13 +16,16 @@ func TestHistoryPagesAllRequestsAndPreservesIdentity(t *testing.T) {
 	key := strings.Repeat("a", 32)
 	var events []usageEvent
 	for i := 0; i < 1201; i++ {
-		events = append(events, usageEvent{at: 1000 + int64(i/3), completedAt: 2000, key: key, id: key, songID: "42", source: "http", method: "GET", outcome: "completed"})
+		events = append(events, usageEvent{at: 1000 + int64(i/3), completedAt: 2000, key: key, songID: "42", source: "http", method: "GET", outcome: "completed"})
 	}
 	events = append(events, usageEvent{at: 1200, source: "http", method: "HEAD"}, usageEvent{at: 1200, source: "prefetch", method: "GET"})
 	if err := s.usage.write(events); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,name) VALUES(42,'new mapping'),(43,'new association'); INSERT INTO media(md5) VALUES(?),(?); INSERT INTO song_media VALUES(42,?),(43,?)`, key, strings.Repeat("b", 32), strings.Repeat("b", 32), key); err != nil {
+	if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,name) VALUES(42,'new mapping'),(43,'new association'); INSERT INTO media(md5) VALUES(?),(?)`, key, strings.Repeat("b", 32)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.usage.db.Exec(`INSERT INTO song_media VALUES(42,?),(43,?)`, strings.Repeat("b", 32), key); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Close(); err != nil {
@@ -41,6 +44,9 @@ func TestHistoryPagesAllRequestsAndPreservesIdentity(t *testing.T) {
 		for _, r := range page.Requests {
 			if seen[r.ID] || r.SongID != "42" || r.Resource != key || r.CompletedAt == nil || *r.CompletedAt != 2000 {
 				t.Fatalf("changed/duplicated history: %+v", r)
+			}
+			if len(r.Songs) != 1 || r.Songs[0].ID != "43" {
+				t.Fatalf("resource association did not follow the stored MD5: %+v", r)
 			}
 			seen[r.ID] = true
 		}
@@ -174,7 +180,7 @@ func TestResolutionFailureRetainsArrivalIdentityWithoutBodySample(t *testing.T) 
 		t.Fatal(page, err)
 	}
 	r := page.Requests[0]
-	if r.SongID != "42" || r.At < before || r.At >= afterResolution || r.CompletedAt == nil || *r.CompletedAt < afterResolution || r.Bytes != 0 || r.ResponseBytes != nil || r.FirstBodyNS != nil || r.Outcome != "failed" {
+	if r.SongID != "42" || r.Resource != "" || r.At < before || r.At >= afterResolution || r.CompletedAt == nil || *r.CompletedAt < afterResolution || r.Bytes != 0 || r.ResponseBytes != nil || r.FirstBodyNS != nil || r.Outcome != "failed" {
 		t.Fatalf("resolution history: %+v", r)
 	}
 }

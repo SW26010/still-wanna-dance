@@ -353,6 +353,13 @@
       "bytes": 1209003,
       "sha256": "217b9dccbbaedc2eaa0d18ec0d921307eaa24a25597ca89b06a50b1e7b90ae07",
       "reason": "Production WebUI bundle from pinned dependencies and webui/src, verified by build-manifest.json. Wait for exit restoration permission when saving settings."
+    },
+    {
+      "path": "internal/cacheproxy/testdata/storage-v5.sqlite",
+      "kind": "binary-fixture",
+      "bytes": 106496,
+      "sha256": "36501df13fc0f95b878274a966f0f2b73c4c1125b8479e9200528c4fd4503de0",
+      "reason": "Frozen schema v5 fixture with one MD5 resource identity per request; v2, v3 and v4 fixtures remain unchanged for rejection regression."
     }
   ]
 }

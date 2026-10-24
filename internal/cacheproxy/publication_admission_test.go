@@ -31,7 +31,7 @@ func TestPublicationAdmissionRanksFullCacheBeforeMerge(t *testing.T) {
 			if mode == "lower" {
 				hot = "9000001"
 			}
-			if err := s.usage.write([]usageEvent{{id: hot, at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
+			if err := s.usage.write([]usageEvent{{songID: hot, at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
 				t.Fatal(err)
 			}
 			putRetained(t, cfg.videoFile(oldKey), len(payload))

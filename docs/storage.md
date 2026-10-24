@@ -2,7 +2,7 @@
 
 本页维护当前落盘与存储契约。本地资源管理的规则、接口及验证边界见 canonical 文档[下载需求与资源管理设计](download-resource-design.md)。
 
-> 当前采用[曲库、资源关联与歌曲需求统计](song-catalog-design.md)模型。主库为 `storage.sqlite`，SQLite `application_id=0x53574443`（SWDC）、`user_version=4`。版本 4 新增请求身份、响应范围、首正文分类与采集覆盖水位，替代旧累计耗时；保留冻结的版本 2、3 DDL 与夹具，不实现旧格式兼容或迁移。
+> 当前采用[曲库、资源关联与歌曲需求统计](song-catalog-design.md)模型。主库为 `storage.sqlite`，SQLite `application_id=0x53574443`（SWDC）、`user_version=5`。版本 4 引入请求身份、响应范围、首正文分类与采集覆盖水位；版本 5 删除请求明细重复的 version_key，统一以 resource_key 保存 MD5。保留冻结的版本 2、3、4 DDL 与夹具，不实现旧格式兼容或迁移。
 
 [歌曲屏蔽与收藏](download-resource-design.md#8-歌曲屏蔽与收藏)通过独立偏好表保存；表结构及版本边界见[歌曲偏好存储](#歌曲偏好存储)。
 
@@ -98,13 +98,13 @@ CREATE TABLE song_preferences (
 
 偏好是用户维护的曲库数据，随存储库备份和切换，不进入 `config.json`。曲库刷新、歌曲—MD5 关联更新、VRCX 统计初始化及视频清理均不覆盖偏好；它也不进入清单 `sha256-v1` 摘要。资源的收藏资格通过当前关联及 retainFavorites 配置推导，全部屏蔽状态通过当前关联推导，不新增资源名单表、资源分数副本或下载/完整性状态列；标记不等于文件已保存。
 
-数据库格式已升为 v4，使用 `schema/storage-v4.sql` 和对应二进制样本，冻结的 v2、v3 DDL 与样本保留。继续不兼容、不迁移旧格式：旧库拒绝打开且不改写，请使用独立新存储目录。不能由业务读写自动补表或改版本号。请求字段允许未知值为 NULL；这不授权读取不支持的旧格式。当前配置格式为 v6；清单摘要仍为 v1。
+数据库格式已升为 v5，使用 `schema/storage-v5.sql` 和对应二进制样本，冻结的 v2、v3、v4 DDL 与样本保留。继续不兼容、不迁移旧格式：旧库拒绝打开且不改写，请使用独立新存储目录。不能由业务读写自动补表或改版本号。请求字段允许未知值为 NULL；这不授权读取不支持的旧格式。当前配置格式为 v6；清单摘要仍为 v1。
 
 离线偏好写入与 VRCX 历史初始化共用独占目录锁、布局/版本检查及数据库打开流程，不启动引擎、统计清理或资源回收。新库只建立标准数据库及空 `videos` 目录；已有使用证据的失联库拒绝新建。在线与离线标记共用同一偏好事务；在线仍与发布/回收串行，离线在连接关闭后释放目录锁。
 
 ## Portable 文件契约与生命周期
 
-本节是应用落盘位置和备份范围的统一清单。路径由 `internal/apppaths` 解析；软件版本变化不改变文件名。当前配置格式为 `schemaVersion=6`，媒体 SQLite 为上述版本 4。旧测试配置版本 1、2、3、4、5 不兼容、不迁移，不应手工改版本号继续使用。
+本节是应用落盘位置和备份范围的统一清单。路径由 `internal/apppaths` 解析；软件版本变化不改变文件名。当前配置格式为 `schemaVersion=6`，媒体 SQLite 为上述版本 5。旧测试配置版本 1、2、3、4、5 不兼容、不迁移，不应手工改版本号继续使用。
 
 ### 交付与按需生成
 
@@ -201,7 +201,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 ## 持久化格式与语义
 
-版本号不随软件版本递增，也不为了称作“v1”而重用试验期编号。历史首发基线是 SQLite **2**、配置 **3**；当前采用 SQLite **4**、配置 **6**、库存/批量/尝试快照 **1**、吞吐快照 **1**，不迁移旧格式。当前 SQLite 的完整 DDL 固定在 `internal/cacheproxy/schema/storage-v4.sql`，有效二进制样本在 `internal/cacheproxy/testdata/storage-v4.sqlite`；旧 v2、v3 DDL 与样本保留用于拒绝及不改写回归；JSON 样本在 console、upstreamstate 的 testdata 中。今后改变契约必须保留旧样本、明确新版本和升级决策，不能重新生成旧样本来消除回归失败。
+版本号不随软件版本递增，也不为了称作“v1”而重用试验期编号。历史首发基线是 SQLite **2**、配置 **3**；当前采用 SQLite **5**、配置 **6**、库存/批量/尝试快照 **1**、吞吐快照 **1**，不迁移旧格式。当前 SQLite 的完整 DDL 固定在 `internal/cacheproxy/schema/storage-v5.sql`，有效二进制样本在 `internal/cacheproxy/testdata/storage-v5.sqlite`；旧 v2、v3、v4 DDL 与样本保留用于拒绝及不改写回归；JSON 样本在 console、upstreamstate 的 testdata 中。今后改变契约必须保留旧样本、明确新版本和升级决策，不能重新生成旧样本来消除回归失败。
 
 ### SQLite 字段清单
 
@@ -220,7 +220,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | `catalog_checks` / `catalog_key` | checked_at Unix 毫秒，默认 0=从未成功验证；message/error 默认空串=无诊断 | 成功验证时间和最近错误；失败不把旧成功时间改成失败时间 |
 | `catalog_members` / `song_id` 外键 | 当前已接受完整清单的成员 ID | 与 song_media 一起推导覆盖，不复制另一份成员资料 |
 | `media_access` / `md5` | last_requested_at Unix 毫秒，按 max 更新 | 最近 GET 事实；独立于歌曲归属、明细保留期，允许未被 media 收录的资源 |
-| `request_events` / `event_id` INTEGER 主键 | resource_key 资源/需求 ID 文本，version_key 为 MD5，host/source/method/range_header/cache_result/outcome 为请求证据文本；requested_at 为请求到达的 Unix 毫秒；file_bytes/transferred_bytes 字节，后者仅计实际写出的视频正文；elapsed_ms 持续毫秒；status HTTP 数值；counts_as_demand 0/1。可空字段：song_id 为请求处理时的明确歌曲 ID 文本，completed_at 为结束 Unix 毫秒，response_bytes 为本次有效响应长度（字节），first_body_ns 为单次首正文耗时（纳秒），first_body_blocking 为首正文前实际等块的 0/1 | 有界原始请求日志，歌曲及资源身份在处理时冻结，新增可空事实未知为 NULL，不靠当前关联回填；首正文样本仅在已实际写出视频正文时有效，不要求最终成功。按 resource_key+requested_at、requested_at 和 HTTP 部分索引（requested_at DESC,event_id DESC）查询；同毫秒按 event_id 排序，清理后不承诺 ID 全局永不复用 |
+| `request_events` / `event_id` INTEGER 主键 | resource_key 为请求处理时的资源 MD5，未解析到资源时为空串；MD5 同时表示内容身份和内容版本，不再另存 version_key。host/source/method/range_header/cache_result/outcome 为请求证据文本；requested_at 为请求到达的 Unix 毫秒；file_bytes/transferred_bytes 字节，后者仅计实际写出的视频正文；elapsed_ms 持续毫秒；status HTTP 数值；counts_as_demand 0/1。可空字段：song_id 为请求处理时的明确歌曲 ID 文本，completed_at 为结束 Unix 毫秒，response_bytes 为本次有效响应长度（字节），first_body_ns 为单次首正文耗时（纳秒），first_body_blocking 为首正文前实际等块的 0/1 | 有界原始请求日志，歌曲及资源身份在处理时冻结，可空事实未知为 NULL，不靠当前关联回填；首正文样本仅在已实际写出视频正文时有效，不要求最终成功。按 resource_key+requested_at、requested_at 和 HTTP 部分索引（requested_at DESC,event_id DESC）查询；同毫秒按 event_id 排序，清理后不承诺 ID 全局永不复用 |
 | `request_observation` / `id=1` | started_at 为新口径开始采集的 Unix 毫秒；retained_since 为清理水位的 Unix 毫秒，初始 0=尚未清理，按 max 更新 | 与明细清理同事务推进水位，跨重启保留；与 72 小时窗口共同决定可用范围及不完整窗口提示，不表示持续在线时长 |
 | `traffic_totals` / `id=1` | saved_bytes 非负累计命中字节；hits/misses 累计次数，初始化为零 | HTTP GET 成功完成 200/206 的 HIT/MISS 事实；requests、命中率由二者推导。首正文统计直接来自 request_events 的单次有效样本，按到达时间最近 72 小时、实际等块／无需等块分组计算 P50/P95，不再保存 playback_latency 累计表 |
 

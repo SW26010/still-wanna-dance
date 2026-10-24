@@ -25,11 +25,11 @@ func TestRecentRequestsWindowAndNames(t *testing.T) {
 	}
 	now := time.Now().UnixMilli()
 	err = u.write([]usageEvent{
-		{id: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", key: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", at: now, source: "http", method: "GET", outcome: "completed", status: 200, size: 100, bytes: 100},
-		{id: "unknown", key: "unknown", at: now + 1, source: "http", method: "GET", outcome: "canceled", status: 200, bytes: 3, rangeHeader: "bytes=0-9"},
-		{id: "prefetch", at: now + 2, source: "prefetch"},
-		{id: "short", at: now + 3, source: "http", method: "GET", outcome: "completed", status: 200, size: 100, bytes: 5, rangeHeader: "secret=signed-url"},
-		{id: "range", at: now + 3, source: "http", method: "GET", outcome: "completed", status: 206, size: 100, bytes: 10, rangeHeader: "bytes=0-9"},
+		{key: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", at: now, source: "http", method: "GET", outcome: "completed", status: 200, size: 100, bytes: 100},
+		{key: "unknown", at: now + 1, source: "http", method: "GET", outcome: "canceled", status: 200, bytes: 3, rangeHeader: "bytes=0-9"},
+		{key: "prefetch", at: now + 2, source: "prefetch"},
+		{key: "short", at: now + 3, source: "http", method: "GET", outcome: "completed", status: 200, size: 100, bytes: 5, rangeHeader: "secret=signed-url"},
+		{key: "range", at: now + 3, source: "http", method: "GET", outcome: "completed", status: 206, size: 100, bytes: 10, rangeHeader: "bytes=0-9"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -105,7 +105,7 @@ func TestRecentBoundedAssociations(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err = u.write([]usageEvent{{id: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", key: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", source: "http"}}); err != nil {
+	if err = u.write([]usageEvent{{key: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", source: "http"}}); err != nil {
 		t.Fatal(err)
 	}
 	r, err := ReadRecentRequests(context.Background(), root, 50)
@@ -124,9 +124,9 @@ func TestRecentHTTPWindowSurvivesPrefetchOffline(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer u.close()
-	events := []usageEvent{{id: "game", source: "http", at: 1}}
+	events := []usageEvent{{key: "game", source: "http", at: 1}}
 	for i := 0; i < 500; i++ {
-		events = append(events, usageEvent{id: "prefetch", source: "prefetch", at: int64(i + 2)})
+		events = append(events, usageEvent{key: "prefetch", source: "prefetch", at: int64(i + 2)})
 	}
 	if err = u.write(events); err != nil {
 		t.Fatal(err)
@@ -149,7 +149,7 @@ func TestRecentHTTPWindowSurvivesPrefetchOffline(t *testing.T) {
 	defer u.close()
 	events = nil
 	for i := 0; i < 50; i++ {
-		events = append(events, usageEvent{id: "new-game", source: "http", at: 1000})
+		events = append(events, usageEvent{key: "new-game", source: "http", at: 1000})
 	}
 	if err = u.write(events); err != nil {
 		t.Fatal(err)

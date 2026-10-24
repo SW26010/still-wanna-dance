@@ -408,7 +408,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 	v, release, err := s.requestVideo(r, observed, response.current)
 	response.current.identify(v.songID, v.key)
-	event.id, event.key, event.host, event.size, event.songID = v.key, v.key, v.host, v.size, v.songID
+	event.key, event.host, event.size, event.songID = v.key, v.host, v.size, v.songID
 	if release != nil {
 		defer release()
 	}
@@ -495,7 +495,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		s.releaseVideo(v)
 		v = replacement
-		event.id, event.key, event.host, event.size = v.key, v.key, v.host, v.size
+		event.key, event.host, event.size = v.key, v.host, v.size
 		response.current.identify(v.songID, v.key)
 		return nil
 	}

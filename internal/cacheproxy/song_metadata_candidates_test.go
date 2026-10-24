@@ -69,7 +69,7 @@ func TestSongMetadataCandidatesUsePriorAndDecayedDemand(t *testing.T) {
 	if err != nil || !slices.Equal(got, []int64{1981, 5404}) {
 		t.Fatal("initial prior order", got, err)
 	}
-	if err := s.usage.write([]usageEvent{{id: "1981", at: time.Now().Add(-700 * 24 * time.Hour).UnixMilli(), summaryOnly: true}}); err != nil {
+	if err := s.usage.write([]usageEvent{{songID: "1981", at: time.Now().Add(-700 * 24 * time.Hour).UnixMilli(), summaryOnly: true}}); err != nil {
 		t.Fatal(err)
 	}
 	got, err = s.SongMetadataCandidates(ctx, metadataProbeAPI)

@@ -330,3 +330,14 @@ Go 最终按开发文档范围执行 go test -tags=no_easytier ./cmd/... ./inter
 完整 Edge 回归 **169 项通过**（review-final-browser.log）；Go 按开发范围执行 go test -tags=no_easytier ./cmd/... ./internal/... 通过（review-final-go.log），go vet 同范围通过（review-final-vet.log）。新增真实 Console 生命周期测试覆盖运行队列时无变化／预算变化／存储切换／无效配置、回执重放、旧队列退出与新实例启动；导入／批量阻塞回归通过，见 review-setup-go-verified.log。前端类型及逐字节重建、离线清单检查通过；存储文档表清单与冻结 DDL 的 14 张表一致；产物策略检查 0 错误、24 条已有历史提示（review-artifacts.log）。证据均位于忽略目录 artifacts/webui-design/。
 
 本轮授权等待使用浏览器时钟与延迟响应验证，Console 测试使用私有 hosts 和回环端口；未验证真实 Windows UAC，也未启动 VRChat 或修改系统 hosts。沿用已有原生与游戏验收边界，不新增重复台账。修复按独立目的保留本地提交，未 push。
+
+
+## 请求资源键精简（2026-10-24）
+
+首发前清理 request_events 中重复保存同一 MD5 的 version_key，读写与当前关联查询统一使用 resource_key；内存 usageEvent 删除重复 id，歌曲身份复用 songID。未解析到资源的失败请求保留空资源键，不把歌曲 ID 当作 MD5。当前数据库升为 v5，DDL 与冻结 v4 唯一差异为删除 version_key；表数量仍为 14。配置格式不变，旧 v2／v3／v4 DDL 和二进制夹具逐字节保留，只用于拒绝与不改写回归，不实现兼容或迁移。现行格式以 [存储契约](../storage.md) 为准，上文 v4 验证结论保留其历史范围。
+
+定向检查覆盖当前固定样本反复打开、旧库拒绝、各离线入口、需求去重与明细清理、关联查询、历史分页及首正文统计；resource-key-targeted-final.log 通过。首轮编译遗漏了几处旧内存事件字段的测试构造，修正后新增关联断言又发现原夹具在多语句 SQL 中绑定参数没有建立预期的新映射；拆开关联写入后，明确验证历史歌曲 42 保持不变、同一 MD5 的当前关联查询返回歌曲 43。初始失败分别保留 resource-key-targeted.log、resource-key-targeted-verified.log。
+
+Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范围通过（resource-key-final-go.log、resource-key-vet.log）。真实 Console＋SQLite＋Edge 的 TestRequestHistoryBrowser 和 TestLibraryBrowser 通过（resource-key-browser.log）：新库处理 601 次 GET，映射变化并关闭重开后完整查看 13 页历史，首正文两组共 601 个样本；两首共享歌曲只下载一份文件，收藏持久化与实际删除正常。已检查桌面历史截图，原始结果与截图位于 artifacts/webui-design/resource-key-{history,library}-live/，全部为私有夹具与回环服务，不启动游戏或操作系统 hosts。
+
+前端源码和产物未变，离线清单检查通过；v5 固定 SQLite 样本按精确路径、大小与 SHA256 登记。此次持久化字段精简可由隔离数据库、协议和浏览器验证，不另增 VRC 待验场景。全部更改保留本地，未 push。

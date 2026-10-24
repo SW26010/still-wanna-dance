@@ -96,7 +96,7 @@ func TestCatalogUpdatesPreserveUsageResourcesAndAbsentSongs(t *testing.T) {
 	if err := s.recordVideo(ctx, video{key: a, size: 100, path: "/known"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.usage.write([]usageEvent{{id: "1", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
+	if err := s.usage.write([]usageEvent{{songID: "1", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
 		t.Fatal(err)
 	}
 	name = "new"

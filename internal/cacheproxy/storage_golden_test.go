@@ -8,10 +8,10 @@ import (
 	"time"
 )
 
-// This binary was created for schema v4. Never regenerate it to make a changed
+// This binary was created for schema v5. Never regenerate it to make a changed
 // schema pass: add a new version and retain the prior release's fixture.
-func TestStorageV4Golden(t *testing.T) {
-	b, err := os.ReadFile("testdata/storage-v4.sqlite")
+func TestStorageV5Golden(t *testing.T) {
+	b, err := os.ReadFile("testdata/storage-v5.sqlite")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,6 +37,10 @@ func TestStorageV4Golden(t *testing.T) {
 		}
 		if err := db.QueryRow(`SELECT artist IS NULL AND flip=0 AND volume=0 FROM songs WHERE song_id=42`).Scan(&absent); err != nil {
 			t.Fatal(err)
+		}
+		var resource string
+		if err := db.QueryRow("SELECT resource_key FROM request_events WHERE event_id=1").Scan(&resource); err != nil || resource != "0123456789abcdef0123456789abcdef" {
+			t.Fatal("golden request resource changed", resource, err)
 		}
 		var digest string
 		var policy string
@@ -66,7 +70,7 @@ func TestStorageV4Golden(t *testing.T) {
 }
 
 func TestStorageOldGoldensRejectedUnchanged(t *testing.T) {
-	for _, version := range []string{"2", "3"} {
+	for _, version := range []string{"2", "3", "4"} {
 		t.Run(version, func(t *testing.T) {
 			b, err := os.ReadFile("testdata/storage-v" + version + ".sqlite")
 			if err != nil {

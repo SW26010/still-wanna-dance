@@ -37,7 +37,7 @@ func TestEffectivePriorityReplacesPriorAcrossVersions(t *testing.T) {
 		t.Fatalf("%v %v", scores, err)
 	}
 	old := now - (700 * 24 * time.Hour).Milliseconds()
-	if err := s.usage.write([]usageEvent{{id: "1981", at: old, summaryOnly: true}}); err != nil {
+	if err := s.usage.write([]usageEvent{{songID: "1981", at: old, summaryOnly: true}}); err != nil {
 		t.Fatal(err)
 	}
 	scores, err = s.songPriorities(context.Background(), []int64{1981}, now)
@@ -62,7 +62,7 @@ func TestRetentionUsesEffectiveSongPriority(t *testing.T) {
 				if mode == "old-demand" {
 					at -= (700 * 24 * time.Hour).Milliseconds()
 				}
-				if err := s.usage.write([]usageEvent{{id: "1981", at: at, summaryOnly: true}}); err != nil {
+				if err := s.usage.write([]usageEvent{{songID: "1981", at: at, summaryOnly: true}}); err != nil {
 					t.Fatal(err)
 				}
 			}

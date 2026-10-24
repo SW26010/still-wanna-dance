@@ -33,10 +33,13 @@ func response(status int, body string) *http.Response {
 	return &http.Response{StatusCode: status, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body))}
 }
 func testMonitor(t *testing.T, f transportFunc) *Monitor {
+	return testMonitorWithPolicy(t, f, Policy{})
+}
+func testMonitorWithPolicy(t *testing.T, f transportFunc, policy Policy) *Monitor {
 	t.Helper()
 	channel := upstreamrequest.NewChannel()
 	channel.Publish(f)
-	m, err := newMonitor(Options{}, channel)
+	m, err := newMonitor(Options{Policy: policy}, channel)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,11 +176,14 @@ func TestCatalogFailureAndSampleReuse(t *testing.T) {
 	if resultFor(t, m, Catalog, "api").State != "unavailable" || resultFor(t, m, PlaybackURL, "cf").State != "available" || plays.Load() != 4 {
 		t.Fatal("catalog failure poisoned other operations")
 	}
-	p := DefaultPolicy()
-	p.SampleLifetime = time.Nanosecond
-	p.Lifetime = time.Nanosecond
-	m.SetPolicy(p)
-	time.Sleep(time.Millisecond)
+	// Age the cached sample and its resource sources, without changing policy.
+	m.mu.Lock()
+	m.songAt = time.Now().Add(-m.policy.SampleLifetime)
+	for key, source := range m.resourceSources {
+		source.at = m.songAt
+		m.resourceSources[key] = source
+	}
+	m.mu.Unlock()
 	m.Check(context.Background())
 	if plays.Load() != 4 || len(m.Results(Resource)) != 0 {
 		t.Fatal("used expired sample")
@@ -284,14 +290,16 @@ func TestSharedCheckCancellationAndClose(t *testing.T) {
 	if s := m.Snapshot(); s.Checking || !s.Closed || resultFor(t, m, Catalog, "api").State != "closed" {
 		t.Fatal("not joined")
 	}
-	if m.Check(context.Background()) == nil || m.Start() == nil || m.SetPolicy(DefaultPolicy()) == nil {
+	if m.Check(context.Background()) == nil || m.Start() == nil {
 		t.Fatal("reopened closed checker")
 	}
 }
 
 func TestRuntimeScheduleAndRequestTimeout(t *testing.T) {
-	var calls atomic.Int32
-	m := testMonitor(t, func(r *http.Request) (*http.Response, error) { calls.Add(1); return response(503, ""), nil })
+	p := DefaultPolicy()
+	p.Interval = 15 * time.Millisecond
+	p.RequestTimeout = 10 * time.Millisecond
+	m := testMonitorWithPolicy(t, func(r *http.Request) (*http.Response, error) { return response(503, ""), nil }, p)
 	m.Start()
 	m.Start()
 	if !m.Snapshot().Scheduled {
@@ -301,28 +309,22 @@ func TestRuntimeScheduleAndRequestTimeout(t *testing.T) {
 	for m.Snapshot().Finished.IsZero() && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	p := DefaultPolicy()
-	p.Interval = 15 * time.Millisecond
-	p.RequestTimeout = 10 * time.Millisecond
-	if err := m.SetPolicy(p); err != nil {
-		t.Fatal(err)
-	}
+	first := m.Snapshot().Finished
 	deadline = time.Now().Add(time.Second)
-	for calls.Load() < 2 && time.Now().Before(deadline) {
+	for !m.Snapshot().Finished.After(first) && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if calls.Load() < 2 || m.Snapshot().Policy != p {
-		t.Fatal("new interval not applied")
+	if first.IsZero() || !m.Snapshot().Finished.After(first) || m.Snapshot().Policy != p {
+		t.Fatal("constructor policy not applied to periodic checks")
 	}
-	if m.SetPolicy(Policy{Lifetime: -time.Second}) == nil {
+	if _, err := NewMonitor(Options{Policy: Policy{Lifetime: -time.Second}}); err == nil {
 		t.Fatal("negative policy")
 	}
 	m.Close()
 	if s := m.Snapshot(); s.Scheduled || !s.Closed || !s.NextCheck.IsZero() {
 		t.Fatal("closed schedule")
 	}
-	n := testMonitor(t, func(r *http.Request) (*http.Response, error) { <-r.Context().Done(); return nil, r.Context().Err() })
-	n.SetPolicy(p)
+	n := testMonitorWithPolicy(t, func(r *http.Request) (*http.Response, error) { <-r.Context().Done(); return nil, r.Context().Err() }, p)
 	n.Check(context.Background())
 	if r := resultFor(t, n, Catalog, "api"); r.State != "unavailable" || r.Reason != "timeout" {
 		t.Fatal(r)

@@ -20,8 +20,8 @@ const (
 
 var operations = [...]Operation{Catalog, PlaybackURL, Resource}
 
-// Zero durations use defaults; negative durations are invalid. SetPolicy
-// replaces the whole policy, including timeouts for subsequent checks.
+// Policy is copied and validated at construction, then fixed for the monitor's
+// lifetime. Zero durations use defaults; negative durations are invalid.
 type Policy struct {
 	ThroughputInterval time.Duration `json:"throughputInterval"`
 	Interval           time.Duration `json:"interval"`

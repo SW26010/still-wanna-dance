@@ -49,14 +49,16 @@ func TestOperationAndRouteIsolation(t *testing.T) {
 	if resultFor(t, m, PlaybackURL, "cf").State != "available" {
 		t.Fatal("failure leaked across operations")
 	}
-	p := DefaultPolicy()
-	p.Lifetime = time.Nanosecond
-	p.FailureLifetime = time.Nanosecond
-	if err := m.SetPolicy(p); err != nil {
-		t.Fatal(err)
+	expired := testMonitorWithPolicy(t, func(*http.Request) (*http.Response, error) {
+		t.Fatal("unexpected I/O")
+		return nil, nil
+	}, Policy{Lifetime: time.Nanosecond, FailureLifetime: time.Nanosecond})
+	for _, history := range m.history {
+		o := history[len(history)-1]
+		o.at = time.Now().Add(-time.Second)
+		recordFixture(expired, o)
 	}
-	time.Sleep(2 * time.Millisecond)
-	for _, r := range m.Snapshot().Results {
+	for _, r := range expired.Snapshot().Results {
 		if r.State != "stale" || r.Entry == "" || r.Route == "" || r.EstimatedLatencyMS != nil {
 			t.Fatal(r)
 		}

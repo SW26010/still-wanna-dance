@@ -35,7 +35,6 @@ Catalog 标识为 api、kiva、wanna；PlaybackURL 标识为 cf、hkg（分别�
 - Check(ctx)：检查并等待。并发调用共享一轮，取消一个等待者不影响其它等待者。
 - Results(Operation)、Snapshot()：纯内存读取独立副本；包含未知、失败、过期和关闭状态。候选数量随有效 IP 池变化，没有候选时保留 unknown/no_channel 项。
 - Recommended(Operation)：返回 `(Selection, bool)`。Selection.Result 给出依据，Selection.Channel.Transport 可供实际请求复用。无有效成功观测时返回 false。读取不测速，也不增加迟滞计数。
-- SetPolicy(Policy)：修改刷新、有效期、请求超时和切换策略。
 - Close()：取消并等待检查和调度结束；不拥有或关闭应用的连接池。
 
 ```go
@@ -85,7 +84,7 @@ Catalog 和 PlaybackURL 要求健康且有有效首字节耗时，优先低耗�
 | SwitchImprovement | 0.15 |
 | SwitchSamples | 2 |
 
-零值采用默认值；无效值拒绝。SetPolicy 完整替换策略，新超时用于下一轮，有效期仍基于原始观测时间。序列化的 time.Duration 单位为纳秒。
+策略通过 Options.Policy 在创建时复制、规范化并校验，Monitor 存续期间固定不变；零值采用默认值，无效值拒绝。有效期基于原始观测时间。应用设置的保存与重启规则统一见[配置生命周期](../../docs/settings-lifecycle.md)。序列化的 time.Duration 单位为纳秒。
 
 Interval 是候选检查的最大常规间隔；新 DNS 候选事件提前唤醒，接近成功观测到期时也提前检查，留出请求余量。最短重新调度间隔为 1 秒，避免极短 TTL 导致忙循环。DNS 的新旧地址在原 TTL 内重叠，相同 IP 的 TTL 刷新不清空测量。推荐有效期取测量有效期与当前 DNS 租期的较早者。刷新失败不能延长 TTL；启动、全体失败或过短 TTL 仍可能没有可用推荐。
 

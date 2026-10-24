@@ -172,6 +172,11 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 
 func TestMonitorConfigChangeCancelsAndRestarts(t *testing.T) {
 	c := testConsole(t)
+	var err error
+	c.monitor, err = c.newUpstreamMonitor(upstreamstate.Options{Policy: upstreamstate.Policy{Interval: 20 * time.Millisecond}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	entered := make(chan struct{}, 1)
 	c.requestRevision = upstreamrequest.Default.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
 		select {
@@ -195,9 +200,6 @@ func TestMonitorConfigChangeCancelsAndRestarts(t *testing.T) {
 	s := waitMonitor(t, c)
 	if s.Results[0].HTTP != 503 {
 		t.Fatalf("old configuration leaked: %+v", s)
-	}
-	if err := c.monitor.SetPolicy(upstreamstate.Policy{Interval: 20 * time.Millisecond}); err != nil {
-		t.Fatal(err)
 	}
 	deadline := time.Now().Add(time.Second)
 	for !c.monitor.Snapshot().Finished.After(s.Finished) {

@@ -54,42 +54,40 @@ type Status struct {
 // Monitor is independent of consumers and network configuration. Nothing starts
 // automatically; the owner explicitly starts and closes the monitor.
 type Monitor struct {
-	diagnostics             map[string]observation
-	resourceSources         map[string]observation
-	onCatalog               func(context.Context, []CatalogResponse)
-	onPlaybackURL           func(context.Context, PlaybackURLResponse)
-	onProgress              func(context.Context, CheckProgress)
-	playbackSongCandidates  func(context.Context) []int64
-	playbackSongsAttempted  map[int64]bool
-	throughputPolicyPending bool
-	throughputSaveFailed    bool
-	batchKind               CheckKind
-	batchCtx                context.Context
-	batchCancel             context.CancelFunc
-	manualDone              chan struct{}
-	throughputStatePath     string
-	lastThroughput          time.Time
-	batchThroughput         *bool
-	throughput              map[string]observation
-	batchManual             bool
-	mu                      sync.Mutex
-	ctx                     context.Context
-	cancel                  context.CancelFunc
-	policy                  Policy
-	started                 time.Time
-	finished                time.Time
-	nextCheck               time.Time
-	history                 map[string][]observation
-	songID                  int64
-	songAt                  time.Time
-	active                  chan struct{}
-	scheduler               chan struct{}
-	closed                  bool
-	wake                    chan struct{}
-	channel                 *upstreamrequest.Channel
-	revision                uint64
-	batchRevision           uint64
-	preferences             map[Operation]*preference
+	diagnostics            map[string]observation
+	resourceSources        map[string]observation
+	onCatalog              func(context.Context, []CatalogResponse)
+	onPlaybackURL          func(context.Context, PlaybackURLResponse)
+	onProgress             func(context.Context, CheckProgress)
+	playbackSongCandidates func(context.Context) []int64
+	playbackSongsAttempted map[int64]bool
+	throughputSaveFailed   bool
+	batchKind              CheckKind
+	batchCtx               context.Context
+	batchCancel            context.CancelFunc
+	manualDone             chan struct{}
+	throughputStatePath    string
+	lastThroughput         time.Time
+	batchThroughput        *bool
+	throughput             map[string]observation
+	batchManual            bool
+	mu                     sync.Mutex
+	ctx                    context.Context
+	cancel                 context.CancelFunc
+	policy                 Policy
+	started                time.Time
+	finished               time.Time
+	nextCheck              time.Time
+	history                map[string][]observation
+	songID                 int64
+	songAt                 time.Time
+	active                 chan struct{}
+	scheduler              chan struct{}
+	closed                 bool
+	channel                *upstreamrequest.Channel
+	revision               uint64
+	batchRevision          uint64
+	preferences            map[Operation]*preference
 }
 
 func NewMonitor(o Options) (*Monitor, error) {
@@ -108,7 +106,7 @@ func newMonitor(o Options, channel *upstreamrequest.Channel) (*Monitor, error) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	snapshot := channel.Snapshot()
-	m := &Monitor{ctx: ctx, cancel: cancel, channel: channel, revision: snapshot.Revision, policy: p, history: make(map[string][]observation), wake: make(chan struct{}, 1), throughputStatePath: o.ThroughputStatePath, throughput: make(map[string]observation)}
+	m := &Monitor{ctx: ctx, cancel: cancel, channel: channel, revision: snapshot.Revision, policy: p, history: make(map[string][]observation), throughputStatePath: o.ThroughputStatePath, throughput: make(map[string]observation)}
 	m.loadThroughputTime()
 	m.onCatalog = o.OnCatalog
 	m.onPlaybackURL = o.OnPlaybackURL
@@ -178,40 +176,6 @@ func validatePolicy(p Policy) error {
 	return nil
 }
 
-// Changes freshness relative to original observation times, never renewing old
-// data. Updated request deadlines apply to the next batch.
-func (m *Monitor) SetPolicy(p Policy) error {
-	p = normalized(p)
-	if err := validatePolicy(p); err != nil {
-		return err
-	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.closed {
-		return errors.New("monitor closed")
-	}
-	intervalChanged := m.policy.ThroughputInterval != p.ThroughputInterval
-	m.policy = p
-	if intervalChanged && m.active != nil {
-		m.throughputPolicyPending = true
-	}
-	if m.scheduler != nil && !m.finished.IsZero() {
-		m.nextCheck = m.finished.Add(p.Interval)
-		m.scheduleThroughputLocked()
-		if source := m.refreshChannelLocked(); source.Candidates != nil {
-			m.scheduleCandidatesLocked(source.Candidates)
-		}
-		if intervalChanged && !time.Now().Before(m.lastThroughput.Add(p.ThroughputInterval)) {
-			m.nextCheck = time.Now()
-		}
-	}
-	select {
-	case m.wake <- struct{}{}:
-	default:
-	}
-	return nil
-}
-
 // Results returns every known route for the operation in definition order,
 // including unknown, failed, stale, and closed results. Unsupported operations
 // return an empty slice. Results and Snapshot never start checks or rank routes.
@@ -270,7 +234,7 @@ func (m *Monitor) Start() error {
 			delay := time.Until(m.nextCheck)
 			m.mu.Unlock()
 			// Retain the subscription until consumed, including across Check and
-			// timer/policy wakeups. Re-reading Changed earlier can lose an event.
+			// timer wakeups. Re-reading Changed earlier can lose an event.
 			if subscribedRevision != source.Revision {
 				candidatesChanged = nil
 				if source.Candidates != nil {
@@ -307,8 +271,6 @@ func (m *Monitor) Start() error {
 			case <-m.ctx.Done():
 				timer.Stop()
 				return
-			case <-m.wake:
-				timer.Stop()
 			case <-source.Changed:
 				timer.Stop()
 			case <-candidatesChanged:
@@ -455,20 +417,11 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 				if source.Candidates != nil {
 					m.scheduleCandidatesLocked(source.Candidates)
 				}
-				// A running light batch may have cached a no-throughput decision.
-				// Re-evaluate policy changes after it completes, against the latest
-				// interval and attempt time, then consume the request once.
-				if m.throughputPolicyPending && !m.finished.Before(m.lastThroughput.Add(m.policy.ThroughputInterval)) {
-					m.nextCheck = m.finished
-				}
 			}
-			m.throughputPolicyPending = false
 		}
 		close(done)
 	}()
-	m.mu.Lock()
 	p := m.policy
-	m.mu.Unlock()
 	defer m.publishProgress(ctx, "")
 	m.publishProgress(ctx, Catalog)
 	m.checkRoutes(ctx, p, source, record)

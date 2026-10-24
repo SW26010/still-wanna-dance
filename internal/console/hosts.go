@@ -171,10 +171,14 @@ func applyHosts(p, action string) error {
 	if next == string(b) {
 		return nil
 	}
+	return writeHostsChange(p, b, []byte(next))
+}
+
+func writeHostsChange(p string, before, after []byte) error {
 	// Keep the first pre-change snapshot; restore removes only our exact entries.
 	backup, err := os.OpenFile(p+".swd-backup", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err == nil {
-		_, err = backup.Write(b)
+		_, err = backup.Write(before)
 		closeErr := backup.Close()
 		if err != nil {
 			return err
@@ -185,7 +189,7 @@ func applyHosts(p, action string) error {
 	} else if !os.IsExist(err) {
 		return err
 	}
-	return os.WriteFile(p, []byte(next), 0644)
+	return os.WriteFile(p, after, 0644)
 }
 
 func portAvailable(address string) error {

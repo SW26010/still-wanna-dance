@@ -2,6 +2,22 @@ import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 import {navigate} from './navigation';
 
+test('failed acceleration reports rollback failure and the resulting real state',async({page})=>{
+  const api=await mockAPI(page);
+  await page.route('**/api/activation/enable',async route=>{
+    const error='视频网关启动失败；未能撤销本次游戏接入：hosts 在接入后被修改';
+    api.state.hosts.ready=true;api.state.running=false;api.state.activation={phase:'failed',error};
+    await route.fulfill({status:400,json:{error}});
+  });
+  await page.goto('/');
+  await page.getByRole('button',{name:'开始加速',exact:true}).click();
+  await expect(page.getByText(/未能撤销本次游戏接入/).first()).toBeVisible();
+  await expect(page.getByText('游戏连接：已配置',{exact:true})).toBeVisible();
+  await expect(page.getByText('本地服务：未启动',{exact:true})).toBeVisible();
+  await expect(page.getByText('视频加速已开启。',{exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
+});
+
 test('acceleration status distinguishes connection from service without enabling the queue',async({page})=>{
   const api=await mockAPI(page);api.state.hosts.ready=true;api.state.queue={desired:false,running:false};
   await page.goto('/');

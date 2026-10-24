@@ -32,7 +32,11 @@ func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(str
 	// Keep tray, settings and individual hosts operations from interleaving.
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
+	if !c.termsAccepted() {
+		return errors.New("请先阅读并同意使用条款")
+	}
 	c.mu.Lock()
+	wasRunning := c.httpServer != nil
 	c.activationGeneration++
 	c.activation = Activation{Phase: "checking", Started: time.Now()}
 	c.mu.Unlock()
@@ -47,20 +51,43 @@ func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(str
 	if hosts.Conflict {
 		return fmt.Errorf("接入检查失败：%s", hosts.Message)
 	}
-	c.activationPhase("starting")
-	if err = c.startLocked(); err != nil {
-		return err
-	}
+	wasReady := hosts.Ready
+	defer func() {
+		if err == nil {
+			return
+		}
+		if !wasRunning {
+			c.mu.Lock()
+			c.stopLocked()
+			c.mu.Unlock()
+		}
+		if !wasReady {
+			if rollbackErr := change("rollback"); rollbackErr != nil {
+				err = errors.Join(err, fmt.Errorf("未能撤销本次游戏接入：%w", rollbackErr))
+			}
+		}
+	}()
 	c.activationPhase("hosts")
 	// The shared hosts controller checks both the mapping and the ability to
 	// restore it before deciding whether authorization is necessary.
 	if err = change("enable"); err != nil {
-		return fmt.Errorf("播放网关已运行，但游戏接入未完成：%w；处理后可重试，也可在「高级接入设置」中停止播放网关", err)
+		return fmt.Errorf("游戏接入失败：%w", err)
 	}
 	if hosts = inspect(); !hosts.Ready {
-		return fmt.Errorf("播放网关已运行，但 hosts 检查未通过：%s", hosts.Message)
+		return fmt.Errorf("hosts 接入检查未通过：%s", hosts.Message)
+	}
+	c.activationPhase("starting")
+	if err = c.startLocked(); err != nil {
+		return err
+	}
+	if hosts = inspect(); !hosts.Ready {
+		return fmt.Errorf("网关启动后的 hosts 接入检查未通过：%s", hosts.Message)
 	}
 	c.mu.Lock()
+	if c.httpServer == nil || c.videoListener == nil || c.https == nil {
+		c.mu.Unlock()
+		return errors.New("视频网关尚未就绪")
+	}
 	c.activation.Phase, c.activation.ReadyAt = "waiting", time.Now()
 	c.mu.Unlock()
 	return nil

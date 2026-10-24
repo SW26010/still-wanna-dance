@@ -65,21 +65,26 @@ func TestActivationFailuresAndRetry(t *testing.T) {
 	hosts := HostsStatus{Conflict: true, Message: "conflict"}
 	inspect := func() HostsStatus { return hosts }
 	calls := 0
-	change := func(string) error { calls++; return errors.New("UAC canceled") }
+	change := func(action string) error {
+		if action == "rollback" {
+			return nil
+		}
+		calls++
+		return errors.New("UAC canceled")
+	}
 	if c.enableAcceleration(inspect, change) == nil || c.DesktopState().CDN || calls != 0 {
 		t.Fatal("conflict must fail before startup/elevation")
 	}
 	hosts = HostsStatus{}
-	if c.enableAcceleration(inspect, change) == nil || !c.DesktopState().CDN || c.activation.Phase != "failed" {
-		t.Fatal("UAC refusal must preserve running service and report failure")
+	if c.enableAcceleration(inspect, change) == nil || c.DesktopState().CDN || c.activation.Phase != "failed" {
+		t.Fatal("UAC refusal must leave the stopped service unchanged")
 	}
-	server := c.httpServer
 	if c.enableAcceleration(inspect, func(string) error { return nil }) == nil {
 		t.Fatal("helper success without ready hosts must fail")
 	}
 	hosts.Ready = true
-	if err := c.enableAcceleration(inspect, func(string) error { return nil }); err != nil || calls != 1 || c.httpServer != server {
-		t.Fatal("retry must reuse running service and avoid unnecessary elevation", err)
+	if err := c.enableAcceleration(inspect, func(string) error { return nil }); err != nil || calls != 1 || c.httpServer == nil {
+		t.Fatal("retry did not start service", err)
 	}
 	old := c.activation.ReadyAt.Add(-time.Nanosecond)
 	c.beginVideoRequest(old)()
@@ -110,7 +115,7 @@ func TestActivationFailuresAndRetry(t *testing.T) {
 	}
 }
 
-func TestActivationPortFailureNeverChangesHosts(t *testing.T) {
+func TestActivationPortFailureRollsBackHosts(t *testing.T) {
 	for _, https := range []bool{false, true} {
 		t.Run(map[bool]string{false: "http", true: "https"}[https], func(t *testing.T) {
 			c := testConsole(t)
@@ -124,8 +129,14 @@ func TestActivationPortFailureNeverChangesHosts(t *testing.T) {
 			} else {
 				c.videoAddress = l.Addr().String()
 			}
-			err = c.enableAcceleration(func() HostsStatus { return HostsStatus{} }, func(string) error { t.Fatal("elevation after bind failure"); return nil })
-			if err == nil || c.DesktopState().CDN || c.activation.Phase != "failed" {
+			ready := false
+			var actions []string
+			err = c.enableAcceleration(func() HostsStatus { return HostsStatus{Ready: ready} }, func(action string) error {
+				actions = append(actions, action)
+				ready = action == "enable"
+				return nil
+			})
+			if err == nil || c.DesktopState().CDN || c.activation.Phase != "failed" || ready || strings.Join(actions, ",") != "enable,rollback" {
 				t.Fatal("port conflict not reported", err)
 			}
 		})

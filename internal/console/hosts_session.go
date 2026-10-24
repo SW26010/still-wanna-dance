@@ -38,14 +38,16 @@ type hostsConnection interface {
 
 // Serialized by Console.lifecycleMu, independently of ordinary status reads.
 type hostsController struct {
-	path     string
-	launch   func(context.Context) (hostsConnection, error)
-	session  hostsConnection
-	ctx      context.Context
-	cancel   context.CancelFunc
-	closed   bool
-	err      error
-	prepared atomic.Bool // helper acknowledged recovery capability; not an exit policy
+	path             string
+	launch           func(context.Context) (hostsConnection, error)
+	session          hostsConnection
+	ctx              context.Context
+	cancel           context.CancelFunc
+	closed           bool
+	err              error
+	prepared         atomic.Bool // helper acknowledged recovery capability; not an exit policy
+	rollbackReady    bool        // only the most recent dispatched enable may be rolled back
+	previousPrepared bool
 }
 
 func newHostsController(path string, launch func(context.Context) (hostsConnection, error)) *hostsController {
@@ -54,9 +56,21 @@ func newHostsController(path string, launch func(context.Context) (hostsConnecti
 }
 
 func (h *hostsController) change(action string, restore bool) error {
-	if h.closed || h.ctx.Err() != nil {
+	if h.closed || action != "rollback" && h.ctx.Err() != nil {
 		return errors.New("控制台正在退出")
 	}
+	if action == "rollback" {
+		if !h.rollbackReady {
+			return nil
+		}
+		err := h.session.request(hostsRequest{Action: "rollback"})
+		if err == nil {
+			h.rollbackReady = false
+			h.prepared.Store(h.previousPrepared)
+		}
+		return err
+	}
+	h.rollbackReady = false
 	data, err := os.ReadFile(h.path)
 	if err != nil {
 		return err
@@ -77,6 +91,8 @@ func (h *hostsController) change(action string, restore bool) error {
 			return err
 		}
 	}
+	h.previousPrepared = h.prepared.Load()
+	h.rollbackReady = action == "enable"
 	err = h.session.request(hostsRequest{Action: action, RestoreOnExit: restore, TermsVersion: legal.Version})
 	h.prepared.Store(err == nil && action == "enable" && restore)
 	return err
@@ -194,6 +210,8 @@ func (c *hostsClient) close() error {
 func serveHostsSession(conn net.Conn, path string, flush func()) (result error) {
 	defer conn.Close()
 	restore := false
+	var previous, applied []byte
+	previousRestore := false
 	apply := func(action string) error {
 		err := applyHosts(path, action)
 		if err == nil {
@@ -214,6 +232,25 @@ func serveHostsSession(conn net.Conn, path string, flush func()) (result error) 
 		}
 		var err error
 		switch request.Action {
+		case "rollback":
+			if previous != nil {
+				var current []byte
+				current, err = os.ReadFile(path)
+				if err == nil && string(current) != string(previous) {
+					if string(current) != string(applied) {
+						err = errors.New("hosts 在接入后被修改，无法安全撤销本次接入，请检查游戏接入状态")
+					} else {
+						err = os.WriteFile(path, previous, 0644)
+						if err == nil {
+							flush()
+						}
+					}
+				}
+				if err == nil {
+					restore = previousRestore
+					previous, applied = nil, nil
+				}
+			}
 		case "prepare":
 			if err = legal.CheckAcceptance(request.TermsVersion); err == nil {
 				var data []byte
@@ -230,9 +267,26 @@ func serveHostsSession(conn net.Conn, path string, flush func()) (result error) 
 				}
 			}
 		case "enable":
+			previous, applied = nil, nil
 			if err = legal.CheckAcceptance(request.TermsVersion); err == nil {
-				restore = request.RestoreOnExit
-				err = apply("enable")
+				var data []byte
+				data, err = os.ReadFile(path)
+				if err == nil {
+					var next string
+					next, err = transformHosts(string(data), "enable")
+					if err == nil {
+						previous, applied, previousRestore = data, []byte(next), restore
+						if next != string(data) {
+							err = writeHostsChange(path, data, applied)
+							if err == nil {
+								flush()
+							}
+						}
+						if err == nil {
+							restore = request.RestoreOnExit
+						}
+					}
+				}
 			}
 		case "disable":
 			err = apply("disable")

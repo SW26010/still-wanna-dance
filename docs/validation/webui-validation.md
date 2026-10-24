@@ -222,3 +222,11 @@ Edge 的 setup、sidebar、recovery 共 **23 项通过**，覆盖条款门禁、
 Go 定向回归通过：默认／null／显式关闭、保存及重开、已有助手／新准备、没有托管映射、UAC 取消、助手准备失败、配置原子写入临时槽冲突，以及同次其他设置不部分保存。Windows 真实子进程与命名管道回归通过。13 项 Edge 回归通过，包含授权失败保留草稿及原退出说明。另运行 TestHostsPolicyBrowser：Edge 连接生产 Console、实际写配置、刷新、请求退出，分别核对由开启改关闭保留私有 hosts、由关闭改开启恢复私有 hosts，均只启动一次助手。没有真实 UAC 提权、系统 hosts 修改或游戏操作。
 
 浏览器首次发现 390px 下新保存提示从短文变长文后页面宽度为 463px：现有 Fluent MessageBar 的自动布局只观察边框尺寸，文本变化未重新触发换行。改用官方 layout=multiline，未增加自定义控件；内存套件与隔离真实 Console 复验通过。失败保留在 artifacts/webui-design/exit-policy-{browser,live,live-diagnostic}.log，最终通过在 exit-policy-{go,browser-final,live-final}.log，实际服务截图在 exit-policy-live/。前端构建通过。
+
+## WebUI 目标实施：一键加速失败回滚（2026-10-24）
+
+手动一键加速按接入、网关、最终复核的顺序执行，任何失败均保留整体失败。只停止本次新开的网关；hosts 助手按最近一次操作前后快照撤销本次接入，可恢复被本次接入清理的旧托管映射。快照只在助手内存中保存，协议不接受外部路径或内容；与并发外部改写冲突时拒绝覆盖并明确报告撤销失败。原有正常接入及已运行网关保留；助手留存供重试。自动启动与网关／队列联动在后续独立阶段接入此流程。
+
+Go 定向回归通过：两端口故障、UAC 拒绝、最终接入核对失败、原有网关／接入的四种组合、普通与旧托管映射撤销、连续失败后复用同一助手成功重试，以及并发外部 hosts 改写导致的撤销失败。测试使用真实回环监听器和私有 hosts 文件，Windows 助手进程回归同时通过；不操作系统 hosts。日志在 artifacts/webui-design/activation-rollback-go.log。
+
+Edge 的 acceleration.spec.ts 共 7 项通过，覆盖整体失败、撤销失败的实际状态与重试。补充最终复核（网关已启动后）失败路径通过，确认新网关关闭、原网关保留。前端构建、类型及资源重建一致性检查通过；浏览器日志在 artifacts/webui-design/activation-rollback-browser.log。浏览器使用内存 API，Go 验证真实隔离生命周期。

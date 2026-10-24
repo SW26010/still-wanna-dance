@@ -43,7 +43,7 @@ func fixtureHostsController(t *testing.T, initial string) (*hostsController, *in
 		go func() { done <- serveHostsSession(helper, path, func() {}) }()
 		return newHostsClient(parent, func() error { return <-done }), nil
 	})
-	t.Cleanup(func() { h.close() })
+	t.Cleanup(func() { h.close(true) })
 	return h, &launches
 }
 
@@ -64,7 +64,7 @@ func TestHostsSessionReuseAndExitPolicy(t *testing.T) {
 				t.Fatal("operations did not share a single helper", *launches)
 			}
 			for range 2 {
-				if err := h.close(); err != nil {
+				if err := h.close(restore); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -96,7 +96,7 @@ func TestHostsSessionChecksOwnedReadyMappingBeforeAuthorization(t *testing.T) {
 			if (*launches > 0) != tc.wantLaunch || h.prepared.Load() != tc.wantLaunch {
 				t.Fatal("wrong authorization decision", *launches, h.prepared.Load())
 			}
-			if err := h.close(); err != nil {
+			if err := h.close(tc.restore); err != nil {
 				t.Fatal(err)
 			}
 			want := tc.initial
@@ -123,7 +123,7 @@ func TestHostsSessionConflictAndDeniedAuthorizationNeverChangeFile(t *testing.T)
 		if err := h.change("enable", true); err == nil {
 			t.Fatal("accepted failed activation")
 		}
-		if err := h.close(); err != nil {
+		if err := h.close(true); err != nil {
 			t.Fatal(err)
 		}
 		if calls != map[bool]int{true: 0, false: 1}[conflict] || readHostsFixture(t, h.path) != data {
@@ -145,7 +145,7 @@ func TestHostsHelperDisconnectUsesSameExitPolicy(t *testing.T) {
 		if (readHostsFixture(t, h.path) == hostsBaseline) != restore {
 			t.Fatal("wrong disconnect policy")
 		}
-		if err := h.close(); err == nil {
+		if err := h.close(true); err == nil {
 			t.Fatal("lost helper must not report a confirmed cleanup")
 		}
 		if *launches != 1 {
@@ -163,7 +163,7 @@ func TestHostsExitReportsChangedEntryWithoutElevationOrOverwriting(t *testing.T)
 	if err := os.WriteFile(h.path, []byte(edited), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.close(); err == nil || *launches != 1 || readHostsFixture(t, h.path) != edited {
+	if err := h.close(true); err == nil || *launches != 1 || readHostsFixture(t, h.path) != edited {
 		t.Fatal("edited entry was overwritten or exit elevated", err, *launches)
 	}
 }
@@ -191,7 +191,7 @@ func TestHostsConsoleCloseUsesPreparedHelperAndActiveSettings(t *testing.T) {
 		h, launches := fixtureHostsController(t, hostsBaseline)
 		c.hosts = h
 		c.settings.RestoreHostsOnExit = restore
-		// A saved choice is for the next instance, not this exit.
+		// An unsaved synthetic snapshot must not change the committed active policy.
 		c.savedSettings.RestoreHostsOnExit = !restore
 		if err := c.changeHosts("enable"); err != nil {
 			t.Fatal(err)
@@ -205,7 +205,7 @@ func TestHostsConsoleCloseUsesPreparedHelperAndActiveSettings(t *testing.T) {
 	}
 }
 
-func TestRestoreHostsSettingDefaultsAndRestart(t *testing.T) {
+func TestRestoreHostsSettingDefaultsAndImmediateSave(t *testing.T) {
 	for _, field := range []string{"", `,"restoreHostsOnExit":null`, `,"restoreHostsOnExit":true`, `,"restoreHostsOnExit":false`} {
 		config := filepath.Join(t.TempDir(), "settings.json")
 		if err := os.WriteFile(config, []byte(`{"schemaVersion":5`+field+`}`), 0600); err != nil {
@@ -215,6 +215,7 @@ func TestRestoreHostsSettingDefaultsAndRestart(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		c.hosts, _ = fixtureHostsController(t, hostsBaseline)
 		want := !strings.Contains(field, "false")
 		if c.settings.RestoreHostsOnExit != want {
 			t.Fatal("wrong default", field)
@@ -224,8 +225,8 @@ func TestRestoreHostsSettingDefaultsAndRestart(t *testing.T) {
 		if err := c.save(next); err != nil {
 			t.Fatal(err)
 		}
-		if c.settings.RestoreHostsOnExit != want {
-			t.Fatal("save changed live exit policy")
+		if c.settings.RestoreHostsOnExit == want {
+			t.Fatal("save did not change live exit policy")
 		}
 		if err := c.Close(); err != nil {
 			t.Fatal(err)
@@ -256,7 +257,7 @@ func TestRestoreHostsSettingsAPIDefaultAndExplicitFalse(t *testing.T) {
 		r.Header.Set("X-SWD-Token", c.token)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
-		if w.Code != 200 || c.savedSettings.RestoreHostsOnExit == include || !c.settings.RestoreHostsOnExit {
+		if w.Code != 200 || c.savedSettings.RestoreHostsOnExit == include || c.settings.RestoreHostsOnExit == include {
 			t.Fatal(w.Code, w.Body.String(), c.savedSettings.RestoreHostsOnExit)
 		}
 	}

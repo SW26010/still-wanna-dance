@@ -45,7 +45,7 @@ type hostsController struct {
 	cancel   context.CancelFunc
 	closed   bool
 	err      error
-	prepared atomic.Bool // published only after the helper acknowledges enable
+	prepared atomic.Bool // helper acknowledged recovery capability; not an exit policy
 }
 
 func newHostsController(path string, launch func(context.Context) (hostsConnection, error)) *hostsController {
@@ -82,7 +82,34 @@ func (h *hostsController) change(action string, restore bool) error {
 	return err
 }
 
-func (h *hostsController) close() error {
+// Prepare capability without changing hosts or the helper's crash cleanup.
+// Normal exit receives the committed policy from Console.Close after saving.
+func (h *hostsController) prepareRestore() error {
+	if h.closed || h.ctx.Err() != nil {
+		return errors.New("控制台正在退出")
+	}
+	data, err := os.ReadFile(h.path)
+	if err != nil {
+		return err
+	}
+	if !hasManagedHosts(string(data)) {
+		return nil
+	}
+	if _, err = transformHosts(string(data), "disable"); err != nil {
+		return err
+	}
+	if h.session == nil {
+		h.session, err = h.launch(h.ctx)
+		if err != nil {
+			return err
+		}
+	}
+	err = h.session.request(hostsRequest{Action: "prepare", TermsVersion: legal.Version})
+	h.prepared.Store(err == nil)
+	return err
+}
+
+func (h *hostsController) close(restore bool) error {
 	if h.closed {
 		return h.err
 	}
@@ -90,7 +117,7 @@ func (h *hostsController) close() error {
 	h.cancel()
 	if h.session != nil {
 		// Never launch, reconnect, or retry elevation from this path.
-		h.err = errors.Join(h.session.request(hostsRequest{Action: "close"}), h.session.close())
+		h.err = errors.Join(h.session.request(hostsRequest{Action: "close", RestoreOnExit: restore}), h.session.close())
 	}
 	return h.err
 }
@@ -187,6 +214,21 @@ func serveHostsSession(conn net.Conn, path string, flush func()) (result error) 
 		}
 		var err error
 		switch request.Action {
+		case "prepare":
+			if err = legal.CheckAcceptance(request.TermsVersion); err == nil {
+				var data []byte
+				data, err = os.ReadFile(path)
+				if err == nil {
+					_, err = transformHosts(string(data), "disable")
+				}
+				if err == nil {
+					var file *os.File
+					file, err = os.OpenFile(path, os.O_WRONLY, 0)
+					if err == nil {
+						err = file.Close()
+					}
+				}
+			}
 		case "enable":
 			if err = legal.CheckAcceptance(request.TermsVersion); err == nil {
 				restore = request.RestoreOnExit
@@ -198,7 +240,7 @@ func serveHostsSession(conn net.Conn, path string, flush func()) (result error) 
 				restore = false
 			}
 		case "close":
-			if restore {
+			if request.RestoreOnExit {
 				err = apply("disable")
 			}
 			restore = false // Report this result; do not silently retry after ack.

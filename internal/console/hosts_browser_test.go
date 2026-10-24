@@ -39,7 +39,7 @@ func TestHostsPolicyBrowser(t *testing.T) {
 		if err := c.Close(); err != nil {
 			t.Fatal(err)
 		}
-		if *launches != 1 || (readHostsFixture(t, h.path) == hostsBaseline) != (phase == "default") {
+		if *launches != 1 || (readHostsFixture(t, h.path) == hostsBaseline) != (phase == "persistent") {
 			t.Fatal("incorrect exit result", phase, *launches)
 		}
 		if phase == "default" {

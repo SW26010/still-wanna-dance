@@ -47,7 +47,7 @@ export async function mockAPI(page: Page) {
       data=selected.map(item=>({key:item.key,result:'deleted'}));
       for(const item of selected) {const i=files.findIndex(f=>f.key===item.key); if(i>=0)files.splice(i,1);}
     }
-    if (path==='settings') {state.settings={...state.settings,...body}; state.restartRequired=JSON.stringify(state.settings)!==JSON.stringify(state.activeSettings);}
+    if (path==='settings') {state.settings={...state.settings,...body};state.activeSettings.restoreHostsOnExit=state.settings.restoreHostsOnExit; state.restartRequired=JSON.stringify(state.settings)!==JSON.stringify(state.activeSettings);}
     if (path==='start') state.running=true;
     if (path==='stop') state.running=false;
     if (path==='activation/enable') {state.running=true;state.hosts.ready=true;state.hosts.exitRestorePrepared=state.activeSettings.restoreHostsOnExit;state.activation={phase:'waiting',readyAt:new Date().toISOString()};}

@@ -56,7 +56,7 @@ export function Panel({ title, children, id, ref, onFocusCapture, action }: Prop
   return <Card size="large" className="panel" id={id} ref={ref} onFocusCapture={onFocusCapture} tabIndex={id ? -1 : undefined}><CardHeader header={<Subtitle2 as="h2">{title}</Subtitle2>} action={action ? { children: action } : undefined} /><div className="content-stack">{children}</div></Card>;
 }
 export function Feedback({ children, error = false }: PropsWithChildren<{ error?: boolean }>) {
-  return children ? <MessageBar intent={error ? 'error' : 'info'}><MessageBarBody>{children}</MessageBarBody></MessageBar> : null;
+  return children ? <MessageBar layout="multiline" intent={error ? 'error' : 'info'}><MessageBarBody>{children}</MessageBarBody></MessageBar> : null;
 }
 export function Details({ title, children, open = false, expanded:controlled, onToggle, keepMounted = false }: PropsWithChildren<{ title: string; open?: boolean; expanded?:boolean; onToggle?:(expanded:boolean)=>void; keepMounted?:boolean }>) {
   // Forms retain drafts while collapsed; anchor focus needs the final layout immediately.

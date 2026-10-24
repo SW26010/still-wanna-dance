@@ -21,24 +21,24 @@
     "webui/src/documents.tsx": "eb64d6494a1db468d1d1c8d291d7b594d896c2e18d7d046d5536134ed6a3422c",
     "webui/src/help-content.tsx": "24deb35012cd8d6e410e556d0b0c70ef40b04a840b6d909c5b2e6e9f70f680e1",
     "webui/src/home-library.tsx": "26af8c25cecaf08c74b26d0aeb3b5743b80b58ff1a4f51c963bfd2602eec6898",
-    "webui/src/hooks.tsx": "db1aeda5c19c40b967595e078be83be1c71b2927670d055c547406c54d76b9e2",
+    "webui/src/hooks.tsx": "b07304a880355e06af6a6b14689d0b21ffe568f1fa4287630b53fdf8b6f96600",
     "webui/src/main.tsx": "ab29472305f0722f0c9ec412d77d61c7f7c92329627183493c03646cebf2fb8a",
     "webui/src/monitor.tsx": "7a27165cf52a116f848b5c693a0e4741600cb8af8f4780cd8edb69141841ec78",
     "webui/src/network.tsx": "f4386ff3bfe16b6ae9634b6e2573469782d7f3afa72b23a3e0104fa2c45046a4",
     "webui/src/requests.ts": "03fc565506bcb2d488f024a71a2f3fefcba42a474f397036ccbfd6eb7c81c2a0",
-    "webui/src/settings.tsx": "2cc5c8610ea1c715925daaa146293f33d81f61b2b71c3c587ab56d3dbda9e785",
+    "webui/src/settings.tsx": "7a5e0375b3e0ae6ec5c46d3be6861d432fb52037bbe4a288561154ac76877799",
     "webui/src/setup.tsx": "1230f006cce09875eb5a8b8bdfd3fc691aa6592cbb4014727d4edc5fc9538b80",
     "webui/src/song-preferences.tsx": "c0206c2ce1d0cf4184bd6bf872f9a5e317f3c1249cd26163da2d6eb4d3a7db26",
     "webui/src/storage-directory.tsx": "f2922a3fd98676f1382fc4a34678038c26c8fbc3b147d0a173840ebd07474661",
     "webui/src/styles.css": "66312d9c0e3ded359e17019d576736cd65b05deea9a5476bd20e35f9fbb93d36",
     "webui/src/types.ts": "91da28735f7b1fa9d0c6f900640124b892a7574263b69fa1cf97ec61beb2d1cc",
-    "webui/src/ui.tsx": "a691c2c3a95e96db4b940b38d4eb31e39c7b7ca7120874c445038c192afa4952",
+    "webui/src/ui.tsx": "34f43a75168e1d336f156e37b83f4b57863cc5c0ca11f7e82999ba383e400967",
     "webui/src/vrcx.tsx": "55669fcacbe940aad05106672ddf7657ad61de5c15944f82184c3fd51cd8b5cf",
     "webui/tsconfig.json": "8b7f2c63c61fc1e6c52d979af1d994b8f7cc2aa9562c2564fd5525385f028a6a"
   },
   "outputs": {
     "docs/licenses/WEBUI-NOTICES.txt": "fa512d9658e45879deac45f9109f8a4c34974c66ada3107914e9e172f8267fa4",
     "internal/console/assets/webui/app.css": "618eb735cf989b7240ae1553ea200b370b44f3b1caf2b8a6f826881b705b61d2",
-    "internal/console/assets/webui/app.js": "9afd45a89fc07ddc3107b5d713f0ebc8638982229c0e7479ed1473e57b3eeee2"
+    "internal/console/assets/webui/app.js": "d97a3f8033e4162da24d418f5f68097cf1cebcbbbb2d9f3b97a4eb14276520f8"
   }
 }

@@ -55,7 +55,7 @@ func TestWindowsHostsSessionRealProcessAndPipe(t *testing.T) {
 				if err := h.session.close(); err != nil {
 					t.Fatal(err)
 				}
-			} else if err := h.close(); err != nil {
+			} else if err := h.close(restore); err != nil {
 				t.Fatal(err)
 			}
 			select {

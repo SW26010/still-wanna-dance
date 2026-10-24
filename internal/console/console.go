@@ -93,7 +93,7 @@ type Console struct {
 	inventoryDone       chan struct{}
 	inventoryCancel     context.CancelFunc // protected by inventoryMu
 	mu                  sync.Mutex
-	settings            Settings // immutable active configuration for this Console
+	settings            Settings // active configuration; only exit policy changes after save
 	savedSettings       Settings // last successfully persisted configuration
 	savedNodeCount      int
 	loadedNodeCount     int
@@ -400,6 +400,11 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool) error {
 	if err = writableDir(s.StorageDir); err != nil {
 		return fmt.Errorf("目录不可写：%w", err)
 	}
+	if s.RestoreHostsOnExit && !oldSettings.RestoreHostsOnExit {
+		if err = c.hosts.prepareRestore(); err != nil {
+			return fmt.Errorf("未保存设置：无法准备退出时恢复游戏直连的权限：%w", err)
+		}
+	}
 	if err = c.writeConfigFile(s); err != nil {
 		return err
 	}
@@ -407,6 +412,7 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool) error {
 	c.refreshSettingsVersionIfUsed(s)
 	c.mu.Lock()
 	c.savedSettings = s
+	c.settings.RestoreHostsOnExit = s.RestoreHostsOnExit
 	c.savedNodeCount = nodeCount
 	delete(c.proxyImports, importID)
 	c.mu.Unlock()
@@ -679,7 +685,10 @@ func (c *Console) BeginShutdown() {
 func (c *Console) Close() error {
 	c.BeginShutdown()
 	c.lifecycleMu.Lock()
-	hostsErr := c.hosts.close()
+	c.mu.Lock()
+	restore := c.settings.RestoreHostsOnExit
+	c.mu.Unlock()
+	hostsErr := c.hosts.close(restore)
 	c.lifecycleMu.Unlock()
 	if hostsErr != nil {
 		hostsErr = fmt.Errorf("退出时未能确认游戏连接已清理，下次启动后请恢复游戏直连：%w", hostsErr)

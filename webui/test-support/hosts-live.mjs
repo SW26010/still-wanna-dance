@@ -18,18 +18,24 @@ try {
   if(phase==='default') {
     await expect(restore).toBeChecked();await restore.uncheck();
     await page.getByRole('button',{name:'保存设置',exact:true}).click();
-    await expect(page.getByRole('button',{name:'立即重启并应用',exact:true})).toBeEnabled();
+    await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
+    await expect(page.getByRole('button',{name:'立即重启并应用',exact:true})).toHaveCount(0);
     await page.reload();
     await page.getByRole('button',{name:'高级游戏接入设置',exact:true}).click();
     await expect(restore).not.toBeChecked();
   } else {
     await expect(restore).not.toBeChecked();
+    await restore.check();
+    await page.getByRole('button',{name:'保存设置',exact:true}).click();
+    await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
     await expect(page.getByRole('button',{name:'立即重启并应用',exact:true})).toHaveCount(0);
   }
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  const geometry=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth,overflow:[...document.querySelectorAll('body *')].filter(e=>e.getBoundingClientRect().right>innerWidth+1).map(e=>({tag:e.tagName,classes:e.className,text:e.textContent?.slice(0,80),width:e.getBoundingClientRect().width}))}));
+  expect(geometry.scroll,JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.viewport);
+  await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:join(output,phase+'-settings.png'),fullPage:true,animations:'disabled'});
   await page.getByRole('button',{name:'退出整个应用',exact:true}).click();
-  await expect(page.getByRole('dialog')).toContainText(phase==='default'?'退出时自动恢复':'退出后保留游戏接入');
+  await expect(page.getByRole('dialog')).toContainText(phase==='persistent'?'退出时自动恢复':'退出后保留游戏接入');
   await page.screenshot({path:join(output,phase+'-exit.png'),animations:'disabled'});
   await page.getByRole('dialog').getByRole('button',{name:'确认',exact:true}).click();
   await expect(page.getByText(/退出请求已接受，正在处理游戏连接/)).toBeVisible();

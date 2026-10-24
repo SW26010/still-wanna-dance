@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/upstreamnet"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
@@ -47,9 +48,9 @@ func TestCFNetworkSmoke(t *testing.T) {
 			t.Error(err)
 		}
 	}()
-	dns := &directDNS{dialer: network}
-	defer dns.close()
-	if _, err := dns.bootstrapProvider(ctx, "doh.pub"); err != nil {
+	dns := upstreamnet.NewResolver(network)
+	defer dns.Close()
+	if _, err := dns.ExperimentBootstrapProvider(ctx, "doh.pub"); err != nil {
 		t.Fatal("DoH bootstrap failed")
 	}
 	result.Bootstrap = true

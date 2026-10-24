@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"still-wanna-dance/internal/upstreamnet"
 	"still-wanna-dance/internal/upstreamrequest"
 	"testing"
 	"time"
@@ -31,7 +32,8 @@ func TestHTTPSLiveBrowser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dns := &directDNS{}
+	dns := upstreamnet.NewResolver(nil)
+	defer dns.Close()
 	p := newHTTPSRelay(l, func(ctx context.Context, network, address string) (net.Conn, error) {
 		conn, err := dns.DialContext(ctx, network, address)
 		if err == nil {

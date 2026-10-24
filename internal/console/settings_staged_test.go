@@ -15,7 +15,7 @@ func restartTestConsole(t *testing.T, c *Console) *Console {
 	if err := c.Close(); err != nil {
 		t.Fatal(err)
 	}
-	next, err := New(c.configPath, c.address)
+	next, err := newConsole(c.configPath, c.address, newFixtureDNS())
 	if err != nil {
 		t.Fatal(err)
 	}

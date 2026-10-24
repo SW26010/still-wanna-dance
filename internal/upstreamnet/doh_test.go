@@ -1,4 +1,4 @@
-package console
+package upstreamnet
 
 import (
 	"context"
@@ -41,7 +41,7 @@ func TestDoHValidatesTLSAndWireResponse(t *testing.T) {
 				w.Write(q)
 			}))
 			defer server.Close()
-			transport := (&directDNS{}).newDoHTransport(server.Listener.Addr().String())
+			transport := (&Resolver{}).newDoHTransport(server.Listener.Addr().String())
 			defer transport.CloseIdleConnections()
 			if mode != "untrusted" {
 				roots := x509.NewCertPool()
@@ -71,7 +71,7 @@ func TestLiveDoHProviders(t *testing.T) {
 	if os.Getenv("SWD_LIVE_DOH") != "1" {
 		t.Skip("opt-in encrypted DNS connectivity check")
 	}
-	d := &directDNS{}
+	d := &Resolver{}
 	for _, provider := range dohProviders {
 		t.Run(provider.host+"/"+provider.ip, func(t *testing.T) {
 			t.Parallel()

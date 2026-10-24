@@ -1,4 +1,4 @@
-package console
+package upstreamnet
 
 import (
 	"context"
@@ -12,8 +12,8 @@ import (
 
 func TestDNSRefreshIsAutomaticAndKeepsValidAnswers(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		d := &directDNS{}
-		defer d.close()
+		d := &Resolver{}
+		defer d.Close()
 		if err := d.setPolicy(DNSPolicy{RefreshAhead: 20 * time.Second, MinInterval: 10 * time.Second, IdleTimeout: time.Minute, QueryTimeout: time.Second}); err != nil {
 			t.Fatal(err)
 		}
@@ -55,8 +55,8 @@ func TestDNSRefreshIsAutomaticAndKeepsValidAnswers(t *testing.T) {
 
 func TestDNSRefreshSharesForegroundAndUsesAnswerOrder(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		d := &directDNS{}
-		defer d.close()
+		d := &Resolver{}
+		defer d.Close()
 		var calls atomic.Int32
 		release := make(chan struct{})
 		query := func(ctx context.Context) ([]string, time.Duration, error) {
@@ -96,8 +96,8 @@ func TestDNSRefreshSharesForegroundAndUsesAnswerOrder(t *testing.T) {
 
 func TestDNSRefreshPolicyIdleAndProxyPause(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		d := &directDNS{}
-		defer d.close()
+		d := &Resolver{}
+		defer d.Close()
 		var calls atomic.Int32
 		query := func(context.Context) ([]string, time.Duration, error) {
 			calls.Add(1)
@@ -137,7 +137,7 @@ func TestDNSRefreshPolicyIdleAndProxyPause(t *testing.T) {
 
 func TestDNSCloseCancelsSharedQuery(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		d := &directDNS{}
+		d := &Resolver{}
 		go func() {
 			_, err := d.lookupShared(context.Background(), "example.com", func(ctx context.Context) ([]string, time.Duration, error) { <-ctx.Done(); return nil, 0, ctx.Err() })
 			if !errors.Is(err, context.Canceled) {
@@ -145,8 +145,8 @@ func TestDNSCloseCancelsSharedQuery(t *testing.T) {
 			}
 		}()
 		synctest.Wait()
-		d.close()
-		d.close()
+		d.Close()
+		d.Close()
 		synctest.Wait()
 		if len(d.lookups) != 0 {
 			t.Fatal("query outlived close")

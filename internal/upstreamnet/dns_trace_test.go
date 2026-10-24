@@ -1,4 +1,4 @@
-package console
+package upstreamnet
 
 import (
 	"context"
@@ -33,8 +33,8 @@ func TestDNSLookupDoesNotInheritRequestTrace(t *testing.T) {
 		_, _ = io.WriteString(w, "target response")
 	}))
 	defer target.Close()
-	d := &directDNS{}
-	defer d.close()
+	d := &Resolver{}
+	defer d.Close()
 	client := target.Client()
 	transport := client.Transport.(*http.Transport).Clone()
 	defer transport.CloseIdleConnections()

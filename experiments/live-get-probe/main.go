@@ -16,7 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"still-wanna-dance/internal/console"
+	"still-wanna-dance/internal/upstreamnet"
 )
 
 const quantum = 16 * 1024
@@ -289,7 +289,9 @@ func main() {
 	}
 	defer listener.Close()
 	context.AfterFunc(ctx, func() { listener.Close() })
-	r := &relay{pace: &pacer{rate: *rate}, perConnection: *perConnection, dial: console.NewUpstreamDialer(), log: log}
+	resolver := upstreamnet.NewResolver(nil)
+	defer resolver.Close()
+	r := &relay{pace: &pacer{rate: *rate}, perConnection: *perConnection, dial: resolver.DialContext, log: log}
 	readRate := func() error {
 		if *rateFile == "" {
 			return nil

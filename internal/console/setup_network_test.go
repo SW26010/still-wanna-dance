@@ -47,7 +47,7 @@ func TestSetupDirectScopeDoesNotReplaceBusinessProxy(t *testing.T) {
 	if len(n.channel.Snapshot().Candidates.Current("https://api.udon.dance")) != 0 {
 		t.Fatal("unexpected cold direct candidate")
 	}
-	if len(c.dns.cache) != 0 {
+	if testDNS(c).queries.Load() != 0 {
 		t.Fatal("scope construction queried DNS")
 	}
 }

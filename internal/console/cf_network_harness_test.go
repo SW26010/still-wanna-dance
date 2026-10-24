@@ -20,6 +20,8 @@ import (
 
 	"golang.getoutline.org/sdk/transport"
 	"golang.org/x/sys/windows"
+
+	"still-wanna-dance/internal/upstreamnet"
 )
 
 func TestCFNetworkConfig(t *testing.T) {
@@ -190,7 +192,7 @@ func TestCFNetworkDNSInjection(t *testing.T) {
 	var mu sync.Mutex
 	var addresses []string
 	denied := errors.New("fixture refuses outbound connections")
-	d := &directDNS{dialer: transport.FuncStreamDialer(func(ctx context.Context, address string) (transport.StreamConn, error) {
+	d := upstreamnet.NewResolver(transport.FuncStreamDialer(func(ctx context.Context, address string) (transport.StreamConn, error) {
 		mu.Lock()
 		addresses = append(addresses, address)
 		mu.Unlock()
@@ -199,16 +201,16 @@ func TestCFNetworkDNSInjection(t *testing.T) {
 			t.Errorf("dialer received unresolved address %q", address)
 		}
 		return nil, denied
-	})}
-	defer d.close()
+	}))
+	defer d.Close()
 	ctx := context.Background()
 	if c, err := d.DialContext(ctx, "tcp", "192.0.2.1:443"); c != nil || err == nil {
 		t.Fatal("ordinary dial bypassed injected dependency")
 	}
-	if _, _, err := d.queryProvider(ctx, dohProviders[0], "example.com", dnsTypeA); err == nil {
+	if _, _, err := d.ExperimentQueryProvider(ctx, upstreamnet.ExperimentProviders()[0], "example.com", upstreamnet.ExperimentDNSA); err == nil {
 		t.Fatal("DoH bypassed injected dependency")
 	}
-	if _, err := d.bootstrapProvider(ctx, "doh.pub"); err == nil {
+	if _, err := d.ExperimentBootstrapProvider(ctx, "doh.pub"); err == nil {
 		t.Fatal("bootstrap bypassed injected dependency")
 	}
 	mu.Lock()

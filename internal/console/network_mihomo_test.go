@@ -219,7 +219,7 @@ func TestMihomoBusinessFallbackReachesFifthProxy(t *testing.T) {
 				t.Fatal(err)
 			}
 			if mode == "warm-auto" {
-				c.dns.cache = map[string]dnsEntry{"127.0.0.1": {ips: []string{"127.0.0.1", "127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5", "127.0.0.6"}, until: time.Now().Add(time.Hour)}}
+				testDNS(c).seed("127.0.0.1", "127.0.0.1", "127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5", "127.0.0.6")
 			}
 			c.client.Transport.(interface{ Retire() }).Retire()
 			c.client, c.settings, c.apiBase = client, s, direct.URL

@@ -13,6 +13,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"still-wanna-dance/internal/upstreamnet"
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
@@ -42,7 +43,7 @@ type cfDNSObservation struct {
 	Error      string
 }
 type cfDNSRecorder struct {
-	d       *directDNS
+	d       *upstreamnet.Resolver
 	mu      sync.Mutex
 	answers []cfDNSAnswer
 	lookups []cfDNSLookup
@@ -55,13 +56,13 @@ func (r *cfDNSRecorder) resolve(ctx context.Context, host string) ([]string, tim
 	r.nextID++
 	id := r.nextID
 	r.mu.Unlock()
-	var queries []dnsQuery
-	for _, provider := range dohProviders {
-		for _, kind := range []uint16{dnsTypeAAAA, dnsTypeA} {
+	var queries []upstreamnet.ExperimentDNSQuery
+	for _, provider := range upstreamnet.ExperimentProviders() {
+		for _, kind := range []uint16{upstreamnet.ExperimentDNSAAAA, upstreamnet.ExperimentDNSA} {
 			queries = append(queries, func(ctx context.Context) ([]string, time.Duration, error) {
 				start := time.Now()
-				ips, ttl, err := r.d.queryProvider(ctx, provider, host, kind)
-				row := cfDNSAnswer{LookupID: id, Host: host, Started: start, Provider: provider.host, Endpoint: provider.ip, Kind: kind, IPs: ips, TTLMS: cfexpMS(ttl), ElapsedMS: cfexpMS(time.Since(start))}
+				ips, ttl, err := r.d.ExperimentQueryProvider(ctx, provider, host, kind)
+				row := cfDNSAnswer{LookupID: id, Host: host, Started: start, Provider: provider.Host, Endpoint: provider.IP, Kind: kind, IPs: ips, TTLMS: cfexpMS(ttl), ElapsedMS: cfexpMS(time.Since(start))}
 				if err != nil {
 					row.Error = "query_failed"
 					if ctx.Err() != nil {
@@ -75,7 +76,7 @@ func (r *cfDNSRecorder) resolve(ctx context.Context, host string) ([]string, tim
 			})
 		}
 	}
-	ips, ttl, err := collectDNS(ctx, queries)
+	ips, ttl, err := upstreamnet.ExperimentCollectDNS(ctx, queries)
 	row := cfDNSLookup{ID: id, Host: host, Started: started, IPs: ips, TTLMS: cfexpMS(ttl), ElapsedMS: cfexpMS(time.Since(started))}
 	if err != nil {
 		row.Error = "lookup_failed"
@@ -89,7 +90,7 @@ func (r *cfDNSRecorder) Addresses(ctx context.Context, host string) ([]upstreamr
 	if host != cfexpHost && host != "api.udon.dance" {
 		return nil, fmt.Errorf("unexpected host")
 	}
-	_, err := r.d.lookupShared(ctx, host, func(ctx context.Context) ([]string, time.Duration, error) { return r.resolve(ctx, host) })
+	_, err := r.d.ExperimentLookupShared(ctx, host, func(ctx context.Context) ([]string, time.Duration, error) { return r.resolve(ctx, host) })
 	return r.d.CurrentAddresses(host), err
 }
 func (r *cfDNSRecorder) CurrentAddresses(host string) []upstreamrequest.Address {
@@ -113,8 +114,8 @@ func TestCFFamilyDNSExperiment(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
 	network := cfexpStartNetwork(t, ctx, cancel, dir)
-	r := &cfDNSRecorder{d: &directDNS{dialer: network}}
-	defer r.d.close()
+	r := &cfDNSRecorder{d: upstreamnet.NewResolver(network)}
+	defer r.d.Close()
 	pool, err := network.pool(r)
 	if err != nil {
 		t.Fatal(err)
@@ -142,10 +143,8 @@ func TestCFFamilyDNSExperiment(t *testing.T) {
 		for _, c := range cs {
 			row.Addresses = append(row.Addresses, upstreamrequest.Address{IP: c.IP, Expires: c.ValidUntil})
 		}
-		r.d.mu.Lock()
-		row.CacheIPs = slices.Clone(r.d.cache[cfexpHost].ips)
-		row.CacheUntil = r.d.cache[cfexpHost].until
-		r.d.mu.Unlock()
+		snapshot := r.d.ExperimentSnapshot(cfexpHost)
+		row.CacheIPs, row.CacheUntil = snapshot.CacheIPs, snapshot.CacheUntil
 		observations = append(observations, row)
 		save()
 		if i%15 == 0 || len(cs) != 6 {
@@ -156,7 +155,7 @@ func TestCFFamilyDNSExperiment(t *testing.T) {
 		}
 	}
 	// Wait for already canceled provider calls to record their outcome.
-	r.d.close()
+	r.d.Close()
 	if err := cfexpPause(ctx, time.Second); err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +169,7 @@ func TestCFFamilyDNSHarness(t *testing.T) {
 				if fast == slow {
 					slow = "2606:4700:20::681a:41c"
 				}
-				query := func(ip string, delay time.Duration) dnsQuery {
+				query := func(ip string, delay time.Duration) upstreamnet.ExperimentDNSQuery {
 					return func(ctx context.Context) ([]string, time.Duration, error) {
 						select {
 						case <-time.After(delay):
@@ -180,7 +179,7 @@ func TestCFFamilyDNSHarness(t *testing.T) {
 						}
 					}
 				}
-				ips, _, err := collectDNS(context.Background(), []dnsQuery{query(fast, 10*time.Millisecond), query(slow, 300*time.Millisecond)})
+				ips, _, err := upstreamnet.ExperimentCollectDNS(context.Background(), []upstreamnet.ExperimentDNSQuery{query(fast, 10*time.Millisecond), query(slow, 300*time.Millisecond)})
 				if err != nil || !slices.Equal(ips, []string{fast}) {
 					t.Fatalf("late family: %v %v", ips, err)
 				}
@@ -189,9 +188,9 @@ func TestCFFamilyDNSHarness(t *testing.T) {
 	}
 	t.Run("zero_ttl", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
-			d := &directDNS{}
-			defer d.close()
-			ips, err := d.lookupShared(context.Background(), cfexpHost, func(context.Context) ([]string, time.Duration, error) {
+			d := upstreamnet.NewResolver(nil)
+			defer d.Close()
+			ips, err := d.ExperimentLookupShared(context.Background(), cfexpHost, func(context.Context) ([]string, time.Duration, error) {
 				return []string{"104.26.4.28", "2606:4700:20::681a:41c"}, 0, nil
 			})
 			if err != nil || len(ips) != 2 || len(d.CurrentAddresses(cfexpHost)) != 0 {

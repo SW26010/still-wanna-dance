@@ -18,35 +18,15 @@ import (
 	"testing/synctest"
 	"time"
 
+	"still-wanna-dance/internal/upstreamnet"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
 
-type cfDiscoverySnapshot struct {
-	At                        time.Time
-	Host                      string
-	CacheIPs                  []string
-	CacheUntil                time.Time
-	Leases                    map[string]time.Time
-	Attempted, Observed, Next time.Time
-	LookupPending             bool
-	LastError                 string
-}
+type cfDiscoverySnapshot = upstreamnet.ExperimentDNSSnapshot
 
-func cfDiscoveryState(d *directDNS, host string) cfDiscoverySnapshot {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	row := cfDiscoverySnapshot{At: time.Now(), Host: host, CacheIPs: slices.Clone(d.cache[host].ips), CacheUntil: d.cache[host].until, Leases: map[string]time.Time{}, LookupPending: d.lookups[host] != nil}
-	for ip, until := range d.leases[host] {
-		row.Leases[ip] = until
-	}
-	if s := d.states[host]; s != nil {
-		row.Attempted, row.Observed, row.Next = s.attempted, s.observed, s.next
-		if s.err != nil {
-			row.LastError = "lookup_failed"
-		}
-	}
-	return row
+func cfDiscoveryState(d *upstreamnet.Resolver, host string) cfDiscoverySnapshot {
+	return d.ExperimentSnapshot(host)
 }
 
 type cfDiscoveryEvent struct {
@@ -172,8 +152,8 @@ func TestCFDiscoveryExperiment(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	network := cfexpStartNetwork(t, ctx, cancel, dir)
-	r := &cfDNSRecorder{d: &directDNS{dialer: network}}
-	defer r.d.close()
+	r := &cfDNSRecorder{d: upstreamnet.NewResolver(network)}
+	defer r.d.Close()
 	pool, err := network.pool(r)
 	if err != nil {
 		t.Fatal(err)
@@ -275,7 +255,7 @@ func TestCFDiscoveryExperiment(t *testing.T) {
 	}
 	m.Close()
 	pool.Close()
-	r.d.close()
+	r.d.Close()
 	if err := cfexpPause(ctx, time.Second); err != nil {
 		t.Fatal(err)
 	}
@@ -284,11 +264,11 @@ func TestCFDiscoveryExperiment(t *testing.T) {
 
 func TestCFDiscoveryHarness(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		d := &directDNS{}
-		defer d.close()
+		d := upstreamnet.NewResolver(nil)
+		defer d.Close()
 		ctx := context.Background()
 		ips := []string{"104.26.4.28", "2606:4700:20::681a:41c"}
-		_, err := d.lookupShared(ctx, cfexpHost, func(context.Context) ([]string, time.Duration, error) { return ips, time.Second, nil })
+		_, err := d.ExperimentLookupShared(ctx, cfexpHost, func(context.Context) ([]string, time.Duration, error) { return ips, time.Second, nil })
 		if err != nil {
 			t.Fatal(err)
 		}

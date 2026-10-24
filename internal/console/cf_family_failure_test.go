@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/upstreamnet"
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
@@ -26,7 +27,7 @@ func TestCFFamilyFailureHarness(t *testing.T) {
 		{"empty", "candidate_set_empty", cfexpStatic{}},
 		{"removed", "chosen_candidate_not_returned", cfexpStatic{ips: []string{"192.0.2.2"}, until: time.Now().Add(time.Hour)}},
 		{"lookup", "candidate_discovery_failed", cfFamilyFailingDNS{}},
-		{"cancelled", "context", &directDNS{}},
+		{"cancelled", "context", upstreamnet.NewResolver(nil)},
 		{"binding", "network_binding_failed", cfexpStatic{}},
 		{"available", "", cfexpStatic{ips: []string{ip}, until: time.Now().Add(time.Hour)}},
 	} {

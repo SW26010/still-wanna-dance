@@ -21,8 +21,8 @@ import (
 	"sync"
 	"time"
 
-	"still-wanna-dance/internal/console"
 	"still-wanna-dance/internal/proxyengine/mihomo"
+	"still-wanna-dance/internal/upstreamnet"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
@@ -82,7 +82,7 @@ func main() {
 			nodes = append(nodes, n)
 			dial = n.Proxy().Dial
 		} else {
-			d, err := console.NewAuthenticatedSOCKS5Dialer(ep.Address, ep.Username, ep.Password)
+			d, err := upstreamnet.NewAuthenticatedSOCKS5Dialer(ep.Address, ep.Username, ep.Password)
 			if err != nil {
 				fmt.Println(`{"ready":false}`)
 				return

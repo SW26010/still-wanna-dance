@@ -1,4 +1,4 @@
-package console
+package upstreamnet
 
 import (
 	"context"
@@ -19,7 +19,7 @@ var dohProviders = []dohProvider{
 	{"dns.google", "8.8.8.8"},
 }
 
-func (d *directDNS) queryProvider(ctx context.Context, provider dohProvider, host string, kind uint16) ([]string, time.Duration, error) {
+func (d *Resolver) queryProvider(ctx context.Context, provider dohProvider, host string, kind uint16) ([]string, time.Duration, error) {
 	if provider.ip != "" {
 		return d.queryDNS(ctx, provider.host, provider.ip, "/dns-query", host, kind)
 	}
@@ -32,7 +32,7 @@ func (d *directDNS) queryProvider(ctx context.Context, provider dohProvider, hos
 	})
 }
 
-func (d *directDNS) queryProviderIPs(ctx context.Context, provider string, ips []string, query func(context.Context, string) ([]string, time.Duration, error)) ([]string, time.Duration, error) {
+func (d *Resolver) queryProviderIPs(ctx context.Context, provider string, ips []string, query func(context.Context, string) ([]string, time.Duration, error)) ([]string, time.Duration, error) {
 	var failures []error
 	// Two HTTPS connection attempts at most per dynamically discovered provider.
 	for _, ip := range ips[:min(2, len(ips))] {
@@ -58,7 +58,7 @@ func (d *directDNS) queryProviderIPs(ctx context.Context, provider string, ips [
 	return nil, 0, errors.Join(failures...)
 }
 
-func (d *directDNS) bootstrapProvider(ctx context.Context, host string) ([]string, error) {
+func (d *Resolver) bootstrapProvider(ctx context.Context, host string) ([]string, error) {
 	key := "bootstrap/" + host
 	for {
 		d.mu.Lock()

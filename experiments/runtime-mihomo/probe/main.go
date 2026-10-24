@@ -20,7 +20,7 @@ import (
 	"syscall"
 	"time"
 
-	"still-wanna-dance/internal/console"
+	"still-wanna-dance/internal/upstreamnet"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
@@ -94,7 +94,7 @@ func main() {
 		id := fmt.Sprintf("stable-v1-%064x", i+1)
 		var dial upstreamrequest.DialFunc
 		{
-			d, err := console.NewAuthenticatedSOCKS5Dialer(ep.Address, ep.Username, ep.Password)
+			d, err := upstreamnet.NewAuthenticatedSOCKS5Dialer(ep.Address, ep.Username, ep.Password)
 			if err != nil {
 				fmt.Println(`{"ready":false}`)
 				return

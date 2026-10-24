@@ -97,8 +97,9 @@ func TestHTTPSRelayPreservesTLSAndRange(t *testing.T) {
 					backend.StartTLS()
 					defer backend.Close()
 					_, port, _ := net.SplitHostPort(backend.Listener.Addr().String())
-					dns := &directDNS{cache: map[string]dnsEntry{host: {[]string{ip}, time.Now().Add(time.Minute)}}}
-					defer dns.close()
+					dns := newFixtureDNS()
+					dns.seed(host, ip)
+					defer dns.Close()
 					p := runTestRelay(t, func(ctx context.Context, network, address string) (net.Conn, error) {
 						if address != net.JoinHostPort(host, "443") || network != "tcp" {
 							t.Errorf("wrong upstream: %s %s", network, address)

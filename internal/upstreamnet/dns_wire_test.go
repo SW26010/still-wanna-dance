@@ -1,4 +1,4 @@
-package console
+package upstreamnet
 
 import (
 	"encoding/binary"

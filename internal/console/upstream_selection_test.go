@@ -67,9 +67,8 @@ func TestMihomoPartialObservationsKeepActiveFallbacks(t *testing.T) {
 			c.client, c.settings = client, s
 			runtime := client.Transport.(*mihomoTransport)
 			if mode != "cold-auto" {
-				c.dns.cache = make(map[string]dnsEntry)
 				for _, host := range []string{"api.udon.dance", "play.udon.dance"} {
-					c.dns.cache[host] = dnsEntry{ips: []string{"127.0.0.1", "127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5", "127.0.0.6"}, until: time.Now().Add(time.Hour)}
+					testDNS(c).seed(host, "127.0.0.1", "127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5", "127.0.0.6")
 				}
 			}
 			var probeCalls atomic.Int32

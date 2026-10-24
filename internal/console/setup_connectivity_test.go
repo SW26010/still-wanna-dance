@@ -168,7 +168,7 @@ func TestSetupConnectivityUsesUnsavedSOCKS5AndCancelsConnection(t *testing.T) {
 	if s.Upstream != "proxy" || s.Phase != "canceled" || len(s.Results) != 0 {
 		t.Fatal(s)
 	}
-	if c.client != before || c.settings != settings || upstreamrequest.Default.Snapshot().Revision != business || len(c.dns.cache) != 0 {
+	if c.client != before || c.settings != settings || upstreamrequest.Default.Snapshot().Revision != business || testDNS(c).queries.Load() != 0 {
 		t.Fatal("diagnostic changed business routing or used direct DNS")
 	}
 }

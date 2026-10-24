@@ -190,7 +190,7 @@ func TestSetupProxyMonitorReusesOnlyMatchingDraft(t *testing.T) {
 	if _, err := selectMonitor(settings); err == nil || c.setupNetwork.proxy.monitor != second || second.Snapshot().Closed {
 		t.Fatal("failed replacement destroyed the current scope", err)
 	}
-	if c.setupNetwork.monitor != direct || direct.Snapshot().Closed || len(c.dns.cache) != 0 {
+	if c.setupNetwork.monitor != direct || direct.Snapshot().Closed || testDNS(c).queries.Load() != 0 {
 		t.Fatal("proxy selection changed direct scope or queried DNS")
 	}
 	c.Close()

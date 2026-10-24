@@ -21,6 +21,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/upstreamnet"
 )
 
 var cfTriadCandidates = flag.String("cftriad-candidates", "", "frozen public candidate JSON")
@@ -306,8 +308,8 @@ func TestCFTriadExperiment(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Minute)
 	defer cancel()
 	network := cfexpStartNetwork(t, ctx, cancel, dir)
-	dns := &directDNS{dialer: network}
-	defer dns.close()
+	dns := upstreamnet.NewResolver(network)
+	defer dns.Close()
 	ordinary := cfTriadTransport(dns.DialContext, "")
 	defer ordinary.CloseIdleConnections()
 	client := &http.Client{Transport: ordinary, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
@@ -329,7 +331,7 @@ func TestCFTriadExperiment(t *testing.T) {
 	if err := cfexpSave(filepath.Join(dir, "targets-private.json"), targets); err != nil {
 		fail("save_targets")
 	}
-	w.DNSIPs, err = dns.lookup(prep, cfexpHost)
+	w.DNSIPs, err = dns.ExperimentLookup(prep, cfexpHost)
 	if err != nil || len(w.DNSIPs) == 0 {
 		fail("dns_discovery")
 	}

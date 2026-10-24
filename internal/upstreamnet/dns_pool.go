@@ -1,4 +1,4 @@
-package console
+package upstreamnet
 
 import (
 	"context"
@@ -9,13 +9,13 @@ import (
 )
 
 // Addresses exposes only valid DNS answers; performance belongs to the monitor.
-func (d *directDNS) Addresses(ctx context.Context, host string) ([]upstreamrequest.Address, error) {
+func (d *Resolver) Addresses(ctx context.Context, host string) ([]upstreamrequest.Address, error) {
 	if _, err := d.lookup(ctx, host); err != nil {
 		return nil, err
 	}
 	return d.CurrentAddresses(host), nil
 }
-func (d *directDNS) CurrentAddresses(host string) []upstreamrequest.Address {
+func (d *Resolver) CurrentAddresses(host string) []upstreamrequest.Address {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	e := d.cache[host]
@@ -41,7 +41,7 @@ func (d *directDNS) CurrentAddresses(host string) []upstreamrequest.Address {
 	}
 	return result
 }
-func (d *directDNS) DNSChanged() <-chan struct{} {
+func (d *Resolver) DNSChanged() <-chan struct{} {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.changed == nil {
@@ -49,7 +49,7 @@ func (d *directDNS) DNSChanged() <-chan struct{} {
 	}
 	return d.changed
 }
-func (d *directDNS) changedLocked() {
+func (d *Resolver) changedLocked() {
 	if d.changed != nil {
 		close(d.changed)
 	}

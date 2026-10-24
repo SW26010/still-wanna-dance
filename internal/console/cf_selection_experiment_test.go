@@ -21,6 +21,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/upstreamnet"
 )
 
 const cfSelectionBudget int64 = 3 << 30
@@ -212,8 +214,8 @@ func TestCFSelectionExperiment(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 	network := cfexpStartNetwork(t, ctx, cancel, dir)
-	dns := &directDNS{dialer: network}
-	defer dns.close()
+	dns := upstreamnet.NewResolver(network)
+	defer dns.Close()
 	ordinary := &http.Transport{DialContext: dns.DialContext, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 20 * time.Second}
 	defer ordinary.CloseIdleConnections()
 	client := &http.Client{Transport: ordinary, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
@@ -232,7 +234,7 @@ func TestCFSelectionExperiment(t *testing.T) {
 		fail("save_targets")
 	}
 	// lookup returns current transaction answers even when they have zero TTL.
-	w.DNSIPs, err = dns.lookup(ctx, cfexpHost)
+	w.DNSIPs, err = dns.ExperimentLookup(ctx, cfexpHost)
 	if err != nil || len(w.DNSIPs) == 0 {
 		fail("dns_discovery")
 	}

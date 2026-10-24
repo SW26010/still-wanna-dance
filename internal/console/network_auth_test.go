@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/upstreamnet"
 )
 
 func TestSOCKS5Authentication(t *testing.T) {
@@ -57,7 +59,7 @@ func TestSOCKS5Authentication(t *testing.T) {
 		}
 	}
 	for _, pair := range [][2]string{{"user", ""}, {"", "secret"}, {strings.Repeat("a", 256), "secret"}, {"user", strings.Repeat("密", 86)}} {
-		if _, err := NewAuthenticatedSOCKS5Dialer(address, pair[0], pair[1]); err == nil {
+		if _, err := upstreamnet.NewAuthenticatedSOCKS5Dialer(address, pair[0], pair[1]); err == nil {
 			t.Fatal("accepted invalid credentials")
 		}
 	}

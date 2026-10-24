@@ -18,7 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"still-wanna-dance/internal/console"
+	"still-wanna-dance/internal/upstreamnet"
 )
 
 type bodyMedia struct {
@@ -250,7 +250,8 @@ func runBodyProbe(parent context.Context, address, httpsAddress, manifestPath, c
 			return err
 		}
 		defer tlsListener.Close()
-		dial := console.NewUpstreamDialer()
+		resolver := upstreamnet.NewResolver(nil)
+		defer resolver.Close()
 		go func() {
 			for {
 				c, err := tlsListener.Accept()
@@ -261,7 +262,7 @@ func runBodyProbe(parent context.Context, address, httpsAddress, manifestPath, c
 					defer c.Close()
 					stop := context.AfterFunc(ctx, func() { c.Close() })
 					defer stop()
-					u, err := dial(ctx, "tcp", "api.udon.dance:443")
+					u, err := resolver.DialContext(ctx, "tcp", "api.udon.dance:443")
 					if err != nil {
 						return
 					}

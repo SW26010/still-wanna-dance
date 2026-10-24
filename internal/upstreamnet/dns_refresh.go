@@ -1,4 +1,4 @@
-package console
+package upstreamnet
 
 import (
 	"context"
@@ -30,11 +30,7 @@ type dnsState struct {
 	timer                               *time.Timer
 }
 
-// SetDNSPolicy changes the running resolver's policy; callers need no changes
-// to benefit from automatic refresh with the default policy.
-func (c *Console) SetDNSPolicy(p DNSPolicy) error { return c.dns.setPolicy(p) }
-
-func (d *directDNS) initLocked() {
+func (d *Resolver) initLocked() {
 	if d.ctx != nil {
 		return
 	}
@@ -51,7 +47,7 @@ func (d *directDNS) initLocked() {
 	}
 }
 
-func (d *directDNS) setPolicy(p DNSPolicy) error {
+func (d *Resolver) setPolicy(p DNSPolicy) error {
 	if p.RefreshAhead < 0 || p.MinInterval <= 0 || p.IdleTimeout <= 0 || p.QueryTimeout <= 0 {
 		return errors.New("invalid DNS refresh policy")
 	}
@@ -70,7 +66,7 @@ func (d *directDNS) setPolicy(p DNSPolicy) error {
 }
 
 // queryLocked coalesces background refresh and foreground cache misses.
-func (d *directDNS) queryLocked(host string, s *dnsState) *dnsLookup {
+func (d *Resolver) queryLocked(host string, s *dnsState) *dnsLookup {
 	if call := d.lookups[host]; call != nil {
 		return call
 	}
@@ -141,14 +137,14 @@ func (d *directDNS) queryLocked(host string, s *dnsState) *dnsLookup {
 	return call
 }
 
-func (d *directDNS) nextLocked(host string, s *dnsState) {
+func (d *Resolver) nextLocked(host string, s *dnsState) {
 	s.next = d.cache[host].until.Add(-d.policy.RefreshAhead)
 	if earliest := s.attempted.Add(d.policy.MinInterval); s.next.Before(earliest) {
 		s.next = earliest
 	}
 }
 
-func (d *directDNS) scheduleLocked(host string, s *dnsState) {
+func (d *Resolver) scheduleLocked(host string, s *dnsState) {
 	if s.timer != nil {
 		s.timer.Stop()
 		s.timer = nil
@@ -186,7 +182,7 @@ func (d *directDNS) scheduleLocked(host string, s *dnsState) {
 
 // Switching to a proxy stops direct background traffic. Existing foreground
 // requests may still finish using their transport snapshot.
-func (d *directDNS) setBackgroundEnabled(enabled bool) {
+func (d *Resolver) setBackgroundEnabled(enabled bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.paused = !enabled
@@ -195,7 +191,7 @@ func (d *directDNS) setBackgroundEnabled(enabled bool) {
 	}
 }
 
-func (d *directDNS) close() {
+func (d *Resolver) Close() {
 	d.mu.Lock()
 	d.closed = true
 	if d.cancel != nil {

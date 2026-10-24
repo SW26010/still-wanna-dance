@@ -25,6 +25,7 @@ import (
 	"still-wanna-dance/internal/branding"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/desktop"
+	"still-wanna-dance/internal/upstreamnet"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 	"still-wanna-dance/internal/vrclog"
@@ -130,7 +131,7 @@ type Console struct {
 	client              *http.Client
 	checksumURL         string
 	apiBase             string
-	dns                 *directDNS
+	dns                 directResolver
 	upstreamDial        upstreamDialFunc
 	requestRevision     uint64
 	monitor             *upstreamstate.Monitor
@@ -146,6 +147,10 @@ type Console struct {
 }
 
 func New(configPath, address string) (*Console, error) {
+	return newConsole(configPath, address, upstreamnet.NewResolver(nil))
+}
+
+func newConsole(configPath, address string, dns directResolver) (*Console, error) {
 	identity, err := desktop.NewIdentity(configPath)
 	if err != nil {
 		return nil, err
@@ -171,7 +176,7 @@ func New(configPath, address string) (*Console, error) {
 	}
 	c.exitRequested = make(chan struct{})
 	c.restartRequested = make(chan struct{})
-	c.dns = &directDNS{}
+	c.dns = dns
 	data, fields, err := readConfigFile(configPath)
 	if err != nil {
 		return nil, err
@@ -206,7 +211,7 @@ func New(configPath, address string) (*Console, error) {
 		if tr, ok := c.client.Transport.(interface{ Retire() }); ok {
 			tr.Retire()
 		}
-		c.dns.close()
+		c.dns.Close()
 	}
 	return c, err
 }
@@ -261,10 +266,10 @@ func absoluteSettings(s Settings) (Settings, error) {
 	}
 	s.SOCKS5Address = strings.TrimSpace(s.SOCKS5Address)
 	if s.UpstreamMode != "direct" && s.ProxyBackend == "external-socks5" {
-		if err := validateSOCKS5Address(s.SOCKS5Address); err != nil {
+		if err := upstreamnet.ValidateSOCKS5Address(s.SOCKS5Address); err != nil {
 			return s, err
 		}
-		if err := validateSOCKS5Credentials(s.SOCKS5Username, s.SOCKS5Password); err != nil && s.proxySecretError == "" {
+		if err := upstreamnet.ValidateSOCKS5Credentials(s.SOCKS5Username, s.SOCKS5Password); err != nil && s.proxySecretError == "" {
 			return s, err
 		}
 	}
@@ -741,7 +746,7 @@ func (c *Console) Close() error {
 		tr.Retire()
 	}
 	if c.dns != nil {
-		c.dns.close()
+		c.dns.Close()
 	}
 	return errors.Join(err, hostsErr)
 }

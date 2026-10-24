@@ -4,6 +4,8 @@
 
 DNS 仅维护答案合法且 TTL 未过期的 IP 池、刷新和并发查询合并，不记录连接胜者，不测延迟或吞吐。通道层组合入口与传输路径，维护可执行的候选及稳定身份。Upstream State Monitor 对每个操作、入口、通道分别测量，提供推荐；业务仍负责资源版本校验、下载和失败处理。
 
+`internal/upstreamnet` 统一承载独立 DoH、DNS 池与刷新、双栈拨号及 SOCKS5 adapter；命令行与 Console 直接复用它，分别拥有解析器的关闭责任。`upstreamrequest` 继续定义候选池与拨号契约，Console 只组装配置、连接池及应用生命周期。协议测试随网络实现维护；Console 测试通过相同网络契约注入夹具，不读取解析器私有缓存。现有 CF 实验的细粒度观测仅在 `cf_block_experiment` 构建中提供，正式产品不包含实验探针。
+
 直连候选为 `入口主机 × IP`；SOCKS5 候选为 `入口主机 × 当前代理配置`。SOCKS5 始终传递原域名，让代理解析目标，绝不展开本地 IP。代理凭据不进入候选 ID、检查结果或日志。配置版本由应用请求通道持有，旧版本观测不能用于新版本。
 
 代理后端可选外部 SOCKS5 或内嵌 Mihomo B2，后者从单个完整核心捕获固定出口对象，最多激活五个已保存节点，不执行订阅中的分组、规则、入站或系统网络配置。二者共用 `Proxy{ID,Dial}` 与候选策略，持久化通道仍沿用 `socks5` 前缀。B2 容量不足、运行时退役与调用者取消仅更新独立诊断，保留已有质量和吞吐样本，不延长其有效期；真实超时与响应错误仍会影响质量。设置保存后重启生效，详见 [B2 集成记录](validation/issue-14-b2-integration.md)。
@@ -63,3 +65,7 @@ SOCKS5 持久化身份使用[配置实例数据根](storage.md)的 `channel.key`
 自动吞吐检测间隔可在 WebUI 设置中调整，默认 20 分钟，允许 1～1440 分钟整数，对应 throughputIntervalMinutes，未设置时采用默认值。Monitor 策略固定为创建时快照；保存不改变当前监测，应用重启后按新间隔与已持久化的最近测速尝试时间计算到期时间，不重置计时，已到期则进入正常调度。此设置同时决定吞吐样本参与推荐的有效期，首字节检测频率不变。保存无需先停止网关或任务，现行生效契约见[配置生命周期](settings-lifecycle.md)。
 
 2026-10-24 策略固定验证：删除没有生产调用者的 Monitor.SetPolicy、专属调度唤醒及跨批次补偿状态；策略仅在构造时规范化与校验。测试按构造参数覆盖周期和请求超时，使用明确过期的观测夹具检查结果失效，保留候选事件、取消、手动检查及吞吐冷却持久化覆盖。upstreamstate 整包通过，Console 的 Monitor／吞吐设置定向回归通过。首次迁移测试沿用了稍晚于当前时间的观测，过期断言失败；调整夹具为明确过去的观测后通过，未修改产品时钟或加入兜底。日志保留在 artifacts/optimization-audit/monitor-policy.log、monitor-policy-verified.log。
+
+2026-10-24 网络模块拆分验证：独立 DNS 与 SOCKS5 实现移至 `upstreamnet`，保留原解析、双栈、代理认证及半关闭行为；命令行的 `go list -deps` 不再包含 Console、桌面或 Mihomo。DNS 协议回归随实现迁移，Console 的通道、HTTPS、代理和设置隔离测试继续验证实际组装路径。`go test -p 1 -tags=no_easytier ./cmd/... ./internal/...`、同范围 vet 与只读依赖构建通过；Windows race 覆盖 DNS、DoH、SOCKS5、Monitor、吞吐及生命周期锁并发场景。带 `cf_block_experiment` 标签的编译和受控实验夹具通过，独立 CF 并发与本地限速工具测试通过；Mihomo 实验模块同步根模块已有的 Outline SDK 和 SQLite 依赖记录后，普通 probe 回归及 `external_only` 只读编译通过，产品依赖版本未变。
+
+首次并发执行整套检查时，未修改的 cacheproxy 包中 `TestRetainedQueueRefetchAfterEviction/HIT_address_changed_identity` 等待资源解析结束超时；该包不依赖本次调整的 Console、upstreamnet 或 upstreamstate。该用例独立连续运行五次通过，随后整套 Go 测试串行通过，未改动该用例或产品超时。未据复验通过推断首次失败的具体原因。原始失败、复验、race 和实验模块首次只读依赖失败均保留在忽略目录 `artifacts/optimization-audit/`。本轮未重新运行公网性能实验或 VRC，既有实网数据仍只适用于其记录版本和时段。

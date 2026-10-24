@@ -1,4 +1,4 @@
-package console
+package upstreamnet
 
 import (
 	"context"
@@ -123,7 +123,7 @@ func TestDNSDialRacesCandidatesWithoutRankingDNS(t *testing.T) {
 	}
 	defer l.Close()
 	_, port, _ := net.SplitHostPort(l.Addr().String())
-	d := &directDNS{cache: map[string]dnsEntry{"race.invalid": {[]string{"127.0.0.2", "127.0.0.1"}, time.Now().Add(time.Minute)}}}
+	d := &Resolver{cache: map[string]dnsEntry{"race.invalid": {[]string{"127.0.0.2", "127.0.0.1"}, time.Now().Add(time.Minute)}}}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	c, err := d.DialContext(ctx, "tcp4", net.JoinHostPort("race.invalid", port))

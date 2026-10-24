@@ -51,7 +51,7 @@ Windows amd64、Go **1.25.0**、Python 3 标准库；`CGO_ENABLED=0`、`GOTOOLCH
 - 导出 `Tunnel.HandleTCPConn` 外包一层通用计数，最多 **64** 个未结束操作，满额立即失败。该上限独立于节点 K。不能排队等待：Go HTTP Transport 的拨号可以脱离原请求取消，早期 32 槽排队版曾产生积压；失败证据保留。
 - `Close` 先拒绝新入口并关闭本层业务管道，再关闭核心代理、可关闭 provider 和 executor；最多观察 7 秒排空。没有追踪或改写核心内部各协议 socket。全局 resolver/inner 仍存在，不能当作多租户、热替换或可卸载运行时。
 - C 复用旧实验的 `Core`、受限目录和 Windows Job：stdin 主配置、认证回环入口、单成员固定组及 `MATCH,REJECT`。正文先经过**与 B 相同的能力门禁**。正常退出清理本轮 provider；生产崩溃遗留清扫仍需实现。
-- B/C 驱动共用 `main.go`，C 的 `external_only` 构建不链接完整 executor；两者都引用现有 console SOCKS 工厂，因而仍链接现行 adapter 的一部分依赖。这是实验二进制成本，不是最终桌面大小。B/core 的共同依赖版本以构建信息核对。
+- B/C 驱动共用 `main.go`，C 的 `external_only` 构建不链接完整 executor。历史评估时两者通过 console SOCKS 工厂链接了现行 adapter 的一部分依赖；2026-10-24 改为直接引用 `upstreamnet`，不再经 Console 引入该依赖。历史二进制成本仍只适用于对应版本，不是最终桌面大小；新实验须重新核对 B/core 的构建信息。
 - 所有子进程在执行前加入本轮 Job，隐藏启动。只清理本轮进程和已知 provider 文件，不启动游戏、改 hosts 或操作用户媒体。输出位于忽略的 `artifacts/issue14/runtime-comparison/`；每次随机目录限制为当前用户/SYSTEM。
 - 监听表先用本轮 HTTP 夹具做阳性对照。沙箱若返回空表，整轮标失败；空结果不能证明没有监听。需要正常用户上下文的只读网络表访问，不需要管理员改网络。
 - 合成基准：3 轮交替、每轮 1 次冷请求、40 次热请求、8 × 16 MiB 正文 SHA256。工作集/CPU 是驱动加核心，排除夹具；Windows QPC 计时。C 的启动包含控制 API 轮询，B 为内存 ready，启动数字不宜解释为纯解析耗时。

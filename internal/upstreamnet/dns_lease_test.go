@@ -1,4 +1,4 @@
-package console
+package upstreamnet
 
 import (
 	"context"
@@ -23,8 +23,8 @@ func TestDNSRefreshRetainsOriginalLease(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
-				d := &directDNS{}
-				defer d.close()
+				d := &Resolver{}
+				defer d.Close()
 				const host, v4, v6 = "example.com", "192.0.2.1", "2001:db8::1"
 				var calls atomic.Int32
 				start := time.Now()

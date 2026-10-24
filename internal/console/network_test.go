@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"still-wanna-dance/internal/upstreamnet"
 	"still-wanna-dance/internal/upstreamrequest"
 	"strconv"
 	"strings"
@@ -140,7 +141,7 @@ func TestSOCKS5RelayDrainsResponseAfterClientHalfClose(t *testing.T) {
 		// Reply only after observing FIN, so premature full-close cannot pass.
 		io.WriteString(conn, response)
 	})
-	dial, err := NewSOCKS5Dialer(address)
+	dial, err := upstreamnet.NewSOCKS5Dialer(address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +198,7 @@ func TestSOCKS5DelegatesDNSAndHonorsCancellation(t *testing.T) {
 				socksReply(conn, 0)
 				io.WriteString(conn, "proxied")
 			})
-			dial, err := NewSOCKS5Dialer(address)
+			dial, err := upstreamnet.NewSOCKS5Dialer(address)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -253,7 +254,7 @@ func TestSOCKS5SettingsValidation(t *testing.T) {
 		}
 	}
 	for _, address := range []string{"127.0.0.1:1080", "localhost:1080", "[::1]:1080"} {
-		if _, err := NewSOCKS5Dialer(address); err != nil {
+		if _, err := upstreamnet.NewSOCKS5Dialer(address); err != nil {
 			t.Errorf("%s: %v", address, err)
 		}
 	}
@@ -280,7 +281,7 @@ func TestSOCKS5FailureDoesNotContactReachableDestination(t *testing.T) {
 			address = l.Addr().String()
 			l.Close()
 		}
-		dial, err := NewSOCKS5Dialer(address)
+		dial, err := upstreamnet.NewSOCKS5Dialer(address)
 		if err != nil {
 			t.Fatal(err)
 		}

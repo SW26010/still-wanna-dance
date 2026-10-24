@@ -136,7 +136,7 @@ func TestSetupCalibrationSOCKS5DraftAndCancellation(t *testing.T) {
 		t.Fatal("canceled result lost upstream or exposed proxy configuration")
 	}
 	after, _ := os.ReadFile(c.configPath)
-	if !bytes.Equal(before, after) || saved != c.savedSettings || active != c.settings || client != c.client || upstreamrequest.Default.Snapshot().Revision != business.Revision || len(c.dns.cache) != 0 {
+	if !bytes.Equal(before, after) || saved != c.savedSettings || active != c.settings || client != c.client || upstreamrequest.Default.Snapshot().Revision != business.Revision || testDNS(c).queries.Load() != 0 {
 		t.Fatal("test changed business configuration/channel or queried direct DNS")
 	}
 }

@@ -32,7 +32,7 @@ func TestLiveDirectDualStack(t *testing.T) {
 	}
 	u.Scheme = "https"
 	for _, host := range []string{"api.udon.dance", u.Hostname()} {
-		ips, err := c.dns.lookup(ctx, host)
+		ips, err := c.dns.Addresses(ctx, host)
 		if err != nil {
 			t.Fatal(err)
 		}

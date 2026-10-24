@@ -6,7 +6,7 @@
 
 首轮后恢复研究的独立时段与历史预测见 [CONTINUATION](CONTINUATION.md)；完整预取、Monitor 与两地址历史复验见 [PRODUCT](PRODUCT.md)，分别由 `analyze_history.py` 和 `analyze_product.py` 复算。产品预取 v1 的普通直连远端 trace 存在嵌套 DNS 归因限制，v2 修订及诊断另行标明。
 
-本实验复用产品 `directDNS`、`upstreamstate.Monitor`、固定候选 Transport 和 `cacheproxy.DiscardLoader`。入口在 `internal/console/cf_block_experiment_test.go`，仅以 `windows && cf_block_experiment` 标签编译；普通构建和测试不包含它。放在 console 测试包是为了访问实际 DNS 实现，避免为实验添加生产 API。
+本实验复用产品 `upstreamnet.Resolver`、`upstreamstate.Monitor`、固定候选 Transport 和 `cacheproxy.DiscardLoader`。入口在 `internal/console/cf_block_experiment_test.go`，仅以 `windows && cf_block_experiment` 标签编译；普通构建和测试不包含它。2026-10-24 网络模块拆分后，实验保留在 console 测试包以复用实际产品路径；DNS 细粒度观测通过仅在 `cf_block_experiment` 标签下编译的探针读取，正式产品不包含实验 API。
 
 > 首个下午两组窗口完成后，用户要求澄清 IPv4/IPv6 限制，后续执行改用独立[四组协议](FAMILY.md)。本文件作为原始预先方法保留，两种协议不混算。
 

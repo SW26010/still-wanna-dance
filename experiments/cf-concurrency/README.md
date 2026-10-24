@@ -1,6 +1,6 @@
 # CF 单视频 Range 并发实验
 
-开发实验，复用 `upstreamrequest.NewPool` 的固定直连 HTTP Transport 和 `console.NewUpstreamDialer` 的独立 DNS。产品代码、配置、库、hosts 和游戏均不改动。
+开发实验，复用 `upstreamrequest.NewPool` 的固定直连 HTTP Transport 和 `upstreamnet.Resolver` 的独立 DNS。产品代码、配置、库、hosts 和游戏均不改动。
 
 ## 问题与范围
 

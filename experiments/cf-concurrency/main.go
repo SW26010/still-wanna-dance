@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/applog"
-	"still-wanna-dance/internal/console"
+	"still-wanna-dance/internal/upstreamnet"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/videometa"
 )
@@ -66,7 +66,9 @@ func clientFor(t target) (*http.Client, func(), error) {
 }
 
 func prepare(ctx context.Context, song int) (target, error) {
-	tr := &http.Transport{DialContext: console.NewUpstreamDialer(), TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 20 * time.Second}
+	resolver := upstreamnet.NewResolver(nil)
+	defer resolver.Close()
+	tr := &http.Transport{DialContext: resolver.DialContext, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 20 * time.Second}
 	defer tr.CloseIdleConnections()
 	c := &http.Client{Transport: tr, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	r, _ := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://api.udon.dance/Api/Songs/play?node=cf&id=%d", song), nil)

@@ -1,4 +1,4 @@
-package console
+package upstreamnet
 
 import (
 	"bytes"
@@ -18,8 +18,9 @@ import (
 	"still-wanna-dance/internal/applog"
 )
 
-// Certificate-verified DoH never consults OS hosts or plaintext DNS.
-type directDNS struct {
+// Resolver uses certificate-verified DoH, never OS hosts or plaintext DNS.
+// Its zero value is ready to use; call Close to stop shared lookups and refresh.
+type Resolver struct {
 	// Optional transport dependency, set before the resolver is used. DNS,
 	// including provider bootstrap, and resolved TCP connections share it.
 	dialer        transport.StreamDialer
@@ -44,11 +45,11 @@ type dnsLookup struct {
 	err  error
 }
 
-// NewUpstreamDialer shares the desktop's certificate-verified DoH implementation
-// with the command-line service. It never falls back to the system resolver.
-func NewUpstreamDialer() func(context.Context, string, string) (net.Conn, error) {
-	d := &directDNS{}
-	return d.DialContext
+// NewResolver shares one independent DNS pool across calls. A nil dialer uses
+// the standard TCP transport; explicit transports also bind DoH bootstrap.
+// The owner calls Close when no more connections are needed.
+func NewResolver(dialer transport.StreamDialer) *Resolver {
+	return &Resolver{dialer: dialer}
 }
 
 type dnsEntry struct {
@@ -64,7 +65,7 @@ type dnsAnswer struct {
 	}
 }
 
-func (d *directDNS) lookup(ctx context.Context, host string) ([]string, error) {
+func (d *Resolver) lookup(ctx context.Context, host string) ([]string, error) {
 	if ip := net.ParseIP(host); ip != nil {
 		return []string{ip.String()}, nil
 	}
@@ -75,7 +76,7 @@ func (d *directDNS) lookup(ctx context.Context, host string) ([]string, error) {
 
 // Cache checks and in-flight registration are atomic. Each caller can stop
 // waiting independently; the shared query retains its own configured timeout.
-func (d *directDNS) lookupShared(ctx context.Context, host string, query dnsQuery) ([]string, error) {
+func (d *Resolver) lookupShared(ctx context.Context, host string, query dnsQuery) ([]string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -107,7 +108,7 @@ func (d *directDNS) lookupShared(ctx context.Context, host string, query dnsQuer
 	}
 }
 
-func (d *directDNS) resolve(ctx context.Context, host string) ([]string, time.Duration, error) {
+func (d *Resolver) resolve(ctx context.Context, host string) ([]string, time.Duration, error) {
 	var queries []dnsQuery
 	for _, provider := range dohProviders {
 		for _, kind := range []uint16{dnsTypeAAAA, dnsTypeA} {
@@ -206,7 +207,7 @@ func collectDNS(ctx context.Context, queries []dnsQuery) ([]string, time.Duratio
 	return pool(), ttl, nil
 }
 
-func (d *directDNS) queryDNS(ctx context.Context, provider, ip, path, host string, kind uint16) ([]string, time.Duration, error) {
+func (d *Resolver) queryDNS(ctx context.Context, provider, ip, path, host string, kind uint16) ([]string, time.Duration, error) {
 	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
 	t := d.newDoHTransport(net.JoinHostPort(ip, "443"))
@@ -217,7 +218,7 @@ func (d *directDNS) queryDNS(ctx context.Context, provider, ip, path, host strin
 
 // Dial only the supplied IP; URL hostname still supplies TLS SNI and certificate
 // verification. No proxy, system DNS, custom trust roots or insecure TLS flags.
-func (d *directDNS) newDoHTransport(address string) *http.Transport {
+func (d *Resolver) newDoHTransport(address string) *http.Transport {
 	return &http.Transport{DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
 		if d.dialer != nil {
 			return d.dialer.DialStream(ctx, address)
@@ -294,7 +295,7 @@ func dnsAddresses(answer dnsAnswer) ([]string, time.Duration, error) {
 	return ips, time.Duration(ttl) * time.Second, nil
 }
 
-func (d *directDNS) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+func (d *Resolver) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	host, _, err := net.SplitHostPort(address)
 	if err != nil {
 		return nil, err

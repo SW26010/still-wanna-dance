@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/upstreamnet"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
@@ -94,7 +95,7 @@ func cfFamilyPick(candidates []cfFamilyCandidate) (map[string]string, error) {
 func cfFamilyTransport(ctx context.Context, network *cfNetwork, dns upstreamrequest.DNSPool, target, ip string) (http.RoundTripper, func(), error) {
 	detail := &cfFamilyCandidateError{IP: ip}
 	u, _ := url.Parse(target)
-	if d, ok := dns.(*directDNS); ok && u != nil {
+	if d, ok := dns.(*upstreamnet.Resolver); ok && u != nil {
 		s := cfDiscoveryState(d, u.Hostname())
 		detail.Before = &s
 		defer func() { s := cfDiscoveryState(d, u.Hostname()); detail.After = &s }()
@@ -197,8 +198,8 @@ func TestCFFamilyExperiment(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Minute)
 	defer cancel()
 	network := cfexpStartNetwork(t, ctx, cancel, dir)
-	dns := &directDNS{dialer: network}
-	defer dns.close()
+	dns := upstreamnet.NewResolver(network)
+	defer dns.Close()
 	ordinary := &http.Transport{DialContext: dns.DialContext, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 20 * time.Second}
 	defer ordinary.CloseIdleConnections()
 	client := &http.Client{Transport: ordinary, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}

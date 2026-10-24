@@ -28,6 +28,7 @@ import (
 	"golang.org/x/sys/windows"
 	"still-wanna-dance/internal/blocksched"
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/upstreamnet"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 	"still-wanna-dance/internal/videometa"
@@ -445,8 +446,8 @@ func TestCFBlockExperiment(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 	network := cfexpStartNetwork(t, ctx, cancel, dir)
-	dns := &directDNS{dialer: network}
-	defer dns.close()
+	dns := upstreamnet.NewResolver(network)
+	defer dns.Close()
 	ordinary := &http.Transport{DialContext: dns.DialContext, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 20 * time.Second}
 	defer ordinary.CloseIdleConnections()
 	client := &http.Client{Transport: ordinary, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}

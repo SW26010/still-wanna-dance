@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 
 	"github.com/metacubex/mihomo/listener/inbound"
-	"still-wanna-dance/internal/console"
+	"still-wanna-dance/internal/upstreamnet"
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
@@ -31,7 +31,7 @@ func (r *fullRuntime) startFixedSOCKS(name string) (upstreamrequest.DialFunc, er
 		return nil, err
 	}
 	r.privateEndpoints = append(r.privateEndpoints, endpoint{Address: l.Address(), Username: username, Password: password})
-	return console.NewAuthenticatedSOCKS5Dialer(l.Address(), username, password)
+	return upstreamnet.NewAuthenticatedSOCKS5Dialer(l.Address(), username, password)
 }
 
 func (r *fullRuntime) endpoints() []endpoint { return r.privateEndpoints }

@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
-	"still-wanna-dance/internal/console"
 	"still-wanna-dance/internal/legal"
+	"still-wanna-dance/internal/upstreamnet"
 )
 
 func main() {
@@ -30,7 +30,9 @@ func run() (resultErr error) {
 	showTerms := flag.Bool("show-terms", false, "print usage terms and exit")
 	acceptTerms := flag.String("accept-terms", "", "explicitly accept the terms version shown by -show-terms")
 	cfg := cacheproxy.DefaultConfig()
-	cfg.DialContext = console.NewUpstreamDialer()
+	resolver := upstreamnet.NewResolver(nil)
+	defer resolver.Close()
+	cfg.DialContext = resolver.DialContext
 	socks5Address := flag.String("socks5-proxy", "", "SOCKS5 proxy host:port; delegates destination DNS to proxy; empty uses built-in DoH directly")
 	socks5Username := flag.String("socks5-username", "", "SOCKS5 username; set password via SWD_SOCKS5_PASSWORD")
 	listen := flag.String("listen", "127.0.0.1:18080", "HTTP listen address (use 127.0.0.1:80 for game integration)")
@@ -78,7 +80,7 @@ func run() (resultErr error) {
 	}
 	if *socks5Address != "" {
 		var err error
-		cfg.DialContext, err = console.NewAuthenticatedSOCKS5Dialer(*socks5Address, *socks5Username, socks5Password())
+		cfg.DialContext, err = upstreamnet.NewAuthenticatedSOCKS5Dialer(*socks5Address, *socks5Username, socks5Password())
 		if err != nil {
 			return err
 		}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -23,7 +22,7 @@ import (
 func testConsole(t *testing.T) *Console {
 	t.Helper()
 	root := t.TempDir()
-	c, err := New(filepath.Join(root, "config.json"), "127.0.0.1:18081")
+	c, err := newConsole(filepath.Join(root, "config.json"), "127.0.0.1:18081", newFixtureDNS())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,30 +246,6 @@ func TestCancelBatchAndStopCDNAreIndependent(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("cancel did not interrupt catalog request")
 	}
-}
-
-func TestDNSValidation(t *testing.T) {
-	var answer dnsAnswer
-	if err := json.Unmarshal([]byte(`{"Status":0,"Answer":[{"type":1,"TTL":60,"data":"127.0.0.1"},{"type":1,"TTL":120,"data":"203.0.113.9"}]}`), &answer); err != nil {
-		t.Fatal(err)
-	}
-	ips, ttl, err := dnsAddresses(answer)
-	if err != nil || len(ips) != 1 || ips[0] != "203.0.113.9" || ttl != 120*time.Second {
-		t.Fatal(ips, ttl, err)
-	}
-	// An unresolvable OS name still connects via the independent resolver cache.
-	l, err := net.Listen("tcp4", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
-	_, port, _ := net.SplitHostPort(l.Addr().String())
-	d := &directDNS{cache: map[string]dnsEntry{"hosts-must-not-be-used.invalid": {[]string{"127.0.0.1"}, time.Now().Add(time.Minute)}}}
-	conn, err := d.DialContext(context.Background(), "tcp", "hosts-must-not-be-used.invalid:"+port)
-	if err != nil {
-		t.Fatal(err)
-	}
-	conn.Close()
 }
 
 func TestLiveIndependentDNS(t *testing.T) {

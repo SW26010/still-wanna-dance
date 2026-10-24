@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/upstreamnet"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
@@ -258,8 +259,8 @@ func cfProductRun(ctx context.Context, network *cfNetwork, root string, s *cfPro
 	defer cancel()
 	recorder := &cfProductRecorder{started: s.Started, stage: "setup", total: total, stop: stop}
 	defer func() { s.Finished = time.Now(); s.Requests = recorder.snapshot(); save() }()
-	dns := &directDNS{dialer: network}
-	defer dns.close()
+	dns := upstreamnet.NewResolver(network)
+	defer dns.Close()
 	ordinary := &http.Transport{DialContext: dns.DialContext, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 20 * time.Second}
 	defer ordinary.CloseIdleConnections()
 	base := recorder.wrap(ordinary, "")

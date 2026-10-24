@@ -1,4 +1,4 @@
-package console
+package upstreamnet
 
 import (
 	"context"
@@ -40,8 +40,8 @@ func TestDoHProviderEmptyAnswerPreservesBootstrap(t *testing.T) {
 			defer server.Close()
 			entry := dnsEntry{[]string{"192.0.2.1", "192.0.2.2"}, time.Now().Add(time.Minute)}
 			key := "bootstrap/provider.test"
-			d := &directDNS{cache: map[string]dnsEntry{key: entry}}
-			defer d.close()
+			d := &Resolver{cache: map[string]dnsEntry{key: entry}}
+			defer d.Close()
 			for _, kind := range []uint16{dnsTypeAAAA, dnsTypeA} {
 				calls.Store(0)
 				d.cache[key] = entry

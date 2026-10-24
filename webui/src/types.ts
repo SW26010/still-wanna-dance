@@ -4,7 +4,7 @@ export interface Settings {
   storageDir: string; maxCacheBytes: number; videoStorageMode: 'none' | 'limited' | 'unlimited'; requestRetentionDays: number; throughputIntervalMinutes: number;
   prepareAheadSeconds: number; downloadSoftLimit: number; downloadGrowIntervalMS: number; localProtectionGraceSeconds: number; downloadUpstream: string; upstreamMode: string;
   proxyBackend: string; socks5Address: string; socks5Username: string; socks5Password?: string;
-  autoAccelerate: boolean; queueWithGateway: boolean; restoreHostsOnExit: boolean; manualLogDir: boolean; logDir: string;
+  autoAccelerate: boolean; autoOpenWebUI: boolean; queueWithGateway: boolean; restoreHostsOnExit: boolean; manualLogDir: boolean; logDir: string;
 }
 export interface Job {
 	 target?: {songID?:string;resource?:string};

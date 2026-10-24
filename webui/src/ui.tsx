@@ -1,30 +1,38 @@
-import { useEffect, useState, Fragment, type PropsWithChildren, type Ref, type FocusEventHandler, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, Fragment, type PropsWithChildren, type Ref, type FocusEventHandler, type ReactNode } from 'react';
 import { FluentProvider, webLightTheme, webDarkTheme, Card, CardHeader, Divider, Image, Subtitle1, Subtitle2, Link, MessageBar, MessageBarBody, Accordion, AccordionItem, AccordionHeader, AccordionPanel, ProgressBar, NavDrawer, NavDrawerHeader, NavDrawerBody, NavItem, Hamburger, useRestoreFocusTarget } from '@fluentui/react-components';
 import { bootstrap } from './bootstrap';
 
+type ThemePreference='system'|'light'|'dark';
+const themeKey='swd-theme';
+const ThemeContext=createContext<{preference:ThemePreference;setPreference:(value:ThemePreference)=>void}>({preference:'system',setPreference:()=>{}});
+export const useThemePreference=()=>useContext(ThemeContext);
+function storedTheme():ThemePreference {try {const value=localStorage.getItem(themeKey);return value==='light'||value==='dark'?value:'system';}catch{return 'system';}}
 export function Provider({ children }: PropsWithChildren) {
-  const [dark, setDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
+  const [preference,setPreference]=useState<ThemePreference>(storedTheme);
+  const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
+  const dark=preference==='dark'||preference==='system'&&systemDark;
   useEffect(() => {
     const media = matchMedia('(prefers-color-scheme: dark)');
-    const change = () => setDark(media.matches);
+    const change = () => setSystemDark(media.matches);
     media.addEventListener('change', change);
     return () => media.removeEventListener('change', change);
   }, []);
+  useEffect(()=>{const change=(e:StorageEvent)=>{if(e.key===themeKey)setPreference(storedTheme());};addEventListener('storage',change);return()=>removeEventListener('storage',change);},[]);
   useEffect(() => {
     // Favicon rasterization/caching does not reliably follow media queries inside SVGs.
     const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (icon) icon.href = dark ? '/favicon.ico' : '/favicon-light.ico';
   }, [dark]);
-  return <FluentProvider className="app-provider" theme={{ ...(dark ? webDarkTheme : webLightTheme), fontFamilyBase: '"Segoe UI", "Microsoft YaHei", sans-serif' }}>{children}</FluentProvider>;
+  return <ThemeContext.Provider value={{preference,setPreference:value=>{setPreference(value);try{localStorage.setItem(themeKey,value);}catch{/* Keep the selected theme for this page if browser storage is unavailable. */}}}}><FluentProvider className="app-provider" data-theme={dark?'dark':'light'} style={{colorScheme:dark?'dark':'light'}} theme={{ ...(dark ? webDarkTheme : webLightTheme), fontFamilyBase: '"Segoe UI", "Microsoft YaHei", sans-serif' }}>{children}</FluentProvider></ThemeContext.Provider>;
 }
 export function Brand() {
   return <div className="brand"><Image src="/assets/logo.svg" className="brand-logo" width="32" height="32" shape="rounded" alt="" /><Subtitle1>Still Wanna Dance</Subtitle1></div>;
 }
-export const consolePages=[['home','游戏加速'],['timeline','时间线'],['library','曲库'],['cache','本地视频'],['network','网络与代理'],['settings','设置']] as const;
+export const consolePages=[['home','视频加速'],['timeline','时间线'],['library','曲库'],['settings','设置']] as const;
 export const documentPages={help:'帮助',about:'关于',terms:'使用条款'} as const;
 export type DocumentPage=keyof typeof documentPages;
 export const isDocumentPage=(page:string):page is DocumentPage=>Object.hasOwn(documentPages,page);
-export function pageHref(page:typeof consolePages[number][0]|DocumentPage|'setup') {
+export function pageHref(page:typeof consolePages[number][0]|DocumentPage|'setup'|'network'|'cache') {
   return bootstrap.page==='console'?'#/'+page:isDocumentPage(page)?'/'+page:'/#/'+page;
 }
 export const sectionHref=(id:string)=>(bootstrap.page==='console'?'#':'/#')+id;
@@ -50,7 +58,7 @@ export function NavigationLayout({children,items,selected,label='控制台页面
   </div>;
 }
 export function pageLinks() {
-  return [...consolePages.map(([value,label])=>({value,label,href:pageHref(value)})),{value:'help',label:'帮助',href:pageHref('help')}];
+  return [...consolePages.map(([value,label])=>({value,label,href:pageHref(value)})),{value:'about',label:'关于',href:pageHref('about')}];
 }
 export function Panel({ title, children, id, ref, onFocusCapture, action }: PropsWithChildren<{ title: string; id?: string; ref?:Ref<HTMLDivElement>; onFocusCapture?:FocusEventHandler<HTMLDivElement>; action?:ReactNode }>) {
   return <Card size="large" className="panel" id={id} ref={ref} onFocusCapture={onFocusCapture} tabIndex={id ? -1 : undefined}><CardHeader header={<Subtitle2 as="h2">{title}</Subtitle2>} action={action ? { children: action } : undefined} /><div className="content-stack">{children}</div></Card>;
@@ -75,7 +83,7 @@ export function Progress({ value, max, label }: { value?: number; max?: number; 
 export function DocumentLayout({ children }: PropsWithChildren) {
   return <div className="shell"><Link className="skip-link" href="#main">跳到主要内容</Link>
     <header><Brand /><span>WannaDance 本地控制台</span></header>
-    <NavigationLayout items={pageLinks()} selected={isDocumentPage(bootstrap.page)?'help':bootstrap.page}>
+    <NavigationLayout items={pageLinks()} selected={isDocumentPage(bootstrap.page)?'about':bootstrap.page}>
     <main id="main" tabIndex={-1}>{children}</main>
     <DocumentFooter page={bootstrap.page}/>
     </NavigationLayout>

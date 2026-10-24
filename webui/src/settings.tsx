@@ -3,7 +3,7 @@ import { Button, Checkbox, Field, Input, Link, Select, Textarea, Caption1 } from
 import { bootstrap } from './bootstrap';
 import { decode, request } from './api';
 import { useApp } from './hooks';
-import { Details, Feedback, Panel, Progress } from './ui';
+import { Details, Feedback, Panel, Progress, useThemePreference } from './ui';
 import { type Settings, type Status } from './types';
 import { CacheCapacityFields, CacheReclamationFields, capacityPayload, type CapacityDraft } from './cache-capacity';
 import { StorageDirectoryFields } from './storage-directory';
@@ -88,6 +88,7 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending, w
 export type SettingsSection = 'application' | 'storage' | 'downloads' | 'network';
 export function SettingsPage({section='application',children}: {section?:SettingsSection;children?:(form:ReactNode,draft:Draft)=>ReactNode}) {
   const app = useApp(), s = app.status.data!;
+  const theme=useThemePreference();
   const [draft, setDraft] = useState<Partial<Draft>>(), [pending, setPending] = useState(false);
   const [awaitingRevision, setAwaitingRevision] = useState<number>();
   const discard = () => { void releaseImport(draft?.proxyImportID || ''); setDraft(undefined); setPending(false); setAwaitingRevision(undefined); };
@@ -126,7 +127,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
       <Details title="高级存储设置"><CacheReclamationFields mode={d.videoStorageMode} reclamation={d.aggressiveCacheReclamation} disabled={disabled} onChange={update} />
       {numberField('localProtectionGraceSeconds','本地延续保护时长（秒）',0,10000,'默认 300 秒，可设为 0～10000 的整数。最后一份需求结束后，继续保护本地缓存的时间。0 表示不延续保护；时间越长，占用空间可能越多。')}
       </Details></fieldset>}
-      {section==='application'&&<><fieldset disabled={disabled}><legend>控制台启动</legend><Checkbox label="启用控制台后自动一键加速" checked={d.autoAccelerate} onChange={(_, v) => update({autoAccelerate:!!v.checked})} /><p>默认开启。保存后在下次启动控制台程序时执行一次，刷新网页不会重复。需先同意条款并完成引导；接入游戏时可能请求管理员授权。</p></fieldset>
+      {section==='application'&&<><Field label="主题" hint="仅保存于此浏览器，选择后立即生效。"><Select value={theme.preference} onChange={(_,v)=>theme.setPreference(v.value as 'system'|'light'|'dark')}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></Select></Field><fieldset disabled={disabled}><legend>控制台启动</legend><Checkbox label="启用控制台后自动打开 WebUI" checked={d.autoOpenWebUI} onChange={(_,v)=>update({autoOpenWebUI:!!v.checked})}/><p>保存后在下次启动程序时生效。关闭后仍可通过托盘打开控制台；网页中的重启会复用当前页面。</p><Checkbox label="启用控制台后自动一键加速" checked={d.autoAccelerate} onChange={(_, v) => update({autoAccelerate:!!v.checked})} /><p>默认开启。保存后在下次启动控制台程序时执行一次，刷新网页不会重复。需先同意条款并完成引导；接入游戏时可能请求管理员授权。</p></fieldset>
       <Details title="高级游戏接入设置"><Checkbox label="退出时恢复游戏直连" checked={d.restoreHostsOnExit} disabled={disabled} onChange={(_,v)=>update({restoreHostsOnExit:!!v.checked})}/><p>默认开启。关闭后，退出会保留游戏接入，后续使用可减少管理员确认；玩游戏前需要启动 SWD。保存成功后用于本次退出，无需重启；仅修改勾选不会生效。开启并保存时若已有托管接入，可能需要管理员授权；取消授权不会保存任何设置。</p></Details>
       {numberField('requestRetentionDays','请求明细保留天数',0,36500,'默认 30 天，0 表示永久保留。只清理请求明细，累计统计保留。')}</>}
       {section==='network'&&<>      <fieldset><legend>网络连接</legend><NetworkFields key={app.settingsEpoch} draft={d} update={update} disabled={disabled} status={s} onPending={setPending} />

@@ -30,6 +30,7 @@ function LibraryView({visible,anchor,song,resource}:{visible:boolean;anchor:stri
   useEffect(()=>{setSelected([]);if(page.data&&offset>=page.data.total&&offset>0)setOffset(0);},[page.data,offset]);
   useEffect(()=>{if(visible)page.refresh();},[s.batch.running,s.import.running,visible,page.refresh]);
   useLayoutEffect(()=>{if(visible&&anchor==='video-import'){setImportOpen(true);const frame=requestAnimationFrame(()=>{const target=document.getElementById('video-import');target?.focus();target?.scrollIntoView();});return()=>cancelAnimationFrame(frame);}},[visible,anchor]);
+  useLayoutEffect(()=>{if(visible&&['cache','/cache','song-preferences'].includes(anchor)){setView(anchor==='song-preferences'?'songs':'resources');setOffset(0);setFilter('');setQuery(q=>({...q,filter:''}));const frame=requestAnimationFrame(()=>focus.ref.current?.focus());return()=>cancelAnimationFrame(frame);}},[visible,anchor]);
   async function save(id:string,policy:SongPolicy) {
     if(disabled||!page.data)return;
     setPending(true);setMessage('');

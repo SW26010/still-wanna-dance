@@ -12,6 +12,14 @@ import (
 
 const configSchemaVersion = apppaths.ConfigVersion
 
+// This controls automatic browser opening for a new console process. Explicit
+// tray/open and second-instance activation remain available independently.
+func (c *Console) OpenWebUIOnLaunch() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.settings.AutoOpenWebUI
+}
+
 // The disk document is separate from the editable settings API. The latter
 // cannot set format versions or inject arbitrary fields into the configuration.
 func readConfigFile(path string) ([]byte, map[string]json.RawMessage, error) {

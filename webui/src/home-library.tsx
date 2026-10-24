@@ -21,7 +21,7 @@ export function Home({visible}: {visible:boolean}) {
     : a.phase==='failed'||a.phase==='migration_required'?'请求检测未能开始，请先处理连接问题。'
     : '尚未检测游戏请求';
   const progress:Record<string,string>={checking:'正在检查游戏连接…',starting:'正在启动本地服务…',hosts:'正在配置游戏连接，请留意管理员权限提示…'};
-  const next=ready?'请在游戏中点歌确认播放。遇到问题可打开「网络与代理」检查网络。':s.hosts.ready?'游戏连接已配置，开始加速后即可使用本地服务。':'点击「开始加速」，然后在游戏中点歌。';
+  const next=ready?'请在游戏中点歌确认播放。遇到问题可打开「设置 → 网络」检查网络。':s.hosts.ready?'游戏连接已配置，开始加速后即可使用本地服务。':'点击「开始加速」，然后在游戏中点歌。';
   return <><Panel id="activation" title="加速状态"><p>开始加速会配置游戏连接并启动本地服务。配置连接可能需要管理员权限。</p>
     <div className="actions"><Button appearance="primary" disabled={app.unavailable || (ready && !needsExitPreparation)} onClick={() => void app.action('activation/enable')}>{active(s) ? '正在处理…' : ready && !needsExitPreparation ? '加速运行中' : '开始加速'}</Button>
     <Link href="#service">查看接入诊断</Link></div>

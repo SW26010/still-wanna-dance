@@ -232,7 +232,7 @@ func run() (runErr error) {
 	slog.Info("console_ready", "url", url)
 	fmt.Printf("Still Wanna Dance 控制台：%s\n同意条款后关闭浏览器不会退出程序；未同意时关闭条款页会尝试在 60 秒后退出。退出按当前设置处理游戏连接，不再请求管理员权限。\n", url)
 	if !*noTray {
-		err = desktop.Run(ctx, desktop.Options{URL: url, Open: !*noOpen, State: c.DesktopState, Command: c.DesktopCommand, Shutdown: shutdown, EndSession: endSession})
+		err = desktop.Run(ctx, desktop.Options{URL: url, Open: !*noOpen && c.OpenWebUIOnLaunch(), State: c.DesktopState, Command: c.DesktopCommand, Shutdown: shutdown, EndSession: endSession})
 	} else {
 		<-ctx.Done()
 	}

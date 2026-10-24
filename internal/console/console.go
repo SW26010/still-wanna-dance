@@ -45,6 +45,7 @@ type Settings struct {
 	QueueWithGateway            bool   `json:"queueWithGateway"`
 	RequestRetentionDays        int    `json:"requestRetentionDays"`
 	AutoAccelerate              bool   `json:"autoAccelerate"`
+	AutoOpenWebUI               bool   `json:"autoOpenWebUI"`
 	RestoreHostsOnExit          bool   `json:"restoreHostsOnExit"`
 	PrepareAheadSeconds         int    `json:"prepareAheadSeconds"`
 	DownloadSoftLimit           int    `json:"downloadSoftLimit"`
@@ -162,7 +163,7 @@ func New(configPath, address string) (*Console, error) {
 	c.hosts = newHostsController(hostsPath(), launchHostsSession)
 	c.settings = Settings{
 		StorageDir: apppaths.ForConfig(configPath).DefaultStorage, RequestRetentionDays: 30,
-		AutoAccelerate: true, QueueWithGateway: true, RestoreHostsOnExit: true,
+		AutoAccelerate: true, AutoOpenWebUI: true, QueueWithGateway: true, RestoreHostsOnExit: true,
 		VideoStorageMode: "none", MaxCacheBytes: 0, RetainFavorites: true,
 		AggressiveCacheReclamation: "auto",
 		DownloadSoftLimit:          cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),

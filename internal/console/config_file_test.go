@@ -17,7 +17,7 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := c.settings
-	if !want.AutoAccelerate || !want.QueueWithGateway || want.PrepareAheadSeconds != 500 {
+	if !want.AutoAccelerate || !want.AutoOpenWebUI || !want.QueueWithGateway || want.PrepareAheadSeconds != 500 {
 		t.Fatal("first launch should enable both startup preferences")
 	}
 	if want.AggressiveCacheReclamation != "auto" || want.VideoStorageMode != "none" || want.MaxCacheBytes != 0 {
@@ -44,6 +44,30 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 	defer c.Close()
 	if c.settings != want {
 		t.Fatal("default settings changed on restart")
+	}
+}
+
+func TestSavedAutoOpenAppliesOnNextLaunch(t *testing.T) {
+	c := testConsole(t)
+	defer c.Close()
+	if !c.OpenWebUIOnLaunch() {
+		t.Fatal("automatic browser opening should default on")
+	}
+	next := c.savedSettings
+	next.AutoOpenWebUI = false
+	if err := c.saveSettings(next, true); err != nil {
+		t.Fatal(err)
+	}
+	if !c.OpenWebUIOnLaunch() || c.savedSettings.AutoOpenWebUI {
+		t.Fatal("save changed current launch or was not saved")
+	}
+	reopened, err := New(c.configPath, c.address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	if reopened.OpenWebUIOnLaunch() {
+		t.Fatal("new process ignored saved browser preference")
 	}
 }
 

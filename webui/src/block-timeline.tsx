@@ -4,7 +4,7 @@ import { Add20Regular, Subtract20Regular, ArrowSync20Regular, ChevronLeft20Regul
 import { scaleLinear } from 'd3-scale';
 import { select } from 'd3-selection';
 import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
-import { Panel, Feedback } from './ui';
+import { Panel, Feedback, useThemePreference } from './ui';
 import { useApp } from './hooks';
 import { absoluteTime, blockNumber, blockStateNames, sourceName, videoLabel, type BlockView, type TimelineData } from './block-timeline-model';
 import { useBlockDetail, useBlockStream, useDocumentVisible } from './block-timeline-stream';
@@ -52,6 +52,7 @@ function readPalette(element: HTMLElement): TimelinePalette {
 }
 
 function TimelineViewport({ data, active }: { data: TimelineData; active: boolean }) {
+  const {preference}=useThemePreference();
   const root = useRef<HTMLDivElement>(null), canvas = useRef<HTMLCanvasElement>(null);
   const surface = useRef<HTMLDivElement>(null), pointerAt = useRef({ x: 0, y: 0 });
   const [width, setWidth] = useState(700), [untimedOffset, setUntimedOffset] = useState(0);
@@ -114,7 +115,7 @@ function TimelineViewport({ data, active }: { data: TimelineData; active: boolea
     const changeMotion = () => setReducedMotion(motion.matches);
     dark.addEventListener('change', measure); contrast.addEventListener('change', measure); motion.addEventListener('change', changeMotion);
     return () => { observer.disconnect(); dark.removeEventListener('change', measure); contrast.removeEventListener('change', measure); motion.removeEventListener('change', changeMotion); clearHoverTimers(); };
-  }, []);
+  }, [preference]);
 
   useEffect(() => {
     // Visibility and connection interruptions hide the popover and release its

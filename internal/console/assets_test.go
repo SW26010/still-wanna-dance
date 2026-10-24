@@ -71,6 +71,21 @@ func TestWebUIDocumentNavigationBootstrap(t *testing.T) {
 	}
 }
 
+func TestLicenseAssetsAreAvailableOfflineBeforeConsent(t *testing.T) {
+	c := testConsole(t)
+	c.terms = termsReceipt{}
+	for _, name := range []string{"software-license.txt", "third-party-notices.txt", "webui-notices.txt"} {
+		w := httptest.NewRecorder()
+		c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/assets/webui/"+name, nil))
+		if w.Code != 200 || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" || w.Body.Len() < 1000 {
+			t.Fatal(name, w.Code, w.Header(), w.Body.Len())
+		}
+	}
+	if c.service != nil || c.termsAccepted() {
+		t.Fatal("license read started engine or accepted terms")
+	}
+}
+
 func TestPageLoadsEmbeddedAssets(t *testing.T) {
 	c := testConsole(t)
 	request := func(path, host string) *httptest.ResponseRecorder {

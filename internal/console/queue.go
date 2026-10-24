@@ -177,11 +177,7 @@ func (c *Console) startQueue() error {
 		return errors.New("控制台正在退出")
 	}
 	c.queueDesired = true
-	paused := c.batch.Running && !c.batch.ScanOnly
 	c.mu.Unlock()
-	if paused {
-		return nil
-	}
 	return c.startQueueLocked()
 }
 
@@ -201,7 +197,7 @@ func (c *Console) stopQueue() error {
 	return nil
 }
 
-// The caller holds lifecycleMu, including when resuming after a batch.
+// The caller holds lifecycleMu. Manual downloads share the demand scheduler.
 func (c *Console) startQueueLocked() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -210,9 +206,6 @@ func (c *Console) startQueueLocked() error {
 	}
 	if c.queue.Running {
 		return nil
-	}
-	if c.batch.Running && !c.batch.ScanOnly {
-		return errors.New("请先停止全曲库批量任务")
 	}
 	c.mu.Unlock()
 	_, err := os.ReadDir(c.settings.LogDir)
@@ -535,20 +528,6 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 				slog.Info("queue_song_discarded", "trace_id", applog.TraceID(waiter.ctx), "song_id", r.id, "generation", r.generation, "reason", "canceled_or_obsolete")
 			}
 			c.mu.Unlock()
-		}
-	}
-}
-
-// The caller holds lifecycleMu. Queue failures must not stop playback services.
-func (c *Console) resumeQueueLocked() {
-	c.mu.Lock()
-	enabled := c.queueDesired && !c.closing && !(c.batch.Running && !c.batch.ScanOnly)
-	c.mu.Unlock()
-	if enabled {
-		err := c.startQueueLocked()
-		c.recordActionError("/api/queue/start", err)
-		if err != nil {
-			slog.Error("queue_start_failed", "error", err)
 		}
 	}
 }

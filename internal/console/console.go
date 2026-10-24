@@ -85,7 +85,6 @@ type Console struct {
 	lifecycleMu         sync.Mutex
 	hosts               *hostsController // operations are serialized by lifecycleMu
 	queueUpdateMu       sync.Mutex       // acquire before mu; serializes engine queue protection
-	taskMu              sync.Mutex
 	inventoryMu         sync.Mutex
 	inventory           Inventory
 	inventorySettings   Settings
@@ -121,7 +120,7 @@ type Console struct {
 	batchCancel         context.CancelFunc
 	batchDone           chan struct{}
 	queue               QueueStatus
-	queueDesired        bool // user intent; preserved while batch temporarily pauses queue
+	queueDesired        bool // queue enable intent; independent of manual downloads
 	queueCancel         context.CancelFunc
 	queueDone           chan struct{}
 	closing             bool
@@ -1158,8 +1157,6 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.startInventoryScan()
 	case "/api/batch/scan":
 		err = c.startBatchMode(true)
-	case "/api/batch/switch":
-		err = c.switchTask()
 	case "/api/start":
 		err = c.startForUser()
 	case "/api/activation/enable":

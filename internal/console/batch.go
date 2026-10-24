@@ -142,9 +142,6 @@ func (c *Console) startBatchModeLocked(scanOnly bool) error {
 	if c.batch.Running {
 		return errors.New("已有批量任务正在运行")
 	}
-	if c.queue.Running && !scanOnly {
-		return errors.New("请先停止队列预加载")
-	}
 	if scanOnly {
 		c.mu.Unlock()
 		_, err := os.ReadDir(c.settings.StorageDir)
@@ -211,7 +208,6 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		c.batch = result
 		c.batchCancel = nil
 		c.mu.Unlock()
-		c.resumeQueueLocked()
 		slog.Info("batch_finished", "scan_only", scanOnly, "reused", result.Reused, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", result.Missing, "cancelled", ctx.Err() != nil, "total", result.Total, "checked", result.Checked, "hits", result.Hits, "downloaded", result.Downloaded, "failed", result.Failed, "phase", result.Phase)
 	}()
 

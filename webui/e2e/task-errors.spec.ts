@@ -2,6 +2,15 @@ import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 import {navigateStep} from './navigation';
 
+test('manual library download leaves the running queue alone',async({page})=>{
+  const api=await mockAPI(page);
+  api.state.queue={desired:true,running:true,songs:[{songId:42}]};
+  await page.goto('/#/library');
+  await page.locator('#batch').getByRole('button',{name:'下载缺失视频',exact:true}).click();
+  expect(api.calls.filter(c=>/^(batch\/|queue\/)/.test(c.path)).map(c=>c.path)).toEqual(['batch/start']);
+  await expect(page.locator('#queue')).not.toContainText('暂停');
+});
+
 test('sample preparation explains online requirements and belongs to the selected connection',async({page},info)=>{
   const api=await mockAPI(page);
   Object.assign(api.diagnostics.calibration,{run:1,phase:'failed',reason:'preparation_insufficient'});
@@ -52,5 +61,5 @@ for(const cached of [true,false])test(`local scan distinguishes online catalog f
   await expect(panel.getByText('正在更新歌曲清单',{exact:true})).toBeVisible();
   await expect(panel.getByRole('button',{name:'重试更新',exact:true})).toHaveCount(0);
   expect(api.calls.filter(c=>c.path==='batch/scan')).toHaveLength(1);
-  expect(api.calls.some(c=>c.path==='batch/switch')).toBe(false);
+  expect(api.calls.some(c=>c.path==='batch/start')).toBe(false);
 });

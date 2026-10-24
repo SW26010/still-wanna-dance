@@ -49,24 +49,15 @@ func TestQueueAndCDNAreIndependent(t *testing.T) {
 	}
 }
 
-func TestQueueStartDuringBatchRecordsIntent(t *testing.T) {
+func TestQueueStartsDuringBatch(t *testing.T) {
 	c := testConsole(t)
 	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 	c.batch = Batch{Running: true}
 	postTaskAction(t, c, "queue/start")
-	if !c.queueDesired || c.queue.Running {
-		t.Fatal("queue competed with batch")
-	}
-	c.lifecycleMu.Lock()
-	c.mu.Lock()
-	c.batch.Running = false
-	c.mu.Unlock()
-	c.resumeQueueLocked()
-	c.lifecycleMu.Unlock()
-	if !c.queue.Running {
-		t.Fatal("queue did not resume without CDN")
+	if !c.queueDesired || !c.queue.Running {
+		t.Fatal("batch prevented queue startup")
 	}
 }
 

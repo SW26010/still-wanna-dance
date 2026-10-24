@@ -190,7 +190,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 		c.ServeHTTP(w, r)
 		return w
 	}
-	for _, path := range []string{"/api/start", "/api/activation/enable", "/api/hosts/enable", "/api/batch/start", "/api/batch/switch", "/api/settings", "/api/inventory/scan"} {
+	for _, path := range []string{"/api/start", "/api/activation/enable", "/api/hosts/enable", "/api/batch/start", "/api/settings", "/api/inventory/scan"} {
 		if w := request("POST", path, "{}", c.token, ""); w.Code != 428 {
 			t.Fatalf("%s: %d", path, w.Code)
 		}

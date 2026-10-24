@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func TestSwitchStopsOldTaskBeforeStartingNewTask(t *testing.T) {
+func TestBatchLeavesQueueRunning(t *testing.T) {
 	c := testConsole(t)
 	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
 		t.Fatal(err)
@@ -28,15 +28,16 @@ func TestSwitchStopsOldTaskBeforeStartingNewTask(t *testing.T) {
 	if err := c.startQueue(); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.switchTask(); err != nil {
+	queueDone := c.queueDone
+	if err := c.startBatch(); err != nil {
 		t.Fatal(err)
 	}
 	<-requested
 	c.mu.Lock()
 	batch, queue := c.batch.Running, c.queue.Running
 	c.mu.Unlock()
-	if !batch || queue {
-		t.Fatal("did not switch to batch")
+	if !batch || !queue {
+		t.Fatal("batch interrupted queue")
 	}
 	c.mu.Lock()
 	done := c.batchDone
@@ -46,14 +47,14 @@ func TestSwitchStopsOldTaskBeforeStartingNewTask(t *testing.T) {
 	c.mu.Lock()
 	batch, queue = c.batch.Running, c.queue.Running
 	c.mu.Unlock()
-	if batch || !queue {
-		t.Fatal("did not switch back to queue")
+	if batch || !queue || c.queueDone != queueDone {
+		t.Fatal("batch cancellation interrupted queue")
 	}
 }
 
-func TestBatchRestoresOnlyTemporarilyStoppedQueue(t *testing.T) {
+func TestBatchDoesNotChangeQueueLifecycle(t *testing.T) {
 	for _, enabled := range []bool{false, true} {
-		for _, outcome := range []string{"cancel", "complete", "failure", "cdn-stop", "queue-stop", "close", "resume-failure"} {
+		for _, outcome := range []string{"cancel", "complete", "failure", "cdn-stop", "queue-stop", "close"} {
 			name := outcome + "/queue-off"
 			if enabled {
 				name = outcome + "/queue-on"
@@ -86,7 +87,8 @@ func TestBatchRestoresOnlyTemporarilyStoppedQueue(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				// An empty reusable plan finishes successfully without network work.
+				queueDone := c.queueDone
+				// An already saved resource needs no video download.
 				if outcome == "complete" {
 					c.checksumURL = api.URL
 					if !enabled {
@@ -95,7 +97,7 @@ func TestBatchRestoresOnlyTemporarilyStoppedQueue(t *testing.T) {
 					os.MkdirAll(filepath.Join(c.settings.StorageDir, "videos"), 0700)
 					os.WriteFile(filepath.Join(c.settings.StorageDir, "videos", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.mp4"), []byte("trusted"), 0600)
 				}
-				if err := c.switchTask(); err != nil {
+				if err := c.startBatch(); err != nil {
 					t.Fatal(err)
 				}
 				c.mu.Lock()
@@ -121,11 +123,6 @@ func TestBatchRestoresOnlyTemporarilyStoppedQueue(t *testing.T) {
 						if outcome == "cdn-stop" {
 							postTaskAction(t, c, "stop")
 						}
-						if outcome == "resume-failure" {
-							if err := os.Remove(c.settings.LogDir); err != nil {
-								t.Fatal(err)
-							}
-						}
 						postTaskAction(t, c, "batch/cancel")
 					}
 				}
@@ -136,12 +133,12 @@ func TestBatchRestoresOnlyTemporarilyStoppedQueue(t *testing.T) {
 				}
 				c.mu.Lock()
 				defer c.mu.Unlock()
-				wantRunning := enabled && outcome != "queue-stop" && outcome != "close" && outcome != "resume-failure"
+				wantRunning := enabled && outcome != "queue-stop" && outcome != "close"
 				if c.queue.Running != wantRunning || c.batch.Running {
 					t.Fatalf("queue running=%v, want %v; batch running=%v", c.queue.Running, wantRunning, c.batch.Running)
 				}
-				if enabled && outcome == "resume-failure" && c.actionErrors["queue"] == "" {
-					t.Fatal("queue resume failure was not exposed to the user")
+				if wantRunning && c.queueDone != queueDone {
+					t.Fatal("batch restarted the queue log reader")
 				}
 			})
 		}

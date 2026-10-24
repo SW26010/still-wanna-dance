@@ -159,11 +159,16 @@ func PortError(address string, cause error) error {
 
 const (
 	OpenConsole = 1001 + iota
-	ToggleCDN
+	StartAcceleration
 	Exit
 )
 
-type State struct{ CDN, Batch bool }
+type State struct {
+	CDN, Batch           bool
+	Ready, Activating    bool
+	TermsAccepted        bool
+	NeedsExitPreparation bool
+}
 type Item struct {
 	ID       int
 	Label    string
@@ -171,11 +176,17 @@ type Item struct {
 }
 
 func Menu(s State, busy bool) []Item {
-	label := "启动本地播放网关"
-	if s.CDN {
-		label = "关闭本地播放网关"
+	busy = busy || s.Activating
+	ready := s.Ready && !s.NeedsExitPreparation
+	label := "开始加速"
+	if !s.TermsAccepted {
+		label = "开始加速（需先同意条款）"
+	} else if busy {
+		label = "正在处理…"
+	} else if ready {
+		label = "加速运行中"
 	}
-	return []Item{{OpenConsole, "打开控制台", false}, {0, "", false}, {ToggleCDN, label, busy}, {0, "", false}, {Exit, "退出 Still Wanna Dance", false}}
+	return []Item{{OpenConsole, "打开控制台", false}, {0, "", false}, {StartAcceleration, label, !s.TermsAccepted || busy || ready}, {0, "", false}, {Exit, "退出 Still Wanna Dance", false}}
 }
 
 type Options struct {

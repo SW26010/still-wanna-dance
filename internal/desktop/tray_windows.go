@@ -198,9 +198,14 @@ func (t *tray) tooltip() string {
 		return "Still Wanna Dance · 正在退出"
 	}
 	s := t.options.State()
-	text := "Still Wanna Dance · 播放网关已关闭"
-	if s.CDN {
-		text = "Still Wanna Dance · 播放网关运行中"
+	text := "Still Wanna Dance · 加速未运行"
+	switch {
+	case t.busy.Load() || s.Activating:
+		text = "Still Wanna Dance · 正在处理…"
+	case s.Ready:
+		text = "Still Wanna Dance · 加速运行中"
+	case s.CDN:
+		text = "Still Wanna Dance · 加速未就绪"
 	}
 	if s.Batch {
 		text += " · 批量任务运行中"
@@ -346,12 +351,17 @@ func (t *tray) command(id int) {
 		}()
 		return
 	}
+	if id == StartAcceleration && !t.options.State().TermsAccepted {
+		return
+	}
 	if !t.busy.CompareAndSwap(false, true) {
 		return
 	}
 	go func() {
-		defer t.busy.Store(false)
-		if err := t.options.Command(id); err != nil {
+		err := t.options.Command(id)
+		// A modal error may remain open after the operation has already finished.
+		t.busy.Store(false)
+		if err != nil {
 			ShowError(err)
 		}
 	}()

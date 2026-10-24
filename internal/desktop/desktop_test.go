@@ -97,12 +97,29 @@ func TestConfigLifetimeLock(t *testing.T) {
 }
 
 func TestMenuMatchesRuntime(t *testing.T) {
-	items := Menu(State{CDN: true}, false)
-	if len(items) != 5 || items[2].Label != "关闭本地播放网关" || items[2].Disabled || items[4].ID != Exit {
-		t.Fatal(items)
-	}
-	items = Menu(State{}, true)
-	if items[2].Label != "启动本地播放网关" || !items[2].Disabled || items[0].Disabled || items[4].Disabled {
-		t.Fatal(items)
+	for _, tc := range []struct {
+		name     string
+		state    State
+		busy     bool
+		label    string
+		disabled bool
+	}{
+		{"consent required", State{}, false, "开始加速（需先同意条款）", true},
+		{"consent takes precedence", State{CDN: true, Ready: true}, true, "开始加速（需先同意条款）", true},
+		{"stopped", State{TermsAccepted: true}, false, "开始加速", false},
+		{"gateway without hosts", State{TermsAccepted: true, CDN: true}, false, "开始加速", false},
+		{"ready", State{TermsAccepted: true, CDN: true, Ready: true}, false, "加速运行中", true},
+		{"exit preparation needed", State{TermsAccepted: true, CDN: true, Ready: true, NeedsExitPreparation: true}, false, "开始加速", false},
+		{"tray pending", State{TermsAccepted: true}, true, "正在处理…", true},
+		{"web or automatic activation", State{TermsAccepted: true, Activating: true}, false, "正在处理…", true},
+		{"rechecking ready gateway", State{TermsAccepted: true, CDN: true, Ready: true, Activating: true}, false, "正在处理…", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			items := Menu(tc.state, tc.busy)
+			if len(items) != 5 || items[2] != (Item{StartAcceleration, tc.label, tc.disabled}) ||
+				items[0] != (Item{OpenConsole, "打开控制台", false}) || items[4].ID != Exit || items[4].Disabled {
+				t.Fatal(items)
+			}
+		})
 	}
 }

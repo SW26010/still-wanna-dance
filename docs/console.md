@@ -127,7 +127,9 @@ Windows 桌面版构建、启动（托盘驻留，无命令行黑窗）：
 
 ## 托盘与实例避让
 
-托盘菜单包含打开控制台、启动 / 关闭播放网关、退出 Still Wanna Dance。鼠标或键盘激活图标均可打开控制台；菜单及悬浮提示跟随网页操作更新。Explorer 重建任务栏时重新注册托盘图标。
+托盘菜单包含打开控制台、开始加速、退出 Still Wanna Dance。尚未同意当前条款或同意记录失效时，加速项显示灰色不可点击的「开始加速（需先同意条款）」；「打开控制台」和退出仍可用，菜单顺序与位置不变。打开控制台进入现有条款确认流程，同意成功后加速项在下次展开菜单时恢复正常状态，无需重启；是否自动加速仍遵循现有引导及启动设置。
+
+「开始加速」与首页共用[完整加速流程](settings-lifecycle.md)，处理中显示「正在处理…」并禁用；网关和 hosts 均就绪且无需补充退出恢复权限时显示禁用的「加速运行中」。网关已运行但接入缺失，或仍需准备退出恢复权限时，保留开始加速入口。菜单及悬浮提示同时跟随网页、自动加速和托盘操作更新，悬浮提示区分加速未运行、未就绪、处理中和运行中。鼠标或键盘激活图标均可打开控制台；Explorer 重建任务栏时重新注册托盘图标。
 
 Windows 普通桌面模式在同一用户会话中只允许一个实例，使用会话级互斥锁 `Local\SWD.Desktop.v1`，控制端口由系统自动分配。主实例在当前用户 `%LOCALAPPDATA%\SWD\console-session-<会话 ID>.json` 记录地址、实际 EXE、配置路径、PID 和进程创建时间。重复启动最多等待 5 秒，核对端口所属进程、操作系统报告的 EXE 与创建时间，以及 `/api/identity` 返回的完整 `swd-console`（协议版本 1）身份。
 
@@ -300,11 +302,11 @@ VRChat 原始日志正文；重复的日志读取错误只在变化时记录，�
 
 ```powershell
 $env:SWD_TRAY_CHECK = '1'
-go test ./internal/desktop -run TestLiveTrayLifecycle -v -count=1
+./scripts/with-test-temp.ps1 go test ./internal/desktop -run TestLiveTray -v -count=1
 Remove-Item Env:SWD_TRAY_CHECK
 ```
 
-此检查短暂创建并清理真实托盘图标，需要可访问交互式 Windows 桌面；不修改 hosts。
+此检查短暂创建并清理真实托盘图标，验证原生窗口命令分发与处理中重复点击保护，需要可访问交互式 Windows 桌面；使用测试回调，不修改 hosts。
 
 可选实网检查只获取列表、解析歌曲 1343 并请求 16 字节片段，不修改 hosts 或下载全库：
 

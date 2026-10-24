@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 func TestDynamicConsoleDiscovery(t *testing.T) {
@@ -220,6 +222,164 @@ func TestLiveTrayLifecycle(t *testing.T) {
 	}
 	if closes.Load() != 1 {
 		t.Fatalf("cleanup ran %d times", closes.Load())
+	}
+}
+
+func TestTrayAccelerationTooltip(t *testing.T) {
+	for _, tc := range []struct {
+		state State
+		busy  bool
+		want  string
+	}{
+		{State{}, false, "加速未运行"},
+		{State{CDN: true}, false, "加速未就绪"},
+		{State{CDN: true, Ready: true}, false, "加速运行中"},
+		{State{Activating: true}, false, "正在处理…"},
+		{State{}, true, "正在处理…"},
+		{State{CDN: true, Ready: true, Batch: true}, false, "加速运行中 · 批量任务运行中"},
+	} {
+		tt := &tray{options: Options{State: func() State { return tc.state }}}
+		tt.busy.Store(tc.busy)
+		if got := tt.tooltip(); got != "Still Wanna Dance · "+tc.want {
+			t.Fatal(got)
+		}
+		tt.closing = true
+		if got := tt.tooltip(); got != "Still Wanna Dance · 正在退出" {
+			t.Fatal(got)
+		}
+	}
+}
+
+func TestLiveTrayAccelerationCommand(t *testing.T) {
+	if os.Getenv("SWD_TRAY_CHECK") != "1" {
+		t.Skip("opt-in interactive Windows shell test")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	entered, release, finished := make(chan int, 1), make(chan struct{}), make(chan struct{})
+	var calls atomic.Int32
+	done := make(chan error, 1)
+	go func() {
+		defer cancel()
+		class := wide(fmt.Sprintf("SWD.Tray.%d", os.Getpid()))
+		var hwnd uintptr
+		for hwnd == 0 && ctx.Err() == nil {
+			hwnd, _, _ = user32.NewProc("FindWindowW").Call(uintptr(unsafe.Pointer(class)), 0)
+			if hwnd == 0 {
+				time.Sleep(10 * time.Millisecond)
+			}
+		}
+		if hwnd == 0 {
+			done <- fmt.Errorf("tray window unavailable: %w", ctx.Err())
+			return
+		}
+		user32.NewProc("SendMessageW").Call(hwnd, wmCommand, StartAcceleration, 0)
+		select {
+		case id := <-entered:
+			// A second native command while the first is pending must be ignored.
+			user32.NewProc("SendMessageW").Call(hwnd, wmCommand, StartAcceleration, 0)
+			close(release)
+			<-finished
+			if id != StartAcceleration || calls.Load() != 1 {
+				done <- fmt.Errorf("command=%d calls=%d", id, calls.Load())
+				return
+			}
+			done <- nil
+		case <-ctx.Done():
+			close(release)
+			done <- fmt.Errorf("tray command not dispatched: %w", ctx.Err())
+		}
+	}()
+	err := Run(ctx, Options{
+		State: func() State { return State{TermsAccepted: true} },
+		Command: func(id int) error {
+			calls.Add(1)
+			entered <- id
+			<-release
+			close(finished)
+			return nil
+		},
+		Shutdown: func() {},
+	})
+	if err != nil {
+		cancel()
+	}
+	if commandErr := <-done; err != nil || commandErr != nil {
+		t.Fatal(err, commandErr)
+	}
+}
+
+func TestLiveTrayFailureReleasesBusyBeforeDialogDismissal(t *testing.T) {
+	if os.Getenv("SWD_TRAY_CHECK") != "1" {
+		t.Skip("opt-in interactive Windows shell test")
+	}
+	tt := &tray{options: Options{
+		State: func() State { return State{TermsAccepted: true} },
+		Command: func(int) error {
+			return errors.New("托盘失败状态回归测试：无需操作，此窗口会自动关闭")
+		},
+	}}
+	// Find only this test process's dialog; never dismiss another SWD instance.
+	var dialog uintptr
+	callback := syscall.NewCallback(func(hwnd, _ uintptr) uintptr {
+		var pid uint32
+		user32.NewProc("GetWindowThreadProcessId").Call(hwnd, uintptr(unsafe.Pointer(&pid)))
+		if pid == uint32(os.Getpid()) {
+			var class [256]uint16
+			user32.NewProc("GetClassNameW").Call(hwnd, uintptr(unsafe.Pointer(&class[0])), uintptr(len(class)))
+			if syscall.UTF16ToString(class[:]) == "#32770" {
+				dialog = hwnd
+				return 0
+			}
+		}
+		return 1
+	})
+	tt.command(StartAcceleration)
+	deadline := time.Now().Add(5 * time.Second)
+	for dialog == 0 && time.Now().Before(deadline) {
+		user32.NewProc("EnumWindows").Call(callback, 0)
+		if dialog == 0 {
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	if dialog == 0 {
+		t.Fatal("failed command did not display its native error dialog")
+	}
+	defer user32.NewProc("SendMessageW").Call(dialog, wmClose, 0, 0)
+	item := Menu(tt.options.State(), tt.busy.Load())[2]
+	if item.Disabled || item.Label != "开始加速" || tt.tooltip() != "Still Wanna Dance · 加速未运行" {
+		t.Fatalf("completed failure still shown as processing while error dialog is open: %+v", item)
+	}
+}
+
+func TestTrayAccelerationRequiresConsent(t *testing.T) {
+	var accepted atomic.Bool
+	called := make(chan int, 1)
+	tt := &tray{options: Options{
+		State: func() State { return State{TermsAccepted: accepted.Load()} },
+		Command: func(id int) error {
+			called <- id
+			return nil
+		},
+	}}
+	tt.dispatch(0, wmCommand, StartAcceleration, 0)
+	if tt.busy.Load() {
+		t.Fatal("unaccepted command became busy")
+	}
+	select {
+	case <-called:
+		t.Fatal("unaccepted command reached the backend")
+	default:
+	}
+	accepted.Store(true)
+	tt.dispatch(0, wmCommand, StartAcceleration, 0)
+	select {
+	case id := <-called:
+		if id != StartAcceleration {
+			t.Fatal(id)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("acceptance did not enable acceleration on the existing tray")
 	}
 }
 

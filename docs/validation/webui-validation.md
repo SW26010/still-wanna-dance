@@ -361,3 +361,29 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 定向 Go 回归通过，覆盖偏好保存、记录缺失、版本／摘要变化、损坏及解密失败、有效记录恢复按设置决定、协议门禁与独立进程重启。3 项 Edge 内存接口用例通过，覆盖设置分区保存、首次确认及确认失败后重试；前端构建、类型、逐字节重建与资源清单检查通过。未实际唤起系统默认浏览器，沿用未改动的桌面打开入口；无需 VRC 验证。
 
 首次沙箱运行因 Windows 原子替换报 The handle is invalid，Edge 因 TransactNamedPipe 管道结束而无法启动；未修改产品或测试绕过，沙箱外重跑上述范围通过。原始失败与成功日志保留在 artifacts/terms-auto-open/ 的 backend.txt、browser.txt、browser-sandbox-error.md、backend-outside-sandbox.txt、browser-outside-sandbox.txt。
+
+## 托盘复用首页一键加速（2026-10-24）
+
+托盘「开始加速」直接调用首页与自动启动已有的 enableAcceleration，移除托盘独立关闭网关入口；现行规则见[配置生命周期](../settings-lifecycle.md)及[托盘交互](../console.md#托盘与实例避让)。菜单与悬浮提示读取实际 hosts、网关及加速进度；已有网关但接入未完成、或还需准备退出恢复权限时仍可执行。状态读取不等待生命周期锁，授权期间托盘继续响应。
+
+定向回归与 internal/console、internal/desktop、cmd/still-wanna-dance-console 三包完整回归通过，覆盖托盘配置接入并开启请求检测、网页状态同步、重复操作不停止已有网关、接入修复、退出权限准备、冲突与授权拒绝、端口失败回滚及重试、退出恢复，以及另一入口加速时托盘读取状态与拒绝重复执行。业务测试使用真实 Console、私有 hosts 文件及助手协议、回环监听器；队列随动与条款门禁沿用同一流程并复用整包回归。
+
+完整回归启用 SWD_TRAY_CHECK=1，真实创建并清理 Windows 托盘窗口，向窗口发送原生命令消息，验证新命令分发与处理中重复命令保护；菜单标签、禁用条件及悬浮文案由状态测试覆盖。未手工右键点选菜单，也未触发真实 UAC 或修改系统 hosts；没有启动游戏，无新增 VRC 待验项。受影响三包 go vet、内嵌 WebUI 一致性检查和桌面构建通过，开发构建位于 artifacts/tray-acceleration/SWD.exe。
+
+首次定向测试在沙箱内因已知 Windows 原子重命名限制报 renameat: The handle is invalid；沙箱外用同一临时目录入口复测通过，未改产品或测试绕过。失败与成功日志保留在 artifacts/tray-acceleration/ 的 targeted-sandbox.log、targeted.log、packages.log，构建检查输出见 build.log。
+
+## 托盘失败弹窗与忙碌状态（2026-10-25）
+
+用户实测同意 UAC 后网关未运行，托盘仍显示灰色「正在处理…」。实际日志和状态接口显示 activation 已失败，原因是存储 v4 被当前要求 v5 的程序拒绝，hosts 已回滚；原生错误框仍打开。存储不兼容、不迁移的规则见[存储约定](../storage.md)，本轮不改写旧库或更改用户存储目录。
+
+托盘将清除 busy 的 defer 放在原生阻塞错误框之后，导致业务已结束仍显示处理中。现在命令返回即清除 busy，再显示原有错误框；错误提示不再延长业务忙碌状态。TestLiveTrayFailureReleasesBusyBeforeDialogDismissal 使用真实 Windows 错误框并断言它尚未关闭时菜单已可重试、悬浮提示不再处理中；只查找和关闭测试进程自己的窗口。修复前首次及两次重复运行均复现「正在处理… / Disabled:true」，修复后通过，原始输出保留于 artifacts/tray-error-state/before.log、before-repeat.log、after.log。
+
+桌面包完整回归通过，启用 SWD_TRAY_CHECK 的窗口生命周期、命令分发与失败弹窗检查均通过；另一个主题切换交互测试未启用，目录符号链接测试因当前用户缺少权限跳过。相关 go vet、内嵌资源校验及桌面构建通过，修复版位于 artifacts/tray-error-state/SWD.exe。未修改系统 hosts、未启动游戏；存储版本拒绝是当前契约，继续测试新版本需使用独立新存储目录。
+
+## 托盘条款门禁（2026-10-25）
+
+按确认方案保留「打开控制台」与退出入口，未同意当前条款时将原位置的加速项置灰，显示「开始加速（需先同意条款）」。状态直接读取已有条款有效性判断，不另存确认状态；完成确认后下次展开菜单恢复正常，不增加第二个条款入口，也不改变引导及自动启动规则。托盘收到未确认状态下的加速命令时直接忽略，避免弹出业务错误框；后台仍保留原有条款校验。现行交互见[托盘与实例避让](../console.md#托盘与实例避让)。
+
+控制台与桌面的条款、托盘及菜单定向回归通过：缺少记录、版本或摘要失效均禁用；确认成功后同一实例立即更新状态，读状态与确认本身不启动加速；原生消息分发在未确认时不调用后台，确认后可调用。启用 SWD_TRAY_CHECK 的真实窗口生命周期、命令分发和错误弹窗回归也通过，使用临时文件和测试窗口。已有首次引导与条款接口检查覆盖打开控制台后的确认流程，本轮没有改网页或重复手工验收。原始输出在 artifacts/tray-terms-gate/tests.log；未修改用户同意记录、配置、存储或系统 hosts，未启动游戏，无新增 VRC 待验项。
+
+相关三包 go vet、内嵌 WebUI 一致性校验和桌面构建通过，构建信息已核对；新构建为 artifacts/tray-terms-gate/SWD.exe，未替换当前运行程序。

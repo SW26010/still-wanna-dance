@@ -1,0 +1,134 @@
+package cacheproxy
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+)
+
+func TestLibrarySharedResourcesAndScope(t *testing.T) {
+	s, cfg := setup(t, nil)
+	ctx := context.Background()
+	shared, missing, orphan, hidden := videoKey("shared"), videoKey("missing"), videoKey("orphan"), videoKey("hidden")
+	for id, key := range map[string]string{"1": shared, "2": shared, "3": missing, "4": orphan, "5": hidden} {
+		seedPrioritySong(t, s, id, key)
+	}
+	if _, err := s.usage.db.Exec(`DELETE FROM song_media WHERE song_id IN (4,5); UPDATE songs SET name='Song',artist='Singer',dancer='Dancer',group_name='Group' WHERE song_id=1; INSERT INTO song_preferences VALUES (1,'favorite'); INSERT INTO song_usage VALUES (1,1,8,?)`, time.Now().Add(-24*time.Hour).UnixMilli()); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, cfg.videoFile(shared), "shared")
+	writeTestFile(t, cfg.videoFile(orphan), "orphan")
+	// Neither a partial spool nor an invalid file becomes a complete video.
+	writeTestFile(t, filepath.Join(cfg.StorageDir, "videos", "unfinished.part"), "ignored")
+	page, err := ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{View: "resources"})
+	if err != nil || page.Total != 3 || len(page.Resources) != 3 || page.FileCount != 2 || page.TotalBytes != 12 {
+		t.Fatal(page, err)
+	}
+	r := page.Resources[shared]
+	if r.SongCount != 2 || r.Local == nil || r.Local.Stamp == "" || *r.Size != 6 || r.Duration != nil {
+		t.Fatal(r)
+	}
+	if page.Resources[missing].Local != nil || page.Resources[missing].Duration != nil || page.Resources[hidden] != nil {
+		t.Fatal(page)
+	}
+	songs, err := ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{Search: "Singer"})
+	if err != nil || songs.Total != 1 || songs.Songs[0].Artist != "Singer" || songs.Songs[0].Dancer != "Dancer" || songs.Songs[0].Group != "Group" || songs.Songs[0].Policy != SongFavorite {
+		t.Fatal(songs, err)
+	}
+	if songs.Resources[shared].Local.Stamp != r.Local.Stamp {
+		t.Fatal("shared file has inconsistent deletion identity")
+	}
+	page, err = ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{View: "resources", Filter: "missing"})
+	if err != nil || page.Total != 1 || page.Keys[0] != missing {
+		t.Fatal(page, err)
+	}
+	page, err = ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{View: "resources", Resource: orphan})
+	if err != nil || page.Total != 1 || page.Resources[orphan].SongCount != 0 {
+		t.Fatal(page, err)
+	}
+	removed, err := s.DeleteCache(ctx, []CacheSelection{{Key: orphan, Stamp: page.Resources[orphan].Local.Stamp}})
+	if err != nil || len(removed) != 1 || removed[0].Result != "deleted" {
+		t.Fatal(removed, err)
+	}
+	page, err = ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{View: "resources", Resource: orphan})
+	if err != nil || page.Total != 0 || page.FileCount != 1 || page.TotalBytes != 6 {
+		t.Fatal(page, err)
+	}
+	var count int
+	if err := s.usage.db.QueryRow("SELECT count(*) FROM media WHERE md5=?", orphan).Scan(&count); err != nil || count != 1 {
+		t.Fatal(count, err)
+	}
+	if err := os.Remove(cfg.videoFile(shared)); err != nil {
+		t.Fatal(err)
+	}
+	page, err = ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{View: "resources", Resource: shared})
+	if err != nil || page.Total != 1 || page.Resources[shared].Local != nil {
+		t.Fatal(page, err)
+	}
+	if len(s.demands) != 0 || len(s.flights) != 0 {
+		t.Fatal("read-only library started work")
+	}
+}
+
+func TestLibraryPagesScoresAndExactIdentity(t *testing.T) {
+	s, cfg := setup(t, nil)
+	ctx := context.Background()
+	now := time.Now().UnixMilli()
+	for id := int64(9000001); id <= 9000121; id++ {
+		if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,name) VALUES (?,?)`, id, fmt.Sprintf("Song %d", id)); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.usage.db.Exec(`INSERT INTO song_usage VALUES (?,1,?,?)`, id, float64(id-9000000), now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.usage.db.Exec(`UPDATE song_usage SET last_demand_at=? WHERE song_id=9000121; INSERT INTO song_preferences VALUES (9000120,'blocked')`, now-int64(365*24*time.Hour/time.Millisecond)); err != nil {
+		t.Fatal(err)
+	}
+	priorities, err := s.songPriorities(ctx, nil, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	lastScore := 1e9
+	for offset := 0; offset < 121; offset += 50 {
+		page, err := readLibraryPage(ctx, cfg.StorageDir, LibraryQuery{Sort: "score", Offset: offset}, now)
+		if err != nil || page.Total != 121 || len(page.Songs) > 50 || len(page.Resources) != 0 {
+			t.Fatal(page, err)
+		}
+		for _, song := range page.Songs {
+			if seen[song.ID] || song.Score > lastScore {
+				t.Fatal(song)
+			}
+			seen[song.ID], lastScore = true, song.Score
+		}
+		if offset == 0 && (page.Songs[0].ID != "9000120" || page.Songs[0].Policy != SongBlocked || page.Songs[0].Score != priorities[9000120]) {
+			t.Fatal(page)
+		}
+	}
+	if len(seen) != 121 {
+		t.Fatal(len(seen))
+	}
+	page, err := ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{SongID: "9000001"})
+	if err != nil || page.Total != 1 || page.Songs[0].ID != "9000001" || page.Songs[0].Resource != "" {
+		t.Fatal(page, err)
+	}
+	page, err = ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{SongID: "9999999"})
+	if err != nil || page.Total != 0 {
+		t.Fatal(page, err)
+	}
+}
+
+func TestLibraryMissingStorageRemainsReadOnly(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "not-created")
+	page, err := ReadLibraryPage(context.Background(), root, LibraryQuery{})
+	if err != nil || page.Total != 0 {
+		t.Fatal(page, err)
+	}
+	if _, err := os.Stat(root); !os.IsNotExist(err) {
+		t.Fatal("reader created storage", err)
+	}
+}

@@ -10,10 +10,17 @@ import (
 )
 
 // Real demand replaces the initial prior, and survives content changes.
+func effectiveSongPriority(id, count int64, score float64, last, now int64) float64 {
+	if count == 0 {
+		return initialpriority.Score(id)
+	}
+	return retentionScore(score, last, now)
+}
+
 func (s *Server) songPriorities(ctx context.Context, ids []int64, now int64) (map[int64]float64, error) {
 	result := make(map[int64]float64, len(ids))
 	for _, id := range ids {
-		result[id] = initialpriority.Score(id)
+		result[id] = effectiveSongPriority(id, 0, 0, 0, now)
 	}
 	rows, err := s.usage.db.QueryContext(ctx, `SELECT song_id, demand_score, last_demand_at
 		FROM song_usage WHERE demand_count > 0`)
@@ -27,7 +34,7 @@ func (s *Server) songPriorities(ctx context.Context, ids []int64, now int64) (ma
 		if err := rows.Scan(&id, &score, &last); err != nil {
 			return nil, err
 		}
-		result[id] = retentionScore(score, last, now)
+		result[id] = effectiveSongPriority(id, 1, score, last, now)
 	}
 	return result, rows.Err()
 }

@@ -915,6 +915,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.songPolicyAPI(w, r)
 		return
 	}
+	if r.URL.Path == "/api/library" {
+		c.libraryAPI(w, r)
+		return
+	}
 	if r.URL.Path == "/api/downloads" && r.Method == "GET" {
 		if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
 			http.Error(w, "invalid origin or token", http.StatusForbidden)

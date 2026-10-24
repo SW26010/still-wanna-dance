@@ -292,3 +292,30 @@ TestLibraryBrowser 通过真实 Console、SQLite、回环视频源与 Edge：从
 Go 验证解析阶段已知歌曲、HEAD 排除、解析失败、实际 Range 的写出字节、写入中止后的清理及 75 个并发观测仅返回最早 50 个；既有历史与下载快照回归通过。Windows race 首次因默认 CGO 关闭不能运行，随后使用仓库已有隔离 w64devkit/GCC 显式开启 CGO 后通过；分别保存 current-get-race{,-final}.log。50 项快照的 3 轮各 10,000 次基准约 2.4–3.1 微秒、12.6KB Go 分配，无外部 I/O；只作为本机性能证据，见 current-get-benchmark.log。
 
 2 项 Edge 用例验证 GET 身份与未知范围、50% 有效交付、队列日志真实状态、请求行移除时焦点恢复、与下载共用一次轮询及离页停止，以及 320px 强制颜色无横向溢出。日志为 current-get-browser.log。真实游戏播放仍未验证。
+
+## WebUI 设计实施收尾（2026-10-24）
+
+本轮完成 [WebUI 设计](../webui-design.md) 中已确认的范围：五页归属、手动／自动一键加速和失败撤销、退出策略保存即生效、网关与队列随动、手动下载不暂停队列、可配置收藏保留、歌曲／资源曲库与逐项下载、处理时历史事实及全部保留期分页、72 小时首正文分组分位数、当前 GET、浏览器主题和启动打开偏好。配置 v6、存储 v4 干净升级，不迁移旧格式。明确暂缓的响应字节来源占比与统一待办／任务进度没有实施；没有可靠实测时长时显示未知。
+
+最终 Edge 全量 **160 项通过**，见 artifacts/webui-design/regression-browser-final.log。覆盖浅／深／强制颜色、320／390／1280px、官方组件键盘操作与焦点、设置唯一归属及跨分类草稿、浏览器刷新和前进后退、主题持久化、许可链接、历史分页、共享资源操作、VRCX 预览与覆盖，以及可见性与轮询／SSE 生命周期。已查看真实服务的桌面曲库、390px 深色资源列表、保存退出策略页面和夹具的关于页截图。
+
+首轮全量测试保留旧导航／文案断言，同时暴露页面重组遗漏：下载暂停未传到实时列表、直接帮助地址刷新丢失分类、VRCX 折叠丢失草稿、关于标签在 320px 溢出。修正后相关 67 项通过，再完成全量 160 项；日志 regression-browser-1.log、regression-browser-2.log 保留首轮失败和复验。资源管理补回最近请求显示与排序、歌曲名和导入／存储快捷链接；排序复用既有 GET 访问汇总。
+
+真实服务联调均使用私有数据和回环接口，实际执行 Console、SQLite 和内嵌页面，没有用页面状态夹具代替持久化结果：
+
+| 联调 | 本轮结果及证据 |
+| --- | --- |
+| TestLibraryBrowser | 歌曲下载经 MD5 发布后两首共享歌曲同时已保存，资源仅一份；收藏刷新保留，确认删除实际移除文件，关联资源仍可下载。library-live-verified.log、library-live-verified/ |
+| TestRequestHistoryBrowser | 601 次实际 GET、映射变化、关闭重开引擎后 13 页完整历史及统计，历史身份不改写；只读浏览不启动网关。real-browser-final.log、history-live-final/ |
+| TestHostsPolicyBrowser | 私有 hosts 与真实回环网关，网页开启后保存两种退出策略并实际退出，核对恢复／保留；未操作系统 hosts。real-browser-final.log、hosts-live-final/ |
+| TestSongPreferencesBrowser | 离线收藏不启动引擎、不删既有文件；标记、筛选、按 ID 设置及重开引擎持久化，屏蔽 GET 为 403 且无上游解析。real-browser-final.log、song-live-final/ |
+| TestBlockTimelineBrowser | 真实 Range、调度与 SSE，下载转延续保护、离屏断订阅与恢复固定详情、收起后无订阅。remaining-real-browser-verified.log、blocks-live-verified/ |
+| TestVRCXBrowser | 真实 SQLite 导入、覆盖取消／确认、首次引导延后应用及统计核对，未启动资源引擎。vrcx-live-passed.log、vrcx-live-passed/ |
+
+上述记录按单个测试结果判定。real-browser-final.log 同时保留曲库关联链接文案断言失败，后在 library-live-verified.log 通过；remaining-real-browser{,-verified}.log 保留旧脚本滚动位置、隐藏字段计数和应用成功文案断言失败。更新入口、用首页顶部制造真实离屏、限定引导字段范围并匹配含运行状态的反馈后，分别复验通过。
+
+Go 最终按开发文档范围执行 go test -tags=no_easytier ./cmd/... ./internal/... 和 go vet，全部通过，见 final-go-verified.log、final-vet-verified.log。早期误用 ./... 扫到忽略目录旧实验源码产生编译失败，日志 final-go.log 保留；不修改这些历史私有实验。随后整包回归暴露旧 TestConfiguredBlockSizeHTTPAndPublication 假设每次已可读块都必然采样：短 GET 在工作收尾前结束可能取消工作，而采样只接纳成功完成。测试改为关闭引擎等待观测完成，并允许该首块因取消没有样本；仍验证背景完整块样本、排除尾块／顺序下载、真实范围、字节、MD5 发布和重开复用。与曲库测试连续 30 轮通过（final-go-repeat.log），原失败保留 final-go-scoped.log。未更改采样或调度实现。
+
+前端类型及逐字节重建检查通过；离线构建／产物策略的 5 个 Node 测试通过（build-check-tests.log）。Node 测试初次在 Windows 沙箱内创建临时 Git 配置与 junction 被拒绝，改用统一临时目录包装器在沙箱外通过。提交后仓库产物扫描 0 错误、24 条已有历史归档提示（final-committed-artifacts.log）；生成 bundle 仅登记本次精确大小与哈希例外。当前 GET 的 Windows race 和快照基准沿用上阶段已通过证据。
+
+没有启动 VRChat、修改系统 hosts 或执行真实 UAC／托盘操作；游戏播放兼容性沿用现有 [VRC 台账](../live-acceptance-backlog.md)，原生 Windows 与辅助技术边界沿用[非 VRC 跟进](../validation-followups.md)。本轮代码与浏览器完成不表示这些环境已验收，也不另建逐改动游戏清单。全部提交只保留本地，未 push。

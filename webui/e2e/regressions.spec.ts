@@ -41,17 +41,13 @@ test('acceleration waits for UAC and reports a timed out result as unconfirmed',
   await expect(page.getByText(/操作结果尚未确认.*勿重复提交/)).toBeVisible();await expect(button).toBeEnabled();
 });
 
-test('request group remains expanded and focused as its oldest request changes',async({page})=>{
+test('request detail keeps identity, expansion and focus while adjacent records change',async({page})=>{
   await mockAPI(page);let ids=[3,2];
-  const record=(id:number)=>({id,at:1700000000000+id*1000,resource:'fixture-resource',method:'GET',range:'bytes=0-',elapsedMS:100,bytes:200,status:206,cache:'HIT',outcome:'completed',songs:[{id:'1',title:'分段歌曲'}]});
-  await page.route('**/api/requests?*',r=>r.fulfill({json:{storageID:'fixture',requests:(new URL(r.request().url()).searchParams.get('limit')==='100'?[4,3,2,1]:ids).map(record),hasMore:true}}));
+  const record=(id:number)=>({id,at:Date.now(),resource:'fixture-resource',method:'GET',range:'bytes=0-',elapsedMS:100,bytes:200,status:206,cache:'HIT',outcome:'completed',songID:'42'});
+  await page.route('**/api/history?*',r=>r.fulfill({json:{storageID:'fixture',requests:ids.map(record),hasMore:false,nextCursor:''}}));
   await page.clock.install();await page.goto('/#recent');
-  const group=page.getByRole('button',{name:'分段歌曲 · 请求 ×2',exact:true});await group.click();
-  const element=await group.elementHandle();
+  const detail=page.getByRole('button',{name:'请求 3 的明细',exact:true});await detail.click();const element=await detail.elementHandle();
   ids=[4,3];await page.clock.fastForward(5100);
-  await expect(group).toHaveAttribute('aria-expanded','true');await expect(group).toBeFocused();
-  expect(await element!.evaluate(el=>el.isConnected)).toBe(true);
-  await page.getByRole('button',{name:'加载更早记录（增加 50 条）'}).click();
-  await expect(page.getByRole('button',{name:'分段歌曲 · 请求 ×4',exact:true})).toHaveAttribute('aria-expanded','true');
+  await expect(detail).toHaveAttribute('aria-expanded','true');await expect(detail).toBeFocused();
   expect(await element!.evaluate(el=>el.isConnected)).toBe(true);
 });

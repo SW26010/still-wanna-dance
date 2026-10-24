@@ -9,8 +9,8 @@ test('drafts survive polling and navigation; save preserves active config and bl
   await m.fill(''); await expect(m).not.toHaveAccessibleDescription(/当前值约占/);
   await m.fill('100'); await expect(m).toHaveAccessibleDescription(/当前值约占 25 MB 临时缓存/);
   await navigate(page,'网络与代理');await page.getByRole('tab',{name:'高级接入',exact:true}).click();
-  await page.getByRole('button',{name:'启动播放网关',exact:true}).click();
-  await expect(page.getByText('播放网关已启动。',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'修复并开启加速',exact:true}).click();
+  await expect(page.getByText('视频加速已开启。',{exact:true})).toBeVisible();
   await navigate(page,'下载管理'); await expect(m).toHaveValue('100');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(page.getByRole('button',{name:'立即重启并应用'})).toBeEnabled();
@@ -59,7 +59,7 @@ test('pause only freezes monitor display; native dialogs replaced by Fluent conf
   const api=await mockAPI(page); await page.goto('/#recent');
   await page.getByRole('checkbox',{name:'暂停请求刷新'}).check();
   const reads=api.calls.filter(c=>c.path==='downloads'||c.path==='requests').length;
-  await page.getByRole('button',{name:'检查当前连接',exact:true}).click();
+  await navigate(page,'网络与代理');await page.getByRole('button',{name:'检查当前连接',exact:true}).click();
   await expect(page.getByText('网络检测已开始，请查看检测结果。',{exact:true})).toBeVisible();
   expect(api.calls.filter(c=>c.path==='downloads'||c.path==='requests')).toHaveLength(reads);
   await page.getByRole('button',{name:'退出整个应用',exact:true}).click(); await expect(page.getByRole('dialog')).toBeVisible();
@@ -70,7 +70,7 @@ test('all console pages render at narrow width without runtime errors', async ({
   await mockAPI(page); await page.setViewportSize({width:390,height:844}); await page.emulateMedia({colorScheme:'dark'});
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('/');
-  for(const name of ['游戏加速','下载管理','本地视频','网络与代理','设置']) {
+  for(const name of ['游戏加速','时间线','下载管理','本地视频','网络与代理','设置']) {
     await navigate(page,name);
     await expect(page.locator('#main')).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

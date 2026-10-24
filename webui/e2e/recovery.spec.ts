@@ -76,15 +76,15 @@ test('reload reconciles the original application ID without submitting again',as
   expect(await page.evaluate(()=>sessionStorage.getItem('swd-setup-application'))).toBeNull();
 });
 
-test('monitor groups ranges, clears failed reads, and recovers focus after a row disappears',async({page})=>{
+test('history clears failed reads and recovers focus after a row disappears',async({page})=>{
   await mockAPI(page);let failed=false;
   const rows=[2,1].map(id=>({id,at:1700000000000+id*1000,resource:'fixture-resource',method:'GET',range:'bytes=0-',elapsedMS:100,bytes:200,status:206,cache:'HIT',outcome:'completed',songs:[{id:'1',title:'分段歌曲'}]}));
-  await page.route('**/api/requests?*',r=>failed?r.fulfill({status:500,json:{error:'unavailable'}}):r.fulfill({json:{storageID:'fixture',requests:rows,hasMore:false}}));
+  await page.route('**/api/history?*',r=>failed?r.fulfill({status:500,json:{error:'unavailable'}}):r.fulfill({json:{storageID:'fixture',requests:rows,hasMore:false}}));
   await page.clock.install();await page.goto('/#recent');
-  const group=page.getByRole('button',{name:'分段歌曲 · 请求 ×2',exact:true});await group.click();
-  await expect(page.getByText(/本地视频命中 · 请求处理完成/)).toHaveCount(2);
+  const group=page.getByRole('button',{name:'请求 2 的明细',exact:true});await group.click();
+  await expect(page.getByText('请求处理完成',{exact:true})).toHaveCount(2);
   failed=true;await page.clock.fastForward(5100);
-  await expect(page.getByText('最近请求读取失败，将自动重试。')).toBeVisible();await expect(group).toHaveCount(0);await expect(page.locator('#recent')).toBeFocused();
+  await expect(page.getByText('历史读取失败，请重试。')).toBeVisible();await expect(group).toHaveCount(0);await expect(page.getByLabel('历史查询结果',{exact:true})).toBeFocused();
 });
 
 test('late monitor response cannot overwrite paused display',async({page})=>{

@@ -20,7 +20,7 @@ export function Provider({ children }: PropsWithChildren) {
 export function Brand() {
   return <div className="brand"><Image src="/assets/logo.svg" className="brand-logo" width="32" height="32" shape="rounded" alt="" /><Subtitle1>Still Wanna Dance</Subtitle1></div>;
 }
-export const consolePages=[['home','游戏加速'],['library','下载管理'],['cache','本地视频'],['network','网络与代理'],['settings','设置']] as const;
+export const consolePages=[['home','游戏加速'],['timeline','时间线'],['library','下载管理'],['cache','本地视频'],['network','网络与代理'],['settings','设置']] as const;
 export const documentPages={help:'帮助',about:'关于',terms:'使用条款'} as const;
 export type DocumentPage=keyof typeof documentPages;
 export const isDocumentPage=(page:string):page is DocumentPage=>Object.hasOwn(documentPages,page);

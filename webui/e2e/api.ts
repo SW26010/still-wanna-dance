@@ -40,6 +40,8 @@ export async function mockAPI(page: Page) {
     if (path==='inventory') data={totalSongs:2,coveredSongs:1,coverageKnown:true,updated:'2026-10-16T00:00:00Z'};
     if (path==='downloads') data={tasks:[],bytesPerSecond:0};
     if (path==='songs') data={storageID:'fixture',entries:[],total:0};
+    if(path==='history')data={storageID:'fixture',requests:[],hasMore:false,nextCursor:''};
+    if(path==='latency')data={from:Date.now()-72*3600000,to:Date.now(),availableFrom:null,partial:true,blocking:{samples:0,p50MS:null,p95MS:null},ready:{samples:0,p50MS:null,p95MS:null}};
     if (path==='requests') data={storageID:'fixture',requests:[],hasMore:false};
     if (path==='cache') data={storageID:'fixture',entries:files,total:files.length,fileCount:files.length,totalBytes:files.length*1073741824};
     if (path==='cache/delete') {

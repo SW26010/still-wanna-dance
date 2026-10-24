@@ -1,18 +1,8 @@
-import { useEffect, useState } from 'react';
-import { Button, Checkbox, Link, Subtitle2, List, ListItem, Divider, Field } from '@fluentui/react-components';
+import { Button, Link, Subtitle2, List, ListItem, Divider } from '@fluentui/react-components';
 import { useApp, useResource, useFocusRecovery } from './hooks';
 import { Details, Feedback, Panel, Progress } from './ui';
-import { type Download, type RequestRecord, type HealthResult, type Health, date, mb, dated } from './types';
-import { reconcileRequestGroups, type RequestGroup, requestOutcome, requestCache, requestTitle } from './requests';
-
-type RequestPage = {storageID:string; requests:RequestRecord[]; hasMore:boolean};
-function useRequestGroups(data?: RequestPage) {
-  const [snapshot,setSnapshot] = useState<{data?:RequestPage; groups:RequestGroup[]}>({groups:[]});
-  if (snapshot.data === data) return snapshot.groups;
-  const groups = reconcileRequestGroups(data?.requests || [], snapshot.data?.storageID === data?.storageID ? snapshot.groups : []);
-  setSnapshot({data,groups});
-  return groups;
-}
+import { type Download, type HealthResult, type Health, date, mb, dated } from './types';
+import { requestTitle } from './requests';
 
 const reasons: Record<string,string> = {no_channel:'没有有效候选',no_sample:'等待有效歌曲及资源样本',expired:'观测已过期',timeout:'请求超时',origin_timeout:'源站响应超时（Cloudflare 524）',network_error:'网络请求失败',resolution_unavailable:'无可用资源地址',invalid:'响应校验失败',restricted:'访问受限',upstream_error:'上游错误',http_error:'HTTP 响应异常'};
 const localReasons: Record<string,string> = {local_capacity:'本地代理连接额度已满',runtime_retired:'代理运行时已退出',channel_unavailable:'通道已失效',canceled:'本次检测已取消'};
@@ -81,22 +71,6 @@ export function CurrentDownloads({visible,paused=false}: {visible:boolean;paused
         <Details title="下载详情"><p>实际上游域名：{task.host || '尚未确定'}</p><p>{requestTitle(task)}</p><p>资源：{task.resource}</p><p>距上次读取 {(task.idleMS/1000).toFixed(0)} 秒</p></Details></div></ListItem>)}</List>
       <Details title="下载统计说明"><p>速度是最近 5 秒从网络下载视频的估算值。完整视频持久化前需完成合并和校验；视频块缓存可在下载过程中使用。</p></Details></Panel>
 </>;
-}
-export function RecentRequests({visible}: {visible:boolean}) {
-  const app=useApp(), [paused,setPaused]=useState(false), [limit,setLimit]=useState(50), requestFocus=useFocusRecovery();
-  const requests=useResource<RequestPage>('requests?limit='+limit,visible&&!paused&&!app.stopped,app.revision);
-  const groups=useRequestGroups(requests.data);
-  useEffect(()=>setLimit(50),[app.status.data!.activeSettings.storageDir]);
-  return <><Checkbox label="暂停请求刷新" checked={paused} onChange={(_,v)=>setPaused(!!v.checked)}/>    <Panel id="recent" {...requestFocus} title="最近请求"><p>请求次数不是播放次数</p><Details title="请求分组与传输口径"><p>仅显示已结束的视频请求。请求次数不等于播放次数；同一视频的相邻分段请求会合并展示。传输量是发给客户端的数据量，分组耗时和速度为估算值。</p></Details><Feedback error>{requests.error && '最近请求读取失败，将自动重试。'}</Feedback>
-      <p role="status">已显示 {requests.data?.requests.length || 0} 条 HTTP 请求 · 最近 {limit} 条 HTTP 请求窗口 {requests.data?.hasMore && '· 窗口外还有 HTTP 请求，分组可能不完整'}</p>
-      {!groups.length&&<p>暂无请求记录</p>}{groups.map(g => { const first = g.requests[0], span = g.end-g.first; return <Details key={`${requests.data?.storageID}:${g.id}`} title={`${first.songs?.map(s => s.title || '未知歌名').join(' / ') || '未知歌名'} · 请求 ×${g.requests.length}`}>
-        <p>{requestTitle(first)}</p><p>来源 / 结果：{[...new Set(g.requests.map(requestCache))].map(label=>`${label} ×${g.requests.filter(r=>requestCache(r)===label).length}`).join(' · ')} · {[...new Set(g.requests.map(requestOutcome))].map(label=>`${label} ×${g.requests.filter(r=>requestOutcome(r)===label).length}`).join(' · ')}</p><p>资源标识：{first.resource} · {date(g.last)} · 实际传输 {mb(g.bytes)} · {g.requests.length>1?'估算跨度':'耗时'} {(span/1000).toFixed(3)} 秒 · {g.requests.length>1?'估算平均速度':'平均速度'} {span ? mb(g.bytes/span*1000)+'/s' : '—'}</p>
-        <p>{(first.songs?.length || 0)>1 || first.moreSongs ? '共享资源 · 实际播放歌曲未确定' : '资源关联曲目'}</p>
-        {((first.songs?.length || 0)>2||first.moreSongs)&&<p>等 {first.moreSongs?'至少 ':''}{first.songs?.length || 0} 首关联曲目 · 全部候选见明细</p>}<ul>{g.requests.map(r => <li key={r.id}>{date(r.at)} · {r.method} {r.range || '完整请求'} · HTTP {r.status || '未返回'} · {requestCache(r)} · {requestOutcome(r)} · {mb(r.bytes)} · {(r.elapsedMS/1000).toFixed(3)} 秒 · {r.elapsedMS?mb(r.bytes/r.elapsedMS*1000)+'/s':'—'} · 资源 {r.resource}</li>)}</ul>
-      </Details>; })}
-      {requests.data?.hasMore && limit < 500 && <Button disabled={paused || app.unavailable} onClick={() => setLimit(Math.min(500,limit+50))}>加载更早记录（增加 50 条）</Button>}
-      {limit === 500 && requests.data?.hasMore && <p>已达 500 条上限。</p>}
-    </Panel></>;
 }
 export function LegacyNetworkDetails() {const app=useApp();return <><Panel title="向导直连诊断"><p role="status">{app.status.data?.setupNetwork?.running?'正在检测…':app.status.data?.setupNetwork?.error}</p><Details title="直连诊断详情"><List navigationMode="composite" aria-label="直连诊断结果">{app.status.data?.setupNetwork?.monitor?.results?.map((r,i)=><HealthRow key={`${r.operation}/${r.route}/${r.channelID}`} row={r} minutes={(app.status.data?.setupNetwork?.monitor?.policy?.throughputInterval || 20*60*1e9)/(60*1e9)} separator={i>0} context={`${operationNames[r.operation] || r.operation} · ${r.route}`} wait={app.status.data?.setupNetwork?.running?'正在测量':'等待重试'} />)}</List></Details><Link href="#/setup">返回使用引导</Link></Panel></>;
 }

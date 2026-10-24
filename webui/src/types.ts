@@ -57,6 +57,7 @@ export interface CacheEntry {
 }
 export interface CachePage {storageID: string; entries: CacheEntry[]; total: number; totalBytes?: number; fileCount: number}
 export interface RequestRecord {
+  songID?:string; completedAt?:number|null; responseBytes?:number|null; firstBodyNS?:number|null; firstBodyBlocking?:boolean|null;
   id: number; at: number; resource: string; method: string; range?: string; elapsedMS: number; bytes: number; status: number;
   cache: string; outcome: string; songs?: Song[]; moreSongs?: boolean;
 }

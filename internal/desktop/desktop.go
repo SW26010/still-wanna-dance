@@ -160,7 +160,6 @@ func PortError(address string, cause error) error {
 const (
 	OpenConsole = 1001 + iota
 	ToggleCDN
-	CancelBatch
 	Exit
 )
 
@@ -176,7 +175,7 @@ func Menu(s State, busy bool) []Item {
 	if s.CDN {
 		label = "关闭本地播放网关"
 	}
-	return []Item{{OpenConsole, "打开控制台", false}, {0, "", false}, {ToggleCDN, label, busy}, {CancelBatch, "停止批量任务", busy || !s.Batch}, {0, "", false}, {Exit, "退出 Still Wanna Dance", false}}
+	return []Item{{OpenConsole, "打开控制台", false}, {0, "", false}, {ToggleCDN, label, busy}, {0, "", false}, {Exit, "退出 Still Wanna Dance", false}}
 }
 
 type Options struct {

@@ -97,12 +97,12 @@ func TestConfigLifetimeLock(t *testing.T) {
 }
 
 func TestMenuMatchesRuntime(t *testing.T) {
-	items := Menu(State{CDN: true, Batch: true}, false)
-	if items[2].Label != "关闭本地播放网关" || items[3].Disabled {
+	items := Menu(State{CDN: true}, false)
+	if len(items) != 5 || items[2].Label != "关闭本地播放网关" || items[2].Disabled || items[4].ID != Exit {
 		t.Fatal(items)
 	}
 	items = Menu(State{}, true)
-	if !items[2].Disabled || !items[3].Disabled || items[0].Disabled || items[5].Disabled {
+	if items[2].Label != "启动本地播放网关" || !items[2].Disabled || items[0].Disabled || items[4].Disabled {
 		t.Fatal(items)
 	}
 }

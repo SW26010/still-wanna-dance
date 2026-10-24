@@ -27,13 +27,6 @@ func (c *Console) DesktopCommand(id int) (err error) {
 			return c.stop()
 		}
 		return c.startForUser()
-	case desktop.CancelBatch:
-		c.mu.Lock()
-		if c.batchCancel != nil {
-			c.batchCancel()
-		}
-		c.mu.Unlock()
-		return nil
 	default:
 		return fmt.Errorf("unknown desktop command: %d", id)
 	}

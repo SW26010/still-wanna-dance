@@ -12,7 +12,8 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
-func (s *Server) readScheduledRange(ctx context.Context, block int64, initial *http.Response, flight *flight, progress *blocksched.Progress) error {
+func (e *downloadExecutor) readRange(ctx context.Context, block int64, initial *http.Response, progress *blocksched.Progress) error {
+	s, flight := e.s, e.f
 	if initial != nil {
 		defer initial.Body.Close()
 	}

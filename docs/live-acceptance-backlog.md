@@ -30,7 +30,7 @@
 
 ### LA-040：慢网拖动、多播放器与后台竞争
 
-- **依据与必要性**：`internal/blocksched/`、`internal/cacheproxy/{scheduled_download,scheduled_range,block_demands,stream}.go`；[开发验证](validation/block-scheduler-validation.md)、[调度规则](download-concurrency.md)。真实播放器的探测/重连、并发读者及用户观察到的卡顿不能仅由受控 HTTP 断言代表。
+- **依据与必要性**：`internal/blocksched/`、`internal/cacheproxy/{scheduled_download,download_execute,download_range,block_demands,stream}.go`；[开发验证](validation/block-scheduler-validation.md)、[调度规则](download-concurrency.md)。真实播放器的探测/重连、并发读者及用户观察到的卡顿不能仅由受控 HTTP 断言代表。
 - **最少操作**：优先复测历史失败条件下的冷播放和前后拖动，再在同一会话加入同歌预览/正式双播放器及后台预取，取消一个读者或切歌，观察另一个是否继续。单连接限速与总带宽限速分清，不为每个修复分支另开游戏操作。agent 先分析历史证据、准备可控复现和所需采集；不能把未定位的问题反复交给用户重试。
 - **预期与证据**：取消一个读者不打断仍有需求的播放；可用带宽恢复后不永久等待，进度与音画恢复；记录起播/Seek 等待及卡顿。低于媒体所需带宽不承诺无卡顿，保留实际瓶颈和恢复结果。当前有限任务在 need-by+30 秒截止后明确失败；同轮观察真实播放器能否重新请求并恢复，不把明确截止与永久等待混为一谈，也不重复验证精确秒数。共用请求/读者时序、针对问题的调度日志及音画反馈；判断游戏卡顿时由 agent 同步采集必要 CPU/帧时间，完成下载时核对文件哈希。
 - **失败与已有覆盖**：[LIVE-20261014-02](acceptance/live-acceptance-20261014-02.md) 的 1 Mbps 交互未恢复、[LIVE-20261015-01](acceptance/live-acceptance-20261015-01.md) 的聚合慢网冷播卡顿/双播放器 Seek 长等待继续跟进；[LIVE-20261015-02](acceptance/live-acceptance-20261015-02.md) 日常播放及 38 文件校验正常，没有复测上述失败。本项汇总原 LA-008/020/037/038/039 的相关游戏行为，不因 A1–A8 或调度重构的自动检查通过就关闭失败。

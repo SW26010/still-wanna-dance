@@ -844,3 +844,15 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 - 正常权限下 Edge 时间轴套件 25/25 通过（`browser-final.txt`），覆盖实际偏移展示与原有订阅、选择、重连及窄屏交互。沙箱内 Edge 启动时命名管道关闭导致 24 项失败、1 项纯模型测试通过，保留在 `browser.txt`；首次正常权限尝试被本次残留夹具占用端口阻挡，见 `browser-unrestricted.txt`。按 PID 与命令行确认并结束本次夹具后重跑通过。
 
 这些结果证明参数传递和协议/存储一致性，不构成各尺寸的公网吞吐或 VRC 播放性能结论。用户设置与默认行为仍保持 1 MiB，未新增游戏专属待验项；开放设置并确定可选范围时再开展相应调优验证。
+
+## 2026-10-25：资源会话内的下载执行抽取
+
+`downloadSession.run` 保留任务／会话上下文衔接，已获调度许可的工作交给包内 `downloadExecutor`。首次响应和顺序正文集中到 `download_execute.go`，原 `scheduled_range.go` 改为 `download_range.go`，执行器复用既有请求、完整块存储和会话事实。初始化发布与读取等待仍由现有机制连接，任务计划、登记、租约及发布衔接留在协调器；没有新增调度状态、策略接口或未来功能参数。现行职责与扩展位置见 [canonical 文档](../download-resource-design.md)。
+
+复用现有首次请求／初始化、Range 并发与故障、顺序 200、取消与额度收尾、尝试超时、实体一致性和 Discard 回归，不为纯抽取新增重复测试。原始输出保存在忽略目录 `artifacts/download-executor-20261025/`：
+
+- 使用仓库 Windows 临时目录入口及既有 w64devkit/GCC，在正常 Windows 权限下运行 `go test -p 1 -tags=no_easytier -race ./internal/cacheproxy ./internal/blocksched -count=1 -timeout=240s`，两包通过（96.157／1.223 秒），无竞态报告，见 `race.txt`。沿用此前已确认的文件操作测试权限要求，未再用沙箱重复验证已知限制。
+- `go vet -tags=no_easytier ./cmd/... ./internal/...` 和 `go build -mod=readonly -tags=no_easytier ./cmd/...` 通过，分别见 `vet.txt`、`build.txt`。
+- 静态比对确认 Range 与顺序正文实现除接收者及参数衔接外保持原样，见 `extraction-check.txt`；格式化与差异检查通过。
+
+本轮结果验证抽取后的协议、存储和并发生命周期，不构成新的公网性能或 VRC 播放结论；未新增游戏专属待验项，未启动游戏、修改 hosts、提交或推送。

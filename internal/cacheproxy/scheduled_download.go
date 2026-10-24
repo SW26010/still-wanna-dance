@@ -3,9 +3,6 @@ package cacheproxy
 import (
 	"context"
 	"errors"
-	"fmt"
-	"io"
-	"net/http"
 	"sort"
 	"sync"
 	"time"
@@ -60,8 +57,8 @@ func (w *downloadSession) initialize(d *localResource) {
 	w.initOnce.Do(func() { close(w.initialized) })
 }
 
-// The initial request is itself a scheduled block. A 200 fallback keeps that
-// one execution until body close; a 206 exposes the spool before reading its block.
+// run joins the task and session lifetimes before handing admitted work to the
+// executor. Demand planning and task registration stay in the coordinator.
 func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block int64) blocksched.Result {
 	if w.ctx.Err() != nil {
 		return blocksched.Result{Err: context.Cause(w.ctx)}
@@ -75,76 +72,9 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 	stop := context.AfterFunc(w.ctx, func() { cancel(context.Cause(w.ctx)) })
 	defer stop()
 	defer cancel(nil)
-	// Each upstream attempt owns its timeout; intentional scheduler waits and
-	// retries do not consume a shared execution timer. Parent cancellation and
-	// the demand/task lifetime still bound all attempts.
-	// The global block admission covers retries/redirects. HTTP attempts only
-	// track their lifecycle; no lower-level hard quota delays blocked reads.
-
-	var initial *http.Response
-	if w.f.ranges == nil || w.f.ranges.sequential {
-		resp, host, err := w.s.openUpstream(ctx, w.v, block, new(resourceAttempts))
-		if err != nil {
-			if ctx.Err() != nil {
-				return blocksched.Result{Err: context.Cause(ctx)}
-			}
-			return blocksched.Result{Err: fmt.Errorf("%w: %w", errUpstreamDownload, err)}
-		}
-		defer resp.Body.Close()
-		if resp.Request != nil && resp.Request.URL != nil {
-			w.f.progress.setHost(resp.Request.URL.Hostname())
-		}
-		w.f.log.Info("upstream_response", "host", host, "status", resp.StatusCode, "content_length", resp.ContentLength)
-		if resp.StatusCode != http.StatusPartialContent {
-			w.s.mu.Lock()
-			w.f.sequentialCtx = ctx
-			w.s.mu.Unlock()
-			w.f.sequentialDemand = func(int64) func() { return w.reads.Wait(block) }
-			w.f.log.Info("range_unavailable", "host", host, "fallback", "sequential")
-			stopBody := context.AfterFunc(ctx, func() { resp.Body.Close() })
-			defer stopBody()
-			if w.f.discard {
-				_, err := io.Copy(io.Discard, contextReader{ctx, progressReader{upstreamReader{resp.Body}, w.f.progress}})
-				return blocksched.Result{Err: err}
-			}
-			err := w.s.readSequential(ctx, resp.Body, w.v, w.f)
-			// Sequential bodies have no safe partial restart. End this flight;
-			// its next owner opens a new body after cleanup. Preserve storage
-			// and integrity errors that happen to coincide with cancellation.
-			if ctx.Err() != nil && errors.Is(err, context.Canceled) {
-				w.s.preemptFlight(w.f, nil)
-				err = errPreempted
-			}
-			return blocksched.Result{Err: err}
-		}
-		v := w.v
-		if resp.Request != nil {
-			selected, err := w.s.parseResolved(resp.Request)
-			if err != nil {
-				return blocksched.Result{Err: err}
-			}
-			v.host, v.path, v.query = selected.host, selected.path, selected.query
-		}
-		var d *localResource
-		if w.f.discard {
-			d = &localResource{blockSize: w.s.cfg.BlockSize, video: resourceVideo(v), etag: resp.Header.Get("ETag"),
-				done: make(map[int64]bool)}
-		} else if w.f.ranges != nil {
-			d = w.f.ranges
-			d.sequential = false
-			d.etag = resp.Header.Get("ETag")
-		} else {
-			var err error
-			d, err = w.s.newLocalResource(v, resp, w.f.log)
-			if err != nil {
-				return blocksched.Result{Err: err}
-			}
-		}
-		w.initialize(d)
-		initial = resp
-	}
-	err := w.s.readScheduledRange(ctx, block, initial, w.f, p)
-	return blocksched.Result{Err: err}
+	executor := downloadExecutor{s: w.s, v: w.v, f: w.f,
+		waitForBlock: w.reads.Wait, initializeRanges: w.initialize}
+	return blocksched.Result{Err: executor.run(ctx, block, p)}
 }
 
 func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Need) error {

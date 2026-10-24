@@ -151,7 +151,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 | 来源过滤、有限交接、不识别继任者 | [block_demands.go](../internal/cacheproxy/block_demands.go)、[demand.go](../internal/cacheproxy/demand.go)、[block_demands_test.go](../internal/cacheproxy/block_demands_test.go) |
 | GET / 队列绝对期限与缺失值规则 | [media_timing.go](../internal/cacheproxy/media_timing.go)、[playback_timing.go](../internal/cacheproxy/playback_timing.go)、[queue_timing.go](../internal/cacheproxy/queue_timing.go) 及同名 `_test.go` |
 | 窗口、缓增、采样与准入例外 | [control.go](../internal/blocksched/control.go)、[duration.go](../internal/blocksched/duration.go)、[window_test.go](../internal/blocksched/window_test.go)、[opportunistic_test.go](../internal/blocksched/opportunistic_test.go) |
-| 真实 Range、可读采样、超时及混合需求 | [scheduled_range.go](../internal/cacheproxy/scheduled_range.go)、[block_duration_test.go](../internal/cacheproxy/block_duration_test.go)、[execution_timeout_test.go](../internal/cacheproxy/execution_timeout_test.go)、[opportunistic_demand_test.go](../internal/cacheproxy/opportunistic_demand_test.go) |
+| 下载执行、真实 Range、可读采样、超时及混合需求 | [download_execute.go](../internal/cacheproxy/download_execute.go)、[download_range.go](../internal/cacheproxy/download_range.go)、[block_duration_test.go](../internal/cacheproxy/block_duration_test.go)、[execution_timeout_test.go](../internal/cacheproxy/execution_timeout_test.go)、[opportunistic_demand_test.go](../internal/cacheproxy/opportunistic_demand_test.go) |
 
 早期实现中的“剩余字节→所需吞吐→目标并发”、两秒追赶、500 ms 采样、无收益回退、竞争暂停和恢复冷却均已被后续实现取代。[开发记录](validation/block-scheduler-validation.md)保留这些过程及失败证据，不作为当前运行规则；参数以固定 M 默认 500 秒为准，动态 T 已移除。
 

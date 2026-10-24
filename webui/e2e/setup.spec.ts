@@ -161,3 +161,16 @@ test('failed review blocks confirmation until the effects have been checked',asy
   await expect(page.getByRole('button',{name:'确认并应用',exact:true})).toBeEnabled();
   expect(api.calls.some(call=>call.path==='setup/apply')).toBe(false);
 });
+
+
+test('reentering setup can apply while the gateway queue is running',async({page})=>{
+  const api=await mockAPI(page);
+  api.state.running=true;api.state.queue={running:true,desired:true};api.state.hosts.ready=true;
+  await page.goto('/#/setup');await navigateStep(page,'4. 启用');
+  await expect(page.getByText('本地服务：保持运行',{exact:true})).toBeVisible();
+  await expect(page.getByText('房间队列预加载：保持开启',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'确认并应用',exact:true}).click();
+  await expect(page.getByText('配置已应用。加速运行中；房间队列预加载已开启。',{exact:true})).toBeVisible();
+  expect(api.calls.filter(c=>c.path==='setup/apply')).toHaveLength(1);
+  expect(api.calls.some(c=>c.path.startsWith('queue/')||c.path==='stop')).toBe(false);
+});

@@ -118,6 +118,11 @@ func TestSetupApplyStaleConfigurationAndBusyTasksAreRejected(t *testing.T) {
 		t.Fatal("running import would be interrupted")
 	}
 	c.importStatus.Running = false
+	c.batch.Running = true
+	if _, err := c.applySetupPlan(p); err == nil {
+		t.Fatal("running batch would be interrupted")
+	}
+	c.batch.Running = false
 	p.ImportSource = p.StorageDir
 	if err := os.MkdirAll(p.StorageDir, 0700); err != nil {
 		t.Fatal(err)

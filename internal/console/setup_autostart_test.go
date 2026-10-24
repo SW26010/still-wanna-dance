@@ -281,3 +281,67 @@ func TestSetupDeferredAutoStartFailureIsNotRetriedByWizard(t *testing.T) {
 	applyStartupSetup(t, c, p)
 	assertSetupServices(t, c, false, false)
 }
+
+func TestSetupReentryWithRunningQueue(t *testing.T) {
+	for _, change := range []string{"unchanged", "budget", "storage", "invalid"} {
+		t.Run(change, func(t *testing.T) {
+			c := setupStartupConsole(t, true, true)
+			completeStartupSetup(t, c)
+			assertSetupServices(t, c, true, true)
+			engine, queueDone, active := c.service, c.queueDone, c.settings
+			p := setupTestPlan(c)
+			p.ID = "reentered-with-running-queue"
+			switch change {
+			case "budget":
+				p.VideoStorageMode, p.MaxCacheBytes = "limited", 2<<30
+			case "storage":
+				p.StorageDir = filepath.Join(t.TempDir(), "new-library")
+			case "invalid":
+				p.UpstreamMode = ""
+			}
+			if change == "invalid" {
+				if _, err := c.applySetupPlan(p); err == nil {
+					t.Fatal("invalid plan accepted")
+				}
+				if c.savedSettings != active {
+					t.Fatal("rejected plan changed saved settings")
+				}
+			} else {
+				a := applyStartupSetup(t, c, p)
+				want := "restart"
+				if change == "unchanged" {
+					want = "completed"
+				}
+				if a.Phase != want || !a.ConfigSaved {
+					t.Fatalf("apply: %+v", a)
+				}
+				if replay := applyStartupSetup(t, c, p); replay.ID != a.ID || replay.Phase != a.Phase {
+					t.Fatal("replayed apply changed its receipt", replay)
+				}
+			}
+			assertSetupServices(t, c, true, true)
+			if c.settings != active || c.service != engine || c.queueDone != queueDone {
+				t.Fatal("wizard application changed the active engine or queue")
+			}
+			select {
+			case <-queueDone:
+				t.Fatal("queue stopped before restart")
+			default:
+			}
+			if change == "unchanged" || change == "invalid" {
+				return
+			}
+			c = restartTestConsole(t, c)
+			select {
+			case <-queueDone:
+			default:
+				t.Fatal("restart did not wait for the old queue")
+			}
+			c.AutoStart()
+			assertSetupServices(t, c, true, true)
+			if c.setupApplication.Phase != "completed" || c.settings.StorageDir != p.StorageDir || c.settings.VideoStorageMode != p.VideoStorageMode || c.settings.MaxCacheBytes != p.MaxCacheBytes {
+				t.Fatal("restart did not complete the approved plan", c.setupApplication)
+			}
+		})
+	}
+}

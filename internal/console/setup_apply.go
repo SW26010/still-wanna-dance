@@ -275,7 +275,9 @@ func (c *Console) applySetupPlan(p setupPlan) (SetupApplication, error) {
 	c.lifecycleMu.Lock()
 	c.mu.Lock()
 	previous, active := c.setupApplication, c.settings
-	taskRunning := c.importStatus.Running || c.batch.Running || c.queue.Running
+	// The persistent queue follows the gateway and the existing restart lifecycle.
+	// Saving a wizard plan must not require a separate queue stop operation.
+	taskRunning := c.importStatus.Running || c.batch.Running
 	c.mu.Unlock()
 	if p.ID != "" && len(p.ID) <= 80 {
 		if receipt, readErr := c.readSetupReceipt(p.ID); readErr == nil {
@@ -307,7 +309,7 @@ func (c *Console) applySetupPlan(p setupPlan) (SetupApplication, error) {
 	effective.nodeImportID = ""
 	if taskRunning && (effective != active || strings.TrimSpace(p.ImportSource) != "") {
 		c.lifecycleMu.Unlock()
-		return previous, errors.New("现有导入或队列任务仍在运行，请结束后再应用；本轮草稿保留")
+		return previous, errors.New("现有导入或批量任务仍在运行，请结束后再应用；本轮草稿保留")
 	}
 	version, err := c.setupSettingsVersion(s)
 	if err != nil {

@@ -8,10 +8,6 @@ import (
 // TrafficStats preserves lifetime traffic totals and playback first-body samples.
 type TrafficStats struct {
 	PlaybackTransfers uint64   `json:"playbackTransfers"`
-	LocalBodyMS       *float64 `json:"localBodyMS"`
-	ColdBodyMS        *float64 `json:"coldBodyMS"`
-	LocalBodySamples  uint64   `json:"localBodySamples"`
-	ColdBodySamples   uint64   `json:"coldBodySamples"`
 	SavedBytes        int64    `json:"savedBytes"`
 	Requests          uint64   `json:"requests"`
 	Hits              uint64   `json:"hits"`

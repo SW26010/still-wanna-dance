@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"strconv"
-	"time"
 )
 
 // A completed positive-byte playback GET is observable server evidence, not a
@@ -26,42 +25,12 @@ func recordPlaybackTransfer(ctx context.Context, tx *sql.Tx, e usageEvent) error
  WHERE excluded.last_transfer_at-song_playback.last_transfer_at>=?`, id, e.completedAt, demandWindow.Milliseconds()); err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO playback_latency(cache_result,samples,first_body_ns) VALUES (?,1,?)
- ON CONFLICT(cache_result) DO UPDATE SET samples=samples+1,first_body_ns=first_body_ns+excluded.first_body_ns`, e.cache, e.firstBodyNS)
-	return err
+	return nil
 }
 
 func addPlaybackStats(db *sql.DB, v *TrafficStats) {
 	if err := db.QueryRow("SELECT COALESCE(SUM(transfer_count),0) FROM song_playback").Scan(&v.PlaybackTransfers); err != nil {
 		v.Error = err.Error()
 		return
-	}
-	rows, err := db.Query("SELECT cache_result,samples,first_body_ns FROM playback_latency")
-	if err != nil {
-		v.Error = err.Error()
-		return
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var cache string
-		var count uint64
-		var total int64
-		if err := rows.Scan(&cache, &count, &total); err != nil {
-			v.Error = err.Error()
-			return
-		}
-		if count == 0 {
-			continue
-		}
-		ms := float64(total) / float64(time.Millisecond) / float64(count)
-		if cache == "HIT" {
-			v.LocalBodyMS, v.LocalBodySamples = &ms, count
-		}
-		if cache == "MISS" {
-			v.ColdBodyMS, v.ColdBodySamples = &ms, count
-		}
-	}
-	if err := rows.Err(); err != nil {
-		v.Error = err.Error()
 	}
 }

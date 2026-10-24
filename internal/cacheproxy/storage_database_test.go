@@ -11,7 +11,7 @@ import (
 )
 
 func TestStorageContractRejectsIncompatibleFilesEverywhere(t *testing.T) {
-	for _, mutation := range []string{"PRAGMA user_version=999", "PRAGMA application_id=123", "PRAGMA user_version=0", "PRAGMA user_version=1", "PRAGMA user_version=2", "DROP TABLE song_preferences", "DROP TABLE catalog_checks", "DROP INDEX request_events_http_time", "ALTER TABLE songs ADD COLUMN surprise TEXT"} {
+	for _, mutation := range []string{"PRAGMA user_version=999", "PRAGMA application_id=123", "PRAGMA user_version=0", "PRAGMA user_version=1", "PRAGMA user_version=2", "PRAGMA user_version=3", "DROP TABLE song_preferences", "DROP TABLE catalog_checks", "DROP INDEX request_events_http_time", "ALTER TABLE songs ADD COLUMN surprise TEXT"} {
 		t.Run(mutation, func(t *testing.T) {
 			cfg := fixtureConfig()
 			cfg.StorageDir = t.TempDir()

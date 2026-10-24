@@ -347,10 +347,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r = r.WithContext(applog.WithTrace(r.Context()))
 	log := s.cfg.Logger.With("trace_id", applog.TraceID(r.Context()), "request_id", id, "method", r.Method, "host", r.Host, "path", r.URL.Path, "range", r.Header.Get("Range"), "user_agent", r.UserAgent())
 	response := &responseWriter{ResponseWriter: w, started: start}
+	clientContext := r.Context()
 	w = response
 	defer func() {
 		crash := recover()
-		outcome := response.outcome(r.Context(), crash)
+		outcome := response.outcome(clientContext, crash)
 		log.Info("request_finished", "status", response.status, "bytes", response.bytes, "elapsed", time.Since(start), "elapsed_ms", time.Since(start).Milliseconds(),
 			"response_headers_ms", response.headerLatency.Milliseconds(), "first_body_ms", response.firstBodyMS(),
 			"outcome", outcome, "cache", w.Header().Get("X-SWD-Cache"), "content_range", w.Header().Get("Content-Range"),
@@ -376,7 +377,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 		return
 	}
+	event := usageEvent{at: start.UnixMilli(), source: "http", method: r.Method, rangeHeader: r.Header.Get("Range")}
+	defer func() {
+		panicked := recover()
+		event.status, event.bytes = response.status, response.videoBytes
+		event.responseBytes = response.expectedBytes
+		if response.videoBytes > 0 {
+			group := response.firstBodyBlocking
+			event.firstBodyBlocking = &group
+		}
+		event.firstBodyNS = response.firstBodyLatency.Nanoseconds()
+		event.elapsedMS = time.Since(start).Milliseconds()
+		event.cache = w.Header().Get("X-SWD-Cache")
+		if event.cache == "" {
+			event.cache = "UNKNOWN"
+		}
+		event.outcome = response.outcome(clientContext, panicked)
+		s.usage.record(event)
+		s.recordTraffic(r.Method, event.cache, event.outcome, event.status, event.bytes)
+		if panicked != nil {
+			panic(panicked)
+		}
+	}()
 	v, release, err := s.requestVideo(r, observed)
+	event.id, event.key, event.host, event.size, event.songID = v.key, v.key, v.host, v.size, v.songID
 	if release != nil {
 		defer release()
 	}
@@ -394,25 +418,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	log = log.With("resource_key", v.key)
 	log.Info("request_started")
-	event := usageEvent{id: v.key, at: start.UnixMilli(), key: v.key, host: v.host,
-		songID: v.songID,
-		source: "http", method: r.Method, rangeHeader: r.Header.Get("Range"), size: v.size}
-	defer func() {
-		panicked := recover()
-		event.status, event.bytes = response.status, response.bytes
-		event.firstBodyNS = response.firstBodyLatency.Nanoseconds()
-		event.elapsedMS = time.Since(start).Milliseconds()
-		event.cache = w.Header().Get("X-SWD-Cache")
-		if event.cache == "" {
-			event.cache = "UNKNOWN"
-		}
-		event.outcome = response.outcome(r.Context(), panicked)
-		s.usage.record(event)
-		s.recordTraffic(r.Method, event.cache, event.outcome, event.status, response.bytes)
-		if panicked != nil {
-			panic(panicked)
-		}
-	}()
 	// Range only applies to GET. ServeContent also handles HEAD, so strip it here.
 	if r.Method == http.MethodHead {
 		r = r.Clone(r.Context())
@@ -459,7 +464,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() { releaseDemand() }()
 	if r.Method == http.MethodGet {
-		event.at = s.usage.startGET(v.songID, v.key)
+		s.usage.startGET(v.songID, v.key)
 	}
 	// Transfer the request pin and event identity together on every pre-body retry.
 	retry := func(cause error) error {
@@ -514,6 +519,11 @@ loadVideo:
 		return
 	}
 	if stream != nil {
+		stream.onWait = func() {
+			if response.videoBytes == 0 {
+				response.waitedForBlock = true
+			}
+		}
 		pending := serveStream(w, r, v, stream)
 		if stream.err != nil {
 			if v.cached != nil && errors.Is(stream.err, errUpstreamDownload) && r.Context().Err() == nil {
@@ -573,13 +583,16 @@ loadVideo:
 
 type responseWriter struct {
 	http.ResponseWriter
-	started          time.Time
-	headerLatency    time.Duration
-	firstBodyLatency time.Duration
-	status           int
-	bytes            int64
-	writeErr         error
-	consumption      *getConsumption
+	started                           time.Time
+	headerLatency                     time.Duration
+	firstBodyLatency                  time.Duration
+	status                            int
+	bytes                             int64
+	videoBytes                        int64
+	expectedBytes                     *int64
+	waitedForBlock, firstBodyBlocking bool
+	writeErr                          error
+	consumption                       *getConsumption
 }
 
 func (w *responseWriter) WriteHeader(status int) {
@@ -589,6 +602,10 @@ func (w *responseWriter) WriteHeader(status int) {
 	w.status = status
 	if w.consumption != nil {
 		w.consumption.start(status, w.Header())
+		if w.consumption.active && w.Header().Get("Content-Type") == "video/mp4" {
+			expected := w.consumption.limit - w.consumption.position
+			w.expectedBytes = &expected
+		}
 	}
 	w.headerLatency = time.Since(w.started)
 	w.ResponseWriter.WriteHeader(status)
@@ -608,6 +625,12 @@ func (w *responseWriter) Write(p []byte) (int, error) {
 	}
 	if w.consumption != nil && n > 0 {
 		w.consumption.accept(int64(n))
+	}
+	if n > 0 && w.expectedBytes != nil {
+		if w.videoBytes == 0 {
+			w.firstBodyBlocking = w.waitedForBlock
+		}
+		w.videoBytes += int64(n)
 	}
 	if n > 0 && w.bytes == 0 {
 		w.firstBodyLatency = time.Since(w.started)
@@ -686,14 +709,17 @@ func cacheErrorStatus(err error) int {
 	return http.StatusBadGateway
 }
 func (w *responseWriter) outcome(ctx context.Context, crash any) string {
-	if ctx.Err() != nil {
+	if errors.Is(ctx.Err(), context.Canceled) {
 		return "canceled"
 	}
 	if crash != nil {
 		return "aborted"
 	}
-	if w.status >= 400 || w.writeErr != nil {
+	if w.status >= 400 || w.writeErr != nil || ctx.Err() != nil {
 		return "failed"
+	}
+	if w.expectedBytes != nil && w.videoBytes < *w.expectedBytes {
+		return "incomplete"
 	}
 	return "completed"
 }

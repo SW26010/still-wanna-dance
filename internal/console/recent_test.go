@@ -48,3 +48,32 @@ func TestRecentAPIAuthLimitsAndOffline(t *testing.T) {
 		t.Fatalf("unsafe error: %d %s", w.Code, w.Body.String())
 	}
 }
+
+func TestHistoryAndLatencyAPIAuthRangeAndOffline(t *testing.T) {
+	c := testConsole(t)
+	for _, path := range []string{"/api/history", "/api/latency"} {
+		for _, tc := range []struct {
+			query, token, origin string
+			status               int
+		}{
+			{"", "", "", 403}, {"", c.token, "http://evil.example", 403},
+			{"?limit=501", c.token, "", 400}, {"?from=oops", c.token, "", 400}, {"?from=10&to=9", c.token, "", 400}, {"?cursor=10:0", c.token, "", 400},
+			{"", c.token, "", 200}, {"?from=1&to=999&limit=10&cursor=20:3", c.token, "", 200},
+		} {
+			r := httptest.NewRequest("GET", "http://"+c.address+path+tc.query, nil)
+			r.Header.Set("X-SWD-Token", tc.token)
+			r.Header.Set("Origin", tc.origin)
+			w := httptest.NewRecorder()
+			c.ServeHTTP(w, r)
+			if w.Code != tc.status {
+				t.Fatalf("%s %+v: %d %s", path, tc, w.Code, w.Body.String())
+			}
+		}
+	}
+	if c.service != nil || c.httpServer != nil {
+		t.Fatal("history read started engine")
+	}
+	if _, err := os.Stat(filepath.Join(c.settings.StorageDir, "storage.sqlite")); !os.IsNotExist(err) {
+		t.Fatal("history read created storage", err)
+	}
+}

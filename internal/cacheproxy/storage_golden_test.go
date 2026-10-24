@@ -8,10 +8,10 @@ import (
 	"time"
 )
 
-// This binary was created for schema v3. Never regenerate it to make a changed
+// This binary was created for schema v4. Never regenerate it to make a changed
 // schema pass: add a new version and retain the prior release's fixture.
-func TestStorageV3Golden(t *testing.T) {
-	b, err := os.ReadFile("testdata/storage-v3.sqlite")
+func TestStorageV4Golden(t *testing.T) {
+	b, err := os.ReadFile("testdata/storage-v4.sqlite")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func TestStorageV3Golden(t *testing.T) {
 		if err := db.QueryRow(`SELECT query_started_at FROM song_urls WHERE song_id=42`).Scan(&nanos); err != nil {
 			t.Fatal(err)
 		}
-		if err := db.QueryRow(`SELECT first_body_ns FROM playback_latency WHERE cache_result='HIT'`).Scan(&duration); err != nil {
+		if err := db.QueryRow(`SELECT first_body_ns FROM request_events WHERE event_id=1`).Scan(&duration); err != nil {
 			t.Fatal(err)
 		}
 		if err := db.QueryRow(`SELECT artist IS NULL AND flip=0 AND volume=0 FROM songs WHERE song_id=42`).Scan(&absent); err != nil {
@@ -65,26 +65,30 @@ func TestStorageV3Golden(t *testing.T) {
 	}
 }
 
-func TestStorageV2GoldenRejectedUnchanged(t *testing.T) {
-	b, err := os.ReadFile("testdata/storage-v2.sqlite")
-	if err != nil {
-		t.Fatal(err)
-	}
-	path := filepath.Join(t.TempDir(), storageDatabaseName)
-	if err := os.WriteFile(path, b, 0600); err != nil {
-		t.Fatal(err)
-	}
-	for _, writable := range []bool{false, true} {
-		db, err := openStorageDatabase(path, writable)
-		if db != nil {
-			db.Close()
-		}
-		if err == nil {
-			t.Fatal("v2 must require a new storage directory")
-		}
-	}
-	after, err := os.ReadFile(path)
-	if err != nil || !bytes.Equal(b, after) {
-		t.Fatal("v2 fixture changed", err)
+func TestStorageOldGoldensRejectedUnchanged(t *testing.T) {
+	for _, version := range []string{"2", "3"} {
+		t.Run(version, func(t *testing.T) {
+			b, err := os.ReadFile("testdata/storage-v" + version + ".sqlite")
+			if err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(t.TempDir(), storageDatabaseName)
+			if err := os.WriteFile(path, b, 0600); err != nil {
+				t.Fatal(err)
+			}
+			for _, writable := range []bool{false, true} {
+				db, err := openStorageDatabase(path, writable)
+				if db != nil {
+					db.Close()
+				}
+				if err == nil {
+					t.Fatal("old version must require a new storage directory")
+				}
+			}
+			after, err := os.ReadFile(path)
+			if err != nil || !bytes.Equal(b, after) {
+				t.Fatal("old fixture changed", err)
+			}
+		})
 	}
 }

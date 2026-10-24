@@ -1,0 +1,242 @@
+package cacheproxy
+
+import (
+	"context"
+	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestHistoryPagesAllRequestsAndPreservesIdentity(t *testing.T) {
+	s, cfg := setup(t, nil)
+	key := strings.Repeat("a", 32)
+	var events []usageEvent
+	for i := 0; i < 1201; i++ {
+		events = append(events, usageEvent{at: 1000 + int64(i/3), completedAt: 2000, key: key, id: key, songID: "42", source: "http", method: "GET", outcome: "completed"})
+	}
+	events = append(events, usageEvent{at: 1200, source: "http", method: "HEAD"}, usageEvent{at: 1200, source: "prefetch", method: "GET"})
+	if err := s.usage.write(events); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,name) VALUES(42,'new mapping'),(43,'new association'); INSERT INTO media(md5) VALUES(?),(?); INSERT INTO song_media VALUES(42,?),(43,?)`, key, strings.Repeat("b", 32), strings.Repeat("b", 32), key); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	q := RequestQuery{Limit: 50}
+	seen := map[int64]bool{}
+	for {
+		page, err := ReadRequestHistory(context.Background(), cfg.StorageDir, q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(page.Requests) > 50 {
+			t.Fatal("unbounded page")
+		}
+		for _, r := range page.Requests {
+			if seen[r.ID] || r.SongID != "42" || r.Resource != key || r.CompletedAt == nil || *r.CompletedAt != 2000 {
+				t.Fatalf("changed/duplicated history: %+v", r)
+			}
+			seen[r.ID] = true
+		}
+		if !page.HasMore {
+			break
+		}
+		if page.NextCursor == "" || page.NextCursor == q.Cursor {
+			t.Fatal("cursor did not advance")
+		}
+		q.Cursor = page.NextCursor
+	}
+	if len(seen) != 1201 {
+		t.Fatal("history truncated", len(seen))
+	}
+	page, err := ReadRequestHistory(context.Background(), cfg.StorageDir, RequestQuery{From: 1100, To: 1101, Limit: 50})
+	if err != nil || len(page.Requests) != 3 {
+		t.Fatal("time boundaries", page, err)
+	}
+}
+
+func TestLatencyRollingQuantilesCoverageAndRestart(t *testing.T) {
+	s, cfg := setup(t, nil)
+	now := time.Now().Truncate(time.Second)
+	start := now.Add(-80 * time.Hour).UnixMilli()
+	if _, err := s.usage.db.Exec("UPDATE request_observation SET started_at=?,retained_since=0", start); err != nil {
+		t.Fatal(err)
+	}
+	var events []usageEvent
+	for _, blocking := range []bool{false, true} {
+		for i := 1; i <= 20; i++ {
+			e := usageEvent{source: "http", method: "GET", status: 206, outcome: "completed", at: now.Add(-time.Hour).UnixMilli(), bytes: 1, firstBodyNS: int64(i) * int64(time.Millisecond), firstBodyBlocking: &blocking}
+			if blocking {
+				e.firstBodyNS *= 10
+			}
+			if i%2 == 0 {
+				e.outcome = "canceled"
+			}
+			events = append(events, e)
+		}
+	}
+	ready := false
+	for _, at := range []int64{now.Add(-72*time.Hour).UnixMilli() - 1, now.UnixMilli()} {
+		events = append(events, usageEvent{source: "http", method: "GET", status: 200, at: at, bytes: 1, firstBodyNS: 1, firstBodyBlocking: &ready})
+	}
+	// Supported records with unknown timing, non-video errors and empty bodies
+	// remain history but cannot turn into zero-millisecond latency samples.
+	for _, e := range []usageEvent{{status: 200, bytes: 1}, {status: 502, bytes: 5, firstBodyBlocking: &ready}, {status: 200, firstBodyBlocking: &ready}} {
+		e.at = now.Add(-time.Hour).UnixMilli()
+		e.source = "http"
+		e.method = "GET"
+		events = append(events, e)
+	}
+	if err := s.usage.write(events); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	r, err := ReadFirstBodyLatency(context.Background(), cfg.StorageDir, now)
+	if err != nil || r.Partial || r.Ready.Samples != 20 || r.Blocking.Samples != 20 || r.Ready.P50MS == nil || *r.Ready.P50MS != 10 || *r.Ready.P95MS != 19 || *r.Blocking.P50MS != 100 || *r.Blocking.P95MS != 190 {
+		t.Fatalf("quantiles: %+v %v", r, err)
+	}
+	var openErr error
+	s, openErr = New(cfg)
+	if openErr != nil {
+		t.Fatal(openErr)
+	}
+	defer s.Close()
+	s.usage.retention = 30 * time.Minute
+	if _, err := s.usage.prune(now); err != nil {
+		t.Fatal(err)
+	}
+	r, err = ReadFirstBodyLatency(context.Background(), cfg.StorageDir, now)
+	if err != nil || !r.Partial || r.AvailableFrom == nil || *r.AvailableFrom != now.Add(-30*time.Minute).UnixMilli() || r.Ready.Samples != 0 || r.Ready.P50MS != nil {
+		t.Fatalf("short retention: %+v %v", r, err)
+	}
+}
+
+func TestHistoryCapturesEffectiveResponseAndVideoBytes(t *testing.T) {
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
+	s.wg.Wait()
+	for _, tc := range []struct {
+		header, ifRange string
+		want            int64
+		status          int
+	}{{"bytes=-3", "", 3, 206}, {"bytes=33-100", "", 3, 206}, {"bytes=1-2", `"changed"`, 36, 200}, {"bytes=100-", "", -1, 416}} {
+		w := request(s, "GET", videoURL(payload), map[string]string{"Range": tc.header, "If-Range": tc.ifRange})
+		if w.Code != tc.status {
+			t.Fatal(w.Code)
+		}
+		s.usage.flush()
+		page, err := ReadRequestHistory(context.Background(), cfg.StorageDir, RequestQuery{Limit: 1})
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := page.Requests[0]
+		if r.SongID != "" {
+			t.Fatal("resource path inferred song ID", r.SongID)
+		}
+		if tc.want < 0 {
+			if r.ResponseBytes != nil || r.Bytes != 0 || r.FirstBodyNS != nil {
+				t.Fatalf("error body counted: %+v", r)
+			}
+		} else if r.ResponseBytes == nil || *r.ResponseBytes != tc.want || r.Bytes != tc.want || r.FirstBodyNS == nil || r.FirstBodyBlocking == nil || *r.FirstBodyBlocking {
+			t.Fatalf("effective range: %+v", r)
+		}
+	}
+}
+
+func TestResolutionFailureRetainsArrivalIdentityWithoutBodySample(t *testing.T) {
+	entered, resume := make(chan struct{}), make(chan struct{})
+	s, cfg := setup(t, nil, func(c *Config) {
+		c.ResolvePlayback = func(context.Context, string, string) (string, error) {
+			close(entered)
+			<-resume
+			return "", errors.New("offline")
+		}
+	})
+	done := make(chan struct{})
+	before := time.Now().UnixMilli()
+	go func() { request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=42", nil); close(done) }()
+	<-entered
+	time.Sleep(20 * time.Millisecond)
+	afterResolution := time.Now().UnixMilli()
+	close(resume)
+	<-done
+	s.usage.flush()
+	page, err := ReadRequestHistory(context.Background(), cfg.StorageDir, RequestQuery{Limit: 50})
+	if err != nil || len(page.Requests) != 1 {
+		t.Fatal(page, err)
+	}
+	r := page.Requests[0]
+	if r.SongID != "42" || r.At < before || r.At >= afterResolution || r.CompletedAt == nil || *r.CompletedAt < afterResolution || r.Bytes != 0 || r.ResponseBytes != nil || r.FirstBodyNS != nil || r.Outcome != "failed" {
+		t.Fatalf("resolution history: %+v", r)
+	}
+}
+
+func TestFirstBodyClassOnlyObservesActualPreBodyBlockWait(t *testing.T) {
+	for _, scenario := range []string{"ready", "during-registration", "blocking", "after-first"} {
+		t.Run(scenario, func(t *testing.T) {
+			sp := &spool{blocks: newBlockFiles(t.TempDir(), 2, 1, nil), changed: make(chan struct{}), refs: 1}
+			defer sp.release()
+			if scenario == "ready" || scenario == "after-first" {
+				if _, err := sp.WriteAt([]byte{1}, 0); err != nil {
+					t.Fatal(err)
+				}
+			}
+			sp.demand = func(offset int64) func() {
+				if scenario == "during-registration" {
+					sp.WriteAt([]byte{1}, offset)
+				}
+				return func() {}
+			}
+			reader := sp.reader(context.Background(), 2)
+			defer reader.Close()
+			expected := int64(2)
+			response := &responseWriter{ResponseWriter: httptest.NewRecorder(), started: time.Now(), expectedBytes: &expected}
+			waited := make(chan struct{}, 2)
+			reader.onWait = func() {
+				if response.videoBytes == 0 {
+					response.waitedForBlock = true
+				}
+				waited <- struct{}{}
+			}
+			read := func() {
+				b := make([]byte, 1)
+				n, err := reader.Read(b)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				response.Write(b[:n])
+			}
+			done := make(chan struct{})
+			go func() {
+				read()
+				if scenario == "after-first" {
+					read()
+				}
+				close(done)
+			}()
+			if scenario == "blocking" || scenario == "after-first" {
+				<-waited
+				offset := int64(0)
+				if scenario == "after-first" {
+					offset = 1
+				}
+				if _, err := sp.WriteAt([]byte{1}, offset); err != nil {
+					t.Fatal(err)
+				}
+			}
+			<-done
+			if response.firstBodyBlocking != (scenario == "blocking") {
+				t.Fatal("incorrect first-body classification", scenario, response.firstBodyBlocking)
+			}
+		})
+	}
+}

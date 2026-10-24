@@ -947,6 +947,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, result)
 		return
 	}
+	if (r.URL.Path == "/api/history" || r.URL.Path == "/api/latency") && r.Method == "GET" {
+		c.serveRequestHistory(w, r)
+		return
+	}
 	if r.URL.Path == "/api/requests" && r.Method == "GET" {
 		if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
 			http.Error(w, "invalid origin or token", http.StatusForbidden)

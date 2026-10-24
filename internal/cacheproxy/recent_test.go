@@ -38,7 +38,7 @@ func TestRecentRequestsWindowAndNames(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !result.HasMore || len(result.Requests) != 2 || result.Requests[0].Resource != "range" || result.Requests[1].Outcome != "incomplete" {
+	if !result.HasMore || len(result.Requests) != 2 || result.Requests[0].Resource != "range" || result.Requests[1].Outcome != "completed" {
 		t.Fatalf("page: %+v", result)
 	}
 	if strings.Contains(result.Requests[1].Range, "secret") {
@@ -87,22 +87,6 @@ func TestRecentMissingCorruptAndLimits(t *testing.T) {
 	}
 	if _, err := ReadRecentRequests(context.Background(), root, 50); err == nil {
 		t.Fatal("corrupt DB hidden")
-	}
-}
-
-func TestExpectedRecentBytes(t *testing.T) {
-	for _, tc := range []struct {
-		status int
-		header string
-		want   int64
-	}{
-		{200, "", 100}, {206, "bytes=0-9", 10}, {206, "bytes=90-", 10}, {206, "bytes=-5", 5},
-		{206, "bytes=90-150", 10}, {206, "bytes=-150", 100}, {206, "bytes=4-2", -1},
-		{206, "bytes=0-1,4-5", -1}, {416, "bytes=100-", -1},
-	} {
-		if got := expectedRecentBytes(tc.status, tc.header, 100); got != tc.want {
-			t.Errorf("%+v: %d", tc, got)
-		}
 	}
 }
 

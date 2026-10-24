@@ -21,6 +21,8 @@ const requestCleanupBatch = 500
 type usageEvent struct {
 	songID                                                 string
 	firstBodyNS                                            int64
+	responseBytes                                          *int64
+	firstBodyBlocking                                      *bool
 	completedAt                                            int64
 	barrier                                                chan struct{}
 	id                                                     string
@@ -50,6 +52,10 @@ func openUsage(path string, log *slog.Logger, retentionDays int) (*usageStore, e
 	}
 	u := &usageStore{retention: time.Duration(retentionDays) * 24 * time.Hour, db: db, log: log, events: make(chan usageEvent, 1024), done: make(chan struct{}), now: time.Now}
 
+	if _, err := db.Exec("INSERT INTO request_observation(id,started_at,retained_since) VALUES(1,?,0) ON CONFLICT DO NOTHING", u.now().UnixMilli()); err != nil {
+		db.Close()
+		return nil, err
+	}
 	go u.run()
 	return u, nil
 }
@@ -187,10 +193,10 @@ func (u *usageStore) write(batch []usageEvent) error {
 			}
 			_, err = tx.ExecContext(ctx, `INSERT INTO request_events
 (resource_key, requested_at, version_key, host, source, method, range_header, cache_result, outcome,
- file_bytes, transferred_bytes, elapsed_ms, status, counts_as_demand)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+ file_bytes, transferred_bytes, elapsed_ms, status, counts_as_demand, song_id, completed_at, response_bytes, first_body_ns, first_body_blocking)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				e.id, e.at, e.key, e.host, e.source, e.method, e.rangeHeader, e.cache, e.outcome,
-				e.size, e.bytes, e.elapsedMS, e.status, e.demand)
+				e.size, e.bytes, e.elapsedMS, e.status, e.demand, nullString(e.songID), nullPositive(e.completedAt), e.responseBytes, nullFirstBody(e), e.firstBodyBlocking)
 			if err != nil {
 				return err
 			}
@@ -242,11 +248,43 @@ func (u *usageStore) prune(now time.Time) (int64, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	result, err := u.db.ExecContext(ctx, `DELETE FROM request_events WHERE event_id IN (
- SELECT event_id FROM request_events WHERE requested_at < ? ORDER BY requested_at LIMIT ?
-)`, now.Add(-u.retention).UnixMilli(), requestCleanupBatch)
+	tx, err := u.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	defer tx.Rollback()
+	cutoff := now.Add(-u.retention).UnixMilli()
+	if _, err := tx.ExecContext(ctx, "UPDATE request_observation SET retained_since=max(retained_since,?) WHERE id=1", cutoff); err != nil {
+		return 0, err
+	}
+	result, err := tx.ExecContext(ctx, `DELETE FROM request_events WHERE event_id IN (
+ SELECT event_id FROM request_events WHERE requested_at < ? ORDER BY requested_at LIMIT ?
+)`, cutoff, requestCleanupBatch)
+	if err != nil {
+		return 0, err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return count, tx.Commit()
+}
+
+func nullString(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+func nullPositive(n int64) any {
+	if n <= 0 {
+		return nil
+	}
+	return n
+}
+func nullFirstBody(e usageEvent) any {
+	if e.firstBodyBlocking == nil || e.bytes <= 0 {
+		return nil
+	}
+	return e.firstBodyNS
 }

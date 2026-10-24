@@ -47,7 +47,8 @@ func TestSongDemandReverseCompletion(t *testing.T) {
 			release.Do(func() { close(w.release) })
 			<-done
 			s.usage.flush()
-			var count, firstFinished int64
+			var count int64
+			var firstFinished string
 			want := int64(1)
 			if gap >= 30 {
 				want = 2
@@ -55,7 +56,7 @@ func TestSongDemandReverseCompletion(t *testing.T) {
 			if err := s.usage.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=1").Scan(&count); err != nil || count != want {
 				t.Fatal(count, want, err)
 			}
-			if err := s.usage.db.QueryRow("SELECT requested_at FROM request_events WHERE source='http' ORDER BY event_id LIMIT 1").Scan(&firstFinished); err != nil || firstFinished != time.Unix(clock.Load(), 0).UnixMilli() {
+			if err := s.usage.db.QueryRow("SELECT range_header FROM request_events WHERE source='http' ORDER BY event_id LIMIT 1").Scan(&firstFinished); err != nil || firstFinished != "bytes=0-3" {
 				t.Fatal("short request must finish first", firstFinished, err)
 			}
 		})
@@ -69,6 +70,10 @@ func TestCacheAccessSurvivesRequestCleanupAndRestart(t *testing.T) {
 	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
 	s.wg.Wait()
 	s.usage.flush()
+	// Model an old retained request without replacing the production arrival clock.
+	if _, err := s.usage.db.Exec("UPDATE request_events SET requested_at=? WHERE source='http'", old.UnixMilli()); err != nil {
+		t.Fatal(err)
+	}
 	cleaner := &usageStore{db: s.usage.db, retention: 30 * 24 * time.Hour}
 	if n, err := cleaner.prune(time.Now()); err != nil || n != 1 {
 		t.Fatal(n, err)

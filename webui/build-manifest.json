@@ -16,7 +16,7 @@
     "webui/src/block-timeline.tsx": "3abd530d0ae76455e2cf80ce83d69e40be4c864d1f5709bb280a257b6ddd61d3",
     "webui/src/bootstrap.ts": "89fc603e0cc151cfd1b0972217a6e49c58c7e93c6010f77237e12adde9c5cd91",
     "webui/src/cache-capacity.tsx": "ce739b6e669fd54f6c8870bcde5d5d9390c24f8751b1340fe4df4467f4c9b471",
-    "webui/src/cache.tsx": "e20bc28f8c723e3352e35750a37e0780d94b8beed660dc8ae11fe9270c174fa4",
+    "webui/src/cache.tsx": "c716f2cb0ffc2171ab5fb2d6f4eb9098bf68ac7172e796d36b6ecb2d0be051b6",
     "webui/src/diagnostics.tsx": "9554be089be40c13dc29bebb4d705e0f33bc4c2c98bc9f38d05d300023133569",
     "webui/src/documents.tsx": "22cddcad21353c5eeb7132de78681e422afb61fb4a44ae98beae9499966b6616",
     "webui/src/help-content.tsx": "65ca782ec2368471eb5c19d0ac37306d2b61091112fabdcb758055b10342a9f4",
@@ -31,7 +31,7 @@
     "webui/src/song-preferences.tsx": "c0206c2ce1d0cf4184bd6bf872f9a5e317f3c1249cd26163da2d6eb4d3a7db26",
     "webui/src/storage-directory.tsx": "f2922a3fd98676f1382fc4a34678038c26c8fbc3b147d0a173840ebd07474661",
     "webui/src/styles.css": "66312d9c0e3ded359e17019d576736cd65b05deea9a5476bd20e35f9fbb93d36",
-    "webui/src/types.ts": "082106ba4a1bd708496e06b95d1d1ab0016523c06bb4985d8fc7406cd6c85c47",
+    "webui/src/types.ts": "20b583e1edce025616e5df2978233b7465f0c5294096ce26b0ab0ccafce23507",
     "webui/src/ui.tsx": "34f43a75168e1d336f156e37b83f4b57863cc5c0ca11f7e82999ba383e400967",
     "webui/src/vrcx.tsx": "55669fcacbe940aad05106672ddf7657ad61de5c15944f82184c3fd51cd8b5cf",
     "webui/tsconfig.json": "8b7f2c63c61fc1e6c52d979af1d994b8f7cc2aa9562c2564fd5525385f028a6a"
@@ -39,6 +39,6 @@
   "outputs": {
     "docs/licenses/WEBUI-NOTICES.txt": "fa512d9658e45879deac45f9109f8a4c34974c66ada3107914e9e172f8267fa4",
     "internal/console/assets/webui/app.css": "618eb735cf989b7240ae1553ea200b370b44f3b1caf2b8a6f826881b705b61d2",
-    "internal/console/assets/webui/app.js": "3710e0b42f907c10702026bdd3633d4560c26e5080de6f87ab1307435e776edb"
+    "internal/console/assets/webui/app.js": "59c58cf99c291c88d33f53d7c4c16688cddda87002f9e7f30ea64c74459cd784"
   }
 }

@@ -37,7 +37,7 @@ export interface Status {
   portOwner?: {name: string; pid: number}; httpsPortOwner?: {name: string; pid: number}; cdnError?: string;
   storageError?: string; actionErrors?: Record<string,string>; batch: Job; lastBatch: Job; import: ImportJob;
   queue: {running?: boolean; desired?: boolean; current?: number; active?: number[]; blocked?: number[]; songs?: {songId: number}[]; titles?: Record<string,string>; file?: string; completed?: number; logError?: string; error?: string};
-  traffic?: {hits?: number; hitRate?: number; savedBytes?: number; playbackTransfers?: number; requests?: number; misses?: number; coldBodyMS?: number; coldBodySamples?: number; localBodyMS?: number; localBodySamples?: number; error?: string};
+  traffic?: {hits?: number; hitRate?: number; savedBytes?: number; playbackTransfers?: number; requests?: number; misses?: number; error?: string};
   socks5PasswordSet?: boolean; socks5CredentialError?: string;
   proxyNodes?: {saved?: number; loaded?: number; active?: number; error?: string; activeError?: string};
   activation?: {phase?: string; error?: string; started?: string; readyAt?: string; firstRequest?: string};

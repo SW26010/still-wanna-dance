@@ -5,11 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"path/filepath"
 	"regexp"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -24,24 +22,30 @@ type RecentSong struct {
 }
 
 type RecentRequest struct {
-	ID        int64        `json:"id"`
-	At        int64        `json:"at"`
-	Resource  string       `json:"resource"`
-	Method    string       `json:"method"`
-	Range     string       `json:"range"`
-	Cache     string       `json:"cache"`
-	Outcome   string       `json:"outcome"`
-	Bytes     int64        `json:"bytes"`
-	ElapsedMS int64        `json:"elapsedMS"`
-	Status    int          `json:"status"`
-	Songs     []RecentSong `json:"songs"`
-	MoreSongs bool         `json:"moreSongs"`
+	SongID            string       `json:"songID"`
+	CompletedAt       *int64       `json:"completedAt"`
+	ResponseBytes     *int64       `json:"responseBytes"`
+	FirstBodyNS       *int64       `json:"firstBodyNS"`
+	FirstBodyBlocking *bool        `json:"firstBodyBlocking"`
+	ID                int64        `json:"id"`
+	At                int64        `json:"at"`
+	Resource          string       `json:"resource"`
+	Method            string       `json:"method"`
+	Range             string       `json:"range"`
+	Cache             string       `json:"cache"`
+	Outcome           string       `json:"outcome"`
+	Bytes             int64        `json:"bytes"`
+	ElapsedMS         int64        `json:"elapsedMS"`
+	Status            int          `json:"status"`
+	Songs             []RecentSong `json:"songs"`
+	MoreSongs         bool         `json:"moreSongs"`
 }
 
 type RecentRequests struct {
-	StorageID string          `json:"storageID"`
-	Requests  []RecentRequest `json:"requests"`
-	HasMore   bool            `json:"hasMore"`
+	NextCursor string          `json:"nextCursor"`
+	StorageID  string          `json:"storageID"`
+	Requests   []RecentRequest `json:"requests"`
+	HasMore    bool            `json:"hasMore"`
 }
 
 var safeRequestRange = regexp.MustCompile(`^bytes=[0-9 ,\-]{1,200}$`)
@@ -50,9 +54,16 @@ var safeRequestRange = regexp.MustCompile(`^bytes=[0-9 ,\-]{1,200}$`)
 // index. It never starts the engine, creates a database, or reads signed URLs.
 // Only HTTP video requests are included; prefetch events are not client bytes.
 func ReadRecentRequests(ctx context.Context, root string, limit int) (RecentRequests, error) {
+	return readRequestPage(ctx, root, RequestQuery{Limit: limit}, false)
+}
+func ReadRequestHistory(ctx context.Context, root string, query RequestQuery) (RecentRequests, error) {
+	return readRequestPage(ctx, root, query, true)
+}
+func readRequestPage(ctx context.Context, root string, query RequestQuery, getOnly bool) (RecentRequests, error) {
+	limit := query.Limit
 	result := RecentRequests{Requests: []RecentRequest{}}
-	if limit < 1 || limit > MaxRecentRequests {
-		return result, errors.New("invalid recent request limit")
+	if err := query.Validate(); err != nil {
+		return result, err
 	}
 	path, err := filepath.Abs(storagePath(root))
 	if err != nil {
@@ -67,14 +78,15 @@ func ReadRecentRequests(ctx context.Context, root string, limit int) (RecentRequ
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
+	window, args := query.window(getOnly)
 	rows, err := db.QueryContext(ctx, `SELECT event_id, requested_at, resource_key, method, range_header,
- cache_result, outcome, transferred_bytes, elapsed_ms, status, file_bytes,
+ cache_result, outcome, transferred_bytes, elapsed_ms, status, COALESCE(song_id,''), completed_at, response_bytes, first_body_ns, first_body_blocking,
  (SELECT json_group_array(json_object('id',song_id,'title',title)) FROM
    (SELECT CAST(s.song_id AS TEXT) song_id, COALESCE(substr(s.name,1,300),'') AS title FROM song_media sv
     JOIN songs s ON s.song_id=sv.song_id WHERE sv.md5=e.version_key
     ORDER BY sv.rowid LIMIT 21))
- FROM (`+recentHTTPWindowSQL+`) e
- ORDER BY requested_at DESC, event_id DESC`, limit+1)
+ FROM (`+window+`) e
+ ORDER BY requested_at DESC, event_id DESC`, args...)
 	if err != nil {
 		return result, err
 	}
@@ -83,8 +95,7 @@ func ReadRecentRequests(ctx context.Context, root string, limit int) (RecentRequ
 	for rows.Next() {
 		var r RecentRequest
 		var songs string
-		var size int64
-		if err = rows.Scan(&r.ID, &r.At, &r.Resource, &r.Method, &r.Range, &r.Cache, &r.Outcome, &r.Bytes, &r.ElapsedMS, &r.Status, &size, &songs); err != nil {
+		if err = rows.Scan(&r.ID, &r.At, &r.Resource, &r.Method, &r.Range, &r.Cache, &r.Outcome, &r.Bytes, &r.ElapsedMS, &r.Status, &r.SongID, &r.CompletedAt, &r.ResponseBytes, &r.FirstBodyNS, &r.FirstBodyBlocking, &songs); err != nil {
 			return result, err
 		}
 		count++
@@ -99,52 +110,14 @@ func ReadRecentRequests(ctx context.Context, root string, limit int) (RecentRequ
 			r.MoreSongs = true
 			r.Songs = r.Songs[:20]
 		}
-		// Older completed records can still describe a short body. Do not change
-		// stored outcomes or cumulative traffic statistics when interpreting them.
-		if r.Outcome == "completed" && r.Method == "GET" {
-			if expected := expectedRecentBytes(r.Status, r.Range, size); expected >= 0 && r.Bytes < expected {
-				r.Outcome = "incomplete"
-			}
-		}
 		if r.Range != "" && !safeRequestRange.MatchString(r.Range) {
 			r.Range = "非标准 Range"
 		}
 		result.Requests = append(result.Requests, r)
 	}
+	if result.HasMore {
+		last := result.Requests[len(result.Requests)-1]
+		result.NextCursor = fmt.Sprintf("%d:%d", last.At, last.ID)
+	}
 	return result, rows.Err()
-}
-
-func expectedRecentBytes(status int, header string, size int64) int64 {
-	if size <= 0 {
-		return -1
-	}
-	if status == 200 {
-		return size
-	}
-	if status != 206 || !strings.HasPrefix(header, "bytes=") {
-		return -1
-	}
-	parts := strings.Split(strings.TrimPrefix(header, "bytes="), "-")
-	if len(parts) != 2 {
-		return -1
-	}
-	if parts[0] == "" {
-		n, err := strconv.ParseInt(parts[1], 10, 64)
-		if err != nil || n <= 0 {
-			return -1
-		}
-		return min(n, size)
-	}
-	start, err := strconv.ParseInt(parts[0], 10, 64)
-	if err != nil || start < 0 || start >= size {
-		return -1
-	}
-	end := size - 1
-	if parts[1] != "" {
-		end, err = strconv.ParseInt(parts[1], 10, 64)
-		if err != nil || end < start {
-			return -1
-		}
-	}
-	return min(end, size-1) - start + 1
 }

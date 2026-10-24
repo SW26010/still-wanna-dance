@@ -119,7 +119,9 @@ func (s *Server) requestVideo(r *http.Request, observed func()) (video, func(), 
 	if observed != nil {
 		observed()
 	}
-	return s.loadSong(r.Context(), q)
+	v, release, err := s.loadSong(r.Context(), q)
+	v.songID = strconv.FormatInt(n, 10) // Preserve validated identity even when resolution fails.
+	return v, release, err
 }
 
 // Share in-flight checks across probes and range requests. Their lifetime is

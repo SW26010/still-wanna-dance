@@ -75,6 +75,7 @@ type spoolReader struct {
 	size, offset  int64
 	err           error
 	releaseDemand func()
+	onWait        func()
 }
 
 func (r *spoolReader) Close() error {
@@ -151,6 +152,19 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 			// Cancellation also cleans up if this Read is currently inside a
 			// local file operation. Completion/error uses the same release.
 			stopCancel = context.AfterFunc(r.ctx, release)
+		}
+		// Demand registration can itself make the block readable. Only count
+		// a wait when the requested bytes are still absent at this boundary.
+		select {
+		case <-changed:
+			continue
+		default:
+		}
+		if s.blocks.available(r.offset) > r.offset {
+			continue
+		}
+		if r.onWait != nil {
+			r.onWait()
 		}
 		select {
 		case <-r.ctx.Done():

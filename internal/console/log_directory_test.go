@@ -11,7 +11,7 @@ func TestAutomaticLogDirectoryFollowsEnvironment(t *testing.T) {
 	root := t.TempDir()
 	config := filepath.Join(root, "settings.json")
 	// Automatic mode ignores a stored detected path from another environment.
-	if err := os.WriteFile(config, []byte(`{"schemaVersion":5,"logDir":"old-user/logs"}`), 0600); err != nil {
+	if err := os.WriteFile(config, []byte(`{"schemaVersion":6,"logDir":"old-user/logs"}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 	for _, user := range []string{"first-user", "second-user"} {

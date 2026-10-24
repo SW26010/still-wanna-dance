@@ -216,7 +216,7 @@ func TestBatchReportsBudgetStopWithoutDownloading(t *testing.T) {
 	if inventory.Error != "" || inventory.Videos != 0 || downloads.Load() != 0 || calls.Load() != 1 || !c.lastBatch.Updated.IsZero() || !c.batch.BudgetReached || c.batch.Failed != 0 {
 		t.Fatalf("unexpected inventory or snapshot: %+v %+v", inventory, c.lastBatch)
 	}
-	if !strings.Contains(c.batch.Phase, "设置") {
+	if !strings.Contains(c.batch.Phase, "调整视频保留空间") {
 		t.Fatal("budget stop must direct users to settings")
 	}
 }

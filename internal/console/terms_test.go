@@ -195,7 +195,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 			t.Fatalf("%s: %d", path, w.Code)
 		}
 	}
-	if !c.settings.AutoStartCDN || !c.settings.AutoStartQueue {
+	if !c.settings.AutoAccelerate || !c.settings.QueueWithGateway {
 		t.Fatal("startup preferences should default to enabled")
 	}
 	c.AutoStart()

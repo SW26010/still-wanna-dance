@@ -12,10 +12,11 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 )
 
-func TestActivationPreservesQueueChoice(t *testing.T) {
+func TestActivationPreservesIndependentQueueWhenFollowDisabled(t *testing.T) {
 	for _, desired := range []bool{false, true} {
 		t.Run(map[bool]string{false: "disabled", true: "waiting"}[desired], func(t *testing.T) {
 			c := testConsole(t)
+			c.settings.QueueWithGateway = false
 			c.queueDesired = desired
 			if err := c.enableAcceleration(func() HostsStatus { return HostsStatus{Ready: true} }, func(string) error {
 				// The shared controller performs no-op and authorization checks.
@@ -226,12 +227,13 @@ func TestOwnedLegacyHostsRequireActivationMigration(t *testing.T) {
 	}
 }
 
-func TestAutoStartReportsPendingHostsMigration(t *testing.T) {
+func TestAutoAccelerationUpdatesOwnedHosts(t *testing.T) {
 	c := testConsole(t)
-	c.settings.AutoStartCDN = true
 	data := "\r\n127.0.0.1 api.udon.dance " + marker + "\r\n\r\n127.0.0.1 nya.xin.moe " + marker + "\r\n"
-	c.autoStart(func() HostsStatus { return inspectHosts(data) })
-	if !c.DesktopState().CDN || c.activation.Phase != "migration_required" || !strings.Contains(c.activation.Error, "迁移") || !c.activation.ReadyAt.IsZero() {
+	c.hosts, _ = fixtureHostsController(t, data)
+	completeStartupSetup(t, c)
+	c.AutoStart()
+	if !c.DesktopState().CDN || c.activation.Phase != "waiting" || !c.hosts.status().Ready || c.hosts.status().NeedsMigration {
 		t.Fatal(c.activation)
 	}
 }

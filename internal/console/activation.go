@@ -58,7 +58,9 @@ func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(str
 		}
 		if !wasRunning {
 			c.mu.Lock()
-			c.stopLocked()
+			if c.httpServer != nil {
+				c.stopLocked()
+			}
 			c.mu.Unlock()
 		}
 		if !wasReady {
@@ -140,7 +142,7 @@ func (c *Console) changeHostsLocked(action string) error {
 
 // Starting the gateway explicitly may reuse an existing managed connection.
 // Prepare its exit cleanup here, while this user operation can request UAC.
-// Automatic startup keeps its existing no-elevation behavior.
+// Automatic acceleration uses the same hosts controller through enableAcceleration.
 func (c *Console) startForUser() error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()

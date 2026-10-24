@@ -1,0 +1,30 @@
+import {test,expect} from '@playwright/test';
+import {mockAPI} from './api';
+
+test('startup settings have one owner and saving does not trigger acceleration or queue actions',async({page})=>{
+ const api=await mockAPI(page);
+ await page.goto('/#/settings');
+ const auto=page.getByRole('checkbox',{name:'启用控制台后自动一键加速',exact:true});
+ await expect(auto).toBeChecked();
+ await expect(page.getByRole('checkbox',{name:'随视频网关启用队列预加载',exact:true})).toHaveCount(0);
+ await auto.uncheck();
+ expect(api.state.settings.autoAccelerate).toBe(true);
+ await page.getByRole('button',{name:'保存设置',exact:true}).click();
+ await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
+ expect(api.state.settings.autoAccelerate).toBe(false);
+ expect(api.state.activeSettings.autoAccelerate).toBe(true);
+ await page.goto('/#prepareAheadSeconds');
+ const follow=page.getByRole('checkbox',{name:'随视频网关启用队列预加载',exact:true});
+ await expect(follow).toBeChecked();
+ await expect(auto).toHaveCount(0);
+ await follow.uncheck();
+ await page.getByRole('button',{name:'放弃更改',exact:true}).click();
+ await expect(follow).toBeChecked();
+ await follow.uncheck();
+ await page.getByRole('button',{name:'保存设置',exact:true}).click();
+ await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
+ await page.reload();
+ await expect(follow).not.toBeChecked();
+ expect(api.state.activeSettings.queueWithGateway).toBe(true);
+ expect(api.calls.some(c=>c.path.startsWith('activation/')||c.path.startsWith('hosts/')||c.path.startsWith('queue/'))).toBe(false);
+});

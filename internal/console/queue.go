@@ -184,6 +184,12 @@ func (c *Console) startQueue() error {
 func (c *Console) stopQueue() error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
+	c.stopQueueLocked()
+	return nil
+}
+
+// Caller holds lifecycleMu. Wait until queue sources have been withdrawn.
+func (c *Console) stopQueueLocked() {
 	c.mu.Lock()
 	c.queueDesired = false
 	if c.queueCancel != nil {
@@ -194,7 +200,18 @@ func (c *Console) stopQueue() error {
 	if done != nil {
 		<-done
 	}
-	return nil
+}
+
+// Follow the gateway without making log-directory failures acceleration failures.
+// Caller holds lifecycleMu, not mu. Repeated acceleration can retry a failed queue.
+func (c *Console) startGatewayQueueLocked() {
+	if !c.settings.QueueWithGateway {
+		return
+	}
+	c.mu.Lock()
+	c.queueDesired = true
+	c.mu.Unlock()
+	c.recordActionError("/api/queue/start", c.startQueueLocked())
 }
 
 // The caller holds lifecycleMu. Manual downloads share the demand scheduler.

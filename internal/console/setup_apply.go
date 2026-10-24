@@ -417,10 +417,9 @@ func (c *Console) resumeSetupApplicationLocked(startImport func(string) error) {
 		pending := c.autoStartPending
 		c.mu.Unlock()
 		if pending {
-			// No restart was needed: finish the startup skipped by the terms
-			// gate, only after the approved application has a success receipt.
-			// A restarted process already applied its startup preferences.
-			c.autoStart(c.hosts.status)
+			// The final apply and any restart continuation must succeed
+			// before the process consumes its single automatic attempt.
+			c.autoStart()
 		}
 	}
 }

@@ -208,7 +208,7 @@ func TestHostsConsoleCloseUsesPreparedHelperAndActiveSettings(t *testing.T) {
 func TestRestoreHostsSettingDefaultsAndImmediateSave(t *testing.T) {
 	for _, field := range []string{"", `,"restoreHostsOnExit":null`, `,"restoreHostsOnExit":true`, `,"restoreHostsOnExit":false`} {
 		config := filepath.Join(t.TempDir(), "settings.json")
-		if err := os.WriteFile(config, []byte(`{"schemaVersion":5`+field+`}`), 0600); err != nil {
+		if err := os.WriteFile(config, []byte(`{"schemaVersion":6`+field+`}`), 0600); err != nil {
 			t.Fatal(err)
 		}
 		c, err := New(config, "127.0.0.1:18081")
@@ -301,10 +301,12 @@ func TestExplicitGatewayStartPreparesExistingConnectionOnlyWhenNeeded(t *testing
 		h, launches := fixtureHostsController(t, owned)
 		c.hosts = h
 		c.settings.RestoreHostsOnExit = restore
-		c.settings.AutoStartQueue = false
-		c.autoStart(h.status)
-		if *launches != 0 {
-			t.Fatal("automatic startup requested UAC")
+		c.settings.QueueWithGateway = false
+		c.savedSettings = c.settings
+		completeStartupSetup(t, c)
+		c.AutoStart()
+		if (*launches == 1) != restore {
+			t.Fatal("automatic acceleration did not prepare needed cleanup")
 		}
 		if err := c.startForUser(); err != nil {
 			t.Fatal(err)

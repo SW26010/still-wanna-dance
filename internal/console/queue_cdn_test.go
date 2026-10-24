@@ -6,8 +6,9 @@ import (
 	"testing"
 )
 
-func TestQueueAndCDNAreIndependent(t *testing.T) {
+func TestQueueCanRunIndependentlyWhenGatewayFollowDisabled(t *testing.T) {
 	c := testConsole(t)
+	c.settings.QueueWithGateway = false
 	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -75,16 +76,18 @@ func TestQueueFailureRetainsIntentAndCanRetry(t *testing.T) {
 	}
 }
 
-func TestAutoStartQueueDoesNotRequireCDN(t *testing.T) {
+func TestQueueWithGatewayDoesNotStartWithoutCDN(t *testing.T) {
 	c := testConsole(t)
 	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	c.settings.AutoStartQueue = true
-	c.settings.AutoStartCDN = false
+	c.settings.QueueWithGateway = true
+	c.settings.AutoAccelerate = false
+	c.savedSettings = c.settings
+	completeStartupSetup(t, c)
 	c.AutoStart()
-	if !c.queue.Running || !c.queueDesired || c.httpServer != nil {
-		t.Fatal("queue startup depends on CDN")
+	if c.queue.Running || c.queueDesired || c.httpServer != nil {
+		t.Fatal("queue started without its gateway")
 	}
 }
 
@@ -93,5 +96,50 @@ func TestQueueStartRequiresConsent(t *testing.T) {
 	c.terms = termsReceipt{}
 	if err := c.startQueue(); err == nil || c.queueDesired {
 		t.Fatal("queue bypassed consent")
+	}
+}
+
+func TestQueueFollowsGatewayStopFailureAndActivationRollback(t *testing.T) {
+	for _, outcome := range []string{"stop", "listener-failure", "activation-rollback"} {
+		t.Run(outcome, func(t *testing.T) {
+			c := testConsole(t)
+			if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			checks := 0
+			inspect := func() HostsStatus {
+				checks++
+				if outcome == "activation-rollback" && checks == 3 {
+					if !c.queue.Running {
+						t.Fatal("gateway did not start queue")
+					}
+					return HostsStatus{Message: "fixture final verification failed"}
+				}
+				return c.hosts.status()
+			}
+			err := c.enableAcceleration(inspect, c.changeHostsLocked)
+			if outcome == "activation-rollback" {
+				if err == nil {
+					t.Fatal("unexpected success")
+				}
+			} else {
+				if err != nil || !c.queue.Running {
+					t.Fatal("queue did not follow gateway", err)
+				}
+				if outcome == "stop" {
+					c.stop()
+				} else {
+					c.failCDN(c.httpServer, errors.New("fixture listener failed"))
+				}
+			}
+			if c.httpServer != nil || c.queue.Running || c.queueDesired || len(c.queue.Songs) != 0 || c.queueCancel != nil {
+				t.Fatal("gateway left queue sources alive")
+			}
+			select {
+			case <-c.queueDone:
+			default:
+				t.Fatal("queue shutdown was not awaited")
+			}
+		})
 	}
 }

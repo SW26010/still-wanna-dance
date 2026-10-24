@@ -133,7 +133,7 @@ func TestBatchDoesNotChangeQueueLifecycle(t *testing.T) {
 				}
 				c.mu.Lock()
 				defer c.mu.Unlock()
-				wantRunning := enabled && outcome != "queue-stop" && outcome != "close"
+				wantRunning := enabled && outcome != "queue-stop" && outcome != "cdn-stop" && outcome != "close"
 				if c.queue.Running != wantRunning || c.batch.Running {
 					t.Fatalf("queue running=%v, want %v; batch running=%v", c.queue.Running, wantRunning, c.batch.Running)
 				}

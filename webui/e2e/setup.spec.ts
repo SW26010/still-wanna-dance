@@ -143,7 +143,7 @@ for(const startup of [false,true])test(`confirmation explains service and queue 
   api.state.hosts.ready=true;
   await page.goto('/#/setup');await navigateStep(page,'4. 启用');
   await expect(page.getByText('本地服务：'+(startup?'将启动':'保持关闭'),{exact:true})).toBeVisible();
-  await expect(page.getByText('房间队列预加载：'+(startup?'将开启':'保持关闭'),{exact:true})).toBeVisible();
+  await expect(page.getByText('房间队列预加载：'+(startup?'随网关开启':'保持关闭'),{exact:true})).toBeVisible();
   await expect(page.getByText(/下面的连接操作会立即修改 hosts/)).toBeVisible();
   await expect(page.getByText(/条款确认和上方游戏连接操作已即时生效/)).toBeVisible();
   expect(api.calls.some(call=>call.path==='setup/apply')).toBe(false);

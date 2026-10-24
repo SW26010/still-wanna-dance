@@ -19,6 +19,7 @@ func restartTestConsole(t *testing.T, c *Console) *Console {
 	if err != nil {
 		t.Fatal(err)
 	}
+	next.hosts, _ = fixtureHostsController(t, readHostsFixture(t, c.hosts.path))
 	next.videoAddress, next.httpsAddress = c.videoAddress, c.httpsAddress
 	next.checksumURL, next.apiBase = c.checksumURL, c.apiBase
 	t.Cleanup(func() { next.Close() })

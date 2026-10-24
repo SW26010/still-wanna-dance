@@ -19,13 +19,14 @@ func setupStartupConsole(t *testing.T, gateway, queue bool) *Console {
 	if err != nil {
 		t.Fatal(err)
 	}
+	c.hosts, _ = fixtureHostsController(t, hostsBaseline)
 	t.Cleanup(func() { c.Close() })
 	c.videoAddress, c.httpsAddress, c.checksumURL = "127.0.0.1:0", "127.0.0.1:0", ""
-	if !c.settings.AutoStartCDN || !c.settings.AutoStartQueue {
+	if !c.settings.AutoAccelerate || !c.settings.QueueWithGateway {
 		t.Fatal("new settings must enable both startup preferences")
 	}
 	c.settings.LogDir, c.settings.ManualLogDir = filepath.Join(root, "logs"), true
-	c.settings.AutoStartCDN, c.settings.AutoStartQueue = gateway, queue
+	c.settings.AutoAccelerate, c.settings.QueueWithGateway = gateway, queue
 	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +78,7 @@ func TestSetupReviewUsesActualRestartAndDeferredStartup(t *testing.T) {
 			t.Run(fmt.Sprintf("deferred=%v/restart=%v", deferred, restart), func(t *testing.T) {
 				c := setupStartupConsole(t, true, true)
 				if !deferred {
-					c.AutoStart()
+					completeStartupSetup(t, c)
 					postTaskAction(t, c, "stop")
 					postTaskAction(t, c, "queue/stop")
 				}
@@ -141,8 +142,8 @@ func TestSetupDeferredAutoStartHonorsPreferencesOnce(t *testing.T) {
 					if a.Phase != "completed" || !a.ConfigSaved {
 						t.Fatalf("application did not complete: %+v", a)
 					}
-					assertSetupServices(t, c, gateway, queue)
-					if c.savedSettings.AutoStartCDN != gateway || c.savedSettings.AutoStartQueue != queue {
+					assertSetupServices(t, c, gateway, gateway && queue)
+					if c.savedSettings.AutoAccelerate != gateway || c.savedSettings.QueueWithGateway != queue {
 						t.Fatal("setup changed startup preferences")
 					}
 					postTaskAction(t, c, "stop")
@@ -168,6 +169,7 @@ func TestSetupDoesNotRepeatNormalAutoStart(t *testing.T) {
 	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
+	completeStartupSetup(t, c)
 	c.AutoStart()
 	assertSetupServices(t, c, true, true)
 	postTaskAction(t, c, "stop")
@@ -268,7 +270,7 @@ func TestSetupDeferredAutoStartFailureIsNotRetriedByWizard(t *testing.T) {
 	if a := applyStartupSetup(t, c, setupTestPlan(c)); a.Phase != "completed" {
 		t.Fatalf("apply: %+v", a)
 	}
-	assertSetupServices(t, c, false, true)
+	assertSetupServices(t, c, false, false)
 	if c.cdnError == "" {
 		t.Fatal("gateway startup error was not reported")
 	}

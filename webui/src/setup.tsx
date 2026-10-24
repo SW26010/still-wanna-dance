@@ -43,15 +43,15 @@ function SetupReview({draft:d,status:s,source,effects}:{draft:Draft;status:Statu
     if(p.socks5Password)rows.push(['代理密码','将更新']);
     else if(p.socks5Password===''&&s.socks5PasswordSet)rows.push(['代理密码','将清除']);
   }
-  const labels={retainFavorites:'优先保留收藏视频',autoStartCDN:'自动启动播放网关',autoStartQueue:'自动启动队列',restoreHostsOnExit:'退出时恢复游戏直连',prepareAheadSeconds:'提前准备时间（秒）',downloadSoftLimit:'同时下载数量',downloadGrowIntervalMS:'并发增长间隔（毫秒）',localProtectionGraceSeconds:'本地延续保护时长（秒）',requestRetentionDays:'请求保留天数',throughputIntervalMinutes:'测速间隔（分钟）',downloadUpstream:'回源线路',manualLogDir:'手动日志位置',logDir:'日志目录'};
+  const labels={retainFavorites:'优先保留收藏视频',autoAccelerate:'自动一键加速',queueWithGateway:'随网关启用队列预加载',restoreHostsOnExit:'退出时恢复游戏直连',prepareAheadSeconds:'提前准备时间（秒）',downloadSoftLimit:'同时下载数量',downloadGrowIntervalMS:'并发增长间隔（毫秒）',localProtectionGraceSeconds:'本地延续保护时长（秒）',requestRetentionDays:'请求保留天数',throughputIntervalMinutes:'测速间隔（分钟）',downloadUpstream:'回源线路',manualLogDir:'手动日志位置',logDir:'日志目录'};
   for(const key of Object.keys(labels) as (keyof typeof labels)[]){if(current[key]!==s.settings[key])rows.push([labels[key],change(String(current[key]),String(s.settings[key]))+'（此前已保存）']);}
   if(current.aggressiveCacheReclamation!==p.aggressiveCacheReclamation)rows.push(['激进的缓存回收策略',change(reclamationLabel(current),reclamationLabel(p))+'（此前已保存）']);
   return <><dl>{rows.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
     {effects&&<><Subtitle1 as="h3">确认后执行</Subtitle1><ul>
       <li>应用配置：{effects.restartRequired?'保存并重启应用，当前播放和任务会中断':'保存配置，无需重启'}</li>
-      <li>本地服务：{effects.applyStartup?s.settings.autoStartCDN?'将启动':'不启动（启动设置已关闭）':s.running?'保持运行':'保持关闭'}</li>
-      <li>房间队列预加载：{effects.applyStartup?s.settings.autoStartQueue?'将开启':'不开启（启动设置已关闭）':s.queue.desired?'保持开启':'保持关闭'}</li>
-      <li>游戏连接：{effects?.restartRequired&&s.activeSettings.restoreHostsOnExit&&s.hosts.exitRestorePrepared?'重启时恢复直连，完成后请点击「开始加速」重新接入':s.hosts.ready?'已配置，本次确认不再修改':'未配置，完成后请在首页点击「开始加速」'}</li>
+      <li>本地服务：{effects.applyStartup?s.settings.autoAccelerate?'将启动':'不启动（启动设置已关闭）':s.running?'保持运行':'保持关闭'}</li>
+      <li>房间队列预加载：{effects.applyStartup?s.settings.autoAccelerate&&s.settings.queueWithGateway?'随网关开启':'不开启（启动设置已关闭）':s.queue.desired?'保持开启':'保持关闭'}</li>
+      <li>游戏连接：{effects.applyStartup&&s.settings.autoAccelerate?'自动配置并开启加速，可能需要管理员授权':s.hosts.ready?'保留当前接入':'未配置，可在首页手动开启加速'}</li>
     </ul><p>{effects.applyStartup?'按已保存的启动设置执行；启动失败时会在首页显示原因。':'沿用当前服务状态，不会重新开启已手动关闭的功能。'}</p></>}
     {source&&<p>{effects?.restartRequired?'重启后开始导入。':'确认后开始导入。'}关闭网页不影响导入，重启程序会中止导入。</p>}
     <p>存储、网络和导入选择在点击「确认并应用」后生效。条款确认和上方游戏连接操作已即时生效，放弃草稿不会撤销。</p></>;

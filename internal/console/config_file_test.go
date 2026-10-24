@@ -17,7 +17,7 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := c.settings
-	if !want.AutoStartCDN || !want.AutoStartQueue || want.PrepareAheadSeconds != 500 {
+	if !want.AutoAccelerate || !want.QueueWithGateway || want.PrepareAheadSeconds != 500 {
 		t.Fatal("first launch should enable both startup preferences")
 	}
 	if want.AggressiveCacheReclamation != "auto" || want.VideoStorageMode != "none" || want.MaxCacheBytes != 0 {
@@ -28,7 +28,7 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(fields["prepareAheadSeconds"]) != "500" || string(fields["storageDir"]) != `"storage"` || string(fields["schemaVersion"]) != "5" || string(fields["autoStartCDN"]) != "true" || string(fields["autoStartQueue"]) != "true" {
+	if string(fields["prepareAheadSeconds"]) != "500" || string(fields["storageDir"]) != `"storage"` || string(fields["schemaVersion"]) != "6" || string(fields["autoAccelerate"]) != "true" || string(fields["queueWithGateway"]) != "true" {
 		t.Fatal(fields)
 	}
 	if string(fields["aggressiveCacheReclamation"]) != `"auto"` || string(fields["videoStorageMode"]) != `"none"` || string(fields["maxCacheBytes"]) != "0" {
@@ -48,7 +48,7 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 }
 
 func TestConfigurationRejectsUnsupportedWithoutOverwrite(t *testing.T) {
-	for _, data := range []string{`{"schemaVersion":1}`, `{"schemaVersion":2}`, `{"schemaVersion":3}`, `{"schemaVersion":4}`, `{"schemaVersion":5,"PROXYSECRET":null}`, `{"schemaVersion":5,"SOCKS5Password":"secret"}`, `{}`, `null`, `{"schemaVersion":0}`, `{"schemaVersion":999,"futurePreference":"keep"}`, `{"schemaVersion":"1"}`, `{"schemaVersion":5,`} {
+	for _, data := range []string{`{"schemaVersion":1}`, `{"schemaVersion":2}`, `{"schemaVersion":3}`, `{"schemaVersion":4}`, `{"schemaVersion":5}`, `{"schemaVersion":6,"PROXYSECRET":null}`, `{"schemaVersion":6,"SOCKS5Password":"secret"}`, `{}`, `null`, `{"schemaVersion":0}`, `{"schemaVersion":999,"futurePreference":"keep"}`, `{"schemaVersion":"1"}`, `{"schemaVersion":6,`} {
 		t.Run(data, func(t *testing.T) {
 			c := testConsole(t)
 			if err := os.WriteFile(c.configPath, []byte(data), 0600); err != nil {
@@ -71,7 +71,7 @@ func TestConfigurationRejectsUnsupportedWithoutOverwrite(t *testing.T) {
 
 func TestConfigurationPreservesUnknownFieldsAndClearsPassword(t *testing.T) {
 	c := testConsole(t)
-	data := `{"schemaVersion":5,"futurePreference":{"enabled":true,"large":9007199254740993},"prepareaheadseconds":999}`
+	data := `{"schemaVersion":6,"futurePreference":{"enabled":true,"large":9007199254740993},"prepareaheadseconds":999}`
 	if err := os.WriteFile(c.configPath, []byte(data), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -123,16 +123,16 @@ func TestStartupSettingsDefaultAndRemainIndependent(t *testing.T) {
 		wantCDN   bool
 		wantQueue bool
 	}{
-		{"missing", `{"schemaVersion":5}`, true, true},
-		{"null", `{"schemaVersion":5,"autoStartCDN":null,"autoStartQueue":null}`, true, true},
-		{"missing queue with gateway on", `{"schemaVersion":5,"autoStartCDN":true}`, true, true},
-		{"missing queue with gateway off", `{"schemaVersion":5,"autoStartCDN":false}`, false, true},
-		{"missing gateway with queue off", `{"schemaVersion":5,"autoStartQueue":false}`, true, false},
-		{"both off", `{"schemaVersion":5,"autoStartCDN":false,"autoStartQueue":false}`, false, false},
-		{"gateway only", `{"schemaVersion":5,"autoStartCDN":true,"autoStartQueue":false}`, true, false},
-		{"queue only", `{"schemaVersion":5,"autoStartCDN":false,"autoStartQueue":true}`, false, true},
-		{"both on", `{"schemaVersion":5,"autoStartCDN":true,"autoStartQueue":true}`, true, true},
-		{"obsolete queue field", `{"schemaVersion":5,"autoStartCDN":false,"queuePrefetchEnabled":false}`, false, true},
+		{"missing", `{"schemaVersion":6}`, true, true},
+		{"null", `{"schemaVersion":6,"autoAccelerate":null,"queueWithGateway":null}`, true, true},
+		{"missing queue with gateway on", `{"schemaVersion":6,"autoAccelerate":true}`, true, true},
+		{"missing queue with gateway off", `{"schemaVersion":6,"autoAccelerate":false}`, false, true},
+		{"missing gateway with queue off", `{"schemaVersion":6,"queueWithGateway":false}`, true, false},
+		{"both off", `{"schemaVersion":6,"autoAccelerate":false,"queueWithGateway":false}`, false, false},
+		{"gateway only", `{"schemaVersion":6,"autoAccelerate":true,"queueWithGateway":false}`, true, false},
+		{"queue only", `{"schemaVersion":6,"autoAccelerate":false,"queueWithGateway":true}`, false, true},
+		{"both on", `{"schemaVersion":6,"autoAccelerate":true,"queueWithGateway":true}`, true, true},
+		{"obsolete queue field", `{"schemaVersion":6,"autoAccelerate":false,"queuePrefetchEnabled":false}`, false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "config.json")
@@ -144,14 +144,14 @@ func TestStartupSettingsDefaultAndRemainIndependent(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { c.Close() })
-			if c.settings.AutoStartCDN != tc.wantCDN || c.settings.AutoStartQueue != tc.wantQueue {
-				t.Fatalf("loaded startup settings: gateway=%v queue=%v", c.settings.AutoStartCDN, c.settings.AutoStartQueue)
+			if c.settings.AutoAccelerate != tc.wantCDN || c.settings.QueueWithGateway != tc.wantQueue {
+				t.Fatalf("loaded startup settings: gateway=%v queue=%v", c.settings.AutoAccelerate, c.settings.QueueWithGateway)
 			}
 			if err := c.save(c.settings); err != nil {
 				t.Fatal(err)
 			}
 			c = restartTestConsole(t, c)
-			if c.settings.AutoStartCDN != tc.wantCDN || c.settings.AutoStartQueue != tc.wantQueue {
+			if c.settings.AutoAccelerate != tc.wantCDN || c.settings.QueueWithGateway != tc.wantQueue {
 				t.Fatal("save/restart changed startup settings")
 			}
 		})

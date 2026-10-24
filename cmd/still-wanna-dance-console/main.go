@@ -183,6 +183,7 @@ func run() (runErr error) {
 	}
 	h := &http.Server{Handler: c, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, ErrorLog: slog.NewLogLogger(slog.Default().Handler(), slog.LevelError)}
 	var closeOnce sync.Once
+	var startup sync.WaitGroup
 	var shutdownErr error
 	shutdownContext, endSession := context.WithCancel(context.Background())
 	defer endSession()
@@ -190,6 +191,7 @@ func run() (runErr error) {
 		closeOnce.Do(func() {
 			slog.Info("application_stopping")
 			c.BeginShutdown()
+			startup.Wait()
 			// Let the exit acknowledgement finish before closing connections.
 			// Windows session end cancels the grace period, even during an exit.
 			grace, cancel := context.WithTimeout(shutdownContext, 2*time.Second)
@@ -222,8 +224,10 @@ func run() (runErr error) {
 	if err := c.StartUpstreamMonitor(); err != nil {
 		return err
 	}
-	c.AutoStart()
 	go func() { done <- h.Serve(l); stop() }()
+	// Keep the console and tray usable while automatic acceleration waits for UAC.
+	startup.Add(1)
+	go func() { defer startup.Done(); c.AutoStart() }()
 	url := "http://" + l.Addr().String()
 	slog.Info("console_ready", "url", url)
 	fmt.Printf("Still Wanna Dance 控制台：%s\n同意条款后关闭浏览器不会退出程序；未同意时关闭条款页会尝试在 60 秒后退出。退出按当前设置处理游戏连接，不再请求管理员权限。\n", url)

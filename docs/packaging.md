@@ -54,7 +54,7 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 用户双击 SWD.exe 显示托盘并打开网页；同一实际 EXE 和配置重复启动才打开已有实例，不同安装或配置显示冲突及归属。无需 CMD / PS1 启动脚本。仅编译可执行 `./scripts/build-desktop.ps1`，默认输出 `bin/SWD.exe`。
 
-默认配置为 EXE 旁的 `data/config.json`，首次成功打开即保存 schemaVersion=5。程序日志为 `data/logs/app.log`，默认媒体为 `data/storage`，未使用时不预建。自定义 `-config`、多实例隔离、相对路径及外置库约定见[统一存储](storage.md)。无版本和版本 1、2、3、4 测试配置及旧库不迁移。
+默认配置为 EXE 旁的 `data/config.json`，首次成功打开即保存 schemaVersion=6。程序日志为 `data/logs/app.log`，默认媒体为 `data/storage`，未使用时不预建。自定义 `-config`、多实例隔离、相对路径及外置库约定见[统一存储](storage.md)。无版本和版本 1、2、3、4、5 测试配置及旧库不迁移。
 
 覆盖升级先退出并备份，然后只将 ZIP 的 SWD/ 内交付文件覆盖到原安装目录；不覆盖 data、外置库或未知文件。ZIP 内层路径不随版本变化，不能将新解压的另一目录当作原实例启动。详见下方[覆盖升级与备份](#覆盖升级与备份)。
 

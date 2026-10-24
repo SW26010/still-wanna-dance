@@ -150,7 +150,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	}
 }
 
-func TestQueueLifecycleAndBatchExclusion(t *testing.T) {
+func TestQueueLifecycleAndParallelBatch(t *testing.T) {
 	c := testConsole(t)
 	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
 		t.Fatal(err)
@@ -158,8 +158,8 @@ func TestQueueLifecycleAndBatchExclusion(t *testing.T) {
 	if err := c.startQueue(); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.startBatch(); err == nil {
-		t.Fatal("allowed competing batch")
+	if err := c.startBatch(); err != nil {
+		t.Fatal("parallel batch rejected", err)
 	}
 	if err := c.save(c.settings); err != nil {
 		t.Fatal(err)

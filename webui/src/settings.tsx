@@ -126,14 +126,14 @@ export function SettingsPage({section='application',children}: {section?:Setting
       <Details title="高级存储设置"><CacheReclamationFields mode={d.videoStorageMode} reclamation={d.aggressiveCacheReclamation} disabled={disabled} onChange={update} />
       {numberField('localProtectionGraceSeconds','本地延续保护时长（秒）',0,10000,'默认 300 秒，可设为 0～10000 的整数。最后一份需求结束后，继续保护本地缓存的时间。0 表示不延续保护；时间越长，占用空间可能越多。')}
       </Details></fieldset>}
-      {section==='application'&&<><fieldset disabled={disabled}><legend>控制台启动</legend><Checkbox label="运行控制台时自动启用播放网关" checked={d.autoStartCDN} onChange={(_, v) => update({autoStartCDN:!!v.checked})} /><Checkbox label="运行控制台时自动启用房间队列预加载" checked={d.autoStartQueue} onChange={(_, v) => update({autoStartQueue:!!v.checked})} /><p>两项默认启用，分别控制，互不跟随。保存后在下次启动控制台程序时生效，重新打开网页不会触发。</p><p>自动启用需已同意使用条款，不自动修改游戏接入（hosts）。手动启停不会改变这两项设置。</p></fieldset>
+      {section==='application'&&<><fieldset disabled={disabled}><legend>控制台启动</legend><Checkbox label="启用控制台后自动一键加速" checked={d.autoAccelerate} onChange={(_, v) => update({autoAccelerate:!!v.checked})} /><p>默认开启。保存后在下次启动控制台程序时执行一次，刷新网页不会重复。需先同意条款并完成引导；接入游戏时可能请求管理员授权。</p></fieldset>
       <Details title="高级游戏接入设置"><Checkbox label="退出时恢复游戏直连" checked={d.restoreHostsOnExit} disabled={disabled} onChange={(_,v)=>update({restoreHostsOnExit:!!v.checked})}/><p>默认开启。关闭后，退出会保留游戏接入，后续使用可减少管理员确认；玩游戏前需要启动 SWD。保存成功后用于本次退出，无需重启；仅修改勾选不会生效。开启并保存时若已有托管接入，可能需要管理员授权；取消授权不会保存任何设置。</p></Details>
       {numberField('requestRetentionDays','请求明细保留天数',0,36500,'默认 30 天，0 表示永久保留。只清理请求明细，累计统计保留。')}</>}
       {section==='network'&&<>      <fieldset><legend>网络连接</legend><NetworkFields key={app.settingsEpoch} draft={d} update={update} disabled={disabled} status={s} onPending={setPending} />
       <Details title="高级线路与测速设置"><Field label="播放地址接口选择" hint="忽略游戏内 CDN 选择。自动模式优先 CF，失败后尝试 HKG；固定模式只使用指定接口，视频来源由接口决定。"><Select disabled={disabled} value={d.downloadUpstream} onChange={(_, v) => update({downloadUpstream:v.value})}><option value="auto">自动（CF 优先）</option><option value="cf">node=cf（播放地址接口）</option><option value="hkg">node=nya（播放地址接口）</option></Select></Field>
       {numberField('throughputIntervalMinutes','自动测速间隔（分钟）',1,1440,'默认 20 分钟，按上次测速时间安排下一次检测。')}</Details></fieldset>
 </>}
-      {section==='downloads'&&<><Details title="高级下载设置"><fieldset disabled={disabled}>
+      {section==='downloads'&&<><Checkbox label="随视频网关启用队列预加载" checked={d.queueWithGateway} disabled={disabled} onChange={(_,v)=>update({queueWithGateway:!!v.checked})}/><p>默认开启，随网关启停。保存后重启应用生效；日志读取异常会单独显示。</p><Details title="高级下载设置"><fieldset disabled={disabled}>
       <p><strong>为减小 CPU 占用，强烈不建议增加并发数或减小增长间隔。</strong>建议保留默认的 16 路和 250 毫秒。保存并重启应用后生效。</p>
       {numberField('downloadSoftLimit','同时下载数量',1,64,'默认 16 路，可设为 1～64 的整数。按需开放下载额度；播放正在等待的缺块可临时突破此上限。')}
       {numberField('downloadGrowIntervalMS','并发增长间隔（毫秒）',0,2000,'默认 250 毫秒，可设为 0～2000 的整数。有可下载任务积压且额度占满时，每隔此时间增加一路；0 表示关闭缓增，按需直接使用上限额度。')}
@@ -142,7 +142,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
       {numberField('prepareAheadSeconds','提前准备时间（秒）',100,16000,`默认 500 秒，建议 200～2000 秒${prepareAheadEstimate}。数值越大，越早下载预计播放的内容，也会更早占用带宽和缓存空间。保存并重启应用后生效。`)}
       <Checkbox label="手动指定 VRChat 日志目录" checked={d.manualLogDir} onChange={(_, v) => update({manualLogDir:!!v.checked})} />
       <Field label="VRChat 日志目录" hint="默认自动识别。仅在无法找到游戏日志时手动指定，取消勾选可恢复自动。"><Input required={d.manualLogDir} disabled={!d.manualLogDir || disabled} value={d.manualLogDir ? d.logDir : s.defaultLogDir} onChange={(_, v) => update({logDir:v.value})} /></Field></fieldset></>}
-      <Details title="保存与重启说明"><p>重启会停止当前服务和任务，按已保存的自动启动设置重新启动。批量任务需手动重新开始。旧进程按当前退出设置处理游戏接入；默认恢复直连，重启后请点击「开始加速」重新接入。</p></Details>
+      <Details title="保存与重启说明"><p>重启会停止当前服务和任务，按已保存的自动启动设置重新启动。批量任务需手动重新开始。旧进程按当前退出设置处理游戏接入；默认恢复直连，重启后按自动加速设置重新接入；关闭自动加速时可手动开启。</p></Details>
     </form></Panel>;
   return children?children(form,d):form;
 }

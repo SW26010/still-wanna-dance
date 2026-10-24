@@ -71,7 +71,7 @@ func TestBatchStopsAtBudget(t *testing.T) {
 			if downloads.Load() != want || c.batch.Failed != 0 || c.batch.BudgetReached != (!tc.unlimited && limit < 10) || c.batch.Running {
 				t.Fatalf("downloads=%d batch=%+v", downloads.Load(), c.batch)
 			}
-			if !tc.unlimited && limit < 10 && (!strings.Contains(c.batch.Phase, "设置") || !c.lastBatch.Updated.IsZero()) {
+			if !tc.unlimited && limit < 10 && (!strings.Contains(c.batch.Phase, "调整视频保留空间") || !c.lastBatch.Updated.IsZero()) {
 				t.Fatalf("wrong stop result: %+v", c.batch)
 			}
 		})

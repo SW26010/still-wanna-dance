@@ -151,7 +151,7 @@ try {
     Assert-Identity $process $port $exe[0].FullName $configPath
     $configBefore = [IO.File]::ReadAllText($configPath)
     $settings = $configBefore | ConvertFrom-Json
-    if ($settings.schemaVersion -ne 5 -or $settings.storageDir -cne 'storage') {
+    if ($settings.schemaVersion -ne 6 -or $settings.storageDir -cne 'storage') {
         throw 'First launch did not persist a versioned, portable default configuration.'
     }
     if (Test-Path -LiteralPath (Join-Path $folder 'data/storage')) { throw 'Consent-gated startup created media storage.' }
@@ -251,7 +251,7 @@ try {
         Wait-ConsentGate $child $customPort
         Assert-Identity $child $customPort $exePath $config
         $saved = Get-Content -LiteralPath $config -Raw | ConvertFrom-Json
-        if ($saved.schemaVersion -ne 5 -or $saved.storageDir -cne (Join-Path "$name.d" 'storage')) { throw 'Custom default storage escaped its instance.' }
+        if ($saved.schemaVersion -ne 6 -or $saved.storageDir -cne (Join-Path "$name.d" 'storage')) { throw 'Custom default storage escaped its instance.' }
         $records = @(Get-Content -LiteralPath (Join-Path "$config.d" 'logs/app.log') | ForEach-Object { $_ | ConvertFrom-Json })
         if (@($records | Where-Object { $_.pid -ne $child.Id }).Count -ne 0) { throw 'Custom instances shared a log.' }
         if (!(Test-Path -LiteralPath (Join-Path "$config.d" 'config.lock'))) { throw 'Custom lock missing.' }

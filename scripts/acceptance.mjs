@@ -127,14 +127,20 @@ function rangeVideo(res, file) {
 async function consoleService(name, storageDir, extra = {}) {
   const port = await freePort();
   const config = path.join(lab, `${name}.json`);
-  fs.writeFileSync(config, JSON.stringify({ schemaVersion: 5, storageDir, logDir: path.join(lab, 'game-logs'),
-    downloadUpstream: 'auto', autoStartCDN: true, autoStartQueue: false, videoStorageMode: 'unlimited', ...extra }));
+  fs.writeFileSync(config, JSON.stringify({ schemaVersion: 6, storageDir, logDir: path.join(lab, 'game-logs'),
+    downloadUpstream: 'auto', autoAccelerate: false, queueWithGateway: false, restoreHostsOnExit: false, videoStorageMode: 'unlimited', ...extra }));
   // Reuse the operator's existing acceptance; never manufacture a receipt.
   fs.mkdirSync(config + '.d', { recursive: true });
   fs.writeFileSync(path.join(config + '.d', 'terms.json'), receipt);
   const base = `http://127.0.0.1:${port}`;
   const child = await launch(consoleBinary, ['-no-tray', '-no-open', '-listen', `127.0.0.1:${port}`,
     '-config', config], name, port, base);
+  // Exercise the internal gateway independently: this acceptance never configures hosts.
+  const page = await request(base, { capture: true });
+  const token = page.body.toString().match(/name="swd-token" content="([^"]+)"/)?.[1];
+  assert.ok(token, 'missing console token');
+  const start = await request(`${base}/api/start`, { method: 'POST', headers: {'X-SWD-Token': token}, capture: true });
+  assert.equal(start.status, 200, start.body?.toString());
   const res = await request(`${base}/api/status`, { capture: true, timeout: 10000 });
   requireAcceptedTerms(res.status);
   const state = JSON.parse(res.body);
@@ -175,7 +181,7 @@ try {
   receipt = fs.readFileSync(receiptPath);
   requireBinary('console', consoleBinary);
   const consentConfig = path.join(lab, 'consent-check.json');
-  fs.writeFileSync(consentConfig, JSON.stringify({ schemaVersion: 5, autoStartCDN: false, autoStartQueue: false }));
+  fs.writeFileSync(consentConfig, JSON.stringify({ schemaVersion: 6, autoAccelerate: false, queueWithGateway: false }));
   fs.mkdirSync(consentConfig + '.d');
   fs.writeFileSync(path.join(consentConfig + '.d', 'terms.json'), receipt);
   const consentPort = await freePort();

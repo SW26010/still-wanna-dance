@@ -42,9 +42,9 @@ type Settings struct {
 	proxySecret                 string
 	proxySecretError            string
 	ThroughputIntervalMinutes   int    `json:"throughputIntervalMinutes"`
-	AutoStartQueue              bool   `json:"autoStartQueue"`
+	QueueWithGateway            bool   `json:"queueWithGateway"`
 	RequestRetentionDays        int    `json:"requestRetentionDays"`
-	AutoStartCDN                bool   `json:"autoStartCDN"`
+	AutoAccelerate              bool   `json:"autoAccelerate"`
 	RestoreHostsOnExit          bool   `json:"restoreHostsOnExit"`
 	PrepareAheadSeconds         int    `json:"prepareAheadSeconds"`
 	DownloadSoftLimit           int    `json:"downloadSoftLimit"`
@@ -99,6 +99,7 @@ type Console struct {
 	loadedNodeCount     int
 	setupVersionMu      sync.Mutex // key I/O never holds mu
 	setupVersion        settingsVersionCache
+	autoStartOnce       sync.Once
 	autoStartPending    bool // protected by mu; startup deferred until setup succeeds after consent
 	configPath          string
 	token               string
@@ -161,7 +162,7 @@ func New(configPath, address string) (*Console, error) {
 	c.hosts = newHostsController(hostsPath(), launchHostsSession)
 	c.settings = Settings{
 		StorageDir: apppaths.ForConfig(configPath).DefaultStorage, RequestRetentionDays: 30,
-		AutoStartCDN: true, AutoStartQueue: true, RestoreHostsOnExit: true,
+		AutoAccelerate: true, QueueWithGateway: true, RestoreHostsOnExit: true,
 		VideoStorageMode: "none", MaxCacheBytes: 0, RetainFavorites: true,
 		AggressiveCacheReclamation: "auto",
 		DownloadSoftLimit:          cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),
@@ -479,39 +480,34 @@ func (c *Console) ensureEngine() error {
 	return nil
 }
 
-// AutoStart applies independent startup preferences after consent.
+// AutoStart attempts acceleration once per process, after the final setup apply.
 func (c *Console) AutoStart() {
-	c.autoStart(c.hosts.status)
-	c.resumeSetupApplication(c.startImport)
+	c.autoStartOnce.Do(func() {
+		c.mu.Lock()
+		c.autoStartPending = true
+		ready := c.terms.valid() && c.setupApplication.Phase == "completed"
+		c.mu.Unlock()
+		if ready {
+			c.autoStart()
+		}
+		c.resumeSetupApplication(c.startImport)
+	})
 }
 
-func (c *Console) autoStart(inspect func() HostsStatus) {
+// Also called after a successful final setup apply, including restart continuation.
+func (c *Console) autoStart() {
 	c.mu.Lock()
-	if !c.terms.valid() {
-		c.autoStartPending = true
+	if !c.autoStartPending || !c.terms.valid() {
 		c.mu.Unlock()
 		return
 	}
-	// Consume the startup attempt even if a service fails. Later wizard visits
-	// must not retry it or override a subsequent manual stop.
 	c.autoStartPending = false
-	enabled := c.settings.AutoStartCDN
-	queueEnabled := c.settings.AutoStartQueue
+	enabled := c.settings.AutoAccelerate
 	c.mu.Unlock()
-	if queueEnabled {
-		c.recordActionError("/api/queue/start", c.startQueue())
-	}
-	if !enabled {
-		return
-	}
-	if err := c.start(); err != nil {
-		return
-	}
-	if hosts := inspect(); hosts.NeedsMigration {
-		c.mu.Lock()
-		c.activation = Activation{Phase: "migration_required", Error: hosts.Message}
-		c.mu.Unlock()
-		slog.Warn("hosts_migration_required", "message", hosts.Message)
+	if enabled {
+		if err := c.enableAcceleration(c.hosts.status, c.changeHostsLocked); err != nil {
+			slog.Error("auto_acceleration_failed", "error", err)
+		}
 	}
 }
 
@@ -540,6 +536,7 @@ func (c *Console) startLocked() (err error) {
 		return errors.New("控制台正在退出")
 	}
 	if running {
+		c.startGatewayQueueLocked()
 		return nil
 	}
 	// Hosts do not affect binding: a running CDN can be connected using the separate hosts action.
@@ -581,6 +578,7 @@ func (c *Console) startLocked() (err error) {
 			c.failCDN(h, err)
 		}
 	}()
+	c.startGatewayQueueLocked()
 	return nil
 }
 
@@ -608,6 +606,11 @@ func (c *Console) stop() error {
 }
 
 func (c *Console) stopLocked() {
+	if c.settings.QueueWithGateway {
+		c.mu.Unlock()
+		c.stopQueueLocked()
+		c.mu.Lock()
+	}
 	c.activation.FirstRequest = time.Time{}
 	if !c.activation.Started.IsZero() {
 		c.activation.Phase = "stopped"

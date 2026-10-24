@@ -4,7 +4,7 @@ export interface Settings {
   storageDir: string; maxCacheBytes: number; videoStorageMode: 'none' | 'limited' | 'unlimited'; requestRetentionDays: number; throughputIntervalMinutes: number;
   prepareAheadSeconds: number; downloadSoftLimit: number; downloadGrowIntervalMS: number; localProtectionGraceSeconds: number; downloadUpstream: string; upstreamMode: string;
   proxyBackend: string; socks5Address: string; socks5Username: string; socks5Password?: string;
-  autoStartCDN: boolean; autoStartQueue: boolean; restoreHostsOnExit: boolean; manualLogDir: boolean; logDir: string;
+  autoAccelerate: boolean; queueWithGateway: boolean; restoreHostsOnExit: boolean; manualLogDir: boolean; logDir: string;
 }
 export interface Job {
   running?: boolean; scanOnly?: boolean; phase?: string; error?: string; total?: number; checked?: number;

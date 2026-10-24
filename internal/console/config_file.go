@@ -14,10 +14,11 @@ const configSchemaVersion = apppaths.ConfigVersion
 
 // This controls automatic browser opening for a new console process. Explicit
 // tray/open and second-instance activation remain available independently.
+// Missing or invalid consent must expose the existing confirmation flow.
 func (c *Console) OpenWebUIOnLaunch() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.settings.AutoOpenWebUI
+	return !c.terms.valid() || c.settings.AutoOpenWebUI
 }
 
 // The disk document is separate from the editable settings API. The latter

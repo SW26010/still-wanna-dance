@@ -69,6 +69,23 @@ func TestSavedAutoOpenAppliesOnNextLaunch(t *testing.T) {
 	if reopened.OpenWebUIOnLaunch() {
 		t.Fatal("new process ignored saved browser preference")
 	}
+	if err := os.Remove(reopened.files().Terms); err != nil {
+		t.Fatal(err)
+	}
+	unaccepted, err := New(c.configPath, c.address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unaccepted.Close()
+	if !unaccepted.OpenWebUIOnLaunch() || unaccepted.settings.AutoOpenWebUI {
+		t.Fatal("missing consent should open confirmation without changing the preference")
+	}
+	if err := unaccepted.acceptTerms(); err != nil {
+		t.Fatal(err)
+	}
+	if unaccepted.OpenWebUIOnLaunch() {
+		t.Fatal("valid consent should restore the saved browser preference")
+	}
 }
 
 func TestConfigurationRejectsUnsupportedWithoutOverwrite(t *testing.T) {

@@ -353,3 +353,11 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 /api/requests、/api/history、/api/latency 在状态锁下取得当前运行目录后，通过已有独立只读连接查询，不再持有 lifecycleMu。当前运行目录由 Console 创建时确定，保存新配置不切换它；查询不启动引擎、不创建数据库。
 
 扩展已有真实生命周期 I/O 门控测试，在启动、停止、保存和关闭被阻塞期间读取全部三个接口。修复前四种操作均因查询等待启停锁失败（request-lock-before.log），修复后及鉴权／范围／离线读取定向检查通过（request-lock-after.log）。真实 Console＋SQLite＋Edge 的 TestRequestHistoryBrowser 通过，验证 601 次 GET 的历史分页、数据库重开与首正文统计（request-lock-browser.log）；日志和截图位于 artifacts/optimization-audit/。没有改动游戏接入行为，无新增 VRC 待验项。
+
+## 协议确认优先打开网页（2026-10-24）
+
+普通桌面启动在缺少有效同意记录时打开现有确认引导，即使 autoOpenWebUI 为 false；不改写偏好。网页重启仍通过 -no-open 复用当前页面。现行规则见[配置生命周期](../settings-lifecycle.md)，设置说明与嵌入资源已同步。
+
+定向 Go 回归通过，覆盖偏好保存、记录缺失、版本／摘要变化、损坏及解密失败、有效记录恢复按设置决定、协议门禁与独立进程重启。3 项 Edge 内存接口用例通过，覆盖设置分区保存、首次确认及确认失败后重试；前端构建、类型、逐字节重建与资源清单检查通过。未实际唤起系统默认浏览器，沿用未改动的桌面打开入口；无需 VRC 验证。
+
+首次沙箱运行因 Windows 原子替换报 The handle is invalid，Edge 因 TransactNamedPipe 管道结束而无法启动；未修改产品或测试绕过，沙箱外重跑上述范围通过。原始失败与成功日志保留在 artifacts/terms-auto-open/ 的 backend.txt、browser.txt、browser-sandbox-error.md、backend-outside-sandbox.txt、browser-outside-sandbox.txt。

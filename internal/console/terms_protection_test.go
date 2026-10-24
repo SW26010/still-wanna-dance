@@ -48,6 +48,10 @@ func TestTermsProtectedMoveAndInvalidReceipts(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer moved.Close()
+	moved.settings.AutoOpenWebUI = false
+	if err := moved.save(moved.settings); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.MkdirAll(moved.files().Root, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -95,6 +99,9 @@ func TestTermsProtectedMoveAndInvalidReceipts(t *testing.T) {
 			defer loaded.Close()
 			if loaded.termsAccepted() {
 				t.Fatal("invalid receipt accepted")
+			}
+			if !loaded.OpenWebUIOnLaunch() || loaded.settings.AutoOpenWebUI {
+				t.Fatal("invalid receipt should open confirmation without changing the preference")
 			}
 			loaded.settings.AutoAccelerate, loaded.settings.QueueWithGateway = true, true
 			loaded.AutoStart()

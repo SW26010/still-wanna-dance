@@ -973,13 +973,12 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		// Serialize with storage switches, without starting a cache engine.
-		c.lifecycleMu.Lock()
+		// The active storage root is fixed for this Console. The reader owns
+		// its read-only connection and does not borrow the engine's lifetime.
 		c.mu.Lock()
 		root := c.settings.StorageDir
 		c.mu.Unlock()
 		result, err := cacheproxy.ReadRecentRequests(r.Context(), root, limit)
-		c.lifecycleMu.Unlock()
 		if err != nil {
 			http.Error(w, "最近请求读取失败，请稍后重试", http.StatusInternalServerError)
 			return

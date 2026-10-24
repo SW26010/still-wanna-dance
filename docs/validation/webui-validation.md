@@ -347,3 +347,9 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 公共操作、曲库文件操作及歌曲偏好共用 usePageFeedback。反馈只属于当前页面访问，离开、存储身份变化或卸载后，旧响应不能恢复反馈，包括返回同一页面的情况。请求、确认、文案、操作锁及完成后的数据刷新仍归业务所有；页面离开不提前解锁。引导完成时显式将反馈交给首页的行为保留。
 
 新增 18 项 Edge 回归覆盖三类操作的成功／失败、完成后切页、离页期间完成及返回后才完成。修复前 14 项失败、4 项既有公共路径通过，修复后全部通过；导航、曲库、引导及恢复共 60 项通过。前端构建、类型和逐字节产物校验通过。原始失败及成功日志保留在 artifacts/optimization-audit/feedback-before.log、feedback-after.log。浏览器使用内存 API，只验证前端生命周期；未操作游戏、系统 hosts 或用户文件。
+
+## 请求读取与启停解耦（2026-10-24）
+
+/api/requests、/api/history、/api/latency 在状态锁下取得当前运行目录后，通过已有独立只读连接查询，不再持有 lifecycleMu。当前运行目录由 Console 创建时确定，保存新配置不切换它；查询不启动引擎、不创建数据库。
+
+扩展已有真实生命周期 I/O 门控测试，在启动、停止、保存和关闭被阻塞期间读取全部三个接口。修复前四种操作均因查询等待启停锁失败（request-lock-before.log），修复后及鉴权／范围／离线读取定向检查通过（request-lock-after.log）。真实 Console＋SQLite＋Edge 的 TestRequestHistoryBrowser 通过，验证 601 次 GET 的历史分页、数据库重开与首正文统计（request-lock-browser.log）；日志和截图位于 artifacts/optimization-audit/。没有改动游戏接入行为，无新增 VRC 待验项。

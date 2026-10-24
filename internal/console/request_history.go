@@ -39,8 +39,7 @@ func (c *Console) serveRequestHistory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	c.lifecycleMu.Lock()
-	defer c.lifecycleMu.Unlock()
+	// Read the active root once; database I/O must not join service lifecycle I/O.
 	c.mu.Lock()
 	root := c.settings.StorageDir
 	c.mu.Unlock()

@@ -118,6 +118,8 @@ export function SettingsPage({section='application',children}: {section?:Setting
       {s.restartRequired&&[...app.dirtySettings].some(value=>value!==section)&&<p>其他页面仍有未保存配置，请保存或放弃后再重启。</p>}</div>
       {section==='storage'&&<fieldset disabled={disabled}><legend>本地存储</legend>
       <CacheCapacityFields anchor="maxCacheGiB" mode={d.videoStorageMode} value={d.maxCacheGiB} disabled={disabled} onChange={update} />
+      <Checkbox label="优先保留收藏视频" checked={d.retainFavorites} onChange={(_,v)=>update({retainFavorites:!!v.checked})}/>
+      <p>默认开启，收藏视频可突破预算保留。关闭后按普通规则取舍，收藏标记保留。保存并重启应用后生效，不会自动下载或恢复已删除的视频。</p>
       <StorageDirectoryFields mode={d.videoStorageMode} disabled={disabled}>{directoryDisabled =>
         <Field label="本地存储目录" required hint="统一保存视频、歌曲资料和统计记录。下载中的文件也保存在此目录。"><Input required disabled={directoryDisabled} value={d.storageDir} onChange={(_, v) => update({storageDir:v.value})} /></Field>
       }</StorageDirectoryFields>

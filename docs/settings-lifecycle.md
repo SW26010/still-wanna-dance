@@ -10,6 +10,8 @@
 
 「高级下载设置」中的下载并发软上限与增长间隔也遵循此规则。配置字段 `downloadSoftLimit` 与 `downloadGrowIntervalMS` 缺失或 null 时分别使用 16 和 250，明确保存的 0 ms 表示关闭缓增；范围与执行语义见[下载并发](download-concurrency.md)。
 
+「优先保留收藏视频」（`retainFavorites`）默认开启，保存后重启应用生效；关闭时收藏只做标记，按普通预算取舍。切换选项不启动下载、补齐或恢复文件；引导保留此设置。规则见[歌曲屏蔽与收藏](download-resource-design.md#8-歌曲屏蔽与收藏)。
+
 「本地存储」中的本地延续保护时长也在应用重新启动后生效。`localProtectionGraceSeconds` 缺失或 null 时默认 300，接受 0～10000 的整数；显式 0 表示不延续保护。引导保留该设置，并在最终核对中显示此前保存但尚未生效的更改；保护资格、起算点和回收边界见[本地保护](download-resource-design.md#本地保护)。
 
 状态接口中的 `settings` 是已保存配置，`activeSettings` 是当前运行配置，`restartRequired` 是两者规范化后的差异。两份配置均不返回代理密码；密码差异仍参与待重启判断。保存请求省略密码时保留最近保存的密码，显式空串清除密码。

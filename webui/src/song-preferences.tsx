@@ -34,8 +34,8 @@ export function SongPreferences({visible}:{visible:boolean}) {
     } finally {setPending(false);page.refresh();}
   }
   return <Panel id="song-preferences" title="歌曲偏好" {...focus}>
-    <p>收藏只做标记，不开始下载；按正常播放或下载流程保存的完整视频，不因预算被淘汰。屏蔽会拒绝新的播放请求，并跳过预加载和下载补齐；已开始的任务继续。</p>
-    <Details title="共享视频与空间占用"><p>多首歌曲共享视频时，只要仍有未屏蔽的关联歌曲，就保留其正常使用资格。收藏视频计入同一存储预算，但可以超过预算，包括选择「不保留」时。收藏不保证临时视频块一定收齐，删除或丢失文件不会自动补下载。</p></Details>
+    <p>收藏只做标记，不开始下载；开启「优先保留收藏视频」时，完整收藏视频不因预算被淘汰。屏蔽会拒绝新的播放请求，并跳过预加载和下载补齐；已开始的任务继续。</p>
+    <Details title="共享视频与空间占用"><p>多首歌曲共享视频时，只要仍有未屏蔽的关联歌曲，就保留其正常使用资格。开启「优先保留收藏视频」时，收藏视频计入同一存储预算，但可以超过预算，包括选择「不保留」时。收藏不保证临时视频块一定收齐，删除或丢失文件不会自动补下载。</p></Details>
     <form className="actions" onSubmit={e=>{e.preventDefault();setOffset(0);setQuery({q:search,policy:filter});page.refresh();}}>
       <Field label="查找歌曲"><Input type="search" maxLength={300} placeholder="歌名或歌曲 ID" value={search} onChange={(_,v)=>setSearch(v.value)}/></Field>
       <Field label="偏好筛选"><Select value={filter} onChange={(_,v)=>setFilter(v.value)}><option value="">全部</option>{Object.entries(labels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select></Field>

@@ -277,6 +277,39 @@ func TestFavoriteBatchReservationContinuesAfterStopAndCountsSharedBytesOnce(t *t
 	}
 }
 
+func TestDisabledFavoriteRetentionUsesOrdinaryPublicationAndBatchBudget(t *testing.T) {
+	s, cfg := setup(t, nil, func(c *Config) { c.RetainFavorites = false })
+	ctx := t.Context()
+	key := videoKey(payload)
+	seedPrioritySong(t, s, "1", key)
+	seedPrioritySong(t, s, "2", key)
+	if err := s.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetSongPolicy(ctx, 2, SongBlocked); err != nil {
+		t.Fatal(err)
+	}
+	setRetentionLimit(t, s, 0)
+	v := video{key: key, size: int64(len(payload))}
+	if _, err := s.reservePublication(ctx, v); !errors.Is(err, ErrNotRetained) {
+		t.Fatal("favorite bypassed ordinary publication budget", err)
+	}
+	if _, err := s.reserveBatchVideo(s.WithBatchBudget(ctx), v); !errors.Is(err, ErrBatchBudget) {
+		t.Fatal("favorite bypassed ordinary batch budget", err)
+	}
+	writeTestFile(t, cfg.videoFile(key), payload)
+	s.runRetention(true)
+	expectRetained(t, cfg.videoFile(key), false)
+	// Disabling the exception must not turn a shared favorite into a blocked
+	// resource: sufficient ordinary budget still permits publication.
+	setRetentionLimit(t, s, v.size)
+	r, err := s.reservePublication(ctx, v)
+	if err != nil {
+		t.Fatal("favorite lost ordinary publication eligibility", err)
+	}
+	s.releasePublication(r)
+}
+
 func TestBlockedTemporaryCleanupReusesProtectionWithoutFavoriteExpansion(t *testing.T) {
 	w, s := testSession(t)
 	s.cfg.AggressiveCacheReclamation = "off"

@@ -315,7 +315,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 					if policies[n] == cacheproxy.SongBlocked {
 						skip(id)
 					}
-					favorite = favorite || policies[n] == cacheproxy.SongFavorite
+					favorite = favorite || settings.RetainFavorites && policies[n] == cacheproxy.SongFavorite
 				}
 			}
 			if len(ids) == 0 {
@@ -425,7 +425,11 @@ dispatch:
 		c.mu.Lock()
 		c.batch.BudgetReached = true
 		c.batch.Current = ""
-		c.batch.Phase = "普通视频的存储预算不足，已停止普通补齐；本轮可处理的收藏已继续处理。可在「本地视频 → 存储设置」调整视频保留空间后再次补齐。"
+		c.batch.Phase = "视频存储预算不足，已停止普通补齐。"
+		if settings.RetainFavorites {
+			c.batch.Phase += "本轮可处理的收藏已继续处理。"
+		}
+		c.batch.Phase += "调整视频保留空间后可再次补齐。"
 		c.mu.Unlock()
 		return
 	default:

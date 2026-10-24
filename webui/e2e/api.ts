@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import type { CacheEntry, Settings, Status } from '../src/types';
 export function statusFixture(): Status {
-  const settings: Settings = {storageDir:'C:\\UI-Test\\storage',maxCacheBytes:40*1073741824,videoStorageMode:'unlimited',aggressiveCacheReclamation:'auto',requestRetentionDays:30,throughputIntervalMinutes:20,prepareAheadSeconds:500,downloadSoftLimit:16,downloadGrowIntervalMS:250,localProtectionGraceSeconds:300,downloadUpstream:'auto',upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',autoStartCDN:true,autoStartQueue:true,restoreHostsOnExit:true,manualLogDir:false,logDir:'C:\\UI-Test\\logs'};
+  const settings: Settings = {retainFavorites:true,storageDir:'C:\\UI-Test\\storage',maxCacheBytes:40*1073741824,videoStorageMode:'unlimited',aggressiveCacheReclamation:'auto',requestRetentionDays:30,throughputIntervalMinutes:20,prepareAheadSeconds:500,downloadSoftLimit:16,downloadGrowIntervalMS:250,localProtectionGraceSeconds:300,downloadUpstream:'auto',upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',autoStartCDN:true,autoStartQueue:true,restoreHostsOnExit:true,manualLogDir:false,logDir:'C:\\UI-Test\\logs'};
   return {running:false,settings:{...settings},activeSettings:{...settings},restartRequired:false,hosts:{ready:false,message:'尚未接入'},portOK:true,httpsPortOK:true,batch:{},lastBatch:{},import:{},queue:{},defaultLogDir:settings.logDir,defaultStorageDir:settings.storageDir,portableDir:'C:\\UI-Test',setupSettingsVersion:'1',activation:{},upstreamMonitor:{results:[]}};
 }
 export async function mockAPI(page: Page) {

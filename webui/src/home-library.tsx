@@ -68,14 +68,14 @@ export function Library() {
     <Details title="日志与累计记录"><p>{q.file || '尚未发现日志'} · 本次开启后累计准备成功 {q.completed || 0} 次</p></Details>
     <Feedback error>{q.logError || q.error || s.actionErrors?.queue}</Feedback></Panel>
     <Panel id="batch" title="下载缺失视频"><p>检查范围为整个曲库；下载缺失视频，留待以后播放。可能占用较多流量和磁盘空间。</p>
-    {zeroBudget && <Feedback>当前选择「不保留」，下载补齐仍可处理收藏歌曲；普通歌曲需要先<Link href="#maxCacheGiB">设置视频保留空间</Link>。收藏仅做标记，可在<Link href="#song-preferences">歌曲偏好</Link>中管理。</Feedback>}
+    {zeroBudget && <Feedback>当前选择「不保留」，{s.activeSettings.retainFavorites?'下载补齐仍可处理收藏歌曲；普通歌曲需要先':'全部歌曲均按普通预算处理，需要先'}<Link href="#maxCacheGiB">设置视频保留空间</Link>。收藏仅做标记，可在<Link href="#song-preferences">歌曲偏好</Link>中管理。</Feedback>}
     <div className="actions"><Button disabled={app.unavailable || b.running} onClick={() => void app.action('batch/scan')}>{b.running&&b.scanOnly?'正在扫描…':'检查缺失视频'}</Button><Button disabled={app.unavailable || b.running} onClick={() => void app.action('batch/start')}>{b.running&&!b.scanOnly?'正在下载…':'下载缺失视频'}</Button><Button disabled={app.unavailable || !b.running} onClick={() => void app.action('batch/cancel')}>停止批量任务</Button></div>
-    <Details title="检查与下载说明"><p>检查缺失视频会更新歌曲清单并检查本地文件，不下载或校验视频内容。补齐与房间队列预加载共同调度，互不暂停。普通视频空间不足时停止普通补齐，收藏继续处理；屏蔽歌曲跳过。停止任务后，已开始的共享下载可能继续完成。</p></Details>
+    <Details title="检查与下载说明"><p>检查缺失视频会更新歌曲清单并检查本地文件，不下载或校验视频内容。补齐与房间队列预加载共同调度，互不暂停。视频空间不足时停止普通补齐；开启「优先保留收藏视频」时，收藏继续处理。屏蔽歌曲跳过。停止任务后，已开始的共享下载可能继续完成。</p></Details>
     <Details title="上次完成的批量任务"><p>{dated(saved.updated) ? `上次完成的${saved.scanOnly ? '本地检查' : '下载缺失视频'}${saved.catalogWarning ? '（使用已有清单）' : ''} · ${date(saved.updated)} · 任务曲目总数 ${saved.total || 0} · 检查时本地已有 ${saved.hits || 0} · 该次任务下载完成 ${saved.downloaded || 0} · 缺失视频 ${saved.missing || 0}` : '暂无完成的任务记录'}</p></Details>
     {(b.running || !!b.total) && <Progress value={b.checked} max={b.total} label="批量任务进度" />}
     <p role="status">{b.phase || '等待开始'}</p>
     {b.catalogWarning && <Feedback error><div className="content-stack"><p>在线曲库更新失败，{b.catalog?.revision ? '本次使用已有清单。' : '本地没有可用清单，暂时无法检查视频。'}</p><Button disabled={app.unavailable || b.running} onClick={() => void app.action('batch/scan')}>重试更新</Button><Caption1 as="p">重新更新曲库并检查本地视频，不下载视频。</Caption1><Details title="在线更新错误详情"><p>{b.catalogWarning}</p></Details></div></Feedback>}<p>{b.current}{!!b.total&&` · 当前任务 ${b.checked || 0} / ${b.total} · 命中 ${b.hits || 0} · 缺失 ${b.missing || 0}${b.scanOnly?` · 本地检查失败 ${b.failed || 0}`:` · 下载完成 ${b.downloaded || 0} · 屏蔽跳过 ${b.skipped || 0} · 处理失败 ${b.failed || 0}`}`}</p>
-    {b.budgetReached && <Feedback>普通视频预算不足，本轮可处理的收藏已继续处理。<Link href="#storage-settings">调整视频保留空间</Link>，保存并重启应用后再次点击「下载缺失视频」。</Feedback>}
+    {b.budgetReached && <Feedback>视频预算不足。{s.activeSettings.retainFavorites&&'本轮可处理的收藏已继续处理。'}<Link href="#storage-settings">调整视频保留空间</Link>，保存并重启应用后再次点击「下载缺失视频」。</Feedback>}
     <Feedback error>{b.error || s.actionErrors?.batch}</Feedback>
     {!!b.failed && <Details title="查看失败记录"><Table aria-label="批量任务失败记录"><TableHeader><TableRow><TableHeaderCell>歌曲</TableHeaderCell><TableHeaderCell>原因</TableHeaderCell></TableRow></TableHeader><TableBody>{b.failures?.map(f => <TableRow key={f.id}><TableCell>{f.id} · {f.name}</TableCell><TableCell>{f.error}</TableCell></TableRow>)}</TableBody></Table></Details>}
     </Panel></>;

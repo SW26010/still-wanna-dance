@@ -52,7 +52,7 @@ export function Cache({ visible, section }: {visible: boolean;section?:string}) 
     </form><Feedback error>{page.error && '本地视频明细读取失败，请重试；未启动服务或联网扫描。'}</Feedback>
     <p role="status">{page.loading ? '正在读取本地视频明细…' : page.data?.total ? `共 ${page.data.total} 个文件 · 第 ${offset / 50 + 1} 页 · 显示 ${entries.length} 项（手动刷新）` : query.q ? '没有匹配的本地视频文件。' : '暂无本地视频。'}</p>
     {page.data?.total===0 && !query.q && (s.activeSettings.videoStorageMode==='none'
-      ? <><p>当前选择「不保留」：适合边播边下载，普通视频不会长期保留，收藏的完整视频仍可保存。房间队列仍可自动提前准备。</p><div className="actions"><Link href="#queue">自动准备房间队列</Link><Link href="#maxCacheGiB">设置视频保留空间</Link></div></>
+      ? <><p>当前选择「不保留」：适合边播边下载，普通视频不会长期保留，{s.activeSettings.retainFavorites?'收藏的完整视频仍可保存。':'收藏视频也按普通预算处理。'}房间队列仍可自动提前准备。</p><div className="actions"><Link href="#queue">自动准备房间队列</Link><Link href="#maxCacheGiB">设置视频保留空间</Link></div></>
       : <Link href="#batch">保存视频供以后使用</Link>)}
     {!!entries.length && <div className="actions"><Button disabled={disabled || !eligible.length} onClick={() => setSelected(eligible.every(e => selected.includes(e.key)) ? [] : eligible.map(e => e.key))}>选择本页可删除项</Button><Button disabled={disabled || !chosen.length} onClick={() => void operate('delete', chosen)}>删除选中视频</Button><span role="status">已选择 {chosen.length} 个文件</span></div>}
     <Feedback>{result}</Feedback>
@@ -71,7 +71,7 @@ function InventoryPanel({visible,files}: {visible:boolean;files?:CachePage}) {
   const app = useApp(), s=app.status.data!, t = s.traffic || {};
   const inventory = useResource<Inventory>('inventory',visible && !app.stopped,app.revision), v = inventory.data;
   const known = v && dated(v.updated) && v.coverageKnown && v.totalSongs > 0;
-  return <Panel id="overview" title="存储概览">    <p>{files ? `${files.fileCount} 个视频文件 · 占用 ${gib(files.totalBytes)} · 当前视频存储预算：${s.activeSettings.videoStorageMode === 'unlimited' ? '不限制' : s.activeSettings.videoStorageMode === 'none' ? '0 GiB（仅收藏可突破预算保留）' : gib(s.activeSettings.maxCacheBytes)}` : '视频占用待读取'}</p><p>收藏视频计入实际占用，可以超过预算；收藏标记不代表文件已保存。</p><Subtitle2 as="h3">曲库覆盖率</Subtitle2><p>{known ? `${(100*v.coveredSongs/v.totalSongs).toFixed(1)}% · ${v.coveredSongs} / ${v.totalSongs} 首曲目已覆盖` : '覆盖率待刷新'}</p>
+  return <Panel id="overview" title="存储概览">    <p>{files ? `${files.fileCount} 个视频文件 · 占用 ${gib(files.totalBytes)} · 当前视频存储预算：${s.activeSettings.videoStorageMode === 'unlimited' ? '不限制' : s.activeSettings.videoStorageMode === 'none' ? s.activeSettings.retainFavorites?'0 GiB（仅收藏可突破预算保留）':'0 GiB' : gib(s.activeSettings.maxCacheBytes)}` : '视频占用待读取'}</p><p>收藏视频计入实际占用，{s.activeSettings.retainFavorites?'可以超过预算':'按普通预算处理'}；收藏标记不代表文件已保存。</p><Subtitle2 as="h3">曲库覆盖率</Subtitle2><p>{known ? `${(100*v.coveredSongs/v.totalSongs).toFixed(1)}% · ${v.coveredSongs} / ${v.totalSongs} 首曲目已覆盖` : '覆盖率待刷新'}</p>
 <Details title="覆盖率与复用详情"><Details title="本地视频复用统计"><Subtitle2 as="h3">请求统计</Subtitle2><p>当前存储目录累计</p><p>已命中次数 {t.hits || 0} · 请求命中率 {t.hitRate == null ? '—' : t.hitRate.toFixed(1)+'%'} · 本地视频命中节省流量 {gib(t.savedBytes)} · 播放传输次数（30 秒去重） {t.playbackTransfers || 0}</p>
     <p>成功请求 {t.requests || 0} 次 · 未命中 {t.misses || 0} 次 · 未命中播放首正文 {t.coldBodyMS?.toFixed(1) || '—'} ms（{t.coldBodySamples || 0} 个样本）· 本地命中播放首正文 {t.localBodyMS?.toFixed(1) || '—'} ms（{t.localBodySamples || 0} 个样本）</p>
     <Details title="统计口径与计算方式"><p>仅统计成功返回视频内容的请求，预下载不计入。节省流量是本地视频命中返回的数据量，未扣除提前下载的流量。播放传输按同一歌曲 30 秒去重，不代表游戏实际播放次数。</p></Details><Feedback error>{t.error}</Feedback></Details>

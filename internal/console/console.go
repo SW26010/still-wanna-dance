@@ -58,6 +58,7 @@ type Settings struct {
 	SOCKS5Password              string `json:"socks5Password,omitempty"`
 	MaxCacheBytes               int64  `json:"maxCacheBytes"`
 	VideoStorageMode            string `json:"videoStorageMode"`
+	RetainFavorites             bool   `json:"retainFavorites"`
 	AggressiveCacheReclamation  string `json:"aggressiveCacheReclamation"`
 	StorageDir                  string `json:"storageDir"`
 	LogDir                      string `json:"logDir"`
@@ -161,7 +162,7 @@ func New(configPath, address string) (*Console, error) {
 	c.settings = Settings{
 		StorageDir: apppaths.ForConfig(configPath).DefaultStorage, RequestRetentionDays: 30,
 		AutoStartCDN: true, AutoStartQueue: true, RestoreHostsOnExit: true,
-		VideoStorageMode: "none", MaxCacheBytes: 0,
+		VideoStorageMode: "none", MaxCacheBytes: 0, RetainFavorites: true,
 		AggressiveCacheReclamation: "auto",
 		DownloadSoftLimit:          cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),
 		LocalProtectionGraceSeconds: int(cacheproxy.DefaultLocalProtectionGrace / time.Second),
@@ -434,6 +435,7 @@ func (c *Console) ensureEngine() error {
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
 	cfg.CacheUnlimited = c.settings.VideoStorageMode == "unlimited"
+	cfg.RetainFavorites = c.settings.RetainFavorites
 	cfg.AggressiveCacheReclamation = c.settings.AggressiveCacheReclamation
 	if c.settings.VideoStorageMode == "none" {
 		cfg.MaxCacheBytes = 0
@@ -1176,6 +1178,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		input.DownloadSoftLimit = cacheproxy.VideoRequestSoftLimit
 		input.RestoreHostsOnExit = true
+		input.RetainFavorites = true
 		input.DownloadGrowIntervalMS = int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond)
 		input.LocalProtectionGraceSeconds = int(cacheproxy.DefaultLocalProtectionGrace / time.Second)
 		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {

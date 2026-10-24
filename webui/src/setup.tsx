@@ -43,7 +43,7 @@ function SetupReview({draft:d,status:s,source,effects}:{draft:Draft;status:Statu
     if(p.socks5Password)rows.push(['代理密码','将更新']);
     else if(p.socks5Password===''&&s.socks5PasswordSet)rows.push(['代理密码','将清除']);
   }
-  const labels={autoStartCDN:'自动启动播放网关',autoStartQueue:'自动启动队列',restoreHostsOnExit:'退出时恢复游戏直连',prepareAheadSeconds:'提前准备时间（秒）',downloadSoftLimit:'同时下载数量',downloadGrowIntervalMS:'并发增长间隔（毫秒）',localProtectionGraceSeconds:'本地延续保护时长（秒）',requestRetentionDays:'请求保留天数',throughputIntervalMinutes:'测速间隔（分钟）',downloadUpstream:'回源线路',manualLogDir:'手动日志位置',logDir:'日志目录'};
+  const labels={retainFavorites:'优先保留收藏视频',autoStartCDN:'自动启动播放网关',autoStartQueue:'自动启动队列',restoreHostsOnExit:'退出时恢复游戏直连',prepareAheadSeconds:'提前准备时间（秒）',downloadSoftLimit:'同时下载数量',downloadGrowIntervalMS:'并发增长间隔（毫秒）',localProtectionGraceSeconds:'本地延续保护时长（秒）',requestRetentionDays:'请求保留天数',throughputIntervalMinutes:'测速间隔（分钟）',downloadUpstream:'回源线路',manualLogDir:'手动日志位置',logDir:'日志目录'};
   for(const key of Object.keys(labels) as (keyof typeof labels)[]){if(current[key]!==s.settings[key])rows.push([labels[key],change(String(current[key]),String(s.settings[key]))+'（此前已保存）']);}
   if(current.aggressiveCacheReclamation!==p.aggressiveCacheReclamation)rows.push(['激进的缓存回收策略',change(reclamationLabel(current),reclamationLabel(p))+'（此前已保存）']);
   return <><dl>{rows.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>

@@ -68,6 +68,9 @@ type Config struct {
 	// MaxCacheBytes bounds ordinary retained videos. Favorites count toward usage
 	// but can exceed this budget; zero reclaims unprotected ordinary videos.
 	MaxCacheBytes int64
+	// RetainFavorites allows favorite resources to exceed the video budget.
+	// It affects retention only, never creates download demand.
+	RetainFavorites bool
 	// AggressiveCacheReclamation controls unprotected block cache reclamation:
 	// auto follows the video budget; on and off explicitly override it.
 	AggressiveCacheReclamation string
@@ -90,6 +93,7 @@ func DefaultConfig() Config {
 	return Config{
 		CacheUnlimited:             false,
 		MaxCacheBytes:              0,
+		RetainFavorites:            true,
 		AggressiveCacheReclamation: "auto",
 		RequestRetentionDays:       30,
 		OriginScheme:               "https",

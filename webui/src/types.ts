@@ -1,4 +1,5 @@
 export interface Settings {
+	retainFavorites: boolean;
   aggressiveCacheReclamation: 'auto' | 'on' | 'off';
   storageDir: string; maxCacheBytes: number; videoStorageMode: 'none' | 'limited' | 'unlimited'; requestRetentionDays: number; throughputIntervalMinutes: number;
   prepareAheadSeconds: number; downloadSoftLimit: number; downloadGrowIntervalMS: number; localProtectionGraceSeconds: number; downloadUpstream: string; upstreamMode: string;

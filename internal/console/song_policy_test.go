@@ -199,7 +199,14 @@ func TestQueueSkipsBlockedWithoutRetryAndResumesAfterUnblock(t *testing.T) {
 }
 
 func TestBatchContinuesFavoritesAfterBudgetStopAndSkipsBlockedSharedSong(t *testing.T) {
+	for _, retain := range []bool{true, false} {
+		t.Run(fmt.Sprint(retain), func(t *testing.T) { testBatchFavoriteRetention(t, retain) })
+	}
+}
+
+func testBatchFavoriteRetention(t *testing.T, retain bool) {
 	c := testConsole(t)
+	c.settings.RetainFavorites = retain
 	// IDs outside the initial priority list keep deterministic descending order:
 	// ordinary hits the zero budget first; favorite has a blocked shared ID.
 	bodies := map[int]string{9000003: "ordinary", 9000002: "favorite", 9000001: "favorite"}
@@ -227,6 +234,7 @@ func TestBatchContinuesFavoritesAfterBudgetStopAndSkipsBlockedSharedSong(t *test
 	cfg.StorageDir = c.settings.StorageDir
 	cfg.OriginScheme = "http"
 	cfg.CacheUnlimited = false
+	cfg.RetainFavorites = retain
 	cfg.MaxCacheBytes = 0
 	cfg.AggressiveCacheReclamation = "off"
 	cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
@@ -254,10 +262,20 @@ func TestBatchContinuesFavoritesAfterBudgetStopAndSkipsBlockedSharedSong(t *test
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if downloads.Load() != 1 || queries[9000003] != 1 || queries[9000002] != 1 || queries[9000001] != 0 || c.batch.Failed != 0 || c.batch.Skipped != 1 || c.batch.Downloaded != 1 || !c.batch.BudgetReached {
+	wantDownloads := 0
+	if retain {
+		wantDownloads = 1
+	}
+	if int(downloads.Load()) != wantDownloads || queries[9000003] != 1 || queries[9000002] != wantDownloads || queries[9000001] != 0 || c.batch.Failed != 0 || c.batch.Skipped != 1 || c.batch.Downloaded != wantDownloads || !c.batch.BudgetReached {
 		t.Fatal(queries, downloads.Load(), c.batch)
 	}
 	path := filepath.Join(cfg.StorageDir, "videos", fmt.Sprintf("%x.mp4", md5.Sum([]byte("favorite"))))
+	if !retain {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatal("disabled retention published favorite beyond budget", err)
+		}
+		return
+	}
 	if data, err := os.ReadFile(path); err != nil || string(data) != "favorite" {
 		t.Fatal("favorite not published", err)
 	}

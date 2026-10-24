@@ -160,6 +160,7 @@ func (s *Server) resourcePolicies(ctx context.Context) (map[string]resourcePolic
 		if err := rows.Scan(&key, &p.favorite, &p.blocked); err != nil {
 			return nil, err
 		}
+		p.favorite = p.favorite && s.cfg.RetainFavorites
 		result[key] = p
 	}
 	return result, rows.Err()

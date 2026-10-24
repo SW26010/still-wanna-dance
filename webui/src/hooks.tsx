@@ -112,9 +112,10 @@ export function useConsole(enabled: boolean, page: string) {
     if (lock.current || stopped) return false;
     lock.current = true; setBusy(true);
     const hosts = path.startsWith('hosts/') || path === 'activation/enable' || path === 'start';
-    setMessage(hosts ? hostsActionPending : '正在处理…');
+    const restorePermission = path === 'settings' && typeof body === 'object' && body !== null && 'restoreHostsOnExit' in body && body.restoreHostsOnExit === true && status.data?.settings.restoreHostsOnExit === false;
+    setMessage(hosts ? hostsActionPending : restorePermission ? '正在准备退出时恢复游戏直连的权限；请允许可能出现的系统管理员权限提示，最多等待 120 秒。' : '正在处理…');
     try {
-      await request(path, body, AbortSignal.timeout(hosts ? hostsActionTimeout : 30000));
+      await request(path, body, AbortSignal.timeout(hosts || restorePermission ? hostsActionTimeout : 30000));
       if (path === 'exit') { setStopped(true); setMessage('退出请求已接受，正在处理游戏连接并停止服务和后台任务。若恢复失败，程序会显示错误。'); return true; }
       if (path === 'restart') { setStopped(true); setMessage('正在重启应用，连接恢复后自动刷新。'); await reconnect(); return true; }
       setMessage(actionMessages[path] || (path.startsWith('upstream/check') ? '网络检测已开始，请查看检测结果。' : '请求已接受，请查看当前任务状态。')); return true;

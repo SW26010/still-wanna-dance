@@ -51,3 +51,28 @@ test('request detail keeps identity, expansion and focus while adjacent records 
   await expect(detail).toHaveAttribute('aria-expanded','true');await expect(detail).toBeFocused();
   expect(await element!.evaluate(el=>el.isConnected)).toBe(true);
 });
+
+
+for(const outcome of ['approved','timeout'] as const)test('exit policy save waits for authorization: '+outcome,async({page})=>{
+  const api=await mockAPI(page);
+  api.state.settings.restoreHostsOnExit=false;api.state.activeSettings.restoreHostsOnExit=false;
+  await page.addInitScript(()=>{AbortSignal.timeout=(ms:number)=>{const c=new AbortController();setTimeout(()=>c.abort(new DOMException('Timed out','TimeoutError')),ms);return c.signal;};});
+  let release=()=>{},calls=0;const waiting=new Promise<void>(resolve=>{release=resolve;});
+  await page.route('**/api/settings',async route=>{calls++;await waiting;if(outcome==='approved')await route.fallback();else await route.abort().catch(()=>{});});
+  await page.clock.install();await page.goto('/#/settings');
+  await page.getByRole('button',{name:'高级游戏接入设置',exact:true}).click();
+  const restore=page.getByRole('checkbox',{name:'退出时恢复游戏直连',exact:true}),save=page.getByRole('button',{name:'保存设置',exact:true});
+  await restore.check();await save.click();await expect.poll(()=>calls).toBe(1);
+  await page.clock.fastForward(40000);
+  await expect(save).toBeDisabled();await expect(restore).toBeDisabled();
+  await expect(page.getByText(/正在准备退出时恢复游戏直连的权限.*最多等待 120 秒/)).toBeVisible();
+  if(outcome==='approved'){
+    release();await expect(page.getByText('设置已保存。退出策略用于本次退出；其他运行配置重启后生效。',{exact:true})).toBeVisible();
+    expect(api.state.activeSettings.restoreHostsOnExit).toBe(true);
+  }else{
+    await page.clock.fastForward(80001);
+    await expect(page.getByText(/操作结果尚未确认.*勿重复提交/)).toBeVisible();
+    await expect(restore).toBeChecked();expect(api.state.activeSettings.restoreHostsOnExit).toBe(false);release();
+  }
+  expect(calls).toBe(1);
+});

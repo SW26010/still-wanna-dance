@@ -346,6 +346,13 @@
       "bytes": 1208602,
       "sha256": "440bba03f3ecf4c37f7eb23961c7b30328bf39bd36c18fb666dd4ccec3ced3cd",
       "reason": "Production WebUI bundle from pinned dependencies and webui/src, verified by build-manifest.json. Preserve valid library selection and deletion confirmation across polling."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1209003,
+      "sha256": "217b9dccbbaedc2eaa0d18ec0d921307eaa24a25597ca89b06a50b1e7b90ae07",
+      "reason": "Production WebUI bundle from pinned dependencies and webui/src, verified by build-manifest.json. Wait for exit restoration permission when saving settings."
     }
   ]
 }

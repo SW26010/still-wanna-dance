@@ -12,7 +12,7 @@
 | 歌曲屏蔽与收藏 | [需求准入、队列计时与资源保留规则](download-resource-design.md#8-歌曲屏蔽与收藏)、[偏好表与版本边界](storage.md#歌曲偏好存储) |
 | 配置、存储与生命周期 | [配置生命周期](settings-lifecycle.md)、[存储契约](storage.md)、[运行文件生命周期](runtime-lifecycle.md)、[曲库与需求统计](song-catalog-design.md) |
 | 网络 | [资源域名规则](resource-domains.md)、[上游通道](upstream-channels.md) |
-| Web UI | [内容约定](webui-content.md)、[Fluent UI](fluent-ui-migration.md)、[可访问性](webui-accessibility.md) |
+| Web UI | [WebUI 目标设计](webui-design.md)为页面与交互的 canonical 文档；现有界面见[内容约定](webui-content.md)，组件与验收见 [Fluent UI](fluent-ui-migration.md)、[可访问性](webui-accessibility.md) |
 | 开发与分发 | [开发环境](development.md)、[Portable 打包](packaging.md)、[对应源码](corresponding-source.md)、[许可资料](licenses/README.md) |
 
 ## 验证与历史资料

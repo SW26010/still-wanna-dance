@@ -98,12 +98,18 @@ func TestConfiguredBlockSizeHTTPAndPublication(t *testing.T) {
 				if err != nil || !bytes.Equal(got, body) {
 					t.Fatal("complete publication did not preserve bytes", err)
 				}
-				wantSamples := 2
-				if sequential {
-					wantSamples = 0
+				// Drain worker completion before inspecting observations. The first
+				// short GET can cancel its worker after the block becomes readable;
+				// canceled work is deliberately excluded from comparable samples.
+				if err := s.Close(); err != nil {
+					t.Fatal(err)
 				}
-				if len(samples) != wantSamples {
-					t.Fatalf("samples=%d, want=%d (tail/sequential must not sample)", len(samples), wantSamples)
+				minSamples, wantSamples := 1, 2
+				if sequential {
+					minSamples, wantSamples = 0, 0
+				}
+				if len(samples) < minSamples || len(samples) > wantSamples {
+					t.Fatalf("samples=%d, want=%d..%d (tail/sequential must not sample)", len(samples), minSamples, wantSamples)
 				}
 				for len(samples) > 0 {
 					if e := <-samples; e.WorkBytes != blockSize || e.BlockTime <= 0 {
@@ -111,9 +117,6 @@ func TestConfiguredBlockSizeHTTPAndPublication(t *testing.T) {
 					}
 				}
 				// Reopen the same published library with different geometry.
-				if err := s.Close(); err != nil {
-					t.Fatal(err)
-				}
 				cfg.BlockSize = blockSize + 37
 				reopened, err := New(cfg)
 				if err != nil {

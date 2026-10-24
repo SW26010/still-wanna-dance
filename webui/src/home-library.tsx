@@ -1,18 +1,15 @@
 import { Button, Link, Caption1, Checkbox, Table, TableHeader, TableHeaderCell, TableBody, TableRow, TableCell } from '@fluentui/react-components';
 import { useApp, useResource } from './hooks';
 import { Details, Feedback, Panel, Progress } from './ui';
-import { useState, useLayoutEffect } from 'react';
+import { useState } from 'react';
 import { CurrentDownloads } from './monitor';
 import { BlockTimeline } from './block-timeline';
-import { SettingsPage } from './settings';
 import { requestOutcome } from './requests';
-import { VRCXImport } from './vrcx';
-import { active, exitConnectionMessage, date, dated, mb, type Download, type RequestRecord } from './types';
+import { active, exitConnectionMessage, date, dated, type RequestRecord } from './types';
 
 export function Home({visible}: {visible:boolean}) {
   const app = useApp(), s = app.status.data!, a = s.activation || {}, received = dated(a.firstRequest);
   const requests=useResource<{requests:RequestRecord[]}>('requests?limit=1',visible&&!app.stopped,app.revision);
-  const downloads=useResource<{tasks:Download[];bytesPerSecond:number}>('downloads',visible&&!app.stopped,app.revision);
   const recent=requests.data?.requests[0], failed=!!recent&&(recent.status>=400||['failed','incomplete','aborted'].includes(recent.outcome));
   const problem=a.error||s.cdnError||s.actionErrors?.activation||(s.hosts.conflict?s.hosts.message:'');
   const ready=s.running && s.hosts.ready;
@@ -35,7 +32,8 @@ export function Home({visible}: {visible:boolean}) {
     <Caption1 as="p" className="hint">队列按设置随网关启用。{exitConnectionMessage(s)}</Caption1>
     </Panel><Panel title="游戏请求"><p>{requestStatus}</p><p>{requests.error?'最近请求暂时无法读取，将自动重试。':recent?`最近一次已结束请求：${requestOutcome(recent)} · HTTP ${recent.status || '未返回'} · ${date(recent.at)}`:'尚无已结束的请求记录'}</p><Caption1 as="p">请求结果只表示本地服务的处理情况，音画仍需在游戏中确认。</Caption1><div className="actions"><Link href="#service">重新检测视频请求</Link><Link href="#recent">查看请求详情</Link></div></Panel>
     {(problem||failed)&&<Feedback error><div className="content-stack"><p>{problem || '最近一次请求未正常完成，请检查连接与请求详情。'}</p><Link href="#/network">检查连接</Link></div></Feedback>}
-    <Panel title="下载与预加载"><p>{downloads.error?'下载摘要暂时无法读取':`当前下载 ${downloads.data?.tasks.length || 0} 项 · ${mb(downloads.data?.bytesPerSecond)}/s`}</p><p>房间队列预加载：{s.queue.running?'已开启':s.queue.desired?'尚未就绪，请检查游戏日志':'已关闭'}</p><Feedback error>{s.queue.logError || s.queue.error || s.actionErrors?.queue}</Feedback><p>{s.batch.running?`批量任务：${s.batch.checked || 0} / ${s.batch.total || 0}`:'暂无运行中的批量任务'}</p><div className="actions"><Link href="#downloads">查看下载进度</Link><Link href="#queue">管理自动预加载</Link></div></Panel></>;
+    <CurrentDownloads visible={visible}/><QueuePanel/><DownloadDiagnostics visible={visible}/></>;
+
 }
 export function AccessSettings() {
   const app=useApp(), s=app.status.data!, a=s.activation || {}, received=dated(a.firstRequest), ready=s.running&&s.hosts.ready;
@@ -49,28 +47,30 @@ export function AccessSettings() {
     {dated(a.started) && <p>检测开始：{date(a.started)}{received&&` · 首个请求：${date(a.firstRequest)}`}</p>}
     </Panel></div></>;
 }
-export function DownloadsPage({visible,anchor}: {visible:boolean;anchor:string}) {
-  const [paused,setPaused]=useState(false), [diagnosticsOpen,setDiagnosticsOpen]=useState(false), [settingsOpen,setSettingsOpen]=useState(false), [historyOpened,setHistoryOpened]=useState(false);
-  useLayoutEffect(()=>{if(visible&&['prepareAheadSeconds','download-settings'].includes(anchor)){
-    setSettingsOpen(true);requestAnimationFrame(()=>{const target=document.getElementById(anchor);target?.focus();target?.scrollIntoView();});
-  }},[visible,anchor]);
-  return <><CurrentDownloads visible={visible} paused={paused}/><Library/><Details title="预加载与下载设置" keepMounted expanded={settingsOpen} onToggle={setSettingsOpen}><SettingsPage section="downloads"/></Details><Details title="下载诊断" keepMounted expanded={diagnosticsOpen} onToggle={setDiagnosticsOpen}><Checkbox label="暂停下载展示" checked={paused} onChange={(_,v)=>setPaused(!!v.checked)}/><p>暂停仅冻结展示，后台任务继续运行。</p><BlockTimeline visible={visible&&diagnosticsOpen} paused={paused}/></Details><Details title="根据历史选择下载歌曲" keepMounted onToggle={open=>{if(open)setHistoryOpened(true);}}>{historyOpened&&<VRCXImport/>}</Details></>;
+export function DownloadDiagnostics({visible}:{visible:boolean}) {
+  const [paused,setPaused]=useState(false),[open,setOpen]=useState(false);
+  return <Details title="下载诊断" keepMounted expanded={open} onToggle={setOpen}><Checkbox label="暂停下载展示" checked={paused} onChange={(_,v)=>setPaused(!!v.checked)}/><p>暂停仅冻结展示，后台任务继续运行。</p><BlockTimeline visible={visible&&open} paused={paused}/></Details>;
 }
-export function Library() {
-  const app = useApp(), s = app.status.data!, q = s.queue, b = s.batch, saved = s.lastBatch;
-  const zeroBudget = s.activeSettings.videoStorageMode === 'none';
+export function QueuePanel() {
+  const app = useApp(), s = app.status.data!, q = s.queue;
   const queuePhase = q.running ? q.current ? `正在准备歌曲 ${(q.active || [q.current]).join('、')}` : q.songs?.length ? '等待队列变化或重试' : '等待新的队列同步' : !q.desired ? '已关闭' : '预加载未就绪，请检查日志目录';
   return <><Panel id="queue" title="自动准备房间队列"><p>根据游戏日志提前下载即将播放的内容，选择「不保留」也能使用。开启后等待房间同步新队列。</p><p>提前准备时间：{s.activeSettings.prepareAheadSeconds} 秒 · <Link href="#prepareAheadSeconds">调整提前准备时间</Link></p><Details title="预加载说明"><p>按预计播放时间提前准备队列中的有效曲目，不会回放旧队列。手动下载与队列预加载共同调度，互不暂停。网关停止时撤销队列需求，其他来源的共享下载仍可继续。</p></Details>
     <p role="status">{queuePhase}</p><ol>{q.songs?.map((song,i) => <li key={`${song.songId}:${i}`}>{q.titles?.[song.songId] || song.songId}{q.blocked?.includes(song.songId)&&' · 已屏蔽，跳过新的准备'}</li>)}</ol>
     <Details title="日志与累计记录"><p>{q.file || '尚未发现日志'} · 本次开启后累计准备成功 {q.completed || 0} 次</p></Details>
     <Feedback error>{q.logError || q.error || s.actionErrors?.queue}</Feedback></Panel>
+    </>;
+}
+export function BatchPanel() {
+  const app=useApp(), s=app.status.data!, b=s.batch, saved=s.lastBatch;
+  const zeroBudget=s.activeSettings.videoStorageMode==='none';
+  return <>
     <Panel id="batch" title="下载缺失视频"><p>检查范围为整个曲库；下载缺失视频，留待以后播放。可能占用较多流量和磁盘空间。</p>
     {zeroBudget && <Feedback>当前选择「不保留」，{s.activeSettings.retainFavorites?'下载补齐仍可处理收藏歌曲；普通歌曲需要先':'全部歌曲均按普通预算处理，需要先'}<Link href="#maxCacheGiB">设置视频保留空间</Link>。收藏仅做标记，可在<Link href="#song-preferences">歌曲偏好</Link>中管理。</Feedback>}
     <div className="actions"><Button disabled={app.unavailable || b.running} onClick={() => void app.action('batch/scan')}>{b.running&&b.scanOnly?'正在扫描…':'检查缺失视频'}</Button><Button disabled={app.unavailable || b.running} onClick={() => void app.action('batch/start')}>{b.running&&!b.scanOnly?'正在下载…':'下载缺失视频'}</Button><Button disabled={app.unavailable || !b.running} onClick={() => void app.action('batch/cancel')}>停止批量任务</Button></div>
     <Details title="检查与下载说明"><p>检查缺失视频会更新歌曲清单并检查本地文件，不下载或校验视频内容。补齐与房间队列预加载共同调度，互不暂停。视频空间不足时停止普通补齐；开启「优先保留收藏视频」时，收藏继续处理。屏蔽歌曲跳过。停止任务后，已开始的共享下载可能继续完成。</p></Details>
     <Details title="上次完成的批量任务"><p>{dated(saved.updated) ? `上次完成的${saved.scanOnly ? '本地检查' : '下载缺失视频'}${saved.catalogWarning ? '（使用已有清单）' : ''} · ${date(saved.updated)} · 任务曲目总数 ${saved.total || 0} · 检查时本地已有 ${saved.hits || 0} · 该次任务下载完成 ${saved.downloaded || 0} · 缺失视频 ${saved.missing || 0}` : '暂无完成的任务记录'}</p></Details>
     {(b.running || !!b.total) && <Progress value={b.checked} max={b.total} label="批量任务进度" />}
-    <p role="status">{b.phase || '等待开始'}</p>
+    <p>{b.target?`本次仅处理${b.target.songID?"歌曲 ID "+b.target.songID:"资源 "+b.target.resource}`:""}</p><p role="status">{b.phase || '等待开始'}</p>
     {b.catalogWarning && <Feedback error><div className="content-stack"><p>在线曲库更新失败，{b.catalog?.revision ? '本次使用已有清单。' : '本地没有可用清单，暂时无法检查视频。'}</p><Button disabled={app.unavailable || b.running} onClick={() => void app.action('batch/scan')}>重试更新</Button><Caption1 as="p">重新更新曲库并检查本地视频，不下载视频。</Caption1><Details title="在线更新错误详情"><p>{b.catalogWarning}</p></Details></div></Feedback>}<p>{b.current}{!!b.total&&` · 当前任务 ${b.checked || 0} / ${b.total} · 命中 ${b.hits || 0} · 缺失 ${b.missing || 0}${b.scanOnly?` · 本地检查失败 ${b.failed || 0}`:` · 下载完成 ${b.downloaded || 0} · 屏蔽跳过 ${b.skipped || 0} · 处理失败 ${b.failed || 0}`}`}</p>
     {b.budgetReached && <Feedback>视频预算不足。{s.activeSettings.retainFavorites&&'本轮可处理的收藏已继续处理。'}<Link href="#storage-settings">调整视频保留空间</Link>，保存并重启应用后再次点击「下载缺失视频」。</Feedback>}
     <Feedback error>{b.error || s.actionErrors?.batch}</Feedback>

@@ -45,3 +45,5 @@
 浏览器、类型、资源一致性及隔离真实控制台的结果按轮次保存在[Web UI 开发验证记录](validation/webui-validation.md)。用例位于 `webui/e2e/`，内存服务器及 Go 联调驱动位于 `webui/test-support/`；测试输出保存在忽略目录 `artifacts/`。
 
 验证分工遵循[现行机制](live-acceptance-process.md)，UAC、目录窗口、托盘、系统 DPI 和辅助技术的环境缺口见[非 VRC 跟进](validation-followups.md)。这里只引用记录，不再维护另一份逐项实机清单。
+
+曲库歌曲／资源切换使用 TabList/Tab，分页结果沿用 List/ListItem composite 导航；偏好使用 Select，本地状态及保护使用并列 Badge，删除复用共享 Fluent Dialog。单项下载只调用既有任务接口，不实现自定义任务控件。

@@ -1,9 +1,10 @@
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
-import {Badge,Button,Caption1,Checkbox,Divider,Field,Input,List,ListItem,Spinner,Subtitle2} from '@fluentui/react-components';
+import {Badge,Button,Caption1,Checkbox,Divider,Field,Input,Link,List,ListItem,Spinner,Subtitle2} from '@fluentui/react-components';
 import {useApp,useFocusRecovery,useResource} from './hooks';
 import {Details,Feedback,Panel} from './ui';
 import {date,mb,type RequestRecord} from './types';
 import {requestOutcome} from './requests';
+import {songHref,resourceHref} from './library';
 
 type Group={samples:number;p50MS:number|null;p95MS:number|null};
 type Latency={from:number;to:number;availableFrom:number|null;partial:boolean;blocking:Group;ready:Group};
@@ -57,7 +58,7 @@ function HistoryPage({query,visible,pageNumber,live,paused,focusOnMount,previous
     <List navigationMode="composite" aria-label="请求历史列表" className="records">{history.data?.requests.map((r,i)=><ListItem key={history.data!.storageID+':'+r.id}><div role="gridcell" className="record-content">
       {i>0&&<Divider className="record-divider"/>}<div className="history-record">
         <div><p>收到：{date(r.at)}</p><p>结束：{r.completedAt==null?'未知':date(r.completedAt)}</p></div>
-        <div><p>请求歌曲：{r.songID?`ID ${r.songID}`:'未知'}</p><p className="wrap">资源：{r.resource||'未知'}</p></div>
+        <div><p>请求歌曲：{r.songID?<Link href={songHref(r.songID)}>ID {r.songID}</Link>:'未知'}</p><p className="wrap">资源：{r.resource?<Link href={resourceHref(r.resource)}>{r.resource}</Link>:'未知'}</p></div>
         <div><Badge appearance="tint" color={r.outcome==='completed'?'success':r.outcome==='canceled'?'informative':'warning'}>{requestOutcome(r)}</Badge><p>HTTP {r.status||'未返回'}</p><p>交付：{r.responseBytes!=null&&r.responseBytes>0?`${(r.bytes/r.responseBytes*100).toLocaleString(undefined,{maximumFractionDigits:1})}%`:'—'} · {deliveredBytes(r.bytes)}{r.responseBytes!=null?` / ${deliveredBytes(r.responseBytes)}`:''}</p></div>
       </div><Details title={`请求 ${r.id} 的明细`}><p>请求范围：{r.range||'完整请求'} · 处理耗时 {(r.elapsedMS/1000).toFixed(3)} 秒</p><p>首正文：{r.firstBodyNS==null?'未知':ms(r.firstBodyNS/1e6)} · {r.firstBodyBlocking==null?'分组未知':r.firstBodyBlocking?'Blocking':'缓存／本地'}</p><p>交付比例只表示本次有效响应范围内成功写出的视频字节，不是整视频下载进度或播放完成度。请求身份在处理时保存，当前曲库关联变化不会改写它。</p></Details>
     </div></ListItem>)}</List>

@@ -7,6 +7,7 @@ export interface Settings {
   autoAccelerate: boolean; queueWithGateway: boolean; restoreHostsOnExit: boolean; manualLogDir: boolean; logDir: string;
 }
 export interface Job {
+	 target?: {songID?:string;resource?:string};
   running?: boolean; scanOnly?: boolean; phase?: string; error?: string; total?: number; checked?: number;
   hits?: number; downloaded?: number; missing?: number; reused?: number; failed?: number; skipped?: number; current?: string;
   updated?: string; budgetReached?: boolean; catalogWarning?: string; catalog?: {revision?:string}; failures?: { id: number; name: string; error: string }[];
@@ -56,6 +57,9 @@ export interface CacheEntry {
   key: string; stamp: string; bytes: number; songs: Song[]; songCount: number; known: boolean; protected: boolean; state: string; lastRequest: number;
 }
 export interface CachePage {storageID: string; entries: CacheEntry[]; total: number; totalBytes?: number; fileCount: number}
+export interface LibrarySong {id:string;title:string;artist:string;dancer:string;group:string;policy:SongPolicy;score:number;resource:string}
+export interface LibraryResource {key:string;size:number|null;duration:number|null;songs:Song[];songCount:number;local:CacheEntry|null}
+export interface LibraryPage {storageID:string;songs:LibrarySong[];resources:Record<string,LibraryResource>;keys:string[];total:number;fileCount:number;totalBytes:number}
 export interface RequestRecord {
   songID?:string; completedAt?:number|null; responseBytes?:number|null; firstBodyNS?:number|null; firstBodyBlocking?:boolean|null;
   id: number; at: number; resource: string; method: string; range?: string; elapsedMS: number; bytes: number; status: number;

@@ -3,22 +3,22 @@ import { Badge, Button, Link, Spinner, Title2 } from '@fluentui/react-components
 import { ConsoleContext, useConsole } from './hooks';
 import { Brand, Feedback, NavigationLayout, pageLinks, documentPages, isDocumentPage, DocumentFooter } from './ui';
 import { DocumentContent } from './documents';
-import { Home, DownloadsPage } from './home-library';
+import { Home } from './home-library';
 import { SettingsPage } from './settings';
-import { Cache } from './cache';
+import { Library } from './library';
 import { Network } from './network';
 import { Setup } from './setup';
 import { RequestTimeline } from './request-timeline';
 import { bootstrap } from './bootstrap';
 import { accelerationLabel, exitConnectionMessage } from './types';
 
-const pages = {home:'游戏加速',timeline:'时间线',library:'下载管理',cache:'本地视频',network:'网络与代理',settings:'设置',setup:'使用引导',...documentPages};
+const pages = {home:'游戏加速',timeline:'时间线',library:'曲库',cache:'本地视频',network:'网络与代理',settings:'设置',setup:'使用引导',...documentPages};
 type Page = keyof typeof pages;
-const descriptions:Partial<Record<Page,string>>={timeline:'查看历史请求与最近 72 小时的首正文等待。',home:'为 VRChat WannaDance 复用已下载视频，也可提前准备房间队列。',network:'检查连接，配置代理和修复游戏接入。',cache:'查找已下载的视频，清理磁盘空间。',library:'按房间队列提前准备，或批量下载缺失视频。',settings:'调整应用启动、后台行为和记录保留。',setup:'设置、导入、检测和接入；可随时返回或离开。'};
-const anchors: Record<string,Page> = {activation:'home',service:'network',queue:'library',overview:'cache',cache:'cache',downloads:'library','download-settings':'library',recent:'timeline',network:'network','network-proxy':'network','network-access':'network',batch:'library',preferences:'settings',prepareAheadSeconds:'library',maxCacheGiB:'cache','storage-settings':'cache','video-import':'cache','song-preferences':'cache','help-start':'help','help-playback':'help','help-storage':'help','help-stop':'help','help-paths':'help'};
+const descriptions:Partial<Record<Page,string>>={timeline:'查看历史请求与最近 72 小时的首正文等待。',home:'为 VRChat WannaDance 复用已下载视频，也可提前准备房间队列。',network:'检查连接，配置代理和修复游戏接入。',cache:'查找已下载的视频，清理磁盘空间。',library:'查找歌曲与共享视频，管理本地文件和下载。',settings:'调整应用启动、后台行为和记录保留。',setup:'设置、导入、检测和接入；可随时返回或离开。'};
+const anchors: Record<string,Page> = {activation:'home',service:'network',queue:'home',overview:'cache',cache:'cache',downloads:'home','download-settings':'library',recent:'timeline',network:'network','network-proxy':'network','network-access':'network',batch:'library',preferences:'settings',prepareAheadSeconds:'library',maxCacheGiB:'cache','storage-settings':'cache','video-import':'cache','song-preferences':'cache','help-start':'help','help-playback':'help','help-storage':'help','help-stop':'help','help-paths':'help'};
 export function route(hash: string): Page {
   if (hash === '#/upstream' || hash === '#/monitor') return 'network';
-  const key = hash.replace(/^#\/?/,'');
+  const key = hash.replace(/^#\/?/,'').split('?')[0];
   return Object.hasOwn(pages,key) ? key as Page : anchors[key] || 'home';
 }
 export function App() {
@@ -72,7 +72,7 @@ export function App() {
     <NavigationLayout items={pageLinks()} selected={page==='about'||page==='terms'?'help':page} hidden={page==='setup'}>
     <main ref={main} id="main" tabIndex={-1}><div className="page-heading" hidden={page==='setup'||documentPage}><Title2 as="h1">{pages[page]}</Title2>{s && <Badge color={s.running && s.hosts.ready ? 'success' : 'informative'}>{accelerationLabel(s)}</Badge>}</div><p className="page-description" hidden={page==='setup'||documentPage}>{descriptions[page]}</p>
       {page!=='setup'&&feedback}
-      {s && <><div hidden={page !== 'home'}><Home visible={page==='home'}/></div><div hidden={page !== 'timeline'}><RequestTimeline visible={page==='timeline'}/></div><div hidden={page !== 'library'}><DownloadsPage visible={page==='library'} anchor={anchor}/></div><div hidden={page !== 'cache'}><Cache visible={page === 'cache'} section={anchor} /></div><div hidden={page !== 'network'}><Network visible={page==='network'} anchor={anchor}/></div><div hidden={page !== 'settings'}><div className="actions"><Link href="#storage-settings">视频存储</Link><Link href="#network-proxy">网络与代理</Link><Link href="#prepareAheadSeconds">预加载与下载设置</Link></div><SettingsPage /></div>
+      {s && <><div hidden={page !== 'home'}><Home visible={page==='home'}/></div><div hidden={page !== 'timeline'}><RequestTimeline visible={page==='timeline'}/></div><div hidden={page!=='library'&&page!=='cache'}><Library visible={page==='library'||page==='cache'} anchor={anchor}/><div hidden={!['storage-settings','maxCacheGiB'].includes(anchor)}><SettingsPage section="storage"/></div><div hidden={!['download-settings','prepareAheadSeconds'].includes(anchor)}><SettingsPage section="downloads"/></div></div><div hidden={page !== 'network'}><Network visible={page==='network'} anchor={anchor}/></div><div hidden={page !== 'settings'}><div className="actions"><Link href="#storage-settings">视频存储</Link><Link href="#network-proxy">网络与代理</Link><Link href="#prepareAheadSeconds">预加载与下载设置</Link></div><SettingsPage /></div>
       </>}
       {isDocumentPage(page)&&<DocumentContent page={page} paths={s?{...bootstrap.paths,Storage:s.activeSettings.storageDir}:bootstrap.paths}/>}
       {page==='setup'&&<Setup accepted={accepted} onAccepted={()=>setAccepted(true)} onExit={exitSetup} guard={guard} feedback={feedback}/>}

@@ -24,7 +24,7 @@ func (c *Console) storageUsageKnown() bool {
 // inspectStorage applies the Console's restored usage evidence to the read-only
 // layout check. A different target or an unused current target may be initialized.
 // Caller holds no state locks. Mutating callers hold lifecycleMu across this
-// check and the operation; read-only setup hints may inspect without it.
+// check and the operation.
 func (c *Console) inspectStorage(root string) (bool, error) {
 	existing, err := cacheproxy.InspectStorage(root)
 	if existing || err != nil {

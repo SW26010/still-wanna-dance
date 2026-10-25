@@ -64,9 +64,6 @@ func TestWebUIDocumentNavigationBootstrap(t *testing.T) {
 				if (data.TermsGate != nil) != wantGate {
 					t.Fatalf("%s: consent gate changed", path)
 				}
-				if wantGate && path == "/terms" && data.TermsGate.Step != "terms" {
-					t.Fatal("direct terms entry did not select consent")
-				}
 			}
 			if c.termsAccepted() != accepted {
 				t.Fatal("reading documents changed consent")

@@ -163,7 +163,6 @@ func (c *Console) termsPagePresence(pageID string, leaving bool) {
 // The gate precedes all application routes, including read APIs that can start work.
 type termsEntry struct {
 	PageID string `json:"pageID"`
-	Step   string `json:"step"`
 }
 
 func (c *Console) serveConsolePage(w http.ResponseWriter, entry *termsEntry) {
@@ -193,11 +192,7 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 		c.termsPageID = rand.Text()
 		pageID := c.termsPageID
 		c.mu.Unlock()
-		step := "welcome"
-		if r.URL.Path == "/terms" {
-			step = "terms"
-		}
-		c.serveConsolePage(w, &termsEntry{PageID: pageID, Step: step})
+		c.serveConsolePage(w, &termsEntry{PageID: pageID})
 		return true
 	}
 	if r.URL.Path == "/api/terms/leave" || r.URL.Path == "/api/terms/return" {
@@ -245,6 +240,8 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		writeJSON(w, map[string]bool{"ok": true})
+		// Consent is already durable. Do not hold the response open during UAC.
+		go c.autoStart()
 		return true
 	}
 	if !c.termsAccepted() && r.URL.Path != "/api/identity" && r.URL.Path != "/api/stop" && r.URL.Path != "/api/queue/stop" && r.URL.Path != "/api/exit" && r.URL.Path != "/api/restart" && r.URL.Path != "/api/hosts/disable" && !strings.HasPrefix(r.URL.Path, "/assets/") && r.URL.Path != "/about" && r.URL.Path != "/help" {

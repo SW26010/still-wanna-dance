@@ -45,7 +45,7 @@ createServer(async (req, res) => {
       if(!streams.has(key))streams.set(key,new Set());streams.get(key).add(res);
       res.on('close',()=>streams.get(key)?.delete(res));return;
     }
-    const event=p.match(/^\/api\/setup\/network\/(connectivity|calibration)\/events$/);
+    const event=p.match(/^\/api\/network\/(connectivity|calibration)\/events$/);
     if(event){
       const kind=event[1],id=req.headers.cookie?.match(/(?:^|;\s*)fixture-id=([^;]+)/)?.[1]||'default',key=id+':'+kind;
       res.writeHead(200,{'Content-Type':'text/event-stream','Connection':'keep-alive'});
@@ -71,7 +71,7 @@ createServer(async (req, res) => {
     const gate=url.searchParams.has('gate')||/(?:^|;\s*)fixture-gate=1(?:;|$)/.test(req.headers.cookie||'');
     if(gate)res.setHeader('Set-Cookie','fixture-gate=1; Path=/');
     const publicDocument=gate&&['/help','/about'].includes(p);
-    const data = {build: {kind:'development', version:'dev-browser', revision:'a'.repeat(40), dirty:true, builtAtUtc:'2026-10-19T00:00:00Z', toolchain:'go1.25.0', target:'windows/amd64'}, page: publicDocument?p.slice(1):'console', token, termsGate:gate&&!publicDocument?{pageID:'fixture-page',step:p==='/terms'?'terms':'welcome'}:null, paths: {Config: 'C:\\UI-Test\\config.json', Root: 'C:\\UI-Test', Storage: '<script>alert("path")</script>', Log: 'C:\\UI-Test\\app.log'}, terms: {text: '浏览器测试条款\n软件许可不等于内容授权。',version: 'fixture'}};
+    const data = {build: {kind:'development', version:'dev-browser', revision:'a'.repeat(40), dirty:true, builtAtUtc:'2026-10-19T00:00:00Z', toolchain:'go1.25.0', target:'windows/amd64'}, page: publicDocument?p.slice(1):'console', token, termsGate:gate&&!publicDocument?{pageID:'fixture-page'}:null, paths: {Config: 'C:\\UI-Test\\config.json', Root: 'C:\\UI-Test', Storage: '<script>alert("path")</script>', Log: 'C:\\UI-Test\\app.log'}, terms: {text: '浏览器测试条款\n软件许可不等于内容授权。',version: 'fixture'}};
     const json = JSON.stringify(data).replaceAll('<', '\\u003c').replaceAll('>', '\\u003e').replaceAll('&', '\\u0026');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.end(html.replaceAll('{{.Title}}', 'UI 测试').replaceAll('{{.Token}}', token).replace('{{.Data}}', json));

@@ -15,7 +15,6 @@ test('network details preserve sample evidence and distinguish failures from mis
     resource('history.example',{state:'unavailable',reason:'timeout',lastThroughput:{bytes:1048576,durationNs:2e9,songID:7,observedAt:'2000-01-01T00:00:00Z'},
       sources:[{api:'api',node:'cf',apiChannelID:'source-1'},{api:'api',node:'cf',apiChannelID:'source-1'}]}),
   ]};
-  api.state.setupNetwork={monitor:{results:[catalog,{...catalog,operation:'playback_url',route:'cf'}]}};
   await page.setViewportSize({width:390,height:844});await page.goto('/#/monitor');
   const panel=page.locator('#network');
   const rows=panel.getByRole('table').getByRole('row').filter({has:page.getByRole('button',{name:'线路技术详情',exact:true})});
@@ -27,7 +26,6 @@ test('network details preserve sample evidence and distinguish failures from mis
     if(i===5){await expect(detail).toContainText('歌曲 #7');expect((await detail.innerText()).match(/API 通道 source-1/g)).toHaveLength(1);}
     await page.keyboard.press('Escape');
   }
-  await expect(page.getByRole('table',{name:'直连诊断结果'}).getByRole('row')).toHaveCount(3);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await panel.screenshot({path:info.outputPath('network-details.png'),animations:'disabled'});
   expect(api.calls.some(c=>c.path.startsWith('upstream/check')||c.path.endsWith('/start'))).toBe(false);

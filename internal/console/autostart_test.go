@@ -12,20 +12,12 @@ import (
 	"testing"
 )
 
-// Persist the same successful final apply that production startup requires.
-func completeStartupSetup(t *testing.T, c *Console) {
-	t.Helper()
-	if a := applyStartupSetup(t, c, setupTestPlan(c)); a.Phase != "completed" {
-		t.Fatal(a)
-	}
-}
-
 func TestAutoStartSetting(t *testing.T) {
 	c := testConsole(t)
 	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	completeStartupSetup(t, c)
+
 	c.AutoStart()
 	if !c.DesktopState().CDN || !c.queue.Running || !c.queueDesired {
 		t.Fatal("default settings did not start both services")
@@ -60,7 +52,7 @@ func TestAutoStartHonorsAccelerationAndQueueSettings(t *testing.T) {
 					t.Fatal("saving startup preferences started services immediately")
 				}
 				c = restartTestConsole(t, c)
-				completeStartupSetup(t, c)
+
 				c.AutoStart()
 				if c.settings.AutoAccelerate != gateway || c.DesktopState().CDN != gateway || c.settings.QueueWithGateway != queue || c.queue.Running != (gateway && queue) || c.queueDesired != (gateway && queue) {
 					t.Fatalf("saved preferences not honored: gateway=%v queue=%v desired=%v", c.DesktopState().CDN, c.queue.Running, c.queueDesired)
@@ -82,7 +74,7 @@ func TestAutoStartFailureKeepsConsoleAvailable(t *testing.T) {
 	defer occupied.Close()
 	c.httpsAddress = occupied.Addr().String()
 	c.settings.AutoAccelerate = true
-	completeStartupSetup(t, c)
+
 	c.AutoStart()
 	autoError := c.activation.Error
 	if autoError == "" {
@@ -122,37 +114,16 @@ func TestAutoStartFailureKeepsConsoleAvailable(t *testing.T) {
 
 func TestQueueWithGatewayFailureStillStartsGateway(t *testing.T) {
 	c := testConsole(t) // The isolated log directory does not exist.
-	completeStartupSetup(t, c)
+
 	c.AutoStart()
 	if !c.DesktopState().CDN || c.queue.Running || !c.queueDesired || c.actionErrors["queue"] == "" {
 		t.Fatal("queue startup failure affected gateway or was not reported")
 	}
 }
 
-func TestAutoAccelerationWaitsForFinalApplyAcrossRestart(t *testing.T) {
-	c := testConsole(t)
-	if err := c.save(c.settings); err != nil {
-		t.Fatal(err)
-	}
-	c = restartTestConsole(t, c)
-	// Valid consent alone is not a completed first-run setup.
-	c.AutoStart()
-	if c.httpServer != nil || c.hosts.status().Ready || !c.autoStartPending {
-		t.Fatal("started before final setup")
-	}
-	c.AutoStart()
-	if c.httpServer != nil {
-		t.Fatal("repeated startup bypassed setup")
-	}
-	completeStartupSetup(t, c)
-	if c.httpServer == nil || !c.hosts.status().Ready || c.autoStartPending {
-		t.Fatal("final apply did not accelerate")
-	}
-}
-
 func TestAutoAccelerationDeniedAuthorizationIsNotRetried(t *testing.T) {
 	c := testConsole(t)
-	completeStartupSetup(t, c)
+
 	h, launches := fixtureHostsController(t, hostsBaseline)
 	c.hosts = h
 	launch := h.launch

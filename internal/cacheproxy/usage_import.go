@@ -112,7 +112,7 @@ func (s *Server) ImportSongUsage(ctx context.Context, h *SongUsageImport, overwr
 
 // ImportSongUsage opens an idle library under its existing directory lock.
 // It does not start an engine or run eviction/cleanup. A new library gets the
-// standard empty videos directory so later setup/storage checks can reuse it.
+// standard empty videos directory so later storage checks can reuse it.
 func ImportSongUsage(ctx context.Context, root string, h *SongUsageImport, overwrite bool) error {
 	if h == nil || h.Events == 0 || len(h.rows) == 0 {
 		return errors.New("没有有效历史需求，原统计保持不变")

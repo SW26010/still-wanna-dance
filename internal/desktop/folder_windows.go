@@ -15,23 +15,14 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// SelectFolder opens the Windows folder dialog without a console window or UAC.
-// Path/title are JSON on stdin, never executable PowerShell source. The helper
-// process owns the dialog so request cancellation also closes its native UI.
-func SelectFolder(ctx context.Context, title, initial string) (string, error) {
-	return selectPath(ctx, title, initial, false)
-}
-
+// SelectDatabase opens the Windows file dialog without a console window or UAC.
+// Path/title are JSON on stdin; request cancellation closes the helper-owned UI.
 func SelectDatabase(ctx context.Context, title, initial string) (string, error) {
-	return selectPath(ctx, title, initial, true)
-}
-
-func selectPath(ctx context.Context, title, initial string, file bool) (string, error) {
 	system, err := windows.GetSystemDirectory()
 	if err != nil {
 		return "", err
 	}
-	input, err := json.Marshal(map[string]any{"title": title, "initial": initial, "file": file})
+	input, err := json.Marshal(map[string]any{"title": title, "initial": initial})
 	if err != nil {
 		return "", err
 	}
@@ -52,7 +43,7 @@ func selectPath(ctx context.Context, title, initial string, file bool) (string, 
 	return result.Path, nil // Empty means the user canceled; preserve the draft.
 }
 
-// IFileDialog with FOS_PICKFOLDERS provides the modern Explorer-style picker.
+// IFileDialog provides the modern Explorer-style database picker.
 // The shared script also drives the optional local UI preview.
 //
 //go:embed folder_dialog.ps1

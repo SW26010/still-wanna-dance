@@ -36,11 +36,6 @@ func TestProxyImportDraftPrivateBoundedAndStale(t *testing.T) {
 	if id == nodeIdentity(key, p) {
 		t.Fatal("credential change reused identity")
 	}
-	version, _ := c.setupSettingsVersion(c.savedSettings)
-	changed, _ := c.setupSettingsVersion(merged)
-	if version == changed {
-		t.Fatal("wizard verifier ignores nodes")
-	}
 	public, _ := json.Marshal(r)
 	if strings.Contains(string(public), "private") {
 		t.Fatal("report exposed nodes")

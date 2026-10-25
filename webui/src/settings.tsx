@@ -32,7 +32,7 @@ export function fingerprint(d: Draft) {
 export const releaseImport = async (id: string) => { if (id) try { await request('proxy/import/discard', {id}); } catch { /* Local discard remains available offline; server expiry is the fallback. */ } };
 
 type FormProps = { draft: Draft; update: (values: Partial<Draft>) => void; disabled: boolean; status: Status };
-export function NetworkFields({ draft: d, update, disabled, status, onPending, wizard = false }: FormProps & {wizard?: boolean; onPending: (pending: boolean) => void}) {
+export function NetworkFields({ draft: d, update, disabled, status, onPending }: FormProps & {onPending: (pending: boolean) => void}) {
   const [pending, setPending] = useState(false), [error, setError] = useState('');
   const generation = useRef(0), current = useRef(d); current.current = d;
   useEffect(() => () => { generation.current++; }, []);
@@ -58,8 +58,8 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending, w
   }
   const locked = disabled || pending;
   return <div className="form-grid">
-    <>{wizard ? <><div className="actions">{(['direct','proxy'] as const).map(mode=><Checkbox key={mode} label={mode==='direct'?'直连':'代理'} disabled={locked} checked={d.upstreamMode===mode||d.upstreamMode==='auto'} onChange={(_,v)=>{const other=mode==='direct'?'proxy':'direct';const hasOther=d.upstreamMode===other||d.upstreamMode==='auto';update({upstreamMode:v.checked?hasOther?'auto':mode:hasOther?other:''});}}/>)}</div><p>两项都选时自动选择；只选代理时不会直连。</p></> : <Field label="上游连接"><Select disabled={locked} value={d.upstreamMode} onChange={(_, v) => update({upstreamMode: v.value})}>
-      <option value="direct">直连（内置 DNS）</option><option value="proxy">强制代理</option><option value="auto">自动选择直连或代理</option></Select></Field>}</>
+    <Field label="上游连接"><Select disabled={locked} value={d.upstreamMode} onChange={(_, v) => update({upstreamMode: v.value})}>
+      <option value="direct">直连（内置 DNS）</option><option value="proxy">强制代理</option><option value="auto">自动选择直连或代理</option></Select></Field>
 
     {d.upstreamMode && d.upstreamMode !== 'direct' && <>
       <Field label="代理后端"><Select disabled={locked} value={d.proxyBackend} onChange={(_, v) => update({proxyBackend: v.value})}><option value="external-socks5">外部 SOCKS5</option><option value="mihomo">内嵌 Mihomo</option></Select></Field>
@@ -92,8 +92,6 @@ export function SettingsPage({section='application',children}: {section?:Setting
   const [draft, setDraft] = useState<Partial<Draft>>(), [pending, setPending] = useState(false);
   const [awaitingRevision, setAwaitingRevision] = useState<number>();
   const discard = () => { void releaseImport(draft?.proxyImportID || ''); setDraft(undefined); setPending(false); setAwaitingRevision(undefined); };
-  // Global discard also remounts NetworkFields below to invalidate its async work.
-  useEffect(discard, [app.settingsEpoch]);
   useEffect(() => {
     if (awaitingRevision !== undefined && app.status.loadedRevision !== undefined && app.status.loadedRevision >= awaitingRevision) {
       setDraft(undefined); setAwaitingRevision(undefined);
@@ -130,7 +128,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
       {section==='application'&&<><Field label="主题" hint="自动保存并立即应用于网页和托盘图标，无需重启。"><Select disabled={disabled} value={theme.preference} onChange={async(_,v)=>{const value=v.value as 'system'|'light'|'dark';if(await app.action('settings/theme',{theme:value}))theme.setPreference(value);}}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></Select></Field><fieldset disabled={disabled}><legend>程序启动</legend><Checkbox label="启动程序时自动打开 WebUI" checked={d.autoOpenWebUI} onChange={(_,v)=>update({autoOpenWebUI:!!v.checked})}/><Checkbox label="启动程序时自动开启视频加速" checked={d.autoAccelerate} onChange={(_, v) => update({autoAccelerate:!!v.checked})} /><span className="secondary">下次启动生效；接入时可能需要管理员授权。</span></fieldset>
       <fieldset><legend>退出</legend><Checkbox label="退出时恢复游戏直连" checked={d.restoreHostsOnExit} disabled={disabled} onChange={(_,v)=>update({restoreHostsOnExit:!!v.checked})}/><span className="secondary">保存后立即用于本次退出。关闭后需先启动 SWD 再播放；开启时可能需要管理员授权。</span></fieldset>
       {numberField('requestRetentionDays','请求明细保留天数',0,36500,'0 表示永久保留；不影响累计统计。')}</>}
-      {section==='network'&&<>      <fieldset><legend>网络连接</legend><NetworkFields key={app.settingsEpoch} draft={d} update={update} disabled={disabled} status={s} onPending={setPending} />
+      {section==='network'&&<>      <fieldset><legend>网络连接</legend><NetworkFields draft={d} update={update} disabled={disabled} status={s} onPending={setPending} />
       <div className="settings-columns"><Field label="播放地址接口选择" hint="自动优先 CF，失败后尝试 HKG。"><Select disabled={disabled} value={d.downloadUpstream} onChange={(_, v) => update({downloadUpstream:v.value})}><option value="auto">自动（CF 优先）</option><option value="cf">node=cf（播放地址接口）</option><option value="hkg">node=nya（播放地址接口）</option></Select></Field>
       {numberField('throughputIntervalMinutes','自动测速间隔（分钟）',1,1440)}</div></fieldset>
 </>}

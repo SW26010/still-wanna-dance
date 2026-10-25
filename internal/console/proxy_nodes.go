@@ -107,8 +107,8 @@ func nodeIdentity(key []byte, p map[string]any) string {
 	return "stable-v1-" + hex.EncodeToString(mac.Sum(nil))
 }
 
-// Import only stages a bounded, expiring in-memory draft. Saving settings or
-// the wizard explicitly commits it; preview never activates or persists it.
+// Import only stages a bounded, expiring in-memory draft. Saving settings
+// explicitly commits it; preview never activates or persists it.
 func (c *Console) importProxyNodes(data []byte) (proxyImportResult, error) {
 	c.mu.Lock()
 	base := c.savedSettings

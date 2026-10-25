@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { mockAPI } from './api';
-import { navigate, navigateStep } from './navigation';
+import { navigate } from './navigation';
 
 const description = '最多为下载完成的视频保留多少空间。1 GiB 约为 1.07 GB。';
 
@@ -33,45 +33,6 @@ test('settings show and disable the directory without losing its saved or draft 
   await expect(path).toHaveValue(draftPath);
 });
 
-test('wizard keeps the default and selected directories while no retention disables location changes', async ({page}, info) => {
-  const api = await mockAPI(page);
-  api.state.settings.videoStorageMode = 'none';
-  await page.setViewportSize({width:390,height:844});
-  await page.goto('/#/setup');
-  await navigateStep(page,'2. 存储');
-  const custom = page.getByRole('checkbox', {name:'指定其他位置（程序文件夹外）'});
-  const defaultButton = page.getByRole('button', {name:'默认位置', exact:true});
-  const defaultPath = page.getByRole('button', {name:api.state.defaultStorageDir, exact:true});
-  await page.getByRole('button', {name:'下一步', exact:true}).click();
-  expect(api.calls.find(c=>c.path==='setup/validate'&&c.body.page==='storage')?.body).toMatchObject({storageDir:api.state.defaultStorageDir,videoStorageMode:'none',customStorage:false});
-  await page.getByRole('button', {name:'上一步', exact:true}).click();
-  await expect(custom).toBeDisabled();
-  await expect(defaultPath).toBeDisabled();
-  await expect(defaultButton).toBeDisabled();
-  await expect(page.getByRole('button', {name:'重新检查', exact:true})).toBeEnabled();
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.screenshot({path:info.outputPath('wizard-directory-disabled.png'),fullPage:true,animations:'disabled'});
-  expect(api.calls.filter(c=>c.path==='setup/folder')).toHaveLength(0);
-  await page.getByRole('radio', {name:'限制为', exact:true}).check();
-  await custom.check();
-  await defaultPath.click();
-  const selectedPath = 'D:\\UI-Test\\cache';
-  const selected = page.getByRole('button', {name:selectedPath, exact:true});
-  await expect(selected).toBeEnabled();
-  await page.getByRole('radio', {name:'不保留', exact:true}).check();
-  await expect(custom).toBeChecked();
-  await expect(custom).toBeDisabled();
-  await expect(selected).toBeDisabled();
-  await expect(defaultButton).toBeDisabled();
-  await page.getByRole('radio', {name:'不限制', exact:true}).check();
-  await expect(selected).toBeEnabled();
-  await page.getByRole('radio', {name:'不保留', exact:true}).check();
-  await page.getByRole('button', {name:'下一步', exact:true}).click();
-  await page.getByRole('button', {name:'下一步', exact:true}).click();
-  await page.getByRole('button', {name:'确认并应用', exact:true}).click();
-  await expect.poll(()=>api.calls.filter(c=>c.path==='setup/apply').length).toBe(1);
-  expect(api.calls.find(c=>c.path==='setup/apply')?.body).toMatchObject({storageDir:selectedPath,videoStorageMode:'none',customStorage:true});
-});
 
 test('settings preserve all three storage choices and the entered budget across saves', async ({page}, info) => {
   const api = await mockAPI(page);
@@ -131,45 +92,6 @@ test('settings preserve all three storage choices and the entered budget across 
   await expect(unlimited).toBeChecked();
 });
 
-test('wizard defaults to no retention and applies that choice with the remembered budget', async ({page}, info) => {
-  const api = await mockAPI(page);
-  await page.setViewportSize({width:390,height:844});
-  await page.goto('/#/setup');
-  await navigateStep(page,'2. 存储');
-  const input = page.getByRole('spinbutton', {name:'视频存储预算（GiB）', exact:true});
-  const none = page.getByRole('radio', {name:'不保留', exact:true});
-  await page.getByRole('button',{name:'空间占用说明',exact:true}).focus(); await expect(page.getByRole('tooltip')).toContainText('1 GiB'); await input.focus();
-  await expect(page.getByRole('radio', {name:'不限制', exact:true})).toBeChecked();
-  await page.getByRole('button', {name:'恢复本页默认', exact:true}).click();
-  await expect(none).toBeChecked();
-  await expect(input).toBeDisabled();
-  await expect(input).toHaveValue('0');
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.screenshot({path:info.outputPath('wizard-none.png'),fullPage:true,animations:'disabled'});
-  await page.getByRole('radio', {name:'限制为', exact:true}).check();
-  await expect(input).toHaveValue('40');
-  for (const invalid of ['0', '-1', '0.001', '8388608', '']) {
-    await input.fill(invalid);
-    await page.getByRole('button', {name:'下一步',exact:true}).click();
-    await expect(input).toBeVisible();
-    expect(api.calls.filter(c=>c.path==='setup/validate'&&c.body.page==='storage')).toHaveLength(0);
-  }
-  await input.fill('12.5');
-  await none.check();
-  await page.getByRole('button', {name:'下一步',exact:true}).click();
-  await page.getByRole('button', {name:'上一步',exact:true}).click();
-  await expect(none).toBeChecked();
-  await page.getByRole('radio', {name:'限制为',exact:true}).check();
-  await expect(input).toHaveValue('12.5');
-  await none.check();
-  await page.getByRole('button', {name:'下一步',exact:true}).click();
-  await page.getByRole('button', {name:'下一步',exact:true}).click();
-  await expect(page.getByText('不限制 → 不保留（视频存储预算为 0）',{exact:true})).toBeVisible();
-  await page.getByRole('button', {name:'确认并应用',exact:true}).click();
-  await expect.poll(()=>api.calls.filter(c=>c.path==='setup/apply').length).toBe(1);
-  expect(api.calls.find(c=>c.path==='setup/apply')?.body).toMatchObject({videoStorageMode:'none',maxCacheBytes:12.5*1073741824});
-  expect(api.calls.find(c=>c.path==='setup/apply')?.body).not.toHaveProperty('cacheUnlimited');
-});
 
 test('no retention overrides the remembered budget while favorites can still be filled', async ({page}) => {
   const api = await mockAPI(page);

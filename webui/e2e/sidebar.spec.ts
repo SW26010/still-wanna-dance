@@ -1,27 +1,22 @@
-import {navigate,navigateStep} from './navigation';
+import {navigate} from './navigation';
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 
-test('desktop pages and wizard use a left navigation with native links and arrow keys',async({page},info)=>{
+test('desktop pages use a left navigation with native links and arrow keys',async({page},info)=>{
   await mockAPI(page);await page.setViewportSize({width:1280,height:900});
-  for(const route of ['/#/home','/help','/about','/terms','/#/setup']){
+  for(const route of ['/#/home','/help','/about','/terms']){
     await page.goto(route);
-    const wizard=route.endsWith('setup'),nav=page.getByRole('navigation',{name:wizard?'引导步骤':'页面导航',exact:true});
+    const nav=page.getByRole('navigation',{name:'页面导航',exact:true});
     await expect(nav).toHaveCount(1);await expect(nav).toBeVisible();
     const heading=page.getByRole('heading',{level:1}).first();await expect(heading).toBeVisible();
     const left=await nav.boundingBox(),content=await heading.boundingBox();
     expect(left!.x+left!.width).toBeLessThanOrEqual(content!.x);
     expect(left!.width).toBeCloseTo(260,1);
-    const items=nav.getByRole(wizard?'button':'link');
+    const items=nav.getByRole('link');
     await items.first().focus();await page.keyboard.press('ArrowDown');await expect(items.nth(1)).toBeFocused();
-    if(!wizard){await expect(nav.getByRole('link',{name:'设置',exact:true})).toHaveAttribute('href','#/settings');}
-    await page.screenshot({path:info.outputPath(wizard?'wizard.png':route.includes('/#')?'console.png':route.slice(1)+'.png'),fullPage:true,animations:'disabled'});
+    {await expect(nav.getByRole('link',{name:'设置',exact:true})).toHaveAttribute('href','#/settings');}
+    await page.screenshot({path:info.outputPath(route.includes('/#')?'console.png':route.slice(1)+'.png'),fullPage:true,animations:'disabled'});
   }
-  await navigateStep(page,'3. 网络');await expect(page.getByRole('button',{name:'3. 网络',exact:true})).toHaveAttribute('aria-current','step');
-  await page.getByRole('checkbox',{name:'直连',exact:true}).uncheck();
-  await page.getByRole('button',{name:'4. 启用',exact:true}).click();
-  await expect(page.getByRole('heading',{level:1,name:'网络',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'3. 网络',exact:true})).toHaveAttribute('aria-current','step');
 });
 
 test('narrow left drawer traps focus, restores trigger on Escape, and follows selected routes',async({page},info)=>{
@@ -42,22 +37,22 @@ test('narrow left drawer traps focus, restores trigger on Escape, and follows se
   await page.screenshot({path:info.outputPath('drawer-forced-colors.png'),animations:'disabled'});
 });
 
-for(const wizard of [false,true])test(`desktop sidebar toggles by keyboard without losing focus or content (${wizard?'wizard':'console'})`,async({page},info)=>{
+test('desktop sidebar toggles by keyboard without losing focus or content',async({page},info)=>{
   await mockAPI(page);await page.setViewportSize({width:1280,height:900});
-  await page.emulateMedia({colorScheme:wizard?'dark':'light'});
-  await page.goto(wizard?'/#/setup':'/#prepareAheadSeconds');
-  const label=wizard?'引导步骤':'页面导航',nav=page.getByRole('navigation',{name:label,exact:true});
+  await page.emulateMedia({colorScheme:'light'});
+  await page.goto('/#prepareAheadSeconds');
+  const label='页面导航',nav=page.getByRole('navigation',{name:label,exact:true});
   const collapse=page.getByRole('button',{name:'收起'+label,exact:true}),expand=page.getByRole('button',{name:'展开'+label,exact:true});
   const heading=page.getByRole('heading',{level:1}).first(),draft=page.getByRole('spinbutton',{name:/提前准备时间/});
   await expect(nav).toBeVisible();const expandedX=(await heading.boundingBox())!.x;
-  if(!wizard)await draft.fill('777');
+  await draft.fill('777');
   await collapse.focus();await page.keyboard.press('Space');
   await expect(nav).toHaveCount(0);await expect(expand).toBeFocused();await expect(expand).toHaveAttribute('aria-expanded','false');
   expect((await heading.boundingBox())!.x).toBeLessThan(expandedX-100);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:info.outputPath('collapsed.png'),animations:'disabled'});
-  if(!wizard){
+  {
     await page.evaluate(()=>{location.hash='/help';});
     await page.getByRole('tab',{name:'介绍',exact:true}).click();
     await expect(page.getByRole('heading',{level:1})).toHaveText('关于');
@@ -71,7 +66,7 @@ for(const wizard of [false,true])test(`desktop sidebar toggles by keyboard witho
   await expect.poll(async()=>(await heading.boundingBox())!.x).toBeCloseTo(expandedX,1);
   await page.keyboard.press('Tab');
   expect(await nav.evaluate(el=>el.contains(document.activeElement))).toBe(true);
-  if(!wizard)await expect(draft).toHaveValue('777');
+  await expect(draft).toHaveValue('777');
   await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:info.outputPath('expanded.png'),animations:'disabled'});
 });

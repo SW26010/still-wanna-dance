@@ -46,10 +46,9 @@ func defaultVRCXPath() string {
 // stats the default file; private history is read solely by explicit preview.
 func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Path       string `json:"path"`
-		StorageDir string `json:"storageDir"`
-		ID         string `json:"id"`
-		Overwrite  bool   `json:"overwrite"`
+		Path      string `json:"path"`
+		ID        string `json:"id"`
+		Overwrite bool   `json:"overwrite"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "无效的 VRCX 导入请求", http.StatusBadRequest)
@@ -59,24 +58,19 @@ func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 		path := defaultVRCXPath()
 		info, err := os.Stat(path)
 		result := map[string]any{"path": path, "found": err == nil && info.Mode().IsRegular()}
-		root, err := c.vrcxTarget(input.StorageDir)
-		if err == nil {
-			c.lifecycleMu.Lock()
-			var count int
-			count, err = c.vrcxUsageCount(r.Context(), root)
-			c.lifecycleMu.Unlock()
-			if err == nil {
-				result["existingSongs"] = count
-			}
-		}
+		c.lifecycleMu.Lock()
+		count, err := c.vrcxUsageCount(r.Context(), c.vrcxTarget())
+		c.lifecycleMu.Unlock()
 		if err != nil {
 			result["targetError"] = "无法读取目标歌曲统计，请检查存储后重试"
+		} else {
+			result["existingSongs"] = count
 		}
 		writeJSON(w, result)
 		return
 	}
 	if r.URL.Path == "/api/vrcx/select" {
-		path, err := c.selectSetupFolder(r.Context(), "vrcx", input.Path)
+		path, err := c.selectVRCXDatabase(r.Context(), input.Path)
 		if err != nil {
 			http.Error(w, "无法选择数据库，请重试或填写完整路径", http.StatusBadRequest)
 			return
@@ -102,11 +96,7 @@ func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	if r.URL.Path == "/api/vrcx/preview" {
 		c.vrcxPreview = nil
-		root, err := c.vrcxTarget(input.StorageDir)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
+		root := c.vrcxTarget()
 		path := strings.TrimSpace(input.Path)
 		if path == "" {
 			path = defaultVRCXPath()
@@ -172,19 +162,10 @@ func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, p)
 }
 
-func (c *Console) vrcxTarget(selected string) (string, error) {
+func (c *Console) vrcxTarget() string {
 	c.mu.Lock()
-	root := c.settings.StorageDir
-	c.mu.Unlock()
-	if selected != "" {
-		if !filepath.IsAbs(selected) || len(selected) > 4096 || strings.ContainsRune(selected, 0) || c.validateStorageSelection(selected, false) != nil {
-			return "", errors.New("请选择有效的目标存储目录")
-		}
-		if rel, err := filepath.Rel(root, selected); err != nil || rel != "." {
-			root = filepath.Clean(selected)
-		}
-	}
-	return root, nil
+	defer c.mu.Unlock()
+	return c.settings.StorageDir
 }
 
 // Caller holds lifecycleMu. Never opens the VRCX source or initializes storage.
@@ -204,8 +185,7 @@ func (c *Console) vrcxUsageCount(ctx context.Context, root string) (int, error) 
 	return cacheproxy.ReadSongUsageCount(ctx, root)
 }
 
-// Caller holds vrcxMu and lifecycleMu, in that order. Both the settings action
-// and the final setup application consume the same checked, in-memory preview.
+// Caller holds vrcxMu and lifecycleMu, in that order. Import consumes the checked in-memory preview.
 func (c *Console) importVRCXPreview(ctx context.Context, p *vrcxPreview, overwrite bool) error {
 	if time.Now().After(p.expires) {
 		return errors.New("预览已过期，请重新检查")

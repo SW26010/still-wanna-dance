@@ -1,6 +1,5 @@
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
-import {navigateStep} from './navigation';
 
 test('manual library download leaves the running queue alone',async({page})=>{
   const api=await mockAPI(page);
@@ -16,20 +15,20 @@ test('sample preparation explains online requirements and belongs to the selecte
   Object.assign(api.diagnostics.calibration,{run:1,phase:'failed',reason:'preparation_insufficient'});
   await api.emit('calibration');
   await page.setViewportSize({width:390,height:844});
-  await page.goto('/#/setup');await navigateStep(page,'3. 网络');
+  await page.goto('/#/network');
   const error=page.getByText(/在线测速样本不足/);
   await expect(error).toBeVisible();
   await expect(error).toContainText('检查连通性后重试');
   await expect(page.getByRole('button',{name:'开始连通性检测',exact:true})).toBeEnabled();
   await expect(page.getByRole('button',{name:'测速技术详情',exact:true})).toHaveAttribute('aria-expanded','false');
-  await expect(page.getByRole('navigation',{name:'引导步骤',exact:true})).toBeHidden();
+  await expect(page.getByRole('navigation',{name:'页面导航',exact:true})).toBeHidden();
   await page.screenshot({path:info.outputPath('sample-error.png'),fullPage:true,animations:'disabled'});
   const upstream=page.getByRole('combobox',{name:'检测上游',exact:true});
   await upstream.selectOption('proxy');await expect(error).toBeHidden();
   await upstream.selectOption('direct');await expect(error).toBeVisible();
   await page.getByRole('button',{name:'开始下载速度测试',exact:true}).click();
   await expect(error).toBeHidden();
-  expect(api.calls.filter(c=>c.path==='setup/network/calibration/start')).toHaveLength(1);
+  expect(api.calls.filter(c=>c.path==='network/calibration/start')).toHaveLength(1);
 });
 
 for(const cached of [true,false])test(`local scan distinguishes online catalog failure and retries (${cached})`,async({page},info)=>{

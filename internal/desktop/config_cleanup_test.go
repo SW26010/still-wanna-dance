@@ -28,14 +28,14 @@ func TestConfigCleanupBelongsToLiveLease(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	owned := []string{p.Config, p.Terms, p.State("throughput"), p.State("inventory"), p.State("batch"), p.State("attempt"), p.State("setup"), p.State("setup-apply"), p.State("setup-apply-" + strings.Repeat("a0", 32))}
+	owned := []string{p.Config, p.Terms, p.State("throughput"), p.State("inventory"), p.State("batch"), p.State("attempt")}
 	for _, target := range owned {
 		put(target)
 		put(filepath.Join(filepath.Dir(target), workfiles.TempName(target)))
 	}
 	unknown := []string{filepath.Join(dir, workfiles.TempName("b.json")), filepath.Join(dir, ".settings-123"), filepath.Join(p.Root, "channel.key"), filepath.Join(p.Root, "channel.key.corrupt-123"), filepath.Join(p.Root, "state", ".snapshot-123"), filepath.Join(p.Root, "state", "throughput.json.corrupt-123")}
 	for _, name := range []string{
-		".setup-apply-" + strings.Repeat("a", 63) + ".json.swd-tmp",
+		".setup-apply-" + strings.Repeat("a", 64) + ".json.swd-tmp",
 		".setup-apply-" + strings.Repeat("a", 65) + ".json.swd-tmp",
 		".setup-apply-" + strings.Repeat("A", 64) + ".json.swd-tmp",
 		".setup-apply-" + strings.Repeat("g", 64) + ".json.swd-tmp",
@@ -49,7 +49,7 @@ func TestConfigCleanupBelongsToLiveLease(t *testing.T) {
 	for _, path := range unknown {
 		put(path)
 	}
-	if err := workfiles.Write(p.State("setup-apply"), []byte("new receipt")); err == nil {
+	if err := workfiles.Write(p.State("attempt"), []byte("new receipt")); err == nil {
 		t.Fatal("abandoned slot did not reproduce write failure")
 	}
 	if second, err := LockConfig(path); err == nil {
@@ -85,7 +85,7 @@ func TestConfigCleanupBelongsToLiveLease(t *testing.T) {
 	}
 }
 
-func TestConfigCleanupDoesNotTraverseReceiptNamedDirectory(t *testing.T) {
+func TestConfigCleanupDoesNotTraverseWorkSlotDirectory(t *testing.T) {
 	p := apppaths.ForConfig(filepath.Join(t.TempDir(), "config.json"))
 	lease, err := LockConfig(p.Config)
 	if err != nil {
@@ -95,10 +95,10 @@ func TestConfigCleanupDoesNotTraverseReceiptNamedDirectory(t *testing.T) {
 	if err := lease.CleanWorkFiles(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Dir(p.State("setup-apply"))); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Dir(p.State("attempt"))); !os.IsNotExist(err) {
 		t.Fatal("cleanup created missing state directory", err)
 	}
-	target := p.State("setup-apply-" + strings.Repeat("f", 64))
+	target := p.State("attempt")
 	child := filepath.Join(filepath.Dir(target), workfiles.TempName(target), "keep")
 	if err := os.MkdirAll(filepath.Dir(child), 0700); err != nil {
 		t.Fatal(err)

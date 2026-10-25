@@ -274,25 +274,6 @@ func TestVRCXRejectsLostStorageWithRestoredUsageEvidence(t *testing.T) {
 	}
 }
 
-func TestVRCXNewTargetDoesNotInheritActiveStorageEvidence(t *testing.T) {
-	c := testConsole(t)
-	c.inventory.CoverageKnown = true
-	root := filepath.Join(t.TempDir(), "new-storage")
-	p := previewVRCX(t, c, vrcxFixture(t), root)
-	if p.ExistingSongs != 0 {
-		t.Fatal(p)
-	}
-	if w := vrcxRequest(t, c, "apply", map[string]string{"id": p.ID}); w.Code != 200 {
-		t.Fatal(w.Code, w.Body.String())
-	}
-	if count, err := cacheproxy.ReadSongUsageCount(t.Context(), root); err != nil || count != 2 {
-		t.Fatal(count, err)
-	}
-	if _, err := os.Stat(c.settings.StorageDir); !os.IsNotExist(err) {
-		t.Fatal("new target import recreated missing active storage", err)
-	}
-}
-
 func TestVRCXDetectionReportsTargetUsageWithoutReadingHistory(t *testing.T) {
 	c := testConsole(t)
 	t.Setenv("APPDATA", t.TempDir())
@@ -333,136 +314,13 @@ func TestVRCXDetectionReportsTargetUsageWithoutReadingHistory(t *testing.T) {
 	}
 	c.inventory.CoverageKnown = true
 	check("", nil)
-	check(filepath.Join(t.TempDir(), "new-target"), &empty)
+	check(filepath.Join(t.TempDir(), "new-target"), nil)
 }
 
-func TestSetupVRCXImportsOnlyOnFinalApplyAndNeverReplays(t *testing.T) {
-	for _, target := range []string{"current", "new"} {
-		t.Run(target, func(t *testing.T) {
-			c := testConsole(t)
-			p := setupTestPlan(c)
-			if target == "new" {
-				p.StorageDir = filepath.Join(t.TempDir(), "chosen-storage")
-			}
-			source := vrcxFixture(t)
-			preview := previewVRCX(t, c, source, p.StorageDir)
-			p.VRCXEnabled, p.VRCXPreviewID = true, preview.ID
-			if _, err := c.validateSetupPlan(p); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := os.Stat(p.StorageDir); !os.IsNotExist(err) {
-				t.Fatal("preview or validation created storage", err)
-			}
-			a, err := c.applySetupPlan(p)
-			if err != nil || !a.ConfigSaved || a.VRCX == nil || a.VRCX.State != "ok" {
-				t.Fatal(a, err)
-			}
-			if count, err := cacheproxy.ReadSongUsageCount(t.Context(), p.StorageDir); err != nil || count != 2 {
-				t.Fatal(count, err)
-			}
-			if target == "new" && a.Phase != "restart" {
-				t.Fatal("target change did not require restart", a)
-			}
-			// Completion survives restart without retaining the private source or
-			// aggregates. A later demand must survive replay of the setup ID.
-			db, err := sql.Open("sqlite", filepath.Join(p.StorageDir, "storage.sqlite"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if _, err = db.Exec("INSERT INTO songs(song_id) VALUES(99); INSERT INTO song_usage VALUES(99,1,1,1000)"); err != nil {
-				t.Fatal(err)
-			}
-			db.Close()
-			receipt, err := os.ReadFile(c.setupReceiptPath(p.ID))
-			if err != nil || bytes.Contains(receipt, []byte("VRCX.sqlite3")) || bytes.Contains(receipt, []byte(preview.ID)) || bytes.Contains(receipt, []byte("private-")) {
-				t.Fatal("receipt contains private preview", err)
-			}
-			c = restartTestConsole(t, c)
-			c.resumeSetupApplication(func(string) error { t.Fatal("unexpected video import"); return nil })
-			again, err := c.applySetupPlan(p)
-			if err != nil || again.VRCX == nil || again.VRCX.State != "ok" {
-				t.Fatal(again, err)
-			}
-			if count, err := cacheproxy.ReadSongUsageCount(t.Context(), p.StorageDir); err != nil || count != 3 {
-				t.Fatal("setup replay replaced later demand", count, err)
-			}
-		})
-	}
-}
-
-func TestSetupVRCXSkippedChecksDoNotBlockSettingsOrWriteHistory(t *testing.T) {
-	for _, reason := range []string{"disabled", "missing", "expired", "changed-target", "unconfirmed-overwrite", "new-demand"} {
-		t.Run(reason, func(t *testing.T) {
-			c := testConsole(t)
-			p := setupTestPlan(c)
-			source := vrcxFixture(t)
-			existing := 0
-			if reason == "unconfirmed-overwrite" {
-				history := &cacheproxy.SongUsageImport{}
-				history.Observe(99, time.Now().UnixMilli())
-				if err := cacheproxy.ImportSongUsage(t.Context(), p.StorageDir, history, false); err != nil {
-					t.Fatal(err)
-				}
-				existing = 1
-			}
-			preview := previewVRCX(t, c, source, p.StorageDir)
-			p.VRCXEnabled, p.VRCXPreviewID = true, preview.ID
-			switch reason {
-			case "disabled":
-				p.VRCXEnabled = false
-			case "missing":
-				p.VRCXPreviewID = ""
-			case "expired":
-				c.vrcxPreview.expires = time.Now().Add(-time.Second)
-			case "changed-target":
-				p.StorageDir = filepath.Join(t.TempDir(), "another-target")
-			case "new-demand":
-				history := &cacheproxy.SongUsageImport{}
-				history.Observe(99, time.Now().UnixMilli())
-				if err := cacheproxy.ImportSongUsage(t.Context(), p.StorageDir, history, false); err != nil {
-					t.Fatal(err)
-				}
-				existing = 1
-			}
-			a, err := c.applySetupPlan(p)
-			if err != nil || !a.ConfigSaved || a.VRCX == nil || a.VRCX.State != "skipped" {
-				t.Fatal("optional history blocked settings", a, err)
-			}
-			if count, err := cacheproxy.ReadSongUsageCount(t.Context(), p.StorageDir); err != nil || count != existing {
-				t.Fatal("skipped history changed target", count, err)
-			}
-			if existing == 0 {
-				if _, err := os.Stat(p.StorageDir); !os.IsNotExist(err) {
-					t.Fatal("skipped history created storage", err)
-				}
-			}
-		})
-	}
-}
-
-func TestSetupVRCXConfirmedOverwriteUsesSharedTransaction(t *testing.T) {
-	c := testConsole(t)
-	history := &cacheproxy.SongUsageImport{}
-	history.Observe(99, time.Now().UnixMilli())
-	if err := cacheproxy.ImportSongUsage(t.Context(), c.settings.StorageDir, history, false); err != nil {
-		t.Fatal(err)
-	}
-	p := setupTestPlan(c)
-	p.VRCXEnabled, p.VRCXOverwrite = true, true
-	p.VRCXPreviewID = previewVRCX(t, c, vrcxFixture(t), p.StorageDir).ID
-	a, err := c.applySetupPlan(p)
-	if err != nil || a.VRCX == nil || a.VRCX.State != "ok" {
-		t.Fatal(a, err)
-	}
-	if count, err := cacheproxy.ReadSongUsageCount(t.Context(), p.StorageDir); err != nil || count != 2 {
-		t.Fatal("confirmed overwrite did not replace old statistics", count, err)
-	}
-}
-
-func TestVRCXCustomTargetDiscardExpiryAndEmptySource(t *testing.T) {
+func TestVRCXDiscardExpiryAndEmptySource(t *testing.T) {
 	c := testConsole(t)
 	source := vrcxFixture(t)
-	root := filepath.Join(t.TempDir(), "chosen-storage")
+	root := c.settings.StorageDir
 	p := previewVRCX(t, c, source, root)
 	if p.StorageDir != root {
 		t.Fatal(p.StorageDir)
@@ -482,14 +340,11 @@ func TestVRCXCustomTargetDiscardExpiryAndEmptySource(t *testing.T) {
 	if w := vrcxRequest(t, c, "apply", map[string]string{"id": p.ID}); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	if _, err := os.Stat(c.settings.StorageDir); !os.IsNotExist(err) {
-		t.Fatal("custom import wrote active target")
-	}
 	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), root); err != nil || count != 2 {
 		t.Fatal(count, err)
 	}
-	if inspected, err := c.inspectSetupStorage(root); err != nil || inspected.Library.State != "ok" {
-		t.Fatal("wizard cannot reuse imported target", inspected, err)
+	if _, err := c.inspectStorage(root); err != nil {
+		t.Fatal("cannot reuse imported target", err)
 	}
 	db, err := sql.Open("sqlite", source)
 	if err != nil {
@@ -538,7 +393,7 @@ func TestVRCXGatesDetectionAndPicker(t *testing.T) {
 		t.Fatal("detection read history or started service")
 	}
 	source := vrcxFixture(t)
-	c.setupFolderPicker = func(_ context.Context, title, initial string) (string, error) {
+	c.databasePicker = func(_ context.Context, title, initial string) (string, error) {
 		if !strings.Contains(title, "VRCX") {
 			t.Fatal(title)
 		}

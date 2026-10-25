@@ -303,7 +303,7 @@ func TestExplicitGatewayStartPreparesExistingConnectionOnlyWhenNeeded(t *testing
 		c.settings.RestoreHostsOnExit = restore
 		c.settings.QueueWithGateway = false
 		c.savedSettings = c.settings
-		completeStartupSetup(t, c)
+
 		c.AutoStart()
 		if (*launches == 1) != restore {
 			t.Fatal("automatic acceleration did not prepare needed cleanup")

@@ -16,32 +16,28 @@ import (
 	"still-wanna-dance/internal/upstreamstate"
 )
 
-func TestSetupMonitorRetainsTraversalAcrossRunsAndCancellation(t *testing.T) {
+func TestDiagnosticMonitorRetainsTraversalAcrossRunsAndCancellation(t *testing.T) {
 	// IDs outside the bundled usage priors make equal-score ordering explicit.
 	const low, middle, high int64 = 900001, 900002, 900003
 	for _, upstream := range []string{"direct", "proxy"} {
 		t.Run(upstream, func(t *testing.T) {
 			c := testConsole(t)
-			stubSetupNetwork(t, c)
-			input := setupCalibrationRequest{Upstream: upstream}
-			channel, client, monitor := c.setupNetwork.channel, c.setupNetwork.client, c.setupNetwork.monitor
+			stubNetworkDiagnostics(t, c)
+			input := networkCalibrationRequest{Upstream: upstream}
+			channel, client, monitor := c.networkDiagnostics.channel, c.networkDiagnostics.client, c.networkDiagnostics.monitor
 			if upstream == "proxy" {
-				version, err := c.setupSettingsVersion(c.savedSettings)
-				if err != nil {
-					t.Fatal(err)
-				}
-				input.Proxy = &setupPlan{BaseVersion: version, ProxyBackend: "external-socks5", SOCKS5Address: "127.0.0.1:9"}
-				settings, err := c.setupDiagnosticProxy(false, input)
+				input.Proxy = &diagnosticProxyDraft{ProxyBackend: "external-socks5", SOCKS5Address: "127.0.0.1:9"}
+				settings, err := c.diagnosticProxy(false, input)
 				if err != nil {
 					t.Fatal(err)
 				}
 				c.mu.Lock()
-				monitor, err = c.setupConnectivityMonitorLocked(upstream, settings)
+				monitor, err = c.networkConnectivityMonitorLocked(upstream, settings)
 				c.mu.Unlock()
 				if err != nil {
 					t.Fatal(err)
 				}
-				channel, client = c.setupNetwork.proxy.channel, c.setupNetwork.proxy.client
+				channel, client = c.networkDiagnostics.proxy.channel, c.networkDiagnostics.proxy.client
 				client.Transport.(interface{ Retire() }).Retire()
 			}
 			var mu sync.Mutex
@@ -108,7 +104,7 @@ func TestSetupMonitorRetainsTraversalAcrossRunsAndCancellation(t *testing.T) {
 				blocked, requested = round == 2, nil
 				recoverHigh = round >= 6
 				mu.Unlock()
-				if err := c.controlSetupConnectivity(false, input); err != nil {
+				if err := c.controlNetworkConnectivity(false, input); err != nil {
 					t.Fatal(err)
 				}
 				if round == 2 {
@@ -117,12 +113,12 @@ func TestSetupMonitorRetainsTraversalAcrossRunsAndCancellation(t *testing.T) {
 					case <-time.After(time.Second):
 						t.Fatal("playback did not start")
 					}
-					if err := c.controlSetupConnectivity(true, setupCalibrationRequest{}); err != nil {
+					if err := c.controlNetworkConnectivity(true, networkCalibrationRequest{}); err != nil {
 						t.Fatal(err)
 					}
 				}
 				select {
-				case <-c.setupNetwork.connectivityDone:
+				case <-c.networkDiagnostics.connectivityDone:
 				case <-time.After(5 * time.Second):
 					t.Fatal("batch did not drain")
 				}
@@ -154,16 +150,16 @@ func TestSetupMonitorRetainsTraversalAcrossRunsAndCancellation(t *testing.T) {
 				}
 			}
 			if after := upstreamrequest.Default.Snapshot(); before.Transport != after.Transport || before.Revision != after.Revision {
-				t.Fatal("wizard changed business routing")
+				t.Fatal("diagnostic changed business routing")
 			}
 		})
 	}
 }
 
-func TestSetupProxyMonitorReusesOnlyMatchingDraft(t *testing.T) {
+func TestDiagnosticProxyMonitorReusesOnlyMatchingDraft(t *testing.T) {
 	c := testConsole(t)
-	stubSetupNetwork(t, c)
-	direct := c.setupNetwork.monitor
+	stubNetworkDiagnostics(t, c)
+	direct := c.networkDiagnostics.monitor
 	settings := c.settings
 	settings.UpstreamMode, settings.ProxyBackend = "proxy", "external-socks5"
 	settings.SOCKS5Address = "127.0.0.1:9"
@@ -171,7 +167,7 @@ func TestSetupProxyMonitorReusesOnlyMatchingDraft(t *testing.T) {
 	selectMonitor := func(s Settings) (*upstreamstate.Monitor, error) {
 		c.mu.Lock()
 		defer c.mu.Unlock()
-		return c.setupConnectivityMonitorLocked("proxy", s)
+		return c.networkConnectivityMonitorLocked("proxy", s)
 	}
 	first, err := selectMonitor(settings)
 	if err != nil {
@@ -180,17 +176,17 @@ func TestSetupProxyMonitorReusesOnlyMatchingDraft(t *testing.T) {
 	if same, err := selectMonitor(settings); err != nil || same != first {
 		t.Fatal("same draft discarded traversal", err)
 	}
-	old := c.setupNetwork.proxy
+	old := c.networkDiagnostics.proxy
 	settings.SOCKS5Password = "changed"
 	second, err := selectMonitor(settings)
 	if err != nil || second == first || !first.Snapshot().Closed || old.channel.Snapshot().Transport != nil {
 		t.Fatal("changed credentials reused the old scope", err)
 	}
 	settings.SOCKS5Address = "invalid"
-	if _, err := selectMonitor(settings); err == nil || c.setupNetwork.proxy.monitor != second || second.Snapshot().Closed {
+	if _, err := selectMonitor(settings); err == nil || c.networkDiagnostics.proxy.monitor != second || second.Snapshot().Closed {
 		t.Fatal("failed replacement destroyed the current scope", err)
 	}
-	if c.setupNetwork.monitor != direct || direct.Snapshot().Closed || testDNS(c).queries.Load() != 0 {
+	if c.networkDiagnostics.monitor != direct || direct.Snapshot().Closed || testDNS(c).queries.Load() != 0 {
 		t.Fatal("proxy selection changed direct scope or queried DNS")
 	}
 	c.Close()

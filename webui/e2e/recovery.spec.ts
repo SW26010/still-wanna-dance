@@ -1,4 +1,4 @@
-import {navigate,navigateStep} from './navigation';
+import {navigate} from './navigation';
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 
@@ -65,38 +65,6 @@ test('Mihomo preview stays a draft and clearing it releases only that preview',a
   expect(api.calls.find(c=>c.path==='settings')?.body).not.toHaveProperty('socks5Password');
 });
 
-test('failed consent persistence keeps business APIs gated, retry succeeds',async({page})=>{
-  const api=await mockAPI(page);api.terms.accepted=false;let fail=true;
-  await page.route('**/api/terms/accept',async r=>{if(fail)return r.fulfill({status:500,json:{error:'凭据无法保存'}});api.terms.accepted=true;await r.fulfill({json:{ok:true}});});
-  await page.goto('/?gate=1');await page.getByRole('button',{name:'阅读并同意条款',exact:true}).click();
-  await page.getByRole('button',{name:'同意完整条款'}).click();
-  await expect(page.getByRole('dialog').getByText(/凭据无法保存/)).toBeVisible();
-  expect(api.calls.some(c=>c.path==='status')).toBe(false);fail=false;
-  await page.getByRole('button',{name:'同意完整条款'}).click();await expect(page.getByRole('button',{name:'下一步',exact:true})).toBeEnabled();
-  await page.getByRole('button',{name:'下一步',exact:true}).click();api.terms.accepted=false;api.terms.needsConfirmation=true;
-  await navigateStep(page,'1. 开始');
-  await expect(page.getByRole('dialog')).toBeVisible();await page.keyboard.press('Escape');
-  await expect(page.getByRole('button',{name:'下一步',exact:true})).toBeDisabled();
-});
-
-test('setup validation failure keeps the draft and does not apply',async({page})=>{
-  const api=await mockAPI(page);await page.goto('/#/setup');await navigateStep(page,'2. 存储');
-  await page.getByRole('radio',{name:'限制为',exact:true}).check();await page.getByRole('spinbutton',{name:/视频存储预算/}).fill('18');
-  await page.route('**/api/setup/validate',r=>r.fulfill({status:409,json:{error:'设置版本已变化，请重新进入引导'}}));
-  await page.getByRole('button',{name:'下一步',exact:true}).click();await expect(page.getByText(/本页尚未通过检查/)).toBeVisible();
-  await expect(page.getByRole('spinbutton',{name:/视频存储预算/})).toHaveValue('18');expect(api.calls.some(c=>c.path==='setup/apply')).toBe(false);
-  await page.getByRole('button',{name:'放弃草稿并退出引导'}).click();await expect(page.getByRole('link',{name:'加速',exact:true})).toBeVisible();
-});
-
-test('reload reconciles the original application ID without submitting again',async({page})=>{
-  const api=await mockAPI(page);api.state.setupApplication={id:'original-application',phase:'completed',configSaved:true};
-  await page.addInitScript(()=>sessionStorage.setItem('swd-setup-application','original-application'));
-  await page.goto('/#/setup');await expect(page.getByRole('link',{name:'加速',exact:true})).toBeVisible();
-  expect(api.calls.find(c=>c.path==='setup/receipt')?.body).toEqual({id:'original-application'});
-  expect(api.calls.some(c=>c.path==='setup/apply')).toBe(false);
-  expect(await page.evaluate(()=>sessionStorage.getItem('swd-setup-application'))).toBeNull();
-});
-
 test('history clears failed reads and recovers focus after a row disappears',async({page})=>{
   await mockAPI(page);let failed=false;
   const rows=[2,1].map(id=>({id,at:1700000000000+id*1000,resource:'fixture-resource',method:'GET',range:'bytes=0-',elapsedMS:100,bytes:200,status:206,cache:'HIT',outcome:'completed',songs:[{id:'1',title:'分段歌曲'}]}));
@@ -120,10 +88,10 @@ test('late monitor response cannot overwrite paused display',async({page})=>{
 });
 
 test('rejected cancellation stays running and stale SSE events cannot replace newer state',async({page})=>{
-  const api=await mockAPI(page);await page.goto('/#/setup');await navigateStep(page,'3. 网络');
+  const api=await mockAPI(page);await page.goto('/#/network');
   await page.getByRole('button',{name:'开始连通性检测'}).click();
   await expect(page.getByRole('button',{name:'停止并放弃连通性检测'})).toBeEnabled();
-  await page.route('**/api/setup/network/connectivity/cancel',r=>r.fulfill({status:503,json:{error:'取消未送达'}}));
+  await page.route('**/api/network/connectivity/cancel',r=>r.fulfill({status:503,json:{error:'取消未送达'}}));
   await page.getByRole('button',{name:'停止并放弃连通性检测'}).click();
   await expect(page.getByText(/操作未确认.*取消未送达/)).toBeVisible();
   await expect(page.getByRole('button',{name:'停止并放弃连通性检测'})).toBeEnabled();
@@ -149,8 +117,7 @@ test('320px forced-colors layout keeps every console page usable',async({page})=
     await expect(page.getByRole('button',{name:'展开页面导航',exact:true})).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   }
-  await navigate(page,'帮助');await page.getByRole('link',{name:'重新进入使用引导'}).click();
-  await navigateStep(page,'3. 网络');
+  await navigate(page,'网络');
   await expect(page.getByRole('button',{name:'开始下载速度测试'})).toBeEnabled();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });

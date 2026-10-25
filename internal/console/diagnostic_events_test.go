@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-type setupEventWriter struct {
+type diagnosticEventWriter struct {
 	*httptest.ResponseRecorder
 	t          *testing.T
 	deadline   time.Time
@@ -22,12 +22,12 @@ type setupEventWriter struct {
 	flushes    int
 }
 
-func (w *setupEventWriter) SetWriteDeadline(deadline time.Time) error {
+func (w *diagnosticEventWriter) SetWriteDeadline(deadline time.Time) error {
 	w.deadline = deadline
 	return nil
 }
 
-func (w *setupEventWriter) Write(body []byte) (int, error) {
+func (w *diagnosticEventWriter) Write(body []byte) (int, error) {
 	w.writes++
 	if remaining := time.Until(w.deadline); remaining <= 0 || remaining > 5*time.Second {
 		w.t.Error("event write is not bounded by the five-second deadline")
@@ -38,7 +38,7 @@ func (w *setupEventWriter) Write(body []byte) (int, error) {
 	return w.ResponseRecorder.Write(body)
 }
 
-func (w *setupEventWriter) FlushError() error {
+func (w *diagnosticEventWriter) FlushError() error {
 	w.flushes++
 	if !w.deadline.After(time.Now()) {
 		w.t.Error("event flush has no active deadline")
@@ -53,16 +53,16 @@ func (w *setupEventWriter) FlushError() error {
 	return nil
 }
 
-func TestSetupEventsDisconnectAndRequestCancellation(t *testing.T) {
+func TestDiagnosticEventsDisconnectAndRequestCancellation(t *testing.T) {
 	for _, event := range []string{"calibration", "connectivity"} {
 		for _, failure := range []string{"write", "flush", "cancel"} {
 			t.Run(event+"/"+failure, func(t *testing.T) {
 				c := testConsole(t)
-				started := stubSetupNetwork(t, c)
+				started := stubNetworkDiagnostics(t, c)
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 				defer cancel()
-				r := httptest.NewRequest("GET", "http://"+c.address+"/api/setup/network/"+event+"/events", nil).WithContext(ctx)
-				w := &setupEventWriter{ResponseRecorder: httptest.NewRecorder(), t: t,
+				r := httptest.NewRequest("GET", "http://"+c.address+"/api/network/"+event+"/events", nil).WithContext(ctx)
+				w := &diagnosticEventWriter{ResponseRecorder: httptest.NewRecorder(), t: t,
 					writeError: failure == "write", flushError: failure == "flush"}
 				if failure == "cancel" {
 					w.afterFlush = cancel

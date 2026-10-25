@@ -119,15 +119,12 @@ SWD/                              # ZIP 内固定目录，不含版本号
     config.lock                   # 启动获取，退出释放，文件可保留
     logs/app.log                  # 启动创建，最多另有 .1 / .2 / .3
     terms.json                    # 用户确认当前条款后才写入
-    channel.key                   # 查询引导配置版本或使用代理通道身份时生成
+    channel.key                   # 使用代理通道身份时生成
     state/                        # 相关操作首次保存结果时才创建
       throughput.json
       inventory.json
       batch.json
       attempt.json
-      setup.json                    # 引导进度，与条款和业务设置隔离
-      setup-apply.json              # 当前应用回执，不含代理密码
-      setup-apply-<sha256>.json      # 逐请求 ID 回执，防止重复应用/导入
     storage/                      # 媒体引擎首次使用时创建，允许外置
       storage.sqlite
       videos/{md5}.mp4
@@ -139,7 +136,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 ### 配置实例与路径解析
 
-共享引擎初始化（包括网关、队列和后台监测）、库存扫描、批量扫描、引导及 VRCX 导入共用使用证据判断。遇到媒体根缺失或只剩空目录时，先检查当前引擎、恢复的库存（视频数、字节数或已知清单覆盖）、成功批量结果及已结束的尝试记录。有使用证据就诊断为失联库，在启动引擎或导入前拒绝，不创建空库、不更新任务或库存快照；只有没有这些证据的新路径才允许初始化。VRCX 在预览与提交时分别检查，具体边界见[历史初始化](song-catalog-design.md#vrcx-历史初始化)。单纯对未初始化路径做过零库存扫描，不视为已经建立媒体库。
+共享引擎初始化（包括网关、队列和后台监测）、库存扫描、批量扫描及 VRCX 导入共用使用证据判断。遇到媒体根缺失或只剩空目录时，先检查当前引擎、恢复的库存（视频数、字节数或已知清单覆盖）、成功批量结果及已结束的尝试记录。有使用证据就诊断为失联库，在启动引擎或导入前拒绝，不创建空库、不更新任务或库存快照；只有没有这些证据的新路径才允许初始化。VRCX 在预览与提交时分别检查，具体边界见[历史初始化](song-catalog-design.md#vrcx-历史初始化)。单纯对未初始化路径做过零库存扫描，不视为已经建立媒体库。
 
 令 `C` 为主配置的绝对路径，`B` 为其父目录，`R` 为实例数据根，`S` 为媒体根：
 
@@ -150,7 +147,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 - 主配置不能命名为保留的 `terms.json`、`channel.key`、`config.lock`、`state`、`logs`、`storage`，也不能使用 `.swd-tmp` 后缀，避免覆盖规范配置和原子写入工作槽。
 - 多个配置主动选择同一个媒体根时，仍受媒体 `.lock` 独占保护；配置隔离不允许同时写同一媒体库。
 
-配置版本独立于软件发行版本。读取拒绝缺失、不支持或未来版本；保存前再次检查磁盘版本，并保留当前版本中的未知字段。设置 API 不能指定磁盘格式版本。配置、条款、库存/任务/吞吐快照及引导进度/应用回执使用每目标固定的 `.<文件名>.swd-tmp` 工作槽，排他创建、同步并原子替换；持有配置实例锁的启动流程只清理本实例已知工作槽，逐 ID 回执严格匹配 `.setup-apply-[0-9a-f]{64}.json.swd-tmp`。正式回执、未知名称和其他配置保留，异常类型拒绝且不递归清理，失败不覆盖已提交文件。通道密钥仅缺失时排他创建，损坏原文保留并降级为临时通道身份；不承诺所有文件构成跨文件事务。
+配置版本独立于软件发行版本。读取拒绝缺失、不支持或未来版本；保存前再次检查磁盘版本，并保留当前版本中的未知字段。设置 API 不能指定磁盘格式版本。配置、条款、库存/任务/吞吐快照使用每目标固定的 `.<文件名>.swd-tmp` 工作槽，排他创建、同步并原子替换；持有配置实例锁的启动流程只清理本实例已知工作槽。旧引导状态、未知名称和其他配置保留，异常类型拒绝且不递归清理，失败不覆盖已提交文件。通道密钥仅缺失时排他创建，损坏原文保留并降级为临时通道身份；不承诺所有文件构成跨文件事务。
 
 默认启动前若 EXE 旁存在 `still-wanna-dance-console.json`、`stepstash-console.json`、`still-wanna-dance-data` 或 `stepstash-data`，会在创建 data、日志和配置锁前拒绝并要求独立新目录。自定义旧配置由版本检查拒绝。这里只诊断已知布局，不扫描任意历史文件、不复制或自动迁移；存储根的旧库保护仍遵循上文。
 
@@ -161,7 +158,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | EXE、licenses、README、构建信息 | 由交付包拥有；升级仅覆盖这些路径 | 可从相应构建重新取得，许可随分发保留 |
 | `C` | 主设置；首次成功打开和保存设置时写入 | 必须备份；代理密码和节点快照为 CurrentUser DPAPI 密文，换用户/机器可能需重配 |
 | `R/terms.json` | 用户主动确认后写入；条款变化要求重新确认 | 随配置备份；缺失则重新确认，不是身份或内容授权证明 |
-| `R/channel.key` | 32 字节密钥，供通道身份和独立用途的引导配置 HMAC 使用；仅缺失时生成。损坏时通道可用临时身份，引导版本校验则明确失败 | 随配置备份；缺失重建会改变外部 SOCKS5 与 Mihomo 节点稳定身份、旧样本关联与引导配置版本，旧清单不能继续导入 |
+| `R/channel.key` | 32 字节密钥，供通道身份使用；仅缺失时生成。损坏时通道可用临时身份 | 随配置备份；缺失重建会改变外部 SOCKS5 与 Mihomo 节点稳定身份、旧样本关联 |
 | `R/state/throughput.json` | 测速尝试冷却与历史样本；网络监测需要持久化时更新 | 可重建；丢失旧样本和冷却时间，不包含凭据或播放 URL |
 | `R/state/mihomo/` | B2 核心拥有的工作目录；只有实际启用内嵌代理时创建，不写原始订阅或明文节点配置，关闭 profile 持久化和自动 geo 更新 | 派生状态，不是节点备份；节点仍只在主配置的 DPAPI 快照中 |
 | `R/state/inventory.json` | 最近成功的库存快照；扫描失败保留上次结果 | 可重新扫描 |
@@ -174,9 +171,9 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | `S/tmp/import-<数字>/video` | 单次导入硬链接或跨卷复制暂存；操作结束只删除自己的 `video` 及空目录，崩溃后仅清理空目录或恰有一个普通 `video` 文件的已知目录，绝不递归删除陌生内容 | 不必备份；合法库启动时按媒体锁及格式校验后清理；源视频和完整本地视频不受影响 |
 | `B/.<配置文件名>.swd-tmp`、`R/.terms.json.swd-tmp`、`R/state/.<状态文件名>.swd-tmp` | 主配置、条款与四类状态的固定原子工作槽（各目标至多一个）；配置锁持有者启动时只清理本实例已知工作槽，不全盘扫描 | 非备份对象；未知文件及旧随机命名不泛化删除，工作槽占用/不安全时拒绝清理并保留最后有效数据 |
 | 可写性探测目录中的 `.swd-probe-*` | Windows 使用内核 delete-on-close 创建临时探测文件，正常关闭或进程终止后删除；不扫描用户外部目录 | 非备份对象 |
-| `R/channel.key` 损坏、`R/state/throughput.json` 损坏 | 密钥损坏时原文件原地保留，通道告警并使用进程内临时身份；引导拒绝配置版本校验、应用及重启后的导入衔接。测速状态损坏时跳过载入并在下次成功保存时原子替换，均不再新增 `.corrupt-*` 副本 | 密钥需要恢复原始备份才能恢复历史身份和配置版本；旧试验版的 `.corrupt-*` 不自动清理 |
+| `R/channel.key` 损坏、`R/state/throughput.json` 损坏 | 密钥损坏时原文件原地保留，通道告警并使用进程内临时身份。测速状态损坏时跳过载入并在下次成功保存时原子替换，均不再新增 `.corrupt-*` 副本 | 密钥需要恢复原始备份才能恢复历史身份；旧试验版的 `.corrupt-*` 不自动清理 |
 
-库存和任务快照独立使用 `schemaVersion=1`，只保存 `storageDir` 与 `result`。相对库路径以 B 为基准，整体移动后可用；切换库不加载另一库的结果。损坏或不支持的快照跳过，不引入迁移链。设置、密钥和状态属于配置实例，不塞入可外置的媒体 SQLite。未来 #14 节点/订阅持久化及现有 #15 条款凭据属于 R，须遵守各自格式合同；#16 引导应复用配置与条款状态。
+库存和任务快照独立使用 `schemaVersion=1`，只保存 `storageDir` 与 `result`。相对库路径以 B 为基准，整体移动后可用；切换库不加载另一库的结果。损坏或不支持的快照跳过，不引入迁移链。设置、密钥和状态属于配置实例，不塞入可外置的媒体 SQLite。未来 #14 节点/订阅持久化及现有 #15 条款凭据属于 R，须遵守各自格式合同。
 
 ### Portable 外部状态
 
@@ -240,21 +237,20 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 | 文件 | 内部格式、缺失/失效语义 |
 | --- | --- |
-| config.json / 自定义配置 | schemaVersion=6；字段见 Settings：目录文本，manualLogDir 布尔、autoAccelerate（默认 true，完成条款及最终引导后，每进程自动一键加速一次）、autoOpenWebUI（默认 true；条款确认例外与 -no-open 优先级见[配置生命周期](settings-lifecycle.md)）、restoreHostsOnExit（默认 true，保存即用于本次退出，开启前须准备恢复权限）、queueWithGateway（默认 true，队列随网关启停），requestRetentionDays（0=不清明细）、videoStorageMode（none/limited/unlimited，默认 none，分别保存不保留/限制为/不限制的选择）、retainFavorites（默认 true，收藏完整视频可突破预算保留；关闭后按普通规则取舍，不取消标记或触发下载）、aggressiveCacheReclamation（auto/on/off，显式默认 auto；自动跟随 videoStorageMode，仅 none 开启，on/off 手动覆盖；不改变完整本地视频预算）、maxCacheBytes（默认 0，保存输入的字节预算；limited 要求正数，none 在运行时使用零预算，unlimited 不限制；不保留时仍保护使用中/队列/交接数据）、prepareAheadSeconds（缺失/0→500，100–16000 秒；建议 200–2000 秒）、localProtectionGraceSeconds（缺失/null→300，整数 0–10000 秒；0=不延续保护）、downloadSoftLimit（缺失/null→16，整数 1–64）、downloadGrowIntervalMS（缺失/null→250，整数 0–2000 毫秒；0=关闭缓增）、throughputIntervalMinutes（缺失/0→20，1–1440）、downloadUpstream（空→auto，auto/cf/hkg，hkg 对应 API nya）、upstreamMode（空→direct，direct/proxy/auto；旧 socks5 读取后归一化为 proxy）、proxyBackend（空→external-socks5，external-socks5/mihomo）、外部 SOCKS5 地址与用户名。策略和后端独立，保存后重启生效；历史通道键仍沿用 socks5 前缀。缺失采用构造默认（保留期 30 天），显式 null 对标量沿用默认；false/合法 0 保留。未知字段以 RawMessage 保留数值精度；格式缺失/未来/旧版本、明文 socks5Password 均拒绝写入 |
+| config.json / 自定义配置 | schemaVersion=6；字段见 Settings：目录文本，manualLogDir 布尔、autoAccelerate（默认 true，有效同意条款后，每进程自动一键加速一次）、autoOpenWebUI（默认 true；条款确认例外与 -no-open 优先级见[配置生命周期](settings-lifecycle.md)）、restoreHostsOnExit（默认 true，保存即用于本次退出，开启前须准备恢复权限）、queueWithGateway（默认 true，队列随网关启停），requestRetentionDays（0=不清明细）、videoStorageMode（none/limited/unlimited，默认 none，分别保存不保留/限制为/不限制的选择）、retainFavorites（默认 true，收藏完整视频可突破预算保留；关闭后按普通规则取舍，不取消标记或触发下载）、aggressiveCacheReclamation（auto/on/off，显式默认 auto；自动跟随 videoStorageMode，仅 none 开启，on/off 手动覆盖；不改变完整本地视频预算）、maxCacheBytes（默认 0，保存输入的字节预算；limited 要求正数，none 在运行时使用零预算，unlimited 不限制；不保留时仍保护使用中/队列/交接数据）、prepareAheadSeconds（缺失/0→500，100–16000 秒；建议 200–2000 秒）、localProtectionGraceSeconds（缺失/null→300，整数 0–10000 秒；0=不延续保护）、downloadSoftLimit（缺失/null→16，整数 1–64）、downloadGrowIntervalMS（缺失/null→250，整数 0–2000 毫秒；0=关闭缓增）、throughputIntervalMinutes（缺失/0→20，1–1440）、downloadUpstream（空→auto，auto/cf/hkg，hkg 对应 API nya）、upstreamMode（空→direct，direct/proxy/auto；旧 socks5 读取后归一化为 proxy）、proxyBackend（空→external-socks5，external-socks5/mihomo）、外部 SOCKS5 地址与用户名。策略和后端独立，保存后重启生效；历史通道键仍沿用 socks5 前缀。缺失采用构造默认（保留期 30 天），显式 null 对标量沿用默认；false/合法 0 保留。未知字段以 RawMessage 保留数值精度；格式缺失/未来/旧版本、明文 socks5Password 均拒绝写入 |
 | config.proxySecret | 缺字段=无保存密码。封套 `{version:1, protection:"dpapi-current-user", ciphertext:"<base64>"}`；与整个配置一起原子替换，无第二份凭据文件/明文快照。未知格式、null、损坏或当前用户解密失败=不可用并保留原值；省略设置 API 密码保留密文，明确输入新密码替换，用户名/密码一起清空移除。状态仅返回可用标志和固定诊断，不返回密文/明文 |
-| config.proxyNodes | 可选节点快照，复用 version=1 / dpapi-current-user 封套；解密载荷为 `{version:2,nodes:[原生连接参数]}`。整份文档含服务器及凭据均加密，与 config 同一原子替换；无明文副本。坏/未知封套及旧节点载荷 version=1 保留并提示重新导入，不视为空库；旧载荷不静默改写，原始内容重新导入后采用新身份域并重测。输入限 2 MiB / 2048 条，保存数与运行活跃 K 无关。导入预览只存于本进程内存，草稿最多 8 份、2 小时有效；明确丢弃或替换时释放对应草稿，迟到且已放弃的结果同样释放，离线或页面关闭未送达的清理仍由过期机制兜底；设置或引导最终保存才替换，失败保留旧快照。展示名不入快照；状态仅含数量及固定诊断 |
+| config.proxyNodes | 可选节点快照，复用 version=1 / dpapi-current-user 封套；解密载荷为 `{version:2,nodes:[原生连接参数]}`。整份文档含服务器及凭据均加密，与 config 同一原子替换；无明文副本。坏/未知封套及旧节点载荷 version=1 保留并提示重新导入，不视为空库；旧载荷不静默改写，原始内容重新导入后采用新身份域并重测。输入限 2 MiB / 2048 条，保存数与运行活跃 K 无关。导入预览只存于本进程内存，草稿最多 8 份、2 小时有效；明确丢弃或替换时释放对应草稿，迟到且已放弃的结果同样释放，离线或页面关闭未送达的清理仍由过期机制兜底；设置保存才替换，失败保留旧快照。展示名不入快照；状态仅含数量及固定诊断 |
 | terms.json | 封套 `{format:1, protection:"dpapi-current-user", ciphertext:"<base64>"}`；密文包含 purpose=`swd-terms-receipt-v1`、version（条款版本）、sha256（正文摘要）及 acceptedAt（非零有效时间）。封套版本独立于条款版本。每次启动由当前用户解密，缺失/旧明文/未知格式/损坏/解密失败/条款不符均不授予同意；不自动覆盖失效记录。只有明确勾选提交且保护及原子写成功后更新内存。记录上限 64 KiB；允许系统时钟回拨，不用本地时间证明身份 |
-| channel.key | 无复杂封套，精确 32 个随机字节，供下述 HMAC-SHA256 用途共享，域分隔符冻结。缺失排他生成；长度错误或不可读时保留原文件，通道使用临时身份且不复用持久样本，引导版本则返回错误，不回退公开摘要或临时密钥。不是加密凭据或节点快照的密钥 |
+| channel.key | 无复杂封套，精确 32 个随机字节，供下述 HMAC-SHA256 用途共享，域分隔符冻结。缺失排他生成；长度错误或不可读时保留原文件，通道使用临时身份且不复用持久样本。不是加密凭据或节点快照的密钥 |
 | state/throughput.json | schemaVersion=1、lastAttempt、samples；sample 包含 observedAt、songID、bytes、durationNs。只恢复合法域名通道和稳定代理身份、正字节/时长且非未来样本。无版本/其它版本不解释；坏 JSON 保留至下一次成功的原子保存，不生成隔离副本；历史节点键不迁移，重新采样。它不是网络当前健康真相 |
 | state/inventory.json | schemaVersion=1、storageDir、result；result 为 Inventory：catalog（revision/checkedAt/message/error）、coverageKnown/coveredSongs/totalSongs/catalogRevision/videos/bytes/scanning/updated/error；恢复强制 scanning=false |
 | state/batch.json、attempt.json | 同一独立快照版本 1 和库归属；result 为 Batch：catalog/catalogWarning/budgetReached/catalogHits/reused/scanOnly/missing/updated/finished/running/phase/total/checked/hits/downloaded/failed/current/failures（id/name/error）。恢复 running=false；attempt 需 finished 非零。不是可恢复执行队列 |
 | Windows 会话发现 JSON | address（仅 127.0.0.1 回环地址）、Identity（SWD 应用/协议版本、EXE、配置、PID 和进程创建时间）；仅供临时发现，还核实进程、端口和后端身份；无需用户数据迁移版本，不作为授权依据 |
 
-通道身份和引导版本的 HMAC 输入分别为：
+通道身份的 HMAC 输入为：
 
 - 外部 SOCKS5：JSON 数组 `["socks5-channel-v1",address,username,password]`，输出 `stable-v1-` 加十六进制摘要。
 - Mihomo 节点：`swd-mihomo-node-v2` 加 NUL 字节，再加原生连接参数的 JSON，输出同样的 `stable-v1-` 摘要。展示名、导入顺序和活跃上限 K 不参与身份；连接参数或凭据变化会改变身份。不强求跨格式/省略默认值等价合并；v1 身份域保留为历史，不迁移、不重置 channel.key。
-- 引导配置版本：`swd-setup-settings-v1` 加 NUL 字节，再依次连接完整 Settings JSON（含外部密码）、不可解密时的外部受保护凭据原文、JSON 字符串数组 `[nodeSnapshot,nodeSecret]`，输出 `hmac-v1-` 加十六进制摘要。数组覆盖可读节点快照及不可读封套，节点变更同样使旧引导草稿和重启衔接失效；节点内容不通过 Settings JSON 暴露。
 
 DPAPI CurrentUser 不使用路径作为额外熵，不请求 UAC。同用户覆盖/移动可用；另一用户或普通独立机器可能不可用，但域用户漫游可能保留能力，**不是绝对设备绑定**。非 Windows 无明文替代方案：保存密码或节点快照明确失败，已有封套显示不可用。强制代理的不可用凭据使代理拨号失败；Auto 保留允许直连/代理回退的策略，不篡改保存的偏好。节点连接参数及凭据已由整份快照保护；未来增加令牌、私钥、带认证订阅 URL 同样必须保护，不落盘原始导入副本。
 
@@ -267,3 +263,5 @@ DPAPI CurrentUser 不使用路径作为额外熵，不请求 UAC。同用户覆�
 本次没有伪造 v1→v2 或配置 v2→v3 迁移。将来正式发布的旧格式若需要升级，应在该唯一打开入口持锁检查身份后、启动业务前实现针对性事务步骤，保留旧样本并测试成功/失败回滚和降级拒绝；配置升级应原子替换，失败保留原文件。不能以删库重建、改版本号或清空陌生目录代替升级。
 
 已覆盖固定样本反复读写打开不改字节、旧/未来/未知版本、缺表/索引/新增列、损坏/空/缺失数据库、初始化中途失败回滚、设置替换失败保留密文、DPAPI 篡改与重配、同用户移动、时间精度与并发同刻/回拨、跨库和 Portable 相对路径。真实断电/磁盘耗尽、另一 Windows 用户/普通跨机器和 VRChat/托盘/UAC 联合验收仍需专门环境，不用本地单用户测试冒充通过。
+
+四步引导移除后，不再读写 `state/setup.json`、`state/setup-apply.json` 或逐 ID 回执；旧文件及旧工作槽保留原样，不迁移、不恢复任务。

@@ -26,7 +26,7 @@ func (c *Console) activationPhase(phase string) {
 // Inject only the hosts boundary in tests; service startup uses the real lifecycle.
 func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(string) error) (err error) {
 	if !c.activationMu.TryLock() {
-		return errors.New("启用向导仍在执行，请等待当前操作完成")
+		return errors.New("正在启用加速，请等待当前操作完成")
 	}
 	defer c.activationMu.Unlock()
 	// Keep tray, settings and individual hosts operations from interleaving.

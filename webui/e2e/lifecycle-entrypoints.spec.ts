@@ -1,6 +1,5 @@
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
-import {navigateStep} from './navigation';
 
 test('all WebUI surfaces use acceleration and exit instead of independent lifecycle controls',async({page})=>{
   const api=await mockAPI(page);
@@ -10,7 +9,6 @@ test('all WebUI surfaces use acceleration and exit instead of independent lifecy
     await expect(page.getByRole('heading',{level:1})).toBeVisible();
     await expect(page.getByRole('button',{name:removed})).toHaveCount(0);
   }
-  await navigateStep(page,'4. 启用');
   await expect(page.getByRole('button',{name:removed})).toHaveCount(0);
   expect(api.calls.filter(call=>['start','stop','hosts/enable','hosts/disable','queue/start','queue/stop'].includes(call.path))).toHaveLength(0);
 });

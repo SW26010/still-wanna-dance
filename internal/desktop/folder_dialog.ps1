@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $request = [Console]::In.ReadToEnd() | ConvertFrom-Json
 Add-Type -AssemblyName System.Windows.Forms
-# Windows Common Item Dialog in folder-picking mode (Explorer-style address bar,
+# Windows Common Item Dialog in file-picking mode (Explorer-style address bar,
 # search and navigation); no legacy SHBrowseForFolder / FolderBrowserDialog.
 # https://learn.microsoft.com/windows/win32/shell/common-file-dialog
 Add-Type -ReferencedAssemblies System.Windows.Forms, System.Drawing -TypeDefinition @'
@@ -96,7 +96,7 @@ public static class SWDFolderDialog {
     }
   }
 
-  public static string Select(string title, string initial, bool file = false) {
+  public static string Select(string title, string initial) {
     // Capture the browser before the helper creates its own windows.
     IntPtr foreground = GetForegroundWindow();
     using (var dpi = new DpiScope())
@@ -109,18 +109,18 @@ public static class SWDFolderDialog {
         owner.Show(new WindowHandle(foreground));
       else owner.Show();
       owner.Hide();
-      return SelectOwned(title, initial, owner.Handle, file);
+      return SelectOwned(title, initial, owner.Handle);
     }
   }
 
-  static string SelectOwned(string title, string initial, IntPtr owner, bool file) {
+  static string SelectOwned(string title, string initial, IntPtr owner) {
     var dialog = (IFileDialog)new FileOpenDialog();
     try {
       uint options; dialog.GetOptions(out options);
-      // PICKFOLDERS or FILEMUSTEXIST, plus filesystem/path/no-recent options.
-      dialog.SetOptions(options | (file ? 0x1000u : 0x20u) | 0x40u | 0x800u | 0x8u | 0x02000000u);
+      // FILEMUSTEXIST plus filesystem/path/no-recent options.
+      dialog.SetOptions(options | 0x1000u | 0x40u | 0x800u | 0x8u | 0x02000000u);
       dialog.SetTitle(title);
-      if (file && File.Exists(initial)) {
+      if (File.Exists(initial)) {
         dialog.SetFileName(Path.GetFileName(initial));
         initial = Path.GetDirectoryName(initial);
       }
@@ -141,5 +141,5 @@ public static class SWDFolderDialog {
   }
 }
 '@
-$selected = [SWDFolderDialog]::Select($request.title, $request.initial, [bool]$request.file)
+$selected = [SWDFolderDialog]::Select($request.title, $request.initial)
 [Console]::Out.Write((@{path=$selected} | ConvertTo-Json -Compress))

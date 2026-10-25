@@ -60,7 +60,7 @@ for(const width of [390,1280])test(`sidebar matches tasks and auxiliary pages ($
   await navigate(page,'关于');
   await expect(page.getByRole('heading',{level:2,name:'Load failed? But I still wanna dance!',exact:true})).toBeVisible();
   await navigate(page,'帮助');
-  await expect(page.getByRole('link',{name:'重新进入使用引导',exact:true})).toBeVisible();
+  await expect(page.getByRole('link',{name:'重新进入使用引导',exact:true})).toHaveCount(0);
   await page.screenshot({path:info.outputPath('navigation-help.png'),fullPage:true,animations:'disabled'});
 });
 
@@ -78,8 +78,8 @@ test('proxy configuration and checks share the same unsaved draft without saving
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).not.toBeVisible();
   await expect(page.getByRole('combobox',{name:'检测上游',exact:true})).toHaveValue('proxy');
   await page.getByRole('button',{name:'开始连通性检测',exact:true}).click();
-  const call=api.calls.find(c=>c.path==='setup/network/connectivity/start');
-  expect(call?.body.proxy).toMatchObject({socks5Address:'127.0.0.1:7891',upstreamMode:'proxy'});
+  const call=api.calls.find(c=>c.path==='network/connectivity/start');
+  expect(call?.body).toMatchObject({upstream:'proxy',proxy:{socks5Address:'127.0.0.1:7891'}});
   expect(api.calls.some(c=>c.path==='settings')).toBe(false);
   await page.getByRole('link',{name:'网络设置',exact:true}).click();
   await expect(page.getByRole('heading',{name:'设置',level:1,exact:true})).toBeVisible();

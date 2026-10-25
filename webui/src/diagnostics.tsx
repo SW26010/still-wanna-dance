@@ -26,7 +26,7 @@ function useDiagnostic<T extends EventState>(kind:Kind, enabled:boolean, onUpstr
       if (document.hidden) { disconnect(); return; }
       if (stream) return;
       let revision = -1;
-      const source = stream = new EventSource(`/api/setup/network/${kind}/events`);
+      const source = stream = new EventSource(`/api/network/${kind}/events`);
       setMessage('正在连接检测状态…');
       source.addEventListener(kind,event => {
         if (stream !== source) return;
@@ -50,7 +50,7 @@ function useDiagnostic<T extends EventState>(kind:Kind, enabled:boolean, onUpstr
     if (!online || pending || currentIntent.current || state?.closed) return;
     const action = latest.current?.running ? 'cancel' : 'start';
     currentIntent.current={action,run:latest.current?.run || 0};setIntent(action);setPending(true);setMessage('');
-    try {await request(`setup/network/${kind}/${action}`, action==='cancel' ? {} : {upstream,...(upstream==='proxy'?{proxy}:{})});}
+    try {await request(`network/${kind}/${action}`, action==='cancel' ? {} : {upstream,...(upstream==='proxy'?{proxy}:{})});}
     catch(e) {currentIntent.current=undefined;setIntent(undefined);setMessage('操作未确认：'+String(e)+'。请根据推送状态核对。');}
     finally {setPending(false);}
   }

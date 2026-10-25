@@ -231,7 +231,7 @@ func TestAutoAccelerationUpdatesOwnedHosts(t *testing.T) {
 	c := testConsole(t)
 	data := "\r\n127.0.0.1 api.udon.dance " + marker + "\r\n\r\n127.0.0.1 nya.xin.moe " + marker + "\r\n"
 	c.hosts, _ = fixtureHostsController(t, data)
-	completeStartupSetup(t, c)
+
 	c.AutoStart()
 	if !c.DesktopState().CDN || c.activation.Phase != "waiting" || !c.hosts.status().Ready || c.hosts.status().NeedsMigration {
 		t.Fatal(c.activation)

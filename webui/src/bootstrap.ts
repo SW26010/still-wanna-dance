@@ -3,7 +3,7 @@ export interface Bootstrap {
   theme?: ThemePreference;
   page: 'about' | 'help' | 'terms' | 'console';
   token: string;
-  termsGate?: { pageID: string; step: string } | null;
+  termsGate?: { pageID: string } | null;
   paths?: Record<string, string>;
   terms?: { text: string; version: string };
   build?: { kind: string; version: string; revision: string; dirty: boolean; builtAtUtc: string; toolchain: string; target: string };

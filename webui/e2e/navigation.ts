@@ -14,10 +14,3 @@ export async function navigateSettings(page:Page,tab:string) {
   await navigate(page,'设置');await page.getByRole('tab',{name:tab,exact:true}).click();
   await expect(page.getByRole('tab',{name:tab,exact:true})).toHaveAttribute('aria-selected','true');
 }
-export async function navigateStep(page:Page,name:string) {
-  const toggle=page.getByRole('button',{name:'展开引导步骤',exact:true});
-  if(page.viewportSize()!.width<=640)await toggle.click();
-  await page.getByRole('navigation',{name:'引导步骤',exact:true}).getByRole('button',{name,exact:true}).click();
-  await expect(page.getByRole('heading',{level:1,name:name.slice(3),exact:true})).toBeVisible();
-  if(page.viewportSize()!.width<=640)await expect(toggle).toBeVisible();
-}

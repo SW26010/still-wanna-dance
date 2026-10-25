@@ -9,15 +9,15 @@
 | 范围 | 当前实现 |
 | --- | --- |
 | 页面与主题 | FluentProvider、Card/CardHeader、Text、Image、Divider；程序主题选择及系统跟随、窄屏换行和 reduced-motion |
-| 导航 | NavDrawer/NavItem/Hamburger；桌面左侧 inline 可展开／收起，≤640px 左侧 overlay；页面保留真实链接，引导步骤校验后切换 |
+| 导航 | NavDrawer/NavItem/Hamburger；桌面左侧 inline 可展开／收起，≤640px 左侧 overlay；页面保留真实链接 |
 | 字段与操作 | Field/Input/Select/Textarea/Checkbox/RadioGroup、Button、Dialog、MessageBar、ProgressBar |
 | 记录列表 | 曲库和请求历史采用 Table/TableCellLayout，每例一行；当前请求、下载、队列和线路检测同样使用 Table。业务负责受保护项、请求行身份及移除行后的焦点回退 |
 | 测速 | `@fluentui/react-charts` v9 GaugeChart；实际倍率与 1×/2× 阈值，线性范围至少 0–3，随更高样本扩展；没有自绘指针或分段刻度 |
 | 块需求时间轴与需求视图 | Canvas 绘制连续时间与方块、可见需求行的块；D3 scale/zoom/selection 负责刻度及缩放拖动；Fluent Button、Slider、Switch、Popover、Badge 承担外围控件和共用详情，按需 SSE 提供数据 |
-| 文件选择 | 浏览器原生 file input，通过 Field 关联标签；Fluent Input 不支持 file 类型。目录选择调用 Windows IFileDialog |
-| 必要业务逻辑 | 条款门禁、独立草稿、保存后状态同步、原 ID 回执核对、历史游标分页、检测事件与取消恢复；不重复实现标准组件的键盘或弹窗行为 |
+| 文件选择 | 浏览器原生 file input，通过 Field 关联标签；Fluent Input 不支持 file 类型。VRCX 数据库选择调用 Windows IFileDialog |
+| 必要业务逻辑 | 条款门禁、设置草稿、保存后状态同步、历史游标分页、检测事件与取消恢复；不重复实现标准组件的键盘或弹窗行为 |
 
-任务页面及四步引导的内容分工见[内容分类](webui-content.md)，平台辅助技术边界见[可访问性约定](webui-accessibility.md)。组件契约以锁定依赖的类型和实现为准；参考 [Fluent 官方接入](https://fluent2.microsoft.design/get-started/develop)与 [GaugeChart](https://microsoft.github.io/fluentui-charting-contrib/docs/Charting-Concepts/GaugeChart)。
+任务页面及条款弹窗的内容分工见[内容分类](webui-content.md)，平台辅助技术边界见[可访问性约定](webui-accessibility.md)。组件契约以锁定依赖的类型和实现为准；参考 [Fluent 官方接入](https://fluent2.microsoft.design/get-started/develop)与 [GaugeChart](https://microsoft.github.io/fluentui-charting-contrib/docs/Charting-Concepts/GaugeChart)。
 
 ## 页面排版
 
@@ -25,9 +25,9 @@
 
 图形和配色以 `internal/branding/logo.svg` 为唯一来源。页面 Logo 通过 SVG 的 `prefers-color-scheme` 跟随承载页面的 color-scheme；标签页图标复用同源生成的两套 ICO，按程序主题切换 `/favicon-light.ico` 和 `/favicon.ico`，避免浏览器选择固定深色后备图标或缓存 SVG 的旧配色。浅色使用已确认的第四版（背景 `#EAFFDF`、圆环 `#80DE50`、人物／闪电 `#20552A`，无描边），深色保持原图。Windows 托盘使用相同两套 ICO，并读取同一程序主题偏好；自动保存、系统跟随与同步规则见[配置生命周期](settings-lifecycle.md)。资源生成和离线构建要求见[产品图标约定](evidence-storage.md#git-历史和防回归)。
 
-常规页面和引导步骤共用侧栏展开／收起按钮。桌面默认展开，收起后保留按钮并释放正文宽度；按钮保持挂载，键盘操作不会丢失焦点。应用内切换页面时保留展开状态，刷新后默认展开，不写入配置；窄屏抽屉仍由 Fluent 管理焦点、Escape 和遮罩关闭，独立于桌面展开状态。
+常规页面提供侧栏展开／收起按钮。桌面默认展开，收起后保留按钮并释放正文宽度；按钮保持挂载，键盘操作不会丢失焦点。应用内切换页面时保留展开状态，刷新后默认展开，不写入配置；窄屏抽屉仍由 Fluent 管理焦点、Escape 和遮罩关闭，独立于桌面展开状态。
 
-常规侧栏按导航内容自然占高，仅限制最大高度以适应视口；不以整屏高度撑开页头下方的区域。长页面保留浏览器滚动和侧栏 sticky 定位，引导仍由正文区域独立滚动。
+常规侧栏按导航内容自然占高，仅限制最大高度以适应视口；不以整屏高度撑开页头下方的区域。长页面保留浏览器滚动和侧栏 sticky 定位。
 
 六个主页面共用页头与标题容器；应用内的关于页面同样保留后台状态。根滚动容器使用标准 [`scrollbar-gutter: stable`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/scrollbar-gutter)，使长短页面切换时可用宽度一致；短页面不强制显示滚动条或产生额外滚动范围。
 

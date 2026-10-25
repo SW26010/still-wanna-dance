@@ -12,14 +12,14 @@ interface Preview {
 const release = async (id?: string) => {
   if (id) try { await request('vrcx/discard', {id}); } catch { /* Server expires the bounded preview. */ }
 };
-export function useVRCX(target: string, ready = true, disabled = false, wizard = false) {
+export function useVRCX(target: string) {
   const app = useApp();
   const [selected, setSelected] = useState<boolean>(), [existingSongs, setExistingSongs] = useState<number>();
   const [path, setPath] = useState(''), [found, setFound] = useState<boolean>(), [targetPending, setTargetPending] = useState(true), [targetError, setTargetError] = useState('');
   const [preview, setPreview] = useState<Preview>(), [pending, setPending] = useState(false), [message, setMessage] = useState('');
   const mounted = useRef(true), controller = useRef<AbortController | undefined>(undefined), current = useRef<Preview | undefined>(undefined), lock = useRef(false), revision = useRef(0);
   const enabled = selected ?? existingSongs === 0;
-  const locked = disabled || app.unavailable || pending || targetPending;
+  const locked = app.unavailable || pending || targetPending;
   const busy = (value: boolean) => { lock.current = value; setPending(value); };
   function clear() {
     revision.current++; controller.current?.abort();
@@ -28,15 +28,14 @@ export function useVRCX(target: string, ready = true, disabled = false, wizard =
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; controller.current?.abort(); void release(current.current?.id); }; }, []);
   useEffect(() => { clear(); setSelected(undefined); }, [target]);
   useEffect(() => {
-    if (!ready) return;
     let canceled = false;
     setTargetPending(true); setExistingSongs(undefined); setTargetError('');
-    void request<{path:string;found:boolean;existingSongs?:number;targetError?:string}>('vrcx/detect', wizard?{storageDir:target}:{}).then(result => {
-      if (!canceled) { if(!wizard)setPath(value => value || result.path); setFound(result.found); setExistingSongs(result.existingSongs); setTargetError(result.targetError || ''); }
+    void request<{path:string;found:boolean;existingSongs?:number;targetError?:string}>('vrcx/detect', {}).then(result => {
+      if (!canceled) { setPath(value => value || result.path); setFound(result.found); setExistingSongs(result.existingSongs); setTargetError(result.targetError || ''); }
     }).catch(() => { if (!canceled) { setFound(false); setTargetError('无法检查目标歌曲统计'); } })
       .finally(() => { if(!canceled)setTargetPending(false); });
     return () => { canceled = true; };
-  }, [ready, target, wizard]);
+  }, [target]);
   async function choose() {
     if (lock.current || locked) return;
     busy(true); setMessage('');
@@ -48,11 +47,11 @@ export function useVRCX(target: string, ready = true, disabled = false, wizard =
     finally { if (mounted.current) busy(false); }
   }
   async function inspect() {
-    if (!enabled || !ready || lock.current || locked) return;
+    if (!enabled || lock.current || locked) return;
     clear(); busy(true);
     const checkedRevision = revision.current, abort = new AbortController(); controller.current = abort;
     try {
-      const result = await request<Preview>('vrcx/preview', {path, ...(wizard ? {storageDir:target} : {})}, AbortSignal.any([abort.signal, AbortSignal.timeout(35000)]));
+      const result = await request<Preview>('vrcx/preview', {path}, AbortSignal.any([abort.signal, AbortSignal.timeout(35000)]));
       if (!mounted.current || checkedRevision !== revision.current) { void release(result.id); return; }
       setPreview(result); current.current = result;
     } catch (e) {
@@ -82,10 +81,8 @@ export function useVRCX(target: string, ready = true, disabled = false, wizard =
     } finally { if (mounted.current) busy(false); }
   }
   return {target, enabled, path, found, preview, pending, targetPending, targetError, message, locked, choose, inspect, apply, confirmOverwrite,
-    changed:selected!==undefined&&selected!==(existingSongs===0),
     toggle: (value:boolean) => { clear(); setSelected(value); },
-    changePath: (value:string) => { clear(); setPath(value); },
-    reset: () => { clear(); setSelected(undefined); setPath(''); }};
+    changePath: (value:string) => { clear(); setPath(value); }};
 }
 type VRCXModel = ReturnType<typeof useVRCX>;
 
@@ -93,13 +90,6 @@ export function VRCXOption({model:m}: {model:VRCXModel}) {
   return <div className="content-stack">
     <Checkbox label="从 VRCX 导入历史偏好" checked={m.enabled} disabled={m.locked} onChange={(_, data) => m.toggle(!!data.checked)} />
     <Caption1 as="p" className="hint">根据 VRCX 历史，优先下载和保留你常用的歌曲。</Caption1>
-  </div>;
-}
-
-export function VRCXCheck({model:m}: {model:VRCXModel}) {
-  const p = m.preview;
-  return <div className="content-stack">
-    <p role="status">VRCX 歌曲偏好：{m.targetPending||m.pending?'正在检查…':m.targetError&&!m.enabled?`检查不通过，跳过导入。${m.targetError}`:!m.enabled?'未选择，跳过导入':m.message?`检查不通过，跳过导入。${m.message}`:p?.id&&p.events?`检查通过，${p.events} 次需求 / ${p.songs} 首歌曲，确认并应用后导入。`:p?'没有有效历史需求，跳过导入':'尚未检查'}</p>
   </div>;
 }
 

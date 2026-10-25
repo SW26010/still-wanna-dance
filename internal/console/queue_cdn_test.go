@@ -84,7 +84,7 @@ func TestQueueWithGatewayDoesNotStartWithoutCDN(t *testing.T) {
 	c.settings.QueueWithGateway = true
 	c.settings.AutoAccelerate = false
 	c.savedSettings = c.settings
-	completeStartupSetup(t, c)
+
 	c.AutoStart()
 	if c.queue.Running || c.queueDesired || c.httpServer != nil {
 		t.Fatal("queue started without its gateway")

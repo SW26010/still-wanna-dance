@@ -82,69 +82,65 @@ type Console struct {
 	termsPageID            string
 	termsExitTimer         *time.Timer
 	termsExitGeneration    uint64     // invalidates callbacks already waiting for mu
-	activationMu           sync.Mutex // rejects duplicate wizard submissions, including across tabs
+	activationMu           sync.Mutex // rejects duplicate acceleration requests, including across tabs
 	activation             Activation // protected by mu; never persisted
 	activationGeneration   uint64     // protected by mu; distinguishes same-clock-tick retries
 	// Acquire lifecycleMu before mu; state readers never wait on lifecycleMu.
-	lifecycleMu         sync.Mutex
-	hosts               *hostsController // operations are serialized by lifecycleMu
-	queueUpdateMu       sync.Mutex       // acquire before mu; serializes engine queue protection
-	inventoryMu         sync.Mutex
-	inventory           Inventory
-	inventorySettings   Settings
-	inventoryGeneration uint64
-	inventoryDone       chan struct{}
-	inventoryCancel     context.CancelFunc // protected by inventoryMu
-	mu                  sync.Mutex
-	settings            Settings // active configuration; theme and exit policy apply after save
-	savedSettings       Settings // last successfully persisted configuration
-	savedNodeCount      int
-	loadedNodeCount     int
-	setupVersionMu      sync.Mutex // key I/O never holds mu
-	setupVersion        settingsVersionCache
-	autoStartOnce       sync.Once
-	autoStartPending    bool // protected by mu; startup deferred until setup succeeds after consent
-	configPath          string
-	token               string
-	address             string
-	videoAddress        string
-	httpsAddress        string
-	https               *httpsRelay
-	service             *cacheproxy.Server
-	blockEngineWaiters  map[chan struct{}]bool // lazy, only while a visible timeline awaits engine creation; mu
-	httpServer          *http.Server
-	videoListener       net.Listener
-	cdnError            string
-	actionErrors        map[string]string
-	batch               Batch
-	lastBatch           Batch
-	importStatus        ImportStatus
-	importReceipts      []cacheproxy.ImportedVideo
-	importCancel        context.CancelFunc
-	importDone          chan struct{}
-	batchCancel         context.CancelFunc
-	batchDone           chan struct{}
-	queue               QueueStatus
-	queueDesired        bool // queue enable intent; independent of manual downloads
-	queueCancel         context.CancelFunc
-	queueDone           chan struct{}
-	closing             bool
-	client              *http.Client
-	checksumURL         string
-	apiBase             string
-	dns                 directResolver
-	upstreamDial        upstreamDialFunc
-	requestRevision     uint64
-	monitor             *upstreamstate.Monitor
-	monitorRequested    bool
-	monitorManual       bool
-	monitorManualAt     time.Time
-	monitorManualDone   chan struct{}
-	setupNetwork        *setupNetwork
-	setupApplyMu        sync.Mutex
-	setupApplication    SetupApplication   // protected by mu
-	setupFolderCancel   context.CancelFunc // protected by mu; also serializes dialogs
-	setupFolderPicker   func(context.Context, string, string) (string, error)
+	lifecycleMu          sync.Mutex
+	hosts                *hostsController // operations are serialized by lifecycleMu
+	queueUpdateMu        sync.Mutex       // acquire before mu; serializes engine queue protection
+	inventoryMu          sync.Mutex
+	inventory            Inventory
+	inventorySettings    Settings
+	inventoryGeneration  uint64
+	inventoryDone        chan struct{}
+	inventoryCancel      context.CancelFunc // protected by inventoryMu
+	mu                   sync.Mutex
+	settings             Settings // active configuration; theme and exit policy apply after save
+	savedSettings        Settings // last successfully persisted configuration
+	savedNodeCount       int
+	loadedNodeCount      int
+	autoStartOnce        sync.Once
+	autoStartPending     bool // protected by mu; startup deferred until consent succeeds
+	configPath           string
+	token                string
+	address              string
+	videoAddress         string
+	httpsAddress         string
+	https                *httpsRelay
+	service              *cacheproxy.Server
+	blockEngineWaiters   map[chan struct{}]bool // lazy, only while a visible timeline awaits engine creation; mu
+	httpServer           *http.Server
+	videoListener        net.Listener
+	cdnError             string
+	actionErrors         map[string]string
+	batch                Batch
+	lastBatch            Batch
+	importStatus         ImportStatus
+	importReceipts       []cacheproxy.ImportedVideo
+	importCancel         context.CancelFunc
+	importDone           chan struct{}
+	batchCancel          context.CancelFunc
+	batchDone            chan struct{}
+	queue                QueueStatus
+	queueDesired         bool // queue enable intent; independent of manual downloads
+	queueCancel          context.CancelFunc
+	queueDone            chan struct{}
+	closing              bool
+	client               *http.Client
+	checksumURL          string
+	apiBase              string
+	dns                  directResolver
+	upstreamDial         upstreamDialFunc
+	requestRevision      uint64
+	monitor              *upstreamstate.Monitor
+	monitorRequested     bool
+	monitorManual        bool
+	monitorManualAt      time.Time
+	monitorManualDone    chan struct{}
+	networkDiagnostics   *networkDiagnostics
+	databasePickerCancel context.CancelFunc // protected by mu; also serializes dialogs
+	databasePicker       func(context.Context, string, string) (string, error)
 }
 
 func New(configPath, address string) (*Console, error) {
@@ -204,7 +200,6 @@ func newConsole(configPath, address string, dns directResolver) (*Console, error
 	}
 	if err == nil {
 		c.loadSnapshots()
-		c.loadSetupApplication()
 		c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport)
 	}
 	if err != nil && c.client != nil {
@@ -412,7 +407,7 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool) error {
 	// Preserve an existing library when saving unrelated settings. New choices
 	// must use the default location or a directory outside Portable.
 	if s.StorageDir != oldSettings.StorageDir {
-		if err = c.validateStorageSelection(s.StorageDir, false); err != nil {
+		if err = c.validateStorageSelection(s.StorageDir); err != nil {
 			return err
 		}
 	}
@@ -428,7 +423,6 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool) error {
 		return err
 	}
 	nodeCount := len(nodeDocument(s.nodeSnapshot).Nodes)
-	c.refreshSettingsVersionIfUsed(s)
 	c.mu.Lock()
 	c.savedSettings = s
 	c.settings.RestoreHostsOnExit = s.RestoreHostsOnExit
@@ -499,21 +493,20 @@ func (c *Console) ensureEngine() error {
 	return nil
 }
 
-// AutoStart attempts acceleration once per process, after the final setup apply.
+// AutoStart attempts acceleration once per process, after valid terms acceptance.
 func (c *Console) AutoStart() {
 	c.autoStartOnce.Do(func() {
 		c.mu.Lock()
 		c.autoStartPending = true
-		ready := c.terms.valid() && c.setupApplication.Phase == "completed"
+		ready := c.terms.valid()
 		c.mu.Unlock()
 		if ready {
 			c.autoStart()
 		}
-		c.resumeSetupApplication(c.startImport)
 	})
 }
 
-// Also called after a successful final setup apply, including restart continuation.
+// Also called after explicit consent; repeated acceptance never retries startup.
 func (c *Console) autoStart() {
 	c.mu.Lock()
 	if !c.autoStartPending || !c.terms.valid() {
@@ -669,22 +662,22 @@ func (c *Console) BeginShutdown() {
 	c.mu.Lock()
 	c.closing = true
 	c.notifyBlockEngineLocked()
-	if c.setupFolderCancel != nil {
-		c.setupFolderCancel()
+	if c.databasePickerCancel != nil {
+		c.databasePickerCancel()
 	}
 	c.cancelTermsExitLocked()
 	c.queueDesired = false
 	upstreamrequest.Default.Release(c.requestRevision)
-	if c.setupNetwork != nil {
-		if c.setupNetwork.connectivityCancel != nil {
-			c.setupNetwork.connectivityCancel()
+	if c.networkDiagnostics != nil {
+		if c.networkDiagnostics.connectivityCancel != nil {
+			c.networkDiagnostics.connectivityCancel()
 		}
-		c.setupNetwork.connectivity.Closed = true
-		c.publishSetupConnectivityLocked()
-		if c.setupNetwork.calibration != nil {
-			c.setupNetwork.calibration.Shutdown()
+		c.networkDiagnostics.connectivity.Closed = true
+		c.publishNetworkConnectivityLocked()
+		if c.networkDiagnostics.calibration != nil {
+			c.networkDiagnostics.calibration.Shutdown()
 		}
-		c.setupNetwork.channel.Release(c.setupNetwork.revision)
+		c.networkDiagnostics.channel.Release(c.networkDiagnostics.revision)
 	}
 	if c.batchCancel != nil {
 		c.batchCancel()
@@ -718,7 +711,7 @@ func (c *Console) Close() error {
 	}
 	c.mu.Lock()
 	monitor := c.monitor
-	setupNetwork := c.setupNetwork
+	networkDiagnostics := c.networkDiagnostics
 	monitorManualDone := c.monitorManualDone
 	done, importDone, queueDone := c.batchDone, c.importDone, c.queueDone
 	c.mu.Unlock()
@@ -726,7 +719,7 @@ func (c *Console) Close() error {
 	inventoryDone := c.inventoryDone
 	c.inventoryMu.Unlock()
 	err := c.stop()
-	setupNetwork.close()
+	networkDiagnostics.close()
 	if monitor != nil {
 		monitor.Close()
 	}
@@ -794,15 +787,6 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if c.serveTerms(w, r) {
 		return
 	}
-	if r.Method == "GET" && r.URL.Path == "/api/setup" {
-		progress, err := c.setupProgress()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusConflict)
-			return
-		}
-		writeJSON(w, progress)
-		return
-	}
 	if r.Method == "GET" && r.URL.Path == "/" {
 		c.serveConsolePage(w, nil)
 		return
@@ -858,10 +842,6 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			DefaultStorageDir     string                  `json:"defaultStorageDir"`
 			PortableDir           string                  `json:"portableDir"`
 			UpstreamMonitor       upstreamstate.Status    `json:"upstreamMonitor"`
-			SetupNetwork          setupNetworkStatus      `json:"setupNetwork"`
-			SetupApplication      SetupApplication        `json:"setupApplication"`
-			SetupSettingsVersion  string                  `json:"setupSettingsVersion"`
-			SetupSettingsError    string                  `json:"setupSettingsError,omitempty"`
 		}{
 			Running: running, Settings: c.savedSettings, ActiveSettings: c.settings,
 			RestartRequired: c.savedSettings != c.settings,
@@ -872,11 +852,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ProxyNodes:            c.proxyNodesStatusLocked(),
 			Activation:            c.activation, DefaultLogDir: defaultLogDir(),
 			DefaultStorageDir: c.defaultStorageDir(), PortableDir: portableDir(),
-			UpstreamMonitor:  c.monitorSnapshotLocked(),
-			SetupNetwork:     c.setupNetworkSnapshotLocked(),
-			SetupApplication: c.setupApplication.public(),
+			UpstreamMonitor: c.monitorSnapshotLocked(),
 		}
-		versionSettings := result.Settings
 		result.Settings.SOCKS5Password = ""
 		result.ActiveSettings.SOCKS5Password = ""
 		result.Queue.Desired = c.queueDesired
@@ -890,11 +867,6 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		result.Queue.Failures = append([]Failure(nil), c.queue.Failures...)
 		result.Batch.Failures = append([]Failure(nil), c.batch.Failures...)
 		c.mu.Unlock()
-		var versionErr error
-		result.SetupSettingsVersion, versionErr = c.cachedSettingsVersion(versionSettings)
-		if versionErr != nil {
-			result.SetupSettingsError = versionErr.Error()
-		}
 		result.Hosts = c.hosts.status()
 		if service != nil {
 			if err := service.StorageError(); err != nil {
@@ -1008,12 +980,12 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.serveBlockEvents(w, r)
 		return
 	}
-	if r.Method == "GET" && r.URL.Path == "/api/setup/network/calibration/events" {
-		c.serveSetupCalibrationEvents(w, r)
+	if r.Method == "GET" && r.URL.Path == "/api/network/calibration/events" {
+		c.serveNetworkCalibrationEvents(w, r)
 		return
 	}
-	if r.Method == "GET" && r.URL.Path == "/api/setup/network/connectivity/events" {
-		c.serveSetupConnectivityEvents(w, r)
+	if r.Method == "GET" && r.URL.Path == "/api/network/connectivity/events" {
+		c.serveNetworkConnectivityEvents(w, r)
 		return
 	}
 	if r.Method != "POST" {
@@ -1061,103 +1033,20 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, map[string]bool{"ok": true})
 			return
 		}
-	case "/api/setup/folder":
-		var input struct {
-			Kind string `json:"kind"`
-			Path string `json:"path"`
-		}
+	case "/api/network/calibration/start":
+		var input networkCalibrationRequest
 		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
-			var path string
-			path, err = c.selectSetupFolder(r.Context(), input.Kind, input.Path)
-			if err == nil {
-				writeJSON(w, map[string]any{"path": path, "canceled": path == ""})
-				return
-			}
+			err = c.controlNetworkCalibration(false, input)
 		}
-	case "/api/setup/receipt":
-		var input struct {
-			ID string `json:"id"`
-		}
+	case "/api/network/calibration/cancel":
+		err = c.controlNetworkCalibration(true, networkCalibrationRequest{})
+	case "/api/network/connectivity/start":
+		var input networkCalibrationRequest
 		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
-			c.setupApplyMu.Lock()
-			var receipt SetupApplication
-			receipt, err = c.readSetupReceipt(input.ID)
-			c.setupApplyMu.Unlock()
-			if err == nil {
-				writeJSON(w, receipt.public())
-				return
-			}
-			if os.IsNotExist(err) {
-				w.WriteHeader(http.StatusNotFound)
-				writeJSON(w, map[string]string{"error": "未找到原应用回执；请核对正式配置与导入任务，不会自动重新执行"})
-				return
-			}
+			err = c.controlNetworkConnectivity(false, input)
 		}
-	case "/api/setup/validate", "/api/setup/apply":
-		var input setupPlan
-		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
-			if r.URL.Path == "/api/setup/validate" {
-				var effects setupEffects
-				effects, err = c.reviewSetupPlan(input)
-				if err == nil {
-					writeJSON(w, effects)
-					return
-				}
-			} else {
-				var result SetupApplication
-				result, err = c.applySetupPlan(input)
-				if err == nil {
-					writeJSON(w, result.public())
-					_ = http.NewResponseController(w).Flush()
-					if result.Phase == "restart" {
-						c.exitOnce.Do(func() { close(c.restartRequested) })
-					}
-					return
-				}
-			}
-		}
-	case "/api/setup/network":
-		err = c.checkSetupNetwork()
-	case "/api/setup/network/calibration/start":
-		var input setupCalibrationRequest
-		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
-			err = c.controlSetupCalibration(false, input)
-		}
-	case "/api/setup/network/calibration/cancel":
-		err = c.controlSetupCalibration(true, setupCalibrationRequest{})
-	case "/api/setup/network/connectivity/start":
-		var input setupCalibrationRequest
-		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
-			err = c.controlSetupConnectivity(false, input)
-		}
-	case "/api/setup/network/connectivity/cancel":
-		err = c.controlSetupConnectivity(true, setupCalibrationRequest{})
-	case "/api/setup/network/catalog":
-		err = c.checkSetupNetwork(upstreamstate.CheckCatalog)
-	case "/api/setup/network/playback":
-		err = c.checkSetupNetwork(upstreamstate.CheckPlayback)
-	case "/api/setup/network/throughput":
-		err = c.checkSetupNetwork(upstreamstate.CheckThroughput)
-	case "/api/setup/logs":
-		writeJSON(w, c.inspectSetupLogs())
-		return
-	case "/api/setup/storage":
-		var input struct {
-			Path string `json:"path"`
-		}
-		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
-			var result setupStorage
-			result, err = c.inspectSetupStorage(input.Path)
-			if err == nil {
-				writeJSON(w, result)
-				return
-			}
-		}
-	case "/api/setup":
-		var progress SetupProgress
-		if err = json.NewDecoder(r.Body).Decode(&progress); err == nil {
-			err = c.saveSetupProgress(progress)
-		}
+	case "/api/network/connectivity/cancel":
+		err = c.controlNetworkConnectivity(true, networkCalibrationRequest{})
 	case "/api/upstream/check":
 		err = c.requestMonitorCheck()
 	case "/api/upstream/check/catalog":
@@ -1222,7 +1111,6 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/api/settings":
 		var input struct {
 			Settings
-			CustomStorage bool    `json:"customStorage"`
 			ProxyImportID string  `json:"proxyImportID"`
 			Password      *string `json:"socks5Password"`
 		}
@@ -1232,11 +1120,6 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		input.DownloadGrowIntervalMS = int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond)
 		input.LocalProtectionGraceSeconds = int(cacheproxy.DefaultLocalProtectionGrace / time.Second)
 		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
-			if input.CustomStorage {
-				if err = c.validateStorageSelection(input.StorageDir, true); err != nil {
-					break
-				}
-			}
 			if input.Password != nil {
 				input.Settings.SOCKS5Password = *input.Password
 			}

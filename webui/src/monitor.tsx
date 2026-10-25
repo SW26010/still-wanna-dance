@@ -88,8 +88,3 @@ export function CurrentDownloads({visible,paused=false}: {visible:boolean;paused
     </div>
   </section>;
 }
-export function LegacyNetworkDetails() {
-  const s=useApp().status.data?.setupNetwork, rows=s?.monitor?.results||[];
-  if(!rows.length&&!s?.error&&!s?.running)return null;
-  return <Panel title="向导直连诊断"><span role="status">{s?.running?'正在检测…':s?.error}</span><HealthTable rows={rows} minutes={(s?.monitor?.policy?.throughputInterval||20*60*1e9)/(60*1e9)} label="直连诊断结果"/><Link href="#/setup">返回使用引导</Link></Panel>;
-}

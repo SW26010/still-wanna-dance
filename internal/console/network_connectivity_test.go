@@ -20,23 +20,23 @@ import (
 	"still-wanna-dance/internal/upstreamstate"
 )
 
-func TestSetupConnectivityEventsManualCancelDiscardAndShutdown(t *testing.T) {
+func TestNetworkConnectivityEventsManualCancelDiscardAndShutdown(t *testing.T) {
 	c := testConsole(t)
-	started := stubSetupNetwork(t, c)
+	started := stubNetworkDiagnostics(t, c)
 	server := httptest.NewServer(c)
 	defer server.Close()
 	c.address = strings.TrimPrefix(server.URL, "http://")
 	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get(server.URL + "/api/setup/network/connectivity/events")
+	resp, err := client.Get(server.URL + "/api/network/connectivity/events")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
 	scan := bufio.NewScanner(resp.Body)
-	read := func() setupConnectivityStatus {
+	read := func() networkConnectivityStatus {
 		for scan.Scan() {
 			if line := scan.Text(); strings.HasPrefix(line, "data: ") {
-				var state setupConnectivityStatus
+				var state networkConnectivityStatus
 				if err := json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &state); err != nil {
 					t.Fatal(err)
 				}
@@ -44,7 +44,7 @@ func TestSetupConnectivityEventsManualCancelDiscardAndShutdown(t *testing.T) {
 			}
 		}
 		t.Fatal("stream ended before state", scan.Err())
-		return setupConnectivityStatus{}
+		return networkConnectivityStatus{}
 	}
 	if s := read(); s.Running || s.Run != 0 {
 		t.Fatal("subscription starts work")
@@ -54,7 +54,7 @@ func TestSetupConnectivityEventsManualCancelDiscardAndShutdown(t *testing.T) {
 		t.Fatal("subscription made upstream request")
 	default:
 	}
-	if err := c.controlSetupConnectivity(false, setupCalibrationRequest{}); err != nil {
+	if err := c.controlNetworkConnectivity(false, networkCalibrationRequest{}); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -70,10 +70,10 @@ func TestSetupConnectivityEventsManualCancelDiscardAndShutdown(t *testing.T) {
 			break
 		}
 	}
-	if err := c.controlSetupCalibration(false, setupCalibrationRequest{}); err == nil {
+	if err := c.controlNetworkCalibration(false, networkCalibrationRequest{}); err == nil {
 		t.Fatal("overlapping throughput accepted")
 	}
-	if err := c.controlSetupConnectivity(true, setupCalibrationRequest{}); err != nil {
+	if err := c.controlNetworkConnectivity(true, networkCalibrationRequest{}); err != nil {
 		t.Fatal(err)
 	}
 	for s := read(); ; s = read() {
@@ -89,15 +89,15 @@ func TestSetupConnectivityEventsManualCancelDiscardAndShutdown(t *testing.T) {
 	}
 }
 
-func TestSetupConnectivityConsentOriginAndToken(t *testing.T) {
+func TestNetworkConnectivityConsentOriginAndToken(t *testing.T) {
 	c := testConsole(t)
-	stubSetupNetwork(t, c)
+	stubNetworkDiagnostics(t, c)
 	for _, kind := range []string{"start", "cancel"} {
 		for _, tc := range []struct {
 			token, origin string
 			code          int
 		}{{"", "", 403}, {c.token, "https://example.invalid", 403}} {
-			r := httptest.NewRequest("POST", "http://"+c.address+"/api/setup/network/connectivity/"+kind, strings.NewReader(`{}`))
+			r := httptest.NewRequest("POST", "http://"+c.address+"/api/network/connectivity/"+kind, strings.NewReader(`{}`))
 			r.Header.Set("X-SWD-Token", tc.token)
 			r.Header.Set("Origin", tc.origin)
 			w := httptest.NewRecorder()
@@ -113,7 +113,7 @@ func TestSetupConnectivityConsentOriginAndToken(t *testing.T) {
 		if method == "POST" {
 			path = "start"
 		}
-		r := httptest.NewRequest(method, "http://"+c.address+"/api/setup/network/connectivity/"+path, strings.NewReader(`{}`))
+		r := httptest.NewRequest(method, "http://"+c.address+"/api/network/connectivity/"+path, strings.NewReader(`{}`))
 		r.Header.Set("X-SWD-Token", c.token)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
@@ -123,7 +123,7 @@ func TestSetupConnectivityConsentOriginAndToken(t *testing.T) {
 	}
 }
 
-func TestSetupConnectivityUsesUnsavedSOCKS5AndCancelsConnection(t *testing.T) {
+func TestNetworkConnectivityUsesUnsavedSOCKS5AndCancelsConnection(t *testing.T) {
 	c := testConsole(t)
 	connected, closed := make(chan struct{}, 1), make(chan struct{}, 1)
 	address := socksPeerWithAuth(t, "fixture", "secret", func(conn net.Conn, target string) {
@@ -132,14 +132,10 @@ func TestSetupConnectivityUsesUnsavedSOCKS5AndCancelsConnection(t *testing.T) {
 		_, _ = io.Copy(io.Discard, conn)
 		closed <- struct{}{}
 	})
-	version, err := c.setupSettingsVersion(c.savedSettings)
-	if err != nil {
-		t.Fatal(err)
-	}
 	before, settings, business := c.client, c.settings, upstreamrequest.Default.Snapshot().Revision
 	password := "secret"
-	input := setupCalibrationRequest{Upstream: "proxy", Proxy: &setupPlan{BaseVersion: version, ProxyBackend: "external-socks5", SOCKS5Address: address, SOCKS5User: "fixture", Password: &password}}
-	if err := c.controlSetupConnectivity(false, input); err != nil {
+	input := networkCalibrationRequest{Upstream: "proxy", Proxy: &diagnosticProxyDraft{ProxyBackend: "external-socks5", SOCKS5Address: address, SOCKS5User: "fixture", Password: &password}}
+	if err := c.controlNetworkConnectivity(false, input); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -147,7 +143,7 @@ func TestSetupConnectivityUsesUnsavedSOCKS5AndCancelsConnection(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("draft proxy not used")
 	}
-	if err := c.controlSetupConnectivity(true, setupCalibrationRequest{}); err != nil {
+	if err := c.controlNetworkConnectivity(true, networkCalibrationRequest{}); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -158,12 +154,12 @@ func TestSetupConnectivityUsesUnsavedSOCKS5AndCancelsConnection(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	select {
-	case <-c.setupNetwork.connectivityDone:
+	case <-c.networkDiagnostics.connectivityDone:
 	case <-ctx.Done():
 		t.Fatal("check did not drain")
 	}
 	c.mu.Lock()
-	s := c.setupNetwork.connectivity
+	s := c.networkDiagnostics.connectivity
 	c.mu.Unlock()
 	if s.Upstream != "proxy" || s.Phase != "canceled" || len(s.Results) != 0 {
 		t.Fatal(s)
@@ -173,52 +169,52 @@ func TestSetupConnectivityUsesUnsavedSOCKS5AndCancelsConnection(t *testing.T) {
 	}
 }
 
-func TestSetupConnectivityCancelRetainsCompletedResults(t *testing.T) {
+func TestNetworkConnectivityCancelRetainsCompletedResults(t *testing.T) {
 	c := testConsole(t)
-	stubSetupNetwork(t, c)
+	stubNetworkDiagnostics(t, c)
 	started := make(chan struct{}, 1)
 	// A failed connectivity conclusion is still a valid completed check.
-	c.setupNetwork.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
+	c.networkDiagnostics.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: 503, Body: io.NopCloser(strings.NewReader("")), Header: make(http.Header)}, nil
 	})
-	c.setupNetwork.channel.Publish(c.setupNetwork.client.Transport)
-	if err := c.controlSetupConnectivity(false, setupCalibrationRequest{}); err != nil {
+	c.networkDiagnostics.channel.Publish(c.networkDiagnostics.client.Transport)
+	if err := c.controlNetworkConnectivity(false, networkCalibrationRequest{}); err != nil {
 		t.Fatal(err)
 	}
-	<-c.setupNetwork.connectivityDone
+	<-c.networkDiagnostics.connectivityDone
 	c.mu.Lock()
-	previous := c.setupNetwork.connectivity.LastValid["direct"]
+	previous := c.networkDiagnostics.connectivity.LastValid["direct"]
 	c.mu.Unlock()
 	if len(previous) != 3 || previous[0].State != "failed" {
 		t.Fatal("complete result not retained", previous)
 	}
-	c.setupNetwork.channel.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
+	c.networkDiagnostics.channel.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
 		started <- struct{}{}
 		<-r.Context().Done()
 		return nil, r.Context().Err()
 	}))
-	if err := c.controlSetupConnectivity(false, setupCalibrationRequest{}); err != nil {
+	if err := c.controlNetworkConnectivity(false, networkCalibrationRequest{}); err != nil {
 		t.Fatal(err)
 	}
 	<-started
-	if err := c.controlSetupConnectivity(true, setupCalibrationRequest{}); err != nil {
+	if err := c.controlNetworkConnectivity(true, networkCalibrationRequest{}); err != nil {
 		t.Fatal(err)
 	}
-	<-c.setupNetwork.connectivityDone
+	<-c.networkDiagnostics.connectivityDone
 	c.mu.Lock()
-	result := c.setupNetwork.connectivity
+	result := c.networkDiagnostics.connectivity
 	c.mu.Unlock()
 	if result.Phase != "canceled" || len(result.Results) != 0 || len(result.LastValid["direct"]) != 3 || result.LastValid["direct"][0].State != "failed" {
 		t.Fatal("cancel lost completed results", result)
 	}
 }
 
-func TestSetupConnectivityReusesMonitorResponsesToInitializeStorage(t *testing.T) {
+func TestNetworkConnectivityReusesMonitorResponsesToInitializeStorage(t *testing.T) {
 	c := testConsole(t)
-	stubSetupNetwork(t, c)
+	stubNetworkDiagnostics(t, c)
 	var requests atomic.Int32
 	const md5 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	c.setupNetwork.channel.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
+	c.networkDiagnostics.channel.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
 		requests.Add(1)
 		body := ""
 		status := http.StatusOK
@@ -245,16 +241,16 @@ func TestSetupConnectivityReusesMonitorResponsesToInitializeStorage(t *testing.T
 		return &http.Response{StatusCode: status, Header: header, Body: io.NopCloser(strings.NewReader(body))}, nil
 	}))
 	before, settings := upstreamrequest.Default.Snapshot(), c.settings
-	if err := c.controlSetupConnectivity(false, setupCalibrationRequest{}); err != nil {
+	if err := c.controlNetworkConnectivity(false, networkCalibrationRequest{}); err != nil {
 		t.Fatal(err)
 	}
 	select {
-	case <-c.setupNetwork.connectivityDone:
+	case <-c.networkDiagnostics.connectivityDone:
 	case <-time.After(5 * time.Second):
 		t.Fatal("connectivity did not complete")
 	}
 	c.mu.Lock()
-	state := c.setupNetwork.connectivity
+	state := c.networkDiagnostics.connectivity
 	c.mu.Unlock()
 	if state.Phase != "completed" || len(state.Results) != 3 || len(state.LastValid["direct"]) != 3 {
 		t.Fatal(state)
@@ -296,11 +292,11 @@ func TestSetupConnectivityReusesMonitorResponsesToInitializeStorage(t *testing.T
 	}
 }
 
-func TestSetupConnectivityCanceledCatalogDoesNotInitializeStorage(t *testing.T) {
+func TestNetworkConnectivityCanceledCatalogDoesNotInitializeStorage(t *testing.T) {
 	c := testConsole(t)
-	stubSetupNetwork(t, c)
+	stubNetworkDiagnostics(t, c)
 	entered := make(chan struct{})
-	c.setupNetwork.channel.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
+	c.networkDiagnostics.channel.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Host == "wanna.kiva.moe" {
 			close(entered)
 			<-r.Context().Done()
@@ -309,7 +305,7 @@ func TestSetupConnectivityCanceledCatalogDoesNotInitializeStorage(t *testing.T) 
 		body := monitorFull("kiva", "20261016000000", "must not be delivered", strings.Repeat("a", 32)).Body
 		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(string(body)))}, nil
 	}))
-	if err := c.controlSetupConnectivity(false, setupCalibrationRequest{}); err != nil {
+	if err := c.controlNetworkConnectivity(false, networkCalibrationRequest{}); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -317,16 +313,16 @@ func TestSetupConnectivityCanceledCatalogDoesNotInitializeStorage(t *testing.T) 
 	case <-time.After(time.Second):
 		t.Fatal("catalog not requested")
 	}
-	if err := c.controlSetupConnectivity(true, setupCalibrationRequest{}); err != nil {
+	if err := c.controlNetworkConnectivity(true, networkCalibrationRequest{}); err != nil {
 		t.Fatal(err)
 	}
-	<-c.setupNetwork.connectivityDone
+	<-c.networkDiagnostics.connectivityDone
 	if c.service != nil {
 		t.Fatal("canceled batch initialized storage")
 	}
 }
 
-func TestSetupConnectivitySummaryAcceptsAnyAvailableCandidate(t *testing.T) {
+func TestNetworkConnectivitySummaryAcceptsAnyAvailableCandidate(t *testing.T) {
 	ms := 12.0
 	rows := []upstreamstate.Result{
 		{Operation: upstreamstate.Catalog, State: "failed", Reason: "http_error"},

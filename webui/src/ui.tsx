@@ -56,12 +56,12 @@ export const consolePages=[['home','加速'],['timeline','历史'],['library','�
 export const documentPages={help:'帮助',about:'关于',terms:'使用条款'} as const;
 export type DocumentPage=keyof typeof documentPages;
 export const isDocumentPage=(page:string):page is DocumentPage=>Object.hasOwn(documentPages,page);
-export function pageHref(page:typeof consolePages[number][0]|DocumentPage|'setup'|'cache') {
+export function pageHref(page:typeof consolePages[number][0]|DocumentPage|'cache') {
   return bootstrap.page==='console'?'#/'+page:isDocumentPage(page)?'/'+page:'/#/'+page;
 }
 export const sectionHref=(id:string)=>(bootstrap.page==='console'?'#':'/#')+id;
 type NavigationEntry={value:string;label:string;href?:string;disabled?:boolean;onClick?:()=>void};
-export function NavigationLayout({children,items,selected,label='页面导航',steps=false,hidden=false}:PropsWithChildren<{items:NavigationEntry[];selected:string;label?:string;steps?:boolean;hidden?:boolean}>) {
+export function NavigationLayout({children,items,selected,label='页面导航'}:PropsWithChildren<{items:NavigationEntry[];selected:string;label?:string}>) {
   const [narrow,setNarrow]=useState(()=>matchMedia('(max-width: 640px)').matches), [open,setOpen]=useState(false), [expanded,setExpanded]=useState(true);
   const restoreFocusTarget=useRestoreFocusTarget();
   useEffect(()=>{
@@ -69,13 +69,12 @@ export function NavigationLayout({children,items,selected,label='页面导航',s
     const change=()=>{setNarrow(media.matches);setOpen(false);};
     media.addEventListener('change',change);return()=>media.removeEventListener('change',change);
   },[]);
-  useEffect(()=>{setOpen(false);},[hidden]);
   return <div className="navigation-layout">
-    <div className="navigation-sidebar" hidden={hidden}>
+    <div className="navigation-sidebar">
       <div className="navigation-toggle"><Hamburger {...restoreFocusTarget} aria-label={(!narrow&&expanded?'收起':'展开')+label} aria-expanded={narrow?open:expanded} onClick={()=>narrow?setOpen(true):setExpanded(value=>!value)}/></div>
-      <NavDrawer className={narrow?undefined:'inline-navigation'} type={narrow?'overlay':'inline'} position="start" open={!hidden&&(narrow?open:expanded)} selectedValue={selected} onOpenChange={(_,data)=>setOpen(data.open)} onNavItemSelect={()=>setOpen(false)} aria-label={label}>
+      <NavDrawer className={narrow?undefined:'inline-navigation'} type={narrow?'overlay':'inline'} position="start" open={narrow?open:expanded} selectedValue={selected} onOpenChange={(_,data)=>setOpen(data.open)} onNavItemSelect={()=>setOpen(false)} aria-label={label}>
         {narrow&&<NavDrawerHeader><Hamburger aria-label={'收起'+label} onClick={()=>setOpen(false)}/></NavDrawerHeader>}
-        <NavDrawerBody className="navigation-items">{items.map(item=><Fragment key={item.value}>{!steps&&item.value==='settings'&&<Divider className="navigation-divider"/>}<NavItem key={item.value} value={item.value} href={item.href} disabled={item.disabled} aria-current={selected===item.value?steps?'step':'page':undefined} onClick={item.onClick}>{item.label}</NavItem></Fragment>)}</NavDrawerBody>
+        <NavDrawerBody className="navigation-items">{items.map(item=><Fragment key={item.value}>{item.value==='settings'&&<Divider className="navigation-divider"/>}<NavItem key={item.value} value={item.value} href={item.href} disabled={item.disabled} aria-current={selected===item.value?'page':undefined} onClick={item.onClick}>{item.label}</NavItem></Fragment>)}</NavDrawerBody>
       </NavDrawer>
     </div>
     <div className="page-content">{children}</div>
@@ -103,5 +102,5 @@ export function DocumentLayout({ children }: PropsWithChildren) {
   </div>;
 }
 export function DocumentFooter({page}:{page:string}) {
-  return page==='help'?<footer><Link href={pageHref('home')}>返回首页</Link> · <Link href={pageHref('setup')}>重新进入引导</Link></footer>:null;
+  return page==='help'?<footer><Link href={pageHref('home')}>返回首页</Link></footer>:null;
 }

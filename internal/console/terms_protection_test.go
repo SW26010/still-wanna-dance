@@ -142,7 +142,7 @@ func TestTermsProtectFailureAndReadError(t *testing.T) {
 	r.Header.Set("X-SWD-Token", c.token)
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, r)
-	if w.Code != 500 || c.termsAccepted() || c.setupNetwork != nil {
+	if w.Code != 500 || c.termsAccepted() || c.networkDiagnostics != nil {
 		t.Fatal("protection failure granted consent")
 	}
 	if _, err := os.Stat(c.files().Terms); !os.IsNotExist(err) {

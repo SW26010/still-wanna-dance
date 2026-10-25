@@ -11,7 +11,6 @@ export function usePageFeedback<T>(scope:string|undefined) {
     return()=>{visit.active=false;};
   },[scope,visit]);
   const setValue=(value:T|undefined,destination=scope)=>{
-    // An explicit destination supports the wizard's completion handoff to home.
     if(visit.active&&destination!==undefined)setFeedback(value===undefined?undefined:{scope:destination,value});
   };
   return {value:feedback?.scope===scope?feedback?.value:undefined,setValue};

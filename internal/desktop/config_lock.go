@@ -5,8 +5,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
 	"sync"
 
 	"still-wanna-dance/internal/apppaths"
@@ -41,36 +39,13 @@ func (l *configLease) CleanWorkFiles() error {
 	if err := workfiles.CheckDir(p.Root); err != nil {
 		return err
 	}
-	for _, path := range []string{p.Config, p.Terms, p.State("inventory"), p.State("batch"), p.State("attempt"), p.State("throughput"), p.State("setup"), p.State("setup-apply")} {
+	for _, path := range []string{p.Config, p.Terms, p.State("inventory"), p.State("batch"), p.State("attempt"), p.State("throughput")} {
 		if err := cleanConfigWorkFile(path); err != nil {
 			return err
 		}
 	}
-	// Only SHA-256 receipt slots belong to this writer. Never traverse unknown
-	// files/directories or remove published receipts used for idempotent replay.
-	dir := filepath.Dir(p.State("setup-apply"))
-	if err := workfiles.CheckDir(dir); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return err
-	}
-	for _, entry := range entries {
-		if setupReceiptWorkName.MatchString(entry.Name()) {
-			destination := strings.TrimSuffix(strings.TrimPrefix(entry.Name(), "."), ".swd-tmp")
-			if err := cleanConfigWorkFile(filepath.Join(dir, destination)); err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }
-
-var setupReceiptWorkName = regexp.MustCompile(`^\.setup-apply-[0-9a-f]{64}\.json\.swd-tmp$`)
 
 func cleanConfigWorkFile(path string) error {
 	removed, err := workfiles.Clean(path)

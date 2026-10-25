@@ -62,10 +62,6 @@ func TestFavoriteRetentionSettingsApplyAfterRestart(t *testing.T) {
 				t.Fatal("saving disabled retention removed active file", err)
 			}
 		}
-		plan, err := c.validateSetupPlan(setupTestPlan(c))
-		if err != nil || plan.RetainFavorites != retain {
-			t.Fatal("setup did not preserve saved retention", err)
-		}
 		c = restartTestConsole(t, c)
 		openEngine()
 		if c.settings.RetainFavorites != retain {

@@ -92,11 +92,11 @@ test('public help/about stay readable before consent and terms still open the ga
     await expect(link).toHaveAttribute('href','/#'+target);
     await link.click();
     await expect(page).toHaveURL(new RegExp('/#'+target+'$'));
-    await expect(page.getByRole('button',{name:'阅读并同意条款',exact:true})).toBeVisible();
+    await expect(page.getByRole('alertdialog',{name:'使用条款'})).toBeVisible();
     expect(api.calls.some(call=>call.path==='status')).toBe(false);
   }
   await page.goto('/terms?gate=1');
-  await expect(page.getByRole('dialog',{name:'完整条款'})).toBeVisible();
+  await expect(page.getByRole('alertdialog',{name:'使用条款'})).toBeVisible();
   await expect(page.getByRole('button',{name:'同意完整条款',exact:true})).toBeVisible();
   expect(api.calls.some(call=>call.path==='status')).toBe(false);
 });

@@ -9,21 +9,21 @@ import (
 	"still-wanna-dance/internal/upstreamstate"
 )
 
-type setupConnectivityStatus struct {
-	LastValid map[string][]setupConnectivityResult `json:"lastValid"`
-	Revision  uint64                               `json:"revision"`
-	Run       uint64                               `json:"run"`
-	Upstream  string                               `json:"upstream"`
-	Running   bool                                 `json:"running"`
-	Closed    bool                                 `json:"closed"`
-	Phase     string                               `json:"phase"`
-	Results   []setupConnectivityResult            `json:"results"`
+type networkConnectivityStatus struct {
+	LastValid map[string][]networkConnectivityResult `json:"lastValid"`
+	Revision  uint64                                 `json:"revision"`
+	Run       uint64                                 `json:"run"`
+	Upstream  string                                 `json:"upstream"`
+	Running   bool                                   `json:"running"`
+	Closed    bool                                   `json:"closed"`
+	Phase     string                                 `json:"phase"`
+	Results   []networkConnectivityResult            `json:"results"`
 }
 
-// The wizard presents one summary per operation; Monitor owns all probes.
+// The network page presents one summary per operation; Monitor owns all probes.
 // LatencyMS is the lowest estimated first-byte latency among available results,
 // including Monitor's recent successful samples, not this run's elapsed time.
-type setupConnectivityResult struct {
+type networkConnectivityResult struct {
 	Operation upstreamstate.Operation `json:"operation"`
 	State     string                  `json:"state"`
 	Reason    string                  `json:"reason,omitempty"`
@@ -32,8 +32,8 @@ type setupConnectivityResult struct {
 
 var connectivityOperations = []upstreamstate.Operation{upstreamstate.Catalog, upstreamstate.PlaybackURL, upstreamstate.Resource}
 
-func summarizeConnectivity(op upstreamstate.Operation, results []upstreamstate.Result) setupConnectivityResult {
-	row := setupConnectivityResult{Operation: op, State: "failed", Reason: "no_channel"}
+func summarizeConnectivity(op upstreamstate.Operation, results []upstreamstate.Result) networkConnectivityResult {
+	row := networkConnectivityResult{Operation: op, State: "failed", Reason: "no_channel"}
 	for _, r := range results {
 		if r.Operation != op {
 			continue
@@ -53,8 +53,8 @@ func summarizeConnectivity(op upstreamstate.Operation, results []upstreamstate.R
 }
 
 // c.mu protects both the snapshot and its notification channel.
-func (c *Console) publishSetupConnectivityLocked() {
-	n := c.setupNetwork
+func (c *Console) publishNetworkConnectivityLocked() {
+	n := c.networkDiagnostics
 	n.connectivity.Revision++
 	if n.connectivityChanged != nil {
 		close(n.connectivityChanged)
@@ -62,10 +62,10 @@ func (c *Console) publishSetupConnectivityLocked() {
 	n.connectivityChanged = make(chan struct{})
 }
 
-func (c *Console) updateSetupConnectivity(ctx context.Context, progress upstreamstate.CheckProgress) {
+func (c *Console) updateNetworkConnectivity(ctx context.Context, progress upstreamstate.CheckProgress) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	n := c.setupNetwork
+	n := c.networkDiagnostics
 	if n == nil || !n.connectivity.Running || n.connectivity.Closed || ctx.Err() != nil || n.connectivity.Phase == "canceling" {
 		return
 	}
@@ -81,57 +81,57 @@ func (c *Console) updateSetupConnectivity(ctx context.Context, progress upstream
 			results = append(results, result)
 		}
 	}
-	var rows []setupConnectivityResult
+	var rows []networkConnectivityResult
 	for i, op := range connectivityOperations {
 		if i > n.connectivityPhase {
 			if complete {
-				rows = append(rows, setupConnectivityResult{Operation: op, State: "skipped", Reason: "no_sample"})
+				rows = append(rows, networkConnectivityResult{Operation: op, State: "skipped", Reason: "no_sample"})
 			}
 			continue
 		}
 		row := summarizeConnectivity(op, results)
 		if i == n.connectivityPhase && !complete {
-			row = setupConnectivityResult{Operation: op, State: "checking"}
+			row = networkConnectivityResult{Operation: op, State: "checking"}
 		}
 		rows = append(rows, row)
 	}
 	n.connectivity.Results = rows
-	c.publishSetupConnectivityLocked()
+	c.publishNetworkConnectivityLocked()
 }
 
-func (c *Console) controlSetupConnectivity(cancel bool, input setupCalibrationRequest) error {
+func (c *Console) controlNetworkConnectivity(cancel bool, input networkCalibrationRequest) error {
 	if input.Upstream == "" {
 		input.Upstream = "direct"
 	}
 	if input.Upstream != "direct" && input.Upstream != "proxy" {
 		return errors.New("未知检测上游")
 	}
-	settings, err := c.setupDiagnosticProxy(cancel, input)
+	settings, err := c.diagnosticProxy(cancel, input)
 	if err != nil {
 		return err
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	test, err := c.setupCalibrationLocked()
+	test, err := c.networkCalibrationLocked()
 	if err != nil {
 		return err
 	}
-	n := c.setupNetwork
+	n := c.networkDiagnostics
 	if cancel {
 		if n.connectivity.Running {
 			n.connectivity.Phase, n.connectivity.Results = "canceling", nil
 			n.connectivityCancel()
-			c.publishSetupConnectivityLocked()
+			c.publishNetworkConnectivityLocked()
 		}
 		return nil
 	}
-	if s, _ := test.Snapshot(); s.Running || n.running {
+	if s, _ := test.Snapshot(); s.Running {
 		return errors.New("请先停止当前检测")
 	}
 	if n.connectivity.Running {
 		return errors.New("连通性检测正在运行")
 	}
-	monitor, err := c.setupConnectivityMonitorLocked(input.Upstream, settings)
+	monitor, err := c.networkConnectivityMonitorLocked(input.Upstream, settings)
 	if err != nil {
 		return err
 	}
@@ -142,8 +142,8 @@ func (c *Console) controlSetupConnectivity(cancel bool, input setupCalibrationRe
 	ctx, stop := context.WithCancel(context.Background())
 	n.connectivityPhase = 0
 	n.connectivityCancel = stop
-	n.connectivity = setupConnectivityStatus{LastValid: n.connectivity.LastValid, Revision: n.connectivity.Revision, Run: n.connectivity.Run + 1, Upstream: input.Upstream, Running: true, Phase: "running"}
-	c.publishSetupConnectivityLocked()
+	n.connectivity = networkConnectivityStatus{LastValid: n.connectivity.LastValid, Revision: n.connectivity.Revision, Run: n.connectivity.Run + 1, Upstream: input.Upstream, Running: true, Phase: "running"}
+	c.publishNetworkConnectivityLocked()
 	done := make(chan struct{})
 	n.connectivityDone = done
 	go func() {
@@ -163,7 +163,7 @@ func (c *Console) controlSetupConnectivity(cancel bool, input setupCalibrationRe
 			n.connectivity.Phase, n.connectivity.Results = "canceled", nil
 		}
 		if n.connectivity.Phase == "completed" && len(n.connectivity.Results) == 3 {
-			saved := make(map[string][]setupConnectivityResult, len(n.connectivity.LastValid)+1)
+			saved := make(map[string][]networkConnectivityResult, len(n.connectivity.LastValid)+1)
 			for key, rows := range n.connectivity.LastValid {
 				saved[key] = rows
 			}
@@ -171,31 +171,31 @@ func (c *Console) controlSetupConnectivity(cancel bool, input setupCalibrationRe
 			n.connectivity.LastValid = saved
 		}
 		stop()
-		c.publishSetupConnectivityLocked()
+		c.publishNetworkConnectivityLocked()
 		c.mu.Unlock()
 	}()
 	return nil
 }
 
-func (c *Console) serveSetupConnectivityEvents(w http.ResponseWriter, r *http.Request) {
+func (c *Console) serveNetworkConnectivityEvents(w http.ResponseWriter, r *http.Request) {
 	if origin := r.Header.Get("Origin"); origin != "" && origin != "http://"+c.address {
 		http.Error(w, "invalid origin", 403)
 		return
 	}
 	c.mu.Lock()
-	_, err := c.setupCalibrationLocked()
-	if err == nil && c.setupNetwork.connectivityChanged == nil {
-		c.setupNetwork.connectivityChanged = make(chan struct{})
+	_, err := c.networkCalibrationLocked()
+	if err == nil && c.networkDiagnostics.connectivityChanged == nil {
+		c.networkDiagnostics.connectivityChanged = make(chan struct{})
 	}
 	c.mu.Unlock()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	serveSetupEvents(w, r, "connectivity", func() setupEventSnapshot {
+	serveDiagnosticEvents(w, r, "connectivity", func() diagnosticEventSnapshot {
 		c.mu.Lock()
-		state, changed := c.setupNetwork.connectivity, c.setupNetwork.connectivityChanged
+		state, changed := c.networkDiagnostics.connectivity, c.networkDiagnostics.connectivityChanged
 		c.mu.Unlock()
-		return setupEventSnapshot{state: state, revision: state.Revision, closed: state.Closed, changed: changed}
+		return diagnosticEventSnapshot{state: state, revision: state.Revision, closed: state.Closed, changed: changed}
 	})
 }

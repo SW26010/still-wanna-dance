@@ -1,4 +1,3 @@
-import {navigateStep} from './navigation';
 import { test, expect } from '@playwright/test';
 import { mockAPI } from './api';
 
@@ -46,8 +45,7 @@ test('download list releases focus to its panel when polling removes the active 
 test('diagnostic gauge preserves thresholds and stays readable in narrow theme variants', async ({page}, info) => {
   const api = await mockAPI(page);
   await page.setViewportSize({width:320,height:800});
-  await page.goto('/#/setup');
-  await navigateStep(page,'3. 网络');
+  await page.goto('/#/network');
   for (const [ratio,label] of [[0,'不可用'],[1,'不可用'],[2,'不稳定'],[2.01,'可用'],[256,'可用'],[512,'可用']] as const) {
     Object.assign(api.diagnostics.calibration, {revision:++api.diagnostics.calibration.revision,run:1,phase:'completed',singleSpeedBPS:500000,fullSpeedBPS:ratio*2000000/8,fullConcurrency:8});
     await api.emit('calibration');
@@ -70,7 +68,7 @@ test('diagnostic gauge preserves thresholds and stays readable in narrow theme v
 
 test('standard gauge distinguishes live samples, missing samples and restored results', async ({page},info) => {
   const api=await mockAPI(page);
-  await page.goto('/#/setup');await navigateStep(page,'3. 网络');
+  await page.goto('/#/network');
   await expect(page.getByText('尚未测速',{exact:true})).toBeVisible();
   await expect(page.locator('.fui-gc__root')).toHaveCount(0);
   Object.assign(api.diagnostics.calibration,{revision:2,run:1,running:true,phase:'running',measurementStage:'single',liveSpeedBPS:375000,

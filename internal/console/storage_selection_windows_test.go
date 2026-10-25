@@ -11,7 +11,7 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 )
 
-func TestSetupMissingStorageRejectsExternalJunctionAncestor(t *testing.T) {
+func TestMissingStorageRejectsExternalJunctionAncestor(t *testing.T) {
 	c := testConsole(t)
 	root := t.TempDir()
 	target, alias := filepath.Join(root, "external"), filepath.Join(root, "alias")
@@ -28,17 +28,8 @@ func TestSetupMissingStorageRejectsExternalJunctionAncestor(t *testing.T) {
 	if _, err := cacheproxy.InspectStorage(path); err == nil {
 		t.Fatal("inspection accepted junction ancestor")
 	}
-	check, err := c.inspectSetupStorage(path)
-	if err != nil || check.Library.State != "failed" {
-		t.Fatal("UI inspection did not reject ancestor", err)
-	}
-	p := setupTestPlan(c)
-	p.StorageDir, p.CustomStorage = path, true
-	if _, err := c.validateSetupPlan(p); err == nil {
-		t.Fatal("navigation accepted ancestor")
-	}
-	if _, err := c.applySetupPlan(p); err == nil {
-		t.Fatal("application accepted ancestor")
+	if _, err := c.inspectStorage(path); err == nil {
+		t.Fatal("console inspection accepted junction ancestor")
 	}
 	after, _ := os.ReadFile(c.configPath)
 	entries, err := os.ReadDir(target)
@@ -47,7 +38,7 @@ func TestSetupMissingStorageRejectsExternalJunctionAncestor(t *testing.T) {
 	}
 }
 
-func TestSetupStorageJunctionCannotEnterPortable(t *testing.T) {
+func TestStorageJunctionCannotEnterPortable(t *testing.T) {
 	root := t.TempDir()
 	portable, alias := filepath.Join(root, "Portable"), filepath.Join(root, "external-alias")
 	if err := os.Mkdir(portable, 0700); err != nil {
@@ -58,7 +49,7 @@ func TestSetupStorageJunctionCannotEnterPortable(t *testing.T) {
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("junction: %s: %v", output, err)
 	}
-	if err := validateStorageLocation(filepath.Join(alias, "future", "library"), filepath.Join(portable, "data", "storage"), portable, true); err == nil {
+	if err := validateStorageLocation(filepath.Join(alias, "future", "library"), filepath.Join(portable, "data", "storage"), portable); err == nil {
 		t.Fatal("junction bypassed custom storage boundary")
 	}
 	entries, err := os.ReadDir(portable)

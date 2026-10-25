@@ -125,7 +125,7 @@ try {
         try { $status = Invoke-WebRequest "$url/" -UseBasicParsing -TimeoutSec 1; break } catch { Start-Sleep -Milliseconds 250 }
     }
     if ($null -eq $status) { throw 'Portable startup timed out.' }
-    if ($status.Content -notmatch 'id="swd-bootstrap"' -or $status.Content -notmatch '"termsGate":\{' -or $status.Content -notmatch '/assets/webui/app.js') { throw 'Fresh install did not show the consent-gated Fluent setup page.' }
+    if ($status.Content -notmatch 'id="swd-bootstrap"' -or $status.Content -notmatch '"termsGate":\{' -or $status.Content -notmatch '/assets/webui/app.js') { throw 'Fresh install did not show the consent-gated Fluent page.' }
     foreach ($asset in @('app.js', 'app.css')) {
         $resource = Invoke-WebRequest "$url/assets/webui/$asset" -UseBasicParsing
         if ($resource.StatusCode -ne 200 -or $resource.RawContentLength -lt 1000) { throw "Embedded Fluent resource missing: $asset" }

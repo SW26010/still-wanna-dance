@@ -1,4 +1,4 @@
-import {navigate,navigateStep} from './navigation';
+import {navigate} from './navigation';
 import {test,expect,type Page} from '@playwright/test';
 import {mockAPI} from './api';
 import baseline from './baseline-copy.json' with {type:'json'};
@@ -30,8 +30,4 @@ test('license attribution and explicit consent remain available',async({page})=>
   for(const paragraph of baseline.paragraphs['about.html'].filter(p=>!p.includes('准备歌曲')&&!p.includes('下载管理')))expect(text).toContain(compact(paragraph));
   await navigate(page,'使用条款');
   await expect(page.getByRole('article',{name:'完整使用条款'})).toContainText('浏览器测试条款');
-  await page.goto('/#/setup');await navigateStep(page,'3. 网络');
-  await page.getByRole('checkbox',{name:'直连',exact:true}).uncheck();
-  await page.getByRole('button',{name:'下一步',exact:true}).click();
-  await expect(page.getByText('请至少选择一种连接方式。',{exact:true})).toBeVisible();
 });

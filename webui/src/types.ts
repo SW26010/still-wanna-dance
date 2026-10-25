@@ -17,10 +17,6 @@ export interface Job {
 export interface ImportJob extends Job {
   id?: number; imported?: number; skipped?: number; deleted?: number; cleanupAvailable?: boolean;
 }
-export interface Application {
-  id: string; phase: string; error?: string; configSaved?: boolean; importStarted?: boolean; importSource?: string;
-  vrcx?: {state:string;message:string};
-}
 export interface HealthResult {
   operation: string; route: string; mode: string; entry: string; state: string; channelID?: string; ip?: string;
   reason?: string; localDiagnostic?: string; localObservedAt?: string; estimatedLatencyMS?: number; estimatedSpeedBPS?: number;
@@ -45,8 +41,6 @@ export interface Status {
   proxyNodes?: {saved?: number; loaded?: number; active?: number; error?: string; activeError?: string};
   activation?: {phase?: string; error?: string; started?: string; readyAt?: string; firstRequest?: string};
   defaultLogDir: string; defaultStorageDir: string; portableDir: string; upstreamMonitor?: Health;
-  setupSettingsVersion: string; setupSettingsError?: string; setupApplication?: Application;
-  setupNetwork?: {running?:boolean; error?:string; monitor?:Health};
 }
 export interface Inventory {
   updated?: string; coverageKnown?: boolean; totalSongs: number; coveredSongs: number; scanning?: boolean; error?: string;

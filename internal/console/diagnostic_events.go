@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type setupEventSnapshot struct {
+type diagnosticEventSnapshot struct {
 	state    any
 	revision uint64
 	closed   bool
@@ -15,7 +15,7 @@ type setupEventSnapshot struct {
 }
 
 // Callers authorize the request and capture state with its notification channel.
-func serveSetupEvents(w http.ResponseWriter, r *http.Request, event string, snapshot func() setupEventSnapshot) {
+func serveDiagnosticEvents(w http.ResponseWriter, r *http.Request, event string, snapshot func() diagnosticEventSnapshot) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("X-Accel-Buffering", "no")
 	controller := http.NewResponseController(w)

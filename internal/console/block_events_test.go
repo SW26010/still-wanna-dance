@@ -78,7 +78,7 @@ func TestBlockEventsRefreshClockForSharedSnapshot(t *testing.T) {
 			before := time.Now().UnixMilli()
 			streamCtx, stop := context.WithCancel(ctx)
 			defer stop()
-			w := &setupEventWriter{ResponseRecorder: httptest.NewRecorder(), t: t, afterFlush: stop}
+			w := &diagnosticEventWriter{ResponseRecorder: httptest.NewRecorder(), t: t, afterFlush: stop}
 			r := httptest.NewRequest("GET", "http://"+c.address+"/api/block-demands/events", nil).WithContext(streamCtx)
 			c.ServeHTTP(w, r)
 			after := time.Now().UnixMilli()
@@ -149,7 +149,7 @@ func TestBlockEventsOriginAndOffline(t *testing.T) {
 		w := httptest.NewRecorder()
 		if tc.code == 200 {
 			ctx, cancel := context.WithCancel(r.Context())
-			writer := &setupEventWriter{ResponseRecorder: w, t: t, afterFlush: cancel}
+			writer := &diagnosticEventWriter{ResponseRecorder: w, t: t, afterFlush: cancel}
 			c.ServeHTTP(writer, r.WithContext(ctx))
 			cancel()
 		} else {
@@ -174,7 +174,7 @@ func TestBlockEventsWaitForEngine(t *testing.T) {
 	c := testConsole(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
-	w := &setupEventWriter{ResponseRecorder: httptest.NewRecorder(), t: t}
+	w := &diagnosticEventWriter{ResponseRecorder: httptest.NewRecorder(), t: t}
 	w.afterFlush = func() {
 		if w.writes == 1 {
 			c.lifecycleMu.Lock()
@@ -258,7 +258,7 @@ func TestBlockEventsDisconnect(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
 			r := httptest.NewRequest("GET", "http://"+c.address+"/api/block-demands/events", nil).WithContext(ctx)
-			w := &setupEventWriter{ResponseRecorder: httptest.NewRecorder(), t: t, writeError: failure == "write", flushError: failure == "flush"}
+			w := &diagnosticEventWriter{ResponseRecorder: httptest.NewRecorder(), t: t, writeError: failure == "write", flushError: failure == "flush"}
 			if failure == "cancel" {
 				w.afterFlush = cancel
 			}

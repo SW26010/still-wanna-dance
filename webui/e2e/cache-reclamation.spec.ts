@@ -1,6 +1,6 @@
 import {test, expect} from '@playwright/test';
 import {mockAPI} from './api';
-import {navigate, navigateStep} from './navigation';
+import {navigate} from './navigation';
 
 test('reclamation strategy follows storage only in auto and survives save, discard and navigation', async ({page}, info) => {
   const api = await mockAPI(page);
@@ -52,40 +52,3 @@ test('reclamation strategy follows storage only in auto and survives save, disca
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.getByRole('group', {name:'本地存储', exact:true}).screenshot({path:info.outputPath('reclamation-settings.png'),animations:'disabled'});
 });
-
-for (const {saved, active} of [
-  {saved:'auto', active:'auto'}, {saved:'on', active:'on'},
-  {saved:'off', active:'off'}, {saved:'on', active:'auto'},
-] as const) {
-test(`wizard preserves hidden reclamation ${saved} (active ${active}) through reset and apply`, async ({page}, info) => {
-  const api = await mockAPI(page);
-  api.state.settings.aggressiveCacheReclamation = saved;
-  api.state.activeSettings.aggressiveCacheReclamation = active;
-  await page.goto('/#/setup');
-  await navigateStep(page, '2. 存储');
-  const wizard = page.locator('.wizard');
-  await expect(wizard.getByRole('radiogroup', {name:'激进的缓存回收策略', exact:true})).toHaveCount(0);
-  await expect(wizard.getByText(/^自动（当前/)).toHaveCount(0);
-  await page.getByRole('button', {name:'恢复本页默认', exact:true}).click();
-  await expect(wizard.getByRole('radio', {name:'不保留', exact:true})).toBeChecked();
-  await page.getByRole('button', {name:'下一步', exact:true}).click();
-  expect(api.calls.find(c=>c.path==='setup/validate'&&c.body.page==='storage')?.body).toMatchObject({aggressiveCacheReclamation:saved,videoStorageMode:'none'});
-  await page.getByRole('button', {name:'上一步', exact:true}).click();
-  await page.getByRole('radio', {name:'限制为', exact:true}).check();
-  await page.getByRole('button', {name:'下一步', exact:true}).click();
-  expect(api.calls.filter(c=>c.path==='setup/validate'&&c.body.page==='storage').at(-1)?.body).toMatchObject({aggressiveCacheReclamation:saved,videoStorageMode:'limited'});
-  await page.getByRole('button', {name:'上一步', exact:true}).click();
-  await expect(wizard.getByRole('radiogroup', {name:'激进的缓存回收策略', exact:true})).toHaveCount(0);
-  await page.setViewportSize({width:390,height:844});
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.screenshot({path:info.outputPath('reclamation-wizard.png'),animations:'disabled'});
-  await page.getByRole('button', {name:'下一步', exact:true}).click();
-  await page.getByRole('button', {name:'下一步', exact:true}).click();
-  const review = wizard.locator('dl div').filter({has:page.locator('dt', {hasText:'激进的缓存回收策略'})});
-  if (saved === active) await expect(review).toHaveCount(0);
-  else await expect(review).toHaveText('激进的缓存回收策略自动（当前关闭） → 开启（此前已保存）');
-  await page.getByRole('button', {name:'确认并应用', exact:true}).click();
-  await expect.poll(()=>api.calls.filter(c=>c.path==='setup/apply').length).toBe(1);
-  expect(api.calls.find(c=>c.path==='setup/apply')?.body).toMatchObject({aggressiveCacheReclamation:saved,videoStorageMode:'limited'});
-});
-}

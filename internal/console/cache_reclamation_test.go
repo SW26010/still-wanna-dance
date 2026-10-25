@@ -40,7 +40,7 @@ func TestCacheReclamationSettingsPersistWithoutChangingRuntime(t *testing.T) {
 	}
 }
 
-func TestCacheReclamationRejectsInvalidSettingsAndSetup(t *testing.T) {
+func TestCacheReclamationRejectsInvalidSettings(t *testing.T) {
 	c := testConsole(t)
 	before, err := os.ReadFile(c.configPath)
 	if err != nil {
@@ -52,33 +52,9 @@ func TestCacheReclamationRejectsInvalidSettingsAndSetup(t *testing.T) {
 		if err := c.save(next); err == nil {
 			t.Fatalf("accepted policy %q", policy)
 		}
-		plan := setupTestPlan(c)
-		plan.AggressiveCacheReclamation = policy
-		if _, err := c.validateSetupPlan(plan); err == nil {
-			t.Fatalf("wizard accepted policy %q", policy)
-		}
 	}
 	after, err := os.ReadFile(c.configPath)
 	if err != nil || !bytes.Equal(before, after) || c.savedSettings != c.settings {
 		t.Fatal("invalid settings changed configuration", err)
-	}
-}
-
-func TestSetupCacheReclamationPersistsAndRestarts(t *testing.T) {
-	for _, policy := range []string{"auto", "on", "off"} {
-		t.Run(policy, func(t *testing.T) {
-			c := testConsole(t)
-			p := setupTestPlan(c)
-			p.AggressiveCacheReclamation = policy
-			p.VideoStorageMode, p.MaxCacheBytes = "limited", 5<<30
-			a, err := c.applySetupPlan(p)
-			if err != nil || !a.ConfigSaved || c.savedSettings.AggressiveCacheReclamation != policy || c.settings.AggressiveCacheReclamation != "auto" {
-				t.Fatalf("wizard: %+v %v", a, err)
-			}
-			c = restartTestConsole(t, c)
-			if c.settings.AggressiveCacheReclamation != policy || c.settings.VideoStorageMode != "limited" {
-				t.Fatal("wizard strategy lost on restart", c.settings)
-			}
-		})
 	}
 }

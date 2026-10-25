@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { mockAPI } from './api';
-import { navigate, navigateStep } from './navigation';
+import { navigate } from './navigation';
 
 async function fixture(page: Page, existing = 0) {
   const api = await mockAPI(page);
@@ -98,78 +98,6 @@ test('VRCX rechecks changed target statistics and never silently retries with ov
   await expect(page.getByText(/已有歌曲需求统计；请重新预览/)).toBeVisible();
   await expect(page.getByRole('button',{name:'导入历史偏好',exact:true})).toHaveCount(0);
   expect(calls.filter(c=>c.path==='preview')).toHaveLength(1);
-});
-
-test('wizard automatically checks default VRCX and imports only with final settings application',async({page})=>{
-  const {calls,api}=await fixture(page);await page.goto('/#/setup');
-  await page.getByRole('button',{name:'下一步',exact:true}).click();
-  await expect(page.getByRole('checkbox',{name:'从 VRCX 导入历史偏好',exact:true})).toBeChecked();
-  await expect(page.getByText('根据 VRCX 历史，优先下载和保留你常用的歌曲。',{exact:true})).toBeVisible();
-  await expect(page.getByLabel('VRCX 数据库路径')).toHaveCount(0);
-  await expect(page.getByRole('button',{name:'选择数据库',exact:true})).toHaveCount(0);
-  await expect(page.getByRole('button',{name:'读取并预览',exact:true})).toHaveCount(0);
-  expect(calls.some(c=>c.path==='preview'||c.path==='apply')).toBe(false);
-  await page.getByRole('checkbox',{name:'指定其他位置（程序文件夹外）'}).check();
-  await page.getByRole('button',{name:'C:\\UI-Test\\storage',exact:true}).click();
-  await navigateStep(page,'4. 启用');
-  await expect(page.getByText(/VRCX 歌曲偏好：检查通过，4 次需求 \/ 2 首歌曲/)).toBeVisible();
-  expect(calls.find(c=>c.path==='preview')?.body.storageDir).toBe('D:\\UI-Test\\cache');
-  expect(calls.find(c=>c.path==='preview')?.body.path).toBe('');
-  expect(calls.some(c=>c.path==='apply')).toBe(false);
-  expect(api.calls.some(c=>c.path==='setup/apply')).toBe(false);
-  await page.getByRole('button',{name:'确认并应用',exact:true}).click();
-  await expect.poll(()=>api.calls.filter(c=>c.path==='setup/apply').length).toBe(1);
-  expect(api.calls.find(c=>c.path==='setup/apply')?.body).toMatchObject({vrcxEnabled:true,vrcxPreviewID:'preview-1',vrcxOverwrite:false,storageDir:'D:\\UI-Test\\cache'});
-  expect(calls.some(c=>c.path==='apply')).toBe(false);
-});
-
-test('nonempty wizard usage defaults off and warns only at final application',async({page})=>{
-  const {calls,api}=await fixture(page,3);await page.goto('/#/setup');
-  await navigateStep(page,'2. 存储');
-  const option=page.getByRole('checkbox',{name:'从 VRCX 导入历史偏好',exact:true});
-  await expect(option).toBeEnabled();await expect(option).not.toBeChecked();
-  await option.check();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  expect(calls.some(c=>c.path==='preview'||c.path==='apply')).toBe(false);
-  await navigateStep(page,'4. 启用');
-  await expect(page.getByText(/VRCX 歌曲偏好：检查通过/)).toBeVisible();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  const apply=page.getByRole('button',{name:'确认并应用',exact:true});
-  await apply.click();await expect(page.getByRole('dialog')).toContainText('现有 3 首歌曲');
-  await page.getByRole('button',{name:'取消',exact:true}).click();
-  await expect(apply).toBeFocused();
-  expect(api.calls.some(c=>c.path==='setup/apply')).toBe(false);
-  await apply.click();await page.getByRole('button',{name:'强制导入并覆盖',exact:true}).click();
-  await expect.poll(()=>api.calls.filter(c=>c.path==='setup/apply').length).toBe(1);
-  expect(api.calls.find(c=>c.path==='setup/apply')?.body).toMatchObject({vrcxEnabled:true,vrcxPreviewID:'preview-1',vrcxOverwrite:true});
-});
-
-for(const existing of [0,3])for(const failure of ['missing','empty'])test(`wizard skips ${failure} VRCX check with ${existing} existing songs without blocking application`,async({page})=>{
-  const {report,calls,api}=await fixture(page,existing);
-  if(failure==='empty')Object.assign(report,{id:'',events:0,songs:0});
-  else await page.route('**/api/vrcx/preview',r=>r.fulfill({status:400,body:'未找到默认位置的 VRCX 数据库'}));
-  await page.goto('/#/setup');
-  if(existing){await navigateStep(page,'2. 存储');await enable(page);}
-  await navigateStep(page,'4. 启用');
-  await expect(page.getByText(failure==='empty'?/VRCX 歌曲偏好：没有有效历史需求，跳过导入/:/VRCX 歌曲偏好：检查不通过，跳过导入/)).toBeVisible();
-  await page.getByRole('button',{name:'确认并应用',exact:true}).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect.poll(()=>api.calls.filter(c=>c.path==='setup/apply').length).toBe(1);
-  expect(api.calls.find(c=>c.path==='setup/apply')?.body).toMatchObject({vrcxEnabled:true,vrcxPreviewID:'',vrcxOverwrite:false});
-  expect(calls.some(c=>c.path==='apply')).toBe(false);
-});
-
-test('wizard deselection skips reads and reset restores target-based default',async({page})=>{
-  const {calls}=await fixture(page);await page.goto('/#/setup');await navigateStep(page,'2. 存储');
-  const option=page.getByRole('checkbox',{name:'从 VRCX 导入历史偏好',exact:true});
-  await option.uncheck();await navigateStep(page,'4. 启用');
-  await expect(page.getByText('VRCX 歌曲偏好：未选择，跳过导入',{exact:true})).toBeVisible();
-  expect(calls.some(c=>c.path==='preview')).toBe(false);
-  await navigateStep(page,'2. 存储');
-  await page.getByRole('button',{name:'恢复本页默认',exact:true}).click();await expect(option).toBeChecked();
-  await navigateStep(page,'4. 启用');await expect(page.getByText(/VRCX 歌曲偏好：检查通过/)).toBeVisible();
-  await page.getByRole('button',{name:'刷新接入检查',exact:true}).click();
-  await expect.poll(()=>calls.filter(c=>c.path==='preview').length).toBe(2);
 });
 
 for (const width of [390,1280]) test(`VRCX preview layout at ${width}px`,async({page})=>{

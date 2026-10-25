@@ -21,10 +21,12 @@ function Settings({visible,anchor,networkForm}:{visible:boolean;anchor:string;ne
 
 export function SettingsAndNetwork({settingsVisible,networkVisible,anchor}:{settingsVisible:boolean;networkVisible:boolean;anchor:string}) {
   const [upstream,setUpstream]=useState('direct');
-  return <SettingsPage section="network">{(form,draft)=><>
+  return <SettingsPage section="network">{(form,draft)=>{
+    const {proxyBackend,socks5Address,socks5Username,socks5Password}=settingsPayload(draft);
+    return <>
     <div hidden={!settingsVisible}><Settings visible={settingsVisible} anchor={anchor} networkForm={<div id="network-proxy" tabIndex={-1}>
       {form}<Link href="#network-tests" onClick={()=>setUpstream(draft.upstreamMode==='direct'?'direct':'proxy')}>检测此连接配置</Link>
     </div>}/></div>
-    <div hidden={!networkVisible}><Network visible={networkVisible} proxy={{...settingsPayload(draft),page:'proxy',upstreamMode:'proxy'}} upstream={upstream} onUpstreamChange={setUpstream}/></div>
-  </>}</SettingsPage>;
+    <div hidden={!networkVisible}><Network visible={networkVisible} proxy={{proxyBackend,socks5Address,socks5Username,socks5Password}} upstream={upstream} onUpstreamChange={setUpstream}/></div>
+  </>;}}</SettingsPage>;
 }

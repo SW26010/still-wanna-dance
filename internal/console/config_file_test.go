@@ -17,8 +17,8 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := c.settings
-	if !want.AutoAccelerate || !want.AutoOpenWebUI || !want.QueueWithGateway || want.PrepareAheadSeconds != 500 {
-		t.Fatal("first launch should enable both startup preferences")
+	if want.AutoAccelerate || !want.AutoOpenWebUI || !want.QueueWithGateway || want.PrepareAheadSeconds != 500 {
+		t.Fatal("first launch should disable automatic acceleration and enable WebUI opening and queue following")
 	}
 	if want.AggressiveCacheReclamation != "auto" || want.VideoStorageMode != "none" || want.MaxCacheBytes != 0 {
 		t.Fatal("first launch should not retain unprotected videos")
@@ -28,7 +28,7 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(fields["prepareAheadSeconds"]) != "500" || string(fields["storageDir"]) != `"storage"` || string(fields["schemaVersion"]) != "6" || string(fields["autoAccelerate"]) != "true" || string(fields["queueWithGateway"]) != "true" {
+	if string(fields["prepareAheadSeconds"]) != "500" || string(fields["storageDir"]) != `"storage"` || string(fields["schemaVersion"]) != "6" || string(fields["autoAccelerate"]) != "false" || string(fields["queueWithGateway"]) != "true" {
 		t.Fatal(fields)
 	}
 	if string(fields["aggressiveCacheReclamation"]) != `"auto"` || string(fields["videoStorageMode"]) != `"none"` || string(fields["maxCacheBytes"]) != "0" {
@@ -164,11 +164,11 @@ func TestStartupSettingsDefaultAndRemainIndependent(t *testing.T) {
 		wantCDN   bool
 		wantQueue bool
 	}{
-		{"missing", `{"schemaVersion":6}`, true, true},
-		{"null", `{"schemaVersion":6,"autoAccelerate":null,"queueWithGateway":null}`, true, true},
+		{"missing", `{"schemaVersion":6}`, false, true},
+		{"null", `{"schemaVersion":6,"autoAccelerate":null,"queueWithGateway":null}`, false, true},
 		{"missing queue with gateway on", `{"schemaVersion":6,"autoAccelerate":true}`, true, true},
 		{"missing queue with gateway off", `{"schemaVersion":6,"autoAccelerate":false}`, false, true},
-		{"missing gateway with queue off", `{"schemaVersion":6,"queueWithGateway":false}`, true, false},
+		{"missing gateway with queue off", `{"schemaVersion":6,"queueWithGateway":false}`, false, false},
 		{"both off", `{"schemaVersion":6,"autoAccelerate":false,"queueWithGateway":false}`, false, false},
 		{"gateway only", `{"schemaVersion":6,"autoAccelerate":true,"queueWithGateway":false}`, true, false},
 		{"queue only", `{"schemaVersion":6,"autoAccelerate":false,"queueWithGateway":true}`, false, true},

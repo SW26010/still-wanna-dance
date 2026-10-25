@@ -87,6 +87,7 @@ func TestRemovedSetupEndpointsAndReceiptsHaveNoEffects(t *testing.T) {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
+	c.settings.AutoAccelerate = true
 	c.AutoStart()
 	if c.httpServer == nil || c.importStatus.Running {
 		t.Fatal("legacy receipt affected startup")

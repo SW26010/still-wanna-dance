@@ -195,10 +195,9 @@ func TestTermsGateAndPersistence(t *testing.T) {
 			t.Fatalf("%s: %d", path, w.Code)
 		}
 	}
-	if !c.settings.AutoAccelerate || !c.settings.QueueWithGateway {
-		t.Fatal("startup preferences should default to enabled")
+	if c.settings.AutoAccelerate || !c.settings.QueueWithGateway {
+		t.Fatal("automatic acceleration should default off and queue following should default on")
 	}
-	c.settings.AutoAccelerate = false
 	c.AutoStart()
 	if c.httpServer != nil || c.service != nil || c.queue.Running || c.queueDesired {
 		t.Fatal("started before acceptance")

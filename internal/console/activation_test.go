@@ -229,6 +229,7 @@ func TestOwnedLegacyHostsRequireActivationMigration(t *testing.T) {
 
 func TestAutoAccelerationUpdatesOwnedHosts(t *testing.T) {
 	c := testConsole(t)
+	c.settings.AutoAccelerate = true
 	data := "\r\n127.0.0.1 api.udon.dance " + marker + "\r\n\r\n127.0.0.1 nya.xin.moe " + marker + "\r\n"
 	c.hosts, _ = fixtureHostsController(t, data)
 

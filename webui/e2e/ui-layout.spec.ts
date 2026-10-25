@@ -38,7 +38,7 @@ for(const width of [390,800,1440])test(`settings and network show their controls
 for(const width of [390,1280])test(`saving settings does not displace fields at ${width}px`,async({page})=>{
   await mockAPI(page);await page.setViewportSize({width,height:900});await page.goto('/#/settings');
   const field=page.getByRole('checkbox',{name:'启动程序时自动开启视频加速',exact:true}),save=page.getByRole('button',{name:'保存设置',exact:true});
-  await field.uncheck();await expect(save).toBeEnabled();
+  await field.check();await expect(save).toBeEnabled();
   const y=()=>field.evaluate(el=>el.getBoundingClientRect().top+scrollY);const before=await y();
   await save.click();await expect(page.getByRole('button',{name:'重启并应用'})).toBeEnabled();
   expect(Math.abs(await y()-before)).toBeLessThan(2);

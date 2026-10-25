@@ -165,7 +165,7 @@ func newConsole(configPath, address string, dns directResolver) (*Console, error
 	c.hosts = newHostsController(hostsPath(), launchHostsSession)
 	c.settings = Settings{
 		StorageDir: apppaths.ForConfig(configPath).DefaultStorage, RequestRetentionDays: 30,
-		AutoAccelerate: true, AutoOpenWebUI: true, QueueWithGateway: true, RestoreHostsOnExit: true,
+		AutoAccelerate: false, AutoOpenWebUI: true, QueueWithGateway: true, RestoreHostsOnExit: true,
 		VideoStorageMode: "none", MaxCacheBytes: 0, RetainFavorites: true,
 		AggressiveCacheReclamation: "auto",
 		DownloadSoftLimit:          cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),

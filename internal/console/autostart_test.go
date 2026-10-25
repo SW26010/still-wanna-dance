@@ -14,13 +14,23 @@ import (
 
 func TestAutoStartSetting(t *testing.T) {
 	c := testConsole(t)
+	c.AutoStart()
+	if c.DesktopState().CDN || c.queue.Running || c.queueDesired || c.hosts.status().Ready {
+		t.Fatal("default settings started acceleration or queue prefetch")
+	}
+	s := c.settings
+	s.AutoAccelerate = true
+	if err := c.save(s); err != nil {
+		t.Fatal(err)
+	}
+	c = restartTestConsole(t, c)
 	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 
 	c.AutoStart()
 	if !c.DesktopState().CDN || !c.queue.Running || !c.queueDesired {
-		t.Fatal("default settings did not start both services")
+		t.Fatal("enabled automatic acceleration did not start both services")
 	}
 	postTaskAction(t, c, "stop")
 	postTaskAction(t, c, "queue/stop")
@@ -114,6 +124,7 @@ func TestAutoStartFailureKeepsConsoleAvailable(t *testing.T) {
 
 func TestQueueWithGatewayFailureStillStartsGateway(t *testing.T) {
 	c := testConsole(t) // The isolated log directory does not exist.
+	c.settings.AutoAccelerate = true
 
 	c.AutoStart()
 	if !c.DesktopState().CDN || c.queue.Running || !c.queueDesired || c.actionErrors["queue"] == "" {
@@ -123,6 +134,7 @@ func TestQueueWithGatewayFailureStillStartsGateway(t *testing.T) {
 
 func TestAutoAccelerationDeniedAuthorizationIsNotRetried(t *testing.T) {
 	c := testConsole(t)
+	c.settings.AutoAccelerate = true
 
 	h, launches := fixtureHostsController(t, hostsBaseline)
 	c.hosts = h

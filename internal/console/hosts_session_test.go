@@ -301,6 +301,7 @@ func TestExplicitGatewayStartPreparesExistingConnectionOnlyWhenNeeded(t *testing
 		h, launches := fixtureHostsController(t, owned)
 		c.hosts = h
 		c.settings.RestoreHostsOnExit = restore
+		c.settings.AutoAccelerate = true
 		c.settings.QueueWithGateway = false
 		c.savedSettings = c.settings
 

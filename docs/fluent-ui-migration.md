@@ -60,4 +60,4 @@
 
 设置四类和关于四类内容采用标准 TabList/Tab/tabpanel，独立网络页使用页内链接定位检测与诊断，配置字段仅在设置中编辑。设置表单持续挂载，沿用独立部分草稿与最新保存配置合并；浏览器主题采用同一 FluentProvider，不另造主题样式系统。
 
-2026-10-25 曲库与请求历史已按[简洁重构](webui-design.md#2026-10-25-简洁重构)移除嵌套统计折叠，使用 Tooltip、Popover 与 Toast；早期的统一纵向 Card/Accordion 排布不再作为现行界面要求。
+2026-10-25 曲库与请求历史已按[简洁重构](webui-design.md#当前界面规则)移除嵌套统计折叠，使用 Tooltip、Popover 与 Toast；早期的统一纵向 Card/Accordion 排布不再作为现行界面要求。

@@ -514,3 +514,11 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 - 前端构建、类型与嵌入资源一致性检查、Console／desktop／桌面入口的 `go vet`、`no_easytier` 桌面构建及 diff 检查通过。未启动游戏或修改实际 hosts／用户配置，无新增 VRC 待验项；[旧引导验证](issue-16-validation.md)标记为历史，失效场景不再作为现行要求。
 - 后续审查补齐此前最后一次请求字段收窄后的验证遗漏：`ownership.spec.ts` 改为检查顶层 `upstream` 与 `proxy.socks5Address`，通过同一临时目录入口复验 **8/8**。可选 `vrcx-live.mjs` 移除旧引导步骤，保留曲库预览、导入、刷新、覆盖确认取消／焦点与实际覆盖；启用 `SWD_VRCX_BROWSER_EVIDENCE` 运行 `TestVRCXBrowser` 通过，隔离真实库确认有 2 首歌曲且未启动引擎。首次实跑另发现旧“导入 VRCX 历史需求统计”按钮名称导致超时，修正为现行名称后通过。日志分别保留在 `artifacts/remove-setup/ownership-fix.txt`、`vrcx-live-fixed.txt`（失败）和 `vrcx-live-verified.txt`（通过）；仅调整测试及记录，脚本语法与 diff 检查通过。
 - 删除已无调用方的目录校验 `custom` 参数和设置请求 `customStorage` 字段，统一经设置保存校验新选择：允许默认存储位置，其他位置须在程序目录之外，保留路径别名／目录联接检查。现有边界测试同步去掉旧入口分支；`go test -tags=no_easytier ./internal/console -run '^Test(Storage|MissingStorage|Settings)' -count=1 -v` **11 项通过**，包括设置持久化和 Windows 联接，输出为 `artifacts/remove-setup/storage-selection-final.txt`；前端类型／嵌入资源一致性、Console `go vet` 及 diff 检查通过。
+
+## 2026-10-25 UAC 操作提示
+
+- 加速、网络接入诊断、游戏连接状态、自动加速与退出恢复选项、相关保存／重启按钮和条款确认使用 Fluent v9 `Tooltip`，通过 `relationship="description"` 关联控件。退出恢复明确在开启并保存时可能授权；重启提示读取已保存的自动加速设置。条款页当前没有独立恢复直连按钮，沿用现有入口和生命周期行为。
+- 通过 `scripts/with-test-temp.ps1` 运行 `acceleration.spec.ts startup-settings.spec.ts terms-consent.spec.ts regressions.spec.ts runtime-status.spec.ts lifecycle-entrypoints.spec.ts --workers=3`，Edge **26/26** 通过；复选框触发区域调整后复验 `startup-settings.spec.ts regressions.spec.ts`，**6/6** 通过。日志为 `artifacts/uac-tooltip/regression-verified.log`、`settings-final.log`。
+- 隔离浏览器逐项检查悬停、Tab 聚焦、Escape、无障碍描述、保存／重启提示条件与无额外业务请求，覆盖小方框及文字标签；核对 1280px 浅色、320px 深色截图。首次直接包裹 Checkbox 时标签悬停失败，改用 Tooltip 的触发属性和 Checkbox `root` 插槽后全部通过；结果与截图见 `artifacts/uac-tooltip/inspect-final.log` 及同目录图片，失败记录保留。检查脚本还修正了单参数传递和 hash 导航保留旧夹具快照的问题，未据这些失败修改产品业务。
+- 沙箱内 Edge 在启动阶段因 `TransactNamedPipe` 管道错误失败，未进入页面断言；失败证据在 `artifacts/uac-tooltip/regression/`，沙箱外使用相同隔离入口完成检查。前端构建、类型、嵌入资源一致性与 diff 检查通过。验证使用本地内存 API，未触发真实 UAC、修改 hosts 或启动游戏；无新增 VRC 待验项。
+- 随后按用户要求移除“同意完整条款”的 Tooltip，恢复该按钮原有实现；其他 UAC 提示保留，现行内容约定同步。前端构建、类型与嵌入资源一致性检查通过；`terms-consent.spec.ts --workers=3` **6/6** 通过，日志为 `artifacts/uac-tooltip/terms-removed.log`。本节此前的条款提示截图仅记录移除前状态。

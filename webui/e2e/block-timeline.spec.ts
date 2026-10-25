@@ -65,7 +65,7 @@ test('timeline subscribes only while visible and restores a fresh snapshot', asy
   await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, value: false }); document.dispatchEvent(new Event('visibilitychange')); });
   await expect.poll(f.totalStreams).toBe(1);
   await navigate(page, '曲库'); await expect.poll(f.totalStreams).toBe(0);
-  await navigate(page, '视频加速'); await f.panel.scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(1);
+  await navigate(page, '加速'); await f.panel.scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(1);
   await page.setViewportSize({width:1280,height:300}); await page.evaluate(()=>window.scrollTo(0,0)); await expect.poll(f.totalStreams).toBe(0);
   await f.panel.scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(1);
   await f.panel.getByRole('button', { name: '收起时间轴' }).click(); await expect.poll(f.totalStreams).toBe(0);

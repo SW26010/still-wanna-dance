@@ -179,7 +179,7 @@ test('no retention overrides the remembered budget while favorites can still be 
   await navigate(page,'曲库');
   await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();
   await expect(page.getByRole('button',{name:'检查缺失视频',exact:true})).toBeEnabled();
-  await navigate(page,'视频加速');await expect(page.getByRole('heading',{name:'房间队列',exact:true})).toBeVisible();
+  await navigate(page,'加速');await expect(page.getByRole('heading',{name:'房间队列',exact:true})).toBeVisible();
 });
 
 test('empty storage keeps actions and settings links available',async({page})=>{

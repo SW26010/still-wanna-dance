@@ -4,18 +4,18 @@ import { ConsoleContext, useConsole } from './hooks';
 import { Brand, Feedback, Notification, RecordDetails, StatusBadge, NavigationLayout, pageLinks, isDocumentPage, DocumentFooter } from './ui';
 import { AboutPage } from './documents';
 import { Home } from './home-library';
-import { Settings } from './settings-page';
+import { SettingsAndNetwork } from './settings-page';
 import { Library } from './library';
 import { Setup } from './setup';
 import { RequestTimeline } from './request-timeline';
 import { bootstrap } from './bootstrap';
 import { exitConnectionMessage } from './types';
 
-const pages = {home:'视频加速',timeline:'时间线',library:'曲库',settings:'设置',setup:'使用引导',about:'关于'};
+const pages = {home:'加速',timeline:'历史',library:'曲库',network:'网络',settings:'设置',setup:'使用引导',about:'关于'};
 type Page = keyof typeof pages;
-const anchors:Record<string,Page>={activation:'home',service:'settings',queue:'home',overview:'library',cache:'library',downloads:'home','download-settings':'settings',recent:'timeline',network:'settings','network-proxy':'settings','network-access':'settings','network-tests':'settings',batch:'library',preferences:'settings',prepareAheadSeconds:'settings',maxCacheGiB:'settings','storage-settings':'settings','video-import':'library','song-preferences':'library',help:'about',terms:'about',licenses:'about','help-start':'about','help-playback':'about','help-storage':'about','help-stop':'about','help-paths':'about'};
+const anchors:Record<string,Page>={activation:'home',service:'network',queue:'home',overview:'library',cache:'library',downloads:'home','download-settings':'settings',recent:'timeline',network:'network','network-proxy':'settings','proxy-settings':'settings','network-access':'network','network-tests':'network',batch:'library',preferences:'settings',prepareAheadSeconds:'settings',maxCacheGiB:'settings','storage-settings':'settings','video-import':'library','song-preferences':'library',help:'about',terms:'about',licenses:'about','help-start':'about','help-playback':'about','help-storage':'about','help-stop':'about','help-paths':'about'};
 export function route(hash: string): Page {
-  if (hash === '#/upstream' || hash === '#/monitor') return 'settings';
+  if (hash === '#/upstream' || hash === '#/monitor') return 'network';
   const key = hash.replace(/^#\/?/,'').split('?')[0];
   return Object.hasOwn(pages,key) ? key as Page : anchors[key] || 'home';
 }
@@ -73,7 +73,7 @@ export function App() {
     <NavigationLayout items={pageLinks()} selected={page} hidden={page==='setup'}>
     <main ref={main} id="main" tabIndex={-1}><div className="page-heading" hidden={page==='setup'}><Title2 as="h1">{pages[page]}</Title2></div>
       {page!=='setup'&&feedback}
-      {s && <><div hidden={page !== 'home'}><Home visible={page==='home'}/></div><div hidden={page !== 'timeline'}><RequestTimeline visible={page==='timeline'}/></div><div hidden={page!=='library'}><Library visible={page==='library'} anchor={anchor}/></div><div hidden={page!=='settings'}><Settings visible={page==='settings'} anchor={anchor}/></div>
+      {s && <><div hidden={page !== 'home'}><Home visible={page==='home'}/></div><div hidden={page !== 'timeline'}><RequestTimeline visible={page==='timeline'}/></div><div hidden={page!=='library'}><Library visible={page==='library'} anchor={anchor}/></div><SettingsAndNetwork settingsVisible={page==='settings'} networkVisible={page==='network'} anchor={anchor}/>
       </>}
       {page==='about'&&<AboutPage anchor={anchor} paths={s?{...bootstrap.paths,Storage:s.activeSettings.storageDir}:bootstrap.paths||{}}/>}
       {page==='setup'&&<Setup accepted={accepted} onAccepted={()=>setAccepted(true)} onExit={exitSetup} guard={guard} feedback={feedback}/>}

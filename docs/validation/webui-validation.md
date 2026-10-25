@@ -482,3 +482,10 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 - 页头按钮改为“退出程序”，点击直接提交一次退出请求，移除网页二次确认。停止服务及游戏接入处理说明沿用 `exitConnectionMessage` 读取当前生效设置和权限准备状态，通过 Fluent Tooltip 的 `relationship="description"` 在鼠标悬停或键盘聚焦时显示；不读取未保存草稿作为退出策略。帮助与现行文档同步名称，后端退出、恢复权限及失败反馈未改动。
 - `./scripts/with-test-temp.ps1 pnpm --dir webui test acceleration.spec.ts console.spec.ts document-navigation.spec.ts runtime-status.spec.ts settings-help.spec.ts navigation-stability.spec.ts ui-layout.spec.ts --workers=3 --output=../artifacts/exit-tooltip/verified` **49/49** 通过。覆盖悬停／聚焦不发送请求、Escape 关闭说明、Enter 直接退出、无二次弹窗、当前恢复策略及未准备权限说明、失败与结果未确认反馈，以及五页布局。核对 320px 与 1280px Tooltip 截图；前端构建、类型、嵌入产物及 diff 检查通过。使用本地内存 API，未实际退出用户程序或修改 hosts，无新增 VRC 待验项。
+
+## 2026-10-25 六项导航与独立网络页
+
+- 主导航及页面标题统一为“加速、历史、曲库、网络、设置、关于”。当前连接、线路观测、连通性检测与测速、接入诊断移入网络页；代理、回源线路与测速间隔继续在设置的网络标签编辑。复用原有 SettingsPage 草稿与检测组件，跨页检测不保存或应用配置，返回时保留编辑；旧网络诊断链接与配置链接分别进入对应页面。
+- `pnpm --dir webui build`、`pnpm --dir webui check` 通过。全量浏览器回归 `./scripts/with-test-temp.ps1 pnpm --dir webui test --workers=3 --output=../artifacts/network-page/initial` 首轮 **228/230** 通过；两项失败分别为旧接入诊断页面归属断言和此前文件错误由 Toast 改为页内结果后遗留的断言。更新预期后，`settings-structure.spec.ts page-feedback.spec.ts --workers=3 --output=../artifacts/network-page/verified` **22/22** 通过，首轮失败证据保留。
+- 覆盖六项导航顺序、旧地址直达与焦点、设置草稿跨页保留、SOCKS5 草稿检测且无保存请求、设置与诊断控件归属、390–1700px 导航对齐和 320px 高对比布局；人工核对 390px、1440px 网络页截图。类型、嵌入资源一致性与 diff 检查通过。
+- 浏览器使用本地内存 API，未启动游戏、改 hosts 或用户数据；没有后端业务变更，无新增 VRC 待验项。首轮测试清理时 Edge 临时文件仍被占用，该轮独立临时目录按脚本约定保留，未影响验证结果。

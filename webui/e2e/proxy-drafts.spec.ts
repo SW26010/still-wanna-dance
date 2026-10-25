@@ -17,7 +17,7 @@ async function applyUnchangedWizard(page:Page) {
   await page.getByRole('link',{name:'重新进入使用引导',exact:true}).click();
   await navigateStep(page,'4. 启用');
   await page.getByRole('button',{name:'确认并应用',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'视频加速',level:1,exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'加速',level:1,exact:true})).toBeVisible();
   await page.evaluate(()=>{location.hash='network-proxy';});
   await expect(page.getByRole('combobox',{name:'上游连接',exact:true})).toHaveValue('direct');
 }
@@ -28,7 +28,6 @@ test('wizard reset releases the checked settings draft, ordinary navigation reta
   await page.goto('/#network-proxy');await selectMihomo(page);await inspect(page);
   await expect(reports(page)).toBeVisible();
   await navigate(page,'帮助');await navigateSettings(page,'网络');
-  await page.getByRole('link',{name:'代理设置',exact:true}).click();
   await expect(reports(page)).toBeVisible();
   expect(api.calls.some(c=>c.path==='proxy/import/discard')).toBe(false);
   await applyUnchangedWizard(page);

@@ -6,7 +6,7 @@ test('live progress belongs to acceleration and manual work belongs to library',
   const api=await mockAPI(page);
   await page.route('**/api/downloads',r=>r.fulfill({json:{bytesPerSecond:12000,tasks:[{id:'1',resource:'song',songs:[{id:'1',title:'正在准备的歌曲'}],stage:'download',bytes:100,size:1000,bytesPerSecond:12000,idleMS:0}]}}));
   await page.goto('/#/home');
-  await expect(page.getByRole('heading',{level:1,name:'视频加速',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{level:1,name:'加速',exact:true})).toBeVisible();
   await expect(page.getByText('正在准备的歌曲',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'展开时间轴',exact:true})).toBeVisible();
   await navigate(page,'曲库');await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeVisible();
@@ -49,8 +49,11 @@ test('separate settings locations save only their own draft and preserve the oth
 
 for(const width of [390,1280])test(`sidebar matches tasks and auxiliary pages (${width})`,async({page},info)=>{
   await mockAPI(page);await page.setViewportSize({width,height:844});await page.goto('/');
-  await expect(page.getByRole('heading',{level:1,name:'视频加速',exact:true})).toBeVisible();
-  for(const name of ['时间线','曲库','设置','关于']){
+  await expect(page.getByRole('heading',{level:1,name:'加速',exact:true})).toBeVisible();
+  if(width<=640)await page.getByRole('button',{name:'展开页面导航',exact:true}).click();
+  await expect(page.getByRole('navigation',{name:'页面导航',exact:true}).getByRole('link')).toHaveText(['加速','历史','曲库','网络','设置','关于']);
+  if(width<=640)await page.keyboard.press('Escape');
+  for(const name of ['历史','曲库','网络','设置','关于']){
     await navigate(page,name);
     await expect(page.getByRole('heading',{level:1,name,exact:true})).toBeVisible();
   }
@@ -66,17 +69,25 @@ test('proxy configuration and checks share the same unsaved draft without saving
   await expect(page.getByRole('combobox',{name:'上游连接',exact:true})).toBeVisible();
   await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');
   await page.getByRole('textbox',{name:'SOCKS5 地址',exact:true}).fill('127.0.0.1:7891');
-  await page.getByRole('button',{name:'检测此连接配置',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'设置',level:1,exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'检查当前连接',exact:true})).not.toBeVisible();
+  await expect(page.getByRole('button',{name:'修复并开启加速',exact:true})).not.toBeVisible();
+  await page.getByRole('link',{name:'检测此连接配置',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'网络',level:1,exact:true})).toBeVisible();
+  await expect(page.getByRole('combobox',{name:'上游连接',exact:true})).not.toBeVisible();
+  await expect(page.getByRole('button',{name:'保存设置',exact:true})).not.toBeVisible();
   await expect(page.getByRole('combobox',{name:'检测上游',exact:true})).toHaveValue('proxy');
   await page.getByRole('button',{name:'开始连通性检测',exact:true}).click();
   const call=api.calls.find(c=>c.path==='setup/network/connectivity/start');
   expect(call?.body.proxy).toMatchObject({socks5Address:'127.0.0.1:7891',upstreamMode:'proxy'});
   expect(api.calls.some(c=>c.path==='settings')).toBe(false);
-  await page.getByRole('link',{name:'代理设置',exact:true}).click();
+  await page.getByRole('link',{name:'网络设置',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'设置',level:1,exact:true})).toBeVisible();
   await expect(page.getByRole('textbox',{name:'SOCKS5 地址',exact:true})).toHaveValue('127.0.0.1:7891');
+  await navigate(page,'网络');
   await page.getByRole('link',{name:'接入诊断',exact:true}).click();
   await expect(page.getByRole('button',{name:'修复并开启加速',exact:true})).toBeVisible();
-  await navigate(page,'视频加速');
+  await navigate(page,'加速');
   await expect(page.getByRole('button',{name:'修复并开启加速',exact:true})).toHaveCount(0);
 });
 
@@ -84,7 +95,7 @@ test('normal startup stays on acceleration even after a manual wizard was left a
   await mockAPI(page);
   await page.route('**/api/setup',r=>r.fulfill({json:{schemaVersion:1,state:'active',step:'proxy'}}));
   await page.goto('/');
-  await expect(page.getByRole('heading',{level:1,name:'视频加速',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{level:1,name:'加速',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'下一步',exact:true})).toHaveCount(0);
 });
 
@@ -97,7 +108,7 @@ test('acceleration summarizes recent failures and links to their owning page',as
   await expect(page.getByRole('link',{name:'检查连接',exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('acceleration.png'),fullPage:true,animations:'disabled'});
   await page.getByRole('link',{name:'检查连接',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'设置',level:1,exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'网络',level:1,exact:true})).toBeVisible();
   await navigate(page,'曲库');
   await page.screenshot({path:info.outputPath('downloads.png'),fullPage:true,animations:'disabled'});
   await navigate(page,'曲库');

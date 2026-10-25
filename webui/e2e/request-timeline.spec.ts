@@ -48,7 +48,7 @@ test('history pages beyond 500 without growing the DOM; filtering leaves latency
   await page.route('**/api/history?*',r=>{const q=new URL(r.request().url()).searchParams;queries.push(q);const index=Number(q.get('cursor')||0);return r.fulfill({json:{storageID:'fixture',requests:Array.from({length:50},(_,i)=>record(index*50+i+1)),hasMore:index<12,nextCursor:String(index+1)}});});
   await page.route('**/api/latency',r=>{latencyReads++;return r.fulfill({json:{from:Date.now()-72*3600000,to:Date.now(),availableFrom:Date.now()-3600000,partial:true,blocking:{samples:20,p50MS:10,p95MS:80},ready:{samples:0,p50MS:null,p95MS:null}}});});
   await page.clock.install();await page.goto('/#recent');
-  await expect(page.getByRole('heading',{level:1,name:'时间线'})).toBeVisible();
+  await expect(page.getByRole('heading',{level:1,name:'历史'})).toBeVisible();
   await expect(page.getByText('P50 10 ms · P95 80 ms',{exact:true})).toBeVisible();
   await expect(page.getByText(/数据不足 72 小时/)).toBeVisible();
   await expect(page.getByRole('link',{name:'ID 42',exact:true})).toBeVisible();
@@ -86,7 +86,7 @@ test('timeline retains filters across navigation and rejects inverted date range
   await page.getByLabel('开始时间（含）',{exact:true}).fill('2026-10-23T01:00');await page.getByLabel('结束时间（不含）',{exact:true}).fill('2026-10-22T01:00');
   const count=api.calls.filter(c=>c.path==='history').length;
   await page.getByRole('button',{name:'查询历史',exact:true}).click();await expect(page.getByText('结束时间必须晚于开始时间。',{exact:true})).toBeVisible();expect(api.calls.filter(c=>c.path==='history')).toHaveLength(count);
-  await navigate(page,'设置');await navigate(page,'时间线');await expect(page.getByLabel('开始时间（含）',{exact:true})).toHaveValue('2026-10-23T01:00');
+  await navigate(page,'设置');await navigate(page,'历史');await expect(page.getByLabel('开始时间（含）',{exact:true})).toHaveValue('2026-10-23T01:00');
 });
 
 for(const width of [320,1280])test(`date errors stay with their field without overlapping controls at ${width}px`,async({page},info)=>{

@@ -21,7 +21,7 @@ test('key consequences stay near their related choices',async({page})=>{
   await expect(page.getByText('留空保留已有密码；清空用户名可移除认证。',{exact:true})).toBeVisible();
   await page.getByRole('combobox',{name:'代理后端',exact:true}).selectOption('mihomo');
   await expect(page.getByText('检查仅生成草稿；保存后替换整份节点库，重启生效。',{exact:true})).toBeVisible();
-  await page.getByRole('link',{name:'接入诊断',exact:true}).click();await expect(page.getByRole('button',{name:'修复并开启加速',exact:true})).toBeVisible();
+  await navigate(page,'网络');await page.getByRole('link',{name:'接入诊断',exact:true}).click();await expect(page.getByRole('button',{name:'修复并开启加速',exact:true})).toBeVisible();
 });
 
 test('license attribution and explicit consent remain available',async({page})=>{

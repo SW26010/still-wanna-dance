@@ -38,7 +38,7 @@ test('VRCX keeps the selected database and preview across tool return and page n
   await page.evaluate(()=>{location.hash='cache';});
   await expect(page.getByRole('table',{name:'曲库资源',exact:true})).toBeVisible();
   await history.click();await expect(preview).toBeVisible();await expect(path).toHaveValue('D:\\custom\\VRCX.sqlite3');
-  await navigate(page,'视频加速');await navigate(page,'曲库');
+  await navigate(page,'加速');await navigate(page,'曲库');
   await expect(page.getByRole('checkbox',{name:'从 VRCX 导入历史偏好',exact:true})).toBeChecked();
   await expect(path).toHaveValue('D:\\custom\\VRCX.sqlite3');
   await expect(preview).toBeVisible();

@@ -8,7 +8,7 @@ test('drafts survive polling and navigation; save preserves active config and bl
   await expect(m).toHaveAccessibleDescription(/约 125 MB 临时缓存（按 2 Mbps）/);
   await m.fill(''); await expect(m).not.toHaveAccessibleDescription(/约 .* MB/);
   await m.fill('100'); await expect(m).toHaveAccessibleDescription(/约 25 MB 临时缓存/);
-  await navigateSettings(page,'网络');await page.getByRole('link',{name:'接入诊断',exact:true}).click();
+  await navigate(page,'网络');await page.getByRole('link',{name:'接入诊断',exact:true}).click();
   await page.getByRole('button',{name:'修复并开启加速',exact:true}).click();
   await expect(page.getByRole('listitem',{name:'视频加速已开启。',exact:true})).toBeVisible();
   await navigateSettings(page,'预加载与下载'); await expect(m).toHaveValue('100');
@@ -60,7 +60,7 @@ test('pause only freezes monitor display; exit tooltip supports keyboard focus w
   const api=await mockAPI(page); await page.goto('/#recent');
   await page.getByRole('checkbox',{name:'暂停请求刷新'}).check();
   const reads=api.calls.filter(c=>c.path==='downloads'||c.path==='requests').length;
-  await navigateSettings(page,'网络');await page.getByRole('button',{name:'检查当前连接',exact:true}).click();
+  await navigate(page,'网络');await page.getByRole('button',{name:'检查当前连接',exact:true}).click();
   await expect(page.getByText('网络检测已开始，请查看检测结果。',{exact:true})).toBeVisible();
   expect(api.calls.filter(c=>c.path==='downloads'||c.path==='requests')).toHaveLength(reads);
   const exit=page.getByRole('button',{name:'退出程序',exact:true});
@@ -74,7 +74,7 @@ test('all console pages render at narrow width without runtime errors', async ({
   await mockAPI(page); await page.setViewportSize({width:390,height:844}); await page.emulateMedia({colorScheme:'dark'});
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('/');
-  for(const name of ['视频加速','时间线','曲库','设置','关于']) {
+  for(const name of ['加速','历史','曲库','网络','设置','关于']) {
     await navigate(page,name);
     await expect(page.locator('#main')).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

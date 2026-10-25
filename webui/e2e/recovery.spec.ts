@@ -10,6 +10,27 @@ test('settings anchors focus after initial reads and within the same page',async
   await page.evaluate(()=>{location.hash='recent';});await expect(page.locator('#recent')).toBeFocused();
 });
 
+test('network routes and legacy links open diagnostics while proxy links open settings',async({page})=>{
+  const api=await mockAPI(page);
+  for(const hash of ['#/network','#network','#network-tests','#network-access','#service','#/upstream','#/monitor']){
+    await page.goto('/'+hash);
+    await expect(page.getByRole('heading',{level:1,name:'网络',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'检查当前连接',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'开始连通性检测',exact:true})).toBeVisible();
+    if(!hash.startsWith('#/'))await expect(page.locator(hash)).toBeFocused();
+    await expect(page.getByRole('combobox',{name:'上游连接',exact:true})).not.toBeVisible();
+  }
+  for(const hash of ['#network-proxy','#proxy-settings']){
+    await page.goto('/'+hash);
+    await expect(page.getByRole('heading',{level:1,name:'设置',exact:true})).toBeVisible();
+    await expect(page.getByRole('tab',{name:'网络',exact:true})).toHaveAttribute('aria-selected','true');
+    await expect(page.getByRole('combobox',{name:'上游连接',exact:true})).toBeVisible();
+    await expect(page.locator(hash)).toBeFocused();
+    await expect(page.getByRole('button',{name:'开始连通性检测',exact:true})).toHaveCount(0);
+  }
+  expect(api.calls.some(c=>c.path==='settings'||c.path.includes('/start')||c.path.includes('/check'))).toBe(false);
+});
+
 test('acceleration owns connection actions and queue status links to settings',async({page})=>{
  const api=await mockAPI(page);
  api.state.queue.songs=[{songId:-1},{songId:1},{songId:-1},{songId:2},{songId:3},{songId:4}];
@@ -17,7 +38,7 @@ test('acceleration owns connection actions and queue status links to settings',a
  await page.route('**/api/activation/enable',r=>r.fulfill({status:409,json:{error:'管理员取消，hosts 未改变'}}));
  await page.getByRole('button',{name:'修复并开启加速',exact:true}).click();
  await expect(page.getByRole('listitem',{name:'管理员取消，hosts 未改变',exact:true})).toBeVisible();
- await navigate(page,'视频加速');
+ await navigate(page,'加速');
  await expect(page.locator('#queue tbody tr')).toHaveCount(6);
  await expect(page.getByRole('button',{name:/开启队列预加载|关闭队列预加载/})).toHaveCount(0);
  await page.locator('#queue').getByRole('link',{name:'设置',exact:true}).click();
@@ -64,13 +85,13 @@ test('setup validation failure keeps the draft and does not apply',async({page})
   await page.route('**/api/setup/validate',r=>r.fulfill({status:409,json:{error:'设置版本已变化，请重新进入引导'}}));
   await page.getByRole('button',{name:'下一步',exact:true}).click();await expect(page.getByText(/本页尚未通过检查/)).toBeVisible();
   await expect(page.getByRole('spinbutton',{name:/视频存储预算/})).toHaveValue('18');expect(api.calls.some(c=>c.path==='setup/apply')).toBe(false);
-  await page.getByRole('button',{name:'放弃草稿并退出引导'}).click();await expect(page.getByRole('link',{name:'视频加速',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'放弃草稿并退出引导'}).click();await expect(page.getByRole('link',{name:'加速',exact:true})).toBeVisible();
 });
 
 test('reload reconciles the original application ID without submitting again',async({page})=>{
   const api=await mockAPI(page);api.state.setupApplication={id:'original-application',phase:'completed',configSaved:true};
   await page.addInitScript(()=>sessionStorage.setItem('swd-setup-application','original-application'));
-  await page.goto('/#/setup');await expect(page.getByRole('link',{name:'视频加速',exact:true})).toBeVisible();
+  await page.goto('/#/setup');await expect(page.getByRole('link',{name:'加速',exact:true})).toBeVisible();
   expect(api.calls.find(c=>c.path==='setup/receipt')?.body).toEqual({id:'original-application'});
   expect(api.calls.some(c=>c.path==='setup/apply')).toBe(false);
   expect(await page.evaluate(()=>sessionStorage.getItem('swd-setup-application'))).toBeNull();
@@ -120,7 +141,7 @@ test('cache failures preserve rows but disable stale actions and retry reads no 
 
 test('320px forced-colors layout keeps every console page usable',async({page})=>{
   await mockAPI(page);await page.setViewportSize({width:320,height:800});await page.emulateMedia({forcedColors:'active',reducedMotion:'reduce'});await page.goto('/');
-  for(const name of ['视频加速','时间线','曲库','设置','关于']){
+  for(const name of ['加速','历史','曲库','网络','设置','关于']){
     await navigate(page,name);
     await page.getByRole('button',{name:'展开页面导航',exact:true}).click();
     await expect(page.getByRole('navigation',{name:'页面导航',exact:true}).getByRole('link',{name,exact:true})).toHaveAttribute('aria-current','page');

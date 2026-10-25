@@ -20,7 +20,7 @@ test('persistent faults keep the layout stable and retain their cause across pag
   };
   await showCause();
   await page.setViewportSize({width:320,height:800});
-  for(const name of ['时间线','曲库','设置']){
+  for(const name of ['历史','曲库','设置']){
     await navigate(page,name);await expect(heading).toBeVisible();await showCause();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   }

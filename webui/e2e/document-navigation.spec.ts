@@ -11,7 +11,7 @@ for(const width of [390,1280])test(`all navigation stays in one document and pre
   const draft=page.getByRole('spinbutton',{name:/提前准备时间/});
   await draft.fill('777');
   const originalDocument=await page.evaluate(()=>performance.timeOrigin),initialRequests=requests.length;
-  for(const name of ['视频加速','曲库','帮助','关于','使用条款','设置']){
+  for(const name of ['加速','历史','曲库','网络','帮助','关于','使用条款','设置']){
     await navigate(page,name);
     await expect(page.getByText('正在读取程序状态…',{exact:true})).not.toBeVisible();
     if(width>640)await expect(page.locator('#main')).toBeFocused();
@@ -107,12 +107,12 @@ for(const width of [390,1280])test(`ordinary navigation resets scrolling; explic
   await page.goto('/#prepareAheadSeconds');
   await page.getByRole('spinbutton',{name:/提前准备时间/}).fill('777');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeInViewport();
-  for(const name of ['帮助','关于','视频加速']){
+  for(const name of ['帮助','关于','加速']){
     await navigate(page,name);
     await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(0);
     await page.evaluate(()=>scrollTo(0,document.body.scrollHeight));
   }
-  await navigate(page,'视频加速');
+  await navigate(page,'加速');
   await page.locator('#queue').getByRole('link',{name:'设置',exact:true}).click();
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeFocused();
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('777');

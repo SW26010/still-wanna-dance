@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Badge, Button, Link, Spinner, Title2 } from '@fluentui/react-components';
+import { Button, Link, Spinner, Title2, Tooltip } from '@fluentui/react-components';
 import { ConsoleContext, useConsole } from './hooks';
-import { Brand, Feedback, NavigationLayout, pageLinks, isDocumentPage, DocumentFooter } from './ui';
+import { Brand, Feedback, Notification, RecordDetails, StatusBadge, NavigationLayout, pageLinks, isDocumentPage, DocumentFooter } from './ui';
 import { AboutPage } from './documents';
 import { Home } from './home-library';
 import { Settings } from './settings-page';
@@ -9,12 +9,11 @@ import { Library } from './library';
 import { Setup } from './setup';
 import { RequestTimeline } from './request-timeline';
 import { bootstrap } from './bootstrap';
-import { accelerationLabel, exitConnectionMessage } from './types';
+import { exitConnectionMessage } from './types';
 
 const pages = {home:'视频加速',timeline:'时间线',library:'曲库',settings:'设置',setup:'使用引导',about:'关于'};
 type Page = keyof typeof pages;
-const descriptions:Partial<Record<Page,string>>={timeline:'查看历史请求与最近 72 小时的首正文等待。',home:'为 VRChat WannaDance 复用视频，并提前准备房间队列。',library:'查找歌曲与共享视频，管理本地文件和下载。',settings:'调整常规、存储、下载与网络配置。',setup:'设置、导入、检测和接入；可随时返回或离开。'};
-const anchors:Record<string,Page>={activation:'home',service:'settings',queue:'home',overview:'library',cache:'library',downloads:'home','download-settings':'settings',recent:'timeline',network:'settings','network-proxy':'settings','network-access':'settings',batch:'library',preferences:'settings',prepareAheadSeconds:'settings',maxCacheGiB:'settings','storage-settings':'settings','video-import':'library','song-preferences':'library',help:'about',terms:'about',licenses:'about','help-start':'about','help-playback':'about','help-storage':'about','help-stop':'about','help-paths':'about'};
+const anchors:Record<string,Page>={activation:'home',service:'settings',queue:'home',overview:'library',cache:'library',downloads:'home','download-settings':'settings',recent:'timeline',network:'settings','network-proxy':'settings','network-access':'settings','network-tests':'settings',batch:'library',preferences:'settings',prepareAheadSeconds:'settings',maxCacheGiB:'settings','storage-settings':'settings','video-import':'library','song-preferences':'library',help:'about',terms:'about',licenses:'about','help-start':'about','help-playback':'about','help-storage':'about','help-stop':'about','help-paths':'about'};
 export function route(hash: string): Page {
   if (hash === '#/upstream' || hash === '#/monitor') return 'settings';
   const key = hash.replace(/^#\/?/,'').split('?')[0];
@@ -60,22 +59,25 @@ export function App() {
       const target=document.getElementById(anchor);target?.focus();target?.scrollIntoView();
     }
   },[page,!!s,anchor,documentPage]);
-  const feedback=<div className="app-feedback" hidden={documentPage}>
-    <Feedback error={!!model.status.error}>{model.status.error ? '无法读取程序状态，请检查 SWD 是否仍在运行。' : ''}</Feedback><Feedback>{model.message}</Feedback>
-    {s?.storageError && <Feedback error><p><strong>本地存储故障，已停止新的下载。</strong>已保存的本地视频仍可读取。</p><p>请检查磁盘空间和目录权限，修复后退出并重新打开整个应用。仅重新启停播放网关或队列无法恢复下载。</p><p>首个错误：{s.storageError}</p></Feedback>}
-    {!s && accepted && page!=='setup' && !documentPage && !model.status.error && <Spinner label="正在读取程序状态…" />}
+  const fault=s?.storageError||model.status.error;
+  const statusText=model.stopped?'未连接':model.status.error?s?'更新失败':'读取失败':s?.storageError?'存储故障':s?'已连接':'连接中';
+  const runtimeStatus=<div className="runtime-status"><StatusBadge label="后台程序" color={model.stopped?'informative':fault?'danger':s?'success':'brand'}>{statusText}</StatusBadge>{fault&&<RecordDetails title="后台状态">{model.status.error&&<><p>无法读取程序状态，请检查 SWD 是否仍在运行。</p>{s&&<p>当前显示上次状态。</p>}</>}{s?.storageError&&<><p>本地存储故障，已停止新的下载。已保存的视频仍可读取。</p><p>检查磁盘空间和目录权限，修复后退出并重新打开整个应用。</p><p className="wrap">首个错误：{s.storageError}</p></>}</RecordDetails>}</div>;
+  const feedback=<div className="app-feedback">
+    <Notification message={model.message} error={model.messageError} persistent={model.busy}/>
+    {page==='setup'&&(fault||model.messageError)&&<Feedback error>{fault?'后台程序：'+statusText:'操作未完成'}</Feedback>}
+    {!s&&accepted&&page!=='setup'&&!documentPage&&!model.status.error&&<Spinner label="正在读取程序状态…"/>}
   </div>;
   return <ConsoleContext.Provider value={model}><div className="shell">
     <Link className="skip-link" href="#main" onClick={e => { e.preventDefault(); main.current?.focus(); }}>跳到主要内容</Link>
-    <header hidden={page==='setup'}><Brand /><span role="status">{documentPage ? 'SWD WebUI' : model.stopped ? '应用正在退出或重启' : model.status.error ? s ? '状态更新失败，下方显示上次获取的状态' : '状态读取失败' : s ? '已连接后台程序' : '正在读取程序状态…'}</span></header>
+    <header hidden={page==='setup'}><Brand/><div className="runtime-controls">{accepted&&runtimeStatus}<Tooltip content={'所有服务和后台任务将停止。'+exitConnectionMessage(s)} relationship="description" positioning="below-end"><Button disabled={model.unavailable} onClick={()=>void model.action('exit')}>退出程序</Button></Tooltip></div></header>
     <NavigationLayout items={pageLinks()} selected={page} hidden={page==='setup'}>
-    <main ref={main} id="main" tabIndex={-1}><div className="page-heading" hidden={page==='setup'||documentPage}><Title2 as="h1">{pages[page]}</Title2>{s && <Badge color={s.running && s.hosts.ready ? 'success' : 'informative'}>{accelerationLabel(s)}</Badge>}</div><p className="page-description" hidden={page==='setup'||documentPage}>{descriptions[page]}</p>
+    <main ref={main} id="main" tabIndex={-1}><div className="page-heading" hidden={page==='setup'}><Title2 as="h1">{pages[page]}</Title2></div>
       {page!=='setup'&&feedback}
       {s && <><div hidden={page !== 'home'}><Home visible={page==='home'}/></div><div hidden={page !== 'timeline'}><RequestTimeline visible={page==='timeline'}/></div><div hidden={page!=='library'}><Library visible={page==='library'} anchor={anchor}/></div><div hidden={page!=='settings'}><Settings visible={page==='settings'} anchor={anchor}/></div>
       </>}
       {page==='about'&&<AboutPage anchor={anchor} paths={s?{...bootstrap.paths,Storage:s.activeSettings.storageDir}:bootstrap.paths||{}}/>}
       {page==='setup'&&<Setup accepted={accepted} onAccepted={()=>setAccepted(true)} onExit={exitSetup} guard={guard} feedback={feedback}/>}
-    </main><footer hidden={page==='setup'||documentPage}><p>关闭网页后程序仍在后台运行。{exitConnectionMessage(s)} <Link href="#preferences">查看退出设置</Link></p><Button disabled={model.unavailable} onClick={() => void model.action('exit')}>退出整个应用</Button></footer>
+    </main><footer hidden={page==='setup'||documentPage}><span>关闭网页后 SWD 仍在后台运行。</span><Link href="#/help">使用帮助</Link><Link href="#preferences">退出设置</Link></footer>
     <DocumentFooter page={page==='about'&&anchor.includes('help')?'help':page}/>
     </NavigationLayout>{model.dialog}
   </div></ConsoleContext.Provider>;

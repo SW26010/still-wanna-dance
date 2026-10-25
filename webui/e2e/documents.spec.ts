@@ -9,7 +9,7 @@ for (const colorScheme of ['light', 'dark'] as const) for (const width of [390, 
     const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
     for (const route of ['/about', '/help', '/terms']) {
       await page.goto(route);
-      await expect(page.locator('.fui-FluentProvider')).toBeVisible();
+      await expect(page.locator('#root > .fui-FluentProvider')).toBeVisible();
       await expect(page.locator('.brand-logo')).toBeVisible();
       expect(await page.locator('.brand-logo').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -17,10 +17,10 @@ for (const colorScheme of ['light', 'dark'] as const) for (const width of [390, 
       await page.keyboard.press('Enter'); await expect(page.locator('#main')).toBeFocused();
       if (route === '/help') {
         await expect(page.getByText('<script>alert("path")</script>', { exact: true })).toBeVisible();
-        await page.getByRole('button',{name:'存储、导入与搬迁说明',exact:true}).click();
-        await expect(page.getByRole('link', { name: '容量收益图' })).toHaveAttribute('href', '/assets/storage-benefit.svg');
-        await page.getByRole('button',{name:'备份与覆盖升级',exact:true}).click();
-        await expect(page.getByText(/把 SWD.exe 和整个 licenses\/ 覆盖到原安装目录/)).toBeVisible();
+
+        await expect(page.getByRole('link', { name: '容量收益参考图' })).toHaveAttribute('href', '/assets/storage-benefit.svg');
+
+        await expect(page.getByText(/将新版 SWD.exe 和整个 licenses\/ 覆盖到原目录/)).toBeVisible();
         await expect(page.getByText(/build-info\.json|README\.txt|licenses\/TERMS\.txt/)).toHaveCount(0);
       }
       if (route === '/about') {

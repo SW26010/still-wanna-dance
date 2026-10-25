@@ -12,7 +12,6 @@ const page = await context.newPage(), errors = [];
 page.on('pageerror', error => errors.push(error.message));
 try {
   await page.goto(url + '/#/home');
-  await page.getByRole('button',{name:'下载诊断',exact:true}).click();
   await page.getByRole('button', { name: '展开时间轴' }).click();
   const panel = page.locator('#block-demands'), canvas = panel.locator('.timeline-canvas');
   await expect(panel.getByText('事件已连接', { exact: true })).toBeVisible();

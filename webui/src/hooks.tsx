@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, createContex
 import { Button, Dialog, DialogSurface, DialogBody, DialogTitle, DialogContent, DialogActions } from '@fluentui/react-components';
 import { APIError, request, hostsActionTimeout, hostsActionPending, unconfirmedAction } from './api';
 import { bootstrap } from './bootstrap';
-import { active, exitConnectionMessage, type Status } from './types';
+import { active, type Status } from './types';
 import { usePageFeedback } from './page-feedback';
 
 // When an update removes the focused row, return focus to its labelled region.
@@ -76,7 +76,7 @@ export async function reconnect() {
 }
 
 const actionMessages: Record<string,string> = {
-  settings:'设置已保存。退出策略用于本次退出；其他运行配置重启后生效。',
+  settings:'设置已保存。',
   'activation/enable':'视频加速已开启。',
   'batch/scan':'已开始检查缺失视频。', 'batch/start':'已开始下载缺失视频。',
   'batch/cancel':'已请求停止批量任务。', 'inventory/scan':'已开始更新清单并统计覆盖率。',
@@ -84,9 +84,10 @@ const actionMessages: Record<string,string> = {
 };
 export function useConsole(enabled: boolean, page: string) {
   const [revision, setRevision] = useState(0), [busy, setBusy] = useState(false), [stopped, setStopped] = useState(false);
-  const feedback = usePageFeedback<string>(page);
-  const setMessage = feedback.setValue;
-  const message = feedback.value || '';
+  const feedback = usePageFeedback<{text:string;error:boolean}>(page);
+  const setMessage = (text:string,destination?:string,error=false)=>feedback.setValue({text,error},destination);
+  const message = feedback.value?.text || '';
+  const messageError=feedback.value?.error || false;
   const [dirtySettings,setDirtySettings]=useState<Set<string>>(()=>new Set());
   const setSettingsDirty=useCallback((section:string,dirty:boolean)=>setDirtySettings(previous=>{
     if(previous.has(section)===dirty)return previous;
@@ -100,27 +101,26 @@ export function useConsole(enabled: boolean, page: string) {
   const confirmation = useConfirmation();
   async function action(path: string, body: unknown = {}): Promise<boolean> {
     if (lock.current || stopped) return false;
-    if (path === 'exit' && !await confirmation.confirm('退出整个应用？', '所有服务和后台任务将停止。'+exitConnectionMessage(status.data))) return false;
     if (path === 'restart' && status.data?.import.running && !await confirmation.confirm('导入仍在运行', '导入仍在运行。现在重启会中断导入且不会自动续传。建议等导入结束再重启；确定现在中断并重启吗？')) return false;
     if (lock.current || stopped) return false;
     lock.current = true; setBusy(true);
     const hosts = path.startsWith('hosts/') || path === 'activation/enable' || path === 'start';
     const restorePermission = path === 'settings' && typeof body === 'object' && body !== null && 'restoreHostsOnExit' in body && body.restoreHostsOnExit === true && status.data?.settings.restoreHostsOnExit === false;
-    setMessage(hosts ? hostsActionPending : restorePermission ? '正在准备退出时恢复游戏直连的权限；请允许可能出现的系统管理员权限提示，最多等待 120 秒。' : '正在处理…');
+    setMessage(hosts ? hostsActionPending : restorePermission ? '正在准备退出恢复权限，请留意管理员授权。' : '正在处理…');
     try {
       await request(path, body, AbortSignal.timeout(hosts || restorePermission ? hostsActionTimeout : 30000));
-      if (path === 'exit') { setStopped(true); setMessage('退出请求已接受，正在处理游戏连接并停止服务和后台任务。若恢复失败，程序会显示错误。'); return true; }
+      if (path === 'exit') { setStopped(true); setMessage('正在退出应用并处理游戏连接。'); return true; }
       if (path === 'restart') { setStopped(true); setMessage('正在重启应用，连接恢复后自动刷新。'); await reconnect(); return true; }
       setMessage(actionMessages[path] || (path.startsWith('upstream/check') ? '网络检测已开始，请查看检测结果。' : '请求已接受，请查看当前任务状态。')); return true;
     } catch (e) {
       if (path === 'restart' && !(e instanceof APIError)) {
         setStopped(true); setMessage('重启响应未确认，正在等待新进程…');
-        try { await reconnect(); } catch (problem) { setMessage(String(problem)); } return false;
+        try { await reconnect(); } catch (problem) { setMessage(String(problem),undefined,true); } return false;
       }
-      setMessage(e instanceof APIError ? e.message : unconfirmedAction); return false;
+      setMessage(e instanceof APIError ? e.message : unconfirmedAction,undefined,true); return false;
     } finally { lock.current = false; setBusy(false); refresh(); }
   }
-  return { status, revision, busy, stopped, settingsEpoch, dirtySettings, setSettingsDirty, discardSettings, message, setMessage, refresh, action, confirm: confirmation.confirm, dialog: confirmation.dialog,
+  return { status, revision, busy, stopped, settingsEpoch, dirtySettings, setSettingsDirty, discardSettings, message, messageError, setMessage, refresh, action, confirm: confirmation.confirm, dialog: confirmation.dialog,
     unavailable: busy || stopped || !status.data || !!status.error || active(status.data) };
 }
 type ConsoleModel = ReturnType<typeof useConsole>;

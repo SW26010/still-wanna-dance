@@ -18,28 +18,31 @@ test('network details preserve sample evidence and distinguish failures from mis
   api.state.setupNetwork={monitor:{results:[catalog,{...catalog,operation:'playback_url',route:'cf'}]}};
   await page.setViewportSize({width:390,height:844});await page.goto('/#/monitor');
   const panel=page.locator('#network');
-  for(const label of ['歌曲列表','播放地址解析','视频资源加载'])await panel.getByRole('button',{name:label,exact:true}).click();
-  const details=panel.getByRole('button',{name:'线路技术详情',exact:true});
-  for(const button of await details.all())await button.click();
-  const row=(route:string)=>panel.getByRole('grid',{name:'线路检测：'+route,exact:true});
-  await expect(row('api')).toContainText('清单版本：fixture-v1');
-  await expect(row('api')).toContainText('样本吞吐 512.0 KiB/s · 测速时间');
-  await expect(row('api')).toContainText('下载 2.00 s / 1.00 MiB · 歌曲 #42 · HTTP 200');
-  await expect(row('cf')).toContainText('样本吞吐 0.0 KiB/s');
-  await expect(row('cf')).toContainText('下载 2.00 s / 0.00 MiB');
-  await expect(row('failed.example')).toContainText('尚无成功样本 · 当前资源检查失败：请求超时');
-  await expect(row('missing.example')).toContainText('尚无成功样本 · 未取得该域名的有效资源地址');
-  await expect(row('waiting.example')).toContainText('尚无成功样本 · 业务正在加载视频，自动测速已暂停');
-  await expect(row('history.example')).toContainText('吞吐样本：512.0 KiB/s · 歌曲 #7 · 测速时间');
-  await expect(row('history.example')).toContainText('历史样本（已过期）');
-  await expect(row('history.example')).toContainText('地址来源：api · node=cf · API 通道 source-1');
-  expect((await row('history.example').innerText()).match(/API 通道 source-1/g)).toHaveLength(1);
-  await page.getByRole('button',{name:'线路诊断',exact:true}).click();
-  await page.getByRole('button',{name:'直连诊断详情',exact:true}).click();
-  const diagnostic=page.getByRole('grid',{name:'直连诊断结果'});
-  await expect(diagnostic).toContainText('歌曲列表 · api');
-  await expect(diagnostic).toContainText('播放地址解析 · cf');
+  const rows=panel.getByRole('table').getByRole('row').filter({has:page.getByRole('button',{name:'线路技术详情',exact:true})});
+  const expected=['清单版本：fixture-v1','0.0 KiB/s','尚无成功样本 · 当前资源检查失败：请求超时','尚无成功样本 · 未取得该域名的有效资源地址','尚无成功样本 · 业务正在加载视频，自动测速已暂停','历史样本（已过期）'];
+  for(let i=0;i<expected.length;i++){
+    await rows.nth(i).getByRole('button',{name:'线路技术详情',exact:true}).click();
+    const detail=page.locator('.fui-PopoverSurface:visible');await expect(detail).toContainText(expected[i]);
+    if(i===0){await expect(detail).toContainText('512.0 KiB/s');await expect(detail).toContainText('2.00 s / 1.00 MiB');await expect(detail).toContainText('HTTP 200');}
+    if(i===5){await expect(detail).toContainText('歌曲 #7');expect((await detail.innerText()).match(/API 通道 source-1/g)).toHaveLength(1);}
+    await page.keyboard.press('Escape');
+  }
+  await expect(page.getByRole('table',{name:'直连诊断结果'}).getByRole('row')).toHaveCount(3);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await panel.screenshot({path:info.outputPath('network-details.png')});
+  await panel.screenshot({path:info.outputPath('network-details.png'),animations:'disabled'});
   expect(api.calls.some(c=>c.path.startsWith('upstream/check')||c.path.endsWith('/start'))).toBe(false);
+});
+
+test('unmeasured network offers direct checks and shows new samples without expanding a section',async({page},info)=>{
+  const {state,calls}=await mockAPI(page);await page.clock.install();await page.goto('/#network');
+  const panel=page.locator('#network');
+  await expect(panel.getByText('未检测',{exact:true})).toHaveCount(3);
+  await expect(panel).not.toContainText('暂无检测结果');await expect(panel).not.toContainText('最近完成：—');
+  await panel.getByRole('button',{name:'检测视频列表',exact:true}).click();
+  await expect.poll(()=>calls.filter(c=>c.path==='upstream/check/catalog').length).toBe(1);
+  state.upstreamMonitor={results:[{operation:'catalog',route:'api',entry:'catalog.example',mode:'direct',state:'available',estimatedLatencyMS:12.5}]};
+  await page.clock.fastForward(2500);
+  await expect(panel.getByRole('table',{name:'线路检测：catalog',exact:true})).toContainText('12.5 ms');
+  await expect(panel.getByText('未检测',{exact:true})).toHaveCount(2);
+  await panel.screenshot({path:info.outputPath('network-partial-results.png'),animations:'disabled'});
 });

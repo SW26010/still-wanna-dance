@@ -28,7 +28,7 @@ test('wizard reset releases the checked settings draft, ordinary navigation reta
   await page.goto('/#network-proxy');await selectMihomo(page);await inspect(page);
   await expect(reports(page)).toBeVisible();
   await navigate(page,'帮助');await navigateSettings(page,'网络');
-  await page.getByRole('tab',{name:'代理设置',exact:true}).click();
+  await page.getByRole('link',{name:'代理设置',exact:true}).click();
   await expect(reports(page)).toBeVisible();
   expect(api.calls.some(c=>c.path==='proxy/import/discard')).toBe(false);
   await applyUnchangedWizard(page);
@@ -57,7 +57,7 @@ test('late old-draft cleanup cannot restore a replacement after wizard reset',as
     await expect(page.getByRole('combobox',{name:'上游连接',exact:true})).toBeEnabled();
     await expect(reports(page)).toHaveCount(0);
     await expect.poll(()=>discards).toEqual(['draft-1','draft-2']);
-    await page.getByRole('button',{name:'高级线路与测速设置',exact:true}).click();
+
     await page.getByRole('combobox',{name:'播放地址接口选择',exact:true}).selectOption('cf');
     await page.getByRole('button',{name:'保存设置',exact:true}).click();
     await expect.poll(()=>api.calls.find(c=>c.path==='settings')?.body.proxyImportID).toBe('');
@@ -101,6 +101,6 @@ test('failed settings save retains the draft for retry and success does not disc
   await expect(reports(page)).toBeVisible();fail=false;
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(reports(page)).toHaveCount(0);
-  await expect(page.getByRole('button',{name:'立即重启并应用',exact:true})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeEnabled();
   expect(api.calls.some(c=>c.path==='proxy/import/discard')).toBe(false);
 });

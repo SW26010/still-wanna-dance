@@ -2,28 +2,15 @@ import {navigateStep} from './navigation';
 import { test, expect } from '@playwright/test';
 import { mockAPI } from './api';
 
-test('cache list keeps selection and secondary actions reachable by keyboard', async ({page}) => {
-  const api = await mockAPI(page);
-  await page.goto('/#/cache');
-  const list = page.getByRole('grid', {name:'曲库资源'});
-  await expect(list.getByRole('row')).toHaveCount(2);
-  const first = list.getByRole('row').first(), second = list.getByRole('row').nth(1);
-  await first.focus(); await page.keyboard.press('ArrowRight');
-  await expect(first.getByRole('link',{name:'测试歌曲 1（ID 1）',exact:true})).toBeFocused();
-  await page.keyboard.press('ArrowRight');
-  const checkbox=first.getByRole('checkbox');await expect(checkbox).toBeFocused();
-  await page.keyboard.press('Space');await expect(checkbox).toBeChecked();
-  await page.keyboard.press('ArrowRight');await expect(first.getByRole('button',{name:'删除本地视频',exact:true})).toBeFocused();
-  await page.keyboard.press('ArrowRight');await expect(first.getByRole('button',{name:'定位文件',exact:true})).toBeFocused();
-  await page.keyboard.press('Escape');await expect(first).toBeFocused();
-  await page.keyboard.press('ArrowDown');await expect(second).toBeFocused();
-  await expect(second.getByRole('checkbox')).toBeDisabled();
-  await page.keyboard.press('ArrowRight');await expect(second.getByRole('link')).toBeFocused();
-  await page.keyboard.press('ArrowRight');await expect(second.getByRole('button',{name:'定位文件',exact:true})).toBeFocused();
-  await first.getByRole('button', {name:'定位文件'}).focus();
-  await page.keyboard.press('Enter');
-  await expect.poll(() => api.calls.find(c=>c.path==='cache/open')?.body).toEqual({storageID:'fixture',entries:[{key:'key1',stamp:'stamp1'}]});
-  expect(api.calls.some(c=>c.path==='cache/delete')).toBe(false);
+test('resource selection and file actions are reachable by standard keyboard navigation',async({page})=>{
+  const api=await mockAPI(page);await page.goto('/#/cache');
+  const rows=page.getByRole('table',{name:'曲库资源'}).locator('tbody tr');await expect(rows).toHaveCount(2);
+  const checkbox=rows.first().getByRole('checkbox');await checkbox.focus();await page.keyboard.press('Space');await expect(checkbox).toBeChecked();
+  await expect(rows.nth(1).getByRole('checkbox')).toBeDisabled();
+  const open=rows.first().getByRole('button',{name:'定位文件'});await open.focus();await page.keyboard.press('Enter');
+  await expect.poll(()=>api.calls.find(c=>c.path==='cache/open')?.body).toEqual({storageID:'fixture',entries:[{key:'key1',stamp:'stamp1'}]});
+  await rows.first().getByRole('button',{name:'资源 key1 的详情'}).focus();await page.keyboard.press('Enter');await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('测试歌曲 1');await page.keyboard.press('Escape');
+  await expect(rows.first().getByRole('button',{name:'资源 key1 的详情'})).toBeFocused();expect(api.calls.some(c=>c.path==='cache/delete')).toBe(false);
 });
 
 test('native node file picker rejects oversize files and can reread the same file', async ({page}) => {
@@ -48,11 +35,10 @@ test('download list releases focus to its panel when polling removes the active 
   let present = true;
   await page.route('**/api/downloads', r=>r.fulfill({json:{bytesPerSecond:1024,tasks:present?[{id:'task',resource:'fixture-resource',songs:[{id:'1',title:'下载中的歌曲'}],stage:'download',bytes:1024,size:2048,bytesPerSecond:1024,idleMS:0}]:[]}}));
   await page.clock.install(); await page.goto('/#/home');
-  const row = page.getByRole('grid', {name:'下载任务'}).getByRole('row');
-  await row.focus(); await page.keyboard.press('ArrowRight');
+  const row = page.getByRole('table', {name:'下载任务'}).locator('tbody tr');
   const details = row.getByRole('button', {name:'下载详情'});
-  await expect(details).toBeFocused(); await page.keyboard.press('Enter');
-  await expect(row.getByText('资源：fixture-resource')).toBeVisible();
+  await details.focus(); await page.keyboard.press('Enter');
+  await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('fixture-resource');
   present = false; await page.clock.fastForward(5100);
   await expect(row).toHaveCount(0); await expect(page.locator('#downloads')).toBeFocused();
 });
@@ -85,7 +71,7 @@ test('diagnostic gauge preserves thresholds and stays readable in narrow theme v
 test('standard gauge distinguishes live samples, missing samples and restored results', async ({page},info) => {
   const api=await mockAPI(page);
   await page.goto('/#/setup');await navigateStep(page,'3. 网络');
-  await expect(page.getByText('尚无速度样本',{exact:true})).toBeVisible();
+  await expect(page.getByText('尚未测速',{exact:true})).toBeVisible();
   await expect(page.locator('.fui-gc__root')).toHaveCount(0);
   Object.assign(api.diagnostics.calibration,{revision:2,run:1,running:true,phase:'running',measurementStage:'single',liveSpeedBPS:375000,
     lastValid:{direct:{singleSpeedBPS:500000,fullSpeedBPS:2000000,fullConcurrency:8,referenceBitrateBPS:2000000}}});

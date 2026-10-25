@@ -1,6 +1,6 @@
-import { Button, Link, Subtitle2, List, ListItem, Divider } from '@fluentui/react-components';
+import { Button, Link, Subtitle2, Text, Table, TableHeader, TableRow, TableHeaderCell, TableBody, TableCell, TableCellLayout } from '@fluentui/react-components';
 import { useApp, useResource, useFocusRecovery } from './hooks';
-import { Details, Feedback, Panel, Progress } from './ui';
+import { Panel, Progress, Hint, RecordDetails, TableRegion } from './ui';
 import { type Download, type RequestRecord, type HealthResult, type Health, date, mb, dated } from './types';
 import { requestTitle } from './requests';
 
@@ -23,7 +23,7 @@ export function healthImpact(h: Health, route: string) {
     // Unmeasured or expired observations are not evidence of a failure.
     return label + '：' + (group.length && group.every(r => r.state === 'unavailable') ? failure : '尚待确认');
   });
-  return summaries.join('；') + '。检测样本不保证每首歌曲可播放。';
+  return summaries.join('；')+'。';
 }
 function HealthRow({row:r,minutes,separator,wait='等待调度信息',context}: {row:HealthResult;minutes:number;separator:boolean;wait?:string;context?:string}) {
   const saved = r.lastThroughput, speed = saved ? saved.bytes / (saved.durationNs/1e9) : r.estimatedSpeedBPS;
@@ -34,46 +34,62 @@ function HealthRow({row:r,minutes,separator,wait='等待调度信息',context}: 
   const noData=r.state==='unavailable'?'尚无成功样本 · 当前资源检查失败：'+(reasons[r.reason || ''] || r.reason || '未知原因'):['no_sample','resolution_unavailable'].includes(r.reason || '')?'尚无成功样本 · 未取得该域名的有效资源地址':'尚无成功样本 · '+wait;
   const technical=r.entry+(r.operation==='catalog'?' · 清单版本：'+(r.catalogTime || '未获取'):'')+(r.channelID?' · 通道 '+r.channelID:'');
   const observation=(r.sampleSongID?' · 歌曲 #'+r.sampleSongID:'')+(r.http?' · HTTP '+r.http:'')+' · 观测 '+date(r.observedAt)+' · 有效至 '+date(r.validUntil);
-  return <ListItem><div role="gridcell" className="record-content">{separator && <Divider className="record-divider" />}{context&&<p>{context}</p>}{r.localDiagnostic && <Feedback>{localReasons[r.localDiagnostic] || '本次检测未完成'} · {date(r.localObservedAt)}；保留此前观测，未计为节点失败。</Feedback>}
-    <strong>{r.mode === 'direct' ? '直连 '+(r.ip || '') : r.mode === 'socks5' ? '代理 '+(r.channelID?.split('/').at(-1)?.slice(-8) || '') : '无候选'} · {({available:'可用',unavailable:'不可用',unknown:'待测',stale:'已过期',closed:'已关闭'}[r.state] || r.state)} {r.reason && `· ${reasons[r.reason] || r.reason}`}</strong>
-    {r.operation === 'resource' && <><p>响应延迟：{r.estimatedLatencyMS == null ? '暂无有效数据' : r.estimatedLatencyMS.toFixed(1)+' ms'}</p><p>下载速度：{speed == null ? '尚无成功样本' : `${(speed/1024).toFixed(1)} KiB/s${expired ? '（历史样本，已过期）' : ''}`}</p></>}
-    <Details title="线路技术详情">{r.operation==='resource'?<>
-      <p>{technical}{issuers.length?' · 地址来源：'+issuers.join('；'):''}</p>
-      <p>响应延迟：{r.estimatedLatencyMS!=null?'首字节 '+r.estimatedLatencyMS.toFixed(1)+' ms':'暂无有效数据'}{observation}</p>
+  return <TableRow>
+    <TableCell><TableCellLayout truncate description={r.mode === 'direct' ? '直连 '+(r.ip || '') : r.mode === 'socks5' ? '代理 '+(r.channelID?.split('/').at(-1)?.slice(-8) || '') : '无候选'}>{context||r.route}</TableCellLayout></TableCell>
+    <TableCell>{({available:'可用',unavailable:'不可用',unknown:'待测',stale:'已过期',closed:'已关闭'}[r.state] || r.state)}{r.localDiagnostic&&<span className="secondary"> · {localReasons[r.localDiagnostic]||'本次未完成'}</span>}</TableCell>
+    <TableCell>{r.estimatedLatencyMS==null?'—':r.estimatedLatencyMS.toFixed(1)+' ms'}</TableCell>
+    <TableCell>{speed==null?'—':(speed/1024).toFixed(1)+' KiB/s'}{expired&&<span className="secondary">（已过期）</span>}</TableCell>
+    <TableCell><RecordDetails title="线路技术详情"><p className="wrap">{technical}{issuers.length?' · 地址来源：'+issuers.join('；'):''}</p><p>{r.reason&&(reasons[r.reason]||r.reason)}{observation}</p>
       <p>吞吐样本：{speed!=null?(speed/1024).toFixed(1)+' KiB/s'+(song?' · 歌曲 #'+song:'')+' · 测速时间 '+date(at)+(duration!=null?' · 下载 '+(duration/1000).toFixed(2)+' s / '+((bytes || 0)/1048576).toFixed(2)+' MiB':'')+(expired?' · 历史样本（已过期）':''):noData}</p>
-    </>:<p>{technical}{r.estimatedLatencyMS!=null?' · 首字节 '+r.estimatedLatencyMS.toFixed(1)+' ms':''}{r.estimatedSpeedBPS!=null?' · 样本吞吐 '+(r.estimatedSpeedBPS/1024).toFixed(1)+' KiB/s':''}{dated(r.throughputObservedAt)?' · 测速时间 '+date(r.throughputObservedAt):''}{r.transferDurationMS!=null?' · 下载 '+(r.transferDurationMS/1000).toFixed(2)+' s / '+((r.transferredBytes || 0)/1048576).toFixed(2)+' MiB':''}{observation}</p>}
-    </Details></div></ListItem>;
+      {r.localDiagnostic&&<p>{localReasons[r.localDiagnostic]||'本次检测未完成'} · {date(r.localObservedAt)}；保留此前观测，未计为节点失败。</p>}
+    </RecordDetails></TableCell>
+  </TableRow>;
+}
+function HealthTable({rows,minutes,wait,label}:{rows:HealthResult[];minutes:number;wait?:string;label:string}) {
+  return <TableRegion label={label}><Table size="small" className="health-table" aria-label={label}><TableHeader><TableRow>{['线路','状态','延迟','速度','详情'].map(name=><TableHeaderCell key={name}>{name}</TableHeaderCell>)}</TableRow></TableHeader><TableBody>{rows.map((r,i)=><HealthRow key={`${r.entry}:${r.channelID}:${r.ip}:${i}`} row={r} minutes={minutes} separator={false} wait={wait}/>)}</TableBody></Table></TableRegion>;
+
 }
 
 export function NetworkMonitor() {
   const app = useApp(), s = app.status.data!, h = s.upstreamMonitor || {}, results = h.results || [];
   const minutes = (h.policy?.throughputInterval || 20*60*1e9)/(60*1e9);
+  const schedule=[['最近完成',h.finished],['下次检测',h.nextCheck]].filter(([,at])=>dated(at)).map(([label,at])=>`${label}：${date(at)}`).join(' · ');
   const waits: Record<string,string> = {closed:'监测已关闭',business_busy:'业务正在加载视频，自动测速已暂停',running:'正在依次测量资源通道',preparing:'正在获取歌曲及资源地址',other_manual_check:'等待当前手动检测结束',not_scheduled:'自动调度尚未启动',cooldown:`等待 ${minutes} 分钟间隔到期`,due:'已到期，等待调度',waiting_sample:'等待有效歌曲及资源地址',persistence_error:'保存测速记录失败，自动测速已延期',local_capacity:'本地连接额度已满，本次未取得新样本',runtime_retired:'代理运行时已退出，本次未取得新样本',channel_unavailable:'通道已失效，本次未取得新样本',canceled:'本次测速已取消，保留此前样本'};
-  return <Panel id="network" title="当前连接"><Button disabled={app.unavailable || h.checking} onClick={() => void app.action('upstream/check')}>{h.checking ? '检测中…' : '检查当前连接'}</Button>
-    <p role="status">{h.closed?'网络检测已关闭':h.manual&&h.checking?'手动检测中：'+({catalog:'视频列表',playback:'播放地址解析',latency:'视频资源响应延迟',throughput:'视频资源吞吐速度'}[h.checkKind || ''] || '全部项目'):h.resourcesPaused?'业务正在加载视频，自动资源测速已暂停':h.checking?'正在检测…'+(results.some(r=>r.state==='available')?`已有 ${results.filter(r=>r.state==='available').length} 条线路可用。`:''):!results.length?'等待首次检测…':results.some(r=>r.state==='available')?`已有 ${results.filter(r=>r.state==='available').length} 条检测线路可用；各环节结果见下方。`:'尚无可用线路，请展开下方结果查看原因。'}</p>
-    <p>{healthImpact(h,s.activeSettings.downloadUpstream)}</p><p>当前检测范围：{({direct:'全部直连 IP',proxy:'活跃代理出口',socks5:'活跃代理出口',auto:'全部直连 IP 与活跃代理出口'}[s.activeSettings.upstreamMode] || '等待网络配置')}</p>
-    <p>最近完成：{date(h.finished)} · 下次检测：{date(h.nextCheck)}</p>
-    <Details title="检测说明"><p>后台自动检测歌曲列表、播放地址和视频下载是否可用。视频加载期间暂停自动测速；手动测速会下载少量视频并占用带宽。样本结果不保证全部歌曲都能播放。</p></Details>
-    {(['catalog','playback_url','resource'] as const).map(op => <Details key={op} title={operationNames[op]}>
-      <div className="actions">{(op === 'catalog' ? [['catalog','检测视频列表']] : op === 'playback_url' ? [['playback','检测播放地址解析']] : [['latency','检测响应延迟'],['throughput','测量下载速度']]).map(([key,label]) => <Button key={key} disabled={app.unavailable || h.manual} onClick={() => void app.action('upstream/check/'+key)}>{label}</Button>)}</div>
-      <p>{h.closed?'已关闭':!results.some(r=>r.operation===op)?'等待检测':results.some(r=>r.operation===op&&r.state==='available')?`${results.filter(r=>r.operation===op&&r.state==='available').length} / ${results.filter(r=>r.operation===op).length} 条线路可用`:results.some(r=>r.operation===op&&r.state==='unavailable')?'暂无可用线路':'等待有效检测结果'}</p>{op === 'resource' && <><p>下次自动吞吐测速：{dated(h.nextThroughput)?date(h.nextThroughput):'首次具备样本时'} · {waits[h.throughputStatus || ''] || '等待调度信息'} {h.throughputSaveFailed && ' · 测速记录保存失败，重启可能无法恢复'}</p><p>手动吞吐检测依次测量所有视频资源通道，不受自动检测间隔及业务下载暂停规则限制。</p></>}
-      {[...new Set(results.filter(r => r.operation === op).map(r => r.route))].map(route => <section key={route}><Subtitle2 as="h3">{({api:'Udon 歌曲列表',kiva:'Kiva 歌曲与 MD5 清单',wanna:'WannaInfo 歌曲清单',hkg:'node=nya',cf:'node=cf'}[route] || route)}</Subtitle2><List navigationMode="composite" className="records" aria-label={'线路检测：'+route}>{results.filter(r => r.operation === op && r.route === route).map((r,i) => <HealthRow key={`${r.entry}:${r.channelID}:${r.ip}:${i}`} row={r} minutes={minutes} separator={i > 0} wait={waits[h.throughputStatus || '']} />)}</List></section>)}
-      {!results.some(r => r.operation === op) && <p>暂无检测结果</p>}
-    </Details>)}</Panel>;
+  return <Panel id="network" title="当前连接" action={<Button disabled={app.unavailable || h.checking} onClick={() => void app.action('upstream/check')}>{h.checking?'检测中…':'检查当前连接'}</Button>}>
+    <p role="status">{h.closed?'网络检测已关闭':h.checking?'正在检测…':results.length?healthImpact(h,s.activeSettings.downloadUpstream):''}</p>
+    {schedule&&<span className="secondary">{schedule}</span>}
+    {(['catalog','playback_url','resource'] as const).map(op=>{
+      const rows=results.filter(r=>r.operation===op);
+      return <section key={op} className="health-section">
+      <div className="toolbar spread"><div className="inline"><Subtitle2 as="h3">{operationNames[op]}</Subtitle2>{!rows.length&&<span className="secondary">未检测</span>}</div><div className="inline">{(op==='catalog'?[['catalog','检测视频列表']]:op==='playback_url'?[['playback','检测播放地址解析']]:[['latency','检测响应延迟'],['throughput','测量下载速度']]).map(([key,label])=><Button size="small" key={key} disabled={app.unavailable||h.manual} onClick={()=>void app.action('upstream/check/'+key)}>{label}</Button>)}</div></div>
+      {!!rows.length&&<HealthTable rows={rows} minutes={minutes} wait={waits[h.throughputStatus||'']} label={'线路检测：'+op}/>}
+      {op==='resource'&&(h.throughputStatus||dated(h.nextThroughput)||h.throughputSaveFailed)&&<span className="secondary">{[waits[h.throughputStatus||''],dated(h.nextThroughput)?'下次测速：'+date(h.nextThroughput):'',h.throughputSaveFailed?'记录保存失败':''].filter(Boolean).join(' · ')}</span>}
+    </section>;})}
+  </Panel>;
+
 }
 export function CurrentDownloads({visible,paused=false}: {visible:boolean;paused?:boolean}) {
   const app=useApp(), downloadFocus=useFocusRecovery(), requestFocus=useFocusRecovery();
-  const downloads=useResource<{tasks:Download[];bytesPerSecond:number;gets?:{total:number;requests:Pick<RequestRecord,'id'|'at'|'songID'|'resource'|'range'|'status'|'bytes'|'responseBytes'>[]}}>('downloads',visible&&!paused&&!app.stopped,app.revision);
-  return <><Panel id="current-gets" {...requestFocus} title="当前 GET 请求"><Feedback error>{downloads.error&&'当前请求读取失败，将自动重试。'}</Feedback><p role="status">{downloads.loading&&!downloads.data?'正在读取当前请求…':downloads.error?'状态未知':downloads.data?.gets?.total?`正在处理 ${downloads.data.gets.total} 个请求`:'暂无当前 GET 请求'}</p>
-    <List navigationMode="composite" className="records" aria-label="当前 GET 请求列表">{downloads.data?.gets?.requests.map((r,i)=><ListItem key={r.id}><div role="gridcell" className="record-content">{i>0&&<Divider className="record-divider"/>}<p>收到：{date(r.at)} · {r.status?'HTTP '+r.status:'正在解析或准备响应'}</p><p>请求歌曲：{r.songID?<Link href={'#/library?song='+encodeURIComponent(r.songID)}>ID {r.songID}</Link>:'未知'}</p><p className="wrap">资源：{r.resource?<Link href={'#/library?resource='+encodeURIComponent(r.resource)}>{r.resource}</Link>:'尚未确定'}</p><p>已写出视频正文：{r.bytes.toLocaleString()} B · 本次交付：{r.responseBytes!=null&&r.responseBytes>0?(100*r.bytes/r.responseBytes).toLocaleString(undefined,{maximumFractionDigits:1})+'%':'范围尚未确定'}</p><Details title={`当前请求 ${r.id} 的范围`}><p>{r.range||'完整请求'}</p><p>服务端实际写出的字节，不代表客户端已收到或播放。</p></Details></div></ListItem>)}</List>
-    {(downloads.data?.gets?.total||0)>50&&<p>仅展示最早的 50 个活动请求；结束后可在时间线查看。</p>}<Link href="#recent">查看请求时间线</Link></Panel>
-    <Panel id="downloads" {...downloadFocus} title="当前下载"><Feedback error>{downloads.error && '活动下载读取失败，将自动重试。'}</Feedback><p role="status">{downloads.data?.tasks.length ? `${downloads.data.tasks.length} 个活动任务` : '暂无活动下载任务'} · 总下载速度 {downloads.data?mb(downloads.data.bytesPerSecond)+'/s':'未知'}</p>
-      <List navigationMode="composite" className="records" aria-label="下载任务">{downloads.data?.tasks.map((task,i) => <ListItem key={task.resource+':'+task.id}><div role="gridcell" className="record-content">{i > 0 && <Divider className="record-divider" />}<strong>{task.songs?.[0]?.title || '未知歌名'}</strong><p>{(task.songs?.length || 0)>1 || task.moreSongs ? `等 ${task.moreSongs?'至少 ':''}${task.songs?.length || 0} 首关联曲目 · 播放歌曲未确定` : '资源关联曲目'}</p>
-        <p>{({cache_check:'检查本地视频',upstream_headers:'等待上游',download:'下载中',range_download:'分段下载中',hash:'校验完整文件',publish:'发布文件',index:'更新索引'}[task.stage] || '阶段未知')} · {task.host || '域名待定'}</p>
-        <p>进度 {task.size>0?Math.min(100,100*task.bytes/task.size).toFixed(1)+'%':'进度未知'} · 上游速度 {mb(task.bytesPerSecond)}/s</p><Progress value={task.bytes} max={task.size} label="已读取字节进度" /><p>{mb(task.bytes)} / {task.size ? mb(task.size) : '未知'} · {mb(task.bytesPerSecond)}/s</p>
-        <Details title="下载详情"><p>实际上游域名：{task.host || '尚未确定'}</p><p>{requestTitle(task)}</p><p>资源：{task.resource}</p><p>距上次读取 {(task.idleMS/1000).toFixed(0)} 秒</p></Details></div></ListItem>)}</List>
-      <Details title="下载统计说明"><p>速度是最近 5 秒从网络下载视频的估算值。完整视频持久化前需完成合并和校验；视频块缓存可在下载过程中使用。</p></Details></Panel>
-</>;
+  const downloads=useResource<{tasks:Download[];bytesPerSecond:number;gets?:{total:number;requests:Pick<RequestRecord,'id'|'at'|'songID'|'resource'|'range'|'status'|'bytes'|'responseBytes'>[]}}>('downloads',visible&&!paused&&!app.stopped,app.revision,5000,true);
+  return <section className="video-activity" aria-label="视频活动">
+    <div className="toolbar spread"><h2>视频活动</h2><div className="inline"><Text size={600} weight="semibold">{downloads.data?mb(downloads.data.bytesPerSecond)+'/s':'—'}</Text><Hint label="下载速度说明">最近 5 秒的网络下载速度。</Hint></div></div>
+    <div id="current-gets" {...requestFocus} tabIndex={-1}><div className="toolbar spread"><h3>当前请求</h3><span className="secondary" role="status">{downloads.error?'读取失败，正在重试':downloads.data?.gets?.total?`${downloads.data.gets.total} 个请求`:'暂无当前 GET 请求'}</span></div>
+      <TableRegion label="当前请求表格"><Table size="small" className="activity-table" aria-label="当前 GET 请求列表"><TableHeader><TableRow><TableHeaderCell>请求歌曲</TableHeaderCell><TableHeaderCell>状态</TableHeaderCell><TableHeaderCell>本次交付</TableHeaderCell><TableHeaderCell style={{width:60}}>详情</TableHeaderCell></TableRow></TableHeader><TableBody>{downloads.data?.gets?.requests.map(r=><TableRow key={r.id}>
+        <TableCell>{r.songID?<Link href={'#/library?song='+encodeURIComponent(r.songID)}>ID {r.songID}</Link>:'未知'}</TableCell><TableCell>{r.status?'HTTP '+r.status:'准备中'}</TableCell><TableCell>{r.responseBytes!=null&&r.responseBytes>0?(100*r.bytes/r.responseBytes).toLocaleString(undefined,{maximumFractionDigits:1})+'%':'—'}</TableCell>
+        <TableCell><RecordDetails title={`当前请求 ${r.id} 的范围`}><dl className="detail-grid"><dt>收到</dt><dd>{date(r.at)}</dd><dt>资源</dt><dd>{r.resource?<Link href={'#/library?resource='+encodeURIComponent(r.resource)}>{r.resource}</Link>:'尚未确定'}</dd><dt>范围</dt><dd>{r.range||'完整请求'}</dd><dt>已交付</dt><dd>{r.bytes.toLocaleString()} B{r.responseBytes!=null?' / '+r.responseBytes.toLocaleString()+' B':''}</dd></dl></RecordDetails></TableCell>
+      </TableRow>)}</TableBody></Table></TableRegion>{(downloads.data?.gets?.total||0)>50&&<span className="secondary">显示最早的 50 个请求</span>}
+    </div>
+    <div id="downloads" {...downloadFocus} tabIndex={-1}><div className="toolbar spread"><h3>当前下载</h3><span className="secondary">{downloads.data?.tasks.length?`${downloads.data.tasks.length} 个任务`:'暂无活动下载任务'}</span></div>
+      <TableRegion label="下载任务表格"><Table size="small" className="activity-table" aria-label="下载任务"><TableHeader><TableRow><TableHeaderCell>关联歌曲</TableHeaderCell><TableHeaderCell>进度</TableHeaderCell><TableHeaderCell>速度</TableHeaderCell><TableHeaderCell style={{width:60}}>详情</TableHeaderCell></TableRow></TableHeader><TableBody>{downloads.data?.tasks.map(task=><TableRow key={task.resource+':'+task.id}>
+        <TableCell><TableCellLayout truncate description={({cache_check:'检查本地',upstream_headers:'等待上游',download:'下载中',range_download:'下载中',hash:'校验中',publish:'保存中',index:'保存中'}[task.stage]||'准备中')}>{task.songs?.[0]?.title||'未知歌名'}{((task.songs?.length||0)>1||task.moreSongs)&&' 等'}</TableCellLayout></TableCell>
+        <TableCell><span>{task.size>0?Math.min(100,100*task.bytes/task.size).toFixed(1)+'%':'未知'}</span><Progress value={task.bytes} max={task.size} label="已读取字节进度"/></TableCell><TableCell>{mb(task.bytesPerSecond)}/s</TableCell>
+        <TableCell><RecordDetails title="下载详情"><p>{requestTitle(task)}</p><dl className="detail-grid"><dt>资源</dt><dd>{task.resource}</dd><dt>上游域名</dt><dd>{task.host||'尚未确定'}</dd><dt>已读取</dt><dd>{mb(task.bytes)} / {task.size?mb(task.size):'未知'}</dd><dt>距上次读取</dt><dd>{(task.idleMS/1000).toFixed(0)} 秒</dd></dl></RecordDetails></TableCell>
+      </TableRow>)}</TableBody></Table></TableRegion>
+    </div>
+  </section>;
 }
-export function LegacyNetworkDetails() {const app=useApp();return <><Panel title="向导直连诊断"><p role="status">{app.status.data?.setupNetwork?.running?'正在检测…':app.status.data?.setupNetwork?.error}</p><Details title="直连诊断详情"><List navigationMode="composite" aria-label="直连诊断结果">{app.status.data?.setupNetwork?.monitor?.results?.map((r,i)=><HealthRow key={`${r.operation}/${r.route}/${r.channelID}`} row={r} minutes={(app.status.data?.setupNetwork?.monitor?.policy?.throughputInterval || 20*60*1e9)/(60*1e9)} separator={i>0} context={`${operationNames[r.operation] || r.operation} · ${r.route}`} wait={app.status.data?.setupNetwork?.running?'正在测量':'等待重试'} />)}</List></Details><Link href="#/setup">返回使用引导</Link></Panel></>;
+export function LegacyNetworkDetails() {
+  const s=useApp().status.data?.setupNetwork, rows=s?.monitor?.results||[];
+  if(!rows.length&&!s?.error&&!s?.running)return null;
+  return <Panel title="向导直连诊断"><span role="status">{s?.running?'正在检测…':s?.error}</span><HealthTable rows={rows} minutes={(s?.monitor?.policy?.throughputInterval||20*60*1e9)/(60*1e9)} label="直连诊断结果"/><Link href="#/setup">返回使用引导</Link></Panel>;
 }

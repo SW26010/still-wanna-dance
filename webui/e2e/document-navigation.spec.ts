@@ -86,7 +86,7 @@ test('public help/about stay readable before consent and terms still open the ga
     await expect(page.getByRole('navigation').getByRole('link',{name:'设置',exact:true})).toHaveAttribute('href','/#/settings');
   }
   expect(api.calls).toHaveLength(0);
-  for(const [name,target] of [['存储设置','storage-settings'],['歌曲偏好','song-preferences']]){
+  for(const [name,target] of [['存储设置','storage-settings']]){
     await page.goto('/help?gate=1');
     const link=page.locator('#help-storage').getByRole('link',{name,exact:true});
     await expect(link).toHaveAttribute('href','/#'+target);
@@ -113,7 +113,7 @@ for(const width of [390,1280])test(`ordinary navigation resets scrolling; explic
     await page.evaluate(()=>scrollTo(0,document.body.scrollHeight));
   }
   await navigate(page,'视频加速');
-  await page.getByRole('link',{name:'调整提前准备时间',exact:true}).click();
+  await page.locator('#queue').getByRole('link',{name:'设置',exact:true}).click();
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeFocused();
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('777');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeInViewport();
@@ -127,19 +127,38 @@ test('action feedback names the operation and does not follow navigation or late
   await mockAPI(page);
   await page.goto('/#/library');
   await page.getByRole('button',{name:'检查缺失视频',exact:true}).click();
-  await expect(page.getByText('已开始检查缺失视频。',{exact:true})).toBeVisible();
+  await expect(page.getByRole('listitem',{name:'已开始检查缺失视频。',exact:true})).toBeVisible();
   await navigate(page,'设置');
-  await expect(page.getByText('已开始检查缺失视频。',{exact:true})).not.toBeVisible();
+  await expect(page.getByRole('listitem',{name:'已开始检查缺失视频。',exact:true})).not.toBeVisible();
   await navigate(page,'曲库');
-  await expect(page.getByText('已开始检查缺失视频。',{exact:true})).not.toBeVisible();
+  await expect(page.getByRole('listitem',{name:'已开始检查缺失视频。',exact:true})).not.toBeVisible();
   let finish!:()=>void;
   const pending=new Promise<void>(resolve=>{finish=resolve;});
   await page.route('**/api/batch/scan',async route=>{await pending;await route.fulfill({json:{ok:true}});});
   await page.getByRole('button',{name:'检查缺失视频',exact:true}).click();
-  await expect(page.getByText('正在处理…',{exact:true})).toBeVisible();
+  await expect(page.getByRole('listitem',{name:'正在处理…',exact:true})).toBeVisible();
   await navigate(page,'设置');
   finish();
-  await expect(page.getByText('已开始检查缺失视频。',{exact:true})).not.toBeVisible();
+  await expect(page.getByRole('listitem',{name:'已开始检查缺失视频。',exact:true})).not.toBeVisible();
   await navigate(page,'曲库');
-  await expect(page.getByText('已开始检查缺失视频。',{exact:true})).not.toBeVisible();
+  await expect(page.getByRole('listitem',{name:'已开始检查缺失视频。',exact:true})).not.toBeVisible();
+});
+
+for(const [document,outcome] of [['about','failed'],['help','unconfirmed'],['terms','accepted']] as const)test(`exit feedback remains visible on ${document} (${outcome})`,async({page})=>{
+  await mockAPI(page);let release!:()=>void;
+  const pending=new Promise<void>(resolve=>{release=resolve;});
+  await page.route('**/api/exit',async route=>{
+    await pending;
+    if(outcome==='unconfirmed')await route.abort('connectionreset');
+    else await route.fulfill(outcome==='failed'?{status:400,json:{error:'退出失败，请重试。'}}:{json:{ok:true}});
+  });
+  await page.goto('/#/'+document);
+  const exit=page.getByRole('button',{name:'退出程序',exact:true});
+  await exit.click();await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('listitem',{name:'正在处理…',exact:true})).toBeVisible();await expect(exit).toBeDisabled();
+  release();
+  const message=outcome==='failed'?'退出失败，请重试。':outcome==='unconfirmed'?/^操作结果尚未确认/:'正在退出应用并处理游戏连接。';
+  await expect(page.getByRole('listitem',{name:message,exact:true})).toBeVisible();
+  if(outcome==='accepted')await expect(exit).toBeDisabled();else await expect(exit).toBeEnabled();
+  await expect(page.getByRole('heading',{level:1,name:'关于',exact:true})).toBeVisible();
 });

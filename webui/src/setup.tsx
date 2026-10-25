@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Badge, Button, Checkbox, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Field, Input, Link, Spinner, Text, Subtitle1, Card, useRestoreFocusTarget } from '@fluentui/react-components';
+import { Badge, Button, Checkbox, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Field, Link, Spinner, Text, Subtitle1, Card, useRestoreFocusTarget } from '@fluentui/react-components';
 import { bootstrap } from './bootstrap';
 import { APIError, request } from './api';
 import { reconnect, useApp } from './hooks';
 import { type Application, type Status, gib, accelerationLabel } from './types';
 import { draftFrom, fingerprint, NetworkFields, releaseImport, type Draft } from './settings';
-import { Brand, Details, Feedback, Panel, NavigationLayout } from './ui';
+import { Brand, Feedback, Panel, NavigationLayout } from './ui';
 import { Diagnostics } from './diagnostics';
 import { CacheCapacityFields, capacityPayload, reclamationLabel } from './cache-capacity';
 import { StorageDirectoryFields } from './storage-directory';
@@ -218,7 +218,7 @@ export function Setup({accepted,onAccepted,onExit,guard,feedback}: {accepted:boo
     <form className="wizard-form" ref={form} onSubmit={e=>{e.preventDefault();if(step==='finish')void apply();else void go(steps[steps.indexOf(step)+1]);}}>
       <div className="wizard-content" key={step}>
       {step==='welcome'&&<><Subtitle1 as="h2">Still Wanna Dance (SWD)</Subtitle1><p>Load failed? But I still wanna dance!</p><p>专为 VRChat WannaDance 设计的高性能视频加速器</p><ul><li>本地视频</li><li>队列预加载</li><li>直连优化</li><li>自定义代理</li></ul><p>本工具自动后台运行，使用 WebUI 操作，可通过系统托盘图标管理。</p><p>技术原理：通过修改系统 hosts 劫持 HTTP 视频请求</p>
-        <div className="actions"><Button onClick={()=>{setTermsOpen(true);void loadTerms();}}>{terms?.accepted?'查看完整条款':'阅读并同意条款'}</Button><Badge color={terms?.accepted?'success':'informative'}>{terms?.accepted?'条款已确认':'尚未确认条款'}</Badge></div><p>在弹窗中同意后立即保存；退出引导不会撤销条款确认。</p>
+        <div className="actions"><Button onClick={()=>{setTermsOpen(true);void loadTerms();}}>{terms?.accepted?'查看完整条款':'阅读并同意条款'}</Button><Badge color={terms?.accepted?'success':'informative'}>{terms?.accepted?'条款已确认':'尚未确认条款'}</Badge></div>
         {accepted&&!s&&<Spinner label="正在连接设置…"/>}
       </>}
       {step==='storage'&&draft&&s&&<div className="form-grid">
@@ -232,13 +232,13 @@ export function Setup({accepted,onAccepted,onExit,guard,feedback}: {accepted:boo
         <Feedback error>{storageMessage}</Feedback>
         {pathKey(draft.storageDir)!==pathKey(s.settings.storageDir)&&<Feedback>更换目录不会搬迁已有数据。</Feedback>}
         <p>完整数据约 430 GiB。空间不足时，建议将视频存储预算设为 40 GiB 以内，以获得最佳空间收益。</p><Checkbox label="导入已有视频" checked={importEnabled} disabled={locked} onChange={(_,v)=>{setImportEnabled(!!v.checked);if(!v.checked){folder.current?.abort();setSource('');}}}/>
-        {importEnabled&&<><Field label="导入视频文件夹"><Button className="path-button" disabled={locked||folderBusy} onClick={()=>void chooseFolder('import')}>{source||'点击选择文件夹'}</Button></Field><p>可选择存有 WannaDance 视频或旧版保存的视频的文件夹，包含子文件夹，无需特定目录结构。</p><p>请放心，我们不会修改来源文件，并且会尽量使用硬链接来避免双份空间占用。导入后请勿修改源视频。</p></>}
+        {importEnabled&&<><Field label="导入视频文件夹"><Button className="path-button" disabled={locked||folderBusy} onClick={()=>void chooseFolder('import')}>{source||'点击选择文件夹'}</Button></Field><p>可选择存有 WannaDance 视频或旧版保存的视频的文件夹，包含子文件夹，无需特定目录结构。</p><p>同盘优先使用硬链接，导入后请勿修改源视频。</p></>}
         <VRCXOption model={history}/>
       </div>}
-      {step==='proxy'&&draft&&s&&<><Subtitle1 as="h2">连接方式</Subtitle1><NetworkFields wizard draft={draft} update={update} disabled={locked} status={s} onPending={setProxyPending}/><Details title="检测网络连接与下载速度" open><Diagnostics visible={true} proxy={{...plan,page:'proxy',upstreamMode:'proxy'}} upstream={diagnosticUpstream} onUpstreamChange={setDiagnosticUpstream}/></Details></>}
+      {step==='proxy'&&draft&&s&&<><Subtitle1 as="h2">连接方式</Subtitle1><NetworkFields wizard draft={draft} update={update} disabled={locked} status={s} onPending={setProxyPending}/><section aria-label="检测网络连接与下载速度"><Diagnostics visible={true} proxy={{...plan,page:'proxy',upstreamMode:'proxy'}} upstream={diagnosticUpstream} onUpstreamChange={setDiagnosticUpstream}/></section></>}
       {step==='finish'&&draft&&s&&<><Panel title="接入检查"><p>游戏连接：{s.hosts.ready?'已配置':s.hosts.conflict?s.hosts.message:'未配置'}</p><p>最终应用成功后按自动加速设置配置游戏连接；可能需要管理员授权。</p><div className="actions"><Button disabled={logsBusy||locked||app.unavailable} onClick={()=>void checkAccess()}>刷新接入检查</Button></div>
-        <Details title="端口与日志检查"><p>80 (HTTP) 端口：{s.portOK?'可用':s.portOwner?`被 ${s.portOwner.name}（PID ${s.portOwner.pid}）占用`:'被占用或不可用'}</p><p>443 (HTTPS) 端口：{s.httpsPortOK?'可用':s.httpsPortOwner?`被 ${s.httpsPortOwner.name}（PID ${s.httpsPortOwner.pid}）占用`:'被占用或不可用'}</p>
-        <p>VRChat 日志：{logsBusy?'正在检测…':logs?.path||logs?.directory||'未定位'}</p><p>{logs?.message}</p></Details><Feedback error>{s.actionErrors?.hosts}</Feedback>
+        <section aria-label="端口与日志检查"><p>80 (HTTP) 端口：{s.portOK?'可用':s.portOwner?`被 ${s.portOwner.name}（PID ${s.portOwner.pid}）占用`:'被占用或不可用'}</p><p>443 (HTTPS) 端口：{s.httpsPortOK?'可用':s.httpsPortOwner?`被 ${s.httpsPortOwner.name}（PID ${s.httpsPortOwner.pid}）占用`:'被占用或不可用'}</p>
+        <p>VRChat 日志：{logsBusy?'正在检测…':logs?.path||logs?.directory||'未定位'}</p><p>{logs?.message}</p></section><Feedback error>{s.actionErrors?.hosts}</Feedback>
         <VRCXCheck model={history}/>
         {(!s.portOK||!s.httpsPortOK)&&<Feedback error>接入检查未通过：端口被占用，请关闭占用程序后重试。</Feedback>}
       {s.portOK&&s.httpsPortOK&&logs?.state!=='ok'&&<p>视频接入条件已就绪；日志尚未确认，不影响本地视频读取和按需下载。</p>}</Panel><Panel title="应用配置"><SetupReview draft={draft} status={s} source={importEnabled?source:''} effects={effects}/>{!effects&&!reviewError&&<p role="status">正在核对完成后的动作…</p>}<Feedback error>{reviewError || application?.error || restartError || s.setupSettingsError}</Feedback><p role="status">{application?.configSaved&&'配置已保存。'}{recovering?'正在重启并等待新进程…':application?.phase==='importing'?'正在启动导入…':''}</p></Panel></>}

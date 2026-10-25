@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, Fragment, type PropsWithChildren, type Ref, type FocusEventHandler, type ReactNode } from 'react';
-import { FluentProvider, webLightTheme, webDarkTheme, Card, CardHeader, Divider, Image, Subtitle1, Subtitle2, Link, MessageBar, MessageBarBody, Accordion, AccordionItem, AccordionHeader, AccordionPanel, ProgressBar, NavDrawer, NavDrawerHeader, NavDrawerBody, NavItem, Hamburger, useRestoreFocusTarget } from '@fluentui/react-components';
+import { FluentProvider, webLightTheme, webDarkTheme, Card, CardHeader, Divider, Image, Subtitle1, Subtitle2, Link, MessageBar, MessageBarBody, ProgressBar, NavDrawer, NavDrawerHeader, NavDrawerBody, NavItem, Hamburger, useRestoreFocusTarget } from '@fluentui/react-components';
 import { bootstrap } from './bootstrap';
+import { Badge, Button, Tooltip, Toaster, Toast, ToastTitle, ToastTrigger, useToastController, useId, Popover, PopoverTrigger, PopoverSurface } from '@fluentui/react-components';
+import { InfoRegular, DismissRegular, CheckmarkCircleRegular, DismissCircleRegular, WarningRegular, ClockRegular, SubtractCircleRegular } from '@fluentui/react-icons';
 
 type ThemePreference='system'|'light'|'dark';
 const themeKey='swd-theme';
@@ -23,7 +25,32 @@ export function Provider({ children }: PropsWithChildren) {
     const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (icon) icon.href = dark ? '/favicon.ico' : '/favicon-light.ico';
   }, [dark]);
-  return <ThemeContext.Provider value={{preference,setPreference:value=>{setPreference(value);try{localStorage.setItem(themeKey,value);}catch{/* Keep the selected theme for this page if browser storage is unavailable. */}}}}><FluentProvider className="app-provider" data-theme={dark?'dark':'light'} style={{colorScheme:dark?'dark':'light'}} theme={{ ...(dark ? webDarkTheme : webLightTheme), fontFamilyBase: '"Segoe UI", "Microsoft YaHei", sans-serif' }}>{children}</FluentProvider></ThemeContext.Provider>;
+  return <ThemeContext.Provider value={{preference,setPreference:value=>{setPreference(value);try{localStorage.setItem(themeKey,value);}catch{/* Keep the selected theme for this page if browser storage is unavailable. */}}}}><FluentProvider className="app-provider" data-theme={dark?'dark':'light'} style={{colorScheme:dark?'dark':'light'}} theme={{ ...(dark ? webDarkTheme : webLightTheme), fontFamilyBase: '"Segoe UI", "Microsoft YaHei", sans-serif' }}>{children}<Toaster toasterId="app-notices" position="bottom-end" limit={4} pauseOnHover pauseOnWindowBlur /></FluentProvider></ThemeContext.Provider>;
+}
+export function Notification({message,error=false,persistent=false}: {message?:string;error?:boolean;persistent?:boolean}) {
+  const toastId=useId('notice'),{dispatchToast,dismissToast}=useToastController('app-notices');
+  useEffect(()=>{
+    if(!message)return;
+    const id=toastId+'-'+crypto.randomUUID();
+    dispatchToast(<Toast><ToastTitle action={<ToastTrigger><Button appearance="transparent" size="small" icon={<DismissRegular/>} aria-label="关闭通知"/></ToastTrigger>}>{message}</ToastTitle></Toast>,{toastId:id,intent:error?'error':'info',timeout:error||persistent?-1:7000});
+    return()=>dismissToast(id);
+  },[message,error,persistent,toastId,dispatchToast,dismissToast]);
+  return null;
+}
+export function Hint({children,label='说明'}:PropsWithChildren<{label?:string}>) {
+  return <Tooltip content={<>{children}</>} relationship="description"><Button size="small" appearance="transparent" icon={<InfoRegular/>} aria-label={label}/></Tooltip>;
+}
+export function RecordDetails({title,children}:PropsWithChildren<{title:string}>) {
+  const [open,setOpen]=useState(false);
+  return <Popover open={open} onOpenChange={(_,data)=>setOpen(data.open)}><PopoverTrigger disableButtonEnhancement><Button size="small" appearance="subtle" aria-label={title}>详情</Button></PopoverTrigger><PopoverSurface aria-label={title} onClick={event=>{if((event.target as HTMLElement).closest('a[href]'))setOpen(false);}}><Subtitle2 as="h3">{title}</Subtitle2>{children}</PopoverSurface></Popover>;
+}
+const statusIcons={success:CheckmarkCircleRegular,danger:DismissCircleRegular,warning:WarningRegular,brand:ClockRegular,informative:SubtractCircleRegular};
+export function StatusBadge({label,color,children}:PropsWithChildren<{label:string;color:keyof typeof statusIcons}>) {
+  const Icon=statusIcons[color];
+  return <Badge size="large" appearance="tint" color={color} icon={<Icon aria-hidden="true"/>} role="status" aria-label={label} aria-atomic="true">{label}：{children}</Badge>;
+}
+export function TableRegion({children,label}:PropsWithChildren<{label:string}>) {
+  return <div className="table-region" role="region" aria-label={label} tabIndex={0}>{children}</div>;
 }
 export function Brand() {
   return <div className="brand"><Image src="/assets/logo.svg" className="brand-logo" width="32" height="32" shape="rounded" alt="" /><Subtitle1>Still Wanna Dance</Subtitle1></div>;
@@ -65,17 +92,6 @@ export function Panel({ title, children, id, ref, onFocusCapture, action }: Prop
 }
 export function Feedback({ children, error = false }: PropsWithChildren<{ error?: boolean }>) {
   return children ? <MessageBar layout="multiline" intent={error ? 'error' : 'info'}><MessageBarBody>{children}</MessageBarBody></MessageBar> : null;
-}
-export function Details({ title, children, open = false, expanded:controlled, onToggle, keepMounted = false }: PropsWithChildren<{ title: string; open?: boolean; expanded?:boolean; onToggle?:(expanded:boolean)=>void; keepMounted?:boolean }>) {
-  // Forms retain drafts while collapsed; anchor focus needs the final layout immediately.
-  const [localExpanded,setExpanded]=useState(open), expanded=controlled??localExpanded;
-  return <Accordion collapsible openItems={expanded?['detail']:[]} onToggle={(_,data)=>{const value=data.openItems.includes('detail');setExpanded(value);onToggle?.(value);}} onInvalidCapture={event=>{
-    if(expanded)return;
-    // Native form validation must reveal a collapsed field before focusing it.
-    event.preventDefault();setExpanded(true);onToggle?.(true);
-    const field=event.target as HTMLInputElement;
-    requestAnimationFrame(()=>{if(field.isConnected)field.reportValidity();});
-  }}><AccordionItem value="detail"><AccordionHeader>{title}</AccordionHeader><AccordionPanel collapseMotion={keepMounted?{children:(_,props)=>props.children}:undefined} hidden={keepMounted&&!expanded}><div className="content-stack">{children}</div></AccordionPanel></AccordionItem></Accordion>;
 }
 export function Progress({ value, max, label }: { value?: number; max?: number; label: string }) {
   return <ProgressBar aria-label={label} value={max ? Math.min(1, Math.max(0, (value || 0) / max)) : undefined} />;

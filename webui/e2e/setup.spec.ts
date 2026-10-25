@@ -71,11 +71,11 @@ test('manual SSE diagnostics restore saved results when cancellation is confirme
   await page.getByRole('button',{name:'开始下载速度测试'}).click();
   await expect(page.getByRole('button',{name:'停止并放弃下载速度测试'})).toBeEnabled();
   Object.assign(api.diagnostics.calibration,{revision:3,fullCPUPercent:2,cpuP95Percent:4.89,cpuP99Percent:16.58});await api.emit('calibration');
-  await expect(cpu).toHaveText('CPU 使用率：平均 2.00% · p95 4.89%');
+  await page.getByRole('button',{name:'测速技术详情',exact:true}).click();await expect(cpu).toHaveText('CPU 使用率：平均 2.00% · p95 4.89%');
   await page.route('**/api/setup/network/calibration/cancel',async r=>{Object.assign(api.diagnostics.calibration,{revision:10,running:false,phase:'canceled'});await api.emit('calibration');await r.abort();});
   await page.getByRole('button',{name:'停止并放弃下载速度测试'}).click();
   await expect(page.getByText('16.00 Mbps',{exact:true})).toBeVisible();
-  await expect(cpu).toHaveText('CPU 使用率：平均 3.00% · p95 5.00%');
+  await page.getByRole('button',{name:'测速技术详情',exact:true}).click();await expect(cpu).toHaveText('CPU 使用率：平均 3.00% · p95 5.00%');
   await expect(page.getByRole('button',{name:'开始下载速度测试'})).toBeEnabled();
   expect(api.calls.filter(c=>c.path==='setup/network/calibration/start')).toHaveLength(1);
 });
@@ -148,7 +148,7 @@ for(const startup of [false,true])test(`confirmation explains service and queue 
   await expect(page.getByText(/条款确认已即时生效/)).toBeVisible();
   expect(api.calls.some(call=>call.path==='setup/apply')).toBe(false);
   await page.getByRole('button',{name:'确认并应用',exact:true}).click();
-  await expect(page.getByText(startup?'配置已应用。加速运行中；房间队列预加载已开启。':'配置已应用。加速未运行；房间队列预加载已关闭。',{exact:true})).toBeVisible();
+  await expect(page.getByRole('listitem',{name:startup?'配置已应用。加速运行中；房间队列预加载已开启。':'配置已应用。加速未运行；房间队列预加载已关闭。',exact:true})).toBeVisible();
 });
 
 test('failed review blocks confirmation until the effects have been checked',async({page})=>{
@@ -170,7 +170,7 @@ test('reentering setup can apply while the gateway queue is running',async({page
   await expect(page.getByText('本地服务：保持运行',{exact:true})).toBeVisible();
   await expect(page.getByText('房间队列预加载：保持开启',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'确认并应用',exact:true}).click();
-  await expect(page.getByText('配置已应用。加速运行中；房间队列预加载已开启。',{exact:true})).toBeVisible();
+  await expect(page.getByRole('listitem',{name:'配置已应用。加速运行中；房间队列预加载已开启。',exact:true})).toBeVisible();
   expect(api.calls.filter(c=>c.path==='setup/apply')).toHaveLength(1);
   expect(api.calls.some(c=>c.path.startsWith('queue/')||c.path==='stop')).toBe(false);
 });

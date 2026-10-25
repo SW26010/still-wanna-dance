@@ -16,11 +16,11 @@ test('acceleration owns connection actions and queue status links to settings',a
  await page.goto('/#network-access');
  await page.route('**/api/activation/enable',r=>r.fulfill({status:409,json:{error:'管理员取消，hosts 未改变'}}));
  await page.getByRole('button',{name:'修复并开启加速',exact:true}).click();
- await expect(page.getByText('管理员取消，hosts 未改变',{exact:true})).toBeVisible();
+ await expect(page.getByRole('listitem',{name:'管理员取消，hosts 未改变',exact:true})).toBeVisible();
  await navigate(page,'视频加速');
- await expect(page.locator('#queue ol li')).toHaveCount(6);
+ await expect(page.locator('#queue tbody tr')).toHaveCount(6);
  await expect(page.getByRole('button',{name:/开启队列预加载|关闭队列预加载/})).toHaveCount(0);
- await page.getByRole('link',{name:'调整提前准备时间',exact:true}).click();
+ await page.locator('#queue').getByRole('link',{name:'设置',exact:true}).click();
  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeFocused();
  expect(api.calls.some(c=>['start','stop','queue/start','queue/stop','hosts/enable'].includes(c.path))).toBe(false);
 });
@@ -91,11 +91,11 @@ test('late monitor response cannot overwrite paused display',async({page})=>{
   await mockAPI(page);let count=0,release:()=>void=()=>{};
   const held=new Promise<void>(done=>{release=done;});
   await page.route('**/api/downloads',async r=>{count++;if(count===2)await held;await r.fulfill({json:{tasks:[],bytesPerSecond:count===1?1000000:9000000}}).catch(()=>{});});
-  await page.clock.install();await page.goto('/#/home');await page.getByRole('button',{name:'下载诊断',exact:true}).click();await expect(page.getByText(/总下载速度 1.000 MB/)).toBeVisible();
+  await page.clock.install();await page.goto('/#/home');await expect(page.getByText('1.000 MB/s')).toBeVisible();
   await page.clock.fastForward(5100);await expect.poll(()=>count).toBe(2);
   await page.getByRole('checkbox',{name:'暂停下载展示'}).check();release();
-  await page.clock.fastForward(5100);await expect(page.getByText(/总下载速度 1.000 MB/)).toBeVisible();expect(count).toBe(2);
-  await page.getByRole('checkbox',{name:'暂停下载展示'}).uncheck();await expect(page.getByText(/总下载速度 9.000 MB/)).toBeVisible();
+  await page.clock.fastForward(5100);await expect(page.getByText('1.000 MB/s')).toBeVisible();expect(count).toBe(2);
+  await page.getByRole('checkbox',{name:'暂停下载展示'}).uncheck();await expect(page.getByText('9.000 MB/s')).toBeVisible();
 });
 
 test('rejected cancellation stays running and stale SSE events cannot replace newer state',async({page})=>{
@@ -110,11 +110,11 @@ test('rejected cancellation stays running and stale SSE events cannot replace ne
   await expect(page.getByRole('button',{name:'停止并放弃连通性检测'})).toBeEnabled();
 });
 
-test('cache failures remove stale selectable rows and retry reads no unrelated services',async({page})=>{
+test('cache failures preserve rows but disable stale actions and retry reads no unrelated services',async({page})=>{
   const api=await mockAPI(page);await page.goto('/#/cache');await expect(page.getByRole('checkbox',{name:/测试歌曲 1/})).toBeEnabled();
   await page.route('**/api/library?*',r=>r.fulfill({status:503,json:{error:'busy'}}));
   await page.getByRole('button',{name:'刷新曲库与本地占用'}).click();await expect(page.getByText(/曲库读取失败/)).toBeVisible();
-  await expect(page.getByRole('checkbox',{name:/测试歌曲 1/})).toHaveCount(0);
+  await expect(page.getByRole('checkbox',{name:/测试歌曲 1/})).toBeDisabled();
   expect(api.calls.some(c=>c.path==='cache/delete'||c.path==='inventory/scan'||c.path==='start')).toBe(false);
 });
 

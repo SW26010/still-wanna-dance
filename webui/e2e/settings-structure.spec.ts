@@ -36,11 +36,11 @@ test('tab drafts survive and saves merge only the submitted section',async({page
 test('theme is immediate, browser-persistent and independent of startup settings',async({page})=>{
   const {calls}=await mockAPI(page);await page.emulateMedia({colorScheme:'light'});await page.goto('/#/settings');
   await page.getByLabel('主题',{exact:true}).selectOption('dark');
-  await expect(page.locator('.app-provider')).toHaveAttribute('data-theme','dark');
+  await expect(page.locator('#root > .app-provider')).toHaveAttribute('data-theme','dark');
   await page.reload();await expect(page.getByLabel('主题',{exact:true})).toHaveValue('dark');
   await page.getByLabel('主题',{exact:true}).selectOption('system');
-  await expect(page.locator('.app-provider')).toHaveAttribute('data-theme','light');
-  await page.emulateMedia({colorScheme:'dark'});await expect(page.locator('.app-provider')).toHaveAttribute('data-theme','dark');
+  await expect(page.locator('#root > .app-provider')).toHaveAttribute('data-theme','light');
+  await page.emulateMedia({colorScheme:'dark'});await expect(page.locator('#root > .app-provider')).toHaveAttribute('data-theme','dark');
   expect(calls.some(c=>c.path==='settings')).toBe(false);
 });
 

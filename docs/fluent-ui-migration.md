@@ -10,8 +10,8 @@
 | --- | --- |
 | 页面与主题 | FluentProvider、Card/CardHeader、Text、Image、Divider；浏览器主题选择及系统跟随、窄屏换行和 reduced-motion |
 | 导航 | NavDrawer/NavItem/Hamburger；桌面左侧 inline 可展开／收起，≤640px 左侧 overlay；页面保留真实链接，引导步骤校验后切换 |
-| 字段与操作 | Field/Input/Select/Textarea/Checkbox/RadioGroup、Button、Dialog、Accordion、MessageBar、ProgressBar |
-| 记录列表 | List/ListItem 的官方 composite 键盘导航；业务负责受保护项、请求行身份及移除行后的焦点回退 |
+| 字段与操作 | Field/Input/Select/Textarea/Checkbox/RadioGroup、Button、Dialog、MessageBar、ProgressBar |
+| 记录列表 | 曲库和请求历史采用 Table/TableCellLayout，每例一行；当前请求、下载、队列和线路检测同样使用 Table。业务负责受保护项、请求行身份及移除行后的焦点回退 |
 | 测速 | `@fluentui/react-charts` v9 GaugeChart；实际倍率与 1×/2× 阈值，线性范围至少 0–3，随更高样本扩展；没有自绘指针或分段刻度 |
 | 块需求时间轴与需求视图 | Canvas 绘制连续时间与方块、可见需求行的块；D3 scale/zoom/selection 负责刻度及缩放拖动；Fluent Button、Slider、Switch、Popover、Badge 承担外围控件和共用详情，按需 SSE 提供数据 |
 | 文件选择 | 浏览器原生 file input，通过 Field 关联标签；Fluent Input 不支持 file 类型。目录选择调用 Windows IFileDialog |
@@ -27,7 +27,17 @@
 
 常规页面和引导步骤共用侧栏展开／收起按钮。桌面默认展开，收起后保留按钮并释放正文宽度；按钮保持挂载，键盘操作不会丢失焦点。应用内切换页面时保留展开状态，刷新后默认展开，不写入配置；窄屏抽屉仍由 Fluent 管理焦点、Escape 和遮罩关闭，独立于桌面展开状态。
 
-卡片和展开详情共用正文纵向间距，直接子段落、列表与操作区不再叠加外边距；空状态播报节点保留在 DOM 中，但不占布局行。单独的按钮按内容宽度排列，搜索表单内操作与字段底部对齐。页面内容依功能归属组织，曲库、设置、关于及网络分类使用标准 TabList/Tab；业务入口与设置／关于通过 Divider 分组。保存状态与按钮在表单顶部固定展示，详细重启影响按需展开。2026-10-21 的信息分层修订收起高级字段与技术说明；折叠字段验证失败时自动展开，继续使用原生表单验证。承载草稿或定位目标的详情通过标准 motion slot 保持子项挂载并立即展开，避免折叠丢失草稿或动画干扰焦点与滚动；隐藏诊断仍停止订阅。
+常规侧栏按导航内容自然占高，仅限制最大高度以适应视口；不以整屏高度撑开页头下方的区域。长页面保留浏览器滚动和侧栏 sticky 定位，引导仍由正文区域独立滚动。
+
+五个主页面共用页头与标题容器；应用内的关于页面同样保留后台状态。根滚动容器使用标准 [`scrollbar-gutter: stable`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/scrollbar-gutter)，使长短页面切换时可用宽度一致；短页面不强制显示滚动条或产生额外滚动范围。
+
+后台状态与退出按钮按内容宽度排列，间距使用 Fluent spacing token，空间不足时自然换行；不为状态预留固定宽度。
+
+后台程序、游戏连接、视频服务、房间队列统一使用 `Badge appearance="tint" size="large"`，由组件提供主题浅色底、描边与语义色文字，通过同一个轻量展示组件保持颜色、Fluent 图标及“名称：状态”格式一致。颜色直接使用 `success / danger / warning / brand / informative`，不定义自有色板；`informative` 在这里使用其中性色表达未启用／待确认。以 `role="status" aria-atomic="true"` 播报完整状态，装饰图标隐藏于辅助技术。MessageBar 保留给需要处理的消息；组件依据见[官方资料核对](research/fluent-v9-ui-patterns.md#四项运行状态2026-10-25)，业务语义见[内容约定](webui-content.md#程序与界面术语)。
+
+容器只负责布局，控件使用 Fluent 的尺寸、主题、焦点和交互。曲库、设置及关于分类使用 TabList/Tab；网络内部改为页内链接，无第二层标签。设置字段直接显示，保存操作固定在表单顶部。短说明使用 Tooltip，记录补充信息使用非模态 Popover；不把常用功能藏进折叠。2026-10-21 的高级字段折叠规则已由本次简洁重构替代。
+
+设置与统计列通过 CSS Grid `auto-fit` 按实际容器宽度换行，容纳侧栏及嵌套区域；操作栏不另加边框或固定提示高度。表单统一使用 Field 默认的上方标签布局，避免窄容器挤压标签，不覆盖组件内部网格。时间筛选使用 Field 的原生 `validationMessage`，错误随内容自然展开，不用绝对定位或空白占位保持结果坐标。轮询中的已有结果仍保持稳定。CardHeader 的 action 保留简短操作，批量控件放入内容区，避免挤压窄屏标题。组件依据为官方 [Field](https://fluent2.microsoft.design/components/web/react/core/field/usage/)、[Tooltip](https://fluent2.microsoft.design/components/web/react/core/tooltip/usage/) 与 [Toast](https://fluent2.microsoft.design/components/web/react/core/toast/usage/) 指南。
 
 时间轴与需求视图的 Canvas 绘制、视频配色和尺寸保持独立业务规则。需求浮层使用 Fluent 的 fixed 定位、自动限高与避让，与视口坐标锚点一致，避免源详情加载改变高度时使长页面跳动，并让小视口中的操作始终可达。
 
@@ -46,6 +56,8 @@
 
 验证分工遵循[现行机制](live-acceptance-process.md)，UAC、目录窗口、托盘、系统 DPI 和辅助技术的环境缺口见[非 VRC 跟进](validation-followups.md)。这里只引用记录，不再维护另一份逐项实机清单。
 
-曲库歌曲／资源切换使用 TabList/Tab，分页结果沿用 List/ListItem composite 导航；偏好使用 Select，本地状态及保护使用并列 Badge，删除复用共享 Fluent Dialog。单项下载只调用既有任务接口，不实现自定义任务控件。
+曲库歌曲／资源切换使用 TabList/Tab，分页结果使用紧凑 Table 与正常 Tab 顺序；偏好使用 Select，本地状态及保护使用并列 Badge，删除复用共享 Fluent Dialog。单项下载只调用既有任务接口，不实现自定义任务控件。
 
-设置四类和关于四类内容采用标准 TabList/Tab/tabpanel，原网络标签保留在网络设置内部。设置表单持续挂载，沿用独立部分草稿与最新保存配置合并；浏览器主题采用同一 FluentProvider，不另造主题样式系统。
+设置四类和关于四类内容采用标准 TabList/Tab/tabpanel，网络内部使用页内链接定位直接展示的内容。设置表单持续挂载，沿用独立部分草稿与最新保存配置合并；浏览器主题采用同一 FluentProvider，不另造主题样式系统。
+
+2026-10-25 曲库与请求历史已按[简洁重构](webui-design.md#2026-10-25-简洁重构)移除嵌套统计折叠，使用 Tooltip、Popover 与 Toast；早期的统一纵向 Card/Accordion 排布不再作为现行界面要求。

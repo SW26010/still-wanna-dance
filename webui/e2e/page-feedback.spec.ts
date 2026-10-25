@@ -20,8 +20,11 @@ for(const operation of ['file','song','public'] as const) {
         const requested=page.waitForRequest('**/api/'+path),responded=page.waitForResponse('**/api/'+path);
         if(operation==='song')await trigger.selectOption('favorite');else await trigger.click();
         await requested;
-        const message=page.getByText(text,{exact:true});
-        if(timing==='completed')await expect(message).toBeVisible();
+        const message=failed&&operation==='file'?page.getByRole('region',{name:'文件操作结果',exact:true}):page.getByRole('listitem',{name:text,exact:true});
+        if(timing==='completed'){
+          await expect(message).toBeVisible();
+          if(failed&&operation==='file')await expect(message).toContainText('无法打开视频位置。'+text);
+        }
         await navigate(page,'设置');
         if(timing==='returned') {
           await navigate(page,'曲库');
@@ -31,6 +34,7 @@ for(const operation of ['file','song','public'] as const) {
         if(timing!=='returned')await navigate(page,'曲库');
         await expect(trigger).toBeEnabled();
         await expect(message).not.toBeVisible();
+        if(operation==='file')await expect(page.getByRole('region',{name:'文件操作结果',exact:true})).not.toBeVisible();
       });
     }
   }

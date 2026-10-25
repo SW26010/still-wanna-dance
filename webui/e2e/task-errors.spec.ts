@@ -17,9 +17,9 @@ test('sample preparation explains online requirements and belongs to the selecte
   await api.emit('calibration');
   await page.setViewportSize({width:390,height:844});
   await page.goto('/#/setup');await navigateStep(page,'3. 网络');
-  const error=page.getByText(/未能取得足够的在线测速样本/);
+  const error=page.getByText(/在线测速样本不足/);
   await expect(error).toBeVisible();
-  await expect(page.getByText(/无需导入本地视频或修改存储预算/)).toBeVisible();
+  await expect(error).toContainText('检查连通性后重试');
   await expect(page.getByRole('button',{name:'开始连通性检测',exact:true})).toBeEnabled();
   await expect(page.getByRole('button',{name:'测速技术详情',exact:true})).toHaveAttribute('aria-expanded','false');
   await expect(page.getByRole('navigation',{name:'引导步骤',exact:true})).toBeHidden();
@@ -45,18 +45,12 @@ for(const cached of [true,false])test(`local scan distinguishes online catalog f
   });
   await page.setViewportSize({width:390,height:844});await page.goto('/#/library');
   const panel=page.locator('#batch');
-  await expect(panel.getByText(cached?'在线曲库更新失败，本次使用已有清单。':'在线曲库更新失败，本地没有可用清单，暂时无法检查视频。',{exact:true})).toBeVisible();
-  await panel.getByRole('button',{name:'上次完成的批量任务',exact:true}).click();
-  if(cached){
-    await expect(panel.getByText(/上次完成的本地检查（使用已有清单）/)).toBeVisible();
-    await expect(panel.getByText(/本地检查失败 0/)).toBeVisible();
-    await expect(panel.getByText(/下载完成 0 · 失败 0/)).toHaveCount(0);
-  }else await expect(panel.getByText('暂无完成的任务记录',{exact:true})).toBeVisible();
-  const raw=panel.getByText('Get "https://catalog.example/": EOF',{exact:true});
-  await expect(raw).toBeHidden();
+  await expect(panel.getByText(cached?'在线曲库更新失败，本次使用已有清单。':'没有可用清单，请重试更新。',{exact:true})).toBeVisible();
+  if(cached){await panel.getByRole('button',{name:'上次完成的批量任务',exact:true}).click();await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('共 2 · 已有 1 · 缺失 1');await page.keyboard.press('Escape');}
+  else await expect(panel.getByRole('button',{name:'上次完成的批量任务',exact:true})).toHaveCount(0);
   await panel.screenshot({path:info.outputPath('catalog-error.png')});
   await panel.getByRole('button',{name:'在线更新错误详情',exact:true}).click();
-  await expect(raw).toBeVisible();
+  await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('Get "https://catalog.example/": EOF');await page.keyboard.press('Escape');
   await panel.getByRole('button',{name:'重试更新',exact:true}).click();
   await expect(panel.getByText('正在更新歌曲清单',{exact:true})).toBeVisible();
   await expect(panel.getByRole('button',{name:'重试更新',exact:true})).toHaveCount(0);

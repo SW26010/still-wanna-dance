@@ -4,14 +4,14 @@ import {navigate, navigateStep} from './navigation';
 
 test('reclamation strategy follows storage only in auto and survives save, discard and navigation', async ({page}, info) => {
   const api = await mockAPI(page);
-  await page.goto('/#storage-settings');await page.getByRole('button',{name:'高级存储设置',exact:true}).click();
+  await page.goto('/#storage-settings');
   const group = page.getByRole('radiogroup', {name:'激进的缓存回收策略', exact:true});
   const auto = group.getByRole('radio', {name:'自动（默认）', exact:true});
   const on = group.getByRole('radio', {name:'开启', exact:true});
   const off = group.getByRole('radio', {name:'关闭', exact:true});
   const save = page.getByRole('button', {name:'保存设置', exact:true});
   await expect(group.getByRole('radio')).toHaveCount(3);
-  await expect(group).toHaveAccessibleDescription('通常可以最小化硬盘和内存占用，但可能增加反复下载消耗的流量，若希望边下边存，请关闭此选项。');
+  await expect(group).toHaveAccessibleDescription('减少缓存占用，可能增加重复下载。');
   await expect(auto).toBeChecked();
   await expect(page.getByText(/^自动（当前关闭）：/)).toBeVisible();
   await page.getByRole('radio', {name:'不保留', exact:true}).check();
@@ -29,7 +29,7 @@ test('reclamation strategy follows storage only in auto and survives save, disca
   await expect(save).toBeDisabled();
   expect(api.state.settings.aggressiveCacheReclamation).toBe('on');
   expect(api.state.activeSettings.aggressiveCacheReclamation).toBe('auto');
-  await page.reload();await page.getByRole('button',{name:'高级存储设置',exact:true}).click();
+  await page.reload();
   await expect(on).toBeChecked();
   await off.check();
   await page.getByRole('button', {name:'放弃更改', exact:true}).click();
@@ -37,14 +37,14 @@ test('reclamation strategy follows storage only in auto and survives save, disca
   await off.check();
   await save.click();
   await expect(save).toBeDisabled();
-  await page.reload();await page.getByRole('button',{name:'高级存储设置',exact:true}).click();
+  await page.reload();
   await expect(off).toBeChecked();
   await auto.check();
   await page.getByRole('radio', {name:'不保留', exact:true}).check();
   await save.click();
   await expect(save).toBeDisabled();
   expect(api.state.settings.aggressiveCacheReclamation).toBe('auto');
-  await page.reload();await page.getByRole('button',{name:'高级存储设置',exact:true}).click();
+  await page.reload();
   await expect(auto).toBeChecked();
   await expect(page.getByText(/^自动（当前开启）：/)).toBeVisible();
   await page.setViewportSize({width:390,height:844});

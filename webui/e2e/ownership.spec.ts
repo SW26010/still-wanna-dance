@@ -8,21 +8,21 @@ test('live progress belongs to acceleration and manual work belongs to library',
   await page.goto('/#/home');
   await expect(page.getByRole('heading',{level:1,name:'视频加速',exact:true})).toBeVisible();
   await expect(page.getByText('正在准备的歌曲',{exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'下载诊断',exact:true})).toHaveAttribute('aria-expanded','false');
+  await expect(page.getByRole('button',{name:'展开时间轴',exact:true})).toBeVisible();
   await navigate(page,'曲库');await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeVisible();
   expect(api.calls.some(c=>c.path==='queue/start')).toBe(false);
 });
 
 test('video import, storage and coverage are found from local videos',async({page})=>{
   const api=await mockAPI(page);await page.goto('/#/cache');
-  const coverage=page.getByRole('heading',{name:'曲库覆盖率',exact:true});
+  const coverage=page.getByText('曲库覆盖率',{exact:true});
   await expect(coverage).toBeVisible();
-  expect((await coverage.boundingBox())!.y).toBeLessThan((await page.getByRole('grid',{name:'曲库资源'}).boundingBox())!.y);
-  await page.getByRole('link',{name:'导入视频',exact:true}).click();
+  expect((await coverage.boundingBox())!.y).toBeLessThan((await page.getByRole('table',{name:'曲库资源'}).boundingBox())!.y);
+  await page.getByRole('button',{name:'导入视频',exact:true}).click();
   await page.getByRole('textbox',{name:'外部目录',exact:true}).fill('D:\\Videos');
   await page.getByRole('button',{name:'扫描并导入',exact:true}).click();
   expect(api.calls.find(c=>c.path==='import/start')?.body.source).toBe('D:\\Videos');
-  await page.getByRole('link',{name:'存储设置',exact:true}).click();
+  await page.getByRole('button',{name:'返回曲库',exact:true}).click(); await page.getByRole('link',{name:'存储设置',exact:true}).click();
   await expect(page.getByRole('radio',{name:'不保留',exact:true})).toBeVisible();
 });
 
@@ -36,7 +36,7 @@ test('separate settings locations save only their own draft and preserve the oth
   await page.getByRole('radio',{name:'限制为',exact:true}).check();
   await page.getByRole('spinbutton',{name:/视频存储预算/}).fill('20');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
-  await expect(page.getByRole('button',{name:'立即重启并应用',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();
   await expect(page.getByRole('region',{name:'设置操作',exact:true}).getByText('其他页面仍有未保存配置，请保存或放弃后再重启。')).toBeVisible();
   expect(api.state.settings.prepareAheadSeconds).not.toBe(777);
   await navigateSettings(page,'预加载与下载');
@@ -63,7 +63,7 @@ for(const width of [390,1280])test(`sidebar matches tasks and auxiliary pages ($
 
 test('proxy configuration and checks share the same unsaved draft without saving it',async({page})=>{
   const api=await mockAPI(page);await page.goto('/#network-proxy');
-  await expect(page.getByRole('tab',{name:'代理设置',exact:true})).toHaveAttribute('aria-selected','true');
+  await expect(page.getByRole('combobox',{name:'上游连接',exact:true})).toBeVisible();
   await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');
   await page.getByRole('textbox',{name:'SOCKS5 地址',exact:true}).fill('127.0.0.1:7891');
   await page.getByRole('button',{name:'检测此连接配置',exact:true}).click();
@@ -72,9 +72,9 @@ test('proxy configuration and checks share the same unsaved draft without saving
   const call=api.calls.find(c=>c.path==='setup/network/connectivity/start');
   expect(call?.body.proxy).toMatchObject({socks5Address:'127.0.0.1:7891',upstreamMode:'proxy'});
   expect(api.calls.some(c=>c.path==='settings')).toBe(false);
-  await page.getByRole('tab',{name:'代理设置',exact:true}).click();
+  await page.getByRole('link',{name:'代理设置',exact:true}).click();
   await expect(page.getByRole('textbox',{name:'SOCKS5 地址',exact:true})).toHaveValue('127.0.0.1:7891');
-  await page.getByRole('tab',{name:'高级接入',exact:true}).click();
+  await page.getByRole('link',{name:'接入诊断',exact:true}).click();
   await expect(page.getByRole('button',{name:'修复并开启加速',exact:true})).toBeVisible();
   await navigate(page,'视频加速');
   await expect(page.getByRole('button',{name:'修复并开启加速',exact:true})).toHaveCount(0);
@@ -93,7 +93,7 @@ test('acceleration summarizes recent failures and links to their owning page',as
   api.state.activation={phase:'waiting',firstRequest:new Date().toISOString()};
   await page.route('**/api/requests?*',r=>r.fulfill({json:{requests:[{id:1,at:Date.now(),status:502,outcome:'failed',method:'GET',bytes:0,elapsedMS:100,resource:'song',cache:'MISS'}]}}));
   await page.setViewportSize({width:390,height:844});await page.goto('/');
-  await expect(page.getByText(/最近一次已结束请求：请求失败 · HTTP 502/)).toBeVisible();
+  await expect(page.getByText(/最近请求：请求失败 · HTTP 502/)).toBeVisible();
   await expect(page.getByRole('link',{name:'检查连接',exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('acceleration.png'),fullPage:true,animations:'disabled'});
   await page.getByRole('link',{name:'检查连接',exact:true}).click();

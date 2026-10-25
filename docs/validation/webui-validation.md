@@ -399,3 +399,86 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 - 前端构建、类型检查、嵌入产物逐字节一致性与清单校验、相关三包 go vet、桌面构建及 diff 检查通过。验证构建为 `artifacts/ui-terminology/SWD.exe`（`dev-ui-terminology`），未替换或重启现有程序。
 
 首轮沙箱内 Go 检查因原子替换／进程与文件权限限制失败；Edge 启动报 `TransactNamedPipe` 管道中断，测试结束后有残留进程。保留 `backend-sandbox.jsonl`、`browser-sandbox.log` 和 `browser-sandbox-error.md`，仅清理确认属于本轮失败测试的进程树后，以正常用户权限重跑通过。成功日志为 `backend.jsonl`、`browser.log`，其余检查日志与截图在同一忽略目录 `artifacts/ui-terminology/`。未修改系统 hosts、用户配置／同意记录或存储，未启动游戏，无新增 VRC 待验项；未提交或推送。
+
+
+## 2026-10-25 简洁重构：曲库与时间线
+
+- `pnpm --dir webui build` 通过；本轮使用官方 Table/TableCellLayout、Popover、Tooltip、Toast，保留后端分页、偏好、共享文件删除及历史身份规则。
+- `./scripts/with-test-temp.ps1 pnpm --dir webui test library.spec.ts request-timeline.spec.ts --workers=2 --output=../artifacts/ui-simplify/tables-checked`：Edge 21/21 通过。覆盖超过 500 条历史的有界分页、搜索、共享文件与删除时再校验、收藏不触发下载、320/390/1280px、键盘提示、Popover 链接、导入草稿与单层确认。1440px 歌曲行高不超过 72px，收藏通知出现和关闭前后表格 Y 坐标不变。
+- 初次沙箱内 Edge 启动管道关闭，改为沙箱外同一内存夹具。首轮实际浏览器发现 grid 最小内容宽度导致窄屏整页溢出，改为 minmax(0,1fr) 后通过；Toast 的独立朗读节点造成旧文本定位重复，改为按通知 listitem 查询。导入必填标签断言改按 textbox 可访问名称匹配。失败证据分别保留在 `artifacts/ui-simplify/tables*`，没有删除或改写历史结果。
+- 已人工查看生成的桌面及窄屏截图；这些结果仅证明本轮内存夹具与界面交互，不代表真实游戏、系统窗口或完整重构已验收。首页、设置与全局反馈继续在后续独立提交完成。
+
+
+## 2026-10-25 简洁重构：首页与反馈
+
+- 首页突出加速操作；请求、下载和队列使用紧凑表格，宽屏并排。后台状态固定在页头，存储故障摘要跨页保留；操作消息使用 Toast。修复进度快速变为结果时复用 toast ID 导致结果被旧关闭动作吞掉的问题。
+- `notification-fixed` 的加速与反馈 25/25 通过；`home-checked` 的主页、持久故障及时间轴 27 项通过，3 项旧离屏定位失败。页面缩短后 `#downloads` 与时间轴同时可见，改为真实缩小视口并滚到顶部后，`home-offscreen` 的订阅检查通过，`home-offscreen-final` 两种固定详情检查通过。窄视口恢复详情操作前还需恢复正常高度。历史失败与截图保存在 `artifacts/ui-simplify/`。
+- 检查了 390/1280px 有请求、有下载、有队列的截图；320px 强制颜色、通知不挤动布局、故障恢复、请求身份未知、离页暂停轮询及离屏暂停订阅均有浏览器覆盖。构建与嵌入产物检查通过。验证使用内存 API，不代表真实游戏或系统接入已验证。
+
+
+## 2026-10-25 简洁重构：设置、网络与收尾
+
+- 设置与引导字段直接展示，使用横向 Field / RadioGroup 和响应式双列；网络取消二级标签，线路采用 Table，测速沿用官方 GaugeChart。移除不再使用的 Details/Accordion 包装，帮助直接提供操作步骤。批量任务、导入和设置文案缩短，保存栏保留按钮位置，待处理通知持续到结果返回。
+- 另修复两处交互：曲库读取失败保留旧行但禁用操作，确认删除期间的失败刷新也拒绝使用旧快照；VRCX 工具首次进入后保持草稿与预览，返回曲库再打开不重新读取。
+- Edge 全量首轮 `full-initial` 为 155/191，第二轮 `full-second` 为 185/191。主要失败来自被移除的 Accordion/List 操作及旧逐字文案断言；改用标准表格、Popover/Toast 的可访问角色，保留请求、草稿、保护、身份和配置生命周期断言。第二轮剩余 6 项均为帮助页及预算摘要定位，在 `final-layout` 的 41/41 定向复验中通过；该轮另新增 4 项布局/保存位置检查。删除确认中刷新失败的新回归 `stale-confirmation` 1/1 通过。各轮失败证据均保留，未将这些分轮结果表述为一次全量全绿。
+- 人工查看首页、四类设置及网络的桌面/窄屏截图；390/1440px 设置无整页横向溢出，无 Accordion，网络页内链接可聚焦；390/1280px 保存前后字段文档坐标变化小于 2px。现有 320px 强制颜色、深色、键盘、引导、代理和 VRCX 用例继续通过。截图位于 `artifacts/ui-simplify/final-layout/`。
+- `pnpm --dir webui build`、`check`、额外 `tsc --noEmit --noUnusedLocals` 通过；`go test -tags=no_easytier ./internal/console -count=1 -timeout=240s` 通过（73.181s）。生成资产、清单和第三方声明同步更新。这里只验证内存浏览器接口与控制台测试，不新增真实游戏验收结论；没有修改 hosts、启动游戏或推送。
+
+
+## 2026-10-25 Fluent 文档复查后的交互精简
+
+首页合并同接口的加速／重新检测按钮，保留退出恢复授权与忙碌条件；曲库文件操作改为数量摘要，未删除项和具体原因直接保留在表格下方，普通跳过与失败分别计数。统计详情内的二次悬停改为短注释，日志设置入口直接显示。网络空状态按检测项紧凑呈现，有结果后直接显示线路数据，仅显示有值的调度日期。曲库、设置和关于补齐标签面板关系；历史时间校验使用 Field 关联错误并保留反馈空间。
+
+- `./scripts/with-test-temp.ps1 pnpm --dir webui test acceleration.spec.ts current-get.spec.ts library.spec.ts page-feedback.spec.ts request-timeline.spec.ts monitor-details.spec.ts ui-layout.spec.ts document-navigation.spec.ts --workers=3 --output=../artifacts/fluent-refinement/verified`：Edge **70/70** 通过。覆盖退出授权、加速失败恢复、文件保护和确认期间刷新、50 项混合删除结果、关闭通知后仍能查到未完成项、离页清除及迟到反馈、键盘激活标签、日期错误关联、320/390/1280/1440px 与页面导航。
+- 初轮 `first` 在检查构建状态时主动中止，不计为完整通过；其中新增标签页测试误把方向键移动焦点当作激活，按 Fluent 默认的 Enter 激活修正，保留组件行为。错误上下文与截图保留在原目录；后续完整 70 项通过。
+- 截图复查后进一步精简未删除列表：有歌曲时使用歌曲名称与 ID，无关联歌曲时保留资源标识；去掉每行重复显示的资源哈希。`final-results` 的 2 项和 `final-layout` 的 4 项定向复验均通过，后者包含 390/1440px 设置及网络页首截图，避免全页截图混入滚动中的 sticky 位置。已查看桌面主页、桌面及窄屏网络、混合文件结果截图。
+- 日期错误出现和修正前后，320/1280px 查询按钮及结果表格的文档 Y 坐标相同；50 项操作结果不挪动原表格。通知关闭后未完成结果仍可查，切换页面后清除。网络新样本不需要额外展开。
+- `pnpm --dir webui build`、`check`、`tsc --noEmit --noUnusedLocals` 与 `git diff --check` 通过；嵌入资源和清单同步生成。未改后端接口或文件保护规则，浏览器使用本地内存接口，不据此外推游戏、真实删除或屏幕阅读器验收；无新增 VRC 待验项。
+
+## 2026-10-25 审查问题修复：文档反馈与曲库定位
+
+文档页继续显示全局退出操作的进度、失败、未确认和成功通知。曲库的 `#cache`、`#/cache`、`#song-preferences`、`#batch` 定位会退出当前工具视图，显示并聚焦目标；导入目录草稿、VRCX 数据库选择与预览仍保留。共享存储字段的说明改为直接说明收藏保留条件，去掉使用引导中不存在的“下方保留选项”指向。
+
+- 修复前用内存夹具复现三类问题，证据位于 `artifacts/review-findings/`；退出复现首次断言误计文档列表项，改为只定位 Toast 后在 `exit-confirmed` 确认消息确实不可见。
+- `./scripts/with-test-temp.ps1 pnpm --dir webui test document-navigation.spec.ts library.spec.ts cache-capacity.spec.ts page-feedback.spec.ts vrcx.spec.ts --workers=3 --output=../artifacts/review-fixes/checked`：Edge **78/78** 通过。覆盖三类文档中的退出结果、390/1280px 的四种曲库定位及焦点、返回导入工具后的草稿/预览、普通导航与迟到反馈隔离、设置与引导的存储模式。
+- 首轮 `verified` 在测试收集阶段失败：新增用例直接导入浏览器 API 模块，间接访问 Node 中不存在的 `document`。改为按通知的可访问名称断言后重跑通过，未为测试修改产品初始化。
+- 前端构建、类型检查、嵌入资源一致性与 `git diff --check` 通过；产物与清单同步更新。验证使用本地内存 API，不代表真实退出、系统接入或游戏验收；未修改 hosts、启动游戏，无新增 VRC 待验项。
+- 后续修正精确对象视图的空结果提示为“当前条件下没有匹配项。”，避免将叠加筛选后的零结果断言为对象消失。仅调整文案和已有断言；`library.spec.ts --grep 'historical object links|library pagination'` 两项 Edge 回归通过，覆盖歌曲／资源精确链接空结果与搜索分页；构建、类型和嵌入产物检查通过。输出保留在 `artifacts/review-fixes/empty-state/`。
+
+## 2026-10-25 多余页面滚动与时间线刷新闪动
+
+- 修复前 `ui-layout.spec.ts request-timeline.spec.ts --grep 'short pages|automatic history'` 为 1/5 通过：1440×1000 与 900×1200 的正文均能放下，文档却比视口高 60px；390×2000 原本正常。尺寸探测确认侧栏从页头下方 84px 开始，却固定占用 `100dvh - 48px`。改为内容自然占高、限制最大高度，保留 Fluent 导航、长页滚动与引导独立滚动；未裁切整页内容或按页头像素补偿。
+- 同轮复现历史轮询期间空记录提示消失、刷新按钮变灰，已存在记录的 DOM 身份和位置保持不变。修复首次读取与后台刷新共用加载条件的问题；后台读取期间保留空状态和按钮可用性，首正文统计采用相同规则。沿用已有请求取消、错误清行与焦点恢复机制。
+- 最小五项复验全部通过；补充后台刷新期间翻页、迟到响应隔离及首正文刷新检查后，`./scripts/with-test-temp.ps1 pnpm --dir webui test ui-layout.spec.ts request-timeline.spec.ts sidebar.spec.ts document-navigation.spec.ts recovery.spec.ts regressions.spec.ts setup.spec.ts --workers=3 --output=../artifacts/layout-refresh/verified` **58/58** 通过。覆盖展开/收起侧栏、窄屏抽屉、引导、文档往返、历史分页、错误和焦点；人工查看 1440×1000 与 900×1200 短页截图。修复前失败截图和隔离探测保留在 `artifacts/layout-refresh/before/`、`probe-results/`。
+- 构建、类型检查、嵌入产物一致性和 diff 检查通过。仅使用本地内存 API 与 Edge 验证界面；未修改后端、hosts 或用户数据，未启动游戏，无新增 VRC 待验项。
+
+## 2026-10-25 主导航切页位置稳定
+
+- 在 Edge 中显式启用占位滚动条，复现长短页面切换时可用宽度变化 15px：1700px 居中外壳横移 7.5px，较窄窗口正文宽度改变 15px。“关于”隐藏后台状态还造成桌面纵移 4px、390px 窄屏纵移 48px，独立标题行盒另差 1px。隔离探测逐项验证滚动条占位、共享页头与标题容器分别消除对应偏移。
+- 根容器使用 `scrollbar-gutter: stable`，五个主页面共用页头和标题；静态文档正文仍不依赖状态接口完成读取。新增用例实际点击五个导航入口，在 390/800/1280/1700px 对比侧栏、正文和标题坐标，并核对短页仍无纵向溢出。`./scripts/with-test-temp.ps1 pnpm --dir webui test navigation-stability.spec.ts ui-layout.spec.ts sidebar.spec.ts document-navigation.spec.ts --workers=3 --output=../artifacts/navigation-stability/verified` **27/27** 通过；人工查看桌面和窄屏截图，构建、类型、嵌入产物与 diff 检查通过。
+- 初次用例误用了旧按钮名称；修正后排除同页点击的焦点滚动，保留真实跨页比较。`before/`、`reproduced/`、`classic-before/` 保存失败记录，`probe-results/` 保存隔离探测，均位于忽略目录 `artifacts/navigation-stability/`。测试使用内存 API，未改 hosts 或用户数据，未启动游戏。
+
+## 2026-10-25 四项运行状态统一
+
+后台程序、游戏连接、视频服务、房间队列沿用各自入口，统一为 Fluent v9 实心 Badge、同一尺寸、语义色及状态图标；名称与结果始终可见。后台状态与操作结果分开，接口失败或退出／重启时其余三项显示待确认；保留存储故障、游戏接入及队列详情，未改后端状态协议。
+
+- `./scripts/with-test-temp.ps1 pnpm --dir webui test runtime-status.spec.ts acceleration.spec.ts current-get.spec.ts regressions.spec.ts storage-failure.spec.ts navigation-stability.spec.ts ui-layout.spec.ts document-navigation.spec.ts setup.spec.ts --workers=3 --output=../artifacts/status-language/first`：**55/55** 通过，包含五页坐标、状态失败恢复、保存锁定、故障详情和引导。
+- 检查浅色、深色与混合状态截图后，将未启用／待确认由透明的 subtle 调整为 filled informative 的中性灰，以保持徽章外观一致；补充视频服务与队列启动失败的颜色检查。`runtime-status.spec.ts --workers=3 --output=../artifacts/status-language/final` **6/6** 通过，覆盖 1280px 浅色、390px 深色、320px forced-colors、四种状态颜色、启动中、退出、旧快照失效、恢复及失败操作不误报后台断连。各状态具有可读文字、装饰图标与完整状态播报属性；未据此宣称 Narrator/NVDA 已验收。
+- 前端构建、类型、嵌入产物与 diff 检查通过。浏览器使用本地内存 API，未改 hosts 或用户数据、未启动游戏，无新增 VRC 待验项。
+- 用户反馈实心过于醒目后，将共用 Badge 改为官方 `appearance="tint"`，沿用主题浅色底、描边和语义色文字；状态文案与业务逻辑不变。`runtime-status.spec.ts --workers=3 --output=../artifacts/status-language/tint` **6/6** 通过。
+- 随后移除非首页标题旁重复的加速状态；删除后台状态容器的 360px 固定占位及窄屏独占行规则，使它与退出按钮按内容宽度相邻排列、空间不足时自然换行。`./scripts/with-test-temp.ps1 pnpm --dir webui test runtime-status.spec.ts navigation-stability.spec.ts ui-layout.spec.ts storage-failure.spec.ts --workers=3 --output=../artifacts/status-language/compact-header` **18/18** 通过，覆盖五页切换对齐、短页无多余滚动、窄屏、深色、高对比及故障详情；人工核对桌面设置、窄屏深色和混合状态截图。前端构建、类型、嵌入产物与 diff 检查通过。
+
+## 2026-10-25 全页面提示与布局清理
+
+- 核对五个主页面、设置四类及引导／导入共用组件，移除重复页面说明、曲库读取失败通知、测速空样本提示、空批量历史详情及时间轴连接状态的重复提示。设置操作区缩短状态和重启按钮文案、去除装饰框与固定 40px 状态高度；保留保存后同步、草稿隔离、重启确认及错误原因。
+- 时间范围错误回归 Field 自带校验区，删除 32px 空白预留与绝对定位；改为验证字段关联和错误不遮挡操作，替代旧“错误出现时结果坐标不变”约束。设置和统计使用按容器宽度换列的 Grid；时间轴标题栏只保留展开按钮，暂停控件放入内容区。
+- 首轮运行 `ui-layout.spec.ts runtime-status.spec.ts navigation-stability.spec.ts request-timeline.spec.ts library.spec.ts recovery.spec.ts components.spec.ts task-errors.spec.ts copy.spec.ts regressions.spec.ts ownership.spec.ts setup.spec.ts document-navigation.spec.ts block-timeline.spec.ts --workers=3 --output=../artifacts/ui-cleanup/first`：**129/135** 通过，6 个失败均为曲库用例仍查找已移除的 Toast。随后将文件异常结果移至列表前并聚焦，保留删除保护断言，改为验证唯一、持续可见的结果与原因；失败输出保留。
+- 定向复验 `ui-layout.spec.ts library.spec.ts cache-capacity.spec.ts console.spec.ts download-settings.spec.ts ownership.spec.ts proxy-drafts.spec.ts settings-help.spec.ts --workers=3 --output=../artifacts/ui-cleanup/final`：**68/68** 通过。新增 800px 设置布局覆盖，核对 320px Field 错误、390px 设置与文件异常结果、800/1440px 网络截图。首次检查仅发现 CSS 文件尾空行，已清理；前端构建、类型、嵌入资源一致性与 diff 检查通过。
+- 800px 截图发现横向字段挤压“分钟”标签，最终改用 Field 默认上方标签，并删除窄屏覆盖内部网格的规则。`ui-layout.spec.ts settings-help.spec.ts components.spec.ts setup.spec.ts --workers=3 --output=../artifacts/ui-cleanup/field-layout` **29/29** 通过，重新检查 800px 网络截图、保存后的字段位置、引导滚动和焦点；再次通过构建、类型与嵌入资源一致性检查。
+- 浏览器使用本地内存 API，未改后端业务、hosts 或用户数据，未启动游戏；无新增 VRC 待验项。
+- 后续按反馈将退出／重启后的后台徽章改为“未连接”，使用 `informative` 中性色；沿用原有停止读取和重连逻辑。`runtime-status.spec.ts --workers=3 --output=../artifacts/status-language/disconnected` **6/6** 通过；前端构建、类型、嵌入资源一致性与 diff 检查通过。
+
+## 2026-10-25 退出按钮与悬停说明
+
+- 页头按钮改为“退出程序”，点击直接提交一次退出请求，移除网页二次确认。停止服务及游戏接入处理说明沿用 `exitConnectionMessage` 读取当前生效设置和权限准备状态，通过 Fluent Tooltip 的 `relationship="description"` 在鼠标悬停或键盘聚焦时显示；不读取未保存草稿作为退出策略。帮助与现行文档同步名称，后端退出、恢复权限及失败反馈未改动。
+- `./scripts/with-test-temp.ps1 pnpm --dir webui test acceleration.spec.ts console.spec.ts document-navigation.spec.ts runtime-status.spec.ts settings-help.spec.ts navigation-stability.spec.ts ui-layout.spec.ts --workers=3 --output=../artifacts/exit-tooltip/verified` **49/49** 通过。覆盖悬停／聚焦不发送请求、Escape 关闭说明、Enter 直接退出、无二次弹窗、当前恢复策略及未准备权限说明、失败与结果未确认反馈，以及五页布局。核对 320px 与 1280px Tooltip 截图；前端构建、类型、嵌入产物及 diff 检查通过。使用本地内存 API，未实际退出用户程序或修改 hosts，无新增 VRC 待验项。

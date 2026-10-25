@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
-import { Badge, Button, Caption1, Popover, PopoverSurface, Slider, Spinner, Switch, Text } from '@fluentui/react-components';
+import { Badge, Button, Caption1, Checkbox, Popover, PopoverSurface, Slider, Spinner, Switch, Text } from '@fluentui/react-components';
 import { Add20Regular, Subtract20Regular, ArrowSync20Regular, ChevronLeft20Regular, ChevronRight20Regular, Dismiss20Regular, Pin20Regular } from '@fluentui/react-icons';
 import { scaleLinear } from 'd3-scale';
 import { select } from 'd3-selection';
@@ -15,7 +15,7 @@ type View = { follow: boolean; center: number; span: number; offset: number };
 type Selection = { ids: string[]; index: number; x: number; y: number; pinned: boolean };
 const minimumSpan = 1000, maximumSpan = 7 * 86400000;
 
-export function BlockTimeline({ visible, paused }: { visible: boolean; paused: boolean }) {
+export function BlockTimeline({ visible, paused, onPausedChange }: { visible: boolean; paused: boolean; onPausedChange:(value:boolean)=>void }) {
   const app = useApp(), documentVisible = useDocumentVisible();
   const container = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
@@ -31,11 +31,9 @@ export function BlockTimeline({ visible, paused }: { visible: boolean; paused: b
   const { data, connection } = useBlockStream(enabled, app.revision);
   const active = enabled && connection === 'live';
   return <div ref={container}><Panel id="block-demands" title="块需求时间轴" action={<Button appearance={expanded ? 'subtle' : 'secondary'} aria-expanded={expanded} aria-controls="block-timeline-content" onClick={() => setExpanded(value => !value)}>{expanded ? '收起时间轴' : '展开时间轴'}</Button>}>
-    <Caption1 className="hint">沿时间查看块的需求、下载与本地保护。</Caption1>
+    <Checkbox label="暂停下载展示" checked={paused} onChange={(_,d)=>onPausedChange(!!d.checked)}/>
     {expanded && <div id="block-timeline-content" className="block-timeline-content">
-      <div className="timeline-status"><Badge appearance="tint" color={active ? 'success' : 'informative'}>{!enabled ? '展示已暂停' : connection === 'live' ? '事件已连接' : connection === 'error' ? '正在重新连接' : connection === 'offline' ? '引擎未运行' : '正在连接'}</Badge><Caption1>{data ? `需求占用 ${data.used.toLocaleString()} / ${data.capacity || 4096} · 执行 ${data.active} / 额度 ${data.open}` : '等待当前状态'}</Caption1></div>
-      {connection === 'error' && enabled && <Feedback error>事件连接中断，保留最后状态，恢复后自动同步。</Feedback>}
-      {!data && enabled && connection === 'connecting' && <Spinner size="tiny" label="正在读取块需求" />}
+      <div className="timeline-status">{connection==='error'&&enabled?<Feedback error>事件连接中断，正在重连。</Feedback>:!data&&enabled&&connection==='connecting'?<Spinner size="tiny" label="正在读取块需求"/>:<Badge appearance="tint" color={active ? 'success' : 'informative'}>{!enabled ? '展示已暂停' : connection === 'live' ? '事件已连接' : connection === 'offline' ? '引擎未运行' : '正在连接'}</Badge>}{data&&<Caption1>需求占用 {data.used.toLocaleString()} / {data.capacity || 4096} · 执行 {data.active} / 额度 {data.open}</Caption1>}</div>
       {data && <TimelineViewport data={data} active={active} />}
     </div>}
   </Panel></div>;

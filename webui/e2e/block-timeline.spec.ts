@@ -28,7 +28,6 @@ async function setup(page: Page, count = 48) {
   const streams = async () => (await page.request.get('/__fixture/streams?id=' + api.fixtureID)).json() as Promise<Record<string, number>>;
   const totalStreams = async () => Object.values(await streams()).reduce((sum, n) => sum + n, 0);
   await page.goto('/#/home');
-  await page.getByRole('button',{name:'下载诊断',exact:true}).click();
   const panel = page.locator('#block-demands'), canvas = panel.locator('.timeline-canvas'), viewport = panel.locator('.block-timeline');
   const open = async () => { await panel.getByRole('button', { name: '展开时间轴' }).click(); await expect(panel.getByText('事件已连接', { exact: true })).toBeVisible(); await expect(canvas).toBeVisible(); await canvas.scrollIntoViewIfNeeded(); await expect(canvas).toBeInViewport(); };
   return { ...api, at, blocks, emit, detail, streams, totalStreams, panel, canvas, viewport, open };
@@ -67,7 +66,7 @@ test('timeline subscribes only while visible and restores a fresh snapshot', asy
   await expect.poll(f.totalStreams).toBe(1);
   await navigate(page, '曲库'); await expect.poll(f.totalStreams).toBe(0);
   await navigate(page, '视频加速'); await f.panel.scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(1);
-  await page.locator('#downloads').scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(0);
+  await page.setViewportSize({width:1280,height:300}); await page.evaluate(()=>window.scrollTo(0,0)); await expect.poll(f.totalStreams).toBe(0);
   await f.panel.scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(1);
   await f.panel.getByRole('button', { name: '收起时间轴' }).click(); await expect.poll(f.totalStreams).toBe(0);
 });
@@ -93,13 +92,13 @@ for (const view of ['timeline', 'demand'] as const) test(`pinned ${view} details
 
   // A real visibility transition reproduces the intermittent screenshot
   // transition without relying on screenshot timing or synthetic observers.
-  await page.locator('#downloads').scrollIntoViewIfNeeded();
+  await page.setViewportSize({width:1280,height:300}); await page.evaluate(()=>window.scrollTo(0,0));
   await expect.poll(f.totalStreams).toBe(0);
   await expect(popup).toHaveCount(0);
   const protectedBlocks = blocks.map(b => ({ ...b, state: 'protected' as const, inUse: false, sources: 0, needBy: 0, timeBasis: 'last-need-by' as const, protected: true, protectionUntil: f.at + 60000 }));
   await f.detail(protectedBlocks[0], []);
   await f.emit({ blocks: protectedBlocks, removedDemands: [row.id], used: 0, active: 0 });
-  await f.canvas.scrollIntoViewIfNeeded();
+  await page.setViewportSize({width:1280,height:900}); await f.canvas.scrollIntoViewIfNeeded();
   await expect(f.panel.locator('.demand-row')).toHaveCount(0);
   await expect(popup).toContainText('已无使用需求，本地数据仍在延续保护期');
   await expect(popup).toContainText('块 1/4');
@@ -109,11 +108,11 @@ for (const view of ['timeline', 'demand'] as const) test(`pinned ${view} details
   await expect.poll(f.totalStreams).toBe(1);
 
   await f.canvas.press('Home'); await expect(popup).toContainText('块 1/4');
-  await page.locator('#downloads').scrollIntoViewIfNeeded();
+  await page.setViewportSize({width:1280,height:300}); await page.evaluate(()=>window.scrollTo(0,0));
   await expect.poll(f.totalStreams).toBe(0);
   await f.emit({ removed: [blocks[0].id] });
   const beforeResume = detailRequests.length;
-  await f.canvas.scrollIntoViewIfNeeded();
+  await page.setViewportSize({width:1280,height:900}); await f.canvas.scrollIntoViewIfNeeded();
   await expect(f.canvas).toHaveAccessibleName(/3 个块/);
   await expect(popup).toHaveCount(0);
   await expect(f.panel.locator('.timeline-selection-status')).toBeEmpty();

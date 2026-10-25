@@ -25,9 +25,9 @@ async function libraryFixture(page:Page) {
 test('song and resource views share state and deletion impact; targets use existing batch',async({page})=>{
   const {calls}=await libraryFixture(page);
   await page.goto('/#/library');
-  const songs=page.getByRole('grid',{name:'曲库歌曲'});
-  await expect(songs.getByText('完整本地视频已保存',{exact:true})).toHaveCount(2);
-  await expect(songs.getByText('歌手：歌手资料 · 舞者／社团：舞者资料／社团资料')).toHaveCount(3);
+  const songs=page.getByRole('table',{name:'曲库歌曲'});
+  await expect(songs.getByText('已保存',{exact:true})).toHaveCount(2);
+  await expect(songs.getByText('ID 1 · 歌手资料 · 舞者资料 / 社团资料')).toBeVisible();
   await songs.getByRole('button',{name:'删除本地视频'}).first().click();
   await expect(page.getByRole('dialog')).toContainText('影响 2 首已知关联歌曲');
   await expect(page.getByRole('dialog')).toContainText('共同视频一');
@@ -37,9 +37,9 @@ test('song and resource views share state and deletion impact; targets use exist
   await songs.getByRole('button',{name:'下载歌曲',exact:true}).last().click();
   await expect.poll(()=>calls.find(c=>c.path==='batch/download')?.body).toEqual({storageID:'fixture',songID:'3'});
   await page.getByRole('tab',{name:'按资源'}).click();
-  const list=page.getByRole('grid',{name:'曲库资源'});
-  await expect(list.getByText('完整本地视频已保存',{exact:true})).toHaveCount(1);
-  await expect(list.getByText('大小：未知 · 时长：未知')).toBeVisible();
+  const list=page.getByRole('table',{name:'曲库资源'});
+  await expect(list.getByText('已保存',{exact:true})).toHaveCount(1);
+  await expect(list.getByText('时长未知').last()).toBeVisible();
   await list.getByRole('button',{name:'下载资源',exact:true}).last().click();
   await expect.poll(()=>calls.filter(c=>c.path==='batch/download').at(-1)?.body).toEqual({storageID:'fixture',resource:missing});
 });
@@ -48,16 +48,16 @@ test('library pagination stays bounded and applies the submitted search',async({
   const {songs,queries}=await libraryFixture(page);
   for(let id=4;id<=121;id++)songs.push({...songs[2],id:String(id),title:'额外歌曲 '+id});
   await page.goto('/#/library');
-  const list=page.getByRole('grid',{name:'曲库歌曲'});
-  await expect(list.getByRole('row')).toHaveCount(50);
+  const list=page.getByRole('table',{name:'曲库歌曲'});
+  await expect(list.getByRole('row')).toHaveCount(51);
   await page.getByRole('button',{name:'下一页曲库'}).click();
   await expect(page.getByText('共 121 首歌曲 · 第 2 页',{exact:true})).toBeVisible();
-  await expect(list.getByRole('row')).toHaveCount(50);
+  await expect(list.getByRole('row')).toHaveCount(51);
   await page.getByRole('button',{name:'下一页曲库'}).click();
-  await expect(list.getByRole('row')).toHaveCount(21);
+  await expect(list.getByRole('row')).toHaveCount(22);
   await page.getByLabel('搜索曲库').fill('额外歌曲 121');
   await page.getByRole('button',{name:'查找',exact:true}).click();
-  await expect(list.getByRole('row')).toHaveCount(1);
+  await expect(list.getByRole('row')).toHaveCount(2);
   expect(queries.at(-1)?.get('q')).toBe('额外歌曲 121');
   expect(queries.at(-1)?.get('offset')).toBe('0');
 });
@@ -65,8 +65,8 @@ test('library pagination stays bounded and applies the submitted search',async({
 test('protected file stays saved and disabled; favorite only changes policy',async({page})=>{
   const {resources,calls}=await libraryFixture(page);resources[key].local!.protected=true;
   await page.goto('/#/library');
-  const songs=page.getByRole('grid',{name:'曲库歌曲'});
-  await expect(songs.getByText('受保护（正在使用／校验／待播）')).toHaveCount(2);
+  const songs=page.getByRole('table',{name:'曲库歌曲'});
+  await expect(songs.getByText('受保护')).toHaveCount(2);
   await expect(songs.getByRole('button',{name:'删除本地视频'}).first()).toBeDisabled();
   await page.getByLabel('歌曲 1 的偏好').selectOption('favorite');
   await expect.poll(()=>calls.find(c=>c.path==='songs')?.body).toEqual({storageID:'fixture',id:'1',policy:'favorite'});
@@ -78,21 +78,22 @@ test('historical object links retain exact identity and explain missing objects'
   await page.route('**/api/history?**',route=>route.fulfill({json:{storageID:'fixture',requests:[{id:1,at:Date.now(),completedAt:Date.now(),songID:'999',resource:'c'.repeat(32),method:'GET',elapsedMS:5,bytes:5,responseBytes:5,status:200,outcome:'completed',cache:'HIT'}],hasMore:false,nextCursor:''}}));
   await page.goto('/#/timeline');
   await page.getByRole('link',{name:'ID 999',exact:true}).click();
-  await expect(page.getByText('该对象不在当前曲库列表范围内；历史身份仍保留，未替换为其他对象。')).toBeVisible();
+  await expect(page.getByText('当前条件下没有匹配项。')).toBeVisible();
   expect(queries.at(-1)?.get('song')).toBe('999');
   await page.goBack();
   await page.getByRole('link',{name:'c'.repeat(32),exact:true}).click();
   await expect(page.getByRole('tab',{name:'按资源'})).toHaveAttribute('aria-selected','true');
-  await expect(page.getByText('该对象不在当前曲库列表范围内；历史身份仍保留，未替换为其他对象。')).toBeVisible();
+  await expect(page.getByText('当前条件下没有匹配项。')).toBeVisible();
   expect(queries.at(-1)?.get('resource')).toBe('c'.repeat(32));
 });
 
-for(const width of [320,390,1280])test(`library layout at ${width}px`,async({page})=>{
+for(const width of [320,390,1280])test(`library layout at ${width}px`,async({page},info)=>{
   await libraryFixture(page);await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:width===390?'dark':'light',forcedColors:width===320?'active':'none'});
-  await page.goto('/#/library');await expect(page.getByRole('grid',{name:'曲库歌曲'})).toBeVisible();
+  await page.goto('/#/library');await expect(page.getByRole('table',{name:'曲库歌曲'})).toBeVisible();
   await page.getByRole('tab',{name:'按资源'}).click();
-  await expect(page.getByRole('grid',{name:'曲库资源'})).toBeVisible();
+  await expect(page.getByRole('table',{name:'曲库资源'})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath('library.png'),fullPage:true});
 });
 
 
@@ -133,6 +134,7 @@ for(const change of ['stamp','protected','missing','title'] as const)test('delet
   await page.clock.fastForward(11000);
   await expect.poll(()=>queries.length).toBeGreaterThan(count);
   await page.getByRole('button',{name:'确认删除',exact:true}).click();
+  await expect(page.getByRole('region',{name:'文件操作结果',exact:true})).toBeFocused();
   await expect(page.getByText('文件或歌曲关联已变化，请刷新后重新选择并确认。',{exact:true})).toBeVisible();
   expect(calls.some(c=>c.path==='cache/delete')).toBe(false);
   if(change==='missing')await expect(page.getByRole('checkbox',{name:/^选择 /})).toHaveCount(0);
@@ -152,4 +154,114 @@ test('changing the library view or query clears its selection',async({page})=>{
   await page.getByRole('tab',{name:'按歌曲'}).click();
   await page.getByRole('tab',{name:'按资源'}).click();
   await expect(checkbox).not.toBeChecked();
+});
+
+
+test('compact rows, tooltip and operation feedback keep the table in place',async({page})=>{
+  const {songs}=await libraryFixture(page);
+  for(let id=4;id<=12;id++)songs.push({...songs[2],id:String(id),title:'额外歌曲 '+id});
+  await page.setViewportSize({width:1440,height:1000});
+  await page.goto('/#/library');
+  const table=page.getByRole('table',{name:'曲库歌曲'}),rows=table.getByRole('row');
+  await expect(rows).toHaveCount(13);
+  const before=await table.boundingBox();
+  expect((await rows.nth(1).boundingBox())!.height).toBeLessThanOrEqual(72);
+  const help=page.getByRole('button',{name:'需求分数说明',exact:true});
+  await help.focus();
+  await expect(page.getByRole('tooltip')).toContainText('随时间衰减');
+  await page.keyboard.press('Escape');
+  await page.getByLabel('歌曲 1 的偏好').selectOption('favorite');
+  await expect(page.getByRole('listitem',{name:'歌曲 1 已设为收藏。',exact:true})).toBeVisible();
+  expect((await table.boundingBox())!.y).toBe(before!.y);
+  await page.getByRole('button',{name:'关闭通知'}).click();
+  expect((await table.boundingBox())!.y).toBe(before!.y);
+});
+
+test('record details link navigates without leaving a blocking surface',async({page})=>{
+  await libraryFixture(page);await page.goto('/#/library');
+  await page.getByRole('button',{name:'歌曲 1 的详情',exact:true}).click();
+  await page.getByRole('link',{name:key,exact:true}).click();
+  await expect(page.getByRole('table',{name:'曲库资源'})).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'歌曲 1 的详情',exact:true})).toHaveCount(0);
+});
+
+test('import keeps its draft and uses a single confirmation dialog',async({page})=>{
+  const {state}=await libraryFixture(page);state.settings.storageDir='C:\\New-Storage';
+  await page.goto('/#/library');await page.getByRole('button',{name:'导入视频',exact:true}).click();
+  await page.getByRole('textbox',{name:'外部目录',exact:true}).fill('C:\\Videos');
+  await page.getByRole('button',{name:'返回曲库',exact:true}).click();
+  await page.getByRole('button',{name:'导入视频',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'外部目录',exact:true})).toHaveValue('C:\\Videos');
+  await page.getByRole('button',{name:'扫描并导入',exact:true}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  await expect(page.getByRole('dialog')).toContainText('新存储目录尚未生效');
+  await page.getByRole('button',{name:'取消',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'外部目录',exact:true})).toBeVisible();
+});
+
+for(const width of [390,1280])for(const anchor of ['cache','/cache','song-preferences','batch'])test(`library anchor #${anchor} leaves the import tool and preserves its draft at ${width}px`,async({page})=>{
+  await libraryFixture(page);await page.setViewportSize({width,height:720});await page.goto('/#/library');
+  await page.getByRole('button',{name:'导入视频',exact:true}).click();
+  const draft=page.getByRole('textbox',{name:'外部目录',exact:true});await draft.fill('C:\\Fixture-Videos');
+  await page.evaluate(anchor=>{location.hash=anchor;},anchor);
+  const target=page.locator(anchor==='batch'?'#batch':'#library-browser');
+  await expect(target).toBeVisible();await expect(target).toBeFocused();await expect(target).toBeInViewport();
+  await expect(page.getByRole('region',{name:'曲库工具',exact:true})).toBeHidden();
+  if(anchor!=='batch')await expect(page.getByRole('table',{name:anchor==='song-preferences'?'曲库歌曲':'曲库资源',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'导入视频',exact:true}).click();await expect(draft).toHaveValue('C:\\Fixture-Videos');
+});
+
+test('a failed refresh during deletion confirmation prevents acting on the retained snapshot',async({page})=>{
+  const api=await mockAPI(page);await page.clock.install();await page.goto('/#/cache');
+  await page.getByRole('table',{name:'曲库资源'}).locator('tbody tr').first().getByRole('button',{name:'删除本地视频',exact:true}).click();
+  await page.route('**/api/library?*',route=>route.fulfill({status:503,json:{error:'offline'}}));
+  await page.clock.fastForward(10100);await page.getByRole('dialog').getByRole('button',{name:'确认删除',exact:true}).click();
+  await expect(page.getByRole('region',{name:'文件操作结果',exact:true})).toBeFocused();
+  await expect(page.getByText('文件或歌曲关联已变化，请刷新后重新选择并确认。',{exact:true})).toBeVisible();
+  expect(api.calls.some(c=>c.path==='cache/delete')).toBe(false);
+});
+
+test('batch deletion focuses one persistent result with skipped and failed files',async({page},info)=>{
+  const {resources}=await libraryFixture(page),template=resources[key];
+  delete resources[key];delete resources[missing];
+  for(let id=1;id<=50;id++){
+    const key=id.toString(16).padStart(32,'0'),songs=id===50?[]:[{id:String(id),title:'批量视频 '+id,current:true}];
+    resources[key]={...template,key,songs,songCount:songs.length,local:{...template.local!,key,songs,songCount:songs.length,stamp:'file-'+id}};
+  }
+  await page.route('**/api/cache/delete',async route=>{
+    const entries=route.request().postDataJSON().entries as {key:string}[];
+    const response=entries.map(({key},i)=>({key,result:i<46?'deleted':['protected','missing','changed','failed'][i-46]}));
+    for(const entry of response)if(entry.result==='deleted'||entry.result==='missing')resources[entry.key].local=null;
+    await route.fulfill({json:response});
+  });
+  await page.clock.install();await page.goto('/#/cache');
+  await page.getByRole('button',{name:'选择本页可删除项',exact:true}).click();
+  await page.getByRole('button',{name:'删除选中视频',exact:true}).click();
+  await page.getByRole('dialog').getByRole('button',{name:'确认删除',exact:true}).click();
+  const results=page.getByRole('region',{name:'文件操作结果',exact:true});
+  await expect(results).toBeFocused();await expect(results).toBeInViewport();
+  await expect(page.getByText('已删除 46 个，跳过 2 个，未删除 2 个',{exact:true})).toHaveCount(1);
+  await page.clock.fastForward(8100);await expect(results).toBeVisible();
+  await expect(results.getByRole('row')).toHaveCount(5);
+  await expect(results).toContainText('批量视频 47');await expect(results).toContainText('文件或歌曲关联已变化');
+  await expect(results).toContainText((50).toString(16).padStart(32,'0'));
+  await expect(results).not.toContainText('批量视频 1');
+  await page.setViewportSize({width:390,height:900});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await results.screenshot({path:info.outputPath('file-results.png'),animations:'disabled'});
+});
+
+test('library tabs name their result panel and statistics need no second disclosure',async({page})=>{
+  await libraryFixture(page);await page.goto('/#/library');
+  const songs=page.getByRole('tab',{name:'按歌曲',exact:true});
+  await songs.focus();await page.keyboard.press('ArrowRight');
+  const resources=page.getByRole('tab',{name:'按资源',exact:true}),panel=page.getByRole('tabpanel',{name:'按资源',exact:true});
+  await expect(resources).toBeFocused();await expect(songs).toHaveAttribute('aria-selected','true');
+  await page.keyboard.press('Enter');await expect(panel.getByRole('table',{name:'曲库资源'})).toBeVisible();
+  expect(await resources.getAttribute('aria-controls')).toBe(await panel.getAttribute('id'));
+  await page.getByRole('button',{name:'曲库统计',exact:true}).click();
+  const details=page.locator('.fui-PopoverSurface:visible');
+  await expect(details).toContainText('未扣除预下载流量');await expect(details).toContainText('非游戏播放次数');
+  await expect(details.getByRole('button')).toHaveCount(0);
 });

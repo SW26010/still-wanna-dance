@@ -6,22 +6,22 @@ test('saved settings stay locked until a fresh status arrives, including failed 
   const waiting=new Promise<void>(resolve=>{release=resolve;});
   await page.route('**/api/status',async r=>{if(hold)await waiting;if(fail)return r.fulfill({status:503,json:{error:'temporarily offline'}});await r.fulfill({json:api.state});});
   await page.clock.install();await page.goto('/#prepareAheadSeconds');
-  const connection=page.locator('header [role="status"]');
-  await expect(connection).toHaveText('状态读取失败');
+  const connection=page.getByRole('status',{name:'后台程序',exact:true});
+  await expect(connection).toHaveText('后台程序：读取失败');
   fail=false;await page.clock.fastForward(5100);
-  await expect(connection).toHaveText('已连接后台程序');
-  await page.getByRole('button',{name:'高级下载设置',exact:true}).click();
+  await expect(connection).toHaveText('后台程序：已连接');
+
   const ahead=page.getByRole('spinbutton',{name:/提前准备时间/}),retention=page.getByRole('spinbutton',{name:/并发增长间隔/});
   await ahead.fill('120');hold=true;
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
-  await expect(page.getByText('正在核对已保存的设置…',{exact:true})).toBeVisible();
+  await expect(page.getByText('正在同步设置…',{exact:true})).toBeVisible();
   await expect(ahead).toHaveValue('120');await expect(retention).toBeDisabled();
   await expect(page.getByRole('checkbox',{name:'手动指定 VRChat 日志目录',exact:true})).toBeDisabled();
-  fail=true;release();await expect(page.getByText('无法读取程序状态，请检查 SWD 是否仍在运行。')).toBeVisible();
-  await expect(connection).toHaveText('状态更新失败，下方显示上次获取的状态');
+  fail=true;release();await expect(connection).toHaveText('后台程序：更新失败');await page.getByRole('button',{name:'后台状态'}).click();await expect(page.getByText('无法读取程序状态，请检查 SWD 是否仍在运行。')).toBeVisible();await page.keyboard.press('Escape');
+  await expect(connection).toHaveText('后台程序：更新失败');
   await expect(retention).toBeDisabled();await expect(ahead).toHaveValue('120');
   fail=false;await page.clock.fastForward(5100);await expect(retention).toBeEnabled();
-  await expect(connection).toHaveText('已连接后台程序');
+  await expect(connection).toHaveText('后台程序：已连接');
   await expect(ahead).toHaveValue('120');await retention.fill('4');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect.poll(()=>api.calls.filter(c=>c.path==='settings').length).toBe(2);
@@ -39,12 +39,12 @@ test('acceleration waits for UAC and reports a timed out result as unconfirmed',
   await page.clock.install();await page.goto('/');
   const button=page.getByRole('button',{name:'开始加速'});
   await button.click();await expect.poll(()=>calls).toBe(1);await page.clock.fastForward(20000);
-  await expect(button).toBeDisabled();await expect(page.getByText(/最多等待 120 秒/)).toBeVisible();
-  release();await expect(page.getByText('视频加速已开启。')).toBeVisible();
+  await expect(button).toBeDisabled();await expect(page.getByRole('listitem',{name:/最多等待 120 秒/})).toBeVisible();
+  release();await expect(page.getByRole('listitem',{name:'视频加速已开启。',exact:true})).toBeVisible();
   await page.route('**/api/activation/enable',()=>{});
   await button.click();await page.clock.fastForward(119000);await expect(button).toBeDisabled();
   await page.clock.fastForward(1001);
-  await expect(page.getByText(/操作结果尚未确认.*勿重复提交/)).toBeVisible();await expect(button).toBeEnabled();
+  await expect(page.getByRole('listitem',{name:/操作结果尚未确认.*勿重复提交/})).toBeVisible();await expect(button).toBeEnabled();
 });
 
 test('request detail keeps identity, expansion and focus while adjacent records change',async({page})=>{
@@ -66,18 +66,18 @@ for(const outcome of ['approved','timeout'] as const)test('exit policy save wait
   let release=()=>{},calls=0;const waiting=new Promise<void>(resolve=>{release=resolve;});
   await page.route('**/api/settings',async route=>{calls++;await waiting;if(outcome==='approved')await route.fallback();else await route.abort().catch(()=>{});});
   await page.clock.install();await page.goto('/#/settings');
-  await page.getByRole('button',{name:'高级游戏接入设置',exact:true}).click();
+
   const restore=page.getByRole('checkbox',{name:'退出时恢复游戏直连',exact:true}),save=page.getByRole('button',{name:'保存设置',exact:true});
   await restore.check();await save.click();await expect.poll(()=>calls).toBe(1);
   await page.clock.fastForward(40000);
   await expect(save).toBeDisabled();await expect(restore).toBeDisabled();
-  await expect(page.getByText(/正在准备退出时恢复游戏直连的权限.*最多等待 120 秒/)).toBeVisible();
+  await expect(page.getByRole('listitem',{name:'正在准备退出恢复权限，请留意管理员授权。',exact:true})).toBeVisible();
   if(outcome==='approved'){
-    release();await expect(page.getByText('设置已保存。退出策略用于本次退出；其他运行配置重启后生效。',{exact:true})).toBeVisible();
+    release();await expect(page.getByRole('listitem',{name:'设置已保存。',exact:true})).toBeVisible();
     expect(api.state.activeSettings.restoreHostsOnExit).toBe(true);
   }else{
     await page.clock.fastForward(80001);
-    await expect(page.getByText(/操作结果尚未确认.*勿重复提交/)).toBeVisible();
+    await expect(page.getByRole('listitem',{name:/操作结果尚未确认.*勿重复提交/})).toBeVisible();
     await expect(restore).toBeChecked();expect(api.state.activeSettings.restoreHostsOnExit).toBe(false);release();
   }
   expect(calls).toBe(1);

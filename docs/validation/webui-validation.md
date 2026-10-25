@@ -489,3 +489,16 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 - `pnpm --dir webui build`、`pnpm --dir webui check` 通过。全量浏览器回归 `./scripts/with-test-temp.ps1 pnpm --dir webui test --workers=3 --output=../artifacts/network-page/initial` 首轮 **228/230** 通过；两项失败分别为旧接入诊断页面归属断言和此前文件错误由 Toast 改为页内结果后遗留的断言。更新预期后，`settings-structure.spec.ts page-feedback.spec.ts --workers=3 --output=../artifacts/network-page/verified` **22/22** 通过，首轮失败证据保留。
 - 覆盖六项导航顺序、旧地址直达与焦点、设置草稿跨页保留、SOCKS5 草稿检测且无保存请求、设置与诊断控件归属、390–1700px 导航对齐和 320px 高对比布局；人工核对 390px、1440px 网络页截图。类型、嵌入资源一致性与 diff 检查通过。
 - 浏览器使用本地内存 API，未启动游戏、改 hosts 或用户数据；没有后端业务变更，无新增 VRC 待验项。首轮测试清理时 Edge 临时文件仍被占用，该轮独立临时目录按脚本约定保留，未影响验证结果。
+
+## 2026-10-25 程序级主题自动保存
+
+- 将主题从浏览器 localStorage 改为程序配置 `theme`。选择后单独自动保存并更新网页、页面 Logo、标签页图标和托盘；不提交其他设置草稿、不应用待重启运行配置。启动页面含已保存主题，其他打开页面沿用状态轮询同步；手动浅／深色不受 Windows 主题通知或托盘重建覆盖。现行规则见[配置生命周期](../settings-lifecycle.md)。本节替代早期记录中“仅保存在浏览器”的现状描述，历史测试结论保留原适用范围。
+- 定向 Go 回归通过：配置缺省及枚举校验、原子写入失败回退、权限校验、保留待重启设置、普通表单不覆盖主题、重新打开持久化、所有文档 bootstrap，以及托盘定时刷新／系统主题通知选择。启用 `SWD_TEST_TRAY=1` 的真实 Shell 集成通过：临时图标创建、切换、模拟 Explorer 重建和移除；没有修改 Windows 系统主题。结果为 `artifacts/program-theme/go-verified.log`。
+- `./scripts/with-test-temp.ps1 pnpm --dir webui test settings-structure.spec.ts recovery.spec.ts block-timeline.spec.ts document-navigation.spec.ts --workers=3 --output=../artifacts/program-theme/browser-verified`：Edge **54/54** 通过，覆盖主题自动保存、草稿保留、失败外观不变、刷新／轮询同步、图标、系统跟随、Canvas 和原有导航恢复。
+- `SWD_THEME_BROWSER_EVIDENCE` 指向隔离证据目录后执行 `TestThemeBrowser` 通过：真实 Console 路由和配置文件、两个独立浏览器同步、其他草稿未提交、浅／深／系统切换、关闭并重建 Console 后的新浏览器主题、托盘状态读取一致，且未创建播放引擎。已检查桌面浅色与窄屏深色截图，日志和图片在 `artifacts/program-theme/live.log`、`artifacts/program-theme/live/`。这项不是内存 API 夹具，也不声称测试过发行 EXE 进程重启。
+- 初次沙箱内 Go 检查在配置原子写入时出现已知 `renameat: The handle is invalid`；Edge 在启动阶段出现 `TransactNamedPipe` 管道终止，54 项均未进入页面断言，初轮输出留在 `artifacts/program-theme/browser/`，随后中止挂起的测试进程。未修改产品逻辑规避环境限制；沙箱外使用相同临时目录入口完成上述验证。
+- 前端构建／类型／嵌入资源一致性、相关 Console／desktop／入口的 `go vet` 和桌面构建通过；生成文件的新哈希已登记。开发构建为 `artifacts/program-theme/SWD.exe`。验证使用测试配置和临时图标，未启动游戏或修改实际 hosts；无新增 VRC 待验项。
+- 随后收口引导版本边界：新增真实主题保存接口与引导集成回归，修复前确认主题改变使原草稿版本失效，失败日志保留在 `artifacts/program-theme/setup-theme-before.log`。版本计算现在忽略主题值；引导重启效果比较也忽略校验期间发生的外观变化。原草稿应用时保留最新主题，已确认的重启导入续接不因主题变化失败。
+- `./scripts/with-test-temp.ps1 go test -tags=no_easytier ./internal/console -run 'TestSetupTheme|TestSetupApply|TestSetupContinuation|TestSetupSettingsVersion|TestSetupVersionKey|TestStatusDerivedSettings|TestThemeAutosave' -count=1 -v`：**10 项通过**，覆盖主题切换后继续核对／应用、配置文件保留最新主题、重开后续接且仅执行一次，以及运行配置冲突、凭据敏感性、密钥失败和原有状态缓存。输出为 `artifacts/program-theme/setup-theme-verified.log`；复用前轮已确认的沙箱外隔离配置环境，未改前端交互。
+- 最后修复多入口交错保存的外观同步遗漏：A 保存深色的响应延迟，B 已改回原先的 system；A 收到成功后本地变成深色，而连续 system 快照因标量依赖未变化不能纠正。新增受控响应时序回归在修复前复现，失败日志与截图保留于 `artifacts/program-theme/sync-before.log`、`sync-before/`。改为每次新状态快照均校准主题，沿用原有轮询和请求取消机制。
+- `settings-structure.spec.ts regressions.spec.ts --workers=3 --output=../artifacts/program-theme/sync-verified`：Edge **11/11** 通过，包含交错保存后控件、网页及 favicon 回到实际配置，以及草稿隔离、失败恢复、设置同步锁定和授权等待；完整命令仍通过 `scripts/with-test-temp.ps1`。前端构建、类型与嵌入资源检查通过，新产物哈希已登记；本轮是内存 API 下的确定时序回归，复用前轮真实配置与托盘验证。

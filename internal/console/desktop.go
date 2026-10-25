@@ -9,7 +9,7 @@ import (
 // DesktopState and DesktopCommand use the home page's readiness and activation flow.
 func (c *Console) DesktopState() desktop.State {
 	c.mu.Lock()
-	s := desktop.State{CDN: c.httpServer != nil, Batch: c.batch.Running, TermsAccepted: c.terms.valid()}
+	s := desktop.State{CDN: c.httpServer != nil, Batch: c.batch.Running, TermsAccepted: c.terms.valid(), Theme: c.settings.Theme}
 	restore := c.settings.RestoreHostsOnExit
 	switch c.activation.Phase {
 	case "checking", "hosts", "starting":

@@ -11,9 +11,9 @@ import { StorageDirectoryFields } from './storage-directory';
 const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadSoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
 type NumberField = typeof numeric[number];
 export interface ProxyReport { id?: string; accepted: number; skipped: number; failed: number; items: {index: number; protocol?: string; status: string; reason?: string}[] }
-export type Draft = Omit<Settings, NumberField | 'maxCacheBytes'> & Record<NumberField, string> & CapacityDraft & { proxyImportID: string; proxyImportText: string; proxyReport?: ProxyReport };
+export type Draft = Omit<Settings, NumberField | 'maxCacheBytes' | 'theme'> & Record<NumberField, string> & CapacityDraft & { proxyImportID: string; proxyImportText: string; proxyReport?: ProxyReport };
 export function draftFrom(s: Settings): Draft {
-  const {maxCacheBytes, ...values} = s;
+  const {maxCacheBytes, theme: _theme, ...values} = s;
   return { ...values, restoreHostsOnExit: s.restoreHostsOnExit ?? true, socks5Password: '', upstreamMode: s.upstreamMode === 'socks5' ? 'proxy' : s.upstreamMode || 'direct', proxyBackend: s.proxyBackend || 'external-socks5',
     requestRetentionDays: String(s.requestRetentionDays ?? 30), throughputIntervalMinutes: String(s.throughputIntervalMinutes ?? 20),
     prepareAheadSeconds: String(s.prepareAheadSeconds ?? 500),
@@ -127,7 +127,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
       <div className="settings-columns"><CacheReclamationFields mode={d.videoStorageMode} reclamation={d.aggressiveCacheReclamation} disabled={disabled} onChange={update} />
       {numberField('localProtectionGraceSeconds','本地延续保护时长（秒）',0,10000,'需求结束后继续保留缓存；0 表示不延续保护。')}
       </div></fieldset>}
-      {section==='application'&&<><Field label="主题" hint="仅保存于此浏览器，选择后立即生效。"><Select value={theme.preference} onChange={(_,v)=>theme.setPreference(v.value as 'system'|'light'|'dark')}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></Select></Field><fieldset disabled={disabled}><legend>程序启动</legend><Checkbox label="启动程序时自动打开 WebUI" checked={d.autoOpenWebUI} onChange={(_,v)=>update({autoOpenWebUI:!!v.checked})}/><Checkbox label="启动程序时自动开启视频加速" checked={d.autoAccelerate} onChange={(_, v) => update({autoAccelerate:!!v.checked})} /><span className="secondary">下次启动生效；接入时可能需要管理员授权。</span></fieldset>
+      {section==='application'&&<><Field label="主题" hint="自动保存并立即应用于网页和托盘图标，无需重启。"><Select disabled={disabled} value={theme.preference} onChange={async(_,v)=>{const value=v.value as 'system'|'light'|'dark';if(await app.action('settings/theme',{theme:value}))theme.setPreference(value);}}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></Select></Field><fieldset disabled={disabled}><legend>程序启动</legend><Checkbox label="启动程序时自动打开 WebUI" checked={d.autoOpenWebUI} onChange={(_,v)=>update({autoOpenWebUI:!!v.checked})}/><Checkbox label="启动程序时自动开启视频加速" checked={d.autoAccelerate} onChange={(_, v) => update({autoAccelerate:!!v.checked})} /><span className="secondary">下次启动生效；接入时可能需要管理员授权。</span></fieldset>
       <fieldset><legend>退出</legend><Checkbox label="退出时恢复游戏直连" checked={d.restoreHostsOnExit} disabled={disabled} onChange={(_,v)=>update({restoreHostsOnExit:!!v.checked})}/><span className="secondary">保存后立即用于本次退出。关闭后需先启动 SWD 再播放；开启时可能需要管理员授权。</span></fieldset>
       {numberField('requestRetentionDays','请求明细保留天数',0,36500,'0 表示永久保留；不影响累计统计。')}</>}
       {section==='network'&&<>      <fieldset><legend>网络连接</legend><NetworkFields key={app.settingsEpoch} draft={d} update={update} disabled={disabled} status={s} onPending={setPending} />

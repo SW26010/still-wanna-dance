@@ -29,6 +29,9 @@ func (c *Console) serveWebUI(w http.ResponseWriter, page, title string, data map
 		page = "console"
 	}
 	data["page"], data["token"] = page, c.token
+	c.mu.Lock()
+	data["theme"] = c.settings.Theme
+	c.mu.Unlock()
 	if page == "console" || page == "about" {
 		data["build"] = buildinfo.Current()
 	}

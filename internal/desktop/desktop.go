@@ -164,6 +164,7 @@ const (
 )
 
 type State struct {
+	Theme                string
 	CDN, Batch           bool
 	Ready, Activating    bool
 	TermsAccepted        bool

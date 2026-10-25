@@ -41,7 +41,7 @@ type setupPlan struct {
 }
 
 // The approved continuation contains no credentials. A restart can start its
-// import once, and only with the exact configuration that was confirmed.
+// import once, and only with the runtime configuration that was confirmed.
 type SetupApplication struct {
 	ID            string      `json:"id"`
 	Phase         string      `json:"phase"`
@@ -68,6 +68,8 @@ func (c *Console) reviewSetupPlan(p setupPlan) (setupEffects, error) {
 	s.nodeImportID = ""
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	// Appearance may change after validation's snapshot; it never needs a restart.
+	s.Theme = c.settings.Theme
 	restart := s != c.settings
 	return setupEffects{RestartRequired: restart, ApplyStartup: restart || c.autoStartPending}, nil
 }
@@ -84,6 +86,9 @@ func (c *Console) computeSetupSettingsVersion(s Settings) (string, error) {
 		return "", fmt.Errorf("无法验证引导配置版本，请恢复通道身份密钥后重试：%w", err)
 	}
 	defer clear(key)
+	// The wizard preserves the latest theme; appearance changes must not
+	// invalidate a draft or a confirmed restart continuation.
+	s.Theme = ""
 	data, _ := json.Marshal(s)
 	// Include unreadable protected credentials in the concurrency check as well.
 	if s.proxySecretError != "" {

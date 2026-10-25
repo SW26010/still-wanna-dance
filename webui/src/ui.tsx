@@ -4,13 +4,11 @@ import { bootstrap } from './bootstrap';
 import { Badge, Button, Tooltip, Toaster, Toast, ToastTitle, ToastTrigger, useToastController, useId, Popover, PopoverTrigger, PopoverSurface } from '@fluentui/react-components';
 import { InfoRegular, DismissRegular, CheckmarkCircleRegular, DismissCircleRegular, WarningRegular, ClockRegular, SubtractCircleRegular } from '@fluentui/react-icons';
 
-type ThemePreference='system'|'light'|'dark';
-const themeKey='swd-theme';
+import type { ThemePreference } from './types';
 const ThemeContext=createContext<{preference:ThemePreference;setPreference:(value:ThemePreference)=>void}>({preference:'system',setPreference:()=>{}});
 export const useThemePreference=()=>useContext(ThemeContext);
-function storedTheme():ThemePreference {try {const value=localStorage.getItem(themeKey);return value==='light'||value==='dark'?value:'system';}catch{return 'system';}}
 export function Provider({ children }: PropsWithChildren) {
-  const [preference,setPreference]=useState<ThemePreference>(storedTheme);
+  const [preference,setPreference]=useState<ThemePreference>(bootstrap.theme ?? 'system');
   const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
   const dark=preference==='dark'||preference==='system'&&systemDark;
   useEffect(() => {
@@ -19,13 +17,12 @@ export function Provider({ children }: PropsWithChildren) {
     media.addEventListener('change', change);
     return () => media.removeEventListener('change', change);
   }, []);
-  useEffect(()=>{const change=(e:StorageEvent)=>{if(e.key===themeKey)setPreference(storedTheme());};addEventListener('storage',change);return()=>removeEventListener('storage',change);},[]);
   useEffect(() => {
     // Favicon rasterization/caching does not reliably follow media queries inside SVGs.
     const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (icon) icon.href = dark ? '/favicon.ico' : '/favicon-light.ico';
   }, [dark]);
-  return <ThemeContext.Provider value={{preference,setPreference:value=>{setPreference(value);try{localStorage.setItem(themeKey,value);}catch{/* Keep the selected theme for this page if browser storage is unavailable. */}}}}><FluentProvider className="app-provider" data-theme={dark?'dark':'light'} style={{colorScheme:dark?'dark':'light'}} theme={{ ...(dark ? webDarkTheme : webLightTheme), fontFamilyBase: '"Segoe UI", "Microsoft YaHei", sans-serif' }}>{children}<Toaster toasterId="app-notices" position="bottom-end" limit={4} pauseOnHover pauseOnWindowBlur /></FluentProvider></ThemeContext.Provider>;
+  return <ThemeContext.Provider value={{preference,setPreference}}><FluentProvider className="app-provider" data-theme={dark?'dark':'light'} style={{colorScheme:dark?'dark':'light'}} theme={{ ...(dark ? webDarkTheme : webLightTheme), fontFamilyBase: '"Segoe UI", "Microsoft YaHei", sans-serif' }}>{children}<Toaster toasterId="app-notices" position="bottom-end" limit={4} pauseOnHover pauseOnWindowBlur /></FluentProvider></ThemeContext.Provider>;
 }
 export function Notification({message,error=false,persistent=false}: {message?:string;error?:boolean;persistent?:boolean}) {
   const toastId=useId('notice'),{dispatchToast,dismissToast}=useToastController('app-notices');

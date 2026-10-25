@@ -8,7 +8,7 @@
 
 | 范围 | 当前实现 |
 | --- | --- |
-| 页面与主题 | FluentProvider、Card/CardHeader、Text、Image、Divider；浏览器主题选择及系统跟随、窄屏换行和 reduced-motion |
+| 页面与主题 | FluentProvider、Card/CardHeader、Text、Image、Divider；程序主题选择及系统跟随、窄屏换行和 reduced-motion |
 | 导航 | NavDrawer/NavItem/Hamburger；桌面左侧 inline 可展开／收起，≤640px 左侧 overlay；页面保留真实链接，引导步骤校验后切换 |
 | 字段与操作 | Field/Input/Select/Textarea/Checkbox/RadioGroup、Button、Dialog、MessageBar、ProgressBar |
 | 记录列表 | 曲库和请求历史采用 Table/TableCellLayout，每例一行；当前请求、下载、队列和线路检测同样使用 Table。业务负责受保护项、请求行身份及移除行后的焦点回退 |
@@ -23,7 +23,7 @@
 
 通用界面优先使用 Fluent 默认组件、官方字阶和主题 tokens。页面背景使用 `colorNeutralBackground2`，桌面 inline 导航与窄屏 overlay 均保留标准抽屉外观；Card 保留标准边框、阴影和圆角。页面标题与卡片标题分别使用 Title2、Subtitle2，说明使用次级文字色，语义表单分组保留 fieldset/legend，以标题和留白分隔。
 
-图形和配色以 `internal/branding/logo.svg` 为唯一来源。页面 Logo 通过 SVG 的 `prefers-color-scheme` 跟随承载页面的 color-scheme；标签页图标复用同源生成的两套 ICO，由当前浏览器保存的主题选择（默认跟随系统）切换 `/favicon-light.ico` 和 `/favicon.ico`，避免浏览器选择固定深色后备图标或缓存 SVG 的旧配色。浅色使用已确认的第四版（背景 `#EAFFDF`、圆环 `#80DE50`、人物／闪电 `#20552A`，无描边），深色保持原图。Windows 托盘使用这两套 ICO，按 `SystemUsesLightTheme` 跟随任务栏主题，响应设置／主题变化并在 Explorer 重建托盘时重新选择；系统主题可以与浏览器／应用主题不同，不受 WebUI 的浏览器主题选择影响。资源生成和离线构建要求见[产品图标约定](evidence-storage.md#git-历史和防回归)。
+图形和配色以 `internal/branding/logo.svg` 为唯一来源。页面 Logo 通过 SVG 的 `prefers-color-scheme` 跟随承载页面的 color-scheme；标签页图标复用同源生成的两套 ICO，按程序主题切换 `/favicon-light.ico` 和 `/favicon.ico`，避免浏览器选择固定深色后备图标或缓存 SVG 的旧配色。浅色使用已确认的第四版（背景 `#EAFFDF`、圆环 `#80DE50`、人物／闪电 `#20552A`，无描边），深色保持原图。Windows 托盘使用相同两套 ICO，并读取同一程序主题偏好；自动保存、系统跟随与同步规则见[配置生命周期](settings-lifecycle.md)。资源生成和离线构建要求见[产品图标约定](evidence-storage.md#git-历史和防回归)。
 
 常规页面和引导步骤共用侧栏展开／收起按钮。桌面默认展开，收起后保留按钮并释放正文宽度；按钮保持挂载，键盘操作不会丢失焦点。应用内切换页面时保留展开状态，刷新后默认展开，不写入配置；窄屏抽屉仍由 Fluent 管理焦点、Escape 和遮罩关闭，独立于桌面展开状态。
 
@@ -58,6 +58,6 @@
 
 曲库歌曲／资源切换使用 TabList/Tab，分页结果使用紧凑 Table 与正常 Tab 顺序；偏好使用 Select，本地状态及保护使用并列 Badge，删除复用共享 Fluent Dialog。单项下载只调用既有任务接口，不实现自定义任务控件。
 
-设置四类和关于四类内容采用标准 TabList/Tab/tabpanel，独立网络页使用页内链接定位检测与诊断，配置字段仅在设置中编辑。设置表单持续挂载，沿用独立部分草稿与最新保存配置合并；浏览器主题采用同一 FluentProvider，不另造主题样式系统。
+设置四类和关于四类内容采用标准 TabList/Tab/tabpanel，独立网络页使用页内链接定位检测与诊断，配置字段仅在设置中编辑。设置表单持续挂载，沿用独立部分草稿与最新保存配置合并；程序主题在网页中采用同一 FluentProvider，不另造主题样式系统。
 
 2026-10-25 曲库与请求历史已按[简洁重构](webui-design.md#当前界面规则)移除嵌套统计折叠，使用 Tooltip、Popover 与 Toast；早期的统一纵向 Card/Accordion 排布不再作为现行界面要求。

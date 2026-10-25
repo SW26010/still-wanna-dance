@@ -3,6 +3,7 @@ package desktop
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime"
 	"sync/atomic"
@@ -171,7 +172,7 @@ func (t *tray) iconData() notifyIcon {
 	return n
 }
 func (t *tray) addIcon() error {
-	if err := t.updateIcon(taskbarUsesLightTheme()); err != nil {
+	if err := t.updateIcon(t.usesLightTheme()); err != nil {
 		return err
 	}
 	t.tip = t.tooltip()
@@ -235,6 +236,17 @@ func taskbarUsesLightTheme() bool {
 	return err == nil && value == 1
 }
 
+func (t *tray) usesLightTheme() bool {
+	switch t.options.State().Theme {
+	case "light":
+		return true
+	case "dark":
+		return false
+	default:
+		return taskbarUsesLightTheme()
+	}
+}
+
 // Both handles live for the tray's lifetime; switching themes allocates nothing.
 func (t *tray) updateIcon(light bool) error {
 	next := t.darkIcon
@@ -279,7 +291,7 @@ func (t *tray) dispatch(hwnd uintptr, msg uint32, w, l uintptr) uintptr {
 	switch msg {
 	case wmSettingChange, wmThemeChanged:
 		if !t.closing && t.lightIcon != 0 {
-			if err := t.updateIcon(taskbarUsesLightTheme()); err != nil {
+			if err := t.updateIcon(t.usesLightTheme()); err != nil {
 				ShowError(err)
 			}
 		}
@@ -312,6 +324,11 @@ func (t *tray) dispatch(hwnd uintptr, msg uint32, w, l uintptr) uintptr {
 		user32.NewProc("PostQuitMessage").Call(0)
 		return 0
 	case wmTimer:
+		if !t.closing && t.lightIcon != 0 {
+			if err := t.updateIcon(t.usesLightTheme()); err != nil {
+				slog.Warn("tray_icon_update_failed", "error", err)
+			}
+		}
 		if !t.closing {
 			t.updateTip()
 		}

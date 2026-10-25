@@ -47,6 +47,7 @@ type Settings struct {
 	RequestRetentionDays        int    `json:"requestRetentionDays"`
 	AutoAccelerate              bool   `json:"autoAccelerate"`
 	AutoOpenWebUI               bool   `json:"autoOpenWebUI"`
+	Theme                       string `json:"theme"`
 	RestoreHostsOnExit          bool   `json:"restoreHostsOnExit"`
 	PrepareAheadSeconds         int    `json:"prepareAheadSeconds"`
 	DownloadSoftLimit           int    `json:"downloadSoftLimit"`
@@ -95,7 +96,7 @@ type Console struct {
 	inventoryDone       chan struct{}
 	inventoryCancel     context.CancelFunc // protected by inventoryMu
 	mu                  sync.Mutex
-	settings            Settings // active configuration; only exit policy changes after save
+	settings            Settings // active configuration; theme and exit policy apply after save
 	savedSettings       Settings // last successfully persisted configuration
 	savedNodeCount      int
 	loadedNodeCount     int
@@ -243,6 +244,12 @@ func (c *Console) storedSettings(s Settings) Settings {
 }
 
 func absoluteSettings(s Settings) (Settings, error) {
+	if s.Theme == "" {
+		s.Theme = "system"
+	}
+	if s.Theme != "system" && s.Theme != "light" && s.Theme != "dark" {
+		return s, errors.New("主题必须为 system、light 或 dark")
+	}
 	if s.ThroughputIntervalMinutes == 0 {
 		s.ThroughputIntervalMinutes = 20
 	}
@@ -375,6 +382,11 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool) error {
 	}
 	oldSettings := c.savedSettings
 	c.mu.Unlock()
+	// Ordinary forms omit the independently saved theme, so a stale form cannot
+	// overwrite a newer appearance choice from another page or browser.
+	if s.Theme == "" {
+		s.Theme = oldSettings.Theme
+	}
 	if preservePassword {
 		s.SOCKS5Password = oldSettings.SOCKS5Password
 		s.proxySecret = oldSettings.proxySecret
@@ -420,6 +432,7 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool) error {
 	c.mu.Lock()
 	c.savedSettings = s
 	c.settings.RestoreHostsOnExit = s.RestoreHostsOnExit
+	c.settings.Theme = s.Theme
 	c.savedNodeCount = nodeCount
 	delete(c.proxyImports, importID)
 	c.mu.Unlock()
@@ -1197,6 +1210,15 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = c.startQueue()
 	case "/api/queue/stop":
 		err = c.stopQueue()
+	case "/api/settings/theme":
+		var input struct {
+			Theme string `json:"theme"`
+		}
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		if err = decoder.Decode(&input); err == nil {
+			err = c.saveTheme(input.Theme)
+		}
 	case "/api/settings":
 		var input struct {
 			Settings

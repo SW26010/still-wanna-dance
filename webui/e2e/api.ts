@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import type { CacheEntry, Settings, Status } from '../src/types';
 export function statusFixture(): Status {
-  const settings: Settings = {retainFavorites:true,storageDir:'C:\\UI-Test\\storage',maxCacheBytes:40*1073741824,videoStorageMode:'unlimited',aggressiveCacheReclamation:'auto',requestRetentionDays:30,throughputIntervalMinutes:20,prepareAheadSeconds:500,downloadSoftLimit:16,downloadGrowIntervalMS:250,localProtectionGraceSeconds:300,downloadUpstream:'auto',upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',autoAccelerate:true,autoOpenWebUI:true,queueWithGateway:true,restoreHostsOnExit:true,manualLogDir:false,logDir:'C:\\UI-Test\\logs'};
+  const settings: Settings = {theme:'system',retainFavorites:true,storageDir:'C:\\UI-Test\\storage',maxCacheBytes:40*1073741824,videoStorageMode:'unlimited',aggressiveCacheReclamation:'auto',requestRetentionDays:30,throughputIntervalMinutes:20,prepareAheadSeconds:500,downloadSoftLimit:16,downloadGrowIntervalMS:250,localProtectionGraceSeconds:300,downloadUpstream:'auto',upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',autoAccelerate:true,autoOpenWebUI:true,queueWithGateway:true,restoreHostsOnExit:true,manualLogDir:false,logDir:'C:\\UI-Test\\logs'};
   return {running:false,settings:{...settings},activeSettings:{...settings},restartRequired:false,hosts:{ready:false,message:'尚未接入'},portOK:true,httpsPortOK:true,batch:{},lastBatch:{},import:{},queue:{},defaultLogDir:settings.logDir,defaultStorageDir:settings.storageDir,portableDir:'C:\\UI-Test',setupSettingsVersion:'1',activation:{},upstreamMonitor:{results:[]}};
 }
 export async function mockAPI(page: Page) {
@@ -50,6 +50,7 @@ export async function mockAPI(page: Page) {
       data=selected.map(item=>({key:item.key,result:'deleted'}));
       for(const item of selected) {const i=files.findIndex(f=>f.key===item.key); if(i>=0)files.splice(i,1);}
     }
+    if (path==='settings/theme') {state.settings.theme=body.theme as Settings['theme'];state.activeSettings.theme=state.settings.theme;}
     if (path==='settings') {state.settings={...state.settings,...body};state.activeSettings.restoreHostsOnExit=state.settings.restoreHostsOnExit; state.restartRequired=JSON.stringify(state.settings)!==JSON.stringify(state.activeSettings);}
     if (path==='start') state.running=true;
     if (path==='stop') state.running=false;

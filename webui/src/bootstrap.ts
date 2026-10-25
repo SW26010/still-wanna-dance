@@ -1,4 +1,6 @@
+import type { ThemePreference } from './types';
 export interface Bootstrap {
+  theme?: ThemePreference;
   page: 'about' | 'help' | 'terms' | 'console';
   token: string;
   termsGate?: { pageID: string; step: string } | null;

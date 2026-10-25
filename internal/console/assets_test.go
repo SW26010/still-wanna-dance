@@ -22,6 +22,7 @@ func TestWebUIDocumentNavigationBootstrap(t *testing.T) {
 			}
 			c.settings.StorageDir = `<script>alert("path")</script>`
 			c.savedSettings.StorageDir = "pending-storage"
+			c.settings.Theme = "dark"
 			for _, path := range []string{"/", "/help", "/about", "/terms"} {
 				w := httptest.NewRecorder()
 				c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+path, nil))
@@ -30,11 +31,11 @@ func TestWebUIDocumentNavigationBootstrap(t *testing.T) {
 					t.Fatalf("%s: missing bootstrap, status %d", path, w.Code)
 				}
 				var data struct {
-					Page, Token string
-					Paths       map[string]string
-					Build       json.RawMessage
-					Terms       struct{ Text, Version string }
-					TermsGate   *termsEntry
+					Page, Token, Theme string
+					Paths              map[string]string
+					Build              json.RawMessage
+					Terms              struct{ Text, Version string }
+					TermsGate          *termsEntry
 				}
 				if err := json.Unmarshal([]byte(match[1]), &data); err != nil {
 					t.Fatal(err)
@@ -45,6 +46,9 @@ func TestWebUIDocumentNavigationBootstrap(t *testing.T) {
 				}
 				if data.Page != wantPage || data.Token != c.token {
 					t.Fatalf("%s: wrong page or token", path)
+				}
+				if data.Theme != "dark" {
+					t.Fatalf("%s: saved theme missing at page startup", path)
 				}
 				if data.Page == "console" || data.Page == "help" {
 					if data.Paths["Storage"] != c.settings.StorageDir || data.Paths["Config"] != c.files().Config || strings.Contains(w.Body.String(), c.settings.StorageDir) {

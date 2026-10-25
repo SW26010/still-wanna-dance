@@ -82,6 +82,27 @@ func themeTestTray(t *testing.T) *tray {
 	return &tray{darkIcon: dark, lightIcon: light, options: Options{State: func() State { return State{} }}}
 }
 
+func TestTrayThemeFollowsProgramPreference(t *testing.T) {
+	tray := themeTestTray(t)
+	for _, preference := range []string{"light", "dark", "system"} {
+		tray.options.State = func() State { return State{Theme: preference} }
+		wantLight := preference == "light" || preference == "system" && taskbarUsesLightTheme()
+		want := tray.darkIcon
+		if wantLight {
+			want = tray.lightIcon
+		}
+		for _, event := range []uint32{wmTimer, wmSettingChange, wmThemeChanged} {
+			if err := tray.updateIcon(!wantLight); err != nil {
+				t.Fatal(err)
+			}
+			tray.dispatch(0, event, 0, 0)
+			if tray.icon != want {
+				t.Fatal("tray ignored program preference", preference, event)
+			}
+		}
+	}
+}
+
 // Opt in on an interactive Windows desktop: register a temporary icon, exercise
 // the real Shell API, and remove it. Never change Windows theme settings.
 func TestTrayThemeShellIntegration(t *testing.T) {
@@ -125,5 +146,22 @@ func TestTrayThemeShellIntegration(t *testing.T) {
 	tray.dispatch(hwnd, tray.taskbar, 0, 0)
 	if !tray.added || tray.icon != want {
 		t.Fatal("recreated tray lost its theme")
+	}
+	// Persisted overrides survive Windows notifications and Explorer recovery.
+	for _, preference := range []string{"light", "dark"} {
+		tray.options.State = func() State { return State{Theme: preference} }
+		want := tray.darkIcon
+		if preference == "light" {
+			want = tray.lightIcon
+		}
+		for _, event := range []uint32{wmTimer, wmSettingChange, wmThemeChanged, tray.taskbar} {
+			if event == tray.taskbar {
+				tray.removeIcon()
+			}
+			tray.dispatch(hwnd, event, 0, 0)
+			if !tray.added || tray.icon != want {
+				t.Fatal("shell ignored the explicit program preference", preference, event)
+			}
+		}
 	}
 }

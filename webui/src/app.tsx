@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Button, Link, Spinner, Title2, Tooltip } from '@fluentui/react-components';
 import { ConsoleContext, useConsole } from './hooks';
-import { Brand, Feedback, Notification, RecordDetails, StatusBadge, NavigationLayout, pageLinks, isDocumentPage, DocumentFooter } from './ui';
+import { Brand, Feedback, Notification, RecordDetails, StatusBadge, NavigationLayout, pageLinks, isDocumentPage, DocumentFooter, useThemePreference } from './ui';
 import { AboutPage } from './documents';
 import { Home } from './home-library';
 import { SettingsAndNetwork } from './settings-page';
@@ -54,6 +54,9 @@ export function App() {
     if (!Object.hasOwn(anchors,anchor)) window.scrollTo({top:0,left:0,behavior:'instant'});
   }, [page,anchor]);
   const s = model.status.data;
+  const {setPreference}=useThemePreference();
+  // Reconcile every snapshot, even if a delayed save changed only local appearance.
+  useEffect(()=>{if(s)setPreference(s.activeSettings.theme);},[s,setPreference]);
   useLayoutEffect(()=>{
     if((s || documentPage) && page!=='setup' && Object.hasOwn(anchors,anchor)){
       const target=document.getElementById(anchor);target?.focus();target?.scrollIntoView();

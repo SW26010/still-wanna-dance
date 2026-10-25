@@ -360,6 +360,20 @@
       "bytes": 106496,
       "sha256": "36501df13fc0f95b878274a966f0f2b73c4c1125b8479e9200528c4fd4503de0",
       "reason": "Frozen schema v5 fixture with one MD5 resource identity per request; v2, v3 and v4 fixtures remain unchanged for rejection regression."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1183765,
+      "sha256": "c5ba4221f2f8b8df6de6c6897f6c0fec58f281bc98634f3717a1c4e446887ca5",
+      "reason": "Production WebUI bundle from pinned dependencies and webui/src, verified by build-manifest.json. Autosave the program theme independently and synchronize page appearance with persisted settings."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1183743,
+      "sha256": "c0c92d679d577aa2897f337619f080ec7d5bc23d25b0672285b97e4501a6f3ef",
+      "reason": "Production WebUI bundle from pinned dependencies and webui/src, verified by build-manifest.json. Reconcile program theme on every fresh status snapshot after interleaved saves."
     }
   ]
 }

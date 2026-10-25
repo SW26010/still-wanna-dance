@@ -105,12 +105,61 @@ func TestSetupApplyRestartsBeforeImportAndResumesOnce(t *testing.T) {
 	}
 }
 
+func TestSetupThemeChangesPreserveDraftAndContinuation(t *testing.T) {
+	c := testConsole(t)
+	p := setupTestPlan(c)
+	for _, theme := range []string{"dark", "light"} {
+		if w := themeRequest(c, `{"theme":"`+theme+`"}`, c.token); w.Code != 200 {
+			t.Fatal(w.Code, w.Body.String())
+		}
+		if version, err := c.cachedSettingsVersion(c.savedSettings); err != nil || version != p.BaseVersion {
+			t.Fatal("theme invalidated the open wizard", err)
+		}
+		if effects, err := c.reviewSetupPlan(p); err != nil || effects.RestartRequired {
+			t.Fatal("theme invalidated review or required a restart", effects, err)
+		}
+	}
+	// Apply the original draft against the newest saved appearance.
+	p.VideoStorageMode, p.MaxCacheBytes = "limited", 5<<30
+	p.ImportSource = t.TempDir()
+	a, err := c.applySetupPlan(p)
+	if err != nil || !a.ConfigSaved || a.Phase != "restart" || c.savedSettings.Theme != "light" || c.settings.Theme != "light" {
+		t.Fatal("wizard did not preserve the latest theme", a, err)
+	}
+	_, fields, err := readConfigFile(c.configPath)
+	if err != nil || string(fields["theme"]) != `"light"` {
+		t.Fatal("wizard overwrote the persisted theme", err)
+	}
+	// The same verifier protects restart continuation; appearance must not
+	// invalidate an already confirmed import either.
+	if w := themeRequest(c, `{"theme":"dark"}`, c.token); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	loaded := restartTestConsole(t, c)
+	calls := 0
+	start := func(source string) error {
+		calls++
+		if source != p.ImportSource || loaded.settings.Theme != "dark" || loaded.settings.MaxCacheBytes != p.MaxCacheBytes {
+			t.Fatal("continuation lost confirmed settings or latest theme")
+		}
+		return nil
+	}
+	loaded.resumeSetupApplication(start)
+	loaded.resumeSetupApplication(start)
+	if calls != 1 || loaded.setupApplication.Phase != "completed" || !loaded.setupApplication.ImportStarted {
+		t.Fatal("theme invalidated or replayed the continuation", calls, loaded.setupApplication)
+	}
+}
+
 func TestSetupApplyStaleConfigurationAndBusyTasksAreRejected(t *testing.T) {
 	c := testConsole(t)
 	p := setupTestPlan(c)
 	c.savedSettings.MaxCacheBytes++
-	if _, err := c.applySetupPlan(p); err == nil {
+	if _, err := c.reviewSetupPlan(p); err == nil {
 		t.Fatal("stale review accepted")
+	}
+	if _, err := c.applySetupPlan(p); err == nil {
+		t.Fatal("stale application accepted")
 	}
 	p = setupTestPlan(c)
 	c.importStatus.Running = true

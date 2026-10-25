@@ -77,6 +77,7 @@ export async function reconnect() {
 
 const actionMessages: Record<string,string> = {
   settings:'设置已保存。',
+  'settings/theme':'主题已应用。',
   'activation/enable':'视频加速已开启。',
   'batch/scan':'已开始检查缺失视频。', 'batch/start':'已开始下载缺失视频。',
   'batch/cancel':'已请求停止批量任务。', 'inventory/scan':'已开始更新清单并统计覆盖率。',

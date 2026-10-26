@@ -2,6 +2,98 @@ import {test,expect,type Page} from '@playwright/test';
 import {mockAPI} from './api';
 import type {LibraryPage,LibraryResource} from '../src/types';
 
+test('preview is lazy, uses the selected entry, and releases its native source',async({page})=>{
+  await libraryFixture(page);
+  const preparations:unknown[]=[],media:string[]=[];
+  await page.route('**/api/library/preview',async route=>{preparations.push(route.request().postDataJSON());await route.fulfill({json:{url:'/media/preview?fixture=1'}});});
+  await page.route('**/media/preview?**',async route=>{media.push(route.request().url());await route.fulfill({status:502,body:'unavailable'});});
+  await page.goto('/#/library');
+  const songs=page.getByRole('table',{name:'曲库歌曲'});
+  await expect(songs.getByRole('button',{name:'预览',exact:true})).toHaveCount(3);
+  expect(preparations).toEqual([]);expect(media).toEqual([]);
+  await songs.getByRole('button',{name:'预览',exact:true}).first().click();
+  const player=page.getByLabel('曲库预览播放器');
+  await expect(player).toHaveAttribute('src','/media/preview?fixture=1');
+  expect(preparations[0]).toEqual({storageID:'fixture',songID:'1'});
+  const old=await player.elementHandle();
+  await page.keyboard.press('Escape');
+  await expect(player).toHaveCount(0);
+  expect(await old!.evaluate(v=>v.getAttribute('src'))).toBeNull();
+  await page.getByRole('tab',{name:'按资源'}).click();
+  await page.getByRole('table',{name:'曲库资源'}).getByRole('button',{name:'预览',exact:true}).last().click();
+  await expect(player).toHaveAttribute('src','/media/preview?fixture=1');
+  expect(preparations.at(-1)).toEqual({storageID:'fixture',resource:missing});
+  const resourcePlayer=await player.elementHandle();
+  await page.evaluate(()=>{location.hash='/history';});
+  await expect(player).toHaveCount(0);
+  expect(await resourcePlayer!.evaluate(v=>v.getAttribute('src'))).toBeNull();
+});
+
+for(const close of ['Escape','button','backdrop'])test(`preview restores focus after ${close} dismissal`,async({page})=>{
+  await libraryFixture(page);
+  await page.route('**/api/library/preview',route=>route.fulfill({json:{url:'/media/preview?focus'}}));
+  await page.route('**/media/preview?**',route=>route.fulfill({status:502,body:'fixture'}));
+  await page.goto('/#/library');
+  for(const view of ['按歌曲','按资源']){
+    await page.getByRole('tab',{name:view}).click();
+    const trigger=page.getByRole('table',{name:view==='按歌曲'?'曲库歌曲':'曲库资源'}).getByRole('button',{name:'预览',exact:true}).last();
+    await trigger.focus();await page.keyboard.press('Enter');
+    const player=page.getByLabel('曲库预览播放器');
+    await expect(player).toHaveAttribute('src','/media/preview?focus');
+    const old=await player.elementHandle();
+    if(close==='Escape')await page.keyboard.press('Escape');
+    else if(close==='button')await page.getByRole('button',{name:'关闭预览',exact:true}).click();
+    else await page.mouse.click(5,5);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    expect(await old!.evaluate(v=>v.getAttribute('src'))).toBeNull();
+  }
+});
+
+test('an abandoned preparation cannot replace a later preview',async({page})=>{
+  await libraryFixture(page);
+  let finishFirst!:()=>void,firstRequested=false;
+  const first=new Promise<void>(resolve=>{finishFirst=resolve;});
+  await page.route('**/api/library/preview',async route=>{
+    const id=route.request().postDataJSON().songID;
+    if(id==='1'){firstRequested=true;await first;}
+    await route.fulfill({json:{url:'/media/preview?song='+id}});
+  });
+  const requested:string[]=[];
+  await page.route('**/media/preview?**',async route=>{requested.push(route.request().url());await route.fulfill({status:502,body:'unavailable'});});
+  await page.goto('/#/library');
+  const buttons=page.getByRole('table',{name:'曲库歌曲'}).getByRole('button',{name:'预览',exact:true});
+  await buttons.first().click();await expect.poll(()=>firstRequested).toBe(true);
+  await page.getByRole('button',{name:'关闭预览',exact:true}).click();
+  await buttons.nth(1).click();
+  await expect(page.getByLabel('曲库预览播放器')).toHaveAttribute('src','/media/preview?song=2');
+  finishFirst();
+  await expect.poll(()=>requested.length).toBeGreaterThan(0);
+  expect(requested.every(url=>url.endsWith('song=2'))).toBe(true);
+  await page.getByRole('button',{name:'关闭预览',exact:true}).click();
+});
+
+test('blocked or unknown songs do not prepare; preparation errors stay in preview',async({page})=>{
+  const {songs}=await libraryFixture(page);
+  songs[0].resource='';
+  // The fixture only inferred normal; replace the whole response policy through its typed source.
+  Object.assign(songs[1],{policy:'blocked'});
+  await page.route('**/api/library/preview',route=>route.fulfill({status:400,json:{error:'当前资源不可用，请更新曲库。'}}));
+  await page.goto('/#/library');
+  const buttons=page.getByRole('table',{name:'曲库歌曲'}).getByRole('button',{name:'预览',exact:true});
+  await expect(buttons.nth(0)).toBeDisabled();await expect(buttons.nth(1)).toBeDisabled();
+  await buttons.nth(0).hover();
+  await expect(page.getByRole('tooltip')).toHaveText('尚不知道对应资源，请先更新曲库。');
+  await buttons.nth(1).focus();
+  await expect(page.getByRole('tooltip')).toHaveText('歌曲已屏蔽，请先解除屏蔽。');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Space');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await buttons.nth(2).click();
+  await expect(page.getByRole('dialog')).toContainText('当前资源不可用，请更新曲库。');
+  await expect(page.getByLabel('曲库预览播放器')).not.toHaveAttribute('src');
+});
+
 const key='a'.repeat(32), missing='b'.repeat(32);
 async function libraryFixture(page:Page,videoError?:string) {
   const api=await mockAPI(page),queries:URLSearchParams[]=[];

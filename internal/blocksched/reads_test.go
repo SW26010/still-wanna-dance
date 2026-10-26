@@ -71,6 +71,52 @@ func TestReadWaitsBeforeRegistrationAndIndependentWithdrawal(t *testing.T) {
 	})
 }
 
+func TestReadRequestsBindKeepsExistingWaitsAndTheirTimestamps(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		s := New(Config{SoftLimit: 1})
+		defer s.Close()
+		r := s.NewReadRequests("video", func(block int64) string { return fmt.Sprint(block) }, nil)
+		defer r.Close()
+		first := r.Wait(1)
+		time.Sleep(time.Second)
+		at := time.Now()
+		second := r.Wait(2)
+		time.Sleep(time.Second)
+		task, ordinary, err := s.Schedule("1", 1, func(ctx context.Context, _ *Progress) Result {
+			<-ctx.Done()
+			return Result{Err: ctx.Err()}
+		}, need("video", 0, time.Hour))
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Bind(1)
+		first()
+		ordinary.Close()
+		s.call(func(st *state) {
+			j := st.jobs["1"]
+			if j == nil || j.retiring || !j.need.Blocking || j.need.ReadyBy != at || len(st.reads["1"]) != 1 || len(st.reads["2"]) != 0 {
+				t.Error("binding lost or retimed the surviving reader", j)
+			}
+		})
+		late := r.Wait(3)
+		if wanted := r.Requested(); len(wanted) != 1 || !wanted[1] {
+			t.Fatal("late read ignored binding", wanted)
+		}
+		second()
+		second()
+		late()
+		if !errors.Is(task.Err(), context.Canceled) {
+			t.Fatal("last read did not end execution")
+		}
+		r.Close()
+		r.Bind(2)
+		r.Wait(4)()
+		if len(r.Requested()) != 0 {
+			t.Fatal("closed binding revived reads")
+		}
+	})
+}
+
 func TestReadOnlyTaskSurvivesUsageWithdrawalAndStopsWithLastRead(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := New(Config{SoftLimit: 1})

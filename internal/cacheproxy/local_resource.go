@@ -105,12 +105,17 @@ func (s *Server) reuseLocalResource(v video, d *localResource) *localResource {
 	if d == nil {
 		return nil
 	}
-	if d.etag != "" && !strings.HasPrefix(d.etag, "W/") && videoAddress(d.video) != videoAddress(v) {
+	s.retentionMu.Lock()
+	changed := d.etag != "" && !strings.HasPrefix(d.etag, "W/") && videoAddress(d.video) != videoAddress(v)
+	if !changed {
+		d.video.host, d.video.path, d.video.query = v.host, v.path, v.query
+	}
+	s.retentionMu.Unlock()
+	if changed {
 		s.forgetLocalResource(v.key, d)
 		d.storage.release()
 		return nil
 	}
-	d.video.host, d.video.path, d.video.query = v.host, v.path, v.query
 	return d
 }
 

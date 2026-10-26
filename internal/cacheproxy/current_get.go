@@ -7,14 +7,15 @@ import (
 )
 
 type CurrentGET struct {
-	ID            uint64 `json:"id"`
-	At            int64  `json:"at"`
-	SongID        string `json:"songID"`
-	Resource      string `json:"resource"`
-	Range         string `json:"range"`
-	Status        int    `json:"status"`
-	Bytes         int64  `json:"bytes"`
-	ResponseBytes *int64 `json:"responseBytes"`
+	Origin        playbackOrigin `json:"origin,omitempty"`
+	ID            uint64         `json:"id"`
+	At            int64          `json:"at"`
+	SongID        string         `json:"songID"`
+	Resource      string         `json:"resource"`
+	Range         string         `json:"range"`
+	Status        int            `json:"status"`
+	Bytes         int64          `json:"bytes"`
+	ResponseBytes *int64         `json:"responseBytes"`
 }
 type CurrentGETs struct {
 	Requests []CurrentGET `json:"requests"`
@@ -26,6 +27,7 @@ type getResponse struct {
 	expected *int64
 }
 type currentGET struct {
+	origin      playbackOrigin
 	id          uint64
 	at          int64
 	rangeHeader string
@@ -39,8 +41,11 @@ func (g *currentGET) identify(songID, resource string) {
 		g.identity.Store(&getIdentity{songID, resource})
 	}
 }
-func (s *Server) beginGET(id uint64, at time.Time, rangeHeader string) (*currentGET, func()) {
+func (s *Server) beginGET(id uint64, at time.Time, rangeHeader string, origin ...playbackOrigin) (*currentGET, func()) {
 	g := &currentGET{id: id, at: at.UnixMilli(), rangeHeader: rangeHeader[:min(300, len(rangeHeader))]}
+	if len(origin) != 0 {
+		g.origin = origin[0]
+	}
 	s.getMu.Lock()
 	if s.currentGETs == nil {
 		s.currentGETs = map[uint64]*currentGET{}
@@ -64,7 +69,7 @@ func (s *Server) CurrentGETs() CurrentGETs {
 	result.Total = len(items)
 	sort.Slice(items, func(i, j int) bool { return items[i].id < items[j].id })
 	for _, g := range items[:min(50, len(items))] {
-		r := CurrentGET{ID: g.id, At: g.at, Range: g.rangeHeader, Bytes: g.bytes.Load()}
+		r := CurrentGET{Origin: g.origin, ID: g.id, At: g.at, Range: g.rangeHeader, Bytes: g.bytes.Load()}
 		if identity := g.identity.Load(); identity != nil {
 			r.SongID, r.Resource = identity.songID, identity.resource
 		}

@@ -10,12 +10,13 @@ import (
 // resource executor. All mutable fields belong to the scheduler goroutine.
 // Close ends this execution session; an old reader cannot affect its successor.
 type ReadRequests struct {
-	s      *Scheduler
-	owner  string
-	key    func(int64) string
-	wake   chan<- struct{}
-	waits  map[*readWait]bool
-	closed bool
+	s          *Scheduler
+	owner      string
+	key        func(int64) string
+	wake       chan<- struct{}
+	waits      map[*readWait]bool
+	boundBlock *int64 // One executor may satisfy several initially independent reads.
+	closed     bool
 }
 
 type readWait struct {
@@ -39,7 +40,10 @@ func (r *ReadRequests) Wait(block int64) func() {
 		if r.closed || s.closing {
 			return
 		}
-		key := r.Key(block)
+		if r.boundBlock != nil {
+			w.block = *r.boundBlock
+		}
+		key := r.Key(w.block)
 		r.waits[w] = true
 		if s.reads[key] == nil {
 			s.reads[key] = make(map[*readWait]bool)
@@ -52,6 +56,40 @@ func (r *ReadRequests) Wait(block int64) func() {
 		notify(r.wake)
 	})
 	return sync.OnceFunc(func() { r.s.call(func(s *state) { s.endRead(w) }) })
+}
+
+// Bind associates all reads with one execution block once the resource loader
+// discovers that a single response supplies them. Move existing waits atomically,
+// preserving their original timestamps and independent cancellation handles.
+func (r *ReadRequests) Bind(block int64) {
+	r.s.call(func(s *state) {
+		if r.closed || s.closing || r.boundBlock != nil {
+			return
+		}
+		r.boundBlock = &block
+		key := r.Key(block)
+		changed := map[string]bool{key: true}
+		for w := range r.waits {
+			old := r.Key(w.block)
+			delete(s.reads[old], w)
+			if len(s.reads[old]) == 0 {
+				delete(s.reads, old)
+			}
+			changed[old] = true
+			w.block = block
+			if s.reads[key] == nil {
+				s.reads[key] = make(map[*readWait]bool)
+			}
+			s.reads[key][w] = true
+		}
+		for key := range changed {
+			if j := s.jobs[key]; j != nil && !j.retiring {
+				s.refresh(j)
+			}
+		}
+		s.observationChanged()
+		notify(r.wake)
+	})
 }
 
 // Requested exposes only block identities needing an executor, never urgency,

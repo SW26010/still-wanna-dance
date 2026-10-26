@@ -49,12 +49,21 @@ func newDownloadSession(s *Server, ctx context.Context, v video, f *flight) *dow
 }
 func (w *downloadSession) initialize(d *localResource) {
 	w.f.ranges = d
+	w.exposeLocalReads(d)
+	w.f.progress.setStage("range_download")
+	w.initOnce.Do(func() { close(w.initialized) })
+}
+
+// Existing complete blocks are readable before a replacement response tells us
+// whether its execution is Range or sequential. Readability is not initialization.
+func (w *downloadSession) exposeLocalReads(d *localResource) {
+	if w.f.spool != nil {
+		return
+	}
 	if !w.f.discard {
 		w.f.spool = d.makeSpool(func(offset int64) func() { return w.reads.Wait(offset / w.s.cfg.BlockSize) })
 	}
-	w.f.progress.setStage("range_download")
 	close(w.f.streaming)
-	w.initOnce.Do(func() { close(w.initialized) })
 }
 
 // run joins the task and session lifetimes before handing admitted work to the
@@ -73,7 +82,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 	defer stop()
 	defer cancel(nil)
 	executor := downloadExecutor{s: w.s, v: w.v, f: w.f,
-		waitForBlock: w.reads.Wait, initializeRanges: w.initialize}
+		waitForBlock: w.reads.Wait, bindReads: w.reads.Bind, initializeRanges: w.initialize}
 	return blocksched.Result{Err: executor.run(ctx, block, p)}
 }
 
@@ -372,6 +381,8 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 	initialized := f.ranges != nil && (!f.ranges.sequential || f.ranges.complete())
 	if initialized {
 		w.initialize(f.ranges)
+	} else if f.ranges != nil {
+		w.exposeLocalReads(f.ranges)
 	}
 	timer := time.NewTimer(sourceRenewInterval)
 	defer timer.Stop()

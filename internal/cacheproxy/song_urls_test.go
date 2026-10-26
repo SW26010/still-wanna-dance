@@ -3,9 +3,71 @@ package cacheproxy
 import (
 	"context"
 	"database/sql"
+	"reflect"
 	"testing"
 	"time"
 )
+
+func TestSongAndResourceURLsShareValidityRules(t *testing.T) {
+	s, _ := setup(t, nil)
+	ctx := t.Context()
+	const key = "0123456789abcdef0123456789abcdef"
+	now := time.Now().Add(-time.Minute)
+	for i, name := range []string{"old", "latest", "other-node", "expired", "future", "failed", "invalid"} {
+		at := now.Add(time.Duration(i) * time.Second)
+		o := SongURL{SongID: 42, API: "https://api.udon.dance/" + name, Node: "cf", URL: "https://play.udon.dance/files/1/42-video.mp4?e=" + key + "&s=12", QueryStartedAt: at, ObservedAt: at}
+		switch name {
+		case "other-node":
+			o.Node = "nya"
+		case "expired":
+			o.QueryStartedAt, o.ObservedAt = now.Add(-25*time.Hour), now.Add(-25*time.Hour)
+		case "future":
+			o.QueryStartedAt, o.ObservedAt = now.Add(time.Hour), now.Add(time.Hour)
+		}
+		if err := s.ObserveSongURL(ctx, o); err != nil {
+			t.Fatal(err)
+		}
+		if name == "failed" {
+			if err := s.RejectSongURL(ctx, o); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if name == "invalid" {
+			if _, err := s.db.Exec("UPDATE song_urls SET url='https://evil.invalid/file' WHERE api=?", o.API); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	for _, node := range []string{"", "cf", "nya"} {
+		songs, err := s.SongURLs(ctx, 42, node)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resources, err := s.ResourceURLs(ctx, key, node, 32)
+		if err != nil || !reflect.DeepEqual(songs, resources) {
+			t.Fatal("song/resource validity diverged", node, songs, resources, err)
+		}
+		want := map[string]int{"": 3, "cf": 2, "nya": 1}[node]
+		if len(resources) != want {
+			t.Fatal(node, resources)
+		}
+		for i, o := range resources {
+			if o.MD5 != key || o.Size != 12 || o.ObservedAt.Location() != time.UTC || o.QueryStartedAt.Location() != time.UTC || i > 0 && o.QueryStartedAt.After(resources[i-1].QueryStartedAt) {
+				t.Fatal("incorrect decoding/order", resources)
+			}
+		}
+	}
+	// More recent evidence for another resource cannot consume the fixed-MD5 budget.
+	other := SongURL{SongID: 43, API: "https://api.udon.dance/other-resource", Node: "cf", URL: "https://play.udon.dance/files/1/43-video.mp4?e=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&s=12", QueryStartedAt: now.Add(10 * time.Second), ObservedAt: now.Add(10 * time.Second)}
+	if err := s.ObserveSongURL(ctx, other); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.ResourceURLs(ctx, key, "cf", 2)
+	// The invalid newest row still counts toward the bounded database scan.
+	if err != nil || len(got) != 1 || got[0].API != "https://api.udon.dance/latest" {
+		t.Fatal("fixed resource ordering/budget", got, err)
+	}
+}
 
 func TestSongURLPersistenceOrderingAndFailure(t *testing.T) {
 	s, cfg := setup(t, nil)

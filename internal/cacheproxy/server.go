@@ -32,6 +32,7 @@ type video struct {
 	size                   int64
 }
 type flight struct {
+	route            video                   // Resource routing only; never carries a caller's song or origin.
 	discard          bool                    // isolated measurement only; never serves cached media
 	cancel           context.CancelCauseFunc // protected by Server.mu
 	preempted        bool                    // protected by Server.mu; no new readers once cleanup is committed
@@ -109,6 +110,32 @@ type Server struct {
 }
 
 func New(cfg Config) (*Server, error) {
+	return newServer(cfg, "")
+}
+
+// NewWithRead protects the admitted resource before initial budget reclamation.
+// The caller releases it after the HTTP handler, including failed/canceled reads.
+func NewWithRead(cfg Config, key string) (*Server, func(), error) {
+	if !validMD5(key) {
+		return nil, nil, errors.New("invalid resource")
+	}
+	s, err := newServer(cfg, key)
+	if err != nil {
+		return nil, nil, err
+	}
+	return s, sync.OnceFunc(func() { s.releaseVideo(video{key: key}); s.wg.Done() }), nil
+}
+
+// RetainRead uses the same reference as initial admission on an existing engine.
+func (s *Server) RetainRead(key string) (func(), error) {
+	if !validMD5(key) || !s.beginRequest() {
+		return nil, errors.New("resource unavailable")
+	}
+	s.pinVideo(video{key: key})
+	return sync.OnceFunc(func() { s.releaseVideo(video{key: key}); s.wg.Done() }), nil
+}
+
+func newServer(cfg Config, initialRead string) (*Server, error) {
 	if cfg.BlockSize == 0 {
 		cfg.BlockSize = DefaultBlockSize
 	}
@@ -215,6 +242,10 @@ func New(cfg Config) (*Server, error) {
 	}
 	if err := s.loadTraffic(store.db); err != nil {
 		return nil, fmt.Errorf("load traffic statistics: %w", err)
+	}
+	if initialRead != "" {
+		s.pinVideo(video{key: initialRead})
+		s.wg.Add(1)
 	}
 	s.trimCache()
 	go s.retentionLoop()
@@ -341,6 +372,10 @@ func (s *Server) beginRequest() bool {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.serveVideo(w, r, nil)
+}
+
+func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *previewRequest) {
 	if !s.beginRequest() {
 		http.Error(w, "service closed", 503)
 		return
@@ -349,10 +384,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	id := s.sequence.Add(1)
 	start := time.Now()
 	var observed func()
-	if s.cfg.BeginVideoRequest != nil {
+	if preview == nil && s.cfg.BeginVideoRequest != nil {
 		observed = s.cfg.BeginVideoRequest(start)
 	}
 	r = r.WithContext(applog.WithTrace(r.Context()))
+	if preview != nil {
+		r = r.WithContext(context.WithValue(r.Context(), playbackOriginKey{}, originPreview))
+	}
 	log := s.cfg.Logger.With("trace_id", applog.TraceID(r.Context()), "request_id", id, "method", r.Method, "host", r.Host, "path", r.URL.Path, "range", r.Header.Get("Range"), "user_agent", r.UserAgent())
 	response := &responseWriter{ResponseWriter: w, started: start}
 	clientContext := r.Context()
@@ -380,7 +418,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h, _, err := net.SplitHostPort(apiHost); err == nil {
 		apiHost = h
 	}
-	if apiHost == "api.udon.dance" && r.URL.Path != "/Api/Songs/play" {
+	if preview == nil && apiHost == "api.udon.dance" && r.URL.Path != "/Api/Songs/play" {
 		u := &url.URL{Scheme: "https", Host: "api.udon.dance", Path: r.URL.Path, RawQuery: r.URL.RawQuery}
 		http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 		return
@@ -388,7 +426,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	event := usageEvent{at: start.UnixMilli(), method: r.Method, rangeHeader: r.Header.Get("Range")}
 	if r.Method == http.MethodGet {
 		var finish func()
-		response.current, finish = s.beginGET(id, start, r.Header.Get("Range"))
+		origin, _ := r.Context().Value(playbackOriginKey{}).(playbackOrigin)
+		response.current, finish = s.beginGET(id, start, r.Header.Get("Range"), origin)
 		defer finish()
 	}
 	defer func() {
@@ -412,13 +451,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			event.cache = "UNKNOWN"
 		}
 		event.outcome = response.outcome(clientContext, panicked)
-		s.usage.record(event)
-		s.recordTraffic(r.Method, event.cache, event.outcome, event.status, event.bytes)
+		if preview == nil {
+			s.usage.record(event)
+			s.recordTraffic(r.Method, event.cache, event.outcome, event.status, event.bytes)
+		}
 		if panicked != nil {
 			panic(panicked)
 		}
 	}()
-	v, release, err := s.requestVideo(r, observed, response.current)
+	var v video
+	var release func()
+	var err error
+	if preview != nil {
+		v, err = preview.video(r.Context(), s)
+	} else {
+		v, release, err = s.requestVideo(r, observed, response.current)
+	}
 	response.current.identify(v.songID, v.key)
 	event.key, event.host, event.size, event.songID = v.key, v.host, v.size, v.songID
 	if release != nil {
@@ -457,6 +505,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		r = r.WithContext(ctx)
+		if preview != nil {
+			if clock, _ := ctx.Value(playbackClockKey{}).(*playbackClock); clock == nil {
+				w.Header().Set("Content-Range", fmt.Sprintf("bytes */%d", v.size))
+				http.Error(w, "invalid range", http.StatusRequestedRangeNotSatisfiable)
+				return
+			}
+		}
 	}
 	s.pinVideo(v)
 	defer func() { s.releaseVideo(v) }()
@@ -487,7 +542,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	// Transfer the request pin and event identity together on every pre-body retry.
 	retry := func(cause error) error {
-		replacement, fallbackErr := s.retrySongURL(r.Context(), v)
+		var replacement video
+		var fallbackErr error
+		if preview != nil {
+			replacement, fallbackErr = preview.nextAddress(r.Context(), s, v)
+		} else {
+			replacement, fallbackErr = s.retrySongURL(r.Context(), v)
+		}
 		if fallbackErr != nil {
 			return errors.Join(cause, fmt.Errorf("saved URL refresh: %w", fallbackErr))
 		}
@@ -513,21 +574,36 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var f *flight
 	var stream *spoolReader
 loadVideo:
+	if preview != nil && !v.localOnly {
+		if v.host == "" {
+			// Joining an active resource does not resolve or refresh its address.
+			if shared, ok := s.previewRoute(v); ok {
+				v = shared
+			} else if err = retry(nil); err != nil {
+				goto serveVideo
+			}
+		}
+	}
 	if v.localOnly {
 		// Do not enter obtain: it can download or update the current song mapping.
 		_, err = s.verifiedFile(r.Context(), v)
 		f = &flight{source: "HIT"}
 		if err == nil {
 			log.Info("playback_local_hit", "song_id", v.songID)
+		} else if preview != nil && r.Context().Err() == nil {
+			if err = retry(err); err == nil {
+				goto loadVideo
+			}
 		}
 	} else {
 		f, stream, err = s.obtainDemand(r.Context(), v, false, r.Method == http.MethodGet)
-		if err != nil && v.cached != nil && errors.Is(err, errUpstreamDownload) && r.Context().Err() == nil {
+		if err != nil && (preview != nil || v.cached != nil) && errors.Is(err, errUpstreamDownload) && r.Context().Err() == nil {
 			if err = retry(err); err == nil {
 				goto loadVideo
 			}
 		}
 	}
+serveVideo:
 	if err != nil {
 		if r.Context().Err() != nil {
 			log.Info("client_disconnected", "elapsed", time.Since(start))
@@ -547,7 +623,7 @@ loadVideo:
 		}
 		pending := serveStream(w, r, v, stream)
 		if stream.err != nil {
-			if v.cached != nil && errors.Is(stream.err, errUpstreamDownload) && r.Context().Err() == nil {
+			if (preview != nil || v.cached != nil) && errors.Is(stream.err, errUpstreamDownload) && r.Context().Err() == nil {
 				if !pending.committed {
 					// finish wakes readers before the failed flight is removed.
 					// Wait for removal so a same-MD5 retry starts a new flight.
@@ -560,8 +636,10 @@ loadVideo:
 						goto loadVideo
 					}
 				}
-				if rejectErr := s.RejectSongURL(r.Context(), *v.cached); rejectErr != nil {
-					log.Warn("song_url_reject_failed", "error", applog.SafeError(rejectErr))
+				if v.cached != nil {
+					if rejectErr := s.RejectSongURL(r.Context(), *v.cached); rejectErr != nil {
+						log.Warn("song_url_reject_failed", "error", applog.SafeError(rejectErr))
+					}
 				}
 			}
 			if r.Context().Err() != nil {

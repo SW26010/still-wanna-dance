@@ -661,3 +661,33 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 - 最终生命周期、托盘与会话结束的定向 race 连续三轮通过，见 `review-green-final-race.txt`；相关三个 Go 包 vet、前端构建／类型检查／嵌入产物一致性及变更文件资源策略通过。前述完整包与浏览器结果按原范围保留，本轮针对审查影响范围复验。
 
 `live-review-final.txt`、`live-review-final-results.json` 记录最终读取／关闭实现的真实 Console＋Edge 双页面复验：托盘退出、网页退出、重启及强制结束四种场景均通过，正常退出码为 0，重启后两页恢复连接，异常结束不产生退出事件，没有页面脚本错误。采用同一源码基线加审查修复的新 `SWD-lifecycle-review-final.exe`，SHA256 为 `16297ec3527e6304f2dce410fd509adbb8b28705058cfaf12423847daf595f41`，替代上一节构建作为当前实现验证依据；旧构建、首次失败与中间复验均保留。使用相同隔离及清理边界，没有注销／关机、启动游戏或修改 hosts，未提交或推送。
+
+## 2026-10-27 曲库浏览器预览
+
+基线为 `ef748f029fd6d9db269538f0fb894ec8c5373b84` 加本轮未提交修改。按[曲库预览设计](../download-resource-design.md#曲库预览)新增歌曲／资源预览，使用同源媒体地址和原生播放器；固定点击时的资源快照，预览独立于游戏身份、历史、需求分数和队列时间基准。复用现有下载与读取机制，没有新增存储格式、依赖或预览会话服务。
+
+证据保存在忽略目录 `artifacts/preview-browser/`，Go 和 Edge 检查均经 `scripts/with-test-temp.ps1` 使用独立临时目录：
+
+- `backend-focused.log`、`race-focused.log`：预览定向检查及调度器／读取定向 race 通过。覆盖冷热读取、固定资源版本、屏蔽复查、未知大小、无效 Range、已知地址独立于 API 候选上限、资源访问保留而历史／分数／累计统计不变、预览时钟不锚定队列，以及两种创建顺序下预览和游戏共享一次下载、取消预览不终止游戏。
+- 评审指出独立缓存读取会绕过回收后的补取，因此统一回到正常 acquire／flight／reader；补齐部分顺序资源的可读块暴露与执行初始化分离，并由 `ReadRequests.Bind` 迁移收到 200 前的等待。`sequential-race.log` 的真实回环 200 双读者检查连续三轮通过：两人先等待不同块，绑定后取消首人，次人仍完成。`final-core-race.log` 为最终 `go test -race -tags=no_easytier -p 1 ./internal/blocksched ./internal/cacheproxy` 两整包通过（使用已有独立 GCC），包含普通播放、回收和下载回归。
+- `backend-packages.log` 中 cacheproxy 整包通过；console 整包只有 `TestSettingsPersistAndPortConflict` 失败，Windows 在申请随机监听端口时报告 buffer space／queue full。相同用例单独复跑在 `console-port-retry.log` 通过，不把首次整包记录写作全绿。Console 新增检查覆盖准备／HEAD 不启动引擎、零预算首读在回收前保留目标、签名篡改、跨源与其他端口、旧进程／存储身份拒绝及歌曲准入；未启动网关、队列或游戏请求检测。
+- `webui-tests.log`：`pnpm --dir webui test library.spec.ts --workers=2` 共 33 项通过。新增覆盖不预取媒体、歌曲／资源参数、关闭和离页清理、迟到准备结果不能恢复旧源、屏蔽／未知映射禁用及准备失败反馈。前端构建及 `final-webui-check.log` 的类型和嵌入产物一致性检查通过；`final-vet.log` 的三个相关 Go 包 vet 无诊断，变更文件产物策略及 diff 检查见 `final-artifacts.json`、`final-diff.log`。
+- `live-test-retry.log`、`live/results.json`：真实 Console＋SQLite＋Edge 使用合成 12 秒 MP4 完成冷播放解码、拖动、暂停三秒后恢复、资源入口重播和切页清理；两次媒体读取只产生一次上游下载，没有历史或歌曲需求记录，没有页面脚本错误。桌面浅色与窄屏深色截图已检查。跨源嵌入在浏览器侧被阻止，未观察到 HTTP 响应（`crossOriginStatus: null`）；后端拒绝为 403 的结论来自独立接口测试，不混作浏览器观测。
+
+真实媒体用例可复跑：先运行 `node webui/test-support/preview-live.mjs generate ignored <输出目录>` 生成合成 MP4，再设置 `SWD_PREVIEW_VIDEO` 为其绝对路径、`SWD_PREVIEW_BROWSER_EVIDENCE` 为独立证据目录，执行 `go test -tags=no_easytier ./internal/console -run '^TestPreviewBrowser$' -count=1 -v`（Windows 均加临时目录包装入口）。默认整包测试不启动浏览器。
+
+保留失败边界：沙箱内曾遇到原子重命名 handle 错误及 Edge 管道启动限制，改为沙箱外隔离执行后通过；未修改产品文件操作绕过限制。`live-test.log` 的首次联调错误是在跨源已被浏览器拦截时仍等待 HTTP 响应导致超时，修正观察断言后通过，未据此放宽后端同源要求。两条独立评审分别检查规范与需求，最终无遗留实质问题，评审本身不替代测试证据。
+
+本轮浏览器证据只覆盖合成 MP4、回环上游和本机 Edge，不代表所有官方视频的编码、音轨或公网通道均已验证；上游通道沿用已有机制。此功能及新增共享读取边界可由隔离服务和浏览器验证，没有新增必须依赖 VRC 的剩余项。没有启动游戏、修改 hosts、替换日常程序、提交或推送。
+
+### 同日评审补充：地址规则复用与禁用说明
+
+地址存储层的 `SongURLs`／`ResourceURLs` 共用有效性筛选、排序和解码，预览保留固定资源与 32 条候选的选择策略。`review-backend.log` 中歌曲地址、资源地址及预览定向回归通过，新增检查覆盖过期／未来／失败／非法地址、节点限制、UTC 解码、排序及其他 MD5 不挤占候选额度。
+
+屏蔽、无当前映射的预览按钮分别提示先解除屏蔽或更新曲库，使用 Fluent `disabledFocusable` 支持键盘查看原因且不能触发预览。`review-webui.log` 的曲库 33 项全部通过，包含悬停、焦点提示和 Enter／Space 不触发；`review-build.log`、`review-check.log`、`review-vet.log` 分别记录嵌入资源构建、一致性与类型检查、cacheproxy vet 通过。仅针对本次规则整理及提示变更复验，前述整包 race 和真实媒体结果按原范围保留。
+
+### 同日补充：预览关闭后的焦点恢复
+
+`focus-probe.json` 记录修复前真实 Edge 结果：键盘打开预览后，通过 Escape、关闭按钮或遮罩关闭，三种方式均让焦点落到 body。原因是外部列表按钮未接入受控 Dialog 的焦点恢复目标。保留单一 Dialog 和原生播放器，在按钮上使用 Fluent `useRestoreFocusTarget`，复用库内机制。
+
+`focus-webui.log` 的曲库 36 项全部通过；新增三项分别覆盖两种入口的三种关闭方式，验证焦点回到实际触发按钮且旧媒体源已清除。`focus-build.log`、`focus-check.log` 记录构建、类型和嵌入资源一致性通过；变更产物及 diff 检查见 `focus-artifacts.json`、`focus-diff.log`。本次只改前端焦点关联，沿用既有后端和真实媒体验证范围。

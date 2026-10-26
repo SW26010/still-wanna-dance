@@ -133,15 +133,27 @@ func (s *Store) songURLStorageError(ctx context.Context, err error) error {
 
 // SongURLs returns recent usable observations without probing them. Empty node
 // accepts both API nodes; explicit node choices remain constraints.
-func (s *Store) SongURLs(ctx context.Context, id int64, node string) (resultValue []SongURL, resultErr error) {
+func (s *Store) SongURLs(ctx context.Context, id int64, node string) ([]SongURL, error) {
+	return s.songURLs(ctx, "song_id", id, node, -1)
+}
+
+// ResourceURLs applies the same validity rules to a fixed resource. The caller
+// chooses the candidate budget independently of any API lookup budget.
+func (s *Store) ResourceURLs(ctx context.Context, key, node string, limit int) ([]SongURL, error) {
+	return s.songURLs(ctx, "md5", key, node, limit)
+}
+
+// column is an internal SQL identifier supplied only by the two entry points.
+func (s *Store) songURLs(ctx context.Context, column string, value any, node string, limit int) (resultValue []SongURL, resultErr error) {
 	if !s.beginRequest() {
 		return nil, context.Canceled
 	}
 	defer s.wg.Done()
 	defer func() { resultErr = s.storageError(resultErr) }()
+	now := time.Now()
 	rows, err := s.usage.db.QueryContext(ctx, `SELECT song_id,url,md5,byte_size,api,node,query_started_at,observed_at
- FROM song_urls WHERE song_id=? AND failed_at=0 AND (?='' OR node=?) AND observed_at>=? AND observed_at<=?
- ORDER BY query_started_at DESC`, id, node, node, time.Now().Add(-24*time.Hour).UnixNano(), time.Now().UnixNano())
+ FROM song_urls WHERE `+column+`=? AND failed_at=0 AND (?='' OR node=?) AND observed_at>=? AND observed_at<=?
+ ORDER BY query_started_at DESC LIMIT ?`, value, node, node, now.Add(-24*time.Hour).UnixNano(), now.UnixNano(), limit)
 	if err != nil {
 		return nil, err
 	}

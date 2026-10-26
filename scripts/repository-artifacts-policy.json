@@ -493,6 +493,13 @@
       "bytes": 1169993,
       "sha256": "f0d1fa1bdeee6eb12ea865e6efac1b8501754c349af26ba725ae147b7b98b3a9",
       "reason": "Production WebUI lifecycle follow-up: ignore pending operation confirmations after an accepted shutdown; regenerated from pinned sources and verified by Edge regression."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1173073,
+      "sha256": "b466187916c99b8a5c9f82c28a27c6ddf1ce3068ddc0b60fcd93b46fc704dbe3",
+      "reason": "Production WebUI library preview with live request identity, disabled reasons and standard focus restoration; generated from pinned sources and verified with library regression and real Console/Edge media playback."
     }
   ]
 }

@@ -21,6 +21,12 @@ type queueDemandKey struct{}
 type sourceDemandKey struct{}
 type httpGETKey struct{}
 
+type playbackOrigin string
+
+const originPreview playbackOrigin = "preview"
+
+type playbackOriginKey struct{}
+
 // Identity lasts for one continuous queue membership. Mutable fields are
 // protected by Server.mu. Removal freezes the last position and its time, so
 // coalesced wakeups cannot lose the source at withdrawal. Only existing demand
@@ -53,7 +59,8 @@ type downloadDemand struct {
 	exit                  sourceExit
 	key, song             string
 	queue, playback       bool
-	preparationOrder      uint64 // Stable across this logical preparation's retries.
+	origin                playbackOrigin // Request identity; never a property of a shared resource.
+	preparationOrder      uint64         // Stable across this logical preparation's retries.
 	queueSource           *queueSource
 	clock                 *playbackClock
 	firstBlock, lastBlock int64 // Remaining GET span, protected by Server.mu.
@@ -175,6 +182,7 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 	}
 	token, queue := ctx.Value(queueDemandKey{}).(*queueSource)
 	d := &downloadDemand{ctx: ctx, key: v.key, song: v.songID, queue: queue, playback: playback, queueSource: token}
+	d.origin, _ = ctx.Value(playbackOriginKey{}).(playbackOrigin)
 	if !playback {
 		d.lastBlock = blockCount(v.size, s.cfg.BlockSize)
 	}

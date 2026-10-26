@@ -105,6 +105,7 @@ type Console struct {
 	autoStartPending     bool // protected by mu; startup deferred until consent succeeds
 	configPath           string
 	token                string
+	previewKey           string // Process-local media signing key, never exposed to WebUI.
 	address              string
 	videoAddress         string
 	httpsAddress         string
@@ -168,6 +169,7 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 		return nil, err
 	}
 	c := &Console{work: work, configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: "https://x.kiva.moe/api/v2/wanna/songs"}
+	c.previewKey = rand.Text()
 	c.identity = identity
 	c.hosts = newHostsController(hostsPath(), launchHostsSession)
 	c.settings = Settings{
@@ -434,14 +436,24 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword, confirmVideoP
 
 // Call with lifecycleMu and mu held. Release mu while initializing the shared engine.
 func (c *Console) ensureEngine() error {
+	_, err := c.ensureEngineRead("")
+	return err
+}
+
+// Call with lifecycleMu and mu held. An initial read is retained inside New,
+// before retention starts; streaming itself never holds either console lock.
+func (c *Console) ensureEngineRead(key string) (func(), error) {
 	if c.service != nil {
-		return nil
+		if key != "" {
+			return c.service.RetainRead(key)
+		}
+		return nil, nil
 	}
 	c.mu.Unlock()
 	defer c.mu.Lock()
 	store, err := c.businessStore()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	cfg := cacheproxy.DefaultConfig()
 	cfg.Work = c.work
@@ -480,15 +492,21 @@ func (c *Console) ensureEngine() error {
 		}
 		return transports
 	}
-	s, err := cacheproxy.New(cfg)
+	var s *cacheproxy.Server
+	var release func()
+	if key != "" {
+		s, release, err = cacheproxy.NewWithRead(cfg, key)
+	} else {
+		s, err = cacheproxy.New(cfg)
+	}
 	if err != nil {
-		return err
+		return nil, err
 	}
 	c.mu.Lock()
 	c.service = s
 	c.notifyBlockEngineLocked()
 	c.mu.Unlock()
-	return nil
+	return release, nil
 }
 
 // AutoStart attempts acceleration once per process, after valid terms acceptance.
@@ -790,6 +808,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if c.serveTerms(w, r) {
 		return
 	}
+	if r.URL.Path == "/media/preview" {
+		c.servePreview(w, r)
+		return
+	}
 	if r.Method == "GET" && r.URL.Path == "/" {
 		c.serveConsolePage(w, nil)
 		return
@@ -1021,6 +1043,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+	if r.URL.Path == "/api/library/preview" {
+		c.preparePreview(w, r)
+		return
+	}
 	if strings.HasPrefix(r.URL.Path, "/api/storage/") {
 		c.serveStorage(w, r)
 		return

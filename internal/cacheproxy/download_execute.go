@@ -18,6 +18,7 @@ type downloadExecutor struct {
 	f *flight
 
 	waitForBlock     func(int64) func()
+	bindReads        func(int64)
 	initializeRanges func(*localResource)
 }
 
@@ -44,10 +45,13 @@ func (e *downloadExecutor) run(ctx context.Context, block int64, p *blocksched.P
 		}
 		e.f.log.Info("upstream_response", "host", host, "status", resp.StatusCode, "content_length", resp.ContentLength)
 		if resp.StatusCode != http.StatusPartialContent {
+			if e.bindReads != nil {
+				e.bindReads(block)
+			}
 			e.s.mu.Lock()
 			e.f.sequentialCtx = ctx
-			e.s.mu.Unlock()
 			e.f.sequentialDemand = func(int64) func() { return e.waitForBlock(block) }
+			e.s.mu.Unlock()
 			e.f.log.Info("range_unavailable", "host", host, "fallback", "sequential")
 			stopBody := context.AfterFunc(ctx, func() { resp.Body.Close() })
 			defer stopBody()
@@ -107,9 +111,12 @@ func (e *downloadExecutor) readSequential(ctx context.Context, src io.Reader) er
 		}
 		flight.ranges = d
 	}
-	sp := flight.ranges.makeSpool(flight.sequentialDemand)
-	flight.spool = sp
-	close(flight.streaming)
+	sp := flight.spool
+	if sp == nil {
+		sp = flight.ranges.makeSpool(flight.sequentialDemand)
+		flight.spool = sp
+		close(flight.streaming)
+	}
 	flight.progress.setStage("download")
 	reader := contextReader{ctx, progressReader{upstreamReader{src}, flight.progress}}
 	buffer := s.rangeBuffer()

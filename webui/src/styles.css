@@ -242,3 +242,5 @@ footer { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacing
 .file-results { margin-top: var(--spacingVerticalL); }
 .file-results table { table-layout: fixed; }
 .file-results td { overflow-wrap: anywhere; }
+/* One native player, created only while the library preview is open. */
+.library-preview video { display: block; width: 100%; max-height: 65vh; background: #000; }

@@ -101,7 +101,7 @@ const queueRetimeInterval = sourceRenewInterval
 func (s *Server) queuePlaybackEndLocked() time.Time {
 	var earliest time.Time
 	for d := range s.demands {
-		if d.clock == nil || !d.exit.active(d.ctx) {
+		if d.origin == originPreview || d.clock == nil || !d.exit.active(d.ctx) {
 			continue
 		}
 		end := d.clock.end()

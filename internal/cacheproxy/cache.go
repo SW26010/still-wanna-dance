@@ -308,7 +308,7 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 // startFlightLocked shares one execution for current usage without creating a source.
 // The caller holds mu and has checked shutdown, storage failure and existing flights.
 func (s *Server) startFlightLocked(v video, background bool, log *slog.Logger) (*flight, error) {
-	f := &flight{size: v.size, done: make(chan struct{}), streaming: make(chan struct{}), id: s.flightSequence.Add(1)}
+	f := &flight{route: resourceVideo(v), size: v.size, done: make(chan struct{}), streaming: make(chan struct{}), id: s.flightSequence.Add(1)}
 	local, err := s.acquireLocalResource(v)
 	if err != nil {
 		return nil, err

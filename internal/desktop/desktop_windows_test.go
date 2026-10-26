@@ -238,13 +238,13 @@ func TestTrayAccelerationTooltip(t *testing.T) {
 		{State{}, true, "正在处理…"},
 		{State{CDN: true, Ready: true, Batch: true}, false, "加速运行中 · 批量任务运行中"},
 	} {
-		tt := &tray{options: Options{State: func() State { return tc.state }}}
+		tt := &tray{}
 		tt.busy.Store(tc.busy)
-		if got := tt.tooltip(); got != "Still Wanna Dance · "+tc.want {
+		if got := tt.tooltip(tc.state); got != "Still Wanna Dance · "+tc.want {
 			t.Fatal(got)
 		}
 		tt.closing = true
-		if got := tt.tooltip(); got != "Still Wanna Dance · 正在退出" {
+		if got := tt.tooltip(tc.state); got != "Still Wanna Dance · 正在退出" {
 			t.Fatal(got)
 		}
 	}
@@ -346,8 +346,9 @@ func TestLiveTrayFailureReleasesBusyBeforeDialogDismissal(t *testing.T) {
 		t.Fatal("failed command did not display its native error dialog")
 	}
 	defer user32.NewProc("SendMessageW").Call(dialog, wmClose, 0, 0)
-	item := Menu(tt.options.State(), tt.busy.Load())[2]
-	if item.Disabled || item.Label != "开始加速" || tt.tooltip() != "Still Wanna Dance · 加速未运行" {
+	state := tt.options.State()
+	item := Menu(state, tt.busy.Load())[2]
+	if item.Disabled || item.Label != "开始加速" || tt.tooltip(state) != "Still Wanna Dance · 加速未运行" {
 		t.Fatalf("completed failure still shown as processing while error dialog is open: %+v", item)
 	}
 }

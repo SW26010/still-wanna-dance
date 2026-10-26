@@ -13,9 +13,14 @@ const Version = "2026-10-26.1"
 //go:embed TERMS.txt
 var Text string
 
-func Hash() string {
+// The embedded notice is immutable for the lifetime of the process.
+var textHash = func() string {
 	sum := sha256.Sum256([]byte(Text))
 	return hex.EncodeToString(sum[:])
+}()
+
+func Hash() string {
+	return textHash
 }
 
 func CheckAcceptance(version string) error {

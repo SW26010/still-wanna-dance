@@ -82,6 +82,30 @@ func themeTestTray(t *testing.T) *tray {
 	return &tray{darkIcon: dark, lightIcon: light, options: Options{State: func() State { return State{} }}}
 }
 
+func TestTrayRefreshReadsStateOnce(t *testing.T) {
+	tray := themeTestTray(t)
+	var calls int
+	state := State{Theme: "light", CDN: true, Ready: true}
+	tray.options.State = func() State {
+		calls++
+		return state
+	}
+	tray.dispatch(0, wmTimer, 0, 0)
+	if calls != 1 || tray.icon != tray.lightIcon || tray.tip != "Still Wanna Dance · 加速运行中" {
+		t.Fatalf("first refresh: state reads=%d icon=%v tip=%q", calls, tray.icon, tray.tip)
+	}
+	state = State{Theme: "dark"}
+	tray.dispatch(0, wmTimer, 0, 0)
+	if calls != 2 || tray.icon != tray.darkIcon || tray.tip != "Still Wanna Dance · 加速未运行" {
+		t.Fatalf("next refresh: state reads=%d icon=%v tip=%q", calls, tray.icon, tray.tip)
+	}
+	tray.closing = true
+	tray.dispatch(0, wmTimer, 0, 0)
+	if calls != 2 {
+		t.Fatal("closing tray still reads state", calls)
+	}
+}
+
 func TestTrayThemeFollowsProgramPreference(t *testing.T) {
 	tray := themeTestTray(t)
 	for _, preference := range []string{"light", "dark", "system"} {
@@ -112,6 +136,11 @@ func TestTrayThemeShellIntegration(t *testing.T) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	tray := themeTestTray(t)
+	var reads int
+	tray.options.State = func() State {
+		reads++
+		return State{}
+	}
 	hwnd, _, err := user32.NewProc("CreateWindowExW").Call(0, uintptr(unsafe.Pointer(wide("STATIC"))), uintptr(unsafe.Pointer(wide("SWD theme test"))), 0, 0, 0, 0, 0, 0, 0, 0, 0)
 	if hwnd == 0 {
 		t.Fatal(err)
@@ -122,6 +151,9 @@ func TestTrayThemeShellIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tray.removeIcon()
+	if reads != 1 {
+		t.Fatal("adding the tray should read state once", reads)
+	}
 	for _, light := range []bool{false, true, true, false} {
 		if err := tray.updateIcon(light); err != nil {
 			t.Fatal(err)

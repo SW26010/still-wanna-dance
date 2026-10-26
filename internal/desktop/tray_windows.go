@@ -172,10 +172,11 @@ func (t *tray) iconData() notifyIcon {
 	return n
 }
 func (t *tray) addIcon() error {
-	if err := t.updateIcon(t.usesLightTheme()); err != nil {
+	state := t.options.State()
+	if err := t.updateIcon(usesLightTheme(state.Theme)); err != nil {
 		return err
 	}
-	t.tip = t.tooltip()
+	t.tip = t.tooltip(state)
 	n := t.iconData()
 	if r, _, err := shell32.NewProc("Shell_NotifyIconW").Call(0, uintptr(unsafe.Pointer(&n))); r == 0 {
 		return fmt.Errorf("创建托盘图标：%w", err)
@@ -194,11 +195,10 @@ func (t *tray) removeIcon() {
 		t.added = false
 	}
 }
-func (t *tray) tooltip() string {
+func (t *tray) tooltip(s State) string {
 	if t.closing {
 		return "Still Wanna Dance · 正在退出"
 	}
-	s := t.options.State()
 	text := "Still Wanna Dance · 加速未运行"
 	switch {
 	case t.busy.Load() || s.Activating:
@@ -213,8 +213,8 @@ func (t *tray) tooltip() string {
 	}
 	return text
 }
-func (t *tray) updateTip() {
-	next := t.tooltip()
+func (t *tray) updateTip(state State) {
+	next := t.tooltip(state)
 	if next == t.tip {
 		return
 	}
@@ -236,8 +236,8 @@ func taskbarUsesLightTheme() bool {
 	return err == nil && value == 1
 }
 
-func (t *tray) usesLightTheme() bool {
-	switch t.options.State().Theme {
+func usesLightTheme(preference string) bool {
+	switch preference {
 	case "light":
 		return true
 	case "dark":
@@ -272,7 +272,7 @@ func (t *tray) quit() {
 		return
 	}
 	t.closing = true
-	t.updateTip()
+	t.updateTip(State{})
 	go func() {
 		t.options.Shutdown()
 		close(t.shutdownDone)
@@ -291,7 +291,7 @@ func (t *tray) dispatch(hwnd uintptr, msg uint32, w, l uintptr) uintptr {
 	switch msg {
 	case wmSettingChange, wmThemeChanged:
 		if !t.closing && t.lightIcon != 0 {
-			if err := t.updateIcon(t.usesLightTheme()); err != nil {
+			if err := t.updateIcon(usesLightTheme(t.options.State().Theme)); err != nil {
 				ShowError(err)
 			}
 		}
@@ -324,13 +324,14 @@ func (t *tray) dispatch(hwnd uintptr, msg uint32, w, l uintptr) uintptr {
 		user32.NewProc("PostQuitMessage").Call(0)
 		return 0
 	case wmTimer:
-		if !t.closing && t.lightIcon != 0 {
-			if err := t.updateIcon(t.usesLightTheme()); err != nil {
-				slog.Warn("tray_icon_update_failed", "error", err)
-			}
-		}
 		if !t.closing {
-			t.updateTip()
+			state := t.options.State()
+			if t.lightIcon != 0 {
+				if err := t.updateIcon(usesLightTheme(state.Theme)); err != nil {
+					slog.Warn("tray_icon_update_failed", "error", err)
+				}
+			}
+			t.updateTip(state)
 		}
 		return 0
 	case wmTray:

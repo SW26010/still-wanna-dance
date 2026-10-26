@@ -8,6 +8,22 @@ import { request, waitForResourceRegistration } from './acceptance-request.mjs';
 const lookup = (fn, all = false) => new Promise((resolve, reject) =>
   fn('api.udon.dance', { all }, (error, address, family) => error ? reject(error) : resolve({ address, family })));
 
+test('acceptance sends explicit database creation JSON intact', async t => {
+  let received;
+  const server = http.createServer(async (req, res) => {
+    const chunks=[];
+    for await (const chunk of req) chunks.push(chunk);
+    received={method:req.method,contentType:req.headers['content-type'],body:Buffer.concat(chunks).toString('utf8')};
+    res.end('created');
+  });
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const body=JSON.stringify({databasePath:'D:\\资料\\songs.sqlite',videoDir:'E:\\Videos'});
+  const result=await request('http://api.udon.dance/api/storage/create-database',{port:server.address().port,method:'POST',headers:{'Content-Type':'application/json'},body,capture:true});
+  assert.deepEqual(received,{method:'POST',contentType:'application/json',body});
+  assert.equal(result.body,'created');
+});
+
 test('acceptance separates response headers from first body and leaves HEAD body timing empty', async t => {
   const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Length': 4 });

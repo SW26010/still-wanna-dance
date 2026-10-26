@@ -65,8 +65,18 @@ async function stop(child) {
 }
 async function startService(name, storageDir) {
   const port = await freePort();
+  const database = path.join(storageDir, 'storage.sqlite');
+  const videos = path.join(storageDir, 'videos');
+  if (!fs.existsSync(database)) {
+    await new Promise((resolve,reject) => {
+      const child = spawn(binary, ['-database', database, '-create-database'], {stdio:'inherit'});
+      child.once('error', reject);
+      child.once('exit', code => code === 0 ? resolve() : reject(new Error('database creation failed: '+code)));
+    });
+    fs.mkdirSync(videos, {recursive:true});
+  }
   const child = await launch(binary, ['-listen', `127.0.0.1:${port}`,
-    '-storage-dir', storageDir, '-cache-unlimited=true', '-download-timeout', '5m', '-accept-terms', termsVersion], name, port);
+    '-database', database, '-video-dir', videos, '-cache-unlimited=true', '-download-timeout', '5m', '-accept-terms', termsVersion], name, port);
   return { child, port };
 }
 function videoFile(root, url) {
@@ -127,18 +137,29 @@ function rangeVideo(res, file) {
 async function consoleService(name, storageDir, extra = {}) {
   const port = await freePort();
   const config = path.join(lab, `${name}.json`);
-  fs.writeFileSync(config, JSON.stringify({ schemaVersion: 6, storageDir, logDir: path.join(lab, 'game-logs'),
+  fs.writeFileSync(config, JSON.stringify({ schemaVersion: 7, databasePath:path.join(storageDir,'storage.sqlite'), videoDir:path.join(storageDir,'videos'), logDir: path.join(lab, 'game-logs'),
     downloadUpstream: 'auto', autoAccelerate: false, queueWithGateway: false, restoreHostsOnExit: false, videoStorageMode: 'unlimited', ...extra }));
   // Reuse the operator's existing acceptance; never manufacture a receipt.
-  fs.mkdirSync(config + '.d', { recursive: true });
-  fs.writeFileSync(path.join(config + '.d', 'terms.json'), receipt);
+  fs.mkdirSync(path.join(config + '.d', 'data', 'state'), { recursive: true });
+  fs.writeFileSync(path.join(config + '.d', 'data', 'state', 'terms.json'), receipt);
   const base = `http://127.0.0.1:${port}`;
-  const child = await launch(consoleBinary, ['-no-tray', '-no-open', '-listen', `127.0.0.1:${port}`,
+  let child = await launch(consoleBinary, ['-no-tray', '-no-open', '-listen', `127.0.0.1:${port}`,
     '-config', config], name, port, base);
   // Exercise the internal gateway independently: this acceptance never configures hosts.
-  const page = await request(base, { capture: true });
-  const token = page.body.toString().match(/name="swd-token" content="([^"]+)"/)?.[1];
+  let page = await request(base, { capture: true });
+  let token = page.body.toString().match(/name="swd-token" content="([^"]+)"/)?.[1];
   assert.ok(token, 'missing console token');
+  const databasePath=path.join(storageDir,'storage.sqlite'), videoDir=path.join(storageDir,'videos');
+  if (!fs.existsSync(databasePath)) {
+    const created = await request(base+'/api/storage/create-database', {method:'POST',headers:{'X-SWD-Token':token,'Content-Type':'application/json'},body:JSON.stringify({databasePath,videoDir}),capture:true});
+    assert.equal(created.status,200,created.body?.toString());
+    fs.mkdirSync(videoDir,{recursive:true});
+    await stop(child);
+    child=await launch(consoleBinary,['-no-tray','-no-open','-listen','127.0.0.1:'+port,'-config',config],name+'-configured',port,base);
+    page=await request(base,{capture:true});
+    token=page.body.toString().match(/name="swd-token" content="([^"]+)"/)?.[1];
+    assert.ok(token,'missing restarted console token');
+  }
   const start = await request(`${base}/api/start`, { method: 'POST', headers: {'X-SWD-Token': token}, capture: true });
   assert.equal(start.status, 200, start.body?.toString());
   const res = await request(`${base}/api/status`, { capture: true, timeout: 10000 });
@@ -181,9 +202,9 @@ try {
   receipt = fs.readFileSync(receiptPath);
   requireBinary('console', consoleBinary);
   const consentConfig = path.join(lab, 'consent-check.json');
-  fs.writeFileSync(consentConfig, JSON.stringify({ schemaVersion: 6, autoAccelerate: false, queueWithGateway: false }));
-  fs.mkdirSync(consentConfig + '.d');
-  fs.writeFileSync(path.join(consentConfig + '.d', 'terms.json'), receipt);
+  fs.writeFileSync(consentConfig, JSON.stringify({ schemaVersion: 7, autoAccelerate: false, queueWithGateway: false }));
+  fs.mkdirSync(path.join(consentConfig + '.d', 'data', 'state'), {recursive:true});
+  fs.writeFileSync(path.join(consentConfig + '.d', 'data', 'state', 'terms.json'), receipt);
   const consentPort = await freePort();
   const consentURL = `http://127.0.0.1:${consentPort}`;
   const consentChild = await launch(consoleBinary, ['-no-tray', '-no-open', '-listen', `127.0.0.1:${consentPort}`,

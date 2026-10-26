@@ -17,7 +17,7 @@ export async function waitForResourceRegistration(target, { port, timeout = 3500
   throw new Error('API resource domain was not confirmed before the acceptance deadline');
 }
 
-export function request(target, { port, method = 'GET', headers = {}, timeout = 360000, capture = false } = {}) {
+export function request(target, { port, method = 'GET', headers = {}, body, timeout = 360000, capture = false } = {}) {
   return new Promise((resolve, reject) => {
     const url = new URL(target);
     const started = Date.now();
@@ -44,6 +44,6 @@ export function request(target, { port, method = 'GET', headers = {}, timeout = 
     });
     const deadline = setTimeout(() => req.destroy(new Error('request deadline exceeded')), timeout);
     req.on('error', e => { clearTimeout(deadline); reject(e); });
-    req.end();
+    req.end(body);
   });
 }

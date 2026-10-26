@@ -146,21 +146,26 @@ try {
         if ($document.Content -notmatch ('"page":"' + $route + '"')) { throw "Offline document unavailable before consent: $route" }
         if ($route -ceq 'about' -and !$document.Content.Contains('"version":"' + $initialBuild.version + '"')) { throw 'About page did not expose executable identity.' }
     }
-    if (!(Test-Path -LiteralPath (Join-Path $folder 'data/config.lock'))) { throw 'Config lock missing under data.' }
-    $configPath = Join-Path $folder 'data/config.json'
+    if (!(Test-Path -LiteralPath (Join-Path $folder 'config.lock'))) { throw 'Config lock missing.' }
+    $configPath = Join-Path $folder 'config.json'
     Assert-Identity $process $port $exe[0].FullName $configPath
     $configBefore = [IO.File]::ReadAllText($configPath)
     $settings = $configBefore | ConvertFrom-Json
-    if ($settings.schemaVersion -ne 6 -or $settings.storageDir -cne 'storage') {
+    if ($settings.schemaVersion -ne 7 -or $settings.databasePath -cne (Join-Path 'data/database' 'storage.sqlite') -or $settings.videoDir -cne 'videos') {
         throw 'First launch did not persist a versioned, portable default configuration.'
     }
-    if (Test-Path -LiteralPath (Join-Path $folder 'data/storage')) { throw 'Consent-gated startup created media storage.' }
+    if (!(Test-Path -LiteralPath (Join-Path $folder 'data/database/storage.sqlite')) -or !(Test-Path -LiteralPath (Join-Path $folder 'videos'))) { throw 'Startup did not prepare the default library.' }
     $generated = @(Get-ChildItem -LiteralPath (Join-Path $folder 'data') | ForEach-Object Name | Sort-Object)
-    if (($generated -join '|') -cne 'config.json|config.lock|logs') { throw 'Unused feature created state or credentials.' }
-    if ((Get-ChildItem -LiteralPath $folder | Measure-Object).Count -ne 3) { throw 'Startup scattered files beside SWD.exe.' }
+    if (($generated -join '|') -cne 'database') { throw 'Unused feature created state or credentials.' }
+    $workScopes = @(Get-ChildItem -LiteralPath (Join-Path $folder 'work'))
+    if ($workScopes.Count -ne 1 -or !$workScopes[0].PSIsContainer -or $workScopes[0].Name -cnotmatch '^console-[a-f0-9]{32}$') { throw 'Startup did not create one scoped block workspace beside the executable.' }
+    $defaultWorkName = $workScopes[0].Name
+    $workContents = @(Get-ChildItem -LiteralPath $workScopes[0].FullName -Force)
+    if ($workContents.Count -ne 1 -or $workContents[0].Name -cne '.lock' -or $workContents[0].PSIsContainer) { throw 'Unused workspace contains more than its lock.' }
+    if (((Get-ChildItem -LiteralPath $folder | ForEach-Object Name | Sort-Object) -join '|') -cne 'config.json|config.lock|data|licenses|logs|SWD.exe|videos|work') { throw 'Unexpected default installation layout.' }
     $page = Invoke-WebRequest $url -UseBasicParsing
     if ($page.Content -notmatch 'Still Wanna Dance') { throw 'Embedded UI missing.' }
-    $logPath = Join-Path $folder 'data/logs/app.log'
+    $logPath = Join-Path $folder 'logs/app.log'
     $records = @(Get-Content -LiteralPath $logPath | ForEach-Object { $_ | ConvertFrom-Json })
     $startupEvents = @('application_starting', 'application_build', 'console_ready')
     foreach ($event in $startupEvents) {
@@ -174,7 +179,7 @@ try {
     if (!$duplicate.WaitForExit(10000)) { throw 'Duplicate process did not reject the occupied config.' }
     if ($duplicate.ExitCode -eq 0) { throw 'Duplicate process unexpectedly succeeded.' }
     $diagnostic = Get-Content -LiteralPath $duplicateError -Raw
-    if ($diagnostic -notmatch '已有实例正在使用配置' -or !$diagnostic.Contains((Join-Path $folder 'data/config.json'))) {
+    if ($diagnostic -notmatch '已有实例正在使用配置' -or !$diagnostic.Contains((Join-Path $folder 'config.json'))) {
         throw 'Duplicate process failed without identifying the occupied config.'
     }
     if ($process.HasExited -or (Invoke-WebRequest "$url/" -UseBasicParsing).StatusCode -ne 200) { throw 'Duplicate launch disrupted the owner.' }
@@ -236,9 +241,11 @@ try {
     $exePath = Join-Path $folder 'SWD.exe'
     $process = Start-Process -FilePath $exePath -ArgumentList @('-no-tray', '-no-open', '-listen', "127.0.0.1:$port") -WorkingDirectory $root -WindowStyle Hidden -PassThru
     Wait-ConsentGate $process $port
-    Assert-Identity $process $port $exePath (Join-Path $folder 'data/config.json')
-    if ([IO.File]::ReadAllText((Join-Path $folder 'data/config.json')) -cne $configBefore) { throw 'Move rewrote portable configuration.' }
+    Assert-Identity $process $port $exePath (Join-Path $folder 'config.json')
+    if ([IO.File]::ReadAllText((Join-Path $folder 'config.json')) -cne $configBefore) { throw 'Move rewrote portable configuration.' }
     if (Test-Path -LiteralPath (Join-Path $root 'data')) { throw 'Working directory received portable data.' }
+    $movedWorkScopes = @(Get-ChildItem -LiteralPath (Join-Path $folder 'work'))
+    if ($movedWorkScopes.Count -ne 1 -or $movedWorkScopes[0].Name -cne $defaultWorkName) { throw 'Portable move changed the default block workspace identity.' }
 
     # Concurrent custom instances share a parent, but never locks, logs or defaults.
     $profiles = Join-Path $root 'profiles'
@@ -251,13 +258,39 @@ try {
         Wait-ConsentGate $child $customPort
         Assert-Identity $child $customPort $exePath $config
         $saved = Get-Content -LiteralPath $config -Raw | ConvertFrom-Json
-        if ($saved.schemaVersion -ne 6 -or $saved.storageDir -cne (Join-Path "$name.d" 'storage')) { throw 'Custom default storage escaped its instance.' }
+        if ($saved.schemaVersion -ne 7 -or $saved.databasePath -cne (Join-Path "$name.d" 'data/database/storage.sqlite') -or $saved.videoDir -cne (Join-Path "$name.d" 'videos')) { throw 'Custom startup did not prepare its independent default library.' }
         $records = @(Get-Content -LiteralPath (Join-Path "$config.d" 'logs/app.log') | ForEach-Object { $_ | ConvertFrom-Json })
         if (@($records | Where-Object { $_.pid -ne $child.Id }).Count -ne 0) { throw 'Custom instances shared a log.' }
         if (!(Test-Path -LiteralPath (Join-Path "$config.d" 'config.lock'))) { throw 'Custom lock missing.' }
-        if (Test-Path -LiteralPath (Join-Path "$config.d" 'storage')) { throw 'Custom startup created unused storage.' }
+        if (!(Test-Path -LiteralPath (Join-Path "$config.d" 'data/database/storage.sqlite'))) { throw 'Custom startup did not create its default database.' }
     }
     foreach ($child in $customProcesses) { if ($child.HasExited) { throw 'Concurrent configuration was displaced.' } }
+    $workScopes = @(Get-ChildItem -LiteralPath (Join-Path $folder 'work'))
+    if ($workScopes.Count -ne 3) { throw 'Custom configurations did not receive independent executable-side workspaces.' }
+    foreach ($scope in $workScopes) {
+        $entries = @(Get-ChildItem -LiteralPath $scope.FullName -Force)
+        if (!$scope.PSIsContainer -or $scope.Name -cnotmatch '^console-[a-f0-9]{32}$' -or $entries.Count -ne 1 -or $entries[0].Name -cne '.lock' -or $entries[0].PSIsContainer) { throw 'Custom workspace contains unexpected files.' }
+    }
+    if (Test-Path -LiteralPath (Join-Path $profiles 'work')) { throw 'External configuration moved block work away from the executable.' }
+
+    # Moving the default config must not make an existing library appear empty.
+    # This fixture is intentionally unreadable as config/SQLite: the guard only
+    # recognizes its location and never parses, migrates or overwrites it.
+    $previousLayout = Join-Path $root 'previous layout'
+    $previousStorage = Join-Path $previousLayout 'data/storage'
+    New-Item -ItemType Directory -Path $previousStorage -Force | Out-Null
+    Copy-Item -LiteralPath $exePath -Destination (Join-Path $previousLayout 'SWD.exe')
+    $previousConfig = Join-Path $previousLayout 'data/config.json'
+    $previousDatabase = Join-Path $previousStorage 'storage.sqlite'
+    [IO.File]::WriteAllText($previousConfig, 'preserve previous config')
+    [IO.File]::WriteAllText($previousDatabase, 'preserve previous database')
+    $previousPort = Free-Port
+    $child = Start-Process -FilePath (Join-Path $previousLayout 'SWD.exe') -ArgumentList @('-no-tray', '-no-open', '-listen', "127.0.0.1:$previousPort") -WorkingDirectory $root -WindowStyle Hidden -PassThru
+    $customProcesses += $child
+    Wait-ConsentGate $child $previousPort
+    $unconfigured = Get-Content -LiteralPath (Join-Path $previousLayout 'config.json') -Raw | ConvertFrom-Json
+    if ($unconfigured.databasePath -or $unconfigured.videoDir -or (Test-Path -LiteralPath (Join-Path $previousLayout 'data/database')) -or (Test-Path -LiteralPath (Join-Path $previousLayout 'videos'))) { throw 'Previous layout was silently replaced by a new default library.' }
+    if ([IO.File]::ReadAllText($previousConfig) -cne 'preserve previous config' -or [IO.File]::ReadAllText($previousDatabase) -cne 'preserve previous database') { throw 'Previous layout was modified.' }
 
     $legacy = Join-Path $root 'legacy'
     New-Item -ItemType Directory -Path $legacy | Out-Null

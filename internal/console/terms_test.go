@@ -341,7 +341,7 @@ func TestTermsReconfirmationDistinguishesMissingAndUnverifiableRecords(t *testin
 	if err := os.MkdirAll(c.files().StateDir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	for _, data := range []string{`broken`, `{"format":1,"protection":"dpapi-current-user","ciphertext":"AA=="}`} {
+	for _, data := range []string{`broken`, `{"format":2,"protection":"dpapi-current-user","receipts":["AA=="]}`} {
 		if err := os.WriteFile(c.files().Terms, []byte(data), 0600); err != nil {
 			t.Fatal(err)
 		}

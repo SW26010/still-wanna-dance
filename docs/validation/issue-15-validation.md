@@ -1,6 +1,20 @@
 # Issue #15：条款确认凭据保护
 
-## 实现范围
+当前多槽凭据格式与保留规则以[存储契约](../storage.md#json凭据与二进制身份)为准；下方 2026-10-11 的单条封套是历史实现，不表示当前支持旧格式迁移。
+
+## 2026-10-27：8 槽确认记录
+
+改为格式 2 的独立密文列表，规则集中维护在存储契约。旧单条加密封套及明文均不兼容，读取时不迁移；用户重新明确确认后才生成新格式。
+
+- 定向回归通过：最新优先、命中即停止；单槽格式错误、不可解密、错误用途、坏载荷及旧条款跳过；满 8 条后只淘汰最早保存项，时钟回拨不改变顺序；保留其他环境及历史版本的原密文；重复确认保留原时间且不写盘；保护失败、工作槽占用、文件大小超限均保留旧文件且不授予新同意。旧格式、超额槽位及整体损坏的门禁和显式重新确认均已覆盖。
+- Windows 同用户新进程使用实际 DPAPI，从 8 条记录中跳过较新的 7 条旧版本凭据、找到有效记录；读取前后文件逐字不变。9 个解密环境的切换、淘汰及返回复用使用注入的隔离上下文，底层仍加密，但这不证明真实跨用户／机器 DPAPI 行为。
+- `scripts/with-test-temp.ps1 go test -tags=no_easytier ./internal/console ./cmd/still-wanna-dance-console -count=1` 通过。执行时设置 `SWD_TERMS_BROWSER_EVIDENCE`，包含真实 Go Console + Edge 的首次确认、刷新及重开检查：确认请求只发一次，重开不重复确认，无页面脚本错误；窄屏截图已检查。隔离夹具未使用用户的真实凭据，没有启动游戏或修改系统 hosts。
+- 相同两个包的 `go vet -tags=no_easytier`、`gofmt` 和 `git diff --check` 通过。
+- 首次沙箱内定向回归失败：多项新旧测试在 `renameat .terms.json.swd-tmp terms.json` 或配置原子替换处报 `The handle is invalid`，与[开发说明](../development.md#windows-环境)记录的限制一致，部分夹具失败清理还报告库锁占用。未修改产品原子写入代码；同一隔离临时目录入口在沙箱外复跑通过。失败摘要、专项输出、整包结果与浏览器证据保存在忽略目录 `artifacts/terms-slots-validation/`。
+
+真实第二 Windows 用户、独立机器及人工重试范围仍按[非 VRC 跟进](../validation-followups.md#确实依赖-windows-环境的部分)处理；本次未将模拟环境或浏览器测试计为真人同意验收，不新增 VRC 待验项。
+
+## 2026-10-11 实现范围（历史）
 
 沿用 #23 的配置归属和 `terms.json` 路径；Windows 使用现有 DPAPI CurrentUser 底层封装，无机器作用域标志、路径绑定或额外 UAC。外层格式为 `format=1`、`protection=dpapi-current-user`、Base64 密文；密文内包含用途、条款版本、正文 SHA-256 和确认时间。
 

@@ -30,9 +30,9 @@ type dataProtection struct {
 var defaultTermsProtection = dataProtection{protectUserData, unprotectUserData}
 
 type termsEnvelope struct {
-	Format     int    `json:"format"`
-	Protection string `json:"protection"`
-	Ciphertext []byte `json:"ciphertext"`
+	Format     int               `json:"format"`
+	Protection string            `json:"protection"`
+	Receipts   []json.RawMessage `json:"receipts"` // independent base64 ciphertexts, oldest first
 }
 
 type protectedTerms struct {
@@ -42,6 +42,7 @@ type protectedTerms struct {
 
 const termsPurpose = "swd-terms-receipt-v1"
 const maxTermsBytes = 64 * 1024
+const maxTermsReceipts = 8
 
 func (r termsReceipt) valid() bool {
 	// A local clock is not proof of identity. Reject zero/out-of-range times;
@@ -60,39 +61,60 @@ func (c *Console) loadTerms() error {
 	c.terms = termsReceipt{}
 	c.termsNeedsConfirmation = false
 	c.termsProtection = defaultTermsProtection
-	f, err := os.Open(c.files().Terms)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	c.termsNeedsConfirmation = true
+	receipts, present, err := readTermsReceipts(c.files().Terms)
 	if err != nil {
-		return fmt.Errorf("读取条款确认记录：%w", err)
+		return err
+	}
+	c.terms = c.findAcceptedTerms(receipts)
+	c.termsNeedsConfirmation = present && !c.terms.valid()
+	if len(receipts) > 0 && c.termsNeedsConfirmation {
+		slog.Warn("terms_receipt_invalid", "reason", "no verifiable current terms receipt")
+	}
+	return nil
+}
+
+// Invalid envelopes remain untouched until explicit consent replaces them.
+// Individual slots stay opaque so another user's receipt survives new consent.
+func readTermsReceipts(path string) ([]json.RawMessage, bool, error) {
+	f, err := os.Open(path)
+	if os.IsNotExist(err) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, true, fmt.Errorf("读取条款确认记录：%w", err)
 	}
 	defer f.Close()
 	b, err := io.ReadAll(io.LimitReader(f, maxTermsBytes+1))
 	if err != nil {
-		return fmt.Errorf("读取条款确认记录：%w", err)
+		return nil, true, fmt.Errorf("读取条款确认记录：%w", err)
 	}
 	var envelope termsEnvelope
-	if len(b) > maxTermsBytes || json.Unmarshal(b, &envelope) != nil || envelope.Format != 1 ||
-		envelope.Protection != "dpapi-current-user" || len(envelope.Ciphertext) == 0 {
+	if len(b) > maxTermsBytes || json.Unmarshal(b, &envelope) != nil || envelope.Format != 2 ||
+		envelope.Protection != "dpapi-current-user" || len(envelope.Receipts) == 0 || len(envelope.Receipts) > maxTermsReceipts {
 		slog.Warn("terms_receipt_invalid", "reason", "unsupported or corrupt format")
-		return nil
+		return nil, true, nil
 	}
-	plain, err := c.termsProtection.unprotect(envelope.Ciphertext)
-	if err != nil {
-		slog.Warn("terms_receipt_invalid", "reason", "current user decryption failed")
-		return nil
+	return envelope.Receipts, true, nil
+}
+
+func (c *Console) findAcceptedTerms(receipts []json.RawMessage) termsReceipt {
+	for i := len(receipts) - 1; i >= 0; i-- {
+		var cipher []byte
+		if json.Unmarshal(receipts[i], &cipher) != nil || len(cipher) == 0 {
+			continue
+		}
+		plain, err := c.termsProtection.unprotect(cipher)
+		if err != nil {
+			continue
+		}
+		var receipt protectedTerms
+		err = json.Unmarshal(plain, &receipt)
+		clear(plain)
+		if err == nil && receipt.Purpose == termsPurpose && receipt.termsReceipt.valid() {
+			return receipt.termsReceipt
+		}
 	}
-	defer clear(plain)
-	var receipt protectedTerms
-	if json.Unmarshal(plain, &receipt) != nil || receipt.Purpose != termsPurpose || !receipt.termsReceipt.valid() {
-		slog.Warn("terms_receipt_invalid", "reason", "invalid or outdated terms")
-		return nil
-	}
-	c.terms = receipt.termsReceipt
-	c.termsNeedsConfirmation = false
-	return nil
+	return termsReceipt{}
 }
 
 func (c *Console) acceptTerms() error {
@@ -101,22 +123,40 @@ func (c *Console) acceptTerms() error {
 	if c.closing {
 		return fmt.Errorf("程序正在退出")
 	}
-	receipt := termsReceipt{legal.Version, legal.Hash(), time.Now().UTC()}
-	plain, err := json.Marshal(protectedTerms{termsPurpose, receipt})
+	receipts, _, err := readTermsReceipts(c.files().Terms)
 	if err != nil {
 		return err
 	}
-	defer clear(plain)
-	cipher, err := c.termsProtection.protect(plain)
-	if err != nil {
-		return err
-	}
-	b, err := json.Marshal(termsEnvelope{1, "dpapi-current-user", cipher})
-	if err != nil {
-		return err
-	}
-	if err = workfiles.Write(c.files().Terms, b); err != nil {
-		return err
+	receipt := c.findAcceptedTerms(receipts)
+	if !receipt.valid() {
+		receipt = termsReceipt{legal.Version, legal.Hash(), time.Now().UTC()}
+		plain, err := json.Marshal(protectedTerms{termsPurpose, receipt})
+		if err != nil {
+			return err
+		}
+		defer clear(plain)
+		cipher, err := c.termsProtection.protect(plain)
+		if err != nil {
+			return err
+		}
+		slot, err := json.Marshal(cipher)
+		if err != nil {
+			return err
+		}
+		if len(receipts) == maxTermsReceipts {
+			receipts = receipts[1:]
+		}
+		receipts = append(receipts, slot)
+		b, err := json.Marshal(termsEnvelope{2, "dpapi-current-user", receipts})
+		if err != nil {
+			return err
+		}
+		if len(b) > maxTermsBytes {
+			return fmt.Errorf("条款确认记录超过 %d 字节上限", maxTermsBytes)
+		}
+		if err = workfiles.Write(c.files().Terms, b); err != nil {
+			return err
+		}
 	}
 	c.terms = receipt
 	c.termsNeedsConfirmation = false

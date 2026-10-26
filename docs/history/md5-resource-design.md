@@ -1,6 +1,6 @@
 # MD5 视频资源管理
 
-> 2026-10-04 的历史设计。MD5 文件身份沿用至今，现行完整规则由[存储契约](../storage.md)、[曲库设计](../song-catalog-design.md)和[下载需求与资源管理设计](../download-resource-design.md)维护；下文待实现状态及旧保护规则仅用于理解当时决策。请求明细的 version_key 属于旧格式，现行存储 v5 已合并为 resource_key。
+> 2026-10-04 的历史设计。MD5 文件身份沿用至今，现行完整规则由[存储契约](../storage.md)、[曲库设计](../song-catalog-design.md)和[下载需求与资源管理设计](../download-resource-design.md)维护；下文待实现状态及旧保护规则仅用于理解当时决策。请求明细的 version_key 属于旧格式，现行存储 v6 统一用 resource_md5 保存 MD5，不再有重复版本键。
 
 2026-10-06 的后续加载设计见[歌曲加载与下载中随机读取](song-loading-design.md)：播放与队列共用加载流程、歌曲 URL 观测持久化、同 MD5 多歌曲依次查址，以及下载中任意进度读取。该文记录当时目标，不承担当前功能状态说明。
 

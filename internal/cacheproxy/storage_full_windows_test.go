@@ -110,7 +110,7 @@ func TestBoundedVolumeExhaustion(t *testing.T) {
 	t.Run("database", func(t *testing.T) {
 		dir := boundedVolumeDirectory(t, root)
 		path := filepath.Join(dir, "personal.sqlite")
-		golden, err := os.ReadFile("testdata/storage-v5.sqlite")
+		golden, err := os.ReadFile("testdata/storage-v6.sqlite")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -122,13 +122,7 @@ func TestBoundedVolumeExhaustion(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() { store.Close() })
-		if _, err := store.db.Exec(`
-INSERT INTO catalog_checks VALUES('songs',1792960000000,'fixture check','offline');
-INSERT INTO catalog_members VALUES(42);
-INSERT INTO media_access SELECT md5,1792960000000 FROM media;
-INSERT INTO song_playback VALUES(42,7,1792960000000);`); err != nil {
-			t.Fatal(err)
-		}
+
 		if err := store.usage.start(0); err != nil {
 			t.Fatal(err)
 		}

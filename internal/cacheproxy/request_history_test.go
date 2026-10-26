@@ -16,9 +16,9 @@ func TestHistoryPagesAllRequestsAndPreservesIdentity(t *testing.T) {
 	key := strings.Repeat("a", 32)
 	var events []usageEvent
 	for i := 0; i < 1201; i++ {
-		events = append(events, usageEvent{at: 1000 + int64(i/3), completedAt: 2000, key: key, songID: "42", source: "http", method: "GET", outcome: "completed"})
+		events = append(events, usageEvent{at: 1000 + int64(i/3), completedAt: 2000, key: key, songID: "42", method: "GET", outcome: "completed"})
 	}
-	events = append(events, usageEvent{at: 1200, source: "http", method: "HEAD"}, usageEvent{at: 1200, source: "prefetch", method: "GET"})
+	events = append(events, usageEvent{at: 1200, method: "HEAD"})
 	if err := s.usage.write(events); err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestLatencyRollingQuantilesCoverageAndRestart(t *testing.T) {
 	var events []usageEvent
 	for _, blocking := range []bool{false, true} {
 		for i := 1; i <= 20; i++ {
-			e := usageEvent{source: "http", method: "GET", status: 206, outcome: "completed", at: now.Add(-time.Hour).UnixMilli(), bytes: 1, firstBodyNS: int64(i) * int64(time.Millisecond), firstBodyBlocking: &blocking}
+			e := usageEvent{method: "GET", status: 206, outcome: "completed", at: now.Add(-time.Hour).UnixMilli(), bytes: 1, firstBodyNS: int64(i) * int64(time.Millisecond), firstBodyBlocking: &blocking}
 			if blocking {
 				e.firstBodyNS *= 10
 			}
@@ -89,13 +89,12 @@ func TestLatencyRollingQuantilesCoverageAndRestart(t *testing.T) {
 	}
 	ready := false
 	for _, at := range []int64{now.Add(-72*time.Hour).UnixMilli() - 1, now.UnixMilli()} {
-		events = append(events, usageEvent{source: "http", method: "GET", status: 200, at: at, bytes: 1, firstBodyNS: 1, firstBodyBlocking: &ready})
+		events = append(events, usageEvent{method: "GET", status: 200, at: at, bytes: 1, firstBodyNS: 1, firstBodyBlocking: &ready})
 	}
 	// Supported records with unknown timing, non-video errors and empty bodies
 	// remain history but cannot turn into zero-millisecond latency samples.
 	for _, e := range []usageEvent{{status: 200, bytes: 1}, {status: 502, bytes: 5, firstBodyBlocking: &ready}, {status: 200, firstBodyBlocking: &ready}} {
 		e.at = now.Add(-time.Hour).UnixMilli()
-		e.source = "http"
 		e.method = "GET"
 		events = append(events, e)
 	}

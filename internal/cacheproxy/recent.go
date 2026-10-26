@@ -10,9 +10,6 @@ import (
 
 const MaxRecentRequests = 500
 
-const recentHTTPWindowSQL = `SELECT * FROM request_events INDEXED BY request_events_http_time
- WHERE source='http' ORDER BY requested_at DESC, event_id DESC LIMIT ?`
-
 type RecentSong struct {
 	ID    string `json:"id"`
 	Title string `json:"title"`
@@ -49,7 +46,7 @@ var safeRequestRange = regexp.MustCompile(`^bytes=[0-9 ,\-]{1,200}$`)
 
 // ReadRecentRequests reads a bounded, expanding recent window through the time
 // index. It never starts the engine, creates a database, or reads signed URLs.
-// Only HTTP video requests are included; prefetch events are not client bytes.
+// The history contains HTTP video requests only; preparation uses diagnostics.
 func ReadRecentRequests(ctx context.Context, databasePath string, limit int) (RecentRequests, error) {
 	return readRequestPage(ctx, databasePath, RequestQuery{Limit: limit}, false)
 }
@@ -71,11 +68,11 @@ func readRequestPage(ctx context.Context, databasePath string, query RequestQuer
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	window, args := query.window(getOnly)
-	rows, err := db.QueryContext(ctx, `SELECT event_id, requested_at, resource_key, method, range_header,
- cache_result, outcome, transferred_bytes, elapsed_ms, status, COALESCE(song_id,''), completed_at, response_bytes, first_body_ns, first_body_blocking,
+	rows, err := db.QueryContext(ctx, `SELECT event_id, requested_at, COALESCE(resource_md5,''), method, range_header,
+ cache_result, outcome, transferred_bytes, elapsed_ms, status, COALESCE(CAST(song_id AS TEXT),''), completed_at, response_bytes, first_body_ns, first_body_blocking,
  (SELECT json_group_array(json_object('id',song_id,'title',title)) FROM
    (SELECT CAST(s.song_id AS TEXT) song_id, COALESCE(substr(s.name,1,300),'') AS title FROM song_media sv
-    JOIN songs s ON s.song_id=sv.song_id WHERE sv.md5=e.resource_key
+    JOIN songs s ON s.song_id=sv.song_id WHERE sv.md5=e.resource_md5
     ORDER BY sv.rowid LIMIT 21))
  FROM (`+window+`) e
  ORDER BY requested_at DESC, event_id DESC`, args...)

@@ -36,27 +36,31 @@ func (q RequestQuery) Validate() error {
 }
 
 func (q RequestQuery) window(getOnly bool) (string, []any) {
-	where := "source='http'"
+	var conditions []string
 	var args []any
 	if getOnly {
-		where += " AND method='GET'"
+		conditions = append(conditions, "method='GET'")
 	}
 	if q.From > 0 {
-		where += " AND requested_at>=?"
+		conditions = append(conditions, "requested_at>=?")
 		args = append(args, q.From)
 	}
 	if q.To > 0 {
-		where += " AND requested_at<?"
+		conditions = append(conditions, "requested_at<?")
 		args = append(args, q.To)
 	}
 	if q.Cursor != "" {
 		parts := strings.Split(q.Cursor, ":")
 		at, _ := strconv.ParseInt(parts[0], 10, 64)
 		id, _ := strconv.ParseInt(parts[1], 10, 64)
-		where += " AND (requested_at,event_id)<(?,?)"
+		conditions = append(conditions, "(requested_at,event_id)<(?,?)")
 		args = append(args, at, id)
 	}
-	return "SELECT * FROM request_events INDEXED BY request_events_http_time WHERE " + where + " ORDER BY requested_at DESC,event_id DESC LIMIT ?", append(args, q.Limit+1)
+	where := ""
+	if len(conditions) > 0 {
+		where = " WHERE " + strings.Join(conditions, " AND ")
+	}
+	return "SELECT * FROM request_events INDEXED BY request_events_time" + where + " ORDER BY requested_at DESC,event_id DESC LIMIT ?", append(args, q.Limit+1)
 }
 
 type LatencyGroup struct {
@@ -99,8 +103,8 @@ func ReadFirstBodyLatency(ctx context.Context, databasePath string, now time.Tim
  SELECT first_body_blocking AS blocking,first_body_ns AS ns,
  row_number() OVER (PARTITION BY first_body_blocking ORDER BY first_body_ns) AS rank,
  count(*) OVER (PARTITION BY first_body_blocking) AS n
- FROM request_events INDEXED BY request_events_http_time
- WHERE source='http' AND method='GET' AND requested_at>=? AND requested_at<?
+ FROM request_events INDEXED BY request_events_time
+ WHERE method='GET' AND requested_at>=? AND requested_at<?
  AND status IN (200,206) AND transferred_bytes>0 AND first_body_ns IS NOT NULL AND first_body_blocking IS NOT NULL
  ) SELECT blocking,max(n),max(CASE WHEN rank=(n+1)/2 THEN ns END),
  max(CASE WHEN rank=(95*n+99)/100 THEN ns END) FROM samples GROUP BY blocking`, r.From, r.To)

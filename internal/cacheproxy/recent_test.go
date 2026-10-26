@@ -25,11 +25,10 @@ func TestRecentRequestsWindowAndNames(t *testing.T) {
 	}
 	now := time.Now().UnixMilli()
 	err = u.write([]usageEvent{
-		{key: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", at: now, source: "http", method: "GET", outcome: "completed", status: 200, size: 100, bytes: 100},
-		{key: "unknown", at: now + 1, source: "http", method: "GET", outcome: "canceled", status: 200, bytes: 3, rangeHeader: "bytes=0-9"},
-		{key: "prefetch", at: now + 2, source: "prefetch"},
-		{key: "short", at: now + 3, source: "http", method: "GET", outcome: "completed", status: 200, size: 100, bytes: 5, rangeHeader: "secret=signed-url"},
-		{key: "range", at: now + 3, source: "http", method: "GET", outcome: "completed", status: 206, size: 100, bytes: 10, rangeHeader: "bytes=0-9"},
+		{key: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", at: now, method: "GET", outcome: "completed", status: 200, size: 100, bytes: 100},
+		{at: now + 1, method: "GET", outcome: "canceled", status: 200, bytes: 3, rangeHeader: "bytes=0-9"},
+		{key: strings.Repeat("b", 32), at: now + 3, method: "GET", outcome: "completed", status: 200, size: 100, bytes: 5, rangeHeader: "secret=signed-url"},
+		{key: strings.Repeat("c", 32), at: now + 3, method: "GET", outcome: "completed", status: 206, size: 100, bytes: 10, rangeHeader: "bytes=0-9"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -38,7 +37,7 @@ func TestRecentRequestsWindowAndNames(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !result.HasMore || len(result.Requests) != 2 || result.Requests[0].Resource != "range" || result.Requests[1].Outcome != "completed" {
+	if !result.HasMore || len(result.Requests) != 2 || result.Requests[0].Resource != strings.Repeat("c", 32) || result.Requests[1].Outcome != "completed" {
 		t.Fatalf("page: %+v", result)
 	}
 	if strings.Contains(result.Requests[1].Range, "secret") {
@@ -59,7 +58,7 @@ func TestRecentRequestsWindowAndNames(t *testing.T) {
 	}
 	// Query interpretation must not rewrite the existing outcome/statistics.
 	var outcome string
-	if err := u.db.QueryRow(`SELECT outcome FROM request_events WHERE resource_key='short'`).Scan(&outcome); err != nil || outcome != "completed" {
+	if err := u.db.QueryRow(`SELECT outcome FROM request_events WHERE resource_md5=?`, strings.Repeat("b", 32)).Scan(&outcome); err != nil || outcome != "completed" {
 		t.Fatalf("mutated stored result: %s %v", outcome, err)
 	}
 }
@@ -105,7 +104,7 @@ func TestRecentBoundedAssociations(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err = u.write([]usageEvent{{key: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", source: "http"}}); err != nil {
+	if err = u.write([]usageEvent{{key: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}); err != nil {
 		t.Fatal(err)
 	}
 	r, err := ReadRecentRequests(context.Background(), storagePath(root), 50)
@@ -117,17 +116,14 @@ func TestRecentBoundedAssociations(t *testing.T) {
 	}
 }
 
-func TestRecentHTTPWindowSurvivesPrefetchOffline(t *testing.T) {
+func TestRecentWindowOrderingAndOffline(t *testing.T) {
 	root := t.TempDir()
 	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer u.close()
-	events := []usageEvent{{key: "game", source: "http", at: 1}}
-	for i := 0; i < 500; i++ {
-		events = append(events, usageEvent{key: "prefetch", source: "prefetch", at: int64(i + 2)})
-	}
+	events := []usageEvent{{key: strings.Repeat("a", 32), at: 1}}
 	if err = u.write(events); err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +133,7 @@ func TestRecentHTTPWindowSurvivesPrefetchOffline(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(r.Requests) != 1 || r.Requests[0].Resource != "game" || r.HasMore {
+		if len(r.Requests) != 1 || r.Requests[0].Resource != strings.Repeat("a", 32) || r.HasMore {
 			t.Fatalf("limit %d: %+v", limit, r)
 		}
 	}
@@ -149,7 +145,7 @@ func TestRecentHTTPWindowSurvivesPrefetchOffline(t *testing.T) {
 	defer u.close()
 	events = nil
 	for i := 0; i < 50; i++ {
-		events = append(events, usageEvent{key: "new-game", source: "http", at: 1000})
+		events = append(events, usageEvent{key: strings.Repeat("b", 32), at: 1000})
 	}
 	if err = u.write(events); err != nil {
 		t.Fatal(err)
@@ -170,7 +166,8 @@ func TestRecentHTTPWindowSurvivesPrefetchOffline(t *testing.T) {
 	if err != nil || len(r.Requests) != 51 || r.HasMore {
 		t.Fatalf("expanded HTTP page: %+v %v", r, err)
 	}
-	rows, err := u.db.Query(`EXPLAIN QUERY PLAN `+recentHTTPWindowSQL, 501)
+	window, args := (RequestQuery{Limit: 500}).window(false)
+	rows, err := u.db.Query(`EXPLAIN QUERY PLAN `+window, args...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +184,7 @@ func TestRecentHTTPWindowSurvivesPrefetchOffline(t *testing.T) {
 	if err = rows.Err(); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(plan, "USING INDEX request_events_http_time") || strings.Contains(plan, "TEMP B-TREE") {
+	if !strings.Contains(plan, "USING INDEX request_events_time") || strings.Contains(plan, "TEMP B-TREE") {
 		t.Fatalf("unbounded HTTP ordering: %s", plan)
 	}
 }

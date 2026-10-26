@@ -10,7 +10,7 @@
 ./scripts/with-test-temp.ps1 go test -tags=no_easytier ./internal/... ./cmd/...
 ./scripts/with-test-temp.ps1 go vet -tags=no_easytier ./internal/... ./cmd/...
 go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
-# 仅首次新建；已有 v5 数据库直接使用其文件位置，不执行此命令。
+# 仅首次新建；已有 v6 数据库直接使用其文件位置，不执行此命令。
 .\bin\still-wanna-dance.exe -database .\library\storage.sqlite -create-database
 New-Item -ItemType Directory -Path .\complete-videos
 .\bin\still-wanna-dance.exe -show-terms
@@ -22,7 +22,7 @@ New-Item -ItemType Directory -Path .\complete-videos
 
 验证时先通过本地播放 API 请求：`curl.exe --noproxy "*" --resolve api.udon.dance:18080:127.0.0.1 "http://api.udon.dance:18080/Api/Songs/play?id=1343&node=cf"`。服务根据有效 API 返回值发现资源域名；后续直达资源请求须保留实际域名、路径、e、s。直接访问 localhost 首页返回 400；网页和托盘入口为 `SWD.exe`。
 
-`-database` 指向已有 v5 数据库，保存歌曲、资源与个人统计；`-video-dir` 指向已有完整视频目录，直接使用其中 `{md5}.mp4`，不再附加 `videos/`。普通启动不建库、不重建缺失的视频目录；只有 `-create-database` 明确创建新库后退出，已有文件（包括空文件）均拒绝覆盖。块固定在 EXE 旁 `work/<service 实例>/`；发布／导入暂存位于视频目录 `.swd-tmp/`，仍在视频卷。没有工作目录参数，不读取桌面设置或旧 `-storage-dir`。详见[存储契约](storage.md)。
+`-database` 指向已有 v6 数据库，保存歌曲、资源与个人统计；`-video-dir` 指向已有完整视频目录，直接使用其中 `{md5}.mp4`，不再附加 `videos/`。普通启动不建库、不重建缺失的视频目录；只有 `-create-database` 明确创建新库后退出，已有文件（包括空文件）均拒绝覆盖。块固定在 EXE 旁 `work/<service 实例>/`；发布／导入暂存位于视频目录 `.swd-tmp/`，仍在视频卷。没有工作目录参数，不读取桌面设置或旧 `-storage-dir`。详见[存储契约](storage.md)。
 
 若目录已有完整视频，须显式传入 `-cache-unlimited` 或 `-max-cache-bytes`，确认按本次数据库的收藏和保留策略管理这些文件；否则启动拒绝，避免默认零预算删除已有视频。CLI 不保存这项选择，下次启动仍由参数表达。
 
@@ -72,9 +72,9 @@ ID 请求有映射且 MD5 文件存在时立即返回本地视频，支持 GET�
 
 这里统计代理观察到的需求，不代表完成播放。独立 `media_access` 只保存每个 MD5 的最后 GET 时间，支持本地视频列表最近访问展示；与保留期内 HTTP 明细取较新值，明细过期仍保留最后 GET 时间。它不记录资源热度，不参与歌曲评分。
 
-`request_events` 每次请求一行，包含资源指纹、请求开始时间、内容版本键、CDN 主机、来源（`http` / `prefetch`，队列与批量预取均属后者）、方法、原始 Range、本地读取来源（`HIT` / `MISS` / `UNKNOWN`）、结果（`completed` / `failed` / `canceled` / `aborted`）、文件大小、响应传输字节数、耗时毫秒、HTTP 状态码和是否参与需求汇总。HTTP 状态可能为 0（尚未发送响应），取消/中断也可能已有 200/206，需结合结果字段判断。预取不是 HTTP 响应，其状态和响应传输字节数为 0；这不是上游实际下载流量，不能直接当作节省下载量。共享下载的预取取消后，后台下载仍可能继续。
+`request_events` 仅保存 HTTP 视频请求，每次请求一行：可空资源 MD5 `resource_md5`、可空正整数歌曲 ID `song_id`、请求到达和结束时间、主机、方法、原始 Range、本地读取来源（`HIT` / `MISS` / `WAIT` / `UNKNOWN`）、结果（`completed` / `failed` / `canceled` / `incomplete` / `aborted`）、文件大小、实际视频交付字节、本次有效响应长度、耗时及首正文分类。HTTP 状态可能为 0（尚未发送响应），取消/中断也可能已有 200/206，需结合结果字段判断。未知身份保存为 NULL，不依赖歌曲或资源表已有对应行。没有重复内容版本键、来源列或“是否计入需求”标记；一条请求是否实际计数由独立需求去重决定，不能从明细行数推断。预加载和批量下载继续输出已有诊断日志，不再写入请求历史。
 
-需求汇总在有效 GET 进入视频资源处理时入队，取统计时间和入队使用同一把锁，后台按进入顺序更新；明细使用该时间，在请求结束时另行入队，保留最终状态、字节数和耗时，不再次更新汇总。长短请求反序完成不影响去重次数。明细可用于计算近期频率、请求间隔和预取后的实际访问；已建立资源/时间及时间索引。不记录用户身份或完整 URL。按配置自动清理过期明细，默认保留 30 天；`-request-retention-days` 设为 0 时永久保留，热度汇总长期保留。
+需求汇总在有效 GET 进入视频资源处理时入队，取统计时间和入队使用同一把锁，后台按进入顺序更新；明细保存请求到达时间，在请求结束时另行入队，保留最终状态、字节数和耗时，不再次更新汇总。长短请求反序完成不影响去重次数。明细可用于计算近期请求频率和间隔；资源/时间索引用于最近访问查询，时间/事件 ID 复合索引用于稳定分页、延迟统计和过期清理。不记录用户身份或完整 URL。按配置自动清理过期明细，默认保留 30 天；`-request-retention-days` 设为 0 时永久保留，热度汇总长期保留。
 
 后台队列最多 1024 条，每批最多 128 条以事务落盘；进入和完成事件可能位于不同事务，不能保证一条明细与对应汇总同时提交。CLI 停服先等待 HTTP 优雅关闭最多 5 秒，超时强制断开连接，再等待活动请求结束、取消剩余下载并排空统计队列；5 秒是连接关闭宽限，不是全部落盘耗时的上限。统计队列满或统计写入失败会记录 `usage_dropped` 或 `usage_write_failed`；数据库打开失败则启动失败，歌曲或版本记录提交失败则本次视频准备任务失败。异常退出可能留下已有汇总但尚无完成明细的请求；队列溢出或写入失败也可能使两者不一致。数据库失败不自动覆盖旧文件，不迁移旧数据库。
 
@@ -98,7 +98,7 @@ FROM song_usage ORDER BY last_demand_at DESC;
 | `-listen` | `127.0.0.1:18080` |
 | `-socks5-proxy` | 空，使用内置 DoH 直连；填写 `127.0.0.1:7891` 等 `host:port` 后，上游连接及目标 DNS 交给 SOCKS5，不回退直连 |
 | `-socks5-username` | 空，无认证；填写用户名时须设置密码环境变量 `SWD_SOCKS5_PASSWORD`，两者各限 1～255 字节 |
-| `-database` | 必填，已有 v5 数据库文件；相对路径基于当前工作目录 |
+| `-database` | 必填，已有 v6 数据库文件；相对路径基于当前工作目录 |
 | `-create-database` | `false`；显式创建 `-database` 指定的新文件后退出，不覆盖、不启动服务 |
 | `-video-dir` | 服务启动必填，已有完整视频目录；相对路径基于当前工作目录 |
 | `-origin DOMAIN=HOST:PORT` | 空；可重复指定可信的显式域名回源覆盖 |

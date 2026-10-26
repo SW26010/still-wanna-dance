@@ -107,15 +107,15 @@ func TestCatalogUpdatesPreserveUsageResourcesAndAbsentSongs(t *testing.T) {
 	assertSongResource(t, s, "1", b)
 	assertSongResource(t, s, "2", a)
 	var count, size int
-	var got, path string
+	var got string
 	if err := s.usage.db.QueryRow("SELECT name FROM songs WHERE song_id=1").Scan(&got); err != nil || got != "new" {
 		t.Fatal(got, err)
 	}
 	if err := s.usage.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=1").Scan(&count); err != nil || count != 1 {
 		t.Fatal(count, err)
 	}
-	if err := s.usage.db.QueryRow("SELECT byte_size,source_path FROM media WHERE md5=?", a).Scan(&size, &path); err != nil || size != 100 || path != "/known" {
-		t.Fatal(size, path, err)
+	if err := s.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", a).Scan(&size); err != nil || size != 100 {
+		t.Fatal(size, err)
 	}
 	if err := s.usage.db.QueryRow("SELECT count(*) FROM song_media WHERE song_id=1").Scan(&count); err != nil || count != 1 {
 		t.Fatal(count, err)

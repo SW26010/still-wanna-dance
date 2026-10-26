@@ -44,7 +44,7 @@ func TestUsageWorkerBorrowsApplicationDatabase(t *testing.T) {
 	if err := store.usage.start(0); err != nil {
 		t.Fatal(err)
 	}
-	store.usage.record(usageEvent{songID: "42", at: 1000, demand: true})
+	store.usage.record(usageEvent{songID: "42", at: 1000})
 	if err := store.usage.close(); err != nil {
 		t.Fatal(err)
 	}

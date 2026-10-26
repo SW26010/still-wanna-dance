@@ -11,7 +11,7 @@ import (
 )
 
 func TestStorageContractRejectsIncompatibleFilesEverywhere(t *testing.T) {
-	for _, mutation := range []string{"PRAGMA user_version=999", "PRAGMA application_id=123", "PRAGMA user_version=0", "PRAGMA user_version=1", "PRAGMA user_version=2", "PRAGMA user_version=3", "PRAGMA user_version=4", "DROP TABLE song_preferences", "DROP TABLE catalog_checks", "DROP INDEX request_events_http_time", "ALTER TABLE songs ADD COLUMN surprise TEXT"} {
+	for _, mutation := range []string{"PRAGMA user_version=999", "PRAGMA application_id=123", "PRAGMA user_version=0", "PRAGMA user_version=1", "PRAGMA user_version=2", "PRAGMA user_version=3", "PRAGMA user_version=4", "PRAGMA user_version=5", "DROP TABLE song_preferences", "DROP TABLE catalog_checks", "DROP INDEX request_events_time", "ALTER TABLE songs ADD COLUMN surprise TEXT"} {
 		t.Run(mutation, func(t *testing.T) {
 			cfg := fixtureConfig()
 			prepareFixtureResources(t, &cfg, t.TempDir(), true)
@@ -42,7 +42,6 @@ func TestStorageContractRejectsIncompatibleFilesEverywhere(t *testing.T) {
 					}
 					return err
 				},
-				"scan":    func() error { _, err := LoadScanTargets(ctx, cfg.Store.path); return err },
 				"catalog": func() error { _, err := LoadCatalogStatus(ctx, cfg.Store.path); return err },
 				"cache":   func() error { _, err := ReadCachePage(ctx, cfg.libraryPaths(), "", "", 0); return err },
 				"recent":  func() error { _, err := ReadRecentRequests(ctx, cfg.Store.path, 50); return err },
@@ -77,7 +76,7 @@ func TestRecentReaderNeverRepairsSchema(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec("DROP INDEX request_events_http_time"); err != nil {
+	if _, err := s.usage.db.Exec("DROP INDEX request_events_time"); err != nil {
 		t.Fatal(err)
 	}
 	s.Close()
@@ -92,7 +91,7 @@ func TestRecentReaderNeverRepairsSchema(t *testing.T) {
 		t.Fatal(err)
 	}
 	var count int
-	err = db.QueryRow("SELECT count(*) FROM sqlite_master WHERE name='request_events_http_time'").Scan(&count)
+	err = db.QueryRow("SELECT count(*) FROM sqlite_master WHERE name='request_events_time'").Scan(&count)
 	db.Close()
 	if err != nil || count != 0 {
 		t.Fatal("read changed schema", count, err)

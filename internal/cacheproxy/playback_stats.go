@@ -3,18 +3,13 @@ package cacheproxy
 import (
 	"context"
 	"database/sql"
-	"strconv"
 )
 
 // A completed positive-byte playback GET is observable server evidence, not a
 // decoded first frame. Keep this separate from demand-based retention scoring.
 // Deduplication uses serialized completion observations, not request starts.
-func recordPlaybackTransfer(ctx context.Context, tx *sql.Tx, e usageEvent) error {
-	if e.source != "http" || e.method != "GET" || e.outcome != "completed" || e.bytes <= 0 || (e.status != 200 && e.status != 206) || e.songID == "" {
-		return nil
-	}
-	id, err := strconv.ParseInt(e.songID, 10, 64)
-	if err != nil || id <= 0 {
+func recordPlaybackTransfer(ctx context.Context, tx *sql.Tx, e usageEvent, id int64) error {
+	if e.method != "GET" || e.outcome != "completed" || e.bytes <= 0 || (e.status != 200 && e.status != 206) || id == 0 {
 		return nil
 	}
 	if _, err := tx.ExecContext(ctx, "INSERT INTO songs(song_id) VALUES (?) ON CONFLICT DO NOTHING", id); err != nil {

@@ -30,6 +30,7 @@ Thumbs.db
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+!internal/cacheproxy/testdata/storage-v6.sqlite
 
 # Known legacy test layouts (rejected, never migrated)
 /stepstash-data/

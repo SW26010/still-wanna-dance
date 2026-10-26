@@ -65,7 +65,7 @@ func readCacheEntry(ctx context.Context, paths LibraryPaths, key string, db *sql
 	if db != nil {
 		err = db.QueryRowContext(ctx, `SELECT COALESCE(byte_size,0),
  max(COALESCE((SELECT last_requested_at FROM media_access WHERE md5=v.md5),0),
- COALESCE((SELECT max(requested_at) FROM request_events WHERE resource_key=v.md5 AND source='http'),0)),
+ COALESCE((SELECT max(requested_at) FROM request_events WHERE resource_md5=v.md5),0)),
  (SELECT count(*) FROM song_media WHERE md5=v.md5),
  (SELECT json_group_array(json_object('id',song_id,'title',title,'current',is_current)) FROM
   (SELECT CAST(s.song_id AS TEXT) song_id,COALESCE(substr(s.name,1,300),'') title,1 is_current

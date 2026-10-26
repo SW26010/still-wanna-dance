@@ -21,7 +21,7 @@ func BenchmarkRequestHistoryQueries(b *testing.B) {
 	for i := 0; i < 10000; i += 100 {
 		events := make([]usageEvent, 100)
 		for j := range events {
-			events[j] = usageEvent{at: now.Add(-time.Duration(i+j) * time.Second).UnixMilli(), source: "http", method: "GET", status: 200, bytes: 1, firstBodyNS: int64(i+j+1) * int64(time.Millisecond), firstBodyBlocking: &ready}
+			events[j] = usageEvent{at: now.Add(-time.Duration(i+j) * time.Second).UnixMilli(), method: "GET", status: 200, bytes: 1, firstBodyNS: int64(i+j+1) * int64(time.Millisecond), firstBodyBlocking: &ready}
 		}
 		if err := u.write(events); err != nil {
 			b.Fatal(err)

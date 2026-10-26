@@ -35,14 +35,14 @@ func TestReuseLocalSongRestoresMissingResourceRecord(t *testing.T) {
 		if reused, err := s.ReuseLocalSong(ctx, "1344", target, receipt); err != nil || !reused {
 			t.Fatalf("reuse: reused=%v err=%v", reused, err)
 		}
-		var checksum, sourcePath string
+		var checksum string
 		var size int64
-		if err := s.usage.db.QueryRow(`SELECT v.md5, v.byte_size, v.source_path
- FROM media v JOIN song_media s USING(md5) WHERE s.song_id='1344'`).Scan(&checksum, &size, &sourcePath); err != nil {
+		if err := s.usage.db.QueryRow(`SELECT v.md5, v.byte_size
+ FROM media v JOIN song_media s USING(md5) WHERE s.song_id='1344'`).Scan(&checksum, &size); err != nil {
 			t.Fatal(err)
 		}
-		if checksum != v.key || size != v.size || sourcePath != v.path {
-			t.Fatalf("incorrect restored resource: %s %d %s", checksum, size, sourcePath)
+		if checksum != v.key || size != v.size {
+			t.Fatalf("incorrect restored resource: %s %d", checksum, size)
 		}
 	}
 }

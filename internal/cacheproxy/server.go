@@ -384,7 +384,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 		return
 	}
-	event := usageEvent{at: start.UnixMilli(), source: "http", method: r.Method, rangeHeader: r.Header.Get("Range")}
+	event := usageEvent{at: start.UnixMilli(), method: r.Method, rangeHeader: r.Header.Get("Range")}
 	if r.Method == http.MethodGet {
 		var finish func()
 		response.current, finish = s.beginGET(id, start, r.Header.Get("Range"))
@@ -443,7 +443,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "multiple ranges are not supported", 416)
 		return
 	}
-	event.demand = r.Method == http.MethodGet && v.songID != ""
 	if r.Method == http.MethodGet {
 		ctx, timingErr := s.playbackContext(r, v, start)
 		if timingErr != nil {

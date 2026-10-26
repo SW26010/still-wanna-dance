@@ -26,22 +26,19 @@ func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 	}
 	for _, i := range []int{1, 256, 257, 270} {
 		key := fmt.Sprintf("%032x", i)
-		if _, err := u.db.Exec(`INSERT INTO request_events(resource_key,requested_at,host,source,method,range_header,cache_result,outcome,file_bytes,transferred_bytes,elapsed_ms,status,counts_as_demand) VALUES (?,100,'local','http','GET','','HIT','completed',1,1,1,200,0)`, key); err != nil {
+		if _, err := u.db.Exec(`INSERT INTO request_events(resource_md5,requested_at,host,method,range_header,cache_result,outcome,file_bytes,transferred_bytes,elapsed_ms,status) VALUES (?,100,'local','GET','','HIT','completed',1,1,1,200)`, key); err != nil {
 			t.Fatal(err)
 		}
 	}
-	// HTTP events can be newer than the persisted usage summary; prefetch
-	// events must not affect the listing's last-request order.
+	// Completed requests can be newer than the persisted GET-start summary.
 	for _, event := range []struct {
-		i      int
-		source string
-		at     int
-	}{{257, "http", 200}, {258, "prefetch", 999}, {259, "http", 300}} {
+		i, at int
+	}{{257, 200}, {259, 300}} {
 		key := fmt.Sprintf("%032x", event.i)
 		if _, err := u.db.Exec(`INSERT INTO request_events
- (resource_key,requested_at,host,source,method,range_header,cache_result,outcome,
- file_bytes,transferred_bytes,elapsed_ms,status,counts_as_demand)
- VALUES (?,?,'local',?,'GET','','HIT','completed',1,1,1,200,1)`, key, event.at, event.source); err != nil {
+ (resource_md5,requested_at,host,method,range_header,cache_result,outcome,
+ file_bytes,transferred_bytes,elapsed_ms,status)
+ VALUES (?,?,'local','GET','','HIT','completed',1,1,1,200)`, key, event.at); err != nil {
 			t.Fatal(err)
 		}
 	}

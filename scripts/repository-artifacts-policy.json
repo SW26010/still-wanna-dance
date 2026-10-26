@@ -362,6 +362,13 @@
       "reason": "Frozen schema v5 fixture with one MD5 resource identity per request; v2, v3 and v4 fixtures remain unchanged for rejection regression."
     },
     {
+      "path": "internal/cacheproxy/testdata/storage-v6.sqlite",
+      "kind": "binary-fixture",
+      "bytes": 102400,
+      "sha256": "8b2da818396f4be367fc1d0365835ae88272ac62a6386ab1c36f07f4647579c0",
+      "reason": "Frozen prerelease schema v6 fixture with rows in all 14 STRICT tables, nullable request identities, foreign keys and unchanged song metadata/digest; v2-v5 fixtures remain unchanged for rejection regression."
+    },
+    {
       "path": "internal/console/assets/webui/app.js",
       "kind": "large-text",
       "bytes": 1183765,

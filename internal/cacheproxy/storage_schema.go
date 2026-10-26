@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-//go:embed schema/storage-v5.sql
+//go:embed schema/storage-v6.sql
 var storageSchemaSQL string
 
 // Only a newly created database reaches this transaction. Existing databases

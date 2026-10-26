@@ -71,16 +71,14 @@ def run(args):
     if args.catalog_only:
         print(json.dumps(catalogue,ensure_ascii=False,indent=2))
         return
-    # Cover size deciles plus local tail-moov resources. The latter use the saved
-    # source_path and the same observed resource host/query convention.
+    # Cover size deciles plus local tail-moov resources with actual saved URL
+    # evidence. Never invent an upstream address from resource metadata.
     eligible = list({r['md5']:r for r in urls if r['md5'] in mapping}.values())
     eligible.sort(key=lambda r:mapping[r['md5']]['byte_size'])
-    chosen = [eligible[round((len(eligible)-1)*i/9)] for i in range(10)]
-    tail = sorted((k for k in mapping if not mapping[k]['moov_before_mdat']),key=lambda k:mapping[k]['byte_size'])
-    for key in [tail[0],tail[len(tail)//2],tail[-1]]:
-        path = db.execute('SELECT source_path FROM media WHERE md5=?',(key,)).fetchone()[0]
-        song = db.execute('SELECT min(song_id) FROM song_media WHERE md5=?',(key,)).fetchone()[0]
-        chosen.append({'song_id':song,'md5':key,'url':f'https://play.udon.dance{path}?e={key}&s={mapping[key]["byte_size"]}'})
+    decile_samples = [eligible[round((len(eligible)-1)*i/9)] for i in range(10)]
+    tail = [r for r in eligible if not mapping[r['md5']]['moov_before_mdat']]
+    tail_samples = [tail[0], tail[len(tail)//2], tail[-1]] if tail else []
+    chosen = decile_samples + tail_samples
 
     def probe(item):
         key = item['md5']
@@ -145,7 +143,7 @@ def run(args):
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
         results=list(pool.map(probe,chosen))
     summary={'resource_host':'play.udon.dance','transport':'HTTPS; OS resolver; no proxy','user_agent':args.user_agent,
-             'sample_method':'10 observed URL size deciles and 3 tail-moov source paths',
+             'sample_method':f'{len(decile_samples)} size-decile probes plus {len(tail_samples)} additional tail-moov probes, all from saved URLs',
              'probes':results,'successes':sum(r.get('duration_matches_local',False) for r in results),
              'body_bytes_read':sum(r['body_bytes_read'] for r in results)}
     (out/'http-probes.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf-8')

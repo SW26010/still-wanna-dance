@@ -58,7 +58,7 @@ func managementFixture(t *testing.T, n int) (string, []CacheEntry) {
 			query string
 			args  []any
 		}{
-			{`INSERT INTO media VALUES (?, ?, 'private-source')`, []any{key, i + 1}},
+			{`INSERT INTO media(md5,byte_size) VALUES (?, ?)`, []any{key, i + 1}},
 			{`INSERT INTO songs(song_id,name) VALUES (?,?)`, []any{fmt.Sprint(i + 1), fmt.Sprintf("舞曲 %03d", i+1)}},
 			{`INSERT INTO song_media VALUES (?,?)`, []any{fmt.Sprint(i + 1), key}},
 		} {

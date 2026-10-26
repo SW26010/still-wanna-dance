@@ -116,7 +116,7 @@ func TestStoreOpenDoesNotCreateOrRepair(t *testing.T) {
 	}
 }
 
-func TestStorePreservesV5WithoutVideoOrObservation(t *testing.T) {
+func TestStorePreservesV6WithoutVideoOrObservation(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "database", "personal.sqlite")
 	s, err := CreateStore(path)
 	if err != nil {
@@ -256,7 +256,7 @@ func TestStoreRejectsHardLinkAddedWhileWriterOpen(t *testing.T) {
 	}
 }
 
-func TestStoreOpenRejectsUnsupportedV5ChangesWithoutWriting(t *testing.T) {
+func TestStoreOpenRejectsUnsupportedV6ChangesWithoutWriting(t *testing.T) {
 	for _, mutation := range []string{"PRAGMA user_version=4", "PRAGMA user_version=999", "DROP TABLE catalog_checks"} {
 		t.Run(mutation, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "library.sqlite")

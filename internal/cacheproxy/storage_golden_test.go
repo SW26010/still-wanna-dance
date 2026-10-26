@@ -8,10 +8,10 @@ import (
 	"time"
 )
 
-// This binary was created for schema v5. Never regenerate it to make a changed
+// This binary was created for schema v6. Never regenerate it to make a changed
 // schema pass: add a new version and retain the prior release's fixture.
-func TestStorageV5Golden(t *testing.T) {
-	b, err := os.ReadFile("testdata/storage-v5.sqlite")
+func TestStorageV6Golden(t *testing.T) {
+	b, err := os.ReadFile("testdata/storage-v6.sqlite")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func TestStorageV5Golden(t *testing.T) {
 			t.Fatal(err)
 		}
 		var resource string
-		if err := db.QueryRow("SELECT resource_key FROM request_events WHERE event_id=1").Scan(&resource); err != nil || resource != "0123456789abcdef0123456789abcdef" {
+		if err := db.QueryRow("SELECT resource_md5 FROM request_events WHERE event_id=1").Scan(&resource); err != nil || resource != "0123456789abcdef0123456789abcdef" {
 			t.Fatal("golden request resource changed", resource, err)
 		}
 		var digest string
@@ -70,7 +70,7 @@ func TestStorageV5Golden(t *testing.T) {
 }
 
 func TestStorageOldGoldensRejectedUnchanged(t *testing.T) {
-	for _, version := range []string{"2", "3", "4"} {
+	for _, version := range []string{"2", "3", "4", "5"} {
 		t.Run(version, func(t *testing.T) {
 			b, err := os.ReadFile("testdata/storage-v" + version + ".sqlite")
 			if err != nil {

@@ -92,7 +92,7 @@ func TestSongMetadataCandidatesDetectMissingCurrentMetadata(t *testing.T) {
 		{"failed_url", "UPDATE song_urls SET failed_at=1 WHERE node='cf'", true},
 		{"other_api", "UPDATE song_urls SET api='https://other.invalid/play'", true},
 		{"display_node", "UPDATE song_urls SET node='hkg' WHERE node='nya'", true},
-		{"old_md5", "UPDATE song_urls SET md5='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'", true},
+		{"old_md5", "INSERT INTO media(md5) VALUES('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'); UPDATE song_urls SET md5='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'", true},
 		{"expired_url", "UPDATE song_urls SET query_started_at=1,observed_at=2", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

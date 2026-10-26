@@ -59,12 +59,12 @@ func TestMonitorPlaybackURLPersistsMetadataWithoutDownload(t *testing.T) {
 	}
 	defer db.Close()
 	var size sql.NullInt64
-	var mapped, path string
+	var mapped string
 	if err := db.QueryRow("SELECT md5,byte_size FROM song_media JOIN media USING(md5) WHERE song_id=1").Scan(&mapped, &size); err != nil || mapped != "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" || size.Valid {
 		t.Fatalf("URL changed catalog mapping or unrelated metadata: %s, %+v, %v", mapped, size, err)
 	}
-	if err := db.QueryRow("SELECT byte_size,source_path FROM media WHERE md5='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'").Scan(&size, &path); err != nil || !size.Valid || size.Int64 != 5678 || path != "/files/1/42-new.mp4" {
-		t.Fatalf("URL metadata not saved: %+v, %s, %v", size, path, err)
+	if err := db.QueryRow("SELECT byte_size FROM media WHERE md5='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'").Scan(&size); err != nil || !size.Valid || size.Int64 != 5678 {
+		t.Fatalf("URL metadata not saved: %+v, %v", size, err)
 	}
 	if err := db.QueryRow("SELECT md5 FROM song_media WHERE song_id=2").Scan(&mapped); err != nil || mapped != "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" {
 		t.Fatalf("URL did not fill the missing mapping: %s, %v", mapped, err)

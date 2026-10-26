@@ -151,7 +151,7 @@ func newStore(path string, db *sql.DB, unlock func() error) *Store {
 }
 
 // Reuse the legacy lease for its fixed filename. An old process opening the
-// same v5 database must conflict even though the new paths are independent.
+// same database must conflict even though the new paths are independent.
 func databaseLeasePath(path string) string {
 	base := filepath.Base(path)
 	if base == storageDatabaseName || runtime.GOOS == "windows" && strings.EqualFold(base, storageDatabaseName) {

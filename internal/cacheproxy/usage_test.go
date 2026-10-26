@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -18,7 +19,7 @@ import (
 
 func recordDemand(u *usageStore, id string, at time.Time) {
 	u.record(usageEvent{songID: id, at: at.UnixMilli(), summaryOnly: true})
-	u.record(usageEvent{songID: id, at: at.UnixMilli(), source: "http", method: "GET", demand: true})
+	u.record(usageEvent{songID: id, at: at.UnixMilli(), method: "GET"})
 }
 
 func TestSongDemandReverseCompletion(t *testing.T) {
@@ -56,7 +57,7 @@ func TestSongDemandReverseCompletion(t *testing.T) {
 			if err := s.usage.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=1").Scan(&count); err != nil || count != want {
 				t.Fatal(count, want, err)
 			}
-			if err := s.usage.db.QueryRow("SELECT range_header FROM request_events WHERE source='http' ORDER BY event_id LIMIT 1").Scan(&firstFinished); err != nil || firstFinished != "bytes=0-3" {
+			if err := s.usage.db.QueryRow("SELECT range_header FROM request_events ORDER BY event_id LIMIT 1").Scan(&firstFinished); err != nil || firstFinished != "bytes=0-3" {
 				t.Fatal("short request must finish first", firstFinished, err)
 			}
 		})
@@ -71,7 +72,7 @@ func TestCacheAccessSurvivesRequestCleanupAndRestart(t *testing.T) {
 	s.wg.Wait()
 	s.usage.flush()
 	// Model an old retained request without replacing the production arrival clock.
-	if _, err := s.usage.db.Exec("UPDATE request_events SET requested_at=? WHERE source='http'", old.UnixMilli()); err != nil {
+	if _, err := s.usage.db.Exec("UPDATE request_events SET requested_at=?", old.UnixMilli()); err != nil {
 		t.Fatal(err)
 	}
 	cleaner := &usageStore{db: s.usage.db, retention: 30 * 24 * time.Hour}
@@ -209,9 +210,9 @@ func TestRequestDetailsPruneWithoutLosingSongDemand(t *testing.T) {
 	cutoff := now.Add(-30 * 24 * time.Hour)
 	events := make([]usageEvent, requestCleanupBatch+3)
 	for i := range events {
-		events[i] = usageEvent{key: "old", at: cutoff.Add(-time.Millisecond).UnixMilli()}
+		events[i] = usageEvent{key: strings.Repeat("a", 32), at: cutoff.Add(-time.Millisecond).UnixMilli()}
 	}
-	events = append(events, usageEvent{key: "boundary", at: cutoff.UnixMilli()}, usageEvent{songID: "1", at: cutoff.Add(-time.Hour).UnixMilli(), summaryOnly: true})
+	events = append(events, usageEvent{key: strings.Repeat("b", 32), at: cutoff.UnixMilli()}, usageEvent{songID: "1", at: cutoff.Add(-time.Hour).UnixMilli(), summaryOnly: true})
 	if err := u.write(events); err != nil {
 		t.Fatal(err)
 	}
@@ -277,7 +278,7 @@ func TestRequestRetentionCleansIdleRestart(t *testing.T) {
 	}
 	events := make([]usageEvent, requestCleanupBatch+1)
 	for i := range events {
-		events[i] = usageEvent{key: "old", at: time.Now().Add(-31 * 24 * time.Hour).UnixMilli()}
+		events[i] = usageEvent{key: strings.Repeat("a", 32), at: time.Now().Add(-31 * 24 * time.Hour).UnixMilli()}
 	}
 	if err := u.write(events); err != nil {
 		t.Fatal(err)

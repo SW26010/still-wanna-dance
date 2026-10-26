@@ -14,12 +14,12 @@ func (c Config) videoFile(key string) string {
 	return filepath.Join(c.videosDir(), key+".mp4")
 }
 
-const upsertMediaSQL = `INSERT INTO media(md5, byte_size, source_path)
- VALUES (?, NULLIF(?,0), NULLIF(?,'')) ON CONFLICT(md5) DO UPDATE SET byte_size=COALESCE(excluded.byte_size,media.byte_size), source_path=COALESCE(excluded.source_path,media.source_path)`
+const upsertMediaSQL = `INSERT INTO media(md5, byte_size)
+ VALUES (?, NULLIF(?,0)) ON CONFLICT(md5) DO UPDATE SET byte_size=COALESCE(excluded.byte_size,media.byte_size)`
 
 // recordVideo records a resource without inferring a song from its URL.
 func (s *Server) recordVideo(ctx context.Context, v video) error {
-	_, err := s.usage.db.ExecContext(ctx, upsertMediaSQL, v.key, v.size, v.path)
+	_, err := s.usage.db.ExecContext(ctx, upsertMediaSQL, v.key, v.size)
 	return s.storageError(err)
 }
 

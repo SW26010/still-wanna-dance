@@ -55,7 +55,7 @@ func loadCacheListMetadata(ctx context.Context, db *sql.DB, candidates []cacheLi
 func loadCacheListRecency(ctx context.Context, db *sql.DB, keys string, batch map[string]*cacheListCandidate) error {
 	rows, err := db.QueryContext(ctx, `SELECT v.md5,
  max(COALESCE((SELECT last_requested_at FROM media_access WHERE md5=v.md5),0),
- COALESCE((SELECT max(requested_at) FROM request_events WHERE resource_key=v.md5 AND source='http'),0))
+ COALESCE((SELECT max(requested_at) FROM request_events WHERE resource_md5=v.md5),0))
  FROM media v
  WHERE v.md5 IN (SELECT value FROM json_each(?))`, keys)
 	if err != nil {

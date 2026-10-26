@@ -95,9 +95,6 @@ func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, res
 			cache = "UNKNOWN"
 		}
 		log.Info("prefetch_finished", "outcome", outcome, "cache", cache, "elapsed_ms", time.Since(start).Milliseconds(), "error", applog.SafeError(resultErr))
-		s.usage.record(usageEvent{at: start.UnixMilli(), key: v.key, host: v.host,
-			source: "prefetch", method: "GET", size: v.size, cache: cache,
-			outcome: outcome, elapsedMS: time.Since(start).Milliseconds()})
 	}()
 retryDownload:
 	f, _, err := s.obtainMode(ctx, v, true)

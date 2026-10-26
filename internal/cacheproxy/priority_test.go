@@ -17,7 +17,7 @@ func seedPrioritySong(t *testing.T, s *Server, id, key string) {
 		args []any
 	}{
 		{`INSERT OR IGNORE INTO songs(song_id) VALUES (?)`, []any{id}},
-		{`INSERT OR IGNORE INTO media(md5,byte_size,source_path) VALUES (?,10,'/fixture')`, []any{key}},
+		{`INSERT OR IGNORE INTO media(md5,byte_size) VALUES (?,10)`, []any{key}},
 		{`INSERT INTO song_media(song_id,md5) VALUES (?,?) ON CONFLICT(song_id) DO UPDATE SET md5=excluded.md5`, []any{id, key}},
 	} {
 		if _, err := s.usage.db.Exec(q.sql, q.args...); err != nil {

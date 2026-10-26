@@ -75,9 +75,8 @@ func TestResolvePlaybackRecordsSharedMediaWithoutDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reopened.Close()
-	var path string
-	if err := reopened.usage.db.QueryRow("SELECT byte_size,source_path FROM media WHERE md5=?", key).Scan(&size, &path); err != nil || !size.Valid || size.Int64 != 1234 || path != "/files/1/42-video.mp4" {
-		t.Fatalf("metadata did not survive restart: %+v %q %v", size, path, err)
+	if err := reopened.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", key).Scan(&size); err != nil || !size.Valid || size.Int64 != 1234 {
+		t.Fatalf("metadata did not survive restart: %+v %v", size, err)
 	}
 	assertSongResource(t, reopened, "43", key)
 }
@@ -107,9 +106,8 @@ func TestSongURLMetadataPreservesOrderingAndMapping(t *testing.T) {
 		}
 	}
 	var size int64
-	var path string
-	if err := s.usage.db.QueryRow("SELECT byte_size,source_path FROM media WHERE md5=?", key).Scan(&size, &path); err != nil || size != 24 || path != "/files/1/42-new.mp4" {
-		t.Fatal(size, path, err)
+	if err := s.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", key).Scan(&size); err != nil || size != 24 {
+		t.Fatal(size, err)
 	}
 	assertSongResource(t, s, "42", key)
 	for table, want := range map[string]int{"media": 1, "song_urls": 1, "songs": 1, "song_media": 1, "song_usage": 0} {
@@ -162,9 +160,8 @@ func TestSongURLMetadataAndObservationRollbackTogether(t *testing.T) {
 				}
 				if existing {
 					var size int64
-					var path string
-					if err := s.usage.db.QueryRow("SELECT byte_size,source_path FROM media WHERE md5=?", key).Scan(&size, &path); err != nil || size != 12 || path != "/files/1/42-old.mp4" {
-						t.Fatal(size, path, err)
+					if err := s.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", key).Scan(&size); err != nil || size != 12 {
+						t.Fatal(size, err)
 					}
 					got, err := s.SongURLs(ctx, 42, "cf")
 					if err != nil || len(got) != 1 || got[0].URL != o.URL || !got[0].QueryStartedAt.Equal(o.QueryStartedAt) {

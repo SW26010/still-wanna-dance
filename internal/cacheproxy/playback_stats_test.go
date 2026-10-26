@@ -7,20 +7,19 @@ import (
 	"time"
 )
 
-func TestPlaybackTransfersExcludePrefetchFailuresAndDeduplicateRanges(t *testing.T) {
+func TestPlaybackTransfersExcludeFailuresAndDeduplicateRanges(t *testing.T) {
 	s, cfg := setup(t, nil)
 	completed := time.Now()
 	s.usage.now = func() time.Time { return completed }
-	e := usageEvent{songID: "42", source: "http", method: "GET", status: 206, outcome: "completed", bytes: 10, cache: "HIT", firstBodyNS: int64(20 * time.Millisecond), at: time.Now().UnixMilli()}
+	e := usageEvent{songID: "42", method: "GET", status: 206, outcome: "completed", bytes: 10, cache: "HIT", firstBodyNS: int64(20 * time.Millisecond), at: time.Now().UnixMilli()}
 	s.usage.record(e)
 	e.at++
 	s.usage.record(e)
 	for _, bad := range []usageEvent{
-		{songID: "42", source: "prefetch", method: "GET", status: 200, outcome: "completed", bytes: 10},
-		{songID: "42", source: "http", method: "HEAD", status: 200, outcome: "completed", bytes: 10},
-		{songID: "42", source: "http", method: "GET", status: 502, outcome: "failed", bytes: 10},
-		{songID: "42", source: "http", method: "GET", status: 206, outcome: "canceled", bytes: 10},
-		{songID: "42", source: "http", method: "GET", status: 200, outcome: "completed"},
+		{songID: "42", method: "HEAD", status: 200, outcome: "completed", bytes: 10},
+		{songID: "42", method: "GET", status: 502, outcome: "failed", bytes: 10},
+		{songID: "42", method: "GET", status: 206, outcome: "canceled", bytes: 10},
+		{songID: "42", method: "GET", status: 200, outcome: "completed"},
 	} {
 		bad.at = e.at + 60000
 		s.usage.record(bad)
@@ -55,7 +54,7 @@ func TestPlaybackTransferWindowUsesCompletionOrder(t *testing.T) {
 			completed := base.Add(61 * time.Second)
 			s.usage.now = func() time.Time { return completed }
 			// B starts later but finishes first; A's start is sixty seconds older.
-			b := usageEvent{songID: "42", source: "http", method: "GET", status: 200, outcome: "completed", bytes: 10, cache: "HIT", at: base.Add(time.Minute).UnixMilli()}
+			b := usageEvent{songID: "42", method: "GET", status: 200, outcome: "completed", bytes: 10, cache: "HIT", at: base.Add(time.Minute).UnixMilli()}
 			s.usage.record(b)
 			a := b
 			a.at = base.UnixMilli()

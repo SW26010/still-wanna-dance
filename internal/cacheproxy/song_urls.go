@@ -74,6 +74,8 @@ func (s *Store) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error)
 		return err
 	}
 	defer tx.Rollback()
+	// Deferred foreign keys validate the observation with its song/resource at
+	// commit, while stale observations still exit without changing either one.
 	result, err := tx.ExecContext(ctx, `INSERT INTO song_urls
  (song_id,api,node,url,md5,byte_size,query_started_at,observed_at) VALUES (?,?,?,?,?,?,?,?)
  ON CONFLICT(song_id,api,node) DO UPDATE SET url=excluded.url, md5=excluded.md5,
@@ -91,7 +93,7 @@ func (s *Store) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error)
 	if accepted == 0 {
 		return nil // A stale/tied observation must not update metadata or mappings either.
 	}
-	if _, err := tx.ExecContext(ctx, upsertMediaSQL, v.key, v.size, v.path); err != nil {
+	if _, err := tx.ExecContext(ctx, upsertMediaSQL, v.key, v.size); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, "INSERT INTO songs(song_id) VALUES (?) ON CONFLICT DO NOTHING", o.SongID); err != nil {

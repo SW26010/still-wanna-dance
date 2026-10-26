@@ -11,10 +11,10 @@ import (
 	"testing"
 )
 
-// Exercise offline backup of the existing v5 format, including every business
+// Exercise offline backup of the existing v6 format, including every business
 // table. This is an acceptance fixture, not a new product backup mechanism.
-func TestV5OfflineBackupRestoresAllBusinessData(t *testing.T) {
-	golden, err := os.ReadFile("testdata/storage-v5.sqlite")
+func TestV6OfflineBackupRestoresAllBusinessData(t *testing.T) {
+	golden, err := os.ReadFile("testdata/storage-v6.sqlite")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,14 +27,7 @@ func TestV5OfflineBackupRestoresAllBusinessData(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { store.Close() })
-	// Complete the four empty tables in the frozen sample without changing DDL.
-	if _, err := store.db.Exec(`
-INSERT INTO catalog_checks VALUES('songs',1792960000000,'fixture check','offline');
-INSERT INTO catalog_members VALUES(42);
-INSERT INTO media_access SELECT md5,1792960000000 FROM media;
-INSERT INTO song_playback VALUES(42,7,1792960000000);`); err != nil {
-		t.Fatal(err)
-	}
+
 	before := snapshotBusinessTables(t, store.db)
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
@@ -71,7 +64,7 @@ INSERT INTO song_playback VALUES(42,7,1792960000000);`); err != nil {
 			t.Fatal("restored business rows or column values changed")
 		}
 		if err := validateStorageDatabase(store.db); err != nil {
-			t.Fatal("v5 format changed", err)
+			t.Fatal("v6 format changed", err)
 		}
 		var integrity string
 		if err := store.db.QueryRow("PRAGMA integrity_check").Scan(&integrity); err != nil || integrity != "ok" {
@@ -136,7 +129,7 @@ func snapshotBusinessTables(t *testing.T, db *sql.DB) map[string]string {
 	err = rows.Err()
 	rows.Close()
 	if err != nil || len(names) != 14 {
-		t.Fatal("unexpected v5 table set", names, err)
+		t.Fatal("unexpected v6 table set", names, err)
 	}
 	result := make(map[string]string)
 	for _, name := range names {

@@ -124,7 +124,7 @@ func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	}
 	defer db.Close()
 	var events, gets int
-	if err := db.QueryRow("SELECT count(*) FROM request_events WHERE source='http' AND outcome='canceled'").Scan(&events); err != nil {
+	if err := db.QueryRow("SELECT count(*) FROM request_events WHERE outcome='canceled'").Scan(&events); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.QueryRow("SELECT count(*) FROM song_usage").Scan(&gets); err != nil {

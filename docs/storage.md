@@ -4,7 +4,7 @@
 
 持久化整理的目标原则见[职责与边界](persistence-design.md)，实施步骤见[迁移计划](persistence-migration-plan.md)。数据库与完整视频目录已独立配置，块使用 EXE 旁固定工作区。桌面应用启动时准备默认业务存储，已有配置则严格打开所选数据库，元数据与个人资料操作不依赖视频引擎。桌面格式 7 的 databasePath、videoDir 首次自动采用默认位置，无需手动建库；自定义位置才需要在设置页选择，保存后重启应用，不自动搬运。初始化与已有资料保护的边界见[配置生命周期](settings-lifecycle.md)。CLI 使用 `-database`、`-video-dir`，明确建库另用 `-create-database`，详见[服务手册](service.md)。核心引擎也只接收已打开的数据库、已有视频目录和应用持有的工作区；不再保留混合根或隐式建库入口。
 
-> 当前采用[曲库、资源关联与歌曲需求统计](song-catalog-design.md)模型。建议主库名为 `storage.sqlite`，两个入口均可选择文件名；SQLite `application_id=0x53574443`（SWDC）、`user_version=5`。版本 4 引入请求身份、响应范围、首正文分类与采集覆盖水位；版本 5 删除请求明细重复的 version_key，统一以 resource_key 保存 MD5。保留冻结的版本 2、3、4 DDL 与夹具，不实现旧格式兼容或迁移。
+> 当前采用[曲库、资源关联与歌曲需求统计](song-catalog-design.md)模型。建议主库名为 `storage.sqlite`，两个入口均可选择文件名；SQLite `application_id=0x53574443`（SWDC）、`user_version=6`。版本 4 引入请求身份、响应范围、首正文分类与采集覆盖水位；版本 5 删除重复内容版本键；版本 6 收紧数据约束并清理持久化职责：所有表采用 STRICT，删除 media.source_path、请求来源及需求标记，明确可空请求身份，并停止保存预下载明细。歌曲资料列和清单摘要保持不变。保留冻结的版本 2、3、4、5 DDL 与夹具，不实现开发期旧格式兼容或迁移。
 
 [歌曲屏蔽与收藏](download-resource-design.md#8-歌曲屏蔽与收藏)通过独立偏好表保存；表结构及版本边界见[歌曲偏好存储](#歌曲偏好存储)。
 
@@ -43,7 +43,7 @@ ID 播放先检查屏蔽状态并在命中时返回 403；准入后的播放命�
 | --- | --- |
 | songs | 正整数歌曲 ID、可空标量资料及三个 JSON 数组列 |
 | song_media | 歌曲 ID → 唯一当前 MD5，外键关联歌曲和资源 |
-| media | MD5、可空字节数和来源路径，不作为本地文件存在性依据 |
+| media | MD5、可空字节数，不作为本地文件存在性依据 |
 | song_preferences | 本地屏蔽或收藏标记；无行表示普通，不表示文件存在 |
 | song_usage | 明确歌曲 ID GET 或显式 VRCX 历史初始化的累计有效需求、指数分数及最后计分时间 |
 | catalog_state | 已接受的上游版本、规范化摘要、来源及接受时间 |
@@ -56,7 +56,7 @@ ID 播放先检查屏蔽状态并在命中时返回 403；准入后的播放命�
 | catalog_members | 当前完整清单成员 |
 | traffic_totals | 命中、未命中与节省字节累计 |
 
-播放地址解析成功并通过 URL 校验后，`ObserveSongURL` 在同一事务中保存 `song_urls`，按 URL 的 `e`（MD5）把 `s`（字节数）及来源路径写入现有 `media.byte_size/source_path`，并补齐占位歌曲和缺失的 `song_media` 关联；关联冲突时不更新。写入复用映射锁，与清单同步及映射快照串行。清单创建资源时未知大小仍为 NULL；只解析地址即可补齐，不需要请求视频正文或创建本地视频文件，持久化准入可直接使用这份关联计算歌曲分数。同 MD5 的多首歌曲共用一条资源记录。沿用已有资源写入规则，有效值可更新已知属性，缺失属性不抹掉已知值；无需新增列或迁移数据库。
+播放地址解析成功并通过 URL 校验后，`ObserveSongURL` 在同一事务中保存 `song_urls`，按 URL 的 `e`（MD5）把 `s`（字节数）写入 `media.byte_size`，并补齐占位歌曲和缺失的 `song_media` 关联；关联冲突时不更新。写入复用映射锁，与清单同步及映射快照串行；歌曲和资源外键延迟至事务提交时检查，使过期观察仍可在不修改资料的情况下退出。清单创建资源时未知大小仍为 NULL；只解析地址即可补齐，不需要请求视频正文或创建本地视频文件，持久化准入可直接使用这份关联计算歌曲分数。同 MD5 的多首歌曲共用一条资源记录。沿用已有资源写入规则，有效值可更新已知属性，缺失属性不抹掉已知值。
 
 运行期上游监测也复用该入口：每次自动或手动探测播放 API 成功后，直接保存本轮所选歌曲的 URL 和大小，并按同一规则补缺失关联，无需再次查询 API。普通和多候选通道均覆盖，API 键统一为无查询参数的地址，节点保存实际 cf/nya；排序使用探测请求自身的起止时间，不以回调落库时间刷新旧响应。资源采样失败不撤销已取得的 API 证据和补缺关联；写库失败保留本地存储故障，不改变 API 健康判断。只刷新当轮实际探测到的歌曲，不追加整库批量请求，签名地址不进入状态接口。
 
@@ -72,7 +72,7 @@ ID 播放先检查屏蔽状态并在命中时返回 403；准入后的播放命�
 
 资源分数是当前关联歌曲分数之和，孤儿资源为零分。映射改变不立即删除旧文件；容量超限时按分数淘汰，活动请求、下载的必要引用及统一块保护保持有效。有限需求进入本地保护提前窗口后保护数据，最后一份块需求结束后按配置延续（默认 300 秒，0 表示不延续）；任一块受保护则完整文件不可删除，不另设队列专属文件保护。淘汰只删除文件，保留关联和统计。文件发布与数据库提交不是跨资源原子事务，已发布的 MD5 文件即使没有元数据也可命中。
 
-数据库、视频目录和块工作区分别持有 OS 排他锁。普通打开严格验证已有 v5，只有明确新建使用排他创建初始化结构；引擎借用应用业务存储，取得视频锁后清理发布／导入暂存并执行原有保留策略。固定块工作区先于文件日志和数据库准备并清理。离线删除复用应用业务存储并取得视频锁，不另开第二写连接。备份请正常退出后优先保存数据库及恢复所需伴随文件；完整视频按需保留，临时文件和锁不需备份。
+数据库、视频目录和块工作区分别持有 OS 排他锁。普通打开严格验证已有 v6，只有明确新建使用排他创建初始化结构；引擎借用应用业务存储，取得视频锁后清理发布／导入暂存并执行原有保留策略。固定块工作区先于文件日志和数据库准备并清理。离线删除复用应用业务存储并取得视频锁，不另开第二写连接。备份请正常退出后优先保存数据库及恢复所需伴随文件；完整视频按需保留，临时文件和锁不需备份。
 
 本地视频列表展示当前歌曲关联；请求记录另存请求处理时的明确歌曲 ID 和资源身份，查询时不由当前映射推断或改写历史。列表最近访问保持原语义：长期保存的最后 GET 时间与保留期内 HTTP 请求明细取较新值；清理明细不丢失最后 GET 时间或歌曲需求累计值。
 
@@ -82,7 +82,7 @@ ID 播放先检查屏蔽状态并在命中时返回 403；准入后的播放命�
 
 引擎启动和离线删除在取得 `.lock` 后，先检查已知旧存储标记：根目录存在 `stepstash.sqlite`（不论内容、文件类型，或是否同时存在 `storage.sqlite`），或 `videos` 中存在旧 64 位十六进制组合键文件名，均拒绝继续并提示使用独立新目录。检查旧库标记只看目录项，不打开旧库；拒绝发生在创建主库、清理下载临时文件和容量淘汰之前。除获取锁可能创建或保留 `.lock` 外，不改动数据库、恢复文件、视频或临时下载。此规则不承诺识别任意历史目录，也不包括从外部向运行中目录添加旧文件；使用中的存储目录不应由其他程序改写。
 
-所有数据库连接通过同一入口建立，路径在一个位置定义。本地视频列表、曲库、扫描目标、最近请求及流量统计使用只读连接，统一验证应用身份与格式版本；缺库时不创建文件，读取页面不补表或补索引。
+所有数据库连接通过同一入口建立，路径在一个位置定义。本地视频列表、曲库、最近请求及流量统计使用只读连接，统一验证应用身份与格式版本；缺库时不创建文件，读取页面不补表或补索引。
 
 只有明确新建操作才初始化不存在的数据库；该操作与视频目录是否存在无关，已有空文件也拒绝。共同创建入口取得数据库写锁后、创建主文件和连接 SQLite 前，检查同名 `-wal`、`-shm`、`-journal`；任何目录项存在或无法可靠检查时都拒绝创建，原样保留恢复资料，失败释放锁。当前身份、当前版本的库仅验证完整表、列、索引和约束，不补建结构。不识别的身份和不支持的历史版本报错；遇到未来版本，明确提示更新程序。失败不会改写格式标记或清理临时下载。当前没有迁移链；今后的真实升级需要在这个受控入口中明确实现，不能散落在业务读取函数中。
 
@@ -90,7 +90,7 @@ ID 播放先检查屏蔽状态并在命中时返回 403；准入后的播放命�
 
 ## 歌曲偏好存储
 
-本节描述已实现的数据库 v3 结构。需求准入、共享资源、收藏不触发下载及预算规则统一见[canonical 设计第 8 项](download-resource-design.md#8-歌曲屏蔽与收藏)，此处只维护存储契约。
+本节描述当前 v6 中的歌曲偏好结构（最初于 v3 引入）。需求准入、共享资源、收藏不触发下载及预算规则统一见[canonical 设计第 8 项](download-resource-design.md#8-歌曲屏蔽与收藏)，此处只维护存储契约。
 
 在同一 `storage.sqlite` 中使用一张歌曲偏好表，已有 `songs`、`media`、`song_media` 及统计表不改列：
 
@@ -98,20 +98,20 @@ ID 播放先检查屏蔽状态并在命中时返回 403；准入后的播放命�
 CREATE TABLE song_preferences (
  song_id INTEGER PRIMARY KEY REFERENCES songs(song_id),
  policy TEXT NOT NULL CHECK(policy IN ('blocked','favorite'))
-);
+) STRICT;
 ```
 
 无记录表示普通；`blocked` 表示屏蔽，`favorite` 表示收藏，恢复普通时删除该行。主键保证同一歌曲的偏好互斥；写入时验证正整数 ID，缺少歌曲资料时在同一事务补建 `songs` 占位行。复用现有外键检查，不级联删除，不为未定义用途增加更新时间、历史记录或额外索引。
 
 偏好是用户维护的曲库数据，随存储库备份和切换，不进入 `config.json`。曲库刷新、歌曲—MD5 关联更新、VRCX 统计初始化及视频清理均不覆盖偏好；它也不进入清单 `sha256-v1` 摘要。资源的收藏资格通过当前关联及 retainFavorites 配置推导，全部屏蔽状态通过当前关联推导，不新增资源名单表、资源分数副本或下载/完整性状态列；标记不等于文件已保存。
 
-数据库格式已升为 v5，使用 `schema/storage-v5.sql` 和对应二进制样本，冻结的 v2、v3、v4 DDL 与样本保留。继续不兼容、不迁移旧格式：旧库拒绝打开且不改写，请使用独立新存储目录。不能由业务读写自动补表或改版本号。请求字段允许未知值为 NULL；这不授权读取不支持的旧格式。当前配置格式为 v7；清单摘要仍为 v1。
+数据库格式已升为 v6，使用 `schema/storage-v6.sql` 和对应二进制样本，冻结的 v2、v3、v4、v5 DDL 与样本保留。继续不兼容、不迁移旧格式：旧库拒绝打开且不改写，请使用独立新存储目录。不能由业务读写自动补表或改版本号。请求字段允许未知值为 NULL；这不授权读取不支持的旧格式。当前配置格式为 v7；清单摘要仍为 v1。
 
 偏好写入与 VRCX 历史初始化共用应用业务存储的数据库锁、严格打开和事务入口，不启动引擎或资源回收。明确新建只创建标准数据库；视频盘不参与建库判断。在线标记仍与发布、淘汰串行，数据库锁在应用停止消费者及引擎、排空已接受写入并关闭数据库后释放。
 
 ## Portable 文件契约与生命周期
 
-本节是应用落盘位置和备份范围的统一清单。路径由 `internal/apppaths` 解析；软件版本变化不改变文件名。当前配置格式为 `schemaVersion=7`，媒体 SQLite 为上述版本 5。旧测试配置版本 1～6 不兼容、不迁移，不应手工改版本号继续使用。
+本节是应用落盘位置和备份范围的统一清单。路径由 `internal/apppaths` 解析；软件版本变化不改变文件名。当前配置格式为 `schemaVersion=7`，媒体 SQLite 为上述版本 6。旧测试配置版本 1～6 不兼容、不迁移，不应手工改版本号继续使用。
 
 ### 交付与按需生成
 
@@ -212,32 +212,34 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 ## 持久化格式与语义
 
-版本号不随软件版本递增，也不为了称作“v1”而重用试验期编号。历史首发基线是 SQLite **2**、配置 **3**；当前采用 SQLite **5**、配置 **7**、库存/批量/尝试快照 **2**、吞吐快照 **1**，不迁移旧格式。当前 SQLite 的完整 DDL 固定在 `internal/cacheproxy/schema/storage-v5.sql`，有效二进制样本在 `internal/cacheproxy/testdata/storage-v5.sqlite`；旧 v2、v3、v4 DDL 与样本保留用于拒绝及不改写回归；JSON 样本在 console、upstreamstate 的 testdata 中。今后改变契约必须保留旧样本、明确新版本和升级决策，不能重新生成旧样本来消除回归失败。
+版本号不随软件版本递增，也不为了称作“v1”而重用试验期编号。开发期最早冻结基线是 SQLite **2**、配置 **3**；当前首发候选基线采用 SQLite **6**、配置 **7**、库存/批量/尝试快照 **2**、吞吐快照 **1**，不迁移旧格式。当前 SQLite 的完整 DDL 固定在 `internal/cacheproxy/schema/storage-v6.sql`，有效二进制样本在 `internal/cacheproxy/testdata/storage-v6.sqlite`；旧 v2、v3、v4、v5 DDL 与样本保留用于拒绝及不改写回归；JSON 样本在 console、upstreamstate 的 testdata 中。今后改变契约必须保留旧样本、明确新版本和升级决策，不能重新生成旧样本来消除回归失败。
 
 ### SQLite 字段清单
 
-以下为完整表清单；类型、NULL、CHECK、外键和索引以冻结 DDL 为准。无显式默认值的必填列必须由写入方提供，未声明为 NOT NULL 的资料列允许 NULL。数据库的 INTEGER 为有符号 64 位，REAL 为双精度；业务端仅写有限分数和合法正整数歌曲 ID。数据库不承诺任意手工写入均有效。
+以下为完整表清单；类型、NULL、CHECK、外键和索引以冻结 DDL 为准。无显式默认值的必填列必须由写入方提供，未声明为 NOT NULL 的资料列允许 NULL。所有业务表采用 STRICT，INTEGER 为有符号 64 位，REAL 为双精度；业务端仅写有限分数和合法正整数歌曲 ID。数据库不承诺任意手工写入均有效。
 
 | 表 / 身份 | 字段与来源、空值和单位 | 价值与关系 |
 | --- | --- | --- |
 | `songs` / `song_id` 正整数主键 | 可空 TEXT：name、artist、dancer、genre、group_name、composed_title、composed_title_spell；可空 INTEGER：player_count、rpe；可空 REAL：volume、start、end（上游秒）；flip、double_width、skip_random、disable_public 为可空 0/1；aya_id 保存可空上游数值 JSON 文本；tags_json、original_urls_json、shader_motion_json 为可空合法 JSON 数组文本 | 清单资料，NULL=未知，0/false/空串/空数组是已知值；清单可重新获取，旧歌曲不因清单删除而丢失统计 |
-| `media` / `md5` | 小写 32 位十六进制非空键；byte_size 可空非负字节数；source_path 可空来源路径 | 资源索引，不是文件存在/完整性的证明；与 MD5 文件相互独立 |
+| `media` / `md5` | 小写 32 位十六进制非空键；byte_size 可空非负字节数 | 资源索引，不是文件存在/完整性的证明；与 MD5 文件相互独立 |
 | `song_media` / `song_id` | 歌曲外键 → 非空 media.md5 外键；md5 索引 | 每首歌一条当前关联，多首歌可共享同一媒体；清单权威，API URL 观察及显式 ID 加载仅补缺失关系 |
-| `song_urls` / `(song_id,api,node)` | 歌曲正整数（无外键）、API/节点/完整 URL 文本、MD5、正字节数；query_started_at、observed_at、failed_at 为 Unix **纳秒**，failed_at 默认 0=未失败 | API 证据缓存，写入时在同一事务补缺失歌曲关联，不覆盖已有映射；node 为 API 选择（cf/nya），URL 可带签名参数；不属于代理密码。24 小时内未失败且不在未来的记录才可使用 |
+| `song_urls` / `(song_id,api,node)` | 歌曲正整数、API/节点/完整 URL 文本、小写 MD5、正字节数；歌曲和资源分别外键关联 songs、media，均为 DEFERRABLE INITIALLY DEFERRED；query_started_at、observed_at、failed_at 为 Unix **纳秒**，failed_at 默认 0=未失败 | API 证据缓存，写入时在同一事务补缺失歌曲关联，不覆盖已有映射；node 为 API 选择（cf/nya），URL 可带签名参数；不属于代理密码。24 小时内未失败且不在未来的记录才可使用 |
 | `song_preferences` / song_id | policy 仅允许 blocked / favorite，外键关联 songs | 无记录为普通；用户标记不写需求统计，不触发下载 |
 | `song_usage` / `song_id` 外键 | demand_count 非负累计次数；demand_score 非负 REAL；last_demand_at 为 Unix 毫秒 | 按歌曲跨域 GET 或用户显式 VRCX 历史初始化，30 秒去重、60 天半衰期指数累计；历史按原时间计算。明细清理后不能无损重算 |
-| `song_playback` / `song_id` 外键 | transfer_count 累计次数、last_transfer_at Unix 毫秒 | HTTP GET、200/206、completed、正字节完成证据，按完成时刻 30 秒去重；不是游戏首帧或完整播放确认 |
-| `catalog_state` / `catalog_key` | 当前键 songs；revision 原始民用水位；digest 为 sha256-v1；source 溯源文本；accepted_at Unix 毫秒 | 接受清单的事务水位，身份/摘要不可随展示更名修改 |
-| `catalog_checks` / `catalog_key` | checked_at Unix 毫秒，默认 0=从未成功验证；message/error 默认空串=无诊断 | 成功验证时间和最近错误；失败不把旧成功时间改成失败时间 |
+| `song_playback` / `song_id` 外键 | transfer_count 非负累计次数、last_transfer_at Unix 毫秒 | HTTP GET、200/206、completed、正字节完成证据，按完成时刻 30 秒去重；不是游戏首帧或完整播放确认 |
+| `catalog_state` / `catalog_key` | 非空主键，当前键 songs；revision 原始民用水位；digest 为 sha256-v1；source 溯源文本；accepted_at Unix 毫秒 | 接受清单的事务水位，身份/摘要不可随展示更名修改 |
+| `catalog_checks` / `catalog_key` | 非空主键；checked_at Unix 毫秒，默认 0=从未成功验证；message/error 默认空串=无诊断 | 成功验证时间和最近错误；失败不把旧成功时间改成失败时间 |
 | `catalog_members` / `song_id` 外键 | 当前已接受完整清单的成员 ID | 与 song_media 一起推导覆盖，不复制另一份成员资料 |
-| `media_access` / `md5` | last_requested_at Unix 毫秒，按 max 更新 | 最近 GET 事实；独立于歌曲归属、明细保留期，允许未被 media 收录的资源 |
-| `request_events` / `event_id` INTEGER 主键 | resource_key 为请求处理时的资源 MD5，未解析到资源时为空串；MD5 同时表示内容身份和内容版本，不再另存 version_key。host/source/method/range_header/cache_result/outcome 为请求证据文本；requested_at 为请求到达的 Unix 毫秒；file_bytes/transferred_bytes 字节，后者仅计实际写出的视频正文；elapsed_ms 持续毫秒；status HTTP 数值；counts_as_demand 0/1。可空字段：song_id 为请求处理时的明确歌曲 ID 文本，completed_at 为结束 Unix 毫秒，response_bytes 为本次有效响应长度（字节），first_body_ns 为单次首正文耗时（纳秒），first_body_blocking 为首正文前实际等块的 0/1 | 有界原始请求日志，歌曲及资源身份在处理时冻结，可空事实未知为 NULL，不靠当前关联回填；首正文样本仅在已实际写出视频正文时有效，不要求最终成功。按 resource_key+requested_at、requested_at 和 HTTP 部分索引（requested_at DESC,event_id DESC）查询；同毫秒按 event_id 排序，清理后不承诺 ID 全局永不复用 |
+| `media_access` / `md5` | 小写 32 位十六进制非空键；last_requested_at Unix 毫秒，按 max 更新 | 最近 GET 事实；独立于歌曲归属、明细保留期，允许未被 media 收录的资源 |
+| `request_events` / `event_id` INTEGER 主键 | resource_md5 为请求处理时的资源 MD5，未知为 NULL；MD5 同时表示内容身份和内容版本，不另存 version_key。host/method/range_header/cache_result/outcome 为请求证据文本；requested_at 为请求到达的 Unix 毫秒；file_bytes/transferred_bytes 非负字节，后者仅计实际写出的视频正文；elapsed_ms 非负持续毫秒；status HTTP 数值。可空字段：song_id 为请求处理时的明确正整数歌曲 ID，completed_at 为结束 Unix 毫秒，response_bytes 为本次有效响应长度（字节），first_body_ns 为单次首正文耗时（纳秒），first_body_blocking 为首正文前实际等块的 0/1 | 有界原始请求日志，歌曲及资源身份在处理时冻结，可空事实未知为 NULL，不靠当前关联回填；首正文样本仅在已实际写出视频正文时有效，不要求最终成功。按 resource_md5+requested_at、时间复合索引（requested_at DESC,event_id DESC）查询；同毫秒按 event_id 排序，清理后不承诺 ID 全局永不复用 |
 | `request_observation` / `id=1` | started_at 为新口径开始采集的 Unix 毫秒；retained_since 为清理水位的 Unix 毫秒，初始 0=尚未清理，按 max 更新 | 与明细清理同事务推进水位，跨重启保留；与 72 小时窗口共同决定可用范围及不完整窗口提示，不表示持续在线时长 |
-| `traffic_totals` / `id=1` | saved_bytes 非负累计命中字节；hits/misses 累计次数，初始化为零 | HTTP GET 成功完成 200/206 的 HIT/MISS 事实；requests、命中率由二者推导。首正文统计直接来自 request_events 的单次有效样本，按到达时间最近 72 小时、实际等块／无需等块分组计算 P50/P95，不再保存 playback_latency 累计表 |
+| `traffic_totals` / `id=1` | saved_bytes 非负累计命中字节；hits/misses 非负累计次数，初始化为零 | HTTP GET 成功完成 200/206 的 HIT/MISS 事实；requests、命中率由二者推导。首正文统计直接来自 request_events 的单次有效样本，按到达时间最近 72 小时、实际等块／无需等块分组计算 P50/P95，不再保存 playback_latency 累计表 |
 
-`request_events` 的 source 由业务写入（http 或 prefetch），method 是 HTTP 方法，cache_result 是 HIT/MISS 等响应分类，HTTP outcome 为 completed/failed/canceled/incomplete/aborted 等结果，预下载还可记录 timeout/not_retained；这些诊断文本不是可扩展行为开关，未知值不得当成成功。累计计数不因删除视频或清理明细而重置。评分固定 `oldScore * 2^(-elapsed/(60 days)) + 1`；回拨或 30 秒内重复需求不计分、不降低 last_demand_at。未来改评分必须保持旧含义或随数据库版本明确重置/重算策略，不假设请求历史完整。
+`request_events` 只保存 HTTP 视频请求，method 是 HTTP 方法，cache_result 是 HIT/MISS 等响应分类，outcome 为 completed/failed/canceled/incomplete/aborted 等结果；预下载只保留已有诊断日志，不写业务历史。这些诊断文本不是可扩展行为开关，未知值不得当成成功。累计计数不因删除视频或清理明细而重置。评分固定 `oldScore * 2^(-elapsed/(60 days)) + 1`；回拨或 30 秒内重复需求不计分、不降低 last_demand_at。未来改评分必须保持旧含义或随数据库版本明确重置/重算策略，不假设请求历史完整。
 
 用户显式导入 VRCX 时可按[历史初始化契约](song-catalog-design.md#vrcx-历史初始化)整体替换 `song_usage`，非空统计需二次确认；提交点复查并与需求写入串行，失败回滚。只补必要占位歌曲，不修改媒体、映射、请求明细或配置；不增加表、格式版本、原始历史文件或持续同步状态。源 SQLite 只读并使用正常 WAL 快照，预览聚合及完成回执只在内存保留至过期。
+
+请求身份独立于当前曲库，不加歌曲或资源外键；解析失败也可保存明确歌曲 ID。对外 JSON 继续使用字符串 ID／MD5 和空串表示未知，不丢失大整数精度。`counts_as_demand` 已删除：请求符合条件不代表通过 30 秒去重，不能据此还原累计次数。
 
 ### 时间与排序
 
@@ -276,7 +278,7 @@ DPAPI CurrentUser 不使用路径作为额外熵，不请求 UAC。同用户覆�
 
 数据库入口要求普通文件、可确认的单一硬链接名称和实际完整路径；写入及只读入口共用检查，多硬链接文件和短文件名等非规范别名明确拒绝，文件保持原样。普通大小写和词法路径处理沿用原规则，不静默改变已选数据库的作用域，不新增身份登记库；视频导入仍可使用硬链接。程序使用中的数据库和伴随文件不得由外部移动、替换或改名。
 
-本次没有伪造 v1→v2 或配置 v2→v3 迁移。将来正式发布的旧格式若需要升级，应在该唯一打开入口持锁检查身份后、启动业务前实现针对性事务步骤，保留旧样本并测试成功/失败回滚和降级拒绝；配置升级应原子替换，失败保留原文件。不能以删库重建、改版本号或清空陌生目录代替升级。
+本次没有伪造 v1→v2 或配置 v2→v3 迁移。将来正式发布的旧格式若需要升级，应在该唯一打开入口持锁检查身份后、启动业务前实现针对性事务步骤，保留旧样本并测试成功/失败回滚和降级拒绝；迁移结果必须与目标版本新建库通过同一冻结结构校验。当前 v6 已有仅用于测试的后继格式重建演练，覆盖失败回滚及重试、全表剩余数据保持、版本提交和降级拒绝，不代表已提供产品迁移链；配置升级应原子替换，失败保留原文件。不能以删库重建、改版本号或清空陌生目录代替升级。
 
 已覆盖固定样本反复读写打开不改字节、旧/未来/未知版本、缺表/索引/新增列、损坏/空/缺失数据库、初始化中途失败回滚、设置替换失败保留密文、DPAPI 篡改与重配、同用户移动、时间精度与并发同刻/回拨、跨库和 Portable 相对路径。2026-10-26 已在可丢弃的 128 MiB NTFS 虚拟磁盘验证真实耗尽：覆盖块写入、视频发布、数据库同步／后台写入及关闭错误，释放空间后验证重开、已提交数据保持和新写入，范围及清理证据见[迁移验证记录](persistence-migration-plan.md#本轮已取得的验证证据)。这不代表任意文件系统、真实断电、另一 Windows 用户／普通跨机器或 VRChat／托盘／UAC 联合场景均已通过。
 

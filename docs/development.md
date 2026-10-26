@@ -53,6 +53,15 @@ Windows 测试统一通过 `scripts/with-test-temp.ps1` 运行，定向检查也
 
 Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的 C 工具链；本机已使用独立 w64devkit/GCC 完成下载与本地资源整包检查，执行时显式设置 CGO_ENABLED=1 和 CC，测试命令同样通过上述入口运行。工具及原始结果保存在忽略目录 artifacts/，不依赖全局 PATH。
 
+真实磁盘耗尽是独立的 Windows 环境检查，不在普通测试中自动执行。`scripts/test-storage-full.ps1` 使用 Hyper-V 的虚拟磁盘命令创建新的固定 128 MiB NTFS 镜像；只接受本仓库 `artifacts/` 下的测试二进制和证据目录，校验新磁盘身份及容量后才初始化，并为宿主卷保留至少 512 MiB 空间。测试再次校验卷标记与容量，分别填满块、发布和数据库所在的可丢弃卷，检查错误、关闭、清理及已提交数据；结束后卸载并删除本次镜像，保留日志与 `result.json`。不接受现有磁盘号或镜像路径，不填满日常使用的卷。构建不需管理员权限，挂载阶段需要 Windows 管理员令牌；UAC 未确认时此项仍为未验证。
+
+```powershell
+New-Item -ItemType Directory -Force artifacts/storage-full | Out-Null
+./scripts/with-test-temp.ps1 go test -tags=no_easytier -c -o artifacts/storage-full/cacheproxy.test.exe ./internal/cacheproxy
+# 在本仓库的管理员 PowerShell 中执行已构建的定向测试：
+./scripts/test-storage-full.ps1 -TestBinary artifacts/storage-full/cacheproxy.test.exe -EvidenceDirectory artifacts/storage-full
+```
+
 临时 Go 探测源码即使放在 Git 忽略的 `artifacts/` 中，仍会被 `go test ./...` 和 `go vet ./...` 发现。独立探测文件应在首行添加 `//go:build ignore` 并空一行；需要执行时用 `go run` 明确列出入口及其辅助源文件，避免多个 `main` 混入同一个包。也可放入独立的工具模块。
 
 CF 专用实验的新构建要求显式指定本地网卡配置，统一绑定 API、媒体、Monitor 与 DoH 出站；配置错误或绑定失效不回退其他网卡。实现仅在实验测试文件中，正式 EXE 不读取此配置。配置、原始地址和个人运行偏好放入已忽略的 `local/`、`artifacts/`，仓库只保留通用实现和规则，详见[实验网卡绑定](../experiments/cf-block-paths/network.md)。
@@ -70,7 +79,7 @@ Windows amd64 的桌面 EXE 图标使用 `internal/branding/logo.ico`。同目�
 ```powershell
 go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
 go build -o bin/SWD.exe ./cmd/still-wanna-dance-console
-node scripts/acceptance.mjs bin/still-wanna-dance.exe bin/SWD.exe bin/data/terms.json
+node scripts/acceptance.mjs bin/still-wanna-dance.exe bin/SWD.exe bin/data/state/terms.json
 node --test scripts/acceptance-protocol.test.mjs scripts/acceptance-request.test.mjs
 ```
 

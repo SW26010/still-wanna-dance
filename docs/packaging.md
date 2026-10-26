@@ -26,7 +26,7 @@ SWD/
     SOURCE.json
 ```
 
-不交付 data、空媒体目录、本机配置、hosts、日志或缓存。精确交付白名单统一维护于 `scripts/portable-files.json`。使用说明在内置「使用帮助」中；完整条款由 `internal/legal/TERMS.txt` 嵌入，在应用内查看、保存纯文本，也可用 `SWD.exe -show-terms` 导出。ZIP 不再交付 README、条款副本或构建信息 JSON。应用数据位置已经固定，完整树、生命周期及备份范围以[统一存储](storage.md)为准。
+不交付 config.json、data、videos、logs、work、本机 hosts 或空用户目录。精确交付白名单统一维护于 `scripts/portable-files.json`。使用说明在内置「使用帮助」中；完整条款由 `internal/legal/TERMS.txt` 嵌入，在应用内查看、保存纯文本，也可用 `SWD.exe -show-terms` 导出。ZIP 不再交付 README、条款副本或构建信息 JSON。应用数据位置已经固定，完整树、生命周期及备份范围以[统一存储](storage.md)为准。
 
 产物暂存于 `artifacts/still-wanna-dance-<版本>-windows-amd64-portable/SWD/`，ZIP 和 SHA-256 文件位于 artifacts 根。不指定版本时采用 `dev-日期-时间`；`-OutputDir` 可指定输出目录。遇到同名产物报错，不覆盖已有包。
 
@@ -54,9 +54,9 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 用户双击 SWD.exe 显示托盘并打开网页；同一实际 EXE 和配置重复启动才打开已有实例，不同安装或配置显示冲突及归属。无需 CMD / PS1 启动脚本。仅编译可执行 `./scripts/build-desktop.ps1`，默认输出 `bin/SWD.exe`。
 
-默认配置为 EXE 旁的 `data/config.json`，首次成功打开即保存 schemaVersion=6。程序日志为 `data/logs/app.log`，默认媒体为 `data/storage`，未使用时不预建。自定义 `-config`、多实例隔离、相对路径及外置库约定见[统一存储](storage.md)。无版本和版本 1、2、3、4、5 测试配置及旧库不迁移。
+默认配置为 EXE 旁的 `config.json`，首次成功打开即保存 schemaVersion=7。程序日志为 `logs/app.log`，首次启动自动准备 `data/database/storage.sqlite` 与 `videos`；已有资料保护和自定义位置的明确新建遵循配置生命周期。自定义 `-config`、多实例隔离、相对路径及外置库约定见[统一存储](storage.md)。无版本和版本 1～6 测试配置及旧库不迁移。
 
-覆盖升级先退出并备份，然后只将 ZIP 的 SWD/ 内交付文件覆盖到原安装目录；不覆盖 data、外置库或未知文件。ZIP 内层路径不随版本变化，不能将新解压的另一目录当作原实例启动。详见下方[覆盖升级与备份](#覆盖升级与备份)。
+覆盖升级先退出并备份，然后只将 ZIP 的 SWD/ 内交付文件覆盖到原安装目录；不覆盖 config.json、data、videos、logs、work、外置资源或未知文件。ZIP 内层路径不随版本变化，不能将新解压的另一目录当作原实例启动。详见下方[覆盖升级与备份](#覆盖升级与备份)。
 
 自动验证解压真实 ZIP，从不同工作目录启动无托盘 EXE，检查固定路径、许可及模块覆盖、未用目录不生成、条款门禁、配置锁、JSON 日志、重复实例拒绝及强制停止后的重启。首次启动、重启、移动和自定义配置均断言身份 API 中的 SWD 协议、实际 EXE、配置、PID 及 OS 进程创建时间。随后覆盖解压并在原位置启动替换后的 EXE，逐文件比较覆盖前后的用户数据哈希；整目录移动后再启动，并验证同父目录的两个自定义配置并发启动且锁/日志/默认媒体隔离。另验证已知旧测试布局在创建 data 前被拒绝。Go 回归补充确认记录、通道密钥、快照的移动、外置绝对路径和旧存储标记保护。
 
@@ -70,8 +70,8 @@ Windows CI 在 tag 上运行正式流程，并上传 ZIP、源码、校验、发
 
 ## 覆盖升级与备份
 
-1. 退出整个应用。默认备份完整 `data/`；自定义 `-config` 备份主配置及对应实例数据根，外置媒体另外备份整个存储库，不在运行中单独复制 SQLite 主文件或 videos。
-2. 校验新版 ZIP 的 SHA256，解压到临时位置，将 `SWD/` 内的 `SWD.exe` 和整个 `licenses/` 覆盖到原安装目录，保留原数据、外置库与未知文件。从原目录启动，避免误用新目录的空配置。
+1. 正常退出整个应用。优先备份所选数据库及恢复所需的 SQLite 伴随文件，建议保留主配置；完整视频按需备份。完整媒体库备份才包含全部视频。可重建状态、日志及临时文件无需日常备份；外置资源按各自位置保管。
+2. 校验新版 ZIP 的 SHA256，解压到临时位置，将 `SWD/` 内的 `SWD.exe` 和整个 `licenses/` 覆盖到原安装目录，保留 config.json、data、videos、logs、work、外置资源与未知文件。从原目录启动，避免误用新目录的空配置。
 3. 核对「关于」版本及「使用帮助」中的当前路径。条款不变时，同用户有效确认和凭据应保留；条款变化要求重确认。跨用户/普通跨机器无法解密时保留原密文和其它数据，重新确认或配置，不隐式切换直连。
 4. 遇到损坏或未来格式停止并按诊断处理，不手改版本号或删除数据库。无版本及不受支持的旧配置、旧布局不迁移，支持范围以[统一存储契约](storage.md#portable-文件契约与生命周期)为准；首发前未公开构建不承诺跨全部历史布局升级，也不自动扫描删除旧文件。
 

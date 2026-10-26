@@ -10,16 +10,21 @@
 ./scripts/with-test-temp.ps1 go test -tags=no_easytier ./internal/... ./cmd/...
 ./scripts/with-test-temp.ps1 go vet -tags=no_easytier ./internal/... ./cmd/...
 go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
+# 仅首次新建；已有 v5 数据库直接使用其文件位置，不执行此命令。
+.\bin\still-wanna-dance.exe -database .\library\storage.sqlite -create-database
+New-Item -ItemType Directory -Path .\complete-videos
 .\bin\still-wanna-dance.exe -show-terms
 # 阅读全文并同意后再执行；软件许可不授予第三方视频内容权利。
-.\bin\still-wanna-dance.exe -accept-terms=2026-10-11.1 -listen 127.0.0.1:18080 -storage-dir .\still-wanna-dance-data
+.\bin\still-wanna-dance.exe -accept-terms=2026-10-19.1 -listen 127.0.0.1:18080 -database .\library\storage.sqlite -video-dir .\complete-videos -cache-unlimited=true
 ```
 
-默认监听 `127.0.0.1:18080`，默认目录相对于启动时的工作目录。Ctrl+C 取消后台下载，清理临时文件并关闭服务。启动不修改 hosts、不改代理，会清理已被取代的旧版本。所有日志为 stderr 上的 JSON。
+默认监听 `127.0.0.1:18080`，数据库文件与完整视频目录均须显式指定；相对路径以启动时的工作目录为基准。Ctrl+C 取消后台下载，清理临时文件并关闭服务。启动不修改 hosts、不改代理，会清理已被取代的旧版本。所有日志为 stderr 上的 JSON。
 
 验证时先通过本地播放 API 请求：`curl.exe --noproxy "*" --resolve api.udon.dance:18080:127.0.0.1 "http://api.udon.dance:18080/Api/Songs/play?id=1343&node=cf"`。服务根据有效 API 返回值发现资源域名；后续直达资源请求须保留实际域名、路径、e、s。直接访问 localhost 首页返回 400；网页和托盘入口为 `SWD.exe`。
 
-统一存储位于 `-storage-dir` 指定的根目录：`videos/<资源指纹>.mp4` 是唯一正式视频，`tmp` 保存下载临时文件，`storage.sqlite` 保存歌曲、版本和请求统计。不读取旧格式，不提供迁移。详见[统一存储](storage.md)。
+`-database` 指向已有 v5 数据库，保存歌曲、资源与个人统计；`-video-dir` 指向已有完整视频目录，直接使用其中 `{md5}.mp4`，不再附加 `videos/`。普通启动不建库、不重建缺失的视频目录；只有 `-create-database` 明确创建新库后退出，已有文件（包括空文件）均拒绝覆盖。块固定在 EXE 旁 `work/<service 实例>/`；发布／导入暂存位于视频目录 `.swd-tmp/`，仍在视频卷。没有工作目录参数，不读取桌面设置或旧 `-storage-dir`。详见[存储契约](storage.md)。
+
+若目录已有完整视频，须显式传入 `-cache-unlimited` 或 `-max-cache-bytes`，确认按本次数据库的收藏和保留策略管理这些文件；否则启动拒绝，避免默认零预算删除已有视频。CLI 不保存这项选择，下次启动仍由参数表达。
 
 ## 游戏接入
 
@@ -36,14 +41,14 @@ CLI 不监听 443，也不支持 `/v/` 或 SHA。hosts 同时影响 HTTP/HTTPS�
 ## 本地存储和下载规则
 
 - 接收有效 API 响应已确认的资源 Host（允许附带端口），或显式配置的域名覆盖项的 GET/HEAD；路径限定为 `/files/<数字目录>/<正整数ID>-<字母数字版本>.mp4`。e 必须为 MD5，s 为正数且不超过上限。重复 e/s、错误转义、其他 Host 和路径返回 400，其他方法返回 405。
-- 本地仅以 MD5 定位 `videos/{md5}.mp4`；同内容跨歌曲、资源版本、目录和线路共用一份文件。歌曲 ID 到 MD5 的关联以批量清单为准，新增和更新但不删除旧 ID。纯视频 URL 不推断曲目关系。
+- 本地仅以 MD5 定位 `<video-dir>/{md5}.mp4`；同内容跨歌曲、资源版本、目录和线路共用一份文件。歌曲 ID 到 MD5 的关联以批量清单为准，新增和更新但不删除旧 ID。纯视频 URL 不推断曲目关系。
 - 下载完整后校验一次 MD5。之后按不可变文件使用，普通命中和扫描不再读取正文校验；活动响应共享文件句柄和独立读取位置。扫描由独立函数一次枚举目录，仅检查被引用的 MD5 文件是否存在，忽略孤儿。见[存储契约](storage.md)。
 - 未命中时同内容共享一个下载会话，支持 Range 的上游按 1 MiB 内容块接入全局调度，各块共享执行。客户端独立按自己的 Range 读取已完整可读的块，缺块时等待；上游不支持 Range 时回退顺序整文件下载。原理见[全局块调度设计](block-scheduler-design.md)。默认连接 API 返回的实际资源域名及 443 端口，不把节点名称或 IP 地理位置当作域名身份，也不预设这两个历史域名继续存在。详见[资源域名规则](resource-domains.md)。通过内置 DoH 解析并建立 HTTPS 连接，保留原视频 Host、TLS SNI 和证书校验，不使用系统代理环境变量，不回退系统 DNS/hosts 或明文 HTTP。独立 DNS 绕过本机 hosts 接管，无需额外的回源别名，也不会在失败时静默改用历史 `ud-*` 地址。域名依据见[播放域名实测](history/playback-domain-observation-20260926.md)。
 - 使用 `-socks5-proxy` 时，上述内置 DoH 直连改为通过 SOCKS5 建连，目标域名解析交给代理，失败不回退直连；不改变 HTTPS 证书校验或本地视频逻辑。
 - 视频回源最多跟随五次重定向，仅接受当前已确认的视频域名、合法视频路径且 MD5/大小与原资源一致的目标。HTTP Location 升级为 HTTPS 后访问，每次连接继续使用所选的直连／SOCKS5 出口；不接受任意域名跳转。播放 API 的重定向作为视频地址解析，再进入同一视频资源处理链路。
-- Range 与顺序 200 将完整块保存到 `tmp/download-block-*.part`，写入关闭后提供读取；半块不保存。收齐后先按预算和共用资源保留优先级取得预留，再按块顺序合并到发布文件，合并时计算 MD5 并核对长度，同步关闭后重命名到 `videos`。旧读者继续使用块文件，最后引用释放后清理。上游错误、截断、超长、非预期压缩和校验失败不发布正式视频。MD5 仅用于协议完整性检查；零预算下普通资源不进行整视频合并/校验，默认开启的 `-retain-favorites` 允许收藏完整视频按[歌曲偏好规则](download-resource-design.md#8-歌曲屏蔽与收藏)豁免预算；队列可报告临时可读，手动补齐只有校验发布成功才算完成。
+- Range 与顺序 200 将完整块保存到 EXE 旁固定 `work/service-<实例摘要>/download-block-*.part`，写入关闭后提供读取；半块不保存。收齐后先按预算和共用资源保留优先级取得预留，再按块顺序合并到发布文件，合并时计算 MD5 并核对长度，同步关闭后重命名到所选完整视频目录。旧读者继续使用块文件，最后引用释放后清理。上游错误、截断、超长、非预期压缩和校验失败不发布正式视频。MD5 仅用于协议完整性检查；零预算下普通资源不进行整视频合并/校验，默认开启的 `-retain-favorites` 允许收藏完整视频按[歌曲偏好规则](download-resource-design.md#8-歌曲屏蔽与收藏)豁免预算；队列可报告临时可读，手动补齐只有校验发布成功才算完成。
 - 同键并发共享后台任务，回源节点取首次请求；尚在下载时切 CDN 仍复用这一任务，不会自动换源。实际读取等待缺块时登记 Blocking 并立即启动；普通有限期限块按 ReadyBy 排队，进入固定 M 启动窗口且含 Blocking 的总在途数低于开放额度时才启动，独立无期限补齐可提前使用普通额度。已有下载自然完成，优先级变化不抢占；最后一份有效需求撤销或到期才正常取消清理。块使用需求和下载任务容量有界，无法接纳时可返回 503 后重试。详见[需求调度](queue-prefetch.md#资源需求与优先级)。
-- 整个存储根目录由操作系统文件锁独占。正常退出或进程死亡释放锁，重启清理受管的块文件与发布临时文件。`.lock` 文件保留正常，不应在运行时删除。
+- 数据库、视频与块工作区分别使用 OS 锁；不同数据库共用同一视频目录也会被拒绝。视频锁为 `.swd.lock`，旧 `videos` 目录还沿用父目录 `.lock` 防止旧写入者并发。正常退出或进程死亡释放锁，重启仅清理所属受管工作文件；不删除锁文件解锁。
 
 视频文件与数据库不构成跨资源原子事务。先发布已校验文件，再提交歌曲及版本记录；若崩溃发生在两者之间，下次命中时补齐记录。数据库是必需组件，打开失败则引擎启动失败，不覆盖原数据库。不同版本使用不同路径，不会替换正在播放的旧版本。
 
@@ -93,7 +98,9 @@ FROM song_usage ORDER BY last_demand_at DESC;
 | `-listen` | `127.0.0.1:18080` |
 | `-socks5-proxy` | 空，使用内置 DoH 直连；填写 `127.0.0.1:7891` 等 `host:port` 后，上游连接及目标 DNS 交给 SOCKS5，不回退直连 |
 | `-socks5-username` | 空，无认证；填写用户名时须设置密码环境变量 `SWD_SOCKS5_PASSWORD`，两者各限 1～255 字节 |
-| `-storage-dir` | `still-wanna-dance-data` |
+| `-database` | 必填，已有 v5 数据库文件；相对路径基于当前工作目录 |
+| `-create-database` | `false`；显式创建 `-database` 指定的新文件后退出，不覆盖、不启动服务 |
+| `-video-dir` | 服务启动必填，已有完整视频目录；相对路径基于当前工作目录 |
 | `-origin DOMAIN=HOST:PORT` | 空；可重复指定可信的显式域名回源覆盖 |
 | `-download-timeout` | `10m`，分别限制每次已准入块执行（含其重试）、顺序整文件下载，以及共享任务的本地校验/发布阶段；不消耗于调度等待，不限制额度用尽时的独立本地校验路径 |
 | `-max-file-bytes` | `2147483648`（2 GiB） |

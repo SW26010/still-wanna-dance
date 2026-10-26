@@ -34,7 +34,7 @@ SWD/
 
 正式包同时生成独立的 `*-corresponding-source.tar.gz` 及 SHA256、`*-release.json` 和可用作 Release 正文的 `*-release-notes.md`。完整源码不放进 Portable。`licenses/SOURCE.txt` 给出该 tag 的准确源码附件 URL、提交、校验及构建入口；`SOURCE.json` 将 EXE 哈希与源码哈希绑定，发行清单再绑定 ZIP/源码资产哈希和实际 EXE 模块。详见[完整对应源码](corresponding-source.md)。
 
-正式流程用最终源码附件进行全新缓存、仅包内 file GOPROXY 的独立重建，比较实际二进制模块；再运行真实 ZIP 的 Portable 隔离验证，全部成功才复制到输出目录。缺少 notices、源码、构建脚本、错误 tag/commit、dirty 或版本/哈希不符均失败。`go-lzo` 固定版本的[已接受风险](issue-30-license-audit.md)保留在产物记录中，不作为失败条件。Mihomo 已接入桌面；发行链自动验证不替代 LA-034/035/036 的真实桌面、代理和游戏验收，实际覆盖版本见[开发验证记录](validation/issue-14-validation.md)。
+正式流程用最终源码附件进行全新缓存、仅包内 file GOPROXY 的独立重建，比较实际二进制模块；再运行真实 ZIP 的 Portable 隔离验证，全部成功才复制到输出目录。缺少 notices、源码、构建脚本、错误 tag/commit、dirty 或版本/哈希不符均失败。`go-lzo` 固定版本的[已接受风险](issue-30-license-audit.md)保留在产物记录中，不作为失败条件。Mihomo 已接入桌面，实际覆盖版本见[开发验证记录](validation/issue-14-validation.md)；原 LA-034/035/036 已按[验证机制](live-acceptance-process.md)分流为开发、浏览器和 Windows 环境检查，只有实际播放器接入兼容性留在 LA-025。发行链验证不能替代这些不同范围的证据。
 
 已有产物可再次独立验证：
 
@@ -52,21 +52,23 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 `licenses/LICENSE` 为 GPLv3 全文，`licenses/LICENSE-MIT` 保留历史 MIT 授权与版权；自有新贡献采用 GPL-3.0-only，第三方许可不改写。`licenses/THIRD-PARTY-NOTICES.txt` 包含直接/间接依赖及内嵌组件许可全文；打包追加实际 Go 工具链声明。脚本从 EXE 模块版本校验声明覆盖，未登记版本或 replacement 会阻止打包。更新依赖需核对实际许可，不能只改声明中的版本号。单独分发 EXE 也应附带必要许可。
 
-用户双击 SWD.exe 显示托盘并打开网页；同一实际 EXE 和配置重复启动才打开已有实例，不同安装或配置显示冲突及归属。无需 CMD / PS1 启动脚本。仅编译可执行 `./scripts/build-desktop.ps1`，默认输出 `bin/SWD.exe`。
+用户双击 SWD.exe 显示托盘，默认打开 WebUI；已确认条款时可按设置关闭启动打开，未确认当前条款时仍打开确认入口。自动加速默认关闭，首次确认后由用户点击「开始加速」；启动行为以[配置生命周期](settings-lifecycle.md)为准。同一实际 EXE 和配置重复启动才打开已有实例，不同安装或配置显示冲突及归属。无需 CMD / PS1 启动脚本。仅编译可执行 `./scripts/build-desktop.ps1`，默认输出 `bin/SWD.exe`。
 
-默认配置为 EXE 旁的 `config.json`，首次成功打开即保存 schemaVersion=7。程序日志为 `logs/app.log`，首次启动自动准备 `data/database/storage.sqlite` 与 `videos`；已有资料保护和自定义位置的明确新建遵循配置生命周期。自定义 `-config`、多实例隔离、相对路径及外置库约定见[统一存储](storage.md)。无版本和版本 1～6 测试配置及旧库不迁移。
+默认配置为 EXE 旁的 `config.json`，首次成功打开即保存 schemaVersion=7。程序日志为 `logs/app.log`，首次启动自动准备 `data/database/storage.sqlite` 与 `videos`；已有资料保护和自定义位置的明确新建遵循[配置生命周期](settings-lifecycle.md)。自定义 `-config`、多实例隔离、相对路径及外置库约定见[统一存储](storage.md)。无版本和版本 1～6 测试配置拒绝打开并保留原文件；已有 v5 数据库可明确接入，不迁移其他数据库格式或自动搬动旧布局。
 
 覆盖升级先退出并备份，然后只将 ZIP 的 SWD/ 内交付文件覆盖到原安装目录；不覆盖 config.json、data、videos、logs、work、外置资源或未知文件。ZIP 内层路径不随版本变化，不能将新解压的另一目录当作原实例启动。详见下方[覆盖升级与备份](#覆盖升级与备份)。
 
-自动验证解压真实 ZIP，从不同工作目录启动无托盘 EXE，检查固定路径、许可及模块覆盖、未用目录不生成、条款门禁、配置锁、JSON 日志、重复实例拒绝及强制停止后的重启。首次启动、重启、移动和自定义配置均断言身份 API 中的 SWD 协议、实际 EXE、配置、PID 及 OS 进程创建时间。随后覆盖解压并在原位置启动替换后的 EXE，逐文件比较覆盖前后的用户数据哈希；整目录移动后再启动，并验证同父目录的两个自定义配置并发启动且锁/日志/默认媒体隔离。另验证已知旧测试布局在创建 data 前被拒绝。Go 回归补充确认记录、通道密钥、快照的移动、外置绝对路径和旧存储标记保护。
+自动验证解压真实 ZIP，从不同工作目录启动无托盘 EXE，检查固定路径、许可及模块覆盖、默认配置/数据库/视频目录自动准备、未用功能不生成状态或凭据、条款门禁、配置锁、JSON 日志、重复实例拒绝及强制停止后的重启。首次启动、重启、移动和自定义配置均断言身份 API 中的 SWD 协议、实际 EXE、配置、PID 及 OS 进程创建时间。随后覆盖解压并在原位置启动替换后的 EXE，逐文件比较覆盖前后的用户数据哈希；整目录移动后再启动，并验证同父目录的两个自定义配置并发启动且锁/日志/默认媒体隔离。另验证旧默认位置有资料时不自动建库、不改旧文件，以及带旧测试安装标记的目录在创建 data 前被拒绝。Go 回归补充确认记录、通道密钥、快照的移动、外置绝对路径和旧存储标记保护。
 
-验证不主动接受条款、不启动播放网关、不下载歌曲、不改 hosts，不替代真实 VRChat、托盘及 UAC 联合验收；测试退出只终止自己创建的进程，成功或失败均保留隔离目录及其中的日志供检查。默认位置为仓库忽略目录 `artifacts/portable-smoke/Still Wanna Dance smoke <随机标识>`，退出时输出实际路径；可用 `test-portable.ps1 -EvidenceDir <目录>` 指定其他持久位置。正式发布显式使用原仓库的该目录，避免材料随 `TEMP` 包装器或临时检出一起被清理；自定义目录同样应放在这些临时目录之外。
+验证不主动接受条款、不启动播放网关、不下载歌曲、不改 hosts；真实托盘及 UAC 属于 Windows 环境检查，游戏专属场景按 [VRC 台账](live-acceptance-backlog.md)另行验证。测试退出只终止自己创建的进程，成功或失败均保留隔离目录及其中的日志供检查。默认位置为仓库忽略目录 `artifacts/portable-smoke/Still Wanna Dance smoke <随机标识>`，退出时输出实际路径；可用 `test-portable.ps1 -EvidenceDir <目录>` 指定其他持久位置。正式发布显式使用原仓库的该目录，避免材料随 `TEMP` 包装器或临时检出一起被清理；自定义目录同样应放在这些临时目录之外。
 
 2026-10-19：发布与临时目录定向回归 7/7 通过。使用缺少 EXE 的 ZIP 验证默认位置，以及临时检出配合显式证据目录两种入口：冒烟失败退出后，包装器临时目录已删除，解压材料仍可读取。日志保存在本地忽略目录 `artifacts/windows-test-temp/release-smoke-retention-final.log`；本次未执行完整正式发布构建。
 
-`-PreviousZip <前一版本ZIP>` 可在同一安装目录验证两个不同版本；两包都需匹配的 SHA256 和当前精确白名单，版本和 EXE 字节必须不同。未指定时仍为同包覆盖冒烟，不代表跨版本验收。此脚本保持条款门禁，不生成有效同意或初始化媒体库；持久化数据另由下面的集成检查覆盖，不能用空配置哈希代替。
+`-PreviousZip <前一版本ZIP>` 可在同一安装目录验证两个不同版本；两包都需匹配的 SHA256 和当前精确白名单，版本和 EXE 字节必须不同。未指定时仍为同包覆盖冒烟，不代表跨版本验收。此脚本保持条款门禁，不生成有效同意；首次启动会自动准备默认数据库和视频目录，但不导入或下载媒体。有内容的持久化数据另由下面的集成检查覆盖，不能用首次空库的覆盖结果代替。
 
-Windows CI 在 tag 上运行正式流程，并上传 ZIP、源码、校验、发行清单及 Release notes；手动选择分支时生成明确的 ci 开发包。工作流只在手动选择 `check` → `Run workflow` 或推送 `v[0-9]*` tag 时运行，普通分支 push/PR 不自动运行。脚本和 CI 不发布 GitHub Release；首次正式发布仍须完成 #23、#24、#25、#26、#30 的适用验收，包括 LA-033、Mihomo 实际接入后的产物复验及公开下载验证。
+Windows CI 在 tag 上运行正式流程，并上传 ZIP、源码、校验、发行清单及 Release notes；手动选择分支时生成明确的 ci 开发包。[完整 `check` 工作流](../.github/workflows/check.yml)只在手动选择 `check` → `Run workflow` 或推送 `v[0-9]*` tag 时运行，普通分支 push/PR 不自动运行。它覆盖 Windows/Linux 的前端一致性、浏览器、Node 与 Go 测试、vet/build，以及 Linux race/gofmt；单独的 `repository-artifacts` 通过只证明仓库产物策略检查。脚本和 CI 不发布 GitHub Release。
+
+首次正式发布由 [#5](https://github.com/SW26010/still-wanna-dance/issues/5) 汇总可靠性与公开交付、[#26](https://github.com/SW26010/still-wanna-dance/issues/26) 汇总最终 Portable 与覆盖升级结果。#23/#24/#25/#27/#30 已完成的基础实现和证据按适用范围复用；发行前仍须对选定提交完成完整 `check`、正式打包、同布局前一候选包到最终 ZIP 的覆盖升级，以及上述公开下载验证。开发和 Windows 剩余范围以[非 VRC 验证跟进](validation-followups.md)为准，游戏剩余场景以 [VRC 台账](live-acceptance-backlog.md)为准；原 LA-033 的网页门禁与条款展示已转浏览器/集成验证，条款变更后的实际确认和跨用户凭据边界归 Windows 验证。最新交付证据见 [#26 验证记录](validation/issue-26-validation.md)，不以历史包的结果替代最终候选。
 
 ## 覆盖升级与备份
 
@@ -75,7 +77,7 @@ Windows CI 在 tag 上运行正式流程，并上传 ZIP、源码、校验、发
 3. 核对「关于」版本及「使用帮助」中的当前路径。条款不变时，同用户有效确认和凭据应保留；条款变化要求重确认。跨用户/普通跨机器无法解密时保留原密文和其它数据，重新确认或配置，不隐式切换直连。
 4. 遇到损坏或未来格式停止并按诊断处理，不手改版本号或删除数据库。无版本及不受支持的旧配置、旧布局不迁移，支持范围以[统一存储契约](storage.md#portable-文件契约与生命周期)为准；首发前未公开构建不承诺跨全部历史布局升级，也不自动扫描删除旧文件。
 
-新增或移除交付文件须同步白名单、两条打包入口、验证脚本和说明；未来正式版之间若废弃文件需要清理，单独明确其所有权及安全处理，不按新白名单删除未知文件。停用或卸载前先恢复游戏直连、核对 hosts，再退出并备份所需数据；删除 Portable 不会自动恢复系统 hosts 或删除外置媒体。
+新增或移除交付文件须同步白名单、两条打包入口、验证脚本和说明；未来正式版之间若废弃文件需要清理，单独明确其所有权及安全处理，不按新白名单删除未知文件。停用或卸载时，确认「退出时恢复游戏直连」已开启并成功保存，再正常退出，核对本程序管理的 hosts 映射已恢复并备份所需数据。退出复用已准备的权限助手，不在退出时申请 UAC；未准备权限、助手故障或强制终止时不能保证恢复，按 [hosts 契约](console.md#hosts)处理。删除 Portable 不会自动恢复系统 hosts 或删除外置媒体。
 
 跨版本入口：
 

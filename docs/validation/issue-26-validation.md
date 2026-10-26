@@ -1,8 +1,19 @@
 # #26 Portable 交付收口与覆盖升级
 
-本轮按当前布局实施，不增加旧配置或旧目录迁移。正式发行门槛仍以 [打包说明](../packaging.md) 和 issue #26 为准；本地开发包及合成数据检查不等于正式公开 Release 已完成。
+本文汇总 Portable 交付与覆盖升级证据。现行流程以[打包说明](../packaging.md)为准，可靠性与交付结果分别由 [#5](https://github.com/SW26010/still-wanna-dance/issues/5) 和 [#26](https://github.com/SW26010/still-wanna-dance/issues/26) 汇总；本地开发包及合成数据检查不等于正式公开 Release 已完成。
 
-## 实现
+## 2026-10-26 发布前核对
+
+核对基线为 `41e49e09feddf159c15b5680c6458b4cf3f3cb11`。本节引用已有验证，没有重新执行产品测试；下方 2026-10-19 的包身份、失败和通过记录保留当时适用范围。
+
+- 四步引导已移除，首次使用保留条款确认，默认自动准备配置、数据库与视频目录。当前配置 v7、数据库 v5、快照 v2，路径和升级边界见[存储契约](../storage.md)；不承诺旧配置或旧目录自动迁移，已有受支持数据库可明确接入。
+- [2026-10-26 目录与存储验证](../persistence-migration-plan.md#2026-10-26-目录归位与状态命名)已覆盖真实 Console/浏览器首次使用、真实开发 ZIP 的生成/覆盖/搬迁、多配置隔离，以及两份同布局 EXE 在默认、外置和自定义配置下的数据保留；后续复审补齐 SQLite 伴随文件保护、旧资料明确接入和数据库文件别名拒绝。原开发包不包含其后全部复审修复，最终候选仍须重新打包验证。
+- [同日持久化证据](../persistence-migration-plan.md#本轮已取得的验证证据)已补真实跨卷发布/导入、v5 全数据备份还原和受限 NTFS 卷真实耗尽/恢复。它们不代表真实断电、跨用户解密或全部文件系统已验证。
+- 该提交的 [repository-artifacts 检查通过](https://github.com/SW26010/still-wanna-dance/actions/runs/40291909228)，仅证明仓库产物策略；核对时该提交尚无完整 `check` 结果，也未生成并公开正式产品 Release。旧临时验证 tag 的完整对应源码重建继续作为工具链证据，不能代替当前候选。
+
+剩余交付工作按[正式流程](../packaging.md)执行：选定提交的完整检查、正式 tag/打包、最终 ZIP 与同布局前一候选包的覆盖升级、对应源码独立重建，以及同 Release 附件公开下载验证。Windows 原生交互、条款变更确认与跨用户凭据边界统一在[非 VRC 验证跟进](../validation-followups.md)维护；只有游戏能回答的剩余场景见 [VRC 台账](../live-acceptance-backlog.md)。退出恢复按当前已保存的设置执行、默认开启，不再沿用旧的独立恢复按钮或“退出不会恢复 hosts”验收预期。
+
+## 2026-10-19 实现
 
 - ZIP 固定 `SWD/`，仅包含 `SWD.exe` 和六个许可证/对应源码文件。`scripts/portable-files.json` 是精确白名单；校验和、额外文件、空数据目录及未知路径在运行 EXE 前检查。未实现按白名单删除安装目录里的未知文件。
 - 构建身份通过 `internal/buildinfo` 共用于关于页、启动日志和 `-build-info`。版本/UTC 时间经共用 linker 参数注入，正式 EXE 的 revision/dirty 取真实 Go VCS；对应源码重建明确标为 rebuild。正式校验保留 EXE 模块/源码绑定，在 Windows 额外读取运行时身份和条款导出。

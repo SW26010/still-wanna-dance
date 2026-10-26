@@ -23,13 +23,15 @@
 
 ## 在开发环节完成的检查
 
-2026-10-25：四步引导已移除，LA-029 中的步骤切换、独立草稿、最终应用、回执续接与目录选择等专属场景不再适用；不记为验收通过。条款门禁、普通设置、曲库导入和网络诊断继续按现行入口验证，见[移除后的验证](validation/webui-validation.md#2026-10-25-移除使用引导保留条款确认)。Windows 文件选择器仍用于 VRCX 数据库。
+2026-10-25：四步引导已移除，LA-029 中的步骤切换、独立草稿、最终应用、回执续接与目录选择等专属场景不再适用；不记为验收通过。条款门禁、普通设置、曲库导入和网络诊断继续按现行入口验证，见[移除后的验证](validation/webui-validation.md#2026-10-25-移除使用引导保留条款确认)。Windows 文件选择器用于 VRCX 与当前业务数据库，原生交互仍按下表跟进。
+
+2026-10-26：存储职责与目录调整已有[验证记录](persistence-migration-plan.md#2026-10-26-目录归位与状态命名)，包括真实 Console/浏览器首次使用、真实 ZIP 首次生成与搬迁、两份同布局 EXE 的默认/外置/自定义配置覆盖升级，以及伴随文件和数据库别名保护。此前同日完成的[真实跨卷、v5 全数据备份还原及 128 MiB NTFS 受限卷耗尽](persistence-migration-plan.md#本轮已取得的验证证据)继续按原范围复用；块写入、视频发布及数据库写入/恢复三组耗尽场景已通过，不再笼统列为“磁盘满未验证”。这些结果不证明真实断电、所有文件系统或最终正式包已验收；本次文档核对没有新增测试结果。
 
 | 合并范围 / 原编号 | 已有依据与适合的检查 | 剩余工作的处理方式 |
 | --- | --- | --- |
-| 网页、引导、配置和展示：LA-001/002/013/021/023/026/029/031/032/033/036/043/046/047，A7 | [UI 验证](fluent-ui-migration.md#验证与待验收)、[引导验证](validation/issue-16-validation.md)、[配置生命周期](settings-lifecycle.md)、[视频存储预算验证](validation/cache-capacity-validation.md)；`webui/e2e` 与控制台集成/重启测试 | 浏览器完成草稿、切页、错误、时间/图标、零值/非法输入、saved/active 等；涉及真实库、保存与重启时连接隔离服务。网页文案或图标不追加游戏项，托盘/辅助技术见下表 |
-| 存储、导入、升级/搬迁、快照及隔离：LA-003/004/007/013/014/015/022/023/024/047，A5/A8 | [存储约定](storage.md)、[文件生命周期](runtime-lifecycle.md)、[工作文件检查](validation/issue-25-validation.md)、[Portable 检查](validation/issue-24-validation.md)、[视频存储预算验证](validation/cache-capacity-validation.md)；`internal/cacheproxy`、`internal/console` 测试 | 用隔离副本、文件哈希和数据库检查验证发布/取消/清理、冲突/损坏拒绝、未知文件保留、导入回执及重启。不再为每个文件断言附加“游戏播放反馈”；真实断电另外区分 |
-| 网络、代理、Monitor、元数据：LA-005/016/017/019/030/034/035/042/045，A1/A2/A4/A5/A6/A7 | [回源通道](upstream-channels.md)、[B2 验证](validation/issue-14-b2-integration.md)、[引导验证](validation/issue-16-validation.md)、[URL 元数据验证](validation/song-url-metadata-validation.md)；受控代理/API、回环服务、SSE 与浏览器 | 先复用候选失败/重定向/取消/并发/草稿隔离/事务检查；真实出口可由请求工具验证。凭据跨账号/机器的部分见下表，只有实际播放器接入兼容性留在 LA-025 |
+| 网页、条款、配置和展示：LA-001/002/013/021/023/026/029/031/032/033/036/043/046/047，A7 | [UI 验证](validation/webui-validation.md)、[配置生命周期](settings-lifecycle.md)、[视频存储预算验证](validation/cache-capacity-validation.md)；`webui/e2e` 与控制台集成/重启测试；[旧引导验证](validation/issue-16-validation.md)仅作历史依据 | 浏览器完成草稿、切页、错误、时间/图标、零值/非法输入、saved/active 等；涉及真实库、保存与重启时连接隔离服务。原 LA-033 的网页门禁与条款展示已归此类；条款变化后的实际确认、托盘/辅助技术见下表，不追加游戏项 |
+| 存储、导入、升级/搬迁、快照及隔离：LA-003/004/007/013/014/015/022/023/024/047，A5/A8 | [存储约定](storage.md)、[文件生命周期](runtime-lifecycle.md)、[持久化验证](persistence-migration-plan.md)、[Portable 检查](validation/issue-26-validation.md)、[视频存储预算验证](validation/cache-capacity-validation.md)；`internal/cacheproxy`、`internal/console` 测试 | 复用上述 2026-10-26 结果，按后续变更补必要检查；最终候选 ZIP 的覆盖升级仍需按实际版本记录。隔离副本、文件哈希和数据库检查验证发布/取消/清理、冲突/损坏拒绝、未知文件保留、导入回执及重启；真实断电另外区分 |
+| 网络、代理、Monitor、元数据：LA-005/016/017/019/030/034/035/042/045，A1/A2/A4/A5/A6/A7 | [回源通道](upstream-channels.md)、[B2 验证](validation/issue-14-b2-integration.md)、[现行 UI 验证](validation/webui-validation.md)、[URL 元数据验证](validation/song-url-metadata-validation.md)；受控代理/API、回环服务、SSE 与浏览器 | 先复用候选失败/重定向/取消/并发/草稿隔离/事务检查；真实出口可由请求工具验证。凭据跨账号/机器的部分见下表，只有实际播放器接入兼容性留在 LA-025 |
 | 调度、共享读取、续传、容量和生命周期：LA-008/019/020/037/038/039/040/043，A1/A3 | [调度验证](validation/block-scheduler-validation.md)、[需求调度验证](validation/demand-scheduling-validation.md)及[旧台账中的 A1–A8 结果](history/live-acceptance-backlog-20261016-archive.md)；受控 HTTP、确定性时序、race、哈希 | 已有边界检查按覆盖复用，缺口在开发环节补。需要虚拟时间、精确取消/写入竞态或数千任务的条件不交给游戏用户；旧 6/4 路和 1 秒宽限等不再适用 |
 | 持续负载、退出与资源：LA-012/018，关联 LA-035/040 | [Windows race 收尾](validation/issue-14-b2-integration.md#windows-发行与-race-收尾)、[定向检查](validation/issue-14-directed-validation.md)、[日常会话报告](acceptance/live-acceptance-20261015-02.md)；进程/资源采样、自动持续负载及日志轮转 | 既有约 2.5 小时会话及数据库结果保留；资源趋势、取消泄漏、句柄独占、端口退出和轮转由 agent 采样。只有具体游戏内卡顿问题保留 LA-040，不再泛泛要求用户陪跑长时间 |
 
@@ -37,12 +39,12 @@
 
 ## 确实依赖 Windows 环境的部分
 
-这些检查不需要 VRC。当前不是一轮环境验收，也没有认定以下缺口已补齐。能使用当前工具和隔离环境完成时由 agent 执行；确实缺专用条件时，只在对应功能记录阻塞，不要求用户为普通开发准备全套环境。
+这些检查不需要 VRC。下表区分已取得的局部证据和剩余环境边界；本次文档核对不是新一轮环境验收。能使用当前工具和隔离环境完成时由 agent 执行；确实缺专用条件时，只在对应功能记录阻塞，不要求用户为普通开发准备全套环境。
 
 | 范围 / 原编号 | 具体条件与后续处理 |
 | --- | --- |
-| 托盘、原生目录选择、单实例、UAC/hosts：LA-006/022/029/031/046 | 复用已有原生图标解码/实例/重启测试；真实托盘菜单、原生窗口及 UAC 拒绝/恢复需支持这些操作的 Windows 桌面。由 agent 准备隔离副本并验证；涉及授权交互时只说明最少需要的操作。不能因为没有桌面工具就称为 VRC 待验 |
-| CurrentUser 与跨用户/机器：LA-009/017/034 | [条款凭据步骤](validation/issue-15-validation.md#待环境验收la-009)及[节点验证](validation/issue-14-validation.md)保留；同用户和故障路径先自动验证，真实第二用户/独立机器条件缺失则明确仅该隔离边界未验证，不以同进程测试宣称通过，也不要求为每个普通改动重测 |
+| 托盘、原生选择器、单实例、UAC/hosts：LA-006/022/029/031/046 | 复用原生图标解码、实例/重启，以及[程序主题的真实 Shell 图标创建/切换/移除](validation/webui-validation.md#2026-10-25-程序级主题自动保存)和[隔离权限助手/命名管道](validation/hosts-session-validation.md)结果。真实托盘菜单、窗口/配置冲突提示、数据库选择窗口及 UAC 同意/取消、接入失败恢复仍需 Windows 桌面验证。退出恢复默认开启，保存即用于本次退出，操作按现行 [hosts 契约](console.md#hosts)，不沿用旧“退出一律保留 hosts”预期；由 agent 准备隔离副本和采集 |
+| 条款重新确认、CurrentUser 与跨用户/机器：LA-009/017/033/034 | [条款门禁与同用户 DPAPI 的真实服务/浏览器验证](validation/webui-validation.md#2026-10-25-移除使用引导保留条款确认)、[条款凭据步骤](validation/issue-15-validation.md#待环境验收la-009)及[节点验证](validation/issue-14-validation.md)按覆盖复用。条款版本变化后的实际用户重新确认，以及第二 Windows 用户/独立机器的解密边界仍需补证据；不可解密时保留原密文和其他数据、提示重新确认或配置，不隐式切换直连。不能用合成回执或同进程测试代替 |
 | 真实注销/关机与取消注销：LA-018 | 需可丢弃专用 Windows 会话；普通进程退出/取消先由集成检查完成。WM_ENDSESSION 语义缺口只在相关平台验证中跟进，强杀不替代 |
 | 断电恢复：LA-027 | 需独立可丢弃设备及备份，作为专项可靠性边界保留；VM 硬关机、进程强杀与真实断电区分。没有条件不执行，不为此影响日常机器，不占用游戏验收时段 |
 | 系统 DPI、高对比度与屏幕阅读器：LA-028，关联 LA-029/046 | 浏览器键盘、布局和缩放先由 agent 检查；Narrator/NVDA、系统 DPI 和原生托盘大小仅在有对应工具时验证并记录实际条件。普通视口截图不证明系统辅助技术已通过 |

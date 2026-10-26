@@ -41,7 +41,7 @@ node source/scripts/release-source.mjs rebuild --bundle . --output ../SWD-rebuil
 
 许可证风险处理见[许可审计](issue-30-license-audit.md)。`go-lzo` 的固定版本即使进入 EXE，也只保留已接受风险及证据，不自动阻止发布；缺少源码、声明或对应关系仍会失败。
 
-源码生成和独立重建属于交付工具验证，不改变应用运行行为，无需新增实机台账项；条款升级仍跟踪 LA-033。
+源码生成和独立重建属于交付工具验证，不改变应用运行行为，无需新增实机台账项。原 LA-033 已按[验证机制](live-acceptance-process.md)分流：网页门禁与条款展示用浏览器/集成验证，条款变更后的实际重新确认及跨用户凭据边界见[非 VRC 验证跟进](validation-followups.md#确实依赖-windows-环境的部分)。
 
 ## Fluent UI 前端源码
 

@@ -437,6 +437,13 @@
       "bytes": 1209254,
       "sha256": "c71fb3f3fb0309a6053cc81888c690a6d4ff2b65f617d7df7d468e25a5669aac",
       "reason": "Historical production WebUI bundle from d06fd5d (fix(webui): expire operation feedback when leaving a page); output hash verified against that commit's webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1165903,
+      "sha256": "c4c71425218647c4a1ca772df057a7cbe55e1e70d0c6c6fd5fad8eab828cfe88",
+      "reason": "Production WebUI bundle with hundred-point demand score formatting and real/initial source colors; rebuilt and checked against webui/build-manifest.json, with targeted Edge and real Console browser verification."
     }
   ]
 }

@@ -1,5 +1,5 @@
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
-import {Badge,Button,Checkbox,Field,Input,Link,Select,Tab,TabList,Table,TableHeader,TableRow,TableHeaderCell,TableBody,TableCell,TableCellLayout,Tooltip} from '@fluentui/react-components';
+import {Badge,Button,Checkbox,Field,Input,Link,Select,Tab,TabList,Table,TableHeader,TableRow,TableHeaderCell,TableBody,TableCell,TableCellLayout,Tooltip,tokens} from '@fluentui/react-components';
 import {useApp,useFocusRecovery,useResource} from './hooks';
 import {usePageFeedback} from './page-feedback';
 import {APIError,request} from './api';
@@ -14,6 +14,7 @@ import {date,mb,type Download,type LibraryPage,type LibraryResource,type SongPol
 
 export const songHref=(id:string)=>'#/library?song='+encodeURIComponent(id);
 export const resourceHref=(key:string)=>'#/library?resource='+encodeURIComponent(key);
+const scoreFormat=new Intl.NumberFormat(undefined,{minimumFractionDigits:2,maximumFractionDigits:2,minimumSignificantDigits:4,maximumSignificantDigits:4,roundingPriority:'lessPrecision'});
 export function Library({visible,anchor}:{visible:boolean;anchor:string}) {
   const params=new URLSearchParams(anchor.split('?')[1]||''), song=params.get('song')||'', resource=params.get('resource')||'';
   return <LibraryView key={song+':'+resource} visible={visible} anchor={anchor} song={song} resource={resource}/>;
@@ -88,14 +89,14 @@ function LibraryView({visible,anchor,song,resource}:{visible:boolean;anchor:stri
         {!!actions.result.entries?.length&&<Table size="small" aria-label="未删除的视频"><TableHeader><TableRow><TableHeaderCell>视频</TableHeaderCell><TableHeaderCell>原因</TableHeaderCell></TableRow></TableHeader><TableBody>{actions.result.entries.map(entry=><TableRow key={entry.key}><TableCell>{entry.label}</TableCell><TableCell>{entry.reason}</TableCell></TableRow>)}</TableBody></Table>}
       </section>}
       <TableRegion label="曲库表格"><Table size="small" className="data-table library-table" aria-label={view==='songs'?'曲库歌曲':'曲库资源'}>
-        <TableHeader><TableRow>{view==='songs'?<><TableHeaderCell style={{width:'30%'}}>歌曲</TableHeaderCell><TableHeaderCell style={{width:'10%'}}>需求分数<Hint label="需求分数说明">随时间衰减，用于下载排序和视频保留。</Hint></TableHeaderCell><TableHeaderCell style={{width:'14%'}}>偏好<Hint label="歌曲偏好说明">收藏仅作标记；屏蔽会拒绝新的播放和下载请求。</Hint></TableHeaderCell></>:<><TableHeaderCell style={{width:44}}>选择</TableHeaderCell><TableHeaderCell style={{width:'30%'}}>视频资源</TableHeaderCell><TableHeaderCell style={{width:'16%'}}>大小 / 时长</TableHeaderCell></>}
+        <TableHeader><TableRow>{view==='songs'?<><TableHeaderCell style={{width:'30%'}}>歌曲</TableHeaderCell><TableHeaderCell style={{width:'10%'}}>需求分数<Hint label="需求分数说明">一次新需求计 100 分。灰色为初始分数；真实分数随时间衰减，按分数排序时优先显示。</Hint></TableHeaderCell><TableHeaderCell style={{width:'14%'}}>偏好<Hint label="歌曲偏好说明">收藏仅作标记；屏蔽会拒绝新的播放和下载请求。</Hint></TableHeaderCell></>:<><TableHeaderCell style={{width:44}}>选择</TableHeaderCell><TableHeaderCell style={{width:'30%'}}>视频资源</TableHeaderCell><TableHeaderCell style={{width:'16%'}}>大小 / 时长</TableHeaderCell></>}
           <TableHeaderCell style={{width:'19%'}}>本地状态</TableHeaderCell><TableHeaderCell>操作</TableHeaderCell></TableRow></TableHeader>
         <TableBody>{view==='songs'?page.data?.songs.map(song=>{
-          const r=resources[song.resource];return <TableRow key={song.id}>
+          const r=resources[song.resource],score=scoreFormat.format(song.score*100),source=song.hasDemand?'真实分数':'初始分数';return <TableRow key={song.id}>
             <TableCell><TableCellLayout appearance="primary" truncate description={`ID ${song.id} · ${song.artist||'未知歌手'}${song.dancer?' · '+song.dancer:''}${song.group?' / '+song.group:''}`}>{song.title||'未知名称'}</TableCellLayout></TableCell>
-            <TableCell>{song.score.toLocaleString(undefined,{maximumFractionDigits:1})}</TableCell>
+            <TableCell aria-label={`${source} ${score}`}><span style={{color:song.hasDemand?tokens.colorNeutralForeground1:tokens.colorNeutralForeground3,fontVariantNumeric:'tabular-nums'}}>{score}</span></TableCell>
             <TableCell><Select size="small" aria-label={`歌曲 ${song.id} 的偏好`} value={song.policy} disabled={disabled} onChange={(_,v)=>void save(song.id,v.value as SongPolicy)}>{Object.entries(policyLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select></TableCell>
-            <TableCell>{sharedState(r)}</TableCell><TableCell><div className="inline row-actions"><Button size="small" disabled={disabled||!!page.data?.videoError||s.batch.running||!!r?.local||song.policy==='blocked'} onClick={()=>download({songID:song.id})}>下载歌曲</Button>{fileActions(r)}<RecordDetails title={`歌曲 ${song.id} 的详情`}><dl className="detail-grid"><dt>名称</dt><dd>{song.title||'未知'}</dd><dt>歌手</dt><dd>{song.artist||'未知'}</dd><dt>舞者 / 社团</dt><dd>{[song.dancer,song.group].filter(Boolean).join(' / ')||'未知'}</dd><dt>资源</dt><dd>{song.resource?<Link href={resourceHref(song.resource)}>{song.resource}</Link>:'未知'}</dd><dt>最近请求</dt><dd>{r?.local?.lastRequest?date(r.local.lastRequest):'无记录'}</dd></dl></RecordDetails></div></TableCell>
+            <TableCell>{sharedState(r)}</TableCell><TableCell><div className="inline row-actions"><Button size="small" disabled={disabled||!!page.data?.videoError||s.batch.running||!!r?.local||song.policy==='blocked'} onClick={()=>download({songID:song.id})}>下载歌曲</Button>{fileActions(r)}<RecordDetails title={`歌曲 ${song.id} 的详情`}><dl className="detail-grid"><dt>名称</dt><dd>{song.title||'未知'}</dd><dt>歌手</dt><dd>{song.artist||'未知'}</dd><dt>舞者 / 社团</dt><dd>{[song.dancer,song.group].filter(Boolean).join(' / ')||'未知'}</dd><dt>分数来源</dt><dd>{source}</dd><dt>资源</dt><dd>{song.resource?<Link href={resourceHref(song.resource)}>{song.resource}</Link>:'未知'}</dd><dt>最近请求</dt><dd>{r?.local?.lastRequest?date(r.local.lastRequest):'无记录'}</dd></dl></RecordDetails></div></TableCell>
           </TableRow>;
         }):page.data?.keys.map(key=>{const r=resources[key],local=r.local;return <TableRow key={key}>
           <TableCell>{local&&<Checkbox aria-label={'选择 '+cacheLabel(local)} disabled={disabled||!local.known||local.protected} checked={selected[key]===local.stamp} onChange={(_,v)=>setSelected(previous=>{const next={...previous};if(v.checked)next[key]=local.stamp;else delete next[key];return next;})}/>}</TableCell>

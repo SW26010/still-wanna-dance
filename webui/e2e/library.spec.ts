@@ -10,7 +10,7 @@ async function libraryFixture(page:Page,videoError?:string) {
     [key]:{key,size:12345,duration:null,songs:local.songs,songCount:2,local},
     [missing]:{key:missing,size:null,duration:null,songs:[{id:'3',title:'缺失视频',current:true}],songCount:1,local:null},
   };
-  const songs=[1,2,3].map(id=>({id:String(id),title:id<3?'共同视频'+id:'缺失视频',artist:'歌手资料',dancer:'舞者资料',group:'社团资料',score:123.456,policy:'normal' as const,resource:id<3?key:missing}));
+  const songs=[1,2,3].map(id=>({id:String(id),title:id<3?'共同视频'+id:'缺失视频',artist:'歌手资料',dancer:'舞者资料',group:'社团资料',score:123.456,hasDemand:true,policy:'normal' as const,resource:id<3?key:missing}));
   await page.route('**/api/library?**',async route=>{
     const p=new URL(route.request().url()).searchParams;queries.push(p);
     const chosen=songs.filter(s=>(!p.get('song')||s.id===p.get('song'))&&(!p.get('q')||s.title.includes(p.get('q')!)));
@@ -43,6 +43,44 @@ test('song and resource views share state and deletion impact; targets use exist
   await expect(list.getByText('时长未知').last()).toBeVisible();
   await list.getByRole('button',{name:'下载资源',exact:true}).last().click();
   await expect.poll(()=>calls.filter(c=>c.path==='batch/download').at(-1)?.body).toEqual({storageID:'fixture',resource:missing});
+});
+
+for(const theme of ['light','dark'] as const)test(`demand scores use a hundred-point display and distinguish their source in ${theme}`,async({page},info)=>{
+  const {songs}=await libraryFixture(page);
+  const cases=[
+    {score:0.123456,hasDemand:true,text:'12.35'},
+    {score:1,hasDemand:true,text:'100.0'},
+    {score:1.23456,hasDemand:true,text:'123.5'},
+    {score:12.3456,hasDemand:true,text:'1,235'},
+    {score:0,hasDemand:true,text:'0.00'},
+    {score:0.5,hasDemand:false,text:'50.00'},
+    {score:0.012345,hasDemand:false,text:'1.23'},
+    {score:0.0000123,hasDemand:false,text:'0.00'},
+  ];
+  const template=songs[0];
+  songs.splice(0,songs.length,...cases.map((c,i)=>({...template,...c,id:String(i+1),title:`分数示例 ${i+1}`})));
+  await page.emulateMedia({colorScheme:theme});await page.setViewportSize({width:1280,height:900});
+  await page.goto('/#/library');
+  const table=page.getByRole('table',{name:'曲库歌曲'}),rows=table.getByRole('row');
+  await expect(rows).toHaveCount(cases.length+1);
+  for(const [i,c] of cases.entries()) {
+    const cell=rows.nth(i+1).getByRole('cell').nth(1);
+    await expect(cell).toHaveText(c.text);
+    await expect(cell).toHaveAccessibleName(`${c.hasDemand?'真实分数':'初始分数'} ${c.text}`);
+    const colors=await cell.locator('span').evaluate((el,real)=>{
+      const style=getComputedStyle(el),probe=document.createElement('span');
+      probe.style.color=`var(--colorNeutralForeground${real?'1':'3'})`;el.append(probe);
+      const wanted=getComputedStyle(probe).color;probe.remove();return {actual:style.color,wanted};
+    },c.hasDemand);
+    expect(colors.actual).toBe(colors.wanted);
+  }
+  const color=(i:number)=>rows.nth(i).getByRole('cell').nth(1).locator('span').evaluate(el=>getComputedStyle(el).color);
+  expect(await color(1)).not.toBe(await color(6));
+  await table.getByRole('button',{name:'歌曲 6 的详情',exact:true}).click();
+  await expect(page.getByText('分数来源',{exact:true})).toBeVisible();
+  await expect(page.getByText('初始分数',{exact:true})).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.screenshot({path:info.outputPath('demand-scores.png'),fullPage:true});
 });
 
 test('library pagination stays bounded and applies the submitted search',async({page})=>{

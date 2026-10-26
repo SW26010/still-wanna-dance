@@ -18,14 +18,15 @@ type LibraryQuery struct {
 }
 
 type LibrarySong struct {
-	ID       string     `json:"id"`
-	Title    string     `json:"title"`
-	Artist   string     `json:"artist"`
-	Dancer   string     `json:"dancer"`
-	Group    string     `json:"group"`
-	Policy   SongPolicy `json:"policy"`
-	Score    float64    `json:"score"`
-	Resource string     `json:"resource"`
+	ID        string     `json:"id"`
+	Title     string     `json:"title"`
+	Artist    string     `json:"artist"`
+	Dancer    string     `json:"dancer"`
+	Group     string     `json:"group"`
+	Policy    SongPolicy `json:"policy"`
+	Score     float64    `json:"score"`
+	HasDemand bool       `json:"hasDemand"`
+	Resource  string     `json:"resource"`
 }
 
 type LibraryResource struct {
@@ -145,6 +146,7 @@ func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, no
 				return page, err
 			}
 			song.ID, song.Score = strconv.FormatInt(id, 10), effectiveSongPriority(id, count, score, last, now)
+			song.HasDemand = count > 0
 			match := search == "" || song.ID == search || strings.Contains(strings.ToLower(song.Title+"\n"+song.Artist+"\n"+song.Dancer+"\n"+song.Group+"\n"+song.Resource), search)
 			saved := false
 			if song.Resource != "" {
@@ -204,8 +206,12 @@ func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, no
 		return nil
 	}
 	if q.View != "resources" {
+		// Group the song list before pagination; scheduling still uses numeric priorities.
 		sort.Slice(songs, func(i, j int) bool {
 			a, b := songs[i], songs[j]
+			if q.Sort == "score" && a.HasDemand != b.HasDemand {
+				return a.HasDemand
+			}
 			if q.Sort == "score" && a.Score != b.Score {
 				return a.Score > b.Score
 			}

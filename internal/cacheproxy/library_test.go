@@ -139,3 +139,48 @@ func TestLibraryMissingStorageRemainsReadOnly(t *testing.T) {
 		t.Fatal("reader created storage", err)
 	}
 }
+
+func TestLibraryDemandScoresPrecedeInitialScoresBeforePagination(t *testing.T) {
+	s, cfg := setup(t, nil)
+	ctx := context.Background()
+	now := time.Now().UnixMilli()
+	for id := int64(9000001); id <= 9000051; id++ {
+		if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,name) VALUES (?,'Z real')`, id); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.usage.db.Exec(`INSERT INTO song_usage(song_id,demand_count,demand_score,last_demand_at) VALUES (?,1,?,?)`, id, float64(id-9000001)/1000, now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Every real score is below the priors, including one real score of zero.
+	if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,name) VALUES (8603,'A initial'),(2167,'B initial'),(9999999,'C unknown')`); err != nil {
+		t.Fatal(err)
+	}
+	first, err := readLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{Sort: "score"}, now)
+	if err != nil || first.Total != 54 || len(first.Songs) != 50 {
+		t.Fatal(first, err)
+	}
+	for i, song := range first.Songs {
+		if !song.HasDemand || song.ID != fmt.Sprint(9000051-i) {
+			t.Fatal("real scores must fill the first page in descending order", song)
+		}
+	}
+	second, err := readLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{Sort: "score", Offset: 50}, now)
+	if err != nil || len(second.Songs) != 4 {
+		t.Fatal(second, err)
+	}
+	for i, id := range []string{"9000001", "8603", "2167", "9999999"} {
+		if second.Songs[i].ID != id || second.Songs[i].HasDemand != (i == 0) {
+			t.Fatal("source grouping must precede pagination and preserve descending scores within each group", second.Songs)
+		}
+	}
+	if second.Songs[0].Score != 0 || second.Songs[1].Score != 0.5 {
+		t.Fatal("UI grouping must not rescale or replace actual scores", second.Songs)
+	}
+	for _, order := range []struct{ sort, first string }{{"title", "8603"}, {"id", "9999999"}} {
+		page, err := readLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{Sort: order.sort}, now)
+		if err != nil || page.Songs[0].ID != order.first {
+			t.Fatal("source grouping leaked into another sort", order, page, err)
+		}
+	}
+}

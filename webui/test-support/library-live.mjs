@@ -10,6 +10,9 @@ try {
   await page.goto(baseURL+'/#/library');
   const songs=page.getByRole('table',{name:'曲库歌曲'});
   await expect(songs.getByText('未保存',{exact:true})).toHaveCount(2);
+  const rows=songs.getByRole('row');
+  await expect(rows.nth(1).getByRole('cell').nth(1)).toHaveAccessibleName('真实分数 0.10');
+  await expect(rows.nth(2).getByRole('cell').nth(1)).toHaveAccessibleName('初始分数 50.00');
   await songs.getByRole('button',{name:'下载歌曲',exact:true}).first().click();
   await expect(page.getByText('所选歌曲或资源已处理完成；同 MD5 共用一份视频',{exact:true})).toBeVisible({timeout:20000});
   await page.getByRole('button',{name:'刷新曲库与本地占用',exact:true}).click();
@@ -23,7 +26,7 @@ try {
   await expect(resources.getByText('已保存',{exact:true})).toHaveCount(1);
   await resources.getByRole('button',{name:`资源 ${key} 的详情`,exact:true}).click();
   await expect(page.getByRole('link',{name:'共享视频（ID 1）',exact:true})).toHaveAttribute('href','#/library?song=1');
-  await expect(page.getByRole('link',{name:'共享视频（ID 2）',exact:true})).toHaveAttribute('href','#/library?song=2');
+  await expect(page.getByRole('link',{name:'共享视频（ID 8603）',exact:true})).toHaveAttribute('href','#/library?song=8603');
   await page.keyboard.press('Escape');
   await page.setViewportSize({width:390,height:844});await page.emulateMedia({colorScheme:'dark'});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -34,5 +37,5 @@ try {
   await expect(resources.getByText('未保存',{exact:true})).toHaveCount(1);
   await expect(resources.getByRole('button',{name:'下载资源',exact:true})).toBeEnabled();
   expect(errors).toEqual([]);
-  await writeFile(join(output,'results.json'),JSON.stringify({resource:key,sharedSongs:2,downloaded:true,favoritePersisted:true,deleted:true,errors},null,2));
+  await writeFile(join(output,'results.json'),JSON.stringify({resource:key,sharedSongs:2,realDemandBeforeLargerPrior:true,scoreDisplay:['0.10','50.00'],downloaded:true,favoritePersisted:true,deleted:true,errors},null,2));
 }finally{await browser.close();}

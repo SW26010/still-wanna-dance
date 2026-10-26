@@ -53,7 +53,7 @@ export interface CacheEntry {
   key: string; stamp: string; bytes: number; songs: Song[]; songCount: number; known: boolean; protected: boolean; state: string; lastRequest: number;
 }
 export interface CachePage {storageID: string; entries: CacheEntry[]; total: number; totalBytes?: number; fileCount: number}
-export interface LibrarySong {id:string;title:string;artist:string;dancer:string;group:string;policy:SongPolicy;score:number;resource:string}
+export interface LibrarySong {id:string;title:string;artist:string;dancer:string;group:string;policy:SongPolicy;score:number;hasDemand:boolean;resource:string}
 export interface LibraryResource {key:string;size:number|null;duration:number|null;songs:Song[];songCount:number;local:CacheEntry|null}
 export interface LibraryPage {storageID:string;databaseID:string;videoError?:string;songs:LibrarySong[];resources:Record<string,LibraryResource>;keys:string[];total:number;fileCount:number;totalBytes:number}
 export interface RequestRecord {

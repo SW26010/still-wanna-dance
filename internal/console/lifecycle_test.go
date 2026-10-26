@@ -100,7 +100,7 @@ func TestLifecycleIOLeavesStateResponsive(t *testing.T) {
 				if downloads.Code != 200 {
 					t.Errorf("downloads during %s: %d %s", operation, downloads.Code, downloads.Body.String())
 				}
-				for _, path := range []string{"/api/requests", "/api/history", "/api/latency"} {
+				for _, path := range []string{"/api/requests", "/api/history", "/api/latency", "/api/response-sources"} {
 					r := httptest.NewRequest("GET", "http://"+c.address+path, nil)
 					r.Header.Set("X-SWD-Token", c.token)
 					w := httptest.NewRecorder()

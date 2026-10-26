@@ -4,6 +4,33 @@ import {navigate} from './navigation';
 
 const record=(id:number)=>({id,at:Date.now()-id*1000,completedAt:Date.now()-id*1000+800,resource:'a'.repeat(32),songID:id===1?'42':'',method:'GET',range:'bytes=0-99',elapsedMS:800,bytes:id===2?0:50,responseBytes:id===2?null:100,status:id===2?502:206,cache:'MISS',outcome:id===2?'failed':'canceled',firstBodyNS:id===2?null:10000000,firstBodyBlocking:id===2?null:true,songs:[{id:'999',title:'当前关联不是真实请求身份'}]});
 
+for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const)test(`response sources use frozen bytes and fit ${width}px ${scheme}`,async({page},info)=>{
+  await mockAPI(page);await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:scheme,forcedColors:width===320?'active':'none'});
+  const sources={downloadBytes:1048576,cacheBytes:2097152,localBytes:1048576};
+  await page.route('**/api/response-sources',r=>r.fulfill({json:sources}));
+  await page.route('**/api/history?*',r=>r.fulfill({json:{storageID:'fixture',requests:[{...record(1),sources},{...record(2),sources:{downloadBytes:0,cacheBytes:0,localBytes:0}},record(3)],hasMore:false,nextCursor:''}}));
+  await page.goto('/#/timeline');
+  const summary=page.getByRole('region',{name:'响应来源统计'});
+  await expect(summary.getByText('下载 25%',{exact:true})).toBeVisible();
+  await expect(summary.getByText('缓存 50%',{exact:true})).toBeVisible();
+  await expect(summary.getByText('本地视频 25%',{exact:true})).toBeVisible();
+  const row=page.getByRole('row').filter({has:page.getByRole('link',{name:'ID 42',exact:true})});
+  await expect(row).toContainText('下载 25%');await expect(row).toContainText('缓存 50%');
+  await page.getByRole('button',{name:'全部保留期',exact:true}).click();await expect(summary).toContainText('缓存 50%');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.evaluate(()=>scrollTo(0,0));
+  await page.screenshot({path:info.outputPath('response-sources.png'),fullPage:true,animations:'disabled'});
+});
+
+test('source refresh retains data and reports failures without showing zero',async({page})=>{
+  await mockAPI(page);let fail=false;
+  await page.route('**/api/response-sources',r=>fail?r.fulfill({status:500,body:'failed'}):r.fulfill({json:{downloadBytes:8,cacheBytes:0,localBytes:0}}));
+  await page.goto('/#/timeline');const summary=page.getByRole('region',{name:'响应来源统计'});
+  await expect(summary).toContainText('下载 100%');fail=true;
+  await page.getByRole('button',{name:'刷新来源统计',exact:true}).click();
+  await expect(summary).toContainText('来源统计读取失败，请重试。');await expect(summary).toContainText('下载 100%');
+});
+
 for(const populated of [false,true])test(`automatic history refresh preserves visible results and controls (${populated?'rows':'empty'})`,async({page})=>{
   await mockAPI(page);await page.clock.install();let reads=0,latencyReads=0,release!:()=>void;
   const pending=new Promise<void>(resolve=>{release=resolve;});

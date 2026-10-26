@@ -33,6 +33,7 @@ export async function mockAPI(page: Page) {
     if (path==='downloads') data={tasks:[],bytesPerSecond:0,gets:{requests:[],total:0}};
     if (path==='songs') data={storageID:'fixture',entries:[],total:0};
     if(path==='history')data={storageID:'fixture',requests:[],hasMore:false,nextCursor:''};
+    if(path==='response-sources')data={downloadBytes:0,cacheBytes:0,localBytes:0};
     if(path==='latency')data={from:Date.now()-72*3600000,to:Date.now(),availableFrom:null,partial:true,blocking:{samples:0,p50MS:null,p95MS:null},ready:{samples:0,p50MS:null,p95MS:null}};
     if (path==='requests') data={storageID:'fixture',requests:[],hasMore:false};
     if(path==='library')data={storageID:'fixture',databaseID:'fixture-db',songs:files.map(f=>({id:f.songs[0].id,title:f.songs[0].title,artist:'',dancer:'',group:'',score:1,hasDemand:true,policy:'normal',resource:f.key})),resources:Object.fromEntries(files.map(f=>[f.key,{key:f.key,size:f.bytes,duration:null,songs:f.songs,songCount:f.songCount,local:f}])),keys:files.map(f=>f.key),total:files.length,fileCount:files.length,totalBytes:files.length*1073741824};

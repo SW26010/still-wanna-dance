@@ -100,7 +100,7 @@ func TestExistingTrafficDoesNotReadRequestDetails(t *testing.T) {
 	if _, err := db.Exec(storageSchemaSQL); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`INSERT INTO traffic_totals VALUES (1,42,1,0)`); err != nil {
+	if _, err := db.Exec(`INSERT INTO traffic_totals(id,saved_bytes,hits,misses) VALUES (1,42,1,0)`); err != nil {
 		t.Fatal(err)
 	}
 	s := &Server{Store: &Store{}}

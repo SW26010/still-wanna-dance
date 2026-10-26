@@ -19,6 +19,7 @@ const demandWindow = 30 * time.Second
 const requestCleanupBatch = 500
 
 type usageEvent struct {
+	sources                                        *ResponseSources
 	songID                                         string
 	firstBodyNS                                    int64
 	responseBytes                                  *int64
@@ -209,6 +210,7 @@ func (u *usageStore) write(batch []usageEvent) error {
 		return err
 	}
 	defer tx.Rollback()
+	var sources ResponseSources
 	for _, e := range batch {
 		if e.barrier != nil {
 			continue
@@ -225,12 +227,19 @@ func (u *usageStore) write(batch []usageEvent) error {
 			if err := recordPlaybackTransfer(ctx, tx, e, id); err != nil {
 				return err
 			}
+			var download, cache, local any
+			if e.sources != nil {
+				download, cache, local = e.sources.DownloadBytes, e.sources.CacheBytes, e.sources.LocalBytes
+				sources.DownloadBytes += e.sources.DownloadBytes
+				sources.CacheBytes += e.sources.CacheBytes
+				sources.LocalBytes += e.sources.LocalBytes
+			}
 			_, err = tx.ExecContext(ctx, `INSERT INTO request_events
 (resource_md5, requested_at, host, method, range_header, cache_result, outcome,
- file_bytes, transferred_bytes, elapsed_ms, status, song_id, completed_at, response_bytes, first_body_ns, first_body_blocking)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+ file_bytes, transferred_bytes, elapsed_ms, status, song_id, completed_at, response_bytes, first_body_ns, first_body_blocking, download_bytes, cache_bytes, local_bytes)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				nullString(e.key), e.at, e.host, e.method, e.rangeHeader, e.cache, e.outcome,
-				e.size, e.bytes, e.elapsedMS, e.status, nullPositive(id), nullPositive(e.completedAt), e.responseBytes, nullFirstBody(e), e.firstBodyBlocking)
+				e.size, e.bytes, e.elapsedMS, e.status, nullPositive(id), nullPositive(e.completedAt), e.responseBytes, nullFirstBody(e), e.firstBodyBlocking, download, cache, local)
 			if err != nil {
 				return err
 			}
@@ -264,6 +273,11 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           VALUES (?,1,?,?) ON CONFLICT(song_id) DO UPDATE SET demand_count=demand_count+1,
           demand_score=excluded.demand_score,last_demand_at=excluded.last_demand_at`, id, score, e.at)
 		if err != nil {
+			return err
+		}
+	}
+	if sources != (ResponseSources{}) {
+		if _, err := tx.ExecContext(ctx, `UPDATE traffic_totals SET download_bytes=download_bytes+?,cache_bytes=cache_bytes+?,local_bytes=local_bytes+? WHERE id=1`, sources.DownloadBytes, sources.CacheBytes, sources.LocalBytes); err != nil {
 			return err
 		}
 	}

@@ -10,7 +10,7 @@ import (
 	"still-wanna-dance/internal/workfiles"
 )
 
-const storageSchemaVersion = 6
+const storageSchemaVersion = 7
 const storageApplicationID = 0x53574443 // SWDC
 const storageDatabaseName = "storage.sqlite"
 

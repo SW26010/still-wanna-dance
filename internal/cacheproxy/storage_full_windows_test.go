@@ -110,7 +110,7 @@ func TestBoundedVolumeExhaustion(t *testing.T) {
 	t.Run("database", func(t *testing.T) {
 		dir := boundedVolumeDirectory(t, root)
 		path := filepath.Join(dir, "personal.sqlite")
-		golden, err := os.ReadFile("testdata/storage-v6.sqlite")
+		golden, err := os.ReadFile("testdata/storage-v7.sqlite")
 		if err != nil {
 			t.Fatal(err)
 		}

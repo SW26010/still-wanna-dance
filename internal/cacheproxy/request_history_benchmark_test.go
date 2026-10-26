@@ -43,4 +43,12 @@ func BenchmarkRequestHistoryQueries(b *testing.B) {
 			}
 		}
 	})
+	b.Run("source-totals-10000", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			if _, err := ReadResponseSources(context.Background(), storagePath(root)); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
 }

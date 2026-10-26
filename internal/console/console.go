@@ -953,7 +953,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, result)
 		return
 	}
-	if (r.URL.Path == "/api/history" || r.URL.Path == "/api/latency") && r.Method == "GET" {
+	if (r.URL.Path == "/api/history" || r.URL.Path == "/api/latency" || r.URL.Path == "/api/response-sources") && r.Method == "GET" {
 		c.serveRequestHistory(w, r)
 		return
 	}

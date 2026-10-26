@@ -195,7 +195,6 @@ form.actions { align-items: flex-end; }
 .cell-stack > * { max-width: 100%; }
 .cell-progress { width: 100%; font-size: var(--fontSizeBase200); }
 .truncate { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.resource-link { display: block; }
 .row-actions { flex-wrap: nowrap; gap: 2px; }
 .detail-grid { display: grid; grid-template-columns: max-content minmax(0,1fr); gap: var(--spacingVerticalM) var(--spacingHorizontalL); }
 .detail-grid dt, .detail-grid dd { margin: 0; overflow-wrap: anywhere; }

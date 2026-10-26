@@ -54,7 +54,8 @@ func (s *spool) reader(ctx context.Context, size int64) *spoolReader {
 	}
 	s.refs++
 	ctx, cancel := context.WithCancel(ctx)
-	r := &spoolReader{spool: s, ctx: ctx, cancel: cancel, size: size}
+	r := &spoolReader{spool: s, ctx: ctx, cancel: cancel, size: size,
+		sources: readSources{size: size, blockSize: s.blocks.blockSize}}
 	return r
 }
 
@@ -68,6 +69,7 @@ func (s *spool) release() {
 }
 
 type spoolReader struct {
+	sources       readSources
 	spool         *spool
 	ctx           context.Context
 	cancel        context.CancelFunc
@@ -163,6 +165,7 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 		if s.blocks.available(r.offset) > r.offset {
 			continue
 		}
+		r.sources.waitedBlock = r.offset/s.blocks.blockSize + 1
 		if r.onWait != nil {
 			r.onWait()
 		}

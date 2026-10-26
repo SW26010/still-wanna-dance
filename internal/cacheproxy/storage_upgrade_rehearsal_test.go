@@ -13,11 +13,11 @@ import (
 )
 
 // A test-only next format removes a diagnostic field by rebuilding its table.
-// This exercises the frozen v6 baseline, transaction/version rollback, exact
+// This exercises the frozen v7 baseline, transaction/version rollback, exact
 // fresh-vs-upgraded DDL and downgrade rejection. It is not a shipped migration
 // or a promise to accept development-era v5 databases.
 func TestStorageUpgradeRehearsal(t *testing.T) {
-	golden, err := os.ReadFile("testdata/storage-v6.sqlite")
+	golden, err := os.ReadFile("testdata/storage-v7.sqlite")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestStorageUpgradeRehearsal(t *testing.T) {
 			steps = append(steps, statement)
 		}
 	}
-	const columns = "event_id,resource_md5,requested_at,method,range_header,cache_result,outcome,file_bytes,transferred_bytes,elapsed_ms,status,song_id,completed_at,response_bytes,first_body_ns,first_body_blocking"
+	const columns = "event_id,resource_md5,requested_at,method,range_header,cache_result,outcome,file_bytes,transferred_bytes,elapsed_ms,status,song_id,completed_at,response_bytes,first_body_ns,first_body_blocking,download_bytes,cache_bytes,local_bytes"
 	steps = append(steps,
 		"INSERT INTO request_events("+columns+") SELECT "+columns+" FROM upgrading_requests",
 		"DROP TABLE upgrading_requests",
@@ -89,7 +89,7 @@ func TestStorageUpgradeRehearsal(t *testing.T) {
 					t.Fatal("did not reach the injected failure", err)
 				}
 				if err := validateStorageDatabase(store.db); err != nil {
-					t.Fatal("rollback left an invalid v6 format", err)
+					t.Fatal("rollback left an invalid v7 format", err)
 				}
 				if got := snapshotBusinessTables(t, store.db); !reflect.DeepEqual(got, before) {
 					t.Fatal("rollback changed business data")
@@ -162,7 +162,7 @@ func TestStorageUpgradeRehearsal(t *testing.T) {
 					db.Close()
 				}
 				if err == nil || !strings.Contains(err.Error(), "较新") {
-					t.Fatal("v6 must reject the next format", err)
+					t.Fatal("v7 must reject the next format", err)
 				}
 			}
 			after, err := os.ReadFile(path)

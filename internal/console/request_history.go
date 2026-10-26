@@ -47,6 +47,8 @@ func (c *Console) serveRequestHistory(w http.ResponseWriter, r *http.Request) {
 	var err error
 	if r.URL.Path == "/api/latency" {
 		result, err = cacheproxy.ReadFirstBodyLatency(r.Context(), root, time.Now())
+	} else if r.URL.Path == "/api/response-sources" {
+		result, err = cacheproxy.ReadResponseSources(r.Context(), root)
 	} else {
 		result, err = cacheproxy.ReadRequestHistory(r.Context(), root, q)
 	}

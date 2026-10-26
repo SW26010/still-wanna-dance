@@ -79,6 +79,10 @@ func (f *verifiedFile) reader() *io.SectionReader {
 	return io.NewSectionReader(f.file, 0, f.info.Size())
 }
 
+func (f *verifiedFile) sources(blockSize int64) *readSources {
+	return &readSources{size: f.info.Size(), blockSize: blockSize, local: true}
+}
+
 // Detach under retentionMu after the last pin; close the handle outside it.
 func (s *Server) detachVerified(key string) *os.File {
 	s.verifyMu.Lock()

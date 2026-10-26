@@ -394,6 +394,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		panicked := recover()
 		event.status, event.bytes = response.status, response.videoBytes
 		event.responseBytes = response.expectedBytes
+		if r.Method == http.MethodGet {
+			event.sources = &ResponseSources{}
+			if response.sources != nil {
+				*event.sources = response.sources.totals
+			}
+		}
 		if response.videoBytes > 0 {
 			group := response.firstBodyBlocking
 			event.firstBodyBlocking = &group
@@ -532,6 +538,7 @@ loadVideo:
 		return
 	}
 	if stream != nil {
+		response.sources = &responseSourceCounter{reader: &stream.sources}
 		stream.onWait = func() {
 			if response.videoBytes == 0 {
 				response.waitedForBlock = true
@@ -586,6 +593,7 @@ loadVideo:
 	w.Header().Set("Content-Type", "video/mp4")
 	w.Header().Set("ETag", `"`+v.key+`"`)
 	w.Header().Set("X-SWD-Cache", f.source)
+	response.sources = &responseSourceCounter{reader: file.sources(s.cfg.BlockSize)}
 	http.ServeContent(w, r, v.path, file.info.ModTime(), file.reader())
 	if r.Context().Err() != nil {
 		log.Info("client_disconnected", "cache", f.source, "elapsed", time.Since(start))
@@ -596,6 +604,7 @@ loadVideo:
 
 type responseWriter struct {
 	http.ResponseWriter
+	sources                           *responseSourceCounter
 	current                           *currentGET
 	started                           time.Time
 	headerLatency                     time.Duration
@@ -641,6 +650,10 @@ func (w *responseWriter) Write(p []byte) (int, error) {
 		err = io.ErrShortWrite
 	}
 	if w.consumption != nil && n > 0 {
+		if w.expectedBytes != nil && w.sources != nil {
+			start := w.consumption.position
+			w.sources.accept(start, min(start+int64(n), w.consumption.limit))
+		}
 		w.consumption.accept(int64(n))
 	}
 	if n > 0 && w.expectedBytes != nil {

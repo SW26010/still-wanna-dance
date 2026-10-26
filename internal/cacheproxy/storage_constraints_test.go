@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestStorageV6Constraints(t *testing.T) {
+func TestStorageV7Constraints(t *testing.T) {
 	store, err := CreateStore(filepath.Join(t.TempDir(), "library.sqlite"))
 	if err != nil {
 		t.Fatal(err)
@@ -94,6 +94,9 @@ func TestRequestHistoryIdentityAndConstraints(t *testing.T) {
 		"negative file": `file_bytes=-1`, "negative transfer": `transferred_bytes=-1`,
 		"negative elapsed": `elapsed_ms=-1`, "negative response": `response_bytes=-1`,
 		"negative first body": `first_body_ns=-1`, "invalid blocking": `first_body_blocking=2`,
+		"partial sources":    `download_bytes=0`,
+		"negative sources":   `download_bytes=-1,cache_bytes=0,local_bytes=0`,
+		"fractional sources": `download_bytes=0.5,cache_bytes=0,local_bytes=0`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := store.db.Exec("UPDATE request_events SET " + assignments); err == nil {

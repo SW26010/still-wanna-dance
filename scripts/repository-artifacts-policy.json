@@ -451,6 +451,20 @@
       "bytes": 1165903,
       "sha256": "c4c71425218647c4a1ca772df057a7cbe55e1e70d0c6c6fd5fad8eab828cfe88",
       "reason": "Production WebUI bundle with hundred-point demand score formatting and real/initial source colors; rebuilt and checked against webui/build-manifest.json, with targeted Edge and real Console browser verification."
+    },
+    {
+      "path": "internal/cacheproxy/testdata/storage-v7.sqlite",
+      "kind": "binary-fixture",
+      "bytes": 102400,
+      "sha256": "620ada9b8f8868caee44b9efddba163cc4fd179406f65a7171fbf37e91880922",
+      "reason": "Frozen schema v7 fixture with block-weighted response source bytes and lifetime totals; v2-v6 fixtures remain unchanged for rejection regression."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1168629,
+      "sha256": "129dc2cf63194a24171a0daa649616bbdbbbcaae40898d0ec6889aa1652cecc0",
+      "reason": "Production WebUI bundle from pinned dependencies and webui/src, verified by build-manifest.json. Display cumulative and per-request block-weighted response sources."
     }
   ]
 }

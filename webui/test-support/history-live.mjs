@@ -13,6 +13,13 @@ try {
   const latency=await (await page.request.get(baseURL+'/api/latency',{headers:{'X-SWD-Token':token}})).json();
   expect(latency.blocking.samples).toBeGreaterThan(0);
   expect(latency.blocking.samples+latency.ready.samples).toBe(601);
+  const sources=await (await page.request.get(baseURL+'/api/response-sources',{headers:{'X-SWD-Token':token}})).json();
+  const blockBytes=Buffer.byteLength('history browser video');
+  expect(sources.downloadBytes+sources.cacheBytes+sources.localBytes).toBe(601*blockBytes);
+  expect(sources.localBytes).toBeGreaterThan(0);
+  const firstPage=await (await page.request.get(baseURL+'/api/history?limit=50',{headers:{'X-SWD-Token':token}})).json();
+  expect(firstPage.requests.every(r=>r.bytes===4&&r.sources.localBytes===blockBytes)).toBe(true);
+  await expect(page.getByRole('region',{name:'响应来源统计'})).toContainText('本地视频');
   const history=page.getByRole('table',{name:'请求历史列表'});
   await expect(history.getByRole('link',{name:'ID 42',exact:true})).toHaveCount(50);
   await expect(history.getByRole('link',{name:key,exact:true})).toHaveCount(50);
@@ -29,5 +36,5 @@ try {
   await page.screenshot({path:join(output,'history-mobile.png'),fullPage:true});
   await page.reload();await expect(history.getByRole('link',{name:'ID 42',exact:true})).toHaveCount(50);
   expect(errors).toEqual([]);
-  await writeFile(join(output,'results.json'),JSON.stringify({records:601,lastPage:13,resource:key,latency,errors},null,2));
+  await writeFile(join(output,'results.json'),JSON.stringify({records:601,lastPage:13,resource:key,latency,sources,errors},null,2));
 } finally {await browser.close();}

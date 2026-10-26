@@ -58,7 +58,7 @@ func TestBusinessRetryDoesNotResetBudgetOrRewriteMonitor(t *testing.T) {
 				t.Fatal(err)
 			}
 			before := m.Results(upstreamstate.PlaybackURL)
-			if len(c.operationClients(upstreamstate.PlaybackURL, upstreamstate.Constraints{Route: "cf", Entry: c.apiBase + "/Api/Songs/play?node=cf"})) != 2 {
+			if len(c.operationClients(context.Background(), upstreamstate.PlaybackURL, upstreamstate.Constraints{Route: "cf", Entry: c.apiBase + "/Api/Songs/play?node=cf"})) != 2 {
 				t.Fatal("expected two candidates")
 			}
 			business = true

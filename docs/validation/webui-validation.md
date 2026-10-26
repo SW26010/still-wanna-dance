@@ -567,10 +567,28 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 | 重复导入同一目录 | 网页显示导入 0、跳过 3、失败 0；最初的 HTTP 复现脚本也复验通过。原位置清理未勾选、未执行 |
 | 环境收尾 | 网页正常退出，验收进程和监听清空；hosts 哈希与开测前一致，无托管条目。三个原文件的大小、MD5 和修改时间均未变，浏览器未记录 error/warn |
 
-**仍需处理的通道问题：** 同一普通 Windows 用户环境中，正式 `upstreamnet.Resolver` 与 `upstreamrequest.Pool` 逐通道探针证明，Kiva 的三个 IPv4 地址均曾返回 HTTP 200 和完整 5,992,687 字节清单，三个 IPv6 地址均在 TLS 握手时 EOF；实际 Monitor 也记录了 IPv4 成功、部分 IPv4 的 500/503 和 IPv6 TLS 失败。系统请求的成功不能证明每条通道可用，沙箱内外的响应也不能直接混作同一环境证据。
+**该轮发现的通道问题（回退修复见下节）：** 同一普通 Windows 用户环境中，正式 `upstreamnet.Resolver` 与 `upstreamrequest.Pool` 逐通道探针证明，Kiva 的三个 IPv4 地址均曾返回 HTTP 200 和完整 5,992,687 字节清单，三个 IPv6 地址均在 TLS 握手时 EOF；实际 Monitor 也记录了 IPv4 成功、部分 IPv4 的 500/503 和 IPv6 TLS 失败。系统请求的成功不能证明每条通道可用，沙箱内外的响应也不能直接混作同一环境证据。
 
-代码检查表明，无有效推荐时业务仅使用普通客户端一次；双栈组件在 TCP 建连阶段选择连接，随后 TLS 失败不会回到该次 TCP 竞速中的其它地址。已有可用推荐后本次实际导入成功，但没有用该成功结果宣称冷启动或推荐空档的容错已修复。后续应在无有效推荐、IPv6 TCP 成功但 TLS 失败、IPv4 可用的受控场景补回归并处理有界回退；本次未修改网络策略或放宽在线清单要求。
+修复前的代码检查表明，无有效推荐时业务仅使用普通客户端一次；双栈组件在 TCP 建连阶段选择连接，随后 TLS 失败不会回到该次 TCP 竞速中的其它地址。已有可用推荐后该轮实际导入成功，但没有用该成功结果宣称冷启动或推荐空档的容错已修复。当时留下的开发任务是在无有效推荐、IPv6 TCP 成功但 TLS 失败、IPv4 可用的受控场景补回归并处理有界回退；该轮未修改网络策略或放宽在线清单要求，下节记录后续修复。
 
 同日独立客户端对照：Windows 系统 `curl 8.21.0 / Schannel` 通过 `--resolve` 固定相同地址，保留原域名、SNI 和证书校验，使用 `--noproxy '*'` 禁用 curl 显式代理。Kiva IPv4 返回 200/5,992,687 字节，三个 Kiva IPv6 均 TCP 建连后 TLS 失败（curl 35）；另一个入口 `api.udon.dance` 的固定 IPv6 返回 200/2,885,371 字节。结果独立于 SWD 和 Go TLS 实现，指向 Kiva 的 IPv6 服务或途中链路；未排除本机透明网络组件，不能仅凭 EOF 将根因定为上游服务器。证据为 `ipv6-curl-comparison.log`。
 
 本次源副本和目标都在同一卷，验证了同盘导入；不是新增跨卷、源文件清理或游戏播放证据。未提交、未推送。
+
+### 同日补充：清单冷态候选回退修复
+
+清单与播放地址的 `operationClients` 补齐当前配置允许的候选，保留 Monitor 推荐优先并去重。没有推荐及缓存候选时通过现有提供者解析 DNS；后续仍由原有业务循环分配时限并串行尝试，最多六个候选，Auto 保留代理额度。未改双栈拨号、TLS 校验、HTTPS 透传、测量结果或在线清单要求；现行规则见[上游通道](../upstream-channels.md#模式)。
+
+- 先运行 `TestColdCatalogFallsBackAfterTLSFailure`：真实 TCP 连接在 TLS 阶段被关闭，旧代码只执行失败通道，成功通道调用数为 0。修复后失败、成功通道各执行一次，清单读取通过。新增模式隔离/六候选上限/Auto 代理额度及冷态取消检查通过；既有请求预算、取消、Monitor 不被业务重写、Mihomo 冷态和第五代理回退检查通过。
+- Console 整包首轮仅新增模式测试因夹具漏填 SOCKS5 地址失败，补齐夹具后新增检查通过；第二轮整包仅未修改的 `TestCustomConfigurationsKeepIndependentStateAfterMove` 在目录重命名时报 Access denied，该用例随后独立连续五次通过。没有修改搬迁实现，也没有推断首次拒绝的具体原因；两轮整包失败和定向复验日志均保留，不记作一次完整无失败的整包运行。`go vet -tags=no_easytier ./internal/console` 通过。
+- 不创建 Monitor 的 `TestLiveCatalogCompleteBody` 请求真实 Kiva 清单，通过并取得 10,470 首歌曲，耗时约 2.97 秒，证明成功不依赖先运行网络检测；受控 TLS 用例负责证明失败后确实执行下一个通道。
+- 构建 `dev-ipv6-fallback-20261026`，源码基线 `fb473b00c00c0b6ad265eb0a876d45c7e662e37a` 加本轮未提交修改，构建时间 `2026-10-26T10:56:16.914Z`，EXE SHA256 `36D514C1AF59C93C71771AFBC6564393CA4DBA295B8D6AA4ABBE4487B1E6082C`。嵌入 WebUI 校验与桌面构建通过。独立目录首次导入三个真实视频副本，结果为导入 2、跳过 1、失败 0；Chrome 确认结果并重复导入，新增 0、跳过 3、失败 0。原文件、副本及两个目标文件的 MD5/大小一致，未清理源文件。
+- 网页正常退出后，验收进程和监听清空，hosts 哈希仍与前述基线一致，无托管条目。证据、构建及可还原工作区补丁位于忽略目录 `artifacts/ipv6-fallback-20261026/`。本次没有启动游戏、提交或推送。
+
+#### 审查补充：保留冷态 Auto 直连路径
+
+首版回退新增的 `len(current) == 0` 判断有遗漏：外部 SOCKS5 的 Auto 模式即使没有 DNS 缓存仍会提供代理候选，因而跳过直连发现。此前模式测试预填 DNS，没有覆盖该条件。用真实候选池、空 DNS 缓存、无 Monitor、不可用回环代理和可用 HTTP 上游新增 `TestColdAutoBusinessKeepsDirectPath`；修正前清单、播放地址两个子用例均只尝试代理并失败，修正后各执行一次 DNS 发现及直连请求并成功。
+
+发现条件改为无推荐且尚无直连候选，模式权限继续由现有提供者执行；强制代理即使调用发现接口也不查询本地目标 DNS。模式测试扩展为冷/热 DNS × direct/proxy/auto，检查六候选上限、Auto 代理额度、去重和强制代理隔离；既有超时预算、取消、TLS 失败及 Mihomo 回退定向检查通过。`go test -tags=no_easytier ./internal/console -count=1` 整包通过（64.64 秒），同包 `go vet`、嵌入 WebUI 校验及桌面构建通过。本次通过不覆盖或改写前述历史失败。
+
+替代首版构建的 `dev-ipv6-fallback-20261026-02` 仍以 `fb473b00c00c0b6ad265eb0a876d45c7e662e37a` 加未提交修改构建，时间 `2026-10-26T13:58:14.247Z`，EXE SHA256 `0B50EF2627BA5DAC2D0D49F8758106387FBD8E4518A72B1DD16661AA00F0A361`。本轮受控真实 HTTP 检查覆盖上述冷态 Auto 行为，未重跑公网视频导入或启动游戏。新构建、先失败后通过的日志及补丁保留在 `artifacts/ipv6-fallback-20261026/auto-review/`，旧 EXE 与证据保留；未提交、未推送。

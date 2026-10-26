@@ -154,7 +154,7 @@ func TestMihomoColdAutoUsesDirectWithoutMonitorOrDNSCache(t *testing.T) {
 	}
 	c.client.Transport.(interface{ Retire() }).Retire()
 	c.client, c.settings, c.apiBase = client, s, server.URL
-	clients := c.operationClients(upstreamstate.PlaybackURL, upstreamstate.Constraints{Entry: server.URL})
+	clients := c.operationClients(context.Background(), upstreamstate.PlaybackURL, upstreamstate.Constraints{Entry: server.URL})
 	if len(clients) != 2 {
 		t.Fatalf("missing cold direct path: %d clients", len(clients))
 	}
@@ -325,7 +325,7 @@ func TestConsoleMihomoProtocolsColdHTTP(t *testing.T) {
 			}
 			c.client.Transport.(interface{ Retire() }).Retire()
 			c.client, c.settings = client, s
-			clients := c.operationClients(upstreamstate.Catalog, upstreamstate.Constraints{Entry: "http://business.invalid/"})
+			clients := c.operationClients(context.Background(), upstreamstate.Catalog, upstreamstate.Constraints{Entry: "http://business.invalid/"})
 			if len(clients) != 1 {
 				t.Fatal("wrong cold clients")
 			}

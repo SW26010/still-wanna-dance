@@ -94,12 +94,27 @@ func boundedSelections(selections []upstreamstate.Selection) []upstreamstate.Sel
 	return out
 }
 
-func (c *Console) operationClients(op upstreamstate.Operation, q upstreamstate.Constraints) []*http.Client {
+func (c *Console) operationClients(ctx context.Context, op upstreamstate.Operation, q upstreamstate.Constraints) []*http.Client {
 	base := c.upstreamClient()
 	selections := c.operationSelections(op, q)
+	if provider, ok := base.Transport.(upstreamrequest.Candidates); ok {
+		current := provider.Current(q.Entry)
+		if len(selections) == 0 && !slices.ContainsFunc(current, func(c upstreamrequest.Candidate) bool { return c.Mode == "direct" }) {
+			// Cold business requests may resolve DNS, but never run a probe.
+			// A proxy alone does not establish direct membership. The provider
+			// still owns mode isolation, including no target DNS in forced proxy.
+			current, _ = provider.Candidates(ctx, q.Entry)
+		}
+		for _, channel := range current {
+			if !slices.ContainsFunc(selections, func(s upstreamstate.Selection) bool { return s.Channel.ID == channel.ID }) {
+				selections = append(selections, upstreamstate.Selection{Channel: channel})
+			}
+		}
+		selections = boundedSelections(selections)
+	}
 	if len(selections) == 0 {
-		// Cold/expired observations use the configured channel once. Never
-		// trigger an ad-hoc measurement or race from a business request.
+		// Legacy clients or a pool with no usable paths retain the ordinary
+		// request. The caller's context still bounds discovery and attempts.
 		return []*http.Client{base}
 	}
 	var clients []*http.Client

@@ -35,7 +35,7 @@ func (c *Console) fetchCatalogSnapshot(ctx context.Context) (cacheproxy.Catalog,
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	var failures []error
-	clients := c.operationClients(upstreamstate.Catalog, upstreamstate.Constraints{Entry: c.checksumURL})
+	clients := c.operationClients(ctx, upstreamstate.Catalog, upstreamstate.Constraints{Entry: c.checksumURL})
 	for i, client := range clients {
 		if err := ctx.Err(); err != nil {
 			return cacheproxy.Catalog{}, err

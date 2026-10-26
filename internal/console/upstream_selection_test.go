@@ -185,7 +185,7 @@ func TestBusinessResolutionReservesFallbackDeadline(t *testing.T) {
 	if err := m.CheckSelected(context.Background(), upstreamstate.CheckPlayback); err != nil {
 		t.Fatal(err)
 	}
-	if n := len(c.operationClients(upstreamstate.PlaybackURL, upstreamstate.Constraints{Route: "cf", Entry: c.apiBase + "/Api/Songs/play?node=cf"})); n != 2 {
+	if n := len(c.operationClients(context.Background(), upstreamstate.PlaybackURL, upstreamstate.Constraints{Route: "cf", Entry: c.apiBase + "/Api/Songs/play?node=cf"})); n != 2 {
 		t.Fatalf("want two measured channels, got %d", n)
 	}
 	business.Store(true)

@@ -65,7 +65,7 @@ func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (s
 	if upstream == "cf" {
 		entry = c.apiBase + "/Api/Songs/play?node=cf"
 	}
-	clients := c.operationClients(upstreamstate.PlaybackURL, upstreamstate.Constraints{Route: upstream, Entry: entry})
+	clients := c.operationClients(ctx, upstreamstate.PlaybackURL, upstreamstate.Constraints{Route: upstream, Entry: entry})
 	var failures []error
 	for i, client := range clients {
 		if err := ctx.Err(); err != nil {

@@ -2,11 +2,8 @@ package cacheproxy
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"regexp"
 	"time"
 )
@@ -53,26 +50,21 @@ var safeRequestRange = regexp.MustCompile(`^bytes=[0-9 ,\-]{1,200}$`)
 // ReadRecentRequests reads a bounded, expanding recent window through the time
 // index. It never starts the engine, creates a database, or reads signed URLs.
 // Only HTTP video requests are included; prefetch events are not client bytes.
-func ReadRecentRequests(ctx context.Context, root string, limit int) (RecentRequests, error) {
-	return readRequestPage(ctx, root, RequestQuery{Limit: limit}, false)
+func ReadRecentRequests(ctx context.Context, databasePath string, limit int) (RecentRequests, error) {
+	return readRequestPage(ctx, databasePath, RequestQuery{Limit: limit}, false)
 }
-func ReadRequestHistory(ctx context.Context, root string, query RequestQuery) (RecentRequests, error) {
-	return readRequestPage(ctx, root, query, true)
+func ReadRequestHistory(ctx context.Context, databasePath string, query RequestQuery) (RecentRequests, error) {
+	return readRequestPage(ctx, databasePath, query, true)
 }
-func readRequestPage(ctx context.Context, root string, query RequestQuery, getOnly bool) (RecentRequests, error) {
+func readRequestPage(ctx context.Context, databasePath string, query RequestQuery, getOnly bool) (RecentRequests, error) {
 	limit := query.Limit
 	result := RecentRequests{Requests: []RecentRequest{}}
 	if err := query.Validate(); err != nil {
 		return result, err
 	}
-	path, err := filepath.Abs(storagePath(root))
+	result.StorageID = DatabaseID(databasePath)
+	db, err := readDatabaseFile(databasePath)
 	if err != nil {
-		return result, err
-	}
-	hash := sha256.Sum256([]byte(path))
-	result.StorageID = hex.EncodeToString(hash[:])
-	db, err := readStorageDatabase(root)
-	if err != nil || db == nil {
 		return result, err
 	}
 	defer db.Close()

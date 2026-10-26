@@ -13,7 +13,7 @@ import (
 func TestTrafficPersistence(t *testing.T) {
 	root := t.TempDir()
 	cfg := fixtureConfig()
-	cfg.StorageDir = root
+	prepareFixtureResources(t, &cfg, root, true)
 	s, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -34,18 +34,19 @@ func TestTrafficPersistence(t *testing.T) {
 			t.Fatalf("bad persisted stats: %+v", v)
 		}
 	}
-	check(ReadTrafficStats(root))
+	check(ReadTrafficStats(storagePath(root)))
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
-	check(ReadTrafficStats(root))
+	check(ReadTrafficStats(storagePath(root)))
+	reopenFixtureStore(t, &cfg)
 	s, err = New(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.Close()
 	check(s.TrafficStats())
-	if v := ReadTrafficStats(t.TempDir()); v.Error != "" || v.Requests != 0 {
+	if v := ReadTrafficStats(storagePath(t.TempDir())); v.Error == "" || v.Requests != 0 {
 		t.Fatalf("new directory: %+v", v)
 	}
 }
@@ -53,7 +54,7 @@ func TestTrafficPersistence(t *testing.T) {
 func TestTrafficPersistenceAndRetention(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "storage.sqlite")
-	u, err := openUsage(path, slog.Default(), 0)
+	u, err := fixtureUsage(t, path, slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,9 +68,9 @@ func TestTrafficPersistenceAndRetention(t *testing.T) {
 			t.Fatalf("migration: %+v", v)
 		}
 	}
-	check(ReadTrafficStats(root))
+	check(ReadTrafficStats(storagePath(root)))
 	cfg := fixtureConfig()
-	cfg.StorageDir = root
+	prepareFixtureResources(t, &cfg, root, false)
 	cfg.RequestRetentionDays = 0
 	s, err := New(cfg)
 	if err != nil {
@@ -81,6 +82,7 @@ func TestTrafficPersistenceAndRetention(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Close()
+	reopenFixtureStore(t, &cfg)
 	s, err = New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -101,7 +103,7 @@ func TestExistingTrafficDoesNotReadRequestDetails(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO traffic_totals VALUES (1,42,1,0)`); err != nil {
 		t.Fatal(err)
 	}
-	s := &Server{}
+	s := &Server{Store: &Store{}}
 	if err := s.loadTraffic(db); err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +113,7 @@ func TestExistingTrafficDoesNotReadRequestDetails(t *testing.T) {
 }
 
 func TestTrafficStats(t *testing.T) {
-	s := &Server{}
+	s := &Server{Store: &Store{}}
 	if v := s.TrafficStats(); v.HitRate != nil {
 		t.Fatalf("empty statistics: %+v", v)
 	}

@@ -84,7 +84,8 @@ func TestMD5BatchTriesSharedSongIDs(t *testing.T) {
 			defer api.Close()
 			c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
 			cfg := fixtureCacheConfig()
-			cfg.StorageDir, cfg.OriginScheme = c.settings.StorageDir, "http"
+			cfg.OriginScheme = "http"
+			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 			for host := range cfg.Origins {
 				cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
 			}
@@ -167,7 +168,7 @@ func TestMD5CatalogScanAndFillUseSinglePresenceSnapshot(t *testing.T) {
 	defer api.Close()
 	c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
 	cfg := fixtureCacheConfig()
-	cfg.StorageDir = c.settings.StorageDir
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.OriginScheme = "http"
 	for host := range cfg.Origins {
 		cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
@@ -177,7 +178,7 @@ func TestMD5CatalogScanAndFillUseSinglePresenceSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.service = engine
-	if err := os.WriteFile(filepath.Join(cfg.StorageDir, "videos", digest(a)+".mp4"), []byte(a), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(cfg.VideoDir, digest(a)+".mp4"), []byte(a), 0600); err != nil {
 		t.Fatal(err)
 	}
 	waitMD5Batch(t, c, true)
@@ -197,7 +198,7 @@ func TestMD5CatalogScanAndFillUseSinglePresenceSnapshot(t *testing.T) {
 		t.Fatalf("batch=%+v resolves=%d lists=%d", c.batch, resolves.Load(), lists.Load())
 	}
 	// Unchanged mappings with a missing file still need to be filled again.
-	if err := os.Remove(filepath.Join(cfg.StorageDir, "videos", digest(b)+".mp4")); err != nil {
+	if err := os.Remove(filepath.Join(cfg.VideoDir, digest(b)+".mp4")); err != nil {
 		t.Fatal(err)
 	}
 	waitMD5Batch(t, c, false)
@@ -238,20 +239,17 @@ func TestCatalogRedirectErrorPrivacy(t *testing.T) {
 	defer origin.Close()
 	client := origin.Client()
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	root := t.TempDir()
+	c := testConsole(t)
 	cfg := fixtureCacheConfig()
-	cfg.StorageDir = filepath.Join(root, "data")
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, c.settings.VideoDir
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer engine.Close()
-	c := &Console{
-		checksumURL: origin.URL + "/catalog", client: client,
-		configPath: filepath.Join(root, "config.json"),
-		settings:   Settings{UpstreamMode: "direct", StorageDir: cfg.StorageDir},
-		batch:      Batch{Running: true, ScanOnly: true},
-	}
+	c.checksumURL, c.client = origin.URL+"/catalog", client
+	c.settings.UpstreamMode = "direct"
+	c.batch = Batch{Running: true, ScanOnly: true}
 	err = c.refreshLocalCatalog(context.Background(), engine)
 	if err == nil {
 		t.Fatal("expected malformed redirect error")
@@ -260,11 +258,11 @@ func TestCatalogRedirectErrorPrivacy(t *testing.T) {
 	if closeErr := engine.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
-	status, readErr := cacheproxy.LoadCatalogStatus(context.Background(), cfg.StorageDir)
+	status, readErr := cacheproxy.LoadCatalogStatus(context.Background(), fixtureLibraryPaths(filepath.Dir(cfg.VideoDir)).DatabasePath)
 	if readErr != nil {
 		t.Fatal(readErr)
 	}
-	saved, readErr := readSnapshot[Batch](c, "attempt")
+	saved, readErr := readSnapshot[Batch](c, "batch-last-attempt")
 	if readErr != nil {
 		t.Fatal(readErr)
 	}
@@ -323,7 +321,7 @@ func TestCatalogFailureUsesOnlyLocalFallback(t *testing.T) {
 					c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
 					if cached {
 						cfg := fixtureCacheConfig()
-						cfg.StorageDir = c.settings.StorageDir
+						cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 						engine, err := cacheproxy.New(cfg)
 						if err != nil {
 							t.Fatal(err)
@@ -333,7 +331,7 @@ func TestCatalogFailureUsesOnlyLocalFallback(t *testing.T) {
 						if err := syncTestCatalog(c, engine, context.Background(), map[string]string{"1": key, "2": key}); err != nil {
 							t.Fatal(err)
 						}
-						if err := os.WriteFile(filepath.Join(cfg.StorageDir, "videos", key+".mp4"), []byte("trusted"), 0600); err != nil {
+						if err := os.WriteFile(filepath.Join(cfg.VideoDir, key+".mp4"), []byte("trusted"), 0600); err != nil {
 							t.Fatal(err)
 						}
 					}
@@ -381,7 +379,7 @@ func TestCatalogRetryReplacesFallbackWarning(t *testing.T) {
 	defer api.Close()
 	c.checksumURL, c.client.Transport = api.URL, http.DefaultTransport
 	cfg := fixtureCacheConfig()
-	cfg.StorageDir = c.settings.StorageDir
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)

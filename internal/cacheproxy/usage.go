@@ -39,24 +39,36 @@ type usageStore struct {
 	log       *slog.Logger
 	mu        sync.Mutex
 	closed    bool
+	started   bool
+	onError   func(error)
+	failure   error // Written by the worker; read after done closes.
 	events    chan usageEvent
 	done      chan struct{}
 	now       func() time.Time
 }
 
-func openUsage(path string, log *slog.Logger, retentionDays int) (*usageStore, error) {
-	db, err := openStorageDatabase(path, true)
-	if err != nil {
-		return nil, err
-	}
-	u := &usageStore{retention: time.Duration(retentionDays) * 24 * time.Hour, db: db, log: log, events: make(chan usageEvent, 1024), done: make(chan struct{}), now: time.Now}
+func newUsage(db *sql.DB, log *slog.Logger) *usageStore {
+	return &usageStore{db: db, log: log, events: make(chan usageEvent, 1024), done: make(chan struct{}), now: time.Now}
+}
 
-	if _, err := db.Exec("INSERT INTO request_observation(id,started_at,retained_since) VALUES(1,?,0) ON CONFLICT DO NOTHING", u.now().UnixMilli()); err != nil {
-		db.Close()
-		return nil, err
+// Opening a library is not the beginning of request collection. Only an engine
+// that actually starts observing traffic activates this worker and its pruning.
+func (u *usageStore) start(retentionDays int) error {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if u.closed {
+		return fmt.Errorf("request observation is closed")
 	}
+	if u.started {
+		return nil
+	}
+	if _, err := u.db.Exec("INSERT INTO request_observation(id,started_at,retained_since) VALUES(1,?,0) ON CONFLICT DO NOTHING", u.now().UnixMilli()); err != nil {
+		return err
+	}
+	u.retention = time.Duration(retentionDays) * 24 * time.Hour
+	u.started = true
 	go u.run()
-	return u, nil
+	return nil
 }
 
 // Timestamp and enqueue under the same lock: response completion cannot reorder
@@ -90,7 +102,7 @@ func (u *usageStore) flush() {
 		return
 	}
 	u.mu.Lock()
-	if u.closed {
+	if u.closed || !u.started {
 		u.mu.Unlock()
 		return
 	}
@@ -101,7 +113,7 @@ func (u *usageStore) flush() {
 }
 
 func (u *usageStore) enqueueLocked(e usageEvent) {
-	if u.closed {
+	if u.closed || !u.started {
 		return
 	}
 	select {
@@ -111,22 +123,26 @@ func (u *usageStore) enqueueLocked(e usageEvent) {
 	}
 }
 
-func (u *usageStore) close() {
+func (u *usageStore) close() error {
 	if u == nil {
-		return
+		return nil
 	}
 	u.mu.Lock()
 	if !u.closed {
 		u.closed = true
-		close(u.events)
+		if u.started {
+			close(u.events)
+		} else {
+			close(u.done)
+		}
 	}
 	u.mu.Unlock()
 	<-u.done
+	return u.failure
 }
 
 func (u *usageStore) run() {
 	defer close(u.done)
-	defer u.db.Close()
 	// Run even without requests; catch up old databases gradually.
 	timer := time.NewTimer(0)
 	defer timer.Stop()
@@ -137,7 +153,13 @@ func (u *usageStore) run() {
 			deleted, err := u.prune(time.Now())
 			delay := time.Minute
 			if err != nil {
+				if u.failure == nil {
+					u.failure = err
+				}
 				u.log.Warn("usage_cleanup_failed", "error", err)
+				if u.onError != nil {
+					u.onError(err)
+				}
 			} else if deleted == requestCleanupBatch {
 				delay = time.Second
 			}
@@ -164,7 +186,13 @@ func (u *usageStore) run() {
 		}
 	write:
 		if err := u.write(batch); err != nil {
+			if u.failure == nil {
+				u.failure = err
+			}
 			u.log.Error("usage_write_failed", "count", len(batch), "error", err)
+			if u.onError != nil {
+				u.onError(err)
+			}
 		}
 		for _, e := range batch {
 			if e.barrier != nil {

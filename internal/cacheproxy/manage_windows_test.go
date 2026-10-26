@@ -28,7 +28,7 @@ func TestCacheDirectoryAcceptsWindowsShortPath(t *testing.T) {
 	if strings.EqualFold(short, root) {
 		t.Skip("8.3 short names are disabled on this volume")
 	}
-	if _, err := CacheDirectory(short); err != nil {
+	if _, err := CacheDirectory(fixtureLibrary(short).VideoDir); err != nil {
 		t.Fatalf("ordinary directory through short path %q: %v", short, err)
 	}
 }
@@ -56,7 +56,7 @@ func TestCacheDirectoryRejectsWindowsJunctions(t *testing.T) {
 			if out, err := exec.Command("cmd", "/c", "mklink", "/J", link, target).CombinedOutput(); err != nil {
 				t.Fatalf("create test junction: %v: %s", err, out)
 			}
-			if _, err := CacheDirectory(root); err == nil {
+			if _, err := CacheDirectory(fixtureLibrary(root).VideoDir); err == nil {
 				t.Fatal("accepted junction in cache path")
 			}
 		})

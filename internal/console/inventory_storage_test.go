@@ -39,7 +39,7 @@ func TestInventoryRejectsMissingStorageWithRestoredBatchEvidence(t *testing.T) {
 				if err := c.Close(); err != nil {
 					t.Fatal(err)
 				}
-				root := c.settings.StorageDir
+				root := testStorageRoot(c.settings)
 				database, err := os.ReadFile(filepath.Join(root, "storage.sqlite"))
 				if err != nil {
 					t.Fatal(err)
@@ -58,7 +58,7 @@ func TestInventoryRejectsMissingStorageWithRestoredBatchEvidence(t *testing.T) {
 				c.client.Transport = http.DefaultTransport
 				beforeBatch, beforeLast := c.batch, c.lastBatch
 				state := map[string][]byte{}
-				for _, kind := range []string{"batch", "attempt", "inventory"} {
+				for _, kind := range []string{"batch-last-success", "batch-last-attempt", "inventory"} {
 					data, err := os.ReadFile(c.files().State(kind))
 					if err != nil && !os.IsNotExist(err) {
 						t.Fatal(err)

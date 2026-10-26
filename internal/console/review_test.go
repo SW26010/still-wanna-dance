@@ -10,9 +10,9 @@ func TestSettingsStorageRoot(t *testing.T) {
 		t.Fatal("empty storage root accepted")
 	}
 	s := testConsole(t).settings
-	s.StorageDir = "data"
+	setTestLibraryPaths(&s, "data")
 	s, err := absoluteSettings(s)
-	if err != nil || !filepath.IsAbs(s.StorageDir) {
+	if err != nil || !filepath.IsAbs(testStorageRoot(s)) {
 		t.Fatal(s, err)
 	}
 }

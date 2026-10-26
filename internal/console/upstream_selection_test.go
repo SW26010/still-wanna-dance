@@ -200,7 +200,7 @@ func TestBusinessResolutionReservesFallbackDeadline(t *testing.T) {
 func TestBusinessResolutionKeepsCFPriorityAndMeasuredTransport(t *testing.T) {
 	c := testConsole(t)
 	cfg := fixtureCacheConfig()
-	cfg.StorageDir = c.settings.StorageDir
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)

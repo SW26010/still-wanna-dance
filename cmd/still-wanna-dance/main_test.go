@@ -53,7 +53,23 @@ func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	cfg.CacheUnlimited = true // This shutdown test serves a previously retained video.
 	cfg.Origins["play.udon.dance"] = "127.0.0.1:1"
 	cfg.OriginScheme = "http"
-	cfg.StorageDir = t.TempDir()
+	root := t.TempDir()
+	cfg.VideoDir = filepath.Join(root, "videos")
+	if err := os.Mkdir(cfg.VideoDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	store, err := cacheproxy.CreateStore(filepath.Join(root, "storage.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	cfg.Store = store
+	work, err := cacheproxy.OpenWorkDirectory(t.TempDir(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer work.Close()
+	cfg.Work = work
 	cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	initial, err := cacheproxy.New(cfg)
 	if err != nil {
@@ -61,10 +77,10 @@ func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	}
 	initial.Close()
 	body := strings.Repeat("x", 128*1024)
-	if err := os.MkdirAll(filepath.Join(cfg.StorageDir, "videos"), 0700); err != nil {
+	if err := os.MkdirAll(cfg.VideoDir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(cfg.StorageDir, "videos", fmt.Sprintf("%x.mp4", md5.Sum([]byte(body)))), []byte(body), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(cfg.VideoDir, fmt.Sprintf("%x.mp4", md5.Sum([]byte(body)))), []byte(body), 0600); err != nil {
 		t.Fatal(err)
 	}
 	service, err := cacheproxy.New(cfg)
@@ -99,7 +115,10 @@ func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("shutdown stuck on paused reader")
 	}
-	db, err := sql.Open("sqlite", filepath.Join(cfg.StorageDir, "storage.sqlite"))
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", filepath.Join(root, "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}

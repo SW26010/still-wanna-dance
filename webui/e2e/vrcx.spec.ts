@@ -4,7 +4,7 @@ import { navigate } from './navigation';
 
 async function fixture(page: Page, existing = 0) {
   const api = await mockAPI(page);
-  const report = {id:'preview-1',source:'C:\\VRCX\\VRCX.sqlite3',storageDir:api.state.activeSettings.storageDir,
+  const report = {id:'preview-1',source:'C:\\VRCX\\VRCX.sqlite3',databasePath:api.state.activeSettings.databasePath,
     total:9,recognized:7,events:4,duplicates:2,invalid:1,unrelated:2,skipped:5,songs:2,
     firstAt:Date.UTC(2025,0,1),lastAt:Date.UTC(2026,0,1),existingSongs:existing,imported:false};
   const calls: {path:string;body:Record<string,unknown>}[] = [];
@@ -13,7 +13,7 @@ async function fixture(page: Page, existing = 0) {
     calls.push({path,body});
     if(path==='detect')return route.fulfill({json:{path:report.source,found:true,existingSongs:report.existingSongs}});
     if(path==='select')return route.fulfill({json:{path:'D:\\custom\\VRCX.sqlite3',canceled:false}});
-    if(path==='preview') { if(body.storageDir)report.storageDir=body.storageDir; return route.fulfill({json:report}); }
+    if(path==='preview') return route.fulfill({json:report});
     if(path==='apply')return route.fulfill({json:{...report,imported:true}});
     return route.fulfill({json:{ok:true}});
   });

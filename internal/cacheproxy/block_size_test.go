@@ -18,6 +18,7 @@ import (
 func TestBlockSizeValidation(t *testing.T) {
 	for _, size := range []int64{-1, 0, 1, 384<<10 + 17, 512 << 10, 2 << 20, int64(^uint(0) >> 1)} {
 		cfg := DefaultConfig()
+		cfg.VideoDir = t.TempDir()
 		cfg.BlockSize = size
 		valid := size >= 0 && uint64(size) < uint64(^uint(0)>>1)
 		if err := cfg.validate(); (err == nil) != valid {
@@ -118,6 +119,7 @@ func TestConfiguredBlockSizeHTTPAndPublication(t *testing.T) {
 				}
 				// Reopen the same published library with different geometry.
 				cfg.BlockSize = blockSize + 37
+				reopenFixtureStore(t, &cfg)
 				reopened, err := New(cfg)
 				if err != nil {
 					t.Fatal(err)

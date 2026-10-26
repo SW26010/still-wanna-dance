@@ -42,6 +42,9 @@ func TestChannelIdentityConcurrentConsumersShareIndependentCopies(t *testing.T) 
 func TestChannelIdentityFailedPreparationRemainsTemporaryUntilRestart(t *testing.T) {
 	c := &Console{configPath: filepath.Join(t.TempDir(), "config.json")}
 	path := c.files().ChannelKey
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(path, []byte("broken"), 0600); err != nil {
 		t.Fatal(err)
 	}

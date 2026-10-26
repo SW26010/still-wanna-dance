@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/upstreamstate"
 )
 
@@ -28,7 +29,7 @@ func TestMonitorCatalogOrderingAndExistingWatermarks(t *testing.T) {
 	newer := monitorFull("kiva", "20261002000000", "full", b)
 	// Udon arrives first, but must not block this batch's complete metadata.
 	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorNames("20261003000000", "latest name"), old, newer, newer})
-	db, err := sql.Open("sqlite", filepath.Join(c.settings.StorageDir, "storage.sqlite"))
+	db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,26 +67,22 @@ func TestMonitorCatalogUsesCurrentStorageAfterSwitch(t *testing.T) {
 	c := testConsole(t)
 	ctx := context.Background()
 	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("kiva", "20261001000000", "original", strings.Repeat("a", 32))})
-	oldRoot := c.settings.StorageDir
-	// Hold the same locks as settings changes while replacing the engine.
-	c.lifecycleMu.Lock()
-	c.mu.Lock()
-	old := c.service
-	c.service = nil
-	c.settings.StorageDir = filepath.Join(t.TempDir(), "replacement")
-	c.mu.Unlock()
-	if err := old.Close(); err != nil {
-		c.lifecycleMu.Unlock()
+	oldRoot := testStorageRoot(c.settings)
+	next := c.settings
+	setTestLibraryPaths(&next, filepath.Join(t.TempDir(), "replacement"))
+	created, err := cacheproxy.CreateStore(libraryPaths(next).DatabasePath)
+	if err != nil {
 		t.Fatal(err)
 	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("wanna", "20261002000000", "replacement", strings.Repeat("b", 32))})
-	}()
-	c.lifecycleMu.Unlock()
-	<-done
-	for root, want := range map[string]string{oldRoot: "original", c.settings.StorageDir: "replacement"} {
+	if err := created.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.save(next); err != nil {
+		t.Fatal(err)
+	}
+	c = restartTestConsole(t, c)
+	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("wanna", "20261002000000", "replacement", strings.Repeat("b", 32))})
+	for root, want := range map[string]string{oldRoot: "original", testStorageRoot(c.settings): "replacement"} {
 		db, err := sql.Open("sqlite", filepath.Join(root, "storage.sqlite"))
 		if err != nil {
 			t.Fatal(err)
@@ -123,8 +120,8 @@ func TestMonitorUdonNeverOpensStorage(t *testing.T) {
 	if c.service != nil {
 		t.Fatal("Udon opened database")
 	}
-	if _, err := os.Stat(c.settings.StorageDir); !os.IsNotExist(err) {
-		t.Fatal("Udon created storage", err)
+	if status, err := c.store.CatalogStatus(context.Background()); err != nil || status.Revision != "" {
+		t.Fatal("Udon changed catalog", status, err)
 	}
 }
 
@@ -166,13 +163,13 @@ func TestInventoryLoadsCatalogStatusWithoutEngine(t *testing.T) {
 	if err := c.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
-	if c.service == nil {
-		t.Fatal("save closed active engine")
+	if c.service != nil || c.store == nil {
+		t.Fatal("catalog save changed database/engine lifetime")
 	}
 	if got := c.localInventory().Catalog; got != want {
 		t.Fatal(got, want)
 	}
-	reopened, err := New(c.configPath, c.address)
+	reopened, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,19 +181,23 @@ func TestInventoryLoadsCatalogStatusWithoutEngine(t *testing.T) {
 		t.Fatal("status read started engine")
 	}
 	next := c.settings
-	next.StorageDir = t.TempDir()
+	setTestLibraryPaths(&next, t.TempDir())
+	createTestDatabase(t, next.DatabasePath)
 	if err := c.save(next); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(next.DatabasePath); err != nil {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
 	c.inventory.Catalog = want // A stale snapshot must never supply current status.
-	if got := c.localInventory().Catalog; got.Revision != "" || got.Error != "" || !got.CheckedAt.IsZero() {
+	if got := c.localInventory().Catalog; got.Revision != "" || got.Error == "" || !got.CheckedAt.IsZero() {
 		t.Fatal(got)
 	}
-	if _, err := os.Stat(filepath.Join(next.StorageDir, "storage.sqlite")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(testStorageRoot(next), "storage.sqlite")); !os.IsNotExist(err) {
 		t.Fatal("read created database", err)
 	}
-	if err := os.WriteFile(filepath.Join(next.StorageDir, "storage.sqlite"), []byte("invalid database"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(testStorageRoot(next), "storage.sqlite"), []byte("invalid database"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if got := c.localInventory().Catalog; got.Revision != "" || !strings.Contains(got.Error, "无法读取本地清单状态") {

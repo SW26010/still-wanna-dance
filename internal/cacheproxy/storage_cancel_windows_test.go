@@ -38,7 +38,7 @@ func TestCanceledStorageQueryReleasesFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := filepath.Join(t.TempDir(), "storage.sqlite")
-	db, err := openStorageDatabase(path, true)
+	db, err := openFixtureDatabase(path, true)
 	if err != nil {
 		t.Fatal(err)
 	}

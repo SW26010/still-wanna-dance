@@ -1,10 +1,76 @@
 package console
 
 import (
+	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"still-wanna-dance/internal/cacheproxy"
 )
+
+func TestPreviousLibraryCanBeSelectedAndReopened(t *testing.T) {
+	for _, layout := range []string{"default", "instance-root", "custom"} {
+		t.Run(layout, func(t *testing.T) {
+			c := testConsole(t)
+			root := filepath.Dir(c.configPath)
+			c.identity.Executable = filepath.Join(root, "SWD.exe")
+			previous := filepath.Join(root, "data", "storage")
+			if layout == "instance-root" {
+				previous = filepath.Join(root, "storage")
+			}
+			if layout == "custom" {
+				c.configPath = filepath.Join(root, "dance.json")
+				previous = filepath.Join(c.configPath+".d", "storage")
+			}
+			paths := fixtureLibraryPaths(previous)
+			createTestDatabase(t, paths.DatabasePath)
+			if err := cacheproxy.SetSongPolicyOffline(context.Background(), paths.DatabasePath, 17, "favorite"); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Mkdir(paths.VideoDir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			video := filepath.Join(paths.VideoDir, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.mp4")
+			if err := os.WriteFile(video, []byte("saved video"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			before, err := os.ReadFile(paths.DatabasePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := checkPreviousLibrary(c.configPath, c.identity.Executable); err == nil {
+				t.Fatal("missed previous data")
+			}
+			if w := storageRequest(t, c, "check", paths); w.Code != 200 || !bytes.Contains(w.Body.Bytes(), []byte(`"confirmVideoPolicy":true`)) {
+				t.Fatal("cannot review previous library", w.Code, w.Body.String())
+			}
+			next := c.savedSettings
+			next.DatabasePath, next.VideoDir = paths.DatabasePath, paths.VideoDir
+			if err := c.save(next); err == nil {
+				t.Fatal("accepted previous videos without policy confirmation")
+			}
+			if err := c.saveSettings(next, false, true); err != nil {
+				t.Fatal("cannot reconnect previous library", err)
+			}
+			if after, err := os.ReadFile(paths.DatabasePath); err != nil || !bytes.Equal(before, after) {
+				t.Fatal("selection changed previous database", err)
+			}
+			c = restartTestConsole(t, c)
+			if c.store == nil || c.storeOpenError != nil {
+				t.Fatal("cannot reopen previous library", c.storeOpenError)
+			}
+			policies, err := c.store.SongPolicies(context.Background())
+			if err != nil || policies[17] != "favorite" {
+				t.Fatal("lost previous favorite", policies, err)
+			}
+			if after, err := os.ReadFile(video); err != nil || string(after) != "saved video" {
+				t.Fatal("changed previous video", err)
+			}
+		})
+	}
+}
 
 func TestStorageDefaultAndExternalBoundary(t *testing.T) {
 	root := t.TempDir()
@@ -36,6 +102,64 @@ func TestStorageDefaultAndExternalBoundary(t *testing.T) {
 	}
 }
 
+func TestPreviousLibrarySelectionKeepsValidationAndCreationBoundaries(t *testing.T) {
+	for _, scenario := range []string{"missing-database", "missing-videos", "invalid-database", "other-filename", "other-directory", "create-old-location"} {
+		t.Run(scenario, func(t *testing.T) {
+			c := testConsole(t)
+			root := filepath.Dir(c.configPath)
+			c.identity.Executable = filepath.Join(root, "SWD.exe")
+			paths := fixtureLibraryPaths(filepath.Join(root, "data", "storage"))
+			if scenario == "other-filename" {
+				paths.DatabasePath = filepath.Join(filepath.Dir(paths.DatabasePath), "other.sqlite")
+			}
+			if scenario == "other-directory" {
+				paths = fixtureLibraryPaths(filepath.Join(root, "unrelated"))
+			}
+			missingDatabase := scenario == "missing-database" || scenario == "create-old-location"
+			if !missingDatabase {
+				createTestDatabase(t, paths.DatabasePath)
+			}
+			if scenario == "invalid-database" {
+				if err := os.WriteFile(paths.DatabasePath, []byte("damaged database"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if scenario != "missing-videos" {
+				if err := os.MkdirAll(paths.VideoDir, 0700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			before, _ := os.ReadFile(paths.DatabasePath)
+			configBefore, err := os.ReadFile(c.configPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			action := "check"
+			if scenario == "create-old-location" {
+				action = "create-database"
+			}
+			if w := storageRequest(t, c, action, paths); w.Code != 400 {
+				t.Fatal("accepted invalid old selection", w.Code, w.Body.String())
+			}
+			if missingDatabase {
+				if _, err := os.Lstat(paths.DatabasePath); !os.IsNotExist(err) {
+					t.Fatal("created old database", err)
+				}
+			} else if after, err := os.ReadFile(paths.DatabasePath); err != nil || !bytes.Equal(before, after) {
+				t.Fatal("modified rejected database", err)
+			}
+			if scenario == "missing-videos" {
+				if _, err := os.Lstat(paths.VideoDir); !os.IsNotExist(err) {
+					t.Fatal("recreated missing old videos", err)
+				}
+			}
+			if after, err := os.ReadFile(c.configPath); err != nil || !bytes.Equal(configBefore, after) {
+				t.Fatal("changed configuration", err)
+			}
+		})
+	}
+}
+
 func TestStorageSaveRejectsPortableTargetBeforeConfigWrite(t *testing.T) {
 	c := testConsole(t)
 	before, err := os.ReadFile(c.configPath)
@@ -44,7 +168,7 @@ func TestStorageSaveRejectsPortableTargetBeforeConfigWrite(t *testing.T) {
 	}
 	saved := c.savedSettings
 	changed := saved
-	changed.StorageDir = filepath.Join(portableDir(), "new-media-not-created")
+	setTestLibraryPaths(&changed, filepath.Join(c.portableDir(), "new-media-not-created"))
 	if err := c.save(changed); err == nil {
 		t.Fatal("saved custom Portable target")
 	}
@@ -55,7 +179,6 @@ func TestStorageSaveRejectsPortableTargetBeforeConfigWrite(t *testing.T) {
 }
 
 func TestStorageRejectsLegacyAndIncompleteLibraries(t *testing.T) {
-	c := testConsole(t)
 	for _, marker := range []string{"stepstash.sqlite", "videos", "storage.sqlite"} {
 		t.Run(marker, func(t *testing.T) {
 			root := t.TempDir()
@@ -67,7 +190,7 @@ func TestStorageRejectsLegacyAndIncompleteLibraries(t *testing.T) {
 			} else if err := os.WriteFile(path, []byte("invalid"), 0600); err != nil {
 				t.Fatal(err)
 			}
-			_, err := c.inspectStorage(root)
+			_, err := cacheproxy.LoadCatalogStatus(context.Background(), fixtureLibraryPaths(root).DatabasePath)
 			if err == nil {
 				t.Fatalf("accepted broken library: %v", err)
 			}
@@ -87,13 +210,13 @@ func TestStorageRejectsLegacyAndIncompleteLibraries(t *testing.T) {
 
 func TestStorageRecognizesLostLibraryInExistingRoot(t *testing.T) {
 	c := testConsole(t)
-	c.settings.StorageDir = t.TempDir()
+	setTestLibraryPaths(&c.settings, t.TempDir())
 	c.inventory.Videos = 1
-	_, err := c.inspectStorage(c.settings.StorageDir)
+	_, err := cacheproxy.LoadCatalogStatus(context.Background(), libraryPaths(c.settings).DatabasePath)
 	if err == nil {
 		t.Fatalf("lost library advertised as new: %v", err)
 	}
-	entries, err := os.ReadDir(c.settings.StorageDir)
+	entries, err := os.ReadDir(testStorageRoot(c.settings))
 	if err != nil || len(entries) != 0 {
 		t.Fatalf("inspection changed lost library: %v %v", entries, err)
 	}

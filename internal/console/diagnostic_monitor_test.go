@@ -143,7 +143,7 @@ func TestDiagnosticMonitorRetainsTraversalAcrossRunsAndCancellation(t *testing.T
 			}
 			for _, id := range []int64{low, middle, high} {
 				for _, node := range []string{"cf", "nya"} {
-					urls, err := c.service.SongURLs(context.Background(), id, node)
+					urls, err := c.store.SongURLs(context.Background(), id, node)
 					if err != nil || len(urls) != 1 {
 						t.Fatalf("metadata not persisted: %d %s: %v %v", id, node, urls, err)
 					}

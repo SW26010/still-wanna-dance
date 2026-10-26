@@ -41,7 +41,7 @@ func (c *Console) serveRequestHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	// Read the active root once; database I/O must not join service lifecycle I/O.
 	c.mu.Lock()
-	root := c.settings.StorageDir
+	root := libraryPaths(c.settings).DatabasePath
 	c.mu.Unlock()
 	var result any
 	var err error

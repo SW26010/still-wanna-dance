@@ -44,7 +44,7 @@ func TestHostsPolicyBrowser(t *testing.T) {
 			t.Fatal("incorrect exit result", phase, *launches)
 		}
 		if phase == "default" {
-			c, err = New(c.configPath, c.address)
+			c, err = newConsoleWithWorkForTest(t, c.configPath, c.address)
 			if err != nil {
 				t.Fatal(err)
 			}

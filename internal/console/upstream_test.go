@@ -94,7 +94,7 @@ func TestPrefetchUpstreamSelectionAndFallback(t *testing.T) {
 			c.client.Transport = http.DefaultTransport
 			cfg := fixtureCacheConfig()
 			cfg.OriginScheme = "http"
-			cfg.StorageDir = c.settings.StorageDir
+			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 			if tc.failure == "timeout" {
 				// The budget covers SQLite and file publication as well as HTTP.
 				// Leave room for a healthy fallback on slower Windows CI disks.
@@ -166,7 +166,7 @@ func TestDownloadUpstreamSettings(t *testing.T) {
 		if err := c.save(s); err != nil {
 			t.Fatal(err)
 		}
-		loaded, err := New(c.configPath, c.address)
+		loaded, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 		if err != nil {
 			t.Fatal(err)
 		}

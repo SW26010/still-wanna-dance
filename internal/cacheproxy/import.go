@@ -69,7 +69,7 @@ func (s *Server) ImportVideo(ctx context.Context, source string, allowed map[str
 	} else if !os.IsNotExist(err) {
 		return nil, err
 	}
-	dir, err := os.MkdirTemp(s.cfg.tempDir(), "import-")
+	dir, err := os.MkdirTemp(s.cfg.publishDir(), "import-")
 	if err != nil {
 		return nil, err
 	}

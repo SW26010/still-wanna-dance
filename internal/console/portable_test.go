@@ -14,15 +14,17 @@ func TestPortableSettingsMove(t *testing.T) {
 		t.Fatal(err)
 	}
 	external := filepath.Join(root, "external-logs")
-	c, err := New(filepath.Join(original, "settings.json"), "127.0.0.1:18081")
+	c, err := newConsoleWithWorkForTest(t, filepath.Join(original, "settings.json"), "127.0.0.1:18081")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.settings.StorageDir != filepath.Join(original, "settings.json.d", "storage") {
+	if c.settings.DatabasePath != c.defaultDatabasePath() || c.settings.VideoDir != c.defaultVideoDir() || c.defaultDatabasePath() != filepath.Join(original, "settings.json.d", "data", "database", "storage.sqlite") {
 		t.Fatal(c.settings)
 	}
 	next := c.settings
-	next.StorageDir, next.LogDir, next.ManualLogDir = "data", external, true
+	createTestDatabase(t, filepath.Join(original, "data", "storage.sqlite"))
+	setTestLibraryPaths(&next, "data")
+	next.LogDir, next.ManualLogDir = external, true
 	if err := c.save(next); err != nil {
 		t.Fatal(err)
 	}
@@ -34,18 +36,20 @@ func TestPortableSettingsMove(t *testing.T) {
 	if err := json.Unmarshal(b, &saved); err != nil {
 		t.Fatal(err)
 	}
-	if saved.StorageDir != "data" || saved.LogDir != external {
+	if testStorageRoot(saved) != "data" || saved.LogDir != external {
 		t.Fatal(saved)
 	}
+	c.Close()
 	moved := filepath.Join(root, "moved folder")
 	if err := os.Rename(original, moved); err != nil {
 		t.Fatal(err)
 	}
-	reopened, err := New(filepath.Join(moved, "settings.json"), "127.0.0.1:18081")
+	reopened, err := newConsoleWithWorkForTest(t, filepath.Join(moved, "settings.json"), "127.0.0.1:18081")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reopened.settings.StorageDir != filepath.Join(moved, "data") || reopened.settings.LogDir != external {
+	defer reopened.Close()
+	if testStorageRoot(reopened.settings) != filepath.Join(moved, "data") || reopened.settings.LogDir != external {
 		t.Fatal(reopened.settings)
 	}
 }

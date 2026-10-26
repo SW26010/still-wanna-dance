@@ -26,7 +26,7 @@ func TestReuseLocalSongRestoresMissingResourceRecord(t *testing.T) {
 	if err := s.usage.db.QueryRow(`SELECT count(*) FROM media`).Scan(&count); err != nil || count != 0 {
 		t.Fatalf("expected unregistered file: count=%d err=%v", count, err)
 	}
-	hit, receipt, err := CheckLocalReceipt(ctx, cfg.StorageDir, target)
+	hit, receipt, err := CheckLocalReceipt(ctx, cfg.VideoDir, target)
 	if err != nil || !hit || receipt == nil {
 		t.Fatalf("scan: hit=%v receipt=%v err=%v", hit, receipt, err)
 	}
@@ -54,7 +54,7 @@ func TestCheckLocalNeverPublishesOrDeletes(t *testing.T) {
 		t.Fatal(err)
 	}
 	target := videoURL(payload)
-	parser := &Server{cfg: fixtureConfig()}
+	parser := &Server{Store: &Store{}, cfg: fixtureConfig()}
 	v, err := parser.parse(httptest.NewRequest("GET", target, nil))
 	if err != nil {
 		t.Fatal(err)
@@ -64,7 +64,7 @@ func TestCheckLocalNeverPublishesOrDeletes(t *testing.T) {
 		if err := os.WriteFile(path, []byte(body), 0600); err != nil {
 			t.Fatal(err)
 		}
-		hit, err := CheckLocal(context.Background(), root, target)
+		hit, err := CheckLocal(context.Background(), fixtureLibrary(root).VideoDir, target)
 		if err != nil || !hit {
 			t.Fatal(hit, err)
 		}
@@ -79,7 +79,7 @@ func TestCheckLocalNeverPublishesOrDeletes(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := CheckLocal(ctx, root, target); err != context.Canceled {
+	if _, err := CheckLocal(ctx, fixtureLibrary(root).VideoDir, target); err != context.Canceled {
 		t.Fatal(err)
 	}
 }

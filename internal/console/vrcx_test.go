@@ -49,7 +49,7 @@ func TestVRCXBrowser(t *testing.T) {
 	} else {
 		t.Log(string(output))
 	}
-	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), c.settings.StorageDir); err != nil || count != 2 {
+	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), libraryPaths(c.settings).DatabasePath); err != nil || count != 2 {
 		t.Fatal(count, err)
 	}
 	if c.service != nil {
@@ -117,8 +117,8 @@ func TestVRCXPreviewApplyReplacementAndRetry(t *testing.T) {
 	if c.service != nil {
 		t.Fatal("preview started engine")
 	}
-	if _, err := os.Stat(c.settings.StorageDir); !os.IsNotExist(err) {
-		t.Fatal("preview created target")
+	if count, err := c.store.SongUsageCount(t.Context()); err != nil || count != 0 {
+		t.Fatal("preview changed statistics", count, err)
 	}
 	w := vrcxRequest(t, c, "apply", map[string]any{"id": p.ID, "overwrite": false})
 	if w.Code != 200 {
@@ -127,11 +127,11 @@ func TestVRCXPreviewApplyReplacementAndRetry(t *testing.T) {
 	if c.service != nil {
 		t.Fatal("idle import started engine")
 	}
-	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), c.settings.StorageDir); err != nil || count != 2 {
+	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), libraryPaths(c.settings).DatabasePath); err != nil || count != 2 {
 		t.Fatal(count, err)
 	}
 	// Same-token retries acknowledge completion; a later demand is not removed.
-	db, err := sql.Open("sqlite", filepath.Join(c.settings.StorageDir, "storage.sqlite"))
+	db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +143,7 @@ func TestVRCXPreviewApplyReplacementAndRetry(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), c.settings.StorageDir); err != nil || count != 3 {
+	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), libraryPaths(c.settings).DatabasePath); err != nil || count != 3 {
 		t.Fatal("retry replaced data", count, err)
 	}
 	p = previewVRCX(t, c, source, "")
@@ -179,7 +179,7 @@ func TestVRCXNewDemandAfterPreviewRequiresNewAuthorization(t *testing.T) {
 	p := previewVRCX(t, c, source, "")
 	h := &cacheproxy.SongUsageImport{}
 	h.Observe(99, time.Now().UnixMilli())
-	if err := cacheproxy.ImportSongUsage(context.Background(), c.settings.StorageDir, h, false); err != nil {
+	if err := c.store.ImportSongUsage(context.Background(), h, false); err != nil {
 		t.Fatal(err)
 	}
 	for _, overwrite := range []bool{false, true} {
@@ -188,7 +188,7 @@ func TestVRCXNewDemandAfterPreviewRequiresNewAuthorization(t *testing.T) {
 			t.Fatal("new demand lost without new preview", w.Code, w.Body.String())
 		}
 	}
-	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), c.settings.StorageDir); err != nil || count != 1 {
+	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), libraryPaths(c.settings).DatabasePath); err != nil || count != 1 {
 		t.Fatal(count, err)
 	}
 }
@@ -200,8 +200,8 @@ func TestVRCXRejectsLostStorageWithRestoredUsageEvidence(t *testing.T) {
 		result any
 	}{
 		{"inventory", Inventory{CoverageKnown: true}},
-		{"batch", Batch{Total: 1}},
-		{"attempt", Batch{Finished: time.Now()}},
+		{"batch-last-success", Batch{Total: 1}},
+		{"batch-last-attempt", Batch{Finished: time.Now()}},
 	} {
 		for _, stage := range []string{"preview", "apply"} {
 			for _, layout := range []string{"missing-root", "empty-root"} {
@@ -210,13 +210,13 @@ func TestVRCXRejectsLostStorageWithRestoredUsageEvidence(t *testing.T) {
 					if err := c.save(c.settings); err != nil {
 						t.Fatal(err)
 					}
-					root := c.settings.StorageDir
+					root := testStorageRoot(c.settings)
 					history := &cacheproxy.SongUsageImport{}
 					history.Observe(99, time.Now().UnixMilli())
-					if err := cacheproxy.ImportSongUsage(t.Context(), root, history, false); err != nil {
+					if err := c.store.ImportSongUsage(t.Context(), history, false); err != nil {
 						t.Fatal(err)
 					}
-					if err := c.writeSnapshot(evidence.kind, root, evidence.result); err != nil {
+					if err := c.writeSnapshot(evidence.kind, fixtureLibraryPaths(root), evidence.result); err != nil {
 						t.Fatal(err)
 					}
 					c = restartTestConsole(t, c)
@@ -239,6 +239,9 @@ func TestVRCXRejectsLostStorageWithRestoredUsageEvidence(t *testing.T) {
 						}
 						request = map[string]any{"id": p.ID, "overwrite": true}
 					}
+					if err := c.Close(); err != nil {
+						t.Fatal(err)
+					}
 					moved := root + "-unavailable"
 					if err := os.Rename(root, moved); err != nil {
 						t.Fatal(err)
@@ -248,6 +251,7 @@ func TestVRCXRejectsLostStorageWithRestoredUsageEvidence(t *testing.T) {
 							t.Fatal(err)
 						}
 					}
+					c = restartTestConsole(t, c)
 					w := vrcxRequest(t, c, stage, request)
 					if w.Code != 409 {
 						t.Fatalf("lost storage accepted: %d %s", w.Code, w.Body.String())
@@ -300,18 +304,22 @@ func TestVRCXDetectionReportsTargetUsageWithoutReadingHistory(t *testing.T) {
 	}
 	empty, nonempty := 0, 1
 	check("", &empty)
-	if _, err := os.Stat(c.settings.StorageDir); !os.IsNotExist(err) {
-		t.Fatal("detection created target")
+	if count, err := c.store.SongUsageCount(t.Context()); err != nil || count != 0 {
+		t.Fatal("detection changed statistics", count, err)
 	}
 	history := &cacheproxy.SongUsageImport{}
 	history.Observe(99, time.Now().UnixMilli())
-	if err := cacheproxy.ImportSongUsage(t.Context(), c.settings.StorageDir, history, false); err != nil {
+	if err := c.store.ImportSongUsage(t.Context(), history, false); err != nil {
 		t.Fatal(err)
 	}
 	check("", &nonempty)
-	if err := os.Rename(c.settings.StorageDir, c.settings.StorageDir+"-unavailable"); err != nil {
+	if err := c.Close(); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.Rename(testStorageRoot(c.settings), testStorageRoot(c.settings)+"-unavailable"); err != nil {
+		t.Fatal(err)
+	}
+	c = restartTestConsole(t, c)
 	c.inventory.CoverageKnown = true
 	check("", nil)
 	check(filepath.Join(t.TempDir(), "new-target"), nil)
@@ -320,10 +328,10 @@ func TestVRCXDetectionReportsTargetUsageWithoutReadingHistory(t *testing.T) {
 func TestVRCXDiscardExpiryAndEmptySource(t *testing.T) {
 	c := testConsole(t)
 	source := vrcxFixture(t)
-	root := c.settings.StorageDir
+	root := testStorageRoot(c.settings)
 	p := previewVRCX(t, c, source, root)
-	if p.StorageDir != root {
-		t.Fatal(p.StorageDir)
+	if p.DatabasePath != fixtureLibraryPaths(root).DatabasePath {
+		t.Fatal(p.DatabasePath)
 	}
 	if w := vrcxRequest(t, c, "discard", map[string]string{"id": p.ID}); w.Code != 200 {
 		t.Fatal(w.Code)
@@ -340,10 +348,10 @@ func TestVRCXDiscardExpiryAndEmptySource(t *testing.T) {
 	if w := vrcxRequest(t, c, "apply", map[string]string{"id": p.ID}); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), root); err != nil || count != 2 {
+	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), fixtureLibraryPaths(root).DatabasePath); err != nil || count != 2 {
 		t.Fatal(count, err)
 	}
-	if _, err := c.inspectStorage(root); err != nil {
+	if _, err := c.businessStore(); err != nil {
 		t.Fatal("cannot reuse imported target", err)
 	}
 	db, err := sql.Open("sqlite", source)
@@ -361,7 +369,7 @@ func TestVRCXDiscardExpiryAndEmptySource(t *testing.T) {
 	if w := vrcxRequest(t, c, "apply", map[string]any{"id": "", "overwrite": true}); w.Code != 409 {
 		t.Fatal("empty result usable")
 	}
-	if count, _ := cacheproxy.ReadSongUsageCount(context.Background(), root); count != 2 {
+	if count, _ := cacheproxy.ReadSongUsageCount(context.Background(), fixtureLibraryPaths(root).DatabasePath); count != 2 {
 		t.Fatal("empty result cleared statistics")
 	}
 }
@@ -433,11 +441,11 @@ func TestVRCXLocalReadOnlyIntegration(t *testing.T) {
 	if w := vrcxRequest(t, c, "apply", map[string]string{"id": p.ID}); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), c.settings.StorageDir); err != nil || count != p.Songs {
+	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), libraryPaths(c.settings).DatabasePath); err != nil || count != p.Songs {
 		t.Fatal(count, err)
 	}
 	cfg := cacheproxy.DefaultConfig()
-	cfg.StorageDir = c.settings.StorageDir
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.CacheUnlimited = true
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {

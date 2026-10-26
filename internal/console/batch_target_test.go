@@ -39,7 +39,8 @@ func TestTargetDownloadUsesSharedPublicationAndBudget(t *testing.T) {
 			defer api.Close()
 			c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
 			cfg := fixtureCacheConfig()
-			cfg.StorageDir, cfg.OriginScheme, cfg.CacheUnlimited = c.settings.StorageDir, "http", mode != "budget"
+			cfg.OriginScheme, cfg.CacheUnlimited = "http", mode != "budget"
+			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 			cfg.MaxCacheBytes = 0
 			for host := range cfg.Origins {
 				cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
@@ -77,7 +78,7 @@ func TestTargetDownloadUsesSharedPublicationAndBudget(t *testing.T) {
 			c.queueCancel = func() { t.Error("manual target canceled queue") }
 			defer func() { c.queueCancel = nil; c.queue.Running = false }()
 			c.lastBatch = Batch{Total: 99, Phase: "previous full result"}
-			if err := c.startBatchTarget(cacheproxy.CacheStorageID(cfg.StorageDir), target); err != nil {
+			if err := c.startBatchTarget(cacheproxy.CacheStorageID(fixtureLibraryPaths(filepath.Dir(cfg.VideoDir))), target); err != nil {
 				t.Fatal(err)
 			}
 			c.mu.Lock()
@@ -93,7 +94,7 @@ func TestTargetDownloadUsesSharedPublicationAndBudget(t *testing.T) {
 			}
 			success := mode == "song" || mode == "resource" || mode == "unresolved"
 			if success {
-				data, err := os.ReadFile(filepath.Join(cfg.StorageDir, "videos", key+".mp4"))
+				data, err := os.ReadFile(filepath.Join(cfg.VideoDir, key+".mp4"))
 				if err != nil || string(data) != body || downloads.Load() != 1 || c.batch.Failed != 0 {
 					t.Fatal(string(data), err, downloads.Load(), c.batch)
 				}

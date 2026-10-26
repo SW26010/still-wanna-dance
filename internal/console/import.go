@@ -85,7 +85,7 @@ func (c *Console) startImport(source string) error {
 	if err = c.ensureEngine(); err != nil {
 		return err
 	}
-	storage, err := filepath.EvalSymlinks(c.settings.StorageDir)
+	storage, err := filepath.EvalSymlinks(c.settings.VideoDir)
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func (c *Console) startImport(source string) error {
 		return err
 	}
 	if insideImportRoot(storage, source) {
-		return errors.New("请选择本应用数据目录之外的目录")
+		return errors.New("请选择完整视频目录之外的来源目录")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	c.importCancel = cancel

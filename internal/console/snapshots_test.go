@@ -1,16 +1,96 @@
 package console
 
 import (
+	"bytes"
 	"crypto/md5"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/workfiles"
 )
+
+func occupySnapshotSlot(t *testing.T, c *Console, kind string) []byte {
+	t.Helper()
+	path := c.files().State(kind)
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(filepath.Dir(path), workfiles.TempName(path)), []byte("occupied"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	return before
+}
+
+func TestInventoryWriteFailurePublishesCompletedMemoryResult(t *testing.T) {
+	c := testConsole(t)
+	c.startInventoryScan()
+	first := waitInventory(t, c)
+	if first.Error != "" || first.Videos != 0 || first.Updated.IsZero() {
+		t.Fatal(first)
+	}
+	before := occupySnapshotSlot(t, c, "inventory")
+	if err := os.WriteFile(fixtureVideoPath(testStorageRoot(c.settings), "1", "video"), []byte("video"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	c.startInventoryScan()
+	result := waitInventory(t, c)
+	if result.Scanning || result.Videos != 1 || result.Bytes != 5 || result.Updated.IsZero() || !strings.Contains(result.Error, "无法保存") {
+		t.Fatal("a failed snapshot hid the new scan result", result)
+	}
+	if after, err := os.ReadFile(c.files().State("inventory")); err != nil || !bytes.Equal(before, after) {
+		t.Fatal("failed write replaced the last saved result", err)
+	}
+	c = restartTestConsole(t, c)
+	if c.inventory.Videos != 0 || !c.inventory.Updated.Equal(first.Updated) || c.inventory.Scanning || c.inventoryDone != nil {
+		t.Fatal("restart invented a saved result or resumed a scan", c.inventory)
+	}
+}
+
+func TestBatchWriteFailurePublishesSuccessWithoutReplacingSavedResult(t *testing.T) {
+	c := testConsole(t)
+	var count atomic.Int32
+	count.Store(1)
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := count.Load()
+		songs := map[int]string{1: "video"}
+		if n == 2 {
+			songs[2] = "video"
+		}
+		fmt.Fprint(w, testMD5CatalogBody(fmt.Sprintf("2026102600000%d", n), songs))
+	}))
+	defer api.Close()
+	c.checksumURL, c.client.Transport = api.URL, http.DefaultTransport
+	waitMD5Batch(t, c, true)
+	if c.lastBatch.Total != 1 || c.lastBatch.Failed != 0 {
+		t.Fatal(c.lastBatch)
+	}
+	before := map[string][]byte{}
+	for _, kind := range []string{"batch-last-success", "batch-last-attempt"} {
+		before[kind] = occupySnapshotSlot(t, c, kind)
+	}
+	count.Store(2)
+	waitMD5Batch(t, c, true)
+	if c.batch.Total != 2 || c.lastBatch.Total != 2 || c.lastBatch.Failed != 0 || c.batch.Running || !strings.Contains(c.batch.Phase, "未能保存") || !strings.Contains(c.lastBatch.Phase, "未能保存") {
+		t.Fatal("snapshot failures hid completed work", c.batch, c.lastBatch)
+	}
+	for kind, saved := range before {
+		if after, err := os.ReadFile(c.files().State(kind)); err != nil || !bytes.Equal(saved, after) {
+			t.Fatal("failed write replaced a saved result", kind, err)
+		}
+	}
+	c = restartTestConsole(t, c)
+	if c.batch.Total != 1 || c.lastBatch.Total != 1 || c.batch.Running || c.batchDone != nil {
+		t.Fatal("restart invented saved work or resumed a task", c.batch, c.lastBatch)
+	}
+}
 
 func waitInventory(t *testing.T, c *Console) Inventory {
 	t.Helper()
@@ -32,11 +112,11 @@ func TestInventoryPersistsAndKeepsLastSuccessOnFailure(t *testing.T) {
 	if err := c.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
-	dir := filepath.Join(c.settings.StorageDir, "videos")
+	dir := filepath.Join(testStorageRoot(c.settings), "videos")
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(fixtureVideoPath(c.settings.StorageDir, "1", "video"), []byte("video"), 0600); err != nil {
+	if err := os.WriteFile(fixtureVideoPath(testStorageRoot(c.settings), "1", "video"), []byte("video"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	c.startInventoryScan()
@@ -52,7 +132,7 @@ func TestInventoryPersistsAndKeepsLastSuccessOnFailure(t *testing.T) {
 	if after.Videos != 1 || after.Updated != before.Updated || after.Error == "" {
 		t.Fatalf("overwrote successful inventory: %+v", after)
 	}
-	restarted, err := New(c.configPath, c.address)
+	restarted, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +144,7 @@ func TestInventoryPersistsAndKeepsLastSuccessOnFailure(t *testing.T) {
 	if err := os.Rename(dir+"-unavailable", dir); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Remove(fixtureVideoPath(c.settings.StorageDir, "1", "video")); err != nil {
+	if err := os.Remove(fixtureVideoPath(testStorageRoot(c.settings), "1", "video")); err != nil {
 		t.Fatal(err)
 	}
 	c.startInventoryScan()
@@ -75,7 +155,8 @@ func TestInventoryPersistsAndKeepsLastSuccessOnFailure(t *testing.T) {
 		t.Fatalf("did not replace successful snapshot: %+v", after)
 	}
 	newSettings := c.settings
-	newSettings.StorageDir += "-different"
+	setTestLibraryPaths(&newSettings, testStorageRoot(newSettings)+"-different")
+	createTestDatabase(t, newSettings.DatabasePath)
 	if err := c.save(newSettings); err != nil {
 		t.Fatal(err)
 	}
@@ -96,10 +177,10 @@ func TestScanOnlyPersistsSuccessAcrossFailureAndCancellation(t *testing.T) {
 	}
 	const body = "video"
 	initializeTestLibrary(t, c)
-	if err := os.MkdirAll(filepath.Join(c.settings.StorageDir, "videos"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(testStorageRoot(c.settings), "videos"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(fixtureVideoPath(c.settings.StorageDir, "1", body), []byte(body), 0600); err != nil {
+	if err := os.WriteFile(fixtureVideoPath(testStorageRoot(c.settings), "1", body), []byte(body), 0600); err != nil {
 		t.Fatal(err)
 	}
 	var mode atomic.Int32
@@ -172,7 +253,7 @@ func TestScanOnlyPersistsSuccessAcrossFailureAndCancellation(t *testing.T) {
 	if c.lastBatch.Updated != before.Updated {
 		t.Fatal("cancellation overwrote result")
 	}
-	restarted, err := New(c.configPath, c.address)
+	restarted, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 	if err != nil {
 		t.Fatal(err)
 	}

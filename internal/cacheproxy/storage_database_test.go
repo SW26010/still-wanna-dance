@@ -14,7 +14,7 @@ func TestStorageContractRejectsIncompatibleFilesEverywhere(t *testing.T) {
 	for _, mutation := range []string{"PRAGMA user_version=999", "PRAGMA application_id=123", "PRAGMA user_version=0", "PRAGMA user_version=1", "PRAGMA user_version=2", "PRAGMA user_version=3", "PRAGMA user_version=4", "DROP TABLE song_preferences", "DROP TABLE catalog_checks", "DROP INDEX request_events_http_time", "ALTER TABLE songs ADD COLUMN surprise TEXT"} {
 		t.Run(mutation, func(t *testing.T) {
 			cfg := fixtureConfig()
-			cfg.StorageDir = t.TempDir()
+			prepareFixtureResources(t, &cfg, t.TempDir(), true)
 			s, err := New(cfg)
 			if err != nil {
 				t.Fatal(err)
@@ -23,28 +23,31 @@ func TestStorageContractRejectsIncompatibleFilesEverywhere(t *testing.T) {
 				t.Fatal(err)
 			}
 			s.Close()
-			path := storagePath(cfg.StorageDir)
+			if err := cfg.Store.Close(); err != nil {
+				t.Fatal(err)
+			}
+			path := cfg.Store.path
 			before, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatal(err)
 			}
-			partial := filepath.Join(cfg.StorageDir, "tmp", "download-preserve.part")
+			partial := filepath.Join(cfg.publishDir(), "download-publish-123.part")
 			writeTestFile(t, partial, "in progress")
 			ctx := context.Background()
 			checks := map[string]func() error{
 				"startup": func() error {
-					s, err := New(cfg)
-					if s != nil {
-						s.Close()
+					store, err := OpenStore(path)
+					if store != nil {
+						store.Close()
 					}
 					return err
 				},
-				"scan":    func() error { _, err := LoadScanTargets(ctx, cfg.StorageDir); return err },
-				"catalog": func() error { _, err := LoadCatalogStatus(ctx, cfg.StorageDir); return err },
-				"cache":   func() error { _, err := ReadCachePage(ctx, cfg.StorageDir, "", "", 0); return err },
-				"recent":  func() error { _, err := ReadRecentRequests(ctx, cfg.StorageDir, 50); return err },
+				"scan":    func() error { _, err := LoadScanTargets(ctx, cfg.Store.path); return err },
+				"catalog": func() error { _, err := LoadCatalogStatus(ctx, cfg.Store.path); return err },
+				"cache":   func() error { _, err := ReadCachePage(ctx, cfg.libraryPaths(), "", "", 0); return err },
+				"recent":  func() error { _, err := ReadRecentRequests(ctx, cfg.Store.path, 50); return err },
 				"delete": func() error {
-					_, err := DeleteCacheOffline(ctx, cfg.StorageDir, []CacheSelection{{Key: strings.Repeat("a", 32)}})
+					_, err := DeleteCacheOffline(ctx, cfg.libraryPaths(), []CacheSelection{{Key: strings.Repeat("a", 32)}})
 					return err
 				},
 			}
@@ -53,7 +56,7 @@ func TestStorageContractRejectsIncompatibleFilesEverywhere(t *testing.T) {
 					t.Errorf("%s accepted incompatible database", name)
 				}
 			}
-			if ReadTrafficStats(cfg.StorageDir).Error == "" {
+			if ReadTrafficStats(cfg.Store.path).Error == "" {
 				t.Error("traffic accepted incompatible database")
 			}
 			after, err := os.ReadFile(path)
@@ -69,7 +72,7 @@ func TestStorageContractRejectsIncompatibleFilesEverywhere(t *testing.T) {
 
 func TestRecentReaderNeverRepairsSchema(t *testing.T) {
 	cfg := fixtureConfig()
-	cfg.StorageDir = t.TempDir()
+	prepareFixtureResources(t, &cfg, t.TempDir(), true)
 	s, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -78,10 +81,13 @@ func TestRecentReaderNeverRepairsSchema(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Close()
-	if _, err := ReadRecentRequests(context.Background(), cfg.StorageDir, 50); err == nil {
+	if err := cfg.Store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadRecentRequests(context.Background(), cfg.Store.path, 50); err == nil {
 		t.Fatal("reader silently repaired missing index")
 	}
-	db, err := sql.Open("sqlite", storagePath(cfg.StorageDir))
+	db, err := sql.Open("sqlite", cfg.Store.path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,9 +97,9 @@ func TestRecentReaderNeverRepairsSchema(t *testing.T) {
 	if err != nil || count != 0 {
 		t.Fatal("read changed schema", count, err)
 	}
-	s, err = New(cfg)
-	if s != nil {
-		s.Close()
+	store, err := OpenStore(cfg.Store.path)
+	if store != nil {
+		store.Close()
 	}
 	if err == nil {
 		t.Fatal("writer silently repaired schema")
@@ -102,7 +108,7 @@ func TestRecentReaderNeverRepairsSchema(t *testing.T) {
 func TestStorageInitializationIdentity(t *testing.T) {
 	root := t.TempDir()
 	cfg := fixtureConfig()
-	cfg.StorageDir = root
+	prepareFixtureResources(t, &cfg, root, true)
 	s, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -126,7 +132,7 @@ func TestStorageRejectsExistingEmptyFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, writable := range []bool{false, true} {
-		db, err := openStorageDatabase(path, writable)
+		db, err := openFixtureDatabase(path, writable)
 		if db != nil {
 			db.Close()
 		}

@@ -70,11 +70,11 @@ test('direct document URLs load content before status, normalize once, and survi
 
 test('help shows active storage instead of a saved or unsaved storage change',async({page})=>{
   const api=await mockAPI(page);
-  api.state.settings.storageDir='D:\\PendingStorage';
+  api.state.settings.databasePath='D:\\PendingStorage';
   await page.goto('/#prepareAheadSeconds');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeVisible();
   await navigate(page,'帮助');
-  await expect(page.getByText(api.state.activeSettings.storageDir,{exact:true})).toBeVisible();
+  await expect(page.getByText(api.state.activeSettings.databasePath,{exact:true})).toBeVisible();
   await expect(page.getByText('D:\\PendingStorage',{exact:true})).not.toBeVisible();
 });
 

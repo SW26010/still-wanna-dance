@@ -126,7 +126,7 @@ func (c *Console) mihomoNetworkFor(s Settings, limit int) (upstreamDialFunc, *ht
 			active = append(active, mihomo.Config{ID: id, Parameters: configs[id]})
 		}
 		if len(active) > 0 {
-			core, err := mihomo.NewRuntime(active, mihomo.RuntimeOptions{Home: filepath.Join(c.files().Root, "state", "mihomo")})
+			core, err := mihomo.NewRuntime(active, mihomo.RuntimeOptions{Home: filepath.Join(c.files().StateDir, "mihomo")})
 			if err != nil {
 				return nil, nil, errors.New("无法启动代理运行时，请检查节点并重启应用")
 			}

@@ -25,7 +25,7 @@ func historyAt(id, at int64) *SongUsageImport {
 }
 
 func TestHistoricalUsageMatchesNativeDemand(t *testing.T) {
-	db, err := openStorageDatabase(filepath.Join(t.TempDir(), "storage.sqlite"), true)
+	db, err := openFixtureDatabase(filepath.Join(t.TempDir(), "storage.sqlite"), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,12 +58,19 @@ func TestHistoricalUsageMatchesNativeDemand(t *testing.T) {
 func TestHistoricalUsageReplacementRollbackAndRestart(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
-	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
-	old := historyAt(99, start)
-	if err := ImportSongUsage(ctx, root, old, false); err != nil {
+	created, err := CreateStore(storagePath(root))
+	if err != nil {
 		t.Fatal(err)
 	}
-	db, err := openStorageDatabase(storagePath(root), true)
+	if err := created.Close(); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	old := historyAt(99, start)
+	if err := ImportSongUsage(ctx, storagePath(root), old, false); err != nil {
+		t.Fatal(err)
+	}
+	db, err := openFixtureDatabase(storagePath(root), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +104,7 @@ func TestHistoricalUsageReplacementRollbackAndRestart(t *testing.T) {
 	if err = os.WriteFile(video, []byte("unchanged-media"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err = ImportSongUsage(ctx, root, h, true); err != nil {
+	if err = ImportSongUsage(ctx, storagePath(root), h, true); err != nil {
 		t.Fatal(err)
 	}
 	if err = db.QueryRow("SELECT count(*) FROM song_usage WHERE song_id=99").Scan(&count); err != nil || count != 0 {
@@ -112,11 +119,11 @@ func TestHistoricalUsageReplacementRollbackAndRestart(t *testing.T) {
 	if data, err := os.ReadFile(video); err != nil || string(data) != "unchanged-media" {
 		t.Fatal("video modified", err)
 	}
-	if err = ImportSongUsage(ctx, root, &SongUsageImport{}, true); err == nil {
+	if err = ImportSongUsage(ctx, storagePath(root), &SongUsageImport{}, true); err == nil {
 		t.Fatal("empty replacement allowed")
 	}
 	db.Close()
-	db, err = openStorageDatabase(storagePath(root), false)
+	db, err = openFixtureDatabase(storagePath(root), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,7 +207,7 @@ func TestHistoricalUsageResourceRankingAndEviction(t *testing.T) {
 func TestHistoricalUsageIdleLockAndEmptyRollback(t *testing.T) {
 	root := t.TempDir()
 	ctx := context.Background()
-	db, err := openStorageDatabase(storagePath(root), true)
+	db, err := openFixtureDatabase(storagePath(root), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,7 +228,7 @@ func TestHistoricalUsageIdleLockAndEmptyRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer unlock()
-	if err = ImportSongUsage(ctx, root, historyAt(1, time.Now().UnixMilli()), true); err == nil {
+	if err = ImportSongUsage(ctx, storagePath(root), historyAt(1, time.Now().UnixMilli()), true); err == nil {
 		t.Fatal("directory lock bypassed")
 	}
 }
@@ -229,7 +236,7 @@ func TestHistoricalUsageIdleLockAndEmptyRollback(t *testing.T) {
 func TestHistoricalUsageFullAndForeignKeyRollback(t *testing.T) {
 	for _, failure := range []string{"full", "foreign-key"} {
 		t.Run(failure, func(t *testing.T) {
-			db, err := openStorageDatabase(storagePath(t.TempDir()), true)
+			db, err := openFixtureDatabase(storagePath(t.TempDir()), true)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -63,7 +63,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 		return c.resolvePlayback(ctx, id, node, "auto")
 	}
 	cfg.OriginScheme = "http"
-	cfg.StorageDir = c.settings.StorageDir
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
@@ -105,7 +105,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	if _, err := os.Stat(fixtureVideoPath(c.settings.StorageDir, "4", body+"4")); !os.IsNotExist(err) {
+	if _, err := os.Stat(fixtureVideoPath(testStorageRoot(c.settings), "4", body+"4")); !os.IsNotExist(err) {
 		t.Fatal("future queue entry published early", err)
 	}
 	// The unknown placeholder and failed song each retain a playback duration.
@@ -139,13 +139,13 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	if requests["1"] != 1 || requests["2"] != 1 || requests["4"] != 1 || requests["5"] != 2 || len(requests) != 4 {
 		t.Fatal(requests)
 	}
-	if _, err = os.Stat(fixtureVideoPath(c.settings.StorageDir, "1", body+"1")); !os.IsNotExist(err) {
+	if _, err = os.Stat(fixtureVideoPath(testStorageRoot(c.settings), "1", body+"1")); !os.IsNotExist(err) {
 		t.Fatal("removed song downloaded", err)
 	}
-	if _, err = os.Stat(fixtureVideoPath(c.settings.StorageDir, "4", body+"4")); err != nil {
+	if _, err = os.Stat(fixtureVideoPath(testStorageRoot(c.settings), "4", body+"4")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = os.Stat(fixtureVideoPath(c.settings.StorageDir, "2", body+"2")); !os.IsNotExist(err) {
+	if _, err = os.Stat(fixtureVideoPath(testStorageRoot(c.settings), "2", body+"2")); !os.IsNotExist(err) {
 		t.Fatal("fourth queue entry downloaded outside its activation window", err)
 	}
 }

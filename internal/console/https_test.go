@@ -315,7 +315,7 @@ func TestHTTPSStartupStorageFailureReleasesPorts(t *testing.T) {
 	video.Close()
 	secure.Close()
 	// The config's parent exists, but a NUL byte is not a valid directory.
-	c.settings.StorageDir += "\x00"
+	setTestLibraryPaths(&c.settings, testStorageRoot(c.settings)+"\x00")
 	if err := c.start(); err == nil {
 		t.Fatal("invalid storage accepted")
 	}

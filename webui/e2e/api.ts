@@ -1,8 +1,8 @@
 import type { Page } from '@playwright/test';
 import type { CacheEntry, Settings, Status } from '../src/types';
 export function statusFixture(): Status {
-  const settings: Settings = {theme:'system',retainFavorites:true,storageDir:'C:\\UI-Test\\storage',maxCacheBytes:40*1073741824,videoStorageMode:'unlimited',aggressiveCacheReclamation:'auto',requestRetentionDays:30,throughputIntervalMinutes:20,prepareAheadSeconds:500,downloadSoftLimit:16,downloadGrowIntervalMS:250,localProtectionGraceSeconds:300,downloadUpstream:'auto',upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',autoAccelerate:false,autoOpenWebUI:true,queueWithGateway:true,restoreHostsOnExit:true,manualLogDir:false,logDir:'C:\\UI-Test\\logs'};
-  return {running:false,settings:{...settings},activeSettings:{...settings},restartRequired:false,hosts:{ready:false,message:'尚未接入'},portOK:true,httpsPortOK:true,batch:{},lastBatch:{},import:{},queue:{},defaultLogDir:settings.logDir,defaultStorageDir:settings.storageDir,portableDir:'C:\\UI-Test',activation:{},upstreamMonitor:{results:[]}};
+  const settings: Settings = {theme:'system',retainFavorites:true,databasePath:'C:\\UI-Test\\storage\\storage.sqlite',videoDir:'D:\\Videos',maxCacheBytes:40*1073741824,videoStorageMode:'unlimited',aggressiveCacheReclamation:'auto',requestRetentionDays:30,throughputIntervalMinutes:20,prepareAheadSeconds:500,downloadSoftLimit:16,downloadGrowIntervalMS:250,localProtectionGraceSeconds:300,downloadUpstream:'auto',upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',autoAccelerate:false,autoOpenWebUI:true,queueWithGateway:true,restoreHostsOnExit:true,manualLogDir:false,logDir:'C:\\UI-Test\\logs'};
+  return {running:false,settings:{...settings},activeSettings:{...settings},restartRequired:false,hosts:{ready:false,message:'尚未接入'},portOK:true,httpsPortOK:true,batch:{},lastBatch:{},import:{},queue:{},defaultLogDir:settings.logDir,defaultDatabasePath:settings.databasePath,defaultVideoDir:settings.videoDir,portableDir:'C:\\UI-Test',activation:{},upstreamMonitor:{results:[]}};
 }
 export async function mockAPI(page: Page) {
   const fixtureID=crypto.randomUUID();
@@ -20,6 +20,9 @@ export async function mockAPI(page: Page) {
     if (req.headers()['x-swd-token'] !== 'browser-fixture-token') return route.fulfill({status:403,body:'invalid token'});
     let data: unknown = {ok:true};
     if (path==='status') data = state;
+    if(path==='storage/check')data={confirmVideoPolicy:false};
+    if(path==='storage/create-database')data={path:body.databasePath};
+    if(path==='storage/select-database')data={path:'',canceled:true};
     if(path==='terms/current')data=terms;
     if(path==='terms/accept'){terms.accepted=true;data={ok:true};}
     if(path==='vrcx/detect')data={path:'C:\\VRCX\\VRCX.sqlite3',found:false,existingSongs:0};
@@ -32,7 +35,7 @@ export async function mockAPI(page: Page) {
     if(path==='history')data={storageID:'fixture',requests:[],hasMore:false,nextCursor:''};
     if(path==='latency')data={from:Date.now()-72*3600000,to:Date.now(),availableFrom:null,partial:true,blocking:{samples:0,p50MS:null,p95MS:null},ready:{samples:0,p50MS:null,p95MS:null}};
     if (path==='requests') data={storageID:'fixture',requests:[],hasMore:false};
-    if(path==='library')data={storageID:'fixture',songs:files.map(f=>({id:f.songs[0].id,title:f.songs[0].title,artist:'',dancer:'',group:'',score:1,policy:'normal',resource:f.key})),resources:Object.fromEntries(files.map(f=>[f.key,{key:f.key,size:f.bytes,duration:null,songs:f.songs,songCount:f.songCount,local:f}])),keys:files.map(f=>f.key),total:files.length,fileCount:files.length,totalBytes:files.length*1073741824};
+    if(path==='library')data={storageID:'fixture',databaseID:'fixture-db',songs:files.map(f=>({id:f.songs[0].id,title:f.songs[0].title,artist:'',dancer:'',group:'',score:1,policy:'normal',resource:f.key})),resources:Object.fromEntries(files.map(f=>[f.key,{key:f.key,size:f.bytes,duration:null,songs:f.songs,songCount:f.songCount,local:f}])),keys:files.map(f=>f.key),total:files.length,fileCount:files.length,totalBytes:files.length*1073741824};
     if (path==='cache') data={storageID:'fixture',entries:files,total:files.length,fileCount:files.length,totalBytes:files.length*1073741824};
     if (path==='cache/delete') {
       const selected = body.entries as {key:string;stamp:string}[];
@@ -40,7 +43,7 @@ export async function mockAPI(page: Page) {
       for(const item of selected) {const i=files.findIndex(f=>f.key===item.key); if(i>=0)files.splice(i,1);}
     }
     if (path==='settings/theme') {state.settings.theme=body.theme as Settings['theme'];state.activeSettings.theme=state.settings.theme;}
-    if (path==='settings') {state.settings={...state.settings,...body};state.activeSettings.restoreHostsOnExit=state.settings.restoreHostsOnExit; state.restartRequired=JSON.stringify(state.settings)!==JSON.stringify(state.activeSettings);}
+    if (path==='settings') {const {confirmVideoPolicy,...settings}=body;state.settings={...state.settings,...settings};state.activeSettings.restoreHostsOnExit=state.settings.restoreHostsOnExit; state.restartRequired=JSON.stringify(state.settings)!==JSON.stringify(state.activeSettings);}
     if (path==='start') state.running=true;
     if (path==='stop') state.running=false;
     if (path==='activation/enable') {state.running=true;state.hosts.ready=true;state.hosts.exitRestorePrepared=state.activeSettings.restoreHostsOnExit;state.activation={phase:'waiting',readyAt:new Date().toISOString()};}

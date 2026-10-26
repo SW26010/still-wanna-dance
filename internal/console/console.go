@@ -12,7 +12,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -29,7 +28,6 @@ import (
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 	"still-wanna-dance/internal/vrclog"
-	"still-wanna-dance/internal/workfiles"
 )
 
 //go:embed assets/storage-benefit.svg
@@ -63,12 +61,16 @@ type Settings struct {
 	VideoStorageMode            string `json:"videoStorageMode"`
 	RetainFavorites             bool   `json:"retainFavorites"`
 	AggressiveCacheReclamation  string `json:"aggressiveCacheReclamation"`
-	StorageDir                  string `json:"storageDir"`
+	DatabasePath                string `json:"databasePath"`
+	VideoDir                    string `json:"videoDir"`
 	LogDir                      string `json:"logDir"`
 	ManualLogDir                bool   `json:"manualLogDir"`
 }
 
 type Console struct {
+	store                  *cacheproxy.Store
+	storeOpenError         error
+	work                   *cacheproxy.WorkDirectory // Borrowed from the application entry point.
 	channelIdentity        proxyChannelIdentity
 	vrcxMu                 sync.Mutex // preview/apply/discard; acquire before lifecycleMu
 	vrcxPreview            *vrcxPreview
@@ -144,11 +146,14 @@ type Console struct {
 	databasePicker       func(context.Context, string, string) (string, error)
 }
 
-func New(configPath, address string) (*Console, error) {
-	return newConsole(configPath, address, upstreamnet.NewResolver(nil))
+func New(configPath, address string, work *cacheproxy.WorkDirectory) (*Console, error) {
+	return newConsole(configPath, address, upstreamnet.NewResolver(nil), work)
 }
 
-func newConsole(configPath, address string, dns directResolver) (*Console, error) {
+func newConsole(configPath, address string, dns directResolver, work *cacheproxy.WorkDirectory) (*Console, error) {
+	if work == nil {
+		return nil, errors.New("应用工作目录尚未准备")
+	}
 	identity, err := desktop.NewIdentity(configPath)
 	if err != nil {
 		return nil, err
@@ -157,16 +162,19 @@ func newConsole(configPath, address string, dns directResolver) (*Console, error
 	if err := apppaths.ValidateConfigPath(configPath); err != nil {
 		return nil, err
 	}
+	if err := apppaths.ValidateWorkSeparation(identity.Executable, configPath); err != nil {
+		return nil, err
+	}
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return nil, err
 	}
-	c := &Console{configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: "https://x.kiva.moe/api/v2/wanna/songs"}
+	c := &Console{work: work, configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: "https://x.kiva.moe/api/v2/wanna/songs"}
 	c.identity = identity
 	c.hosts = newHostsController(hostsPath(), launchHostsSession)
 	c.settings = Settings{
-		StorageDir: apppaths.ForConfig(configPath).DefaultStorage, RequestRetentionDays: 30,
-		AutoAccelerate: false, AutoOpenWebUI: true, QueueWithGateway: true, RestoreHostsOnExit: true,
+		RequestRetentionDays: 30,
+		AutoAccelerate:       false, AutoOpenWebUI: true, QueueWithGateway: true, RestoreHostsOnExit: true,
 		VideoStorageMode: "none", MaxCacheBytes: 0, RetainFavorites: true,
 		AggressiveCacheReclamation: "auto",
 		DownloadSoftLimit:          cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),
@@ -196,12 +204,24 @@ func newConsole(configPath, address string, dns directResolver) (*Console, error
 	if err == nil {
 		c.upstreamDial, c.client, err = c.networkFor(c.settings)
 	}
-	if err == nil && data == nil {
-		err = c.writeConfigFile(c.settings)
+	if err == nil {
+		unconfigured := c.settings.DatabasePath == "" && c.settings.VideoDir == ""
+		if unconfigured {
+			c.storeOpenError = c.prepareDefaultLibrary()
+		} else {
+			c.store, c.storeOpenError = cacheproxy.OpenStore(libraryPaths(c.settings).DatabasePath)
+		}
+		if data == nil || unconfigured && c.store != nil {
+			err = c.writeConfigFile(c.settings)
+		}
+		c.savedSettings = c.settings
 	}
 	if err == nil {
 		c.loadSnapshots()
 		c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport)
+	}
+	if err != nil && c.store != nil {
+		c.store.Close()
 	}
 	if err != nil && c.client != nil {
 		c.client.CloseIdleConnections()
@@ -215,12 +235,17 @@ func newConsole(configPath, address string, dns directResolver) (*Console, error
 
 // Relative paths belong to the configuration, independent of the launch directory.
 func (c *Console) resolveSettings(s Settings) (Settings, error) {
-	for _, p := range []*string{&s.StorageDir, &s.LogDir} {
-		if strings.TrimSpace(*p) != "" && !filepath.IsAbs(*p) {
+	for _, p := range []*string{&s.DatabasePath, &s.VideoDir, &s.LogDir} {
+		*p = strings.TrimSpace(*p)
+		if *p != "" && !filepath.IsAbs(*p) {
 			*p = filepath.Join(filepath.Dir(c.configPath), *p)
 		}
 	}
-	return absoluteSettings(s)
+	s, err := absoluteSettings(s)
+	if err == nil {
+		err = c.validateResourcePaths(s)
+	}
+	return s, err
 }
 
 // Keep directories inside the portable folder movable; external stores stay absolute.
@@ -229,7 +254,7 @@ func (c *Console) storedSettings(s Settings) Settings {
 		s.LogDir = ""
 	}
 	base := filepath.Dir(c.configPath)
-	for _, p := range []*string{&s.StorageDir, &s.LogDir} {
+	for _, p := range []*string{&s.DatabasePath, &s.VideoDir, &s.LogDir} {
 		if pathContains(base, *p) {
 			if rel, err := filepath.Rel(base, *p); err == nil {
 				*p = rel
@@ -322,12 +347,17 @@ func absoluteSettings(s Settings) (Settings, error) {
 	if logErr != nil {
 		return s, logErr
 	}
-	if strings.TrimSpace(s.StorageDir) == "" {
-		return s, errors.New("请填写存储目录")
+	for _, path := range []*string{&s.DatabasePath, &s.VideoDir} {
+		*path = strings.TrimSpace(*path)
+		if *path != "" {
+			var err error
+			*path, err = filepath.Abs(*path)
+			if err != nil {
+				return s, err
+			}
+		}
 	}
-	var err error
-	s.StorageDir, err = filepath.Abs(s.StorageDir)
-	return s, err
+	return s, nil
 }
 
 func pathContains(parent, child string) bool {
@@ -335,42 +365,19 @@ func pathContains(parent, child string) bool {
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }
 
-func writableDir(path string) error {
-	// Probe the nearest existing ancestor without creating an unused media root.
-	// Actual initialization belongs to the storage engine under its directory lock.
-	for {
-		info, err := os.Stat(path)
-		if err == nil {
-			if !info.IsDir() {
-				return fmt.Errorf("路径不是目录：%s", path)
-			}
-			break
-		}
-		if !os.IsNotExist(err) {
-			return err
-		}
-		parent := filepath.Dir(path)
-		if parent == path {
-			return err
-		}
-		path = parent
-	}
-	return workfiles.Probe(path)
-}
-
 func (c *Console) save(s Settings) error {
-	return c.saveSettings(s, false)
+	return c.saveSettings(s, false, false)
 }
 
 // An omitted password in the settings API preserves the stored secret. Merge
 // under the lifecycle lock so concurrent saves cannot restore stale secrets.
-func (c *Console) saveSettings(s Settings, preservePassword bool) error {
+func (c *Console) saveSettings(s Settings, preservePassword, confirmVideoPolicy bool) error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
-	return c.saveSettingsLocked(s, preservePassword)
+	return c.saveSettingsLocked(s, preservePassword, confirmVideoPolicy)
 }
 
-func (c *Console) saveSettingsLocked(s Settings, preservePassword bool) error {
+func (c *Console) saveSettingsLocked(s Settings, preservePassword, confirmVideoPolicy bool) error {
 	c.mu.Lock()
 	if c.closing {
 		c.mu.Unlock()
@@ -405,15 +412,8 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool) error {
 	if err = validateProxyNodeSelection(s); err != nil {
 		return err
 	}
-	// Preserve an existing library when saving unrelated settings. New choices
-	// must use the default location or a directory outside Portable.
-	if s.StorageDir != oldSettings.StorageDir {
-		if err = c.validateStorageSelection(s.StorageDir); err != nil {
-			return err
-		}
-	}
-	if err = writableDir(s.StorageDir); err != nil {
-		return fmt.Errorf("目录不可写：%w", err)
+	if err := c.prepareLibrarySelection(s, oldSettings, confirmVideoPolicy); err != nil {
+		return err
 	}
 	if s.RestoreHostsOnExit && !oldSettings.RestoreHostsOnExit {
 		if err = c.hosts.prepareRestore(); err != nil {
@@ -431,7 +431,7 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool) error {
 	c.savedNodeCount = nodeCount
 	delete(c.proxyImports, importID)
 	c.mu.Unlock()
-	slog.Info("settings_saved", "storage_dir", s.StorageDir, "vrchat_log_dir", s.LogDir)
+	slog.Info("settings_saved", "database_path", s.DatabasePath, "video_dir", s.VideoDir, "vrchat_log_dir", s.LogDir)
 	return nil
 }
 
@@ -442,18 +442,18 @@ func (c *Console) ensureEngine() error {
 	}
 	c.mu.Unlock()
 	defer c.mu.Lock()
-	if _, err := c.inspectStorage(c.settings.StorageDir); err != nil {
+	store, err := c.businessStore()
+	if err != nil {
 		return err
 	}
-	if err := writableDir(c.settings.StorageDir); err != nil {
-		return fmt.Errorf("存储目录不可写：%w", err)
-	}
 	cfg := cacheproxy.DefaultConfig()
+	cfg.Work = c.work
 	cfg.BeginVideoRequest = c.beginVideoRequest
 	cfg.BeginResourceLoad = upstreamrequest.Default.BeginResourceLoad
 	cfg.IsResourceHost = upstreamrequest.Default.IsResourceDomain
 	cfg.Logger = slog.Default().With("component", "cache")
-	cfg.StorageDir = c.settings.StorageDir
+	cfg.Store = store
+	cfg.VideoDir = libraryPaths(c.settings).VideoDir
 	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
 	cfg.CacheUnlimited = c.settings.VideoStorageMode == "unlimited"
 	cfg.RetainFavorites = c.settings.RetainFavorites
@@ -745,7 +745,10 @@ func (c *Console) Close() error {
 	c.service = nil
 	c.mu.Unlock()
 	if service != nil {
-		err = service.Close()
+		err = errors.Join(err, service.Close())
+	}
+	if c.store != nil {
+		err = errors.Join(err, c.store.Close())
 	}
 	c.lifecycleMu.Unlock()
 	c.client.CloseIdleConnections()
@@ -840,7 +843,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ProxyNodes            proxyNodeStatus         `json:"proxyNodes"`
 			Activation            Activation              `json:"activation"`
 			DefaultLogDir         string                  `json:"defaultLogDir"`
-			DefaultStorageDir     string                  `json:"defaultStorageDir"`
+			DefaultDatabasePath   string                  `json:"defaultDatabasePath"`
+			DefaultVideoDir       string                  `json:"defaultVideoDir"`
 			PortableDir           string                  `json:"portableDir"`
 			UpstreamMonitor       upstreamstate.Status    `json:"upstreamMonitor"`
 		}{
@@ -852,7 +856,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			SOCKS5CredentialError: c.savedSettings.proxySecretError,
 			ProxyNodes:            c.proxyNodesStatusLocked(),
 			Activation:            c.activation, DefaultLogDir: defaultLogDir(),
-			DefaultStorageDir: c.defaultStorageDir(), PortableDir: portableDir(),
+			DefaultDatabasePath: c.defaultDatabasePath(), DefaultVideoDir: c.defaultVideoDir(), PortableDir: c.portableDir(),
 			UpstreamMonitor: c.monitorSnapshotLocked(),
 		}
 		result.Settings.SOCKS5Password = ""
@@ -869,6 +873,9 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		result.Batch.Failures = append([]Failure(nil), c.batch.Failures...)
 		c.mu.Unlock()
 		result.Hosts = c.hosts.status()
+		if _, err := c.businessStore(); err != nil {
+			result.StorageError = applog.SafeError(err).Error()
+		}
 		if service != nil {
 			if err := service.StorageError(); err != nil {
 				result.StorageError = applog.SafeError(err).Error()
@@ -880,7 +887,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				f.Name = result.Queue.Titles[strconv.FormatInt(f.ID, 10)]
 			}
 		} else {
-			result.Traffic = cacheproxy.ReadTrafficStats(result.ActiveSettings.StorageDir)
+			result.Traffic = cacheproxy.ReadTrafficStats(libraryPaths(result.ActiveSettings).DatabasePath)
 		}
 		if !running {
 			result.PortOK = portAvailable(c.videoAddress) == nil
@@ -967,9 +974,9 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// The active storage root is fixed for this Console. The reader owns
 		// its read-only connection and does not borrow the engine's lifetime.
 		c.mu.Lock()
-		root := c.settings.StorageDir
+		database := c.settings.DatabasePath
 		c.mu.Unlock()
-		result, err := cacheproxy.ReadRecentRequests(r.Context(), root, limit)
+		result, err := cacheproxy.ReadRecentRequests(r.Context(), database, limit)
 		if err != nil {
 			http.Error(w, "最近请求读取失败，请稍后重试", http.StatusInternalServerError)
 			return
@@ -1015,6 +1022,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+	if strings.HasPrefix(r.URL.Path, "/api/storage/") {
+		c.serveStorage(w, r)
+		return
+	}
 	if strings.HasPrefix(r.URL.Path, "/api/vrcx/") {
 		c.serveVRCX(w, r)
 		return
@@ -1112,8 +1123,9 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/api/settings":
 		var input struct {
 			Settings
-			ProxyImportID string  `json:"proxyImportID"`
-			Password      *string `json:"socks5Password"`
+			ProxyImportID      string  `json:"proxyImportID"`
+			ConfirmVideoPolicy bool    `json:"confirmVideoPolicy"`
+			Password           *string `json:"socks5Password"`
 		}
 		input.DownloadSoftLimit = cacheproxy.VideoRequestSoftLimit
 		input.RestoreHostsOnExit = true
@@ -1125,7 +1137,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				input.Settings.SOCKS5Password = *input.Password
 			}
 			input.Settings.nodeImportID = input.ProxyImportID
-			err = c.saveSettings(input.Settings, input.Password == nil)
+			err = c.saveSettings(input.Settings, input.Password == nil, input.ConfirmVideoPolicy)
 		}
 	case "/api/hosts/enable":
 		err = c.changeHosts("enable")

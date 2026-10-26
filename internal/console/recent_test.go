@@ -1,6 +1,7 @@
 package console
 
 import (
+	"bytes"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -34,23 +35,28 @@ func TestRecentAPIAuthLimitsAndOffline(t *testing.T) {
 	if c.service != nil || c.httpServer != nil {
 		t.Fatal("read started engine")
 	}
-	if err := os.MkdirAll(c.settings.StorageDir, 0700); err != nil {
+	if err := os.MkdirAll(testStorageRoot(c.settings), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(c.settings.StorageDir, "storage.sqlite"), []byte("broken"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(testStorageRoot(c.settings), "storage.sqlite"), []byte("broken"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	r := httptest.NewRequest("GET", "http://"+c.address+"/api/requests", nil)
 	r.Header.Set("X-SWD-Token", c.token)
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, r)
-	if w.Code != 500 || strings.Contains(w.Body.String(), c.settings.StorageDir) {
+	if w.Code != 500 || strings.Contains(w.Body.String(), testStorageRoot(c.settings)) {
 		t.Fatalf("unsafe error: %d %s", w.Code, w.Body.String())
 	}
 }
 
 func TestHistoryAndLatencyAPIAuthRangeAndOffline(t *testing.T) {
 	c := testConsole(t)
+	path := libraryPaths(c.settings).DatabasePath
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, path := range []string{"/api/history", "/api/latency"} {
 		for _, tc := range []struct {
 			query, token, origin string
@@ -73,7 +79,7 @@ func TestHistoryAndLatencyAPIAuthRangeAndOffline(t *testing.T) {
 	if c.service != nil || c.httpServer != nil {
 		t.Fatal("history read started engine")
 	}
-	if _, err := os.Stat(filepath.Join(c.settings.StorageDir, "storage.sqlite")); !os.IsNotExist(err) {
-		t.Fatal("history read created storage", err)
+	if after, err := os.ReadFile(path); err != nil || !bytes.Equal(before, after) {
+		t.Fatal("history read changed the database", err)
 	}
 }

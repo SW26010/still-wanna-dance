@@ -255,7 +255,7 @@ func TestBlockObservationSourceMetadataKeepsPerBlockTimingAndPrecedence(t *testi
 }
 
 func TestBlockObservationDisabledNotificationsAllocateNothing(t *testing.T) {
-	s := new(Server)
+	s := &Server{Store: &Store{}}
 	if count := testing.AllocsPerRun(1000, func() { s.notifyBlockObservation() }); count != 0 {
 		t.Fatal(count)
 	}
@@ -350,7 +350,7 @@ func TestBlockObservationStableSharedVideoLabels(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, reverse := range []bool{false, true} {
-				o := &blockObserver{s: new(Server), videos: map[string]blockVideo{"shared": tc.cached}}
+				o := &blockObserver{s: &Server{Store: &Store{}}, videos: map[string]blockVideo{"shared": tc.cached}}
 				snapshot := &BlockSnapshot{Blocks: make(map[string]BlockView)}
 				for i := range tc.blocks {
 					index := i
@@ -586,7 +586,7 @@ func TestBlockObservationRealRangeRead(t *testing.T) {
 }
 
 func BenchmarkBlockObservationDisabled(b *testing.B) {
-	s := new(Server)
+	s := &Server{Store: &Store{}}
 	b.ReportAllocs()
 	for b.Loop() {
 		s.notifyBlockObservation()
@@ -594,7 +594,7 @@ func BenchmarkBlockObservationDisabled(b *testing.B) {
 }
 
 func BenchmarkBlockObservation4096(b *testing.B) {
-	s := &Server{cfg: DefaultConfig(), ctx: context.Background(), useBlocks: make(map[useBlockID]int), demands: make(map[*downloadDemand]bool)}
+	s := &Server{Store: &Store{}, cfg: DefaultConfig(), ctx: context.Background(), useBlocks: make(map[useBlockID]int), demands: make(map[*downloadDemand]bool)}
 	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 16})
 	defer s.scheduler.Close()
 	size := int64(maxUseBlocks) * rangeBlockSize

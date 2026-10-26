@@ -82,7 +82,7 @@ func TestZeroRetentionStartupAndUnlimited(t *testing.T) {
 	for _, unlimited := range []bool{false, true} {
 		t.Run(map[bool]string{false: "zero", true: "unlimited"}[unlimited], func(t *testing.T) {
 			cfg := DefaultConfig()
-			cfg.StorageDir = t.TempDir()
+			prepareFixtureResources(t, &cfg, t.TempDir(), true)
 			initial, err := New(cfg)
 			if err != nil {
 				t.Fatal(err)

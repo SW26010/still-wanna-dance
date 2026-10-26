@@ -41,7 +41,7 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c.mu.Lock()
-	root, closing := c.settings.StorageDir, c.closing
+	root, closing := libraryPaths(c.settings), c.closing
 	c.mu.Unlock()
 	if closing {
 		http.Error(w, "程序正在退出", 409)
@@ -56,7 +56,7 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c.mu.Lock()
-	service, scanning, changed := c.service, c.batch.Running && c.batch.ScanOnly, c.closing || root != c.settings.StorageDir
+	service, scanning, changed := c.service, c.batch.Running && c.batch.ScanOnly, c.closing || root != libraryPaths(c.settings)
 	c.mu.Unlock()
 	if changed {
 		http.Error(w, "程序实例或存储目录已变化，请刷新", 409)

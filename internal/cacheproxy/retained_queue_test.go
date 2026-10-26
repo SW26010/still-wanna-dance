@@ -17,7 +17,7 @@ import (
 
 func TestUnlimitedRestartQueueHitDoesNotRefetch(t *testing.T) {
 	cfg := fixtureConfig()
-	cfg.StorageDir = t.TempDir()
+	prepareFixtureResources(t, &cfg, t.TempDir(), true)
 	cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
 		return videoURL(payload), nil
 	}
@@ -47,6 +47,7 @@ func TestUnlimitedRestartQueueHitDoesNotRefetch(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	reopenFixtureStore(t, &cfg)
 	s, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -97,7 +98,7 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 			body, other := payload, strings.Repeat("z", len(payload))
 			otherURL, _ := url.Parse(videoURL(other))
 			cfg := fixtureConfig()
-			cfg.StorageDir = t.TempDir()
+			prepareFixtureResources(t, &cfg, t.TempDir(), true)
 			cfg.CacheUnlimited, cfg.MaxCacheBytes = false, int64(len(body))
 			cfg.PrepareAhead, cfg.LocalProtectAhead = 120*time.Second, 120*time.Second
 			var changed atomic.Bool

@@ -249,7 +249,7 @@ func TestSOCKS5DelegatesDNSAndHonorsCancellation(t *testing.T) {
 
 func TestSOCKS5SettingsValidation(t *testing.T) {
 	for _, address := range []string{"", "localhost", "127.0.0.1:0", "127.0.0.1:65536", "127.0.0.1:http", "socks5://127.0.0.1:1080", "user@localhost:1080", "bad host:1080"} {
-		if _, err := absoluteSettings(Settings{StorageDir: t.TempDir(), UpstreamMode: "socks5", SOCKS5Address: address}); err == nil {
+		if _, err := absoluteSettings(Settings{DatabasePath: "", VideoDir: t.TempDir(), UpstreamMode: "socks5", SOCKS5Address: address}); err == nil {
 			t.Errorf("accepted %q", address)
 		}
 	}
@@ -258,7 +258,7 @@ func TestSOCKS5SettingsValidation(t *testing.T) {
 			t.Errorf("%s: %v", address, err)
 		}
 	}
-	if _, err := absoluteSettings(Settings{StorageDir: t.TempDir(), UpstreamMode: "unknown"}); err == nil {
+	if _, err := absoluteSettings(Settings{DatabasePath: "", VideoDir: t.TempDir(), UpstreamMode: "unknown"}); err == nil {
 		t.Fatal("accepted unknown mode")
 	}
 }
@@ -427,7 +427,7 @@ func TestConsoleSOCKS5CacheAndSettingsSwitch(t *testing.T) {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
-	loaded, err := New(c.configPath, c.address)
+	loaded, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 	if err != nil {
 		t.Fatal(err)
 	}

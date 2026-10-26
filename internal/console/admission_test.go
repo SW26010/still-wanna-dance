@@ -38,7 +38,8 @@ func TestOrderedPreparationStopsResolutionAtUsageCapacity(t *testing.T) {
 			defer api.Close()
 			c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
 			cfg := fixtureCacheConfig()
-			cfg.StorageDir, cfg.OriginScheme = c.settings.StorageDir, "http"
+			cfg.OriginScheme = "http"
+			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 			cfg.Origins["nya.xin.moe"] = strings.TrimPrefix(origin.URL, "http://")
 			cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
 				return c.resolvePlayback(ctx, id, node, "auto")
@@ -110,7 +111,7 @@ func TestQueueRepreparesRearmedMemberAfterPreviousSuccess(t *testing.T) {
 	const body = "rearmed queue fixture"
 	target := fmt.Sprintf("https://play.udon.dance/files/2403/42-abc.mp4?e=%x&s=%d", md5.Sum([]byte(body)), len(body))
 	cfg := fixtureCacheConfig()
-	cfg.StorageDir = c.settings.StorageDir
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.CacheUnlimited, cfg.MaxCacheBytes = false, 0
 	cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return target, nil }
 	var calls atomic.Int32

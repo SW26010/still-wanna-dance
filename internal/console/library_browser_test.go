@@ -40,7 +40,8 @@ func TestLibraryBrowser(t *testing.T) {
 	defer api.Close()
 	c.apiBase, c.client.Transport = api.URL, http.DefaultTransport
 	cfg := fixtureCacheConfig()
-	cfg.StorageDir, cfg.OriginScheme, cfg.CacheUnlimited = c.settings.StorageDir, "http", true
+	cfg.OriginScheme, cfg.CacheUnlimited = "http", true
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg.LocalProtectionGrace = 0
 	for host := range cfg.Origins {
@@ -70,7 +71,7 @@ func TestLibraryBrowser(t *testing.T) {
 	if downloads.Load() != 1 {
 		t.Fatal("shared resource downloaded more than once", downloads.Load())
 	}
-	if _, err := os.Stat(filepath.Join(cfg.StorageDir, "videos", key+".mp4")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(cfg.VideoDir, key+".mp4")); !os.IsNotExist(err) {
 		t.Fatal("browser deletion did not remove file", err)
 	}
 	if c.httpServer != nil || c.queue.Running {

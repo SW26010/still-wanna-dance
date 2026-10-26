@@ -19,7 +19,7 @@ func TestBlockingDoesNotCancelAdmittedPreparation(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				_, s := testSession(t)
 				s.ctx = context.Background()
-				db, err := openStorageDatabase(filepath.Join(t.TempDir(), storageDatabaseName), true)
+				db, err := openFixtureDatabase(filepath.Join(t.TempDir(), storageDatabaseName), true)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -73,7 +73,7 @@ func TestPreparationRechecksBlockedSongAfterCapacityWait(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				var calls atomic.Int32
 				cfg := fixtureConfig()
-				cfg.StorageDir = t.TempDir()
+				prepareFixtureResources(t, &cfg, t.TempDir(), true)
 				cfg.CacheUnlimited, cfg.MaxCacheBytes = false, 1024
 				cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return videoURL(payload), nil }
 				cfg.ResourceTransports = func(string) []http.RoundTripper {

@@ -38,7 +38,7 @@ func (c *Console) serveWebUI(w http.ResponseWriter, page, title string, data map
 	if page == "console" || page == "help" {
 		c.mu.Lock()
 		p := c.files()
-		data["paths"] = map[string]string{"Config": p.Config, "Root": p.Root, "Storage": c.settings.StorageDir, "Log": p.Log}
+		data["paths"] = map[string]string{"Config": p.Config, "Root": p.Root, "Database": c.settings.DatabasePath, "Videos": c.settings.VideoDir, "Log": p.Log, "State": p.StateDir, "Work": c.work.Path()}
 		c.mu.Unlock()
 	}
 	if page == "console" || page == "terms" {

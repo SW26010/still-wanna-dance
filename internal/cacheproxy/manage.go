@@ -46,52 +46,12 @@ type CacheRemoval struct {
 	Result string `json:"result"`
 }
 
-func CacheStorageID(root string) string {
-	h := sha256.Sum256([]byte(filepath.Clean(root)))
-	return hex.EncodeToString(h[:])
-}
-
-// Refuse redirected directories as well as symlink files. No caller supplies paths.
-func CacheDirectory(root string) (string, error) {
-	root, err := filepath.Abs(root)
-	if err != nil {
-		return "", err
-	}
-	dir := filepath.Join(root, "videos")
-	// Inspect every component without following links. Comparing EvalSymlinks
-	// strings also rejects ordinary Windows 8.3 aliases (such as RUNNER~1).
-	for path := dir; ; path = filepath.Dir(path) {
-		info, err := os.Lstat(path)
-		if err != nil {
-			return "", fmt.Errorf("inspect video directory: %w", err)
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			return "", errors.New("视频目录包含符号链接或目录重定向")
-		}
-		if !info.IsDir() {
-			return "", errors.New("不是普通视频目录")
-		}
-		if filepath.Dir(path) == path {
-			break
-		}
-	}
-	return dir, nil
-}
-
-func cacheReadDB(root string) (*sql.DB, error) {
-	db, err := readStorageDatabase(root)
-	if err == nil && db == nil {
-		return nil, os.ErrNotExist
-	}
-	return db, err
-}
-
-func readCacheEntry(ctx context.Context, root, key string, db *sql.DB) (CacheEntry, error) {
+func readCacheEntry(ctx context.Context, paths LibraryPaths, key string, db *sql.DB) (CacheEntry, error) {
 	e := CacheEntry{Key: key, Songs: []CacheSong{}, State: "未知文件 · 未校验"}
 	if !cacheVideoName.MatchString(key + ".mp4") {
 		return e, errors.New("无效资源标识")
 	}
-	path := filepath.Join(root, "videos", key+".mp4")
+	path := filepath.Join(paths.VideoDir, key+".mp4")
 	info, err := os.Lstat(path)
 	if err != nil {
 		return e, err
@@ -157,39 +117,31 @@ func readCacheEntry(ctx context.Context, root, key string, db *sql.DB) (CacheEnt
 	if identity == "" {
 		return e, errors.New("平台无法识别文件身份")
 	}
-	hash := sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%s|%d|%d|%d|%s", root, key, identity, info.Size(), info.ModTime().UnixNano(), info.Mode(), associations)))
+	hash := sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%s|%d|%d|%d|%s", CacheStorageID(paths), key, identity, info.Size(), info.ModTime().UnixNano(), info.Mode(), associations)))
 	e.Stamp = hex.EncodeToString(hash[:])
 	return e, nil
 }
 
 // Local metadata only. Response and song associations are bounded; enumeration
 // and sorting inspect directory metadata, not video bodies or upstream catalogs.
-func ReadCachePage(ctx context.Context, root, query, order string, offset int) (CachePage, error) {
-	root, err := filepath.Abs(root)
-	result := CachePage{StorageID: CacheStorageID(root), Entries: []CacheEntry{}}
+func ReadCachePage(ctx context.Context, paths LibraryPaths, query, order string, offset int) (CachePage, error) {
+	paths, err := paths.Resolve()
+	result := CachePage{StorageID: CacheStorageID(paths), Entries: []CacheEntry{}}
 	if err != nil {
 		return result, err
 	}
 	if offset < 0 {
 		return result, errors.New("无效分页")
 	}
-	dir, err := CacheDirectory(root)
-	if errors.Is(err, os.ErrNotExist) {
-		if _, dbErr := os.Lstat(storagePath(root)); errors.Is(dbErr, os.ErrNotExist) {
-			return result, nil
-		}
-		return result, err
-	}
+	dir, err := CacheDirectory(paths.VideoDir)
 	if err != nil {
 		return result, err
 	}
-	db, err := cacheReadDB(root)
-	if err != nil && !os.IsNotExist(err) {
+	db, err := readDatabaseFile(paths.DatabasePath)
+	if err != nil {
 		return result, err
 	}
-	if db != nil {
-		defer db.Close()
-	}
+	defer db.Close()
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return result, err
@@ -232,7 +184,7 @@ func ReadCachePage(ctx context.Context, root, query, order string, offset int) (
 		if err := ctx.Err(); err != nil {
 			return result, err
 		}
-		e, err := readCacheEntry(ctx, root, candidates[i].key, db)
+		e, err := readCacheEntry(ctx, paths, candidates[i].key, db)
 		if os.IsNotExist(err) {
 			result.Total--
 			continue
@@ -262,37 +214,46 @@ func (s *Server) DeleteCache(ctx context.Context, selected []CacheSelection) ([]
 	return s.deleteCache(ctx, selected)
 }
 
-// Offline maintenance shares the engine removal implementation and exclusive
-// store lock, but starts no service, cleanup worker, network or usage pruning.
-func DeleteCacheOffline(ctx context.Context, root string, selected []CacheSelection) ([]CacheRemoval, error) {
+// Offline maintenance owns the database and video leases, starts no workers,
+// and shares file-identity checks with the engine. No missing resource is created.
+func DeleteCacheOffline(ctx context.Context, paths LibraryPaths, selected []CacheSelection) (result []CacheRemoval, resultErr error) {
 	if len(selected) < 1 || len(selected) > 50 {
 		return nil, errors.New("每次请选择 1～50 个本地视频")
 	}
-	root, err := filepath.Abs(root)
+	paths, err := paths.Resolve()
 	if err != nil {
 		return nil, err
 	}
-	if _, err = CacheDirectory(root); err != nil {
-		return nil, err
-	}
-	for _, name := range []string{".lock"} {
-		info, err := os.Lstat(filepath.Join(root, name))
-		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return nil, err
-		}
-		if err == nil && !info.Mode().IsRegular() {
-			return nil, errors.New("本地存储锁文件不是普通文件")
-		}
-	}
-	unlock, err := lockDirectory(filepath.Join(root, ".lock"))
+	store, err := OpenStore(paths.DatabasePath)
 	if err != nil {
-		return nil, errors.New("本地存储目录正由其他进程使用")
-	}
-	defer unlock()
-	if err := checkStorageLayout(root); err != nil {
 		return nil, err
 	}
-	s := &Server{cfg: Config{StorageDir: root, Logger: slog.Default()}}
+	defer func() { resultErr = errors.Join(resultErr, store.Close()) }()
+	return store.DeleteCache(ctx, paths.VideoDir, selected)
+}
+
+// DeleteCache handles explicit video deletion while the application's database
+// is open and no engine is attached. It does not start retention or cleanup.
+func (store *Store) DeleteCache(ctx context.Context, videoDir string, selected []CacheSelection) (result []CacheRemoval, resultErr error) {
+	if !store.beginRequest() {
+		return nil, context.Canceled
+	}
+	defer store.wg.Done()
+	store.retentionRunMu.Lock()
+	defer store.retentionRunMu.Unlock()
+	if store.engine.Load() != nil {
+		return nil, errors.New("视频引擎正在使用数据库，请通过当前引擎删除")
+	}
+	paths, err := (LibraryPaths{DatabasePath: store.path, VideoDir: videoDir}).Resolve()
+	if err != nil {
+		return nil, err
+	}
+	unlock, err := lockVideoDirectory(paths.VideoDir, store)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { resultErr = errors.Join(resultErr, unlock()) }()
+	s := &Server{Store: store, cfg: Config{Store: store, VideoDir: paths.VideoDir, Logger: slog.Default()}}
 	return s.deleteCache(ctx, selected)
 }
 
@@ -300,10 +261,10 @@ func (s *Server) deleteCache(ctx context.Context, selected []CacheSelection) ([]
 	if len(selected) < 1 || len(selected) > 50 {
 		return nil, errors.New("每次请选择 1～50 个本地视频")
 	}
-	if _, err := CacheDirectory(s.cfg.StorageDir); err != nil {
+	if _, err := CacheDirectory(s.cfg.videosDir()); err != nil {
 		return nil, err
 	}
-	db, err := cacheReadDB(s.cfg.StorageDir)
+	db, err := readDatabaseFile(s.Store.path)
 	if err != nil {
 		return nil, err
 	}
@@ -325,17 +286,17 @@ func (s *Server) removeCacheEntry(ctx context.Context, db *sql.DB, item CacheSel
 	removed := false
 	defer func() { s.finishVideoRemoval(item.Key, removed) }()
 	// Independent local scanners share this gate. Do not wait for a check.
-	slot := verificationLocks.slot(s.cfg.StorageDir + item.Key)
+	slot := verificationLocks.slot(pathIdentity(s.cfg.videosDir()) + item.Key)
 	select {
 	case slot <- struct{}{}:
 		defer func() { <-slot }()
 	default:
 		return "protected"
 	}
-	if _, err := CacheDirectory(s.cfg.StorageDir); err != nil {
+	if _, err := CacheDirectory(s.cfg.videosDir()); err != nil {
 		return "unsafe"
 	}
-	e, err := readCacheEntry(ctx, s.cfg.StorageDir, item.Key, db)
+	e, err := readCacheEntry(ctx, s.cfg.libraryPaths(), item.Key, db)
 	if os.IsNotExist(err) {
 		return "missing"
 	}
@@ -359,21 +320,25 @@ func (s *Server) removeCacheEntry(ctx context.Context, db *sql.DB, item CacheSel
 	return "deleted"
 }
 
-func CacheFile(ctx context.Context, root string, item CacheSelection) (string, error) {
-	if _, err := CacheDirectory(root); err != nil {
+func CacheFile(ctx context.Context, paths LibraryPaths, item CacheSelection) (string, error) {
+	paths, err := paths.Resolve()
+	if err != nil {
 		return "", err
 	}
-	db, err := cacheReadDB(root)
+	if _, err := CacheDirectory(paths.VideoDir); err != nil {
+		return "", err
+	}
+	db, err := readDatabaseFile(paths.DatabasePath)
 	if err != nil {
 		return "", err
 	}
 	defer db.Close()
-	e, err := readCacheEntry(ctx, root, item.Key, db)
+	e, err := readCacheEntry(ctx, paths, item.Key, db)
 	if err != nil {
 		return "", err
 	}
 	if !e.Known || e.Stamp != item.Stamp {
 		return "", errors.New("本地视频条目已变化，请刷新")
 	}
-	return filepath.Join(root, "videos", item.Key+".mp4"), nil
+	return filepath.Join(paths.VideoDir, item.Key+".mp4"), nil
 }

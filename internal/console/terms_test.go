@@ -15,7 +15,7 @@ import (
 // Optional export lets the UI fixture preview the exact first-entry HTML from
 // ServeHTTP, rather than an approximation of the accepted console.
 func TestFirstEntryUsesModalConsent(t *testing.T) {
-	c, err := New(filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
+	c, err := newConsoleWithWorkForTest(t, filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestTermsPageExitTimeout(t *testing.T) {
 	for _, action := range []string{"leave", "reopen", "return", "accept", "accept-after-timeout"} {
 		t.Run(action, func(t *testing.T) {
 			root := t.TempDir()
-			c, err := New(filepath.Join(root, "config.json"), "127.0.0.1:18081")
+			c, err := newConsoleWithWorkForTest(t, filepath.Join(root, "config.json"), "127.0.0.1:18081")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -118,7 +118,7 @@ func TestTermsPageExitTimeout(t *testing.T) {
 }
 
 func TestTermsPresenceAuthentication(t *testing.T) {
-	c, err := New(filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
+	c, err := newConsoleWithWorkForTest(t, filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestTermsPresenceAuthentication(t *testing.T) {
 }
 
 func TestCloseCancelsTermsTimer(t *testing.T) {
-	c, err := New(filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
+	c, err := newConsoleWithWorkForTest(t, filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +176,7 @@ func TestCloseCancelsTermsTimer(t *testing.T) {
 }
 
 func TestTermsGateAndPersistence(t *testing.T) {
-	c, err := New(filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
+	c, err := newConsoleWithWorkForTest(t, filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +251,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 	if c.service != nil || c.queueCancel != nil {
 		t.Fatal("consent started business services")
 	}
-	reloaded, err := New(c.configPath, c.address)
+	reloaded, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,7 +268,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 		if err := os.WriteFile(c.files().Terms, []byte(data), 0600); err != nil {
 			t.Fatal(err)
 		}
-		stale, err := New(c.configPath, c.address)
+		stale, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -295,12 +295,12 @@ func assertCurrentTermsAccepted(t *testing.T, c *Console, want bool) {
 
 func TestTermsPersistenceFailureDoesNotAccept(t *testing.T) {
 	root := t.TempDir()
-	c, err := New(filepath.Join(root, "config.json"), "127.0.0.1:18081")
+	c, err := newConsoleWithWorkForTest(t, filepath.Join(root, "config.json"), "127.0.0.1:18081")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	if err := os.Mkdir(c.files().Terms, 0700); err != nil {
+	if err := os.MkdirAll(c.files().Terms, 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.acceptTerms(); err == nil {
@@ -320,7 +320,7 @@ func TestTermsPersistenceFailureDoesNotAccept(t *testing.T) {
 }
 
 func TestTermsReconfirmationDistinguishesMissingAndUnverifiableRecords(t *testing.T) {
-	c, err := New(filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
+	c, err := newConsoleWithWorkForTest(t, filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -338,6 +338,9 @@ func TestTermsReconfirmationDistinguishesMissingAndUnverifiableRecords(t *testin
 		}
 	}
 	check(false, false)
+	if err := os.MkdirAll(c.files().StateDir, 0700); err != nil {
+		t.Fatal(err)
+	}
 	for _, data := range []string{`broken`, `{"format":1,"protection":"dpapi-current-user","ciphertext":"AA=="}`} {
 		if err := os.WriteFile(c.files().Terms, []byte(data), 0600); err != nil {
 			t.Fatal(err)

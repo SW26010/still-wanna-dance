@@ -42,7 +42,7 @@ func TestPlaybackTransfersExcludePrefetchFailuresAndDeduplicateRanges(t *testing
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if saved := ReadTrafficStats(cfg.StorageDir); saved.PlaybackTransfers != 2 {
+	if saved := ReadTrafficStats(cfg.Store.path); saved.PlaybackTransfers != 2 {
 		t.Fatal(saved)
 	}
 }

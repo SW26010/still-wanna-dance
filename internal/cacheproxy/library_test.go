@@ -22,8 +22,8 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 	writeTestFile(t, cfg.videoFile(shared), "shared")
 	writeTestFile(t, cfg.videoFile(orphan), "orphan")
 	// Neither a partial spool nor an invalid file becomes a complete video.
-	writeTestFile(t, filepath.Join(cfg.StorageDir, "videos", "unfinished.part"), "ignored")
-	page, err := ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{View: "resources"})
+	writeTestFile(t, filepath.Join(cfg.VideoDir, "unfinished.part"), "ignored")
+	page, err := ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources"})
 	if err != nil || page.Total != 3 || len(page.Resources) != 3 || page.FileCount != 2 || page.TotalBytes != 12 {
 		t.Fatal(page, err)
 	}
@@ -37,22 +37,22 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 	if _, err := s.usage.db.Exec("INSERT INTO media_access(md5,last_requested_at) VALUES (?,?), (?,?)", shared, 100, orphan, 200); err != nil {
 		t.Fatal(err)
 	}
-	recent, err := ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{View: "resources", Sort: "recent"})
+	recent, err := ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Sort: "recent"})
 	if err != nil || len(recent.Keys) != 3 || recent.Keys[0] != orphan || recent.Keys[1] != shared || recent.Keys[2] != missing || recent.Resources[orphan].Local.LastRequest != 200 {
 		t.Fatal(recent, err)
 	}
-	songs, err := ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{Search: "Singer"})
+	songs, err := ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{Search: "Singer"})
 	if err != nil || songs.Total != 1 || songs.Songs[0].Artist != "Singer" || songs.Songs[0].Dancer != "Dancer" || songs.Songs[0].Group != "Group" || songs.Songs[0].Policy != SongFavorite {
 		t.Fatal(songs, err)
 	}
 	if songs.Resources[shared].Local.Stamp != r.Local.Stamp {
 		t.Fatal("shared file has inconsistent deletion identity")
 	}
-	page, err = ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{View: "resources", Filter: "missing"})
+	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Filter: "missing"})
 	if err != nil || page.Total != 1 || page.Keys[0] != missing {
 		t.Fatal(page, err)
 	}
-	page, err = ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{View: "resources", Resource: orphan})
+	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Resource: orphan})
 	if err != nil || page.Total != 1 || page.Resources[orphan].SongCount != 0 {
 		t.Fatal(page, err)
 	}
@@ -60,7 +60,7 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 	if err != nil || len(removed) != 1 || removed[0].Result != "deleted" {
 		t.Fatal(removed, err)
 	}
-	page, err = ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{View: "resources", Resource: orphan})
+	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Resource: orphan})
 	if err != nil || page.Total != 0 || page.FileCount != 1 || page.TotalBytes != 6 {
 		t.Fatal(page, err)
 	}
@@ -71,7 +71,7 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 	if err := os.Remove(cfg.videoFile(shared)); err != nil {
 		t.Fatal(err)
 	}
-	page, err = ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{View: "resources", Resource: shared})
+	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Resource: shared})
 	if err != nil || page.Total != 1 || page.Resources[shared].Local != nil {
 		t.Fatal(page, err)
 	}
@@ -102,7 +102,7 @@ func TestLibraryPagesScoresAndExactIdentity(t *testing.T) {
 	seen := map[string]bool{}
 	lastScore := 1e9
 	for offset := 0; offset < 121; offset += 50 {
-		page, err := readLibraryPage(ctx, cfg.StorageDir, LibraryQuery{Sort: "score", Offset: offset}, now)
+		page, err := readLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{Sort: "score", Offset: offset}, now)
 		if err != nil || page.Total != 121 || len(page.Songs) > 50 || len(page.Resources) != 0 {
 			t.Fatal(page, err)
 		}
@@ -119,11 +119,11 @@ func TestLibraryPagesScoresAndExactIdentity(t *testing.T) {
 	if len(seen) != 121 {
 		t.Fatal(len(seen))
 	}
-	page, err := ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{SongID: "9000001"})
+	page, err := ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{SongID: "9000001"})
 	if err != nil || page.Total != 1 || page.Songs[0].ID != "9000001" || page.Songs[0].Resource != "" {
 		t.Fatal(page, err)
 	}
-	page, err = ReadLibraryPage(ctx, cfg.StorageDir, LibraryQuery{SongID: "9999999"})
+	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{SongID: "9999999"})
 	if err != nil || page.Total != 0 {
 		t.Fatal(page, err)
 	}
@@ -131,9 +131,9 @@ func TestLibraryPagesScoresAndExactIdentity(t *testing.T) {
 
 func TestLibraryMissingStorageRemainsReadOnly(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "not-created")
-	page, err := ReadLibraryPage(context.Background(), root, LibraryQuery{})
-	if err != nil || page.Total != 0 {
-		t.Fatal(page, err)
+	page, err := ReadLibraryPage(context.Background(), fixtureLibrary(root), LibraryQuery{})
+	if err == nil || page.Total != 0 {
+		t.Fatal("missing database must be reported", page, err)
 	}
 	if _, err := os.Stat(root); !os.IsNotExist(err) {
 		t.Fatal("reader created storage", err)

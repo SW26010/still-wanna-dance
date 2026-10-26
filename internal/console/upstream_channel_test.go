@@ -14,7 +14,7 @@ func TestUpstreamChannelFollowsSettings(t *testing.T) {
 	s := c.settings
 	s.UpstreamMode = "socks5"
 	s.SOCKS5Address = "127.0.0.1:1080"
-	if err := c.saveSettings(s, false); err != nil {
+	if err := c.saveSettings(s, false, false); err != nil {
 		t.Fatal(err)
 	}
 	after := upstreamrequest.Default.Snapshot()

@@ -41,7 +41,7 @@ func (s *Server) publishBlocks(ctx context.Context, path string, v video, flight
 		return err
 	}
 	defer snapshot.Close()
-	file, err := os.CreateTemp(s.cfg.tempDir(), "download-publish-*.part")
+	file, err := os.CreateTemp(s.cfg.publishDir(), "download-publish-*.part")
 	if err != nil {
 		return err
 	}

@@ -54,7 +54,7 @@ type acceptedWriter struct {
 func BenchmarkGETConsumptionWithUnrelatedUsage(b *testing.B) {
 	for _, unrelated := range []int64{0, 128, 1024, 4000} {
 		b.Run(fmt.Sprint(unrelated), func(b *testing.B) {
-			s := &Server{cfg: Config{BlockSize: DefaultBlockSize, LocalProtectionGrace: DefaultLocalProtectionGrace}}
+			s := &Server{Store: &Store{}, cfg: Config{BlockSize: DefaultBlockSize, LocalProtectionGrace: DefaultLocalProtectionGrace}}
 			now := time.Now()
 			add := func(key string, blocks int64) *downloadDemand {
 				v := video{key: key, size: blocks * rangeBlockSize}

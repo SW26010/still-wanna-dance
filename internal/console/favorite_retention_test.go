@@ -45,7 +45,7 @@ func TestFavoriteRetentionSettingsApplyAfterRestart(t *testing.T) {
 	if _, err := c.service.ImportVideo(t.Context(), source, map[string]bool{key: true}); err != nil {
 		t.Fatal(err)
 	}
-	file := filepath.Join(c.settings.StorageDir, "videos", key+".mp4")
+	file := filepath.Join(testStorageRoot(c.settings), "videos", key+".mp4")
 	for _, retain := range []bool{false, true} {
 		next := c.savedSettings
 		next.RetainFavorites = retain

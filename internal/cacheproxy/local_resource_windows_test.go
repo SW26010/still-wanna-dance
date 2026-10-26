@@ -40,6 +40,14 @@ func TestBlockCleanupFailureIsLoggedAndRetriedAtStartup(t *testing.T) {
 		t.Fatal("failed cleanup did not leave the managed file for retry", err)
 	}
 	held.Close()
+	if err := cfg.Work.Close(); err != nil {
+		t.Fatal(err)
+	}
+	cfg.Work, err = OpenWorkDirectory(cfg.Work.Path(), cfg.Logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cfg.Work.Close()
 	next, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)

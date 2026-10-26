@@ -13,7 +13,7 @@ import (
 func TestExponentialDemandSurvivesRestartAndCleanup(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "usage.sqlite")
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	u, err := openUsage(path, log, 0)
+	u, err := fixtureUsage(t, path, log, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -21,7 +21,7 @@ func TestExponentialDemandSurvivesRestartAndCleanup(t *testing.T) {
 	recordDemand(u, "1", base)
 	recordDemand(u, "1", base.Add(29*time.Second)) // Same dedup window.
 	u.close()
-	u, err = openUsage(path, log, 0)
+	u, err = fixtureUsage(t, path, log, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -27,7 +27,7 @@ func TestSongPreferencesBrowser(t *testing.T) {
 	c := testConsole(t)
 	var resolutions atomic.Int32
 	cfg := fixtureCacheConfig()
-	cfg.StorageDir = c.settings.StorageDir
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.CacheUnlimited = false
 	cfg.MaxCacheBytes = 0
 	cfg.AggressiveCacheReclamation = "off"
@@ -51,7 +51,7 @@ func TestSongPreferencesBrowser(t *testing.T) {
 	}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(cfg.StorageDir, "videos", key+".mp4"), []byte("saved"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(cfg.VideoDir, key+".mp4"), []byte("saved"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if err := engine.Close(); err != nil {

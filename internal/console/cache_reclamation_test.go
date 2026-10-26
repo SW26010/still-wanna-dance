@@ -27,7 +27,7 @@ func TestCacheReclamationSettingsPersistWithoutChangingRuntime(t *testing.T) {
 			if err != nil || string(fields["aggressiveCacheReclamation"]) != `"`+policy+`"` {
 				t.Fatal("strategy was not stored explicitly", fields, err)
 			}
-			loaded, err := New(c.configPath, c.address)
+			loaded, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 			if err != nil {
 				t.Fatal(err)
 			}

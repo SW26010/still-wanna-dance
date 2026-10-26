@@ -37,6 +37,13 @@ Thumbs.db
 /stepstash-console.json.lock
 
 # Desktop data beside a repository-root executable; keep tracked seed data
+/config.json
+/config.lock
+/.config.json.swd-tmp
+/.lock
+/videos/
+/logs/
+/work/
 /data/*
 !/data/initial-priority/
 

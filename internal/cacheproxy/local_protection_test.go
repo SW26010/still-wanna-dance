@@ -203,7 +203,7 @@ func TestLocalProtectionQueueHandoffThenConfiguredTail(t *testing.T) {
 
 func TestLocalProtectionConfiguration(t *testing.T) {
 	defaults := DefaultConfig()
-	if (&Server{cfg: defaults}).protectionAhead() < defaults.PrepareAhead {
+	if (&Server{Store: &Store{}, cfg: defaults}).protectionAhead() < defaults.PrepareAhead {
 		t.Fatal("default protection window violates the design convention")
 	}
 	// Shorter windows are accepted and used as supplied, even though normal
@@ -226,12 +226,13 @@ func TestLocalProtectionConfiguration(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := fixtureConfig()
+			cfg.VideoDir = t.TempDir()
 			cfg.PrepareAhead, cfg.LocalProtectAhead = tc.prepare, tc.protect
 			if err := cfg.validate(); (err == nil) != (tc.want != 0) {
 				t.Fatal("unexpected configuration result", err)
 			}
 			if tc.want != 0 {
-				s := &Server{cfg: cfg}
+				s := &Server{Store: &Store{}, cfg: cfg}
 				if got := s.protectionAhead(); got != tc.want {
 					t.Fatalf("protection lead = %v, want %v", got, tc.want)
 				}
@@ -246,6 +247,7 @@ func TestLocalProtectionGraceConfiguration(t *testing.T) {
 	}
 	for _, seconds := range []int{-1, 0, 1, 300, 10000, 10001} {
 		cfg := DefaultConfig()
+		cfg.VideoDir = t.TempDir()
 		cfg.LocalProtectionGrace = time.Duration(seconds) * time.Second
 		if err := cfg.validate(); (err == nil) != (seconds >= 0 && seconds <= 10000) {
 			t.Fatalf("grace=%d: %v", seconds, err)

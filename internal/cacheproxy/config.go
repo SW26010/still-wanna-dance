@@ -31,7 +31,9 @@ type Config struct {
 	// API request, before upstream resolution; it does not imply success.
 	// Prefetch and HTTPS relay never call it.
 	BeginVideoRequest func(time.Time) func()
-	StorageDir        string
+	Store             *Store         // Application-owned; the engine never closes a supplied store.
+	Work              *WorkDirectory // Application-owned block workspace, prepared before startup logging.
+	VideoDir          string
 	Origins           map[string]string
 	// IsResourceHost checks the current API-derived resource domain set.
 	IsResourceHost func(string) bool
@@ -97,7 +99,6 @@ func DefaultConfig() Config {
 		AggressiveCacheReclamation: "auto",
 		RequestRetentionDays:       30,
 		OriginScheme:               "https",
-		StorageDir:                 "still-wanna-dance-data",
 		Origins:                    make(map[string]string),
 		DownloadTimeout:            10 * time.Minute,
 		BlockSize:                  DefaultBlockSize,
@@ -144,8 +145,8 @@ func (c Config) validate() error {
 	if c.PrepareAhead != 0 && (c.PrepareAhead < blocksched.MinPrepareAhead || c.PrepareAhead > blocksched.MaxPrepareAhead) {
 		return errors.New("download preparation lead must be between 100 and 16000 seconds")
 	}
-	if c.StorageDir == "" || c.DownloadTimeout <= 0 || c.MaxFileBytes <= 0 || c.MaxFileBytes == int64(^uint64(0)>>1) || c.MaxLocalValidations < 1 {
-		return errors.New("storage directory is required; timeout, file limit and download limit must be positive")
+	if c.VideoDir == "" || c.DownloadTimeout <= 0 || c.MaxFileBytes <= 0 || c.MaxFileBytes == int64(^uint64(0)>>1) || c.MaxLocalValidations < 1 {
+		return errors.New("video directory is required; timeout, file limit and download limit must be positive")
 	}
 	for host := range c.Origins {
 		if !videometa.ValidHost(host) {

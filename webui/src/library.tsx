@@ -52,12 +52,13 @@ function LibraryView({visible,anchor,song,resource}:{visible:boolean;anchor:stri
   async function save(id:string,policy:SongPolicy) {
     if(disabled||!page.data)return;
     setPending(true);feedback.setValue(undefined);
-    try {await request('songs',{storageID:page.data.storageID,id,policy},AbortSignal.timeout(35000));feedback.setValue({failed:false,text:`歌曲 ${id} 已设为${policyLabels[policy]}。`});app.refresh();}
+    try {await request('songs',{storageID:page.data.databaseID,id,policy},AbortSignal.timeout(35000));feedback.setValue({failed:false,text:`歌曲 ${id} 已设为${policyLabels[policy]}。`});app.refresh();}
     catch(e){feedback.setValue({failed:true,text:e instanceof APIError?e.message:'保存结果未确认，请刷新曲库核对。'});}
     finally{setPending(false);page.refresh();}
   }
   const download=(target:{songID?:string;resource?:string})=>void app.action('batch/download',{storageID:page.data?.storageID,...target});
   const sharedState=(r:LibraryResource|undefined)=> {
+    if(page.data?.videoError)return <Badge appearance="tint" color="warning">未知</Badge>;
     const task=downloads.data?.tasks.find(t=>t.resource===r?.key),local=r?.local;
     return <div className="cell-stack"><div className="inline"><Badge appearance="tint" color={local?'success':'informative'}>{local?'已保存':'未保存'}</Badge>{local?.protected&&<Tooltip content="正在使用、校验或准备播放，暂不能删除。" relationship="description"><Badge color="warning" tabIndex={0}>受保护</Badge></Tooltip>}</div>
       {task&&<Tooltip content={`${mb(task.bytes)} / ${task.size>0?mb(task.size):'未知'} · ${mb(task.bytesPerSecond)}/s；校验完成后保存。`} relationship="description"><div tabIndex={0} className="cell-progress"><span>{({cache_check:'检查中',upstream_headers:'等待上游',download:'下载中',range_download:'下载中',hash:'校验中',publish:'保存中',index:'保存中'}[task.stage]||'准备中')} {task.size>0?`${Math.min(100,100*task.bytes/task.size).toFixed(1)}%`:''}</span><Progress label="资源下载字节进度" value={task.bytes} max={task.size}/></div></Tooltip>}</div>;
@@ -68,7 +69,8 @@ function LibraryView({visible,anchor,song,resource}:{visible:boolean;anchor:stri
   return <div className="page-stack">
     <Notification message={feedback.value?.text} error={feedback.value?.failed}/><Notification message={!actions.result?.error&&!actions.result?.entries?.length?actions.result?.text:undefined}/>
     <Notification message={visible&&downloads.error?'下载进度暂时无法读取。':undefined} error/>
-    <InventoryPanel visible={visible} files={page.data} refresh={page.refresh} loading={page.loading}/>
+    {page.data?.videoError&&<Feedback error>视频目录不可用，本地视频状态未知。歌曲资料仍可查看。<p className="wrap">{page.data.videoError}</p></Feedback>}
+    <InventoryPanel visible={visible} videoError={page.data?.videoError} files={page.data?.videoError?undefined:page.data} refresh={page.refresh} loading={page.loading}/>
     <section hidden={!!tool} id="library-browser" className="library-browser" {...focus} tabIndex={-1}>
       {(song||resource)&&<div className="toolbar"><span>查看{song?'歌曲 ID '+song:'资源 '+resource}</span><Link href="#/library">返回完整曲库</Link></div>}
       <div className="toolbar spread"><TabList aria-label="曲库视图" selectedValue={view} onTabSelect={(_,v)=>{setView(String(v.value));setOffset(0);setSort('score');setFilter('');setQuery(q=>({...q,sort:'score',filter:''}));}}><Tab id="library-tab-songs" aria-controls="library-results" value="songs" disabled={!!resource}>按歌曲</Tab><Tab id="library-tab-resources" aria-controls="library-results" value="resources" disabled={!!song}>按资源</Tab></TabList>
@@ -93,7 +95,7 @@ function LibraryView({visible,anchor,song,resource}:{visible:boolean;anchor:stri
             <TableCell><TableCellLayout appearance="primary" truncate description={`ID ${song.id} · ${song.artist||'未知歌手'}${song.dancer?' · '+song.dancer:''}${song.group?' / '+song.group:''}`}>{song.title||'未知名称'}</TableCellLayout></TableCell>
             <TableCell>{song.score.toLocaleString(undefined,{maximumFractionDigits:1})}</TableCell>
             <TableCell><Select size="small" aria-label={`歌曲 ${song.id} 的偏好`} value={song.policy} disabled={disabled} onChange={(_,v)=>void save(song.id,v.value as SongPolicy)}>{Object.entries(policyLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select></TableCell>
-            <TableCell>{sharedState(r)}</TableCell><TableCell><div className="inline row-actions"><Button size="small" disabled={disabled||s.batch.running||!!r?.local||song.policy==='blocked'} onClick={()=>download({songID:song.id})}>下载歌曲</Button>{fileActions(r)}<RecordDetails title={`歌曲 ${song.id} 的详情`}><dl className="detail-grid"><dt>名称</dt><dd>{song.title||'未知'}</dd><dt>歌手</dt><dd>{song.artist||'未知'}</dd><dt>舞者 / 社团</dt><dd>{[song.dancer,song.group].filter(Boolean).join(' / ')||'未知'}</dd><dt>资源</dt><dd>{song.resource?<Link href={resourceHref(song.resource)}>{song.resource}</Link>:'未知'}</dd><dt>最近请求</dt><dd>{r?.local?.lastRequest?date(r.local.lastRequest):'无记录'}</dd></dl></RecordDetails></div></TableCell>
+            <TableCell>{sharedState(r)}</TableCell><TableCell><div className="inline row-actions"><Button size="small" disabled={disabled||!!page.data?.videoError||s.batch.running||!!r?.local||song.policy==='blocked'} onClick={()=>download({songID:song.id})}>下载歌曲</Button>{fileActions(r)}<RecordDetails title={`歌曲 ${song.id} 的详情`}><dl className="detail-grid"><dt>名称</dt><dd>{song.title||'未知'}</dd><dt>歌手</dt><dd>{song.artist||'未知'}</dd><dt>舞者 / 社团</dt><dd>{[song.dancer,song.group].filter(Boolean).join(' / ')||'未知'}</dd><dt>资源</dt><dd>{song.resource?<Link href={resourceHref(song.resource)}>{song.resource}</Link>:'未知'}</dd><dt>最近请求</dt><dd>{r?.local?.lastRequest?date(r.local.lastRequest):'无记录'}</dd></dl></RecordDetails></div></TableCell>
           </TableRow>;
         }):page.data?.keys.map(key=>{const r=resources[key],local=r.local;return <TableRow key={key}>
           <TableCell>{local&&<Checkbox aria-label={'选择 '+cacheLabel(local)} disabled={disabled||!local.known||local.protected} checked={selected[key]===local.stamp} onChange={(_,v)=>setSelected(previous=>{const next={...previous};if(v.checked)next[key]=local.stamp;else delete next[key];return next;})}/>}</TableCell>

@@ -5,7 +5,7 @@ import { useApp } from './hooks';
 import { Feedback, Panel } from './ui';
 
 interface Preview {
-  id: string; source: string; storageDir: string; total: number; recognized: number;
+  id: string; source: string; databasePath: string; total: number; recognized: number;
   events: number; duplicates: number; invalid: number; unrelated: number; skipped: number;
   songs: number; firstAt: number; lastAt: number; existingSongs: number; imported: boolean;
 }
@@ -61,7 +61,7 @@ export function useVRCX(target: string) {
   async function confirmOverwrite() {
     const p = current.current;
     return !p?.id || p.events <= 0 || !p.existingSongs || app.confirm('覆盖全部歌曲需求统计？',
-      <><p>现有 {p.existingSongs} 首歌曲的需求次数、分数和最后需求时间将整体被替换，不会与 VRCX 结果累加。未出现在有效历史中的旧统计也会删除。</p><p>已下载视频、歌曲资料和设置保持不变。导入到：{p.storageDir}</p></>,
+      <><p>现有 {p.existingSongs} 首歌曲的需求次数、分数和最后需求时间将整体被替换，不会与 VRCX 结果累加。未出现在有效历史中的旧统计也会删除。</p><p>已下载视频、歌曲资料和设置保持不变。导入到：{p.databasePath}</p></>,
       '强制导入并覆盖');
   }
   async function apply() {
@@ -94,7 +94,7 @@ export function VRCXOption({model:m}: {model:VRCXModel}) {
 }
 
 export function VRCXImport() {
-  const app = useApp(), m = useVRCX(app.status.data!.activeSettings.storageDir);
+  const app = useApp(), m = useVRCX(app.status.data!.activeSettings.databasePath);
   const restoreFocusTarget = useRestoreFocusTarget(), p = m.preview;
   return <Panel title="历史偏好">
     <VRCXOption model={m}/>
@@ -103,7 +103,7 @@ export function VRCXImport() {
       <Field label="VRCX 数据库路径" hint="默认查找当前用户的 VRCX.sqlite3；支持自定义位置。">
         <Input value={m.path} disabled={m.locked} onChange={(_, data) => m.changePath(data.value)} placeholder="%APPDATA%\VRCX\VRCX.sqlite3" />
       </Field>
-      <p className="wrap">导入到当前生效目录：{m.target}</p>
+      <p className="wrap">导入到当前数据库：{m.target}</p>
       <div className="actions"><Button type="button" disabled={m.locked} onClick={() => void m.choose()}>选择数据库</Button><Button type="button" disabled={m.locked} onClick={() => void m.inspect()}>读取并预览</Button></div>
       {p && <div className="content-stack">
         <p className="wrap">数据源：{p.source}</p>

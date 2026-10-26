@@ -286,16 +286,14 @@ func TestOldStoreRejectedWithoutAnyFileChanges(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	cfg := fixtureConfig()
-	cfg.StorageDir = root
-	if service, err := New(cfg); err == nil {
-		service.Close()
+	if store, err := OpenStore(storagePath(root)); err == nil {
+		store.Close()
 		t.Fatal("opened old store")
 	}
-	if _, err := DeleteCacheOffline(context.Background(), root, []CacheSelection{{Key: strings.Repeat("a", 32)}}); err == nil {
+	if _, err := DeleteCacheOffline(context.Background(), fixtureLibrary(root), []CacheSelection{{Key: strings.Repeat("a", 32)}}); err == nil {
 		t.Fatal("old store deletion accepted")
 	}
-	if _, err := ReadRecentRequests(context.Background(), root, 10); err == nil {
+	if _, err := ReadRecentRequests(context.Background(), storagePath(root), 10); err == nil {
 		t.Fatal("old store recent read accepted")
 	}
 	for p, want := range before {

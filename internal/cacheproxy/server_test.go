@@ -32,7 +32,7 @@ func setup(t *testing.T, handler http.HandlerFunc, configure ...func(*Config)) (
 	t.Cleanup(upstream.Close)
 	cfg := fixtureConfig()
 	cfg.OriginScheme = "http"
-	cfg.StorageDir = t.TempDir()
+	prepareFixtureResources(t, &cfg, t.TempDir(), true)
 	cfg.Logger = slog.New(slog.NewTextHandler(testLogWriter{t}, nil))
 	for h := range cfg.Origins {
 		cfg.Origins[h] = strings.TrimPrefix(upstream.URL, "http://")

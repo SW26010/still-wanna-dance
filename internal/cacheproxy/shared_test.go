@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -59,6 +58,7 @@ func TestSharedResourceMappingsSurviveUpdatesAndRestart(t *testing.T) {
 	assertSongResource(t, s, "138", old.key)
 	expectRetained(t, files[0], true)
 	s.Close()
+	reopenFixtureStore(t, &cfg)
 	restarted, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -134,7 +134,7 @@ func TestConcurrentSongsShareFlightAndRecordEveryMapping(t *testing.T) {
 	if requests.Load() != 1 {
 		t.Fatal("duplicate download", requests.Load())
 	}
-	entries, err := os.ReadDir(cfg.videosDir())
+	entries, err := filepath.Glob(filepath.Join(cfg.videosDir(), "*.mp4"))
 	if err != nil || len(entries) != 1 {
 		t.Fatal(entries, err)
 	}

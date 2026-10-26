@@ -14,7 +14,7 @@ import (
 
 func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 	root, _ := managementFixture(t, 270) // crosses the metadata batch boundary
-	u, err := openUsage(filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
+	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,13 +68,13 @@ func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 		if i == 2 {
 			continue
 		}
-		e, err := readCacheEntry(ctx, root, fmt.Sprintf("%032x", i), db)
+		e, err := readCacheEntry(ctx, fixtureLibrary(root), fmt.Sprintf("%032x", i), db)
 		if err != nil {
 			t.Fatal(err)
 		}
 		all = append(all, e)
 	}
-	e, err := readCacheEntry(ctx, root, unknown, db)
+	e, err := readCacheEntry(ctx, fixtureLibrary(root), unknown, db)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 				}
 			})
 			for _, offset := range []int{0, 50, 250, 270, 1000} {
-				page, err := ReadCachePage(ctx, root, "", order, offset)
+				page, err := ReadCachePage(ctx, fixtureLibrary(root), "", order, offset)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -114,7 +114,7 @@ func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 		})
 	}
 	for _, query := range []string{"äbc", "same", unknown} {
-		page, err := ReadCachePage(ctx, root, query, "title", 0)
+		page, err := ReadCachePage(ctx, fixtureLibrary(root), query, "title", 0)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -138,12 +138,9 @@ func TestCachePageWithoutDatabase(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, order := range []string{"size", "recent", "title"} {
-		page, err := ReadCachePage(context.Background(), root, "", order, 0)
-		if err != nil || page.Total != 1 || len(page.Entries) != 1 {
-			t.Fatal(page, err)
-		}
-		if page.Entries[0].Known || page.Entries[0].Stamp == "" {
-			t.Fatal("unknown file must retain its identity stamp", page)
+		page, err := ReadCachePage(context.Background(), fixtureLibrary(root), "", order, 0)
+		if err == nil || page.Total != 0 || len(page.Entries) != 0 {
+			t.Fatal("missing database must be reported", page, err)
 		}
 	}
 }

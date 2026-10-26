@@ -30,7 +30,7 @@ func (c *Console) cacheAPI(w http.ResponseWriter, r *http.Request) {
 		defer c.lifecycleMu.Unlock()
 	}
 	c.mu.Lock()
-	root, service, scanning, closing := c.settings.StorageDir, c.service, c.batch.Running && c.batch.ScanOnly, c.closing
+	root, service, scanning, closing := libraryPaths(c.settings), c.service, c.batch.Running && c.batch.ScanOnly, c.closing
 	c.mu.Unlock()
 	if closing {
 		http.Error(w, "程序正在退出", 409)
@@ -54,7 +54,7 @@ func (c *Console) cacheAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var page cacheproxy.CachePage
-		page, err = c.cacheSnapshot(func(root string) (cacheproxy.CachePage, error) {
+		page, err = c.cacheSnapshot(func(root cacheproxy.LibraryPaths) (cacheproxy.CachePage, error) {
 			return cacheproxy.ReadCachePage(ctx, root, query, order, offset)
 		})
 		result = page
@@ -78,12 +78,16 @@ func (c *Console) cacheAPI(w http.ResponseWriter, r *http.Request) {
 				} else if service != nil {
 					result, err = service.DeleteCache(ctx, input.Entries)
 				} else {
-					result, err = cacheproxy.DeleteCacheOffline(ctx, root, input.Entries)
+					var store *cacheproxy.Store
+					store, err = c.businessStore()
+					if err == nil {
+						result, err = store.DeleteCache(ctx, root.VideoDir, input.Entries)
+					}
 				}
 			case "/api/cache/open":
 				var path string
 				if len(input.Entries) == 0 {
-					path, err = cacheproxy.CacheDirectory(root)
+					path, err = cacheproxy.CacheDirectory(root.VideoDir)
 				} else if len(input.Entries) == 1 {
 					path, err = cacheproxy.CacheFile(ctx, root, input.Entries[0])
 				} else {
@@ -113,9 +117,9 @@ func (c *Console) cacheAPI(w http.ResponseWriter, r *http.Request) {
 
 // Only snapshot/validation use mu. The reader owns its database connection and
 // never borrows engine lifetime, so Close need not wait for slow filesystem I/O.
-func (c *Console) cacheSnapshot(read func(string) (cacheproxy.CachePage, error)) (cacheproxy.CachePage, error) {
+func (c *Console) cacheSnapshot(read func(cacheproxy.LibraryPaths) (cacheproxy.CachePage, error)) (cacheproxy.CachePage, error) {
 	c.mu.Lock()
-	root, closing := c.settings.StorageDir, c.closing
+	root, closing := libraryPaths(c.settings), c.closing
 	c.mu.Unlock()
 	if closing {
 		return cacheproxy.CachePage{}, errors.New("程序正在退出")

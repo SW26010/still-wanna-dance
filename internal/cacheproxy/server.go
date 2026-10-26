@@ -10,8 +10,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -57,10 +55,10 @@ type flight struct {
 }
 
 type Server struct {
+	*Store
 	getMu            sync.Mutex // Current incoming GET observations; independent of worker locks.
 	currentGETs      map[uint64]*currentGET
 	resourceHosts    sync.Map // validated API/programmatic URLs, host -> expiry
-	mappingMu        sync.Mutex
 	stats            trafficStats
 	cfg              Config
 	client           *http.Client
@@ -94,12 +92,10 @@ type Server struct {
 	once             sync.Once
 	sequence         atomic.Uint64
 	flightSequence   atomic.Uint64
-	usage            *usageStore
 	retentionMu      sync.Mutex
 	protection       map[string]map[int64]blockProtection // guarded by retentionMu
 	publications     map[string]*publicationReservation   // guarded by retentionMu; one per shared flight
 	localResources   map[string]*localResource            // guarded by retentionMu
-	retentionRunMu   sync.Mutex
 	retentionWake    chan struct{}
 	retentionDone    chan struct{}
 	retained         map[string]retainedVideo
@@ -118,11 +114,20 @@ func New(cfg Config) (*Server, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
-	root, err := filepath.Abs(cfg.StorageDir)
+	if cfg.Store == nil || cfg.Work == nil {
+		return nil, errors.New("视频引擎需要已打开的数据库和工作区")
+	}
+	paths, err := cfg.libraryPaths().Resolve()
 	if err != nil {
 		return nil, err
 	}
-	cfg.StorageDir = root
+	cfg.VideoDir = paths.VideoDir
+	if pathWithin(cfg.Work.Path(), cfg.Store.path) || pathWithin(cfg.Work.Path(), cfg.VideoDir) || pathWithin(cfg.VideoDir, cfg.Work.Path()) {
+		return nil, errors.New("块工作区不能与数据库或完整视频目录重叠")
+	}
+	if _, err := CacheDirectory(cfg.VideoDir); err != nil {
+		return nil, err
+	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
@@ -132,38 +137,17 @@ func New(cfg Config) (*Server, error) {
 		origins[host] = addr
 	}
 	cfg.Origins = origins
-	if err := os.MkdirAll(cfg.StorageDir, 0700); err != nil {
-		return nil, err
-	}
-	if err := workfiles.CheckDir(cfg.StorageDir); err != nil {
-		return nil, err
-	}
-	unlock, err := lockDirectory(filepath.Join(cfg.StorageDir, ".lock"))
+	store := cfg.Store
+	unlock, err := lockVideoDirectory(cfg.VideoDir, store)
 	if err != nil {
-		return nil, fmt.Errorf("lock local storage directory (another process may own it): %w", err)
-	}
-	if err := checkStorageLayout(root); err != nil {
-		unlock()
 		return nil, err
 	}
-	usage, usageErr := openUsage(storagePath(root), cfg.Logger, cfg.RequestRetentionDays)
-	if usageErr != nil {
-		unlock()
-		return nil, fmt.Errorf("open storage database: %w", usageErr)
-	}
-	for _, dir := range []string{cfg.videosDir(), cfg.tempDir()} {
-		if err := os.MkdirAll(dir, 0700); err != nil {
-			usage.close()
+	failed := true
+	defer func() {
+		if failed {
 			unlock()
-			return nil, err
 		}
-	}
-	cleaned, err := cleanTemporaryFiles(cfg.tempDir(), cfg.Logger)
-	if err != nil {
-		usage.close()
-		unlock()
-		return nil, fmt.Errorf("clean temporary media files: %w", err)
-	}
+	}()
 	ctx, cancel := context.WithCancel(context.Background())
 	transport := newTransport()
 	dial := transport.DialContext
@@ -195,23 +179,43 @@ func New(cfg Config) (*Server, error) {
 		return dial(ctx, network, address)
 	}
 
-	s := &Server{cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
-		requests:     new(requestActivity),
-		rangeBuffers: make(chan []byte, cfg.DownloadSoftLimit),
-		versionPins:  make(map[string]int),
-		usage:        usage,
-		flights:      make(map[string]*flight), localChecks: make(chan struct{}, cfg.MaxLocalValidations), capacityChanged: make(chan struct{}),
+	s := &Server{Store: store, cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
+		requests:      new(requestActivity),
+		rangeBuffers:  make(chan []byte, cfg.DownloadSoftLimit),
+		versionPins:   make(map[string]int),
+		retentionWake: make(chan struct{}, 1), retentionDone: make(chan struct{}),
+		flights: make(map[string]*flight), localChecks: make(chan struct{}, cfg.MaxLocalValidations), capacityChanged: make(chan struct{}),
 		client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
-	if err := s.loadTraffic(usage.db); err != nil {
+	if err := store.attach(s); err != nil {
 		cancel()
-		usage.close()
-		unlock()
+		return nil, err
+	}
+	defer func() {
+		if failed {
+			cancel()
+			s.client.CloseIdleConnections()
+			store.detach(s)
+		}
+	}()
+	// Claim the engine before touching media work owned by its video lease.
+	if err := preparePublicationDirectory(cfg.VideoDir, cfg.publishDir()); err != nil {
+		return nil, err
+	}
+	if err := workfiles.CheckDir(cfg.Work.Path()); err != nil {
+		return nil, err
+	}
+	cleaned, err := cleanMediaWorkFiles(cfg.publishDir(), cfg.Logger, publicationWork)
+	if err != nil {
+		return nil, fmt.Errorf("clean temporary media files: %w", err)
+	}
+	if err := store.usage.start(cfg.RequestRetentionDays); err != nil {
+		return nil, err
+	}
+	if err := s.loadTraffic(store.db); err != nil {
 		return nil, fmt.Errorf("load traffic statistics: %w", err)
 	}
 	s.trimCache()
-	s.retentionWake = make(chan struct{}, 1)
-	s.retentionDone = make(chan struct{})
 	go s.retentionLoop()
 	s.scheduler = newDownloadScheduler(cfg)
 	cfg.Logger.Info("cache_engine_ready", "removed_partials", cleaned, "max_local_validations", cfg.MaxLocalValidations,
@@ -219,6 +223,7 @@ func New(cfg Config) (*Server, error) {
 		"video_request_soft_limit", cfg.DownloadSoftLimit, "download_grow_interval_ms", cfg.DownloadGrowInterval.Milliseconds(),
 		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "max_cache_bytes", cfg.MaxCacheBytes, "cache_unlimited", cfg.CacheUnlimited,
 		"aggressive_cache_reclamation", cfg.AggressiveCacheReclamation)
+	failed = false
 	return s, nil
 }
 
@@ -235,7 +240,7 @@ func newDownloadScheduler(cfg Config) *blocksched.Scheduler {
 		}})
 }
 
-// Close cancels downloads, waits for handlers and cleanup, then flushes usage.
+// Close cancels downloads, waits for handlers and cleanup, then detaches from the store.
 // The owner must shut down/close its HTTP server first to release blocked writes.
 func (s *Server) Close() error {
 	var err error
@@ -257,7 +262,7 @@ func (s *Server) Close() error {
 		clear(s.protection)
 		s.retentionMu.Unlock()
 		s.runRetention(false)
-		s.usage.close()
+		s.Store.detach(s)
 		s.client.CloseIdleConnections()
 		err = s.unlock()
 		s.cfg.Logger.Info("cache_engine_stopped", "error", applog.SafeError(err))

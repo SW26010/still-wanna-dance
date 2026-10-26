@@ -12,7 +12,7 @@ import (
 func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "config.json")
-	c, err := New(path, "127.0.0.1:18081")
+	c, err := newConsoleWithWorkForTest(t, path, "127.0.0.1:18081")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,16 +28,21 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(fields["prepareAheadSeconds"]) != "500" || string(fields["storageDir"]) != `"storage"` || string(fields["schemaVersion"]) != "6" || string(fields["autoAccelerate"]) != "false" || string(fields["queueWithGateway"]) != "true" {
+	var stored Settings
+	data, err := os.ReadFile(path)
+	if err != nil || json.Unmarshal(data, &stored) != nil {
+		t.Fatal("could not read initial settings", err)
+	}
+	if string(fields["prepareAheadSeconds"]) != "500" || stored.DatabasePath != filepath.Join("data", "database", "storage.sqlite") || stored.VideoDir != "videos" || fields["storageDir"] != nil || string(fields["schemaVersion"]) != "7" || string(fields["autoAccelerate"]) != "false" || string(fields["queueWithGateway"]) != "true" {
 		t.Fatal(fields)
 	}
 	if string(fields["aggressiveCacheReclamation"]) != `"auto"` || string(fields["videoStorageMode"]) != `"none"` || string(fields["maxCacheBytes"]) != "0" {
 		t.Fatal("zero retention defaults were not persisted", fields)
 	}
-	if _, err := os.Stat(filepath.Join(root, "storage")); !os.IsNotExist(err) {
-		t.Fatal("opening console created media store", err)
+	if _, err := os.Stat(want.DatabasePath); err != nil {
+		t.Fatal("first launch did not prepare the default database", err)
 	}
-	c, err = New(path, "127.0.0.1:18081")
+	c, err = newConsoleWithWorkForTest(t, path, "127.0.0.1:18081")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,13 +60,13 @@ func TestSavedAutoOpenAppliesOnNextLaunch(t *testing.T) {
 	}
 	next := c.savedSettings
 	next.AutoOpenWebUI = false
-	if err := c.saveSettings(next, true); err != nil {
+	if err := c.saveSettings(next, true, false); err != nil {
 		t.Fatal(err)
 	}
 	if !c.OpenWebUIOnLaunch() || c.savedSettings.AutoOpenWebUI {
 		t.Fatal("save changed current launch or was not saved")
 	}
-	reopened, err := New(c.configPath, c.address)
+	reopened, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +77,7 @@ func TestSavedAutoOpenAppliesOnNextLaunch(t *testing.T) {
 	if err := os.Remove(reopened.files().Terms); err != nil {
 		t.Fatal(err)
 	}
-	unaccepted, err := New(c.configPath, c.address)
+	unaccepted, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,13 +94,25 @@ func TestSavedAutoOpenAppliesOnNextLaunch(t *testing.T) {
 }
 
 func TestConfigurationRejectsUnsupportedWithoutOverwrite(t *testing.T) {
-	for _, data := range []string{`{"schemaVersion":1}`, `{"schemaVersion":2}`, `{"schemaVersion":3}`, `{"schemaVersion":4}`, `{"schemaVersion":5}`, `{"schemaVersion":6,"PROXYSECRET":null}`, `{"schemaVersion":6,"SOCKS5Password":"secret"}`, `{}`, `null`, `{"schemaVersion":0}`, `{"schemaVersion":999,"futurePreference":"keep"}`, `{"schemaVersion":"1"}`, `{"schemaVersion":6,`} {
+	for _, data := range []string{`{"schemaVersion":6}`, `{"schemaVersion":7,"storageDir":"storage"}`} {
+		path := filepath.Join(t.TempDir(), "config.json")
+		if err := os.WriteFile(path, []byte(data), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := readConfigFile(path); err == nil {
+			t.Fatal("obsolete configuration accepted")
+		}
+		if got, err := os.ReadFile(path); err != nil || string(got) != data {
+			t.Fatal("obsolete configuration changed", err)
+		}
+	}
+	for _, data := range []string{`{"schemaVersion":1}`, `{"schemaVersion":2}`, `{"schemaVersion":3}`, `{"schemaVersion":4}`, `{"schemaVersion":5}`, `{"schemaVersion":7,"PROXYSECRET":null}`, `{"schemaVersion":7,"SOCKS5Password":"secret"}`, `{}`, `null`, `{"schemaVersion":0}`, `{"schemaVersion":999,"futurePreference":"keep"}`, `{"schemaVersion":"1"}`, `{"schemaVersion":7,`} {
 		t.Run(data, func(t *testing.T) {
 			c := testConsole(t)
 			if err := os.WriteFile(c.configPath, []byte(data), 0600); err != nil {
 				t.Fatal(err)
 			}
-			if other, err := New(c.configPath, c.address); err == nil {
+			if other, err := newConsoleWithWorkForTest(t, c.configPath, c.address); err == nil {
 				other.Close()
 				t.Fatal("accepted unsupported config")
 			}
@@ -112,7 +129,7 @@ func TestConfigurationRejectsUnsupportedWithoutOverwrite(t *testing.T) {
 
 func TestConfigurationPreservesUnknownFieldsAndClearsPassword(t *testing.T) {
 	c := testConsole(t)
-	data := `{"schemaVersion":6,"futurePreference":{"enabled":true,"large":9007199254740993},"prepareaheadseconds":999}`
+	data := `{"schemaVersion":7,"futurePreference":{"enabled":true,"large":9007199254740993},"prepareaheadseconds":999}`
 	if err := os.WriteFile(c.configPath, []byte(data), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +155,7 @@ func TestConfigurationPreservesUnknownFieldsAndClearsPassword(t *testing.T) {
 	if _, ok := fields["SOCKS5Password"]; ok {
 		t.Fatal("case alias retained a cleared password")
 	}
-	reopened, err := New(c.configPath, c.address)
+	reopened, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,23 +181,23 @@ func TestStartupSettingsDefaultAndRemainIndependent(t *testing.T) {
 		wantCDN   bool
 		wantQueue bool
 	}{
-		{"missing", `{"schemaVersion":6}`, false, true},
-		{"null", `{"schemaVersion":6,"autoAccelerate":null,"queueWithGateway":null}`, false, true},
-		{"missing queue with gateway on", `{"schemaVersion":6,"autoAccelerate":true}`, true, true},
-		{"missing queue with gateway off", `{"schemaVersion":6,"autoAccelerate":false}`, false, true},
-		{"missing gateway with queue off", `{"schemaVersion":6,"queueWithGateway":false}`, false, false},
-		{"both off", `{"schemaVersion":6,"autoAccelerate":false,"queueWithGateway":false}`, false, false},
-		{"gateway only", `{"schemaVersion":6,"autoAccelerate":true,"queueWithGateway":false}`, true, false},
-		{"queue only", `{"schemaVersion":6,"autoAccelerate":false,"queueWithGateway":true}`, false, true},
-		{"both on", `{"schemaVersion":6,"autoAccelerate":true,"queueWithGateway":true}`, true, true},
-		{"obsolete queue field", `{"schemaVersion":6,"autoAccelerate":false,"queuePrefetchEnabled":false}`, false, true},
+		{"missing", `{"schemaVersion":7}`, false, true},
+		{"null", `{"schemaVersion":7,"autoAccelerate":null,"queueWithGateway":null}`, false, true},
+		{"missing queue with gateway on", `{"schemaVersion":7,"autoAccelerate":true}`, true, true},
+		{"missing queue with gateway off", `{"schemaVersion":7,"autoAccelerate":false}`, false, true},
+		{"missing gateway with queue off", `{"schemaVersion":7,"queueWithGateway":false}`, false, false},
+		{"both off", `{"schemaVersion":7,"autoAccelerate":false,"queueWithGateway":false}`, false, false},
+		{"gateway only", `{"schemaVersion":7,"autoAccelerate":true,"queueWithGateway":false}`, true, false},
+		{"queue only", `{"schemaVersion":7,"autoAccelerate":false,"queueWithGateway":true}`, false, true},
+		{"both on", `{"schemaVersion":7,"autoAccelerate":true,"queueWithGateway":true}`, true, true},
+		{"obsolete queue field", `{"schemaVersion":7,"autoAccelerate":false,"queuePrefetchEnabled":false}`, false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "config.json")
 			if err := os.WriteFile(path, []byte(tc.data), 0600); err != nil {
 				t.Fatal(err)
 			}
-			c, err := New(path, "127.0.0.1:18081")
+			c, err := newConsoleWithWorkForTest(t, path, "127.0.0.1:18081")
 			if err != nil {
 				t.Fatal(err)
 			}

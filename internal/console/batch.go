@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"slices"
 	"sort"
 	"strconv"
@@ -149,7 +148,7 @@ func (c *Console) startBatchTarget(storageID string, target cacheproxy.DownloadT
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
-	current := cacheproxy.CacheStorageID(c.settings.StorageDir)
+	current := cacheproxy.CacheStorageID(libraryPaths(c.settings))
 	c.mu.Unlock()
 	if storageID != current {
 		return errors.New("存储目录已切换，请刷新曲库")
@@ -158,10 +157,6 @@ func (c *Console) startBatchTarget(storageID string, target cacheproxy.DownloadT
 }
 
 func (c *Console) startBatchTargetLocked(scanOnly bool, target *cacheproxy.DownloadTarget) error {
-	allowMissingRoot := false
-	if scanOnly {
-		allowMissingRoot = !c.storageUsageKnown()
-	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
@@ -169,19 +164,6 @@ func (c *Console) startBatchTargetLocked(scanOnly bool, target *cacheproxy.Downl
 	}
 	if c.batch.Running {
 		return errors.New("已有批量任务正在运行")
-	}
-	if scanOnly {
-		c.mu.Unlock()
-		_, err := os.ReadDir(c.settings.StorageDir)
-		c.mu.Lock()
-		if err != nil {
-			if !os.IsNotExist(err) {
-				return fmt.Errorf("无法扫描目录 %s：%w", c.settings.StorageDir, err)
-			}
-			if !allowMissingRoot {
-				return missingStorageRootError(c.settings.StorageDir, err)
-			}
-		}
 	}
 	if err := c.ensureEngine(); err != nil {
 		return err
@@ -222,20 +204,20 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		if ctx.Err() != nil {
 			result.Phase = "任务已停止，上次成功结果保留。已开始的共享下载可能继续完成。"
 		}
-		if target == nil && completed && ctx.Err() == nil && result.Total > 0 && result.Checked == result.Total && result.Failed == 0 {
+		successful := target == nil && completed && ctx.Err() == nil && result.Total > 0 && result.Checked == result.Total && result.Failed == 0
+		if successful {
 			result.Updated = time.Now()
-			if err := c.writeSnapshot("batch", settings.StorageDir, result); err != nil {
-				result.Phase += "；保存失败，上次成功结果保留：" + err.Error()
-			} else {
-				c.mu.Lock()
-				c.lastBatch = result
-				c.mu.Unlock()
+			if err := c.writeSnapshot("batch-last-success", libraryPaths(settings), result); err != nil {
+				result.Phase += "；本次成功结果未能保存，当前仍可查看：" + err.Error()
 			}
 		}
-		if err := c.writeSnapshot("attempt", settings.StorageDir, result); err != nil {
-			result.Phase += "；无法保存本次进度：" + err.Error()
+		if err := c.writeSnapshot("batch-last-attempt", libraryPaths(settings), result); err != nil {
+			result.Phase += "；本次任务记录未能保存，当前仍可查看：" + err.Error()
 		}
 		c.mu.Lock()
+		if successful {
+			c.lastBatch = result
+		}
 		c.batch = result
 		c.batchCancel = nil
 		c.mu.Unlock()

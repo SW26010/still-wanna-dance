@@ -77,14 +77,11 @@ func (s *Server) persistTraffic() {
 }
 
 // ReadTrafficStats reads without creating a database or starting a cache engine.
-func ReadTrafficStats(root string) TrafficStats {
-	s := &Server{}
-	db, err := readStorageDatabase(root)
+func ReadTrafficStats(databasePath string) TrafficStats {
+	s := &Server{Store: &Store{}}
+	db, err := readDatabaseFile(databasePath)
 	if err != nil {
 		return TrafficStats{Error: err.Error()}
-	}
-	if db == nil {
-		return s.TrafficStats()
 	}
 	defer db.Close()
 	s.usage = &usageStore{db: db}

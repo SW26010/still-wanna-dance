@@ -14,24 +14,29 @@ type SongEntry struct {
 }
 
 type SongPage struct {
-	StorageID string      `json:"storageID"`
-	Entries   []SongEntry `json:"entries"`
-	Total     int         `json:"total"`
+	VideoError string      `json:"videoError,omitempty"`
+	StorageID  string      `json:"storageID"`
+	Entries    []SongEntry `json:"entries"`
+	Total      int         `json:"total"`
 }
 
 // ReadSongPage reads local metadata and file existence only. Looking at the
 // catalog, including favorites with missing files, must not start an engine.
-func ReadSongPage(ctx context.Context, root, query string, policy SongPolicy, offset int) (SongPage, error) {
-	root, err := filepath.Abs(root)
-	result := SongPage{StorageID: CacheStorageID(root), Entries: []SongEntry{}}
+func ReadSongPage(ctx context.Context, paths LibraryPaths, query string, policy SongPolicy, offset int) (SongPage, error) {
+	paths, err := paths.Resolve()
+	result := SongPage{StorageID: DatabaseID(paths.DatabasePath), Entries: []SongEntry{}}
 	if err != nil {
 		return result, err
 	}
-	db, err := readStorageDatabase(root)
+	db, err := readDatabaseFile(paths.DatabasePath)
 	if err != nil || db == nil {
 		return result, err
 	}
 	defer db.Close()
+	videoDir, videoErr := CacheDirectory(paths.VideoDir)
+	if videoErr != nil {
+		result.VideoError = videoErr.Error()
+	}
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return result, err
@@ -56,8 +61,8 @@ func ReadSongPage(ctx context.Context, root, query string, policy SongPolicy, of
 		if err := rows.Scan(&entry.ID, &entry.Title, &entry.Policy, &key); err != nil {
 			return result, err
 		}
-		if key != "" {
-			info, err := os.Lstat(filepath.Join(root, "videos", key+".mp4"))
+		if key != "" && videoErr == nil {
+			info, err := os.Lstat(filepath.Join(videoDir, key+".mp4"))
 			if err != nil && !os.IsNotExist(err) {
 				return result, err
 			}

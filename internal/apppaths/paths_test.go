@@ -9,15 +9,15 @@ import (
 func TestLayoutIsLazyAndSeparatesSiblingConfigurations(t *testing.T) {
 	root := t.TempDir()
 	p := ForConfig(DefaultConfig(filepath.Join(root, "SWD.exe")))
-	if p.Config != filepath.Join(root, "data", "config.json") || p.Root != filepath.Join(root, "data") || p.DefaultStorage != "storage" || p.Log != filepath.Join(root, "data", "logs", "app.log") {
+	if p.Config != filepath.Join(root, "config.json") || p.Root != root || p.DefaultDatabase != filepath.Join("data", "database", "storage.sqlite") || p.DefaultVideo != "videos" || p.Log != filepath.Join(root, "logs", "app.log") {
 		t.Fatal(p)
 	}
 	for _, name := range []string{"a.json", "b.json", "a.yaml"} {
 		q := ForConfig(filepath.Join(p.Root, name))
-		if q.Root != filepath.Join(p.Root, name+".d") || q.DefaultStorage != filepath.Join(name+".d", "storage") {
+		if q.Root != filepath.Join(p.Root, name+".d") || q.DefaultDatabase != filepath.Join(name+".d", "data", "database", "storage.sqlite") || q.DefaultVideo != filepath.Join(name+".d", "videos") {
 			t.Fatal(q)
 		}
-		if q.Terms == p.Terms || q.Log == p.Log || q.Lock == p.Lock || q.State("batch") == p.State("batch") {
+		if q.Terms == p.Terms || q.Log == p.Log || q.Lock == p.Lock || q.State("batch-last-success") == p.State("batch-last-success") {
 			t.Fatal("shared companions", q)
 		}
 	}
@@ -53,7 +53,7 @@ func TestLegacyInstallIsDiagnosedWithoutChanges(t *testing.T) {
 }
 
 func TestReservedCompanionsCannotBeConfigurations(t *testing.T) {
-	for _, name := range []string{"terms.json", "CHANNEL.KEY", "config.lock", "storage", "logs", "state"} {
+	for _, name := range []string{"terms.json", "CHANNEL.KEY", "config.lock", "data", "storage", "logs", "state", "videos", "work", "licenses"} {
 		if err := ValidateConfigPath(filepath.Join(t.TempDir(), name)); err == nil {
 			t.Fatal(name)
 		}

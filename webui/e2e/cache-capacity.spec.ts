@@ -4,18 +4,18 @@ import { navigate } from './navigation';
 
 const description = '最多为下载完成的视频保留多少空间。1 GiB 约为 1.07 GB。';
 
-test('settings show and disable the directory without losing its saved or draft path', async ({page}, info) => {
+test('settings keep the video directory editable without losing its saved or draft path', async ({page}, info) => {
   const api = await mockAPI(page);
   const savedPath = 'D:\\SWD\\storage';
-  api.state.settings.storageDir = savedPath;
+  api.state.settings.videoDir = savedPath;
   api.state.settings.videoStorageMode = 'none';
   await page.emulateMedia({colorScheme:'dark'});
   await page.goto('/#storage-settings');
-  const path = page.getByRole('textbox', {name:'本地存储目录', exact:true});
+  const path = page.getByRole('textbox', {name:'完整视频目录', exact:true});
   await expect(path).toBeVisible();
-  await expect(path).toBeDisabled();
+  await expect(path).toBeEnabled();
   await expect(path).toHaveValue(savedPath);
-  await page.locator('#storage-settings').screenshot({path:info.outputPath('settings-directory-disabled.png'),animations:'disabled'});
+  await page.locator('#storage-settings').screenshot({path:info.outputPath('settings-independent-directory.png'),animations:'disabled'});
   await page.getByRole('radio', {name:'限制为', exact:true}).check();
   await expect(path).toBeEnabled();
   const draftPath = 'D:\\SWD\\new-storage';
@@ -27,9 +27,9 @@ test('settings show and disable the directory without losing its saved or draft 
   await page.getByRole('radio', {name:'不保留', exact:true}).check();
   await page.getByRole('button', {name:'保存设置', exact:true}).click();
   await expect(page.getByRole('button', {name:'保存设置', exact:true})).toBeDisabled();
-  expect(api.calls.find(c=>c.path==='settings')?.body).toMatchObject({storageDir:draftPath,videoStorageMode:'none'});
+  expect(api.calls.find(c=>c.path==='settings')?.body).toMatchObject({videoDir:draftPath,videoStorageMode:'none'});
   await page.reload();
-  await expect(path).toBeDisabled();
+  await expect(path).toBeEnabled();
   await expect(path).toHaveValue(draftPath);
 });
 

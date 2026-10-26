@@ -18,7 +18,12 @@ func failingQueueEngine(t *testing.T) (*cacheproxy.Server, *atomic.Int32) {
 	t.Helper()
 	calls := new(atomic.Int32)
 	cfg := fixtureCacheConfig()
-	cfg.StorageDir = t.TempDir()
+	store, err := cacheproxy.CreateStore(filepath.Join(t.TempDir(), "library.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	cfg.Store, cfg.Work, cfg.VideoDir = store, testWorkDirectory(t), t.TempDir()
 	cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
 		calls.Add(1)
 		return "", errors.New("fixture unavailable")

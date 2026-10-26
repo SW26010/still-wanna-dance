@@ -43,6 +43,7 @@ func TestPersistedURLRedirectTrustIsTaskScoped(t *testing.T) {
 				})}
 			}
 			var err error
+			reopenFixtureStore(t, &cfg)
 			s, err = New(cfg)
 			if err != nil {
 				t.Fatal(err)

@@ -74,7 +74,7 @@ func (s *Server) coordinateResourceUse(u *resourceUse) {
 		delete(s.resourceUses, u.video.key)
 		s.mu.Unlock()
 	}()
-	for !s.closed && s.storageFailure == nil {
+	for !s.closed && s.storageFailure == nil && s.Store.Error() == nil {
 		now := time.Now()
 		plan, _ := s.usePlanLocked(u.video.key, now)
 		if len(plan) == 0 {
@@ -111,6 +111,7 @@ func (s *Server) coordinateResourceUse(u *resourceUse) {
 		s.mu.Unlock()
 		select {
 		case <-s.ctx.Done():
+		case <-s.Store.failureDone():
 		case <-changed:
 		case <-done:
 		case <-entered:

@@ -46,7 +46,7 @@ func TestLocalStorageFailureStopsConsoleFallback(t *testing.T) {
 			defer api.Close()
 			c.apiBase, c.client.Transport = api.URL, http.DefaultTransport
 			cfg := fixtureCacheConfig()
-			cfg.StorageDir = c.settings.StorageDir
+			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 			cfg.OriginScheme = "http"
 			for host := range cfg.Origins {
 				cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
@@ -58,7 +58,7 @@ func TestLocalStorageFailureStopsConsoleFallback(t *testing.T) {
 			defer engine.Close()
 			c.service = engine
 			if mode == "write" {
-				dir := filepath.Join(cfg.StorageDir, "tmp")
+				dir := filepath.Join(cfg.VideoDir, ".swd-tmp")
 				if err := os.Remove(dir); err != nil {
 					t.Fatal(err)
 				}
@@ -66,7 +66,7 @@ func TestLocalStorageFailureStopsConsoleFallback(t *testing.T) {
 					t.Fatal(err)
 				}
 			} else {
-				db, err := sql.Open("sqlite", filepath.Join(cfg.StorageDir, "storage.sqlite"))
+				db, err := sql.Open("sqlite", filepath.Join(filepath.Dir(cfg.VideoDir), "storage.sqlite"))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -121,7 +121,7 @@ func TestStorageFailureStatusSurvivesRecoveryUntilRestart(t *testing.T) {
 			}
 			var inject atomic.Bool
 			var downloads atomic.Int32
-			collision := filepath.Join(c.settings.StorageDir, "videos", fmt.Sprintf("%x.mp4", md5.Sum([]byte(cold))))
+			collision := filepath.Join(testStorageRoot(c.settings), "videos", fmt.Sprintf("%x.mp4", md5.Sum([]byte(cold))))
 			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				downloads.Add(1)
 				body := warm
@@ -137,7 +137,8 @@ func TestStorageFailureStatusSurvivesRecoveryUntilRestart(t *testing.T) {
 			}))
 			defer origin.Close()
 			cfg := fixtureCacheConfig()
-			cfg.StorageDir, cfg.OriginScheme = c.settings.StorageDir, "http"
+			cfg.OriginScheme = "http"
+			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 			cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
 			engine, err := cacheproxy.New(cfg)
 			if err != nil {
@@ -149,7 +150,7 @@ func TestStorageFailureStatusSurvivesRecoveryUntilRestart(t *testing.T) {
 			}
 			faultPath := collision
 			if mode == "create" {
-				faultPath = filepath.Join(cfg.StorageDir, "tmp")
+				faultPath = filepath.Join(cfg.VideoDir, ".swd-tmp")
 				if err := os.Remove(faultPath); err != nil {
 					t.Fatal(err)
 				}
@@ -196,11 +197,12 @@ func TestStorageFailureStatusSurvivesRecoveryUntilRestart(t *testing.T) {
 			if err := c.Close(); err != nil {
 				t.Fatal(err)
 			}
-			restarted, err := New(c.configPath, c.address)
+			restarted, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer restarted.Close()
+			cfg.Store, cfg.Work = restarted.store, restarted.work
 			restarted.service, err = cacheproxy.New(cfg)
 			if err != nil {
 				t.Fatal(err)

@@ -13,15 +13,14 @@ func (c *Console) monitorPlaybackSongCandidates(ctx context.Context) []int64 {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
-	engine := c.service
+	store, storeErr := c.businessStore()
 	closing := c.closing
 	c.mu.Unlock()
-	// Catalog delivery opens storage when appropriate. Sampling alone does not
-	// initialize an empty library, or reopen a missing/unavailable one.
-	if engine == nil || closing || ctx.Err() != nil {
+	// Sampling reads the application-owned store without starting a media engine.
+	if storeErr != nil || closing || ctx.Err() != nil {
 		return nil
 	}
-	ids, err := engine.SongMetadataCandidates(ctx, c.apiBase+"/Api/Songs/play")
+	ids, err := store.SongMetadataCandidates(ctx, c.apiBase+"/Api/Songs/play")
 	if err != nil && ctx.Err() == nil {
 		slog.Warn("monitor_song_metadata_candidates_failed", "error", applog.SafeError(err))
 	}
@@ -37,11 +36,10 @@ func (c *Console) syncMonitorPlaybackURL(ctx context.Context, response upstreams
 		c.mu.Unlock()
 		return
 	}
-	err := c.ensureEngine()
-	engine := c.service
+	store, err := c.businessStore()
 	c.mu.Unlock()
 	if err == nil {
-		err = engine.ObserveSongURL(ctx, cacheproxy.SongURL{
+		err = store.ObserveSongURL(ctx, cacheproxy.SongURL{
 			SongID: response.SongID, URL: response.URL, API: response.API, Node: response.Node,
 			QueryStartedAt: response.QueryStartedAt, ObservedAt: response.ObservedAt,
 		})

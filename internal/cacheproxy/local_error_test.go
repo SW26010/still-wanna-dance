@@ -16,7 +16,7 @@ import (
 
 func TestStorageFailureStopsDownloadsButKeepsHits(t *testing.T) {
 	var calls atomic.Int32
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); w.Write([]byte(payload)) })
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); w.Write([]byte(payload)) }, func(cfg *Config) { fixtureFaultableBlocks(t, cfg) })
 	ctx := context.Background()
 	if _, err := s.Prefetch(ctx, videoURL(payload)); err != nil {
 		t.Fatal(err)
@@ -95,7 +95,7 @@ func TestDownloadCleanupErrorPriority(t *testing.T) {
 			for _, err := range errorsInOrder {
 				result = preferDownloadError(result, err)
 			}
-			s := new(Server)
+			s := &Server{Store: &Store{}}
 			result = s.storageError(result)
 			if !errors.Is(result, os.ErrClosed) || !errors.Is(result, ErrLocalStorage) || s.StorageError() == nil || errors.Is(result, errUpstreamDownload) {
 				t.Fatalf("order=%v localFirst=%v lost local failure: %v", first, localFirst, result)

@@ -101,7 +101,7 @@ func TestDiscardLoaderStreamsWithoutFilesOrIntegrityCheck(t *testing.T) {
 	if err != nil || len(entries) != 1 {
 		t.Fatalf("diagnostic created storage: %v %v", entries, err)
 	}
-	if loader.s.usage != nil || loader.s.rangeBuffers != nil {
+	if loader.s.Store != nil || loader.s.rangeBuffers != nil {
 		t.Fatal("diagnostic allocated media cache")
 	}
 }

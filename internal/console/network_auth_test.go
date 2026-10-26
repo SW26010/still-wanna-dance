@@ -76,7 +76,7 @@ func TestSOCKS5PasswordSettingsLifecycle(t *testing.T) {
 	if err := c.save(s); err != nil {
 		t.Fatal(err)
 	}
-	loaded, err := New(c.configPath, c.address)
+	loaded, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestSOCKS5PasswordSettingsLifecycle(t *testing.T) {
 	if loaded.settings.SOCKS5Password != s.SOCKS5Password {
 		t.Fatal("secret not persisted")
 	}
-	if err := c.writeSnapshot("inventory", s.StorageDir, Inventory{}); err != nil {
+	if err := c.writeSnapshot("inventory", libraryPaths(s), Inventory{}); err != nil {
 		t.Fatal(err)
 	}
 	snapshot, err := os.ReadFile(c.files().State("inventory"))

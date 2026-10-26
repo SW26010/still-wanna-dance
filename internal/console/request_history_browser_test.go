@@ -35,7 +35,7 @@ func TestRequestHistoryBrowser(t *testing.T) {
 	defer origin.Close()
 	cfg := fixtureCacheConfig()
 	cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
-	cfg.StorageDir = c.settings.StorageDir
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.OriginScheme = "http"
 	cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
 	cfg.CacheUnlimited = true

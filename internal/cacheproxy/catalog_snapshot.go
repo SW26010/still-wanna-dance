@@ -3,7 +3,6 @@ package cacheproxy
 import (
 	"context"
 	"database/sql"
-	"os"
 	"strconv"
 	"time"
 )
@@ -17,17 +16,14 @@ type CatalogStatus struct {
 	Error     string    `json:"error"`
 }
 
-func (s *Server) catalogStatus(ctx context.Context) (CatalogStatus, error) {
+func (s *Store) catalogStatus(ctx context.Context) (CatalogStatus, error) {
 	return readCatalogStatus(ctx, s.usage.db)
 }
 
 // LoadCatalogStatus reads persisted status without starting an engine or creating
 // a database. Existing databases must match the frozen schema.
-func LoadCatalogStatus(ctx context.Context, root string) (CatalogStatus, error) {
-	db, err := cacheReadDB(root)
-	if os.IsNotExist(err) {
-		return CatalogStatus{}, nil
-	}
+func LoadCatalogStatus(ctx context.Context, databasePath string) (CatalogStatus, error) {
+	db, err := readDatabaseFile(databasePath)
 	if err != nil {
 		return CatalogStatus{}, err
 	}
@@ -49,19 +45,21 @@ func readCatalogStatus(ctx context.Context, db *sql.DB) (CatalogStatus, error) {
 	return v, err
 }
 
-func (s *Server) CatalogStatus(ctx context.Context) (CatalogStatus, error) {
+func (s *Store) CatalogStatus(ctx context.Context) (resultValue CatalogStatus, resultErr error) {
 	if !s.beginRequest() {
 		return CatalogStatus{}, context.Canceled
 	}
 	defer s.wg.Done()
+	defer func() { resultErr = s.storageError(resultErr) }()
 	return s.catalogStatus(ctx)
 }
 
-func (s *Server) RecordCatalogError(ctx context.Context, err error) error {
+func (s *Store) RecordCatalogError(ctx context.Context, err error) (resultErr error) {
 	if !s.beginRequest() {
 		return context.Canceled
 	}
 	defer s.wg.Done()
+	defer func() { resultErr = s.storageError(resultErr) }()
 	_, saveErr := s.usage.db.ExecContext(ctx, `INSERT INTO catalog_checks(catalog_key,error) VALUES ('songs',?)
  ON CONFLICT(catalog_key) DO UPDATE SET error=excluded.error`, err.Error())
 	return saveErr
@@ -150,7 +148,7 @@ func (s *Server) readLocalCatalog(ctx context.Context, target *DownloadTarget) (
 		s.wg.Done()
 	}
 	if err == nil {
-		result.Files, err = CheckReferencedFiles(ctx, s.cfg.StorageDir, refs)
+		result.Files, err = CheckReferencedFiles(ctx, s.cfg.videosDir(), refs)
 		// Unresolved songs still use the same job/resolve/download mechanism,
 		// but must not be presented to the complete-file checker as a fake MD5.
 		if err == nil && target != nil {

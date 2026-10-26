@@ -6,7 +6,7 @@ import (
 )
 
 func TestResourceDomainRequiresValidatedResolverEvidence(t *testing.T) {
-	s := &Server{cfg: DefaultConfig()}
+	s := &Server{Store: &Store{}, cfg: DefaultConfig()}
 	const target = "https://media.future.example/files/1/2-video.mp4?e=28711962048bed664c98f27e1d9d5842&s=4"
 	if len(s.cfg.Origins) != 0 || s.resourceHostAllowed("media.future.example") {
 		t.Fatal("predefined membership")

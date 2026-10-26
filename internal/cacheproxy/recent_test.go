@@ -13,7 +13,7 @@ import (
 
 func TestRecentRequestsWindowAndNames(t *testing.T) {
 	root := t.TempDir()
-	u, err := openUsage(filepath.Join(root, "storage.sqlite"), slog.New(slog.NewTextHandler(io.Discard, nil)), 0)
+	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.New(slog.NewTextHandler(io.Discard, nil)), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,7 @@ func TestRecentRequestsWindowAndNames(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := ReadRecentRequests(context.Background(), root, 2)
+	result, err := ReadRecentRequests(context.Background(), storagePath(root), 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestRecentRequestsWindowAndNames(t *testing.T) {
 	if strings.Contains(result.Requests[1].Range, "secret") {
 		t.Fatal("raw invalid range leaked")
 	}
-	result, err = ReadRecentRequests(context.Background(), root, 50)
+	result, err = ReadRecentRequests(context.Background(), storagePath(root), 50)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,33 +66,33 @@ func TestRecentRequestsWindowAndNames(t *testing.T) {
 
 func TestRecentMissingCorruptAndLimits(t *testing.T) {
 	root := t.TempDir()
-	a, err := ReadRecentRequests(context.Background(), root, 50)
-	if err != nil || len(a.Requests) != 0 {
+	a, err := ReadRecentRequests(context.Background(), storagePath(root), 50)
+	if !os.IsNotExist(err) || len(a.Requests) != 0 {
 		t.Fatalf("missing: %+v %v", a, err)
 	}
 	if _, err := os.Stat(filepath.Join(root, "storage.sqlite")); !os.IsNotExist(err) {
 		t.Fatal("read created database")
 	}
-	b, _ := ReadRecentRequests(context.Background(), t.TempDir(), 50)
+	b, _ := ReadRecentRequests(context.Background(), storagePath(t.TempDir()), 50)
 	if a.StorageID == b.StorageID {
 		t.Fatal("storage identity not changed")
 	}
 	for _, n := range []int{-1, 0, 501} {
-		if _, err := ReadRecentRequests(context.Background(), root, n); err == nil {
+		if _, err := ReadRecentRequests(context.Background(), storagePath(root), n); err == nil {
 			t.Fatalf("accepted %d", n)
 		}
 	}
 	if err := os.WriteFile(filepath.Join(root, "storage.sqlite"), []byte("corrupt"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ReadRecentRequests(context.Background(), root, 50); err == nil {
+	if _, err := ReadRecentRequests(context.Background(), storagePath(root), 50); err == nil {
 		t.Fatal("corrupt DB hidden")
 	}
 }
 
 func TestRecentBoundedAssociations(t *testing.T) {
 	root := t.TempDir()
-	u, err := openUsage(filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
+	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestRecentBoundedAssociations(t *testing.T) {
 	if err = u.write([]usageEvent{{key: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", source: "http"}}); err != nil {
 		t.Fatal(err)
 	}
-	r, err := ReadRecentRequests(context.Background(), root, 50)
+	r, err := ReadRecentRequests(context.Background(), storagePath(root), 50)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestRecentBoundedAssociations(t *testing.T) {
 
 func TestRecentHTTPWindowSurvivesPrefetchOffline(t *testing.T) {
 	root := t.TempDir()
-	u, err := openUsage(filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
+	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +133,7 @@ func TestRecentHTTPWindowSurvivesPrefetchOffline(t *testing.T) {
 	}
 	u.close()
 	for _, limit := range []int{50, 500} {
-		r, err := ReadRecentRequests(context.Background(), root, limit)
+		r, err := ReadRecentRequests(context.Background(), storagePath(root), limit)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -142,7 +142,7 @@ func TestRecentHTTPWindowSurvivesPrefetchOffline(t *testing.T) {
 		}
 	}
 	// HasMore counts HTTP requests, including deterministic ties, not activity.
-	u, err = openUsage(filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
+	u, err = fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func TestRecentHTTPWindowSurvivesPrefetchOffline(t *testing.T) {
 	if err = u.write(events); err != nil {
 		t.Fatal(err)
 	}
-	r, err := ReadRecentRequests(context.Background(), root, 50)
+	r, err := ReadRecentRequests(context.Background(), storagePath(root), 50)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestRecentHTTPWindowSurvivesPrefetchOffline(t *testing.T) {
 			t.Fatal("unstable tie order")
 		}
 	}
-	r, err = ReadRecentRequests(context.Background(), root, 500)
+	r, err = ReadRecentRequests(context.Background(), storagePath(root), 500)
 	if err != nil || len(r.Requests) != 51 || r.HasMore {
 		t.Fatalf("expanded HTTP page: %+v %v", r, err)
 	}

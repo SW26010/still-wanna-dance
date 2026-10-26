@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -61,8 +60,12 @@ func CheckReferencedFiles(ctx context.Context, root string, references map[strin
 		r.References[id] = key
 		r.Missing[key] = append(r.Missing[key], id)
 	}
-	entries, err := os.ReadDir(filepath.Join(root, "videos"))
-	if err != nil && !os.IsNotExist(err) {
+	root, err := CacheDirectory(root)
+	if err != nil {
+		return r, err
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
 		return r, err
 	}
 	for _, entry := range entries {

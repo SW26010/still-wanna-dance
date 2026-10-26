@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"time"
@@ -18,10 +20,31 @@ type SongURL struct {
 	QueryStartedAt, ObservedAt time.Time
 }
 
+// The engine additionally enforces its download limit and remembers discovered
+// hosts. These admission rules are separate from the database observation.
+func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) error {
+	if !s.beginRequest() {
+		return context.Canceled
+	}
+	defer s.wg.Done()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, o.URL, nil)
+	if err != nil {
+		return err
+	}
+	if _, err := parseVideoURL(req, s.cfg.MaxFileBytes); err != nil {
+		return err
+	}
+	if err := s.Store.ObserveSongURL(ctx, o); err != nil {
+		return err
+	}
+	_, err = s.parseResolved(req)
+	return err
+}
+
 // ObserveSongURL atomically records the URL, resource metadata and a missing
 // song mapping, without downloading media or overwriting existing mappings.
 // Each API/node has one latest observation, so signed URL churn is bounded.
-func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error) {
+func (s *Store) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error) {
 	if !s.beginRequest() {
 		return context.Canceled
 	}
@@ -36,7 +59,7 @@ func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error
 	if err != nil {
 		return err
 	}
-	v, err := s.parseResolved(req)
+	v, err := parseVideoURL(req, math.MaxInt64-1)
 	if err != nil {
 		return err
 	}
@@ -80,31 +103,40 @@ func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	s.retentionMu.Lock()
-	s.requestRetentionLocked()
-	s.retentionMu.Unlock()
+	s.changed(false)
 	var mapped string
 	if err := s.usage.db.QueryRowContext(ctx, "SELECT md5 FROM song_media WHERE song_id=?", o.SongID).Scan(&mapped); err == nil && mapped != v.key {
-		s.cfg.Logger.Warn("song_md5_mismatch", "song_id", o.SongID, "mapped_md5", mapped, "url_md5", v.key, "node", o.Node)
+		s.log.Warn("song_md5_mismatch", "song_id", o.SongID, "mapped_md5", mapped, "url_md5", v.key, "node", o.Node)
 	}
 	return nil
 }
 
-func (s *Server) songURLStorageError(ctx context.Context, err error) error {
+func (s *Store) songURLStorageError(ctx context.Context, err error) error {
 	// Cancellation may roll back the transaction before Commit checks its state.
 	if errors.Is(err, sql.ErrTxDone) && ctx.Err() != nil {
 		err = ctx.Err()
 	}
-	return s.storageError(err)
+	// Input validation has already succeeded before this boundary. Preserve the
+	// existing terminal failure contract for an unexpected transaction failure,
+	// including a constraint/trigger failure that invalidates this write.
+	if !isLocalStorageError(err) {
+		return err
+	}
+	if !errors.Is(err, ErrLocalStorage) {
+		err = fmt.Errorf("%w: %w", ErrLocalStorage, err)
+	}
+	s.retainFailure(err)
+	return err
 }
 
 // SongURLs returns recent usable observations without probing them. Empty node
 // accepts both API nodes; explicit node choices remain constraints.
-func (s *Server) SongURLs(ctx context.Context, id int64, node string) ([]SongURL, error) {
+func (s *Store) SongURLs(ctx context.Context, id int64, node string) (resultValue []SongURL, resultErr error) {
 	if !s.beginRequest() {
 		return nil, context.Canceled
 	}
 	defer s.wg.Done()
+	defer func() { resultErr = s.storageError(resultErr) }()
 	rows, err := s.usage.db.QueryContext(ctx, `SELECT song_id,url,md5,byte_size,api,node,query_started_at,observed_at
  FROM song_urls WHERE song_id=? AND failed_at=0 AND (?='' OR node=?) AND observed_at>=? AND observed_at<=?
  ORDER BY query_started_at DESC`, id, node, node, time.Now().Add(-24*time.Hour).UnixNano(), time.Now().UnixNano())
@@ -120,7 +152,7 @@ func (s *Server) SongURLs(ctx context.Context, id int64, node string) ([]SongURL
 			return nil, err
 		}
 		o.QueryStartedAt, o.ObservedAt = time.Unix(0, started).UTC(), time.Unix(0, observed).UTC()
-		if err := ValidateVideoURL(o.URL, s.cfg.MaxFileBytes); err == nil {
+		if err := ValidateVideoURL(o.URL, math.MaxInt64-1); err == nil {
 			out = append(out, o)
 		}
 	}
@@ -133,7 +165,7 @@ func nanoTimeRepresentable(t time.Time) bool {
 
 // RejectSongURL only invalidates the observation actually attempted. A delayed
 // failure cannot discard a subsequent successful API observation of the same URL.
-func (s *Server) RejectSongURL(ctx context.Context, o SongURL) error {
+func (s *Store) RejectSongURL(ctx context.Context, o SongURL) error {
 	if !s.beginRequest() {
 		return context.Canceled
 	}

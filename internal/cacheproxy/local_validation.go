@@ -35,7 +35,7 @@ func (locks *checkLocks) slot(key string) chan struct{} {
 var verificationLocks = newCheckLocks()
 
 func validateLocalFile(ctx context.Context, root string, f *verifiedFile, v video, force bool) (bool, error) {
-	unlock, err := verificationLocks.acquire(ctx, root+v.key)
+	unlock, err := verificationLocks.acquire(ctx, pathIdentity(root)+v.key)
 	if err != nil {
 		return false, err
 	}

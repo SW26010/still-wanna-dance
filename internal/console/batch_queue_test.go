@@ -94,8 +94,8 @@ func TestBatchDoesNotChangeQueueLifecycle(t *testing.T) {
 					if !enabled {
 						initializeTestLibrary(t, c)
 					}
-					os.MkdirAll(filepath.Join(c.settings.StorageDir, "videos"), 0700)
-					os.WriteFile(filepath.Join(c.settings.StorageDir, "videos", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.mp4"), []byte("trusted"), 0600)
+					os.MkdirAll(filepath.Join(testStorageRoot(c.settings), "videos"), 0700)
+					os.WriteFile(filepath.Join(testStorageRoot(c.settings), "videos", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.mp4"), []byte("trusted"), 0600)
 				}
 				if err := c.startBatch(); err != nil {
 					t.Fatal(err)

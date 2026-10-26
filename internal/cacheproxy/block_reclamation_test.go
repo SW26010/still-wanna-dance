@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -301,7 +302,7 @@ func TestReclamationOffRetainsZeroBudgetBlocksUntilShutdown(t *testing.T) {
 		t.Fatal("unprotected blocks were not reused", calls.Load(), s.StorageError())
 	}
 	expectRetained(t, cfg.videoFile(videoKey(payload)), false)
-	files, err := os.ReadDir(cfg.tempDir())
+	files, err := filepath.Glob(filepath.Join(cfg.tempDir(), "download-block-*.part"))
 	if err != nil || len(files) == 0 {
 		t.Fatal("block cache was not retained during this run", err)
 	}

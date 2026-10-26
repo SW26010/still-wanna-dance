@@ -233,7 +233,7 @@ func TestPublicationRechecksChangedSongPolicy(t *testing.T) {
 			if err := s.SetSongPolicy(ctx, 1, policy); err != nil {
 				t.Fatal(err)
 			}
-			file, err := os.CreateTemp(cfg.tempDir(), "download-publish-*.part")
+			file, err := os.CreateTemp(cfg.publishDir(), "download-publish-*.part")
 			if err != nil {
 				t.Fatal(err)
 			}

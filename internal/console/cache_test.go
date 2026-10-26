@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -15,8 +16,43 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 )
 
+func TestCacheDeletionUsesApplicationStoreWithoutEngine(t *testing.T) {
+	c := testConsole(t)
+	paths := libraryPaths(c.settings)
+	key := strings.Repeat("a", 32)
+	if err := c.store.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261026000000", Source: "test", Songs: []cacheproxy.CatalogSong{{ID: 42, MD5: key}}}); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(paths.VideoDir, key+".mp4")
+	if err := os.WriteFile(path, []byte("video"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	page, err := cacheproxy.ReadCachePage(t.Context(), paths, "", "", 0)
+	if err != nil || len(page.Entries) != 1 {
+		t.Fatal("cannot select fixture video", page, err)
+	}
+	body, _ := json.Marshal(map[string]any{"storageID": page.StorageID, "entries": []cacheproxy.CacheSelection{{Key: key, Stamp: page.Entries[0].Stamp}}})
+	r := httptest.NewRequest("POST", "http://"+c.address+"/api/cache/delete", strings.NewReader(string(body)))
+	r.Header.Set("X-SWD-Token", c.token)
+	w := httptest.NewRecorder()
+	c.ServeHTTP(w, r)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "deleted") {
+		t.Fatal("deletion could not use the application's owned store", w.Code, w.Body.String())
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatal("selected video remained", err)
+	}
+	if c.service != nil {
+		t.Fatal("manual deletion started the video engine")
+	}
+	if _, err := c.store.SongUsageCount(t.Context()); err != nil {
+		t.Fatal("manual deletion closed the application database", err)
+	}
+}
+
 func TestCacheSearchLengthMatchesHTMLMaxlength(t *testing.T) {
 	c := testConsole(t)
+	createReaderLibrary(t, c)
 	for _, tc := range []struct {
 		name, query string
 		status      int
@@ -46,6 +82,7 @@ func TestCacheSearchLengthMatchesHTMLMaxlength(t *testing.T) {
 
 func TestCacheAPIAuthAndOfflineRead(t *testing.T) {
 	c := testConsole(t)
+	createReaderLibrary(t, c)
 	for _, path := range []string{"/api/cache", "/api/cache/delete", "/api/cache/open"} {
 		method := "POST"
 		if path == "/api/cache" {
@@ -81,6 +118,7 @@ func TestCacheAPIAuthAndOfflineRead(t *testing.T) {
 
 func TestCacheGETDoesNotAcquireLifecycleLock(t *testing.T) {
 	c := testConsole(t)
+	createReaderLibrary(t, c)
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	done := make(chan *httptest.ResponseRecorder, 1)
@@ -115,7 +153,7 @@ func TestCacheSnapshotSlowReadDoesNotBlockLifecycleAndRejectsStaleResults(t *tes
 			}
 			readDone := make(chan outcome, 1)
 			go func() {
-				page, err := c.cacheSnapshot(func(root string) (cacheproxy.CachePage, error) {
+				page, err := c.cacheSnapshot(func(root cacheproxy.LibraryPaths) (cacheproxy.CachePage, error) {
 					close(entered)
 					<-release
 					return cacheproxy.CachePage{StorageID: "old", Entries: []cacheproxy.CacheEntry{{Key: "old"}}}, nil
@@ -135,7 +173,8 @@ func TestCacheSnapshotSlowReadDoesNotBlockLifecycleAndRejectsStaleResults(t *tes
 					original := c.settings
 					c.mu.Unlock()
 					next := original
-					next.StorageDir = filepath.Join(t.TempDir(), "other")
+					setTestLibraryPaths(&next, filepath.Join(t.TempDir(), "other"))
+					createTestDatabase(t, next.DatabasePath)
 					err := c.save(next)
 					if err == nil && operation == "switch-back" {
 						err = c.save(original)
@@ -166,7 +205,7 @@ func TestCacheSnapshotSlowReadDoesNotBlockLifecycleAndRejectsStaleResults(t *tes
 
 func TestCacheSnapshotUsesCurrentScanProtection(t *testing.T) {
 	c := testConsole(t)
-	page, err := c.cacheSnapshot(func(string) (cacheproxy.CachePage, error) {
+	page, err := c.cacheSnapshot(func(cacheproxy.LibraryPaths) (cacheproxy.CachePage, error) {
 		c.mu.Lock()
 		c.batch = Batch{Running: true, ScanOnly: true}
 		c.mu.Unlock()
@@ -178,7 +217,9 @@ func TestCacheSnapshotUsesCurrentScanProtection(t *testing.T) {
 	if err != nil || !page.Entries[0].Protected {
 		t.Fatal(page, err)
 	}
-	_, err = c.cacheSnapshot(func(string) (cacheproxy.CachePage, error) { return cacheproxy.CachePage{}, context.Canceled })
+	_, err = c.cacheSnapshot(func(cacheproxy.LibraryPaths) (cacheproxy.CachePage, error) {
+		return cacheproxy.CachePage{}, context.Canceled
+	})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
@@ -193,7 +234,7 @@ func TestCacheAPIScanAndStaleStorageProtection(t *testing.T) {
 		c.ServeHTTP(w, r)
 		return w
 	}
-	b, _ := json.Marshal(map[string]any{"storageID": cacheproxy.CacheStorageID(c.settings.StorageDir), "entries": []cacheproxy.CacheSelection{{Key: strings.Repeat("a", 32), Stamp: "old"}}})
+	b, _ := json.Marshal(map[string]any{"storageID": cacheproxy.CacheStorageID(libraryPaths(c.settings)), "entries": []cacheproxy.CacheSelection{{Key: strings.Repeat("a", 32), Stamp: "old"}}})
 	c.batch = Batch{Running: true, ScanOnly: true}
 	w := post("/api/cache/delete", string(b))
 	if w.Code != 400 || !strings.Contains(w.Body.String(), "扫描校验") {

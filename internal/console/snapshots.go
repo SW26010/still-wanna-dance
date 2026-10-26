@@ -7,23 +7,25 @@ import (
 	"os"
 	"path/filepath"
 
+	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/workfiles"
 )
 
-const snapshotSchemaVersion = 1
+const snapshotSchemaVersion = 2
 
 type savedSnapshot[T any] struct {
 	SchemaVersion int    `json:"schemaVersion"`
-	StorageDir    string `json:"storageDir"`
+	DatabasePath  string `json:"databasePath"`
+	VideoDir      string `json:"videoDir"`
 	Result        T      `json:"result"`
 }
 
 func sameLibrary(a, b Settings) bool {
-	return a.StorageDir == b.StorageDir
+	return cacheproxy.CacheStorageID(libraryPaths(a)) == cacheproxy.CacheStorageID(libraryPaths(b))
 }
 
 // Replace atomically, so interruption or a failed write leaves the last good file.
-func (c *Console) writeSnapshot(kind, storageDir string, result any) error {
+func (c *Console) writeSnapshot(kind string, paths cacheproxy.LibraryPaths, result any) error {
 	// Persist absolute instants in UTC; never change upstream civil revisions.
 	switch value := result.(type) {
 	case Batch:
@@ -38,12 +40,14 @@ func (c *Console) writeSnapshot(kind, storageDir string, result any) error {
 	// Store only the library origin. Network settings and credentials have no
 	// bearing on whether an inventory or task result belongs to this library.
 	base := filepath.Dir(c.configPath)
-	if pathContains(base, storageDir) {
-		if rel, err := filepath.Rel(base, storageDir); err == nil {
-			storageDir = rel
+	for _, path := range []*string{&paths.DatabasePath, &paths.VideoDir} {
+		if pathContains(base, *path) {
+			if rel, err := filepath.Rel(base, *path); err == nil {
+				*path = rel
+			}
 		}
 	}
-	data, err := json.MarshalIndent(savedSnapshot[any]{snapshotSchemaVersion, storageDir, result}, "", "  ")
+	data, err := json.MarshalIndent(savedSnapshot[any]{snapshotSchemaVersion, paths.DatabasePath, paths.VideoDir, result}, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -65,20 +69,17 @@ func readSnapshot[T any](c *Console, kind string) (result T, resultErr error) {
 	if err = json.Unmarshal(data, &saved); err != nil {
 		return saved.Result, err
 	}
-	if saved.SchemaVersion != snapshotSchemaVersion || saved.StorageDir == "" {
+	if saved.SchemaVersion != snapshotSchemaVersion || saved.DatabasePath == "" || saved.VideoDir == "" {
 		var empty T
 		return empty, fmt.Errorf("不支持的快照格式")
 	}
-	root := saved.StorageDir
-	if !filepath.IsAbs(root) {
-		root = filepath.Join(filepath.Dir(c.configPath), root)
+	paths := cacheproxy.LibraryPaths{DatabasePath: saved.DatabasePath, VideoDir: saved.VideoDir}
+	for _, path := range []*string{&paths.DatabasePath, &paths.VideoDir} {
+		if !filepath.IsAbs(*path) {
+			*path = filepath.Join(filepath.Dir(c.configPath), *path)
+		}
 	}
-	root, err = filepath.Abs(root)
-	if err != nil {
-		var empty T
-		return empty, err
-	}
-	if root != c.settings.StorageDir {
+	if cacheproxy.CacheStorageID(paths) != cacheproxy.CacheStorageID(libraryPaths(c.settings)) {
 		var empty T
 		return empty, nil
 	}
@@ -88,12 +89,12 @@ func readSnapshot[T any](c *Console, kind string) (result T, resultErr error) {
 // Load into an unpublished Console. Callers publish the resulting snapshots under state locks.
 func (c *Console) loadSnapshots() {
 	c.lastBatch = Batch{}
-	if saved, err := readSnapshot[Batch](c, "batch"); err == nil {
+	if saved, err := readSnapshot[Batch](c, "batch-last-success"); err == nil {
 		saved.Running = false
 		c.lastBatch = saved
 	}
 	c.batch = c.lastBatch
-	if saved, err := readSnapshot[Batch](c, "attempt"); err == nil && !saved.Finished.IsZero() {
+	if saved, err := readSnapshot[Batch](c, "batch-last-attempt"); err == nil && !saved.Finished.IsZero() {
 		saved.Running = false
 		c.batch = saved
 	}

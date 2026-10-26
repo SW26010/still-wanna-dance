@@ -2,6 +2,7 @@ package console
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,10 +26,10 @@ func TestMissingStorageRejectsExternalJunctionAncestor(t *testing.T) {
 	}
 	path := filepath.Join(alias, "missing-parent", "media")
 	before, _ := os.ReadFile(c.configPath)
-	if _, err := cacheproxy.InspectStorage(path); err == nil {
-		t.Fatal("inspection accepted junction ancestor")
+	if w := storageRequest(t, c, "create-database", fixtureLibraryPaths(path)); w.Code != 400 {
+		t.Fatal("explicit creation accepted junction ancestor", w.Code)
 	}
-	if _, err := c.inspectStorage(path); err == nil {
+	if _, err := cacheproxy.LoadCatalogStatus(context.Background(), fixtureLibraryPaths(path).DatabasePath); err == nil {
 		t.Fatal("console inspection accepted junction ancestor")
 	}
 	after, _ := os.ReadFile(c.configPath)

@@ -11,14 +11,14 @@ func TestAutomaticLogDirectoryFollowsEnvironment(t *testing.T) {
 	root := t.TempDir()
 	config := filepath.Join(root, "settings.json")
 	// Automatic mode ignores a stored detected path from another environment.
-	if err := os.WriteFile(config, []byte(`{"schemaVersion":6,"logDir":"old-user/logs"}`), 0600); err != nil {
+	if err := os.WriteFile(config, []byte(`{"schemaVersion":7,"logDir":"old-user/logs"}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 	for _, user := range []string{"first-user", "second-user"} {
 		home := filepath.Join(root, user)
 		t.Setenv("USERPROFILE", home)
 		t.Setenv("HOME", home)
-		c, err := New(config, "127.0.0.1:0")
+		c, err := newConsoleWithWorkForTest(t, config, "127.0.0.1:0")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -39,10 +39,10 @@ func TestAutomaticLogDirectoryFollowsEnvironment(t *testing.T) {
 		if err := json.Unmarshal(data, &saved); err != nil {
 			t.Fatal(err)
 		}
-		if saved.LogDir != "" || saved.ManualLogDir || saved.StorageDir != filepath.Join("settings.json.d", "storage") {
+		if saved.LogDir != "" || saved.ManualLogDir || saved.DatabasePath != c.files().DefaultDatabase || saved.VideoDir != c.files().DefaultVideo {
 			t.Fatalf("persisted environment-dependent defaults: %+v", saved)
 		}
-		if err := c.writeSnapshot("test", c.settings.StorageDir, true); err != nil {
+		if err := c.writeSnapshot("test", libraryPaths(c.settings), true); err != nil {
 			t.Fatal(err)
 		}
 		data, err = os.ReadFile(c.files().State("test"))
@@ -50,7 +50,7 @@ func TestAutomaticLogDirectoryFollowsEnvironment(t *testing.T) {
 			t.Fatal(err)
 		}
 		var snapshot savedSnapshot[bool]
-		if err := json.Unmarshal(data, &snapshot); err != nil || snapshot.StorageDir != filepath.Join("settings.json.d", "storage") {
+		if err := json.Unmarshal(data, &snapshot); err != nil || snapshot.DatabasePath != saved.DatabasePath || snapshot.VideoDir != saved.VideoDir {
 			t.Fatalf("snapshot retained automatic path: %s, %v", data, err)
 		}
 		c.Close()
@@ -65,7 +65,7 @@ func TestManualLogDirectorySwitch(t *testing.T) {
 	if err := c.save(s); err != nil {
 		t.Fatal(err)
 	}
-	reopened, err := New(c.configPath, c.address)
+	reopened, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 	if err != nil {
 		t.Fatal(err)
 	}

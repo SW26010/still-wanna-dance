@@ -56,8 +56,8 @@ export function App() {
     }
   },[page,!!s,anchor,documentPage]);
   const fault=s?.storageError||model.status.error;
-  const statusText=model.stopped?'未连接':model.status.error?s?'更新失败':'读取失败':s?.storageError?'存储故障':s?'已连接':'连接中';
-  const runtimeStatus=<div className="runtime-status"><StatusBadge label="后台程序" color={model.stopped?'informative':fault?'danger':s?'success':'brand'}>{statusText}</StatusBadge>{fault&&<RecordDetails title="后台状态">{model.status.error&&<><p>无法读取程序状态，请检查 SWD 是否仍在运行。</p>{s&&<p>当前显示上次状态。</p>}</>}{s?.storageError&&<><p>本地存储故障，已停止新的下载。已保存的视频仍可读取。</p><p>检查磁盘空间和目录权限，修复后退出并重新打开整个应用。</p><p className="wrap">首个错误：{s.storageError}</p></>}</RecordDetails>}</div>;
+  const statusText=model.stopped?'未连接':model.status.error?s?'更新失败':'读取失败':s?.storageError?(s.activeSettings.databasePath?'存储故障':'待配置'):s?'已连接':'连接中';
+  const runtimeStatus=<div className="runtime-status"><StatusBadge label="后台程序" color={model.stopped?'informative':fault?'danger':s?'success':'brand'}>{statusText}</StatusBadge>{fault&&<RecordDetails title="后台状态">{model.status.error&&<><p>无法读取程序状态，请检查 SWD 是否仍在运行。</p>{s&&<p>当前显示上次状态。</p>}</>}{s?.storageError&&<>{s.activeSettings.databasePath?<><p>数据库或视频存储不可用，新的下载已停止。</p><p>检查所选文件、磁盘空间和目录权限，修复后重新打开应用。</p></>:<p>请到存储设置打开已有数据库或新建数据库，并指定完整视频目录，保存后重启。</p>}<p className="wrap">首个错误：{s.storageError}</p></>}</RecordDetails>}</div>;
   const feedback=<div className="app-feedback">
     <Notification message={model.message} error={model.messageError} persistent={model.busy}/>
     {!s&&accepted&&!documentPage&&!model.status.error&&<Spinner label="正在读取程序状态…"/>}
@@ -70,7 +70,7 @@ export function App() {
       {feedback}
       {s && <><div hidden={page !== 'home'}><Home visible={page==='home'}/></div><div hidden={page !== 'timeline'}><RequestTimeline visible={page==='timeline'}/></div><div hidden={page!=='library'}><Library visible={page==='library'} anchor={anchor}/></div><SettingsAndNetwork settingsVisible={page==='settings'} networkVisible={page==='network'} anchor={anchor}/>
       </>}
-      {page==='about'&&<AboutPage anchor={anchor} paths={s?{...bootstrap.paths,Storage:s.activeSettings.storageDir}:bootstrap.paths||{}}/>}
+      {page==='about'&&<AboutPage anchor={anchor} paths={s?{...bootstrap.paths,Database:s.activeSettings.databasePath,Videos:s.activeSettings.videoDir}:bootstrap.paths||{}}/>}
       </main><footer hidden={documentPage}><span>关闭网页后 SWD 仍在后台运行。</span><Link href="#/help">使用帮助</Link><Link href="#preferences">退出设置</Link></footer>
     <DocumentFooter page={page==='about'&&anchor.includes('help')?'help':page}/>
     </NavigationLayout>{model.dialog}{!accepted&&<TermsConsent onAccepted={()=>setAccepted(true)}/> }

@@ -6,7 +6,7 @@ import { useApp } from './hooks';
 import { Feedback, Panel, Progress, Hint, RecordDetails, useThemePreference } from './ui';
 import { type Settings, type Status } from './types';
 import { CacheCapacityFields, CacheReclamationFields, capacityPayload, type CapacityDraft } from './cache-capacity';
-import { StorageDirectoryFields } from './storage-directory';
+import { StorageLocationFields } from './storage-directory';
 
 const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadSoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
 const restorePermissionHint='开启并保存时，可能请求 Windows 管理员授权（UAC），以准备恢复权限；退出时不再请求。';
@@ -92,6 +92,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
   const theme=useThemePreference();
   const [draft, setDraft] = useState<Partial<Draft>>(), [pending, setPending] = useState(false);
   const [awaitingRevision, setAwaitingRevision] = useState<number>();
+  const [locationError, setLocationError] = useState('');
   const discard = () => { void releaseImport(draft?.proxyImportID || ''); setDraft(undefined); setPending(false); setAwaitingRevision(undefined); };
   useEffect(() => {
     if (awaitingRevision !== undefined && app.status.loadedRevision !== undefined && app.status.loadedRevision >= awaitingRevision) {
@@ -113,18 +114,32 @@ export function SettingsPage({section='application',children}: {section?:Setting
   const numberField = (key: NumberField | 'maxCacheGiB', label: string, min: number, max: number, hint?: string, step = '1') => <Field label={label} hint={hint} required><Input id={key} type="number" required min={min} max={max} step={step} disabled={disabled} value={d[key]} onChange={(_, v) => update({[key]:v.value})} /></Field>;
   const saveButton=<Button type="submit" appearance="primary" disabled={disabled || !dirty || !!d.proxyImportText.trim()}>保存设置</Button>;
   const restartButton=<Button disabled={disabled || dirty || app.dirtySettings.size>0 || !s.restartRequired} onClick={() => void app.action('restart')}>重启并应用</Button>;
-  const form = <Panel id={section==='storage'?'storage-settings':section==='downloads'?'download-settings':section==='network'?'proxy-settings':'preferences'} title={{application:'应用设置',storage:'视频存储',downloads:'预加载与下载设置',network:'代理设置'}[section]}><Feedback error>{s.actionErrors?.settings}</Feedback><form className="form-grid settings-form" onSubmit={async e => { e.preventDefault(); if (!dirty || disabled || d.proxyImportText.trim()) return; if (await app.action('settings', settingsPayload(d))) { setAwaitingRevision(app.revision + 1); } }}>
+  async function save() {
+    if (!dirty || disabled || d.proxyImportText.trim()) return;
+    setPending(true); setLocationError('');
+    try {
+      let confirmed = false;
+      if (d.databasePath !== s.settings.databasePath || d.videoDir !== s.settings.videoDir) {
+        const check = await request<{confirmVideoPolicy:boolean}>('storage/check', {databasePath:d.databasePath,videoDir:d.videoDir});
+        if (check.confirmVideoPolicy) {
+          confirmed = await app.confirm('确认此目录的视频保留方式', <><p className="wrap">视频目录：{d.videoDir}</p><p className="wrap">数据库：{d.databasePath||'尚未指定'}</p><p>此目录的视频将按本次设置管理：{d.videoStorageMode==='none'?'不保留普通视频':d.videoStorageMode==='unlimited'?'不限制视频空间':d.maxCacheGiB+' GiB 视频预算'}。不符合保留策略的视频可能被删除。</p><p>{d.retainFavorites?'优先保留收藏视频，收藏以所选数据库中的记录为准。':'收藏不提供额外保留保护。'}换数据库不会带入原数据库的收藏。</p></>, '确认并保存');
+          if (!confirmed) return;
+        }
+      }
+      if (await app.action('settings', {...settingsPayload(d),confirmVideoPolicy:confirmed})) setAwaitingRevision(app.revision + 1);
+    } catch (e) { setLocationError(String(e)); }
+    finally { setPending(false); }
+  }
+  const form = <Panel id={section==='storage'?'storage-settings':section==='downloads'?'download-settings':section==='network'?'proxy-settings':'preferences'} title={{application:'应用设置',storage:'数据与视频存储',downloads:'预加载与下载设置',network:'代理设置'}[section]}><Feedback error>{locationError||s.actionErrors?.settings}</Feedback><form className="form-grid settings-form" onSubmit={e => { e.preventDefault(); void save(); }}>
       <div className="toolbar spread settings-actions" role="region" aria-label="设置操作"><p role="status">{syncing ? '正在同步设置…' : dirty ? '未保存' : s.restartRequired ? '待重启' : '已生效'}</p>
       <div className="actions">{d.restoreHostsOnExit&&!s.settings.restoreHostsOnExit?<Tooltip content={restorePermissionHint} relationship="description">{saveButton}</Tooltip>:saveButton}<Button disabled={disabled || !dirty} onClick={discard}>放弃更改</Button>
       {s.settings.autoAccelerate?<Tooltip content="重启后将自动开启视频加速，接入时可能请求 Windows 管理员授权（UAC）。" relationship="description">{restartButton}</Tooltip>:restartButton}</div>
       {s.restartRequired&&[...app.dirtySettings].some(value=>value!==section)&&<p>其他页面仍有未保存配置，请保存或放弃后再重启。</p>}</div>
       {section==='storage'&&<fieldset disabled={disabled}><legend>本地存储</legend>
+      <StorageLocationFields value={d} update={update} disabled={disabled} status={s} onPending={setPending} />
       <CacheCapacityFields anchor="maxCacheGiB" mode={d.videoStorageMode} value={d.maxCacheGiB} disabled={disabled} onChange={update} />
       <Checkbox label="优先保留收藏视频" checked={d.retainFavorites} onChange={(_,v)=>update({retainFavorites:!!v.checked})}/>
       <span className="secondary">收藏视频可超出预算保留，不会自动下载。</span>
-      <StorageDirectoryFields mode={d.videoStorageMode} disabled={disabled}>{directoryDisabled =>
-        <Field label="本地存储目录" required hint="视频、歌曲资料与统计统一存放于此。"><Input required disabled={directoryDisabled} value={d.storageDir} onChange={(_, v) => update({storageDir:v.value})} /></Field>
-      }</StorageDirectoryFields>
       <div className="settings-columns"><CacheReclamationFields mode={d.videoStorageMode} reclamation={d.aggressiveCacheReclamation} disabled={disabled} onChange={update} />
       {numberField('localProtectionGraceSeconds','本地延续保护时长（秒）',0,10000,'需求结束后继续保留缓存；0 表示不延续保护。')}
       </div></fieldset>}
@@ -156,8 +171,8 @@ export function ImportPanel() {
   const [source, setSource] = useState(''), [cleanup, setCleanup] = useState(false);
   useEffect(() => setCleanup(false), [job.id]);
   return <Panel id="video-import" title="导入视频"><p>扫描子文件夹，校验并导入缺少的视频。同盘优先使用硬链接，导入后请勿修改源视频。</p>
-    <p>导入到当前生效目录：{s.activeSettings.storageDir}</p>
-    <form className="form-grid" onSubmit={async e => { e.preventDefault(); if (s.settings.storageDir !== s.activeSettings.storageDir && !await app.confirm('新存储目录尚未生效', <>已保存的新存储目录尚未生效。本次将导入到当前生效目录：{s.activeSettings.storageDir}。若要使用新目录，请取消并先重启应用。仍要导入当前目录吗？</>)) return; await app.action('import/start',{source:source.trim()}); }}>
+    <p>导入到当前完整视频目录：{s.activeSettings.videoDir}</p>
+    <form className="form-grid" onSubmit={async e => { e.preventDefault(); if ((s.settings.videoDir !== s.activeSettings.videoDir || s.settings.databasePath !== s.activeSettings.databasePath) && !await app.confirm('新的数据位置尚未生效', <>已保存的新的数据位置尚未生效。本次将导入到当前完整视频目录：{s.activeSettings.videoDir}。若要使用新目录，请取消并先重启应用。仍要导入当前目录吗？</>)) return; await app.action('import/start',{source:source.trim()}); }}>
       <Field label="外部目录" required><Input required disabled={app.unavailable || job.running} value={source} onChange={(_, v) => setSource(v.value)} /></Field><Button type="submit" disabled={app.unavailable || job.running || !source.trim()}>扫描并导入</Button>
     </form>{(job.running||!!job.total)&&<Progress value={job.checked} max={job.total} label="视频文件处理进度" />}
     <p role="status">{job.phase?`${job.phase} · ${job.checked || 0}/${job.total || 0} 个视频 · 已导入 ${job.imported || 0} · 跳过 ${job.skipped || 0} · 失败 ${job.failed || 0} · 已清除 ${job.deleted || 0}`:'尚未开始'}</p>

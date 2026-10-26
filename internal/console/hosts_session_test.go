@@ -208,10 +208,10 @@ func TestHostsConsoleCloseUsesPreparedHelperAndActiveSettings(t *testing.T) {
 func TestRestoreHostsSettingDefaultsAndImmediateSave(t *testing.T) {
 	for _, field := range []string{"", `,"restoreHostsOnExit":null`, `,"restoreHostsOnExit":true`, `,"restoreHostsOnExit":false`} {
 		config := filepath.Join(t.TempDir(), "settings.json")
-		if err := os.WriteFile(config, []byte(`{"schemaVersion":6`+field+`}`), 0600); err != nil {
+		if err := os.WriteFile(config, []byte(`{"schemaVersion":7`+field+`}`), 0600); err != nil {
 			t.Fatal(err)
 		}
-		c, err := New(config, "127.0.0.1:18081")
+		c, err := newConsoleWithWorkForTest(t, config, "127.0.0.1:18081")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -231,7 +231,7 @@ func TestRestoreHostsSettingDefaultsAndImmediateSave(t *testing.T) {
 		if err := c.Close(); err != nil {
 			t.Fatal(err)
 		}
-		c, err = New(config, c.address)
+		c, err = newConsoleWithWorkForTest(t, config, c.address)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -17,7 +17,7 @@ func effectiveSongPriority(id, count int64, score float64, last, now int64) floa
 	return retentionScore(score, last, now)
 }
 
-func (s *Server) songPriorities(ctx context.Context, ids []int64, now int64) (map[int64]float64, error) {
+func (s *Store) songPriorities(ctx context.Context, ids []int64, now int64) (map[int64]float64, error) {
 	result := make(map[int64]float64, len(ids))
 	for _, id := range ids {
 		result[id] = effectiveSongPriority(id, 0, 0, 0, now)
@@ -47,11 +47,16 @@ type ResourcePriority struct {
 
 // EffectiveResourcePriorities is shared by batch ordering and eviction.
 // References are a caller-owned current-mapping snapshot; each song is counted once.
-func (s *Server) EffectiveResourcePriorities(ctx context.Context, refs map[string]string) (map[string]ResourcePriority, error) {
+func (s *Store) EffectiveResourcePriorities(ctx context.Context, refs map[string]string) (result map[string]ResourcePriority, resultErr error) {
+	if !s.beginRequest() {
+		return nil, context.Canceled
+	}
+	defer s.wg.Done()
+	defer func() { resultErr = s.storageError(resultErr) }()
 	s.usage.flush()
 	return s.resourcePriorities(ctx, refs, time.Now().UnixMilli())
 }
-func (s *Server) resourcePriorities(ctx context.Context, refs map[string]string, now int64) (map[string]ResourcePriority, error) {
+func (s *Store) resourcePriorities(ctx context.Context, refs map[string]string, now int64) (map[string]ResourcePriority, error) {
 	ids := make([]int64, 0, len(refs))
 	for id := range refs {
 		n, _ := strconv.ParseInt(id, 10, 64)

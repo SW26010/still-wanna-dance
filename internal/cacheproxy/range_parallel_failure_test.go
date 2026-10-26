@@ -76,7 +76,7 @@ func TestParallelRangeEntityValidation(t *testing.T) {
 				t.Fatal(err)
 			}
 			entries, err := os.ReadDir(s.cfg.tempDir())
-			if err != nil || len(entries) != 0 {
+			if err != nil || len(entries) != 1 || entries[0].Name() != ".lock" {
 				t.Fatal("temporary files remain", entries, err)
 			}
 		})
@@ -168,7 +168,7 @@ func TestParallelRangeFailureJoinsClosingPeersBeforeCleanup(t *testing.T) {
 		t.Fatal("failed file was published")
 	}
 	entries, err := os.ReadDir(s.cfg.tempDir())
-	if err != nil || len(entries) != 0 {
+	if err != nil || len(entries) != 1 || entries[0].Name() != ".lock" {
 		t.Fatal("partial files survived cleanup", entries, err)
 	}
 	s.requests.mu.Lock()

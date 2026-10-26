@@ -12,11 +12,12 @@ import (
 // contribute to shared-resource scores, including already complete songs.
 // Historical URLs count as metadata: their playback freshness is independently
 // checked by SongURLs. Expiry alone must not keep starving unfilled songs.
-func (s *Server) SongMetadataCandidates(ctx context.Context, api string) ([]int64, error) {
+func (s *Store) SongMetadataCandidates(ctx context.Context, api string) (resultValue []int64, resultErr error) {
 	if !s.beginRequest() {
 		return nil, context.Canceled
 	}
 	defer s.wg.Done()
+	defer func() { resultErr = s.storageError(resultErr) }()
 	s.usage.flush()
 	s.mappingMu.Lock()
 	defer s.mappingMu.Unlock()

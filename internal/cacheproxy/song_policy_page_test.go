@@ -27,15 +27,15 @@ func TestSongPageAndFavoriteLifecycleDoNotDownload(t *testing.T) {
 		}
 	}
 	writeTestFile(t, cfg.videoFile(key), payload)
-	page, err := ReadSongPage(ctx, cfg.StorageDir, "", SongNormal, 0)
+	page, err := ReadSongPage(ctx, cfg.libraryPaths(), "", SongNormal, 0)
 	if err != nil || page.Total != 59 || len(page.Entries) != 50 {
 		t.Fatal(page, err)
 	}
-	page, err = ReadSongPage(ctx, cfg.StorageDir, "", SongNormal, 50)
+	page, err = ReadSongPage(ctx, cfg.libraryPaths(), "", SongNormal, 50)
 	if err != nil || len(page.Entries) != 9 {
 		t.Fatal(page, err)
 	}
-	page, err = ReadSongPage(ctx, cfg.StorageDir, "42", SongFavorite, 0)
+	page, err = ReadSongPage(ctx, cfg.libraryPaths(), "42", SongFavorite, 0)
 	if err != nil || page.Total != 1 || !page.Entries[0].Saved {
 		t.Fatal(page, err)
 	}
@@ -43,6 +43,7 @@ func TestSongPageAndFavoriteLifecycleDoNotDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Close()
+	reopenFixtureStore(t, &cfg)
 	reopened, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -51,7 +52,7 @@ func TestSongPageAndFavoriteLifecycleDoNotDownload(t *testing.T) {
 	if err := syncTestCatalog(reopened, ctx, map[string]string{"42": videoKey("new-version")}); err != nil {
 		t.Fatal(err)
 	}
-	page, err = ReadSongPage(ctx, cfg.StorageDir, "42", SongFavorite, 0)
+	page, err = ReadSongPage(ctx, cfg.libraryPaths(), "42", SongFavorite, 0)
 	if err != nil || page.Total != 1 || page.Entries[0].Saved {
 		t.Fatal(page, err)
 	}

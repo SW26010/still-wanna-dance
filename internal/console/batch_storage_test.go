@@ -23,7 +23,7 @@ func TestBatchScanRejectsMissingUsedStorageAfterRestart(t *testing.T) {
 				t.Fatal(err)
 			}
 			cfg := fixtureCacheConfig()
-			cfg.StorageDir = c.settings.StorageDir
+			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 			engine, err := cacheproxy.New(cfg)
 			if err != nil {
 				t.Fatal(err)
@@ -32,7 +32,7 @@ func TestBatchScanRejectsMissingUsedStorageAfterRestart(t *testing.T) {
 				t.Fatal(err)
 			}
 			video := filepath.Join("videos", strings.Repeat("a", 32)+".mp4")
-			if err := os.WriteFile(filepath.Join(cfg.StorageDir, video), []byte("video"), 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(filepath.Dir(cfg.VideoDir), video), []byte("video"), 0600); err != nil {
 				t.Fatal(err)
 			}
 			kind := "inventory"
@@ -42,8 +42,8 @@ func TestBatchScanRejectsMissingUsedStorageAfterRestart(t *testing.T) {
 					t.Fatal(got)
 				}
 			} else {
-				kind = "attempt"
-				if err := c.writeSnapshot(kind, cfg.StorageDir, Batch{Finished: time.Now(), Phase: "catalog unavailable"}); err != nil {
+				kind = "batch-last-attempt"
+				if err := c.writeSnapshot(kind, fixtureLibraryPaths(filepath.Dir(cfg.VideoDir)), Batch{Finished: time.Now(), Phase: "catalog unavailable"}); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -55,8 +55,8 @@ func TestBatchScanRejectsMissingUsedStorageAfterRestart(t *testing.T) {
 			if err := c.Close(); err != nil {
 				t.Fatal(err)
 			}
-			moved := cfg.StorageDir + "-unavailable"
-			if err := os.Rename(cfg.StorageDir, moved); err != nil {
+			moved := filepath.Dir(cfg.VideoDir) + "-unavailable"
+			if err := os.Rename(filepath.Dir(cfg.VideoDir), moved); err != nil {
 				t.Fatal(err)
 			}
 			c = restartTestConsole(t, c)
@@ -73,10 +73,10 @@ func TestBatchScanRejectsMissingUsedStorageAfterRestart(t *testing.T) {
 			c.checksumURL, c.client.Transport = upstream.URL, http.DefaultTransport
 			err = c.startBatchMode(true)
 			if err == nil {
-				_, statErr := os.Stat(filepath.Join(cfg.StorageDir, "storage.sqlite"))
+				_, statErr := os.Stat(filepath.Join(filepath.Dir(cfg.VideoDir), "storage.sqlite"))
 				t.Fatalf("missing used storage accepted: videos=%d lastBatch=%d recreatedDatabase=%t", c.inventory.Videos, c.lastBatch.Total, statErr == nil)
 			}
-			if !strings.Contains(err.Error(), cfg.StorageDir) || !strings.Contains(err.Error(), "失联") {
+			if !strings.Contains(err.Error(), filepath.Dir(cfg.VideoDir)) || !strings.Contains(err.Error(), "数据库不可用") {
 				t.Fatal("missing actionable diagnostic", err)
 			}
 			if c.service != nil || c.batchDone != nil || requests.Load() != 0 {
@@ -85,7 +85,7 @@ func TestBatchScanRejectsMissingUsedStorageAfterRestart(t *testing.T) {
 			if !reflect.DeepEqual(c.inventory, beforeInventory) || !reflect.DeepEqual(c.batch, beforeBatch) {
 				t.Fatal("rejection changed restored state")
 			}
-			if _, err := os.Stat(cfg.StorageDir); !os.IsNotExist(err) {
+			if _, err := os.Stat(filepath.Dir(cfg.VideoDir)); !os.IsNotExist(err) {
 				t.Fatal("missing storage root recreated", err)
 			}
 			if got, err := os.ReadFile(snapshotPath); err != nil || !bytes.Equal(got, snapshot) {
@@ -98,7 +98,7 @@ func TestBatchScanRejectsMissingUsedStorageAfterRestart(t *testing.T) {
 	}
 }
 
-func TestBatchScanInitializesUnusedRootAfterEmptyInventory(t *testing.T) {
+func TestBatchScanNeverInitializesMissingDatabaseFromEmptyInventory(t *testing.T) {
 	c := testConsole(t)
 	if err := c.save(c.settings); err != nil {
 		t.Fatal(err)
@@ -107,20 +107,20 @@ func TestBatchScanInitializesUnusedRootAfterEmptyInventory(t *testing.T) {
 	if got := waitInventory(t, c); got.Error != "" || got.Videos != 0 || got.Updated.IsZero() {
 		t.Fatal(got)
 	}
-	if _, err := os.Stat(c.settings.StorageDir); !os.IsNotExist(err) {
-		t.Fatal("empty inventory initialized storage", err)
+	if err := c.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(testStorageRoot(c.settings), testStorageRoot(c.settings)+"-unavailable"); err != nil {
+		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		writeTestMD5Catalog(w, map[int]string{1: "video"})
-	}))
-	defer upstream.Close()
-	c.checksumURL, c.client.Transport = upstream.URL, http.DefaultTransport
-	waitMD5Batch(t, c, true)
-	if c.lastBatch.Total != 1 || c.lastBatch.Missing != 1 {
-		t.Fatal("new storage scan did not complete", c.lastBatch)
+	if err := c.startBatchMode(true); err == nil {
+		t.Fatal("empty inventory authorized database initialization")
 	}
-	if _, err := os.Stat(filepath.Join(c.settings.StorageDir, "storage.sqlite")); err != nil {
-		t.Fatal("new storage was not initialized", err)
+	if c.service != nil {
+		t.Fatal("missing database started an engine")
+	}
+	if _, err := os.Stat(testStorageRoot(c.settings)); !os.IsNotExist(err) {
+		t.Fatal("missing storage recreated", err)
 	}
 }

@@ -15,7 +15,7 @@ import (
 func TestEachResourceAttemptHasAnIndependentTimeout(t *testing.T) {
 	for _, bounded := range []bool{false, true} {
 		synctest.Test(t, func(t *testing.T) {
-			s := &Server{cfg: DefaultConfig(), client: &http.Client{}, requests: new(requestActivity)}
+			s := &Server{Store: &Store{}, cfg: DefaultConfig(), client: &http.Client{}, requests: new(requestActivity)}
 			s.cfg.DownloadTimeout = time.Second
 			start := time.Now()
 			ctx := context.Background()
@@ -85,7 +85,7 @@ func (b *timeoutClosedBody) Close() error {
 
 func TestAttemptTimeoutClosesBodyAndReleasesBeforeRetry(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		s := &Server{cfg: DefaultConfig(), client: &http.Client{}, requests: new(requestActivity)}
+		s := &Server{Store: &Store{}, cfg: DefaultConfig(), client: &http.Client{}, requests: new(requestActivity)}
 		s.cfg.DownloadTimeout = time.Second
 		body := &timeoutClosedBody{closed: make(chan struct{})}
 		active := 0

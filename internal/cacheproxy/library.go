@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,6 +38,8 @@ type LibraryResource struct {
 }
 
 type LibraryPage struct {
+	DatabaseID string                      `json:"databaseID"`
+	VideoError string                      `json:"videoError,omitempty"`
 	StorageID  string                      `json:"storageID"`
 	Songs      []LibrarySong               `json:"songs"`
 	Resources  map[string]*LibraryResource `json:"resources"`
@@ -59,20 +60,20 @@ type libraryCandidate struct {
 // ReadLibraryPage reads current metadata and complete-file directory entries.
 // It neither starts an engine nor probes upstream or video contents. Only the
 // visible page gets file-identity stamps; shared resources are materialized once.
-func ReadLibraryPage(ctx context.Context, root string, q LibraryQuery) (LibraryPage, error) {
-	return readLibraryPage(ctx, root, q, time.Now().UnixMilli())
+func ReadLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery) (LibraryPage, error) {
+	return readLibraryPage(ctx, paths, q, time.Now().UnixMilli())
 }
 
-func readLibraryPage(ctx context.Context, root string, q LibraryQuery, now int64) (LibraryPage, error) {
-	root, err := filepath.Abs(root)
-	page := LibraryPage{StorageID: CacheStorageID(root), Songs: []LibrarySong{}, Keys: []string{}, Resources: map[string]*LibraryResource{}}
+func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, now int64) (LibraryPage, error) {
+	paths, err := paths.Resolve()
+	page := LibraryPage{StorageID: CacheStorageID(paths), DatabaseID: DatabaseID(paths.DatabasePath), Songs: []LibrarySong{}, Keys: []string{}, Resources: map[string]*LibraryResource{}}
 	if err != nil {
 		return page, err
 	}
 	if q.Offset < 0 {
 		return page, errors.New("无效分页")
 	}
-	db, err := readStorageDatabase(root)
+	db, err := readDatabaseFile(paths.DatabasePath)
 	if err != nil {
 		return page, err
 	}
@@ -87,14 +88,14 @@ func readLibraryPage(ctx context.Context, root string, q LibraryQuery, now int64
 		}
 		return resources[key]
 	}
-	dir, err := CacheDirectory(root)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return page, err
+	dir, err := CacheDirectory(paths.VideoDir)
+	if err != nil {
+		page.VideoError = err.Error()
 	}
 	if err == nil {
 		files, err := os.ReadDir(dir)
 		if err != nil {
-			return page, err
+			page.VideoError = err.Error()
 		}
 		for _, file := range files {
 			if err := ctx.Err(); err != nil {
@@ -119,6 +120,9 @@ func readLibraryPage(ctx context.Context, root string, q LibraryQuery, now int64
 			page.FileCount++
 			page.TotalBytes += size
 		}
+	}
+	if page.VideoError != "" && (q.Filter == "saved" || q.Filter == "missing") {
+		return page, errors.New("视频目录不可用，无法按本地视频状态筛选：" + page.VideoError)
 	}
 	var songs []LibrarySong
 	if db != nil {
@@ -188,7 +192,7 @@ func readLibraryPage(ctx context.Context, root string, q LibraryQuery, now int64
 		}
 		r := resources[key]
 		if r.saved {
-			local, err := readCacheEntry(ctx, root, key, db)
+			local, err := readCacheEntry(ctx, paths, key, db)
 			if err != nil && !os.IsNotExist(err) {
 				return err
 			}

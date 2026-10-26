@@ -34,7 +34,7 @@ func TestHistoryPagesAllRequestsAndPreservesIdentity(t *testing.T) {
 	q := RequestQuery{Limit: 50}
 	seen := map[int64]bool{}
 	for {
-		page, err := ReadRequestHistory(context.Background(), cfg.StorageDir, q)
+		page, err := ReadRequestHistory(context.Background(), cfg.Store.path, q)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -61,7 +61,7 @@ func TestHistoryPagesAllRequestsAndPreservesIdentity(t *testing.T) {
 	if len(seen) != 1201 {
 		t.Fatal("history truncated", len(seen))
 	}
-	page, err := ReadRequestHistory(context.Background(), cfg.StorageDir, RequestQuery{From: 1100, To: 1101, Limit: 50})
+	page, err := ReadRequestHistory(context.Background(), cfg.Store.path, RequestQuery{From: 1100, To: 1101, Limit: 50})
 	if err != nil || len(page.Requests) != 3 {
 		t.Fatal("time boundaries", page, err)
 	}
@@ -105,21 +105,29 @@ func TestLatencyRollingQuantilesCoverageAndRestart(t *testing.T) {
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
-	r, err := ReadFirstBodyLatency(context.Background(), cfg.StorageDir, now)
+	r, err := ReadFirstBodyLatency(context.Background(), cfg.Store.path, now)
 	if err != nil || r.Partial || r.Ready.Samples != 20 || r.Blocking.Samples != 20 || r.Ready.P50MS == nil || *r.Ready.P50MS != 10 || *r.Ready.P95MS != 19 || *r.Blocking.P50MS != 100 || *r.Blocking.P95MS != 190 {
 		t.Fatalf("quantiles: %+v %v", r, err)
 	}
 	var openErr error
+	reopenFixtureStore(t, &cfg)
 	s, openErr = New(cfg)
 	if openErr != nil {
 		t.Fatal(openErr)
 	}
-	defer s.Close()
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// Stop automatic pruning before changing the fixture retention interval.
+	// Its startup timer uses the wall clock; this check uses the fixed 'now'.
+	if err := s.usage.close(); err != nil {
+		t.Fatal(err)
+	}
 	s.usage.retention = 30 * time.Minute
 	if _, err := s.usage.prune(now); err != nil {
 		t.Fatal(err)
 	}
-	r, err = ReadFirstBodyLatency(context.Background(), cfg.StorageDir, now)
+	r, err = ReadFirstBodyLatency(context.Background(), cfg.Store.path, now)
 	if err != nil || !r.Partial || r.AvailableFrom == nil || *r.AvailableFrom != now.Add(-30*time.Minute).UnixMilli() || r.Ready.Samples != 0 || r.Ready.P50MS != nil {
 		t.Fatalf("short retention: %+v %v", r, err)
 	}
@@ -139,7 +147,7 @@ func TestHistoryCapturesEffectiveResponseAndVideoBytes(t *testing.T) {
 			t.Fatal(w.Code)
 		}
 		s.usage.flush()
-		page, err := ReadRequestHistory(context.Background(), cfg.StorageDir, RequestQuery{Limit: 1})
+		page, err := ReadRequestHistory(context.Background(), cfg.Store.path, RequestQuery{Limit: 1})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -175,7 +183,7 @@ func TestResolutionFailureRetainsArrivalIdentityWithoutBodySample(t *testing.T) 
 	close(resume)
 	<-done
 	s.usage.flush()
-	page, err := ReadRequestHistory(context.Background(), cfg.StorageDir, RequestQuery{Limit: 50})
+	page, err := ReadRequestHistory(context.Background(), cfg.Store.path, RequestQuery{Limit: 50})
 	if err != nil || len(page.Requests) != 1 {
 		t.Fatal(page, err)
 	}

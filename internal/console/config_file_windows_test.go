@@ -57,7 +57,7 @@ func TestConfigurationReplacementFailurePreservesSavedFile(t *testing.T) {
 	if err := c.save(next); err != nil {
 		t.Fatal("retry failed", err)
 	}
-	reopened, err := New(c.configPath, c.address)
+	reopened, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 	if err != nil {
 		t.Fatal(err)
 	}

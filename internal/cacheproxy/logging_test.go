@@ -50,7 +50,7 @@ func loggingServer(t *testing.T, handler http.HandlerFunc) (*Server, *logCapture
 	logs := new(logCapture)
 	cfg := fixtureConfig()
 	cfg.OriginScheme = "http"
-	cfg.StorageDir = t.TempDir()
+	prepareFixtureResources(t, &cfg, t.TempDir(), true)
 	cfg.Logger = slog.New(slog.NewJSONHandler(logs, nil))
 	for host := range cfg.Origins {
 		cfg.Origins[host] = strings.TrimPrefix(upstream.URL, "http://")

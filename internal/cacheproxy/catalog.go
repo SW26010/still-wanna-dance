@@ -21,7 +21,7 @@ func nullableJSON(raw json.RawMessage) any {
 
 // SyncCatalog serializes version comparison and the complete catalog commit.
 // Both MD5 endpoints share the songs watermark; source is provenance.
-func (s *Server) SyncCatalog(ctx context.Context, c Catalog) error {
+func (s *Store) SyncCatalog(ctx context.Context, c Catalog) (resultErr error) {
 	c, digest, err := normalizeCatalog(c)
 	if err != nil {
 		return err
@@ -30,6 +30,7 @@ func (s *Server) SyncCatalog(ctx context.Context, c Catalog) error {
 		return context.Canceled
 	}
 	defer s.wg.Done()
+	defer func() { resultErr = s.storageError(resultErr) }()
 	s.retentionRunMu.Lock()
 	defer s.retentionRunMu.Unlock()
 	s.mappingMu.Lock()
@@ -44,9 +45,9 @@ func (s *Server) SyncCatalog(ctx context.Context, c Catalog) error {
 		if errors.Is(err, ErrCatalogConflict) {
 			diagnostic, diagnosticErr := catalogConflictDetails(ctx, tx, c, digest)
 			if diagnosticErr != nil {
-				s.cfg.Logger.Warn("catalog_conflict_diagnostic_failed", "error", diagnosticErr)
+				s.log.Warn("catalog_conflict_diagnostic_failed", "error", diagnosticErr)
 			} else {
-				s.cfg.Logger.Warn("catalog_conflict", "revision", c.Revision, "diagnostic", diagnostic)
+				s.log.Warn("catalog_conflict", "revision", c.Revision, "diagnostic", diagnostic)
 				return fmt.Errorf("%w：%s", err, diagnostic)
 			}
 		}
@@ -102,9 +103,7 @@ func (s *Server) SyncCatalog(ctx context.Context, c Catalog) error {
 	if err = commitCatalogCheck(ctx, tx, "已更新本地清单"); err != nil {
 		return err
 	}
-	s.retentionMu.Lock()
-	s.requestRetentionLocked()
-	s.retentionMu.Unlock()
+	s.changed(false)
 	return nil
 }
 

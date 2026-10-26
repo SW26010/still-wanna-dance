@@ -40,10 +40,10 @@ export function useCacheActions(snapshot: Pick<LibraryPage,'storageID'|'resource
 
   return {operate,pending,result:feedback.value};
 }
-export function InventoryPanel({visible,files,refresh,loading}: {visible:boolean;files?:Pick<CachePage,'fileCount'|'totalBytes'>;refresh:()=>void;loading:boolean}) {
+export function InventoryPanel({visible,files,videoError,refresh,loading}: {visible:boolean;videoError?:string;files?:Pick<CachePage,'fileCount'|'totalBytes'>;refresh:()=>void;loading:boolean}) {
   const app = useApp(), s=app.status.data!, t = s.traffic || {};
   const inventory = useResource<Inventory>('inventory',visible && !app.stopped,app.revision), v = inventory.data;
-  const known = v && dated(v.updated) && v.coverageKnown && v.totalSongs > 0;
+  const known = !videoError && v && dated(v.updated) && v.coverageKnown && v.totalSongs > 0;
   return <section id="overview" className="library-summary" aria-label="曲库概览">
     <div className="inline summary-values">
       <div><span className="secondary">本地视频</span><Text block size={500} weight="semibold">{files?`${files.fileCount} 个 · ${gib(files.totalBytes)}`:'—'}</Text></div>

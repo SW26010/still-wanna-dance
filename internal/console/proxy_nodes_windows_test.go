@@ -16,7 +16,7 @@ func TestProtectedNodesSaveRestartMoveAndFailedReplacement(t *testing.T) {
 	}
 	s := c.savedSettings
 	s.nodeImportID = r.ID
-	if err := c.saveSettings(s, true); err != nil {
+	if err := c.saveSettings(s, true, false); err != nil {
 		t.Fatal(err)
 	}
 	if c.settings == c.savedSettings || c.settings.nodeSnapshot != "" || c.savedSettings.nodeImportID != "" {
@@ -28,7 +28,7 @@ func TestProtectedNodesSaveRestartMoveAndFailedReplacement(t *testing.T) {
 	}
 	path := filepath.Join(t.TempDir(), "config.json")
 	os.WriteFile(path, b, 0600)
-	loaded, err := New(path, c.address)
+	loaded, err := newConsoleWithWorkForTest(t, path, c.address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestProtectedNodesSaveRestartMoveAndFailedReplacement(t *testing.T) {
 	fields["proxyNodes"], _ = json.Marshal(envelope)
 	b, _ = json.Marshal(fields)
 	os.WriteFile(path, b, 0600)
-	broken, err := New(path, c.address)
+	broken, err := newConsoleWithWorkForTest(t, path, c.address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestProtectedNodesSaveRestartMoveAndFailedReplacement(t *testing.T) {
 	fields["schemaVersion"] = json.RawMessage(`999`)
 	b, _ = json.Marshal(fields)
 	os.WriteFile(c.configPath, b, 0600)
-	if c.saveSettings(s, true) == nil || c.savedSettings != old {
+	if c.saveSettings(s, true, false) == nil || c.savedSettings != old {
 		t.Fatal("failed save published replacement")
 	}
 	after, _ := os.ReadFile(c.configPath)

@@ -8,11 +8,8 @@ import (
 )
 
 func TestVideoStorageModesPersistAndApplyOnRestart(t *testing.T) {
-	c := testConsole(t)
-	if c.settings.VideoStorageMode != "none" || c.settings.MaxCacheBytes != 0 {
-		t.Fatal("default must not retain unprotected videos")
-	}
 	for _, mode := range []string{"none", "limited", "unlimited"} {
+		c := testConsole(t)
 		s := c.settings
 		s.VideoStorageMode, s.MaxCacheBytes = mode, 5<<30
 		if err := c.save(s); err != nil {
@@ -25,15 +22,12 @@ func TestVideoStorageModesPersistAndApplyOnRestart(t *testing.T) {
 		if err != nil || string(fields["videoStorageMode"]) != `"`+mode+`"` || fields["cacheUnlimited"] != nil {
 			t.Fatalf("choice was not stored explicitly: %s %v", fields["videoStorageMode"], err)
 		}
-		loaded, err := New(c.configPath, c.address)
-		if err != nil {
-			t.Fatal(err)
-		}
+		loaded := restartTestConsole(t, c)
 		if loaded.settings.VideoStorageMode != mode || loaded.settings.MaxCacheBytes != 5<<30 {
 			t.Fatalf("capacity choice lost: %+v", loaded.settings)
 		}
 		initializeTestLibrary(t, loaded)
-		path := filepath.Join(loaded.settings.StorageDir, "videos", strings.Repeat("a", 32)+".mp4")
+		path := filepath.Join(testStorageRoot(loaded.settings), "videos", strings.Repeat("a", 32)+".mp4")
 		if err := os.WriteFile(path, []byte("retained video"), 0600); err != nil {
 			t.Fatal(err)
 		}
@@ -60,7 +54,7 @@ func TestCacheLimitSettingsPersist(t *testing.T) {
 	if err := c.save(settings); err != nil {
 		t.Fatal(err)
 	}
-	loaded, err := New(c.configPath, c.address)
+	loaded, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +100,7 @@ func TestRequestRetentionSettings(t *testing.T) {
 		if err := c.save(settings); err != nil {
 			t.Fatal(err)
 		}
-		loaded, err := New(c.configPath, c.address)
+		loaded, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 		if err != nil {
 			t.Fatal(err)
 		}

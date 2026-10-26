@@ -123,7 +123,7 @@ func TestCurrentGETSuccessfulBytesAndAbortCleanup(t *testing.T) {
 }
 
 func TestCurrentGETSnapshotBoundAndStableOrder(t *testing.T) {
-	s := &Server{}
+	s := &Server{Store: &Store{}}
 	var ends []func()
 	for i := uint64(1); i <= 75; i++ {
 		_, end := s.beginGET(i, time.Now(), strings.Repeat("x", 1000))
@@ -144,7 +144,7 @@ func TestCurrentGETSnapshotBoundAndStableOrder(t *testing.T) {
 }
 
 func BenchmarkCurrentGETSnapshot(b *testing.B) {
-	s := &Server{}
+	s := &Server{Store: &Store{}}
 	for i := uint64(1); i <= 50; i++ {
 		g, _ := s.beginGET(i, time.Now(), "bytes=0-999")
 		g.identify("42", strings.Repeat("a", 32))

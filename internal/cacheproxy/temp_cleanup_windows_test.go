@@ -9,8 +9,8 @@ import (
 
 func TestTemporaryCleanupRefusesOpenFile(t *testing.T) {
 	cfg := fixtureConfig()
-	cfg.StorageDir = t.TempDir()
-	path := filepath.Join(cfg.tempDir(), "download-123.part")
+	prepareFixtureResources(t, &cfg, t.TempDir(), true)
+	path := filepath.Join(cfg.publishDir(), "download-publish-123.part")
 	writeTestFile(t, path, "active")
 	f, err := os.Open(path)
 	if err != nil {
@@ -33,14 +33,14 @@ func TestTemporaryCleanupRefusesOpenFile(t *testing.T) {
 
 func TestTemporaryCleanupPreservesWindowsJunction(t *testing.T) {
 	cfg := fixtureConfig()
-	cfg.StorageDir = t.TempDir()
+	prepareFixtureResources(t, &cfg, t.TempDir(), true)
 	outside := t.TempDir()
 	target := filepath.Join(outside, "video")
 	writeTestFile(t, target, "external")
-	if err := os.MkdirAll(cfg.tempDir(), 0700); err != nil {
+	if err := os.MkdirAll(cfg.publishDir(), 0700); err != nil {
 		t.Fatal(err)
 	}
-	link := filepath.Join(cfg.tempDir(), "import-123")
+	link := filepath.Join(cfg.publishDir(), "import-123")
 	if out, err := exec.Command("cmd", "/c", "mklink", "/J", link, outside).CombinedOutput(); err != nil {
 		t.Fatalf("junction: %v: %s", err, out)
 	}

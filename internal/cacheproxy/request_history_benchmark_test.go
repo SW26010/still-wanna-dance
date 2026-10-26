@@ -11,11 +11,11 @@ import (
 
 func BenchmarkRequestHistoryQueries(b *testing.B) {
 	root := b.TempDir()
-	u, err := openUsage(filepath.Join(root, storageDatabaseName), slog.New(slog.NewTextHandler(io.Discard, nil)), 0)
+	u, err := fixtureUsage(b, filepath.Join(root, storageDatabaseName), slog.New(slog.NewTextHandler(io.Discard, nil)), 0)
 	if err != nil {
 		b.Fatal(err)
 	}
-	b.Cleanup(u.close)
+	b.Cleanup(func() { u.close() })
 	now := time.Now()
 	ready := false
 	for i := 0; i < 10000; i += 100 {
@@ -30,7 +30,7 @@ func BenchmarkRequestHistoryQueries(b *testing.B) {
 	b.Run("page-50-of-10000", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
-			if _, err := ReadRequestHistory(context.Background(), root, RequestQuery{Limit: 50, From: now.Add(-72 * time.Hour).UnixMilli()}); err != nil {
+			if _, err := ReadRequestHistory(context.Background(), storagePath(root), RequestQuery{Limit: 50, From: now.Add(-72 * time.Hour).UnixMilli()}); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -38,7 +38,7 @@ func BenchmarkRequestHistoryQueries(b *testing.B) {
 	b.Run("quantiles-10000", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
-			if _, err := ReadFirstBodyLatency(context.Background(), root, now); err != nil {
+			if _, err := ReadFirstBodyLatency(context.Background(), storagePath(root), now); err != nil {
 				b.Fatal(err)
 			}
 		}

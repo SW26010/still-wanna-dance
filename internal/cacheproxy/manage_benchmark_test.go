@@ -30,7 +30,7 @@ func BenchmarkReadCachePageExisting(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-				page, err := ReadCachePage(ctx, root, tc.query, tc.order, tc.offset)
+				page, err := ReadCachePage(ctx, fixtureLibrary(root), tc.query, tc.order, tc.offset)
 				cancel()
 				if err != nil {
 					b.Fatal(err)

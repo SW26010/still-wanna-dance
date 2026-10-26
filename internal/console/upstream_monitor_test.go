@@ -104,7 +104,7 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 		t.Fatal("not idempotent", err)
 	}
 	s := waitMonitor(t, c)
-	db, err := sql.Open("sqlite", filepath.Join(c.settings.StorageDir, "storage.sqlite"))
+	db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 		t.Fatalf("monitor did not fill resource size: %d, %v", size, err)
 	}
 	for _, node := range []string{"cf", "nya"} {
-		urls, err := c.service.SongURLs(context.Background(), 42, node)
+		urls, err := c.store.SongURLs(context.Background(), 42, node)
 		if err != nil || len(urls) != 1 || urls[0].API != "https://api.udon.dance/Api/Songs/play" || urls[0].Node != node || urls[0].MD5 != md5 || urls[0].Size != size {
 			t.Fatalf("monitor URL not reusable for %s: %+v, %v", node, urls, err)
 		}
@@ -264,7 +264,7 @@ func TestThroughputIntervalSettingsPersistAndApply(t *testing.T) {
 	if c.monitor.Snapshot().Policy.ThroughputInterval != 20*time.Minute {
 		t.Fatal("save changed running monitor")
 	}
-	restored, err := New(c.configPath, "127.0.0.1:0")
+	restored, err := newConsoleWithWorkForTest(t, c.configPath, "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}

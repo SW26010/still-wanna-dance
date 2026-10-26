@@ -31,7 +31,7 @@ func TestPrepareAheadSettingsValidationAndPersistence(t *testing.T) {
 		if c.settings.PrepareAheadSeconds != 500 || c.savedSettings.PrepareAheadSeconds != want {
 			t.Fatal("save changed active lead or lost saved lead")
 		}
-		loaded, err := New(c.configPath, c.address)
+		loaded, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 		if err != nil {
 			t.Fatal(err)
 		}

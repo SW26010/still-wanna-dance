@@ -4,7 +4,7 @@ import { mockAPI } from './api';
 for (const colorScheme of ['light', 'dark'] as const) for (const width of [390, 1280]) {
   test(`documents ${colorScheme} ${width}`, async ({ page }, testInfo) => {
     const api=await mockAPI(page);
-    api.state.activeSettings.storageDir='<script>alert("path")</script>';
+    api.state.activeSettings.databasePath='<script>alert("path")</script>';
     await page.emulateMedia({ colorScheme }); await page.setViewportSize({ width, height: 900 });
     const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
     for (const route of ['/about', '/help', '/terms']) {
@@ -17,6 +17,9 @@ for (const colorScheme of ['light', 'dark'] as const) for (const width of [390, 
       await page.keyboard.press('Enter'); await expect(page.locator('#main')).toBeFocused();
       if (route === '/help') {
         await expect(page.getByText('<script>alert("path")</script>', { exact: true })).toBeVisible();
+        await expect(page.getByText('C:\\UI-Test\\data\\state', {exact:true})).toBeVisible();
+        await expect(page.getByText('C:\\UI-Test\\work\\console-test', {exact:true})).toBeVisible();
+        await expect(page.getByText(/精简备份可排除 data\/state/)).toBeVisible();
 
         await expect(page.getByRole('link', { name: '容量收益参考图' })).toHaveAttribute('href', '/assets/storage-benefit.svg');
 

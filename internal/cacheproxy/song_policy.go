@@ -32,11 +32,12 @@ func readSongPolicy(ctx context.Context, db *sql.DB, id int64) (SongPolicy, erro
 
 // SongPolicies is a sparse snapshot for source selection and display. Entry
 // points still check admission when creating work; this snapshot owns no demand.
-func (s *Server) SongPolicies(ctx context.Context) (map[int64]SongPolicy, error) {
+func (s *Store) SongPolicies(ctx context.Context) (resultValue map[int64]SongPolicy, resultErr error) {
 	if !s.beginRequest() {
 		return nil, context.Canceled
 	}
 	defer s.wg.Done()
+	defer func() { resultErr = s.storageError(resultErr) }()
 	rows, err := s.usage.db.QueryContext(ctx, "SELECT song_id,policy FROM song_preferences")
 	if err != nil {
 		return nil, s.storageError(err)
@@ -56,7 +57,7 @@ func (s *Server) SongPolicies(ctx context.Context) (map[int64]SongPolicy, error)
 
 // CheckSongAllowed runs at song entry points, before creating a usage demand.
 // Existing demands are unaffected by later policy changes.
-func (s *Server) CheckSongAllowed(ctx context.Context, id int64) error {
+func (s *Store) CheckSongAllowed(ctx context.Context, id int64) error {
 	if id <= 0 {
 		return errors.New("invalid song ID")
 	}
@@ -77,7 +78,7 @@ func (s *Server) CheckSongAllowed(ctx context.Context, id int64) error {
 // SetSongPolicy commits the preference before waking retention and queue selection.
 // Serializing with publication/eviction prevents a newly favored file from being
 // deleted by a retention decision made before this call completed.
-func (s *Server) SetSongPolicy(ctx context.Context, id int64, policy SongPolicy) error {
+func (s *Store) SetSongPolicy(ctx context.Context, id int64, policy SongPolicy) error {
 	if id <= 0 || !policy.Valid() {
 		return errors.New("invalid song preference")
 	}
@@ -90,27 +91,22 @@ func (s *Server) SetSongPolicy(ctx context.Context, id int64, policy SongPolicy)
 	if err := writeSongPolicy(ctx, s.usage.db, id, policy); err != nil {
 		return s.storageError(err)
 	}
-	s.retentionMu.Lock()
-	s.requestRetentionLocked()
-	s.retentionMu.Unlock()
-	s.mu.Lock()
-	s.notifyQueuePreparationLocked()
-	s.mu.Unlock()
+	s.changed(true)
 	return nil
 }
 
 // SetSongPolicyOffline writes an idle library without starting retention. In
 // particular, favoriting an existing video must precede startup budget cleanup.
-func SetSongPolicyOffline(ctx context.Context, root string, id int64, policy SongPolicy) error {
+func SetSongPolicyOffline(ctx context.Context, databasePath string, id int64, policy SongPolicy) (resultErr error) {
 	if id <= 0 || !policy.Valid() {
 		return errors.New("invalid song preference")
 	}
-	db, close, err := openOfflineStorage(root)
+	store, err := OpenStore(databasePath)
 	if err != nil {
 		return err
 	}
-	defer close()
-	return writeSongPolicy(ctx, db, id, policy)
+	defer func() { resultErr = errors.Join(resultErr, store.Close()) }()
+	return store.SetSongPolicy(ctx, id, policy)
 }
 
 func writeSongPolicy(ctx context.Context, db *sql.DB, id int64, policy SongPolicy) error {

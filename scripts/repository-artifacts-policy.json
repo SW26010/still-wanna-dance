@@ -374,6 +374,69 @@
       "bytes": 1183743,
       "sha256": "c0c92d679d577aa2897f337619f080ec7d5bc23d25b0672285b97e4501a6f3ef",
       "reason": "Production WebUI bundle from pinned dependencies and webui/src, verified by build-manifest.json. Reconcile program theme on every fresh status snapshot after interleaved saves."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1165055,
+      "sha256": "18d6b67ebb8f6a29cc669f1b7bc751ee7d81083d2c1dafd261612ee1b32253c6",
+      "reason": "Production WebUI bundle from pinned dependencies and webui/src, verified by build-manifest.json. Independent database and video locations, automatic first-use defaults, and actual directory and backup guidance."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1165317,
+      "sha256": "bd3fe64e813dc49059e244f08f870dcc1798415f8602ddf97da02fdfcbb74351",
+      "reason": "Production WebUI bundle from pinned dependencies and webui/src, verified by build-manifest.json. Allow cancellable database selection beyond the ordinary request timeout while preserving drafts and the server deadline."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1159136,
+      "sha256": "1e6ce2851f7b8be7c60b296c3c9278b1ff16269b6824fb663ada2f6f93c27166",
+      "reason": "Historical production WebUI bundle from aeb5f07 (fix(webui): clarify UAC prompts for privileged actions); output hash verified against that commit's webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1157574,
+      "sha256": "a7fb986e0d1e695f80ebd07e16eb63a77d4e9978d8bff6e8ea5d04b1d175f528",
+      "reason": "Historical production WebUI bundle from 7d8b6c9 (refactor(console): remove setup wizard and retain terms consent); output hash verified against that commit's webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1183786,
+      "sha256": "3d6b266ae3e724a8a5f84401b6cea5d776d75c5fc828a8d9ba4e27bedabd72e5",
+      "reason": "Historical production WebUI bundle from 33d2a6e (feat(webui): separate network diagnostics from settings); output hash verified against that commit's webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1183662,
+      "sha256": "31cf4aecb573519811b41865a4d9ca7b166544acf95fcb108507de022faf1320",
+      "reason": "Historical production WebUI bundle from 8109124 (refactor(webui): simplify workflows with Fluent UI); output hash verified against that commit's webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1209332,
+      "sha256": "a75a66d984db4d18e2512c168f6194a67c67f1c964d530b43897e2de0830f7f7",
+      "reason": "Historical production WebUI bundle from 440ac20 (refactor(console): clarify app and WebUI terminology); output hash verified against that commit's webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1209386,
+      "sha256": "fd0bb63869bcd8f510b05f56b278d64cdca8bb1cd11edd11752f74f87b753a34",
+      "reason": "Historical production WebUI bundle from 36055df (fix(console): open consent flow when terms need confirmation); output hash verified against that commit's webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1209254,
+      "sha256": "c71fb3f3fb0309a6053cc81888c690a6d4ff2b65f617d7df7d468e25a5669aac",
+      "reason": "Historical production WebUI bundle from d06fd5d (fix(webui): expire operation feedback when leaving a page); output hash verified against that commit's webui/build-manifest.json."
     }
   ]
 }

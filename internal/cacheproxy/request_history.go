@@ -75,10 +75,10 @@ type FirstBodyLatency struct {
 
 // Exact nearest-rank percentiles are calculated in SQLite; only two aggregate
 // rows reach the UI. Retention and collection coverage survive process restarts.
-func ReadFirstBodyLatency(ctx context.Context, root string, now time.Time) (FirstBodyLatency, error) {
+func ReadFirstBodyLatency(ctx context.Context, databasePath string, now time.Time) (FirstBodyLatency, error) {
 	r := FirstBodyLatency{From: now.Add(-72 * time.Hour).UnixMilli(), To: now.UnixMilli(), Partial: true}
-	db, err := readStorageDatabase(root)
-	if err != nil || db == nil {
+	db, err := readDatabaseFile(databasePath)
+	if err != nil {
 		return r, err
 	}
 	defer db.Close()

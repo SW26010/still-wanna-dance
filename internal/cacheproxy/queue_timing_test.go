@@ -109,7 +109,7 @@ func TestIdleQueueDownloadSurvivesOriginalDeadline(t *testing.T) {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				cfg := fixtureConfig()
-				cfg.StorageDir = t.TempDir()
+				prepareFixtureResources(t, &cfg, t.TempDir(), true)
 				cfg.Logger = slog.New(slog.NewTextHandler(testLogWriter{t}, nil))
 				calls := 0
 				cfg.ResourceTransports = func(string) []http.RoundTripper {

@@ -58,5 +58,5 @@ func (s *Server) storageError(err error) error {
 func (s *Server) StorageError() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.storageFailure
+	return errors.Join(s.storageFailure, s.Store.Error())
 }

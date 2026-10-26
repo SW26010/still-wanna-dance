@@ -20,6 +20,7 @@ func TestDownloadSettingsValidation(t *testing.T) {
 		{0, 0, false}, {65, 0, false}, {1, -time.Millisecond, false}, {1, 2001 * time.Millisecond, false},
 	} {
 		cfg := DefaultConfig()
+		cfg.VideoDir = t.TempDir()
 		cfg.DownloadSoftLimit, cfg.DownloadGrowInterval = tc.limit, tc.interval
 		if err := cfg.validate(); (err == nil) != tc.valid {
 			t.Fatalf("limit=%d interval=%s: %v", tc.limit, tc.interval, err)
@@ -37,6 +38,7 @@ func TestConfiguredDownloadSchedulerAdmission(t *testing.T) {
 		t.Run(fmt.Sprintf("%d/%s", tc.limit, tc.interval), func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				cfg := DefaultConfig()
+				cfg.VideoDir = t.TempDir()
 				cfg.DownloadSoftLimit, cfg.DownloadGrowInterval = tc.limit, tc.interval
 				s := newDownloadScheduler(cfg)
 				defer s.Close()

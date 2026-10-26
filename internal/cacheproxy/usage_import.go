@@ -60,12 +60,9 @@ func (h *SongUsageImport) Observe(id, at int64) {
 }
 
 // ReadSongUsageCount never creates a database or starts a storage engine.
-func ReadSongUsageCount(ctx context.Context, root string) (int, error) {
-	if _, err := InspectStorage(root); err != nil {
-		return 0, err
-	}
-	db, err := readStorageDatabase(root)
-	if err != nil || db == nil {
+func ReadSongUsageCount(ctx context.Context, databasePath string) (int, error) {
+	db, err := readDatabaseFile(databasePath)
+	if err != nil {
 		return 0, err
 	}
 	defer db.Close()
@@ -74,7 +71,12 @@ func ReadSongUsageCount(ctx context.Context, root string) (int, error) {
 	return count, err
 }
 
-func (s *Server) SongUsageCount(ctx context.Context) (int, error) {
+func (s *Store) SongUsageCount(ctx context.Context) (resultValue int, resultErr error) {
+	if !s.beginRequest() {
+		return 0, context.Canceled
+	}
+	defer s.wg.Done()
+	defer func() { resultErr = s.storageError(resultErr) }()
 	s.usage.flush()
 	var count int
 	err := s.usage.db.QueryRowContext(ctx, "SELECT count(*) FROM song_usage").Scan(&count)
@@ -84,10 +86,14 @@ func (s *Server) SongUsageCount(ctx context.Context) (int, error) {
 // ImportSongUsage serializes against the existing observation queue. All
 // accepted GETs are drained before the in-transaction empty check; later GETs
 // enqueue after commit. Replacement and any placeholder songs commit together.
-func (s *Server) ImportSongUsage(ctx context.Context, h *SongUsageImport, overwrite bool) error {
+func (s *Store) ImportSongUsage(ctx context.Context, h *SongUsageImport, overwrite bool) error {
 	if h == nil || h.Events == 0 || len(h.rows) == 0 {
 		return errors.New("没有有效历史需求，原统计保持不变")
 	}
+	if !s.beginRequest() {
+		return context.Canceled
+	}
+	defer s.wg.Done()
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	u := s.usage
@@ -95,6 +101,9 @@ func (s *Server) ImportSongUsage(ctx context.Context, h *SongUsageImport, overwr
 	defer u.mu.Unlock()
 	if u.closed {
 		return errors.New("存储已关闭，请重新打开应用")
+	}
+	if !u.started {
+		return s.storageError(replaceSongUsage(ctx, u.db, h, overwrite))
 	}
 	done := make(chan struct{})
 	select {
@@ -107,24 +116,21 @@ func (s *Server) ImportSongUsage(ctx context.Context, h *SongUsageImport, overwr
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	return replaceSongUsage(ctx, u.db, h, overwrite)
+	return s.storageError(replaceSongUsage(ctx, u.db, h, overwrite))
 }
 
-// ImportSongUsage opens an idle library under its existing directory lock.
-// It does not start an engine or run eviction/cleanup. A new library gets the
-// standard empty videos directory so later storage checks can reuse it.
-func ImportSongUsage(ctx context.Context, root string, h *SongUsageImport, overwrite bool) error {
+// ImportSongUsage writes an existing database without starting an engine,
+// creating directories, pruning observations, or deriving any video location.
+func ImportSongUsage(ctx context.Context, databasePath string, h *SongUsageImport, overwrite bool) (resultErr error) {
 	if h == nil || h.Events == 0 || len(h.rows) == 0 {
 		return errors.New("没有有效历史需求，原统计保持不变")
 	}
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-	db, close, err := openOfflineStorage(root)
+	store, err := OpenStore(databasePath)
 	if err != nil {
 		return err
 	}
-	defer close()
-	return replaceSongUsage(ctx, db, h, overwrite)
+	defer func() { resultErr = errors.Join(resultErr, store.Close()) }()
+	return store.ImportSongUsage(ctx, h, overwrite)
 }
 
 func replaceSongUsage(ctx context.Context, db *sql.DB, h *SongUsageImport, overwrite bool) error {

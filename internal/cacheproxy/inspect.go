@@ -13,8 +13,8 @@ import (
 // publishes, deletes, or updates usage or verification metadata.
 // A missing/corrupt video is a scan result; an unreadable file is an error and
 // must not replace a successful snapshot.
-func CheckLocal(ctx context.Context, storageDir, target string) (bool, error) {
-	hit, _, err := CheckLocalReceipt(ctx, storageDir, target)
+func CheckLocal(ctx context.Context, videoDir, target string) (bool, error) {
+	hit, _, err := CheckLocalReceipt(ctx, videoDir, target)
 	return hit, err
 }
 
@@ -44,7 +44,7 @@ func (s *Server) ReuseLocalSong(ctx context.Context, id, target string, receipt 
 	}
 	s.pinVideo(v)
 	defer s.releaseVideo(v)
-	if receipt.path != filepath.Join(s.cfg.StorageDir, "videos", v.key+".mp4") || !receipt.Unchanged() {
+	if receipt.path != s.cfg.videoFile(v.key) || !receipt.Unchanged() {
 		return false, nil
 	}
 	if err := ctx.Err(); err != nil {
@@ -79,8 +79,8 @@ type LocalCheckResult struct {
 	Receipt *LocalReceipt
 }
 
-func NewLocalChecker(storageDir string, force bool) (*LocalChecker, error) {
-	root, err := filepath.Abs(storageDir)
+func NewLocalChecker(videoDir string, force bool) (*LocalChecker, error) {
+	root, err := CacheDirectory(videoDir)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (c *LocalChecker) Check(ctx context.Context, target string) (LocalCheckResu
 		return result, err
 	}
 	// Forced scans hash shared resources once, checking attributes for each song.
-	unlock, err := localScanLocks.acquire(ctx, c.root+v.key)
+	unlock, err := localScanLocks.acquire(ctx, pathIdentity(c.root)+v.key)
 	if err != nil {
 		return result, err
 	}
@@ -112,7 +112,7 @@ func (c *LocalChecker) Check(ctx context.Context, target string) (LocalCheckResu
 	if prior != nil && prior.Unchanged() {
 		return LocalCheckResult{Hit: true, Reused: true, Receipt: prior}, ctx.Err()
 	}
-	path := filepath.Join(c.root, "videos", v.key+".mp4")
+	path := filepath.Join(c.root, v.key+".mp4")
 	file, err := os.Open(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return result, nil
@@ -143,11 +143,11 @@ func (c *LocalChecker) Check(ctx context.Context, target string) (LocalCheckResu
 
 var localScanLocks = newCheckLocks()
 
-func CheckLocalReceipt(ctx context.Context, storageDir, target string) (bool, *LocalReceipt, error) {
+func CheckLocalReceipt(ctx context.Context, videoDir, target string) (bool, *LocalReceipt, error) {
 	if err := ctx.Err(); err != nil {
 		return false, nil, err
 	}
-	checker, err := NewLocalChecker(storageDir, false)
+	checker, err := NewLocalChecker(videoDir, false)
 	if err != nil {
 		return false, nil, err
 	}

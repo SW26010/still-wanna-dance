@@ -17,32 +17,27 @@ func TestPortableMoveReopensInternalAndExternalMedia(t *testing.T) {
 			root := t.TempDir()
 			original := filepath.Join(root, "original")
 			config := apppaths.DefaultConfig(filepath.Join(original, "SWD.exe"))
-			c, err := New(config, "127.0.0.1:0")
+			c, err := newConsoleWithWorkForTest(t, config, "127.0.0.1:0")
 			if err != nil {
 				t.Fatal(err)
 			}
 			settings := c.settings
+			settings.DatabasePath, settings.VideoDir = c.defaultDatabasePath(), c.defaultVideoDir()
 			if external {
-				settings.StorageDir = filepath.Join(root, "external media")
+				setTestLibraryPaths(&settings, filepath.Join(root, "external media"))
+				createTestDatabase(t, settings.DatabasePath)
 			}
 			if err := c.save(settings); err != nil {
 				t.Fatal(err)
 			}
 			c.Close()
 			cfg := fixtureCacheConfig()
-			cfg.StorageDir = settings.StorageDir
-			engine, err := cacheproxy.New(cfg)
-			if err != nil {
+			cfg.VideoDir = settings.VideoDir
+			video := strings.Repeat("a", 32) + ".mp4"
+			if err := os.WriteFile(filepath.Join(cfg.VideoDir, video), []byte("preserve video"), 0600); err != nil {
 				t.Fatal(err)
 			}
-			if err := engine.Close(); err != nil {
-				t.Fatal(err)
-			}
-			video := filepath.Join("videos", strings.Repeat("a", 32)+".mp4")
-			if err := os.WriteFile(filepath.Join(cfg.StorageDir, video), []byte("preserve video"), 0600); err != nil {
-				t.Fatal(err)
-			}
-			database, err := os.ReadFile(filepath.Join(cfg.StorageDir, "storage.sqlite"))
+			database, err := os.ReadFile(settings.DatabasePath)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -50,24 +45,26 @@ func TestPortableMoveReopensInternalAndExternalMedia(t *testing.T) {
 			if err := os.Rename(original, moved); err != nil {
 				t.Fatal(err)
 			}
-			c, err = New(apppaths.DefaultConfig(filepath.Join(moved, "SWD.exe")), "127.0.0.1:0")
+			c, err = newConsoleWithWorkForTest(t, apppaths.DefaultConfig(filepath.Join(moved, "SWD.exe")), "127.0.0.1:0")
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer c.Close()
-			want := filepath.Join(moved, "data", "storage")
+			want := filepath.Join(moved, "data", "database")
+			wantVideo := filepath.Join(moved, "videos")
 			if external {
-				want = settings.StorageDir
+				want = testStorageRoot(settings)
+				wantVideo = settings.VideoDir
 			}
-			if c.settings.StorageDir != want {
-				t.Fatal("wrong library after move", c.settings.StorageDir)
+			if testStorageRoot(c.settings) != want || c.settings.VideoDir != wantVideo {
+				t.Fatal("wrong library after move", testStorageRoot(c.settings))
 			}
 			got, err := os.ReadFile(filepath.Join(want, "storage.sqlite"))
 			if err != nil || !bytes.Equal(got, database) {
 				t.Fatal("database changed during move", err)
 			}
-			cfg.StorageDir = want
-			engine, err = cacheproxy.New(cfg)
+			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, c.settings.VideoDir
+			engine, err := cacheproxy.New(cfg)
 			if err != nil {
 				t.Fatal("moved library could not reopen", err)
 			}
@@ -75,14 +72,14 @@ func TestPortableMoveReopensInternalAndExternalMedia(t *testing.T) {
 				t.Fatal(err)
 			}
 			settings = c.settings
-			settings.StorageDir = filepath.Join(root, "selected but unused")
-			if err := c.save(settings); err != nil {
-				t.Fatal(err)
+			setTestLibraryPaths(&settings, filepath.Join(root, "selected but unused"))
+			if err := c.save(settings); err == nil {
+				t.Fatal("missing database selection accepted")
 			}
-			if got, err := os.ReadFile(filepath.Join(want, video)); err != nil || string(got) != "preserve video" {
+			if got, err := os.ReadFile(filepath.Join(wantVideo, video)); err != nil || string(got) != "preserve video" {
 				t.Fatal("changing settings moved or damaged media", err)
 			}
-			if _, err := os.Stat(settings.StorageDir); !os.IsNotExist(err) {
+			if _, err := os.Stat(testStorageRoot(settings)); !os.IsNotExist(err) {
 				t.Fatal("saving a path created another store", err)
 			}
 		})

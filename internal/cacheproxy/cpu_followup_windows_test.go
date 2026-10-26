@@ -456,7 +456,26 @@ func followMarker() (func(string) error, func(), error) {
 
 func followEngine(ctx context.Context, p followPlan, tr *followTransport, r *followReport, urls []string, want []byte) (retErr error) {
 	cfg := fixtureConfig()
-	cfg.StorageDir = p.Storage
+	path := storagePath(p.Storage)
+	var err error
+	if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
+		cfg.Store, err = CreateStore(path)
+	} else {
+		cfg.Store, err = OpenStore(path)
+	}
+	if err != nil {
+		return err
+	}
+	defer cfg.Store.Close()
+	cfg.VideoDir = filepath.Join(p.Storage, "videos")
+	if err = os.MkdirAll(cfg.VideoDir, 0700); err != nil {
+		return err
+	}
+	cfg.Work, err = OpenWorkDirectory(filepath.Join(p.Storage, "work"), cfg.Logger)
+	if err != nil {
+		return err
+	}
+	defer cfg.Work.Close()
 	cfg.DownloadTimeout = 40 * time.Second
 	cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg.ResourceTransports = func(string) []http.RoundTripper { return []http.RoundTripper{tr} }

@@ -32,6 +32,9 @@ func monitorPlaybackResponse() upstreamstate.PlaybackURLResponse {
 
 func TestMonitorPlaybackURLPersistsMetadataWithoutDownload(t *testing.T) {
 	c := testConsole(t)
+	if err := os.Remove(libraryPaths(c.settings).VideoDir); err != nil {
+		t.Fatal(err)
+	}
 	c.client.Transport = catalogTransport(func(*http.Request) (*http.Response, error) {
 		t.Error("URL persistence made an extra request")
 		return nil, errors.New("unexpected request")
@@ -50,7 +53,7 @@ func TestMonitorPlaybackURLPersistsMetadataWithoutDownload(t *testing.T) {
 	shared := newer
 	shared.SongID = 2
 	c.syncMonitorPlaybackURL(ctx, shared)
-	db, err := sql.Open("sqlite", filepath.Join(c.settings.StorageDir, "storage.sqlite"))
+	db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,19 +70,22 @@ func TestMonitorPlaybackURLPersistsMetadataWithoutDownload(t *testing.T) {
 		t.Fatalf("URL did not fill the missing mapping: %s, %v", mapped, err)
 	}
 	for _, id := range []int64{1, 2} {
-		urls, err := c.service.SongURLs(ctx, id, "cf")
+		urls, err := c.store.SongURLs(ctx, id, "cf")
 		if err != nil || len(urls) != 1 || urls[0].URL != newer.URL || !urls[0].QueryStartedAt.Equal(newer.QueryStartedAt) || !urls[0].ObservedAt.Equal(newer.ObservedAt) {
 			t.Fatalf("wrong persisted observation for %d: %+v, %v", id, urls, err)
 		}
 	}
-	for table, want := range map[string]int{"songs": 2, "song_media": 2, "song_urls": 2, "media": 2, "song_usage": 0, "request_events": 0} {
+	for table, want := range map[string]int{"songs": 2, "song_media": 2, "song_urls": 2, "media": 2, "song_usage": 0, "request_events": 0, "request_observation": 0} {
 		var count int
 		if err := db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != want {
 			t.Fatalf("%s count=%d, want %d: %v", table, count, want, err)
 		}
 	}
+	if c.service != nil {
+		t.Fatal("metadata persistence started a video engine")
+	}
 	for _, dir := range []string{"videos", "tmp"} {
-		entries, err := os.ReadDir(filepath.Join(c.settings.StorageDir, dir))
+		entries, err := os.ReadDir(filepath.Join(testStorageRoot(c.settings), dir))
 		if err != nil && !os.IsNotExist(err) || len(entries) != 0 {
 			t.Fatalf("persistence created media files in %s: %v, %v", dir, entries, err)
 		}
@@ -100,8 +106,8 @@ func TestMonitorPlaybackURLCanceledOrClosingDoesNotOpenStorage(t *testing.T) {
 		if c.service != nil {
 			t.Fatal("opened storage for canceled/closing response")
 		}
-		if _, err := os.Stat(c.settings.StorageDir); !os.IsNotExist(err) {
-			t.Fatal("created storage for canceled/closing response", err)
+		if urls, err := c.store.SongURLs(context.Background(), 42, "cf"); err != nil || len(urls) != 0 {
+			t.Fatal("canceled/closing response wrote metadata", urls, err)
 		}
 		c.closing = false
 	}
@@ -111,8 +117,8 @@ func TestMonitorPlaybackURLStorageFailureRollsBack(t *testing.T) {
 	c := testConsole(t)
 	ctx := context.Background()
 	old := monitorPlaybackResponse()
-	c.syncMonitorPlaybackURL(ctx, old) // Playback-only checks can initialize storage.
-	db, err := sql.Open("sqlite", filepath.Join(c.settings.StorageDir, "storage.sqlite"))
+	c.syncMonitorPlaybackURL(ctx, old) // Playback-only checks write the application store without a media engine.
+	db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,10 +131,10 @@ func TestMonitorPlaybackURLStorageFailureRollsBack(t *testing.T) {
 	newer.ObservedAt = newer.QueryStartedAt.Add(time.Second)
 	newer.URL = "https://play.udon.dance/files/1/42-new.mp4?e=cccccccccccccccccccccccccccccccc&s=5678"
 	c.syncMonitorPlaybackURL(ctx, newer)
-	if !errors.Is(c.service.StorageError(), cacheproxy.ErrLocalStorage) {
-		t.Fatal("monitor persistence did not retain storage fault", c.service.StorageError())
+	if !errors.Is(c.store.Error(), cacheproxy.ErrLocalStorage) {
+		t.Fatal("monitor persistence did not retain storage fault", c.store.Error())
 	}
-	urls, err := c.service.SongURLs(ctx, old.SongID, old.Node)
+	urls, err := c.store.SongURLs(ctx, old.SongID, old.Node)
 	if err != nil || len(urls) != 1 || urls[0].URL != old.URL {
 		t.Fatalf("failed update was not rolled back: %+v, %v", urls, err)
 	}

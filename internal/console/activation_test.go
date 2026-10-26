@@ -34,7 +34,7 @@ func TestActivationPreservesIndependentQueueWhenFollowDisabled(t *testing.T) {
 func TestActivationRecordsPlaybackArrivalOnResolutionFailure(t *testing.T) {
 	c := testConsole(t)
 	cfg := fixtureCacheConfig()
-	cfg.StorageDir = c.settings.StorageDir
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.BeginVideoRequest = c.beginVideoRequest
 	cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
 		c.mu.Lock()

@@ -10,10 +10,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
+	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/legal"
 	"still-wanna-dance/internal/upstreamnet"
@@ -36,7 +38,9 @@ func run() (resultErr error) {
 	socks5Address := flag.String("socks5-proxy", "", "SOCKS5 proxy host:port; delegates destination DNS to proxy; empty uses built-in DoH directly")
 	socks5Username := flag.String("socks5-username", "", "SOCKS5 username; set password via SWD_SOCKS5_PASSWORD")
 	listen := flag.String("listen", "127.0.0.1:18080", "HTTP listen address (use 127.0.0.1:80 for game integration)")
-	flag.StringVar(&cfg.StorageDir, "storage-dir", cfg.StorageDir, "storage root (videos, tmp and storage.sqlite); one process per root")
+	database := flag.String("database", "", "existing SWD database file; opened without creating or migrating data")
+	createDatabase := flag.Bool("create-database", false, "create the new file selected by -database and exit; never overwrite an existing file")
+	flag.StringVar(&cfg.VideoDir, "video-dir", "", "existing complete-video directory, independent of the database; work files stay beside the executable")
 	flag.Func("origin", "explicit DOMAIN=HOST:PORT dial override (repeatable); retains DOMAIN as HTTP Host and TLS SNI", func(value string) error {
 		host, address, ok := strings.Cut(value, "=")
 		if !ok || host == "" || address == "" {
@@ -69,8 +73,10 @@ func run() (resultErr error) {
 		fmt.Print(legal.Text)
 		return nil
 	}
-	if err := legal.CheckAcceptance(*acceptTerms); err != nil {
-		return err
+	if !*createDatabase {
+		if err := legal.CheckAcceptance(*acceptTerms); err != nil {
+			return err
+		}
 	}
 	if flag.NArg() != 0 {
 		return fmt.Errorf("unexpected positional arguments")
@@ -85,6 +91,60 @@ func run() (resultErr error) {
 			return err
 		}
 	}
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	exe, err = filepath.EvalSymlinks(exe)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(*database) == "" {
+		return errors.New("-database is required; use -create-database only to create a new database")
+	}
+	*database, err = filepath.Abs(*database)
+	if err != nil {
+		return err
+	}
+	if err := apppaths.ValidateWorkSeparation(exe, *database); err != nil {
+		return err
+	}
+	if *createDatabase {
+		store, err := cacheproxy.CreateStore(*database)
+		if err != nil {
+			return err
+		}
+		if err := store.Close(); err != nil {
+			return err
+		}
+		cfg.Logger.Info("database_created", "database", *database)
+		return nil
+	}
+	if cfg.VideoDir == "" {
+		return errors.New("-video-dir is required; select an existing complete-video directory")
+	}
+	cfg.VideoDir, err = filepath.Abs(cfg.VideoDir)
+	if err != nil {
+		return err
+	}
+	if err := apppaths.ValidateWorkSeparation(exe, cfg.VideoDir); err != nil {
+		return err
+	}
+	work, err := cacheproxy.OpenWorkDirectory(apppaths.WorkForService(exe, *database, cfg.VideoDir), nil)
+	if err != nil {
+		return err
+	}
+	defer func() { resultErr = errors.Join(resultErr, work.Close()) }()
+	cfg.Work = work
+	if err := checkVideoPolicy(cfg.VideoDir, limitSet || unlimitedSet); err != nil {
+		return err
+	}
+	store, err := cacheproxy.OpenStore(*database)
+	if err != nil {
+		return err
+	}
+	defer func() { resultErr = errors.Join(resultErr, store.Close()) }()
+	cfg.Store = store
 	service, err := cacheproxy.New(cfg)
 	if err != nil {
 		return err
@@ -99,7 +159,7 @@ func run() (resultErr error) {
 	defer stop()
 	done := make(chan error, 1)
 	go func() { done <- server.Serve(listener) }()
-	cfg.Logger.Info("listening", "address", listener.Addr().String(), "storage_dir", cfg.StorageDir)
+	cfg.Logger.Info("listening", "address", listener.Addr().String(), "database", *database, "video_dir", cfg.VideoDir)
 	select {
 	case err := <-done:
 		if !errors.Is(err, http.ErrServerClosed) {

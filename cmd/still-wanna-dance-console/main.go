@@ -22,6 +22,7 @@ import (
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/buildinfo"
+	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/console"
 	"still-wanna-dance/internal/desktop"
 	"still-wanna-dance/internal/legal"
@@ -107,6 +108,9 @@ func run() (runErr error) {
 		return err
 	}
 	p := identity.Config
+	if err := apppaths.ValidateWorkSeparation(exe, p); err != nil {
+		return err
+	}
 	var instance *desktop.Instance
 	if !*noTray {
 		lease, err := desktop.AcquireOrActivate(ctx, identity, !*noOpen)
@@ -129,6 +133,11 @@ func run() (runErr error) {
 		return err
 	}
 	defer configLease.Close()
+	work, err := cacheproxy.OpenWorkDirectory(apppaths.WorkForConfig(exe, p), nil)
+	if err != nil {
+		return err
+	}
+	defer func() { runErr = errors.Join(runErr, work.Close()) }()
 	logPath := apppaths.ForConfig(p).Log
 	writer, err := applog.Open(logPath, applog.MaxBytes, applog.Backups, func(err error) {
 		message := fmt.Errorf("程序日志写入失败（%s）：%w", logPath, err)
@@ -177,7 +186,7 @@ func run() (runErr error) {
 		return desktop.PortError(*address, err)
 	}
 	defer l.Close()
-	c, err := console.New(p, l.Addr().String())
+	c, err := console.New(p, l.Addr().String(), work)
 	if err != nil {
 		return err
 	}

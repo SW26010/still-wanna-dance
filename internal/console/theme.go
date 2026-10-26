@@ -14,5 +14,5 @@ func (c *Console) saveTheme(theme string) error {
 	s := c.savedSettings
 	c.mu.Unlock()
 	s.Theme = theme
-	return c.saveSettingsLocked(s, true)
+	return c.saveSettingsLocked(s, true, false)
 }

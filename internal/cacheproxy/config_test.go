@@ -5,6 +5,7 @@ import "testing"
 func TestAggressiveCacheReclamationValidation(t *testing.T) {
 	for _, policy := range []string{"auto", "on", "off", "", "true", "false", "unknown"} {
 		cfg := DefaultConfig()
+		cfg.VideoDir = t.TempDir()
 		cfg.AggressiveCacheReclamation = policy
 		valid := policy == "auto" || policy == "on" || policy == "off"
 		if err := cfg.validate(); (err == nil) != valid {
@@ -32,6 +33,7 @@ func TestOriginAddressValidation(t *testing.T) {
 	} {
 		t.Run(tc.address, func(t *testing.T) {
 			cfg := fixtureConfig()
+			cfg.VideoDir = t.TempDir()
 			cfg.Origins["play.udon.dance"] = tc.address
 			if err := cfg.validate(); (err == nil) != tc.valid {
 				t.Fatalf("validate(%q) = %v, valid=%v", tc.address, err, tc.valid)

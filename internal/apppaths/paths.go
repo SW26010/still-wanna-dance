@@ -10,14 +10,14 @@ import (
 	"strings"
 )
 
-const ConfigVersion = 6
+const ConfigVersion = 7
 
 type Paths struct {
-	Config, Root, Lock, Terms, ChannelKey, Log, DefaultStorage string
+	Config, Root, Lock, StateDir, Terms, ChannelKey, Log, DefaultDatabase, DefaultVideo string
 }
 
 func DefaultConfig(executable string) string {
-	return filepath.Join(filepath.Dir(executable), "data", "config.json")
+	return filepath.Join(filepath.Dir(executable), "config.json")
 }
 
 // ForConfig takes an absolute configuration filename. config.json owns its
@@ -27,24 +27,25 @@ func ForConfig(config string) Paths {
 	base := filepath.Base(config)
 	root := filepath.Dir(config)
 	canonical := base == "config.json" || (runtime.GOOS == "windows" && strings.EqualFold(base, "config.json"))
-	storage := "storage"
+	prefix := ""
 	if !canonical {
 		root = config + ".d"
-		storage = filepath.Join(base+".d", "storage")
+		prefix = base + ".d"
 	}
+	state := filepath.Join(root, "data", "state")
 	return Paths{Config: config, Root: root, Lock: filepath.Join(root, "config.lock"),
-		Terms: filepath.Join(root, "terms.json"), ChannelKey: filepath.Join(root, "channel.key"),
-		Log: filepath.Join(root, "logs", "app.log"), DefaultStorage: storage}
+		StateDir: state, Terms: filepath.Join(state, "terms.json"), ChannelKey: filepath.Join(state, "channel.key"),
+		Log: filepath.Join(root, "logs", "app.log"), DefaultDatabase: filepath.Join(prefix, "data", "database", "storage.sqlite"), DefaultVideo: filepath.Join(prefix, "videos")}
 }
 
-func (p Paths) State(name string) string { return filepath.Join(p.Root, "state", name+".json") }
+func (p Paths) State(name string) string { return filepath.Join(p.StateDir, name+".json") }
 
 // Reserve canonical companions so a second configuration cannot overwrite them.
 func ValidateConfigPath(config string) error {
 	if strings.HasSuffix(strings.ToLower(filepath.Base(config)), ".swd-tmp") {
 		return fmt.Errorf("配置文件名不能使用原子写入保留后缀 .swd-tmp")
 	}
-	for _, name := range []string{"terms.json", "channel.key", "config.lock", "state", "logs", "storage"} {
+	for _, name := range []string{"terms.json", "channel.key", "config.lock", "data", "state", "logs", "storage", "videos", "work", "licenses"} {
 		if strings.EqualFold(filepath.Base(config), name) {
 			return fmt.Errorf("配置文件名 %s 为应用数据保留名称，请使用 config.json 或其他独立名称", name)
 		}

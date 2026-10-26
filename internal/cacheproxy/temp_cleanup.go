@@ -9,8 +9,16 @@ import (
 	"still-wanna-dance/internal/workfiles"
 )
 
-// Called only after the storage lease and format checks, before any workers.
-func cleanTemporaryFiles(dir string, logger *slog.Logger) (int, error) {
+type mediaWorkKind int
+
+const (
+	blockWork mediaWorkKind = iota
+	publicationWork
+)
+
+// The caller owns this directory's lease and has not started any writers.
+// Each location recognizes only the file kinds it actually creates.
+func cleanMediaWorkFiles(dir string, logger *slog.Logger, kind mediaWorkKind) (int, error) {
 	if err := workfiles.CheckDir(dir); err != nil {
 		return 0, err
 	}
@@ -31,8 +39,9 @@ func cleanTemporaryFiles(dir string, logger *slog.Logger) (int, error) {
 	cleaned := 0
 	for _, entry := range entries {
 		name := entry.Name()
-		partial := workfiles.RandomName(name, "download-block-", ".part") || workfiles.RandomName(name, "download-", ".part") || workfiles.RandomName(name, "download-publish-", ".part")
-		importDir := workfiles.RandomName(name, "import-", "")
+		partial := kind == blockWork && workfiles.RandomName(name, "download-block-", ".part") ||
+			kind == publicationWork && workfiles.RandomName(name, "download-publish-", ".part")
+		importDir := kind == publicationWork && workfiles.RandomName(name, "import-", "")
 		if !partial && !importDir {
 			continue
 		}

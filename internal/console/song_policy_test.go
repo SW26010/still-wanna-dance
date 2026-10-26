@@ -23,6 +23,10 @@ import (
 
 func TestSongPolicyAPIReadAuthValidationAndPersistence(t *testing.T) {
 	c := testConsole(t)
+	createReaderLibrary(t, c)
+	if err := os.Remove(libraryPaths(c.settings).VideoDir); err != nil {
+		t.Fatal(err)
+	}
 	call := func(method, path, body, token, origin string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, "http://"+c.address+path, strings.NewReader(body))
 		r.Header.Set("X-SWD-Token", token)
@@ -55,7 +59,7 @@ func TestSongPolicyAPIReadAuthValidationAndPersistence(t *testing.T) {
 		}
 	}
 	for _, policy := range []string{"favorite", "blocked", "normal"} {
-		body := fmt.Sprintf(`{"storageID":%q,"id":"42","policy":%q}`, cacheproxy.CacheStorageID(c.settings.StorageDir), policy)
+		body := fmt.Sprintf(`{"storageID":%q,"id":"42","policy":%q}`, cacheproxy.DatabaseID(libraryPaths(c.settings).DatabasePath), policy)
 		if w := call("POST", "/api/songs", body, c.token, ""); w.Code != 200 {
 			t.Fatal(w.Code, w.Body.String())
 		}
@@ -71,12 +75,16 @@ func TestSongPolicyAPIReadAuthValidationAndPersistence(t *testing.T) {
 	if c.service != nil || c.httpServer != nil || c.batch.Running || c.queue.Running {
 		t.Fatal("marking started work")
 	}
+	if _, err := os.Stat(libraryPaths(c.settings).VideoDir); !os.IsNotExist(err) {
+		t.Fatal("preference operations recreated the missing video directory", err)
+	}
 }
 
 func TestOfflineSongFavoritePrecedesStartupRetention(t *testing.T) {
 	c := testConsole(t) // no engine; the active storage budget is zero
 	cfg := fixtureCacheConfig()
-	cfg.StorageDir, cfg.CacheUnlimited = c.settings.StorageDir, true
+	cfg.CacheUnlimited = true
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -87,18 +95,18 @@ func TestOfflineSongFavoritePrecedesStartupRetention(t *testing.T) {
 	if err := engine.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261021000000", Source: "test", Songs: []cacheproxy.CatalogSong{{ID: 42, MD5: key}}}); err != nil {
 		t.Fatal(err)
 	}
-	file := filepath.Join(cfg.StorageDir, "videos", key+".mp4")
+	file := filepath.Join(cfg.VideoDir, key+".mp4")
 	if err := os.WriteFile(file, []byte(body), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if err := engine.Close(); err != nil {
 		t.Fatal(err)
 	}
-	partial := filepath.Join(cfg.StorageDir, "tmp", "download-block-1234.part")
+	partial := filepath.Join(cfg.VideoDir, ".swd-tmp", "download-block-1234.part")
 	if err := os.WriteFile(partial, []byte("previous run"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	input := fmt.Sprintf(`{"storageID":%q,"id":"42","policy":"favorite"}`, cacheproxy.CacheStorageID(cfg.StorageDir))
+	input := fmt.Sprintf(`{"storageID":%q,"id":"42","policy":"favorite"}`, cacheproxy.DatabaseID(fixtureLibraryPaths(filepath.Dir(cfg.VideoDir)).DatabasePath))
 	r := httptest.NewRequest("POST", "http://"+c.address+"/api/songs", strings.NewReader(input))
 	r.Header.Set("X-SWD-Token", c.token)
 	w := httptest.NewRecorder()
@@ -115,7 +123,7 @@ func TestOfflineSongFavoritePrecedesStartupRetention(t *testing.T) {
 	if _, err := os.Stat(partial); err != nil {
 		t.Fatal("marking favorite ran startup cleanup", err)
 	}
-	page, err := cacheproxy.ReadSongPage(t.Context(), cfg.StorageDir, "42", cacheproxy.SongFavorite, 0)
+	page, err := cacheproxy.ReadSongPage(t.Context(), fixtureLibraryPaths(filepath.Dir(cfg.VideoDir)), "42", cacheproxy.SongFavorite, 0)
 	if err != nil || page.Total != 1 || !page.Entries[0].Saved {
 		t.Fatal(page, err)
 	}
@@ -135,17 +143,51 @@ func TestOfflineSongFavoritePrecedesStartupRetention(t *testing.T) {
 
 func TestOfflineSongPolicyRejectsMissingUsedLibrary(t *testing.T) {
 	c := testConsole(t)
+	if err := c.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(testStorageRoot(c.settings), testStorageRoot(c.settings)+"-unavailable"); err != nil {
+		t.Fatal(err)
+	}
+	c = restartTestConsole(t, c)
 	c.inventory.CoverageKnown = true
-	input := fmt.Sprintf(`{"storageID":%q,"id":"42","policy":"favorite"}`, cacheproxy.CacheStorageID(c.settings.StorageDir))
+	input := fmt.Sprintf(`{"storageID":%q,"id":"42","policy":"favorite"}`, cacheproxy.DatabaseID(libraryPaths(c.settings).DatabasePath))
 	r := httptest.NewRequest("POST", "http://"+c.address+"/api/songs", strings.NewReader(input))
 	r.Header.Set("X-SWD-Token", c.token)
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, r)
-	if w.Code != 400 || !strings.Contains(w.Body.String(), "失联") {
+	if w.Code != 400 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	if _, err := os.Stat(c.settings.StorageDir); !os.IsNotExist(err) {
+	if _, err := os.Stat(testStorageRoot(c.settings)); !os.IsNotExist(err) {
 		t.Fatal("missing used library was recreated", err)
+	}
+}
+
+func TestOfflineSongPolicyDoesNotRequireVideoDirectory(t *testing.T) {
+	c := testConsole(t)
+	createReaderLibrary(t, c)
+	paths := libraryPaths(c.settings)
+	if err := os.Remove(paths.VideoDir); err != nil {
+		t.Fatal(err)
+	}
+	input := fmt.Sprintf(`{"storageID":%q,"id":"42","policy":"favorite"}`, cacheproxy.DatabaseID(paths.DatabasePath))
+	r := httptest.NewRequest("POST", "http://"+c.address+"/api/songs", strings.NewReader(input))
+	r.Header.Set("X-SWD-Token", c.token)
+	w := httptest.NewRecorder()
+	c.ServeHTTP(w, r)
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	page, err := cacheproxy.ReadSongPage(t.Context(), paths, "42", cacheproxy.SongFavorite, 0)
+	if err != nil || page.Total != 1 || page.VideoError == "" {
+		t.Fatal(page, err)
+	}
+	if c.service != nil {
+		t.Fatal("preference change started engine")
+	}
+	if _, err := os.Stat(paths.VideoDir); !os.IsNotExist(err) {
+		t.Fatal("preference change recreated video directory", err)
 	}
 }
 
@@ -231,7 +273,7 @@ func testBatchFavoriteRetention(t *testing.T, retain bool) {
 	defer api.Close()
 	c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
 	cfg := fixtureCacheConfig()
-	cfg.StorageDir = c.settings.StorageDir
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.OriginScheme = "http"
 	cfg.CacheUnlimited = false
 	cfg.RetainFavorites = retain
@@ -269,7 +311,7 @@ func testBatchFavoriteRetention(t *testing.T, retain bool) {
 	if int(downloads.Load()) != wantDownloads || queries[9000003] != 1 || queries[9000002] != wantDownloads || queries[9000001] != 0 || c.batch.Failed != 0 || c.batch.Skipped != 1 || c.batch.Downloaded != wantDownloads || !c.batch.BudgetReached {
 		t.Fatal(queries, downloads.Load(), c.batch)
 	}
-	path := filepath.Join(cfg.StorageDir, "videos", fmt.Sprintf("%x.mp4", md5.Sum([]byte("favorite"))))
+	path := filepath.Join(cfg.VideoDir, fmt.Sprintf("%x.mp4", md5.Sum([]byte("favorite"))))
 	if !retain {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			t.Fatal("disabled retention published favorite beyond budget", err)

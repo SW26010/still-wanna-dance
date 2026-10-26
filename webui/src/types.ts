@@ -3,7 +3,7 @@ export interface Settings {
   theme: ThemePreference;
 	retainFavorites: boolean;
   aggressiveCacheReclamation: 'auto' | 'on' | 'off';
-  storageDir: string; maxCacheBytes: number; videoStorageMode: 'none' | 'limited' | 'unlimited'; requestRetentionDays: number; throughputIntervalMinutes: number;
+  databasePath: string; videoDir: string; maxCacheBytes: number; videoStorageMode: 'none' | 'limited' | 'unlimited'; requestRetentionDays: number; throughputIntervalMinutes: number;
   prepareAheadSeconds: number; downloadSoftLimit: number; downloadGrowIntervalMS: number; localProtectionGraceSeconds: number; downloadUpstream: string; upstreamMode: string;
   proxyBackend: string; socks5Address: string; socks5Username: string; socks5Password?: string;
   autoAccelerate: boolean; autoOpenWebUI: boolean; queueWithGateway: boolean; restoreHostsOnExit: boolean; manualLogDir: boolean; logDir: string;
@@ -40,7 +40,7 @@ export interface Status {
   socks5PasswordSet?: boolean; socks5CredentialError?: string;
   proxyNodes?: {saved?: number; loaded?: number; active?: number; error?: string; activeError?: string};
   activation?: {phase?: string; error?: string; started?: string; readyAt?: string; firstRequest?: string};
-  defaultLogDir: string; defaultStorageDir: string; portableDir: string; upstreamMonitor?: Health;
+  defaultLogDir: string; defaultDatabasePath: string; defaultVideoDir: string; portableDir: string; upstreamMonitor?: Health;
 }
 export interface Inventory {
   updated?: string; coverageKnown?: boolean; totalSongs: number; coveredSongs: number; scanning?: boolean; error?: string;
@@ -48,14 +48,14 @@ export interface Inventory {
 }
 export interface Song { id: string; title?: string; current?: boolean }
 export type SongPolicy = 'normal' | 'blocked' | 'favorite';
-export interface SongPage {storageID:string;entries:{id:string;title:string;policy:SongPolicy;saved:boolean}[];total:number}
+export interface SongPage {storageID:string;videoError?:string;entries:{id:string;title:string;policy:SongPolicy;saved:boolean}[];total:number}
 export interface CacheEntry {
   key: string; stamp: string; bytes: number; songs: Song[]; songCount: number; known: boolean; protected: boolean; state: string; lastRequest: number;
 }
 export interface CachePage {storageID: string; entries: CacheEntry[]; total: number; totalBytes?: number; fileCount: number}
 export interface LibrarySong {id:string;title:string;artist:string;dancer:string;group:string;policy:SongPolicy;score:number;resource:string}
 export interface LibraryResource {key:string;size:number|null;duration:number|null;songs:Song[];songCount:number;local:CacheEntry|null}
-export interface LibraryPage {storageID:string;songs:LibrarySong[];resources:Record<string,LibraryResource>;keys:string[];total:number;fileCount:number;totalBytes:number}
+export interface LibraryPage {storageID:string;databaseID:string;videoError?:string;songs:LibrarySong[];resources:Record<string,LibraryResource>;keys:string[];total:number;fileCount:number;totalBytes:number}
 export interface RequestRecord {
   songID?:string; completedAt?:number|null; responseBytes?:number|null; firstBodyNS?:number|null; firstBodyBlocking?:boolean|null;
   id: number; at: number; resource: string; method: string; range?: string; elapsedMS: number; bytes: number; status: number;

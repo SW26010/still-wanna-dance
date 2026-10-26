@@ -18,7 +18,7 @@ func idleBoundaryServer(t *testing.T, seconds int, protect time.Duration) (*Serv
 	t.Helper()
 	body := strings.Repeat("r", int(2*rangeBlockSize))
 	cfg := fixtureConfig()
-	cfg.StorageDir = t.TempDir()
+	prepareFixtureResources(t, &cfg, t.TempDir(), true)
 	cfg.CacheUnlimited, cfg.MaxCacheBytes = false, 0
 	cfg.PrepareAhead, cfg.LocalProtectAhead = 120*time.Second, protect
 	cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return videoURL(body), nil }

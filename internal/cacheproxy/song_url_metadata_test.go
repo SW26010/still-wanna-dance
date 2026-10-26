@@ -60,15 +60,16 @@ func TestResolvePlaybackRecordsSharedMediaWithoutDownload(t *testing.T) {
 	if apiCalls.Load() != 2 || videoCalls.Load() != 0 {
 		t.Fatalf("API calls=%d, video calls=%d", apiCalls.Load(), videoCalls.Load())
 	}
-	for _, dir := range []string{cfg.videosDir(), cfg.tempDir()} {
+	for dir, count := range map[string]int{cfg.videosDir(): 2, cfg.tempDir(): 1, cfg.publishDir(): 0} {
 		entries, err := os.ReadDir(dir)
-		if err != nil || len(entries) != 0 {
+		if err != nil || len(entries) != count {
 			t.Fatalf("resolution created media files: %s: %v %v", dir, entries, err)
 		}
 	}
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
+	reopenFixtureStore(t, &cfg)
 	reopened, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -269,10 +270,10 @@ func TestSongURLTransactionErrorClassification(t *testing.T) {
 		{"success before cancellation", canceled, nil, nil, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			s := new(Server)
+			s := new(Store)
 			got := s.songURLStorageError(tc.ctx, tc.err)
-			if !errors.Is(got, tc.want) || (s.StorageError() != nil) != tc.storage || errors.Is(got, ErrLocalStorage) != tc.storage {
-				t.Fatalf("returned=%v retained=%v, want=%v storage=%v", got, s.StorageError(), tc.want, tc.storage)
+			if !errors.Is(got, tc.want) || (s.Error() != nil) != tc.storage || errors.Is(got, ErrLocalStorage) != tc.storage {
+				t.Fatalf("returned=%v retained=%v, want=%v storage=%v", got, s.Error(), tc.want, tc.storage)
 			}
 		})
 	}

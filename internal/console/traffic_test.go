@@ -13,13 +13,13 @@ import (
 func TestTrafficWithoutRunningCDN(t *testing.T) {
 	c := testConsole(t)
 	cfg := fixtureCacheConfig()
-	cfg.StorageDir = c.settings.StorageDir
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	s, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	s.Close()
-	db, err := sql.Open("sqlite", filepath.Join(cfg.StorageDir, "storage.sqlite"))
+	db, err := sql.Open("sqlite", filepath.Join(filepath.Dir(cfg.VideoDir), "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,13 @@ func TestTrafficWithoutRunningCDN(t *testing.T) {
 	if v := read(); v.Error != "" || v.Hits != 3 || v.SavedBytes != 123 {
 		t.Fatalf("persisted: %+v", v)
 	}
-	c.settings.StorageDir = t.TempDir()
+	next := c.settings
+	setTestLibraryPaths(&next, t.TempDir())
+	createTestDatabase(t, next.DatabasePath)
+	if err := c.save(next); err != nil {
+		t.Fatal(err)
+	}
+	c = restartTestConsole(t, c)
 	if v := read(); v.Error != "" || v.Requests != 0 {
 		t.Fatalf("changed directory: %+v", v)
 	}

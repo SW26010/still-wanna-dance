@@ -344,7 +344,24 @@ func cfProductRun(ctx context.Context, network *cfNetwork, root string, s *cfPro
 		return
 	}
 	cfg := cacheproxy.DefaultConfig()
-	cfg.StorageDir = filepath.Join(root, "storage")
+	cfg.VideoDir = filepath.Join(root, "storage", "videos")
+	cfg.Store, err = cacheproxy.CreateStore(filepath.Join(root, "storage", "storage.sqlite"))
+	if err != nil {
+		s.Error = "database_init"
+		return
+	}
+	defer cfg.Store.Close()
+	if err = os.MkdirAll(cfg.VideoDir, 0700); err != nil {
+		s.Error = "video_init"
+		return
+	}
+	cfg.Work, err = cacheproxy.OpenWorkDirectory(filepath.Join(root, "work"), nil)
+	if err != nil {
+		s.Error = "work_init"
+		return
+	}
+	defer cfg.Work.Close()
+	c.store, c.work = cfg.Store, cfg.Work
 	cfg.CacheUnlimited, cfg.DialContext = true, dns.DialContext
 	cfg.BeginResourceLoad = channel.BeginResourceLoad
 	cfg.Logger = slog.Default()
@@ -394,7 +411,7 @@ func cfProductRun(ctx context.Context, network *cfNetwork, root string, s *cfPro
 		if err != nil {
 			r.Error, r.ErrorDetail = "prefetch_failed", err.Error()
 		}
-		r.Files, err = cfProductFiles(cfg.StorageDir)
+		r.Files, err = cfProductFiles(filepath.Dir(cfg.VideoDir))
 		if err != nil {
 			r.Error, r.ErrorDetail = "file_check", err.Error()
 		}
@@ -573,7 +590,9 @@ func TestCFProductPrefetchIntegration(t *testing.T) {
 	}), "")
 	broken := recorder.wrap(cfexpFunc(func(*http.Request) (*http.Response, error) { return nil, errors.New("planned fallback fixture") }), "")
 	cfg := cacheproxy.DefaultConfig()
-	cfg.StorageDir, cfg.CacheUnlimited = t.TempDir(), true
+	owner := testConsole(t)
+	cfg.Store, cfg.Work, cfg.VideoDir = owner.store, owner.work, owner.settings.VideoDir
+	cfg.CacheUnlimited = true
 	cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg.ResourceTransports = func(string) []http.RoundTripper { return []http.RoundTripper{broken, tr} }
 	engine, err := cacheproxy.New(cfg)
@@ -589,7 +608,7 @@ func TestCFProductPrefetchIntegration(t *testing.T) {
 	if err != nil || source != "MISS" {
 		t.Fatal(source, err)
 	}
-	files, err := cfProductFiles(cfg.StorageDir)
+	files, err := cfProductFiles(filepath.Dir(cfg.VideoDir))
 	if err != nil || len(files) != 1 || !files[0].Valid || files[0].Size != int64(len(payload)) {
 		t.Fatal(files, err)
 	}

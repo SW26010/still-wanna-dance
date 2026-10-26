@@ -68,8 +68,7 @@ func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreams
 		c.mu.Unlock()
 		return
 	}
-	err := c.ensureEngine()
-	engine := c.service
+	store, err := c.businessStore()
 	c.mu.Unlock()
 	if err != nil {
 		slog.Warn("monitor_catalog_sync_failed", "error", err)
@@ -79,7 +78,7 @@ func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreams
 		if ctx.Err() != nil {
 			return
 		}
-		err = engine.SyncCatalog(ctx, *v.full)
+		err = store.SyncCatalog(ctx, *v.full)
 		if err != nil && !errors.Is(err, cacheproxy.ErrCatalogOlder) {
 			slog.Warn("monitor_catalog_sync_failed", "source", v.source, "revision", v.revision, "error", err)
 			failures = append(failures, fmt.Errorf("%s: %w", v.source, err))
@@ -88,7 +87,7 @@ func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreams
 	// Record after the entire round so a later duplicate or older mirror cannot
 	// hide a conflict from another candidate in this same round.
 	if len(failures) > 0 && ctx.Err() == nil {
-		if err := engine.RecordCatalogError(ctx, errors.Join(failures...)); err != nil {
+		if err := store.RecordCatalogError(ctx, errors.Join(failures...)); err != nil {
 			slog.Warn("monitor_catalog_status_failed", "error", err)
 		}
 	}

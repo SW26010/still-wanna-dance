@@ -22,7 +22,7 @@ func TestInventoryCoverageDoesNotRecreateMissingVideoDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := fixtureCacheConfig()
-	cfg.StorageDir = c.settings.StorageDir
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -30,7 +30,7 @@ func TestInventoryCoverageDoesNotRecreateMissingVideoDirectory(t *testing.T) {
 	if err := engine.Close(); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(cfg.StorageDir, "videos", strings.Repeat("a", 32)+".mp4")
+	path := filepath.Join(cfg.VideoDir, strings.Repeat("a", 32)+".mp4")
 	if err := os.WriteFile(path, []byte("video"), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestInventoryCoverageDoesNotRecreateMissingVideoDirectory(t *testing.T) {
 	if err := os.Remove(path); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Remove(filepath.Dir(path)); err != nil {
+	if err := os.Rename(filepath.Dir(path), filepath.Dir(path)+"-unavailable"); err != nil {
 		t.Fatal(err)
 	}
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -134,14 +134,8 @@ func TestSavedEmptyStorageScansWithoutStartingEngine(t *testing.T) {
 	if c.service != nil {
 		t.Fatal("inventory started engine")
 	}
-	if _, err := os.Stat(c.settings.StorageDir); !os.IsNotExist(err) {
-		t.Fatal("scan initialized storage", err)
-	}
 	// Initialized storage with a lost videos directory is not an empty new store.
-	if err := os.MkdirAll(c.settings.StorageDir, 0700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(c.settings.StorageDir, "storage.sqlite"), []byte("marker"), 0600); err != nil {
+	if err := os.Remove(libraryPaths(c.settings).VideoDir); err != nil {
 		t.Fatal(err)
 	}
 	c.startInventoryScan()
@@ -154,13 +148,13 @@ func TestSavedEmptyStorageScansWithoutStartingEngine(t *testing.T) {
 func TestInventoryCountsPublishedFilesOnly(t *testing.T) {
 	c := testConsole(t)
 	for path, body := range map[string]string{
-		filepath.Join(c.settings.StorageDir, "videos", strings.Repeat("c", 32)+".mp4"): "video",
-		filepath.Join(c.settings.StorageDir, "2", "metadata.json"):                     "{}",
-		filepath.Join(c.settings.StorageDir, "3", "video.mp4"):                         "",
-		filepath.Join(c.settings.StorageDir, "4", "video.mp4.part"):                    "partial",
-		filepath.Join(c.settings.StorageDir, "other", "video.mp4"):                     "ignore",
-		filepath.Join(c.settings.StorageDir, "videos", strings.Repeat("a", 32)+".mp4"): "cache",
-		filepath.Join(c.settings.StorageDir, strings.Repeat("b", 32)+".part"):          "partial",
+		filepath.Join(testStorageRoot(c.settings), "videos", strings.Repeat("c", 32)+".mp4"): "video",
+		filepath.Join(testStorageRoot(c.settings), "2", "metadata.json"):                     "{}",
+		filepath.Join(testStorageRoot(c.settings), "3", "video.mp4"):                         "",
+		filepath.Join(testStorageRoot(c.settings), "4", "video.mp4.part"):                    "partial",
+		filepath.Join(testStorageRoot(c.settings), "other", "video.mp4"):                     "ignore",
+		filepath.Join(testStorageRoot(c.settings), "videos", strings.Repeat("a", 32)+".mp4"): "cache",
+		filepath.Join(testStorageRoot(c.settings), strings.Repeat("b", 32)+".part"):          "partial",
 	} {
 		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 			t.Fatal(err)
@@ -169,14 +163,14 @@ func TestInventoryCountsPublishedFilesOnly(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	v := scanInventory(context.Background(), c.settings, false)
+	v := scanInventory(context.Background(), c.settings)
 	if v.Videos != 2 || v.Bytes != 10 || v.Error != "" {
 		t.Fatalf("%+v", v)
 	}
-	if err := os.RemoveAll(c.settings.StorageDir); err != nil {
+	if err := os.Rename(filepath.Join(testStorageRoot(c.settings), "videos"), filepath.Join(testStorageRoot(c.settings), "videos-unavailable")); err != nil {
 		t.Fatal(err)
 	}
-	v = scanInventory(context.Background(), c.settings, false)
+	v = scanInventory(context.Background(), c.settings)
 	if v.Videos != 0 || v.Error == "" {
 		t.Fatalf("%+v", v)
 	}
@@ -185,7 +179,7 @@ func TestInventoryCountsPublishedFilesOnly(t *testing.T) {
 func TestMissingPopulatedRootPreservesInventory(t *testing.T) {
 	c := testConsole(t)
 	defer c.Close()
-	path := filepath.Join(c.settings.StorageDir, "videos", strings.Repeat("a", 32)+".mp4")
+	path := filepath.Join(testStorageRoot(c.settings), "videos", strings.Repeat("a", 32)+".mp4")
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +191,8 @@ func TestMissingPopulatedRootPreservesInventory(t *testing.T) {
 	if before.Error != "" || before.Videos != 1 {
 		t.Fatal(before)
 	}
-	if err := os.Rename(c.settings.StorageDir, c.settings.StorageDir+"-unavailable"); err != nil {
+	videoDir := libraryPaths(c.settings).VideoDir
+	if err := os.Rename(videoDir, videoDir+"-unavailable"); err != nil {
 		t.Fatal(err)
 	}
 	c.startInventoryScan()
@@ -205,7 +200,7 @@ func TestMissingPopulatedRootPreservesInventory(t *testing.T) {
 	if after.Error == "" || after.Videos != before.Videos || !after.Updated.Equal(before.Updated) {
 		t.Fatal("lost populated root replaced inventory", after)
 	}
-	if _, err := os.Stat(c.settings.StorageDir); !os.IsNotExist(err) {
+	if _, err := os.Stat(videoDir); !os.IsNotExist(err) {
 		t.Fatal("lost root was recreated", err)
 	}
 }
@@ -245,7 +240,8 @@ func TestInventoryLifecycleCancelsCoverage(t *testing.T) {
 			scanDone := c.inventoryDone
 			c.inventoryMu.Unlock()
 			settings := c.settings
-			settings.StorageDir = t.TempDir()
+			setTestLibraryPaths(&settings, t.TempDir())
+			createTestDatabase(t, settings.DatabasePath)
 			finished := make(chan error, 1)
 			go func() {
 				if action == "close" {
@@ -299,10 +295,13 @@ func TestInventoryLifecycleCancelsCoverage(t *testing.T) {
 				}
 			} else {
 				c = restartTestConsole(t, c)
-				if got := c.localInventory(); got != (Inventory{}) {
+				if got := c.localInventory(); !got.Updated.IsZero() || got.CoverageKnown {
 					t.Fatalf("old scan changed new library inventory: %+v", got)
 				}
 				c.checksumURL = ""
+				if err := os.MkdirAll(libraryPaths(c.settings).VideoDir, 0o755); err != nil {
+					t.Fatal(err)
+				}
 				c.startInventoryScan()
 				if got := waitInventory(t, c); got.Error != "" || got.Updated.IsZero() {
 					t.Fatalf("new library scan failed: %+v", got)
@@ -351,7 +350,8 @@ func TestInventoryReadKeepsActiveSettingsAcrossSaves(t *testing.T) {
 			}()
 			<-entered
 			next := original
-			next.StorageDir = t.TempDir()
+			setTestLibraryPaths(&next, t.TempDir())
+			createTestDatabase(t, next.DatabasePath)
 			if err := c.save(next); err != nil {
 				close(release)
 				<-done

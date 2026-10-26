@@ -3,7 +3,7 @@ import {mockAPI} from './api';
 import type {LibraryPage,LibraryResource} from '../src/types';
 
 const key='a'.repeat(32), missing='b'.repeat(32);
-async function libraryFixture(page:Page) {
+async function libraryFixture(page:Page,videoError?:string) {
   const api=await mockAPI(page),queries:URLSearchParams[]=[];
   const local={...api.files[0],key,songs:[{id:'1',title:'共同视频一',current:true},{id:'2',title:'共同视频二',current:true}],songCount:2};
   const resources:Record<string,LibraryResource>={
@@ -16,9 +16,10 @@ async function libraryFixture(page:Page) {
     const chosen=songs.filter(s=>(!p.get('song')||s.id===p.get('song'))&&(!p.get('q')||s.title.includes(p.get('q')!)));
     const keys=Object.keys(resources).filter(k=>!p.get('resource')||k===p.get('resource'));
     const offset=Number(p.get('offset')||0);
-    const data:LibraryPage={storageID:'fixture',songs:chosen.slice(offset,offset+50),keys:keys.slice(offset,offset+50),resources,total:p.get('view')==='resources'?keys.length:chosen.length,fileCount:1,totalBytes:12345};
+    const data:LibraryPage={videoError,storageID:'fixture',databaseID:'fixture-db',songs:chosen.slice(offset,offset+50),keys:keys.slice(offset,offset+50),resources,total:p.get('view')==='resources'?keys.length:chosen.length,fileCount:1,totalBytes:12345};
     await route.fulfill({json:data});
   });
+  if(videoError)for(const resource of Object.values(resources))resource.local=null;
   return {...api,resources,songs,queries};
 }
 
@@ -69,8 +70,22 @@ test('protected file stays saved and disabled; favorite only changes policy',asy
   await expect(songs.getByText('受保护')).toHaveCount(2);
   await expect(songs.getByRole('button',{name:'删除本地视频'}).first()).toBeDisabled();
   await page.getByLabel('歌曲 1 的偏好').selectOption('favorite');
-  await expect.poll(()=>calls.find(c=>c.path==='songs')?.body).toEqual({storageID:'fixture',id:'1',policy:'favorite'});
+  await expect.poll(()=>calls.find(c=>c.path==='songs')?.body).toEqual({storageID:'fixture-db',id:'1',policy:'favorite'});
   expect(calls.some(c=>c.path==='batch/download'||c.path==='batch/start')).toBe(false);
+});
+
+test('unavailable videos leave song preferences usable and availability unknown',async({page})=>{
+  const {calls}=await libraryFixture(page,'测试视频盘已断开');
+  await page.goto('/#/library');
+  await expect(page.getByRole('group').filter({hasText:'视频目录不可用，本地视频状态未知。歌曲资料仍可查看。'})).toBeVisible();
+  const songs=page.getByRole('table',{name:'曲库歌曲'});
+  await expect(songs.getByText('未知',{exact:true})).toHaveCount(3);
+  await expect(songs.getByText('未保存',{exact:true})).toHaveCount(0);
+  await expect(page.getByRole('region',{name:'曲库概览'}).getByText('—',{exact:true})).toHaveCount(2);
+  await expect(songs.getByRole('button',{name:'下载歌曲',exact:true}).first()).toBeDisabled();
+  await page.getByLabel('歌曲 1 的偏好').selectOption('favorite');
+  await expect.poll(()=>calls.find(c=>c.path==='songs')?.body).toEqual({storageID:'fixture-db',id:'1',policy:'favorite'});
+  expect(calls.some(c=>c.path==='cache/delete'||c.path==='batch/download')).toBe(false);
 });
 
 test('historical object links retain exact identity and explain missing objects',async({page})=>{
@@ -187,7 +202,7 @@ test('record details link navigates without leaving a blocking surface',async({p
 });
 
 test('import keeps its draft and uses a single confirmation dialog',async({page})=>{
-  const {state}=await libraryFixture(page);state.settings.storageDir='C:\\New-Storage';
+  const {state}=await libraryFixture(page);state.settings.databasePath='C:\\New-Storage';
   await page.goto('/#/library');await page.getByRole('button',{name:'导入视频',exact:true}).click();
   await page.getByRole('textbox',{name:'外部目录',exact:true}).fill('C:\\Videos');
   await page.getByRole('button',{name:'返回曲库',exact:true}).click();
@@ -195,7 +210,7 @@ test('import keeps its draft and uses a single confirmation dialog',async({page}
   await expect(page.getByRole('textbox',{name:'外部目录',exact:true})).toHaveValue('C:\\Videos');
   await page.getByRole('button',{name:'扫描并导入',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(1);
-  await expect(page.getByRole('dialog')).toContainText('新存储目录尚未生效');
+  await expect(page.getByRole('dialog')).toContainText('新的数据位置尚未生效');
   await page.getByRole('button',{name:'取消',exact:true}).click();
   await expect(page.getByRole('textbox',{name:'外部目录',exact:true})).toBeVisible();
 });

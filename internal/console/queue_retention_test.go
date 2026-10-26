@@ -57,11 +57,12 @@ func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) 
 	c.checksumURL = api.URL + "/catalog"
 	c.client.Transport = http.DefaultTransport
 	cfg := fixtureCacheConfig()
+	cfg.Work = c.work
 	cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
 		return c.resolvePlayback(ctx, id, node, "auto")
 	}
 	cfg.OriginScheme = "http"
-	cfg.StorageDir = c.settings.StorageDir
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.MaxCacheBytes = limit
 	cfg.CacheUnlimited = false
 	cfg.Origins["nya.xin.moe"] = strings.TrimPrefix(origin.URL, "http://")
@@ -124,14 +125,14 @@ func TestQueueReorderKeepsInFlightPreparation(t *testing.T) {
 	release.Do(func() { close(finish) })
 	var path string
 	wait(func() bool {
-		files, err := filepath.Glob(filepath.Join(c.settings.StorageDir, "tmp", "download-block-*.part"))
+		files, err := filepath.Glob(filepath.Join(c.work.Path(), "download-block-*.part"))
 		if err != nil || len(files) != 1 {
 			return false
 		}
 		path = files[0]
 		return true
 	})
-	if _, err := os.Stat(fixtureVideoPath(c.settings.StorageDir, "1", body)); !os.IsNotExist(err) {
+	if _, err := os.Stat(fixtureVideoPath(testStorageRoot(c.settings), "1", body)); !os.IsNotExist(err) {
 		t.Fatal("zero budget published a video", err)
 	}
 	// Let the asynchronous retention worker handle publication and release.
@@ -184,7 +185,7 @@ func TestQueueReentryDuringProtectionAfterRoomReset(t *testing.T) {
 	c.mu.Unlock()
 	wake <- struct{}{}
 	wait(2)
-	path := fixtureVideoPath(c.settings.StorageDir, "1", body)
+	path := fixtureVideoPath(testStorageRoot(c.settings), "1", body)
 	if _, err := os.Stat(path); err != nil {
 		t.Fatal("reset lost protected song", err)
 	}
@@ -211,7 +212,7 @@ func TestBatchReportsBudgetStopWithoutDownloading(t *testing.T) {
 	done := c.batchDone
 	c.mu.Unlock()
 	<-done
-	inventory := scanInventory(context.Background(), c.settings, false)
+	inventory := scanInventory(context.Background(), c.settings)
 	t.Logf("phase=%s downloaded=%d actualVideos=%d", c.batch.Phase, c.batch.Downloaded, inventory.Videos)
 	if inventory.Error != "" || inventory.Videos != 0 || downloads.Load() != 0 || calls.Load() != 1 || !c.lastBatch.Updated.IsZero() || !c.batch.BudgetReached || c.batch.Failed != 0 {
 		t.Fatalf("unexpected inventory or snapshot: %+v %+v", inventory, c.lastBatch)
@@ -258,12 +259,12 @@ func TestQueueDepartureKeepsTemporaryBytesAvailable(t *testing.T) {
 	c.setQueueSongsLocked(nil, false)
 	c.mu.Unlock()
 	wake <- struct{}{}
-	files, err := filepath.Glob(filepath.Join(c.settings.StorageDir, "tmp", "download-block-*.part"))
+	files, err := filepath.Glob(filepath.Join(c.work.Path(), "download-block-*.part"))
 	if err != nil || len(files) != 1 {
 		t.Fatal("queue did not keep a complete temporary block", files, err)
 	}
 	path := files[0]
-	if _, err := os.Stat(fixtureVideoPath(c.settings.StorageDir, "1", body)); !os.IsNotExist(err) {
+	if _, err := os.Stat(fixtureVideoPath(testStorageRoot(c.settings), "1", body)); !os.IsNotExist(err) {
 		t.Fatal("zero budget published a video", err)
 	}
 	time.Sleep(100 * time.Millisecond)

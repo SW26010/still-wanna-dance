@@ -19,7 +19,7 @@ func TestDownloadSettingsDefaultsAndZero(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := testConsole(t)
-			if err := os.WriteFile(c.configPath, []byte(`{"schemaVersion":6`+tc.fields+`}`), 0600); err != nil {
+			if err := os.WriteFile(c.configPath, []byte(`{"schemaVersion":7`+tc.fields+`}`), 0600); err != nil {
 				t.Fatal(err)
 			}
 			c = restartTestConsole(t, c)
@@ -60,7 +60,7 @@ func TestDownloadSettingsValidationAndPersistence(t *testing.T) {
 		if c.settings.DownloadSoftLimit != 16 || c.settings.DownloadGrowIntervalMS != 250 || c.settings.LocalProtectionGraceSeconds != 300 || c.savedSettings != next {
 			t.Fatal("save changed runtime or lost download settings")
 		}
-		loaded, err := New(c.configPath, c.address)
+		loaded, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 		if err != nil {
 			t.Fatal(err)
 		}

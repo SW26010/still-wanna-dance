@@ -43,7 +43,7 @@ func TestTermsProtectedMoveAndInvalidReceipts(t *testing.T) {
 		}
 	}
 	// Copy the receipt into a renamed custom configuration's companion directory.
-	moved, err := New(filepath.Join(t.TempDir(), "moved.json"), c.address)
+	moved, err := newConsoleWithWorkForTest(t, filepath.Join(t.TempDir(), "moved.json"), c.address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func TestTermsProtectedMoveAndInvalidReceipts(t *testing.T) {
 	if err := moved.save(moved.settings); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(moved.files().Root, 0700); err != nil {
+	if err := os.MkdirAll(moved.files().StateDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(moved.files().Terms, b, 0600); err != nil {
@@ -92,7 +92,7 @@ func TestTermsProtectedMoveAndInvalidReceipts(t *testing.T) {
 			if err := os.WriteFile(moved.files().Terms, data, 0600); err != nil {
 				t.Fatal(err)
 			}
-			loaded, err := New(moved.configPath, moved.address)
+			loaded, err := newConsoleWithWorkForTest(t, moved.configPath, moved.address)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -131,7 +131,7 @@ func TestTermsProtectedMoveAndInvalidReceipts(t *testing.T) {
 }
 
 func TestTermsProtectFailureAndReadError(t *testing.T) {
-	c, err := New(filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
+	c, err := newConsoleWithWorkForTest(t, filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +148,7 @@ func TestTermsProtectFailureAndReadError(t *testing.T) {
 	if _, err := os.Stat(c.files().Terms); !os.IsNotExist(err) {
 		t.Fatal("failed protection wrote receipt")
 	}
-	if err := os.Mkdir(c.files().Terms, 0700); err != nil {
+	if err := os.MkdirAll(c.files().Terms, 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.loadTerms(); err == nil {

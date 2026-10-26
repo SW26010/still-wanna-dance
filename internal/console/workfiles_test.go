@@ -19,7 +19,7 @@ func TestAbandonedTermsWriteNeverGrantsAcceptance(t *testing.T) {
 	defer lease.Close()
 	p := apppaths.ForConfig(path)
 	// Even a valid receipt is only effective once atomically published.
-	c, err := New(path, "127.0.0.1:0")
+	c, err := newConsoleWithWorkForTest(t, path, "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestAbandonedTermsWriteNeverGrantsAcceptance(t *testing.T) {
 	if err := lease.CleanWorkFiles(); err != nil {
 		t.Fatal(err)
 	}
-	next, err := New(path, "127.0.0.1:0")
+	next, err := newConsoleWithWorkForTest(t, path, "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}

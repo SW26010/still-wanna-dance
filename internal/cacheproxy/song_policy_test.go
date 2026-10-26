@@ -13,7 +13,7 @@ import (
 func TestOfflineSongPolicyRespectsStorageLockAndVersion(t *testing.T) {
 	t.Run("locked", func(t *testing.T) {
 		s, cfg := setup(t, nil)
-		if err := SetSongPolicyOffline(t.Context(), cfg.StorageDir, 42, SongFavorite); err == nil {
+		if err := SetSongPolicyOffline(t.Context(), cfg.Store.path, 42, SongFavorite); err == nil {
 			t.Fatal("offline write bypassed the engine's storage lock")
 		}
 		policy, err := readSongPolicy(t.Context(), s.usage.db, 42)
@@ -30,7 +30,7 @@ func TestOfflineSongPolicyRespectsStorageLockAndVersion(t *testing.T) {
 		if err := os.WriteFile(storagePath(root), original, 0600); err != nil {
 			t.Fatal(err)
 		}
-		if err := SetSongPolicyOffline(t.Context(), root, 42, SongFavorite); err == nil {
+		if err := SetSongPolicyOffline(t.Context(), storagePath(root), 42, SongFavorite); err == nil {
 			t.Fatal("offline write accepted schema v2")
 		}
 		after, err := os.ReadFile(storagePath(root))
@@ -69,6 +69,7 @@ func TestSongPoliciesPersistWithoutDownloadOrCatalogMutation(t *testing.T) {
 	}
 	s.mu.Unlock()
 	s.Close()
+	reopenFixtureStore(t, &cfg)
 	reopened, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)

@@ -20,7 +20,7 @@ type vrcxPreview struct {
 	vrcx.Summary
 	ID            string `json:"id"`
 	Source        string `json:"source"`
-	StorageDir    string `json:"storageDir"`
+	DatabasePath  string `json:"databasePath"`
 	Events        int    `json:"events"`
 	Duplicates    int    `json:"duplicates"`
 	Skipped       int    `json:"skipped"`
@@ -114,7 +114,7 @@ func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "无法读取目标歌曲统计，请检查存储后重试；未导入", http.StatusConflict)
 			return
 		}
-		p := &vrcxPreview{Summary: summary, Source: path, StorageDir: root,
+		p := &vrcxPreview{Summary: summary, Source: path, DatabasePath: root,
 			Events: history.Events, Duplicates: history.Duplicates, Skipped: summary.Total - history.Events,
 			Songs: history.Songs(), FirstAt: history.FirstAt, LastAt: history.LastAt, ExistingSongs: existing,
 			history: history, expires: time.Now().Add(15 * time.Minute)}
@@ -165,24 +165,22 @@ func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 func (c *Console) vrcxTarget() string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.settings.StorageDir
+	return libraryPaths(c.settings).DatabasePath
 }
 
 // Caller holds lifecycleMu. Never opens the VRCX source or initializes storage.
-func (c *Console) vrcxUsageCount(ctx context.Context, root string) (int, error) {
+func (c *Console) vrcxUsageCount(ctx context.Context, databasePath string) (int, error) {
 	c.mu.Lock()
-	engine, activeRoot, closing := c.service, c.settings.StorageDir, c.closing
+	closing, active := c.closing, libraryPaths(c.settings).DatabasePath
 	c.mu.Unlock()
-	if closing {
-		return 0, errors.New("目标存储状态已改变，请重新检查")
+	if closing || databasePath != active {
+		return 0, errors.New("目标数据库已改变，请重新检查")
 	}
-	if engine != nil && root == activeRoot {
-		return engine.SongUsageCount(ctx)
-	}
-	if _, err := c.inspectStorage(root); err != nil {
+	store, err := c.businessStore()
+	if err != nil {
 		return 0, err
 	}
-	return cacheproxy.ReadSongUsageCount(ctx, root)
+	return store.SongUsageCount(ctx)
 }
 
 // Caller holds vrcxMu and lifecycleMu, in that order. Import consumes the checked in-memory preview.
@@ -197,20 +195,16 @@ func (c *Console) importVRCXPreview(ctx context.Context, p *vrcxPreview, overwri
 		return errors.New("请先预览已有统计并明确确认整表覆盖")
 	}
 	c.mu.Lock()
-	engine, activeRoot, closing := c.service, c.settings.StorageDir, c.closing
+	activeRoot, closing := libraryPaths(c.settings).DatabasePath, c.closing
 	c.mu.Unlock()
-	if closing {
-		return errors.New("目标存储状态已改变，请重新预览")
+	if closing || p.DatabasePath != activeRoot {
+		return errors.New("目标数据库已改变，请重新预览")
 	}
-	var err error
-	if engine != nil && p.StorageDir == activeRoot {
-		err = engine.ImportSongUsage(ctx, p.history, overwrite)
-	} else {
-		if _, err = c.inspectStorage(p.StorageDir); err != nil {
-			return err
-		}
-		err = cacheproxy.ImportSongUsage(ctx, p.StorageDir, p.history, overwrite)
+	store, err := c.businessStore()
+	if err != nil {
+		return err
 	}
+	err = store.ImportSongUsage(ctx, p.history, overwrite)
 	if err != nil {
 		if errors.Is(err, cacheproxy.ErrSongUsageExists) {
 			return err

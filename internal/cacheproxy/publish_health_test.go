@@ -25,7 +25,7 @@ func (t publishTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 func TestPublicationDistinguishesLocalAndUpstreamFailures(t *testing.T) {
 	for _, mode := range []string{"create", "write", "rename", "read", "short", "checksum", "canceled"} {
 		t.Run(mode, func(t *testing.T) {
-			s, cfg := setup(t, func(http.ResponseWriter, *http.Request) {})
+			s, cfg := setup(t, func(http.ResponseWriter, *http.Request) {}, func(cfg *Config) { fixtureFaultableBlocks(t, cfg) })
 			r, _ := http.NewRequest("GET", videoURL(payload), nil)
 			v, err := s.parse(r)
 			if err != nil {

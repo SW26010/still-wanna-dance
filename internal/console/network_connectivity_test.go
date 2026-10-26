@@ -265,7 +265,7 @@ func TestNetworkConnectivityReusesMonitorResponsesToInitializeStorage(t *testing
 	if requests.Load() != 6 {
 		t.Fatal("unexpected upstream request count", requests.Load())
 	}
-	db, err := sql.Open("sqlite", filepath.Join(c.settings.StorageDir, "storage.sqlite"))
+	db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -276,13 +276,13 @@ func TestNetworkConnectivityReusesMonitorResponsesToInitializeStorage(t *testing
 		t.Fatalf("initial metadata %q %q %d: %v", name, checksum, size, err)
 	}
 	for _, node := range []string{"cf", "nya"} {
-		urls, err := c.service.SongURLs(context.Background(), 1, node)
+		urls, err := c.store.SongURLs(context.Background(), 1, node)
 		if err != nil || len(urls) != 1 {
 			t.Fatalf("playback metadata %s: %v %v", node, urls, err)
 		}
 	}
 	for _, dir := range []string{"videos", "tmp"} {
-		files, err := os.ReadDir(filepath.Join(c.settings.StorageDir, dir))
+		files, err := os.ReadDir(filepath.Join(testStorageRoot(c.settings), dir))
 		if err != nil && !os.IsNotExist(err) || len(files) != 0 {
 			t.Fatal("connectivity retained video data", dir, files, err)
 		}

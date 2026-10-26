@@ -19,10 +19,42 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 )
 
+func testWorkDirectory(t *testing.T) *cacheproxy.WorkDirectory {
+	t.Helper()
+	work, err := cacheproxy.OpenWorkDirectory(filepath.Join(t.TempDir(), "work"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := work.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	return work
+}
+
+func newConsoleWithWorkForTest(t *testing.T, path, address string) (*Console, error) {
+	t.Helper()
+	return New(path, address, testWorkDirectory(t))
+}
+
 func testConsole(t *testing.T) *Console {
 	t.Helper()
 	root := t.TempDir()
-	c, err := newConsole(filepath.Join(root, "config.json"), "127.0.0.1:18081", newFixtureDNS())
+	store, err := cacheproxy.CreateStore(filepath.Join(root, "library", "storage.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, "library", "videos"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "config.json"), []byte(fmt.Sprintf("{\"schemaVersion\":%d,\"databasePath\":\"library/storage.sqlite\",\"videoDir\":\"library/videos\"}", configSchemaVersion)), 0600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := newConsole(filepath.Join(root, "config.json"), "127.0.0.1:18081", newFixtureDNS(), testWorkDirectory(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +63,7 @@ func testConsole(t *testing.T) *Console {
 	if err := c.acceptTerms(); err != nil {
 		t.Fatal(err)
 	}
-	c.settings.StorageDir = filepath.Join(root, "data")
+	setTestLibraryPaths(&c.settings, filepath.Join(root, "library"))
 	c.settings.LogDir = filepath.Join(root, "logs")
 	c.settings.ManualLogDir = true
 	c.savedSettings = c.settings
@@ -78,7 +110,7 @@ func TestSettingsPersistAndPortConflict(t *testing.T) {
 	if err := c.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
-	other, err := New(c.configPath, c.address)
+	other, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +184,7 @@ func TestBatchWorksWithoutCDNAndReusesCache(t *testing.T) {
 	defer origin.Close()
 	cfg := fixtureCacheConfig()
 	cfg.OriginScheme = "http"
-	cfg.StorageDir = c.settings.StorageDir
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
@@ -209,7 +241,7 @@ func TestBatchWorksWithoutCDNAndReusesCache(t *testing.T) {
 	if downloads.Load() != 1 {
 		t.Fatalf("downloaded %d times", downloads.Load())
 	}
-	b, err := os.ReadFile(fixtureVideoPath(c.settings.StorageDir, "1", body))
+	b, err := os.ReadFile(fixtureVideoPath(testStorageRoot(c.settings), "1", body))
 	if err != nil || string(b) != body {
 		t.Fatal("cache not published", err)
 	}

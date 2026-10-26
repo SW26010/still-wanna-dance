@@ -31,6 +31,7 @@ func TestSongURLPersistenceOrderingAndFailure(t *testing.T) {
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
+	reopenFixtureStore(t, &cfg)
 	s, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)

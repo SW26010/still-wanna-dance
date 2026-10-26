@@ -20,7 +20,7 @@ func TestStorageV5Golden(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, writable := range []bool{false, true, true, false} {
-		db, err := openStorageDatabase(path, writable)
+		db, err := openFixtureDatabase(path, writable)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -81,7 +81,7 @@ func TestStorageOldGoldensRejectedUnchanged(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, writable := range []bool{false, true} {
-				db, err := openStorageDatabase(path, writable)
+				db, err := openFixtureDatabase(path, writable)
 				if db != nil {
 					db.Close()
 				}

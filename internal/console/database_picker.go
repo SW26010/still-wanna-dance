@@ -11,7 +11,10 @@ import (
 )
 
 func (c *Console) selectVRCXDatabase(ctx context.Context, initial string) (string, error) {
-	title := "选择 VRCX SQLite 数据库"
+	return c.selectDatabase(ctx, "选择 VRCX SQLite 数据库", initial)
+}
+
+func (c *Console) selectDatabase(ctx context.Context, title, initial string) (string, error) {
 	if len(initial) > 4096 || strings.ContainsRune(initial, 0) || (initial != "" && !filepath.IsAbs(initial)) {
 		return "", errors.New("无效的数据库选择请求")
 	}

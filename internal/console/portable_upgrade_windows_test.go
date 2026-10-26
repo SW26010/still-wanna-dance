@@ -57,21 +57,23 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 				t.Fatal(err)
 			}
 			exe := filepath.Join(install, "SWD.exe")
-			config := filepath.Join(install, "data", "config.json")
+			config := filepath.Join(install, "config.json")
 			if layout == "custom-config" {
 				config = filepath.Join(root, "profiles", "dance.json")
 			}
-			c, err := New(config, "127.0.0.1:0")
+			c, err := newConsoleWithWorkForTest(t, config, "127.0.0.1:0")
 			if err != nil {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { c.Close() })
 			s := c.settings
+			s.DatabasePath, s.VideoDir = c.defaultDatabasePath(), c.defaultVideoDir()
 			s.AutoAccelerate, s.QueueWithGateway, s.VideoStorageMode = false, false, "unlimited"
 			s.UpstreamMode, s.SOCKS5Address = "socks5", "127.0.0.1:1"
 			s.SOCKS5Username, s.SOCKS5Password = "upgrade-test", "synthetic-upgrade-secret"
 			if layout == "external" {
-				s.StorageDir = filepath.Join(root, "external library")
+				setTestLibraryPaths(&s, filepath.Join(root, "external library"))
+				createTestDatabase(t, s.DatabasePath)
 			}
 			if err := c.save(s); err != nil {
 				t.Fatal(err)
@@ -83,7 +85,7 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 				t.Fatal(err)
 			}
 			finished := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)
-			if err := c.writeSnapshot("batch", s.StorageDir, Batch{Total: 7, Checked: 7, Hits: 7, Finished: finished}); err != nil {
+			if err := c.writeSnapshot("batch-last-success", libraryPaths(s), Batch{Total: 7, Checked: 7, Hits: 7, Finished: finished}); err != nil {
 				t.Fatal(err)
 			}
 			files := c.files()
@@ -91,7 +93,17 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 				t.Fatal(err)
 			}
 			cfg := fixtureCacheConfig()
-			cfg.StorageDir = s.StorageDir
+			cfg.VideoDir = s.VideoDir
+			cfg.Store, err = cacheproxy.OpenStore(s.DatabasePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer cfg.Store.Close()
+			cfg.Work, err = cacheproxy.OpenWorkDirectory(t.TempDir(), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer cfg.Work.Close()
 			engine, err := cacheproxy.New(cfg)
 			if err != nil {
 				t.Fatal(err)
@@ -111,6 +123,9 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 			if err := engine.Close(); err != nil {
 				t.Fatal(err)
 			}
+			if err := cfg.Store.Close(); err != nil {
+				t.Fatal(err)
+			}
 			if receipt == nil {
 				t.Fatal("fixture import did not publish a resource")
 			}
@@ -118,7 +133,7 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 			if err := os.WriteFile(unknown, []byte("user owned"), 0600); err != nil {
 				t.Fatal(err)
 			}
-			preserved := []string{config, files.Terms, files.ChannelKey, files.State("batch"), filepath.Join(s.StorageDir, "storage.sqlite"), receipt.Destination, unknown}
+			preserved := []string{config, files.Terms, files.ChannelKey, files.State("batch-last-success"), filepath.Join(testStorageRoot(s), "storage.sqlite"), receipt.Destination, unknown}
 			hashes := map[string][32]byte{}
 			for _, file := range preserved {
 				hashes[file] = upgradeFileHash(t, file)
@@ -132,7 +147,7 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 				if err := os.WriteFile(exe, content, 0700); err != nil {
 					t.Fatal(err)
 				}
-				probePortableUpgrade(t, exe, config, root, s.StorageDir, identities[i].Version, key)
+				probePortableUpgrade(t, exe, config, root, testStorageRoot(s), identities[i].Version, key)
 				for _, file := range preserved {
 					if upgradeFileHash(t, file) != hashes[file] {
 						t.Fatalf("upgrade changed %s", filepath.Base(file))
@@ -148,6 +163,11 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 				previousLog = log
 			}
 			// Reopen the same real SQLite library after both binaries have read it.
+			cfg.Store, err = cacheproxy.OpenStore(s.DatabasePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer cfg.Store.Close()
 			engine, err = cacheproxy.New(cfg)
 			if err != nil {
 				t.Fatal(err)
@@ -254,7 +274,7 @@ func probePortableUpgrade(t *testing.T, exe, config, cwd, storage, version, key 
 	if err := json.Unmarshal(get("/api/status", token), &status); err != nil {
 		t.Fatal(err)
 	}
-	if status.Running || status.ActiveSettings.AutoAccelerate || status.ActiveSettings.QueueWithGateway || status.ActiveSettings.StorageDir != storage || !status.SOCKS5PasswordSet || status.SOCKS5CredentialError != "" || status.LastBatch.Hits != 7 {
+	if status.Running || status.ActiveSettings.AutoAccelerate || status.ActiveSettings.QueueWithGateway || testStorageRoot(status.ActiveSettings) != storage || !status.SOCKS5PasswordSet || status.SOCKS5CredentialError != "" || status.LastBatch.Hits != 7 {
 		t.Fatal("runtime did not retain settings, decrypted credentials or task snapshot")
 	}
 	if !bytes.Contains(get("/api/cache", token), []byte(key)) {

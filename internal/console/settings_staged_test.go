@@ -15,7 +15,7 @@ func restartTestConsole(t *testing.T, c *Console) *Console {
 	if err := c.Close(); err != nil {
 		t.Fatal(err)
 	}
-	next, err := newConsole(c.configPath, c.address, newFixtureDNS())
+	next, err := newConsole(c.configPath, c.address, newFixtureDNS(), testWorkDirectory(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,8 @@ func TestSavedSettingsDoNotChangeRuntime(t *testing.T) {
 	next.AggressiveCacheReclamation = "off"
 	next.DownloadSoftLimit, next.DownloadGrowIntervalMS = 64, 0
 	next.LocalProtectionGraceSeconds = 0
-	next.StorageDir = filepath.Join(t.TempDir(), "new-cache")
+	setTestLibraryPaths(&next, filepath.Join(t.TempDir(), "new-cache"))
+	createTestDatabase(t, next.DatabasePath)
 	next.SOCKS5Address, next.UpstreamMode = "127.0.0.1:1080", "proxy"
 	if runtime.GOOS == "windows" {
 		next.SOCKS5Username, next.SOCKS5Password = "user", "secret"
@@ -57,7 +58,7 @@ func TestSavedSettingsDoNotChangeRuntime(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil {
 		t.Fatal(err)
 	}
-	if !status.RestartRequired || status.Settings.PrepareAheadSeconds != 120 || status.ActiveSettings.PrepareAheadSeconds != 500 || status.Settings.StorageDir != next.StorageDir || status.ActiveSettings.StorageDir != active.StorageDir || status.Settings.SOCKS5Password != "" || status.ActiveSettings.SOCKS5Password != "" {
+	if !status.RestartRequired || status.Settings.PrepareAheadSeconds != 120 || status.ActiveSettings.PrepareAheadSeconds != 500 || testStorageRoot(status.Settings) != testStorageRoot(next) || testStorageRoot(status.ActiveSettings) != testStorageRoot(active) || status.Settings.SOCKS5Password != "" || status.ActiveSettings.SOCKS5Password != "" {
 		t.Fatalf("incorrect snapshots: %s", w.Body.String())
 	}
 	if status.Settings.DownloadSoftLimit != 64 || status.Settings.DownloadGrowIntervalMS != 0 || status.ActiveSettings.DownloadSoftLimit != 16 || status.ActiveSettings.DownloadGrowIntervalMS != 250 {

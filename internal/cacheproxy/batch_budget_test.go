@@ -14,12 +14,12 @@ import (
 
 func batchBudgetServer(t *testing.T, cfg Config) *Server {
 	t.Helper()
-	db, err := openStorageDatabase(filepath.Join(t.TempDir(), storageDatabaseName), true)
+	db, err := openFixtureDatabase(filepath.Join(t.TempDir(), storageDatabaseName), true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	return &Server{cfg: cfg, usage: &usageStore{db: db}}
+	return &Server{Store: &Store{usage: &usageStore{db: db}}, cfg: cfg}
 }
 
 func TestBatchBudgetConcurrentReservations(t *testing.T) {

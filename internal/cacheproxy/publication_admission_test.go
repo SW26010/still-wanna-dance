@@ -112,7 +112,7 @@ func TestPublicationRechecksProtectionBeforeRename(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.releasePublication(r)
-	file, err := os.CreateTemp(cfg.tempDir(), "download-publish-*.part")
+	file, err := os.CreateTemp(cfg.publishDir(), "download-publish-*.part")
 	if err != nil {
 		t.Fatal(err)
 	}

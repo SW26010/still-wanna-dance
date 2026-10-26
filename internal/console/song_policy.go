@@ -39,7 +39,7 @@ func (c *Console) songPolicyAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		c.mu.Lock()
-		root := c.settings.StorageDir
+		root := libraryPaths(c.settings)
 		c.mu.Unlock()
 		result, err = cacheproxy.ReadSongPage(ctx, root, query, policy, offset)
 	} else {
@@ -62,16 +62,16 @@ func (c *Console) songPolicyAPI(w http.ResponseWriter, r *http.Request) {
 			c.mu.Lock()
 			if c.closing {
 				err = errors.New("程序正在退出")
-			} else if input.StorageID != cacheproxy.CacheStorageID(c.settings.StorageDir) {
+			} else if input.StorageID != cacheproxy.DatabaseID(libraryPaths(c.settings).DatabasePath) {
 				err = errors.New("存储目录已切换，请刷新歌曲列表")
 			}
-			engine, root := c.service, c.settings.StorageDir
+			store, storeErr := c.businessStore()
 			c.mu.Unlock()
 			if err == nil {
-				if engine != nil {
-					err = engine.SetSongPolicy(ctx, id, input.Policy)
-				} else if _, err = c.inspectStorage(root); err == nil {
-					err = cacheproxy.SetSongPolicyOffline(ctx, root, id, input.Policy)
+				if storeErr != nil {
+					err = storeErr
+				} else {
+					err = store.SetSongPolicy(ctx, id, input.Policy)
 				}
 			}
 		}

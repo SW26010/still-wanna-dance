@@ -20,10 +20,10 @@ func TestScanSharedResourceCountsBothSongs(t *testing.T) {
 	}
 	const body = "shared video"
 	initializeTestLibrary(t, c)
-	if err := os.MkdirAll(filepath.Join(c.settings.StorageDir, "videos"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(testStorageRoot(c.settings), "videos"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(fixtureVideoPath(c.settings.StorageDir, "138", body), []byte(body), 0600); err != nil {
+	if err := os.WriteFile(fixtureVideoPath(testStorageRoot(c.settings), "138", body), []byte(body), 0600); err != nil {
 		t.Fatal(err)
 	}
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +53,7 @@ func TestScanSharedResourceCountsBothSongs(t *testing.T) {
 			t.Fatalf("%s: %+v", name, c.batch)
 		}
 	}
-	inventory := scanInventory(context.Background(), c.settings, false)
+	inventory := scanInventory(context.Background(), c.settings)
 	if inventory.Error != "" || inventory.Videos != 1 || inventory.Bytes != int64(len(body)) {
 		t.Fatalf("shared resource counted twice: %+v", inventory)
 	}

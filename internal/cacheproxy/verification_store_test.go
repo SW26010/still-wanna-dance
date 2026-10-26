@@ -12,7 +12,7 @@ import (
 
 func TestConcurrentFullScanChecksSharedVideoOnce(t *testing.T) {
 	s, _ := seedVerifiedTest(t)
-	checker, err := NewLocalChecker(s.cfg.StorageDir, true)
+	checker, err := NewLocalChecker(s.cfg.VideoDir, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,12 +66,12 @@ func TestPublishedFileNeedsNoPlaybackHash(t *testing.T) {
 
 func TestWaitingForVerificationCanBeCanceled(t *testing.T) {
 	s, v := seedVerifiedTest(t)
-	unlock, err := verificationLocks.acquire(context.Background(), s.cfg.StorageDir+v.key)
+	unlock, err := verificationLocks.acquire(context.Background(), pathIdentity(s.cfg.videosDir())+v.key)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer unlock()
-	checker, err := NewLocalChecker(s.cfg.StorageDir, false)
+	checker, err := NewLocalChecker(s.cfg.VideoDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -20,8 +20,8 @@ func TestWebUIDocumentNavigationBootstrap(t *testing.T) {
 			if !accepted {
 				c.terms = termsReceipt{}
 			}
-			c.settings.StorageDir = `<script>alert("path")</script>`
-			c.savedSettings.StorageDir = "pending-storage"
+			setTestLibraryPaths(&c.settings, `<script>alert("path")</script>`)
+			setTestLibraryPaths(&c.savedSettings, "pending-storage")
 			c.settings.Theme = "dark"
 			for _, path := range []string{"/", "/help", "/about", "/terms"} {
 				w := httptest.NewRecorder()
@@ -51,7 +51,7 @@ func TestWebUIDocumentNavigationBootstrap(t *testing.T) {
 					t.Fatalf("%s: saved theme missing at page startup", path)
 				}
 				if data.Page == "console" || data.Page == "help" {
-					if data.Paths["Storage"] != c.settings.StorageDir || data.Paths["Config"] != c.files().Config || strings.Contains(w.Body.String(), c.settings.StorageDir) {
+					if data.Paths["Database"] != c.settings.DatabasePath || data.Paths["Videos"] != c.settings.VideoDir || data.Paths["Config"] != c.files().Config || strings.Contains(w.Body.String(), testStorageRoot(c.settings)) {
 						t.Fatalf("%s: missing, stale or unescaped paths", path)
 					}
 				}

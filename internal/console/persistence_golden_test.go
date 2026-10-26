@@ -10,7 +10,7 @@ import (
 
 func TestConfigurationAndInventoryGolden(t *testing.T) {
 	root := t.TempDir()
-	b, err := os.ReadFile("testdata/config-v6.json")
+	b, err := os.ReadFile("testdata/config-v7.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -18,12 +18,12 @@ func TestConfigurationAndInventoryGolden(t *testing.T) {
 	if err := os.WriteFile(path, b, 0600); err != nil {
 		t.Fatal(err)
 	}
-	c, err := New(path, "127.0.0.1:18081")
+	c, err := newConsoleWithWorkForTest(t, path, "127.0.0.1:18081")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	if c.settings.PrepareAheadSeconds != 500 || c.settings.RequestRetentionDays != 0 || c.settings.AutoAccelerate || c.settings.StorageDir != filepath.Join(root, "storage") || c.settings.VideoStorageMode != "none" || c.settings.MaxCacheBytes != 0 {
+	if c.settings.PrepareAheadSeconds != 500 || c.settings.RequestRetentionDays != 0 || c.settings.AutoAccelerate || testStorageRoot(c.settings) != filepath.Join(root, "storage") || c.settings.VideoStorageMode != "none" || c.settings.MaxCacheBytes != 0 {
 		t.Fatal("configuration defaults changed")
 	}
 	if err := c.save(c.settings); err != nil {
@@ -33,7 +33,7 @@ func TestConfigurationAndInventoryGolden(t *testing.T) {
 	if err != nil || !strings.Contains(string(fields["futurePreference"]), "9007199254740993") {
 		t.Fatal("unknown integer changed", err)
 	}
-	b, err = os.ReadFile("testdata/inventory-v1.json")
+	b, err = os.ReadFile("testdata/inventory-v2.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestConfigurationAndInventoryGolden(t *testing.T) {
 		t.Fatal(v, err)
 	}
 	v.Updated = v.Updated.In(time.FixedZone("east", 8*3600))
-	if err := c.writeSnapshot("inventory", c.settings.StorageDir, v); err != nil {
+	if err := c.writeSnapshot("inventory", libraryPaths(c.settings), v); err != nil {
 		t.Fatal(err)
 	}
 	b, err = os.ReadFile(c.files().State("inventory"))

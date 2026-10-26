@@ -67,8 +67,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			s.mu.Unlock()
 			return nil, nil, context.Canceled
 		}
-		if s.storageFailure != nil {
-			failure := s.storageFailure
+		if failure := errors.Join(s.storageFailure, s.Store.Error()); failure != nil {
 			s.mu.Unlock()
 			// Verified files remain readable even when new storage work is disabled.
 			if _, err := s.verifiedFile(ctx, v); err == nil {
@@ -117,6 +116,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			return nil, nil, context.Cause(ctx)
 		case <-s.ctx.Done():
 			return nil, nil, context.Canceled
+		case <-s.Store.failureDone():
 		case <-done:
 		}
 		s.mu.Lock()

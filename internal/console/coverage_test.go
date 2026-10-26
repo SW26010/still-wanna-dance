@@ -22,7 +22,7 @@ func TestCoverageRecomputesFromDatabaseWhenRemoteFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	initializeTestLibrary(t, c)
-	if err := os.MkdirAll(filepath.Join(c.settings.StorageDir, "videos"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(testStorageRoot(c.settings), "videos"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	// a is shared by two songs, b is an old version, c is missing, d truncated.
@@ -33,7 +33,7 @@ func TestCoverageRecomputesFromDatabaseWhenRemoteFails(t *testing.T) {
 			if ch == "d" {
 				body = "x"
 			}
-			if err := os.WriteFile(filepath.Join(c.settings.StorageDir, "videos", key+".mp4"), []byte(body), 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(testStorageRoot(c.settings), "videos", key+".mp4"), []byte(body), 0600); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -61,7 +61,7 @@ func TestCoverageRecomputesFromDatabaseWhenRemoteFails(t *testing.T) {
 		t.Fatalf("%+v calls=%d", v, calls.Load())
 	}
 	// A restart must retain the coverage, and a failed refresh must not turn it into zero.
-	reopened, err := New(c.configPath, c.address)
+	reopened, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestCoverageRecomputesFromDatabaseWhenRemoteFails(t *testing.T) {
 		t.Fatalf("lost snapshot: %+v", got)
 	}
 	fail.Store(true)
-	if err := os.Remove(filepath.Join(c.settings.StorageDir, "videos", strings.Repeat("a", 32)+".mp4")); err != nil {
+	if err := os.Remove(filepath.Join(testStorageRoot(c.settings), "videos", strings.Repeat("a", 32)+".mp4")); err != nil {
 		t.Fatal(err)
 	}
 	c.startInventoryScan()
@@ -90,7 +90,7 @@ func TestCoverageRecomputesFromDatabaseWhenRemoteFails(t *testing.T) {
 func TestCoverageOnlineStillUsesDatabaseSnapshot(t *testing.T) {
 	c := testConsole(t)
 	cfg := fixtureCacheConfig()
-	cfg.StorageDir = c.settings.StorageDir
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -100,7 +100,7 @@ func TestCoverageOnlineStillUsesDatabaseSnapshot(t *testing.T) {
 	if err := syncTestCatalog(c, engine, context.Background(), map[string]string{"1": key, "2": key}); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(cfg.StorageDir, "videos", key+".mp4"), []byte("cached"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(cfg.VideoDir, key+".mp4"), []byte("cached"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -8,6 +8,7 @@ import (
 
 func TestLibraryAPIReadOnlyAndValidation(t *testing.T) {
 	c := testConsole(t)
+	createReaderLibrary(t, c)
 	for _, tc := range []struct {
 		path, token, origin string
 		want                int

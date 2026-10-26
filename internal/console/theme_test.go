@@ -107,7 +107,7 @@ func TestThemeConfigDefaultAndValidation(t *testing.T) {
 			if err := os.WriteFile(path, data, 0600); err != nil {
 				t.Fatal(err)
 			}
-			loaded, err := newConsole(path, "127.0.0.1:18081", newFixtureDNS())
+			loaded, err := newConsole(path, "127.0.0.1:18081", newFixtureDNS(), testWorkDirectory(t))
 			if value == `"invalid"` {
 				if err == nil {
 					loaded.Close()

@@ -26,7 +26,7 @@ func TestSequentialResponseZeroBudgetProtectionBoundary(t *testing.T) {
 			body := bytes.Repeat([]byte("x"), int(4*rangeBlockSize))
 			var calls atomic.Int32
 			cfg := fixtureConfig()
-			cfg.StorageDir = t.TempDir()
+			prepareFixtureResources(t, &cfg, t.TempDir(), true)
 			cfg.CacheUnlimited = false
 			cfg.PrepareAhead, cfg.LocalProtectAhead = 2*time.Minute, tc.protect
 			cfg.ResourceTransports = func(string) []http.RoundTripper {

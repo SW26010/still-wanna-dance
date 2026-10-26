@@ -52,7 +52,7 @@ func TestBackgroundModesAdmitNextSongBeforeEarlierDownloadsComplete(t *testing.T
 				return c.resolvePlayback(ctx, id, node, "auto")
 			}
 			cfg.OriginScheme = "http"
-			cfg.StorageDir = c.settings.StorageDir
+			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 			cfg.Origins["nya.xin.moe"] = strings.TrimPrefix(origin.URL, "http://")
 			engine, err := cacheproxy.New(cfg)
 			if err != nil {

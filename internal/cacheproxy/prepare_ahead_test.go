@@ -21,7 +21,7 @@ func TestConfiguredPrepareAheadControlsEngineWindow(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := fixtureConfig()
-			cfg.StorageDir = t.TempDir()
+			prepareFixtureResources(t, &cfg, t.TempDir(), true)
 			cfg.PrepareAhead = tc.lead
 			s, err := New(cfg)
 			if err != nil {

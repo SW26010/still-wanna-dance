@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -51,7 +52,7 @@ func TestQueueInvalidationReplacesSourcesDuringHandoff(t *testing.T) {
 				return c.resolvePlayback(ctx, id, node, "auto")
 			}
 			cfg.OriginScheme = "http"
-			cfg.StorageDir = c.settings.StorageDir
+			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 			cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
 			engine, err := cacheproxy.New(cfg)
 			if err != nil {
@@ -151,7 +152,7 @@ func TestQueueInvalidationReplacesSourcesDuringHandoff(t *testing.T) {
 			// Only the newest head must publish. Uncontended old work may finish;
 			// preempted work must not publish a partial file.
 			for _, id := range []string{"4"} {
-				if _, err := os.Stat(fixtureVideoPath(cfg.StorageDir, id, body+id)); err != nil {
+				if _, err := os.Stat(fixtureVideoPath(filepath.Dir(cfg.VideoDir), id, body+id)); err != nil {
 					t.Fatal(id, err)
 				}
 			}

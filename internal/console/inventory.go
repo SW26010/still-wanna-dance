@@ -3,7 +3,6 @@ package console
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -29,7 +28,7 @@ type Inventory struct {
 
 var cacheName = regexp.MustCompile(`^[0-9a-f]{32}\.mp4$`)
 
-func scanInventory(ctx context.Context, s Settings, allowMissingRoot bool) Inventory {
+func scanInventory(ctx context.Context, s Settings) Inventory {
 	var result Inventory
 	if err := ctx.Err(); err != nil {
 		result.Error = err.Error()
@@ -50,19 +49,8 @@ func scanInventory(ctx context.Context, s Settings, allowMissingRoot bool) Inven
 			result.Bytes += info.Size()
 		}
 	}
-	dir := filepath.Join(s.StorageDir, "videos")
+	dir := s.VideoDir
 	entries, err := os.ReadDir(dir)
-	if os.IsNotExist(err) {
-		// Only a never-used root may be missing or empty. Preserve inventory
-		// when an initialized library loses its directory or contents.
-		if rootEntries, rootErr := os.ReadDir(s.StorageDir); (rootErr == nil && len(rootEntries) == 0) || os.IsNotExist(rootErr) {
-			if allowMissingRoot {
-				err = nil
-			} else {
-				err = missingStorageRootError(s.StorageDir, err)
-			}
-		}
-	}
 	if err != nil {
 		problems = append(problems, fmt.Sprintf("无法读取 %s：%v", dir, err))
 	} else {
@@ -91,9 +79,9 @@ func (c *Console) localInventoryWithLoader(load func(context.Context, string) (c
 	// Active storage is immutable. Never borrow the engine or hold state locks
 	// during database I/O; a saved configuration cannot invalidate this read.
 	c.mu.Lock()
-	root := c.settings.StorageDir
+	database := c.settings.DatabasePath
 	c.mu.Unlock()
-	status, err := load(ctx, root)
+	status, err := load(ctx, database)
 	c.inventoryMu.Lock()
 	c.mu.Lock()
 	v := c.inventory
@@ -106,36 +94,9 @@ func (c *Console) localInventoryWithLoader(load func(context.Context, string) (c
 	return v
 }
 
-// Check before engine startup can create videos. Read at most one entry here;
-// the actual inventory scan remains responsible for enumerating the files.
-func checkInventoryDirectory(root string, allowMissingRoot bool) error {
-	dir := filepath.Join(root, "videos")
-	f, err := os.Open(dir)
-	if os.IsNotExist(err) {
-		if entries, rootErr := os.ReadDir(root); (rootErr == nil && len(entries) == 0) || os.IsNotExist(rootErr) {
-			if allowMissingRoot {
-				return nil
-			}
-			return missingStorageRootError(root, err)
-		}
-	}
-	if err == nil {
-		defer f.Close()
-		_, err = f.ReadDir(1)
-		if err == io.EOF {
-			err = nil
-		}
-	}
-	if err != nil {
-		return fmt.Errorf("无法读取 %s：%w", dir, err)
-	}
-	return nil
-}
-
 func (c *Console) startInventoryScan() {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
-	allowMissingRoot := !c.storageUsageKnown()
 	c.mu.Lock()
 	if c.closing {
 		c.mu.Unlock()
@@ -143,7 +104,7 @@ func (c *Console) startInventoryScan() {
 	}
 	s := c.settings
 	if c.checksumURL != "" {
-		err := checkInventoryDirectory(s.StorageDir, allowMissingRoot)
+		_, err := cacheproxy.CacheDirectory(libraryPaths(s).VideoDir)
 		if err == nil {
 			err = c.ensureEngine()
 		}
@@ -172,7 +133,7 @@ func (c *Console) startInventoryScan() {
 	go func() {
 		defer close(done)
 		defer cancel()
-		result := scanInventory(ctx, s, allowMissingRoot)
+		result := scanInventory(ctx, s)
 		if result.Error == "" && c.checksumURL != "" {
 			c.addInventoryCoverage(ctx, &result)
 		}
@@ -190,9 +151,8 @@ func (c *Console) startInventoryScan() {
 			c.inventory.Error = result.Error
 			return
 		}
-		if err := c.writeSnapshot("inventory", s.StorageDir, result); err != nil {
-			c.inventory.Error = "无法保存扫描结果：" + err.Error()
-			return
+		if err := c.writeSnapshot("inventory", libraryPaths(s), result); err != nil {
+			result.Error = "本次扫描已完成，但无法保存结果；退出后将丢失本次结果：" + err.Error()
 		}
 		c.inventory = result
 	}()

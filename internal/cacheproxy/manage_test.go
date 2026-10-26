@@ -32,7 +32,7 @@ func TestCacheDirectoryRejectsSymlinkComponents(t *testing.T) {
 			if err := os.Symlink(target, link); err != nil {
 				t.Skip("symlink privilege unavailable:", err)
 			}
-			if _, err := CacheDirectory(root); err == nil {
+			if _, err := CacheDirectory(fixtureLibrary(root).VideoDir); err == nil {
 				t.Fatal("accepted symlink in cache path")
 			}
 		})
@@ -42,7 +42,7 @@ func TestCacheDirectoryRejectsSymlinkComponents(t *testing.T) {
 func managementFixture(t *testing.T, n int) (string, []CacheEntry) {
 	t.Helper()
 	root := t.TempDir()
-	u, err := openUsage(filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
+	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func managementFixture(t *testing.T, n int) (string, []CacheEntry) {
 		}
 	}
 	u.close()
-	page, err := ReadCachePage(context.Background(), root, "", "size", 0)
+	page, err := ReadCachePage(context.Background(), fixtureLibrary(root), "", "size", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func managementFixture(t *testing.T, n int) (string, []CacheEntry) {
 func TestCachePageMetadataAndPagination(t *testing.T) {
 	ctx := context.Background()
 	root, _ := managementFixture(t, 53)
-	page, err := ReadCachePage(ctx, root, "", "size", 0)
+	page, err := ReadCachePage(ctx, fixtureLibrary(root), "", "size", 0)
 	if err != nil || len(page.Entries) != 50 || page.Total != 53 || page.Entries[0].Bytes != 53 {
 		t.Fatalf("%+v %v", page, err)
 	}
@@ -88,11 +88,11 @@ func TestCachePageMetadataAndPagination(t *testing.T) {
 	if !page.Entries[0].Songs[0].Current || !strings.Contains(page.Entries[0].State, "MD5") {
 		t.Fatal(page.Entries[0])
 	}
-	page, err = ReadCachePage(ctx, root, "", "size", 50)
+	page, err = ReadCachePage(ctx, fixtureLibrary(root), "", "size", 50)
 	if err != nil || len(page.Entries) != 3 || page.Entries[0].Bytes != 3 {
 		t.Fatalf("%+v %v", page, err)
 	}
-	page, err = ReadCachePage(ctx, root, "舞曲 007", "title", 0)
+	page, err = ReadCachePage(ctx, fixtureLibrary(root), "舞曲 007", "title", 0)
 	if err != nil || len(page.Entries) != 1 || page.Entries[0].Songs[0].ID != "7" {
 		t.Fatalf("%+v %v", page, err)
 	}
@@ -102,12 +102,14 @@ func TestCachePageMetadataAndPagination(t *testing.T) {
 	if _, err = os.Stat(filepath.Join(root, "verification.sqlite")); !os.IsNotExist(err) {
 		t.Fatal("listing created verification store")
 	}
-	if _, err = os.Stat(filepath.Join(root, ".lock")); !os.IsNotExist(err) {
-		t.Fatal("listing started engine")
+	for _, path := range []string{filepath.Join(root, "tmp"), filepath.Join(root, "videos", ".swd.lock"), filepath.Join(root, "videos", ".swd-tmp")} {
+		if _, err = os.Stat(path); !os.IsNotExist(err) {
+			t.Fatal("listing created video-engine resources", path, err)
+		}
 	}
 	empty := filepath.Join(t.TempDir(), "absent")
-	page, err = ReadCachePage(ctx, empty, "", "recent", 0)
-	if err != nil || len(page.Entries) != 0 {
+	page, err = ReadCachePage(ctx, fixtureLibrary(empty), "", "recent", 0)
+	if err == nil || len(page.Entries) != 0 {
 		t.Fatal(page, err)
 	}
 	if _, err = os.Stat(empty); !os.IsNotExist(err) {
@@ -119,7 +121,7 @@ func TestCacheDeletionSharedMetadataAndStaleConfirmation(t *testing.T) {
 	ctx := context.Background()
 	root, entries := managementFixture(t, 1)
 	e := entries[0]
-	u, err := openUsage(filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
+	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,19 +130,19 @@ func TestCacheDeletionSharedMetadataAndStaleConfirmation(t *testing.T) {
 		t.Fatal(err)
 	}
 	u.close()
-	results, err := DeleteCacheOffline(ctx, root, []CacheSelection{{e.Key, e.Stamp}})
+	results, err := DeleteCacheOffline(ctx, fixtureLibrary(root), []CacheSelection{{e.Key, e.Stamp}})
 	if err != nil || results[0].Result != "changed" {
 		t.Fatal(results, err)
 	}
-	page, err := ReadCachePage(ctx, root, "共享歌", "recent", 0)
+	page, err := ReadCachePage(ctx, fixtureLibrary(root), "共享歌", "recent", 0)
 	if err != nil || len(page.Entries) != 1 || page.Entries[0].SongCount != 2 || page.Entries[0].LastRequest != 0 {
 		t.Fatal(page, err)
 	}
 	e = page.Entries[0]
-	if _, err = CacheFile(ctx, root, CacheSelection{e.Key, e.Stamp}); err != nil {
+	if _, err = CacheFile(ctx, fixtureLibrary(root), CacheSelection{e.Key, e.Stamp}); err != nil {
 		t.Fatal(err)
 	}
-	results, err = DeleteCacheOffline(ctx, root, []CacheSelection{{e.Key, e.Stamp}})
+	results, err = DeleteCacheOffline(ctx, fixtureLibrary(root), []CacheSelection{{e.Key, e.Stamp}})
 	if err != nil || results[0].Result != "deleted" {
 		t.Fatal(results, err)
 	}
@@ -165,7 +167,7 @@ func TestCacheDeletionProtectsPinsUsageChecksAndStore(t *testing.T) {
 	e := entries[0]
 	ctx := context.Background()
 	cfg := fixtureConfig()
-	cfg.StorageDir = root
+	prepareFixtureResources(t, &cfg, root, false)
 	cfg.MaxCacheBytes = 1000
 	cfg.CacheUnlimited = false
 	s, err := New(cfg)
@@ -186,7 +188,7 @@ func TestCacheDeletionProtectsPinsUsageChecksAndStore(t *testing.T) {
 		t.Fatal(r, err)
 	}
 	clearTestProtection(s)
-	release, err := verificationLocks.acquire(ctx, root+e.Key)
+	release, err := verificationLocks.acquire(ctx, pathIdentity(fixtureLibrary(root).VideoDir)+e.Key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +197,7 @@ func TestCacheDeletionProtectsPinsUsageChecksAndStore(t *testing.T) {
 	if err != nil || r[0].Result != "protected" {
 		t.Fatal(r, err)
 	}
-	if _, err = DeleteCacheOffline(ctx, root, selected); err == nil {
+	if _, err = DeleteCacheOffline(ctx, fixtureLibrary(root), selected); err == nil {
 		t.Fatal("offline deletion bypassed store owner")
 	}
 	s.retentionMu.Lock()
@@ -235,22 +237,22 @@ func TestCacheManagementRejectsUnknownChangedAndPaths(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "videos", unknown+".mp4"), []byte("unknown"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	page, err := ReadCachePage(ctx, root, unknown, "recent", 0)
+	page, err := ReadCachePage(ctx, fixtureLibrary(root), unknown, "recent", 0)
 	if err != nil || page.Entries[0].Known {
 		t.Fatal(page, err)
 	}
 	u := page.Entries[0]
-	r, err := DeleteCacheOffline(ctx, root, []CacheSelection{{u.Key, u.Stamp}, {"../outside", "x"}})
+	r, err := DeleteCacheOffline(ctx, fixtureLibrary(root), []CacheSelection{{u.Key, u.Stamp}, {"../outside", "x"}})
 	if err != nil || r[0].Result != "unknown" || r[1].Result != "failed" {
 		t.Fatal(r, err)
 	}
-	if _, err = CacheFile(ctx, root, CacheSelection{"../outside", "x"}); err == nil {
+	if _, err = CacheFile(ctx, fixtureLibrary(root), CacheSelection{"../outside", "x"}); err == nil {
 		t.Fatal("accepted traversal")
 	}
 	if err = os.WriteFile(filepath.Join(root, "videos", e.Key+".mp4"), []byte("changed"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	r, err = DeleteCacheOffline(ctx, root, []CacheSelection{{e.Key, e.Stamp}})
+	r, err = DeleteCacheOffline(ctx, fixtureLibrary(root), []CacheSelection{{e.Key, e.Stamp}})
 	if err != nil || r[0].Result != "changed" {
 		t.Fatal(r, err)
 	}
@@ -266,11 +268,11 @@ func TestCacheManagementRejectsSymlinks(t *testing.T) {
 	if err := os.Symlink(target, path); err != nil {
 		t.Skip("symlink privilege unavailable:", err)
 	}
-	page, err := ReadCachePage(context.Background(), root, "", "recent", 0)
+	page, err := ReadCachePage(context.Background(), fixtureLibrary(root), "", "recent", 0)
 	if err != nil || page.Total != 0 {
 		t.Fatal(page, err)
 	}
-	r, err := DeleteCacheOffline(context.Background(), root, []CacheSelection{{e.Key, e.Stamp}})
+	r, err := DeleteCacheOffline(context.Background(), fixtureLibrary(root), []CacheSelection{{e.Key, e.Stamp}})
 	if err != nil || r[0].Result == "deleted" {
 		t.Fatal(r, err)
 	}
@@ -281,7 +283,7 @@ func TestCacheManagementRejectsSymlinks(t *testing.T) {
 
 func TestCachePageBoundsAssociationsAndSearchesHiddenSongs(t *testing.T) {
 	root, entries := managementFixture(t, 1)
-	u, err := openUsage(filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
+	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -295,7 +297,7 @@ func TestCachePageBoundsAssociationsAndSearchesHiddenSongs(t *testing.T) {
 		}
 	}
 	u.close()
-	page, err := ReadCachePage(context.Background(), root, "hidden-124", "title", 0)
+	page, err := ReadCachePage(context.Background(), fixtureLibrary(root), "hidden-124", "title", 0)
 	if err != nil || len(page.Entries) != 1 {
 		t.Fatal(page, err)
 	}
@@ -316,7 +318,7 @@ func TestCacheManagementRejectsDirectoryLinks(t *testing.T) {
 	if err := os.Symlink(target, filepath.Join(root, "videos")); err != nil {
 		t.Skip("symlink privilege unavailable:", err)
 	}
-	if _, err := CacheDirectory(root); err == nil {
+	if _, err := CacheDirectory(fixtureLibrary(root).VideoDir); err == nil {
 		t.Fatal("accepted directory redirect")
 	}
 }

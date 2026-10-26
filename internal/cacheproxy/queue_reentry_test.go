@@ -19,7 +19,7 @@ import (
 func completedQueueFixture(t *testing.T, body string, before func(*http.Request) error) (*Server, video, *queueSource, *atomic.Int32) {
 	t.Helper()
 	cfg := fixtureConfig()
-	cfg.StorageDir = t.TempDir()
+	prepareFixtureResources(t, &cfg, t.TempDir(), true)
 	cfg.CacheUnlimited, cfg.MaxCacheBytes = false, 0
 	cfg.PrepareAhead, cfg.LocalProtectAhead = 120*time.Second, 120*time.Second
 	cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return videoURL(body), nil }

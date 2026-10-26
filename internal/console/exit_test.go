@@ -9,7 +9,7 @@ import (
 )
 
 func TestBeginShutdownCancelsWorkBeforeWaiting(t *testing.T) {
-	c, err := New(filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
+	c, err := newConsoleWithWorkForTest(t, filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestBeginShutdownCancelsWorkBeforeWaiting(t *testing.T) {
 }
 
 func TestExitAuthenticationAndAcknowledgement(t *testing.T) {
-	c, err := New(filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
+	c, err := newConsoleWithWorkForTest(t, filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081")
 	if err != nil {
 		t.Fatal(err)
 	}

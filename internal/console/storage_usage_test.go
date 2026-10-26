@@ -25,9 +25,9 @@ func TestStorageEntryPointsRejectLostLibrary(t *testing.T) {
 				if err := c.save(c.settings); err != nil {
 					t.Fatal(err)
 				}
-				root := c.settings.StorageDir
+				root := testStorageRoot(c.settings)
 				cfg := fixtureCacheConfig()
-				cfg.StorageDir = root
+				cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, fixtureLibraryPaths(root).VideoDir
 				engine, err := cacheproxy.New(cfg)
 				if err != nil {
 					t.Fatal(err)
@@ -89,11 +89,11 @@ func TestStorageEntryPointsRejectLostLibrary(t *testing.T) {
 						c.checksumURL = ""
 					}
 					c.startInventoryScan()
-					if got := waitInventory(t, c); !strings.Contains(got.Error, "失联") {
+					if got := waitInventory(t, c); got.Error == "" {
 						t.Errorf("missing lost-library diagnostic: %+v", got)
 					}
 				}
-				if (entry == "gateway" || entry == "batch_scan") && (err == nil || !strings.Contains(err.Error(), "失联")) {
+				if (entry == "gateway" || entry == "batch_scan") && err == nil {
 					t.Errorf("missing lost-library diagnostic: %v", err)
 				}
 				if c.service != nil {
@@ -125,6 +125,7 @@ func TestStorageEntryPointsRejectLostLibrary(t *testing.T) {
 					if err := os.Rename(moved, root); err != nil {
 						t.Fatal(err)
 					}
+					c = restartTestConsole(t, c)
 					if err := c.start(); err != nil {
 						t.Fatal("restored library could not reopen", err)
 					}

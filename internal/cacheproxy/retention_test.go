@@ -57,7 +57,7 @@ func TestRetentionPriorityAndVersions(t *testing.T) {
 	hot := retainedPath(t, s, cfg, "1")
 	cold := retainedPath(t, s, cfg, "2")
 	prefetch := retainedPath(t, s, cfg, "3")
-	metadata := filepath.Join(cfg.StorageDir, "notes.json")
+	metadata := filepath.Join(filepath.Dir(cfg.Store.path), "notes.json")
 	copyPath := cfg.videoFile(strings.Repeat("4", 32))
 	s.usage.write([]usageEvent{{songID: "4", at: now - 1, summaryOnly: true}})
 	for _, p := range []string{hot, cold, prefetch, copyPath, metadata} {
@@ -95,7 +95,7 @@ func TestRetentionPinsAndUnlimited(t *testing.T) {
 func TestRetentionStartupAndUnknownFiles(t *testing.T) {
 	cfg := fixtureConfig()
 	cfg.OriginScheme = "http"
-	cfg.StorageDir = t.TempDir()
+	prepareFixtureResources(t, &cfg, t.TempDir(), true)
 	cfg.MaxCacheBytes = 1
 	cfg.CacheUnlimited = false
 	initial, err := New(cfg)

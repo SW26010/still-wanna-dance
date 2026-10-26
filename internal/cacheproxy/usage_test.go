@@ -79,11 +79,11 @@ func TestCacheAccessSurvivesRequestCleanupAndRestart(t *testing.T) {
 		t.Fatal(n, err)
 	}
 	s.Close()
-	page, err := ReadCachePage(context.Background(), cfg.StorageDir, "", "recent", 0)
+	page, err := ReadCachePage(context.Background(), cfg.libraryPaths(), "", "recent", 0)
 	if err != nil || len(page.Entries) != 1 || page.Entries[0].LastRequest != old.UnixMilli() {
 		t.Fatal(page, err)
 	}
-	u, err := openUsage(filepath.Join(cfg.StorageDir, "storage.sqlite"), slog.Default(), 0)
+	u, err := fixtureUsage(t, cfg.Store.path, slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +105,7 @@ func TestCacheAccessSurvivesRequestCleanupAndRestart(t *testing.T) {
 func TestSongDemandPersistsDeduplicatesAndHandlesClockRollback(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "usage.sqlite")
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	u, err := openUsage(path, log, 0)
+	u, err := fixtureUsage(t, path, log, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestSongDemandPersistsDeduplicatesAndHandlesClockRollback(t *testing.T) {
 		recordDemand(u, "1", base.Add(gap))
 	}
 	u.close()
-	u, err = openUsage(path, log, 0)
+	u, err = fixtureUsage(t, path, log, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +135,7 @@ func TestSongDemandPersistsDeduplicatesAndHandlesClockRollback(t *testing.T) {
 }
 
 func TestSongDemandConcurrentAndClose(t *testing.T) {
-	u, err := openUsage(filepath.Join(t.TempDir(), "usage.sqlite"), slog.Default(), 0)
+	u, err := fixtureUsage(t, filepath.Join(t.TempDir(), "usage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,14 +193,14 @@ func TestUsageRejectsLegacyScoreSchema(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if u, err := openUsage(path, slog.Default(), 0); err == nil {
+	if u, err := fixtureUsage(t, path, slog.Default(), 0); err == nil {
 		u.close()
 		t.Fatal("accepted old schema")
 	}
 }
 
 func TestRequestDetailsPruneWithoutLosingSongDemand(t *testing.T) {
-	u, err := openUsage(filepath.Join(t.TempDir(), "usage.sqlite"), slog.Default(), 0)
+	u, err := fixtureUsage(t, filepath.Join(t.TempDir(), "usage.sqlite"), slog.Default(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,7 +233,10 @@ func TestRequestDetailsPruneWithoutLosingSongDemand(t *testing.T) {
 func TestDatabaseUnavailableBlocksStartup(t *testing.T) {
 	s, cfg := setup(t, nil)
 	s.Close()
-	dbPath := filepath.Join(cfg.StorageDir, "storage.sqlite")
+	if err := cfg.Store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	dbPath := cfg.Store.path
 	original, err := os.ReadFile(dbPath)
 	if err != nil {
 		t.Fatal(err)
@@ -241,14 +244,14 @@ func TestDatabaseUnavailableBlocksStartup(t *testing.T) {
 	if err := os.WriteFile(dbPath, []byte("not a database"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if reopened, err := New(cfg); err == nil {
+	if reopened, err := OpenStore(dbPath); err == nil {
 		reopened.Close()
 		t.Fatal("corrupt canonical database accepted")
 	}
 	if err := os.Remove(dbPath); err != nil {
 		t.Fatal(err)
 	}
-	if reopened, err := New(cfg); err == nil {
+	if reopened, err := OpenStore(dbPath); err == nil {
 		reopened.Close()
 		t.Fatal("missing database silently recreated")
 	}
@@ -258,7 +261,7 @@ func TestDatabaseUnavailableBlocksStartup(t *testing.T) {
 	if err := os.WriteFile(dbPath, original, 0600); err != nil {
 		t.Fatal(err)
 	}
-	reopened, err := New(cfg)
+	reopened, err := OpenStore(dbPath)
 	if err != nil {
 		t.Fatal("failed startup retained ownership", err)
 	}
@@ -268,7 +271,7 @@ func TestDatabaseUnavailableBlocksStartup(t *testing.T) {
 func TestRequestRetentionCleansIdleRestart(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "usage.sqlite")
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	u, err := openUsage(path, log, 0)
+	u, err := fixtureUsage(t, path, log, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -280,7 +283,7 @@ func TestRequestRetentionCleansIdleRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	u.close()
-	u, err = openUsage(path, log, 30)
+	u, err = fixtureUsage(t, path, log, 30)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,6 +307,7 @@ func TestRequestRetentionCleansIdleRestart(t *testing.T) {
 func TestRequestRetentionConfig(t *testing.T) {
 	for _, days := range []int{-1, 36501, 0, 30, 36500} {
 		cfg := fixtureConfig()
+		cfg.VideoDir = t.TempDir()
 		cfg.RequestRetentionDays = days
 		err := cfg.validate()
 		if (err != nil) != (days < 0 || days > 36500) {

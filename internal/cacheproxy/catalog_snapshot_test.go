@@ -82,6 +82,7 @@ func TestCatalogCheckStatusSurvivesRestart(t *testing.T) {
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
+	reopenFixtureStore(t, &cfg)
 	reopened, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -149,7 +150,7 @@ func TestLoadCatalogStatusRejectsMissingTrackingSchema(t *testing.T) {
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
-	got, err := LoadCatalogStatus(ctx, cfg.StorageDir)
+	got, err := LoadCatalogStatus(ctx, cfg.Store.path)
 	if err == nil {
 		t.Fatal(got, err)
 	}

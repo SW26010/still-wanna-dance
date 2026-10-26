@@ -13,9 +13,9 @@ type ScanTarget struct{ Checksum, Target string }
 // LoadScanTargets reads existing song associations without starting an engine,
 // updating versions or creating a missing database. URLs are for local checks;
 // a later download must resolve a fresh address if its local receipt is lost.
-func LoadScanTargets(ctx context.Context, root string) (map[string]ScanTarget, error) {
-	db, err := readStorageDatabase(root)
-	if err != nil || db == nil {
+func LoadScanTargets(ctx context.Context, databasePath string) (map[string]ScanTarget, error) {
+	db, err := readDatabaseFile(databasePath)
+	if err != nil {
 		return nil, err
 	}
 	defer db.Close()

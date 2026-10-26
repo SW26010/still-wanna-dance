@@ -23,7 +23,7 @@ func writeTestFile(t *testing.T, path, body string) {
 
 func testVideoFile(t *testing.T, cfg Config, body string) string {
 	t.Helper()
-	v, err := (&Server{cfg: cfg}).parse(httptest.NewRequest("GET", videoURL(body), nil))
+	v, err := (&Server{Store: &Store{}, cfg: cfg}).parse(httptest.NewRequest("GET", videoURL(body), nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,13 +56,13 @@ func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
 	if err != nil || len(files) != 1 {
 		t.Fatal(files, err)
 	}
-	entries, err := os.ReadDir(cfg.StorageDir)
+	entries, err := os.ReadDir(filepath.Dir(cfg.Store.path))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, entry := range entries {
 		switch entry.Name() {
-		case "videos", "tmp", "storage.sqlite", ".lock", "storage.sqlite-journal":
+		case "videos", "storage.sqlite", ".lock", "storage.sqlite-journal":
 		default:
 			t.Fatal("unexpected duplicate storage", entry.Name())
 		}
@@ -78,7 +78,8 @@ func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
 	}
 	s.Close()
 	// An unrelated obsolete file must not affect engine startup or eviction.
-	writeTestFile(t, filepath.Join(cfg.StorageDir, "verification.sqlite"), "not a database")
+	writeTestFile(t, filepath.Join(filepath.Dir(cfg.Store.path), "verification.sqlite"), "not a database")
+	reopenFixtureStore(t, &cfg)
 	restarted, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)

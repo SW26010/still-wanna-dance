@@ -60,8 +60,8 @@ func TestMD5IdentityAcrossDifferentResourceVersions(t *testing.T) {
 		}
 	}
 	key := parsedVideo(t, s, payload).key
-	files, err := os.ReadDir(cfg.videosDir())
-	if err != nil || len(files) != 1 || files[0].Name() != key+".mp4" || downloads.Load() != 1 {
+	files, err := filepath.Glob(filepath.Join(cfg.videosDir(), "*.mp4"))
+	if err != nil || len(files) != 1 || filepath.Base(files[0]) != key+".mp4" || downloads.Load() != 1 {
 		t.Fatalf("files=%v downloads=%d err=%v", files, downloads.Load(), err)
 	}
 	for _, id := range []string{"1", "2"} {
@@ -181,6 +181,7 @@ func TestMD5PublishedFilesTrustedAcrossRestart(t *testing.T) {
 	if err := os.WriteFile(cfg.videoFile(key), []byte("trusted"), 0600); err != nil {
 		t.Fatal(err)
 	}
+	reopenFixtureStore(t, &cfg)
 	next, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -262,10 +263,8 @@ func TestMD5OldStorageRejectedWithoutMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	db.Close()
-	cfg := fixtureConfig()
-	cfg.StorageDir = root
-	if s, err := New(cfg); err == nil {
-		s.Close()
+	if store, err := OpenStore(storagePath(root)); err == nil {
+		store.Close()
 		t.Fatal("old storage accepted")
 	}
 	db, err = sql.Open("sqlite", path)
@@ -293,7 +292,7 @@ func BenchmarkMD5ReferenceCheck(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := CheckReferencedFiles(context.Background(), root, refs); err != nil {
+		if _, err := CheckReferencedFiles(context.Background(), fixtureLibrary(root).VideoDir, refs); err != nil {
 			b.Fatal(err)
 		}
 	}

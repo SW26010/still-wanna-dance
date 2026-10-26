@@ -16,7 +16,7 @@ const deliveredBytes=(value:number)=>value<1e6?`${value.toLocaleString()} B`:mb(
 const ms=(value:number|null)=>value==null?'—':`${value.toLocaleString(undefined,{maximumFractionDigits:1})} ms`;
 
 export function RequestTimeline({visible}:{visible:boolean}) {
-  const app=useApp(),storage=app.status.data!.activeSettings.storageDir;
+  const app=useApp(),storage=app.status.data!.activeSettings.databasePath;
   const [range,setRange]=useState<Range>(()=>({from:localDate(Date.now()-24*3600000),to:''}));
   const [applied,setApplied]=useState(range),[cursors,setCursors]=useState(['']),[error,setError]=useState(''),[paused,setPaused]=useState(false),[queryRevision,setQueryRevision]=useState(0);
   const previousStorage=useRef(storage);

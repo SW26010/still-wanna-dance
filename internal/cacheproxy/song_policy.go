@@ -138,12 +138,13 @@ type resourcePolicy struct {
 // Only resources with at least one marked song need a policy entry. All current
 // associations participate in the reduction, including ordinary songs sharing
 // the same resource. No associations means ordinary, never implicitly blocked.
+// Find marked song IDs first so sparse preferences do not scan the whole catalog.
 func (s *Server) resourcePolicies(ctx context.Context) (map[string]resourcePolicy, error) {
 	rows, err := s.usage.db.QueryContext(ctx, `SELECT m.md5,
  MAX(CASE WHEN p.policy='favorite' THEN 1 ELSE 0 END),
  MIN(CASE WHEN p.policy='blocked' THEN 1 ELSE 0 END)
  FROM song_media m LEFT JOIN song_preferences p ON p.song_id=m.song_id
- WHERE m.md5 IN (SELECT sm.md5 FROM song_media sm JOIN song_preferences sp ON sp.song_id=sm.song_id)
+ WHERE m.md5 IN (SELECT sm.md5 FROM song_media sm WHERE sm.song_id IN (SELECT song_id FROM song_preferences))
  GROUP BY m.md5`)
 	if err != nil {
 		return nil, err

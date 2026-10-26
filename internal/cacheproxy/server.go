@@ -69,6 +69,7 @@ type Server struct {
 	flights          map[string]*flight
 	resourceUses     map[string]*resourceUse  // protected by mu; completed Range work with continuing usage
 	demands          map[*downloadDemand]bool // protected by mu, separate from file pins
+	preparationSeq   uint64                   // protected by mu; never reused during this engine's lifetime
 	useBlocks        map[useBlockID]int       // protected by mu; includes readable blocks
 	useHandoffs      useHandoffHeap
 	useTimer         *time.Timer // Handoff expiry and idle queue clock refresh.

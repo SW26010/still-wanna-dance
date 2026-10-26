@@ -36,7 +36,7 @@ flowchart TD
     D -->|"本地读取等待开始／结束"| C
 ```
 
-需求管理层认识 GET、队首、普通队列、补齐和交接，负责将来源语义转换成通用属性。调度器不识别歌曲、视频等级或“继任者”；同等紧急的任务通过不透明 `Owner` 公平分配。资源层提供兼容的内容身份和执行器，继续管理实体版本、选路、临时文件、强 ETag 及最终 MD5 校验。
+需求管理层认识 GET、队首、普通队列、补齐和交接，负责将来源语义转换成通用属性。调度器不识别歌曲、视频等级或“继任者”；有限期限同等紧急的任务通过不透明 `Owner` 公平分配，无期限／提前执行候选优先比较来源提供的通用顺序号。资源层提供兼容的内容身份和执行器，继续管理实体版本、选路、临时文件、强 ETag 及最终 MD5 校验。
 
 产品以 MD5、大小和块号标识内容块，并由资源会话约束实体及选路一致性。URL 本身不作为共享身份。文件级生命周期仍然存在，网络执行额度统一交给块调度器；`MaxLocalValidations` 只限制本地文件校验，并非网络并发数，CLI 继续使用 `-max-downloads`。
 
@@ -48,6 +48,7 @@ flowchart TD
 | `LeaseUntil` | 这份需求有效到何时？ | 决定需求存亡，不代表本地视频文件保留期，也不延长执行超时 |
 | `Blocking`（调度器内部） | 这一刻是否确实有 Read 等待这个缺块？ | 由本地读取等待独立派生，不在普通 Need、需求集合、交接或块使用接口中传递 |
 | `Opportunistic` | 是否另有有效的无期限普通需求，允许提前使用空额度？ | 只绕过启动窗口，不绕过普通额度和缓增，不等于 Blocking |
+| `OpportunisticOrder` | 提前执行候选之间先启动哪一份？ | 只在无期限／提前执行索引比较，不改变有限期限、准入资格或在途执行 |
 | `WindowClosed` | 来源是否明确关闭当前入窗资格、等待事实变化？ | 不随墙钟自动打开，不结束来源、租约或在途任务；独立来源与实际读取仍可准入 |
 
 普通需求有可更新、可关闭的身份，核心以句柄管理。主动撤销是正常路径，租约到期负责兜底；关闭或过期后的旧更新不能复活需求。续期必须依据来源仍然有效，不能因为下载还在进行就给自己续命。实际读取等待由 ReadRequests 独立登记，不依赖普通需求租约；本地 Read 返回、出错、取消时撤销，会话关闭清空等待。最后普通需求和读取等待均结束时立即结束旧任务，不保留供重接的任务元数据；响应关闭及写入收尾完成后释放执行额度和任务容量。Schedule 原子登记任务及普通需求，或为此前登记的读取等待接入执行器；已结束句柄不能复活，新需求待旧清理完成后建立新任务。完整块由本地资源层独立保留，未完成块从块起点重下。
@@ -126,6 +127,8 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 - **Blocking**：实际缺块等待立即执行，绕过窗口、缓增和所设软上限；仍计入总 active，受任务/资源容量约束，同块继续去重。
 - **Opportunistic**：无期限补齐可在有限期限堆首尚未入窗时使用普通额度；同块兼有有限期限和补齐时保留两种准入依据，但只有一次执行。已入窗的有限期限候选优先，补齐撤销只撤掉自身提前权限。
 
+提前执行索引按 `OpportunisticOrder` 从小到大选择，同一正号按任务登记次序选择；0 为未编号兼容类，彼此保持原排序。顺序从开放的提前执行贡献独立聚合，不能直接取有限期限代表来源上的字段。生命周期和编号分配统一以 [canonical 手动下载规则](download-resource-design.md#无明确期限的手动下载)为准；来源负责稳定顺序，核心继续只处理不透明块。
+
 所有执行直到正文关闭与收尾结束才从 active 扣除。普通准入仍要求 `active < open`，因此 open=4、4 路普通加 2 路 Blocking 时，总 active=6；回落到 4 仍不补位，回落到 3 才能补一路。Blocking 出现、消失或普通期限临近都不取消仍有有效需求的在途请求。
 
 此规则按多路能够增加有效供给的假设工作，不做总带宽整形。固定 M 不能保证任意数量的同期限块准时，实际总带宽不足时增加并发也未必增加吞吐。迟到须同时核对 ReadyBy 的依据、M、窗口内排队、并发准入及执行故障，不能只归因于 T 不够精确。
@@ -134,7 +137,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 
 核心一个事件循环持有任务和索引堆，等待需求变化、执行完成或最近的入窗/增路/下载截止/租约时刻。已入窗但满额度的任务等待完成或缓增事件，不把过去的入窗时间反复装成立即触发的定时器。没有每 500 ms 全任务汇总、排序和目标并发反推，也没有每块独立的轮询协程。
 
-定位共享块、汇总该块的有限来源、调整相关索引即可响应变化。单个堆项调整为 O(log N)，检查堆首是否入窗为 O(1)；同 Owner 的公平性更新可能调整该组多个块，不能把整个事件处理夸大为恒定成本。网络、磁盘和正文关闭在执行器中完成，调度事件循环不等待这些操作。
+定位共享块、汇总该块的有限来源、调整相关索引即可响应变化。单个堆项调整为 O(log N)，检查堆首是否入窗为 O(1)；同 Owner 的公平性更新仍遍历该组，有限期限及未编号候选可能调整多个堆项，不能把整个事件处理夸大为恒定成本。编号候选的提前执行排序不依赖公平性，跳过该索引上多余的堆调整。网络、磁盘和正文关闭在执行器中完成，调度事件循环不等待这些操作。
 
 事件驱动不等于系统没有定时工作：资源协调器仍每 10 秒确认来源并续 30 秒活跃租约；VRC 日志按[队列文档](queue-prefetch.md#日志检测与频率)增量读取。缓冲只在实际执行时取得，全局任务与使用需求数量有界，完整块由引擎本地资源注册表保留，已移除暂停检查点上限，具体上限见[运行规则](download-concurrency.md)。
 
@@ -147,6 +150,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 | 设计约定 | 实现与回归入口 |
 | --- | --- |
 | 独立需求、共享任务、租约与公平分配 | [scheduler.go](../internal/blocksched/scheduler.go)、[scheduler_test.go](../internal/blocksched/scheduler_test.go)、[stop_test.go](../internal/blocksched/stop_test.go) |
+| 手动来源顺序、提前执行排序与完整文件发布 | [preparation.go](../internal/cacheproxy/preparation.go)、[order_test.go](../internal/blocksched/order_test.go)、[preparation_order_test.go](../internal/cacheproxy/preparation_order_test.go) |
 | 本地读取等待、独立撤销与任务登记前接入 | [reads.go](../internal/blocksched/reads.go)、[stream.go](../internal/cacheproxy/stream.go)、[reads_test.go](../internal/blocksched/reads_test.go)、[stream_wait_test.go](../internal/cacheproxy/stream_wait_test.go) |
 | 来源过滤、有限交接、不识别继任者 | [block_demands.go](../internal/cacheproxy/block_demands.go)、[demand.go](../internal/cacheproxy/demand.go)、[block_demands_test.go](../internal/cacheproxy/block_demands_test.go) |
 | GET / 队列绝对期限与缺失值规则 | [media_timing.go](../internal/cacheproxy/media_timing.go)、[playback_timing.go](../internal/cacheproxy/playback_timing.go)、[queue_timing.go](../internal/cacheproxy/queue_timing.go) 及同名 `_test.go` |

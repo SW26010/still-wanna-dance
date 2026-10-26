@@ -111,6 +111,7 @@ func (s *Server) retrySongURL(ctx context.Context, v video) (video, error) {
 // PrefetchPlayback shares address policy and flights with HTTP playback while
 // retaining queue ownership; waiting here never counts as a playback request.
 func (s *Server) PrefetchPlayback(ctx context.Context, id int64) (string, error) {
+	ctx = withPreparationScope(ctx)
 	if !s.beginRequest() {
 		return "", context.Canceled
 	}

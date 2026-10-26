@@ -14,7 +14,7 @@ import (
 // GET and queue-head handoffs share a fixed lifetime and source-clock shift.
 const handoffGrace = 2 * time.Second
 
-// Resource ownership feeds the block-demand adapter. It carries no scheduling rank.
+// Resource ownership feeds the block-demand adapter.
 var errPreempted = errors.Join(context.Canceled, errors.New("download stopped without active demand"))
 
 type queueDemandKey struct{}
@@ -53,6 +53,7 @@ type downloadDemand struct {
 	exit                  sourceExit
 	key, song             string
 	queue, playback       bool
+	preparationOrder      uint64 // Stable across this logical preparation's retries.
 	queueSource           *queueSource
 	clock                 *playbackClock
 	firstBlock, lastBlock int64 // Remaining GET span, protected by Server.mu.
@@ -209,6 +210,15 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 	} else if err := s.reserveUseLocked(d.useSpan(), playback); err != nil {
 		s.mu.Unlock()
 		return nil, nil, err
+	}
+	if !queue && !playback {
+		order, err := s.preparationOrderLocked(ctx)
+		if err != nil {
+			s.releaseUseLocked(d.useSpan(), time.Now())
+			s.mu.Unlock()
+			return nil, nil, err
+		}
+		d.preparationOrder = order
 	}
 	if s.demands == nil {
 		s.demands = make(map[*downloadDemand]bool)

@@ -12,7 +12,7 @@ import (
 func (s *Server) projectUseLocked(key string, now time.Time) (map[useBlockID]map[blockSource]plannedNeed, bool) {
 	plan := make(map[useBlockID]map[blockSource]plannedNeed)
 	active := false
-	add := func(span useSpan, source blockSource, clock *playbackClock, until time.Time, origin demandSource, idleBase time.Time) {
+	add := func(span useSpan, source blockSource, clock *playbackClock, until time.Time, origin demandSource, idleBase time.Time, order uint64) {
 		if key != "" && span.key != key {
 			return
 		}
@@ -26,7 +26,7 @@ func (s *Server) projectUseLocked(key string, now time.Time) (map[useBlockID]map
 			if clock != nil {
 				ready = clock.ready(block * s.cfg.BlockSize)
 			}
-			p := plannedNeed{need: blocksched.Need{Owner: span.key, ReadyBy: ready, LeaseUntil: until}, source: origin}
+			p := plannedNeed{need: blocksched.Need{Owner: span.key, ReadyBy: ready, LeaseUntil: until, OpportunisticOrder: order}, source: origin}
 			if !idleBase.IsZero() {
 				// No GET consumes this queue. A future estimate still supplies
 				// absolute entry times, but once reached, only distance from the
@@ -51,7 +51,7 @@ func (s *Server) projectUseLocked(key string, now time.Time) (map[useBlockID]map
 		if d.playback {
 			kind, origin = "get", sourceGET
 		}
-		add(d.useSpan(), blockSource{kind, d}, d.clock, now.Add(sourceLease), origin, time.Time{})
+		add(d.useSpan(), blockSource{kind, d}, d.clock, now.Add(sourceLease), origin, time.Time{}, d.preparationOrder)
 	}
 	var idleBase time.Time
 	if s.queuePlaybackEndLocked().IsZero() {
@@ -59,10 +59,10 @@ func (s *Server) projectUseLocked(key string, now time.Time) (map[useBlockID]map
 	}
 	for _, q := range s.prefetchSources {
 		clock := playbackClock{at: q.startAt, media: q.timing}
-		add(q.use, blockSource{"queue", q}, &clock, now.Add(sourceLease), q.origin(), idleBase)
+		add(q.use, blockSource{"queue", q}, &clock, now.Add(sourceLease), q.origin(), idleBase, 0)
 	}
 	for _, h := range s.useHandoffs {
-		add(h.span, blockSource{"handoff", h}, &h.clock, h.until, sourceHandoff, time.Time{})
+		add(h.span, blockSource{"handoff", h}, &h.clock, h.until, sourceHandoff, time.Time{}, 0)
 	}
 	return plan, active
 }

@@ -62,6 +62,14 @@ func earlier(a, b time.Time) time.Time {
 }
 
 func mergeUse(a, b blockUse) blockUse {
+	// Early admission and its order are independent of the finite deadline.
+	// Inactive/timed-only sources must not contribute the default zero order.
+	if b.need.Opportunistic && !b.need.WindowClosed {
+		if !a.need.Opportunistic || b.need.OpportunisticOrder < a.need.OpportunisticOrder {
+			a.need.OpportunisticOrder = b.need.OpportunisticOrder
+		}
+		a.need.Opportunistic = true
+	}
 	if b.need.Owner != "" {
 		// A closed contribution cannot move an independent source's admission
 		// time. Keep its finite clock only when no open source contributes.
@@ -74,7 +82,6 @@ func mergeUse(a, b blockUse) blockUse {
 		a.need.Owner = b.need.Owner
 	}
 	a.need.LeaseUntil = maxTime(a.need.LeaseUntil, b.need.LeaseUntil)
-	a.need.Opportunistic = a.need.Opportunistic || b.need.Opportunistic
 	a.nextExpiry = earlier(a.nextExpiry, b.nextExpiry)
 	a.protectReady = earlier(a.protectReady, b.protectReady)
 	return a
@@ -119,7 +126,8 @@ func (w *downloadSession) logDemand(block int64, j *scheduledBlock) {
 		return
 	}
 	w.f.log.Debug("block_demand", "block", block,
-		"opportunistic", j.published.Opportunistic, "window_closed", j.published.WindowClosed, "ready_by", j.published.ReadyBy,
+		"opportunistic", j.published.Opportunistic, "opportunistic_order", j.published.OpportunisticOrder,
+		"window_closed", j.published.WindowClosed, "ready_by", j.published.ReadyBy,
 		"lease_until", j.published.LeaseUntil, "next_expiry", j.nextExpiry)
 }
 

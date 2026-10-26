@@ -27,6 +27,10 @@ type Need struct {
 	// Opportunistic preserves an independent ordinary demand that can use
 	// capacity before ReadyBy. It bypasses only the window, never the quota.
 	Opportunistic bool
+	// OpportunisticOrder sorts early/untimed candidates, lowest first. Zero
+	// keeps unordered callers ahead of numbered work. Finite admission ignores
+	// this value. Equal positive values keep task registration order.
+	OpportunisticOrder uint64
 	// WindowClosed keeps a valid source without admitting new work from it.
 	// Only a source update can reopen it; elapsed time cannot. Independent
 	// open contributions and actual reads still qualify, and running work
@@ -321,11 +325,17 @@ func (s *state) refresh(j *job) {
 	n := Need{}
 	var earliest time.Time
 	opportunistic := false
+	var order uint64
 	for _, v := range j.needs {
 		if !v.need.LeaseUntil.After(time.Now()) {
 			continue
 		}
-		opportunistic = opportunistic || !v.need.WindowClosed && (v.need.Opportunistic || v.need.ReadyBy.IsZero())
+		if !v.need.WindowClosed && (v.need.Opportunistic || v.need.ReadyBy.IsZero()) {
+			if !opportunistic || v.need.OpportunisticOrder < order {
+				order = v.need.OpportunisticOrder
+			}
+			opportunistic = true
+		}
 		if n.Owner == "" || n.WindowClosed && !v.need.WindowClosed {
 			earliest = v.need.ReadyBy
 		} else if n.WindowClosed == v.need.WindowClosed {
@@ -335,7 +345,7 @@ func (s *state) refresh(j *job) {
 			n = v.need
 		}
 	}
-	n.ReadyBy, n.Opportunistic = earliest, opportunistic
+	n.ReadyBy, n.Opportunistic, n.OpportunisticOrder = earliest, opportunistic, order
 	p := priority{Need: n}
 	if !j.retiring {
 		p = s.withReads(j.task.key, n)
@@ -473,6 +483,9 @@ func (s *state) dispatch(now time.Time) {
 		for other := range s.groups[j.need.Owner] {
 			other.fair = s.sequence
 			for _, h := range []*readyHeap{&s.ready, &s.untimed} {
+				if h.slot == 1 && other.need.OpportunisticOrder != 0 {
+					continue // Numbered early work does not depend on owner fairness.
+				}
 				if index := other.index[h.slot]; index >= 0 {
 					heap.Fix(h, index)
 				}
@@ -575,6 +588,14 @@ func (h *readyHeap) set(j *job, member bool) {
 }
 func (h readyHeap) Less(i, j int) bool {
 	a, b := h.jobs[i], h.jobs[j]
+	if h.slot == 1 {
+		if a.need.OpportunisticOrder != b.need.OpportunisticOrder {
+			return a.need.OpportunisticOrder < b.need.OpportunisticOrder
+		}
+		if a.need.OpportunisticOrder != 0 {
+			return a.sequence < b.sequence
+		}
+	}
 	if needBefore(a.need, b.need) {
 		return true
 	}

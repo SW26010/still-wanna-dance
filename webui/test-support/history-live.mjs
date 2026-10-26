@@ -13,9 +13,10 @@ try {
   const latency=await (await page.request.get(baseURL+'/api/latency',{headers:{'X-SWD-Token':token}})).json();
   expect(latency.blocking.samples).toBeGreaterThan(0);
   expect(latency.blocking.samples+latency.ready.samples).toBe(601);
-  await expect(page.getByText('请求歌曲：ID 42',{exact:true})).toHaveCount(50);
-  await expect(page.getByText('资源：'+key,{exact:true})).toHaveCount(50);
-  await expect(page.getByText(/交付：100%/)).toHaveCount(50);
+  const history=page.getByRole('table',{name:'请求历史列表'});
+  await expect(history.getByRole('link',{name:'ID 42',exact:true})).toHaveCount(50);
+  await expect(history.getByRole('link',{name:key,exact:true})).toHaveCount(50);
+  await expect(history.getByText('100%',{exact:true})).toHaveCount(50);
   await page.screenshot({path:join(output,'history-desktop.png'),fullPage:false});
   for(let n=2;n<=13;n++){
     await page.getByRole('button',{name:'下一页历史',exact:true}).click();
@@ -26,7 +27,7 @@ try {
   await page.evaluate(()=>scrollTo(0,0));
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:join(output,'history-mobile.png'),fullPage:true});
-  await page.reload();await expect(page.getByText('请求歌曲：ID 42',{exact:true})).toHaveCount(50);
+  await page.reload();await expect(history.getByRole('link',{name:'ID 42',exact:true})).toHaveCount(50);
   expect(errors).toEqual([]);
   await writeFile(join(output,'results.json'),JSON.stringify({records:601,lastPage:13,resource:key,latency,errors},null,2));
 } finally {await browser.close();}

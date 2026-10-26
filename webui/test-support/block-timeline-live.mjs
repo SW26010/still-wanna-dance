@@ -29,10 +29,13 @@ try {
   await page.screenshot({ path: path.join(evidence, 'real-download.png'), fullPage: true });
   // Keep the pin across an actual offscreen interval. Neither the overview nor
   // detail stream may remain subscribed; resume observation before completion.
+  await page.setViewportSize({ width: 1280, height: 600 });
   await page.locator('#activation').scrollIntoViewIfNeeded();
+  await expect.poll(() => panel.evaluate(element => element.getBoundingClientRect().top >= innerHeight)).toBe(true);
   await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(0);
   await expect(detail).toHaveCount(0);
   await canvas.scrollIntoViewIfNeeded();
+  await page.setViewportSize({ width: 1280, height: 900 });
   await expect(detail).toContainText('播放请求 #');
   await page.request.post(url + '/__timeline/release');
   await expect(panel.locator('.timeline-legend')).toContainText('延续保护 4');

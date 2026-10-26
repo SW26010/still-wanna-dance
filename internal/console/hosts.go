@@ -82,12 +82,12 @@ func inspectHosts(data string) (result HostsStatus) {
 		return HostsStatus{Conflict: true, NeedsMigration: needsMigration, Message: "发现已有冲突映射，请先检查 hosts；不会覆盖其他程序的配置。"}
 	}
 	if needsMigration {
-		return HostsStatus{NeedsMigration: true, Message: "旧版托管的资源域名映射尚未迁移，请点击「启用游戏加速」或「修改 hosts」清理；当前接入未完成。"}
+		return HostsStatus{NeedsMigration: true, Message: "旧版托管的资源域名映射尚未迁移，请在加速页点击「开始加速」清理；当前接入未完成。"}
 	}
 	if len(found) == len(domains) {
 		return HostsStatus{Ready: true, Message: "播放 API 已接入本地；资源域名由 API 返回。"}
 	}
-	return HostsStatus{Message: "尚未接入游戏，请点击「修改 hosts」。"}
+	return HostsStatus{Message: "尚未接入游戏，请在加速页点击「开始加速」。"}
 }
 
 func (h *hostsController) status() HostsStatus {

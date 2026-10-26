@@ -69,6 +69,7 @@ type Settings struct {
 }
 
 type Console struct {
+	channelIdentity        proxyChannelIdentity
 	vrcxMu                 sync.Mutex // preview/apply/discard; acquire before lifecycleMu
 	vrcxPreview            *vrcxPreview
 	proxyImports           map[string]proxyImportDraft // protected by mu

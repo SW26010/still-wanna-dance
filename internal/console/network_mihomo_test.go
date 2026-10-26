@@ -262,8 +262,8 @@ func TestMihomoCorruptKeyPreservedWithFreshIdentity(t *testing.T) {
 		}
 		tr := client.Transport.(*mihomoTransport)
 		ids, ready := tr.KnownProxyIDs()
-		if ready || tr.identityWarning == "" || len(ids) != 1 || ids[0] == last {
-			t.Fatal("temporary identity reused or missing warning")
+		if ready || tr.identityWarning == "" || len(ids) != 1 || last != "" && ids[0] != last {
+			t.Fatal("instance identity changed or missing warning")
 		}
 		last = ids[0]
 		tr.Retire()

@@ -2,7 +2,6 @@ package console
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	"log/slog"
 	"net"
@@ -35,12 +34,12 @@ func (c *Console) retainedProxyNodes(s Settings, externalID string) upstreamrequ
 	if externalID != "" {
 		m.ids = append(m.ids, externalID)
 	}
-	key, err := loadProxyIdentityKey(c.files().ChannelKey)
-	if err != nil {
+	key, persistent, err := c.channelIdentityKey()
+	defer clear(key)
+	if err != nil || !persistent {
 		m.ready = false
 		return m
 	}
-	defer clear(key)
 	for _, p := range nodeDocument(s.nodeSnapshot).Nodes {
 		m.ids = append(m.ids, nodeIdentity(key, p))
 	}
@@ -98,17 +97,15 @@ func (c *Console) mihomoNetworkFor(s Settings, limit int) (upstreamDialFunc, *ht
 		return nil, nil, errors.New("活跃节点上限必须大于零")
 	}
 	runtime := &mihomoTransport{authoritative: s.nodeSecretError == ""}
-	key, err := loadProxyIdentityKey(c.files().ChannelKey)
+	key, persistent, err := c.channelIdentityKey()
 	if err != nil {
-		// A fresh process-local random key still meets the adapter fingerprint
-		// contract but cannot match any prior run. Preserve existing history.
-		key = make([]byte, 32)
-		if _, err = rand.Read(key); err != nil {
-			return nil, nil, err
-		}
+		return nil, nil, err
+	}
+	if !persistent {
+		// The instance's temporary key meets the adapter fingerprint contract
+		// but cannot match prior runs. Preserve existing history.
 		runtime.authoritative = false
 		runtime.identityWarning = "通道身份密钥不可用；本次使用临时身份，不复用旧观测"
-		slog.Warn("mihomo_channel_identity_unavailable")
 	}
 	defer clear(key)
 	configs := make(map[string]map[string]any)

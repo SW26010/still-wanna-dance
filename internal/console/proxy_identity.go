@@ -10,18 +10,47 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
+	"sync"
 )
+
+type proxyChannelIdentity struct {
+	once       sync.Once
+	key        []byte
+	persistent bool
+	err        error
+}
+
+// All consumers share one preparation result, including a failed save. A later
+// read must not promote a key whose write/Sync was unsuccessful in this instance.
+// Return a copy because callers clear their key material after fingerprinting.
+func (c *Console) channelIdentityKey() ([]byte, bool, error) {
+	id := &c.channelIdentity
+	id.once.Do(func() {
+		key, err := loadProxyIdentityKey(c.files().ChannelKey)
+		if err == nil {
+			id.key, id.persistent = key, true
+			return
+		}
+		slog.Warn("proxy_channel_identity_unavailable", "error", err)
+		id.key = make([]byte, 32)
+		_, id.err = rand.Read(id.key)
+	})
+	return slices.Clone(id.key), id.persistent, id.err
+}
 
 // Keep the random HMAC key separate from public channel IDs and sample files.
 // Changing endpoint or either credential changes the identity; rebuilding a
 // pool or restarting with the same configuration does not.
 func (c *Console) proxyIdentity(s Settings) (string, error) {
-	path := c.files().ChannelKey
-	key, err := loadProxyIdentityKey(path)
+	key, persistent, err := c.channelIdentityKey()
 	if err != nil {
+		return "", err
+	}
+	defer clear(key)
+	if !persistent {
 		// An empty identity makes the pool use a process-local ID, which cannot
 		// claim persisted samples. Persistence must not prevent proxy use.
-		slog.Warn("proxy_channel_identity_unavailable", "error", err)
 		return "", nil
 	}
 	data, err := json.Marshal([]string{"socks5-channel-v1", s.SOCKS5Address, s.SOCKS5Username, s.SOCKS5Password})

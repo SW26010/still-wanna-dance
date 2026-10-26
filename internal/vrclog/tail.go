@@ -110,6 +110,7 @@ func (t *Tail) Poll(now time.Time) ([]Event, error) {
 	}
 	t.Offset += int64(len(b))
 	t.pending = append(t.pending, b...)
+	buffered := len(t.pending)
 	for {
 		i := bytes.IndexByte(t.pending, '\n')
 		if i < 0 {
@@ -135,6 +136,10 @@ func (t *Tail) Poll(now time.Time) ([]Event, error) {
 		t.pending = nil
 		t.discard = true
 		events = append(events, Event{Reset: true})
+	}
+	if len(t.pending) < buffered {
+		// Keep only the unfinished line, not the consumed chunk, while idle.
+		t.pending = bytes.Clone(t.pending)
 	}
 	return events, nil
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -128,6 +129,65 @@ func TestTailEmptyDirectoryThenNewLog(t *testing.T) {
 	events, err := tail.Poll(now.Add(DiscoverInterval))
 	if err != nil || len(events) != 2 || len(events[1].Songs) != 1 {
 		t.Fatal(events, err)
+	}
+}
+
+func TestTailReleasesConsumedBurst(t *testing.T) {
+	cut := strings.Index(snapshot, "中文") + 1
+	for _, partial := range []bool{false, true} {
+		name := "complete"
+		if partial {
+			name = "partial-utf8"
+		}
+		t.Run(name, func(t *testing.T) {
+			tail := &Tail{Dir: t.TempDir()}
+			now := time.Now()
+			if _, err := tail.Poll(now); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(tail.Dir, "output_log_2026-10-27.txt")
+			runtime.GC()
+			var before, after runtime.MemStats
+			runtime.ReadMemStats(&before)
+			func() {
+				burst := strings.Repeat(strings.Repeat("x", 1023)+"\n", 4095)
+				if partial {
+					burst += snapshot[:cut]
+				}
+				if err := os.WriteFile(path, []byte(burst), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}()
+			events, err := tail.Poll(now.Add(DiscoverInterval))
+			if err != nil || len(events) != 1 || !events[0].Reset {
+				t.Fatal("new log should contain only its session reset", events, err)
+			}
+			runtime.GC()
+			runtime.ReadMemStats(&after)
+			runtime.KeepAlive(tail)
+			// The live tail needs at most a short unfinished line. Leave ample
+			// room for runtime noise while catching a retained 4 MiB read buffer.
+			if retained := int64(after.HeapAlloc) - int64(before.HeapAlloc); retained > 1<<20 {
+				t.Fatalf("consumed log burst retained %d heap bytes", retained)
+			}
+			f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0600)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rest := snapshot
+			if partial {
+				rest = snapshot[cut:]
+			}
+			_, err = f.WriteString(rest)
+			f.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			events, err = tail.Poll(now.Add(DiscoverInterval + PollInterval))
+			if err != nil || len(events) != 1 || len(events[0].Songs) != 1 || events[0].Songs[0].ID != 1321 {
+				t.Fatal("next snapshot lost after releasing the burst", events, err)
+			}
+		})
 	}
 }
 

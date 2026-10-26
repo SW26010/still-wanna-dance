@@ -604,3 +604,11 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 - pnpm --dir webui build、pnpm --dir webui check、嵌入清单、变更文件资源策略及 git diff --check 通过。已登记新生产 app.js 的精确大小 1,165,903 字节及 SHA256 c4c71425218647c4a1ca772df057a7cbe55e1e70d0c6c6fd5fad8eab828cfe88，保留既有构建例外。
 
 日志、截图及实际服务结果保存在 Git 忽略目录 artifacts/score-display-20261026/。浏览器结果覆盖受控服务和深浅主题，不外推为屏幕阅读器、系统 DPI 或游戏播放验收；本次无新增 VRC 专属风险。未替换运行中的程序，未提交或推送。
+
+## 2026-10-27 关闭页面后的后台开销优化
+
+按后台审计结果逐项修复，基线为 `35c33c4`。没有改变页面订阅、下载、Monitor、DNS 或手动诊断的生命周期。
+
+- 日志读取完完整行后，仅保留未完成行的独立副本，避免空切片或短尾部继续引用整个读取缓冲区。新增 `TestTailReleasesConsumedBurst` 先在旧实现复现约 4 MiB 的堆保留，再在修复后通过；覆盖完整行与截断在中文 UTF-8 字符中的尾部，并验证后续日志仍能解析。`internal/vrclog` 整包通过。该结果针对一次大批日志后的闲置保留，不代表日常必定占用 4 MiB 或存在无限增长。
+
+原始审计、候选验证和本轮 `fix-*.log` 位于忽略目录 `artifacts/background-optimization-20261027/`；本节是正式源码修复结果，取代 `findings.txt` 中“尚未修改产品”的阶段状态，历史测量保留。本轮未重新执行关闭页面的浏览器实验；既有 `artifacts/webui-close-audit/` 中 SSE 订阅 2→0、观察器释放的证据仅按原范围复用。未测长期实际进程 CPU／RSS，未替换日常运行程序或启动游戏，无新增 VRC 待验项。

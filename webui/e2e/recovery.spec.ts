@@ -73,7 +73,7 @@ test('history clears failed reads and recovers focus after a row disappears',asy
   const group=page.getByRole('button',{name:'请求 2 的明细',exact:true});await group.click();
   await expect(page.getByText('请求处理完成',{exact:true})).toHaveCount(2);
   failed=true;await page.clock.fastForward(5100);
-  await expect(page.getByText('历史读取失败，请重试。')).toBeVisible();await expect(group).toHaveCount(0);await expect(page.getByLabel('历史查询结果',{exact:true})).toBeFocused();
+  await expect(page.getByRole('listitem',{name:'历史读取失败，请重试。',exact:true})).toBeVisible();await expect(group).toHaveCount(0);await expect(page.getByLabel('历史查询结果',{exact:true})).toBeFocused();
 });
 
 test('late monitor response cannot overwrite paused display',async({page})=>{

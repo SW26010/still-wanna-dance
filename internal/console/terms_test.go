@@ -80,7 +80,7 @@ func TestTermsPageExitTimeout(t *testing.T) {
 				c.termsPagePresence(oldID, true)
 				time.Sleep(59 * time.Second)
 				select {
-				case <-c.ExitRequested():
+				case <-c.ShutdownRequested():
 					t.Fatal("exited before grace elapsed")
 				default:
 				}
@@ -100,7 +100,7 @@ func TestTermsPageExitTimeout(t *testing.T) {
 				synctest.Wait()
 				wantExit := action == "leave" || action == "accept-after-timeout"
 				select {
-				case <-c.ExitRequested():
+				case <-c.ShutdownRequested():
 					if !wantExit {
 						t.Fatal("cancelled timeout requested exit")
 					}

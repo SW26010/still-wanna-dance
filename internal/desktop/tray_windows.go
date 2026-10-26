@@ -267,13 +267,16 @@ func (t *tray) updateIcon(light bool) error {
 	return nil
 }
 
-func (t *tray) quit() {
+func (t *tray) quit(requestExit bool) {
 	if t.closing {
 		return
 	}
 	t.closing = true
 	t.updateTip(State{})
 	go func() {
+		if requestExit && t.options.RequestExit != nil {
+			t.options.RequestExit()
+		}
 		t.options.Shutdown()
 		close(t.shutdownDone)
 		user32.NewProc("PostMessageW").Call(t.hwnd, wmFinished, 0, 0)
@@ -303,7 +306,7 @@ func (t *tray) dispatch(hwnd uintptr, msg uint32, w, l uintptr) uintptr {
 			if t.options.EndSession != nil {
 				t.options.EndSession()
 			}
-			t.quit()
+			t.quit(true)
 			select {
 			case <-t.shutdownDone:
 			case <-time.After(4 * time.Second):
@@ -313,7 +316,7 @@ func (t *tray) dispatch(hwnd uintptr, msg uint32, w, l uintptr) uintptr {
 		}
 		return 0
 	case wmClose:
-		t.quit()
+		t.quit(false)
 		return 0
 	case wmFinished:
 		t.removeIcon()
@@ -358,7 +361,7 @@ func (t *tray) command(id int) {
 		return
 	}
 	if id == Exit {
-		t.quit()
+		t.quit(true)
 		return
 	}
 	if id == OpenConsole {

@@ -1,6 +1,7 @@
 package console
 
 import (
+	"encoding/json"
 	"net/http/httptest"
 	"testing"
 )
@@ -24,7 +25,7 @@ func TestRestartAuthenticationAndFirstShutdownWins(t *testing.T) {
 					t.Fatal("invalid restart accepted")
 				}
 				select {
-				case <-c.RestartRequested():
+				case <-c.ShutdownRequested():
 					t.Fatal("invalid request signaled restart")
 				default:
 				}
@@ -37,26 +38,18 @@ func TestRestartAuthenticationAndFirstShutdownWins(t *testing.T) {
 				if w.Code != 200 || !w.Flushed {
 					t.Fatal("shutdown was not acknowledged before signaling")
 				}
-			}
-			select {
-			case <-c.RestartRequested():
-				if first != "restart" {
-					t.Fatal("exit changed into restart")
-				}
-			default:
-				if first == "restart" {
-					t.Fatal("restart missing")
+				var result struct{ Action string }
+				if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil || result.Action != first {
+					t.Fatalf("acknowledgement does not describe winning action: %s (%v)", w.Body.String(), err)
 				}
 			}
 			select {
-			case <-c.ExitRequested():
-				if first != "exit" {
-					t.Fatal("restart changed into exit")
+			case <-c.ShutdownRequested():
+				if string(c.ShutdownAction()) != first {
+					t.Fatal("shutdown decision changed")
 				}
 			default:
-				if first == "exit" {
-					t.Fatal("exit missing")
-				}
+				t.Fatal("shutdown missing")
 			}
 		})
 	}

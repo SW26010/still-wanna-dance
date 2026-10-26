@@ -465,6 +465,34 @@
       "bytes": 1168629,
       "sha256": "129dc2cf63194a24171a0daa649616bbdbbbcaae40898d0ec6889aa1652cecc0",
       "reason": "Production WebUI bundle from pinned dependencies and webui/src, verified by build-manifest.json. Display cumulative and per-request block-weighted response sources."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1169971,
+      "sha256": "9cfe466690d17b54ce0a6b8b6b533fd01f523fd98865dd6281655bd5ec850246",
+      "reason": "Production WebUI bundle with shared exit/restart lifecycle notifications; rebuilt from pinned dependencies and verified with multi-page Edge and real Console checks."
+    },
+    {
+      "path": "THIRD-PARTY-NOTICES.txt",
+      "kind": "large-text",
+      "bytes": 708083,
+      "sha256": "57d9e3633352d1f5eeedd4c2eaddf8edcbd02a6361113b6a8894bee5ecf5d53f",
+      "reason": "Canonical third-party notices including the newly linked, already pinned coder/websocket v1.8.12 ISC license."
+    },
+    {
+      "path": "internal/console/assets/webui/third-party-notices.txt",
+      "kind": "large-text",
+      "bytes": 708083,
+      "sha256": "57d9e3633352d1f5eeedd4c2eaddf8edcbd02a6361113b6a8894bee5ecf5d53f",
+      "reason": "Generated offline copy of canonical third-party notices including coder/websocket; checked against source and build manifest."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1169993,
+      "sha256": "f0d1fa1bdeee6eb12ea865e6efac1b8501754c349af26ba725ae147b7b98b3a9",
+      "reason": "Production WebUI lifecycle follow-up: ignore pending operation confirmations after an accepted shutdown; regenerated from pinned sources and verified by Edge regression."
     }
   ]
 }

@@ -4,6 +4,7 @@ import { GaugeChart } from '@fluentui/react-charts';
 import { Play20Filled, Stop20Filled } from '@fluentui/react-icons';
 import { request } from './api';
 import { RecordDetails, Feedback, Panel } from './ui';
+import {useApp} from './hooks';
 
 interface EventState { revision: number; run: number; upstream: string; running: boolean; closed?: boolean; phase: string }
 interface ConnectionResult {operation:string;state:string;latencyMS?:number | null}
@@ -87,7 +88,8 @@ function Speed({state:s,upstream,discard}: {state?:Calibration;upstream:string;d
     {usable&&<Caption1 as="p">以 2 Mbps 为 1×</Caption1>}</>;
 }
 export function Diagnostics({visible,proxy,upstream,onUpstreamChange}: {visible:boolean;proxy:unknown;upstream:string;onUpstreamChange:(value:string)=>void}) {
-  const connectivity=useDiagnostic<Connectivity>('connectivity',visible,onUpstreamChange), calibration=useDiagnostic<Calibration>('calibration',visible,onUpstreamChange);
+  const app=useApp(),enabled=visible&&!app.stopped;
+  const connectivity=useDiagnostic<Connectivity>('connectivity',enabled,onUpstreamChange), calibration=useDiagnostic<Calibration>('calibration',enabled,onUpstreamChange);
   const panels=[connectivity,calibration];
   const busy=panels.some(p=>!p.online || p.pending || p.intent || p.state?.running || p.state?.closed);
   const button=(kind:Kind,label:string) => {

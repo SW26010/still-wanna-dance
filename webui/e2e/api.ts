@@ -5,6 +5,7 @@ export function statusFixture(): Status {
   return {running:false,settings:{...settings},activeSettings:{...settings},restartRequired:false,hosts:{ready:false,message:'尚未接入'},portOK:true,httpsPortOK:true,batch:{},lastBatch:{},import:{},queue:{},defaultLogDir:settings.logDir,defaultDatabasePath:settings.databasePath,defaultVideoDir:settings.videoDir,portableDir:'C:\\UI-Test',activation:{},upstreamMonitor:{results:[]}};
 }
 export async function mockAPI(page: Page) {
+  await page.routeWebSocket('**/api/lifecycle',socket=>socket.send(JSON.stringify({action:'running'})));
   const fixtureID=crypto.randomUUID();
   await page.context().addCookies([{name:'fixture-id',value:fixtureID,url:'http://127.0.0.1:18473'}]);
   const state = statusFixture(), calls: {path:string;body:Record<string,unknown>;token?:string}[] = [];
@@ -20,6 +21,7 @@ export async function mockAPI(page: Page) {
     if (req.headers()['x-swd-token'] !== 'browser-fixture-token') return route.fulfill({status:403,body:'invalid token'});
     let data: unknown = {ok:true};
     if (path==='status') data = state;
+    if(path==='exit'||path==='restart')data={ok:true,action:path};
     if(path==='storage/check')data={confirmVideoPolicy:false};
     if(path==='storage/create-database')data={path:body.databasePath};
     if(path==='storage/select-database')data={path:'',canceled:true};

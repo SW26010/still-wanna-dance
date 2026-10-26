@@ -74,7 +74,7 @@ func TestExitAuthenticationAndAcknowledgement(t *testing.T) {
 			t.Fatalf("invalid exit accepted: %+v", tc)
 		}
 		select {
-		case <-c.ExitRequested():
+		case <-c.ShutdownRequested():
 			t.Fatal("invalid request signaled exit")
 		default:
 		}
@@ -85,11 +85,11 @@ func TestExitAuthenticationAndAcknowledgement(t *testing.T) {
 		r.Header.Set("X-SWD-Token", c.token)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
-		if w.Code != 200 || !w.Flushed || w.Body.String() != "{\"ok\":true}\n" {
+		if w.Code != 200 || !w.Flushed || w.Body.String() != "{\"ok\":true,\"action\":\"exit\"}\n" {
 			t.Fatalf("exit acknowledgement: %d %q flushed=%v", w.Code, w.Body.String(), w.Flushed)
 		}
 		select {
-		case <-c.ExitRequested():
+		case <-c.ShutdownRequested():
 		default:
 			t.Fatal("exit not signaled")
 		}

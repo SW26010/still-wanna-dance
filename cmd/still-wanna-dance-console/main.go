@@ -217,9 +217,7 @@ func run() (runErr error) {
 	defer shutdown()
 	go func() {
 		select {
-		case <-c.ExitRequested():
-			stop()
-		case <-c.RestartRequested():
+		case <-c.ShutdownRequested():
 			stop()
 		case <-ctx.Done():
 		}
@@ -241,7 +239,7 @@ func run() (runErr error) {
 	slog.Info("console_ready", "url", url)
 	fmt.Printf("Still Wanna Dance WebUI：%s\n同意条款后关闭浏览器不会退出程序；未同意时关闭条款页会尝试在 60 秒后退出。退出按当前设置处理游戏连接，不再请求管理员权限。\n", url)
 	if !*noTray {
-		err = desktop.Run(ctx, desktop.Options{URL: url, Open: !*noOpen && c.OpenWebUIOnLaunch(), State: c.DesktopState, Command: c.DesktopCommand, Shutdown: shutdown, EndSession: endSession})
+		err = desktop.Run(ctx, desktop.Options{URL: url, Open: !*noOpen && c.OpenWebUIOnLaunch(), State: c.DesktopState, Command: c.DesktopCommand, RequestExit: c.RequestExit, Shutdown: shutdown, EndSession: endSession})
 	} else {
 		<-ctx.Done()
 	}
@@ -254,12 +252,10 @@ func run() (runErr error) {
 		return shutdownErr
 	}
 	if err == nil {
-		select {
-		case <-c.RestartRequested():
+		if c.ShutdownAction() == console.ShutdownRestart {
 			// Return through every defer before main launches the replacement.
 			// Pin even an ephemeral listener so the existing browser can reconnect.
 			return &restartRequest{args: []string{"-config", p, "-listen", l.Addr().String(), fmt.Sprintf("-no-tray=%t", *noTray), "-no-open"}}
-		default:
 		}
 	}
 	return err

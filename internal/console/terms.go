@@ -193,10 +193,8 @@ func (c *Console) termsPagePresence(pageID string, leaving bool) {
 		}
 		c.termsExitTimer = nil
 		c.closing = true // serialize timeout with terms acceptance
-		c.exitOnce.Do(func() {
-			slog.Info("terms_page_timeout")
-			close(c.exitRequested)
-		})
+		slog.Info("terms_page_timeout")
+		c.RequestExit()
 	})
 }
 

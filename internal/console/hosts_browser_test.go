@@ -33,7 +33,7 @@ func TestHostsPolicyBrowser(t *testing.T) {
 		}
 		t.Log(string(output))
 		select {
-		case <-c.ExitRequested():
+		case <-c.ShutdownRequested():
 		default:
 			t.Fatal("browser did not request exit")
 		}

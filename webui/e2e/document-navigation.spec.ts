@@ -150,7 +150,7 @@ for(const [document,outcome] of [['about','failed'],['help','unconfirmed'],['ter
   await page.route('**/api/exit',async route=>{
     await pending;
     if(outcome==='unconfirmed')await route.abort('connectionreset');
-    else await route.fulfill(outcome==='failed'?{status:400,json:{error:'退出失败，请重试。'}}:{json:{ok:true}});
+    else await route.fulfill(outcome==='failed'?{status:400,json:{error:'退出失败，请重试。'}}:{json:{ok:true,action:'exit'}});
   });
   await page.goto('/#/'+document);
   const exit=page.getByRole('button',{name:'退出程序',exact:true});

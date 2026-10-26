@@ -76,9 +76,7 @@ type Console struct {
 	vrcxPreview            *vrcxPreview
 	proxyImports           map[string]proxyImportDraft // protected by mu
 	identity               desktop.Identity
-	exitRequested          chan struct{}
-	restartRequested       chan struct{}
-	exitOnce               sync.Once
+	lifecycle              *applicationLifecycle
 	terms                  termsReceipt // protected by mu; separate from editable settings
 	termsNeedsConfirmation bool         // an existing record could not be verified for this user/version
 	termsProtection        dataProtection
@@ -180,8 +178,7 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 		DownloadSoftLimit:          cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),
 		LocalProtectionGraceSeconds: int(cacheproxy.DefaultLocalProtectionGrace / time.Second),
 	}
-	c.exitRequested = make(chan struct{})
-	c.restartRequested = make(chan struct{})
+	c.lifecycle = newApplicationLifecycle()
 	c.dns = dns
 	data, fields, err := readConfigFile(configPath)
 	if err != nil {
@@ -645,17 +642,12 @@ func (c *Console) stopLocked() {
 	slog.Info("cdn_stopped")
 }
 
-// ExitRequested lets the application owner run the same cleanup as tray exit.
-func (c *Console) ExitRequested() <-chan struct{} { return c.exitRequested }
-
-// RestartRequested is handled by the application owner after full cleanup.
-func (c *Console) RestartRequested() <-chan struct{} { return c.restartRequested }
-
 // BeginShutdown rejects new work and cancels background tasks without waiting
 // for them. The owner calls it before draining HTTP requests, then calls Close
 // after closing HTTP connections to wait for tasks and flush the cache engine.
 // It is safe to call repeatedly.
 func (c *Console) BeginShutdown() {
+	c.lifecycle.beginShutdown()
 	// Cancel a pending authorization before waiting for lifecycleMu. Existing
 	// helper connections remain usable for cleanup without a new UAC request.
 	c.hosts.cancel()
@@ -700,6 +692,9 @@ func (c *Console) BeginShutdown() {
 
 func (c *Console) Close() error {
 	c.BeginShutdown()
+	grace, cancel := context.WithTimeout(context.Background(), lifecycleWriteTimeout)
+	c.lifecycle.close(grace)
+	cancel()
 	c.lifecycleMu.Lock()
 	c.mu.Lock()
 	restore := c.settings.RestoreHostsOnExit
@@ -786,6 +781,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if serveWebUIAsset(w, r) {
+		return
+	}
+	if r.URL.Path == "/api/lifecycle" {
+		c.serveLifecycle(w, r)
 		return
 	}
 	if c.serveTerms(w, r) {
@@ -1070,16 +1069,16 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/api/upstream/check/throughput":
 		err = c.requestMonitorCheck(upstreamstate.CheckThroughput)
 	case "/api/exit", "/api/restart":
-		// Deliver the acknowledgement before the owner closes the HTTP listener.
-		writeJSON(w, map[string]bool{"ok": true})
-		_ = http.NewResponseController(w).Flush()
-		c.exitOnce.Do(func() {
-			slog.Info("console_action_completed", "action", r.URL.Path)
-			if r.URL.Path == "/api/restart" {
-				close(c.restartRequested)
-			} else {
-				close(c.exitRequested)
-			}
+		c.lifecycle.request(ShutdownAction(strings.TrimPrefix(r.URL.Path, "/api/")), func(action ShutdownAction) {
+			controller := http.NewResponseController(w)
+			_ = controller.SetWriteDeadline(time.Now().Add(lifecycleWriteTimeout))
+			writeJSON(w, struct {
+				OK     bool           `json:"ok"`
+				Action ShutdownAction `json:"action"`
+			}{true, action})
+			_ = controller.Flush()
+			_ = controller.SetWriteDeadline(time.Time{})
+			slog.Info("console_action_completed", "action", r.URL.Path, "shutdown_action", action)
 		})
 		return
 	case "/api/import/start":

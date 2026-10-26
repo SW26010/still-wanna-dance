@@ -195,6 +195,9 @@ type Options struct {
 	Open    bool
 	State   func() State
 	Command func(int) error
+	// RequestExit records an explicit tray/session exit before cleanup starts.
+	// Context cancellation alone must not be reported as a planned exit.
+	RequestExit func()
 	// Shutdown must close both the HTTP server and cache engine, and be idempotent.
 	Shutdown func()
 	// EndSession optionally cancels graceful waiting before Shutdown on Windows

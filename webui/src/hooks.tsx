@@ -4,6 +4,7 @@ import { APIError, request, hostsActionTimeout, hostsActionPending, unconfirmedA
 import { bootstrap } from './bootstrap';
 import { active, type Status } from './types';
 import { usePageFeedback } from './page-feedback';
+import {isShutdownAction,useLifecycle,type ShutdownAction} from './lifecycle';
 
 // When an update removes the focused row, return focus to its labelled region.
 export function useFocusRecovery() {
@@ -61,18 +62,18 @@ export function useConfirmation() {
   return {confirm, dialog};
 }
 
-export async function reconnect() {
+export async function reconnect(signal:AbortSignal) {
   const end = Date.now() + 60000;
-  while (Date.now() < end) {
+  while (!signal.aborted && Date.now() < end) {
     try {
-      const response = await fetch('/', {cache: 'no-store', signal: AbortSignal.timeout(2000)});
+      const response = await fetch('/', {cache: 'no-store', signal: AbortSignal.any([signal,AbortSignal.timeout(2000)])});
       const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
       const token = doc.querySelector<HTMLMetaElement>('meta[name="swd-token"]')?.content;
-      if (response.ok && token && token !== bootstrap.token) { location.reload(); return; }
+      if (!signal.aborted && response.ok && token && token !== bootstrap.token) { location.reload(); return; }
     } catch { /* Listener is unavailable during restart. */ }
     await new Promise(r => setTimeout(r, 500));
   }
-  throw new Error('60 秒内未连接到新进程。请刷新页面并核对日志，勿重复提交原操作。');
+  if(!signal.aborted)throw new Error('60 秒内未连接到新进程。请刷新页面并核对日志，勿重复提交原操作。');
 }
 
 const actionMessages: Record<string,string> = {
@@ -96,25 +97,51 @@ export function useConsole(enabled: boolean, page: string) {
   }),[]);
   const lock = useRef(false);
   const status = useResource<Status>('status', enabled && !stopped, revision, 5000, true);
+  const shutdown=useRef<ShutdownAction|null>(null),restartWait=useRef<{controller:AbortController;done:Promise<void>}|null>(null);
+  useEffect(()=>()=>restartWait.current?.controller.abort(),[]);
+  function waitForRestart() {
+    if(!restartWait.current){
+      const controller=new AbortController();
+      const done=reconnect(controller.signal).catch(problem=>{if(!controller.signal.aborted)setMessage(String(problem),undefined,true);});
+      restartWait.current={controller,done};
+    }
+    return restartWait.current.done;
+  }
+  function acceptShutdown(action:ShutdownAction) {
+    if(shutdown.current)return restartWait.current?.done;
+    shutdown.current=action;setStopped(true);
+    if(action==='exit'){
+      restartWait.current?.controller.abort();
+      setMessage('正在退出应用并处理游戏连接。');
+    }else{
+      setMessage('正在重启应用，连接恢复后自动刷新。');
+      return waitForRestart();
+    }
+  }
+  useLifecycle(shutdown.current!==null,status.data,action=>{void acceptShutdown(action);});
   const refresh = () => { setRevision(v => v + 1); };
   const confirmation = useConfirmation();
   async function action(path: string, body: unknown = {}): Promise<boolean> {
-    if (lock.current || stopped) return false;
+    if (lock.current || stopped || shutdown.current) return false;
     if (path === 'restart' && status.data?.import.running && !await confirmation.confirm('导入仍在运行', '导入仍在运行。现在重启会中断导入且不会自动续传。建议等导入结束再重启；确定现在中断并重启吗？')) return false;
-    if (lock.current || stopped) return false;
+    if (lock.current || stopped || shutdown.current) return false;
     lock.current = true; setBusy(true);
     const hosts = path.startsWith('hosts/') || path === 'activation/enable' || path === 'start';
     const restorePermission = path === 'settings' && typeof body === 'object' && body !== null && 'restoreHostsOnExit' in body && body.restoreHostsOnExit === true && status.data?.settings.restoreHostsOnExit === false;
     setMessage(hosts ? hostsActionPending : restorePermission ? '正在准备退出恢复权限，请留意管理员授权。' : '正在处理…');
     try {
-      await request(path, body, AbortSignal.timeout(hosts || restorePermission ? hostsActionTimeout : 30000));
-      if (path === 'exit') { setStopped(true); setMessage('正在退出应用并处理游戏连接。'); return true; }
-      if (path === 'restart') { setStopped(true); setMessage('正在重启应用，连接恢复后自动刷新。'); await reconnect(); return true; }
+      const result=await request<{action?:unknown}>(path, body, AbortSignal.timeout(hosts || restorePermission ? hostsActionTimeout : 30000));
+      if(shutdown.current)return true;
+      if(path==='exit'||path==='restart'){
+        if(!isShutdownAction(result.action))throw new Error('Invalid shutdown acknowledgement');
+        await acceptShutdown(result.action);return true;
+      }
       setMessage(actionMessages[path] || (path.startsWith('upstream/check') ? '网络检测已开始，请查看检测结果。' : '请求已接受，请查看当前任务状态。')); return true;
     } catch (e) {
+      if(shutdown.current)return true;
       if (path === 'restart' && !(e instanceof APIError)) {
         setStopped(true); setMessage('重启响应未确认，正在等待新进程…');
-        try { await reconnect(); } catch (problem) { setMessage(String(problem),undefined,true); } return false;
+        await waitForRestart();return false;
       }
       setMessage(e instanceof APIError ? e.message : unconfirmedAction,undefined,true); return false;
     } finally { lock.current = false; setBusy(false); refresh(); }

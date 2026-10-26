@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-21",
-  "noticesSHA256": "3dde057cce11ecf7217cf7286ede25db7e46e7d1db89e870fa8cdf9f3579a5b5",
+  "reviewedAt": "2026-10-27",
+  "noticesSHA256": "57d9e3633352d1f5eeedd4c2eaddf8edcbd02a6361113b6a8894bee5ecf5d53f",
   "modules": [
     {
       "path": "github.com/andybalholm/brotli",
@@ -44,6 +44,17 @@
         {
           "path": "LICENSE",
           "sha256": "8e937a4f1e8d29fb77b8433044b21906774513e307153a53c68bd638c87a1b09"
+        }
+      ]
+    },
+    {
+      "path": "github.com/coder/websocket",
+      "version": "v1.8.12",
+      "sum": "h1:5bUXkEPPIbewrnkU8LTCLVaxi4N4J8ahufH2vlo4NAo=",
+      "licenseFiles": [
+        {
+          "path": "LICENSE.txt",
+          "sha256": "0b12dba478a73e88a239b33a23aad4721ad692d70d428130c2e2064bf9c5aa60"
         }
       ]
     },

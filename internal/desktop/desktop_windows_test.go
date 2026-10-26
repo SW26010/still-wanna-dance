@@ -400,6 +400,35 @@ func TestCanceledLogoffKeepsTrayAlive(t *testing.T) {
 	}
 }
 
+func TestTrayExitPublishesIntentBeforeCleanup(t *testing.T) {
+	for _, explicit := range []bool{false, true} {
+		var requested, cleaned atomic.Int32
+		tt := &tray{shutdownDone: make(chan struct{}), options: Options{
+			RequestExit: func() { requested.Add(1) },
+			Shutdown: func() {
+				if (requested.Load() == 1) != explicit {
+					t.Error("cleanup did not observe the correct exit intent")
+				}
+				cleaned.Add(1)
+			},
+		}}
+		if explicit {
+			tt.command(Exit)
+			tt.command(Exit)
+		} else {
+			tt.dispatch(0, wmClose, 0, 0)
+		}
+		select {
+		case <-tt.shutdownDone:
+		case <-time.After(time.Second):
+			t.Fatal("tray cleanup did not finish")
+		}
+		if cleaned.Load() != 1 {
+			t.Fatal("cleanup repeated")
+		}
+	}
+}
+
 func TestEndSessionCancelsGracefulWaiting(t *testing.T) {
 	for _, alreadyClosing := range []bool{false, true} {
 		t.Run(fmt.Sprintf("alreadyClosing=%t", alreadyClosing), func(t *testing.T) {
@@ -420,7 +449,7 @@ func TestEndSessionCancelsGracefulWaiting(t *testing.T) {
 					},
 				}}
 				if alreadyClosing {
-					tt.quit()
+					tt.quit(false)
 				}
 				tt.dispatch(0, 0x16, 1, 0)
 			}()

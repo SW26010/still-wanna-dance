@@ -27,7 +27,7 @@ test('settings keep the video directory editable without losing its saved or dra
   await page.getByRole('radio', {name:'不保留', exact:true}).check();
   await page.getByRole('button', {name:'保存设置', exact:true}).click();
   await expect(page.getByRole('button', {name:'保存设置', exact:true})).toBeDisabled();
-  expect(api.calls.find(c=>c.path==='settings')?.body).toMatchObject({videoDir:draftPath,videoStorageMode:'none'});
+  await expect.poll(()=>api.calls.find(c=>c.path==='settings')?.body).toMatchObject({videoDir:draftPath,videoStorageMode:'none'});
   await page.reload();
   await expect(path).toBeEnabled();
   await expect(path).toHaveValue(draftPath);

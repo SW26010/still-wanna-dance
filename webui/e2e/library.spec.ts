@@ -294,7 +294,7 @@ test('changing the library view or query clears its selection',async({page})=>{
   await page.getByRole('tab',{name:'按资源'}).click();
   const checkbox=page.getByRole('checkbox',{name:/^选择 /});
   await checkbox.check();
-  await page.getByLabel('排序').selectOption('recent');
+  await page.getByLabel('筛选',{exact:true}).selectOption('saved');
   await page.getByRole('button',{name:'查找',exact:true}).click();
   await expect(checkbox).not.toBeChecked();
   await checkbox.check();

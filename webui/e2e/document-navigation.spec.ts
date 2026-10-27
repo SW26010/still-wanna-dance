@@ -56,20 +56,21 @@ for(const width of [390,1280])test(`library buttons locate persistent modules wi
     // Include the deferred focus work after the lazily mounted library renders.
     await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
     if(width>640)await expect(page.locator('#main')).toBeFocused();
-    if(visit===0)await page.screenshot({path:`../artifacts/library-inline-modules/toolbar/top-${width}.png`,animations:'disabled'});
+    if(visit===0)await page.screenshot({path:`../artifacts/library-toolbar-layout/top-${width}.png`,animations:'disabled'});
     for(const [name,id] of [['导入 VRCX 历史','vrcx-import'],['导入视频','video-import'],['下载视频','batch']]){
       const button=page.getByRole('button',{name,exact:true}),target=page.locator('#'+id);
       await button.scrollIntoViewIfNeeded();
       if(width>640){
-        const tabs=(await page.getByRole('tablist',{name:'曲库视图',exact:true}).boundingBox())!,bounds=(await button.boundingBox())!;
-        expect(bounds.x).toBeGreaterThan(tabs.x+tabs.width);
-        expect(Math.abs(bounds.y+bounds.height/2-tabs.y-tabs.height/2)).toBeLessThan(2);
+        const budget=(await page.getByRole('link',{name:'视频存储预算',exact:true}).boundingBox())!,bounds=(await button.boundingBox())!;
+        expect(bounds.x).toBeGreaterThan(budget.x+budget.width);
+        expect(bounds.y).toBeLessThan(budget.y+budget.height);
+        expect(bounds.y+bounds.height).toBeGreaterThan(budget.y);
       }
       await button.focus();await button.press('Enter');
       await expect(target).toBeFocused();await expect(target.getByRole('heading',{level:2})).toBeInViewport();
       await expect(page.getByRole('table',{name:'曲库歌曲',exact:true})).toBeVisible();
       await expect(page).toHaveURL(/\/#\/library$/);
-      if(visit===0)await page.screenshot({path:`../artifacts/library-inline-modules/toolbar/${id}-${width}.png`,animations:'disabled'});
+      if(visit===0)await page.screenshot({path:`../artifacts/library-toolbar-layout/${id}-${width}.png`,animations:'disabled'});
     }
     const positions=await page.locator('#library-browser, #vrcx-import, #video-import, #batch').evaluateAll(elements=>elements.map(el=>el.getBoundingClientRect().top));
     expect(positions).toHaveLength(4);expect(positions).toEqual([...positions].sort((a,b)=>a-b));

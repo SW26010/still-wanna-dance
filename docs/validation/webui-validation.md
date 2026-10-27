@@ -925,3 +925,9 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 当前运行配置为“不保留”时，导入视频与下载缺失视频模块顶部共用 Fluent v9 信息 MessageBar，提供定位到视频保留选项的“存储设置”链接，说明保存后重启生效；按当前收藏保留设置补充例外。替代下载模块原来的次级文字提示，不改变操作资格或后端行为。
 
 `cache-capacity.spec.ts` 与 `ownership.spec.ts` 共 **14 项通过**，覆盖当前生效与已保存配置的区分、收藏例外、两个模块的设置导航、焦点、操作仍可用及无隐式保存／导入／下载。已查看 1280px 浅色和 390px 深色截图，提示自然换行且无页面横向溢出。前端 `build`、`check` 与差异检查通过，内嵌资源已重建；日志及截图保存在 `artifacts/library-storage-notice/`。验证使用内存 API 与实际构建资源，无需 VRC 验收。
+
+## 2026-10-28 曲库工具栏排布
+
+导入 VRCX 历史、导入视频和下载视频移至视频存储预算所在概览行右侧；搜索曲库、筛选和查找移至歌曲／资源标签行右侧，窄屏自然换行。移除排序控件及其草稿状态，保留原默认需求分数排序；同步现行界面文档和受影响的既有用例。此前按钮位于标签行的记录只适用于当时布局。
+
+前端 `build`、`check` 和 `git diff --check` 通过，内嵌资源已重建。`library.spec.ts` 与 `library-refresh.spec.ts` **50 项通过**，`document-navigation.spec.ts --grep 'library buttons'` **2 项通过**，覆盖查询、分页、视图切换、选择清理、刷新稳定性及三个按钮的同行位置与键盘定位。已查看 1280px 浅色、390px 深色和 320px 强制颜色截图，桌面控件按要求靠右，窄屏自然换行且无页面横向溢出。日志与截图保存在 `artifacts/library-toolbar-layout/`；验证使用内存 API 与实际构建资源，无需 VRC 验收。

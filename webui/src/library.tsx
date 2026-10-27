@@ -29,7 +29,7 @@ export function Library({visible,anchor}:{visible:boolean;anchor:string}) {
 }
 function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boolean;anchor:string;song:string;resource:string;requestedView?:'songs'|'resources'}) {
   const app=useApp(),s=app.status.data!,focus=useFocusRecovery();
-  const [view,setView]=useState(resource||requestedView==='resources'?'resources':'songs'),[search,setSearch]=useState(''),[sort,setSort]=useState('score'),[filter,setFilter]=useState('');
+  const [view,setView]=useState(resource||requestedView==='resources'?'resources':'songs'),[search,setSearch]=useState(''),[filter,setFilter]=useState('');
   const [query,setQuery]=useState({q:'',sort:'score',filter:''}),[offset,setOffset]=useState(0),[selected,setSelected]=useState<Record<string,string>>({});
   const [pending,setPending]=useState(false);
   const history=useVRCX();
@@ -93,7 +93,8 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
     <Notification message={feedback.value?.text} error={feedback.value?.failed}/><Notification message={!actions.result?.error&&!actions.result?.entries?.length?actions.result?.text:undefined}/>
     <Notification message={visible&&downloads.error?'下载进度暂时无法读取。':undefined} error/>
     {page.data?.videoError&&<Feedback error>视频目录不可用，本地视频状态未知。歌曲资料仍可查看。<p className="wrap">{page.data.videoError}</p></Feedback>}
-    <InventoryPanel visible={visible} videoError={page.data?.videoError} files={page.data?.videoError?undefined:page.data} refresh={page.refresh} loading={page.loading} loadedAt={page.loadedAt} readError={page.error}/>
+    <InventoryPanel visible={visible} videoError={page.data?.videoError} files={page.data?.videoError?undefined:page.data} refresh={page.refresh} loading={page.loading} loadedAt={page.loadedAt} readError={page.error}
+      actions={<><Button onClick={()=>focusSection('vrcx-import')}>导入 VRCX 历史</Button><Button onClick={()=>focusSection('video-import')}>导入视频</Button><Button onClick={()=>focusSection('batch')}>下载视频</Button></>}/>
     <section id="library-browser" className="library-browser" {...focus} tabIndex={-1}>
       {history.suggested&&<div className="content-stack" aria-label="VRCX 历史导入建议"><Feedback>
         <p>检测到 VRCX 历史，可用于安排歌曲下载与保留顺序。仅在本机处理。</p>
@@ -101,15 +102,14 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
         {history.pending&&<p role="status">正在处理 VRCX 历史…</p>}
       </Feedback><Feedback error>{history.message}</Feedback></div>}
       {(song||resource)&&<div className="toolbar"><span>查看{song?'歌曲 ID '+song:'资源 '+resource}</span><Link href="#/library">返回完整曲库</Link></div>}
-      <div className="toolbar spread"><TabList aria-label="曲库视图" selectedValue={view} onTabSelect={(_,v)=>{setView(String(v.value));setOffset(0);setSort('score');setFilter('');setQuery(q=>({...q,sort:'score',filter:''}));}}><Tab id="library-tab-songs" aria-controls="library-results" value="songs" disabled={!!resource}>按歌曲</Tab><Tab id="library-tab-resources" aria-controls="library-results" value="resources" disabled={!!song}>按资源</Tab></TabList>
-        <div className="inline"><Button onClick={()=>focusSection('vrcx-import')}>导入 VRCX 历史</Button><Button onClick={()=>focusSection('video-import')}>导入视频</Button><Button onClick={()=>focusSection('batch')}>下载视频</Button></div></div>
-      <div id="library-results" role="tabpanel" aria-labelledby={'library-tab-'+view}>
-      <form className="toolbar library-search" onSubmit={e=>{e.preventDefault();setOffset(0);setQuery({q:search,sort,filter});page.refresh();}}>
+      <div className="toolbar spread"><TabList aria-label="曲库视图" selectedValue={view} onTabSelect={(_,v)=>{setView(String(v.value));setOffset(0);setFilter('');setQuery(q=>({...q,filter:''}));}}><Tab id="library-tab-songs" aria-controls="library-results" value="songs" disabled={!!resource}>按歌曲</Tab><Tab id="library-tab-resources" aria-controls="library-results" value="resources" disabled={!!song}>按资源</Tab></TabList>
+      <form className="inline library-search" onSubmit={e=>{e.preventDefault();setOffset(0);setQuery({q:search,sort:'score',filter});page.refresh();}}>
         <Field label="搜索曲库" className="search-field"><Input type="search" maxLength={300} placeholder="名称、ID、歌手、舞者或资源" value={search} onChange={(_,v)=>setSearch(v.value)}/></Field>
-        <Field label="排序"><Select value={sort} onChange={(_,v)=>setSort(v.value)}><option value="score">需求分数优先</option><option value="title">名称顺序</option>{view==='songs'?<option value="id">歌曲 ID 从新到旧</option>:<><option value="size">大小从大到小</option><option value="recent">最近请求优先</option></>}</Select></Field>
         <Field label="筛选"><Select value={filter} onChange={(_,v)=>setFilter(v.value)}><option value="">全部</option><option value="saved">已保存视频</option><option value="missing">缺失视频</option>{view==='songs'&&Object.entries(policyLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</Select></Field>
         <Button appearance="primary" type="submit" disabled={disabled}>查找</Button>
       </form>
+      </div>
+      <div id="library-results" role="tabpanel" aria-labelledby={'library-tab-'+view}>
       <div className="toolbar table-toolbar spread"><span role="status">{page.error?'曲库读取失败，请刷新重试。':page.loading&&!page.data?'正在读取曲库…':`共 ${page.data?.total||0} ${view==='songs'?'首歌曲':'个资源'} · 第 ${offset/50+1} 页`}</span>
         {view==='resources'&&<div className="inline"><Button size="small" disabled={disabled||!eligible.length} onClick={()=>setSelected(eligible.every(e=>selected[e.key]===e.stamp)?{}:Object.fromEntries(eligible.map(e=>[e.key,e.stamp])))}>选择本页可删除项</Button><Button size="small" disabled={disabled||!chosen.length} onClick={()=>void actions.operate('delete',chosen)}>删除选中视频</Button><span>已选择 {chosen.length} 个文件</span></div>}</div>
       {actions.result&&(actions.result.error||!!actions.result.entries?.length)&&<section ref={fileResult} tabIndex={-1} aria-label="文件操作结果" className="content-stack file-results"><Feedback error={actions.result.error}>{actions.result.text}{actions.result.message&&<p className="wrap">{actions.result.message}</p>}</Feedback>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button, Link, Text, Tooltip } from '@fluentui/react-components';
 import { ArrowSync20Regular } from '@fluentui/react-icons';
 import { request, APIError } from './api';
@@ -42,7 +42,7 @@ export function useCacheActions(snapshot: Pick<LibraryPage,'storageID'|'resource
   return {operate,pending,result:feedback.value};
 }
 const inventoryRefreshInterval=(data:Inventory)=>data.scanning?1000:0;
-export function InventoryPanel({visible,files,videoError,refresh,loading,loadedAt,readError}: {visible:boolean;videoError?:string;files?:Pick<LibraryPage,'fileCount'|'totalBytes'>;refresh:()=>void;loading:boolean;loadedAt?:number;readError?:string}) {
+export function InventoryPanel({visible,files,videoError,refresh,loading,loadedAt,readError,actions}: {visible:boolean;videoError?:string;files?:Pick<LibraryPage,'fileCount'|'totalBytes'>;refresh:()=>void;loading:boolean;loadedAt?:number;readError?:string;actions:ReactNode}) {
   const app = useApp(), s=app.status.data!;
   const [lastCheckedAt,setLastCheckedAt]=useState<number>();
   useEffect(()=>{
@@ -76,6 +76,7 @@ export function InventoryPanel({visible,files,videoError,refresh,loading,loadedA
       </div>
       <div><Link href="#storage-settings">视频存储预算</Link><Text block size={400}>{s.activeSettings.videoStorageMode==='unlimited'?'不限制':s.activeSettings.videoStorageMode==='none'?'不保留':gib(s.activeSettings.maxCacheBytes)}</Text></div>
     </div>
+    <div className="inline library-actions">{actions}</div>
     <Notification message={visible?(inventory.error?'曲库统计暂时不可用。':v?.error||v?.catalog?.error||s.actionErrors?.inventory):undefined} error/>
   </section>;
 }

@@ -850,3 +850,14 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 - 前端 build/check 通过，更新的嵌入资源与源码一致。日志和截图保存在忽略目录 `artifacts/queue-monitoring/`。
 
 这些检查不依赖真实 VRC 运行；未启动游戏或修改系统 hosts，不新增实机验收项。
+
+## 2026-10-28 曲库定位文件与资源管理器
+
+原 Windows 实现以 `HideWindow: true` 启动 Explorer，函数返回成功但文件夹窗口不可见。隔离文件的真实 Shell 检查连续复现 `windowFound=True visible=False`；仅移除隐藏标志后窗口可见，但文件仍未选中。调整命令行的参数合并和引号也未满足文件选择断言，因此最终使用 Windows 原生 `SHOpenFolderAndSelectItems` 定位文件，目录打开使用 `ShellExecute` 的正常显示模式。保留现有存储标识、条目快照与路径校验，并将 Shell API 失败返回给调用方。
+
+- 新增 `TestOpenCacheLocationExplorer`，显式设置 `SWD_EXPLORER_CHECK=1` 后运行；普通测试默认跳过交互桌面检查。用独立临时目录覆盖中文、空格、逗号和 `&`，通过 Shell 窗口路径、Win32 可见性及选中条目验证真实结果，结束时只关闭该测试目录的窗口。修复前文件和目录两项失败；最终文件为 `visible=True selected=True`，目录正常显示。另覆盖文件消失时返回错误以及已有 COM 初始化的调用路径。
+- 桌面包回归通过，包含上述显式启用的 Explorer 检查；其他独立托盘交互测试保持默认跳过，目录符号链接用例因当前用户权限跳过。Console 的缓存操作、鉴权和存储快照定向测试、两个包的 `go vet` 均通过。
+- 现有 Edge 按钮键盘操作测试通过，验证请求携带正确存储和文件快照；另直接查看实际资源管理器，确认隔离文件高亮并显示“选中 1 个项目”。浏览器用例本身仍是内存接口夹具，不外推为真实服务端到端验收。
+- 桌面构建与嵌入 WebUI 一致性校验通过，产物为忽略目录 `artifacts/cache-open-probe/SWD.exe`，版本 `dev-cache-location`。没有替换或重启用户正在运行的程序。
+
+失败、中间探测和最终输出保留在 `artifacts/cache-open-probe/`，包括 `before.log`、`after-visible.log`、`after-selection.log`、`after-cmdline.log`、`after-shell-api.log`、`desktop-final.log`、`go-tests.log`、`browser.log`、`vet.log` 和 `build.log`。初次沙箱内探测无法读取 Explorer COM 窗口，最终真实桌面检查使用当前用户会话运行。无需 VRC 验收，未启动游戏或修改 hosts。

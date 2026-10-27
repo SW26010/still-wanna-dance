@@ -40,6 +40,7 @@ func hostsPath() string {
 type HostsStatus struct {
 	Managed             bool   `json:"managed"`
 	ExitRestorePrepared bool   `json:"exitRestorePrepared"`
+	AuthorizationID     string `json:"authorizationID,omitempty"`
 	NeedsMigration      bool   `json:"needsMigration"`
 	Ready               bool   `json:"ready"`
 	Conflict            bool   `json:"conflict"`
@@ -91,12 +92,17 @@ func inspectHosts(data string) (result HostsStatus) {
 }
 
 func (h *hostsController) status() HostsStatus {
+	var s HostsStatus
 	b, err := os.ReadFile(h.path)
 	if err != nil {
-		return HostsStatus{Message: err.Error()}
+		s.Message = err.Error()
+	} else {
+		s = inspectHosts(string(b))
 	}
-	s := inspectHosts(string(b))
 	s.ExitRestorePrepared = h.prepared.Load()
+	if id := h.authorizationID.Load(); id != nil {
+		s.AuthorizationID = *id
+	}
 	return s
 }
 

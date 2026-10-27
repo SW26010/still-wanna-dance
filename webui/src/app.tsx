@@ -10,10 +10,11 @@ import { TermsConsent } from './terms-consent';
 import { RequestTimeline } from './request-timeline';
 import { bootstrap } from './bootstrap';
 import { exitConnectionMessage } from './types';
+import { HostsAuthorizationNotice } from './hosts-notice';
 
 const pages = {home:'加速',timeline:'历史',library:'曲库',network:'网络',settings:'设置',about:'关于'};
 type Page = keyof typeof pages;
-const anchors:Record<string,Page>={activation:'home',service:'network',queue:'home',overview:'library',cache:'library',downloads:'home','download-settings':'settings',recent:'timeline',network:'network','network-proxy':'settings','proxy-settings':'settings','network-access':'network','network-tests':'network',batch:'library',preferences:'settings',prepareAheadSeconds:'settings',maxCacheGiB:'settings','storage-settings':'settings','video-import':'library','song-preferences':'library',help:'about',terms:'about',licenses:'about','help-start':'about','help-playback':'about','help-storage':'about','help-stop':'about','help-paths':'about'};
+const anchors:Record<string,Page>={activation:'home',service:'network',queue:'home',overview:'library',cache:'library',downloads:'home','download-settings':'settings',recent:'timeline',network:'network','network-proxy':'settings','proxy-settings':'settings','network-access':'network','network-tests':'network',batch:'library',preferences:'settings',restoreHostsOnExit:'settings',prepareAheadSeconds:'settings',maxCacheGiB:'settings','storage-settings':'settings','video-import':'library','song-preferences':'library',help:'about',terms:'about',licenses:'about','help-start':'about','help-playback':'about','help-storage':'about','help-stop':'about','help-paths':'about'};
 export function route(hash: string): Page {
   if (hash === '#/upstream' || hash === '#/monitor') return 'network';
   const key = hash.replace(/^#\/?/,'').split('?')[0];
@@ -60,6 +61,7 @@ export function App() {
   const runtimeStatus=<div className="runtime-status"><StatusBadge label="后台程序" color={model.stopped?'informative':fault?'danger':s?'success':'brand'}>{statusText}</StatusBadge>{fault&&<RecordDetails title="后台状态">{model.status.error&&<><p>无法读取程序状态，请检查 SWD 是否仍在运行。</p>{s&&<p>当前显示上次状态。</p>}</>}{s?.storageError&&<>{s.activeSettings.databasePath?<><p>数据库或视频存储不可用，新的下载已停止。</p><p>检查所选文件、磁盘空间和目录权限，修复后重新打开应用。</p></>:<p>请到存储设置打开已有数据库或新建数据库，并指定完整视频目录，保存后重启。</p>}<p className="wrap">首个错误：{s.storageError}</p></>}</RecordDetails>}</div>;
   const feedback=<div className="app-feedback">
     <Notification message={model.message} error={model.messageError} persistent={model.busy}/>
+    <HostsAuthorizationNotice authorizationID={s?.hosts.authorizationID}/>
     {!s&&accepted&&!documentPage&&!model.status.error&&<Spinner label="正在读取程序状态…"/>}
   </div>;
   return <ConsoleContext.Provider value={model}><div className="shell">

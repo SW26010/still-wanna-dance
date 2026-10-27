@@ -3,6 +3,7 @@ package console
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -45,14 +46,24 @@ type hostsController struct {
 	cancel           context.CancelFunc
 	closed           bool
 	err              error
-	prepared         atomic.Bool // helper acknowledged recovery capability; not an exit policy
-	rollbackReady    bool        // only the most recent dispatched enable may be rolled back
+	prepared         atomic.Bool            // helper acknowledged recovery capability; not an exit policy
+	authorizationID  atomic.Pointer[string] // identity of the latest successful helper authorization
+	rollbackReady    bool                   // only the most recent dispatched enable may be rolled back
 	previousPrepared bool
 }
 
 func newHostsController(path string, launch func(context.Context) (hostsConnection, error)) *hostsController {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &hostsController{path: path, launch: launch, ctx: ctx, cancel: cancel}
+	h := &hostsController{path: path, ctx: ctx, cancel: cancel}
+	h.launch = func(ctx context.Context) (hostsConnection, error) {
+		session, err := launch(ctx)
+		if err == nil {
+			id := rand.Text()
+			h.authorizationID.Store(&id)
+		}
+		return session, err
+	}
+	return h
 }
 
 func (h *hostsController) change(action string, restore bool) error {

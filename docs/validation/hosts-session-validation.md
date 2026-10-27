@@ -34,3 +34,18 @@
 本轮没有修改系统 hosts、启动游戏、请求真实 UAC 或更改用户设置。真实 UAC 同意/取消、使用另一管理员账户凭据、交互托盘、注销/关机及断电仍未验证，属于 Windows 环境边界，不新增 VRC 台账项。主端管道断开测试证明助手在仍存活时的清理行为，不等于系统同时终止两个进程或断电也能恢复。
 
 本地日志、截图和隔离开发构建保存在忽略目录 `artifacts/hosts-session-validation/`：`go-targeted.txt`、`go-console.txt`、`go-race.txt`、`browser.txt`、`live-browser*.txt`、`live-browser/`、`build.txt`。运行路径和原始资料不入 Git。
+
+## 授权成功后的退出设置提示（2026-10-27）
+
+新助手授权成功并连接后发布公共 hosts 状态中的 `authorizationID`，网页使用现有状态读取显示信息 Toast，并链接到「退出时恢复游戏直连」字段。触发规则与文案以[内容约定](../webui-content.md)为准；没有改变 UAC、hosts 写入或退出策略。每次授权生成独立随机标识，标签页只保存该标识去重，刷新不重放已显示的提示。初版的进程身份与授权序号组合已被该标识替代，不再将鉴权 token 用于通知或写入浏览器存储；Toast 的正文、操作链接、关闭和超时统一由公共 `Notification` 呈现。
+
+- 前端 `build` / `check` 和 `git diff --check` 通过，内嵌资源已重建。
+- Go 定向回归 `Test(Hosts|RestoreHosts|ExplicitGateway|Activation|WindowsHosts)` 通过；验证新助手成功授权的记录、复用不重复、拒绝/冲突不报告成功及现有接入/退出行为。包含私有文件和非提权子进程的命名管道检查。
+- Edge 四组定向回归共 24 项通过：`hosts-notice`、`settings-help`、`acceleration`、`settings-structure`。新增覆盖成功状态的后台通知、取消后重试成功、操作结果并存、刷新去重、新授权再次提示、320px 深色与 1280px 浅色、跨设置标签定位/焦点与未保存草稿保持；截图已检查。
+- `TestHostsPolicyBrowser` 真实 Console 联调通过：HTTP 未模拟，私有 hosts 助手成功建立后展示 Toast，点击直达设置，保存、刷新、重新创建 Console 及两种退出策略均通过；390px 截图已检查。
+
+首次沙箱内 Edge 因 `TransactNamedPipe` 失败而未进入页面断言，Go 回归出现 `renameat ... The handle is invalid` 及命名管道 `Access is denied`。停止本轮残留的测试服务器后，在普通用户环境执行相同隔离检查通过。失败摘要、浏览器原始失败、重试日志及联调截图保存在忽略目录 `artifacts/hosts-notice-validation/`。本轮未启动游戏、修改系统 hosts 或请求真实 UAC；隔离助手成功连接与浏览器联调不等同于新一轮原生 UAC 实测，原生授权路径沿用文首所引既有证据。
+
+同日收敛复验：独立授权标识与公共通知复用完成后，前端 `build` / `check`、上述 Go 定向回归（含真实 Console 浏览器联调）及 24 项 Edge 回归再次通过。额外核对不同助手会话的授权标识不同、复用时保持不变，以及关闭 Toast 后状态轮询不重复展示；联调截图布局保持一致。记录位于 `artifacts/hosts-notice-validation/refinement/`，前次失败和验证记录保留。
+
+同日 P2 修复：对 `sessionStorage` 属性访问、`getItem` 与 `setItem` 分别注入异常，修复前 3 项均失败并复现 WebUI 白屏。通知模块仅在存储读写处局部捕获异常，继续显示 Toast 和操作链接，保留当前页面内去重，仅放弃刷新去重。修复后 `hosts-notice` 全部 7 项 Edge 回归通过，覆盖页面存活、链接定位、轮询不重复、新授权再次提示及刷新降级，且无未捕获页面异常；前端 `build` / `check` 与差异检查通过。失败日志、白屏截图和成功日志位于 `artifacts/hosts-notice-validation/storage-failure/`。本次仅修改前端存储异常处理，沿用既有后端与隔离服务证据，未触及原生授权或系统 hosts。

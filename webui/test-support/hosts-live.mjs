@@ -12,8 +12,12 @@ try {
   await page.goto(baseURL+'/');
   await page.getByRole('button',{name:'开始加速',exact:true}).click();
   await expect(page.getByText('视频加速已开启。',{exact:true})).toBeVisible();
-  await page.goto(baseURL+'/#/settings');
+  await expect(page.getByText('可在退出后保留游戏接入',{exact:true})).toBeVisible();
+  await page.screenshot({path:join(output,phase+'-authorization-toast.png'),animations:'disabled'});
+  await page.getByRole('link',{name:'打开退出设置',exact:true}).click();
   const restore=page.getByRole('checkbox',{name:'退出时恢复游戏直连',exact:true});
+  await expect(restore).toBeFocused();
+  await expect(restore).toBeInViewport();
   if(phase==='default') {
     await expect(restore).toBeChecked();await restore.uncheck();
     await page.getByRole('button',{name:'保存设置',exact:true}).click();

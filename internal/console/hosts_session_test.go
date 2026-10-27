@@ -48,6 +48,7 @@ func fixtureHostsController(t *testing.T, initial string) (*hostsController, *in
 }
 
 func TestHostsSessionReuseAndExitPolicy(t *testing.T) {
+	seenAuthorizations := make(map[string]bool)
 	for _, restore := range []bool{true, false} {
 		t.Run(map[bool]string{true: "restore", false: "persist"}[restore], func(t *testing.T) {
 			h, launches := fixtureHostsController(t, hostsBaseline)
@@ -55,14 +56,27 @@ func TestHostsSessionReuseAndExitPolicy(t *testing.T) {
 			if err := h.change("disable", restore); err != nil || *launches != 0 {
 				t.Fatal(err, *launches)
 			}
+			if h.status().AuthorizationID != "" {
+				t.Fatal("no-op operation reported authorization")
+			}
+			var authorizationID string
 			for _, action := range []string{"enable", "enable", "disable", "enable"} {
 				if err := h.change(action, restore); err != nil {
 					t.Fatal(action, err)
 				}
+				id := h.status().AuthorizationID
+				if id == "" || authorizationID != "" && id != authorizationID {
+					t.Fatal("successful authorization missing or changed while reusing helper")
+				}
+				authorizationID = id
 			}
 			if *launches != 1 || !inspectHosts(readHostsFixture(t, h.path)).Ready {
 				t.Fatal("operations did not share a single helper", *launches)
 			}
+			if seenAuthorizations[authorizationID] {
+				t.Fatal("different helper sessions shared an authorization identity")
+			}
+			seenAuthorizations[authorizationID] = true
 			for range 2 {
 				if err := h.close(restore); err != nil {
 					t.Fatal(err)
@@ -128,6 +142,9 @@ func TestHostsSessionConflictAndDeniedAuthorizationNeverChangeFile(t *testing.T)
 		}
 		if calls != map[bool]int{true: 0, false: 1}[conflict] || readHostsFixture(t, h.path) != data {
 			t.Fatal("preflight/exit launched unexpectedly or modified hosts", calls)
+		}
+		if h.status().AuthorizationID != "" {
+			t.Fatal("failed authorization reported success")
 		}
 	}
 }

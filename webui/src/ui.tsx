@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, Fragment, type PropsWithChildren, type Ref, type FocusEventHandler, type ReactNode } from 'react';
 import { FluentProvider, webLightTheme, webDarkTheme, Card, CardHeader, Divider, Image, Subtitle1, Subtitle2, Link, MessageBar, MessageBarBody, ProgressBar, NavDrawer, NavDrawerHeader, NavDrawerBody, NavItem, Hamburger, useRestoreFocusTarget } from '@fluentui/react-components';
 import { bootstrap } from './bootstrap';
-import { Badge, Button, Tooltip, Toaster, Toast, ToastTitle, ToastTrigger, useToastController, useId, Popover, PopoverTrigger, PopoverSurface } from '@fluentui/react-components';
+import { Badge, Button, Tooltip, Toaster, Toast, ToastTitle, ToastBody, ToastFooter, ToastTrigger, useToastController, useId, Popover, PopoverTrigger, PopoverSurface } from '@fluentui/react-components';
 import { InfoRegular, DismissRegular, CheckmarkCircleRegular, DismissCircleRegular, WarningRegular, ClockRegular, SubtractCircleRegular } from '@fluentui/react-icons';
 
 import type { ThemePreference } from './types';
@@ -24,14 +24,19 @@ export function Provider({ children }: PropsWithChildren) {
   }, [dark]);
   return <ThemeContext.Provider value={{preference,setPreference}}><FluentProvider className="app-provider" data-theme={dark?'dark':'light'} style={{colorScheme:dark?'dark':'light'}} theme={{ ...(dark ? webDarkTheme : webLightTheme), fontFamilyBase: '"Segoe UI", "Microsoft YaHei", sans-serif' }}>{children}<Toaster toasterId="app-notices" position="bottom-end" limit={4} pauseOnHover pauseOnWindowBlur /></FluentProvider></ThemeContext.Provider>;
 }
-export function Notification({message,error=false,persistent=false}: {message?:string;error?:boolean;persistent?:boolean}) {
+export function Notification({message,body,action,error=false,persistent=false}: {message?:string;body?:string;action?:{href:string;label:string};error?:boolean;persistent?:boolean}) {
   const toastId=useId('notice'),{dispatchToast,dismissToast}=useToastController('app-notices');
+  const href=action?.href,label=action?.label;
   useEffect(()=>{
     if(!message)return;
     const id=toastId+'-'+crypto.randomUUID();
-    dispatchToast(<Toast><ToastTitle action={<ToastTrigger><Button appearance="transparent" size="small" icon={<DismissRegular/>} aria-label="关闭通知"/></ToastTrigger>}>{message}</ToastTitle></Toast>,{toastId:id,intent:error?'error':'info',timeout:error||persistent?-1:7000});
+    dispatchToast(<Toast>
+      <ToastTitle action={<ToastTrigger><Button appearance="transparent" size="small" icon={<DismissRegular/>} aria-label="关闭通知"/></ToastTrigger>}>{message}</ToastTitle>
+      {body&&<ToastBody>{body}</ToastBody>}
+      {href&&label&&<ToastFooter><ToastTrigger><Link href={href}>{label}</Link></ToastTrigger></ToastFooter>}
+    </Toast>,{toastId:id,intent:error?'error':'info',timeout:error||persistent?-1:7000});
     return()=>dismissToast(id);
-  },[message,error,persistent,toastId,dispatchToast,dismissToast]);
+  },[message,body,href,label,error,persistent,toastId,dispatchToast,dismissToast]);
   return null;
 }
 export function Hint({children,label='说明'}:PropsWithChildren<{label?:string}>) {

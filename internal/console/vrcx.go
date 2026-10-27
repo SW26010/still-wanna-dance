@@ -14,6 +14,7 @@ import (
 
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/vrcx"
+	"still-wanna-dance/internal/workfiles"
 )
 
 type vrcxPreview struct {
@@ -43,7 +44,7 @@ func defaultVRCXPath() string {
 }
 
 // Called only after the shared Host/Origin/token/terms gate. Detection only
-// stats the default file; private history is read solely by explicit preview.
+// stats the default file; private history is read solely after a user action.
 func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Path      string `json:"path"`
@@ -65,8 +66,21 @@ func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 			result["targetError"] = "无法读取目标歌曲统计，请检查存储后重试"
 		} else {
 			result["existingSongs"] = count
+			c.mu.Lock()
+			suggested := !c.vrcxImportDismissed && count == 0 && result["found"] == true
+			result["suggested"] = suggested
+			result["notify"] = suggested && c.vrcxNotify
+			c.mu.Unlock()
 		}
 		writeJSON(w, result)
+		return
+	}
+	if r.URL.Path == "/api/vrcx/dismiss" {
+		if err := c.dismissVRCXSuggestion(); err != nil {
+			http.Error(w, "无法保存忽略选择，请重试", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
 		return
 	}
 	if r.URL.Path == "/api/vrcx/select" {
@@ -160,6 +174,41 @@ func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, p)
+}
+
+// The choice belongs to this configuration instance, not to a video directory.
+// Ordinary settings writes preserve this non-editable field in the disk envelope.
+func (c *Console) dismissVRCXSuggestion() error {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
+	c.mu.Lock()
+	closing, dismissed := c.closing, c.vrcxImportDismissed
+	c.mu.Unlock()
+	if closing {
+		return context.Canceled
+	}
+	if dismissed {
+		return nil
+	}
+	_, fields, err := readConfigFile(c.configPath)
+	if err != nil {
+		return err
+	}
+	if fields == nil {
+		return os.ErrNotExist
+	}
+	fields["vrcxImportDismissed"] = json.RawMessage("true")
+	data, err := json.MarshalIndent(fields, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := workfiles.Write(c.configPath, data); err != nil {
+		return err
+	}
+	c.mu.Lock()
+	c.vrcxImportDismissed = true
+	c.mu.Unlock()
+	return nil
 }
 
 func (c *Console) vrcxTarget() string {

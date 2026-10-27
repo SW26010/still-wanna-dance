@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/workfiles"
 )
 
 func TestVRCXBrowser(t *testing.T) {
@@ -22,7 +23,6 @@ func TestVRCXBrowser(t *testing.T) {
 	if evidence == "" {
 		t.Skip("set SWD_VRCX_BROWSER_EVIDENCE for isolated real Console browser integration")
 	}
-	c := testConsole(t)
 	source := vrcxFixture(t)
 	appData := t.TempDir()
 	t.Setenv("APPDATA", appData)
@@ -37,23 +37,230 @@ func TestVRCXBrowser(t *testing.T) {
 	if err := os.WriteFile(defaultSource, data, 0600); err != nil {
 		t.Fatal(err)
 	}
-	ui := httptest.NewUnstartedServer(c)
-	c.address = ui.Listener.Addr().String()
-	ui.Start()
-	defer ui.Close()
-	ctx, cancel := context.WithTimeout(t.Context(), 45*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "vrcx-live.mjs"), ui.URL, source, evidence)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("browser: %v\n%s", err, output)
-	} else {
-		t.Log(string(output))
+	for _, mode := range []string{"first-run", "reopened"} {
+		t.Run(mode, func(t *testing.T) {
+			c := firstRunVRCXConsole(t)
+			if mode == "reopened" {
+				c = restartTestConsole(t, c)
+			}
+			ui := httptest.NewUnstartedServer(c)
+			c.address = ui.Listener.Addr().String()
+			ui.Start()
+			defer ui.Close()
+			ctx, cancel := context.WithTimeout(t.Context(), 45*time.Second)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "vrcx-live.mjs"), ui.URL, source, filepath.Join(evidence, mode), mode)
+			if output, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("browser: %v\n%s", err, output)
+			} else {
+				t.Log(string(output))
+			}
+			if count, err := cacheproxy.ReadSongUsageCount(context.Background(), libraryPaths(c.settings).DatabasePath); err != nil || count != 2 {
+				t.Fatal(count, err)
+			}
+			if c.service != nil {
+				t.Fatal("browser import started engine")
+			}
+		})
 	}
-	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), libraryPaths(c.settings).DatabasePath); err != nil || count != 2 {
-		t.Fatal(count, err)
+}
+
+func firstRunVRCXConsole(t *testing.T) *Console {
+	t.Helper()
+	c, err := newConsole(filepath.Join(t.TempDir(), "config.json"), "127.0.0.1:18081", newFixtureDNS(), testWorkDirectory(t))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if c.service != nil {
-		t.Fatal("browser import started engine")
+	t.Cleanup(func() { c.Close() })
+	c.hosts, _ = fixtureHostsController(t, hostsBaseline)
+	c.checksumURL = ""
+	if err := c.acceptTerms(); err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+
+func TestVRCXSuggestionUsesEmptyStatisticsAndPersistedDismissal(t *testing.T) {
+	for _, scenario := range []string{"file", "missing", "directory", "existing", "dismissed", "reopened", "nonempty", "dismissed-reopened", "nonempty-reopened"} {
+		t.Run(scenario, func(t *testing.T) {
+			t.Setenv("APPDATA", t.TempDir())
+			path := defaultVRCXPath()
+			if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+				t.Fatal(err)
+			}
+			// Deliberately not SQLite: detection must not open or validate the source.
+			original := []byte("private history must not be read before the user chooses import")
+			switch scenario {
+			case "missing":
+			case "directory":
+				if err := os.Mkdir(path, 0700); err != nil {
+					t.Fatal(err)
+				}
+			default:
+				if err := os.WriteFile(path, original, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var c *Console
+			if scenario == "existing" {
+				c = testConsole(t)
+			} else {
+				c = firstRunVRCXConsole(t)
+			}
+			if strings.HasPrefix(scenario, "dismissed") {
+				if w := vrcxRequest(t, c, "dismiss", map[string]any{}); w.Code != 200 {
+					t.Fatal(w.Code)
+				}
+			}
+			if strings.HasPrefix(scenario, "nonempty") {
+				history := &cacheproxy.SongUsageImport{}
+				history.Observe(99, time.Now().UnixMilli())
+				if err := c.store.ImportSongUsage(t.Context(), history, false); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if strings.HasSuffix(scenario, "reopened") {
+				c = restartTestConsole(t, c)
+			}
+			for range 2 { // Refreshes and other tabs retain the same decision.
+				w := vrcxRequest(t, c, "detect", map[string]any{})
+				var result struct {
+					Found, Suggested, Notify bool
+					ExistingSongs            int
+					TargetError              string
+				}
+				if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &result) != nil {
+					t.Fatal(w.Code, w.Body.String())
+				}
+				wantSuggestion := scenario == "file" || scenario == "existing" || scenario == "reopened"
+				if result.Suggested != wantSuggestion || result.Notify != (scenario == "file") || result.Found != (scenario != "missing" && scenario != "directory") || result.TargetError != "" {
+					t.Fatal("unexpected suggestion", w.Body.String())
+				}
+			}
+			want := 0
+			if strings.HasPrefix(scenario, "nonempty") {
+				want = 1
+			}
+			if count, err := c.store.SongUsageCount(t.Context()); err != nil || count != want {
+				t.Fatal(count, err)
+			}
+			if c.vrcxPreview != nil || c.service != nil {
+				t.Fatal("detection or dismissal started history reading or video work")
+			}
+			if scenario != "missing" && scenario != "directory" {
+				data, err := os.ReadFile(path)
+				if err != nil || !bytes.Equal(data, original) {
+					t.Fatal("source changed", err)
+				}
+			}
+			for _, suffix := range []string{"-wal", "-shm", "-journal"} {
+				if _, err := os.Stat(path + suffix); !os.IsNotExist(err) {
+					t.Fatal("source companion created", suffix, err)
+				}
+			}
+		})
+	}
+}
+
+func vrcxAvailable(t *testing.T, c *Console) bool {
+	t.Helper()
+	r := httptest.NewRequest("GET", "http://"+c.address+"/api/status", nil)
+	r.Header.Set("X-SWD-Token", c.token)
+	w := httptest.NewRecorder()
+	c.ServeHTTP(w, r)
+	var result struct{ VRCXImportAvailable *bool }
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &result) != nil || result.VRCXImportAvailable == nil {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	return *result.VRCXImportAvailable
+}
+
+func TestVRCXSuggestionStatusFollowsFirstStoredDemand(t *testing.T) {
+	c := testConsole(t)
+	if !vrcxAvailable(t, c) {
+		t.Fatal("empty existing library is eligible")
+	}
+	c = restartTestConsole(t, c)
+	if !vrcxAvailable(t, c) {
+		t.Fatal("restarting hid an empty library suggestion")
+	}
+	history := &cacheproxy.SongUsageImport{}
+	history.Observe(99, time.Now().UnixMilli())
+	if err := c.store.ImportSongUsage(t.Context(), history, false); err != nil {
+		t.Fatal(err)
+	}
+	if vrcxAvailable(t, c) {
+		t.Fatal("first stored demand did not retire suggestion")
+	}
+	c = restartTestConsole(t, c)
+	if vrcxAvailable(t, c) {
+		t.Fatal("restarting restored suggestion after demand")
+	}
+	if c.service != nil || c.vrcxPreview != nil {
+		t.Fatal("status read started video or history work")
+	}
+}
+
+func TestVRCXDismissalPersistsWithoutApplyingOrChangingSettings(t *testing.T) {
+	c := testConsole(t)
+	next := c.savedSettings
+	next.PrepareAheadSeconds++
+	if err := c.save(next); err != nil {
+		t.Fatal(err)
+	}
+	active, saved := c.settings, c.savedSettings
+	_, before, err := readConfigFile(c.configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w := vrcxRequest(t, c, "dismiss", map[string]any{}); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if c.settings != active || c.savedSettings != saved || vrcxAvailable(t, c) {
+		t.Fatal("dismissal changed runtime settings or did not retire suggestion")
+	}
+	_, after, err := readConfigFile(c.configPath)
+	if err != nil || string(after["vrcxImportDismissed"]) != "true" {
+		t.Fatal(after, err)
+	}
+	delete(after, "vrcxImportDismissed")
+	b, _ := json.Marshal(before)
+	a, _ := json.Marshal(after)
+	if !bytes.Equal(a, b) {
+		t.Fatal("dismissal altered configuration fields")
+	}
+	next.PrepareAheadSeconds++
+	if err := c.save(next); err != nil {
+		t.Fatal(err)
+	}
+	c = restartTestConsole(t, c)
+	if !c.vrcxImportDismissed || vrcxAvailable(t, c) {
+		t.Fatal("settings save or restart forgot dismissal")
+	}
+}
+
+func TestVRCXDismissalFailureKeepsSuggestionAndConfiguration(t *testing.T) {
+	c := testConsole(t)
+	before, err := os.ReadFile(c.configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	work := filepath.Join(filepath.Dir(c.configPath), workfiles.TempName(c.configPath))
+	if err := os.Mkdir(work, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if w := vrcxRequest(t, c, "dismiss", map[string]any{}); w.Code != 500 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	after, err := os.ReadFile(c.configPath)
+	if err != nil || !bytes.Equal(before, after) || c.vrcxImportDismissed || !vrcxAvailable(t, c) {
+		t.Fatal("failed save consumed dismissal", err)
+	}
+	if err := os.Remove(work); err != nil {
+		t.Fatal(err)
+	}
+	if w := vrcxRequest(t, c, "dismiss", map[string]any{}); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
 	}
 }
 
@@ -377,7 +584,7 @@ func TestVRCXDiscardExpiryAndEmptySource(t *testing.T) {
 func TestVRCXGatesDetectionAndPicker(t *testing.T) {
 	c := testConsole(t)
 	t.Setenv("APPDATA", t.TempDir())
-	for _, action := range []string{"detect", "select", "preview", "apply", "discard"} {
+	for _, action := range []string{"detect", "select", "preview", "apply", "discard", "dismiss"} {
 		r := httptest.NewRequest("POST", "http://"+c.address+"/api/vrcx/"+action, strings.NewReader("{}"))
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
@@ -412,9 +619,11 @@ func TestVRCXGatesDetectionAndPicker(t *testing.T) {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	c.terms = termsReceipt{}
-	w = vrcxRequest(t, c, "preview", map[string]string{"path": source})
-	if w.Code != 428 {
-		t.Fatal("terms bypass", w.Code)
+	for _, action := range []string{"detect", "dismiss", "preview"} {
+		w = vrcxRequest(t, c, action, map[string]string{"path": source})
+		if w.Code != 428 {
+			t.Fatal("terms bypass", action, w.Code)
+		}
 	}
 }
 

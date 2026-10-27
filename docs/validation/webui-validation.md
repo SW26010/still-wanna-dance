@@ -704,3 +704,33 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 首次定向检查在 Windows 沙箱内遇到原子替换 The handle is invalid，沙箱外复验通过。沙箱内浏览器用例开始即失败且 runner 未正常收尾，已中断并在沙箱外完成上述浏览器检查。首次 cacheproxy 整包还发现旧夹具仅修改天数、或未显式启用明细采集，导致延迟覆盖与来源明细断言失败；已将相关夹具改为明确的模式并复跑整包通过，未修改产品默认值绕过检查。
 
 浏览器使用内存 API，后端使用隔离 SQLite 与回环 HTTP；本次不涉及需 VRC 才能判断的播放行为。未运行游戏、修改 hosts、修改用户配置、提交或推送。
+
+## 2026-10-27 首次建库的 VRCX 导入建议
+
+本节记录最初仅限首次建库进程的实现；提示生命周期已由下方「空统计时保留曲库建议」补充取代。初版进入曲库仅检测默认 VRCX 文件是否存在；用户点击「导入历史」后才读取内容并复用原有聚合、事务与覆盖确认。现行行为见[历史初始化契约](../song-catalog-design.md#vrcx-历史初始化)。
+
+- 后端：首次建库及 VRCX 定向检查通过，读取器包完整检查通过。新增矩阵覆盖默认文件存在／缺失／目录、已有空库、忽略、重启和非空统计；故意使用非 SQLite 文件仍可给出存在性建议，检测不生成预览、不改源文件或目标统计、不生成源库伴随文件。忽略接口沿用令牌、同源和条款门禁。原有提交时新需求冲突、事务覆盖及同令牌重试继续通过。
+- 浏览器：曲库 36 项通过；VRCX 最终 14 项通过，覆盖提示前仅调用 detect、键盘一键导入、忽略后导航／刷新、已有统计确认取消／确认、提交竞态拒绝、回执未确认时复用原令牌、缺源和空结果不提交。查看 390px 深色与 1280px 浅色截图，操作可见且无整页横向溢出，提示移除后焦点回到曲库区域。
+- 真实服务：启用 `SWD_VRCX_BROWSER_EVIDENCE` 运行 `TestVRCXBrowser`，使用首次自动建库的真实 Console、Edge 和临时合成 VRCX SQLite。确认前浏览器只请求 detect；点击后依次 preview、apply，实际写入 2 首歌曲，刷新后不再提示，手动预览和覆盖取消／确认继续通过，未启动视频引擎。源为合成数据，没有读取个人 VRCX 历史。
+- 前端构建、类型、嵌入产物逐字节一致性、资源清单及 diff 检查通过。原始日志与截图在忽略目录 `artifacts/vrcx-suggestion/`，包括 `backend-outside.log`、`reader.log`、`browser-final.log`、`backend-real-browser.log` 与 `real-browser/result.json`。
+
+保留失败：`backend.log` 中首次沙箱检查遇到 Windows 原子替换 `The handle is invalid`；`browser.log`、`browser-probe.log` 的沙箱浏览器启动失败且未正常收尾，已中断，再在沙箱外用相同隔离入口验证。`browser-outside.log` 首轮为 47/49，其中两项因测试文本同时匹配 Toast 与读屏播报而失败；改为按具名通知定位后 VRCX 全部通过，未修改产品绕过断言。首张窄屏截图捕获到导航关闭动画，复验截图禁用动画并等待页面就绪后重新检查。
+
+本次无需 VRC 验证；未运行游戏、修改系统 hosts、提交或推送。
+
+### 同日补充：启动页右下角 Toast
+
+检测提前到同意条款并取得程序状态后，Toast 和曲库共用一份检测／导入模型，不因导航再次读取。非曲库页面显示一次「检测到 VRCX 数据库」及「前往曲库」，链接只导航；进入曲库后由原建议接续，关闭或 7 秒超时不撤销曲库建议，同标签页用 sessionStorage 记录已提示状态，刷新不重复。源库内容仍只在用户明确点击导入后读取。
+
+`toast-browser.log` 中曲库 36 项通过；VRCX 最终 `toast-final.log` 为 19/19，通过条款门禁、Toast 导航、关闭／刷新去重、自动消失、直接进入曲库不重复提示及原导入回归。已检查 390px 深色与 1280px 浅色 Toast 截图。首轮 `toast-browser.log` 的虚拟时钟超时断言失败，保留日志；改为将测试页置前并等待真实通知消失后通过，没有修改产品的 Toast 超时规则。
+
+`toast-real-browser.log` 和 `toast-real-browser/result.json` 记录真实 Console＋合成 SQLite 联调通过：启动页只发 detect，Toast 链接到曲库不再检测或读取，点击导入后才 preview／apply，实际写入 2 首歌曲且无视频引擎。前端构建、类型、嵌入产物一致性与 diff 检查通过。全部证据仍在 `artifacts/vrcx-suggestion/`，未读取个人 VRCX 历史。
+
+### 同日补充：空统计时保留曲库建议
+
+曲库建议改为在默认文件存在、当前数据库没有歌曲需求统计且未忽略时保留，重启及重新打开已有空库仍可显示；首次统计写入后由已有状态刷新撤去，不额外轮询。忽略选择原子保存到当前主配置，普通设置保存及重启保留，不应用待重启设置；失败时保留建议并允许重试。Toast 仍限首次自动建库进程。此前「重启不恢复曲库建议」的规则不再适用。
+
+- 后端定向检查通过，覆盖首次建库、已有空库、重启、首次统计写入、忽略持久化、普通设置保存与忽略失败重试；原有 VRCX 读取门禁、覆盖竞态及同令牌重试继续通过。日志为 `artifacts/vrcx-suggestion/persistence-backend.log`。
+- 浏览器 VRCX 22 项全部通过，新增重启后空库保留建议但无 Toast、现有状态刷新撤去建议、忽略失败重试；其余导入、覆盖确认、通知与窄屏回归继续通过。日志与截图为 `persistence-browser.log`、`persistence-browser/`。
+- 真实 Console＋Edge 的首次建库、重启后空库两种场景均通过：确认前仅 detect，前者有 Toast，后者直接在曲库保留建议；明确导入后实际写入 2 首歌曲，刷新不再提示，手动覆盖取消／确认仍通过。证据为 `persistence-real-browser.log` 及 `persistence-real-browser/{first-run,reopened}/`，仅使用临时合成 SQLite，没有读取个人历史或启动视频引擎。
+- 类型、构建产物逐字节一致性、嵌入资源清单与 diff 检查通过。本次无需 VRC 验证；未修改系统 hosts，未提交或推送。以上证据目录均位于忽略目录 `artifacts/vrcx-suggestion/`；前述历史失败记录保留。

@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type PropsWithChildren } from 'react';
 import { Button, Checkbox, Field, Input, Caption1, useRestoreFocusTarget } from '@fluentui/react-components';
 import { APIError, request } from './api';
 import { useApp } from './hooks';
-import { Feedback, Panel } from './ui';
+import { Feedback, Notification, Panel } from './ui';
 
 interface Preview {
   id: string; source: string; databasePath: string; total: number; recognized: number;
@@ -12,11 +12,13 @@ interface Preview {
 const release = async (id?: string) => {
   if (id) try { await request('vrcx/discard', {id}); } catch { /* Server expires the bounded preview. */ }
 };
-export function useVRCX(target: string) {
+function useVRCXImport(target: string) {
   const app = useApp();
   const [selected, setSelected] = useState<boolean>(), [existingSongs, setExistingSongs] = useState<number>();
   const [path, setPath] = useState(''), [found, setFound] = useState<boolean>(), [targetPending, setTargetPending] = useState(true), [targetError, setTargetError] = useState('');
   const [preview, setPreview] = useState<Preview>(), [pending, setPending] = useState(false), [message, setMessage] = useState('');
+  const [detectedSuggestion, setSuggested] = useState(false), [notify,setNotify] = useState(false);
+  const suggested = detectedSuggestion && !!app.status.data?.vrcxImportAvailable;
   const mounted = useRef(true), controller = useRef<AbortController | undefined>(undefined), current = useRef<Preview | undefined>(undefined), lock = useRef(false), revision = useRef(0);
   const enabled = selected ?? existingSongs === 0;
   const locked = app.unavailable || pending || targetPending;
@@ -30,8 +32,9 @@ export function useVRCX(target: string) {
   useEffect(() => {
     let canceled = false;
     setTargetPending(true); setExistingSongs(undefined); setTargetError('');
-    void request<{path:string;found:boolean;existingSongs?:number;targetError?:string}>('vrcx/detect', {}).then(result => {
-      if (!canceled) { setPath(value => value || result.path); setFound(result.found); setExistingSongs(result.existingSongs); setTargetError(result.targetError || ''); }
+    setSuggested(false);
+    void request<{path:string;found:boolean;suggested?:boolean;notify?:boolean;existingSongs?:number;targetError?:string}>('vrcx/detect', {}).then(result => {
+      if (!canceled) { setPath(value => value || result.path); setFound(result.found); setExistingSongs(result.existingSongs); setTargetError(result.targetError || ''); setSuggested(!!result.suggested); setNotify(!!result.notify); }
     }).catch(() => { if (!canceled) { setFound(false); setTargetError('无法检查目标歌曲统计'); } })
       .finally(() => { if(!canceled)setTargetPending(false); });
     return () => { canceled = true; };
@@ -46,17 +49,41 @@ export function useVRCX(target: string) {
     } catch (e) { if (mounted.current && !abort.signal.aborted) setMessage(String(e)); }
     finally { if (mounted.current) busy(false); }
   }
-  async function inspect() {
-    if (!enabled || lock.current || locked) return;
+  async function commit(p:Preview) {
+    const result = await request<Preview>('vrcx/apply', {id:p.id, overwrite:p.existingSongs > 0}, AbortSignal.timeout(35000));
+    if (mounted.current) { setPreview(result); current.current = result; setSuggested(false); app.refresh(); }
+    return result;
+  }
+  async function inspect(initialize = false) {
+    if ((!enabled && !initialize) || lock.current || locked) return;
     clear(); busy(true);
+    if (initialize) setSelected(true);
     const checkedRevision = revision.current, abort = new AbortController(); controller.current = abort;
+    let applying = false;
     try {
-      const result = await request<Preview>('vrcx/preview', {path}, AbortSignal.any([abort.signal, AbortSignal.timeout(35000)]));
+      const result = await request<Preview>('vrcx/preview', {path:initialize?'':path}, AbortSignal.any([abort.signal, AbortSignal.timeout(35000)]));
       if (!mounted.current || checkedRevision !== revision.current) { void release(result.id); return; }
       setPreview(result); current.current = result;
+      if (initialize) {
+        setPath(result.source);
+        if (!result.id || result.events <= 0 || result.existingSongs > 0) return {review:true};
+        applying = true;
+        return {imported:await commit(result)};
+      }
     } catch (e) {
-      if (mounted.current && checkedRevision === revision.current) setMessage(e instanceof APIError ? e.message : '检查未完成，请重试；尚未导入。');
+      if (mounted.current && checkedRevision === revision.current) {
+        if (applying && e instanceof APIError && e.status === 409) clear();
+        setMessage(e instanceof APIError ? e.message : applying?'导入结果尚未确认。可再次点击原导入按钮核对，同一预览不会重复导入。':'检查未完成，请重试；尚未导入。');
+        if (applying) return {review:true};
+      }
     } finally { if (mounted.current) busy(false); }
+  }
+  async function dismiss() {
+    if (lock.current || locked) return;
+    busy(true); setMessage('');
+    try { await request('vrcx/dismiss', {}); if (mounted.current) setSuggested(false); }
+    catch { if (mounted.current) setMessage('未能忽略提示，请重试。'); }
+    finally { if (mounted.current) busy(false); }
   }
   async function confirmOverwrite() {
     const p = current.current;
@@ -71,8 +98,7 @@ export function useVRCX(target: string) {
     try {
       if (!await confirmOverwrite() || !mounted.current) return;
       busy(true);
-      const result = await request<Preview>('vrcx/apply', {id:p.id, overwrite:p.existingSongs > 0}, AbortSignal.timeout(35000));
-      if (mounted.current) { setPreview(result); current.current = result; app.refresh(); }
+      await commit(p);
     } catch (e) {
       if (mounted.current) {
         if (e instanceof APIError && e.status === 409) clear();
@@ -80,11 +106,36 @@ export function useVRCX(target: string) {
       }
     } finally { if (mounted.current) busy(false); }
   }
-  return {target, enabled, path, found, preview, pending, targetPending, targetError, message, locked, choose, inspect, apply, confirmOverwrite,
+  return {target, enabled, path, found, suggested, notify, preview, pending, targetPending, targetError, message, locked, choose, inspect, apply, dismiss, confirmOverwrite,
     toggle: (value:boolean) => { clear(); setSelected(value); },
     changePath: (value:string) => { clear(); setPath(value); }};
 }
-type VRCXModel = ReturnType<typeof useVRCX>;
+type VRCXModel = ReturnType<typeof useVRCXImport>;
+const VRCXContext = createContext<VRCXModel | null>(null);
+export function useVRCX() {
+  const model = useContext(VRCXContext);
+  if (!model) throw new Error('VRCXProvider is required');
+  return model;
+}
+export function VRCXProvider({target,page,children}:PropsWithChildren<{target:string;page:string}>) {
+  const model = useVRCXImport(target), app = useApp();
+  const announced = useRef(false), [notice,setNotice] = useState(false);
+  useEffect(() => {
+    if (!model.suggested || !model.notify || page === 'library' || app.stopped) setNotice(false);
+    if (!model.suggested || !model.notify || announced.current || app.stopped) return;
+    announced.current = true;
+    // Like other startup notices, remember only a tab-local acknowledgement.
+    try {
+      if (sessionStorage.getItem('swd-vrcx-suggestion')) return;
+      sessionStorage.setItem('swd-vrcx-suggestion','shown');
+    } catch { /* Optional storage; in-page deduplication still applies. */ }
+    if (page !== 'library') setNotice(true);
+  },[model.suggested,model.notify,page,app.stopped]);
+  return <VRCXContext.Provider value={model}>
+    {notice&&<Notification message="检测到 VRCX 数据库" body="可在曲库导入历史，安排歌曲下载与保留顺序。确认前不会读取内容。" action={{href:'#/library',label:'前往曲库'}}/>}
+    {children}
+  </VRCXContext.Provider>;
+}
 
 export function VRCXOption({model:m}: {model:VRCXModel}) {
   return <div className="content-stack">
@@ -93,8 +144,7 @@ export function VRCXOption({model:m}: {model:VRCXModel}) {
   </div>;
 }
 
-export function VRCXImport() {
-  const app = useApp(), m = useVRCX(app.status.data!.activeSettings.databasePath);
+export function VRCXImport({model:m}: {model:VRCXModel}) {
   const restoreFocusTarget = useRestoreFocusTarget(), p = m.preview;
   return <Panel title="历史偏好">
     <VRCXOption model={m}/>

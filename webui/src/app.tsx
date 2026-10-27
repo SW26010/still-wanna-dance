@@ -11,6 +11,7 @@ import { RequestTimeline } from './request-timeline';
 import { bootstrap } from './bootstrap';
 import { exitConnectionMessage } from './types';
 import { HostsAuthorizationNotice } from './hosts-notice';
+import { VRCXProvider } from './vrcx';
 
 const pages = {home:'加速',timeline:'历史',library:'曲库',network:'网络',settings:'设置',about:'关于'};
 type Page = keyof typeof pages;
@@ -70,8 +71,8 @@ export function App() {
     <NavigationLayout items={pageLinks()} selected={page}>
     <main ref={main} id="main" tabIndex={-1}><div className="page-heading"><Title2 as="h1">{pages[page]}</Title2></div>
       {feedback}
-      {s && <><div hidden={page !== 'home'}><Home visible={page==='home'}/></div><div hidden={page !== 'timeline'}><RequestTimeline visible={page==='timeline'}/></div><div hidden={page!=='library'}><Library visible={page==='library'} anchor={anchor}/></div><SettingsAndNetwork settingsVisible={page==='settings'} networkVisible={page==='network'} anchor={anchor}/>
-      </>}
+      {s && <VRCXProvider target={s.activeSettings.databasePath} page={page}><div hidden={page !== 'home'}><Home visible={page==='home'}/></div><div hidden={page !== 'timeline'}><RequestTimeline visible={page==='timeline'}/></div><div hidden={page!=='library'}><Library visible={page==='library'} anchor={anchor}/></div><SettingsAndNetwork settingsVisible={page==='settings'} networkVisible={page==='network'} anchor={anchor}/>
+      </VRCXProvider>}
       {page==='about'&&<AboutPage anchor={anchor} paths={s?{...bootstrap.paths,Database:s.activeSettings.databasePath,Videos:s.activeSettings.videoDir}:bootstrap.paths||{}}/>}
       </main><footer hidden={documentPage}><span>关闭网页后 SWD 仍在后台运行。</span><Link href="#/help">使用帮助</Link><Link href="#preferences">退出设置</Link></footer>
     <DocumentFooter page={page==='about'&&anchor.includes('help')?'help':page}/>

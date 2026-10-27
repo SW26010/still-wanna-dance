@@ -8,6 +8,8 @@
 
 歌曲屏蔽与收藏属于本地曲库偏好，不属于本页的启动配置。其保存后对后续决策的生效边界见[歌曲偏好设计](download-resource-design.md#8-歌曲屏蔽与收藏)；不纳入 `activeSettings` / `restartRequired`，也不因标记变更启动下载任务。
 
+「忽略 VRCX 导入建议」是当前配置实例的界面选择，主配置以 `vrcxImportDismissed` 保存；不进入可编辑的 `settings` / `activeSettings`，不应用待重启设置，普通设置保存保留该字段。默认与完整生命周期统一见[历史初始化契约](song-catalog-design.md#vrcx-历史初始化)。
+
 「激进的缓存回收策略」保存为显式枚举 aggressiveCacheReclamation=auto/on/off，初始为 auto。自动只在视频保留选项为「不保留」时开启，「限制为」及「不限制」时关闭；使用有效预算判断，不受界面记住的预算输入值或当前剩余额度影响。手动开启/关闭不随预算变化，选回自动后恢复跟随。该选项仅在设置的存储标签编辑；状态快照保留策略本身，实际行为由当前运行配置计算。仅切换策略也参与待重启，配置格式为 7，不迁移旧格式。
 
 「高级下载设置」中的下载并发软上限与增长间隔也遵循此规则。配置字段 `downloadSoftLimit` 与 `downloadGrowIntervalMS` 缺失或 null 时分别使用 16 和 250，明确保存的 0 ms 表示关闭缓增；范围与执行语义见[下载并发](download-concurrency.md)。

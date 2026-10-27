@@ -75,6 +75,8 @@ type Console struct {
 	channelIdentity        proxyChannelIdentity
 	vrcxMu                 sync.Mutex // preview/apply/discard; acquire before lifecycleMu
 	vrcxPreview            *vrcxPreview
+	vrcxNotify             bool                        // startup Toast only; set during automatic library creation
+	vrcxImportDismissed    bool                        // protected by mu; persisted user choice outside editable Settings
 	proxyImports           map[string]proxyImportDraft // protected by mu
 	identity               desktop.Identity
 	lifecycle              *applicationLifecycle
@@ -193,6 +195,11 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 		}
 		loadProxySecret(fields, &c.settings)
 		loadProxyNodes(fields, &c.settings)
+		if raw := fields["vrcxImportDismissed"]; raw != nil {
+			if err := json.Unmarshal(raw, &c.vrcxImportDismissed); err != nil {
+				return nil, fmt.Errorf("读取程序配置 vrcxImportDismissed：%w", err)
+			}
+		}
 	}
 	c.settings, err = c.resolveSettings(c.settings)
 	c.savedSettings = c.settings
@@ -861,6 +868,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			PortOK                bool                    `json:"portOK"`
 			CDNError              string                  `json:"cdnError"`
 			StorageError          string                  `json:"storageError,omitempty"`
+			VRCXImportAvailable   bool                    `json:"vrcxImportAvailable"`
 			ActionErrors          map[string]string       `json:"actionErrors"`
 			Batch                 Batch                   `json:"batch"`
 			Import                ImportStatus            `json:"import"`
@@ -894,7 +902,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		result.Settings.SOCKS5Password = ""
 		result.ActiveSettings.SOCKS5Password = ""
 		result.Queue.Desired = c.queueDesired
-		service := c.service
+		service, vrcxDismissed := c.service, c.vrcxImportDismissed
 		result.ActionErrors = make(map[string]string, len(c.actionErrors))
 		for source, message := range c.actionErrors {
 			result.ActionErrors[source] = message
@@ -905,8 +913,11 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		result.Batch.Failures = append([]Failure(nil), c.batch.Failures...)
 		c.mu.Unlock()
 		result.Hosts = c.hosts.status()
-		if _, err := c.businessStore(); err != nil {
+		if store, err := c.businessStore(); err != nil {
 			result.StorageError = applog.SafeError(err).Error()
+		} else if !vrcxDismissed {
+			count, err := store.SongUsageCount(r.Context())
+			result.VRCXImportAvailable = err == nil && count == 0
 		}
 		if service != nil {
 			if err := service.StorageError(); err != nil {

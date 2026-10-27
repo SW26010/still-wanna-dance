@@ -31,6 +31,7 @@ export interface Health {
   throughputStatus?: string; throughputSaveFailed?: boolean; policy?: { throughputInterval?: number };
 }
 export interface Status {
+  vrcxImportAvailable: boolean;
   running: boolean; settings: Settings; activeSettings: Settings; restartRequired: boolean;
   hosts: {ready: boolean; managed?: boolean; exitRestorePrepared?: boolean; authorizationID?: string; needsMigration?: boolean; conflict?: boolean; message: string}; portOK: boolean; httpsPortOK: boolean;
   portOwner?: {name: string; pid: number}; httpsPortOwner?: {name: string; pid: number}; cdnError?: string;

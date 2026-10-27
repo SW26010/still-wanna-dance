@@ -41,6 +41,7 @@ func (c *Console) prepareDefaultLibrary() error {
 		return err
 	}
 	c.store, c.settings = store, s
+	c.vrcxNotify = true
 	return nil
 }
 

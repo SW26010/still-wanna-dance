@@ -181,10 +181,10 @@ form.actions { align-items: flex-end; }
 .toolbar, .inline { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacingHorizontalS); }
 .toolbar { padding-block: var(--spacingVerticalS); }
 .toolbar.spread { justify-content: space-between; }
-.library-search { flex: 1 1 40rem; align-items: flex-end; margin-inline-start: auto; max-width: 100%; justify-content: flex-end; }
+.library-search { align-items: flex-end; margin-inline-start: auto; max-width: 100%; justify-content: flex-end; }
 .library-search .fui-Field { grid-template-columns: max-content minmax(0,1fr); }
-.library-search .fui-Input { min-width: 0; }
-.search-field { flex: 1; min-width: min(100%,22rem); }
+.library-search .fui-Input { width: 18rem; min-width: 0; max-width: 100%; }
+.search-field { max-width: 100%; }
 .library-summary { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--spacingHorizontalL); }
 .library-actions { margin-inline-start: auto; justify-content: flex-end; }
 .summary-values { gap: var(--spacingHorizontalXXXL); }
@@ -223,7 +223,6 @@ form.actions { align-items: flex-end; }
 .fui-PopoverSurface { max-width: min(440px, calc(100vw - 32px)); max-height: 70vh; overflow: auto; }
 .fui-ToastTitle { overflow-wrap: anywhere; }
 .fui-DialogContent .panel { box-shadow: none; border: 0; padding: 0; }
-@media (max-width:640px) { .search-field { min-width:100%; } }
 
 .runtime-controls { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacingHorizontalM); }
 .runtime-status { display: flex; align-items: center; gap: var(--spacingHorizontalS); max-width: 100%; min-height: 32px; }

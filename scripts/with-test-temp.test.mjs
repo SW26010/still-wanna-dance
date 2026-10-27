@@ -78,6 +78,21 @@ test('terminating command errors restore the environment and remove only their t
   assert.equal(existsSync(result.temp), false);
 });
 
+test('a single script argument is forwarded intact', windows, () => {
+  const result = powershell(`
+    $script = Join-Path $env:TEMP ('single argument 中文 ' + [Guid]::NewGuid().ToString('N') + '.cjs')
+    try {
+      [IO.File]::WriteAllText($script, ${quote(probe)})
+      $child = & ./with-test-temp.ps1 $env:SWD_TEST_NODE $script
+      @{ code = $LASTEXITCODE; child = ($child | ConvertFrom-Json) } | ConvertTo-Json -Compress -Depth 4
+    } finally { Remove-Item -LiteralPath $script -Force }
+  `);
+  assert.equal(result.code, 0);
+  assert.equal(result.child.text, 'new');
+  assert.equal(path.dirname(result.child.temp), tempRoot);
+  assert.equal(existsSync(result.child.temp), false);
+});
+
 test('nested invocations use separate directories without deleting the caller temporary files', windows, () => {
   const result = powershell(`
     function Invoke-OuterFixture {

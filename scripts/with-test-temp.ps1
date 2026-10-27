@@ -1,5 +1,5 @@
 # No named parameters: all flags, including -e and -Command, belong to the child.
-$Command, $commandArgs = $args
+$Command, [array]$commandArgs = $args
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 if (-not $Command) { throw 'Usage: with-test-temp.ps1 <command> [arguments...]' }

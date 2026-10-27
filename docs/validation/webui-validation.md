@@ -810,3 +810,11 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 证据保存在忽略目录 `artifacts/logging-controls/`：`go-tests.log`、`log-regressions-final.log`、`browser.log`、`browser/`、`live.log`、`live/`、`build-final.log`、`check.log`、`vet-final.log`。运行遵循现有 Windows 隔离临时目录入口；涉及配置替换和 Edge 的测试使用普通用户权限，未修改产品逻辑规避沙箱限制。
 
 未做日志开关前后的性能 A/B，不宣称吞吐或帧率收益。本轮不需要 VRC 验证，未运行游戏、修改 hosts、提交或推送。
+
+## 2026-10-27 恢复首页房间队列状态
+
+按首页改造前最后一版恢复房间队列 StatusBadge，紧接视频服务状态，复用原有运行、启用意图与错误判断，以及状态读取失败／退出后的“待确认”。同步替换现行文档中移除队列徽章的约定。
+
+前端 build/check 和差异格式检查通过；Edge 内存接口回归 `runtime-status.spec.ts`、`acceleration.spec.ts` 共 13 项通过，覆盖排列顺序、队列各状态、断连恢复、退出、1280px 浅色、390px 深色及 320px forced-colors。已检查宽屏与窄屏截图，标签按顺序排列，窄屏自然换行且无横向溢出。结果和截图位于忽略目录 `artifacts/queue-status-restore-final/`。
+
+首次沙箱内运行因 Edge 启动时管道关闭而全部未进入页面，错误保留在 `artifacts/queue-status-restore/`；随后一次普通权限重试因原夹具尚占用端口而退出，结束原测试后重跑通过。未更改浏览器配置或产品逻辑规避失败。本次仅恢复状态展示，无需 VRC 验证。

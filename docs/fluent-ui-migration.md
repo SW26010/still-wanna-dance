@@ -33,7 +33,7 @@
 
 后台状态与退出按钮按内容宽度排列，间距使用 Fluent spacing token，空间不足时自然换行；不为状态预留固定宽度。
 
-后台程序、游戏连接、视频服务统一使用 `Badge appearance="tint" size="large"`，由组件提供主题浅色底、描边与语义色文字，通过同一个轻量展示组件保持颜色、Fluent 图标及“名称：状态”格式一致。颜色直接使用 `success / danger / warning / brand / informative`，不定义自有色板；`informative` 在这里使用其中性色表达未启用／待确认。以 `role="status" aria-atomic="true"` 播报完整状态，装饰图标隐藏于辅助技术。MessageBar 保留给需要处理的消息；组件依据见[官方资料核对](research/fluent-v9-ui-patterns.md#四项运行状态2026-10-25)，业务语义见[内容约定](webui-content.md#程序与界面术语)。
+后台程序、游戏连接、视频服务、房间队列统一使用 `Badge appearance="tint" size="large"`，由组件提供主题浅色底、描边与语义色文字，通过同一个轻量展示组件保持颜色、Fluent 图标及“名称：状态”格式一致。颜色直接使用 `success / danger / warning / brand / informative`，不定义自有色板；`informative` 在这里使用其中性色表达未启用／待确认。以 `role="status" aria-atomic="true"` 播报完整状态，装饰图标隐藏于辅助技术。MessageBar 保留给需要处理的消息；组件依据见[官方资料核对](research/fluent-v9-ui-patterns.md#四项运行状态2026-10-25)，业务语义见[内容约定](webui-content.md#程序与界面术语)。
 
 容器只负责布局，控件使用 Fluent 的尺寸、主题、焦点和交互。曲库、设置及关于分类使用 TabList/Tab；独立网络页使用页内链接，无第二层标签。设置字段直接显示，保存操作固定在表单顶部。短说明使用 Tooltip，记录补充信息使用非模态 Popover；不把常用功能藏进折叠。2026-10-21 的高级字段折叠规则已由本次简洁重构替代。
 

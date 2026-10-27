@@ -8,12 +8,14 @@ import { active, accelerationLabel, date, dated, type RequestRecord } from './ty
 const activationPermissionHint='配置游戏连接或准备退出恢复权限时，可能请求 Windows 管理员授权（UAC）。';
 
 export function Home({visible}: {visible:boolean}) {
-  const app = useApp(), s = app.status.data!, a = s.activation || {};
+  const app = useApp(), s = app.status.data!, a = s.activation || {}, q = s.queue;
   const requests=useResource<{requests:RequestRecord[]}>('requests?limit=1',visible&&!app.stopped,app.revision);
   const recent=requests.data?.requests[0], failed=!!recent&&(recent.status>=400||['failed','incomplete','aborted'].includes(recent.outcome));
   const problem=a.error||s.cdnError||s.actionErrors?.activation||(s.hosts.conflict?s.hosts.message:'');
   const ready=s.running && s.hosts.ready;
   const uncertain=!!app.status.error||app.stopped;
+  const queueFailed=!!q.desired&&!q.running&&!!s.actionErrors?.queue, queueAttention=!!q.running&&!!(q.logError||q.error);
+  const queuePhase=uncertain?'待确认':queueFailed?'启动失败':queueAttention?'需检查':q.running?'监控中':q.desired?'未就绪':'已关闭';
   const needsExitPreparation=s.activeSettings.restoreHostsOnExit && s.hosts.managed && !s.hosts.exitRestorePrepared;
   const progress:Record<string,string>={checking:'正在检查游戏连接…',starting:'正在启动本地服务…',hosts:'正在配置游戏连接，请留意管理员授权…'};
   return <div className="page-stack">
@@ -22,7 +24,7 @@ export function Home({visible}: {visible:boolean}) {
         {ready&&!active(s)&&<p className="secondary">可关闭浏览器，减少资源占用</p>}
         {progress[a.phase||'']&&<p className="secondary" role="status">{progress[a.phase||'']}</p>}</div>
         <div className="inline"><Tooltip content={activationPermissionHint} relationship="description"><Button appearance="primary" size="large" disabled={app.unavailable} onClick={()=>void app.action('activation/enable')}>{active(s)?'正在处理…':ready&&!needsExitPreparation?'重新检测视频请求':'开始加速'}</Button></Tooltip><Link href="#network">检查连接</Link></div></div>
-      <div className="toolbar condition-strip"><StatusBadge label="游戏连接" description={activationPermissionHint} color={uncertain?'informative':s.hosts.conflict?'danger':s.hosts.ready?'success':a.phase==='hosts'?'brand':'informative'}>{uncertain?'待确认':s.hosts.conflict?'接入冲突':s.hosts.ready?'已接入':a.phase==='hosts'?'接入中':'未接入'}</StatusBadge><StatusBadge label="视频服务" color={uncertain?'informative':s.cdnError?'danger':s.running?'success':a.phase==='starting'?'brand':'informative'}>{uncertain?'待确认':s.cdnError?'异常':s.running?'运行中':a.phase==='starting'?'启动中':'未运行'}</StatusBadge><Hint label="游戏接入说明">已接入表示游戏连接配置就绪；收到游戏请求和实际播放结果另行显示。</Hint><Link href="#service">查看接入诊断</Link></div>
+      <div className="toolbar condition-strip"><StatusBadge label="游戏连接" description={activationPermissionHint} color={uncertain?'informative':s.hosts.conflict?'danger':s.hosts.ready?'success':a.phase==='hosts'?'brand':'informative'}>{uncertain?'待确认':s.hosts.conflict?'接入冲突':s.hosts.ready?'已接入':a.phase==='hosts'?'接入中':'未接入'}</StatusBadge><StatusBadge label="视频服务" color={uncertain?'informative':s.cdnError?'danger':s.running?'success':a.phase==='starting'?'brand':'informative'}>{uncertain?'待确认':s.cdnError?'异常':s.running?'运行中':a.phase==='starting'?'启动中':'未运行'}</StatusBadge><StatusBadge label="房间队列" color={uncertain?'informative':queueFailed?'danger':queueAttention?'warning':q.running?'success':q.desired?'warning':'informative'}>{queuePhase}</StatusBadge><Hint label="游戏接入说明">已接入表示游戏连接配置就绪；收到游戏请求和实际播放结果另行显示。</Hint><Link href="#service">查看接入诊断</Link></div>
       <div className="toolbar home-result" role="status"><span className="secondary">{requests.error?'最近请求暂时无法读取':recent?`最近请求：${requestOutcome(recent)} · HTTP ${recent.status||'未返回'} · ${date(recent.at)}`:'尚无已结束的请求'}</span><Link href="#recent">请求历史</Link>
         {(problem||failed)&&<><Badge color="danger">需要检查连接</Badge><RecordDetails title="加速错误"><p className="wrap">{problem||'最近一次请求未正常完成。'}</p><Link href="#network">检查连接</Link></RecordDetails></>}
         {needsExitPreparation&&<span>游戏接入尚未准备退出恢复，请点击开始加速。</span>}

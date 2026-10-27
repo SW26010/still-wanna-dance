@@ -81,7 +81,6 @@ type Config struct {
 	RequestRetentionDays      int
 	RequestRetentionUnlimited bool
 	// MaxLocalValidations bounds concurrent local file validations.
-	// The CLI retains the legacy -max-downloads flag.
 	// Usage capacity and upstream block execution have independent limits.
 	MaxLocalValidations int
 	Logger              *slog.Logger

@@ -109,7 +109,7 @@ FROM song_usage ORDER BY last_demand_at DESC;
 | `-cache-unlimited` | `false`；设为 `true` 表示不限，不能与显式 `-max-cache-bytes` 同时指定 |
 | `-request-retention-days` | `0`，显式指定时关闭默认无限保留；范围 0～36500，0 为不保留明细，正数为保留天数，汇总始终保留 |
 | `-request-retention-unlimited` | `true`，显式永久保留；不可与显式 `-request-retention-days` 同时启用 |
-| `-max-downloads` | `3`，仅限制本地文件校验并发（内部 `MaxLocalValidations` / `localChecks`）；资源会话无独立数量门槛，上游视频请求由全局块调度器控制，普通请求软上限 16，Blocking 缺块立即放行 |
+| `-max-local-validations` | `3`，仅限制本地文件校验并发（内部 `MaxLocalValidations` / `localChecks`）；资源会话无独立数量门槛，上游视频请求由全局块调度器控制，普通请求软上限 16，Blocking 缺块立即放行 |
 
 回源参数是 HTTPS 服务的 TCP `host:port`，不是 URL；修改端口不会切换成 HTTP。自定义地址在直连模式下通过内置 DoH 解析，在代理模式下交给 SOCKS5；两者均验证对应视频原域名的证书。不要将回源地址配置到本服务。默认仅用于本机；无鉴权，不建议监听公网地址。配置受信任，外部请求不能任意指定回源目标。
 
@@ -133,6 +133,6 @@ CI 配置 Windows/Linux 的测试、vet、构建，以及 Linux race 检测；�
 
 启动事件 `cache_engine_ready` 分别记录 `max_local_validations` 和 `video_request_soft_limit`，避免将本地校验参数误作网络下载限制。扫描只枚举目录和查询映射，不读取视频内容，不使用本地校验池；当前没有总带宽整形。
 
-同资源会话正在退出时，已有本地文件仍可校验并直接返回 HIT，适用于播放和预加载，不等待下载会话收尾。此路径、共享工作任务和 HTTP 响应阶段的本地文件校验统一使用 `localChecks` 池，并发上限为 `-max-downloads`；同版本的活动引用共享校验，复用成功结果不重复占用校验额度。该本地命中路径受调用方上下文及服务关闭取消控制，不使用 `-download-timeout`（`DownloadTimeout`），也没有额外固定超时。桌面程序的存在性扫描不使用该池。
+同资源会话正在退出时，已有本地文件仍可校验并直接返回 HIT，适用于播放和预加载，不等待下载会话收尾。此路径、共享工作任务和 HTTP 响应阶段的本地文件校验统一使用 `localChecks` 池，并发上限为 `-max-local-validations`；同版本的活动引用共享校验，复用成功结果不重复占用校验额度。该本地命中路径受调用方上下文及服务关闭取消控制，不使用 `-download-timeout`（`DownloadTimeout`），也没有额外固定超时。桌面程序的存在性扫描不使用该池。
 
 缺失或校验未通过的文件仍需资源会话：同内容共享现有会话，若它正在停止则等待清理完成后重建。使用容量不足时 GET 明确返回 503，准备来源等待唯一块容量释放。等待可由调用方取消或服务关闭终止。`-download-timeout` 在每次实际 HTTP 尝试时开始，涵盖响应头和正文；每次重试获得完整预算，不按候选数分摊，顺序 200 同样受本次尝试时限约束。首次本地视频校验、最终分块文件校验/发布和索引记录各自有有限预算，窗口等待及块间等待不计时；调用方取消、来源撤销、租约和引擎关闭继续控制会话生命周期，也不限制 HTTP 响应传输的耗时。响应阶段复用活动引用保留的验证句柄；若尚无验证句柄（例如下载刚完成），则通过同一 `localChecks` 池校验本地文件，该校验受请求上下文及服务关闭取消控制。

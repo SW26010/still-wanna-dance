@@ -41,7 +41,7 @@ export interface Status {
   traffic?: {hits?: number; hitRate?: number; savedBytes?: number; playbackTransfers?: number; requests?: number; misses?: number; error?: string};
   socks5PasswordSet?: boolean; socks5CredentialError?: string;
   proxyNodes?: {saved?: number; loaded?: number; active?: number; error?: string; activeError?: string};
-  activation?: {phase?: string; error?: string; started?: string; readyAt?: string; firstRequest?: string};
+  activation?: {phase?: string; error?: string; connectionError?: string; started?: string; readyAt?: string; firstRequest?: string};
   defaultLogDir: string; defaultDatabasePath: string; defaultVideoDir: string; portableDir: string; upstreamMonitor?: Health;
 }
 export interface Inventory {

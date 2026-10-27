@@ -91,7 +91,7 @@ func TestQueueLogBatchAndStaleReset(t *testing.T) {
 		time.Sleep(5 * time.Minute)
 		synctest.Wait()
 		c.mu.Lock()
-		cleared := len(c.queue.Songs) == 0 && len(c.queue.Failures) == 0 && c.queue.LogError != ""
+		cleared := len(c.queue.Songs) == 0 && len(c.queue.Failures) == 0 && c.queue.LogError == "" && c.queue.Running
 		c.mu.Unlock()
 		if !cleared {
 			t.Fatal("stale log did not withdraw the queue")
@@ -103,6 +103,68 @@ func TestQueueLogBatchAndStaleReset(t *testing.T) {
 			t.Fatal("stale queue kept retrying", calls.Load())
 		}
 	})
+}
+
+func TestQueueIdleDirectoryWaitsForNewLogs(t *testing.T) {
+	for _, existingLog := range []bool{false, true} {
+		name := "empty-directory"
+		if existingLog {
+			name = "old-log"
+		}
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				engine, calls := failingQueueEngine(t)
+				dir := t.TempDir()
+				if existingLog {
+					if err := os.WriteFile(filepath.Join(dir, "output_log_2020-01-01.txt"), nil, 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+				tail := &vrclog.Tail{Dir: dir}
+				if _, err := tail.Poll(time.Now()); err != nil {
+					t.Fatal(err)
+				}
+				c := &Console{queue: QueueStatus{Running: true}}
+				ctx, cancel := context.WithCancel(t.Context())
+				done := make(chan struct{})
+				go c.runQueue(ctx, tail, engine, done)
+				t.Cleanup(func() { cancel(); <-done })
+				synctest.Wait()
+				time.Sleep(6 * time.Minute)
+				synctest.Wait()
+				c.mu.Lock()
+				healthy := c.queue.Running && c.queue.LogError == "" && c.queue.Error == ""
+				c.mu.Unlock()
+				if !healthy || calls.Load() != 0 {
+					t.Fatal("idle directory was reported as a failure or started work")
+				}
+				path := filepath.Join(dir, "output_log_2026-10-28.txt")
+				logs := "[VideoQueueManager] OnPreSerialization: queue info serialized: [{\"songId\":1}]\n"
+				if err := os.WriteFile(path, []byte(logs), 0600); err != nil {
+					t.Fatal(err)
+				}
+				time.Sleep(vrclog.DiscoverInterval)
+				synctest.Wait()
+				c.mu.Lock()
+				discovered := c.queue.File == filepath.Base(path) && len(c.queue.Songs) == 1 && c.queue.Songs[0].ID == 1 && c.queue.LogError == ""
+				c.mu.Unlock()
+				if !discovered || calls.Load() != 1 {
+					t.Fatal("new log was not consumed after idle waiting")
+				}
+				if err := os.Remove(path); err != nil {
+					t.Fatal(err)
+				}
+				time.Sleep(6 * time.Minute)
+				synctest.Wait()
+				c.mu.Lock()
+				readFailed := c.queue.LogError != "" && len(c.queue.Songs) == 0
+				c.mu.Unlock()
+				if !readFailed {
+					t.Fatal("actual read failure was hidden after the idle timeout")
+				}
+			})
+		})
+	}
 }
 
 func TestQueueChangesWakeIdleWorker(t *testing.T) {

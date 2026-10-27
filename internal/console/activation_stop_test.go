@@ -97,7 +97,7 @@ func TestAccelerationStopRestoreFailureStillStopsGateway(t *testing.T) {
 			}
 			before := *launches
 			err := c.disableAcceleration()
-			if err == nil || !strings.Contains(err.Error(), "未能恢复游戏直连") || c.activation.Error != err.Error() || c.activation.Phase != "stopped" || c.httpServer != nil || c.queue.Running || c.queueDesired || readHostsFixture(t, h.path) != owned || *launches != before {
+			if err == nil || !strings.Contains(err.Error(), "未能恢复游戏直连") || c.activation.Error != err.Error() || c.activation.ConnectionError != err.Error() || c.activation.Phase != "stopped" || c.httpServer != nil || c.queue.Running || c.queueDesired || readHostsFixture(t, h.path) != owned || *launches != before {
 				t.Fatal("stop hid failure, changed hosts or requested authorization", err)
 			}
 			// Repair the private fixture and retry through the same helper.
@@ -106,7 +106,7 @@ func TestAccelerationStopRestoreFailureStillStopsGateway(t *testing.T) {
 				if err := os.WriteFile(h.path, []byte(original), 0600); err != nil {
 					t.Fatal(err)
 				}
-				if err := c.disableAcceleration(); err != nil || c.activation.Error != "" || *launches != before {
+				if err := c.disableAcceleration(); err != nil || c.activation.Error != "" || c.activation.ConnectionError != "" || *launches != before {
 					t.Fatal("stop could not recover through existing helper", err)
 				}
 			}

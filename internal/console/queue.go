@@ -293,13 +293,14 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 				}
 				slog.Info("queue_updated", "song_count", len(e.Songs), "song_ids", ids, "reset", e.Reset, "generation", c.queue.Generation)
 			}
+			// An idle log can simply mean VRChat is not running. Withdraw
+			// old work without turning inactivity into a read error.
 			if now.Sub(lastActivity) >= 5*time.Minute {
 				if !stale {
 					slog.Warn("vrchat_log_stale")
 					c.updateQueueSongsLocked(nil, true)
 					stale = true
 				}
-				c.queue.LogError = "日志 5 分钟未更新，已清空待处理队列，等待新的同步"
 			}
 			c.mu.Unlock()
 			c.queueUpdateMu.Unlock()

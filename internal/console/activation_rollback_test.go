@@ -62,6 +62,9 @@ func TestAccelerationFailurePreservesExistingGatewayAndConnection(t *testing.T) 
 				if err := c.enableAcceleration(inspect, c.changeHostsLocked); err == nil || c.httpServer != server || readHostsFixture(t, h.path) != initial {
 					t.Fatal("failure changed preexisting state", running, ready, failAt, err)
 				}
+				if !strings.Contains(c.activation.ConnectionError, "fixture failed verification") || c.cdnError != "" {
+					t.Fatal("verification failure was attributed to the service", c.activation, c.cdnError)
+				}
 			}
 		}
 	}
@@ -88,5 +91,8 @@ func TestAccelerationReportsRollbackFailureAndKeepsConcurrentHostsEdit(t *testin
 	err := c.enableAcceleration(h.status, change)
 	if err == nil || !strings.Contains(err.Error(), "未能撤销") || !strings.Contains(c.activation.Error, "未能撤销") || c.activation.Phase != "failed" || c.httpServer != nil || readHostsFixture(t, h.path) != edited || *launches != 1 {
 		t.Fatal("rollback failure hidden or concurrent hosts edit overwritten", err, c.activation)
+	}
+	if c.activation.ConnectionError != c.activation.Error {
+		t.Fatal("connection reason lost the initial or rollback failure", c.activation)
 	}
 }

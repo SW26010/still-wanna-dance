@@ -9,11 +9,12 @@ import (
 // Activation is a process-local observation window, shared by all console tabs.
 // It is deliberately independent of persisted traffic and download statistics.
 type Activation struct {
-	Phase        string    `json:"phase"`
-	Started      time.Time `json:"started"`
-	ReadyAt      time.Time `json:"readyAt"`
-	FirstRequest time.Time `json:"firstRequest"`
-	Error        string    `json:"error"`
+	Phase           string    `json:"phase"`
+	Started         time.Time `json:"started"`
+	ReadyAt         time.Time `json:"readyAt"`
+	FirstRequest    time.Time `json:"firstRequest"`
+	Error           string    `json:"error"`
+	ConnectionError string    `json:"connectionError,omitempty"`
 }
 
 func (c *Console) activationPhase(phase string) {
@@ -39,16 +40,21 @@ func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(str
 	c.activationGeneration++
 	c.activation = Activation{Phase: "checking", Started: time.Now()}
 	c.mu.Unlock()
+	var connectionErr error
 	defer func() {
 		if err != nil {
 			c.mu.Lock()
 			c.activation.Phase, c.activation.Error = "failed", err.Error()
+			if connectionErr != nil {
+				c.activation.ConnectionError = connectionErr.Error()
+			}
 			c.mu.Unlock()
 		}
 	}()
 	hosts := inspect()
 	if hosts.Conflict {
-		return fmt.Errorf("接入检查失败：%s", hosts.Message)
+		connectionErr = fmt.Errorf("接入检查失败：%s", hosts.Message)
+		return connectionErr
 	}
 	wasReady := hosts.Ready
 	defer func() {
@@ -64,7 +70,9 @@ func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(str
 		}
 		if !wasReady {
 			if rollbackErr := change("rollback"); rollbackErr != nil {
-				err = errors.Join(err, fmt.Errorf("未能撤销本次游戏接入：%w", rollbackErr))
+				rollbackErr = fmt.Errorf("未能撤销本次游戏接入：%w", rollbackErr)
+				connectionErr = errors.Join(connectionErr, rollbackErr)
+				err = errors.Join(err, rollbackErr)
 			}
 		}
 	}()
@@ -72,22 +80,29 @@ func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(str
 	// The shared hosts controller checks both the mapping and the ability to
 	// restore it before deciding whether authorization is necessary.
 	if err = change("enable"); err != nil {
-		return fmt.Errorf("游戏接入失败：%w", err)
+		connectionErr = fmt.Errorf("游戏接入失败：%w", err)
+		return connectionErr
 	}
 	if hosts = inspect(); !hosts.Ready {
-		return fmt.Errorf("hosts 接入检查未通过：%s", hosts.Message)
+		connectionErr = fmt.Errorf("hosts 接入检查未通过：%s", hosts.Message)
+		return connectionErr
 	}
 	c.activationPhase("starting")
 	if err = c.startLocked(); err != nil {
 		return err
 	}
 	if hosts = inspect(); !hosts.Ready {
-		return fmt.Errorf("网关启动后的 hosts 接入检查未通过：%s", hosts.Message)
+		connectionErr = fmt.Errorf("网关启动后的 hosts 接入检查未通过：%s", hosts.Message)
+		return connectionErr
 	}
 	c.mu.Lock()
 	if c.httpServer == nil || c.videoListener == nil || c.https == nil {
+		err = errors.New("视频网关尚未就绪")
+		if c.cdnError == "" {
+			c.cdnError = err.Error()
+		}
 		c.mu.Unlock()
-		return errors.New("视频网关尚未就绪")
+		return err
 	}
 	c.activation.Phase, c.activation.ReadyAt = "waiting", time.Now()
 	c.mu.Unlock()
@@ -110,6 +125,7 @@ func (c *Console) disableAcceleration() error {
 	}
 	restore := c.settings.RestoreHostsOnExit
 	c.activation.Phase, c.activation.Error = "stopping", ""
+	c.activation.ConnectionError = ""
 	c.mu.Unlock()
 	var err error
 	if restore {
@@ -124,6 +140,7 @@ func (c *Console) disableAcceleration() error {
 	c.activation.Phase = "stopped"
 	if err != nil {
 		c.activation.Error = err.Error()
+		c.activation.ConnectionError = err.Error()
 	}
 	return err
 }

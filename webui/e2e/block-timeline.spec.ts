@@ -40,7 +40,13 @@ async function setup(page: Page, count = 48) {
   await page.goto('/#/home');
   const panel = page.locator('#block-demands'), canvas = panel.locator('.timeline-canvas'), viewport = panel.locator('.block-timeline');
   const open = async () => { await panel.getByRole('button', { name: '展开时间轴视图' }).click(); await expect(panel.getByText('事件已连接', { exact: true })).toBeVisible(); await expect(canvas).toBeVisible(); await canvas.scrollIntoViewIfNeeded(); await expect(canvas).toBeInViewport(); };
-  return { ...api, at, blocks, emit, detail, streams, totalStreams, panel, canvas, viewport, open };
+  const hidePanel = async () => {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const top = await panel.evaluate(el => el.getBoundingClientRect().top);
+    await page.setViewportSize({ width: page.viewportSize()!.width, height: Math.floor(top) - 1 });
+    await expect(panel).not.toBeInViewport();
+  };
+  return { ...api, at, blocks, emit, detail, streams, totalStreams, panel, canvas, viewport, open, hidePanel };
 }
 
 test('block details use engine byte offsets for custom sizes and tails', async ({ page }) => {
@@ -76,7 +82,7 @@ test('timeline subscribes only while visible and restores a fresh snapshot', asy
   await expect.poll(f.totalStreams).toBe(1);
   await navigate(page, '曲库'); await expect.poll(f.totalStreams).toBe(0);
   await navigate(page, '加速'); await f.panel.scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(1);
-  await page.setViewportSize({width:1280,height:300}); await page.evaluate(()=>window.scrollTo(0,0)); await expect.poll(f.totalStreams).toBe(0);
+  await f.hidePanel(); await expect.poll(f.totalStreams).toBe(0);
   await f.panel.scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(1);
   await f.panel.getByRole('button', { name: '收起时间轴视图' }).click(); await expect.poll(f.totalStreams).toBe(1);
 });
@@ -102,7 +108,7 @@ for (const view of ['timeline', 'demand'] as const) test(`pinned ${view} details
 
   // A real visibility transition reproduces the intermittent screenshot
   // transition without relying on screenshot timing or synthetic observers.
-  await page.setViewportSize({width:1280,height:300}); await page.evaluate(()=>window.scrollTo(0,0));
+  await f.hidePanel();
   await expect.poll(f.totalStreams).toBe(0);
   await expect(popup).toHaveCount(0);
   const protectedBlocks = blocks.map(b => ({ ...b, state: 'protected' as const, inUse: false, sources: 0, needBy: 0, timeBasis: 'last-need-by' as const, protected: true, protectionUntil: f.at + 60000 }));
@@ -118,7 +124,7 @@ for (const view of ['timeline', 'demand'] as const) test(`pinned ${view} details
   await expect.poll(f.totalStreams).toBe(1);
 
   await f.canvas.press('Home'); await expect(popup).toContainText('块 1/4');
-  await page.setViewportSize({width:1280,height:300}); await page.evaluate(()=>window.scrollTo(0,0));
+  await f.hidePanel();
   await expect.poll(f.totalStreams).toBe(0);
   await f.emit({ removed: [blocks[0].id] });
   const beforeResume = detailRequests.length;

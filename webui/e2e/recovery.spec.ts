@@ -59,14 +59,14 @@ test('Mihomo preview stays a draft and clearing it releases only that preview',a
 });
 
 test('history clears failed reads and recovers focus after a row disappears',async({page})=>{
-  await mockAPI(page);let failed=false;
+  const api=await mockAPI(page);let failed=false;
   const rows=[2,1].map(id=>({id,at:1700000000000+id*1000,resource:'fixture-resource',method:'GET',range:'bytes=0-',elapsedMS:100,bytes:200,status:206,cache:'HIT',outcome:'completed',songs:[{id:'1',title:'分段歌曲'}]}));
   await page.route('**/api/history?*',r=>failed?r.fulfill({status:500,json:{error:'unavailable'}}):r.fulfill({json:{storageID:'fixture',requests:rows,hasMore:false}}));
-  await page.clock.install();await page.goto('/#recent');
+  await page.goto('/#recent');
   const group=page.getByRole('button',{name:'请求 2 的明细',exact:true});await group.click();
   await expect(page.getByText('请求处理完成',{exact:true})).toHaveCount(2);
-  failed=true;await page.clock.fastForward(5100);
-  await expect(page.getByRole('listitem',{name:'历史读取失败，请重试。',exact:true})).toBeVisible();await expect(group).toHaveCount(0);await expect(page.getByLabel('历史查询结果',{exact:true})).toBeFocused();
+  failed=true;await api.historyChanged();
+  await expect(page.getByRole('listitem',{name:'历史读取失败，请重新查询。',exact:true})).toBeVisible();await expect(group).toHaveCount(0);await expect(page.getByLabel('历史查询结果',{exact:true})).toBeFocused();
 });
 
 test('rejected cancellation stays running and stale SSE events cannot replace newer state',async({page})=>{

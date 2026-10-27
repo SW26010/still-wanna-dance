@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
+import {navigate} from './navigation';
 
 test('manual library download leaves the running queue alone',async({page})=>{
   const api=await mockAPI(page);
@@ -7,7 +8,8 @@ test('manual library download leaves the running queue alone',async({page})=>{
   await page.goto('/#/library');
   await page.locator('#batch').getByRole('button',{name:'下载缺失视频',exact:true}).click();
   expect(api.calls.filter(c=>/^(batch\/|queue\/)/.test(c.path)).map(c=>c.path)).toEqual(['batch/start']);
-  await expect(page.locator('#queue')).not.toContainText('暂停');
+  await navigate(page,'加速');
+  await expect(page.getByRole('status',{name:'房间队列',exact:true})).toHaveText('房间队列：监控中');
 });
 
 test('sample preparation explains online requirements and belongs to the selected connection',async({page},info)=>{

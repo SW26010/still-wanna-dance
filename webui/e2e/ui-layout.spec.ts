@@ -2,8 +2,8 @@ import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 
 for(const [width,height] of [[1440,1000],[900,1200],[390,2000]])test(`short pages have no document overflow at ${width}x${height}`,async({page},info)=>{
-  await mockAPI(page);await page.setViewportSize({width,height});await page.goto('/#/settings');
-  await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeVisible();
+  await mockAPI(page);await page.setViewportSize({width,height});await page.goto('/#/licenses');
+  await expect(page.getByRole('tab',{name:'许可证与声明',exact:true})).toHaveAttribute('aria-selected','true');
   const metrics=await page.evaluate(()=>({viewport:innerHeight,document:document.documentElement.scrollHeight,content:document.querySelector('.page-content')!.getBoundingClientRect().bottom}));
   expect(metrics.content).toBeLessThan(height-16);
   expect(metrics.document).toBeLessThanOrEqual(metrics.viewport);

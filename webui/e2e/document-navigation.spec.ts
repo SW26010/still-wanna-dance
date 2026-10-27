@@ -37,7 +37,7 @@ test('document body and footer links preserve navigation and drafts',async({page
   await page.getByRole('link',{name:'使用条款与内容权利声明',exact:true}).click();
   await expect(page.getByRole('button',{name:/恢复.*直连|停止播放网关/})).toHaveCount(0);
   await page.getByRole('link',{name:'返回首页',exact:true}).click();
-  await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'停止加速',exact:true})).toBeEnabled();
   await navigate(page,'帮助');
   await page.getByRole('link',{name:'返回首页',exact:true}).click();
   await navigateSettings(page,'预加载与下载');

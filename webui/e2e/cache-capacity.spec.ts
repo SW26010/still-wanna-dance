@@ -71,6 +71,7 @@ test('settings preserve all three storage choices and the entered budget across 
   await limited.check();
   await expect(input).toHaveValue('12.5');
   await navigate(page,'曲库');
+  await expect(page.locator('#video-import, #batch').getByText(/当前存储预算为“不保留”/)).toHaveCount(0);
   await navigate(page,'曲库');await page.getByRole('link',{name:'视频存储预算',exact:true}).click();
   await expect(limited).toBeChecked();
   await expect(input).toHaveValue('12.5');
@@ -101,14 +102,32 @@ test('no retention overrides the remembered budget while favorites can still be 
   await navigate(page,'曲库');
   await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();
   await expect(page.getByRole('button',{name:'检查缺失视频',exact:true})).toBeEnabled();
+  for(const id of ['video-import','batch']){
+    const notice=page.locator('#'+id+' .fui-MessageBar');
+    await expect(notice).toContainText('当前存储预算为“不保留”');
+    await expect(notice).toContainText('收藏视频仍可保留');
+    await expect(notice.getByRole('link',{name:'存储设置',exact:true})).toHaveAttribute('href','#maxCacheGiB');
+  }
   await navigate(page,'加速');await expect(page.getByRole('heading',{name:'视频块需求',exact:true})).toBeVisible();
 });
 
-test('empty storage keeps actions and settings links available',async({page})=>{
+for(const width of [390,1280])test(`empty storage keeps actions and settings links available (${width})`,async({page})=>{
   const api=await mockAPI(page);api.files.splice(0);api.state.activeSettings.videoStorageMode='none';api.state.settings.videoStorageMode='none';
+  api.state.activeSettings.retainFavorites=false;
+  await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:width===390?'dark':'light'});
   await page.goto('/#/library');await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();
-  await page.getByRole('link',{name:'设置保留空间',exact:true}).click();await expect(page.locator('#maxCacheGiB')).toBeFocused();
-  await expect(page.getByRole('radio',{name:'不保留',exact:true})).toBeChecked();
+  for(const id of ['video-import','batch']){
+    const panel=page.locator('#'+id),notice=panel.locator('.fui-MessageBar');
+    await expect(notice).toContainText('保存后重启生效');
+    await expect(notice).not.toContainText('收藏视频仍可保留');
+    await panel.scrollIntoViewIfNeeded();await page.screenshot({path:`../artifacts/library-storage-notice/${id}-${width}.png`,animations:'disabled'});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await notice.getByRole('link',{name:'存储设置',exact:true}).click();await expect(page.locator('#maxCacheGiB')).toBeFocused();
+    await expect(page.getByRole('radio',{name:'不保留',exact:true})).toBeChecked();
+    await expect(page.getByRole('radio',{name:'不保留',exact:true})).toBeInViewport();
+    await navigate(page,'曲库');
+  }
+  expect(api.calls.some(c=>['settings','import/start','batch/start'].includes(c.path))).toBe(false);
 });
 
 test('settings reject invalid budgets and inactive choices recover from an invalid draft', async ({page}) => {

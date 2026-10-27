@@ -2,6 +2,7 @@ import { Button, Link, Card, Title2, Table, TableHeader, TableHeaderCell, TableB
 import { useApp, useResource } from './hooks';
 import { Feedback, Panel, Progress, Hint, RecordDetails, StatusBadge } from './ui';
 import { BlockTimeline } from './block-timeline';
+import { StorageBudgetNotice } from './cache-capacity';
 import { requestOutcome } from './requests';
 import { active, accelerationLabel, date, dated, type RequestRecord, type Status } from './types';
 
@@ -55,10 +56,9 @@ export function AccessSettings() {
 }
 export function BatchPanel() {
   const app=useApp(), s=app.status.data!, b=s.batch, saved=s.lastBatch;
-  const zeroBudget=s.activeSettings.videoStorageMode==='none';
   return <Panel id="batch" title="下载缺失视频" action={<Hint label="批量下载说明">检查整个曲库；跳过屏蔽歌曲。普通视频按存储预算补齐，收藏按保留设置处理。停止后，共享下载可能继续完成。</Hint>}>
+    <StorageBudgetNotice settings={s.activeSettings}/>
     <div className="toolbar spread"><div className="inline"><Button disabled={app.unavailable||b.running} onClick={()=>void app.action('batch/scan')}>检查缺失视频</Button><Button appearance="primary" disabled={app.unavailable||b.running} onClick={()=>void app.action('batch/start')}>下载缺失视频</Button><Button disabled={app.unavailable||!b.running} onClick={()=>void app.action('batch/cancel')}>停止批量任务</Button></div><span role="status">{b.phase||'等待开始'}</span></div>
-    {zeroBudget&&<span className="secondary">当前不保留普通视频。<Link href="#maxCacheGiB">设置保留空间</Link>{s.activeSettings.retainFavorites&&'，收藏仍可补齐。'}</span>}
     {(b.running||!!b.total)&&<><Progress value={b.checked} max={b.total} label="批量任务进度"/><span>{b.current} · 已检查 {b.checked||0}/{b.total||0} · 已有 {b.hits||0} · 缺失 {b.missing||0} · 完成 {b.downloaded||0} · 跳过 {b.skipped||0} · 失败 {b.failed||0}</span></>}
     {b.target&&<span className="secondary">本次仅处理{b.target.songID?'歌曲 ID '+b.target.songID:'资源 '+b.target.resource}</span>}
     {dated(saved.updated)&&<div className="toolbar"><span className="secondary">上次任务：{date(saved.updated)} · 缺失 {saved.missing||0} · 下载完成 {saved.downloaded||0}</span><RecordDetails title="上次完成的批量任务"><p>{saved.scanOnly?'检查本地文件':'下载缺失视频'} · 共 {saved.total||0} · 已有 {saved.hits||0} · 缺失 {saved.missing||0} · 下载完成 {saved.downloaded||0}</p>{saved.catalogWarning&&<p className="wrap">{saved.catalogWarning}</p>}</RecordDetails></div>}

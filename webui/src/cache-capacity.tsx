@@ -1,6 +1,11 @@
-import { Field, Input, Radio, RadioGroup } from '@fluentui/react-components';
+import { Field, Input, Link, Radio, RadioGroup } from '@fluentui/react-components';
 import type { Settings } from './types';
-import { Hint } from './ui';
+import { Feedback, Hint } from './ui';
+
+export function StorageBudgetNotice({settings}: {settings:Pick<Settings,'videoStorageMode'|'retainFavorites'>}) {
+  if(settings.videoStorageMode!=='none')return null;
+  return <Feedback>当前存储预算为“不保留”。如需保留普通视频，请前往<Link href="#maxCacheGiB">存储设置</Link>调整，保存后重启生效。{settings.retainFavorites&&'已开启优先保留收藏视频，收藏视频仍可保留。'}</Feedback>;
+}
 
 export type CapacityDraft = Pick<Settings, 'videoStorageMode' | 'aggressiveCacheReclamation'> & { maxCacheGiB: string };
 export function capacityPayload(d: CapacityDraft) {

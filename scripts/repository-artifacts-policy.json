@@ -717,6 +717,13 @@
       "bytes": 1173333,
       "sha256": "8da456c0a41119d7fb362dd685c3e7239f6f283663ccd53af5e240b4d865c2b2",
       "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Refresh library file state and usage when an observed shared download ends, including after batch cancellation and while other downloads remain."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1173327,
+      "sha256": "c32f5119c86edf25bd9b4b1f45218399f6a5cf5caa16f1b381c81a3abb60f485",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Preserve the last successful active-task polling interval through transient resource read failures until completion is observed."
     }
   ]
 }

@@ -1024,3 +1024,17 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 日志和失败截图保存在忽略目录 `artifacts/full-tests-20261028-16b7c084/`：`webui.log`、`webui-verified.log` 为前两次结果，`webui-final.log` 与 `webui-final/` 为最终完整结果；`go-test.jsonl`、`go-vet.log`、`go-build.log` 保留首次全目录扫描失败，带 `verified`／`final` 的日志及 `go-summary.json` 记录正式结果。其余检查分别见 `tools.log`、`evidence-archive-verified.log`、`webui-check-final.log` 和 `repository-artifacts-verified.log`。
 
 本轮是 Windows 本机标准自动化结果，不包含 Linux/race、VRC 游戏及需要显式启用的真实桌面、公网、跨卷等专项；环境跳过不表述为通过。不新增 VRC 台账项，也未替换正在运行的 EXE。
+
+## 2026-10-28 评审补漏：共享下载完成与读取失败重试
+
+在 `58dd4e09` 上重新核对评审：三个历史前端包已由 `9d2ba4cb` 登记，`recovery.spec.ts` 已由 `58dd4e09` 改用行内删除；真实服务歌曲偏好脚本仍匹配旧存储提示，共享下载结束未刷新文件快照、动态轮询遇到读取失败后停止的问题也仍存在。上节 303 项默认浏览器回归不覆盖这两个时序，可选歌曲偏好真实服务专项当时被跳过，不能据此推断这些问题已修复。
+
+- 将真实服务脚本的存储提示断言限定在批量下载模块，匹配当前“不保留”预算及收藏仍可保留的文案，并验证存储设置链接和手动下载操作仍可用。`TestSongPreferencesBrowser` 在隔离真实 Console、SQLite 和 Edge 中先因旧断言失败，修复后通过；最终前端产物再次运行也通过。原有收藏文件保留、偏好持久化、屏蔽请求 403 和零外网解析验证均保留。
+- 曲库比较已观察到的下载任务 ID，发现任一任务消失即读取列表与本地占用，更新保存状态及定位／删除按钮；不等待所有下载都结束。新增三项浏览器回归覆盖独立共享下载、批量停止后继续完成、另一个下载仍在进行，修复前均停留在“未保存”，修复后通过。与原有曲库刷新回归合计 **15/15 通过**；运行中不无故刷新列表、全部结束后停止轮询的断言也通过。
+- `useResource` 将动态间隔保留在本轮订阅生命周期，读取失败不再将间隔重置为零；成功读到结束后仍停止。新增回归覆盖清单扫描与下载进度分别遇到连续 503 和网络超时、恢复后读到完成，以及首次失败但尚未观察到活动任务时不自行轮询。四个活动任务用例修复前均不再读取；修复后与下载完成及原有刷新回归合计 **20/20 通过**。
+
+上述复现直接对应刷新触发缺失和失败时清零间隔，稳定失败点已定位，因此未另行二分历史或扩展不相关故障假设。现行刷新规则同步至 [WebUI 设计](../webui-design.md#曲库读取与刷新)。每次修改前端源码后均重建内嵌资源，build/check 通过；两版新 `app.js` 分别追加精确例外，保留历史登记。三个被指出的历史版本再次逐一核验字节数、SHA256 和各自构建清单，全部匹配。
+
+最终 Edge 完整套件 `pnpm --dir webui test --workers=3`：**311/311 通过**，包含新增的 8 项回归。本轮没有修改 Go 源码；Go 全套沿用上一节结果，额外启用了上述真实 Console 专项。`git diff --check` 通过。
+
+证据保存在忽略目录 `artifacts/library-review-20261028/`：`browser-before.log` 和 `browser-before/` 保留 **7 失败、1 通过**的原始复现；`download-verified.log`、`retry-verified.log` 记录专项通过；`browser-final.log` 和 `browser-final/` 记录最终完整套件；`song-before.log` 保留旧文案失败，`song-verified.log`、`song-final.log` 及对应子目录记录真实服务通过；`historical-artifacts.json` 记录三个历史产物的核验值，`repository-artifacts-final.json` 为提交后的完整历史产物检查输出。未启动游戏、修改 hosts 或替换正在运行的 EXE，本轮不新增 VRC 台账项。

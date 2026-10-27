@@ -32,13 +32,14 @@ export function useResource<T>(path: string, enabled = true, revision = 0, inter
     if (!enabled) return;
     let disposed = false, pending = false, rerun = false, timer: ReturnType<typeof setTimeout>;
     let unsubscribe:(()=>void)|undefined;
+    // Keep following observed active work through transient read failures.
+    let delay = typeof interval === 'number' ? interval : 0;
     const controller = new AbortController();
     const run = async () => {
       clearTimeout(timer);
       if (disposed || document.hidden) return;
       if (pending) { rerun = true; return; }
       pending = true; setLoading(true);
-      let delay = typeof interval === 'number' ? interval : 0;
       try {
         const next = await request<T>(path, undefined, AbortSignal.any([controller.signal, AbortSignal.timeout(35000)]));
         if (!disposed) { setData(next); setLoadedRevision(revision); setLoadedAt(Date.now()); setError(''); delay = typeof interval === 'number' ? interval : interval(next); }

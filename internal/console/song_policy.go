@@ -14,10 +14,6 @@ import (
 )
 
 func (c *Console) songPolicyAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
-		http.Error(w, "invalid origin or token", http.StatusForbidden)
-		return
-	}
 	if r.Method != http.MethodGet && r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return

@@ -929,84 +929,6 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, c.localInventory())
 		return
 	}
-	if r.URL.Path == "/api/cache/delete" || r.URL.Path == "/api/cache/open" {
-		c.cacheAPI(w, r)
-		return
-	}
-	if r.URL.Path == "/api/songs" {
-		c.songPolicyAPI(w, r)
-		return
-	}
-	if r.URL.Path == "/api/library" {
-		c.libraryAPI(w, r)
-		return
-	}
-	if r.URL.Path == "/api/downloads" && r.Method == "GET" {
-		if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
-			http.Error(w, "invalid origin or token", http.StatusForbidden)
-			return
-		}
-		// A Go reference keeps the engine object alive, not its database. The
-		// snapshot reader handles concurrent Close without joining lifecycle I/O.
-		c.mu.Lock()
-		service, running := c.service, c.httpServer != nil
-		c.mu.Unlock()
-		result := struct {
-			cacheproxy.ActiveDownloads
-			Running bool                   `json:"running"`
-			GETs    cacheproxy.CurrentGETs `json:"gets"`
-		}{cacheproxy.ActiveDownloads{Tasks: []cacheproxy.ActiveDownload{}}, running, cacheproxy.CurrentGETs{Requests: []cacheproxy.CurrentGET{}}}
-		if service != nil {
-			var err error
-			result.ActiveDownloads, err = service.ActiveDownloads(r.Context())
-			result.GETs = service.CurrentGETs()
-			c.mu.Lock()
-			if c.service != service {
-				result.ActiveDownloads = cacheproxy.ActiveDownloads{Tasks: []cacheproxy.ActiveDownload{}}
-				result.GETs = cacheproxy.CurrentGETs{Requests: []cacheproxy.CurrentGET{}}
-				err = nil // Never publish tasks from a replaced storage engine.
-			}
-			result.Running = c.httpServer != nil
-			c.mu.Unlock()
-			if err != nil {
-				http.Error(w, "活动下载读取失败，请稍后重试", http.StatusInternalServerError)
-				return
-			}
-		}
-		writeJSON(w, result)
-		return
-	}
-	if (r.URL.Path == "/api/history" || r.URL.Path == "/api/latency" || r.URL.Path == "/api/response-sources") && r.Method == "GET" {
-		c.serveRequestHistory(w, r)
-		return
-	}
-	if r.URL.Path == "/api/requests" && r.Method == "GET" {
-		if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
-			http.Error(w, "invalid origin or token", http.StatusForbidden)
-			return
-		}
-		limit := 50
-		if value := r.URL.Query().Get("limit"); value != "" {
-			var err error
-			limit, err = strconv.Atoi(value)
-			if err != nil || limit < 1 || limit > cacheproxy.MaxRecentRequests {
-				http.Error(w, "invalid limit", http.StatusBadRequest)
-				return
-			}
-		}
-		// The active storage root is fixed for this Console. The reader owns
-		// its read-only connection and does not borrow the engine's lifetime.
-		c.mu.Lock()
-		database := c.settings.DatabasePath
-		c.mu.Unlock()
-		result, err := cacheproxy.ReadRecentRequests(r.Context(), database, limit)
-		if err != nil {
-			http.Error(w, "最近请求读取失败，请稍后重试", http.StatusInternalServerError)
-			return
-		}
-		writeJSON(w, result)
-		return
-	}
 	if r.Method == "GET" && r.URL.Path == "/api/block-demands/events" {
 		c.serveBlockEvents(w, r)
 		return
@@ -1019,14 +941,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.serveNetworkConnectivityEvents(w, r)
 		return
 	}
-	if r.Method != "POST" {
-		http.Error(w, "not found", 404)
-		return
-	}
-	if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
-		http.Error(w, "invalid origin or token", 403)
-		return
-	}
+	c.serveManagement(w, r)
+}
+
+func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 	// Only this data-only import endpoint has a larger payload allowance.
 	if r.URL.Path == "/api/proxy/import" {
 		r.Body = http.MaxBytesReader(w, r.Body, 2<<20)

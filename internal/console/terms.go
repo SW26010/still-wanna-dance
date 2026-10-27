@@ -238,8 +238,7 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 			http.Error(w, "method not allowed", 405)
 			return true
 		}
-		if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
-			http.Error(w, "invalid origin or token", 403)
+		if !c.allowManagement(w, r) {
 			return true
 		}
 		var input struct {
@@ -258,8 +257,7 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 			http.Error(w, "method not allowed", 405)
 			return true
 		}
-		if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
-			http.Error(w, "invalid origin or token", 403)
+		if !c.allowManagement(w, r) {
 			return true
 		}
 		var input struct {

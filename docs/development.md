@@ -19,6 +19,10 @@ pnpm --dir webui check
 
 使用 `webui/package.json` 固定的 pnpm 版本。浏览器测试默认使用本机 Edge；CI 安装 Playwright Chromium，测试只调用内存夹具，不修改 hosts 或访问真实上游。截图保存在忽略目录 `artifacts/webui-tests`。Windows 工具测试用 `./scripts/with-test-temp.ps1 node --test scripts/*.test.mjs`。Linux/CI 可直接运行包装器后的原命令。架构、浏览器覆盖和真实系统验收边界见[Fluent 迁移记录](fluent-ui-migration.md)。
 
+## Console 管理请求准入
+
+普通管理请求在 [`management.go`](../internal/console/management.go) 选择处理函数后统一校验会话 Token 和 Origin；新增普通管理读取入口应登记在该路由组，POST 操作继续由 `serveAction` 分发。业务处理函数不再重复鉴权。条款操作复用同一校验函数，保留同意前可访问的规则；公开读取、媒体签名、SSE 和 WebSocket 仍由各自入口按现有规则处理。回归从 `ServeHTTP` 验证准入及方法错误，不能只测试校验函数。
+
 ## Windows 环境
 
 桌面开发需要 Windows amd64、Go 1.25+、Node.js 22+、Git 和 PowerShell。前端依赖使用 `webui/package.json` 固定的 pnpm。Go 最低版本和依赖选择分别以 `go.mod` 与锁文件为准。

@@ -9,10 +9,6 @@ import (
 )
 
 func (c *Console) serveRequestHistory(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
-		http.Error(w, "invalid origin or token", http.StatusForbidden)
-		return
-	}
 	q := cacheproxy.RequestQuery{Limit: 50, Cursor: r.URL.Query().Get("cursor")}
 	for _, field := range []struct {
 		name  string
@@ -54,6 +50,29 @@ func (c *Console) serveRequestHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		http.Error(w, "请求历史读取失败，请稍后重试", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, result)
+}
+
+func (c *Console) serveRecentRequests(w http.ResponseWriter, r *http.Request) {
+	limit := 50
+	if value := r.URL.Query().Get("limit"); value != "" {
+		var err error
+		limit, err = strconv.Atoi(value)
+		if err != nil || limit < 1 || limit > cacheproxy.MaxRecentRequests {
+			http.Error(w, "invalid limit", http.StatusBadRequest)
+			return
+		}
+	}
+	// The active storage root is fixed for this Console. The reader owns
+	// its read-only connection and does not borrow the engine's lifetime.
+	c.mu.Lock()
+	database := c.settings.DatabasePath
+	c.mu.Unlock()
+	result, err := cacheproxy.ReadRecentRequests(r.Context(), database, limit)
+	if err != nil {
+		http.Error(w, "最近请求读取失败，请稍后重试", http.StatusInternalServerError)
 		return
 	}
 	writeJSON(w, result)

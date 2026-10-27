@@ -12,10 +12,6 @@ import (
 )
 
 func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
-		http.Error(w, "invalid origin or token", http.StatusForbidden)
-		return
-	}
 	if r.Method != "GET" {
 		http.Error(w, "method not allowed", 405)
 		return

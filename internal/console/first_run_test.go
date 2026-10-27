@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/upstreamstate"
 )
@@ -116,7 +115,7 @@ func TestFirstRunDoesNotReplaceConfiguredDatabase(t *testing.T) {
 }
 
 func TestFirstRunPreservesUnconfiguredExistingData(t *testing.T) {
-	for _, name := range []string{"data/database/storage.sqlite-wal", "data/database/storage.sqlite-journal", "videos/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.mp4", "storage/storage.sqlite", "storage/storage.sqlite-shm", "storage/videos/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.mp4"} {
+	for _, name := range []string{"data/database/storage.sqlite-wal", "data/database/storage.sqlite-journal", "videos/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.mp4"} {
 		t.Run(name, func(t *testing.T) {
 			root := t.TempDir()
 			path := filepath.Join(root, name)
@@ -142,54 +141,6 @@ func TestFirstRunPreservesUnconfiguredExistingData(t *testing.T) {
 				t.Fatal("existing data changed", err)
 			}
 		})
-	}
-}
-
-func TestPreviousLayoutGuardProtectsOnlyKnownData(t *testing.T) {
-	for _, layout := range []string{"default", "custom"} {
-		for _, evidence := range []string{"config", "database", "wal", "video", "unreadable-video-directory", "empty-and-locks"} {
-			if layout == "custom" && evidence == "config" {
-				continue
-			}
-			t.Run(layout+"/"+evidence, func(t *testing.T) {
-				root := t.TempDir()
-				exe := filepath.Join(root, "SWD.exe")
-				config := apppaths.DefaultConfig(exe)
-				previous := filepath.Join(root, "data")
-				if layout == "custom" {
-					config = filepath.Join(root, "profiles", "dance.json")
-					previous = config + ".d"
-				}
-				files := map[string]string{
-					"config": "config.json", "database": "storage/storage.sqlite", "wal": "storage/storage.sqlite-wal",
-					"video":                      "storage/videos/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.mp4",
-					"unreadable-video-directory": "storage/videos", "empty-and-locks": "storage/.lock",
-				}
-				path := filepath.Join(previous, files[evidence])
-				if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-					t.Fatal(err)
-				}
-				original := []byte("previous data must survive")
-				if err := os.WriteFile(path, original, 0600); err != nil {
-					t.Fatal(err)
-				}
-				if evidence == "empty-and-locks" {
-					if err := os.MkdirAll(filepath.Join(previous, "storage", "videos"), 0700); err != nil {
-						t.Fatal(err)
-					}
-				}
-				err := checkPreviousLibrary(config, exe)
-				if (err == nil) != (evidence == "empty-and-locks") {
-					t.Fatal("wrong previous-layout decision", err)
-				}
-				if data, err := os.ReadFile(path); err != nil || !bytes.Equal(data, original) {
-					t.Fatal("previous evidence modified", err)
-				}
-				if _, err := os.Stat(filepath.Join(apppaths.ForConfig(config).Root, "data", "database")); !os.IsNotExist(err) {
-					t.Fatal("guard created new library", err)
-				}
-			})
-		}
 	}
 }
 

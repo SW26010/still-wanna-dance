@@ -27,31 +27,6 @@ func TestLayoutIsLazyAndSeparatesSiblingConfigurations(t *testing.T) {
 	}
 }
 
-func TestLegacyInstallIsDiagnosedWithoutChanges(t *testing.T) {
-	for _, name := range []string{"still-wanna-dance-console.json", "stepstash-console.json", "still-wanna-dance-data", "stepstash-data"} {
-		t.Run(name, func(t *testing.T) {
-			root := t.TempDir()
-			if err := CheckLegacyInstall(root); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(filepath.Join(root, name), []byte("preserve"), 0600); err != nil {
-				t.Fatal(err)
-			}
-			if err := CheckLegacyInstall(root); err == nil {
-				t.Fatal("legacy marker accepted")
-			}
-			data, err := os.ReadFile(filepath.Join(root, name))
-			if err != nil || string(data) != "preserve" {
-				t.Fatal(err)
-			}
-			entries, err := os.ReadDir(root)
-			if err != nil || len(entries) != 1 {
-				t.Fatal(entries, err)
-			}
-		})
-	}
-}
-
 func TestReservedCompanionsCannotBeConfigurations(t *testing.T) {
 	for _, name := range []string{"terms.json", "CHANNEL.KEY", "config.lock", "data", "storage", "logs", "state", "videos", "work", "licenses"} {
 		if err := ValidateConfigPath(filepath.Join(t.TempDir(), name)); err == nil {

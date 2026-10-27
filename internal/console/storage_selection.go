@@ -50,20 +50,6 @@ func validateStorageLocation(path, defaultPath, portable string) error {
 
 func sameResourcePath(a, b string) bool { return cacheproxy.DatabaseID(a) == cacheproxy.DatabaseID(b) }
 
-// Reconnecting a known old resource does not authorize creating at an old
-// location. The caller still validates the database/directory and video policy.
-func (c *Console) validateExistingStorageLocation(path, defaultPath, previousName string) error {
-	for _, root := range previousLibraryRoots(c.configPath, c.identity.Executable) {
-		if sameResourcePath(path, filepath.Join(root, "storage", previousName)) {
-			if _, err := os.Lstat(path); err != nil {
-				return fmt.Errorf("原资料位置不可用，请保留原资料并检查位置：%w", err)
-			}
-			return nil
-		}
-	}
-	return validateStorageLocation(path, defaultPath, c.portableDir())
-}
-
 // Pure path validation also runs when loading configuration. Filesystem access
 // belongs to changed selections only; an offline video disk must not prevent
 // saving unrelated settings or opening the business database.
@@ -103,7 +89,7 @@ func (c *Console) inspectLibrarySelection(s, old Settings) (bool, error) {
 	databaseChanged := !sameResourcePath(s.DatabasePath, old.DatabasePath)
 	videoChanged := !sameResourcePath(s.VideoDir, old.VideoDir)
 	if databaseChanged && s.DatabasePath != "" {
-		if err := c.validateExistingStorageLocation(s.DatabasePath, c.defaultDatabasePath(), "storage.sqlite"); err != nil {
+		if err := validateStorageLocation(s.DatabasePath, c.defaultDatabasePath(), c.portableDir()); err != nil {
 			return false, err
 		}
 		if _, err := cacheproxy.LoadCatalogStatus(context.Background(), s.DatabasePath); err != nil {
@@ -111,7 +97,7 @@ func (c *Console) inspectLibrarySelection(s, old Settings) (bool, error) {
 		}
 	}
 	if videoChanged && s.VideoDir != "" {
-		if err := c.validateExistingStorageLocation(s.VideoDir, c.defaultVideoDir(), "videos"); err != nil {
+		if err := validateStorageLocation(s.VideoDir, c.defaultVideoDir(), c.portableDir()); err != nil {
 			return false, err
 		}
 		if err := workfiles.CheckFutureDir(s.VideoDir); err != nil {

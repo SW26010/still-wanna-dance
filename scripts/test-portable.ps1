@@ -273,36 +273,7 @@ try {
     }
     if (Test-Path -LiteralPath (Join-Path $profiles 'work')) { throw 'External configuration moved block work away from the executable.' }
 
-    # Moving the default config must not make an existing library appear empty.
-    # This fixture is intentionally unreadable as config/SQLite: the guard only
-    # recognizes its location and never parses, migrates or overwrites it.
-    $previousLayout = Join-Path $root 'previous layout'
-    $previousStorage = Join-Path $previousLayout 'data/storage'
-    New-Item -ItemType Directory -Path $previousStorage -Force | Out-Null
-    Copy-Item -LiteralPath $exePath -Destination (Join-Path $previousLayout 'SWD.exe')
-    $previousConfig = Join-Path $previousLayout 'data/config.json'
-    $previousDatabase = Join-Path $previousStorage 'storage.sqlite'
-    [IO.File]::WriteAllText($previousConfig, 'preserve previous config')
-    [IO.File]::WriteAllText($previousDatabase, 'preserve previous database')
-    $previousPort = Free-Port
-    $child = Start-Process -FilePath (Join-Path $previousLayout 'SWD.exe') -ArgumentList @('-no-tray', '-no-open', '-listen', "127.0.0.1:$previousPort") -WorkingDirectory $root -WindowStyle Hidden -PassThru
-    $customProcesses += $child
-    Wait-ConsentGate $child $previousPort
-    $unconfigured = Get-Content -LiteralPath (Join-Path $previousLayout 'config.json') -Raw | ConvertFrom-Json
-    if ($unconfigured.databasePath -or $unconfigured.videoDir -or (Test-Path -LiteralPath (Join-Path $previousLayout 'data/database')) -or (Test-Path -LiteralPath (Join-Path $previousLayout 'videos'))) { throw 'Previous layout was silently replaced by a new default library.' }
-    if ([IO.File]::ReadAllText($previousConfig) -cne 'preserve previous config' -or [IO.File]::ReadAllText($previousDatabase) -cne 'preserve previous database') { throw 'Previous layout was modified.' }
-
-    $legacy = Join-Path $root 'legacy'
-    New-Item -ItemType Directory -Path $legacy | Out-Null
-    Copy-Item -LiteralPath $exePath -Destination (Join-Path $legacy 'SWD.exe')
-    $marker = Join-Path $legacy 'still-wanna-dance-console.json'
-    [IO.File]::WriteAllText($marker, 'old test data')
-    $legacyError = Join-Path $root 'legacy.stderr.txt'
-    $duplicate = Start-Process -FilePath (Join-Path $legacy 'SWD.exe') -ArgumentList @('-no-tray', '-no-open', '-listen', '127.0.0.1:0') -WorkingDirectory $root -WindowStyle Hidden -RedirectStandardError $legacyError -PassThru
-    if (!$duplicate.WaitForExit(10000) -or $duplicate.ExitCode -eq 0) { throw 'Old installation was not rejected.' }
-    if ((Get-Content -LiteralPath $legacyError -Raw) -notmatch '旧测试布局') { throw 'Old installation diagnostic missing.' }
-    if ([IO.File]::ReadAllText($marker) -cne 'old test data' -or (Test-Path -LiteralPath (Join-Path $legacy 'data'))) { throw 'Old installation was changed.' }
-    Write-Host 'Portable smoke passed: stable ZIP paths, lazy data layout, independent launch directory, config lock, consent, legal notices, JSON logs, duplicate rejection, restart, overlay upgrade, whole-directory move, concurrent custom configurations and old-layout rejection.'
+    Write-Host 'Portable smoke passed: stable ZIP paths, lazy data layout, independent launch directory, config lock, consent, legal notices, JSON logs, duplicate rejection, restart, overlay upgrade, whole-directory move, concurrent custom configurations.'
 } finally {
     foreach ($child in $customProcesses) { if (!$child.HasExited) { $child.Kill(); $child.WaitForExit() } }
     if ($null -ne $duplicate -and !$duplicate.HasExited) { $duplicate.Kill(); $duplicate.WaitForExit() }

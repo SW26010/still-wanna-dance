@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"sync"
@@ -107,11 +106,6 @@ func run() (runErr error) {
 		}
 		defer lease.Close()
 		instance = lease
-	}
-	if p == defaultConfig {
-		if err := apppaths.CheckLegacyInstall(filepath.Dir(exe)); err != nil {
-			return err
-		}
 	}
 	configLease, err := desktop.LockConfig(p)
 	if err != nil {

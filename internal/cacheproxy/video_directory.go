@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"still-wanna-dance/internal/workfiles"
 )
@@ -15,15 +14,6 @@ func lockVideoDirectory(path string) (func() error, error) {
 	path, err := CacheDirectory(path)
 	if err != nil {
 		return nil, err
-	}
-	if err := checkVideoLayout(path); err != nil {
-		return nil, err
-	}
-	// Preserve known old data without opening or migrating it.
-	if strings.EqualFold(filepath.Base(path), "videos") {
-		if err := checkDatabaseDirectory(filepath.Dir(path)); err != nil {
-			return nil, err
-		}
 	}
 	lease := filepath.Join(path, ".swd.lock")
 	info, err := os.Lstat(lease)

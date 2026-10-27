@@ -60,9 +60,6 @@ func openStore(path string, create bool) (*Store, error) {
 		return nil, err
 	}
 	parent := filepath.Dir(path)
-	if err := checkDatabaseDirectory(parent); err != nil {
-		return nil, err
-	}
 	if create {
 		if err := workfiles.CheckFutureDir(parent); err != nil {
 			return nil, err

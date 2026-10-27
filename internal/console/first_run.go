@@ -3,9 +3,7 @@ package console
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
-	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/workfiles"
 )
@@ -24,9 +22,6 @@ func (c *Console) prepareDefaultLibrary() error {
 	if err := checkUnconfiguredLibrary(s.DatabasePath, s.VideoDir); err != nil {
 		return err
 	}
-	if err := checkPreviousLibrary(c.configPath, c.identity.Executable); err != nil {
-		return err
-	}
 	if err := os.MkdirAll(s.VideoDir, 0700); err != nil {
 		return err
 	}
@@ -43,35 +38,6 @@ func (c *Console) prepareDefaultLibrary() error {
 	c.store, c.settings = store, s
 	c.vrcxNotify = true
 	return nil
-}
-
-// Check only known previous positions, without reading old config or adopting
-// data. This runs only before automatic initialization, never on ordinary open.
-func checkPreviousLibrary(config, executable string) error {
-	if sameResourcePath(config, apppaths.DefaultConfig(executable)) {
-		previousRoot := filepath.Join(filepath.Dir(executable), "data")
-		previousConfig := filepath.Join(previousRoot, "config.json")
-		if _, err := os.Lstat(previousConfig); err == nil {
-			return fmt.Errorf("原默认位置已有配置，请保留原文件并在存储设置中选择已有数据库和视频保留方式：%s", previousConfig)
-		} else if !os.IsNotExist(err) {
-			return err
-		}
-	}
-	for _, root := range previousLibraryRoots(config, executable) {
-		if err := checkUnconfiguredLibrary(filepath.Join(root, "storage", "storage.sqlite"), filepath.Join(root, "storage", "videos")); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Detection and explicit selection use the same bounded set of old positions.
-func previousLibraryRoots(config, executable string) []string {
-	roots := []string{apppaths.ForConfig(config).Root}
-	if sameResourcePath(config, apppaths.DefaultConfig(executable)) {
-		roots = append(roots, filepath.Join(filepath.Dir(executable), "data"))
-	}
-	return roots
 }
 
 func checkUnconfiguredLibrary(database, videos string) error {

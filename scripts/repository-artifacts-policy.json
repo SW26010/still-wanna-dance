@@ -521,6 +521,167 @@
       "bytes": 1179671,
       "sha256": "a9f201447d5eef69c8690d9346d487df9748a23e5774a57343a6e72b7a841974",
       "reason": "Production WebUI removes obsolete page aliases, hosts migration state and unused cache/history fields; regenerated from pinned sources and checked by 100 Edge regressions and the real Console first-run browser test."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1174174,
+      "sha256": "c29b700fa5720fd04b594253b49751eea7f50a92bd3d798fc034424ae54e422c",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at 14b1b3edc2fa56d454a5c28f5ed40f74dfd769f6."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1173542,
+      "sha256": "b1b765e82014229faed181e5b007e9c0a1cef17643fbd715627907bcbd1d8d35",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at fbcb9ee3193bab9331c7c28e927e184aee841ecd."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1173415,
+      "sha256": "63b1b829f662fdb1414edd7599ba992b65750f6cc356553ebab780ed0efea644",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at 87fb7fed62ad3370be333ab7dfd40cc8ecea72af."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1174089,
+      "sha256": "560e86588b6dd759be72af903232625a058f66f07501d58f01a01932a5b10ca6",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at 90fe3d87ccc3afc54c4e91b2d5d70a9eddfcba4b."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1171801,
+      "sha256": "c23384d2ef12365bff51ac285f1ed8c0b67ac53148c8d1a339052aa458bb6425",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at d584c98a268119ff95d3b084d1541e2049692488."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1172349,
+      "sha256": "9b5358f09d59a866c5a63ddb908b44ae5d80b670d729f4fb48a70f3a3f2c9397",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at aaeccd5ee70063b957059d0f4e06c36a8c99e0e9."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1172060,
+      "sha256": "f3df5d93d8a38af2b1bc9386917fe4932293b4c35aa410fc686d6d729c259400",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at 3da6ab1362e5288d6521e18ea86a8560d9ff6b7a."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1172901,
+      "sha256": "1a9db6b5c7efaf533b3de3c6541fb36e694d50c19ba1db5dcd9b3f5c187ef6b4",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at 5695da6a078bc93210f1fb6f57908f55766352ba."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1175881,
+      "sha256": "483cce17e2bf63db40afaab763cc088c457b7d774395c7afdbd015b7e77f7470",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at ecc73a790a2f57e7679126ca34a8590a7b749743."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1173957,
+      "sha256": "402a701b48e878a559468ce33c768f21e58964f33681745342ff55a473a5a56c",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at 96a0015865ce46a28bede884b3133c3fa5fceac6."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1173455,
+      "sha256": "ecb46539fdbde7b6f009a9cb3351599059e1121c57b56f1eaecf445fd77a346f",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at 43e03d5df0a862ab5ac795927d6c132db214ba4c."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1173862,
+      "sha256": "0d73a5c8809e38fb67670637592cdc72a5633dd683709eecc706a751dfef79a5",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at cc9b17ba75453af685a8cdb56348dcbf182d4c5c."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1172439,
+      "sha256": "383e19c73a57a872fd27a0f0e40c4abc6fcbba95d06e4c8d49f476d7b95244e5",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at 6e070f4244364bfdf44cf769d8ca7696cf53acb3."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1172019,
+      "sha256": "e9c0d67902c9d4b7375203f18cc822fd2b3755ab11785081b83faff328e91f27",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at a2cb6301042c33039bf8944568eea5a413f19992."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1171933,
+      "sha256": "cc8cdb5682ca9af7531c02252934726f85db547b340272ae3e9ae036fe54d4e8",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at 15587009aa24156acb2555efae61ee8710234986."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1172227,
+      "sha256": "1278cf55bf6f9e67e31b344a96e97b5875fb11a3050b17960bae6c5883e55f4e",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at 7fab8209cbdb15da483f623e9148ee93a027b71a."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1171219,
+      "sha256": "49d4233bdeeb98006aa2fbc2ad2435ad8c8f8fb32f1b94a326988b6b5f214578",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at 72caf41cdcb8f06a7ec147e1d2fe30e74a539f79."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1178952,
+      "sha256": "ad200220cbacf29813a2062c3f036dbcd5ec78a682859ecf5c00700c3a204207",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at 5b0dc5177dab5d3021e078702ceda2eba7c5dadb."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1180031,
+      "sha256": "8b4e0fd78fa7a83c39430eac92918df5b6ea698c390a6347bb9191dfed930a7b",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at 5e5df104478ce5682ac2fa7d42956cf941ed15e8."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1177182,
+      "sha256": "239c91a0a9948e37f2d2ecdd879cbae0363680a0b56579016e1f8e94002d3fcd",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at a89d04a7ec38fdacdeee54a606cb368d9600b41f."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1174250,
+      "sha256": "239f9640f6aeff313e191ff1f2727a8c83dc9b709e075437800d247a8ff1b24e",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at e560333642557fbd230e0b08f3d1fec4da06c732."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1174554,
+      "sha256": "f53fa5e00e36eae962ece60ad98fc90e93bdee03092dae0207e07861c5cb5817",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at bb3e5dfdcfa3f8c007396c18d16969945e676e3a."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1173169,
+      "sha256": "ce7ed37bf83412f8a60c5b3bbac2525f31420433e780cbd8f8fd24b0f68dfc9e",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at ce5d6372db6f5de06d40c3e8816f6a10f793cf08."
     }
   ]
 }

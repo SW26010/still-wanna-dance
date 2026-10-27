@@ -10,7 +10,7 @@
     "webui/pnpm-lock.yaml": "6765eaefe1069a5ca877321c9546c50735d864788f0664fa6ed63a644e1a26d7",
     "webui/pnpm-workspace.yaml": "f8374fb59aaf2874eb09ae9b7da311a1f2025595b5279341c1a819c4b85c4611",
     "webui/src/api.ts": "07a864e0c5ee077804132cc3ca45b46c8880070cc15d9f8bfae3c14f3aa2faf0",
-    "webui/src/app.tsx": "8fb206463616cea977238a37113acd25a6132fc9b2908c07532e16cdbac28a41",
+    "webui/src/app.tsx": "e03d65dcfb75c527fbce48eddcbd72d94931f73de8e8f4ab8de6a5ed4c331936",
     "webui/src/block-demand-view.tsx": "08f274e7a18836d0d14a311a8f53a793cd5b5b2f69b12da787223b0a5c8a60b0",
     "webui/src/block-timeline-canvas.ts": "b1a72f7b2584aa2a32432d7728e270c138650fdf4833497f754e5deb3b7e9002",
     "webui/src/block-timeline-model.ts": "5389af7d6b185e05184d4ed3d1ac81b7ba6cdb2f97b46e220afc2836784d2eab",
@@ -49,7 +49,7 @@
   "outputs": {
     "docs/licenses/WEBUI-NOTICES.txt": "89e11fdf64ebdfc5b8b98085e4eee3dad30a3e52ada8374b428aa830f022eda6",
     "internal/console/assets/webui/app.css": "6aae8469ddcd1ebda8284525a621fc4ec5999feb3e60bff43a0eb44ca6e4c079",
-    "internal/console/assets/webui/app.js": "1278cf55bf6f9e67e31b344a96e97b5875fb11a3050b17960bae6c5883e55f4e",
+    "internal/console/assets/webui/app.js": "cc8cdb5682ca9af7531c02252934726f85db547b340272ae3e9ae036fe54d4e8",
     "internal/console/assets/webui/software-license.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
     "internal/console/assets/webui/third-party-notices.txt": "57d9e3633352d1f5eeedd4c2eaddf8edcbd02a6361113b6a8894bee5ecf5d53f",
     "internal/console/assets/webui/webui-notices.txt": "89e11fdf64ebdfc5b8b98085e4eee3dad30a3e52ada8374b428aa830f022eda6"

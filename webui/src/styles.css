@@ -211,11 +211,12 @@ form.actions { align-items: flex-end; }
 .detail-grid dt, .detail-grid dd { margin: 0; overflow-wrap: anywhere; }
 .table-pagination { justify-content: space-between; gap: var(--spacingHorizontalM); }
 .table-pagination > .inline { margin-inline-start: auto; }
-.metric-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,20rem),1fr)); gap: var(--spacingHorizontalL); }
-.latency-metric { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--spacingHorizontalM); padding-block: var(--spacingVerticalM); }
-.latency-summary h2 { font-size: var(--fontSizeBase400); }
-.history-range { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,14rem),1fr)); align-items: start; gap: var(--spacingHorizontalL); }
+.history-summary { column-gap: var(--spacingHorizontalL); }
+.history-summary-heading { flex-wrap: nowrap; }
+.history-filter { display: flex; align-items: flex-end; flex-wrap: wrap; }
+.history-range { flex: 1 1 28rem; display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,14rem),1fr)); align-items: start; gap: var(--spacingHorizontalL); }
 .history-filter .fui-Field, .history-filter .fui-Input { min-width: 0; max-width: 100%; }
+.history-filter .fui-Field { grid-template-columns: max-content minmax(0,1fr); }
 .empty-state { padding: var(--spacingVerticalL); color: var(--colorNeutralForeground3); }
 .fui-PopoverSurface { max-width: min(440px, calc(100vw - 32px)); max-height: 70vh; overflow: auto; }
 .fui-ToastTitle { overflow-wrap: anywhere; }

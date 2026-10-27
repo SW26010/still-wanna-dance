@@ -1,7 +1,8 @@
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
-import {Button,Checkbox,Field,Input,Link,MessageBar,MessageBarBody,Spinner,Text,TableHeader,TableRow,TableHeaderCell,TableBody,TableCell,TableCellLayout} from '@fluentui/react-components';
+import {Button,Checkbox,Field,Input,Link,MessageBar,MessageBarBody,Spinner,Text,Tooltip,TableHeader,TableRow,TableHeaderCell,TableBody,TableCell,TableCellLayout} from '@fluentui/react-components';
+import {ArrowSync20Regular} from '@fluentui/react-icons';
 import {useApp,useFocusRecovery,useResource} from './hooks';
-import {Hint,Notification,RecordDetails} from './ui';
+import {Notification,RecordDetails} from './ui';
 import {RecordTable,SortHeader,DescriptionHeader,TablePagination,type TableSort} from './data-table';
 import {date,mb,type RequestRecord,type ResponseSources} from './types';
 import {requestOutcome} from './requests';
@@ -21,16 +22,21 @@ function SourceShares({sources,details=false}:{sources:ResponseSources|null|unde
   if(!sources)return <span>未知</span>;
   const total=sources.downloadBytes+sources.cacheBytes+sources.localBytes;
   if(!total)return <span>{details?'尚无来源统计':'—'}</span>;
-  return <div className={details?'metric-grid':'table-source-shares'}>{([['下载',sources.downloadBytes],['缓存',sources.cacheBytes],['本地视频',sources.localBytes]] as const).map(([label,bytes])=><div key={label}><span>{label} {`${(bytes/total*100).toLocaleString(undefined,{maximumFractionDigits:1})}%`}</span>{details&&<div className="secondary">{deliveredBytes(bytes)}</div>}</div>)}</div>;
+  return <div className={details?'inline':'table-source-shares'}>{([['下载',sources.downloadBytes],['缓存',sources.cacheBytes],['本地视频',sources.localBytes]] as const).map(([label,bytes])=>{
+    const share=<span tabIndex={details?0:undefined}>{label} {`${(bytes/total*100).toLocaleString(undefined,{maximumFractionDigits:1})}%`}</span>;
+    return details?<Tooltip key={label} content={`${label}：${bytes.toLocaleString()} 字节（按块折算）`} relationship="description">{share}</Tooltip>:<div key={label}>{share}</div>;
+  })}</div>;
 }
 
 function ResponseSourceSummary({visible}:{visible:boolean}) {
   const app=useApp();
   const sources=useResource<ResponseSources>('response-sources',visible&&!app.stopped,app.revision,30000,true);
   return (<section aria-label="响应来源统计">
-      <div className="toolbar spread"><h2>响应来源（按块折算） <Hint label="响应来源统计说明">{sourceExplanation} 累计值不随历史筛选或明细清理改变。</Hint></h2><div className="inline"><span className="secondary">累计</span><Button size="small" disabled={(sources.loading&&!sources.data)||app.unavailable} onClick={sources.refresh}>刷新来源统计</Button></div></div>
+      <div className="inline history-summary">
+        <div className="inline history-summary-heading"><Tooltip content={sourceExplanation+' 累计值不随历史筛选或明细清理改变。'} relationship="description"><Text as="h2" tabIndex={0}>响应来源</Text></Tooltip><Tooltip content="刷新来源统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular aria-hidden="true"/>} disabled={(sources.loading&&!sources.data)||app.unavailable} onClick={sources.refresh}/></Tooltip></div>
+        {sources.data?<SourceShares sources={sources.data} details/>:<span>{sources.error?'读取失败':'正在读取…'}</span>}
+      </div>
       {sources.error&&<MessageBar intent="error"><MessageBarBody>来源统计读取失败，请重试。{sources.data&&'当前显示上次结果。'}</MessageBarBody></MessageBar>}
-      {sources.data?<SourceShares sources={sources.data} details/>:<span>{sources.error?'读取失败':'正在读取…'}</span>}
     </section>);
 }
 
@@ -47,15 +53,17 @@ export function RequestTimeline({visible}:{visible:boolean}) {
   for(const key of ['from','to'] as const){const value=milliseconds(applied[key]);if(value!==undefined)query.set(key,String(value));}
   return <div className="page-stack">
     <ResponseSourceSummary key={storage} visible={visible}/>
-    <section className="latency-summary" aria-label="首正文等待时间">
-      <div className="toolbar spread"><h2>首正文等待时间 <Hint label="首正文统计说明">收到请求至写出首个视频字节。P50 为中位数，P95 覆盖 95% 的样本；不等于游戏起播时间。</Hint></h2><div className="inline"><span className="secondary">最近 72 小时{latency.data?.partial?' · 数据不足 72 小时':''}</span><Button size="small" disabled={(latency.loading&&!latency.data)||app.unavailable} onClick={latency.refresh}>刷新首正文统计</Button></div></div>
+    <section aria-label="首正文等待时间">
+      <div className="inline history-summary">
+        <div className="inline history-summary-heading"><Tooltip content={<>最近 72 小时{latency.data?.partial?' · 数据不足 72 小时':''}<br/>收到请求至写出首个视频字节。P50 为中位数，P95 覆盖 95% 的样本；不等于游戏起播时间。</>} relationship="description"><Text as="h2" tabIndex={0}>首正文等待时间</Text></Tooltip><Tooltip content="刷新首正文统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular aria-hidden="true"/>} disabled={(latency.loading&&!latency.data)||app.unavailable} onClick={latency.refresh}/></Tooltip></div>
+        {([['等待下载',latency.data?.blocking,'首字节前等待过缺失的视频块。'],['缓存／本地',latency.data?.ready,'首字节前直接读取可用的视频块或完整视频。']] as const).map(([name,g,hint])=><Tooltip key={name} content={`${hint} 有效样本 ${g?.samples??'—'} 个`} relationship="description"><span className="inline" tabIndex={0}><span>{name}</span><span>{!g?latency.error?'读取失败':'正在读取…':g.samples?`P50 ${ms(g.p50MS)} · P95 ${ms(g.p95MS)}`:'暂无数据'}</span></span></Tooltip>)}
+      </div>
       <Notification message={visible&&latency.error?'首正文统计读取失败，请重试。':undefined} error/>
-      <div className="metric-grid">{([['等待下载',latency.data?.blocking,'首字节前等待过缺失的视频块。'],['缓存／本地',latency.data?.ready,'首字节前直接读取可用的视频块或完整视频。']] as const).map(([name,g,hint])=><div key={name} className="latency-metric"><div>{name}<Hint label={name+'说明'}>{hint}</Hint></div><Text size={500} weight="semibold">{!g?latency.error?'读取失败':'正在读取…':g.samples?`P50 ${ms(g.p50MS)} · P95 ${ms(g.p95MS)}`:'暂无数据'}</Text><span className="secondary">有效样本 {g?.samples??'—'} 个</span></div>)}</div>
     </section><section id="recent" className="history-section" tabIndex={-1}>
     <form className="form-grid history-filter" onSubmit={e=>{e.preventDefault();const from=milliseconds(range.from),to=milliseconds(range.to);if((from!==undefined&&!Number.isFinite(from))||(to!==undefined&&!Number.isFinite(to))||(from!==undefined&&to!==undefined&&to<=from)){setError('结束时间必须晚于开始时间。');return;}sortFocus.current=false;setError('');setApplied({...range});setCursors(['']);setQueryRevision(v=>v+1);}}>
       <div className="history-range">
-      <Field label="开始时间（含）"><Input type="datetime-local" value={range.from} onChange={(_,v)=>{setRange({...range,from:v.value});setError('');}}/></Field>
-      <Field label="结束时间（不含）" validationState={error?'error':'none'} validationMessage={error||undefined}><Input type="datetime-local" value={range.to} onChange={(_,v)=>{setRange({...range,to:v.value});setError('');}}/></Field>
+      <Field label="开始" orientation="horizontal"><Input type="datetime-local" value={range.from} onChange={(_,v)=>{setRange({...range,from:v.value});setError('');}}/></Field>
+      <Field label="结束" orientation="horizontal" validationState={error?'error':'none'} validationMessage={error||undefined}><Input type="datetime-local" value={range.to} onChange={(_,v)=>{setRange({...range,to:v.value});setError('');}}/></Field>
       </div><div className="inline"><Button type="submit" disabled={app.unavailable||paused}>查询历史</Button><Button disabled={app.unavailable||paused} onClick={()=>{sortFocus.current=false;const all={from:'',to:''};setRange(all);setApplied(all);setCursors(['']);setQueryRevision(v=>v+1);setError('');}}>全部保留期</Button></div>
     </form>
     <Checkbox label="暂停请求刷新" checked={paused} onChange={(_,v)=>setPaused(!!v.checked)}/><HistoryPage paused={paused} focusOnMount={queryRevision>0} focusSort={sortFocus.current} sort={sort} onSortChange={next=>{sortFocus.current=true;setSort(next);setCursors(['']);setQueryRevision(v=>v+1);}} key={storage+':'+query+':'+queryRevision} query={query.toString()} visible={visible} pageNumber={cursors.length} live={cursors.length===1&&!applied.to&&sort.sort==='time'&&sort.direction==='descending'} previous={()=>{sortFocus.current=false;setCursors(v=>v.slice(0,-1));setQueryRevision(v=>v+1);}} next={cursor=>{sortFocus.current=false;setCursors(v=>[...v,cursor]);setQueryRevision(v=>v+1);}}/>

@@ -975,3 +975,19 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 - `pnpm --dir webui build`、`pnpm --dir webui check` 和 `git diff --check` 通过，内嵌资源已重建。`./scripts/with-test-temp.ps1 pnpm --dir webui test acceleration.spec.ts runtime-status.spec.ts --workers=2` **24 项通过**，覆盖启停、接入保留与恢复策略、失败反馈、状态读取和 Tooltip 交互。
 
 本次验证仅涉及前端展示，未启动游戏、修改系统 hosts 或替换运行中程序，无需新增 VRC 验收项。同步将临时信息尽量不推动布局的原则写入内容约定，并清理首页说明中的旧规则。
+
+### 2026-10-28：历史页统计摘要
+
+响应来源与首正文等待时间分别改为普通字号的同行摘要，标题后使用与曲库相同的 Fluent small/subtle 刷新图标。移除历史页统计说明图标，说明直接附在标题和分组文字上；各来源的确切折算字节与各组有效样本数只在 Tooltip 中显示，支持悬停、键盘聚焦、无障碍描述和 Escape。窄屏自然换行，原统计口径、轮询、失败反馈及历史查询行为保持不变。现行规则同步更新至[内容约定](../webui-content.md)与[WebUI 设计](../webui-design.md)。
+
+- `pnpm --dir webui build`、`pnpm --dir webui check` 和 `git diff --check` 通过，Go 内嵌资源已重建。
+- 历史与表格相关 Edge 浏览器回归 **17 项通过**，覆盖筛选、分页、排序焦点、刷新、失败保留旧结果及窄屏表格。
+- 独立 Edge 内存夹具检查 1280／1536／390／320px，覆盖浅色、深色和强制颜色。两种桌面宽度下，两组摘要均为 24px 单行，标题与数值为普通 14px／400 字重；时间范围等次级文字为 12px。七个文字提示均通过悬停、聚焦、描述与 Escape 检查，两个刷新图标可用键盘触发各自读取，字节和样本数不常驻。四种宽度均无页面横向溢出，已检查桌面与深色窄屏截图。
+
+证据位于忽略目录 `artifacts/history-summary/`：`browser.log`、`browser/`、`probe.mjs`、`probe-verified.log`、`measurements.json` 与四张 `summary-*.png`。最初沙箱进程初始化失败，后续在沙箱外运行检查；首次探针被测试临时目录入口的单参数拆分影响，Node 将路径拆为 `a`，原失败保留在 `probe.log`，显式提供 Node 参数后通过。没有改动产品行为绕过验证失败。本次仅验证前端展示与交互，不新增 VRC 验收项；未启动游戏、修改 hosts、替换运行中程序、提交或推送。
+
+同日按反馈进一步精简：移除摘要中的“累计”和标题中的“按块折算”，折算口径保留在原文字提示中；“最近 72 小时”及数据不足状态移至“首正文等待时间”的提示，替代上轮常驻时间范围的展示规则。历史浏览器回归 **14 项通过**，已有用例同步改为悬停标题检查时间范围。前端 build/check 与差异检查通过，内嵌资源再次重建；本轮证据为 `artifacts/history-summary/refined-browser.log` 与 `refined-browser/`，上轮证据保留。
+
+同日继续调整时间筛选栏：开始时间、结束时间与“查询历史／全部保留期”按钮在桌面同排，窄屏自然换行，保留 Field 标签与原生错误提示。历史浏览器回归 **14 项通过**，已有日期布局用例检查 1280px 下四个控件同行，以及 320／1280px 日期错误不与操作按钮重叠；桌面与 320px 截图已检查。前端 build/check 与差异检查通过，内嵌资源已更新；证据为 `artifacts/history-summary/inline-filters.log` 与 `inline-filters/`。
+
+同日将日期字段进一步改为“开始／结束”短标签，使用 Fluent Field 原生横向布局放在各自日期框左侧；短标签列按内容占宽，替代之前的上方标签规则，查询的开始包含／结束不含语义不变。历史浏览器回归 **14 项通过**，既有用例检查 320／1280px 下标签与输入框同行、桌面四个控件同行、日期错误与按钮不重叠；已检查两种宽度截图。前端 build/check 与差异检查通过，内嵌资源已更新；证据为 `artifacts/history-summary/inline-labels.log` 与 `inline-labels/`。

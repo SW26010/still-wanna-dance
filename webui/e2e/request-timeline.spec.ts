@@ -77,7 +77,9 @@ test('history pages beyond 500 without growing the DOM; filtering leaves latency
   await page.clock.install();await page.goto('/#recent');
   await expect(page.getByRole('heading',{level:1,name:'历史'})).toBeVisible();
   await expect(page.getByText('P50 10 ms · P95 80 ms',{exact:true})).toBeVisible();
-  await expect(page.getByText(/数据不足 72 小时/)).toBeVisible();
+  await page.getByRole('heading',{name:'首正文等待时间',exact:true}).hover();
+  await expect(page.getByRole('tooltip')).toContainText('最近 72 小时 · 数据不足 72 小时');
+  await page.keyboard.press('Escape');
   await expect(page.getByRole('link',{name:'ID 42',exact:true})).toBeVisible();
   await expect(page.getByText('当前关联不是真实请求身份',{exact:false})).toHaveCount(0);
   await expect(page.getByRole('row').filter({hasText:'请求失败'}).getByText('0 B',{exact:true})).toBeVisible();
@@ -89,7 +91,7 @@ test('history pages beyond 500 without growing the DOM; filtering leaves latency
   await expect(page.getByLabel('历史查询结果',{exact:true})).toBeFocused();
   const reads=queries.length;await page.clock.fastForward(5100);expect(queries).toHaveLength(reads);
   await page.getByRole('button',{name:'上一页历史',exact:true}).click();await expect(page.getByText('第 11 页 · 50 条',{exact:true})).toBeVisible();
-  await page.getByLabel('开始时间（含）',{exact:true}).fill('2026-10-21T01:00');await page.getByLabel('结束时间（不含）',{exact:true}).fill('2026-10-22T01:00');
+  await page.getByLabel('开始',{exact:true}).fill('2026-10-21T01:00');await page.getByLabel('结束',{exact:true}).fill('2026-10-22T01:00');
   await page.getByRole('button',{name:'查询历史',exact:true}).click();await expect(page.getByText('第 1 页 · 50 条',{exact:true})).toBeVisible();
   expect(queries.at(-1)?.get('cursor')).toBe('');expect(Number(queries.at(-1)?.get('to'))-Number(queries.at(-1)?.get('from'))).toBe(86400000);expect(latencyReads).toBe(1);
   await page.getByRole('button',{name:'全部保留期',exact:true}).click();await expect.poll(()=>queries.at(-1)?.has('from')).toBe(false);
@@ -126,23 +128,33 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
 
 test('timeline retains filters across navigation and rejects inverted date ranges',async({page})=>{
   const api=await mockAPI(page);await page.goto('/#/timeline');
-  await page.getByLabel('开始时间（含）',{exact:true}).fill('2026-10-23T01:00');await page.getByLabel('结束时间（不含）',{exact:true}).fill('2026-10-22T01:00');
+  await page.getByLabel('开始',{exact:true}).fill('2026-10-23T01:00');await page.getByLabel('结束',{exact:true}).fill('2026-10-22T01:00');
   const count=api.calls.filter(c=>c.path==='history').length;
   await page.getByRole('button',{name:'查询历史',exact:true}).click();await expect(page.getByText('结束时间必须晚于开始时间。',{exact:true})).toBeVisible();expect(api.calls.filter(c=>c.path==='history')).toHaveLength(count);
-  await navigate(page,'设置');await navigate(page,'历史');await expect(page.getByLabel('开始时间（含）',{exact:true})).toHaveValue('2026-10-23T01:00');
+  await navigate(page,'设置');await navigate(page,'历史');await expect(page.getByLabel('开始',{exact:true})).toHaveValue('2026-10-23T01:00');
 });
 
 for(const width of [320,1280])test(`date errors stay with their field without overlapping controls at ${width}px`,async({page},info)=>{
   await mockAPI(page);await page.setViewportSize({width,height:900});await page.goto('/#/timeline');
-  const from=page.getByLabel('开始时间（含）',{exact:true}),to=page.getByLabel('结束时间（不含）',{exact:true});
+  const from=page.getByLabel('开始',{exact:true}),to=page.getByLabel('结束',{exact:true});
+  const query=page.getByRole('button',{name:'查询历史',exact:true});
+  for(const [name,input] of [['开始',from],['结束',to]] as const){
+    const labelBox=await page.getByText(name,{exact:true}).boundingBox(),inputBox=await input.boundingBox();
+    expect(labelBox!.x+labelBox!.width).toBeLessThanOrEqual(inputBox!.x);
+    expect(Math.abs(labelBox!.y+labelBox!.height/2-inputBox!.y-inputBox!.height/2)).toBeLessThanOrEqual(1);
+  }
+  if(width===1280){
+    const controls=await Promise.all([from,to,query,page.getByRole('button',{name:'全部保留期',exact:true})].map(control=>control.boundingBox()));
+    for(const box of controls)expect(Math.abs(box!.y-controls[0]!.y)).toBeLessThanOrEqual(1);
+  }
   await from.fill('2026-10-23T01:00');await to.fill('2026-10-22T01:00');
-  const query=page.getByRole('button',{name:'查询历史',exact:true});await query.click();
+  await query.click();
   await expect(to).toHaveAttribute('aria-invalid','true');
   await expect(to).toHaveAccessibleDescription('结束时间必须晚于开始时间。');
   const message=page.getByText('结束时间必须晚于开始时间。',{exact:true});
   const inputBox=await to.boundingBox(),messageBox=await message.boundingBox(),queryBox=await query.boundingBox();
   expect(messageBox!.y).toBeGreaterThanOrEqual(inputBox!.y+inputBox!.height);
-  expect(queryBox!.y).toBeGreaterThanOrEqual(messageBox!.y+messageBox!.height);
+  expect(queryBox!.x>=messageBox!.x+messageBox!.width||queryBox!.y>=messageBox!.y+messageBox!.height).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:info.outputPath('date-validation.png'),animations:'disabled'});
   await to.fill('2026-10-24T01:00');await expect(to).not.toHaveAttribute('aria-invalid','true');

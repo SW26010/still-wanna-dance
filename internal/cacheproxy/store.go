@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -150,15 +149,7 @@ func newStore(path string, db *sql.DB, unlock func() error) *Store {
 	return s
 }
 
-// Reuse the legacy lease for its fixed filename. An old process opening the
-// same database must conflict even though the new paths are independent.
-func databaseLeasePath(path string) string {
-	base := filepath.Base(path)
-	if base == storageDatabaseName || runtime.GOOS == "windows" && strings.EqualFold(base, storageDatabaseName) {
-		return filepath.Join(filepath.Dir(path), ".lock")
-	}
-	return path + ".lock"
-}
+func databaseLeasePath(path string) string { return path + ".lock" }
 
 func (s *Store) Close() error {
 	s.retentionRunMu.Lock()

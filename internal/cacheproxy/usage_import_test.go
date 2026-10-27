@@ -223,13 +223,13 @@ func TestHistoricalUsageIdleLockAndEmptyRollback(t *testing.T) {
 	if count != 0 {
 		t.Fatal("partial empty import")
 	}
-	unlock, err := lockDirectory(filepath.Join(root, ".lock"))
+	unlock, err := lockDirectory(databaseLeasePath(storagePath(root)))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer unlock()
 	if err = ImportSongUsage(ctx, storagePath(root), historyAt(1, time.Now().UnixMilli()), true); err == nil {
-		t.Fatal("directory lock bypassed")
+		t.Fatal("database lock bypassed")
 	}
 }
 

@@ -8,15 +8,7 @@ import (
 	"strings"
 )
 
-// Called under the directory lock before initialization or offline deletion.
-// Known legacy markers reject the root; their contents are never opened.
-func checkStorageLayout(root string) error {
-	if err := checkDatabaseDirectory(root); err != nil {
-		return err
-	}
-	return checkVideoLayout(filepath.Join(root, "videos"))
-}
-
+// Known legacy markers reject the directory; their contents are never opened.
 func checkDatabaseDirectory(root string) error {
 	if _, err := os.Lstat(filepath.Join(root, "stepstash.sqlite")); err == nil {
 		return fmt.Errorf("发现旧存储标记 stepstash.sqlite，请使用独立的新存储目录；不迁移或清理旧数据")

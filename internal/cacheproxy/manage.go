@@ -248,7 +248,7 @@ func (store *Store) DeleteCache(ctx context.Context, videoDir string, selected [
 	if err != nil {
 		return nil, err
 	}
-	unlock, err := lockVideoDirectory(paths.VideoDir, store)
+	unlock, err := lockVideoDirectory(paths.VideoDir)
 	if err != nil {
 		return nil, err
 	}

@@ -158,7 +158,7 @@ func TestStorePreservesV6WithoutVideoOrObservation(t *testing.T) {
 	}
 }
 
-func TestStoreLeaseExcludesOtherAndLegacyWriters(t *testing.T) {
+func TestStoreLeaseExcludesOtherWriters(t *testing.T) {
 	for _, name := range []string{"storage.sqlite", "personal.sqlite"} {
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), name)
@@ -171,11 +171,16 @@ func TestStoreLeaseExcludesOtherAndLegacyWriters(t *testing.T) {
 				other.Close()
 				t.Fatal("second writer acquired database")
 			}
-			if name == storageDatabaseName {
-				if release, err := lockDirectory(filepath.Join(filepath.Dir(path), ".lock")); err == nil {
-					release()
-					t.Fatal("legacy writer bypassed database ownership")
-				}
+			if release, err := lockDirectory(path + ".lock"); err == nil {
+				release()
+				t.Fatal("database lease was not held")
+			}
+			sibling, err := CreateStore(filepath.Join(filepath.Dir(path), "independent.sqlite"))
+			if err != nil {
+				t.Fatal("independent database was blocked", err)
+			}
+			if err := sibling.Close(); err != nil {
+				t.Fatal(err)
 			}
 			if err := s.Close(); err != nil {
 				t.Fatal(err)

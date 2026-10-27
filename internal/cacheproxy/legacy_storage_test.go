@@ -112,7 +112,7 @@ func TestLegacyStorageMarkerDirectoryAlsoRejected(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(root, "stepstash.sqlite"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := checkStorageLayout(root); err == nil || !strings.Contains(err.Error(), "stepstash.sqlite") {
+	if err := checkDatabaseDirectory(root); err == nil || !strings.Contains(err.Error(), "stepstash.sqlite") {
 		t.Fatal(err)
 	}
 }

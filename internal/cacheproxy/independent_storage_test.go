@@ -100,27 +100,21 @@ func TestIndependentVideoOwnershipAndMissingRoots(t *testing.T) {
 	}
 }
 
-func TestIndependentVideoLeaseConflictsWithLegacyWriter(t *testing.T) {
+func TestIndependentVideoLeaseDoesNotLockSiblingDatabase(t *testing.T) {
 	cfg := independentConfig(t)
-	legacyRoot := t.TempDir()
-	cfg.VideoDir = filepath.Join(legacyRoot, "videos")
+	root := t.TempDir()
+	cfg.VideoDir = filepath.Join(root, "videos")
 	if err := os.Mkdir(cfg.VideoDir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	unlock, err := lockDirectory(filepath.Join(legacyRoot, ".lock"))
+	other, err := CreateStore(filepath.Join(root, "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if engine, err := New(cfg); err == nil {
-		engine.Close()
-		t.Fatal("old process lease was bypassed")
-	}
-	if err := unlock(); err != nil {
-		t.Fatal(err)
-	}
+	t.Cleanup(func() { other.Close() })
 	engine, err := New(cfg)
 	if err != nil {
-		t.Fatal("failed acquisition leaked video lease", err)
+		t.Fatal("independent database blocked the video directory", err)
 	}
 	if err := engine.Close(); err != nil {
 		t.Fatal(err)

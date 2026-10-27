@@ -166,7 +166,7 @@ func newServer(cfg Config, initialRead string) (*Server, error) {
 	}
 	cfg.Origins = origins
 	store := cfg.Store
-	unlock, err := lockVideoDirectory(cfg.VideoDir, store)
+	unlock, err := lockVideoDirectory(cfg.VideoDir)
 	if err != nil {
 		return nil, err
 	}

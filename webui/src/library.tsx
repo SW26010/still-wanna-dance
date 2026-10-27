@@ -102,8 +102,8 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
       {(song||resource)&&<div className="toolbar"><span>查看{song?'歌曲 ID '+song:'资源 '+resource}</span><Link href="#/library">返回完整曲库</Link></div>}
       <div className="toolbar spread"><TabList aria-label="曲库视图" selectedValue={view} onTabSelect={(_,v)=>{setView(String(v.value));setOffset(0);setFilter('');setQuery(q=>({...q,sort:'score',direction:'descending',filter:''}));}}><Tab id="library-tab-songs" aria-controls="library-results" value="songs" disabled={!!resource}>按歌曲</Tab><Tab id="library-tab-resources" aria-controls="library-results" value="resources" disabled={!!song}>按资源</Tab></TabList>
       <form className="inline library-search" onSubmit={e=>{e.preventDefault();setOffset(0);setQuery(q=>({...q,q:search,filter}));page.refresh();}}>
-        <Field label="搜索曲库" className="search-field"><Input type="search" maxLength={300} placeholder="名称、ID、歌手、舞者或资源" value={search} onChange={(_,v)=>setSearch(v.value)}/></Field>
-        <Field label="筛选"><Select value={filter} onChange={(_,v)=>setFilter(v.value)}><option value="">全部</option><option value="saved">已保存视频</option><option value="missing">缺失视频</option>{view==='songs'&&Object.entries(policyLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</Select></Field>
+        <Field label="搜索曲库" orientation="horizontal" className="search-field"><Input type="search" maxLength={300} placeholder="名称、ID、歌手、舞者或资源" value={search} onChange={(_,v)=>setSearch(v.value)}/></Field>
+        <Field label="筛选" orientation="horizontal"><Select value={filter} onChange={(_,v)=>setFilter(v.value)}><option value="">全部</option><option value="saved">已保存视频</option><option value="missing">缺失视频</option>{view==='songs'&&Object.entries(policyLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</Select></Field>
         <Button appearance="primary" type="submit" disabled={disabled}>查找</Button>
       </form>
       </div>

@@ -181,8 +181,10 @@ form.actions { align-items: flex-end; }
 .toolbar, .inline { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacingHorizontalS); }
 .toolbar { padding-block: var(--spacingVerticalS); }
 .toolbar.spread { justify-content: space-between; }
-.library-search { align-items: flex-end; margin-inline-start: auto; max-width: 100%; justify-content: flex-end; }
-.search-field { flex: 1; min-width: 200px; }
+.library-search { flex: 1 1 40rem; align-items: flex-end; margin-inline-start: auto; max-width: 100%; justify-content: flex-end; }
+.library-search .fui-Field { grid-template-columns: max-content minmax(0,1fr); }
+.library-search .fui-Input { min-width: 0; }
+.search-field { flex: 1; min-width: min(100%,22rem); }
 .library-summary { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--spacingHorizontalL); }
 .library-actions { margin-inline-start: auto; justify-content: flex-end; }
 .summary-values { gap: var(--spacingHorizontalXXXL); }

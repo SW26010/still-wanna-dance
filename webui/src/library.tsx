@@ -35,7 +35,7 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
   const [pending,setPending]=useState(false);
   const history=useVRCX();
   const [preview,setPreview]=useState<PreviewSelection>();
-  const previewFocusTarget=useRestoreFocusTarget();
+  const dialogFocusTarget=useRestoreFocusTarget();
   const page=useResource<LibraryPage>('library?'+new URLSearchParams({...query,view,song,resource,offset:String(offset)}),visible&&!app.stopped,app.revision,0,true);
   const downloads=useResource<{tasks:Download[]}>('downloads',visible&&!app.stopped,app.revision,s.batch.running?5000:downloadRefreshInterval,true);
   const feedback=usePageFeedback<{text:string;failed:boolean}>(visible?page.data?.storageID:undefined);
@@ -84,8 +84,8 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
   };
   const fileActions=(r:LibraryResource|undefined)=>r?.local&&<>
     <Tooltip content="定位文件" relationship="label"><Button size="small" appearance="subtle" icon={<FolderOpenRegular/>} aria-label="定位文件" disabled={disabled||!r.local.known} onClick={()=>void actions.operate('open',[r.local!])}/></Tooltip>
-    <Tooltip content="删除本地视频" relationship="label"><Button size="small" appearance="subtle" icon={<DeleteRegular/>} aria-label="删除本地视频" disabled={disabled||!r.local.known||r.local.protected} onClick={()=>void actions.operate('delete',[r.local!])}/></Tooltip></>;
-  const previewAction=(target:PreviewSelection,unavailableReason='')=><Tooltip content={unavailableReason||'预览视频，不计入历史和需求分数。'} relationship="description"><Button {...previewFocusTarget} size="small" icon={<PlayRegular/>} disabled={disabled||!!page.data?.videoError||!!unavailableReason} disabledFocusable={!!unavailableReason} onClick={()=>setPreview(target)}>预览</Button></Tooltip>;
+    <Tooltip content="删除本地视频" relationship="label"><Button {...dialogFocusTarget} size="small" appearance="subtle" icon={<DeleteRegular/>} aria-label="删除本地视频" disabled={disabled||!r.local.known||r.local.protected} onClick={()=>void actions.operate('delete',[r.local!])}/></Tooltip></>;
+  const previewAction=(target:PreviewSelection,unavailableReason='')=><Tooltip content={unavailableReason||'预览视频，不计入历史和需求分数。'} relationship="description"><Button {...dialogFocusTarget} size="small" icon={<PlayRegular/>} disabled={disabled||!!page.data?.videoError||!!unavailableReason} disabledFocusable={!!unavailableReason} onClick={()=>setPreview(target)}>预览</Button></Tooltip>;
   return <div className="page-stack">
     {visible&&!app.stopped&&preview&&page.data&&<LibraryPreview key={page.data.storageID} storageID={page.data.storageID} target={preview} onClose={()=>setPreview(undefined)}/>}
     <Notification message={feedback.value?.text} error={feedback.value?.failed}/><Notification message={!actions.result?.error&&!actions.result?.entries?.length?actions.result?.text:undefined}/>

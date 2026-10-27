@@ -1006,3 +1006,21 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 过程失败保留：首次新增 Go 条款用例把入口预期写成 409，真实统一门禁返回 428，已按现有门禁修正。浏览器新增断言先后同时匹配详情按钮／Popover，以及 Toast／读屏播报节点，产生 strict-mode 失败；已用明确的 group 和 listitem 角色修正，未改产品组件规避断言。失败截图和上下文保留在 `artifacts/history-events/browser/`、`browser-final/`，专项通过输出目录为 `browser-verified/`、`connection-verified/`。额外验证 HTTP 503 时原生 EventSource 会终止重连，因此该状态提示重新查询；普通断线仍提示并自动重连。
 
 本轮只涉及列表展示和数据通知，无需新增 VRC 验收项。未启动游戏、修改 hosts、替换运行中程序、提交或推送。
+
+## 2026-10-28 曲库与历史交互的完整回归
+
+从 `16b7c084` 补跑本机标准全量自动化，覆盖移除曲库多选删除、搜索框固定宽度靠右、历史日期框固定宽度靠左及刷新图标旋转。检查中补齐两个仍依赖旧复选框的浏览器用例，并修复键盘取消行内删除确认后焦点未回到触发按钮的问题：删除与预览共用 Fluent `useRestoreFocusTarget`，不改变文件操作协议或保护规则。
+
+最终结果：
+
+- Edge 完整套件 `pnpm --dir webui test --workers=3`：**303/303 通过**。焦点修复后先通过 52 项相关回归，再重跑完整套件。
+- `go test -tags=no_easytier -count=1 -json ./cmd/... ./internal/... ./experiments/... ./data/...`：22 个测试包通过，4 个包没有测试；1113 个顶层用例通过，34 个专项按环境条件跳过，无失败。含子用例共 2301 通过、37 跳过。目录覆盖 `git ls-files '*.go'` 的全部四个顶层目录。
+- 相同 Go 目录范围的 `go vet` 和 `CGO_ENABLED=0 go build` 通过；最终焦点修复的内嵌资源再次构建通过。
+- `node --test scripts/*.test.mjs`：46/46 通过；证据归档 Python unittest：2/2 通过。
+- `pnpm --dir webui check`、仓库资源检查和 `git diff --check` 通过。三版漏登记的历史 `app.js` 与本次焦点修复产物均逐一匹配对应构建清单的 SHA256，追加精确例外并保留原登记。
+
+过程失败保留：首轮完整浏览器为 301 通过、2 个旧复选框用例失败；更新用例后的完整重跑为 302 通过、1 个删除确认焦点恢复断言失败，修复后最终 303 全部通过。首次直接运行 Go `./...` 同时扫描了忽略目录 `artifacts/`、`test-runs/` 中的历史源码、探针及构建临时目录，导致包解析、构建和旧探针失败；随后按全部受维护代码目录重跑，未修改或删除历史材料。系统默认 `python` 指向不可用的 Windows 应用别名，退出码 9009；改用应用提供的 Python 后通过。
+
+日志和失败截图保存在忽略目录 `artifacts/full-tests-20261028-16b7c084/`：`webui.log`、`webui-verified.log` 为前两次结果，`webui-final.log` 与 `webui-final/` 为最终完整结果；`go-test.jsonl`、`go-vet.log`、`go-build.log` 保留首次全目录扫描失败，带 `verified`／`final` 的日志及 `go-summary.json` 记录正式结果。其余检查分别见 `tools.log`、`evidence-archive-verified.log`、`webui-check-final.log` 和 `repository-artifacts-verified.log`。
+
+本轮是 Windows 本机标准自动化结果，不包含 Linux/race、VRC 游戏及需要显式启用的真实桌面、公网、跨卷等专项；环境跳过不表述为通过。不新增 VRC 台账项，也未替换正在运行的 EXE。

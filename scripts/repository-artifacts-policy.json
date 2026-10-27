@@ -703,6 +703,13 @@
       "bytes": 1173190,
       "sha256": "1bf908cf85e90667d8d935c2cf849b6eb9c895a4dd7e4919fabf578ad93e11cd",
       "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Shared history and library refresh animation at 92d4af0e; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1173195,
+      "sha256": "93020d09474d622a0183687e793fe5cd5aa851bdf9a72c8c643dc8ad2cba9ee7",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Restore keyboard focus to library row deletion controls after confirmation dismissal."
     }
   ]
 }

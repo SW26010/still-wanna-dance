@@ -1,11 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { mockAPI } from './api';
 
-test('resource selection and file actions are reachable by standard keyboard navigation',async({page})=>{
+test('resource file actions are reachable by standard keyboard navigation',async({page})=>{
   const api=await mockAPI(page);await page.goto('/#/library?view=resources');
   const rows=page.getByRole('table',{name:'曲库资源'}).locator('tbody tr');await expect(rows).toHaveCount(2);
-  const checkbox=rows.first().getByRole('checkbox');await checkbox.focus();await page.keyboard.press('Space');await expect(checkbox).toBeChecked();
-  await expect(rows.nth(1).getByRole('checkbox')).toBeDisabled();
+  const remove=rows.first().getByRole('button',{name:'删除本地视频',exact:true});
+  await remove.focus();await page.keyboard.press('Space');await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('dialog').getByRole('button',{name:'取消',exact:true}).focus();await page.keyboard.press('Enter');await expect(remove).toBeFocused();
+  await expect(rows.nth(1).getByRole('button',{name:'删除本地视频',exact:true})).toBeDisabled();
   const open=rows.first().getByRole('button',{name:'定位文件'});await open.focus();await page.keyboard.press('Enter');
   await expect.poll(()=>api.calls.find(c=>c.path==='cache/open')?.body).toEqual({storageID:'fixture',entries:[{key:'key1',stamp:'stamp1'}]});
   await rows.first().getByRole('button',{name:'资源 key1 的详情'}).focus();await page.keyboard.press('Enter');await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('测试歌曲 1');await page.keyboard.press('Escape');

@@ -1,14 +1,14 @@
 import {test,expect,type Page,type Locator} from '@playwright/test';
 import {mockAPI} from './api';
 
-const labels=['后台程序','游戏连接','视频服务','房间队列'];
+const labels=['后台程序','游戏连接','视频服务'];
 const badge=(page:Page,label:string)=>page.getByRole('status',{name:label,exact:true});
 const background=(element:Locator)=>element.evaluate(el=>getComputedStyle(el).backgroundColor);
 const healthy=async(page:Page)=>{
-  for(const [label,state] of [['后台程序','已连接'],['游戏连接','已接入'],['视频服务','运行中'],['房间队列','监控中']])await expect(badge(page,label)).toHaveText(label+'：'+state);
+  for(const [label,state] of [['后台程序','已连接'],['游戏连接','已接入'],['视频服务','运行中']])await expect(badge(page,label)).toHaveText(label+'：'+state);
 };
 
-for(const [width,theme,forced] of [[1280,'light',false],[390,'dark',false],[320,'light',true]] as const)test(`four runtime states share Fluent status styling at ${width}px ${theme}`,async({page},info)=>{
+for(const [width,theme,forced] of [[1280,'light',false],[390,'dark',false],[320,'light',true]] as const)test(`runtime states share Fluent status styling at ${width}px ${theme}`,async({page},info)=>{
   const api=await mockAPI(page);api.state.running=true;api.state.hosts.ready=true;api.state.queue={running:true,desired:true};
   await page.setViewportSize({width,height:950});await page.emulateMedia({colorScheme:theme,forcedColors:forced?'active':'none'});await page.goto('/#/home');await healthy(page);
   const styles=[];
@@ -35,23 +35,18 @@ test('failed polling invalidates running badges and recovery restores them',asyn
   for(const label of labels.slice(1))await expect(badge(page,label)).toHaveText(label+'：待确认');
 });
 
-test('conflicts, inactive services and pending queues have distinct semantic colors',async({page},info)=>{
+test('conflicts, inactive services and startup have distinct semantic colors',async({page},info)=>{
   const api=await mockAPI(page);api.state.hosts.conflict=true;api.state.queue={desired:true,running:false};
   await page.clock.install();await page.goto('/#/home');
   await expect(badge(page,'后台程序')).toHaveText('后台程序：已连接');await expect(badge(page,'游戏连接')).toHaveText('游戏连接：接入冲突');
-  await expect(badge(page,'视频服务')).toHaveText('视频服务：未运行');await expect(badge(page,'房间队列')).toHaveText('房间队列：未就绪');
-  const colors=await Promise.all(labels.map(label=>background(badge(page,label))));expect(new Set(colors).size).toBe(4);
+  await expect(badge(page,'视频服务')).toHaveText('视频服务：未运行');
+  const colors=await Promise.all(labels.map(label=>background(badge(page,label))));expect(new Set(colors).size).toBe(3);
   await page.screenshot({path:info.outputPath('mixed-states.png'),fullPage:true,animations:'disabled'});
   api.state.activation={phase:'starting'};await page.clock.fastForward(5100);await expect(badge(page,'视频服务')).toHaveText('视频服务：启动中');
   expect(colors).not.toContain(await background(badge(page,'视频服务')));
-  api.state.activation={};api.state.running=true;api.state.hosts={ready:true,message:'已接入'};api.state.queue={desired:true,running:true,logError:'日志读取失败'};
-  await page.clock.fastForward(5100);await expect(badge(page,'房间队列')).toHaveText('房间队列：需检查');
-  await page.getByRole('button',{name:'房间队列状态',exact:true}).click();await expect(page.getByText('日志读取失败',{exact:true})).toBeVisible();await page.keyboard.press('Escape');
-  api.state.running=false;api.state.cdnError='视频服务启动失败';api.state.queue={desired:true,running:false};api.state.actionErrors={queue:'日志目录读取失败'};
-  await page.clock.fastForward(5100);await expect(badge(page,'视频服务')).toHaveText('视频服务：异常');await expect(badge(page,'房间队列')).toHaveText('房间队列：启动失败');
-  expect(await background(badge(page,'视频服务'))).toBe(colors[1]);expect(await background(badge(page,'房间队列'))).toBe(colors[1]);
-  api.state.queue={desired:false,running:false,error:'之前准备失败'};await page.clock.fastForward(5100);await expect(badge(page,'房间队列')).toHaveText('房间队列：已关闭');
-  expect(await background(badge(page,'房间队列'))).toBe(colors[2]);
+  api.state.activation={};api.state.running=false;api.state.cdnError='视频服务启动失败';
+  await page.clock.fastForward(5100);await expect(badge(page,'视频服务')).toHaveText('视频服务：异常');
+  expect(await background(badge(page,'视频服务'))).toBe(colors[1]);
 });
 
 test('a rejected action does not misreport the backend connection',async({page})=>{

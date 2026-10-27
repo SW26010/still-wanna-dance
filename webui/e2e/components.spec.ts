@@ -29,19 +29,6 @@ test('native node file picker rejects oversize files and can reread the same fil
   expect(api.calls.some(c=>c.path==='proxy/import'||c.path==='settings')).toBe(false);
 });
 
-test('download list releases focus to its panel when polling removes the active row', async ({page}) => {
-  await mockAPI(page);
-  let present = true;
-  await page.route('**/api/downloads', r=>r.fulfill({json:{bytesPerSecond:1024,tasks:present?[{id:'task',resource:'fixture-resource',songs:[{id:'1',title:'下载中的歌曲'}],stage:'download',bytes:1024,size:2048,bytesPerSecond:1024,idleMS:0}]:[]}}));
-  await page.clock.install(); await page.goto('/#/home');
-  const row = page.getByRole('table', {name:'下载任务'}).locator('tbody tr');
-  const details = row.getByRole('button', {name:'下载详情'});
-  await details.focus(); await page.keyboard.press('Enter');
-  await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('fixture-resource');
-  present = false; await page.clock.fastForward(5100);
-  await expect(row).toHaveCount(0); await expect(page.locator('#downloads')).toBeFocused();
-});
-
 test('diagnostic gauge preserves thresholds and stays readable in narrow theme variants', async ({page}, info) => {
   const api = await mockAPI(page);
   await page.setViewportSize({width:320,height:800});

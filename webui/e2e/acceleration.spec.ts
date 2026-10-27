@@ -27,7 +27,7 @@ test('acceleration status distinguishes connection from service without enabling
   await page.getByRole('button',{name:'开始加速',exact:true}).click();
   await expect(page.getByRole('button',{name:'重新检测视频请求',exact:true})).toBeEnabled();
   await expect(page.locator('#activation').getByRole('button').filter({hasText:/开始加速|重新检测视频请求|正在处理/})).toHaveCount(1);
-  await expect(page.getByRole('status',{name:'房间队列',exact:true})).toHaveText('房间队列：已关闭');
+  expect(api.state.queue.desired).toBe(false);
   expect(api.calls.filter(c=>/^(activation\/|hosts\/|queue\/|start$|stop$|exit$)/.test(c.path)).map(c=>c.path)).toEqual(['activation/enable']);
 });
 

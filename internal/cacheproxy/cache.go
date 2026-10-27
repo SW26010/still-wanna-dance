@@ -317,7 +317,7 @@ func (s *Server) startFlightLocked(v video, background bool, log *slog.Logger) (
 	f.cancel, f.background = cancel, background
 	f.log = log.With("flight_id", f.id, "host", v.host)
 	f.progress = startProgress(f.log, v.size, 15*time.Second)
-	f.progress.observeBytes = s.cfg.ObserveDownloadBytes
+	f.progress.observeBytes = s.observeDownloadBytes
 	f.monitorSongs = make(map[string]bool)
 	if v.songID != "" {
 		f.monitorSongs[v.songID] = true

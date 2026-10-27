@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"still-wanna-dance/internal/blocksched"
@@ -84,19 +85,23 @@ type BlockSnapshot struct {
 }
 
 type blockObserver struct {
-	s         *Server
-	ctx       context.Context
-	cancel    context.CancelFunc
-	wake      chan struct{}
-	done      chan struct{}
-	refs      int // Server.mu
-	mu        sync.Mutex
-	snapshot  *BlockSnapshot
-	changed   chan struct{}
-	closed    bool
-	sourceIDs map[blockSource]uint64 // worker only; pruned each capture
-	videos    map[string]blockVideo  // worker-only display metadata, pruned each capture
-	sequence  uint64
+	s            *Server
+	ctx          context.Context
+	cancel       context.CancelFunc
+	wake         chan struct{}
+	done         chan struct{}
+	refs         int // Server.mu
+	mu           sync.Mutex
+	snapshot     *BlockSnapshot
+	changed      chan struct{}
+	closed       bool
+	sourceIDs    map[blockSource]uint64 // worker only; pruned each capture
+	videos       map[string]blockVideo  // worker-only display metadata, pruned each capture
+	sequence     uint64
+	speedBytes   atomic.Int64
+	speedWake    chan struct{}
+	speedChanged chan struct{} // mu; independent of block snapshots
+	speed        float64       // mu
 }
 
 type blockVideo struct {
@@ -129,7 +134,7 @@ func (s *Server) ObserveBlocks() (*BlockSubscription, error) {
 	o := s.blockObserver.Load()
 	if o == nil {
 		ctx, cancel := context.WithCancel(s.ctx)
-		o = &blockObserver{s: s, ctx: ctx, cancel: cancel, wake: make(chan struct{}, 1), done: make(chan struct{}), changed: make(chan struct{}), sourceIDs: make(map[blockSource]uint64)}
+		o = &blockObserver{s: s, ctx: ctx, cancel: cancel, wake: make(chan struct{}, 1), done: make(chan struct{}), changed: make(chan struct{}), sourceIDs: make(map[blockSource]uint64), speedWake: make(chan struct{}, 1), speedChanged: make(chan struct{})}
 		s.blockObserver.Store(o)
 		go o.run()
 	}
@@ -163,7 +168,11 @@ func (s *BlockSubscription) Close() {
 
 func (o *blockObserver) run() {
 	unwatch := o.s.scheduler.WatchChanges(o.wake)
+	speedDone := make(chan struct{})
+	go func() { defer close(speedDone); o.runSpeed() }()
 	defer func() {
+		o.cancel()
+		<-speedDone
 		unwatch()
 		o.mu.Lock()
 		o.closed = true
@@ -171,6 +180,7 @@ func (o *blockObserver) run() {
 		o.sourceIDs = nil
 		o.videos = nil
 		close(o.changed)
+		close(o.speedChanged)
 		o.mu.Unlock()
 		close(o.done)
 	}()
@@ -213,6 +223,79 @@ func (o *blockObserver) run() {
 		select {
 		case <-o.wake:
 		default:
+		}
+	}
+}
+
+// Count network reads once at their shared flight, including short-lived tasks
+// and retries. Local reuse never enters progressReader. No observer means no
+// display counters, timers or notifications; the optional experiment hook stays
+// independent of UI subscriptions.
+func (s *Server) observeDownloadBytes(n int64) {
+	if s.cfg.ObserveDownloadBytes != nil {
+		s.cfg.ObserveDownloadBytes(n)
+	}
+	if o := s.blockObserver.Load(); o != nil {
+		o.speedBytes.Add(n)
+		select {
+		case o.speedWake <- struct{}{}:
+		default:
+		}
+	}
+}
+
+func (s *BlockSubscription) DownloadSpeed() (float64, <-chan struct{}) {
+	o := s.observer
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.speed, o.speedChanged
+}
+
+// Byte arrivals arm a one-second sample. One empty sample resets the speed to
+// zero and disarms the timer. Speed samples never capture or wake block state.
+func (o *blockObserver) runSpeed() {
+	timer := time.NewTimer(time.Hour)
+	timer.Stop()
+	defer timer.Stop()
+	var due <-chan time.Time
+	var last time.Time
+	for {
+		// While sampling, leave the wake queued so byte reads coalesce without
+		// scheduling the worker again before the next sample.
+		wake := o.speedWake
+		if due != nil {
+			wake = nil
+		}
+		select {
+		case <-o.ctx.Done():
+			return
+		case <-wake:
+			if due == nil {
+				last = time.Now()
+				timer.Reset(time.Second)
+				due = timer.C
+			}
+		case <-due:
+			select {
+			case <-o.speedWake:
+			default:
+			}
+			now := time.Now()
+			bytes := o.speedBytes.Swap(0)
+			rate := float64(bytes) / now.Sub(last).Seconds()
+			o.mu.Lock()
+			if rate != o.speed {
+				o.speed = rate
+				close(o.speedChanged)
+				o.speedChanged = make(chan struct{})
+			}
+			o.mu.Unlock()
+			last = now
+			if bytes > 0 {
+				timer.Reset(time.Second)
+			} else {
+				due = nil
+			}
 		}
 	}
 }

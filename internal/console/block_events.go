@@ -107,13 +107,14 @@ func (c *Console) serveBlockEvents(w http.ResponseWriter, r *http.Request) {
 	var previous *cacheproxy.BlockSnapshot
 	var detail *cacheproxy.BlockDetail
 	var revision uint64
+	var previousSpeed float64
 	for {
 		current, changed, closed := sub.Snapshot()
 		if closed {
 			_ = writeServerEvent(w, controller, "closed", revision, struct{}{})
 			return
 		}
-		if current != nil {
+		if current != nil && current != previous {
 			if detailID != "" {
 				var next *cacheproxy.BlockDetail
 				if v, ok := current.Details[detailID]; ok {
@@ -137,10 +138,27 @@ func (c *Console) serveBlockEvents(w http.ResponseWriter, r *http.Request) {
 			}
 			previous = current
 		}
+		var speedChanged <-chan struct{}
+		if detailID == "" {
+			speed, changed := sub.DownloadSpeed()
+			speedChanged = changed
+			// Send the initial block reset before speed: clients clear stale
+			// speed when reconnecting, even if a shared observer is already live.
+			if previous != nil && speed != previousSpeed {
+				revision++
+				if err := writeServerEvent(w, controller, "download-speed", revision, struct {
+					BytesPerSecond float64 `json:"bytesPerSecond"`
+				}{speed}); err != nil {
+					return
+				}
+				previousSpeed = speed
+			}
+		}
 		select {
 		case <-r.Context().Done():
 			return
 		case <-changed:
+		case <-speedChanged:
 		}
 	}
 }

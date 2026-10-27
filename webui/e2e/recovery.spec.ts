@@ -39,21 +39,6 @@ test('network routes and section links open diagnostics while proxy links open s
   expect(api.calls.some(c=>c.path==='settings'||c.path.includes('/start')||c.path.includes('/check'))).toBe(false);
 });
 
-test('acceleration owns connection actions and queue status links to settings',async({page})=>{
- const api=await mockAPI(page);
- api.state.queue.songs=[{songId:-1},{songId:1},{songId:-1},{songId:2},{songId:3},{songId:4}];
- await page.goto('/#network-access');
- await page.route('**/api/activation/enable',r=>r.fulfill({status:409,json:{error:'管理员取消，hosts 未改变'}}));
- await page.getByRole('button',{name:'修复并开启加速',exact:true}).click();
- await expect(page.getByRole('listitem',{name:'管理员取消，hosts 未改变',exact:true})).toBeVisible();
- await navigate(page,'加速');
- await expect(page.locator('#queue tbody tr')).toHaveCount(6);
- await expect(page.getByRole('button',{name:/开启队列预加载|关闭队列预加载/})).toHaveCount(0);
- await page.locator('#queue').getByRole('link',{name:'设置',exact:true}).click();
- await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeFocused();
- expect(api.calls.some(c=>['start','stop','queue/start','queue/stop','hosts/enable'].includes(c.path))).toBe(false);
-});
-
 test('Mihomo preview stays a draft and clearing it releases only that preview',async({page})=>{
   const api=await mockAPI(page);await page.goto('/#network-proxy');
   await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');
@@ -82,17 +67,6 @@ test('history clears failed reads and recovers focus after a row disappears',asy
   await expect(page.getByText('请求处理完成',{exact:true})).toHaveCount(2);
   failed=true;await page.clock.fastForward(5100);
   await expect(page.getByRole('listitem',{name:'历史读取失败，请重试。',exact:true})).toBeVisible();await expect(group).toHaveCount(0);await expect(page.getByLabel('历史查询结果',{exact:true})).toBeFocused();
-});
-
-test('late monitor response cannot overwrite paused display',async({page})=>{
-  await mockAPI(page);let count=0,release:()=>void=()=>{};
-  const held=new Promise<void>(done=>{release=done;});
-  await page.route('**/api/downloads',async r=>{count++;if(count===2)await held;await r.fulfill({json:{tasks:[],bytesPerSecond:count===1?1000000:9000000}}).catch(()=>{});});
-  await page.clock.install();await page.goto('/#/home');await expect(page.getByText('1.000 MB/s')).toBeVisible();
-  await page.clock.fastForward(5100);await expect.poll(()=>count).toBe(2);
-  await page.getByRole('checkbox',{name:'暂停下载展示'}).check();release();
-  await page.clock.fastForward(5100);await expect(page.getByText('1.000 MB/s')).toBeVisible();expect(count).toBe(2);
-  await page.getByRole('checkbox',{name:'暂停下载展示'}).uncheck();await expect(page.getByText('9.000 MB/s')).toBeVisible();
 });
 
 test('rejected cancellation stays running and stale SSE events cannot replace newer state',async({page})=>{

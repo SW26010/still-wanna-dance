@@ -1,8 +1,6 @@
 import { Button, Link, Badge, Card, Title2, Table, TableHeader, TableHeaderCell, TableBody, TableRow, TableCell, Tooltip } from '@fluentui/react-components';
 import { useApp, useResource } from './hooks';
 import { Feedback, Panel, Progress, Hint, RecordDetails, StatusBadge } from './ui';
-import { useState } from 'react';
-import { CurrentDownloads } from './monitor';
 import { BlockTimeline } from './block-timeline';
 import { requestOutcome } from './requests';
 import { active, accelerationLabel, date, dated, type RequestRecord } from './types';
@@ -10,7 +8,6 @@ import { active, accelerationLabel, date, dated, type RequestRecord } from './ty
 const activationPermissionHint='配置游戏连接或准备退出恢复权限时，可能请求 Windows 管理员授权（UAC）。';
 
 export function Home({visible}: {visible:boolean}) {
-  const [paused,setPaused]=useState(false);
   const app = useApp(), s = app.status.data!, a = s.activation || {};
   const requests=useResource<{requests:RequestRecord[]}>('requests?limit=1',visible&&!app.stopped,app.revision);
   const recent=requests.data?.requests[0], failed=!!recent&&(recent.status>=400||['failed','incomplete','aborted'].includes(recent.outcome));
@@ -31,8 +28,7 @@ export function Home({visible}: {visible:boolean}) {
         {needsExitPreparation&&<span>游戏接入尚未准备退出恢复，请点击开始加速。</span>}
       </div>
     </Card>
-    <div className="home-columns"><CurrentDownloads visible={visible} paused={paused}/><QueuePanel/></div>
-    <BlockTimeline visible={visible} paused={paused} onPausedChange={setPaused}/>
+    <BlockTimeline visible={visible}/>
   </div>;
 }
 export function AccessSettings() {
@@ -42,17 +38,6 @@ export function AccessSettings() {
     <Feedback error>{s.cdnError||s.actionErrors?.activation}</Feedback>
   </Panel>;
 
-}
-export function QueuePanel() {
-  const app=useApp(),s=app.status.data!,q=s.queue;
-  const uncertain=!!app.status.error||app.stopped,failed=!!q.desired&&!q.running&&!!s.actionErrors?.queue,attention=!!q.running&&!!(q.logError||q.error);
-  const phase=uncertain?'待确认':failed?'启动失败':attention?'需检查':q.running?'监控中':q.desired?'未就绪':'已关闭';
-  return <Panel id="queue" title="房间队列" action={<Link href="#prepareAheadSeconds">设置</Link>}>
-    <div className="toolbar spread"><StatusBadge label="房间队列" color={uncertain?'informative':failed?'danger':attention?'warning':q.running?'success':q.desired?'warning':'informative'}>{phase}</StatusBadge><span className="secondary">提前 {s.activeSettings.prepareAheadSeconds} 秒</span></div>
-    {q.running&&!uncertain&&<span className="secondary">{q.current?'正在准备歌曲':q.songs?.length?'等待队列变化':'等待房间同步'}</span>}
-    <div className="queue-list"><Table size="small" aria-label="房间队列"><TableHeader><TableRow><TableHeaderCell style={{width:42}}>#</TableHeaderCell><TableHeaderCell>歌曲</TableHeaderCell><TableHeaderCell style={{width:90}}>准备状态</TableHeaderCell></TableRow></TableHeader><TableBody>{q.songs?.map((song,i)=><TableRow key={`${song.songId}:${i}`}><TableCell>{i+1}</TableCell><TableCell><Link href={'#/library?song='+song.songId}>{q.titles?.[song.songId]||song.songId}</Link></TableCell><TableCell>{q.blocked?.includes(song.songId)?'已屏蔽':(q.active||[q.current]).includes(song.songId)?'准备中':'等待'}</TableCell></TableRow>)}</TableBody></Table>{!q.songs?.length&&<p className="empty-state">暂无房间队列</p>}</div>
-    <div className="toolbar spread"><span className="secondary">游戏日志：{q.logError?'读取异常':!q.running?'当前未读取':q.file?'正在读取':'尚未发现'}</span><div className="inline"><Link href="#download-settings">检查日志设置</Link><RecordDetails title="房间队列状态"><p className="wrap">{q.file||'尚未发现可读取日志'}</p><p>本次准备成功 {q.completed||0} 次</p>{(q.logError||q.error||s.actionErrors?.queue)&&<p className="wrap">{q.logError||q.error||s.actionErrors?.queue}</p>}</RecordDetails></div></div>
-  </Panel>;
 }
 export function BatchPanel() {
   const app=useApp(), s=app.status.data!, b=s.batch, saved=s.lastBatch;

@@ -13,30 +13,38 @@ export function useDocumentVisible() {
 
 export function useBlockStream(enabled: boolean, revision: number) {
   const [data, setData] = useState<TimelineData>();
+  const [speed, setSpeed] = useState(0);
   const [connection, setConnection] = useState<'connecting' | 'live' | 'offline' | 'error'>('connecting');
   useEffect(() => {
     // A resumed view must wait for this subscription's fresh snapshot before
     // restoring a pinned detail; the previous connection is no longer live.
     setConnection('connecting');
     if (!enabled) return;
+    setSpeed(0);
     let disposed = false;
     const source = new EventSource('/api/block-demands/events');
     source.addEventListener('blocks', event => {
       if (disposed) return;
       try {
         const value: BlockEvent = JSON.parse((event as MessageEvent<string>).data);
+        if (value.reset || !value.running) setSpeed(0);
         setData(old => applyBlockEvent(old, value));
         setConnection(value.running ? 'live' : 'offline');
       } catch { setConnection('error'); source.close(); }
     });
+    source.addEventListener('download-speed', event => {
+      if (disposed) return;
+      try { setSpeed(JSON.parse((event as MessageEvent<string>).data).bytesPerSecond); }
+      catch { setConnection('error'); source.close(); }
+    });
     source.addEventListener('closed', () => {
-      if (!disposed) setConnection('offline');
+      if (!disposed) { setConnection('offline'); setSpeed(0); }
       source.close();
     });
     source.onerror = () => { if (!disposed) setConnection('error'); };
     return () => { disposed = true; source.close(); };
   }, [enabled, revision]);
-  return { data, connection };
+  return { data, connection, speed };
 }
 
 // Only the selected block has a detail stream. Pointer motion over unrelated

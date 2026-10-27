@@ -47,9 +47,9 @@ export function RecordDetails({title,children}:PropsWithChildren<{title:string}>
   return <Popover open={open} onOpenChange={(_,data)=>setOpen(data.open)}><PopoverTrigger disableButtonEnhancement><Button size="small" appearance="subtle" aria-label={title}>详情</Button></PopoverTrigger><PopoverSurface aria-label={title} onClick={event=>{if((event.target as HTMLElement).closest('a[href]'))setOpen(false);}}><Subtitle2 as="h3">{title}</Subtitle2>{children}</PopoverSurface></Popover>;
 }
 const statusIcons={success:CheckmarkCircleRegular,danger:DismissCircleRegular,warning:WarningRegular,brand:ClockRegular,informative:SubtractCircleRegular};
-export function StatusBadge({label,color,children,description}:PropsWithChildren<{label:string;color:keyof typeof statusIcons;description?:string}>) {
+export function StatusBadge({label,color,children,description}:PropsWithChildren<{label?:string;color:keyof typeof statusIcons;description?:string}>) {
   const Icon=statusIcons[color];
-  const badge=<Badge size="large" appearance="tint" color={color} icon={<Icon aria-hidden="true"/>} role="status" aria-label={label} aria-atomic="true" tabIndex={description?0:undefined}>{label}：{children}</Badge>;
+  const badge=<Badge size="large" appearance="tint" color={color} icon={<Icon aria-hidden="true"/>} role="status" aria-label={label} aria-atomic="true" tabIndex={description?0:undefined}>{label&&<>{label}：</>}{children}</Badge>;
   return description?<Tooltip content={description} relationship="description">{badge}</Tooltip>:badge;
 }
 export function TableRegion({children,label}:PropsWithChildren<{label:string}>) {

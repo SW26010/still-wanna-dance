@@ -72,7 +72,7 @@ func (d *DiscardLoader) Load(ctx context.Context, target string) error {
 	defer release()
 	now := time.Now()
 	f := &flight{discard: true, log: s.cfg.Logger, streaming: make(chan struct{}),
-		progress: &downloadProgress{log: s.cfg.Logger, start: now, changed: now, lastByte: now, observeBytes: s.cfg.ObserveDownloadBytes}}
+		progress: &downloadProgress{log: s.cfg.Logger, start: now, changed: now, lastByte: now, observeBytes: s.observeDownloadBytes}}
 	return s.publishScheduled(ctx, "", v, f)
 }
 

@@ -12,7 +12,7 @@ const page = await context.newPage(), errors = [];
 page.on('pageerror', error => errors.push(error.message));
 try {
   await page.goto(url + '/#/home');
-  await page.getByRole('button', { name: '展开时间轴' }).click();
+  await page.getByRole('button', { name: '展开时间轴视图' }).click();
   const panel = page.locator('#block-demands'), canvas = panel.locator('.timeline-canvas');
   await expect(panel.getByText('事件已连接', { exact: true })).toBeVisible();
   await expect(canvas).toHaveAccessibleName(/4 个块/);
@@ -29,8 +29,8 @@ try {
   await page.screenshot({ path: path.join(evidence, 'real-download.png'), fullPage: true });
   // Keep the pin across an actual offscreen interval. Neither the overview nor
   // detail stream may remain subscribed; resume observation before completion.
-  await page.setViewportSize({ width: 1280, height: 600 });
-  await page.locator('#activation').scrollIntoViewIfNeeded();
+  await page.setViewportSize({ width: 1280, height: 300 });
+  await page.evaluate(() => window.scrollTo(0, 0));
   await expect.poll(() => panel.evaluate(element => element.getBoundingClientRect().top >= innerHeight)).toBe(true);
   await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(0);
   await expect(detail).toHaveCount(0);
@@ -38,6 +38,7 @@ try {
   await page.setViewportSize({ width: 1280, height: 900 });
   await expect(detail).toContainText('播放请求 #');
   await page.request.post(url + '/__timeline/release');
+  await expect.poll(async () => parseFloat(await page.getByLabel('总下载速度', {exact:true}).innerText())).toBeGreaterThan(0);
   await expect(panel.locator('.timeline-legend')).toContainText('延续保护 4');
   await expect(panel).toContainText('需求占用 0 / 4096');
   await expect(panel.locator('.demand-row')).toHaveCount(0);
@@ -46,10 +47,14 @@ try {
   await expect(detail).toContainText('块 1/4');
   await page.screenshot({ path: path.join(evidence, 'real-protection.png'), fullPage: true });
   await page.getByRole('button', { name: '关闭块详情' }).click();
-  await page.getByRole('button', { name: '收起时间轴' }).click();
+  await page.getByRole('button', { name: '收起时间轴视图' }).click();
+  await expect(canvas).toBeHidden();
+  await expect.poll(async () => parseFloat(await page.getByLabel('总下载速度', {exact:true}).innerText())).toBe(0);
+  await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(1);
+  await page.evaluate(() => { location.hash = '#/library'; });
   await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(0);
   expect(errors).toEqual([]);
-  await writeFile(path.join(evidence, 'result.json'), JSON.stringify({ outcome: 'passed', browser: await browser.version(), flow: ['real HTTP Range download', 'SSE downloading and source details', 'zero SSE requests while offscreen', 'pinned details restored with four local protected blocks', 'zero SSE requests after collapse'], errors }, null, 2));
+  await writeFile(path.join(evidence, 'result.json'), JSON.stringify({ outcome: 'passed', browser: await browser.version(), flow: ['real HTTP Range download', 'SSE downloading and source details', 'zero SSE requests while offscreen', 'pinned details restored with four local protected blocks', 'speed event followed by zero', 'collapse keeps demand subscription', 'zero SSE requests after navigation'], errors }, null, 2));
   console.log('Real console + scheduler + Range download + browser SSE lifecycle passed.');
 } catch (error) {
   await page.screenshot({ path: path.join(evidence, 'failure.png'), fullPage: true });

@@ -1,8 +1,7 @@
-import { Button, Link, Subtitle2, Text, Table, TableHeader, TableRow, TableHeaderCell, TableBody, TableCell, TableCellLayout } from '@fluentui/react-components';
-import { useApp, useResource, useFocusRecovery } from './hooks';
-import { Panel, Progress, Hint, RecordDetails, TableRegion } from './ui';
-import { type Download, type RequestRecord, type HealthResult, type Health, date, mb, dated } from './types';
-import { requestTitle } from './requests';
+import { Button, Link, Subtitle2, Table, TableHeader, TableRow, TableHeaderCell, TableBody, TableCell, TableCellLayout } from '@fluentui/react-components';
+import { useApp } from './hooks';
+import { Panel, RecordDetails, TableRegion } from './ui';
+import { type HealthResult, type Health, date, dated } from './types';
 
 const reasons: Record<string,string> = {no_channel:'没有有效候选',no_sample:'等待有效歌曲及资源样本',expired:'观测已过期',timeout:'请求超时',origin_timeout:'源站响应超时（Cloudflare 524）',network_error:'网络请求失败',resolution_unavailable:'无可用资源地址',invalid:'响应校验失败',restricted:'访问受限',upstream_error:'上游错误',http_error:'HTTP 响应异常'};
 const localReasons: Record<string,string> = {local_capacity:'本地代理连接额度已满',runtime_retired:'代理运行时已退出',channel_unavailable:'通道已失效',canceled:'本次检测已取消'};
@@ -66,24 +65,4 @@ export function NetworkMonitor() {
     </section>;})}
   </Panel>;
 
-}
-export function CurrentDownloads({visible,paused=false}: {visible:boolean;paused?:boolean}) {
-  const app=useApp(), downloadFocus=useFocusRecovery(), requestFocus=useFocusRecovery();
-  const downloads=useResource<{tasks:Download[];bytesPerSecond:number;gets?:{total:number;requests:(Pick<RequestRecord,'id'|'at'|'songID'|'resource'|'range'|'status'|'bytes'|'responseBytes'>&{origin?:'preview'})[]}}>('downloads',visible&&!paused&&!app.stopped,app.revision,5000,true);
-  return <section className="video-activity" aria-label="视频活动">
-    <div className="toolbar spread"><h2>视频活动</h2><div className="inline"><Text size={600} weight="semibold">{downloads.data?mb(downloads.data.bytesPerSecond)+'/s':'—'}</Text><Hint label="下载速度说明">最近 5 秒的网络下载速度。</Hint></div></div>
-    <div id="current-gets" {...requestFocus} tabIndex={-1}><div className="toolbar spread"><h3>当前请求</h3><span className="secondary" role="status">{downloads.error?'读取失败，正在重试':downloads.data?.gets?.total?`${downloads.data.gets.total} 个请求`:'暂无当前 GET 请求'}</span></div>
-      <TableRegion label="当前请求表格"><Table size="small" className="activity-table" aria-label="当前 GET 请求列表"><TableHeader><TableRow><TableHeaderCell>请求歌曲</TableHeaderCell><TableHeaderCell>状态</TableHeaderCell><TableHeaderCell>本次交付</TableHeaderCell><TableHeaderCell style={{width:60}}>详情</TableHeaderCell></TableRow></TableHeader><TableBody>{downloads.data?.gets?.requests.map(r=><TableRow key={r.id}>
-        <TableCell>{r.origin==='preview'?'曲库预览':r.songID?<Link href={'#/library?song='+encodeURIComponent(r.songID)}>ID {r.songID}</Link>:'未知'}</TableCell><TableCell>{r.status?'HTTP '+r.status:'准备中'}</TableCell><TableCell>{r.responseBytes!=null&&r.responseBytes>0?(100*r.bytes/r.responseBytes).toLocaleString(undefined,{maximumFractionDigits:1})+'%':'—'}</TableCell>
-        <TableCell><RecordDetails title={`当前请求 ${r.id} 的范围`}><dl className="detail-grid"><dt>收到</dt><dd>{date(r.at)}</dd><dt>资源</dt><dd>{r.resource?<Link href={'#/library?resource='+encodeURIComponent(r.resource)}>{r.resource}</Link>:'尚未确定'}</dd><dt>范围</dt><dd>{r.range||'完整请求'}</dd><dt>已交付</dt><dd>{r.bytes.toLocaleString()} B{r.responseBytes!=null?' / '+r.responseBytes.toLocaleString()+' B':''}</dd></dl></RecordDetails></TableCell>
-      </TableRow>)}</TableBody></Table></TableRegion>{(downloads.data?.gets?.total||0)>50&&<span className="secondary">显示最早的 50 个请求</span>}
-    </div>
-    <div id="downloads" {...downloadFocus} tabIndex={-1}><div className="toolbar spread"><h3>当前下载</h3><span className="secondary">{downloads.data?.tasks.length?`${downloads.data.tasks.length} 个任务`:'暂无活动下载任务'}</span></div>
-      <TableRegion label="下载任务表格"><Table size="small" className="activity-table" aria-label="下载任务"><TableHeader><TableRow><TableHeaderCell>关联歌曲</TableHeaderCell><TableHeaderCell>进度</TableHeaderCell><TableHeaderCell>速度</TableHeaderCell><TableHeaderCell style={{width:60}}>详情</TableHeaderCell></TableRow></TableHeader><TableBody>{downloads.data?.tasks.map(task=><TableRow key={task.resource+':'+task.id}>
-        <TableCell><TableCellLayout truncate description={({cache_check:'检查本地',upstream_headers:'等待上游',download:'下载中',range_download:'下载中',hash:'校验中',publish:'保存中',index:'保存中'}[task.stage]||'准备中')}>{task.songs?.[0]?.title||'未知歌名'}{((task.songs?.length||0)>1||task.moreSongs)&&' 等'}</TableCellLayout></TableCell>
-        <TableCell><span>{task.size>0?Math.min(100,100*task.bytes/task.size).toFixed(1)+'%':'未知'}</span><Progress value={task.bytes} max={task.size} label="已读取字节进度"/></TableCell><TableCell>{mb(task.bytesPerSecond)}/s</TableCell>
-        <TableCell><RecordDetails title="下载详情"><p>{requestTitle(task)}</p><dl className="detail-grid"><dt>资源</dt><dd>{task.resource}</dd><dt>上游域名</dt><dd>{task.host||'尚未确定'}</dd><dt>已读取</dt><dd>{mb(task.bytes)} / {task.size?mb(task.size):'未知'}</dd><dt>距上次读取</dt><dd>{(task.idleMS/1000).toFixed(0)} 秒</dd></dl></RecordDetails></TableCell>
-      </TableRow>)}</TableBody></Table></TableRegion>
-    </div>
-  </section>;
 }

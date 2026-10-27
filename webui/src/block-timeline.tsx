@@ -1,21 +1,22 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
-import { Badge, Button, Caption1, Checkbox, Popover, PopoverSurface, Slider, Spinner, Switch, Text } from '@fluentui/react-components';
-import { Add20Regular, Subtract20Regular, ArrowSync20Regular, ChevronLeft20Regular, ChevronRight20Regular, Dismiss20Regular, Pin20Regular } from '@fluentui/react-icons';
+import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { Badge, Button, Caption1, Card, CardHeader, Popover, PopoverSurface, Slider, Spinner, Subtitle2, Switch, Text, Tooltip } from '@fluentui/react-components';
+import { Add20Regular, Subtract20Regular, ArrowSync20Regular, ChevronDown20Regular, ChevronLeft20Regular, ChevronRight20Regular, Dismiss20Regular, Pin20Regular } from '@fluentui/react-icons';
 import { scaleLinear } from 'd3-scale';
 import { select } from 'd3-selection';
 import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
-import { Panel, Feedback, useThemePreference } from './ui';
+import { Feedback, StatusBadge, useThemePreference } from './ui';
 import { useApp } from './hooks';
 import { absoluteTime, blockNumber, blockStateNames, sourceName, videoLabel, type BlockView, type TimelineData } from './block-timeline-model';
 import { useBlockDetail, useBlockStream, useDocumentVisible } from './block-timeline-stream';
-import { blockLane, blockY, drawTimeline, hitBlocks, timelineHeight, timelineLayout, type TimelineFrame, type TimelinePalette } from './block-timeline-canvas';
+import { blockLane, blockY, drawTimeline, hitBlocks, timelineLayout, type TimelineFrame, type TimelinePalette } from './block-timeline-canvas';
 import { BlockDemandView } from './block-demand-view';
+import { mb } from './types';
 
 type View = { follow: boolean; center: number; span: number; offset: number };
 type Selection = { ids: string[]; index: number; x: number; y: number; pinned: boolean };
 const minimumSpan = 1000, maximumSpan = 7 * 86400000;
 
-export function BlockTimeline({ visible, paused, onPausedChange }: { visible: boolean; paused: boolean; onPausedChange:(value:boolean)=>void }) {
+export function BlockTimeline({ visible }: { visible: boolean }) {
   const app = useApp(), documentVisible = useDocumentVisible();
   const container = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
@@ -27,16 +28,19 @@ export function BlockTimeline({ visible, paused, onPausedChange }: { visible: bo
     observer.observe(container.current!);
     return () => observer.disconnect();
   }, []);
-  const enabled = expanded && visible && inView && documentVisible && !paused && !app.stopped;
-  const { data, connection } = useBlockStream(enabled, app.revision);
+  const enabled = visible && inView && documentVisible && !app.stopped;
+  const { data, connection, speed } = useBlockStream(enabled, app.revision);
   const active = enabled && connection === 'live';
-  return <div ref={container}><Panel id="block-demands" title="块需求时间轴" action={<Button appearance={expanded ? 'subtle' : 'secondary'} aria-expanded={expanded} aria-controls="block-timeline-content" onClick={() => setExpanded(value => !value)}>{expanded ? '收起时间轴' : '展开时间轴'}</Button>}>
-    <Checkbox label="暂停下载展示" checked={paused} onChange={(_,d)=>onPausedChange(!!d.checked)}/>
-    {expanded && <div id="block-timeline-content" className="block-timeline-content">
-      <div className="timeline-status">{connection==='error'&&enabled?<Feedback error>事件连接中断，正在重连。</Feedback>:!data&&enabled&&connection==='connecting'?<Spinner size="tiny" label="正在读取块需求"/>:<Badge appearance="tint" color={active ? 'success' : 'informative'}>{!enabled ? '展示已暂停' : connection === 'live' ? '事件已连接' : connection === 'offline' ? '引擎未运行' : '正在连接'}</Badge>}{data&&<Caption1>需求占用 {data.used.toLocaleString()} / {data.capacity || 4096} · 执行 {data.active} / 额度 {data.open}</Caption1>}</div>
-      {data && <TimelineViewport data={data} active={active} />}
-    </div>}
-  </Panel></div>;
+  const toggleLabel = expanded ? '收起时间轴视图' : '展开时间轴视图';
+  return <div ref={container}><Card size="medium" className="panel block-demand-panel" id="block-demands" tabIndex={-1}>
+    <CardHeader header={<div className="block-demand-heading">
+      <Subtitle2 as="h2">视频块需求</Subtitle2>
+      <Text className="block-demand-speed" size={400} weight="semibold" aria-label="总下载速度" title="最近一次约 1 秒采样的网络下载速度">{mb(speed)}/s</Text>
+      {!data&&enabled&&connection==='connecting'?<Spinner size="tiny" label="正在读取块需求"/>:<StatusBadge color={!enabled ? 'informative' : connection === 'error' ? 'danger' : active ? 'success' : 'informative'}>{!enabled ? '展示已暂停' : connection === 'error' ? '事件连接中断，正在重连。' : connection === 'live' ? '事件已连接' : connection === 'offline' ? '引擎未运行' : '正在连接'}</StatusBadge>}
+      {data&&<Caption1 className="block-demand-capacity">需求占用 {data.used.toLocaleString()} / {data.capacity || 4096} · 执行 {data.active} / 额度 {data.open}</Caption1>}
+    </div>} action={<Tooltip content={toggleLabel} relationship="label"><Button size="small" appearance="subtle" icon={expanded ? <ChevronDown20Regular /> : <ChevronRight20Regular />} aria-label={toggleLabel} aria-expanded={expanded} aria-controls="block-timeline-content" onClick={() => setExpanded(value => !value)} /></Tooltip>} />
+    {data && <TimelineViewport data={data} active={active} expanded={expanded} />}
+  </Card></div>;
 }
 
 function readPalette(element: HTMLElement): TimelinePalette {
@@ -49,7 +53,7 @@ function readPalette(element: HTMLElement): TimelinePalette {
   return { background: color('background'), foreground: color('foreground'), muted: color('muted'), grid: color('grid'), blue: color('blue'), blueWash: color('blue-wash'), green: color('green'), amber: color('amber'), amberWash: color('amber-wash'), selected: color('selected'), onAccent: color('on-accent'), videos, videoEdges };
 }
 
-function TimelineViewport({ data, active }: { data: TimelineData; active: boolean }) {
+const TimelineViewport = memo(function TimelineViewport({ data, active, expanded }: { data: TimelineData; active: boolean; expanded: boolean }) {
   const {preference}=useThemePreference();
   const root = useRef<HTMLDivElement>(null), canvas = useRef<HTMLCanvasElement>(null);
   const surface = useRef<HTMLDivElement>(null), pointerAt = useRef({ x: 0, y: 0 });
@@ -63,12 +67,12 @@ function TimelineViewport({ data, active }: { data: TimelineData; active: boolea
   const [view, setView] = useState<View>({ follow: true, center: data.at || Date.now(), span: defaultSpan, offset: 0 });
   const [reducedMotion, setReducedMotion] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
   const [palette, setPalette] = useState<TimelinePalette>();
-  const timed = useMemo(() => [...data.blocks.values()].filter(b => b.at).sort((a, b) => a.at - b.at || a.id.localeCompare(b.id)), [data.blocks]);
-  const untimed = useMemo(() => [...data.blocks.values()].filter(b => !b.at).sort((a, b) => a.resource.localeCompare(b.resource) || a.block - b.block), [data.blocks]);
+  const timed = useMemo(() => expanded ? [...data.blocks.values()].filter(b => b.at).sort((a, b) => a.at - b.at || a.id.localeCompare(b.id)) : [], [data.blocks, expanded]);
+  const untimed = useMemo(() => expanded ? [...data.blocks.values()].filter(b => !b.at).sort((a, b) => a.resource.localeCompare(b.resource) || a.block - b.block) : [], [data.blocks, expanded]);
   const untimedRows = useMemo(() => layers ? [0, 1, 2].map(row => untimed.filter(b => blockLane(b) === row)) : [untimed], [untimed, layers]);
   const untimedCount = Math.max(...untimedRows.map(row => row.length));
-  const latest = useRef({ data, active, view, timed, untimed, untimedRows, untimedOffset, selection, width, palette, reducedMotion, blockSize, layers });
-  latest.current = { data, active, view, timed, untimed, untimedRows, untimedOffset, selection, width, palette, reducedMotion, blockSize, layers };
+  const latest = useRef({ data, active, expanded, view, timed, untimed, untimedRows, untimedOffset, selection, width, palette, reducedMotion, blockSize, layers });
+  latest.current = { data, active, expanded, view, timed, untimed, untimedRows, untimedOffset, selection, width, palette, reducedMotion, blockSize, layers };
   const frame = useRef<TimelineFrame | undefined>(undefined), frozenNow = useRef(data.at || Date.now());
   const animation = useRef(0), repaint = useRef<(force?: boolean) => void>(() => {}), interacting = useRef(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -96,6 +100,10 @@ function TimelineViewport({ data, active }: { data: TimelineData; active: boolea
   };
   const selectedID = selection?.ids[selection.index];
   const selectedBlock = selectedID ? data.blocks.get(selectedID) : undefined;
+  useEffect(() => {
+    // Folding the axis clears only selections made on that hidden canvas.
+    if (!expanded && selectionTarget.current === canvas.current) closeSelection();
+  }, [expanded]);
 
   useEffect(() => {
     // The demand list can remain visible after the main canvas leaves the
@@ -135,9 +143,9 @@ function TimelineViewport({ data, active }: { data: TimelineData; active: boolea
     if (!ctx || !palette) return;
     let disposed = false;
     const paint = (force = false) => {
-      if (disposed || !canvasInView && !force) return;
+      if (disposed || !latest.current.expanded || !canvasInView && !force) return;
       const c = latest.current, currentTime = now();
-      const { height } = timelineLayout(c.layers, !!c.untimed.length), dpr = window.devicePixelRatio || 1;
+      const { height } = timelineLayout(c.layers, !!c.untimed.length, c.blockSize), dpr = window.devicePixelRatio || 1;
       if (element.width !== Math.round(c.width * dpr) || element.height !== Math.round(height * dpr)) {
         element.width = Math.round(c.width * dpr); element.height = Math.round(height * dpr);
       }
@@ -148,18 +156,18 @@ function TimelineViewport({ data, active }: { data: TimelineData; active: boolea
     };
     const animate = () => { paint(); animation.current = requestAnimationFrame(animate); };
     repaint.current = paint; paint();
-    if (active && canvasInView && !reducedMotion) animation.current = requestAnimationFrame(animate);
+    if (expanded && active && canvasInView && !reducedMotion) animation.current = requestAnimationFrame(animate);
     return () => { disposed = true; cancelAnimationFrame(animation.current); repaint.current = () => {}; };
-  }, [active, reducedMotion, palette, canvasInView]);
+  }, [expanded, active, reducedMotion, palette, canvasInView]);
   useEffect(() => { repaint.current(); }, [data, width, view, selection, untimedOffset, blockSize, layers]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || !expanded) return;
     const element = canvas.current!, target = select(element);
     const base = scaleLinear().domain([-defaultSpan / 2, defaultSpan / 2]).range([24, width - 24]);
     let anchor = now(), quiet = true;
     const centerOffset = (transform: ReturnType<typeof zoomTransform>) => { const domain = transform.rescaleX(base).domain(); return (domain[0] + domain[1]) / 2; };
-    const behavior = zoom<HTMLCanvasElement, unknown>().clickDistance(4).scaleExtent([defaultSpan / maximumSpan, defaultSpan / minimumSpan]).extent([[24, 0], [width - 24, timelineHeight]])
+    const behavior = zoom<HTMLCanvasElement, unknown>().clickDistance(4).scaleExtent([defaultSpan / maximumSpan, defaultSpan / minimumSpan]).extent((): [[number, number], [number, number]] => [[24, 0], [width - 24, timelineLayout(latest.current.layers, !!latest.current.untimed.length, latest.current.blockSize).height]])
       .filter(event => !event.ctrlKey && !event.button && event.type !== 'wheel')
       .on('start.timeline', () => {
         if (quiet) return;
@@ -192,8 +200,13 @@ function TimelineViewport({ data, active }: { data: TimelineData; active: boolea
       event.preventDefault(); clearHoverTimers();
       if (!latest.current.selection?.pinned) setSelection(undefined);
       if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
-        const current = latest.current.view;
+        const c = latest.current, current = c.view;
         const pixels = (event.deltaX || event.deltaY) * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? width - 48 : 1);
+        if (c.untimed.length && event.clientY - element.getBoundingClientRect().top >= timelineLayout(c.layers, true, c.blockSize).untimedY - 28) {
+          const maxOffset = Math.max(0, Math.max(...c.untimedRows.map(row => row.length)) * (c.blockSize + 6) - width + 48);
+          setUntimedOffset(value => Math.max(0, Math.min(maxOffset, value + pixels)));
+          return;
+        }
         const shift = pixels * current.span / (width - 48);
         synchronize({ ...current, center: (current.follow ? now() + current.offset : current.center) + shift, offset: current.follow ? current.offset + shift : 0 });
       } else {
@@ -207,7 +220,7 @@ function TimelineViewport({ data, active }: { data: TimelineData; active: boolea
       pan: center => synchronize({ ...latest.current.view, follow: false, center, offset: 0 }),
     };
     return () => { target.on('.zoom', null).on('.timeline', null); interacting.current = false; controls.current = { zoom: () => {}, home: () => {}, pan: () => {} }; };
-  }, [active, width, defaultSpan]);
+  }, [active, expanded, width, defaultSpan]);
 
   const showBlocks = (blocks: BlockView[], x: number, y: number, pinned: boolean) => {
     if (!blocks.length) { if (!selection?.pinned) closeSelection(); return; }
@@ -253,13 +266,10 @@ function TimelineViewport({ data, active }: { data: TimelineData; active: boolea
     } else { setUntimedOffset(Math.max(0, untimedRows[layers ? blockLane(block) : 0].findIndex(b => b.id === block.id) * (blockSize + 6) - width / 2)); }
     const rect = canvas.current!.getBoundingClientRect();
     selectionTarget.current = canvas.current;
-    const y = block.at ? blockY(block, layers, blockSize) : timelineLayout(layers, true).untimedY + (layers ? blockLane(block) * 65 : 0);
+    const layout = timelineLayout(layers, true, blockSize);
+    const y = block.at ? blockY(block, layers, blockSize) : layout.untimedY + (layers ? blockLane(block) * layout.lanePitch : 0);
     showBlocks([block], rect.left + width / 2, rect.top + y + blockSize / 2, true);
   };
-  const baseNow = data.at || Date.now();
-  const rangeMin = Math.min(baseNow - Math.max(data.downloadGraceMS * 2, view.span / 2), timed[0]?.at ?? baseNow);
-  const rangeMax = Math.max(baseNow + Math.max(data.prepareAheadMS, view.span / 2), timed.at(-1)?.at ?? baseNow);
-  const center = view.follow ? baseNow + view.offset : view.center;
   // The anchor is a viewport point; fixed positioning prevents source-detail
   // height changes from scrolling the document while a popup control has focus.
   const virtualTarget = useMemo(() => ({ getBoundingClientRect: () => new DOMRect(selection?.x || 0, selection?.y || 0, 1, 1) }), [selection?.x, selection?.y]);
@@ -269,18 +279,17 @@ function TimelineViewport({ data, active }: { data: TimelineData; active: boolea
     return counts;
   }, [data.blocks]);
 
-  return <div ref={root} className="block-timeline" data-follow={view.follow} data-span={Math.round(view.span)} data-block-size={blockSize} data-layers={layers ? 3 : 1}>
-    <div className="timeline-toolbar"><div className="timeline-window-keys"><span className="timeline-window-key grace">延续 {data.downloadGraceMS / 1000} 秒</span><span className="timeline-window-key ahead">提前 {data.prepareAheadMS / 1000} 秒</span></div><div className="timeline-controls">
+  return <div ref={root} tabIndex={-1} className="block-timeline" data-follow={view.follow} data-span={Math.round(view.span)} data-center={Math.round(view.follow ? data.at + view.offset : view.center)} data-block-size={blockSize} data-layers={layers ? 3 : 1}>
+    <div className="block-demand-controls"><div className="timeline-legend">{(Object.entries(summary) as [keyof typeof summary, number][]).filter(([state, count]) => state !== 'stopping' || count > 0).map(([state, count]) => <span key={state}><i className={'timeline-swatch ' + state} aria-hidden="true" />{blockStateNames[state]} <strong>{count}</strong></span>)}<span><i className="timeline-swatch blocking" aria-hidden="true" />读取急需</span></div>
+    <label className="timeline-size-control"><Caption1>块显示大小</Caption1><Slider aria-label="块显示大小" min={4} max={36} step={1} value={blockSize} onChange={(_, value) => setBlockSize(value.value)} /><Caption1>{blockSize} px</Caption1></label></div>
+    <div id="block-timeline-content" hidden={!expanded}>
+    <div className="timeline-toolbar"><div className="timeline-window-keys"><Text weight="semibold" size={400}>时间轴视图</Text><span className="timeline-window-key grace">延续 {data.downloadGraceMS / 1000} 秒</span><span className="timeline-window-key ahead">提前 {data.prepareAheadMS / 1000} 秒</span><Switch label="分层显示" checked={layers} onChange={(_, value) => setLayers(value.checked)} /></div><div className="timeline-controls">
       <Button size="small" icon={<Subtract20Regular />} aria-label="缩小时间轴" disabled={!active || view.span >= maximumSpan} onClick={() => controls.current.zoom(1 / 1.5)} />
       <Button size="small" icon={<Add20Regular />} aria-label="放大时间轴" disabled={!active || view.span <= minimumSpan} onClick={() => controls.current.zoom(1.5)} />
       <Button size="small" icon={<ArrowSync20Regular />} appearance={view.follow && !view.offset ? 'subtle' : 'primary'} disabled={!active} onClick={() => controls.current.home()}>{view.follow && !view.offset ? '跟随现在' : '回到现在'}</Button>
     </div></div>
-    <div className="timeline-layout-controls"><Switch label="按状态分三层" checked={layers} onChange={(_, value) => setLayers(value.checked)} /><label className="timeline-size-control"><Caption1>块大小</Caption1><Slider aria-label="块大小" min={4} max={36} step={1} value={blockSize} onChange={(_, value) => setBlockSize(value.value)} /><Caption1>{blockSize} px</Caption1></label></div>
-    <canvas ref={canvas} className="timeline-canvas" style={{ height: timelineLayout(layers, !!untimed.length).height }} tabIndex={0} role="group" aria-label={`块需求时间轴，${data.blocks.size} 个块，${layers ? '三层' : '单层'}。左右键选择块，Home 和 End 跳到首尾，加减号缩放，Escape 关闭详情。`} onPointerMove={event => pointer(event)} onPointerLeave={scheduleClose} onClick={event => pointer(event, true)} onKeyDown={navigate} />
-    {untimed.length > 0 && <Slider className="timeline-untimed-scroll" aria-label="无期限块横向浏览" min={0} max={Math.max(1, untimedCount * (blockSize + 6) - width + 48)} value={untimedOffset} disabled={!active || untimedCount * (blockSize + 6) <= width - 48} onChange={(_, value) => setUntimedOffset(value.value)} />}
-    <Slider className="timeline-scroll" aria-label="时间轴横向浏览" min={rangeMin} max={rangeMax} step={1000} value={Math.min(rangeMax, Math.max(rangeMin, center))} disabled={!active} onChange={(_, value) => controls.current.pan(value.value)} />
-    <div className="timeline-legend">{(Object.entries(summary) as [keyof typeof summary, number][]).filter(([state, count]) => state !== 'stopping' || count > 0).map(([state, count]) => <span key={state}><i className={'timeline-swatch ' + state} aria-hidden="true" />{blockStateNames[state]} <strong>{count}</strong></span>)}<span><i className="timeline-swatch blocking" aria-hidden="true" />读取急需</span></div>
-    <Caption1 as="p" className="timeline-help">颜色区分视频，形态区分状态 · 纵向滚轮缩放 · 横向滚轮平移 · 拖动或滑条浏览 · 悬浮查看来源 · 点击固定详情{reducedMotion && ' · 已减少动态效果'}</Caption1>
+    <canvas ref={canvas} className="timeline-canvas" style={{ height: timelineLayout(layers, !!untimed.length, blockSize).height }} tabIndex={0} role="group" aria-label={`块需求时间轴，${data.blocks.size} 个块，${layers ? '三层' : '单层'}。左右键选择块，Home 和 End 跳到首尾，加减号缩放，Escape 关闭详情。`} onPointerMove={event => pointer(event)} onPointerLeave={scheduleClose} onClick={event => pointer(event, true)} onKeyDown={navigate} />
+    </div>
     {palette && <BlockDemandView data={data} size={blockSize} palette={palette} active={active} selected={selectedID} onLeave={scheduleClose} onPick={(blocks, x, y, pinned, target) => {
       demandHover.current = { ids: blocks.map(b => b.id), target };
       if (!active || selection?.pinned && !pinned) return;
@@ -292,21 +301,21 @@ function TimelineViewport({ data, active }: { data: TimelineData; active: boolea
     }} />}
     <span className="timeline-selection-status" role="status" aria-atomic="true">{selectedBlock && `${videoLabel(selectedBlock)}，块 ${blockNumber(selectedBlock)}，${blockStateNames[selectedBlock.state]}，need-by ${selectedBlock.needBy ? absoluteTime(selectedBlock.needBy) : '无期限'}。`}</span>
     <Popover open={!!selectedBlock && active} onOpenChange={(event, value) => {
-      // A pinned selection survives toolbar clicks (including pause). Escape
+      // A pinned selection survives toolbar clicks. Escape
       // and the close button still dismiss it explicitly.
       if (!value.open && (!selection?.pinned || event.type === 'keydown' && 'key' in event && event.key === 'Escape')) closeSelection();
-    }} positioning={{ target: virtualTarget, strategy: 'fixed', autoSize: 'height', shiftToCoverTarget: true, overflowBoundaryPadding: 12, position: 'above', align: 'center', offset: 16 }} withArrow unstable_disableAutoFocus>
+    }} positioning={{ target: virtualTarget, strategy: 'fixed', autoSize: 'height', shiftToCoverTarget: false, overflowBoundaryPadding: 12, position: 'above', align: 'center', offset: 16 }} withArrow unstable_disableAutoFocus>
       <PopoverSurface ref={surface} className="timeline-popover" aria-label="块需求详情" onPointerEnter={clearHoverTimers} onPointerLeave={scheduleClose}>
         {selection && selectedID && <><div className="timeline-detail-toolbar"><Text weight="semibold">块 {selectedBlock ? blockNumber(selectedBlock) : '已退出'}</Text><div>
           {!selection.pinned && <Button size="small" appearance="subtle" icon={<Pin20Regular />} aria-label="固定块详情" onClick={() => setSelection({ ...selection, pinned: true })} />}
-          <Button size="small" appearance="subtle" icon={<Dismiss20Regular />} aria-label="关闭块详情" onClick={() => { closeSelection(); (selectionTarget.current?.isConnected ? selectionTarget.current : canvas.current)?.focus(); }} /></div></div>
+          <Button size="small" appearance="subtle" icon={<Dismiss20Regular />} aria-label="关闭块详情" onClick={() => { closeSelection(); (selectionTarget.current?.isConnected ? selectionTarget.current : expanded ? canvas.current : root.current)?.focus(); }} /></div></div>
           {selection.ids.length > 1 && <div className="timeline-overlap"><Button size="small" icon={<ChevronLeft20Regular />} aria-label="上一个重叠块" onClick={() => setSelection({ ...selection, index: (selection.index + selection.ids.length - 1) % selection.ids.length, pinned: true })} /><span>重叠 {selection.ids.length} 块 · {selection.index + 1} / {selection.ids.length}</span><Button size="small" icon={<ChevronRight20Regular />} aria-label="下一个重叠块" onClick={() => setSelection({ ...selection, index: (selection.index + 1) % selection.ids.length, pinned: true })} /></div>}
           <BlockProperties key={selectedID} id={selectedID} block={selectedBlock} active={active && !!selectedBlock} />
         </>}
       </PopoverSurface>
     </Popover>
   </div>;
-}
+});
 
 function BlockProperties({ id, block, active }: { id: string; block?: BlockView; active: boolean }) {
   const { detail, error } = useBlockDetail(id, active);

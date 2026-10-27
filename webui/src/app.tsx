@@ -53,7 +53,7 @@ export function App() {
   useEffect(()=>{if(s)setPreference(s.activeSettings.theme);},[s,setPreference]);
   useLayoutEffect(()=>{
     if((s || documentPage) && Object.hasOwn(anchors,anchor)){
-      const target=document.getElementById(anchor);target?.focus();target?.scrollIntoView();
+      const target=document.getElementById(anchor==='downloads'||anchor==='queue'?'block-demands':anchor);target?.focus();target?.scrollIntoView();
     }
   },[page,!!s,anchor,documentPage]);
   const fault=s?.storageError||model.status.error;

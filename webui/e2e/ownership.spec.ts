@@ -4,11 +4,11 @@ import {mockAPI} from './api';
 
 test('live progress belongs to acceleration and manual work belongs to library',async({page})=>{
   const api=await mockAPI(page);
-  await page.route('**/api/downloads',r=>r.fulfill({json:{bytesPerSecond:12000,tasks:[{id:'1',resource:'song',songs:[{id:'1',title:'正在准备的歌曲'}],stage:'download',bytes:100,size:1000,bytesPerSecond:12000,idleMS:0}]}}));
   await page.goto('/#/home');
   await expect(page.getByRole('heading',{level:1,name:'加速',exact:true})).toBeVisible();
-  await expect(page.getByText('正在准备的歌曲',{exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'展开时间轴',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'视频块需求',exact:true})).toBeVisible();
+  expect(api.calls.some(c=>c.path==='downloads')).toBe(false);
+  await expect(page.getByRole('button',{name:'展开时间轴视图',exact:true})).toBeVisible();
   await navigate(page,'曲库');await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeVisible();
   expect(api.calls.some(c=>c.path==='queue/start')).toBe(false);
 });

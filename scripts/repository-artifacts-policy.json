@@ -710,6 +710,13 @@
       "bytes": 1173195,
       "sha256": "93020d09474d622a0183687e793fe5cd5aa851bdf9a72c8c643dc8ad2cba9ee7",
       "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Restore keyboard focus to library row deletion controls after confirmation dismissal."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1173333,
+      "sha256": "8da456c0a41119d7fb362dd685c3e7239f6f283663ccd53af5e240b4d865c2b2",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Refresh library file state and usage when an observed shared download ends, including after batch cancellation and while other downloads remain."
     }
   ]
 }

@@ -50,11 +50,13 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
     if(page.data&&offset>=page.data.total&&offset>0)setOffset(0);
   },[page.data,offset]);
   const changeSort=(sort:TableSort)=>{setOffset(0);setQuery(q=>({...q,...sort}));};
-  const previousTasks=useRef({batch:s.batch.running,import:s.import.running});
+  const previousTasks=useRef({batch:s.batch.running,import:s.import.running,downloads:downloads.data?.tasks});
   useEffect(()=>{
-    if(visible&&(previousTasks.current.batch&&!s.batch.running||previousTasks.current.import&&!s.import.running))page.refresh();
-    previousTasks.current={batch:s.batch.running,import:s.import.running};
-  },[s.batch.running,s.import.running,visible,page.refresh]);
+    const tasks=downloads.data?.tasks;
+    const downloadEnded=tasks&&previousTasks.current.downloads?.some(previous=>!tasks.some(task=>task.id===previous.id));
+    if(visible&&(previousTasks.current.batch&&!s.batch.running||previousTasks.current.import&&!s.import.running||downloadEnded))page.refresh();
+    previousTasks.current={batch:s.batch.running,import:s.import.running,downloads:visible?tasks:undefined};
+  },[s.batch.running,s.import.running,downloads.data,visible,page.refresh]);
   useLayoutEffect(()=>{
     const section=['vrcx-import','video-import','batch'].includes(anchor);
     if(!visible||(requestedView===undefined&&!section))return;

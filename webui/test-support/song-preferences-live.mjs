@@ -48,9 +48,11 @@ try {
     await page.screenshot({path:join(output,`preferences-${width}-${theme}.png`),fullPage:true,animations:'disabled'});
   }
   await page.goto(baseURL+'/#batch');
-  await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();
-  await expect(page.getByText('当前不保留普通视频。',{exact:false})).toBeVisible();
-  await expect(page.getByText('，收藏仍可补齐。',{exact:false})).toBeVisible();
+  const batch=page.locator('#batch');
+  await expect(batch.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();
+  await expect(batch).toContainText('当前存储预算为“不保留”。');
+  await expect(batch.getByRole('link',{name:'存储设置',exact:true})).toHaveAttribute('href','#maxCacheGiB');
+  await expect(batch).toContainText('已开启优先保留收藏视频，收藏视频仍可保留。');
   expect(errors).toEqual([]);
   await writeFile(join(output,'browser.json'),JSON.stringify({passed:true,errors,checks:['offline favorite preserves existing file without starting engine','preference changes','file state separate','filter and focus','engine reopen persistence','blocked GET 403','zero network resolutions','zero-budget manual action','desktop and narrow themes']},null,2));
   console.log('Real Console song preference, file state, reopen and blocked GET checks passed.');

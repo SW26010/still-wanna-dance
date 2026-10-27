@@ -191,13 +191,13 @@ func TestBusinessResolutionReservesFallbackDeadline(t *testing.T) {
 	business.Store(true)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	got, err := c.resolvePlayback(ctx, "42", "cf", "cf")
+	got, err := c.resolvePlayback(ctx, "42")
 	if err != nil || got != target || attempts.Load() != 2 {
 		t.Fatalf("target=%q attempts=%d err=%v", got, attempts.Load(), err)
 	}
 }
 
-func TestBusinessResolutionKeepsCFPriorityAndMeasuredTransport(t *testing.T) {
+func TestBusinessResolutionUsesCFAndMeasuredTransport(t *testing.T) {
 	c := testConsole(t)
 	cfg := fixtureCacheConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
@@ -213,8 +213,6 @@ func TestBusinessResolutionKeepsCFPriorityAndMeasuredTransport(t *testing.T) {
 		resp := &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"time":"20261004235822","groups":{"contents":[{"songInfos":[{"id":42}]}]}}`))}
 		if r.URL.Path == "/Api/Songs/play" {
 			if r.URL.Query().Get("node") == "cf" {
-				// Make HKG the measured recommendation before business starts.
-				time.Sleep(50 * time.Millisecond)
 				if business.Load() {
 					cfCalls.Add(1)
 				}
@@ -238,18 +236,18 @@ func TestBusinessResolutionKeepsCFPriorityAndMeasuredTransport(t *testing.T) {
 	if len(m.Selections(upstreamstate.PlaybackURL, upstreamstate.Constraints{Route: "cf"})) == 0 {
 		t.Fatal("fixture has no measured playback channel")
 	}
-	if selections := m.Selections(upstreamstate.PlaybackURL, upstreamstate.Constraints{}); len(selections) == 0 || selections[0].Result.Route != "hkg" {
-		t.Fatalf("fixture must recommend HKG: %+v", selections)
+	if selections := m.Selections(upstreamstate.PlaybackURL, upstreamstate.Constraints{}); len(selections) == 0 || selections[0].Result.Route != "cf" {
+		t.Fatalf("fixture must recommend CF: %+v", selections)
 	}
 	c.client.Transport = catalogTransport(func(*http.Request) (*http.Response, error) {
 		t.Error("business request reselected an unmeasured transport")
 		return nil, errors.New("unmeasured transport")
 	})
 	business.Store(true)
-	for _, mode := range []string{"auto", "cf"} {
-		got, err := c.resolvePlayback(context.Background(), "42", "nya", mode)
+	for range 2 {
+		got, err := c.resolvePlayback(context.Background(), "42")
 		if err != nil || got != target {
-			t.Fatalf("mode=%s target=%q err=%v", mode, got, err)
+			t.Fatalf("target=%q err=%v", got, err)
 		}
 	}
 	if cfCalls.Load() != 2 {

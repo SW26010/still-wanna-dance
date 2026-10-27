@@ -117,19 +117,19 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 	if err := db.QueryRow("SELECT byte_size FROM media WHERE md5=?", md5).Scan(&size); err != nil || size != 131072 {
 		t.Fatalf("monitor did not fill resource size: %d, %v", size, err)
 	}
-	for _, node := range []string{"cf", "nya"} {
+	for _, node := range []string{"cf"} {
 		urls, err := c.store.SongURLs(context.Background(), 42, node)
 		if err != nil || len(urls) != 1 || urls[0].API != "https://api.udon.dance/Api/Songs/play" || urls[0].Node != node || urls[0].MD5 != md5 || urls[0].Size != size {
 			t.Fatalf("monitor URL not reusable for %s: %+v, %v", node, urls, err)
 		}
 	}
-	for table, want := range map[string]int{"song_urls": 2, "media": 1, "song_usage": 0, "request_events": 0} {
+	for table, want := range map[string]int{"song_urls": 1, "media": 1, "song_usage": 0, "request_events": 0} {
 		var count int
 		if err := db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != want {
 			t.Fatalf("%s count=%d, want %d: %v", table, count, want, err)
 		}
 	}
-	if !s.Scheduled || len(s.Results) != 14 || calls.Load() != 14 {
+	if !s.Scheduled || len(s.Results) != 10 || calls.Load() != 10 {
 		t.Fatalf("bad snapshot: %+v, calls %d", s, calls.Load())
 	}
 	for _, result := range s.Results {
@@ -150,7 +150,7 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil {
 		t.Fatal(err)
 	}
-	if len(status.Monitor.Results) != 14 || calls.Load() != before || strings.Contains(w.Body.String(), "upstreamHealth") {
+	if len(status.Monitor.Results) != 10 || calls.Load() != before || strings.Contains(w.Body.String(), "upstreamHealth") {
 		t.Fatal("status not a pure canonical snapshot", w.Body.String())
 	}
 	if err := c.requestMonitorCheck(); err == nil {

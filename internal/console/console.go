@@ -52,7 +52,6 @@ type Settings struct {
 	DownloadSoftLimit           int    `json:"downloadSoftLimit"`
 	DownloadGrowIntervalMS      int    `json:"downloadGrowIntervalMS"`
 	LocalProtectionGraceSeconds int    `json:"localProtectionGraceSeconds"`
-	DownloadUpstream            string `json:"downloadUpstream"`
 	UpstreamMode                string `json:"upstreamMode"`
 	ProxyBackend                string `json:"proxyBackend"`
 	SOCKS5Address               string `json:"socks5Address"`
@@ -320,12 +319,6 @@ func absoluteSettings(s Settings) (Settings, error) {
 	if s.LocalProtectionGraceSeconds < 0 || s.LocalProtectionGraceSeconds > int(cacheproxy.MaxLocalProtectionGrace/time.Second) {
 		return s, errors.New("本地延续保护时长必须为 0～10000 秒")
 	}
-	if s.DownloadUpstream == "" {
-		s.DownloadUpstream = "auto"
-	}
-	if s.DownloadUpstream != "auto" && s.DownloadUpstream != "cf" && s.DownloadUpstream != "hkg" {
-		return s, errors.New("回源线路必须是 auto、cf 或 hkg")
-	}
 	if s.RequestRetentionDays < 0 || s.RequestRetentionDays > 36500 {
 		return s, errors.New("请求明细保留天数必须为 0～36500")
 	}
@@ -491,15 +484,7 @@ func (c *Console) ensureEngineRead(key string) (func(), error) {
 	cfg.DownloadGrowInterval = time.Duration(c.settings.DownloadGrowIntervalMS) * time.Millisecond
 	cfg.LocalProtectionGrace = time.Duration(c.settings.LocalProtectionGraceSeconds) * time.Second
 	cfg.DialContext = c.upstreamDial
-	mode := c.settings.DownloadUpstream
-	if mode == "cf" {
-		cfg.PlaybackNode = "cf"
-	} else if mode == "hkg" {
-		cfg.PlaybackNode = "nya"
-	}
-	cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
-		return c.resolvePlayback(ctx, id, node, mode)
-	}
+	cfg.ResolvePlayback = c.resolvePlayback
 	cfg.ResourceTransports = func(target string) []http.RoundTripper {
 		var transports []http.RoundTripper
 		for _, selection := range c.operationSelections(upstreamstate.Resource, upstreamstate.Constraints{Target: target}) {

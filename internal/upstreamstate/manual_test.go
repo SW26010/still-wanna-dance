@@ -112,15 +112,15 @@ func TestSelectedChecksScopeAndBusinessPriority(t *testing.T) {
 					if catalogs.Load() != 3*multiplier || playbacks.Load() != 0 {
 						t.Fatal("wrong catalog scope")
 					}
-				} else if catalogs.Load() != 0 || playbacks.Load() != 2*multiplier {
+				} else if catalogs.Load() != 0 || playbacks.Load() != multiplier {
 					t.Fatal("unexpected prerequisite work", catalogs.Load(), playbacks.Load())
 				}
 				wantLight, wantFull := int32(0), int32(0)
 				if kind == CheckLatency {
-					wantLight = 2 * multiplier
+					wantLight = multiplier
 				}
 				if kind == CheckThroughput {
-					wantFull = 2 * multiplier
+					wantFull = multiplier
 				}
 				if light.Load() != wantLight || full.Load() != wantFull || active.Load() != 0 {
 					t.Fatal("wrong resource checks", light.Load(), full.Load(), active.Load())

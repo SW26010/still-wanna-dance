@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net/url"
 	"os"
 	"time"
 
@@ -271,7 +270,7 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 	}
 	stopCheck() // Waiting for a block's activation window has no execution timer.
 	if v.localOnly {
-		resolved, err := s.loadSongAddress(ctx, url.Values{"id": {v.songID}, "node": {"cf"}}, v.songID)
+		resolved, err := s.loadSongAddress(ctx, v.songID)
 		if err != nil {
 			return "", "", fmt.Errorf("%w: resolve evicted resource: %w", errUpstreamDownload, err)
 		}

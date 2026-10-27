@@ -19,8 +19,8 @@ func TestHTTPSLiveBrowser(t *testing.T) {
 	c := testConsole(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
-	for _, route := range []string{"cf", "hkg"} {
-		if _, err := c.resolveNode(ctx, 1343, route); err != nil {
+	for _, route := range []string{"cf"} {
+		if _, err := c.resolveSongURL(ctx, 1343); err != nil {
 			t.Logf("API %s: %v", route, err)
 		}
 	}

@@ -24,7 +24,7 @@ func failingQueueEngine(t *testing.T) (*cacheproxy.Server, *atomic.Int32) {
 	}
 	t.Cleanup(func() { store.Close() })
 	cfg.Store, cfg.Work, cfg.VideoDir = store, testWorkDirectory(t), t.TempDir()
-	cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
+	cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 		calls.Add(1)
 		return "", errors.New("fixture unavailable")
 	}

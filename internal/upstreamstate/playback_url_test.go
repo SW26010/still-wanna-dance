@@ -31,9 +31,9 @@ func playbackDeliveryMonitor(t *testing.T, candidates bool, tr transportFunc, ca
 
 func TestPlaybackURLDeliveryReusesProbeResponses(t *testing.T) {
 	for _, candidates := range []bool{false, true} {
-		name, want, wantRequests := "ordinary", 2, 3
+		name, want, wantRequests := "ordinary", 1, 2
 		if candidates {
-			name, want, wantRequests = "candidates", 4, 6
+			name, want, wantRequests = "candidates", 2, 4
 		}
 		t.Run(name, func(t *testing.T) {
 			var calls atomic.Int32
@@ -68,7 +68,7 @@ func TestPlaybackURLDeliveryReusesProbeResponses(t *testing.T) {
 				t.Fatalf("deliveries=%d, requests=%d; want %d, %d", len(delivered), calls.Load(), want, wantRequests)
 			}
 			for _, r := range delivered {
-				if r.SongID != 42 || r.API != apiBase+"/Api/Songs/play" || (r.Node != "cf" && r.Node != "nya") || !strings.Contains(r.URL, "/43-") || !strings.HasSuffix(r.URL, "token=private-probe-signature") {
+				if r.SongID != 42 || r.API != apiBase+"/Api/Songs/play" || r.Node != "cf" || !strings.Contains(r.URL, "/43-") || !strings.HasSuffix(r.URL, "token=private-probe-signature") {
 					t.Fatalf("wrong response identity: %+v", r)
 				}
 				if r.QueryStartedAt.Before(started) || r.ObservedAt.Before(r.QueryStartedAt) || r.ObservedAt.After(finished) {

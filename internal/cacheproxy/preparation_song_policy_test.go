@@ -75,7 +75,7 @@ func TestPreparationRechecksBlockedSongAfterCapacityWait(t *testing.T) {
 				cfg := fixtureConfig()
 				prepareFixtureResources(t, &cfg, t.TempDir(), true)
 				cfg.CacheUnlimited, cfg.MaxCacheBytes = false, 1024
-				cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return videoURL(payload), nil }
+				cfg.ResolvePlayback = func(context.Context, string) (string, error) { return videoURL(payload), nil }
 				cfg.ResourceTransports = func(string) []http.RoundTripper {
 					return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
 						calls.Add(1)

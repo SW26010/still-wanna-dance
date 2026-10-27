@@ -2,6 +2,8 @@
 
 ## 职责与边界
 
+允许的播放 API 来源由 [playbacksource](../internal/playbacksource/source.go) 定义，地址提供层据此解析和筛选候选；通道层只为已获准的入口提供连接。播放、队列、预览和批量补齐的接口不选择 CDN。完整职责与不同查询生命周期见[下载设计](download-resource-design.md#播放地址提供与连接执行)。
+
 DNS 仅维护答案合法且 TTL 未过期的 IP 池、刷新和并发查询合并，不记录连接胜者，不测延迟或吞吐。通道层组合入口与传输路径，维护可执行的候选及稳定身份。Upstream State Monitor 对每个操作、入口、通道分别测量，提供推荐；业务仍负责资源版本校验、下载和失败处理。
 
 `internal/upstreamnet` 统一承载独立 DoH、DNS 池与刷新、双栈拨号及 SOCKS5 adapter；命令行与 Console 直接复用它，分别拥有解析器的关闭责任。`upstreamrequest` 继续定义候选池与拨号契约，Console 只组装配置、连接池及应用生命周期。协议测试随网络实现维护；Console 测试通过相同网络契约注入夹具，不读取解析器私有缓存。现有 CF 实验的细粒度观测仅在 `cf_block_experiment` 构建中提供，正式产品不包含实验探针。

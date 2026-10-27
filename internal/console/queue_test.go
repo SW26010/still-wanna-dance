@@ -59,9 +59,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	c.client.Transport = http.DefaultTransport
 	cfg := fixtureCacheConfig()
 	cfg.PrepareAhead = 120 * time.Second
-	cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
-		return c.resolvePlayback(ctx, id, node, "auto")
-	}
+	cfg.ResolvePlayback = c.resolvePlayback
 	cfg.OriginScheme = "http"
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
@@ -136,7 +134,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if requests["1"] != 1 || requests["2"] != 1 || requests["4"] != 1 || requests["5"] != 2 || len(requests) != 4 {
+	if requests["1"] != 1 || requests["2"] != 1 || requests["4"] != 1 || requests["5"] != 1 || len(requests) != 4 {
 		t.Fatal(requests)
 	}
 	if _, err = os.Stat(fixtureVideoPath(testStorageRoot(c.settings), "1", body+"1")); !os.IsNotExist(err) {

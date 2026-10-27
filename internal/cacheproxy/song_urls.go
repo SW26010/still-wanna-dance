@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -132,28 +133,31 @@ func (s *Store) songURLStorageError(ctx context.Context, err error) error {
 }
 
 // SongURLs returns recent usable observations without probing them. Empty node
-// accepts both API nodes; explicit node choices remain constraints.
+// accepts all recorded nodes; this observation API does not apply source policy.
 func (s *Store) SongURLs(ctx context.Context, id int64, node string) ([]SongURL, error) {
-	return s.songURLs(ctx, "song_id", id, node, -1)
+	return s.songURLs(ctx, "song_id", id, observationNodes(node), -1)
 }
 
 // ResourceURLs applies the same validity rules to a fixed resource. The caller
 // chooses the candidate budget independently of any API lookup budget.
 func (s *Store) ResourceURLs(ctx context.Context, key, node string, limit int) ([]SongURL, error) {
-	return s.songURLs(ctx, "md5", key, node, limit)
+	return s.songURLs(ctx, "md5", key, observationNodes(node), limit)
 }
 
-// column is an internal SQL identifier supplied only by the two entry points.
-func (s *Store) songURLs(ctx context.Context, column string, value any, node string, limit int) (resultValue []SongURL, resultErr error) {
+// column is an internal SQL identifier, never caller-supplied input.
+func (s *Store) songURLs(ctx context.Context, column string, value any, nodes []string, limit int) (resultValue []SongURL, resultErr error) {
 	if !s.beginRequest() {
 		return nil, context.Canceled
 	}
 	defer s.wg.Done()
 	defer func() { resultErr = s.storageError(resultErr) }()
 	now := time.Now()
+	filter, args := songURLNodeFilter(nodes)
+	args = append([]any{value}, args...)
+	args = append(args, now.Add(-24*time.Hour).UnixNano(), now.UnixNano(), limit)
 	rows, err := s.usage.db.QueryContext(ctx, `SELECT song_id,url,md5,byte_size,api,node,query_started_at,observed_at
- FROM song_urls WHERE `+column+`=? AND failed_at=0 AND (?='' OR node=?) AND observed_at>=? AND observed_at<=?
- ORDER BY query_started_at DESC LIMIT ?`, value, node, node, now.Add(-24*time.Hour).UnixNano(), now.UnixNano(), limit)
+ FROM song_urls WHERE `+column+`=? AND failed_at=0`+filter+` AND observed_at>=? AND observed_at<=?
+ ORDER BY query_started_at DESC LIMIT ?`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -187,4 +191,26 @@ func (s *Store) RejectSongURL(ctx context.Context, o SongURL) error {
 	_, err := s.usage.db.ExecContext(ctx, `UPDATE song_urls SET failed_at=? WHERE song_id=? AND api=? AND node=? AND url=? AND query_started_at=?`,
 		time.Now().UnixNano(), o.SongID, o.API, o.Node, o.URL, o.QueryStartedAt.UnixNano())
 	return s.storageError(err)
+}
+
+// nil means unrestricted observation inspection; an empty eligibility list
+// deliberately matches nothing. Filtering precedes ordering and LIMIT.
+func observationNodes(node string) []string {
+	if node == "" {
+		return nil
+	}
+	return []string{node}
+}
+func songURLNodeFilter(nodes []string) (string, []any) {
+	if nodes == nil {
+		return "", nil
+	}
+	if len(nodes) == 0 {
+		return " AND 0", nil
+	}
+	args := make([]any, len(nodes))
+	for i, node := range nodes {
+		args[i] = node
+	}
+	return " AND node IN (" + strings.TrimSuffix(strings.Repeat("?,", len(nodes)), ",") + ")", args
 }

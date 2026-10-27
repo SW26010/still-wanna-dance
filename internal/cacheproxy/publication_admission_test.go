@@ -214,7 +214,7 @@ func TestPublicationDisplacementCancelsWaitingMerge(t *testing.T) {
 func TestZeroBudgetQueuePreparationReportsTemporaryReadiness(t *testing.T) {
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
 	setRetentionLimit(t, s, 0)
-	s.cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return videoURL(payload), nil }
+	s.cfg.ResolvePlayback = func(context.Context, string) (string, error) { return videoURL(payload), nil }
 	if err := s.UpdatePrefetchQueue([]int64{42}, false); err != nil {
 		t.Fatal(err)
 	}

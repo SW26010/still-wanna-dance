@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"still-wanna-dance/internal/playbacksource"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/videometa"
 )
@@ -131,11 +132,11 @@ type observation struct {
 	bytes               int64
 	songID              int64
 }
-type route struct{ id, node string }
+type route = playbacksource.Entry
 
-var playbackRoutes = [...]route{{"cf", "cf"}, {"hkg", "nya"}}
+var playbackRoutes = playbacksource.Entries()
 
-const apiBase = "https://api.udon.dance"
+const apiBase = playbacksource.DefaultBaseURL
 
 func (m *Monitor) resourceIDsLocked() []string {
 	m.pruneResourceSourcesLocked(time.Now())
@@ -167,7 +168,7 @@ func routeIDs(op Operation) []string {
 	if op == PlaybackURL {
 		ids := make([]string, len(playbackRoutes))
 		for i, r := range playbackRoutes {
-			ids[i] = r.id
+			ids[i] = r.ID
 		}
 		return ids
 	}
@@ -187,9 +188,9 @@ func entry(op Operation, id string) string {
 		return "https://" + id
 	}
 	for _, r := range playbackRoutes {
-		if r.id == id {
+		if r.ID == id {
 			if op == PlaybackURL {
-				return apiBase + "/Api/Songs/play?node=" + r.node
+				return r.Endpoint(apiBase)
 			}
 		}
 	}

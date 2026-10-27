@@ -28,17 +28,12 @@ func (f *domainCandidates) Candidates(_ context.Context, target string) ([]upstr
 	return f.Current(target), nil
 }
 
-func TestResourcesFollowReturnedDomainsAcrossNodesAndChannels(t *testing.T) {
-	for _, hosts := range []struct{ name, cf, nya string }{
-		{"both play", "play.udon.dance", "play.udon.dance"},
-		{"both nya", "nya.xin.moe", "nya.xin.moe"},
-		{"new domains", "media.future.example", "video.other.example"},
-		{"swapped", "nya.xin.moe", "play.udon.dance"},
-	} {
+func TestResourcesFollowReturnedDomainsAcrossChannels(t *testing.T) {
+	for _, host := range []string{"play.udon.dance", "nya.xin.moe", "media.future.example"} {
 		for _, candidates := range []bool{false, true} {
-			name := hosts.name + "/ordinary"
+			name := host + "/ordinary"
 			if candidates {
-				name = hosts.name + "/candidates"
+				name = host + "/candidates"
 			}
 			t.Run(name, func(t *testing.T) {
 				var mu sync.Mutex
@@ -46,9 +41,8 @@ func TestResourcesFollowReturnedDomainsAcrossNodesAndChannels(t *testing.T) {
 				wrap := func(base http.RoundTripper) http.RoundTripper {
 					return transportFunc(func(r *http.Request) (*http.Response, error) {
 						if r.URL.Path == "/Api/Songs/play" {
-							host := hosts.cf
-							if r.URL.Query().Get("node") == "nya" {
-								host = hosts.nya
+							if r.URL.Query().Get("node") != "cf" {
+								t.Errorf("unexpected entry: %s", r.URL)
 							}
 							resp := response(302, "")
 							resp.Header.Set("Location", strings.Replace(videoFixture, "play.udon.dance", host, 1))
@@ -84,17 +78,14 @@ func TestResourcesFollowReturnedDomainsAcrossNodesAndChannels(t *testing.T) {
 					}
 				}
 				sources := m.ResourceSources("")
-				if len(sources) != 2*wantLoads {
+				if len(sources) != wantLoads {
 					t.Fatalf("lost API sources: %+v", sources)
 				}
 				if got := ch.ResourceSources(""); len(got) != len(sources) {
 					t.Fatalf("channel lost API sources: %+v", got)
 				}
 				for _, source := range sources {
-					host := hosts.cf
-					if source.Node == "nya" {
-						host = hosts.nya
-					} else if source.Node != "cf" {
+					if source.Node != "cf" {
 						t.Fatal(source)
 					}
 					if source.Domain != host || source.ResourceURL != strings.Replace(videoFixture, "play.udon.dance", host, 1) || !strings.Contains(source.API, "node="+source.Node) || source.SongID <= 0 || source.ObservedAt.IsZero() || !source.ValidUntil.After(source.ObservedAt) {
@@ -104,10 +95,7 @@ func TestResourcesFollowReturnedDomainsAcrossNodesAndChannels(t *testing.T) {
 						t.Fatal("missing issuing API channel")
 					}
 				}
-				wantDomains := 2
-				if hosts.cf == hosts.nya {
-					wantDomains = 1
-				}
+				wantDomains := 1
 				if got := len(m.Results(Resource)); got != wantDomains*wantLoads {
 					t.Fatalf("resource count = %d, want %d", got, wantDomains*wantLoads)
 				}
@@ -115,8 +103,8 @@ func TestResourcesFollowReturnedDomainsAcrossNodesAndChannels(t *testing.T) {
 					if len(r.Sources) == 0 {
 						t.Fatal("status lost sources", r)
 					}
-					returned := r.Route == hosts.cf || r.Route == hosts.nya
-					if r.Entry != "https://"+r.Route || (r.Route != hosts.cf && r.Route != hosts.nya) {
+					returned := r.Route == host
+					if r.Entry != "https://"+r.Route || r.Route != host {
 						t.Fatal("resource identity is not its domain", r)
 					}
 					if returned && (r.State != "available" || loads[r.Route] != wantLoads) {
@@ -175,17 +163,17 @@ func TestRetiredAPISourcesDisappearBeforeAnotherCheckCompletes(t *testing.T) {
 	if err := m.Check(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if got := m.channel.ResourceSources(""); len(got) != 4 {
+	if got := m.channel.ResourceSources(""); len(got) != 2 {
 		t.Fatal(got)
 	}
 	f.mu.Lock()
 	f.second = false
 	f.mu.Unlock()
 	// Read shared state first: no monitor snapshot or completed check can clean it for us.
-	if got := m.channel.ResourceSources(""); len(got) != 2 {
+	if got := m.channel.ResourceSources(""); len(got) != 1 {
 		t.Fatal("shared set retained retired API source", got)
 	}
-	if got := m.ResourceSources(""); len(got) != 2 {
+	if got := m.ResourceSources(""); len(got) != 1 {
 		t.Fatal("monitor retained retired API source", got)
 	}
 	for _, r := range m.Results(Resource) {
@@ -196,7 +184,7 @@ func TestRetiredAPISourcesDisappearBeforeAnotherCheckCompletes(t *testing.T) {
 	f.mu.Lock()
 	f.second = true
 	f.mu.Unlock()
-	if len(m.ResourceSources("")) != 2 || len(m.channel.ResourceSources("")) != 2 {
+	if len(m.ResourceSources("")) != 1 || len(m.channel.ResourceSources("")) != 1 {
 		t.Fatal("retired source revived without a new API response")
 	}
 	f.mu.Lock()

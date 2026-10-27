@@ -13,6 +13,9 @@ test('six primary pages and section links reach their current owners',async({pag
   await page.evaluate(()=>{location.hash='#network-proxy';});
   await expect(page.getByLabel('上游连接',{exact:true})).toBeVisible();
   await expect(page.getByLabel('上游连接',{exact:true})).toHaveCount(1);
+  await page.getByRole('tab',{name:'网络',exact:true}).click();
+  await expect(page.getByRole('combobox',{name:'播放地址接口选择',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('spinbutton',{name:'自动测速间隔（分钟）',exact:true})).toBeVisible();
   await page.evaluate(()=>{location.hash='#help-paths';});
   await expect(page.getByRole('tab',{name:'使用帮助',exact:true})).toHaveAttribute('aria-selected','true');
   await expect(page.getByRole('heading',{name:'日志与当前路径',exact:true})).toBeVisible();

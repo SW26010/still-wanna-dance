@@ -38,6 +38,21 @@ func SafeError(err error) error {
 	if _, ok := err.(*locationError); ok {
 		return err
 	}
+	// Sanitize each joined failure before searching for a URL error. A search
+	// across the whole tree would keep only the first matching branch.
+	if joined, ok := err.(interface{ Unwrap() []error }); ok {
+		causes := joined.Unwrap()
+		safe := make([]error, len(causes))
+		changed := false
+		for i, cause := range causes {
+			safe[i] = SafeError(cause)
+			changed = changed || safe[i].Error() != cause.Error()
+		}
+		if !changed {
+			return err // Preserve existing context and formatting when no URL was removed.
+		}
+		return errors.Join(safe...)
+	}
 	// net/http formats an invalid redirect Location with %q and its parse
 	// error with %v before wrapping in url.Error. Neither URL can be removed
 	// by unwrapping. Discard the whole diagnostic instead of trying to parse

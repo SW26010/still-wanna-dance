@@ -95,7 +95,7 @@ func (c *Console) writeConfigFile(s Settings) error {
 	// aliases as well, or they could override a canonical value on the next read.
 	// The password is the only omitempty field and may be absent when cleared.
 	for key := range fields {
-		if strings.EqualFold(key, "socks5Password") || strings.EqualFold(key, "proxySecret") || strings.EqualFold(key, "proxyNodes") {
+		if strings.EqualFold(key, "downloadUpstream") || strings.EqualFold(key, "socks5Password") || strings.EqualFold(key, "proxySecret") || strings.EqualFold(key, "proxyNodes") {
 			delete(fields, key)
 			continue
 		}

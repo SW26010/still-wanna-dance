@@ -84,7 +84,7 @@ func TestLocalStorageFailureStopsConsoleFallback(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if _, err := c.resolvePlayback(context.Background(), "42", "cf", "auto"); !errors.Is(err, cacheproxy.ErrLocalStorage) {
+			if _, err := c.resolvePlayback(context.Background(), "42"); !errors.Is(err, cacheproxy.ErrLocalStorage) {
 				t.Fatal(err)
 			}
 			if queries.Load() != 1 {

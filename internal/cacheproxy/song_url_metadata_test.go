@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
+
 	"os"
 	"strings"
 	"sync/atomic"
@@ -43,7 +43,7 @@ func TestResolvePlaybackRecordsSharedMediaWithoutDownload(t *testing.T) {
 		t.Fatalf("unknown size must be NULL: %+v, %v", size, err)
 	}
 	for _, id := range []string{"42", "43"} {
-		if _, err := s.resolvePlaybackVideo(ctx, url.Values{"id": {id}, "node": {"cf"}}); err != nil {
+		if _, err := s.resolvePlaybackVideo(ctx, id); err != nil {
 			t.Fatal(err)
 		}
 		if err := s.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", key).Scan(&size); err != nil || !size.Valid || size.Int64 != 1234 {

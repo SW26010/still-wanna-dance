@@ -125,7 +125,7 @@ func TestDiagnosticMonitorRetainsTraversalAcrossRunsAndCancellation(t *testing.T
 				mu.Lock()
 				ids := slices.Clone(requested)
 				mu.Unlock()
-				if len(ids) == 0 || (round != 2 && len(ids) != 2) {
+				if len(ids) == 0 || (round != 2 && len(ids) != 1) {
 					t.Fatalf("round %d requests: %v", round, ids)
 				}
 				for _, id := range ids {
@@ -142,7 +142,7 @@ func TestDiagnosticMonitorRetainsTraversalAcrossRunsAndCancellation(t *testing.T
 				t.Fatalf("pending=%v lists=%d resources=%d", pending, lists, resources)
 			}
 			for _, id := range []int64{low, middle, high} {
-				for _, node := range []string{"cf", "nya"} {
+				for _, node := range []string{"cf"} {
 					urls, err := c.store.SongURLs(context.Background(), id, node)
 					if err != nil || len(urls) != 1 {
 						t.Fatalf("metadata not persisted: %d %s: %v %v", id, node, urls, err)

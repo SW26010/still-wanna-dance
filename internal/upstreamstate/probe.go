@@ -250,11 +250,11 @@ func probePlayback(parent context.Context, client *http.Client, p Policy, id int
 }
 
 func probePlaybackResponse(parent context.Context, client *http.Client, p Policy, id int64, r route) (o observation, sample *videoSample, result PlaybackURLResponse) {
-	o = observation{op: PlaybackURL, route: r.id, songID: id}
+	o = observation{op: PlaybackURL, route: r.ID, songID: id}
 	ctx, cancel := context.WithTimeout(parent, p.RequestTimeout)
 	defer cancel()
 	started := time.Now()
-	resp, t, err := doProbeRequest(ctx, client, entry(PlaybackURL, r.id)+"&id="+strconv.FormatInt(id, 10), "")
+	resp, t, err := doProbeRequest(ctx, client, entry(PlaybackURL, r.ID)+"&id="+strconv.FormatInt(id, 10), "")
 	defer func() {
 		o.finishTiming(started, t.snapshot())
 		if o.state == "available" {
@@ -281,8 +281,8 @@ func probePlaybackResponse(parent context.Context, client *http.Client, p Policy
 	s := videoSample{resourceURL.String(), u.Host, meta.Checksum, meta.Size}
 	o.state = "available"
 	o.resourceHost = s.host
-	o.resourceSource = upstreamrequest.ResourceSource{API: entry(PlaybackURL, r.id) + "&id=" + strconv.FormatInt(id, 10), Node: r.node, SongID: id, ResourceURL: u.String(), Domain: u.Host, Path: u.Path}
-	result = PlaybackURLResponse{SongID: id, URL: u.String(), API: apiBase + "/Api/Songs/play", Node: r.node}
+	o.resourceSource = upstreamrequest.ResourceSource{API: entry(PlaybackURL, r.ID) + "&id=" + strconv.FormatInt(id, 10), Node: r.Node, SongID: id, ResourceURL: u.String(), Domain: u.Host, Path: u.Path}
+	result = PlaybackURLResponse{SongID: id, URL: u.String(), API: apiBase + "/Api/Songs/play", Node: r.Node}
 	return o, &s, result
 }
 

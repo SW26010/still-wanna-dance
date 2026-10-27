@@ -37,7 +37,7 @@ func TestStoreBusinessOperationsWithoutVideoEngine(t *testing.T) {
 	if count, err := store.SongUsageCount(ctx); err != nil || count != 1 {
 		t.Fatal(count, err)
 	}
-	if ids, err := store.SongMetadataCandidates(ctx, o.API); err != nil || len(ids) != 1 || ids[0] != 19 {
+	if ids, err := store.SongMetadataCandidates(ctx, o.API); err != nil || len(ids) != 0 {
 		t.Fatal(ids, err)
 	}
 	var observations int

@@ -141,12 +141,12 @@ func TestPlaybackAPIStreamsAndReusesVideoCache(t *testing.T) {
 	var downloads atomic.Int32
 	var invalidRedirect atomic.Bool
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); io.WriteString(w, payload) }, func(cfg *Config) {
-		cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
+		cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
 			if invalidRedirect.Load() {
 				return "https://evil.invalid/video", nil
 			}
-			if id != "42" || node != "cf" {
-				t.Errorf("id=%s node=%s", id, node)
+			if id != "42" {
+				t.Errorf("id=%s", id)
 			}
 			return strings.Replace(videoURL(payload), "http:", "https:", 1), nil
 		}

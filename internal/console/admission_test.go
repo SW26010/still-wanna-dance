@@ -41,9 +41,7 @@ func TestOrderedPreparationStopsResolutionAtUsageCapacity(t *testing.T) {
 			cfg.OriginScheme = "http"
 			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 			cfg.Origins["nya.xin.moe"] = strings.TrimPrefix(origin.URL, "http://")
-			cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
-				return c.resolvePlayback(ctx, id, node, "auto")
-			}
+			cfg.ResolvePlayback = c.resolvePlayback
 			engine, err := cacheproxy.New(cfg)
 			if err != nil {
 				t.Fatal(err)
@@ -113,7 +111,7 @@ func TestQueueRepreparesRearmedMemberAfterPreviousSuccess(t *testing.T) {
 	cfg := fixtureCacheConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.CacheUnlimited, cfg.MaxCacheBytes = false, 0
-	cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return target, nil }
+	cfg.ResolvePlayback = func(context.Context, string) (string, error) { return target, nil }
 	var calls atomic.Int32
 	cfg.ResourceTransports = func(string) []http.RoundTripper {
 		return []http.RoundTripper{catalogTransport(func(r *http.Request) (*http.Response, error) {

@@ -166,7 +166,7 @@ func TestMihomoColdAutoUsesDirectWithoutMonitorOrDNSCache(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	if got, err := c.resolveNode(ctx, 42, "cf"); err != nil || got != target {
+	if got, err := c.resolveSongURL(ctx, 42); err != nil || got != target {
 		t.Fatalf("cold auto failed: %s %v", got, err)
 	}
 	client.Transport.(*mihomoTransport).Retire()
@@ -234,7 +234,7 @@ func TestMihomoBusinessFallbackReachesFifthProxy(t *testing.T) {
 			before := directCalls.Load()
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
-			if got, err := c.resolveNode(ctx, 42, "cf"); err != nil || got != target {
+			if got, err := c.resolveSongURL(ctx, 42); err != nil || got != target {
 				t.Fatalf("fifth proxy omitted: calls=%v error=%v", calls, err)
 			}
 			if !slices.Equal(calls, []int{1, 1, 1, 1, 1}) {

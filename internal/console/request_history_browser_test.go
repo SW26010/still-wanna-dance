@@ -41,7 +41,7 @@ func TestRequestHistoryBrowser(t *testing.T) {
 	cfg.CacheUnlimited = true
 	cfg.RequestRetentionDays, cfg.RequestRetentionUnlimited = 30, false
 	target := fmt.Sprintf("http://play.udon.dance/files/2403/42-a.mp4?e=%s&s=%d", key, len(body))
-	cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return target, nil }
+	cfg.ResolvePlayback = func(context.Context, string) (string, error) { return target, nil }
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)

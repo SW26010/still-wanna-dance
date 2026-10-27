@@ -193,11 +193,11 @@ func TestMonitorMetadataBackfillFollowsRetentionOrder(t *testing.T) {
 	waitMonitor(t, c)
 	assertRequests := func(want int64, wantCalls int) {
 		t.Helper()
-		if !slices.Equal(requested, []int64{want, want, want, want}) || calls != wantCalls || resourceCalls != 4 {
+		if !slices.Equal(requested, []int64{want, want}) || calls != wantCalls || resourceCalls != 2 {
 			t.Fatalf("requested=%v calls=%d resourceCalls=%d, want song=%d total=%d", requested, calls, resourceCalls, want, wantCalls)
 		}
 	}
-	assertRequests(1981, 14)
+	assertRequests(1981, 10)
 	if pending := c.monitorPlaybackSongCandidates(context.Background()); !slices.Equal(pending, []int64{5404}) {
 		t.Fatal("completed song stayed pending", pending)
 	}
@@ -205,7 +205,7 @@ func TestMonitorMetadataBackfillFollowsRetentionOrder(t *testing.T) {
 	if err := c.monitor.CheckSelected(context.Background(), upstreamstate.CheckPlayback); err != nil {
 		t.Fatal(err)
 	}
-	assertRequests(5404, 18)
+	assertRequests(5404, 12)
 	if pending := c.monitorPlaybackSongCandidates(context.Background()); len(pending) != 0 {
 		t.Fatal("metadata still incomplete", pending)
 	}
@@ -213,7 +213,7 @@ func TestMonitorMetadataBackfillFollowsRetentionOrder(t *testing.T) {
 	if err := c.monitor.CheckSelected(context.Background(), upstreamstate.CheckPlayback); err != nil {
 		t.Fatal(err)
 	}
-	assertRequests(42, 22)
+	assertRequests(42, 14)
 }
 
 func TestMonitorMetadataCandidatesDoNotOpenOrReviveStorage(t *testing.T) {

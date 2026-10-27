@@ -260,9 +260,9 @@ func TestNetworkConnectivityReusesMonitorResponsesToInitializeStorage(t *testing
 			t.Fatal("missing successful summary", row)
 		}
 	}
-	// Three lists, both playback nodes, one deduplicated resource host. Storage
+	// Three lists, the CF playback entry, one deduplicated resource host. Storage
 	// initialization must not fetch any of those responses a second time.
-	if requests.Load() != 6 {
+	if requests.Load() != 5 {
 		t.Fatal("unexpected upstream request count", requests.Load())
 	}
 	db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))
@@ -275,7 +275,7 @@ func TestNetworkConnectivityReusesMonitorResponsesToInitializeStorage(t *testing
 	if err := db.QueryRow("SELECT name,md5,byte_size FROM songs JOIN song_media USING(song_id) JOIN media USING(md5) WHERE song_id=1").Scan(&name, &checksum, &size); err != nil || name != "initialized by monitor" || checksum != md5 || size != 1234 {
 		t.Fatalf("initial metadata %q %q %d: %v", name, checksum, size, err)
 	}
-	for _, node := range []string{"cf", "nya"} {
+	for _, node := range []string{"cf"} {
 		urls, err := c.store.SongURLs(context.Background(), 1, node)
 		if err != nil || len(urls) != 1 {
 			t.Fatalf("playback metadata %s: %v %v", node, urls, err)

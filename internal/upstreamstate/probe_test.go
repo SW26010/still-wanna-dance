@@ -127,19 +127,19 @@ func TestFirstByteLatencySeparateFromBodyAndInvalidCatalog(t *testing.T) {
 	}
 }
 
-func TestHKGPlaybackReturnsActualDomainSample(t *testing.T) {
+func TestCFPlaybackReturnsActualDomainSample(t *testing.T) {
 	var calls atomic.Int32
 	client := requestClient(transportFunc(func(r *http.Request) (*http.Response, error) {
 		calls.Add(1)
-		if r.URL.Query().Get("node") != "nya" {
+		if r.URL.Query().Get("node") != "cf" {
 			t.Fatal("wrong playback node", r.URL)
 		}
 		resp := response(http.StatusFound, "")
 		resp.Header.Set("Location", videoFixture)
 		return resp, nil
 	}))
-	o, sample := probePlayback(context.Background(), client, DefaultPolicy(), 42, playbackRoutes[1])
-	if o.state != "available" || o.route != "hkg" || sample == nil || sample.host != "play.udon.dance" || calls.Load() != 1 {
+	o, sample := probePlayback(context.Background(), client, DefaultPolicy(), 42, playbackRoutes[0])
+	if o.state != "available" || o.route != "cf" || sample == nil || sample.host != "play.udon.dance" || calls.Load() != 1 {
 		t.Fatal(o, sample, calls.Load())
 	}
 }

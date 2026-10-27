@@ -23,12 +23,12 @@ func TestMD5PlaybackCheckRedactsTransportURL(t *testing.T) {
 	var logs bytes.Buffer
 	s.cfg.Logger = slog.New(slog.NewJSONHandler(&logs, nil))
 	cause := errors.New("connection refused")
-	s.cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
+	s.cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 		return "", &url.Error{Op: "Get", URL: "https://example.test/private?token=secret-value", Err: cause}
 	}
 	local := parsedVideo(t, s, payload)
 	local.songID = "42"
-	check := s.startPlaybackCheck(url.Values{"id": {"42"}}, local)
+	check := s.startPlaybackCheck("42", local)
 	select {
 	case <-check.done:
 	case <-time.After(5 * time.Second):
@@ -115,7 +115,7 @@ func TestMD5PlaybackImmediatelyReturnsAndMismatchOnlyLogs(t *testing.T) {
 	var downloads atomic.Int32
 	started, finish := make(chan struct{}), make(chan struct{})
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); io.WriteString(w, payload) }, func(cfg *Config) {
-		cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
+		cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
 			close(started)
 			select {
 			case <-finish:
@@ -155,7 +155,7 @@ func TestMD5PlaybackImmediatelyReturnsAndMismatchOnlyLogs(t *testing.T) {
 
 func TestMD5UnknownIDColdLoadRecordsMappingAndCatalogWins(t *testing.T) {
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
-	s.cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return videoURL(payload), nil }
+	s.cfg.ResolvePlayback = func(context.Context, string) (string, error) { return videoURL(payload), nil }
 	assertResponse(t, request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=42", nil), 200, payload)
 	s.wg.Wait()
 	key := parsedVideo(t, s, payload).key

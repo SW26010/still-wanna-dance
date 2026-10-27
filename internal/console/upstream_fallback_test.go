@@ -83,7 +83,7 @@ func TestColdAutoBusinessKeepsDirectPath(t *testing.T) {
 					t.Fatalf("songs=%d err=%v", len(catalog.Songs), err)
 				}
 			} else {
-				target, err := c.resolveNode(ctx, 42, "cf")
+				target, err := c.resolveSongURL(ctx, 42)
 				if err != nil || target != playback {
 					t.Fatalf("target=%q err=%v", target, err)
 				}

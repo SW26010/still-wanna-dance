@@ -300,7 +300,7 @@ func TestLiveIndependentDNS(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("catalog: %d unique songs", len(catalog.Songs))
-	target, err := c.resolve(ctx, 1343)
+	target, err := c.resolveSongURL(ctx, 1343)
 	if err != nil {
 		t.Fatal(err)
 	}

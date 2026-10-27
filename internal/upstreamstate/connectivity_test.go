@@ -15,10 +15,10 @@ func TestConnectivityUsesMonitorRoutesCallbacksAndOneByteProbes(t *testing.T) {
 			var calls atomic.Int32
 			var m *Monitor
 			var f *candidateFixture
-			wantRequests, wantCatalogs, wantURLs := 7, 2, 2
+			wantRequests, wantCatalogs, wantURLs := 5, 2, 1
 			if mode == "candidates" {
 				m, f = candidateMonitor(t)
-				wantRequests, wantCatalogs, wantURLs = 14, 4, 4
+				wantRequests, wantCatalogs, wantURLs = 10, 4, 2
 			} else {
 				m = testMonitor(t, func(r *http.Request) (*http.Response, error) {
 					calls.Add(1)

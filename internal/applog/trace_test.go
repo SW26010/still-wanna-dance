@@ -57,3 +57,46 @@ func TestMalformedRedirectErrorPrivacy(t *testing.T) {
 		})
 	}
 }
+
+func TestSafeErrorPreservesJoinedFailures(t *testing.T) {
+	refused := errors.New("connection refused")
+	unavailable := errors.New("HTTP 503")
+	badLocation := errors.New("invalid redirect")
+	requestError := func(cause error) error {
+		return &url.Error{Op: "Get", URL: "https://example/video?token=secret", Err: cause}
+	}
+	for _, malformed := range []bool{false, true} {
+		t.Run(fmt.Sprint(malformed), func(t *testing.T) {
+			joined := errors.Join(requestError(refused), errors.Join(requestError(context.DeadlineExceeded), unavailable))
+			causes := []error{refused, context.DeadlineExceeded, unavailable}
+			if malformed {
+				joined = errors.Join(joined, requestError(fmt.Errorf("failed to parse Location header %q: %w", "/%zz?token=secret", badLocation)))
+				causes = append(causes, badLocation)
+			}
+			safe := SafeError(joined)
+			for _, cause := range causes {
+				if !errors.Is(safe, cause) {
+					t.Errorf("lost error identity %v: %v", cause, safe)
+				}
+			}
+			for _, message := range []string{"connection refused", "context deadline exceeded", "HTTP 503"} {
+				if !strings.Contains(safe.Error(), message) {
+					t.Errorf("lost diagnostic %q: %v", message, safe)
+				}
+			}
+			if strings.Contains(safe.Error(), "token") || strings.Contains(safe.Error(), "secret") || strings.Contains(safe.Error(), "https://") {
+				t.Fatalf("URL leaked: %v", safe)
+			}
+			if again := SafeError(safe); again.Error() != safe.Error() || !errors.Is(again, context.DeadlineExceeded) {
+				t.Fatalf("repeated sanitization changed result: %v", again)
+			}
+		})
+	}
+}
+
+func TestSafeErrorLeavesNonURLErrorsUnchanged(t *testing.T) {
+	err := fmt.Errorf("publication failed: %w: %w", errors.New("local storage unavailable"), errors.New("disk failure"))
+	if got := SafeError(err); got != err {
+		t.Fatalf("changed a non-URL error: got %q, want %q", got, err)
+	}
+}

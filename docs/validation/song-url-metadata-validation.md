@@ -1,5 +1,7 @@
 # 播放地址解析后的资源元数据写入验证
 
+> 2026-10-27：播放入口已收敛为 CF。下文 10 月 15 日的双节点描述属于当时实现；现行入口、地址复用和缺项条件见文末 CF 入口验证及[统一回源选路](../console.md#统一回源选路)。
+
 2026-10-15：`ObserveSongURL` 在接受有效的新 URL 观察时，即将 URL 的 `e/s` 解析为资源 MD5/字节数，并复用资源写入 SQL 更新 `media.byte_size/source_path`。URL 记录与资源属性在同一事务提交，任一写入失败则回滚；不需要视频正文下载，不新增字段或数据库迁移。同 MD5 的不同歌曲共享资源行，已有歌曲映射不因 URL 冲突而改变。
 
 未知大小仍为 NULL。沿用原 `recordVideo` 的属性更新规则：已提供的有效属性写入，缺失值不清空已知值。新解析的大小属于上游元数据，并不表示视频存在、内容已校验或已播放。没有扫描或回填用户现有数据库；旧 URL 缓存的资源属性在下一次接受新观察时补齐。
@@ -91,3 +93,33 @@ Monitor 在清单同步后、播放 API 请求前选择，每批仍用原请求�
 - `go test -tags=no_easytier ./internal/upstreamstate ./internal/cacheproxy ./internal/console -run 'Test(PlaybackSample|SongMetadataCandidates|MonitorMetadata|MonitorLifecycleConsentAndStatus)' -count=1 -timeout=90s` 通过，见 `focused.log`。
 - `go test -tags=no_easytier -p=1 ./internal/upstreamstate ./internal/cacheproxy ./internal/console -count=1 -timeout=180s -json`：upstreamstate 165 个测试/子测试通过；cacheproxy 508 通过、8 跳过，既有 `TestCanceledSeekReleasesWorkerWithoutCancelingSharedReaders` 再现 `new seek stalled`；console 584 通过、5 跳过，既有 `TestQueueLatestSnapshotDedupAndRetry` 再现 `latest queue was not prepared`。本次新增测试均通过，完整回归仍未全绿，见 `packages.jsonl`。沿用上节的 Seek 重复结果及队列未修改基线失败证据，本轮未修改两项行为，也未用重复运行隐藏失败。
 - 同范围 `go vet -tags=no_easytier` 通过，见 `vet.log`；变更 Go 文件的 `gofmt`、`git diff --check` 通过，台账 43 个编号唯一。未运行 race；未执行 Git commit/push。
+
+## 固定 CF 播放入口（2026-10-27）
+
+为减少对 HKG 入口的非必要请求，播放、预览、队列预加载、下载补齐与自动/手动检测统一查询 `node=cf`。移除选择设置和跨入口回退，旧 `downloadUpstream` 不生效且保存时清除。地址缓存只复用 cf 来源，缺项检测也只要求 cf 地址；已有完整本地视频继续复用。保持实际返回域名及来源事实，不依据域名或 IP 推断 CDN，不修改块调度与 Blocking 语义。
+
+验证使用 Windows 隔离临时库、回环 HTTP 上游和浏览器夹具：
+
+- 四个受影响包完整回归通过：`go test -tags=no_easytier ./internal/cacheproxy ./internal/console ./internal/upstreamstate ./internal/upstreamrequest -count=1 -timeout=180s`。
+- 正式源码编译检查通过：`go test -tags=no_easytier ./internal/... ./cmd/... -run '^$'`。首次使用 `./...` 误纳入 artifacts/test-runs 中的历史实验和临时构建文件而失败，记录在 `compile-all.log`；限定到正式源码的结果在 `compile-source.log`。
+- 覆盖入口失败不回退、取消、慢 CF 响应、本地视频复用、CF 返回其他合法域名、原始来源保存、旧选择配置忽略/清除，以及播放/预览/预加载在 CF 失败时仍不使用可成功的旧 nya 地址。监测的候选通道与资源检测次数按单入口更新；缺 nya 地址不再反复选为缺项。
+- WebUI 构建和产物一致性检查通过；Edge 的 settings-structure 与 monitor-details 共 8 项通过，确认选择控件移除、测速字段可见、设置保存及网络结果展示正常。
+
+原始日志保留在忽略目录 `artifacts/cf-only/`。首次编译暴露双入口测试的固定数组索引，首轮包测试还包含旧双入口断言；更新后通过。沙箱中的 Windows 硬链接/目录连接权限及 renameat 无效句柄失败单列保留，改在常规权限下运行隔离测试；浏览器沙箱启动失败后同样改用常规权限，随后修正测试的数值输入定位器。没有为环境限制更改产品文件操作。没有执行公网负载或 VRC 实机验证；本次结论是固定 API 入口的行为，不证明 CF 返回资源的实际提供方或 HKG 的带宽效果。
+
+### 地址提供职责收敛（同日）
+
+后续整理把允许的来源定义和新地址解析放入 playbacksource，Console 和独立命令行共用解析实现；cacheproxy 的 address_sources.go 集中旧地址、共享刷新、重试和固定资源版本查找。ResolvePlayback 与内部加载接口只接收歌曲身份，播放、队列、预览、批量补齐不再传递 node。Monitor、旧地址筛选和元数据缺项检测读取同一来源定义；连接通道与块调度职责保持独立。生命周期和接口依据见[现行下载设计](../download-resource-design.md#播放地址提供与连接执行)。
+
+- 五个包完整回归通过：playbacksource、cacheproxy、console、upstreamstate、upstreamrequest。新增覆盖同来源内失败通道重试和原始来源保留、取消后停止尝试、无连接候选返回不可用、规范化歌曲身份的共享刷新及单个等待者取消隔离、来源过滤先于 32 条候选上限且历史观测仍可查询。原有预览固定版本、播放/队列/批量取消、本地复用及配置回归继续通过。
+- 正式源码的 no_easytier 编译检查及同范围 go vet 通过；console 的 no_easytier + cf_block_experiment 标签编译检查通过。编译检查使用 -run '^$'，不计为实验运行通过。
+- 原始结果位于忽略目录 artifacts/source-provider/：tests-first.log、compile-source.log、compile-experiment.log 和 checks.json。接口迁移初期编译暴露遗留回调参数及导入，compile-first/second/third.log 保留失败和修正结果；完整包回归首轮通过。测试使用常规 Windows 权限、仓库包装器及隔离数据。
+- 本轮没有修改前端产物，沿用上一节浏览器与构建证据；没有新增后台服务、运行配置或调度器来源字段，也未执行 Git commit/push。公网负载和 VRC 的验证边界沿用上一节。
+
+### 审查收尾（同日）
+
+修复两项 P2：共用 SafeError 对聚合错误逐条脱敏后保留各通道失败和错误身份；无需脱敏时原样返回，保持既有存储故障文案。CLI 游戏接入第 3 步同步固定 CF 规则，明确游戏中的接口选择不影响回源。
+
+新增回归先在旧实现上确认失败：连接拒绝、尝试超时和 HTTP 503 被截成第一项，实际播放 HTTP 响应为 502。修复后通过实际 Console → 解析器 → 缓存服务链路断言返回 504，并保留三项原因；错误单测同时覆盖嵌套聚合、畸形 Location 脱敏、重复脱敏和无需脱敏时保留原错误。首版修复的整包测试暴露存储错误格式被重建，已按原值保留修正，未放宽原测试断言。
+
+最终 applog、console、cacheproxy、upstreamnet 四个包完整回归及同范围 go vet 通过，Git 空白检查通过。命令均经仓库临时目录包装器，包测试在常规 Windows 权限下运行。失败和成功输出保留于 artifacts/review-cf-sources/ 的 regression-before.log、regression-after.log、regression-final.log 及 checks-final.json；先前审查快照和最小复现证据继续保留。未重复未受本次收尾影响的浏览器和实机验证，未提交或推送。

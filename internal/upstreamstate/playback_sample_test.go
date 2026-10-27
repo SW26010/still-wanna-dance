@@ -46,7 +46,7 @@ func TestPlaybackSampleUsesPriorityPassAndFallsBack(t *testing.T) {
 				if err := m.CheckSelected(context.Background(), CheckPlayback); err != nil {
 					t.Fatal(err)
 				}
-				if len(requested) != requestsPerNode*2 {
+				if len(requested) != requestsPerNode {
 					t.Fatal("changed playback request count", requested)
 				}
 				for _, id := range requested {

@@ -128,9 +128,8 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 				routes.Add(1)
 				go func(r route) {
 					defer routes.Done()
-					cs := prepare(entry(PlaybackURL, r.id))
-					// Each route has two API slots, so one stalled route cannot occupy
-					// every slot. Both routes together use at most four requests.
+					cs := prepare(entry(PlaybackURL, r.ID))
+					// Bound parallel checks of the playback entry's API channels.
 					parallel(cs, 2, func(_ int, c upstreamrequest.Candidate) {
 						o, sample, response := probePlaybackResponse(ctx, requestClient(c.Transport), p, id, r)
 						publish(o, c)
@@ -148,7 +147,7 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 			close(samples)
 		}()
 		seen := make(map[string]bool)
-		// Consume as soon as either API yields a sample. Resource probes remain
+		// Consume as soon as an API channel yields a sample. Resource probes remain
 		// serial through body close, including across domains and candidates.
 		for sample := range samples {
 			if seen[sample.host] || ctx.Err() != nil {

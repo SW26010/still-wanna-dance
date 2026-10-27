@@ -10,20 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"still-wanna-dance/internal/applog"
-	"still-wanna-dance/internal/videometa"
 )
-
-var errPlaybackUpstream = errors.New("playback upstream failed")
-
-const playbackResolveBudget = 30 * time.Second
-
-type playbackCheck struct {
-	done chan struct{}
-	v    video
-	err  error
-}
 
 type playbackSong struct {
 	done chan struct{}
@@ -120,102 +107,9 @@ func (s *Server) requestVideo(r *http.Request, observed func(), current *current
 	if observed != nil {
 		observed()
 	}
-	v, release, err := s.loadSong(r.Context(), q)
+	v, release, err := s.loadSong(r.Context(), id)
 	v.songID = strconv.FormatInt(n, 10) // Preserve validated identity even when resolution fails.
 	return v, release, err
-}
-
-// Share in-flight checks across probes and range requests. Their lifetime is
-// owned by the server, so serving cached bytes or disconnecting cannot cancel
-// diagnostic check. Differences are logged without changing content or mappings.
-func (s *Server) startPlaybackCheck(q url.Values, local video) *playbackCheck {
-	key := q.Encode()
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if check := s.playbackChecks[key]; check != nil {
-		return check
-	}
-	check := &playbackCheck{done: make(chan struct{})}
-	if s.closed {
-		check.err = context.Canceled
-		close(check.done)
-		return check
-	}
-	if s.playbackChecks == nil {
-		s.playbackChecks = make(map[string]*playbackCheck)
-	}
-	s.playbackChecks[key] = check
-	if local.key != "" {
-		s.pinVideo(local)
-	}
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
-		defer func() {
-			s.mu.Lock()
-			if s.playbackChecks[key] == check {
-				delete(s.playbackChecks, key)
-			}
-			s.mu.Unlock()
-		}()
-		if local.key != "" {
-			defer s.releaseVideo(local)
-		}
-		ctx, cancel := context.WithTimeout(s.ctx, playbackResolveBudget)
-		check.v, check.err = s.resolvePlaybackVideo(ctx, q)
-		cancel()
-		if check.err != nil {
-			s.cfg.Logger.Warn("playback_check_failed", "song_id", local.songID, "error", applog.SafeError(check.err))
-		} else if local.key != "" && check.v.key != local.key {
-			s.cfg.Logger.Warn("song_md5_mismatch", "song_id", local.songID, "mapped_md5", local.key, "url_md5", check.v.key)
-		}
-		close(check.done)
-	}()
-	return check
-}
-
-func (s *Server) resolvePlaybackVideo(ctx context.Context, q url.Values) (video, error) {
-	started := time.Now()
-	id, node := q.Get("id"), q.Get("node")
-	var err error
-	var target string
-	if s.cfg.ResolvePlayback != nil {
-		target, err = s.cfg.ResolvePlayback(ctx, id, node)
-	} else {
-		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.udon.dance/Api/Songs/play?"+q.Encode(), nil)
-		var resp *http.Response
-		resp, err = s.client.Do(req)
-		if err == nil {
-			resp.Body.Close()
-			var location *url.URL
-			location, _, err = videometa.PlaybackLocation(resp, s.cfg.MaxFileBytes)
-			if err == nil {
-				target = location.String()
-			}
-		}
-	}
-	if err != nil {
-		return video{}, err
-	}
-	resolved, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
-	if err != nil {
-		return video{}, err
-	}
-	if (resolved.URL.Scheme != "http" && resolved.URL.Scheme != "https") || resolved.URL.User != nil || resolved.URL.Fragment != "" {
-		return video{}, errPlaybackUpstream
-	}
-	v, err := s.parseResolved(resolved)
-	if err != nil {
-		return video{}, err
-	}
-	n, _ := strconv.ParseInt(id, 10, 64)
-	v.songID = strconv.FormatInt(n, 10)
-	if s.cfg.ResolvePlayback == nil {
-		if err := s.ObserveSongURL(ctx, SongURL{SongID: n, URL: target, API: "https://api.udon.dance/Api/Songs/play", Node: node, QueryStartedAt: started, ObservedAt: time.Now()}); err != nil {
-			return video{}, err
-		}
-	}
-	return v, nil
 }
 
 // Only a confirmed song association may select a local file. loadSong pins and

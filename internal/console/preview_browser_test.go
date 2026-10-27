@@ -49,11 +49,11 @@ func TestPreviewBrowser(t *testing.T) {
 	for host := range cfg.Origins {
 		cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
 	}
-	cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
+	cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
 		target := fmt.Sprintf("http://play.udon.dance/files/2403/1-abc.mp4?e=%s&s=%d", key, len(body))
 		n, _ := strconv.ParseInt(id, 10, 64)
 		now := time.Now()
-		err := c.store.ObserveSongURL(ctx, cacheproxy.SongURL{SongID: n, URL: target, API: "https://api.udon.dance/Api/Songs/play", Node: node, QueryStartedAt: now, ObservedAt: now})
+		err := c.store.ObserveSongURL(ctx, cacheproxy.SongURL{SongID: n, URL: target, API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: now, ObservedAt: now})
 		return target, err
 	}
 	engine, err := cacheproxy.New(cfg)

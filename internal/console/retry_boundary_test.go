@@ -62,7 +62,7 @@ func TestBusinessRetryDoesNotResetBudgetOrRewriteMonitor(t *testing.T) {
 				t.Fatal("expected two candidates")
 			}
 			business = true
-			got, err := c.resolveNode(ctx, 42, "cf")
+			got, err := c.resolveSongURL(ctx, 42)
 			switch scenario {
 			case "fallback":
 				if err != nil || got != target || attempts != 2 {

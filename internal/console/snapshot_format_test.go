@@ -30,7 +30,7 @@ func TestSnapshotContractIndependentOfSettings(t *testing.T) {
 	}
 	// Neither current network values nor obsolete settings in a snapshot need
 	// validation to display the result for the same library.
-	c.settings.DownloadUpstream = "future-node"
+	c.settings.UpstreamMode = "future-mode"
 	fields["settings"] = json.RawMessage(`{"upstreamMode":"obsolete"}`)
 	data, _ = json.Marshal(fields)
 	if err := os.WriteFile(path, data, 0600); err != nil {

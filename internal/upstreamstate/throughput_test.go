@@ -83,17 +83,17 @@ func TestAutomaticThroughputCooldownSurvivesRestart(t *testing.T) {
 	}
 	m := create()
 	check(m)
-	if full.Load() != 2 {
+	if full.Load() != 1 {
 		t.Fatal("initial throughput", full.Load())
 	}
 	check(m)
-	if full.Load() != 2 || light.Load() != 2 {
+	if full.Load() != 1 || light.Load() != 1 {
 		t.Fatal("cooldown", full.Load(), light.Load())
 	}
 	m.Close()
 	restarted := create()
 	check(restarted)
-	if full.Load() != 2 || light.Load() != 4 {
+	if full.Load() != 1 || light.Load() != 2 {
 		t.Fatal("restart bypassed cooldown")
 	}
 	for _, r := range restarted.Results(Resource) {
@@ -107,7 +107,7 @@ func TestAutomaticThroughputCooldownSurvivesRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	check(create())
-	if full.Load() != 4 {
+	if full.Load() != 2 {
 		t.Fatal("overdue throughput not run")
 	}
 }
@@ -167,13 +167,13 @@ func TestManualThroughputResetsPersistedCooldown(t *testing.T) {
 			}
 			defer restarted.Close()
 			if kind == CheckThroughput || kind == "" {
-				if full.Load() != 2 || !restarted.lastThroughput.Equal(firstTransfer) {
+				if full.Load() != 1 || !restarted.lastThroughput.Equal(firstTransfer) {
 					t.Fatal("manual cooldown not retained")
 				}
 				if err := restarted.checkRequest(context.Background(), false); err != nil {
 					t.Fatal(err)
 				}
-				if full.Load() != 2 {
+				if full.Load() != 1 {
 					t.Fatal("automatic throughput ran during cooldown")
 				}
 			} else if !restarted.lastThroughput.Equal(old) {

@@ -17,7 +17,7 @@ func TestActivationRecordsPlaybackArrivalOnResolutionFailure(t *testing.T) {
 	cfg := fixtureCacheConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.BeginVideoRequest = c.beginVideoRequest
-	cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
+	cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 		c.mu.Lock()
 		received := !c.activation.FirstRequest.IsZero()
 		c.mu.Unlock()

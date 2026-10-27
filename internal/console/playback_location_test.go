@@ -15,7 +15,8 @@ func TestBusinessPlaybackResolvesRelativeLocation(t *testing.T) {
 		calls++
 		return &http.Response{StatusCode: 302, Header: http.Header{"Location": {path}}, Body: http.NoBody, Request: r}, nil
 	})}
-	got, err := c.resolveNodeWithClient(context.Background(), 42, "cf", client)
+	c.client = client
+	got, err := c.resolveSongURL(context.Background(), 42)
 	if err != nil || got != c.apiBase+path || calls != 1 {
 		t.Fatal(got, calls, err)
 	}

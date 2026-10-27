@@ -281,7 +281,7 @@ func (c *Calibration) prepare(ctx context.Context, channel *upstreamrequest.Chan
 		if o.state != "available" || id == 0 {
 			continue
 		}
-		client, err := calibrationClient(ctx, source, entry(PlaybackURL, "cf"), upstream)
+		client, err := calibrationClient(ctx, source, entry(PlaybackURL, playbackRoutes[0].ID), upstream)
 		if err != nil {
 			continue
 		}
@@ -354,7 +354,7 @@ func prepareCalibrationSamples(parent context.Context, client *http.Client, p Po
 				if ctx.Err() != nil {
 					return
 				}
-				_, sample := probePlayback(ctx, client, p, id, route{"cf", "cf"})
+				_, sample := probePlayback(ctx, client, p, id, playbackRoutes[0])
 				if sample == nil {
 					continue
 				}

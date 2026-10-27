@@ -20,11 +20,11 @@ func TestLiveHTTPSUpstreams(t *testing.T) {
 	}
 	c := testConsole(t)
 	relay := runRelay(t, c.dns.DialContext)
-	for _, route := range []string{"cf", "hkg"} {
+	for _, route := range []string{"cf"} {
 		t.Run(route, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 			defer cancel()
-			target, err := c.resolveNode(ctx, 1343, route)
+			target, err := c.resolveSongURL(ctx, 1343)
 			if err != nil {
 				t.Fatal(err)
 			}

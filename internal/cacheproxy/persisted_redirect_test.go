@@ -24,7 +24,7 @@ func TestPersistedURLRedirectTrustIsTaskScoped(t *testing.T) {
 				t.Fatal(err)
 			}
 			cfg.IsResourceHost = func(string) bool { return false }
-			cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return "", errors.New("API unavailable") }
+			cfg.ResolvePlayback = func(context.Context, string) (string, error) { return "", errors.New("API unavailable") }
 			var bodies atomic.Int32
 			cfg.ResourceTransports = func(string) []http.RoundTripper {
 				return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {

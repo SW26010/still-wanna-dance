@@ -17,12 +17,12 @@ type serialProbeChannels struct {
 	transport http.RoundTripper
 }
 
-func TestPlaybackRoutesProgressIndependentlyWithSingleAndMultipleCandidates(t *testing.T) {
+func TestPendingCFPlaybackDoesNotProbeOtherEntry(t *testing.T) {
 	for _, candidates := range []bool{false, true} {
 		t.Run(map[bool]string{false: "single candidate", true: "multiple candidates"}[candidates], func(t *testing.T) {
-			cfStarted, otherResource := make(chan struct{}), make(chan struct{})
+			cfStarted, resourceStarted := make(chan struct{}), make(chan struct{})
 			gate := make(chan struct{})
-			var cfOnce, otherOnce sync.Once
+			var cfOnce, resourceOnce sync.Once
 			tr := transportFunc(func(r *http.Request) (*http.Response, error) {
 				if r.URL.Path == "/Api/Songs/play" && r.URL.Query().Get("node") == "cf" {
 					cfOnce.Do(func() { close(cfStarted) })
@@ -32,8 +32,8 @@ func TestPlaybackRoutesProgressIndependentlyWithSingleAndMultipleCandidates(t *t
 						return nil, r.Context().Err()
 					}
 				}
-				if r.Header.Get("Range") != "" && r.URL.Host == "nya.xin.moe" {
-					otherOnce.Do(func() { close(otherResource) })
+				if r.Header.Get("Range") != "" {
+					resourceOnce.Do(func() { close(resourceStarted) })
 				}
 				return fixture(r)
 			})
@@ -58,9 +58,9 @@ func TestPlaybackRoutesProgressIndependentlyWithSingleAndMultipleCandidates(t *t
 				t.Fatal("CF did not start")
 			}
 			select {
-			case <-otherResource:
-			case <-time.After(time.Second):
-				t.Fatal("CF stalled the other route's resource probe")
+			case <-resourceStarted:
+				t.Fatal("probed a resource before CF returned it")
+			default:
 			}
 			close(gate)
 			if err := <-done; err != nil {
@@ -112,10 +112,10 @@ func TestResourceProbesNeverOverlap(t *testing.T) {
 				return resp, err
 			})
 			ch := upstreamrequest.NewChannel()
-			want := int32(2)
+			want := int32(1)
 			if candidates {
 				ch.Publish(serialProbeChannels{&candidateFixture{expires: time.Now().Add(time.Hour), second: true, changed: make(chan struct{})}, tr})
-				want = 4
+				want = 2
 			} else {
 				ch.Publish(tr)
 			}

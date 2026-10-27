@@ -29,7 +29,7 @@ func TestBlockingDoesNotCancelAdmittedPlayback(t *testing.T) {
 		}
 		http.ServeContent(w, r, "video.mp4", time.Time{}, strings.NewReader(payload))
 	}, func(c *Config) {
-		c.ResolvePlayback = func(context.Context, string, string) (string, error) { return videoURL(payload), nil }
+		c.ResolvePlayback = func(context.Context, string) (string, error) { return videoURL(payload), nil }
 		c.AggressiveCacheReclamation = "off"
 	})
 	seedPrioritySong(t, s, "1", videoKey(payload))

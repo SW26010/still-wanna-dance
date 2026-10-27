@@ -164,7 +164,7 @@ func TestHistoryCapturesEffectiveResponseAndVideoBytes(t *testing.T) {
 func TestResolutionFailureRetainsArrivalIdentityWithoutBodySample(t *testing.T) {
 	entered, resume := make(chan struct{}), make(chan struct{})
 	s, cfg := setup(t, nil, func(c *Config) {
-		c.ResolvePlayback = func(context.Context, string, string) (string, error) {
+		c.ResolvePlayback = func(context.Context, string) (string, error) {
 			close(entered)
 			<-resume
 			return "", errors.New("offline")

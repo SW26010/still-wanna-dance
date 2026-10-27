@@ -48,7 +48,7 @@ func TestSongLoadingShortCachedRangeRecoversBeforeBody(t *testing.T) {
 			if err := s.ObserveSongURL(ctx, SongURL{SongID: 42, URL: target + "&stale=1", API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: old, ObservedAt: old}); err != nil {
 				t.Fatal(err)
 			}
-			s.cfg.ResolvePlayback = func(ctx context.Context, _, _ string) (string, error) {
+			s.cfg.ResolvePlayback = func(ctx context.Context, _ string) (string, error) {
 				queries.Add(1)
 				select {
 				case <-failed:
@@ -111,7 +111,7 @@ func TestSongLoadingFailedCacheDoesNotSwitchAfterBody(t *testing.T) {
 	if err := s.ObserveSongURL(ctx, SongURL{SongID: 42, URL: target + "&stale=1", API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: old, ObservedAt: old}); err != nil {
 		t.Fatal(err)
 	}
-	s.cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return target, nil }
+	s.cfg.ResolvePlayback = func(context.Context, string) (string, error) { return target, nil }
 	w := &firstBodyRecorder{httptest.NewRecorder(), firstBody}
 	var aborted any
 	func() {
@@ -136,7 +136,7 @@ func TestSongLoadingUsesCachedAddressWithoutWaitingForQuery(t *testing.T) {
 			}
 			started, release := make(chan struct{}), make(chan struct{})
 			defer close(release)
-			s.cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
+			s.cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
 				close(started)
 				select {
 				case <-release:
@@ -190,7 +190,7 @@ func TestSongLoadingFailedCacheReusesPendingQuery(t *testing.T) {
 			if err := s.ObserveSongURL(ctx, SongURL{SongID: 42, URL: stale, API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: old, ObservedAt: old}); err != nil {
 				t.Fatal(err)
 			}
-			s.cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
+			s.cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
 				queries.Add(1)
 				select {
 				case <-failed:
@@ -223,7 +223,7 @@ func TestSongLoadingFailedCacheReusesPendingQuery(t *testing.T) {
 func TestQueueLocalHitDoesNotWaitForAPI(t *testing.T) {
 	started := make(chan struct{})
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) }, func(cfg *Config) {
-		cfg.ResolvePlayback = func(ctx context.Context, _, _ string) (string, error) {
+		cfg.ResolvePlayback = func(ctx context.Context, _ string) (string, error) {
 			close(started)
 			<-ctx.Done()
 			return "", ctx.Err()
@@ -251,7 +251,7 @@ func TestFailedCachedURLPreservesRefreshFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	refreshFailure := errors.New("API refresh unavailable")
-	s.cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return "", refreshFailure }
+	s.cfg.ResolvePlayback = func(context.Context, string) (string, error) { return "", refreshFailure }
 	_, err := s.PrefetchPlayback(context.Background(), 42)
 	if !errors.Is(err, errUpstreamDownload) || !errors.Is(err, refreshFailure) || !strings.Contains(err.Error(), "saved URL refresh") {
 		t.Fatalf("lost failure context: %v", err)
@@ -282,7 +282,7 @@ func TestQueueCancellationDoesNotCancelJoinedRangePlayback(t *testing.T) {
 	defer close(release)
 	key := fmt.Sprintf("%x", md5.Sum(body))
 	target := fmt.Sprintf("http://play.udon.dance/files/1/42-video.mp4?e=%s&s=%d", key, len(body))
-	s.cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return target, nil }
+	s.cfg.ResolvePlayback = func(context.Context, string) (string, error) { return target, nil }
 	queueCtx, cancelQueue := context.WithCancel(context.Background())
 	defer cancelQueue()
 	s.UpdatePrefetchQueue([]int64{42}, false)
@@ -353,12 +353,12 @@ func TestCachedCandidatesPrecedeBlockedRefresh(t *testing.T) {
 					fmt.Fprint(w, payload)
 				})
 				server = s
-				s.cfg.ResolvePlayback = func(ctx context.Context, _, _ string) (string, error) { <-ctx.Done(); return "", ctx.Err() }
+				s.cfg.ResolvePlayback = func(ctx context.Context, _ string) (string, error) { <-ctx.Done(); return "", ctx.Err() }
 				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cancel()
 				for i, suffix := range []string{"", "&bad=2", "&bad=1"} {
 					at := time.Now().Add(time.Duration(i-10) * time.Minute)
-					err := s.ObserveSongURL(ctx, SongURL{SongID: 42, URL: videoURL(payload) + suffix, API: fmt.Sprintf("https://api.udon.dance/source%d", i), Node: []string{"nya", "cf", "cf"}[i], QueryStartedAt: at, ObservedAt: at})
+					err := s.ObserveSongURL(ctx, SongURL{SongID: 42, URL: videoURL(payload) + suffix, API: fmt.Sprintf("https://api.udon.dance/source%d", i), Node: "cf", QueryStartedAt: at, ObservedAt: at})
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -382,29 +382,49 @@ func TestCachedCandidatesPrecedeBlockedRefresh(t *testing.T) {
 	}
 }
 
-func TestCachedCandidatesHonorConfiguredNode(t *testing.T) {
-	var forbidden atomic.Int32
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("node") == "nya" {
-			forbidden.Add(1)
-			fmt.Fprint(w, payload)
-			return
-		}
-		w.WriteHeader(502)
-	})
-	s.cfg.PlaybackNode = "cf"
-	refreshErr := errors.New("API unavailable")
-	s.cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return "", refreshErr }
-	for _, node := range []string{"cf", "nya"} {
-		now := time.Now()
-		if err := s.ObserveSongURL(context.Background(), SongURL{SongID: 42, URL: videoURL(payload) + "&node=" + node, API: "https://api.udon.dance/Api/Songs/play", Node: node, QueryStartedAt: now, ObservedAt: now}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if _, err := s.PrefetchPlayback(context.Background(), 42); !errors.Is(err, refreshErr) {
-		t.Fatal(err)
-	}
-	if forbidden.Load() != 0 {
-		t.Fatal("ignored explicit node constraint")
+func TestCachedCandidatesOnlyUseCFEntry(t *testing.T) {
+	for _, entry := range []string{"prefetch", "playback", "preview"} {
+		t.Run(entry, func(t *testing.T) {
+			var forbidden atomic.Int32
+			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Query().Get("node") == "nya" {
+					forbidden.Add(1)
+					fmt.Fprint(w, payload)
+					return
+				}
+				w.WriteHeader(502)
+			})
+			refreshErr := errors.New("API unavailable")
+			s.cfg.ResolvePlayback = func(_ context.Context, _ string) (string, error) {
+				return "", refreshErr
+			}
+			for _, node := range []string{"cf", "nya"} {
+				now := time.Now()
+				if err := s.ObserveSongURL(context.Background(), SongURL{SongID: 42, URL: videoURL(payload) + "&node=" + node, API: "https://api.udon.dance/Api/Songs/play", Node: node, QueryStartedAt: now, ObservedAt: now}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			switch entry {
+			case "prefetch":
+				if _, err := s.PrefetchPlayback(context.Background(), 42); !errors.Is(err, refreshErr) {
+					t.Fatal(err)
+				}
+			case "playback":
+				w := httptest.NewRecorder()
+				s.ServeHTTP(w, httptest.NewRequest("GET", "http://api.udon.dance/Api/Songs/play?id=42&node=nya", nil))
+				if w.Code != http.StatusBadGateway {
+					t.Fatal(w.Code, w.Body.String())
+				}
+			case "preview":
+				target := PreviewTarget{Resource: fmt.Sprintf("%x", md5.Sum([]byte(payload))), Size: int64(len(payload)), AdmissionSongID: "42"}
+				w := previewResponse(s, target, nil)
+				if w.Code != http.StatusBadGateway {
+					t.Fatal(w.Code, w.Body.String())
+				}
+			}
+			if forbidden.Load() != 0 {
+				t.Fatal("used a cached URL from another entry")
+			}
+		})
 	}
 }

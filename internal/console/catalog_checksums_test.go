@@ -50,7 +50,6 @@ func TestMD5BatchTriesSharedSongIDs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			c := testConsole(t)
 			defer c.Close()
-			c.settings.DownloadUpstream = "cf"
 			const body = "shared resource"
 			key := fmt.Sprintf("%x", md5.Sum([]byte(body)))
 			var downloads atomic.Int32

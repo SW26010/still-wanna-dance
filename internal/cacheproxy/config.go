@@ -38,10 +38,11 @@ type Config struct {
 	// IsResourceHost checks the current API-derived resource domain set.
 	IsResourceHost func(string) bool
 	// OriginScheme defaults to HTTPS. HTTP is restricted to loopback test origins.
-	OriginScheme    string
-	ResolvePlayback func(context.Context, string, string) (string, error)
-	// PlaybackNode constrains cached addresses when a node is selected manually.
-	PlaybackNode string
+	OriginScheme string
+	// ResolvePlayback supplies a fresh address under the shared source policy.
+	// It owns network selection and evidence recording, never download execution.
+	// Nil uses the standalone resolver under the same source policy.
+	ResolvePlayback func(context.Context, string) (string, error)
 	// DownloadTimeout bounds each upstream attempt (headers and body), including
 	// a sequential response, and each local validation/publication phase.
 	// Scheduling waits are governed by demand leases and caller cancellation.

@@ -58,9 +58,7 @@ func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) 
 	c.client.Transport = http.DefaultTransport
 	cfg := fixtureCacheConfig()
 	cfg.Work = c.work
-	cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
-		return c.resolvePlayback(ctx, id, node, "auto")
-	}
+	cfg.ResolvePlayback = c.resolvePlayback
 	cfg.OriginScheme = "http"
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.MaxCacheBytes = limit

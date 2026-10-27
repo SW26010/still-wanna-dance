@@ -30,9 +30,9 @@ New-Item -ItemType Directory -Path .\complete-videos
 
 1. 先停止占用本机 80 端口的原版服务，再以 `-listen 127.0.0.1:80` 启动 Still Wanna Dance；需要时在有相应权限的终端运行。
 2. 备份 hosts，将 `api.udon.dance` 映射到 `127.0.0.1`，由本地播放 API 直接返回视频；不预设或写入资源域名。
-3. 选择游戏中的播放接口。CLI 将播放 API 的查询参数传给 HTTPS 上游；未指定 node 时由上游决定视频地址。测试后恢复 hosts 并停止服务。
+3. 选择游戏中的 HTTP 播放接口。游戏中的接口选择不影响 CLI 回源，统一请求上游 `node=cf`。测试后恢复 hosts 并停止服务。
 
-本页 `still-wanna-dance.exe` 命令行入口支持 HTTP 视频请求及 `api.udon.dance/Api/Songs/play?id=…` 的 GET/HEAD，接受省略 node、`node=cf` 或 `node=nya`。它通过 HTTPS 获取上游视频地址，按资源指纹命中本地视频或边下边播，直接以 HTTP 返回视频，支持单段 Range。游戏入口须使用 HTTP，播放器须接受 API 地址直接返回视频；游戏内兼容性仍待实测。其他 API 路径的 GET/HEAD 返回 307，指向原站 HTTPS。
+本页 `still-wanna-dance.exe` 命令行入口支持 HTTP 视频请求及 `api.udon.dance/Api/Songs/play?id=…` 的 GET/HEAD，接受省略 node、`node=cf` 或 `node=nya`，统一通过 `node=cf` 解析，失败不回退 HKG。它通过 HTTPS 获取上游视频地址，按资源指纹命中本地视频或边下边播，直接以 HTTP 返回视频，支持单段 Range。游戏入口须使用 HTTP，播放器须接受 API 地址直接返回视频；游戏内兼容性仍待实测。其他 API 路径的 GET/HEAD 返回 307，指向原站 HTTPS。
 
 CLI 不监听 443，也不支持 `/v/` 或 SHA。hosts 同时影响 HTTP/HTTPS，因此映射后的域名若被客户端通过 HTTPS 访问（包括上述 307），CLI 单独运行无法承接该连接。需要同时兼容网页 HTTPS 播放时，使用 `SWD.exe`：其播放网关同时启动 HTTP 播放和 HTTPS 透传，详见[WebUI 与桌面程序](console.md#网页-https-播放)。透传不使用本地视频。更详细的原版接入记录见[复现手册](history/original-testing-runbook.md)，其中原版命令不能直接当作 Still Wanna Dance 命令使用。
 

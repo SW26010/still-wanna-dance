@@ -3,20 +3,14 @@ package console
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
-	"net/http"
 	"slices"
 	"sort"
 	"strconv"
 	"sync"
 	"time"
 
-	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/cacheproxy"
-	"still-wanna-dance/internal/upstreamrequest"
-	"still-wanna-dance/internal/upstreamstate"
-	"still-wanna-dance/internal/videometa"
 )
 
 type Failure struct {
@@ -45,80 +39,6 @@ type Batch struct {
 	Skipped        int                        `json:"skipped"`
 	Current        string                     `json:"current"`
 	Failures       []Failure                  `json:"failures"`
-}
-
-func (c *Console) resolve(ctx context.Context, id int64) (string, error) {
-	return c.resolveNode(ctx, id, "hkg")
-}
-
-func (c *Console) resolveNode(ctx context.Context, id int64, upstream string) (string, error) {
-	c.mu.Lock()
-	engine := c.service
-	c.mu.Unlock()
-	if engine != nil {
-		if err := engine.StorageError(); err != nil {
-			return "", err
-		}
-	}
-
-	entry := c.apiBase + "/Api/Songs/play?node=nya"
-	if upstream == "cf" {
-		entry = c.apiBase + "/Api/Songs/play?node=cf"
-	}
-	clients := c.operationClients(ctx, upstreamstate.PlaybackURL, upstreamstate.Constraints{Route: upstream, Entry: entry})
-	var failures []error
-	for i, client := range clients {
-		if err := ctx.Err(); err != nil {
-			return "", err
-		}
-		attempt, cancel := channelAttempt(ctx, 10*time.Second, len(clients)-i)
-		target, err := c.resolveNodeWithClient(attempt, id, upstream, client)
-		cancel()
-		if err == nil {
-			return target, nil
-		}
-		if errors.Is(err, cacheproxy.ErrLocalStorage) {
-			return "", err
-		}
-		failures = append(failures, err)
-	}
-	return "", errors.Join(failures...)
-}
-
-func (c *Console) resolveNodeWithClient(ctx context.Context, id int64, upstream string, client *http.Client) (string, error) {
-	started := time.Now()
-	revision := upstreamrequest.Default.Snapshot().Revision
-	node := "nya"
-	if upstream == "cf" {
-		node = "cf"
-	}
-	r, err := http.NewRequestWithContext(ctx, "GET", c.apiBase+"/Api/Songs/play?node="+node+"&id="+strconv.FormatInt(id, 10), nil)
-	if err != nil {
-		return "", applog.SafeError(err)
-	}
-	resp, err := client.Do(r)
-	if err != nil {
-		return "", applog.SafeError(err)
-	}
-	defer resp.Body.Close()
-	u, _, err := videometa.PlaybackLocation(resp, cacheproxy.DefaultConfig().MaxFileBytes)
-	if err != nil {
-		return "", applog.SafeError(err)
-	}
-	channelID := ""
-	if channel, ok := client.Transport.(interface{ ChannelID() string }); ok {
-		channelID = channel.ChannelID()
-	}
-	upstreamrequest.Default.ObserveResourceSourcesAtRevision(revision, "playback/"+node+"/"+strconv.FormatInt(id, 10), []upstreamrequest.ResourceSource{{API: r.URL.String(), APIChannelID: channelID, Node: node, SongID: id, ResourceURL: u.String(), ObservedAt: time.Now()}}, 10*time.Minute)
-	c.mu.Lock()
-	engine := c.service
-	c.mu.Unlock()
-	if engine != nil {
-		if err := engine.ObserveSongURL(ctx, cacheproxy.SongURL{SongID: id, URL: u.String(), API: c.apiBase + "/Api/Songs/play", Node: node, QueryStartedAt: started, ObservedAt: time.Now()}); err != nil {
-			return "", fmt.Errorf("保存歌曲地址：%w", err)
-		}
-	}
-	return u.String(), nil
 }
 
 func (c *Console) startBatch() error { return c.startBatchMode(false) }
@@ -387,10 +307,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 			}
 			if errors.Is(err, cacheproxy.ErrBatchBudget) {
 				stopBudget.Do(func() { close(budgetStop) })
-				var failed *batchFallbackBudgetError
-				if !errors.As(err, &failed) {
-					return
-				}
+				return
 			}
 		}
 		if ctx.Err() != nil {

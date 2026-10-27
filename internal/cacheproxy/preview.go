@@ -4,9 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -119,10 +117,8 @@ func (s *Server) ServePreview(w http.ResponseWriter, r *http.Request, target Pre
 // Resolver state belongs to this request. In particular, its API lookup song
 // must not become video.songID or a property of a shared download.
 type previewRequest struct {
-	target     PreviewTarget
-	candidates []SongURL
-	songs      []string
-	tried      map[string]bool
+	target    PreviewTarget
+	addresses *resourceAddresses
 }
 
 func (p *previewRequest) video(ctx context.Context, s *Server) (video, error) {
@@ -159,84 +155,14 @@ func (s *Server) previewRoute(v video) (video, bool) {
 }
 
 func (p *previewRequest) nextAddress(ctx context.Context, s *Server, failed video) (video, error) {
-	if failed.cached != nil {
-		if err := s.RejectSongURL(ctx, *failed.cached); err != nil {
-			return video{}, err
-		}
+	if p.addresses == nil {
+		p.addresses = &resourceAddresses{key: p.target.Resource, size: p.target.Size}
 	}
-	if p.tried == nil {
-		p.tried = make(map[string]bool)
-		// Known addresses are selected by resource, independent of the API
-		// lookup budget or the number/order of songs sharing this content.
-		var err error
-		p.candidates, err = s.ResourceURLs(ctx, p.target.Resource, s.cfg.PlaybackNode, 32)
-		if err != nil {
-			return video{}, err
-		}
-		// Bound address work independently of the number of aliases in a library.
-		rows, err := s.db.QueryContext(ctx, `SELECT song_id FROM song_media WHERE md5=?
- UNION SELECT song_id FROM song_urls WHERE md5=? ORDER BY song_id LIMIT 8`, p.target.Resource, p.target.Resource)
-		if err != nil {
-			return video{}, s.storageError(err)
-		}
-		for rows.Next() {
-			var id string
-			if err = rows.Scan(&id); err != nil {
-				break
-			}
-			p.songs = append(p.songs, id)
-		}
-		err = errors.Join(err, rows.Err(), rows.Close())
-		if err != nil {
-			return video{}, s.storageError(err)
-		}
-	}
-	if failed.host != "" {
-		p.tried[videoAddress(failed)] = true
-	}
-	accept := func(v video) (video, bool) {
-		if v.key != p.target.Resource || p.target.Size > 0 && v.size != p.target.Size || p.tried[videoAddress(v)] {
-			return video{}, false
-		}
-		p.tried[videoAddress(v)] = true
+	v, err := p.addresses.next(ctx, s, failed)
+	if err == nil {
 		p.target.Size = v.size
-		v.songID, v.refresh, v.candidates = "", nil, nil
-		return v, true
 	}
-	for len(p.candidates) > 0 {
-		o := p.candidates[0]
-		p.candidates = p.candidates[1:]
-		r, err := http.NewRequestWithContext(ctx, http.MethodGet, o.URL, nil)
-		if err != nil {
-			continue
-		}
-		v, err := s.parseResolved(r)
-		if err == nil {
-			v.cached = &o
-			if v, ok := accept(v); ok {
-				return v, nil
-			}
-		}
-	}
-	ctx, cancel := context.WithTimeout(ctx, playbackResolveBudget)
-	defer cancel()
-	for len(p.songs) > 0 {
-		id := p.songs[0]
-		p.songs = p.songs[1:]
-		check := s.startPlaybackCheck(url.Values{"id": {id}, "node": {"cf"}}, video{})
-		v, err := s.waitSongQuery(ctx, check)
-		if ctx.Err() != nil {
-			return video{}, ctx.Err()
-		}
-		if err == nil {
-			if v, ok := accept(v); ok {
-				return v, nil
-			}
-		}
-		// A valid URL for a newer version remains valid evidence. It is simply
-		// not eligible for this pinned resource; never reject or switch to it.
-	}
-	return video{}, fmt.Errorf("%w: 当前资源版本没有可用的下载地址，请更新曲库后重新预览", errPlaybackUpstream)
+	return v, err
 }
 
 // HEAD is intentionally outside ServeHTTP: that legacy game path registers a

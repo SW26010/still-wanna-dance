@@ -19,7 +19,7 @@ func TestCurrentGETResolutionAndFailureLifetime(t *testing.T) {
 			unblock := func() { once.Do(func() { close(release) }) }
 			defer unblock()
 			s, _ := setup(t, nil, func(cfg *Config) {
-				cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
+				cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 					close(entered)
 					<-release
 					return "", errors.New("resolution failed")

@@ -22,7 +22,7 @@ func TestLiveDirectDualStack(t *testing.T) {
 	c := testConsole(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	target, err := c.resolveNode(ctx, 1343, "cf")
+	target, err := c.resolveSongURL(ctx, 1343)
 	if err != nil {
 		t.Fatal(applog.SafeError(err))
 	}

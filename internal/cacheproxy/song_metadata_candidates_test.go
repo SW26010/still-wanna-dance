@@ -87,11 +87,11 @@ func TestSongMetadataCandidatesDetectMissingCurrentMetadata(t *testing.T) {
 		{"unknown_size", "UPDATE media SET byte_size=NULL", true},
 		{"zero_size", "UPDATE media SET byte_size=0", true},
 		{"missing_cf", "DELETE FROM song_urls WHERE node='cf'", true},
-		{"missing_nya", "DELETE FROM song_urls WHERE node='nya'", true},
+		{"missing_nya", "DELETE FROM song_urls WHERE node='nya'", false},
 		{"empty_url", "UPDATE song_urls SET url='' WHERE node='cf'", true},
 		{"failed_url", "UPDATE song_urls SET failed_at=1 WHERE node='cf'", true},
 		{"other_api", "UPDATE song_urls SET api='https://other.invalid/play'", true},
-		{"display_node", "UPDATE song_urls SET node='hkg' WHERE node='nya'", true},
+		{"display_node", "UPDATE song_urls SET node='hkg' WHERE node='cf'", true},
 		{"old_md5", "INSERT INTO media(md5) VALUES('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'); UPDATE song_urls SET md5='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'", true},
 		{"expired_url", "UPDATE song_urls SET query_started_at=1,observed_at=2", false},
 	} {

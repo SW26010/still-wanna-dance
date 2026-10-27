@@ -31,7 +31,7 @@ func TestSongPreferencesBrowser(t *testing.T) {
 	cfg.CacheUnlimited = false
 	cfg.MaxCacheBytes = 0
 	cfg.AggressiveCacheReclamation = "off"
-	cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
+	cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 		resolutions.Add(1)
 		return "", fmt.Errorf("unexpected resolution")
 	}

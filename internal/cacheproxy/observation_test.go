@@ -19,7 +19,7 @@ func TestPlaybackArrivalObservedBeforeUpstreamResolution(t *testing.T) {
 			}
 			resolverCalls := 0
 			fail := true
-			s.cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
+			s.cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 				resolverCalls++
 				if len(arrivals) != resolverCalls {
 					t.Errorf("arrival not recorded before resolver: arrivals=%d calls=%d", len(arrivals), resolverCalls)

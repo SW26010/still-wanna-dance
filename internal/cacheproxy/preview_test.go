@@ -78,7 +78,7 @@ func TestPreviewColdHotAndNoGameEffects(t *testing.T) {
 	}, func(cfg *Config) {
 		cfg.CacheUnlimited = true
 		cfg.BeginVideoRequest = func(time.Time) func() { activation.Add(1); return func() { activation.Add(1) } }
-		cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { queries.Add(1); return videoURL(payload), nil }
+		cfg.ResolvePlayback = func(context.Context, string) (string, error) { queries.Add(1); return videoURL(payload), nil }
 	})
 	target := seedPreview(t, s, payload)
 	for range 2 {
@@ -103,7 +103,7 @@ func TestPreviewStaysOnClickTimeResourceAndRechecksSongPolicy(t *testing.T) {
 	var queries atomic.Int32
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { t.Error("unexpected download") }, func(cfg *Config) {
 		cfg.CacheUnlimited = true
-		cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
+		cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 			queries.Add(1)
 			return videoURL("new-version"), nil
 		}
@@ -134,9 +134,9 @@ func TestPreviewStaysOnClickTimeResourceAndRechecksSongPolicy(t *testing.T) {
 func TestPreviewRejectsNewVersionWithoutInvalidatingObservation(t *testing.T) {
 	var downloads atomic.Int32
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1) }, func(cfg *Config) {
-		cfg.ResolvePlayback = func(ctx context.Context, id, node string) (string, error) {
+		cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
 			now := time.Now()
-			err := cfg.Store.ObserveSongURL(ctx, SongURL{SongID: 1, URL: videoURL("new-version"), API: "https://api.udon.dance/Api/Songs/play", Node: node, QueryStartedAt: now, ObservedAt: now})
+			err := cfg.Store.ObserveSongURL(ctx, SongURL{SongID: 1, URL: videoURL("new-version"), API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: now, ObservedAt: now})
 			return videoURL("new-version"), err
 		}
 	})
@@ -157,7 +157,7 @@ func TestPreviewRejectsNewVersionWithoutInvalidatingObservation(t *testing.T) {
 
 func TestPreviewMalformedRangeDoesNotResolveOrDownload(t *testing.T) {
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { t.Error("unexpected download") }, func(cfg *Config) {
-		cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
+		cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 			t.Error("unexpected API")
 			return videoURL(payload), nil
 		}
@@ -220,7 +220,7 @@ func TestPreviewReusesBlocksAndRefillsAfterReclamation(t *testing.T) {
 				cfg.CacheUnlimited = false
 				cfg.MaxCacheBytes = 0
 				cfg.AggressiveCacheReclamation = "off"
-				cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
+				cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 					t.Error("cached blocks triggered API")
 					return "", fmt.Errorf("offline")
 				}
@@ -270,7 +270,7 @@ func TestPreviewReusesBlocksAndRefillsAfterReclamation(t *testing.T) {
 
 func TestPreviewKnownAddressBeyondAPILookupBudget(t *testing.T) {
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) }, func(cfg *Config) {
-		cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
+		cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 			t.Error("known URL ignored")
 			return "", fmt.Errorf("offline")
 		}
@@ -306,7 +306,7 @@ func TestPreviewAndGameShareFlightWithIndependentIdentityAndCancellation(t *test
 				}
 				http.ServeContent(w, r, "video.mp4", time.Time{}, strings.NewReader(payload))
 			}, func(cfg *Config) {
-				cfg.ResolvePlayback = func(context.Context, string, string) (string, error) { return videoURL(payload), nil }
+				cfg.ResolvePlayback = func(context.Context, string) (string, error) { return videoURL(payload), nil }
 			})
 			target := seedPreview(t, s, payload)
 			previewCtx, cancelPreview := context.WithCancel(t.Context())

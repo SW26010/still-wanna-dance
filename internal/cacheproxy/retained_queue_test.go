@@ -18,7 +18,7 @@ import (
 func TestUnlimitedRestartQueueHitDoesNotRefetch(t *testing.T) {
 	cfg := fixtureConfig()
 	prepareFixtureResources(t, &cfg, t.TempDir(), true)
-	cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
+	cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 		return videoURL(payload), nil
 	}
 	var calls atomic.Int32
@@ -102,7 +102,7 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 			cfg.CacheUnlimited, cfg.MaxCacheBytes = false, int64(len(body))
 			cfg.PrepareAhead, cfg.LocalProtectAhead = 120*time.Second, 120*time.Second
 			var changed atomic.Bool
-			cfg.ResolvePlayback = func(context.Context, string, string) (string, error) {
+			cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 				if changed.Load() {
 					return videoURL(other), nil
 				}

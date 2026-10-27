@@ -15,7 +15,7 @@ func TestStandalonePlaybackResolvesRelativeLocation(t *testing.T) {
 		calls++
 		return &http.Response{StatusCode: 302, Header: http.Header{"Location": {u.RequestURI()}}, Body: http.NoBody, Request: r}, nil
 	})
-	v, err := s.resolvePlaybackVideo(context.Background(), url.Values{"id": {"42"}, "node": {"cf"}})
+	v, err := s.resolvePlaybackVideo(context.Background(), "42")
 	if err != nil || v.host != "api.udon.dance" || v.size != int64(len(payload)) || calls != 1 {
 		t.Fatal(v, calls, err)
 	}

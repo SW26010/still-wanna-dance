@@ -28,6 +28,7 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
   const [view,setView]=useState(resource||requestedView==='resources'?'resources':'songs'),[search,setSearch]=useState(''),[sort,setSort]=useState('score'),[filter,setFilter]=useState('');
   const [query,setQuery]=useState({q:'',sort:'score',filter:''}),[offset,setOffset]=useState(0),[selected,setSelected]=useState<Record<string,string>>({});
   const [pending,setPending]=useState(false),[tool,setTool]=useState<'video'|'history'|'mark'|undefined>(anchor==='video-import'?'video':undefined);
+  const previousTool=useRef(tool);
   const history=useVRCX();
   const [preview,setPreview]=useState<PreviewSelection>();
   const previewFocusTarget=useRestoreFocusTarget();
@@ -57,7 +58,13 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
     const frame=requestAnimationFrame(()=>{const target=anchor==='batch'?document.getElementById('batch'):focus.ref.current;target?.focus();target?.scrollIntoView();});
     return()=>cancelAnimationFrame(frame);
   },[visible,anchor,requestedView]);
-  useLayoutEffect(()=>{if(!visible)return;const frame=requestAnimationFrame(()=>{const target=tool?toolFocus.ref.current:anchor==='batch'?document.getElementById('batch'):focus.ref.current;target?.focus({preventScroll:true});});return()=>cancelAnimationFrame(frame);},[tool]);
+  useLayoutEffect(()=>{
+    const changed=previousTool.current!==tool;previousTool.current=tool;
+    // Initial page focus belongs to navigation; only tool switches move it here.
+    if(!visible||!changed)return;
+    const frame=requestAnimationFrame(()=>{const target=tool?toolFocus.ref.current:anchor==='batch'?document.getElementById('batch'):focus.ref.current;target?.focus({preventScroll:true});});
+    return()=>cancelAnimationFrame(frame);
+  },[tool,visible,anchor]);
   async function save(id:string,policy:SongPolicy) {
     if(disabled||!page.data)return;
     setPending(true);feedback.setValue(undefined);

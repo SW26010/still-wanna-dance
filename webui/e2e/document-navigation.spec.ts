@@ -45,6 +45,25 @@ test('document body and footer links preserve navigation and drafts',async({page
   expect(await page.evaluate(()=>performance.timeOrigin)).toBe(originalDocument);
 });
 
+test('library mounting leaves navigation focus on the page; tool switches focus their content',async({page})=>{
+  await mockAPI(page);await page.setViewportSize({width:1280,height:900});
+  await page.goto('/#/settings');
+  for(let visit=0;visit<2;visit++){
+    await navigate(page,'曲库');
+    await expect(page.getByRole('button',{name:'查找',exact:true})).toBeEnabled();
+    // Include the deferred focus work after the lazily mounted library renders.
+    await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+    await expect(page.locator('#main')).toBeFocused();
+    for(const name of ['导入视频','导入 VRCX 历史','按 ID 标记']){
+      await page.getByRole('button',{name,exact:true}).click();
+      await expect(page.getByRole('region',{name:'曲库工具',exact:true})).toBeFocused();
+      await page.getByRole('button',{name:'返回曲库',exact:true}).click();
+      await expect(page.locator('#library-browser')).toBeFocused();
+    }
+    await navigate(page,'设置');
+  }
+});
+
 test('direct document URLs load content before status, normalize once, and survive refresh',async({page})=>{
   const api=await mockAPI(page);
   // A slow/unavailable status read must not turn static documents into loading pages.
@@ -112,15 +131,17 @@ for(const width of [390,1280])test(`ordinary navigation resets scrolling; explic
     await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(0);
     await page.evaluate(()=>scrollTo(0,document.body.scrollHeight));
   }
-  await navigate(page,'加速');
-  await page.locator('#queue').getByRole('link',{name:'设置',exact:true}).click();
-  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeFocused();
-  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('777');
-  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeInViewport();
+  await navigate(page,'帮助');
+  await page.locator('#help-storage').getByRole('link',{name:'存储设置',exact:true}).click();
+  const target=page.locator('#storage-settings');
+  await expect(target).toBeFocused();
+  await expect(target).toBeInViewport();
   await page.goBack();
   await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(0);
   await page.goForward();
-  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeFocused();
+  await expect(target).toBeFocused();
+  await navigateSettings(page,'预加载与下载');
+  await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('777');
 });
 
 test('action feedback names the operation and does not follow navigation or late responses',async({page})=>{

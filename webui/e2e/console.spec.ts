@@ -42,18 +42,19 @@ test('cache renders Unix millisecond request times and zero as no record', async
   await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('最近请求：无记录');await page.keyboard.press('Escape');
   await page.getByRole('button',{name:'检查本地视频',exact:true}).click();
   await navigateSettings(page,'预加载与下载'); await navigate(page,'曲库');
-  await expect(rows.first().getByRole('checkbox')).toBeEnabled();
+  await expect(rows.first().getByRole('button',{name:'删除本地视频',exact:true})).toBeEnabled();
   expect(errors).toEqual([]);
 });
 
-test('cache protects in-use files and only deletes confirmed stamped selections', async ({page}) => {
+test('cache protects in-use files and only deletes the confirmed stamped file', async ({page}) => {
   const api=await mockAPI(page); await page.goto('/#/library?view=resources');
-  await expect(page.getByRole('checkbox',{name:/测试歌曲 2/})).toBeDisabled();
-  await page.getByRole('button',{name:'选择本页可删除项'}).click();
-  await page.getByRole('button',{name:'删除选中视频'}).click(); await expect(page.getByRole('dialog')).toBeVisible();
+  const rows=page.getByRole('table',{name:'曲库资源'}).locator('tbody tr');
+  await expect(rows.nth(1).getByRole('button',{name:'删除本地视频',exact:true})).toBeDisabled();
+  const remove=rows.first().getByRole('button',{name:'删除本地视频',exact:true});
+  await remove.click(); await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByRole('button',{name:'取消',exact:true}).click(); expect(api.calls.some(c=>c.path==='cache/delete')).toBe(false);
-  await page.getByRole('button',{name:'删除选中视频'}).click(); await page.getByRole('button',{name:'确认删除',exact:true}).click();
-  await expect(page.getByRole('checkbox',{name:/测试歌曲 1/})).toHaveCount(0);
+  await remove.click(); await page.getByRole('button',{name:'确认删除',exact:true}).click();
+  await expect(remove).toHaveCount(0);
   expect(api.calls.find(c=>c.path==='cache/delete')?.body).toEqual({storageID:'fixture',entries:[{key:'key1',stamp:'stamp1'}]});
 });
 test('leaving history stops list reads; exit tooltip supports keyboard focus without submitting', async ({page}) => {

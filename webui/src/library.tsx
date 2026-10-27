@@ -1,5 +1,5 @@
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
-import {Badge,Button,Checkbox,Field,Input,Link,Select,Tab,TabList,Table,TableHeader,TableRow,TableHeaderCell,TableBody,TableCell,TableCellLayout,Tooltip,tokens,useRestoreFocusTarget} from '@fluentui/react-components';
+import {Badge,Button,Field,Input,Link,Select,Tab,TabList,Table,TableHeader,TableRow,TableHeaderCell,TableBody,TableCell,TableCellLayout,Tooltip,tokens,useRestoreFocusTarget} from '@fluentui/react-components';
 import {useApp,useFocusRecovery,useResource} from './hooks';
 import {usePageFeedback} from './page-feedback';
 import {APIError,request} from './api';
@@ -7,7 +7,7 @@ import {Feedback,Notification,Progress,RecordDetails} from './ui';
 import {RecordTable,SortHeader,DescriptionHeader,TablePagination,type TableSort} from './data-table';
 import {DeleteRegular,FolderOpenRegular,PlayRegular} from '@fluentui/react-icons';
 import {LibraryPreview,type PreviewSelection} from './library-preview';
-import {InventoryPanel,useCacheActions,cacheLabel} from './cache';
+import {InventoryPanel,useCacheActions} from './cache';
 import {BatchPanel} from './home-library';
 import {ImportPanel} from './settings';
 import {VRCXImport,useVRCX} from './vrcx';
@@ -31,7 +31,7 @@ export function Library({visible,anchor}:{visible:boolean;anchor:string}) {
 function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boolean;anchor:string;song:string;resource:string;requestedView?:'songs'|'resources'}) {
   const app=useApp(),s=app.status.data!,focus=useFocusRecovery();
   const [view,setView]=useState(resource||requestedView==='resources'?'resources':'songs'),[search,setSearch]=useState(''),[filter,setFilter]=useState('');
-  const [query,setQuery]=useState<TableSort&{q:string;filter:string}>({q:'',sort:'score',direction:'descending',filter:''}),[offset,setOffset]=useState(0),[selected,setSelected]=useState<Record<string,string>>({});
+  const [query,setQuery]=useState<TableSort&{q:string;filter:string}>({q:'',sort:'score',direction:'descending',filter:''}),[offset,setOffset]=useState(0);
   const [pending,setPending]=useState(false);
   const history=useVRCX();
   const [preview,setPreview]=useState<PreviewSelection>();
@@ -45,12 +45,8 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
   useEffect(()=>setPreview(undefined),[page.data?.storageID]);
   useEffect(()=>{if(visible&&(actions.result?.error||actions.result?.entries?.length))fileResult.current?.focus();},[visible,actions.result]);
   const disabled=app.unavailable||pending||actions.pending||page.loading||!page.data||!!page.error;
-  const resources=page.data?.resources||{}, entries=Object.values(resources).flatMap(r=>r.local?[r.local]:[]), chosen=entries.filter(e=>selected[e.key]===e.stamp), eligible=entries.filter(e=>e.known&&!e.protected);
-  useEffect(()=>{setSelected({});},[query,view,offset,page.data?.storageID]);
+  const resources=page.data?.resources||{};
   useEffect(()=>{
-    setSelected(previous=>Object.fromEntries(Object.values(page.data?.resources||{}).flatMap(r=>{
-      const e=r.local;return e?.known&&!e.protected&&previous[e.key]===e.stamp?[[e.key,e.stamp]]:[];
-    })));
     if(page.data&&offset>=page.data.total&&offset>0)setOffset(0);
   },[page.data,offset]);
   const changeSort=(sort:TableSort)=>{setOffset(0);setQuery(q=>({...q,...sort}));};
@@ -112,12 +108,12 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
       </form>
       </div>
       <div id="library-results" role="tabpanel" aria-labelledby={'library-tab-'+view}>
-      {view==='resources'&&<div className="toolbar table-toolbar">{query.sort!=='score'&&<Button size="small" disabled={disabled} onClick={()=>changeSort({sort:'score',direction:'descending'})}>恢复默认排序</Button>}<Button size="small" disabled={disabled||!eligible.length} onClick={()=>setSelected(eligible.every(e=>selected[e.key]===e.stamp)?{}:Object.fromEntries(eligible.map(e=>[e.key,e.stamp])))}>选择本页可删除项</Button><Button size="small" disabled={disabled||!chosen.length} onClick={()=>void actions.operate('delete',chosen)}>删除选中视频</Button><span>已选择 {chosen.length} 个文件</span></div>}
+      {view==='resources'&&query.sort!=='score'&&<div className="toolbar table-toolbar"><Button size="small" disabled={disabled} onClick={()=>changeSort({sort:'score',direction:'descending'})}>恢复默认排序</Button></div>}
       {actions.result&&(actions.result.error||!!actions.result.entries?.length)&&<section ref={fileResult} tabIndex={-1} aria-label="文件操作结果" className="content-stack file-results"><Feedback error={actions.result.error}>{actions.result.text}{actions.result.message&&<p className="wrap">{actions.result.message}</p>}</Feedback>
         {!!actions.result.entries?.length&&<Table size="small" aria-label="未删除的视频"><TableHeader><TableRow><TableHeaderCell>视频</TableHeaderCell><TableHeaderCell>原因</TableHeaderCell></TableRow></TableHeader><TableBody>{actions.result.entries.map(entry=><TableRow key={entry.key}><TableCell>{entry.label}</TableCell><TableCell>{entry.reason}</TableCell></TableRow>)}</TableBody></Table>}
       </section>}
       <RecordTable busy={page.loading} regionLabel="曲库表格" label={view==='songs'?'曲库歌曲':'曲库资源'}>
-        <TableHeader><TableRow>{view==='songs'?<><SortHeader column="title" label="歌曲" sort={query} onSortChange={changeSort} disabled={disabled} className="table-fill-column"/><SortHeader column="score" label="需求分数" sort={query} onSortChange={changeSort} defaultDirection="descending" disabled={disabled} description="一次新需求计 100 分。灰色为初始分数；真实分数随时间衰减，按分数排序时优先显示。"/><DescriptionHeader label="偏好">收藏仅作标记；屏蔽会拒绝新的播放和下载请求。</DescriptionHeader></>:<><TableHeaderCell>选择</TableHeaderCell><SortHeader column="resource" label="视频资源" sort={query} onSortChange={changeSort} disabled={disabled} className="table-fill-column"/><SortHeader column="size" label="大小" sort={query} onSortChange={changeSort} defaultDirection="descending" disabled={disabled}/></>}
+        <TableHeader><TableRow>{view==='songs'?<><SortHeader column="title" label="歌曲" sort={query} onSortChange={changeSort} disabled={disabled} className="table-fill-column"/><SortHeader column="score" label="需求分数" sort={query} onSortChange={changeSort} defaultDirection="descending" disabled={disabled} description="一次新需求计 100 分。灰色为初始分数；真实分数随时间衰减，按分数排序时优先显示。"/><DescriptionHeader label="偏好">收藏仅作标记；屏蔽会拒绝新的播放和下载请求。</DescriptionHeader></>:<><SortHeader column="resource" label="视频资源" sort={query} onSortChange={changeSort} disabled={disabled} className="table-fill-column"/><SortHeader column="size" label="大小" sort={query} onSortChange={changeSort} defaultDirection="descending" disabled={disabled}/></>}
           <TableHeaderCell>本地状态</TableHeaderCell><TableHeaderCell>操作</TableHeaderCell></TableRow></TableHeader>
         <TableBody>{view==='songs'?page.data?.songs.map(song=>{
           const r=resources[song.resource],score=scoreFormat.format(song.score*100),source=song.hasDemand?'真实分数':'初始分数';return <TableRow key={song.id}>
@@ -127,7 +123,6 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
             <TableCell>{sharedState(r)}</TableCell><TableCell><div className="inline row-actions">{previewAction({songID:song.id,label:song.title||'歌曲 '+song.id},song.policy==='blocked'?'歌曲已屏蔽，请先解除屏蔽。':!song.resource?'尚不知道对应资源，请先更新曲库。':'')}<Button size="small" disabled={disabled||!!page.data?.videoError||s.batch.running||!!r?.local||song.policy==='blocked'} onClick={()=>download({songID:song.id})}>下载歌曲</Button>{fileActions(r)}<RecordDetails title={`歌曲 ${song.id} 的详情`}><dl className="detail-grid"><dt>名称</dt><dd>{song.title||'未知'}</dd><dt>歌手</dt><dd>{song.artist||'未知'}</dd><dt>舞者 / 社团</dt><dd>{[song.dancer,song.group].filter(Boolean).join(' / ')||'未知'}</dd><dt>分数来源</dt><dd>{source}</dd><dt>资源</dt><dd>{song.resource?<Link href={resourceHref(song.resource)}>{song.resource}</Link>:'未知'}</dd><dt>最近请求</dt><dd>{r?.local?.lastRequest?date(r.local.lastRequest):'无记录'}</dd></dl></RecordDetails></div></TableCell>
           </TableRow>;
         }):page.data?.keys.map(key=>{const r=resources[key],local=r.local;return <TableRow key={key}>
-          <TableCell>{local&&<Checkbox aria-label={'选择 '+cacheLabel(local)} disabled={disabled||!local.known||local.protected} checked={selected[key]===local.stamp} onChange={(_,v)=>setSelected(previous=>{const next={...previous};if(v.checked)next[key]=local.stamp;else delete next[key];return next;})}/>}</TableCell>
           <TableCell className="table-fill-column"><TableCellLayout truncate description={`${r.songs.map(s=>s.title||s.id).join(' / ')||'无关联歌曲'} · ${r.songCount} 首`}>{key}</TableCellLayout></TableCell>
           <TableCell><TableCellLayout description={r.duration==null?'时长未知':`${r.duration} 秒`}>{r.size==null?'未知':r.size<1e6?r.size.toLocaleString()+' B':mb(r.size)}</TableCellLayout></TableCell>
           <TableCell>{sharedState(r)}</TableCell><TableCell><div className="inline row-actions">{previewAction({resource:key,label:r.songs[0]?.title||key})}<Button size="small" disabled={disabled||s.batch.running||!!local||r.songCount===0} onClick={()=>download({resource:key})}>下载资源</Button>{fileActions(r)}<RecordDetails title={`资源 ${key} 的详情`}><p className="wrap">{key}</p><p>关联歌曲（{r.songCount} 首）</p><ul>{r.songs.map(song=><li key={song.id}><Link href={songHref(song.id)}>{song.title||'未知歌名'}（ID {song.id}）</Link></li>)}</ul>{r.songCount>r.songs.length&&<p>另有 {r.songCount-r.songs.length} 首；可按歌曲 ID 搜索。</p>}<p>最近请求：{local?.lastRequest?date(local.lastRequest):'无记录'}</p></RecordDetails></div></TableCell>

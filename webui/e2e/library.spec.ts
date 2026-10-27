@@ -242,19 +242,16 @@ for(const width of [320,390,1280])test(`library layout at ${width}px`,async({pag
 });
 
 
-test('idle library preserves selections and deletion confirmations without polling',async({page})=>{
+test('idle library preserves deletion confirmations without polling',async({page})=>{
   const {resources,calls,queries}=await libraryFixture(page);
   await page.clock.install();
   await page.goto('/#/library');
   await page.getByRole('tab',{name:'按资源'}).click();
-  const checkbox=page.getByRole('checkbox',{name:/^选择 /});
-  await checkbox.check();
   let count=queries.length;
   resources[key].local!.lastRequest=Date.now();
   await page.clock.fastForward(11000);
   expect(queries).toHaveLength(count);
-  await expect(checkbox).toBeChecked();
-  await page.getByRole('button',{name:'删除选中视频',exact:true}).click();
+  await page.getByRole('button',{name:'删除本地视频',exact:true}).click();
   await expect(page.getByRole('dialog')).toContainText('影响 2 首已知关联歌曲');
   count=queries.length;
   await page.clock.fastForward(11000);
@@ -269,8 +266,7 @@ for(const change of ['stamp','protected','missing','title'] as const)test('delet
   await page.clock.install();
   await page.goto('/#/library');
   await page.getByRole('tab',{name:'按资源'}).click();
-  await page.getByRole('checkbox',{name:/^选择 /}).check();
-  await page.getByRole('button',{name:'删除选中视频',exact:true}).click();
+  await page.getByRole('button',{name:'删除本地视频',exact:true}).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   if(change==='stamp')resources[key].local!.stamp='replacement-file';
   if(change==='protected')resources[key].local!.protected=true;
@@ -284,25 +280,9 @@ for(const change of ['stamp','protected','missing','title'] as const)test('delet
   await expect(page.getByRole('region',{name:'文件操作结果',exact:true})).toBeFocused();
   await expect(page.getByText('文件或歌曲关联已变化，请刷新后重新选择并确认。',{exact:true})).toBeVisible();
   expect(calls.some(c=>c.path==='cache/delete')).toBe(false);
-  if(change==='missing')await expect(page.getByRole('checkbox',{name:/^选择 /})).toHaveCount(0);
-  else if(change!=='title')await expect(page.getByText('已选择 0 个文件',{exact:true})).toBeVisible();
+  if(change==='missing')await expect(page.getByRole('button',{name:'删除本地视频',exact:true})).toHaveCount(0);
+  if(change==='protected')await expect(page.getByRole('button',{name:'删除本地视频',exact:true})).toBeDisabled();
 });
-
-test('changing the library view or query clears its selection',async({page})=>{
-  await libraryFixture(page);
-  await page.goto('/#/library');
-  await page.getByRole('tab',{name:'按资源'}).click();
-  const checkbox=page.getByRole('checkbox',{name:/^选择 /});
-  await checkbox.check();
-  await page.getByLabel('筛选',{exact:true}).selectOption('saved');
-  await page.getByRole('button',{name:'查找',exact:true}).click();
-  await expect(checkbox).not.toBeChecked();
-  await checkbox.check();
-  await page.getByRole('tab',{name:'按歌曲'}).click();
-  await page.getByRole('tab',{name:'按资源'}).click();
-  await expect(checkbox).not.toBeChecked();
-});
-
 
 test('compact rows, tooltip and operation feedback keep the table in place',async({page})=>{
   const {songs}=await libraryFixture(page);
@@ -376,31 +356,24 @@ test('a failed refresh during deletion confirmation prevents acting on the retai
   expect(api.calls.some(c=>c.path==='cache/delete')).toBe(false);
 });
 
-test('batch deletion focuses one persistent result with skipped and failed files',async({page},info)=>{
-  const {resources}=await libraryFixture(page),template=resources[key];
-  delete resources[key];delete resources[missing];
-  for(let id=1;id<=50;id++){
-    const key=id.toString(16).padStart(32,'0'),songs=id===50?[]:[{id:String(id),title:'批量视频 '+id}];
-    resources[key]={...template,key,songs,songCount:songs.length,local:{...template.local!,key,songs,songCount:songs.length,stamp:'file-'+id}};
-  }
+for(const result of ['protected','missing','changed','failed'] as const)test('file deletion focuses a persistent '+result+' result',async({page},info)=>{
+  const {resources}=await libraryFixture(page);
+  if(result==='failed'){resources[key].local!.songs=[];resources[key].local!.songCount=0;}
   await page.route('**/api/cache/delete',async route=>{
-    const entries=route.request().postDataJSON().entries as {key:string}[];
-    const response=entries.map(({key},i)=>({key,result:i<46?'deleted':['protected','missing','changed','failed'][i-46]}));
-    for(const entry of response)if(entry.result==='deleted'||entry.result==='missing')resources[entry.key].local=null;
-    await route.fulfill({json:response});
+    if(result==='missing')resources[key].local=null;
+    await route.fulfill({json:[{key,result}]});
   });
   await page.clock.install();await page.goto('/#/library?view=resources');
-  await page.getByRole('button',{name:'选择本页可删除项',exact:true}).click();
-  await page.getByRole('button',{name:'删除选中视频',exact:true}).click();
+  await page.getByRole('button',{name:'删除本地视频',exact:true}).click();
   await page.getByRole('dialog').getByRole('button',{name:'确认删除',exact:true}).click();
   const results=page.getByRole('region',{name:'文件操作结果',exact:true});
   await expect(results).toBeFocused();await expect(results).toBeInViewport();
-  await expect(page.getByText('已删除 46 个，跳过 2 个，未删除 2 个',{exact:true})).toHaveCount(1);
+  const summary=result==='protected'||result==='missing'?'已删除 0 个，跳过 1 个':'已删除 0 个，未删除 1 个';
+  await expect(page.getByText(summary,{exact:true})).toHaveCount(1);
   await page.clock.fastForward(8100);await expect(results).toBeVisible();
-  await expect(results.getByRole('row')).toHaveCount(5);
-  await expect(results).toContainText('批量视频 47');await expect(results).toContainText('文件或歌曲关联已变化');
-  await expect(results).toContainText((50).toString(16).padStart(32,'0'));
-  await expect(results).not.toContainText('批量视频 1');
+  await expect(results.getByRole('row')).toHaveCount(2);
+  await expect(results).toContainText({protected:'正在使用，暂不能删除',missing:'文件已不存在',changed:'文件或歌曲关联已变化',failed:'删除失败，请检查文件权限'}[result]);
+  if(result==='failed')await expect(results).toContainText(key);
   await page.setViewportSize({width:390,height:900});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await results.screenshot({path:info.outputPath('file-results.png'),animations:'disabled'});

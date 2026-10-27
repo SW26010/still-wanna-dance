@@ -8,7 +8,7 @@ const browser=await chromium.launch({channel:process.env.CI?'chromium':'msedge'}
 try {
   const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
-  await page.goto(baseURL+'/#song-preferences');
+  await page.goto(baseURL+'/#/library?view=songs');
   const panel=page.locator('#library-browser');
   await expect(panel).toBeVisible();
   const preference=id=>panel.getByRole('combobox',{name:`歌曲 ${id} 的偏好`,exact:true});

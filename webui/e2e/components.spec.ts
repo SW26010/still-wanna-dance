@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { mockAPI } from './api';
 
 test('resource selection and file actions are reachable by standard keyboard navigation',async({page})=>{
-  const api=await mockAPI(page);await page.goto('/#/cache');
+  const api=await mockAPI(page);await page.goto('/#/library?view=resources');
   const rows=page.getByRole('table',{name:'曲库资源'}).locator('tbody tr');await expect(rows).toHaveCount(2);
   const checkbox=rows.first().getByRole('checkbox');await checkbox.focus();await page.keyboard.press('Space');await expect(checkbox).toBeChecked();
   await expect(rows.nth(1).getByRole('checkbox')).toBeDisabled();

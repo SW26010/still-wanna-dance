@@ -20,11 +20,12 @@ export function Library({visible,anchor}:{visible:boolean;anchor:string}) {
   const [opened,setOpened]=useState(visible);
   useEffect(()=>{if(visible)setOpened(true);},[visible]);
   const params=new URLSearchParams(anchor.split('?')[1]||''), song=params.get('song')||'', resource=params.get('resource')||'';
-  return opened?<LibraryView key={song+':'+resource} visible={visible} anchor={anchor} song={song} resource={resource}/>:null;
+  const view=params.get('view'),requestedView=view==='songs'||view==='resources'?view:undefined;
+  return opened?<LibraryView key={song+':'+resource} visible={visible} anchor={anchor} song={song} resource={resource} requestedView={requestedView}/>:null;
 }
-function LibraryView({visible,anchor,song,resource}:{visible:boolean;anchor:string;song:string;resource:string}) {
+function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boolean;anchor:string;song:string;resource:string;requestedView?:'songs'|'resources'}) {
   const app=useApp(),s=app.status.data!,focus=useFocusRecovery(),toolFocus=useFocusRecovery();
-  const [view,setView]=useState(resource||anchor==='cache'||anchor==='/cache'?'resources':'songs'),[search,setSearch]=useState(''),[sort,setSort]=useState('score'),[filter,setFilter]=useState('');
+  const [view,setView]=useState(resource||requestedView==='resources'?'resources':'songs'),[search,setSearch]=useState(''),[sort,setSort]=useState('score'),[filter,setFilter]=useState('');
   const [query,setQuery]=useState({q:'',sort:'score',filter:''}),[offset,setOffset]=useState(0),[selected,setSelected]=useState<Record<string,string>>({});
   const [pending,setPending]=useState(false),[tool,setTool]=useState<'video'|'history'|'mark'|undefined>(anchor==='video-import'?'video':undefined);
   const history=useVRCX();
@@ -50,12 +51,12 @@ function LibraryView({visible,anchor,song,resource}:{visible:boolean;anchor:stri
   useEffect(()=>{if(visible)page.refresh();},[s.batch.running,s.import.running,visible,page.refresh]);
   useLayoutEffect(()=>{if(visible&&anchor==='video-import'){setTool('video');const frame=requestAnimationFrame(()=>{const target=document.getElementById('video-import');target?.focus();target?.scrollIntoView();});return()=>cancelAnimationFrame(frame);}},[visible,anchor]);
   useLayoutEffect(()=>{
-    if(!visible||!['cache','/cache','song-preferences','batch'].includes(anchor))return;
+    if(!visible||(requestedView===undefined&&anchor!=='batch'))return;
     setTool(undefined);
-    if(anchor!=='batch'){setView(anchor==='song-preferences'?'songs':'resources');setOffset(0);setFilter('');setQuery(q=>({...q,filter:''}));}
+    if(requestedView){setView(requestedView);setOffset(0);setFilter('');setQuery(q=>({...q,filter:''}));}
     const frame=requestAnimationFrame(()=>{const target=anchor==='batch'?document.getElementById('batch'):focus.ref.current;target?.focus();target?.scrollIntoView();});
     return()=>cancelAnimationFrame(frame);
-  },[visible,anchor]);
+  },[visible,anchor,requestedView]);
   useLayoutEffect(()=>{if(!visible)return;const frame=requestAnimationFrame(()=>{const target=tool?toolFocus.ref.current:anchor==='batch'?document.getElementById('batch'):focus.ref.current;target?.focus({preventScroll:true});});return()=>cancelAnimationFrame(frame);},[tool]);
   async function save(id:string,policy:SongPolicy) {
     if(disabled||!page.data)return;

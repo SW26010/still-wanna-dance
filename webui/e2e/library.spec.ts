@@ -345,7 +345,7 @@ test('import keeps its draft and uses a single confirmation dialog',async({page}
   await expect(page.getByRole('textbox',{name:'外部目录',exact:true})).toBeVisible();
 });
 
-for(const width of [390,1280])for(const anchor of ['cache','/cache','song-preferences','batch'])test(`library anchor #${anchor} leaves the import tool and preserves its draft at ${width}px`,async({page})=>{
+for(const width of [390,1280])for(const anchor of ['/library?view=resources','/library?view=songs','batch'])test(`library anchor #${anchor} leaves the import tool and preserves its draft at ${width}px`,async({page})=>{
   await libraryFixture(page);await page.setViewportSize({width,height:720});await page.goto('/#/library');
   await page.getByRole('button',{name:'导入视频',exact:true}).click();
   const draft=page.getByRole('textbox',{name:'外部目录',exact:true});await draft.fill('C:\\Fixture-Videos');
@@ -353,12 +353,12 @@ for(const width of [390,1280])for(const anchor of ['cache','/cache','song-prefer
   const target=page.locator(anchor==='batch'?'#batch':'#library-browser');
   await expect(target).toBeVisible();await expect(target).toBeFocused();await expect(target).toBeInViewport();
   await expect(page.getByRole('region',{name:'曲库工具',exact:true})).toBeHidden();
-  if(anchor!=='batch')await expect(page.getByRole('table',{name:anchor==='song-preferences'?'曲库歌曲':'曲库资源',exact:true})).toBeVisible();
+  if(anchor!=='batch')await expect(page.getByRole('table',{name:anchor==='/library?view=songs'?'曲库歌曲':'曲库资源',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'导入视频',exact:true}).click();await expect(draft).toHaveValue('C:\\Fixture-Videos');
 });
 
 test('a failed refresh during deletion confirmation prevents acting on the retained snapshot',async({page})=>{
-  const api=await mockAPI(page);await page.clock.install();await page.goto('/#/cache');
+  const api=await mockAPI(page);await page.clock.install();await page.goto('/#/library?view=resources');
   await page.getByRole('table',{name:'曲库资源'}).locator('tbody tr').first().getByRole('button',{name:'删除本地视频',exact:true}).click();
   await page.route('**/api/library?*',route=>route.fulfill({status:503,json:{error:'offline'}}));
   await page.clock.fastForward(10100);await page.getByRole('dialog').getByRole('button',{name:'确认删除',exact:true}).click();
@@ -380,7 +380,7 @@ test('batch deletion focuses one persistent result with skipped and failed files
     for(const entry of response)if(entry.result==='deleted'||entry.result==='missing')resources[entry.key].local=null;
     await route.fulfill({json:response});
   });
-  await page.clock.install();await page.goto('/#/cache');
+  await page.clock.install();await page.goto('/#/library?view=resources');
   await page.getByRole('button',{name:'选择本页可删除项',exact:true}).click();
   await page.getByRole('button',{name:'删除选中视频',exact:true}).click();
   await page.getByRole('dialog').getByRole('button',{name:'确认删除',exact:true}).click();

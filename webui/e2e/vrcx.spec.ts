@@ -213,7 +213,7 @@ test('VRCX keeps the selected database and preview across tool return and page n
   await inspect(page);await expect(preview).toBeVisible();
   await page.getByRole('button',{name:'返回曲库',exact:true}).click();await expect(preview).toBeHidden();
   await history.click();await expect(preview).toBeVisible();
-  await page.evaluate(()=>{location.hash='cache';});
+  await page.evaluate(()=>{location.hash='/library?view=resources';});
   await expect(page.getByRole('table',{name:'曲库资源',exact:true})).toBeVisible();
   await history.click();await expect(preview).toBeVisible();await expect(path).toHaveValue('D:\\custom\\VRCX.sqlite3');
   await navigate(page,'加速');await navigate(page,'曲库');

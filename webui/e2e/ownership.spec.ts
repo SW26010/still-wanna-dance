@@ -14,7 +14,7 @@ test('live progress belongs to acceleration and manual work belongs to library',
 });
 
 test('video import, storage and coverage are found from local videos',async({page})=>{
-  const api=await mockAPI(page);await page.goto('/#/cache');
+  const api=await mockAPI(page);await page.goto('/#/library?view=resources');
   const coverage=page.getByText('曲库覆盖率',{exact:true});
   await expect(coverage).toBeVisible();
   expect((await coverage.boundingBox())!.y).toBeLessThan((await page.getByRole('table',{name:'曲库资源'}).boundingBox())!.y);

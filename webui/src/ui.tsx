@@ -62,7 +62,7 @@ export const consolePages=[['home','加速'],['timeline','历史'],['library','�
 export const documentPages={help:'帮助',about:'关于',terms:'使用条款'} as const;
 export type DocumentPage=keyof typeof documentPages;
 export const isDocumentPage=(page:string):page is DocumentPage=>Object.hasOwn(documentPages,page);
-export function pageHref(page:typeof consolePages[number][0]|DocumentPage|'cache') {
+export function pageHref(page:typeof consolePages[number][0]|DocumentPage) {
   return bootstrap.page==='console'?'#/'+page:isDocumentPage(page)?'/'+page:'/#/'+page;
 }
 export const sectionHref=(id:string)=>(bootstrap.page==='console'?'#':'/#')+id;

@@ -514,6 +514,13 @@
       "bytes": 1179797,
       "sha256": "ab0ae201fc386b718b87c9875ec2947d65991052c5627ff1453a93e3e397476b",
       "reason": "Intermediate production WebUI for separately reviewable legacy cleanup commit 2; rebuilt from its exact staged sources with pinned dependencies and a passing type check."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1179671,
+      "sha256": "a9f201447d5eef69c8690d9346d487df9748a23e5774a57343a6e72b7a841974",
+      "reason": "Production WebUI removes obsolete page aliases, hosts migration state and unused cache/history fields; regenerated from pinned sources and checked by 100 Edge regressions and the real Console first-run browser test."
     }
   ]
 }

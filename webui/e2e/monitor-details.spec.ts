@@ -15,7 +15,7 @@ test('network details preserve sample evidence and distinguish failures from mis
     resource('history.example',{state:'unavailable',reason:'timeout',lastThroughput:{bytes:1048576,durationNs:2e9,songID:7,observedAt:'2000-01-01T00:00:00Z'},
       sources:[{api:'api',node:'cf',apiChannelID:'source-1'},{api:'api',node:'cf',apiChannelID:'source-1'}]}),
   ]};
-  await page.setViewportSize({width:390,height:844});await page.goto('/#/monitor');
+  await page.setViewportSize({width:390,height:844});await page.goto('/#/network');
   const panel=page.locator('#network');
   const rows=panel.getByRole('table').getByRole('row').filter({has:page.getByRole('button',{name:'线路技术详情',exact:true})});
   const expected=['清单版本：fixture-v1','0.0 KiB/s','尚无成功样本 · 当前资源检查失败：请求超时','尚无成功样本 · 未取得该域名的有效资源地址','尚无成功样本 · 业务正在加载视频，自动测速已暂停','历史样本（已过期）'];

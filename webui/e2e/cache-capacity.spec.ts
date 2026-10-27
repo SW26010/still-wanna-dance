@@ -96,7 +96,7 @@ test('settings preserve all three storage choices and the entered budget across 
 test('no retention overrides the remembered budget while favorites can still be filled', async ({page}) => {
   const api = await mockAPI(page);
   api.state.activeSettings.videoStorageMode = 'none';
-  await page.goto('/#/cache');
+  await page.goto('/#/library?view=resources');
   await expect(page.getByRole('region',{name:'曲库概览'}).getByText('不保留',{exact:true})).toBeVisible();
   await navigate(page,'曲库');
   await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();

@@ -2,6 +2,14 @@ import {navigate} from './navigation';
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 
+test('removed page aliases use the unknown-route default',async({page})=>{
+  await mockAPI(page);
+  for(const hash of ['#/upstream','#/monitor','#/cache','#cache','#song-preferences']){
+    await page.goto('/'+hash);
+    await expect(page.getByRole('heading',{level:1,name:'加速',exact:true})).toBeVisible();
+  }
+});
+
 test('settings anchors focus after initial reads and within the same page',async({page})=>{
   await mockAPI(page);await page.goto('/#prepareAheadSeconds');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeFocused();
@@ -10,9 +18,9 @@ test('settings anchors focus after initial reads and within the same page',async
   await page.evaluate(()=>{location.hash='recent';});await expect(page.locator('#recent')).toBeFocused();
 });
 
-test('network routes and legacy links open diagnostics while proxy links open settings',async({page})=>{
+test('network routes and section links open diagnostics while proxy links open settings',async({page})=>{
   const api=await mockAPI(page);
-  for(const hash of ['#/network','#network','#network-tests','#network-access','#service','#/upstream','#/monitor']){
+  for(const hash of ['#/network','#network','#network-tests','#network-access','#service']){
     await page.goto('/'+hash);
     await expect(page.getByRole('heading',{level:1,name:'网络',exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:'检查当前连接',exact:true})).toBeVisible();
@@ -100,7 +108,7 @@ test('rejected cancellation stays running and stale SSE events cannot replace ne
 });
 
 test('cache failures preserve rows but disable stale actions and retry reads no unrelated services',async({page})=>{
-  const api=await mockAPI(page);await page.goto('/#/cache');await expect(page.getByRole('checkbox',{name:/测试歌曲 1/})).toBeEnabled();
+  const api=await mockAPI(page);await page.goto('/#/library?view=resources');await expect(page.getByRole('checkbox',{name:/测试歌曲 1/})).toBeEnabled();
   await page.route('**/api/library?*',r=>r.fulfill({status:503,json:{error:'busy'}}));
   await page.getByRole('button',{name:'刷新曲库与本地占用'}).click();await expect(page.getByText(/曲库读取失败/)).toBeVisible();
   await expect(page.getByRole('checkbox',{name:/测试歌曲 1/})).toBeDisabled();

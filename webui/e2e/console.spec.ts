@@ -33,7 +33,7 @@ test('drafts survive polling and navigation; save preserves active config and bl
 test('cache renders Unix millisecond request times and zero as no record', async ({page}) => {
   const api=await mockAPI(page), errors:string[]=[];
   page.on('pageerror',e=>errors.push(e.message));
-  await page.goto('/#/cache');
+  await page.goto('/#/library?view=resources');
   const rows=page.getByRole('table',{name:'曲库资源'}).locator('tbody tr');
   const requested=await page.evaluate(at=>new Date(at).toLocaleString(),api.files[0].lastRequest);
   await rows.first().getByRole('button',{name:'资源 key1 的详情',exact:true}).click();
@@ -47,7 +47,7 @@ test('cache renders Unix millisecond request times and zero as no record', async
 });
 
 test('cache protects in-use files and only deletes confirmed stamped selections', async ({page}) => {
-  const api=await mockAPI(page); await page.goto('/#/cache');
+  const api=await mockAPI(page); await page.goto('/#/library?view=resources');
   await expect(page.getByRole('checkbox',{name:/测试歌曲 2/})).toBeDisabled();
   await page.getByRole('button',{name:'选择本页可删除项'}).click();
   await page.getByRole('button',{name:'删除选中视频'}).click(); await expect(page.getByRole('dialog')).toBeVisible();

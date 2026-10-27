@@ -35,6 +35,7 @@ type usageEvent struct {
 
 type usageStore struct {
 	retention time.Duration
+	unlimited bool
 	db        *sql.DB
 	log       *slog.Logger
 	mu        sync.Mutex
@@ -53,7 +54,7 @@ func newUsage(db *sql.DB, log *slog.Logger) *usageStore {
 
 // Opening a library is not the beginning of request collection. Only an engine
 // that actually starts observing traffic activates this worker and its pruning.
-func (u *usageStore) start(retentionDays int) error {
+func (u *usageStore) start(retentionDays int, unlimited bool) error {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	if u.closed {
@@ -66,6 +67,7 @@ func (u *usageStore) start(retentionDays int) error {
 		return err
 	}
 	u.retention = time.Duration(retentionDays) * 24 * time.Hour
+	u.unlimited = unlimited
 	u.started = true
 	go u.run()
 	return nil
@@ -234,6 +236,9 @@ func (u *usageStore) write(batch []usageEvent) error {
 				sources.CacheBytes += e.sources.CacheBytes
 				sources.LocalBytes += e.sources.LocalBytes
 			}
+			if !u.unlimited && u.retention == 0 {
+				continue
+			}
 			_, err = tx.ExecContext(ctx, `INSERT INTO request_events
 (resource_md5, requested_at, host, method, range_header, cache_result, outcome,
  file_bytes, transferred_bytes, elapsed_ms, status, song_id, completed_at, response_bytes, first_body_ns, first_body_blocking, download_bytes, cache_bytes, local_bytes)
@@ -287,7 +292,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 // Delete only details in a bounded transaction using the time index.
 // SQLite reuses freed pages; avoid a blocking full VACUUM during service use.
 func (u *usageStore) prune(now time.Time) (int64, error) {
-	if u.retention == 0 {
+	if u.unlimited {
 		return 0, nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -301,9 +306,18 @@ func (u *usageStore) prune(now time.Time) (int64, error) {
 	if _, err := tx.ExecContext(ctx, "UPDATE request_observation SET retained_since=max(retained_since,?) WHERE id=1", cutoff); err != nil {
 		return 0, err
 	}
-	result, err := tx.ExecContext(ctx, `DELETE FROM request_events WHERE event_id IN (
+	query := `DELETE FROM request_events WHERE event_id IN (
  SELECT event_id FROM request_events WHERE requested_at < ? ORDER BY requested_at LIMIT ?
-)`, cutoff, requestCleanupBatch)
+)`
+	args := []any{cutoff, requestCleanupBatch}
+	if u.retention == 0 {
+		// No retention also removes timestamps ahead of the current clock.
+		query = `DELETE FROM request_events WHERE event_id IN (
+ SELECT event_id FROM request_events ORDER BY requested_at LIMIT ?
+)`
+		args = []any{requestCleanupBatch}
+	}
+	result, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return 0, err
 	}

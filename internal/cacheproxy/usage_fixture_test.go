@@ -9,7 +9,7 @@ import (
 
 // Low-level worker tests own their connection. Fixture initialization uses the
 // same explicit create operation as applications; existing files remain strict.
-func fixtureUsage(t testing.TB, path string, log *slog.Logger, retentionDays int) (*usageStore, error) {
+func fixtureUsage(t testing.TB, path string, log *slog.Logger, retentionDays int, unlimited bool) (*usageStore, error) {
 	t.Helper()
 	if _, err := os.Lstat(path); os.IsNotExist(err) {
 		store, err := CreateStore(path)
@@ -25,7 +25,7 @@ func fixtureUsage(t testing.TB, path string, log *slog.Logger, retentionDays int
 		return nil, err
 	}
 	u := newUsage(db, log)
-	if err := u.start(retentionDays); err != nil {
+	if err := u.start(retentionDays, unlimited); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func TestUsageWorkerBorrowsApplicationDatabase(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer store.Close()
-	if err := store.usage.start(0); err != nil {
+	if err := store.usage.start(0, true); err != nil {
 		t.Fatal(err)
 	}
 	store.usage.record(usageEvent{songID: "42", at: 1000})

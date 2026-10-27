@@ -11,7 +11,7 @@ import (
 
 func BenchmarkRequestHistoryQueries(b *testing.B) {
 	root := b.TempDir()
-	u, err := fixtureUsage(b, filepath.Join(root, storageDatabaseName), slog.New(slog.NewTextHandler(io.Discard, nil)), 0)
+	u, err := fixtureUsage(b, filepath.Join(root, storageDatabaseName), slog.New(slog.NewTextHandler(io.Discard, nil)), 0, true)
 	if err != nil {
 		b.Fatal(err)
 	}

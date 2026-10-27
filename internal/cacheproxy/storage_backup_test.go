@@ -89,7 +89,7 @@ func TestV7OfflineBackupRestoresAllBusinessData(t *testing.T) {
 		t.Fatal("restored personal data depended on video availability", page, err)
 	}
 	cfg := fixtureConfig()
-	cfg.Store, cfg.RequestRetentionDays = store, 0
+	cfg.Store, cfg.RequestRetentionUnlimited = store, true
 	prepareFixtureVideo(t, &cfg, videoDir)
 	engine, err := New(cfg)
 	if err != nil {

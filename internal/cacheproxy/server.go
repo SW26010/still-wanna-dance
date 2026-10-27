@@ -237,7 +237,7 @@ func newServer(cfg Config, initialRead string) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("clean temporary media files: %w", err)
 	}
-	if err := store.usage.start(cfg.RequestRetentionDays); err != nil {
+	if err := store.usage.start(cfg.RequestRetentionDays, cfg.RequestRetentionUnlimited); err != nil {
 		return nil, err
 	}
 	if err := s.loadTraffic(store.db); err != nil {

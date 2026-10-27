@@ -144,7 +144,7 @@ func TestResponseSourcesHTTPAndPersistence(t *testing.T) {
 	if err := s.usage.close(); err != nil {
 		t.Fatal(err)
 	}
-	s.usage.retention = time.Hour
+	s.usage.retention, s.usage.unlimited = time.Hour, false
 	if _, err := s.usage.prune(time.Now().Add(48 * time.Hour)); err != nil {
 		t.Fatal(err)
 	}
@@ -200,6 +200,9 @@ func TestResponseSourcesBatchAtomicAndUnknown(t *testing.T) {
 	}
 	defer store.Close()
 	e := usageEvent{method: "GET", at: 1, sources: &ResponseSources{DownloadBytes: 8, CacheBytes: 4, LocalBytes: 2}}
+	if err := store.usage.start(0, true); err != nil {
+		t.Fatal(err)
+	}
 	if err := store.usage.write([]usageEvent{e, {method: "GET", songID: "bad"}}); err == nil {
 		t.Fatal("bad batch accepted")
 	}
@@ -211,7 +214,7 @@ func TestResponseSourcesBatchAtomicAndUnknown(t *testing.T) {
 		t.Fatal(err)
 	}
 	page, err := ReadRequestHistory(t.Context(), store.path, RequestQuery{Limit: 10})
-	if err != nil || page.Requests[0].Sources != nil || *page.Requests[1].Sources != *e.sources {
+	if err != nil || len(page.Requests) != 2 || page.Requests[0].Sources != nil || page.Requests[1].Sources == nil || *page.Requests[1].Sources != *e.sources {
 		t.Fatal(page, err)
 	}
 	got, err = ReadResponseSources(t.Context(), store.path)

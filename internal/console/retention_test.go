@@ -1,6 +1,7 @@
 package console
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -91,20 +92,23 @@ func TestCacheLimitSettingsPersist(t *testing.T) {
 
 func TestRequestRetentionSettings(t *testing.T) {
 	c := testConsole(t)
-	if c.settings.RequestRetentionDays != 30 {
+	if c.settings.RequestRetentionMode != "unlimited" || c.settings.RequestRetentionDays != 0 {
 		t.Fatal("missing default retention")
 	}
-	for _, days := range []int{7, 0} {
+	for _, mode := range []string{"none", "limited", "unlimited"} {
 		settings := c.settings
-		settings.RequestRetentionDays = days
+		settings.RequestRetentionMode, settings.RequestRetentionDays = mode, 7
 		if err := c.save(settings); err != nil {
 			t.Fatal(err)
+		}
+		if c.settings.RequestRetentionMode != "unlimited" || c.settings.RequestRetentionDays != 0 {
+			t.Fatal("saving changed active request retention")
 		}
 		loaded, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if loaded.settings.RequestRetentionDays != days {
+		if loaded.settings.RequestRetentionMode != mode || loaded.settings.RequestRetentionDays != 7 {
 			t.Fatal("retention lost on restart")
 		}
 		loaded.Close()
@@ -115,5 +119,48 @@ func TestRequestRetentionSettings(t *testing.T) {
 		if err := c.save(settings); err == nil {
 			t.Fatal("invalid retention accepted")
 		}
+	}
+	for _, mode := range []string{"", "other", "limited"} {
+		settings := c.settings
+		settings.RequestRetentionMode = mode
+		if err := c.save(settings); err == nil {
+			t.Fatal("invalid mode or zero-day limited retention accepted")
+		}
+	}
+}
+
+func TestRequestRetentionDefaultsAndExplicitModes(t *testing.T) {
+	for _, tc := range []struct {
+		fields, mode string
+		days         int
+	}{
+		{``, "unlimited", 0},
+		{`,"requestRetentionDays":null`, "unlimited", 0},
+		{`,"requestRetentionMode":null,"requestRetentionDays":null`, "unlimited", 0},
+		{`,"requestRetentionMode":"limited","requestRetentionDays":7`, "limited", 7},
+		{`,"requestRetentionMode":"none","requestRetentionDays":0`, "none", 0},
+		{`,"requestRetentionMode":"unlimited","requestRetentionDays":7`, "unlimited", 7},
+	} {
+		t.Run(tc.fields, func(t *testing.T) {
+			config := filepath.Join(t.TempDir(), "config.json")
+			if err := os.WriteFile(config, []byte(fmt.Sprintf(`{"schemaVersion":7%s}`, tc.fields)), 0600); err != nil {
+				t.Fatal(err)
+			}
+			c, err := newConsoleWithWorkForTest(t, config, "127.0.0.1:18081")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer c.Close()
+			if c.settings.RequestRetentionMode != tc.mode || c.settings.RequestRetentionDays != tc.days {
+				t.Fatal("unexpected retention mode or days", c.settings.RequestRetentionMode, c.settings.RequestRetentionDays)
+			}
+			if err := c.save(c.settings); err != nil {
+				t.Fatal(err)
+			}
+			_, fields, err := readConfigFile(config)
+			if err != nil || string(fields["requestRetentionMode"]) != `"`+tc.mode+`"` {
+				t.Fatal("mode was not saved explicitly", fields["requestRetentionMode"], err)
+			}
+		})
 	}
 }

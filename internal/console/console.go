@@ -43,6 +43,7 @@ type Settings struct {
 	ThroughputIntervalMinutes   int    `json:"throughputIntervalMinutes"`
 	QueueWithGateway            bool   `json:"queueWithGateway"`
 	RequestRetentionDays        int    `json:"requestRetentionDays"`
+	RequestRetentionMode        string `json:"requestRetentionMode"`
 	AutoAccelerate              bool   `json:"autoAccelerate"`
 	AutoOpenWebUI               bool   `json:"autoOpenWebUI"`
 	Theme                       string `json:"theme"`
@@ -173,7 +174,7 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 	c.identity = identity
 	c.hosts = newHostsController(hostsPath(), launchHostsSession)
 	c.settings = Settings{
-		RequestRetentionDays: 30,
+		RequestRetentionMode: "unlimited",
 		AutoAccelerate:       false, AutoOpenWebUI: true, QueueWithGateway: true, RestoreHostsOnExit: true,
 		VideoStorageMode: "none", MaxCacheBytes: 0, RetainFavorites: true,
 		AggressiveCacheReclamation: "auto",
@@ -324,6 +325,12 @@ func absoluteSettings(s Settings) (Settings, error) {
 	if s.RequestRetentionDays < 0 || s.RequestRetentionDays > 36500 {
 		return s, errors.New("请求明细保留天数必须为 0～36500")
 	}
+	if s.RequestRetentionMode != "none" && s.RequestRetentionMode != "limited" && s.RequestRetentionMode != "unlimited" {
+		return s, errors.New("请求明细保留选项必须为 none、limited 或 unlimited")
+	}
+	if s.RequestRetentionMode == "limited" && s.RequestRetentionDays == 0 {
+		return s, errors.New("选择「保留指定天数」时，请求明细保留天数必须大于 0")
+	}
 	if s.MaxCacheBytes < 0 {
 		return s, errors.New("视频存储预算不能为负数")
 	}
@@ -471,6 +478,10 @@ func (c *Console) ensureEngineRead(key string) (func(), error) {
 		cfg.MaxCacheBytes = 0
 	}
 	cfg.RequestRetentionDays = c.settings.RequestRetentionDays
+	cfg.RequestRetentionUnlimited = c.settings.RequestRetentionMode == "unlimited"
+	if c.settings.RequestRetentionMode == "none" {
+		cfg.RequestRetentionDays = 0
+	}
 	cfg.PrepareAhead = time.Duration(c.settings.PrepareAheadSeconds) * time.Second
 	cfg.DownloadSoftLimit = c.settings.DownloadSoftLimit
 	cfg.DownloadGrowInterval = time.Duration(c.settings.DownloadGrowIntervalMS) * time.Millisecond

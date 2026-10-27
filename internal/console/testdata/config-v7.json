@@ -4,6 +4,7 @@
   "aggressiveCacheReclamation": "auto",
   "maxCacheBytes": 0,
   "requestRetentionDays": 0,
+  "requestRetentionMode": "unlimited",
   "autoAccelerate": false,
   "queueWithGateway": false,
   "upstreamMode": "direct",

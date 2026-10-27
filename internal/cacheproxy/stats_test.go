@@ -54,7 +54,7 @@ func TestTrafficPersistence(t *testing.T) {
 func TestTrafficPersistenceAndRetention(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "storage.sqlite")
-	u, err := fixtureUsage(t, path, slog.Default(), 0)
+	u, err := fixtureUsage(t, path, slog.Default(), 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestTrafficPersistenceAndRetention(t *testing.T) {
 	check(ReadTrafficStats(storagePath(root)))
 	cfg := fixtureConfig()
 	prepareFixtureResources(t, &cfg, root, false)
-	cfg.RequestRetentionDays = 0
+	cfg.RequestRetentionUnlimited = true
 	s, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)

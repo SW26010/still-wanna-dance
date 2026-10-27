@@ -76,8 +76,10 @@ type Config struct {
 	// AggressiveCacheReclamation controls unprotected block cache reclamation:
 	// auto follows the video budget; on and off explicitly override it.
 	AggressiveCacheReclamation string
-	// RequestRetentionDays bounds request details; zero keeps them indefinitely.
-	RequestRetentionDays int
+	// RequestRetentionDays bounds request details; zero disables detail retention.
+	// Unlimited retention is explicit and takes precedence over the day limit.
+	RequestRetentionDays      int
+	RequestRetentionUnlimited bool
 	// MaxLocalValidations bounds concurrent local file validations.
 	// The CLI retains the legacy -max-downloads flag.
 	// Usage capacity and upstream block execution have independent limits.
@@ -97,7 +99,7 @@ func DefaultConfig() Config {
 		MaxCacheBytes:              0,
 		RetainFavorites:            true,
 		AggressiveCacheReclamation: "auto",
-		RequestRetentionDays:       30,
+		RequestRetentionUnlimited:  true,
 		OriginScheme:               "https",
 		Origins:                    make(map[string]string),
 		DownloadTimeout:            10 * time.Minute,

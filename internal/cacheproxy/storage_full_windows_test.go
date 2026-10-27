@@ -123,7 +123,7 @@ func TestBoundedVolumeExhaustion(t *testing.T) {
 		}
 		t.Cleanup(func() { store.Close() })
 
-		if err := store.usage.start(0); err != nil {
+		if err := store.usage.start(0, true); err != nil {
 			t.Fatal(err)
 		}
 		store.usage.flush()

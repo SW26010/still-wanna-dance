@@ -73,6 +73,9 @@ func TestRequestHistoryIdentityAndConstraints(t *testing.T) {
 	defer store.Close()
 	// Resolution failures can identify a song absent from the catalog. Unknown
 	// identities are NULL on disk, but the existing JSON contract uses "".
+	if err := store.usage.start(0, true); err != nil {
+		t.Fatal(err)
+	}
 	events := []usageEvent{
 		{songID: "9223372036854775807", method: "GET", status: 502, at: 1},
 		{method: "GET", status: 400, at: 2},

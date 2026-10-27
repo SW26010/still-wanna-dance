@@ -13,7 +13,7 @@ import (
 
 func TestRecentRequestsWindowAndNames(t *testing.T) {
 	root := t.TempDir()
-	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.New(slog.NewTextHandler(io.Discard, nil)), 0)
+	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.New(slog.NewTextHandler(io.Discard, nil)), 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +91,7 @@ func TestRecentMissingCorruptAndLimits(t *testing.T) {
 
 func TestRecentBoundedAssociations(t *testing.T) {
 	root := t.TempDir()
-	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
+	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestRecentBoundedAssociations(t *testing.T) {
 
 func TestRecentWindowOrderingAndOffline(t *testing.T) {
 	root := t.TempDir()
-	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
+	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestRecentWindowOrderingAndOffline(t *testing.T) {
 		}
 	}
 	// HasMore counts HTTP requests, including deterministic ties, not activity.
-	u, err = fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
+	u, err = fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}

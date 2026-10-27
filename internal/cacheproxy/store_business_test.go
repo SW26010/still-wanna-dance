@@ -124,7 +124,7 @@ func TestStoreReportsBackgroundWriteFailure(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer store.Close()
-			if err := store.usage.start(0); err != nil {
+			if err := store.usage.start(0, true); err != nil {
 				t.Fatal(err)
 			}
 			if _, err := store.db.Exec(fault); err != nil {
@@ -154,7 +154,7 @@ func TestStoreCloseDrainsAcceptedBusinessEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { store.Close() })
-	if err := store.usage.start(0); err != nil {
+	if err := store.usage.start(0, true); err != nil {
 		t.Fatal(err)
 	}
 	// Hold the sole connection while filling a small, non-overflowing queue.

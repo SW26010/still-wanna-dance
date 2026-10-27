@@ -23,6 +23,9 @@ func TestConfigurationAndInventoryGolden(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
+	if c.settings.RequestRetentionMode != "unlimited" {
+		t.Fatal("explicit unlimited retention was lost")
+	}
 	if c.settings.PrepareAheadSeconds != 500 || c.settings.RequestRetentionDays != 0 || c.settings.AutoAccelerate || testStorageRoot(c.settings) != filepath.Join(root, "storage") || c.settings.VideoStorageMode != "none" || c.settings.MaxCacheBytes != 0 {
 		t.Fatal("configuration defaults changed")
 	}

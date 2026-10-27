@@ -691,3 +691,16 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 `focus-probe.json` 记录修复前真实 Edge 结果：键盘打开预览后，通过 Escape、关闭按钮或遮罩关闭，三种方式均让焦点落到 body。原因是外部列表按钮未接入受控 Dialog 的焦点恢复目标。保留单一 Dialog 和原生播放器，在按钮上使用 Fluent `useRestoreFocusTarget`，复用库内机制。
 
 `focus-webui.log` 的曲库 36 项全部通过；新增三项分别覆盖两种入口的三种关闭方式，验证焦点回到实际触发按钮且旧媒体源已清除。`focus-build.log`、`focus-check.log` 记录构建、类型和嵌入资源一致性通过；变更产物及 diff 检查见 `focus-artifacts.json`、`focus-diff.log`。本次只改前端焦点关联，沿用既有后端和真实媒体验证范围。
+
+
+## 2026-10-27 请求明细保留三选项
+
+设置沿用视频保留的 Fluent RadioGroup 交互，提供不保留、保留指定天数、永久保留，默认永久保留；独立模式决定行为，不做旧配置数值兼容。现行规则统一见[请求明细保留期](../cache-retention.md#请求明细保留期)。
+
+- 后端：cacheproxy、console、CLI 三个包完整回归及 vet 通过。新增检查覆盖默认值、模式/天数校验、保存与重启边界、不保留时停止写明细且继续更新需求/传输/访问/来源累计、分批清理含未来时间的已有明细，以及永久保留不受记住的天数限制。最终 cacheproxy 整包输出在忽略目录 artifacts/request-retention-size/cacheproxy-regression.log。
+- 浏览器：请求保留、视频预算、设置结构三组共 13 项通过；窄屏检查发现选项文字被拆行，改为整项换行后请求保留 2 项复验通过。覆盖模式切换、记住天数、保存/刷新/放弃、正整数范围校验、键盘方向键及 390px 深色布局。截图在 artifacts/webui-tests/request-retention-request--583b5-s-and-applies-after-restart/request-retention-dark-narrow.png。前端构建、类型及嵌入产物一致性检查通过。
+- CLI：构建隔离二进制，以 show-terms 提前退出验证默认、0 天、90 天、显式关闭无限保留四组参数成功，天数与显式永久保留冲突时返回失败；未启动网关。
+
+首次定向检查在 Windows 沙箱内遇到原子替换 The handle is invalid，沙箱外复验通过。沙箱内浏览器用例开始即失败且 runner 未正常收尾，已中断并在沙箱外完成上述浏览器检查。首次 cacheproxy 整包还发现旧夹具仅修改天数、或未显式启用明细采集，导致延迟覆盖与来源明细断言失败；已将相关夹具改为明确的模式并复跑整包通过，未修改产品默认值绕过检查。
+
+浏览器使用内存 API，后端使用隔离 SQLite 与回环 HTTP；本次不涉及需 VRC 才能判断的播放行为。未运行游戏、修改 hosts、修改用户配置、提交或推送。

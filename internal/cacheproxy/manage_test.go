@@ -42,7 +42,7 @@ func TestCacheDirectoryRejectsSymlinkComponents(t *testing.T) {
 func managementFixture(t *testing.T, n int) (string, []CacheEntry) {
 	t.Helper()
 	root := t.TempDir()
-	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
+	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestCacheDeletionSharedMetadataAndStaleConfirmation(t *testing.T) {
 	ctx := context.Background()
 	root, entries := managementFixture(t, 1)
 	e := entries[0]
-	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
+	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +283,7 @@ func TestCacheManagementRejectsSymlinks(t *testing.T) {
 
 func TestCachePageBoundsAssociationsAndSearchesHiddenSongs(t *testing.T) {
 	root, entries := managementFixture(t, 1)
-	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0)
+	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}

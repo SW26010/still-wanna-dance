@@ -122,7 +122,7 @@ func TestLatencyRollingQuantilesCoverageAndRestart(t *testing.T) {
 	if err := s.usage.close(); err != nil {
 		t.Fatal(err)
 	}
-	s.usage.retention = 30 * time.Minute
+	s.usage.retention, s.usage.unlimited = 30*time.Minute, false
 	if _, err := s.usage.prune(now); err != nil {
 		t.Fatal(err)
 	}

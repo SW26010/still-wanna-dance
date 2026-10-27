@@ -7,6 +7,7 @@ import { Feedback, Panel, Progress, Hint, RecordDetails, useThemePreference } fr
 import { type Settings, type Status } from './types';
 import { CacheCapacityFields, CacheReclamationFields, capacityPayload, type CapacityDraft } from './cache-capacity';
 import { StorageLocationFields } from './storage-directory';
+import { RequestRetentionFields } from './request-retention';
 
 const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadSoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
 const restorePermissionHint='开启并保存时，可能请求 Windows 管理员授权（UAC），以准备恢复权限；退出时不再请求。';
@@ -16,7 +17,7 @@ export type Draft = Omit<Settings, NumberField | 'maxCacheBytes' | 'theme'> & Re
 export function draftFrom(s: Settings): Draft {
   const {maxCacheBytes, theme: _theme, ...values} = s;
   return { ...values, restoreHostsOnExit: s.restoreHostsOnExit ?? true, socks5Password: '', upstreamMode: s.upstreamMode === 'socks5' ? 'proxy' : s.upstreamMode || 'direct', proxyBackend: s.proxyBackend || 'external-socks5',
-    requestRetentionDays: String(s.requestRetentionDays ?? 30), throughputIntervalMinutes: String(s.throughputIntervalMinutes ?? 20),
+    requestRetentionDays: String(s.requestRetentionDays ?? 0), throughputIntervalMinutes: String(s.throughputIntervalMinutes ?? 20),
     prepareAheadSeconds: String(s.prepareAheadSeconds ?? 500),
     downloadSoftLimit: String(s.downloadSoftLimit ?? 16), downloadGrowIntervalMS: String(s.downloadGrowIntervalMS ?? 250),
     localProtectionGraceSeconds: String(s.localProtectionGraceSeconds ?? 300),
@@ -147,7 +148,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
       {/* Checkbox forwards trigger props to its input; put pointer handlers on the root to include the label. */}
       <Tooltip content="下次启动自动加速时，可能请求 Windows 管理员授权（UAC）。" relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} label="启动程序时自动开启视频加速" checked={d.autoAccelerate} onChange={(_, v) => update({autoAccelerate:!!v.checked})} />}</Tooltip><span className="secondary">下次启动生效；接入时可能需要管理员授权。</span></fieldset>
       <fieldset><legend>退出</legend><Tooltip content={restorePermissionHint} relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} label="退出时恢复游戏直连" checked={d.restoreHostsOnExit} disabled={disabled} onChange={(_,v)=>update({restoreHostsOnExit:!!v.checked})}/>}</Tooltip><span className="secondary">保存后立即用于本次退出。关闭后需先启动 SWD 再播放；开启并保存时可能需要管理员授权。</span></fieldset>
-      {numberField('requestRetentionDays','请求明细保留天数',0,36500,'0 表示永久保留；不影响累计统计。')}</>}
+      <RequestRetentionFields mode={d.requestRetentionMode} value={d.requestRetentionDays} disabled={disabled} onChange={update} /></>}
       {section==='network'&&<>      <fieldset><legend>网络连接</legend><NetworkFields draft={d} update={update} disabled={disabled} status={s} onPending={setPending} />
       <div className="settings-columns"><Field label="播放地址接口选择" hint="自动优先 CF，失败后尝试 HKG。"><Select disabled={disabled} value={d.downloadUpstream} onChange={(_, v) => update({downloadUpstream:v.value})}><option value="auto">自动（CF 优先）</option><option value="cf">node=cf（播放地址接口）</option><option value="hkg">node=nya（播放地址接口）</option></Select></Field>
       {numberField('throughputIntervalMinutes','自动测速间隔（分钟）',1,1440)}</div></fieldset>

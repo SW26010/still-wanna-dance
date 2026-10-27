@@ -56,18 +56,28 @@ func run() (resultErr error) {
 	flag.BoolVar(&cfg.CacheUnlimited, "cache-unlimited", cfg.CacheUnlimited, "retain local videos without a storage budget limit (mutually exclusive with -max-cache-bytes when true)")
 	flag.BoolVar(&cfg.RetainFavorites, "retain-favorites", cfg.RetainFavorites, "allow favorite videos to exceed the storage budget (does not start downloads)")
 	flag.StringVar(&cfg.AggressiveCacheReclamation, "aggressive-cache-reclamation", cfg.AggressiveCacheReclamation, "block cache reclamation: auto (on only with zero video budget), on, off")
-	flag.IntVar(&cfg.RequestRetentionDays, "request-retention-days", cfg.RequestRetentionDays, "request detail retention in days; 0 is unlimited (summaries are always retained)")
+	flag.IntVar(&cfg.RequestRetentionDays, "request-retention-days", cfg.RequestRetentionDays, "request detail retention in days; 0 disables retention (summaries are always retained)")
+	flag.BoolVar(&cfg.RequestRetentionUnlimited, "request-retention-unlimited", cfg.RequestRetentionUnlimited, "retain request details indefinitely (mutually exclusive with -request-retention-days when true)")
 	flag.Parse()
 	limitSet, unlimitedSet := false, false
+	requestDaysSet, requestUnlimitedSet := false, false
 	flag.Visit(func(f *flag.Flag) {
 		limitSet = limitSet || f.Name == "max-cache-bytes"
 		unlimitedSet = unlimitedSet || f.Name == "cache-unlimited"
+		requestDaysSet = requestDaysSet || f.Name == "request-retention-days"
+		requestUnlimitedSet = requestUnlimitedSet || f.Name == "request-retention-unlimited"
 	})
 	if limitSet {
 		if unlimitedSet && cfg.CacheUnlimited {
 			return fmt.Errorf("-max-cache-bytes cannot be combined with -cache-unlimited=true")
 		}
 		cfg.CacheUnlimited = false
+	}
+	if requestDaysSet {
+		if requestUnlimitedSet && cfg.RequestRetentionUnlimited {
+			return fmt.Errorf("-request-retention-days cannot be combined with -request-retention-unlimited=true")
+		}
+		cfg.RequestRetentionUnlimited = false
 	}
 	if *showTerms {
 		fmt.Print(legal.Text)

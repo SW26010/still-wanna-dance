@@ -84,7 +84,7 @@ func TestCacheAccessSurvivesRequestCleanupAndRestart(t *testing.T) {
 	if err != nil || len(page.Entries) != 1 || page.Entries[0].LastRequest != old.UnixMilli() {
 		t.Fatal(page, err)
 	}
-	u, err := fixtureUsage(t, cfg.Store.path, slog.Default(), 0)
+	u, err := fixtureUsage(t, cfg.Store.path, slog.Default(), 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func TestCacheAccessSurvivesRequestCleanupAndRestart(t *testing.T) {
 func TestSongDemandPersistsDeduplicatesAndHandlesClockRollback(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "usage.sqlite")
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	u, err := fixtureUsage(t, path, log, 0)
+	u, err := fixtureUsage(t, path, log, 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestSongDemandPersistsDeduplicatesAndHandlesClockRollback(t *testing.T) {
 		recordDemand(u, "1", base.Add(gap))
 	}
 	u.close()
-	u, err = fixtureUsage(t, path, log, 0)
+	u, err = fixtureUsage(t, path, log, 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +136,7 @@ func TestSongDemandPersistsDeduplicatesAndHandlesClockRollback(t *testing.T) {
 }
 
 func TestSongDemandConcurrentAndClose(t *testing.T) {
-	u, err := fixtureUsage(t, filepath.Join(t.TempDir(), "usage.sqlite"), slog.Default(), 0)
+	u, err := fixtureUsage(t, filepath.Join(t.TempDir(), "usage.sqlite"), slog.Default(), 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,14 +194,14 @@ func TestUsageRejectsLegacyScoreSchema(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if u, err := fixtureUsage(t, path, slog.Default(), 0); err == nil {
+	if u, err := fixtureUsage(t, path, slog.Default(), 0, true); err == nil {
 		u.close()
 		t.Fatal("accepted old schema")
 	}
 }
 
 func TestRequestDetailsPruneWithoutLosingSongDemand(t *testing.T) {
-	u, err := fixtureUsage(t, filepath.Join(t.TempDir(), "usage.sqlite"), slog.Default(), 0)
+	u, err := fixtureUsage(t, filepath.Join(t.TempDir(), "usage.sqlite"), slog.Default(), 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -272,7 +272,7 @@ func TestDatabaseUnavailableBlocksStartup(t *testing.T) {
 func TestRequestRetentionCleansIdleRestart(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "usage.sqlite")
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	u, err := fixtureUsage(t, path, log, 0)
+	u, err := fixtureUsage(t, path, log, 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,7 +284,7 @@ func TestRequestRetentionCleansIdleRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	u.close()
-	u, err = fixtureUsage(t, path, log, 30)
+	u, err = fixtureUsage(t, path, log, 30, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -306,6 +306,9 @@ func TestRequestRetentionCleansIdleRestart(t *testing.T) {
 }
 
 func TestRequestRetentionConfig(t *testing.T) {
+	if cfg := DefaultConfig(); !cfg.RequestRetentionUnlimited || cfg.RequestRetentionDays != 0 {
+		t.Fatal("requests should default to explicit unlimited retention")
+	}
 	for _, days := range []int{-1, 36501, 0, 30, 36500} {
 		cfg := fixtureConfig()
 		cfg.VideoDir = t.TempDir()
@@ -314,6 +317,87 @@ func TestRequestRetentionConfig(t *testing.T) {
 		if (err != nil) != (days < 0 || days > 36500) {
 			t.Fatalf("days=%d: %v", days, err)
 		}
+	}
+}
+
+func TestRequestRetentionNonePreservesHTTPSummaries(t *testing.T) {
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) }, func(c *Config) {
+		c.RequestRetentionDays, c.RequestRetentionUnlimited = 0, false
+	})
+	if _, err := s.PrefetchSong(context.Background(), "1", videoURL(payload)); err != nil {
+		t.Fatal(err)
+	}
+	assertResponse(t, request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=1", nil), 200, payload)
+	s.usage.flush()
+	for query, want := range map[string]int64{
+		"SELECT count(*) FROM request_events":                                          0,
+		"SELECT demand_count FROM song_usage WHERE song_id=1":                          1,
+		"SELECT transfer_count FROM song_playback WHERE song_id=1":                     1,
+		"SELECT count(*) FROM media_access":                                            1,
+		"SELECT download_bytes+cache_bytes+local_bytes FROM traffic_totals WHERE id=1": int64(len(payload)),
+	} {
+		var got int64
+		if err := s.usage.db.QueryRow(query).Scan(&got); err != nil || got != want {
+			t.Fatal(query, got, want, err)
+		}
+	}
+}
+
+func TestRequestRetentionNoneCleansAllExistingDetails(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "usage.sqlite")
+	u, err := fixtureUsage(t, path, slog.Default(), 0, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	events := make([]usageEvent, requestCleanupBatch+3)
+	for i := range events {
+		// Include future dates: a clock correction must not defeat no retention.
+		events[i] = usageEvent{at: time.Now().Add(time.Duration(i-1) * 24 * time.Hour).UnixMilli()}
+	}
+	if err := u.write(events); err != nil {
+		t.Fatal(err)
+	}
+	u.close()
+	u, err = fixtureUsage(t, path, slog.Default(), 0, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer u.close()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var count int
+		if err := u.db.QueryRow("SELECT count(*) FROM request_events").Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("no-retention restart did not clear existing details", count)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	var retainedSince int64
+	if err := u.db.QueryRow("SELECT retained_since FROM request_observation WHERE id=1").Scan(&retainedSince); err != nil || retainedSince == 0 {
+		t.Fatal("cleanup did not update observation coverage", retainedSince, err)
+	}
+}
+
+func TestRequestRetentionUnlimitedKeepsOldDetails(t *testing.T) {
+	u, err := fixtureUsage(t, filepath.Join(t.TempDir(), "usage.sqlite"), slog.Default(), 7, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer u.close()
+	if err := u.write([]usageEvent{{at: time.Now().Add(-365 * 24 * time.Hour).UnixMilli()}}); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := u.prune(time.Now()); err != nil || n != 0 {
+		t.Fatal("explicit unlimited mode must override remembered days", n, err)
+	}
+	var count int
+	if err := u.db.QueryRow("SELECT count(*) FROM request_events").Scan(&count); err != nil || count != 1 {
+		t.Fatal("unlimited mode lost old details", count, err)
 	}
 }
 

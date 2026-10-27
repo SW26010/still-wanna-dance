@@ -153,7 +153,7 @@ func TestLibraryDemandScoresPrecedeInitialScoresBeforePagination(t *testing.T) {
 		}
 	}
 	// Every real score is below the priors, including one real score of zero.
-	if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,name) VALUES (8603,'A initial'),(2167,'B initial'),(9999999,'C unknown')`); err != nil {
+	if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,name) VALUES (3119,'A initial'),(2167,'B initial'),(9999999,'C unknown')`); err != nil {
 		t.Fatal(err)
 	}
 	first, err := readLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{Sort: "score"}, now)
@@ -169,7 +169,7 @@ func TestLibraryDemandScoresPrecedeInitialScoresBeforePagination(t *testing.T) {
 	if err != nil || len(second.Songs) != 4 {
 		t.Fatal(second, err)
 	}
-	for i, id := range []string{"9000001", "8603", "2167", "9999999"} {
+	for i, id := range []string{"9000001", "3119", "2167", "9999999"} {
 		if second.Songs[i].ID != id || second.Songs[i].HasDemand != (i == 0) {
 			t.Fatal("source grouping must precede pagination and preserve descending scores within each group", second.Songs)
 		}
@@ -177,7 +177,7 @@ func TestLibraryDemandScoresPrecedeInitialScoresBeforePagination(t *testing.T) {
 	if second.Songs[0].Score != 0 || second.Songs[1].Score != 0.5 {
 		t.Fatal("UI grouping must not rescale or replace actual scores", second.Songs)
 	}
-	for _, order := range []struct{ sort, first string }{{"title", "8603"}, {"id", "9999999"}} {
+	for _, order := range []struct{ sort, first string }{{"title", "3119"}, {"id", "9999999"}} {
 		page, err := readLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{Sort: order.sort}, now)
 		if err != nil || page.Songs[0].ID != order.first {
 			t.Fatal("source grouping leaked into another sort", order, page, err)

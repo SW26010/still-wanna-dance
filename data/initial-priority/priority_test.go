@@ -17,7 +17,7 @@ func TestBundledPriorUsesEqualRequesterBudgets(t *testing.T) {
 	if err := json.Unmarshal(encoded, &data); err != nil {
 		t.Fatal(err)
 	}
-	if data.Model != "equalRequester" || data.HalfLifeDays != 14 || data.ActiveDaysForFullWeight != 5 || data.UnknownPoolWeight != 0.25 {
+	if data.Model != "equalRequester" || data.HalfLifeDays != 180 || data.ActiveDaysForFullWeight != 5 || data.UnknownPoolWeight != 0.25 {
 		t.Fatalf("bundled prior lost requester-budget contract: %+v", data)
 	}
 	if len(scores) == 0 {

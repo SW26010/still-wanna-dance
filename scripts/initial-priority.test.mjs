@@ -8,7 +8,7 @@ const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-12, `${a} != ${b}`);
 
 test('five active days give equal total weight despite 100x request volume', () => {
   const events = [5, 500].flatMap((n, i) => Array.from({ length: n }, (_, j) => ({ id: i + 1, person: String(i), t: now - j % 5 * DAY })));
-  for (const h of [7, 30, 60, 365, null]) {
+  for (const h of [7, 30, 60, 180, 365, null]) {
     const { ranking, summary } = fairScores(events, h);
     ranking.forEach(s => close(s.score, 1));
     close(summary.totalPersonWeight, 2);

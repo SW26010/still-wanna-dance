@@ -10,7 +10,7 @@ body { margin: 0; }
 .navigation-sidebar { position: sticky; top: var(--spacingVerticalXXL); max-height: calc(100dvh - 2 * var(--spacingVerticalXXL)); display: flex; flex-direction: column; gap: var(--spacingVerticalS); flex-shrink: 0; }
 .navigation-sidebar > .inline-navigation { flex: 1; min-height: 0; }
 .page-content { flex: 1; min-width: 0; }
-.brand { display: flex; align-items: center; gap: var(--spacingHorizontalM); }
+.shell .brand { display: flex; align-items: center; gap: var(--spacingHorizontalM); }
 .brand-logo { flex-shrink: 0; }
 main { outline: none; }
 main h1 { margin: 0 0 var(--spacingVerticalM); }

@@ -51,7 +51,7 @@ export function TableRegion({children,label}:PropsWithChildren<{label:string}>) 
   return <div className="table-region" role="region" aria-label={label} tabIndex={0}>{children}</div>;
 }
 export function Brand() {
-  return <div className="brand"><Image src="/assets/logo.svg" className="brand-logo" width="32" height="32" shape="rounded" alt="" /><Subtitle1>Still Wanna Dance</Subtitle1></div>;
+  return <Link className="brand" href={pageHref('home')} appearance="subtle" aria-label="Still Wanna Dance，返回首页"><Image src="/assets/logo.svg" className="brand-logo" width="32" height="32" shape="rounded" alt="" /><Subtitle1>Still Wanna Dance</Subtitle1></Link>;
 }
 export const consolePages=[['home','加速'],['timeline','历史'],['library','曲库'],['network','网络'],['settings','设置']] as const;
 export const documentPages={help:'帮助',about:'关于',terms:'使用条款'} as const;

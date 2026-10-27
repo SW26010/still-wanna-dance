@@ -37,17 +37,17 @@
     "webui/src/settings.tsx": "7b87f23d9e946abb0ee217df8436271bd24048435d7fb87b9596e6ab28686940",
     "webui/src/song-preferences.tsx": "ae9d6d53713857448ff308fc19c45324152311e464f0774ac9f23151253a0930",
     "webui/src/storage-directory.tsx": "1e0a0723649e1533a62ae7b2705cda6acd973ee6f334db2fd0e9dfd32b9f5651",
-    "webui/src/styles.css": "7b34eab89bdbd6b684ef49150b715d5017aad4b44c75fc657f2d491ad2c8565e",
+    "webui/src/styles.css": "6159875d45eb1abeec4b510d18fb3a875c65fa0881549c569f2cae9ca3543cef",
     "webui/src/terms-consent.tsx": "e69a4a3a7d41314c47d84bf12d45e46f0e38279652567432df4a77b16ec62cda",
     "webui/src/types.ts": "0f4c59e70fcff0105bbc5699bde4b62a8d81087b1493004353e512b3a8f77f7b",
-    "webui/src/ui.tsx": "49d3d286ff89bd74aa067826218f90c873c21872fc6799a91c1c3297e627bb1e",
+    "webui/src/ui.tsx": "0373678033ed281c87cdc7362d25a740b9daf8df6e96c5d65b04eb775959d267",
     "webui/src/vrcx.tsx": "8a0a5f3d426bde1b3fc709eb32ad95712c72ce7b09fdbee2c5eca59b89fdd5d3",
     "webui/tsconfig.json": "44dff406cf3f779783246649cf91818baf140478718636f600c5458d0140b514"
   },
   "outputs": {
     "docs/licenses/WEBUI-NOTICES.txt": "89e11fdf64ebdfc5b8b98085e4eee3dad30a3e52ada8374b428aa830f022eda6",
-    "internal/console/assets/webui/app.css": "7508af25109e65602870312cfd5e5c4a7113ca1b767ddb33b80a07b9ed109be8",
-    "internal/console/assets/webui/app.js": "b466187916c99b8a5c9f82c28a27c6ddf1ce3068ddc0b60fcd93b46fc704dbe3",
+    "internal/console/assets/webui/app.css": "984d33df68ded6889493cebbed05a1c34a20611b7e07e2354839773ff710dc9a",
+    "internal/console/assets/webui/app.js": "ce7ed37bf83412f8a60c5b3bbac2525f31420433e780cbd8f8fd24b0f68dfc9e",
     "internal/console/assets/webui/software-license.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
     "internal/console/assets/webui/third-party-notices.txt": "57d9e3633352d1f5eeedd4c2eaddf8edcbd02a6361113b6a8894bee5ecf5d53f",
     "internal/console/assets/webui/webui-notices.txt": "89e11fdf64ebdfc5b8b98085e4eee3dad30a3e52ada8374b428aa830f022eda6"

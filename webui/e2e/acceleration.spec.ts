@@ -50,21 +50,26 @@ test('automatic gateway startup stays untested until request detection is starte
   const api=await mockAPI(page);api.state.running=true;api.state.hosts.ready=true;
   await page.route('**/api/requests?*',route=>route.fulfill({json:{requests:[{at:new Date().toISOString(),status:200,outcome:'completed'}]}}));
   await page.goto('/');
-  await expect(page.getByText('尚未检测游戏请求',{exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'加速运行中',exact:true})).toBeVisible();
+  await expect(page.getByText('尚未检测游戏请求',{exact:true})).toHaveCount(0);
   await expect(page.getByText(/最近请求：.*HTTP 200/)).toBeVisible();
   await expect(page.getByText(/尚未收到游戏请求/)).toHaveCount(0);
   expect(api.calls.some(c=>c.path==='activation/enable')).toBe(false);
   await page.getByRole('button',{name:'重新检测视频请求',exact:true}).click();
-  await expect(page.getByText('等待游戏请求，请在游戏中点歌',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'重新检测视频请求',exact:true})).toBeEnabled();
+  await expect(page.getByText('等待游戏请求，请在游戏中点歌',{exact:true})).toHaveCount(0);
   expect(api.calls.filter(c=>/^(activation\/|hosts\/|queue\/|start$|stop$|exit$)/.test(c.path)).map(c=>c.path)).toEqual(['activation/enable']);
 });
 
-test('request observation reports a request received in the active detection window',async({page})=>{
+test('request observation details remain in connection diagnostics',async({page})=>{
   const api=await mockAPI(page);api.state.running=true;api.state.hosts.ready=true;
-  api.state.activation={phase:'waiting',firstRequest:new Date().toISOString()};
+  api.state.activation={phase:'waiting',started:new Date().toISOString(),firstRequest:new Date().toISOString()};
   await page.goto('/');
-  await expect(page.getByText('已收到游戏请求',{exact:true})).toBeVisible();
+  await expect(page.getByText('可关闭浏览器，减少资源占用',{exact:true})).toBeVisible();
+  await expect(page.getByText('已收到游戏请求',{exact:true})).toHaveCount(0);
   await expect(page.getByText(/尚未收到游戏请求/)).toHaveCount(0);
+  await page.getByRole('link',{name:'查看接入诊断',exact:true}).click();
+  await expect(page.locator('#service').getByText(/检测开始：.*首个请求：/)).toBeVisible();
 });
 
 test('existing managed connection can prepare exit cleanup despite automatic gateway startup',async({page})=>{

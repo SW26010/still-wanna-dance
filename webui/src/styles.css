@@ -190,9 +190,9 @@ form.actions { align-items: flex-end; }
 .summary-values { gap: var(--spacingHorizontalXXXL); }
 .summary-values > div { min-width: 110px; }
 /* Match Fluent Spinner's steady rotation; reduced motion keeps the icon still. */
-@keyframes library-refresh-spin { to { transform: rotate(360deg); } }
+@keyframes refresh-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: no-preference) {
-  [aria-busy="true"] .library-refresh-icon { animation: library-refresh-spin 1.5s linear infinite; }
+  [aria-busy="true"] .refresh-icon { animation: refresh-spin 1.5s linear infinite; }
 }
 .secondary { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
 .table-region { max-width: 100%; overflow-x: auto; background: var(--colorNeutralBackground1); }

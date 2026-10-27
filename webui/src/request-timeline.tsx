@@ -33,7 +33,7 @@ function ResponseSourceSummary({visible}:{visible:boolean}) {
   const sources=useResource<ResponseSources>('response-sources',visible&&!app.stopped,app.revision,30000,true);
   return (<section aria-label="响应来源统计">
       <div className="inline history-summary">
-        <div className="inline history-summary-heading"><Tooltip content={sourceExplanation+' 累计值不随历史筛选或明细清理改变。'} relationship="description"><Text as="h2" tabIndex={0}>响应来源</Text></Tooltip><Tooltip content="刷新来源统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular aria-hidden="true"/>} disabled={(sources.loading&&!sources.data)||app.unavailable} onClick={sources.refresh}/></Tooltip></div>
+        <div className="inline history-summary-heading"><Tooltip content={sourceExplanation+' 累计值不随历史筛选或明细清理改变。'} relationship="description"><Text as="h2" tabIndex={0}>响应来源</Text></Tooltip><Tooltip content="刷新来源统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={sources.loading} disabled={sources.loading||app.unavailable} disabledFocusable={sources.loading} onClick={sources.refresh}/></Tooltip></div>
         {sources.data?<SourceShares sources={sources.data} details/>:<span>{sources.error?'读取失败':'正在读取…'}</span>}
       </div>
       {sources.error&&<MessageBar intent="error"><MessageBarBody>来源统计读取失败，请重试。{sources.data&&'当前显示上次结果。'}</MessageBarBody></MessageBar>}
@@ -55,7 +55,7 @@ export function RequestTimeline({visible}:{visible:boolean}) {
     <ResponseSourceSummary key={storage} visible={visible}/>
     <section aria-label="首正文等待时间">
       <div className="inline history-summary">
-        <div className="inline history-summary-heading"><Tooltip content={<>最近 72 小时{latency.data?.partial?' · 数据不足 72 小时':''}<br/>收到请求至写出首个视频字节。P50 为中位数，P95 覆盖 95% 的样本；不等于游戏起播时间。</>} relationship="description"><Text as="h2" tabIndex={0}>首正文等待时间</Text></Tooltip><Tooltip content="刷新首正文统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular aria-hidden="true"/>} disabled={(latency.loading&&!latency.data)||app.unavailable} onClick={latency.refresh}/></Tooltip></div>
+        <div className="inline history-summary-heading"><Tooltip content={<>最近 72 小时{latency.data?.partial?' · 数据不足 72 小时':''}<br/>收到请求至写出首个视频字节。P50 为中位数，P95 覆盖 95% 的样本；不等于游戏起播时间。</>} relationship="description"><Text as="h2" tabIndex={0}>首正文等待时间</Text></Tooltip><Tooltip content="刷新首正文统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={latency.loading} disabled={latency.loading||app.unavailable} disabledFocusable={latency.loading} onClick={latency.refresh}/></Tooltip></div>
         {([['等待下载',latency.data?.blocking,'首字节前等待过缺失的视频块。'],['缓存／本地',latency.data?.ready,'首字节前直接读取可用的视频块或完整视频。']] as const).map(([name,g,hint])=><Tooltip key={name} content={`${hint} 有效样本 ${g?.samples??'—'} 个`} relationship="description"><span className="inline" tabIndex={0}><span>{name}</span><span>{!g?latency.error?'读取失败':'正在读取…':g.samples?`P50 ${ms(g.p50MS)} · P95 ${ms(g.p95MS)}`:'暂无数据'}</span></span></Tooltip>)}
       </div>
       <Notification message={visible&&latency.error?'首正文统计读取失败，请重试。':undefined} error/>

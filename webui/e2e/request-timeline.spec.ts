@@ -48,7 +48,7 @@ for(const populated of [false,true])test(`automatic history refresh preserves vi
   await expect(page.getByRole('button',{name:'刷新本页',exact:true})).toHaveCount(0);
   await expect(page.getByRole('checkbox',{name:'暂停请求刷新',exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'按收到时间排序',exact:true})).toBeEnabled({timeout:1000});
-  await expect(page.getByRole('button',{name:'刷新首正文统计',exact:true})).toBeEnabled({timeout:1000});
+  await expect(page.getByRole('button',{name:'刷新首正文统计',exact:true})).toBeDisabled({timeout:1000});
   expect(await table.boundingBox()).toEqual(position);
   release();await expect(page.getByRole('button',{name:'请求 3 的明细',exact:true})).toBeVisible();
 });

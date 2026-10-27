@@ -55,7 +55,7 @@ test('automatic gateway startup stays untested until request detection is starte
   await expect(page.getByText(/最近请求：.*HTTP 200/)).toBeVisible();
   await expect(page.getByText(/尚未收到游戏请求/)).toHaveCount(0);
   expect(api.calls.some(c=>c.path==='activation/enable')).toBe(false);
-  await page.getByRole('link',{name:'查看接入诊断',exact:true}).click();
+  await navigate(page,'网络');
   await page.getByRole('button',{name:'重新检测视频请求',exact:true}).click();
   await expect(page.getByRole('button',{name:'重新检测视频请求',exact:true})).toBeEnabled();
   await expect(page.getByText('等待游戏请求，请在游戏中点歌',{exact:true})).toHaveCount(0);
@@ -69,7 +69,7 @@ test('request observation details remain in connection diagnostics',async({page}
   await expect(page.getByText('可关闭浏览器，减少资源占用',{exact:true})).toBeVisible();
   await expect(page.getByText('已收到游戏请求',{exact:true})).toHaveCount(0);
   await expect(page.getByText(/尚未收到游戏请求/)).toHaveCount(0);
-  await page.getByRole('link',{name:'查看接入诊断',exact:true}).click();
+  await navigate(page,'网络');
   await expect(page.locator('#service').getByText(/检测开始：.*首个请求：/)).toBeVisible();
 });
 
@@ -91,12 +91,30 @@ for(const restore of [true,false])for(const queue of [true,false])test(`stop and
   Object.assign(api.state.activeSettings,{restoreHostsOnExit:restore,queueWithGateway:queue});
   Object.assign(api.state.settings,{restoreHostsOnExit:!restore,queueWithGateway:!queue});
   await page.setViewportSize({width:restore?1280:320,height:900});await page.goto('/');
+  const browserHint=page.getByText('可关闭浏览器，减少资源占用',{exact:true});
+  await expect(browserHint).toHaveCount(0);
+  const card=page.locator('#activation'),before=await card.boundingBox();
+  const buttonBefore=await page.getByRole('button',{name:'开始加速',exact:true}).boundingBox();
+  await expect(card.getByRole('link',{name:/检查连接|查看接入诊断/})).toHaveCount(0);
+  await expect(card.getByRole('button',{name:'游戏接入说明',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'开始加速',exact:true}).click();
   const stop=page.getByRole('button',{name:'停止加速',exact:true});
-  await expect(stop).toBeEnabled();await page.mouse.move(0,0);await stop.hover();
+  await expect(stop).toBeEnabled();
+  expect(await card.boundingBox()).toEqual(before);
+  expect(await stop.boundingBox()).toEqual(buttonBefore);
+  if(restore){
+    await expect(browserHint).toBeVisible();
+    const titleBox=(await card.getByRole('heading',{name:'加速运行中',exact:true}).boundingBox())!,hintBox=(await browserHint.boundingBox())!;
+    expect(hintBox.x).toBeGreaterThan(titleBox.x+titleBox.width);
+    expect(hintBox.y).toBeGreaterThanOrEqual(titleBox.y);
+    expect(hintBox.y+hintBox.height).toBeLessThanOrEqual(titleBox.y+titleBox.height);
+  }else await expect(browserHint).toBeHidden();
+  await card.screenshot({path:info.outputPath('running-card.png'),animations:'disabled'});
+  await page.mouse.move(0,0);await stop.hover();
   await expect(page.getByRole('tooltip')).toContainText(restore?'恢复本程序的游戏接入':'保留游戏接入');
   await stop.click();
   await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
+  await expect(browserHint).toHaveCount(0);
   await expect(page.getByText('视频服务：未运行',{exact:true})).toBeVisible();
   await expect(page.getByText('房间队列：已关闭',{exact:true})).toBeVisible();
   await expect(page.getByText(`游戏连接：${restore?'未接入':'已接入'}`,{exact:true})).toBeVisible();

@@ -215,8 +215,12 @@ form.actions { align-items: flex-end; }
 
 .runtime-controls { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacingHorizontalM); }
 .runtime-status { display: flex; align-items: center; gap: var(--spacingHorizontalS); max-width: 100%; min-height: 32px; }
-.acceleration-card { padding: var(--spacingHorizontalL); }
-.home-result { min-height: 40px; }
+.acceleration-card { container-type: inline-size; }
+.acceleration-card > .toolbar { padding-block: 0; }
+.acceleration-title { display: flex; align-items: baseline; gap: var(--spacingHorizontalM); }
+.acceleration-hint { display: none; white-space: nowrap; }
+@container (min-width: 30rem) { .acceleration-hint { display: inline; } }
+.acceleration-note { margin: 0; }
 footer { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacingHorizontalM); }
 @media (max-width:640px) { .runtime-controls { width: 100%; } }
 

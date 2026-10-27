@@ -21,14 +21,14 @@ export function Home({visible}: {visible:boolean}) {
   const stopHint=s.activeSettings.restoreHostsOnExit?'停止视频服务及队列预加载，并恢复本程序的游戏接入；不再请求管理员权限。':'停止视频服务及队列预加载，保留游戏接入。继续播放前请点击「开始加速」。';
   const progress:Record<string,string>={checking:'正在检查游戏连接…',starting:'正在启动本地服务…',hosts:'正在配置游戏连接，请留意管理员授权…',stopping:'正在停止视频服务并处理游戏连接…'};
   return <div className="page-stack">
-    <Card id="activation" className="acceleration-card">
-      <div className="toolbar spread"><div><Title2 as="h2">{stopping?'正在停止加速':active(s)?'正在开启加速':accelerationLabel(s)}</Title2>
-        {ready&&!active(s)&&<p className="secondary">可关闭浏览器，减少资源占用</p>}
-        {!s.running&&s.hosts.ready&&!active(s)&&<p className="secondary">游戏接入仍保留，继续播放前请点击「开始加速」。</p>}
-        {progress[a.phase||'']&&<p className="secondary" role="status">{progress[a.phase||'']}</p>}</div>
-        <div className="inline"><Tooltip content={s.running?stopHint:activationPermissionHint} relationship="description"><Button appearance="primary" size="large" disabled={app.unavailable} onClick={()=>void app.action(s.running?'activation/disable':'activation/enable')}>{s.running?'停止加速':'开始加速'}</Button></Tooltip><Link href="#network">检查连接</Link></div></div>
-      <div className="toolbar condition-strip"><StatusBadge label="游戏连接" description={activationPermissionHint} color={uncertain?'informative':s.hosts.conflict?'danger':s.hosts.ready?'success':a.phase==='hosts'?'brand':'informative'}>{uncertain?'待确认':s.hosts.conflict?'接入冲突':s.hosts.ready?'已接入':a.phase==='hosts'?'接入中':'未接入'}</StatusBadge><StatusBadge label="视频服务" color={uncertain?'informative':s.cdnError?'danger':s.running?'success':a.phase==='starting'?'brand':'informative'}>{uncertain?'待确认':s.cdnError?'异常':s.running?'运行中':a.phase==='starting'?'启动中':'未运行'}</StatusBadge><StatusBadge label="房间队列" color={uncertain?'informative':queueFailed?'danger':queueAttention?'warning':q.running?'success':q.desired?'warning':'informative'}>{queuePhase}</StatusBadge><Hint label="游戏接入说明">已接入表示游戏连接配置就绪；收到游戏请求和实际播放结果另行显示。</Hint><Link href="#service">查看接入诊断</Link></div>
-      <div className="toolbar home-result" role="status"><span className="secondary">{requests.error?'最近请求暂时无法读取':recent?`最近请求：${requestOutcome(recent)} · HTTP ${recent.status||'未返回'} · ${date(recent.at)}`:'尚无已结束的请求'}</span><Link href="#recent">请求历史</Link>
+    <Card id="activation" size="small" className="acceleration-card">
+      <div className="toolbar spread acceleration-heading"><div className="acceleration-title"><Title2 as="h2">{stopping?'正在停止加速':active(s)?'正在开启加速':accelerationLabel(s)}</Title2>
+        {ready&&!active(s)&&!uncertain&&<span className="secondary acceleration-hint">可关闭浏览器，减少资源占用</span>}</div>
+        <Tooltip content={s.running?stopHint:activationPermissionHint} relationship="description"><Button appearance="primary" size="large" disabled={app.unavailable} onClick={()=>void app.action(s.running?'activation/disable':'activation/enable')}>{s.running?'停止加速':'开始加速'}</Button></Tooltip></div>
+      {progress[a.phase||'']&&<p className="secondary acceleration-note" role="status">{progress[a.phase||'']}</p>}
+      {!s.running&&s.hosts.ready&&!active(s)&&<p className="secondary acceleration-note">游戏接入仍保留，继续播放前请点击「开始加速」。</p>}
+      <div className="toolbar condition-strip"><StatusBadge label="游戏连接" description={activationPermissionHint} color={uncertain?'informative':s.hosts.conflict?'danger':s.hosts.ready?'success':a.phase==='hosts'?'brand':'informative'}>{uncertain?'待确认':s.hosts.conflict?'接入冲突':s.hosts.ready?'已接入':a.phase==='hosts'?'接入中':'未接入'}</StatusBadge><StatusBadge label="视频服务" color={uncertain?'informative':s.cdnError?'danger':s.running?'success':a.phase==='starting'?'brand':'informative'}>{uncertain?'待确认':s.cdnError?'异常':s.running?'运行中':a.phase==='starting'?'启动中':'未运行'}</StatusBadge><StatusBadge label="房间队列" color={uncertain?'informative':queueFailed?'danger':queueAttention?'warning':q.running?'success':q.desired?'warning':'informative'}>{queuePhase}</StatusBadge></div>
+      <div className="toolbar home-result" role="status"><span className="secondary"><Link href="#recent">最近请求</Link>：{requests.error?'暂时无法读取':recent?`${requestOutcome(recent)} · HTTP ${recent.status||'未返回'} · ${date(recent.at)}`:'暂无记录'}</span>
         {(problem||failed)&&<><Badge color="danger">需要检查连接</Badge><RecordDetails title="加速错误"><p className="wrap">{problem||'最近一次请求未正常完成。'}</p><Link href="#network">检查连接</Link></RecordDetails></>}
         {needsExitPreparation&&<span>游戏接入尚未准备恢复权限，请<Link href="#service">修复游戏连接</Link>。</span>}
       </div>

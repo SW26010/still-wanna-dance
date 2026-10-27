@@ -105,8 +105,9 @@ test('acceleration summarizes recent failures and links to their owning page',as
   await page.route('**/api/requests?*',r=>r.fulfill({json:{requests:[{id:1,at:Date.now(),status:502,outcome:'failed',method:'GET',bytes:0,elapsedMS:100,resource:'song',cache:'MISS'}]}}));
   await page.setViewportSize({width:390,height:844});await page.goto('/');
   await expect(page.getByText(/最近请求：请求失败 · HTTP 502/)).toBeVisible();
-  await expect(page.getByRole('link',{name:'检查连接',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'加速错误',exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('acceleration.png'),fullPage:true,animations:'disabled'});
+  await page.getByRole('button',{name:'加速错误',exact:true}).click();
   await page.getByRole('link',{name:'检查连接',exact:true}).click();
   await expect(page.getByRole('heading',{name:'网络',level:1,exact:true})).toBeVisible();
   await navigate(page,'曲库');

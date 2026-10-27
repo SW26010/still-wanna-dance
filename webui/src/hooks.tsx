@@ -18,8 +18,11 @@ export function useFocusRecovery() {
   return {ref,onFocusCapture:(event:FocusEvent<HTMLDivElement>)=>{focused.current=event.target as HTMLElement;}};
 }
 
+// A subscription invalidates on connection (and reconnection), then on change.
+export type ResourceSubscription = (invalidate:()=>void)=>()=>void;
+
 // One request at a time, abort stale reads on route/save/pause, suspend hidden tabs.
-export function useResource<T>(path: string, enabled = true, revision = 0, interval: number | ((data:T)=>number) = 5000, retain = false) {
+export function useResource<T>(path: string, enabled = true, revision = 0, interval: number | ((data:T)=>number) = 5000, retain = false, subscribe?:ResourceSubscription) {
   const [data, setData] = useState<T>(), [error, setError] = useState(''), [loading, setLoading] = useState(false);
   const [loadedRevision, setLoadedRevision] = useState<number>();
   const [loadedAt, setLoadedAt] = useState<number>();
@@ -28,6 +31,7 @@ export function useResource<T>(path: string, enabled = true, revision = 0, inter
   useEffect(() => {
     if (!enabled) return;
     let disposed = false, pending = false, rerun = false, timer: ReturnType<typeof setTimeout>;
+    let unsubscribe:(()=>void)|undefined;
     const controller = new AbortController();
     const run = async () => {
       clearTimeout(timer);
@@ -44,10 +48,18 @@ export function useResource<T>(path: string, enabled = true, revision = 0, inter
         if (!disposed) { setLoading(false); if (rerun) { rerun = false; void run(); } else if (delay > 0) timer = setTimeout(run, delay); }
       }
     };
-    const visibility = () => { if (document.hidden) clearTimeout(timer); else void run(); };
-    void run(); document.addEventListener('visibilitychange', visibility);
-    return () => { disposed = true; clearTimeout(timer); controller.abort(); document.removeEventListener('visibilitychange', visibility); };
-  }, [path, enabled, revision, refreshKey, interval, retain]);
+    const suspend = () => { clearTimeout(timer); unsubscribe?.(); unsubscribe=undefined; };
+    const resume = () => {
+      if (document.hidden) return;
+      if (subscribe) {
+        if (!unsubscribe) { setLoading(true); unsubscribe=subscribe(()=>void run()); }
+      } else void run();
+    };
+    const visibility = () => { if (document.hidden) suspend(); else resume(); };
+    resume(); document.addEventListener('visibilitychange', visibility);
+    if(subscribe){addEventListener('pagehide',suspend);addEventListener('pageshow',resume);}
+    return () => { disposed = true; suspend(); controller.abort(); document.removeEventListener('visibilitychange', visibility); if(subscribe){removeEventListener('pagehide',suspend);removeEventListener('pageshow',resume);} };
+  }, [path, enabled, revision, refreshKey, interval, retain, subscribe]);
   return { data, error, loading, refresh, loadedRevision, loadedAt };
 }
 

@@ -17,7 +17,7 @@ export async function mockAPI(page: Page) {
     const req = route.request(), url = new URL(req.url()), path = url.pathname.slice(5), body = req.method()==='POST' ? path==='proxy/import'?{text:req.postData()}:req.postDataJSON() : {};
     calls.push({path,body,token:req.headers()['x-swd-token']});
     const event=path.match(/^network\/(connectivity|calibration)\/events$/);
-    if(event||path==='block-demands/events')return route.continue();
+    if(event||path==='block-demands/events'||path==='history/events')return route.continue();
     if (req.headers()['x-swd-token'] !== 'browser-fixture-token') return route.fulfill({status:403,body:'invalid token'});
     let data: unknown = {ok:true};
     if (path==='status') data = state;
@@ -50,5 +50,6 @@ export async function mockAPI(page: Page) {
     if (path==='activation/disable') {state.running=false;state.queue={running:false,desired:false};if(state.activeSettings.restoreHostsOnExit){state.hosts.ready=false;state.hosts.managed=false;state.hosts.exitRestorePrepared=false;}state.activation={phase:'stopped'};}
     await route.fulfill({json:data,headers:{'Set-Cookie':`fixture-gate=${terms.accepted?'0':'1'}; Path=/`}});
   });
-  return {state,calls,files,terms,diagnostics,emit,fixtureID};
+  const historyChanged=()=>page.request.post('/__fixture/events',{data:{id:fixtureID,kind:'history',state:{closed:false}}});
+  return {state,calls,files,terms,diagnostics,emit,fixtureID,historyChanged};
 }

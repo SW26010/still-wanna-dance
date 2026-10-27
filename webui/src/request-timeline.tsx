@@ -1,7 +1,7 @@
-import {useEffect,useLayoutEffect,useRef,useState} from 'react';
-import {Button,Checkbox,Field,Input,Link,MessageBar,MessageBarBody,Spinner,Text,Tooltip,TableHeader,TableRow,TableHeaderCell,TableBody,TableCell,TableCellLayout} from '@fluentui/react-components';
+import {useCallback,useEffect,useLayoutEffect,useRef,useState} from 'react';
+import {Button,Field,Input,Link,MessageBar,MessageBarBody,Spinner,Text,Tooltip,TableHeader,TableRow,TableHeaderCell,TableBody,TableCell,TableCellLayout} from '@fluentui/react-components';
 import {ArrowSync20Regular} from '@fluentui/react-icons';
-import {useApp,useFocusRecovery,useResource} from './hooks';
+import {useApp,useFocusRecovery,useResource,type ResourceSubscription} from './hooks';
 import {Notification,RecordDetails} from './ui';
 import {RecordTable,SortHeader,DescriptionHeader,TablePagination,type TableSort} from './data-table';
 import {date,mb,type RequestRecord,type ResponseSources} from './types';
@@ -43,7 +43,7 @@ function ResponseSourceSummary({visible}:{visible:boolean}) {
 export function RequestTimeline({visible}:{visible:boolean}) {
   const app=useApp(),storage=app.status.data!.activeSettings.databasePath;
   const [range,setRange]=useState<Range>(()=>({from:localDate(Date.now()-24*3600000),to:''}));
-  const [applied,setApplied]=useState(range),[cursors,setCursors]=useState(['']),[error,setError]=useState(''),[paused,setPaused]=useState(false),[queryRevision,setQueryRevision]=useState(0);
+  const [applied,setApplied]=useState(range),[cursors,setCursors]=useState(['']),[error,setError]=useState(''),[queryRevision,setQueryRevision]=useState(0);
   const [sort,setSort]=useState<TableSort>({sort:'time',direction:'descending'});
   const sortFocus=useRef(false);
   const previousStorage=useRef(storage);
@@ -64,21 +64,35 @@ export function RequestTimeline({visible}:{visible:boolean}) {
       <div className="history-range">
       <Field label="开始" orientation="horizontal"><Input type="datetime-local" value={range.from} onChange={(_,v)=>{setRange({...range,from:v.value});setError('');}}/></Field>
       <Field label="结束" orientation="horizontal" validationState={error?'error':'none'} validationMessage={error||undefined}><Input type="datetime-local" value={range.to} onChange={(_,v)=>{setRange({...range,to:v.value});setError('');}}/></Field>
-      </div><div className="inline"><Button type="submit" disabled={app.unavailable||paused}>查询历史</Button><Button disabled={app.unavailable||paused} onClick={()=>{sortFocus.current=false;const all={from:'',to:''};setRange(all);setApplied(all);setCursors(['']);setQueryRevision(v=>v+1);setError('');}}>全部保留期</Button></div>
+      </div><div className="inline"><Button type="submit" disabled={app.unavailable}>查询历史</Button><Button disabled={app.unavailable} onClick={()=>{sortFocus.current=false;const all={from:'',to:''};setRange(all);setApplied(all);setCursors(['']);setQueryRevision(v=>v+1);setError('');}}>全部保留期</Button></div>
     </form>
-    <Checkbox label="暂停请求刷新" checked={paused} onChange={(_,v)=>setPaused(!!v.checked)}/><HistoryPage paused={paused} focusOnMount={queryRevision>0} focusSort={sortFocus.current} sort={sort} onSortChange={next=>{sortFocus.current=true;setSort(next);setCursors(['']);setQueryRevision(v=>v+1);}} key={storage+':'+query+':'+queryRevision} query={query.toString()} visible={visible} pageNumber={cursors.length} live={cursors.length===1&&!applied.to&&sort.sort==='time'&&sort.direction==='descending'} previous={()=>{sortFocus.current=false;setCursors(v=>v.slice(0,-1));setQueryRevision(v=>v+1);}} next={cursor=>{sortFocus.current=false;setCursors(v=>[...v,cursor]);setQueryRevision(v=>v+1);}}/>
+    <HistoryPage focusOnMount={queryRevision>0} focusSort={sortFocus.current} sort={sort} onSortChange={next=>{sortFocus.current=true;setSort(next);setCursors(['']);setQueryRevision(v=>v+1);}} key={storage+':'+query+':'+queryRevision} query={query.toString()} visible={visible} pageNumber={cursors.length} live={cursors.length===1&&!applied.to&&sort.sort==='time'&&sort.direction==='descending'} previous={()=>{sortFocus.current=false;setCursors(v=>v.slice(0,-1));setQueryRevision(v=>v+1);}} next={cursor=>{sortFocus.current=false;setCursors(v=>[...v,cursor]);setQueryRevision(v=>v+1);}}/>
   </section></div>;
 }
 
-function HistoryPage({query,visible,pageNumber,live,paused,focusOnMount,focusSort,sort,onSortChange,previous,next}:{focusOnMount:boolean;focusSort:boolean;sort:TableSort;onSortChange:(sort:TableSort)=>void;query:string;visible:boolean;paused:boolean;pageNumber:number;live:boolean;previous:()=>void;next:(cursor:string)=>void}) {
+function HistoryPage({query,visible,pageNumber,live,focusOnMount,focusSort,sort,onSortChange,previous,next}:{focusOnMount:boolean;focusSort:boolean;sort:TableSort;onSortChange:(sort:TableSort)=>void;query:string;visible:boolean;pageNumber:number;live:boolean;previous:()=>void;next:(cursor:string)=>void}) {
   const app=useApp(),focus=useFocusRecovery();
-  const history=useResource<History>('history?'+query,visible&&!paused&&!app.stopped,app.revision,live?5000:0);
+  const [connectionError,setConnectionError]=useState('');
+  const subscribe=useCallback<ResourceSubscription>(invalidate=>{
+    const source=new EventSource('/api/history/events');
+    let disposed=false;
+    setConnectionError('');
+    source.addEventListener('history',event=>{
+      if(disposed)return;
+      try {
+        if(JSON.parse((event as MessageEvent<string>).data).closed){source.close();setConnectionError('历史更新已停止。');return;}
+        setConnectionError('');invalidate();
+      }catch{source.close();setConnectionError('历史更新无法读取，请重新查询。');}
+    });
+    source.onerror=()=>{if(!disposed)setConnectionError(source.readyState===EventSource.CLOSED?'历史更新连接不可用，请重新查询。':'历史更新连接已断开，正在重新连接…');};
+    return()=>{disposed=true;source.close();};
+  },[]);
+  const history=useResource<History>('history?'+query,visible&&!app.stopped,app.revision,0,false,live?subscribe:undefined);
   useLayoutEffect(()=>{if(focusOnMount&&visible){const target=focusSort?focus.ref.current?.querySelector<HTMLElement>('th[aria-sort="ascending"] [role="button"],th[aria-sort="descending"] [role="button"]'):focus.ref.current;target?.focus({preventScroll:true});if(!focusSort)target?.scrollIntoView({block:'start'});}},[]);
-  const disabled=app.unavailable||paused||(history.loading&&!history.data);
+  const disabled=app.unavailable||(history.loading&&!history.data);
   return <div {...focus} tabIndex={-1} aria-label="历史查询结果" className="content-stack">
-    <Notification message={visible&&history.error?'历史读取失败，请重试。':undefined} error/>
-    <div className="toolbar table-toolbar"><Button disabled={disabled} onClick={history.refresh}>刷新本页</Button></div>
-    {history.loading&&!history.data&&<Spinner size="small" label="正在读取历史"/>}
+    <Notification message={visible?(history.error?'历史读取失败，请重新查询。':connectionError||undefined):undefined} error/>
+    {history.loading&&!history.data&&!connectionError&&<Spinner size="small" label="正在读取历史"/>}
     <RecordTable busy={history.loading} regionLabel="请求历史表格" label="请求历史列表">
       <TableHeader><TableRow><SortHeader column="time" label="收到时间" sort={sort} onSortChange={onSortChange} defaultDirection="descending" disabled={disabled}/><SortHeader column="song" label="请求歌曲" sort={sort} onSortChange={onSortChange} disabled={disabled}/><SortHeader column="resource" label="视频资源" sort={sort} onSortChange={onSortChange} disabled={disabled} className="table-fill-column"/><TableHeaderCell>结果</TableHeaderCell><DescriptionHeader label="交付">已写出字节占本次响应范围的比例。</DescriptionHeader><DescriptionHeader label="来源">{sourceExplanation}</DescriptionHeader><TableHeaderCell>详情</TableHeaderCell></TableRow></TableHeader>
       <TableBody>{history.data?.requests.map(r=><TableRow key={history.data!.storageID+':'+r.id}>
@@ -94,6 +108,6 @@ function HistoryPage({query,visible,pageNumber,live,paused,focusOnMount,focusSor
     {!history.error&&history.data?.requests.length===0&&<p className="empty-state">该时间范围内暂无请求记录。</p>}
     <TablePagination label="历史" disabled={disabled||!!history.error} canPrevious={pageNumber>1} canNext={!!history.data?.hasMore&&!!history.data.nextCursor}
       previous={previous} next={()=>next(history.data!.nextCursor)}
-      summary={history.error?'历史读取失败，请重试。':!history.data?'正在读取历史…':`第 ${pageNumber} 页 · ${history.data.requests.length} 条${live&&!paused?' · 自动刷新':''}`}/>
+      summary={history.error?'历史读取失败，请重新查询。':!history.data?'正在读取历史…':`第 ${pageNumber} 页 · ${history.data.requests.length} 条${live&&!connectionError?' · 自动刷新':''}`}/>
   </div>;
 }

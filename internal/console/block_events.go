@@ -61,14 +61,7 @@ func blockDelta(previous, current *cacheproxy.BlockSnapshot) (blockEvent, bool) 
 }
 
 func (c *Console) serveBlockEvents(w http.ResponseWriter, r *http.Request) {
-	// Native EventSource cannot send a token header. Match the existing SSE
-	// origin checks and additionally reject browser cross-site fetch contexts.
-	if origin := r.Header.Get("Origin"); origin != "" && origin != "http://"+c.address {
-		http.Error(w, "invalid origin", http.StatusForbidden)
-		return
-	}
-	if site := r.Header.Get("Sec-Fetch-Site"); site != "" && site != "same-origin" {
-		http.Error(w, "invalid fetch site", http.StatusForbidden)
+	if !c.allowEventStream(w, r) {
 		return
 	}
 	c.mu.Lock()

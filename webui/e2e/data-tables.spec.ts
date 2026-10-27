@@ -37,8 +37,8 @@ test('library sorts the query before paging, preserves search order and uses key
   await expect(page.getByRole('button',{name:'下一页曲库',exact:true})).toBeDisabled();
 });
 
-test('history sorting resets the cursor, keeps keyboard focus and suspends latest-first polling',async({page})=>{
-  await mockAPI(page);await page.clock.install();
+test('history sorting resets the cursor, keeps keyboard focus and suspends live updates',async({page})=>{
+  const api=await mockAPI(page);await page.clock.install();
   const queries:URLSearchParams[]=[];
   const records=Array.from({length:54},(_,i)=>({id:i+1,at:Date.now()-i*1000,completedAt:Date.now()-i*1000+800,resource:String(i+1).padStart(32,'0'),songID:String(54-i),method:'GET',range:'',elapsedMS:800,bytes:50,responseBytes:100,status:206,cache:'MISS',outcome:'completed'}));
   await page.route('**/api/history?**',route=>{
@@ -61,12 +61,14 @@ test('history sorting resets the cursor, keeps keyboard focus and suspends lates
   await expect(song).toBeFocused();
   await expect(pager).not.toContainText('自动刷新');
   const reads=queries.length;await page.clock.fastForward(5100);expect(queries).toHaveLength(reads);
+  await api.historyChanged();
+  await expect.poll(async()=>((await(await page.request.get('/__fixture/streams?id='+api.fixtureID)).json()).history||0)).toBe(0);
+  expect(queries).toHaveLength(reads);
   await page.keyboard.press('Space');
   await expect(song.locator('..')).toHaveAttribute('aria-sort','descending');
   await expect(table.getByRole('row').nth(1)).toContainText('ID 54');
-  await page.getByRole('checkbox',{name:'暂停请求刷新'}).check();
-  await expect(song).toBeDisabled();
-  await expect(page.getByRole('button',{name:'下一页历史',exact:true})).toBeDisabled();
+  await expect(song).toBeEnabled();
+  await expect(page.getByRole('button',{name:'下一页历史',exact:true})).toBeEnabled();
 });
 
 test('resource headers use server sorting and can restore demand order',async({page})=>{

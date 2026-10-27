@@ -46,11 +46,11 @@ createServer(async (req, res) => {
       if(!streams.has(key))streams.set(key,new Set());streams.get(key).add(res);
       res.on('close',()=>streams.get(key)?.delete(res));return;
     }
-    const event=p.match(/^\/api\/network\/(connectivity|calibration)\/events$/);
+    const event=p.match(/^\/api\/network\/(connectivity|calibration)\/events$/)||(p==='/api/history/events'?['','history']:null);
     if(event){
       const kind=event[1],id=req.headers.cookie?.match(/(?:^|;\s*)fixture-id=([^;]+)/)?.[1]||'default',key=id+':'+kind;
       res.writeHead(200,{'Content-Type':'text/event-stream','Connection':'keep-alive'});
-      res.write(`event: ${kind}\ndata: ${JSON.stringify(states.get(key)||{revision:1,run:0,upstream:'direct',phase:'idle',running:false,results:[],lastValid:{},referenceBitrateBPS:2000000})}\n\n`);
+      res.write(`event: ${kind}\ndata: ${JSON.stringify(states.get(key)||(kind==='history'?{closed:false}:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,results:[],lastValid:{},referenceBitrateBPS:2000000}))}\n\n`);
       if(!streams.has(key))streams.set(key,new Set());streams.get(key).add(res);
       res.on('close',()=>streams.get(key)?.delete(res));return;
     }

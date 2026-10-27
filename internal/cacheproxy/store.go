@@ -40,6 +40,10 @@ type Store struct {
 	closeErr       error
 	failure        error
 	failed         chan struct{}
+
+	// One shared wakeup channel coalesces changes without retaining subscribers.
+	historyRevision uint64
+	historyChanged  chan struct{}
 }
 
 // OpenStore never creates a database, repairs its schema or recreates a lost
@@ -138,6 +142,8 @@ func openStore(path string, create bool) (*Store, error) {
 func newStore(path string, db *sql.DB, unlock func() error) *Store {
 	s := &Store{path: path, db: db, unlock: unlock, log: slog.Default(), done: make(chan struct{}), failed: make(chan struct{})}
 	s.usage = newUsage(db, s.log)
+	s.historyChanged = make(chan struct{})
+	s.usage.onHistoryChange = s.notifyHistoryChanged
 	// These are already accepted background writes. Any failed transaction,
 	// including a timeout or constraint failure, means observations were lost.
 	s.usage.onError = func(err error) {
@@ -163,6 +169,7 @@ func (s *Store) Close() error {
 		return errors.New("请先关闭视频引擎，再关闭数据库")
 	}
 	s.closed = true
+	close(s.historyChanged)
 	s.mu.Unlock()
 	s.retentionRunMu.Unlock()
 	s.wg.Wait()

@@ -73,7 +73,26 @@ func TestRequestHistoryBrowser(t *testing.T) {
 	if err := engine.Close(); err != nil {
 		t.Fatal(err)
 	}
-	ui := httptest.NewUnstartedServer(c)
+	ui := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/__fixture/request" {
+			c.ServeHTTP(w, r)
+			return
+		}
+		// Trigger real traffic only after the browser has subscribed. Closing
+		// the fixture engine drains its accepted SQLite writes before replying.
+		writer, err := cacheproxy.New(cfg)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		response := httptest.NewRecorder()
+		writer.ServeHTTP(response, httptest.NewRequest("GET", "http://api.udon.dance/Api/Songs/play?id=84", nil))
+		if err := writer.Close(); err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		w.WriteHeader(response.Code)
+	}))
 	c.address = ui.Listener.Addr().String()
 	ui.Start()
 	defer ui.Close()

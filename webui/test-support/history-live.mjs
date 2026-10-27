@@ -46,6 +46,13 @@ try {
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:join(output,'history-mobile.png'),fullPage:true});
   await page.reload();await expect(history.getByRole('link',{name:'ID 42',exact:true})).toHaveCount(50);
+  const updated=page.waitForResponse(async r=>r.url().includes('/api/history?')&&r.ok()&&(await r.json()).requests.some(record=>record.songID==='84'));
+  const trigger=await page.request.post(baseURL+'/__fixture/request');expect(trigger.ok()).toBe(true);
+  const committed=await(await updated).json();
+  await expect(history.getByRole('link',{name:'ID 84',exact:true})).toHaveCount(1);
+  expect(committed.requests[0].songID).toBe('84');
+  await expect(page.getByRole('button',{name:'刷新本页',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('checkbox',{name:'暂停请求刷新',exact:true})).toHaveCount(0);
   expect(errors).toEqual([]);
-  await writeFile(join(output,'results.json'),JSON.stringify({records:601,lastPage:13,resource:key,latency,sources,errors},null,2));
+  await writeFile(join(output,'results.json'),JSON.stringify({records:602,lastPage:13,resource:key,latency,sources,eventInsertedSong:'84',errors},null,2));
 } finally {await browser.close();}

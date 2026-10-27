@@ -46,6 +46,8 @@ type usageStore struct {
 	events    chan usageEvent
 	done      chan struct{}
 	now       func() time.Time
+
+	onHistoryChange func()
 }
 
 func newUsage(db *sql.DB, log *slog.Logger) *usageStore {
@@ -213,6 +215,7 @@ func (u *usageStore) write(batch []usageEvent) error {
 	}
 	defer tx.Rollback()
 	var sources ResponseSources
+	historyChanged := false
 	for _, e := range batch {
 		if e.barrier != nil {
 			continue
@@ -248,6 +251,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			if err != nil {
 				return err
 			}
+			historyChanged = historyChanged || e.method == "GET"
 			continue
 		}
 		// Access history supports the cache list, independently of song scoring
@@ -286,7 +290,13 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			return err
 		}
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if historyChanged && u.onHistoryChange != nil {
+		u.onHistoryChange()
+	}
+	return nil
 }
 
 // Delete only details in a bounded transaction using the time index.
@@ -325,7 +335,13 @@ func (u *usageStore) prune(now time.Time) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return count, tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	if count > 0 && u.onHistoryChange != nil {
+		u.onHistoryChange()
+	}
+	return count, nil
 }
 
 func nullString(s string) any {

@@ -8,6 +8,33 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 )
 
+func (c *Console) serveRequestHistoryEvents(w http.ResponseWriter, r *http.Request) {
+	if !c.allowEventStream(w, r) {
+		return
+	}
+	c.mu.Lock()
+	allowed := !c.closing && c.terms.valid()
+	c.mu.Unlock()
+	if !allowed {
+		http.Error(w, "请先阅读并同意使用条款", http.StatusConflict)
+		return
+	}
+	store, err := c.businessStore()
+	if err != nil {
+		http.Error(w, "请求历史不可用，请检查数据库状态", http.StatusServiceUnavailable)
+		return
+	}
+	// Every connection starts with an invalidation, including reconnections.
+	// No event replay or history rows are kept in memory for this stream.
+	serveDiagnosticEvents(w, r, "history", func() diagnosticEventSnapshot {
+		revision, changed, closed := store.RequestHistoryChanges()
+		state := struct {
+			Closed bool `json:"closed"`
+		}{Closed: closed}
+		return diagnosticEventSnapshot{state: state, revision: revision, changed: changed, closed: closed}
+	})
+}
+
 func (c *Console) serveRequestHistory(w http.ResponseWriter, r *http.Request) {
 	q := cacheproxy.RequestQuery{Limit: 50, Cursor: r.URL.Query().Get("cursor"), Sort: r.URL.Query().Get("sort"), Direction: r.URL.Query().Get("direction")}
 	for _, field := range []struct {

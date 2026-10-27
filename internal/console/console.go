@@ -850,6 +850,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, c.localInventory())
 		return
 	}
+	if r.Method == "GET" && r.URL.Path == "/api/history/events" {
+		c.serveRequestHistoryEvents(w, r)
+		return
+	}
 	if r.Method == "GET" && r.URL.Path == "/api/block-demands/events" {
 		c.serveBlockEvents(w, r)
 		return

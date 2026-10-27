@@ -991,3 +991,18 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 同日继续调整时间筛选栏：开始时间、结束时间与“查询历史／全部保留期”按钮在桌面同排，窄屏自然换行，保留 Field 标签与原生错误提示。历史浏览器回归 **14 项通过**，已有日期布局用例检查 1280px 下四个控件同行，以及 320／1280px 日期错误不与操作按钮重叠；桌面与 320px 截图已检查。前端 build/check 与差异检查通过，内嵌资源已更新；证据为 `artifacts/history-summary/inline-filters.log` 与 `inline-filters/`。
 
 同日将日期字段进一步改为“开始／结束”短标签，使用 Fluent Field 原生横向布局放在各自日期框左侧；短标签列按内容占宽，替代之前的上方标签规则，查询的开始包含／结束不含语义不变。历史浏览器回归 **14 项通过**，既有用例检查 320／1280px 下标签与输入框同行、桌面四个控件同行、日期错误与按钮不重叠；已检查两种宽度截图。前端 build/check 与差异检查通过，内嵌资源已更新；证据为 `artifacts/history-summary/inline-labels.log` 与 `inline-labels/`。
+
+## 2026-10-28 请求历史列表按事件更新
+
+历史列表取消 5 秒轮询，移除“暂停请求刷新”和“刷新本页”。复用现有 SSE 写出机制和分页查询：Store 在 GET 明细事务提交、实际保留期清理后通知，订阅不启动视频引擎；公共读取钩子承接事件并合并读取期间的重复通知。最新页的自动更新条件、查询与连接恢复规则见[历史查询范围](../webui-design.md#历史查询范围)。累计响应来源与首正文统计仍各自每 30 秒读取及手动刷新。
+
+验证结果：
+
+- Go 定向回归覆盖 Store 生命周期、提交后可读、回滚与 HEAD／仅需求写入不通知、批量合并、清理与无变化清理、关闭唤醒、SSE Host／Origin／Fetch-Site／条款门禁、断开和重连初始通知，以及既有历史、来源、分位数与管理行为；`go vet -tags=no_easytier ./internal/cacheproxy ./internal/console` 通过。命令均使用 `scripts/with-test-temp.ps1`。
+- 既有历史、表格与导航 Edge 回归 22 项通过；新增事件合并、连接／可见性恢复及 HTTP 拒绝后重新查询 3 项专项最终通过。覆盖无事件时不轮询、列表事件不触发统计读取、读取期间合并通知、详情展开与焦点保留、翻页丢弃迟到响应、非默认排序不订阅、断线重连、隐藏与切页释放订阅、查询失败后重试及两个控件消失。已检查 1280px 浅色与 390px 深色完整页面截图，表格和筛选布局正常；320px 强制颜色回归通过。
+- `TestRequestHistoryBrowser` 使用隔离真实 Console、SQLite、受控上游与 Edge：先验证 601 条历史的 13 页查询和排序，再由浏览器触发一笔真实请求，提交后通过事件自动显示歌曲 ID 84，形成第 602 条记录。订阅没有创建 Console 视频引擎或网关。此项通过，证据在忽略目录 `artifacts/history-events/live/results.json` 与同目录截图。
+- `pnpm --dir webui build`、`pnpm --dir webui check` 与 `git diff --check` 通过；Go 嵌入的前端资源及构建清单已重建。
+
+过程失败保留：首次新增 Go 条款用例把入口预期写成 409，真实统一门禁返回 428，已按现有门禁修正。浏览器新增断言先后同时匹配详情按钮／Popover，以及 Toast／读屏播报节点，产生 strict-mode 失败；已用明确的 group 和 listitem 角色修正，未改产品组件规避断言。失败截图和上下文保留在 `artifacts/history-events/browser/`、`browser-final/`，专项通过输出目录为 `browser-verified/`、`connection-verified/`。额外验证 HTTP 503 时原生 EventSource 会终止重连，因此该状态提示重新查询；普通断线仍提示并自动重连。
+
+本轮只涉及列表展示和数据通知，无需新增 VRC 验收项。未启动游戏、修改 hosts、替换运行中程序、提交或推送。

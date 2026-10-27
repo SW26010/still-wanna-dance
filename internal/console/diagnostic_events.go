@@ -14,6 +14,20 @@ type diagnosticEventSnapshot struct {
 	changed  <-chan struct{}
 }
 
+// Native EventSource cannot supply the management token header. These local
+// streams instead reject cross-origin and cross-site browser requests.
+func (c *Console) allowEventStream(w http.ResponseWriter, r *http.Request) bool {
+	if origin := r.Header.Get("Origin"); origin != "" && origin != "http://"+c.address {
+		http.Error(w, "invalid origin", http.StatusForbidden)
+		return false
+	}
+	if site := r.Header.Get("Sec-Fetch-Site"); site != "" && site != "same-origin" {
+		http.Error(w, "invalid fetch site", http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
 // Callers authorize the request and capture state with its notification channel.
 func serveDiagnosticEvents(w http.ResponseWriter, r *http.Request, event string, snapshot func() diagnosticEventSnapshot) {
 	w.Header().Set("Content-Type", "text/event-stream")

@@ -21,9 +21,7 @@ func TestFavoriteRetentionSettingsApplyAfterRestart(t *testing.T) {
 	openEngine := func() {
 		t.Helper()
 		c.lifecycleMu.Lock()
-		c.mu.Lock()
-		err := c.ensureEngine()
-		c.mu.Unlock()
+		_, err := c.ensureEngineLocked()
 		c.lifecycleMu.Unlock()
 		if err != nil {
 			t.Fatal(err)

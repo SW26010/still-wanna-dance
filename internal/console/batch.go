@@ -78,17 +78,21 @@ func (c *Console) startBatchTarget(storageID string, target cacheproxy.DownloadT
 
 func (c *Console) startBatchTargetLocked(scanOnly bool, target *cacheproxy.DownloadTarget) error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.closing {
+	closing, running := c.closing, c.batch.Running
+	c.mu.Unlock()
+	if closing {
 		return errors.New("程序正在退出")
 	}
-	if c.batch.Running {
+	if running {
 		return errors.New("已有批量任务正在运行")
 	}
-	if err := c.ensureEngine(); err != nil {
+	engine, err := c.ensureEngineLocked()
+	if err != nil {
 		return err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.batchCancel = cancel
 	c.batchDone = make(chan struct{})
 	c.batch = Batch{Running: true, ScanOnly: scanOnly, Target: target, Phase: "正在检查远端并更新本地清单"}
@@ -96,7 +100,7 @@ func (c *Console) startBatchTargetLocked(scanOnly bool, target *cacheproxy.Downl
 		c.batch.Phase = "正在读取选中歌曲或资源"
 	}
 	slog.Info("batch_started", "scan_only", scanOnly)
-	go c.runBatch(ctx, c.service, c.batchDone)
+	go c.runBatch(ctx, engine, c.batchDone)
 	return nil
 }
 

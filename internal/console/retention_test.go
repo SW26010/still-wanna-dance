@@ -32,9 +32,9 @@ func TestVideoStorageModesPersistAndApplyOnRestart(t *testing.T) {
 		if err := os.WriteFile(path, []byte("retained video"), 0600); err != nil {
 			t.Fatal(err)
 		}
-		loaded.mu.Lock()
-		err = loaded.ensureEngine()
-		loaded.mu.Unlock()
+		loaded.lifecycleMu.Lock()
+		_, err = loaded.ensureEngineLocked()
+		loaded.lifecycleMu.Unlock()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -83,9 +83,7 @@ func TestCacheLimitSettingsPersist(t *testing.T) {
 	}
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if err := c.ensureEngine(); err != nil {
+	if _, err := c.ensureEngineLocked(); err != nil {
 		t.Fatal(err)
 	}
 }

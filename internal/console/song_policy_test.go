@@ -129,9 +129,7 @@ func TestOfflineSongFavoritePrecedesStartupRetention(t *testing.T) {
 	}
 	// Ordinary engine startup must now see the saved preference before eviction.
 	c.lifecycleMu.Lock()
-	c.mu.Lock()
-	err = c.ensureEngine()
-	c.mu.Unlock()
+	_, err = c.ensureEngineLocked()
 	c.lifecycleMu.Unlock()
 	if err != nil {
 		t.Fatal(err)

@@ -444,77 +444,6 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword, confirmVideoP
 	return nil
 }
 
-// Call with lifecycleMu and mu held. Release mu while initializing the shared engine.
-func (c *Console) ensureEngine() error {
-	_, err := c.ensureEngineRead("")
-	return err
-}
-
-// Call with lifecycleMu and mu held. An initial read is retained inside New,
-// before retention starts; streaming itself never holds either console lock.
-func (c *Console) ensureEngineRead(key string) (func(), error) {
-	if c.service != nil {
-		if key != "" {
-			return c.service.RetainRead(key)
-		}
-		return nil, nil
-	}
-	c.mu.Unlock()
-	defer c.mu.Lock()
-	store, err := c.businessStore()
-	if err != nil {
-		return nil, err
-	}
-	cfg := cacheproxy.DefaultConfig()
-	cfg.Work = c.work
-	cfg.BeginVideoRequest = c.beginVideoRequest
-	cfg.BeginResourceLoad = upstreamrequest.Default.BeginResourceLoad
-	cfg.IsResourceHost = upstreamrequest.Default.IsResourceDomain
-	cfg.Logger = slog.Default().With("component", "cache")
-	cfg.Store = store
-	cfg.VideoDir = libraryPaths(c.settings).VideoDir
-	cfg.MaxCacheBytes = c.settings.MaxCacheBytes
-	cfg.CacheUnlimited = c.settings.VideoStorageMode == "unlimited"
-	cfg.RetainFavorites = c.settings.RetainFavorites
-	cfg.AggressiveCacheReclamation = c.settings.AggressiveCacheReclamation
-	if c.settings.VideoStorageMode == "none" {
-		cfg.MaxCacheBytes = 0
-	}
-	cfg.RequestRetentionDays = c.settings.RequestRetentionDays
-	cfg.RequestRetentionUnlimited = c.settings.RequestRetentionMode == "unlimited"
-	if c.settings.RequestRetentionMode == "none" {
-		cfg.RequestRetentionDays = 0
-	}
-	cfg.PrepareAhead = time.Duration(c.settings.PrepareAheadSeconds) * time.Second
-	cfg.DownloadSoftLimit = c.settings.DownloadSoftLimit
-	cfg.DownloadGrowInterval = time.Duration(c.settings.DownloadGrowIntervalMS) * time.Millisecond
-	cfg.LocalProtectionGrace = time.Duration(c.settings.LocalProtectionGraceSeconds) * time.Second
-	cfg.DialContext = c.upstreamDial
-	cfg.ResolvePlayback = c.resolvePlayback
-	cfg.ResourceTransports = func(target string) []http.RoundTripper {
-		var transports []http.RoundTripper
-		for _, selection := range c.operationSelections(upstreamstate.Resource, upstreamstate.Constraints{Target: target}) {
-			transports = append(transports, selection.Channel.Transport)
-		}
-		return transports
-	}
-	var s *cacheproxy.Server
-	var release func()
-	if key != "" {
-		s, release, err = cacheproxy.NewWithRead(cfg, key)
-	} else {
-		s, err = cacheproxy.New(cfg)
-	}
-	if err != nil {
-		return nil, err
-	}
-	c.mu.Lock()
-	c.service = s
-	c.notifyBlockEngineLocked()
-	c.mu.Unlock()
-	return release, nil
-}
-
 // AutoStart attempts acceleration once per process, after valid terms acceptance.
 func (c *Console) AutoStart() {
 	c.autoStartOnce.Do(func() {
@@ -577,15 +506,13 @@ func (c *Console) startLocked() (err error) {
 		l.Close()
 		return fmt.Errorf("网页 HTTPS 转发启动失败：%w", desktop.PortError(c.httpsAddress, err))
 	}
-	c.mu.Lock()
-	err = c.ensureEngine()
-	c.mu.Unlock()
+	engine, err := c.ensureEngineLocked()
 	if err != nil {
 		l.Close()
 		secure.Close()
 		return err
 	}
-	h := &http.Server{Handler: c.service, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, ErrorLog: slog.NewLogLogger(slog.Default().Handler(), slog.LevelError)}
+	h := &http.Server{Handler: engine, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, ErrorLog: slog.NewLogLogger(slog.Default().Handler(), slog.LevelError)}
 	c.mu.Lock()
 	c.httpServer = h
 	c.videoListener = l
@@ -751,13 +678,7 @@ func (c *Console) Close() error {
 		<-importDone
 	}
 	c.lifecycleMu.Lock()
-	c.mu.Lock()
-	service := c.service
-	c.service = nil
-	c.mu.Unlock()
-	if service != nil {
-		err = errors.Join(err, service.Close())
-	}
+	err = errors.Join(err, c.closeEngineLocked())
 	if c.store != nil {
 		err = errors.Join(err, c.store.Close())
 	}

@@ -39,9 +39,7 @@ func TestBlockDeltaResetChangeRemovalAndClockOnly(t *testing.T) {
 func TestBlockEventsRefreshClockForSharedSnapshot(t *testing.T) {
 	c := testConsole(t)
 	c.lifecycleMu.Lock()
-	c.mu.Lock()
-	err := c.ensureEngine()
-	c.mu.Unlock()
+	_, err := c.ensureEngineLocked()
 	c.lifecycleMu.Unlock()
 	if err != nil {
 		t.Fatal(err)
@@ -178,9 +176,7 @@ func TestBlockEventsWaitForEngine(t *testing.T) {
 	w.afterFlush = func() {
 		if w.writes == 1 {
 			c.lifecycleMu.Lock()
-			c.mu.Lock()
-			err := c.ensureEngine()
-			c.mu.Unlock()
+			_, err := c.ensureEngineLocked()
 			c.lifecycleMu.Unlock()
 			if err != nil {
 				t.Fatal(err)
@@ -220,9 +216,7 @@ func TestBlockEngineWaiterCancellationAndShutdown(t *testing.T) {
 			c.BeginShutdown()
 		} else if action == "start" {
 			c.lifecycleMu.Lock()
-			c.mu.Lock()
-			err := c.ensureEngine()
-			c.mu.Unlock()
+			_, err := c.ensureEngineLocked()
 			c.lifecycleMu.Unlock()
 			if err != nil {
 				cancel()
@@ -248,9 +242,7 @@ func TestBlockEventsDisconnect(t *testing.T) {
 		t.Run(failure, func(t *testing.T) {
 			c := testConsole(t)
 			c.lifecycleMu.Lock()
-			c.mu.Lock()
-			err := c.ensureEngine()
-			c.mu.Unlock()
+			_, err := c.ensureEngineLocked()
 			c.lifecycleMu.Unlock()
 			if err != nil {
 				t.Fatal(err)

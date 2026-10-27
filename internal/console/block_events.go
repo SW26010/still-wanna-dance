@@ -1,7 +1,6 @@
 package console
 
 import (
-	"context"
 	"net/http"
 	"reflect"
 	"sort"
@@ -161,44 +160,4 @@ func (c *Console) serveBlockEvents(w http.ResponseWriter, r *http.Request) {
 		case <-speedChanged:
 		}
 	}
-}
-
-func (c *Console) waitBlockEngine(ctx context.Context) *cacheproxy.Server {
-	c.mu.Lock()
-	if c.service != nil || c.closing || ctx.Err() != nil {
-		service := c.service
-		if c.closing || ctx.Err() != nil {
-			service = nil
-		}
-		c.mu.Unlock()
-		return service
-	}
-	wake := make(chan struct{})
-	if c.blockEngineWaiters == nil {
-		c.blockEngineWaiters = make(map[chan struct{}]bool)
-	}
-	c.blockEngineWaiters[wake] = true
-	c.mu.Unlock()
-	select {
-	case <-ctx.Done():
-	case <-wake:
-	}
-	c.mu.Lock()
-	delete(c.blockEngineWaiters, wake)
-	if len(c.blockEngineWaiters) == 0 {
-		c.blockEngineWaiters = nil
-	}
-	service := c.service
-	if c.closing || ctx.Err() != nil {
-		service = nil
-	}
-	c.mu.Unlock()
-	return service
-}
-
-func (c *Console) notifyBlockEngineLocked() {
-	for wake := range c.blockEngineWaiters {
-		close(wake)
-	}
-	c.blockEngineWaiters = nil
 }

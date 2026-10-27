@@ -194,36 +194,36 @@ func (c *Console) startGatewayQueueLocked() {
 // The caller holds lifecycleMu. Manual downloads share the demand scheduler.
 func (c *Console) startQueueLocked() error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.closing {
+	closing, running, logDir := c.closing, c.queue.Running, c.settings.LogDir
+	c.mu.Unlock()
+	if closing {
 		return errors.New("程序正在退出")
 	}
-	if c.queue.Running {
+	if running {
 		return nil
 	}
-	c.mu.Unlock()
-	_, err := os.ReadDir(c.settings.LogDir)
-	c.mu.Lock()
+	_, err := os.ReadDir(logDir)
 	if err != nil {
 		return fmt.Errorf("无法读取 VRChat 日志目录：%w", err)
 	}
-	if err := c.ensureEngine(); err != nil {
+	engine, err := c.ensureEngineLocked()
+	if err != nil {
 		return err
 	}
 	// Establish EOF synchronously so events arriving after start are not missed.
-	tail := &vrclog.Tail{Dir: c.settings.LogDir}
-	c.mu.Unlock()
+	tail := &vrclog.Tail{Dir: logDir}
 	_, err = tail.Poll(time.Now())
-	c.mu.Lock()
 	if err != nil {
 		return err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.queueCancel = cancel
 	c.queueDone = make(chan struct{})
 	c.queue = QueueStatus{Running: true, File: logName(tail.Path)}
 	slog.Info("queue_started", "file", logName(tail.Path))
-	go c.runQueue(ctx, tail, c.service, c.queueDone)
+	go c.runQueue(ctx, tail, engine, c.queueDone)
 	return nil
 }
 

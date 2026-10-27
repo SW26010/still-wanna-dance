@@ -103,20 +103,19 @@ func (c *Console) startInventoryScan() {
 		return
 	}
 	s := c.settings
+	c.mu.Unlock()
 	if c.checksumURL != "" {
 		_, err := cacheproxy.CacheDirectory(libraryPaths(s).VideoDir)
 		if err == nil {
-			err = c.ensureEngine()
+			_, err = c.ensureEngineLocked()
 		}
 		if err != nil {
-			c.mu.Unlock()
 			c.inventoryMu.Lock()
 			c.inventory.Error = err.Error()
 			c.inventoryMu.Unlock()
 			return
 		}
 	}
-	c.mu.Unlock()
 	c.inventoryMu.Lock()
 	defer c.inventoryMu.Unlock()
 	if c.inventory.Scanning {

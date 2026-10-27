@@ -115,18 +115,11 @@ func (c *Console) servePreview(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	c.lifecycleMu.Lock()
-	c.mu.Lock()
-	var release func()
-	if c.closing || r.Context().Err() != nil {
-		err = errors.New("预览已取消")
-	} else {
-		release, err = c.ensureEngineRead(target.Resource)
-	}
-	service := c.service
-	c.mu.Unlock()
-	c.lifecycleMu.Unlock()
+	service, release, err := c.retainEngineRead(r.Context(), target.Resource)
 	if err != nil {
+		if errors.Is(err, errConsoleClosing) || r.Context().Err() != nil {
+			err = errors.New("预览已取消")
+		}
 		previewError(w, err)
 		return
 	}

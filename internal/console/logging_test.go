@@ -58,9 +58,9 @@ func TestResolveLogsMalformedLocationIsRedacted(t *testing.T) {
 	defer api.Close()
 	c.apiBase, c.client.Transport = api.URL, http.DefaultTransport
 	// The engine performs song admission before resolving the CF entry.
-	c.mu.Lock()
-	err := c.ensureEngine()
-	c.mu.Unlock()
+	c.lifecycleMu.Lock()
+	_, err := c.ensureEngineLocked()
+	c.lifecycleMu.Unlock()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -27,9 +27,7 @@ func TestLocalProtectionSettingsControlEngineAfterRestart(t *testing.T) {
 	check := func(seconds int) {
 		t.Helper()
 		c.lifecycleMu.Lock()
-		c.mu.Lock()
-		err := c.ensureEngine()
-		c.mu.Unlock()
+		_, err := c.ensureEngineLocked()
 		c.lifecycleMu.Unlock()
 		if err != nil {
 			t.Fatal(err)

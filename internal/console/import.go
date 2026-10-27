@@ -60,8 +60,9 @@ func (c *Console) startImport(source string) error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.closing || c.importStatus.Running {
+	closing, running, videoDir := c.closing, c.importStatus.Running, c.settings.VideoDir
+	c.mu.Unlock()
+	if closing || running {
 		return errors.New("导入任务正在运行或应用正在退出")
 	}
 	if strings.TrimSpace(source) == "" {
@@ -82,10 +83,11 @@ func (c *Console) startImport(source string) error {
 	if !info.IsDir() {
 		return errors.New("请选择目录")
 	}
-	if err = c.ensureEngine(); err != nil {
+	engine, err := c.ensureEngineLocked()
+	if err != nil {
 		return err
 	}
-	storage, err := filepath.EvalSymlinks(c.settings.VideoDir)
+	storage, err := filepath.EvalSymlinks(videoDir)
 	if err != nil {
 		return err
 	}
@@ -97,11 +99,13 @@ func (c *Console) startImport(source string) error {
 		return errors.New("请选择完整视频目录之外的来源目录")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.importCancel = cancel
 	c.importDone = make(chan struct{})
 	c.importReceipts = nil
 	c.importStatus = ImportStatus{ID: c.importStatus.ID + 1, Running: true, Phase: "正在更新歌曲清单"}
-	go c.runImport(ctx, c.service, source, storage, c.importDone)
+	go c.runImport(ctx, engine, source, storage, c.importDone)
 	return nil
 }
 

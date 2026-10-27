@@ -22,7 +22,7 @@ test('video import, storage and coverage are found from local videos',async({pag
   await page.getByRole('textbox',{name:'外部目录',exact:true}).fill('D:\\Videos');
   await page.getByRole('button',{name:'扫描并导入',exact:true}).click();
   expect(api.calls.find(c=>c.path==='import/start')?.body.source).toBe('D:\\Videos');
-  await page.getByRole('button',{name:'返回曲库',exact:true}).click(); await page.getByRole('link',{name:'视频存储预算',exact:true}).click();
+  await page.getByRole('link',{name:'视频存储预算',exact:true}).click();
   await expect(page.getByRole('radio',{name:'不保留',exact:true})).toBeVisible();
 });
 

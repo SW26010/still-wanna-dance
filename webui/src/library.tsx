@@ -17,6 +17,9 @@ export const resourceHref=(key:string)=>'#/library?resource='+encodeURIComponent
 const scoreFormat=new Intl.NumberFormat(undefined,{minimumFractionDigits:2,maximumFractionDigits:2,minimumSignificantDigits:4,maximumSignificantDigits:4,roundingPriority:'lessPrecision'});
 const downloadRefreshInterval=(data:{tasks:Download[]})=>data.tasks.length?5000:0;
 const policyLabels:Record<SongPolicy,string>={normal:'普通',favorite:'收藏',blocked:'屏蔽'};
+function focusSection(id:string) {
+  const target=document.getElementById(id);target?.focus({preventScroll:true});target?.scrollIntoView();
+}
 export function Library({visible,anchor}:{visible:boolean;anchor:string}) {
   const [opened,setOpened]=useState(visible);
   useEffect(()=>{if(visible)setOpened(true);},[visible]);
@@ -25,11 +28,10 @@ export function Library({visible,anchor}:{visible:boolean;anchor:string}) {
   return opened?<LibraryView key={song+':'+resource} visible={visible} anchor={anchor} song={song} resource={resource} requestedView={requestedView}/>:null;
 }
 function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boolean;anchor:string;song:string;resource:string;requestedView?:'songs'|'resources'}) {
-  const app=useApp(),s=app.status.data!,focus=useFocusRecovery(),toolFocus=useFocusRecovery();
+  const app=useApp(),s=app.status.data!,focus=useFocusRecovery();
   const [view,setView]=useState(resource||requestedView==='resources'?'resources':'songs'),[search,setSearch]=useState(''),[sort,setSort]=useState('score'),[filter,setFilter]=useState('');
   const [query,setQuery]=useState({q:'',sort:'score',filter:''}),[offset,setOffset]=useState(0),[selected,setSelected]=useState<Record<string,string>>({});
-  const [pending,setPending]=useState(false),[tool,setTool]=useState<'video'|'history'|undefined>(anchor==='video-import'?'video':undefined);
-  const previousTool=useRef(tool);
+  const [pending,setPending]=useState(false);
   const history=useVRCX();
   const [preview,setPreview]=useState<PreviewSelection>();
   const previewFocusTarget=useRestoreFocusTarget();
@@ -38,7 +40,7 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
   const feedback=usePageFeedback<{text:string;failed:boolean}>(visible?page.data?.storageID:undefined);
   const actions=useCacheActions(page.data,page.refresh,visible,page.loading||pending||!!page.error);
   const fileResult=useRef<HTMLElement>(null);
-  useEffect(()=>{if(!visible||app.stopped||tool)setPreview(undefined);},[visible,app.stopped,tool]);
+  useEffect(()=>{if(!visible||app.stopped)setPreview(undefined);},[visible,app.stopped]);
   useEffect(()=>setPreview(undefined),[page.data?.storageID]);
   useEffect(()=>{if(visible&&(actions.result?.error||actions.result?.entries?.length))fileResult.current?.focus();},[visible,actions.result]);
   const disabled=app.unavailable||pending||actions.pending||page.loading||!page.data||!!page.error;
@@ -55,21 +57,14 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
     if(visible&&(previousTasks.current.batch&&!s.batch.running||previousTasks.current.import&&!s.import.running))page.refresh();
     previousTasks.current={batch:s.batch.running,import:s.import.running};
   },[s.batch.running,s.import.running,visible,page.refresh]);
-  useLayoutEffect(()=>{if(visible&&anchor==='video-import'){setTool('video');const frame=requestAnimationFrame(()=>{const target=document.getElementById('video-import');target?.focus();target?.scrollIntoView();});return()=>cancelAnimationFrame(frame);}},[visible,anchor]);
   useLayoutEffect(()=>{
-    if(!visible||(requestedView===undefined&&anchor!=='batch'))return;
-    setTool(undefined);
+    const section=['vrcx-import','video-import','batch'].includes(anchor);
+    if(!visible||(requestedView===undefined&&!section))return;
+    setPreview(undefined);
     if(requestedView){setView(requestedView);setOffset(0);setFilter('');setQuery(q=>({...q,filter:''}));}
-    const frame=requestAnimationFrame(()=>{const target=anchor==='batch'?document.getElementById('batch'):focus.ref.current;target?.focus();target?.scrollIntoView();});
+    const frame=requestAnimationFrame(()=>focusSection(section?anchor:'library-browser'));
     return()=>cancelAnimationFrame(frame);
   },[visible,anchor,requestedView]);
-  useLayoutEffect(()=>{
-    const changed=previousTool.current!==tool;previousTool.current=tool;
-    // Initial page focus belongs to navigation; only tool switches move it here.
-    if(!visible||!changed)return;
-    const frame=requestAnimationFrame(()=>{const target=tool?toolFocus.ref.current:anchor==='batch'?document.getElementById('batch'):focus.ref.current;target?.focus({preventScroll:true});});
-    return()=>cancelAnimationFrame(frame);
-  },[tool,visible,anchor]);
   async function save(id:string,policy:SongPolicy) {
     if(disabled||!page.data)return;
     setPending(true);feedback.setValue(undefined);
@@ -80,7 +75,7 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
   const download=(target:{songID?:string;resource?:string})=>void app.action('batch/download',{storageID:page.data?.storageID,...target});
   async function importHistory() {
     const result=await history.inspect(true);
-    if(result?.review)setTool('history');
+    if(result?.review)focusSection('vrcx-import');
     if(result?.imported)feedback.setValue({failed:false,text:`已根据 VRCX 历史初始化 ${result.imported.songs} 首歌曲的优先级。`});
   }
   const sharedState=(r:LibraryResource|undefined)=> {
@@ -99,7 +94,7 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
     <Notification message={visible&&downloads.error?'下载进度暂时无法读取。':undefined} error/>
     {page.data?.videoError&&<Feedback error>视频目录不可用，本地视频状态未知。歌曲资料仍可查看。<p className="wrap">{page.data.videoError}</p></Feedback>}
     <InventoryPanel visible={visible} videoError={page.data?.videoError} files={page.data?.videoError?undefined:page.data} refresh={page.refresh} loading={page.loading} loadedAt={page.loadedAt} readError={page.error}/>
-    <section hidden={!!tool} id="library-browser" className="library-browser" {...focus} tabIndex={-1}>
+    <section id="library-browser" className="library-browser" {...focus} tabIndex={-1}>
       {history.suggested&&<div className="content-stack" aria-label="VRCX 历史导入建议"><Feedback>
         <p>检测到 VRCX 历史，可用于安排歌曲下载与保留顺序。仅在本机处理。</p>
         <div className="actions"><Button disabled={history.locked} onClick={()=>void importHistory()}>导入历史</Button><Button disabled={history.locked} onClick={()=>void history.dismiss()}>忽略</Button></div>
@@ -107,7 +102,7 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
       </Feedback><Feedback error>{history.message}</Feedback></div>}
       {(song||resource)&&<div className="toolbar"><span>查看{song?'歌曲 ID '+song:'资源 '+resource}</span><Link href="#/library">返回完整曲库</Link></div>}
       <div className="toolbar spread"><TabList aria-label="曲库视图" selectedValue={view} onTabSelect={(_,v)=>{setView(String(v.value));setOffset(0);setSort('score');setFilter('');setQuery(q=>({...q,sort:'score',filter:''}));}}><Tab id="library-tab-songs" aria-controls="library-results" value="songs" disabled={!!resource}>按歌曲</Tab><Tab id="library-tab-resources" aria-controls="library-results" value="resources" disabled={!!song}>按资源</Tab></TabList>
-        <div className="inline"><Button onClick={()=>setTool('video')}>导入视频</Button><Button onClick={()=>setTool('history')}>导入 VRCX 历史</Button></div></div>
+        <div className="inline"><Button onClick={()=>focusSection('vrcx-import')}>导入 VRCX 历史</Button><Button onClick={()=>focusSection('video-import')}>导入视频</Button><Button onClick={()=>focusSection('batch')}>下载视频</Button></div></div>
       <div id="library-results" role="tabpanel" aria-labelledby={'library-tab-'+view}>
       <form className="toolbar library-search" onSubmit={e=>{e.preventDefault();setOffset(0);setQuery({q:search,sort,filter});page.refresh();}}>
         <Field label="搜索曲库" className="search-field"><Input type="search" maxLength={300} placeholder="名称、ID、歌手、舞者或资源" value={search} onChange={(_,v)=>setSearch(v.value)}/></Field>
@@ -141,10 +136,8 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
       {(page.data?.total||0)>50&&<div className="toolbar pagination"><Button disabled={disabled||offset===0} onClick={()=>{setOffset(Math.max(0,offset-50));focus.ref.current?.focus();}}>上一页曲库</Button><Button disabled={disabled||offset+50>=(page.data?.total||0)} onClick={()=>{setOffset(offset+50);focus.ref.current?.focus();}}>下一页曲库</Button></div>}
       </div>
     </section>
-    <div hidden={!!tool}><BatchPanel/></div>
-    <section hidden={!tool} className="page-stack" {...toolFocus} tabIndex={-1} aria-label="曲库工具"><div className="toolbar"><Button onClick={()=>setTool(undefined)}>返回曲库</Button></div>
-      <div hidden={tool!=='video'}><ImportPanel/></div>
-      <div hidden={tool!=='history'}><VRCXImport model={history}/></div>
-    </section>
+    <VRCXImport model={history}/>
+    <ImportPanel/>
+    <BatchPanel/>
   </div>;
 }

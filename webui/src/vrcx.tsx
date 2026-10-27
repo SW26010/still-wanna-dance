@@ -146,7 +146,7 @@ export function VRCXOption({model:m}: {model:VRCXModel}) {
 
 export function VRCXImport({model:m}: {model:VRCXModel}) {
   const restoreFocusTarget = useRestoreFocusTarget(), p = m.preview;
-  return <Panel title="历史偏好">
+  return <Panel id="vrcx-import" title="导入 VRCX 历史">
     <VRCXOption model={m}/>
     {m.enabled && <>
       {m.found === false && <p>未找到默认位置的 VRCX 数据库，可选择其他位置或跳过。</p>}

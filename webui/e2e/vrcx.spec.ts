@@ -165,7 +165,7 @@ test('quick import conflict requires a new preview and never retries an overwrit
   await page.route('**/api/vrcx/apply',r=>{attempts.push(r.request().postDataJSON());return r.fulfill({status:409,body:'已有歌曲需求统计；请重新预览并明确确认整表覆盖'});});
   await page.goto('/#/library');await page.getByRole('button',{name:'导入历史',exact:true}).click();
   await expect(page.getByRole('button',{name:'读取并预览',exact:true})).toBeVisible();
-  await expect(page.locator('[aria-label="曲库工具"]').getByText(/已有歌曲需求统计；请重新预览/)).toBeVisible();
+  await expect(page.locator('#vrcx-import').getByText(/已有歌曲需求统计；请重新预览/)).toBeVisible();
   await expect(page.getByRole('button',{name:'导入并覆盖…',exact:true})).toHaveCount(0);
   expect(attempts).toEqual([{id:'preview-1',overwrite:false}]);
   expect(calls.filter(c=>c.path==='preview')).toHaveLength(1);
@@ -180,7 +180,7 @@ test('unconfirmed quick import keeps its preview token for an explicit idempoten
   });
   await page.goto('/#/library');await page.getByRole('button',{name:'导入历史',exact:true}).click();
   await expect(page.getByRole('button',{name:'导入历史偏好',exact:true})).toBeVisible();
-  await expect(page.locator('[aria-label="曲库工具"]').getByText(/导入结果尚未确认/)).toBeVisible();
+  await expect(page.locator('#vrcx-import').getByText(/导入结果尚未确认/)).toBeVisible();
   await page.getByRole('button',{name:'导入历史偏好',exact:true}).click();
   await expect(page.getByText(/已导入 4 次历史需求/)).toBeVisible();
   expect(attempts).toEqual([{id:'preview-1',overwrite:false},{id:'preview-1',overwrite:false}]);
@@ -200,7 +200,7 @@ test('missing or empty history after detection never writes statistics',async({p
   expect(calls.some(c=>c.path==='apply')).toBe(false);
 });
 
-test('VRCX keeps the selected database and preview across tool return and page navigation',async({page})=>{
+test('VRCX keeps the selected database and preview across module jumps and page navigation',async({page})=>{
   const {calls}=await fixture(page,3);
   await page.goto('/#/library');
   const history=page.getByRole('button',{name:'导入 VRCX 历史',exact:true});
@@ -211,7 +211,7 @@ test('VRCX keeps the selected database and preview across tool return and page n
   const path=page.getByLabel('VRCX 数据库路径'), preview=page.getByText('4 次 / 2 首',{exact:true});
   await expect(path).toHaveValue('D:\\custom\\VRCX.sqlite3');
   await inspect(page);await expect(preview).toBeVisible();
-  await page.getByRole('button',{name:'返回曲库',exact:true}).click();await expect(preview).toBeHidden();
+  await page.getByRole('button',{name:'导入视频',exact:true}).click();await expect(preview).toBeVisible();
   await history.click();await expect(preview).toBeVisible();
   await page.evaluate(()=>{location.hash='/library?view=resources';});
   await expect(page.getByRole('table',{name:'曲库资源',exact:true})).toBeVisible();

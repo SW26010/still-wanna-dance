@@ -27,14 +27,11 @@ export function Home({visible}: {visible:boolean}) {
   const queuePhase=uncertain?'待确认':queueFailed?'启动失败':queueError?'需检查':q.running?'监控中':q.desired?'未就绪':'已关闭';
   const stopping=a.phase==='stopping';
   const stopHint=s.activeSettings.restoreHostsOnExit?'停止视频服务及队列预加载，并恢复本程序的游戏接入；不再请求管理员权限。':'停止视频服务及队列预加载，保留游戏接入。继续播放前请点击「开始加速」。';
-  const progress:Record<string,string>={checking:'正在检查游戏连接…',starting:'正在启动本地服务…',hosts:'正在配置游戏连接，请留意管理员授权…',stopping:'正在停止视频服务并处理游戏连接…'};
   return <div className="page-stack">
     <Card id="activation" size="small" className="acceleration-card">
-      <div className="toolbar spread acceleration-heading"><div className="acceleration-title"><Title2 as="h2">{stopping?'正在停止加速':active(s)?'正在开启加速':accelerationLabel(s)}</Title2>
+      <div className="toolbar spread acceleration-heading"><div className="acceleration-title"><Title2 as="h2" aria-live="polite" aria-atomic="true">{stopping?'正在停止加速':active(s)?'正在开启加速':accelerationLabel(s)}</Title2>
         {s.running&&s.hosts.ready&&!connectionReason&&!serviceError&&!active(s)&&!uncertain&&<span className="secondary acceleration-hint">可关闭浏览器，减少资源占用</span>}</div>
         <Tooltip content={s.running?stopHint:activationPermissionHint} relationship="description"><Button appearance="primary" size="large" disabled={app.unavailable} onClick={()=>void app.action(s.running?'activation/disable':'activation/enable')}>{s.running?'停止加速':'开始加速'}</Button></Tooltip></div>
-      {progress[a.phase||'']&&<p className="secondary acceleration-note" role="status">{progress[a.phase||'']}</p>}
-      {!s.running&&s.hosts.ready&&!active(s)&&<p className="secondary acceleration-note">游戏接入仍保留，继续播放前请点击「开始加速」。</p>}
       <div className="toolbar condition-strip">
         <StatusBadge label="游戏连接" description={uncertain?unknownReason:connectionReason||activationPermissionHint} color={uncertain?'informative':s.hosts.conflict||connectionError&&!s.hosts.ready?'danger':connectionReason?'warning':s.hosts.ready?'success':a.phase==='hosts'?'brand':'informative'}>{connectionPhase}</StatusBadge>
         <StatusBadge label="视频服务" description={uncertain?unknownReason:serviceError||undefined} color={uncertain?'informative':serviceError?'danger':s.running?'success':a.phase==='starting'?'brand':'informative'}>{uncertain?'待确认':serviceError?'异常':s.running?'运行中':a.phase==='starting'?'启动中':'未运行'}</StatusBadge>

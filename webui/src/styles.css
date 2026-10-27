@@ -229,7 +229,6 @@ form.actions { align-items: flex-end; }
 .acceleration-title { display: flex; align-items: baseline; gap: var(--spacingHorizontalM); }
 .acceleration-hint { display: none; white-space: nowrap; }
 @container (min-width: 30rem) { .acceleration-hint { display: inline; } }
-.acceleration-note { margin: 0; }
 footer { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacingHorizontalM); }
 @media (max-width:640px) { .runtime-controls { width: 100%; } }
 

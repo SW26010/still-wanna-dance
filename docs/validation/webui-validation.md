@@ -965,3 +965,13 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 曲库、历史和排序浏览器回归 **55 项通过**；统一非排序表头的焦点槽位后，最终 **7 项**定向复核通过。既有用例补充四个文字提示的悬停、聚焦、可访问描述、Escape 和原图标缺席检查，保留排序、分页及操作回归；历史覆盖 1280px 浅色、390px 深色和 320px 强制颜色。已检查曲库和历史截图，图标占位已清理，表头与内容保持紧凑。前端 build/check 和差异检查通过，嵌入资源已重建。
 
 证据保存在 artifacts/table-header-hints/ 的 browser.log、browser/、final.log、final/、build-final-verified.log 和 check-final-verified.log。首次类型检查要求显式声明多元素按钮槽位的渲染签名，并将 Tooltip 内容包装为 React 元素；修正后通过，原日志 build.log、build-final.log 保留。本次仅调整前端提示方式，无需 VRC 验收；未提交或推送。
+
+### 2026-10-28：首页加速状态下方提示
+
+移除停止后保留游戏接入的提示段落，以及检查连接、启动服务、配置接入、停止服务四个阶段的独立进度段落，清理对应样式。启停状态继续由标题及组件状态表达，标题补充 polite／atomic 播报以保留动态反馈；停止按钮的策略 Tooltip、错误反馈和标题右侧的浏览器提示保持原样。现行规则见[内容约定](../webui-content.md)。
+
+- Edge 内存夹具测量 320／768／1280px 下各 10 个状态：原保留接入提示分别造成 48／28／28px 下推，删除后该场景与初始未接入状态等高；全部 30 个组合均无额外提示段落。已检查修复后的桌面截图。
+- 全状态等高探针修复前为 11/30，修复后为 25/30；其余 5 个组合来自原有响应式换行：320px 下四个启停阶段的较长标题使按钮换行，768px 下“接入失败”徽标使状态栏换行。本次只移除条件提示段落，不宣称所有状态在任意宽度下等高。原始测量、截图及探针保存在忽略目录 artifacts/acceleration-layout/ 的 before.json、after.json、before.png、after.png 与 probe.mjs。
+- `pnpm --dir webui build`、`pnpm --dir webui check` 和 `git diff --check` 通过，内嵌资源已重建。`./scripts/with-test-temp.ps1 pnpm --dir webui test acceleration.spec.ts runtime-status.spec.ts --workers=2` **24 项通过**，覆盖启停、接入保留与恢复策略、失败反馈、状态读取和 Tooltip 交互。
+
+本次验证仅涉及前端展示，未启动游戏、修改系统 hosts 或替换运行中程序，无需新增 VRC 验收项。同步将临时信息尽量不推动布局的原则写入内容约定，并清理首页说明中的旧规则。

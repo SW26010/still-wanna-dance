@@ -2,6 +2,16 @@
 
 > 2026-10-27 首发前清理：本文旧阶段记录中的父目录锁兼容已被替代。现行数据库统一使用 `<文件名>.lock`，视频目录统一使用 `.swd.lock`，不与开发期旧写入者共用锁协议；旧资料拒绝与文件保护继续保留。当前规则见[存储契约](storage.md)。
 
+### 首发前兼容清理验证（2026-10-27）
+
+按配置／CLI、资源锁、观测通道的顺序清理：设置不再接受 `socks5` 别名，CLI 使用 `-max-local-validations`；数据库和视频目录按资源独立持锁，删除无产品调用的混合目录检查入口；Monitor、测速与测试夹具统一通过候选接口，移除普通 Transport 分支。吞吐快照改为格式 2，只保存带通道身份的样本，旧格式 1 黄金文件保留用于拒绝且不改写回归。现行边界分别见[服务参数](service.md)、[存储契约](storage.md)与[上游通道](upstream-channels.md)。旧数据保护、hosts 恢复及业务回源容错保持原用途。
+
+完整 `go test -p 1 -tags=no_easytier ./cmd/... ./internal/... -count=1`、同范围 vet、前端构建与产物检查通过；Edge 设置草稿／代理保存／恢复回归 16 项通过。定向 Windows race 覆盖独立锁、候选替换与取消、吞吐持久化和诊断生命周期；`cf_block_experiment` 标签编译通过。实际 CLI 构建的帮助包含新参数，旧参数在解析阶段以退出码 2 拒绝。所有检查使用隔离资源，未迁移用户数据库或视频、未启动游戏或改 hosts，无新增 VRC 专属待验项。
+
+原始日志保存在忽略目录 `artifacts/compat-cleanup-20261027/`。保留首轮 `monitor-compile-1.txt` 的夹具接口遗漏和 `monitor-tests-1.txt` 的两项失败：旧测试假定相同直连身份必须丢弃观测，另一个来源测试未发布候选。前者改为明确替换候选身份，并保留有效歌曲抽样的现行语义；后者提供真实候选接口。修正后的定向、整包及 race 结果分别见 `monitor-tests-2.txt`、`go-full-1.txt`、`race.txt`；没有放宽产品检查或覆盖旧失败记录。
+
+复审修正所有权夹具：候选提供者保留 `CloseIdleConnections`，候选 Transport 指向原对象，避免函数包装掩盖误关闭。定向测试通过（`ownership.txt`）；通过 Go overlay 分别注入关闭候选提供者和候选 Transport 的错误，两次均触发 `closed borrowed connection pool` 断言（`ownership-provider-mutation.txt`、`ownership-candidate-mutation.txt`）。注入源码仅保存在上述忽略目录，不改动产品文件。
+
 当前数据库已随响应来源统计升为 v7，新增请求与累计的三个固化字节字段，沿用开发期旧格式拒绝且不改写的约定。当前依据见[存储契约](storage.md)；下方 v6 首发收口记录保留当时验证范围，不能作为现行格式。后继格式演练测试已基于新 v7 样本继续验证。
 
 ## 2026-10-27 首发数据库收口

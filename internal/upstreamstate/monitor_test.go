@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -16,6 +17,20 @@ import (
 )
 
 type transportFunc func(*http.Request) (*http.Response, error)
+
+func fixtureChannelID(target string) string {
+	u, _ := url.Parse(target)
+	return "direct/" + u.Hostname() + "/192.0.2.1"
+}
+
+func (f transportFunc) Changed() <-chan struct{} { return nil }
+func (f transportFunc) Candidates(_ context.Context, target string) ([]upstreamrequest.Candidate, error) {
+	return f.Current(target), nil
+}
+func (f transportFunc) Current(target string) []upstreamrequest.Candidate {
+	u, _ := url.Parse(target)
+	return []upstreamrequest.Candidate{{ID: fixtureChannelID(target), Host: u.Hostname(), Mode: "direct", IP: "192.0.2.1", Transport: f}}
+}
 
 func (f transportFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 	resp, err := f(r)
@@ -335,6 +350,16 @@ type ownedTransport struct{ closed atomic.Bool }
 
 func (t *ownedTransport) RoundTrip(r *http.Request) (*http.Response, error) { return fixture(r) }
 func (t *ownedTransport) CloseIdleConnections()                             { t.closed.Store(true) }
+func (t *ownedTransport) Changed() <-chan struct{}                          { return nil }
+func (t *ownedTransport) Candidates(_ context.Context, target string) ([]upstreamrequest.Candidate, error) {
+	return t.Current(target), nil
+}
+func (t *ownedTransport) Current(target string) []upstreamrequest.Candidate {
+	candidates := transportFunc(t.RoundTrip).Current(target)
+	candidates[0].Transport = t
+	return candidates
+}
+
 func TestTransportOwnershipAndNoConfigurationLeaks(t *testing.T) {
 	tr := &ownedTransport{}
 	channel := upstreamrequest.NewChannel()

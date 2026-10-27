@@ -21,7 +21,7 @@ type ThroughputSample struct {
 	Duration   time.Duration `json:"durationNs"`
 }
 
-const throughputSchemaVersion = 1
+const throughputSchemaVersion = 2
 
 type throughputState struct {
 	SchemaVersion int                         `json:"schemaVersion"`
@@ -124,10 +124,10 @@ func (m *Monitor) saveThroughputTime() error {
 
 func restorableThroughputKey(key string) bool {
 	parts := strings.Split(key, "/")
-	if len(parts) < 2 || parts[0] != string(Resource) || !videometa.ValidHost(parts[1]) {
+	if len(parts) < 3 || parts[0] != string(Resource) || !videometa.ValidHost(parts[1]) || parts[2] == "" {
 		return false
 	}
-	if len(parts) > 2 && parts[2] == "socks5" {
+	if parts[2] == "socks5" {
 		return len(parts) == 5 && upstreamrequest.PersistentProxyID(parts[4])
 	}
 	return true

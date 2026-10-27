@@ -149,7 +149,7 @@ func TestDiagnosticMonitorRetainsTraversalAcrossRunsAndCancellation(t *testing.T
 					}
 				}
 			}
-			if after := upstreamrequest.Default.Snapshot(); before.Transport != after.Transport || before.Revision != after.Revision {
+			if after := upstreamrequest.Default.Snapshot(); before.Candidates != after.Candidates || before.Revision != after.Revision {
 				t.Fatal("diagnostic changed business routing")
 			}
 		})
@@ -179,7 +179,7 @@ func TestDiagnosticProxyMonitorReusesOnlyMatchingDraft(t *testing.T) {
 	old := c.networkDiagnostics.proxy
 	settings.SOCKS5Password = "changed"
 	second, err := selectMonitor(settings)
-	if err != nil || second == first || !first.Snapshot().Closed || old.channel.Snapshot().Transport != nil {
+	if err != nil || second == first || !first.Snapshot().Closed || old.channel.Snapshot().Candidates != nil {
 		t.Fatal("changed credentials reused the old scope", err)
 	}
 	settings.SOCKS5Address = "invalid"

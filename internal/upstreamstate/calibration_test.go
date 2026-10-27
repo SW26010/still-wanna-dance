@@ -45,7 +45,11 @@ func calibrationForTest(t *testing.T, transport http.RoundTripper) *Calibration 
 	t.Setenv("TEMP", root)
 	t.Setenv("TMPDIR", root)
 	ch := upstreamrequest.NewChannel()
-	ch.Publish(transport)
+	provider, ok := transport.(upstreamrequest.Candidates)
+	if !ok {
+		provider = transportFunc(transport.RoundTrip)
+	}
+	ch.Publish(provider)
 	c := NewCalibration(ch)
 	// Download-focused fixtures intentionally contain one short video. Tests
 	// of production preparation restore the real reserve requirements below.

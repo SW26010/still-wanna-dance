@@ -24,7 +24,10 @@ func resultID(r Result) string { return r.Route + "/" + r.ChannelID }
 func (m *Monitor) candidateResultsLocked(op Operation, provider upstreamrequest.Candidates, now time.Time) []Result {
 	var out []Result
 	for _, route := range m.routeIDsLocked(op) {
-		cs := provider.Current(entry(op, route))
+		var cs []upstreamrequest.Candidate
+		if provider != nil {
+			cs = provider.Current(entry(op, route))
+		}
 		if len(cs) == 0 {
 			r := Result{Operation: op, Route: route, Entry: entry(op, route), State: "unknown", Reason: "no_channel", Sources: m.sourcesLocked(op, route, now)}
 			if m.closed {

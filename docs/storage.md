@@ -58,7 +58,7 @@ ID 播放先检查屏蔽状态并在命中时返回 403；准入后的播放命�
 
 播放地址解析成功并通过 URL 校验后，`ObserveSongURL` 在同一事务中保存 `song_urls`，按 URL 的 `e`（MD5）把 `s`（字节数）写入 `media.byte_size`，并补齐占位歌曲和缺失的 `song_media` 关联；关联冲突时不更新。写入复用映射锁，与清单同步及映射快照串行；歌曲和资源外键延迟至事务提交时检查，使过期观察仍可在不修改资料的情况下退出。清单创建资源时未知大小仍为 NULL；只解析地址即可补齐，不需要请求视频正文或创建本地视频文件，持久化准入可直接使用这份关联计算歌曲分数。同 MD5 的多首歌曲共用一条资源记录。沿用已有资源写入规则，有效值可更新已知属性，缺失属性不抹掉已知值。
 
-运行期上游监测也复用该入口：每次自动或手动探测播放 API 成功后，直接保存本轮所选歌曲的 URL 和大小，并按同一规则补缺失关联，无需再次查询 API。普通和多候选通道均覆盖，API 键统一为无查询参数的地址，节点保存实际 cf/nya；排序使用探测请求自身的起止时间，不以回调落库时间刷新旧响应。资源采样失败不撤销已取得的 API 证据和补缺关联；写库失败保留本地存储故障，不改变 API 健康判断。只刷新当轮实际探测到的歌曲，不追加整库批量请求，签名地址不进入状态接口。
+运行期上游监测也复用该入口：每次自动或手动探测播放 API 成功后，直接保存本轮所选歌曲的 URL 和大小，并按同一规则补缺失关联，无需再次查询 API。单候选和多候选通道均覆盖，API 键统一为无查询参数的地址，节点保存实际 cf/nya；排序使用探测请求自身的起止时间，不以回调落库时间刷新旧响应。资源采样失败不撤销已取得的 API 证据和补缺关联；写库失败保留本地存储故障，不改变 API 健康判断。只刷新当轮实际探测到的歌曲，不追加整库批量请求，签名地址不进入状态接口。
 
 探测样本优先从 `song_media` 关联的缺项歌曲中选择：`media.byte_size` 为 NULL/非正数，或同 API 的 cf/nya 任一节点缺少当前 MD5 的非空、未标失败 URL。不同内容的旧地址不算补齐；地址只是超过 24 小时仍算已有元数据，不将全库重新变为缺项，实际播放继续执行原有时效/校验规则。候选复用视频保留与批量补齐的资源评分，按分数及同分歌曲编号从高到低补；共享资源的全部关联都参与评分，包括已补齐的歌曲。每批复用原请求探测一首，未补齐的失败项本遍先跳过、下一遍重试；齐备后恢复普通抽样。仅补 URL/大小和缺失关联，不推断其他歌曲字段、不下载完整视频、不产生需求分数，也不新增数据库字段。
 
@@ -212,7 +212,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 ## 持久化格式与语义
 
-版本号不随软件版本递增，也不为了称作“v1”而重用试验期编号。开发期最早冻结基线是 SQLite **2**、配置 **3**；当前首发候选基线采用 SQLite **7**、配置 **7**、库存/批量/尝试快照 **2**、吞吐快照 **1**，不迁移旧格式。当前 SQLite 的完整 DDL 固定在 `internal/cacheproxy/schema/storage-v7.sql`，有效二进制样本在 `internal/cacheproxy/testdata/storage-v7.sqlite`；旧 v2～v6 DDL 与样本保留用于拒绝及不改写回归；JSON 样本在 console、upstreamstate 的 testdata 中。今后改变契约必须保留旧样本、明确新版本和升级决策，不能重新生成旧样本来消除回归失败。
+版本号不随软件版本递增，也不为了称作“v1”而重用试验期编号。开发期最早冻结基线是 SQLite **2**、配置 **3**；当前首发候选基线采用 SQLite **7**、配置 **7**、库存/批量/尝试快照 **2**、吞吐快照 **2**，不迁移旧格式。当前 SQLite 的完整 DDL 固定在 `internal/cacheproxy/schema/storage-v7.sql`，有效二进制样本在 `internal/cacheproxy/testdata/storage-v7.sqlite`；旧 v2～v6 DDL 与样本保留用于拒绝及不改写回归；JSON 样本在 console、upstreamstate 的 testdata 中。今后改变契约必须保留旧样本、明确新版本和升级决策，不能重新生成旧样本来消除回归失败。
 
 ### SQLite 字段清单
 
@@ -258,7 +258,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | config.proxyNodes | 可选节点快照，复用 version=1 / dpapi-current-user 封套；解密载荷为 `{version:2,nodes:[原生连接参数]}`。整份文档含服务器及凭据均加密，与 config 同一原子替换；无明文副本。坏/未知封套及旧节点载荷 version=1 保留并提示重新导入，不视为空库；旧载荷不静默改写，原始内容重新导入后采用新身份域并重测。输入限 2 MiB / 2048 条，保存数与运行活跃 K 无关。导入预览只存于本进程内存，草稿最多 8 份、2 小时有效；明确丢弃或替换时释放对应草稿，迟到且已放弃的结果同样释放，离线或页面关闭未送达的清理仍由过期机制兜底；设置保存才替换，失败保留旧快照。展示名不入快照；状态仅含数量及固定诊断 |
 | terms.json | 封套 `{format:2, protection:"dpapi-current-user", receipts:["<base64>", ...]}`；单文件最多 8 条独立加密凭据，总大小上限 64 KiB。密文包含 purpose=`swd-terms-receipt-v1`、version（条款版本）、sha256（正文摘要）及 acceptedAt（非零有效时间）。封套版本独立于条款版本；不兼容旧单条封套或明文，不自动迁移。读写及淘汰规则见下文 |
 | channel.key | 无复杂封套，精确 32 个随机字节，供下述 HMAC-SHA256 用途共享，域分隔符冻结。缺失排他生成；长度错误或不可读时保留原文件，通道使用临时身份且不复用持久样本。不是加密凭据或节点快照的密钥 |
-| data/state/throughput.json | schemaVersion=1、lastAttempt、samples；sample 包含 observedAt、songID、bytes、durationNs。只恢复合法域名通道和稳定代理身份、正字节/时长且非未来样本。无版本/其它版本不解释；坏 JSON 保留至下一次成功的原子保存，不生成隔离副本；历史节点键不迁移，重新采样。它不是网络当前健康真相 |
+| data/state/throughput.json | schemaVersion=2、lastAttempt、samples；sample 包含 observedAt、songID、bytes、durationNs。只恢复合法域名通道和稳定代理身份、正字节/时长且非未来样本。无版本/其它版本不解释；坏 JSON 保留至下一次成功的原子保存，不生成隔离副本；旧 v1 黄金样本保留用于拒绝回归；历史节点键和缺少通道身份的聚合样本不迁移，重新采样。它不是网络当前健康真相 |
 | data/state/inventory.json | schemaVersion=2、databasePath、videoDir、result；result 为 Inventory：catalog（revision/checkedAt/message/error）、coverageKnown/coveredSongs/totalSongs/catalogRevision/videos/bytes/scanning/updated/error；恢复强制 scanning=false |
 | data/state/batch-last-success.json、batch-last-attempt.json | 同一独立快照版本 2 和数据库／视频组合归属；result 为 Batch：catalog/catalogWarning/budgetReached/catalogHits/reused/scanOnly/missing/updated/finished/running/phase/total/checked/hits/downloaded/failed/current/failures（id/name/error）。恢复 running=false；attempt 需 finished 非零。不是可恢复执行队列 |
 | Windows 会话发现 JSON | address（仅 127.0.0.1 回环地址）、Identity（SWD 应用/协议版本、EXE、配置、PID 和进程创建时间）；仅供临时发现，还核实进程、端口和后端身份；无需用户数据迁移版本，不作为授权依据 |

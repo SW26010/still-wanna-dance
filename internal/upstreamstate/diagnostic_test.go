@@ -33,7 +33,7 @@ func TestScopedMonitorMeasuresThroughputWithoutPublishing(t *testing.T) {
 		}
 	}
 	after := upstreamrequest.Default.Snapshot()
-	if after.Revision != before.Revision || after.Transport != before.Transport {
+	if after.Revision != before.Revision || after.Candidates != before.Candidates {
 		t.Fatal("scoped monitor published to default")
 	}
 }

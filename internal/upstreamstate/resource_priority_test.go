@@ -31,7 +31,7 @@ func (b *priorityBody) Close() error { b.once.Do(func() { close(b.closed) }); re
 func TestAutomaticResourcePreemptionAndResume(t *testing.T) {
 	for _, candidates := range []bool{false, true} {
 		{
-			name := map[bool]string{false: "ordinary", true: "candidates"}[candidates]
+			name := map[bool]string{false: "single candidate", true: "multiple candidates"}[candidates]
 			t.Run(name, func(t *testing.T) {
 				entered, closed := make(chan struct{}), make(chan struct{})
 				var resources atomic.Int32

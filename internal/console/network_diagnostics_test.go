@@ -20,14 +20,14 @@ func TestDiagnosticDirectScopeDoesNotReplaceBusinessProxy(t *testing.T) {
 	c.client.CloseIdleConnections()
 	c.client.Transport.(interface{ Retire() }).Retire()
 	c.client = proxyClient
-	c.requestRevision = upstreamrequest.Default.Publish(proxyClient.Transport)
+	c.requestRevision = upstreamrequest.Default.Publish(proxyClient.Transport.(upstreamrequest.Candidates))
 	before := upstreamrequest.Default.Snapshot()
 	n, err := c.newNetworkDiagnostics()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer n.close()
-	if after := upstreamrequest.Default.Snapshot(); after.Transport != before.Transport || after.Revision != before.Revision {
+	if after := upstreamrequest.Default.Snapshot(); after.Candidates != before.Candidates || after.Revision != before.Revision {
 		t.Fatal("diagnostic changed business channel")
 	}
 	if n.channel == upstreamrequest.Default || c.client != proxyClient || c.settings.UpstreamMode != "proxy" || c.savedSettings.UpstreamMode != "proxy" {

@@ -176,7 +176,7 @@ func ResourceSourceActive(s ResourceSource, provider Candidates, now time.Time) 
 }
 
 func (c *Channel) pruneResourceSourcesLocked(now time.Time) {
-	provider, _ := c.transport.(Candidates)
+	provider := c.candidates
 	for key, observation := range c.resourceDomains {
 		if !now.Before(observation.until) {
 			delete(c.resourceDomains, key)

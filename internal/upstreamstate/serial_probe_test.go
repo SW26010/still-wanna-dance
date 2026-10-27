@@ -17,9 +17,9 @@ type serialProbeChannels struct {
 	transport http.RoundTripper
 }
 
-func TestPlaybackRoutesProgressIndependentlyInBothMonitorModes(t *testing.T) {
+func TestPlaybackRoutesProgressIndependentlyWithSingleAndMultipleCandidates(t *testing.T) {
 	for _, candidates := range []bool{false, true} {
-		t.Run(map[bool]string{false: "ordinary", true: "candidates"}[candidates], func(t *testing.T) {
+		t.Run(map[bool]string{false: "single candidate", true: "multiple candidates"}[candidates], func(t *testing.T) {
 			cfStarted, otherResource := make(chan struct{}), make(chan struct{})
 			gate := make(chan struct{})
 			var cfOnce, otherOnce sync.Once
@@ -98,7 +98,7 @@ func (b measuredBody) Close() error {
 
 func TestResourceProbesNeverOverlap(t *testing.T) {
 	for _, candidates := range []bool{false, true} {
-		t.Run(map[bool]string{false: "ordinary", true: "candidates"}[candidates], func(t *testing.T) {
+		t.Run(map[bool]string{false: "single candidate", true: "multiple candidates"}[candidates], func(t *testing.T) {
 			var active, count atomic.Int32
 			tr := transportFunc(func(r *http.Request) (*http.Response, error) {
 				resp, err := fixture(r)

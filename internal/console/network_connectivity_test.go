@@ -177,7 +177,7 @@ func TestNetworkConnectivityCancelRetainsCompletedResults(t *testing.T) {
 	c.networkDiagnostics.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: 503, Body: io.NopCloser(strings.NewReader("")), Header: make(http.Header)}, nil
 	})
-	c.networkDiagnostics.channel.Publish(c.networkDiagnostics.client.Transport)
+	c.networkDiagnostics.channel.Publish(c.networkDiagnostics.client.Transport.(upstreamrequest.Candidates))
 	if err := c.controlNetworkConnectivity(false, networkCalibrationRequest{}); err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +287,7 @@ func TestNetworkConnectivityReusesMonitorResponsesToInitializeStorage(t *testing
 			t.Fatal("connectivity retained video data", dir, files, err)
 		}
 	}
-	if after := upstreamrequest.Default.Snapshot(); after.Transport != before.Transport || after.Revision != before.Revision || c.settings != settings {
+	if after := upstreamrequest.Default.Snapshot(); after.Candidates != before.Candidates || after.Revision != before.Revision || c.settings != settings {
 		t.Fatal("diagnostic changed business routing")
 	}
 }

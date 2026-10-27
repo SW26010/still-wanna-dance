@@ -225,7 +225,7 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 	}
 	if err == nil {
 		c.loadSnapshots()
-		c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport)
+		c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport.(upstreamrequest.Candidates))
 	}
 	if err != nil && c.store != nil {
 		c.store.Close()

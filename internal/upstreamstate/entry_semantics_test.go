@@ -46,9 +46,9 @@ func TestEntryFailureFeedbackBoundaries(t *testing.T) {
 				m := testMonitor(t, fixture)
 				m.mu.Lock()
 				prior := observation{op: Catalog, route: "api", state: "available", at: o.at.Add(-time.Second), duration: time.Millisecond, latency: time.Millisecond, bytes: 10}
-				m.record(prior)
-				m.record(o)
-				result := m.resultLocked(Catalog, "api", time.Now())
+				recordFixture(m, prior)
+				recordFixture(m, o)
+				result := fixtureResult(m, Catalog, "api", time.Now())
 				m.mu.Unlock()
 				if localObservation(tc.state) {
 					if result.State != "available" || result.Samples != 1 || result.LocalDiagnostic != tc.state {

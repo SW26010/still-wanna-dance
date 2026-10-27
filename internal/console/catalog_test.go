@@ -7,15 +7,26 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/upstreamrequest"
 )
 
 type catalogTransport func(*http.Request) (*http.Response, error)
 
 func (f catalogTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f catalogTransport) Changed() <-chan struct{}                          { return nil }
+func (f catalogTransport) Candidates(_ context.Context, target string) ([]upstreamrequest.Candidate, error) {
+	return f.Current(target), nil
+}
+func (f catalogTransport) Current(target string) []upstreamrequest.Candidate {
+	u, _ := url.Parse(target)
+	return []upstreamrequest.Candidate{{ID: "direct/" + u.Hostname() + "/192.0.2.1", Host: u.Hostname(), Mode: "direct", IP: "192.0.2.1", Transport: f}}
+}
 
 func TestCatalogUsesHTTPSForProductionAPI(t *testing.T) {
 	c := testConsole(t)

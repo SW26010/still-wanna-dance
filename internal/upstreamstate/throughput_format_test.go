@@ -12,10 +12,15 @@ import (
 )
 
 func TestThroughputVersionAndClockRollback(t *testing.T) {
+	old, err := os.ReadFile("testdata/throughput-v1.json")
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, document := range []string{
+		string(old),
 		`{"lastAttempt":"2026-01-01T00:00:00Z"}`,
 		`{"schemaVersion":999,"lastAttempt":"2026-01-01T00:00:00Z"}`,
-		`{"schemaVersion":1,"lastAttempt":"2099-01-01T00:00:00Z"}`,
+		`{"schemaVersion":2,"lastAttempt":"2099-01-01T00:00:00Z"}`,
 	} {
 		path := filepath.Join(t.TempDir(), "throughput.json")
 		if err := os.WriteFile(path, []byte(document), 0600); err != nil {
@@ -28,6 +33,9 @@ func TestThroughputVersionAndClockRollback(t *testing.T) {
 		if !m.lastThroughput.IsZero() || len(m.throughput) != 0 {
 			t.Fatal("restored incompatible/future state")
 		}
+		if unchanged, err := os.ReadFile(path); err != nil || string(unchanged) != document {
+			t.Fatal("loading rewrote unsupported observations", err)
+		}
 		m.Close()
 	}
 }
@@ -37,7 +45,7 @@ func TestThroughputUTCAndDurationContract(t *testing.T) {
 	m.throughputStatePath = filepath.Join(t.TempDir(), "throughput.json")
 	at := time.Date(2026, 1, 2, 3, 4, 5, 123456789, time.FixedZone("offset", 8*3600))
 	m.lastThroughput = at
-	m.throughput["resource/play.udon.dance"] = observation{at: at, bytes: 42, transferDuration: 123456789, songID: 1}
+	m.throughput["resource/play.udon.dance/direct/play.udon.dance/192.0.2.1"] = observation{at: at, bytes: 42, transferDuration: 123456789, songID: 1}
 	if err := m.saveThroughputTime(); err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +60,7 @@ func TestThroughputUTCAndDurationContract(t *testing.T) {
 	if err := json.Unmarshal(b, &state); err != nil {
 		t.Fatal(err)
 	}
-	if state.SchemaVersion != 1 || !state.LastAttempt.Equal(at) {
+	if state.SchemaVersion != throughputSchemaVersion || !state.LastAttempt.Equal(at) {
 		t.Fatal(state)
 	}
 }
@@ -92,8 +100,8 @@ func TestThroughputClaimPreservesMonotonicCooldown(t *testing.T) {
 	}
 }
 
-func TestThroughputV1Golden(t *testing.T) {
-	b, err := os.ReadFile("testdata/throughput-v1.json")
+func TestThroughputV2Golden(t *testing.T) {
+	b, err := os.ReadFile("testdata/throughput-v2.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +114,7 @@ func TestThroughputV1Golden(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer m.Close()
-	o, ok := m.throughput["resource/play.udon.dance"]
+	o, ok := m.throughput["resource/play.udon.dance/direct/play.udon.dance/192.0.2.1"]
 	if !ok || o.transferDuration != 123456789 || o.at.UTC().Format(time.RFC3339Nano) != "2026-01-02T03:04:05.123456789Z" {
 		t.Fatal(o)
 	}

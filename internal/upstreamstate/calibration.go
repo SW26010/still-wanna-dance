@@ -223,11 +223,8 @@ func (c *Calibration) Close() {
 }
 
 func calibrationClient(ctx context.Context, source upstreamrequest.Snapshot, target, upstream string) (*http.Client, error) {
-	if source.Transport == nil {
-		return nil, errors.New("channel_unavailable")
-	}
 	if source.Candidates == nil {
-		return requestClient(source.Transport), nil
+		return nil, errors.New("channel_unavailable")
 	}
 	cs, err := source.Candidates.Candidates(ctx, target)
 	if err != nil {

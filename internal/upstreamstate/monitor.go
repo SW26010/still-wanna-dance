@@ -242,7 +242,7 @@ func (m *Monitor) Start() error {
 				}
 				subscribedRevision = source.Revision
 			}
-			if source.Transport == nil {
+			if source.Candidates == nil {
 				select {
 				case <-m.ctx.Done():
 					return
@@ -323,7 +323,7 @@ func (m *Monitor) checkRequest(ctx context.Context, manual bool, selected ...Che
 		joined := m.active != nil
 		if m.active == nil {
 			source := m.refreshChannelLocked()
-			if source.Transport == nil {
+			if source.Candidates == nil {
 				m.mu.Unlock()
 				return upstreamrequest.ErrUnavailable
 			}

@@ -8,7 +8,7 @@ import (
 func TestUpstreamChannelFollowsSettings(t *testing.T) {
 	c := testConsole(t)
 	before := upstreamrequest.Default.Snapshot()
-	if before.Transport != c.client.Transport {
+	if before.Candidates != c.client.Transport.(upstreamrequest.Candidates) {
 		t.Fatal("initial request channel differs")
 	}
 	s := c.settings
@@ -18,7 +18,7 @@ func TestUpstreamChannelFollowsSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	after := upstreamrequest.Default.Snapshot()
-	if after.Transport != c.client.Transport || after.Revision != before.Revision {
+	if after.Candidates != c.client.Transport.(upstreamrequest.Candidates) || after.Revision != before.Revision {
 		t.Fatal("save changed active channel")
 	}
 	select {
@@ -27,7 +27,7 @@ func TestUpstreamChannelFollowsSettings(t *testing.T) {
 	default:
 	}
 	c.Close()
-	if upstreamrequest.Default.Snapshot().Transport != nil {
+	if upstreamrequest.Default.Snapshot().Candidates != nil {
 		t.Fatal("closed console retained channel")
 	}
 }

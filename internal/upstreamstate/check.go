@@ -8,9 +8,8 @@ import (
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
-// checkRoutes owns the common catalog -> playback -> resource flow. Candidate
-// discovery and preference maintenance are optional capabilities of this batch;
-// separate monitors continue to own separate configuration and observation state.
+// checkRoutes owns candidate discovery and the catalog -> playback -> resource
+// flow. Separate monitors own separate configuration and observation state.
 func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequest.Snapshot, record func(observation)) {
 	kind := m.batchKind
 	started := time.Now()
@@ -43,9 +42,6 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 	var preparedMu sync.Mutex
 	prepared := make(map[string]upstreamrequest.CandidateReadiness)
 	prepare := func(target string) []upstreamrequest.Candidate {
-		if provider == nil {
-			return []upstreamrequest.Candidate{{Transport: source.Transport}}
-		}
 		qctx, cancel := context.WithTimeout(ctx, p.RequestTimeout)
 		defer cancel()
 		if discovery, ok := provider.(upstreamrequest.CandidateDiscovery); ok {
@@ -169,9 +165,6 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 				publish(m.probeResourceWhenIdle(ctx, requestClient(c.Transport), p, id, sample), c)
 			}
 		}
-	}
-	if provider == nil {
-		return
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()

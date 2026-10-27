@@ -1,28 +1,27 @@
 package upstreamrequest
 
 import (
-	"net/http"
 	"testing"
 )
 
 func TestOwnershipAndChangeNotification(t *testing.T) {
 	c := NewChannel()
 	initial := c.Snapshot()
-	first := c.Publish(&http.Transport{})
+	first := c.Publish(&Pool{})
 	select {
 	case <-initial.Changed:
 	default:
 		t.Fatal("no publish notification")
 	}
-	tr := &http.Transport{}
+	tr := &Pool{}
 	second := c.Publish(tr)
 	c.Release(first)
-	if c.Snapshot().Transport != tr {
+	if c.Snapshot().Candidates != tr {
 		t.Fatal("old owner released new channel")
 	}
 	current := c.Snapshot()
 	c.Release(second)
-	if c.Snapshot().Transport != nil {
+	if c.Snapshot().Candidates != nil {
 		t.Fatal("channel not released")
 	}
 	select {

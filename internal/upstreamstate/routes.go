@@ -208,10 +208,7 @@ func (m *Monitor) observePlaybackDomains(o observation) {
 	if o.op != PlaybackURL || localObservation(o.state) || m.closed {
 		return
 	}
-	key := string(o.op) + "/" + o.route
-	if o.channel != "" {
-		key += "/" + o.channel
-	}
+	key := string(o.op) + "/" + o.route + "/" + o.channel
 	if m.resourceSources == nil {
 		m.resourceSources = make(map[string]observation)
 	}
@@ -230,10 +227,7 @@ func (m *Monitor) record(o observation) {
 	if m.closed {
 		return
 	}
-	key := string(o.op) + "/" + o.route
-	if o.channel != "" {
-		key += "/" + o.channel
-	}
+	key := string(o.op) + "/" + o.route + "/" + o.channel
 	if localObservation(o.state) {
 		if m.diagnostics == nil {
 			m.diagnostics = make(map[string]observation)
@@ -272,9 +266,6 @@ func (m *Monitor) record(o observation) {
 		m.throughput[key] = o
 		m.persistThroughputResult()
 	}
-}
-func (m *Monitor) resultLocked(op Operation, id string, now time.Time) Result {
-	return m.resultKeyLocked(op, id, string(op)+"/"+id, now)
 }
 func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (r Result) {
 	r = Result{Operation: op, Route: id, Entry: entry(op, id), State: "unknown", Reason: "no_sample"}
@@ -362,13 +353,5 @@ func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (
 
 // resultsLocked preserves route definition order, regardless of measurements.
 func (m *Monitor) resultsLocked(op Operation, now time.Time) []Result {
-	if source := m.channel.Snapshot(); source.Candidates != nil {
-		return m.candidateResultsLocked(op, source.Candidates, now)
-	}
-	ids := m.routeIDsLocked(op)
-	results := make([]Result, 0, len(ids))
-	for _, id := range ids {
-		results = append(results, m.resultLocked(op, id, now))
-	}
-	return results
+	return m.candidateResultsLocked(op, m.channel.Snapshot().Candidates, now)
 }

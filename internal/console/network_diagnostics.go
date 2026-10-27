@@ -70,7 +70,7 @@ func (c *Console) networkConnectivityMonitorLocked(upstream string, settings Set
 		return nil, err
 	}
 	channel := upstreamrequest.NewChannel()
-	revision := channel.Publish(client.Transport)
+	revision := channel.Publish(client.Transport.(upstreamrequest.Candidates))
 	monitor, err := c.newDiagnosticMonitor(channel)
 	if err != nil {
 		channel.Release(revision)
@@ -92,7 +92,7 @@ func (c *Console) newNetworkDiagnostics() (*networkDiagnostics, error) {
 		return nil, err
 	}
 	channel := upstreamrequest.NewChannel()
-	revision := channel.Publish(client.Transport)
+	revision := channel.Publish(client.Transport.(upstreamrequest.Candidates))
 	monitor, err := c.newDiagnosticMonitor(channel)
 	if err != nil {
 		client.Transport.(interface{ Retire() }).Retire()

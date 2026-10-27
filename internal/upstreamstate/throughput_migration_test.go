@@ -17,10 +17,11 @@ func TestThroughputRejectsLegacyNodeKeys(t *testing.T) {
 	newer.ObservedAt = at.Add(time.Minute)
 	newer.SongID = 73
 	state := throughputState{SchemaVersion: throughputSchemaVersion, LastAttempt: at, Samples: map[string]ThroughputSample{
+		"resource/play.udon.dance": old,
 		"resource/cf":              old,
-		"resource/play.udon.dance": newer,
-		"resource/hkg/direct/media.future.example/192.0.2.1": old,
-		"resource/hkg/socks5/nya.xin.moe/1":                  old,
+		"resource/play.udon.dance/direct/play.udon.dance/192.0.2.1": newer,
+		"resource/hkg/direct/media.future.example/192.0.2.1":        old,
+		"resource/hkg/socks5/nya.xin.moe/1":                         old,
 	}}
 	b, err := json.Marshal(state)
 	if err != nil {
@@ -38,7 +39,7 @@ func TestThroughputRejectsLegacyNodeKeys(t *testing.T) {
 	if len(m.Results(Resource)) != 0 {
 		t.Fatal("persisted history discovered a domain")
 	}
-	if len(m.throughput) != 1 || m.throughput["resource/play.udon.dance"].songID != 73 || !m.lastThroughput.Equal(at) {
+	if len(m.throughput) != 1 || m.throughput["resource/play.udon.dance/direct/play.udon.dance/192.0.2.1"].songID != 73 || !m.lastThroughput.Equal(at) {
 		t.Fatal("lost historical domain ownership or cooldown", m.throughput, m.lastThroughput)
 	}
 	if err := m.saveThroughputTime(); err != nil {

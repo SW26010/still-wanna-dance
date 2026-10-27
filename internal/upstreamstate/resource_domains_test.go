@@ -68,7 +68,7 @@ func TestResourcesFollowReturnedDomainsAcrossNodesAndChannels(t *testing.T) {
 					ch.Publish(&domainCandidates{candidateFixture: &candidateFixture{expires: time.Now().Add(time.Hour), second: true, changed: make(chan struct{})}, wrap: wrap})
 					wantLoads = 2
 				} else {
-					ch.Publish(wrap(transportFunc(fixture)))
+					ch.Publish(transportFunc(wrap(transportFunc(fixture)).RoundTrip))
 				}
 				m, err := newMonitor(Options{}, ch)
 				if err != nil {
@@ -139,22 +139,23 @@ func TestResourcesFollowReturnedDomainsAcrossNodesAndChannels(t *testing.T) {
 
 func TestResourceSetReplacesAndExpiresAPIResults(t *testing.T) {
 	ch := upstreamrequest.NewChannel()
+	ch.Publish(transportFunc(fixture))
 	m, err := newMonitor(Options{}, ch)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer m.Close()
 	now := time.Now()
-	m.record(observation{op: PlaybackURL, route: "hkg", resourceHost: "first.example", state: "available", at: now})
-	m.record(observation{op: PlaybackURL, route: "cf", resourceHost: "shared.example", state: "available", at: now})
-	m.record(observation{op: PlaybackURL, route: "hkg", resourceHost: "new.example", state: "available", at: now.Add(time.Millisecond)})
+	recordFixture(m, observation{op: PlaybackURL, route: "hkg", resourceHost: "first.example", state: "available", at: now})
+	recordFixture(m, observation{op: PlaybackURL, route: "cf", resourceHost: "shared.example", state: "available", at: now})
+	recordFixture(m, observation{op: PlaybackURL, route: "hkg", resourceHost: "new.example", state: "available", at: now.Add(time.Millisecond)})
 	if got := m.Results(Resource); len(got) != 2 {
 		t.Fatal(got)
 	}
 	if ch.IsResourceDomain("first.example") || !ch.IsResourceDomain("new.example") {
 		t.Fatal(ch.ResourceDomains())
 	}
-	m.record(observation{op: PlaybackURL, route: "cf", state: "unavailable", at: now.Add(time.Millisecond)})
+	recordFixture(m, observation{op: PlaybackURL, route: "cf", state: "unavailable", at: now.Add(time.Millisecond)})
 	if got := m.Results(Resource); len(got) != 1 || got[0].Route != "new.example" {
 		t.Fatal(got)
 	}

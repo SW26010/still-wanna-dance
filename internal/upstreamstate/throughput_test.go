@@ -203,7 +203,7 @@ func TestHistoricalThroughputSurvivesRestartWithoutRevivingHealth(t *testing.T) 
 	if len(restored.Results(Resource)) != 0 {
 		t.Fatal("history established resource membership")
 	}
-	restored.record(observation{op: PlaybackURL, route: "cf", state: "available", resourceHost: "play.udon.dance", at: time.Now()})
+	recordFixture(restored, observation{op: PlaybackURL, route: "cf", state: "available", resourceHost: "play.udon.dance", at: time.Now()})
 	r := restored.Results(Resource)[0]
 	if r.State != "unknown" || r.EstimatedSpeedBPS != nil || r.LastThroughput == nil || r.LastThroughput.SongID != 42 || !r.LastThroughput.ObservedAt.Equal(at) || r.LastThroughput.Bytes != 16<<20 || r.LastThroughput.Duration != 2*time.Second {
 		t.Fatalf("history not restored independently of health: %+v", r)
@@ -273,7 +273,7 @@ func TestLatencyDoesNotReplaceThroughput(t *testing.T) {
 	now := time.Now()
 	recordFixture(m, observation{op: Resource, route: "play.udon.dance", state: "available", at: now, songID: 42, bytes: 16 << 20, transferDuration: 2 * time.Second, duration: 3 * time.Second, latency: time.Second})
 	recordFixture(m, observation{op: Resource, route: "play.udon.dance", state: "available", at: now.Add(time.Second), songID: 73, duration: time.Millisecond, latency: time.Millisecond})
-	r := m.resultLocked(Resource, "play.udon.dance", now.Add(2*time.Second))
+	r := fixtureResult(m, Resource, "play.udon.dance", now.Add(2*time.Second))
 	if r.EstimatedSpeedBPS == nil || *r.EstimatedSpeedBPS != 8<<20 || !r.ThroughputObservedAt.Equal(now) || r.ThroughputSongID != 42 || r.SampleSongID != 73 {
 		t.Fatal(r)
 	}

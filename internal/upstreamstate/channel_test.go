@@ -40,14 +40,18 @@ func TestChannelAvailabilityAndAutomaticRefresh(t *testing.T) {
 	if resultFor(t, m, Resource, "play.udon.dance").State != "available" {
 		t.Fatal(m.Snapshot())
 	}
-	ch.Publish(transportFunc(func(*http.Request) (*http.Response, error) { return response(524, ""), nil }))
-	// A reader must never observe a observation from the previous channel.
+	ch.Publish(serialProbeChannels{&candidateFixture{expires: time.Now().Add(time.Hour), changed: make(chan struct{})},
+		transportFunc(func(*http.Request) (*http.Response, error) { return response(524, ""), nil })})
+	// Different candidate identities must not inherit the old observations.
 	if r := m.Results(Resource); len(r) != 0 {
 		t.Fatal(r)
 	}
-	awaitCondition(t, func() bool { return resultFor(t, m, Catalog, "api").Reason == "origin_timeout" })
-	if resultFor(t, m, PlaybackURL, "cf").State != "unknown" {
-		t.Fatal("retained old song seed")
+	awaitCondition(t, func() bool {
+		return !m.Snapshot().Checking && resultFor(t, m, Catalog, "api").Reason == "origin_timeout"
+	})
+	// The unexpired catalog song remains a usable probe seed across channels.
+	if resultFor(t, m, PlaybackURL, "cf").Reason != "origin_timeout" {
+		t.Fatal("replacement channel was not measured")
 	}
 	snapshot := ch.Snapshot()
 	ch.Release(snapshot.Revision)

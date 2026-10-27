@@ -25,7 +25,7 @@ func TestLocalFailuresPreserveRecommendationSamplesAndSources(t *testing.T) {
 	for _, state := range []string{"local_capacity", "runtime_retired", "channel_unavailable", "canceled"} {
 		m.mu.Lock()
 		o := observation{op: Resource, route: "play.udon.dance", channel: before.Channel.ID, state: state, at: time.Now(), songID: 42}
-		m.record(o)
+		recordFixture(m, o)
 		m.updatePreferencesLocked(f, o.at, "")
 		m.mu.Unlock()
 		after, ok := m.Recommended(Resource)
@@ -42,7 +42,7 @@ func TestLocalFailuresPreserveRecommendationSamplesAndSources(t *testing.T) {
 	// Real business timeouts still remove eligibility and preserve historical
 	// throughput only as history, not a new successful measurement.
 	m.mu.Lock()
-	m.record(observation{op: Resource, route: "play.udon.dance", channel: before.Channel.ID, state: "timeout", at: time.Now()})
+	recordFixture(m, observation{op: Resource, route: "play.udon.dance", channel: before.Channel.ID, state: "timeout", at: time.Now()})
 	m.mu.Unlock()
 	after, ok := m.Recommended(Resource)
 	if !ok || after.Channel.ID == before.Channel.ID {
@@ -55,14 +55,14 @@ func TestLocalPlaybackFailureKeepsResourceDiscovery(t *testing.T) {
 	prior := observation{op: PlaybackURL, route: "cf", state: "available", resourceHost: "play.udon.dance", at: time.Now().Add(-time.Second), songID: 42}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.record(prior)
+	recordFixture(m, prior)
 	for _, state := range []string{"local_capacity", "channel_unavailable"} {
-		m.record(observation{op: PlaybackURL, route: "cf", state: state, at: time.Now()})
-		if got := m.resourceSources["playback_url/cf"]; got.resourceHost != prior.resourceHost || got.at != prior.at {
+		recordFixture(m, observation{op: PlaybackURL, route: "cf", state: state, at: time.Now()})
+		if got := m.resourceSources["playback_url/cf/"+fixtureChannelID(entry(PlaybackURL, "cf"))]; got.resourceHost != prior.resourceHost || got.at != prior.at {
 			t.Fatal("local failure erased discovery", state)
 		}
 	}
-	if r := m.resultLocked(PlaybackURL, "cf", time.Now().Add(m.policy.Lifetime+time.Second)); r.State != "stale" {
+	if r := fixtureResult(m, PlaybackURL, "cf", time.Now().Add(m.policy.Lifetime+time.Second)); r.State != "stale" {
 		t.Fatal("local diagnostic renewed sample")
 	}
 }

@@ -81,7 +81,7 @@ func (c *Console) controlNetworkCalibration(cancel bool, input networkCalibratio
 		return err
 	}
 	channel := upstreamrequest.NewChannel()
-	revision := channel.Publish(client.Transport)
+	revision := channel.Publish(client.Transport.(upstreamrequest.Candidates))
 	return test.StartWithUpstream(channel, "proxy", func() {
 		channel.Release(revision)
 		client.CloseIdleConnections()

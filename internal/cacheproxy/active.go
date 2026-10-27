@@ -9,16 +9,16 @@ import (
 
 // ActiveDownload contains observation data only; never URLs or proxy settings.
 type ActiveDownload struct {
-	ID             uint64       `json:"id"`
-	Resource       string       `json:"resource"`
-	Stage          string       `json:"stage"`
-	Host           string       `json:"host"`
-	Bytes          int64        `json:"bytes"`
-	Size           int64        `json:"size"`
-	BytesPerSecond float64      `json:"bytesPerSecond"`
-	IdleMS         int64        `json:"idleMS"`
-	Songs          []RecentSong `json:"songs"`
-	MoreSongs      bool         `json:"moreSongs"`
+	ID             uint64      `json:"id"`
+	Resource       string      `json:"resource"`
+	Stage          string      `json:"stage"`
+	Host           string      `json:"host"`
+	Bytes          int64       `json:"bytes"`
+	Size           int64       `json:"size"`
+	BytesPerSecond float64     `json:"bytesPerSecond"`
+	IdleMS         int64       `json:"idleMS"`
+	Songs          []CacheSong `json:"songs"`
+	MoreSongs      bool        `json:"moreSongs"`
 	songIDs        []string
 }
 
@@ -55,7 +55,7 @@ func (s *Server) ActiveDownloads(ctx context.Context) (result ActiveDownloads, e
 		p.mu.Lock()
 		now := time.Now()
 		task := ActiveDownload{ID: f.id, Resource: key, Stage: p.stage, Host: p.host,
-			Bytes: p.bytes, Size: p.size, BytesPerSecond: p.rate(now), IdleMS: max(0, now.Sub(p.lastByte).Milliseconds()), Songs: []RecentSong{}}
+			Bytes: p.bytes, Size: p.size, BytesPerSecond: p.rate(now), IdleMS: max(0, now.Sub(p.lastByte).Milliseconds()), Songs: []CacheSong{}}
 		p.mu.Unlock()
 		for id := range f.monitorSongs {
 			task.songIDs = append(task.songIDs, id)
@@ -82,7 +82,7 @@ func (s *Server) ActiveDownloads(ctx context.Context) (result ActiveDownloads, e
 			return ActiveDownloads{}, err
 		}
 		for rows.Next() {
-			var song RecentSong
+			var song CacheSong
 			if err = rows.Scan(&song.ID, &song.Title); err != nil {
 				rows.Close()
 				return ActiveDownloads{}, err

@@ -1,15 +1,12 @@
 package console
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -27,11 +24,11 @@ func TestCacheDeletionUsesApplicationStoreWithoutEngine(t *testing.T) {
 	if err := os.WriteFile(path, []byte("video"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	page, err := cacheproxy.ReadCachePage(t.Context(), paths, "", "", 0)
-	if err != nil || len(page.Entries) != 1 {
+	page, err := cacheproxy.ReadLibraryPage(t.Context(), paths, cacheproxy.LibraryQuery{View: "resources", Filter: "saved", Search: "", Sort: "", Offset: 0})
+	if err != nil || len(page.Keys) != 1 {
 		t.Fatal("cannot select fixture video", page, err)
 	}
-	body, _ := json.Marshal(map[string]any{"storageID": page.StorageID, "entries": []cacheproxy.CacheSelection{{Key: key, Stamp: page.Entries[0].Stamp}}})
+	body, _ := json.Marshal(map[string]any{"storageID": page.StorageID, "entries": []cacheproxy.CacheSelection{{Key: key, Stamp: (*page.Resources[page.Keys[0]].Local).Stamp}}})
 	r := httptest.NewRequest("POST", "http://"+c.address+"/api/cache/delete", strings.NewReader(string(body)))
 	r.Header.Set("X-SWD-Token", c.token)
 	w := httptest.NewRecorder()
@@ -50,7 +47,7 @@ func TestCacheDeletionUsesApplicationStoreWithoutEngine(t *testing.T) {
 	}
 }
 
-func TestCacheSearchLengthMatchesHTMLMaxlength(t *testing.T) {
+func TestLibrarySearchLengthMatchesHTMLMaxlength(t *testing.T) {
 	c := testConsole(t)
 	createReaderLibrary(t, c)
 	for _, tc := range []struct {
@@ -69,7 +66,7 @@ func TestCacheSearchLengthMatchesHTMLMaxlength(t *testing.T) {
 		{"invalid UTF-8", "\xff", 400},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			r := httptest.NewRequest("GET", "http://"+c.address+"/api/cache?q="+url.QueryEscape(tc.query), nil)
+			r := httptest.NewRequest("GET", "http://"+c.address+"/api/library?q="+url.QueryEscape(tc.query), nil)
 			r.Header.Set("X-SWD-Token", c.token)
 			w := httptest.NewRecorder()
 			c.ServeHTTP(w, r)
@@ -83,9 +80,9 @@ func TestCacheSearchLengthMatchesHTMLMaxlength(t *testing.T) {
 func TestCacheAPIAuthAndOfflineRead(t *testing.T) {
 	c := testConsole(t)
 	createReaderLibrary(t, c)
-	for _, path := range []string{"/api/cache", "/api/cache/delete", "/api/cache/open"} {
+	for _, path := range []string{"/api/library", "/api/cache/delete", "/api/cache/open"} {
 		method := "POST"
-		if path == "/api/cache" {
+		if path == "/api/library" {
 			method = "GET"
 		}
 		for _, tc := range []struct{ host, token, origin string }{{c.address, "", ""}, {"evil.example", c.token, ""}, {c.address, c.token, "http://evil.example"}} {
@@ -102,7 +99,7 @@ func TestCacheAPIAuthAndOfflineRead(t *testing.T) {
 	for _, tc := range []struct {
 		path string
 		code int
-	}{{"/api/cache", 200}, {"/api/cache?offset=-1", 400}, {"/api/cache?sort=invalid", 400}} {
+	}{{"/api/library", 200}, {"/api/library?offset=-1", 400}, {"/api/library?sort=invalid", 400}} {
 		r := httptest.NewRequest("GET", "http://"+c.address+tc.path, nil)
 		r.Header.Set("X-SWD-Token", c.token)
 		w := httptest.NewRecorder()
@@ -116,14 +113,14 @@ func TestCacheAPIAuthAndOfflineRead(t *testing.T) {
 	}
 }
 
-func TestCacheGETDoesNotAcquireLifecycleLock(t *testing.T) {
+func TestLibraryGETDoesNotAcquireLifecycleLock(t *testing.T) {
 	c := testConsole(t)
 	createReaderLibrary(t, c)
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	done := make(chan *httptest.ResponseRecorder, 1)
 	go func() {
-		r := httptest.NewRequest("GET", "http://"+c.address+"/api/cache", nil)
+		r := httptest.NewRequest("GET", "http://"+c.address+"/api/library", nil)
 		r.Header.Set("X-SWD-Token", c.token)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
@@ -135,93 +132,7 @@ func TestCacheGETDoesNotAcquireLifecycleLock(t *testing.T) {
 			t.Fatal(w.Code, w.Body.String())
 		}
 	case <-time.After(time.Second):
-		t.Fatal("cache GET waited for lifecycle lock")
-	}
-}
-
-func TestCacheSnapshotSlowReadDoesNotBlockLifecycleAndRejectsStaleResults(t *testing.T) {
-	for _, operation := range []string{"stop", "close", "switch", "switch-back"} {
-		t.Run(operation, func(t *testing.T) {
-			c := testConsole(t)
-			entered, release := make(chan struct{}), make(chan struct{})
-			var once sync.Once
-			unblock := func() { once.Do(func() { close(release) }) }
-			defer unblock()
-			type outcome struct {
-				page cacheproxy.CachePage
-				err  error
-			}
-			readDone := make(chan outcome, 1)
-			go func() {
-				page, err := c.cacheSnapshot(func(root cacheproxy.LibraryPaths) (cacheproxy.CachePage, error) {
-					close(entered)
-					<-release
-					return cacheproxy.CachePage{StorageID: "old", Entries: []cacheproxy.CacheEntry{{Key: "old"}}}, nil
-				})
-				readDone <- outcome{page, err}
-			}()
-			<-entered
-			actionDone := make(chan error, 1)
-			go func() {
-				switch operation {
-				case "stop":
-					actionDone <- c.stop()
-				case "close":
-					actionDone <- c.Close()
-				default:
-					c.mu.Lock()
-					original := c.settings
-					c.mu.Unlock()
-					next := original
-					setTestLibraryPaths(&next, filepath.Join(t.TempDir(), "other"))
-					createTestDatabase(t, next.DatabasePath)
-					err := c.save(next)
-					if err == nil && operation == "switch-back" {
-						err = c.save(original)
-					}
-					actionDone <- err
-				}
-			}()
-			select {
-			case err := <-actionDone:
-				if err != nil {
-					t.Fatal(err)
-				}
-			case <-time.After(time.Second):
-				t.Fatal("slow cache reader blocked " + operation)
-			}
-			unblock()
-			result := <-readDone
-			if operation != "close" {
-				if result.err != nil || result.page.StorageID != "old" {
-					t.Fatal(result)
-				}
-			} else if result.err == nil || len(result.page.Entries) != 0 {
-				t.Fatal("stale cache escaped", result)
-			}
-		})
-	}
-}
-
-func TestCacheSnapshotUsesCurrentScanProtection(t *testing.T) {
-	c := testConsole(t)
-	page, err := c.cacheSnapshot(func(cacheproxy.LibraryPaths) (cacheproxy.CachePage, error) {
-		c.mu.Lock()
-		c.batch = Batch{Running: true, ScanOnly: true}
-		c.mu.Unlock()
-		return cacheproxy.CachePage{Entries: []cacheproxy.CacheEntry{{Key: "item"}}}, nil
-	})
-	c.mu.Lock()
-	c.batch = Batch{}
-	c.mu.Unlock()
-	if err != nil || !page.Entries[0].Protected {
-		t.Fatal(page, err)
-	}
-	_, err = c.cacheSnapshot(func(cacheproxy.LibraryPaths) (cacheproxy.CachePage, error) {
-		return cacheproxy.CachePage{}, context.Canceled
-	})
-	if !errors.Is(err, context.Canceled) {
-		t.Fatal(err)
+		t.Fatal("library GET waited for lifecycle lock")
 	}
 }
 

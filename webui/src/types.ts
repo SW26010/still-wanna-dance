@@ -47,13 +47,12 @@ export interface Inventory {
   updated?: string; coverageKnown?: boolean; totalSongs: number; coveredSongs: number; scanning?: boolean; error?: string;
   catalogRevision?: string; catalog?: {checkedAt?: string; revision?: string; error?: string; message?: string};
 }
-export interface Song { id: string; title?: string; current?: boolean }
+export interface Song { id: string; title?: string }
 export type SongPolicy = 'normal' | 'blocked' | 'favorite';
 export interface SongPage {storageID:string;videoError?:string;entries:{id:string;title:string;policy:SongPolicy;saved:boolean}[];total:number}
 export interface CacheEntry {
   key: string; stamp: string; bytes: number; songs: Song[]; songCount: number; known: boolean; protected: boolean; state: string; lastRequest: number;
 }
-export interface CachePage {storageID: string; entries: CacheEntry[]; total: number; totalBytes?: number; fileCount: number}
 export interface LibrarySong {id:string;title:string;artist:string;dancer:string;group:string;policy:SongPolicy;score:number;hasDemand:boolean;resource:string}
 export interface LibraryResource {key:string;size:number|null;duration:number|null;songs:Song[];songCount:number;local:CacheEntry|null}
 export interface LibraryPage {storageID:string;databaseID:string;videoError?:string;songs:LibrarySong[];resources:Record<string,LibraryResource>;keys:string[];total:number;fileCount:number;totalBytes:number}
@@ -62,7 +61,7 @@ export interface RequestRecord {
 	sources?:ResponseSources|null;
   songID?:string; completedAt?:number|null; responseBytes?:number|null; firstBodyNS?:number|null; firstBodyBlocking?:boolean|null;
   id: number; at: number; resource: string; method: string; range?: string; elapsedMS: number; bytes: number; status: number;
-  cache: string; outcome: string; songs?: Song[]; moreSongs?: boolean;
+  cache: string; outcome: string;
 }
 export interface Download {
   id: number; resource: string; songs?: Song[]; moreSongs?: boolean; host: string; stage: string; size: number; bytes: number; bytesPerSecond: number; idleMS: number;

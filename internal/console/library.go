@@ -62,19 +62,17 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "程序实例或存储目录已变化，请刷新", 409)
 		return
 	}
-	local := cacheproxy.CachePage{}
+	var local []*cacheproxy.CacheEntry
 	for _, resource := range page.Resources {
 		if resource.Local != nil {
-			local.Entries = append(local.Entries, *resource.Local)
+			local = append(local, resource.Local)
 		}
 	}
 	if service != nil {
-		service.MarkCacheProtection(&local)
+		service.MarkCacheProtection(local)
 	}
-	for i := range local.Entries {
-		entry := &local.Entries[i]
+	for _, entry := range local {
 		entry.Protected = entry.Protected || scanning
-		page.Resources[entry.Key].Local = entry
 	}
 	writeJSON(w, page)
 }

@@ -277,7 +277,7 @@ func probePortableUpgrade(t *testing.T, exe, config, cwd, storage, version, key 
 	if status.Running || status.ActiveSettings.AutoAccelerate || status.ActiveSettings.QueueWithGateway || testStorageRoot(status.ActiveSettings) != storage || !status.SOCKS5PasswordSet || status.SOCKS5CredentialError != "" || status.LastBatch.Hits != 7 {
 		t.Fatal("runtime did not retain settings, decrypted credentials or task snapshot")
 	}
-	if !bytes.Contains(get("/api/cache", token), []byte(key)) {
+	if !bytes.Contains(get("/api/library?view=resources&filter=saved", token), []byte(key)) {
 		t.Fatal("runtime could not read imported SQLite resource")
 	}
 	req, _ := http.NewRequest("POST", base+"/api/exit", bytes.NewBufferString("{}"))

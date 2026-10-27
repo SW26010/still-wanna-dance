@@ -68,32 +68,36 @@ func managementFixture(t *testing.T, n int) (string, []CacheEntry) {
 		}
 	}
 	u.close()
-	page, err := ReadCachePage(context.Background(), fixtureLibrary(root), "", "size", 0)
+	page, err := ReadLibraryPage(context.Background(), fixtureLibrary(root), LibraryQuery{View: "resources", Filter: "saved", Search: "", Sort: "size", Offset: 0})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return root, page.Entries
+	var entries []CacheEntry
+	for _, key := range page.Keys {
+		entries = append(entries, *page.Resources[key].Local)
+	}
+	return root, entries
 }
 
-func TestCachePageMetadataAndPagination(t *testing.T) {
+func TestLibraryResourcePageMetadataAndPagination(t *testing.T) {
 	ctx := context.Background()
 	root, _ := managementFixture(t, 53)
-	page, err := ReadCachePage(ctx, fixtureLibrary(root), "", "size", 0)
-	if err != nil || len(page.Entries) != 50 || page.Total != 53 || page.Entries[0].Bytes != 53 {
+	page, err := ReadLibraryPage(ctx, fixtureLibrary(root), LibraryQuery{View: "resources", Filter: "saved", Search: "", Sort: "size", Offset: 0})
+	if err != nil || len(page.Keys) != 50 || page.Total != 53 || (*page.Resources[page.Keys[0]].Local).Bytes != 53 {
 		t.Fatalf("%+v %v", page, err)
 	}
 	if page.FileCount != 53 || page.TotalBytes != 53*54/2 {
 		t.Fatalf("wrong whole-directory summary: %+v", page)
 	}
-	if !page.Entries[0].Songs[0].Current || !strings.Contains(page.Entries[0].State, "MD5") {
-		t.Fatal(page.Entries[0])
+	if !strings.Contains((*page.Resources[page.Keys[0]].Local).State, "MD5") {
+		t.Fatal((*page.Resources[page.Keys[0]].Local))
 	}
-	page, err = ReadCachePage(ctx, fixtureLibrary(root), "", "size", 50)
-	if err != nil || len(page.Entries) != 3 || page.Entries[0].Bytes != 3 {
+	page, err = ReadLibraryPage(ctx, fixtureLibrary(root), LibraryQuery{View: "resources", Filter: "saved", Search: "", Sort: "size", Offset: 50})
+	if err != nil || len(page.Keys) != 3 || (*page.Resources[page.Keys[0]].Local).Bytes != 3 {
 		t.Fatalf("%+v %v", page, err)
 	}
-	page, err = ReadCachePage(ctx, fixtureLibrary(root), "舞曲 007", "title", 0)
-	if err != nil || len(page.Entries) != 1 || page.Entries[0].Songs[0].ID != "7" {
+	page, err = ReadLibraryPage(ctx, fixtureLibrary(root), LibraryQuery{View: "resources", Filter: "saved", Search: "舞曲 007", Sort: "title", Offset: 0})
+	if err != nil || len(page.Keys) != 1 || (*page.Resources[page.Keys[0]].Local).Songs[0].ID != "7" {
 		t.Fatalf("%+v %v", page, err)
 	}
 	if page.FileCount != 53 || page.TotalBytes != 53*54/2 {
@@ -108,8 +112,8 @@ func TestCachePageMetadataAndPagination(t *testing.T) {
 		}
 	}
 	empty := filepath.Join(t.TempDir(), "absent")
-	page, err = ReadCachePage(ctx, fixtureLibrary(empty), "", "recent", 0)
-	if err == nil || len(page.Entries) != 0 {
+	page, err = ReadLibraryPage(ctx, fixtureLibrary(empty), LibraryQuery{View: "resources", Filter: "saved", Search: "", Sort: "recent", Offset: 0})
+	if err == nil || len(page.Keys) != 0 {
 		t.Fatal(page, err)
 	}
 	if _, err = os.Stat(empty); !os.IsNotExist(err) {
@@ -134,11 +138,11 @@ func TestCacheDeletionSharedMetadataAndStaleConfirmation(t *testing.T) {
 	if err != nil || results[0].Result != "changed" {
 		t.Fatal(results, err)
 	}
-	page, err := ReadCachePage(ctx, fixtureLibrary(root), "共享歌", "recent", 0)
-	if err != nil || len(page.Entries) != 1 || page.Entries[0].SongCount != 2 || page.Entries[0].LastRequest != 0 {
+	page, err := ReadLibraryPage(ctx, fixtureLibrary(root), LibraryQuery{View: "resources", Filter: "saved", Search: "共享歌", Sort: "recent", Offset: 0})
+	if err != nil || len(page.Keys) != 1 || (*page.Resources[page.Keys[0]].Local).SongCount != 2 || (*page.Resources[page.Keys[0]].Local).LastRequest != 0 {
 		t.Fatal(page, err)
 	}
-	e = page.Entries[0]
+	e = (*page.Resources[page.Keys[0]].Local)
 	if _, err = CacheFile(ctx, fixtureLibrary(root), CacheSelection{e.Key, e.Stamp}); err != nil {
 		t.Fatal(err)
 	}
@@ -237,11 +241,11 @@ func TestCacheManagementRejectsUnknownChangedAndPaths(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "videos", unknown+".mp4"), []byte("unknown"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	page, err := ReadCachePage(ctx, fixtureLibrary(root), unknown, "recent", 0)
-	if err != nil || page.Entries[0].Known {
+	page, err := ReadLibraryPage(ctx, fixtureLibrary(root), LibraryQuery{View: "resources", Filter: "saved", Search: unknown, Sort: "recent"})
+	if err != nil || (*page.Resources[page.Keys[0]].Local).Known {
 		t.Fatal(page, err)
 	}
-	u := page.Entries[0]
+	u := (*page.Resources[page.Keys[0]].Local)
 	r, err := DeleteCacheOffline(ctx, fixtureLibrary(root), []CacheSelection{{u.Key, u.Stamp}, {"../outside", "x"}})
 	if err != nil || r[0].Result != "unknown" || r[1].Result != "failed" {
 		t.Fatal(r, err)
@@ -268,7 +272,7 @@ func TestCacheManagementRejectsSymlinks(t *testing.T) {
 	if err := os.Symlink(target, path); err != nil {
 		t.Skip("symlink privilege unavailable:", err)
 	}
-	page, err := ReadCachePage(context.Background(), fixtureLibrary(root), "", "recent", 0)
+	page, err := ReadLibraryPage(context.Background(), fixtureLibrary(root), LibraryQuery{View: "resources", Filter: "saved", Search: "", Sort: "recent", Offset: 0})
 	if err != nil || page.Total != 0 {
 		t.Fatal(page, err)
 	}
@@ -281,7 +285,7 @@ func TestCacheManagementRejectsSymlinks(t *testing.T) {
 	}
 }
 
-func TestCachePageBoundsAssociationsAndSearchesHiddenSongs(t *testing.T) {
+func TestLibraryResourcePageBoundsAssociationsAndSearchesHiddenSongs(t *testing.T) {
 	root, entries := managementFixture(t, 1)
 	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0, true)
 	if err != nil {
@@ -297,11 +301,11 @@ func TestCachePageBoundsAssociationsAndSearchesHiddenSongs(t *testing.T) {
 		}
 	}
 	u.close()
-	page, err := ReadCachePage(context.Background(), fixtureLibrary(root), "hidden-124", "title", 0)
-	if err != nil || len(page.Entries) != 1 {
+	page, err := ReadLibraryPage(context.Background(), fixtureLibrary(root), LibraryQuery{View: "resources", Filter: "saved", Search: "hidden-124", Sort: "title", Offset: 0})
+	if err != nil || len(page.Keys) != 1 {
 		t.Fatal(page, err)
 	}
-	e := page.Entries[0]
+	e := (*page.Resources[page.Keys[0]].Local)
 	if e.SongCount != 26 || len(e.Songs) != 20 {
 		t.Fatal(e)
 	}

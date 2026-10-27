@@ -4,7 +4,7 @@ import { request, APIError } from './api';
 import { useApp, useResource } from './hooks';
 import { usePageFeedback } from './page-feedback';
 import { Hint, Notification, RecordDetails } from './ui';
-import { type CacheEntry, type CachePage, type LibraryPage, type Inventory, date, dated, gib } from './types';
+import { type CacheEntry, type LibraryPage, type Inventory, date, dated, gib } from './types';
 
 export const cacheLabel = (entry: CacheEntry) => entry.songs.length ? entry.songs.map(s => `${s.title || '未知歌名'}（ID ${s.id}）`).join(' / ') : '未知歌名 · 未关联歌曲';
 const resultNames: Record<string,string> = {protected:'正在使用，暂不能删除',missing:'文件已不存在',unknown:'未知文件，未删除',changed:'文件或歌曲关联已变化，请刷新后重选',unsafe:'目录不安全，未删除',failed:'删除失败，请检查文件权限'};
@@ -40,7 +40,7 @@ export function useCacheActions(snapshot: Pick<LibraryPage,'storageID'|'resource
 
   return {operate,pending,result:feedback.value};
 }
-export function InventoryPanel({visible,files,videoError,refresh,loading}: {visible:boolean;videoError?:string;files?:Pick<CachePage,'fileCount'|'totalBytes'>;refresh:()=>void;loading:boolean}) {
+export function InventoryPanel({visible,files,videoError,refresh,loading}: {visible:boolean;videoError?:string;files?:Pick<LibraryPage,'fileCount'|'totalBytes'>;refresh:()=>void;loading:boolean}) {
   const app = useApp(), s=app.status.data!, t = s.traffic || {};
   const inventory = useResource<Inventory>('inventory',visible && !app.stopped,app.revision), v = inventory.data;
   const known = !videoError && v && dated(v.updated) && v.coverageKnown && v.totalSongs > 0;

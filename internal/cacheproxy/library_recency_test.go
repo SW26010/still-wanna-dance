@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-func TestCachePageBatchOrderingAndDetails(t *testing.T) {
+func TestLibraryResourcePageBatchOrderingAndDetails(t *testing.T) {
 	root, _ := managementFixture(t, 270) // crosses the metadata batch boundary
 	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0, true)
 	if err != nil {
@@ -76,7 +76,7 @@ func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 		t.Fatal(err)
 	}
 	all = append(all, e)
-	for _, order := range []string{"size", "recent", "title", "key"} {
+	for _, order := range []string{"size", "recent", "title", ""} {
 		t.Run(order, func(t *testing.T) {
 			want := append([]CacheEntry(nil), all...)
 			title := func(e CacheEntry) string {
@@ -99,19 +99,23 @@ func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 				}
 			})
 			for _, offset := range []int{0, 50, 250, 270, 1000} {
-				page, err := ReadCachePage(ctx, fixtureLibrary(root), "", order, offset)
+				page, err := ReadLibraryPage(ctx, fixtureLibrary(root), LibraryQuery{View: "resources", Filter: "saved", Search: "", Sort: order, Offset: offset})
 				if err != nil {
 					t.Fatal(err)
 				}
 				start, end := min(offset, len(want)), min(offset+50, len(want))
-				if page.Total != len(want) || !reflect.DeepEqual(page.Entries, want[start:end]) {
+				entries := []CacheEntry{}
+				for _, key := range page.Keys {
+					entries = append(entries, *page.Resources[key].Local)
+				}
+				if page.Total != len(want) || !reflect.DeepEqual(entries, want[start:end]) {
 					t.Fatalf("offset %d: page differs from individually validated entries", offset)
 				}
 			}
 		})
 	}
 	for _, query := range []string{"äbc", "same", unknown} {
-		page, err := ReadCachePage(ctx, fixtureLibrary(root), query, "title", 0)
+		page, err := ReadLibraryPage(ctx, fixtureLibrary(root), LibraryQuery{View: "resources", Filter: "saved", Search: query, Sort: "title", Offset: 0})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -125,7 +129,7 @@ func TestCachePageBatchOrderingAndDetails(t *testing.T) {
 	}
 }
 
-func TestCachePageWithoutDatabase(t *testing.T) {
+func TestLibraryResourcePageWithoutDatabase(t *testing.T) {
 	root := t.TempDir()
 	if err := os.Mkdir(filepath.Join(root, "videos"), 0700); err != nil {
 		t.Fatal(err)
@@ -135,8 +139,8 @@ func TestCachePageWithoutDatabase(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, order := range []string{"size", "recent", "title"} {
-		page, err := ReadCachePage(context.Background(), fixtureLibrary(root), "", order, 0)
-		if err == nil || page.Total != 0 || len(page.Entries) != 0 {
+		page, err := ReadLibraryPage(context.Background(), fixtureLibrary(root), LibraryQuery{View: "resources", Filter: "saved", Search: "", Sort: order, Offset: 0})
+		if err == nil || page.Total != 0 || len(page.Keys) != 0 {
 			t.Fatal("missing database must be reported", page, err)
 		}
 	}

@@ -12,7 +12,7 @@ export async function mockAPI(page: Page) {
   const terms={text:'测试完整条款。软件许可不等于内容授权。',version:'fixture',sha256:'fixture-hash',accepted:true,needsConfirmation:false};
   const diagnostics={connectivity:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,results:[],lastValid:{}},calibration:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,lastValid:{},referenceBitrateBPS:2000000}};
   const emit=async(kind:keyof typeof diagnostics)=>{await page.request.post('/__fixture/events',{data:{id:fixtureID,kind,state:diagnostics[kind]}});};
-  const files: CacheEntry[] = [1,2].map(id => ({key:'key'+id,stamp:'stamp'+id,bytes:1073741824,lastRequest:id===1?Date.UTC(2026,9,16,8,30):0,songs:[{id:String(id),title:'测试歌曲 '+id,current:true}],songCount:1,known:true,protected:id===2,state:'文件存在 · 按 MD5 复用'}));
+  const files: CacheEntry[] = [1,2].map(id => ({key:'key'+id,stamp:'stamp'+id,bytes:1073741824,lastRequest:id===1?Date.UTC(2026,9,16,8,30):0,songs:[{id:String(id),title:'测试歌曲 '+id}],songCount:1,known:true,protected:id===2,state:'文件存在 · 按 MD5 复用'}));
   await page.route('**/api/**',async route => {
     const req = route.request(), url = new URL(req.url()), path = url.pathname.slice(5), body = req.method()==='POST' ? path==='proxy/import'?{text:req.postData()}:req.postDataJSON() : {};
     calls.push({path,body,token:req.headers()['x-swd-token']});
@@ -39,7 +39,6 @@ export async function mockAPI(page: Page) {
     if(path==='latency')data={from:Date.now()-72*3600000,to:Date.now(),availableFrom:null,partial:true,blocking:{samples:0,p50MS:null,p95MS:null},ready:{samples:0,p50MS:null,p95MS:null}};
     if (path==='requests') data={storageID:'fixture',requests:[],hasMore:false};
     if(path==='library')data={storageID:'fixture',databaseID:'fixture-db',songs:files.map(f=>({id:f.songs[0].id,title:f.songs[0].title,artist:'',dancer:'',group:'',score:1,hasDemand:true,policy:'normal',resource:f.key})),resources:Object.fromEntries(files.map(f=>[f.key,{key:f.key,size:f.bytes,duration:null,songs:f.songs,songCount:f.songCount,local:f}])),keys:files.map(f=>f.key),total:files.length,fileCount:files.length,totalBytes:files.length*1073741824};
-    if (path==='cache') data={storageID:'fixture',entries:files,total:files.length,fileCount:files.length,totalBytes:files.length*1073741824};
     if (path==='cache/delete') {
       const selected = body.entries as {key:string;stamp:string}[];
       data=selected.map(item=>({key:item.key,result:'deleted'}));

@@ -97,10 +97,10 @@ test('blocked or unknown songs do not prepare; preparation errors stay in previe
 const key='a'.repeat(32), missing='b'.repeat(32);
 async function libraryFixture(page:Page,videoError?:string) {
   const api=await mockAPI(page),queries:URLSearchParams[]=[];
-  const local={...api.files[0],key,songs:[{id:'1',title:'共同视频一',current:true},{id:'2',title:'共同视频二',current:true}],songCount:2};
+  const local={...api.files[0],key,songs:[{id:'1',title:'共同视频一'},{id:'2',title:'共同视频二'}],songCount:2};
   const resources:Record<string,LibraryResource>={
     [key]:{key,size:12345,duration:null,songs:local.songs,songCount:2,local},
-    [missing]:{key:missing,size:null,duration:null,songs:[{id:'3',title:'缺失视频',current:true}],songCount:1,local:null},
+    [missing]:{key:missing,size:null,duration:null,songs:[{id:'3',title:'缺失视频'}],songCount:1,local:null},
   };
   const songs=[1,2,3].map(id=>({id:String(id),title:id<3?'共同视频'+id:'缺失视频',artist:'歌手资料',dancer:'舞者资料',group:'社团资料',score:123.456,hasDemand:true,policy:'normal' as const,resource:id<3?key:missing}));
   await page.route('**/api/library?**',async route=>{
@@ -371,7 +371,7 @@ test('batch deletion focuses one persistent result with skipped and failed files
   const {resources}=await libraryFixture(page),template=resources[key];
   delete resources[key];delete resources[missing];
   for(let id=1;id<=50;id++){
-    const key=id.toString(16).padStart(32,'0'),songs=id===50?[]:[{id:String(id),title:'批量视频 '+id,current:true}];
+    const key=id.toString(16).padStart(32,'0'),songs=id===50?[]:[{id:String(id),title:'批量视频 '+id}];
     resources[key]={...template,key,songs,songCount:songs.length,local:{...template.local!,key,songs,songCount:songs.length,stamp:'file-'+id}};
   }
   await page.route('**/api/cache/delete',async route=>{

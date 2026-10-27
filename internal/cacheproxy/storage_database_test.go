@@ -43,8 +43,11 @@ func TestStorageContractRejectsIncompatibleFilesEverywhere(t *testing.T) {
 					return err
 				},
 				"catalog": func() error { _, err := LoadCatalogStatus(ctx, cfg.Store.path); return err },
-				"cache":   func() error { _, err := ReadCachePage(ctx, cfg.libraryPaths(), "", "", 0); return err },
-				"recent":  func() error { _, err := ReadRecentRequests(ctx, cfg.Store.path, 50); return err },
+				"cache": func() error {
+					_, err := ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Filter: "saved", Search: "", Sort: "", Offset: 0})
+					return err
+				},
+				"recent": func() error { _, err := ReadRecentRequests(ctx, cfg.Store.path, 50); return err },
 				"delete": func() error {
 					_, err := DeleteCacheOffline(ctx, cfg.libraryPaths(), []CacheSelection{{Key: strings.Repeat("a", 32)}})
 					return err

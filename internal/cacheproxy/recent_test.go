@@ -11,18 +11,13 @@ import (
 	"time"
 )
 
-func TestRecentRequestsWindowAndNames(t *testing.T) {
+func TestRecentRequestsWindowAndOutcomes(t *testing.T) {
 	root := t.TempDir()
 	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.New(slog.NewTextHandler(io.Discard, nil)), 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer u.close()
-	_, err = u.db.Exec(`INSERT INTO songs(song_id,name) VALUES ('1','共享歌曲'),('2','');
- INSERT OR IGNORE INTO media(md5) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'); INSERT INTO song_media(song_id,md5) VALUES ('1','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),('2','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');`)
-	if err != nil {
-		t.Fatal(err)
-	}
 	now := time.Now().UnixMilli()
 	err = u.write([]usageEvent{
 		{key: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", at: now, method: "GET", outcome: "completed", status: 200, size: 100, bytes: 100},
@@ -50,11 +45,8 @@ func TestRecentRequestsWindowAndNames(t *testing.T) {
 	if result.HasMore || len(result.Requests) != 4 {
 		t.Fatalf("window: %+v", result)
 	}
-	if result.Requests[2].Outcome != "canceled" || len(result.Requests[2].Songs) != 0 {
+	if result.Requests[2].Outcome != "canceled" {
 		t.Fatalf("unknown: %+v", result.Requests[2])
-	}
-	if len(result.Requests[3].Songs) != 2 || result.Requests[3].Songs[0].Title != "共享歌曲" {
-		t.Fatalf("songs: %+v", result.Requests[3])
 	}
 	// Query interpretation must not rewrite the existing outcome/statistics.
 	var outcome string
@@ -86,33 +78,6 @@ func TestRecentMissingCorruptAndLimits(t *testing.T) {
 	}
 	if _, err := ReadRecentRequests(context.Background(), storagePath(root), 50); err == nil {
 		t.Fatal("corrupt DB hidden")
-	}
-}
-
-func TestRecentBoundedAssociations(t *testing.T) {
-	root := t.TempDir()
-	u, err := fixtureUsage(t, filepath.Join(root, "storage.sqlite"), slog.Default(), 0, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer u.close()
-	for i := 1; i <= 30; i++ {
-		if _, err = u.db.Exec(`INSERT INTO songs(song_id,name) VALUES (?,?);`, i, strings.Repeat("歌", 500)); err != nil {
-			t.Fatal(err)
-		}
-		if _, err = u.db.Exec(`INSERT OR IGNORE INTO media(md5) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'); INSERT INTO song_media(song_id,md5) VALUES (?,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')`, i); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err = u.write([]usageEvent{{key: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}); err != nil {
-		t.Fatal(err)
-	}
-	r, err := ReadRecentRequests(context.Background(), storagePath(root), 50)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(r.Requests) != 1 || len(r.Requests[0].Songs) != 20 || !r.Requests[0].MoreSongs || len([]rune(r.Requests[0].Songs[0].Title)) != 300 {
-		t.Fatalf("unbounded: %+v", r)
 	}
 }
 

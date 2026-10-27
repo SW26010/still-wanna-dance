@@ -1,4 +1,4 @@
-import type { RequestRecord } from './types';
+import type { RequestRecord, Download } from './types';
 export function requestOutcome(r: RequestRecord) {
   if (r.outcome === 'canceled') return '客户端取消 / 请求中断';
   if (r.outcome === 'aborted') return '传输中止（原因未确定）';
@@ -7,9 +7,8 @@ export function requestOutcome(r: RequestRecord) {
   if (r.outcome === 'completed') return [200,206].includes(r.status) ? r.method === 'HEAD' ? '响应头处理完成' : '请求处理完成' : 'HTTP 响应结束';
   return '结果未知';
 }
-export const requestCache = (r: RequestRecord) => ({HIT:'本地视频命中',MISS:'回源',WAIT:'等待共享下载',UNKNOWN:'来源未知'}[r.cache] || '来源未知');
 
-export function requestTitle(r: Pick<RequestRecord,'resource'|'songs'|'moreSongs'>) {
+export function requestTitle(r: Pick<Download,'resource'|'songs'|'moreSongs'>) {
   const songs=r.songs || [];
   if(!songs.length)return '未知歌名 · 资源 '+r.resource;
   return (songs.length>1||r.moreSongs?'关联曲目（播放歌曲未确定）：':'关联曲目：')+songs.map(s=>(s.title||'未知歌名')+'（ID '+s.id+'）').join(' / ')+(r.moreSongs?' / …更多关联曲目':'');

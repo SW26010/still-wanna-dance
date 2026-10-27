@@ -80,8 +80,8 @@ func TestCacheAccessSurvivesRequestCleanupAndRestart(t *testing.T) {
 		t.Fatal(n, err)
 	}
 	s.Close()
-	page, err := ReadCachePage(context.Background(), cfg.libraryPaths(), "", "recent", 0)
-	if err != nil || len(page.Entries) != 1 || page.Entries[0].LastRequest != old.UnixMilli() {
+	page, err := ReadLibraryPage(context.Background(), cfg.libraryPaths(), LibraryQuery{View: "resources", Filter: "saved", Search: "", Sort: "recent", Offset: 0})
+	if err != nil || len(page.Keys) != 1 || (*page.Resources[page.Keys[0]].Local).LastRequest != old.UnixMilli() {
 		t.Fatal(page, err)
 	}
 	u, err := fixtureUsage(t, cfg.Store.path, slog.Default(), 0, true)
@@ -93,7 +93,7 @@ func TestCacheAccessSurvivesRequestCleanupAndRestart(t *testing.T) {
 	if err := u.db.QueryRow("SELECT count(*) FROM song_usage").Scan(&count); err != nil || count != 0 {
 		t.Fatal("direct URL inferred song demand", count, err)
 	}
-	key := page.Entries[0].Key
+	key := (*page.Resources[page.Keys[0]].Local).Key
 	if err := u.write([]usageEvent{{key: key, at: old.Add(-time.Hour).UnixMilli(), summaryOnly: true}}); err != nil {
 		t.Fatal(err)
 	}

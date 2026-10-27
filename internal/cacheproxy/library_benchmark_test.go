@@ -7,10 +7,10 @@ import (
 	"time"
 )
 
-// BenchmarkReadCachePageExisting opts into read-only measurements of a real
+// BenchmarkReadLibraryPageExisting opts into read-only measurements of a real
 // cache. Point SWD_BENCH_CACHE_ROOT at the directory containing videos
 // and storage.sqlite. It never starts the engine or reads video contents.
-func BenchmarkReadCachePageExisting(b *testing.B) {
+func BenchmarkReadLibraryPageExisting(b *testing.B) {
 	root := os.Getenv("SWD_BENCH_CACHE_ROOT")
 	if root == "" {
 		b.Skip("set SWD_BENCH_CACHE_ROOT to benchmark an existing cache")
@@ -30,14 +30,14 @@ func BenchmarkReadCachePageExisting(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-				page, err := ReadCachePage(ctx, fixtureLibrary(root), tc.query, tc.order, tc.offset)
+				page, err := ReadLibraryPage(ctx, fixtureLibrary(root), LibraryQuery{View: "resources", Filter: "saved", Search: tc.query, Sort: tc.order, Offset: tc.offset})
 				cancel()
 				if err != nil {
 					b.Fatal(err)
 				}
 				b.ReportMetric(float64(page.Total), "matches")
-				if len(page.Entries) > 50 {
-					b.Fatalf("page exceeds limit: %d", len(page.Entries))
+				if len(page.Keys) > 50 {
+					b.Fatalf("page exceeds limit: %d", len(page.Keys))
 				}
 			}
 		})

@@ -946,7 +946,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, c.localInventory())
 		return
 	}
-	if r.URL.Path == "/api/cache" || strings.HasPrefix(r.URL.Path, "/api/cache/") {
+	if r.URL.Path == "/api/cache/delete" || r.URL.Path == "/api/cache/open" {
 		c.cacheAPI(w, r)
 		return
 	}

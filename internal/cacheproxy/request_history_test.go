@@ -45,9 +45,6 @@ func TestHistoryPagesAllRequestsAndPreservesIdentity(t *testing.T) {
 			if seen[r.ID] || r.SongID != "42" || r.Resource != key || r.CompletedAt == nil || *r.CompletedAt != 2000 {
 				t.Fatalf("changed/duplicated history: %+v", r)
 			}
-			if len(r.Songs) != 1 || r.Songs[0].ID != "43" {
-				t.Fatalf("resource association did not follow the stored MD5: %+v", r)
-			}
 			seen[r.ID] = true
 		}
 		if !page.HasMore {

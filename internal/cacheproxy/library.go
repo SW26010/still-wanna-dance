@@ -156,7 +156,7 @@ func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, no
 				}
 				r.SongCount++
 				if len(r.Songs) < 20 {
-					r.Songs = append(r.Songs, CacheSong{ID: song.ID, Title: song.Title, Current: true})
+					r.Songs = append(r.Songs, CacheSong{ID: song.ID, Title: song.Title})
 				}
 				r.match = r.match || match
 				r.score += song.Score
@@ -177,15 +177,8 @@ func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, no
 		}
 	}
 	if q.Sort == "recent" {
-		entries := make([]cacheListCandidate, 0, len(resources))
-		for key := range resources {
-			entries = append(entries, cacheListCandidate{key: key})
-		}
-		if err := loadCacheListMetadata(ctx, db, entries, "", "recent"); err != nil {
+		if err := loadLibraryRecency(ctx, db, resources); err != nil {
 			return page, err
-		}
-		for _, entry := range entries {
-			resources[entry.key].lastRequest = entry.lastRequest
 		}
 	}
 	materialize := func(key string) error {

@@ -11,13 +11,11 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 type CacheSong struct {
-	ID      string `json:"id"`
-	Title   string `json:"title"`
-	Current bool   `json:"current"`
+	ID    string `json:"id"`
+	Title string `json:"title"`
 }
 type CacheEntry struct {
 	Key         string      `json:"key"`
@@ -29,13 +27,6 @@ type CacheEntry struct {
 	State       string      `json:"state"`
 	Protected   bool        `json:"protected"`
 	Known       bool        `json:"known"`
-}
-type CachePage struct {
-	StorageID  string       `json:"storageID"`
-	Entries    []CacheEntry `json:"entries"`
-	Total      int          `json:"total"`
-	FileCount  int          `json:"fileCount"`
-	TotalBytes int64        `json:"totalBytes"`
 }
 type CacheSelection struct {
 	Key   string `json:"key"`
@@ -67,11 +58,11 @@ func readCacheEntry(ctx context.Context, paths LibraryPaths, key string, db *sql
  max(COALESCE((SELECT last_requested_at FROM media_access WHERE md5=v.md5),0),
  COALESCE((SELECT max(requested_at) FROM request_events WHERE resource_md5=v.md5),0)),
  (SELECT count(*) FROM song_media WHERE md5=v.md5),
- (SELECT json_group_array(json_object('id',song_id,'title',title,'current',is_current)) FROM
-  (SELECT CAST(s.song_id AS TEXT) song_id,COALESCE(substr(s.name,1,300),'') title,1 is_current
+ (SELECT json_group_array(json_object('id',song_id,'title',title)) FROM
+  (SELECT CAST(s.song_id AS TEXT) song_id,COALESCE(substr(s.name,1,300),'') title
    FROM song_media sv JOIN songs s ON s.song_id=sv.song_id WHERE sv.md5=v.md5 ORDER BY s.song_id LIMIT 20)),
- (SELECT COALESCE(group_concat(song_id || ':' || is_current),'') FROM
-  (SELECT sv.song_id,1 is_current
+ (SELECT COALESCE(group_concat(song_id),'') FROM
+  (SELECT sv.song_id
    FROM song_media sv WHERE sv.md5=v.md5 ORDER BY sv.song_id))
  FROM media v WHERE md5=?`, key).Scan(&expected, &e.LastRequest, &e.SongCount, &songs, &associations)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -79,17 +70,8 @@ func readCacheEntry(ctx context.Context, paths LibraryPaths, key string, db *sql
 		}
 		if err == nil {
 			e.Known = true
-			// SQLite json_object emits numeric booleans.
-			var raw []struct {
-				ID      string `json:"id"`
-				Title   string `json:"title"`
-				Current int    `json:"current"`
-			}
-			if err = json.Unmarshal([]byte(songs), &raw); err != nil {
+			if err = json.Unmarshal([]byte(songs), &e.Songs); err != nil {
 				return e, err
-			}
-			for _, s := range raw {
-				e.Songs = append(e.Songs, CacheSong{s.ID, s.Title, s.Current != 0})
 			}
 			e.State = "文件存在 · 按 MD5 复用"
 			if expected > 0 && e.Bytes != expected {
@@ -122,86 +104,10 @@ func readCacheEntry(ctx context.Context, paths LibraryPaths, key string, db *sql
 	return e, nil
 }
 
-// Local metadata only. Response and song associations are bounded; enumeration
-// and sorting inspect directory metadata, not video bodies or upstream catalogs.
-func ReadCachePage(ctx context.Context, paths LibraryPaths, query, order string, offset int) (CachePage, error) {
-	paths, err := paths.Resolve()
-	result := CachePage{StorageID: CacheStorageID(paths), Entries: []CacheEntry{}}
-	if err != nil {
-		return result, err
-	}
-	if offset < 0 {
-		return result, errors.New("无效分页")
-	}
-	dir, err := CacheDirectory(paths.VideoDir)
-	if err != nil {
-		return result, err
-	}
-	db, err := readDatabaseFile(paths.DatabasePath)
-	if err != nil {
-		return result, err
-	}
-	defer db.Close()
-	files, err := os.ReadDir(dir)
-	if err != nil {
-		return result, err
-	}
-	query = strings.ToLower(strings.TrimSpace(query))
-	var candidates []cacheListCandidate
-	for _, f := range files {
-		if err := ctx.Err(); err != nil {
-			return result, err
-		}
-		if !cacheVideoName.MatchString(f.Name()) || f.Type()&os.ModeSymlink != 0 || f.IsDir() {
-			continue
-		}
-		info, err := f.Info()
-		if os.IsNotExist(err) {
-			continue
-		}
-		if err != nil {
-			return result, err
-		}
-		if !info.Mode().IsRegular() {
-			return result, errors.New("不是普通本地视频文件")
-		}
-		key := strings.TrimSuffix(f.Name(), ".mp4")
-		// Space usage describes all video files, independent of search/pagination.
-		result.FileCount++
-		result.TotalBytes += info.Size()
-		candidates = append(candidates, cacheListCandidate{
-			key: key, bytes: info.Size(), match: query == "" || strings.Contains(key, query),
-		})
-	}
-	if err := loadCacheListMetadata(ctx, db, candidates, query, order); err != nil {
-		return result, err
-	}
-	candidates = sortCacheList(candidates, order)
-	result.Total = len(candidates)
-	// Full song details and identity stamps are needed only for the visible page.
-	// Re-read each selected file; directory metadata may have changed meanwhile.
-	for i := offset; i < len(candidates) && len(result.Entries) < 50; i++ {
-		if err := ctx.Err(); err != nil {
-			return result, err
-		}
-		e, err := readCacheEntry(ctx, paths, candidates[i].key, db)
-		if os.IsNotExist(err) {
-			result.Total--
-			continue
-		}
-		if err != nil {
-			return result, err
-		}
-		result.Entries = append(result.Entries, e)
-	}
-	return result, nil
-}
-
-func (s *Server) MarkCacheProtection(page *CachePage) {
+func (s *Server) MarkCacheProtection(entries []*CacheEntry) {
 	s.retentionMu.Lock()
 	defer s.retentionMu.Unlock()
-	for i := range page.Entries {
-		e := &page.Entries[i]
+	for _, e := range entries {
 		e.Protected = s.versionPins[e.Key] > 0 || s.videoProtectedLocked(e.Key) || s.deletingVideos[e.Key] != nil
 	}
 }

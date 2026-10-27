@@ -682,6 +682,27 @@
       "bytes": 1173169,
       "sha256": "ce7ed37bf83412f8a60c5b3bbac2525f31420433e780cbd8f8fd24b0f68dfc9e",
       "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies; required for offline Go builds. SHA256 verified against webui/build-manifest.json at ce5d6372db6f5de06d40c3e8816f6a10f793cf08."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1173024,
+      "sha256": "269aaf1aed672efffa0e4235ed81ae4545985a54710c088cef540660c787d0d1",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Library row-only deletion controls at 4c21bf72; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1173074,
+      "sha256": "c0951669c5e155d6c55fec1d85996e23344cdf924d8f239f4bc316fd51c24d90",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Inline library search fields at 75691138; retained for history checks."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1173190,
+      "sha256": "1bf908cf85e90667d8d935c2cf849b6eb9c895a4dd7e4919fabf578ad93e11cd",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Shared history and library refresh animation at 92d4af0e; retained for history checks."
     }
   ]
 }

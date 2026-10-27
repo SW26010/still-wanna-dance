@@ -6,11 +6,31 @@ import (
 	"os"
 	"strings"
 
+	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/workfiles"
 )
 
 const configSchemaVersion = apppaths.ConfigVersion
+
+// ReadLogLevel bootstraps logging before Console construction can emit events.
+// The entrypoint holds the config lease; use the same envelope validation and
+// JSON field matching as the full settings load, without opening any resources.
+func ReadLogLevel(path string) (applog.Level, error) {
+	data, _, err := readConfigFile(path)
+	if err != nil {
+		return applog.Info, err
+	}
+	var settings struct {
+		LogLevel string `json:"logLevel"`
+	}
+	if data != nil {
+		if err := json.Unmarshal(data, &settings); err != nil {
+			return applog.Info, fmt.Errorf("读取程序日志级别：%w", err)
+		}
+	}
+	return applog.ParseLevel(settings.LogLevel)
+}
 
 // This controls automatic browser opening for a new console process. Explicit
 // tray/open and second-instance activation remain available independently.

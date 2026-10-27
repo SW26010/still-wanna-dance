@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -112,35 +111,31 @@ func run() (runErr error) {
 		return err
 	}
 	defer configLease.Close()
-	work, err := cacheproxy.OpenWorkDirectory(apppaths.WorkForConfig(exe, p), nil)
-	if err != nil {
-		return err
-	}
-	defer func() { runErr = errors.Join(runErr, work.Close()) }()
+	level, configErr := console.ReadLogLevel(p)
 	logPath := apppaths.ForConfig(p).Log
-	writer, err := applog.Open(logPath, applog.MaxBytes, applog.Backups, func(err error) {
-		message := fmt.Errorf("程序日志写入失败（%s）：%w", logPath, err)
-		fmt.Fprintln(os.Stderr, message)
-		if visibleErrors {
-			go desktop.ShowError(message)
+	var writer *applog.Writer
+	if level != applog.Off {
+		writer, err = applog.Open(logPath, applog.MaxBytes, applog.Backups, func(err error) {
+			message := fmt.Errorf("程序日志写入失败（%s）：%w", logPath, err)
+			fmt.Fprintln(os.Stderr, message)
+			if visibleErrors {
+				go desktop.ShowError(message)
+			}
+		})
+		if err != nil {
+			return fmt.Errorf("无法创建程序日志（%s）：%w", logPath, err)
 		}
-	})
-	if err != nil {
-		return fmt.Errorf("无法创建程序日志（%s）：%w", logPath, err)
 	}
 	previousLogger := slog.Default()
-	slog.SetDefault(slog.New(slog.NewJSONHandler(writer, &slog.HandlerOptions{
-		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
-			if a.Value.Kind() == slog.KindTime {
-				a.Value = slog.TimeValue(a.Value.Time().UTC())
-			}
-			return a
-		},
-	})).With("pid", os.Getpid(), "session_id", rand.Text()))
+	slog.SetDefault(applog.New(writer, level))
 	defer func() {
 		if crash := recover(); crash != nil {
 			slog.Error("application_panic", "panic", fmt.Sprint(crash), "stack", string(debug.Stack()))
-			runErr = fmt.Errorf("程序发生异常，详情见 %s：%v", logPath, crash)
+			if level == applog.Off {
+				runErr = fmt.Errorf("程序发生异常（程序日志已关闭）：%v", crash)
+			} else {
+				runErr = fmt.Errorf("程序发生异常，详情见 %s：%v", logPath, crash)
+			}
 		}
 		var restart *restartRequest
 		if runErr != nil && !errors.As(runErr, &restart) {
@@ -149,11 +144,21 @@ func run() (runErr error) {
 			slog.Info("application_stopped")
 		}
 		slog.SetDefault(previousLogger)
-		if err := writer.Close(); err != nil && (runErr == nil || restart != nil) {
-			runErr = fmt.Errorf("关闭日志失败：%w", err)
+		if writer != nil {
+			if err := writer.Close(); err != nil && (runErr == nil || restart != nil) {
+				runErr = fmt.Errorf("关闭日志失败：%w", err)
+			}
 		}
 	}()
 	slog.Info("application_starting", "config", p, "listen", *address, "tray", !*noTray, "go", runtime.Version())
+	if configErr != nil {
+		return configErr
+	}
+	work, err := cacheproxy.OpenWorkDirectory(apppaths.WorkForConfig(exe, p), nil)
+	if err != nil {
+		return err
+	}
+	defer func() { runErr = errors.Join(runErr, work.Close()) }()
 	if err := configLease.CleanWorkFiles(); err != nil {
 		return err
 	}

@@ -34,8 +34,27 @@ func (c *logCapture) records(t *testing.T) []map[string]any {
 		if len(line) == 0 {
 			continue
 		}
-		var r map[string]any
-		if err := json.Unmarshal(line, &r); err != nil {
+		decoder := json.NewDecoder(bytes.NewReader(line))
+		if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+			t.Fatal(err)
+		}
+		r := make(map[string]any)
+		for decoder.More() {
+			token, err := decoder.Token()
+			if err != nil {
+				t.Fatal(err)
+			}
+			key := token.(string)
+			if _, exists := r[key]; exists {
+				t.Fatalf("duplicate log field %q: %s", key, line)
+			}
+			var value any
+			if err := decoder.Decode(&value); err != nil {
+				t.Fatal(err)
+			}
+			r[key] = value
+		}
+		if _, err := decoder.Token(); err != nil {
 			t.Fatal(err)
 		}
 		records = append(records, r)
@@ -103,12 +122,17 @@ func TestLogsLinkSharedDownloadToBothRequests(t *testing.T) {
 	s.Close()
 	var flight any
 	traces := map[any]bool{}
-	finished, published := 0, 0
+	finished, published, upstream := 0, 0, 0
 	for _, r := range logs.records(t) {
 		if r["service_id"] == nil {
 			t.Fatal("missing service identity", r)
 		}
 		switch r["msg"] {
+		case "upstream_response":
+			upstream++
+			if r["host"] == nil || r["upstream_host"] == nil {
+				t.Fatal("missing resource or selected upstream host", r)
+			}
 		case "cache_task_attached":
 			if flight != nil && flight != r["flight_id"] {
 				t.Fatal("different flight", r)
@@ -131,8 +155,8 @@ func TestLogsLinkSharedDownloadToBothRequests(t *testing.T) {
 			t.Fatal("query leaked")
 		}
 	}
-	if len(traces) != 2 || finished != 2 || published != 1 {
-		t.Fatal(traces, finished, published)
+	if len(traces) != 2 || finished != 2 || published != 1 || upstream == 0 {
+		t.Fatal(traces, finished, published, upstream)
 	}
 }
 
@@ -157,6 +181,32 @@ func TestLogsSeparateGETDeliveryFromIntegrityFailure(t *testing.T) {
 	}
 	if !failed || !terminal {
 		t.Fatal("missing failure evidence")
+	}
+}
+
+func TestLogsPreserveResourceHostAcrossRedirect(t *testing.T) {
+	s, logs := loggingServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Host == "play.udon.dance" {
+			http.Redirect(w, r, strings.Replace(videoURL(payload), "play.udon.dance", "nya.xin.moe", 1), http.StatusFound)
+			return
+		}
+		io.WriteString(w, payload)
+	})
+	if _, err := s.Prefetch(t.Context(), videoURL(payload)); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	found := 0
+	for _, record := range logs.records(t) {
+		if record["msg"] == "upstream_response" || record["msg"] == "range_unavailable" {
+			found++
+			if record["host"] != "play.udon.dance" || record["upstream_host"] != "nya.xin.moe" {
+				t.Fatal("redirect lost original or actual upstream host", record)
+			}
+		}
+	}
+	if found != 2 {
+		t.Fatal("missing upstream or sequential fallback record", found)
 	}
 }
 

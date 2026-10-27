@@ -41,9 +41,10 @@ func (e *downloadExecutor) run(ctx context.Context, block int64, p *blocksched.P
 		}
 		defer resp.Body.Close()
 		if resp.Request != nil && resp.Request.URL != nil {
-			e.f.progress.setHost(resp.Request.URL.Hostname())
+			host = resp.Request.URL.Hostname()
+			e.f.progress.setHost(host)
 		}
-		e.f.log.Info("upstream_response", "host", host, "status", resp.StatusCode, "content_length", resp.ContentLength)
+		e.f.log.Info("upstream_response", "upstream_host", host, "status", resp.StatusCode, "content_length", resp.ContentLength)
 		if resp.StatusCode != http.StatusPartialContent {
 			if e.bindReads != nil {
 				e.bindReads(block)
@@ -52,7 +53,7 @@ func (e *downloadExecutor) run(ctx context.Context, block int64, p *blocksched.P
 			e.f.sequentialCtx = ctx
 			e.f.sequentialDemand = func(int64) func() { return e.waitForBlock(block) }
 			e.s.mu.Unlock()
-			e.f.log.Info("range_unavailable", "host", host, "fallback", "sequential")
+			e.f.log.Info("range_unavailable", "upstream_host", host, "fallback", "sequential")
 			stopBody := context.AfterFunc(ctx, func() { resp.Body.Close() })
 			defer stopBody()
 			if e.f.discard {

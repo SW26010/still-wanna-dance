@@ -783,3 +783,19 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 证据位于忽略目录 `artifacts/home-demand-spacing/`：`browser-final.log`、`browser-final/`、`live.log`、`live/result.json`、`build.log` 和 `check.log`。首轮 `browser.log` 为 37/42，保留原日志与截图：四项新增断言同时匹配连接和选中块两处 status，修正为标题内状态；另一项固定详情覆盖了加入标题后右移的分层开关，改用聚焦后 Space 验证保留详情时的切换，普通指针切换仍由其他用例覆盖。未为测试变更浮层行为。
 
 本轮无需 VRC 验证，未运行游戏、修改 hosts、提交或推送。
+
+## 2026-10-27 程序日志级别与统一输出
+
+常规设置增加「程序日志级别」，支持关闭、Error、Warn、Info、Debug，默认 Info；保存后重启整个程序生效，沿用 saved/active 与待重启判断。CLI 增加同语义的 `-log-level`。两入口共用标准 slog JSON 初始化、UTC 时间、PID 和会话标识，CLI HTTP 内部错误也接入该日志；桌面启动先复用配置格式校验读取级别，关闭时跳过日志文件创建、写入和轮转，已有文件保留。游戏日志输入、请求历史及运行统计保持原有行为。
+
+下载日志保留原始资源 `host`，使用独立 `upstream_host` 记录最终响应请求的域名，包括合法重定向。测试直接检查 JSON 顶层键唯一性，防止继承字段与事件字段重复。日志、CLI、设置生命周期、存储及界面帮助同步说明级别与边界，并移除当前已不输出的事件说明。继续使用同步写入和原有 5 MiB × 4 文件上限，没有引入异步队列或改变业务调度。
+
+- 五个相关 Go 包完整回归通过：applog、cacheproxy、console、CLI 和桌面入口。覆盖轮转、并发完整性、隐私、级别过滤、缺失/null/未知配置值、保存/重载及运行快照边界。子进程运行真实入口，核对 CLI JSON 错误、Off 静默退出码、桌面过滤、旧日志保留及日志目录不可用时 Off 仍到达后续启动检查；这些启动失败是测试预设的回环端口冲突。
+- 复核后补充的跨域重定向回归通过：原始 host 与最终 upstream_host 分别保留；初始化响应和顺序下载回退日志都没有重复键。相关日志定向回归与最终 go vet 通过。
+- Edge 内存接口回归 8 项通过，覆盖日志选项、草稿、放弃、跨标签保存保留其他设置、刷新和待重启状态，以及现有主题和启动设置。检查 390px 浅/深色画面，新增字段无横向溢出。
+- 真实 Console＋Edge 联调通过：从 Info 保存 Off、重建 Console、再保存 Debug、重建并恢复 Info、再次打开页面。每阶段检查真实配置文件、启动级别读取、状态接口及 saved/active 差异；网关未启动。它证明配置与界面链路，完整进程的日志初始化由上述子进程测试另行覆盖。
+- 最终前端 build/check 通过，嵌入资源与源码一致。
+
+证据保存在忽略目录 `artifacts/logging-controls/`：`go-tests.log`、`log-regressions-final.log`、`browser.log`、`browser/`、`live.log`、`live/`、`build-final.log`、`check.log`、`vet-final.log`。运行遵循现有 Windows 隔离临时目录入口；涉及配置替换和 Edge 的测试使用普通用户权限，未修改产品逻辑规避沙箱限制。
+
+未做日志开关前后的性能 A/B，不宣称吞吐或帧率收益。本轮不需要 VRC 验证，未运行游戏、修改 hosts、提交或推送。

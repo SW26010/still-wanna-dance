@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/legal"
@@ -22,6 +23,7 @@ import (
 )
 
 func main() {
+	slog.SetDefault(applog.New(os.Stderr, applog.Info))
 	if err := run(); err != nil {
 		slog.Error("stopped", "error", err)
 		os.Exit(1)
@@ -29,6 +31,7 @@ func main() {
 }
 
 func run() (resultErr error) {
+	logLevel := flag.String("log-level", "info", "application log level: off, error, warn, info, debug")
 	showTerms := flag.Bool("show-terms", false, "print usage terms and exit")
 	acceptTerms := flag.String("accept-terms", "", "explicitly accept the terms version shown by -show-terms")
 	cfg := cacheproxy.DefaultConfig()
@@ -59,6 +62,12 @@ func run() (resultErr error) {
 	flag.IntVar(&cfg.RequestRetentionDays, "request-retention-days", cfg.RequestRetentionDays, "request detail retention in days; 0 disables retention (summaries are always retained)")
 	flag.BoolVar(&cfg.RequestRetentionUnlimited, "request-retention-unlimited", cfg.RequestRetentionUnlimited, "retain request details indefinitely (mutually exclusive with -request-retention-days when true)")
 	flag.Parse()
+	level, err := applog.ParseLevel(*logLevel)
+	if err != nil {
+		return err
+	}
+	cfg.Logger = applog.New(os.Stderr, level)
+	slog.SetDefault(cfg.Logger)
 	limitSet, unlimitedSet := false, false
 	requestDaysSet, requestUnlimitedSet := false, false
 	flag.Visit(func(f *flag.Flag) {
@@ -159,7 +168,7 @@ func run() (resultErr error) {
 	if err != nil {
 		return err
 	}
-	server := &http.Server{Addr: *listen, Handler: service, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
+	server := &http.Server{Addr: *listen, Handler: service, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, ErrorLog: slog.NewLogLogger(cfg.Logger.Handler(), slog.LevelError)}
 	defer func() { resultErr = errors.Join(resultErr, closeVideoServer(server, service, 5*time.Second)) }()
 	listener, err := net.Listen("tcp", *listen)
 	if err != nil {

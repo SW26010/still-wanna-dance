@@ -1,6 +1,7 @@
 export type ThemePreference = 'system' | 'light' | 'dark';
 export interface Settings {
   theme: ThemePreference;
+  logLevel: 'off' | 'error' | 'warn' | 'info' | 'debug';
 	retainFavorites: boolean;
   aggressiveCacheReclamation: 'auto' | 'on' | 'off';
   databasePath: string; videoDir: string; maxCacheBytes: number; videoStorageMode: 'none' | 'limited' | 'unlimited'; requestRetentionMode: 'none' | 'limited' | 'unlimited'; requestRetentionDays: number; throughputIntervalMinutes: number;

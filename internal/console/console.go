@@ -47,6 +47,7 @@ type Settings struct {
 	AutoAccelerate              bool   `json:"autoAccelerate"`
 	AutoOpenWebUI               bool   `json:"autoOpenWebUI"`
 	Theme                       string `json:"theme"`
+	LogLevel                    string `json:"logLevel"`
 	RestoreHostsOnExit          bool   `json:"restoreHostsOnExit"`
 	PrepareAheadSeconds         int    `json:"prepareAheadSeconds"`
 	DownloadSoftLimit           int    `json:"downloadSoftLimit"`
@@ -271,6 +272,11 @@ func (c *Console) storedSettings(s Settings) Settings {
 }
 
 func absoluteSettings(s Settings) (Settings, error) {
+	level, err := applog.ParseLevel(s.LogLevel)
+	if err != nil {
+		return s, err
+	}
+	s.LogLevel = level.String()
 	if s.Theme == "" {
 		s.Theme = "system"
 	}

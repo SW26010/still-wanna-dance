@@ -1,14 +1,25 @@
 # 日志排障与验收证据
 
-桌面程序日志位置和轮转规则见[程序日志](console.md#程序日志)。仍为 JSON Lines、每份 5 MiB、保留三份历史文件；状态轮询不写日志。命令行 `still-wanna-dance` 的本地资源日志输出到 stderr，需自行重定向保存。
+桌面程序日志位置和轮转规则见[程序日志](console.md#程序日志)：JSON Lines、每份 5 MiB、保留三份历史文件；状态轮询不写日志。桌面与命令行共用 `internal/applog` 初始化 UTC 时间、级别、事件名、PID 和会话标识。命令行 `still-wanna-dance` 输出到 stderr，需自行重定向保存；参数帮助与参数解析错误仍使用命令行标准文本。
+
+## 开关与级别
+
+默认 `info`，记录 Info、Warn、Error；逐块调度细节属于 Debug。桌面在「设置 → 常规 → 程序日志级别」选择，保存为 `logLevel`，重启整个程序后生效；CLI 使用 `-log-level off|error|warn|info|debug`，不读取桌面配置。缺失、null 或空字符串使用 info，其余未知值拒绝。
+
+`off` 关闭所有诊断记录。桌面不创建、打开、写入或轮转日志文件，已有日志保留；游戏日志读取、请求历史和运行统计不受影响。其他级别表示最低记录级别，例如 warn 保留警告和错误。关闭日志不会取消进度统计或业务状态采样。
+
+日志初始化前先按现行配置格式读取级别；配置文件读取、格式校验或日志级别解析失败时使用 Info 记录启动失败，并保留原配置。桌面启动失败的 stderr／错误弹窗仍可显示，关闭日志不隐藏这些反馈。日志文件创建失败仍会阻止已启用日志的启动。
+
+保持同步写入和有界轮转，不增加异步队列。默认低频进度有助于控制开销；Debug 在调度路径记录较多事件，排障后应恢复 Info。当前没有开关前后的性能对照，不能将该设计解释为零开销或帧率保证。
 
 ## 如何关联事件
 
-- `session_id`：一次桌面程序启动；`application_build` 记录 Go 构建信息中的版本、提交和工作区修改标记（构建器未嵌入时不提供提交）。不同启动不能只靠 PID 区分。
+- `session_id`：一次桌面或 CLI 日志会话。桌面的 `application_build` 记录 Go 构建信息中的版本、提交和工作区修改标记（构建器未嵌入时不提供提交）。不同启动不能只靠 PID 区分。
 - `service_id`：一个本地资源引擎实例，重新创建会变。`request_id` 和 `flight_id` 都只在这个实例内有效。
 - `trace_id`：一次播放请求或歌曲预加载操作。队列启动、上游解析、Auto 回退、预加载及结束事件使用同一个值；共享下载继续使用最初创建它的操作标识。
 - `resource_key`：视频内容版本的指纹。用 `cache_task_attached` 将每个操作连接到 `(service_id, flight_id)`，再查看这一共享任务的下载日志。同一版本重试会产生新的 flight。
 - `song_id`：曲库列表中的歌曲 ID。多个歌曲可能共用资源，不能把它与资源指纹混为一谈。历史淘汰事件的 `key` 与 `resource_key` 是同一指纹。
+- `host`：请求或下载会话的资源域名；`upstream_host`：建立上游响应时实际选择的域名，可能经过重定向或回退。两者分别记录，不能以重复 JSON 键覆盖原始身份。
 
 例如两个播放请求共享一个下载时，会看到两个不同 `trace_id` 的 `cache_task_attached` 指向同一 flight；下载和发布只记录一次。客户端中断、移出队列不一定中止共享下载，必须分别检查请求结果和 flight 结果。
 
@@ -21,22 +32,27 @@
 | `config_work_cleanup_removed` / `config_work_cleanup_failed` | 配置锁持有者回收明确的原子写入工作槽；失败阻止 Console 创建 |
 | `snapshot_load_failed` / `monitor_throughput_state_load_failed` | 可重建状态未恢复的原因；不生成连续损坏备份 |
 | `proxy_channel_identity_corrupt` / `proxy_channel_identity_unavailable` | 密钥原文件保留，代理使用临时身份；持久样本关联需恢复原密钥 |
-| `cache_capacity_wait` / `cache_capacity_rejected` | 后台等待额度或播放请求被限额拒绝；附着成功后的 `wait_ms` 是准入耗时 |
+| `cache_capacity_wait` | 等待正在退出的共享下载会话清理；附着成功后的 `wait_ms` 包含此前等待，不是调度器块席位等待时长 |
 | `request_started` / `request_finished` | 请求方法、Range、版本，以及最终 HTTP 状态、实际写入字节、Content-Range/Length、耗时、结果和写入错误 |
-| `upstream_response` / `download_first_byte` | 上游状态、声明长度；从视频准备任务开始到读到第一批正文的毫秒数（包含本地视频检查） |
+| `upstream_response` / `download_first_byte` | 初始化或顺序下载响应的实际上游域名、状态、声明长度（不是每次块请求的响应清单）；从视频准备任务开始到读到第一批正文的毫秒数（包含本地视频检查） |
 | `download_stage` | 阶段变更以及上一阶段耗时：本地视频校验、等待上游响应头、下载并计算哈希、发布文件、数据库登记 |
 | `download_progress` | 每个仍活动的 flight 每 15 秒一条；阶段、已读取正文大小、预期大小、最近一个周期平均字节/秒、距最后数据的 `idle_ms` 和阶段耗时。短任务无此事件 |
 | `download_verified` / `download_integrity_failed` | 正文大小和 MD5 是否满足预期；MD5 在读取中计算，因此与下载耗时合并记录 |
 | `download_published` | 完整校验、正式文件发布和数据库登记均已成功；不能保证该资源随后不会因容量策略被淘汰 |
-| `cache_task_finished` | 共享任务最终阶段、耗时和 `completed` / `failed` / `canceled` / `timeout` 结果；成功命中也会出现，不能将它单独当作新下载成功 |
+| `cache_task_finished` | 共享任务最终阶段、耗时和 `completed` / `failed` / `canceled` / `timeout` / `not_retained` 结果；成功命中也会出现，不能将它单独当作新下载成功 |
 | `prefetch_resolved` / `prefetch_finished` | 解析线路与耗时、资源关联，以及预加载结果；`success=false` 的解析事件仍可能随后通过 Auto 回退成功 |
 | `queue_updated` | 有序 `song_ids`（保留 -1 占位）、房间重置代数；用于更新队列需求，不记录歌名、玩家或房间原文 |
 | `queue_song_canceled` / `queue_song_discarded` | 队列变化取消等待或旧结果被丢弃；不是下载失败 |
-| `batch_progress` / `batch_finished` | 每处理 100 首及最后一首的汇总；结束区分仅扫描、缺失数量、取消和是否处理完列表。扫描完成仍可能存在缺失文件 |
+| `batch_started` / `batch_finished` | 批次开始与结束汇总；结束区分仅扫描、缺失数量、取消和是否处理完列表。扫描完成仍可能存在缺失文件；处理中进度通过运行状态展示 |
+| `block_schedule`（Debug） | 块排队、开始、结束、期限退出、采样与开放数量变化；`event` / `reason` 说明事件和原因，`block_key` 标识块，附带活动数、开放量及期限等调度信息 |
+| `block_demand` / `block_demand_handoff`（Debug） | 单块有效需求及 GET／队列来源退出后的交接期限，用于核对需求、租约和本地保护边界 |
+| `playback_timing` / `queue_playback_timing`（Debug） | GET 与队列使用媒体信息推算的播放时间；不能直接证明播放器已开始或完成播放 |
 
 `bytes` 在下载进度中表示已从上游读取的正文，在请求结果中表示成功写入响应的数据；二者口径不同。`idle_ms` 在本地视频检查或文件发布阶段也会增长，只有结合 `stage` 才能判断是否在等待网络。进度采样只观测，不改变超时、回退或下载优先级。
 
 ## 可判定的验收范围
+
+以下过程证据需要至少启用 Info；调度细节需要 Debug。Warn、Error 或关闭模式下缺少过程事件属于级别过滤，不能据此推断业务未发生。旧报告中的 `cache_capacity_rejected`、`batch_progress` 属于当时实现，当前版本不再输出。
 
 1. 本地未命中：沿 trace 找到 flight，确认 `download_verified`、`download_published`；同时请求结果应符合预期状态和字节数。
 2. 本地视频命中和 Range：核对 `request_finished.cache=HIT`、状态 200/206、范围及实际字节；HEAD 正文为 0 是正常情况。

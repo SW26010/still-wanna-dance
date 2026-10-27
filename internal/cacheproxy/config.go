@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -110,7 +109,7 @@ func DefaultConfig() Config {
 		LocalProtectionGrace:       DefaultLocalProtectionGrace,
 		MaxFileBytes:               2 << 30,
 		MaxLocalValidations:        3,
-		Logger:                     slog.New(slog.NewJSONHandler(os.Stderr, nil)),
+		Logger:                     slog.Default(),
 	}
 }
 

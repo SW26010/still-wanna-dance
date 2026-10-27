@@ -18,7 +18,9 @@ New-Item -ItemType Directory -Path .\complete-videos
 .\bin\still-wanna-dance.exe -accept-terms=2026-10-27.1 -listen 127.0.0.1:18080 -database .\library\storage.sqlite -video-dir .\complete-videos -cache-unlimited=true
 ```
 
-默认监听 `127.0.0.1:18080`，数据库文件与完整视频目录均须显式指定；相对路径以启动时的工作目录为基准。Ctrl+C 取消后台下载，清理临时文件并关闭服务。启动不修改 hosts、不改代理，会清理已被取代的旧版本。所有日志为 stderr 上的 JSON。
+默认监听 `127.0.0.1:18080`，数据库文件与完整视频目录均须显式指定；相对路径以启动时的工作目录为基准。Ctrl+C 取消后台下载，清理临时文件并关闭服务。启动不修改 hosts、不改代理，会清理已被取代的旧版本。应用日志为 stderr 上的 JSON Lines，统一 UTC 时间、PID 与会话标识；HTTP 内部错误使用同一日志。参数帮助和参数解析错误仍使用标准文本。
+
+`-log-level` 默认 `info`，支持 `off/error/warn/info/debug`。`off` 不输出诊断日志，运行失败仍返回非零退出码；其他值是最低输出级别。CLI 不读取桌面日志设置，也不负责文件轮转。完整字段与排障边界见[日志](logging.md)。
 
 验证时先通过本地播放 API 请求：`curl.exe --noproxy "*" --resolve api.udon.dance:18080:127.0.0.1 "http://api.udon.dance:18080/Api/Songs/play?id=1343&node=cf"`。服务根据有效 API 返回值发现资源域名；后续直达资源请求须保留实际域名、路径、e、s。直接访问 localhost 首页返回 400；网页和托盘入口为 `SWD.exe`。
 
@@ -96,6 +98,7 @@ FROM song_usage ORDER BY last_demand_at DESC;
 | 参数 | 默认值 |
 | --- | --- |
 | `-listen` | `127.0.0.1:18080` |
+| `-log-level` | `info`；支持 `off/error/warn/info/debug` |
 | `-socks5-proxy` | 空，使用内置 DoH 直连；填写 `127.0.0.1:7891` 等 `host:port` 后，上游连接及目标 DNS 交给 SOCKS5，不回退直连 |
 | `-socks5-username` | 空，无认证；填写用户名时须设置密码环境变量 `SWD_SOCKS5_PASSWORD`，两者各限 1～255 字节 |
 | `-database` | 必填，已有 v7 数据库文件；相对路径基于当前工作目录 |

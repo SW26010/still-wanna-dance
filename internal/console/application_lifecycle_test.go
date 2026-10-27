@@ -1,7 +1,9 @@
 package console
 
 import (
+	"bufio"
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -125,6 +127,88 @@ func TestLifecycleImmediateShutdownKeepsFinalNotification(t *testing.T) {
 		} else if event.Action != ShutdownExit {
 			t.Fatalf("final notification = %q", event.Action)
 		}
+	}
+}
+
+type pausedLifecycleHandshake struct {
+	http.ResponseWriter
+	hijacked chan<- struct{}
+	resume   <-chan struct{}
+}
+
+func (w pausedLifecycleHandshake) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	conn, rw, err := w.ResponseWriter.(http.Hijacker).Hijack()
+	if err == nil {
+		// The client has received HTTP 101, but Accept has not returned yet.
+		close(w.hijacked)
+		<-w.resume
+	}
+	return conn, rw, err
+}
+
+func TestLifecycleHandshakeDuringShutdown(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		action ShutdownAction
+		expire bool
+	}{{"exit", ShutdownExit, false}, {"restart", ShutdownRestart, false}, {"unplanned", "", false}, {"grace-expired", ShutdownExit, true}} {
+		t.Run(test.name, func(t *testing.T) {
+			c := testConsole(t)
+			hijacked, resume := make(chan struct{}), make(chan struct{})
+			release := sync.OnceFunc(func() { close(resume) })
+			server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				c.ServeHTTP(pausedLifecycleHandshake{w, hijacked, resume}, r)
+			}))
+			c.address = server.Listener.Addr().String()
+			server.Start()
+			t.Cleanup(func() { release(); _ = c.Close(); server.Close() })
+			conn := lifecycleClient(t, server)
+			select {
+			case <-hijacked:
+			case <-time.After(3 * time.Second):
+				t.Fatal("lifecycle handshake did not reach the admission boundary")
+			}
+			if test.action != "" {
+				c.lifecycle.request(test.action, nil)
+			}
+			c.BeginShutdown()
+			if test.expire {
+				grace, cancel := context.WithCancel(t.Context())
+				cancel()
+				c.lifecycle.close(grace)
+			}
+			release()
+			if test.action != "" && !test.expire {
+				readLifecycle(t, conn, test.action)
+			} else {
+				ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+				defer cancel()
+				var event any
+				if err := wsjson.Read(ctx, conn, &event); err == nil || ctx.Err() != nil {
+					t.Fatalf("handshake survived shutdown: %v, %v", event, err)
+				}
+			}
+			select {
+			case <-c.lifecycle.drained:
+			case <-time.After(time.Second):
+				t.Fatal("handshake registration survived shutdown")
+			}
+		})
+	}
+}
+
+func TestLifecycleRejectsUpgradeAfterShutdown(t *testing.T) {
+	c, server := lifecycleServer(t)
+	c.RequestExit()
+	c.BeginShutdown()
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	conn, response, err := websocket.Dial(ctx, server.URL+"/api/lifecycle", &websocket.DialOptions{HTTPHeader: http.Header{"Origin": {server.URL}}})
+	if conn != nil {
+		_ = conn.CloseNow()
+	}
+	if err == nil || response == nil || response.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("shutdown admitted a new upgrade: %v %v", response, err)
 	}
 }
 

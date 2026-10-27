@@ -29,11 +29,11 @@ type applicationLifecycle struct {
 	closing   bool
 	stop      chan struct{}
 	drained   chan struct{}
-	clients   map[*websocket.Conn]struct{}
+	clients   map[context.Context]context.CancelFunc
 }
 
 func newApplicationLifecycle() *applicationLifecycle {
-	return &applicationLifecycle{requested: make(chan struct{}), stop: make(chan struct{}), drained: make(chan struct{}), clients: make(map[*websocket.Conn]struct{})}
+	return &applicationLifecycle{requested: make(chan struct{}), stop: make(chan struct{}), drained: make(chan struct{}), clients: make(map[context.Context]context.CancelFunc)}
 }
 
 func (l *applicationLifecycle) snapshot() ShutdownAction {
@@ -63,20 +63,20 @@ func (l *applicationLifecycle) request(action ShutdownAction, acknowledge func(S
 	}
 }
 
-func (l *applicationLifecycle) attach(conn *websocket.Conn) bool {
+func (l *applicationLifecycle) attach(ctx context.Context, cancel context.CancelFunc) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.closing {
 		return false
 	}
-	l.clients[conn] = struct{}{}
+	l.clients[ctx] = cancel
 	return true
 }
 
-func (l *applicationLifecycle) detach(conn *websocket.Conn) {
+func (l *applicationLifecycle) detach(ctx context.Context) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	delete(l.clients, conn)
+	delete(l.clients, ctx)
 	if l.closing && len(l.clients) == 0 {
 		close(l.drained)
 	}
@@ -104,13 +104,13 @@ func (l *applicationLifecycle) close(ctx context.Context) {
 	case <-ctx.Done():
 	}
 	l.mu.Lock()
-	clients := make([]*websocket.Conn, 0, len(l.clients))
-	for conn := range l.clients {
-		clients = append(clients, conn)
+	clients := make([]context.CancelFunc, 0, len(l.clients))
+	for _, cancel := range l.clients {
+		clients = append(clients, cancel)
 	}
 	l.mu.Unlock()
-	for _, conn := range clients {
-		_ = conn.CloseNow()
+	for _, cancel := range clients {
+		cancel()
 	}
 }
 
@@ -129,17 +129,23 @@ func (c *Console) serveLifecycle(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid fetch site", http.StatusForbidden)
 		return
 	}
+	ctx, cancelRead := context.WithCancel(r.Context())
+	defer cancelRead()
+	// Reserve admission before HTTP 101 reaches the client. Shutdown must also
+	// drain a handler paused between the completed handshake and Accept's return.
+	if !c.lifecycle.attach(ctx, cancelRead) {
+		http.Error(w, "application is shutting down", http.StatusServiceUnavailable)
+		return
+	}
+	defer c.lifecycle.detach(ctx)
 	conn, err := websocket.Accept(w, r, nil)
 	if err != nil {
 		return
 	}
-	if !c.lifecycle.attach(conn) {
-		_ = conn.CloseNow()
+	defer conn.CloseNow()
+	if ctx.Err() != nil {
 		return
 	}
-	defer func() { _ = conn.CloseNow(); c.lifecycle.detach(conn) }()
-	ctx, cancelRead := context.WithCancel(r.Context())
-	defer cancelRead()
 	go func() {
 		// Reader handles control frames. Any data message ends this read-only
 		// subscription. CloseRead in v1.8.12 calls Close from its own reader,

@@ -69,7 +69,7 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 			s := c.settings
 			s.DatabasePath, s.VideoDir = c.defaultDatabasePath(), c.defaultVideoDir()
 			s.AutoAccelerate, s.QueueWithGateway, s.VideoStorageMode = false, false, "unlimited"
-			s.UpstreamMode, s.SOCKS5Address = "socks5", "127.0.0.1:1"
+			s.UpstreamMode, s.SOCKS5Address = "proxy", "127.0.0.1:1"
 			s.SOCKS5Username, s.SOCKS5Password = "upgrade-test", "synthetic-upgrade-secret"
 			if layout == "external" {
 				setTestLibraryPaths(&s, filepath.Join(root, "external library"))

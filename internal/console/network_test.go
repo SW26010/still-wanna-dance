@@ -248,18 +248,28 @@ func TestSOCKS5DelegatesDNSAndHonorsCancellation(t *testing.T) {
 }
 
 func TestSOCKS5SettingsValidation(t *testing.T) {
+	s := testConsole(t).settings
+	s.UpstreamMode = "proxy"
 	for _, address := range []string{"", "localhost", "127.0.0.1:0", "127.0.0.1:65536", "127.0.0.1:http", "socks5://127.0.0.1:1080", "user@localhost:1080", "bad host:1080"} {
-		if _, err := absoluteSettings(Settings{DatabasePath: "", VideoDir: t.TempDir(), UpstreamMode: "socks5", SOCKS5Address: address}); err == nil {
+		s.SOCKS5Address = address
+		if _, err := absoluteSettings(s); err == nil {
 			t.Errorf("accepted %q", address)
 		}
 	}
 	for _, address := range []string{"127.0.0.1:1080", "localhost:1080", "[::1]:1080"} {
+		s.SOCKS5Address = address
+		if _, err := absoluteSettings(s); err != nil {
+			t.Errorf("%s: %v", address, err)
+		}
 		if _, err := upstreamnet.NewSOCKS5Dialer(address); err != nil {
 			t.Errorf("%s: %v", address, err)
 		}
 	}
-	if _, err := absoluteSettings(Settings{DatabasePath: "", VideoDir: t.TempDir(), UpstreamMode: "unknown"}); err == nil {
-		t.Fatal("accepted unknown mode")
+	for _, mode := range []string{"unknown", "socks5"} {
+		s.UpstreamMode = mode
+		if _, err := absoluteSettings(s); err == nil {
+			t.Errorf("accepted unsupported mode %q", mode)
+		}
 	}
 }
 
@@ -312,7 +322,7 @@ func TestConsoleNetworkSwitchPreservesInflightRequest(t *testing.T) {
 	defer unblock()
 	c := testConsole(t)
 	s := c.settings
-	s.UpstreamMode, s.SOCKS5Address = "socks5", address
+	s.UpstreamMode, s.SOCKS5Address = "proxy", address
 	if err := c.save(s); err != nil {
 		t.Fatal(err)
 	}
@@ -378,7 +388,7 @@ func TestConsoleSOCKS5APIAndHTTPSRelayDialPaths(t *testing.T) {
 	})
 	c := testConsole(t)
 	s := c.settings
-	s.UpstreamMode, s.SOCKS5Address = "socks5", address
+	s.UpstreamMode, s.SOCKS5Address = "proxy", address
 	if err := c.save(s); err != nil {
 		t.Fatal(err)
 	}
@@ -422,7 +432,7 @@ func TestConsoleSOCKS5CacheAndSettingsSwitch(t *testing.T) {
 	}
 	originalClient := c.client
 	s := c.settings
-	s.UpstreamMode, s.SOCKS5Address = "socks5", address
+	s.UpstreamMode, s.SOCKS5Address = "proxy", address
 	if err := c.save(s); err != nil {
 		t.Fatal(err)
 	}

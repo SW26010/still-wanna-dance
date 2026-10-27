@@ -13,7 +13,7 @@ import (
 func TestProtectedProxySecretMoveTamperAndRecovery(t *testing.T) {
 	c := testConsole(t)
 	s := c.settings
-	s.UpstreamMode, s.SOCKS5Address = "socks5", "127.0.0.1:1080"
+	s.UpstreamMode, s.SOCKS5Address = "proxy", "127.0.0.1:1080"
 	s.SOCKS5Username, s.SOCKS5Password = "test-user", "never-persist-this-secret"
 	if err := c.save(s); err != nil {
 		t.Fatal(err)

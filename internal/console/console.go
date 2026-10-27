@@ -287,9 +287,6 @@ func absoluteSettings(s Settings) (Settings, error) {
 	if s.UpstreamMode == "" {
 		s.UpstreamMode = "direct"
 	}
-	if s.UpstreamMode == "socks5" {
-		s.UpstreamMode = "proxy"
-	} // legacy saved policy
 	if s.UpstreamMode != "direct" && s.UpstreamMode != "proxy" && s.UpstreamMode != "auto" {
 		return s, errors.New("上游连接必须是 direct、proxy 或 auto")
 	}

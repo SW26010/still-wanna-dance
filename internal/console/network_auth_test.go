@@ -27,7 +27,7 @@ func TestSOCKS5Authentication(t *testing.T) {
 	})
 	for _, password := range []string{"test-secret", "wrong-secret"} {
 		s := c.settings
-		s.UpstreamMode, s.SOCKS5Address = "socks5", address
+		s.UpstreamMode, s.SOCKS5Address = "proxy", address
 		s.SOCKS5Username, s.SOCKS5Password = "test-user", password
 		dial, client, err := c.networkFor(s)
 		if client != nil {
@@ -71,7 +71,7 @@ func TestSOCKS5PasswordSettingsLifecycle(t *testing.T) {
 	}
 	c := testConsole(t)
 	s := c.settings
-	s.UpstreamMode, s.SOCKS5Address = "socks5", "127.0.0.1:1080"
+	s.UpstreamMode, s.SOCKS5Address = "proxy", "127.0.0.1:1080"
 	s.SOCKS5Username, s.SOCKS5Password = "test-user", "private-test-secret"
 	if err := c.save(s); err != nil {
 		t.Fatal(err)

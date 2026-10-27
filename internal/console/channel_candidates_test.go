@@ -34,7 +34,7 @@ func TestChannelModesFollowSettingsAndRetireSavedCandidates(t *testing.T) {
 	if _, err := direct[0].Transport.RoundTrip(r); !errors.Is(err, upstreamrequest.ErrUnavailable) {
 		t.Fatal("old candidate survived config replacement", err)
 	}
-	s.UpstreamMode = "socks5"
+	s.UpstreamMode = "proxy"
 	if err := c.saveSettings(s, false, false); err != nil {
 		t.Fatal(err)
 	}

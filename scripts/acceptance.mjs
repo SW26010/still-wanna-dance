@@ -301,7 +301,7 @@ try {
       rejector.once('error', reject); rejector.listen(0, '127.0.0.1', resolve);
     });
     const offline = await consoleService('console-offline', autoStorage, {
-      upstreamMode: 'socks5', socks5Address: `127.0.0.1:${rejector.address().port}`,
+      upstreamMode: 'proxy', socks5Address: `127.0.0.1:${rejector.address().port}`,
     });
     try {
       for (const method of ['GET', 'HEAD']) {

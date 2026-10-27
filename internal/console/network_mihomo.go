@@ -148,7 +148,7 @@ func (c *Console) mihomoNetworkFor(s Settings, limit int) (upstreamDialFunc, *ht
 			return nil, net.ErrClosed
 		}
 		var attempts []upstreamrequest.DialFunc
-		if s.UpstreamMode != "proxy" && s.UpstreamMode != "socks5" {
+		if s.UpstreamMode != "proxy" {
 			attempts = append(attempts, c.dns.DialContext)
 		}
 		for _, proxy := range proxies {
@@ -176,7 +176,7 @@ func (c *Console) mihomoNetworkFor(s Settings, limit int) (upstreamDialFunc, *ht
 	runtime.Transport = &upstreamrequest.Transport{Pool: pool, RoundTripper: &http.Transport{
 		DialContext: dial, ResponseHeaderTimeout: 20 * time.Second, TLSHandshakeTimeout: 10 * time.Second, IdleConnTimeout: 90 * time.Second,
 	}}
-	if s.UpstreamMode != "proxy" && s.UpstreamMode != "socks5" {
+	if s.UpstreamMode != "proxy" {
 		runtime.direct = &mihomoDirectTransport{owner: runtime, Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
 				if runtime.retired.Load() {

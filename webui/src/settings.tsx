@@ -16,7 +16,7 @@ export interface ProxyReport { id?: string; accepted: number; skipped: number; f
 export type Draft = Omit<Settings, NumberField | 'maxCacheBytes' | 'theme'> & Record<NumberField, string> & CapacityDraft & { proxyImportID: string; proxyImportText: string; proxyReport?: ProxyReport };
 export function draftFrom(s: Settings): Draft {
   const {maxCacheBytes, theme: _theme, ...values} = s;
-  return { ...values, restoreHostsOnExit: s.restoreHostsOnExit ?? true, socks5Password: '', upstreamMode: s.upstreamMode === 'socks5' ? 'proxy' : s.upstreamMode || 'direct', proxyBackend: s.proxyBackend || 'external-socks5',
+  return { ...values, restoreHostsOnExit: s.restoreHostsOnExit ?? true, socks5Password: '',
     requestRetentionDays: String(s.requestRetentionDays ?? 0), throughputIntervalMinutes: String(s.throughputIntervalMinutes ?? 20),
     prepareAheadSeconds: String(s.prepareAheadSeconds ?? 500),
     downloadSoftLimit: String(s.downloadSoftLimit ?? 16), downloadGrowIntervalMS: String(s.downloadGrowIntervalMS ?? 250),

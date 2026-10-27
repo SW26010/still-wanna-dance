@@ -17,7 +17,7 @@ func TestUnsupportedProxyEnvelopeStaysUnavailableAndPreserved(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			fields["upstreamMode"] = json.RawMessage(`"socks5"`)
+			fields["upstreamMode"] = json.RawMessage(`"proxy"`)
 			fields["socks5Address"] = json.RawMessage(`"127.0.0.1:1080"`)
 			fields["proxySecret"] = json.RawMessage(raw)
 			b, _ := json.Marshal(fields)

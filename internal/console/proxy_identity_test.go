@@ -73,7 +73,7 @@ func TestChannelIdentityFailedPreparationRemainsTemporaryUntilRestart(t *testing
 }
 
 func TestProxyIdentityCorruptionDoesNotPreventNetwork(t *testing.T) {
-	for _, mode := range []string{"auto", "socks5"} {
+	for _, mode := range []string{"auto", "proxy"} {
 		for _, data := range []string{"", "short", strings.Repeat("x", 33), "directory", "blocked-parent"} {
 			t.Run(mode+"/"+data, func(t *testing.T) {
 				c := testConsole(t)
@@ -141,7 +141,7 @@ func TestProxyIdentityCorruptionDoesNotPreventNetwork(t *testing.T) {
 
 func TestProxyIdentityStableAcrossPoolsAndConfigurationSensitive(t *testing.T) {
 	c := testConsole(t)
-	base := Settings{UpstreamMode: "socks5", SOCKS5Address: "127.0.0.1:1080", SOCKS5Username: "private-user", SOCKS5Password: "private-password"}
+	base := Settings{UpstreamMode: "proxy", SOCKS5Address: "127.0.0.1:1080", SOCKS5Username: "private-user", SOCKS5Password: "private-password"}
 	identity := func(owner *Console, s Settings) string {
 		t.Helper()
 		_, client, err := owner.networkFor(s)

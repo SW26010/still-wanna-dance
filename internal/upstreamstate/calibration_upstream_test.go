@@ -68,7 +68,7 @@ func TestCalibrationRunOwnsUpstreamCleanup(t *testing.T) {
 	})
 	c := calibrationForTest(t, blocked)
 	channel := upstreamrequest.NewChannel()
-	channel.Publish(blocked)
+	channel.Publish(calibrationCandidates{{Mode: "socks5", Transport: blocked}})
 	var released atomic.Int32
 	if err := c.StartWithUpstream(channel, "proxy", func() { released.Add(1) }); err != nil {
 		t.Fatal(err)

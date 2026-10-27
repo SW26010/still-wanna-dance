@@ -57,7 +57,9 @@ func TestConsentReleasesAutomaticStartupOnce(t *testing.T) {
 				}
 				time.Sleep(time.Millisecond)
 			}
-			postTaskAction(t, c, "stop")
+			if err := c.stop(); err != nil {
+				t.Fatal(err)
+			}
 			accept()
 			c.AutoStart()
 			if c.httpServer != nil {

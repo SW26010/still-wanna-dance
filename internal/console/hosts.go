@@ -10,25 +10,10 @@ import (
 )
 
 const marker = "# SWD managed"
-const legacyMarker = "# StepStash managed"
-
-var managedMarkers = []string{marker, "# Still Wanna Dance managed", legacyMarker}
-
-func managedComment(comment string) bool {
-	for _, m := range managedMarkers {
-		if "# "+strings.TrimSpace(comment) == m {
-			return true
-		}
-	}
-	return false
-}
 
 // Playback is served at the API entry, so no resource domains need to be
 // presumed or mapped before the API returns them.
 var domains = []string{"api.udon.dance"}
-
-// Historical managed entries are recognized only for safe restoration.
-var legacyManagedDomains = []string{"play.udon.dance", "nya.xin.moe", "api.udon.dance"}
 
 func hostsPath() string {
 	if runtime.GOOS == "windows" {
@@ -41,33 +26,46 @@ type HostsStatus struct {
 	Managed             bool   `json:"managed"`
 	ExitRestorePrepared bool   `json:"exitRestorePrepared"`
 	AuthorizationID     string `json:"authorizationID,omitempty"`
-	NeedsMigration      bool   `json:"needsMigration"`
 	Ready               bool   `json:"ready"`
 	Conflict            bool   `json:"conflict"`
 	Message             string `json:"message"`
+}
+
+func hasManagedHosts(data string) bool {
+	for _, line := range strings.Split(data, "\n") {
+		if !strings.Contains(line, marker) {
+			continue
+		}
+		body, _, _ := strings.Cut(line, "#")
+		fields := strings.Fields(body)
+		if len(fields) < 2 {
+			continue
+		}
+		// Only current API mappings are ours. Keep recognizing their edited
+		// address or formatting so restoration can report unsafe changes.
+		for _, host := range fields[1:] {
+			for _, domain := range domains {
+				if strings.EqualFold(strings.TrimSuffix(host, "."), domain) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func inspectHosts(data string) (result HostsStatus) {
 	defer func() { result.Managed = hasManagedHosts(data) }()
 	found := map[string]bool{}
 	conflict := false
-	needsMigration := false
 	for _, line := range strings.Split(data, "\n") {
-		body, comment, _ := strings.Cut(line, "#")
+		body, _, _ := strings.Cut(line, "#")
 		fields := strings.Fields(body)
-		owned := managedComment(comment)
 		if len(fields) < 2 {
 			continue
 		}
 		for _, host := range fields[1:] {
 			host = strings.ToLower(strings.TrimSuffix(host, "."))
-			if owned {
-				for _, d := range legacyManagedDomains {
-					if d != "api.udon.dance" && host == d {
-						needsMigration = true
-					}
-				}
-			}
 			for _, d := range domains {
 				if host == d {
 					if fields[0] == "127.0.0.1" {
@@ -80,10 +78,7 @@ func inspectHosts(data string) (result HostsStatus) {
 		}
 	}
 	if conflict {
-		return HostsStatus{Conflict: true, NeedsMigration: needsMigration, Message: "发现已有冲突映射，请先检查 hosts；不会覆盖其他程序的配置。"}
-	}
-	if needsMigration {
-		return HostsStatus{NeedsMigration: true, Message: "旧版托管的资源域名映射尚未迁移，请在加速页点击「开始加速」清理；当前接入未完成。"}
+		return HostsStatus{Conflict: true, Message: "发现已有冲突映射，请先检查 hosts；不会覆盖其他程序的配置。"}
 	}
 	if len(found) == len(domains) {
 		return HostsStatus{Ready: true, Message: "播放 API 已接入本地；资源域名由 API 返回。"}
@@ -108,18 +103,7 @@ func (h *hostsController) status() HostsStatus {
 
 func transformHosts(data, action string) (string, error) {
 	if action == "enable" {
-		// Remove only exact historical resource entries owned by this program.
-		for _, ownedMarker := range managedMarkers {
-			for _, d := range legacyManagedDomains {
-				if d != "api.udon.dance" {
-					data = strings.ReplaceAll(data, "\r\n127.0.0.1 "+d+" "+ownedMarker+"\r\n", "")
-				}
-			}
-		}
 		s := inspectHosts(data)
-		if s.NeedsMigration {
-			return "", fmt.Errorf("旧版托管条目格式已被修改，无法自动清理，请手动检查 hosts")
-		}
 		if s.Conflict {
 			return "", fmt.Errorf("%s", s.Message)
 		}
@@ -149,20 +133,13 @@ func transformHosts(data, action string) (string, error) {
 	if action != "disable" {
 		return "", fmt.Errorf("unknown hosts action")
 	}
-	for _, ownedMarker := range managedMarkers {
-		for _, d := range legacyManagedDomains {
-			data = strings.ReplaceAll(data, "\r\n127.0.0.1 "+d+" "+ownedMarker+"\r\n", "")
-		}
-		if strings.Contains(data, ownedMarker) {
-			return "", fmt.Errorf("Still Wanna Dance 的标记条目已被修改，请手动检查 hosts")
-		}
+	for _, d := range domains {
+		data = strings.ReplaceAll(data, "\r\n127.0.0.1 "+d+" "+marker+"\r\n", "")
+	}
+	if hasManagedHosts(data) {
+		return "", fmt.Errorf("Still Wanna Dance 的标记条目已被修改，请手动检查 hosts")
 	}
 	return data, nil
-}
-
-// ApplyHosts is called only by the explicitly elevated helper invocation.
-func ApplyHosts(action string) error {
-	return applyHosts(hostsPath(), action)
 }
 
 func applyHosts(p, action string) error {

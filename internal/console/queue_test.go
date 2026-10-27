@@ -155,7 +155,7 @@ func TestQueueLifecycleAndParallelBatch(t *testing.T) {
 	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.startQueue(); err != nil {
+	if err := c.start(); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.startBatch(); err != nil {
@@ -170,7 +170,7 @@ func TestQueueLifecycleAndParallelBatch(t *testing.T) {
 	if c.queue.Running {
 		t.Fatal("watcher still running")
 	}
-	if err := c.startQueue(); err == nil {
+	if err := c.start(); err == nil {
 		t.Fatal("started after close")
 	}
 }
@@ -232,7 +232,7 @@ func TestLiveTailCoalescesSnapshotsBeforeDownload(t *testing.T) {
 	defer api.Close()
 	c.apiBase = api.URL
 	c.client.Transport = http.DefaultTransport
-	if err := c.startQueue(); err != nil {
+	if err := c.start(); err != nil {
 		t.Fatal(err)
 	}
 	defer c.Close()

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -14,6 +15,33 @@ import (
 
 	"still-wanna-dance/internal/cacheproxy"
 )
+
+func TestRemovedControlsDoNotStartWork(t *testing.T) {
+	c := testConsole(t)
+	before, err := os.ReadFile(c.hosts.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/api/cache", "/api/start", "/api/stop", "/api/queue/start", "/api/queue/stop", "/api/hosts/enable", "/api/hosts/disable"} {
+		method := http.MethodPost
+		if path == "/api/cache" {
+			method = http.MethodGet
+		}
+		r := httptest.NewRequest(method, "http://"+c.address+path, nil)
+		r.Header.Set("X-SWD-Token", c.token)
+		w := httptest.NewRecorder()
+		c.ServeHTTP(w, r)
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("%s: %d %s", path, w.Code, w.Body.String())
+		}
+	}
+	if c.service != nil || c.httpServer != nil || c.queueDesired || c.queue.Running || c.hosts.session != nil {
+		t.Fatal("removed controls started work")
+	}
+	if after, err := os.ReadFile(c.hosts.path); err != nil || string(after) != string(before) {
+		t.Fatal("removed controls changed hosts", err)
+	}
+}
 
 func TestConsolePrefetchPrefersCFEvenWhenHKGIsFaster(t *testing.T) {
 	c := testConsole(t)

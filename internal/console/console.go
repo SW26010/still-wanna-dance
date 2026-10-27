@@ -554,12 +554,6 @@ func (c *Console) autoStart() {
 	}
 }
 
-func (c *Console) start() (err error) {
-	c.lifecycleMu.Lock()
-	defer c.lifecycleMu.Unlock()
-	return c.startLocked()
-}
-
 func (c *Console) startLocked() (err error) {
 	if !c.termsAccepted() {
 		return errors.New("请先打开 WebUI 阅读并同意使用条款")
@@ -582,7 +576,7 @@ func (c *Console) startLocked() (err error) {
 		c.startGatewayQueueLocked()
 		return nil
 	}
-	// Hosts do not affect binding: a running CDN can be connected using the separate hosts action.
+	// Activation owns the hosts setup; this step binds both local listeners.
 	l, err := net.Listen("tcp4", c.videoAddress)
 	if err != nil {
 		return desktop.PortError(c.videoAddress, err)
@@ -649,11 +643,9 @@ func (c *Console) stop() error {
 }
 
 func (c *Console) stopLocked() {
-	if c.settings.QueueWithGateway {
-		c.mu.Unlock()
-		c.stopQueueLocked()
-		c.mu.Lock()
-	}
+	c.mu.Unlock()
+	c.stopQueueLocked()
+	c.mu.Lock()
 	c.activation.FirstRequest = time.Time{}
 	if !c.activation.Started.IsZero() {
 		c.activation.Phase = "stopped"
@@ -1145,16 +1137,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.startInventoryScan()
 	case "/api/batch/scan":
 		err = c.startBatchMode(true)
-	case "/api/start":
-		err = c.startForUser()
 	case "/api/activation/enable":
 		err = c.enableAcceleration(c.hosts.status, c.changeHostsLocked)
-	case "/api/stop":
-		err = c.stop()
-	case "/api/queue/start":
-		err = c.startQueue()
-	case "/api/queue/stop":
-		err = c.stopQueue()
 	case "/api/settings/theme":
 		var input struct {
 			Theme string `json:"theme"`
@@ -1183,10 +1167,6 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			input.Settings.nodeImportID = input.ProxyImportID
 			err = c.saveSettings(input.Settings, input.Password == nil, input.ConfirmVideoPolicy)
 		}
-	case "/api/hosts/enable":
-		err = c.changeHosts("enable")
-	case "/api/hosts/disable":
-		err = c.changeHosts("disable")
 	case "/api/batch/start":
 		err = c.startBatch()
 	case "/api/batch/download":
@@ -1225,9 +1205,6 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // CDN errors are owned by start/stop/failCDN, including automatic and tray calls.
 func (c *Console) recordActionError(path string, err error) {
 	source := strings.Split(strings.TrimPrefix(path, "/api/"), "/")[0]
-	if source == "start" || source == "stop" {
-		return
-	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if err == nil {

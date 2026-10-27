@@ -6,47 +6,21 @@ import (
 	"testing"
 )
 
-func TestQueueCanRunIndependentlyWhenGatewayFollowDisabled(t *testing.T) {
+func TestGatewayWithQueueFollowingDisabled(t *testing.T) {
 	c := testConsole(t)
 	c.settings.QueueWithGateway = false
 	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	postTaskAction(t, c, "queue/start")
-	engine := c.service
-	if !c.queue.Running || c.httpServer != nil {
-		t.Fatal("queue requires CDN")
+	if err := c.start(); err != nil {
+		t.Fatal(err)
 	}
-	postTaskAction(t, c, "queue/start")
-	postTaskAction(t, c, "start")
-	postTaskAction(t, c, "stop")
-	if !c.queue.Running || c.service != engine {
-		t.Fatal("CDN stop affected queue")
-	}
-	postTaskAction(t, c, "start")
-	postTaskAction(t, c, "queue/stop")
-	postTaskAction(t, c, "queue/stop")
 	if c.queue.Running || c.queueDesired || c.httpServer == nil {
-		t.Fatal("queue stop affected CDN")
+		t.Fatal("disabled queue started")
 	}
-	postTaskAction(t, c, "queue/start")
 	c.failCDN(c.httpServer, errors.New("listener failed"))
-	if !c.queue.Running || c.httpServer != nil {
-		t.Fatal("CDN failure stopped queue")
-	}
-	next := c.settings
-	next.PrepareAheadSeconds++
-	if err := c.save(next); err != nil {
-		t.Fatal(err)
-	}
-	if c.service != engine || !c.queue.Running {
-		t.Fatal("save invalidated standalone queue")
-	}
-	if err := c.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if c.queue.Running || c.queueDesired {
-		t.Fatal("queue survived application close")
+	if c.queue.Running || c.queueDesired || c.httpServer != nil {
+		t.Fatal("failed gateway left work running")
 	}
 }
 
@@ -56,7 +30,9 @@ func TestQueueStartsDuringBatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.batch = Batch{Running: true}
-	postTaskAction(t, c, "queue/start")
+	if err := c.start(); err != nil {
+		t.Fatal(err)
+	}
 	if !c.queueDesired || !c.queue.Running {
 		t.Fatal("batch prevented queue startup")
 	}
@@ -64,13 +40,15 @@ func TestQueueStartsDuringBatch(t *testing.T) {
 
 func TestQueueFailureRetainsIntentAndCanRetry(t *testing.T) {
 	c := testConsole(t)
-	if err := c.startQueue(); err == nil || !c.queueDesired || c.queue.Running {
+	if err := c.start(); err != nil || !c.queueDesired || c.queue.Running || c.actionErrors["queue"] == "" {
 		t.Fatal("missing failure state")
 	}
 	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	postTaskAction(t, c, "queue/start")
+	if err := c.start(); err != nil {
+		t.Fatal(err)
+	}
 	if !c.queue.Running {
 		t.Fatal("retry failed")
 	}
@@ -94,7 +72,7 @@ func TestQueueWithGatewayDoesNotStartWithoutCDN(t *testing.T) {
 func TestQueueStartRequiresConsent(t *testing.T) {
 	c := testConsole(t)
 	c.terms = termsReceipt{}
-	if err := c.startQueue(); err == nil || c.queueDesired {
+	if err := c.start(); err == nil || c.queueDesired {
 		t.Fatal("queue bypassed consent")
 	}
 }

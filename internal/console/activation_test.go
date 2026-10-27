@@ -12,25 +12,6 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 )
 
-func TestActivationPreservesIndependentQueueWhenFollowDisabled(t *testing.T) {
-	for _, desired := range []bool{false, true} {
-		t.Run(map[bool]string{false: "disabled", true: "waiting"}[desired], func(t *testing.T) {
-			c := testConsole(t)
-			c.settings.QueueWithGateway = false
-			c.queueDesired = desired
-			if err := c.enableAcceleration(func() HostsStatus { return HostsStatus{Ready: true} }, func(string) error {
-				// The shared controller performs no-op and authorization checks.
-				return nil
-			}); err != nil {
-				t.Fatal(err)
-			}
-			if c.queueDesired != desired || c.queueCancel != nil {
-				t.Fatal("enabling the playback service changed the independent queue")
-			}
-		})
-	}
-}
-
 func TestActivationRecordsPlaybackArrivalOnResolutionFailure(t *testing.T) {
 	c := testConsole(t)
 	cfg := fixtureCacheConfig()
@@ -187,71 +168,14 @@ func TestActivationEndpointUsesExistingAuthorization(t *testing.T) {
 	}
 }
 
-func TestOwnedLegacyHostsRequireActivationMigration(t *testing.T) {
-	for _, ownedMarker := range []string{marker, legacyMarker} {
-		t.Run(ownedMarker, func(t *testing.T) {
-			c := testConsole(t)
-			original := "127.0.0.1 localhost\r\n"
-			data := original
-			for _, host := range legacyManagedDomains {
-				data += "\r\n127.0.0.1 " + host + " " + ownedMarker + "\r\n"
-			}
-			inspect := func() HostsStatus { return inspectHosts(data) }
-			if status := inspect(); status.Ready || !status.NeedsMigration || status.Conflict {
-				t.Fatal(status)
-			}
-			changes := 0
-			change := func(action string) (err error) {
-				before := data
-				data, err = transformHosts(data, action)
-				if data != before {
-					changes++
-				}
-				return
-			}
-			if err := c.enableAcceleration(inspect, change); err != nil {
-				t.Fatal(err)
-			}
-			if changes != 1 || !inspect().Ready || inspect().NeedsMigration || c.activation.Phase != "waiting" {
-				t.Fatal(changes, inspect(), c.activation)
-			}
-			for _, host := range legacyManagedDomains {
-				if host != "api.udon.dance" && strings.Contains(data, host) {
-					t.Fatal(data)
-				}
-			}
-			if err := c.enableAcceleration(inspect, change); err != nil || changes != 1 {
-				t.Fatal("migration not idempotent", changes, err)
-			}
-		})
-	}
-}
-
-func TestAutoAccelerationUpdatesOwnedHosts(t *testing.T) {
+func TestAutoAccelerationUsesOwnedHosts(t *testing.T) {
 	c := testConsole(t)
 	c.settings.AutoAccelerate = true
-	data := "\r\n127.0.0.1 api.udon.dance " + marker + "\r\n\r\n127.0.0.1 nya.xin.moe " + marker + "\r\n"
+	data := "\r\n127.0.0.1 api.udon.dance " + marker + "\r\n"
 	c.hosts, _ = fixtureHostsController(t, data)
 
 	c.AutoStart()
-	if !c.DesktopState().CDN || c.activation.Phase != "waiting" || !c.hosts.status().Ready || c.hosts.status().NeedsMigration {
+	if !c.DesktopState().CDN || c.activation.Phase != "waiting" || !c.hosts.status().Ready {
 		t.Fatal(c.activation)
-	}
-}
-
-func TestUnownedLegacyHostsAreNotMigrationTargets(t *testing.T) {
-	data := "127.0.0.1 api.udon.dance\r\n127.0.0.1 nya.xin.moe # another program\r\n"
-	if got := inspectHosts(data); !got.Ready || got.NeedsMigration {
-		t.Fatal(got)
-	}
-	if got, err := transformHosts(data, "enable"); err != nil || got != data {
-		t.Fatal(got, err)
-	}
-	altered := data + "\r\n127.0.0.2 play.udon.dance " + marker + "\r\n"
-	if got := inspectHosts(altered); got.Ready || !got.NeedsMigration {
-		t.Fatal(got)
-	}
-	if _, err := transformHosts(altered, "enable"); err == nil {
-		t.Fatal("edited owned entry silently accepted")
 	}
 }

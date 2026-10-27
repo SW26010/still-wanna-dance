@@ -32,8 +32,9 @@ func TestAutoStartSetting(t *testing.T) {
 	if !c.DesktopState().CDN || !c.queue.Running || !c.queueDesired {
 		t.Fatal("enabled automatic acceleration did not start both services")
 	}
-	postTaskAction(t, c, "stop")
-	postTaskAction(t, c, "queue/stop")
+	if err := c.stop(); err != nil {
+		t.Fatal(err)
+	}
 	c.AutoStart() // repeated calls cannot restart the process attempt
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/", nil))

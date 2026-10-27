@@ -3,7 +3,6 @@ package console
 import (
 	"errors"
 	"fmt"
-	"os"
 	"time"
 )
 
@@ -110,24 +109,6 @@ func (c *Console) beginVideoRequest(arrived time.Time) func() {
 	}
 }
 
-func (c *Console) changeHosts(action string) error {
-	if action == "enable" && !c.termsAccepted() {
-		return errors.New("请先阅读并同意使用条款")
-	}
-	c.lifecycleMu.Lock()
-	defer c.lifecycleMu.Unlock()
-	err := c.changeHostsLocked(action)
-	if action == "disable" && err == nil {
-		c.mu.Lock()
-		c.activation.FirstRequest = time.Time{}
-		if !c.activation.Started.IsZero() {
-			c.activation.Phase = "stopped"
-		}
-		c.mu.Unlock()
-	}
-	return err
-}
-
 // Caller owns lifecycleMu. All explicit connection operations share this
 // preflight and helper, regardless of the configured exit policy.
 func (c *Console) changeHostsLocked(action string) error {
@@ -138,23 +119,4 @@ func (c *Console) changeHostsLocked(action string) error {
 		return errors.New("程序正在退出")
 	}
 	return c.hosts.change(action, restore)
-}
-
-// Starting the gateway explicitly may reuse an existing managed connection.
-// Prepare its exit cleanup here, while this user operation can request UAC.
-// Automatic acceleration uses the same hosts controller through enableAcceleration.
-func (c *Console) startForUser() error {
-	c.lifecycleMu.Lock()
-	defer c.lifecycleMu.Unlock()
-	if err := c.startLocked(); err != nil {
-		return err
-	}
-	data, err := os.ReadFile(c.hosts.path)
-	if err != nil {
-		return err
-	}
-	if status := inspectHosts(string(data)); status.Ready && status.Managed {
-		return c.changeHostsLocked("enable")
-	}
-	return nil
 }

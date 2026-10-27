@@ -19,6 +19,13 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 )
 
+// Tests can exercise the gateway without requesting system hosts access.
+func (c *Console) start() (err error) {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
+	return c.startLocked()
+}
+
 func testWorkDirectory(t *testing.T) *cacheproxy.WorkDirectory {
 	t.Helper()
 	work, err := cacheproxy.OpenWorkDirectory(filepath.Join(t.TempDir(), "work"), nil)
@@ -151,7 +158,7 @@ func TestSettingsPersistAndPortConflict(t *testing.T) {
 func TestBrowserWriteProtection(t *testing.T) {
 	c := testConsole(t)
 	for _, tc := range []struct{ host, token, origin string }{{"evil.example", c.token, ""}, {c.address, "", ""}, {c.address, c.token, "https://evil.example"}} {
-		r := httptest.NewRequest("POST", "http://"+tc.host+"/api/start", nil)
+		r := httptest.NewRequest("POST", "http://"+tc.host+"/api/activation/enable", nil)
 		r.Header.Set("X-SWD-Token", tc.token)
 		r.Header.Set("Origin", tc.origin)
 		w := httptest.NewRecorder()
@@ -312,17 +319,4 @@ func TestLiveIndependentDNS(t *testing.T) {
 		t.Fatal(resp.StatusCode, len(b), err)
 	}
 	t.Log("API and video range request succeeded using independent DNS")
-}
-
-func TestEnableHostsRetiresOnlyOwnedLegacyResourceMappings(t *testing.T) {
-	original := "127.0.0.1 nya.xin.moe # another tool\r\n"
-	old := original + "\r\n127.0.0.1 play.udon.dance " + marker + "\r\n" + "\r\n127.0.0.1 nya.xin.moe " + legacyMarker + "\r\n"
-	got, err := transformHosts(old, "enable")
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := original + "\r\n127.0.0.1 api.udon.dance " + marker + "\r\n"
-	if got != want {
-		t.Fatalf("got %q, want %q", got, want)
-	}
 }

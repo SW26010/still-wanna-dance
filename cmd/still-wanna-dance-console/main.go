@@ -60,14 +60,12 @@ func run() (runErr error) {
 		return err
 	}
 	config := flag.String("config", defaultConfig, "settings file (relative directories are based on this file)")
-	action := flag.String("hosts-action", "", "internal elevated helper: enable or disable")
 	hostsSession := flag.String("hosts-session", "", "internal hosts helper pipe")
 	hostsParent := flag.Uint("hosts-parent", 0, "internal hosts helper parent PID")
 	noTray := flag.Bool("no-tray", runtime.GOOS != "windows", "run without the Windows tray")
 	noOpen := flag.Bool("no-open", false, "do not open the browser on launch")
 	showTerms := flag.Bool("show-terms", false, "print usage terms and exit")
 	showBuild := flag.Bool("build-info", false, "print executable build identity as JSON and exit")
-	acceptTerms := flag.String("accept-terms", "", "terms version for the internal hosts helper")
 	flag.Parse()
 	if *showBuild {
 		visibleErrors = false
@@ -77,22 +75,9 @@ func run() (runErr error) {
 		fmt.Print(legal.Text)
 		return nil
 	}
-	visibleErrors = runtime.GOOS == "windows" && !*noTray && *action == "" && *hostsSession == ""
+	visibleErrors = runtime.GOOS == "windows" && !*noTray && *hostsSession == ""
 	if *hostsSession != "" {
 		return console.RunHostsSession(*hostsSession, uint32(*hostsParent))
-	}
-	// The short-lived elevated helper bypasses desktop election.
-	if *action != "" {
-		if *action == "enable" {
-			if err := legal.CheckAcceptance(*acceptTerms); err != nil {
-				return err
-			}
-		}
-		if err := console.ApplyHosts(*action); err != nil {
-			return err
-		}
-		console.FlushDNS()
-		return nil
 	}
 	if flag.NArg() != 0 {
 		return fmt.Errorf("不支持的位置参数")

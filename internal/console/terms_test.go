@@ -190,7 +190,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 		c.ServeHTTP(w, r)
 		return w
 	}
-	for _, path := range []string{"/api/start", "/api/activation/enable", "/api/hosts/enable", "/api/batch/start", "/api/settings", "/api/inventory/scan"} {
+	for _, path := range []string{"/api/activation/enable", "/api/batch/start", "/api/settings", "/api/inventory/scan"} {
 		if w := request("POST", path, "{}", c.token, ""); w.Code != 428 {
 			t.Fatalf("%s: %d", path, w.Code)
 		}
@@ -208,12 +208,6 @@ func TestTermsGateAndPersistence(t *testing.T) {
 	w := request("GET", "/", "", "", "")
 	if w.Code != 200 || !strings.Contains(w.Body.String(), `/assets/webui/app.js`) || !strings.Contains(w.Body.String(), `"termsGate":{"pageID":`) || strings.Contains(w.Body.String(), "ZgotmplZ") {
 		t.Fatal("missing usable consent page")
-	}
-	if w := request("POST", "/api/stop", "{}", c.token, ""); w.Code != 200 {
-		t.Fatal("cleanup blocked")
-	}
-	if w := request("POST", "/api/hosts/disable", "{}", "", ""); w.Code != 403 {
-		t.Fatal("cleanup bypasses authentication")
 	}
 	w = request("GET", "/api/terms/current", "", "", "")
 	var current map[string]any

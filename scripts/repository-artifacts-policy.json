@@ -507,6 +507,13 @@
       "bytes": 1179912,
       "sha256": "97cebf7afef9b1edfccec1e68332ccd61421f08fc12d5e3e59c6e7e55cb1c482",
       "reason": "Intermediate production WebUI for separately reviewable legacy cleanup commit 1; rebuilt from its exact staged sources with pinned dependencies and a passing type check."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1179797,
+      "sha256": "ab0ae201fc386b718b87c9875ec2947d65991052c5627ff1453a93e3e397476b",
+      "reason": "Intermediate production WebUI for separately reviewable legacy cleanup commit 2; rebuilt from its exact staged sources with pinned dependencies and a passing type check."
     }
   ]
 }

@@ -165,29 +165,6 @@ func logName(path string) string {
 	return filepath.Base(path)
 }
 
-func (c *Console) startQueue() error {
-	c.lifecycleMu.Lock()
-	defer c.lifecycleMu.Unlock()
-	if !c.termsAccepted() {
-		return errors.New("请先打开 WebUI 阅读并同意使用条款")
-	}
-	c.mu.Lock()
-	if c.closing {
-		c.mu.Unlock()
-		return errors.New("程序正在退出")
-	}
-	c.queueDesired = true
-	c.mu.Unlock()
-	return c.startQueueLocked()
-}
-
-func (c *Console) stopQueue() error {
-	c.lifecycleMu.Lock()
-	defer c.lifecycleMu.Unlock()
-	c.stopQueueLocked()
-	return nil
-}
-
 // Caller holds lifecycleMu. Wait until queue sources have been withdrawn.
 func (c *Console) stopQueueLocked() {
 	c.mu.Lock()
@@ -211,7 +188,7 @@ func (c *Console) startGatewayQueueLocked() {
 	c.mu.Lock()
 	c.queueDesired = true
 	c.mu.Unlock()
-	c.recordActionError("/api/queue/start", c.startQueueLocked())
+	c.recordActionError("queue", c.startQueueLocked())
 }
 
 // The caller holds lifecycleMu. Manual downloads share the demand scheduler.

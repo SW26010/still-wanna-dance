@@ -33,7 +33,7 @@ export interface Health {
 export interface Status {
   vrcxImportAvailable: boolean;
   running: boolean; settings: Settings; activeSettings: Settings; restartRequired: boolean;
-  hosts: {ready: boolean; managed?: boolean; exitRestorePrepared?: boolean; authorizationID?: string; needsMigration?: boolean; conflict?: boolean; message: string}; portOK: boolean; httpsPortOK: boolean;
+  hosts: {ready: boolean; managed?: boolean; exitRestorePrepared?: boolean; authorizationID?: string; conflict?: boolean; message: string}; portOK: boolean; httpsPortOK: boolean;
   portOwner?: {name: string; pid: number}; httpsPortOwner?: {name: string; pid: number}; cdnError?: string;
   storageError?: string; actionErrors?: Record<string,string>; batch: Job; lastBatch: Job; import: ImportJob;
   queue: {running?: boolean; desired?: boolean; current?: number; active?: number[]; blocked?: number[]; songs?: {songId: number}[]; titles?: Record<string,string>; file?: string; completed?: number; logError?: string; error?: string};

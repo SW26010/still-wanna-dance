@@ -25,7 +25,7 @@ func TestBatchLeavesQueueRunning(t *testing.T) {
 	c.apiBase = api.URL
 	c.checksumURL = api.URL
 	c.client.Transport = http.DefaultTransport
-	if err := c.startQueue(); err != nil {
+	if err := c.start(); err != nil {
 		t.Fatal(err)
 	}
 	queueDone := c.queueDone
@@ -54,7 +54,7 @@ func TestBatchLeavesQueueRunning(t *testing.T) {
 
 func TestBatchDoesNotChangeQueueLifecycle(t *testing.T) {
 	for _, enabled := range []bool{false, true} {
-		for _, outcome := range []string{"cancel", "complete", "failure", "cdn-stop", "queue-stop", "close"} {
+		for _, outcome := range []string{"cancel", "complete", "failure", "cdn-stop", "close"} {
 			name := outcome + "/queue-off"
 			if enabled {
 				name = outcome + "/queue-on"
@@ -83,7 +83,7 @@ func TestBatchDoesNotChangeQueueLifecycle(t *testing.T) {
 				c.checksumURL = api.URL
 				c.client.Transport = http.DefaultTransport
 				if enabled {
-					if err := c.startQueue(); err != nil {
+					if err := c.start(); err != nil {
 						t.Fatal(err)
 					}
 				}
@@ -117,11 +117,10 @@ func TestBatchDoesNotChangeQueueLifecycle(t *testing.T) {
 							t.Fatal(err)
 						}
 					default:
-						if outcome == "queue-stop" {
-							postTaskAction(t, c, "queue/stop")
-						}
 						if outcome == "cdn-stop" {
-							postTaskAction(t, c, "stop")
+							if err := c.stop(); err != nil {
+								t.Fatal(err)
+							}
 						}
 						postTaskAction(t, c, "batch/cancel")
 					}
@@ -133,7 +132,7 @@ func TestBatchDoesNotChangeQueueLifecycle(t *testing.T) {
 				}
 				c.mu.Lock()
 				defer c.mu.Unlock()
-				wantRunning := enabled && outcome != "queue-stop" && outcome != "cdn-stop" && outcome != "close"
+				wantRunning := enabled && outcome != "cdn-stop" && outcome != "close"
 				if c.queue.Running != wantRunning || c.batch.Running {
 					t.Fatalf("queue running=%v, want %v; batch running=%v", c.queue.Running, wantRunning, c.batch.Running)
 				}

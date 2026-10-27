@@ -88,21 +88,15 @@ func TestQueueProtectionWaitAllowsStopCancellation(t *testing.T) {
 	c.queue.updateSources = func([]int64, bool) { close(entered); <-ctx.Done() }
 	go func() { c.mu.Lock(); c.setQueueSongsLocked([]vrclog.Song{{ID: 1}}, false); c.mu.Unlock(); close(done) }()
 	<-entered
-	stopped := make(chan int, 1)
-	go func() {
-		r := httptest.NewRequest("POST", "http://"+c.address+"/api/queue/stop", nil)
-		r.Header.Set("X-SWD-Token", c.token)
-		w := httptest.NewRecorder()
-		c.ServeHTTP(w, r)
-		stopped <- w.Code
-	}()
+	stopped := make(chan error, 1)
+	go func() { stopped <- c.Close() }()
 	select {
-	case code := <-stopped:
-		if code != 200 {
-			t.Fatal(code)
+	case err := <-stopped:
+		if err != nil {
+			t.Fatal(err)
 		}
 	case <-time.After(time.Second):
-		t.Fatal("queue wait blocked cancel endpoint")
+		t.Fatal("queue wait blocked application close")
 	}
 	select {
 	case <-done:

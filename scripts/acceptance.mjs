@@ -1,4 +1,5 @@
-// Opt-in real-network acceptance. All downloads and reports stay under test-runs.
+// Opt-in CLI real-network and desktop-consent acceptance. All output stays under test-runs.
+// Console gateway routing/fallback is covered by the Go integration suite; no hidden start API.
 // node scripts/acceptance.mjs [service-executable] [console-executable] <existing-terms-receipt>
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,7 +18,6 @@ const lab = path.join(root, 'test-runs', `acceptance-${Date.now()}`);
 fs.mkdirSync(lab, { recursive: true });
 const report = { started: new Date().toISOString(), checks: [] };
 const children = new Set();
-const servers = new Set();
 const digest = (data, algorithm = 'sha256') => crypto.createHash(algorithm).update(data).digest('hex');
 let receipt;
 let termsVersion;
@@ -134,56 +134,6 @@ function rangeVideo(res, file) {
   assert.equal(res.bytes, 1024);
   assert.equal(res.sha256, digest(data.subarray(0, 1024)));
 }
-async function consoleService(name, storageDir, extra = {}) {
-  const port = await freePort();
-  const config = path.join(lab, `${name}.json`);
-  fs.writeFileSync(config, JSON.stringify({ schemaVersion: 7, databasePath:path.join(storageDir,'storage.sqlite'), videoDir:path.join(storageDir,'videos'), logDir: path.join(lab, 'game-logs'),
-    downloadUpstream: 'auto', autoAccelerate: false, queueWithGateway: false, restoreHostsOnExit: false, videoStorageMode: 'unlimited', ...extra }));
-  // Reuse the operator's existing acceptance; never manufacture a receipt.
-  fs.mkdirSync(path.join(config + '.d', 'data', 'state'), { recursive: true });
-  fs.writeFileSync(path.join(config + '.d', 'data', 'state', 'terms.json'), receipt);
-  const base = `http://127.0.0.1:${port}`;
-  let child = await launch(consoleBinary, ['-no-tray', '-no-open', '-listen', `127.0.0.1:${port}`,
-    '-config', config], name, port, base);
-  // Exercise the internal gateway independently: this acceptance never configures hosts.
-  let page = await request(base, { capture: true });
-  let token = page.body.toString().match(/name="swd-token" content="([^"]+)"/)?.[1];
-  assert.ok(token, 'missing console token');
-  const databasePath=path.join(storageDir,'storage.sqlite'), videoDir=path.join(storageDir,'videos');
-  if (!fs.existsSync(databasePath)) {
-    const created = await request(base+'/api/storage/create-database', {method:'POST',headers:{'X-SWD-Token':token,'Content-Type':'application/json'},body:JSON.stringify({databasePath,videoDir}),capture:true});
-    assert.equal(created.status,200,created.body?.toString());
-    fs.mkdirSync(videoDir,{recursive:true});
-    await stop(child);
-    child=await launch(consoleBinary,['-no-tray','-no-open','-listen','127.0.0.1:'+port,'-config',config],name+'-configured',port,base);
-    page=await request(base,{capture:true});
-    token=page.body.toString().match(/name="swd-token" content="([^"]+)"/)?.[1];
-    assert.ok(token,'missing restarted console token');
-  }
-  const start = await request(`${base}/api/start`, { method: 'POST', headers: {'X-SWD-Token': token}, capture: true });
-  assert.equal(start.status, 200, start.body?.toString());
-  const res = await request(`${base}/api/status`, { capture: true, timeout: 10000 });
-  requireAcceptedTerms(res.status);
-  const state = JSON.parse(res.body);
-  assert.equal(state.running, true, state.cdnError);
-  assert.equal(state.settings.downloadUpstream, 'auto');
-  record(`${name}-settings`, { downloadUpstream: state.settings.downloadUpstream, running: state.running });
-  return { child, port: 80 };
-}
-async function consolePorts() {
-  // Check without stopping any existing service or changing hosts.
-  for (const port of [80, 443]) {
-    const server = net.createServer();
-    try {
-      await new Promise((resolve, reject) => {
-        server.once('error', reject); server.listen(port, '127.0.0.1', resolve);
-      });
-    } catch (error) {
-      throw new AcceptanceBlocked('environment', `Console needs free loopback port ${port}: ${error.message}`);
-    } finally { if (server.listening) await new Promise(resolve => server.close(resolve)); }
-  }
-}
-
 function requireBinary(name, file) {
   const relative = path.relative(root, file);
   // External binaries retain only their filename; never publish machine paths.
@@ -275,65 +225,11 @@ try {
     });
     await stop(service.child);
   });
-  await check('console-auto-and-local-fallback', async () => {
-    requireBinary('console', consoleBinary);
-    await consolePorts();
-    const autoStorage = path.join(lab, 'console-storage');
-    const auto = await consoleService('console-auto', autoStorage);
-    let expected;
-    try {
-      // No node is the game's Auto API request. Use a fresh cache to exercise routing.
-      expected = await upstream('1343', 'nya');
-      const res = await request(playbackURL('1343'), { port: auto.port });
-      record('console-auto-cold', evidence(res));
-      fullVideo(res, expected, 'MISS');
-      assert.equal(res.headers['x-swd-fallback'], undefined);
-      const hot = await request(playbackURL('1343'), { port: auto.port, headers: { Range: 'bytes=0-1023' } });
-      record('console-auto-hot', evidence(hot));
-      rangeVideo(hot, videoFile(autoStorage, expected));
-    } finally { await stop(auto.child); }
-
-    // An owned TCP endpoint rejects every SOCKS handshake. No TLS bypass or OS network changes.
-    let rejectedConnections = 0;
-    const rejector = net.createServer(socket => { rejectedConnections++; socket.destroy(); });
-    servers.add(rejector);
-    await new Promise((resolve, reject) => {
-      rejector.once('error', reject); rejector.listen(0, '127.0.0.1', resolve);
-    });
-    const offline = await consoleService('console-offline', autoStorage, {
-      upstreamMode: 'proxy', socks5Address: `127.0.0.1:${rejector.address().port}`,
-    });
-    try {
-      for (const method of ['GET', 'HEAD']) {
-        const res = await request(playbackURL('1343'), { port: offline.port, method });
-        record(`local-fallback-${method}`, evidence(res));
-        if (method === 'GET') fullVideo(res, expected, 'HIT');
-        else {
-          assert.equal(res.status, 200); assert.equal(res.bytes, 0);
-          assert.equal(res.headers['x-swd-cache'], 'HIT');
-          assert.equal(Number(res.headers['content-length']), Number(expected.searchParams.get('s')));
-        }
-        assert.equal(res.headers['x-swd-fallback'], undefined);
-      }
-      const range = await request(playbackURL('1343'), { port: offline.port, headers: { Range: 'bytes=0-1023' } });
-      record('local-fallback-range', evidence(range));
-      rangeVideo(range, videoFile(autoStorage, expected));
-      assert.equal(range.headers['x-swd-fallback'], undefined);
-      const missing = await request(playbackURL('1344'), { port: offline.port });
-      record('local-fallback-missing', evidence(missing));
-      assert.equal(missing.status, 502);
-      assert.equal(missing.headers['x-swd-fallback'], undefined);
-      assert.ok(rejectedConnections > 0, 'upstream failure must actually be injected');
-      assert.equal(fs.readdirSync(path.join(autoStorage, 'videos')).filter(n => n.endsWith('.mp4')).length, 1);
-      record('offline-injection', { rejectedConnections });
-    } finally { await stop(offline.child); }
-  });
 } catch (error) {
   record('setup-or-execution', { outcome: error.category ? 'blocked' : 'failed',
     category: error.category || 'program-failure', error: error.stack });
 } finally {
   for (const child of children) await stop(child);
-  for (const server of servers) await new Promise(resolve => server.close(resolve));
   const failed = report.checks.some(c => c.outcome === 'failed');
   const blocked = report.checks.some(c => c.outcome === 'blocked');
   report.outcome = failed ? 'failed' : blocked ? 'blocked' : 'passed';

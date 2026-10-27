@@ -10,7 +10,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -147,17 +146,6 @@ func (h *hostsController) close(restore bool) error {
 		h.err = errors.Join(h.session.request(hostsRequest{Action: "close", RestoreOnExit: restore}), h.session.close())
 	}
 	return h.err
-}
-
-func hasManagedHosts(data string) bool {
-	for _, m := range managedMarkers {
-		// Also recognize edited owned entries so failure is reported rather
-		// than silently treating them as restored.
-		if strings.Contains(data, m) {
-			return true
-		}
-	}
-	return false
 }
 
 type hostsClient struct {

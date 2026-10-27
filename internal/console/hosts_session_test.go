@@ -101,6 +101,7 @@ func TestHostsSessionChecksOwnedReadyMappingBeforeAuthorization(t *testing.T) {
 		{"owned default", owned, true, true},
 		{"owned persistent", owned, false, false},
 		{"unowned default", hostsBaseline + "127.0.0.1 api.udon.dance # user\r\n", true, false},
+		{"unowned API with unrelated marker", hostsBaseline + "127.0.0.1 api.udon.dance # user\r\n127.0.0.1 nya.xin.moe " + marker + "\r\n", true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h, launches := fixtureHostsController(t, tc.initial)
@@ -121,6 +122,29 @@ func TestHostsSessionChecksOwnedReadyMappingBeforeAuthorization(t *testing.T) {
 				t.Fatalf("%q", got)
 			}
 		})
+	}
+}
+
+func TestHostsSessionRestoresAPIAlongsideUnmanagedEntries(t *testing.T) {
+	original := hostsBaseline + "\r\n127.0.0.1 nya.xin.moe " + marker + "\r\n# SWD managed: unrelated note\r\n"
+	h, launches := fixtureHostsController(t, original)
+	if h.status().Managed {
+		t.Error("unrelated entries reported as owned API mappings")
+	}
+	if err := h.prepareRestore(); err != nil || *launches != 0 {
+		t.Error("unrelated entries requested restoration authorization", err, *launches)
+	}
+	if err := h.change("enable", true); err != nil {
+		t.Fatal(err)
+	}
+	if status := h.status(); !status.Ready || !status.Managed || !status.ExitRestorePrepared {
+		t.Fatal("API connection not ready for restoration", status)
+	}
+	if err := h.close(true); err != nil {
+		t.Fatal("unrelated entries blocked API restoration", err)
+	}
+	if got := readHostsFixture(t, h.path); got != original || *launches != 1 {
+		t.Fatalf("restoration changed unrelated entries or requested new authorization: %q, launches=%d", got, *launches)
 	}
 }
 
@@ -210,7 +234,7 @@ func TestHostsConsoleCloseUsesPreparedHelperAndActiveSettings(t *testing.T) {
 		c.settings.RestoreHostsOnExit = restore
 		// An unsaved synthetic snapshot must not change the committed active policy.
 		c.savedSettings.RestoreHostsOnExit = !restore
-		if err := c.changeHosts("enable"); err != nil {
+		if err := c.enableAcceleration(c.hosts.status, c.changeHostsLocked); err != nil {
 			t.Fatal(err)
 		}
 		if err := c.Close(); err != nil {
@@ -291,7 +315,7 @@ func TestHostsShutdownCancelsPendingAuthorization(t *testing.T) {
 		return nil, ctx.Err()
 	})
 	done := make(chan error, 1)
-	go func() { done <- c.changeHosts("enable") }()
+	go func() { done <- c.enableAcceleration(c.hosts.status, c.changeHostsLocked) }()
 	<-entered
 	closed := make(chan error, 1)
 	go func() { closed <- c.Close() }()
@@ -311,7 +335,7 @@ func TestHostsShutdownCancelsPendingAuthorization(t *testing.T) {
 	}
 }
 
-func TestExplicitGatewayStartPreparesExistingConnectionOnlyWhenNeeded(t *testing.T) {
+func TestAccelerationPreparesExistingConnectionOnlyWhenNeeded(t *testing.T) {
 	for _, restore := range []bool{true, false} {
 		c := testConsole(t)
 		owned, _ := transformHosts(hostsBaseline, "enable")
@@ -326,7 +350,7 @@ func TestExplicitGatewayStartPreparesExistingConnectionOnlyWhenNeeded(t *testing
 		if (*launches == 1) != restore {
 			t.Fatal("automatic acceleration did not prepare needed cleanup")
 		}
-		if err := c.startForUser(); err != nil {
+		if err := c.enableAcceleration(c.hosts.status, c.changeHostsLocked); err != nil {
 			t.Fatal(err)
 		}
 		if (*launches == 1) != restore || h.status().ExitRestorePrepared != restore {

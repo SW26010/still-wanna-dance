@@ -1,0 +1,93 @@
+import {test,expect} from '@playwright/test';
+import {mockAPI} from './api';
+import type {LibraryPage} from '../src/types';
+
+test('library sorts the query before paging, preserves search order and uses keyboard headers',async({page})=>{
+  await mockAPI(page);
+  const queries:URLSearchParams[]=[];
+  const songs=Array.from({length:53},(_,i)=>({id:String(i+1),title:'Song '+String(53-i).padStart(3,'0'),artist:'Artist',dancer:'',group:'',policy:'normal' as const,score:i+1,hasDemand:true,resource:''}));
+  await page.route('**/api/library?**',route=>{
+    const q=new URL(route.request().url()).searchParams;queries.push(q);
+    const ordered=[...songs].filter(s=>s.title.includes(q.get('q')||'')).sort((a,b)=>(q.get('sort')==='title'?a.title.localeCompare(b.title):a.score-b.score)*(q.get('direction')==='ascending'?1:-1));
+    const offset=Number(q.get('offset'));
+    const data:LibraryPage={storageID:'fixture',databaseID:'fixture-db',songs:ordered.slice(offset,offset+50),resources:{},keys:[],total:ordered.length,fileCount:0,totalBytes:0};
+    return route.fulfill({json:data});
+  });
+  await page.goto('/#/library');
+  const table=page.getByRole('table',{name:'曲库歌曲'}),pager=page.getByRole('navigation',{name:'曲库分页'});
+  const score=table.getByRole('columnheader').filter({has:page.getByRole('button',{name:'按需求分数排序',exact:true})});
+  await expect(score).toHaveAttribute('aria-sort','descending');
+  await page.getByRole('button',{name:'下一页曲库',exact:true}).click();
+  await expect(pager).toContainText('第 2 页');
+  const title=table.getByRole('button',{name:'按歌曲排序',exact:true});
+  await title.focus();await page.keyboard.press('Enter');
+  await expect.poll(()=>queries.at(-1)?.get('sort')).toBe('title');
+  await expect.poll(()=>queries.at(-1)?.get('offset')).toBe('0');
+  await expect(table.getByRole('row').nth(1)).toContainText('Song 001');
+  await expect(title).toBeFocused();
+  await expect(title).toBeEnabled();await page.keyboard.press('Space');
+  await expect(table.getByRole('row').nth(1)).toContainText('Song 053');
+  await expect(title.locator('..')).toHaveAttribute('aria-sort','descending');
+  await page.getByLabel('搜索曲库').fill('Song 05');
+  await page.getByRole('button',{name:'查找',exact:true}).click();
+  await expect(pager).toContainText('共 4 首歌曲');
+  expect(queries.at(-1)?.get('sort')).toBe('title');
+  expect(queries.at(-1)?.get('direction')).toBe('descending');
+  await expect(page.getByRole('button',{name:'上一页曲库',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'下一页曲库',exact:true})).toBeDisabled();
+});
+
+test('history sorting resets the cursor, keeps keyboard focus and suspends latest-first polling',async({page})=>{
+  await mockAPI(page);await page.clock.install();
+  const queries:URLSearchParams[]=[];
+  const records=Array.from({length:54},(_,i)=>({id:i+1,at:Date.now()-i*1000,completedAt:Date.now()-i*1000+800,resource:String(i+1).padStart(32,'0'),songID:String(54-i),method:'GET',range:'',elapsedMS:800,bytes:50,responseBytes:100,status:206,cache:'MISS',outcome:'completed'}));
+  await page.route('**/api/history?**',route=>{
+    const q=new URL(route.request().url()).searchParams;queries.push(q);
+    const field=q.get('sort'),sign=q.get('direction')==='ascending'?1:-1;
+    const ordered=[...records].sort((a,b)=>sign*(field==='song'?Number(a.songID)-Number(b.songID):field==='resource'?a.resource.localeCompare(b.resource):a.at-b.at));
+    const offset=Number(q.get('cursor'));
+    return route.fulfill({json:{storageID:'fixture',requests:ordered.slice(offset,offset+50),hasMore:offset===0,nextCursor:offset===0?'50':''}});
+  });
+  await page.goto('/#/timeline');
+  const table=page.getByRole('table',{name:'请求历史列表'}),pager=page.getByRole('navigation',{name:'历史分页'});
+  await expect(table.getByRole('row').nth(1)).toContainText('ID 54');
+  await page.getByRole('button',{name:'下一页历史',exact:true}).click();
+  await expect(pager).toContainText('第 2 页');
+  const song=table.getByRole('button',{name:'按请求歌曲排序',exact:true});
+  await song.focus();await page.keyboard.press('Enter');
+  await expect.poll(()=>queries.at(-1)?.get('cursor')).toBe('');
+  await expect.poll(()=>queries.at(-1)?.get('sort')).toBe('song');
+  await expect(table.getByRole('row').nth(1).getByRole('link',{name:'ID 1',exact:true})).toBeVisible();
+  await expect(song).toBeFocused();
+  await expect(pager).not.toContainText('自动刷新');
+  const reads=queries.length;await page.clock.fastForward(5100);expect(queries).toHaveLength(reads);
+  await page.keyboard.press('Space');
+  await expect(song.locator('..')).toHaveAttribute('aria-sort','descending');
+  await expect(table.getByRole('row').nth(1)).toContainText('ID 54');
+  await page.getByRole('checkbox',{name:'暂停请求刷新'}).check();
+  await expect(song).toBeDisabled();
+  await expect(page.getByRole('button',{name:'下一页历史',exact:true})).toBeDisabled();
+});
+
+test('resource headers use server sorting and can restore demand order',async({page})=>{
+  await mockAPI(page);
+  const queries:URLSearchParams[]=[];
+  await page.route('**/api/library?**',async route=>{
+    queries.push(new URL(route.request().url()).searchParams);
+    await route.fallback();
+  });
+  await page.goto('/#/library?view=resources');
+  const table=page.getByRole('table',{name:'曲库资源'});
+  const size=table.getByRole('button',{name:'按大小排序',exact:true});
+  await size.click();
+  await expect.poll(()=>queries.at(-1)?.get('sort')).toBe('size');
+  await expect(size.locator('..')).toHaveAttribute('aria-sort','descending');
+  await expect(size).toBeEnabled();await size.press('Space');
+  await expect.poll(()=>queries.at(-1)?.get('direction')).toBe('ascending');
+  await table.getByRole('button',{name:'按视频资源排序',exact:true}).click();
+  await expect.poll(()=>queries.at(-1)?.get('sort')).toBe('resource');
+  await page.getByRole('button',{name:'恢复默认排序',exact:true}).click();
+  await expect.poll(()=>queries.at(-1)?.get('sort')).toBe('score');
+  await expect.poll(()=>queries.at(-1)?.get('direction')).toBe('descending');
+  await expect(page.getByRole('button',{name:'恢复默认排序',exact:true})).toHaveCount(0);
+});

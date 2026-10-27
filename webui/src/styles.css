@@ -195,19 +195,22 @@ form.actions { align-items: flex-end; }
 .secondary { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
 .table-region { max-width: 100%; overflow-x: auto; background: var(--colorNeutralBackground1); }
 .table-region:focus-visible { outline: 2px solid var(--colorStrokeFocus2); outline-offset: 2px; }
-.data-table { table-layout: fixed; min-width: 900px; }
-.data-table th { white-space: nowrap; }
-.data-table td { padding-block: var(--spacingVerticalS); }
-.data-table .fui-Badge { max-width: 100%; white-space: normal; height: auto; min-height: 20px; }
+.data-table { min-width: 900px; }
+.data-table :is(th, td) { white-space: nowrap; }
+/* Bound long identities while short fields keep their intrinsic content width. */
+.data-table .table-fill-column { width: 100%; min-width: 12rem; max-width: 0; }
+.data-table .inline { flex-wrap: nowrap; }
+.table-source-shares { display: flex; flex-wrap: wrap; column-gap: var(--spacingHorizontalS); min-width: 8rem; max-width: 12rem; }
 .cell-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
 .cell-stack > * { max-width: 100%; }
 .cell-progress { width: 100%; font-size: var(--fontSizeBase200); }
 .truncate { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row-actions { flex-wrap: nowrap; gap: 2px; }
+.row-actions { gap: var(--spacingHorizontalXS); }
+.row-actions > * { flex-shrink: 0; }
 .detail-grid { display: grid; grid-template-columns: max-content minmax(0,1fr); gap: var(--spacingVerticalM) var(--spacingHorizontalL); }
 .detail-grid dt, .detail-grid dd { margin: 0; overflow-wrap: anywhere; }
-.table-toolbar { min-height: 48px; }
-.pagination { justify-content: flex-end; }
+.table-pagination { justify-content: space-between; gap: var(--spacingHorizontalM); }
+.table-pagination > .inline { margin-inline-start: auto; }
 .metric-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,20rem),1fr)); gap: var(--spacingHorizontalL); }
 .latency-metric { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--spacingHorizontalM); padding-block: var(--spacingVerticalM); }
 .latency-summary h2 { font-size: var(--fontSizeBase400); }

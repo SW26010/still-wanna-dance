@@ -101,7 +101,23 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   await page.goto('/#/timeline');
   await expect(page.getByText('暂无数据',{exact:true})).toHaveCount(2);
   await expect(page.getByText('结束：未知',{exact:true})).toBeVisible();
-  await expect(page.getByText('传输中止（原因未确定）',{exact:true})).toBeVisible();
+  const outcome=page.getByText('传输中止（原因未确定）',{exact:true});
+  await expect(outcome).toBeVisible();
+  const resultCell=outcome.locator('xpath=ancestor::td');
+  const labelBox=await outcome.boundingBox(),httpBox=await resultCell.getByText('HTTP 206',{exact:true}).boundingBox();
+  expect(httpBox!.y).toBeGreaterThanOrEqual(labelBox!.y+labelBox!.height-1);
+  const table=page.getByRole('table',{name:'请求历史列表',exact:true});
+  for(const [label,description] of [['交付','已写出字节'],['来源','当前请求等过缺块']] as const){
+    const target=table.getByRole('columnheader',{name:label,exact:true}).getByText(label,{exact:true});
+    await target.hover();await expect(page.getByRole('tooltip')).toContainText(description);
+    await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await page.mouse.move(0,0);await target.focus();
+    await expect(page.getByRole('tooltip')).toContainText(description);
+    await expect(target).toHaveAccessibleDescription(new RegExp(description));
+    await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
+  }
+  await expect(table.getByRole('button',{name:/交付比例说明|请求来源说明/})).toHaveCount(0);
+  await page.getByLabel('历史查询结果',{exact:true}).screenshot({path:info.outputPath('history-table.png'),animations:'disabled'});
   await page.getByRole('button',{name:'请求 1 的明细',exact:true}).click();
   await expect(page.getByLabel('请求 1 的明细',{exact:true}).getByText('10 ms · Blocking',{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

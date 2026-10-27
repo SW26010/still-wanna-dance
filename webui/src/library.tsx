@@ -3,7 +3,8 @@ import {Badge,Button,Checkbox,Field,Input,Link,Select,Tab,TabList,Table,TableHea
 import {useApp,useFocusRecovery,useResource} from './hooks';
 import {usePageFeedback} from './page-feedback';
 import {APIError,request} from './api';
-import {Feedback,Notification,Hint,Progress,RecordDetails,TableRegion} from './ui';
+import {Feedback,Notification,Progress,RecordDetails} from './ui';
+import {RecordTable,SortHeader,DescriptionHeader,TablePagination,type TableSort} from './data-table';
 import {DeleteRegular,FolderOpenRegular,PlayRegular} from '@fluentui/react-icons';
 import {LibraryPreview,type PreviewSelection} from './library-preview';
 import {InventoryPanel,useCacheActions,cacheLabel} from './cache';
@@ -30,7 +31,7 @@ export function Library({visible,anchor}:{visible:boolean;anchor:string}) {
 function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boolean;anchor:string;song:string;resource:string;requestedView?:'songs'|'resources'}) {
   const app=useApp(),s=app.status.data!,focus=useFocusRecovery();
   const [view,setView]=useState(resource||requestedView==='resources'?'resources':'songs'),[search,setSearch]=useState(''),[filter,setFilter]=useState('');
-  const [query,setQuery]=useState({q:'',sort:'score',filter:''}),[offset,setOffset]=useState(0),[selected,setSelected]=useState<Record<string,string>>({});
+  const [query,setQuery]=useState<TableSort&{q:string;filter:string}>({q:'',sort:'score',direction:'descending',filter:''}),[offset,setOffset]=useState(0),[selected,setSelected]=useState<Record<string,string>>({});
   const [pending,setPending]=useState(false);
   const history=useVRCX();
   const [preview,setPreview]=useState<PreviewSelection>();
@@ -52,6 +53,7 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
     })));
     if(page.data&&offset>=page.data.total&&offset>0)setOffset(0);
   },[page.data,offset]);
+  const changeSort=(sort:TableSort)=>{setOffset(0);setQuery(q=>({...q,...sort}));};
   const previousTasks=useRef({batch:s.batch.running,import:s.import.running});
   useEffect(()=>{
     if(visible&&(previousTasks.current.batch&&!s.batch.running||previousTasks.current.import&&!s.import.running))page.refresh();
@@ -61,7 +63,7 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
     const section=['vrcx-import','video-import','batch'].includes(anchor);
     if(!visible||(requestedView===undefined&&!section))return;
     setPreview(undefined);
-    if(requestedView){setView(requestedView);setOffset(0);setFilter('');setQuery(q=>({...q,filter:''}));}
+    if(requestedView){setView(requestedView);setOffset(0);setFilter('');setQuery(q=>({...q,sort:'score',direction:'descending',filter:''}));}
     const frame=requestAnimationFrame(()=>focusSection(section?anchor:'library-browser'));
     return()=>cancelAnimationFrame(frame);
   },[visible,anchor,requestedView]);
@@ -102,38 +104,39 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
         {history.pending&&<p role="status">正在处理 VRCX 历史…</p>}
       </Feedback><Feedback error>{history.message}</Feedback></div>}
       {(song||resource)&&<div className="toolbar"><span>查看{song?'歌曲 ID '+song:'资源 '+resource}</span><Link href="#/library">返回完整曲库</Link></div>}
-      <div className="toolbar spread"><TabList aria-label="曲库视图" selectedValue={view} onTabSelect={(_,v)=>{setView(String(v.value));setOffset(0);setFilter('');setQuery(q=>({...q,filter:''}));}}><Tab id="library-tab-songs" aria-controls="library-results" value="songs" disabled={!!resource}>按歌曲</Tab><Tab id="library-tab-resources" aria-controls="library-results" value="resources" disabled={!!song}>按资源</Tab></TabList>
-      <form className="inline library-search" onSubmit={e=>{e.preventDefault();setOffset(0);setQuery({q:search,sort:'score',filter});page.refresh();}}>
+      <div className="toolbar spread"><TabList aria-label="曲库视图" selectedValue={view} onTabSelect={(_,v)=>{setView(String(v.value));setOffset(0);setFilter('');setQuery(q=>({...q,sort:'score',direction:'descending',filter:''}));}}><Tab id="library-tab-songs" aria-controls="library-results" value="songs" disabled={!!resource}>按歌曲</Tab><Tab id="library-tab-resources" aria-controls="library-results" value="resources" disabled={!!song}>按资源</Tab></TabList>
+      <form className="inline library-search" onSubmit={e=>{e.preventDefault();setOffset(0);setQuery(q=>({...q,q:search,filter}));page.refresh();}}>
         <Field label="搜索曲库" className="search-field"><Input type="search" maxLength={300} placeholder="名称、ID、歌手、舞者或资源" value={search} onChange={(_,v)=>setSearch(v.value)}/></Field>
         <Field label="筛选"><Select value={filter} onChange={(_,v)=>setFilter(v.value)}><option value="">全部</option><option value="saved">已保存视频</option><option value="missing">缺失视频</option>{view==='songs'&&Object.entries(policyLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</Select></Field>
         <Button appearance="primary" type="submit" disabled={disabled}>查找</Button>
       </form>
       </div>
       <div id="library-results" role="tabpanel" aria-labelledby={'library-tab-'+view}>
-      <div className="toolbar table-toolbar spread"><span role="status">{page.error?'曲库读取失败，请刷新重试。':page.loading&&!page.data?'正在读取曲库…':`共 ${page.data?.total||0} ${view==='songs'?'首歌曲':'个资源'} · 第 ${offset/50+1} 页`}</span>
-        {view==='resources'&&<div className="inline"><Button size="small" disabled={disabled||!eligible.length} onClick={()=>setSelected(eligible.every(e=>selected[e.key]===e.stamp)?{}:Object.fromEntries(eligible.map(e=>[e.key,e.stamp])))}>选择本页可删除项</Button><Button size="small" disabled={disabled||!chosen.length} onClick={()=>void actions.operate('delete',chosen)}>删除选中视频</Button><span>已选择 {chosen.length} 个文件</span></div>}</div>
+      {view==='resources'&&<div className="toolbar table-toolbar">{query.sort!=='score'&&<Button size="small" disabled={disabled} onClick={()=>changeSort({sort:'score',direction:'descending'})}>恢复默认排序</Button>}<Button size="small" disabled={disabled||!eligible.length} onClick={()=>setSelected(eligible.every(e=>selected[e.key]===e.stamp)?{}:Object.fromEntries(eligible.map(e=>[e.key,e.stamp])))}>选择本页可删除项</Button><Button size="small" disabled={disabled||!chosen.length} onClick={()=>void actions.operate('delete',chosen)}>删除选中视频</Button><span>已选择 {chosen.length} 个文件</span></div>}
       {actions.result&&(actions.result.error||!!actions.result.entries?.length)&&<section ref={fileResult} tabIndex={-1} aria-label="文件操作结果" className="content-stack file-results"><Feedback error={actions.result.error}>{actions.result.text}{actions.result.message&&<p className="wrap">{actions.result.message}</p>}</Feedback>
         {!!actions.result.entries?.length&&<Table size="small" aria-label="未删除的视频"><TableHeader><TableRow><TableHeaderCell>视频</TableHeaderCell><TableHeaderCell>原因</TableHeaderCell></TableRow></TableHeader><TableBody>{actions.result.entries.map(entry=><TableRow key={entry.key}><TableCell>{entry.label}</TableCell><TableCell>{entry.reason}</TableCell></TableRow>)}</TableBody></Table>}
       </section>}
-      <TableRegion label="曲库表格"><Table size="small" className="data-table library-table" aria-label={view==='songs'?'曲库歌曲':'曲库资源'}>
-        <TableHeader><TableRow>{view==='songs'?<><TableHeaderCell style={{width:'30%'}}>歌曲</TableHeaderCell><TableHeaderCell style={{width:'10%'}}>需求分数<Hint label="需求分数说明">一次新需求计 100 分。灰色为初始分数；真实分数随时间衰减，按分数排序时优先显示。</Hint></TableHeaderCell><TableHeaderCell style={{width:'14%'}}>偏好<Hint label="歌曲偏好说明">收藏仅作标记；屏蔽会拒绝新的播放和下载请求。</Hint></TableHeaderCell></>:<><TableHeaderCell style={{width:44}}>选择</TableHeaderCell><TableHeaderCell style={{width:'30%'}}>视频资源</TableHeaderCell><TableHeaderCell style={{width:'16%'}}>大小 / 时长</TableHeaderCell></>}
-          <TableHeaderCell style={{width:'19%'}}>本地状态</TableHeaderCell><TableHeaderCell>操作</TableHeaderCell></TableRow></TableHeader>
+      <RecordTable busy={page.loading} regionLabel="曲库表格" label={view==='songs'?'曲库歌曲':'曲库资源'}>
+        <TableHeader><TableRow>{view==='songs'?<><SortHeader column="title" label="歌曲" sort={query} onSortChange={changeSort} disabled={disabled} className="table-fill-column"/><SortHeader column="score" label="需求分数" sort={query} onSortChange={changeSort} defaultDirection="descending" disabled={disabled} description="一次新需求计 100 分。灰色为初始分数；真实分数随时间衰减，按分数排序时优先显示。"/><DescriptionHeader label="偏好">收藏仅作标记；屏蔽会拒绝新的播放和下载请求。</DescriptionHeader></>:<><TableHeaderCell>选择</TableHeaderCell><SortHeader column="resource" label="视频资源" sort={query} onSortChange={changeSort} disabled={disabled} className="table-fill-column"/><SortHeader column="size" label="大小" sort={query} onSortChange={changeSort} defaultDirection="descending" disabled={disabled}/></>}
+          <TableHeaderCell>本地状态</TableHeaderCell><TableHeaderCell>操作</TableHeaderCell></TableRow></TableHeader>
         <TableBody>{view==='songs'?page.data?.songs.map(song=>{
           const r=resources[song.resource],score=scoreFormat.format(song.score*100),source=song.hasDemand?'真实分数':'初始分数';return <TableRow key={song.id}>
-            <TableCell><TableCellLayout appearance="primary" truncate description={`ID ${song.id} · ${song.artist||'未知歌手'}${song.dancer?' · '+song.dancer:''}${song.group?' / '+song.group:''}`}>{song.title||'未知名称'}</TableCellLayout></TableCell>
+            <TableCell className="table-fill-column"><TableCellLayout appearance="primary" truncate description={`ID ${song.id} · ${song.artist||'未知歌手'}${song.dancer?' · '+song.dancer:''}${song.group?' / '+song.group:''}`}>{song.title||'未知名称'}</TableCellLayout></TableCell>
             <TableCell aria-label={`${source} ${score}`}><span style={{color:song.hasDemand?tokens.colorNeutralForeground1:tokens.colorNeutralForeground3,fontVariantNumeric:'tabular-nums'}}>{score}</span></TableCell>
             <TableCell><Select size="small" aria-label={`歌曲 ${song.id} 的偏好`} value={song.policy} disabled={disabled} onChange={(_,v)=>void save(song.id,v.value as SongPolicy)}>{Object.entries(policyLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select></TableCell>
             <TableCell>{sharedState(r)}</TableCell><TableCell><div className="inline row-actions">{previewAction({songID:song.id,label:song.title||'歌曲 '+song.id},song.policy==='blocked'?'歌曲已屏蔽，请先解除屏蔽。':!song.resource?'尚不知道对应资源，请先更新曲库。':'')}<Button size="small" disabled={disabled||!!page.data?.videoError||s.batch.running||!!r?.local||song.policy==='blocked'} onClick={()=>download({songID:song.id})}>下载歌曲</Button>{fileActions(r)}<RecordDetails title={`歌曲 ${song.id} 的详情`}><dl className="detail-grid"><dt>名称</dt><dd>{song.title||'未知'}</dd><dt>歌手</dt><dd>{song.artist||'未知'}</dd><dt>舞者 / 社团</dt><dd>{[song.dancer,song.group].filter(Boolean).join(' / ')||'未知'}</dd><dt>分数来源</dt><dd>{source}</dd><dt>资源</dt><dd>{song.resource?<Link href={resourceHref(song.resource)}>{song.resource}</Link>:'未知'}</dd><dt>最近请求</dt><dd>{r?.local?.lastRequest?date(r.local.lastRequest):'无记录'}</dd></dl></RecordDetails></div></TableCell>
           </TableRow>;
         }):page.data?.keys.map(key=>{const r=resources[key],local=r.local;return <TableRow key={key}>
           <TableCell>{local&&<Checkbox aria-label={'选择 '+cacheLabel(local)} disabled={disabled||!local.known||local.protected} checked={selected[key]===local.stamp} onChange={(_,v)=>setSelected(previous=>{const next={...previous};if(v.checked)next[key]=local.stamp;else delete next[key];return next;})}/>}</TableCell>
-          <TableCell><TableCellLayout truncate description={`${r.songs.map(s=>s.title||s.id).join(' / ')||'无关联歌曲'} · ${r.songCount} 首`}>{key}</TableCellLayout></TableCell>
+          <TableCell className="table-fill-column"><TableCellLayout truncate description={`${r.songs.map(s=>s.title||s.id).join(' / ')||'无关联歌曲'} · ${r.songCount} 首`}>{key}</TableCellLayout></TableCell>
           <TableCell><TableCellLayout description={r.duration==null?'时长未知':`${r.duration} 秒`}>{r.size==null?'未知':r.size<1e6?r.size.toLocaleString()+' B':mb(r.size)}</TableCellLayout></TableCell>
           <TableCell>{sharedState(r)}</TableCell><TableCell><div className="inline row-actions">{previewAction({resource:key,label:r.songs[0]?.title||key})}<Button size="small" disabled={disabled||s.batch.running||!!local||r.songCount===0} onClick={()=>download({resource:key})}>下载资源</Button>{fileActions(r)}<RecordDetails title={`资源 ${key} 的详情`}><p className="wrap">{key}</p><p>关联歌曲（{r.songCount} 首）</p><ul>{r.songs.map(song=><li key={song.id}><Link href={songHref(song.id)}>{song.title||'未知歌名'}（ID {song.id}）</Link></li>)}</ul>{r.songCount>r.songs.length&&<p>另有 {r.songCount-r.songs.length} 首；可按歌曲 ID 搜索。</p>}<p>最近请求：{local?.lastRequest?date(local.lastRequest):'无记录'}</p></RecordDetails></div></TableCell>
         </TableRow>;})}</TableBody>
-      </Table></TableRegion>
+      </RecordTable>
       {page.data?.total===0&&<p className="empty-state">{song||resource?'当前条件下没有匹配项。':'没有匹配项，请调整搜索或更新清单。'}</p>}
-      {(page.data?.total||0)>50&&<div className="toolbar pagination"><Button disabled={disabled||offset===0} onClick={()=>{setOffset(Math.max(0,offset-50));focus.ref.current?.focus();}}>上一页曲库</Button><Button disabled={disabled||offset+50>=(page.data?.total||0)} onClick={()=>{setOffset(offset+50);focus.ref.current?.focus();}}>下一页曲库</Button></div>}
+      <TablePagination label="曲库" disabled={disabled} canPrevious={offset>0} canNext={offset+50<(page.data?.total||0)}
+        previous={()=>{setOffset(Math.max(0,offset-50));focus.ref.current?.focus();focus.ref.current?.scrollIntoView({block:'start'});}} next={()=>{setOffset(offset+50);focus.ref.current?.focus();focus.ref.current?.scrollIntoView({block:'start'});}}
+        summary={page.error?'曲库读取失败，请刷新重试。':!page.data?'正在读取曲库…':`共 ${page.data.total} ${view==='songs'?'首歌曲':'个资源'} · 第 ${offset/50+1} 页`}/>
       </div>
     </section>
     <VRCXImport model={history}/>

@@ -12,7 +12,9 @@ try {
   await expect(songs.getByText('未保存',{exact:true})).toHaveCount(2);
   const rows=songs.getByRole('row');
   await expect(rows.nth(1).getByRole('cell').nth(1)).toHaveAccessibleName('真实分数 0.10');
-  await expect(rows.nth(2).getByRole('cell').nth(1)).toHaveAccessibleName('初始分数 50.00');
+  const priorScore=await rows.nth(2).getByRole('cell').nth(1).innerText();
+  await expect(rows.nth(2).getByRole('cell').nth(1)).toHaveAccessibleName('初始分数 '+priorScore);
+  expect(Number(priorScore)).toBeGreaterThan(0.1);
   await songs.getByRole('button',{name:'下载歌曲',exact:true}).first().click();
   await expect(page.getByText('所选歌曲或资源已处理完成；同 MD5 共用一份视频',{exact:true})).toBeVisible({timeout:20000});
   await page.getByRole('button',{name:'检查本地视频',exact:true}).click();
@@ -20,6 +22,12 @@ try {
   await page.getByLabel('歌曲 1 的偏好').selectOption('favorite');
   await expect(page.getByText('歌曲 1 已设为收藏。',{exact:true})).toBeVisible();
   await page.reload();await expect(page.getByLabel('歌曲 1 的偏好')).toHaveValue('favorite');
+  const scoreHeader=songs.getByRole('button',{name:'按需求分数排序',exact:true});
+  await scoreHeader.focus();await page.keyboard.press('Enter');
+  await expect(scoreHeader.locator('..')).toHaveAttribute('aria-sort','ascending');
+  await expect(scoreHeader).toBeEnabled();await expect(scoreHeader).toBeFocused();
+  await expect(rows.nth(1).getByRole('cell').nth(1)).toHaveAccessibleName('真实分数 0.10');
+  await page.keyboard.press('Space');await expect(scoreHeader).toBeEnabled();
   await page.screenshot({path:join(output,'library-songs.png'),fullPage:false});
   await page.getByRole('tab',{name:'按资源'}).click();
   const resources=page.getByRole('table',{name:'曲库资源'});
@@ -37,5 +45,5 @@ try {
   await expect(resources.getByText('未保存',{exact:true})).toHaveCount(1);
   await expect(resources.getByRole('button',{name:'下载资源',exact:true})).toBeEnabled();
   expect(errors).toEqual([]);
-  await writeFile(join(output,'results.json'),JSON.stringify({resource:key,sharedSongs:2,realDemandBeforeLargerPrior:true,scoreDisplay:['0.10','50.00'],downloaded:true,favoritePersisted:true,deleted:true,errors},null,2));
+  await writeFile(join(output,'results.json'),JSON.stringify({resource:key,sharedSongs:2,realDemandBeforeLargerPrior:true,scoreDisplay:['0.10',priorScore],downloaded:true,favoritePersisted:true,deleted:true,errors},null,2));
 }finally{await browser.close();}

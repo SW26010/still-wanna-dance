@@ -198,7 +198,7 @@ for(const width of [1280,390,320])for(const kind of ['local','catalog'] as const
   const lastTime=await checkTime(page,kind==='local'?'检查本地视频':'更新曲库');
   const layout=async()=>page.evaluate(()=>{
     const summary=document.querySelector('#overview')!.getBoundingClientRect();
-    const table=document.querySelector('.library-table')!.getBoundingClientRect();
+    const table=document.querySelector('table[aria-label="曲库歌曲"]')!.getBoundingClientRect();
     return {height:summary.height,tableY:table.y+scrollY};
   });
   const before=await layout(),buttonBefore=await button.boundingBox(),initialInventoryReads=inventoryReads;

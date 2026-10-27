@@ -313,10 +313,15 @@ test('compact rows, tooltip and operation feedback keep the table in place',asyn
   await expect(rows).toHaveCount(13);
   const before=await table.boundingBox();
   expect((await rows.nth(1).boundingBox())!.height).toBeLessThanOrEqual(72);
-  const help=page.getByRole('button',{name:'需求分数说明',exact:true});
-  await help.focus();
-  await expect(page.getByRole('tooltip')).toContainText('随时间衰减');
-  await page.keyboard.press('Escape');
+  for(const [target,description] of [[table.getByRole('button',{name:'按需求分数排序',exact:true}),'随时间衰减'],[table.getByRole('columnheader',{name:'偏好',exact:true}).getByText('偏好',{exact:true}),'收藏仅作标记']] as const){
+    await target.hover();await expect(page.getByRole('tooltip')).toContainText(description);
+    await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await page.mouse.move(0,0);await target.focus();
+    await expect(page.getByRole('tooltip')).toContainText(description);
+    await expect(target).toHaveAccessibleDescription(new RegExp(description));
+    await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
+  }
+  await expect(table.getByRole('button',{name:/需求分数说明|歌曲偏好说明/})).toHaveCount(0);
   await page.getByLabel('歌曲 1 的偏好').selectOption('favorite');
   await expect(page.getByRole('listitem',{name:'歌曲 1 已设为收藏。',exact:true})).toBeVisible();
   expect((await table.boundingBox())!.y).toBe(before!.y);

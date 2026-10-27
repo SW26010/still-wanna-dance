@@ -25,6 +25,17 @@ try {
   await expect(history.getByRole('link',{name:key,exact:true})).toHaveCount(50);
   await expect(history.getByText('100%',{exact:true})).toHaveCount(50);
   await page.screenshot({path:join(output,'history-desktop.png'),fullPage:false});
+  const timeHeader=history.getByRole('button',{name:'按收到时间排序',exact:true});
+  const ascendingResponse=page.waitForResponse(r=>r.url().includes('/api/history?')&&new URL(r.url()).searchParams.get('direction')==='ascending');
+  await timeHeader.focus();await page.keyboard.press('Enter');
+  const ascending=await (await ascendingResponse).json();
+  expect(ascending.requests).toHaveLength(50);
+  expect(ascending.requests[0].id).toBeLessThan(ascending.requests.at(-1).id);
+  expect(ascending.requests[0].bytes).toBe(blockBytes);
+  await expect(timeHeader).toBeFocused();
+  await expect(timeHeader).toBeEnabled();
+  const descendingResponse=page.waitForResponse(r=>r.url().includes('/api/history?')&&new URL(r.url()).searchParams.get('direction')==='descending');
+  await page.keyboard.press('Space');await descendingResponse;
   for(let n=2;n<=13;n++){
     await page.getByRole('button',{name:'下一页历史',exact:true}).click();
     await expect(page.getByText(`第 ${n} 页 · ${n===13?1:50} 条`,{exact:true})).toBeVisible();

@@ -144,9 +144,10 @@ func TestActivationDuplicateAndProgress(t *testing.T) {
 	c.mu.Unlock()
 	beforeReady := c.beginVideoRequest(time.Now())
 	err := c.enableAcceleration(func() HostsStatus { t.Error("duplicate ran"); return HostsStatus{} }, nil)
+	stopErr := c.disableAcceleration()
 	close(release)
-	if finish := <-done; finish != nil || err == nil || phase != "hosts" {
-		t.Fatal(phase, err, finish)
+	if finish := <-done; finish != nil || err == nil || stopErr == nil || phase != "hosts" {
+		t.Fatal(phase, err, stopErr, finish)
 	}
 	beforeReady()
 	if !c.activation.FirstRequest.IsZero() {

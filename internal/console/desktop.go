@@ -12,7 +12,7 @@ func (c *Console) DesktopState() desktop.State {
 	s := desktop.State{CDN: c.httpServer != nil, Batch: c.batch.Running, TermsAccepted: c.terms.valid(), Theme: c.settings.Theme}
 	restore := c.settings.RestoreHostsOnExit
 	switch c.activation.Phase {
-	case "checking", "hosts", "starting":
+	case "checking", "hosts", "starting", "stopping":
 		s.Activating = true
 	}
 	c.mu.Unlock()
@@ -34,6 +34,8 @@ func (c *Console) DesktopCommand(id int) (err error) {
 	switch id {
 	case desktop.StartAcceleration:
 		return c.enableAcceleration(c.hosts.status, c.changeHostsLocked)
+	case desktop.StopAcceleration:
+		return c.disableAcceleration()
 	default:
 		return fmt.Errorf("unknown desktop command: %d", id)
 	}

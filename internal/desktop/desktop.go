@@ -161,6 +161,7 @@ const (
 	OpenConsole = 1001 + iota
 	StartAcceleration
 	Exit
+	StopAcceleration
 )
 
 type State struct {
@@ -178,16 +179,15 @@ type Item struct {
 
 func Menu(s State, busy bool) []Item {
 	busy = busy || s.Activating
-	ready := s.Ready && !s.NeedsExitPreparation
+	command := StartAcceleration
 	label := "开始加速"
+	if s.CDN {
+		command, label = StopAcceleration, "停止加速"
+	}
 	if !s.TermsAccepted {
 		label = "开始加速（需先同意条款）"
-	} else if busy {
-		label = "正在处理…"
-	} else if ready {
-		label = "加速运行中"
 	}
-	return []Item{{OpenConsole, "打开 WebUI", false}, {0, "", false}, {StartAcceleration, label, !s.TermsAccepted || busy || ready}, {0, "", false}, {Exit, "退出 Still Wanna Dance", false}}
+	return []Item{{OpenConsole, "打开 WebUI", false}, {0, "", false}, {command, label, !s.TermsAccepted || busy}, {0, "", false}, {Exit, "退出 Still Wanna Dance", false}}
 }
 
 type Options struct {

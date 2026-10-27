@@ -67,7 +67,7 @@ for(const outcome of ['approved','timeout'] as const)test('exit policy save wait
   await page.route('**/api/settings',async route=>{calls++;await waiting;if(outcome==='approved')await route.fallback();else await route.abort().catch(()=>{});});
   await page.clock.install();await page.goto('/#/settings');
 
-  const restore=page.getByRole('checkbox',{name:'退出时恢复游戏直连',exact:true}),save=page.getByRole('button',{name:'保存设置',exact:true});
+  const restore=page.getByRole('checkbox',{name:'停止加速或退出时恢复游戏直连',exact:true}),save=page.getByRole('button',{name:'保存设置',exact:true});
   await restore.check();await save.click();await expect.poll(()=>calls).toBe(1);
   await page.clock.fastForward(40000);
   await expect(save).toBeDisabled();await expect(restore).toBeDisabled();

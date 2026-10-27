@@ -56,7 +56,7 @@ test('help contents locate questions without requiring a status connection',asyn
 test('exit restoration changes only after saving and applies to this exit',async({page},info)=>{
   const api=await mockAPI(page);await page.setViewportSize({width:390,height:850});await page.goto('/#/settings');
 
-  const restore=page.getByRole('checkbox',{name:'退出时恢复游戏直连',exact:true});
+  const restore=page.getByRole('checkbox',{name:'停止加速或退出时恢复游戏直连',exact:true});
   await expect(restore).toBeChecked();await restore.uncheck();
   expect(api.calls.some(c=>c.path==='settings'||c.path.startsWith('hosts/'))).toBe(false);
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
@@ -75,7 +75,7 @@ test('failed exit permission preparation keeps the draft and original exit polic
   await page.route('**/api/settings',route=>route.fulfill({status:400,json:{error:'未保存设置：退出恢复权限授权已取消'}}));
   await page.goto('/#/settings');
 
-  const restore=page.getByRole('checkbox',{name:'退出时恢复游戏直连',exact:true});
+  const restore=page.getByRole('checkbox',{name:'停止加速或退出时恢复游戏直连',exact:true});
   await restore.check();
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(page.getByRole('listitem',{name:'未保存设置：退出恢复权限授权已取消',exact:true})).toBeVisible();

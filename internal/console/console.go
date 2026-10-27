@@ -1130,6 +1130,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = c.startBatchMode(true)
 	case "/api/activation/enable":
 		err = c.enableAcceleration(c.hosts.status, c.changeHostsLocked)
+	case "/api/activation/disable":
+		err = c.disableAcceleration()
 	case "/api/settings/theme":
 		var input struct {
 			Theme string `json:"theme"`

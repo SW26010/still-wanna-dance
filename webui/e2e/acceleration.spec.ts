@@ -19,14 +19,14 @@ test('failed acceleration reports rollback failure and the resulting real state'
 });
 
 test('acceleration status distinguishes connection from service without enabling the queue',async({page})=>{
-  const api=await mockAPI(page);api.state.hosts.ready=true;api.state.queue={desired:false,running:false};
+  const api=await mockAPI(page);api.state.hosts.ready=true;api.state.activeSettings.queueWithGateway=false;api.state.queue={desired:false,running:false};
   await page.goto('/');
   await expect(page.getByText('加速未运行',{exact:true})).toBeVisible();
   await expect(page.getByText('游戏连接：已接入',{exact:true})).toBeVisible();
   await expect(page.getByText('视频服务：未运行',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'开始加速',exact:true}).click();
-  await expect(page.getByRole('button',{name:'重新检测视频请求',exact:true})).toBeEnabled();
-  await expect(page.locator('#activation').getByRole('button').filter({hasText:/开始加速|重新检测视频请求|正在处理/})).toHaveCount(1);
+  await expect(page.getByRole('button',{name:'停止加速',exact:true})).toBeEnabled();
+  await expect(page.locator('#activation').getByRole('button').filter({hasText:/开始加速|停止加速/})).toHaveCount(1);
   expect(api.state.queue.desired).toBe(false);
   expect(api.calls.filter(c=>/^(activation\/|hosts\/|queue\/|start$|stop$|exit$)/.test(c.path)).map(c=>c.path)).toEqual(['activation/enable']);
 });
@@ -55,6 +55,7 @@ test('automatic gateway startup stays untested until request detection is starte
   await expect(page.getByText(/最近请求：.*HTTP 200/)).toBeVisible();
   await expect(page.getByText(/尚未收到游戏请求/)).toHaveCount(0);
   expect(api.calls.some(c=>c.path==='activation/enable')).toBe(false);
+  await page.getByRole('link',{name:'查看接入诊断',exact:true}).click();
   await page.getByRole('button',{name:'重新检测视频请求',exact:true}).click();
   await expect(page.getByRole('button',{name:'重新检测视频请求',exact:true})).toBeEnabled();
   await expect(page.getByText('等待游戏请求，请在游戏中点歌',{exact:true})).toHaveCount(0);
@@ -75,11 +76,50 @@ test('request observation details remain in connection diagnostics',async({page}
 test('existing managed connection can prepare exit cleanup despite automatic gateway startup',async({page})=>{
   const api=await mockAPI(page);api.state.running=true;api.state.hosts={ready:true,managed:true,exitRestorePrepared:false,message:'已配置'};
   await page.goto('/');
-  await expect(page.getByText(/游戏接入尚未准备退出恢复/).first()).toBeVisible();
+  await expect(page.getByText(/游戏接入尚未准备恢复权限/).first()).toBeVisible();
   await page.getByRole('button',{name:'退出程序',exact:true}).hover();
   await expect(page.getByRole('tooltip')).toContainText('直接退出会保留接入');
-  await page.getByRole('button',{name:'开始加速',exact:true}).click();
+  await page.getByRole('link',{name:'修复游戏连接',exact:true}).click();
+  await page.getByRole('button',{name:'修复并开启加速',exact:true}).click();
   await expect(page.getByRole('button',{name:'重新检测视频请求',exact:true})).toBeEnabled();
-  await expect(page.getByText(/游戏接入尚未准备退出恢复/)).toHaveCount(0);
+  await expect(page.getByText(/游戏接入尚未准备恢复权限/)).toHaveCount(0);
   expect(api.calls.filter(c=>c.path==='activation/enable')).toHaveLength(1);
+});
+
+for(const restore of [true,false])for(const queue of [true,false])test(`stop and resume follow active policies (${restore}, ${queue})`,async({page},info)=>{
+  const api=await mockAPI(page);
+  Object.assign(api.state.activeSettings,{restoreHostsOnExit:restore,queueWithGateway:queue});
+  Object.assign(api.state.settings,{restoreHostsOnExit:!restore,queueWithGateway:!queue});
+  await page.setViewportSize({width:restore?1280:320,height:900});await page.goto('/');
+  await page.getByRole('button',{name:'开始加速',exact:true}).click();
+  const stop=page.getByRole('button',{name:'停止加速',exact:true});
+  await expect(stop).toBeEnabled();await page.mouse.move(0,0);await stop.hover();
+  await expect(page.getByRole('tooltip')).toContainText(restore?'恢复本程序的游戏接入':'保留游戏接入');
+  await stop.click();
+  await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
+  await expect(page.getByText('视频服务：未运行',{exact:true})).toBeVisible();
+  await expect(page.getByText('房间队列：已关闭',{exact:true})).toBeVisible();
+  await expect(page.getByText(`游戏连接：${restore?'未接入':'已接入'}`,{exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath('stopped.png'),animations:'disabled'});
+  await page.getByRole('button',{name:'开始加速',exact:true}).click();
+  await expect(stop).toBeEnabled();
+  await expect(page.getByText(`房间队列：${queue?'监控中':'已关闭'}`,{exact:true})).toBeVisible();
+  expect(api.calls.filter(c=>c.path.startsWith('activation/')).map(c=>c.path)).toEqual(['activation/enable','activation/disable','activation/enable']);
+  expect(api.calls.some(c=>c.path==='exit')).toBe(false);
+});
+
+test('stop failure reports the stopped gateway and preserved connection',async({page})=>{
+  const api=await mockAPI(page);api.state.running=true;api.state.hosts.ready=true;
+  await page.route('**/api/activation/disable',async route=>{
+    const error='加速已停止，但未能恢复游戏直连：标记条目已被修改';
+    api.state.running=false;api.state.activation={phase:'stopped',error};
+    await route.fulfill({status:400,json:{error}});
+  });
+  await page.goto('/');await page.getByRole('button',{name:'停止加速',exact:true}).click();
+  await expect(page.getByText(/加速已停止，但未能恢复游戏直连/).first()).toBeVisible();
+  await expect(page.getByText('视频服务：未运行',{exact:true})).toBeVisible();
+  await expect(page.getByText('游戏连接：已接入',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
+  await expect(page.getByRole('listitem',{name:'视频加速已停止。',exact:true})).toHaveCount(0);
 });

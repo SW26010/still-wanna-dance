@@ -25,7 +25,7 @@ func (c *Console) activationPhase(phase string) {
 // Inject only the hosts boundary in tests; service startup uses the real lifecycle.
 func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(string) error) (err error) {
 	if !c.activationMu.TryLock() {
-		return errors.New("正在启用加速，请等待当前操作完成")
+		return errors.New("正在处理加速，请等待当前操作完成")
 	}
 	defer c.activationMu.Unlock()
 	// Keep tray, settings and individual hosts operations from interleaving.
@@ -92,6 +92,40 @@ func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(str
 	c.activation.Phase, c.activation.ReadyAt = "waiting", time.Now()
 	c.mu.Unlock()
 	return nil
+}
+
+// Stop only the gateway and its queue. The shared engine and authorized hosts
+// helper live until application exit, so resuming can reuse both.
+func (c *Console) disableAcceleration() error {
+	if !c.activationMu.TryLock() {
+		return errors.New("正在处理加速，请等待当前操作完成")
+	}
+	defer c.activationMu.Unlock()
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
+	c.mu.Lock()
+	if c.closing {
+		c.mu.Unlock()
+		return errors.New("程序正在退出")
+	}
+	restore := c.settings.RestoreHostsOnExit
+	c.activation.Phase, c.activation.Error = "stopping", ""
+	c.mu.Unlock()
+	var err error
+	if restore {
+		if hostsErr := c.hosts.change("disable", restore); hostsErr != nil {
+			err = fmt.Errorf("加速已停止，但未能恢复游戏直连：%w", hostsErr)
+		}
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.stopLocked()
+	c.cdnError = ""
+	c.activation.Phase = "stopped"
+	if err != nil {
+		c.activation.Error = err.Error()
+	}
+	return err
 }
 
 func (c *Console) beginVideoRequest(arrived time.Time) func() {

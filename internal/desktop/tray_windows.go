@@ -372,7 +372,7 @@ func (t *tray) command(id int) {
 		}()
 		return
 	}
-	if id == StartAcceleration && !t.options.State().TermsAccepted {
+	if (id == StartAcceleration || id == StopAcceleration) && !t.options.State().TermsAccepted {
 		return
 	}
 	if !t.busy.CompareAndSwap(false, true) {

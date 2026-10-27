@@ -15,7 +15,7 @@ try {
   await expect(page.getByText('可在退出后保留游戏接入',{exact:true})).toBeVisible();
   await page.screenshot({path:join(output,phase+'-authorization-toast.png'),animations:'disabled'});
   await page.getByRole('link',{name:'打开退出设置',exact:true}).click();
-  const restore=page.getByRole('checkbox',{name:'退出时恢复游戏直连',exact:true});
+  const restore=page.getByRole('checkbox',{name:'停止加速或退出时恢复游戏直连',exact:true});
   await expect(restore).toBeFocused();
   await expect(restore).toBeInViewport();
   if(phase==='default') {
@@ -36,12 +36,24 @@ try {
   expect(geometry.scroll,JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.viewport);
   await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:join(output,phase+'-settings.png'),fullPage:true,animations:'disabled'});
+  await page.goto(baseURL+'/#/home');
+  for(let cycle=0;cycle<2;cycle++) {
+    await page.getByRole('button',{name:'停止加速',exact:true}).click();
+    await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
+    await expect(page.getByText('视频服务：未运行',{exact:true})).toBeVisible();
+    await expect(page.getByText('房间队列：已关闭',{exact:true})).toBeVisible();
+    await expect(page.getByText(`游戏连接：${phase==='persistent'?'未接入':'已接入'}`,{exact:true})).toBeVisible();
+    await page.screenshot({path:join(output,phase+`-stopped-${cycle}.png`),animations:'disabled'});
+    await page.getByRole('button',{name:'开始加速',exact:true}).click();
+    await expect(page.getByRole('button',{name:'停止加速',exact:true})).toBeEnabled();
+    await expect(page.getByText('游戏连接：已接入',{exact:true})).toBeVisible();
+  }
   await page.getByRole('button',{name:'退出程序',exact:true}).click();
   await expect(page.getByText('正在退出应用并处理游戏连接。',{exact:true})).toBeVisible();
   await page.screenshot({path:join(output,phase+'-exit.png'),animations:'disabled'});
   expect(errors).toEqual([]);
   await writeFile(join(output,phase+'-browser.json'),JSON.stringify({phase,passed:true,errors},null,2));
-  console.log('Real Console '+phase+' policy, persisted setting, reload and exit passed.');
+  console.log('Real Console '+phase+' policy, persisted setting, reload, two stop/start cycles and exit passed.');
 } finally {
   await browser.close();
 }

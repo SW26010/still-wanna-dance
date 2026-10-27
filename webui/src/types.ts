@@ -71,13 +71,13 @@ export const dated = (value?: string) => !!value && !value.startsWith('0001');
 export const date = (value?: string | number) => typeof value === 'number' || dated(value) ? new Date(value!).toLocaleString() : '—';
 export const gib = (value = 0) => (value / 1073741824).toFixed(3) + ' GiB';
 export const mb = (value = 0) => (value / 1e6).toFixed(3) + ' MB';
-export const active = (s?: Status) => ['checking', 'starting', 'hosts'].includes(s?.activation?.phase || '');
+export const active = (s?: Status) => ['checking', 'starting', 'hosts', 'stopping'].includes(s?.activation?.phase || '');
 export const accelerationLabel = (s: Status) => s.running && s.hosts.ready ? '加速运行中' : s.running ? '加速未就绪' : '加速未运行';
 
 // Describe the current runtime policy, never a saved but unapplied choice.
 export function exitConnectionMessage(s?: Status): string {
   if (!s) return '退出按当前设置处理游戏连接，不再请求管理员权限。';
-  if (!s.activeSettings.restoreHostsOnExit) return '退出后保留游戏接入。下次玩游戏前请启动 SWD，不再使用时，请先保存「退出时恢复游戏直连」为开启，再退出。';
-  if (s.hosts.managed && !s.hosts.exitRestorePrepared) return '已有游戏接入尚未准备自动恢复，请先点击「开始加速」完成授权；直接退出会保留接入。';
+  if (!s.activeSettings.restoreHostsOnExit) return '退出后保留游戏接入。下次玩游戏前请启动 SWD，不再使用时，请先保存「停止加速或退出时恢复游戏直连」为开启，再退出。';
+  if (s.hosts.managed && !s.hosts.exitRestorePrepared) return '已有游戏接入尚未准备自动恢复，请先在接入诊断中修复游戏连接；直接退出会保留接入。';
   return '退出时自动恢复本程序的游戏接入，不再请求管理员权限。';
 }

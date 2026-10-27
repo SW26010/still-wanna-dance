@@ -96,6 +96,9 @@ func (h *hostsController) change(action string, restore bool) error {
 		return nil
 	}
 	if h.session == nil {
+		if action == "disable" {
+			return errors.New("游戏接入尚未取得恢复权限，请先开始加速完成授权后重试")
+		}
 		h.session, err = h.launch(h.ctx)
 		if err != nil {
 			return err

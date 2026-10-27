@@ -28,12 +28,13 @@ func TestExitPolicySavePreparesWithoutChangingHosts(t *testing.T) {
 			t.Fatal(err)
 		}
 		owned, _ := transformHosts(hostsBaseline, "enable")
-		h, launches := fixtureHostsController(t, owned)
+		initial := owned
+		if existing {
+			initial = hostsBaseline
+		}
+		h, launches := fixtureHostsController(t, initial)
 		c.hosts = h
 		if existing {
-			if err := h.change("disable", false); err != nil {
-				t.Fatal(err)
-			}
 			if err := h.change("enable", false); err != nil {
 				t.Fatal(err)
 			}

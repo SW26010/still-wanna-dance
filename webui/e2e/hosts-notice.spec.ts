@@ -20,7 +20,7 @@ for(const width of [320,1280])test(`authorized helper offers a focused exit sett
   await page.getByRole('link',{name:'打开退出设置',exact:true}).click();
   await expect(page).toHaveURL(/#restoreHostsOnExit$/);
   await expect(page.getByRole('tab',{name:'常规',exact:true})).toHaveAttribute('aria-selected','true');
-  const restore=page.getByRole('checkbox',{name:'退出时恢复游戏直连',exact:true});
+  const restore=page.getByRole('checkbox',{name:'停止加速或退出时恢复游戏直连',exact:true});
   await expect(restore).toBeFocused();
   await expect(restore).toBeInViewport();
   await expect(restore).toBeChecked();
@@ -83,7 +83,7 @@ for(const failure of ['access','read','write'] as const)test(`notification stora
   await expect(page.getByRole('heading',{name:'加速',level:1,exact:true})).toBeVisible();
   await expect(page.getByText(noticeTitle,{exact:true})).toBeVisible();
   await page.getByRole('link',{name:'打开退出设置',exact:true}).click();
-  await expect(page.getByRole('checkbox',{name:'退出时恢复游戏直连',exact:true})).toBeFocused();
+  await expect(page.getByRole('checkbox',{name:'停止加速或退出时恢复游戏直连',exact:true})).toBeFocused();
   await expect(page.getByText(noticeTitle,{exact:true})).toHaveCount(0);
   await page.waitForResponse(response=>new URL(response.url()).pathname==='/api/status');
   await expect(page.getByText(noticeTitle,{exact:true})).toHaveCount(0);

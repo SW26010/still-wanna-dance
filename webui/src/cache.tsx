@@ -4,7 +4,7 @@ import { ArrowSync20Regular } from '@fluentui/react-icons';
 import { request, APIError } from './api';
 import { useApp, useResource } from './hooks';
 import { usePageFeedback } from './page-feedback';
-import { Hint, Notification, RecordDetails } from './ui';
+import { Notification } from './ui';
 import { type CacheEntry, type LibraryPage, type Inventory, date, dated, gib } from './types';
 
 export const cacheLabel = (entry: CacheEntry) => entry.songs.length ? entry.songs.map(s => `${s.title || '未知歌名'}（ID ${s.id}）`).join(' / ') : '未知歌名 · 未关联歌曲';
@@ -43,7 +43,7 @@ export function useCacheActions(snapshot: Pick<LibraryPage,'storageID'|'resource
 }
 const inventoryRefreshInterval=(data:Inventory)=>data.scanning?1000:0;
 export function InventoryPanel({visible,files,videoError,refresh,loading,loadedAt,readError}: {visible:boolean;videoError?:string;files?:Pick<LibraryPage,'fileCount'|'totalBytes'>;refresh:()=>void;loading:boolean;loadedAt?:number;readError?:string}) {
-  const app = useApp(), s=app.status.data!, t = s.traffic || {};
+  const app = useApp(), s=app.status.data!;
   const [lastCheckedAt,setLastCheckedAt]=useState<number>();
   useEffect(()=>{
     if(files&&!videoError&&!readError&&loadedAt!==undefined)setLastCheckedAt(loadedAt);
@@ -71,14 +71,11 @@ export function InventoryPanel({visible,files,videoError,refresh,loading,loadedA
         {(readError||videoError)&&<Text block size={200} role="status">检查失败</Text>}
       </div>
       <div role="group" aria-label="曲库覆盖率">
-        <div className="inline"><span className="secondary">曲库覆盖率</span><Tooltip content={<>更新曲库<Text block size={200}>最后检查时间：{date(v?.updated)}</Text></>} relationship="description"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="library-refresh-icon" aria-hidden="true"/>} aria-label="更新曲库" aria-busy={catalogBusy} disabled={app.unavailable||catalogBusy} disabledFocusable={catalogBusy||app.busy} onClick={()=>void app.action('inventory/scan')}/></Tooltip><Hint label="覆盖率说明">已保存视频覆盖的歌曲比例，共享视频按歌曲分别计数。</Hint></div>
+        <div className="inline"><Tooltip content={'清单版本：'+(v?.catalog?.revision||'未知')} relationship="description"><span className="secondary" tabIndex={0}>曲库覆盖率</span></Tooltip><Tooltip content={<>更新曲库<Text block size={200}>最后检查时间：{date(v?.updated)}</Text></>} relationship="description"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="library-refresh-icon" aria-hidden="true"/>} aria-label="更新曲库" aria-busy={catalogBusy} disabled={app.unavailable||catalogBusy} disabledFocusable={catalogBusy||app.busy} onClick={()=>void app.action('inventory/scan')}/></Tooltip></div>
         <Text block size={500} weight="semibold">{known?`${(100*v.coveredSongs/v.totalSongs).toFixed(1)}%`:'—'}</Text>
       </div>
-      <div><span className="secondary">视频存储预算</span><Text block size={400}>{s.activeSettings.videoStorageMode==='unlimited'?'不限制':s.activeSettings.videoStorageMode==='none'?'不保留':gib(s.activeSettings.maxCacheBytes)}</Text></div>
+      <div><Link href="#storage-settings">视频存储预算</Link><Text block size={400}>{s.activeSettings.videoStorageMode==='unlimited'?'不限制':s.activeSettings.videoStorageMode==='none'?'不保留':gib(s.activeSettings.maxCacheBytes)}</Text></div>
     </div>
-    <div className="inline"><Link href="#storage-settings">存储设置</Link>
-      <RecordDetails title="曲库统计"><dl className="detail-grid"><dt>清单检查</dt><dd>{date(v?.catalog?.checkedAt)}</dd><dt>清单版本</dt><dd>{v?.catalog?.revision||'未知'}</dd><dt>覆盖率检查</dt><dd>{date(v?.updated)} · {v?.coveredSongs||0} / {v?.totalSongs||0} 首{v?.catalogRevision&&v.catalogRevision!==v.catalog?.revision&&'（清单已变化，请更新曲库）'}</dd><dt>本地视频命中</dt><dd>{t.hits||0} 次 · {t.hitRate==null?'—':t.hitRate.toFixed(1)+'%'}</dd><dt>节省下载流量</dt><dd>{gib(t.savedBytes)}<Text block size={200}>按本地命中计量，未扣除预下载流量。</Text></dd><dt>请求</dt><dd>成功 {t.requests||0} · 未命中 {t.misses||0}</dd><dt>播放传输</dt><dd>{t.playbackTransfers||0}<Text block size={200}>同歌请求按 30 秒去重，非游戏播放次数。</Text></dd></dl></RecordDetails>
-    </div>
-    <Notification message={visible?(inventory.error?'曲库统计暂时不可用。':v?.error||v?.catalog?.error||t.error||s.actionErrors?.inventory):undefined} error/>
+    <Notification message={visible?(inventory.error?'曲库统计暂时不可用。':v?.error||v?.catalog?.error||s.actionErrors?.inventory):undefined} error/>
   </section>;
 }

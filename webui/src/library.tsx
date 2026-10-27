@@ -9,7 +9,6 @@ import {LibraryPreview,type PreviewSelection} from './library-preview';
 import {InventoryPanel,useCacheActions,cacheLabel} from './cache';
 import {BatchPanel} from './home-library';
 import {ImportPanel} from './settings';
-import {SongPreferenceTools,policyLabels} from './song-preferences';
 import {VRCXImport,useVRCX} from './vrcx';
 import {date,mb,type Download,type LibraryPage,type LibraryResource,type SongPolicy} from './types';
 
@@ -17,6 +16,7 @@ export const songHref=(id:string)=>'#/library?song='+encodeURIComponent(id);
 export const resourceHref=(key:string)=>'#/library?resource='+encodeURIComponent(key);
 const scoreFormat=new Intl.NumberFormat(undefined,{minimumFractionDigits:2,maximumFractionDigits:2,minimumSignificantDigits:4,maximumSignificantDigits:4,roundingPriority:'lessPrecision'});
 const downloadRefreshInterval=(data:{tasks:Download[]})=>data.tasks.length?5000:0;
+const policyLabels:Record<SongPolicy,string>={normal:'普通',favorite:'收藏',blocked:'屏蔽'};
 export function Library({visible,anchor}:{visible:boolean;anchor:string}) {
   const [opened,setOpened]=useState(visible);
   useEffect(()=>{if(visible)setOpened(true);},[visible]);
@@ -28,7 +28,7 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
   const app=useApp(),s=app.status.data!,focus=useFocusRecovery(),toolFocus=useFocusRecovery();
   const [view,setView]=useState(resource||requestedView==='resources'?'resources':'songs'),[search,setSearch]=useState(''),[sort,setSort]=useState('score'),[filter,setFilter]=useState('');
   const [query,setQuery]=useState({q:'',sort:'score',filter:''}),[offset,setOffset]=useState(0),[selected,setSelected]=useState<Record<string,string>>({});
-  const [pending,setPending]=useState(false),[tool,setTool]=useState<'video'|'history'|'mark'|undefined>(anchor==='video-import'?'video':undefined);
+  const [pending,setPending]=useState(false),[tool,setTool]=useState<'video'|'history'|undefined>(anchor==='video-import'?'video':undefined);
   const previousTool=useRef(tool);
   const history=useVRCX();
   const [preview,setPreview]=useState<PreviewSelection>();
@@ -107,13 +107,13 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
       </Feedback><Feedback error>{history.message}</Feedback></div>}
       {(song||resource)&&<div className="toolbar"><span>查看{song?'歌曲 ID '+song:'资源 '+resource}</span><Link href="#/library">返回完整曲库</Link></div>}
       <div className="toolbar spread"><TabList aria-label="曲库视图" selectedValue={view} onTabSelect={(_,v)=>{setView(String(v.value));setOffset(0);setSort('score');setFilter('');setQuery(q=>({...q,sort:'score',filter:''}));}}><Tab id="library-tab-songs" aria-controls="library-results" value="songs" disabled={!!resource}>按歌曲</Tab><Tab id="library-tab-resources" aria-controls="library-results" value="resources" disabled={!!song}>按资源</Tab></TabList>
-        <div className="inline"><Button onClick={()=>setTool('video')}>导入视频</Button><Button onClick={()=>setTool('history')}>导入 VRCX 历史</Button><Button onClick={()=>setTool('mark')}>按 ID 标记</Button></div></div>
+        <div className="inline"><Button onClick={()=>setTool('video')}>导入视频</Button><Button onClick={()=>setTool('history')}>导入 VRCX 历史</Button></div></div>
       <div id="library-results" role="tabpanel" aria-labelledby={'library-tab-'+view}>
       <form className="toolbar library-search" onSubmit={e=>{e.preventDefault();setOffset(0);setQuery({q:search,sort,filter});page.refresh();}}>
         <Field label="搜索曲库" className="search-field"><Input type="search" maxLength={300} placeholder="名称、ID、歌手、舞者或资源" value={search} onChange={(_,v)=>setSearch(v.value)}/></Field>
         <Field label="排序"><Select value={sort} onChange={(_,v)=>setSort(v.value)}><option value="score">需求分数优先</option><option value="title">名称顺序</option>{view==='songs'?<option value="id">歌曲 ID 从新到旧</option>:<><option value="size">大小从大到小</option><option value="recent">最近请求优先</option></>}</Select></Field>
         <Field label="筛选"><Select value={filter} onChange={(_,v)=>setFilter(v.value)}><option value="">全部</option><option value="saved">已保存视频</option><option value="missing">缺失视频</option>{view==='songs'&&Object.entries(policyLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</Select></Field>
-        <Button appearance="primary" type="submit" disabled={disabled}>查找</Button><Button disabled={disabled} onClick={()=>void actions.operate('open',[])}>打开视频目录</Button>
+        <Button appearance="primary" type="submit" disabled={disabled}>查找</Button>
       </form>
       <div className="toolbar table-toolbar spread"><span role="status">{page.error?'曲库读取失败，请刷新重试。':page.loading&&!page.data?'正在读取曲库…':`共 ${page.data?.total||0} ${view==='songs'?'首歌曲':'个资源'} · 第 ${offset/50+1} 页`}</span>
         {view==='resources'&&<div className="inline"><Button size="small" disabled={disabled||!eligible.length} onClick={()=>setSelected(eligible.every(e=>selected[e.key]===e.stamp)?{}:Object.fromEntries(eligible.map(e=>[e.key,e.stamp])))}>选择本页可删除项</Button><Button size="small" disabled={disabled||!chosen.length} onClick={()=>void actions.operate('delete',chosen)}>删除选中视频</Button><span>已选择 {chosen.length} 个文件</span></div>}</div>
@@ -145,7 +145,6 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
     <section hidden={!tool} className="page-stack" {...toolFocus} tabIndex={-1} aria-label="曲库工具"><div className="toolbar"><Button onClick={()=>setTool(undefined)}>返回曲库</Button></div>
       <div hidden={tool!=='video'}><ImportPanel/></div>
       <div hidden={tool!=='history'}><VRCXImport model={history}/></div>
-      <div hidden={tool!=='mark'}><h2>按 ID 标记</h2><SongPreferenceTools disabled={disabled} save={(id,p)=>void save(id,p)}/></div>
     </section>
   </div>;
 }

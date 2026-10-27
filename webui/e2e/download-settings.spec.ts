@@ -46,7 +46,7 @@ test('local protection grace preserves zero, validates bounds and waits for rest
     expect(api.calls.filter(c=>c.path==='settings')).toHaveLength(0);
   }
   await grace.fill('0');
-  await navigateSettings(page,'网络');await navigate(page,'曲库');await page.getByRole('link',{name:'存储设置',exact:true}).click();
+  await navigateSettings(page,'网络');await navigate(page,'曲库');await page.getByRole('link',{name:'视频存储预算',exact:true}).click();
   await expect(grace).toHaveValue('0');
   await save.click();await expect(page.getByRole('button',{name:'重启并应用'})).toBeEnabled();
   expect(api.state.settings.localProtectionGraceSeconds).toBe(0);

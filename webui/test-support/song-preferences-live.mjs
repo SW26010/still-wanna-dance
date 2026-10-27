@@ -37,20 +37,10 @@ try {
   await panel.getByRole('button',{name:'查找',exact:true}).click();
   await preference(1).selectOption('favorite');
   await expect(preference(1)).toHaveValue('favorite');
-  await panel.getByRole('button',{name:'按 ID 标记',exact:true}).click();
-  const tools=page.getByRole('region',{name:'曲库工具',exact:true});
-  await expect(tools.getByText('收藏仅作标记；屏蔽会拒绝新的播放和下载请求。',{exact:true})).toBeVisible();
-  await tools.getByRole('textbox',{name:/^歌曲 ID/}).fill('314');
-  await tools.getByRole('combobox',{name:'歌曲偏好',exact:true}).selectOption('blocked');
-  await tools.getByRole('button',{name:'保存标记',exact:true}).click();
-  await expect(page.getByText('歌曲 314 已设为屏蔽。',{exact:true})).toBeVisible();
-  await tools.getByRole('button',{name:'返回曲库',exact:true}).click();
-  await expect(preference(314)).toHaveValue('blocked');
   expect((await page.request.post(baseURL+'/__preferences/reopen')).ok()).toBe(true);
   await page.reload();
   await expect(preference(1)).toHaveValue('favorite');
   await expect(preference(2)).toHaveValue('blocked');
-  await expect(preference(314)).toHaveValue('blocked');
   await expect(panel.getByRole('row').filter({hasText:'未下载的收藏测试'})).toContainText('未保存');
   for(const [width,theme] of [[1280,'light'],[390,'dark']]) {
     await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:theme});
@@ -62,6 +52,6 @@ try {
   await expect(page.getByText('当前不保留普通视频。',{exact:false})).toBeVisible();
   await expect(page.getByText('，收藏仍可补齐。',{exact:false})).toBeVisible();
   expect(errors).toEqual([]);
-  await writeFile(join(output,'browser.json'),JSON.stringify({passed:true,errors,checks:['offline favorite preserves existing file without starting engine','preference changes','file state separate','filter and focus','manual ID','engine reopen persistence','blocked GET 403','zero network resolutions','zero-budget manual action','desktop and narrow themes']},null,2));
+  await writeFile(join(output,'browser.json'),JSON.stringify({passed:true,errors,checks:['offline favorite preserves existing file without starting engine','preference changes','file state separate','filter and focus','engine reopen persistence','blocked GET 403','zero network resolutions','zero-budget manual action','desktop and narrow themes']},null,2));
   console.log('Real Console song preference, file state, reopen and blocked GET checks passed.');
 } finally {await browser.close();}

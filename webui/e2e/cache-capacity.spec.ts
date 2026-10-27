@@ -71,7 +71,7 @@ test('settings preserve all three storage choices and the entered budget across 
   await limited.check();
   await expect(input).toHaveValue('12.5');
   await navigate(page,'曲库');
-  await navigate(page,'曲库');await page.getByRole('link',{name:'存储设置',exact:true}).click();
+  await navigate(page,'曲库');await page.getByRole('link',{name:'视频存储预算',exact:true}).click();
   await expect(limited).toBeChecked();
   await expect(input).toHaveValue('12.5');
   await page.getByRole('button', {name:'保存设置', exact:true}).click();

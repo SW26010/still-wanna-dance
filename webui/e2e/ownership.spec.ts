@@ -22,7 +22,7 @@ test('video import, storage and coverage are found from local videos',async({pag
   await page.getByRole('textbox',{name:'外部目录',exact:true}).fill('D:\\Videos');
   await page.getByRole('button',{name:'扫描并导入',exact:true}).click();
   expect(api.calls.find(c=>c.path==='import/start')?.body.source).toBe('D:\\Videos');
-  await page.getByRole('button',{name:'返回曲库',exact:true}).click(); await page.getByRole('link',{name:'存储设置',exact:true}).click();
+  await page.getByRole('button',{name:'返回曲库',exact:true}).click(); await page.getByRole('link',{name:'视频存储预算',exact:true}).click();
   await expect(page.getByRole('radio',{name:'不保留',exact:true})).toBeVisible();
 });
 
@@ -32,7 +32,7 @@ test('separate settings locations save only their own draft and preserve the oth
   await page.getByRole('tab',{name:'常规',exact:true}).click();await page.getByRole('tab',{name:'预加载与下载',exact:true}).click();
   await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveValue('777');
   await navigate(page,'曲库');
-  await page.getByRole('link',{name:'存储设置',exact:true}).click();
+  await page.getByRole('link',{name:'视频存储预算',exact:true}).click();
   await page.getByRole('radio',{name:'限制为',exact:true}).check();
   await page.getByRole('spinbutton',{name:/视频存储预算/}).fill('20');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();

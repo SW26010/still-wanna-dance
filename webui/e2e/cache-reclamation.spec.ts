@@ -23,7 +23,7 @@ test('reclamation strategy follows storage only in auto and survives save, disca
   await page.getByRole('radio', {name:'不限制', exact:true}).check();
   await expect(on).toBeChecked();
   await navigate(page, '曲库');
-  await navigate(page, '曲库');await page.getByRole('link',{name:'存储设置',exact:true}).click();
+  await navigate(page, '曲库');await page.getByRole('link',{name:'视频存储预算',exact:true}).click();
   await expect(on).toBeChecked();
   await save.click();
   await expect(save).toBeDisabled();

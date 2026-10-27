@@ -108,7 +108,7 @@ func TestSongPreferencesBrowser(t *testing.T) {
 		t.Fatal("preferences started network or service activity", resolutions.Load())
 	}
 	policies, err := c.service.SongPolicies(t.Context())
-	if err != nil || policies[1] != cacheproxy.SongFavorite || policies[2] != cacheproxy.SongBlocked || policies[3] != cacheproxy.SongFavorite || policies[314] != cacheproxy.SongBlocked {
+	if err != nil || policies[1] != cacheproxy.SongFavorite || policies[2] != cacheproxy.SongBlocked || policies[3] != cacheproxy.SongFavorite {
 		t.Fatal(policies, err)
 	}
 }

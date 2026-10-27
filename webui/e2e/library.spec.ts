@@ -401,7 +401,7 @@ test('batch deletion focuses one persistent result with skipped and failed files
   await results.screenshot({path:info.outputPath('file-results.png'),animations:'disabled'});
 });
 
-test('library tabs name their result panel and statistics need no second disclosure',async({page})=>{
+test('library tabs name their result panel and catalog version supports hover and focus',async({page})=>{
   await libraryFixture(page);await page.goto('/#/library');
   const songs=page.getByRole('tab',{name:'按歌曲',exact:true});
   await songs.focus();await page.keyboard.press('ArrowRight');
@@ -409,8 +409,10 @@ test('library tabs name their result panel and statistics need no second disclos
   await expect(resources).toBeFocused();await expect(songs).toHaveAttribute('aria-selected','true');
   await page.keyboard.press('Enter');await expect(panel.getByRole('table',{name:'曲库资源'})).toBeVisible();
   expect(await resources.getAttribute('aria-controls')).toBe(await panel.getAttribute('id'));
-  await page.getByRole('button',{name:'曲库统计',exact:true}).click();
-  const details=page.locator('.fui-PopoverSurface:visible');
-  await expect(details).toContainText('未扣除预下载流量');await expect(details).toContainText('非游戏播放次数');
-  await expect(details.getByRole('button')).toHaveCount(0);
+  const coverage=page.getByText('曲库覆盖率',{exact:true});
+  await coverage.hover();await expect(page.getByRole('tooltip')).toHaveText('清单版本：未知');
+  await page.keyboard.press('Escape');await page.mouse.move(0,0);
+  await coverage.focus();await expect(page.getByRole('tooltip')).toHaveText('清单版本：未知');
+  await expect(coverage).toHaveAccessibleDescription('清单版本：未知');
+  await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
 });

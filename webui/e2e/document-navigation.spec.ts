@@ -54,7 +54,7 @@ test('library mounting leaves navigation focus on the page; tool switches focus 
     // Include the deferred focus work after the lazily mounted library renders.
     await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
     await expect(page.locator('#main')).toBeFocused();
-    for(const name of ['导入视频','导入 VRCX 历史','按 ID 标记']){
+    for(const name of ['导入视频','导入 VRCX 历史']){
       await page.getByRole('button',{name,exact:true}).click();
       await expect(page.getByRole('region',{name:'曲库工具',exact:true})).toBeFocused();
       await page.getByRole('button',{name:'返回曲库',exact:true}).click();

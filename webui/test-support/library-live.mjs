@@ -15,7 +15,7 @@ try {
   await expect(rows.nth(2).getByRole('cell').nth(1)).toHaveAccessibleName('初始分数 50.00');
   await songs.getByRole('button',{name:'下载歌曲',exact:true}).first().click();
   await expect(page.getByText('所选歌曲或资源已处理完成；同 MD5 共用一份视频',{exact:true})).toBeVisible({timeout:20000});
-  await page.getByRole('button',{name:'刷新曲库与本地占用',exact:true}).click();
+  await page.getByRole('button',{name:'检查本地视频',exact:true}).click();
   await expect(songs.getByText('已保存',{exact:true})).toHaveCount(2);
   await page.getByLabel('歌曲 1 的偏好').selectOption('favorite');
   await expect(page.getByText('歌曲 1 已设为收藏。',{exact:true})).toBeVisible();

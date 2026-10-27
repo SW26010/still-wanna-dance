@@ -40,7 +40,7 @@ test('cache renders Unix millisecond request times and zero as no record', async
   await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('最近请求：'+requested);await page.keyboard.press('Escape');
   await rows.nth(1).getByRole('button',{name:'资源 key2 的详情',exact:true}).click();
   await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('最近请求：无记录');await page.keyboard.press('Escape');
-  await page.getByRole('button',{name:'刷新曲库与本地占用'}).click();
+  await page.getByRole('button',{name:'检查本地视频',exact:true}).click();
   await navigateSettings(page,'预加载与下载'); await navigate(page,'曲库');
   await expect(rows.first().getByRole('checkbox')).toBeEnabled();
   expect(errors).toEqual([]);

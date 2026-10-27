@@ -84,7 +84,7 @@ test('rejected cancellation stays running and stale SSE events cannot replace ne
 test('cache failures preserve rows but disable stale actions and retry reads no unrelated services',async({page})=>{
   const api=await mockAPI(page);await page.goto('/#/library?view=resources');await expect(page.getByRole('checkbox',{name:/测试歌曲 1/})).toBeEnabled();
   await page.route('**/api/library?*',r=>r.fulfill({status:503,json:{error:'busy'}}));
-  await page.getByRole('button',{name:'刷新曲库与本地占用'}).click();await expect(page.getByText(/曲库读取失败/)).toBeVisible();
+  await page.getByRole('button',{name:'检查本地视频',exact:true}).click();await expect(page.getByText(/曲库读取失败/)).toBeVisible();
   await expect(page.getByRole('checkbox',{name:/测试歌曲 1/})).toBeDisabled();
   expect(api.calls.some(c=>c.path==='cache/delete'||c.path==='inventory/scan'||c.path==='start')).toBe(false);
 });

@@ -19,9 +19,10 @@ export function useFocusRecovery() {
 }
 
 // One request at a time, abort stale reads on route/save/pause, suspend hidden tabs.
-export function useResource<T>(path: string, enabled = true, revision = 0, interval = 5000, retain = false) {
+export function useResource<T>(path: string, enabled = true, revision = 0, interval: number | ((data:T)=>number) = 5000, retain = false) {
   const [data, setData] = useState<T>(), [error, setError] = useState(''), [loading, setLoading] = useState(false);
   const [loadedRevision, setLoadedRevision] = useState<number>();
+  const [loadedAt, setLoadedAt] = useState<number>();
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey(v => v + 1), []);
   useEffect(() => {
@@ -33,20 +34,21 @@ export function useResource<T>(path: string, enabled = true, revision = 0, inter
       if (disposed || document.hidden) return;
       if (pending) { rerun = true; return; }
       pending = true; setLoading(true);
+      let delay = typeof interval === 'number' ? interval : 0;
       try {
         const next = await request<T>(path, undefined, AbortSignal.any([controller.signal, AbortSignal.timeout(35000)]));
-        if (!disposed) { setData(next); setLoadedRevision(revision); setError(''); }
+        if (!disposed) { setData(next); setLoadedRevision(revision); setLoadedAt(Date.now()); setError(''); delay = typeof interval === 'number' ? interval : interval(next); }
       } catch (e) { if (!disposed) { setError(String(e)); if (!retain) setData(undefined); } }
       finally {
         pending = false;
-        if (!disposed) { setLoading(false); if (rerun) { rerun = false; void run(); } else if (interval > 0) timer = setTimeout(run, interval); }
+        if (!disposed) { setLoading(false); if (rerun) { rerun = false; void run(); } else if (delay > 0) timer = setTimeout(run, delay); }
       }
     };
     const visibility = () => { if (document.hidden) clearTimeout(timer); else void run(); };
     void run(); document.addEventListener('visibilitychange', visibility);
     return () => { disposed = true; clearTimeout(timer); controller.abort(); document.removeEventListener('visibilitychange', visibility); };
   }, [path, enabled, revision, refreshKey, interval, retain]);
-  return { data, error, loading, refresh, loadedRevision };
+  return { data, error, loading, refresh, loadedRevision, loadedAt };
 }
 
 export function useConfirmation() {
@@ -82,7 +84,7 @@ const actionMessages: Record<string,string> = {
   'activation/enable':'视频加速已开启。',
   'activation/disable':'视频加速已停止。',
   'batch/scan':'已开始检查缺失视频。', 'batch/start':'已开始下载缺失视频。',
-  'batch/cancel':'已请求停止批量任务。', 'inventory/scan':'已开始更新清单并统计覆盖率。',
+  'batch/cancel':'已请求停止批量任务。', 'inventory/scan':'已开始更新曲库。',
   'import/start':'已开始扫描并导入视频。', 'import/cleanup':'已处理源文件清理，请查看导入结果。',
 };
 export function useConsole(enabled: boolean, page: string) {

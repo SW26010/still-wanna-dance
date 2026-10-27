@@ -861,3 +861,39 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 - 桌面构建与嵌入 WebUI 一致性校验通过，产物为忽略目录 `artifacts/cache-open-probe/SWD.exe`，版本 `dev-cache-location`。没有替换或重启用户正在运行的程序。
 
 失败、中间探测和最终输出保留在 `artifacts/cache-open-probe/`，包括 `before.log`、`after-visible.log`、`after-selection.log`、`after-cmdline.log`、`after-shell-api.log`、`desktop-final.log`、`go-tests.log`、`browser.log`、`vet.log` 和 `build.log`。初次沙箱内探测无法读取 Explorer COM 窗口，最终真实桌面检查使用当前用户会话运行。无需 VRC 验收，未启动游戏或修改 hosts。
+
+## 2026-10-28 曲库按需检查与图标入口
+
+现行交互见[曲库设计](../webui-design.md#曲库)。移除曲库列表与统计的空闲定时读取，进入页面读取一次；本地视频和覆盖率分别提供 Fluent 旋转箭头按钮及“最后检查时间”。网络检测完成时利用已有全局状态同步一次列表与清单状态；更新扫描及已有下载任务只在运行期间读取进度。首次进入页面的重复列表请求一并移除，批量任务或导入完成后的关联读取保留。
+
+- 先运行 `./scripts/with-test-temp.ps1 pnpm --dir webui test library-refresh.spec.ts --grep 'reads once' --workers=1`，旧实现失败：预期 `downloads, inventory, library` 各一次，实际多一次 `library` 请求。修复后该用例还验证虚拟时间推进 31 秒不增加空闲读取、手动本地检查不联网、返回曲库重新读取，以及两个指标的检查时间分别变化。
+- 定向运行 `library-refresh.spec.ts library.spec.ts console.spec.ts recovery.spec.ts --workers=4`，共 51 项通过。包含更新扫描完成后停止读取并刷新列表、读取失败保留检查时间、网络检测同步新歌名和清单版本而不再发起扫描、悬停／键盘／Escape，以及删除确认中因任务完成发生快照变化时拒绝旧选择。
+- 已检查 1280px 浅色、390px 深色及 320px 截图，图标、标签和检查时间正常显示，无横向溢出。截图保留于 `artifacts/library-refresh/summary/`。`pnpm --dir webui build`、`pnpm --dir webui check` 和 `git diff --check` 通过，嵌入资源已重建。
+- 完整 Edge 回归命令 `./scripts/with-test-temp.ps1 pnpm --dir webui test --workers=4` 为 **273 通过、6 失败**，原始输出保留在 `artifacts/library-refresh/browser.log`。失败包括 `block-timeline.spec.ts` 的 3 个短视口隐藏断言（仍有 1／2 个事件流）、`document-navigation.spec.ts` 在运行中寻找“开始加速”、`task-errors.spec.ts` 寻找已移除的 `#queue`，以及 `ui-layout.spec.ts` 的 1440×1000 设置页底部 1022px／预期小于 984px。
+- 用 `git archive` 将修改前 `9240e4b9b1e1e720f8d948082af421726176857c` 的前端、嵌入资源和夹具提取到忽略目录 `artifacts/library-refresh/baseline/`，以单 worker 运行上述 6 项。**6 项均在同一断言失败**，记录在 `artifacts/library-refresh/baseline.log`；没有改动或跳过这些用例。后续处理见[非 VRC 跟进](../validation-followups.md#已知失败优先处理)。
+
+浏览器验证使用内存 API 和实际编译资源，不外推为公网清单同步或真实磁盘扫描的新验收。本次未改变后端同步、扫描或文件保护机制，未启动游戏、修改 hosts、替换或重启用户运行中的程序。
+
+同日评审补充两项失败回归：批量任务准备清单及视频间隙返回空下载数组后，原进度读取停止；HTTP 200 携带 `videoError` 时，原界面将最后检查时间清成“—”。修复前定向运行 `library-refresh.spec.ts --grep 'batch preparation|video directory failures' --workers=1`，两项分别以“读取次数仍为 2”和“成功检查时间变为 —”失败，输出保留在 `artifacts/library-refresh/review-before.log`。
+
+下载进度现同时依据 `batch.running` 与活动下载列表：准备阶段和任务间隙继续读取，停止批量任务后保留尚未结束的共享下载观测，全部结束后停止。最后成功检查时间独立保留，目录失败和失败期间切页不清空，恢复成功后才推进；失效的占用数据仍显示未知。内容约定中的旧固定轮询条款改为引用曲库设计。
+
+修复后同一组曲库、Console 和恢复回归共 **53 项通过**，包括新增生命周期全程、目录失败、切页及恢复用例；`build`、`check` 和补丁格式检查通过。输出为 `artifacts/library-refresh/review-after.log`。本轮修改局限于上述两处界面状态与文档，复用此前完整回归和 6 项既有失败的隔离对照，不把定向通过写成全量通过。
+
+## 2026-10-28 曲库刷新进度与布局稳定
+
+刷新时在原图标槽内使用 Fluent v9 `Spinner size="tiny"`，移除常规“检查中／更新中”状态行；通过按钮的 `aria-busy` 和 Tooltip 描述进度，保留键盘焦点并阻止重复提交，完成后恢复旋转箭头。真实错误继续显示，检查时间规则不变。
+
+- 修复前分别触发本地检查与曲库更新，1280px 浏览器回归均失败：概览由 68px 增至 84px，歌曲表格从 410px 下移至 426px。输出保留在 `artifacts/library-refresh-layout/before.log`。
+- 修复后 `library-refresh.spec.ts` 共 **12 项通过**。新增用例覆盖 1280、390、320px 下两种操作的概览高度、表格位置及按钮尺寸不变，并验证焦点、忙碌提示、重复提交阻止和完成后恢复；原有按需读取、网络同步、下载生命周期和失败保留检查时间回归同时通过。
+- 前端 `build`、`check` 及 `git diff --check` 通过，嵌入资源已重建。已检查桌面浅色、窄屏深色的刷新中截图，输出与截图保留于 `artifacts/library-refresh-layout/`。
+
+本次浏览器验证使用内存 API 和实际编译资源，范围为刷新反馈与布局；复用上一节完整回归及既有失败对照，不新增 VRC 验收项。
+
+## 2026-10-28 曲库检查时间提示与刷新箭头动画
+
+本次替代前述按钮内 Spinner 和常驻检查时间的呈现：两个指标的最后检查时间移至各自 Fluent Tooltip 第二行，悬停及键盘聚焦可查看；操作名保持不变。检查期间直接旋转原 Fluent 刷新箭头，采用锁定版本 Spinner 的 1.5 秒线性循环节奏，完成后停止；减少动态效果时关闭旋转，保留忙碌语义、焦点和重复提交阻止。
+
+`library-refresh.spec.ts` **12 项通过**，覆盖两种刷新在 1280／390／320px 下的实际旋转、结束停止、减少动态效果、布局与焦点稳定，以及检查时间保留、网络检测同步和下载生命周期。补充 Tooltip 宽度及截图检查的单项回归通过，确认时间不再常驻概览、悬停与键盘提示均含时间、窄屏提示不溢出；已查看桌面浅色与窄屏深色截图。前端 `build`、`check` 和差异格式检查通过，资源已重建。证据保存在 `artifacts/library-refresh-tooltip/`。
+
+验证使用内存 API 与实际编译资源，范围为前端呈现和交互，不改变后端检查语义，无需新增 VRC 验收。

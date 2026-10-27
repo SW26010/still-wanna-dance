@@ -16,6 +16,7 @@ import {date,mb,type Download,type LibraryPage,type LibraryResource,type SongPol
 export const songHref=(id:string)=>'#/library?song='+encodeURIComponent(id);
 export const resourceHref=(key:string)=>'#/library?resource='+encodeURIComponent(key);
 const scoreFormat=new Intl.NumberFormat(undefined,{minimumFractionDigits:2,maximumFractionDigits:2,minimumSignificantDigits:4,maximumSignificantDigits:4,roundingPriority:'lessPrecision'});
+const downloadRefreshInterval=(data:{tasks:Download[]})=>data.tasks.length?5000:0;
 export function Library({visible,anchor}:{visible:boolean;anchor:string}) {
   const [opened,setOpened]=useState(visible);
   useEffect(()=>{if(visible)setOpened(true);},[visible]);
@@ -32,8 +33,8 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
   const history=useVRCX();
   const [preview,setPreview]=useState<PreviewSelection>();
   const previewFocusTarget=useRestoreFocusTarget();
-  const page=useResource<LibraryPage>('library?'+new URLSearchParams({...query,view,song,resource,offset:String(offset)}),visible&&!app.stopped,app.revision,10000,true);
-  const downloads=useResource<{tasks:Download[]}>('downloads',visible&&!app.stopped,app.revision,5000,true);
+  const page=useResource<LibraryPage>('library?'+new URLSearchParams({...query,view,song,resource,offset:String(offset)}),visible&&!app.stopped,app.revision,0,true);
+  const downloads=useResource<{tasks:Download[]}>('downloads',visible&&!app.stopped,app.revision,s.batch.running?5000:downloadRefreshInterval,true);
   const feedback=usePageFeedback<{text:string;failed:boolean}>(visible?page.data?.storageID:undefined);
   const actions=useCacheActions(page.data,page.refresh,visible,page.loading||pending||!!page.error);
   const fileResult=useRef<HTMLElement>(null);
@@ -49,7 +50,11 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
     })));
     if(page.data&&offset>=page.data.total&&offset>0)setOffset(0);
   },[page.data,offset]);
-  useEffect(()=>{if(visible)page.refresh();},[s.batch.running,s.import.running,visible,page.refresh]);
+  const previousTasks=useRef({batch:s.batch.running,import:s.import.running});
+  useEffect(()=>{
+    if(visible&&(previousTasks.current.batch&&!s.batch.running||previousTasks.current.import&&!s.import.running))page.refresh();
+    previousTasks.current={batch:s.batch.running,import:s.import.running};
+  },[s.batch.running,s.import.running,visible,page.refresh]);
   useLayoutEffect(()=>{if(visible&&anchor==='video-import'){setTool('video');const frame=requestAnimationFrame(()=>{const target=document.getElementById('video-import');target?.focus();target?.scrollIntoView();});return()=>cancelAnimationFrame(frame);}},[visible,anchor]);
   useLayoutEffect(()=>{
     if(!visible||(requestedView===undefined&&anchor!=='batch'))return;
@@ -93,7 +98,7 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
     <Notification message={feedback.value?.text} error={feedback.value?.failed}/><Notification message={!actions.result?.error&&!actions.result?.entries?.length?actions.result?.text:undefined}/>
     <Notification message={visible&&downloads.error?'下载进度暂时无法读取。':undefined} error/>
     {page.data?.videoError&&<Feedback error>视频目录不可用，本地视频状态未知。歌曲资料仍可查看。<p className="wrap">{page.data.videoError}</p></Feedback>}
-    <InventoryPanel visible={visible} videoError={page.data?.videoError} files={page.data?.videoError?undefined:page.data} refresh={page.refresh} loading={page.loading}/>
+    <InventoryPanel visible={visible} videoError={page.data?.videoError} files={page.data?.videoError?undefined:page.data} refresh={page.refresh} loading={page.loading} loadedAt={page.loadedAt} readError={page.error}/>
     <section hidden={!!tool} id="library-browser" className="library-browser" {...focus} tabIndex={-1}>
       {history.suggested&&<div className="content-stack" aria-label="VRCX 历史导入建议"><Feedback>
         <p>检测到 VRCX 历史，可用于安排歌曲下载与保留顺序。仅在本机处理。</p>

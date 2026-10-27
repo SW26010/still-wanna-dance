@@ -242,7 +242,7 @@ for(const width of [320,390,1280])test(`library layout at ${width}px`,async({pag
 });
 
 
-test('polling preserves valid selections and unchanged deletion confirmations',async({page})=>{
+test('idle library preserves selections and deletion confirmations without polling',async({page})=>{
   const {resources,calls,queries}=await libraryFixture(page);
   await page.clock.install();
   await page.goto('/#/library');
@@ -252,19 +252,20 @@ test('polling preserves valid selections and unchanged deletion confirmations',a
   let count=queries.length;
   resources[key].local!.lastRequest=Date.now();
   await page.clock.fastForward(11000);
-  await expect.poll(()=>queries.length).toBeGreaterThan(count);
+  expect(queries).toHaveLength(count);
   await expect(checkbox).toBeChecked();
   await page.getByRole('button',{name:'删除选中视频',exact:true}).click();
   await expect(page.getByRole('dialog')).toContainText('影响 2 首已知关联歌曲');
   count=queries.length;
   await page.clock.fastForward(11000);
-  await expect.poll(()=>queries.length).toBeGreaterThan(count);
+  expect(queries).toHaveLength(count);
   await page.getByRole('button',{name:'确认删除',exact:true}).click();
   await expect.poll(()=>calls.find(c=>c.path==='cache/delete')?.body).toEqual({storageID:'fixture',entries:[{key,stamp:resources[key].local!.stamp}]});
 });
 
 for(const change of ['stamp','protected','missing','title'] as const)test('deletion confirmation rejects refreshed '+change,async({page})=>{
-  const {resources,calls,queries}=await libraryFixture(page);
+  const {resources,calls,queries,state}=await libraryFixture(page);
+  state.import.running=true;
   await page.clock.install();
   await page.goto('/#/library');
   await page.getByRole('tab',{name:'按资源'}).click();
@@ -276,7 +277,8 @@ for(const change of ['stamp','protected','missing','title'] as const)test('delet
   if(change==='missing')resources[key].local=null;
   if(change==='title')resources[key].local!.songs[0].title='更新后的歌曲';
   const count=queries.length;
-  await page.clock.fastForward(11000);
+  state.import.running=false;
+  await page.clock.fastForward(5100);
   await expect.poll(()=>queries.length).toBeGreaterThan(count);
   await page.getByRole('button',{name:'确认删除',exact:true}).click();
   await expect(page.getByRole('region',{name:'文件操作结果',exact:true})).toBeFocused();
@@ -358,10 +360,12 @@ for(const width of [390,1280])for(const anchor of ['/library?view=resources','/l
 });
 
 test('a failed refresh during deletion confirmation prevents acting on the retained snapshot',async({page})=>{
-  const api=await mockAPI(page);await page.clock.install();await page.goto('/#/library?view=resources');
+  const api=await mockAPI(page);api.state.import.running=true;await page.clock.install();await page.goto('/#/library?view=resources');
   await page.getByRole('table',{name:'曲库资源'}).locator('tbody tr').first().getByRole('button',{name:'删除本地视频',exact:true}).click();
   await page.route('**/api/library?*',route=>route.fulfill({status:503,json:{error:'offline'}}));
-  await page.clock.fastForward(10100);await page.getByRole('dialog').getByRole('button',{name:'确认删除',exact:true}).click();
+  api.state.import.running=false;
+  await page.clock.fastForward(5100);await expect(page.getByText('曲库读取失败，请刷新重试。',{exact:true})).toBeVisible();
+  await page.getByRole('dialog').getByRole('button',{name:'确认删除',exact:true}).click();
   await expect(page.getByRole('region',{name:'文件操作结果',exact:true})).toBeFocused();
   await expect(page.getByText('文件或歌曲关联已变化，请刷新后重新选择并确认。',{exact:true})).toBeVisible();
   expect(api.calls.some(c=>c.path==='cache/delete')).toBe(false);

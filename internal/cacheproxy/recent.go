@@ -2,7 +2,6 @@ package cacheproxy
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"time"
 )
@@ -64,7 +63,7 @@ func readRequestPage(ctx context.Context, databasePath string, query RequestQuer
 	rows, err := db.QueryContext(ctx, `SELECT event_id, requested_at, COALESCE(resource_md5,''), method, range_header,
  cache_result, outcome, transferred_bytes, elapsed_ms, status, COALESCE(CAST(song_id AS TEXT),''), completed_at, response_bytes, first_body_ns, first_body_blocking, download_bytes, cache_bytes, local_bytes
  FROM (`+window+`) e
- ORDER BY requested_at DESC, event_id DESC`, args...)
+ ORDER BY `+query.order(), args...)
 	if err != nil {
 		return result, err
 	}
@@ -91,7 +90,7 @@ func readRequestPage(ctx context.Context, databasePath string, query RequestQuer
 	}
 	if result.HasMore {
 		last := result.Requests[len(result.Requests)-1]
-		result.NextCursor = fmt.Sprintf("%d:%d", last.At, last.ID)
+		result.NextCursor = query.nextCursor(last)
 	}
 	return result, rows.Err()
 }

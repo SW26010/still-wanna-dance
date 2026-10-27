@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -248,5 +249,83 @@ func TestFirstBodyClassOnlyObservesActualPreBodyBlockWait(t *testing.T) {
 				t.Fatal("incorrect first-body classification", scenario, response.firstBodyBlocking)
 			}
 		})
+	}
+}
+
+func TestHistorySortsWholeRangeWithStableCursorAndUnknownLast(t *testing.T) {
+	s, cfg := setup(t, nil)
+	keys := []string{strings.Repeat("b", 32), strings.Repeat("a", 32), ""}
+	songs := []string{"10", "2", ""}
+	var events []usageEvent
+	for i := 0; i < 165; i++ {
+		events = append(events, usageEvent{at: 1000 + int64(i/6), completedAt: 2000, key: keys[i%3], songID: songs[i%3], method: "GET", outcome: "completed"})
+	}
+	events = append(events, usageEvent{at: 1010, method: "HEAD"})
+	if err := s.usage.write(events); err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{"time", "song", "resource"} {
+		for _, direction := range []string{"ascending", "descending"} {
+			t.Run(field+"/"+direction, func(t *testing.T) {
+				// IDs 7..162 are in the selected window. Adjacent arrivals tie in pairs
+				// within each identity group, and the unknown group spans several pages.
+				var want []int64
+				groups := []int{-1}
+				if field != "time" {
+					groups = []int{1, 0, 2}
+					if direction == "descending" {
+						groups = []int{0, 1, 2}
+					}
+				}
+				for _, group := range groups {
+					for n := 0; n < 156; n++ {
+						i := 6 + n
+						if direction == "descending" {
+							i = 161 - n
+						}
+						if group < 0 || i%3 == group {
+							want = append(want, int64(i+1))
+						}
+					}
+				}
+				q := RequestQuery{From: 1001, To: 1027, Limit: 17, Sort: field, Direction: direction}
+				var got []int64
+				for pages := 0; pages < 20; pages++ {
+					page, err := ReadRequestHistory(t.Context(), cfg.Store.path, q)
+					if err != nil {
+						t.Fatal(err)
+					}
+					for _, r := range page.Requests {
+						got = append(got, r.ID)
+					}
+					if !page.HasMore {
+						break
+					}
+					// A cursor belongs to this ordering, including its direction.
+					other := q
+					other.Cursor = page.NextCursor
+					if direction == "ascending" {
+						other.Direction = "descending"
+					} else {
+						other.Direction = "ascending"
+					}
+					if other.Validate() == nil {
+						t.Fatal("accepted a cursor from another order")
+					}
+					q.Cursor = page.NextCursor
+					if _, err := s.usage.db.Exec("UPDATE request_events SET completed_at=completed_at+1"); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if !slices.Equal(got, want) {
+					t.Fatalf("global order or page boundary changed:\ngot %v\nwant %v", got, want)
+				}
+			})
+		}
+	}
+	for _, q := range []RequestQuery{{Limit: 50, Sort: "invalid"}, {Limit: 50, Direction: "sideways"}, {Limit: 50, Cursor: "not-a-cursor"}, {Limit: 50, Sort: "song", Cursor: "1000:1"}} {
+		if q.Validate() == nil {
+			t.Fatalf("accepted invalid query: %+v", q)
+		}
 	}
 }

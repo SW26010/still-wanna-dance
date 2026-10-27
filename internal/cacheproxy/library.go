@@ -1,6 +1,7 @@
 package cacheproxy
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -12,9 +13,9 @@ import (
 )
 
 type LibraryQuery struct {
-	View, Search, Sort, Filter string
-	SongID, Resource           string // Exact object links, independent of text search.
-	Offset                     int
+	View, Search, Sort, Direction, Filter string
+	SongID, Resource                      string // Exact object links, independent of text search.
+	Offset                                int
 }
 
 type LibrarySong struct {
@@ -70,6 +71,9 @@ func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, no
 	page := LibraryPage{StorageID: CacheStorageID(paths), DatabaseID: DatabaseID(paths.DatabasePath), Songs: []LibrarySong{}, Keys: []string{}, Resources: map[string]*LibraryResource{}}
 	if err != nil {
 		return page, err
+	}
+	if q.Direction != "" && q.Direction != "ascending" && q.Direction != "descending" {
+		return page, errors.New("无效排序方向")
 	}
 	if q.Offset < 0 {
 		return page, errors.New("无效分页")
@@ -198,6 +202,13 @@ func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, no
 		page.Resources[key] = &r.LibraryResource
 		return nil
 	}
+	less := func(order int, defaultDescending bool) bool {
+		descending := q.Direction == "descending" || q.Direction == "" && defaultDescending
+		if descending {
+			return order > 0
+		}
+		return order < 0
+	}
 	if q.View != "resources" {
 		// Group the song list before pagination; scheduling still uses numeric priorities.
 		sort.Slice(songs, func(i, j int) bool {
@@ -206,13 +217,16 @@ func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, no
 				return a.HasDemand
 			}
 			if q.Sort == "score" && a.Score != b.Score {
-				return a.Score > b.Score
+				return less(cmp.Compare(a.Score, b.Score), true)
 			}
 			if q.Sort == "title" && a.Title != b.Title {
-				return a.Title < b.Title
+				return less(strings.Compare(a.Title, b.Title), false)
 			}
 			ai, _ := strconv.ParseInt(a.ID, 10, 64)
 			bi, _ := strconv.ParseInt(b.ID, 10, 64)
+			if q.Sort == "id" || q.Sort == "" {
+				return less(cmp.Compare(ai, bi), true)
+			}
 			return ai > bi
 		})
 		page.Total = len(songs)
@@ -232,21 +246,24 @@ func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, no
 		sort.Slice(candidates, func(i, j int) bool {
 			a, b := candidates[i], candidates[j]
 			if q.Sort == "recent" && a.lastRequest != b.lastRequest {
-				return a.lastRequest > b.lastRequest
+				return less(cmp.Compare(a.lastRequest, b.lastRequest), true)
 			}
 			if q.Sort == "score" && a.score != b.score {
-				return a.score > b.score
+				return less(cmp.Compare(a.score, b.score), true)
 			}
 			if q.Sort == "size" {
 				if (a.Size == nil) != (b.Size == nil) {
 					return a.Size != nil
 				}
 				if a.Size != nil && b.Size != nil && *a.Size != *b.Size {
-					return *a.Size > *b.Size
+					return less(cmp.Compare(*a.Size, *b.Size), true)
 				}
 			}
 			if q.Sort == "title" && a.title != b.title {
-				return a.title < b.title
+				return less(strings.Compare(a.title, b.title), false)
+			}
+			if q.Sort == "resource" {
+				return less(strings.Compare(a.Key, b.Key), false)
 			}
 			return a.Key < b.Key
 		})

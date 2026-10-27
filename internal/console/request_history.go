@@ -9,7 +9,7 @@ import (
 )
 
 func (c *Console) serveRequestHistory(w http.ResponseWriter, r *http.Request) {
-	q := cacheproxy.RequestQuery{Limit: 50, Cursor: r.URL.Query().Get("cursor")}
+	q := cacheproxy.RequestQuery{Limit: 50, Cursor: r.URL.Query().Get("cursor"), Sort: r.URL.Query().Get("sort"), Direction: r.URL.Query().Get("direction")}
 	for _, field := range []struct {
 		name  string
 		value *int64

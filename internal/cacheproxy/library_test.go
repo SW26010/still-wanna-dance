@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -181,6 +183,81 @@ func TestLibraryDemandScoresPrecedeInitialScoresBeforePagination(t *testing.T) {
 		page, err := readLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{Sort: order.sort}, now)
 		if err != nil || page.Songs[0].ID != order.first {
 			t.Fatal("source grouping leaked into another sort", order, page, err)
+		}
+	}
+}
+
+func TestLibrarySortDirectionsAcrossPages(t *testing.T) {
+	s, cfg := setup(t, nil)
+	now := time.Now().UnixMilli()
+	for id := 1; id <= 63; id++ {
+		key := fmt.Sprintf("%032x", id)
+		seedPrioritySong(t, s, fmt.Sprint(9000000+id), key)
+		if _, err := s.usage.db.Exec("UPDATE songs SET name=? WHERE song_id=?", fmt.Sprintf("Song %03d", 64-id), 9000000+id); err != nil {
+			t.Fatal(err)
+		}
+		if id <= 61 {
+			if _, err := s.usage.db.Exec("INSERT INTO song_usage VALUES (?,1,?,?)", 9000000+id, id, now); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.usage.db.Exec("UPDATE media SET byte_size=? WHERE md5=?", id*100, key); err != nil {
+				t.Fatal(err)
+			}
+		} else if _, err := s.usage.db.Exec("UPDATE media SET byte_size=NULL WHERE md5=?", key); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, direction := range []string{"ascending", "descending"} {
+		for _, field := range []string{"title", "score", "size", "resource"} {
+			q := LibraryQuery{Sort: field, Direction: direction}
+			if field == "size" || field == "resource" {
+				q.View = "resources"
+			}
+			var got []int
+			for q.Offset = 0; q.Offset < 63; q.Offset += 50 {
+				page, err := readLibraryPage(t.Context(), cfg.libraryPaths(), q, now)
+				if err != nil || page.Total != 63 {
+					t.Fatal(page, err)
+				}
+				if q.View == "resources" {
+					for _, key := range page.Keys {
+						id, err := strconv.ParseInt(key, 16, 64)
+						if err != nil {
+							t.Fatal(err)
+						}
+						got = append(got, int(id))
+					}
+				} else {
+					for _, song := range page.Songs {
+						id, _ := strconv.Atoi(song.ID)
+						got = append(got, id-9000000)
+					}
+				}
+			}
+			var want []int
+			n := 63
+			if field == "score" || field == "size" {
+				n = 61
+			}
+			for id := 1; id <= n; id++ {
+				next := id
+				if direction == "descending" {
+					next = n + 1 - id
+				}
+				if field == "title" {
+					next = n + 1 - next
+				}
+				want = append(want, next)
+			}
+			if field == "score" {
+				want = append(want, 63, 62)
+			} // Same initial score: ID descending.
+			if field == "size" {
+				want = append(want, 62, 63)
+			} // Unknown sizes stay last in both directions.
+			if !slices.Equal(got, want) {
+				t.Fatalf("%s %s: got %v want %v", field, direction, got, want)
+			}
 		}
 	}
 }

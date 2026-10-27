@@ -17,13 +17,14 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	values := r.URL.Query()
-	q := cacheproxy.LibraryQuery{View: values.Get("view"), Search: values.Get("q"), Sort: values.Get("sort"), Filter: values.Get("filter"), SongID: values.Get("song"), Resource: values.Get("resource")}
+	q := cacheproxy.LibraryQuery{View: values.Get("view"), Search: values.Get("q"), Sort: values.Get("sort"), Direction: values.Get("direction"), Filter: values.Get("filter"), SongID: values.Get("song"), Resource: values.Get("resource")}
 	var err error
 	if raw := values.Get("offset"); raw != "" {
 		q.Offset, err = strconv.Atoi(raw)
 	}
 	valid := err == nil && q.Offset >= 0 && q.Offset <= 10000000 && utf8.ValidString(q.Search) && len(utf16.Encode([]rune(q.Search))) <= 300
-	valid = valid && (q.View == "" || q.View == "songs" || q.View == "resources") && (q.Sort == "" || q.Sort == "id" || q.Sort == "title" || q.Sort == "score" || q.Sort == "size" || q.Sort == "recent")
+	valid = valid && (q.View == "" || q.View == "songs" || q.View == "resources") && (q.Sort == "" || q.Sort == "id" || q.Sort == "title" || q.Sort == "score" || q.Sort == "size" || q.Sort == "recent" || q.Sort == "resource" && q.View == "resources")
+	valid = valid && (q.Direction == "" || q.Direction == "ascending" || q.Direction == "descending")
 	valid = valid && (q.Filter == "" || q.Filter == "saved" || q.Filter == "missing" || q.View != "resources" && (q.Filter == "normal" || q.Filter == "favorite" || q.Filter == "blocked"))
 	if q.SongID != "" {
 		id, e := strconv.ParseInt(q.SongID, 10, 64)

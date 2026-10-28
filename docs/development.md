@@ -29,7 +29,7 @@ pnpm --dir webui check
 
 桌面开发需要 Windows amd64、Go 1.27.3+、Node.js 22+、Git 和 PowerShell。前端依赖使用 `webui/package.json` 固定的 pnpm。Go 最低版本和依赖选择分别以 `go.mod` 与锁文件为准。
 
-2026-10-28 将最低 Go 版本提高到包含当前安全补丁的 1.27.3，并更新 `golang.org/x/net` 至 v0.60.0 及其必要依赖；依据为 [Go 发布记录](https://go.dev/doc/devel/release)、[HTTP/2 公告](https://pkg.go.dev/vuln/GO-2026-6610)和 [X.509 公告](https://pkg.go.dev/vuln/GO-2026-6809)。桌面构建与打包固定使用 `GOTOOLCHAIN=local`，因此 PATH 中的 Go 安装也必须满足最低版本；普通 `go` 命令的自动版本切换不代表构建脚本已使用补丁版。本轮按任务边界未更新 GitHub Actions，其中的 Go 1.25.x 配置仍需单独对齐，不能用于当前发行构建。验证范围见[发布前修复记录](validation/release-readiness-20261028.md)。
+2026-10-28 将最低 Go 版本提高到包含当前安全补丁的 1.27.3，并更新 `golang.org/x/net` 至 v0.60.0 及其必要依赖；依据为 [Go 发布记录](https://go.dev/doc/devel/release)、[HTTP/2 公告](https://pkg.go.dev/vuln/GO-2026-6610)和 [X.509 公告](https://pkg.go.dev/vuln/GO-2026-6809)。桌面构建与打包固定使用 `GOTOOLCHAIN=local`，因此 PATH 中的 Go 安装也必须满足最低版本；普通 `go` 命令的自动版本切换不代表构建脚本已使用补丁版。GitHub Actions 的 `check` 工作流通过 `actions/setup-go` 的 `go-version-file: go.mod` 安装项目指定版本，并保留 `GOTOOLCHAIN=local` 校验实际工具链；不再单独维护版本号。此前依赖升级的验证范围见[发布前修复记录](validation/release-readiness-20261028.md)，其中 CI 尚未对齐的说明仅描述当轮状态。
 
 在 PowerShell 中检查：
 

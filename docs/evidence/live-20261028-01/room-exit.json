@@ -1,0 +1,60 @@
+{
+  "timeBasis": "ms relative to first observed real room-change log",
+  "queuedSongID": 8771,
+  "userFeedback": "Queued 8771, waited, left without clearing queue and reached Home",
+  "events": [
+    {
+      "atMs": -9773,
+      "event": "queue_updated",
+      "songIDs": [
+        8771
+      ],
+      "reset": false
+    },
+    {
+      "atMs": -9773,
+      "event": "queue_song_started",
+      "songID": 8771
+    },
+    {
+      "atMs": 2232,
+      "event": "queue_song_canceled",
+      "songID": 8771,
+      "reason": "queue_changed"
+    },
+    {
+      "atMs": 2232,
+      "event": "block_demand_handoff",
+      "reason": "source_gone"
+    },
+    {
+      "atMs": 2232,
+      "event": "queue_updated",
+      "songIDs": [],
+      "reset": true
+    },
+    {
+      "atMs": 2232,
+      "event": "queue_song_discarded",
+      "songID": 8771,
+      "reason": "canceled_or_obsolete"
+    },
+    {
+      "atMs": 5227,
+      "event": "queue_updated",
+      "songIDs": [],
+      "reset": true
+    },
+    {
+      "atMs": 5227,
+      "event": "queue_updated",
+      "songIDs": [],
+      "reset": true
+    },
+    {
+      "atMs": 41185,
+      "event": "queue_stopped"
+    }
+  ],
+  "verdict": "Queue source withdrawn on real room exit; remained empty until accelerator stopped"
+}

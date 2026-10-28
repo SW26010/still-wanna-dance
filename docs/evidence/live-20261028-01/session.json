@@ -1,0 +1,250 @@
+{
+  "batch": "LIVE-20261028-01",
+  "environment": {
+    "os": "Windows 11 Pro 10.0.26300",
+    "vrchatBuild": "2026.4.1-1935-a61ceb9d89-Release",
+    "world": "WannaDance; exact world version not captured",
+    "storage": "isolated; zero retained video capacity; 300 s local protection"
+  },
+  "midplay": {
+    "timeBasis": "ms relative to observed 3261 direct resolver request",
+    "game": [
+      {
+        "event": "resolver-request",
+        "logAtMs": -400,
+        "observedAtMs": 0,
+        "sourceLine": 2723,
+        "songID": "3261"
+      },
+      {
+        "event": "video-start",
+        "logAtMs": 9600,
+        "observedAtMs": 9981,
+        "sourceLine": 2776,
+        "songID": "3261"
+      },
+      {
+        "event": "resolver-request",
+        "logAtMs": 59600,
+        "observedAtMs": 60236,
+        "sourceLine": 2844,
+        "songID": "1343"
+      },
+      {
+        "event": "video-start",
+        "logAtMs": 64600,
+        "observedAtMs": 65548,
+        "sourceLine": 2852,
+        "songID": "1343"
+      },
+      {
+        "event": "resolver-request",
+        "logAtMs": 184600,
+        "observedAtMs": 185252,
+        "sourceLine": 2916,
+        "songID": "3893"
+      },
+      {
+        "event": "video-start",
+        "logAtMs": 197600,
+        "observedAtMs": 197898,
+        "sourceLine": 2924,
+        "songID": "3893"
+      },
+      {
+        "event": "video-end",
+        "logAtMs": 233600,
+        "observedAtMs": 234063,
+        "sourceLine": 2930,
+        "songID": "3261"
+      },
+      {
+        "event": "video-end",
+        "logAtMs": 233600,
+        "observedAtMs": 234063,
+        "sourceLine": 2931,
+        "songID": "3261"
+      }
+    ],
+    "lifecycle": [
+      {
+        "atMs": 35078,
+        "event": "cdn_started"
+      },
+      {
+        "atMs": 130518,
+        "event": "cdn_stopped"
+      },
+      {
+        "atMs": 130532,
+        "event": "application_stopped"
+      }
+    ],
+    "requests": [
+      {
+        "atMs": 61461,
+        "event": "request_started",
+        "range": ""
+      },
+      {
+        "atMs": 64577,
+        "event": "request_finished",
+        "range": "",
+        "status": 200,
+        "bytes": 262144,
+        "outcome": "canceled"
+      },
+      {
+        "atMs": 64965,
+        "event": "request_started",
+        "range": "bytes=0-"
+      },
+      {
+        "atMs": 65455,
+        "event": "request_finished",
+        "range": "bytes=0-",
+        "status": 206,
+        "bytes": 1048576,
+        "outcome": "canceled"
+      },
+      {
+        "atMs": 65460,
+        "event": "request_started",
+        "range": "bytes=2408448-32867176"
+      },
+      {
+        "atMs": 115301,
+        "event": "request_finished",
+        "range": "bytes=2408448-32867176",
+        "status": 206,
+        "bytes": 30458729,
+        "outcome": "completed"
+      }
+    ],
+    "userFeedback": {
+      "directBaseline": "3261 played normally before activation",
+      "activation": "3261 continued normally and new preview 1343 played normally",
+      "finalDirect": "3893 new preview played normally after application exit and hosts restoration"
+    },
+    "verdict": "passed; existing direct playback was not claimed to migrate its old resource connection"
+  },
+  "multiplayer": {
+    "timeBasis": "ms relative to first observed room change in resumed phase",
+    "network": "direct upstream; no test rate limit",
+    "role": "non-owner, confirmed by user",
+    "joinedWhilePlaying": true,
+    "songID": 10058,
+    "resourceMD5": "1f9bba30173be956600f4503fe5e4fd0",
+    "game": [
+      {
+        "event": "room-change",
+        "logAtMs": -514,
+        "observedAtMs": 0,
+        "sourceLine": 3173
+      },
+      {
+        "event": "room-change",
+        "logAtMs": 2486,
+        "observedAtMs": 2611,
+        "sourceLine": 3306
+      },
+      {
+        "event": "queue",
+        "logAtMs": 14486,
+        "observedAtMs": 15337,
+        "sourceLine": 3476
+      },
+      {
+        "event": "play-event",
+        "logAtMs": 14486,
+        "observedAtMs": 15338,
+        "sourceLine": 3495,
+        "songID": "10058"
+      },
+      {
+        "event": "resolver-request",
+        "logAtMs": 14486,
+        "observedAtMs": 15338,
+        "sourceLine": 3505,
+        "songID": "10058"
+      },
+      {
+        "event": "queue",
+        "logAtMs": 16486,
+        "observedAtMs": 16745,
+        "sourceLine": 3655
+      },
+      {
+        "event": "video-start",
+        "logAtMs": 23486,
+        "observedAtMs": 24502,
+        "sourceLine": 3739,
+        "songID": "10058"
+      }
+    ],
+    "requests": [
+      {
+        "atMs": 16686,
+        "event": "request_started",
+        "range": ""
+      },
+      {
+        "atMs": 21235,
+        "event": "request_finished",
+        "range": "",
+        "status": 200,
+        "bytes": 262144,
+        "outcome": "canceled"
+      },
+      {
+        "atMs": 21633,
+        "event": "request_started",
+        "range": "bytes=0-"
+      },
+      {
+        "atMs": 24418,
+        "event": "request_finished",
+        "range": "bytes=0-",
+        "status": 206,
+        "bytes": 3145728,
+        "outcome": "canceled"
+      },
+      {
+        "atMs": 24422,
+        "event": "request_started",
+        "range": "bytes=21413888-57510406"
+      },
+      {
+        "atMs": 44106,
+        "event": "request_finished",
+        "range": "bytes=21413888-57510406",
+        "status": 206,
+        "bytes": 29114368,
+        "outcome": "canceled"
+      },
+      {
+        "atMs": 44110,
+        "event": "request_started",
+        "range": "bytes=3137536-21413887"
+      },
+      {
+        "atMs": 56433,
+        "event": "request_finished",
+        "range": "bytes=3137536-21413887",
+        "status": 206,
+        "bytes": 18276352,
+        "outcome": "completed"
+      }
+    ],
+    "nonzeroRangeStart": 21413888,
+    "resourceSize": 57510407,
+    "feedbackRecordedAfterVideoStartMs": 50719,
+    "userFeedback": "caught up to current room progress and continued normal picture and sound",
+    "noLaterVideoErrorBeforeStop": true,
+    "verdict": "passed for this instance; no frame-exact synchronization measurement"
+  },
+  "interpretation": {
+    "coldSeek": "User and agent consider in-game player reinitialization after timeout the likely explanation for position reset; unconfirmed attribution, not a standalone SWD defect or release blocker",
+    "limits": "Low bandwidth stalls are expected. No controlled normal-bandwidth foreground/background performance comparison was completed; no claim about precise first-frame gains or all historic slow-network causes."
+  }
+}

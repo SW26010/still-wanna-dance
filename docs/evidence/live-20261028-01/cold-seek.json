@@ -1,0 +1,561 @@
+{
+  "batch": "LIVE-20261028-01",
+  "stage": "LA-040 independent uncached Seek",
+  "sourceSHA": "98e396175d876880bb4c57806263bd3574c57f0f",
+  "exeSHA256": "d8c77ffe8dc538973074a0d59e6408f46170f9b33f9c1e77f540184ac8f562a4",
+  "timeBasis": "Milliseconds relative to first cold Seek Range request; game timestamp precision 1 second, file polling 100 ms; feedback time is recording time, not an exact display timestamp",
+  "songID": 6254,
+  "resourceMD5": "53d94ec04f90f47b81113b85785a0e77",
+  "size": 52379700,
+  "rangeStart": 40681472,
+  "targetBlock": 38,
+  "priorSnapshot": {
+    "atMs": -12546,
+    "targetBlocks": [
+      {
+        "block": 38,
+        "byteOffset": 39845888,
+        "state": "waiting",
+        "readers": 0
+      },
+      {
+        "block": 39,
+        "byteOffset": 40894464,
+        "state": "waiting",
+        "readers": 0
+      },
+      {
+        "block": 40,
+        "byteOffset": 41943040,
+        "state": "waiting",
+        "readers": 0
+      },
+      {
+        "block": 41,
+        "byteOffset": 42991616,
+        "state": "waiting",
+        "readers": 0
+      },
+      {
+        "block": 42,
+        "byteOffset": 44040192,
+        "state": "waiting",
+        "readers": 0
+      },
+      {
+        "block": 43,
+        "byteOffset": 45088768,
+        "state": "waiting",
+        "readers": 0
+      },
+      {
+        "block": 44,
+        "byteOffset": 46137344,
+        "state": "waiting",
+        "readers": 0
+      },
+      {
+        "block": 45,
+        "byteOffset": 47185920,
+        "state": "waiting",
+        "readers": 0
+      },
+      {
+        "block": 46,
+        "byteOffset": 48234496,
+        "state": "waiting",
+        "readers": 0
+      },
+      {
+        "block": 47,
+        "byteOffset": 49283072,
+        "state": "waiting",
+        "readers": 0
+      },
+      {
+        "block": 48,
+        "byteOffset": 50331648,
+        "state": "waiting",
+        "readers": 0
+      },
+      {
+        "block": 49,
+        "byteOffset": 51380224,
+        "state": "waiting",
+        "readers": 0
+      }
+    ]
+  },
+  "configuration": {
+    "queueWithGateway": false,
+    "videoStorageMode": "none",
+    "aggregateRateBytesPerSecond": 125000,
+    "bootstrapRateBytesPerSecond": 1000000,
+    "downloadSoftLimit": 16,
+    "downloadGrowIntervalMS": 250,
+    "prepareAheadSeconds": 500,
+    "downloadDeadlineGraceSeconds": 30,
+    "localProtectionGraceSeconds": 300
+  },
+  "operations": [
+    {
+      "atMs": -106750,
+      "stage": "LA-040-cold-seek",
+      "event": "preview-instruction",
+      "songId": 6254,
+      "rateBytesPerSecond": 125000,
+      "queueEnabled": false,
+      "userConfirmedCleared": true
+    },
+    {
+      "atMs": -50312,
+      "event": "bootstrap-rate",
+      "bytesPerSecond": 1000000,
+      "userFeedback": "6254 still loading after ~30 seconds"
+    },
+    {
+      "atMs": -17998,
+      "event": "slow-rate-restored-before-seek",
+      "bytesPerSecond": 125000,
+      "target": "85 percent",
+      "lastSnapshot": "blocks 18-49 waiting, not available"
+    },
+    {
+      "atMs": 22385,
+      "event": "user-feedback",
+      "stage": "cold-seek",
+      "feedback": "dragged preview 6254 to ~85%, picture stalled"
+    },
+    {
+      "atMs": 49583,
+      "event": "bandwidth-restored",
+      "stage": "cold-seek",
+      "bytesPerSecond": 0,
+      "connectionsRestarted": false
+    },
+    {
+      "atMs": 92451,
+      "event": "user-feedback",
+      "stage": "cold-seek",
+      "feedback": "automatically resumed after bandwidth restored, but returned to an earlier position",
+      "result": "partial-recovery-seek-position-not-preserved"
+    }
+  ],
+  "requests": [
+    {
+      "atMs": -90044,
+      "event": "request_started",
+      "request": "request-1",
+      "range": ""
+    },
+    {
+      "atMs": -70039,
+      "event": "request_finished",
+      "request": "request-1",
+      "status": 503,
+      "bytes": 20,
+      "range": "",
+      "elapsed_ms": 20005,
+      "response_headers_ms": 20005,
+      "first_body_ms": 20005.7793,
+      "outcome": "canceled",
+      "cache": "",
+      "content_range": "",
+      "content_length": ""
+    },
+    {
+      "atMs": -69630,
+      "event": "request_started",
+      "request": "request-2",
+      "range": "bytes=0-"
+    },
+    {
+      "atMs": -69598,
+      "event": "request_finished",
+      "request": "request-3",
+      "status": 504,
+      "bytes": 16,
+      "range": "bytes=0-",
+      "elapsed_ms": 30000,
+      "response_headers_ms": 30000,
+      "first_body_ms": 30000.211,
+      "outcome": "failed",
+      "cache": "",
+      "content_range": "",
+      "content_length": ""
+    },
+    {
+      "atMs": -69598,
+      "event": "request_finished",
+      "request": "request-2",
+      "status": 504,
+      "bytes": 16,
+      "range": "bytes=0-",
+      "elapsed_ms": 32,
+      "response_headers_ms": 31,
+      "first_body_ms": 31.872,
+      "outcome": "failed",
+      "cache": "",
+      "content_range": "",
+      "content_length": ""
+    },
+    {
+      "atMs": -69580,
+      "event": "request_started",
+      "request": "request-4",
+      "range": "bytes=0-"
+    },
+    {
+      "atMs": -69556,
+      "event": "request_started",
+      "request": "request-5",
+      "range": "bytes=0-"
+    },
+    {
+      "atMs": -60118,
+      "event": "request_started",
+      "request": "request-6",
+      "range": ""
+    },
+    {
+      "atMs": -40116,
+      "event": "request_finished",
+      "request": "request-6",
+      "status": 503,
+      "bytes": 20,
+      "range": "",
+      "elapsed_ms": 20003,
+      "response_headers_ms": 20003,
+      "first_body_ms": 20003.1996,
+      "outcome": "canceled",
+      "cache": "",
+      "content_range": "",
+      "content_length": ""
+    },
+    {
+      "atMs": -39697,
+      "event": "request_started",
+      "request": "request-7",
+      "range": "bytes=0-"
+    },
+    {
+      "atMs": -39579,
+      "event": "request_finished",
+      "request": "request-7",
+      "status": 504,
+      "bytes": 16,
+      "range": "bytes=0-",
+      "elapsed_ms": 119,
+      "response_headers_ms": 118,
+      "first_body_ms": 118.5897,
+      "outcome": "failed",
+      "cache": "",
+      "content_range": "",
+      "content_length": ""
+    },
+    {
+      "atMs": -39579,
+      "event": "request_finished",
+      "request": "request-4",
+      "status": 504,
+      "bytes": 16,
+      "range": "bytes=0-",
+      "elapsed_ms": 30001,
+      "response_headers_ms": 30000,
+      "first_body_ms": 30000.4502,
+      "outcome": "failed",
+      "cache": "",
+      "content_range": "",
+      "content_length": ""
+    },
+    {
+      "atMs": -39579,
+      "event": "request_finished",
+      "request": "request-5",
+      "status": 504,
+      "bytes": 16,
+      "range": "bytes=0-",
+      "elapsed_ms": 29977,
+      "response_headers_ms": 29977,
+      "first_body_ms": 29977.204,
+      "outcome": "failed",
+      "cache": "",
+      "content_range": "",
+      "content_length": ""
+    },
+    {
+      "atMs": -39559,
+      "event": "request_started",
+      "request": "request-8",
+      "range": "bytes=0-"
+    },
+    {
+      "atMs": -39546,
+      "event": "request_started",
+      "request": "request-9",
+      "range": "bytes=0-"
+    },
+    {
+      "atMs": -39535,
+      "event": "request_started",
+      "request": "request-10",
+      "range": "bytes=0-"
+    },
+    {
+      "atMs": -30721,
+      "event": "request_finished",
+      "request": "request-8",
+      "status": 206,
+      "bytes": 753664,
+      "range": "bytes=0-",
+      "elapsed_ms": 8837,
+      "response_headers_ms": 8549,
+      "first_body_ms": 8550.2701,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 0-52379699/52379700",
+      "content_length": "52379700"
+    },
+    {
+      "atMs": -30714,
+      "event": "request_finished",
+      "request": "request-10",
+      "status": 206,
+      "bytes": 753664,
+      "range": "bytes=0-",
+      "elapsed_ms": 8820,
+      "response_headers_ms": 8525,
+      "first_body_ms": 8525.6886,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 0-52379699/52379700",
+      "content_length": "52379700"
+    },
+    {
+      "atMs": -30447,
+      "event": "request_finished",
+      "request": "request-9",
+      "status": 206,
+      "bytes": 950272,
+      "range": "bytes=0-",
+      "elapsed_ms": 9099,
+      "response_headers_ms": 8536,
+      "first_body_ms": 8536.9881,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 0-52379699/52379700",
+      "content_length": "52379700"
+    },
+    {
+      "atMs": -30435,
+      "event": "request_started",
+      "request": "request-11",
+      "range": "bytes=4603904-52379699"
+    },
+    {
+      "atMs": -30068,
+      "event": "request_started",
+      "request": "request-12",
+      "range": ""
+    },
+    {
+      "atMs": -30066,
+      "event": "request_finished",
+      "request": "request-12",
+      "status": 200,
+      "bytes": 262144,
+      "range": "",
+      "elapsed_ms": 2,
+      "response_headers_ms": 0,
+      "first_body_ms": 0.5069,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "",
+      "content_length": "52379700"
+    },
+    {
+      "atMs": -29608,
+      "event": "request_started",
+      "request": "request-13",
+      "range": "bytes=524288-52379699"
+    },
+    {
+      "atMs": -21126,
+      "event": "request_finished",
+      "request": "request-11",
+      "status": 206,
+      "bytes": 1687552,
+      "range": "bytes=4603904-52379699",
+      "elapsed_ms": 9310,
+      "response_headers_ms": 9269,
+      "first_body_ms": 9269.1876,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 4603904-52379699/52379700",
+      "content_length": "47775796"
+    },
+    {
+      "atMs": -12,
+      "event": "request_finished",
+      "request": "request-13",
+      "status": 206,
+      "bytes": 16252928,
+      "range": "bytes=524288-52379699",
+      "elapsed_ms": 29596,
+      "response_headers_ms": 1,
+      "first_body_ms": 2.0449,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 524288-52379699/52379700",
+      "content_length": "51855412"
+    },
+    {
+      "atMs": 0,
+      "event": "request_started",
+      "request": "request-14",
+      "range": "bytes=40681472-52379699"
+    },
+    {
+      "atMs": 29990,
+      "event": "request_finished",
+      "request": "request-14",
+      "status": 504,
+      "bytes": 16,
+      "range": "bytes=40681472-52379699",
+      "elapsed_ms": 30000,
+      "response_headers_ms": 30000,
+      "first_body_ms": 30000.4018,
+      "outcome": "failed",
+      "cache": "",
+      "content_range": "",
+      "content_length": ""
+    },
+    {
+      "atMs": 35952,
+      "event": "request_started",
+      "request": "request-15",
+      "range": ""
+    },
+    {
+      "atMs": 35955,
+      "event": "request_finished",
+      "request": "request-15",
+      "status": 200,
+      "bytes": 262144,
+      "range": "",
+      "elapsed_ms": 2,
+      "response_headers_ms": 0,
+      "first_body_ms": 0.6498,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "",
+      "content_length": "52379700"
+    },
+    {
+      "atMs": 36410,
+      "event": "request_started",
+      "request": "request-16",
+      "range": "bytes=0-"
+    },
+    {
+      "atMs": 76369,
+      "event": "request_finished",
+      "request": "request-16",
+      "status": 206,
+      "bytes": 52379700,
+      "range": "bytes=0-",
+      "elapsed_ms": 39960,
+      "response_headers_ms": 1,
+      "first_body_ms": 2.0278,
+      "outcome": "completed",
+      "cache": "MISS",
+      "content_range": "bytes 0-52379699/52379700",
+      "content_length": "52379700"
+    }
+  ],
+  "game": [
+    {
+      "event": "resolver-request",
+      "atMs": -121304,
+      "observedAtMs": -121077,
+      "sourceLine": 1248,
+      "songID": "6254",
+      "role": "preview by user operation; classifier preview flag is not authoritative"
+    },
+    {
+      "event": "resolver-request",
+      "atMs": -91304,
+      "observedAtMs": -91015,
+      "sourceLine": 1255,
+      "songID": "6254",
+      "role": "preview by user operation; classifier preview flag is not authoritative"
+    },
+    {
+      "event": "resolver-request",
+      "atMs": -61304,
+      "observedAtMs": -61066,
+      "sourceLine": 1262,
+      "songID": "6254",
+      "role": "preview by user operation; classifier preview flag is not authoritative"
+    },
+    {
+      "event": "resolver-request",
+      "atMs": -31304,
+      "observedAtMs": -31044,
+      "sourceLine": 1272,
+      "songID": "6254",
+      "role": "preview by user operation; classifier preview flag is not authoritative"
+    },
+    {
+      "event": "video-start",
+      "atMs": -31304,
+      "observedAtMs": -30403,
+      "sourceLine": 1278,
+      "songID": "6254",
+      "role": "preview by user operation; classifier preview flag is not authoritative"
+    },
+    {
+      "event": "video-start",
+      "atMs": -29304,
+      "observedAtMs": -29205,
+      "sourceLine": 1289,
+      "songID": "6254",
+      "role": "preview by user operation; classifier preview flag is not authoritative"
+    },
+    {
+      "event": "video-error",
+      "atMs": 29696,
+      "observedAtMs": 30114,
+      "sourceLine": 1295,
+      "songID": "6254",
+      "role": "preview by user operation; classifier preview flag is not authoritative"
+    },
+    {
+      "event": "resolver-request",
+      "atMs": 34696,
+      "observedAtMs": 35018,
+      "sourceLine": 1300,
+      "songID": "6254",
+      "role": "preview by user operation; classifier preview flag is not authoritative"
+    },
+    {
+      "event": "video-start",
+      "atMs": 36696,
+      "observedAtMs": 36964,
+      "sourceLine": 1308,
+      "songID": "6254",
+      "role": "preview by user operation; classifier preview flag is not authoritative"
+    }
+  ],
+  "result": {
+    "uncachedTargetVerified": true,
+    "slowSeekStalled": true,
+    "deadlineStatus": 504,
+    "automaticRetry": true,
+    "recoveredWithoutUserReplay": true,
+    "seekPositionPreserved": false,
+    "verdict": "automatic recovery passed; position reset observed, responsibility and expected retry semantics pending",
+    "rootCause": "not yet assigned; distinguish product deadline and player retry/seek state before a fix"
+  },
+  "privacy": "Allowlisted numeric request fields and relative times only; no URLs, paths, identities, room identifiers or raw game queue JSON"
+}

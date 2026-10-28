@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261028-01",
+  "hashBasis": "git-blob",
+  "sourceSHA": "98e396175d876880bb4c57806263bd3574c57f0f",
+  "exeSHA256": "d8c77ffe8dc538973074a0d59e6408f46170f9b33f9c1e77f540184ac8f562a4",
+  "files": [
+    {
+      "path": "docs/acceptance/live-acceptance-20261028-01.md",
+      "bytes": 7430,
+      "sha256": "b1de175ee0ab1c8083fbec2c80462d31c12d05f3a2f5dfea72f07f4556289f1e",
+      "source": "Operator report and scoped interpretation",
+      "sanitization": "Relative event time, public song IDs and content hashes; no private raw source content"
+    },
+    {
+      "path": "docs/evidence/live-20261028-01/cold-seek.json",
+      "bytes": 14335,
+      "sha256": "b3c9f69a9565b00ba4e145149bd5263037fd81f7efdb968a8c1c2717bbeec4f6",
+      "source": "Allowlisted real-game/product telemetry or evidence fingerprints",
+      "sanitization": "Relative event time, public song IDs and content hashes; no private raw source content"
+    },
+    {
+      "path": "docs/evidence/live-20261028-01/queue-handoff.json",
+      "bytes": 2534,
+      "sha256": "4dda7e16004e6f0b55e822345f848d97d971a7a4673c772d5c97a6105ab823e3",
+      "source": "Allowlisted real-game/product telemetry or evidence fingerprints",
+      "sanitization": "Relative event time, public song IDs and content hashes; no private raw source content"
+    },
+    {
+      "path": "docs/evidence/live-20261028-01/song-policy.json",
+      "bytes": 6068,
+      "sha256": "e64d0903ece51fbe2cd8cf15a64b7c9c25d277f0b93241bbb9090d383304edda",
+      "source": "Allowlisted real-game/product telemetry or evidence fingerprints",
+      "sanitization": "Relative event time, public song IDs and content hashes; no private raw source content"
+    },
+    {
+      "path": "docs/evidence/live-20261028-01/room-exit.json",
+      "bytes": 1263,
+      "sha256": "1aba9717c498f65055d1597ce3762a9d0ef527e42193a70e34878dde1e0c2da4",
+      "source": "Allowlisted real-game/product telemetry or evidence fingerprints",
+      "sanitization": "Relative event time, public song IDs and content hashes; no private raw source content"
+    },
+    {
+      "path": "docs/evidence/live-20261028-01/session.json",
+      "bytes": 6566,
+      "sha256": "af81d7dc5f1971613fc33eb260fe83ac8b746e894ab4546c1e2fc090b8604217",
+      "source": "Allowlisted real-game/product telemetry or evidence fingerprints",
+      "sanitization": "Relative event time, public song IDs and content hashes; no private raw source content"
+    },
+    {
+      "path": "docs/evidence/live-20261028-01/checks.json",
+      "bytes": 884,
+      "sha256": "c7d978403d288333cc17f0f06d3234e579293c0d884f205b92944c31a4ace744",
+      "source": "Allowlisted real-game/product telemetry or evidence fingerprints",
+      "sanitization": "Relative event time, public song IDs and content hashes; no private raw source content"
+    },
+    {
+      "path": "docs/evidence/live-20261028-01/provenance.json",
+      "bytes": 3695,
+      "sha256": "44c1e6ba87994d6fe294315939c910299541b63092d94576667de412518d3a45",
+      "source": "Allowlisted real-game/product telemetry or evidence fingerprints",
+      "sanitization": "Relative event time, public song IDs and content hashes; no private raw source content"
+    }
+  ],
+  "privacy": "No full game logs, player/room identities, URLs, credentials, host contents or machine paths. Raw source fingerprints do not make private raw files public.",
+  "rawEvidence": "Preserved locally under ignored artifacts/acceptance-evidence/LIVE-20261028-01, including multiplayer continuation.",
+  "manifestExcludesOwnHash": true
+}

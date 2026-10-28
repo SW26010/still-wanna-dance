@@ -1,0 +1,104 @@
+{
+  "batch": "LIVE-20261028-01",
+  "build": {
+    "kind": "development",
+    "version": "dev-live-20261028-01",
+    "revision": "98e396175d876880bb4c57806263bd3574c57f0f",
+    "dirty": false,
+    "builtAtUtc": "2026-10-28T10:02:03.538Z",
+    "toolchain": "go1.27.3",
+    "target": "windows/amd64"
+  },
+  "exeSHA256": "d8c77ffe8dc538973074a0d59e6408f46170f9b33f9c1e77f540184ac8f562a4",
+  "sourceWorktreeCleanAtBuild": true,
+  "rawEvidenceLocation": "ignored artifacts/acceptance-evidence/LIVE-20261028-01",
+  "rawEvidence": [
+    {
+      "name": "product-build.json",
+      "bytes": 215,
+      "sha256": "47403114dc7d9f8e3f9eb720fbfb373b0e22dd0a48f0fb9454275344e0c65623"
+    },
+    {
+      "name": "operations.jsonl",
+      "bytes": 2808,
+      "sha256": "728bc517c76c094cdf24e700660ca7271e9de99b00b6d37e614e9196e9a6f5e4"
+    },
+    {
+      "name": "app.private.jsonl",
+      "bytes": 3045681,
+      "sha256": "a03190b7b8e3e2642b7d469d06b1ba7797d2631e3affea60ac0e84fcfa03621c"
+    },
+    {
+      "name": "blocks.private.jsonl",
+      "bytes": 2334051,
+      "sha256": "64cd7c33c16c89e1be2c88f26cc11fd46b42e370468e9d53a53a699e09f74553"
+    },
+    {
+      "name": "signals.private.jsonl",
+      "bytes": 15615,
+      "sha256": "f67ab36cf2d189622f19e12fdebf70c82d8f23d8862022eb911e848acbcf28a1"
+    },
+    {
+      "name": "game.append.raw.log",
+      "bytes": 266775,
+      "sha256": "39b14f2ad6e59c9c9fe560134ef595e1c3f8e88379f76f798fa746de924b717d"
+    },
+    {
+      "name": "process-samples.jsonl",
+      "bytes": 339643,
+      "sha256": "372d2250edfd6cb2ff540ffcc81683f4be4ce36b398f086d6c73b21b9865717c"
+    },
+    {
+      "name": "relay.stdout.log",
+      "bytes": 593464,
+      "sha256": "a9d4703e114df73c9fd44270d87e41fd4c7c4518fe97ae80ea2ea7dde4d99328"
+    },
+    {
+      "name": "history.private.json",
+      "bytes": 22629,
+      "sha256": "9f601021e3d4518905d2973a4b87c05001ba45b381ddb067c9a5a13074893810"
+    },
+    {
+      "name": "multiplayer/operations.jsonl",
+      "bytes": 258,
+      "sha256": "309dc08b4dc85eb60479dc1077ec35e3ad90bb777dfd18c333c5a528cd20fd5d"
+    },
+    {
+      "name": "multiplayer/app.private.jsonl",
+      "bytes": 3600048,
+      "sha256": "6794abf902b64857d47b9197dba975ef2131ab7c58c585b1e9bf2d75259e2c53"
+    },
+    {
+      "name": "multiplayer/blocks.private.jsonl",
+      "bytes": 613165,
+      "sha256": "a9596f9e4c9bb29d7d0206f2a9d2ff749efe19245182ae12858afed9b707be00"
+    },
+    {
+      "name": "multiplayer/signals.private.jsonl",
+      "bytes": 2378,
+      "sha256": "e6bea50b0958ab7dced7ebbb1465ffd067b139807fb852c88fc20c0fe1084703"
+    },
+    {
+      "name": "multiplayer/game.append.raw.log",
+      "bytes": 118744,
+      "sha256": "13079baba0ce334274036e7bda6f687e6564a992e831445a75b7f26d556a63f8"
+    },
+    {
+      "name": "multiplayer/process-samples.jsonl",
+      "bytes": 29387,
+      "sha256": "0f77b91df64b2f8c6d62b8f05e7dadd10a9b371d5b92adacd764dd9f6e816dbb"
+    },
+    {
+      "name": "multiplayer/history.private.json",
+      "bytes": 25555,
+      "sha256": "9269bdf02cdd0d75091850c2a8880b0e2e8e34b75f77ad4c68bee09b3cf31e2a"
+    },
+    {
+      "name": "cleanup.private.json",
+      "bytes": 484,
+      "sha256": "946fb8284e86b5114f4a8fa106fcdb9c0e887f5fea41c2a5b1cb023504a12c05"
+    }
+  ],
+  "sanitization": "Public evidence uses allowlisted fields, numeric ranges, song IDs, MD5 content keys and relative times. No raw game logs, identities, room identifiers, credentials, signed URLs or absolute machine paths.",
+  "captureLimits": "100 ms game file polling; game timestamp precision one second; SSE block snapshots may lag; feedback record time is not exact visual recovery time; product collector reconnects across app restart."
+}

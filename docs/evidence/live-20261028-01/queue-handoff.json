@@ -1,0 +1,107 @@
+{
+  "timeBasis": "ms relative to SWD queue-head source withdrawal; 100 ms file polling, game timestamp 1 s precision",
+  "songID": 2502,
+  "resourceMD5": "303ee3623afb3fcf8b062f174b9ff4e6",
+  "aggregateRateBytesPerSecond": 125000,
+  "beforeFirstGET": {
+    "atMs": -30470,
+    "states": {
+      "available": 16,
+      "downloading": 16,
+      "waiting": 45
+    }
+  },
+  "timing": {
+    "gameQueueReadableToFirstGETMs": 837,
+    "sourceWithdrawalToFirstGETMs": -268,
+    "sourceWithdrawalToRangeGETMs": 125,
+    "handoffLeaseMs": 2000,
+    "rangeGETMarginBeforeLeaseEndMs": 1875,
+    "gameQueueReadableToVideoStartCallbackMs": 9897
+  },
+  "records": [
+    {
+      "atMs": -173585,
+      "msg": "cache_task_attached",
+      "flight_id": 2,
+      "background": true
+    },
+    {
+      "atMs": -173585,
+      "msg": "download_started",
+      "flight_id": 2,
+      "background": true
+    },
+    {
+      "atMs": -268,
+      "msg": "request_started",
+      "range": ""
+    },
+    {
+      "atMs": -268,
+      "msg": "cache_task_attached",
+      "flight_id": 2,
+      "background": false
+    },
+    {
+      "atMs": -266,
+      "msg": "block_demand_handoff",
+      "from": "GET",
+      "first_block": 0,
+      "last_block": 77,
+      "leaseUntilMs": 1734
+    },
+    {
+      "atMs": -266,
+      "msg": "request_finished",
+      "range": "",
+      "status": 200,
+      "bytes": 262144,
+      "outcome": "canceled",
+      "elapsed_ms": 3,
+      "response_headers_ms": 1,
+      "first_body_ms": 1.5092
+    },
+    {
+      "atMs": 0,
+      "msg": "block_demand_handoff",
+      "from": "queue_head",
+      "first_block": 0,
+      "last_block": 77,
+      "leaseUntilMs": 2000
+    },
+    {
+      "atMs": 125,
+      "msg": "request_started",
+      "range": "bytes=0-"
+    },
+    {
+      "atMs": 125,
+      "msg": "cache_task_attached",
+      "flight_id": 2,
+      "background": false
+    },
+    {
+      "atMs": 44873,
+      "msg": "cache_task_finished",
+      "flight_id": 2,
+      "background": true,
+      "bytes": 80602639,
+      "outcome": "not_retained",
+      "elapsed_ms": 218458
+    },
+    {
+      "atMs": 44923,
+      "msg": "request_finished",
+      "range": "bytes=0-",
+      "status": 206,
+      "bytes": 80602639,
+      "outcome": "completed",
+      "elapsed_ms": 44798,
+      "response_headers_ms": 0,
+      "first_body_ms": 0.5035
+    }
+  ],
+  "userFeedback": "Natural transition to 2502 had normal picture and sound",
+  "verdict": "Observed incomplete slow-network queue handoff passed; one sample does not prove all timing boundaries"
+}

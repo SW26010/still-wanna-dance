@@ -1,0 +1,292 @@
+{
+  "timeBasis": "ms relative to first blocked 6254 API request",
+  "blocked": [
+    {
+      "atMs": 0,
+      "songID": "6254",
+      "status": 403,
+      "method": "GET",
+      "range": "",
+      "bytes": 0,
+      "responseBytes": null,
+      "outcome": "failed",
+      "cache": "UNKNOWN",
+      "elapsedMS": 0
+    },
+    {
+      "atMs": 884,
+      "songID": "6254",
+      "status": 403,
+      "method": "GET",
+      "range": "",
+      "bytes": 0,
+      "responseBytes": null,
+      "outcome": "failed",
+      "cache": "UNKNOWN",
+      "elapsedMS": 0
+    },
+    {
+      "atMs": 1281,
+      "songID": "6254",
+      "status": 403,
+      "method": "GET",
+      "range": "bytes=0-",
+      "bytes": 0,
+      "responseBytes": null,
+      "outcome": "failed",
+      "cache": "UNKNOWN",
+      "elapsedMS": 0
+    },
+    {
+      "atMs": 7231,
+      "songID": "6254",
+      "status": 403,
+      "method": "GET",
+      "range": "",
+      "bytes": 0,
+      "responseBytes": null,
+      "outcome": "failed",
+      "cache": "UNKNOWN",
+      "elapsedMS": 0
+    },
+    {
+      "atMs": 7622,
+      "songID": "6254",
+      "status": 403,
+      "method": "GET",
+      "range": "bytes=0-",
+      "bytes": 0,
+      "responseBytes": null,
+      "outcome": "failed",
+      "cache": "UNKNOWN",
+      "elapsedMS": 0
+    },
+    {
+      "atMs": 13576,
+      "songID": "6254",
+      "status": 403,
+      "method": "GET",
+      "range": "",
+      "bytes": 0,
+      "responseBytes": null,
+      "outcome": "failed",
+      "cache": "UNKNOWN",
+      "elapsedMS": 1
+    },
+    {
+      "atMs": 13963,
+      "songID": "6254",
+      "status": 403,
+      "method": "GET",
+      "range": "bytes=0-",
+      "bytes": 0,
+      "responseBytes": null,
+      "outcome": "failed",
+      "cache": "UNKNOWN",
+      "elapsedMS": 0
+    },
+    {
+      "atMs": 19925,
+      "songID": "6254",
+      "status": 403,
+      "method": "GET",
+      "range": "",
+      "bytes": 0,
+      "responseBytes": null,
+      "outcome": "failed",
+      "cache": "UNKNOWN",
+      "elapsedMS": 0
+    },
+    {
+      "atMs": 20322,
+      "songID": "6254",
+      "status": 403,
+      "method": "GET",
+      "range": "bytes=0-",
+      "bytes": 0,
+      "responseBytes": null,
+      "outcome": "failed",
+      "cache": "UNKNOWN",
+      "elapsedMS": 0
+    },
+    {
+      "atMs": 26217,
+      "songID": "6254",
+      "status": 403,
+      "method": "GET",
+      "range": "",
+      "bytes": 0,
+      "responseBytes": null,
+      "outcome": "failed",
+      "cache": "UNKNOWN",
+      "elapsedMS": 0
+    },
+    {
+      "atMs": 26607,
+      "songID": "6254",
+      "status": 403,
+      "method": "GET",
+      "range": "bytes=0-",
+      "bytes": 0,
+      "responseBytes": null,
+      "outcome": "failed",
+      "cache": "UNKNOWN",
+      "elapsedMS": 0
+    },
+    {
+      "atMs": 32543,
+      "songID": "6254",
+      "status": 403,
+      "method": "GET",
+      "range": "",
+      "bytes": 0,
+      "responseBytes": null,
+      "outcome": "failed",
+      "cache": "UNKNOWN",
+      "elapsedMS": 0
+    },
+    {
+      "atMs": 32931,
+      "songID": "6254",
+      "status": 403,
+      "method": "GET",
+      "range": "bytes=0-",
+      "bytes": 0,
+      "responseBytes": null,
+      "outcome": "failed",
+      "cache": "UNKNOWN",
+      "elapsedMS": 0
+    }
+  ],
+  "allowed": [
+    {
+      "atMs": 51715,
+      "songID": "1344",
+      "status": 206,
+      "method": "GET",
+      "range": "bytes=4292608-40548475",
+      "bytes": 36255868,
+      "responseBytes": 36255868,
+      "outcome": "completed",
+      "cache": "MISS",
+      "elapsedMS": 35510
+    },
+    {
+      "atMs": 51273,
+      "songID": "1344",
+      "status": 206,
+      "method": "GET",
+      "range": "bytes=0-",
+      "bytes": 2523136,
+      "responseBytes": 40548476,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "elapsedMS": 439
+    },
+    {
+      "atMs": 45001,
+      "songID": "1344",
+      "status": 200,
+      "method": "GET",
+      "range": "",
+      "bytes": 262144,
+      "responseBytes": 40548476,
+      "outcome": "canceled",
+      "cache": "MISS",
+      "elapsedMS": 5883
+    }
+  ],
+  "newBlockedSongDownloads": 0,
+  "game": [
+    {
+      "event": "resolver-request",
+      "atMs": 20,
+      "songID": "6254",
+      "sourceLine": 1674
+    },
+    {
+      "event": "video-error",
+      "atMs": 1327,
+      "songID": "6254",
+      "sourceLine": 1679
+    },
+    {
+      "event": "resolver-request",
+      "atMs": 6342,
+      "songID": "6254",
+      "sourceLine": 1683
+    },
+    {
+      "event": "video-error",
+      "atMs": 7650,
+      "songID": "6254",
+      "sourceLine": 1688
+    },
+    {
+      "event": "resolver-request",
+      "atMs": 12639,
+      "songID": "6254",
+      "sourceLine": 1692
+    },
+    {
+      "event": "video-error",
+      "atMs": 14056,
+      "songID": "6254",
+      "sourceLine": 1697
+    },
+    {
+      "event": "resolver-request",
+      "atMs": 19060,
+      "songID": "6254",
+      "sourceLine": 1701
+    },
+    {
+      "event": "video-error",
+      "atMs": 20370,
+      "songID": "6254",
+      "sourceLine": 1706
+    },
+    {
+      "event": "resolver-request",
+      "atMs": 25371,
+      "songID": "6254",
+      "sourceLine": 1710
+    },
+    {
+      "event": "video-error",
+      "atMs": 26675,
+      "songID": "6254",
+      "sourceLine": 1715
+    },
+    {
+      "event": "resolver-request",
+      "atMs": 31688,
+      "songID": "6254",
+      "sourceLine": 1719
+    },
+    {
+      "event": "video-error",
+      "atMs": 32993,
+      "songID": "6254",
+      "sourceLine": 1724
+    },
+    {
+      "event": "resolver-request",
+      "atMs": 44113,
+      "songID": "1344",
+      "sourceLine": 1773
+    },
+    {
+      "event": "video-start",
+      "atMs": 51720,
+      "songID": "1344",
+      "sourceLine": 1781
+    }
+  ],
+  "userFeedback": {
+    "blocked": "kept loading/retrying",
+    "allowed": "1344 preview picture and sound normal"
+  },
+  "policyRestored": "6254 returned to normal before mid-play/direct scenario",
+  "verdict": "API refusal and subsequent normal preview passed; game showed generic retry rather than a SWD-specific message"
+}

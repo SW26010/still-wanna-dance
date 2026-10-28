@@ -1,0 +1,29 @@
+{
+  "batch": "LIVE-20261028-01",
+  "hostsRestored": true,
+  "testProductOrRelayProcessesRemaining": 0,
+  "testListenersRemaining": 0,
+  "gameLeftRunning": false,
+  "collectorsExited": true,
+  "executableSHA256": "d8c77ffe8dc538973074a0d59e6408f46170f9b33f9c1e77f540184ac8f562a4",
+  "retainedVideoPolicy": "none; no persistent video MD5 result claimed for this batch",
+  "resourceSamples": {
+    "intervalSeconds": 2,
+    "relay": {
+      "maxWorkingSetBytes": 69935104,
+      "maxHandles": 614
+    },
+    "SWD": {
+      "maxWorkingSetBytes": 136384512,
+      "maxHandles": 741
+    },
+    "VRChat": {
+      "maxWorkingSetBytes": 5093789696,
+      "maxHandles": 4454
+    },
+    "limitation": "Process memory/handle samples, not frame-time measurement; includes SWD helper process maxima"
+  },
+  "relayStopped": true,
+  "originalUserAppRestarted": false,
+  "rawEvidenceRetained": true
+}

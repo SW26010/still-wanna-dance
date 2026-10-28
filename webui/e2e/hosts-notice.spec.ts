@@ -16,7 +16,6 @@ for(const width of [320,1280])test(`authorized helper offers a focused exit sett
   await expect(page.getByText(noticeTitle,{exact:true})).toBeVisible({timeout:10000});
   await expect(page.getByRole('link',{name:'打开退出设置',exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.screenshot({path:info.outputPath('authorization-toast.png'),animations:'disabled'});
   await page.getByRole('link',{name:'打开退出设置',exact:true}).click();
   await expect(page).toHaveURL(/#restoreHostsOnExit$/);
   await expect(page.getByRole('tab',{name:'常规',exact:true})).toHaveAttribute('aria-selected','true');
@@ -25,6 +24,7 @@ for(const width of [320,1280])test(`authorized helper offers a focused exit sett
   await expect(restore).toBeInViewport();
   await expect(restore).toBeChecked();
   expect(calls.some(call=>call.path==='settings')).toBe(false);
+  await page.screenshot({path:info.outputPath('exit-settings.png'),animations:'disabled'});
   await page.getByRole('tab',{name:'预加载与下载',exact:true}).click();
   await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveValue('777');
 });

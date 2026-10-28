@@ -28,3 +28,15 @@ Windows 删除语义参考 [Microsoft DeleteFile 文档](https://learn.microsoft
 - 受控验证只操作内存 API 和隔离临时文件，不使用个人数据库、修改 hosts 或启动 VRC。
 
 本轮原始证据在忽略目录 `artifacts/ci-stability-20261028/`：`install.log`、`chromium-baseline.log`、`slow-save-probe.diff`、`slow-save-before.log`、`slow-save-after.log`、`full-after.log`、`pending-delete-before.log`、`pending-delete-legacy-before.log`、`pending-delete-after.log`、`package.log`、`portable-smoke.log` 及对应输出目录。此前证据仍保留在原工作区的 `artifacts/ci-fix-20261028/`，未搬入版本库。
+
+## 2026-10-29：异步轮询与短暂通知的成组复核
+
+[`check` #16](https://github.com/SW26010/still-wanna-dance/actions/runs/40721820170)运行 `7a87e91`：Ubuntu 浏览器 325 通过、1 失败，Windows 324 通过、2 失败；两平台的曲库批次进度用例均失败，Windows 另有授权通知链接点击失败。浏览器失败使后续 Go、打包等步骤跳过，不能将该轮记为后端验证通过。该提交的[仓库产物检查](https://github.com/SW26010/still-wanna-dance/actions/runs/40721065127)通过。
+
+- **模拟时钟与异步请求**：原曲库用例本地 30 次中 2 次复现 Windows 同样的“90% 进度未出现”；trace 显示批次停止触发新请求，测试在响应处理及下次定时器注册前就再次快进，后续读取落在断言超时边界。临时对 downloads 响应增加 250ms 延迟、单 worker 运行后，3/3 复现 Ubuntu 的“读取计数仍为 3”；只将 `fastForward` 换成 `runFor` 仍 3/3 失败。改为在默认断言期限内分步推进时钟，同样延迟下 3/3 通过（19.1 秒）。曲库刷新和下载完成用例共用 `expectWithClock`，停止后不应再请求的断言保留指定时长检查；助手不用于证明精确轮询周期。
+- **诊断截图与通知消失**：在截图返回前模拟额外 7.5 秒处理时间，授权通知链接按原定时器消失，旧用例无法点击。尝试悬停暂停后 4 项仍失败，因此未采用。将截图移到通知操作和目标状态验证之后，同样慢采集条件下桌面与窄屏重复两轮 **4/4 通过**（28.5 秒）。VRCX 通知同样先操作，保留跳转后页面截图；没有修改产品通知时长或动画行为。
+- 临时响应延迟和慢截图探针均已移除。原始结果分别保留在 `clock-baseline-unsandboxed.log`、`clock-delay-before.log`、`clock-runfor-probe.log`、`clock-delay-after.log`、`toast-slow-before.log`、`toast-slow-after.log`、`toast-capture-after-action.log` 及各自 trace 目录。最初沙箱内 Edge 启动失败属于环境限制，不计为原 CI 故障复现；沙箱外的测试仍使用隔离内存 API 和临时目录。
+- 首次成组回归曾把时钟助手扩用到要求精确请求次数的错误恢复套件，观察点越过指定计数而失败；该扩用已撤回，保留该套件原有行为。中断的过程记录为 `full-clock-toast.log`，不计为完整回归通过。
+- 移除全部临时探针、收窄助手范围后，完整 Edge 套件使用 4 workers 和 `retain-on-failure` 连续三轮 **978/978 通过**（5.6 分钟），记录为 `full-clock-toast-final.log`；前端 `check`、内嵌资源一致性和差异空白检查通过。此处仍是本机 Edge 证据，远端 Chromium 与后端全流程以新提交的 CI 结果为准。
+
+时钟行为依据 [Playwright Clock 文档](https://playwright.dev/docs/clock)：快进只触发已经到期的定时器，不能替代等待异步响应后才注册的后续定时器。上述结论由本地失败 trace 和延迟对照确认；远端 trace 上传成功，但本机 Chrome 的下载接口超时，未声称已读取远端 trace。

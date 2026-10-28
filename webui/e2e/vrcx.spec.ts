@@ -41,7 +41,6 @@ for (const width of [390,1280]) test(`first library offers VRCX import without r
   const notice=page.getByRole('listitem',{name:'检测到 VRCX 数据库',exact:true});
   await expect(notice).toBeVisible();
   expect(calls.map(c=>c.path)).toEqual(['detect']);
-  await page.screenshot({path:`../artifacts/vrcx-suggestion/toast-${width}.png`,animations:'disabled'});
   await notice.getByRole('link',{name:'前往曲库',exact:true}).click();
   await expect(notice).toHaveCount(0);
   const action=page.getByRole('button',{name:'导入历史',exact:true});

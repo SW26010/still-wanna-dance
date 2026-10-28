@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockAPI } from './api';
+import {mockAPI, choosePath} from './api';
 import { navigate } from './navigation';
 
 const description = '最多为下载完成的视频保留多少空间。1 GiB 约为 1.07 GB。';
@@ -19,7 +19,7 @@ test('settings keep the video directory editable without losing its saved or dra
   await page.getByRole('radio', {name:'限制为', exact:true}).check();
   await expect(path).toBeEnabled();
   const draftPath = 'D:\\SWD\\new-storage';
-  await path.fill(draftPath);
+  await choosePath(page, '完整视频目录', draftPath);
   await page.getByRole('radio', {name:'不保留', exact:true}).check();
   await page.getByRole('radio', {name:'不限制', exact:true}).check();
   await expect(path).toBeEnabled();

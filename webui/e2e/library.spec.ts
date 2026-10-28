@@ -1,5 +1,5 @@
 import {test,expect,type Page} from '@playwright/test';
-import {mockAPI} from './api';
+import {mockAPI, choosePath} from './api';
 import type {LibraryPage,LibraryResource,SongPolicy} from '../src/types';
 
 test('preview is lazy, uses the selected entry, and releases its native source',async({page})=>{
@@ -378,7 +378,7 @@ test('record details link navigates without leaving a blocking surface',async({p
 test('import keeps its draft and uses a single confirmation dialog',async({page})=>{
   const {state}=await libraryFixture(page);state.settings.databasePath='C:\\New-Storage';
   await page.goto('/#/library');await page.getByRole('button',{name:'导入视频',exact:true}).click();
-  await page.getByRole('textbox',{name:'外部目录',exact:true}).fill('C:\\Videos');
+  await choosePath(page, '外部目录', 'C:\\Videos');
   await page.getByRole('button',{name:'下载视频',exact:true}).click();
   await page.getByRole('button',{name:'导入视频',exact:true}).click();
   await expect(page.getByRole('textbox',{name:'外部目录',exact:true})).toHaveValue('C:\\Videos');
@@ -392,7 +392,7 @@ test('import keeps its draft and uses a single confirmation dialog',async({page}
 for(const width of [390,1280])for(const anchor of ['/library?view=resources','/library?view=songs','batch','vrcx-import','video-import'])test(`library anchor #${anchor} locates content and preserves the import draft at ${width}px`,async({page})=>{
   await libraryFixture(page);await page.setViewportSize({width,height:720});await page.goto('/#/library');
   await page.getByRole('button',{name:'导入视频',exact:true}).click();
-  const draft=page.getByRole('textbox',{name:'外部目录',exact:true});await draft.fill('C:\\Fixture-Videos');
+  const draft=page.getByRole('textbox',{name:'外部目录',exact:true});await choosePath(page, '外部目录', 'C:\\Fixture-Videos');
   await page.evaluate(anchor=>{location.hash=anchor;},anchor);
   const target=page.locator(anchor.startsWith('/library')?'#library-browser':'#'+anchor);
   await expect(target).toBeVisible();await expect(target).toBeFocused();await expect(target).toBeInViewport();

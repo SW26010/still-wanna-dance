@@ -14,7 +14,7 @@
 | 记录列表 | 曲库和请求历史共用 RecordTable（Table/TableCellLayout）、SortHeader（TableHeaderCell）及 TablePagination（Button/Text），保留 Fluent 默认尺寸、排序箭头、aria-sort 与键盘交互，Table 显式采用原生 table-layout: auto 分配列宽，每例一行；线路检测同样使用 Table，首页需求使用 Canvas 虚拟列表和 Fluent Text／Caption1 展示标题与百分比。业务负责受保护项、请求行身份及移除行后的焦点回退 |
 | 测速 | `@fluentui/react-charts` v9 GaugeChart；实际倍率与 1×/2× 阈值，线性范围至少 0–3，随更高样本扩展；没有自绘指针或分段刻度 |
 | 块需求时间轴与需求视图 | Canvas 绘制连续时间与方块、可见需求行的块；D3 scale/zoom/selection 负责刻度及缩放拖动；Fluent Button、Slider、Switch、Popover、Badge 承担外围控件和共用详情，按需 SSE 提供数据 |
-| 文件选择 | 浏览器原生 file input，通过 Field 关联标签；Fluent Input 不支持 file 类型。VRCX 数据库选择调用 Windows IFileDialog |
+| 文件与目录选择 | 本地路径共用只读 Field/Input，点击或按 Enter／空格打开 Windows IFileDialog，旁边只保留 Fluent“恢复默认”按钮；默认路径用主题次级色，自选路径用正文色，原生窗口复用 SWD ICO。数据库在同一窗口选择已有文件或新文件名；节点文件内容导入沿用浏览器原生 file input |
 | 必要业务逻辑 | 条款门禁、设置草稿、保存后状态同步、全局排序、曲库偏移量与历史游标分页、检测事件与取消恢复；不重复实现标准组件的键盘或弹窗行为 |
 
 任务页面及条款弹窗的内容分工见[内容分类](webui-content.md)，平台辅助技术边界见[可访问性约定](webui-accessibility.md)。组件契约以锁定依赖的类型和实现为准；参考 [Fluent 官方接入](https://fluent2.microsoft.design/get-started/develop)与 [GaugeChart](https://microsoft.github.io/fluentui-charting-contrib/docs/Charting-Concepts/GaugeChart)。

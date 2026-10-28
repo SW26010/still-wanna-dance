@@ -13,16 +13,21 @@ import (
 	"syscall"
 
 	"golang.org/x/sys/windows"
+
+	"still-wanna-dance/internal/branding"
 )
 
-// SelectDatabase opens the Windows file dialog without a console window or UAC.
+// SelectPath opens the Windows file/directory dialog without a console window or UAC.
 // Path/title are JSON on stdin; request cancellation closes the helper-owned UI.
-func SelectDatabase(ctx context.Context, title, initial string) (string, error) {
+func SelectPath(ctx context.Context, dialog PathDialog) (string, error) {
 	system, err := windows.GetSystemDirectory()
 	if err != nil {
 		return "", err
 	}
-	input, err := json.Marshal(map[string]any{"title": title, "initial": initial})
+	input, err := json.Marshal(struct {
+		PathDialog
+		Icon []byte `json:"icon"`
+	}{dialog, branding.ICO})
 	if err != nil {
 		return "", err
 	}
@@ -43,7 +48,7 @@ func SelectDatabase(ctx context.Context, title, initial string) (string, error) 
 	return result.Path, nil // Empty means the user canceled; preserve the draft.
 }
 
-// IFileDialog provides the modern Explorer-style database picker.
+// IFileDialog provides the modern Explorer-style file and directory picker.
 // The shared script also drives the optional local UI preview.
 //
 //go:embed folder_dialog.ps1

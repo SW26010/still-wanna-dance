@@ -1,6 +1,6 @@
 import {navigateSettings,navigate} from './navigation';
 import {test,expect} from '@playwright/test';
-import {mockAPI} from './api';
+import {mockAPI, choosePath} from './api';
 
 test('live progress belongs to acceleration and manual work belongs to library',async({page})=>{
   const api=await mockAPI(page);
@@ -19,7 +19,7 @@ test('video import, storage and coverage are found from local videos',async({pag
   await expect(coverage).toBeVisible();
   expect((await coverage.boundingBox())!.y).toBeLessThan((await page.getByRole('table',{name:'曲库资源'}).boundingBox())!.y);
   await page.getByRole('button',{name:'导入视频',exact:true}).click();
-  await page.getByRole('textbox',{name:'外部目录',exact:true}).fill('D:\\Videos');
+  await choosePath(page, '外部目录', 'D:\\Videos');
   await page.getByRole('button',{name:'扫描并导入',exact:true}).click();
   expect(api.calls.find(c=>c.path==='import/start')?.body.source).toBe('D:\\Videos');
   await page.getByRole('link',{name:'视频存储预算',exact:true}).click();

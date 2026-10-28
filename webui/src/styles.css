@@ -35,6 +35,12 @@ legend { font-size: var(--fontSizeBase300); line-height: var(--lineHeightBase300
 .settings-actions > p { margin: 0; }
 .settings-form :is(input, select, textarea, [tabindex="-1"]) { scroll-margin-top: 12rem; }
 .form-grid .fui-Field { max-width: 680px; }
+.path-field { display: flex; align-items: center; gap: var(--spacingHorizontalS); min-width: 0; }
+.path-field > .fui-Input { flex: 1; min-width: 0; }
+.path-field > button { flex-shrink: 0; }
+.path-field input:not(:disabled) { cursor: pointer; }
+.path-field[data-default="true"] input:not(:disabled) { color: var(--colorNeutralForeground3); }
+@media (forced-colors: active) { .path-field[data-default="true"] input:not(:disabled) { color: GrayText; } }
 .hint { color: var(--colorNeutralForeground2); }
 .records { margin: var(--spacingVerticalS) 0; overflow-wrap: anywhere; }
 .record-divider { margin: var(--spacingVerticalL) 0; }

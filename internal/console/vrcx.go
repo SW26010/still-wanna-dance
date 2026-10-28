@@ -83,15 +83,6 @@ func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]bool{"ok": true})
 		return
 	}
-	if r.URL.Path == "/api/vrcx/select" {
-		path, err := c.selectVRCXDatabase(r.Context(), input.Path)
-		if err != nil {
-			http.Error(w, "无法选择数据库，请重试或填写完整路径", http.StatusBadRequest)
-			return
-		}
-		writeJSON(w, map[string]any{"path": path, "canceled": path == ""})
-		return
-	}
 	// One bounded in-memory preview per Console. Different tabs cannot consume
 	// or replace a draft concurrently, and retries never apply it twice.
 	if !c.vrcxMu.TryLock() {

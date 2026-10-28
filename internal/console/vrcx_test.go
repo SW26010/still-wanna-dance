@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/desktop"
 	"still-wanna-dance/internal/workfiles"
 )
 
@@ -43,6 +44,7 @@ func TestVRCXBrowser(t *testing.T) {
 			if mode == "reopened" {
 				c = restartTestConsole(t, c)
 			}
+			c.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return source, nil }
 			ui := httptest.NewUnstartedServer(c)
 			c.address = ui.Listener.Addr().String()
 			ui.Start()
@@ -584,7 +586,7 @@ func TestVRCXDiscardExpiryAndEmptySource(t *testing.T) {
 func TestVRCXGatesDetectionAndPicker(t *testing.T) {
 	c := testConsole(t)
 	t.Setenv("APPDATA", t.TempDir())
-	for _, action := range []string{"detect", "select", "preview", "apply", "discard", "dismiss"} {
+	for _, action := range []string{"detect", "preview", "apply", "discard", "dismiss"} {
 		r := httptest.NewRequest("POST", "http://"+c.address+"/api/vrcx/"+action, strings.NewReader("{}"))
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
@@ -608,13 +610,13 @@ func TestVRCXGatesDetectionAndPicker(t *testing.T) {
 		t.Fatal("detection read history or started service")
 	}
 	source := vrcxFixture(t)
-	c.databasePicker = func(_ context.Context, title, initial string) (string, error) {
-		if !strings.Contains(title, "VRCX") {
-			t.Fatal(title)
+	c.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
+		if !strings.Contains(dialog.Title, "VRCX") {
+			t.Fatal(dialog.Title)
 		}
 		return source, nil
 	}
-	w = vrcxRequest(t, c, "select", map[string]string{"path": source})
+	w = pathPickerRequest(c, "vrcx-database", source, c.token, "")
 	if w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}

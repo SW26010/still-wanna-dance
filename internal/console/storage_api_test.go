@@ -25,6 +25,66 @@ func storageRequest(t *testing.T, c *Console, action string, paths cacheproxy.Li
 	return w
 }
 
+func TestDatabaseSelectionCreatesOnlyMissingFilesAndPreservesExistingData(t *testing.T) {
+	c := testConsole(t)
+	paths := cacheproxy.LibraryPaths{DatabasePath: filepath.Join(t.TempDir(), "新 资料", "library.sqlite"), VideoDir: filepath.Join(t.TempDir(), "videos")}
+	before, _ := os.ReadFile(c.configPath)
+	active := c.settings
+	w := storageRequest(t, c, "prepare-database", paths)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"created":true`) {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	created, err := os.ReadFile(paths.DatabasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w = storageRequest(t, c, "prepare-database", paths)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"created":false`) {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if after, _ := os.ReadFile(paths.DatabasePath); !bytes.Equal(created, after) {
+		t.Fatal("selection changed an existing database")
+	}
+	corrupt := []byte("not a database, must not be replaced")
+	if err := os.WriteFile(paths.DatabasePath, corrupt, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if w = storageRequest(t, c, "prepare-database", paths); w.Code != 400 {
+		t.Fatal("accepted invalid existing database", w.Code, w.Body.String())
+	}
+	if after, _ := os.ReadFile(paths.DatabasePath); !bytes.Equal(corrupt, after) {
+		t.Fatal("selection replaced a corrupt file")
+	}
+	if after, _ := os.ReadFile(c.configPath); !bytes.Equal(before, after) || c.settings != active || c.savedSettings != active || c.service != nil {
+		t.Fatal("selection saved or activated settings")
+	}
+	if _, err := os.Stat(paths.VideoDir); !os.IsNotExist(err) {
+		t.Fatal("selection created the video directory", err)
+	}
+}
+
+func TestDatabaseSelectionDoesNotRecreateLostConfiguredDatabase(t *testing.T) {
+	for _, snapshot := range []string{"active", "saved"} {
+		t.Run(snapshot, func(t *testing.T) {
+			c := testConsole(t)
+			paths := libraryPaths(c.settings)
+			paths.DatabasePath = filepath.Join(t.TempDir(), "lost.sqlite")
+			if snapshot == "active" {
+				c.settings.DatabasePath = paths.DatabasePath
+			} else {
+				c.savedSettings.DatabasePath = paths.DatabasePath
+			}
+			w := storageRequest(t, c, "prepare-database", paths)
+			if w.Code != 400 || !strings.Contains(w.Body.String(), "数据库文件丢失") {
+				t.Fatal(w.Code, w.Body.String())
+			}
+			if _, err := os.Stat(paths.DatabasePath); !os.IsNotExist(err) {
+				t.Fatal("selection recreated a lost configured database", err)
+			}
+		})
+	}
+}
+
 func TestDatabaseCreationIsExplicitAndDoesNotActivateOrOverwrite(t *testing.T) {
 	c := testConsole(t)
 	paths := cacheproxy.LibraryPaths{DatabasePath: filepath.Join(t.TempDir(), "独立 资料", "library.sqlite"), VideoDir: filepath.Join(t.TempDir(), "完整 视频")}

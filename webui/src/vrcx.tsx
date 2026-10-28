@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useRef, useState, type PropsWithChildren } from 'react';
-import { Button, Checkbox, Field, Input, Caption1, useRestoreFocusTarget } from '@fluentui/react-components';
+import { Button, Checkbox, Caption1, useRestoreFocusTarget } from '@fluentui/react-components';
 import { APIError, request } from './api';
 import { useApp } from './hooks';
 import { Feedback, Notification, Panel } from './ui';
+import { PathField, usePathPicker } from './path-picker';
 
 interface Preview {
   id: string; source: string; databasePath: string; total: number; recognized: number;
@@ -14,14 +15,15 @@ const release = async (id?: string) => {
 };
 function useVRCXImport(target: string) {
   const app = useApp();
+  const picker = usePathPicker();
   const [selected, setSelected] = useState<boolean>(), [existingSongs, setExistingSongs] = useState<number>();
-  const [path, setPath] = useState(''), [found, setFound] = useState<boolean>(), [targetPending, setTargetPending] = useState(true), [targetError, setTargetError] = useState('');
+  const [path, setPath] = useState(''), [defaultPath, setDefaultPath] = useState(''), [found, setFound] = useState<boolean>(), [targetPending, setTargetPending] = useState(true), [targetError, setTargetError] = useState('');
   const [preview, setPreview] = useState<Preview>(), [pending, setPending] = useState(false), [message, setMessage] = useState('');
   const [detectedSuggestion, setSuggested] = useState(false), [notify,setNotify] = useState(false);
   const suggested = detectedSuggestion && !!app.status.data?.vrcxImportAvailable;
   const mounted = useRef(true), controller = useRef<AbortController | undefined>(undefined), current = useRef<Preview | undefined>(undefined), lock = useRef(false), revision = useRef(0);
   const enabled = selected ?? existingSongs === 0;
-  const locked = app.unavailable || pending || targetPending;
+  const locked = app.unavailable || pending || picker.pending || targetPending;
   const busy = (value: boolean) => { lock.current = value; setPending(value); };
   function clear() {
     revision.current++; controller.current?.abort();
@@ -34,20 +36,14 @@ function useVRCXImport(target: string) {
     setTargetPending(true); setExistingSongs(undefined); setTargetError('');
     setSuggested(false);
     void request<{path:string;found:boolean;suggested?:boolean;notify?:boolean;existingSongs?:number;targetError?:string}>('vrcx/detect', {}).then(result => {
-      if (!canceled) { setPath(value => value || result.path); setFound(result.found); setExistingSongs(result.existingSongs); setTargetError(result.targetError || ''); setSuggested(!!result.suggested); setNotify(!!result.notify); }
+      if (!canceled) { setDefaultPath(result.path); setFound(result.found); setExistingSongs(result.existingSongs); setTargetError(result.targetError || ''); setSuggested(!!result.suggested); setNotify(!!result.notify); }
     }).catch(() => { if (!canceled) { setFound(false); setTargetError('无法检查目标歌曲统计'); } })
       .finally(() => { if(!canceled)setTargetPending(false); });
     return () => { canceled = true; };
   }, [target]);
   async function choose() {
     if (lock.current || locked) return;
-    busy(true); setMessage('');
-    const abort = new AbortController(); controller.current = abort;
-    try {
-      const result = await request<{path: string; canceled: boolean}>('vrcx/select', {path}, abort.signal);
-      if (mounted.current && !abort.signal.aborted && !result.canceled) { clear(); setPath(result.path); }
-    } catch (e) { if (mounted.current && !abort.signal.aborted) setMessage(String(e)); }
-    finally { if (mounted.current) busy(false); }
+    await picker.choose('vrcx-database', path || defaultPath, value => { clear(); setPath(value); });
   }
   async function commit(p:Preview) {
     const result = await request<Preview>('vrcx/apply', {id:p.id, overwrite:p.existingSongs > 0}, AbortSignal.timeout(35000));
@@ -65,7 +61,7 @@ function useVRCXImport(target: string) {
       if (!mounted.current || checkedRevision !== revision.current) { void release(result.id); return; }
       setPreview(result); current.current = result;
       if (initialize) {
-        setPath(result.source);
+        setPath('');
         if (!result.id || result.events <= 0 || result.existingSongs > 0) return {review:true};
         applying = true;
         return {imported:await commit(result)};
@@ -106,9 +102,9 @@ function useVRCXImport(target: string) {
       }
     } finally { if (mounted.current) busy(false); }
   }
-  return {target, enabled, path, found, suggested, notify, preview, pending, targetPending, targetError, message, locked, choose, inspect, apply, dismiss, confirmOverwrite,
-    toggle: (value:boolean) => { clear(); setSelected(value); },
-    changePath: (value:string) => { clear(); setPath(value); }};
+  return {target, enabled, path, defaultPath, found, suggested, notify, preview, pending, targetPending, targetError, message, pickerError:picker.error, locked, choose, inspect, apply, dismiss, confirmOverwrite,
+    resetPath: () => { clear(); setPath(''); },
+    toggle: (value:boolean) => { clear(); setSelected(value); }};
 }
 type VRCXModel = ReturnType<typeof useVRCXImport>;
 const VRCXContext = createContext<VRCXModel | null>(null);
@@ -150,11 +146,10 @@ export function VRCXImport({model:m}: {model:VRCXModel}) {
     <VRCXOption model={m}/>
     {m.enabled && <>
       {m.found === false && <p>未找到默认位置的 VRCX 数据库，可选择其他位置或跳过。</p>}
-      <Field label="VRCX 数据库路径" hint="默认查找当前用户的 VRCX.sqlite3；支持自定义位置。">
-        <Input value={m.path} disabled={m.locked} onChange={(_, data) => m.changePath(data.value)} placeholder="%APPDATA%\VRCX\VRCX.sqlite3" />
-      </Field>
+      <PathField label="VRCX 数据库路径" hint="默认查找当前用户的 VRCX.sqlite3；支持自定义位置。" value={m.path} defaultValue={m.defaultPath} isDefault={!m.path} disabled={m.locked}
+        onChoose={() => void m.choose()} onReset={m.resetPath}/>
       <p className="wrap">导入到当前数据库：{m.target}</p>
-      <div className="actions"><Button type="button" disabled={m.locked} onClick={() => void m.choose()}>选择数据库</Button><Button type="button" disabled={m.locked} onClick={() => void m.inspect()}>读取并预览</Button></div>
+      <div className="actions"><Button type="button" disabled={m.locked} onClick={() => void m.inspect()}>读取并预览</Button></div>
       {p && <div className="content-stack">
         <p className="wrap">数据源：{p.source}</p>
         <dl>
@@ -171,5 +166,6 @@ export function VRCXImport({model:m}: {model:VRCXModel}) {
     </>}
     <p role="status">{m.pending ? '正在处理 VRCX 历史偏好…' : ''}</p>
     <Feedback error>{m.message}</Feedback>
+    <Feedback error>{m.pickerError}</Feedback>
   </Panel>;
 }

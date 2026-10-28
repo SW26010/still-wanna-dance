@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $request = [Console]::In.ReadToEnd() | ConvertFrom-Json
 Add-Type -AssemblyName System.Windows.Forms
-# Windows Common Item Dialog in file-picking mode (Explorer-style address bar,
+# Windows Common Item Dialog (Explorer-style address bar,
 # search and navigation); no legacy SHBrowseForFolder / FolderBrowserDialog.
 # https://learn.microsoft.com/windows/win32/shell/common-file-dialog
 Add-Type -ReferencedAssemblies System.Windows.Forms, System.Drawing -TypeDefinition @'
@@ -15,6 +15,9 @@ using System.Windows.Forms;
 public static class SWDFolderDialog {
   [ComImport, Guid("DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7")]
   class FileOpenDialog {}
+
+  [ComImport, Guid("C0B4E2F3-BA21-4773-8DBA-335EC946EB8B")]
+  class FileSaveDialog {}
 
   [ComImport, Guid("42F85136-DB7E-439C-85F1-E4075D135FC8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
   interface IFileDialog {
@@ -84,7 +87,8 @@ public static class SWDFolderDialog {
 
   sealed class DialogOwner : Form {
     protected override bool ShowWithoutActivation { get { return true; } }
-    public DialogOwner(IntPtr foreground) {
+    public DialogOwner(IntPtr foreground, System.Drawing.Icon icon) {
+      Icon = icon;
       ShowInTaskbar = false;
       FormBorderStyle = FormBorderStyle.None;
       Opacity = 0;
@@ -96,11 +100,13 @@ public static class SWDFolderDialog {
     }
   }
 
-  public static string Select(string title, string initial) {
+  public static string Select(string title, string initial, string mode, string iconBase64) {
     // Capture the browser before the helper creates its own windows.
     IntPtr foreground = GetForegroundWindow();
     using (var dpi = new DpiScope())
-    using (var owner = new DialogOwner(foreground)) {
+    using (var iconData = new MemoryStream(Convert.FromBase64String(iconBase64)))
+    using (var icon = new System.Drawing.Icon(iconData))
+    using (var owner = new DialogOwner(foreground, icon)) {
       // Consume SW_HIDE from the hidden helper's first Show without activating
       // a dummy window. Ownership keeps the picker above the foreground browser.
       // Use a local proxy so timeout/process cancellation cannot leave a foreign
@@ -109,21 +115,34 @@ public static class SWDFolderDialog {
         owner.Show(new WindowHandle(foreground));
       else owner.Show();
       owner.Hide();
-      return SelectOwned(title, initial, owner.Handle);
+      return SelectOwned(title, initial, mode, owner.Handle);
     }
   }
 
-  static string SelectOwned(string title, string initial, IntPtr owner) {
-    var dialog = (IFileDialog)new FileOpenDialog();
+  static string SelectOwned(string title, string initial, string mode, IntPtr owner) {
+    if (mode != "open" && mode != "database" && mode != "folder")
+      throw new ArgumentException("Unknown path dialog mode");
+    var dialog = mode == "database" ? (IFileDialog)new FileSaveDialog() : (IFileDialog)new FileOpenDialog();
     try {
       uint options; dialog.GetOptions(out options);
-      // FILEMUSTEXIST plus filesystem/path/no-recent options.
-      dialog.SetOptions(options | 0x1000u | 0x40u | 0x800u | 0x8u | 0x02000000u);
+      // Filesystem/path/no-recent; selecting a save path does not probe-create it.
+      options |= 0x40u | 0x800u | 0x8u | 0x02000000u | 0x10000u;
+      if (mode == "folder") options |= 0x20u;
+      else if (mode == "open") options |= 0x1000u;
+      else options &= ~0x1000u;
+      // This selects existing or new databases; the app never overwrites a file.
+      if (mode == "database") options &= ~0x2u; // FOS_OVERWRITEPROMPT
+      dialog.SetOptions(options);
       dialog.SetTitle(title);
-      if (File.Exists(initial)) {
+      if (mode == "database") dialog.SetDefaultExtension("sqlite");
+      if (mode == "database") dialog.SetOkButtonLabel("选择");
+      if (!String.IsNullOrEmpty(initial) && mode != "folder" && !Directory.Exists(initial)) {
         dialog.SetFileName(Path.GetFileName(initial));
         initial = Path.GetDirectoryName(initial);
       }
+      // A moved/unavailable path starts at its nearest existing parent.
+      while (!String.IsNullOrEmpty(initial) && !Directory.Exists(initial))
+        initial = Path.GetDirectoryName(initial);
       if (Directory.Exists(initial)) {
         var iid = typeof(IShellItem).GUID;
         IShellItem folder; SHCreateItemFromParsingName(initial, IntPtr.Zero, ref iid, out folder);
@@ -141,5 +160,5 @@ public static class SWDFolderDialog {
   }
 }
 '@
-$selected = [SWDFolderDialog]::Select($request.title, $request.initial)
+$selected = [SWDFolderDialog]::Select($request.title, $request.initial, $request.mode, $request.icon)
 [Console]::Out.Write((@{path=$selected} | ConvertTo-Json -Compress))

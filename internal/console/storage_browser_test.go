@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/desktop"
 )
 
 func TestStorageLocationsBrowser(t *testing.T) {
@@ -28,6 +30,12 @@ func TestStorageLocationsBrowser(t *testing.T) {
 	database := filepath.Join(t.TempDir(), "资料", "library.sqlite")
 	run := func(phase string) {
 		t.Helper()
+		c.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
+			if dialog.Mode == "folder" {
+				return video, nil
+			}
+			return database, nil
+		}
 		ui := httptest.NewUnstartedServer(c)
 		c.address = ui.Listener.Addr().String()
 		ui.Start()

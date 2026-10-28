@@ -90,62 +90,62 @@ type Console struct {
 	activation             Activation // protected by mu; never persisted
 	activationGeneration   uint64     // protected by mu; distinguishes same-clock-tick retries
 	// Acquire lifecycleMu before mu; state readers never wait on lifecycleMu.
-	lifecycleMu          sync.Mutex
-	hosts                *hostsController // operations are serialized by lifecycleMu
-	queueUpdateMu        sync.Mutex       // acquire before mu; serializes engine queue protection
-	inventoryMu          sync.Mutex
-	inventory            Inventory
-	inventorySettings    Settings
-	inventoryGeneration  uint64
-	inventoryDone        chan struct{}
-	inventoryCancel      context.CancelFunc // protected by inventoryMu
-	mu                   sync.Mutex
-	settings             Settings // active configuration; theme and exit policy apply after save
-	savedSettings        Settings // last successfully persisted configuration
-	savedNodeCount       int
-	loadedNodeCount      int
-	autoStartOnce        sync.Once
-	autoStartPending     bool // protected by mu; startup deferred until consent succeeds
-	configPath           string
-	token                string
-	previewKey           string // Process-local media signing key, never exposed to WebUI.
-	address              string
-	videoAddress         string
-	httpsAddress         string
-	https                *httpsRelay
-	service              *cacheproxy.Server
-	blockEngineWaiters   map[chan struct{}]bool // lazy, only while a visible timeline awaits engine creation; mu
-	httpServer           *http.Server
-	videoListener        net.Listener
-	cdnError             string
-	actionErrors         map[string]string
-	batch                Batch
-	lastBatch            Batch
-	importStatus         ImportStatus
-	importReceipts       []cacheproxy.ImportedVideo
-	importCancel         context.CancelFunc
-	importDone           chan struct{}
-	batchCancel          context.CancelFunc
-	batchDone            chan struct{}
-	queue                QueueStatus
-	queueDesired         bool // queue enable intent; independent of manual downloads
-	queueCancel          context.CancelFunc
-	queueDone            chan struct{}
-	closing              bool
-	client               *http.Client
-	checksumURL          string
-	apiBase              string
-	dns                  directResolver
-	upstreamDial         upstreamDialFunc
-	requestRevision      uint64
-	monitor              *upstreamstate.Monitor
-	monitorRequested     bool
-	monitorManual        bool
-	monitorManualAt      time.Time
-	monitorManualDone    chan struct{}
-	networkDiagnostics   *networkDiagnostics
-	databasePickerCancel context.CancelFunc // protected by mu; also serializes dialogs
-	databasePicker       func(context.Context, string, string) (string, error)
+	lifecycleMu         sync.Mutex
+	hosts               *hostsController // operations are serialized by lifecycleMu
+	queueUpdateMu       sync.Mutex       // acquire before mu; serializes engine queue protection
+	inventoryMu         sync.Mutex
+	inventory           Inventory
+	inventorySettings   Settings
+	inventoryGeneration uint64
+	inventoryDone       chan struct{}
+	inventoryCancel     context.CancelFunc // protected by inventoryMu
+	mu                  sync.Mutex
+	settings            Settings // active configuration; theme and exit policy apply after save
+	savedSettings       Settings // last successfully persisted configuration
+	savedNodeCount      int
+	loadedNodeCount     int
+	autoStartOnce       sync.Once
+	autoStartPending    bool // protected by mu; startup deferred until consent succeeds
+	configPath          string
+	token               string
+	previewKey          string // Process-local media signing key, never exposed to WebUI.
+	address             string
+	videoAddress        string
+	httpsAddress        string
+	https               *httpsRelay
+	service             *cacheproxy.Server
+	blockEngineWaiters  map[chan struct{}]bool // lazy, only while a visible timeline awaits engine creation; mu
+	httpServer          *http.Server
+	videoListener       net.Listener
+	cdnError            string
+	actionErrors        map[string]string
+	batch               Batch
+	lastBatch           Batch
+	importStatus        ImportStatus
+	importReceipts      []cacheproxy.ImportedVideo
+	importCancel        context.CancelFunc
+	importDone          chan struct{}
+	batchCancel         context.CancelFunc
+	batchDone           chan struct{}
+	queue               QueueStatus
+	queueDesired        bool // queue enable intent; independent of manual downloads
+	queueCancel         context.CancelFunc
+	queueDone           chan struct{}
+	closing             bool
+	client              *http.Client
+	checksumURL         string
+	apiBase             string
+	dns                 directResolver
+	upstreamDial        upstreamDialFunc
+	requestRevision     uint64
+	monitor             *upstreamstate.Monitor
+	monitorRequested    bool
+	monitorManual       bool
+	monitorManualAt     time.Time
+	monitorManualDone   chan struct{}
+	networkDiagnostics  *networkDiagnostics
+	pathPickerCancel    context.CancelFunc // protected by mu; serializes all path dialogs
+	pathPicker          func(context.Context, desktop.PathDialog) (string, error)
 }
 
 func New(configPath, address string, work *cacheproxy.WorkDirectory) (*Console, error) {
@@ -598,8 +598,8 @@ func (c *Console) BeginShutdown() {
 	c.mu.Lock()
 	c.closing = true
 	c.notifyBlockEngineLocked()
-	if c.databasePickerCancel != nil {
-		c.databasePickerCancel()
+	if c.pathPickerCancel != nil {
+		c.pathPickerCancel()
 	}
 	c.cancelTermsExitLocked()
 	c.queueDesired = false
@@ -888,6 +888,10 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+	if r.URL.Path == "/api/path/select" {
+		c.servePathPicker(w, r)
+		return
+	}
 	if r.URL.Path == "/api/library/preview" {
 		c.preparePreview(w, r)
 		return

@@ -1111,3 +1111,25 @@ ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter�
 过程失败保留：浮层首次 fixed／autoSize 修复通过原有位置断言，但内置浏览器发现长资料的自动聚焦链接位于内部滚动区外；补充更长资料并要求链接完整可见后，320px 用例失败、390px 通过，加入组件原生避让选项后通过。没有删除历史失败或将部分可见当成完整可用。
 
 证据位于忽略目录 `artifacts/webui-interaction-fix/`：`before.log`、`focus.log`、`focused-link-fully-before.log` 及对应目录保留失败；`browser-verified.log`／`browser-verified/` 为最终 129 项结果，`live/` 保存中间检查，`live-final/observations.json`、`details-320.jpg`、`details-390.jpg`、`details-1280.jpg` 和 `service.log` 保存真实服务复核。检查后关闭隔离服务并恢复内置浏览器视口；本轮未启动 VRC、修改系统 hosts、用户库或运行中 EXE，不新增 VRC 台账项。验证结束时尚未提交或推送。
+
+## 2026-10-28 统一 Windows 路径选择
+
+数据库打开／新建、完整视频目录、视频导入目录、手动 VRChat 日志目录和 VRCX 数据库共用 `/api/path/select` 与 Windows IFileDialog。前端共用只读路径字段和可取消的选择请求；选择结果保留在草稿中，保存／重启、建库拒绝覆盖和导入显式触发的边界不变。节点文件内容导入仍使用浏览器原生文件选择器。当前规则见[配置生命周期](../settings-lifecycle.md)与[内容约定](../webui-content.md)。
+
+- 前端 `check` 通过，源码与内嵌资源一致；完整 Edge 浏览器回归 **321 项通过**，覆盖路径用途、取消与失败保留草稿、重试、选择等待超过普通 API 超时、键盘和窄屏布局。
+- 两个受影响 Go 包的 `vet` 和 `git diff --check` 通过。桌面构建首次被 PATH 中的 Go 1.27.1 拒绝；仅为本次命令将已安装 Go 1.27.3 的 bin 提到 PATH 前面后，正式构建脚本通过，开发 EXE 保存在 `artifacts/path-picker-20261028/SWD.exe`，未覆盖日常程序。失败与成功分别保留在 `build.log`、`build-toolchain.log`。
+- `go test -tags=no_easytier ./internal/desktop ./internal/console -run 'PathPicker|FolderDialog|VRCX|Storage' -count=1 -v` 经隔离临时目录入口在沙箱外通过。包括六种用途的鉴权和无写入选择、全局单窗口、请求／退出取消、Windows COM 定义和 DPI 恢复；启用 `SWD_STORAGE_BROWSER_EVIDENCE`、`SWD_VRCX_BROWSER_EVIDENCE` 的真实 Console／SQLite／Edge 联调通过，确认保存前不切换位置、重新打开后应用位置，以及已有数据库拒绝覆盖。联调替换了选择器返回值，不代表实际点击系统窗口。个人 VRCX 源库测试未启用。
+- 原生窗口交互尚未验完。沙箱内创建窗口句柄失败；沙箱外独立探针确认调用到 `IFileDialog.Show`，且窗口在当前桌面可见，但桌面工具未列出附属窗口，首次交互测试超时。显式调用 `ShowWindow` 的诊断副本未改变工具发现结果，未据此改动产品实现。随后改用独立 Edge 作为所属窗口，computer-use 因无法可靠确认测试页 URL 而停止；没有继续自动点击。剩余为实际打开文件、选择新文件名、选择目录与取消的返回结果核对，属于 Windows 环境验证，不进入 VRC 台账。
+
+证据保存在忽略目录 `artifacts/path-picker-20261028/`：`browser.log`、`backend-live.log`、`storage-live/`、`vrcx-live/`、`native-tool-discovery-failure.log`、`native-browser-owner.log` 和 `probe-visible-err.txt`。沙箱首次 Edge 启动失败的上下文保留在 `sandbox-browser/`；后端首次遇到已知的 `renameat: The handle is invalid` 限制，改在沙箱外按同一测试入口通过，没有修改文件操作绕过限制。本轮未启动 VRC、修改 hosts、使用个人资料库、提交或推送。
+
+## 2026-10-28 路径框直接选择、恢复默认与原生图标
+
+按后续要求，路径框点击或 Enter／空格直接打开系统选择器，旁边只保留“恢复默认”；默认路径使用次级灰色，自选路径使用正文色。数据库合并为一个选择／新建窗口，已有文件只读验证，新文件名调用既有建库机制；当前生效或已保存的数据库丢失时拒绝原地重建空库。日志恢复默认回到自动识别，VRCX 恢复检测路径并撤销预览，视频导入恢复为空。以上替代上一节分开打开／新建的交互说明，配置生效边界不变。
+
+- 相关 Edge 浏览器回归 **117/117 通过**，涵盖存储、VRCX、容量、曲库、操作归属与回归套件。新增只读／键盘、恢复默认、日志手动模式、VRCX 预览失效及 320px 浅／深色检查；截图已人工查看。前一轮 321 项全量结果保留，本轮未重新声明全量通过。
+- 真实 Console／SQLite／Edge 的存储与 VRCX 联调通过；后端路径选择、数据库创建与现存文件保护测试通过。补充验证当前生效／已保存的数据库丢失时不创建文件，现存数据库和损坏文件不被覆盖，选择不保存配置或创建视频目录。
+- 原生测试在自己的 STA 消息循环内操作实际 IFileDialog，确认已有数据库、新文件名、普通文件、目录和取消的返回值，并逐像素核对标题栏小图标与内嵌 SWD ICO。**五种场景连续三轮通过**，覆盖上一节未完成的原生返回值检查；确认原生选择本身不改写已有文件或创建新文件。浏览器联调仍注入选择结果，未宣称整条浏览器到系统窗口链路由同一个自动化工具驱动。
+- 前端 `check`、两个 Go 包的 `vet`、内嵌资源校验和桌面构建通过，开发产物为 `artifacts/path-field-20261028/SWD.exe`。测试经 `scripts/with-test-temp.ps1` 使用隔离临时目录；原生与 Edge 检查沿用已确认可用的沙箱外环境。
+
+证据位于忽略目录 `artifacts/path-field-20261028/`：`browser-final.log`、`browser-final/`、`backend-final.log`、`storage-live-final/`、`vrcx-live-final/`、`database-selection.log`、`native-ready.log` 和 `build.log`。过程失败保留：浏览器测试最初向只读框输入了空格而触发选择器，另有字段标签匹配到恢复按钮，改为实际所需的字母输入与精确 textbox 查询后通过；原生测试先遇到内联图标超出命令长度、探针局部变量编译冲突，分别改为标准输入和独立变量名；窗口初始化期间曾读到不一致图标，探针增加最多三秒的初始化等待后连续三轮通过，产品未增加等待或补改系统窗口。未启动 VRC、改 hosts、使用个人数据库、提交或推送。

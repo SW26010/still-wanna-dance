@@ -1,5 +1,11 @@
 import type { Page } from '@playwright/test';
 import type { CacheEntry, Settings, Status } from '../src/types';
+export async function choosePath(page: Page, label: string, path: string) {
+  await page.route('**/api/path/select', route => route.fulfill({json:{path,canceled:false}}), {times:1});
+  const response = page.waitForResponse('**/api/path/select');
+  await page.getByRole('textbox',{name:label,exact:true}).click();
+  await response;
+}
 export function statusFixture(): Status {
   const settings: Settings = {theme:'system',logLevel:'info',retainFavorites:true,databasePath:'C:\\UI-Test\\storage\\storage.sqlite',videoDir:'D:\\Videos',maxCacheBytes:40*1073741824,videoStorageMode:'unlimited',aggressiveCacheReclamation:'auto',requestRetentionMode:'unlimited',requestRetentionDays:0,throughputIntervalMinutes:20,prepareAheadSeconds:500,downloadSoftLimit:16,downloadGrowIntervalMS:250,localProtectionGraceSeconds:300,upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',autoAccelerate:false,autoOpenWebUI:true,queueWithGateway:true,restoreHostsOnExit:true,manualLogDir:false,logDir:'C:\\UI-Test\\logs'};
   return {vrcxImportAvailable:true,running:false,settings:{...settings},activeSettings:{...settings},restartRequired:false,hosts:{ready:false,message:'尚未接入'},portOK:true,httpsPortOK:true,batch:{},lastBatch:{},import:{},queue:{},defaultLogDir:settings.logDir,defaultDatabasePath:settings.databasePath,defaultVideoDir:settings.videoDir,portableDir:'C:\\UI-Test',activation:{},upstreamMonitor:{results:[]}};
@@ -24,7 +30,8 @@ export async function mockAPI(page: Page) {
     if(path==='exit'||path==='restart')data={ok:true,action:path};
     if(path==='storage/check')data={confirmVideoPolicy:false};
     if(path==='storage/create-database')data={path:body.databasePath};
-    if(path==='storage/select-database')data={path:'',canceled:true};
+    if(path==='storage/prepare-database')data={path:body.databasePath,created:!state.settings.databasePath};
+    if(path==='path/select')data={path:body.path,canceled:!body.path};
     if(path==='terms/current')data=terms;
     if(path==='terms/accept'){terms.accepted=true;data={ok:true};}
     if(path==='vrcx/detect')data={path:'C:\\VRCX\\VRCX.sqlite3',found:false,existingSongs:0};

@@ -7,6 +7,7 @@ import { Feedback, Panel, Progress, Hint, RecordDetails, useThemePreference } fr
 import { type Settings, type Status } from './types';
 import { CacheCapacityFields, CacheReclamationFields, StorageBudgetNotice, capacityPayload, type CapacityDraft } from './cache-capacity';
 import { StorageLocationFields } from './storage-directory';
+import { DirectoryField } from './path-picker';
 import { RequestRetentionFields } from './request-retention';
 
 const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadSoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
@@ -160,8 +161,8 @@ export function SettingsPage({section='application',children}: {section?:Setting
       </div></fieldset>
       <fieldset disabled={disabled}><legend>房间队列与游戏日志</legend>
       {numberField('prepareAheadSeconds','提前准备时间（秒）',100,16000,`建议 200～2000 秒。${prepareAheadEstimate}`)}
-      <Checkbox label="手动指定 VRChat 日志目录" checked={d.manualLogDir} onChange={(_, v) => update({manualLogDir:!!v.checked})} />
-      <Field label="VRChat 日志目录" hint="通常自动识别，找不到日志时再手动指定。"><Input required={d.manualLogDir} disabled={!d.manualLogDir || disabled} value={d.manualLogDir ? d.logDir : s.defaultLogDir} onChange={(_, v) => update({logDir:v.value})} /></Field></fieldset></>}
+      <DirectoryField purpose="log-directory" label="VRChat 日志目录" hint="默认自动识别，找不到日志时点击选择。" disabled={disabled} value={d.manualLogDir ? d.logDir : s.defaultLogDir} defaultValue={s.defaultLogDir} isDefault={!d.manualLogDir}
+        onChange={logDir=>update({logDir,manualLogDir:true})} onReset={()=>update({logDir:'',manualLogDir:false})} onPending={setPending}/></fieldset></>}
       <span className="secondary">运行配置保存后重启生效。</span>
     </form></Panel>;
   return children?children(form,d):form;
@@ -170,12 +171,13 @@ export function SettingsPage({section='application',children}: {section?:Setting
 export function ImportPanel() {
   const app = useApp(), s = app.status.data!, job = s.import;
   const [source, setSource] = useState(''), [cleanup, setCleanup] = useState(false);
+  const [selecting, setSelecting] = useState(false);
   useEffect(() => setCleanup(false), [job.id]);
   return <Panel id="video-import" title="导入视频"><StorageBudgetNotice settings={s.activeSettings}/>
     <p>扫描子文件夹，校验并导入缺少的视频。同盘优先使用硬链接，导入后请勿修改源视频。</p>
     <p>导入到当前完整视频目录：{s.activeSettings.videoDir}</p>
     <form className="form-grid" onSubmit={async e => { e.preventDefault(); if ((s.settings.videoDir !== s.activeSettings.videoDir || s.settings.databasePath !== s.activeSettings.databasePath) && !await app.confirm('新的数据位置尚未生效', <>已保存的新的数据位置尚未生效。本次将导入到当前完整视频目录：{s.activeSettings.videoDir}。若要使用新目录，请取消并先重启应用。仍要导入当前目录吗？</>)) return; await app.action('import/start',{source:source.trim()}); }}>
-      <Field label="外部目录" required><Input required disabled={app.unavailable || job.running} value={source} onChange={(_, v) => setSource(v.value)} /></Field><Button type="submit" disabled={app.unavailable || job.running || !source.trim()}>扫描并导入</Button>
+      <DirectoryField purpose="import-directory" label="外部目录" value={source} disabled={app.unavailable || !!job.running} onChange={setSource} onPending={setSelecting}/><Button type="submit" disabled={app.unavailable || job.running || selecting || !source.trim()}>扫描并导入</Button>
     </form>{(job.running||!!job.total)&&<Progress value={job.checked} max={job.total} label="视频文件处理进度" />}
     <p role="status">{job.phase?`${job.phase} · ${job.checked || 0}/${job.total || 0} 个视频 · 已导入 ${job.imported || 0} · 跳过 ${job.skipped || 0} · 失败 ${job.failed || 0} · 已清除 ${job.deleted || 0}`:'尚未开始'}</p>
     <Feedback error>{job.error || s.actionErrors?.import}</Feedback>

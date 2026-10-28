@@ -5,7 +5,7 @@
 ## 当前约定
 
 - 左侧 NavDrawer/NavItem 保留页面真实链接；未同意条款时使用自动弹出的模态确认，Escape 不绕过条款门禁。标准组件负责方向键、抽屉焦点圈定、Esc 关闭及触发器焦点恢复。
-- 提供跳到正文、语义标题、当前页面/步骤标记；Tab 通过 aria-controls 关联内容面板，tabpanel 通过 aria-labelledby 关联当前标签。Field 关联标签、字段和校验错误，文件选择使用浏览器原生 input，表单保留必填和数值范围校验。
+- 提供跳到正文、语义标题、当前页面/步骤标记；Tab 通过 aria-controls 关联内容面板，tabpanel 通过 aria-labelledby 关联当前标签。Field 关联标签、字段和校验错误；本地路径使用只读 Input，声明 aria-haspopup="dialog"，点击或按 Enter／空格调用 Windows 文件／目录选择器；“恢复默认”按钮的无障碍名称包含字段用途，默认状态禁用。默认路径使用主题次级灰色，forced-colors 使用系统 GrayText；节点文件内容导入使用浏览器原生 file input。表单保留必填和数值范围校验。
 - 设置／关于的标签激活后保留标签焦点与浏览器历史，方向键可继续切换；普通页面导航聚焦正文，显式锚点链接定位对应内容。
 - 详情浮层按视口可用空间定位和滚动，自动聚焦内容时不能使顶部移出屏幕，Escape 关闭后恢复触发器焦点。
 - Dialog、Table、Popover、Tooltip、Toast 和 GaugeChart 使用各自标准交互。状态有文字，不只依赖颜色；装饰图标不重复朗读。

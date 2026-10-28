@@ -36,7 +36,8 @@ try {
   await expect(page.getByRole('button',{name:'导入历史',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'导入 VRCX 历史',exact:true}).click();
   await page.getByRole('checkbox',{name:'从 VRCX 导入历史偏好',exact:true}).check();
-  await page.getByLabel('VRCX 数据库路径').fill(source);
+  await page.getByRole('textbox',{name:'VRCX 数据库路径',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'VRCX 数据库路径',exact:true})).toHaveValue(source);
   await page.getByRole('button',{name:'读取并预览',exact:true}).click();
   await expect(page.getByText(/已有 2 首歌曲的需求统计/)).toBeVisible();
   const action=page.getByRole('button',{name:'导入并覆盖…',exact:true});

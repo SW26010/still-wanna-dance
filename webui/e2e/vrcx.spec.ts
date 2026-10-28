@@ -13,10 +13,14 @@ async function fixture(page: Page, existing = 0, suggested = false) {
     calls.push({path,body});
     if(path==='detect')return route.fulfill({json:{path:report.source,found:true,suggested:suggested&&report.existingSongs===0,notify:suggested&&report.existingSongs===0,existingSongs:report.existingSongs}});
     if(path==='dismiss'){suggested=false;return route.fulfill({json:{ok:true}});}
-    if(path==='select')return route.fulfill({json:{path:'D:\\custom\\VRCX.sqlite3',canceled:false}});
+
     if(path==='preview') return route.fulfill({json:report});
     if(path==='apply'){suggested=false;return route.fulfill({json:{...report,imported:true}});}
     return route.fulfill({json:{ok:true}});
+  });
+  await page.route('**/api/path/select', route => {
+    calls.push({path:'select',body:route.request().postDataJSON()});
+    return route.fulfill({json:{path:'D:\\custom\\VRCX.sqlite3',canceled:false}});
   });
   return {api,report,calls};
 }
@@ -207,8 +211,8 @@ test('VRCX keeps the selected database and preview across module jumps and page 
   await expect(history).toBeVisible();
   await expect.poll(()=>calls.map(c=>c.path)).toEqual(['detect']);
   await history.click();await enable(page);
-  await page.getByRole('button',{name:'选择数据库',exact:true}).click();
-  const path=page.getByLabel('VRCX 数据库路径'), preview=page.getByText('4 次 / 2 首',{exact:true});
+  await page.getByRole('textbox',{name:'VRCX 数据库路径',exact:true}).click();
+  const path=page.getByRole('textbox',{name:'VRCX 数据库路径',exact:true}), preview=page.getByText('4 次 / 2 首',{exact:true});
   await expect(path).toHaveValue('D:\\custom\\VRCX.sqlite3');
   await inspect(page);await expect(preview).toBeVisible();
   await page.getByRole('button',{name:'导入视频',exact:true}).click();await expect(preview).toBeVisible();
@@ -227,10 +231,25 @@ test('VRCX keeps the selected database and preview across module jumps and page 
   expect(calls.filter(c=>c.path==='apply')).toEqual([{path:'apply',body:{id:'preview-1',overwrite:true}}]);
 });
 
+test('restoring the default VRCX path discards the custom preview without importing',async({page})=>{
+  const {calls}=await fixture(page);
+  await page.goto('/#vrcx-import');
+  const path=page.getByRole('textbox',{name:'VRCX 数据库路径',exact:true});
+  const reset=page.getByRole('button',{name:'VRCX 数据库路径：恢复默认',exact:true});
+  await expect(reset).toBeDisabled();
+  await path.click();await expect(path).toHaveValue('D:\\custom\\VRCX.sqlite3');
+  await inspect(page);await expect(page.getByText('4 次 / 2 首',{exact:true})).toBeVisible();
+  await reset.click();await expect(path).toHaveValue('C:\\VRCX\\VRCX.sqlite3');
+  await expect(page.getByText('4 次 / 2 首',{exact:true})).toHaveCount(0);
+  expect(calls.some(c=>c.path==='apply')).toBe(false);
+  await inspect(page);
+  expect(calls.filter(c=>c.path==='preview').map(c=>c.body.path)).toEqual(['D:\\custom\\VRCX.sqlite3','']);
+});
+
 test('VRCX reads only on explicit preview and empty usage imports without overwrite',async({page})=>{
   const {calls}=await fixture(page);await page.goto('/#/library');await page.getByRole('button',{name:'导入 VRCX 历史',exact:true}).click();
   await expect(page.getByRole('checkbox',{name:'从 VRCX 导入历史偏好',exact:true})).toBeChecked();
-  await expect(page.getByLabel('VRCX 数据库路径')).toHaveValue('C:\\VRCX\\VRCX.sqlite3');
+  await expect(page.getByRole('textbox',{name:'VRCX 数据库路径',exact:true})).toHaveValue('C:\\VRCX\\VRCX.sqlite3');
   expect(calls.map(c=>c.path)).toEqual(['detect']);
   await inspect(page);await expect(page.getByText('4 次 / 2 首',{exact:true})).toBeVisible();
   await expect(page.getByText(/当前歌曲需求统计为空/)).toBeVisible();
@@ -258,8 +277,8 @@ test('VRCX default missing, file selection, empty history and parse failures sta
   await page.route('**/api/vrcx/detect',r=>r.fulfill({json:{path:'',found:false,existingSongs:0}}));
   await page.goto('/#/library');await page.getByRole('button',{name:'导入 VRCX 历史',exact:true}).click();await enable(page);
   await expect(page.getByText(/未找到默认位置/)).toBeVisible();
-  await page.getByRole('button',{name:'选择数据库',exact:true}).click();
-  await expect(page.getByLabel('VRCX 数据库路径')).toHaveValue('D:\\custom\\VRCX.sqlite3');
+  await page.getByRole('textbox',{name:'VRCX 数据库路径',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'VRCX 数据库路径',exact:true})).toHaveValue('D:\\custom\\VRCX.sqlite3');
   Object.assign(report,{id:'',events:0,songs:0});
   await inspect(page);await expect(page.getByText('没有有效历史需求，原统计保持不变。')).toBeVisible();
   await expect(page.getByRole('button',{name:'导入历史偏好',exact:true})).toHaveCount(0);

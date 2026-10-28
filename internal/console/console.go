@@ -496,29 +496,36 @@ func (c *Console) startLocked() (err error) {
 		c.startGatewayQueueLocked()
 		return nil
 	}
-	// Activation owns the hosts setup; this step binds both local listeners.
+	// Publish ownership together with binding so status probes cannot contend
+	// with our listeners, including while the engine is still opening.
+	c.mu.Lock()
 	l, err := net.Listen("tcp4", c.videoAddress)
 	if err != nil {
+		c.mu.Unlock()
 		return desktop.PortError(c.videoAddress, err)
 	}
 	secure, err := net.Listen("tcp4", c.httpsAddress)
 	if err != nil {
 		l.Close()
+		c.mu.Unlock()
 		return fmt.Errorf("网页 HTTPS 转发启动失败：%w", desktop.PortError(c.httpsAddress, err))
 	}
+	relay := newHTTPSRelay(secure, c.dns.DialContext)
+	relay.beginResourceLoad = upstreamrequest.Default.BeginResourceLoad
+	c.videoListener, c.https = l, relay
+	c.mu.Unlock()
 	engine, err := c.ensureEngineLocked()
 	if err != nil {
+		c.mu.Lock()
 		l.Close()
-		secure.Close()
+		relay.close() // Serving has not started, so there are no clients to drain.
+		c.videoListener, c.https = nil, nil
+		c.mu.Unlock()
 		return err
 	}
 	h := &http.Server{Handler: engine, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, ErrorLog: slog.NewLogLogger(slog.Default().Handler(), slog.LevelError)}
 	c.mu.Lock()
 	c.httpServer = h
-	c.videoListener = l
-	relay := newHTTPSRelay(secure, c.dns.DialContext)
-	relay.beginResourceLoad = upstreamrequest.Default.BeginResourceLoad
-	c.https = relay
 	c.cdnError = ""
 	c.mu.Unlock()
 	slog.Info("cdn_started", "address", l.Addr().String(), "https_address", secure.Addr().String())
@@ -569,12 +576,16 @@ func (c *Console) stopLocked() {
 		c.activation.Phase = "stopped"
 	}
 	listener, relay, server := c.videoListener, c.https, c.httpServer
-	c.videoListener, c.https, c.httpServer = nil, nil, nil
-	c.mu.Unlock()
-	defer c.mu.Lock()
+	// Release ports before clearing ownership. Draining clients stays outside mu.
 	if listener != nil {
 		listener.Close()
 	}
+	if relay != nil {
+		relay.listener.Close()
+	}
+	c.videoListener, c.https, c.httpServer = nil, nil, nil
+	c.mu.Unlock()
+	defer c.mu.Lock()
 	if relay != nil {
 		relay.close()
 	}
@@ -812,6 +823,18 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		result.Queue.Active = append([]int64(nil), c.queue.Active...)
 		result.Queue.Failures = append([]Failure(nil), c.queue.Failures...)
 		result.Batch.Failures = append([]Failure(nil), c.batch.Failures...)
+		// Port ownership and running must come from the same snapshot. Binding,
+		// releasing and probing ports share mu; engine I/O never holds it.
+		if !running {
+			result.PortOK = c.videoListener != nil || portAvailable(c.videoAddress) == nil
+			if !result.PortOK {
+				result.PortOwner = desktop.PortOwner(c.videoAddress)
+			}
+			result.HTTPSPortOK = c.https != nil || portAvailable(c.httpsAddress) == nil
+			if !result.HTTPSPortOK {
+				result.HTTPSPortOwner = desktop.PortOwner(c.httpsAddress)
+			}
+		}
 		c.mu.Unlock()
 		result.Hosts = c.hosts.status()
 		if store, err := c.businessStore(); err != nil {
@@ -832,16 +855,6 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			result.Traffic = cacheproxy.ReadTrafficStats(libraryPaths(result.ActiveSettings).DatabasePath)
-		}
-		if !running {
-			result.PortOK = portAvailable(c.videoAddress) == nil
-			if !result.PortOK {
-				result.PortOwner = desktop.PortOwner(c.videoAddress)
-			}
-			result.HTTPSPortOK = portAvailable(c.httpsAddress) == nil
-			if !result.HTTPSPortOK {
-				result.HTTPSPortOwner = desktop.PortOwner(c.httpsAddress)
-			}
 		}
 		writeJSON(w, result)
 		return

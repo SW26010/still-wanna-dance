@@ -2,6 +2,7 @@ package console
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http/httptest"
 	"sync"
@@ -32,6 +33,12 @@ func TestLifecycleIOLeavesStateResponsive(t *testing.T) {
 	for _, operation := range []string{"start", "stop", "save", "close"} {
 		t.Run(operation, func(t *testing.T) {
 			c := testConsole(t)
+			// Fixed, initially free addresses make status probe the actual gateway
+			// ports; :0 would always probe a different, available port.
+			video, secure := relayListener(t), relayListener(t)
+			c.videoAddress, c.httpsAddress = video.Addr().String(), secure.Addr().String()
+			video.Close()
+			secure.Close()
 			message := "cache_engine_ready"
 			if operation != "start" {
 				if err := c.start(); err != nil {
@@ -93,6 +100,14 @@ func TestLifecycleIOLeavesStateResponsive(t *testing.T) {
 				c.DesktopState()
 				w := httptest.NewRecorder()
 				c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/api/status", nil))
+				var status struct {
+					Running, PortOK, HTTPSPortOK bool
+					CDNError                     string
+				}
+				if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil || w.Code != 200 ||
+					status.Running || !status.PortOK || !status.HTTPSPortOK || status.CDNError != "" {
+					t.Errorf("gateway ports during %s: %d %s", operation, w.Code, w.Body.String())
+				}
 				downloads := httptest.NewRecorder()
 				r := httptest.NewRequest("GET", "http://"+c.address+"/api/downloads", nil)
 				r.Header.Set("X-SWD-Token", c.token)

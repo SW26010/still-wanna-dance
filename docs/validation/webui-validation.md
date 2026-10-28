@@ -1133,3 +1133,15 @@ ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter�
 - 前端 `check`、两个 Go 包的 `vet`、内嵌资源校验和桌面构建通过，开发产物为 `artifacts/path-field-20261028/SWD.exe`。测试经 `scripts/with-test-temp.ps1` 使用隔离临时目录；原生与 Edge 检查沿用已确认可用的沙箱外环境。
 
 证据位于忽略目录 `artifacts/path-field-20261028/`：`browser-final.log`、`browser-final/`、`backend-final.log`、`storage-live-final/`、`vrcx-live-final/`、`database-selection.log`、`native-ready.log` 和 `build.log`。过程失败保留：浏览器测试最初向只读框输入了空格而触发选择器，另有字段标签匹配到恢复按钮，改为实际所需的字母输入与精确 textbox 查询后通过；原生测试先遇到内联图标超出命令长度、探针局部变量编译冲突，分别改为标准输入和独立变量名；窗口初始化期间曾读到不一致图标，探针增加最多三秒的初始化等待后连续三轮通过，产品未增加等待或补改系统窗口。未启动 VRC、改 hosts、使用个人数据库、提交或推送。
+
+## 2026-10-28 启动时自身端口误报
+
+修复启动时短暂显示红色「视频服务：异常」、提示端口被自身 SWD 进程占用、随后自动转绿的问题。监听绑定先于引擎初始化和运行状态发布，旧状态接口在这段时间重新探测端口，又在状态快照解锁后读取占用，可能把自己的监听当成冲突。现复用已有监听对象记录归属，将绑定、释放和端口判断纳入同一状态锁；引擎初始化与连接排空仍在锁外。端口与 `running` 同时取快照，前端沿用已有「启动中」显示。现行语义见[配置与运行生命周期](../settings-lifecycle.md)。
+
+- 先扩展既有 `TestLifecycleIOLeavesStateResponsive`，使用实际绑定的端口而非 `:0`，确认修复前启动子场景准确失败，返回两个自身 PID 的端口冲突；原失败输出保留。修复后启动、停止、保存和退出时状态读取均及时返回，且不误报自身监听。
+- HTTP/HTTPS 外部占用继续报错。回归还使用同一进程内、不属于网关的监听作为对照，避免按 PID 或进程名一概忽略。引擎初始化失败后同时验证端口释放与监听归属清理。
+- `go test -tags=no_easytier ./internal/console ./internal/desktop` 整包通过；启动、加速、HTTPS、生命周期和共享引擎的定向 `-race` 检查通过；两包 `go vet` 通过。Windows 测试经 `scripts/with-test-temp.ps1` 使用宿主隔离环境，复用此前已确认的沙箱原子重命名限制结论。
+- 原诊断场景再次通过真实 Console、SQLite、自动启动及 Edge 内嵌 WebUI 验证，未模拟 API。通过已有同步日志处理器延长启动窗口，页面显示蓝色「视频服务：启动中」，无端口占用 tooltip；放行后下一轮状态刷新显示绿色「运行中」。启动中与完成后的实际响应均无冲突字段，浏览器无脚本错误，两张截图已检查。未测原用户安装目录自然启动的命中率或持续时间，不需要 VRC 验收。
+- 内嵌前端资源校验与 Go 1.27.3 桌面构建通过，产物为 `artifacts/startup-port-fix-20261028/SWD.exe`。第一次构建因沙箱 PATH 中 Go 1.27.1 不满足项目要求而失败；仅为本次命令显式选择已安装的 Go 1.27.3 后成功，未修改系统环境或放宽版本要求。
+
+证据位于忽略目录 `artifacts/startup-port-fix-20261028/`：`before-fix.log`、`targeted.log`、`console-desktop.log`、`race.log`、`browser.log`、`browser-result.json`、`startup-pending.png`、`startup-running.png` 与构建日志；修复前的三次确定性复现和红色截图保留在 `artifacts/startup-port-diagnosis-20261028/`。临时诊断入口只存在于忽略目录的测试 overlay，产品代码未加入探针。未启动真实 SWD 或 VRC、修改系统 hosts、替换用户 EXE、提交或推送。

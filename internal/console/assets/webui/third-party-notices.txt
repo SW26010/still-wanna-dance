@@ -13,7 +13,7 @@ Release packages append the actual Go toolchain's notices. See LICENSING.md and
 docs/issue-30-license-audit.md in the corresponding source for scope and evidence.
 
 ========================================================================
-Module: golang.org/x/net v0.57.0
+Module: golang.org/x/net v0.60.0
 Source: https://golang.org/x/net
 
 --- LICENSE ---
@@ -279,7 +279,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ========================================================================
-Module: golang.org/x/sys v0.47.0
+Module: golang.org/x/sys v0.48.0
 Source: https://golang.org/x/sys
 
 --- LICENSE ---
@@ -10704,8 +10704,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ========================================================================
-Module: golang.org/x/crypto v0.54.0
-Module checksum: h1:YLIA59K4fiNzHzjnZt2tUJQjQtUWfWbeHBqKtk3eScw=
+Module: golang.org/x/crypto v0.57.0
+Module checksum: h1:3ZVCjf8Ggz7zneR/EHRVx68Ctf+2pmIMP2UFhh9cC6M=
 
 Source copyright headers (conservative inventory):
 Copyright 2009 The Go Authors. All rights reserved.
@@ -10807,8 +10807,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ========================================================================
-Module: golang.org/x/net v0.57.0
-Module checksum: h1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=
+Module: golang.org/x/net v0.60.0
+Module checksum: h1:79p50tfZlm0J9YfoDsSi639qSXNGVwEzOPLCxM2FsYU=
 
 Source copyright headers (conservative inventory):
 Copyright 2009 The Go Authors. All rights reserved.
@@ -10860,8 +10860,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ========================================================================
-Module: golang.org/x/sync v0.22.0
-Module checksum: h1:SZjpbeLmrCk4xhRSZFNZW5gFUeCeFgjekvI/+gfScek=
+Module: golang.org/x/sync v0.23.0
+Module checksum: h1:KameEIfc1IkluZyXWLn39Wd4tURc6GbCiISGiZm2bQk=
 
 Source copyright headers (conservative inventory):
 Copyright 2013 The Go Authors. All rights reserved.
@@ -10899,8 +10899,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ========================================================================
-Module: golang.org/x/sys v0.47.0
-Module checksum: h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=
+Module: golang.org/x/sys v0.48.0
+Module checksum: h1:bbX/i/6MgT9BVLM9RT1thmxL04yeTAhbEz4SyadbXoo=
 
 Source copyright headers (conservative inventory):
 Copyright 2009 The Go Authors. All rights reserved.
@@ -10954,8 +10954,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ========================================================================
-Module: golang.org/x/text v0.40.0
-Module checksum: h1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=
+Module: golang.org/x/text v0.42.0
+Module checksum: h1:JbOZXgfeCPU9gacVtYliJqOhD+zhrEqK4LfdpmlUZqI=
 
 Source copyright headers (conservative inventory):
 Copyright 2009 The Go Authors. All rights reserved.

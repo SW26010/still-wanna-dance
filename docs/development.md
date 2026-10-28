@@ -27,7 +27,9 @@ pnpm --dir webui check
 
 ## Windows 环境
 
-桌面开发需要 Windows amd64、Go 1.25+、Node.js 22+、Git 和 PowerShell。前端依赖使用 `webui/package.json` 固定的 pnpm。Go 最低版本和依赖选择分别以 `go.mod` 与锁文件为准。
+桌面开发需要 Windows amd64、Go 1.27.3+、Node.js 22+、Git 和 PowerShell。前端依赖使用 `webui/package.json` 固定的 pnpm。Go 最低版本和依赖选择分别以 `go.mod` 与锁文件为准。
+
+2026-10-28 将最低 Go 版本提高到包含当前安全补丁的 1.27.3，并更新 `golang.org/x/net` 至 v0.60.0 及其必要依赖；依据为 [Go 发布记录](https://go.dev/doc/devel/release)、[HTTP/2 公告](https://pkg.go.dev/vuln/GO-2026-6610)和 [X.509 公告](https://pkg.go.dev/vuln/GO-2026-6809)。桌面构建与打包固定使用 `GOTOOLCHAIN=local`，因此 PATH 中的 Go 安装也必须满足最低版本；普通 `go` 命令的自动版本切换不代表构建脚本已使用补丁版。本轮按任务边界未更新 GitHub Actions，其中的 Go 1.25.x 配置仍需单独对齐，不能用于当前发行构建。验证范围见[发布前修复记录](validation/release-readiness-20261028.md)。
 
 在 PowerShell 中检查：
 

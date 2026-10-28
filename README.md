@@ -67,7 +67,7 @@ Still Wanna Dance 是为 **Windows 上的 VRChat WannaDance 玩家**打造的开
 
 ## 从源码构建
 
-Windows 桌面版需要 Go 1.25 或更新版本、Node.js 22+（资源校验）、Git 和 PowerShell。在仓库目录执行：
+Windows 桌面版需要 Go 1.27.3 或更新版本、Node.js 22+（资源校验）、Git 和 PowerShell。在仓库目录执行：
 
 ```powershell
 .\scripts\build-desktop.ps1

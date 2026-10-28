@@ -1,6 +1,6 @@
 # Windows Portable 打包
 
-构建需要 Go 1.25 或更新版本、Node.js（CI 使用 22）、Git 和 PowerShell；用户只需要 Windows x64。网页和 SQLite 编译进 EXE，无需外部运行库。
+构建需要 Go 1.27.3 或更新版本、Node.js（CI 使用 22）、Git 和 PowerShell；用户只需要 Windows x64。网页和 SQLite 编译进 EXE，无需外部运行库。脚本禁用自动工具链下载，PATH 中的 Go 必须满足 `go.mod` 的最低版本。
 
 ```powershell
 ./scripts/package-portable.ps1 -Version dev-local

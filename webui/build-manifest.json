@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "inputs": {
     "LICENSE": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
-    "THIRD-PARTY-NOTICES.txt": "57d9e3633352d1f5eeedd4c2eaddf8edcbd02a6361113b6a8894bee5ecf5d53f",
+    "THIRD-PARTY-NOTICES.txt": "3fc0d69fc38c6156e4712233c87e17c04b7fba430c6efde77d168d950975481b",
     "docs/licenses/fluentui-system-icons-LICENSE": "69bc45dc42b9acb96a69823adbc6ae538374e3c0bde169b855b32c48eaaef52f",
     "scripts/check-webui.mjs": "c151e01ebf6c2463a38a83226d40fbbc9aaee82673a815fe2079f766be08b6c2",
     "webui/build.mjs": "f68cdffe88bea78d7e7826127f642d7a053f0d787596ff1bd3549d03a295cddc",
@@ -51,7 +51,7 @@
     "internal/console/assets/webui/app.css": "e0f42334e37a1d7077a218c839bffc4116e88ff7989c87476055feddd5cb41ed",
     "internal/console/assets/webui/app.js": "c2dcba063b6761dbd3d332e6f955925b5781a3c984a9ab52aa4072e0666e62f9",
     "internal/console/assets/webui/software-license.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
-    "internal/console/assets/webui/third-party-notices.txt": "57d9e3633352d1f5eeedd4c2eaddf8edcbd02a6361113b6a8894bee5ecf5d53f",
+    "internal/console/assets/webui/third-party-notices.txt": "3fc0d69fc38c6156e4712233c87e17c04b7fba430c6efde77d168d950975481b",
     "internal/console/assets/webui/webui-notices.txt": "89e11fdf64ebdfc5b8b98085e4eee3dad30a3e52ada8374b428aa830f022eda6"
   }
 }

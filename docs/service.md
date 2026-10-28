@@ -4,7 +4,7 @@
 
 ## 启动
 
-需要 Go 1.25 或更高版本。Windows PowerShell：
+需要 Go 1.27.3 或更高版本。Windows PowerShell：
 
 ```powershell
 ./scripts/with-test-temp.ps1 go test -tags=no_easytier ./internal/... ./cmd/...

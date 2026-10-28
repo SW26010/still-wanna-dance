@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-27",
-  "noticesSHA256": "57d9e3633352d1f5eeedd4c2eaddf8edcbd02a6361113b6a8894bee5ecf5d53f",
+  "reviewedAt": "2026-10-28",
+  "noticesSHA256": "3fc0d69fc38c6156e4712233c87e17c04b7fba430c6efde77d168d950975481b",
   "modules": [
     {
       "path": "github.com/andybalholm/brotli",
@@ -1251,8 +1251,8 @@
     },
     {
       "path": "golang.org/x/crypto",
-      "version": "v0.54.0",
-      "sum": "h1:YLIA59K4fiNzHzjnZt2tUJQjQtUWfWbeHBqKtk3eScw=",
+      "version": "v0.57.0",
+      "sum": "h1:3ZVCjf8Ggz7zneR/EHRVx68Ctf+2pmIMP2UFhh9cC6M=",
       "licenseFiles": [
         {
           "path": "LICENSE",
@@ -1273,8 +1273,8 @@
     },
     {
       "path": "golang.org/x/net",
-      "version": "v0.57.0",
-      "sum": "h1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=",
+      "version": "v0.60.0",
+      "sum": "h1:79p50tfZlm0J9YfoDsSi639qSXNGVwEzOPLCxM2FsYU=",
       "licenseFiles": [
         {
           "path": "LICENSE",
@@ -1284,8 +1284,8 @@
     },
     {
       "path": "golang.org/x/sync",
-      "version": "v0.22.0",
-      "sum": "h1:SZjpbeLmrCk4xhRSZFNZW5gFUeCeFgjekvI/+gfScek=",
+      "version": "v0.23.0",
+      "sum": "h1:KameEIfc1IkluZyXWLn39Wd4tURc6GbCiISGiZm2bQk=",
       "licenseFiles": [
         {
           "path": "LICENSE",
@@ -1295,8 +1295,8 @@
     },
     {
       "path": "golang.org/x/sys",
-      "version": "v0.47.0",
-      "sum": "h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=",
+      "version": "v0.48.0",
+      "sum": "h1:bbX/i/6MgT9BVLM9RT1thmxL04yeTAhbEz4SyadbXoo=",
       "licenseFiles": [
         {
           "path": "LICENSE",
@@ -1306,8 +1306,8 @@
     },
     {
       "path": "golang.org/x/text",
-      "version": "v0.40.0",
-      "sum": "h1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=",
+      "version": "v0.42.0",
+      "sum": "h1:JbOZXgfeCPU9gacVtYliJqOhD+zhrEqK4LfdpmlUZqI=",
       "licenseFiles": [
         {
           "path": "LICENSE",

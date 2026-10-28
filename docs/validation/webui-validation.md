@@ -1133,3 +1133,11 @@ ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter�
 - 前端 `check`、两个 Go 包的 `vet`、内嵌资源校验和桌面构建通过，开发产物为 `artifacts/path-field-20261028/SWD.exe`。测试经 `scripts/with-test-temp.ps1` 使用隔离临时目录；原生与 Edge 检查沿用已确认可用的沙箱外环境。
 
 证据位于忽略目录 `artifacts/path-field-20261028/`：`browser-final.log`、`browser-final/`、`backend-final.log`、`storage-live-final/`、`vrcx-live-final/`、`database-selection.log`、`native-ready.log` 和 `build.log`。过程失败保留：浏览器测试最初向只读框输入了空格而触发选择器，另有字段标签匹配到恢复按钮，改为实际所需的字母输入与精确 textbox 查询后通过；原生测试先遇到内联图标超出命令长度、探针局部变量编译冲突，分别改为标准输入和独立变量名；窗口初始化期间曾读到不一致图标，探针增加最多三秒的初始化等待后连续三轮通过，产品未增加等待或补改系统窗口。未启动 VRC、改 hosts、使用个人数据库、提交或推送。
+
+## 2026-10-28 CI 通知与模态背景的语义定位
+
+完整 GitHub Actions `check` [第 11 次运行](https://github.com/SW26010/still-wanna-dance/actions/runs/40702835913)在 Ubuntu 全部通过，包括 326 个浏览器测试、Go 全包测试、vet、构建、竞态与格式检查。Windows 浏览器测试为 323 通过、3 失败，后续 Go 与打包步骤未执行，不能记为通过。
+
+三处失败均落在测试定位：加速失败的宽泛文本查询取到了隐藏 Tooltip；网络检测反馈同时匹配 Toast 与读屏播报文本；重启确认弹窗打开时，后台状态不在模态的可访问树中。前两处改为按具名 `listitem` 检查真实通知，沿用其他通知用例的定位方式，并同步修正同一加速套件中停止失败通知的相同定位；第三处仅在弹窗打开时包含隐藏背景来核对状态更新，弹窗关闭后再用普通角色查询核对状态，继续断言没有提交重启请求。未改产品行为、延长超时或删除反馈断言。
+
+本机默认 Edge 在修正前定向重复 5 轮共 15 项通过，未复现 CI Chromium 的失败；修正后 `acceleration`、`console`、`lifecycle` 三个完整套件 23 项通过（9.9 秒），同类停止失败定位随后单独复核通过，前端 `check` 与 `git diff --check` 通过。浏览器检查经 `with-test-temp.ps1` 使用独立 headless Edge 与内存 API；原始沙箱启动失败的运行已停止，结果未当作应用用例失败。过程记录保留在忽略目录 `artifacts/ci-fix-20261028/` 的 `webui-before.log`、`webui-baseline.log`、`webui-edge-after.log`、`webui-stop-after.log` 及对应输出目录。完整远端复核以修正提交的新一轮 `check` 为准。

@@ -85,9 +85,11 @@ test('a pending restart confirmation cannot submit after an external exit',async
   const dialog=page.getByRole('dialog',{name:'导入仍在运行',exact:true});
   await expect(dialog).toBeVisible();await expect.poll(()=>sockets.length).toBe(1);
   sockets[0].send(JSON.stringify({action:'exit'}));
-  await expect(badge(page)).toHaveText('后台程序：未连接');
+  // The modal removes background content from the accessibility tree.
+  await expect(page.getByRole('status',{name:'后台程序',exact:true,includeHidden:true})).toHaveText('后台程序：未连接');
   await dialog.getByRole('button',{name:'确认',exact:true}).click();
   await expect(dialog).toHaveCount(0);
+  await expect(badge(page)).toHaveText('后台程序：未连接');
   expect(api.calls.filter(call=>call.path==='restart')).toHaveLength(0);
   await expect(page.getByRole('listitem',{name:'正在退出应用并处理游戏连接。',exact:true})).toBeVisible();
 });

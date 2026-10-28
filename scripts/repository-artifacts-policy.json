@@ -759,6 +759,13 @@
       "bytes": 1195220,
       "sha256": "8843990c5da074122f33a75ed5c8ff3530681f3be8a076ae9d7f648a1bcfc460",
       "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Constrain record details to the viewport with standard Fluent positioning, available-height sizing, and target-covering shifts."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1196020,
+      "sha256": "3e6d92c250453bdeaf11e2c2166de65ee03b9a0215a7af4212ea68cad2960226",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Unify native path selection and default restoration."
     }
   ]
 }

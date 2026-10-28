@@ -119,8 +119,15 @@ func TestMD5BatchTriesSharedSongIDs(t *testing.T) {
 				t.Fatalf("%+v", b)
 			}
 			if tc.working == "" {
-				if b.Failed != total || b.Downloaded != 0 || downloads.Load() != 0 {
+				if b.Failed != total || len(b.Failures) != total || b.Downloaded != 0 || downloads.Load() != 0 {
 					t.Fatalf("batch=%+v downloads=%d", b, downloads.Load())
+				}
+				seen := map[int64]bool{}
+				for _, failure := range b.Failures {
+					if seen[failure.ID] || failure.Error == "" {
+						t.Fatalf("duplicate or incomplete failure: %+v", b.Failures)
+					}
+					seen[failure.ID] = true
 				}
 			} else if b.Failed != 0 || b.Downloaded != total || downloads.Load() != 1 {
 				t.Fatalf("batch=%+v downloads=%d", b, downloads.Load())

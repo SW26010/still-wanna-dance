@@ -4,10 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"slices"
-	"sort"
 	"strconv"
-	"sync"
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
@@ -111,11 +108,8 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	c.mu.Lock()
 	scanOnly, settings, target := c.batch.ScanOnly, c.settings, c.batch.Target
 	c.mu.Unlock()
-	if !scanOnly {
-		ctx = s.WithBatchBudget(ctx)
-	}
-	budgetStop := make(chan struct{})
-	var stopBudget sync.Once
+	fill := s.NewDownloadFill(ctx, scanOnly, settings.RetainFavorites)
+
 	defer func() {
 		c.lifecycleMu.Lock()
 		defer c.lifecycleMu.Unlock()
@@ -191,185 +185,33 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		}
 		titles[strconv.FormatInt(song.ID, 10)] = name
 	}
-	check := local.Files
-	type resourceJob struct {
-		md5   string
-		ids   []string
-		score float64
-	}
-	grouped := map[string]*resourceJob{}
-	total := 0
-	for id, key := range check.References {
-		total++
-		if grouped[key] == nil {
-			grouped[key] = &resourceJob{md5: key}
-		}
-		grouped[key].ids = append(grouped[key].ids, id)
-	}
-	priorities, err := s.EffectiveResourcePriorities(ctx, check.References)
-	if err != nil {
-		fail(err.Error())
-		return
-	}
-	// Retained mappings still contribute to shared-resource priority.
-	for key, job := range grouped {
-		job.score = priorities[key].Score
-	}
-	jobs := make([]*resourceJob, 0, len(grouped))
-	for _, job := range grouped {
-		sort.Slice(job.ids, func(i, j int) bool {
-			a, _ := strconv.ParseInt(job.ids[i], 10, 64)
-			b, _ := strconv.ParseInt(job.ids[j], 10, 64)
-			return a > b
-		})
-		jobs = append(jobs, job)
-	}
-	sort.Slice(jobs, func(i, j int) bool {
-		if jobs[i].score != jobs[j].score {
-			return jobs[i].score > jobs[j].score
-		}
-		a, _ := strconv.ParseInt(jobs[i].ids[0], 10, 64)
-		b, _ := strconv.ParseInt(jobs[j].ids[0], 10, 64)
-		return a > b
-	})
-	c.mu.Lock()
-	c.batch.Total = total
-	if scanOnly {
-		c.batch.Phase = "正在检查 MD5 文件是否齐备"
-	} else {
-		c.batch.Phase = "正在按缺失 MD5 下载补齐"
-	}
-	c.mu.Unlock()
-	process := func(ctx context.Context, job *resourceJob) {
-		if ctx.Err() != nil {
-			return
-		}
-		var err error
-		ids := append([]string(nil), job.ids...)
-		skip := func(id string) {
-			ids = slices.DeleteFunc(ids, func(candidate string) bool { return candidate == id })
-			c.mu.Lock()
-			c.batch.Checked++
-			c.batch.Skipped++
-			c.mu.Unlock()
-		}
-		if !scanOnly {
-			var policies map[int64]cacheproxy.SongPolicy
-			policies, err = s.SongPolicies(ctx)
-			favorite := false
-			if err == nil {
-				for _, id := range job.ids {
-					n, _ := strconv.ParseInt(id, 10, 64)
-					if policies[n] == cacheproxy.SongBlocked {
-						skip(id)
-					}
-					favorite = favorite || settings.RetainFavorites && policies[n] == cacheproxy.SongFavorite
-				}
-			}
-			if len(ids) == 0 {
-				return
-			}
-			select {
-			case <-budgetStop:
-				if !favorite && err == nil {
-					return
-				}
-			default:
-			}
-		}
-		hit := check.Present[job.md5]
-		source := "HIT"
-		if err == nil && !hit && !scanOnly {
-			songCtx, finish := cacheproxy.WithBatchSongBudget(ctx)
-			defer finish()
-			songCtx = cacheproxy.WithExpectedMD5(songCtx, job.md5)
-			// Keep resource scheduling independent of which ID resolves it.
-			// Prefer IDs still in the catalog, then try retained associations.
-			candidates := append([]string(nil), ids...)
-			sort.SliceStable(candidates, func(i, j int) bool {
-				currentI := local.Current[candidates[i]]
-				currentJ := local.Current[candidates[j]]
-				return currentI && !currentJ
-			})
-			for _, id := range candidates {
-				n, _ := strconv.ParseInt(id, 10, 64)
-				c.mu.Lock()
-				c.batch.Current = id + " · " + titles[id]
-				c.mu.Unlock()
-				result, attemptErr := c.prefetchSong(songCtx, s, n)
-				if errors.Is(attemptErr, cacheproxy.ErrSongBlocked) {
-					skip(id)
-					continue
-				}
-				source, err = result, attemptErr
-				if err == nil || songCtx.Err() != nil || errors.Is(err, cacheproxy.ErrBatchBudget) || errors.Is(err, cacheproxy.ErrLocalStorage) {
-					break
-				}
-			}
-			if len(ids) == 0 {
-				return
-			}
-			if errors.Is(err, cacheproxy.ErrBatchBudget) {
-				stopBudget.Do(func() { close(budgetStop) })
-				return
-			}
-		}
-		if ctx.Err() != nil {
-			return
-		}
+	result, err := fill.Run(local, func(ctx context.Context, id int64) (string, error) {
+		return c.prefetchSong(ctx, s, id)
+	}, func(progress cacheproxy.DownloadFillResult) {
 		c.mu.Lock()
 		defer c.mu.Unlock()
-		c.batch.Checked += len(ids)
-		switch {
-		case err != nil:
-			c.batch.Failed += len(ids)
-			for _, id := range ids {
-				n, _ := strconv.ParseInt(id, 10, 64)
-				c.batch.Failures = append(c.batch.Failures, Failure{ID: n, Name: titles[id], Error: err.Error()})
-			}
-		case hit:
-			c.batch.Hits += len(ids)
-			c.batch.Reused += len(ids)
-			c.batch.CatalogHits += len(ids)
-		case scanOnly:
-			c.batch.Missing += len(ids)
-		case source == "HIT":
-			c.batch.Hits += len(ids)
-		default:
-			c.batch.Downloaded += len(ids)
-		}
-	}
-	var wg sync.WaitGroup
-dispatch:
-	for _, job := range jobs {
-		select {
-		case <-ctx.Done():
-			break dispatch
-		default:
-		}
-		jobCtx, admitted := cacheproxy.WithPreparationAdmission(ctx)
-		finished := make(chan struct{})
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			defer close(finished)
-			process(jobCtx, job)
-		}()
-		// Resolve the next ordered resource as soon as this one owns usage
-		// capacity. A local hit or early failure can finish without admission.
-		select {
-		case <-admitted:
-		case <-finished:
-		case <-ctx.Done():
-			break dispatch
-		}
-	}
-	wg.Wait()
-	select {
-	case <-budgetStop:
-		c.mu.Lock()
-		c.batch.BudgetReached = true
+		c.batch.Total, c.batch.Checked = progress.Total, progress.Checked
+		c.batch.Hits, c.batch.Downloaded = progress.Hits, progress.Downloaded
+		c.batch.Failed, c.batch.Skipped = progress.Failed, progress.Skipped
+		c.batch.Missing, c.batch.Reused, c.batch.CatalogHits = progress.Missing, progress.Reused, progress.CatalogHits
+		c.batch.BudgetReached = progress.BudgetReached
 		c.batch.Current = ""
+		if progress.CurrentSongID != "" {
+			c.batch.Current = progress.CurrentSongID + " · " + titles[progress.CurrentSongID]
+		}
+		// Serialized progress only appends failures within this fill.
+		for _, failure := range progress.Failures[len(c.batch.Failures):] {
+			id, _ := strconv.ParseInt(failure.SongID, 10, 64)
+			c.batch.Failures = append(c.batch.Failures, Failure{ID: id, Name: titles[failure.SongID], Error: failure.Err.Error()})
+		}
+		if scanOnly {
+			c.batch.Phase = "正在检查 MD5 文件是否齐备"
+		} else {
+			c.batch.Phase = "正在按缺失 MD5 下载补齐"
+		}
+	})
+	if result.BudgetReached {
+		c.mu.Lock()
 		c.batch.Phase = "视频存储预算不足，已停止普通补齐。"
 		if settings.RetainFavorites {
 			c.batch.Phase += "本轮可处理的收藏已继续处理。"
@@ -377,7 +219,10 @@ dispatch:
 		c.batch.Phase += "调整视频保留空间后可再次补齐。"
 		c.mu.Unlock()
 		return
-	default:
+	}
+	if err != nil {
+		fail(err.Error())
+		return
 	}
 	if ctx.Err() != nil {
 		return

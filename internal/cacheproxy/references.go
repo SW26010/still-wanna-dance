@@ -17,7 +17,7 @@ func validMD5(key string) bool {
 
 type expectedMD5Key struct{}
 
-func WithExpectedMD5(ctx context.Context, md5 string) context.Context {
+func withExpectedMD5(ctx context.Context, md5 string) context.Context {
 	return context.WithValue(ctx, expectedMD5Key{}, md5)
 }
 

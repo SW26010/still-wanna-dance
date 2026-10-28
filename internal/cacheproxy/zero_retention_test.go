@@ -108,7 +108,7 @@ func TestZeroRetentionStartupAndUnlimited(t *testing.T) {
 func TestZeroBatchBudgetRejectsNewDownloadsButAllowsProtectedReuse(t *testing.T) {
 	s := batchBudgetServer(t, Config{MaxCacheBytes: 0})
 	s.retained = map[string]retainedVideo{"protected": {size: 10}}
-	ctx := s.WithBatchBudget(context.Background())
+	ctx := s.withBatchBudget(context.Background())
 	finish, err := s.reserveBatchVideo(ctx, video{key: "protected", size: 10})
 	if err != nil {
 		t.Fatal(err)

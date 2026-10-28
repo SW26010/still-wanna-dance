@@ -260,7 +260,7 @@ func TestFavoriteBatchReservationContinuesAfterStopAndCountsSharedBytesOnce(t *t
 		t.Fatal(err)
 	}
 	setRetentionLimit(t, s, 0)
-	ctx = s.WithBatchBudget(ctx)
+	ctx = s.withBatchBudget(ctx)
 	if _, err := s.reserveBatchVideo(ctx, video{key: "ordinary", size: 1}); !errors.Is(err, ErrBatchBudget) {
 		t.Fatal(err)
 	}
@@ -294,7 +294,7 @@ func TestDisabledFavoriteRetentionUsesOrdinaryPublicationAndBatchBudget(t *testi
 	if _, err := s.reservePublication(ctx, v); !errors.Is(err, ErrNotRetained) {
 		t.Fatal("favorite bypassed ordinary publication budget", err)
 	}
-	if _, err := s.reserveBatchVideo(s.WithBatchBudget(ctx), v); !errors.Is(err, ErrBatchBudget) {
+	if _, err := s.reserveBatchVideo(s.withBatchBudget(ctx), v); !errors.Is(err, ErrBatchBudget) {
 		t.Fatal("favorite bypassed ordinary batch budget", err)
 	}
 	writeTestFile(t, cfg.videoFile(key), payload)

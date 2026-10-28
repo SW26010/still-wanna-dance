@@ -872,3 +872,19 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 - `go vet -tags=no_easytier ./cmd/... ./internal/...`、`go build -mod=readonly -tags=no_easytier ./cmd/...` 和差异检查通过。
 
 本轮未更新或重启用户运行中的 SWD，未修改用户配置、启动 VRC 或改 hosts，无新增游戏专属待验项；未提交或推送。
+
+## 2026-10-28：下载补齐集中管理
+
+下载引擎的 `NewDownloadFill(...).Run(...)` 统一管理资源排序、候选重试、预算作用域、准入后的继续派发和最终结算，Console 保留用户任务状态、清单刷新、展示与快照保存。预算仍在刷新清单前捕获初始库存；准入、单次下载返回和整个资源重试结束保持不同生命周期。补齐专用 context 辅助函数改为包内实现，既有预算、定向下载、清单候选及队列准入回归继续保留。现行 interface 与职责见 [canonical 文档](../download-resource-design.md#5-容量接入准备回补与保留取舍)。
+
+新入口的组合验证使用真实引擎与受控 HTTP：高排序资源优先尝试当前清单歌曲，准入后另一资源因预算不足停止；首个候选随后失败，仍可用保留的关联歌曲重试，最终 MD5 文件字节一致，两个关联歌曲只在完成时结算。另一用例在候选解析重试中取消，确认 `Run` 等待适配器收尾、不继续派发下个资源、不将未完成歌曲记为失败。
+
+验证均经仓库 Windows 临时目录入口，原始结果保留在忽略目录 `artifacts/download-fill-*.log`：
+
+- 修改前，Console 定向测试在沙箱内创建条款夹具时遇到已知 `renameat .terms.json.swd-tmp terms.json: The handle is invalid`，并出现库锁清理失败；缓存引擎定向通过。摘录见 `download-fill-baseline-sandbox-excerpt.log`。正常 Windows 权限下，修改前后预算、定向下载、准入与准备回归均通过，见 `download-fill-baseline.log`、`download-fill-regression.log`。
+- 新增组合测试首次因夹具在同一版本号下更新清单而被正确拒绝，见 `download-fill-seam.log`；改用递增版本号后通过，见 `download-fill-seam-fixed.log`。该失败属于测试准备，不是产品行为变更。
+- 正常 Windows 权限及既有 w64devkit/GCC 下，`go test -tags=no_easytier -race ./internal/cacheproxy ./internal/console -count=1 -timeout=240s` 两包通过（84.372／98.493 秒），无竞态报告，见 `download-fill-race.log`。覆盖既有扫描、共享候选、预算、收藏、定向下载、取消、队列独立运行与结果快照测试。
+- `go vet -tags=no_easytier ./cmd/... ./internal/...`、`go build -mod=readonly -tags=no_easytier ./cmd/...` 及差异检查通过，分别见 `download-fill-vet.log`、`download-fill-build.log`。
+- 同轮评审后，Console 按已接收失败条数仅转换、追加新增失败项，避免每次进度回调重建全部失败记录。明确同次 `Run` 的失败列表只追加；既有共享歌曲全部失败用例补充条数、唯一 ID 和错误内容断言。相关补齐、扫描、候选、定向下载及结果快照定向竞态回归通过（6.027 秒），见 `download-fill-progress-race.log`；其余未变部分复用上述整包检查。
+
+这些结果验证补齐编排及其与实际下载引擎的组合，不构成新的公网性能或 VRC 播放结论。未新增游戏专属待验项，未启动游戏或修改 hosts；本次变更按授权提交，不推送。

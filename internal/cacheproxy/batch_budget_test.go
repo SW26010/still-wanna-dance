@@ -25,7 +25,7 @@ func batchBudgetServer(t *testing.T, cfg Config) *Server {
 func TestBatchBudgetConcurrentReservations(t *testing.T) {
 	s := batchBudgetServer(t, Config{MaxCacheBytes: 20})
 	s.retained = map[string]retainedVideo{"existing": {size: 10}}
-	ctx := s.WithBatchBudget(context.Background())
+	ctx := s.withBatchBudget(context.Background())
 	var admitted atomic.Int32
 	var wg sync.WaitGroup
 	for _, key := range []string{"a", "b"} {
@@ -50,7 +50,7 @@ func TestBatchBudgetConcurrentReservations(t *testing.T) {
 func TestBatchBudgetReuseFailureAndEviction(t *testing.T) {
 	s := batchBudgetServer(t, Config{MaxCacheBytes: 20})
 	s.retained = map[string]retainedVideo{"existing": {size: 10}}
-	ctx := s.WithBatchBudget(context.Background())
+	ctx := s.withBatchBudget(context.Background())
 	reserve := func(key string, size int64, success bool) {
 		t.Helper()
 		finish, err := s.reserveBatchVideo(ctx, video{key: key, size: size})
@@ -74,7 +74,7 @@ func TestBatchBudgetUnlimitedAndOrdinaryPrefetch(t *testing.T) {
 		s := batchBudgetServer(t, Config{MaxCacheBytes: limit, CacheUnlimited: limit == 0})
 		ctx := context.Background()
 		if limit == 0 {
-			ctx = s.WithBatchBudget(ctx)
+			ctx = s.withBatchBudget(ctx)
 		}
 		finish, err := s.reserveBatchVideo(ctx, video{key: "large", size: 100})
 		if err != nil {
@@ -86,8 +86,8 @@ func TestBatchBudgetUnlimitedAndOrdinaryPrefetch(t *testing.T) {
 
 func TestBatchBudgetAdmittedSongRetryAfterStop(t *testing.T) {
 	s := batchBudgetServer(t, Config{MaxCacheBytes: 10})
-	ctx := s.WithBatchBudget(context.Background())
-	songCtx, release := WithBatchSongBudget(ctx)
+	ctx := s.withBatchBudget(context.Background())
+	songCtx, release := withBatchSongBudget(ctx)
 	finish, err := s.reserveBatchVideo(songCtx, video{key: "original", size: 10})
 	if err != nil {
 		t.Fatal(err)
@@ -106,7 +106,7 @@ func TestBatchBudgetAdmittedSongRetryAfterStop(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Another song cannot borrow the admitted song's retry exemption.
-	otherCtx, otherRelease := WithBatchSongBudget(ctx)
+	otherCtx, otherRelease := withBatchSongBudget(ctx)
 	defer otherRelease()
 	if _, err := s.reserveBatchVideo(otherCtx, video{key: "original", size: 10}); !errors.Is(err, ErrBatchBudget) {
 		t.Fatal(err)
@@ -120,8 +120,8 @@ func TestBatchBudgetAdmittedSongRetryAfterStop(t *testing.T) {
 
 func TestBatchBudgetFallbackReplacesFailedVersion(t *testing.T) {
 	s := batchBudgetServer(t, Config{MaxCacheBytes: 20})
-	ctx := s.WithBatchBudget(context.Background())
-	songCtx, release := WithBatchSongBudget(ctx)
+	ctx := s.withBatchBudget(context.Background())
+	songCtx, release := withBatchSongBudget(ctx)
 	defer release()
 	finish, err := s.reserveBatchVideo(songCtx, video{key: "cf", size: 10})
 	if err != nil {
@@ -153,12 +153,12 @@ func TestBatchBudgetFailedPrefetchReleasesReservation(t *testing.T) {
 			})
 			s.cfg.CacheUnlimited = false
 			s.cfg.MaxCacheBytes = int64(len(payload))
-			ctx := s.WithBatchBudget(context.Background())
+			ctx := s.withBatchBudget(context.Background())
 			prefetch := func(body string) (string, error) {
 				callCtx := ctx
 				if scope == "song" {
 					var release func()
-					callCtx, release = WithBatchSongBudget(ctx)
+					callCtx, release = withBatchSongBudget(ctx)
 					defer release()
 				}
 				return s.PrefetchSong(callCtx, "1344", videoURL(body))
@@ -190,8 +190,8 @@ func TestBatchBudgetCanceledPrefetchKeepsReservation(t *testing.T) {
 	})
 	s.cfg.CacheUnlimited = false
 	s.cfg.MaxCacheBytes = int64(len(payload))
-	ctx := s.WithBatchBudget(callerCtx)
-	songCtx, release := WithBatchSongBudget(ctx)
+	ctx := s.withBatchBudget(callerCtx)
+	songCtx, release := withBatchSongBudget(ctx)
 	_, err := s.PrefetchSong(songCtx, "1344", videoURL(payload))
 	release()
 	if err == nil || callerCtx.Err() != context.Canceled {

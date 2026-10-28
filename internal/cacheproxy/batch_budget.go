@@ -26,10 +26,10 @@ type batchBudget struct {
 	stopped bool
 }
 
-// WithBatchBudget accounts for retained videos and concurrent reservations.
+// withBatchBudget accounts for retained videos and concurrent reservations.
 // Keep the initial inventory and completed reservations charged for this run:
 // eviction must not turn a bounded fill into a rolling full-library download.
-func (s *Server) WithBatchBudget(ctx context.Context) context.Context {
+func (s *Server) withBatchBudget(ctx context.Context) context.Context {
 	if s.cfg.CacheUnlimited {
 		return ctx
 	}
@@ -42,9 +42,9 @@ func (s *Server) WithBatchBudget(ctx context.Context) context.Context {
 	return context.WithValue(ctx, batchBudgetKey{}, b)
 }
 
-// WithBatchSongBudget keeps reservations alive across a song's route retries.
+// withBatchSongBudget keeps reservations alive across a song's route retries.
 // Releasing the scope returns failed reservations only after all retries end.
-func WithBatchSongBudget(ctx context.Context) (context.Context, func()) {
+func withBatchSongBudget(ctx context.Context) (context.Context, func()) {
 	b, _ := ctx.Value(batchBudgetKey{}).(*batchBudget)
 	if b == nil {
 		return ctx, func() {}

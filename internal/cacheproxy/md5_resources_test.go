@@ -196,7 +196,7 @@ func TestMD5PublishedFilesTrustedAcrossRestart(t *testing.T) {
 func TestMD5ExpectedContentRejectsStaleURLBeforeDownload(t *testing.T) {
 	var downloads atomic.Int32
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1) })
-	_, err := s.PrefetchSong(WithExpectedMD5(context.Background(), strings.Repeat("a", 32)), "1", videoURL(payload))
+	_, err := s.PrefetchSong(withExpectedMD5(context.Background(), strings.Repeat("a", 32)), "1", videoURL(payload))
 	if err == nil || downloads.Load() != 0 {
 		t.Fatal(err, downloads.Load())
 	}

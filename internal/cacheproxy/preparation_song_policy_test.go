@@ -106,7 +106,7 @@ func TestPreparationRechecksBlockedSongAfterCapacityWait(t *testing.T) {
 				ctx, cancel := context.WithCancel(t.Context())
 				defer cancel()
 				if kind == "manual" {
-					ctx = s.WithBatchBudget(ctx)
+					ctx = s.withBatchBudget(ctx)
 				}
 				ctx, admitted := WithPreparationAdmission(ctx)
 				result := make(chan error, 1)

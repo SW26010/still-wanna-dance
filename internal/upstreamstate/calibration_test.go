@@ -13,6 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"still-wanna-dance/internal/upstreamrequest"
@@ -106,61 +107,65 @@ func calibrationRange(r *http.Request, body io.ReadCloser) *http.Response {
 }
 
 func TestCalibrationHoldsSingleThenUsesNaturalGrowthAndCancels(t *testing.T) {
-	var mu sync.Mutex
-	var starts []time.Time
-	var active atomic.Int32
-	allStarted := make(chan struct{})
-	c := calibrationForTest(t, calibrationTransport(func(r *http.Request) (*http.Response, error) {
-		active.Add(1)
+	// Keep the admission cadence deterministic: host scheduling can delay one
+	// transport callback and compress the observed gap to the next callback.
+	synctest.Test(t, func(t *testing.T) {
+		var mu sync.Mutex
+		var starts []time.Time
+		var active atomic.Int32
+		allStarted := make(chan struct{})
+		c := calibrationForTest(t, calibrationTransport(func(r *http.Request) (*http.Response, error) {
+			active.Add(1)
+			mu.Lock()
+			starts = append(starts, time.Now())
+			if len(starts) == 16 {
+				close(allStarted)
+			}
+			mu.Unlock()
+			return calibrationRange(r, &calibrationBlockedBody{ctx: r.Context(), close: func() { active.Add(-1) }}), nil
+		}))
+		c.limits.warmup, c.limits.window, c.limits.interval = 100*time.Millisecond, time.Second, 20*time.Millisecond
+		initial, changed := c.Snapshot()
+		if initial.Running || initial.Phase != "idle" || active.Load() != 0 {
+			t.Fatal("subscription started work")
+		}
+		if err := c.Start(); err != nil {
+			t.Fatal(err)
+		}
+		<-changed
+		if err := c.Start(); err != nil {
+			t.Fatal(err)
+		}
+		select {
+		case <-allStarted:
+		case <-time.After(7 * time.Second):
+			t.Fatal("ordinary prefetch window did not fill")
+		}
+		// The diagnostic releases the ceiling; the original scheduler still grows.
+		time.Sleep(300 * time.Millisecond)
+		s, _ := c.Snapshot()
+		if s.Run != 1 || s.PeakActive != 16 || s.PeakOpen != 16 {
+			t.Fatalf("changed natural window: %+v", s)
+		}
+		c.Cancel()
+		s = awaitCalibration(t, c, func(s CalibrationStatus) bool { return !s.Running })
+		if s.Phase != "canceled" || s.Failures != 0 || active.Load() != 0 {
+			t.Fatalf("cancellation did not drain: %+v active=%d", s, active.Load())
+		}
 		mu.Lock()
-		starts = append(starts, time.Now())
-		if len(starts) == 16 {
-			close(allStarted)
+		defer mu.Unlock()
+		if len(starts) != 16 {
+			t.Fatalf("requests = %d", len(starts))
 		}
-		mu.Unlock()
-		return calibrationRange(r, &calibrationBlockedBody{ctx: r.Context(), close: func() { active.Add(-1) }}), nil
-	}))
-	c.limits.warmup, c.limits.window, c.limits.interval = 100*time.Millisecond, time.Second, 20*time.Millisecond
-	initial, changed := c.Snapshot()
-	if initial.Running || initial.Phase != "idle" || active.Load() != 0 {
-		t.Fatal("subscription started work")
-	}
-	if err := c.Start(); err != nil {
-		t.Fatal(err)
-	}
-	<-changed
-	if err := c.Start(); err != nil {
-		t.Fatal(err)
-	}
-	select {
-	case <-allStarted:
-	case <-time.After(7 * time.Second):
-		t.Fatal("ordinary prefetch window did not fill")
-	}
-	// The diagnostic releases the ceiling; the original scheduler still grows.
-	time.Sleep(300 * time.Millisecond)
-	s, _ := c.Snapshot()
-	if s.Run != 1 || s.PeakActive != 16 || s.PeakOpen != 16 {
-		t.Fatalf("changed natural window: %+v", s)
-	}
-	c.Cancel()
-	s = awaitCalibration(t, c, func(s CalibrationStatus) bool { return !s.Running })
-	if s.Phase != "canceled" || s.Failures != 0 || active.Load() != 0 {
-		t.Fatalf("cancellation did not drain: %+v active=%d", s, active.Load())
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	if len(starts) != 16 {
-		t.Fatalf("requests = %d", len(starts))
-	}
-	if starts[1].Sub(starts[0]) < time.Second {
-		t.Fatal("released before single sampling finished")
-	}
-	for i := 1; i < len(starts); i++ {
-		if gap := starts[i].Sub(starts[i-1]); gap < 200*time.Millisecond {
-			t.Fatalf("request %d bypassed pacing: %s", i, gap)
+		if starts[1].Sub(starts[0]) < time.Second {
+			t.Fatal("released before single sampling finished")
 		}
-	}
+		for i := 1; i < len(starts); i++ {
+			if gap := starts[i].Sub(starts[i-1]); gap < 200*time.Millisecond {
+				t.Fatalf("request %d bypassed pacing: %s", i, gap)
+			}
+		}
+	})
 }
 
 func TestCalibrationDiscardsVideoOnceAndSnapshots(t *testing.T) {

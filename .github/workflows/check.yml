@@ -12,6 +12,7 @@ jobs:
       # Validate the setup-go version; never silently download a newer toolchain.
       GOTOOLCHAIN: local
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}

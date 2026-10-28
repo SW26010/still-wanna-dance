@@ -752,6 +752,13 @@
       "bytes": 1195122,
       "sha256": "6890498f7f699d022624cb9a2085bbddb0114b61e11162b8660716923d9404e0",
       "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Preserve keyboard focus and browser history when switching settings and about route tabs."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1195220,
+      "sha256": "8843990c5da074122f33a75ed5c8ff3530681f3be8a076ae9d7f648a1bcfc460",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Constrain record details to the viewport with standard Fluent positioning, available-height sizing, and target-covering shifts."
     }
   ]
 }

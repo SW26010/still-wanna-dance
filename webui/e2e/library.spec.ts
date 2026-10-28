@@ -95,6 +95,24 @@ test('blocked or unknown songs do not prepare; preparation errors stay in previe
 });
 
 const key='a'.repeat(32), missing='b'.repeat(32);
+
+for(const width of [320,390])test(`long record details remain inside the viewport at ${width}px`,async({page},info)=>{
+  const {songs}=await libraryFixture(page),template=songs[0];
+  songs.splice(0,songs.length,...Array.from({length:50},(_,i)=>({...template,id:String(i+1),title:i===1?'长名称测试'.repeat(12):`交互测试歌曲 ${i+1}`,artist:i===1?'多人合作歌手'.repeat(12):'测试歌手'})));
+  await page.setViewportSize({width,height:800});await page.goto('/#/library');
+  const trigger=page.getByRole('button',{name:'歌曲 2 的详情',exact:true});
+  await trigger.evaluate(el=>el.scrollIntoView({block:'center',inline:'end'}));
+  await trigger.click();
+  const detail=page.getByRole('group',{name:'歌曲 2 的详情',exact:true});
+  await expect(detail).toBeVisible();
+  await expect(detail.getByRole('link')).toBeFocused();
+  await expect.poll(async()=>{const box=(await detail.boundingBox())!;return box.x>=0&&box.x+box.width<=width&&box.y>=0&&box.y+box.height<=800;}).toBe(true);
+  await expect(detail.getByRole('heading')).toBeInViewport();
+  await expect(detail.getByRole('link')).toBeInViewport({ratio:1});
+  await page.screenshot({path:info.outputPath('long-details.png'),animations:'disabled'});
+  await page.keyboard.press('Escape');await expect(detail).toBeHidden();await expect(trigger).toBeFocused();
+});
+
 async function libraryFixture(page:Page,videoError?:string) {
   const api=await mockAPI(page),queries:URLSearchParams[]=[];
   const local={...api.files[0],key,songs:[{id:'1',title:'共同视频一'},{id:'2',title:'共同视频二'}],songCount:2};

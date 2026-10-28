@@ -44,7 +44,7 @@ export function Hint({children,label='说明'}:PropsWithChildren<{label?:string}
 }
 export function RecordDetails({title,children}:PropsWithChildren<{title:string}>) {
   const [open,setOpen]=useState(false);
-  return <Popover open={open} onOpenChange={(_,data)=>setOpen(data.open)}><PopoverTrigger disableButtonEnhancement><Button size="small" appearance="subtle" aria-label={title}>详情</Button></PopoverTrigger><PopoverSurface aria-label={title} onClick={event=>{if((event.target as HTMLElement).closest('a[href]'))setOpen(false);}}><Subtitle2 as="h3">{title}</Subtitle2>{children}</PopoverSurface></Popover>;
+  return <Popover open={open} onOpenChange={(_,data)=>setOpen(data.open)} positioning={{strategy:'fixed',autoSize:'height',shiftToCoverTarget:true,overflowBoundaryPadding:16}}><PopoverTrigger disableButtonEnhancement><Button size="small" appearance="subtle" aria-label={title}>详情</Button></PopoverTrigger><PopoverSurface aria-label={title} onClick={event=>{if((event.target as HTMLElement).closest('a[href]'))setOpen(false);}}><Subtitle2 as="h3">{title}</Subtitle2>{children}</PopoverSurface></Popover>;
 }
 const statusIcons={success:CheckmarkCircleRegular,danger:DismissCircleRegular,warning:WarningRegular,brand:ClockRegular,informative:SubtractCircleRegular};
 export function StatusBadge({label,color,children,description}:PropsWithChildren<{label?:string;color:keyof typeof statusIcons;description?:string}>) {

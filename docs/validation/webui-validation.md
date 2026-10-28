@@ -1094,3 +1094,20 @@ ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter�
 过程失败保留：第一次只跳过 App 聚焦仍受到浏览器原生 hash 聚焦影响，焦点套件 25 通过、3 失败；改为保留历史且不触发原生锚点跳转后 28 项通过。证据位于忽略目录 `artifacts/webui-interaction-fix/` 的 `focus.log`、`focus-fixed.log` 及对应目录。窄屏详情裁切属于下一项独立修复，本提交不宣称其已解决。
 
 拆分提交时重新构建仅含标签焦点修复的前端，类型检查通过；`app.js` 为 1,195,122 字节，SHA256 `6890498f7f699d022624cb9a2085bbddb0114b61e11162b8660716923d9404e0`，按此产物登记构建清单与精确例外。
+
+## 2026-10-28 窄屏详情修复与联合回归
+
+在前述标签焦点修复基础上，修复巡检发现的窄屏详情裁切。以下记录两项修复完成后的联合验证，复用拆分提交前的已有结果。
+
+共用 `RecordDetails` 使用 Fluent 的 fixed 定位、可用高度限制和 `shiftToCoverTarget` 视口避让，保留自动聚焦、内部滚动、链接跳转及 Escape 关闭／恢复焦点。空间不足时允许浮层移动覆盖触发器，避免把能够容纳的内容过早截成滚动区；未新增逐页样式或关闭标准聚焦。
+
+验证结果：
+
+- 两项修复共新增 6 项回归，覆盖设置／关于在 320／1280px 下连续方向键、Enter／Space、前进后退与刷新，以及 320／390px 长名称、歌手资料、完整可见的聚焦资源链接和 Escape 恢复焦点。原始版本为 **5 失败、1 通过**；最终全部通过。
+- 最终 Edge 相关套件 **129/129 通过**：`settings-structure`、`document-navigation`、`navigation-stability`、`settings-help`、`sidebar`、`library`、`data-tables`、`request-timeline`、`monitor-details`、`components`、`recovery`、`hosts-notice`、`ui-layout`。覆盖草稿保持、独立保存、显式锚点、慢状态读取、共用详情入口及窄屏布局；不是全量套件重跑。命令使用 `scripts/with-test-temp.ps1` 和独立 headless Edge，不控制用户 Chrome。
+- Codex **内置浏览器**连接当前工作区构建的隔离真实 Console／SQLite，沿用巡检时的合成数据与回环上游。设置／关于连续键盘切换后焦点保持在选中标签；帮助的存储链接仍聚焦 `storage-settings`，后退／前进／刷新保留分类。最终 320×800 长详情为 `top=16`、`bottom=480`、`height=464`，资源链接完整处于浮层内，`scrollHeight=clientHeight=462`；390／1280px 同样完整可见。Escape 恢复到原详情按钮，资源链接关闭浮层并切换到精确资源视图；工具捕获的 error／warn 为空。
+- 前端 `build`、`check` 与 `git diff --check` 通过，Go 测试入口重新编译当前内嵌前端。最终 `app.js` 为 1,195,220 字节，SHA256 `8843990c5da074122f33a75ed5c8ff3530681f3be8a076ae9d7f648a1bcfc460`，与构建清单及新增精确例外一致；既有历史例外保留。
+
+过程失败保留：浮层首次 fixed／autoSize 修复通过原有位置断言，但内置浏览器发现长资料的自动聚焦链接位于内部滚动区外；补充更长资料并要求链接完整可见后，320px 用例失败、390px 通过，加入组件原生避让选项后通过。没有删除历史失败或将部分可见当成完整可用。
+
+证据位于忽略目录 `artifacts/webui-interaction-fix/`：`before.log`、`focus.log`、`focused-link-fully-before.log` 及对应目录保留失败；`browser-verified.log`／`browser-verified/` 为最终 129 项结果，`live/` 保存中间检查，`live-final/observations.json`、`details-320.jpg`、`details-390.jpg`、`details-1280.jpg` 和 `service.log` 保存真实服务复核。检查后关闭隔离服务并恢复内置浏览器视口；本轮未启动 VRC、修改系统 hosts、用户库或运行中 EXE，不新增 VRC 台账项。验证结束时尚未提交或推送。

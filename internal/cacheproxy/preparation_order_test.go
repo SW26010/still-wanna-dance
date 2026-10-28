@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -126,8 +127,8 @@ func TestAggregatePreparationOrderUsesOnlyLiveEarlySources(t *testing.T) {
 	}
 }
 
-// Real HTTP Range responses and the normal hash/publication path. Bodies are
-// released one at a time so startup timing cannot hide scattered admissions.
+// Real HTTP Range responses and the normal hash/publication path. Observe
+// scheduler admissions directly: concurrent HTTP arrivals can be reordered.
 func TestManualPreparationConcentratesRangesAndPublishesFirstResource(t *testing.T) {
 	const blockSize, blocks = 4096, 8
 	bodies := []string{strings.Repeat("a", blockSize*blocks), strings.Repeat("b", blockSize*blocks), strings.Repeat("c", blockSize*blocks)}
@@ -140,7 +141,10 @@ func TestManualPreparationConcentratesRangesAndPublishesFirstResource(t *testing
 		release chan struct{}
 	}
 	requests := make(chan pending, 32)
+	started := make(chan string, blocks*len(bodies))
 	finish := make(chan struct{})
+	laterRequest := make(chan struct{})
+	noteLaterRequest := sync.OnceFunc(func() { close(laterRequest) })
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
 		key := r.URL.Query().Get("e")
 		body, ok := byKey[key]
@@ -154,12 +158,24 @@ func TestManualPreparationConcentratesRangesAndPublishesFirstResource(t *testing
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		// An admitted last block may reach HTTP after a later resource uses
+		// the other free slot. Force that valid arrival order every time.
+		if key == videoKey(bodies[0]) && first == blockSize*(blocks-1) {
+			select {
+			case <-laterRequest:
+			case <-r.Context().Done():
+				return
+			}
+		}
 		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", first, last, len(body)))
 		w.Header().Set("Content-Length", fmt.Sprint(last-first+1))
 		w.WriteHeader(http.StatusPartialContent)
 		w.(http.Flusher).Flush()
 		p := pending{key, make(chan struct{})}
 		requests <- p
+		if key != videoKey(bodies[0]) {
+			noteLaterRequest()
+		}
 		select {
 		case <-p.release:
 		case <-finish:
@@ -169,6 +185,11 @@ func TestManualPreparationConcentratesRangesAndPublishesFirstResource(t *testing
 		_, _ = w.Write([]byte(body[first : last+1]))
 	}, func(cfg *Config) {
 		cfg.BlockSize, cfg.DownloadSoftLimit, cfg.DownloadGrowInterval = blockSize, 2, 0
+		cfg.ObserveBlockSchedule = func(e blocksched.Event) {
+			if e.Kind == "started" {
+				started <- e.Key
+			}
+		}
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -191,6 +212,22 @@ func TestManualPreparationConcentratesRangesAndPublishesFirstResource(t *testing
 		return pending{}
 	}
 	first := next()
+	wake := make(chan struct{}, 1)
+	stop := s.scheduler.WatchChanges(wake)
+	defer stop()
+	waitTasks := func(count int) {
+		t.Helper()
+		for len(s.scheduler.Observation().Tasks) < count {
+			select {
+			case <-wake:
+			case <-ctx.Done():
+				t.Fatal("preparations did not all register", ctx.Err())
+			}
+		}
+	}
+	// Before initialization only one block is schedulable. Wait for the
+	// complete first-resource plan so later sources cannot fill that gap.
+	waitTasks(blocks)
 	for i := 1; i < len(bodies); i++ {
 		operation, admitted := WithPreparationAdmission(ctx)
 		go func() { _, err := s.Prefetch(operation, videoURL(bodies[i])); done <- result{i, err} }()
@@ -200,23 +237,24 @@ func TestManualPreparationConcentratesRangesAndPublishesFirstResource(t *testing
 			t.Fatal(ctx.Err())
 		}
 	}
-	wake := make(chan struct{}, 1)
-	stop := s.scheduler.WatchChanges(wake)
-	defer stop()
-	for len(s.scheduler.Observation().Tasks) < blocks+2 {
-		select {
-		case <-wake:
-		case <-ctx.Done():
-			t.Fatal("preparations did not all register", ctx.Err())
-		}
-	}
+	waitTasks(blocks + len(bodies) - 1)
 	for i := range blocks {
+		select {
+		case key := <-started:
+			if want := downloadTaskKey(videoKey(bodies[0]), int64(len(bodies[0])), int64(i)); key != want {
+				t.Fatalf("scattered admissions after %d/%d first-resource blocks: got %s, want %s", i, blocks, key, want)
+			}
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		}
 		p := first
 		if i > 0 {
 			p = next()
 		}
-		if p.key != videoKey(bodies[0]) {
-			t.Fatalf("scattered ranges after %d/%d first-resource blocks: %s", i, blocks, p.key)
+		for p.key != videoKey(bodies[0]) {
+			// Later HTTP arrivals may overtake an already admitted first-resource
+			// block. Hold their bodies until the first publication is verified.
+			p = next()
 		}
 		close(p.release)
 	}

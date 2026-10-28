@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {mockAPI, choosePath} from './api';
 import { navigate } from './navigation';
+import {saveSettings} from './settings-actions';
 
 const description = '最多为下载完成的视频保留多少空间。1 GiB 约为 1.07 GB。';
 
@@ -25,8 +26,7 @@ test('settings keep the video directory editable without losing its saved or dra
   await expect(path).toBeEnabled();
   await expect(path).toHaveValue(draftPath);
   await page.getByRole('radio', {name:'不保留', exact:true}).check();
-  await page.getByRole('button', {name:'保存设置', exact:true}).click();
-  await expect(page.getByRole('button', {name:'保存设置', exact:true})).toBeDisabled();
+  await saveSettings(page,'待重启');
   await expect.poll(()=>api.calls.find(c=>c.path==='settings')?.body).toMatchObject({videoDir:draftPath,videoStorageMode:'none'});
   await page.reload();
   await expect(path).toBeEnabled();
@@ -75,8 +75,7 @@ test('settings preserve all three storage choices and the entered budget across 
   await navigate(page,'曲库');await page.getByRole('link',{name:'视频存储预算',exact:true}).click();
   await expect(limited).toBeChecked();
   await expect(input).toHaveValue('12.5');
-  await page.getByRole('button', {name:'保存设置', exact:true}).click();
-  await expect(page.getByRole('button', {name:'保存设置', exact:true})).toBeDisabled();
+  await saveSettings(page,'待重启');
   expect(api.state.settings).toMatchObject({videoStorageMode:'limited',maxCacheBytes:12.5*1073741824});
   await page.reload();
   await expect(limited).toBeChecked();
@@ -86,8 +85,7 @@ test('settings preserve all three storage choices and the entered budget across 
   await expect(limited).toBeChecked();
   await expect(input).toHaveValue('12.5');
   await unlimited.check();
-  await page.getByRole('button', {name:'保存设置', exact:true}).click();
-  await expect(page.getByRole('button', {name:'保存设置', exact:true})).toBeDisabled();
+  await saveSettings(page,'待重启');
   expect(api.state.settings).toMatchObject({videoStorageMode:'unlimited',maxCacheBytes:12.5*1073741824});
   await page.reload();
   await expect(unlimited).toBeChecked();
@@ -148,7 +146,6 @@ test('settings reject invalid budgets and inactive choices recover from an inval
   await limited.check();
   await input.fill('-1');
   await page.getByRole('radio',{name:'不保留',exact:true}).check();
-  await page.getByRole('button',{name:'保存设置',exact:true}).click();
-  await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
+  await saveSettings(page,'待重启');
   expect(api.state.settings).toMatchObject({videoStorageMode:'none',maxCacheBytes:0});
 });

@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
+import {saveSettings} from './settings-actions';
 
 test('favorite retention is a saved storage preference and does not start downloads',async({page})=>{
   const api=await mockAPI(page);
@@ -11,8 +12,7 @@ test('favorite retention is a saved storage preference and does not start downlo
   await page.getByRole('button',{name:'放弃更改',exact:true}).click();
   await expect(option).toBeChecked();
   await option.uncheck();
-  await page.getByRole('button',{name:'保存设置',exact:true}).click();
-  await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
+  await saveSettings(page,'待重启');
   expect(api.calls.find(c=>c.path==='settings')?.body.retainFavorites).toBe(false);
   expect(api.state.activeSettings.retainFavorites).toBe(true);
   await page.reload();

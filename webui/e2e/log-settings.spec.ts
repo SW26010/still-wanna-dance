@@ -1,6 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 import {navigateSettings} from './navigation';
+import {saveSettings} from './settings-actions';
 
 test('log level drafts, save and reload keep the active level until restart',async({page},testInfo)=>{
   const api=await mockAPI(page);
@@ -24,7 +25,7 @@ test('log level drafts, save and reload keep the active level until restart',asy
   await page.reload();await expect(level).toHaveValue('off');
   await navigateSettings(page,'预加载与下载');
   await page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true}).fill('600');
-  await save.click();await expect(save).toBeDisabled();
+  await saveSettings(page,'待重启');
   expect(api.state.settings.logLevel).toBe('off');
   await navigateSettings(page,'常规');
   await page.setViewportSize({width:390,height:844});

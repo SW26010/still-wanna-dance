@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
+import {saveSettings} from './settings-actions';
 
 test('startup settings have one owner and saving does not trigger acceleration or queue actions',async({page})=>{
  const api=await mockAPI(page);
@@ -9,8 +10,7 @@ test('startup settings have one owner and saving does not trigger acceleration o
  await expect(page.getByRole('checkbox',{name:'随视频网关启用队列预加载',exact:true})).toHaveCount(0);
  await auto.check();
  expect(api.state.settings.autoAccelerate).toBe(false);
- await page.getByRole('button',{name:'保存设置',exact:true}).click();
- await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
+ await saveSettings(page,'待重启');
  expect(api.state.settings.autoAccelerate).toBe(true);
  expect(api.state.activeSettings.autoAccelerate).toBe(false);
  await page.goto('/#prepareAheadSeconds');
@@ -21,8 +21,7 @@ test('startup settings have one owner and saving does not trigger acceleration o
  await page.getByRole('button',{name:'放弃更改',exact:true}).click();
  await expect(follow).toBeChecked();
  await follow.uncheck();
- await page.getByRole('button',{name:'保存设置',exact:true}).click();
- await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
+ await saveSettings(page,'待重启');
  await page.reload();
  await expect(follow).not.toBeChecked();
  expect(api.state.activeSettings.queueWithGateway).toBe(true);

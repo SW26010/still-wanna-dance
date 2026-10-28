@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { mockAPI } from './api';
+import {saveSettings} from './settings-actions';
 
 test('request retention has explicit modes, remembers days, and applies after restart', async ({page}, info) => {
   const api = await mockAPI(page);
@@ -9,7 +10,6 @@ test('request retention has explicit modes, remembers days, and applies after re
   const limited = group.getByRole('radio', {name:'保留指定天数',exact:true});
   const unlimited = group.getByRole('radio', {name:'永久保留',exact:true});
   const days = page.getByRole('spinbutton', {name:'请求明细保留天数',exact:true});
-  const save = page.getByRole('button', {name:'保存设置',exact:true});
   await expect(group.getByRole('radio')).toHaveCount(3);
   await expect(unlimited).toBeChecked();
   await expect(days).toBeDisabled();
@@ -24,22 +24,19 @@ test('request retention has explicit modes, remembers days, and applies after re
   await expect(days).toHaveValue('');
   await limited.check();
   await expect(days).toHaveValue('90');
-  await save.click();
-  await expect(save).toBeDisabled();
+  await saveSettings(page,'待重启');
   expect(api.state.settings).toMatchObject({requestRetentionMode:'limited',requestRetentionDays:90});
   expect(api.state.activeSettings).toMatchObject({requestRetentionMode:'unlimited',requestRetentionDays:0});
   await page.reload();
   await expect(limited).toBeChecked();
   await expect(days).toHaveValue('90');
   await unlimited.check();
-  await save.click();
-  await expect(save).toBeDisabled();
+  await saveSettings(page,'待重启');
   expect(api.state.settings).toMatchObject({requestRetentionMode:'unlimited',requestRetentionDays:90});
   await page.reload();
   await expect(unlimited).toBeChecked();
   await none.check();
-  await save.click();
-  await expect(save).toBeDisabled();
+  await saveSettings(page,'待重启');
   expect(api.state.settings.requestRetentionMode).toBe('none');
   await page.reload();
   await expect(none).toBeChecked();
@@ -74,7 +71,6 @@ test('limited request retention requires positive whole days and can recover to 
   await expect(page.getByRole('button', {name:'保存设置',exact:true})).toBeDisabled();
   await group.getByRole('radio', {name:'保留指定天数',exact:true}).check();
   await days.fill('36500');
-  await page.getByRole('button', {name:'保存设置',exact:true}).click();
-  await expect(page.getByRole('button', {name:'保存设置',exact:true})).toBeDisabled();
+  await saveSettings(page,'待重启');
   expect(api.state.settings).toMatchObject({requestRetentionMode:'limited',requestRetentionDays:36500});
 });

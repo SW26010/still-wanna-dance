@@ -112,6 +112,14 @@ func run() (runErr error) {
 	}
 	defer configLease.Close()
 	level, configErr := console.ReadLogLevel(p)
+	// Reclaim disposable blocks before any log/configuration failure can abort
+	// startup. Cleanup respects the configured level before opening file logs.
+	// Retain the work lease until all consumers have stopped.
+	work, err := cacheproxy.OpenWorkDirectory(apppaths.WorkForConfig(exe, p), applog.New(os.Stderr, level))
+	if err != nil {
+		return err
+	}
+	defer func() { runErr = errors.Join(runErr, work.Close()) }()
 	logPath := apppaths.ForConfig(p).Log
 	var writer *applog.Writer
 	if level != applog.Off {
@@ -154,11 +162,6 @@ func run() (runErr error) {
 	if configErr != nil {
 		return configErr
 	}
-	work, err := cacheproxy.OpenWorkDirectory(apppaths.WorkForConfig(exe, p), nil)
-	if err != nil {
-		return err
-	}
-	defer func() { runErr = errors.Join(runErr, work.Close()) }()
 	if err := configLease.CleanWorkFiles(); err != nil {
 		return err
 	}

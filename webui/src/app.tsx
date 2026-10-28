@@ -26,6 +26,12 @@ export function App() {
   const [page, setPage] = useState<Page>(() => route(location.hash&&location.hash!=='#main'?location.hash:'#'+location.pathname));
   const documentPage=isDocumentPage(page);
   const model = useConsole(accepted, page), main = useRef<HTMLElement>(null), initial = useRef(true);
+  const tabAnchor=useRef<string|null>(null);
+  const selectTab=(next:string)=>{
+    if(location.hash==='#'+next)return;
+    // Keep browser history without native fragment navigation moving tab focus.
+    history.pushState(null,'','#'+next);tabAnchor.current=next;setAnchor(next);
+  };
   useEffect(() => {
     const originalHash=location.hash;
     if(isDocumentPage(location.pathname.slice(1)))history.replaceState(null,'','/'+location.search+(originalHash&&originalHash!=='#main'?originalHash:'#/'+location.pathname.slice(1)));
@@ -43,6 +49,8 @@ export function App() {
   },[accepted]);
   useLayoutEffect(() => {
     document.title = pages[page]+' · Still Wanna Dance';
+    // Tab activation updates the URL while Fluent keeps focus in the tab list.
+    if(tabAnchor.current===anchor)return;
     if (!initial.current) main.current?.focus({preventScroll:true});
     initial.current = false;
     if (!Object.hasOwn(anchors,anchor)) window.scrollTo({top:0,left:0,behavior:'instant'});
@@ -52,6 +60,8 @@ export function App() {
   // Reconcile every snapshot, even if a delayed save changed only local appearance.
   useEffect(()=>{if(s)setPreference(s.activeSettings.theme);},[s,setPreference]);
   useLayoutEffect(()=>{
+    const fromTab=tabAnchor.current===anchor;tabAnchor.current=null;
+    if(fromTab)return;
     if((s || documentPage) && Object.hasOwn(anchors,anchor)){
       const target=document.getElementById(anchor==='downloads'||anchor==='queue'?'block-demands':anchor);target?.focus();target?.scrollIntoView();
     }
@@ -70,9 +80,9 @@ export function App() {
     <NavigationLayout items={pageLinks()} selected={page}>
     <main ref={main} id="main" tabIndex={-1}><div className="page-heading"><Title2 as="h1">{pages[page]}</Title2></div>
       {feedback}
-      {s && <VRCXProvider target={s.activeSettings.databasePath} page={page}><div hidden={page !== 'home'}><Home visible={page==='home'}/></div><div hidden={page !== 'timeline'}><RequestTimeline visible={page==='timeline'}/></div><div hidden={page!=='library'}><Library visible={page==='library'} anchor={anchor}/></div><SettingsAndNetwork settingsVisible={page==='settings'} networkVisible={page==='network'} anchor={anchor}/>
+      {s && <VRCXProvider target={s.activeSettings.databasePath} page={page}><div hidden={page !== 'home'}><Home visible={page==='home'}/></div><div hidden={page !== 'timeline'}><RequestTimeline visible={page==='timeline'}/></div><div hidden={page!=='library'}><Library visible={page==='library'} anchor={anchor}/></div><SettingsAndNetwork settingsVisible={page==='settings'} networkVisible={page==='network'} anchor={anchor} onTabSelect={selectTab}/>
       </VRCXProvider>}
-      {page==='about'&&<AboutPage anchor={anchor} paths={s?{...bootstrap.paths,Database:s.activeSettings.databasePath,Videos:s.activeSettings.videoDir}:bootstrap.paths||{}}/>}
+      {page==='about'&&<AboutPage anchor={anchor} onTabSelect={selectTab} paths={s?{...bootstrap.paths,Database:s.activeSettings.databasePath,Videos:s.activeSettings.videoDir}:bootstrap.paths||{}}/>}
       </main>
     <DocumentFooter page={page==='about'&&anchor.includes('help')?'help':page}/>
     </NavigationLayout>{model.dialog}{!accepted&&<TermsConsent onAccepted={()=>setAccepted(true)}/> }

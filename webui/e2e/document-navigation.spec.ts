@@ -14,7 +14,8 @@ for(const width of [390,1280])test(`all navigation stays in one document and pre
   for(const name of ['加速','历史','曲库','网络','帮助','关于','使用条款','设置']){
     await navigate(page,name);
     await expect(page.getByText('正在读取程序状态…',{exact:true})).not.toBeVisible();
-    if(width>640)await expect(page.locator('#main')).toBeFocused();
+    if(name==='帮助'||name==='使用条款')await expect(page.getByRole('tab',{name:name==='帮助'?'使用帮助':'用户协议',exact:true})).toBeFocused();
+    else if(width>640)await expect(page.locator('#main')).toBeFocused();
     expect(await page.evaluate(()=>performance.timeOrigin)).toBe(originalDocument);
   }
   await navigateSettings(page,'预加载与下载');await expect(draft).toHaveValue('777');
@@ -143,7 +144,7 @@ for(const width of [390,1280])test(`ordinary navigation resets scrolling; explic
   await page.goto('/#prepareAheadSeconds');
   await page.getByRole('spinbutton',{name:/提前准备时间/}).fill('777');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeInViewport();
-  for(const name of ['帮助','关于','加速']){
+  for(const name of ['关于','加速']){
     await navigate(page,name);
     await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(0);
     await page.evaluate(()=>scrollTo(0,document.body.scrollHeight));

@@ -1,6 +1,26 @@
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 
+for(const width of [320,1280])for(const section of ['settings','about'] as const)test(`route tabs retain keyboard focus in ${section} at ${width}px`,async({page})=>{
+  await mockAPI(page);await page.setViewportSize({width,height:800});await page.goto('/#/'+section);
+  const list=page.getByRole('tablist',{name:section==='settings'?'设置分类':'关于内容'});
+  const names=section==='settings'?['常规','存储','预加载与下载','网络']:['介绍','使用帮助','用户协议','许可证与声明'];
+  await list.getByRole('tab',{name:names[0],exact:true}).focus();
+  for(let i=1;i<=names.length;i++){
+    await page.keyboard.press('ArrowRight');
+    const tab=list.getByRole('tab',{name:names[i%names.length],exact:true});
+    await expect(tab).toBeFocused();
+    await page.keyboard.press(i%2?'Enter':'Space');
+    await expect(tab).toHaveAttribute('aria-selected','true');
+    // Include deferred anchor focus after the selected panel has rendered.
+    await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+    await expect(tab).toBeFocused();
+  }
+  await page.goBack();await expect(list.getByRole('tab',{name:names.at(-1),exact:true})).toHaveAttribute('aria-selected','true');
+  await page.goForward();await expect(list.getByRole('tab',{name:names[0],exact:true})).toHaveAttribute('aria-selected','true');
+  await page.reload();await expect(list.getByRole('tab',{name:names[0],exact:true})).toHaveAttribute('aria-selected','true');
+});
+
 test('six primary pages and section links reach their current owners',async({page})=>{
   await mockAPI(page);await page.goto('/#/settings');
   await expect(page.getByRole('navigation',{name:'页面导航'}).getByRole('link')).toHaveText(['加速','历史','曲库','网络','设置','关于']);

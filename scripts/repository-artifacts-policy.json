@@ -745,6 +745,13 @@
       "bytes": 1195347,
       "sha256": "c2dcba063b6761dbd3d332e6f955925b5781a3c984a9ab52aa4072e0666e62f9",
       "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Use the standard transparent ToggleButton appearance so blocking a song does not add a button background."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1195122,
+      "sha256": "6890498f7f699d022624cb9a2085bbddb0114b61e11162b8660716923d9404e0",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Preserve keyboard focus and browser history when switching settings and about route tabs."
     }
   ]
 }

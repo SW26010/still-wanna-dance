@@ -1038,3 +1038,30 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 最终 Edge 完整套件 `pnpm --dir webui test --workers=3`：**311/311 通过**，包含新增的 8 项回归。本轮没有修改 Go 源码；Go 全套沿用上一节结果，额外启用了上述真实 Console 专项。`git diff --check` 通过。
 
 证据保存在忽略目录 `artifacts/library-review-20261028/`：`browser-before.log` 和 `browser-before/` 保留 **7 失败、1 通过**的原始复现；`download-verified.log`、`retry-verified.log` 记录专项通过；`browser-final.log` 和 `browser-final/` 记录最终完整套件；`song-before.log` 保留旧文案失败，`song-verified.log`、`song-final.log` 及对应子目录记录真实服务通过；`historical-artifacts.json` 记录三个历史产物的核验值，`repository-artifacts-final.json` 为提交后的完整历史产物检查输出。未启动游戏、修改 hosts 或替换正在运行的 EXE，本轮不新增 VRC 台账项。
+
+## 2026-10-28 曲库列与图标操作
+
+按用户要求将歌曲表前四列拆为 ID、名称、歌手、舞者/社团，需求分数显示名改为“热度”。偏好复用既有三态存储，通过受控 Fluent ToggleButton 提供红心收藏与屏蔽按钮：互斥选择，再次点击取消，都不选为普通。预览与下载使用 small subtle 图标按钮，保留 Tooltip、无障碍名称、禁用规则和预览焦点恢复；选中态、尺寸和键盘行为使用组件默认实现，依据 [Fluent Button 指南](https://fluent2.microsoft.design/components/web/react/core/button/usage)。颜色只在普通主题覆盖图标，forced-colors 使用组件默认系统色。完整人员资料仍可在详情中查看，长文本受限，窄屏表格独立横向滚动。
+
+- 前端 `build`、`check` 通过，内嵌资源已重建，最终 `app.js` 的字节数与 SHA256 匹配构建清单并登记精确例外；历史资源检查无错误，保留原有体积提醒；`git diff --check` 通过。
+- Edge 定向套件 `library.spec.ts data-tables.spec.ts page-feedback.spec.ts --workers=3`：**61/61 通过**。覆盖既有预览／下载与查询排序、偏好双向切换及分别取消、失败保留旧状态、Enter／Space 和焦点、离页反馈、受保护文件与视频盘不可用。不是完整浏览器套件重跑。
+- 已检查 1280px 浅色、390px 深色与 320px forced-colors 截图，包括长名称、人员资料和滚动后的偏好操作。补充 3 项键盘滚动布局检查通过；将图标颜色限制在普通主题后，最终布局及偏好交互 **4/4 通过**。
+- `TestLibraryBrowser`、`TestSongPreferencesBrowser` 在隔离真实 Console、SQLite 和 Edge 中 **2/2 通过**，验证下载共享文件、删除、偏好持久化、引擎重开、屏蔽请求 403 和零外网解析。最后只调整图标颜色的 CSS 应用方式，服务及动作协议保持该轮实现。
+
+过程限制：首次沙箱内 Edge 启动即关闭，日志包含 `TransactNamedPipe`；该轮未进入页面断言，结束后测试进程仍未退出，确认身份后仅停止本轮测试与夹具进程。真实服务专项在沙箱内遇到既有原子重命名 `The handle is invalid`，并报告临时数据库清理占用；沙箱外同命令通过。没有修改产品文件操作绕过限制。
+
+日志与截图保存在忽略目录 `artifacts/library-table-update/`：`browser.log`、`browser/` 为 61 项结果，`layout/` 与 `layout-final/` 保留图标配色调整前后截图，`console-browser.log`、`library/`、`preferences/` 为真实服务证据，`sandbox-failure/edge-launch.md` 保留启动失败。未进行屏幕阅读器或真实系统高对比度验收；forced-colors 仅为 Edge 仿真。未启动 VRC、修改 hosts 或替换运行中 EXE，本次不新增 VRC 台账项。
+
+## 2026-10-28 曲库 ID 排序与屏蔽图标辨识
+
+ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter／Space 与焦点；首次升序，继续点击切换方向，排序变化回到第一页。复用后端既有数值排序，不新增接口或只重排当前页。按用户最终确认，未屏蔽显示 CircleRegular 空心圆，已屏蔽显示 ProhibitedRegular 圆圈斜线；使用主题正文色与默认 ToggleButton 背景，保留互斥和可取消选择。反色背景与圆形减号均不是最终方案。
+
+- 最终屏蔽交互及 320/390/1280px 布局回归 **4/4 通过**，截图包含 forced-colors、深浅主题和横向滚动后的按钮。此前 ID／资源排序、偏好操作、布局和反馈专项 **7/7 通过**；最终仅替换了图标。
+- 真实 SQLite 的 TestLibrarySortDirectionsAcrossPages 增补 ID 的双向跨页覆盖；TestLibraryBrowser 通过实际 Console 接口验证 ID 升降序、排序箭头与键盘焦点。**2/2 通过**。
+- 前端 build/check、内嵌资源及精确哈希登记、git diff --check 通过。原始图片保存在忽略目录 artifacts/library-id-sort/，slash-final/ 和 slash-final.log 为最终图标结果，live/ 为真实服务浏览器证据。沿用已确认可用的沙箱外测试环境；未启动 VRC、改 hosts 或替换运行中的 EXE。
+
+## 2026-10-28 屏蔽按钮选中不加底色
+
+按最新要求将屏蔽 ToggleButton 从 subtle 改为组件原生 transparent 外观。未屏蔽仍为空心圆，已屏蔽仍为圆圈斜线，保留 aria-pressed、互斥、可取消和键盘焦点；收藏外观不变。锁定依赖的浅色／深色主题中，默认、选中、悬停与按下背景 tokens 均为 transparent；forced-colors 沿用组件系统色。此项替代上节屏蔽按钮使用默认选中背景的说明。
+
+前端 build/check、资源哈希登记和 git diff --check 通过；已有偏好交互及三个尺寸／主题布局回归 **4/4 通过**，桌面选中截图确认没有持续底色，焦点框仍可见。证据位于忽略目录 artifacts/library-block-transparent/。仅修改外观，真实后端行为沿用上一轮联调结果，未替换运行中的 EXE。

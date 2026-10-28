@@ -10,7 +10,7 @@
 | --- | --- |
 | 页面与主题 | FluentProvider、Card/CardHeader、Text、Image、Divider；程序主题选择及系统跟随、窄屏换行和 reduced-motion |
 | 导航 | NavDrawer/NavItem/Hamburger；桌面左侧 inline 可展开／收起，≤640px 左侧 overlay；页面保留真实链接 |
-| 字段与操作 | Field/Input/Select/Textarea/Checkbox/RadioGroup、Button、Dialog、MessageBar、ProgressBar |
+| 字段与操作 | Field/Input/Select/Textarea/Checkbox/RadioGroup、Button/ToggleButton、Dialog、MessageBar、ProgressBar |
 | 记录列表 | 曲库和请求历史共用 RecordTable（Table/TableCellLayout）、SortHeader（TableHeaderCell）及 TablePagination（Button/Text），保留 Fluent 默认尺寸、排序箭头、aria-sort 与键盘交互，Table 显式采用原生 table-layout: auto 分配列宽，每例一行；线路检测同样使用 Table，首页需求使用 Canvas 虚拟列表和 Fluent Text／Caption1 展示标题与百分比。业务负责受保护项、请求行身份及移除行后的焦点回退 |
 | 测速 | `@fluentui/react-charts` v9 GaugeChart；实际倍率与 1×/2× 阈值，线性范围至少 0–3，随更高样本扩展；没有自绘指针或分段刻度 |
 | 块需求时间轴与需求视图 | Canvas 绘制连续时间与方块、可见需求行的块；D3 scale/zoom/selection 负责刻度及缩放拖动；Fluent Button、Slider、Switch、Popover、Badge 承担外围控件和共用详情，按需 SSE 提供数据 |
@@ -58,7 +58,7 @@
 
 验证分工遵循[现行机制](live-acceptance-process.md)，UAC、目录窗口、托盘、系统 DPI 和辅助技术的环境缺口见[非 VRC 跟进](validation-followups.md)。这里只引用记录，不再维护另一份逐项实机清单。
 
-曲库歌曲／资源切换使用 TabList/Tab，分页结果使用紧凑 Table 与正常 Tab 顺序；偏好使用 Select，本地状态及保护使用并列 Badge，删除复用共享 Fluent Dialog。单项下载只调用既有任务接口，不实现自定义任务控件。
+曲库歌曲／资源切换使用 TabList/Tab，分页结果使用紧凑 Table 与正常 Tab 顺序；偏好使用互斥且可取消的 ToggleButton，图标操作配合 Tooltip 与无障碍名称，本地状态及保护使用并列 Badge，删除复用共享 Fluent Dialog。单项下载只调用既有任务接口，不实现自定义任务控件。
 
 设置四类和关于四类内容采用标准 TabList/Tab/tabpanel，独立网络页使用页内链接定位检测与诊断，配置字段仅在设置中编辑。设置表单持续挂载，沿用独立部分草稿与最新保存配置合并；程序主题在网页中采用同一 FluentProvider，不另造主题样式系统。
 

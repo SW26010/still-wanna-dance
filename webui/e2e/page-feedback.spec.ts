@@ -16,9 +16,9 @@ for(const operation of ['file','song','public'] as const) {
           await route.fulfill(failed?{status:400,body:text}:{json:{ok:true}});
         });
         await page.goto('/#/library');
-        const trigger=operation==='file'?page.getByRole('button',{name:'定位文件',exact:true}).first():operation==='song'?page.getByRole('combobox',{name:'歌曲 1 的偏好',exact:true}):page.getByRole('button',{name:'检查缺失视频',exact:true});
+        const trigger=operation==='file'?page.getByRole('button',{name:'定位文件',exact:true}).first():operation==='song'?page.getByRole('group',{name:'歌曲 1 的偏好',exact:true}).getByRole('button',{name:'收藏',exact:true}):page.getByRole('button',{name:'检查缺失视频',exact:true});
         const requested=page.waitForRequest('**/api/'+path),responded=page.waitForResponse('**/api/'+path);
-        if(operation==='song')await trigger.selectOption('favorite');else await trigger.click();
+        await trigger.click();
         await requested;
         const message=failed&&operation==='file'?page.getByRole('region',{name:'文件操作结果',exact:true}):page.getByRole('listitem',{name:text,exact:true});
         if(timing==='completed'){

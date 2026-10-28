@@ -724,6 +724,27 @@
       "bytes": 1173327,
       "sha256": "c32f5119c86edf25bd9b4b1f45218399f6a5cf5caa16f1b381c81a3abb60f485",
       "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Preserve the last successful active-task polling interval through transient resource read failures until completion is observed."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1195377,
+      "sha256": "a4a09e62b54c30fa29e1a8b3832de9b067572986e21dca1d38bba81340dbb5ad",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Separate library identity and artist columns, popularity label, mutually exclusive optional preference toggles, and icon preview/download actions."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1195342,
+      "sha256": "306288c391f8c052477e568eea4ea82d7616d7259127e1c72a11eeb58c8c7ed2",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Standard numeric ID sorting in the library; an empty circle indicates unblocked and the standard prohibited icon indicates blocked."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1195347,
+      "sha256": "c2dcba063b6761dbd3d332e6f955925b5781a3c984a9ab52aa4072e0666e62f9",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Use the standard transparent ToggleButton appearance so blocking a song does not add a button background."
     }
   ]
 }

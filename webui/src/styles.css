@@ -201,6 +201,7 @@ form.actions { align-items: flex-end; }
 .data-table :is(th, td) { white-space: nowrap; }
 /* Bound long identities while short fields keep their intrinsic content width. */
 .data-table .table-fill-column { width: 100%; min-width: 12rem; max-width: 0; }
+.data-table .table-metadata-column { width: 12%; min-width: 6rem; max-width: 0; }
 .data-table .inline { flex-wrap: nowrap; }
 .table-source-shares { display: flex; flex-wrap: wrap; column-gap: var(--spacingHorizontalS); min-width: 8rem; max-width: 12rem; }
 .cell-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
@@ -209,6 +210,10 @@ form.actions { align-items: flex-end; }
 .truncate { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row-actions { gap: var(--spacingHorizontalXS); }
 .row-actions > * { flex-shrink: 0; }
+@media (forced-colors: none) {
+  .row-actions button:not(:disabled):not([aria-disabled="true"]) .song-favorite-icon { color: var(--colorPaletteRedForeground1); }
+  .row-actions button:not(:disabled):not([aria-disabled="true"]) .song-blocked-icon { color: var(--colorNeutralForeground1); }
+}
 .detail-grid { display: grid; grid-template-columns: max-content minmax(0,1fr); gap: var(--spacingVerticalM) var(--spacingHorizontalL); }
 .detail-grid dt, .detail-grid dd { margin: 0; overflow-wrap: anywhere; }
 .table-pagination { justify-content: space-between; gap: var(--spacingHorizontalM); }

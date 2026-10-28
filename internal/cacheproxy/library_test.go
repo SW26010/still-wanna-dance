@@ -208,7 +208,7 @@ func TestLibrarySortDirectionsAcrossPages(t *testing.T) {
 		}
 	}
 	for _, direction := range []string{"ascending", "descending"} {
-		for _, field := range []string{"title", "score", "size", "resource"} {
+		for _, field := range []string{"id", "title", "score", "size", "resource"} {
 			q := LibraryQuery{Sort: field, Direction: direction}
 			if field == "size" || field == "resource" {
 				q.View = "resources"

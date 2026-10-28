@@ -62,3 +62,15 @@
 首次沙箱内 Go 测试在条款夹具初始化时出现 `renameat ... The handle is invalid`；沙箱内 Edge 用例启动即失败、未进入页面断言，结束阶段停滞后终止。沙箱外隔离检查正常执行。原退出策略测试曾通过“无助手直接恢复”构造已授权状态，已改为从空映射正常接入以符合停止不提权的契约，后续回归通过。原始失败、通过日志及联调截图保存在忽略目录 `artifacts/acceleration-stop/`，未修改产品文件写入逻辑绕过环境限制。
 
 本轮未修改系统 hosts、请求真实 UAC 或启动 VRC；授权及原生环境边界沿用既有记录，不新增游戏待验事项。
+
+## 2026-10-28：hosts 写入失败保留原文件
+
+首发审查通过隔离故障注入确认：原地截断写入发生部分写入错误时，74 字节的 hosts 会只剩 20 字节；会话回滚把残缺内容视为外部修改而拒绝恢复，退出也无法还原，已有首次备份不包含后续用户映射。原始证据保留在忽略目录 `artifacts/release-review-hosts/`，属于确定性短写注入，不是真实系统盘耗尽。
+
+接入、停止／退出恢复及本次接入撤销现在共用 `hosts_file.go`：同目录独立暂存，完整写入、Sync、关闭，核对操作前内容后替换。Windows 使用已有 x/sys 的安全描述符接口保留 DACL 和继承状态，再调用同卷 [MoveFileEx](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw)，不启用跨卷复制／删除，也不提前移除原文件。权限准备共用暂存与替换权限检查；没有新增配置、永久恢复状态或通用持久化框架。首次备份仍只保留第一份，正常恢复不回放该文件。
+
+- 修复前新增回归分别复现了过期快照覆盖以及替换权限被拒绝时仍原地改写。修复后 hosts 定向回归通过，覆盖暂存中断、提交前并发修改、准备后发生的真实 Windows 共享冲突、失败后的重试与回滚、只读属性，以及 protected／unprotected DACL 在接入、撤销、恢复后的保持；结束时检查本次暂存清理。
+- 另用 Go overlay 只替换暂存复制步骤：实际向暂存写入部分字节后返回 ENOSPC，执行真实 controller/helper 的失败、回滚及退出流程，当前 hosts 的 96 字节始终完整，旧备份未改变，暂存已清理。证据为 `artifacts/release-readiness-fixes/short-write.log`，源码副本以 `.txt` 保存，不参与正常包扫描。
+- `go test -tags=no_easytier ./cmd/... ./internal/...` 产品包回归通过，包含真实子进程／命名管道检查；相关包 `go vet`、Linux 交叉构建通过。Windows 命令均经 `scripts/with-test-temp.ps1`；完整日志分别为同目录 `go-tests.log`、`go-vet.log`、`linux-build.log`，专项结果为 `hosts-targeted-verified.log`。
+
+过程失败保留：首轮新增代码有安全信息标志类型编译错误；修正后发现 `os.CreateTemp` 的句柄不含 WRITE_DAC，在沙箱外也拒绝设置 DACL。改为在暂存句柄仍阻止文件替换时按名称设置安全描述符，专项复验通过；初次日志为 `hosts-targeted.log`，未将这次实现错误归咎于沙箱。沙箱内另有已知权限及原子替换限制。浏览器专项、非 Windows 的权限运行测试按环境跳过；Linux 仅验证构建。本轮没有触碰系统 hosts、请求真实 UAC、测试真实断电或启动游戏，也不据隔离测试声称这些场景已通过。

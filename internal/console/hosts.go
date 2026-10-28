@@ -1,6 +1,7 @@
 package console
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"os"
@@ -158,21 +159,7 @@ func applyHosts(p, action string) error {
 }
 
 func writeHostsChange(p string, before, after []byte) error {
-	// Keep the first pre-change snapshot; restore removes only our exact entries.
-	backup, err := os.OpenFile(p+".swd-backup", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if err == nil {
-		_, err = backup.Write(before)
-		closeErr := backup.Close()
-		if err != nil {
-			return err
-		}
-		if closeErr != nil {
-			return closeErr
-		}
-	} else if !os.IsExist(err) {
-		return err
-	}
-	return os.WriteFile(p, after, 0644)
+	return replaceHostsFile(p, before, bytes.NewReader(after))
 }
 
 func portAvailable(address string) error {

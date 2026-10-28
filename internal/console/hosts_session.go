@@ -242,7 +242,7 @@ func serveHostsSession(conn net.Conn, path string, flush func()) (result error) 
 					if string(current) != string(applied) {
 						err = errors.New("hosts 在接入后被修改，无法安全撤销本次接入，请检查游戏接入状态")
 					} else {
-						err = os.WriteFile(path, previous, 0644)
+						err = writeHostsChange(path, current, previous)
 						if err == nil {
 							flush()
 						}
@@ -262,9 +262,9 @@ func serveHostsSession(conn net.Conn, path string, flush func()) (result error) 
 				}
 				if err == nil {
 					var file *os.File
-					file, err = os.OpenFile(path, os.O_WRONLY, 0)
+					file, err = stageHostsFile(path, data)
 					if err == nil {
-						err = file.Close()
+						err = errors.Join(file.Close(), os.Remove(file.Name()))
 					}
 				}
 			}

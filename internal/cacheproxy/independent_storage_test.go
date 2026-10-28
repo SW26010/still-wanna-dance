@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -122,7 +123,11 @@ func TestIndependentVideoLeaseDoesNotLockSiblingDatabase(t *testing.T) {
 }
 
 func TestIndependentPathsRejectCleanupOverCoreData(t *testing.T) {
-	for _, name := range []string{filepath.Join(".swd-tmp", "download-publish-123.part"), strings.Repeat("a", 32) + ".mp4", ".swd.lock"} {
+	names := []string{filepath.Join(".swd-tmp", "download-publish-123.part"), strings.Repeat("a", 32) + ".mp4", ".swd.lock"}
+	if runtime.GOOS == "windows" {
+		names = append(names, strings.Repeat("A", 32)+".mp4", strings.Repeat("a", 32)+".MP4", strings.Repeat("aA", 16)+".Mp4")
+	}
+	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			cfg := independentConfig(t)
 			store, err := CreateStore(filepath.Join(cfg.VideoDir, name))

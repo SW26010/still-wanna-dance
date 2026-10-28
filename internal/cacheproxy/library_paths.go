@@ -31,7 +31,7 @@ func (p LibraryPaths) Resolve() (LibraryPaths, error) {
 	if err == nil && p.VideoDir != "" {
 		if pathWithin(filepath.Join(p.VideoDir, ".swd-tmp"), p.DatabasePath) ||
 			pathIdentity(p.DatabasePath) == pathIdentity(filepath.Join(p.VideoDir, ".swd.lock")) ||
-			pathIdentity(filepath.Dir(p.DatabasePath)) == pathIdentity(p.VideoDir) && cacheVideoName.MatchString(filepath.Base(p.DatabasePath)) {
+			pathIdentity(filepath.Dir(p.DatabasePath)) == pathIdentity(p.VideoDir) && cacheVideoName.MatchString(filepath.Base(pathIdentity(p.DatabasePath))) {
 			err = errors.New("数据库位置与视频文件或发布暂存范围冲突，请选择独立的数据库文件位置")
 		}
 	}

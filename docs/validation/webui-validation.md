@@ -1149,3 +1149,9 @@ ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter�
 原退出策略用例在本机 Edge 重复 20 次通过；增加保存后控件重新启用及已保存／活跃配置相等断言后，立即稳定复现。模拟接口直接合并请求，错误保留 `proxyImportID`、空 `socks5Password`，并把自动日志目录变成空字符串，导致 `restartRequired` 被误置为真；旧用例可能在保存中按钮暂时禁用时提前通过。公共夹具现按实际 `/api/status` 语义排除请求专属字段并解析自动日志目录。退出策略断言等待控件恢复及“已生效”，日志恢复默认用例分别检查提交空目录、返回默认目录和生效状态。未修改产品逻辑或增加重试、固定等待。
 
 修正后的退出策略用例连续 20 次通过（15.9 秒），完整 Edge 浏览器回归 **326/326 通过**（1.6 分钟），前端 `check` 与 `git diff --check` 通过。原失败及复核记录位于忽略目录 `artifacts/ci-fix-20261028/`：`exit-policy-before.log`、`exit-policy-repro.log`、`exit-policy-after.log`、`webui-fixture-after.log` 及对应输出目录。远端结果仍以修正提交对应的完整运行记录为准。
+
+## 2026-10-28 CI 资源详情键盘焦点时序
+
+`check` [第 14 次运行](https://github.com/SW26010/still-wanna-dance/actions/runs/40714205587)的 Ubuntu 浏览器测试为 325 通过、1 失败：资源详情弹层按 Escape 后未观察到焦点回到触发按钮。退出策略用例通过；Windows 因矩阵失败被取消，后端检查未完成。原用例仅等待弹层文字出现，随即按 Escape，没有确认 Fluent 弹层的自动聚焦已经完成。现与同文件库的窄屏详情用例保持相同验证顺序：按具名 group 定位弹层，确认歌曲链接获得焦点，按 Escape，确认弹层关闭，最后确认触发按钮重新获得焦点。保留所有资源请求和未删除断言，不改产品焦点逻辑或添加固定等待。
+
+原用例在本机 Edge 连续 50 次通过，未本地复现远端失败；调整后连续 50 次通过（23.3 秒），组件与曲库完整套件 **46/46 通过**（10.1 秒），前端 `check` 和 `git diff --check` 通过。Playwright Chromium 在安装完成后仍遇到 `browserType.launch: spawn UNKNOWN`，未进入断言，不作为应用失败；远端 Chromium 复核仍以新提交运行记录为准。过程中的测试链接名称漏掉 ID、两轮测试误并发占用夹具端口均已修正并保留证据；前者不是原 CI 故障复现，后者未进入用例。记录位于忽略目录 `artifacts/ci-fix-20261028/` 的 `focus-before.log`、`focus-chromium-before.log`、`focus-after.log`、`focus-final.log`、`focus-suites-after.log`、`focus-suites-final.log` 及对应输出目录。

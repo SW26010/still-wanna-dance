@@ -27,7 +27,8 @@ func expectRetained(t *testing.T, path string, want bool) {
 	_, err := os.Stat(path)
 	if !want {
 		deadline := time.Now().Add(3 * time.Second)
-		for err == nil && time.Now().Before(deadline) {
+		// Windows may report access denied while deletion awaits the last open handle.
+		for !os.IsNotExist(err) && time.Now().Before(deadline) {
 			time.Sleep(time.Millisecond)
 			_, err = os.Stat(path)
 		}

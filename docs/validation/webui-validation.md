@@ -1141,3 +1141,11 @@ ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter�
 三处失败均落在测试定位：加速失败的宽泛文本查询取到了隐藏 Tooltip；网络检测反馈同时匹配 Toast 与读屏播报文本；重启确认弹窗打开时，后台状态不在模态的可访问树中。前两处改为按具名 `listitem` 检查真实通知，沿用其他通知用例的定位方式，并同步修正同一加速套件中停止失败通知的相同定位；第三处仅在弹窗打开时包含隐藏背景来核对状态更新，弹窗关闭后再用普通角色查询核对状态，继续断言没有提交重启请求。未改产品行为、延长超时或删除反馈断言。
 
 本机默认 Edge 在修正前定向重复 5 轮共 15 项通过，未复现 CI Chromium 的失败；修正后 `acceleration`、`console`、`lifecycle` 三个完整套件 23 项通过（9.9 秒），同类停止失败定位随后单独复核通过，前端 `check` 与 `git diff --check` 通过。浏览器检查经 `with-test-temp.ps1` 使用独立 headless Edge 与内存 API；原始沙箱启动失败的运行已停止，结果未当作应用用例失败。过程记录保留在忽略目录 `artifacts/ci-fix-20261028/` 的 `webui-before.log`、`webui-baseline.log`、`webui-edge-after.log`、`webui-stop-after.log` 及对应输出目录。完整远端复核以修正提交的新一轮 `check` 为准。
+
+## 2026-10-28 CI 设置夹具与保存完成断言
+
+`check` [第 13 次运行](https://github.com/SW26010/still-wanna-dance/actions/runs/40710759854)的 Windows 浏览器测试为 325 通过、1 失败：仅修改退出恢复策略并保存后，“重启并应用”意外启用。Ubuntu 浏览器、Node、普通 Go 测试、vet 与构建通过，竞态检查被矩阵的 Windows 失败取消。Windows 尚未运行 Go 检查，不能据此判断临时目录修复结果。
+
+原退出策略用例在本机 Edge 重复 20 次通过；增加保存后控件重新启用及已保存／活跃配置相等断言后，立即稳定复现。模拟接口直接合并请求，错误保留 `proxyImportID`、空 `socks5Password`，并把自动日志目录变成空字符串，导致 `restartRequired` 被误置为真；旧用例可能在保存中按钮暂时禁用时提前通过。公共夹具现按实际 `/api/status` 语义排除请求专属字段并解析自动日志目录。退出策略断言等待控件恢复及“已生效”，日志恢复默认用例分别检查提交空目录、返回默认目录和生效状态。未修改产品逻辑或增加重试、固定等待。
+
+修正后的退出策略用例连续 20 次通过（15.9 秒），完整 Edge 浏览器回归 **326/326 通过**（1.6 分钟），前端 `check` 与 `git diff --check` 通过。原失败及复核记录位于忽略目录 `artifacts/ci-fix-20261028/`：`exit-policy-before.log`、`exit-policy-repro.log`、`exit-policy-after.log`、`webui-fixture-after.log` 及对应输出目录。远端结果仍以修正提交对应的完整运行记录为准。

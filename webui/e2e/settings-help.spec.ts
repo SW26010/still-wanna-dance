@@ -60,6 +60,9 @@ test('exit restoration changes only after saving and applies to this exit',async
   await expect(restore).toBeChecked();await restore.uncheck();
   expect(api.calls.some(c=>c.path==='settings'||c.path.startsWith('hosts/'))).toBe(false);
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
+  await expect(restore).toBeEnabled();
+  await expect(page.getByRole('region',{name:'设置操作',exact:true}).getByRole('status')).toHaveText('已生效');
+  expect(api.state.settings).toEqual(api.state.activeSettings);
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
   await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();
   expect(api.state.settings.restoreHostsOnExit).toBe(false);expect(api.state.activeSettings.restoreHostsOnExit).toBe(false);

@@ -17,7 +17,7 @@ pnpm --dir webui check
 ./scripts/with-test-temp.ps1 pnpm --dir webui test
 ```
 
-使用 `webui/package.json` 固定的 pnpm 版本。浏览器测试默认使用本机 Edge；CI 安装 Playwright Chromium，测试只调用内存夹具，不修改 hosts 或访问真实上游。截图保存在忽略目录 `artifacts/webui-tests`。Windows 工具测试用 `./scripts/with-test-temp.ps1 node --test scripts/*.test.mjs`。Linux/CI 可直接运行包装器后的原命令。架构、浏览器覆盖和真实系统验收边界见[Fluent 迁移记录](fluent-ui-migration.md)。
+使用 `webui/package.json` 固定的 pnpm 版本。浏览器测试默认使用本机 Edge；CI 安装 Playwright Chromium，测试只调用内存夹具，不修改 hosts 或访问真实上游。截图保存在忽略目录 `artifacts/webui-tests`。Windows 工具测试用 `./scripts/with-test-temp.ps1 node --test scripts/*.test.mjs`。Windows CI 同样使用临时目录包装器；Linux 可直接运行包装器后的原命令。架构、浏览器覆盖和真实系统验收边界见[Fluent 迁移记录](fluent-ui-migration.md)。
 
 ## Console 路由与共享引擎
 
@@ -58,6 +58,10 @@ Windows 测试统一通过 `scripts/with-test-temp.ps1` 运行，定向检查也
 此入口避开 Windows MXC 默认 `sandbox.{GUID}/AC/Temp` 的重命名权限缺陷（[Microsoft 已确认的问题](https://github.com/microsoft/mxc/issues/1204)），不修改产品文件操作、用户/系统环境变量、ACL 或沙箱设置。换到工作区后 `os.Root.Rename`、硬链接、目录联接、浏览器及子进程仍可能受其他沙箱限制；保留失败证据，按实际权限要求验证，不能把所有失败都归为临时目录问题。强制结束 PowerShell 进程时可能来不及清理，残留目录不复用，也不自动清扫其他调用的目录。
 
 2026-10-19 验证：同一 `TestPublicationAdmissionRanksFullCacheBeforeMerge` 在 MXC 默认临时目录报重命名拒绝，经入口运行通过。`TestAtomicWriteRetainsLastGoodFileAndBoundsWork` 在工作区内仍报 `renameat: The handle is invalid`，沙箱外经同一入口通过。工具回归在沙箱内为 28/29（已有 junction 夹具被拒绝），沙箱外 29/29 通过；新增入口回归覆盖原子替换、参数/工作目录/退出码传递、环境恢复、异常清理及嵌套隔离。原始成功与失败输出保留在忽略目录 `artifacts/windows-test-temp/`，未修改产品代码绕过失败。
+
+2026-10-28 CI 复核：`check` [第 12 次运行](https://github.com/SW26010/still-wanna-dance/actions/runs/40706434250)的 Ubuntu 全部通过，两平台浏览器套件均通过；Windows Go 测试因 runner 的 `RUNNER~1` 临时目录别名触发存储路径校验，并使 `TestPathIdentity` 的完整路径断言失败。CI 的 Windows 浏览器、Node、Go 测试及 vet 统一接入现有包装器，存储的路径别名保护保持不变。本机在隔离目录构造 8.3 短路径，直接运行 `TestPathIdentity` 和 `TestShutdownClosesPausedReaderAndFlushesUsage` 均复现同样失败；保持该父环境、仅经包装器运行后两项通过。原始对照保留在忽略目录 `artifacts/ci-fix-20261028/windows-short-temp-{before,after}.log`。
+
+同轮本地验证：使用 Go 1.27.3 后 46 个 Node 工具测试及全部跟踪 Go 包的 vet 通过。Go 检查限定 `cmd`、`internal`、`data`、`experiments`，避免本地忽略目录中的历史探针被 `./...` 收集；CI 干净检出保留 `./...`。首次包测试仅 Console 的临时 hosts 夹具发生一次替换拒绝访问，其他包通过；原用例连续 10 次复核及 Console 整包复核通过（85.440 秒），未修改产品文件操作或放宽测试。过程中的旧 Go 拒绝、历史探针加载失败和夹具失败均保留在同一忽略目录，最终结果见 `windows-node-toolchain-after.log`、`windows-tracked-go-after.log`、`windows-tracked-vet-after.log`、`consent-startup-recheck.log` 与 `windows-console-recheck.log`。
 
 Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的 C 工具链；本机已使用独立 w64devkit/GCC 完成下载与本地资源整包检查，执行时显式设置 CGO_ENABLED=1 和 CC，测试命令同样通过上述入口运行。工具及原始结果保存在忽略目录 artifacts/，不依赖全局 PATH。
 

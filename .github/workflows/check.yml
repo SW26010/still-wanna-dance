@@ -30,15 +30,16 @@ jobs:
       - run: pnpm --dir webui install --frozen-lockfile
       - run: pnpm --dir webui check
       - run: pnpm --dir webui exec playwright install --with-deps chromium
-      - run: pnpm --dir webui test
+      # Keep Windows fixtures out of the runner profile's 8.3 TEMP alias.
+      - run: ${{ runner.os == 'Windows' && './scripts/with-test-temp.ps1' || '' }} pnpm --dir webui test
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: webui-failure-${{ runner.os }}
           path: artifacts/webui-tests
-      - run: node --test scripts/*.test.mjs
-      - run: go test -tags=no_easytier ./...
-      - run: go vet -tags=no_easytier ./...
+      - run: ${{ runner.os == 'Windows' && './scripts/with-test-temp.ps1' || '' }} node --test scripts/*.test.mjs
+      - run: ${{ runner.os == 'Windows' && './scripts/with-test-temp.ps1' || '' }} go test -tags=no_easytier ./...
+      - run: ${{ runner.os == 'Windows' && './scripts/with-test-temp.ps1' || '' }} go vet -tags=no_easytier ./...
       - run: go build -tags=no_easytier ./...
         env:
           CGO_ENABLED: '0'

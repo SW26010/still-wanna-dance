@@ -27,6 +27,7 @@ export interface HealthResult {
   lastThroughput?: {bytes: number; durationNs: number; songID: number; observedAt: string};
 }
 export interface Health {
+  catalogInitializing?: boolean;
   closed?: boolean; checking?: boolean; manual?: boolean; checkKind?: string; resourcesPaused?: boolean;
   results?: HealthResult[]; finished?: string; nextCheck?: string; nextThroughput?: string;
   throughputStatus?: string; throughputSaveFailed?: boolean; policy?: { throughputInterval?: number };

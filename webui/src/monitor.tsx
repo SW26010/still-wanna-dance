@@ -5,6 +5,7 @@ import { type HealthResult, type Health, date, dated } from './types';
 
 const reasons: Record<string,string> = {no_channel:'没有有效候选',no_sample:'等待有效歌曲及资源样本',expired:'观测已过期',timeout:'请求超时',origin_timeout:'源站响应超时（Cloudflare 524）',network_error:'网络请求失败',resolution_unavailable:'无可用资源地址',invalid:'响应校验失败',restricted:'访问受限',upstream_error:'上游错误',http_error:'HTTP 响应异常'};
 const localReasons: Record<string,string> = {local_capacity:'本地代理连接额度已满',runtime_retired:'代理运行时已退出',channel_unavailable:'通道已失效',canceled:'本次检测已取消'};
+export function healthReason(r:HealthResult) { return reasons[r.reason||'']||localReasons[r.localDiagnostic||'']||'网络请求失败'; }
 const operationNames: Record<string,string> = {catalog:'歌曲列表',playback_url:'播放地址解析',resource:'视频资源加载'};
 export function healthImpact(h: Health) {
   if (h.closed) return '检测已关闭，当前无法判断网络可用性。';

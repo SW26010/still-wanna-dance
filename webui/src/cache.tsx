@@ -5,6 +5,7 @@ import { request, APIError } from './api';
 import { useApp, useResource } from './hooks';
 import { usePageFeedback } from './page-feedback';
 import { Notification } from './ui';
+import { healthReason } from './monitor';
 import { type CacheEntry, type LibraryPage, type Inventory, date, dated, gib } from './types';
 
 export const cacheLabel = (entry: CacheEntry) => entry.songs.length ? entry.songs.map(s => `${s.title || '未知歌名'}（ID ${s.id}）`).join(' / ') : '未知歌名 · 未关联歌曲';
@@ -61,10 +62,13 @@ export function InventoryPanel({visible,files,videoError,refresh,loading,loadedA
     previous.current=v;
   },[visible,v,refresh]);
   const scanning=!!v?.scanning&&!inventory.error;
-  const catalogBusy=scanning||inventory.loading;
   const known = !videoError && v && dated(v.updated) && v.coverageKnown && v.totalSongs > 0;
+  const monitor=s.upstreamMonitor,initializing=!!monitor?.catalogInitializing&&!v?.catalog?.revision;
+  const catalogBusy=scanning||inventory.loading||initializing&&!!monitor?.checking;
+  const initializationError=initializing?(s.storageError||v?.catalog?.error||[...new Set((monitor?.results||[]).filter(r=>r.operation==='catalog'&&r.state==='unavailable').map(healthReason))].join('；')):'';
+  const initializationDetail=initializing?[initializationError,monitor?.checking?'正在获取完整歌曲清单。':`程序会自动重试${dated(monitor?.nextCheck)?'，下次尝试：'+date(monitor?.nextCheck):''}。`].filter(Boolean).join(' '):'';
   const coverageDescription=(known?`已覆盖 ${v.coveredSongs} / 当前清单 ${v.totalSongs} 首；`:'')+'统计清单版本：'+(v?.catalogRevision||'未知');
-  const coverageWarning=videoError?'无法检查本地视频，暂时无法计算覆盖率。':known&&v.unresolvedSongs?`资源待识别 ${v.unresolvedSongs} 首，已计入当前清单总数，暂未计为已覆盖。`:v&&!known&&!catalogBusy?(v.error||'尚无有效的完整清单，暂时无法计算覆盖率。请更新曲库。'):undefined;
+  const coverageWarning=videoError?'无法检查本地视频，暂时无法计算覆盖率。':initializing?initializationDetail:known&&v.unresolvedSongs?`资源待识别 ${v.unresolvedSongs} 首，已计入当前清单总数，暂未计为已覆盖。`:v&&!known&&!catalogBusy?(v.error||(v.catalog?.revision?'尚未计算覆盖率，请更新曲库。':'尚无有效的完整清单，暂时无法计算覆盖率。请更新曲库。')):undefined;
   return <section id="overview" className="library-summary" aria-label="曲库概览">
     <div className="inline summary-values">
       <div role="group" aria-label="本地视频">

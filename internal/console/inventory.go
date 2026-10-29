@@ -96,6 +96,12 @@ func (c *Console) localInventoryWithLoader(load func(context.Context, string) (c
 }
 
 func (c *Console) startInventoryScan() {
+	c.startInventory(true)
+}
+
+// Initialization fills a missing snapshot from local data; explicit refreshes
+// also synchronize remote catalogs. Both share admission, publication and exit.
+func (c *Console) startInventory(refreshCatalog bool) {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
@@ -119,6 +125,9 @@ func (c *Console) startInventoryScan() {
 	if c.inventory.Scanning {
 		return
 	}
+	if !refreshCatalog && c.inventory.CoverageKnown && !c.inventory.Updated.IsZero() {
+		return
+	}
 	c.inventory.Scanning = true
 	c.inventory.Error = ""
 	c.inventoryGeneration++
@@ -131,7 +140,9 @@ func (c *Console) startInventoryScan() {
 		defer close(done)
 		defer cancel()
 		result := scanInventory(ctx, s)
-		if c.checksumURL != "" {
+		if !refreshCatalog {
+			c.readInventoryCoverage(ctx, &result, nil)
+		} else if c.checksumURL != "" {
 			c.addInventoryCoverage(ctx, &result)
 		}
 		c.inventoryMu.Lock()
@@ -163,9 +174,18 @@ func (c *Console) addInventoryCoverage(ctx context.Context, result *Inventory) {
 		return
 	}
 	refreshErr := c.refreshLocalCatalog(ctx, store)
+	c.readInventoryCoverage(ctx, result, refreshErr)
+}
+
+func (c *Console) readInventoryCoverage(ctx context.Context, result *Inventory, refreshErr error) {
 	// Metadata synchronization does not depend on video availability. A failed
 	// file scan still prevents publishing a new coverage result.
 	if result.Error != "" {
+		return
+	}
+	store, err := c.businessStore()
+	if err != nil {
+		result.Error = err.Error()
 		return
 	}
 	catalog, err := store.InspectLocalCatalog(ctx, c.settings.VideoDir)

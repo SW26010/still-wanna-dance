@@ -1170,3 +1170,13 @@ Edge 通知、条款、页面反馈、VRCX 及导入提示回归 **61/61 通过*
 「检测到 VRCX 数据库」复用通知组件的持久显示选项，取消原 7 秒超时，等待用户点击「前往曲库」或关闭；进入曲库后撤去通知、同标签页刷新不重复及页内导入建议规则沿用原行为。原超时用例已更新：浏览器虚拟时钟推进 12 秒后提示仍显示，切到历史页仍保留，关闭并返回加速页不重复。VRCX 与视频导入提示的 Edge 回归 **30/30 通过**，前端构建、`check`、差异格式检查及桌面构建通过。此处替代此前关于 VRCX Toast 自动超时的描述，其他普通通知保持原超时规则。
 
 证据在 `artifacts/vrcx-toast-persistent/` 的 `browser.log`、`build.log`、`build-info.json`；本轮只调整前端显示期限，未重跑未受影响的后端和真实 Console 联调。新测试 EXE 为 `artifacts/startup-notices-20261029/SWD.exe`，版本 `dev-startup-notices-20261029`，只执行 `-build-info` 核对身份，没有创建测试配置或启动应用服务。未修改系统 hosts、提交或推送。
+
+## 2026-10-29 视频导入使用已有曲库
+
+导入的在线更新失败不再直接终止任务，有效性与匹配边界见[本地快照规则](../song-catalog-design.md#本地快照与检查状态2026-10-06)。界面单独提示使用已有清单，详情保留在线错误，不覆盖文件错误或增加文件失败数。
+
+- 后端回归先复现本地已有有效清单、上游返回 503 时导入数为零；修复后导入及批量清单回退定向检查通过。覆盖 503、无效响应、空库、取消、重复文件、清单已移除歌曲与未知视频的跳过，以及在线重试成功后清除警告；使用临时 SQLite、文件和受控 HTTP 接口，核对实际发布文件内容。
+- Edge 任务错误回归 **5/5 通过**；390px 导入区域截图已检查，警告、文件错误和计数分别显示，详情与 Escape 焦点恢复正常。浏览器使用内存接口，只证明呈现与交互，不代替后端文件验证。
+- 前端构建、类型及嵌入资源一致性检查、Console `go vet`、差异格式检查和 Go 1.27.3 桌面构建通过。测试版为 `artifacts/import-catalog-fallback/SWD.exe`，版本 `dev-import-catalog-fallback-20261029`；仅执行 `-build-info` 核对身份。
+
+证据保留在 `artifacts/import-catalog-fallback/`。`before.log` 记录沙箱初始化的已知重命名失败，`before-unsandboxed.log` 记录有效复现，`after.log` 为修复后回归；`browser.log` 保留 Edge 在沙箱内启动退出的失败，核对并结束本次夹具进程后，`browser-unsandboxed.log` 和 `browser-results/` 为通过结果与截图。未修改系统 hosts、使用个人视频、启动 VRC、提交或推送；本次没有必须依赖 VRC 的剩余验证项。

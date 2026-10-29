@@ -24,6 +24,7 @@ type ImportStatus struct {
 	Failed           int    `json:"failed"`
 	Deleted          int    `json:"deleted"`
 	CleanupAvailable bool   `json:"cleanupAvailable"`
+	CatalogWarning   string `json:"catalogWarning"`
 	Error            string `json:"error"`
 }
 
@@ -127,8 +128,9 @@ func (c *Console) runImport(ctx context.Context, engine *cacheproxy.Server, sour
 		c.importStatus.Phase = "导入未完成"
 		c.mu.Unlock()
 	}
-	if err := c.refreshLocalCatalog(ctx, engine); err != nil {
-		fail(fmt.Errorf("无法更新歌曲清单，未开始导入：%w", err))
+	refreshErr := c.refreshLocalCatalog(ctx, engine)
+	if err := ctx.Err(); err != nil {
+		fail(err)
 		return
 	}
 	catalog, release, err := engine.ReadLocalCatalog(ctx)
@@ -146,7 +148,18 @@ func (c *Console) runImport(ctx context.Context, engine *cacheproxy.Server, sour
 	// Only the copied MD5 set is needed below. Each individual import owns its
 	// own pin; retaining the catalog pins would block unrelated eviction.
 	release()
+	if catalog.Status.Revision == "" || len(allowed) == 0 {
+		err := errors.New("本地尚无有效 MD5 清单，未开始导入，请重试更新曲库")
+		if refreshErr != nil {
+			err = fmt.Errorf("%w：%v", err, refreshErr)
+		}
+		fail(err)
+		return
+	}
 	c.mu.Lock()
+	if refreshErr != nil {
+		c.importStatus.CatalogWarning = refreshErr.Error()
+	}
 	c.importStatus.Phase = "正在枚举视频文件"
 	c.mu.Unlock()
 	files, err := enumerateImport(ctx, source, storage)

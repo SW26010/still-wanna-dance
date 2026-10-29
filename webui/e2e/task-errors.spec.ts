@@ -2,6 +2,28 @@ import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 import {navigate} from './navigation';
 
+test('video import separates catalog fallback from file failures',async({page},info)=>{
+  const api=await mockAPI(page);
+  api.state.import={id:1,phase:'导入完成',total:2,checked:2,imported:1,failed:1,
+    catalogWarning:'清单接口返回 503',error:'unreadable.mp4：源视频无法读取'};
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/#/library');
+  const panel=page.locator('#video-import');
+  await expect(panel.getByText('在线曲库更新失败，本次导入使用已有清单。新视频可能无法识别。',{exact:true})).toBeVisible();
+  await expect(panel.getByRole('status')).toContainText('已导入 1 · 跳过 0 · 失败 1');
+  await expect(panel.getByText('unreadable.mp4：源视频无法读取',{exact:true})).toBeVisible();
+  await expect(panel.getByText('清单接口返回 503',{exact:true})).toBeHidden();
+  await panel.screenshot({path:info.outputPath('import-catalog-fallback.png')});
+  await panel.getByRole('button',{name:'视频导入的曲库更新错误详情',exact:true}).click();
+  await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('清单接口返回 503');
+  await page.keyboard.press('Escape');
+  await expect(panel.getByRole('button',{name:'视频导入的曲库更新错误详情',exact:true})).toBeFocused();
+  api.state.import={id:2,phase:'导入完成',total:2,checked:2,imported:1,skipped:1};
+  await page.reload();
+  await expect(panel.getByRole('status')).toContainText('失败 0');
+  await expect(panel.getByRole('button',{name:'视频导入的曲库更新错误详情',exact:true})).toHaveCount(0);
+});
+
 test('manual library download leaves the running queue alone',async({page})=>{
   const api=await mockAPI(page);
   api.state.queue={desired:true,running:true,songs:[{songId:42}]};

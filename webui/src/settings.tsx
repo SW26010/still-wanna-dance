@@ -180,6 +180,7 @@ export function ImportPanel() {
       <DirectoryField purpose="import-directory" label="外部目录" value={source} disabled={app.unavailable || !!job.running} onChange={setSource} onPending={setSelecting}/><Button type="submit" disabled={app.unavailable || job.running || selecting || !source.trim()}>扫描并导入</Button>
     </form>{(job.running||!!job.total)&&<Progress value={job.checked} max={job.total} label="视频文件处理进度" />}
     <p role="status">{job.phase?`${job.phase} · ${job.checked || 0}/${job.total || 0} 个视频 · 已导入 ${job.imported || 0} · 跳过 ${job.skipped || 0} · 失败 ${job.failed || 0} · 已清除 ${job.deleted || 0}`:'尚未开始'}</p>
+    {job.catalogWarning&&<Feedback><div className="toolbar"><span>在线曲库更新失败，本次导入使用已有清单。新视频可能无法识别。</span><RecordDetails title="视频导入的曲库更新错误详情"><p className="wrap">{job.catalogWarning}</p></RecordDetails></div></Feedback>}
     <Feedback error>{job.error || s.actionErrors?.import}</Feedback>
     {job.cleanupAvailable && !job.running && <><Checkbox checked={cleanup} onChange={(_, v) => setCleanup(!!v.checked)} label="清除原位置本次成功导入的资源（默认保留）" disabled={app.unavailable} /><Button disabled={app.unavailable || !cleanup} onClick={async () => {
       const id = job.id;

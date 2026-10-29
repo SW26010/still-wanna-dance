@@ -21,14 +21,14 @@ type directResolver interface {
 }
 
 func (c *Console) networkFor(s Settings) (upstreamDialFunc, *http.Client, error) {
-	if s.ProxyBackend == "mihomo" {
+	if s.UpstreamMode == "proxy" && s.ProxyBackend == "mihomo" {
 		return c.mihomoNetworkFor(s, defaultActiveProxyLimit)
 	}
 	dial := upstreamDialFunc(c.dns.DialContext)
 	var proxyDial upstreamrequest.DialFunc
 	var proxyID string
 	mode := channelMode(s.UpstreamMode)
-	if mode == "socks5" || mode == "auto" {
+	if mode == "socks5" {
 		var err error
 		if s.proxySecretError != "" {
 			proxyDial = func(context.Context, string, string) (net.Conn, error) {
@@ -46,19 +46,7 @@ func (c *Console) networkFor(s Settings) (upstreamDialFunc, *http.Client, error)
 		if err != nil {
 			return nil, nil, err
 		}
-		if mode == "socks5" {
-			dial = upstreamDialFunc(proxyDial)
-		} else {
-			// Legacy raw dial callers have no operation/measurement context.
-			// Preserve direct-first fallback; explicit candidates are ranked by Monitor.
-			dial = func(ctx context.Context, network, address string) (net.Conn, error) {
-				conn, err := c.dns.DialContext(ctx, network, address)
-				if err == nil || ctx.Err() != nil {
-					return conn, err
-				}
-				return proxyDial(ctx, network, address)
-			}
-		}
+		dial = upstreamDialFunc(proxyDial)
 	}
 	pool, err := upstreamrequest.NewPool(mode, c.dns, proxyDial, proxyID)
 	if err != nil {

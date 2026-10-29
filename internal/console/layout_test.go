@@ -30,7 +30,7 @@ func TestPortableLayoutCreatesOnlyUsedFiles(t *testing.T) {
 	if _, err := os.Stat(c.files().Terms); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"channel.key", "throughput.json", "inventory.json", "batch-last-success.json", "batch-last-attempt.json", "mihomo"} {
+	for _, name := range []string{"channel.key", "throughput.json", "inventory.json", "batch-last-success.json", "batch-last-attempt.json", "video-import.json", "mihomo"} {
 		if _, err := os.Stat(filepath.Join(c.files().StateDir, name)); !os.IsNotExist(err) {
 			t.Fatal("unused feature created", name, err)
 		}

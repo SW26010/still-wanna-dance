@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 )
@@ -28,6 +27,29 @@ func (d *testDNS) Addresses(context.Context, string) ([]Address, error) {
 }
 func (d *testDNS) CurrentAddresses(string) []Address { return d.addresses }
 func (d *testDNS) DNSChanged() <-chan struct{}       { return d.changed }
+
+func TestDirectDiscoveryPreservesCachedPathsAndReportsFailure(t *testing.T) {
+	d := &testDNS{addresses: []Address{{"203.0.113.1", time.Now().Add(time.Minute)}}, err: errors.New("DNS unavailable")}
+	p, err := NewPool("direct", d, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	cs, err := p.Candidates(context.Background(), "https://example.com")
+	if !errors.Is(err, d.err) || len(cs) != 1 || cs[0].IP != "203.0.113.1" {
+		t.Fatal("failed discovery lost usable lease or claimed confirmed membership", cs, err)
+	}
+}
+
+func TestPoolsRejectRetiredAutoMode(t *testing.T) {
+	d := &testDNS{}
+	if _, err := NewPool("auto", d, nil); err == nil {
+		t.Fatal("single pool accepted auto")
+	}
+	if _, err := NewMultiPool("auto", d, nil); err == nil {
+		t.Fatal("multi pool accepted auto")
+	}
+}
 
 type refreshingTestDNS struct {
 	testDNS
@@ -125,7 +147,7 @@ func TestPinnedCandidateRefreshesExpiredDNSWithoutChangingIP(t *testing.T) {
 }
 
 func TestCandidateModesAndRemoteDNS(t *testing.T) {
-	for _, mode := range []string{"direct", "socks5", "auto"} {
+	for _, mode := range []string{"direct", "socks5"} {
 		t.Run(mode, func(t *testing.T) {
 			d := &testDNS{addresses: []Address{{"203.0.113.1", time.Now().Add(time.Minute)}}}
 			var destination string
@@ -145,9 +167,6 @@ func TestCandidateModesAndRemoteDNS(t *testing.T) {
 			defer p.Close()
 			cs, err := p.Candidates(context.Background(), "http://example.com/test")
 			want := 1
-			if mode == "auto" {
-				want = 2
-			}
 			if err != nil || len(cs) != want {
 				t.Fatal(cs, err)
 			}
@@ -227,24 +246,5 @@ func testPinnedTLSHostExpiryAndConfigRetirement(t *testing.T, ip string) {
 	p.Close()
 	if _, err := cs[0].Transport.RoundTrip(r); !errors.Is(err, ErrUnavailable) {
 		t.Fatal("retired config used", err)
-	}
-}
-
-func TestAutoKeepsProxyWhenDNSFails(t *testing.T) {
-	d := &testDNS{err: errors.New("offline")}
-	p, _ := NewPool("auto", d, func(context.Context, string, string) (net.Conn, error) { return nil, errors.New("unused") })
-	defer p.Close()
-	cs, err := p.Candidates(context.Background(), "https://example.com")
-	if err != nil || len(cs) != 1 || cs[0].Mode != "socks5" || strings.Contains(cs[0].ID, "@") {
-		t.Fatal(cs, err)
-	}
-	cs, ready, err := p.CandidatesWithReadiness(context.Background(), "https://example.com")
-	if err != nil || len(cs) != 1 || ready.Direct || !ready.Proxy {
-		t.Fatal("proxy fallback must not confirm DNS membership", ready, err)
-	}
-	d.err = nil
-	_, ready, err = p.CandidatesWithReadiness(context.Background(), "https://example.com")
-	if err != nil || !ready.Direct || !ready.Proxy {
-		t.Fatal("successful DNS not ready", ready, err)
 	}
 }

@@ -19,27 +19,17 @@ func TestChannelModesFollowSettingsAndRetireSavedCandidates(t *testing.T) {
 		t.Fatal(direct)
 	}
 	s := c.settings
-	s.UpstreamMode = "auto"
+	s.UpstreamMode = "proxy"
 	s.SOCKS5Address = "127.0.0.1:1080"
 	if err := c.saveSettings(s, false, nil); err != nil {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
 	testDNS(c).seed("api.udon.dance", "203.0.113.1")
-	both := upstreamrequest.Default.Snapshot().Candidates.Current(target)
-	if len(both) != 2 || both[0].Mode != "direct" || both[1].Mode != "socks5" {
-		t.Fatal(both)
-	}
 	r, _ := http.NewRequest("GET", target, nil)
 	if _, err := direct[0].Transport.RoundTrip(r); !errors.Is(err, upstreamrequest.ErrUnavailable) {
 		t.Fatal("old candidate survived config replacement", err)
 	}
-	s.UpstreamMode = "proxy"
-	if err := c.saveSettings(s, false, nil); err != nil {
-		t.Fatal(err)
-	}
-	c = restartTestConsole(t, c)
-	testDNS(c).seed("api.udon.dance", "203.0.113.1")
 	proxy, err := upstreamrequest.Default.Snapshot().Candidates.Candidates(context.Background(), "https://never-resolve.invalid")
 	if err != nil || len(proxy) != 1 || proxy[0].Mode != "socks5" {
 		t.Fatal(proxy, err)

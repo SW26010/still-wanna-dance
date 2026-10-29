@@ -4,7 +4,7 @@
 
 ## 通道与网络模式
 
-基础设施只向 Channel 发布 `upstreamrequest.Candidates`，检查维度统一为操作 × 入口 × 通道。直连展开有效 DNS IP 池；SOCKS5 把原域名交给代理解析。三种网络模式为 direct（不启用代理）、socks5（强制代理）、auto（两者平等参与检查）。DNS 只保证答案合法和 TTL，不进行性能排序。
+基础设施只向 Channel 发布 `upstreamrequest.Candidates`，检查维度统一为操作 × 入口 × 通道。直连展开有效 DNS IP 池；SOCKS5 把原域名交给代理解析。网络模式为 direct（内置 DNS 直连）和 socks5（域名交由代理），两者不混合候选或相互回退。DNS 只保证答案合法和 TTL，不进行性能排序。
 
 推荐携带被测 `Transport`，使用它能够固定到被测路径，同时保留 URL、Host、TLS SNI 与证书校验。目标主机不同会拒绝。凭据不进入候选 ID 或结果；代理配置更换使用新的不透明身份。网络配置变更取消旧检查，旧版本迟到结果丢弃；仍允许且 IP 不变的直连通道保留观测。
 
@@ -56,7 +56,7 @@ if ok {
 }
 ```
 
-已有业务 raw dial 不含操作上下文，仍保留连接容错；auto 的普通拨号采用直连失败后代理回退，**不表示已采用 Monitor 推荐**。Monitor 没有自动替换现有业务请求；由业务明确使用推荐的 Transport，才能使用被测通道。
+已有业务 raw dial 不含操作上下文，只在配置模式内保留连接容错，**不表示已采用 Monitor 推荐**。Monitor 没有自动替换现有业务请求；由业务明确使用推荐的 Transport，才能使用被测通道。
 
 ## 结果与推荐
 
@@ -104,7 +104,7 @@ Interval 是候选检查的最大常规间隔；新 DNS 候选事件提前唤醒
 
 ## 验证
 
-`go test ./internal/upstreamrequest ./internal/upstreamstate ./internal/console`；`go vet` 同上。测试覆盖候选固定 IP、Host/SNI、SOCKS5 远端 DNS、三模式、TTL 交接、配置退休、无 I/O 读取、逐候选失败隔离、推荐迟滞、动态候选唤醒、旧配置迟到结果丢弃，以及既有正文与重定向边界。
+`go test ./internal/upstreamrequest ./internal/upstreamstate ./internal/console`；`go vet` 同上。测试覆盖候选固定 IP、Host/SNI、SOCKS5 远端 DNS、两种模式隔离、TTL 交接、配置退休、无 I/O 读取、逐候选失败隔离、推荐迟滞、动态候选唤醒、旧配置迟到结果丢弃，以及既有正文与重定向边界。
 
 CheckSelected(ctx, kind) 支持 catalog、playback、latency、throughput 四类手动检查，取消自动轮次并优先执行，自动调度等待手动轮次结束。依赖请求仅用于取得合法样本，不替换无关操作的观测。资源检查仍串行，手动吞吐绕过冷却和业务暂停，手动延迟只读取一个字节。
 

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/upstreamrequest"
 )
 
 const nodeFixture = "proxies: [{type: ss, server: private.example, port: 1234, cipher: aes-128-gcm, password: private-password}]"
@@ -193,9 +195,13 @@ func TestProxyImportNamesAndOrderingPreserveIdentity(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		tr := client.Transport.(*mihomoTransport)
+		tr, ok := client.Transport.(*upstreamrequest.Transport)
+		if !ok {
+			t.Fatal("direct mode initialized a proxy runtime")
+		}
 		defer tr.Retire()
-		if len(tr.known) != 1 || len(tr.proxies) != 0 {
+		known, ready := tr.KnownProxyIDs()
+		if !ready || len(known) != 1 {
 			t.Fatal("duplicate membership or activated direct-only runtime")
 		}
 	}

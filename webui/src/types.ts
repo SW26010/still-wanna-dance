@@ -17,6 +17,7 @@ export interface Job {
 }
 export interface ImportJob extends Job {
   id?: number; imported?: number; skipped?: number; deleted?: number; cleanupAvailable?: boolean;
+  present?: boolean; paused?: boolean; scopeMismatch?: boolean; source?: string; videoDir?: string; detail?: string;
 }
 export interface HealthResult {
   operation: string; route: string; mode: string; entry: string; state: string; channelID?: string; ip?: string;
@@ -35,6 +36,7 @@ export interface Health {
 export interface Status {
   vrcxImportAvailable: boolean;
   videoImportSuggested: boolean;
+  proxyModeMigrated?: boolean;
   running: boolean; settings: Settings; activeSettings: Settings; restartRequired: boolean;
   hosts: {ready: boolean; managed?: boolean; exitRestorePrepared?: boolean; authorizationID?: string; conflict?: boolean; message: string}; portOK: boolean; httpsPortOK: boolean;
   portOwner?: {name: string; pid: number}; httpsPortOwner?: {name: string; pid: number}; cdnError?: string;

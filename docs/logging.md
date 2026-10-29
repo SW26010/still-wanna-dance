@@ -18,7 +18,7 @@
 
 - `session_id`：一次桌面或 CLI 日志会话。桌面的 `application_build` 记录 Go 构建信息中的版本、提交和工作区修改标记（构建器未嵌入时不提供提交）。不同启动不能只靠 PID 区分。
 - `service_id`：一个本地资源引擎实例，重新创建会变。`request_id` 和 `flight_id` 都只在这个实例内有效。
-- `trace_id`：一次播放请求或歌曲预加载操作。队列启动、上游解析、Auto 回退、预加载及结束事件使用同一个值；共享下载继续使用最初创建它的操作标识。
+- `trace_id`：一次播放请求或歌曲预加载操作。队列启动、上游解析、预加载及结束事件使用同一个值；共享下载继续使用最初创建它的操作标识。
 - `resource_key`：视频内容版本的指纹。用 `cache_task_attached` 将每个操作连接到 `(service_id, flight_id)`，再查看这一共享任务的下载日志。同一版本重试会产生新的 flight。
 - `song_id`：曲库列表中的歌曲 ID。多个歌曲可能共用资源，不能把它与资源指纹混为一谈。历史淘汰事件的 `key` 与 `resource_key` 是同一指纹。
 - `host`：请求或下载会话的资源域名；`upstream_host`：建立上游响应时实际选择的域名，可能经过重定向或回退。两者分别记录，不能以重复 JSON 键覆盖原始身份。
@@ -42,7 +42,7 @@
 | `download_verified` / `download_integrity_failed` | 正文大小和 MD5 是否满足预期；MD5 在读取中计算，因此与下载耗时合并记录 |
 | `download_published` | 完整校验、正式文件发布和数据库登记均已成功；不能保证该资源随后不会因容量策略被淘汰 |
 | `cache_task_finished` | 共享任务最终阶段、耗时和 `completed` / `failed` / `canceled` / `timeout` / `not_retained` 结果；成功命中也会出现，不能将它单独当作新下载成功 |
-| `prefetch_resolved` / `prefetch_finished` | 解析线路与耗时、资源关联，以及预加载结果；`success=false` 的解析事件仍可能随后通过 Auto 回退成功 |
+| `prefetch_resolved` / `prefetch_finished` | 解析线路与耗时、资源关联，以及预加载结果；`success=false` 表示本次地址解析失败 |
 | `queue_updated` | 有序 `song_ids`（保留 -1 占位）、房间重置代数；用于更新队列需求，不记录歌名、玩家或房间原文 |
 | `queue_song_canceled` / `queue_song_discarded` | 队列变化取消等待或旧结果被丢弃；不是下载失败 |
 | `batch_started` / `batch_finished` | 批次开始与结束汇总；结束区分仅扫描、缺失数量、取消和是否处理完列表。扫描完成仍可能存在缺失文件；处理中进度通过运行状态展示 |

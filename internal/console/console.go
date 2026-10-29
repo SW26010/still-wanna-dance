@@ -41,6 +41,7 @@ type Console struct {
 	vrcxNotify             bool                        // startup Toast only; set during automatic library creation
 	vrcxImportDismissed    bool                        // protected by mu; persisted user choice outside editable Settings
 	videoImportSuggestion  bool                        // protected by mu; only the first run of a configuration, until acknowledged
+	proxyModeMigrated      bool                        // startup notice; migration is already persisted
 	proxyImports           map[string]proxyImportDraft // protected by mu
 	identity               desktop.Identity
 	lifecycle              *applicationLifecycle
@@ -86,7 +87,7 @@ type Console struct {
 	batch               Batch
 	lastBatch           Batch
 	importStatus        ImportStatus
-	importReceipts      []cacheproxy.ImportedVideo
+	importTask          *videoImportTask
 	importCancel        context.CancelFunc
 	importDone          chan struct{}
 	batchCancel         context.CancelFunc
@@ -164,6 +165,10 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 	if err == nil {
 		c.upstreamDial, c.client, err = c.networkFor(c.settings)
 	}
+	if err == nil && loaded.UpstreamAuto {
+		err = migrateAutoUpstreamMode(c.configPath)
+		c.proxyModeMigrated = err == nil
+	}
 	if err == nil {
 		unconfigured := c.settings.DatabasePath == "" && c.settings.VideoDir == ""
 		if unconfigured {
@@ -178,6 +183,7 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 	}
 	if err == nil {
 		c.loadSnapshots()
+		c.loadImportTask()
 		c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport.(upstreamrequest.Candidates))
 	}
 	if err != nil && c.store != nil {
@@ -531,6 +537,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			StorageError          string                  `json:"storageError,omitempty"`
 			VRCXImportAvailable   bool                    `json:"vrcxImportAvailable"`
 			VideoImportSuggested  bool                    `json:"videoImportSuggested"`
+			ProxyModeMigrated     bool                    `json:"proxyModeMigrated,omitempty"`
 			ActionErrors          map[string]string       `json:"actionErrors"`
 			Batch                 Batch                   `json:"batch"`
 			Import                ImportStatus            `json:"import"`
@@ -553,6 +560,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Running: running, Settings: c.savedSettings, ActiveSettings: c.settings,
 			RestartRequired:      c.savedSettings != c.settings,
 			VideoImportSuggested: c.videoImportSuggestion,
+			ProxyModeMigrated:    c.proxyModeMigrated,
 			PortOK:               running, HTTPSPortOK: running, CDNError: c.cdnError,
 			Import: c.importStatus, Batch: c.batch, Queue: c.queue, LastBatch: c.lastBatch,
 			SOCKS5PasswordSet:     c.savedSettings.SOCKS5Password != "",
@@ -741,6 +749,21 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		}
 		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
 			err = c.cleanupImport(input.ID, input.Confirmed)
+		}
+	case "/api/import/pause", "/api/import/resume", "/api/import/discard":
+		var input struct {
+			ID        uint64 `json:"id"`
+			Confirmed bool   `json:"confirmed"`
+		}
+		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+			switch r.URL.Path {
+			case "/api/import/pause":
+				err = c.pauseImport(input.ID)
+			case "/api/import/resume":
+				err = c.resumeImport(input.ID)
+			case "/api/import/discard":
+				err = c.discardImport(input.ID, input.Confirmed)
+			}
 		}
 	case "/api/inventory/scan":
 		c.startInventoryScan()

@@ -19,6 +19,7 @@ type loadedConfig struct {
 	Settings            Settings
 	VRCXImportDismissed bool
 	Exists              bool
+	UpstreamAuto        bool // Legacy disk value; never an executable mode.
 }
 
 func loadConfigFile(path string) (loadedConfig, error) {
@@ -30,6 +31,10 @@ func loadConfigFile(path string) (loadedConfig, error) {
 	if data != nil {
 		if err := json.Unmarshal(data, &loaded.Settings); err != nil {
 			return loaded, fmt.Errorf("读取程序配置：%w", err)
+		}
+		if loaded.Settings.UpstreamMode == "auto" {
+			loaded.Settings.UpstreamMode = "proxy"
+			loaded.UpstreamAuto = true
 		}
 		loadProxySecret(fields, &loaded.Settings)
 		loadProxyNodes(fields, &loaded.Settings)
@@ -186,6 +191,24 @@ func saveConfigVRCXDismissal(path string) error {
 			return os.ErrNotExist
 		}
 		fields["vrcxImportDismissed"] = json.RawMessage("true")
+		return nil
+	})
+}
+
+// Persist only the retired mode, preserving encrypted credentials, nodes and
+// unknown JSON values without decoding or re-encrypting them. Startup owns the
+// config lease.
+func migrateAutoUpstreamMode(path string) error {
+	return updateConfigFile(path, func(fields map[string]json.RawMessage, exists bool) error {
+		if !exists {
+			return os.ErrNotExist
+		}
+		for key := range fields {
+			if strings.EqualFold(key, "upstreamMode") {
+				delete(fields, key)
+			}
+		}
+		fields["upstreamMode"] = json.RawMessage(`"proxy"`)
 		return nil
 	})
 }

@@ -28,7 +28,7 @@ func (p monitorTestChannels) Current(target string) []upstreamrequest.Candidate 
 	u, _ := url.Parse(target)
 	return []upstreamrequest.Candidate{
 		{ID: "direct/" + u.Host, Host: u.Host, Mode: "direct", IP: "192.0.2.1", Transport: p.RoundTripper},
-		{ID: "socks5/" + u.Host, Host: u.Host, Mode: "socks5", Transport: p.RoundTripper},
+		{ID: "direct/" + u.Host + "/192.0.2.2", Host: u.Host, Mode: "direct", IP: "192.0.2.2", Transport: p.RoundTripper},
 	}
 }
 

@@ -850,6 +850,13 @@
       "bytes": 1200383,
       "sha256": "ac1e0ca11c04102f55ee70f75901e2ff2021c50aa2cedf4ba9a6398cc78e61cf",
       "reason": "Production WebUI from 7782f131: follow initial catalog work until coverage is populated. Exact Git blob SHA256 matches webui/build-manifest.json and the current pnpm --dir webui check; register the omitted generated artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1200856,
+      "sha256": "7f83d7d68a1346695ce1cb88c6b7fae19c29ede48c4297f094f4850cd921c1d0",
+      "reason": "Production WebUI generated and verified by webui/build.mjs. Remove the automatic direct/proxy mode and show a homepage notification when an existing configuration migrates to proxy. Exact Git blob bytes match webui/build-manifest.json."
     }
   ]
 }

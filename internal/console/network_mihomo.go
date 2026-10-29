@@ -50,7 +50,6 @@ func (c *Console) retainedProxyNodes(s Settings, externalID string) upstreamrequ
 // of whether the current mode grants any proxy business eligibility.
 type mihomoTransport struct {
 	*upstreamrequest.Transport
-	direct          *mihomoDirectTransport
 	core            *mihomo.Runtime
 	proxies         []upstreamrequest.Proxy
 	known           []string
@@ -67,29 +66,12 @@ func (t *mihomoTransport) Retire() {
 	t.once.Do(func() {
 		t.retired.Store(true)
 		t.Transport.Retire() // reject new candidate requests first
-		if t.direct != nil {
-			t.direct.CloseIdleConnections()
-		}
 		if t.core != nil {
 			if err := t.core.Close(); err != nil {
 				slog.Warn("mihomo_runtime_drain_incomplete")
 			}
 		}
 	})
-}
-
-// Only a business fallback: DNS is resolved by the existing controlled dialer
-// on demand. It has no pinned IP/channel ID and never becomes a measured sample.
-type mihomoDirectTransport struct {
-	*http.Transport
-	owner *mihomoTransport
-}
-
-func (t *mihomoDirectTransport) RoundTrip(r *http.Request) (*http.Response, error) {
-	if t.owner.retired.Load() {
-		return nil, net.ErrClosed
-	}
-	return t.Transport.RoundTrip(r)
 }
 
 func (c *Console) mihomoNetworkFor(s Settings, limit int) (upstreamDialFunc, *http.Client, error) {
@@ -118,51 +100,42 @@ func (c *Console) mihomoNetworkFor(s Settings, limit int) (upstreamDialFunc, *ht
 	}
 	slices.Sort(runtime.known)
 	var proxies []upstreamrequest.Proxy
-	if s.UpstreamMode != "direct" {
-		// No durable, comparable resource first-response samples exist at boot.
-		// This is a stable provisional set, not a claimed global Top K.
-		var active []mihomo.Config
-		for _, id := range runtime.known[:min(limit, len(runtime.known))] {
-			active = append(active, mihomo.Config{ID: id, Parameters: configs[id]})
+	// No durable, comparable resource first-response samples exist at boot.
+	// This is a stable provisional set, not a claimed global Top K.
+	var active []mihomo.Config
+	for _, id := range runtime.known[:min(limit, len(runtime.known))] {
+		active = append(active, mihomo.Config{ID: id, Parameters: configs[id]})
+	}
+	if len(active) > 0 {
+		core, err := mihomo.NewRuntime(active, mihomo.RuntimeOptions{Home: filepath.Join(c.files().StateDir, "mihomo")})
+		if err != nil {
+			return nil, nil, errors.New("无法启动代理运行时，请检查节点并重启应用")
 		}
-		if len(active) > 0 {
-			core, err := mihomo.NewRuntime(active, mihomo.RuntimeOptions{Home: filepath.Join(c.files().StateDir, "mihomo")})
-			if err != nil {
-				return nil, nil, errors.New("无法启动代理运行时，请检查节点并重启应用")
-			}
-			runtime.core, proxies = core, core.Proxies()
-		}
+		runtime.core, proxies = core, core.Proxies()
 	}
 	runtime.proxies = proxies
-	pool, err := upstreamrequest.NewMultiPool(channelMode(s.UpstreamMode), c.dns, proxies)
+	pool, err := upstreamrequest.NewMultiPool("socks5", nil, proxies)
 	if err != nil {
 		if runtime.core != nil {
 			_ = runtime.core.Close()
 		}
 		return nil, nil, err
 	}
-	// Raw callers have no measured channel. Bound connection attempts and never
-	// dial directly under forced proxy, including an unreadable/empty snapshot.
+	// Raw callers have no measured channel. Bound attempts to the active proxies,
+	// including an unreadable/empty snapshot; target DNS belongs to each proxy.
 	dial := func(ctx context.Context, network, address string) (net.Conn, error) {
 		if runtime.retired.Load() {
 			return nil, net.ErrClosed
 		}
-		var attempts []upstreamrequest.DialFunc
-		if s.UpstreamMode != "proxy" {
-			attempts = append(attempts, c.dns.DialContext)
-		}
-		for _, proxy := range proxies {
-			attempts = append(attempts, proxy.Dial)
-		}
-		if len(attempts) == 0 {
+		if len(proxies) == 0 {
 			return nil, errors.New("没有可用的活跃代理节点，请导入并保存、重启")
 		}
-		for i, attempt := range attempts {
+		for i, proxy := range proxies {
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
-			child, cancel := channelAttempt(ctx, 10*time.Second, len(attempts)-i)
-			conn, err := attempt(child, network, address)
+			child, cancel := channelAttempt(ctx, 10*time.Second, len(proxies)-i)
+			conn, err := proxy.Dial(child, network, address)
 			cancel()
 			if err == nil {
 				return conn, nil
@@ -176,15 +149,5 @@ func (c *Console) mihomoNetworkFor(s Settings, limit int) (upstreamDialFunc, *ht
 	runtime.Transport = &upstreamrequest.Transport{Pool: pool, RoundTripper: &http.Transport{
 		DialContext: dial, ResponseHeaderTimeout: 20 * time.Second, TLSHandshakeTimeout: 10 * time.Second, IdleConnTimeout: 90 * time.Second,
 	}}
-	if s.UpstreamMode != "proxy" {
-		runtime.direct = &mihomoDirectTransport{owner: runtime, Transport: &http.Transport{
-			DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-				if runtime.retired.Load() {
-					return nil, net.ErrClosed
-				}
-				return c.dns.DialContext(ctx, network, address)
-			}, ResponseHeaderTimeout: 20 * time.Second, TLSHandshakeTimeout: 10 * time.Second, IdleConnTimeout: 90 * time.Second,
-		}}
-	}
 	return dial, &http.Client{Timeout: 30 * time.Second, Transport: runtime, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, nil
 }

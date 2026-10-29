@@ -3,7 +3,6 @@ package console
 import (
 	"context"
 	"net/http"
-	"net/url"
 	"slices"
 	"time"
 
@@ -24,93 +23,41 @@ func (c *Console) operationSelections(op upstreamstate.Operation, q upstreamstat
 	c.mu.Lock()
 	m, mode, client := c.monitor, channelMode(c.settings.UpstreamMode), c.client
 	c.mu.Unlock()
-	if mode == "direct" || mode == "socks5" {
-		q.Mode = mode
-	}
+	q.Mode = mode
 	var selections []upstreamstate.Selection
 	if m != nil {
 		selections = m.Selections(op, q)
 	}
-	// Keep measured preferences first, then append the remaining active Mihomo
-	// candidates. Partial observations must not disable business fallbacks.
+	// Keep measured preferences first, then append unmeasured candidates from
+	// the same configured mode. Partial checks must not disable fallbacks.
 	if client != nil {
-		if runtime, ok := client.Transport.(*mihomoTransport); ok && !runtime.retired.Load() {
+		if provider, ok := client.Transport.(upstreamrequest.Candidates); ok {
 			target := q.Target
 			if target == "" {
 				target = q.Entry
 			}
-			current := runtime.Current(target)
-			measured := len(selections) > 0
-			for _, channel := range current {
-				if (q.Mode == "" || channel.Mode == q.Mode) &&
-					!slices.ContainsFunc(selections, func(s upstreamstate.Selection) bool { return s.Channel.ID == channel.ID }) {
+			for _, channel := range provider.Current(target) {
+				if channel.Mode == mode && !slices.ContainsFunc(selections, func(s upstreamstate.Selection) bool { return s.Channel.ID == channel.ID }) {
 					selections = append(selections, upstreamstate.Selection{Channel: channel})
 				}
 			}
-			u, err := url.Parse(target)
-			if runtime.direct != nil && q.Mode != "socks5" && err == nil && u.Hostname() != "" && (u.Scheme == "http" || u.Scheme == "https") &&
-				!slices.ContainsFunc(current, func(c upstreamrequest.Candidate) bool { return c.Mode == "direct" }) {
-				fallback := upstreamstate.Selection{Channel: upstreamrequest.Candidate{Host: u.Hostname(), Mode: "direct", Transport: runtime.direct}}
-				if measured {
-					selections = append(selections, fallback)
-				} else {
-					selections = append([]upstreamstate.Selection{fallback}, selections...)
-				}
-			}
 		}
 	}
-	return boundedSelections(selections)
-}
-
-// Keep Monitor's relative order, reserving space for the active proxy exits and
-// at least one direct path in Auto. Multiple direct IPs must not crowd out every
-// proxy (or the fifth active node) before either API or download attempts start.
-func boundedSelections(selections []upstreamstate.Selection) []upstreamstate.Selection {
-	limit := upstreamrequest.MaxOperationCandidates
-	if len(selections) <= limit {
-		return selections
-	}
-	proxies := 0
-	for _, s := range selections {
-		if s.Channel.Mode == "socks5" {
-			proxies++
-		}
-	}
-	directBudget := max(1, limit-proxies)
-	if proxies == len(selections) {
-		directBudget = 0
-	}
-	proxyBudget := limit - directBudget
-	var out []upstreamstate.Selection
-	for _, s := range selections {
-		if s.Channel.Mode == "direct" && directBudget > 0 {
-			out = append(out, s)
-			directBudget--
-		} else if s.Channel.Mode == "socks5" && proxyBudget > 0 {
-			out = append(out, s)
-			proxyBudget--
-		}
-	}
-	return out
+	return selections[:min(len(selections), upstreamrequest.MaxOperationCandidates)]
 }
 
 func (c *Console) operationClients(ctx context.Context, op upstreamstate.Operation, q upstreamstate.Constraints) []*http.Client {
 	base := c.upstreamClient()
 	selections := c.operationSelections(op, q)
-	if provider, ok := base.Transport.(upstreamrequest.Candidates); ok {
-		current := provider.Current(q.Entry)
-		if len(selections) == 0 && !slices.ContainsFunc(current, func(c upstreamrequest.Candidate) bool { return c.Mode == "direct" }) {
-			// Cold business requests may resolve DNS, but never run a probe.
-			// A proxy alone does not establish direct membership. The provider
-			// still owns mode isolation, including no target DNS in forced proxy.
-			current, _ = provider.Candidates(ctx, q.Entry)
-		}
-		for _, channel := range current {
-			if !slices.ContainsFunc(selections, func(s upstreamstate.Selection) bool { return s.Channel.ID == channel.ID }) {
+	if len(selections) == 0 {
+		if provider, ok := base.Transport.(upstreamrequest.Candidates); ok {
+			// Only cold direct discovery performs DNS; proxy discovery uses its
+			// configured exits. Discovery shares the caller's operation deadline.
+			current, _ := provider.Candidates(ctx, q.Entry)
+			for _, channel := range current[:min(len(current), upstreamrequest.MaxOperationCandidates)] {
 				selections = append(selections, upstreamstate.Selection{Channel: channel})
 			}
 		}
-		selections = boundedSelections(selections)
 	}
 	if len(selections) == 0 {
 		// Legacy clients or a pool with no usable paths retain the ordinary

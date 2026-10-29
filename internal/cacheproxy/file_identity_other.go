@@ -13,3 +13,7 @@ func fileIdentity(*os.File) (string, error) { return "", nil }
 func fileLinkCount(*os.File) (uint64, error) {
 	return 0, fmt.Errorf("file link count is unavailable on this platform")
 }
+
+func fileVolumeID(*os.File) (uint64, error) {
+	return 0, fmt.Errorf("volume identity is unavailable on this platform")
+}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,8 +12,6 @@ import (
 
 	"still-wanna-dance/internal/upstreamrequest"
 )
-
-type cleanupDNS struct{ err error }
 
 type retainedCandidates struct {
 	*candidateFixture
@@ -31,81 +28,12 @@ func TestStandbyProxyThroughputSurvivesActiveSubset(t *testing.T) {
 	for _, ready := range []bool{false, true} {
 		m := &Monitor{throughput: map[string]observation{key(standby): {}, key(deleted): {}}}
 		p := retainedCandidates{ids: []string{standby}, ready: ready}
-		m.pruneThroughputLocked(nil, map[string]upstreamrequest.CandidateReadiness{entry(Resource, "play.udon.dance"): {Proxy: true}}, p)
+		m.pruneThroughputLocked(nil, map[string]bool{entry(Resource, "play.udon.dance"): true}, p)
 		if _, ok := m.throughput[key(standby)]; !ok {
 			t.Fatal("saved standby node lost history")
 		}
 		if _, ok := m.throughput[key(deleted)]; ok == ready {
 			t.Fatal("deleted/unknown membership cleanup incorrect")
-		}
-	}
-}
-
-func (d *cleanupDNS) Addresses(context.Context, string) ([]upstreamrequest.Address, error) {
-	return nil, d.err
-}
-func (d *cleanupDNS) CurrentAddresses(string) []upstreamrequest.Address { return nil }
-func (d *cleanupDNS) DNSChanged() <-chan struct{}                       { return nil }
-
-type fallbackDiscovery struct{ *upstreamrequest.Transport }
-
-func (p fallbackDiscovery) CandidatesWithReadiness(ctx context.Context, target string) ([]upstreamrequest.Candidate, upstreamrequest.CandidateReadiness, error) {
-	cs, ready, err := p.Pool.CandidatesWithReadiness(ctx, target)
-	for i := range cs {
-		cs[i].Transport = transportFunc(fixture)
-	}
-	return cs, ready, err
-}
-
-func TestProxyFallbackDoesNotPruneRestoredDirectThroughput(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "throughput.json")
-	direct := "resource/play.udon.dance/direct/play.udon.dance/192.0.2.1"
-	oldProxy := "resource/play.udon.dance/socks5/play.udon.dance/stable-v1-" + strings.Repeat("a", 64)
-	at := time.Now().Add(-time.Minute)
-	sample := ThroughputSample{ObservedAt: at, SongID: 42, Bytes: 16 << 20, Duration: 2 * time.Second}
-	data, _ := json.Marshal(throughputState{SchemaVersion: throughputSchemaVersion, LastAttempt: at, Samples: map[string]ThroughputSample{direct: sample, oldProxy: sample}})
-	if err := os.WriteFile(path, data, 0600); err != nil {
-		t.Fatal(err)
-	}
-	dns := &cleanupDNS{err: errors.New("DNS unavailable")}
-	pool, err := upstreamrequest.NewPool("auto", dns, func(context.Context, string, string) (net.Conn, error) { return nil, errors.New("unexpected network") }, "stable-v1-"+strings.Repeat("b", 64))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer pool.Close()
-	ch := upstreamrequest.NewChannel()
-	ch.Publish(fallbackDiscovery{&upstreamrequest.Transport{Pool: pool}})
-	m, err := newMonitor(Options{ThroughputStatePath: path}, ch)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer m.Close()
-	for _, failed := range []bool{true, false} {
-		if !failed {
-			dns.err = nil
-		}
-		if err := m.CheckSelected(context.Background(), CheckLatency); err != nil {
-			t.Fatal(err)
-		}
-		if _, ok := m.throughput[direct]; ok != failed {
-			t.Fatal("incorrect direct cleanup after DNS lookup", failed)
-		}
-		if _, ok := m.throughput[oldProxy]; ok {
-			t.Fatal("old proxy retained despite known configuration")
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var saved throughputState
-		if err = json.Unmarshal(data, &saved); err != nil {
-			t.Fatal(err)
-		}
-		if _, ok := saved.Samples[direct]; ok != failed {
-			t.Fatal("incorrect persisted direct history", failed)
-		}
-		if _, ok := saved.Samples[oldProxy]; ok {
-			t.Fatal("old proxy persisted")
 		}
 	}
 }

@@ -28,6 +28,7 @@ export async function mockAPI(page: Page) {
     let data: unknown = {ok:true};
     if (path==='status') data = state;
     if(path==='import/dismiss-suggestion')state.videoImportSuggested=false;
+    if(path==='import/space')data={mode:'unknown',videoDir:state.import.videoDir||state.activeSettings.videoDir};
     if(path==='exit'||path==='restart')data={ok:true,action:path};
     if(path==='storage/check')data={confirmVideoPolicy:false};
     if(path==='storage/create-database')data={path:body.databasePath};

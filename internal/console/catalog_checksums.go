@@ -18,17 +18,17 @@ import (
 
 // Fetching only feeds synchronization. Business operations read the database
 // after this attempt, including when the remote endpoint is unavailable.
-func (c *Console) refreshLocalCatalog(ctx context.Context, engine *cacheproxy.Server) error {
+func (c *Console) refreshLocalCatalog(ctx context.Context, store *cacheproxy.Store) error {
 	candidate, err := c.fetchCatalogSnapshot(ctx)
 	var syncFailures []error
 	if err == nil {
-		err = engine.SyncCatalog(ctx, candidate)
+		err = store.SyncCatalog(ctx, candidate)
 		if err != nil && !errors.Is(err, cacheproxy.ErrCatalogOlder) {
 			syncFailures = append(syncFailures, err)
 		}
 	}
 	if c.checksumURL == cacheproxy.UdonCatalogURL {
-		missing, checkErr := engine.CatalogNeedsMappings(ctx)
+		missing, checkErr := store.CatalogNeedsMappings(ctx)
 		if checkErr != nil {
 			return checkErr
 		}
@@ -50,7 +50,7 @@ func (c *Console) refreshLocalCatalog(ctx context.Context, engine *cacheproxy.Se
 			sort.SliceStable(backups, func(i, j int) bool { return backups[i].Revision > backups[j].Revision })
 			usable := err == nil || errors.Is(err, cacheproxy.ErrCatalogOlder)
 			for _, backup := range backups {
-				syncErr := engine.SyncCatalog(ctx, backup)
+				syncErr := store.SyncCatalog(ctx, backup)
 				if syncErr == nil || errors.Is(syncErr, cacheproxy.ErrCatalogOlder) {
 					usable = true
 				} else {
@@ -71,7 +71,7 @@ func (c *Console) refreshLocalCatalog(ctx context.Context, engine *cacheproxy.Se
 		return nil
 	}
 	if err != nil && ctx.Err() == nil {
-		if saveErr := engine.RecordCatalogError(ctx, err); saveErr != nil {
+		if saveErr := store.RecordCatalogError(ctx, err); saveErr != nil {
 			return fmt.Errorf("%v；无法保存检查结果：%w", err, saveErr)
 		}
 	}

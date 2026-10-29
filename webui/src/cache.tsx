@@ -64,7 +64,7 @@ export function InventoryPanel({visible,files,videoError,refresh,loading,loadedA
   const catalogBusy=scanning||inventory.loading;
   const known = !videoError && v && dated(v.updated) && v.coverageKnown && v.totalSongs > 0;
   const coverageDescription=(known?`已覆盖 ${v.coveredSongs} / 当前清单 ${v.totalSongs} 首；`:'')+'统计清单版本：'+(v?.catalogRevision||'未知');
-  const coverageWarning=videoError?'无法检查本地视频，暂时无法计算覆盖率。':known&&v.unresolvedSongs?`资源待识别 ${v.unresolvedSongs} 首，已计入当前清单总数，暂未计为已覆盖。`:v&&!known&&!catalogBusy?'尚无有效的完整清单，暂时无法计算覆盖率。请更新曲库。':undefined;
+  const coverageWarning=videoError?'无法检查本地视频，暂时无法计算覆盖率。':known&&v.unresolvedSongs?`资源待识别 ${v.unresolvedSongs} 首，已计入当前清单总数，暂未计为已覆盖。`:v&&!known&&!catalogBusy?(v.error||'尚无有效的完整清单，暂时无法计算覆盖率。请更新曲库。'):undefined;
   return <section id="overview" className="library-summary" aria-label="曲库概览">
     <div className="inline summary-values">
       <div role="group" aria-label="本地视频">

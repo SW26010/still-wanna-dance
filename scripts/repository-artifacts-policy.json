@@ -794,6 +794,13 @@
       "bytes": 1199624,
       "sha256": "4b5028702b288138ad530fdf851e648c2b46a9db6c530695f0b4817abe040984",
       "reason": "Production WebUI generated and verified by webui/build.mjs. Restore compact coverage layout with counts in the title tooltip and a standard Fluent warning icon tooltip for unresolved resources or unavailable coverage."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1199663,
+      "sha256": "dac63b8a193f5aafaa036e03052c99397f46e1b4e931941d55cc4453f0f50b64",
+      "reason": "Production WebUI generated and verified by webui/build.mjs. Explain unavailable coverage using the file-check error while catalog metadata continues to update independently."
     }
   ]
 }

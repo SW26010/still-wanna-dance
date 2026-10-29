@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -49,18 +50,23 @@ func TestInventoryCoverageDoesNotRecreateMissingVideoDirectory(t *testing.T) {
 	if err := os.Rename(filepath.Dir(path), filepath.Dir(path)+"-unavailable"); err != nil {
 		t.Fatal(err)
 	}
+	var requests atomic.Int32
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Error("invalid store must fail before fetching coverage")
-		http.Error(w, "unexpected", http.StatusInternalServerError)
+		requests.Add(1)
+		fmt.Fprint(w, testMD5CatalogBody("20261029000000", map[int]string{1: "video"}))
 	}))
 	defer api.Close()
 	c.checksumURL, c.client.Transport = api.URL, http.DefaultTransport
 	c.startInventoryScan()
-	after := c.localInventory()
+	after := waitInventory(t, c)
 	if after.Error == "" || after.Scanning {
 		t.Fatalf("%+v", after)
 	}
+	if requests.Load() != 1 || after.Catalog.Revision != "20261029000000" || after.CoverageKnown {
+		t.Fatal("lost video directory blocked metadata update or reported known coverage", after)
+	}
 	after.Error = ""
+	after.Catalog = before.Catalog
 	if after != before {
 		t.Fatalf("previous inventory lost: before=%+v after=%+v", before, after)
 	}

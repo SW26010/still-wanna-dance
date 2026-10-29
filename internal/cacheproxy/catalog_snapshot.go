@@ -90,15 +90,27 @@ func (s *Server) ReadDownloadTarget(ctx context.Context, target DownloadTarget) 
 	return s.readLocalCatalog(ctx, &target)
 }
 
-func (s *Server) readLocalCatalog(ctx context.Context, target *DownloadTarget) (LocalCatalog, func(), error) {
+// InspectLocalCatalog is a point-in-time coverage check. It shares the mapping
+// snapshot with downloads, but does not pin videos or start video management.
+// The returned presence snapshot is not a lease for subsequent file reads.
+func (s *Store) InspectLocalCatalog(ctx context.Context, videoDir string) (LocalCatalog, error) {
 	if !s.beginRequest() {
-		return LocalCatalog{}, func() {}, context.Canceled
+		return LocalCatalog{}, context.Canceled
 	}
-	var result LocalCatalog
-	result.Current = map[string]bool{}
-	refs := map[string]string{}
-	keys := map[string]bool{}
+	defer s.wg.Done()
 	s.mappingMu.Lock()
+	result, err := s.readCatalogLocked(ctx, nil)
+	s.mappingMu.Unlock()
+	if err != nil {
+		return result, s.storageError(err)
+	}
+	err = result.checkFiles(ctx, videoDir)
+	return result, err
+}
+
+// Caller holds mappingMu so membership, mappings and watermark agree.
+func (s *Store) readCatalogLocked(ctx context.Context, target *DownloadTarget) (LocalCatalog, error) {
+	result := LocalCatalog{Current: map[string]bool{}}
 	status, err := s.catalogStatus(ctx)
 	result.Status = status
 	if err == nil {
@@ -122,9 +134,6 @@ func (s *Server) readLocalCatalog(ctx context.Context, target *DownloadTarget) (
 				}
 				result.Songs = append(result.Songs, song)
 				result.Current[strconv.FormatInt(song.ID, 10)] = current
-				if song.MD5 != "" {
-					refs[strconv.FormatInt(song.ID, 10)] = song.MD5
-				}
 			}
 			if err == nil {
 				err = rows.Err()
@@ -132,9 +141,19 @@ func (s *Server) readLocalCatalog(ctx context.Context, target *DownloadTarget) (
 			rows.Close()
 		}
 	}
+	return result, err
+}
+
+func (s *Server) readLocalCatalog(ctx context.Context, target *DownloadTarget) (LocalCatalog, func(), error) {
+	if !s.beginRequest() {
+		return LocalCatalog{}, func() {}, context.Canceled
+	}
+	keys := map[string]bool{}
+	s.mappingMu.Lock()
+	result, err := s.Store.readCatalogLocked(ctx, target)
 	if err == nil {
-		for _, key := range refs {
-			if !keys[key] {
+		for _, song := range result.Songs {
+			if key := song.MD5; key != "" && !keys[key] {
 				s.pinVideo(video{key: key})
 				keys[key] = true
 			}
@@ -148,21 +167,33 @@ func (s *Server) readLocalCatalog(ctx context.Context, target *DownloadTarget) (
 		s.wg.Done()
 	}
 	if err == nil {
-		result.Files, err = CheckReferencedFiles(ctx, s.cfg.videosDir(), refs)
-		// Unresolved songs still use the same job/resolve/download mechanism,
-		// but must not be presented to the complete-file checker as a fake MD5.
-		if err == nil {
-			for _, song := range result.Songs {
-				if song.MD5 == "" {
-					result.Files.References[strconv.FormatInt(song.ID, 10)] = ""
-					result.Files.Complete = false
-				}
-			}
-		}
+		err = result.checkFiles(ctx, s.cfg.videosDir())
 	}
 	if err != nil {
 		release()
 		return result, func() {}, err
 	}
 	return result, release, nil
+}
+
+func (result *LocalCatalog) checkFiles(ctx context.Context, videoDir string) error {
+	refs := map[string]string{}
+	for _, song := range result.Songs {
+		if song.MD5 != "" {
+			refs[strconv.FormatInt(song.ID, 10)] = song.MD5
+		}
+	}
+	var err error
+	result.Files, err = CheckReferencedFiles(ctx, videoDir, refs)
+	// Unresolved songs still use the same job/resolve/download mechanism,
+	// but must not be presented to the complete-file checker as a fake MD5.
+	if err == nil {
+		for _, song := range result.Songs {
+			if song.MD5 == "" {
+				result.Files.References[strconv.FormatInt(song.ID, 10)] = ""
+				result.Files.Complete = false
+			}
+		}
+	}
+	return err
 }

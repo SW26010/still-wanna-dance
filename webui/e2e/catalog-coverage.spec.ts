@@ -62,3 +62,19 @@ for(const width of [1280,390,320])test(`coverage keeps a compact layout and expl
   await expect(tooltip).toContainText('请更新曲库');
   expect(api.calls.some(c=>c.path==='inventory/scan')).toBe(false);
 });
+
+test('failed coverage check hides the old percentage and explains the file error',async({page})=>{
+  await mockAPI(page);
+  const error='无法读取视频目录：磁盘不可用';
+  await page.route('**/api/inventory',r=>r.fulfill({json:{coverageKnown:false,totalSongs:3,coveredSongs:1,updated:'2026-10-29T00:00:00Z',catalogRevision:'20261028000000',catalog:{revision:'20261029000000'},error}}));
+  await page.goto('/#/library');
+  const coverage=page.getByRole('group',{name:'曲库覆盖率',exact:true});
+  await expect(coverage).toContainText('—');
+  await expect(coverage).not.toContainText('%');
+  const warning=coverage.getByRole('button',{name:'覆盖率说明',exact:true});
+  await warning.focus();
+  await expect(page.getByRole('tooltip')).toContainText(error);
+  await expect(page.getByRole('tooltip')).not.toContainText('尚无有效的完整清单');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
+});

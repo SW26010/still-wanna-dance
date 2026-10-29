@@ -106,13 +106,10 @@ func (c *Console) startInventoryScan() {
 	s := c.settings
 	c.mu.Unlock()
 	if c.checksumURL != "" {
-		_, err := cacheproxy.CacheDirectory(libraryPaths(s).VideoDir)
-		if err == nil {
-			_, err = c.ensureEngineLocked()
-		}
-		if err != nil {
+		if _, err := c.businessStore(); err != nil {
 			c.inventoryMu.Lock()
 			c.inventory.Error = err.Error()
+			c.inventory.CoverageKnown = false
 			c.inventoryMu.Unlock()
 			return
 		}
@@ -134,7 +131,7 @@ func (c *Console) startInventoryScan() {
 		defer close(done)
 		defer cancel()
 		result := scanInventory(ctx, s)
-		if result.Error == "" && c.checksumURL != "" {
+		if c.checksumURL != "" {
 			c.addInventoryCoverage(ctx, &result)
 		}
 		c.inventoryMu.Lock()
@@ -149,6 +146,7 @@ func (c *Console) startInventoryScan() {
 		}
 		if result.Error != "" {
 			c.inventory.Error = result.Error
+			c.inventory.CoverageKnown = false
 			return
 		}
 		if err := c.writeSnapshot("inventory", libraryPaths(s), result); err != nil {
@@ -159,16 +157,18 @@ func (c *Console) startInventoryScan() {
 }
 
 func (c *Console) addInventoryCoverage(ctx context.Context, result *Inventory) {
-	c.mu.Lock()
-	engine := c.service
-	c.mu.Unlock()
-	if engine == nil {
-		result.Error = "本地清单数据库尚未打开"
+	store, err := c.businessStore()
+	if err != nil {
+		result.Error = err.Error()
 		return
 	}
-	refreshErr := c.refreshLocalCatalog(ctx, engine)
-	catalog, release, err := engine.ReadLocalCatalog(ctx)
-	defer release()
+	refreshErr := c.refreshLocalCatalog(ctx, store)
+	// Metadata synchronization does not depend on video availability. A failed
+	// file scan still prevents publishing a new coverage result.
+	if result.Error != "" {
+		return
+	}
+	catalog, err := store.InspectLocalCatalog(ctx, c.settings.VideoDir)
 	result.Catalog = catalog.Status
 	if err != nil {
 		result.Error = "无法读取本地资源：" + err.Error()

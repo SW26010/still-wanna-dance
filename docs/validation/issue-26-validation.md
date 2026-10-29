@@ -16,6 +16,12 @@
 
 首次自动发布运行 [check #23](https://github.com/SW26010/still-wanna-dance/actions/runs/40921482572)在两平台浏览器/Node 检查通过后主动取消：核对真实 GitHub API 时发现，commit 查询对不存在的 tag 返回 422，原发布预检只接受 404。现改为先用 Git ref 接口判断 tag 是否存在，再核对已有 tag 的提交；没有放宽提交身份检查，也没有将该取消运行记为完整通过。
 
+[check #24](https://github.com/SW26010/still-wanna-dance/actions/runs/40924202627)在 `152be7451c63a75047ec825c9760f0da8645082f` 完成两平台检查、正式打包、源码重建和三布局覆盖升级，但独立发布 job 的公开下载重建失败，工作流已将 Release 恢复为草稿。此运行不能计为发布成功；tag 仍指向该提交，五个原始附件和 Actions 日志保留。
+
+用该运行的实际源码附件复现：包内容存储可复用全部 149 个安装包，但清空 pnpm 元数据缓存后，169 条锁文件供应链校验报 `ERR_PNPM_NO_OFFLINE_META`。构建 job 的热缓存掩盖了缺失材料。仅复制默认 fetch 的缓存仍失败，因为在线校验可能使用未保留的发布时间证明。修复通过独立缓存和 pnpm `no-downgrade` 检查收集完整元数据，归档元数据输入而非校验结果，并在重建时明确使用包内缓存；同时保留 pnpm 原始错误输出。
+
+修复验证：缺失元数据回归先失败后通过，全部 Node 工具测试 **47/47** 通过，actionlint 通过；实际附件源码调用修复后的收集与重建入口，通过全新缓存离线安装、类型检查及前端产物字节比较。另一次仅复制元数据、不复制 `lockfile-verified.jsonl` 的独立安装，重新校验 **169 条**供应链记录、复用 **149 包**且下载 **0 包**。证据位于忽略目录 `artifacts/release-v1.0.0-beta.1/ci-24-evidence/` 的 `offline-isolation-01.log`、`metadata-regression-before.log`、`metadata-regression-after.log`、`trust-metadata-offline-native.log`、`frontend-fixed-repro.log` 和 `tool-tests-after.log`。这些证明修复后的前端离线路径，不代表修复版已完成远程正式发布。
+
 ## 2026-10-26 发布前核对
 
 核对基线为 `41e49e09feddf159c15b5680c6458b4cf3f3cb11`。本节引用已有验证，没有重新执行产品测试；下方 2026-10-19 的包身份、失败和通过记录保留当时适用范围。

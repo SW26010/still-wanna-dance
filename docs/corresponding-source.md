@@ -50,3 +50,5 @@ node source/scripts/release-source.mjs rebuild --bundle . --output ../SWD-rebuil
 正式源码生成前检查已提交前端与源码一致。独立重建先在临时副本使用该存储执行 `pnpm install --offline --frozen-lockfile --ignore-scripts`，再执行类型检查和 esbuild 重建，比对 JS、CSS、第三方声明的实际字节，然后才构建 Go。原归档及其存储保持只读，缺包、缺资源、版本不符或字节不一致都停止。前端原稿、锁文件、构建脚本与存储随同一源码清单交付，运行 Portable 不需要 Node 或 pnpm。
 
 pnpm v11 的 `projects/` 仅保存构建机项目链接，归档前清除；包内容与索引保留。离线安装在临时存储副本执行，避免向原源码包写入新的项目链接。此清理有 junction 目标保留测试，实际清理后的存储已完成离线安装和重建比对。
+
+前端收集使用独立注册表缓存，并在 `fetch` 时启用 pnpm 的 `no-downgrade` 信任检查，收集每个锁定包的完整注册表元数据。默认发布时间检查可能借助在线证明服务，单独 `fetch` 留下的缓存不足以离线校验。`frontend-store/registry-cache/v11/` 随源码清单交付，只保存元数据输入，不包含构建机的 `lockfile-verified.jsonl` 校验结果缓存。每次离线重建明确使用包内缓存副本，重新执行供应链检查，避免构建机热缓存掩盖缺失材料；不关闭发布时间、完整性或信任检查。

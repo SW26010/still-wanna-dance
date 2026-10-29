@@ -197,12 +197,13 @@ jobs:
               const file = path.join('artifacts', name);
               if (!asset || asset.state !== 'uploaded' || asset.size !== fs.statSync(file).size || asset.digest !== `sha256:${sha256(file)}`) throw Error(`Uploaded asset mismatch: ${name}`);
             }
+            let publishedRelease;
             try {
-              await github.rest.repos.updateRelease({ ...context.repo, release_id, draft: false, prerelease: process.env.RELEASE_TAG.includes('-'), make_latest: 'false' });
+              ({ data: publishedRelease } = await github.rest.repos.updateRelease({ ...context.repo, release_id, draft: false, prerelease: process.env.RELEASE_TAG.includes('-'), make_latest: 'false' }));
               await exec.exec('pwsh', ['-NoProfile', '-File', 'scripts/with-test-temp.ps1', 'node', 'scripts/release.mjs', 'verify-published', '--manifest', path.join('artifacts', names.manifest)]);
             } catch (error) {
               // Stop exposing an unverified delivery. Never report it as successful.
               await github.rest.repos.updateRelease({ ...context.repo, release_id, draft: true });
               throw error;
             }
-            await core.summary.addHeading('Release verified').addLink(process.env.RELEASE_TAG, release.html_url).write();
+            await core.summary.addHeading('Release verified').addLink(process.env.RELEASE_TAG, publishedRelease.html_url).write();

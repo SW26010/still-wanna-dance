@@ -33,6 +33,23 @@ test('product icon exceptions are limited to the exact runtime assets', () => {
   }
 });
 
+test('README screenshots require an exact registered image and stay below the warning budget', () => {
+  const bytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0]);
+  const digest = createHash('sha256').update(bytes).digest('hex');
+  for (const file of ['docs/images/webui-acceleration.png', 'docs/images/webui-library.png', 'docs/images/webui-settings-dark.png']) {
+    const exception = { path: file, kind: 'readme-screenshot', bytes: bytes.length, sha256: digest };
+    const allowed = { ...policy, exceptions: [exception] };
+    assert.deepEqual(classify(file, bytes, allowed), {});
+    assert.ok(classify(file, bytes, policy).error);
+    assert.ok(classify(file, Buffer.concat([bytes, Buffer.from('changed')]), allowed).error);
+    assert.ok(classify(file, bytes, { ...allowed, exceptions: [{ ...exception, bytes: 999 }] }).error);
+    assert.ok(classify(file, bytes, { ...allowed, warnBytes: bytes.length - 1 }).error);
+    for (const other of ['docs/evidence/screenshot.png', 'docs/images/private.png', 'docs/images/webui-library.exe']) {
+      assert.ok(classify(other, bytes, { ...allowed, exceptions: [{ ...exception, path: other }] }).error);
+    }
+  }
+});
+
 test('rejects a binary introduced then deleted before HEAD', () => {
   const cwd = mkdtempSync(path.join(os.tmpdir(), 'swd-artifact-policy-'));
   const git = (...args) => execFileSync('git', args, { cwd, windowsHide: true }).toString().trim();

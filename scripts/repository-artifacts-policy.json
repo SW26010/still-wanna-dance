@@ -5,6 +5,34 @@
   "maxBytes": 1048576,
   "exceptions": [
     {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1209478,
+      "sha256": "7ed2b01965e27e19f51ebe92711a190ae12933df2d9e14a026d959998656a078",
+      "reason": "Existing production WebUI at 12c5f044, used for README screenshots and verified by node webui/build.mjs --check against webui/build-manifest.json. Register the missing exact artifact exception; the bundle is unchanged."
+    },
+    {
+      "path": "docs/images/webui-acceleration.png",
+      "kind": "readme-screenshot",
+      "bytes": 111080,
+      "sha256": "8df0d944bdc4ad70957895ebddf83d5a5c5054fabdfc3ff3f45612c70386ac08",
+      "reason": "Dark-theme acceleration page rendered from the production WebUI with fictional songs and memory-only state by webui/test-support/readme-screenshots.mts. Required for the Chinese and English README previews; no private data or performance evidence."
+    },
+    {
+      "path": "docs/images/webui-library.png",
+      "kind": "readme-screenshot",
+      "bytes": 85659,
+      "sha256": "0ec8cb7076180bb221fe89595a6b097267a5ef66b25e25068f80cf70a2ec7808",
+      "reason": "Dark-theme library page rendered with fictional songs by webui/test-support/readme-screenshots.mts. Required for the Chinese and English README previews; no private library or player history."
+    },
+    {
+      "path": "docs/images/webui-settings-dark.png",
+      "kind": "readme-screenshot",
+      "bytes": 83668,
+      "sha256": "fca270837046b2d57ecd3784244d6406693ff38a2c1a8ae32219b133c2daa315",
+      "reason": "Dark-theme storage settings rendered with example paths by webui/test-support/readme-screenshots.mts. Required for the Chinese and English README previews; no user configuration."
+    },
+    {
       "path": "internal/branding/logo_windows_amd64.syso",
       "kind": "product-icon",
       "bytes": 57630,

@@ -68,3 +68,17 @@ Web UI 的 `app.js` 是离线构建所需的生成产物。重建后按构建清
 产品图标例外仅允许 `internal/branding/logo.ico`、`internal/branding/logo-light.ico` 和 `internal/branding/logo_windows_amd64.syso`，仍拒绝其他图片、证据、压缩包和程序文件。同目录 `logo.svg` 是两种主题共用的矢量源，默认浅色、带独立的深色 media 样式；配色与主题选择规则见 [Fluent UI](fluent-ui-migration.md#页面排版)。安装开发依赖 `sharp@0.35.5` 后运行 `node scripts/generate-logo.mjs`，生成深／浅两套 16–256 像素的九档 ICO 并输出字节数及 SHA256；生成器明确选择 media 样式，不依赖构建机器主题。`--check` 只校验 ICO 重建结果，不写文件。随后运行 `go generate ./internal/branding`，由固定版本 `github.com/akavel/rsrc@v0.10.2` 将 `logo.ico` 封装为 Windows amd64 图标资源，不附加 manifest 或执行代码。更新例外记录后审查图案与哈希。正常 Go 构建直接嵌入已登记文件，无需运行生成器。重新生成可能受 SVG 渲染库版本影响，不能只改策略哈希而跳过图案核对。
 
 验证范围按[现行机制](live-acceptance-process.md)判断；文件归类本身不产生新的实机验收要求。
+
+## README 展示素材
+
+`docs/images/` 保存中英文 README 直接引用的产品展示素材。`logo-dark.svg` 从 `internal/branding/logo.svg` 生成，只将已有暗色配色固定启用，品牌图形仍以原文件为准。
+
+三个 PNG（`webui-acceleration.png`、`webui-library.png`、`webui-settings-dark.png`）是当前生产 WebUI 在暗色模式下的浏览器截图，使用虚构歌曲、示例路径和内存状态，不含个人数据，不作为性能或游戏验收证据。为使仓库首页可直接显示，按精确路径、字节数与 SHA256 登记为 `readme-screenshot` 例外；每张不得超过 256 KiB，不放宽其他图片或实验附件的归档规则。
+
+安装 `webui` 依赖并确认前端构建产物为当前版本后，从仓库根目录执行（Node.js 22.18+，本机 Edge，18473 端口未被占用）：
+
+```powershell
+./scripts/with-test-temp.ps1 node webui/test-support/readme-screenshots.mts
+```
+
+脚本复用浏览器夹具，输出上述四份素材及忽略目录 `artifacts/readme-refresh/` 中的采集结果，不启动程序、游戏或修改 hosts。更新后人工检查图像及示例数据，追加新截图的精确例外，保留历史版本登记供提交历史检查。

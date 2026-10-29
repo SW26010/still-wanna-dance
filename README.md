@@ -1,135 +1,102 @@
-# Still Wanna Dance
+<p align="center">
+  <img src="docs/images/logo-dark.svg" width="128" height="128" alt="Still Wanna Dance Logo">
+</p>
 
-**简体中文** | [English](README.en.md)
+<h1 align="center">Still Wanna Dance</h1>
 
-**Load failed? But I still wanna dance!**
+<p align="center"><strong>Load failed? But I still wanna dance!</strong></p>
+<p align="center">为 Windows 上的 VRChat WannaDance 玩家准备好下一首视频。</p>
 
-Still Wanna Dance 是为 **Windows 上的 VRChat WannaDance 玩家**打造的开源播放辅助工具。通过本地播放网关接管 WannaDance 的 HTTP 播放请求，结合上游选路与本地视频存储，改善播放体验。把播放过的视频留在本机，提前准备房间里接下来要跳的歌曲，再通过一个简单的 WebUI 查看下载、管理本地视频。
+<p align="center">
+  <a href="https://github.com/SW26010/still-wanna-dance/releases"><img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-80DE50?style=flat-square" alt="License: GPLv3"></a>
+  <a href="go.mod"><img src="https://img.shields.io/badge/Go-00ADD8?style=flat-square&amp;logo=go&amp;logoColor=white" alt="Go"></a>
+  <a href="webui/package.json"><img src="https://img.shields.io/badge/React-20232A?style=flat-square&amp;logo=react&amp;logoColor=white" alt="React"></a>
+  <a href="webui/package.json"><img src="https://img.shields.io/badge/Fluent_UI-v9-0078D4?style=flat-square" alt="Fluent UI v9"></a>
+  <a href="internal/proxyengine/mihomo/README.md"><img src="https://img.shields.io/badge/Mihomo-6C5CE7?style=flat-square" alt="Mihomo"></a>
+</p>
 
-解压即可运行，支持 Windows 托盘，无需安装 Go、Node.js 或数据库。
+<p align="center">
+  <strong>简体中文</strong> · <a href="README.en.md">English</a><br>
+  <a href="https://github.com/SW26010/still-wanna-dance/releases"><strong>下载程序</strong></a> ·
+  <a href="#快速开始">快速开始</a> ·
+  <a href="docs/console.md">使用指南</a> ·
+  <a href="https://github.com/SW26010/still-wanna-dance/issues">反馈问题</a>
+</p>
 
-[查看发布版本](https://github.com/SW26010/still-wanna-dance/releases) · [使用指南](docs/console.md) · [反馈问题](https://github.com/SW26010/still-wanna-dance/issues)
+Still Wanna Dance（SWD）是一款开源视频播放辅助工具：**提前准备房间队列里的视频，重复播放时复用本地文件**，减少下载与等待。日常操作在浏览器中完成，程序在 Windows 托盘运行。
 
-## 为跳舞准备好视频
+采用**[按播放时间驱动的全局块调度](docs/block-scheduler-design.md)**，优先准备即将需要的数据，让播放与预加载共享下载。结合通道测量选择连接，并按歌曲需求热度管理本地视频。后端使用 **Go**，WebUI 基于 **React + Fluent UI v9**，同时集成 **Mihomo** 代理能力。
 
-- **复用本地视频**：已有完整本地视频时从本机读取，减少重复下载；首次播放支持边下边播，并按视频存储预算决定是否持久保留。
-- **提前准备待播歌曲**：读取 VRChat 日志中的房间队列，为即将播放的曲目准备视频，按预计播放时间安排下载。
-- **看得见的下载进度**：在 WebUI 查看活动下载、上游速度、最近请求和队列准备情况，方便判断视频是否已经就绪。
-- **按自己的空间安排视频存储**：选择存储目录、搜索和删除本地视频、检查文件完整性；设置视频存储预算后，自动优先清理低优先级视频。
-- **灵活选择网络连接**：支持播放地址 API 参数选择（Auto、node=cf、node=nya），资源以 API 实际返回的域名集合为准；应用回源可选内置加密 DNS 直连、外部 SOCKS5 或内嵌 Mihomo 节点。游戏 HTTPS 兼容透传始终直连。
-- **按需准备曲库**：可以扫描本地库存、校验已有视频，或下载补齐曲库，适合希望提前准备的玩家。
+## 它能帮你做什么
+
+- **提前准备视频**：跟随房间队列预加载，首次下载支持边下边播。
+- **管理自己的曲库**：搜索、预览、收藏或屏蔽歌曲，导入已有视频，下载缺失视频。
+- **安排存储空间**：按预算优先保留常用歌曲；支持收藏保留与 VRCX 历史偏好导入。
+- **掌握下载情况**：查看速度、进度和请求历史；选择直连、外部 SOCKS5 或内嵌 Mihomo 节点，并检查连接状态。
+
+## 界面预览
+
+**加速：一眼查看游戏接入、下载进度和接下来要准备的视频。**
+
+![暗色 WebUI 加速页：游戏连接、视频块时间轴和四项播放及队列需求](docs/images/webui-acceleration.png)
+
+<details>
+<summary>更多界面：曲库与存储设置</summary>
+
+**曲库：搜索歌曲，管理收藏、视频预览和本地文件。**
+
+![暗色 WebUI 曲库页：搜索、收藏、本地保存状态和逐曲操作](docs/images/webui-library.png)
+
+**存储设置：视频目录、空间预算与收藏保留。**
+
+![暗色 WebUI 存储设置：数据库、视频目录、存储预算与保留策略](docs/images/webui-settings-dark.png)
+
+</details>
+
+截图为当前 WebUI，歌曲、速度和进度使用示例数据，不代表性能测试结果。界面支持浅色、暗色及跟随系统主题。
 
 ## 快速开始
 
-面向 Windows x64。先准备一个可写的程序目录，以及足够存放视频的磁盘空间。
+1. **下载并运行。** 从[发布页面](https://github.com/SW26010/still-wanna-dance/releases)下载 Windows x64 portable ZIP，完整解压到可写目录，双击 `SWD.exe`。
+2. **阅读并同意使用条款。** 程序默认打开 WebUI，并自动准备配置、数据库和视频目录。
+3. **开始加速。** 点击「加速 → 开始加速」，按提示完成 Windows 授权；进入 WannaDance 并请求一首歌曲，在页面查看接入和下载状态。
 
-1. 在[发布页面](https://github.com/SW26010/still-wanna-dance/releases)查找 Windows portable ZIP，完整解压后双击 `SWD.exe`。如果暂时没有发布包，也可以[从源码构建](#从源码构建)。
-2. 程序会打开本地 WebUI。未同意时自动弹出完整使用条款，确认后进入正常页面并按启动设置运行。存储与代理在「设置」调整，可选的视频和 VRCX 历史导入在「曲库」执行。
-3. 在「视频加速」页点击「开始加速」，按提示完成游戏接入；需要修改 hosts 时会出现 Windows 授权提示。
-4. 进入 WannaDance 并请求一首歌曲，在「视频加速」查看接入、请求和下载状态，在「时间线」查看请求历史，在「曲库」管理本地视频。
+**为什么需要管理员授权？** 程序会修改 Windows 的 hosts，将 WannaDance 播放请求接入本机。默认在正常停止加速或退出时恢复本程序设置的接入；恢复失败会提示。详见[游戏接入与恢复](docs/console.md#hosts)。
 
-首次打开会自动准备默认配置、数据库和视频目录，VRChat 日志目录默认自动识别，无需先配置或手动建库。需要换位置、接入已有数据库或长期保留视频时，再到「设置 → 存储」调整；自定义运行设置保存后重启生效。
+**想把视频留到下次？** 默认使用临时视频块、不保留普通完整视频。可在「设置 → 存储」选择保留预算或「不限制」，保存后按提示重启应用；不设置也能先体验加速。
 
-「设置 → 常规 → 程序启动」提供「启动程序时自动打开 WebUI」和「启动程序时自动开启视频加速」，前者默认开启，后者默认关闭，保存后下次启动程序生效。自动加速需有效同意条款；打开或刷新网页不会重复触发。「设置 → 预加载与下载」中的「随视频网关启用队列预加载」默认开启，队列随网关启停。首次下载仍取决于上游速度和本机网络；「已连接后台程序」只表示网页能读取程序状态，「收到请求」只表示请求已到达本地播放网关，实际播放情况以游戏内为准。接入后未收到请求时，可以尝试重进世界或重启游戏刷新 DNS。
+关闭浏览器后，加速和队列预加载仍在后台运行。可以从托盘重新打开 WebUI，结束使用时点击「退出程序」。如果曾关闭自动恢复直连，请在停用或卸载前重新开启并保存，再正常退出、确认恢复结果；位置见[使用指南](docs/console.md#hosts)。
 
-同意条款后，关闭网页后程序仍在托盘运行；可以从托盘点击「打开 WebUI」，也可以在页头点击「退出程序」或从托盘退出。未同意时，关闭条款页会尝试在 60 秒后自动退出，重新打开可取消。退出会停止所有服务和后台任务，默认恢复本程序配置的游戏接入。
+## 常见问题
 
-**停用或卸载前，请确认「设置 → 常规 → 停止与退出 → 停止加速或退出时恢复游戏直连」已开启并保存，再退出程序并核对结果。** 关闭该选项后退出会保留接入，可能影响之后的直连播放。
+**所有播放都能加速吗？** 目前面向 WannaDance 的游戏 HTTP 播放，暂不支持 SHA。HTTPS 播放保持加密透传，不使用本地视频或视频块缓存。具体兼容情况见[支持范围](docs/scope.md)。
 
-更详细的操作见[WebUI 与桌面程序](docs/console.md)和[便携版说明](docs/packaging.md#覆盖升级与备份)。
+**有本地视频就能完全离线吗？** 已有歌曲映射且本地文件可用时，可以直接读取，减少对上游的依赖；这不是完整离线模式，缺失视频和其他游戏功能仍可能需要网络。
 
-## 按你的习惯使用
+**为什么显示已连接，游戏还是没播放？** 「后台程序：已连接」表示网页能访问 SWD，「游戏连接：已接入」表示接入配置已就绪，都不代表游戏已经成功播放。接入后没有收到请求时，可尝试重进世界或重启游戏刷新 DNS，并在「网络」检查状态。
 
-| 想做什么 | 去哪里 |
-| --- | --- |
-| 开启加速、检查游戏是否接入 | 视频加速 → 开始加速 |
-| 查看速度、下载进度和请求记录 | 视频加速；历史记录在时间线 |
-| 查找本地视频、释放空间、查看请求统计 | 曲库 |
-| 检查缺失视频、下载补齐 | 曲库 |
-| 修改数据库文件、完整视频目录、视频预算、线路或代理 | 设置 |
-| 调整提前准备的时间 | 设置 → 预加载与下载 → 提前准备时间（秒）（保存并重启应用） |
-| 配置队列随网关启用 | 设置 → 预加载与下载 → 随视频网关启用队列预加载 |
-
-「播放网关」（Playback Gateway）是桌面程序的后台能力，负责接收播放请求、读取本地资源、回源下载和交付视频，并兼容转发受游戏接入影响的 HTTPS 连接。「曲库」管理跨运行保留的完整视频；“缓存”专指单次运行内可复用的视频块；「上游通道」指直连或代理等连接出口及其评估与选择；「游戏接入」通过 hosts 将请求引向本地播放网关。日常使用通过 WebUI 和托盘完成，也提供[独立命令行入口](docs/service.md)供自定义部署。
-
-## 使用前了解这些
-
-- **本地视频与视频块缓存用于游戏的 HTTP 播放链路。** 网页 HTTPS 播放保持原站加密连接并透传，不读取本地视频或填充视频块缓存。支持 node=cf/node=nya 播放接口，暂不支持 SHA。资源域名不与节点名称绑定，也不预设固定名单，见[资源域名规则](docs/resource-domains.md)。
-- **已有本地视频能应对部分上游故障。** 歌曲已有映射且本地文件可用时，程序直接读取，不等待后台地址查询；查询失败不会打断本次本地响应。这不等于完整离线模式，缺失视频仍需回源。详见[本地命中规则](docs/service.md#id-播放与本地命中)。
-- **磁盘占用可以管理。** 视频存储预算的全称是“本地视频持久化存储预算”，默认限制为 0，不持久保留视频，仍可使用视频块缓存。需要跨运行保留或下载全曲库时，可设置正数预算或选择不限。受保护的视频和临时文件可能使实际磁盘占用超过预算。
-- **项目仍在持续完善。** 已有自动化测试和实机验证记录；中途接入、未缓存目标的慢网拖动、队列交接及多人同步等剩余场景见[VRC 台账](docs/live-acceptance-backlog.md)。不同网络与播放器环境的体验，欢迎通过 Issue 分享。具体兼容情况见[功能范围](docs/scope.md)。
-
-## 核心设计：按数据需要的时间安排下载
-
-当前源码采用**以期望完成时间驱动的全局块调度**：把播放、队列和补齐转换为独立的内容块需求，同块共享下载，各来源独立撤销。根据 HTTP 请求位置与本地媒体资料估算每块何时需要，再用固定提前量 M 确定启动窗口；可启动积压（已入窗任务及允许提前执行的独立补齐需求）驱动并发逐路增加，实际读取等待的缺块立即处理。
-
-这套设计将“下载谁、何时启动、开几路、何时撤销”分别表达清楚。原理、公式与实例见[全局块调度设计](docs/block-scheduler-design.md)。开发者负责用受控负载验证吞吐、CPU 与调度边界；真实播放器的慢网拖动、游戏内卡顿及队列交接仍按 LA-040 / LA-041 集中验收。
-
-## 从源码构建
-
-Windows 桌面版需要 Go 1.27.3 或更新版本、Node.js 22+（资源校验）、Git 和 PowerShell。在仓库目录执行：
-
-```powershell
-.\scripts\build-desktop.ps1
-.\bin\SWD.exe
-```
-
-网页资源和 SQLite 依赖会编译进程序，无需额外搭建前端或数据库服务。
-
-修改 WebUI 时，使用 `webui/package.json` 固定的 pnpm，依次执行 `pnpm --dir webui install --frozen-lockfile`、`pnpm --dir webui build` 和 `pnpm --dir webui test`；详见[Fluent 前端开发与验证](docs/fluent-ui-migration.md)。
-
-开发环境、测试命令见[开发指南](docs/development.md)；生成可分发的 ZIP 见[打包说明](docs/packaging.md)。
-
-## 一起完善
-
-欢迎提交 Bug、分享使用体验、提出功能建议，或直接发起 Pull Request。文档改进、界面体验和不同网络环境下的测试反馈都很有帮助。
-
-[提交 Issue](https://github.com/SW26010/still-wanna-dance/issues) 时，建议附上程序版本、Windows 版本、使用线路、操作步骤，以及预期和实际结果。需要分享日志时，请先检查并移除个人路径等不希望公开的信息。
-
-## 更多文档
-
-[完整导航与文件分类](docs/README.md)区分现行规则、开发验证、实机报告和历史资料。
-
-| 文档 | 内容 |
-| --- | --- |
-| [WebUI 与桌面程序](docs/console.md) | 网页操作、托盘、游戏接入与网络设置 |
-| [队列预加载](docs/queue-prefetch.md) | 提前准备待播歌曲的方式与设置 |
-| [下载需求与资源管理设计](docs/download-resource-design.md) | 下载架构的 canonical 文档：现行规则、实现接口及验证边界 |
-| [全局块调度设计](docs/block-scheduler-design.md) / [运行规则](docs/download-concurrency.md) | 核心重构：独立需求、播放期限、提前窗口与并发缓增 |
-| [视频存储预算管理](docs/cache-retention.md) | 保留优先级、容量上限与自动清理 |
-| [视频存储收益研究](docs/research/cache-priority.md) | 历史需求回测、评分公式与空间预算的覆盖收益 |
-| [视频元数据研究](docs/research/video-metadata-20261015.md) | 下载前可获信息、时长/码率/大小分布与缺失值估算 |
-| [命令行服务](docs/service.md) | 独立启动、参数和本地存储行为 |
-| [统一存储](docs/storage.md) | 视频、歌曲资料与统计的存放方式 |
-| [功能范围](docs/scope.md) | 支持范围、兼容限制与验证依据 |
-| [验证机制与实机台账](docs/live-acceptance-process.md) | 验证分工、报告与剩余场景 |
-| [实机验收机制](docs/live-acceptance-process.md) / [待验收台账](docs/live-acceptance-backlog.md) | 开发者先完成可替代验证，仅合并积攒必须 VRC 的剩余场景 |
-| [开发指南](docs/development.md) | 开发环境、代码入口与测试命令 |
-
-## 升级与备份
-
-正常退出程序后，优先备份实际使用的数据库及恢复所需的 SQLite 伴随文件，建议保留主配置。默认布局可备份 `config.json` 与 `data/`（可排除 `data/state/`）；完整视频按需备份，外置数据库和视频按实际位置分别保管，自定义配置需保留对应的主 JSON。将新版包的 `SWD.exe` 和整个 `licenses/` 覆盖到原程序目录，保留配置、`data/`、`videos/`、`logs/`、`work/` 和外置资源，再从原目录启动。不要直接运行新解压目录里的 EXE，以免启用另一套默认配置。
-
-配置与数据库的当前格式版本及兼容范围以[存储契约](docs/storage.md#持久化格式与语义)为准。无版本或不支持版本的配置会被拒绝打开，原文件保留，不自动迁移；可在设置中明确选择已有的受支持数据库和视频目录，旧位置资料不会自动搬迁或删除。不支持的旧数据库应保留备份，不隐式转换或重建。若提示文件格式较新，应更新程序，不要删库或修改版本号。详细步骤见[便携版升级说明](docs/packaging.md#覆盖升级与备份)。
+**视频预算是磁盘占用的硬上限吗？** 不是。它用于管理完整视频的保留空间；临时块、数据库、正在使用的视频，以及启用保留的收藏，都可能使实际占用超过预算。默认「不保留」也会临时写盘。
 
 <a id="缓存空间与覆盖收益"></a>
+<a id="视频存储空间与覆盖收益"></a>
 
-## 视频存储空间与覆盖收益
+**应该给视频留多少空间？** 按可用磁盘空间设置即可。开启视频保留后，常用歌曲会逐渐积累；空间与覆盖率的关系见[历史回测](docs/research/cache-priority.md)，回测覆盖率不等于实际加速比例。
 
-更多本地视频通常能覆盖更多歌曲，但新增空间的收益会逐渐降低。以下回测使用 15,186 次历史记录，在每个切分前计算评分并固定本地视频集合，预测随后一周；横轴按参考视频库的**实际完整文件大小**计算容量，共享视频只占一份空间。纵轴是每天去重后的歌曲覆盖率。
+已有冷／热播放、队列交接、多人同步和退出恢复等实机验证记录，具体构建、结果与限制见[验证记录](docs/live-acceptance-backlog.md)。实际效果仍取决于上游、本机网络和播放器。
 
-总图范围为 **0—146.70 GiB**，对应 11 个评估切分点中最大的历史候选集合：3,364 首歌曲、3,284 个可映射的唯一视频。到达该范围上限后，每个评估周都已纳入全部历史候选资源，继续扩容不会增加本次回测的覆盖率。
+## 帮助与参与
 
-![按实际文件大小计量的视频存储预算与未来歌曲覆盖率](docs/research/cache-priority/figures/storage-benefit.svg)
+- [使用指南](docs/console.md) · [队列预加载](docs/queue-prefetch.md) · [升级与备份](docs/packaging.md#覆盖升级与备份)
+- [提交问题或建议](https://github.com/SW26010/still-wanna-dance/issues)：请附程序版本、Windows 版本、操作步骤和预期／实际结果；分享日志前移除私人路径、凭据等信息。
+- [完整文档](docs/README.md)
 
-本研究首选**两周双曲线评分**，兼顾公式简洁与覆盖表现。它在 **20 GiB 约覆盖 52.44%，50 GiB 约覆盖 68.38%，100 GiB 约覆盖 75.23%**；从 50 增至 100 GiB，额外 50 GiB 只增加约 6.86 个百分点。当前参考库的全部唯一视频约为 433.11 GiB。提前准备本地视频还需要首次下载这些文件，若已经在本地则无需重复下载；图中覆盖率不能直接换算成实测网络节省或播放加速。
+<a id="从源码构建"></a>
 
-这是单个观察者、11 个有效留出周及当前文件大小快照下的估算；图中约 78% 的平台来自“只选择历史出现过歌曲”的候选限制，并非视频存储能力的覆盖上限。图里的研究评分也不表示当前程序已采用这些公式。方法、30 天稳定性、预热代价与局限见[完整研究文章](docs/research/cache-priority.md)。
+欢迎贡献代码、文档和使用反馈。从源码构建、运行测试或打包，请阅读[开发指南](docs/development.md)与[打包说明](docs/packaging.md)。
 
-## 开源许可与内容使用
+## 开源许可
 
-当前发行版采用 [GNU GPLv3](LICENSE)，自有新贡献使用 `GPL-3.0-only`；[历史 MIT 授权](LICENSE-MIT)仍有效。欢迎在适用许可下使用、修改和贡献。授权范围及对应源码义务见[许可说明](LICENSING.md)，第三方依赖保留[原始声明](THIRD-PARTY-NOTICES.txt)。
+当前发行版采用 [GNU GPLv3](LICENSE)，自有新贡献使用 `GPL-3.0-only`；[历史 MIT 授权](LICENSE-MIT)仍有效。完整授权说明见[LICENSING.md](LICENSING.md)，第三方依赖见[相关声明](THIRD-PARTY-NOTICES.txt)。正式版对应源码随同一 Release 提供，普通使用无需下载源码。
 
-正式版的完整对应源码作为同一 GitHub Release 的 `*-corresponding-source.tar.gz` 附件提供，准确链接与校验见包内 `licenses/SOURCE.txt`；普通使用不必下载源码。开发者可按[源码构建说明](docs/corresponding-source.md)独立重建。
-
-软件开源许可不包含视频、音乐等第三方内容的授权。请仅在具有必要授权或其他合法依据时使用相关内容，并阅读[使用条款与内容权利声明](internal/legal/TERMS.txt)。仓库不包含视频、原版二进制或完整游戏日志。
+软件许可不包含视频、音乐等第三方内容的授权。请在具有必要授权或其他合法依据时使用相关内容，并阅读[使用条款与内容权利声明](internal/legal/TERMS.txt)。仓库不包含视频或完整游戏日志。

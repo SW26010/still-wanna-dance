@@ -17,12 +17,13 @@ export interface ProxyReport { id?: string; accepted: number; skipped: number; f
 export type Draft = Omit<Settings, NumberField | 'videoBudgetBytes' | 'theme'> & Record<NumberField, string> & CapacityDraft & { proxyImportID: string; proxyImportText: string; proxyReport?: ProxyReport };
 export function draftFrom(s: Settings): Draft {
   const {videoBudgetBytes, theme: _theme, ...values} = s;
-  return { ...values, restoreHostsOnStopOrExit: s.restoreHostsOnStopOrExit ?? true, socks5Password: '',
-    requestRetentionDays: String(s.requestRetentionDays ?? 0), throughputIntervalMinutes: String(s.throughputIntervalMinutes ?? 20),
-    prepareAheadSeconds: String(s.prepareAheadSeconds ?? 500),
-    downloadConcurrencySoftLimit: String(s.downloadConcurrencySoftLimit ?? 16), downloadGrowIntervalMS: String(s.downloadGrowIntervalMS ?? 250),
-    localProtectionGraceSeconds: String(s.localProtectionGraceSeconds ?? 300),
-    videoBudgetGiB: String((videoBudgetBytes || 0) / 1073741824), proxyImportID: '', proxyImportText: '' };
+  // The backend supplies complete, normalized settings; drafts only format them.
+  return { ...values, socks5Password: '',
+    requestRetentionDays: String(s.requestRetentionDays), throughputIntervalMinutes: String(s.throughputIntervalMinutes),
+    prepareAheadSeconds: String(s.prepareAheadSeconds),
+    downloadConcurrencySoftLimit: String(s.downloadConcurrencySoftLimit), downloadGrowIntervalMS: String(s.downloadGrowIntervalMS),
+    localProtectionGraceSeconds: String(s.localProtectionGraceSeconds),
+    videoBudgetGiB: String(videoBudgetBytes / 1073741824), proxyImportID: '', proxyImportText: '' };
 }
 export function settingsPayload(d: Draft) {
   const { videoStorageMode, aggressiveBlockReclamation, videoBudgetGiB, proxyImportText: _text, proxyReport: _report, socks5Password, ...values } = d;

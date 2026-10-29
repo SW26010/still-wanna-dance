@@ -252,13 +252,13 @@ func TestSOCKS5SettingsValidation(t *testing.T) {
 	s.UpstreamMode = "proxy"
 	for _, address := range []string{"", "localhost", "127.0.0.1:0", "127.0.0.1:65536", "127.0.0.1:http", "socks5://127.0.0.1:1080", "user@localhost:1080", "bad host:1080"} {
 		s.SOCKS5Address = address
-		if _, err := absoluteSettings(s); err == nil {
+		if _, err := normalizeSettings(s); err == nil {
 			t.Errorf("accepted %q", address)
 		}
 	}
 	for _, address := range []string{"127.0.0.1:1080", "localhost:1080", "[::1]:1080"} {
 		s.SOCKS5Address = address
-		if _, err := absoluteSettings(s); err != nil {
+		if _, err := normalizeSettings(s); err != nil {
 			t.Errorf("%s: %v", address, err)
 		}
 		if _, err := upstreamnet.NewSOCKS5Dialer(address); err != nil {
@@ -267,7 +267,7 @@ func TestSOCKS5SettingsValidation(t *testing.T) {
 	}
 	for _, mode := range []string{"unknown", "socks5"} {
 		s.UpstreamMode = mode
-		if _, err := absoluteSettings(s); err == nil {
+		if _, err := normalizeSettings(s); err == nil {
 			t.Errorf("accepted unsupported mode %q", mode)
 		}
 	}

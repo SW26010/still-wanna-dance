@@ -6,6 +6,15 @@ import (
 	"still-wanna-dance/internal/desktop"
 )
 
+// This controls automatic browser opening for a new console process. Explicit
+// tray/open and second-instance activation remain available independently.
+// Missing or invalid consent must expose the existing confirmation flow.
+func (c *Console) OpenWebUIOnLaunch() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return !c.terms.valid() || c.settings.AutoOpenWebUI
+}
+
 // DesktopState and DesktopCommand use the home page's readiness and activation flow.
 func (c *Console) DesktopState() desktop.State {
 	c.mu.Lock()

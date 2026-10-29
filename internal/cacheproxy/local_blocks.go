@@ -18,14 +18,15 @@ var errBlockUnavailable = fmt.Errorf("block is no longer available: %w", os.ErrN
 // none of those references alone prevents reclaiming an unprotected block.
 // A pinned block/snapshot is a necessary I/O reference and prevents deletion.
 type blockFiles struct {
-	blockSize int64 // Retained with the files so readers/snapshots share their geometry.
-	mu        sync.Mutex
-	dir       string
-	size      int64
-	log       *slog.Logger
-	files     map[int64]*localBlockFile
-	refs      int
-	closed    bool
+	blockSize    int64 // Retained with the files so readers/snapshots share their geometry.
+	mu           sync.Mutex
+	dir          string
+	size         int64
+	log          *slog.Logger
+	files        map[int64]*localBlockFile
+	refs         int
+	closed       bool
+	onDiskChange func(int64) // File lengths, including retired files until deletion.
 }
 
 type localBlockFile struct {
@@ -51,7 +52,7 @@ func (f *blockFiles) retain() {
 func (f *blockFiles) release() {
 	f.mu.Lock()
 	f.refs--
-	var remove []string
+	var remove []*localBlockFile
 	if f.refs == 0 {
 		f.closed = true
 		remove = f.retireLocked(func(int64) bool { return true })
@@ -88,14 +89,18 @@ func (f *blockFiles) store(block int64, data []byte) error {
 	if err != nil {
 		return err
 	}
-	path := file.Name()
+	b := &localBlockFile{path: file.Name()}
 	kept := false
 	defer func() {
 		if !kept {
-			os.Remove(path)
+			f.removeFiles([]*localBlockFile{b})
 		}
 	}()
 	n, writeErr := file.Write(data)
+	b.size = int64(n)
+	if f.onDiskChange != nil {
+		f.onDiskChange(b.size)
+	}
 	closeErr := file.Close()
 	if writeErr != nil {
 		return writeErr
@@ -114,7 +119,7 @@ func (f *blockFiles) store(block int64, data []byte) error {
 	if f.files[block] != nil {
 		return nil
 	}
-	f.files[block] = &localBlockFile{path: path, size: int64(n)}
+	f.files[block] = b
 	kept = true
 	return nil
 }
@@ -176,7 +181,7 @@ func (f *blockFiles) unpin(b *localBlockFile) {
 	remove := b.retired && b.pins == 0
 	f.mu.Unlock()
 	if remove {
-		f.removeFiles([]string{b.path})
+		f.removeFiles([]*localBlockFile{b})
 	}
 }
 
@@ -220,14 +225,14 @@ func (f *blockFiles) ReadAt(p []byte, offset int64) (int, error) {
 // Reclamation detaches an identity atomically with its protection decision.
 // Disk removal happens after the caller releases the protection lock. A later
 // store has its own unique path, so stale cleanup cannot delete replacement data.
-func (f *blockFiles) retire(eligible func(int64) bool) []string {
+func (f *blockFiles) retire(eligible func(int64) bool) []*localBlockFile {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.retireLocked(eligible)
 }
 
-func (f *blockFiles) retireLocked(eligible func(int64) bool) []string {
-	var remove []string
+func (f *blockFiles) retireLocked(eligible func(int64) bool) []*localBlockFile {
+	var remove []*localBlockFile
 	for block, b := range f.files {
 		if !eligible(block) {
 			continue
@@ -235,16 +240,22 @@ func (f *blockFiles) retireLocked(eligible func(int64) bool) []string {
 		delete(f.files, block)
 		b.retired = true
 		if b.pins == 0 {
-			remove = append(remove, b.path)
+			remove = append(remove, b)
 		}
 	}
 	return remove
 }
 
-func (f *blockFiles) removeFiles(paths []string) {
-	for _, path := range paths {
-		if err := os.Remove(path); err != nil && !os.IsNotExist(err) && f.log != nil {
-			f.log.Warn("temporary_cleanup_failed", "error", applog.SafeError(err))
+func (f *blockFiles) removeFiles(files []*localBlockFile) {
+	for _, b := range files {
+		if err := os.Remove(b.path); err != nil && !os.IsNotExist(err) {
+			if f.log != nil {
+				f.log.Warn("temporary_cleanup_failed", "error", applog.SafeError(err))
+			}
+			continue
+		}
+		if f.onDiskChange != nil {
+			f.onDiskChange(-b.size)
 		}
 	}
 }

@@ -100,6 +100,7 @@ func (c *Console) serveBlockEvents(w http.ResponseWriter, r *http.Request) {
 	var detail *cacheproxy.BlockDetail
 	var revision uint64
 	var previousSpeed float64
+	previousCacheBytes := int64(-1) // Every connection receives an initial total, including zero.
 	for {
 		current, changed, closed := sub.Snapshot()
 		if closed {
@@ -130,7 +131,10 @@ func (c *Console) serveBlockEvents(w http.ResponseWriter, r *http.Request) {
 			}
 			previous = current
 		}
-		var speedChanged <-chan struct{}
+		if r.Context().Err() != nil {
+			return
+		}
+		var speedChanged, cacheChanged <-chan struct{}
 		if detailID == "" {
 			speed, changed := sub.DownloadSpeed()
 			speedChanged = changed
@@ -145,12 +149,24 @@ func (c *Console) serveBlockEvents(w http.ResponseWriter, r *http.Request) {
 				}
 				previousSpeed = speed
 			}
+			cacheBytes, changed := sub.BlockCacheBytes()
+			cacheChanged = changed
+			if previous != nil && cacheBytes != previousCacheBytes {
+				revision++
+				if err := writeServerEvent(w, controller, "block-cache", revision, struct {
+					Bytes int64 `json:"bytes"`
+				}{cacheBytes}); err != nil {
+					return
+				}
+				previousCacheBytes = cacheBytes
+			}
 		}
 		select {
 		case <-r.Context().Done():
 			return
 		case <-changed:
 		case <-speedChanged:
+		case <-cacheChanged:
 		}
 	}
 }

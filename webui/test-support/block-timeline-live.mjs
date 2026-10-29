@@ -15,6 +15,8 @@ try {
   await page.getByRole('button', { name: '展开时间轴视图' }).click();
   const panel = page.locator('#block-demands'), canvas = panel.locator('.timeline-canvas');
   await expect(panel.getByText('事件已连接', { exact: true })).toBeVisible();
+  const cache = panel.locator('.block-demand-cache');
+  await expect(cache).toHaveText('块缓存 0.0 MiB');
   await expect(canvas).toHaveAccessibleName(/4 个块/);
   await expect(panel.locator('.demand-row')).toHaveCount(1);
   await expect(panel.locator('.demand-row')).toContainText('GET #');
@@ -29,8 +31,9 @@ try {
   await page.screenshot({ path: path.join(evidence, 'real-download.png'), fullPage: true });
   // Keep the pin across an actual offscreen interval. Neither the overview nor
   // detail stream may remain subscribed; resume observation before completion.
-  await page.setViewportSize({ width: 1280, height: 300 });
   await page.evaluate(() => window.scrollTo(0, 0));
+  const offscreenHeight = await panel.evaluate(element => Math.max(1, Math.floor(element.getBoundingClientRect().top) - 1));
+  await page.setViewportSize({ width: 1280, height: offscreenHeight });
   await expect.poll(() => panel.evaluate(element => element.getBoundingClientRect().top >= innerHeight)).toBe(true);
   await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(0);
   await expect(detail).toHaveCount(0);
@@ -40,6 +43,8 @@ try {
   await page.request.post(url + '/__timeline/release');
   await expect.poll(async () => parseFloat(await page.getByLabel('总下载速度', {exact:true}).innerText())).toBeGreaterThan(0);
   await expect(panel.locator('.timeline-legend')).toContainText('延续保护 4');
+  await expect(cache).toHaveText('块缓存 3.0 MiB');
+  expect(await (await page.request.get(url + '/__timeline/cache')).json()).toBe(3 * 1048576 + 37);
   await expect(panel).toContainText('需求占用 0 / 4096');
   await expect(panel.locator('.demand-row')).toHaveCount(0);
   await expect(detail).toContainText('已无使用需求，本地数据仍在延续保护期');
@@ -53,8 +58,15 @@ try {
   await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(1);
   await page.evaluate(() => { location.hash = '#/library'; });
   await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(0);
+  // Physical reclamation continues while the page has no observation worker.
+  await expect.poll(async () => (await page.request.get(url + '/__timeline/cache')).json(), { timeout: 15000 }).toBe(0);
+  await page.evaluate(() => { location.hash = '#/home'; });
+  await expect(cache).toHaveText('块缓存 0.0 MiB');
+  await page.screenshot({ path: path.join(evidence, 'real-cache-reclaimed.png'), fullPage: true });
+  await page.evaluate(() => { location.hash = '#/library'; });
+  await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(0);
   expect(errors).toEqual([]);
-  await writeFile(path.join(evidence, 'result.json'), JSON.stringify({ outcome: 'passed', browser: await browser.version(), flow: ['real HTTP Range download', 'SSE downloading and source details', 'zero SSE requests while offscreen', 'pinned details restored with four local protected blocks', 'speed event followed by zero', 'collapse keeps demand subscription', 'zero SSE requests after navigation'], errors }, null, 2));
+  await writeFile(path.join(evidence, 'result.json'), JSON.stringify({ outcome: 'passed', browser: await browser.version(), cacheBytes: 3 * 1048576 + 37, flow: ['real HTTP Range download', 'SSE downloading and source details', 'zero SSE requests while offscreen', 'pinned details restored with four local protected blocks', 'cache display agrees with actual block files', 'speed event followed by zero', 'collapse keeps demand subscription', 'physical reclamation without subscribers', 'cache total refreshed to zero on return', 'zero SSE requests after navigation'], errors }, null, 2));
   console.log('Real console + scheduler + Range download + browser SSE lifecycle passed.');
 } catch (error) {
   await page.screenshot({ path: path.join(evidence, 'failure.png'), fullPage: true });

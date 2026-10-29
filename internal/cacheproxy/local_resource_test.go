@@ -27,6 +27,7 @@ func TestLocalResourceLifetimePreservesCompleteBlocksAndReaders(t *testing.T) {
 	s, cfg := setup(t, nil)
 	var first *localResource
 	var reader *spoolReader
+	var total int64
 	for i := range 40 {
 		body := "complete block " + strconv.Itoa(i)
 		r, _ := http.NewRequest("GET", videoURL(body), nil)
@@ -38,6 +39,7 @@ func TestLocalResourceLifetimePreservesCompleteBlocksAndReaders(t *testing.T) {
 		if err := d.storage.store(0, []byte(body)); err != nil {
 			t.Fatal(err)
 		}
+		total += int64(len(body))
 		if i == 0 {
 			first = d
 			sp := d.makeSpool(nil)
@@ -47,6 +49,9 @@ func TestLocalResourceLifetimePreservesCompleteBlocksAndReaders(t *testing.T) {
 		s.finishLocalResource(d, context.Canceled)
 	}
 	defer reader.Close()
+	if s.blockCacheBytes.Load() != total {
+		t.Fatal("cache without active demands lost its disk charge", s.blockCacheBytes.Load(), total)
+	}
 	if len(s.localResources) != 40 || s.localResources[first.video.key] == nil {
 		t.Fatal("runtime block retention has an arbitrary resource limit")
 	}
@@ -57,11 +62,17 @@ func TestLocalResourceLifetimePreservesCompleteBlocksAndReaders(t *testing.T) {
 	}
 	path := localBlockPath(t, first.storage, 0)
 	s.closeLocalResources()
+	if s.blockCacheBytes.Load() != first.video.size {
+		t.Fatal("registry cleanup lost the old reader's disk charge", s.blockCacheBytes.Load())
+	}
 	data := make([]byte, first.video.size)
 	if _, err := reader.Read(data); err != nil || string(data) != "complete block 0" {
 		t.Fatal("registry cleanup broke an active reader", err)
 	}
 	reader.Close()
+	if s.blockCacheBytes.Load() != 0 {
+		t.Fatal("last reader retained its disk charge", s.blockCacheBytes.Load())
+	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatal("last reader left a block file", err)
 	}

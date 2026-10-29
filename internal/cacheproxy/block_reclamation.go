@@ -33,7 +33,7 @@ func (s *Server) reclaimLocalBlocks() {
 func (s *Server) reclaimBlocksWithPolicies(policies map[string]resourcePolicy) {
 	type cleanup struct {
 		blocks  *blockFiles
-		paths   []string
+		files   []*localBlockFile
 		release bool
 	}
 	var pending []cleanup
@@ -48,7 +48,7 @@ func (s *Server) reclaimBlocksWithPolicies(policies map[string]resourcePolicy) {
 		}
 		blocks := local.storage
 		removed := false
-		paths := blocks.retire(func(block int64) bool {
+		files := blocks.retire(func(block int64) bool {
 			remove := !s.blockProtectedLocked(key, block, now)
 			removed = removed || remove
 			return remove
@@ -60,7 +60,7 @@ func (s *Server) reclaimBlocksWithPolicies(policies map[string]resourcePolicy) {
 		if empty {
 			delete(s.localResources, key)
 		}
-		pending = append(pending, cleanup{blocks, paths, empty})
+		pending = append(pending, cleanup{blocks, files, empty})
 	}
 	s.retentionMu.Unlock()
 	if len(changed) > 0 {
@@ -69,7 +69,7 @@ func (s *Server) reclaimBlocksWithPolicies(policies map[string]resourcePolicy) {
 		s.notifyResourceAvailability(changed...)
 	}
 	for _, c := range pending {
-		c.blocks.removeFiles(c.paths)
+		c.blocks.removeFiles(c.files)
 		if c.release {
 			c.blocks.release()
 		}

@@ -54,6 +54,7 @@ func TestBlockTimelineBrowser(t *testing.T) {
 	cfg := cacheproxy.DefaultConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.OriginScheme = "http"
+	cfg.LocalProtectionGrace = 10 * time.Second
 	cfg.Origins = map[string]string{"play.udon.dance": strings.TrimPrefix(origin.URL, "http://")}
 	cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	service, err := cacheproxy.New(cfg)
@@ -73,6 +74,25 @@ func TestBlockTimelineBrowser(t *testing.T) {
 			return
 		case "/__timeline/streams":
 			writeJSON(w, streams.Load())
+			return
+		case "/__timeline/cache":
+			entries, err := os.ReadDir(c.work.Path())
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+			var total int64
+			for _, entry := range entries {
+				if strings.HasPrefix(entry.Name(), "download-block-") {
+					info, err := entry.Info()
+					if err != nil {
+						http.Error(w, err.Error(), 500)
+						return
+					}
+					total += info.Size()
+				}
+			}
+			writeJSON(w, total)
 			return
 		case "/api/block-demands/events":
 			streams.Add(1)

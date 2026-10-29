@@ -10,7 +10,7 @@ import { absoluteTime, blockNumber, blockStateNames, sourceName, videoLabel, typ
 import { useBlockDetail, useBlockStream, useDocumentVisible } from './block-timeline-stream';
 import { blockLane, blockY, drawTimeline, hitBlocks, timelineLayout, type TimelineFrame, type TimelinePalette } from './block-timeline-canvas';
 import { BlockDemandView } from './block-demand-view';
-import { mb } from './types';
+import { gib, mb } from './types';
 
 type View = { follow: boolean; center: number; span: number; offset: number };
 type Selection = { ids: string[]; index: number; x: number; y: number; pinned: boolean };
@@ -29,13 +29,14 @@ export function BlockTimeline({ visible }: { visible: boolean }) {
     return () => observer.disconnect();
   }, []);
   const enabled = visible && inView && documentVisible && !app.stopped;
-  const { data, connection, speed } = useBlockStream(enabled, app.revision);
+  const { data, connection, speed, cacheBytes } = useBlockStream(enabled, app.revision);
   const active = enabled && connection === 'live';
   const toggleLabel = expanded ? '收起时间轴视图' : '展开时间轴视图';
   return <div ref={container}><Card size="medium" className="panel block-demand-panel" id="block-demands" tabIndex={-1}>
     <CardHeader header={<div className="block-demand-heading">
       <Subtitle2 as="h2">视频块需求</Subtitle2>
       <Text className="block-demand-speed" size={400} weight="semibold" aria-label="总下载速度" title="最近一次约 1 秒采样的网络下载速度">{mb(speed)}/s</Text>
+      <Tooltip content="临时视频块文件总大小，含等待读取结束后删除的块；不含完整视频、合并暂存、数据库和日志。" relationship="description"><Text className="block-demand-cache" tabIndex={0}>块缓存 {app.stopped || cacheBytes == null ? '—' : cacheBytes < 1073741824 ? `${(cacheBytes / 1048576).toFixed(1)} MiB` : gib(cacheBytes)}</Text></Tooltip>
       {!data&&enabled&&connection==='connecting'?<Spinner size="tiny" label="正在读取块需求"/>:<StatusBadge color={!enabled ? 'informative' : connection === 'error' ? 'danger' : active ? 'success' : 'informative'}>{!enabled ? '展示已暂停' : connection === 'error' ? '事件连接中断，正在重连。' : connection === 'live' ? '事件已连接' : connection === 'offline' ? '引擎未运行' : '正在连接'}</StatusBadge>}
       {data&&<Caption1 className="block-demand-capacity">需求占用 {data.used.toLocaleString()} / {data.capacity || 4096} · 执行 {data.active} / 额度 {data.open}</Caption1>}
     </div>} action={<Tooltip content={toggleLabel} relationship="label"><Button size="small" appearance="subtle" icon={expanded ? <ChevronDown20Regular /> : <ChevronRight20Regular />} aria-label={toggleLabel} aria-expanded={expanded} aria-controls="block-timeline-content" onClick={() => setExpanded(value => !value)} /></Tooltip>} />

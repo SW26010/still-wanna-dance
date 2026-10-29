@@ -102,6 +102,8 @@ type blockObserver struct {
 	speedWake    chan struct{}
 	speedChanged chan struct{} // mu; independent of block snapshots
 	speed        float64       // mu
+	cacheWake    chan struct{}
+	cacheChanged chan struct{} // mu; independent of block snapshots and speed
 }
 
 type blockVideo struct {
@@ -135,6 +137,7 @@ func (s *Server) ObserveBlocks() (*BlockSubscription, error) {
 	if o == nil {
 		ctx, cancel := context.WithCancel(s.ctx)
 		o = &blockObserver{s: s, ctx: ctx, cancel: cancel, wake: make(chan struct{}, 1), done: make(chan struct{}), changed: make(chan struct{}), sourceIDs: make(map[blockSource]uint64), speedWake: make(chan struct{}, 1), speedChanged: make(chan struct{})}
+		o.cacheWake, o.cacheChanged = make(chan struct{}, 1), make(chan struct{})
 		s.blockObserver.Store(o)
 		go o.run()
 	}
@@ -168,11 +171,12 @@ func (s *BlockSubscription) Close() {
 
 func (o *blockObserver) run() {
 	unwatch := o.s.scheduler.WatchChanges(o.wake)
-	speedDone := make(chan struct{})
-	go func() { defer close(speedDone); o.runSpeed() }()
+	var metrics sync.WaitGroup
+	metrics.Go(o.runSpeed)
+	metrics.Go(o.runBlockCache)
 	defer func() {
 		o.cancel()
-		<-speedDone
+		metrics.Wait()
 		unwatch()
 		o.mu.Lock()
 		o.closed = true
@@ -181,6 +185,7 @@ func (o *blockObserver) run() {
 		o.videos = nil
 		close(o.changed)
 		close(o.speedChanged)
+		close(o.cacheChanged)
 		o.mu.Unlock()
 		close(o.done)
 	}()

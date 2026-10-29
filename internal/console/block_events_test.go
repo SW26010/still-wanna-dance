@@ -104,6 +104,31 @@ func TestBlockEventsRefreshClockForSharedSnapshot(t *testing.T) {
 	}
 }
 
+func TestBlockEventsInitialCacheTotal(t *testing.T) {
+	c := testConsole(t)
+	c.lifecycleMu.Lock()
+	_, err := c.ensureEngineLocked()
+	c.lifecycleMu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+		w := &diagnosticEventWriter{ResponseRecorder: httptest.NewRecorder(), t: t}
+		w.afterFlush = func() {
+			if w.writes == 2 {
+				cancel()
+			}
+		}
+		r := httptest.NewRequest("GET", "http://"+c.address+"/api/block-demands/events", nil).WithContext(ctx)
+		c.ServeHTTP(w, r)
+		cancel()
+		if w.writes != 2 || !strings.Contains(w.Body.String(), "event: block-cache\n") || !strings.Contains(w.Body.String(), `data: {"bytes":0}`) {
+			t.Fatal("new/reconnected stream omitted its zero cache total", w.Body.String())
+		}
+	}
+}
+
 func TestBlockDeltaDemandMembershipAndOrdering(t *testing.T) {
 	demand := cacheproxy.BlockDemandView{ID: "1/a", SourceID: 1, Kind: "queue", Position: 2, Blocks: []string{"a/0", "a/1"}}
 	initial := &cacheproxy.BlockSnapshot{Demands: map[string]cacheproxy.BlockDemandView{demand.ID: demand}}

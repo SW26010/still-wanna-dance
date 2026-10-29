@@ -82,6 +82,7 @@ type Server struct {
 	requests         *requestActivity
 	scheduler        *blocksched.Scheduler
 	blockObserver    atomic.Pointer[blockObserver] // allocated only while a visualization is subscribed
+	blockCacheBytes  atomic.Int64                  // Owned temporary block file lengths, independent of availability/subscribers.
 	rangeBuffers     chan []byte
 	verifyMu         sync.Mutex
 	verified         map[string]*verifiedFile

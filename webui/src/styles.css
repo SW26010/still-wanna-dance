@@ -92,8 +92,8 @@ form.actions { align-items: flex-end; }
 }
 .shell .block-demand-panel { margin-block: 0; }
 .block-demand-heading { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacingVerticalS) var(--spacingHorizontalM); min-width: 0; }
-.block-demand-heading h2, .block-demand-speed { white-space: nowrap; }
-.block-demand-speed { font-variant-numeric: tabular-nums; }
+.block-demand-heading h2, .block-demand-speed, .block-demand-cache { white-space: nowrap; }
+.block-demand-speed, .block-demand-cache { font-variant-numeric: tabular-nums; }
 .block-demand-capacity { color: var(--colorNeutralForeground2); }
 .block-demand-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--spacingVerticalXS) var(--spacingHorizontalM); padding: var(--spacingVerticalS) var(--spacingHorizontalM); }
 .timeline-toolbar, .timeline-controls, .timeline-window-keys, .timeline-detail-toolbar, .timeline-overlap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

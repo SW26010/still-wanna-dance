@@ -32,7 +32,7 @@ async function setup(page: Page) {
   const panel = page.locator('#block-demands'), speed = page.getByLabel('总下载速度', { exact: true });
   await expect(panel.locator('.demand-row')).toHaveCount(2);
   const streams = async () => (await (await page.request.get('/__fixture/streams?id=' + api.fixtureID)).json()).blocks || 0;
-  return { ...api, panel, speed, emit, streams };
+  return { ...api, panel, speed, cache: panel.locator('.block-demand-cache'), emit, streams };
 }
 
 test('home uses live demands and unique block counts without download polling or axis animation', async ({ page }) => {
@@ -50,11 +50,16 @@ test('home uses live demands and unique block counts without download polling or
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const paints = () => page.evaluate(() => ({ ...(window as unknown as { demandPaints: { axis: number; rows: number } }).demandPaints }));
   const before = await paints(); expect(before.axis).toBe(0); expect(before.rows).toBeGreaterThan(0);
+  await expect(f.cache).toHaveText('块缓存 —');
+  await f.emit('block-cache', { bytes: 486 * 1048576 }); await expect(f.cache).toHaveText('块缓存 486.0 MiB');
+  await expect(f.cache).toHaveAccessibleDescription('临时视频块文件总大小，含等待读取结束后删除的块；不含完整视频、合并暂存、数据库和日志。');
   await f.emit('download-speed', { bytesPerSecond: 2000000 }); await expect(f.speed).toHaveText('2.000 MB/s');
   expect(await paints()).toEqual(before);
   await setPageHidden(page, true); await expect.poll(f.streams).toBe(0);
+  await f.emit('block-cache', { bytes: 2 * 1073741824 }); await expect(f.cache).toHaveText('块缓存 486.0 MiB');
   await f.emit('download-speed', { bytesPerSecond: 9000000 }); await expect(f.speed).toHaveText('2.000 MB/s');
   await setPageHidden(page, false); await expect.poll(f.streams).toBe(1); await expect(f.speed).toHaveText('9.000 MB/s');
+  await expect(f.cache).toHaveText('块缓存 2.000 GiB');
   await f.emit('download-speed', { bytesPerSecond: 0 }); await expect(f.speed).toHaveText('0.000 MB/s');
   await page.clock.install(); await page.clock.fastForward(12000);
   expect(f.calls.filter(call => call.path === 'downloads')).toEqual([]);
@@ -62,13 +67,26 @@ test('home uses live demands and unique block counts without download polling or
 
 test('native reconnect resets a stale nonzero speed even when the server has no new speed event', async ({ page }) => {
   const f = await setup(page);
+  await f.emit('block-cache', { bytes: 1048576 }); await expect(f.cache).toHaveText('块缓存 1.0 MiB');
   await f.emit('download-speed', { bytesPerSecond: 2000000 }); await expect(f.speed).toHaveText('2.000 MB/s');
   await page.request.post('/__fixture/disconnect', { data: { id: f.fixtureID, kind: 'blocks' } });
   await expect(f.panel).toContainText('事件连接中断');
   await expect.poll(f.streams).toBe(0);
+  await expect(f.cache).toHaveText('块缓存 1.0 MiB');
+  await f.emit('block-cache', { bytes: 0 });
   await f.emit('download-speed', { bytesPerSecond: 0 });
   await expect(f.panel.getByText('事件已连接', { exact: true })).toBeVisible({ timeout: 10000 });
   await expect(f.speed).toHaveText('0.000 MB/s');
+  await expect(f.cache).toHaveText('块缓存 0.0 MiB');
+  await f.emit('closed', {}); await expect(f.cache).toHaveText('块缓存 —');
+});
+
+test('accepted exit clears cache display without a closed event from the engine', async ({ page }) => {
+  const f = await setup(page);
+  await f.emit('block-cache', { bytes: 1048576 }); await expect(f.cache).toHaveText('块缓存 1.0 MiB');
+  await page.getByRole('button', { name: '退出程序', exact: true }).click();
+  await expect.poll(f.streams).toBe(0);
+  await expect(f.cache).toHaveText('块缓存 —');
 });
 
 test('empty home keeps zero counts visible and legacy activity links reach the demand panel', async ({ page }) => {
@@ -109,6 +127,9 @@ test('compact demand rows keep the full canvas visible at minimum and maximum bl
 for (const [width, height] of [[320, 900], [390, 900], [1280, 800], [1366, 768]]) test(`default demand view remains readable at ${width}px`, async ({ page }, info) => {
   await page.setViewportSize({ width, height }); await page.emulateMedia({ colorScheme: width === 390 ? 'dark' : 'light', forcedColors: width === 320 ? 'active' : 'none' });
   const f = await setup(page); await f.emit('download-speed', { bytesPerSecond: 1250000 });
+  await f.emit('block-cache', { bytes: 486 * 1048576 }); await expect(f.cache).toHaveText('块缓存 486.0 MiB');
+  await f.cache.focus(); await expect(page.getByRole('tooltip')).toContainText('临时视频块文件总大小');
+  await page.keyboard.press('Escape'); await expect(page.getByRole('tooltip')).toBeHidden();
   const eventStatus = f.panel.locator('.block-demand-heading').getByRole('status');
   await expect(eventStatus).toHaveText('事件已连接');
   await expect(eventStatus).toHaveAttribute('aria-atomic', 'true');
@@ -120,10 +141,10 @@ for (const [width, height] of [[320, 900], [390, 900], [1280, 800], [1366, 768]]
   if (width >= 1280) {
     const bounds = await f.panel.evaluate(panel => {
       const rect = (selector: string) => { const r = panel.querySelector(selector)!.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; };
-      return { panelBottom: panel.getBoundingClientRect().bottom, title: rect('h2'), speed: rect('.block-demand-speed'), capacity: rect('.block-demand-capacity'), toggle: rect('button[aria-controls="block-timeline-content"]'), legend: rect('.timeline-legend'), size: rect('.timeline-size-control') };
+      return { panelBottom: panel.getBoundingClientRect().bottom, title: rect('h2'), speed: rect('.block-demand-speed'), cache: rect('.block-demand-cache'), capacity: rect('.block-demand-capacity'), toggle: rect('button[aria-controls="block-timeline-content"]'), legend: rect('.timeline-legend'), size: rect('.timeline-size-control') };
     });
     expect(bounds.panelBottom).toBeLessThanOrEqual(height);
-    for (const part of [bounds.speed, bounds.capacity, bounds.toggle]) { expect(part.top).toBeLessThan(bounds.title.bottom); expect(part.bottom).toBeGreaterThan(bounds.title.top); }
+    for (const part of [bounds.speed, bounds.cache, bounds.capacity, bounds.toggle]) { expect(part.top).toBeLessThan(bounds.title.bottom); expect(part.bottom).toBeGreaterThan(bounds.title.top); }
     expect(bounds.size.top).toBeLessThan(bounds.legend.bottom); expect(bounds.size.bottom).toBeGreaterThan(bounds.legend.top);
     await info.attach('layout', { body: JSON.stringify(bounds, null, 2), contentType: 'application/json' });
   }

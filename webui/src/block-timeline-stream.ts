@@ -14,6 +14,7 @@ export function useDocumentVisible() {
 export function useBlockStream(enabled: boolean, revision: number) {
   const [data, setData] = useState<TimelineData>();
   const [speed, setSpeed] = useState(0);
+  const [cacheBytes, setCacheBytes] = useState<number>();
   const [connection, setConnection] = useState<'connecting' | 'live' | 'offline' | 'error'>('connecting');
   useEffect(() => {
     // A resumed view must wait for this subscription's fresh snapshot before
@@ -28,6 +29,7 @@ export function useBlockStream(enabled: boolean, revision: number) {
       try {
         const value: BlockEvent = JSON.parse((event as MessageEvent<string>).data);
         if (value.reset || !value.running) setSpeed(0);
+        if (!value.running) setCacheBytes(undefined);
         setData(old => applyBlockEvent(old, value));
         setConnection(value.running ? 'live' : 'offline');
       } catch { setConnection('error'); source.close(); }
@@ -38,13 +40,18 @@ export function useBlockStream(enabled: boolean, revision: number) {
       catch { setConnection('error'); source.close(); }
     });
     source.addEventListener('closed', () => {
-      if (!disposed) { setConnection('offline'); setSpeed(0); }
+      if (!disposed) { setConnection('offline'); setSpeed(0); setCacheBytes(undefined); }
       source.close();
+    });
+    source.addEventListener('block-cache', event => {
+      if (disposed) return;
+      try { setCacheBytes(JSON.parse((event as MessageEvent<string>).data).bytes); }
+      catch { setConnection('error'); source.close(); }
     });
     source.onerror = () => { if (!disposed) setConnection('error'); };
     return () => { disposed = true; source.close(); };
   }, [enabled, revision]);
-  return { data, connection, speed };
+  return { data, connection, speed, cacheBytes };
 }
 
 // Only the selected block has a detail stream. Pointer motion over unrelated

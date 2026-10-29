@@ -78,6 +78,7 @@ func (s *Server) newLocalResource(v video, first *http.Response, log *slog.Logge
 	}
 	if d == nil {
 		d = &localResource{blockSize: s.cfg.BlockSize, storage: newBlockFiles(s.cfg.tempDir(), v.size, s.cfg.BlockSize, log), video: resourceVideo(v), etag: first.Header.Get("ETag"), sequential: first.StatusCode == http.StatusOK}
+		d.storage.onDiskChange = s.observeBlockCacheBytes
 		s.localResources[v.key] = d
 	}
 	d.storage.retain() // Current execution; the initial reference belongs to the registry.

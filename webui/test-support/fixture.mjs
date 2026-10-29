@@ -24,7 +24,7 @@ createServer(async (req, res) => {
         states.set(key,{...state,reset:true,blocks:[...blocks.values()],removed:[],demands:[...demands.values()],removedDemands:[]});
       }else states.set(key,state);
       const eventName=kind.startsWith('block-detail:')?'block-detail':kind;
-      for(const stream of streams.get(kind==='download-speed'?id+':blocks':key)||[])stream.write(`event: ${eventName}\ndata: ${JSON.stringify(state)}\n\n`);
+      for(const stream of streams.get(['download-speed','block-cache','closed'].includes(kind)?id+':blocks':key)||[])stream.write(`event: ${eventName}\ndata: ${JSON.stringify(state)}\n\n`);
       res.setHeader('Content-Type','application/json');return res.end('{"ok":true}');
     }
     if(p==='/__fixture/streams'){
@@ -43,6 +43,7 @@ createServer(async (req, res) => {
       res.writeHead(200,{'Content-Type':'text/event-stream','Connection':'keep-alive'});
       res.write(`event: ${block?'block-detail':'blocks'}\ndata: ${JSON.stringify(states.get(key)??fallback)}\n\n`);
       if(!block&&states.get(id+':download-speed')?.bytesPerSecond)res.write(`event: download-speed\ndata: ${JSON.stringify(states.get(id+':download-speed'))}\n\n`);
+      if(!block&&states.has(id+':block-cache'))res.write(`event: block-cache\ndata: ${JSON.stringify(states.get(id+':block-cache'))}\n\n`);
       if(!streams.has(key))streams.set(key,new Set());streams.get(key).add(res);
       res.on('close',()=>streams.get(key)?.delete(res));return;
     }

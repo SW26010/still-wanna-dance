@@ -18,6 +18,7 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [live-20261029-01/manifest.json](live-20261029-01/manifest.json) | `fc9f4c3e` 加已验证的 UAC 修复，同一 EXE 的 6254 CF 独立冷缓存后台开/关对照：真实 MISS、前后台重叠、两次音画正常，完成 LA-040 剩余场景。保留预定取消及单配对性能边界；hosts 与进程清理已核实，见[报告](../acceptance/live-acceptance-20261029-01.md) |
 | [windows-native-20261029/summary.json](windows-native-20261029/summary.json) | 真实 UAC 暴露取消误报，修复后取消/授权、缺权启停、连接提示清除和退出恢复通过；12 项状态/清理断言及两构建指纹，原始私有材料留在本地。开发 ZIP 同包覆盖不代替最终发行，见[本机报告](../validation/windows-native-validation.md#2026-10-29恢复权限原生复测与取消识别修复) |
 | [live-20261028-01/manifest.json](live-20261028-01/manifest.json) | `98e39617` 同一干净 EXE 的真实单人及追加多人验收：未缓存慢网 Seek 恢复、2 秒队列接手、离房撤销、API 屏蔽后切歌、中途接入/直连恢复、非 owner 追赶均有用户反馈与关联事件。超时后进度回退保留为倾向播放器重试的观察，不单列 SWD 发布阻塞；未代替 CI 或发行包检查，见[报告](../acceptance/live-acceptance-20261028-01.md) |
 | [cf-triad-20261022/manifest.json](cf-triad-20261022/manifest.json) | 协议、候选池与测速预测力统一对照完成两个窗口、4,023 条计划记录：固定/随机各 104 地址池、HTTP/HTTPS 与 Speedtest、冻结选择对独立视频验证；顺序、内容、绑定和指纹复核通过，保留 W1 pilot 偏差、所有失败及未测。单线路、串行研究，未接入产品；本地附件和备份已校验，尚未发布，见[研究报告](../research/issue-21-cf-triad-20261022.md) |

@@ -1,6 +1,7 @@
 import {test,expect,type Page} from '@playwright/test';
 import {mockAPI} from './api';
 import {navigate} from './navigation';
+import {expectWithClock} from './clock';
 import type {Download} from '../src/types';
 
 async function checkTime(page:Page,label:'检查本地视频'|'更新曲库') {
@@ -51,8 +52,7 @@ test('catalog refresh tracks completion then stops and retains the last successf
   const before=api.calls.filter(c=>c.path==='library').length;
   await update.click();await expect(update).toBeDisabled();await expect(update).toHaveAttribute('aria-busy','true');
   inventory={...inventory,coveredSongs:2,scanning:false,updated:'2026-10-28T08:00:00Z'};
-  await page.clock.fastForward(1100);
-  await expect(coverage).toContainText('100.0%');await expect(update).toBeEnabled();
+  await expectWithClock(page,()=>coverage.textContent()).toContain('100.0%');await expect(update).toBeEnabled();
   await expect.poll(()=>api.calls.filter(c=>c.path==='library').length).toBeGreaterThan(before);
   const completedReads=reads;
   await page.clock.fastForward(31000);expect(reads).toBe(completedReads);
@@ -103,8 +103,7 @@ test('completed network checks publish new catalog data without a library timer 
   api.files[0].songs[0].title='网络检测同步的新歌名';
   inventory.catalog={revision:'20261028080000',checkedAt:'2026-10-28T08:00:00Z'};
   api.state.upstreamMonitor={finished:'2026-10-28T08:00:00Z',results:[]};
-  await page.clock.fastForward(5100);
-  await expect(page.getByRole('table',{name:'曲库歌曲'})).toContainText('网络检测同步的新歌名');
+  await expectWithClock(page,()=>page.getByRole('table',{name:'曲库歌曲'}).textContent()).toContain('网络检测同步的新歌名');
   await expect.poll(()=>reads).toBe(2);
   await page.getByText('曲库覆盖率',{exact:true}).hover();
   await expect(page.getByRole('tooltip')).toContainText('统计清单版本：20261016000000');
@@ -126,27 +125,20 @@ test('batch preparation and gaps between downloads keep progress reads alive unt
   await page.locator('#batch').getByRole('button',{name:'下载缺失视频',exact:true}).click();
   await expect(page.locator('#batch')).toContainText('准备清单');
   const duringPreparation=reads;
-  await page.clock.fastForward(5100);
-  await expect.poll(()=>reads).toBeGreaterThan(duringPreparation);
+  await expectWithClock(page,()=>reads).toBeGreaterThan(duringPreparation);
   const task:Download={id:1,resource:'key1',host:'fixture',stage:'download',size:100,bytes:25,bytesPerSecond:10,idleMS:0};
   tasks=[task];
-  await page.clock.fastForward(5100);
-  await expect(page.getByText('下载中 25.0%',{exact:true})).toBeVisible();
+  await expectWithClock(page,()=>page.getByText('下载中 25.0%',{exact:true}).isVisible()).toBe(true);
   tasks=[];
-  await page.clock.fastForward(5100);
-  await expect(page.getByText('下载中 25.0%',{exact:true})).toHaveCount(0);
+  await expectWithClock(page,()=>page.getByText('下载中 25.0%',{exact:true}).count()).toBe(0);
   tasks=[{...task,bytes:75}];
-  await page.clock.fastForward(5100);
-  await expect(page.getByText('下载中 75.0%',{exact:true})).toBeVisible();
+  await expectWithClock(page,()=>page.getByText('下载中 75.0%',{exact:true}).isVisible()).toBe(true);
   api.state.batch={running:false,phase:'已停止'};
-  await page.clock.fastForward(5100);
-  await expect(page.locator('#batch')).toContainText('已停止');
+  await expectWithClock(page,()=>page.locator('#batch').textContent()).toContain('已停止');
   tasks=[{...task,bytes:90}];
-  await page.clock.fastForward(5100);
-  await expect(page.getByText('下载中 90.0%',{exact:true})).toBeVisible();
+  await expectWithClock(page,()=>page.getByText('下载中 90.0%',{exact:true}).isVisible()).toBe(true);
   tasks=[];
-  await page.clock.fastForward(5100);
-  await expect(page.getByText('下载中 90.0%',{exact:true})).toHaveCount(0);
+  await expectWithClock(page,()=>page.getByText('下载中 90.0%',{exact:true}).count()).toBe(0);
   const completed=reads;
   await page.clock.fastForward(31000);expect(reads).toBe(completed);
 });
@@ -230,8 +222,7 @@ for(const width of [1280,390,320])for(const kind of ['local','catalog'] as const
   await page.emulateMedia({reducedMotion:'no-preference'});
   await expect.poll(()=>icon.evaluate(el=>el.getAnimations().length)).toBe(1);
   releaseLocal();inventory.scanning=false;
-  await page.clock.fastForward(1100);
-  await expect(button).toBeEnabled();await expect(button).toHaveAttribute('aria-busy','false');
+  await expectWithClock(page,()=>button.isEnabled()).toBe(true);await expect(button).toHaveAttribute('aria-busy','false');
   await expect(button.locator('.fui-Spinner')).toHaveCount(0);
   expect(await icon.evaluate(el=>el.getAnimations().length)).toBe(0);
   expect(await layout()).toEqual(before);

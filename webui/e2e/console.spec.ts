@@ -62,7 +62,7 @@ test('leaving history stops list reads; exit tooltip supports keyboard focus wit
   await expect(page.getByText('该时间范围内暂无请求记录。',{exact:true})).toBeVisible();
   const reads=api.calls.filter(c=>c.path==='history').length;
   await navigate(page,'网络');await page.getByRole('button',{name:'检查当前连接',exact:true}).click();
-  await expect(page.getByText('网络检测已开始，请查看检测结果。',{exact:true})).toBeVisible();
+  await expect(page.getByRole('listitem',{name:'网络检测已开始，请查看检测结果。',exact:true})).toBeVisible();
   await api.historyChanged();
   expect(api.calls.filter(c=>c.path==='history')).toHaveLength(reads);
   const exit=page.getByRole('button',{name:'退出程序',exact:true});

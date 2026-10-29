@@ -17,7 +17,23 @@ pnpm --dir webui check
 ./scripts/with-test-temp.ps1 pnpm --dir webui test
 ```
 
-使用 `webui/package.json` 固定的 pnpm 版本。浏览器测试默认使用本机 Edge；CI 安装 Playwright Chromium，测试只调用内存夹具，不修改 hosts 或访问真实上游。截图保存在忽略目录 `artifacts/webui-tests`。Windows 工具测试用 `./scripts/with-test-temp.ps1 node --test scripts/*.test.mjs`。Linux/CI 可直接运行包装器后的原命令。架构、浏览器覆盖和真实系统验收边界见[Fluent 迁移记录](fluent-ui-migration.md)。
+使用 `webui/package.json` 固定的 pnpm 版本。浏览器测试默认使用本机 Edge；CI 安装 Playwright Chromium，当前 `pnpm --dir webui test` 只调用内存夹具，不修改 hosts 或访问真实上游。截图保存在忽略目录 `artifacts/webui-tests`。Windows 工具测试用 `./scripts/with-test-temp.ps1 node --test scripts/*.test.mjs`。Windows CI 同样使用临时目录包装器；Linux 可直接运行包装器后的原命令。架构、浏览器覆盖和真实系统验收边界见[Fluent 迁移记录](fluent-ui-migration.md)。
+
+## 测试维护与 CI 修复
+
+目标是平衡发现真实问题的效果与长期维护成本，让失败容易复现和定位。测试数量、模拟数量和单次全绿都不能单独证明验证质量；选择能判断具体风险的最小可靠检查，验证分工以[实机验收机制](live-acceptance-process.md)为准。
+
+1. **按行为选择测试层次。** 业务规则优先通过真实 Go 实现的单元或集成测试验证；浏览器夹具主要验证展示、交互和故障反馈。需要证明保存、持久化或重启等前后端协作时，选择少量代表流程连接隔离真实服务，优先复用现有联调脚本。夹具通过不能外推为真实服务通过。
+2. **控制模拟与辅助机制的维护成本。** 模拟保留必要的数据和故障注入，避免继续复制后端业务规则。共用助手应消除多处重复或竞态；若调用者必须记住越来越多的例外，应收窄用途或调整测试层次。迁移覆盖时删除已被替代的重复测试，保留仍验证不同风险的用例；不为整理测试另建通用框架。
+3. **先归因，再成组修复。** 收齐相关平台的失败与证据，区分产品缺陷、夹具偏差、时序错误和环境限制；先建立能复现同一症状的定向检查，再检查同类调用点并成组修正。本地完成受控对照和受影响回归后再推送，用远端检查确认平台差异。同类失败再次出现时重新检查共同原因与验证层次，避免逐条追加补丁、反复依赖远端试错。
+4. **等待可观察的完成条件。** 按请求结果、最终界面状态或实际事件同步测试，精确时序断言放在可控的层次。不得用增加固定等待、超时、重试或删弱断言代替根因修复；诊断用延迟和探针在验证后移除。保留历史失败和必要证据，明确本机与远端、模拟与真实环境的覆盖范围。
+5. **按证据收敛工作。** 已知失败得到解释、受控复现通过、相关回归及所需远端检查通过后结束本轮。仅在出现新失败、相关改动或明确证据缺口时扩大验证；不为追求绝对无偶发而无限重跑。已稳定的测试不因潜在风险启动整体重写，维护改进优先处理已确认的重复逻辑和时序耦合。
+
+CI 浏览器失败保留 trace 与截图到同一产物目录；矩阵关闭 fail-fast，让两平台各自完成检查。上述原则的失败对照与适用边界见 [CI 稳定性验证](validation/ci-stability-20261028.md)，该记录描述当时构建，不替代本节现行规则。
+
+成功保存设置的用例通过 `webui/e2e/settings-actions.ts` 等待页面明确显示“待重启”或“已生效”，再读取状态或刷新页面；按钮禁用也可能表示请求尚未完成。验证处理中、失败和校验拒绝的用例仍直接控制请求并检查对应状态。
+
+验证异步轮询最终状态时，使用 `webui/e2e/clock.ts` 在断言等待期间持续推进模拟时钟；请求到达或局部 UI 更新不代表下一次轮询定时器已经注册。该助手保留默认断言期限，只用于验证持续轮询与最终状态；精确周期、超时和停止后的无请求检查仍显式推进指定时长。短暂通知的操作先完成，再对目标页面截图，避免截图采集与通知自动消失争抢时间。
 
 ## Console 路由与共享引擎
 
@@ -29,7 +45,7 @@ pnpm --dir webui check
 
 桌面开发需要 Windows amd64、Go 1.27.3+、Node.js 22+、Git 和 PowerShell。前端依赖使用 `webui/package.json` 固定的 pnpm。Go 最低版本和依赖选择分别以 `go.mod` 与锁文件为准。
 
-2026-10-28 将最低 Go 版本提高到包含当前安全补丁的 1.27.3，并更新 `golang.org/x/net` 至 v0.60.0 及其必要依赖；依据为 [Go 发布记录](https://go.dev/doc/devel/release)、[HTTP/2 公告](https://pkg.go.dev/vuln/GO-2026-6610)和 [X.509 公告](https://pkg.go.dev/vuln/GO-2026-6809)。桌面构建与打包固定使用 `GOTOOLCHAIN=local`，因此 PATH 中的 Go 安装也必须满足最低版本；普通 `go` 命令的自动版本切换不代表构建脚本已使用补丁版。本轮按任务边界未更新 GitHub Actions，其中的 Go 1.25.x 配置仍需单独对齐，不能用于当前发行构建。验证范围见[发布前修复记录](validation/release-readiness-20261028.md)。
+2026-10-28 将最低 Go 版本提高到包含当前安全补丁的 1.27.3，并更新 `golang.org/x/net` 至 v0.60.0 及其必要依赖；依据为 [Go 发布记录](https://go.dev/doc/devel/release)、[HTTP/2 公告](https://pkg.go.dev/vuln/GO-2026-6610)和 [X.509 公告](https://pkg.go.dev/vuln/GO-2026-6809)。桌面构建与打包固定使用 `GOTOOLCHAIN=local`，因此 PATH 中的 Go 安装也必须满足最低版本；普通 `go` 命令的自动版本切换不代表构建脚本已使用补丁版。GitHub Actions 的 `check` 工作流通过 `actions/setup-go` 的 `go-version-file: go.mod` 安装项目指定版本，并保留 `GOTOOLCHAIN=local` 校验实际工具链；不再单独维护版本号。此前依赖升级的验证范围见[发布前修复记录](validation/release-readiness-20261028.md)，其中 CI 尚未对齐的说明仅描述当轮状态。
 
 在 PowerShell 中检查：
 
@@ -58,6 +74,10 @@ Windows 测试统一通过 `scripts/with-test-temp.ps1` 运行，定向检查也
 此入口避开 Windows MXC 默认 `sandbox.{GUID}/AC/Temp` 的重命名权限缺陷（[Microsoft 已确认的问题](https://github.com/microsoft/mxc/issues/1204)），不修改产品文件操作、用户/系统环境变量、ACL 或沙箱设置。换到工作区后 `os.Root.Rename`、硬链接、目录联接、浏览器及子进程仍可能受其他沙箱限制；保留失败证据，按实际权限要求验证，不能把所有失败都归为临时目录问题。强制结束 PowerShell 进程时可能来不及清理，残留目录不复用，也不自动清扫其他调用的目录。
 
 2026-10-19 验证：同一 `TestPublicationAdmissionRanksFullCacheBeforeMerge` 在 MXC 默认临时目录报重命名拒绝，经入口运行通过。`TestAtomicWriteRetainsLastGoodFileAndBoundsWork` 在工作区内仍报 `renameat: The handle is invalid`，沙箱外经同一入口通过。工具回归在沙箱内为 28/29（已有 junction 夹具被拒绝），沙箱外 29/29 通过；新增入口回归覆盖原子替换、参数/工作目录/退出码传递、环境恢复、异常清理及嵌套隔离。原始成功与失败输出保留在忽略目录 `artifacts/windows-test-temp/`，未修改产品代码绕过失败。
+
+2026-10-28 CI 复核：`check` [第 12 次运行](https://github.com/SW26010/still-wanna-dance/actions/runs/40706434250)的 Ubuntu 全部通过，两平台浏览器套件均通过；Windows Go 测试因 runner 的 `RUNNER~1` 临时目录别名触发存储路径校验，并使 `TestPathIdentity` 的完整路径断言失败。CI 的 Windows 浏览器、Node、Go 测试及 vet 统一接入现有包装器，存储的路径别名保护保持不变。本机在隔离目录构造 8.3 短路径，直接运行 `TestPathIdentity` 和 `TestShutdownClosesPausedReaderAndFlushesUsage` 均复现同样失败；保持该父环境、仅经包装器运行后两项通过。原始对照保留在忽略目录 `artifacts/ci-fix-20261028/windows-short-temp-{before,after}.log`。
+
+同轮本地验证：使用 Go 1.27.3 后 46 个 Node 工具测试及全部跟踪 Go 包的 vet 通过。Go 检查限定 `cmd`、`internal`、`data`、`experiments`，避免本地忽略目录中的历史探针被 `./...` 收集；CI 干净检出保留 `./...`。首次包测试仅 Console 的临时 hosts 夹具发生一次替换拒绝访问，其他包通过；原用例连续 10 次复核及 Console 整包复核通过（85.440 秒），未修改产品文件操作或放宽测试。过程中的旧 Go 拒绝、历史探针加载失败和夹具失败均保留在同一忽略目录，最终结果见 `windows-node-toolchain-after.log`、`windows-tracked-go-after.log`、`windows-tracked-vet-after.log`、`consent-startup-recheck.log` 与 `windows-console-recheck.log`。
 
 Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的 C 工具链；本机已使用独立 w64devkit/GCC 完成下载与本地资源整包检查，执行时显式设置 CGO_ENABLED=1 和 CC，测试命令同样通过上述入口运行。工具及原始结果保存在忽略目录 artifacts/，不依赖全局 PATH。
 

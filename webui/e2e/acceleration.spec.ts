@@ -11,7 +11,7 @@ test('failed acceleration reports rollback failure and the resulting real state'
   });
   await page.goto('/');
   await page.getByRole('button',{name:'开始加速',exact:true}).click();
-  await expect(page.getByText(/未能撤销本次游戏接入/).first()).toBeVisible();
+  await expect(page.getByRole('listitem',{name:/未能撤销本次游戏接入/})).toBeVisible();
   await expect(page.getByText('游戏连接：需检查',{exact:true})).toBeVisible();
   await expect(page.getByText('视频服务：异常',{exact:true})).toBeVisible();
   await page.getByRole('status',{name:'游戏连接',exact:true}).hover();
@@ -182,7 +182,7 @@ test('stop failure reports the stopped gateway and preserved connection',async({
     await route.fulfill({status:400,json:{error}});
   });
   await page.goto('/');await page.getByRole('button',{name:'停止加速',exact:true}).click();
-  await expect(page.getByText(/加速已停止，但未能恢复游戏直连/).first()).toBeVisible();
+  await expect(page.getByRole('listitem',{name:/加速已停止，但未能恢复游戏直连/})).toBeVisible();
   await expect(page.getByText('视频服务：未运行',{exact:true})).toBeVisible();
   await expect(page.getByText('游戏连接：需检查',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();

@@ -888,3 +888,13 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 - 同轮评审后，Console 按已接收失败条数仅转换、追加新增失败项，避免每次进度回调重建全部失败记录。明确同次 `Run` 的失败列表只追加；既有共享歌曲全部失败用例补充条数、唯一 ID 和错误内容断言。相关补齐、扫描、候选、定向下载及结果快照定向竞态回归通过（6.027 秒），见 `download-fill-progress-race.log`；其余未变部分复用上述整包检查。
 
 这些结果验证补齐编排及其与实际下载引擎的组合，不构成新的公网性能或 VRC 播放结论。未新增游戏专属待验项，未启动游戏或修改 hosts；本次变更按授权提交，不推送。
+
+## 2026-10-28：CI 手动准备顺序回归的时序修正
+
+完整 GitHub Actions `check` [第 10 次运行](https://github.com/SW26010/still-wanna-dance/actions/runs/40676825409)在 Ubuntu 的 `TestManualPreparationConcentratesRangesAndPublishesFirstResource` 失败：`scattered ranges after 1/8 first-resource blocks`；此前 326 个浏览器测试及 Node 工具测试通过，Windows 因矩阵 fail-fast 被取消，不能记作通过。本地原用例重复 100 次共 8 次失败：7 次在第 1/8 块边界，1 次在第 7/8 块边界。
+
+夹具在首个 HTTP 请求到达后立即启动后续准备，不能保证首个资源已完成初始化并登记全部缺块；末尾两个已启动块的 HTTP 到达顺序也不等于调度准入顺序。现先等待首个资源全部块登记，再登记竞争来源，通过已有 `ObserveBlockSchedule` 断言首个资源八个块的准入顺序。最后一块刻意等后续资源的 HTTP 请求先到达，固定覆盖合法的尾部并发；后续正文仍等待首个资源完成真实 MD5 校验、Sync、发布及字节核对。未修改生产调度、并发或准入规则，也未增加延时或放宽结果断言。
+
+固定尾部乱序后，旧断言稳定失败于第 7/8 块；修正后的用例连续 100 次通过（5.925 秒），相关 `go vet` 与 `git diff --check` 通过。原始失败与修复后输出保留在忽略目录 `artifacts/ci-fix-20261028/`。这些验证不产生新的 VRC 专属待验项。
+
+首次整包检查在 Windows 沙箱内因硬链接、目录联接权限被拒及相关子进程夹具失败而未通过，调度器整包通过；原始记录为 `cacheproxy-blocksched-after.log`。随后通过同一 `with-test-temp.ps1` 入口在正常用户权限下重跑，`cacheproxy` 与 `blocksched` 两包通过（56.867／0.197 秒），见 `cacheproxy-blocksched-outside-sandbox.log`；不修改产品文件操作绕过限制。

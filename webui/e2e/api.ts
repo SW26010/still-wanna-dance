@@ -53,7 +53,14 @@ export async function mockAPI(page: Page) {
       for(const item of selected) {const i=files.findIndex(f=>f.key===item.key); if(i>=0)files.splice(i,1);}
     }
     if (path==='settings/theme') {state.settings.theme=body.theme as Settings['theme'];state.activeSettings.theme=state.settings.theme;}
-    if (path==='settings') {const {confirmVideoPolicy,...settings}=body;state.settings={...state.settings,...settings};state.activeSettings.restoreHostsOnExit=state.settings.restoreHostsOnExit; state.restartRequired=JSON.stringify(state.settings)!==JSON.stringify(state.activeSettings);}
+    if (path==='settings') {
+      // Match /api/status: request-only fields are omitted and automatic paths are resolved.
+      const {confirmVideoPolicy,proxyImportID,socks5Password,...settings}=body;
+      state.settings={...state.settings,...settings};
+      if(!state.settings.manualLogDir)state.settings.logDir=state.defaultLogDir;
+      state.activeSettings.restoreHostsOnExit=state.settings.restoreHostsOnExit;
+      state.restartRequired=JSON.stringify(state.settings)!==JSON.stringify(state.activeSettings);
+    }
     if (path==='activation/enable') {if(!state.hosts.ready){state.hosts.ready=true;state.hosts.managed=true;state.hosts.exitRestorePrepared=state.activeSettings.restoreHostsOnExit;}state.running=true;state.queue={running:state.activeSettings.queueWithGateway,desired:state.activeSettings.queueWithGateway};state.activation={phase:'waiting',readyAt:new Date().toISOString()};}
     if (path==='hosts/prepare'&&state.hosts.managed&&state.activeSettings.restoreHostsOnExit) state.hosts.exitRestorePrepared=true;
     if (path==='activation/disable') {state.running=false;state.queue={running:false,desired:false};if(state.activeSettings.restoreHostsOnExit){state.hosts.ready=false;state.hosts.managed=false;state.hosts.exitRestorePrepared=false;}state.activation={phase:'stopped'};}

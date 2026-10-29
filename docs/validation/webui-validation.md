@@ -1134,6 +1134,28 @@ ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter�
 
 证据位于忽略目录 `artifacts/path-field-20261028/`：`browser-final.log`、`browser-final/`、`backend-final.log`、`storage-live-final/`、`vrcx-live-final/`、`database-selection.log`、`native-ready.log` 和 `build.log`。过程失败保留：浏览器测试最初向只读框输入了空格而触发选择器，另有字段标签匹配到恢复按钮，改为实际所需的字母输入与精确 textbox 查询后通过；原生测试先遇到内联图标超出命令长度、探针局部变量编译冲突，分别改为标准输入和独立变量名；窗口初始化期间曾读到不一致图标，探针增加最多三秒的初始化等待后连续三轮通过，产品未增加等待或补改系统窗口。未启动 VRC、改 hosts、使用个人数据库、提交或推送。
 
+## 2026-10-28 CI 通知与模态背景的语义定位
+
+完整 GitHub Actions `check` [第 11 次运行](https://github.com/SW26010/still-wanna-dance/actions/runs/40702835913)在 Ubuntu 全部通过，包括 326 个浏览器测试、Go 全包测试、vet、构建、竞态与格式检查。Windows 浏览器测试为 323 通过、3 失败，后续 Go 与打包步骤未执行，不能记为通过。
+
+三处失败均落在测试定位：加速失败的宽泛文本查询取到了隐藏 Tooltip；网络检测反馈同时匹配 Toast 与读屏播报文本；重启确认弹窗打开时，后台状态不在模态的可访问树中。前两处改为按具名 `listitem` 检查真实通知，沿用其他通知用例的定位方式，并同步修正同一加速套件中停止失败通知的相同定位；第三处仅在弹窗打开时包含隐藏背景来核对状态更新，弹窗关闭后再用普通角色查询核对状态，继续断言没有提交重启请求。未改产品行为、延长超时或删除反馈断言。
+
+本机默认 Edge 在修正前定向重复 5 轮共 15 项通过，未复现 CI Chromium 的失败；修正后 `acceleration`、`console`、`lifecycle` 三个完整套件 23 项通过（9.9 秒），同类停止失败定位随后单独复核通过，前端 `check` 与 `git diff --check` 通过。浏览器检查经 `with-test-temp.ps1` 使用独立 headless Edge 与内存 API；原始沙箱启动失败的运行已停止，结果未当作应用用例失败。过程记录保留在忽略目录 `artifacts/ci-fix-20261028/` 的 `webui-before.log`、`webui-baseline.log`、`webui-edge-after.log`、`webui-stop-after.log` 及对应输出目录。完整远端复核以修正提交的新一轮 `check` 为准。
+
+## 2026-10-28 CI 设置夹具与保存完成断言
+
+`check` [第 13 次运行](https://github.com/SW26010/still-wanna-dance/actions/runs/40710759854)的 Windows 浏览器测试为 325 通过、1 失败：仅修改退出恢复策略并保存后，“重启并应用”意外启用。Ubuntu 浏览器、Node、普通 Go 测试、vet 与构建通过，竞态检查被矩阵的 Windows 失败取消。Windows 尚未运行 Go 检查，不能据此判断临时目录修复结果。
+
+原退出策略用例在本机 Edge 重复 20 次通过；增加保存后控件重新启用及已保存／活跃配置相等断言后，立即稳定复现。模拟接口直接合并请求，错误保留 `proxyImportID`、空 `socks5Password`，并把自动日志目录变成空字符串，导致 `restartRequired` 被误置为真；旧用例可能在保存中按钮暂时禁用时提前通过。公共夹具现按实际 `/api/status` 语义排除请求专属字段并解析自动日志目录。退出策略断言等待控件恢复及“已生效”，日志恢复默认用例分别检查提交空目录、返回默认目录和生效状态。未修改产品逻辑或增加重试、固定等待。
+
+修正后的退出策略用例连续 20 次通过（15.9 秒），完整 Edge 浏览器回归 **326/326 通过**（1.6 分钟），前端 `check` 与 `git diff --check` 通过。原失败及复核记录位于忽略目录 `artifacts/ci-fix-20261028/`：`exit-policy-before.log`、`exit-policy-repro.log`、`exit-policy-after.log`、`webui-fixture-after.log` 及对应输出目录。远端结果仍以修正提交对应的完整运行记录为准。
+
+## 2026-10-28 CI 资源详情键盘焦点时序
+
+`check` [第 14 次运行](https://github.com/SW26010/still-wanna-dance/actions/runs/40714205587)的 Ubuntu 浏览器测试为 325 通过、1 失败：资源详情弹层按 Escape 后未观察到焦点回到触发按钮。退出策略用例通过；Windows 因矩阵失败被取消，后端检查未完成。原用例仅等待弹层文字出现，随即按 Escape，没有确认 Fluent 弹层的自动聚焦已经完成。现与同文件库的窄屏详情用例保持相同验证顺序：按具名 group 定位弹层，确认歌曲链接获得焦点，按 Escape，确认弹层关闭，最后确认触发按钮重新获得焦点。保留所有资源请求和未删除断言，不改产品焦点逻辑或添加固定等待。
+
+原用例在本机 Edge 连续 50 次通过，未本地复现远端失败；调整后连续 50 次通过（23.3 秒），组件与曲库完整套件 **46/46 通过**（10.1 秒），前端 `check` 和 `git diff --check` 通过。Playwright Chromium 在安装完成后仍遇到 `browserType.launch: spawn UNKNOWN`，未进入断言，不作为应用失败；远端 Chromium 复核仍以新提交运行记录为准。过程中的测试链接名称漏掉 ID、两轮测试误并发占用夹具端口均已修正并保留证据；前者不是原 CI 故障复现，后者未进入用例。记录位于忽略目录 `artifacts/ci-fix-20261028/` 的 `focus-before.log`、`focus-chromium-before.log`、`focus-after.log`、`focus-final.log`、`focus-suites-after.log`、`focus-suites-final.log` 及对应输出目录。
+
 ## 2026-10-28 启动时自身端口误报
 
 修复启动时短暂显示红色「视频服务：异常」、提示端口被自身 SWD 进程占用、随后自动转绿的问题。监听绑定先于引擎初始化和运行状态发布，旧状态接口在这段时间重新探测端口，又在状态快照解锁后读取占用，可能把自己的监听当成冲突。现复用已有监听对象记录归属，将绑定、释放和端口判断纳入同一状态锁；引擎初始化与连接排空仍在锁外。端口与 `running` 同时取快照，前端沿用已有「启动中」显示。现行语义见[配置与运行生命周期](../settings-lifecycle.md)。

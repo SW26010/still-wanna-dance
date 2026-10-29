@@ -761,6 +761,13 @@
       "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Constrain record details to the viewport with standard Fluent positioning, available-height sizing, and target-covering shifts."
     },
     {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1196020,
+      "sha256": "3e6d92c250453bdeaf11e2c2166de65ee03b9a0215a7af4212ea68cad2960226",
+      "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Unify native path selection and default restoration."
+    },
+    {
       "path": "internal/cacheproxy/testdata/storage-v8.sqlite",
       "kind": "binary-fixture",
       "bytes": 102400,
@@ -794,6 +801,27 @@
       "bytes": 1199624,
       "sha256": "4b5028702b288138ad530fdf851e648c2b46a9db6c530695f0b4817abe040984",
       "reason": "Production WebUI generated and verified by webui/build.mjs. Restore compact coverage layout with counts in the title tooltip and a standard Fluent warning icon tooltip for unresolved resources or unavailable coverage."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1197639,
+      "sha256": "3046054f87be973cf356758a5d9ddded082b7486afa271bb477bfbc6f27283e3",
+      "reason": "Historical production WebUI from a5903f6a: first-start local video import suggestion. Exact Git blob bytes match that commit's webui/build-manifest.json; register the omitted generated artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1197653,
+      "sha256": "32854399163ae93430f5566be8af829eea519b23648a9f5de0ea11981d7daf89",
+      "reason": "Historical production WebUI from 6fa8617a: keep the VRCX startup notice visible until dismissed. Exact Git blob bytes match that commit's webui/build-manifest.json; register the omitted generated artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1198268,
+      "sha256": "ead2fe919c84ce034786dc42a2ca84d03a873abb917c524aecf20cbc1f36ebb8",
+      "reason": "Historical production WebUI from 2819074c: explicit hosts restore permission preparation. Exact Git blob bytes match that commit's webui/build-manifest.json; register the omitted generated artifact without changing the bundle."
     }
   ]
 }

@@ -1,6 +1,7 @@
 import {navigateSettings,navigate} from './navigation';
 import {test,expect} from '@playwright/test';
 import {mockAPI, choosePath} from './api';
+import {saveSettings} from './settings-actions';
 
 test('live progress belongs to acceleration and manual work belongs to library',async({page})=>{
   const api=await mockAPI(page);
@@ -41,8 +42,7 @@ test('separate settings locations save only their own draft and preserve the oth
   expect(api.state.settings.prepareAheadSeconds).not.toBe(777);
   await navigateSettings(page,'预加载与下载');
   await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveValue('777');
-  await page.getByRole('button',{name:'保存设置',exact:true}).click();
-  await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
+  await saveSettings(page,'待重启');
   expect(api.state.settings.maxCacheBytes).toBe(20*2**30);
   expect(api.state.settings.prepareAheadSeconds).toBe(777);
 });

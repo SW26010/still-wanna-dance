@@ -10,8 +10,12 @@ test('resource file actions are reachable by standard keyboard navigation',async
   await expect(rows.nth(1).getByRole('button',{name:'删除本地视频',exact:true})).toBeDisabled();
   const open=rows.first().getByRole('button',{name:'定位文件'});await open.focus();await page.keyboard.press('Enter');
   await expect.poll(()=>api.calls.find(c=>c.path==='cache/open')?.body).toEqual({storageID:'fixture',entries:[{key:'key1',stamp:'stamp1'}]});
-  await rows.first().getByRole('button',{name:'资源 key1 的详情'}).focus();await page.keyboard.press('Enter');await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('测试歌曲 1');await page.keyboard.press('Escape');
-  await expect(rows.first().getByRole('button',{name:'资源 key1 的详情'})).toBeFocused();expect(api.calls.some(c=>c.path==='cache/delete')).toBe(false);
+  const details=rows.first().getByRole('button',{name:'资源 key1 的详情',exact:true});
+  await details.focus();await page.keyboard.press('Enter');
+  const popup=page.getByRole('group',{name:'资源 key1 的详情',exact:true});
+  await expect(popup.getByRole('link',{name:'测试歌曲 1（ID 1）',exact:true})).toBeFocused();
+  await page.keyboard.press('Escape');await expect(popup).toBeHidden();
+  await expect(details).toBeFocused();expect(api.calls.some(c=>c.path==='cache/delete')).toBe(false);
 });
 
 test('native node file picker rejects oversize files and can reread the same file', async ({page}) => {

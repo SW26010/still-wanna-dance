@@ -168,7 +168,9 @@ test('log selection enables manual mode and reset returns to automatic detection
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(reset).toBeDisabled();
   await expect.poll(()=>api.state.settings.manualLogDir).toBe(false);
-  expect(api.state.settings.logDir).toBe('');
+  expect(api.calls.filter(call=>call.path==='settings').at(-1)?.body.logDir).toBe('');
+  expect(api.state.settings.logDir).toBe(api.state.defaultLogDir);
+  await expect(page.getByRole('region',{name:'设置操作',exact:true}).getByRole('status')).toHaveText('已生效');
 });
 
 test('resetting the video import source only clears the draft',async({page})=>{

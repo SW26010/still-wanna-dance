@@ -2,7 +2,7 @@
 
 本页维护当前落盘与存储契约。本地资源管理的规则、接口及验证边界见 canonical 文档[下载需求与资源管理设计](download-resource-design.md)。
 
-持久化整理的目标原则见[职责与边界](persistence-design.md)，实施步骤见[迁移计划](persistence-migration-plan.md)。数据库与完整视频目录已独立配置，块使用 EXE 旁固定工作区。桌面应用启动时准备默认业务存储，已有配置则严格打开所选数据库，元数据与个人资料操作不依赖视频引擎。桌面格式 7 的 databasePath、videoDir 首次自动采用默认位置，无需手动建库；自定义位置才需要在设置页选择，保存后重启应用，不自动搬运。初始化与已有资料保护的边界见[配置生命周期](settings-lifecycle.md)。CLI 使用 `-database`、`-video-dir`，明确建库另用 `-create-database`，详见[服务手册](service.md)。核心引擎也只接收已打开的数据库、已有视频目录和应用持有的工作区；不再保留混合根或隐式建库入口。
+持久化整理的目标原则见[职责与边界](persistence-design.md)，实施步骤见[迁移计划](persistence-migration-plan.md)。数据库与完整视频目录已独立配置，块使用 EXE 旁固定工作区。桌面应用启动时准备默认业务存储，已有配置则严格打开所选数据库，元数据与个人资料操作不依赖视频引擎。桌面配置中的 databasePath、videoDir 首次自动采用默认位置，无需手动建库；自定义位置才需要在设置页选择，保存后重启应用，不自动搬运。初始化与已有资料保护的边界见[配置生命周期](settings-lifecycle.md)。CLI 使用 `-database`、`-video-dir`，明确建库另用 `-create-database`，详见[服务手册](service.md)。核心引擎也只接收已打开的数据库、已有视频目录和应用持有的工作区；不再保留混合根或隐式建库入口。
 
 > 当前采用[曲库、资源关联与歌曲需求统计](song-catalog-design.md)模型。建议主库名为 `storage.sqlite`，两个入口均可选择文件名；SQLite `application_id=0x53574443`（SWDC）、`user_version=8`。版本 4 引入请求身份、响应范围、首正文分类与采集覆盖水位；版本 5 删除重复内容版本键；版本 6 收紧数据约束并清理持久化职责：所有表采用 STRICT，删除 media.source_path、请求来源及需求标记，明确可空请求身份，并停止保存预下载明细。歌曲资料列和清单摘要保持不变。版本 7 新增按块折算的三类响应来源字节（逐请求及累计），不保存可随块大小重新解释的块数。版本 8 将 songs 字段对齐 Udon、删除备选独有字段，并改用共同元数据摘要 v2。保留冻结的版本 2～7 DDL 与夹具，不实现开发期旧格式兼容或迁移。
 

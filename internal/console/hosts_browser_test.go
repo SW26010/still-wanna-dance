@@ -94,7 +94,7 @@ func TestHostsPolicyBrowser(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { c.Close() })
-			if c.settings.RestoreHostsOnExit {
+			if c.settings.RestoreHostsOnStopOrExit {
 				t.Fatal("saved setting did not survive reopening")
 			}
 		}

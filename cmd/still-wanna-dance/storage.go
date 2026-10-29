@@ -32,7 +32,7 @@ func checkVideoPolicy(path string, explicitPolicy bool) error {
 		key := strings.TrimSuffix(name, ".mp4")
 		md5, err := hex.DecodeString(key)
 		if err == nil && len(md5) == 16 && key == strings.ToLower(key) {
-			return errors.New("视频目录已有完整视频；请显式指定 -max-cache-bytes 或 -cache-unlimited，以确认本次按当前数据库的收藏和保留策略管理这些文件")
+			return errors.New("视频目录已有完整视频；请显式指定 -video-budget-bytes 或 -cache-unlimited，以确认本次按当前数据库的收藏和保留策略管理这些文件")
 		}
 	}
 	return nil

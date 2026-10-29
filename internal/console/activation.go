@@ -124,7 +124,7 @@ func (c *Console) disableAcceleration() error {
 		c.mu.Unlock()
 		return errors.New("程序正在退出")
 	}
-	restore := c.settings.RestoreHostsOnExit
+	restore := c.settings.RestoreHostsOnStopOrExit
 	c.activation.Phase, c.activation.Error = "stopping", ""
 	c.activation.ConnectionError = ""
 	c.activation.restorePermissionMissing = false
@@ -167,7 +167,7 @@ func (c *Console) beginVideoRequest(arrived time.Time) func() {
 // preflight and helper, regardless of the configured exit policy.
 func (c *Console) changeHostsLocked(action string) error {
 	c.mu.Lock()
-	closing, restore := c.closing, c.settings.RestoreHostsOnExit
+	closing, restore := c.closing, c.settings.RestoreHostsOnStopOrExit
 	c.mu.Unlock()
 	if closing {
 		return errors.New("程序正在退出")
@@ -180,7 +180,7 @@ func (c *Console) prepareHostsRestore() error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
-	closing, restore := c.closing, c.settings.RestoreHostsOnExit
+	closing, restore := c.closing, c.settings.RestoreHostsOnStopOrExit
 	c.mu.Unlock()
 	if closing {
 		return errors.New("程序正在退出")

@@ -12,11 +12,11 @@ func TestVideoStorageModesPersistAndApplyOnRestart(t *testing.T) {
 	for _, mode := range []string{"none", "limited", "unlimited"} {
 		c := testConsole(t)
 		s := c.settings
-		s.VideoStorageMode, s.MaxCacheBytes = mode, 5<<30
+		s.VideoStorageMode, s.VideoBudgetBytes = mode, 5<<30
 		if err := c.save(s); err != nil {
 			t.Fatal(err)
 		}
-		if c.settings.VideoStorageMode != "none" || c.settings.MaxCacheBytes != 0 {
+		if c.settings.VideoStorageMode != "none" || c.settings.VideoBudgetBytes != 0 {
 			t.Fatal("saving changed active settings")
 		}
 		_, fields, err := readConfigFile(c.configPath)
@@ -24,7 +24,7 @@ func TestVideoStorageModesPersistAndApplyOnRestart(t *testing.T) {
 			t.Fatalf("choice was not stored explicitly: %s %v", fields["videoStorageMode"], err)
 		}
 		loaded := restartTestConsole(t, c)
-		if loaded.settings.VideoStorageMode != mode || loaded.settings.MaxCacheBytes != 5<<30 {
+		if loaded.settings.VideoStorageMode != mode || loaded.settings.VideoBudgetBytes != 5<<30 {
 			t.Fatalf("capacity choice lost: %+v", loaded.settings)
 		}
 		initializeTestLibrary(t, loaded)
@@ -50,7 +50,7 @@ func TestVideoStorageModesPersistAndApplyOnRestart(t *testing.T) {
 func TestCacheLimitSettingsPersist(t *testing.T) {
 	c := testConsole(t)
 	settings := c.settings
-	settings.MaxCacheBytes = 5 << 30
+	settings.VideoBudgetBytes = 5 << 30
 	settings.VideoStorageMode = "limited"
 	if err := c.save(settings); err != nil {
 		t.Fatal(err)
@@ -60,7 +60,7 @@ func TestCacheLimitSettingsPersist(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer loaded.Close()
-	if loaded.settings.MaxCacheBytes != settings.MaxCacheBytes {
+	if loaded.settings.VideoBudgetBytes != settings.VideoBudgetBytes {
 		t.Fatal("limit lost on restart")
 	}
 	for _, tc := range []struct {
@@ -73,12 +73,12 @@ func TestCacheLimitSettingsPersist(t *testing.T) {
 		{"other", 5 << 30},
 	} {
 		invalid := settings
-		invalid.VideoStorageMode, invalid.MaxCacheBytes = tc.mode, tc.budget
+		invalid.VideoStorageMode, invalid.VideoBudgetBytes = tc.mode, tc.budget
 		if err := c.save(invalid); err == nil {
 			t.Fatal("invalid video storage choice accepted")
 		}
 	}
-	if c.savedSettings.MaxCacheBytes != 5<<30 {
+	if c.savedSettings.VideoBudgetBytes != 5<<30 {
 		t.Fatal("invalid setting changed saved limit")
 	}
 	c.lifecycleMu.Lock()
@@ -141,7 +141,7 @@ func TestRequestRetentionDefaultsAndExplicitModes(t *testing.T) {
 	} {
 		t.Run(tc.fields, func(t *testing.T) {
 			config := filepath.Join(t.TempDir(), "config.json")
-			if err := os.WriteFile(config, []byte(fmt.Sprintf(`{"schemaVersion":7%s}`, tc.fields)), 0600); err != nil {
+			if err := os.WriteFile(config, []byte(fmt.Sprintf(`{"schemaVersion":8%s}`, tc.fields)), 0600); err != nil {
 				t.Fatal(err)
 			}
 			c, err := newConsoleWithWorkForTest(t, config, "127.0.0.1:18081")

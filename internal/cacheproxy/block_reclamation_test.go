@@ -36,7 +36,7 @@ func TestBlockReclamationPolicyAndUnprotectedBlocks(t *testing.T) {
 		for _, mode := range []string{"zero", "positive-full", "unlimited"} {
 			t.Run(policy+"/"+mode, func(t *testing.T) {
 				w, s := testSession(t)
-				s.cfg.AggressiveCacheReclamation = policy
+				s.cfg.AggressiveBlockReclamation = policy
 				aggressive := policy == "on" || policy == "auto" && mode == "zero"
 				w.v.size = 3 * rangeBlockSize
 				d := reclamationResource(t, s, w.v)
@@ -45,7 +45,7 @@ func TestBlockReclamationPolicyAndUnprotectedBlocks(t *testing.T) {
 					0: {start: now}, 1: {until: now.Add(-time.Second)}, 2: {start: now.Add(time.Hour)},
 				}}
 				if mode == "positive-full" {
-					s.cfg.MaxCacheBytes = 1
+					s.cfg.VideoBudgetBytes = 1
 					s.retainedBytes = 1
 				}
 				s.cfg.CacheUnlimited = mode == "unlimited"
@@ -154,8 +154,8 @@ func testAggressiveRangePreparation(t *testing.T, mode string) {
 	setRetentionLimit(t, s, 0)
 	if mode != "zero-auto" {
 		s.retentionMu.Lock()
-		s.cfg.AggressiveCacheReclamation = "on"
-		s.cfg.MaxCacheBytes = 8 * rangeBlockSize
+		s.cfg.AggressiveBlockReclamation = "on"
+		s.cfg.VideoBudgetBytes = 8 * rangeBlockSize
 		s.cfg.CacheUnlimited = mode == "unlimited-on"
 		s.retentionMu.Unlock()
 	}
@@ -236,9 +236,9 @@ func TestReclaimedBlockReentersPlanForCurrentUsage(t *testing.T) {
 			t.Run(policy+"/"+source, func(t *testing.T) {
 				synctest.Test(t, func(t *testing.T) {
 					w, s := testSession(t)
-					s.cfg.AggressiveCacheReclamation = policy
+					s.cfg.AggressiveBlockReclamation = policy
 					if policy == "on" {
-						s.cfg.MaxCacheBytes = 10 * rangeBlockSize
+						s.cfg.VideoBudgetBytes = 10 * rangeBlockSize
 					}
 					w.v.size = 2 * rangeBlockSize
 					local := reclamationResource(t, s, w.v)
@@ -289,7 +289,7 @@ func TestReclamationOffRetainsZeroBudgetBlocksUntilShutdown(t *testing.T) {
 	})
 	setRetentionLimit(t, s, 0)
 	s.retentionMu.Lock()
-	s.cfg.AggressiveCacheReclamation = "off"
+	s.cfg.AggressiveBlockReclamation = "off"
 	s.retentionMu.Unlock()
 	for range 2 {
 		if _, err := s.Prefetch(context.Background(), videoURL(payload)); !errors.Is(err, ErrNotRetained) {

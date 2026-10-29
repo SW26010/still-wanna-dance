@@ -24,7 +24,7 @@ func TestPortableSettingsMove(t *testing.T) {
 	next := c.settings
 	createTestDatabase(t, filepath.Join(original, "data", "storage.sqlite"))
 	setTestLibraryPaths(&next, "data")
-	next.LogDir, next.ManualLogDir = external, true
+	next.VRChatLogDir = external
 	if err := c.save(next); err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestPortableSettingsMove(t *testing.T) {
 	if err := json.Unmarshal(b, &saved); err != nil {
 		t.Fatal(err)
 	}
-	if testStorageRoot(saved) != "data" || saved.LogDir != external {
+	if testStorageRoot(saved) != "data" || saved.VRChatLogDir != external {
 		t.Fatal(saved)
 	}
 	c.Close()
@@ -49,7 +49,7 @@ func TestPortableSettingsMove(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reopened.Close()
-	if testStorageRoot(reopened.settings) != filepath.Join(moved, "data") || reopened.settings.LogDir != external {
+	if testStorageRoot(reopened.settings) != filepath.Join(moved, "data") || reopened.settings.VRChatLogDir != external {
 		t.Fatal(reopened.settings)
 	}
 }

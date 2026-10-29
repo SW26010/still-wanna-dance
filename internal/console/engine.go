@@ -63,12 +63,12 @@ func (c *Console) openEngineLocked(key string) (*cacheproxy.Server, func(), erro
 	cfg.Logger = slog.Default().With("component", "cache")
 	cfg.Store = store
 	cfg.VideoDir = libraryPaths(settings).VideoDir
-	cfg.MaxCacheBytes = settings.MaxCacheBytes
+	cfg.VideoBudgetBytes = settings.VideoBudgetBytes
 	cfg.CacheUnlimited = settings.VideoStorageMode == "unlimited"
 	cfg.RetainFavorites = settings.RetainFavorites
-	cfg.AggressiveCacheReclamation = settings.AggressiveCacheReclamation
+	cfg.AggressiveBlockReclamation = settings.AggressiveBlockReclamation
 	if settings.VideoStorageMode == "none" {
-		cfg.MaxCacheBytes = 0
+		cfg.VideoBudgetBytes = 0
 	}
 	cfg.RequestRetentionDays = settings.RequestRetentionDays
 	cfg.RequestRetentionUnlimited = settings.RequestRetentionMode == "unlimited"
@@ -76,7 +76,7 @@ func (c *Console) openEngineLocked(key string) (*cacheproxy.Server, func(), erro
 		cfg.RequestRetentionDays = 0
 	}
 	cfg.PrepareAhead = time.Duration(settings.PrepareAheadSeconds) * time.Second
-	cfg.DownloadSoftLimit = settings.DownloadSoftLimit
+	cfg.DownloadConcurrencySoftLimit = settings.DownloadConcurrencySoftLimit
 	cfg.DownloadGrowInterval = time.Duration(settings.DownloadGrowIntervalMS) * time.Millisecond
 	cfg.LocalProtectionGrace = time.Duration(settings.LocalProtectionGraceSeconds) * time.Second
 	cfg.DialContext = c.upstreamDial

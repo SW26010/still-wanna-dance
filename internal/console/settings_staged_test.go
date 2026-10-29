@@ -34,8 +34,8 @@ func TestSavedSettingsDoNotChangeRuntime(t *testing.T) {
 	active, engine, client := c.settings, c.service, c.client
 	next := active
 	next.PrepareAheadSeconds = 120
-	next.AggressiveCacheReclamation = "off"
-	next.DownloadSoftLimit, next.DownloadGrowIntervalMS = 64, 0
+	next.AggressiveBlockReclamation = "off"
+	next.DownloadConcurrencySoftLimit, next.DownloadGrowIntervalMS = 64, 0
 	next.LocalProtectionGraceSeconds = 0
 	setTestLibraryPaths(&next, filepath.Join(t.TempDir(), "new-cache"))
 	createTestDatabase(t, next.DatabasePath)
@@ -61,13 +61,13 @@ func TestSavedSettingsDoNotChangeRuntime(t *testing.T) {
 	if !status.RestartRequired || status.Settings.PrepareAheadSeconds != 120 || status.ActiveSettings.PrepareAheadSeconds != 500 || testStorageRoot(status.Settings) != testStorageRoot(next) || testStorageRoot(status.ActiveSettings) != testStorageRoot(active) || status.Settings.SOCKS5Password != "" || status.ActiveSettings.SOCKS5Password != "" {
 		t.Fatalf("incorrect snapshots: %s", w.Body.String())
 	}
-	if status.Settings.DownloadSoftLimit != 64 || status.Settings.DownloadGrowIntervalMS != 0 || status.ActiveSettings.DownloadSoftLimit != 16 || status.ActiveSettings.DownloadGrowIntervalMS != 250 {
+	if status.Settings.DownloadConcurrencySoftLimit != 64 || status.Settings.DownloadGrowIntervalMS != 0 || status.ActiveSettings.DownloadConcurrencySoftLimit != 16 || status.ActiveSettings.DownloadGrowIntervalMS != 250 {
 		t.Fatalf("incorrect download settings snapshots: %s", w.Body.String())
 	}
 	if status.Settings.LocalProtectionGraceSeconds != 0 || status.ActiveSettings.LocalProtectionGraceSeconds != 300 {
 		t.Fatalf("incorrect local protection settings snapshots: %s", w.Body.String())
 	}
-	if status.Settings.AggressiveCacheReclamation != "off" || status.ActiveSettings.AggressiveCacheReclamation != "auto" {
+	if status.Settings.AggressiveBlockReclamation != "off" || status.ActiveSettings.AggressiveBlockReclamation != "auto" {
 		t.Fatalf("incorrect reclamation settings snapshots: %s", w.Body.String())
 	}
 	if err := c.stop(); err != nil {
@@ -103,7 +103,7 @@ func TestSettingsSaveFailureAndRevert(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	next.MaxCacheBytes = -1
+	next.VideoBudgetBytes = -1
 	next.VideoStorageMode = "limited"
 	if err := c.save(next); err == nil {
 		t.Fatal("invalid settings saved")
@@ -114,7 +114,7 @@ func TestSettingsSaveFailureAndRevert(t *testing.T) {
 	}
 	// A destination directory forces the final replacement to fail.
 	c.configPath = t.TempDir()
-	next.MaxCacheBytes = 1
+	next.VideoBudgetBytes = 1
 	next.VideoStorageMode = "limited"
 	if err := c.save(next); err == nil || c.savedSettings != active {
 		t.Fatal("failed write changed snapshot")

@@ -275,8 +275,8 @@ func testBatchFavoriteRetention(t *testing.T, retain bool) {
 	cfg.OriginScheme = "http"
 	cfg.CacheUnlimited = false
 	cfg.RetainFavorites = retain
-	cfg.MaxCacheBytes = 0
-	cfg.AggressiveCacheReclamation = "off"
+	cfg.VideoBudgetBytes = 0
+	cfg.AggressiveBlockReclamation = "off"
 	cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {

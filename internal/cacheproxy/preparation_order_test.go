@@ -168,7 +168,7 @@ func TestManualPreparationConcentratesRangesAndPublishesFirstResource(t *testing
 		}
 		_, _ = w.Write([]byte(body[first : last+1]))
 	}, func(cfg *Config) {
-		cfg.BlockSize, cfg.DownloadSoftLimit, cfg.DownloadGrowInterval = blockSize, 2, 0
+		cfg.BlockSize, cfg.DownloadConcurrencySoftLimit, cfg.DownloadGrowInterval = blockSize, 2, 0
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

@@ -234,7 +234,7 @@ func (s *Server) trimCachePass(reconcile bool) error {
 	}
 	s.reclaimBlocksWithPolicies(policies)
 	s.retentionMu.Lock()
-	limit := s.cfg.MaxCacheBytes
+	limit := s.cfg.VideoBudgetBytes
 	unlimited := s.cfg.CacheUnlimited
 	s.retentionMu.Unlock()
 	// Resource-use coordination needs complete-file availability in every

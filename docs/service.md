@@ -26,7 +26,7 @@ New-Item -ItemType Directory -Path .\complete-videos
 
 `-database` 指向已有 v7 数据库，保存歌曲、资源与个人统计；`-video-dir` 指向已有完整视频目录，直接使用其中 `{md5}.mp4`，不再附加 `videos/`。普通启动不建库、不重建缺失的视频目录；只有 `-create-database` 明确创建新库后退出，已有文件（包括空文件）均拒绝覆盖。块固定在 EXE 旁 `work/<service 实例>/`；发布／导入暂存位于视频目录 `.swd-tmp/`，仍在视频卷。没有工作目录参数，不读取桌面设置或旧 `-storage-dir`。详见[存储契约](storage.md)。
 
-若目录已有完整视频，须显式传入 `-cache-unlimited` 或 `-max-cache-bytes`，确认按本次数据库的收藏和保留策略管理这些文件；否则启动拒绝，避免默认零预算删除已有视频。CLI 不保存这项选择，下次启动仍由参数表达。
+若目录已有完整视频，须显式传入 `-cache-unlimited` 或 `-video-budget-bytes`，确认按本次数据库的收藏和保留策略管理这些文件；否则启动拒绝，避免默认零预算删除已有视频。CLI 不保存这项选择，下次启动仍由参数表达。
 
 ## 游戏接入
 
@@ -107,9 +107,9 @@ FROM song_usage ORDER BY last_demand_at DESC;
 | `-origin DOMAIN=HOST:PORT` | 空；可重复指定可信的显式域名回源覆盖 |
 | `-download-timeout` | `10m`，分别限制每次已准入块执行（含其重试）、顺序整文件下载，以及共享任务的本地校验/发布阶段；不消耗于调度等待，不限制额度用尽时的独立本地校验路径 |
 | `-max-file-bytes` | `2147483648`（2 GiB） |
-| `-aggressive-cache-reclamation` | `auto`（默认）/`on`/`off`；自动仅在有效视频存储预算为 0 时开启视频块缓存回收，不改变完整本地视频的预算与保护 |
-| `-max-cache-bytes` | `0`，不长期保留视频，保护解除后回收；单位为字节 |
-| `-cache-unlimited` | `false`；设为 `true` 表示不限，不能与显式 `-max-cache-bytes` 同时指定 |
+| `-aggressive-block-reclamation` | `auto`（默认）/`on`/`off`；自动仅在有效视频存储预算为 0 时开启视频块缓存回收，不改变完整本地视频的预算与保护 |
+| `-video-budget-bytes` | `0`，不长期保留视频，保护解除后回收；单位为字节 |
+| `-cache-unlimited` | `false`；设为 `true` 表示不限，不能与显式 `-video-budget-bytes` 同时指定 |
 | `-request-retention-days` | `0`，显式指定时关闭默认无限保留；范围 0～36500，0 为不保留明细，正数为保留天数，汇总始终保留 |
 | `-request-retention-unlimited` | `true`，显式永久保留；不可与显式 `-request-retention-days` 同时启用 |
 | `-max-local-validations` | `3`，仅限制本地文件校验并发（内部 `MaxLocalValidations` / `localChecks`）；资源会话无独立数量门槛，上游视频请求由全局块调度器控制，普通请求软上限 16，Blocking 缺块立即放行 |

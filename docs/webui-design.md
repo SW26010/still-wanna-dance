@@ -306,7 +306,7 @@
 
 启动时机统一遵循[配置生命周期](settings-lifecycle.md)：未同意时自动弹出条款，成功确认后按启动设置执行本进程的一次自动加速；刷新和重复确认不重复执行。失败显示实际状态和原因，由用户处理后手动重试。
 
-自动启动已扩展为完整一键加速，并同步[配置生命周期](settings-lifecycle.md)；配置版本 6 使用 autoAccelerate 和 queueWithGateway，不迁移旧字段。
+自动启动已扩展为完整一键加速，使用 autoAccelerate 和 queueWithGateway，不迁移旧字段；当前配置版本与生效规则统一见[配置生命周期](settings-lifecycle.md)。
 
 ### 队列预加载随视频网关启用
 

@@ -2,11 +2,11 @@ package cacheproxy
 
 import "testing"
 
-func TestAggressiveCacheReclamationValidation(t *testing.T) {
+func TestAggressiveBlockReclamationValidation(t *testing.T) {
 	for _, policy := range []string{"auto", "on", "off", "", "true", "false", "unknown"} {
 		cfg := DefaultConfig()
 		cfg.VideoDir = t.TempDir()
-		cfg.AggressiveCacheReclamation = policy
+		cfg.AggressiveBlockReclamation = policy
 		valid := policy == "auto" || policy == "on" || policy == "off"
 		if err := cfg.validate(); (err == nil) != valid {
 			t.Fatalf("policy %q: %v", policy, err)

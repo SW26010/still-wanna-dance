@@ -34,7 +34,7 @@ func TestApplicationOwnsDatabaseBeforeEngineStarts(t *testing.T) {
 
 func TestApplicationReportsDatabaseOpenFailureWithoutCreatingLibrary(t *testing.T) {
 	config := filepath.Join(t.TempDir(), "config.json")
-	if err := os.WriteFile(config, []byte(`{"schemaVersion":7,"databasePath":"missing/storage.sqlite","videoDir":"missing/videos"}`), 0600); err != nil {
+	if err := os.WriteFile(config, []byte(`{"schemaVersion":8,"databasePath":"missing/storage.sqlite","videoDir":"missing/videos"}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 	c, err := newConsole(config, "127.0.0.1:18081", newFixtureDNS(), testWorkDirectory(t))

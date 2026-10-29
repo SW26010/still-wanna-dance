@@ -21,17 +21,18 @@ func TestReadLogLevelDefaultsAndValidation(t *testing.T) {
 		want applog.Level
 		fail bool
 	}{
-		{`{"schemaVersion":7}`, applog.Info, false},
-		{`{"schemaVersion":7,"logLevel":null}`, applog.Info, false},
-		{`{"schemaVersion":7,"logLevel":""}`, applog.Info, false},
-		{`{"schemaVersion":7,"logLevel":"debug"}`, applog.Debug, false},
-		{`{"schemaVersion":7,"LOGLEVEL":"off"}`, applog.Off, false},
-		{`{"schemaVersion":7,"logLevel":"warn"}`, applog.Warn, false},
-		{`{"schemaVersion":7,"logLevel":"error"}`, applog.Error, false},
-		{`{"schemaVersion":7,"logLevel":"verbose"}`, applog.Info, true},
-		{`{"schemaVersion":7,"logLevel":false}`, applog.Info, true},
+		{`{"schemaVersion":8}`, applog.Info, false},
+		{`{"schemaVersion":8,"logLevel":null}`, applog.Info, false},
+		{`{"schemaVersion":8,"logLevel":""}`, applog.Info, false},
+		{`{"schemaVersion":8,"logLevel":"debug"}`, applog.Debug, false},
+		{`{"schemaVersion":8,"LOGLEVEL":"off"}`, applog.Off, false},
+		{`{"schemaVersion":8,"logLevel":"warn"}`, applog.Warn, false},
+		{`{"schemaVersion":8,"logLevel":"error"}`, applog.Error, false},
+		{`{"schemaVersion":8,"logLevel":"verbose"}`, applog.Info, true},
+		{`{"schemaVersion":8,"logLevel":false}`, applog.Info, true},
 		{`{"schemaVersion":6,"logLevel":"off"}`, applog.Info, true},
-		{`{"schemaVersion":8,"logLevel":"off"}`, applog.Info, true},
+		{`{"schemaVersion":7,"logLevel":"off"}`, applog.Info, true},
+		{`{"schemaVersion":9,"logLevel":"off"}`, applog.Info, true},
 		{`{`, applog.Info, true},
 	} {
 		if err := os.WriteFile(path, []byte(tc.data), 0600); err != nil {

@@ -43,7 +43,7 @@ test('separate settings locations save only their own draft and preserve the oth
   await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveValue('777');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
-  expect(api.state.settings.maxCacheBytes).toBe(20*2**30);
+  expect(api.state.settings.videoBudgetBytes).toBe(20*2**30);
   expect(api.state.settings.prepareAheadSeconds).toBe(777);
 });
 

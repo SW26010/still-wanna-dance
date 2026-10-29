@@ -34,38 +34,37 @@ import (
 var assets embed.FS
 
 type Settings struct {
-	nodeSnapshot                string
-	nodeSecret                  string
-	nodeSecretError             string
-	nodeImportID                string // transient request only; cleared before publish
-	proxySecret                 string
-	proxySecretError            string
-	ThroughputIntervalMinutes   int    `json:"throughputIntervalMinutes"`
-	QueueWithGateway            bool   `json:"queueWithGateway"`
-	RequestRetentionDays        int    `json:"requestRetentionDays"`
-	RequestRetentionMode        string `json:"requestRetentionMode"`
-	AutoAccelerate              bool   `json:"autoAccelerate"`
-	AutoOpenWebUI               bool   `json:"autoOpenWebUI"`
-	Theme                       string `json:"theme"`
-	LogLevel                    string `json:"logLevel"`
-	RestoreHostsOnExit          bool   `json:"restoreHostsOnExit"`
-	PrepareAheadSeconds         int    `json:"prepareAheadSeconds"`
-	DownloadSoftLimit           int    `json:"downloadSoftLimit"`
-	DownloadGrowIntervalMS      int    `json:"downloadGrowIntervalMS"`
-	LocalProtectionGraceSeconds int    `json:"localProtectionGraceSeconds"`
-	UpstreamMode                string `json:"upstreamMode"`
-	ProxyBackend                string `json:"proxyBackend"`
-	SOCKS5Address               string `json:"socks5Address"`
-	SOCKS5Username              string `json:"socks5Username"`
-	SOCKS5Password              string `json:"socks5Password,omitempty"`
-	MaxCacheBytes               int64  `json:"maxCacheBytes"`
-	VideoStorageMode            string `json:"videoStorageMode"`
-	RetainFavorites             bool   `json:"retainFavorites"`
-	AggressiveCacheReclamation  string `json:"aggressiveCacheReclamation"`
-	DatabasePath                string `json:"databasePath"`
-	VideoDir                    string `json:"videoDir"`
-	LogDir                      string `json:"logDir"`
-	ManualLogDir                bool   `json:"manualLogDir"`
+	nodeSnapshot                 string
+	nodeSecret                   string
+	nodeSecretError              string
+	nodeImportID                 string // transient request only; cleared before publish
+	proxySecret                  string
+	proxySecretError             string
+	ThroughputIntervalMinutes    int    `json:"throughputIntervalMinutes"`
+	QueueWithGateway             bool   `json:"queueWithGateway"`
+	RequestRetentionDays         int    `json:"requestRetentionDays"`
+	RequestRetentionMode         string `json:"requestRetentionMode"`
+	AutoAccelerate               bool   `json:"autoAccelerate"`
+	AutoOpenWebUI                bool   `json:"autoOpenWebUI"`
+	Theme                        string `json:"theme"`
+	LogLevel                     string `json:"logLevel"`
+	RestoreHostsOnStopOrExit     bool   `json:"restoreHostsOnStopOrExit"`
+	PrepareAheadSeconds          int    `json:"prepareAheadSeconds"`
+	DownloadConcurrencySoftLimit int    `json:"downloadConcurrencySoftLimit"`
+	DownloadGrowIntervalMS       int    `json:"downloadGrowIntervalMS"`
+	LocalProtectionGraceSeconds  int    `json:"localProtectionGraceSeconds"`
+	UpstreamMode                 string `json:"upstreamMode"`
+	ProxyBackend                 string `json:"proxyBackend"`
+	SOCKS5Address                string `json:"socks5Address"`
+	SOCKS5Username               string `json:"socks5Username"`
+	SOCKS5Password               string `json:"socks5Password,omitempty"`
+	VideoBudgetBytes             int64  `json:"videoBudgetBytes"`
+	VideoStorageMode             string `json:"videoStorageMode"`
+	RetainFavorites              bool   `json:"retainFavorites"`
+	AggressiveBlockReclamation   string `json:"aggressiveBlockReclamation"`
+	DatabasePath                 string `json:"databasePath"`
+	VideoDir                     string `json:"videoDir"`
+	VRChatLogDir                 string `json:"vrchatLogDir"` // empty follows the current user's default
 }
 
 type Console struct {
@@ -184,10 +183,10 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 	c.hosts = newHostsController(hostsPath(), launchHostsSession)
 	c.settings = Settings{
 		RequestRetentionMode: "unlimited",
-		AutoAccelerate:       false, AutoOpenWebUI: true, QueueWithGateway: true, RestoreHostsOnExit: true,
-		VideoStorageMode: "none", MaxCacheBytes: 0, RetainFavorites: true,
-		AggressiveCacheReclamation: "auto",
-		DownloadSoftLimit:          cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),
+		AutoAccelerate:       false, AutoOpenWebUI: true, QueueWithGateway: true, RestoreHostsOnStopOrExit: true,
+		VideoStorageMode: "none", VideoBudgetBytes: 0, RetainFavorites: true,
+		AggressiveBlockReclamation:   "auto",
+		DownloadConcurrencySoftLimit: cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),
 		LocalProtectionGraceSeconds: int(cacheproxy.DefaultLocalProtectionGrace / time.Second),
 	}
 	c.lifecycle = newApplicationLifecycle()
@@ -250,7 +249,7 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 
 // Relative paths belong to the configuration, independent of the launch directory.
 func (c *Console) resolveSettings(s Settings) (Settings, error) {
-	for _, p := range []*string{&s.DatabasePath, &s.VideoDir, &s.LogDir} {
+	for _, p := range []*string{&s.DatabasePath, &s.VideoDir, &s.VRChatLogDir} {
 		*p = strings.TrimSpace(*p)
 		if *p != "" && !filepath.IsAbs(*p) {
 			*p = filepath.Join(filepath.Dir(c.configPath), *p)
@@ -265,11 +264,8 @@ func (c *Console) resolveSettings(s Settings) (Settings, error) {
 
 // Keep directories inside the portable folder movable; external stores stay absolute.
 func (c *Console) storedSettings(s Settings) Settings {
-	if !s.ManualLogDir {
-		s.LogDir = ""
-	}
 	base := filepath.Dir(c.configPath)
-	for _, p := range []*string{&s.DatabasePath, &s.VideoDir, &s.LogDir} {
+	for _, p := range []*string{&s.DatabasePath, &s.VideoDir, &s.VRChatLogDir} {
 		if pathContains(base, *p) {
 			if rel, err := filepath.Rel(base, *p); err == nil {
 				*p = rel
@@ -324,7 +320,7 @@ func absoluteSettings(s Settings) (Settings, error) {
 	if s.PrepareAheadSeconds < int(blocksched.MinPrepareAhead/time.Second) || s.PrepareAheadSeconds > int(blocksched.MaxPrepareAhead/time.Second) {
 		return s, errors.New("提前准备时间 M 必须为 100～16000 秒")
 	}
-	if s.DownloadSoftLimit < 1 || s.DownloadSoftLimit > cacheproxy.MaxDownloadSoftLimit {
+	if s.DownloadConcurrencySoftLimit < 1 || s.DownloadConcurrencySoftLimit > cacheproxy.MaxDownloadConcurrencySoftLimit {
 		return s, errors.New("下载并发上限（软）必须为 1～64")
 	}
 	if s.DownloadGrowIntervalMS < 0 || s.DownloadGrowIntervalMS > int(cacheproxy.MaxDownloadGrowInterval/time.Millisecond) {
@@ -342,29 +338,19 @@ func absoluteSettings(s Settings) (Settings, error) {
 	if s.RequestRetentionMode == "limited" && s.RequestRetentionDays == 0 {
 		return s, errors.New("选择「保留指定天数」时，请求明细保留天数必须大于 0")
 	}
-	if s.MaxCacheBytes < 0 {
+	if s.VideoBudgetBytes < 0 {
 		return s, errors.New("视频存储预算不能为负数")
 	}
 	if s.VideoStorageMode != "none" && s.VideoStorageMode != "limited" && s.VideoStorageMode != "unlimited" {
 		return s, errors.New("视频保留选项必须为 none、limited 或 unlimited")
 	}
-	if s.VideoStorageMode == "limited" && s.MaxCacheBytes == 0 {
+	if s.VideoStorageMode == "limited" && s.VideoBudgetBytes == 0 {
 		return s, errors.New("选择「限制为」时，视频存储预算必须大于 0")
 	}
-	if s.AggressiveCacheReclamation != "auto" && s.AggressiveCacheReclamation != "on" && s.AggressiveCacheReclamation != "off" {
+	if s.AggressiveBlockReclamation != "auto" && s.AggressiveBlockReclamation != "on" && s.AggressiveBlockReclamation != "off" {
 		return s, errors.New("激进的缓存回收策略必须为 auto、on 或 off")
 	}
-	if !s.ManualLogDir {
-		s.LogDir = defaultLogDir()
-	} else if strings.TrimSpace(s.LogDir) == "" {
-		return s, errors.New("请填写手动指定的 VRChat 日志目录")
-	}
-	var logErr error
-	s.LogDir, logErr = filepath.Abs(s.LogDir)
-	if logErr != nil {
-		return s, logErr
-	}
-	for _, path := range []*string{&s.DatabasePath, &s.VideoDir} {
+	for _, path := range []*string{&s.DatabasePath, &s.VideoDir, &s.VRChatLogDir} {
 		*path = strings.TrimSpace(*path)
 		if *path != "" {
 			var err error
@@ -432,7 +418,7 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword, confirmVideoP
 	if err := c.prepareLibrarySelection(s, oldSettings, confirmVideoPolicy); err != nil {
 		return err
 	}
-	if s.RestoreHostsOnExit && !oldSettings.RestoreHostsOnExit {
+	if s.RestoreHostsOnStopOrExit && !oldSettings.RestoreHostsOnStopOrExit {
 		if err = c.hosts.prepareRestore(); err != nil {
 			return fmt.Errorf("未保存设置：无法准备退出时恢复游戏直连的权限：%w", err)
 		}
@@ -443,12 +429,12 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword, confirmVideoP
 	nodeCount := len(nodeDocument(s.nodeSnapshot).Nodes)
 	c.mu.Lock()
 	c.savedSettings = s
-	c.settings.RestoreHostsOnExit = s.RestoreHostsOnExit
+	c.settings.RestoreHostsOnStopOrExit = s.RestoreHostsOnStopOrExit
 	c.settings.Theme = s.Theme
 	c.savedNodeCount = nodeCount
 	delete(c.proxyImports, importID)
 	c.mu.Unlock()
-	slog.Info("settings_saved", "database_path", s.DatabasePath, "video_dir", s.VideoDir, "vrchat_log_dir", s.LogDir)
+	slog.Info("settings_saved", "database_path", s.DatabasePath, "video_dir", s.VideoDir, "vrchat_log_dir", s.effectiveVRChatLogDir())
 	return nil
 }
 
@@ -659,7 +645,7 @@ func (c *Console) Close() error {
 	cancel()
 	c.lifecycleMu.Lock()
 	c.mu.Lock()
-	restore := c.settings.RestoreHostsOnExit
+	restore := c.settings.RestoreHostsOnStopOrExit
 	c.mu.Unlock()
 	hostsErr := c.hosts.close(restore)
 	c.lifecycleMu.Unlock()
@@ -1027,8 +1013,8 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 			ConfirmVideoPolicy bool    `json:"confirmVideoPolicy"`
 			Password           *string `json:"socks5Password"`
 		}
-		input.DownloadSoftLimit = cacheproxy.VideoRequestSoftLimit
-		input.RestoreHostsOnExit = true
+		input.DownloadConcurrencySoftLimit = cacheproxy.VideoRequestSoftLimit
+		input.RestoreHostsOnStopOrExit = true
 		input.RetainFavorites = true
 		input.DownloadGrowIntervalMS = int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond)
 		input.LocalProtectionGraceSeconds = int(cacheproxy.DefaultLocalProtectionGrace / time.Second)

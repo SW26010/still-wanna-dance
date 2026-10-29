@@ -10,7 +10,7 @@ import (
 // throughput measurements. Playback engines may configure a different limit.
 const VideoRequestSoftLimit = 16
 const videoRequestSoftLimit = VideoRequestSoftLimit
-const MaxDownloadSoftLimit = 64
+const MaxDownloadConcurrencySoftLimit = 64
 const DefaultDownloadGrowInterval = 250 * time.Millisecond
 const MaxDownloadGrowInterval = 2000 * time.Millisecond
 

@@ -10,8 +10,7 @@ import (
 func TestAutomaticLogDirectoryFollowsEnvironment(t *testing.T) {
 	root := t.TempDir()
 	config := filepath.Join(root, "settings.json")
-	// Automatic mode ignores a stored detected path from another environment.
-	if err := os.WriteFile(config, []byte(`{"schemaVersion":7,"logDir":"old-user/logs"}`), 0600); err != nil {
+	if err := os.WriteFile(config, []byte(`{"schemaVersion":8,"vrchatLogDir":""}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 	for _, user := range []string{"first-user", "second-user"} {
@@ -23,12 +22,10 @@ func TestAutomaticLogDirectoryFollowsEnvironment(t *testing.T) {
 			t.Fatal(err)
 		}
 		want := filepath.Join(home, "AppData", "LocalLow", "VRChat", "VRChat")
-		if c.settings.ManualLogDir || c.settings.LogDir != want {
+		if c.settings.VRChatLogDir != "" || c.settings.effectiveVRChatLogDir() != want {
 			t.Fatalf("automatic directory: %+v", c.settings)
 		}
-		s := c.settings
-		s.LogDir = "ignored-api-path"
-		if err := c.save(s); err != nil {
+		if err := c.save(c.settings); err != nil {
 			t.Fatal(err)
 		}
 		data, err := os.ReadFile(config)
@@ -39,7 +36,7 @@ func TestAutomaticLogDirectoryFollowsEnvironment(t *testing.T) {
 		if err := json.Unmarshal(data, &saved); err != nil {
 			t.Fatal(err)
 		}
-		if saved.LogDir != "" || saved.ManualLogDir || saved.DatabasePath != c.files().DefaultDatabase || saved.VideoDir != c.files().DefaultVideo {
+		if saved.VRChatLogDir != "" || saved.DatabasePath != c.files().DefaultDatabase || saved.VideoDir != c.files().DefaultVideo {
 			t.Fatalf("persisted environment-dependent defaults: %+v", saved)
 		}
 		if err := c.writeSnapshot("test", libraryPaths(c.settings), true); err != nil {
@@ -59,30 +56,34 @@ func TestAutomaticLogDirectoryFollowsEnvironment(t *testing.T) {
 
 func TestManualLogDirectorySwitch(t *testing.T) {
 	c := testConsole(t)
+	active := c.settings
 	s := c.settings
-	s.ManualLogDir = true
-	s.LogDir = "custom-logs"
+	s.VRChatLogDir = "custom-logs"
 	if err := c.save(s); err != nil {
 		t.Fatal(err)
 	}
-	reopened, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
-	if err != nil {
-		t.Fatal(err)
+	if c.settings != active {
+		t.Fatal("saving a log directory changed the running reader")
 	}
-	defer reopened.Close()
-	if !reopened.settings.ManualLogDir || reopened.settings.LogDir != filepath.Join(filepath.Dir(c.configPath), "custom-logs") {
-		t.Fatalf("manual directory lost: %+v", reopened.settings)
+	c = restartTestConsole(t, c)
+	want := filepath.Join(filepath.Dir(c.configPath), "custom-logs")
+	if c.settings.VRChatLogDir != want || c.settings.effectiveVRChatLogDir() != want {
+		t.Fatalf("manual directory lost: %+v", c.settings)
 	}
-	s.LogDir = " "
-	if err := c.save(s); err == nil {
-		t.Fatal("accepted empty manual directory")
+	_, fields, err := readConfigFile(c.configPath)
+	if err != nil || string(fields["vrchatLogDir"]) != `"custom-logs"` {
+		t.Fatal("portable relative log directory lost", fields, err)
 	}
-	s.ManualLogDir = false
-	s.LogDir = "stale-manual-path"
+	s = c.savedSettings
+	s.VRChatLogDir = " " // whitespace normalizes to automatic, like an empty path
 	if err := c.save(s); err != nil {
 		t.Fatal(err)
 	}
-	if c.savedSettings.LogDir != defaultLogDir() {
-		t.Fatal("did not restore automatic directory")
+	if c.savedSettings.VRChatLogDir != "" || c.settings.effectiveVRChatLogDir() != want {
+		t.Fatal("reset did not preserve the active directory until restart")
+	}
+	c = restartTestConsole(t, c)
+	if c.settings.VRChatLogDir != "" || c.settings.effectiveVRChatLogDir() != defaultLogDir() {
+		t.Fatal("restart did not restore automatic detection")
 	}
 }

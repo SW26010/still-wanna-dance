@@ -107,13 +107,13 @@ CREATE TABLE song_preferences (
 
 偏好是用户维护的曲库数据，随存储库备份和切换，不进入 `config.json`。曲库刷新、歌曲—MD5 关联更新、VRCX 统计初始化及视频清理均不覆盖偏好；它也不进入清单 `sha256-v2` 摘要。资源的收藏资格通过当前关联及 retainFavorites 配置推导，全部屏蔽状态通过当前关联推导，不新增资源名单表、资源分数副本或下载/完整性状态列；标记不等于文件已保存。
 
-数据库格式已升为 v8，使用 `schema/storage-v8.sql` 和对应二进制样本，冻结的 v2～v7 DDL 与样本保留。继续不兼容、不迁移旧格式：旧库拒绝打开且不改写，请使用独立新存储目录。不能由业务读写自动补表或改版本号。请求字段允许未知值为 NULL；这不授权读取不支持的旧格式。当前配置格式为 v7；清单摘要为 v2。
+数据库格式已升为 v8，使用 `schema/storage-v8.sql` 和对应二进制样本，冻结的 v2～v7 DDL 与样本保留。继续不兼容、不迁移旧格式：旧库拒绝打开且不改写，请使用独立新存储目录。不能由业务读写自动补表或改版本号。请求字段允许未知值为 NULL；这不授权读取不支持的旧格式。当前配置格式为 v8；清单摘要为 v2。
 
 偏好写入与 VRCX 历史初始化共用应用业务存储的数据库锁、严格打开和事务入口，不启动引擎或资源回收。明确新建只创建标准数据库；视频盘不参与建库判断。在线标记仍与发布、淘汰串行，数据库锁在应用停止消费者及引擎、排空已接受写入并关闭数据库后释放。
 
 ## Portable 文件契约与生命周期
 
-本节是应用落盘位置和备份范围的统一清单。路径由 `internal/apppaths` 解析；软件版本变化不改变文件名。当前配置格式为 `schemaVersion=7`，媒体 SQLite 为上述版本 8。旧测试配置版本 1～6 不兼容、不迁移，不应手工改版本号继续使用。
+本节是应用落盘位置和备份范围的统一清单。路径由 `internal/apppaths` 解析；软件版本变化不改变文件名。当前配置格式为 `schemaVersion=8`，媒体 SQLite 为上述版本 8。旧测试配置版本 1～7 不兼容、不迁移，不应手工改版本号继续使用。
 
 ### 交付与按需生成
 
@@ -196,7 +196,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | 外部位置 | 所有权 / 生命周期 | 备份约定 |
 | --- | --- | --- |
 | Windows `%LOCALAPPDATA%/SWD/console-session-<id>.json` | 托盘单实例发现；包含回环地址、SWD 协议身份、实际 EXE、配置、PID 和进程创建时间；激活前校验进程/端口归属，退出删除本会话记录，异常退出后由新锁持有者清理；无托盘模式不创建 | 不备份，可重新发现，不是用户配置 |
-| Windows `%SystemRoot%/System32/drivers/etc/hosts` 及 `hosts.swd-backup` | 手动或已授权的自动一键加速修改 hosts；首次备份保留。恢复精确移除托管映射，不覆盖整个 hosts；退出按已保存的 restoreHostsOnExit 策略恢复或保留 | 系统管理员管理，不自动删备份或覆盖其他映射 |
+| Windows `%SystemRoot%/System32/drivers/etc/hosts` 及 `hosts.swd-backup` | 手动或已授权的自动一键加速修改 hosts；首次备份保留。恢复精确移除托管映射，不覆盖整个 hosts；退出按已保存的 restoreHostsOnStopOrExit 策略恢复或保留 | 系统管理员管理，不自动删备份或覆盖其他映射 |
 | hosts 同目录 `.hosts.swd-<数字>` | 权限准备、接入与恢复共用的同卷暂存，完整写入并同步后安全替换，保留 Windows DACL | 不备份、不恢复为正式 hosts；本次操作结束清理，异常终止残留不跨实例扫删，见 [hosts 契约](console.md#hosts) |
 | VRChat 日志目录、用户选取的导入源、VRCX SQLite 历史源库 | 只读输入，不归 SWD 所有；VRCX 沿用 SQLite 正常只读 WAL 快照和锁协议 | SWD 不修改或清理源数据，不复制单独 SQLite 主文件冒充一致快照 |
 | 外部 D、V | 分别持锁，路径留作绝对引用 | 数据库优先备份，视频按需；移动 Portable 不自动搬外置资源 |
@@ -217,7 +217,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 ## 持久化格式与语义
 
-版本号不随软件版本递增，也不为了称作“v1”而重用试验期编号。开发期最早冻结基线是 SQLite **2**、配置 **3**；当前首发候选基线采用 SQLite **8**、配置 **7**、库存/批量/尝试快照 **3**、吞吐快照 **2**，不迁移旧格式。当前 SQLite 的完整 DDL 固定在 `internal/cacheproxy/schema/storage-v8.sql`，有效二进制样本在 `internal/cacheproxy/testdata/storage-v8.sqlite`；旧 v2～v7 DDL 与样本保留用于拒绝及不改写回归；JSON 样本在 console、upstreamstate 的 testdata 中。今后改变契约必须保留旧样本、明确新版本和升级决策，不能重新生成旧样本来消除回归失败。
+版本号不随软件版本递增，也不为了称作“v1”而重用试验期编号。开发期最早冻结基线是 SQLite **2**、配置 **3**；当前首发候选基线采用 SQLite **8**、配置 **8**、库存/批量/尝试快照 **3**、吞吐快照 **2**，不迁移旧格式。当前 SQLite 的完整 DDL 固定在 `internal/cacheproxy/schema/storage-v8.sql`，有效二进制样本在 `internal/cacheproxy/testdata/storage-v8.sqlite`；旧 v2～v7 DDL 与样本保留用于拒绝及不改写回归；JSON 样本在 console、upstreamstate 的 testdata 中。今后改变契约必须保留旧样本、明确新版本和升级决策，不能重新生成旧样本来消除回归失败。
 
 ### SQLite 字段清单
 
@@ -258,7 +258,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 | 文件 | 内部格式、缺失/失效语义 |
 | --- | --- |
-| config.json / 自定义配置 | schemaVersion=7；字段见 Settings：databasePath 数据库文件、videoDir 完整视频目录（首次自动准备默认位置，自定义位置保存后重启），日志输入目录文本，manualLogDir 布尔、autoAccelerate（默认 false，启用且有效同意条款后，每进程自动一键加速一次）、autoOpenWebUI（默认 true；条款确认例外与 -no-open 优先级见[配置生命周期](settings-lifecycle.md)）、restoreHostsOnExit（默认 true，保存即用于本次退出，开启前须准备恢复权限）、queueWithGateway（默认 true，队列随网关启停），requestRetentionMode（none/limited/unlimited，默认 unlimited；[请求明细保留规则](cache-retention.md#请求明细保留期)）、requestRetentionDays（0～36500；limited 要求正数；none 的有效期限为 0，不保留明细；unlimited 独立表示永久保留，天数只记住输入）、videoStorageMode（none/limited/unlimited，默认 none，分别保存不保留/限制为/不限制的选择）、retainFavorites（默认 true，收藏完整视频可突破预算保留；关闭后按普通规则取舍，不取消标记或触发下载）、aggressiveCacheReclamation（auto/on/off，显式默认 auto；自动跟随 videoStorageMode，仅 none 开启，on/off 手动覆盖；不改变完整本地视频预算）、maxCacheBytes（默认 0，保存输入的字节预算；limited 要求正数，none 在运行时使用零预算，unlimited 不限制；不保留时仍保护使用中/队列/交接数据）、prepareAheadSeconds（缺失/0→500，100–16000 秒；建议 200–2000 秒）、localProtectionGraceSeconds（缺失/null→300，整数 0–10000 秒；0=不延续保护）、downloadSoftLimit（缺失/null→16，整数 1–64）、downloadGrowIntervalMS（缺失/null→250，整数 0–2000 毫秒；0=关闭缓增）、throughputIntervalMinutes（缺失/0→20，1–1440）、upstreamMode（空→direct，direct/proxy/auto）、proxyBackend（空→external-socks5，external-socks5/mihomo）、外部 SOCKS5 地址与用户名。策略和后端独立，保存后重启生效；历史通道键仍沿用 socks5 前缀。缺失采用构造默认（请求明细永久保留），显式 null 对标量沿用默认；false/合法 0 保留。未知字段以 RawMessage 保留数值精度；格式缺失/未来/旧版本、明文 socks5Password 均拒绝写入 |
+| config.json / 自定义配置 | schemaVersion=8；字段见 Settings：databasePath 数据库文件、videoDir 完整视频目录（首次自动准备默认位置，自定义位置保存后重启），vrchatLogDir（VRChat 日志输入目录，空值自动识别，非空指定目录）、autoAccelerate（默认 false，启用且有效同意条款后，每进程自动一键加速一次）、autoOpenWebUI（默认 true；条款确认例外与 -no-open 优先级见[配置生命周期](settings-lifecycle.md)）、restoreHostsOnStopOrExit（默认 true，保存即用于停止加速和本次退出，开启前须准备恢复权限）、queueWithGateway（默认 true，队列随网关启停），requestRetentionMode（none/limited/unlimited，默认 unlimited；[请求明细保留规则](cache-retention.md#请求明细保留期)）、requestRetentionDays（0～36500；limited 要求正数；none 的有效期限为 0，不保留明细；unlimited 独立表示永久保留，天数只记住输入）、videoStorageMode（none/limited/unlimited，默认 none，分别保存不保留/限制为/不限制的选择）、retainFavorites（默认 true，收藏完整视频可突破预算保留；关闭后按普通规则取舍，不取消标记或触发下载）、aggressiveBlockReclamation（auto/on/off，显式默认 auto；自动跟随 videoStorageMode，仅 none 开启，on/off 手动覆盖；不改变完整本地视频预算）、videoBudgetBytes（默认 0，保存输入的字节预算；limited 要求正数，none 在运行时使用零预算，unlimited 不限制；不保留时仍保护使用中/队列/交接数据）、prepareAheadSeconds（缺失/0→500，100–16000 秒；建议 200–2000 秒）、localProtectionGraceSeconds（缺失/null→300，整数 0–10000 秒；0=不延续保护）、downloadConcurrencySoftLimit（缺失/null→16，整数 1–64）、downloadGrowIntervalMS（缺失/null→250，整数 0–2000 毫秒；0=关闭缓增）、throughputIntervalMinutes（缺失/0→20，1–1440）、upstreamMode（空→direct，direct/proxy/auto）、proxyBackend（空→external-socks5，external-socks5/mihomo）、外部 SOCKS5 地址与用户名。策略和后端独立，保存后重启生效；历史通道键仍沿用 socks5 前缀。缺失采用构造默认（请求明细永久保留），显式 null 对标量沿用默认；false/合法 0 保留。未知字段以 RawMessage 保留数值精度；格式缺失/未来/旧版本、明文 socks5Password 均拒绝写入 |
 | config.proxySecret | 缺字段=无保存密码。封套 `{version:1, protection:"dpapi-current-user", ciphertext:"<base64>"}`；与整个配置一起原子替换，无第二份凭据文件/明文快照。未知格式、null、损坏或当前用户解密失败=不可用并保留原值；省略设置 API 密码保留密文，明确输入新密码替换，用户名/密码一起清空移除。状态仅返回可用标志和固定诊断，不返回密文/明文 |
 | config.proxyNodes | 可选节点快照，复用 version=1 / dpapi-current-user 封套；解密载荷为 `{version:2,nodes:[原生连接参数]}`。整份文档含服务器及凭据均加密，与 config 同一原子替换；无明文副本。坏/未知封套及旧节点载荷 version=1 保留并提示重新导入，不视为空库；旧载荷不静默改写，原始内容重新导入后采用新身份域并重测。输入限 2 MiB / 2048 条，保存数与运行活跃 K 无关。导入预览只存于本进程内存，草稿最多 8 份、2 小时有效；明确丢弃或替换时释放对应草稿，迟到且已放弃的结果同样释放，离线或页面关闭未送达的清理仍由过期机制兜底；设置保存才替换，失败保留旧快照。展示名不入快照；状态仅含数量及固定诊断 |
 | terms.json | 封套 `{format:2, protection:"dpapi-current-user", receipts:["<base64>", ...]}`；单文件最多 8 条独立加密凭据，总大小上限 64 KiB。密文包含 purpose=`swd-terms-receipt-v1`、version（条款版本）、sha256（正文摘要）及 acceptedAt（非零有效时间）。封套版本独立于条款版本；不兼容旧单条封套或明文，不自动迁移。读写及淘汰规则见下文 |
@@ -279,7 +279,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 DPAPI CurrentUser 不使用路径作为额外熵，不请求 UAC。同用户覆盖/移动可用；另一用户或普通独立机器可能不可用，但域用户漫游可能保留能力，**不是绝对设备绑定**。非 Windows 无明文替代方案：保存密码或节点快照明确失败，已有封套显示不可用。强制代理的不可用凭据使代理拨号失败；Auto 保留允许直连/代理回退的策略，不篡改保存的偏好。节点连接参数及凭据已由整份快照保护；未来增加令牌、私钥、带认证订阅 URL 同样必须保护，不落盘原始导入副本。
 
-配置中的 `logLevel` 保存为 `off/error/warn/info/debug`，缺失、null 或空串默认 info；保存后重启生效，配置格式仍为 7。关闭日志不删除已有文件，不改变请求明细保留规则。
+配置中的 `logLevel` 保存为 `off/error/warn/info/debug`，缺失、null 或空串默认 info；保存后重启生效，配置格式为 8。关闭日志不删除已有文件，不改变请求明细保留规则。
 
 诊断日志也使用 RFC 3339 UTC 时刻，但不是恢复业务状态的格式；错误文本和事件属性可以随实现变化，不为日志增加用户数据迁移版本。
 

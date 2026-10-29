@@ -61,7 +61,7 @@ func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) 
 	cfg.ResolvePlayback = c.resolvePlayback
 	cfg.OriginScheme = "http"
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
-	cfg.MaxCacheBytes = limit
+	cfg.VideoBudgetBytes = limit
 	cfg.CacheUnlimited = false
 	cfg.Origins["nya.xin.moe"] = strings.TrimPrefix(origin.URL, "http://")
 	cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")

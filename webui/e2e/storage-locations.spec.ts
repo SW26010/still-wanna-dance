@@ -162,13 +162,12 @@ test('log selection enables manual mode and reset returns to automatic detection
   await expect(path).toHaveValue('D:\\Logs');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeEnabled();
-  expect(api.state.settings).toMatchObject({manualLogDir:true,logDir:'D:\\Logs'});
+  expect(api.state.settings).toMatchObject({vrchatLogDir:'D:\\Logs'});
   await reset.click();
   await expect(path).toHaveValue(api.state.defaultLogDir);
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(reset).toBeDisabled();
-  await expect.poll(()=>api.state.settings.manualLogDir).toBe(false);
-  expect(api.state.settings.logDir).toBe('');
+  await expect.poll(()=>api.state.settings.vrchatLogDir).toBe('');
 });
 
 test('resetting the video import source only clears the draft',async({page})=>{

@@ -76,7 +76,7 @@ export function InventoryPanel({visible,files,videoError,refresh,loading,loadedA
         <div className="inline"><Tooltip content={coverageDescription} relationship="description"><span className="secondary" tabIndex={0}>曲库覆盖率</span></Tooltip><Tooltip content={<>更新曲库<Text block size={200}>最后检查时间：{date(v?.updated)}</Text></>} relationship="description"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-label="更新曲库" aria-busy={catalogBusy} disabled={app.unavailable||catalogBusy} disabledFocusable={catalogBusy||app.busy} onClick={()=>void app.action('inventory/scan')}/></Tooltip></div>
         <div className="inline"><Text size={500} weight="semibold">{known?`${(100*v.coveredSongs/v.totalSongs).toFixed(1)}%`:'—'}</Text>{coverageWarning&&<Tooltip content={coverageWarning} relationship="description"><Button size="small" appearance="transparent" icon={<ErrorCircle16Regular aria-hidden="true"/>} aria-label="覆盖率说明"/></Tooltip>}</div>
       </div>
-      <div><Link href="#storage-settings">视频存储预算</Link><Text block size={400}>{s.activeSettings.videoStorageMode==='unlimited'?'不限制':s.activeSettings.videoStorageMode==='none'?'不保留':gib(s.activeSettings.maxCacheBytes)}</Text></div>
+      <div><Link href="#storage-settings">视频存储预算</Link><Text block size={400}>{s.activeSettings.videoStorageMode==='unlimited'?'不限制':s.activeSettings.videoStorageMode==='none'?'不保留':gib(s.activeSettings.videoBudgetBytes)}</Text></div>
     </div>
     <div className="inline library-actions">{actions}</div>
     <Notification message={visible?(inventory.error?'曲库统计暂时不可用。':v?.error||v?.catalog?.error||s.actionErrors?.inventory):undefined} error/>

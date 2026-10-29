@@ -74,8 +74,7 @@ func testConsole(t *testing.T) *Console {
 		t.Fatal(err)
 	}
 	setTestLibraryPaths(&c.settings, filepath.Join(root, "library"))
-	c.settings.LogDir = filepath.Join(root, "logs")
-	c.settings.ManualLogDir = true
+	c.settings.VRChatLogDir = filepath.Join(root, "logs")
 	c.savedSettings = c.settings
 	c.videoAddress = "127.0.0.1:0"
 	c.httpsAddress = "127.0.0.1:0"

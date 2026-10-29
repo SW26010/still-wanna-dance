@@ -10,7 +10,7 @@ import (
 func (c *Console) DesktopState() desktop.State {
 	c.mu.Lock()
 	s := desktop.State{CDN: c.httpServer != nil, Batch: c.batch.Running, TermsAccepted: c.terms.valid(), Theme: c.settings.Theme}
-	restore := c.settings.RestoreHostsOnExit
+	restore := c.settings.RestoreHostsOnStopOrExit
 	switch c.activation.Phase {
 	case "checking", "hosts", "starting", "stopping":
 		s.Activating = true

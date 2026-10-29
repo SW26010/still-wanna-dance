@@ -158,6 +158,15 @@ func defaultLogDir() string {
 	return filepath.Join(home, "AppData", "LocalLow", "VRChat", "VRChat")
 }
 
+// Resolve at use sites; an empty setting must remain automatic when
+// round-tripped through the API or saved on another user's machine.
+func (s Settings) effectiveVRChatLogDir() string {
+	if s.VRChatLogDir == "" {
+		return defaultLogDir()
+	}
+	return s.VRChatLogDir
+}
+
 func logName(path string) string {
 	if path == "" {
 		return ""
@@ -194,7 +203,7 @@ func (c *Console) startGatewayQueueLocked() {
 // The caller holds lifecycleMu. Manual downloads share the demand scheduler.
 func (c *Console) startQueueLocked() error {
 	c.mu.Lock()
-	closing, running, logDir := c.closing, c.queue.Running, c.settings.LogDir
+	closing, running, logDir := c.closing, c.queue.Running, c.settings.effectiveVRChatLogDir()
 	c.mu.Unlock()
 	if closing {
 		return errors.New("程序正在退出")

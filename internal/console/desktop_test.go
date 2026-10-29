@@ -102,7 +102,7 @@ func TestDesktopRepairsRunningGateway(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			c := testConsole(t)
 			c.hosts, _ = fixtureHostsController(t, tc.initial)
-			c.settings.RestoreHostsOnExit = tc.restore
+			c.settings.RestoreHostsOnStopOrExit = tc.restore
 			if err := c.start(); err != nil {
 				t.Fatal(err)
 			}

@@ -96,7 +96,7 @@ func TestRetentionStartupAndUnknownFiles(t *testing.T) {
 	cfg := fixtureConfig()
 	cfg.OriginScheme = "http"
 	prepareFixtureResources(t, &cfg, t.TempDir(), true)
-	cfg.MaxCacheBytes = 1
+	cfg.VideoBudgetBytes = 1
 	cfg.CacheUnlimited = false
 	initial, err := New(cfg)
 	if err != nil {
@@ -278,7 +278,7 @@ func setRetentionLimit(t *testing.T, s *Server, limit int64) {
 	s.retentionRunMu.Lock()
 	defer s.retentionRunMu.Unlock()
 	s.retentionMu.Lock()
-	s.cfg.MaxCacheBytes = limit
+	s.cfg.VideoBudgetBytes = limit
 	s.cfg.CacheUnlimited = false
 	s.retentionMu.Unlock()
 	if err := s.reconcileRetention(); err != nil {
@@ -370,7 +370,7 @@ func TestRetentionPublicationAndEvictionAccounting(t *testing.T) {
 	}
 	// No reconciliation: eviction must use the publication's tracked bytes.
 	s.retentionMu.Lock()
-	s.cfg.MaxCacheBytes = 1
+	s.cfg.VideoBudgetBytes = 1
 	s.cfg.CacheUnlimited = false
 	s.requestRetentionLocked()
 	s.retentionMu.Unlock()

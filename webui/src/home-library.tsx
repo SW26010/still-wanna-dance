@@ -15,7 +15,7 @@ export function Home({visible}: {visible:boolean}) {
   const recent=requests.data?.requests[0];
   const uncertain=!!app.status.error||app.stopped;
   const unknownReason='当前无法确认程序状态，请等待后台连接恢复。';
-  const needsExitPreparation=s.activeSettings.restoreHostsOnExit && s.hosts.managed && !s.hosts.exitRestorePrepared;
+  const needsExitPreparation=s.activeSettings.restoreHostsOnStopOrExit && s.hosts.managed && !s.hosts.exitRestorePrepared;
   const connectionError=a.connectionError||(s.hosts.conflict?s.hosts.message:'');
   const connectionReason=connectionError||(needsExitPreparation?'尚未取得恢复权限，停止或退出时无法恢复直连。':'');
   const connectionPhase=uncertain?'待确认':s.hosts.conflict?'接入冲突':connectionError?(s.hosts.ready?'需检查':'接入失败'):needsExitPreparation?'需检查':s.hosts.ready?'已接入':a.phase==='hosts'?'接入中':'未接入';
@@ -26,7 +26,7 @@ export function Home({visible}: {visible:boolean}) {
   const queueReason=queueError||(q.running?(q.file?`正在监控日志：${q.file}。${q.songs?.length?`当前房间队列 ${q.songs.length} 首。`:'等待新的房间队列同步。'}`:'日志目录可读取，尚未发现 VRChat 日志，等待游戏生成日志。'):q.desired?'房间队列已启用，监控尚未就绪。':'房间队列监控未运行。');
   const queuePhase=uncertain?'待确认':queueFailed?'启动失败':queueError?'需检查':q.running?'监控中':q.desired?'未就绪':'已关闭';
   const stopping=a.phase==='stopping';
-  const stopHint=s.activeSettings.restoreHostsOnExit?needsExitPreparation?'停止视频服务及队列预加载；尚未取得恢复权限，将保留游戏接入。':'停止视频服务及队列预加载，并恢复本程序的游戏接入；不再请求管理员权限。':'停止视频服务及队列预加载，保留游戏接入。继续播放前请点击「开始加速」。';
+  const stopHint=s.activeSettings.restoreHostsOnStopOrExit?needsExitPreparation?'停止视频服务及队列预加载；尚未取得恢复权限，将保留游戏接入。':'停止视频服务及队列预加载，并恢复本程序的游戏接入；不再请求管理员权限。':'停止视频服务及队列预加载，保留游戏接入。继续播放前请点击「开始加速」。';
   return <div className="page-stack">
     <Card id="activation" size="small" className="acceleration-card">
       <div className="toolbar spread acceleration-heading"><div className="acceleration-title"><Title2 as="h2" aria-live="polite" aria-atomic="true">{stopping?'正在停止加速':active(s)?'正在开启加速':accelerationLabel(s)}</Title2>

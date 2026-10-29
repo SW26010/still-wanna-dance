@@ -20,7 +20,7 @@ func completedQueueFixture(t *testing.T, body string, before func(*http.Request)
 	t.Helper()
 	cfg := fixtureConfig()
 	prepareFixtureResources(t, &cfg, t.TempDir(), true)
-	cfg.CacheUnlimited, cfg.MaxCacheBytes = false, 0
+	cfg.CacheUnlimited, cfg.VideoBudgetBytes = false, 0
 	cfg.PrepareAhead, cfg.LocalProtectAhead = 120*time.Second, 120*time.Second
 	cfg.ResolvePlayback = func(context.Context, string) (string, error) { return videoURL(body), nil }
 	calls := new(atomic.Int32)

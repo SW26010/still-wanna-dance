@@ -34,6 +34,7 @@ func (c *Console) startMonitorLocked() error {
 	}
 	if c.monitor == nil {
 		m, err := c.newUpstreamMonitor(upstreamstate.Options{
+			CatalogReady:        c.catalogReady,
 			ThroughputStatePath: c.files().State("throughput"),
 			Policy:              upstreamstate.Policy{ThroughputInterval: time.Duration(c.settings.ThroughputIntervalMinutes) * time.Minute},
 		})
@@ -43,6 +44,23 @@ func (c *Console) startMonitorLocked() error {
 		c.monitor = m
 	}
 	return c.monitor.Start()
+}
+
+// The accepted songs watermark, not seed mappings or imported files, completes
+// initialization. Active storage is fixed and remains open until Monitor.Close.
+func (c *Console) catalogReady(ctx context.Context) bool {
+	store, err := c.businessStore()
+	if err != nil {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	status, err := store.CatalogStatus(ctx)
+	if err != nil || status.Revision == "" {
+		return false
+	}
+	c.startInventory(false)
+	return true
 }
 func (c *Console) monitorSnapshotLocked() upstreamstate.Status {
 	if c.monitor == nil {

@@ -99,7 +99,7 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 			otherURL, _ := url.Parse(videoURL(other))
 			cfg := fixtureConfig()
 			prepareFixtureResources(t, &cfg, t.TempDir(), true)
-			cfg.CacheUnlimited, cfg.MaxCacheBytes = false, int64(len(body))
+			cfg.CacheUnlimited, cfg.VideoBudgetBytes = false, int64(len(body))
 			cfg.PrepareAhead, cfg.LocalProtectAhead = 120*time.Second, 120*time.Second
 			var changed atomic.Bool
 			cfg.ResolvePlayback = func(context.Context, string) (string, error) {

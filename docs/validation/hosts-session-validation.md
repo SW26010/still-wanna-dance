@@ -98,3 +98,9 @@
 - 前端 build/check、Go vet 和差异检查通过，嵌入产物已更新。原始证据仍在 `artifacts/hosts-permission/`：`review-error-clear-red.log`、`review-feedback-red.log` 为修复前失败，`review-targeted.log`、`review-browser.log`、`review-go-regression-final.log`、`review-live.log` 与 `review-live/` 为修复后结果。
 
 较大范围回归首轮出现一次 `TestHostsSessionReuseAndExitPolicy/persist` 私有文件替换 `Access is denied`，保留在 `review-go-regression.log`；该用例单独连续 10 次及相关回归复跑均通过，原因尚未确定，未通过重试逻辑掩盖错误。上述未执行真实 UAC／系统 hosts／游戏验证的边界仍适用。
+
+### 同日原生复测：修复 PowerShell 丢失取消码
+
+上述隔离分类测试未覆盖 Windows PowerShell `Start-Process` 将原生异常替换为普通异常的行为。真实点「否」仍弹出授权失败，已在[本机原生报告](windows-native-validation.md#2026-10-29恢复权限原生复测与取消识别修复)保留失败和修复前截图。
+
+启动器改用 `ProcessStartInfo` / `Process.Start` 的相同 `runas` 路径，保留原生错误链；权限、隐藏窗口、命名管道与用户反馈规则不变。新增无 UAC 的真实 Shell 错误回归先失败后通过，原取消/非取消分类及启停、退出回归通过。修复版实际拒绝授权后不再弹错误，仍可加速；缺权限停止、主动授权修复、清除连接错误及正常退出恢复均完成，hosts 哈希和进程/端口清理已核对。仅此前“本次未请求真实 UAC”的边界由该增量补齐，其他历史限制不扩大为通过。

@@ -150,7 +150,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 
 func TestQueueLifecycleAndParallelBatch(t *testing.T) {
 	c := testConsole(t)
-	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+	if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.start(); err != nil {
@@ -212,10 +212,10 @@ func TestQueueErrorsFollowSongsAndRoom(t *testing.T) {
 
 func TestLiveTailCoalescesSnapshotsBeforeDownload(t *testing.T) {
 	c := testConsole(t)
-	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+	if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(c.settings.LogDir, "output_log_2026-09-25_00-00-00.txt")
+	path := filepath.Join(c.settings.VRChatLogDir, "output_log_2026-09-25_00-00-00.txt")
 	snapshot := func(id int) string {
 		return fmt.Sprintf("[VideoQueueManager] OnPreSerialization: queue info serialized: [{\"songId\":%d}]\n", id)
 	}

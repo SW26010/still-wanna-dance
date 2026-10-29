@@ -53,8 +53,8 @@ type Config struct {
 	BlockSize int64
 	// PrepareAhead is the full lead M for scheduled downloads; zero uses the default.
 	PrepareAhead time.Duration
-	// DownloadSoftLimit bounds ordinary block execution; blocked reads may exceed it.
-	DownloadSoftLimit int
+	// DownloadConcurrencySoftLimit bounds ordinary block execution; blocked reads may exceed it.
+	DownloadConcurrencySoftLimit int
 	// DownloadGrowInterval paces ordinary capacity growth; zero disables pacing.
 	DownloadGrowInterval time.Duration
 	// LocalProtectAhead independently controls protection of finite usage.
@@ -68,15 +68,15 @@ type Config struct {
 	MaxFileBytes         int64
 	// CacheUnlimited disables the retained-video budget independently of its value.
 	CacheUnlimited bool
-	// MaxCacheBytes bounds ordinary retained videos. Favorites count toward usage
+	// VideoBudgetBytes bounds ordinary retained videos. Favorites count toward usage
 	// but can exceed this budget; zero reclaims unprotected ordinary videos.
-	MaxCacheBytes int64
+	VideoBudgetBytes int64
 	// RetainFavorites allows favorite resources to exceed the video budget.
 	// It affects retention only, never creates download demand.
 	RetainFavorites bool
-	// AggressiveCacheReclamation controls unprotected block cache reclamation:
+	// AggressiveBlockReclamation controls unprotected block cache reclamation:
 	// auto follows the video budget; on and off explicitly override it.
-	AggressiveCacheReclamation string
+	AggressiveBlockReclamation string
 	// RequestRetentionDays bounds request details; zero disables detail retention.
 	// Unlimited retention is explicit and takes precedence over the day limit.
 	RequestRetentionDays      int
@@ -95,22 +95,22 @@ type Config struct {
 
 func DefaultConfig() Config {
 	return Config{
-		CacheUnlimited:             false,
-		MaxCacheBytes:              0,
-		RetainFavorites:            true,
-		AggressiveCacheReclamation: "auto",
-		RequestRetentionUnlimited:  true,
-		OriginScheme:               "https",
-		Origins:                    make(map[string]string),
-		DownloadTimeout:            10 * time.Minute,
-		BlockSize:                  DefaultBlockSize,
-		PrepareAhead:               blocksched.DefaultPrepareAhead,
-		DownloadSoftLimit:          VideoRequestSoftLimit,
-		DownloadGrowInterval:       DefaultDownloadGrowInterval,
-		LocalProtectionGrace:       DefaultLocalProtectionGrace,
-		MaxFileBytes:               2 << 30,
-		MaxLocalValidations:        3,
-		Logger:                     slog.Default(),
+		CacheUnlimited:               false,
+		VideoBudgetBytes:             0,
+		RetainFavorites:              true,
+		AggressiveBlockReclamation:   "auto",
+		RequestRetentionUnlimited:    true,
+		OriginScheme:                 "https",
+		Origins:                      make(map[string]string),
+		DownloadTimeout:              10 * time.Minute,
+		BlockSize:                    DefaultBlockSize,
+		PrepareAhead:                 blocksched.DefaultPrepareAhead,
+		DownloadConcurrencySoftLimit: VideoRequestSoftLimit,
+		DownloadGrowInterval:         DefaultDownloadGrowInterval,
+		LocalProtectionGrace:         DefaultLocalProtectionGrace,
+		MaxFileBytes:                 2 << 30,
+		MaxLocalValidations:          3,
+		Logger:                       slog.Default(),
 	}
 }
 
@@ -120,10 +120,10 @@ func (c Config) validate() error {
 	if c.BlockSize < 0 || uint64(c.BlockSize) >= uint64(^uint(0)>>1) {
 		return errors.New("block size must be nonnegative and fit a buffer with one extra byte")
 	}
-	if c.AggressiveCacheReclamation != "auto" && c.AggressiveCacheReclamation != "on" && c.AggressiveCacheReclamation != "off" {
+	if c.AggressiveBlockReclamation != "auto" && c.AggressiveBlockReclamation != "on" && c.AggressiveBlockReclamation != "off" {
 		return errors.New("aggressive cache reclamation must be auto, on or off")
 	}
-	if c.DownloadSoftLimit < 1 || c.DownloadSoftLimit > MaxDownloadSoftLimit {
+	if c.DownloadConcurrencySoftLimit < 1 || c.DownloadConcurrencySoftLimit > MaxDownloadConcurrencySoftLimit {
 		return errors.New("download soft limit must be between 1 and 64")
 	}
 	if c.DownloadGrowInterval < 0 || c.DownloadGrowInterval > MaxDownloadGrowInterval {
@@ -141,7 +141,7 @@ func (c Config) validate() error {
 	if c.RequestRetentionDays < 0 || c.RequestRetentionDays > 36500 {
 		return errors.New("request retention must be between 0 and 36500 days")
 	}
-	if c.MaxCacheBytes < 0 {
+	if c.VideoBudgetBytes < 0 {
 		return errors.New("video storage budget cannot be negative")
 	}
 	if c.PrepareAhead != 0 && (c.PrepareAhead < blocksched.MinPrepareAhead || c.PrepareAhead > blocksched.MaxPrepareAhead) {

@@ -36,7 +36,7 @@ func TestBlockObservationQueueGrowthAndGETBypass(t *testing.T) {
 		<-r.Context().Done()
 	}, func(cfg *Config) {
 		cfg.DownloadGrowInterval = time.Second
-		cfg.DownloadSoftLimit = 16
+		cfg.DownloadConcurrencySoftLimit = 16
 		cfg.ObserveBlockSchedule = func(e blocksched.Event) {
 			if e.Kind == "started" {
 				started <- start{time.Now(), e}

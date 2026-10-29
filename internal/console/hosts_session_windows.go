@@ -119,11 +119,12 @@ func elevateHostsHelper(ctx context.Context, pipe string) (uint32, error) {
 
 func hostsElevationScript(exe, pipe string, parent int) string {
 	// Pipe names contain only a fixed prefix and a generated hexadecimal nonce.
-	// Preserve only the native cancellation code; all other localized failures
-	// retain their message and must remain visible to the user.
-	return "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $ErrorActionPreference = 'Stop'; try { $p = Start-Process -FilePath '" + strings.ReplaceAll(exe, "'", "''") +
-		"' -ArgumentList '-hosts-session', '" + pipe + "', '-hosts-parent', '" + strconv.Itoa(parent) +
-		"' -Verb RunAs -WindowStyle Hidden -PassThru; $p.Id } catch { $e = $_.Exception; while ($null -ne $e) { if ($e -is [System.ComponentModel.Win32Exception] -and $e.NativeErrorCode -eq " + strconv.Itoa(int(windows.ERROR_CANCELLED)) +
+	// Windows PowerShell's Start-Process discards the native exception when
+	// shell execution fails. Process.Start retains it for exact cancellation
+	// classification; other localized failures must remain visible.
+	return "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $ErrorActionPreference = 'Stop'; try { $startInfo = [System.Diagnostics.ProcessStartInfo]::new(); $startInfo.FileName = '" + strings.ReplaceAll(exe, "'", "''") +
+		"'; $startInfo.Arguments = '-hosts-session " + pipe + " -hosts-parent " + strconv.Itoa(parent) +
+		"'; $startInfo.UseShellExecute = $true; $startInfo.Verb = 'runas'; $startInfo.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden; $p = [System.Diagnostics.Process]::Start($startInfo); $p.Id } catch { $e = $_.Exception; while ($null -ne $e) { if ($e -is [System.ComponentModel.Win32Exception] -and $e.NativeErrorCode -eq " + strconv.Itoa(int(windows.ERROR_CANCELLED)) +
 		") { exit " + strconv.Itoa(int(windows.ERROR_CANCELLED)) + " }; $e = $e.InnerException }; [Console]::Error.WriteLine($_.Exception.Message); exit 1 }"
 }
 

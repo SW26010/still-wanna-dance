@@ -172,7 +172,7 @@ func TestCacheDeletionProtectsPinsUsageChecksAndStore(t *testing.T) {
 	ctx := context.Background()
 	cfg := fixtureConfig()
 	prepareFixtureResources(t, &cfg, root, false)
-	cfg.MaxCacheBytes = 1000
+	cfg.VideoBudgetBytes = 1000
 	cfg.CacheUnlimited = false
 	s, err := New(cfg)
 	if err != nil {

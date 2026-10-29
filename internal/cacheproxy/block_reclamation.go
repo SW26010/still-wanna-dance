@@ -3,8 +3,8 @@ package cacheproxy
 import "time"
 
 func (c Config) aggressiveBlockReclamation() bool {
-	return c.AggressiveCacheReclamation == "on" ||
-		c.AggressiveCacheReclamation == "auto" && !c.CacheUnlimited && c.MaxCacheBytes == 0
+	return c.AggressiveBlockReclamation == "on" ||
+		c.AggressiveBlockReclamation == "auto" && !c.CacheUnlimited && c.VideoBudgetBytes == 0
 }
 
 func (s *Server) aggressiveBlockReclamation() bool {

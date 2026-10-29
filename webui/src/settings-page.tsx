@@ -5,7 +5,7 @@ import {Network} from './network';
 
 export function settingsTab(anchor:string):SettingsSection {
   const key=anchor.replace(/^\//,'').split('?')[0];
-  if(['storage-settings','maxCacheGiB'].includes(key))return 'storage';
+  if(['storage-settings','videoBudgetGiB'].includes(key))return 'storage';
   if(['download-settings','prepareAheadSeconds'].includes(key))return 'downloads';
   if(['network-proxy','proxy-settings'].includes(key))return 'network';
   return 'application';

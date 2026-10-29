@@ -1,6 +1,7 @@
 package console
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,7 +11,7 @@ import (
 
 func TestConfigurationAndInventoryGolden(t *testing.T) {
 	root := t.TempDir()
-	b, err := os.ReadFile("testdata/config-v7.json")
+	b, err := os.ReadFile("testdata/config-v8.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +27,10 @@ func TestConfigurationAndInventoryGolden(t *testing.T) {
 	if c.settings.RequestRetentionMode != "unlimited" {
 		t.Fatal("explicit unlimited retention was lost")
 	}
-	if c.settings.PrepareAheadSeconds != 500 || c.settings.RequestRetentionDays != 0 || c.settings.AutoAccelerate || testStorageRoot(c.settings) != filepath.Join(root, "storage") || c.settings.VideoStorageMode != "none" || c.settings.MaxCacheBytes != 0 {
+	if c.settings.DownloadConcurrencySoftLimit != 32 || c.settings.RestoreHostsOnStopOrExit || c.settings.VRChatLogDir != filepath.Join(root, "logs") {
+		t.Fatal("explicit settings were lost", c.settings)
+	}
+	if c.settings.PrepareAheadSeconds != 500 || c.settings.RequestRetentionDays != 0 || c.settings.AutoAccelerate || testStorageRoot(c.settings) != filepath.Join(root, "storage") || c.settings.VideoStorageMode != "none" || c.settings.VideoBudgetBytes != 0 {
 		t.Fatal("configuration defaults changed")
 	}
 	if err := c.save(c.settings); err != nil {
@@ -57,5 +61,31 @@ func TestConfigurationAndInventoryGolden(t *testing.T) {
 	b, err = os.ReadFile(c.files().State("inventory"))
 	if err != nil || strings.Contains(string(b), "+08:00") || !strings.Contains(string(b), "123456789Z") {
 		t.Fatal(string(b), err)
+	}
+}
+
+func TestConfigurationRejectsFrozenOldFormats(t *testing.T) {
+	for _, name := range []string{"config-v5.json", "config-v6.json", "config-v7.json"} {
+		t.Run(name, func(t *testing.T) {
+			original, err := os.ReadFile(filepath.Join("testdata", name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			c := testConsole(t)
+			if err := os.WriteFile(c.configPath, original, 0600); err != nil {
+				t.Fatal(err)
+			}
+			if other, err := newConsoleWithWorkForTest(t, c.configPath, c.address); err == nil {
+				other.Close()
+				t.Fatal("opened an unsupported configuration")
+			}
+			if err := c.save(c.settings); err == nil {
+				t.Fatal("overwrote an unsupported configuration")
+			}
+			after, err := os.ReadFile(c.configPath)
+			if err != nil || !bytes.Equal(after, original) {
+				t.Fatal("unsupported configuration changed", err)
+			}
+		})
 	}
 }

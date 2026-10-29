@@ -43,7 +43,7 @@ test('separate settings locations save only their own draft and preserve the oth
   await navigateSettings(page,'预加载与下载');
   await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveValue('777');
   await saveSettings(page,'待重启');
-  expect(api.state.settings.maxCacheBytes).toBe(20*2**30);
+  expect(api.state.settings.videoBudgetBytes).toBe(20*2**30);
   expect(api.state.settings.prepareAheadSeconds).toBe(777);
 });
 

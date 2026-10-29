@@ -151,7 +151,7 @@ try {
     Assert-Identity $process $port $exe[0].FullName $configPath
     $configBefore = [IO.File]::ReadAllText($configPath)
     $settings = $configBefore | ConvertFrom-Json
-    if ($settings.schemaVersion -ne 7 -or $settings.databasePath -cne (Join-Path 'data/database' 'storage.sqlite') -or $settings.videoDir -cne 'videos') {
+    if ($settings.schemaVersion -ne 8 -or $settings.databasePath -cne (Join-Path 'data/database' 'storage.sqlite') -or $settings.videoDir -cne 'videos') {
         throw 'First launch did not persist a versioned, portable default configuration.'
     }
     if (!(Test-Path -LiteralPath (Join-Path $folder 'data/database/storage.sqlite')) -or !(Test-Path -LiteralPath (Join-Path $folder 'videos'))) { throw 'Startup did not prepare the default library.' }
@@ -258,7 +258,7 @@ try {
         Wait-ConsentGate $child $customPort
         Assert-Identity $child $customPort $exePath $config
         $saved = Get-Content -LiteralPath $config -Raw | ConvertFrom-Json
-        if ($saved.schemaVersion -ne 7 -or $saved.databasePath -cne (Join-Path "$name.d" 'data/database/storage.sqlite') -or $saved.videoDir -cne (Join-Path "$name.d" 'videos')) { throw 'Custom startup did not prepare its independent default library.' }
+        if ($saved.schemaVersion -ne 8 -or $saved.databasePath -cne (Join-Path "$name.d" 'data/database/storage.sqlite') -or $saved.videoDir -cne (Join-Path "$name.d" 'videos')) { throw 'Custom startup did not prepare its independent default library.' }
         $records = @(Get-Content -LiteralPath (Join-Path "$config.d" 'logs/app.log') | ForEach-Object { $_ | ConvertFrom-Json })
         if (@($records | Where-Object { $_.pid -ne $child.Id }).Count -ne 0) { throw 'Custom instances shared a log.' }
         if (!(Test-Path -LiteralPath (Join-Path "$config.d" 'config.lock'))) { throw 'Custom lock missing.' }

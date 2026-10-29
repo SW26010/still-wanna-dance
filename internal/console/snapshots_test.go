@@ -268,7 +268,7 @@ func TestScanOnlyPersistsSuccessAcrossFailureAndCancellation(t *testing.T) {
 
 func TestScanCanRunAlongsideQueue(t *testing.T) {
 	c := testConsole(t)
-	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+	if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { <-r.Context().Done() }))

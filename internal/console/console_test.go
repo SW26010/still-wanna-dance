@@ -68,18 +68,17 @@ func testConsole(t *testing.T) *Console {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { c.Close() })
 	c.hosts, _ = fixtureHostsController(t, hostsBaseline)
 	c.checksumURL = ""
 	if err := c.acceptTerms(); err != nil {
 		t.Fatal(err)
 	}
 	setTestLibraryPaths(&c.settings, filepath.Join(root, "library"))
-	c.settings.LogDir = filepath.Join(root, "logs")
-	c.settings.ManualLogDir = true
+	c.settings.VRChatLogDir = filepath.Join(root, "logs")
 	c.savedSettings = c.settings
 	c.videoAddress = "127.0.0.1:0"
 	c.httpsAddress = "127.0.0.1:0"
-	t.Cleanup(func() { c.Close() })
 	return c
 }
 

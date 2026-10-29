@@ -822,6 +822,13 @@
       "bytes": 1198268,
       "sha256": "ead2fe919c84ce034786dc42a2ca84d03a873abb917c524aecf20cbc1f36ebb8",
       "reason": "Historical production WebUI from 2819074c: explicit hosts restore permission preparation. Exact Git blob bytes match that commit's webui/build-manifest.json; register the omitted generated artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1199663,
+      "sha256": "dac63b8a193f5aafaa036e03052c99397f46e1b4e931941d55cc4453f0f50b64",
+      "reason": "Production WebUI generated and verified by webui/build.mjs. Explain unavailable coverage using the file-check error while catalog metadata continues to update independently."
     }
   ]
 }

@@ -10,24 +10,25 @@ import { StorageLocationFields } from './storage-directory';
 import { DirectoryField } from './path-picker';
 import { RequestRetentionFields } from './request-retention';
 
-const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadSoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
+const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadConcurrencySoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
 const restorePermissionHint='开启并保存时，可能请求 Windows 管理员授权（UAC），以准备恢复权限；退出时不再请求。';
 type NumberField = typeof numeric[number];
 export interface ProxyReport { id?: string; accepted: number; skipped: number; failed: number; items: {index: number; protocol?: string; status: string; reason?: string}[] }
-export type Draft = Omit<Settings, NumberField | 'maxCacheBytes' | 'theme'> & Record<NumberField, string> & CapacityDraft & { proxyImportID: string; proxyImportText: string; proxyReport?: ProxyReport };
+export type Draft = Omit<Settings, NumberField | 'videoBudgetBytes' | 'theme'> & Record<NumberField, string> & CapacityDraft & { proxyImportID: string; proxyImportText: string; proxyReport?: ProxyReport };
 export function draftFrom(s: Settings): Draft {
-  const {maxCacheBytes, theme: _theme, ...values} = s;
-  return { ...values, restoreHostsOnExit: s.restoreHostsOnExit ?? true, socks5Password: '',
-    requestRetentionDays: String(s.requestRetentionDays ?? 0), throughputIntervalMinutes: String(s.throughputIntervalMinutes ?? 20),
-    prepareAheadSeconds: String(s.prepareAheadSeconds ?? 500),
-    downloadSoftLimit: String(s.downloadSoftLimit ?? 16), downloadGrowIntervalMS: String(s.downloadGrowIntervalMS ?? 250),
-    localProtectionGraceSeconds: String(s.localProtectionGraceSeconds ?? 300),
-    maxCacheGiB: String((maxCacheBytes || 0) / 1073741824), proxyImportID: '', proxyImportText: '' };
+  const {videoBudgetBytes, theme: _theme, ...values} = s;
+  // The backend supplies complete, normalized settings; drafts only format them.
+  return { ...values, socks5Password: '',
+    requestRetentionDays: String(s.requestRetentionDays), throughputIntervalMinutes: String(s.throughputIntervalMinutes),
+    prepareAheadSeconds: String(s.prepareAheadSeconds),
+    downloadConcurrencySoftLimit: String(s.downloadConcurrencySoftLimit), downloadGrowIntervalMS: String(s.downloadGrowIntervalMS),
+    localProtectionGraceSeconds: String(s.localProtectionGraceSeconds),
+    videoBudgetGiB: String(videoBudgetBytes / 1073741824), proxyImportID: '', proxyImportText: '' };
 }
 export function settingsPayload(d: Draft) {
-  const { videoStorageMode, aggressiveCacheReclamation, maxCacheGiB, proxyImportText: _text, proxyReport: _report, socks5Password, ...values } = d;
-  return { ...values, ...Object.fromEntries(numeric.map(k => [k, Number(d[k])])), ...capacityPayload({videoStorageMode, aggressiveCacheReclamation, maxCacheGiB}),
-    logDir: d.manualLogDir ? d.logDir : '', ...(socks5Password || !d.socks5Username ? {socks5Password: socks5Password || ''} : {}) };
+  const { videoStorageMode, aggressiveBlockReclamation, videoBudgetGiB, proxyImportText: _text, proxyReport: _report, socks5Password, ...values } = d;
+  return { ...values, ...Object.fromEntries(numeric.map(k => [k, Number(d[k])])), ...capacityPayload({videoStorageMode, aggressiveBlockReclamation, videoBudgetGiB}),
+    ...(socks5Password || !d.socks5Username ? {socks5Password: socks5Password || ''} : {}) };
 }
 export function fingerprint(d: Draft) {
   return JSON.stringify({...settingsPayload(d), proxyImportText: d.proxyImportText});
@@ -113,7 +114,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
     const warn = (event: BeforeUnloadEvent) => { if (dirty && !app.stopped) event.preventDefault(); };
     addEventListener('beforeunload', warn); return () => removeEventListener('beforeunload', warn);
   }, [dirty, app.stopped]);
-  const numberField = (key: NumberField | 'maxCacheGiB', label: string, min: number, max: number, hint?: string, step = '1') => <Field label={label} hint={hint} required><Input id={key} type="number" required min={min} max={max} step={step} disabled={disabled} value={d[key]} onChange={(_, v) => update({[key]:v.value})} /></Field>;
+  const numberField = (key: NumberField | 'videoBudgetGiB', label: string, min: number, max: number, hint?: string, step = '1') => <Field label={label} hint={hint} required><Input id={key} type="number" required min={min} max={max} step={step} disabled={disabled} value={d[key]} onChange={(_, v) => update({[key]:v.value})} /></Field>;
   const saveButton=<Button type="submit" appearance="primary" disabled={disabled || !dirty || !!d.proxyImportText.trim()}>保存设置</Button>;
   const restartButton=<Button disabled={disabled || dirty || app.dirtySettings.size>0 || !s.restartRequired} onClick={() => void app.action('restart')}>重启并应用</Button>;
   async function save() {
@@ -124,7 +125,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
       if (d.databasePath !== s.settings.databasePath || d.videoDir !== s.settings.videoDir) {
         const check = await request<{confirmVideoPolicy:boolean}>('storage/check', {databasePath:d.databasePath,videoDir:d.videoDir});
         if (check.confirmVideoPolicy) {
-          confirmed = await app.confirm('确认此目录的视频保留方式', <><p className="wrap">视频目录：{d.videoDir}</p><p className="wrap">数据库：{d.databasePath||'尚未指定'}</p><p>此目录的视频将按本次设置管理：{d.videoStorageMode==='none'?'不保留普通视频':d.videoStorageMode==='unlimited'?'不限制视频空间':d.maxCacheGiB+' GiB 视频预算'}。不符合保留策略的视频可能被删除。</p><p>{d.retainFavorites?'优先保留收藏视频，收藏以所选数据库中的记录为准。':'收藏不提供额外保留保护。'}换数据库不会带入原数据库的收藏。</p></>, '确认并保存');
+          confirmed = await app.confirm('确认此目录的视频保留方式', <><p className="wrap">视频目录：{d.videoDir}</p><p className="wrap">数据库：{d.databasePath||'尚未指定'}</p><p>此目录的视频将按本次设置管理：{d.videoStorageMode==='none'?'不保留普通视频':d.videoStorageMode==='unlimited'?'不限制视频空间':d.videoBudgetGiB+' GiB 视频预算'}。不符合保留策略的视频可能被删除。</p><p>{d.retainFavorites?'优先保留收藏视频，收藏以所选数据库中的记录为准。':'收藏不提供额外保留保护。'}换数据库不会带入原数据库的收藏。</p></>, '确认并保存');
           if (!confirmed) return;
         }
       }
@@ -134,21 +135,21 @@ export function SettingsPage({section='application',children}: {section?:Setting
   }
   const form = <Panel id={section==='storage'?'storage-settings':section==='downloads'?'download-settings':section==='network'?'proxy-settings':'preferences'} title={{application:'应用设置',storage:'数据与视频存储',downloads:'预加载与下载设置',network:'代理设置'}[section]}><Feedback error>{locationError||s.actionErrors?.settings}</Feedback><form className="form-grid settings-form" onSubmit={e => { e.preventDefault(); void save(); }}>
       <div className="toolbar spread settings-actions" role="region" aria-label="设置操作"><p role="status">{syncing ? '正在同步设置…' : dirty ? '未保存' : s.restartRequired ? '待重启' : '已生效'}</p>
-      <div className="actions">{d.restoreHostsOnExit&&!s.settings.restoreHostsOnExit?<Tooltip content={restorePermissionHint} relationship="description">{saveButton}</Tooltip>:saveButton}<Button disabled={disabled || !dirty} onClick={discard}>放弃更改</Button>
+      <div className="actions">{d.restoreHostsOnStopOrExit&&!s.settings.restoreHostsOnStopOrExit?<Tooltip content={restorePermissionHint} relationship="description">{saveButton}</Tooltip>:saveButton}<Button disabled={disabled || !dirty} onClick={discard}>放弃更改</Button>
       {s.settings.autoAccelerate?<Tooltip content="重启后将自动开启视频加速，接入时可能请求 Windows 管理员授权（UAC）。" relationship="description">{restartButton}</Tooltip>:restartButton}</div>
       {s.restartRequired&&[...app.dirtySettings].some(value=>value!==section)&&<p>其他页面仍有未保存配置，请保存或放弃后再重启。</p>}</div>
       {section==='storage'&&<fieldset disabled={disabled}><legend>本地存储</legend>
       <StorageLocationFields value={d} update={update} disabled={disabled} status={s} onPending={setPending} />
-      <CacheCapacityFields anchor="maxCacheGiB" mode={d.videoStorageMode} value={d.maxCacheGiB} disabled={disabled} onChange={update} />
+      <CacheCapacityFields anchor="videoBudgetGiB" mode={d.videoStorageMode} value={d.videoBudgetGiB} disabled={disabled} onChange={update} />
       <Checkbox label="优先保留收藏视频" checked={d.retainFavorites} onChange={(_,v)=>update({retainFavorites:!!v.checked})}/>
       <span className="secondary">收藏视频可超出预算保留，不会自动下载。</span>
-      <div className="settings-columns"><CacheReclamationFields mode={d.videoStorageMode} reclamation={d.aggressiveCacheReclamation} disabled={disabled} onChange={update} />
+      <div className="settings-columns"><CacheReclamationFields mode={d.videoStorageMode} reclamation={d.aggressiveBlockReclamation} disabled={disabled} onChange={update} />
       {numberField('localProtectionGraceSeconds','本地延续保护时长（秒）',0,10000,'需求结束后继续保留缓存；0 表示不延续保护。')}
       </div></fieldset>}
       {section==='application'&&<><Field label="主题" hint="自动保存并立即应用于网页和托盘图标，无需重启。"><Select disabled={disabled} value={theme.preference} onChange={async(_,v)=>{const value=v.value as 'system'|'light'|'dark';if(await app.action('settings/theme',{theme:value}))theme.setPreference(value);}}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></Select></Field><fieldset disabled={disabled}><legend>程序启动</legend><Checkbox label="启动程序时自动打开 WebUI" checked={d.autoOpenWebUI} onChange={(_,v)=>update({autoOpenWebUI:!!v.checked})}/>
       {/* Checkbox forwards trigger props to its input; put pointer handlers on the root to include the label. */}
       <Tooltip content="下次启动自动加速时，可能请求 Windows 管理员授权（UAC）。" relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} label="启动程序时自动开启视频加速" checked={d.autoAccelerate} onChange={(_, v) => update({autoAccelerate:!!v.checked})} />}</Tooltip><span className="secondary">下次启动生效；接入时可能需要管理员授权。</span></fieldset>
-      <fieldset><legend>停止与退出</legend><Tooltip content={restorePermissionHint} relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} id="restoreHostsOnExit" label="停止加速或退出时恢复游戏直连" checked={d.restoreHostsOnExit} disabled={disabled} onChange={(_,v)=>update({restoreHostsOnExit:!!v.checked})}/>}</Tooltip><span className="secondary">保存后立即用于停止加速和退出。关闭后需开启加速才能播放；开启并保存时可能需要管理员授权。</span></fieldset>
+      <fieldset><legend>停止与退出</legend><Tooltip content={restorePermissionHint} relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} id="restoreHostsOnStopOrExit" label="停止加速或退出时恢复游戏直连" checked={d.restoreHostsOnStopOrExit} disabled={disabled} onChange={(_,v)=>update({restoreHostsOnStopOrExit:!!v.checked})}/>}</Tooltip><span className="secondary">保存后立即用于停止加速和退出。关闭后需开启加速才能播放；开启并保存时可能需要管理员授权。</span></fieldset>
       <RequestRetentionFields mode={d.requestRetentionMode} value={d.requestRetentionDays} disabled={disabled} onChange={update} />
       <Field label="程序日志级别" hint="保存后重启生效。Debug 用于详细排障；关闭不会删除已有日志。"><Select disabled={disabled} value={d.logLevel} onChange={(_,v)=>update({logLevel:v.value as Settings['logLevel']})}><option value="off">关闭</option><option value="error">仅错误（Error）</option><option value="warn">警告及错误（Warn）</option><option value="info">信息（Info，默认）</option><option value="debug">详细调试（Debug）</option></Select></Field></>}
       {section==='network'&&<>      <fieldset><legend>网络连接</legend><NetworkFields draft={d} update={update} disabled={disabled} status={s} onPending={setPending} />
@@ -156,13 +157,13 @@ export function SettingsPage({section='application',children}: {section?:Setting
 </>}
       {section==='downloads'&&<><Checkbox label="随视频网关启用队列预加载" checked={d.queueWithGateway} disabled={disabled} onChange={(_,v)=>update({queueWithGateway:!!v.checked})}/><fieldset disabled={disabled}><legend>下载</legend><div className="settings-columns">
 
-      {numberField('downloadSoftLimit','同时下载数量',1,64,'建议 16 路；播放急需时可临时超出。')}
+      {numberField('downloadConcurrencySoftLimit','同时下载数量',1,64,'建议 16 路；播放急需时可临时超出。')}
       {numberField('downloadGrowIntervalMS','并发增长间隔（毫秒）',0,2000,'建议 250 ms；0 表示关闭缓增。')}
       </div></fieldset>
       <fieldset disabled={disabled}><legend>房间队列与游戏日志</legend>
       {numberField('prepareAheadSeconds','提前准备时间（秒）',100,16000,`建议 200～2000 秒。${prepareAheadEstimate}`)}
-      <DirectoryField purpose="log-directory" label="VRChat 日志目录" hint="默认自动识别，找不到日志时点击选择。" disabled={disabled} value={d.manualLogDir ? d.logDir : s.defaultLogDir} defaultValue={s.defaultLogDir} isDefault={!d.manualLogDir}
-        onChange={logDir=>update({logDir,manualLogDir:true})} onReset={()=>update({logDir:'',manualLogDir:false})} onPending={setPending}/></fieldset></>}
+      <DirectoryField purpose="log-directory" label="VRChat 日志目录" hint="默认自动识别，找不到日志时点击选择。" disabled={disabled} value={d.vrchatLogDir || s.defaultLogDir} defaultValue={s.defaultLogDir} isDefault={!d.vrchatLogDir}
+        onChange={vrchatLogDir=>update({vrchatLogDir})} onReset={()=>update({vrchatLogDir:''})} onPending={setPending}/></fieldset></>}
       <span className="secondary">运行配置保存后重启生效。</span>
     </form></Panel>;
   return children?children(form,d):form;

@@ -41,7 +41,7 @@ func TestTargetDownloadUsesSharedPublicationAndBudget(t *testing.T) {
 			cfg := fixtureCacheConfig()
 			cfg.OriginScheme, cfg.CacheUnlimited = "http", mode != "budget"
 			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
-			cfg.MaxCacheBytes = 0
+			cfg.VideoBudgetBytes = 0
 			for host := range cfg.Origins {
 				cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
 			}

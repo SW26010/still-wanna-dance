@@ -218,8 +218,8 @@ func TestPreviewReusesBlocksAndRefillsAfterReclamation(t *testing.T) {
 				http.ServeContent(w, r, "video.mp4", time.Time{}, strings.NewReader(body))
 			}, func(cfg *Config) {
 				cfg.CacheUnlimited = false
-				cfg.MaxCacheBytes = 0
-				cfg.AggressiveCacheReclamation = "off"
+				cfg.VideoBudgetBytes = 0
+				cfg.AggressiveBlockReclamation = "off"
 				cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 					t.Error("cached blocks triggered API")
 					return "", fmt.Errorf("offline")

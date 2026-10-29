@@ -46,6 +46,7 @@
 | `queue_updated` | 有序 `song_ids`（保留 -1 占位）、房间重置代数；用于更新队列需求，不记录歌名、玩家或房间原文 |
 | `queue_song_canceled` / `queue_song_discarded` | 队列变化取消等待或旧结果被丢弃；不是下载失败 |
 | `batch_started` / `batch_finished` | 批次开始与结束汇总；结束区分仅扫描、缺失数量、取消和是否处理完列表。扫描完成仍可能存在缺失文件；处理中进度通过运行状态展示 |
+| `network_calibration_finished` | 手动测速结束摘要：上游、阶段与原因、已准备视频数／总大小及实际下载字节；区分样本准备不足、取消和下载阶段结果，不记录签名地址或凭据 |
 | `block_schedule`（Debug） | 块排队、开始、结束、期限退出、采样与开放数量变化；`event` / `reason` 说明事件和原因，`block_key` 标识块，附带活动数、开放量及期限等调度信息 |
 | `block_demand` / `block_demand_handoff`（Debug） | 单块有效需求及 GET／队列来源退出后的交接期限，用于核对需求、租约和本地保护边界 |
 | `playback_timing` / `queue_playback_timing`（Debug） | GET 与队列使用媒体信息推算的播放时间；不能直接证明播放器已开始或完成播放 |

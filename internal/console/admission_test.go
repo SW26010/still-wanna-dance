@@ -110,7 +110,7 @@ func TestQueueRepreparesRearmedMemberAfterPreviousSuccess(t *testing.T) {
 	target := fmt.Sprintf("https://play.udon.dance/files/2403/42-abc.mp4?e=%x&s=%d", md5.Sum([]byte(body)), len(body))
 	cfg := fixtureCacheConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
-	cfg.CacheUnlimited, cfg.MaxCacheBytes = false, 0
+	cfg.CacheUnlimited, cfg.VideoBudgetBytes = false, 0
 	cfg.ResolvePlayback = func(context.Context, string) (string, error) { return target, nil }
 	var calls atomic.Int32
 	cfg.ResourceTransports = func(string) []http.RoundTripper {

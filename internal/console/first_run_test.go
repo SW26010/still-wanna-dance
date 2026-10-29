@@ -19,7 +19,7 @@ func TestFirstRunLibraryAvailableWithoutAcceleration(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			config := filepath.Join(t.TempDir(), "config.json")
 			if name == "unconfigured_v7" {
-				if err := os.WriteFile(config, []byte(`{"schemaVersion":7,"databasePath":"","videoDir":"","theme":"dark"}`), 0600); err != nil {
+				if err := os.WriteFile(config, []byte(`{"schemaVersion":8,"databasePath":"","videoDir":"","theme":"dark"}`), 0600); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -176,7 +176,7 @@ func TestFirstRunAccelerationNeedsNoStorageSetup(t *testing.T) {
 	t.Cleanup(func() { c.Close() })
 	c.hosts, _ = fixtureHostsController(t, hostsBaseline)
 	c.videoAddress, c.httpsAddress, c.checksumURL = "127.0.0.1:0", "127.0.0.1:0", ""
-	c.settings.LogDir, c.settings.ManualLogDir = t.TempDir(), true
+	c.settings.VRChatLogDir = t.TempDir()
 	if err := c.acceptTerms(); err != nil {
 		t.Fatal(err)
 	}

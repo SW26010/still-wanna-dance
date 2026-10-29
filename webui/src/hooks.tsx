@@ -144,7 +144,7 @@ export function useConsole(enabled: boolean, page: string) {
     if (lock.current || stopped || shutdown.current) return false;
     lock.current = true; setBusy(true);
     const hosts = path === 'activation/enable';
-    const restorePermission = path === 'hosts/prepare' || path === 'settings' && typeof body === 'object' && body !== null && 'restoreHostsOnExit' in body && body.restoreHostsOnExit === true && status.data?.settings.restoreHostsOnExit === false;
+    const restorePermission = path === 'hosts/prepare' || path === 'settings' && typeof body === 'object' && body !== null && 'restoreHostsOnStopOrExit' in body && body.restoreHostsOnStopOrExit === true && status.data?.settings.restoreHostsOnStopOrExit === false;
     setMessage(hosts ? hostsActionPending : restorePermission ? '正在准备退出恢复权限，请留意管理员授权。' : '正在处理…');
     try {
       const result=await request<{action?:unknown}>(path, body, AbortSignal.timeout(hosts || restorePermission ? hostsActionTimeout : 30000));

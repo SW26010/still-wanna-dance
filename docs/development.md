@@ -39,7 +39,7 @@ CI 浏览器失败保留 trace 与截图到同一产物目录；矩阵关闭 fai
 
 普通管理请求在 [`management.go`](../internal/console/management.go) 选择处理函数后统一校验会话 Token 和 Origin；新增普通管理读取入口应登记在该路由组，POST 操作继续由 `serveAction` 分发。业务处理函数不再重复鉴权。条款操作复用同一校验函数，保留同意前可访问的规则；公开读取、媒体签名、SSE 和 WebSocket 仍由各自入口按现有规则处理。回归从 `ServeHTTP` 验证准入及方法错误，不能只测试校验函数。
 
-共享引擎由 Console 持有，入口集中在 [`engine.go`](../internal/console/engine.go)。任务和网关在已有 `lifecycleMu` 保护的启动流程中调用 `ensureEngineLocked`，调用时不持有状态锁 `mu`，直接使用返回的引擎；任务登记与退出等待仍由各业务生命周期负责。预览通过 `retainEngineRead` 一次取得引擎及释放函数，涵盖首次淘汰前的保护。创建、发布通知与关闭不借用调用方的状态锁；状态读取继续只取得短期快照，不等待引擎 I/O。运行语义以[配置生命周期](settings-lifecycle.md)为准。
+共享引擎由 Console 持有，入口集中在 [`engine.go`](../internal/console/engine.go)。视频任务和网关在已有 `lifecycleMu` 保护的启动流程中调用 `ensureEngineLocked`，调用时不持有状态锁 `mu`，直接使用返回的引擎；导入先完成目录校验，曲库更新则直接使用已有 Store。任务登记与退出等待仍由各业务生命周期负责。预览通过 `retainEngineRead` 一次取得引擎及释放函数，涵盖首次淘汰前的保护。创建、发布通知与关闭不借用调用方的状态锁；状态读取继续只取得短期快照，不等待引擎 I/O。运行语义以[配置生命周期](settings-lifecycle.md)为准。
 
 ## Windows 环境
 

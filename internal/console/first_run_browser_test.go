@@ -24,7 +24,7 @@ func TestFirstRunBrowser(t *testing.T) {
 	t.Cleanup(func() { c.Close() })
 	c.hosts, _ = fixtureHostsController(t, hostsBaseline)
 	c.videoAddress, c.httpsAddress, c.checksumURL = "127.0.0.1:0", "127.0.0.1:0", ""
-	c.settings.LogDir, c.settings.ManualLogDir = t.TempDir(), true
+	c.settings.VRChatLogDir = t.TempDir()
 	c.savedSettings = c.settings
 	ui := httptest.NewUnstartedServer(c)
 	c.address = ui.Listener.Addr().String()

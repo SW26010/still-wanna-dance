@@ -82,7 +82,7 @@ func (s *Server) commitPublishedFile(ctx context.Context, file *os.File, path st
 	s.retentionMu.Lock()
 	item := retainedVideo{path: path, key: v.key, size: info.Size(), recent: info.ModTime().UnixMilli(), modified: info.ModTime().UnixNano()}
 	s.retainVideoLocked(v.key, &item)
-	if !s.cfg.CacheUnlimited && s.retainedBytes > s.cfg.MaxCacheBytes {
+	if !s.cfg.CacheUnlimited && s.retainedBytes > s.cfg.VideoBudgetBytes {
 		s.requestRetentionLocked()
 	}
 	s.retentionMu.Unlock()

@@ -81,7 +81,7 @@ func (c *Console) startImport(source string) error {
 	if !info.IsDir() {
 		return errors.New("请选择目录")
 	}
-	engine, err := c.ensureEngineLocked()
+	_, err = cacheproxy.CacheDirectory(videoDir)
 	if err != nil {
 		return err
 	}
@@ -95,6 +95,10 @@ func (c *Console) startImport(source string) error {
 	}
 	if insideImportRoot(storage, source) {
 		return errors.New("请选择完整视频目录之外的来源目录")
+	}
+	engine, err := c.ensureEngineLocked()
+	if err != nil {
+		return err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	c.mu.Lock()

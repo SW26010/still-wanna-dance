@@ -14,7 +14,6 @@ import (
 
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/vrcx"
-	"still-wanna-dance/internal/workfiles"
 )
 
 type vrcxPreview struct {
@@ -181,19 +180,7 @@ func (c *Console) dismissVRCXSuggestion() error {
 	if dismissed {
 		return nil
 	}
-	_, fields, err := readConfigFile(c.configPath)
-	if err != nil {
-		return err
-	}
-	if fields == nil {
-		return os.ErrNotExist
-	}
-	fields["vrcxImportDismissed"] = json.RawMessage("true")
-	data, err := json.MarshalIndent(fields, "", "  ")
-	if err != nil {
-		return err
-	}
-	if err := workfiles.Write(c.configPath, data); err != nil {
+	if err := saveConfigVRCXDismissal(c.configPath); err != nil {
 		return err
 	}
 	c.mu.Lock()

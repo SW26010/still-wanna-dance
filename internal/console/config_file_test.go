@@ -20,7 +20,7 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 	if want.AutoAccelerate || !want.AutoOpenWebUI || !want.QueueWithGateway || want.PrepareAheadSeconds != 500 {
 		t.Fatal("first launch should disable automatic acceleration and enable WebUI opening and queue following")
 	}
-	if want.AggressiveCacheReclamation != "auto" || want.VideoStorageMode != "none" || want.MaxCacheBytes != 0 {
+	if want.AggressiveBlockReclamation != "auto" || want.VideoStorageMode != "none" || want.VideoBudgetBytes != 0 {
 		t.Fatal("first launch should not retain unprotected videos")
 	}
 	c.Close()
@@ -33,11 +33,19 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 	if err != nil || json.Unmarshal(data, &stored) != nil {
 		t.Fatal("could not read initial settings", err)
 	}
-	if string(fields["prepareAheadSeconds"]) != "500" || stored.DatabasePath != filepath.Join("data", "database", "storage.sqlite") || stored.VideoDir != "videos" || fields["storageDir"] != nil || string(fields["schemaVersion"]) != "7" || string(fields["autoAccelerate"]) != "false" || string(fields["queueWithGateway"]) != "true" {
+	if string(fields["prepareAheadSeconds"]) != "500" || stored.DatabasePath != filepath.Join("data", "database", "storage.sqlite") || stored.VideoDir != "videos" || fields["storageDir"] != nil || string(fields["schemaVersion"]) != "8" || string(fields["autoAccelerate"]) != "false" || string(fields["queueWithGateway"]) != "true" {
 		t.Fatal(fields)
 	}
-	if string(fields["aggressiveCacheReclamation"]) != `"auto"` || string(fields["videoStorageMode"]) != `"none"` || string(fields["maxCacheBytes"]) != "0" {
+	if string(fields["aggressiveBlockReclamation"]) != `"auto"` || string(fields["videoStorageMode"]) != `"none"` || string(fields["videoBudgetBytes"]) != "0" {
 		t.Fatal("zero retention defaults were not persisted", fields)
+	}
+	if string(fields["vrchatLogDir"]) != `""` || string(fields["downloadConcurrencySoftLimit"]) != "16" || string(fields["restoreHostsOnStopOrExit"]) != "true" {
+		t.Fatal("new field defaults were not persisted", fields)
+	}
+	for _, name := range []string{"logDir", "manualLogDir", "maxCacheBytes", "aggressiveCacheReclamation", "downloadSoftLimit", "restoreHostsOnExit"} {
+		if fields[name] != nil {
+			t.Fatalf("obsolete field %s was written", name)
+		}
 	}
 	if _, err := os.Stat(want.DatabasePath); err != nil {
 		t.Fatal("first launch did not prepare the default database", err)
@@ -94,7 +102,7 @@ func TestSavedAutoOpenAppliesOnNextLaunch(t *testing.T) {
 }
 
 func TestConfigurationRejectsUnsupportedWithoutOverwrite(t *testing.T) {
-	for _, data := range []string{`{"schemaVersion":6}`, `{"schemaVersion":7,"storageDir":"storage"}`} {
+	for _, data := range []string{`{"schemaVersion":6}`, `{"schemaVersion":7}`, `{"schemaVersion":8,"storageDir":"storage"}`} {
 		path := filepath.Join(t.TempDir(), "config.json")
 		if err := os.WriteFile(path, []byte(data), 0600); err != nil {
 			t.Fatal(err)
@@ -106,7 +114,7 @@ func TestConfigurationRejectsUnsupportedWithoutOverwrite(t *testing.T) {
 			t.Fatal("obsolete configuration changed", err)
 		}
 	}
-	for _, data := range []string{`{"schemaVersion":1}`, `{"schemaVersion":2}`, `{"schemaVersion":3}`, `{"schemaVersion":4}`, `{"schemaVersion":5}`, `{"schemaVersion":7,"PROXYSECRET":null}`, `{"schemaVersion":7,"SOCKS5Password":"secret"}`, `{}`, `null`, `{"schemaVersion":0}`, `{"schemaVersion":999,"futurePreference":"keep"}`, `{"schemaVersion":"1"}`, `{"schemaVersion":7,`} {
+	for _, data := range []string{`{"schemaVersion":1}`, `{"schemaVersion":2}`, `{"schemaVersion":3}`, `{"schemaVersion":4}`, `{"schemaVersion":5}`, `{"schemaVersion":8,"PROXYSECRET":null}`, `{"schemaVersion":8,"SOCKS5Password":"secret"}`, `{}`, `null`, `{"schemaVersion":0}`, `{"schemaVersion":999,"futurePreference":"keep"}`, `{"schemaVersion":"1"}`, `{"schemaVersion":8,`} {
 		t.Run(data, func(t *testing.T) {
 			c := testConsole(t)
 			if err := os.WriteFile(c.configPath, []byte(data), 0600); err != nil {
@@ -129,7 +137,7 @@ func TestConfigurationRejectsUnsupportedWithoutOverwrite(t *testing.T) {
 
 func TestConfigurationPreservesUnknownFieldsAndClearsPassword(t *testing.T) {
 	c := testConsole(t)
-	data := `{"schemaVersion":7,"futurePreference":{"enabled":true,"large":9007199254740993},"prepareaheadseconds":999}`
+	data := `{"schemaVersion":8,"futurePreference":{"enabled":true,"large":9007199254740993},"prepareaheadseconds":999}`
 	if err := os.WriteFile(c.configPath, []byte(data), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -181,16 +189,16 @@ func TestStartupSettingsDefaultAndRemainIndependent(t *testing.T) {
 		wantCDN   bool
 		wantQueue bool
 	}{
-		{"missing", `{"schemaVersion":7}`, false, true},
-		{"null", `{"schemaVersion":7,"autoAccelerate":null,"queueWithGateway":null}`, false, true},
-		{"missing queue with gateway on", `{"schemaVersion":7,"autoAccelerate":true}`, true, true},
-		{"missing queue with gateway off", `{"schemaVersion":7,"autoAccelerate":false}`, false, true},
-		{"missing gateway with queue off", `{"schemaVersion":7,"queueWithGateway":false}`, false, false},
-		{"both off", `{"schemaVersion":7,"autoAccelerate":false,"queueWithGateway":false}`, false, false},
-		{"gateway only", `{"schemaVersion":7,"autoAccelerate":true,"queueWithGateway":false}`, true, false},
-		{"queue only", `{"schemaVersion":7,"autoAccelerate":false,"queueWithGateway":true}`, false, true},
-		{"both on", `{"schemaVersion":7,"autoAccelerate":true,"queueWithGateway":true}`, true, true},
-		{"obsolete queue field", `{"schemaVersion":7,"autoAccelerate":false,"queuePrefetchEnabled":false}`, false, true},
+		{"missing", `{"schemaVersion":8}`, false, true},
+		{"null", `{"schemaVersion":8,"autoAccelerate":null,"queueWithGateway":null}`, false, true},
+		{"missing queue with gateway on", `{"schemaVersion":8,"autoAccelerate":true}`, true, true},
+		{"missing queue with gateway off", `{"schemaVersion":8,"autoAccelerate":false}`, false, true},
+		{"missing gateway with queue off", `{"schemaVersion":8,"queueWithGateway":false}`, false, false},
+		{"both off", `{"schemaVersion":8,"autoAccelerate":false,"queueWithGateway":false}`, false, false},
+		{"gateway only", `{"schemaVersion":8,"autoAccelerate":true,"queueWithGateway":false}`, true, false},
+		{"queue only", `{"schemaVersion":8,"autoAccelerate":false,"queueWithGateway":true}`, false, true},
+		{"both on", `{"schemaVersion":8,"autoAccelerate":true,"queueWithGateway":true}`, true, true},
+		{"obsolete queue field", `{"schemaVersion":8,"autoAccelerate":false,"queuePrefetchEnabled":false}`, false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "config.json")

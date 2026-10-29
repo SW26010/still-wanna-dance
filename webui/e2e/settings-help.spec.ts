@@ -65,7 +65,7 @@ test('exit restoration changes only after saving and applies to this exit',async
   expect(api.state.settings).toEqual(api.state.activeSettings);
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
   await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();
-  expect(api.state.settings.restoreHostsOnExit).toBe(false);expect(api.state.activeSettings.restoreHostsOnExit).toBe(false);
+  expect(api.state.settings.restoreHostsOnStopOrExit).toBe(false);expect(api.state.activeSettings.restoreHostsOnStopOrExit).toBe(false);
   await page.screenshot({path:info.outputPath('exit-policy.png'),fullPage:true});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.getByRole('button',{name:'退出程序',exact:true}).hover();
@@ -74,7 +74,7 @@ test('exit restoration changes only after saving and applies to this exit',async
 
 test('failed exit permission preparation keeps the draft and original exit policy',async({page})=>{
   const api=await mockAPI(page);
-  api.state.settings.restoreHostsOnExit=false;api.state.activeSettings.restoreHostsOnExit=false;
+  api.state.settings.restoreHostsOnStopOrExit=false;api.state.activeSettings.restoreHostsOnStopOrExit=false;
   await page.route('**/api/settings',route=>route.fulfill({status:400,json:{error:'未保存设置：退出恢复权限授权已取消'}}));
   await page.goto('/#/settings');
 

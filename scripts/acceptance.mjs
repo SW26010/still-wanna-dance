@@ -152,7 +152,7 @@ try {
   receipt = fs.readFileSync(receiptPath);
   requireBinary('console', consoleBinary);
   const consentConfig = path.join(lab, 'consent-check.json');
-  fs.writeFileSync(consentConfig, JSON.stringify({ schemaVersion: 7, autoAccelerate: false, queueWithGateway: false }));
+  fs.writeFileSync(consentConfig, JSON.stringify({ schemaVersion: 8, autoAccelerate: false, queueWithGateway: false }));
   fs.mkdirSync(path.join(consentConfig + '.d', 'data', 'state'), {recursive:true});
   fs.writeFileSync(path.join(consentConfig + '.d', 'data', 'state', 'terms.json'), receipt);
   const consentPort = await freePort();

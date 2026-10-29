@@ -5,13 +5,34 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
 
 	winio "github.com/tailscale/go-winio"
 )
+
+func TestHostsElevationPreservesNativeShellErrors(t *testing.T) {
+	// A missing executable produces ERROR_FILE_NOT_FOUND before any UAC prompt.
+	// Classify that native code as cancellation in this probe so the production
+	// shell-launch path must retain the code, not merely its localized message.
+	// The normal cancellation code and real UAC remain covered separately.
+	script := hostsElevationScript(filepath.Join(t.TempDir(), "missing 'helper.exe"), hostsPipePrefix+"01234567890123456789012345678901", os.Getpid())
+	const predicate = "$e.NativeErrorCode -eq 1223"
+	if strings.Count(script, predicate) != 1 {
+		t.Fatal("native error classifier not found")
+	}
+	script = strings.Replace(script, predicate, "$e.NativeErrorCode -eq 2", 1)
+	cmd := exec.CommandContext(t.Context(), "powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	out, processErr := cmd.CombinedOutput()
+	if _, err := hostsElevationResult(out, processErr); !errors.Is(err, errHostsAuthorizationCanceled) {
+		t.Fatalf("native shell error code was lost: %v output=%q", err, out)
+	}
+}
 
 func TestHostsElevationClassifiesOnlyNativeCancellation(t *testing.T) {
 	for _, tc := range []struct {
@@ -25,9 +46,14 @@ func TestHostsElevationClassifiesOnlyNativeCancellation(t *testing.T) {
 		{"ambiguous message", "throw '可能取消了 UAC'", false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			// Replace Start-Process inside PowerShell: execute the real error
-			// classifier, but never launch an elevated process or a UAC prompt.
-			script := "function Start-Process { " + tc.launch + " }; " + hostsElevationScript("fixture.exe", hostsPipePrefix+"01234567890123456789012345678901", os.Getpid())
+			// Replace only the native launch expression, retaining setup and the
+			// real classifier without launching a process or a UAC prompt.
+			script := hostsElevationScript("fixture.exe", hostsPipePrefix+"01234567890123456789012345678901", os.Getpid())
+			const launch = "[System.Diagnostics.Process]::Start($startInfo)"
+			if strings.Count(script, launch) != 1 {
+				t.Fatal("native launch expression not found")
+			}
+			script = strings.Replace(script, launch, "(& { "+tc.launch+" })", 1)
 			cmd := exec.CommandContext(t.Context(), "powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
 			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 			out, processErr := cmd.CombinedOutput()

@@ -3,13 +3,13 @@ package console
 import (
 	"context"
 	"crypto/md5"
+	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -86,150 +86,122 @@ func TestImportCleanupRetainsOnlyFailedReceiptsForConfirmedRetry(t *testing.T) {
 	}
 }
 
-func TestImportRefreshAndProgress(t *testing.T) {
-	for _, unavailable := range []bool{false, true} {
-		t.Run(map[bool]string{false: "success", true: "refresh_failure"}[unavailable], func(t *testing.T) {
-			c := testConsole(t)
-			defer c.Close()
-			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if unavailable {
-					http.Error(w, "unavailable", 503)
-					return
-				}
-				writeTestMD5Catalog(w, map[int]string{138: "matched video"})
-			}))
-			defer api.Close()
-			c.checksumURL = api.URL + "/catalog"
-			c.client.Transport = http.DefaultTransport
-			source := t.TempDir()
-			for name, body := range map[string]string{"match.mp4": "matched video", "other.mkv": "unknown video"} {
-				if err := os.WriteFile(filepath.Join(source, name), []byte(body), 0600); err != nil {
-					t.Fatal(err)
-				}
-			}
-			if err := c.startImport(source); err != nil {
-				t.Fatal(err)
-			}
-			c.mu.Lock()
-			done := c.importDone
-			c.mu.Unlock()
-			select {
-			case <-done:
-			case <-time.After(5 * time.Second):
-				t.Fatal("import stalled")
-			}
-			state := c.importStatus
-			if unavailable {
-				if !strings.Contains(state.Error, "本地尚无有效 MD5 清单，未开始导入") || state.Checked != 0 || state.Imported != 0 || state.Failed != 0 || state.CatalogWarning != "" {
-					t.Fatalf("import proceeded without a valid catalog: %+v", state)
-				}
-			} else if state.Running || state.Total != 2 || state.Checked != 2 || state.Imported != 1 || state.Skipped != 1 || state.Failed != 0 || !state.CleanupAvailable {
-				t.Fatalf("unexpected import: %+v", state)
-			}
-		})
+func TestImportUsesAllKnownMediaWithoutNetworkOrMapping(t *testing.T) {
+	c := testConsole(t)
+	c.settings.VideoStorageMode = "unlimited"
+	c.client.Transport = catalogTransport(func(*http.Request) (*http.Response, error) {
+		t.Error("import contacted network")
+		return nil, errors.New("offline")
+	})
+	c.checksumURL = cacheproxy.UdonCatalogURL
+	digest := func(body string) string { return fmt.Sprintf("%x", md5.Sum([]byte(body))) }
+	// Accumulated metadata retains the historical song, then accepts a new member.
+	for i, body := range []string{"historical", "current"} {
+		if err := c.store.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: fmt.Sprintf("2026100%d000000", i+1), Source: cacheproxy.KivaCatalogURL, Songs: []cacheproxy.CatalogSong{{ID: int64(i + 1), MD5: digest(body)}}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db, err := sql.Open("sqlite", c.settings.DatabasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("INSERT INTO media(md5) VALUES (?)", digest("orphan")); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	source := t.TempDir()
+	for _, body := range []string{"historical", "current", "orphan", "unknown"} {
+		if err := os.WriteFile(filepath.Join(source, body+".mp4"), []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for attempt := 0; attempt < 2; attempt++ {
+		if err := c.startImport(source); err != nil {
+			t.Fatal(err)
+		}
+		c.mu.Lock()
+		done := c.importDone
+		c.mu.Unlock()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("import stalled")
+		}
+		state := c.importStatus
+		wantImported, wantSkipped := 3, 1
+		if attempt == 1 {
+			wantImported, wantSkipped = 0, 4
+		}
+		if state.Running || state.Checked != 4 || state.Imported != wantImported || state.Skipped != wantSkipped || state.Failed != 0 || state.Error != "" || state.CatalogWarning != "" {
+			t.Fatal(state)
+		}
+	}
+	for _, body := range []string{"historical", "current", "orphan"} {
+		if got, err := os.ReadFile(filepath.Join(c.settings.VideoDir, digest(body)+".mp4")); err != nil || string(got) != body {
+			t.Fatal(body, string(got), err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(c.settings.VideoDir, digest("unknown")+".mp4")); !os.IsNotExist(err) {
+		t.Fatal("unknown media admitted", err)
 	}
 }
 
-func TestImportUsesLocalCatalogWhenRefreshFails(t *testing.T) {
-	for _, failure := range []string{"http503", "invalid", "canceled"} {
-		t.Run(failure, func(t *testing.T) {
+func TestImportMediaOnlyAndCancellation(t *testing.T) {
+	for _, kind := range []string{"media-only", "empty", "canceled"} {
+		t.Run(kind, func(t *testing.T) {
 			c := testConsole(t)
 			c.settings.VideoStorageMode = "unlimited"
-			defer c.Close()
-			var online atomic.Bool
-			requested := make(chan struct{}, 1)
-			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if online.Load() {
-					writeTestMD5Catalog(w, map[int]string{138: "matched video"})
-					return
+			c.client.Transport = catalogTransport(func(*http.Request) (*http.Response, error) {
+				t.Error("import contacted network")
+				return nil, errors.New("offline")
+			})
+			body := "known media without a song"
+			key := fmt.Sprintf("%x", md5.Sum([]byte(body)))
+			if kind != "empty" {
+				db, err := sql.Open("sqlite", c.settings.DatabasePath)
+				if err != nil {
+					t.Fatal(err)
 				}
-				switch failure {
-				case "http503":
-					http.Error(w, "unavailable", http.StatusServiceUnavailable)
-				case "invalid":
-					fmt.Fprint(w, `{"code":200,"data":`)
-				case "canceled":
-					requested <- struct{}{}
-					<-r.Context().Done()
+				_, err = db.Exec("INSERT INTO media(md5) VALUES (?)", key)
+				db.Close()
+				if err != nil {
+					t.Fatal(err)
 				}
-			}))
-			defer api.Close()
-			c.checksumURL, c.client.Transport = api.URL+"/catalog", http.DefaultTransport
+			}
 			c.lifecycleMu.Lock()
 			engine, err := c.ensureEngineLocked()
 			c.lifecycleMu.Unlock()
 			if err != nil {
 				t.Fatal(err)
 			}
-			// The retained mapping of an omitted song must not broaden the import set.
-			for _, seed := range []struct {
-				revision string
-				songs    map[int]string
-			}{
-				{"20261003235822", map[int]string{139: "old video"}},
-				{"20261004235822", map[int]string{138: "matched video"}},
-			} {
-				catalog, err := cacheproxy.ParseCatalog([]byte(testMD5CatalogBody(seed.revision, seed.songs)), c.checksumURL)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if err := engine.SyncCatalog(t.Context(), catalog); err != nil {
-					t.Fatal(err)
-				}
-			}
 			source := t.TempDir()
-			for name, body := range map[string]string{"match.mp4": "matched video", "old.mp4": "old video", "unknown.mp4": "unknown video"} {
-				if err := os.WriteFile(filepath.Join(source, name), []byte(body), 0600); err != nil {
-					t.Fatal(err)
+			if err := os.WriteFile(filepath.Join(source, "video.mp4"), []byte(body), 0600); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if kind == "canceled" {
+				cancel()
+			}
+			c.runImport(ctx, engine, source, c.settings.VideoDir, make(chan struct{}))
+			state := c.importStatus
+			switch kind {
+			case "media-only":
+				if state.Imported != 1 || state.Error != "" {
+					t.Fatal(state)
+				}
+			case "empty":
+				if state.Checked != 0 || !strings.Contains(state.Error, "本地尚无已知资源") {
+					t.Fatal(state)
+				}
+			case "canceled":
+				if state.Checked != 0 || state.Error != context.Canceled.Error() {
+					t.Fatal(state)
 				}
 			}
-			startAndWait := func() ImportStatus {
-				t.Helper()
-				if err := c.startImport(source); err != nil {
-					t.Fatal(err)
-				}
-				c.mu.Lock()
-				done, cancel := c.importDone, c.importCancel
-				c.mu.Unlock()
-				if failure == "canceled" && !online.Load() {
-					select {
-					case <-requested:
-						cancel()
-					case <-time.After(5 * time.Second):
-						t.Fatal("catalog request did not start")
-					}
-				}
-				select {
-				case <-done:
-				case <-time.After(5 * time.Second):
-					t.Fatal("import stalled")
-				}
-				return c.importStatus
-			}
-			state := startAndWait()
-			if failure == "canceled" {
-				if state.Running || state.Checked != 0 || state.Imported != 0 || state.CatalogWarning != "" || state.Error != context.Canceled.Error() {
-					t.Fatalf("canceled import used local fallback: %+v", state)
-				}
-				return
-			}
-			if state.Running || state.Checked != 3 || state.Imported != 1 || state.Skipped != 2 || state.Failed != 0 || state.Error != "" || state.CatalogWarning == "" || !state.CleanupAvailable {
-				t.Fatalf("valid local catalog did not permit import: %+v", state)
-			}
-			key := fmt.Sprintf("%x", md5.Sum([]byte("matched video")))
-			if body, err := os.ReadFile(filepath.Join(c.settings.VideoDir, key+".mp4")); err != nil || string(body) != "matched video" {
-				t.Fatalf("imported video missing or changed: %q, %v", body, err)
-			}
-			for _, body := range []string{"old video", "unknown video"} {
-				key := fmt.Sprintf("%x", md5.Sum([]byte(body)))
-				if _, err := os.Stat(filepath.Join(c.settings.VideoDir, key+".mp4")); !os.IsNotExist(err) {
-					t.Fatalf("unmatched video imported: %q, %v", body, err)
-				}
-			}
-			online.Store(true)
-			state = startAndWait()
-			if state.CatalogWarning != "" || state.Error != "" || state.Imported != 0 || state.Skipped != 3 || state.Failed != 0 {
-				t.Fatalf("retry retained warning or imported duplicate video: %+v", state)
+			status, err := c.store.CatalogStatus(t.Context())
+			if err != nil || status.Revision != "" {
+				t.Fatal("import required or created a song watermark", status, err)
 			}
 		})
 	}

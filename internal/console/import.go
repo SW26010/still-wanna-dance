@@ -3,11 +3,9 @@ package console
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"still-wanna-dance/internal/cacheproxy"
@@ -105,7 +103,7 @@ func (c *Console) startImport(source string) error {
 	c.importCancel = cancel
 	c.importDone = make(chan struct{})
 	c.importReceipts = nil
-	c.importStatus = ImportStatus{ID: c.importStatus.ID + 1, Running: true, Phase: "正在更新歌曲清单"}
+	c.importStatus = ImportStatus{ID: c.importStatus.ID + 1, Running: true, Phase: "正在读取已知资源"}
 	go c.runImport(ctx, engine, source, storage, c.importDone)
 	return nil
 }
@@ -128,38 +126,16 @@ func (c *Console) runImport(ctx context.Context, engine *cacheproxy.Server, sour
 		c.importStatus.Phase = "导入未完成"
 		c.mu.Unlock()
 	}
-	refreshErr := c.refreshLocalCatalog(ctx, engine)
-	if err := ctx.Err(); err != nil {
-		fail(err)
-		return
-	}
-	catalog, release, err := engine.ReadLocalCatalog(ctx)
+	allowed, err := engine.KnownMedia(ctx)
 	if err != nil {
-		release()
 		fail(err)
 		return
 	}
-	allowed := map[string]bool{}
-	for _, song := range catalog.Songs {
-		if catalog.Current[strconv.FormatInt(song.ID, 10)] {
-			allowed[song.MD5] = true
-		}
-	}
-	// Only the copied MD5 set is needed below. Each individual import owns its
-	// own pin; retaining the catalog pins would block unrelated eviction.
-	release()
-	if catalog.Status.Revision == "" || len(allowed) == 0 {
-		err := errors.New("本地尚无有效 MD5 清单，未开始导入，请重试更新曲库")
-		if refreshErr != nil {
-			err = fmt.Errorf("%w：%v", err, refreshErr)
-		}
-		fail(err)
+	if len(allowed) == 0 {
+		fail(errors.New("本地尚无已知资源，未开始导入，请先更新曲库"))
 		return
 	}
 	c.mu.Lock()
-	if refreshErr != nil {
-		c.importStatus.CatalogWarning = refreshErr.Error()
-	}
 	c.importStatus.Phase = "正在枚举视频文件"
 	c.mu.Unlock()
 	files, err := enumerateImport(ctx, source, storage)

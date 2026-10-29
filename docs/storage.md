@@ -207,6 +207,8 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 ## 清单内容摘要 v2
 
+应用启动另行加载[预置资源快照](../data/media-seed/README.md)：事务内只补缺失资源、大小和歌曲映射，已有映射不回退。`catalog_state` 的 `media_seed` 行使用独立快照版本和 `sha256-seed-v1` 摘要，不推进 `songs` 水位，不生成成员或 URL。导入外部视频以 `media` 中已知 MD5 为准，无需歌曲映射或在线清单；超预算淘汰仍通过现有歌曲映射计算分数和偏好，无关联资源按零分处理。
+
 `catalog_state.digest` 保存 `sha256-v2:<小写十六进制摘要>`。摘要输入固定为 UTF-8 前缀 `still-wanna-dance/catalog/v2\n`（末尾一个换行），后接规范化歌曲列表的紧凑 JSON。字段由独立的 `catalogDigestSongV2` 明确投影，不直接序列化业务类型 CatalogSong。
 
 歌曲按 ID 升序。v2 投影只包含当前共同歌曲资料，排除 MD5、来源、上游时间和未知字段。可空标量区分未知与零值；volume 统一为 float32 可表示值；两个逐歌数组规范化重编码，保留元素顺序和数组内 JSON 数字文本，对象键稳定排序。显式 null 的 tag 与 Udon 空字符串 shader_motion 统一为空数组；未给出的字段保持未知。

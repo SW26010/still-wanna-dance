@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/upstreamnet"
 )
 
 // Tests can exercise the gateway without requesting system hosts access.
@@ -42,7 +43,9 @@ func testWorkDirectory(t *testing.T) *cacheproxy.WorkDirectory {
 
 func newConsoleWithWorkForTest(t *testing.T, path, address string) (*Console, error) {
 	t.Helper()
-	return New(path, address, testWorkDirectory(t))
+	// General fixtures exercise storage without the distribution's 10k-row seed.
+	// Production bootstrap is covered separately through New.
+	return newConsole(path, address, upstreamnet.NewResolver(nil), testWorkDirectory(t))
 }
 
 func testConsole(t *testing.T) *Console {

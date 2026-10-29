@@ -150,7 +150,13 @@ type Console struct {
 }
 
 func New(configPath, address string, work *cacheproxy.WorkDirectory) (*Console, error) {
-	return newConsole(configPath, address, upstreamnet.NewResolver(nil), work)
+	c, err := newConsole(configPath, address, upstreamnet.NewResolver(nil), work)
+	if err == nil && c.store != nil {
+		if seedErr := c.store.ApplyBundledMediaSeed(context.Background()); seedErr != nil {
+			return nil, errors.Join(seedErr, c.Close())
+		}
+	}
+	return c, err
 }
 
 func newConsole(configPath, address string, dns directResolver, work *cacheproxy.WorkDirectory) (*Console, error) {

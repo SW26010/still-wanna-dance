@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button, Link, Text, Tooltip } from '@fluentui/react-components';
-import { ArrowSync20Regular } from '@fluentui/react-icons';
+import { ArrowSync20Regular, ErrorCircle16Regular } from '@fluentui/react-icons';
 import { request, APIError } from './api';
 import { useApp, useResource } from './hooks';
 import { usePageFeedback } from './page-feedback';
@@ -63,6 +63,8 @@ export function InventoryPanel({visible,files,videoError,refresh,loading,loadedA
   const scanning=!!v?.scanning&&!inventory.error;
   const catalogBusy=scanning||inventory.loading;
   const known = !videoError && v && dated(v.updated) && v.coverageKnown && v.totalSongs > 0;
+  const coverageDescription=(known?`已覆盖 ${v.coveredSongs} / 当前清单 ${v.totalSongs} 首；`:'')+'统计清单版本：'+(v?.catalogRevision||'未知');
+  const coverageWarning=videoError?'无法检查本地视频，暂时无法计算覆盖率。':known&&v.unresolvedSongs?`资源待识别 ${v.unresolvedSongs} 首，已计入当前清单总数，暂未计为已覆盖。`:v&&!known&&!catalogBusy?'尚无有效的完整清单，暂时无法计算覆盖率。请更新曲库。':undefined;
   return <section id="overview" className="library-summary" aria-label="曲库概览">
     <div className="inline summary-values">
       <div role="group" aria-label="本地视频">
@@ -71,10 +73,8 @@ export function InventoryPanel({visible,files,videoError,refresh,loading,loadedA
         {(readError||videoError)&&<Text block size={200} role="status">检查失败</Text>}
       </div>
       <div role="group" aria-label="曲库覆盖率">
-        <div className="inline"><Tooltip content={'统计清单版本：'+(v?.catalogRevision||'未知')} relationship="description"><span className="secondary" tabIndex={0}>曲库覆盖率</span></Tooltip><Tooltip content={<>更新曲库<Text block size={200}>最后检查时间：{date(v?.updated)}</Text></>} relationship="description"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-label="更新曲库" aria-busy={catalogBusy} disabled={app.unavailable||catalogBusy} disabledFocusable={catalogBusy||app.busy} onClick={()=>void app.action('inventory/scan')}/></Tooltip></div>
-        <Text block size={500} weight="semibold">{known?`${(100*v.coveredSongs/v.totalSongs).toFixed(1)}%`:'—'}</Text>
-        {known&&<Text block size={200}>已覆盖 {v.coveredSongs} / 当前清单 {v.totalSongs} 首</Text>}
-        {known&&!!v.unresolvedSongs&&<Text block size={200}>资源待识别 {v.unresolvedSongs} 首</Text>}
+        <div className="inline"><Tooltip content={coverageDescription} relationship="description"><span className="secondary" tabIndex={0}>曲库覆盖率</span></Tooltip><Tooltip content={<>更新曲库<Text block size={200}>最后检查时间：{date(v?.updated)}</Text></>} relationship="description"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-label="更新曲库" aria-busy={catalogBusy} disabled={app.unavailable||catalogBusy} disabledFocusable={catalogBusy||app.busy} onClick={()=>void app.action('inventory/scan')}/></Tooltip></div>
+        <div className="inline"><Text size={500} weight="semibold">{known?`${(100*v.coveredSongs/v.totalSongs).toFixed(1)}%`:'—'}</Text>{coverageWarning&&<Tooltip content={coverageWarning} relationship="description"><Button size="small" appearance="transparent" icon={<ErrorCircle16Regular aria-hidden="true"/>} aria-label="覆盖率说明"/></Tooltip>}</div>
       </div>
       <div><Link href="#storage-settings">视频存储预算</Link><Text block size={400}>{s.activeSettings.videoStorageMode==='unlimited'?'不限制':s.activeSettings.videoStorageMode==='none'?'不保留':gib(s.activeSettings.maxCacheBytes)}</Text></div>
     </div>

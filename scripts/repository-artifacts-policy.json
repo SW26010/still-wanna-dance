@@ -787,6 +787,13 @@
       "bytes": 1198831,
       "sha256": "85e03dae6bea9e6d811cc90a0cd86eb87b6236e50da280e2a488fe6ec411d601",
       "reason": "Production WebUI generated and verified by webui/build.mjs. Current-catalog coverage with unresolved-song counts, snapshot revision tooltip, and offline known-media import."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1199624,
+      "sha256": "4b5028702b288138ad530fdf851e648c2b46a9db6c530695f0b4817abe040984",
+      "reason": "Production WebUI generated and verified by webui/build.mjs. Restore compact coverage layout with counts in the title tooltip and a standard Fluent warning icon tooltip for unresolved resources or unavailable coverage."
     }
   ]
 }

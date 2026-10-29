@@ -1,26 +1,64 @@
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 
-test('coverage keeps unresolved current songs in its denominator and distinguishes unknown catalog',async({page},info)=>{
+for(const width of [1280,390,320])test(`coverage keeps a compact layout and explains uncertain data at ${width}px`,async({page},info)=>{
   const api=await mockAPI(page);
-  let known=true;
-  await page.route('**/api/inventory',r=>r.fulfill({json:{coverageKnown:known,totalSongs:known?3:0,coveredSongs:known?1:0,unresolvedSongs:known?2:0,updated:'2026-10-29T00:00:00Z',catalogRevision:known?'20261029000000':''}}));
+  let known=true,unresolved=0;
+  await page.route('**/api/inventory',r=>r.fulfill({json:{coverageKnown:known,totalSongs:known?3:0,coveredSongs:known?1:0,unresolvedSongs:known?unresolved:0,updated:'2026-10-29T00:00:00Z',catalogRevision:known?'20261029000000':''}}));
   api.state.batch={scanOnly:true,total:3,checked:3,hits:1,missing:0,unresolved:2,phase:'本地检查完成'};
-  await page.setViewportSize({width:390,height:844});
+  await page.setViewportSize({width,height:900});
+  await page.emulateMedia({colorScheme:width===390?'dark':'light',forcedColors:width===320?'active':'none',reducedMotion:'reduce'});
   await page.goto('/#/library');
   const coverage=page.getByRole('group',{name:'曲库覆盖率',exact:true});
+  const summary=page.getByRole('region',{name:'曲库概览'});
+  const warning=coverage.getByRole('button',{name:'覆盖率说明',exact:true});
+  const tooltip=page.getByRole('tooltip');
+  const layout=()=>page.evaluate(()=>{
+    const summary=document.querySelector('#overview')!.getBoundingClientRect();
+    const table=document.querySelector('table[aria-label="曲库歌曲"]')!.getBoundingClientRect();
+    const budget=document.querySelector('#overview a[href="#storage-settings"]')!.getBoundingClientRect();
+    return {height:summary.height,tableY:table.y+scrollY,budgetX:budget.x,budgetY:budget.y+scrollY};
+  });
   await expect(coverage).toContainText('33.3%');
-  await expect(coverage).toContainText('已覆盖 1 / 当前清单 3 首');
-  await expect(coverage).toContainText('资源待识别 2 首');
+  await expect(warning).toHaveCount(0);
+  await expect(coverage).not.toContainText('已覆盖');
+  await expect(page.getByRole('table',{name:'曲库歌曲'}).locator('tbody tr')).toHaveCount(2);
+  const before=await layout();
+  await summary.screenshot({path:info.outputPath('normal.png'),animations:'disabled'});
+  await coverage.getByText('曲库覆盖率',{exact:true}).hover();
+  await expect(tooltip).toContainText('已覆盖 1 / 当前清单 3 首');
+  await expect(tooltip).toContainText('统计清单版本：20261029000000');
+  await page.keyboard.press('Escape');await page.mouse.move(0,0);
+
+  unresolved=2;await page.reload();
+  await expect(warning).toBeVisible();
+  await expect(coverage).toContainText('33.3%');
+  await expect(coverage).not.toContainText('资源待识别');
   await expect(page.locator('#batch')).toContainText('缺失 0 · 资源待识别 2');
-  for(const width of [390,320]){
-    await page.setViewportSize({width,height:844});
-    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-    await page.getByRole('region',{name:'曲库概览'}).screenshot({path:info.outputPath(`coverage-${width}.png`)});
-  }
+  expect(await layout()).toEqual(before);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await summary.screenshot({path:info.outputPath('warning.png'),animations:'disabled'});
+  await warning.hover();
+  await expect(tooltip).toContainText('资源待识别 2 首');
+  await expect(tooltip).toContainText('已计入当前清单总数，暂未计为已覆盖');
+  await expect(warning).toHaveAccessibleDescription(/资源待识别 2 首/);
+  const bounds=(await tooltip.boundingBox())!,overview=(await summary.boundingBox())!;
+  expect(bounds.x).toBeGreaterThanOrEqual(0);expect(bounds.x+bounds.width).toBeLessThanOrEqual(width);
+  const left=Math.min(bounds.x,overview.x),top=Math.min(bounds.y,overview.y);
+  await page.screenshot({path:info.outputPath('warning-tooltip.png'),animations:'disabled',clip:{x:left,y:top,width:Math.max(bounds.x+bounds.width,overview.x+overview.width)-left,height:Math.max(bounds.y+bounds.height,overview.y+overview.height)-top}});
+  await page.keyboard.press('Escape');await expect(tooltip).toHaveCount(0);await page.mouse.move(0,0);
+  await coverage.getByRole('button',{name:'更新曲库',exact:true}).focus();await page.keyboard.press('Tab');
+  await expect(warning).toBeFocused();await expect(tooltip).toContainText('资源待识别 2 首');
+  await page.keyboard.press('Escape');await expect(tooltip).toHaveCount(0);await expect(warning).toBeFocused();
+
+  unresolved=0;await page.reload();
+  await expect(coverage).toContainText('33.3%');await expect(warning).toHaveCount(0);
+  expect(await layout()).toEqual(before);
   known=false;await page.reload();
   await expect(coverage).toContainText('—');
   await expect(coverage).not.toContainText('%');
   await expect(coverage).not.toContainText('已覆盖');
+  await warning.hover();await expect(tooltip).toContainText('尚无有效的完整清单');
+  await expect(tooltip).toContainText('请更新曲库');
   expect(api.calls.some(c=>c.path==='inventory/scan')).toBe(false);
 });

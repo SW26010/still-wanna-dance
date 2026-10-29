@@ -1180,3 +1180,11 @@ Edge 通知、条款、页面反馈、VRCX 及导入提示回归 **61/61 通过*
 - 前端构建、类型及嵌入资源一致性检查、Console `go vet`、差异格式检查和 Go 1.27.3 桌面构建通过。测试版为 `artifacts/import-catalog-fallback/SWD.exe`，版本 `dev-import-catalog-fallback-20261029`；仅执行 `-build-info` 核对身份。
 
 证据保留在 `artifacts/import-catalog-fallback/`。`before.log` 记录沙箱初始化的已知重命名失败，`before-unsandboxed.log` 记录有效复现，`after.log` 为修复后回归；`browser.log` 保留 Edge 在沙箱内启动退出的失败，核对并结束本次夹具进程后，`browser-unsandboxed.log` 和 `browser-results/` 为通过结果与截图。未修改系统 hosts、使用个人视频、启动 VRC、提交或推送；本次没有必须依赖 VRC 的剩余验证项。
+
+## 2026-10-29 覆盖率恢复紧凑布局
+
+按用户反馈，覆盖率恢复为百分比一行，已覆盖／当前清单总数移到标题 Tooltip；资源待识别或覆盖率不可计算时，在数值后显示 Fluent ErrorCircle 小图标，通过标准 Button／Tooltip 提供说明。统计口径和批量计数不变，现行显示规则见[曲库设计](../webui-design.md#曲库)。
+
+Edge 定向回归 **20/20 通过**，覆盖提示的悬停、Tab 聚焦、无障碍描述、Escape 关闭、异常恢复、未知清单、原有刷新／失败重试行为及清单版本。1280px 浅色、390px 深色和 320px forced-colors 检查通过：感叹号出现／消失不改变概览高度、预算位置或列表纵向位置，无页面横向溢出，截图已检查。前端构建、类型、嵌入资源一致性及差异格式检查通过。
+
+浏览器使用内存 API 夹具，证据位于忽略目录 `artifacts/coverage-tooltip-20261029/browser/`。本次只调整前端呈现及对应文档，不改变数据库或后台业务；未验证真实辅助技术朗读，本次没有新增必须依赖 VRC 的验证项。

@@ -25,6 +25,8 @@
 | [acceptance/](acceptance/) | 已实际开展的游戏/实网验收报告；新游戏批次使用[报告模板](live-acceptance-report-template.md) |
 | [history/](history/) | 原版调查、被替代的设计、阶段审计和旧台账快照；文件名中的 `original-` 指原版调查 |
 | [research/](research/) | [视频保留收益研究](research/cache-priority.md)、[等权初始表半衰期回测](research/equal-requester-priority-20261026.md)、[媒体元数据研究](research/video-metadata-20261015.md)、[CF 候选收益与搜索成本](research/issue-21-cf-selection-20261022.md)、[HTTP/HTTPS、104 地址与 Speedtest 对照](research/issue-21-cf-triad-20261022.md)、[浏览器 HTTPS 升级与本地 HTTP 服务](research/browser-https-upgrades-20261022.md)及复算数据 |
+| 清单内容与使用核对 | [Udon/Kiva/WannaInfo 内容核对](research/catalog-sources-20261029.md)记录固定批次的字段、版本及采样时业务用途，不代表后续实现 |
+| 上游连接观测 | [三个清单入口的连接与更新排查](validation/kiva-connectivity-20261029.md)汇总各窗口、错误阶段和 Udon HTTPS 后续成功；[10 月 28 日 HTTP 批次](research/upstream-http-20261028.md)保留清单、播放与视频片段的原始结论。均为固定条件下的历史观测，不代表永久可用性或协议选型 |
 | [evidence/](evidence/README.md) | 脱敏证据和清单；大附件的下载、校验及保留规则见[证据存储](evidence-storage.md) |
 
 ## 仓库文件归属

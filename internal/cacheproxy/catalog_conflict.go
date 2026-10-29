@@ -14,34 +14,29 @@ func catalogConflictDetails(ctx context.Context, tx *sql.Tx, c Catalog, digest s
 	if err := tx.QueryRowContext(ctx, "SELECT digest FROM catalog_state WHERE catalog_key='songs'").Scan(&previous); err != nil {
 		return "", err
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT cm.song_id,sm.md5 FROM catalog_members cm JOIN song_media sm ON sm.song_id=cm.song_id")
+	rows, err := tx.QueryContext(ctx, "SELECT song_id FROM catalog_members")
 	if err != nil {
 		return "", err
 	}
-	current := make(map[int64]string)
+	current := make(map[int64]bool)
 	for rows.Next() {
 		var id int64
-		var md5 string
-		if err := rows.Scan(&id, &md5); err != nil {
+		if err := rows.Scan(&id); err != nil {
 			rows.Close()
 			return "", err
 		}
-		current[id] = md5
+		current[id] = true
 	}
 	err = rows.Err()
 	rows.Close()
 	if err != nil {
 		return "", err
 	}
-	added, changed := 0, 0
+	added := 0
 	var examples []int64
 	for _, song := range c.Songs {
-		md5, exists := current[song.ID]
-		if !exists {
+		if !current[song.ID] {
 			added++
-			examples = append(examples, song.ID)
-		} else if md5 != song.MD5 {
-			changed++
 			examples = append(examples, song.ID)
 		}
 		delete(current, song.ID)
@@ -53,9 +48,9 @@ func catalogConflictDetails(ctx context.Context, tx *sql.Tx, c Catalog, digest s
 	if len(examples) > 8 {
 		examples = examples[:8]
 	}
-	kind := "歌曲映射或成员变化"
-	if added == 0 && changed == 0 && len(current) == 0 {
-		kind = "元数据或规范化表示变化（映射相同）"
+	kind := "歌曲成员变化"
+	if added == 0 && len(current) == 0 {
+		kind = "元数据或规范化表示变化（成员相同）"
 	}
-	return fmt.Sprintf("%s；新增 %d，移除 %d，MD5 改变 %d；示例 ID %v；摘要 %s → %s", kind, added, len(current), changed, examples, previous, digest), nil
+	return fmt.Sprintf("%s；新增 %d，移除 %d；示例 ID %v；摘要 %s → %s", kind, added, len(current), examples, previous, digest), nil
 }

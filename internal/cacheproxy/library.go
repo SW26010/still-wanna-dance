@@ -131,12 +131,12 @@ func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, no
 	}
 	var songs []LibrarySong
 	if db != nil {
-		rows, err := db.QueryContext(ctx, `SELECT s.song_id, substr(COALESCE(s.name,s.composed_title,''),1,300),
- substr(COALESCE(s.artist,''),1,300),substr(COALESCE(s.dancer,''),1,300),substr(COALESCE(s.group_name,''),1,300),
+		rows, err := db.QueryContext(ctx, `SELECT s.id, substr(COALESCE(s.name,''),1,300),
+ substr(COALESCE(s.artist,''),1,300),substr(COALESCE(s.dancer,''),1,300),substr(COALESCE(s.groupName,''),1,300),
  COALESCE(p.policy,'normal'),COALESCE(m.md5,''),v.byte_size,
  COALESCE(u.demand_count,0),COALESCE(u.demand_score,0),COALESCE(u.last_demand_at,0)
- FROM songs s LEFT JOIN song_media m ON m.song_id=s.song_id LEFT JOIN media v ON v.md5=m.md5
- LEFT JOIN song_preferences p ON p.song_id=s.song_id LEFT JOIN song_usage u ON u.song_id=s.song_id ORDER BY s.song_id`)
+ FROM songs s LEFT JOIN song_media m ON m.song_id=s.id LEFT JOIN media v ON v.md5=m.md5
+ LEFT JOIN song_preferences p ON p.song_id=s.id LEFT JOIN song_usage u ON u.song_id=s.id ORDER BY s.id`)
 		if err != nil {
 			return page, err
 		}

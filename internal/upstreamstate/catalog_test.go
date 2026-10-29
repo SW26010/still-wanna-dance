@@ -6,16 +6,16 @@ import (
 	"testing"
 )
 
-func TestCatalogDeliveryReusesOnlyMD5ProbeResponses(t *testing.T) {
+func TestCatalogDeliveryReusesAllProbeResponses(t *testing.T) {
 	for _, mode := range []string{"ordinary", "candidates"} {
 		t.Run(mode, func(t *testing.T) {
 			var m *Monitor
 			var requests int
 			var f *candidateFixture
-			want, wantRequests := 2, 3
+			want, wantRequests := 3, 3
 			if mode == "candidates" {
 				m, f = candidateMonitor(t)
-				want, wantRequests = 4, 6
+				want, wantRequests = 6, 6
 			} else {
 				m = testMonitor(t, func(r *http.Request) (*http.Response, error) { requests++; return fixture(r) })
 			}
@@ -27,7 +27,7 @@ func TestCatalogDeliveryReusesOnlyMD5ProbeResponses(t *testing.T) {
 					t.Errorf("responses=%d, error=%v", len(responses), ctx.Err())
 				}
 				for _, r := range responses {
-					if r.Route == "api" || r.Source != entry(Catalog, r.Route) || len(r.Body) == 0 {
+					if r.Source != entry(Catalog, r.Route) || len(r.Body) == 0 {
 						t.Errorf("bad response: %+v", r)
 					}
 				}
@@ -65,7 +65,7 @@ func TestInvalidProbeDoesNotDeliverCatalog(t *testing.T) {
 	}
 }
 
-func TestPlaybackUdonPrerequisiteStaysInsideMonitor(t *testing.T) {
+func TestPlaybackUdonPrerequisiteDeliveredOnce(t *testing.T) {
 	requests := 0
 	m := testMonitor(t, func(r *http.Request) (*http.Response, error) {
 		if r.URL.Path == "/Api/Songs/list" {
@@ -73,13 +73,19 @@ func TestPlaybackUdonPrerequisiteStaysInsideMonitor(t *testing.T) {
 		}
 		return fixture(r)
 	})
-	m.onCatalog = func(context.Context, []CatalogResponse) { t.Error("Udon delivered to business consumer") }
+	deliveries := 0
+	m.onCatalog = func(_ context.Context, r []CatalogResponse) {
+		deliveries++
+		if len(r) != 1 || r[0].Route != "api" {
+			t.Fatal(r)
+		}
+	}
 	for i := 0; i < 2; i++ {
 		if err := m.CheckSelected(context.Background(), CheckPlayback); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if requests != 1 {
+	if requests != 1 || deliveries != 1 {
 		t.Fatal("monitor did not fetch/reuse Udon sample", requests)
 	}
 }

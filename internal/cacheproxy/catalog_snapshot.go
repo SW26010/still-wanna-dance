@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// CatalogStatus describes the shared Kiva/WannaInfo MD5 catalog. A zero check time
+// CatalogStatus describes the accepted song catalog. A zero check time
 // means this database has never passed validation.
 type CatalogStatus struct {
 	Revision  string    `json:"revision"`
@@ -102,16 +102,16 @@ func (s *Server) readLocalCatalog(ctx context.Context, target *DownloadTarget) (
 	status, err := s.catalogStatus(ctx)
 	result.Status = status
 	if err == nil {
-		query := `SELECT s.song_id,s.name,COALESCE(m.md5,''),c.song_id IS NOT NULL FROM songs s
- LEFT JOIN song_media m ON m.song_id=s.song_id LEFT JOIN catalog_members c ON c.song_id=s.song_id`
+		query := `SELECT s.id,s.name,COALESCE(m.md5,''),c.song_id IS NOT NULL FROM songs s
+ LEFT JOIN song_media m ON m.song_id=s.id LEFT JOIN catalog_members c ON c.song_id=s.id`
 		var args []any
 		if target == nil {
 			query += " WHERE m.md5 IS NOT NULL"
 		} else {
-			query += " WHERE (?<>'' AND s.song_id=?) OR (?<>'' AND m.md5=?)"
+			query += " WHERE (?<>'' AND s.id=?) OR (?<>'' AND m.md5=?)"
 			args = []any{target.SongID, target.SongID, target.Resource, target.Resource}
 		}
-		rows, queryErr := s.usage.db.QueryContext(ctx, query+" ORDER BY s.song_id", args...)
+		rows, queryErr := s.usage.db.QueryContext(ctx, query+" ORDER BY s.id", args...)
 		err = queryErr
 		if err == nil {
 			for rows.Next() {

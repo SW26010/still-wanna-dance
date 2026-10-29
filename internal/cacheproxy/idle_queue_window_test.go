@@ -48,7 +48,7 @@ func idleBoundaryServer(t *testing.T, seconds int, protect time.Duration) (*Serv
 		}
 	})
 	key := videoKey(body)
-	if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,end) VALUES (42,?)`, seconds); err != nil {
+	if _, err := s.usage.db.Exec(`INSERT INTO songs(id,end) VALUES (42,?)`, seconds); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.usage.db.Exec(`INSERT INTO media(md5,byte_size) VALUES (?,?)`, key, len(body)); err != nil {
@@ -91,7 +91,7 @@ func TestIdleQueueBoundaryDoesNotEnterBetweenRefreshes(t *testing.T) {
 					default:
 					}
 					// A real metadata change moves the same source into both windows.
-					if _, err := s.usage.db.Exec(`UPDATE songs SET end=240 WHERE song_id=42`); err != nil {
+					if _, err := s.usage.db.Exec(`UPDATE songs SET end=240 WHERE id=42`); err != nil {
 						t.Fatal(err)
 					}
 					if err := s.UpdatePrefetchQueue([]int64{42}, false); err != nil {
@@ -131,7 +131,7 @@ func TestIdleQueueCompletedResourceWaitsForRealWindowChange(t *testing.T) {
 		if calls[1].Load() != 1 || protectionFor(s, key, 1).active(time.Now()) || local != nil && local.has(1) {
 			t.Fatal("completed resource refilled outside the idle window", calls[1].Load())
 		}
-		if _, err := s.usage.db.Exec(`UPDATE songs SET end=240 WHERE song_id=42`); err != nil {
+		if _, err := s.usage.db.Exec(`UPDATE songs SET end=240 WHERE id=42`); err != nil {
 			t.Fatal(err)
 		}
 		if err := s.UpdatePrefetchQueue([]int64{42}, false); err != nil {

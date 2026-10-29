@@ -1,6 +1,6 @@
 # 证据与大文件存储约定
 
-Git 保存源码、报告、精简统计、纯矢量 SVG 和清单。完整实验轨迹、逐请求记录、图片、压缩文件及构建产物使用版本化附件。必要的二进制测试样本单独登记，当前为固定的 `internal/cacheproxy/testdata/storage-v2.sqlite` 、`storage-v3.sqlite`、`storage-v4.sqlite` 、`storage-v5.sqlite` 、`storage-v6.sqlite` 和 `storage-v7.sqlite`，v2～v6 覆盖旧格式拒绝，v7 覆盖当前格式及全部 14 张表。产品运行所需的 `internal/branding/logo.ico`、`logo-light.ico` 及 EXE 图标资源 `logo_windows_amd64.syso` 另按精确路径、字节数与 SHA256 登记，保证普通离线构建不依赖附件下载。
+Git 保存源码、报告、精简统计、纯矢量 SVG 和清单。完整实验轨迹、逐请求记录、图片、压缩文件及构建产物使用版本化附件。必要的二进制测试样本单独登记，当前为固定的 `internal/cacheproxy/testdata/storage-v2.sqlite` 、`storage-v3.sqlite`、`storage-v4.sqlite` 、`storage-v5.sqlite` 、`storage-v6.sqlite` 、`storage-v7.sqlite` 和 `storage-v8.sqlite`，v2～v7 覆盖旧格式拒绝，v8 覆盖当前格式及全部 14 张表。产品运行所需的 `internal/branding/logo.ico`、`logo-light.ico` 及 EXE 图标资源 `logo_windows_amd64.syso` 另按精确路径、字节数与 SHA256 登记，保证普通离线构建不依赖附件下载。
 
 ## 文件归属
 

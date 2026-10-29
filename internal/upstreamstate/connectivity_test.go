@@ -15,10 +15,10 @@ func TestConnectivityUsesMonitorRoutesCallbacksAndOneByteProbes(t *testing.T) {
 			var calls atomic.Int32
 			var m *Monitor
 			var f *candidateFixture
-			wantRequests, wantCatalogs, wantURLs := 5, 2, 1
+			wantRequests, wantCatalogs, wantURLs := 5, 3, 1
 			if mode == "candidates" {
 				m, f = candidateMonitor(t)
-				wantRequests, wantCatalogs, wantURLs = 10, 4, 2
+				wantRequests, wantCatalogs, wantURLs = 10, 6, 2
 			} else {
 				m = testMonitor(t, func(r *http.Request) (*http.Response, error) {
 					calls.Add(1)
@@ -35,7 +35,7 @@ func TestConnectivityUsesMonitorRoutesCallbacksAndOneByteProbes(t *testing.T) {
 				m.Snapshot() // Callbacks run outside the Monitor lock.
 				catalogs += len(responses)
 				for _, response := range responses {
-					if response.Route == "api" || len(response.Body) == 0 {
+					if len(response.Body) == 0 {
 						t.Error("unexpected business catalog", response.Route)
 					}
 				}

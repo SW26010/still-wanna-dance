@@ -22,7 +22,7 @@ func TestSongPageAndFavoriteLifecycleDoNotDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 	for n := 1; n <= 60; n++ {
-		if _, err := s.usage.db.Exec("INSERT INTO songs(song_id,name) VALUES (?,?) ON CONFLICT DO UPDATE SET name=excluded.name", n, fmt.Sprintf("歌曲 %d", n)); err != nil {
+		if _, err := s.usage.db.Exec("INSERT INTO songs(id,name) VALUES (?,?) ON CONFLICT DO UPDATE SET name=excluded.name", n, fmt.Sprintf("歌曲 %d", n)); err != nil {
 			t.Fatal(err)
 		}
 	}

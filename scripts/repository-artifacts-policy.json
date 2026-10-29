@@ -759,6 +759,13 @@
       "bytes": 1195220,
       "sha256": "8843990c5da074122f33a75ed5c8ff3530681f3be8a076ae9d7f648a1bcfc460",
       "reason": "Production WebUI JavaScript generated from webui/src and bundled dependencies by webui/build.mjs; embedded by ordinary offline Go builds and verified against webui/build-manifest.json. Constrain record details to the viewport with standard Fluent positioning, available-height sizing, and target-covering shifts."
+    },
+    {
+      "path": "internal/cacheproxy/testdata/storage-v8.sqlite",
+      "kind": "binary-fixture",
+      "bytes": 102400,
+      "sha256": "a65f2b161ef3bf407e9a89e24346177d3867e1289e2a797beb7d6fc72b17877e",
+      "reason": "Frozen SQLite v8 fixture for the Udon song schema and shared metadata digest v2; covers all 14 tables, backup, transaction rehearsal, current-format reopening and preservation. Prior v2-v7 fixtures remain unchanged for rejection tests."
     }
   ]
 }

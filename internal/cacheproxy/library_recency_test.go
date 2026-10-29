@@ -20,8 +20,8 @@ func TestLibraryResourcePageBatchOrderingAndDetails(t *testing.T) {
 	}
 	defer u.close()
 	if _, err := u.db.Exec(`UPDATE songs SET name='same';
- UPDATE songs SET name='ÄBC' WHERE song_id='257';
- UPDATE songs SET name='' WHERE song_id='258'`); err != nil {
+ UPDATE songs SET name='ÄBC' WHERE id='257';
+ UPDATE songs SET name='' WHERE id='258'`); err != nil {
 		t.Fatal(err)
 	}
 	for _, i := range []int{1, 256, 257, 270} {

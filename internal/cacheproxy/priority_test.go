@@ -16,7 +16,7 @@ func seedPrioritySong(t *testing.T, s *Server, id, key string) {
 		sql  string
 		args []any
 	}{
-		{`INSERT OR IGNORE INTO songs(song_id) VALUES (?)`, []any{id}},
+		{`INSERT OR IGNORE INTO songs(id) VALUES (?)`, []any{id}},
 		{`INSERT OR IGNORE INTO media(md5,byte_size) VALUES (?,10)`, []any{key}},
 		{`INSERT INTO song_media(song_id,md5) VALUES (?,?) ON CONFLICT(song_id) DO UPDATE SET md5=excluded.md5`, []any{id, key}},
 	} {

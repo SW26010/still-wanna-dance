@@ -243,7 +243,7 @@ DNSPod 和 360 的入口发现只通过具备固定引导 IP 的 DoH 服务进�
 
 直连并发查询 A 与 AAAA，DNS 只维护有效地址池与 TTL，不记录连接胜者。普通建连采用成熟的 Happy Eyeballs 组件，优先尝试 IPv6并自动回退 IPv4；已由 Monitor 测速选定的 IP 则继续固定使用。双栈地址池、连接间隔、代理边界及验证以[上游通道的请求与连接规则](upstream-channels.md#请求与连接)为准。视频请求仍保留原始 HTTP Host，历史 UI 中 HKG 对应查询参数 `node=nya`，不代表资源域名。
 
-全部加密通道失败时明确报错。这保护的是客户端到解析服务的 DNS 链路，仍信任所选解析服务及系统证书信任库；DNS 模块本身不改变视频或 API 请求的 HTTP/HTTPS 协议。曲库业务仅使用 Kiva／WannaInfo 的 MD5 清单，Udon `https://api.udon.dance/Api/Songs/list` 只用于 monitor，不参与本地曲库更新或水位计算；游戏请求的 HTTP→HTTPS 跳转与 HTTPS 透传继续保留；播放地址 API、版本确认、视频下载、测速和 Range 回源统一使用 HTTPS，保留原始 Host、TLS SNI 和证书域名校验；连接或证书失败不降级至 HTTP，也不回退系统 DNS/hosts。此前依赖明文 DNS 劫持产生 fake-IP 的代理路径不再由此模块自动使用。
+全部加密通道失败时明确报错。这保护的是客户端到解析服务的 DNS 链路，仍信任所选解析服务及系统证书信任库；DNS 模块本身不改变视频或 API 请求的 HTTP/HTTPS 协议。曲库以 Udon 为 canonical，Kiva／WannaInfo 同级提供备选清单与映射补缺，共用版本裁决，规则见[曲库设计](song-catalog-design.md)；游戏请求的 HTTP→HTTPS 跳转与 HTTPS 透传继续保留；播放地址 API、版本确认、视频下载、测速和 Range 回源统一使用 HTTPS，保留原始 Host、TLS SNI 和证书域名校验；连接或证书失败不降级至 HTTP，也不回退系统 DNS/hosts。此前依赖明文 DNS 劫持产生 fake-IP 的代理路径不再由此模块自动使用。
 
 2026-09-25 本机逐入口真实解析 `api.udon.dance`：阿里双入口、DNSPod、360、Cloudflare、Google 六项均通过 HTTPS 证书验证与 DNS 报文解析。这不代表其他网络始终可达。可选复测：`SWD_LIVE_DOH=1` 后运行 `go test ./internal/console -run '^TestLiveDoHProviders$' -v -count=1`。
 桌面程序与独立命令行服务共用内置 DoH 建连逻辑。两者的上游 API 查询和视频回源均使用 HTTPS，默认视频回源端口为 443；DNS、连接或证书验证失败不回退系统 DNS/hosts 或明文 HTTP。视频重定向仅在目标域名已由有效 API 响应确认且 MD5/大小一致时跟随，最多五次，HTTP Location 升级为 HTTPS 后访问。

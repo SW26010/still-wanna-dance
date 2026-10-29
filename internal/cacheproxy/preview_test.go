@@ -20,7 +20,7 @@ func seedPreview(t *testing.T, s *Server, body string) PreviewTarget {
 	key := fmt.Sprintf("%x", md5.Sum([]byte(body)))
 	for _, query := range []string{
 		fmt.Sprintf("INSERT INTO media(md5,byte_size) VALUES('%s',%d) ON CONFLICT DO NOTHING", key, len(body)),
-		"INSERT INTO songs(song_id) VALUES(1) ON CONFLICT DO NOTHING",
+		"INSERT INTO songs(id) VALUES(1) ON CONFLICT DO NOTHING",
 		fmt.Sprintf("INSERT INTO song_media(song_id,md5) VALUES(1,'%s') ON CONFLICT(song_id) DO UPDATE SET md5=excluded.md5", key),
 	} {
 		if _, err := s.db.Exec(query); err != nil {
@@ -150,8 +150,8 @@ func TestPreviewRejectsNewVersionWithoutInvalidatingObservation(t *testing.T) {
 		t.Fatal("new version observation was rejected", urls, err)
 	}
 	var mapped string
-	if err := s.db.QueryRow("SELECT md5 FROM song_media WHERE song_id=1").Scan(&mapped); err != nil || mapped != target.Resource {
-		t.Fatal("preview changed mapping", mapped, err)
+	if err := s.db.QueryRow("SELECT md5 FROM song_media WHERE song_id=1").Scan(&mapped); err != nil || mapped != urls[0].MD5 {
+		t.Fatal("fresh preview API evidence did not update mapping", mapped, err)
 	}
 }
 
@@ -277,7 +277,7 @@ func TestPreviewKnownAddressBeyondAPILookupBudget(t *testing.T) {
 	})
 	target := seedPreview(t, s, payload)
 	for id := 2; id <= 12; id++ {
-		if _, err := s.db.Exec("INSERT INTO songs(song_id) VALUES(?)", id); err != nil {
+		if _, err := s.db.Exec("INSERT INTO songs(id) VALUES(?)", id); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := s.db.Exec("INSERT INTO song_media(song_id,md5) VALUES(?,?)", id, target.Resource); err != nil {

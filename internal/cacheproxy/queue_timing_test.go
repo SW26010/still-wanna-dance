@@ -209,10 +209,10 @@ func TestQueueUsesCatalogDurationAndRefreshesUnknownSize(t *testing.T) {
 	if _, err := s.usage.db.Exec(`INSERT INTO media(md5) VALUES (?)`, key); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,start,end) VALUES (1,50,100),(2,5,300),(3,0,NULL)`); err != nil {
+	if _, err := s.usage.db.Exec(`INSERT INTO songs(id,start,end) VALUES (1,50,100),(2,5,300),(3,0,NULL)`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec("UPDATE songs SET name='本地清单名称' WHERE song_id=1"); err != nil {
+	if _, err := s.usage.db.Exec("UPDATE songs SET name='本地清单名称' WHERE id=1"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.usage.db.Exec(`INSERT INTO song_media(song_id,md5) VALUES (1,?),(2,?),(3,?)`, key, key, key); err != nil {

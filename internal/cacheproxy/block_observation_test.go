@@ -301,7 +301,7 @@ func TestBlockObservationOpensDuringHandoffWithCatalogName(t *testing.T) {
 	key := strings.Repeat("a", 32)
 	title, fallback := "星河", "远山"
 	if err := catalog.SyncCatalog(context.Background(), Catalog{Source: "test", Revision: "20261020000000", Songs: []CatalogSong{
-		{ID: 42, MD5: key, Name: &title}, {ID: 84, MD5: key, ComposedTitle: &fallback},
+		{ID: 42, MD5: key, Name: &title}, {ID: 84, MD5: key, Name: &fallback},
 	}}); err != nil {
 		t.Fatal(err)
 	}
@@ -448,7 +448,7 @@ func TestBlockObservationSharedVideoCatalogCacheAndSourceIdentity(t *testing.T) 
 		t.Fatal("initial catalog title missing", b)
 	}
 	// A changed catalog title makes an unwanted repeat lookup observable.
-	if _, err := catalog.usage.db.Exec("UPDATE songs SET name = ? WHERE song_id = 42", "目录新标题"); err != nil {
+	if _, err := catalog.usage.db.Exec("UPDATE songs SET name = ? WHERE id = 42", "目录新标题"); err != nil {
 		t.Fatal(err)
 	}
 	s.demands[second], s.useBlocks[useBlockID{key, 1}] = true, 1

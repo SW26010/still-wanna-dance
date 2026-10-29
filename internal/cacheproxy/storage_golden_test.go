@@ -8,10 +8,10 @@ import (
 	"time"
 )
 
-// This binary was created for schema v7. Never regenerate it to make a changed
+// This binary was created for schema v8. Never regenerate it to make a changed
 // schema pass: add a new version and retain the prior release's fixture.
-func TestStorageV7Golden(t *testing.T) {
-	b, err := os.ReadFile("testdata/storage-v7.sqlite")
+func TestStorageV8Golden(t *testing.T) {
+	b, err := os.ReadFile("testdata/storage-v8.sqlite")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func TestStorageV7Golden(t *testing.T) {
 		if err := db.QueryRow(`SELECT first_body_ns FROM request_events WHERE event_id=1`).Scan(&duration); err != nil {
 			t.Fatal(err)
 		}
-		if err := db.QueryRow(`SELECT artist IS NULL AND flip=0 AND volume=0 FROM songs WHERE song_id=42`).Scan(&absent); err != nil {
+		if err := db.QueryRow(`SELECT artist IS NULL AND flip=0 AND volume=0 FROM songs WHERE id=42`).Scan(&absent); err != nil {
 			t.Fatal(err)
 		}
 		var resource string
@@ -55,7 +55,7 @@ func TestStorageV7Golden(t *testing.T) {
 			t.Fatal(err)
 		}
 		name, volume, flip := "Golden", 0.0, false
-		wantDigest, err := catalogDigestV1([]CatalogSong{{ID: 42, MD5: "0123456789abcdef0123456789abcdef", Name: &name, Volume: &volume, Flip: &flip}})
+		wantDigest, err := catalogDigestV2([]CatalogSong{{ID: 42, MD5: "0123456789abcdef0123456789abcdef", Name: &name, Volume: &volume, Flip: &flip}})
 		if err != nil || digest != wantDigest {
 			t.Fatal("golden digest changed", digest, wantDigest, err)
 		}
@@ -74,7 +74,7 @@ func TestStorageV7Golden(t *testing.T) {
 }
 
 func TestStorageOldGoldensRejectedUnchanged(t *testing.T) {
-	for _, version := range []string{"2", "3", "4", "5", "6"} {
+	for _, version := range []string{"2", "3", "4", "5", "6", "7"} {
 		t.Run(version, func(t *testing.T) {
 			b, err := os.ReadFile("testdata/storage-v" + version + ".sqlite")
 			if err != nil {

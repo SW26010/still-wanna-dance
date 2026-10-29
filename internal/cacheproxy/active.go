@@ -77,7 +77,7 @@ func (s *Server) ActiveDownloads(ctx context.Context) (result ActiveDownloads, e
 		}
 		rows, err := s.usage.db.QueryContext(ctx, `SELECT ids.song_id, COALESCE(substr(s.name,1,300),'') FROM
 		 (SELECT song_id FROM song_media WHERE md5=? UNION SELECT CAST(value AS INTEGER) AS song_id FROM json_each(?)) ids
-		 LEFT JOIN songs s ON s.song_id=ids.song_id ORDER BY ids.song_id LIMIT 21`, task.Resource, string(ids))
+		 LEFT JOIN songs s ON s.id=ids.song_id ORDER BY ids.song_id LIMIT 21`, task.Resource, string(ids))
 		if err != nil {
 			return ActiveDownloads{}, err
 		}

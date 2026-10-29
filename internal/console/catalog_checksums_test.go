@@ -191,12 +191,12 @@ func TestMD5CatalogScanAndFillUseSinglePresenceSnapshot(t *testing.T) {
 	if c.batch.Total != 3 || c.batch.Hits != 2 || c.batch.Missing != 1 || resolves.Load() != 0 || downloads.Load() != 0 {
 		t.Fatalf("batch=%+v resolves=%d downloads=%d", c.batch, resolves.Load(), downloads.Load())
 	}
-	// A fresh catalog adds IDs and updates mappings, retaining IDs omitted by it.
+	// A fresh backup adds IDs but preserves existing mappings and omitted IDs.
 	mu.Lock()
 	mapping = map[int]string{2: b, 4: b}
 	mu.Unlock()
 	waitMD5Batch(t, c, false)
-	if c.batch.Total != 4 || c.batch.Hits != 1 || c.batch.Downloaded != 3 || resolves.Load() != 1 || downloads.Load() != 1 {
+	if c.batch.Total != 4 || c.batch.Hits != 2 || c.batch.Downloaded != 2 || resolves.Load() != 1 || downloads.Load() != 1 {
 		t.Fatalf("batch=%+v resolves=%d downloads=%d", c.batch, resolves.Load(), downloads.Load())
 	}
 	waitMD5Batch(t, c, false)
@@ -208,7 +208,7 @@ func TestMD5CatalogScanAndFillUseSinglePresenceSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitMD5Batch(t, c, false)
-	if downloads.Load() != 2 || c.batch.Downloaded != 3 {
+	if downloads.Load() != 2 || c.batch.Downloaded != 2 {
 		t.Fatal(downloads.Load(), c.batch)
 	}
 }

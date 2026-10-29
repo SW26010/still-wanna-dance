@@ -172,7 +172,7 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 	if _, err := rand.Read(b); err != nil {
 		return nil, err
 	}
-	c := &Console{work: work, configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: "https://x.kiva.moe/api/v2/wanna/songs"}
+	c := &Console{work: work, configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: cacheproxy.UdonCatalogURL}
 	c.previewKey = rand.Text()
 	c.identity = identity
 	c.hosts = newHostsController(hostsPath(), launchHostsSession)

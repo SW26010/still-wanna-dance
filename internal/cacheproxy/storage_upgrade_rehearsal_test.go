@@ -13,11 +13,11 @@ import (
 )
 
 // A test-only next format removes a diagnostic field by rebuilding its table.
-// This exercises the frozen v7 baseline, transaction/version rollback, exact
+// This exercises the frozen v8 baseline, transaction/version rollback, exact
 // fresh-vs-upgraded DDL and downgrade rejection. It is not a shipped migration
 // or a promise to accept development-era v5 databases.
 func TestStorageUpgradeRehearsal(t *testing.T) {
-	golden, err := os.ReadFile("testdata/storage-v7.sqlite")
+	golden, err := os.ReadFile("testdata/storage-v8.sqlite")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestStorageUpgradeRehearsal(t *testing.T) {
 					t.Fatal("did not reach the injected failure", err)
 				}
 				if err := validateStorageDatabase(store.db); err != nil {
-					t.Fatal("rollback left an invalid v7 format", err)
+					t.Fatal("rollback left an invalid v8 format", err)
 				}
 				if got := snapshotBusinessTables(t, store.db); !reflect.DeepEqual(got, before) {
 					t.Fatal("rollback changed business data")
@@ -162,7 +162,7 @@ func TestStorageUpgradeRehearsal(t *testing.T) {
 					db.Close()
 				}
 				if err == nil || !strings.Contains(err.Error(), "较新") {
-					t.Fatal("v7 must reject the next format", err)
+					t.Fatal("v8 must reject the next format", err)
 				}
 			}
 			after, err := os.ReadFile(path)

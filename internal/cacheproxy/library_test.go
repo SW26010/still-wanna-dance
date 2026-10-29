@@ -18,7 +18,7 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 	for id, key := range map[string]string{"1": shared, "2": shared, "3": missing, "4": orphan, "5": hidden} {
 		seedPrioritySong(t, s, id, key)
 	}
-	if _, err := s.usage.db.Exec(`DELETE FROM song_media WHERE song_id IN (4,5); UPDATE songs SET name='Song',artist='Singer',dancer='Dancer',group_name='Group' WHERE song_id=1; INSERT INTO song_preferences VALUES (1,'favorite'); INSERT INTO song_usage VALUES (1,1,8,?)`, time.Now().Add(-24*time.Hour).UnixMilli()); err != nil {
+	if _, err := s.usage.db.Exec(`DELETE FROM song_media WHERE song_id IN (4,5); UPDATE songs SET name='Song',artist='Singer',dancer='Dancer',groupName='Group' WHERE id=1; INSERT INTO song_preferences VALUES (1,'favorite'); INSERT INTO song_usage VALUES (1,1,8,?)`, time.Now().Add(-24*time.Hour).UnixMilli()); err != nil {
 		t.Fatal(err)
 	}
 	writeTestFile(t, cfg.videoFile(shared), "shared")
@@ -87,7 +87,7 @@ func TestLibraryPagesScoresAndExactIdentity(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UnixMilli()
 	for id := int64(9000001); id <= 9000121; id++ {
-		if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,name) VALUES (?,?)`, id, fmt.Sprintf("Song %d", id)); err != nil {
+		if _, err := s.usage.db.Exec(`INSERT INTO songs(id,name) VALUES (?,?)`, id, fmt.Sprintf("Song %d", id)); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := s.usage.db.Exec(`INSERT INTO song_usage VALUES (?,1,?,?)`, id, float64(id-9000000), now); err != nil {
@@ -147,7 +147,7 @@ func TestLibraryDemandScoresPrecedeInitialScoresBeforePagination(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UnixMilli()
 	for id := int64(9000001); id <= 9000051; id++ {
-		if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,name) VALUES (?,'Z real')`, id); err != nil {
+		if _, err := s.usage.db.Exec(`INSERT INTO songs(id,name) VALUES (?,'Z real')`, id); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := s.usage.db.Exec(`INSERT INTO song_usage(song_id,demand_count,demand_score,last_demand_at) VALUES (?,1,?,?)`, id, float64(id-9000001)/1000, now); err != nil {
@@ -155,7 +155,7 @@ func TestLibraryDemandScoresPrecedeInitialScoresBeforePagination(t *testing.T) {
 		}
 	}
 	// Every real score is below the priors, including one real score of zero.
-	if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,name) VALUES (3119,'A initial'),(2167,'B initial'),(9999999,'C unknown')`); err != nil {
+	if _, err := s.usage.db.Exec(`INSERT INTO songs(id,name) VALUES (3119,'A initial'),(2167,'B initial'),(9999999,'C unknown')`); err != nil {
 		t.Fatal(err)
 	}
 	first, err := readLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{Sort: "score"}, now)
@@ -193,7 +193,7 @@ func TestLibrarySortDirectionsAcrossPages(t *testing.T) {
 	for id := 1; id <= 63; id++ {
 		key := fmt.Sprintf("%032x", id)
 		seedPrioritySong(t, s, fmt.Sprint(9000000+id), key)
-		if _, err := s.usage.db.Exec("UPDATE songs SET name=? WHERE song_id=?", fmt.Sprintf("Song %03d", 64-id), 9000000+id); err != nil {
+		if _, err := s.usage.db.Exec("UPDATE songs SET name=? WHERE id=?", fmt.Sprintf("Song %03d", 64-id), 9000000+id); err != nil {
 			t.Fatal(err)
 		}
 		if id <= 61 {

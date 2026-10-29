@@ -94,7 +94,7 @@ func TestMD5ReferenceSnapshotCatalogUpdatesAndMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertSongResource(t, s, "1", a)
-	assertSongResource(t, s, "2", b)
+	assertSongResource(t, s, "2", a)
 	assertSongResource(t, s, "3", b)
 	assertSongResource(t, s, "4", a)
 	snapshot, release, err = s.ReadLocalCatalog(ctx)
@@ -103,7 +103,7 @@ func TestMD5ReferenceSnapshotCatalogUpdatesAndMissing(t *testing.T) {
 	}
 	defer release()
 	r = snapshot.Files
-	if len(r.References) != 4 || len(r.Missing[b]) != 2 {
+	if len(r.References) != 4 || len(r.Missing[b]) != 1 {
 		t.Fatalf("%+v", r)
 	}
 	if err := syncTestCatalog(s, ctx, map[string]string{"5": "invalid"}); err == nil {
@@ -153,7 +153,7 @@ func TestMD5PlaybackImmediatelyReturnsAndMismatchOnlyLogs(t *testing.T) {
 	}
 }
 
-func TestMD5UnknownIDColdLoadRecordsMappingAndCatalogWins(t *testing.T) {
+func TestMD5UnknownIDColdLoadMappingSurvivesCatalog(t *testing.T) {
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
 	s.cfg.ResolvePlayback = func(context.Context, string) (string, error) { return videoURL(payload), nil }
 	assertResponse(t, request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=42", nil), 200, payload)
@@ -164,9 +164,9 @@ func TestMD5UnknownIDColdLoadRecordsMappingAndCatalogWins(t *testing.T) {
 	if err := syncTestCatalog(s, context.Background(), map[string]string{"42": current}); err != nil {
 		t.Fatal(err)
 	}
-	// A missing authoritative file may cold-load the available URL, but not roll back the catalog.
+	// A backup cannot undo an existing playback mapping.
 	assertResponse(t, request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=42", nil), 200, payload)
-	assertSongResource(t, s, "42", current)
+	assertSongResource(t, s, "42", key)
 }
 
 func TestMD5PublishedFilesTrustedAcrossRestart(t *testing.T) {

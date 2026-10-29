@@ -6,13 +6,13 @@ import (
 	"testing"
 )
 
-func TestCatalogDigestV1Golden(t *testing.T) {
+func TestCatalogDigestV2Golden(t *testing.T) {
 	c, err := ParseCatalog([]byte(catalogSample), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, got, err := normalizeCatalog(c)
-	const want = "sha256-v1:e841c13f7d3329eddd414d34618d255a1f512557e9e7161a6b7b6faab71081bb"
+	const want = "sha256-v2:6f54580d842ce5dedcb4ab6fb67b90c29b6dd53a7a47036de97eb83b7f358cf4"
 	if err != nil || got != want {
 		t.Fatalf("digest contract changed: got %q, want %q (%v)", got, want, err)
 	}
@@ -51,14 +51,13 @@ func TestCatalogDigestIgnoresOrderSourceAndUnknownFields(t *testing.T) {
 	}
 }
 
-func TestCatalogDigestDetectsMappingMetadataAndNullChanges(t *testing.T) {
+func TestCatalogDigestDetectsMetadataAndNullChanges(t *testing.T) {
 	c, err := ParseCatalog([]byte(catalogSample), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, baseline, _ := normalizeCatalog(c)
 	for _, mutate := range []func(*CatalogSong){
-		func(s *CatalogSong) { s.MD5 = strings.Repeat("a", 32) },
 		func(s *CatalogSong) { name := "different"; s.Name = &name },
 		func(s *CatalogSong) { s.Flip = nil },
 		func(s *CatalogSong) { s.Tags = json.RawMessage(`["new"]`) },

@@ -187,15 +187,11 @@ func probeCatalogRoute(parent context.Context, client *http.Client, p Policy, ro
 
 func probeCatalogResponse(parent context.Context, client *http.Client, p Policy, route string) (o observation, id int64, result CatalogResponse) {
 	o, id, result = probeCatalogData(parent, client, p, route)
-	// Udon stays monitor-only: do not deliver its body to business consumers.
-	if route != "kiva" && route != "wanna" {
-		result = CatalogResponse{}
-	}
 	return
 }
 
 // The diagnostic can select several IDs from this one validated response.
-// Ordinary monitor delivery still filters Udon in probeCatalogResponse.
+// Business consumers validate full song metadata before accepting it.
 func probeCatalogData(parent context.Context, client *http.Client, p Policy, route string) (o observation, id int64, result CatalogResponse) {
 	o = probeProtocols(parent, client, p.RequestTimeout, entry(Catalog, route), func(ctx context.Context, client *http.Client, target string) observation {
 		var current observation
@@ -288,7 +284,7 @@ func probeCatalogDataAt(parent context.Context, client *http.Client, p Policy, r
 // Reject invalid or conflicting mappings before using the list as a sample.
 func kivaSongSample(body []byte) (int64, string) {
 	c, err := catalogmeta.Parse(body)
-	if err != nil {
+	if err != nil || c.Udon {
 		return 0, c.Revision
 	}
 	return c.Entries[rand.IntN(len(c.Entries))].ID, c.Revision

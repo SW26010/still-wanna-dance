@@ -42,8 +42,7 @@ func (s *Server) ObserveSongURL(ctx context.Context, o SongURL) error {
 	return err
 }
 
-// ObserveSongURL atomically records the URL, resource metadata and a missing
-// song mapping, without downloading media or overwriting existing mappings.
+// ObserveSongURL atomically records fresh API evidence and updates the mapping.
 // Each API/node has one latest observation, so signed URL churn is bounded.
 func (s *Store) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error) {
 	if !s.beginRequest() {
@@ -75,6 +74,15 @@ func (s *Store) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error)
 		return err
 	}
 	defer tx.Rollback()
+	// Order all nodes/APIs for this song together: a late request on another
+	// node must not undo a newer observation. Cache reads never enter this path.
+	var latest sql.NullInt64
+	if err := tx.QueryRowContext(ctx, "SELECT MAX(query_started_at) FROM song_urls WHERE song_id=?", o.SongID).Scan(&latest); err != nil {
+		return err
+	}
+	if latest.Valid && o.QueryStartedAt.UnixNano() <= latest.Int64 {
+		return nil
+	}
 	// Deferred foreign keys validate the observation with its song/resource at
 	// commit, while stale observations still exit without changing either one.
 	result, err := tx.ExecContext(ctx, `INSERT INTO song_urls
@@ -97,20 +105,16 @@ func (s *Store) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error)
 	if _, err := tx.ExecContext(ctx, upsertMediaSQL, v.key, v.size); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, "INSERT INTO songs(song_id) VALUES (?) ON CONFLICT DO NOTHING", o.SongID); err != nil {
+	if _, err := tx.ExecContext(ctx, "INSERT INTO songs(id) VALUES (?) ON CONFLICT DO NOTHING", o.SongID); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, "INSERT INTO song_media(song_id,md5) VALUES (?,?) ON CONFLICT(song_id) DO NOTHING", o.SongID, v.key); err != nil {
+	if _, err := tx.ExecContext(ctx, "INSERT INTO song_media(song_id,md5) VALUES (?,?) ON CONFLICT(song_id) DO UPDATE SET md5=excluded.md5", o.SongID, v.key); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
 		return err
 	}
 	s.changed(false)
-	var mapped string
-	if err := s.usage.db.QueryRowContext(ctx, "SELECT md5 FROM song_media WHERE song_id=?", o.SongID).Scan(&mapped); err == nil && mapped != v.key {
-		s.log.Warn("song_md5_mismatch", "song_id", o.SongID, "mapped_md5", mapped, "url_md5", v.key, "node", o.Node)
-	}
 	return nil
 }
 

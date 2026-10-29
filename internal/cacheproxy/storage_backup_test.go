@@ -11,10 +11,10 @@ import (
 	"testing"
 )
 
-// Exercise offline backup of the existing v7 format, including every business
+// Exercise offline backup of the existing v8 format, including every business
 // table. This is an acceptance fixture, not a new product backup mechanism.
 func TestV7OfflineBackupRestoresAllBusinessData(t *testing.T) {
-	golden, err := os.ReadFile("testdata/storage-v7.sqlite")
+	golden, err := os.ReadFile("testdata/storage-v8.sqlite")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestV7OfflineBackupRestoresAllBusinessData(t *testing.T) {
 			t.Fatal("restored business rows or column values changed")
 		}
 		if err := validateStorageDatabase(store.db); err != nil {
-			t.Fatal("v7 format changed", err)
+			t.Fatal("v8 format changed", err)
 		}
 		var integrity string
 		if err := store.db.QueryRow("PRAGMA integrity_check").Scan(&integrity); err != nil || integrity != "ok" {
@@ -129,7 +129,7 @@ func snapshotBusinessTables(t *testing.T, db *sql.DB) map[string]string {
 	err = rows.Err()
 	rows.Close()
 	if err != nil || len(names) != 14 {
-		t.Fatal("unexpected v7 table set", names, err)
+		t.Fatal("unexpected v8 table set", names, err)
 	}
 	result := make(map[string]string)
 	for _, name := range names {

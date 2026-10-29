@@ -60,8 +60,8 @@ func TestMonitorPlaybackURLPersistsMetadataWithoutDownload(t *testing.T) {
 	defer db.Close()
 	var size sql.NullInt64
 	var mapped string
-	if err := db.QueryRow("SELECT md5,byte_size FROM song_media JOIN media USING(md5) WHERE song_id=1").Scan(&mapped, &size); err != nil || mapped != "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" || size.Valid {
-		t.Fatalf("URL changed catalog mapping or unrelated metadata: %s, %+v, %v", mapped, size, err)
+	if err := db.QueryRow("SELECT md5,byte_size FROM song_media JOIN media USING(md5) WHERE song_id=1").Scan(&mapped, &size); err != nil || mapped != "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" || !size.Valid || size.Int64 != 5678 {
+		t.Fatalf("URL did not update mapping and metadata: %s, %+v, %v", mapped, size, err)
 	}
 	if err := db.QueryRow("SELECT byte_size FROM media WHERE md5='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'").Scan(&size); err != nil || !size.Valid || size.Int64 != 5678 {
 		t.Fatalf("URL metadata not saved: %+v, %v", size, err)

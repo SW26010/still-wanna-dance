@@ -44,7 +44,7 @@ func TestLocalCatalogChecksAndSnapshot(t *testing.T) {
 		t.Fatal(status, err)
 	}
 	checked := status.CheckedAt
-	conflict := testCandidate(c.Revision, CatalogSong{ID: 1, MD5: a})
+	conflict := testCandidate(c.Revision, CatalogSong{ID: 3, MD5: a})
 	if err := s.SyncCatalog(ctx, conflict); err == nil {
 		t.Fatal("accepted conflict")
 	}
@@ -99,15 +99,15 @@ func TestCatalogCheckStatusSurvivesRestart(t *testing.T) {
 	}
 }
 
-func TestCatalogCheckMigrationAndRollback(t *testing.T) {
+func TestCatalogCheckAndRollback(t *testing.T) {
 	s, _ := setup(t, nil)
 	ctx := context.Background()
 	c := testCandidate("20261001000000", CatalogSong{ID: 1, MD5: strings.Repeat("a", 32)})
 	if err := s.SyncCatalog(ctx, c); err != nil {
 		t.Fatal(err)
 	}
-	// Simulate an existing database that predates check tracking.
-	for _, query := range []string{"DELETE FROM catalog_checks", "DELETE FROM catalog_members"} {
+	// Clearing diagnostic history does not alter accepted membership.
+	for _, query := range []string{"DELETE FROM catalog_checks"} {
 		if _, err := s.usage.db.Exec(query); err != nil {
 			t.Fatal(err)
 		}

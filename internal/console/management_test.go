@@ -16,6 +16,7 @@ func TestManagementAdmissionThroughRouter(t *testing.T) {
 		{"POST", "/api/library/preview"}, {"POST", "/api/batch/cancel"},
 		{"POST", "/api/storage/create"}, {"POST", "/api/vrcx/preview"},
 		{"POST", "/api/proxy/import"}, {"POST", "/api/settings"},
+		{"POST", "/api/import/dismiss-suggestion"},
 		{"POST", "/api/exit"}, {"POST", "/api/restart"},
 		{"POST", "/api/terms/accept"}, {"POST", "/api/terms/leave"}, {"POST", "/api/terms/return"},
 	} {
@@ -60,6 +61,7 @@ func TestManagementRoutingPreservesMethodsAndPublicReads(t *testing.T) {
 		{"GET", "/api/requests", true, 200},
 		{"POST", "/api/library/preview", true, 409},
 		{"POST", "/api/batch/cancel", true, 200},
+		{"GET", "/api/import/dismiss-suggestion", true, 404},
 		{"POST", "/api/library", true, 405},
 		{"POST", "/api/library", false, 403},
 		{"GET", "/api/cache/delete", true, 405},

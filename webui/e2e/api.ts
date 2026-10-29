@@ -8,7 +8,7 @@ export async function choosePath(page: Page, label: string, path: string) {
 }
 export function statusFixture(): Status {
   const settings: Settings = {theme:'system',logLevel:'info',retainFavorites:true,databasePath:'C:\\UI-Test\\storage\\storage.sqlite',videoDir:'D:\\Videos',maxCacheBytes:40*1073741824,videoStorageMode:'unlimited',aggressiveCacheReclamation:'auto',requestRetentionMode:'unlimited',requestRetentionDays:0,throughputIntervalMinutes:20,prepareAheadSeconds:500,downloadSoftLimit:16,downloadGrowIntervalMS:250,localProtectionGraceSeconds:300,upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',autoAccelerate:false,autoOpenWebUI:true,queueWithGateway:true,restoreHostsOnExit:true,manualLogDir:false,logDir:'C:\\UI-Test\\logs'};
-  return {vrcxImportAvailable:true,running:false,settings:{...settings},activeSettings:{...settings},restartRequired:false,hosts:{ready:false,message:'尚未接入'},portOK:true,httpsPortOK:true,batch:{},lastBatch:{},import:{},queue:{},defaultLogDir:settings.logDir,defaultDatabasePath:settings.databasePath,defaultVideoDir:settings.videoDir,portableDir:'C:\\UI-Test',activation:{},upstreamMonitor:{results:[]}};
+  return {vrcxImportAvailable:true,videoImportSuggested:false,running:false,settings:{...settings},activeSettings:{...settings},restartRequired:false,hosts:{ready:false,message:'尚未接入'},portOK:true,httpsPortOK:true,batch:{},lastBatch:{},import:{},queue:{},defaultLogDir:settings.logDir,defaultDatabasePath:settings.databasePath,defaultVideoDir:settings.videoDir,portableDir:'C:\\UI-Test',activation:{},upstreamMonitor:{results:[]}};
 }
 export async function mockAPI(page: Page) {
   await page.routeWebSocket('**/api/lifecycle',socket=>socket.send(JSON.stringify({action:'running'})));
@@ -27,6 +27,7 @@ export async function mockAPI(page: Page) {
     if (req.headers()['x-swd-token'] !== 'browser-fixture-token') return route.fulfill({status:403,body:'invalid token'});
     let data: unknown = {ok:true};
     if (path==='status') data = state;
+    if(path==='import/dismiss-suggestion')state.videoImportSuggested=false;
     if(path==='exit'||path==='restart')data={ok:true,action:path};
     if(path==='storage/check')data={confirmVideoPolicy:false};
     if(path==='storage/create-database')data={path:body.databasePath};

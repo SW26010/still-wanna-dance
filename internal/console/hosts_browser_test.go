@@ -55,3 +55,42 @@ func TestHostsPolicyBrowser(t *testing.T) {
 		}
 	}
 }
+
+func TestVideoImportSuggestionBrowser(t *testing.T) {
+	evidence := os.Getenv("SWD_VIDEO_IMPORT_BROWSER_EVIDENCE")
+	if evidence == "" {
+		t.Skip("set SWD_VIDEO_IMPORT_BROWSER_EVIDENCE for first-run import suggestion browser integration")
+	}
+	c := firstRunImportConsole(t)
+	hosts := c.hosts
+	before := readHostsFixture(t, hosts.path)
+	for _, phase := range []string{"first-run", "reopened"} {
+		ui := httptest.NewUnstartedServer(c)
+		c.address = ui.Listener.Addr().String()
+		ui.Start()
+		ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+		cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "video-import-suggestion-live.mjs"), ui.URL, phase, evidence)
+		output, err := cmd.CombinedOutput()
+		cancel()
+		ui.Close()
+		if err != nil {
+			t.Fatalf("browser %s: %v\n%s", phase, err, output)
+		}
+		t.Log(string(output))
+		if videoImportSuggested(t, c) || c.service != nil || c.importStatus.Running || readHostsFixture(t, hosts.path) != before {
+			t.Fatal("suggestion was not consumed or navigation started work/changed hosts")
+		}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if phase == "first-run" {
+			c, err = newConsole(c.configPath, c.address, newFixtureDNS(), testWorkDirectory(t))
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { c.Close() })
+			c.hosts = hosts
+			c.videoAddress, c.httpsAddress, c.checksumURL = "127.0.0.1:0", "127.0.0.1:0", ""
+		}
+	}
+}

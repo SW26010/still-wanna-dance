@@ -77,6 +77,7 @@ type Console struct {
 	vrcxPreview            *vrcxPreview
 	vrcxNotify             bool                        // startup Toast only; set during automatic library creation
 	vrcxImportDismissed    bool                        // protected by mu; persisted user choice outside editable Settings
+	videoImportSuggestion  bool                        // protected by mu; only the first run of a configuration, until acknowledged
 	proxyImports           map[string]proxyImportDraft // protected by mu
 	identity               desktop.Identity
 	lifecycle              *applicationLifecycle
@@ -189,6 +190,7 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 	if err != nil {
 		return nil, err
 	}
+	c.videoImportSuggestion = data == nil
 	if data != nil {
 		if err := json.Unmarshal(data, &c.settings); err != nil {
 			return nil, fmt.Errorf("读取程序配置：%w", err)
@@ -781,6 +783,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			CDNError              string                  `json:"cdnError"`
 			StorageError          string                  `json:"storageError,omitempty"`
 			VRCXImportAvailable   bool                    `json:"vrcxImportAvailable"`
+			VideoImportSuggested  bool                    `json:"videoImportSuggested"`
 			ActionErrors          map[string]string       `json:"actionErrors"`
 			Batch                 Batch                   `json:"batch"`
 			Import                ImportStatus            `json:"import"`
@@ -801,8 +804,9 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			UpstreamMonitor       upstreamstate.Status    `json:"upstreamMonitor"`
 		}{
 			Running: running, Settings: c.savedSettings, ActiveSettings: c.settings,
-			RestartRequired: c.savedSettings != c.settings,
-			PortOK:          running, HTTPSPortOK: running, CDNError: c.cdnError,
+			RestartRequired:      c.savedSettings != c.settings,
+			VideoImportSuggested: c.videoImportSuggestion,
+			PortOK:               running, HTTPSPortOK: running, CDNError: c.cdnError,
 			Import: c.importStatus, Batch: c.batch, Queue: c.queue, LastBatch: c.lastBatch,
 			SOCKS5PasswordSet:     c.savedSettings.SOCKS5Password != "",
 			SOCKS5CredentialError: c.savedSettings.proxySecretError,
@@ -837,6 +841,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		c.mu.Unlock()
 		result.Hosts = c.hosts.status()
+		result.VideoImportSuggested = result.VideoImportSuggested && result.Hosts.Ready && !result.Hosts.Managed && !result.Hosts.Conflict
 		if store, err := c.businessStore(); err != nil {
 			result.StorageError = applog.SafeError(err).Error()
 		} else if !vrcxDismissed {
@@ -919,6 +924,12 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 	}
 	var err error
 	switch r.URL.Path {
+	case "/api/import/dismiss-suggestion":
+		c.mu.Lock()
+		c.videoImportSuggestion = false
+		c.mu.Unlock()
+		writeJSON(w, map[string]bool{"ok": true})
+		return
 	case "/api/proxy/import/discard":
 		var input struct {
 			ID string `json:"id"`

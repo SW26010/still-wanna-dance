@@ -1145,3 +1145,22 @@ ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter�
 - 内嵌前端资源校验与 Go 1.27.3 桌面构建通过，产物为 `artifacts/startup-port-fix-20261028/SWD.exe`。第一次构建因沙箱 PATH 中 Go 1.27.1 不满足项目要求而失败；仅为本次命令显式选择已安装的 Go 1.27.3 后成功，未修改系统环境或放宽版本要求。
 
 证据位于忽略目录 `artifacts/startup-port-fix-20261028/`：`before-fix.log`、`targeted.log`、`console-desktop.log`、`race.log`、`browser.log`、`browser-result.json`、`startup-pending.png`、`startup-running.png` 与构建日志；修复前的三次确定性复现和红色截图保留在 `artifacts/startup-port-diagnosis-20261028/`。临时诊断入口只存在于忽略目录的测试 overlay，产品代码未加入探针。未启动真实 SWD 或 VRC、修改系统 hosts、替换用户 EXE、提交或推送。
+
+## 2026-10-29 首次运行的视频导入建议
+
+首次创建配置的运行期间，只有 `api.udon.dance` 已指向本机、没有 SWD 标记且无冲突，才在条款确认后显示中性的本地视频导入建议。「前往导入」定位现有模块，「不再提示」关闭建议；处理后跨刷新和标签页保持关闭，后续启动不再显示，不增加持久化字段。完整交互规则见[内容约定](../webui-content.md#内容与交互)。
+
+- Go 定向回归通过：新配置／已有配置、未处理及已关闭后的重新打开，用户／其他工具／SWD 标记、其他域名、注释、IPv6、混合冲突及读取失败，以及操作鉴权与方法限制。状态读取和关闭提示不改配置或 hosts、不启动视频引擎或导入。
+- Edge 首轮提示、hosts 授权及条款回归 **18/18 通过**；补充已在导入锚点时的焦点处理、标准消息间距后，提示专项 **6/6 通过**。浅色 1280px 与深色 390px 截图已检查，无横向溢出；关闭失败保留提示并可重试。
+- `SWD_VIDEO_IMPORT_BROWSER_EVIDENCE` 启用的真实 Console／SQLite／Edge 联调通过，使用临时 hosts 夹具，不模拟业务 API。检查首次显示、跳转、刷新、新标签页、关闭后重新打开配置，源目录仍为空，未触发选择目录、加速或导入，hosts 字节不变。前端构建、`check`、Console `go vet` 和差异格式检查通过。
+- 过程失败保留：首轮 Go 用例误删已由子测试清理的临时文件，改为在父测试准备读取失败夹具；首次联调脚本用 `browser.newPage()` 的独占上下文创建第二标签页，被 Playwright 拒绝，改为显式共享 `browser.newContext()` 后通过。均为验证代码问题，未据此放宽产品行为。
+
+证据位于忽略目录 `artifacts/video-import-suggestion/`：`backend.log`、`backend-final.log` 保留失败，`backend-verified.log` 为最终后端及真实浏览器结果，`browser.log`、`browser-final.log` 为浏览器回归，`notice-*.png` 和 `live/` 为最终截图及联调回执。测试均经隔离临时目录入口；未修改系统 hosts、使用个人视频、启动 VRC、提交或推送。此提示无必须依赖 VRC 的剩余验证项。
+
+### 同日修订：改为右下角通知
+
+按用户反馈，正文 MessageBar 已替换为共用通知组件的右下角 Toast，撤回正文间距改动。保留「前往导入」「不再提示」，右上角关闭按钮使用相同确认机制；提示等待用户处理，不自动超时。共用组件支持在原 Toast 内更新等待状态和错误，不在状态刷新时重新创建通知或丢失操作焦点。前述截图和 18／6 项结果对应修订前的正文提示，当前呈现以本节和[内容约定](../webui-content.md#内容与交互)为准。
+
+Edge 通知、条款、页面反馈、VRCX 及导入提示回归 **61/61 通过**，包含右下角位置、正文无占位、两种关闭入口、错误重试及跳转；1280px 浅色与 390px 深色截图已检查。真实 Console／SQLite／Edge 的刷新、新标签页及重新打开联调再次通过，前端构建、`check` 与差异格式检查通过。
+
+本轮证据位于 `artifacts/video-import-toast/`。`browser.log`、`browser-final.log` 保留原测试端口被占用的失败；只读核对发现现有服务器资源哈希不同，未复用或停止该进程，使用源码夹具的临时副本和独立端口完成测试，结果为 `browser-isolated.log`。`live.log` 保留将可访问名称误当作 `aria-label` 属性的定位失败，改为按角色和可访问名称定位后，`live-final.log` 通过。最终截图为 `notice-1280.png`、`notice-390.png`，真实服务回执在 `live/`；hosts 规则和后端逻辑未改，未修改系统 hosts、提交或推送。

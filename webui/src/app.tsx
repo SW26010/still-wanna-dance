@@ -10,7 +10,7 @@ import { TermsConsent } from './terms-consent';
 import { RequestTimeline } from './request-timeline';
 import { bootstrap } from './bootstrap';
 import { exitConnectionMessage } from './types';
-import { HostsAuthorizationNotice } from './hosts-notice';
+import { HostsAuthorizationNotice, VideoImportSuggestion } from './hosts-notice';
 import { VRCXProvider } from './vrcx';
 
 const pages = {home:'加速',timeline:'历史',library:'曲库',network:'网络',settings:'设置',about:'关于'};
@@ -72,6 +72,7 @@ export function App() {
   const feedback=<div className="app-feedback">
     <Notification message={model.message} error={model.messageError} persistent={model.busy}/>
     <HostsAuthorizationNotice authorizationID={s?.hosts.authorizationID}/>
+    {accepted&&<VideoImportSuggestion/>}
     {!s&&accepted&&!documentPage&&!model.status.error&&<Spinner label="正在读取程序状态…"/>}
   </div>;
   return <ConsoleContext.Provider value={model}><div className="shell">

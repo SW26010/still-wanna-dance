@@ -14,7 +14,7 @@
 
 三个入口均观察到 Cloudflare 前置服务，但不代表同一个 Worker 或后端。Kiva 的 1101/1102 响应明确涉及 Worker；仅凭 WannaInfo 的 `server: cloudflare` 与 CF-Ray 不能确认其业务也由 Worker 执行。Kiva/WannaInfo 的地址族差异明显；Udon 的结果则同时随协议和观测时段改变。
 
-清单字段、版本和业务用途另见[清单来源核对](../research/catalog-sources-20261029.md)。本文记录连接证据，没有实施协议降级、禁用 IPv6、重试策略或曲库来源变更。
+清单字段、版本和业务用途另见[清单来源核对](../research/catalog-sources-20261029.md)，后续曲库改造目标见[已确认决策](../research/udon-catalog-decision-draft-20261029.md)。本文记录连接证据，没有实施协议降级、禁用 IPv6、重试策略或曲库来源变更。
 
 ## 观察时间线与统计口径
 

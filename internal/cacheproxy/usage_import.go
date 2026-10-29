@@ -59,18 +59,6 @@ func (h *SongUsageImport) Observe(id, at int64) {
 	h.LastAt = max(h.LastAt, at)
 }
 
-// ReadSongUsageCount never creates a database or starts a storage engine.
-func ReadSongUsageCount(ctx context.Context, databasePath string) (int, error) {
-	db, err := readDatabaseFile(databasePath)
-	if err != nil {
-		return 0, err
-	}
-	defer db.Close()
-	var count int
-	err = db.QueryRowContext(ctx, "SELECT count(*) FROM song_usage").Scan(&count)
-	return count, err
-}
-
 func (s *Store) SongUsageCount(ctx context.Context) (resultValue int, resultErr error) {
 	if !s.beginRequest() {
 		return 0, context.Canceled
@@ -117,20 +105,6 @@ func (s *Store) ImportSongUsage(ctx context.Context, h *SongUsageImport, overwri
 		return ctx.Err()
 	}
 	return s.storageError(replaceSongUsage(ctx, u.db, h, overwrite))
-}
-
-// ImportSongUsage writes an existing database without starting an engine,
-// creating directories, pruning observations, or deriving any video location.
-func ImportSongUsage(ctx context.Context, databasePath string, h *SongUsageImport, overwrite bool) (resultErr error) {
-	if h == nil || h.Events == 0 || len(h.rows) == 0 {
-		return errors.New("没有有效历史需求，原统计保持不变")
-	}
-	store, err := OpenStore(databasePath)
-	if err != nil {
-		return err
-	}
-	defer func() { resultErr = errors.Join(resultErr, store.Close()) }()
-	return store.ImportSongUsage(ctx, h, overwrite)
 }
 
 func replaceSongUsage(ctx context.Context, db *sql.DB, h *SongUsageImport, overwrite bool) error {

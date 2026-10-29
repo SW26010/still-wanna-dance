@@ -95,20 +95,6 @@ func (s *Store) SetSongPolicy(ctx context.Context, id int64, policy SongPolicy) 
 	return nil
 }
 
-// SetSongPolicyOffline writes an idle library without starting retention. In
-// particular, favoriting an existing video must precede startup budget cleanup.
-func SetSongPolicyOffline(ctx context.Context, databasePath string, id int64, policy SongPolicy) (resultErr error) {
-	if id <= 0 || !policy.Valid() {
-		return errors.New("invalid song preference")
-	}
-	store, err := OpenStore(databasePath)
-	if err != nil {
-		return err
-	}
-	defer func() { resultErr = errors.Join(resultErr, store.Close()) }()
-	return store.SetSongPolicy(ctx, id, policy)
-}
-
 func writeSongPolicy(ctx context.Context, db *sql.DB, id int64, policy SongPolicy) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {

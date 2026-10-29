@@ -58,33 +58,27 @@ func TestHistoricalUsageMatchesNativeDemand(t *testing.T) {
 func TestHistoricalUsageReplacementRollbackAndRestart(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
-	created, err := CreateStore(storagePath(root))
+	store, err := CreateStore(storagePath(root))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := created.Close(); err != nil {
-		t.Fatal(err)
-	}
+	defer store.Close()
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
 	old := historyAt(99, start)
-	if err := ImportSongUsage(ctx, storagePath(root), old, false); err != nil {
+	if err := store.ImportSongUsage(ctx, old, false); err != nil {
 		t.Fatal(err)
 	}
-	db, err := openFixtureDatabase(storagePath(root), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db := store.db
 	if _, err = db.Exec(`INSERT INTO media(md5) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
 		INSERT INTO song_media VALUES (99,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
 		CREATE TRIGGER fail_import BEFORE INSERT ON song_usage WHEN new.id=1 BEGIN SELECT RAISE(ABORT,'disk full'); END`); err != nil {
 		t.Fatal(err)
 	}
 	h := historyAt(1, start)
-	if err = replaceSongUsage(ctx, db, h, false); !errors.Is(err, ErrSongUsageExists) {
+	if err = store.ImportSongUsage(ctx, h, false); !errors.Is(err, ErrSongUsageExists) {
 		t.Fatal(err)
 	}
-	if err = replaceSongUsage(ctx, db, h, true); err == nil {
+	if err = store.ImportSongUsage(ctx, h, true); err == nil {
 		t.Fatal("failure not propagated")
 	}
 	var count int
@@ -104,7 +98,7 @@ func TestHistoricalUsageReplacementRollbackAndRestart(t *testing.T) {
 	if err = os.WriteFile(video, []byte("unchanged-media"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err = ImportSongUsage(ctx, storagePath(root), h, true); err != nil {
+	if err = store.ImportSongUsage(ctx, h, true); err != nil {
 		t.Fatal(err)
 	}
 	if err = db.QueryRow("SELECT count(*) FROM song_usage WHERE song_id=99").Scan(&count); err != nil || count != 0 {
@@ -119,15 +113,18 @@ func TestHistoricalUsageReplacementRollbackAndRestart(t *testing.T) {
 	if data, err := os.ReadFile(video); err != nil || string(data) != "unchanged-media" {
 		t.Fatal("video modified", err)
 	}
-	if err = ImportSongUsage(ctx, storagePath(root), &SongUsageImport{}, true); err == nil {
+	if err = store.ImportSongUsage(ctx, &SongUsageImport{}, true); err == nil {
 		t.Fatal("empty replacement allowed")
 	}
-	db.Close()
-	db, err = openFixtureDatabase(storagePath(root), false)
+	if err = store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	store, err = OpenStore(storagePath(root))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer store.Close()
+	db = store.db
 	var score float64
 	var at int64
 	if err = db.QueryRow("SELECT demand_count,demand_score,last_demand_at FROM song_usage WHERE song_id=1").Scan(&count, &score, &at); err != nil || count != 1 || score != 1 || at != start {
@@ -204,7 +201,7 @@ func TestHistoricalUsageResourceRankingAndEviction(t *testing.T) {
 	expectRetained(t, cold, false)
 }
 
-func TestHistoricalUsageIdleLockAndEmptyRollback(t *testing.T) {
+func TestHistoricalUsageEmptyRollback(t *testing.T) {
 	root := t.TempDir()
 	ctx := context.Background()
 	db, err := openFixtureDatabase(storagePath(root), true)
@@ -222,14 +219,6 @@ func TestHistoricalUsageIdleLockAndEmptyRollback(t *testing.T) {
 	db.QueryRow("SELECT count(*) FROM songs").Scan(&count)
 	if count != 0 {
 		t.Fatal("partial empty import")
-	}
-	unlock, err := lockDirectory(databaseLeasePath(storagePath(root)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer unlock()
-	if err = ImportSongUsage(ctx, storagePath(root), historyAt(1, time.Now().UnixMilli()), true); err == nil {
-		t.Fatal("database lock bypassed")
 	}
 }
 

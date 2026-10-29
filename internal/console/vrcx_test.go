@@ -57,7 +57,7 @@ func TestVRCXBrowser(t *testing.T) {
 			} else {
 				t.Log(string(output))
 			}
-			if count, err := cacheproxy.ReadSongUsageCount(context.Background(), libraryPaths(c.settings).DatabasePath); err != nil || count != 2 {
+			if count, err := c.store.SongUsageCount(t.Context()); err != nil || count != 2 {
 				t.Fatal(count, err)
 			}
 			if c.service != nil {
@@ -336,7 +336,7 @@ func TestVRCXPreviewApplyReplacementAndRetry(t *testing.T) {
 	if c.service != nil {
 		t.Fatal("idle import started engine")
 	}
-	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), libraryPaths(c.settings).DatabasePath); err != nil || count != 2 {
+	if count, err := c.store.SongUsageCount(t.Context()); err != nil || count != 2 {
 		t.Fatal(count, err)
 	}
 	// Same-token retries acknowledge completion; a later demand is not removed.
@@ -352,7 +352,7 @@ func TestVRCXPreviewApplyReplacementAndRetry(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), libraryPaths(c.settings).DatabasePath); err != nil || count != 3 {
+	if count, err := c.store.SongUsageCount(t.Context()); err != nil || count != 3 {
 		t.Fatal("retry replaced data", count, err)
 	}
 	p = previewVRCX(t, c, source, "")
@@ -397,7 +397,7 @@ func TestVRCXNewDemandAfterPreviewRequiresNewAuthorization(t *testing.T) {
 			t.Fatal("new demand lost without new preview", w.Code, w.Body.String())
 		}
 	}
-	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), libraryPaths(c.settings).DatabasePath); err != nil || count != 1 {
+	if count, err := c.store.SongUsageCount(t.Context()); err != nil || count != 1 {
 		t.Fatal(count, err)
 	}
 }
@@ -557,7 +557,7 @@ func TestVRCXDiscardExpiryAndEmptySource(t *testing.T) {
 	if w := vrcxRequest(t, c, "apply", map[string]string{"id": p.ID}); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), fixtureLibraryPaths(root).DatabasePath); err != nil || count != 2 {
+	if count, err := c.store.SongUsageCount(t.Context()); err != nil || count != 2 {
 		t.Fatal(count, err)
 	}
 	if _, err := c.businessStore(); err != nil {
@@ -578,7 +578,7 @@ func TestVRCXDiscardExpiryAndEmptySource(t *testing.T) {
 	if w := vrcxRequest(t, c, "apply", map[string]any{"id": "", "overwrite": true}); w.Code != 409 {
 		t.Fatal("empty result usable")
 	}
-	if count, _ := cacheproxy.ReadSongUsageCount(context.Background(), fixtureLibraryPaths(root).DatabasePath); count != 2 {
+	if count, _ := c.store.SongUsageCount(t.Context()); count != 2 {
 		t.Fatal("empty result cleared statistics")
 	}
 }
@@ -652,7 +652,7 @@ func TestVRCXLocalReadOnlyIntegration(t *testing.T) {
 	if w := vrcxRequest(t, c, "apply", map[string]string{"id": p.ID}); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	if count, err := cacheproxy.ReadSongUsageCount(context.Background(), libraryPaths(c.settings).DatabasePath); err != nil || count != p.Songs {
+	if count, err := c.store.SongUsageCount(t.Context()); err != nil || count != p.Songs {
 		t.Fatal(count, err)
 	}
 	cfg := cacheproxy.DefaultConfig()

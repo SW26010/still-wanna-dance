@@ -262,6 +262,23 @@ func TestStoreRejectsHardLinkAddedWhileWriterOpen(t *testing.T) {
 }
 
 func TestStoreOpenRejectsUnsupportedV6ChangesWithoutWriting(t *testing.T) {
+	t.Run("v2 fixture", func(t *testing.T) {
+		path := storagePath(t.TempDir())
+		original, err := os.ReadFile(filepath.Join("testdata", "storage-v2.sqlite"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, original, 0600); err != nil {
+			t.Fatal(err)
+		}
+		if store, err := OpenStore(path); err == nil {
+			store.Close()
+			t.Fatal("opened schema v2")
+		}
+		if after, err := os.ReadFile(path); err != nil || !bytes.Equal(original, after) {
+			t.Fatal("open changed old database", err)
+		}
+	})
 	for _, mutation := range []string{"PRAGMA user_version=4", "PRAGMA user_version=999", "DROP TABLE catalog_checks"} {
 		t.Run(mutation, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "library.sqlite")
